@@ -751,7 +751,6 @@ static void s_vMgrRxAssocResponse(struct vnt_private *pDevice,
 	    || (sFrame.pwStatus == NULL)
 	    || (sFrame.pwAid == NULL)
 	    || (sFrame.pSuppRates == NULL)) {
-		DBG_PORT80(0xCC);
 		return;
         }
 
@@ -3750,7 +3749,6 @@ static void s_vMgrRxProbeResponse(struct vnt_private *pDevice,
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe resp:Fail addr:[%p]\n",
 		pRxPacket->p80211Header);
-	DBG_PORT80(0xCC);
 	return;
     }
 

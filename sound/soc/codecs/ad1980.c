@@ -96,6 +96,44 @@ SOC_ENUM("Capture Source", ad1980_cap_src),
 SOC_SINGLE("Mic Boost Switch", AC97_MIC, 6, 1, 0),
 };
 
+static const struct snd_soc_dapm_widget ad1980_dapm_widgets[] = {
+SND_SOC_DAPM_INPUT("MIC1"),
+SND_SOC_DAPM_INPUT("MIC2"),
+SND_SOC_DAPM_INPUT("CD_L"),
+SND_SOC_DAPM_INPUT("CD_R"),
+SND_SOC_DAPM_INPUT("AUX_L"),
+SND_SOC_DAPM_INPUT("AUX_R"),
+SND_SOC_DAPM_INPUT("LINE_IN_L"),
+SND_SOC_DAPM_INPUT("LINE_IN_R"),
+
+SND_SOC_DAPM_OUTPUT("LFE_OUT"),
+SND_SOC_DAPM_OUTPUT("CENTER_OUT"),
+SND_SOC_DAPM_OUTPUT("LINE_OUT_L"),
+SND_SOC_DAPM_OUTPUT("LINE_OUT_R"),
+SND_SOC_DAPM_OUTPUT("MONO_OUT"),
+SND_SOC_DAPM_OUTPUT("HP_OUT_L"),
+SND_SOC_DAPM_OUTPUT("HP_OUT_R"),
+};
+
+static const struct snd_soc_dapm_route ad1980_dapm_routes[] = {
+	{ "Capture", NULL, "MIC1" },
+	{ "Capture", NULL, "MIC2" },
+	{ "Capture", NULL, "CD_L" },
+	{ "Capture", NULL, "CD_R" },
+	{ "Capture", NULL, "AUX_L" },
+	{ "Capture", NULL, "AUX_R" },
+	{ "Capture", NULL, "LINE_IN_L" },
+	{ "Capture", NULL, "LINE_IN_R" },
+
+	{ "LFE_OUT", NULL, "Playback" },
+	{ "CENTER_OUT", NULL, "Playback" },
+	{ "LINE_OUT_L", NULL, "Playback" },
+	{ "LINE_OUT_R", NULL, "Playback" },
+	{ "MONO_OUT", NULL, "Playback" },
+	{ "HP_OUT_L", NULL, "Playback" },
+	{ "HP_OUT_R", NULL, "Playback" },
+};
+
 static unsigned int ac97_read(struct snd_soc_codec *codec,
 	unsigned int reg)
 {
@@ -253,6 +291,11 @@ static struct snd_soc_codec_driver soc_codec_dev_ad1980 = {
 	.reg_cache_step = 2,
 	.write = ac97_write,
 	.read = ac97_read,
+
+	.dapm_widgets = ad1980_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(ad1980_dapm_widgets),
+	.dapm_routes = ad1980_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(ad1980_dapm_routes),
 };
 
 static int ad1980_probe(struct platform_device *pdev)

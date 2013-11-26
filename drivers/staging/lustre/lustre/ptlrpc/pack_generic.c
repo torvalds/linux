@@ -115,7 +115,7 @@ int lustre_msg_check_version(struct lustre_msg *msg, __u32 version)
 EXPORT_SYMBOL(lustre_msg_check_version);
 
 /* early reply size */
-int lustre_msg_early_size()
+int lustre_msg_early_size(void)
 {
 	static int size = 0;
 	if (!size) {
@@ -329,7 +329,6 @@ int lustre_pack_reply_v2(struct ptlrpc_request *req, int count,
 {
 	struct ptlrpc_reply_state *rs;
 	int			msg_len, rc;
-	ENTRY;
 
 	LASSERT(req->rq_reply_state == NULL);
 
@@ -342,7 +341,7 @@ int lustre_pack_reply_v2(struct ptlrpc_request *req, int count,
 	msg_len = lustre_msg_size_v2(count, lens);
 	rc = sptlrpc_svc_alloc_rs(req, msg_len);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	rs = req->rq_reply_state;
 	atomic_set(&rs->rs_refcount, 1);    /* 1 ref for rq_reply_state */
@@ -363,7 +362,7 @@ int lustre_pack_reply_v2(struct ptlrpc_request *req, int count,
 
 	PTLRPC_RS_DEBUG_LRU_ADD(rs);
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(lustre_pack_reply_v2);
 
@@ -574,7 +573,6 @@ static int lustre_unpack_msg_v2(struct lustre_msg_v2 *m, int len)
 int __lustre_unpack_msg(struct lustre_msg *m, int len)
 {
 	int required_len, rc;
-	ENTRY;
 
 	/* We can provide a slightly better error log, if we check the
 	 * message magic and version first.  In the future, struct
@@ -588,12 +586,12 @@ int __lustre_unpack_msg(struct lustre_msg *m, int len)
 		/* can't even look inside the message */
 		CERROR("message length %d too small for magic/version check\n",
 		       len);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	rc = lustre_unpack_msg_v2(m, len);
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(__lustre_unpack_msg);
 
@@ -641,6 +639,9 @@ static inline int lustre_unpack_ptlrpc_body_v2(struct ptlrpc_request *req,
 		 CERROR("wrong lustre_msg version %08x\n", pb->pb_version);
 		 return -EINVAL;
 	}
+
+	if (!inout)
+		pb->pb_status = ptlrpc_status_ntoh(pb->pb_status);
 
 	return 0;
 }
@@ -1613,11 +1614,10 @@ int do_set_info_async(struct obd_import *imp,
 	struct ptlrpc_request *req;
 	char		  *tmp;
 	int		    rc;
-	ENTRY;
 
 	req = ptlrpc_request_alloc(imp, &RQF_OBD_SET_INFO);
 	if (req == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	req_capsule_set_size(&req->rq_pill, &RMF_SETINFO_KEY,
 			     RCL_CLIENT, keylen);
@@ -1626,7 +1626,7 @@ int do_set_info_async(struct obd_import *imp,
 	rc = ptlrpc_request_pack(req, version, opcode);
 	if (rc) {
 		ptlrpc_request_free(req);
-		RETURN(rc);
+		return rc;
 	}
 
 	tmp = req_capsule_client_get(&req->rq_pill, &RMF_SETINFO_KEY);
@@ -1644,7 +1644,7 @@ int do_set_info_async(struct obd_import *imp,
 		ptlrpc_req_finished(req);
 	}
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(do_set_info_async);
 
@@ -2163,7 +2163,6 @@ static void lustre_swab_lmm_oi(struct ost_id *oi)
 
 static void lustre_swab_lov_user_md_common(struct lov_user_md_v1 *lum)
 {
-	ENTRY;
 	__swab32s(&lum->lmm_magic);
 	__swab32s(&lum->lmm_pattern);
 	lustre_swab_lmm_oi(&lum->lmm_oi);
@@ -2171,31 +2170,25 @@ static void lustre_swab_lov_user_md_common(struct lov_user_md_v1 *lum)
 	__swab16s(&lum->lmm_stripe_count);
 	__swab16s(&lum->lmm_stripe_offset);
 	print_lum(lum);
-	EXIT;
 }
 
 void lustre_swab_lov_user_md_v1(struct lov_user_md_v1 *lum)
 {
-	ENTRY;
 	CDEBUG(D_IOCTL, "swabbing lov_user_md v1\n");
 	lustre_swab_lov_user_md_common(lum);
-	EXIT;
 }
 EXPORT_SYMBOL(lustre_swab_lov_user_md_v1);
 
 void lustre_swab_lov_user_md_v3(struct lov_user_md_v3 *lum)
 {
-	ENTRY;
 	CDEBUG(D_IOCTL, "swabbing lov_user_md v3\n");
 	lustre_swab_lov_user_md_common((struct lov_user_md_v1 *)lum);
 	/* lmm_pool_name nothing to do with char */
-	EXIT;
 }
 EXPORT_SYMBOL(lustre_swab_lov_user_md_v3);
 
 void lustre_swab_lov_mds_md(struct lov_mds_md *lmm)
 {
-	ENTRY;
 	CDEBUG(D_IOCTL, "swabbing lov_mds_md\n");
 	__swab32s(&lmm->lmm_magic);
 	__swab32s(&lmm->lmm_pattern);
@@ -2203,7 +2196,6 @@ void lustre_swab_lov_mds_md(struct lov_mds_md *lmm)
 	__swab32s(&lmm->lmm_stripe_size);
 	__swab16s(&lmm->lmm_stripe_count);
 	__swab16s(&lmm->lmm_layout_gen);
-	EXIT;
 }
 EXPORT_SYMBOL(lustre_swab_lov_mds_md);
 
@@ -2211,13 +2203,12 @@ void lustre_swab_lov_user_md_objects(struct lov_user_ost_data *lod,
 				     int stripe_count)
 {
 	int i;
-	ENTRY;
+
 	for (i = 0; i < stripe_count; i++) {
 		lustre_swab_ost_id(&(lod[i].l_ost_oi));
 		__swab32s(&(lod[i].l_ost_gen));
 		__swab32s(&(lod[i].l_ost_idx));
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(lustre_swab_lov_user_md_objects);
 
@@ -2459,6 +2450,7 @@ void _debug_req(struct ptlrpc_request *req,
 			   rep_ok ? lustre_msg_get_flags(req->rq_repmsg) : -1,
 			   req->rq_status,
 			   rep_ok ? lustre_msg_get_status(req->rq_repmsg) : -1);
+	va_end(args);
 }
 EXPORT_SYMBOL(_debug_req);
 

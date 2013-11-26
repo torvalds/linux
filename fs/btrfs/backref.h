@@ -72,4 +72,6 @@ int btrfs_find_one_extref(struct btrfs_root *root, u64 inode_objectid,
 			  struct btrfs_inode_extref **ret_extref,
 			  u64 *found_off);
 
+int __init btrfs_prelim_ref_init(void);
+void btrfs_prelim_ref_exit(void);
 #endif

@@ -10,7 +10,7 @@ config ARCH_VEXPRESS
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select HAVE_ARM_SCU if SMP
-	select HAVE_ARM_TWD if LOCAL_TIMERS
+	select HAVE_ARM_TWD if SMP
 	select HAVE_CLK
 	select HAVE_PATA_PLATFORM
 	select HAVE_SMP
@@ -65,5 +65,13 @@ config ARCH_VEXPRESS_DCSCB
 	  Support for the Dual Cluster System Configuration Block (DCSCB).
 	  This is needed to provide CPU and cluster power management
 	  on RTSM implementing big.LITTLE.
+
+config ARCH_VEXPRESS_TC2_PM
+	bool "Versatile Express TC2 power management"
+	depends on MCPM
+	select ARM_CCI
+	help
+	  Support for CPU and cluster power management on Versatile Express
+	  with a TC2 (A15x2 A7x3) big.LITTLE core tile.
 
 endmenu

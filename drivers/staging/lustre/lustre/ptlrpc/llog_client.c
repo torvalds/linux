@@ -85,7 +85,6 @@ static int llog_client_open(const struct lu_env *env,
 	struct llog_ctxt      *ctxt = lgh->lgh_ctxt;
 	struct ptlrpc_request *req = NULL;
 	int		    rc;
-	ENTRY;
 
 	LLOG_CLIENT_ENTRY(ctxt, imp);
 
@@ -133,7 +132,6 @@ static int llog_client_open(const struct lu_env *env,
 
 	lgh->lgh_id = body->lgd_logid;
 	lgh->lgh_ctxt = ctxt;
-	EXIT;
 out:
 	LLOG_CLIENT_EXIT(ctxt, imp);
 	ptlrpc_req_finished(req);
@@ -147,7 +145,6 @@ static int llog_client_destroy(const struct lu_env *env,
 	struct ptlrpc_request *req = NULL;
 	struct llogd_body     *body;
 	int		    rc;
-	ENTRY;
 
 	LLOG_CLIENT_ENTRY(loghandle->lgh_ctxt, imp);
 	req = ptlrpc_request_alloc_pack(imp, &RQF_LLOG_ORIGIN_HANDLE_DESTROY,
@@ -170,7 +167,7 @@ static int llog_client_destroy(const struct lu_env *env,
 	ptlrpc_req_finished(req);
 err_exit:
 	LLOG_CLIENT_EXIT(loghandle->lgh_ctxt, imp);
-	RETURN(rc);
+	return rc;
 }
 
 
@@ -184,7 +181,6 @@ static int llog_client_next_block(const struct lu_env *env,
 	struct llogd_body     *body;
 	void		  *ptr;
 	int		    rc;
-	ENTRY;
 
 	LLOG_CLIENT_ENTRY(loghandle->lgh_ctxt, imp);
 	req = ptlrpc_request_alloc_pack(imp, &RQF_LLOG_ORIGIN_HANDLE_NEXT_BLOCK,
@@ -221,7 +217,6 @@ static int llog_client_next_block(const struct lu_env *env,
 	*cur_offset = body->lgd_cur_offset;
 
 	memcpy(buf, ptr, len);
-	EXIT;
 out:
 	ptlrpc_req_finished(req);
 err_exit:
@@ -238,7 +233,6 @@ static int llog_client_prev_block(const struct lu_env *env,
 	struct llogd_body     *body;
 	void		  *ptr;
 	int		    rc;
-	ENTRY;
 
 	LLOG_CLIENT_ENTRY(loghandle->lgh_ctxt, imp);
 	req = ptlrpc_request_alloc_pack(imp, &RQF_LLOG_ORIGIN_HANDLE_PREV_BLOCK,
@@ -270,7 +264,6 @@ static int llog_client_prev_block(const struct lu_env *env,
 		GOTO(out, rc =-EFAULT);
 
 	memcpy(buf, ptr, len);
-	EXIT;
 out:
 	ptlrpc_req_finished(req);
 err_exit:
@@ -287,7 +280,6 @@ static int llog_client_read_header(const struct lu_env *env,
 	struct llog_log_hdr   *hdr;
 	struct llog_rec_hdr   *llh_hdr;
 	int		    rc;
-	ENTRY;
 
 	LLOG_CLIENT_ENTRY(handle->lgh_ctxt, imp);
 	req = ptlrpc_request_alloc_pack(imp,&RQF_LLOG_ORIGIN_HANDLE_READ_HEADER,
@@ -326,7 +318,6 @@ static int llog_client_read_header(const struct lu_env *env,
 		CERROR("you may need to re-run lconf --write_conf.\n");
 		rc = -EIO;
 	}
-	EXIT;
 out:
 	ptlrpc_req_finished(req);
 err_exit:

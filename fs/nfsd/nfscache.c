@@ -59,11 +59,14 @@ static unsigned int		longest_chain_cachesize;
 
 static int	nfsd_cache_append(struct svc_rqst *rqstp, struct kvec *vec);
 static void	cache_cleaner_func(struct work_struct *unused);
-static int 	nfsd_reply_cache_shrink(struct shrinker *shrink,
-					struct shrink_control *sc);
+static unsigned long nfsd_reply_cache_count(struct shrinker *shrink,
+					    struct shrink_control *sc);
+static unsigned long nfsd_reply_cache_scan(struct shrinker *shrink,
+					   struct shrink_control *sc);
 
 static struct shrinker nfsd_reply_cache_shrinker = {
-	.shrink	= nfsd_reply_cache_shrink,
+	.scan_objects = nfsd_reply_cache_scan,
+	.count_objects = nfsd_reply_cache_count,
 	.seeks	= 1,
 };
 
@@ -232,16 +235,18 @@ nfsd_cache_entry_expired(struct svc_cacherep *rp)
  * Walk the LRU list and prune off entries that are older than RC_EXPIRE.
  * Also prune the oldest ones when the total exceeds the max number of entries.
  */
-static void
+static long
 prune_cache_entries(void)
 {
 	struct svc_cacherep *rp, *tmp;
+	long freed = 0;
 
 	list_for_each_entry_safe(rp, tmp, &lru_head, c_lru) {
 		if (!nfsd_cache_entry_expired(rp) &&
 		    num_drc_entries <= max_drc_entries)
 			break;
 		nfsd_reply_cache_free_locked(rp);
+		freed++;
 	}
 
 	/*
@@ -254,6 +259,7 @@ prune_cache_entries(void)
 		cancel_delayed_work(&cache_cleaner);
 	else
 		mod_delayed_work(system_wq, &cache_cleaner, RC_EXPIRE);
+	return freed;
 }
 
 static void
@@ -264,20 +270,28 @@ cache_cleaner_func(struct work_struct *unused)
 	spin_unlock(&cache_lock);
 }
 
-static int
-nfsd_reply_cache_shrink(struct shrinker *shrink, struct shrink_control *sc)
+static unsigned long
+nfsd_reply_cache_count(struct shrinker *shrink, struct shrink_control *sc)
 {
-	unsigned int num;
+	unsigned long num;
 
 	spin_lock(&cache_lock);
-	if (sc->nr_to_scan)
-		prune_cache_entries();
 	num = num_drc_entries;
 	spin_unlock(&cache_lock);
 
 	return num;
 }
 
+static unsigned long
+nfsd_reply_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
+{
+	unsigned long freed;
+
+	spin_lock(&cache_lock);
+	freed = prune_cache_entries();
+	spin_unlock(&cache_lock);
+	return freed;
+}
 /*
  * Walk an xdr_buf and get a CRC for at most the first RC_CSUMLEN bytes
  */

@@ -2,7 +2,7 @@
 /*
  * Radio tuning for GCT GRF5101 on RTL8180
  *
- * Copyright 2007 Andrea Merello <andreamrl@tiscali.it>
+ * Copyright 2007 Andrea Merello <andrea.merello@gmail.com>
  *
  * Code from the BSD driver and the rtl8181 project have been
  * very useful to understand certain things

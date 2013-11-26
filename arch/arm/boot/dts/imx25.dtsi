@@ -13,17 +13,33 @@
 
 / {
 	aliases {
+		gpio0 = &gpio1;
+		gpio1 = &gpio2;
+		gpio2 = &gpio3;
+		gpio3 = &gpio4;
+		i2c0 = &i2c1;
+		i2c1 = &i2c2;
+		i2c2 = &i2c3;
 		serial0 = &uart1;
 		serial1 = &uart2;
 		serial2 = &uart3;
 		serial3 = &uart4;
 		serial4 = &uart5;
-		gpio0 = &gpio1;
-		gpio1 = &gpio2;
-		gpio2 = &gpio3;
-		gpio3 = &gpio4;
+		spi0 = &spi1;
+		spi1 = &spi2;
+		spi2 = &spi3;
 		usb0 = &usbotg;
 		usb1 = &usbhost1;
+	};
+
+	cpus {
+		#address-cells = <0>;
+		#size-cells = <0>;
+
+		cpu {
+			compatible = "arm,arm926ej-s";
+			device_type = "cpu";
+		};
 	};
 
 	asic: asic-interrupt-controller@68000000 {
@@ -377,7 +393,8 @@
 				status = "disabled";
 			};
 
-			lcdc@53fbc000 {
+			lcdc: lcdc@53fbc000 {
+				compatible = "fsl,imx25-fb", "fsl,imx21-fb";
 				reg = <0x53fbc000 0x4000>;
 				interrupts = <39>;
 				clocks = <&clks 103>, <&clks 66>, <&clks 49>;
@@ -424,6 +441,7 @@
 				reg = <0x53fd4000 0x4000>;
 				clocks = <&clks 112>, <&clks 68>;
 				clock-names = "ipg", "ahb";
+				#dma-cells = <3>;
 				interrupts = <34>;
 			};
 
@@ -442,6 +460,13 @@
 				clocks = <&clks 105>, <&clks 36>;
 				clock-names = "ipg", "per";
 				interrupts = <26>;
+			};
+
+			iim: iim@53ff0000 {
+				compatible = "fsl,imx25-iim", "fsl,imx27-iim";
+				reg = <0x53ff0000 0x4000>;
+				interrupts = <19>;
+				clocks = <&clks 99>;
 			};
 
 			usbphy1: usbphy@1 {

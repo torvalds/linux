@@ -351,12 +351,11 @@ static int __init us2e_freq_init(void)
 		struct cpufreq_driver *driver;
 
 		ret = -ENOMEM;
-		driver = kzalloc(sizeof(struct cpufreq_driver), GFP_KERNEL);
+		driver = kzalloc(sizeof(*driver), GFP_KERNEL);
 		if (!driver)
 			goto err_out;
 
-		us2e_freq_table = kzalloc(
-			(NR_CPUS * sizeof(struct us2e_freq_percpu_info)),
+		us2e_freq_table = kzalloc((NR_CPUS * sizeof(*us2e_freq_table)),
 			GFP_KERNEL);
 		if (!us2e_freq_table)
 			goto err_out;
@@ -366,7 +365,6 @@ static int __init us2e_freq_init(void)
 		driver->target = us2e_freq_target;
 		driver->get = us2e_freq_get;
 		driver->exit = us2e_freq_cpu_exit;
-		driver->owner = THIS_MODULE,
 		strcpy(driver->name, "UltraSPARC-IIe");
 
 		cpufreq_us2e_driver = driver;

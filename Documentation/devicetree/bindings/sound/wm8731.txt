@@ -16,3 +16,12 @@ codec: wm8731@1a {
 	compatible = "wlf,wm8731";
 	reg = <0x1a>;
 };
+
+Available audio endpoints for an audio-routing table:
+ * LOUT: Left Channel Line Output
+ * ROUT: Right Channel Line Output
+ * LHPOUT: Left Channel Headphone Output
+ * RHPOUT: Right Channel Headphone Output
+ * LLINEIN: Left Channel Line Input
+ * RLINEIN: Right Channel Line Input
+ * MICIN: Microphone Input

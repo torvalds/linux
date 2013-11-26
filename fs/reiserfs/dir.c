@@ -71,6 +71,7 @@ int reiserfs_readdir_inode(struct inode *inode, struct dir_context *ctx)
 	char small_buf[32];	/* avoid kmalloc if we can */
 	struct reiserfs_dir_entry de;
 	int ret = 0;
+	int depth;
 
 	reiserfs_write_lock(inode->i_sb);
 
@@ -181,17 +182,17 @@ int reiserfs_readdir_inode(struct inode *inode, struct dir_context *ctx)
 				 * Since filldir might sleep, we can release
 				 * the write lock here for other waiters
 				 */
-				reiserfs_write_unlock(inode->i_sb);
+				depth = reiserfs_write_unlock_nested(inode->i_sb);
 				if (!dir_emit
 				    (ctx, local_buf, d_reclen, d_ino,
 				     DT_UNKNOWN)) {
-					reiserfs_write_lock(inode->i_sb);
+					reiserfs_write_lock_nested(inode->i_sb, depth);
 					if (local_buf != small_buf) {
 						kfree(local_buf);
 					}
 					goto end;
 				}
-				reiserfs_write_lock(inode->i_sb);
+				reiserfs_write_lock_nested(inode->i_sb, depth);
 				if (local_buf != small_buf) {
 					kfree(local_buf);
 				}

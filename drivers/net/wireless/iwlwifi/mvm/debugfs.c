@@ -352,6 +352,10 @@ static void iwl_dbgfs_update_pm(struct iwl_mvm *mvm,
 		IWL_DEBUG_POWER(mvm, "lprx_rssi_threshold=%d\n", val);
 		dbgfs_pm->lprx_rssi_threshold = val;
 		break;
+	case MVM_DEBUGFS_PM_SNOOZE_ENABLE:
+		IWL_DEBUG_POWER(mvm, "snooze_enable=%d\n", val);
+		dbgfs_pm->snooze_ena = val;
+		break;
 	}
 }
 
@@ -405,6 +409,10 @@ static ssize_t iwl_dbgfs_pm_params_write(struct file *file,
 		    POWER_LPRX_RSSI_THRESHOLD_MIN)
 			return -EINVAL;
 		param = MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD;
+	} else if (!strncmp("snooze_enable=", buf, 14)) {
+		if (sscanf(buf + 14, "%d", &val) != 1)
+			return -EINVAL;
+		param = MVM_DEBUGFS_PM_SNOOZE_ENABLE;
 	} else {
 		return -EINVAL;
 	}
@@ -424,40 +432,11 @@ static ssize_t iwl_dbgfs_pm_params_read(struct file *file,
 	struct ieee80211_vif *vif = file->private_data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = mvmvif->dbgfs_data;
-	struct iwl_powertable_cmd cmd = {};
-	char buf[256];
+	char buf[512];
 	int bufsz = sizeof(buf);
-	int pos = 0;
+	int pos;
 
-	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
-
-	pos += scnprintf(buf+pos, bufsz-pos, "disable_power_off = %d\n",
-			 (cmd.flags &
-			 cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK)) ?
-			 0 : 1);
-	pos += scnprintf(buf+pos, bufsz-pos, "skip_dtim_periods = %d\n",
-			 le32_to_cpu(cmd.skip_dtim_periods));
-	pos += scnprintf(buf+pos, bufsz-pos, "power_scheme = %d\n",
-			 iwlmvm_mod_params.power_scheme);
-	pos += scnprintf(buf+pos, bufsz-pos, "flags = 0x%x\n",
-			 le16_to_cpu(cmd.flags));
-	pos += scnprintf(buf+pos, bufsz-pos, "keep_alive = %d\n",
-			 cmd.keep_alive_seconds);
-
-	if (cmd.flags & cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK)) {
-		pos += scnprintf(buf+pos, bufsz-pos, "skip_over_dtim = %d\n",
-				 (cmd.flags &
-				 cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK)) ?
-				 1 : 0);
-		pos += scnprintf(buf+pos, bufsz-pos, "rx_data_timeout = %d\n",
-				 le32_to_cpu(cmd.rx_data_timeout));
-		pos += scnprintf(buf+pos, bufsz-pos, "tx_data_timeout = %d\n",
-				 le32_to_cpu(cmd.tx_data_timeout));
-		if (cmd.flags & cpu_to_le16(POWER_FLAGS_LPRX_ENA_MSK))
-			pos += scnprintf(buf+pos, bufsz-pos,
-					 "lprx_rssi_threshold = %d\n",
-					 le32_to_cpu(cmd.lprx_rssi_threshold));
-	}
+	pos = iwl_mvm_power_dbgfs_read(mvm, vif, buf, bufsz);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
@@ -621,24 +600,159 @@ static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
 }
 #undef BT_MBOX_PRINT
 
+#define PRINT_STATS_LE32(_str, _val)					\
+			 pos += scnprintf(buf + pos, bufsz - pos,	\
+					  fmt_table, _str,		\
+					  le32_to_cpu(_val))
+
+static ssize_t iwl_dbgfs_fw_rx_stats_read(struct file *file,
+					  char __user *user_buf, size_t count,
+					  loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	static const char *fmt_table = "\t%-30s %10u\n";
+	static const char *fmt_header = "%-32s\n";
+	int pos = 0;
+	char *buf;
+	int ret;
+	int bufsz = sizeof(struct mvm_statistics_rx_phy) * 20 +
+		    sizeof(struct mvm_statistics_rx_non_phy) * 10 +
+		    sizeof(struct mvm_statistics_rx_ht_phy) * 10 + 200;
+	struct mvm_statistics_rx_phy *ofdm;
+	struct mvm_statistics_rx_phy *cck;
+	struct mvm_statistics_rx_non_phy *general;
+	struct mvm_statistics_rx_ht_phy *ht;
+
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	mutex_lock(&mvm->mutex);
+
+	ofdm = &mvm->rx_stats.ofdm;
+	cck = &mvm->rx_stats.cck;
+	general = &mvm->rx_stats.general;
+	ht = &mvm->rx_stats.ofdm_ht;
+
+	pos += scnprintf(buf + pos, bufsz - pos, fmt_header,
+			 "Statistics_Rx - OFDM");
+	PRINT_STATS_LE32("ina_cnt", ofdm->ina_cnt);
+	PRINT_STATS_LE32("fina_cnt", ofdm->fina_cnt);
+	PRINT_STATS_LE32("plcp_err", ofdm->plcp_err);
+	PRINT_STATS_LE32("crc32_err", ofdm->crc32_err);
+	PRINT_STATS_LE32("overrun_err", ofdm->overrun_err);
+	PRINT_STATS_LE32("early_overrun_err", ofdm->early_overrun_err);
+	PRINT_STATS_LE32("crc32_good", ofdm->crc32_good);
+	PRINT_STATS_LE32("false_alarm_cnt", ofdm->false_alarm_cnt);
+	PRINT_STATS_LE32("fina_sync_err_cnt", ofdm->fina_sync_err_cnt);
+	PRINT_STATS_LE32("sfd_timeout", ofdm->sfd_timeout);
+	PRINT_STATS_LE32("fina_timeout", ofdm->fina_timeout);
+	PRINT_STATS_LE32("unresponded_rts", ofdm->unresponded_rts);
+	PRINT_STATS_LE32("rxe_frame_lmt_overrun",
+			 ofdm->rxe_frame_limit_overrun);
+	PRINT_STATS_LE32("sent_ack_cnt", ofdm->sent_ack_cnt);
+	PRINT_STATS_LE32("sent_cts_cnt", ofdm->sent_cts_cnt);
+	PRINT_STATS_LE32("sent_ba_rsp_cnt", ofdm->sent_ba_rsp_cnt);
+	PRINT_STATS_LE32("dsp_self_kill", ofdm->dsp_self_kill);
+	PRINT_STATS_LE32("mh_format_err", ofdm->mh_format_err);
+	PRINT_STATS_LE32("re_acq_main_rssi_sum", ofdm->re_acq_main_rssi_sum);
+	PRINT_STATS_LE32("reserved", ofdm->reserved);
+
+	pos += scnprintf(buf + pos, bufsz - pos, fmt_header,
+			 "Statistics_Rx - CCK");
+	PRINT_STATS_LE32("ina_cnt", cck->ina_cnt);
+	PRINT_STATS_LE32("fina_cnt", cck->fina_cnt);
+	PRINT_STATS_LE32("plcp_err", cck->plcp_err);
+	PRINT_STATS_LE32("crc32_err", cck->crc32_err);
+	PRINT_STATS_LE32("overrun_err", cck->overrun_err);
+	PRINT_STATS_LE32("early_overrun_err", cck->early_overrun_err);
+	PRINT_STATS_LE32("crc32_good", cck->crc32_good);
+	PRINT_STATS_LE32("false_alarm_cnt", cck->false_alarm_cnt);
+	PRINT_STATS_LE32("fina_sync_err_cnt", cck->fina_sync_err_cnt);
+	PRINT_STATS_LE32("sfd_timeout", cck->sfd_timeout);
+	PRINT_STATS_LE32("fina_timeout", cck->fina_timeout);
+	PRINT_STATS_LE32("unresponded_rts", cck->unresponded_rts);
+	PRINT_STATS_LE32("rxe_frame_lmt_overrun",
+			 cck->rxe_frame_limit_overrun);
+	PRINT_STATS_LE32("sent_ack_cnt", cck->sent_ack_cnt);
+	PRINT_STATS_LE32("sent_cts_cnt", cck->sent_cts_cnt);
+	PRINT_STATS_LE32("sent_ba_rsp_cnt", cck->sent_ba_rsp_cnt);
+	PRINT_STATS_LE32("dsp_self_kill", cck->dsp_self_kill);
+	PRINT_STATS_LE32("mh_format_err", cck->mh_format_err);
+	PRINT_STATS_LE32("re_acq_main_rssi_sum", cck->re_acq_main_rssi_sum);
+	PRINT_STATS_LE32("reserved", cck->reserved);
+
+	pos += scnprintf(buf + pos, bufsz - pos, fmt_header,
+			 "Statistics_Rx - GENERAL");
+	PRINT_STATS_LE32("bogus_cts", general->bogus_cts);
+	PRINT_STATS_LE32("bogus_ack", general->bogus_ack);
+	PRINT_STATS_LE32("non_bssid_frames", general->non_bssid_frames);
+	PRINT_STATS_LE32("filtered_frames", general->filtered_frames);
+	PRINT_STATS_LE32("non_channel_beacons", general->non_channel_beacons);
+	PRINT_STATS_LE32("channel_beacons", general->channel_beacons);
+	PRINT_STATS_LE32("num_missed_bcon", general->num_missed_bcon);
+	PRINT_STATS_LE32("adc_rx_saturation_time",
+			 general->adc_rx_saturation_time);
+	PRINT_STATS_LE32("ina_detection_search_time",
+			 general->ina_detection_search_time);
+	PRINT_STATS_LE32("beacon_silence_rssi_a",
+			 general->beacon_silence_rssi_a);
+	PRINT_STATS_LE32("beacon_silence_rssi_b",
+			 general->beacon_silence_rssi_b);
+	PRINT_STATS_LE32("beacon_silence_rssi_c",
+			 general->beacon_silence_rssi_c);
+	PRINT_STATS_LE32("interference_data_flag",
+			 general->interference_data_flag);
+	PRINT_STATS_LE32("channel_load", general->channel_load);
+	PRINT_STATS_LE32("dsp_false_alarms", general->dsp_false_alarms);
+	PRINT_STATS_LE32("beacon_rssi_a", general->beacon_rssi_a);
+	PRINT_STATS_LE32("beacon_rssi_b", general->beacon_rssi_b);
+	PRINT_STATS_LE32("beacon_rssi_c", general->beacon_rssi_c);
+	PRINT_STATS_LE32("beacon_energy_a", general->beacon_energy_a);
+	PRINT_STATS_LE32("beacon_energy_b", general->beacon_energy_b);
+	PRINT_STATS_LE32("beacon_energy_c", general->beacon_energy_c);
+	PRINT_STATS_LE32("num_bt_kills", general->num_bt_kills);
+	PRINT_STATS_LE32("directed_data_mpdu", general->directed_data_mpdu);
+
+	pos += scnprintf(buf + pos, bufsz - pos, fmt_header,
+			 "Statistics_Rx - HT");
+	PRINT_STATS_LE32("plcp_err", ht->plcp_err);
+	PRINT_STATS_LE32("overrun_err", ht->overrun_err);
+	PRINT_STATS_LE32("early_overrun_err", ht->early_overrun_err);
+	PRINT_STATS_LE32("crc32_good", ht->crc32_good);
+	PRINT_STATS_LE32("crc32_err", ht->crc32_err);
+	PRINT_STATS_LE32("mh_format_err", ht->mh_format_err);
+	PRINT_STATS_LE32("agg_crc32_good", ht->agg_crc32_good);
+	PRINT_STATS_LE32("agg_mpdu_cnt", ht->agg_mpdu_cnt);
+	PRINT_STATS_LE32("agg_cnt", ht->agg_cnt);
+	PRINT_STATS_LE32("unsupport_mcs", ht->unsupport_mcs);
+
+	mutex_unlock(&mvm->mutex);
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+
+	return ret;
+}
+#undef PRINT_STAT_LE32
+
 static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
 					  const char __user *user_buf,
 					  size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
-	bool restart_fw = iwlwifi_mod_params.restart_fw;
 	int ret;
 
-	iwlwifi_mod_params.restart_fw = true;
-
 	mutex_lock(&mvm->mutex);
+
+	/* allow one more restart that we're provoking here */
+	if (mvm->restart_fw >= 0)
+		mvm->restart_fw++;
 
 	/* take the return value to make compiler happy - it will fail anyway */
 	ret = iwl_mvm_send_cmd_pdu(mvm, REPLY_ERROR, CMD_SYNC, 0, NULL);
 
 	mutex_unlock(&mvm->mutex);
-
-	iwlwifi_mod_params.restart_fw = restart_fw;
 
 	return count;
 }
@@ -661,8 +775,14 @@ static void iwl_dbgfs_update_bf(struct ieee80211_vif *vif,
 	case MVM_DEBUGFS_BF_ROAMING_STATE:
 		dbgfs_bf->bf_roaming_state = value;
 		break;
-	case MVM_DEBUGFS_BF_TEMPERATURE_DELTA:
-		dbgfs_bf->bf_temperature_delta = value;
+	case MVM_DEBUGFS_BF_TEMP_THRESHOLD:
+		dbgfs_bf->bf_temp_threshold = value;
+		break;
+	case MVM_DEBUGFS_BF_TEMP_FAST_FILTER:
+		dbgfs_bf->bf_temp_fast_filter = value;
+		break;
+	case MVM_DEBUGFS_BF_TEMP_SLOW_FILTER:
+		dbgfs_bf->bf_temp_slow_filter = value;
 		break;
 	case MVM_DEBUGFS_BF_ENABLE_BEACON_FILTER:
 		dbgfs_bf->bf_enable_beacon_filter = value;
@@ -721,13 +841,27 @@ static ssize_t iwl_dbgfs_bf_params_write(struct file *file,
 		    value > IWL_BF_ROAMING_STATE_MAX)
 			return -EINVAL;
 		param = MVM_DEBUGFS_BF_ROAMING_STATE;
-	} else if (!strncmp("bf_temperature_delta=", buf, 21)) {
-		if (sscanf(buf+21, "%d", &value) != 1)
+	} else if (!strncmp("bf_temp_threshold=", buf, 18)) {
+		if (sscanf(buf+18, "%d", &value) != 1)
 			return -EINVAL;
-		if (value < IWL_BF_TEMPERATURE_DELTA_MIN ||
-		    value > IWL_BF_TEMPERATURE_DELTA_MAX)
+		if (value < IWL_BF_TEMP_THRESHOLD_MIN ||
+		    value > IWL_BF_TEMP_THRESHOLD_MAX)
 			return -EINVAL;
-		param = MVM_DEBUGFS_BF_TEMPERATURE_DELTA;
+		param = MVM_DEBUGFS_BF_TEMP_THRESHOLD;
+	} else if (!strncmp("bf_temp_fast_filter=", buf, 20)) {
+		if (sscanf(buf+20, "%d", &value) != 1)
+			return -EINVAL;
+		if (value < IWL_BF_TEMP_FAST_FILTER_MIN ||
+		    value > IWL_BF_TEMP_FAST_FILTER_MAX)
+			return -EINVAL;
+		param = MVM_DEBUGFS_BF_TEMP_FAST_FILTER;
+	} else if (!strncmp("bf_temp_slow_filter=", buf, 20)) {
+		if (sscanf(buf+20, "%d", &value) != 1)
+			return -EINVAL;
+		if (value < IWL_BF_TEMP_SLOW_FILTER_MIN ||
+		    value > IWL_BF_TEMP_SLOW_FILTER_MAX)
+			return -EINVAL;
+		param = MVM_DEBUGFS_BF_TEMP_SLOW_FILTER;
 	} else if (!strncmp("bf_enable_beacon_filter=", buf, 24)) {
 		if (sscanf(buf+24, "%d", &value) != 1)
 			return -EINVAL;
@@ -769,10 +903,7 @@ static ssize_t iwl_dbgfs_bf_params_write(struct file *file,
 	if (param == MVM_DEBUGFS_BF_ENABLE_BEACON_FILTER && !value) {
 		ret = iwl_mvm_disable_beacon_filter(mvm, vif);
 	} else {
-		if (mvmvif->bf_enabled)
-			ret = iwl_mvm_enable_beacon_filter(mvm, vif);
-		else
-			ret = iwl_mvm_disable_beacon_filter(mvm, vif);
+		ret = iwl_mvm_enable_beacon_filter(mvm, vif);
 	}
 	mutex_unlock(&mvm->mutex);
 
@@ -789,41 +920,41 @@ static ssize_t iwl_dbgfs_bf_params_read(struct file *file,
 	int pos = 0;
 	const size_t bufsz = sizeof(buf);
 	struct iwl_beacon_filter_cmd cmd = {
-		.bf_energy_delta = IWL_BF_ENERGY_DELTA_DEFAULT,
-		.bf_roaming_energy_delta = IWL_BF_ROAMING_ENERGY_DELTA_DEFAULT,
-		.bf_roaming_state = IWL_BF_ROAMING_STATE_DEFAULT,
-		.bf_temperature_delta = IWL_BF_TEMPERATURE_DELTA_DEFAULT,
-		.bf_enable_beacon_filter = IWL_BF_ENABLE_BEACON_FILTER_DEFAULT,
-		.bf_debug_flag = IWL_BF_DEBUG_FLAG_DEFAULT,
-		.bf_escape_timer = cpu_to_le32(IWL_BF_ESCAPE_TIMER_DEFAULT),
-		.ba_escape_timer = cpu_to_le32(IWL_BA_ESCAPE_TIMER_DEFAULT),
-		.ba_enable_beacon_abort = IWL_BA_ENABLE_BEACON_ABORT_DEFAULT,
+		IWL_BF_CMD_CONFIG_DEFAULTS,
+		.bf_enable_beacon_filter =
+			cpu_to_le32(IWL_BF_ENABLE_BEACON_FILTER_DEFAULT),
+		.ba_enable_beacon_abort =
+			cpu_to_le32(IWL_BA_ENABLE_BEACON_ABORT_DEFAULT),
 	};
 
 	iwl_mvm_beacon_filter_debugfs_parameters(vif, &cmd);
-	if (mvmvif->bf_enabled)
-		cmd.bf_enable_beacon_filter = 1;
+	if (mvmvif->bf_data.bf_enabled)
+		cmd.bf_enable_beacon_filter = cpu_to_le32(1);
 	else
 		cmd.bf_enable_beacon_filter = 0;
 
 	pos += scnprintf(buf+pos, bufsz-pos, "bf_energy_delta = %d\n",
-			 cmd.bf_energy_delta);
+			 le32_to_cpu(cmd.bf_energy_delta));
 	pos += scnprintf(buf+pos, bufsz-pos, "bf_roaming_energy_delta = %d\n",
-			 cmd.bf_roaming_energy_delta);
+			 le32_to_cpu(cmd.bf_roaming_energy_delta));
 	pos += scnprintf(buf+pos, bufsz-pos, "bf_roaming_state = %d\n",
-			 cmd.bf_roaming_state);
-	pos += scnprintf(buf+pos, bufsz-pos, "bf_temperature_delta = %d\n",
-			 cmd.bf_temperature_delta);
+			 le32_to_cpu(cmd.bf_roaming_state));
+	pos += scnprintf(buf+pos, bufsz-pos, "bf_temp_threshold = %d\n",
+			 le32_to_cpu(cmd.bf_temp_threshold));
+	pos += scnprintf(buf+pos, bufsz-pos, "bf_temp_fast_filter = %d\n",
+			 le32_to_cpu(cmd.bf_temp_fast_filter));
+	pos += scnprintf(buf+pos, bufsz-pos, "bf_temp_slow_filter = %d\n",
+			 le32_to_cpu(cmd.bf_temp_slow_filter));
 	pos += scnprintf(buf+pos, bufsz-pos, "bf_enable_beacon_filter = %d\n",
-			 cmd.bf_enable_beacon_filter);
+			 le32_to_cpu(cmd.bf_enable_beacon_filter));
 	pos += scnprintf(buf+pos, bufsz-pos, "bf_debug_flag = %d\n",
-			 cmd.bf_debug_flag);
+			 le32_to_cpu(cmd.bf_debug_flag));
 	pos += scnprintf(buf+pos, bufsz-pos, "bf_escape_timer = %d\n",
-			 cmd.bf_escape_timer);
+			 le32_to_cpu(cmd.bf_escape_timer));
 	pos += scnprintf(buf+pos, bufsz-pos, "ba_escape_timer = %d\n",
-			 cmd.ba_escape_timer);
+			 le32_to_cpu(cmd.ba_escape_timer));
 	pos += scnprintf(buf+pos, bufsz-pos, "ba_enable_beacon_abort = %d\n",
-			 cmd.ba_enable_beacon_abort);
+			 le32_to_cpu(cmd.ba_enable_beacon_abort));
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
@@ -934,6 +1065,7 @@ MVM_DEBUGFS_READ_FILE_OPS(stations);
 MVM_DEBUGFS_READ_FILE_OPS(bt_notif);
 MVM_DEBUGFS_WRITE_FILE_OPS(power_down_allow);
 MVM_DEBUGFS_WRITE_FILE_OPS(power_down_d3_allow);
+MVM_DEBUGFS_READ_FILE_OPS(fw_rx_stats);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_restart);
 #ifdef CONFIG_PM_SLEEP
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(d3_sram);
@@ -957,6 +1089,7 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(bt_notif, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(power_down_allow, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(power_down_d3_allow, mvm->debugfs_dir, S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE(fw_rx_stats, mvm->debugfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_restart, mvm->debugfs_dir, S_IWUSR);
 #ifdef CONFIG_PM_SLEEP
 	MVM_DEBUGFS_ADD_FILE(d3_sram, mvm->debugfs_dir, S_IRUSR | S_IWUSR);

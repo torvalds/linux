@@ -181,7 +181,7 @@ int __init omap_i2c_add_bus(struct omap_i2c_bus_platform_data *i2c_pdata,
 				 sizeof(struct omap_i2c_bus_platform_data));
 	WARN(IS_ERR(pdev), "Could not build omap_device for %s\n", name);
 
-	return PTR_RET(pdev);
+	return PTR_ERR_OR_ZERO(pdev);
 }
 
 static  int __init omap_i2c_cmdline(void)

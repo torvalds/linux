@@ -18,8 +18,6 @@
 
 #include "ci_hdrc_imx.h"
 
-#define USB_DEV_MAX 4
-
 #define MX25_USB_PHY_CTRL_OFFSET	0x08
 #define MX25_BM_EXTERNAL_VBUS_DIVIDER	BIT(23)
 
@@ -32,51 +30,34 @@
 
 #define MX6_BM_OVER_CUR_DIS		BIT(7)
 
+struct usbmisc_ops {
+	/* It's called once when probe a usb device */
+	int (*init)(struct imx_usbmisc_data *data);
+	/* It's called once after adding a usb device */
+	int (*post)(struct imx_usbmisc_data *data);
+};
+
 struct imx_usbmisc {
 	void __iomem *base;
 	spinlock_t lock;
 	struct clk *clk;
-	struct usbmisc_usb_device usbdev[USB_DEV_MAX];
 	const struct usbmisc_ops *ops;
 };
 
 static struct imx_usbmisc *usbmisc;
 
-static struct usbmisc_usb_device *get_usbdev(struct device *dev)
+static int usbmisc_imx25_post(struct imx_usbmisc_data *data)
 {
-	int i, ret;
-
-	for (i = 0; i < USB_DEV_MAX; i++) {
-		if (usbmisc->usbdev[i].dev == dev)
-			return &usbmisc->usbdev[i];
-		else if (!usbmisc->usbdev[i].dev)
-			break;
-	}
-
-	if (i >= USB_DEV_MAX)
-		return ERR_PTR(-EBUSY);
-
-	ret = usbmisc_get_init_data(dev, &usbmisc->usbdev[i]);
-	if (ret)
-		return ERR_PTR(ret);
-
-	return &usbmisc->usbdev[i];
-}
-
-static int usbmisc_imx25_post(struct device *dev)
-{
-	struct usbmisc_usb_device *usbdev;
 	void __iomem *reg;
 	unsigned long flags;
 	u32 val;
 
-	usbdev = get_usbdev(dev);
-	if (IS_ERR(usbdev))
-		return PTR_ERR(usbdev);
+	if (data->index > 2)
+		return -EINVAL;
 
 	reg = usbmisc->base + MX25_USB_PHY_CTRL_OFFSET;
 
-	if (usbdev->evdo) {
+	if (data->evdo) {
 		spin_lock_irqsave(&usbmisc->lock, flags);
 		val = readl(reg);
 		writel(val | MX25_BM_EXTERNAL_VBUS_DIVIDER, reg);
@@ -87,20 +68,18 @@ static int usbmisc_imx25_post(struct device *dev)
 	return 0;
 }
 
-static int usbmisc_imx53_init(struct device *dev)
+static int usbmisc_imx53_init(struct imx_usbmisc_data *data)
 {
-	struct usbmisc_usb_device *usbdev;
 	void __iomem *reg = NULL;
 	unsigned long flags;
 	u32 val = 0;
 
-	usbdev = get_usbdev(dev);
-	if (IS_ERR(usbdev))
-		return PTR_ERR(usbdev);
+	if (data->index > 3)
+		return -EINVAL;
 
-	if (usbdev->disable_oc) {
+	if (data->disable_oc) {
 		spin_lock_irqsave(&usbmisc->lock, flags);
-		switch (usbdev->index) {
+		switch (data->index) {
 		case 0:
 			reg = usbmisc->base + MX53_USB_OTG_PHY_CTRL_0_OFFSET;
 			val = readl(reg) | MX53_BM_OVER_CUR_DIS_OTG;
@@ -126,22 +105,19 @@ static int usbmisc_imx53_init(struct device *dev)
 	return 0;
 }
 
-static int usbmisc_imx6q_init(struct device *dev)
+static int usbmisc_imx6q_init(struct imx_usbmisc_data *data)
 {
-
-	struct usbmisc_usb_device *usbdev;
 	unsigned long flags;
 	u32 reg;
 
-	usbdev = get_usbdev(dev);
-	if (IS_ERR(usbdev))
-		return PTR_ERR(usbdev);
+	if (data->index > 3)
+		return -EINVAL;
 
-	if (usbdev->disable_oc) {
+	if (data->disable_oc) {
 		spin_lock_irqsave(&usbmisc->lock, flags);
-		reg = readl(usbmisc->base + usbdev->index * 4);
+		reg = readl(usbmisc->base + data->index * 4);
 		writel(reg | MX6_BM_OVER_CUR_DIS,
-			usbmisc->base + usbdev->index * 4);
+			usbmisc->base + data->index * 4);
 		spin_unlock_irqrestore(&usbmisc->lock, flags);
 	}
 
@@ -159,6 +135,26 @@ static const struct usbmisc_ops imx53_usbmisc_ops = {
 static const struct usbmisc_ops imx6q_usbmisc_ops = {
 	.init = usbmisc_imx6q_init,
 };
+
+int imx_usbmisc_init(struct imx_usbmisc_data *data)
+{
+	if (!usbmisc)
+		return -EPROBE_DEFER;
+	if (!usbmisc->ops->init)
+		return 0;
+	return usbmisc->ops->init(data);
+}
+EXPORT_SYMBOL_GPL(imx_usbmisc_init);
+
+int imx_usbmisc_init_post(struct imx_usbmisc_data *data)
+{
+	if (!usbmisc)
+		return -EPROBE_DEFER;
+	if (!usbmisc->ops->post)
+		return 0;
+	return usbmisc->ops->post(data);
+}
+EXPORT_SYMBOL_GPL(imx_usbmisc_init_post);
 
 static const struct of_device_id usbmisc_imx_dt_ids[] = {
 	{
@@ -216,19 +212,12 @@ static int usbmisc_imx_probe(struct platform_device *pdev)
 		of_match_device(usbmisc_imx_dt_ids, &pdev->dev);
 	data->ops = (const struct usbmisc_ops *)tmp_dev->data;
 	usbmisc = data;
-	ret = usbmisc_set_ops(data->ops);
-	if (ret) {
-		usbmisc = NULL;
-		clk_disable_unprepare(data->clk);
-		return ret;
-	}
 
 	return 0;
 }
 
 static int usbmisc_imx_remove(struct platform_device *pdev)
 {
-	usbmisc_unset_ops(usbmisc->ops);
 	clk_disable_unprepare(usbmisc->clk);
 	usbmisc = NULL;
 	return 0;

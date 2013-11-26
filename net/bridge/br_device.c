@@ -245,22 +245,22 @@ fail:
 int br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp)
 {
 	struct netpoll *np;
-	int err = 0;
+	int err;
+
+	if (!p->br->dev->npinfo)
+		return 0;
 
 	np = kzalloc(sizeof(*p->np), gfp);
-	err = -ENOMEM;
 	if (!np)
-		goto out;
+		return -ENOMEM;
 
 	err = __netpoll_setup(np, p->dev, gfp);
 	if (err) {
 		kfree(np);
-		goto out;
+		return err;
 	}
 
 	p->np = np;
-
-out:
 	return err;
 }
 

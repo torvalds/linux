@@ -392,7 +392,7 @@ static int s3c_cpufreq_init(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static __init int s3c_cpufreq_initclks(void)
+static int __init s3c_cpufreq_initclks(void)
 {
 	_clk_mpll = s3c_cpufreq_clk_get(NULL, "mpll");
 	_clk_xtal = s3c_cpufreq_clk_get(NULL, "xtal");
@@ -522,7 +522,7 @@ int __init s3c_cpufreq_setboard(struct s3c_cpufreq_board *board)
 	/* Copy the board information so that each board can make this
 	 * initdata. */
 
-	ours = kzalloc(sizeof(struct s3c_cpufreq_board), GFP_KERNEL);
+	ours = kzalloc(sizeof(*ours), GFP_KERNEL);
 	if (ours == NULL) {
 		printk(KERN_ERR "%s: no memory\n", __func__);
 		return -ENOMEM;
@@ -615,7 +615,7 @@ static int s3c_cpufreq_build_freq(void)
 	size = cpu_cur.info->calc_freqtable(&cpu_cur, NULL, 0);
 	size++;
 
-	ftab = kmalloc(sizeof(struct cpufreq_frequency_table) * size, GFP_KERNEL);
+	ftab = kmalloc(sizeof(*ftab) * size, GFP_KERNEL);
 	if (!ftab) {
 		printk(KERN_ERR "%s: no memory for tables\n", __func__);
 		return -ENOMEM;
@@ -691,7 +691,7 @@ int __init s3c_plltab_register(struct cpufreq_frequency_table *plls,
 	struct cpufreq_frequency_table *vals;
 	unsigned int size;
 
-	size = sizeof(struct cpufreq_frequency_table) * (plls_no + 1);
+	size = sizeof(*vals) * (plls_no + 1);
 
 	vals = kmalloc(size, GFP_KERNEL);
 	if (vals) {

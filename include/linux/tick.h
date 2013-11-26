@@ -10,6 +10,8 @@
 #include <linux/irqflags.h>
 #include <linux/percpu.h>
 #include <linux/hrtimer.h>
+#include <linux/context_tracking_state.h>
+#include <linux/cpumask.h>
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS
 
@@ -158,20 +160,51 @@ static inline u64 get_cpu_iowait_time_us(int cpu, u64 *unused) { return -1; }
 # endif /* !CONFIG_NO_HZ_COMMON */
 
 #ifdef CONFIG_NO_HZ_FULL
+extern bool tick_nohz_full_running;
+extern cpumask_var_t tick_nohz_full_mask;
+
+static inline bool tick_nohz_full_enabled(void)
+{
+	if (!static_key_false(&context_tracking_enabled))
+		return false;
+
+	return tick_nohz_full_running;
+}
+
+static inline bool tick_nohz_full_cpu(int cpu)
+{
+	if (!tick_nohz_full_enabled())
+		return false;
+
+	return cpumask_test_cpu(cpu, tick_nohz_full_mask);
+}
+
 extern void tick_nohz_init(void);
-extern int tick_nohz_full_cpu(int cpu);
-extern void tick_nohz_full_check(void);
+extern void __tick_nohz_full_check(void);
 extern void tick_nohz_full_kick(void);
 extern void tick_nohz_full_kick_all(void);
-extern void tick_nohz_task_switch(struct task_struct *tsk);
+extern void __tick_nohz_task_switch(struct task_struct *tsk);
 #else
 static inline void tick_nohz_init(void) { }
-static inline int tick_nohz_full_cpu(int cpu) { return 0; }
-static inline void tick_nohz_full_check(void) { }
+static inline bool tick_nohz_full_enabled(void) { return false; }
+static inline bool tick_nohz_full_cpu(int cpu) { return false; }
+static inline void __tick_nohz_full_check(void) { }
 static inline void tick_nohz_full_kick(void) { }
 static inline void tick_nohz_full_kick_all(void) { }
-static inline void tick_nohz_task_switch(struct task_struct *tsk) { }
+static inline void __tick_nohz_task_switch(struct task_struct *tsk) { }
 #endif
+
+static inline void tick_nohz_full_check(void)
+{
+	if (tick_nohz_full_enabled())
+		__tick_nohz_full_check();
+}
+
+static inline void tick_nohz_task_switch(struct task_struct *tsk)
+{
+	if (tick_nohz_full_enabled())
+		__tick_nohz_task_switch(tsk);
+}
 
 
 #endif

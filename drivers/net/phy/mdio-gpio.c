@@ -191,7 +191,7 @@ static int mdio_gpio_probe(struct platform_device *pdev)
 		pdata = mdio_gpio_of_get_data(pdev);
 		bus_id = of_alias_get_id(pdev->dev.of_node, "mdio-gpio");
 	} else {
-		pdata = pdev->dev.platform_data;
+		pdata = dev_get_platdata(&pdev->dev);
 		bus_id = pdev->id;
 	}
 

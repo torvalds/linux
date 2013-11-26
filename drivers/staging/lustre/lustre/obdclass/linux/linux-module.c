@@ -83,27 +83,26 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 	struct obd_ioctl_data *data;
 	int err;
 	int offset = 0;
-	ENTRY;
 
 	err = copy_from_user(&hdr, (void *)arg, sizeof(hdr));
 	if ( err )
-		RETURN(err);
+		return err;
 
 	if (hdr.ioc_version != OBD_IOCTL_VERSION) {
 		CERROR("Version mismatch kernel (%x) vs application (%x)\n",
 		       OBD_IOCTL_VERSION, hdr.ioc_version);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (hdr.ioc_len > OBD_MAX_IOCTL_BUFFER) {
 		CERROR("User buffer len %d exceeds %d max buffer\n",
 		       hdr.ioc_len, OBD_MAX_IOCTL_BUFFER);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (hdr.ioc_len < sizeof(struct obd_ioctl_data)) {
 		CERROR("User buffer too small for ioctl (%d)\n", hdr.ioc_len);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	/* When there are lots of processes calling vmalloc on multi-core
@@ -114,7 +113,7 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 	if (*buf == NULL) {
 		CERROR("Cannot allocate control buffer of len %d\n",
 		       hdr.ioc_len);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 	*len = hdr.ioc_len;
 	data = (struct obd_ioctl_data *)*buf;
@@ -122,13 +121,13 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 	err = copy_from_user(*buf, (void *)arg, hdr.ioc_len);
 	if ( err ) {
 		OBD_FREE_LARGE(*buf, hdr.ioc_len);
-		RETURN(err);
+		return err;
 	}
 
 	if (obd_ioctl_is_invalid(data)) {
 		CERROR("ioctl not correctly formatted\n");
 		OBD_FREE_LARGE(*buf, hdr.ioc_len);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (data->ioc_inllen1) {
@@ -150,7 +149,6 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 		data->ioc_inlbuf4 = &data->ioc_bulk[0] + offset;
 	}
 
-	EXIT;
 	return 0;
 }
 EXPORT_SYMBOL(obd_ioctl_getdata);
@@ -169,19 +167,15 @@ EXPORT_SYMBOL(obd_ioctl_popdata);
 /*  opening /dev/obd */
 static int obd_class_open(struct inode * inode, struct file * file)
 {
-	ENTRY;
-
 	try_module_get(THIS_MODULE);
-	RETURN(0);
+	return 0;
 }
 
 /*  closing /dev/obd */
 static int obd_class_release(struct inode * inode, struct file * file)
 {
-	ENTRY;
-
 	module_put(THIS_MODULE);
-	RETURN(0);
+	return 0;
 }
 
 /* to control /dev/obd */
@@ -189,17 +183,16 @@ static long obd_class_ioctl(struct file *filp, unsigned int cmd,
 			    unsigned long arg)
 {
 	int err = 0;
-	ENTRY;
 
 	/* Allow non-root access for OBD_IOC_PING_TARGET - used by lfs check */
 	if (!cfs_capable(CFS_CAP_SYS_ADMIN) && (cmd != OBD_IOC_PING_TARGET))
-		RETURN(err = -EACCES);
+		return err = -EACCES;
 	if ((cmd & 0xffffff00) == ((int)'T') << 8) /* ignore all tty ioctls */
-		RETURN(err = -ENOTTY);
+		return err = -ENOTTY;
 
 	err = class_handle_ioctl(cmd, (unsigned long)arg);
 
-	RETURN(err);
+	return err;
 }
 
 /* declare character device */
@@ -211,7 +204,7 @@ static struct file_operations obd_psdev_fops = {
 };
 
 /* modules setup */
-psdev_t obd_psdev = {
+struct miscdevice obd_psdev = {
 	.minor = OBD_DEV_MINOR,
 	.name  = OBD_DEV_NAME,
 	.fops  = &obd_psdev_fops,
@@ -385,24 +378,29 @@ struct file_operations obd_device_list_fops = {
 
 int class_procfs_init(void)
 {
-	int rc;
-	ENTRY;
+	int rc = 0;
 
 	obd_sysctl_init();
 	proc_lustre_root = lprocfs_register("fs/lustre", NULL,
 					    lprocfs_base, NULL);
+	if (IS_ERR(proc_lustre_root)) {
+		rc = PTR_ERR(proc_lustre_root);
+		proc_lustre_root = NULL;
+		goto out;
+	}
+
 	rc = lprocfs_seq_create(proc_lustre_root, "devices", 0444,
 				&obd_device_list_fops, NULL);
+out:
 	if (rc)
 		CERROR("error adding /proc/fs/lustre/devices file\n");
-	RETURN(0);
+	return 0;
 }
 
 int class_procfs_clean(void)
 {
-	ENTRY;
 	if (proc_lustre_root) {
 		lprocfs_remove(&proc_lustre_root);
 	}
-	RETURN(0);
+	return 0;
 }

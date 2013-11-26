@@ -93,6 +93,9 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 
 	might_sleep();
 
+	if (key->flags & KEY_FLAG_TAINTED)
+		return -EINVAL;
+
 	if (!key->local->ops->set_key)
 		goto out_unsupported;
 
@@ -455,6 +458,7 @@ int ieee80211_key_link(struct ieee80211_key *key,
 		       struct ieee80211_sub_if_data *sdata,
 		       struct sta_info *sta)
 {
+	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_key *old_key;
 	int idx, ret;
 	bool pairwise;
@@ -484,10 +488,13 @@ int ieee80211_key_link(struct ieee80211_key *key,
 
 	ieee80211_debugfs_key_add(key);
 
-	ret = ieee80211_key_enable_hw_accel(key);
-
-	if (ret)
-		ieee80211_key_free(key, true);
+	if (!local->wowlan) {
+		ret = ieee80211_key_enable_hw_accel(key);
+		if (ret)
+			ieee80211_key_free(key, true);
+	} else {
+		ret = 0;
+	}
 
 	mutex_unlock(&sdata->local->key_mtx);
 
@@ -540,7 +547,7 @@ void ieee80211_iter_keys(struct ieee80211_hw *hw,
 			 void *iter_data)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct ieee80211_key *key;
+	struct ieee80211_key *key, *tmp;
 	struct ieee80211_sub_if_data *sdata;
 
 	ASSERT_RTNL();
@@ -548,13 +555,14 @@ void ieee80211_iter_keys(struct ieee80211_hw *hw,
 	mutex_lock(&local->key_mtx);
 	if (vif) {
 		sdata = vif_to_sdata(vif);
-		list_for_each_entry(key, &sdata->key_list, list)
+		list_for_each_entry_safe(key, tmp, &sdata->key_list, list)
 			iter(hw, &sdata->vif,
 			     key->sta ? &key->sta->sta : NULL,
 			     &key->conf, iter_data);
 	} else {
 		list_for_each_entry(sdata, &local->interfaces, list)
-			list_for_each_entry(key, &sdata->key_list, list)
+			list_for_each_entry_safe(key, tmp,
+						 &sdata->key_list, list)
 				iter(hw, &sdata->vif,
 				     key->sta ? &key->sta->sta : NULL,
 				     &key->conf, iter_data);
@@ -751,3 +759,135 @@ void ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf,
 	}
 }
 EXPORT_SYMBOL(ieee80211_get_key_rx_seq);
+
+void ieee80211_set_key_tx_seq(struct ieee80211_key_conf *keyconf,
+			      struct ieee80211_key_seq *seq)
+{
+	struct ieee80211_key *key;
+	u64 pn64;
+
+	key = container_of(keyconf, struct ieee80211_key, conf);
+
+	switch (key->conf.cipher) {
+	case WLAN_CIPHER_SUITE_TKIP:
+		key->u.tkip.tx.iv32 = seq->tkip.iv32;
+		key->u.tkip.tx.iv16 = seq->tkip.iv16;
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+		pn64 = (u64)seq->ccmp.pn[5] |
+		       ((u64)seq->ccmp.pn[4] << 8) |
+		       ((u64)seq->ccmp.pn[3] << 16) |
+		       ((u64)seq->ccmp.pn[2] << 24) |
+		       ((u64)seq->ccmp.pn[1] << 32) |
+		       ((u64)seq->ccmp.pn[0] << 40);
+		atomic64_set(&key->u.ccmp.tx_pn, pn64);
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		pn64 = (u64)seq->aes_cmac.pn[5] |
+		       ((u64)seq->aes_cmac.pn[4] << 8) |
+		       ((u64)seq->aes_cmac.pn[3] << 16) |
+		       ((u64)seq->aes_cmac.pn[2] << 24) |
+		       ((u64)seq->aes_cmac.pn[1] << 32) |
+		       ((u64)seq->aes_cmac.pn[0] << 40);
+		atomic64_set(&key->u.aes_cmac.tx_pn, pn64);
+		break;
+	default:
+		WARN_ON(1);
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(ieee80211_set_key_tx_seq);
+
+void ieee80211_set_key_rx_seq(struct ieee80211_key_conf *keyconf,
+			      int tid, struct ieee80211_key_seq *seq)
+{
+	struct ieee80211_key *key;
+	u8 *pn;
+
+	key = container_of(keyconf, struct ieee80211_key, conf);
+
+	switch (key->conf.cipher) {
+	case WLAN_CIPHER_SUITE_TKIP:
+		if (WARN_ON(tid < 0 || tid >= IEEE80211_NUM_TIDS))
+			return;
+		key->u.tkip.rx[tid].iv32 = seq->tkip.iv32;
+		key->u.tkip.rx[tid].iv16 = seq->tkip.iv16;
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+		if (WARN_ON(tid < -1 || tid >= IEEE80211_NUM_TIDS))
+			return;
+		if (tid < 0)
+			pn = key->u.ccmp.rx_pn[IEEE80211_NUM_TIDS];
+		else
+			pn = key->u.ccmp.rx_pn[tid];
+		memcpy(pn, seq->ccmp.pn, IEEE80211_CCMP_PN_LEN);
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		if (WARN_ON(tid != 0))
+			return;
+		pn = key->u.aes_cmac.rx_pn;
+		memcpy(pn, seq->aes_cmac.pn, IEEE80211_CMAC_PN_LEN);
+		break;
+	default:
+		WARN_ON(1);
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(ieee80211_set_key_rx_seq);
+
+void ieee80211_remove_key(struct ieee80211_key_conf *keyconf)
+{
+	struct ieee80211_key *key;
+
+	key = container_of(keyconf, struct ieee80211_key, conf);
+
+	assert_key_lock(key->local);
+
+	/*
+	 * if key was uploaded, we assume the driver will/has remove(d)
+	 * it, so adjust bookkeeping accordingly
+	 */
+	if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
+		key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;
+
+		if (!((key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC) ||
+		      (key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV) ||
+		      (key->conf.flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE)))
+			increment_tailroom_need_count(key->sdata);
+	}
+
+	ieee80211_key_free(key, false);
+}
+EXPORT_SYMBOL_GPL(ieee80211_remove_key);
+
+struct ieee80211_key_conf *
+ieee80211_gtk_rekey_add(struct ieee80211_vif *vif,
+			struct ieee80211_key_conf *keyconf)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_key *key;
+	int err;
+
+	if (WARN_ON(!local->wowlan))
+		return ERR_PTR(-EINVAL);
+
+	if (WARN_ON(vif->type != NL80211_IFTYPE_STATION))
+		return ERR_PTR(-EINVAL);
+
+	key = ieee80211_key_alloc(keyconf->cipher, keyconf->keyidx,
+				  keyconf->keylen, keyconf->key,
+				  0, NULL);
+	if (IS_ERR(key))
+		return ERR_PTR(PTR_ERR(key));
+
+	if (sdata->u.mgd.mfp != IEEE80211_MFP_DISABLED)
+		key->conf.flags |= IEEE80211_KEY_FLAG_RX_MGMT;
+
+	err = ieee80211_key_link(key, sdata, NULL);
+	if (err)
+		return ERR_PTR(err);
+
+	return &key->conf;
+}
+EXPORT_SYMBOL_GPL(ieee80211_gtk_rekey_add);

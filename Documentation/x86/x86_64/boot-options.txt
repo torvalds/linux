@@ -176,6 +176,11 @@ ACPI
 
   acpi=noirq	Don't route interrupts
 
+  acpi=nocmcff	Disable firmware first mode for corrected errors. This
+		disables parsing the HEST CMC error source to check if
+		firmware has set the FF flag. This may result in
+		duplicate corrected error reports.
+
 PCI
 
   pci=off		Don't use PCI

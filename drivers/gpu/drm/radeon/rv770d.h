@@ -852,7 +852,7 @@
 #define AFMT_VBI_PACKET_CONTROL              0x7608
 #       define AFMT_GENERIC0_UPDATE          (1 << 2)
 #define AFMT_INFOFRAME_CONTROL0              0x760c
-#       define AFMT_AUDIO_INFO_SOURCE        (1 << 6) /* 0 - sound block; 1 - hmdi regs */
+#       define AFMT_AUDIO_INFO_SOURCE        (1 << 6) /* 0 - sound block; 1 - hdmi regs */
 #       define AFMT_AUDIO_INFO_UPDATE        (1 << 7)
 #       define AFMT_MPEG_INFO_UPDATE         (1 << 10)
 #define AFMT_GENERIC0_7                      0x7610
@@ -971,7 +971,21 @@
 #       define TARGET_LINK_SPEED_MASK                     (0xf << 0)
 #       define SELECTABLE_DEEMPHASIS                      (1 << 6)
 
+/*
+ * PM4
+ */
+#define PACKET0(reg, n)	((RADEON_PACKET_TYPE0 << 30) |			\
+			 (((reg) >> 2) & 0xFFFF) |			\
+			 ((n) & 0x3FFF) << 16)
+#define PACKET3(op, n)	((RADEON_PACKET_TYPE3 << 30) |			\
+			 (((op) & 0xFF) << 8) |				\
+			 ((n) & 0x3FFF) << 16)
+
 /* UVD */
+#define UVD_GPCOM_VCPU_CMD				0xef0c
+#define UVD_GPCOM_VCPU_DATA0				0xef10
+#define UVD_GPCOM_VCPU_DATA1				0xef14
+
 #define UVD_LMI_EXT40_ADDR				0xf498
 #define UVD_VCPU_CHIP_ID				0xf4d4
 #define UVD_VCPU_CACHE_OFFSET0				0xf4d8
@@ -984,5 +998,7 @@
 
 #define UVD_RBC_RB_RPTR					0xf690
 #define UVD_RBC_RB_WPTR					0xf694
+
+#define UVD_CONTEXT_ID					0xf6f4
 
 #endif

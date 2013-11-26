@@ -601,7 +601,7 @@ static int pmic_probe(struct spi_device *spi)
 	struct regulator_config config = { };
 	int ret = 0, i;
 
-	init_data = dev->platform_data;
+	init_data = dev_get_platdata(dev);
 	if (!init_data) {
 		dev_err(dev, "could not find regulator platform data\n");
 		return -EINVAL;

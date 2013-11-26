@@ -83,11 +83,6 @@ enum {
 	MUSB_PORT_MODE_DUAL_ROLE,
 };
 
-#ifdef CONFIG_PROC_FS
-#include <linux/fs.h>
-#define MUSB_CONFIG_PROC_FS
-#endif
-
 /****************************** CONSTANTS ********************************/
 
 #ifndef MUSB_C_NUM_EPS
@@ -425,9 +420,6 @@ struct musb {
 
 	struct musb_hdrc_config	*config;
 
-#ifdef MUSB_CONFIG_PROC_FS
-	struct proc_dir_entry *proc_entry;
-#endif
 	int			xceiv_old_state;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry		*debugfs_root;
@@ -511,6 +503,7 @@ static inline void musb_configure_ep0(struct musb *musb)
 extern const char musb_driver_name[];
 
 extern void musb_stop(struct musb *musb);
+extern void musb_start(struct musb *musb);
 
 extern void musb_write_fifo(struct musb_hw_ep *ep, u16 len, const u8 *src);
 extern void musb_read_fifo(struct musb_hw_ep *ep, u16 len, u8 *dst);

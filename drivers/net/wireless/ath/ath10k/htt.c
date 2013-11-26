@@ -16,6 +16,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/if_ether.h>
 
 #include "htt.h"
 #include "core.h"
@@ -36,7 +37,7 @@ static int ath10k_htt_htc_attach(struct ath10k_htt *htt)
 	/* connect to control service */
 	conn_req.service_id = ATH10K_HTC_SVC_ID_HTT_DATA_MSG;
 
-	status = ath10k_htc_connect_service(htt->ar->htc, &conn_req,
+	status = ath10k_htc_connect_service(&htt->ar->htc, &conn_req,
 					    &conn_resp);
 
 	if (status)
@@ -47,14 +48,10 @@ static int ath10k_htt_htc_attach(struct ath10k_htt *htt)
 	return 0;
 }
 
-struct ath10k_htt *ath10k_htt_attach(struct ath10k *ar)
+int ath10k_htt_attach(struct ath10k *ar)
 {
-	struct ath10k_htt *htt;
+	struct ath10k_htt *htt = &ar->htt;
 	int ret;
-
-	htt = kzalloc(sizeof(*htt), GFP_KERNEL);
-	if (!htt)
-		return NULL;
 
 	htt->ar = ar;
 	htt->max_throughput_mbps = 800;
@@ -65,8 +62,11 @@ struct ath10k_htt *ath10k_htt_attach(struct ath10k *ar)
 	 * since ath10k_htt_rx_attach involves sending a rx ring configure
 	 * message to the target.
 	 */
-	if (ath10k_htt_htc_attach(htt))
+	ret = ath10k_htt_htc_attach(htt);
+	if (ret) {
+		ath10k_err("could not attach htt htc (%d)\n", ret);
 		goto err_htc_attach;
+	}
 
 	ret = ath10k_htt_tx_attach(htt);
 	if (ret) {
@@ -74,8 +74,11 @@ struct ath10k_htt *ath10k_htt_attach(struct ath10k *ar)
 		goto err_htc_attach;
 	}
 
-	if (ath10k_htt_rx_attach(htt))
+	ret = ath10k_htt_rx_attach(htt);
+	if (ret) {
+		ath10k_err("could not attach htt rx (%d)\n", ret);
 		goto err_rx_attach;
+	}
 
 	/*
 	 * Prefetch enough data to satisfy target
@@ -89,13 +92,12 @@ struct ath10k_htt *ath10k_htt_attach(struct ath10k *ar)
 		8 + /* llc snap */
 		2; /* ip4 dscp or ip6 priority */
 
-	return htt;
+	return 0;
 
 err_rx_attach:
 	ath10k_htt_tx_detach(htt);
 err_htc_attach:
-	kfree(htt);
-	return NULL;
+	return ret;
 }
 
 #define HTT_TARGET_VERSION_TIMEOUT_HZ (3*HZ)
@@ -148,5 +150,4 @@ void ath10k_htt_detach(struct ath10k_htt *htt)
 {
 	ath10k_htt_rx_detach(htt);
 	ath10k_htt_tx_detach(htt);
-	kfree(htt);
 }

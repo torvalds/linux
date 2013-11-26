@@ -828,7 +828,7 @@ static inline int resize_screen(struct vc_data *vc, int width, int height,
  *	If the caller passes a tty structure then update the termios winsize
  *	information and perform any necessary signal handling.
  *
- *	Caller must hold the console semaphore. Takes the termios mutex and
+ *	Caller must hold the console semaphore. Takes the termios rwsem and
  *	ctrl_lock of the tty IFF a tty is passed.
  */
 
@@ -972,7 +972,7 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows)
  *	the actual work.
  *
  *	Takes the console sem and the called methods then take the tty
- *	termios_mutex and the tty ctrl_lock in that order.
+ *	termios_rwsem and the tty ctrl_lock in that order.
  */
 static int vt_resize(struct tty_struct *tty, struct winsize *ws)
 {
@@ -2809,8 +2809,10 @@ static void con_shutdown(struct tty_struct *tty)
 	console_unlock();
 }
 
+static int default_color           = 7; /* white */
 static int default_italic_color    = 2; // green (ASCII)
 static int default_underline_color = 3; // cyan (ASCII)
+module_param_named(color, default_color, int, S_IRUGO | S_IWUSR);
 module_param_named(italic, default_italic_color, int, S_IRUGO | S_IWUSR);
 module_param_named(underline, default_underline_color, int, S_IRUGO | S_IWUSR);
 
@@ -2832,7 +2834,7 @@ static void vc_init(struct vc_data *vc, unsigned int rows,
 		vc->vc_palette[k++] = default_grn[j] ;
 		vc->vc_palette[k++] = default_blu[j] ;
 	}
-	vc->vc_def_color       = 0x07;   /* white */
+	vc->vc_def_color       = default_color;
 	vc->vc_ulcolor         = default_underline_color;
 	vc->vc_itcolor         = default_italic_color;
 	vc->vc_halfcolor       = 0x08;   /* grey */

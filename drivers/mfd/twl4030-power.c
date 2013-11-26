@@ -493,7 +493,7 @@ int twl4030_remove_script(u8 flags)
 	return err;
 }
 
-int twl4030_power_configure_scripts(struct twl4030_power_data *pdata)
+static int twl4030_power_configure_scripts(struct twl4030_power_data *pdata)
 {
 	int err;
 	int i;
@@ -509,7 +509,7 @@ int twl4030_power_configure_scripts(struct twl4030_power_data *pdata)
 	return 0;
 }
 
-int twl4030_power_configure_resources(struct twl4030_power_data *pdata)
+static int twl4030_power_configure_resources(struct twl4030_power_data *pdata)
 {
 	struct twl4030_resconfig *resconfig = pdata->resource_config;
 	int err;
@@ -553,9 +553,9 @@ static bool twl4030_power_use_poweroff(struct twl4030_power_data *pdata,
 	return false;
 }
 
-int twl4030_power_probe(struct platform_device *pdev)
+static int twl4030_power_probe(struct platform_device *pdev)
 {
-	struct twl4030_power_data *pdata = pdev->dev.platform_data;
+	struct twl4030_power_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device_node *node = pdev->dev.of_node;
 	int err = 0;
 	int err2 = 0;

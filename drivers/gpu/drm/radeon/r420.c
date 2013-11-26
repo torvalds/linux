@@ -160,18 +160,25 @@ void r420_pipes_init(struct radeon_device *rdev)
 
 u32 r420_mc_rreg(struct radeon_device *rdev, u32 reg)
 {
+	unsigned long flags;
 	u32 r;
 
+	spin_lock_irqsave(&rdev->mc_idx_lock, flags);
 	WREG32(R_0001F8_MC_IND_INDEX, S_0001F8_MC_IND_ADDR(reg));
 	r = RREG32(R_0001FC_MC_IND_DATA);
+	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 	return r;
 }
 
 void r420_mc_wreg(struct radeon_device *rdev, u32 reg, u32 v)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->mc_idx_lock, flags);
 	WREG32(R_0001F8_MC_IND_INDEX, S_0001F8_MC_IND_ADDR(reg) |
 		S_0001F8_MC_IND_WR_EN(1));
 	WREG32(R_0001FC_MC_IND_DATA, v);
+	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 }
 
 static void r420_debugfs(struct radeon_device *rdev)

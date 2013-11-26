@@ -18,15 +18,15 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pcf857x.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
@@ -223,7 +223,6 @@ static void pcf857x_irq_domain_cleanup(struct pcf857x *gpio)
 }
 
 static int pcf857x_irq_domain_init(struct pcf857x *gpio,
-				   struct pcf857x_platform_data *pdata,
 				   struct i2c_client *client)
 {
 	int status;
@@ -262,7 +261,7 @@ static int pcf857x_probe(struct i2c_client *client,
 	struct pcf857x			*gpio;
 	int				status;
 
-	pdata = client->dev.platform_data;
+	pdata = dev_get_platdata(&client->dev);
 	if (!pdata) {
 		dev_dbg(&client->dev, "no platform data\n");
 	}
@@ -286,8 +285,8 @@ static int pcf857x_probe(struct i2c_client *client,
 	gpio->chip.ngpio		= id->driver_data;
 
 	/* enable gpio_to_irq() if platform has settings */
-	if (pdata && client->irq) {
-		status = pcf857x_irq_domain_init(gpio, pdata, client);
+	if (client->irq) {
+		status = pcf857x_irq_domain_init(gpio, client);
 		if (status < 0) {
 			dev_err(&client->dev, "irq_domain init failed\n");
 			goto fail;
@@ -388,7 +387,7 @@ fail:
 	dev_dbg(&client->dev, "probe error %d for '%s'\n",
 			status, client->name);
 
-	if (pdata && client->irq)
+	if (client->irq)
 		pcf857x_irq_domain_cleanup(gpio);
 
 	return status;
@@ -396,7 +395,7 @@ fail:
 
 static int pcf857x_remove(struct i2c_client *client)
 {
-	struct pcf857x_platform_data	*pdata = client->dev.platform_data;
+	struct pcf857x_platform_data	*pdata = dev_get_platdata(&client->dev);
 	struct pcf857x			*gpio = i2c_get_clientdata(client);
 	int				status = 0;
 
@@ -411,7 +410,7 @@ static int pcf857x_remove(struct i2c_client *client)
 		}
 	}
 
-	if (pdata && client->irq)
+	if (client->irq)
 		pcf857x_irq_domain_cleanup(gpio);
 
 	status = gpiochip_remove(&gpio->chip);

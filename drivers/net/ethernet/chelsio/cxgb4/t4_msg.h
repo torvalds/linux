@@ -320,6 +320,21 @@ struct cpl_act_open_req6 {
 	__be32 opt2;
 };
 
+struct cpl_t5_act_open_req6 {
+	WR_HDR;
+	union opcode_tid ot;
+	__be16 local_port;
+	__be16 peer_port;
+	__be64 local_ip_hi;
+	__be64 local_ip_lo;
+	__be64 peer_ip_hi;
+	__be64 peer_ip_lo;
+	__be64 opt0;
+	__be32 rsvd;
+	__be32 opt2;
+	__be64 params;
+};
+
 struct cpl_act_open_rpl {
 	union opcode_tid ot;
 	__be32 atid_status;
@@ -405,7 +420,7 @@ struct cpl_close_listsvr_req {
 	WR_HDR;
 	union opcode_tid ot;
 	__be16 reply_ctrl;
-#define LISTSVR_IPV6 (1 << 14)
+#define LISTSVR_IPV6(x) ((x) << 14)
 	__be16 rsvd;
 };
 

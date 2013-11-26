@@ -805,7 +805,7 @@ static struct bpf_binary_header *bpf_alloc_binary(unsigned int bpfsize,
 		return NULL;
 	memset(header, 0, sz);
 	header->pages = sz / PAGE_SIZE;
-	hole = sz - bpfsize + sizeof(*header);
+	hole = sz - (bpfsize + sizeof(*header));
 	/* Insert random number of illegal instructions before BPF code
 	 * and make sure the first instruction starts at an even address.
 	 */
@@ -881,7 +881,9 @@ void bpf_jit_free(struct sk_filter *fp)
 	struct bpf_binary_header *header = (void *)addr;
 
 	if (fp->bpf_func == sk_run_filter)
-		return;
+		goto free_filter;
 	set_memory_rw(addr, header->pages);
 	module_free(NULL, header);
+free_filter:
+	kfree(fp);
 }

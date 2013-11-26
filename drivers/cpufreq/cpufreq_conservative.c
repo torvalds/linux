@@ -11,19 +11,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/cpufreq.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/kernel_stat.h>
-#include <linux/kobject.h>
-#include <linux/module.h>
-#include <linux/mutex.h>
-#include <linux/notifier.h>
-#include <linux/percpu-defs.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
-#include <linux/types.h>
-
 #include "cpufreq_governor.h"
 
 /* Conservative governor macros */
@@ -79,8 +67,6 @@ static void cs_check_cpu(int cpu, unsigned int load)
 			return;
 
 		dbs_info->requested_freq += get_freq_target(cs_tuners, policy);
-		if (dbs_info->requested_freq > policy->max)
-			dbs_info->requested_freq = policy->max;
 
 		__cpufreq_driver_target(policy, dbs_info->requested_freq,
 			CPUFREQ_RELATION_H);
@@ -101,8 +87,6 @@ static void cs_check_cpu(int cpu, unsigned int load)
 			return;
 
 		dbs_info->requested_freq -= get_freq_target(cs_tuners, policy);
-		if (dbs_info->requested_freq < policy->min)
-			dbs_info->requested_freq = policy->min;
 
 		__cpufreq_driver_target(policy, dbs_info->requested_freq,
 				CPUFREQ_RELATION_L);
@@ -329,7 +313,7 @@ static int cs_init(struct dbs_data *dbs_data)
 {
 	struct cs_dbs_tuners *tuners;
 
-	tuners = kzalloc(sizeof(struct cs_dbs_tuners), GFP_KERNEL);
+	tuners = kzalloc(sizeof(*tuners), GFP_KERNEL);
 	if (!tuners) {
 		pr_err("%s: kzalloc failed\n", __func__);
 		return -ENOMEM;

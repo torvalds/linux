@@ -106,11 +106,6 @@ static void tegra_bo_destroy(struct drm_device *drm, struct tegra_bo *bo)
 	dma_free_writecombine(drm->dev, bo->gem.size, bo->vaddr, bo->paddr);
 }
 
-unsigned int tegra_bo_get_mmap_offset(struct tegra_bo *bo)
-{
-	return (unsigned int)bo->gem.map_list.hash.key << PAGE_SHIFT;
-}
-
 struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size)
 {
 	struct tegra_bo *bo;
@@ -182,8 +177,7 @@ void tegra_bo_free_object(struct drm_gem_object *gem)
 {
 	struct tegra_bo *bo = to_tegra_bo(gem);
 
-	if (gem->map_list.map)
-		drm_gem_free_mmap_offset(gem);
+	drm_gem_free_mmap_offset(gem);
 
 	drm_gem_object_release(gem);
 	tegra_bo_destroy(gem->dev, bo);
@@ -228,7 +222,7 @@ int tegra_bo_dumb_map_offset(struct drm_file *file, struct drm_device *drm,
 
 	bo = to_tegra_bo(gem);
 
-	*offset = tegra_bo_get_mmap_offset(bo);
+	*offset = drm_vma_node_offset_addr(&bo->gem.vma_node);
 
 	drm_gem_object_unreference(gem);
 
@@ -261,10 +255,4 @@ int tegra_drm_mmap(struct file *file, struct vm_area_struct *vma)
 		drm_gem_vm_close(vma);
 
 	return ret;
-}
-
-int tegra_bo_dumb_destroy(struct drm_file *file, struct drm_device *drm,
-			  unsigned int handle)
-{
-	return drm_gem_handle_delete(file, handle);
 }

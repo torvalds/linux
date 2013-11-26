@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
+#include <linux/of_platform.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -542,7 +543,7 @@ static int s3c_hsotg_write_fifo(struct s3c_hsotg *hsotg,
 	 * FIFO, requests of >512 cause the endpoint to get stuck with a
 	 * fragment of the end of the transfer in it.
 	 */
-	if (can_write > 512)
+	if (can_write > 512 && !periodic)
 		can_write = 512;
 
 	/*
@@ -2474,8 +2475,6 @@ irq_retry:
 	if (gintsts & GINTSTS_ErlySusp) {
 		dev_dbg(hsotg->dev, "GINTSTS_ErlySusp\n");
 		writel(GINTSTS_ErlySusp, hsotg->regs + GINTSTS);
-
-		s3c_hsotg_disconnect(hsotg);
 	}
 
 	/*
@@ -2961,9 +2960,6 @@ static int s3c_hsotg_udc_stop(struct usb_gadget *gadget,
 	if (!hsotg)
 		return -ENODEV;
 
-	if (!driver || driver != hsotg->driver || !driver->unbind)
-		return -EINVAL;
-
 	/* all endpoints should be shutdown */
 	for (ep = 0; ep < hsotg->num_of_eps; ep++)
 		s3c_hsotg_ep_disable(&hsotg->eps[ep].ep);
@@ -2971,15 +2967,15 @@ static int s3c_hsotg_udc_stop(struct usb_gadget *gadget,
 	spin_lock_irqsave(&hsotg->lock, flags);
 
 	s3c_hsotg_phy_disable(hsotg);
-	regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
 
-	hsotg->driver = NULL;
+	if (!driver)
+		hsotg->driver = NULL;
+
 	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
 
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 
-	dev_info(hsotg->dev, "unregistered gadget driver '%s'\n",
-		 driver->driver.name);
+	regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
 
 	return 0;
 }
@@ -3450,7 +3446,7 @@ static void s3c_hsotg_delete_debug(struct s3c_hsotg *hsotg)
 
 static int s3c_hsotg_probe(struct platform_device *pdev)
 {
-	struct s3c_hsotg_plat *plat = pdev->dev.platform_data;
+	struct s3c_hsotg_plat *plat = dev_get_platdata(&pdev->dev);
 	struct usb_phy *phy;
 	struct device *dev = &pdev->dev;
 	struct s3c_hsotg_ep *eps;
@@ -3469,7 +3465,7 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
 	if (IS_ERR(phy)) {
 		/* Fallback for pdata */
-		plat = pdev->dev.platform_data;
+		plat = dev_get_platdata(&pdev->dev);
 		if (!plat) {
 			dev_err(&pdev->dev, "no platform data or transceiver defined\n");
 			return -EPROBE_DEFER;
@@ -3648,10 +3644,19 @@ static int s3c_hsotg_remove(struct platform_device *pdev)
 #define s3c_hsotg_resume NULL
 #endif
 
+#ifdef CONFIG_OF
+static const struct of_device_id s3c_hsotg_of_ids[] = {
+	{ .compatible = "samsung,s3c6400-hsotg", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, s3c_hsotg_of_ids);
+#endif
+
 static struct platform_driver s3c_hsotg_driver = {
 	.driver		= {
 		.name	= "s3c-hsotg",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(s3c_hsotg_of_ids),
 	},
 	.probe		= s3c_hsotg_probe,
 	.remove		= s3c_hsotg_remove,

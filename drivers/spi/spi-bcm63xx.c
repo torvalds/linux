@@ -231,24 +231,6 @@ static int bcm63xx_txrx_bufs(struct spi_device *spi, struct spi_transfer *first,
 	return 0;
 }
 
-static int bcm63xx_spi_prepare_transfer(struct spi_master *master)
-{
-	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
-
-	pm_runtime_get_sync(&bs->pdev->dev);
-
-	return 0;
-}
-
-static int bcm63xx_spi_unprepare_transfer(struct spi_master *master)
-{
-	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
-
-	pm_runtime_put(&bs->pdev->dev);
-
-	return 0;
-}
-
 static int bcm63xx_spi_transfer_one(struct spi_master *master,
 					struct spi_message *m)
 {
@@ -353,19 +335,12 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 {
 	struct resource *r;
 	struct device *dev = &pdev->dev;
-	struct bcm63xx_spi_pdata *pdata = pdev->dev.platform_data;
+	struct bcm63xx_spi_pdata *pdata = dev_get_platdata(&pdev->dev);
 	int irq;
 	struct spi_master *master;
 	struct clk *clk;
 	struct bcm63xx_spi *bs;
 	int ret;
-
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(dev, "no iomem\n");
-		ret = -ENXIO;
-		goto out;
-	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -393,6 +368,7 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 	bs->pdev = pdev;
 
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	bs->regs = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(bs->regs)) {
 		ret = PTR_ERR(bs->regs);
@@ -412,11 +388,10 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 
 	master->bus_num = pdata->bus_num;
 	master->num_chipselect = pdata->num_chipselect;
-	master->prepare_transfer_hardware = bcm63xx_spi_prepare_transfer;
-	master->unprepare_transfer_hardware = bcm63xx_spi_unprepare_transfer;
 	master->transfer_one_message = bcm63xx_spi_transfer_one;
 	master->mode_bits = MODEBITS;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
+	master->auto_runtime_pm = true;
 	bs->msg_type_shift = pdata->msg_type_shift;
 	bs->msg_ctl_width = pdata->msg_ctl_width;
 	bs->tx_io = (u8 *)(bs->regs + bcm63xx_spireg(SPI_MSG_DATA));
@@ -480,8 +455,7 @@ static int bcm63xx_spi_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int bcm63xx_spi_suspend(struct device *dev)
 {
-	struct spi_master *master =
-			platform_get_drvdata(to_platform_device(dev));
+	struct spi_master *master = dev_get_drvdata(dev);
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
 
 	spi_master_suspend(master);
@@ -493,8 +467,7 @@ static int bcm63xx_spi_suspend(struct device *dev)
 
 static int bcm63xx_spi_resume(struct device *dev)
 {
-	struct spi_master *master =
-			platform_get_drvdata(to_platform_device(dev));
+	struct spi_master *master = dev_get_drvdata(dev);
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
 
 	clk_prepare_enable(bs->clk);

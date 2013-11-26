@@ -873,9 +873,6 @@ int page_referenced(struct page *page,
 								vm_flags);
 		if (we_locked)
 			unlock_page(page);
-
-		if (page_test_and_clear_young(page_to_pfn(page)))
-			referenced++;
 	}
 out:
 	return referenced;
@@ -1055,11 +1052,11 @@ void do_page_add_anon_rmap(struct page *page,
 {
 	int first = atomic_inc_and_test(&page->_mapcount);
 	if (first) {
-		if (!PageTransHuge(page))
-			__inc_zone_page_state(page, NR_ANON_PAGES);
-		else
+		if (PageTransHuge(page))
 			__inc_zone_page_state(page,
 					      NR_ANON_TRANSPARENT_HUGEPAGES);
+		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
+				hpage_nr_pages(page));
 	}
 	if (unlikely(PageKsm(page)))
 		return;
@@ -1088,10 +1085,10 @@ void page_add_new_anon_rmap(struct page *page,
 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
 	SetPageSwapBacked(page);
 	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
-	if (!PageTransHuge(page))
-		__inc_zone_page_state(page, NR_ANON_PAGES);
-	else
+	if (PageTransHuge(page))
 		__inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
+	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
+			hpage_nr_pages(page));
 	__page_set_anon_rmap(page, vma, address, 1);
 	if (!mlocked_vma_newpage(vma, page)) {
 		SetPageActive(page);
@@ -1114,7 +1111,7 @@ void page_add_file_rmap(struct page *page)
 	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
 	if (atomic_inc_and_test(&page->_mapcount)) {
 		__inc_zone_page_state(page, NR_FILE_MAPPED);
-		mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_MAPPED);
+		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
 	}
 	mem_cgroup_end_update_page_stat(page, &locked, &flags);
 }
@@ -1151,14 +1148,14 @@ void page_remove_rmap(struct page *page)
 		goto out;
 	if (anon) {
 		mem_cgroup_uncharge_page(page);
-		if (!PageTransHuge(page))
-			__dec_zone_page_state(page, NR_ANON_PAGES);
-		else
+		if (PageTransHuge(page))
 			__dec_zone_page_state(page,
 					      NR_ANON_TRANSPARENT_HUGEPAGES);
+		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
+				-hpage_nr_pages(page));
 	} else {
 		__dec_zone_page_state(page, NR_FILE_MAPPED);
-		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_MAPPED);
+		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
 		mem_cgroup_end_update_page_stat(page, &locked, &flags);
 	}
 	if (unlikely(PageMlocked(page)))

@@ -205,7 +205,7 @@ MODULE_PARM_DESC(bch,		 "Enable BCH ecc and set how many bits should "
 
 /* Calculate the page offset in flash RAM image by (row, column) address */
 #define NS_RAW_OFFSET(ns) \
-	(((ns)->regs.row << (ns)->geom.pgshift) + ((ns)->regs.row * (ns)->geom.oobsz) + (ns)->regs.column)
+	(((ns)->regs.row * (ns)->geom.pgszoob) + (ns)->regs.column)
 
 /* Calculate the OOB offset in flash RAM image by (row, column) address */
 #define NS_RAW_OFFSET_OOB(ns) (NS_RAW_OFFSET(ns) + ns->geom.pgsz)
@@ -336,7 +336,6 @@ struct nandsim {
 		uint pgsec;         /* number of pages per sector */
 		uint secshift;      /* bits number in sector size */
 		uint pgshift;       /* bits number in page size */
-		uint oobshift;      /* bits number in OOB size */
 		uint pgaddrbytes;   /* bytes per page address */
 		uint secaddrbytes;  /* bytes per sector address */
 		uint idbytes;       /* the number ID bytes that this chip outputs */
@@ -363,7 +362,7 @@ struct nandsim {
 
 	/* Fields needed when using a cache file */
 	struct file *cfile; /* Open file */
-	unsigned char *pages_written; /* Which pages have been written */
+	unsigned long *pages_written; /* Which pages have been written */
 	void *file_buf;
 	struct page *held_pages[NS_MAX_HELD_PAGES];
 	int held_cnt;
@@ -586,7 +585,8 @@ static int alloc_device(struct nandsim *ns)
 			err = -EINVAL;
 			goto err_close;
 		}
-		ns->pages_written = vzalloc(ns->geom.pgnum);
+		ns->pages_written = vzalloc(BITS_TO_LONGS(ns->geom.pgnum) *
+					    sizeof(unsigned long));
 		if (!ns->pages_written) {
 			NS_ERR("alloc_device: unable to allocate pages written array\n");
 			err = -ENOMEM;
@@ -653,9 +653,7 @@ static void free_device(struct nandsim *ns)
 
 static char *get_partition_name(int i)
 {
-	char buf[64];
-	sprintf(buf, "NAND simulator partition %d", i);
-	return kstrdup(buf, GFP_KERNEL);
+	return kasprintf(GFP_KERNEL, "NAND simulator partition %d", i);
 }
 
 /*
@@ -690,7 +688,6 @@ static int init_nandsim(struct mtd_info *mtd)
 	ns->geom.totszoob = ns->geom.totsz + (uint64_t)ns->geom.pgnum * ns->geom.oobsz;
 	ns->geom.secshift = ffs(ns->geom.secsz) - 1;
 	ns->geom.pgshift  = chip->page_shift;
-	ns->geom.oobshift = ffs(ns->geom.oobsz) - 1;
 	ns->geom.pgsec    = ns->geom.secsz / ns->geom.pgsz;
 	ns->geom.secszoob = ns->geom.secsz + ns->geom.oobsz * ns->geom.pgsec;
 	ns->options = 0;
@@ -761,12 +758,6 @@ static int init_nandsim(struct mtd_info *mtd)
 		ns->nbparts += 1;
 	}
 
-	/* Detect how many ID bytes the NAND chip outputs */
-	for (i = 0; nand_flash_ids[i].name != NULL; i++) {
-		if (second_id_byte != nand_flash_ids[i].dev_id)
-			continue;
-	}
-
 	if (ns->busw == 16)
 		NS_WARN("16-bit flashes support wasn't tested\n");
 
@@ -780,7 +771,7 @@ static int init_nandsim(struct mtd_info *mtd)
 	printk("bus width: %u\n",               ns->busw);
 	printk("bits in sector size: %u\n",     ns->geom.secshift);
 	printk("bits in page size: %u\n",       ns->geom.pgshift);
-	printk("bits in OOB size: %u\n",	ns->geom.oobshift);
+	printk("bits in OOB size: %u\n",	ffs(ns->geom.oobsz) - 1);
 	printk("flash size with OOB: %llu KiB\n",
 			(unsigned long long)ns->geom.totszoob >> 10);
 	printk("page address bytes: %u\n",      ns->geom.pgaddrbytes);
@@ -1442,7 +1433,7 @@ static inline u_char *NS_PAGE_BYTE_OFF(struct nandsim *ns)
 	return NS_GET_PAGE(ns)->byte + ns->regs.column + ns->regs.off;
 }
 
-int do_read_error(struct nandsim *ns, int num)
+static int do_read_error(struct nandsim *ns, int num)
 {
 	unsigned int page_no = ns->regs.row;
 
@@ -1454,7 +1445,7 @@ int do_read_error(struct nandsim *ns, int num)
 	return 0;
 }
 
-void do_bit_flips(struct nandsim *ns, int num)
+static void do_bit_flips(struct nandsim *ns, int num)
 {
 	if (bitflips && prandom_u32() < (1 << 22)) {
 		int flips = 1;
@@ -1479,7 +1470,7 @@ static void read_page(struct nandsim *ns, int num)
 	union ns_mem *mypage;
 
 	if (ns->cfile) {
-		if (!ns->pages_written[ns->regs.row]) {
+		if (!test_bit(ns->regs.row, ns->pages_written)) {
 			NS_DBG("read_page: page %d not written\n", ns->regs.row);
 			memset(ns->buf.byte, 0xFF, num);
 		} else {
@@ -1490,7 +1481,7 @@ static void read_page(struct nandsim *ns, int num)
 				ns->regs.row, ns->regs.column + ns->regs.off);
 			if (do_read_error(ns, num))
 				return;
-			pos = (loff_t)ns->regs.row * ns->geom.pgszoob + ns->regs.column + ns->regs.off;
+			pos = (loff_t)NS_RAW_OFFSET(ns) + ns->regs.off;
 			tx = read_file(ns, ns->cfile, ns->buf.byte, num, pos);
 			if (tx != num) {
 				NS_ERR("read_page: read error for page %d ret %ld\n", ns->regs.row, (long)tx);
@@ -1525,9 +1516,9 @@ static void erase_sector(struct nandsim *ns)
 
 	if (ns->cfile) {
 		for (i = 0; i < ns->geom.pgsec; i++)
-			if (ns->pages_written[ns->regs.row + i]) {
+			if (__test_and_clear_bit(ns->regs.row + i,
+						 ns->pages_written)) {
 				NS_DBG("erase_sector: freeing page %d\n", ns->regs.row + i);
-				ns->pages_written[ns->regs.row + i] = 0;
 			}
 		return;
 	}
@@ -1559,8 +1550,8 @@ static int prog_page(struct nandsim *ns, int num)
 
 		NS_DBG("prog_page: writing page %d\n", ns->regs.row);
 		pg_off = ns->file_buf + ns->regs.column + ns->regs.off;
-		off = (loff_t)ns->regs.row * ns->geom.pgszoob + ns->regs.column + ns->regs.off;
-		if (!ns->pages_written[ns->regs.row]) {
+		off = (loff_t)NS_RAW_OFFSET(ns) + ns->regs.off;
+		if (!test_bit(ns->regs.row, ns->pages_written)) {
 			all = 1;
 			memset(ns->file_buf, 0xff, ns->geom.pgszoob);
 		} else {
@@ -1580,7 +1571,7 @@ static int prog_page(struct nandsim *ns, int num)
 				NS_ERR("prog_page: write error for page %d ret %ld\n", ns->regs.row, (long)tx);
 				return -1;
 			}
-			ns->pages_written[ns->regs.row] = 1;
+			__set_bit(ns->regs.row, ns->pages_written);
 		} else {
 			tx = write_file(ns, ns->cfile, pg_off, num, off);
 			if (tx != num) {

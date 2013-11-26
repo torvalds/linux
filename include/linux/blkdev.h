@@ -862,6 +862,17 @@ static inline unsigned int blk_rq_get_max_sectors(struct request *rq)
 	return blk_queue_get_max_sectors(q, rq->cmd_flags);
 }
 
+static inline unsigned int blk_rq_count_bios(struct request *rq)
+{
+	unsigned int nr_bios = 0;
+	struct bio *bio;
+
+	__rq_for_each_bio(bio, rq)
+		nr_bios++;
+
+	return nr_bios;
+}
+
 /*
  * Request issue related functions.
  */

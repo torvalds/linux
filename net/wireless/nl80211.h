@@ -66,12 +66,14 @@ void nl80211_send_ibss_bssid(struct cfg80211_registered_device *rdev,
 int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
 		      struct wireless_dev *wdev, u32 nlpid,
 		      int freq, int sig_dbm,
-		      const u8 *buf, size_t len, gfp_t gfp);
+		      const u8 *buf, size_t len, u32 flags, gfp_t gfp);
 
 void
 nl80211_radar_notify(struct cfg80211_registered_device *rdev,
 		     struct cfg80211_chan_def *chandef,
 		     enum nl80211_radar_event event,
 		     struct net_device *netdev, gfp_t gfp);
+
+void cfg80211_rdev_free_coalesce(struct cfg80211_registered_device *rdev);
 
 #endif /* __NET_WIRELESS_NL80211_H */

@@ -1773,7 +1773,7 @@ lstcon_session_info(lst_sid_t *sid_up, int *key_up, unsigned *featp,
 }
 
 int
-lstcon_session_end()
+lstcon_session_end(void)
 {
 	lstcon_rpc_trans_t *trans;
 	lstcon_group_t     *grp;

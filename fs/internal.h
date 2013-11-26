@@ -45,6 +45,9 @@ extern void __init chrdev_init(void);
  * namei.c
  */
 extern int __inode_permission(struct inode *, int);
+extern int user_path_mountpoint_at(int, const char __user *, unsigned int, struct path *);
+extern int vfs_path_lookup(struct dentry *, struct vfsmount *,
+			   const char *, unsigned int, struct path *);
 
 /*
  * namespace.c
@@ -111,6 +114,8 @@ extern int open_check_o_direct(struct file *f);
  * inode.c
  */
 extern spinlock_t inode_sb_list_lock;
+extern long prune_icache_sb(struct super_block *sb, unsigned long nr_to_scan,
+			    int nid);
 extern void inode_add_lru(struct inode *inode);
 
 /*
@@ -118,7 +123,7 @@ extern void inode_add_lru(struct inode *inode);
  */
 extern void inode_wb_list_del(struct inode *inode);
 
-extern int get_nr_dirty_inodes(void);
+extern long get_nr_dirty_inodes(void);
 extern void evict_inodes(struct super_block *);
 extern int invalidate_inodes(struct super_block *, bool);
 
@@ -126,6 +131,9 @@ extern int invalidate_inodes(struct super_block *, bool);
  * dcache.c
  */
 extern struct dentry *__d_alloc(struct super_block *, const struct qstr *);
+extern int d_set_mounted(struct dentry *dentry);
+extern long prune_dcache_sb(struct super_block *sb, unsigned long nr_to_scan,
+			    int nid);
 
 /*
  * read_write.c

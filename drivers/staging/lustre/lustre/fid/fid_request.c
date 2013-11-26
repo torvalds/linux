@@ -27,7 +27,7 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2013, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -42,15 +42,12 @@
 
 #define DEBUG_SUBSYSTEM S_FID
 
-# include <linux/libcfs/libcfs.h>
-# include <linux/module.h>
+#include <linux/libcfs/libcfs.h>
+#include <linux/module.h>
 
 #include <obd.h>
 #include <obd_class.h>
-#include <dt_object.h>
-#include <md_object.h>
 #include <obd_support.h>
-#include <lustre_req_layout.h>
 #include <lustre_fid.h>
 /* mdc RPC locks */
 #include <lustre_mdc.h>
@@ -63,15 +60,14 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 	struct obd_export     *exp = seq->lcs_exp;
 	struct ptlrpc_request *req;
 	struct lu_seq_range   *out, *in;
-	__u32		 *op;
-	unsigned int	   debug_mask;
-	int		    rc;
-	ENTRY;
+	__u32                 *op;
+	unsigned int           debug_mask;
+	int                    rc;
 
 	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp), &RQF_SEQ_QUERY,
 					LUSTRE_MDS_VERSION, SEQ_QUERY);
 	if (req == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	/* Init operation code */
 	op = req_capsule_client_get(&req->rq_pill, &RMF_SEQ_OPC);
@@ -137,7 +133,6 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 	CDEBUG_LIMIT(debug_mask, "%s: Allocated %s-sequence "DRANGE"]\n",
 		     seq->lcs_name, opcname, PRANGE(output));
 
-	EXIT;
 out_req:
 	ptlrpc_req_finished(req);
 	return rc;
@@ -148,27 +143,24 @@ int seq_client_alloc_super(struct lu_client_seq *seq,
 			   const struct lu_env *env)
 {
 	int rc;
-	ENTRY;
 
 	mutex_lock(&seq->lcs_mutex);
 
 	if (seq->lcs_srv) {
-		LASSERT(env != NULL);
-		rc = seq_server_alloc_super(seq->lcs_srv, &seq->lcs_space,
-					    env);
+		rc = 0;
 	} else {
 		/* Check whether the connection to seq controller has been
 		 * setup (lcs_exp != NULL) */
 		if (seq->lcs_exp == NULL) {
 			mutex_unlock(&seq->lcs_mutex);
-			RETURN(-EINPROGRESS);
+			return -EINPROGRESS;
 		}
 
 		rc = seq_client_rpc(seq, &seq->lcs_space,
 				    SEQ_ALLOC_SUPER, "super");
 	}
 	mutex_unlock(&seq->lcs_mutex);
-	RETURN(rc);
+	return rc;
 }
 
 /* Request sequence-controller node to allocate new meta-sequence. */
@@ -176,11 +168,9 @@ static int seq_client_alloc_meta(const struct lu_env *env,
 				 struct lu_client_seq *seq)
 {
 	int rc;
-	ENTRY;
 
 	if (seq->lcs_srv) {
-		LASSERT(env != NULL);
-		rc = seq_server_alloc_meta(seq->lcs_srv, &seq->lcs_space, env);
+		rc = 0;
 	} else {
 		do {
 			/* If meta server return -EINPROGRESS or EAGAIN,
@@ -191,7 +181,8 @@ static int seq_client_alloc_meta(const struct lu_env *env,
 					    SEQ_ALLOC_META, "meta");
 		} while (rc == -EINPROGRESS || rc == -EAGAIN);
 	}
-	RETURN(rc);
+
+	return rc;
 }
 
 /* Allocate new sequence for client. */
@@ -199,7 +190,6 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 				struct lu_client_seq *seq, seqno_t *seqnr)
 {
 	int rc;
-	ENTRY;
 
 	LASSERT(range_is_sane(&seq->lcs_space));
 
@@ -208,7 +198,7 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 		if (rc) {
 			CERROR("%s: Can't allocate new meta-sequence,"
 			       "rc %d\n", seq->lcs_name, rc);
-			RETURN(rc);
+			return rc;
 		} else {
 			CDEBUG(D_INFO, "%s: New range - "DRANGE"\n",
 			       seq->lcs_name, PRANGE(&seq->lcs_space));
@@ -224,7 +214,7 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 	CDEBUG(D_INFO, "%s: Allocated sequence ["LPX64"]\n", seq->lcs_name,
 	       *seqnr);
 
-	RETURN(rc);
+	return rc;
 }
 
 static int seq_fid_alloc_prep(struct lu_client_seq *seq,
@@ -312,7 +302,6 @@ int seq_client_alloc_fid(const struct lu_env *env,
 {
 	wait_queue_t link;
 	int rc;
-	ENTRY;
 
 	LASSERT(seq != NULL);
 	LASSERT(fid != NULL);
@@ -344,7 +333,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 			       "rc %d\n", seq->lcs_name, rc);
 			seq_fid_alloc_fini(seq);
 			mutex_unlock(&seq->lcs_mutex);
-			RETURN(rc);
+			return rc;
 		}
 
 		CDEBUG(D_INFO, "%s: Switch to sequence "
@@ -368,7 +357,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 	mutex_unlock(&seq->lcs_mutex);
 
 	CDEBUG(D_INFO, "%s: Allocated FID "DFID"\n", seq->lcs_name,  PFID(fid));
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(seq_client_alloc_fid);
 
@@ -409,13 +398,21 @@ void seq_client_flush(struct lu_client_seq *seq)
 }
 EXPORT_SYMBOL(seq_client_flush);
 
-static void seq_client_proc_fini(struct lu_client_seq *seq);
-
+static void seq_client_proc_fini(struct lu_client_seq *seq)
+{
 #ifdef LPROCFS
+	if (seq->lcs_proc_dir) {
+		if (!IS_ERR(seq->lcs_proc_dir))
+			lprocfs_remove(&seq->lcs_proc_dir);
+		seq->lcs_proc_dir = NULL;
+	}
+#endif /* LPROCFS */
+}
+
 static int seq_client_proc_init(struct lu_client_seq *seq)
 {
+#ifdef LPROCFS
 	int rc;
-	ENTRY;
 
 	seq->lcs_proc_dir = lprocfs_register(seq->lcs_name,
 					     seq_type_proc_dir,
@@ -425,7 +422,7 @@ static int seq_client_proc_init(struct lu_client_seq *seq)
 		CERROR("%s: LProcFS failed in seq-init\n",
 		       seq->lcs_name);
 		rc = PTR_ERR(seq->lcs_proc_dir);
-		RETURN(rc);
+		return rc;
 	}
 
 	rc = lprocfs_add_vars(seq->lcs_proc_dir,
@@ -436,34 +433,16 @@ static int seq_client_proc_init(struct lu_client_seq *seq)
 		GOTO(out_cleanup, rc);
 	}
 
-	RETURN(0);
+	return 0;
 
 out_cleanup:
 	seq_client_proc_fini(seq);
 	return rc;
-}
 
-static void seq_client_proc_fini(struct lu_client_seq *seq)
-{
-	ENTRY;
-	if (seq->lcs_proc_dir) {
-		if (!IS_ERR(seq->lcs_proc_dir))
-			lprocfs_remove(&seq->lcs_proc_dir);
-		seq->lcs_proc_dir = NULL;
-	}
-	EXIT;
-}
-#else
-static int seq_client_proc_init(struct lu_client_seq *seq)
-{
+#else /* LPROCFS */
 	return 0;
-}
-
-static void seq_client_proc_fini(struct lu_client_seq *seq)
-{
-	return;
-}
 #endif
+}
 
 int seq_client_init(struct lu_client_seq *seq,
 		    struct obd_export *exp,
@@ -472,7 +451,6 @@ int seq_client_init(struct lu_client_seq *seq,
 		    struct lu_server_seq *srv)
 {
 	int rc;
-	ENTRY;
 
 	LASSERT(seq != NULL);
 	LASSERT(prefix != NULL);
@@ -501,14 +479,12 @@ int seq_client_init(struct lu_client_seq *seq,
 	rc = seq_client_proc_init(seq);
 	if (rc)
 		seq_client_fini(seq);
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(seq_client_init);
 
 void seq_client_fini(struct lu_client_seq *seq)
 {
-	ENTRY;
-
 	seq_client_proc_fini(seq);
 
 	if (seq->lcs_exp != NULL) {
@@ -517,6 +493,78 @@ void seq_client_fini(struct lu_client_seq *seq)
 	}
 
 	seq->lcs_srv = NULL;
-	EXIT;
 }
 EXPORT_SYMBOL(seq_client_fini);
+
+int client_fid_init(struct obd_device *obd,
+		    struct obd_export *exp, enum lu_cli_type type)
+{
+	struct client_obd *cli = &obd->u.cli;
+	char *prefix;
+	int rc;
+
+	OBD_ALLOC_PTR(cli->cl_seq);
+	if (cli->cl_seq == NULL)
+		return -ENOMEM;
+
+	OBD_ALLOC(prefix, MAX_OBD_NAME + 5);
+	if (prefix == NULL)
+		GOTO(out_free_seq, rc = -ENOMEM);
+
+	snprintf(prefix, MAX_OBD_NAME + 5, "cli-%s", obd->obd_name);
+
+	/* Init client side sequence-manager */
+	rc = seq_client_init(cli->cl_seq, exp, type, prefix, NULL);
+	OBD_FREE(prefix, MAX_OBD_NAME + 5);
+	if (rc)
+		GOTO(out_free_seq, rc);
+
+	return rc;
+out_free_seq:
+	OBD_FREE_PTR(cli->cl_seq);
+	cli->cl_seq = NULL;
+	return rc;
+}
+EXPORT_SYMBOL(client_fid_init);
+
+int client_fid_fini(struct obd_device *obd)
+{
+	struct client_obd *cli = &obd->u.cli;
+
+	if (cli->cl_seq != NULL) {
+		seq_client_fini(cli->cl_seq);
+		OBD_FREE_PTR(cli->cl_seq);
+		cli->cl_seq = NULL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(client_fid_fini);
+
+struct proc_dir_entry *seq_type_proc_dir;
+
+static int __init fid_mod_init(void)
+{
+	seq_type_proc_dir = lprocfs_register(LUSTRE_SEQ_NAME,
+					     proc_lustre_root,
+					     NULL, NULL);
+	if (IS_ERR(seq_type_proc_dir))
+		return PTR_ERR(seq_type_proc_dir);
+	return 0;
+}
+
+static void __exit fid_mod_exit(void)
+{
+	if (seq_type_proc_dir != NULL && !IS_ERR(seq_type_proc_dir)) {
+		lprocfs_remove(&seq_type_proc_dir);
+		seq_type_proc_dir = NULL;
+	}
+}
+
+MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_DESCRIPTION("Lustre FID Module");
+MODULE_LICENSE("GPL");
+MODULE_VERSION("0.1.0");
+
+module_init(fid_mod_init);
+module_exit(fid_mod_exit);

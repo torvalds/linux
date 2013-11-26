@@ -246,8 +246,37 @@ enum {
 	BNX2X_MAX_CNIC_ETH_CL_ID_IDX,
 };
 
-#define BNX2X_CNIC_START_ETH_CID(bp)	(BNX2X_NUM_NON_CNIC_QUEUES(bp) *\
+/* use a value high enough to be above all the PFs, which has least significant
+ * nibble as 8, so when cnic needs to come up with a CID for UIO to use to
+ * calculate doorbell address according to old doorbell configuration scheme
+ * (db_msg_sz 1 << 7 * cid + 0x40 DPM offset) it can come up with a valid number
+ * We must avoid coming up with cid 8 for iscsi since according to this method
+ * the designated UIO cid will come out 0 and it has a special handling for that
+ * case which doesn't suit us. Therefore will will cieling to closes cid which
+ * has least signigifcant nibble 8 and if it is 8 we will move forward to 0x18.
+ */
+
+#define BNX2X_1st_NON_L2_ETH_CID(bp)	(BNX2X_NUM_NON_CNIC_QUEUES(bp) * \
 					 (bp)->max_cos)
+/* amount of cids traversed by UIO's DPM addition to doorbell */
+#define UIO_DPM				8
+/* roundup to DPM offset */
+#define UIO_ROUNDUP(bp)			(roundup(BNX2X_1st_NON_L2_ETH_CID(bp), \
+					 UIO_DPM))
+/* offset to nearest value which has lsb nibble matching DPM */
+#define UIO_CID_OFFSET(bp)		((UIO_ROUNDUP(bp) + UIO_DPM) % \
+					 (UIO_DPM * 2))
+/* add offset to rounded-up cid to get a value which could be used with UIO */
+#define UIO_DPM_ALIGN(bp)		(UIO_ROUNDUP(bp) + UIO_CID_OFFSET(bp))
+/* but wait - avoid UIO special case for cid 0 */
+#define UIO_DPM_CID0_OFFSET(bp)		((UIO_DPM * 2) * \
+					 (UIO_DPM_ALIGN(bp) == UIO_DPM))
+/* Properly DPM aligned CID dajusted to cid 0 secal case */
+#define BNX2X_CNIC_START_ETH_CID(bp)	(UIO_DPM_ALIGN(bp) + \
+					 (UIO_DPM_CID0_OFFSET(bp)))
+/* how many cids were wasted  - need this value for cid allocation */
+#define UIO_CID_PAD(bp)			(BNX2X_CNIC_START_ETH_CID(bp) - \
+					 BNX2X_1st_NON_L2_ETH_CID(bp))
 	/* iSCSI L2 */
 #define	BNX2X_ISCSI_ETH_CID(bp)		(BNX2X_CNIC_START_ETH_CID(bp))
 	/* FCoE L2 */
@@ -825,15 +854,13 @@ static inline bool bnx2x_fp_ll_polling(struct bnx2x_fastpath *fp)
 #define BD_UNMAP_LEN(bd)		(le16_to_cpu((bd)->nbytes))
 
 #define BNX2X_DB_MIN_SHIFT		3	/* 8 bytes */
-#define BNX2X_DB_SHIFT			7	/* 128 bytes*/
+#define BNX2X_DB_SHIFT			3	/* 8 bytes*/
 #if (BNX2X_DB_SHIFT < BNX2X_DB_MIN_SHIFT)
 #error "Min DB doorbell stride is 8"
 #endif
-#define DPM_TRIGER_TYPE			0x40
 #define DOORBELL(bp, cid, val) \
 	do { \
-		writel((u32)(val), bp->doorbells + (bp->db_size * (cid)) + \
-		       DPM_TRIGER_TYPE); \
+		writel((u32)(val), bp->doorbells + (bp->db_size * (cid))); \
 	} while (0)
 
 /* TX CSUM helpers */
@@ -1100,12 +1127,26 @@ struct bnx2x_port {
 extern struct workqueue_struct *bnx2x_wq;
 
 #define BNX2X_MAX_NUM_OF_VFS	64
-#define BNX2X_VF_CID_WND	0
+#define BNX2X_VF_CID_WND	4 /* log num of queues per VF. HW config. */
 #define BNX2X_CIDS_PER_VF	(1 << BNX2X_VF_CID_WND)
-#define BNX2X_CLIENTS_PER_VF	1
-#define BNX2X_FIRST_VF_CID	256
+
+/* We need to reserve doorbell addresses for all VF and queue combinations */
 #define BNX2X_VF_CIDS		(BNX2X_MAX_NUM_OF_VFS * BNX2X_CIDS_PER_VF)
+
+/* The doorbell is configured to have the same number of CIDs for PFs and for
+ * VFs. For this reason the PF CID zone is as large as the VF zone.
+ */
+#define BNX2X_FIRST_VF_CID	BNX2X_VF_CIDS
+#define BNX2X_MAX_NUM_VF_QUEUES	64
 #define BNX2X_VF_ID_INVALID	0xFF
+
+/* the number of VF CIDS multiplied by the amount of bytes reserved for each
+ * cid must not exceed the size of the VF doorbell
+ */
+#define BNX2X_VF_BAR_SIZE	512
+#if (BNX2X_VF_BAR_SIZE < BNX2X_CIDS_PER_VF * (1 << BNX2X_DB_SHIFT))
+#error "VF doorbell bar size is 512"
+#endif
 
 /*
  * The total number of L2 queues, MSIX vectors and HW contexts (CIDs) is
@@ -1156,8 +1197,9 @@ union cdu_context {
 /* TM (timers) host DB constants */
 #define TM_ILT_PAGE_SZ_HW	0
 #define TM_ILT_PAGE_SZ		(4096 << TM_ILT_PAGE_SZ_HW) /* 4K */
-/* #define TM_CONN_NUM		(CNIC_STARTING_CID+CNIC_ISCSI_CXT_MAX) */
-#define TM_CONN_NUM		1024
+#define TM_CONN_NUM		(BNX2X_FIRST_VF_CID + \
+				 BNX2X_VF_CIDS + \
+				 CNIC_ISCSI_CID_MAX)
 #define TM_ILT_SZ		(8 * TM_CONN_NUM)
 #define TM_ILT_LINES		DIV_ROUND_UP(TM_ILT_SZ, TM_ILT_PAGE_SZ)
 
@@ -1331,7 +1373,7 @@ enum {
 	BNX2X_SP_RTNL_ENABLE_SRIOV,
 	BNX2X_SP_RTNL_VFPF_MCAST,
 	BNX2X_SP_RTNL_VFPF_CHANNEL_DOWN,
-	BNX2X_SP_RTNL_VFPF_STORM_RX_MODE,
+	BNX2X_SP_RTNL_RX_MODE,
 	BNX2X_SP_RTNL_HYPERVISOR_VLAN,
 	BNX2X_SP_RTNL_TX_STOP,
 	BNX2X_SP_RTNL_TX_RESUME,
@@ -1486,7 +1528,6 @@ struct bnx2x {
 #define PCI_32BIT_FLAG			(1 << 1)
 #define ONE_PORT_FLAG			(1 << 2)
 #define NO_WOL_FLAG			(1 << 3)
-#define USING_DAC_FLAG			(1 << 4)
 #define USING_MSIX_FLAG			(1 << 5)
 #define USING_MSI_FLAG			(1 << 6)
 #define DISABLE_MSI_FLAG		(1 << 7)
@@ -1530,7 +1571,6 @@ struct bnx2x {
 	 */
 	bool			fcoe_init;
 
-	int			pm_cap;
 	int			mrrs;
 
 	struct delayed_work	sp_task;
@@ -1581,7 +1621,7 @@ struct bnx2x {
 	u16			rx_ticks_int;
 	u16			rx_ticks;
 /* Maximal coalescing timeout in us */
-#define BNX2X_MAX_COALESCE_TOUT		(0xf0*12)
+#define BNX2X_MAX_COALESCE_TOUT		(0xff*BNX2X_BTR)
 
 	u32			lin_cnt;
 
@@ -1650,10 +1690,10 @@ struct bnx2x {
 	dma_addr_t			fw_stats_data_mapping;
 	int				fw_stats_data_sz;
 
-	/* For max 196 cids (64*3 + non-eth), 32KB ILT page size and 1KB
+	/* For max 1024 cids (VF RSS), 32KB ILT page size and 1KB
 	 * context size we need 8 ILT entries.
 	 */
-#define ILT_MAX_L2_LINES	8
+#define ILT_MAX_L2_LINES	32
 	struct hw_context	context[ILT_MAX_L2_LINES];
 
 	struct bnx2x_ilt	*ilt;
@@ -1669,10 +1709,11 @@ struct bnx2x {
  * Maximum CID count that might be required by the bnx2x:
  * Max RSS * Max_Tx_Multi_Cos + FCoE + iSCSI
  */
+
 #define BNX2X_L2_CID_COUNT(bp)	(BNX2X_NUM_ETH_QUEUES(bp) * BNX2X_MULTI_TX_COS \
-				+ 2 * CNIC_SUPPORT(bp))
+				+ CNIC_SUPPORT(bp) * (2 + UIO_CID_PAD(bp)))
 #define BNX2X_L2_MAX_CID(bp)	(BNX2X_MAX_RSS_COUNT(bp) * BNX2X_MULTI_TX_COS \
-				+ 2 * CNIC_SUPPORT(bp))
+				+ CNIC_SUPPORT(bp) * (2 + UIO_CID_PAD(bp)))
 #define L2_ILT_LINES(bp)	(DIV_ROUND_UP(BNX2X_L2_CID_COUNT(bp),\
 					ILT_PAGE_CIDS))
 
@@ -1869,7 +1910,7 @@ extern int num_queues;
 #define FUNC_FLG_TPA		0x0008
 #define FUNC_FLG_SPQ		0x0010
 #define FUNC_FLG_LEADING	0x0020	/* PF only */
-
+#define FUNC_FLG_LEADING_STATS	0x0040
 struct bnx2x_func_init_params {
 	/* dma */
 	dma_addr_t	fw_stat_map;	/* valid iff FUNC_FLG_STATS */
@@ -2031,7 +2072,8 @@ u32 bnx2x_dmae_opcode(struct bnx2x *bp, u8 src_type, u8 dst_type,
 
 void bnx2x_prep_dmae_with_comp(struct bnx2x *bp, struct dmae_command *dmae,
 			       u8 src_type, u8 dst_type);
-int bnx2x_issue_dmae_with_comp(struct bnx2x *bp, struct dmae_command *dmae);
+int bnx2x_issue_dmae_with_comp(struct bnx2x *bp, struct dmae_command *dmae,
+			       u32 *comp);
 
 /* FLR related routines */
 u32 bnx2x_flr_clnup_poll_count(struct bnx2x *bp);
@@ -2069,9 +2111,8 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 			    bool is_pf);
 
-#define BNX2X_ILT_ZALLOC(x, y, size)				\
-	x = dma_alloc_coherent(&bp->pdev->dev, size, y,		\
-			       GFP_KERNEL | __GFP_ZERO)
+#define BNX2X_ILT_ZALLOC(x, y, size)					\
+	x = dma_zalloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL)
 
 #define BNX2X_ILT_FREE(x, y, size) \
 	do { \
@@ -2458,4 +2499,8 @@ enum bnx2x_pci_bus_speed {
 };
 
 void bnx2x_set_local_cmng(struct bnx2x *bp);
+
+#define MCPR_SCRATCH_BASE(bp) \
+	(CHIP_IS_E1x(bp) ? MCP_REG_MCPR_SCRATCH : MCP_A_REG_MCPR_SCRATCH)
+
 #endif /* bnx2x.h */

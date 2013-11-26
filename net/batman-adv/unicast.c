@@ -242,6 +242,8 @@ int batadv_frag_send_skb(struct sk_buff *skb, struct batadv_priv *bat_priv,
 	frag_skb = dev_alloc_skb(data_len - (data_len / 2) + ucf_hdr_len);
 	if (!frag_skb)
 		goto dropped;
+
+	skb->priority = TC_PRIO_CONTROL;
 	skb_reserve(frag_skb, ucf_hdr_len);
 
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;

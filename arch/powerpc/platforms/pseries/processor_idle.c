@@ -18,9 +18,7 @@
 #include <asm/machdep.h>
 #include <asm/firmware.h>
 #include <asm/runlatch.h>
-
-#include "plpar_wrappers.h"
-#include "pseries.h"
+#include <asm/plpar_wrappers.h>
 
 struct cpuidle_driver pseries_idle_driver = {
 	.name             = "pseries_idle",
@@ -45,7 +43,11 @@ static inline void idle_loop_prolog(unsigned long *in_purr)
 
 static inline void idle_loop_epilog(unsigned long in_purr)
 {
-	get_lppaca()->wait_state_cycles += mfspr(SPRN_PURR) - in_purr;
+	u64 wait_cycles;
+
+	wait_cycles = be64_to_cpu(get_lppaca()->wait_state_cycles);
+	wait_cycles += mfspr(SPRN_PURR) - in_purr;
+	get_lppaca()->wait_state_cycles = cpu_to_be64(wait_cycles);
 	get_lppaca()->idle = 0;
 }
 
@@ -308,7 +310,7 @@ static int pseries_idle_probe(void)
 		return -EPERM;
 	}
 
-	if (get_lppaca()->shared_proc)
+	if (lppaca_shared_proc(get_lppaca()))
 		cpuidle_state_table = shared_states;
 	else
 		cpuidle_state_table = dedicated_states;

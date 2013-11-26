@@ -136,7 +136,7 @@ EXPORT_SYMBOL(soc_camera_power_off);
 
 int soc_camera_power_init(struct device *dev, struct soc_camera_subdev_desc *ssdd)
 {
-
+	/* Should not have any effect in synchronous case */
 	return devm_regulator_bulk_get(dev, ssdd->num_regulators,
 				       ssdd->regulators);
 }
@@ -1311,6 +1311,7 @@ eusrfmt:
 static int soc_camera_i2c_init(struct soc_camera_device *icd,
 			       struct soc_camera_desc *sdesc)
 {
+	struct soc_camera_subdev_desc *ssdd;
 	struct i2c_client *client;
 	struct soc_camera_host *ici;
 	struct soc_camera_host_desc *shd = &sdesc->host_desc;
@@ -1333,7 +1334,21 @@ static int soc_camera_i2c_init(struct soc_camera_device *icd,
 		return -ENODEV;
 	}
 
-	shd->board_info->platform_data = &sdesc->subdev_desc;
+	ssdd = kzalloc(sizeof(*ssdd), GFP_KERNEL);
+	if (!ssdd) {
+		ret = -ENOMEM;
+		goto ealloc;
+	}
+
+	memcpy(ssdd, &sdesc->subdev_desc, sizeof(*ssdd));
+	/*
+	 * In synchronous case we request regulators ourselves in
+	 * soc_camera_pdrv_probe(), make sure the subdevice driver doesn't try
+	 * to allocate them again.
+	 */
+	ssdd->num_regulators = 0;
+	ssdd->regulators = NULL;
+	shd->board_info->platform_data = ssdd;
 
 	snprintf(clk_name, sizeof(clk_name), "%d-%04x",
 		 shd->i2c_adapter_id, shd->board_info->addr);
@@ -1359,8 +1374,10 @@ static int soc_camera_i2c_init(struct soc_camera_device *icd,
 	return 0;
 ei2cnd:
 	v4l2_clk_unregister(icd->clk);
-eclkreg:
 	icd->clk = NULL;
+eclkreg:
+	kfree(ssdd);
+ealloc:
 	i2c_put_adapter(adap);
 	return ret;
 }
@@ -1370,15 +1387,18 @@ static void soc_camera_i2c_free(struct soc_camera_device *icd)
 	struct i2c_client *client =
 		to_i2c_client(to_soc_camera_control(icd));
 	struct i2c_adapter *adap;
+	struct soc_camera_subdev_desc *ssdd;
 
 	icd->control = NULL;
 	if (icd->sasc)
 		return;
 
 	adap = client->adapter;
+	ssdd = client->dev.platform_data;
 	v4l2_device_unregister_subdev(i2c_get_clientdata(client));
 	i2c_unregister_device(client);
 	i2c_put_adapter(adap);
+	kfree(ssdd);
 	v4l2_clk_unregister(icd->clk);
 	icd->clk = NULL;
 }
@@ -1466,7 +1486,8 @@ static int scan_async_group(struct soc_camera_host *ici,
 	struct soc_camera_device *icd;
 	struct soc_camera_desc sdesc = {.host_desc.bus_id = ici->nr,};
 	char clk_name[V4L2_SUBDEV_NAME_SIZE];
-	int ret, i;
+	unsigned int i;
+	int ret;
 
 	/* First look for a sensor */
 	for (i = 0; i < size; i++) {
@@ -1475,7 +1496,7 @@ static int scan_async_group(struct soc_camera_host *ici,
 			break;
 	}
 
-	if (i == size || asd[i]->bus_type != V4L2_ASYNC_BUS_I2C) {
+	if (i >= size || asd[i]->match_type != V4L2_ASYNC_MATCH_I2C) {
 		/* All useless */
 		dev_err(ici->v4l2_dev.dev, "No I2C data source found!\n");
 		return -ENODEV;
@@ -1501,7 +1522,7 @@ static int scan_async_group(struct soc_camera_host *ici,
 		return -ENOMEM;
 	}
 
-	sasc->notifier.subdev = asd;
+	sasc->notifier.subdevs = asd;
 	sasc->notifier.num_subdevs = size;
 	sasc->notifier.bound = soc_camera_async_bound;
 	sasc->notifier.unbind = soc_camera_async_unbind;
@@ -1994,9 +2015,10 @@ static int soc_camera_pdrv_probe(struct platform_device *pdev)
 
 	/*
 	 * In the asynchronous case ssdd->num_regulators == 0 yet, so, the below
-	 * regulator allocation is a dummy. They will be really requested later
-	 * in soc_camera_async_bind(). Also note, that in that case regulators
-	 * are attached to the I2C device and not to the camera platform device.
+	 * regulator allocation is a dummy. They are actually requested by the
+	 * subdevice driver, using soc_camera_power_init(). Also note, that in
+	 * that case regulators are attached to the I2C device and not to the
+	 * camera platform device.
 	 */
 	ret = devm_regulator_bulk_get(&pdev->dev, ssdd->num_regulators,
 				      ssdd->regulators);

@@ -14,6 +14,14 @@
 	compatible = "renesas,emev2";
 	interrupt-parent = <&gic>;
 
+	aliases {
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+		gpio3 = &gpio3;
+		gpio4 = &gpio4;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -36,6 +44,12 @@
 		#interrupt-cells = <3>;
 		reg = <0xe0028000 0x1000>,
 		      <0xe0020000 0x0100>;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <0 120 4>,
+			     <0 121 4>;
 	};
 
 	sti@e0180000 {
@@ -66,5 +80,56 @@
 		compatible = "renesas,em-uart";
 		reg = <0xe1050000 0x38>;
 		interrupts = <0 11 0>;
+	};
+
+	gpio0: gpio@e0050000 {
+		compatible = "renesas,em-gio";
+		reg = <0xe0050000 0x2c>, <0xe0050040 0x20>;
+		interrupts = <0 67 0>, <0 68 0>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		ngpios = <32>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+	gpio1: gpio@e0050080 {
+		compatible = "renesas,em-gio";
+		reg = <0xe0050080 0x2c>, <0xe00500c0 0x20>;
+		interrupts = <0 69 0>, <0 70 0>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		ngpios = <32>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+	gpio2: gpio@e0050100 {
+		compatible = "renesas,em-gio";
+		reg = <0xe0050100 0x2c>, <0xe0050140 0x20>;
+		interrupts = <0 71 0>, <0 72 0>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		ngpios = <32>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+	gpio3: gpio@e0050180 {
+		compatible = "renesas,em-gio";
+		reg = <0xe0050180 0x2c>, <0xe00501c0 0x20>;
+		interrupts = <0 73 0>, <0 74 0>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		ngpios = <32>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+	gpio4: gpio@e0050200 {
+		compatible = "renesas,em-gio";
+		reg = <0xe0050200 0x2c>, <0xe0050240 0x20>;
+		interrupts = <0 75 0>, <0 76 0>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		ngpios = <31>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
 	};
 };

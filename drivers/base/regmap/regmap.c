@@ -303,6 +303,7 @@ static void regmap_unlock_mutex(void *__map)
 }
 
 static void regmap_lock_spinlock(void *__map)
+__acquires(&map->spinlock)
 {
 	struct regmap *map = __map;
 	unsigned long flags;
@@ -312,6 +313,7 @@ static void regmap_lock_spinlock(void *__map)
 }
 
 static void regmap_unlock_spinlock(void *__map)
+__releases(&map->spinlock)
 {
 	struct regmap *map = __map;
 	spin_unlock_irqrestore(&map->spinlock, map->spinlock_flags);
@@ -686,6 +688,10 @@ skip_format_initialization:
 			unsigned win_min = config->ranges[j].window_start;
 			unsigned win_max = win_min +
 					   config->ranges[j].window_len - 1;
+
+			/* Allow data window inside its own virtual range */
+			if (j == i)
+				continue;
 
 			if (range_cfg->range_min <= sel_reg &&
 			    sel_reg <= range_cfg->range_max) {
@@ -1260,6 +1266,9 @@ int _regmap_write(struct regmap *map, unsigned int reg,
 {
 	int ret;
 	void *context = _regmap_map_get_context(map);
+
+	if (!regmap_writeable(map, reg))
+		return -EIO;
 
 	if (!map->cache_bypass && !map->defer_caching) {
 		ret = regcache_write(map, reg, val);
@@ -1888,12 +1897,9 @@ EXPORT_SYMBOL_GPL(regmap_async_complete);
 int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 			  int num_regs)
 {
+	struct reg_default *p;
 	int i, ret;
 	bool bypass;
-
-	/* If needed the implementation can be extended to support this */
-	if (map->patch)
-		return -EBUSY;
 
 	map->lock(map->lock_arg);
 
@@ -1911,11 +1917,13 @@ int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 		}
 	}
 
-	map->patch = kcalloc(num_regs, sizeof(struct reg_default), GFP_KERNEL);
-	if (map->patch != NULL) {
-		memcpy(map->patch, regs,
-		       num_regs * sizeof(struct reg_default));
-		map->patch_regs = num_regs;
+	p = krealloc(map->patch,
+		     sizeof(struct reg_default) * (map->patch_regs + num_regs),
+		     GFP_KERNEL);
+	if (p) {
+		memcpy(p + map->patch_regs, regs, num_regs * sizeof(*regs));
+		map->patch = p;
+		map->patch_regs += num_regs;
 	} else {
 		ret = -ENOMEM;
 	}

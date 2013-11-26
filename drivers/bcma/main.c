@@ -237,7 +237,7 @@ int bcma_bus_register(struct bcma_bus *bus)
 	err = bcma_bus_scan(bus);
 	if (err) {
 		bcma_err(bus, "Failed to scan: %d\n", err);
-		return -1;
+		return err;
 	}
 
 	/* Early init CC core */

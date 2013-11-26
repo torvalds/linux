@@ -18,8 +18,8 @@ according to its internal geometry or flash memory management scheme, namely FTL
 F2FS and its tools support various parameters not only for configuring on-disk
 layout, but also for selecting allocation and cleaning algorithms.
 
-The file system formatting tool, "mkfs.f2fs", is available from the following
-git tree:
+The following git tree provides the file system formatting tool (mkfs.f2fs),
+a consistency checking tool (fsck.f2fs), and a debugging tool (dump.f2fs).
 >> git://git.kernel.org/pub/scm/linux/kernel/git/jaegeuk/f2fs-tools.git
 
 For reporting bugs and sending patches, please use the following mailing list:
@@ -133,6 +133,38 @@ f2fs. Each file shows the whole f2fs information.
  - current memory footprint consumed by f2fs.
 
 ================================================================================
+SYSFS ENTRIES
+================================================================================
+
+Information about mounted f2f2 file systems can be found in
+/sys/fs/f2fs.  Each mounted filesystem will have a directory in
+/sys/fs/f2fs based on its device name (i.e., /sys/fs/f2fs/sda).
+The files in each per-device directory are shown in table below.
+
+Files in /sys/fs/f2fs/<devname>
+(see also Documentation/ABI/testing/sysfs-fs-f2fs)
+..............................................................................
+ File                         Content
+
+ gc_max_sleep_time            This tuning parameter controls the maximum sleep
+                              time for the garbage collection thread. Time is
+                              in milliseconds.
+
+ gc_min_sleep_time            This tuning parameter controls the minimum sleep
+                              time for the garbage collection thread. Time is
+                              in milliseconds.
+
+ gc_no_gc_sleep_time          This tuning parameter controls the default sleep
+                              time for the garbage collection thread. Time is
+                              in milliseconds.
+
+ gc_idle                      This parameter controls the selection of victim
+                              policy for garbage collection. Setting gc_idle = 0
+                              (default) will disable this option. Setting
+                              gc_idle = 1 will select the Cost Benefit approach
+                              & setting gc_idle = 2 will select the greedy aproach.
+
+================================================================================
 USAGE
 ================================================================================
 
@@ -149,8 +181,12 @@ USAGE
  # mkfs.f2fs -l label /dev/block_device
  # mount -t f2fs /dev/block_device /mnt/f2fs
 
-Format options
---------------
+mkfs.f2fs
+---------
+The mkfs.f2fs is for the use of formatting a partition as the f2fs filesystem,
+which builds a basic on-disk layout.
+
+The options consist of:
 -l [label]   : Give a volume label, up to 512 unicode name.
 -a [0 or 1]  : Split start location of each area for heap-based allocation.
                1 is set by default, which performs this.
@@ -163,6 +199,37 @@ Format options
 -e [str]     : Set basic extension list. e.g. "mp3,gif,mov"
 -t [0 or 1]  : Disable discard command or not.
                1 is set by default, which conducts discard.
+
+fsck.f2fs
+---------
+The fsck.f2fs is a tool to check the consistency of an f2fs-formatted
+partition, which examines whether the filesystem metadata and user-made data
+are cross-referenced correctly or not.
+Note that, initial version of the tool does not fix any inconsistency.
+
+The options consist of:
+  -d debug level [default:0]
+
+dump.f2fs
+---------
+The dump.f2fs shows the information of specific inode and dumps SSA and SIT to
+file. Each file is dump_ssa and dump_sit.
+
+The dump.f2fs is used to debug on-disk data structures of the f2fs filesystem.
+It shows on-disk inode information reconized by a given inode number, and is
+able to dump all the SSA and SIT entries into predefined files, ./dump_ssa and
+./dump_sit respectively.
+
+The options consist of:
+  -d debug level [default:0]
+  -i inode no (hex)
+  -s [SIT dump segno from #1~#2 (decimal), for all 0~-1]
+  -a [SSA dump segno from #1~#2 (decimal), for all 0~-1]
+
+Examples:
+# dump.f2fs -i [ino] /dev/sdx
+# dump.f2fs -s 0~-1 /dev/sdx (SIT dump)
+# dump.f2fs -a 0~-1 /dev/sdx (SSA dump)
 
 ================================================================================
 DESIGN

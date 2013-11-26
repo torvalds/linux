@@ -735,7 +735,7 @@ Here are the available options:
 		 function as well as the function being traced.
 
   print-parent:
-   bash-4000  [01]  1477.606694: simple_strtoul <-strict_strtoul
+   bash-4000  [01]  1477.606694: simple_strtoul <-kstrtoul
 
   noprint-parent:
    bash-4000  [01]  1477.606694: simple_strtoul
@@ -759,7 +759,7 @@ Here are the available options:
             latency-format option is enabled.
 
     bash  4000 1 0 00000000 00010a95 [58127d26] 1720.415ms \
-    (+0.000ms): simple_strtoul (strict_strtoul)
+    (+0.000ms): simple_strtoul (kstrtoul)
 
   raw - This will display raw numbers. This option is best for
 	use with user applications that can translate the raw

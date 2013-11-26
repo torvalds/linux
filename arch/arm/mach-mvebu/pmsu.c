@@ -67,6 +67,7 @@ int __init armada_370_xp_pmsu_init(void)
 		pr_info("Initializing Power Management Service Unit\n");
 		pmsu_mp_base = of_iomap(np, 0);
 		pmsu_reset_base = of_iomap(np, 1);
+		of_node_put(np);
 	}
 
 	return 0;

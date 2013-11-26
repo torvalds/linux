@@ -32,9 +32,11 @@ qla2x00_get_cmd_direction(srb_t *sp)
 	if (cmd->sc_data_direction == DMA_TO_DEVICE) {
 		cflags = CF_WRITE;
 		vha->qla_stats.output_bytes += scsi_bufflen(cmd);
+		vha->qla_stats.output_requests++;
 	} else if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		cflags = CF_READ;
 		vha->qla_stats.input_bytes += scsi_bufflen(cmd);
+		vha->qla_stats.input_requests++;
 	}
 	return (cflags);
 }
@@ -474,7 +476,7 @@ qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
 	struct qla_hw_data *ha = vha->hw;
 	device_reg_t __iomem *reg = ISP_QUE_REG(ha, req->id);
 
-	if (IS_QLA82XX(ha)) {
+	if (IS_P3P_TYPE(ha)) {
 		qla82xx_start_iocbs(vha);
 	} else {
 		/* Adjust ring index. */
@@ -642,10 +644,12 @@ qla24xx_build_scsi_type_6_iocbs(srb_t *sp, struct cmd_type_6 *cmd_pkt,
 		cmd_pkt->control_flags =
 		    __constant_cpu_to_le16(CF_WRITE_DATA);
 		vha->qla_stats.output_bytes += scsi_bufflen(cmd);
+		vha->qla_stats.output_requests++;
 	} else if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		cmd_pkt->control_flags =
 		    __constant_cpu_to_le16(CF_READ_DATA);
 		vha->qla_stats.input_bytes += scsi_bufflen(cmd);
+		vha->qla_stats.input_requests++;
 	}
 
 	cur_seg = scsi_sglist(cmd);
@@ -758,10 +762,12 @@ qla24xx_build_scsi_iocbs(srb_t *sp, struct cmd_type_7 *cmd_pkt,
 		cmd_pkt->task_mgmt_flags =
 		    __constant_cpu_to_le16(TMF_WRITE_DATA);
 		vha->qla_stats.output_bytes += scsi_bufflen(cmd);
+		vha->qla_stats.output_requests++;
 	} else if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		cmd_pkt->task_mgmt_flags =
 		    __constant_cpu_to_le16(TMF_READ_DATA);
 		vha->qla_stats.input_bytes += scsi_bufflen(cmd);
+		vha->qla_stats.input_requests++;
 	}
 
 	/* One DSD is available in the Command Type 3 IOCB */
@@ -1844,7 +1850,7 @@ skip_cmd_array:
 	if (req->cnt < req_cnt) {
 		if (ha->mqenable || IS_QLA83XX(ha))
 			cnt = RD_REG_DWORD(&reg->isp25mq.req_q_out);
-		else if (IS_QLA82XX(ha))
+		else if (IS_P3P_TYPE(ha))
 			cnt = RD_REG_DWORD(&reg->isp82.req_q_out);
 		else if (IS_FWI2_CAPABLE(ha))
 			cnt = RD_REG_DWORD(&reg->isp24.req_q_out);
@@ -2056,6 +2062,8 @@ qla24xx_els_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
             (bsg_job->reply_payload.sg_list)));
         els_iocb->rx_len = cpu_to_le32(sg_dma_len
             (bsg_job->reply_payload.sg_list));
+
+	sp->fcport->vha->qla_stats.control_requests++;
 }
 
 static void
@@ -2133,6 +2141,8 @@ qla2x00_ct_iocb(srb_t *sp, ms_iocb_entry_t *ct_iocb)
 		avail_dsds--;
 	}
 	ct_iocb->entry_count = entry_count;
+
+	sp->fcport->vha->qla_stats.control_requests++;
 }
 
 static void
@@ -2684,6 +2694,9 @@ qla25xx_build_bidir_iocb(srb_t *sp, struct scsi_qla_host *vha,
 
 	vha->bidi_stats.transfer_bytes += req_data_len;
 	vha->bidi_stats.io_count++;
+
+	vha->qla_stats.output_bytes += req_data_len;
+	vha->qla_stats.output_requests++;
 
 	/* Only one dsd is available for bidirectional IOCB, remaining dsds
 	 * are bundled in continuation iocb

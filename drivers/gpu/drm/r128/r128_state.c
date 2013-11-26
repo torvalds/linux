@@ -1643,7 +1643,7 @@ void r128_driver_lastclose(struct drm_device *dev)
 	r128_do_cleanup_cce(dev);
 }
 
-struct drm_ioctl_desc r128_ioctls[] = {
+const struct drm_ioctl_desc r128_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(R128_INIT, r128_cce_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(R128_CCE_START, r128_cce_start, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(R128_CCE_STOP, r128_cce_stop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),

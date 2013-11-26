@@ -99,13 +99,14 @@ Using an existing pool device
 		 $data_block_size $low_water_mark"
 
 $data_block_size gives the smallest unit of disk space that can be
-allocated at a time expressed in units of 512-byte sectors.  People
-primarily interested in thin provisioning may want to use a value such
-as 1024 (512KB).  People doing lots of snapshotting may want a smaller value
-such as 128 (64KB).  If you are not zeroing newly-allocated data,
-a larger $data_block_size in the region of 256000 (128MB) is suggested.
-$data_block_size must be the same for the lifetime of the
-metadata device.
+allocated at a time expressed in units of 512-byte sectors.
+$data_block_size must be between 128 (64KB) and 2097152 (1GB) and a
+multiple of 128 (64KB).  $data_block_size cannot be changed after the
+thin-pool is created.  People primarily interested in thin provisioning
+may want to use a value such as 1024 (512KB).  People doing lots of
+snapshotting may want a smaller value such as 128 (64KB).  If you are
+not zeroing newly-allocated data, a larger $data_block_size in the
+region of 256000 (128MB) is suggested.
 
 $low_water_mark is expressed in blocks of size $data_block_size.  If
 free space on the data device drops below this level then a dm event

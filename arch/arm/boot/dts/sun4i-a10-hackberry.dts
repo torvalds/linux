@@ -22,7 +22,7 @@
 		bootargs = "earlyprintk console=ttyS0,115200";
 	};
 
-	soc@01c20000 {
+	soc@01c00000 {
 		emac: ethernet@01c0b000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&emac_pins_a>;

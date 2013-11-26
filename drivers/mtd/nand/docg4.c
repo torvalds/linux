@@ -1093,7 +1093,6 @@ static int docg4_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	struct nand_chip *nand = mtd->priv;
 	struct docg4_priv *doc = nand->priv;
 	struct nand_bbt_descr *bbtd = nand->badblock_pattern;
-	int block = (int)(ofs >> nand->bbt_erase_shift);
 	int page = (int)(ofs >> nand->page_shift);
 	uint32_t g4_addr = mtd_to_docg4_address(page, 0);
 
@@ -1108,9 +1107,6 @@ static int docg4_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	if (buf == NULL)
 		return -ENOMEM;
 
-	/* update bbt in memory */
-	nand->bbt[block / 4] |= 0x01 << ((block & 0x03) * 2);
-
 	/* write bit-wise negation of pattern to oob buffer */
 	memset(nand->oob_poi, 0xff, mtd->oobsize);
 	for (i = 0; i < bbtd->len; i++)
@@ -1120,8 +1116,6 @@ static int docg4_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	write_page_prologue(mtd, g4_addr);
 	docg4_write_page(mtd, nand, buf, 1);
 	ret = pageprog(mtd);
-	if (!ret)
-		mtd->ecc_stats.badblocks++;
 
 	kfree(buf);
 
@@ -1368,7 +1362,6 @@ static int __init probe_docg4(struct platform_device *pdev)
 		struct nand_chip *nand = mtd->priv;
 		struct docg4_priv *doc = nand->priv;
 		nand_release(mtd); /* deletes partitions and mtd devices */
-		platform_set_drvdata(pdev, NULL);
 		free_bch(doc->bch);
 		kfree(mtd);
 	}
@@ -1380,7 +1373,6 @@ static int __exit cleanup_docg4(struct platform_device *pdev)
 {
 	struct docg4_priv *doc = platform_get_drvdata(pdev);
 	nand_release(doc->mtd);
-	platform_set_drvdata(pdev, NULL);
 	free_bch(doc->bch);
 	kfree(doc->mtd);
 	iounmap(doc->virtadr);

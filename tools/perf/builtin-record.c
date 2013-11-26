@@ -474,13 +474,6 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 			goto out_delete_session;
 		}
 
-		err = perf_event__synthesize_event_types(tool, process_synthesized_event,
-							 machine);
-		if (err < 0) {
-			pr_err("Couldn't synthesize event_types.\n");
-			goto out_delete_session;
-		}
-
 		if (have_tracepoints(&evsel_list->entries)) {
 			/*
 			 * FIXME err <= 0 here actually means that
@@ -719,20 +712,11 @@ static int get_stack_size(char *str, unsigned long *_size)
 }
 #endif /* LIBUNWIND_SUPPORT */
 
-int record_parse_callchain_opt(const struct option *opt,
-			       const char *arg, int unset)
+int record_parse_callchain(const char *arg, struct perf_record_opts *opts)
 {
-	struct perf_record_opts *opts = opt->value;
 	char *tok, *name, *saveptr = NULL;
 	char *buf;
 	int ret = -1;
-
-	/* --no-call-graph */
-	if (unset)
-		return 0;
-
-	/* We specified default option if none is provided. */
-	BUG_ON(!arg);
 
 	/* We need buffer that we know we can write to. */
 	buf = malloc(strlen(arg) + 1);
@@ -771,13 +755,9 @@ int record_parse_callchain_opt(const struct option *opt,
 				ret = get_stack_size(tok, &size);
 				opts->stack_dump_size = size;
 			}
-
-			if (!ret)
-				pr_debug("callchain: stack dump size %d\n",
-					 opts->stack_dump_size);
 #endif /* LIBUNWIND_SUPPORT */
 		} else {
-			pr_err("callchain: Unknown -g option "
+			pr_err("callchain: Unknown --call-graph option "
 			       "value: %s\n", arg);
 			break;
 		}
@@ -785,11 +765,50 @@ int record_parse_callchain_opt(const struct option *opt,
 	} while (0);
 
 	free(buf);
+	return ret;
+}
 
+static void callchain_debug(struct perf_record_opts *opts)
+{
+	pr_debug("callchain: type %d\n", opts->call_graph);
+
+	if (opts->call_graph == CALLCHAIN_DWARF)
+		pr_debug("callchain: stack dump size %d\n",
+			 opts->stack_dump_size);
+}
+
+int record_parse_callchain_opt(const struct option *opt,
+			       const char *arg,
+			       int unset)
+{
+	struct perf_record_opts *opts = opt->value;
+	int ret;
+
+	/* --no-call-graph */
+	if (unset) {
+		opts->call_graph = CALLCHAIN_NONE;
+		pr_debug("callchain: disabled\n");
+		return 0;
+	}
+
+	ret = record_parse_callchain(arg, opts);
 	if (!ret)
-		pr_debug("callchain: type %d\n", opts->call_graph);
+		callchain_debug(opts);
 
 	return ret;
+}
+
+int record_callchain_opt(const struct option *opt,
+			 const char *arg __maybe_unused,
+			 int unset __maybe_unused)
+{
+	struct perf_record_opts *opts = opt->value;
+
+	if (opts->call_graph == CALLCHAIN_NONE)
+		opts->call_graph = CALLCHAIN_FP;
+
+	callchain_debug(opts);
+	return 0;
 }
 
 static const char * const record_usage[] = {
@@ -820,12 +839,12 @@ static struct perf_record record = {
 	},
 };
 
-#define CALLCHAIN_HELP "do call-graph (stack chain/backtrace) recording: "
+#define CALLCHAIN_HELP "setup and enables call-graph (stack chain/backtrace) recording: "
 
 #ifdef LIBUNWIND_SUPPORT
-const char record_callchain_help[] = CALLCHAIN_HELP "[fp] dwarf";
+const char record_callchain_help[] = CALLCHAIN_HELP "fp dwarf";
 #else
-const char record_callchain_help[] = CALLCHAIN_HELP "[fp]";
+const char record_callchain_help[] = CALLCHAIN_HELP "fp";
 #endif
 
 /*
@@ -865,9 +884,12 @@ const struct option record_options[] = {
 		     "number of mmap data pages"),
 	OPT_BOOLEAN(0, "group", &record.opts.group,
 		    "put the counters into a counter group"),
-	OPT_CALLBACK_DEFAULT('g', "call-graph", &record.opts,
-			     "mode[,dump_size]", record_callchain_help,
-			     &record_parse_callchain_opt, "fp"),
+	OPT_CALLBACK_NOOPT('g', NULL, &record.opts,
+			   NULL, "enables call-graph recording" ,
+			   &record_callchain_opt),
+	OPT_CALLBACK(0, "call-graph", &record.opts,
+		     "mode[,dump_size]", record_callchain_help,
+		     &record_parse_callchain_opt),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_BOOLEAN('q', "quiet", &quiet, "don't print any message"),
@@ -904,7 +926,6 @@ const struct option record_options[] = {
 int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	int err = -ENOMEM;
-	struct perf_evsel *pos;
 	struct perf_evlist *evsel_list;
 	struct perf_record *rec = &record;
 	char errbuf[BUFSIZ];
@@ -967,11 +988,6 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	err = -ENOMEM;
 	if (perf_evlist__create_maps(evsel_list, &rec->opts.target) < 0)
 		usage_with_options(record_usage, record_options);
-
-	list_for_each_entry(pos, &evsel_list->entries, node) {
-		if (perf_header__push_event(pos->attr.config, perf_evsel__name(pos)))
-			goto out_free_fd;
-	}
 
 	if (rec->opts.user_interval != ULLONG_MAX)
 		rec->opts.default_interval = rec->opts.user_interval;

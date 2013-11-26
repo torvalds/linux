@@ -443,6 +443,44 @@ struct cx231xx_board cx231xx_boards[] = {
 			.gpio = NULL,
 		} },
 	},
+	[CX231XX_BOARD_KWORLD_UB445_USB_HYBRID] = {
+		.name = "Kworld UB445 USB Hybrid",
+		.tuner_type = TUNER_NXP_TDA18271,
+		.tuner_addr = 0x60,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x11,	/* According with PV cxPolaris.inf file */
+		.tuner_sif_gpio = -1,
+		.tuner_scl_gpio = -1,
+		.tuner_sda_gpio = -1,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = 2,
+		.demod_i2c_master = 1,
+		.ir_i2c_master = 2,
+		.has_dvb = 1,
+		.demod_addr = 0x10,
+		.norm = V4L2_STD_NTSC_M,
+		.input = {{
+			.type = CX231XX_VMUX_TELEVISION,
+			.vmux = CX231XX_VIN_3_1,
+			.amux = CX231XX_AMUX_VIDEO,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		} },
+	},
 	[CX231XX_BOARD_PV_PLAYTV_USB_HYBRID] = {
 		.name = "Pixelview PlayTV USB Hybrid",
 		.tuner_type = TUNER_NXP_TDA18271,
@@ -703,6 +741,8 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_PV_XCAPTURE_USB},
 	{USB_DEVICE(0x1b80, 0xe424),
 	 .driver_info = CX231XX_BOARD_KWORLD_UB430_USB_HYBRID},
+	{USB_DEVICE(0x1b80, 0xe421),
+	 .driver_info = CX231XX_BOARD_KWORLD_UB445_USB_HYBRID},
 	{USB_DEVICE(0x1f4d, 0x0237),
 	 .driver_info = CX231XX_BOARD_ICONBIT_U100},
 	{USB_DEVICE(0x0fd9, 0x0037),

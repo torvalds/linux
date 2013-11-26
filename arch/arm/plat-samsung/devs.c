@@ -58,6 +58,7 @@
 #include <plat/keypad.h>
 #include <linux/platform_data/mmc-s3cmci.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
+#include <plat/pwm-core.h>
 #include <plat/sdhci.h>
 #include <linux/platform_data/touchscreen-s3c2410.h>
 #include <linux/platform_data/usb-s3c2410_udc.h>
@@ -1097,36 +1098,21 @@ arch_initcall(s5p_pmu_init);
 /* PWM Timer */
 
 #ifdef CONFIG_SAMSUNG_DEV_PWM
-
-#define TIMER_RESOURCE_SIZE (1)
-
-#define TIMER_RESOURCE(_tmr, _irq)			\
-	(struct resource [TIMER_RESOURCE_SIZE]) {	\
-		[0] = {					\
-			.start	= _irq,			\
-			.end	= _irq,			\
-			.flags	= IORESOURCE_IRQ	\
-		}					\
-	}
-
-#define DEFINE_S3C_TIMER(_tmr_no, _irq)			\
-	.name		= "s3c24xx-pwm",		\
-	.id		= _tmr_no,			\
-	.num_resources	= TIMER_RESOURCE_SIZE,		\
-	.resource	= TIMER_RESOURCE(_tmr_no, _irq),	\
-
-/*
- * since we already have an static mapping for the timer,
- * we do not bother setting any IO resource for the base.
- */
-
-struct platform_device s3c_device_timer[] = {
-	[0] = { DEFINE_S3C_TIMER(0, IRQ_TIMER0) },
-	[1] = { DEFINE_S3C_TIMER(1, IRQ_TIMER1) },
-	[2] = { DEFINE_S3C_TIMER(2, IRQ_TIMER2) },
-	[3] = { DEFINE_S3C_TIMER(3, IRQ_TIMER3) },
-	[4] = { DEFINE_S3C_TIMER(4, IRQ_TIMER4) },
+static struct resource samsung_pwm_resource[] = {
+	DEFINE_RES_MEM(SAMSUNG_PA_TIMER, SZ_4K),
 };
+
+struct platform_device samsung_device_pwm = {
+	.name		= "samsung-pwm",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(samsung_pwm_resource),
+	.resource	= samsung_pwm_resource,
+};
+
+void __init samsung_pwm_set_platdata(struct samsung_pwm_variant *pd)
+{
+	samsung_device_pwm.dev.platform_data = pd;
+}
 #endif /* CONFIG_SAMSUNG_DEV_PWM */
 
 /* RTC */

@@ -49,8 +49,6 @@
  * Implemented in portals/include/libcfs/<os>/
  */
 int    cfs_curproc_groups_nr(void);
-int    current_is_in_group(gid_t group);
-void   cfs_curproc_groups_dump(gid_t *array, int size);
 
 /*
  * Plus, platform-specific constant

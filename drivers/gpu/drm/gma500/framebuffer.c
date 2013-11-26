@@ -321,10 +321,8 @@ static struct gtt_range *psbfb_alloc(struct drm_device *dev, int aligned_size)
 	/* Begin by trying to use stolen memory backing */
 	backing = psb_gtt_alloc_range(dev, aligned_size, "fb", 1);
 	if (backing) {
-		if (drm_gem_private_object_init(dev,
-					&backing->gem, aligned_size) == 0)
-			return backing;
-		psb_gtt_free_range(dev, backing);
+		drm_gem_private_object_init(dev, &backing->gem, aligned_size);
+		return backing;
 	}
 	return NULL;
 }
@@ -522,21 +520,21 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 static void psbfb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 							u16 blue, int regno)
 {
-	struct psb_intel_crtc *intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 
-	intel_crtc->lut_r[regno] = red >> 8;
-	intel_crtc->lut_g[regno] = green >> 8;
-	intel_crtc->lut_b[regno] = blue >> 8;
+	gma_crtc->lut_r[regno] = red >> 8;
+	gma_crtc->lut_g[regno] = green >> 8;
+	gma_crtc->lut_b[regno] = blue >> 8;
 }
 
 static void psbfb_gamma_get(struct drm_crtc *crtc, u16 *red,
 					u16 *green, u16 *blue, int regno)
 {
-	struct psb_intel_crtc *intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 
-	*red = intel_crtc->lut_r[regno] << 8;
-	*green = intel_crtc->lut_g[regno] << 8;
-	*blue = intel_crtc->lut_b[regno] << 8;
+	*red = gma_crtc->lut_r[regno] << 8;
+	*green = gma_crtc->lut_g[regno] << 8;
+	*blue = gma_crtc->lut_b[regno] << 8;
 }
 
 static int psbfb_probe(struct drm_fb_helper *helper,
@@ -705,13 +703,12 @@ static void psb_setup_outputs(struct drm_device *dev)
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
 			    head) {
-		struct psb_intel_encoder *psb_intel_encoder =
-			psb_intel_attached_encoder(connector);
-		struct drm_encoder *encoder = &psb_intel_encoder->base;
+		struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
+		struct drm_encoder *encoder = &gma_encoder->base;
 		int crtc_mask = 0, clone_mask = 0;
 
 		/* valid crtcs */
-		switch (psb_intel_encoder->type) {
+		switch (gma_encoder->type) {
 		case INTEL_OUTPUT_ANALOG:
 			crtc_mask = (1 << 0);
 			clone_mask = (1 << INTEL_OUTPUT_ANALOG);
@@ -746,7 +743,7 @@ static void psb_setup_outputs(struct drm_device *dev)
 		}
 		encoder->possible_crtcs = crtc_mask;
 		encoder->possible_clones =
-		    psb_intel_connector_clones(dev, clone_mask);
+		    gma_connector_clones(dev, clone_mask);
 	}
 }
 

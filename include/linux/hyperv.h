@@ -27,6 +27,17 @@
 
 #include <linux/types.h>
 
+/*
+ * Framework version for util services.
+ */
+#define UTIL_FW_MINOR  0
+
+#define UTIL_WS2K8_FW_MAJOR  1
+#define UTIL_WS2K8_FW_VERSION     (UTIL_WS2K8_FW_MAJOR << 16 | UTIL_FW_MINOR)
+
+#define UTIL_FW_MAJOR  3
+#define UTIL_FW_VERSION     (UTIL_FW_MAJOR << 16 | UTIL_FW_MINOR)
+
 
 /*
  * Implementation of host controlled snapshot of the guest.
@@ -454,27 +465,6 @@ hv_get_ringbuffer_availbytes(struct hv_ring_buffer_info *rbi,
 		read_loc - write_loc;
 	*read = dsize - *write;
 }
-
-
-/*
- * We use the same version numbering for all Hyper-V modules.
- *
- * Definition of versioning is as follows;
- *
- *	Major Number	Changes for these scenarios;
- *			1.	When a new version of Windows Hyper-V
- *				is released.
- *			2.	A Major change has occurred in the
- *				Linux IC's.
- *			(For example the merge for the first time
- *			into the kernel) Every time the Major Number
- *			changes, the Revision number is reset to 0.
- *	Minor Number	Changes when new functionality is added
- *			to the Linux IC's that is not a bug fix.
- *
- * 3.1 - Added completed hv_utils driver. Shutdown/Heartbeat/Timesync
- */
-#define HV_DRV_VERSION           "3.1"
 
 /*
  * VMBUS version is 32 bit entity broken up into
@@ -1494,7 +1484,7 @@ struct hyperv_service_callback {
 };
 
 #define MAX_SRV_VER	0x7ffffff
-extern void vmbus_prep_negotiate_resp(struct icmsg_hdr *,
+extern bool vmbus_prep_negotiate_resp(struct icmsg_hdr *,
 					struct icmsg_negotiate *, u8 *, int,
 					int);
 

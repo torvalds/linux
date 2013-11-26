@@ -776,7 +776,7 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 
 	/* Don't use EAPOL frames for sampling on non-mrr hw */
 	if (mp->hw->max_rates == 1 &&
-	    txrc->skb->protocol == cpu_to_be16(ETH_P_PAE))
+	    (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO))
 		sample_idx = -1;
 	else
 		sample_idx = minstrel_get_sample_rate(mp, mi);
@@ -847,6 +847,7 @@ minstrel_ht_update_cck(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 
 static void
 minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
+			struct cfg80211_chan_def *chandef,
                         struct ieee80211_sta *sta, void *priv_sta)
 {
 	struct minstrel_priv *mp = priv;
@@ -872,8 +873,9 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 	mi->sta = sta;
 	mi->stats_update = jiffies;
 
-	ack_dur = ieee80211_frame_duration(sband->band, 10, 60, 1, 1);
-	mi->overhead = ieee80211_frame_duration(sband->band, 0, 60, 1, 1) + ack_dur;
+	ack_dur = ieee80211_frame_duration(sband->band, 10, 60, 1, 1, 0);
+	mi->overhead = ieee80211_frame_duration(sband->band, 0, 60, 1, 1, 0);
+	mi->overhead += ack_dur;
 	mi->overhead_rtscts = mi->overhead + 2 * ack_dur;
 
 	mi->avg_ampdu_len = MINSTREL_FRAC(1, 1);
@@ -942,22 +944,25 @@ use_legacy:
 	memset(&msp->legacy, 0, sizeof(msp->legacy));
 	msp->legacy.r = msp->ratelist;
 	msp->legacy.sample_table = msp->sample_table;
-	return mac80211_minstrel.rate_init(priv, sband, sta, &msp->legacy);
+	return mac80211_minstrel.rate_init(priv, sband, chandef, sta,
+					   &msp->legacy);
 }
 
 static void
 minstrel_ht_rate_init(void *priv, struct ieee80211_supported_band *sband,
+		      struct cfg80211_chan_def *chandef,
                       struct ieee80211_sta *sta, void *priv_sta)
 {
-	minstrel_ht_update_caps(priv, sband, sta, priv_sta);
+	minstrel_ht_update_caps(priv, sband, chandef, sta, priv_sta);
 }
 
 static void
 minstrel_ht_rate_update(void *priv, struct ieee80211_supported_band *sband,
+			struct cfg80211_chan_def *chandef,
                         struct ieee80211_sta *sta, void *priv_sta,
                         u32 changed)
 {
-	minstrel_ht_update_caps(priv, sband, sta, priv_sta);
+	minstrel_ht_update_caps(priv, sband, chandef, sta, priv_sta);
 }
 
 static void *

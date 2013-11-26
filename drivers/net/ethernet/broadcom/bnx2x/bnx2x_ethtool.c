@@ -891,16 +891,7 @@ static void bnx2x_get_regs(struct net_device *dev,
 	 * will re-enable parity attentions right after the dump.
 	 */
 
-	/* Disable parity on path 0 */
-	bnx2x_pretend_func(bp, 0);
 	bnx2x_disable_blocks_parity(bp);
-
-	/* Disable parity on path 1 */
-	bnx2x_pretend_func(bp, 1);
-	bnx2x_disable_blocks_parity(bp);
-
-	/* Return to current function */
-	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 
 	dump_hdr.header_size = (sizeof(struct dump_header) / 4) - 1;
 	dump_hdr.preset = DUMP_ALL_PRESETS;
@@ -928,18 +919,9 @@ static void bnx2x_get_regs(struct net_device *dev,
 	/* Actually read the registers */
 	__bnx2x_get_regs(bp, p);
 
-	/* Re-enable parity attentions on path 0 */
-	bnx2x_pretend_func(bp, 0);
+	/* Re-enable parity attentions */
 	bnx2x_clear_blocks_parity(bp);
 	bnx2x_enable_blocks_parity(bp);
-
-	/* Re-enable parity attentions on path 1 */
-	bnx2x_pretend_func(bp, 1);
-	bnx2x_clear_blocks_parity(bp);
-	bnx2x_enable_blocks_parity(bp);
-
-	/* Return to current function */
-	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 }
 
 static int bnx2x_get_preset_regs_len(struct net_device *dev, u32 preset)
@@ -993,16 +975,7 @@ static int bnx2x_get_dump_data(struct net_device *dev,
 	 * will re-enable parity attentions right after the dump.
 	 */
 
-	/* Disable parity on path 0 */
-	bnx2x_pretend_func(bp, 0);
 	bnx2x_disable_blocks_parity(bp);
-
-	/* Disable parity on path 1 */
-	bnx2x_pretend_func(bp, 1);
-	bnx2x_disable_blocks_parity(bp);
-
-	/* Return to current function */
-	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 
 	dump_hdr.header_size = (sizeof(struct dump_header) / 4) - 1;
 	dump_hdr.preset = bp->dump_preset_idx;
@@ -1032,18 +1005,9 @@ static int bnx2x_get_dump_data(struct net_device *dev,
 	/* Actually read the registers */
 	__bnx2x_get_preset_regs(bp, p, dump_hdr.preset);
 
-	/* Re-enable parity attentions on path 0 */
-	bnx2x_pretend_func(bp, 0);
+	/* Re-enable parity attentions */
 	bnx2x_clear_blocks_parity(bp);
 	bnx2x_enable_blocks_parity(bp);
-
-	/* Re-enable parity attentions on path 1 */
-	bnx2x_pretend_func(bp, 1);
-	bnx2x_clear_blocks_parity(bp);
-	bnx2x_enable_blocks_parity(bp);
-
-	/* Return to current function */
-	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 
 	return 0;
 }
@@ -1387,9 +1351,9 @@ static bool bnx2x_is_nvm_accessible(struct bnx2x *bp)
 	u16 pm = 0;
 	struct net_device *dev = pci_get_drvdata(bp->pdev);
 
-	if (bp->pm_cap)
+	if (bp->pdev->pm_cap)
 		rc = pci_read_config_word(bp->pdev,
-					  bp->pm_cap + PCI_PM_CTRL, &pm);
+					  bp->pdev->pm_cap + PCI_PM_CTRL, &pm);
 
 	if ((rc && !netif_running(dev)) ||
 	    (!rc && ((pm & PCI_PM_CTRL_STATE_MASK) != (__force u16)PCI_D0)))
@@ -3281,14 +3245,14 @@ static int bnx2x_set_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
 			DP(BNX2X_MSG_ETHTOOL,
 			   "rss re-configured, UDP 4-tupple %s\n",
 			   udp_rss_requested ? "enabled" : "disabled");
-			return bnx2x_config_rss_pf(bp, &bp->rss_conf_obj, 0);
+			return bnx2x_rss(bp, &bp->rss_conf_obj, false, true);
 		} else if ((info->flow_type == UDP_V6_FLOW) &&
 			   (bp->rss_conf_obj.udp_rss_v6 != udp_rss_requested)) {
 			bp->rss_conf_obj.udp_rss_v6 = udp_rss_requested;
 			DP(BNX2X_MSG_ETHTOOL,
 			   "rss re-configured, UDP 4-tupple %s\n",
 			   udp_rss_requested ? "enabled" : "disabled");
-			return bnx2x_config_rss_pf(bp, &bp->rss_conf_obj, 0);
+			return bnx2x_rss(bp, &bp->rss_conf_obj, false, true);
 		}
 		return 0;
 

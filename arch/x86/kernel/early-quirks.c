@@ -12,6 +12,7 @@
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/pci_ids.h>
+#include <drm/i915_drm.h>
 #include <asm/pci-direct.h>
 #include <asm/dma.h>
 #include <asm/io_apic.h>
@@ -216,6 +217,157 @@ static void __init intel_remapping_check(int num, int slot, int func)
 
 }
 
+/*
+ * Systems with Intel graphics controllers set aside memory exclusively
+ * for gfx driver use.  This memory is not marked in the E820 as reserved
+ * or as RAM, and so is subject to overlap from E820 manipulation later
+ * in the boot process.  On some systems, MMIO space is allocated on top,
+ * despite the efforts of the "RAM buffer" approach, which simply rounds
+ * memory boundaries up to 64M to try to catch space that may decode
+ * as RAM and so is not suitable for MMIO.
+ *
+ * And yes, so far on current devices the base addr is always under 4G.
+ */
+static u32 __init intel_stolen_base(int num, int slot, int func)
+{
+	u32 base;
+
+	/*
+	 * For the PCI IDs in this quirk, the stolen base is always
+	 * in 0x5c, aka the BDSM register (yes that's really what
+	 * it's called).
+	 */
+	base = read_pci_config(num, slot, func, 0x5c);
+	base &= ~((1<<20) - 1);
+
+	return base;
+}
+
+#define KB(x)	((x) * 1024)
+#define MB(x)	(KB (KB (x)))
+#define GB(x)	(MB (KB (x)))
+
+static size_t __init gen3_stolen_size(int num, int slot, int func)
+{
+	size_t stolen_size;
+	u16 gmch_ctrl;
+
+	gmch_ctrl = read_pci_config_16(0, 0, 0, I830_GMCH_CTRL);
+
+	switch (gmch_ctrl & I855_GMCH_GMS_MASK) {
+	case I855_GMCH_GMS_STOLEN_1M:
+		stolen_size = MB(1);
+		break;
+	case I855_GMCH_GMS_STOLEN_4M:
+		stolen_size = MB(4);
+		break;
+	case I855_GMCH_GMS_STOLEN_8M:
+		stolen_size = MB(8);
+		break;
+	case I855_GMCH_GMS_STOLEN_16M:
+		stolen_size = MB(16);
+		break;
+	case I855_GMCH_GMS_STOLEN_32M:
+		stolen_size = MB(32);
+		break;
+	case I915_GMCH_GMS_STOLEN_48M:
+		stolen_size = MB(48);
+		break;
+	case I915_GMCH_GMS_STOLEN_64M:
+		stolen_size = MB(64);
+		break;
+	case G33_GMCH_GMS_STOLEN_128M:
+		stolen_size = MB(128);
+		break;
+	case G33_GMCH_GMS_STOLEN_256M:
+		stolen_size = MB(256);
+		break;
+	case INTEL_GMCH_GMS_STOLEN_96M:
+		stolen_size = MB(96);
+		break;
+	case INTEL_GMCH_GMS_STOLEN_160M:
+		stolen_size = MB(160);
+		break;
+	case INTEL_GMCH_GMS_STOLEN_224M:
+		stolen_size = MB(224);
+		break;
+	case INTEL_GMCH_GMS_STOLEN_352M:
+		stolen_size = MB(352);
+		break;
+	default:
+		stolen_size = 0;
+		break;
+	}
+
+	return stolen_size;
+}
+
+static size_t __init gen6_stolen_size(int num, int slot, int func)
+{
+	u16 gmch_ctrl;
+
+	gmch_ctrl = read_pci_config_16(num, slot, func, SNB_GMCH_CTRL);
+	gmch_ctrl >>= SNB_GMCH_GMS_SHIFT;
+	gmch_ctrl &= SNB_GMCH_GMS_MASK;
+
+	return gmch_ctrl << 25; /* 32 MB units */
+}
+
+typedef size_t (*stolen_size_fn)(int num, int slot, int func);
+
+static struct pci_device_id intel_stolen_ids[] __initdata = {
+	INTEL_I915G_IDS(gen3_stolen_size),
+	INTEL_I915GM_IDS(gen3_stolen_size),
+	INTEL_I945G_IDS(gen3_stolen_size),
+	INTEL_I945GM_IDS(gen3_stolen_size),
+	INTEL_VLV_M_IDS(gen3_stolen_size),
+	INTEL_VLV_D_IDS(gen3_stolen_size),
+	INTEL_PINEVIEW_IDS(gen3_stolen_size),
+	INTEL_I965G_IDS(gen3_stolen_size),
+	INTEL_G33_IDS(gen3_stolen_size),
+	INTEL_I965GM_IDS(gen3_stolen_size),
+	INTEL_GM45_IDS(gen3_stolen_size),
+	INTEL_G45_IDS(gen3_stolen_size),
+	INTEL_IRONLAKE_D_IDS(gen3_stolen_size),
+	INTEL_IRONLAKE_M_IDS(gen3_stolen_size),
+	INTEL_SNB_D_IDS(gen6_stolen_size),
+	INTEL_SNB_M_IDS(gen6_stolen_size),
+	INTEL_IVB_M_IDS(gen6_stolen_size),
+	INTEL_IVB_D_IDS(gen6_stolen_size),
+	INTEL_HSW_D_IDS(gen6_stolen_size),
+	INTEL_HSW_M_IDS(gen6_stolen_size),
+};
+
+static void __init intel_graphics_stolen(int num, int slot, int func)
+{
+	size_t size;
+	int i;
+	u32 start;
+	u16 device, subvendor, subdevice;
+
+	device = read_pci_config_16(num, slot, func, PCI_DEVICE_ID);
+	subvendor = read_pci_config_16(num, slot, func,
+				       PCI_SUBSYSTEM_VENDOR_ID);
+	subdevice = read_pci_config_16(num, slot, func, PCI_SUBSYSTEM_ID);
+
+	for (i = 0; i < ARRAY_SIZE(intel_stolen_ids); i++) {
+		if (intel_stolen_ids[i].device == device) {
+			stolen_size_fn stolen_size =
+				(stolen_size_fn)intel_stolen_ids[i].driver_data;
+			size = stolen_size(num, slot, func);
+			start = intel_stolen_base(num, slot, func);
+			if (size && start) {
+				/* Mark this space as reserved */
+				e820_add_region(start, size, E820_RESERVED);
+				sanitize_e820_map(e820.map,
+						  ARRAY_SIZE(e820.map),
+						  &e820.nr_map);
+			}
+			return;
+		}
+	}
+}
+
 #define QFLAG_APPLY_ONCE 	0x1
 #define QFLAG_APPLIED		0x2
 #define QFLAG_DONE		(QFLAG_APPLY_ONCE|QFLAG_APPLIED)
@@ -251,6 +403,8 @@ static struct chipset early_qrk[] __initdata = {
 	  PCI_BASE_CLASS_BRIDGE, 0, intel_remapping_check },
 	{ PCI_VENDOR_ID_INTEL, 0x3406, PCI_CLASS_BRIDGE_HOST,
 	  PCI_BASE_CLASS_BRIDGE, 0, intel_remapping_check },
+	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA, PCI_ANY_ID,
+	  QFLAG_APPLY_ONCE, intel_graphics_stolen },
 	{}
 };
 

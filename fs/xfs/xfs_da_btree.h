@@ -133,11 +133,18 @@ extern void xfs_da3_node_hdr_to_disk(struct xfs_da_intnode *to,
 				     struct xfs_da3_icnode_hdr *from);
 
 static inline int
-xfs_da3_node_hdr_size(struct xfs_da_intnode *dap)
+__xfs_da3_node_hdr_size(bool v3)
 {
-	if (dap->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC))
+	if (v3)
 		return sizeof(struct xfs_da3_node_hdr);
 	return sizeof(struct xfs_da_node_hdr);
+}
+static inline int
+xfs_da3_node_hdr_size(struct xfs_da_intnode *dap)
+{
+	bool	v3 = dap->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC);
+
+	return __xfs_da3_node_hdr_size(v3);
 }
 
 static inline struct xfs_da_node_entry *
@@ -176,6 +183,7 @@ enum xfs_dacmp {
 typedef struct xfs_da_args {
 	const __uint8_t	*name;		/* string (maybe not NULL terminated) */
 	int		namelen;	/* length of string (maybe no NULL) */
+	__uint8_t	filetype;	/* filetype of inode for directories */
 	__uint8_t	*value;		/* set of bytes (maybe contain NULLs) */
 	int		valuelen;	/* length of value */
 	int		flags;		/* argument flags (eg: ATTR_NOCREATE) */

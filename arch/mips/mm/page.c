@@ -18,6 +18,7 @@
 
 #include <asm/bugs.h>
 #include <asm/cacheops.h>
+#include <asm/cpu-type.h>
 #include <asm/inst.h>
 #include <asm/io.h>
 #include <asm/page.h>

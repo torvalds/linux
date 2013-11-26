@@ -78,7 +78,7 @@ struct sysfs_dirent {
 	};
 
 	unsigned short		s_flags;
-	umode_t 		s_mode;
+	umode_t			s_mode;
 	unsigned int		s_ino;
 	struct sysfs_inode_attrs *s_iattr;
 };
@@ -123,9 +123,9 @@ do {								\
 		key = &attr->skey;				\
 								\
 	lockdep_init_map(&sd->dep_map, "s_active", key, 0);	\
-} while(0)
+} while (0)
 #else
-#define sysfs_dirent_init_lockdep(sd) do {} while(0)
+#define sysfs_dirent_init_lockdep(sd) do {} while (0)
 #endif
 
 /*
@@ -186,8 +186,8 @@ int sysfs_create_subdir(struct kobject *kobj, const char *name,
 			struct sysfs_dirent **p_sd);
 void sysfs_remove_subdir(struct sysfs_dirent *sd);
 
-int sysfs_rename(struct sysfs_dirent *sd,
-	struct sysfs_dirent *new_parent_sd, const void *ns, const char *new_name);
+int sysfs_rename(struct sysfs_dirent *sd, struct sysfs_dirent *new_parent_sd,
+		 const void *ns, const char *new_name);
 
 static inline struct sysfs_dirent *__sysfs_get(struct sysfs_dirent *sd)
 {
@@ -214,10 +214,12 @@ void sysfs_evict_inode(struct inode *inode);
 int sysfs_sd_setattr(struct sysfs_dirent *sd, struct iattr *iattr);
 int sysfs_permission(struct inode *inode, int mask);
 int sysfs_setattr(struct dentry *dentry, struct iattr *iattr);
-int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat);
+int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
+		  struct kstat *stat);
 int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
-		size_t size, int flags);
-int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const void *ns, const char *name);
+		   size_t size, int flags);
+int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const void *ns,
+			  const char *name);
 int sysfs_inode_init(void);
 
 /*

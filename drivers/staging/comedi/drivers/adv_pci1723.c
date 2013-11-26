@@ -43,6 +43,7 @@ TODO:
 3. Implement calibration.
 */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"
@@ -179,38 +180,29 @@ static int pci1723_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data)
 {
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int mask;
-	unsigned int bits;
-	unsigned short dio_mode;
+	unsigned short mode;
+	int ret;
 
-	mask = 1 << CR_CHAN(insn->chanspec);
-	if (mask & 0x00FF)
-		bits = 0x00FF;
+	if (chan < 8)
+		mask = 0x00ff;
 	else
-		bits = 0xFF00;
+		mask = 0xff00;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~bits;
-		break;
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= bits;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & bits) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-	default:
-		return -EINVAL;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
 
 	/* update hardware DIO mode */
-	dio_mode = 0x0000;	/* low byte output, high byte output */
-	if ((s->io_bits & 0x00FF) == 0)
-		dio_mode |= 0x0001;	/* low byte input */
-	if ((s->io_bits & 0xFF00) == 0)
-		dio_mode |= 0x0002;	/* high byte input */
-	outw(dio_mode, dev->iobase + PCI1723_DIGITAL_IO_PORT_SET);
-	return 1;
+	mode = 0x0000;			/* assume output */
+	if (!(s->io_bits & 0x00ff))
+		mode |= 0x0001;		/* low byte input */
+	if (!(s->io_bits & 0xff00))
+		mode |= 0x0002;		/* high byte input */
+	outw(mode, dev->iobase + PCI1723_DIGITAL_IO_PORT_SET);
+
+	return insn->n;
 }
 
 /*
@@ -237,10 +229,9 @@ static int pci1723_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)

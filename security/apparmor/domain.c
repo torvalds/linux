@@ -144,7 +144,7 @@ static struct aa_profile *__attach_match(const char *name,
 	int len = 0;
 	struct aa_profile *profile, *candidate = NULL;
 
-	list_for_each_entry(profile, head, base.list) {
+	list_for_each_entry_rcu(profile, head, base.list) {
 		if (profile->flags & PFLAG_NULL)
 			continue;
 		if (profile->xmatch && profile->xmatch_len > len) {
@@ -177,9 +177,9 @@ static struct aa_profile *find_attach(struct aa_namespace *ns,
 {
 	struct aa_profile *profile;
 
-	read_lock(&ns->lock);
+	rcu_read_lock();
 	profile = aa_get_profile(__attach_match(name, list));
-	read_unlock(&ns->lock);
+	rcu_read_unlock();
 
 	return profile;
 }
@@ -359,7 +359,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	cxt = cred_cxt(bprm->cred);
 	BUG_ON(!cxt);
 
-	profile = aa_get_profile(aa_newest_version(cxt->profile));
+	profile = aa_get_newest_profile(cxt->profile);
 	/*
 	 * get the namespace from the replacement profile as replacement
 	 * can change the namespace
@@ -371,8 +371,8 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	error = aa_path_name(&bprm->file->f_path, profile->path_flags, &buffer,
 			     &name, &info);
 	if (error) {
-		if (profile->flags &
-		    (PFLAG_IX_ON_NAME_ERROR | PFLAG_UNCONFINED))
+		if (unconfined(profile) ||
+		    (profile->flags & PFLAG_IX_ON_NAME_ERROR))
 			error = 0;
 		name = bprm->filename;
 		goto audit;
@@ -417,7 +417,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 
 		if (!(cp.allow & AA_MAY_ONEXEC))
 			goto audit;
-		new_profile = aa_get_profile(aa_newest_version(cxt->onexec));
+		new_profile = aa_get_newest_profile(cxt->onexec);
 		goto apply;
 	}
 
@@ -434,7 +434,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 				new_profile = aa_get_profile(profile);
 				goto x_clear;
 			} else if (perms.xindex & AA_X_UNCONFINED) {
-				new_profile = aa_get_profile(ns->unconfined);
+				new_profile = aa_get_newest_profile(ns->unconfined);
 				info = "ux fallback";
 			} else {
 				error = -ENOENT;
@@ -641,7 +641,10 @@ int aa_change_hat(const char *hats[], int count, u64 token, bool permtest)
 	if (count) {
 		/* attempting to change into a new hat or switch to a sibling */
 		struct aa_profile *root;
-		root = PROFILE_IS_HAT(profile) ? profile->parent : profile;
+		if (PROFILE_IS_HAT(profile))
+			root = aa_get_profile_rcu(&profile->parent);
+		else
+			root = aa_get_profile(profile);
 
 		/* find first matching hat */
 		for (i = 0; i < count && !hat; i++)
@@ -653,6 +656,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, bool permtest)
 					error = -ECHILD;
 				else
 					error = -ENOENT;
+				aa_put_profile(root);
 				goto out;
 			}
 
@@ -667,6 +671,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, bool permtest)
 
 			/* freed below */
 			name = new_compound_name(root->base.hname, hats[0]);
+			aa_put_profile(root);
 			target = name;
 			/* released below */
 			hat = aa_new_null_profile(profile, 1);
@@ -676,6 +681,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, bool permtest)
 				goto audit;
 			}
 		} else {
+			aa_put_profile(root);
 			target = hat->base.hname;
 			if (!PROFILE_IS_HAT(hat)) {
 				info = "target not hat";

@@ -32,6 +32,7 @@
 #include <asm/div64.h>
 
 #include "cx23885.h"
+#include "cx23885-video.h"
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include "cx23885-ioctl.h"
@@ -417,7 +418,7 @@ static void res_free(struct cx23885_dev *dev, struct cx23885_fh *fh,
 	mutex_unlock(&dev->lock);
 }
 
-static int cx23885_flatiron_write(struct cx23885_dev *dev, u8 reg, u8 data)
+int cx23885_flatiron_write(struct cx23885_dev *dev, u8 reg, u8 data)
 {
 	/* 8 bit registers, 8 bit values */
 	u8 buf[] = { reg, data };
@@ -428,7 +429,7 @@ static int cx23885_flatiron_write(struct cx23885_dev *dev, u8 reg, u8 data)
 	return i2c_transfer(&dev->i2c_bus[2].i2c_adap, &msg, 1);
 }
 
-static u8 cx23885_flatiron_read(struct cx23885_dev *dev, u8 reg)
+u8 cx23885_flatiron_read(struct cx23885_dev *dev, u8 reg)
 {
 	/* 8 bit registers, 8 bit values */
 	int ret;

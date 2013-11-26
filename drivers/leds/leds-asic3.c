@@ -94,7 +94,7 @@ static int blink_set(struct led_classdev *cdev,
 
 static int asic3_led_probe(struct platform_device *pdev)
 {
-	struct asic3_led *led = pdev->dev.platform_data;
+	struct asic3_led *led = dev_get_platdata(&pdev->dev);
 	int ret;
 
 	ret = mfd_cell_enable(pdev);
@@ -127,7 +127,7 @@ out:
 
 static int asic3_led_remove(struct platform_device *pdev)
 {
-	struct asic3_led *led = pdev->dev.platform_data;
+	struct asic3_led *led = dev_get_platdata(&pdev->dev);
 
 	led_classdev_unregister(led->cdev);
 

@@ -290,7 +290,7 @@ int ceph_msgr_init(void)
 	if (ceph_msgr_slab_init())
 		return -ENOMEM;
 
-	ceph_msgr_wq = alloc_workqueue("ceph-msgr", WQ_NON_REENTRANT, 0);
+	ceph_msgr_wq = alloc_workqueue("ceph-msgr", 0, 0);
 	if (ceph_msgr_wq)
 		return 0;
 
@@ -409,7 +409,7 @@ static void ceph_sock_write_space(struct sock *sk)
 	 * and net/core/stream.c:sk_stream_write_space().
 	 */
 	if (con_flag_test(con, CON_FLAG_WRITE_PENDING)) {
-		if (sk_stream_wspace(sk) >= sk_stream_min_wspace(sk)) {
+		if (sk_stream_is_writeable(sk)) {
 			dout("%s %p queueing write work\n", __func__, con);
 			clear_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
 			queue_con(con);

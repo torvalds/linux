@@ -1362,6 +1362,12 @@ To add ARP targets:
 To remove an ARP target:
 # echo -192.168.0.100 > /sys/class/net/bond0/bonding/arp_ip_target
 
+To configure the interval between learning packet transmits:
+# echo 12 > /sys/class/net/bond0/bonding/lp_interval
+	NOTE: the lp_inteval is the number of seconds between instances where
+the bonding driver sends learning packets to each slaves peer switch.  The
+default interval is 1 second.
+
 Example Configuration
 ---------------------
 	We begin with the same example that is shown in section 3.3,

@@ -88,7 +88,7 @@ qxl_release_free(struct qxl_device *qdev,
 	list_for_each_entry_safe(entry, tmp, &release->bos, tv.head) {
 		struct qxl_bo *bo = to_qxl_bo(entry->tv.bo);
 		QXL_INFO(qdev, "release %llx\n",
-			entry->tv.bo->addr_space_offset
+			drm_vma_node_offset_addr(&entry->tv.bo->vma_node)
 						- DRM_FILE_OFFSET);
 		qxl_fence_remove_release(&bo->fence, release->id);
 		qxl_bo_unref(&bo);

@@ -30,6 +30,7 @@
 #include <linux/spi/mmc_spi.h>
 #include <linux/input.h>
 #include <linux/input/sh_keysc.h>
+#include <linux/platform_data/gpio_backlight.h>
 #include <linux/sh_eth.h>
 #include <linux/sh_intc.h>
 #include <linux/videodev2.h>
@@ -159,7 +160,6 @@ static struct resource sh_eth_resources[] = {
 static struct sh_eth_plat_data sh_eth_plat = {
 	.phy = 0x1f, /* SMSC LAN8700 */
 	.edmac_endian = EDMAC_LITTLE_ENDIAN,
-	.register_type = SH_ETH_REG_FAST_SH4,
 	.phy_interface = PHY_INTERFACE_MODE_MII,
 	.ether_link_active_low = 1
 };
@@ -303,7 +303,7 @@ static struct platform_device usbhs_device = {
 	.resource	= usbhs_resources,
 };
 
-/* LCDC */
+/* LCDC and backlight */
 static const struct fb_videomode ecovec_lcd_modes[] = {
 	{
 		.name		= "Panel",
@@ -334,13 +334,6 @@ static const struct fb_videomode ecovec_dvi_modes[] = {
 	},
 };
 
-static int ecovec24_set_brightness(int brightness)
-{
-	gpio_set_value(GPIO_PTR1, brightness);
-
-	return 0;
-}
-
 static struct sh_mobile_lcdc_info lcdc_info = {
 	.ch[0] = {
 		.interface_type = RGB18,
@@ -349,11 +342,6 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 		.panel_cfg = { /* 7.0 inch */
 			.width = 152,
 			.height = 91,
-		},
-		.bl_info = {
-			.name = "sh_mobile_lcdc_bl",
-			.max_brightness = 1,
-			.set_brightness = ecovec24_set_brightness,
 		},
 	}
 };
@@ -377,6 +365,20 @@ static struct platform_device lcdc_device = {
 	.resource	= lcdc_resources,
 	.dev		= {
 		.platform_data	= &lcdc_info,
+	},
+};
+
+static struct gpio_backlight_platform_data gpio_backlight_data = {
+	.fbdev = &lcdc_device.dev,
+	.gpio = GPIO_PTR1,
+	.def_value = 1,
+	.name = "backlight",
+};
+
+static struct platform_device gpio_backlight_device = {
+	.name = "gpio-backlight",
+	.dev = {
+		.platform_data = &gpio_backlight_data,
 	},
 };
 
@@ -598,37 +600,13 @@ static struct platform_device sdhi0_power = {
 	},
 };
 
-static void sdhi0_set_pwr(struct platform_device *pdev, int state)
-{
-	static int power_gpio = -EINVAL;
-
-	if (power_gpio < 0) {
-		int ret = gpio_request(GPIO_PTB6, NULL);
-		if (!ret) {
-			power_gpio = GPIO_PTB6;
-			gpio_direction_output(power_gpio, 0);
-		}
-	}
-
-	/*
-	 * Toggle the GPIO regardless, whether we managed to grab it above or
-	 * the fixed regulator driver did.
-	 */
-	gpio_set_value(GPIO_PTB6, state);
-}
-
-static int sdhi0_get_cd(struct platform_device *pdev)
-{
-	return !gpio_get_value(GPIO_PTY7);
-}
-
 static struct sh_mobile_sdhi_info sdhi0_info = {
 	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
 	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
-	.set_pwr	= sdhi0_set_pwr,
 	.tmio_caps      = MMC_CAP_SDIO_IRQ | MMC_CAP_POWER_OFF_CARD |
 			  MMC_CAP_NEEDS_POLL,
-	.get_cd		= sdhi0_get_cd,
+	.tmio_flags	= TMIO_MMC_USE_GPIO_CD,
+	.cd_gpio	= GPIO_PTY7,
 };
 
 static struct resource sdhi0_resources[] = {
@@ -654,39 +632,15 @@ static struct platform_device sdhi0_device = {
 	},
 };
 
-static void cn12_set_pwr(struct platform_device *pdev, int state)
-{
-	static int power_gpio = -EINVAL;
-
-	if (power_gpio < 0) {
-		int ret = gpio_request(GPIO_PTB7, NULL);
-		if (!ret) {
-			power_gpio = GPIO_PTB7;
-			gpio_direction_output(power_gpio, 0);
-		}
-	}
-
-	/*
-	 * Toggle the GPIO regardless, whether we managed to grab it above or
-	 * the fixed regulator driver did.
-	 */
-	gpio_set_value(GPIO_PTB7, state);
-}
-
 #if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
 /* SDHI1 */
-static int sdhi1_get_cd(struct platform_device *pdev)
-{
-	return !gpio_get_value(GPIO_PTW7);
-}
-
 static struct sh_mobile_sdhi_info sdhi1_info = {
 	.dma_slave_tx	= SHDMA_SLAVE_SDHI1_TX,
 	.dma_slave_rx	= SHDMA_SLAVE_SDHI1_RX,
 	.tmio_caps      = MMC_CAP_SDIO_IRQ | MMC_CAP_POWER_OFF_CARD |
 			  MMC_CAP_NEEDS_POLL,
-	.set_pwr	= cn12_set_pwr,
-	.get_cd		= sdhi1_get_cd,
+	.tmio_flags	= TMIO_MMC_USE_GPIO_CD,
+	.cd_gpio	= GPIO_PTW7,
 };
 
 static struct resource sdhi1_resources[] = {
@@ -716,27 +670,19 @@ static struct platform_device sdhi1_device = {
 #else
 
 /* MMC SPI */
-static int mmc_spi_get_ro(struct device *dev)
-{
-	return gpio_get_value(GPIO_PTY6);
-}
-
-static int mmc_spi_get_cd(struct device *dev)
-{
-	return !gpio_get_value(GPIO_PTY7);
-}
-
 static void mmc_spi_setpower(struct device *dev, unsigned int maskval)
 {
 	gpio_set_value(GPIO_PTB6, maskval ? 1 : 0);
 }
 
 static struct mmc_spi_platform_data mmc_spi_info = {
-	.get_ro = mmc_spi_get_ro,
-	.get_cd = mmc_spi_get_cd,
 	.caps = MMC_CAP_NEEDS_POLL,
+	.caps2 = MMC_CAP2_RO_ACTIVE_HIGH,
 	.ocr_mask = MMC_VDD_32_33 | MMC_VDD_33_34, /* 3.3V only */
 	.setpower = mmc_spi_setpower,
+	.flags = MMC_SPI_USE_CD_GPIO | MMC_SPI_USE_RO_GPIO,
+	.cd_gpio = GPIO_PTY7,
+	.ro_gpio = GPIO_PTY6,
 };
 
 static struct spi_board_info spi_bus[] = {
@@ -996,11 +942,6 @@ static struct platform_device vou_device = {
 
 #if defined(CONFIG_MMC_SH_MMCIF) || defined(CONFIG_MMC_SH_MMCIF_MODULE)
 /* SH_MMCIF */
-static void mmcif_down_pwr(struct platform_device *pdev)
-{
-	cn12_set_pwr(pdev, 0);
-}
-
 static struct resource sh_mmcif_resources[] = {
 	[0] = {
 		.name	= "SH_MMCIF",
@@ -1021,8 +962,6 @@ static struct resource sh_mmcif_resources[] = {
 };
 
 static struct sh_mmcif_plat_data sh_mmcif_plat = {
-	.set_pwr	= cn12_set_pwr,
-	.down_pwr	= mmcif_down_pwr,
 	.sup_pclk	= 0, /* SH7724: Max Pclk/2 */
 	.caps		= MMC_CAP_4_BIT_DATA |
 			  MMC_CAP_8_BIT_DATA |
@@ -1049,6 +988,7 @@ static struct platform_device *ecovec_devices[] __initdata = {
 	&usb1_common_device,
 	&usbhs_device,
 	&lcdc_device,
+	&gpio_backlight_device,
 	&ceu0_device,
 	&ceu1_device,
 	&keysc_device,
@@ -1239,11 +1179,9 @@ static int __init arch_setup(void)
 
 	gpio_request(GPIO_PTE6, NULL);
 	gpio_request(GPIO_PTU1, NULL);
-	gpio_request(GPIO_PTR1, NULL);
 	gpio_request(GPIO_PTA2, NULL);
 	gpio_direction_input(GPIO_PTE6);
 	gpio_direction_output(GPIO_PTU1, 0);
-	gpio_direction_output(GPIO_PTR1, 0);
 	gpio_direction_output(GPIO_PTA2, 0);
 
 	/* I/O buffer drive ability is high */
@@ -1256,6 +1194,9 @@ static int __init arch_setup(void)
 		lcdc_info.ch[0].lcd_modes		= ecovec_dvi_modes;
 		lcdc_info.ch[0].num_modes		= ARRAY_SIZE(ecovec_dvi_modes);
 
+		/* No backlight */
+		gpio_backlight_data.fbdev = NULL;
+
 		gpio_set_value(GPIO_PTA2, 1);
 		gpio_set_value(GPIO_PTU1, 1);
 	} else {
@@ -1264,8 +1205,6 @@ static int __init arch_setup(void)
 		lcdc_info.ch[0].clock_divider		= 2;
 		lcdc_info.ch[0].lcd_modes		= ecovec_lcd_modes;
 		lcdc_info.ch[0].num_modes		= ARRAY_SIZE(ecovec_lcd_modes);
-
-		gpio_set_value(GPIO_PTR1, 1);
 
 		/* FIXME
 		 *
@@ -1339,10 +1278,6 @@ static int __init arch_setup(void)
 	gpio_direction_input(GPIO_PTR6);
 
 	/* SD-card slot CN11 */
-	/* Card-detect, used on CN11, either with SDHI0 or with SPI */
-	gpio_request(GPIO_PTY7, NULL);
-	gpio_direction_input(GPIO_PTY7);
-
 #if defined(CONFIG_MMC_SDHI) || defined(CONFIG_MMC_SDHI_MODULE)
 	/* enable SDHI0 on CN11 (needs DS2.4 set to ON) */
 	gpio_request(GPIO_FN_SDHI0WP,  NULL);
@@ -1361,8 +1296,6 @@ static int __init arch_setup(void)
 	gpio_direction_output(GPIO_PTM4, 1); /* active low CS */
 	gpio_request(GPIO_PTB6, NULL); /* 3.3V power control */
 	gpio_direction_output(GPIO_PTB6, 0); /* disable power by default */
-	gpio_request(GPIO_PTY6, NULL); /* write protect */
-	gpio_direction_input(GPIO_PTY6);
 
 	spi_register_board_info(spi_bus, ARRAY_SIZE(spi_bus));
 #endif
@@ -1391,10 +1324,6 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_FN_SDHI1D2,  NULL);
 	gpio_request(GPIO_FN_SDHI1D1,  NULL);
 	gpio_request(GPIO_FN_SDHI1D0,  NULL);
-
-	/* Card-detect, used on CN12 with SDHI1 */
-	gpio_request(GPIO_PTW7, NULL);
-	gpio_direction_input(GPIO_PTW7);
 
 	cn12_enabled = true;
 #endif

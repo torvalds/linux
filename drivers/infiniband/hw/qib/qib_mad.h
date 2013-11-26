@@ -415,7 +415,6 @@ struct cc_table_shadow {
 	struct ib_cc_table_entry_shadow entries[CC_TABLE_SHADOW_MAX];
 } __packed;
 
-#endif				/* _QIB_MAD_H */
 /*
  * The PortSamplesControl.CounterMasks field is an array of 3 bit fields
  * which specify the N'th counter's capabilities. See ch. 16.1.3.2.
@@ -428,3 +427,5 @@ struct cc_table_shadow {
 		    COUNTER_MASK(1, 2) | \
 		    COUNTER_MASK(1, 3) | \
 		    COUNTER_MASK(1, 4))
+
+#endif				/* _QIB_MAD_H */

@@ -420,7 +420,7 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	if (status > 0)
 		use_of = 1;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 #ifdef GENERIC_BITBANG
 	if (!pdata || !pdata->num_chipselect)
 		return -ENODEV;
@@ -506,7 +506,7 @@ static int spi_gpio_remove(struct platform_device *pdev)
 	int				status;
 
 	spi_gpio = platform_get_drvdata(pdev);
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 
 	/* stop() unregisters child devices too */
 	status = spi_bitbang_stop(&spi_gpio->bitbang);

@@ -386,7 +386,7 @@ static int pm2_int_reg2(void *pm2_data, int val)
 	if (val & (PM2XXX_INT3_ITCHPRECHARGEWD |
 				PM2XXX_INT3_ITCHCCWD | PM2XXX_INT3_ITCHCVWD)) {
 		dev_dbg(pm2->dev,
-			"Watchdog occured for precharge, CC and CV charge\n");
+			"Watchdog occurred for precharge, CC and CV charge\n");
 	}
 
 	return ret;

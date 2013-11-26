@@ -56,7 +56,7 @@ static int do_read_inode(struct inode *inode)
 	if (IS_ERR(node_page))
 		return PTR_ERR(node_page);
 
-	rn = page_address(node_page);
+	rn = F2FS_NODE(node_page);
 	ri = &(rn->i);
 
 	inode->i_mode = le16_to_cpu(ri->i_mode);
@@ -85,6 +85,7 @@ static int do_read_inode(struct inode *inode)
 	fi->i_advise = ri->i_advise;
 	fi->i_pino = le32_to_cpu(ri->i_pino);
 	get_extent_info(&fi->ext, ri->i_ext);
+	get_inline_info(fi, ri);
 	f2fs_put_page(node_page, 1);
 	return 0;
 }
@@ -151,9 +152,9 @@ void update_inode(struct inode *inode, struct page *node_page)
 	struct f2fs_node *rn;
 	struct f2fs_inode *ri;
 
-	wait_on_page_writeback(node_page);
+	f2fs_wait_on_page_writeback(node_page, NODE, false);
 
-	rn = page_address(node_page);
+	rn = F2FS_NODE(node_page);
 	ri = &(rn->i);
 
 	ri->i_mode = cpu_to_le16(inode->i_mode);
@@ -164,6 +165,7 @@ void update_inode(struct inode *inode, struct page *node_page)
 	ri->i_size = cpu_to_le64(i_size_read(inode));
 	ri->i_blocks = cpu_to_le64(inode->i_blocks);
 	set_raw_extent(&F2FS_I(inode)->ext, &ri->i_ext);
+	set_raw_inline(F2FS_I(inode), ri);
 
 	ri->i_atime = cpu_to_le64(inode->i_atime.tv_sec);
 	ri->i_ctime = cpu_to_le64(inode->i_ctime.tv_sec);
@@ -221,9 +223,6 @@ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	if (!is_inode_flag_set(F2FS_I(inode), FI_DIRTY_INODE))
 		return 0;
 
-	if (wbc)
-		f2fs_balance_fs(sbi);
-
 	/*
 	 * We need to lock here to prevent from producing dirty node pages
 	 * during the urgent cleaning time when runing out of free sections.
@@ -231,6 +230,10 @@ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	ilock = mutex_lock_op(sbi);
 	ret = update_inode_page(inode);
 	mutex_unlock_op(sbi, ilock);
+
+	if (wbc)
+		f2fs_balance_fs(sbi);
+
 	return ret;
 }
 

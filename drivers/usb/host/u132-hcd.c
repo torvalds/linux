@@ -1809,9 +1809,9 @@ static int u132_hcd_start(struct usb_hcd *hcd)
 		struct platform_device *pdev =
 			to_platform_device(hcd->self.controller);
 		u16 vendor = ((struct u132_platform_data *)
-			(pdev->dev.platform_data))->vendor;
+			dev_get_platdata(&pdev->dev))->vendor;
 		u16 device = ((struct u132_platform_data *)
-			(pdev->dev.platform_data))->device;
+			dev_get_platdata(&pdev->dev))->device;
 		mutex_lock(&u132->sw_lock);
 		msleep(10);
 		if (vendor == PCI_VENDOR_ID_AMD && device == 0x740c) {
@@ -3034,7 +3034,7 @@ static void u132_initialise(struct u132 *u132, struct platform_device *pdev)
 	int addrs = MAX_U132_ADDRS;
 	int udevs = MAX_U132_UDEVS;
 	int endps = MAX_U132_ENDPS;
-	u132->board = pdev->dev.platform_data;
+	u132->board = dev_get_platdata(&pdev->dev);
 	u132->platform_dev = pdev;
 	u132->power = 0;
 	u132->reset = 0;

@@ -34,7 +34,6 @@ static int wm831x_spi_probe(struct spi_device *spi)
 	if (wm831x == NULL)
 		return -ENOMEM;
 
-	spi->bits_per_word = 16;
 	spi->mode = SPI_MODE_0;
 
 	spi_set_drvdata(spi, wm831x);

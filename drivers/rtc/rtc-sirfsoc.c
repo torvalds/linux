@@ -44,6 +44,7 @@ struct sirfsoc_rtc_drv {
 	struct rtc_device	*rtc;
 	u32			rtc_base;
 	u32			irq;
+	unsigned		irq_wake;
 	/* Overflow for every 8 years extra time */
 	u32			overflow_rtc;
 #ifdef CONFIG_PM
@@ -355,8 +356,8 @@ static int sirfsoc_rtc_suspend(struct device *dev)
 	rtcdrv->saved_counter =
 		sirfsoc_rtc_iobrg_readl(rtcdrv->rtc_base + RTC_CN);
 	rtcdrv->saved_overflow_rtc = rtcdrv->overflow_rtc;
-	if (device_may_wakeup(&pdev->dev))
-		enable_irq_wake(rtcdrv->irq);
+	if (device_may_wakeup(&pdev->dev) && !enable_irq_wake(rtcdrv->irq))
+		rtcdrv->irq_wake = 1;
 
 	return 0;
 }
@@ -423,8 +424,10 @@ static int sirfsoc_rtc_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sirfsoc_rtc_drv *rtcdrv = platform_get_drvdata(pdev);
 	sirfsoc_rtc_thaw(dev);
-	if (device_may_wakeup(&pdev->dev))
+	if (device_may_wakeup(&pdev->dev) && rtcdrv->irq_wake) {
 		disable_irq_wake(rtcdrv->irq);
+		rtcdrv->irq_wake = 0;
+	}
 
 	return 0;
 }
@@ -434,8 +437,10 @@ static int sirfsoc_rtc_restore(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sirfsoc_rtc_drv *rtcdrv = platform_get_drvdata(pdev);
 
-	if (device_may_wakeup(&pdev->dev))
+	if (device_may_wakeup(&pdev->dev) && rtcdrv->irq_wake) {
 		disable_irq_wake(rtcdrv->irq);
+		rtcdrv->irq_wake = 0;
+	}
 	return 0;
 }
 

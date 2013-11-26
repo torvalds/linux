@@ -241,6 +241,7 @@ config HID_HOLTEK
 	  - Sharkoon Drakonia / Perixx MX-2000 gaming mice
 	  - Tracer Sniper TRM-503 / NOVA Gaming Slider X200 /
 	    Zalman ZM-GM1
+	  - SHARKOON DarkGlider Gaming mouse
 
 config HOLTEK_FF
 	bool "Holtek On Line Grip force feedback support"
@@ -743,6 +744,14 @@ config HID_WIIMOTE
 	To compile this driver as a module, choose M here: the
 	module will be called hid-wiimote.
 
+config HID_XINMO
+	tristate "Xin-Mo non-fully compliant devices"
+	depends on HID
+	---help---
+	Support for Xin-Mo devices that are not fully compliant with the HID
+	standard. Currently only supports the Xin-Mo Dual Arcade. Say Y here
+	if you have a Xin-Mo Dual Arcade controller.
+
 config HID_ZEROPLUS
 	tristate "Zeroplus based game controller support"
 	depends on HID
@@ -765,7 +774,7 @@ config HID_ZYDACRON
 
 config HID_SENSOR_HUB
 	tristate "HID Sensors framework support"
-	depends on HID && GENERIC_HARDIRQS
+	depends on HID
 	select MFD_CORE
 	default n
 	---help---

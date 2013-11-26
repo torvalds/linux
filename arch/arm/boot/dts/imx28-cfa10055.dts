@@ -23,36 +23,13 @@
 	apb@80000000 {
 		apbh@80000000 {
 			pinctrl@80018000 {
-				pinctrl-names = "default", "default";
-				pinctrl-1 = <&hog_pins_cfa10055
-					&hog_pins_cfa10055_pullup>;
-
-				hog_pins_cfa10055: hog-10055@0 {
-					reg = <0>;
-					fsl,pinmux-ids = <
-						0x3053 /* MX28_PAD_AUART1_TX__GPIO_3_5 */
-					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
-				};
-
-				hog_pins_cfa10055_pullup: hog-10055-pullup@0 {
-					reg = <0>;
-					fsl,pinmux-ids = <
-						0x31e3 /* MX28_PAD_LCD_RESET__GPIO_3_30 */
-					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
-				};
-
 				spi2_pins_cfa10055: spi2-cfa10055@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
 						0x2103 /* MX28_PAD_SSP2_SCK__GPIO_2_16 */
 						0x2113 /* MX28_PAD_SSP2_CMD__GPIO_2_17 */
 						0x2123 /* MX28_PAD_SSP2_D0__GPIO_2_18 */
+						0x3053 /* MX28_PAD_AUART1_TX__GPIO_3_5 */
 					>;
 					fsl,drive-strength = <1>;
 					fsl,voltage = <1>;
@@ -98,12 +75,23 @@
 					fsl,voltage = <1>;
 					fsl,pull-up = <0>;
 				};
+
+				lcdif_pins_cfa10055_pullup: lcdif-10055-pullup@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x31e3 /* MX28_PAD_LCD_RESET__GPIO_3_30 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
 			};
 
 			lcdif@80030000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&lcdif_18bit_pins_cfa10055
-					     &lcdif_pins_cfa10055>;
+					     &lcdif_pins_cfa10055
+					     &lcdif_pins_cfa10055_pullup>;
 				display = <&display>;
 				status = "okay";
 

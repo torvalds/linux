@@ -17,7 +17,8 @@ int arch_timer_arch_init(void);
  * nicely work out which register we want, and chuck away the rest of
  * the code. At least it does so with a recent GCC (4.6.3).
  */
-static inline void arch_timer_reg_write(const int access, const int reg, u32 val)
+static __always_inline
+void arch_timer_reg_write_cp15(int access, enum arch_timer_reg reg, u32 val)
 {
 	if (access == ARCH_TIMER_PHYS_ACCESS) {
 		switch (reg) {
@@ -28,9 +29,7 @@ static inline void arch_timer_reg_write(const int access, const int reg, u32 val
 			asm volatile("mcr p15, 0, %0, c14, c2, 0" : : "r" (val));
 			break;
 		}
-	}
-
-	if (access == ARCH_TIMER_VIRT_ACCESS) {
+	} else if (access == ARCH_TIMER_VIRT_ACCESS) {
 		switch (reg) {
 		case ARCH_TIMER_REG_CTRL:
 			asm volatile("mcr p15, 0, %0, c14, c3, 1" : : "r" (val));
@@ -44,7 +43,8 @@ static inline void arch_timer_reg_write(const int access, const int reg, u32 val
 	isb();
 }
 
-static inline u32 arch_timer_reg_read(const int access, const int reg)
+static __always_inline
+u32 arch_timer_reg_read_cp15(int access, enum arch_timer_reg reg)
 {
 	u32 val = 0;
 
@@ -57,9 +57,7 @@ static inline u32 arch_timer_reg_read(const int access, const int reg)
 			asm volatile("mrc p15, 0, %0, c14, c2, 0" : "=r" (val));
 			break;
 		}
-	}
-
-	if (access == ARCH_TIMER_VIRT_ACCESS) {
+	} else if (access == ARCH_TIMER_VIRT_ACCESS) {
 		switch (reg) {
 		case ARCH_TIMER_REG_CTRL:
 			asm volatile("mrc p15, 0, %0, c14, c3, 1" : "=r" (val));

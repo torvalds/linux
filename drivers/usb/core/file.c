@@ -153,7 +153,7 @@ void usb_major_cleanup(void)
  * usb_deregister_dev() must be called when the driver is done with
  * the minor numbers given out by this function.
  *
- * Returns -EINVAL if something bad happens with trying to register a
+ * Return: -EINVAL if something bad happens with trying to register a
  * device, and 0 on success.
  */
 int usb_register_dev(struct usb_interface *intf,

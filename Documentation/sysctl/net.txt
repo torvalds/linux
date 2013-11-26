@@ -50,6 +50,19 @@ The maximum number of packets that kernel can handle on a NAPI interrupt,
 it's a Per-CPU variable.
 Default: 64
 
+default_qdisc
+--------------
+
+The default queuing discipline to use for network devices. This allows
+overriding the default queue discipline of pfifo_fast with an
+alternative. Since the default queuing discipline is created with the
+no additional parameters so is best suited to queuing disciplines that
+work well without configuration like stochastic fair queue (sfq),
+CoDel (codel) or fair queue CoDel (fq_codel). Don't use queuing disciplines
+like Hierarchical Token Bucket or Deficit Round Robin which require setting
+up classes and bandwidths.
+Default: pfifo_fast
+
 busy_read
 ----------------
 Low latency busy poll timeout for socket reads. (needs CONFIG_NET_RX_BUSY_POLL)

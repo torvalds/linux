@@ -275,7 +275,7 @@ static int aes_start_crypt(struct tegra_aes_dev *dd, u32 in_addr, u32 out_addr,
 			value = aes_readl(dd, TEGRA_AES_INTR_STATUS);
 			eng_busy = value & TEGRA_AES_ENGINE_BUSY_FIELD;
 			icq_empty = value & TEGRA_AES_ICQ_EMPTY_FIELD;
-		} while (eng_busy & (!icq_empty));
+		} while (eng_busy && !icq_empty);
 		aes_writel(dd, cmdq[i], TEGRA_AES_ICMDQUE_WR);
 	}
 
@@ -365,7 +365,7 @@ static int aes_set_key(struct tegra_aes_dev *dd)
 		eng_busy = value & TEGRA_AES_ENGINE_BUSY_FIELD;
 		icq_empty = value & TEGRA_AES_ICQ_EMPTY_FIELD;
 		dma_busy = value & TEGRA_AES_DMA_BUSY_FIELD;
-	} while (eng_busy & (!icq_empty) & dma_busy);
+	} while (eng_busy && !icq_empty && dma_busy);
 
 	/* settable command to get key into internal registers */
 	value = CMD_SETTABLE << CMDQ_OPCODE_SHIFT |
@@ -379,7 +379,7 @@ static int aes_set_key(struct tegra_aes_dev *dd)
 		value = aes_readl(dd, TEGRA_AES_INTR_STATUS);
 		eng_busy = value & TEGRA_AES_ENGINE_BUSY_FIELD;
 		icq_empty = value & TEGRA_AES_ICQ_EMPTY_FIELD;
-	} while (eng_busy & (!icq_empty));
+	} while (eng_busy && !icq_empty);
 
 	return 0;
 }

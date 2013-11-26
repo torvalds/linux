@@ -60,6 +60,7 @@ enum {
 	EDOCR,
 	TFUCR,
 	RFOCR,
+	RMIIMODE,
 	FCFTR,
 	RPADIR,
 	TRIMD,
@@ -154,6 +155,13 @@ enum {
 
 	/* This value must be written at last. */
 	SH_ETH_MAX_REGISTER_OFFSET,
+};
+
+enum {
+	SH_ETH_REG_GIGABIT,
+	SH_ETH_REG_FAST_RCAR,
+	SH_ETH_REG_FAST_SH4,
+	SH_ETH_REG_FAST_SH3_SH2
 };
 
 /* Driver's parameters */
@@ -453,6 +461,7 @@ struct sh_eth_cpu_data {
 	void (*set_rate)(struct net_device *ndev);
 
 	/* mandatory initialize value */
+	int register_type;
 	unsigned long eesipr_value;
 
 	/* optional initialize value */
@@ -482,6 +491,7 @@ struct sh_eth_cpu_data {
 	unsigned hw_crc:1;	/* E-DMAC have CSMR */
 	unsigned select_mii:1;	/* EtherC have RMII_MII (MII select register) */
 	unsigned shift_rd0:1;	/* shift Rx descriptor word 0 right by 16 */
+	unsigned rmiimode:1;	/* EtherC has RMIIMODE register */
 };
 
 struct sh_eth_private {

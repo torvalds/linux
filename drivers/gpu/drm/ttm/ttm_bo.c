@@ -45,7 +45,6 @@
 #define TTM_DEBUG(fmt, arg...)
 #define TTM_BO_HASH_ORDER 13
 
-static int ttm_bo_setup_vm(struct ttm_buffer_object *bo);
 static int ttm_bo_swapout(struct ttm_mem_shrink *shrink);
 static void ttm_bo_global_kobj_release(struct kobject *kobj);
 
@@ -615,13 +614,7 @@ static void ttm_bo_release(struct kref *kref)
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_mem_type_manager *man = &bdev->man[bo->mem.mem_type];
 
-	write_lock(&bdev->vm_lock);
-	if (likely(bo->vm_node != NULL)) {
-		rb_erase(&bo->vm_rb, &bdev->addr_space_rb);
-		drm_mm_put_block(bo->vm_node);
-		bo->vm_node = NULL;
-	}
-	write_unlock(&bdev->vm_lock);
+	drm_vma_offset_remove(&bdev->vma_manager, &bo->vma_node);
 	ttm_mem_io_lock(man, false);
 	ttm_mem_io_free_vm(bo);
 	ttm_mem_io_unlock(man);
@@ -1129,6 +1122,7 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	bo->resv = &bo->ttm_resv;
 	reservation_object_init(bo->resv);
 	atomic_inc(&bo->glob->bo_count);
+	drm_vma_node_reset(&bo->vma_node);
 
 	ret = ttm_bo_check_placement(bo, placement);
 
@@ -1139,7 +1133,8 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	if (likely(!ret) &&
 	    (bo->type == ttm_bo_type_device ||
 	     bo->type == ttm_bo_type_sg))
-		ret = ttm_bo_setup_vm(bo);
+		ret = drm_vma_offset_add(&bdev->vma_manager, &bo->vma_node,
+					 bo->mem.num_pages);
 
 	locked = ww_mutex_trylock(&bo->resv->lock);
 	WARN_ON(!locked);
@@ -1424,10 +1419,7 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 		TTM_DEBUG("Swap list was clean\n");
 	spin_unlock(&glob->lru_lock);
 
-	BUG_ON(!drm_mm_clean(&bdev->addr_space_mm));
-	write_lock(&bdev->vm_lock);
-	drm_mm_takedown(&bdev->addr_space_mm);
-	write_unlock(&bdev->vm_lock);
+	drm_vma_offset_manager_destroy(&bdev->vma_manager);
 
 	return ret;
 }
@@ -1441,7 +1433,6 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 {
 	int ret = -EINVAL;
 
-	rwlock_init(&bdev->vm_lock);
 	bdev->driver = driver;
 
 	memset(bdev->man, 0, sizeof(bdev->man));
@@ -1454,9 +1445,8 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 	if (unlikely(ret != 0))
 		goto out_no_sys;
 
-	bdev->addr_space_rb = RB_ROOT;
-	drm_mm_init(&bdev->addr_space_mm, file_page_offset, 0x10000000);
-
+	drm_vma_offset_manager_init(&bdev->vma_manager, file_page_offset,
+				    0x10000000);
 	INIT_DELAYED_WORK(&bdev->wq, ttm_bo_delayed_workqueue);
 	INIT_LIST_HEAD(&bdev->ddestroy);
 	bdev->dev_mapping = NULL;
@@ -1498,12 +1488,8 @@ bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 void ttm_bo_unmap_virtual_locked(struct ttm_buffer_object *bo)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	loff_t offset = (loff_t) bo->addr_space_offset;
-	loff_t holelen = ((loff_t) bo->mem.num_pages) << PAGE_SHIFT;
 
-	if (!bdev->dev_mapping)
-		return;
-	unmap_mapping_range(bdev->dev_mapping, offset, holelen, 1);
+	drm_vma_node_unmap(&bo->vma_node, bdev->dev_mapping);
 	ttm_mem_io_free_vm(bo);
 }
 
@@ -1520,78 +1506,6 @@ void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)
 
 EXPORT_SYMBOL(ttm_bo_unmap_virtual);
 
-static void ttm_bo_vm_insert_rb(struct ttm_buffer_object *bo)
-{
-	struct ttm_bo_device *bdev = bo->bdev;
-	struct rb_node **cur = &bdev->addr_space_rb.rb_node;
-	struct rb_node *parent = NULL;
-	struct ttm_buffer_object *cur_bo;
-	unsigned long offset = bo->vm_node->start;
-	unsigned long cur_offset;
-
-	while (*cur) {
-		parent = *cur;
-		cur_bo = rb_entry(parent, struct ttm_buffer_object, vm_rb);
-		cur_offset = cur_bo->vm_node->start;
-		if (offset < cur_offset)
-			cur = &parent->rb_left;
-		else if (offset > cur_offset)
-			cur = &parent->rb_right;
-		else
-			BUG();
-	}
-
-	rb_link_node(&bo->vm_rb, parent, cur);
-	rb_insert_color(&bo->vm_rb, &bdev->addr_space_rb);
-}
-
-/**
- * ttm_bo_setup_vm:
- *
- * @bo: the buffer to allocate address space for
- *
- * Allocate address space in the drm device so that applications
- * can mmap the buffer and access the contents. This only
- * applies to ttm_bo_type_device objects as others are not
- * placed in the drm device address space.
- */
-
-static int ttm_bo_setup_vm(struct ttm_buffer_object *bo)
-{
-	struct ttm_bo_device *bdev = bo->bdev;
-	int ret;
-
-retry_pre_get:
-	ret = drm_mm_pre_get(&bdev->addr_space_mm);
-	if (unlikely(ret != 0))
-		return ret;
-
-	write_lock(&bdev->vm_lock);
-	bo->vm_node = drm_mm_search_free(&bdev->addr_space_mm,
-					 bo->mem.num_pages, 0, 0);
-
-	if (unlikely(bo->vm_node == NULL)) {
-		ret = -ENOMEM;
-		goto out_unlock;
-	}
-
-	bo->vm_node = drm_mm_get_block_atomic(bo->vm_node,
-					      bo->mem.num_pages, 0);
-
-	if (unlikely(bo->vm_node == NULL)) {
-		write_unlock(&bdev->vm_lock);
-		goto retry_pre_get;
-	}
-
-	ttm_bo_vm_insert_rb(bo);
-	write_unlock(&bdev->vm_lock);
-	bo->addr_space_offset = ((uint64_t) bo->vm_node->start) << PAGE_SHIFT;
-
-	return 0;
-out_unlock:
-	write_unlock(&bdev->vm_lock);
-	return ret;
-}
 
 int ttm_bo_wait(struct ttm_buffer_object *bo,
 		bool lazy, bool interruptible, bool no_wait)

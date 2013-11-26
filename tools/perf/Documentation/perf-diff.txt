@@ -3,17 +3,17 @@ perf-diff(1)
 
 NAME
 ----
-perf-diff - Read two perf.data files and display the differential profile
+perf-diff - Read perf.data files and display the differential profile
 
 SYNOPSIS
 --------
 [verse]
-'perf diff' [oldfile] [newfile]
+'perf diff' [baseline file] [data file1] [[data file2] ... ]
 
 DESCRIPTION
 -----------
-This command displays the performance difference amongst two perf.data files
-captured via perf record.
+This command displays the performance difference amongst two or more perf.data
+files captured via perf record.
 
 If no parameters are passed it will assume perf.data.old and perf.data.
 
@@ -75,8 +75,6 @@ OPTIONS
 -c::
 --compute::
         Differential computation selection - delta,ratio,wdiff (default is delta).
-        If '+' is specified as a first character, the output is sorted based
-        on the computation results.
         See COMPARISON METHODS section for more info.
 
 -p::
@@ -87,6 +85,63 @@ OPTIONS
 --formula::
         Show formula for given computation.
 
+-o::
+--order::
+       Specify compute sorting column number.
+
+COMPARISON
+----------
+The comparison is governed by the baseline file. The baseline perf.data
+file is iterated for samples. All other perf.data files specified on
+the command line are searched for the baseline sample pair. If the pair
+is found, specified computation is made and result is displayed.
+
+All samples from non-baseline perf.data files, that do not match any
+baseline entry, are displayed with empty space within baseline column
+and possible computation results (delta) in their related column.
+
+Example files samples:
+- file A with samples f1, f2, f3, f4,    f6
+- file B with samples     f2,     f4, f5
+- file C with samples f1, f2,         f5
+
+Example output:
+  x - computation takes place for pair
+  b - baseline sample percentage
+
+- perf diff A B C
+
+  baseline/A compute/B compute/C  samples
+  ---------------------------------------
+  b                    x          f1
+  b          x         x          f2
+  b                               f3
+  b          x                    f4
+  b                               f6
+             x         x          f5
+
+- perf diff B A C
+
+  baseline/B compute/A compute/C  samples
+  ---------------------------------------
+  b          x         x          f2
+  b          x                    f4
+  b                    x          f5
+             x         x          f1
+             x                    f3
+             x                    f6
+
+- perf diff C B A
+
+  baseline/C compute/B compute/A  samples
+  ---------------------------------------
+  b                    x          f1
+  b          x         x          f2
+  b          x                    f5
+                       x          f3
+             x         x          f4
+                       x          f6
+
 COMPARISON METHODS
 ------------------
 delta
@@ -96,7 +151,7 @@ If specified the 'Delta' column is displayed with value 'd' computed as:
   d = A->period_percent - B->period_percent
 
 with:
-  - A/B being matching hist entry from first/second file specified
+  - A/B being matching hist entry from data/baseline file specified
     (or perf.data/perf.data.old) respectively.
 
   - period_percent being the % of the hist entry period value within
@@ -109,24 +164,26 @@ If specified the 'Ratio' column is displayed with value 'r' computed as:
   r = A->period / B->period
 
 with:
-  - A/B being matching hist entry from first/second file specified
+  - A/B being matching hist entry from data/baseline file specified
     (or perf.data/perf.data.old) respectively.
 
   - period being the hist entry period value
 
-wdiff
-~~~~~
+wdiff:WEIGHT-B,WEIGHT-A
+~~~~~~~~~~~~~~~~~~~~~~~
 If specified the 'Weighted diff' column is displayed with value 'd' computed as:
 
    d = B->period * WEIGHT-A - A->period * WEIGHT-B
 
-  - A/B being matching hist entry from first/second file specified
+  - A/B being matching hist entry from data/baseline file specified
     (or perf.data/perf.data.old) respectively.
 
   - period being the hist entry period value
 
   - WEIGHT-A/WEIGHT-B being user suplied weights in the the '-c' option
     behind ':' separator like '-c wdiff:1,2'.
+    - WIEGHT-A being the weight of the data file
+    - WIEGHT-B being the weight of the baseline data file
 
 SEE ALSO
 --------

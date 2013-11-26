@@ -579,6 +579,24 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 	return error;
 }
 
+/**
+ * gfs2_meta_sync - Sync all buffers associated with a glock
+ * @gl: The glock
+ *
+ */
+
+static void gfs2_meta_sync(struct gfs2_glock *gl)
+{
+	struct address_space *mapping = gfs2_glock2aspace(gl);
+	int error;
+
+	filemap_fdatawrite(mapping);
+	error = filemap_fdatawait(mapping);
+
+	if (error)
+		gfs2_io_error(gl->gl_sbd);
+}
+
 static void buf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 {
 	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);

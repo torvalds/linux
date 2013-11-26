@@ -29,8 +29,8 @@
  * generation numbers as then we know the root was once mounted with an older
  * kernel that was not aware of the root item structure change.
  */
-void btrfs_read_root_item(struct extent_buffer *eb, int slot,
-			  struct btrfs_root_item *item)
+static void btrfs_read_root_item(struct extent_buffer *eb, int slot,
+				struct btrfs_root_item *item)
 {
 	uuid_le uuid;
 	int len;
@@ -155,8 +155,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (ret != 0) {
 		btrfs_print_leaf(root, path->nodes[0]);
 		printk(KERN_CRIT "unable to update root key %llu %u %llu\n",
-		       (unsigned long long)key->objectid, key->type,
-		       (unsigned long long)key->offset);
+		       key->objectid, key->type, key->offset);
 		BUG_ON(1);
 	}
 
@@ -300,11 +299,6 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 			continue;
 		}
 
-		if (btrfs_root_refs(&root->root_item) == 0) {
-			btrfs_add_dead_root(root);
-			continue;
-		}
-
 		err = btrfs_init_fs_root(root);
 		if (err) {
 			btrfs_free_fs_root(root);
@@ -319,6 +313,9 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 			btrfs_free_fs_root(root);
 			break;
 		}
+
+		if (btrfs_root_refs(&root->root_item) == 0)
+			btrfs_add_dead_root(root);
 	}
 
 	btrfs_free_path(path);
@@ -490,13 +487,13 @@ again:
  */
 void btrfs_check_and_init_root_item(struct btrfs_root_item *root_item)
 {
-	u64 inode_flags = le64_to_cpu(root_item->inode.flags);
+	u64 inode_flags = btrfs_stack_inode_flags(&root_item->inode);
 
 	if (!(inode_flags & BTRFS_INODE_ROOT_ITEM_INIT)) {
 		inode_flags |= BTRFS_INODE_ROOT_ITEM_INIT;
-		root_item->inode.flags = cpu_to_le64(inode_flags);
-		root_item->flags = 0;
-		root_item->byte_limit = 0;
+		btrfs_set_stack_inode_flags(&root_item->inode, inode_flags);
+		btrfs_set_root_flags(root_item, 0);
+		btrfs_set_root_limit(root_item, 0);
 	}
 }
 
@@ -507,8 +504,8 @@ void btrfs_update_root_times(struct btrfs_trans_handle *trans,
 	struct timespec ct = CURRENT_TIME;
 
 	spin_lock(&root->root_item_lock);
-	item->ctransid = cpu_to_le64(trans->transid);
-	item->ctime.sec = cpu_to_le64(ct.tv_sec);
-	item->ctime.nsec = cpu_to_le32(ct.tv_nsec);
+	btrfs_set_root_ctransid(item, trans->transid);
+	btrfs_set_stack_timespec_sec(&item->ctime, ct.tv_sec);
+	btrfs_set_stack_timespec_nsec(&item->ctime, ct.tv_nsec);
 	spin_unlock(&root->root_item_lock);
 }

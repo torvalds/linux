@@ -356,7 +356,8 @@ out:
 	return ret;
 }
 
-int wl1271_tm_cmd(struct ieee80211_hw *hw, void *data, int len)
+int wl1271_tm_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		  void *data, int len)
 {
 	struct wl1271 *wl = hw->priv;
 	struct nlattr *tb[WL1271_TM_ATTR_MAX + 1];

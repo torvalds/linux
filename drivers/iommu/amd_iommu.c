@@ -456,8 +456,10 @@ static int iommu_init_device(struct device *dev)
 	}
 
 	ret = init_iommu_group(dev);
-	if (ret)
+	if (ret) {
+		free_dev_data(dev_data);
 		return ret;
+	}
 
 	if (pci_iommuv2_capable(pdev)) {
 		struct amd_iommu *iommu;

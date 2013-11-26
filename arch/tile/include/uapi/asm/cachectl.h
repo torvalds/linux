@@ -29,8 +29,8 @@
  * to honor the arguments at some point.)
  *
  * Flush and invalidation of memory can normally be performed with the
- * __insn_flush(), __insn_inv(), and __insn_finv() instructions from
- * userspace.  The DCACHE option to the system call allows userspace
+ * __insn_flush() and __insn_finv() instructions from userspace.
+ * The DCACHE option to the system call allows userspace
  * to flush the entire L1+L2 data cache from the core.  In this case,
  * the address and length arguments are not used.  The DCACHE flush is
  * restricted to the current core, not all cores in the address space.

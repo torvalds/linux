@@ -1,7 +1,7 @@
 /dts-v1/;
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-6281.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
 
 / {
 	model = "Globalscale Technologies Guruplug Server Plus";
@@ -94,5 +94,35 @@
 			label = "guruplug:green:wmode";
 			gpios = <&gpio1 17 1>;
 		};
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		device_type = "ethernet-phy";
+		compatible = "marvell,88e1121";
+		reg = <0>;
+	};
+
+	ethphy1: ethernet-phy@1 {
+		device_type = "ethernet-phy";
+		compatible = "marvell,88e1121";
+		reg = <1>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
+};
+
+&eth1 {
+	status = "okay";
+	ethernet1-port@0 {
+		phy-handle = <&ethphy1>;
 	};
 };

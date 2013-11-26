@@ -152,10 +152,8 @@ static const char * const probes[] = { "RedBoot", "cmdlinepart", NULL };
 
 static int ixp4xx_flash_remove(struct platform_device *dev)
 {
-	struct flash_platform_data *plat = dev->dev.platform_data;
+	struct flash_platform_data *plat = dev_get_platdata(&dev->dev);
 	struct ixp4xx_flash_info *info = platform_get_drvdata(dev);
-
-	platform_set_drvdata(dev, NULL);
 
 	if(!info)
 		return 0;
@@ -180,7 +178,7 @@ static int ixp4xx_flash_remove(struct platform_device *dev)
 
 static int ixp4xx_flash_probe(struct platform_device *dev)
 {
-	struct flash_platform_data *plat = dev->dev.platform_data;
+	struct flash_platform_data *plat = dev_get_platdata(&dev->dev);
 	struct ixp4xx_flash_info *info;
 	struct mtd_part_parser_data ppdata = {
 		.origin = dev->resource->start,

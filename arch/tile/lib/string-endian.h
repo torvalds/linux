@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Tilera Corporation. All Rights Reserved.
+ * Copyright 2013 Tilera Corporation. All Rights Reserved.
  *
  *   This program is free software; you can redistribute it and/or
  *   modify it under the terms of the GNU General Public License
@@ -31,3 +31,14 @@
 #define CFZ(x) __insn_clz(x)
 #define REVCZ(x) __insn_ctz(x)
 #endif
+
+/*
+ * Create eight copies of the byte in a uint64_t.  Byte Shuffle uses
+ * the bytes of srcB as the index into the dest vector to select a
+ * byte.  With all indices of zero, the first byte is copied into all
+ * the other bytes.
+ */
+static inline uint64_t copy_byte(uint8_t byte)
+{
+	return __insn_shufflebytes(byte, 0, 0);
+}

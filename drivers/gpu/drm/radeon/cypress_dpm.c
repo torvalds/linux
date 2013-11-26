@@ -2014,12 +2014,6 @@ int cypress_dpm_set_power_state(struct radeon_device *rdev)
 	if (eg_pi->pcie_performance_request)
 		cypress_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
 
-	ret = rv770_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
-	if (ret) {
-		DRM_ERROR("rv770_dpm_force_performance_level failed\n");
-		return ret;
-	}
-
 	return 0;
 }
 
@@ -2166,7 +2160,8 @@ bool cypress_dpm_vblank_too_short(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	u32 vblank_time = r600_dpm_get_vblank_time(rdev);
-	u32 switch_limit = pi->mem_gddr5 ? 450 : 300;
+	/* we never hit the non-gddr5 limit so disable it */
+	u32 switch_limit = pi->mem_gddr5 ? 450 : 0;
 
 	if (vblank_time < switch_limit)
 		return true;

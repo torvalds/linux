@@ -459,16 +459,14 @@ static void netxen_pcie_strap_init(struct netxen_adapter *adapter)
 static void netxen_set_msix_bit(struct pci_dev *pdev, int enable)
 {
 	u32 control;
-	int pos;
 
-	pos = pci_find_capability(pdev, PCI_CAP_ID_MSIX);
-	if (pos) {
-		pci_read_config_dword(pdev, pos, &control);
+	if (pdev->msix_cap) {
+		pci_read_config_dword(pdev, pdev->msix_cap, &control);
 		if (enable)
 			control |= PCI_MSIX_FLAGS_ENABLE;
 		else
 			control = 0;
-		pci_write_config_dword(pdev, pos, control);
+		pci_write_config_dword(pdev, pdev->msix_cap, control);
 	}
 }
 

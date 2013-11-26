@@ -51,6 +51,14 @@ static struct irq_chip ioasic_irq_type = {
 	.irq_unmask = unmask_ioasic_irq,
 };
 
+void clear_ioasic_dma_irq(unsigned int irq)
+{
+	u32 sir;
+
+	sir = ~(1 << (irq - ioasic_irq_base));
+	ioasic_write(IO_REG_SIR, sir);
+}
+
 static struct irq_chip ioasic_dma_irq_type = {
 	.name = "IO-ASIC-DMA",
 	.irq_ack = ack_ioasic_irq,

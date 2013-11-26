@@ -1,3 +1,13 @@
+Release Date    : Sat. Aug 31, 2013 17:00:00 PST 2013 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+			Kashyap Desai
+			Sumit Saxena
+Current Version : 06.700.06.00-rc1
+Old Version     : 06.600.18.00-rc1
+    1. Add High Availability clustering support using shared Logical Disks.
+    2. Version and Changelog update.
+-------------------------------------------------------------------------------
 Release Date    : Wed. May 15, 2013 17:00:00 PST 2013 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Adam Radford

@@ -38,6 +38,7 @@
 #include <asm/serial.h>
 #include <asm/udbg.h>
 #include <asm/mmu_context.h>
+#include <asm/epapr_hcalls.h>
 
 #include "setup.h"
 
@@ -127,6 +128,8 @@ notrace void __init machine_init(u64 dt_ptr)
 
 	/* Do some early initialization based on the flat device tree */
 	early_init_devtree(__va(dt_ptr));
+
+	epapr_paravirt_early_init();
 
 	early_init_mmu();
 
@@ -326,5 +329,4 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Initialize the MMU context management stuff */
 	mmu_context_init();
-
 }

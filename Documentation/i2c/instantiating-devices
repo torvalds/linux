@@ -19,7 +19,7 @@ i2c_board_info which is registered by calling i2c_register_board_info().
 
 Example (from omap2 h4):
 
-static struct i2c_board_info __initdata h4_i2c_board_info[] = {
+static struct i2c_board_info h4_i2c_board_info[] __initdata = {
 	{
 		I2C_BOARD_INFO("isp1301_omap", 0x2d),
 		.irq		= OMAP_GPIO_IRQ(125),

@@ -23,6 +23,7 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_encoder.h"
+#include "exynos_drm_vidi.h"
 
 /* vidi has totally three virtual windows. */
 #define WINDOWS_NR		3

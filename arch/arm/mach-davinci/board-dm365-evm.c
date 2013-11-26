@@ -176,7 +176,7 @@ static struct at24_platform_data eeprom_info = {
 	.context	= (void *)0x7f00,
 };
 
-static struct snd_platform_data dm365_evm_snd_data = {
+static struct snd_platform_data dm365_evm_snd_data __maybe_unused = {
 	.asp_chan_q = EVENTQ_3,
 };
 
@@ -718,10 +718,6 @@ fail:
 	/* REVISIT export switches: NTSC/PAL (SW5.6), EXTRA1 (SW5.2), etc */
 }
 
-static struct davinci_uart_config uart_config __initdata = {
-	.enabled_uarts = (1 << 0),
-};
-
 static void __init dm365_evm_map_io(void)
 {
 	dm365_init();
@@ -748,7 +744,7 @@ static struct spi_board_info dm365_evm_spi_info[] __initconst = {
 static __init void dm365_evm_init(void)
 {
 	evm_init_i2c();
-	davinci_serial_init(&uart_config);
+	davinci_serial_init(dm365_serial_device);
 
 	dm365evm_emac_configure();
 	dm365evm_mmc_configure();

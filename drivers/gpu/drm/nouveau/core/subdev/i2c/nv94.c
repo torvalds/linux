@@ -186,7 +186,8 @@ nv94_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	int ret;
 
 	ret = nouveau_i2c_port_create(parent, engine, oclass, index,
-				     &nouveau_i2c_bit_algo, &port);
+				      &nouveau_i2c_bit_algo, &nv94_i2c_func,
+				      &port);
 	*pobject = nv_object(port);
 	if (ret)
 		return ret;
@@ -194,7 +195,6 @@ nv94_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (info->drive >= nv50_i2c_addr_nr)
 		return -EINVAL;
 
-	port->base.func = &nv94_i2c_func;
 	port->state = 7;
 	port->addr = nv50_i2c_addr[info->drive];
 	if (info->share != DCB_I2C_UNUSED) {
@@ -221,12 +221,12 @@ nv94_aux_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	int ret;
 
 	ret = nouveau_i2c_port_create(parent, engine, oclass, index,
-				     &nouveau_i2c_aux_algo, &port);
+				      &nouveau_i2c_aux_algo, &nv94_aux_func,
+				      &port);
 	*pobject = nv_object(port);
 	if (ret)
 		return ret;
 
-	port->base.func = &nv94_aux_func;
 	port->addr = info->drive;
 	if (info->share != DCB_I2C_UNUSED) {
 		port->ctrl = 0x00e500 + (info->drive * 0x50);

@@ -13,6 +13,7 @@
 
 /dts-v1/;
 /include/ "sh73a0.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "KZM-A9-GT";
@@ -32,7 +33,7 @@
 	};
 
 	chosen {
-		bootargs = "console=tty0 console=ttySC4,115200 root=/dev/nfs ip=dhcp ignore_loglevel earlyprintk=sh-sci.4,115200";
+		bootargs = "console=tty0 console=ttySC4,115200 root=/dev/nfs ip=dhcp ignore_loglevel earlyprintk=sh-sci.4,115200 rw";
 	};
 
 	memory {
@@ -58,6 +59,24 @@
 		regulator-boot-on;
 	};
 
+	vmmc_sdhi0: regulator@2 {
+	        compatible = "regulator-fixed";
+		regulator-name = "SDHI0 Vcc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&pfc 15 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vmmc_sdhi2: regulator@3 {
+	        compatible = "regulator-fixed";
+		regulator-name = "SDHI2 Vcc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&pfc 14 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	lan9220@10000000 {
 		compatible = "smsc,lan9220", "smsc,lan9115";
 		reg = <0x10000000 0x100>;
@@ -69,6 +88,22 @@
 		smsc,save-mac-address;
 		vddvario-supply = <&reg_1p8v>;
 		vdd33a-supply = <&reg_3p3v>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led1 {
+			gpios = <&pfc 20 GPIO_ACTIVE_LOW>;
+		};
+		led2 {
+			gpios = <&pfc 21 GPIO_ACTIVE_LOW>;
+		};
+		led3 {
+			gpios = <&pfc 22 GPIO_ACTIVE_LOW>;
+		};
+		led4 {
+			gpios = <&pfc 23 GPIO_ACTIVE_LOW>;
+		};
 	};
 };
 
@@ -145,20 +180,71 @@
 	};
 };
 
+&i2c3 {
+	pinctrl-0 = <&i2c3_pins>;
+	pinctrl-names = "default";
+};
+
 &mmcif {
+	pinctrl-0 = <&mmcif_pins>;
+	pinctrl-names = "default";
+
 	bus-width = <8>;
 	vmmc-supply = <&reg_1p8v>;
 	status = "okay";
 };
 
+&pfc {
+	pinctrl-0 = <&scifa4_pins>;
+	pinctrl-names = "default";
+
+	i2c3_pins: i2c3 {
+		renesas,groups = "i2c3_1";
+		renesas,function = "i2c3";
+	};
+
+	mmcif_pins: mmcif {
+		mux {
+			renesas,groups = "mmc0_data8_0", "mmc0_ctrl_0";
+			renesas,function = "mmc0";
+		};
+		cfg {
+			renesas,groups = "mmc0_data8_0";
+			renesas,pins = "PORT279";
+			bias-pull-up;
+		};
+	};
+
+	scifa4_pins: scifa4 {
+		renesas,groups = "scifa4_data", "scifa4_ctrl";
+		renesas,function = "scifa4";
+	};
+
+	sdhi0_pins: sdhi0 {
+		renesas,groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd", "sdhi0_wp";
+		renesas,function = "sdhi0";
+	};
+
+	sdhi2_pins: sdhi2 {
+		renesas,groups = "sdhi2_data4", "sdhi2_ctrl";
+		renesas,function = "sdhi2";
+	};
+};
+
 &sdhi0 {
-	vmmc-supply = <&reg_3p3v>;
+	pinctrl-0 = <&sdhi0_pins>;
+	pinctrl-names = "default";
+
+	vmmc-supply = <&vmmc_sdhi0>;
 	bus-width = <4>;
 	status = "okay";
 };
 
 &sdhi2 {
-	vmmc-supply = <&reg_3p3v>;
+	pinctrl-0 = <&sdhi2_pins>;
+	pinctrl-names = "default";
+
+	vmmc-supply = <&vmmc_sdhi2>;
 	bus-width = <4>;
 	broken-cd;
 	status = "okay";

@@ -239,7 +239,6 @@ config SERIO_PS2MULT
 
 config SERIO_ARC_PS2
 	tristate "ARC PS/2 support"
-	depends on GENERIC_HARDIRQS
 	help
 	  Say Y here if you have an ARC FPGA platform with a PS/2
 	  controller in it.

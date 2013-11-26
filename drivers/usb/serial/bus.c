@@ -38,15 +38,14 @@ static int usb_serial_device_match(struct device *dev,
 	return 0;
 }
 
-static ssize_t show_port_number(struct device *dev,
+static ssize_t port_number_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 
 	return sprintf(buf, "%d\n", port->port_number);
 }
-
-static DEVICE_ATTR(port_number, S_IRUGO, show_port_number, NULL);
+static DEVICE_ATTR_RO(port_number);
 
 static int usb_serial_device_probe(struct device *dev)
 {
@@ -122,7 +121,7 @@ static int usb_serial_device_remove(struct device *dev)
 	return retval;
 }
 
-static ssize_t store_new_id(struct device_driver *driver,
+static ssize_t new_id_store(struct device_driver *driver,
 			    const char *buf, size_t count)
 {
 	struct usb_serial_driver *usb_drv = to_usb_serial_driver(driver);
@@ -135,17 +134,19 @@ static ssize_t store_new_id(struct device_driver *driver,
 	return retval;
 }
 
-static ssize_t show_dynids(struct device_driver *driver, char *buf)
+static ssize_t new_id_show(struct device_driver *driver, char *buf)
 {
 	struct usb_serial_driver *usb_drv = to_usb_serial_driver(driver);
 
 	return usb_show_dynids(&usb_drv->dynids, buf);
 }
+static DRIVER_ATTR_RW(new_id);
 
-static struct driver_attribute drv_attrs[] = {
-	__ATTR(new_id, S_IRUGO | S_IWUSR, show_dynids, store_new_id),
-	__ATTR_NULL,
+static struct attribute *usb_serial_drv_attrs[] = {
+	&driver_attr_new_id.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(usb_serial_drv);
 
 static void free_dynids(struct usb_serial_driver *drv)
 {
@@ -164,7 +165,7 @@ struct bus_type usb_serial_bus_type = {
 	.match =	usb_serial_device_match,
 	.probe =	usb_serial_device_probe,
 	.remove =	usb_serial_device_remove,
-	.drv_attrs = 	drv_attrs,
+	.drv_groups = 	usb_serial_drv_groups,
 };
 
 int usb_serial_bus_register(struct usb_serial_driver *driver)

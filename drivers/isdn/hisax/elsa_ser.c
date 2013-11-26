@@ -344,7 +344,7 @@ static inline void receive_chars(struct IsdnCardState *cs,
 
 		t += sprintf(t, "modem read cnt %d", cs->hw.elsa.rcvcnt);
 		QuickHex(t, cs->hw.elsa.rcvbuf, cs->hw.elsa.rcvcnt);
-		debugl1(cs, tmp);
+		debugl1(cs, "%s", tmp);
 	}
 	cs->hw.elsa.rcvcnt = 0;
 }

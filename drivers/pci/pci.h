@@ -6,6 +6,9 @@
 #define PCI_CFG_SPACE_SIZE	256
 #define PCI_CFG_SPACE_EXP_SIZE	4096
 
+extern const unsigned char pcix_bus_speed[];
+extern const unsigned char pcie_link_speed[];
+
 /* Functions internal to the PCI core code */
 
 int pci_create_sysfs_dev_files(struct pci_dev *pdev);
@@ -151,7 +154,7 @@ static inline int pci_no_d1d2(struct pci_dev *dev)
 
 }
 extern struct device_attribute pci_dev_attrs[];
-extern struct device_attribute pcibus_dev_attrs[];
+extern const struct attribute_group *pcibus_groups[];
 extern struct device_type pci_dev_type;
 extern struct bus_attribute pci_bus_attrs[];
 

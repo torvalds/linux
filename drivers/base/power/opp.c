@@ -460,6 +460,7 @@ int opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 	srcu_notifier_call_chain(&dev_opp->head, OPP_EVENT_ADD, new_opp);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(opp_add);
 
 /**
  * opp_set_availability() - helper to set the availability of an opp

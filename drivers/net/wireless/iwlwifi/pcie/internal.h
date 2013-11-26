@@ -392,7 +392,6 @@ void iwl_trans_pcie_tx_reset(struct iwl_trans *trans);
 /*****************************************************
 * Error handling
 ******************************************************/
-int iwl_pcie_dump_fh(struct iwl_trans *trans, char **buf);
 void iwl_pcie_dump_csr(struct iwl_trans *trans);
 
 /*****************************************************

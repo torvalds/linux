@@ -1,6 +1,6 @@
 config USB_DWC3
 	tristate "DesignWare USB3 DRD Core Support"
-	depends on (USB || USB_GADGET) && GENERIC_HARDIRQS && HAS_DMA
+	depends on (USB || USB_GADGET) && HAS_DMA
 	select USB_XHCI_PLATFORM if USB_SUPPORT && USB_XHCI_HCD
 	help
 	  Say Y or M here if your system has a Dual Role SuperSpeed
@@ -39,6 +39,38 @@ config USB_DWC3_DUAL_ROLE
 	  both host and gadget features are enabled.
 
 endchoice
+
+comment "Platform Glue Driver Support"
+
+config USB_DWC3_OMAP
+	tristate "Texas Instruments OMAP5 and similar Platforms"
+	depends on EXTCON
+	default USB_DWC3
+	help
+	  Some platforms from Texas Instruments like OMAP5, DRA7xxx and
+	  AM437x use this IP for USB2/3 functionality.
+
+	  Say 'Y' or 'M' here if you have one such device
+
+config USB_DWC3_EXYNOS
+	tristate "Samsung Exynos Platform"
+	default USB_DWC3
+	help
+	  Recent Exynos5 SoCs ship with one DesignWare Core USB3 IP inside,
+	  say 'Y' or 'M' if you have one such device.
+
+config USB_DWC3_PCI
+	tristate "PCIe-based Platforms"
+	depends on PCI
+	default USB_DWC3
+	help
+	  If you're using the DesignWare Core IP with a PCIe, please say
+	  'Y' or 'M' here.
+
+	  One such PCIe-based platform is Synopsys' PCIe HAPS model of
+	  this IP.
+
+comment "Debugging features"
 
 config USB_DWC3_DEBUG
 	bool "Enable Debugging Messages"

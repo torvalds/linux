@@ -130,9 +130,10 @@ int jbd2_verify_csum_type(journal_t *j, journal_superblock_t *sb)
 	return sb->s_checksum_type == JBD2_CRC32C_CHKSUM;
 }
 
-static __u32 jbd2_superblock_csum(journal_t *j, journal_superblock_t *sb)
+static __be32 jbd2_superblock_csum(journal_t *j, journal_superblock_t *sb)
 {
-	__u32 csum, old_csum;
+	__u32 csum;
+	__be32 old_csum;
 
 	old_csum = sb->s_checksum;
 	sb->s_checksum = 0;

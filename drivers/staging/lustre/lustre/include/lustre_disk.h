@@ -53,20 +53,21 @@
 
 /****************** on-disk files *********************/
 
-#define MDT_LOGS_DIR      "LOGS"  /* COMPAT_146 */
-#define MOUNT_CONFIGS_DIR "CONFIGS"
-#define CONFIGS_FILE      "mountdata"
+#define MDT_LOGS_DIR		"LOGS"  /* COMPAT_146 */
+#define MOUNT_CONFIGS_DIR	"CONFIGS"
+#define CONFIGS_FILE		"mountdata"
 /** Persistent mount data are stored on the disk in this file. */
-#define MOUNT_DATA_FILE    MOUNT_CONFIGS_DIR"/"CONFIGS_FILE
-#define LAST_RCVD	 "last_rcvd"
-#define LOV_OBJID	 "lov_objid"
+#define MOUNT_DATA_FILE		MOUNT_CONFIGS_DIR"/"CONFIGS_FILE
+#define LAST_RCVD		"last_rcvd"
+#define LOV_OBJID		"lov_objid"
 #define LOV_OBJSEQ		"lov_objseq"
-#define HEALTH_CHECK      "health_check"
-#define CAPA_KEYS	 "capa_keys"
-#define CHANGELOG_USERS   "changelog_users"
-#define MGS_NIDTBL_DIR    "NIDTBL_VERSIONS"
-#define QMT_DIR	   "quota_master"
-#define QSD_DIR	   "quota_slave"
+#define HEALTH_CHECK		"health_check"
+#define CAPA_KEYS		"capa_keys"
+#define CHANGELOG_USERS		"changelog_users"
+#define MGS_NIDTBL_DIR		"NIDTBL_VERSIONS"
+#define QMT_DIR			"quota_master"
+#define QSD_DIR			"quota_slave"
+#define HSM_ACTIONS		"hsm_actions"
 
 /****************** persistent mount data *********************/
 
@@ -226,21 +227,22 @@ struct lustre_mount_data {
 	char	*lmd_osd_type;      /* OSD type */
 };
 
-#define LMD_FLG_SERVER       0x0001  /* Mounting a server */
-#define LMD_FLG_CLIENT       0x0002  /* Mounting a client */
-#define LMD_FLG_ABORT_RECOV  0x0008  /* Abort recovery */
-#define LMD_FLG_NOSVC	0x0010  /* Only start MGS/MGC for servers,
-					no other services */
-#define LMD_FLG_NOMGS	0x0020  /* Only start target for servers, reusing
-					existing MGS services */
-#define LMD_FLG_WRITECONF    0x0040  /* Rewrite config log */
-#define LMD_FLG_NOIR	 0x0080  /* NO imperative recovery */
-#define LMD_FLG_NOSCRUB	     0x0100  /* Do not trigger scrub automatically */
-#define LMD_FLG_MGS	     0x0200  /* Also start MGS along with server */
-#define LMD_FLG_IAM	     0x0400  /* IAM dir */
-#define LMD_FLG_NO_PRIMNODE  0x0800  /* all nodes are service nodes */
-#define LMD_FLG_VIRGIN	     0x1000  /* the service registers first time */
-#define LMD_FLG_UPDATE	     0x2000  /* update parameters */
+#define LMD_FLG_SERVER		0x0001	/* Mounting a server */
+#define LMD_FLG_CLIENT		0x0002	/* Mounting a client */
+#define LMD_FLG_ABORT_RECOV	0x0008	/* Abort recovery */
+#define LMD_FLG_NOSVC		0x0010	/* Only start MGS/MGC for servers,
+					   no other services */
+#define LMD_FLG_NOMGS		0x0020	/* Only start target for servers, reusing
+					   existing MGS services */
+#define LMD_FLG_WRITECONF	0x0040	/* Rewrite config log */
+#define LMD_FLG_NOIR		0x0080	/* NO imperative recovery */
+#define LMD_FLG_NOSCRUB		0x0100	/* Do not trigger scrub automatically */
+#define LMD_FLG_MGS		0x0200	/* Also start MGS along with server */
+#define LMD_FLG_IAM		0x0400	/* IAM dir */
+#define LMD_FLG_NO_PRIMNODE	0x0800	/* all nodes are service nodes */
+#define LMD_FLG_VIRGIN		0x1000	/* the service registers first time */
+#define LMD_FLG_UPDATE		0x2000	/* update parameters */
+#define LMD_FLG_HSM		0x4000	/* Start coordinator */
 
 #define lmd_is_client(x) ((x)->lmd_flags & LMD_FLG_CLIENT)
 

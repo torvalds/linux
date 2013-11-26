@@ -79,11 +79,21 @@
 #define OTGSC_ASVIS	      BIT(18)
 #define OTGSC_BSVIS	      BIT(19)
 #define OTGSC_BSEIS	      BIT(20)
+#define OTGSC_1MSIS	      BIT(21)
+#define OTGSC_DPIS	      BIT(22)
 #define OTGSC_IDIE	      BIT(24)
 #define OTGSC_AVVIE	      BIT(25)
 #define OTGSC_ASVIE	      BIT(26)
 #define OTGSC_BSVIE	      BIT(27)
 #define OTGSC_BSEIE	      BIT(28)
+#define OTGSC_1MSIE	      BIT(29)
+#define OTGSC_DPIE	      BIT(30)
+#define OTGSC_INT_EN_BITS	(OTGSC_IDIE | OTGSC_AVVIE | OTGSC_ASVIE \
+				| OTGSC_BSVIE | OTGSC_BSEIE | OTGSC_1MSIE \
+				| OTGSC_DPIE)
+#define OTGSC_INT_STATUS_BITS	(OTGSC_IDIS | OTGSC_AVVIS | OTGSC_ASVIS	\
+				| OTGSC_BSVIS | OTGSC_BSEIS | OTGSC_1MSIS \
+				| OTGSC_DPIS)
 
 /* USBMODE */
 #define USBMODE_CM            (0x03UL <<  0)

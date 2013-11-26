@@ -152,6 +152,8 @@ struct btrfs_fs_devices {
 	int rotating;
 };
 
+#define BTRFS_BIO_INLINE_CSUM_SIZE	64
+
 /*
  * we need the mirror number and stripe index to be passed around
  * the call chain while we are processing end_io (especially errors).
@@ -161,9 +163,14 @@ struct btrfs_fs_devices {
  * we allocate are actually btrfs_io_bios.  We'll cram as much of
  * struct btrfs_bio as we can into this over time.
  */
+typedef void (btrfs_io_bio_end_io_t) (struct btrfs_io_bio *bio, int err);
 struct btrfs_io_bio {
 	unsigned long mirror_num;
 	unsigned long stripe_index;
+	u8 *csum;
+	u8 csum_inline[BTRFS_BIO_INLINE_CSUM_SIZE];
+	u8 *csum_allocated;
+	btrfs_io_bio_end_io_t *end_io;
 	struct bio bio;
 };
 
@@ -298,6 +305,9 @@ void btrfs_close_extra_devices(struct btrfs_fs_info *fs_info,
 int btrfs_find_device_missing_or_by_path(struct btrfs_root *root,
 					 char *device_path,
 					 struct btrfs_device **device);
+struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
+					const u64 *devid,
+					const u8 *uuid);
 int btrfs_rm_device(struct btrfs_root *root, char *device_path);
 void btrfs_cleanup_fs_uuids(void);
 int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len);
@@ -315,6 +325,8 @@ int btrfs_resume_balance_async(struct btrfs_fs_info *fs_info);
 int btrfs_recover_balance(struct btrfs_fs_info *fs_info);
 int btrfs_pause_balance(struct btrfs_fs_info *fs_info);
 int btrfs_cancel_balance(struct btrfs_fs_info *fs_info);
+int btrfs_create_uuid_tree(struct btrfs_fs_info *fs_info);
+int btrfs_check_uuid_tree(struct btrfs_fs_info *fs_info);
 int btrfs_chunk_readonly(struct btrfs_root *root, u64 chunk_offset);
 int find_free_dev_extent(struct btrfs_trans_handle *trans,
 			 struct btrfs_device *device, u64 num_bytes,

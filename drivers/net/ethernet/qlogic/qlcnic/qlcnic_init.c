@@ -127,12 +127,12 @@ void qlcnic_reset_rx_buffers_list(struct qlcnic_adapter *adapter)
 	}
 }
 
-void qlcnic_release_tx_buffers(struct qlcnic_adapter *adapter)
+void qlcnic_release_tx_buffers(struct qlcnic_adapter *adapter,
+			       struct qlcnic_host_tx_ring *tx_ring)
 {
 	struct qlcnic_cmd_buffer *cmd_buf;
 	struct qlcnic_skb_frag *buffrag;
 	int i, j;
-	struct qlcnic_host_tx_ring *tx_ring = adapter->tx_ring;
 
 	cmd_buf = tx_ring->cmd_buf_arr;
 	for (i = 0; i < tx_ring->num_desc; i++) {
@@ -241,7 +241,13 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 		sds_ring->irq = adapter->msix_entries[ring].vector;
 		sds_ring->adapter = adapter;
 		sds_ring->num_desc = adapter->num_rxd;
-
+		if (qlcnic_82xx_check(adapter)) {
+			if (qlcnic_check_multi_tx(adapter) &&
+			    !adapter->ahw->diag_test)
+				sds_ring->tx_ring = &adapter->tx_ring[ring];
+			else
+				sds_ring->tx_ring = &adapter->tx_ring[0];
+		}
 		for (i = 0; i < NUM_RCV_DESC_RINGS; i++)
 			INIT_LIST_HEAD(&sds_ring->free_list[i]);
 	}

@@ -29,15 +29,25 @@
 /*
  * These flags live in the high bits of extent_status.es_pblk
  */
-#define EXTENT_STATUS_WRITTEN	(1ULL << 63)
-#define EXTENT_STATUS_UNWRITTEN (1ULL << 62)
-#define EXTENT_STATUS_DELAYED	(1ULL << 61)
-#define EXTENT_STATUS_HOLE	(1ULL << 60)
+#define ES_SHIFT	60
+
+#define EXTENT_STATUS_WRITTEN	(1 << 3)
+#define EXTENT_STATUS_UNWRITTEN (1 << 2)
+#define EXTENT_STATUS_DELAYED	(1 << 1)
+#define EXTENT_STATUS_HOLE	(1 << 0)
 
 #define EXTENT_STATUS_FLAGS	(EXTENT_STATUS_WRITTEN | \
 				 EXTENT_STATUS_UNWRITTEN | \
 				 EXTENT_STATUS_DELAYED | \
 				 EXTENT_STATUS_HOLE)
+
+#define ES_WRITTEN		(1ULL << 63)
+#define ES_UNWRITTEN		(1ULL << 62)
+#define ES_DELAYED		(1ULL << 61)
+#define ES_HOLE			(1ULL << 60)
+
+#define ES_MASK			(ES_WRITTEN | ES_UNWRITTEN | \
+				 ES_DELAYED | ES_HOLE)
 
 struct ext4_sb_info;
 struct ext4_extent;
@@ -60,7 +70,10 @@ extern void ext4_es_init_tree(struct ext4_es_tree *tree);
 
 extern int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 				 ext4_lblk_t len, ext4_fsblk_t pblk,
-				 unsigned long long status);
+				 unsigned int status);
+extern void ext4_es_cache_extent(struct inode *inode, ext4_lblk_t lblk,
+				 ext4_lblk_t len, ext4_fsblk_t pblk,
+				 unsigned int status);
 extern int ext4_es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 				 ext4_lblk_t len);
 extern void ext4_es_find_delayed_extent_range(struct inode *inode,
@@ -68,36 +81,35 @@ extern void ext4_es_find_delayed_extent_range(struct inode *inode,
 					struct extent_status *es);
 extern int ext4_es_lookup_extent(struct inode *inode, ext4_lblk_t lblk,
 				 struct extent_status *es);
-extern int ext4_es_zeroout(struct inode *inode, struct ext4_extent *ex);
 
 static inline int ext4_es_is_written(struct extent_status *es)
 {
-	return (es->es_pblk & EXTENT_STATUS_WRITTEN) != 0;
+	return (es->es_pblk & ES_WRITTEN) != 0;
 }
 
 static inline int ext4_es_is_unwritten(struct extent_status *es)
 {
-	return (es->es_pblk & EXTENT_STATUS_UNWRITTEN) != 0;
+	return (es->es_pblk & ES_UNWRITTEN) != 0;
 }
 
 static inline int ext4_es_is_delayed(struct extent_status *es)
 {
-	return (es->es_pblk & EXTENT_STATUS_DELAYED) != 0;
+	return (es->es_pblk & ES_DELAYED) != 0;
 }
 
 static inline int ext4_es_is_hole(struct extent_status *es)
 {
-	return (es->es_pblk & EXTENT_STATUS_HOLE) != 0;
+	return (es->es_pblk & ES_HOLE) != 0;
 }
 
-static inline ext4_fsblk_t ext4_es_status(struct extent_status *es)
+static inline unsigned int ext4_es_status(struct extent_status *es)
 {
-	return (es->es_pblk & EXTENT_STATUS_FLAGS);
+	return es->es_pblk >> ES_SHIFT;
 }
 
 static inline ext4_fsblk_t ext4_es_pblock(struct extent_status *es)
 {
-	return (es->es_pblk & ~EXTENT_STATUS_FLAGS);
+	return es->es_pblk & ~ES_MASK;
 }
 
 static inline void ext4_es_store_pblock(struct extent_status *es,
@@ -105,19 +117,16 @@ static inline void ext4_es_store_pblock(struct extent_status *es,
 {
 	ext4_fsblk_t block;
 
-	block = (pb & ~EXTENT_STATUS_FLAGS) |
-		(es->es_pblk & EXTENT_STATUS_FLAGS);
+	block = (pb & ~ES_MASK) | (es->es_pblk & ES_MASK);
 	es->es_pblk = block;
 }
 
 static inline void ext4_es_store_status(struct extent_status *es,
-					unsigned long long status)
+					unsigned int status)
 {
-	ext4_fsblk_t block;
-
-	block = (status & EXTENT_STATUS_FLAGS) |
-		(es->es_pblk & ~EXTENT_STATUS_FLAGS);
-	es->es_pblk = block;
+	es->es_pblk = (((ext4_fsblk_t)
+			(status & EXTENT_STATUS_FLAGS) << ES_SHIFT) |
+		       (es->es_pblk & ~ES_MASK));
 }
 
 extern void ext4_es_register_shrinker(struct ext4_sb_info *sbi);

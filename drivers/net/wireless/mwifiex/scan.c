@@ -543,6 +543,37 @@ mwifiex_scan_create_channel_list(struct mwifiex_private *priv,
 	return chan_idx;
 }
 
+/* This function appends rate TLV to scan config command. */
+static int
+mwifiex_append_rate_tlv(struct mwifiex_private *priv,
+			struct mwifiex_scan_cmd_config *scan_cfg_out,
+			u8 radio)
+{
+	struct mwifiex_ie_types_rates_param_set *rates_tlv;
+	u8 rates[MWIFIEX_SUPPORTED_RATES], *tlv_pos;
+	u32 rates_size;
+
+	memset(rates, 0, sizeof(rates));
+
+	tlv_pos = (u8 *)scan_cfg_out->tlv_buf + scan_cfg_out->tlv_buf_len;
+
+	if (priv->scan_request)
+		rates_size = mwifiex_get_rates_from_cfg80211(priv, rates,
+							     radio);
+	else
+		rates_size = mwifiex_get_supported_rates(priv, rates);
+
+	dev_dbg(priv->adapter->dev, "info: SCAN_CMD: Rates size = %d\n",
+		rates_size);
+	rates_tlv = (struct mwifiex_ie_types_rates_param_set *)tlv_pos;
+	rates_tlv->header.type = cpu_to_le16(WLAN_EID_SUPP_RATES);
+	rates_tlv->header.len = cpu_to_le16((u16) rates_size);
+	memcpy(rates_tlv->rates, rates, rates_size);
+	scan_cfg_out->tlv_buf_len += sizeof(rates_tlv->header) + rates_size;
+
+	return rates_size;
+}
+
 /*
  * This function constructs and sends multiple scan config commands to
  * the firmware.
@@ -564,9 +595,10 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 	struct mwifiex_chan_scan_param_set *tmp_chan_list;
 	struct mwifiex_chan_scan_param_set *start_chan;
 
-	u32 tlv_idx;
+	u32 tlv_idx, rates_size;
 	u32 total_scan_time;
 	u32 done_early;
+	u8 radio_type;
 
 	if (!scan_cfg_out || !chan_tlv_out || !scan_chan_list) {
 		dev_dbg(priv->adapter->dev,
@@ -591,6 +623,7 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 
 		tlv_idx = 0;
 		total_scan_time = 0;
+		radio_type = 0;
 		chan_tlv_out->header.len = 0;
 		start_chan = tmp_chan_list;
 		done_early = false;
@@ -612,6 +645,7 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 				continue;
 			}
 
+			radio_type = tmp_chan_list->radio_type;
 			dev_dbg(priv->adapter->dev,
 				"info: Scan: Chan(%3d), Radio(%d),"
 				" Mode(%d, %d), Dur(%d)\n",
@@ -692,6 +726,9 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 			break;
 		}
 
+		rates_size = mwifiex_append_rate_tlv(priv, scan_cfg_out,
+						     radio_type);
+
 		priv->adapter->scan_channels = start_chan;
 
 		/* Send the scan command to the firmware with the specified
@@ -699,6 +736,14 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 		ret = mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11_SCAN,
 					     HostCmd_ACT_GEN_SET, 0,
 					     scan_cfg_out);
+
+		/* rate IE is updated per scan command but same starting
+		 * pointer is used each time so that rate IE from earlier
+		 * scan_cfg_out->buf is overwritten with new one.
+		 */
+		scan_cfg_out->tlv_buf_len -=
+			    sizeof(struct mwifiex_ie_types_header) + rates_size;
+
 		if (ret)
 			break;
 	}
@@ -741,7 +786,6 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_ie_types_num_probes *num_probes_tlv;
 	struct mwifiex_ie_types_wildcard_ssid_params *wildcard_ssid_tlv;
-	struct mwifiex_ie_types_rates_param_set *rates_tlv;
 	u8 *tlv_pos;
 	u32 num_probes;
 	u32 ssid_len;
@@ -753,8 +797,6 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 	u8 radio_type;
 	int i;
 	u8 ssid_filter;
-	u8 rates[MWIFIEX_SUPPORTED_RATES];
-	u32 rates_size;
 	struct mwifiex_ie_types_htcap *ht_cap;
 
 	/* The tlv_buf_len is calculated for each scan command.  The TLVs added
@@ -888,19 +930,6 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 			le16_to_cpu(num_probes_tlv->header.len);
 
 	}
-
-	/* Append rates tlv */
-	memset(rates, 0, sizeof(rates));
-
-	rates_size = mwifiex_get_supported_rates(priv, rates);
-
-	rates_tlv = (struct mwifiex_ie_types_rates_param_set *) tlv_pos;
-	rates_tlv->header.type = cpu_to_le16(WLAN_EID_SUPP_RATES);
-	rates_tlv->header.len = cpu_to_le16((u16) rates_size);
-	memcpy(rates_tlv->rates, rates, rates_size);
-	tlv_pos += sizeof(rates_tlv->header) + rates_size;
-
-	dev_dbg(adapter->dev, "info: SCAN_CMD: Rates size = %d\n", rates_size);
 
 	if (ISSUPP_11NENABLED(priv->adapter->fw_cap_info) &&
 	    (priv->adapter->config_bands & BAND_GN ||

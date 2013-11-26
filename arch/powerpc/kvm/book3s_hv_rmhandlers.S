@@ -29,6 +29,10 @@
 #include <asm/kvm_book3s_asm.h>
 #include <asm/mmu-hash64.h>
 
+#ifdef __LITTLE_ENDIAN__
+#error Need to fix lppaca and SLB shadow accesses in little endian mode
+#endif
+
 /*****************************************************************************
  *                                                                           *
  *        Real Mode handlers that need to be in the linear mapping           *
@@ -389,7 +393,11 @@ toc_tlbie_lock:
 	.tc	native_tlbie_lock[TC],native_tlbie_lock
 	.previous
 	ld	r3,toc_tlbie_lock@toc(2)
+#ifdef __BIG_ENDIAN__
 	lwz	r8,PACA_LOCK_TOKEN(r13)
+#else
+	lwz	r8,PACAPACAINDEX(r13)
+#endif
 24:	lwarx	r0,0,r3
 	cmpwi	r0,0
 	bne	24b
@@ -964,7 +972,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 32:	ld	r4,VCPU_KVM(r9)		/* pointer to struct kvm */
 
 	/* Take the guest's tlbie_lock */
+#ifdef __BIG_ENDIAN__
 	lwz	r8,PACA_LOCK_TOKEN(r13)
+#else
+	lwz	r8,PACAPACAINDEX(r13)
+#endif
 	addi	r3,r4,KVM_TLBIE_LOCK
 24:	lwarx	r0,0,r3
 	cmpwi	r0,0
@@ -1054,7 +1066,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 BEGIN_FTR_SECTION
 	mfspr	r8, SPRN_DSCR
 	ld	r7, HSTATE_DSCR(r13)
-	std	r8, VCPU_DSCR(r7)
+	std	r8, VCPU_DSCR(r9)
 	mtspr	SPRN_DSCR, r7
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 
@@ -1381,7 +1393,7 @@ hcall_try_real_mode:
 	cmpldi	r3,hcall_real_table_end - hcall_real_table
 	bge	guest_exit_cont
 	LOAD_REG_ADDR(r4, hcall_real_table)
-	lwzx	r3,r3,r4
+	lwax	r3,r3,r4
 	cmpwi	r3,0
 	beq	guest_exit_cont
 	add	r3,r3,r4

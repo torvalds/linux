@@ -89,17 +89,13 @@ static void pty_unthrottle(struct tty_struct *tty)
  *	pty_space	-	report space left for writing
  *	@to: tty we are writing into
  *
- *	The tty buffers allow 64K but we sneak a peak and clip at 8K this
- *	allows a lot of overspill room for echo and other fun messes to
- *	be handled properly
+ *	Limit the buffer space used by ptys to 8k.
  */
 
 static int pty_space(struct tty_struct *to)
 {
-	int n = 8192 - to->port->buf.memory_used;
-	if (n < 0)
-		return 0;
-	return n;
+	int n = tty_buffer_space_avail(to->port);
+	return min(n, 8192);
 }
 
 /**
@@ -125,10 +121,8 @@ static int pty_write(struct tty_struct *tty, const unsigned char *buf, int c)
 		/* Stuff the data into the input queue of the other end */
 		c = tty_insert_flip_string(to->port, buf, c);
 		/* And shovel */
-		if (c) {
+		if (c)
 			tty_flip_buffer_push(to->port);
-			tty_wakeup(tty);
-		}
 	}
 	return c;
 }
@@ -287,7 +281,7 @@ static int pty_resize(struct tty_struct *tty,  struct winsize *ws)
 	struct tty_struct *pty = tty->link;
 
 	/* For a PTY we need to lock the tty side */
-	mutex_lock(&tty->termios_mutex);
+	mutex_lock(&tty->winsize_mutex);
 	if (!memcmp(ws, &tty->winsize, sizeof(*ws)))
 		goto done;
 
@@ -314,7 +308,7 @@ static int pty_resize(struct tty_struct *tty,  struct winsize *ws)
 	tty->winsize = *ws;
 	pty->winsize = *ws;	/* Never used so will go away soon */
 done:
-	mutex_unlock(&tty->termios_mutex);
+	mutex_unlock(&tty->winsize_mutex);
 	return 0;
 }
 

@@ -62,36 +62,6 @@
 #define LLC_STATUS_CONFLICT	7 /* disconnect conn */
 #define LLC_STATUS_RESET_DONE	8 /*  */
 
-/**
- *      llc_mac_null - determines if a address is a null mac address
- *      @mac: Mac address to test if null.
- *
- *      Determines if a given address is a null mac address.  Returns 0 if the
- *      address is not a null mac, 1 if the address is a null mac.
- */
-static inline int llc_mac_null(const u8 *mac)
-{
-	return is_zero_ether_addr(mac);
-}
-
-static inline int llc_mac_multicast(const u8 *mac)
-{
-	return is_multicast_ether_addr(mac);
-}
-/**
- *	llc_mac_match - determines if two mac addresses are the same
- *	@mac1: First mac address to compare.
- *	@mac2: Second mac address to compare.
- *
- *	Determines if two given mac address are the same.  Returns 0 if there
- *	is not a complete match up to len, 1 if a complete match up to len is
- *	found.
- */
-static inline int llc_mac_match(const u8 *mac1, const u8 *mac2)
-{
-	return !compare_ether_addr(mac1, mac2);
-}
-
 extern int llc_establish_connection(struct sock *sk, u8 *lmac,
 				    u8 *dmac, u8 dsap);
 extern int llc_build_and_send_pkt(struct sock *sk, struct sk_buff *skb);

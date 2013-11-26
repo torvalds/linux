@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2012 Nicira, Inc.
+ * Copyright (c) 2007-2013 Nicira, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -22,6 +22,7 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/openvswitch.h>
+#include <linux/sctp.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/in6.h>
@@ -31,6 +32,7 @@
 #include <net/ipv6.h>
 #include <net/checksum.h>
 #include <net/dsfield.h>
+#include <net/sctp/checksum.h>
 
 #include "datapath.h"
 #include "vport.h"
@@ -352,6 +354,39 @@ static int set_tcp(struct sk_buff *skb, const struct ovs_key_tcp *tcp_port_key)
 	return 0;
 }
 
+static int set_sctp(struct sk_buff *skb,
+		     const struct ovs_key_sctp *sctp_port_key)
+{
+	struct sctphdr *sh;
+	int err;
+	unsigned int sctphoff = skb_transport_offset(skb);
+
+	err = make_writable(skb, sctphoff + sizeof(struct sctphdr));
+	if (unlikely(err))
+		return err;
+
+	sh = sctp_hdr(skb);
+	if (sctp_port_key->sctp_src != sh->source ||
+	    sctp_port_key->sctp_dst != sh->dest) {
+		__le32 old_correct_csum, new_csum, old_csum;
+
+		old_csum = sh->checksum;
+		old_correct_csum = sctp_compute_cksum(skb, sctphoff);
+
+		sh->source = sctp_port_key->sctp_src;
+		sh->dest = sctp_port_key->sctp_dst;
+
+		new_csum = sctp_compute_cksum(skb, sctphoff);
+
+		/* Carry any checksum errors through. */
+		sh->checksum = old_csum ^ old_correct_csum ^ new_csum;
+
+		skb->rxhash = 0;
+	}
+
+	return 0;
+}
+
 static int do_output(struct datapath *dp, struct sk_buff *skb, int out_port)
 {
 	struct vport *vport;
@@ -376,8 +411,10 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 	const struct nlattr *a;
 	int rem;
 
+	BUG_ON(!OVS_CB(skb)->pkt_key);
+
 	upcall.cmd = OVS_PACKET_CMD_ACTION;
-	upcall.key = &OVS_CB(skb)->flow->key;
+	upcall.key = OVS_CB(skb)->pkt_key;
 	upcall.userdata = NULL;
 	upcall.portid = 0;
 
@@ -458,6 +495,10 @@ static int execute_set_action(struct sk_buff *skb,
 
 	case OVS_KEY_ATTR_UDP:
 		err = set_udp(skb, nla_data(nested_attr));
+		break;
+
+	case OVS_KEY_ATTR_SCTP:
+		err = set_sctp(skb, nla_data(nested_attr));
 		break;
 	}
 

@@ -6,6 +6,7 @@
 #include <linux/page-isolation.h>
 #include <linux/pageblock-flags.h>
 #include <linux/memory.h>
+#include <linux/hugetlb.h>
 #include "internal.h"
 
 int set_migratetype_isolate(struct page *page, bool skip_hwpoisoned_pages)
@@ -226,9 +227,9 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
 	int ret;
 
 	/*
-	 * Note: pageblock_nr_page != MAX_ORDER. Then, chunks of free page
-	 * is not aligned to pageblock_nr_pages.
-	 * Then we just check pagetype fist.
+	 * Note: pageblock_nr_pages != MAX_ORDER. Then, chunks of free pages
+	 * are not aligned to pageblock_nr_pages.
+	 * Then we just check migratetype first.
 	 */
 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
 		page = __first_valid_page(pfn, pageblock_nr_pages);
@@ -238,7 +239,7 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
 	page = __first_valid_page(start_pfn, end_pfn - start_pfn);
 	if ((pfn < end_pfn) || !page)
 		return -EBUSY;
-	/* Check all pages are free or Marked as ISOLATED */
+	/* Check all pages are free or marked as ISOLATED */
 	zone = page_zone(page);
 	spin_lock_irqsave(&zone->lock, flags);
 	ret = __test_page_isolated_in_pageblock(start_pfn, end_pfn,
@@ -251,6 +252,19 @@ struct page *alloc_migrate_target(struct page *page, unsigned long private,
 				  int **resultp)
 {
 	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
+
+	/*
+	 * TODO: allocate a destination hugepage from a nearest neighbor node,
+	 * accordance with memory policy of the user process if possible. For
+	 * now as a simple work-around, we use the next node for destination.
+	 */
+	if (PageHuge(page)) {
+		nodemask_t src = nodemask_of_node(page_to_nid(page));
+		nodemask_t dst;
+		nodes_complement(dst, src);
+		return alloc_huge_page_node(page_hstate(compound_head(page)),
+					    next_node(page_to_nid(page), dst));
+	}
 
 	if (PageHighMem(page))
 		gfp_mask |= __GFP_HIGHMEM;

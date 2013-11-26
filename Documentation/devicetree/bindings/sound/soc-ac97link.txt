@@ -1,0 +1,28 @@
+AC97 link bindings
+
+These bindings can be included within any other device node.
+
+Required properties:
+ - pinctrl-names: Has to contain following states to setup the correct
+   pinmuxing for the used gpios:
+	"ac97-running": AC97-link is active
+	"ac97-reset": AC97-link reset state
+	"ac97-warm-reset": AC97-link warm reset state
+ - ac97-gpios: List of gpio phandles with args in the order ac97-sync,
+   ac97-sdata, ac97-reset
+
+
+Example:
+
+ssi {
+	...
+
+	pinctrl-names = "default", "ac97-running", "ac97-reset", "ac97-warm-reset";
+	pinctrl-0 = <&ac97link_running>;
+	pinctrl-1 = <&ac97link_running>;
+	pinctrl-2 = <&ac97link_reset>;
+	pinctrl-3 = <&ac97link_warm_reset>;
+	ac97-gpios = <&gpio3 20 0 &gpio3 22 0 &gpio3 28 0>;
+
+	...
+};

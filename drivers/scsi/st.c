@@ -82,7 +82,7 @@ static int try_rdio = 1;
 static int try_wdio = 1;
 
 static struct class st_sysfs_class;
-static struct device_attribute st_dev_attrs[];
+static const struct attribute_group *st_dev_groups[];
 
 MODULE_AUTHOR("Kai Makisara");
 MODULE_DESCRIPTION("SCSI tape (st) driver");
@@ -4274,7 +4274,7 @@ static void scsi_tape_release(struct kref *kref)
 
 static struct class st_sysfs_class = {
 	.name = "scsi_tape",
-	.dev_attrs = st_dev_attrs,
+	.dev_groups = st_dev_groups,
 };
 
 static int __init init_st(void)
@@ -4408,6 +4408,7 @@ defined_show(struct device *dev, struct device_attribute *attr, char *buf)
 	l = snprintf(buf, PAGE_SIZE, "%d\n", STm->defined);
 	return l;
 }
+static DEVICE_ATTR_RO(defined);
 
 static ssize_t
 default_blksize_show(struct device *dev, struct device_attribute *attr,
@@ -4419,7 +4420,7 @@ default_blksize_show(struct device *dev, struct device_attribute *attr,
 	l = snprintf(buf, PAGE_SIZE, "%d\n", STm->default_blksize);
 	return l;
 }
-
+static DEVICE_ATTR_RO(default_blksize);
 
 static ssize_t
 default_density_show(struct device *dev, struct device_attribute *attr,
@@ -4433,6 +4434,7 @@ default_density_show(struct device *dev, struct device_attribute *attr,
 	l = snprintf(buf, PAGE_SIZE, fmt, STm->default_density);
 	return l;
 }
+static DEVICE_ATTR_RO(default_density);
 
 static ssize_t
 default_compression_show(struct device *dev, struct device_attribute *attr,
@@ -4444,6 +4446,7 @@ default_compression_show(struct device *dev, struct device_attribute *attr,
 	l = snprintf(buf, PAGE_SIZE, "%d\n", STm->default_compression - 1);
 	return l;
 }
+static DEVICE_ATTR_RO(default_compression);
 
 static ssize_t
 options_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -4472,15 +4475,17 @@ options_show(struct device *dev, struct device_attribute *attr, char *buf)
 	l = snprintf(buf, PAGE_SIZE, "0x%08x\n", options);
 	return l;
 }
+static DEVICE_ATTR_RO(options);
 
-static struct device_attribute st_dev_attrs[] = {
-	__ATTR_RO(defined),
-	__ATTR_RO(default_blksize),
-	__ATTR_RO(default_density),
-	__ATTR_RO(default_compression),
-	__ATTR_RO(options),
-	__ATTR_NULL,
+static struct attribute *st_dev_attrs[] = {
+	&dev_attr_defined.attr,
+	&dev_attr_default_blksize.attr,
+	&dev_attr_default_density.attr,
+	&dev_attr_default_compression.attr,
+	&dev_attr_options.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(st_dev);
 
 /* The following functions may be useful for a larger audience. */
 static int sgl_map_user_pages(struct st_buffer *STbp,

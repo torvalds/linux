@@ -3,7 +3,7 @@
  *
  * This file contains logic for SPC-3 Unit Attention emulation
  *
- * (c) Copyright 2009-2012 RisingTide Systems LLC.
+ * (c) Copyright 2009-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *

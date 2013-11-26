@@ -436,8 +436,7 @@ static void esp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	struct ip_esp_hdr *esph = (struct ip_esp_hdr *)(skb->data + offset);
 	struct xfrm_state *x;
 
-	if (type != ICMPV6_DEST_UNREACH &&
-	    type != ICMPV6_PKT_TOOBIG &&
+	if (type != ICMPV6_PKT_TOOBIG &&
 	    type != NDISC_REDIRECT)
 		return;
 
@@ -447,7 +446,7 @@ static void esp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		return;
 
 	if (type == NDISC_REDIRECT)
-		ip6_redirect(skb, net, 0, 0);
+		ip6_redirect(skb, net, skb->dev->ifindex, 0);
 	else
 		ip6_update_pmtu(skb, net, info, 0, 0);
 	xfrm_state_put(x);

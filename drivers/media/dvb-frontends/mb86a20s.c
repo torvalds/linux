@@ -157,7 +157,6 @@ static struct regdata mb86a20s_init2[] = {
 	{ 0x45, 0x04 },				/* CN symbol 4 */
 	{ 0x48, 0x04 },				/* CN manual mode */
 
-	{ 0x50, 0xd5 }, { 0x51, 0x01 },		/* Serial */
 	{ 0x50, 0xd6 }, { 0x51, 0x1f },
 	{ 0x50, 0xd2 }, { 0x51, 0x03 },
 	{ 0x50, 0xd7 }, { 0x51, 0xbf },
@@ -1860,16 +1859,15 @@ static int mb86a20s_initfe(struct dvb_frontend *fe)
 	dev_dbg(&state->i2c->dev, "%s: IF=%d, IF reg=0x%06llx\n",
 		__func__, state->if_freq, (long long)pll);
 
-	if (!state->config->is_serial) {
+	if (!state->config->is_serial)
 		regD5 &= ~1;
 
-		rc = mb86a20s_writereg(state, 0x50, 0xd5);
-		if (rc < 0)
-			goto err;
-		rc = mb86a20s_writereg(state, 0x51, regD5);
-		if (rc < 0)
-			goto err;
-	}
+	rc = mb86a20s_writereg(state, 0x50, 0xd5);
+	if (rc < 0)
+		goto err;
+	rc = mb86a20s_writereg(state, 0x51, regD5);
+	if (rc < 0)
+		goto err;
 
 	rc = mb86a20s_writeregdata(state, mb86a20s_init2);
 	if (rc < 0)

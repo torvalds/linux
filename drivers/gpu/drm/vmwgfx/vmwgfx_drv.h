@@ -324,7 +324,6 @@ struct vmw_private {
 	 */
 
 	bool stealth;
-	bool is_opened;
 	bool enable_fb;
 
 	/**

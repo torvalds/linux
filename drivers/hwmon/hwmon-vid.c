@@ -246,7 +246,7 @@ static struct vrm_model vrm_models[] = {
  */
 static u8 get_via_model_d_vrm(void)
 {
-	unsigned int vid, brand, dummy;
+	unsigned int vid, brand, __maybe_unused dummy;
 	static const char *brands[4] = {
 		"C7-M", "C7", "Eden", "C7-D"
 	};

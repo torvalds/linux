@@ -125,13 +125,6 @@ static const struct drm_prop_enum_list drm_scaling_mode_enum_list[] =
 	{ DRM_MODE_SCALE_ASPECT, "Full aspect" },
 };
 
-static const struct drm_prop_enum_list drm_dithering_mode_enum_list[] =
-{
-	{ DRM_MODE_DITHERING_OFF, "Off" },
-	{ DRM_MODE_DITHERING_ON, "On" },
-	{ DRM_MODE_DITHERING_AUTO, "Automatic" },
-};
-
 /*
  * Non-global properties, but "required" for certain connectors.
  */
@@ -186,29 +179,29 @@ static const struct drm_prop_enum_list drm_dirty_info_enum_list[] = {
 struct drm_conn_prop_enum_list {
 	int type;
 	const char *name;
-	int count;
+	struct ida ida;
 };
 
 /*
  * Connector and encoder types.
  */
 static struct drm_conn_prop_enum_list drm_connector_enum_list[] =
-{	{ DRM_MODE_CONNECTOR_Unknown, "Unknown", 0 },
-	{ DRM_MODE_CONNECTOR_VGA, "VGA", 0 },
-	{ DRM_MODE_CONNECTOR_DVII, "DVI-I", 0 },
-	{ DRM_MODE_CONNECTOR_DVID, "DVI-D", 0 },
-	{ DRM_MODE_CONNECTOR_DVIA, "DVI-A", 0 },
-	{ DRM_MODE_CONNECTOR_Composite, "Composite", 0 },
-	{ DRM_MODE_CONNECTOR_SVIDEO, "SVIDEO", 0 },
-	{ DRM_MODE_CONNECTOR_LVDS, "LVDS", 0 },
-	{ DRM_MODE_CONNECTOR_Component, "Component", 0 },
-	{ DRM_MODE_CONNECTOR_9PinDIN, "DIN", 0 },
-	{ DRM_MODE_CONNECTOR_DisplayPort, "DP", 0 },
-	{ DRM_MODE_CONNECTOR_HDMIA, "HDMI-A", 0 },
-	{ DRM_MODE_CONNECTOR_HDMIB, "HDMI-B", 0 },
-	{ DRM_MODE_CONNECTOR_TV, "TV", 0 },
-	{ DRM_MODE_CONNECTOR_eDP, "eDP", 0 },
-	{ DRM_MODE_CONNECTOR_VIRTUAL, "Virtual", 0},
+{	{ DRM_MODE_CONNECTOR_Unknown, "Unknown" },
+	{ DRM_MODE_CONNECTOR_VGA, "VGA" },
+	{ DRM_MODE_CONNECTOR_DVII, "DVI-I" },
+	{ DRM_MODE_CONNECTOR_DVID, "DVI-D" },
+	{ DRM_MODE_CONNECTOR_DVIA, "DVI-A" },
+	{ DRM_MODE_CONNECTOR_Composite, "Composite" },
+	{ DRM_MODE_CONNECTOR_SVIDEO, "SVIDEO" },
+	{ DRM_MODE_CONNECTOR_LVDS, "LVDS" },
+	{ DRM_MODE_CONNECTOR_Component, "Component" },
+	{ DRM_MODE_CONNECTOR_9PinDIN, "DIN" },
+	{ DRM_MODE_CONNECTOR_DisplayPort, "DP" },
+	{ DRM_MODE_CONNECTOR_HDMIA, "HDMI-A" },
+	{ DRM_MODE_CONNECTOR_HDMIB, "HDMI-B" },
+	{ DRM_MODE_CONNECTOR_TV, "TV" },
+	{ DRM_MODE_CONNECTOR_eDP, "eDP" },
+	{ DRM_MODE_CONNECTOR_VIRTUAL, "Virtual" },
 };
 
 static const struct drm_prop_enum_list drm_encoder_enum_list[] =
@@ -219,6 +212,22 @@ static const struct drm_prop_enum_list drm_encoder_enum_list[] =
 	{ DRM_MODE_ENCODER_TVDAC, "TV" },
 	{ DRM_MODE_ENCODER_VIRTUAL, "Virtual" },
 };
+
+void drm_connector_ida_init(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(drm_connector_enum_list); i++)
+		ida_init(&drm_connector_enum_list[i].ida);
+}
+
+void drm_connector_ida_destroy(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(drm_connector_enum_list); i++)
+		ida_destroy(&drm_connector_enum_list[i].ida);
+}
 
 const char *drm_get_encoder_name(const struct drm_encoder *encoder)
 {
@@ -677,20 +686,19 @@ void drm_mode_probed_add(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_mode_probed_add);
 
-/**
+/*
  * drm_mode_remove - remove and free a mode
  * @connector: connector list to modify
  * @mode: mode to remove
  *
  * Remove @mode from @connector's mode list, then free it.
  */
-void drm_mode_remove(struct drm_connector *connector,
-		     struct drm_display_mode *mode)
+static void drm_mode_remove(struct drm_connector *connector,
+			    struct drm_display_mode *mode)
 {
 	list_del(&mode->head);
 	drm_mode_destroy(connector->dev, mode);
 }
-EXPORT_SYMBOL(drm_mode_remove);
 
 /**
  * drm_connector_init - Init a preallocated connector
@@ -711,6 +719,8 @@ int drm_connector_init(struct drm_device *dev,
 		       int connector_type)
 {
 	int ret;
+	struct ida *connector_ida =
+		&drm_connector_enum_list[connector_type].ida;
 
 	drm_modeset_lock_all(dev);
 
@@ -723,7 +733,12 @@ int drm_connector_init(struct drm_device *dev,
 	connector->funcs = funcs;
 	connector->connector_type = connector_type;
 	connector->connector_type_id =
-		++drm_connector_enum_list[connector_type].count; /* TODO */
+		ida_simple_get(connector_ida, 1, 0, GFP_KERNEL);
+	if (connector->connector_type_id < 0) {
+		ret = connector->connector_type_id;
+		drm_mode_object_put(dev, &connector->base);
+		goto out;
+	}
 	INIT_LIST_HEAD(&connector->probed_modes);
 	INIT_LIST_HEAD(&connector->modes);
 	connector->edid_blob_ptr = NULL;
@@ -764,6 +779,9 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	list_for_each_entry_safe(mode, t, &connector->modes, head)
 		drm_mode_remove(connector, mode);
 
+	ida_remove(&drm_connector_enum_list[connector->connector_type].ida,
+		   connector->connector_type_id);
+
 	drm_mode_object_put(dev, &connector->base);
 	list_del(&connector->head);
 	dev->mode_config.num_connector--;
@@ -780,6 +798,41 @@ void drm_connector_unplug_all(struct drm_device *dev)
 
 }
 EXPORT_SYMBOL(drm_connector_unplug_all);
+
+int drm_bridge_init(struct drm_device *dev, struct drm_bridge *bridge,
+		const struct drm_bridge_funcs *funcs)
+{
+	int ret;
+
+	drm_modeset_lock_all(dev);
+
+	ret = drm_mode_object_get(dev, &bridge->base, DRM_MODE_OBJECT_BRIDGE);
+	if (ret)
+		goto out;
+
+	bridge->dev = dev;
+	bridge->funcs = funcs;
+
+	list_add_tail(&bridge->head, &dev->mode_config.bridge_list);
+	dev->mode_config.num_bridge++;
+
+ out:
+	drm_modeset_unlock_all(dev);
+	return ret;
+}
+EXPORT_SYMBOL(drm_bridge_init);
+
+void drm_bridge_cleanup(struct drm_bridge *bridge)
+{
+	struct drm_device *dev = bridge->dev;
+
+	drm_modeset_lock_all(dev);
+	drm_mode_object_put(dev, &bridge->base);
+	list_del(&bridge->head);
+	dev->mode_config.num_bridge--;
+	drm_modeset_unlock_all(dev);
+}
+EXPORT_SYMBOL(drm_bridge_cleanup);
 
 int drm_encoder_init(struct drm_device *dev,
 		      struct drm_encoder *encoder,
@@ -1135,30 +1188,6 @@ int drm_mode_create_scaling_mode_property(struct drm_device *dev)
 EXPORT_SYMBOL(drm_mode_create_scaling_mode_property);
 
 /**
- * drm_mode_create_dithering_property - create dithering property
- * @dev: DRM device
- *
- * Called by a driver the first time it's needed, must be attached to desired
- * connectors.
- */
-int drm_mode_create_dithering_property(struct drm_device *dev)
-{
-	struct drm_property *dithering_mode;
-
-	if (dev->mode_config.dithering_mode_property)
-		return 0;
-
-	dithering_mode =
-		drm_property_create_enum(dev, 0, "dithering",
-				drm_dithering_mode_enum_list,
-				    ARRAY_SIZE(drm_dithering_mode_enum_list));
-	dev->mode_config.dithering_mode_property = dithering_mode;
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_mode_create_dithering_property);
-
-/**
  * drm_mode_create_dirty_property - create dirty property
  * @dev: DRM device
  *
@@ -1190,6 +1219,7 @@ static int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *gr
 	total_objects += dev->mode_config.num_crtc;
 	total_objects += dev->mode_config.num_connector;
 	total_objects += dev->mode_config.num_encoder;
+	total_objects += dev->mode_config.num_bridge;
 
 	group->id_list = kzalloc(total_objects * sizeof(uint32_t), GFP_KERNEL);
 	if (!group->id_list)
@@ -1198,6 +1228,7 @@ static int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *gr
 	group->num_crtcs = 0;
 	group->num_connectors = 0;
 	group->num_encoders = 0;
+	group->num_bridges = 0;
 	return 0;
 }
 
@@ -1207,6 +1238,7 @@ int drm_mode_group_init_legacy_group(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
+	struct drm_bridge *bridge;
 	int ret;
 
 	if ((ret = drm_mode_group_init(dev, group)))
@@ -1222,6 +1254,11 @@ int drm_mode_group_init_legacy_group(struct drm_device *dev,
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
 		group->id_list[group->num_crtcs + group->num_encoders +
 			       group->num_connectors++] = connector->base.id;
+
+	list_for_each_entry(bridge, &dev->mode_config.bridge_list, head)
+		group->id_list[group->num_crtcs + group->num_encoders +
+			       group->num_connectors + group->num_bridges++] =
+					bridge->base.id;
 
 	return 0;
 }
@@ -2604,10 +2641,22 @@ int drm_mode_getfb(struct drm_device *dev,
 	r->depth = fb->depth;
 	r->bpp = fb->bits_per_pixel;
 	r->pitch = fb->pitches[0];
-	if (fb->funcs->create_handle)
-		ret = fb->funcs->create_handle(fb, file_priv, &r->handle);
-	else
+	if (fb->funcs->create_handle) {
+		if (file_priv->is_master || capable(CAP_SYS_ADMIN)) {
+			ret = fb->funcs->create_handle(fb, file_priv,
+						       &r->handle);
+		} else {
+			/* GET_FB() is an unprivileged ioctl so we must not
+			 * return a buffer-handle to non-master processes! For
+			 * backwards-compatibility reasons, we cannot make
+			 * GET_FB() privileged, so just return an invalid handle
+			 * for non-masters. */
+			r->handle = 0;
+			ret = 0;
+		}
+	} else {
 		ret = -ENODEV;
+	}
 
 	drm_framebuffer_unreference(fb);
 
@@ -3514,6 +3563,9 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	    page_flip->reserved != 0)
 		return -EINVAL;
 
+	if ((page_flip->flags & DRM_MODE_PAGE_FLIP_ASYNC) && !dev->mode_config.async_page_flip)
+		return -EINVAL;
+
 	obj = drm_mode_object_find(dev, page_flip->crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj)
 		return -EINVAL;
@@ -3587,7 +3639,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	}
 
 	old_fb = crtc->fb;
-	ret = crtc->funcs->page_flip(crtc, fb, e);
+	ret = crtc->funcs->page_flip(crtc, fb, e, page_flip->flags);
 	if (ret) {
 		if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
 			spin_lock_irqsave(&dev->event_lock, flags);
@@ -3905,6 +3957,7 @@ void drm_mode_config_init(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev->mode_config.fb_list);
 	INIT_LIST_HEAD(&dev->mode_config.crtc_list);
 	INIT_LIST_HEAD(&dev->mode_config.connector_list);
+	INIT_LIST_HEAD(&dev->mode_config.bridge_list);
 	INIT_LIST_HEAD(&dev->mode_config.encoder_list);
 	INIT_LIST_HEAD(&dev->mode_config.property_list);
 	INIT_LIST_HEAD(&dev->mode_config.property_blob_list);
@@ -3941,6 +3994,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	struct drm_connector *connector, *ot;
 	struct drm_crtc *crtc, *ct;
 	struct drm_encoder *encoder, *enct;
+	struct drm_bridge *bridge, *brt;
 	struct drm_framebuffer *fb, *fbt;
 	struct drm_property *property, *pt;
 	struct drm_property_blob *blob, *bt;
@@ -3949,6 +4003,11 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	list_for_each_entry_safe(encoder, enct, &dev->mode_config.encoder_list,
 				 head) {
 		encoder->funcs->destroy(encoder);
+	}
+
+	list_for_each_entry_safe(bridge, brt,
+				 &dev->mode_config.bridge_list, head) {
+		bridge->funcs->destroy(bridge);
 	}
 
 	list_for_each_entry_safe(connector, ot,

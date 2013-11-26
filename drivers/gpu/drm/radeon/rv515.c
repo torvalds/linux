@@ -209,19 +209,27 @@ static void rv515_mc_init(struct radeon_device *rdev)
 
 uint32_t rv515_mc_rreg(struct radeon_device *rdev, uint32_t reg)
 {
+	unsigned long flags;
 	uint32_t r;
 
+	spin_lock_irqsave(&rdev->mc_idx_lock, flags);
 	WREG32(MC_IND_INDEX, 0x7f0000 | (reg & 0xffff));
 	r = RREG32(MC_IND_DATA);
 	WREG32(MC_IND_INDEX, 0);
+	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
+
 	return r;
 }
 
 void rv515_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->mc_idx_lock, flags);
 	WREG32(MC_IND_INDEX, 0xff0000 | ((reg) & 0xffff));
 	WREG32(MC_IND_DATA, (v));
 	WREG32(MC_IND_INDEX, 0);
+	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 }
 
 #if defined(CONFIG_DEBUG_FS)

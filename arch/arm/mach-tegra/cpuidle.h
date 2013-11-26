@@ -19,6 +19,7 @@
 
 #ifdef CONFIG_CPU_IDLE
 int tegra20_cpuidle_init(void);
+void tegra20_cpuidle_pcie_irqs_in_use(void);
 int tegra30_cpuidle_init(void);
 int tegra114_cpuidle_init(void);
 void tegra_cpuidle_init(void);
