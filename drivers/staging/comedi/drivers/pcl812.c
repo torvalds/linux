@@ -1088,7 +1088,6 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct pcl812_board *board = comedi_board(dev);
 	struct pcl812_private *devpriv;
 	int ret, subdev;
-	unsigned int irq;
 	unsigned int dma;
 	unsigned long pages;
 	struct comedi_subdevice *s;
@@ -1102,30 +1101,12 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	irq = 0;
-	if (board->IRQbits != 0) {	/* board support IRQ */
-		irq = it->options[1];
-		if (irq) {	/* we want to use IRQ */
-			if (((1 << irq) & board->IRQbits) == 0) {
-				printk
-				    (", IRQ %u is out of allowed range, "
-				     "DISABLING IT", irq);
-				irq = 0;	/* Bad IRQ */
-			} else {
-				if (request_irq(irq, interrupt_pcl812, 0,
-						dev->board_name, dev)) {
-					printk
-					    (", unable to allocate IRQ %u, "
-					     "DISABLING IT", irq);
-					irq = 0;	/* Can't use IRQ */
-				} else {
-					printk(KERN_INFO ", irq=%u", irq);
-				}
-			}
-		}
+	if ((1 << it->options[1]) & board->IRQbits) {
+		ret = request_irq(it->options[1], interrupt_pcl812, 0,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = it->options[1];
 	}
-
-	dev->irq = irq;
 
 	dma = 0;
 	devpriv->dma = dma;
@@ -1395,7 +1376,7 @@ no_dma:
 		break;
 	case boardA821:
 		devpriv->max_812_ai_mode0_rangewait = 1;
-		devpriv->mode_reg_int = (irq << 4) & 0xf0;
+		devpriv->mode_reg_int = (dev->irq << 4) & 0xf0;
 		break;
 	case boardPCL813B:
 	case boardPCL813:
