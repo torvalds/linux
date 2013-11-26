@@ -10,8 +10,8 @@
 		reg = <0x00000000 0x40000000>;
 	};
 
-	host1x {
-		hdmi {
+	host1x@50000000 {
+		hdmi@54280000 {
 			status = "okay";
 
 			vdd-supply = <&hdmi_vdd_reg>;
@@ -23,7 +23,7 @@
 		};
 	};
 
-	pinmux {
+	pinmux@70000014 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
 
@@ -415,7 +415,7 @@
 		};
 	};
 
-	pmc {
+	pmc@7000e400 {
 		nvidia,invert-interrupt;
 		nvidia,suspend-mode = <1>;
 		nvidia,cpu-pwr-good-time = <5000>;
@@ -425,7 +425,7 @@
 		nvidia,sys-clock-req-active-high;
 	};
 
-	pcie-controller {
+	pcie-controller@80003000 {
 		pex-clk-supply = <&pci_clk_reg>;
 		vdd-supply = <&pci_vdd_reg>;
 		status = "okay";
@@ -488,7 +488,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		clk32k_in: clock {
+		clk32k_in: clock@0 {
 			compatible = "fixed-clock";
 			reg=<0>;
 			#clock-cells = <0>;
@@ -507,7 +507,7 @@
 		};
 	};
 
-	kbc {
+	kbc@7000e200 {
 		status = "okay";
 		nvidia,debounce-delay-ms = <2>;
 		nvidia,repeat-delay-ms = <160>;

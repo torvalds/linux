@@ -10,7 +10,7 @@
 		reg = <0x80000000 0x7ff00000>;
 	};
 
-	pcie-controller {
+	pcie-controller@00003000 {
 		status = "okay";
 		pex-clk-supply = <&sys_3v3_pexs_reg>;
 		vdd-supply = <&ldo1_reg>;
@@ -31,8 +31,8 @@
 		};
 	};
 
-	host1x {
-		hdmi {
+	host1x@50000000 {
+		hdmi@54280000 {
 			status = "okay";
 
 			vdd-supply = <&sys_3v3_reg>;
@@ -44,7 +44,7 @@
 		};
 	};
 
-	pinmux {
+	pinmux@70000868 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
 
@@ -159,7 +159,7 @@
 		status = "okay";
 		clock-frequency = <100000>;
 
-		rt5640: rt5640 {
+		rt5640: rt5640@1c {
 			compatible = "realtek,rt5640";
 			reg = <0x1c>;
 			interrupt-parent = <&gpio>;
@@ -168,7 +168,7 @@
 				<&gpio TEGRA_GPIO(X, 2) GPIO_ACTIVE_HIGH>;
 		};
 
-		tps62361 {
+		tps62361@60 {
 			compatible = "ti,tps62361";
 			reg = <0x60>;
 
@@ -296,13 +296,13 @@
 		};
 	};
 
-	ahub {
+	ahub@70080000 {
 		i2s@70080400 {
 			status = "okay";
 		};
 	};
 
-	pmc {
+	pmc@7000e400 {
 		status = "okay";
 		nvidia,invert-interrupt;
 		nvidia,suspend-mode = <1>;
@@ -342,7 +342,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		clk32k_in: clock {
+		clk32k_in: clock@0 {
 			compatible = "fixed-clock";
 			reg=<0>;
 			#clock-cells = <0>;

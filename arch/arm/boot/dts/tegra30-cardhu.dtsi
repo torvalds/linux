@@ -31,7 +31,7 @@
 		reg = <0x80000000 0x40000000>;
 	};
 
-	pcie-controller {
+	pcie-controller@00003000 {
 		status = "okay";
 		pex-clk-supply = <&pex_hvdd_3v3_reg>;
 		vdd-supply = <&ldo1_reg>;
@@ -51,7 +51,7 @@
 		};
 	};
 
-	pinmux {
+	pinmux@70000868 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
 
@@ -302,7 +302,7 @@
 			interrupts = <TEGRA_GPIO(CC, 2) IRQ_TYPE_LEVEL_LOW>;
 		};
 
-		tps62361 {
+		tps62361@60 {
 			compatible = "ti,tps62361";
 			reg = <0x60>;
 
@@ -326,13 +326,13 @@
 		};
 	};
 
-	ahub {
+	ahub@70080000 {
 		i2s@70080400 {
 			status = "okay";
 		};
 	};
 
-	pmc {
+	pmc@7000e400 {
 		status = "okay";
 		nvidia,invert-interrupt;
 		nvidia,suspend-mode = <1>;
@@ -372,7 +372,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		clk32k_in: clock {
+		clk32k_in: clock@0 {
 			compatible = "fixed-clock";
 			reg=<0>;
 			#clock-cells = <0>;

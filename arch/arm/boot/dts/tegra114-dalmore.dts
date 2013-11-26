@@ -11,7 +11,7 @@
 		reg = <0x80000000 0x40000000>;
 	};
 
-	pinmux {
+	pinmux@70000868 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
 
@@ -722,7 +722,7 @@
 		status = "okay";
 		clock-frequency = <100000>;
 
-		battery: smart-battery {
+		battery: smart-battery@b {
 			compatible = "ti,bq20z45", "sbs,sbs-battery";
 			reg = <0xb>;
 			battery-name = "battery";
@@ -731,7 +731,7 @@
 			power-supplies = <&charger>;
 		};
 
-		rt5640: rt5640 {
+		rt5640: rt5640@1c {
 			compatible = "realtek,rt5640";
 			reg = <0x1c>;
 			interrupt-parent = <&gpio>;
@@ -753,7 +753,7 @@
 		status = "okay";
 		clock-frequency = <400000>;
 
-		tps51632 {
+		tps51632@43 {
 			compatible = "ti,tps51632";
 			reg = <0x43>;
 			regulator-name = "vdd-cpu";
@@ -763,7 +763,7 @@
 			regulator-always-on;
 		};
 
-		tps65090 {
+		tps65090@48 {
 			compatible = "ti,tps65090";
 			reg = <0x48>;
 			interrupt-parent = <&gpio>;
@@ -846,7 +846,7 @@
 			};
 		};
 
-		palmas: tps65913 {
+		palmas: tps65913@58 {
 			compatible = "ti,palmas";
 			reg = <0x58>;
 			interrupts = <0 86 IRQ_TYPE_LEVEL_LOW>;
@@ -1046,7 +1046,7 @@
 		};
 	};
 
-	pmc {
+	pmc@7000e400 {
 		nvidia,invert-interrupt;
 		nvidia,suspend-mode = <1>;
 		nvidia,cpu-pwr-good-time = <500>;
@@ -1057,7 +1057,7 @@
 		nvidia,sys-clock-req-active-high;
 	};
 
-	ahub {
+	ahub@70080000 {
 		i2s@70080400 {
 			status = "okay";
 		};
@@ -1089,7 +1089,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		clk32k_in: clock {
+		clk32k_in: clock@0 {
 			compatible = "fixed-clock";
 			reg=<0>;
 			#clock-cells = <0>;
