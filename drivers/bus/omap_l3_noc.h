@@ -17,7 +17,9 @@
 #ifndef __OMAP_L3_NOC_H
 #define __OMAP_L3_NOC_H
 
-#define L3_MODULES			3
+#define OMAP_L3_MODULES			3
+#define MAX_L3_MODULES			3
+
 #define CLEAR_STDERR_LOG		(1 << 31)
 #define CUSTOM_ERROR			0x2
 #define STANDARD_ERROR			0x0
@@ -35,8 +37,6 @@
 #define L3_TARGET_NOT_SUPPORTED		NULL
 
 #define MAX_CLKDM_TARGETS		31
-
-#define NUM_OF_L3_MASTERS	(sizeof(l3_masters)/sizeof(l3_masters[0]))
 
 /**
  * struct l3_masters_data - L3 Master information
@@ -60,13 +60,47 @@ struct l3_target_data {
 	char *name;
 };
 
-static u32 l3_flagmux[L3_MODULES] = {
+
+/**
+ * struct omap_l3 - Description of data relevant for L3 bus.
+ * @dev:	device representing the bus (populated runtime)
+ * @l3_base:	base addresses of modules (populated runtime)
+ * @l3_flag_mux: array containing offsets to flag mux per module
+ *		 offset from corresponding module base indexed per
+ *		 module.
+ * @num_modules: number of clock domains / modules.
+ * @l3_masters:	array pointing to master data containing name and register
+ *		offset for the master.
+ * @num_master: number of masters
+ * @l3_targ:	array indexed by flagmux index (bit offset) pointing to the
+ *		target data. unsupported ones are marked with
+ *		L3_TARGET_NOT_SUPPORTED
+ * @debug_irq:	irq number of the debug interrupt (populated runtime)
+ * @app_irq:	irq number of the application interrupt (populated runtime)
+ */
+struct omap_l3 {
+	struct device *dev;
+
+	void __iomem *l3_base[MAX_L3_MODULES];
+	u32 *l3_flagmux;
+	int num_modules;
+
+	struct l3_masters_data *l3_masters;
+	int num_masters;
+
+	struct l3_target_data **l3_targ;
+
+	int debug_irq;
+	int app_irq;
+};
+
+static u32 omap_l3_flagmux[OMAP_L3_MODULES] = {
 	0x500,
 	0x1000,
 	0X0200
 };
 
-static struct l3_target_data l3_target_inst_data_clk1[MAX_CLKDM_TARGETS] = {
+static struct l3_target_data omap_l3_target_data_clk1[MAX_CLKDM_TARGETS] = {
 	{0x100,	"DMM1",},
 	{0x200,	"DMM2",},
 	{0x300,	"ABE",},
@@ -76,7 +110,7 @@ static struct l3_target_data l3_target_inst_data_clk1[MAX_CLKDM_TARGETS] = {
 	{0x900,	"L4WAKEUP",},
 };
 
-static struct l3_target_data l3_target_inst_data_clk2[MAX_CLKDM_TARGETS] = {
+static struct l3_target_data omap_l3_target_data_clk2[MAX_CLKDM_TARGETS] = {
 	{0x500,	"CORTEXM3",},
 	{0x300,	"DSS",},
 	{0x100,	"GPMC",},
@@ -100,13 +134,13 @@ static struct l3_target_data l3_target_inst_data_clk2[MAX_CLKDM_TARGETS] = {
 	{0x1700, "LLI",},
 };
 
-static struct l3_target_data l3_target_inst_data_clk3[MAX_CLKDM_TARGETS] = {
+static struct l3_target_data omap_l3_target_data_clk3[MAX_CLKDM_TARGETS] = {
 	{0x0100, "EMUSS",},
 	{0x0300, "DEBUG SOURCE",},
 	{0x0,	"HOST CLK3",},
 };
 
-static struct l3_masters_data l3_masters[] = {
+static struct l3_masters_data omap_l3_masters[] = {
 	{ 0x0 , "MPU"},
 	{ 0x10, "CS_ADP"},
 	{ 0x14, "xxx"},
@@ -134,20 +168,18 @@ static struct l3_masters_data l3_masters[] = {
 	{ 0xC8, "USBHOSTFS"}
 };
 
-static struct l3_target_data *l3_targ[L3_MODULES] = {
-	l3_target_inst_data_clk1,
-	l3_target_inst_data_clk2,
-	l3_target_inst_data_clk3,
+static struct l3_target_data *omap_l3_targ[OMAP_L3_MODULES] = {
+	omap_l3_target_data_clk1,
+	omap_l3_target_data_clk2,
+	omap_l3_target_data_clk3,
 };
 
-struct omap_l3 {
-	struct device *dev;
-
-	/* memory base */
-	void __iomem *l3_base[L3_MODULES];
-
-	int debug_irq;
-	int app_irq;
+static const struct omap_l3 omap_l3_data = {
+	.l3_flagmux = omap_l3_flagmux,
+	.num_modules = OMAP_L3_MODULES,
+	.l3_masters = omap_l3_masters,
+	.num_masters = ARRAY_SIZE(omap_l3_masters),
+	.l3_targ = omap_l3_targ,
 };
 
 #endif	/* __OMAP_L3_NOC_H */

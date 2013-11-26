@@ -14,12 +14,14 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#include <linux/module.h>
 #include <linux/init.h>
-#include <linux/io.h>
-#include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 
 #include "omap_l3_noc.h"
@@ -58,17 +60,18 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 	void __iomem *l3_targ_stderr, *l3_targ_slvofslsb, *l3_targ_mstaddr;
 	char *target_name, *master_name = "UN IDENTIFIED";
 	struct l3_target_data *l3_targ_inst;
+	struct l3_masters_data *master;
 
 	/* Get the Type of interrupt */
 	inttype = irq == l3->app_irq ? L3_APPLICATION_ERROR : L3_DEBUG_ERROR;
 
-	for (i = 0; i < L3_MODULES; i++) {
+	for (i = 0; i < l3->num_modules; i++) {
 		/*
 		 * Read the regerr register of the clock domain
 		 * to determine the source
 		 */
 		base = l3->l3_base[i];
-		err_reg = readl_relaxed(base + l3_flagmux[i] +
+		err_reg = readl_relaxed(base + l3->l3_flagmux[i] +
 					L3_FLAGMUX_REGERR0 + (inttype << 3));
 
 		/* Get the corresponding error and analyse */
@@ -79,7 +82,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 			/* We DONOT expect err_src to go out of bounds */
 			BUG_ON(err_src > MAX_CLKDM_TARGETS);
 
-			l3_targ_inst = &l3_targ[i][err_src];
+			l3_targ_inst = &l3->l3_targ[i][err_src];
 			target_name = l3_targ_inst->name;
 			l3_targ_base = base + l3_targ_inst->offset;
 
@@ -101,7 +104,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 					inttype ? "debug" : "application",
 					err_src, i, "(unclearable)");
 
-				mask_reg = base + l3_flagmux[i] +
+				mask_reg = base + l3->l3_flagmux[i] +
 					   L3_FLAGMUX_MASK0 + (inttype << 3);
 				mask_val = readl_relaxed(mask_reg);
 				mask_val &= ~(1 << err_src);
@@ -131,10 +134,12 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 				break;
 
 			case CUSTOM_ERROR:
-				for (k = 0; k < NUM_OF_L3_MASTERS; k++) {
-					if (masterid == l3_masters[k].id)
-						master_name =
-							l3_masters[k].name;
+				for (k = 0, master = l3->l3_masters;
+				     k < l3->num_masters; k++, master++) {
+					if (masterid == master->id) {
+						master_name = master->name;
+						break;
+					}
 				}
 				WARN(true, "L3 custom error: MASTER:%s TARGET:%s\n",
 					master_name, target_name);
@@ -154,20 +159,34 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 	return IRQ_HANDLED;
 }
 
+static const struct of_device_id l3_noc_match[] = {
+	{.compatible = "ti,omap4-l3-noc", .data = &omap_l3_data},
+	{},
+};
+MODULE_DEVICE_TABLE(of, l3_noc_match);
+
 static int omap_l3_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id;
 	static struct omap_l3 *l3;
 	int ret, i;
+
+	of_id = of_match_device(l3_noc_match, &pdev->dev);
+	if (!of_id) {
+		dev_err(&pdev->dev, "OF data missing\n");
+		return -EINVAL;
+	}
 
 	l3 = devm_kzalloc(&pdev->dev, sizeof(*l3), GFP_KERNEL);
 	if (!l3)
 		return -ENOMEM;
 
+	memcpy(l3, of_id->data, sizeof(*l3));
 	l3->dev = &pdev->dev;
 	platform_set_drvdata(pdev, l3);
 
 	/* Get mem resources */
-	for (i = 0; i < L3_MODULES; i++) {
+	for (i = 0; i < l3->num_modules; i++) {
 		struct resource	*res = platform_get_resource(pdev,
 							     IORESOURCE_MEM, i);
 
@@ -199,22 +218,12 @@ static int omap_l3_probe(struct platform_device *pdev)
 	return ret;
 }
 
-#if defined(CONFIG_OF)
-static const struct of_device_id l3_noc_match[] = {
-	{.compatible = "ti,omap4-l3-noc", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, l3_noc_match);
-#else
-#define l3_noc_match NULL
-#endif
-
 static struct platform_driver omap_l3_driver = {
 	.probe		= omap_l3_probe,
 	.driver		= {
 		.name		= "omap_l3_noc",
 		.owner		= THIS_MODULE,
-		.of_match_table = l3_noc_match,
+		.of_match_table = of_match_ptr(l3_noc_match),
 	},
 };
 
