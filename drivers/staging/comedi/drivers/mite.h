@@ -122,11 +122,6 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 int mite_buf_change(struct mite_dma_descriptor_ring *ring,
 		    struct comedi_async *async);
 
-#ifdef DEBUG_MITE
-void mite_print_chsr(unsigned int chsr);
-void mite_dump_regs(struct mite_channel *mite_chan);
-#endif
-
 static inline int CHAN_OFFSET(int channel)
 {
 	return 0x500 + 0x100 * channel;

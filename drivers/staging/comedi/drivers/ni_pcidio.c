@@ -413,11 +413,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	spin_lock(&devpriv->mite_channel_lock);
 	if (devpriv->di_mite_chan)
 		m_status = mite_get_status(devpriv->di_mite_chan);
-#ifdef MITE_DEBUG
-	mite_print_chsr(m_status);
-#endif
 
-	/* mite_dump_regs(mite); */
 	if (m_status & CHSR_INT) {
 		if (m_status & CHSR_LINKC) {
 			writel(CHOR_CLRLC,

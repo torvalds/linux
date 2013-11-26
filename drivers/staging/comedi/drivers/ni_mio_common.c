@@ -1063,7 +1063,6 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 		printk
 		    ("unknown mite interrupt, ack! (ai_mite_status=%08x)\n",
 		     ai_mite_status);
-		/* mite_print_chsr(ai_mite_status); */
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		/* disable_irq(dev->irq); */
 	}
@@ -1196,7 +1195,6 @@ static void handle_b_interrupt(struct comedi_device *dev,
 		printk
 		    ("unknown mite interrupt, ack! (ao_mite_status=%08x)\n",
 		     ao_mite_status);
-		/* mite_print_chsr(ao_mite_status); */
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 	}
 #endif
@@ -2652,7 +2650,6 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		if (retval)
 			return retval;
 	}
-	/* mite_dump_regs(devpriv->mite); */
 #endif
 
 	switch (cmd->start_src) {
