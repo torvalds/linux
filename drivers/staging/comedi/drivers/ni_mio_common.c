@@ -53,7 +53,6 @@
 */
 
 /* #define DEBUG_INTERRUPT */
-/* #define DEBUG_STATUS_A */
 
 #include <linux/interrupt.h>
 #include <linux/sched.h>
@@ -260,12 +259,6 @@ static int ni_rtsi_insn_config(struct comedi_device *dev,
 
 static void caldac_setup(struct comedi_device *dev, struct comedi_subdevice *s);
 static int ni_read_eeprom(struct comedi_device *dev, int addr);
-
-#ifdef DEBUG_STATUS_A
-static void ni_mio_print_status_a(int status);
-#else
-#define ni_mio_print_status_a(a)
-#endif
 
 static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s);
 #ifndef PCIDMA
@@ -1040,7 +1033,6 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 	printk
 	    ("ni_mio_common: interrupt: a_status=%04x ai_mite_status=%08x\n",
 	     status, ai_mite_status);
-	ni_mio_print_status_a(status);
 #endif
 #ifdef PCIDMA
 	if (ai_mite_status & CHSR_LINKC) {
@@ -1077,7 +1069,6 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 			      AI_SC_TC_Error_St)) {
 			printk("ni_mio_common: ai error a_status=%04x\n",
 			       status);
-			ni_mio_print_status_a(status);
 
 			shutdown_ai_command(dev);
 
@@ -1217,28 +1208,6 @@ static void handle_b_interrupt(struct comedi_device *dev,
 
 	ni_event(dev, s);
 }
-
-#ifdef DEBUG_STATUS_A
-static const char *const status_a_strings[] = {
-	"passthru0", "fifo", "G0_gate", "G0_TC",
-	"stop", "start", "sc_tc", "start1",
-	"start2", "sc_tc_error", "overflow", "overrun",
-	"fifo_empty", "fifo_half_full", "fifo_full", "interrupt_a"
-};
-
-static void ni_mio_print_status_a(int status)
-{
-	int i;
-
-	printk("A status:");
-	for (i = 15; i >= 0; i--) {
-		if (status & (1 << i)) {
-			printk(" %s", status_a_strings[i]);
-		}
-	}
-	printk("\n");
-}
-#endif
 
 #ifndef PCIDMA
 
