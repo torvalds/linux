@@ -42,7 +42,6 @@ Configuration options:
 */
 
 #include <linux/module.h>
-#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 static const struct comedi_lrange range_dt2811_pgh_ai_5_unipolar = {
@@ -227,33 +226,6 @@ static const struct comedi_lrange *dac_range_types[] = {
 
 #define DT2811_TIMEOUT 5
 
-#if 0
-static irqreturn_t dt2811_interrupt(int irq, void *d)
-{
-	int lo, hi;
-	int data;
-	struct comedi_device *dev = d;
-	struct dt2811_private *devpriv = dev->private;
-
-	if (!dev->attached) {
-		comedi_error(dev, "spurious interrupt");
-		return IRQ_HANDLED;
-	}
-
-	lo = inb(dev->iobase + DT2811_ADDATLO);
-	hi = inb(dev->iobase + DT2811_ADDATHI);
-
-	data = lo + (hi << 8);
-
-	if (!(--devpriv->ntrig)) {
-		/* how to turn off acquisition */
-		s->async->events |= COMEDI_SB_EOA;
-	}
-	comedi_event(dev, s);
-	return IRQ_HANDLED;
-}
-#endif
-
 static int dt2811_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
@@ -357,10 +329,7 @@ static int dt2811_do_insn_bits(struct comedi_device *dev,
 */
 static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	/* int i, irq; */
-	/* unsigned long irqs; */
-	/* long flags; */
-
+	/* int i; */
 	const struct dt2811_board *board = comedi_board(dev);
 	struct dt2811_private *devpriv;
 	int ret;
@@ -375,45 +344,6 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	udelay(100);
 	i = inb(dev->iobase + DT2811_ADDATLO);
 	i = inb(dev->iobase + DT2811_ADDATHI);
-#endif
-
-#if 0
-	irq = it->options[1];
-	if (irq < 0) {
-		save_flags(flags);
-		sti();
-		irqs = probe_irq_on();
-
-		outb(DT2811_CLRERROR | DT2811_INTENB,
-		     dev->iobase + DT2811_ADCSR);
-		outb(0, dev->iobase + DT2811_ADGCR);
-
-		udelay(100);
-
-		irq = probe_irq_off(irqs);
-		restore_flags(flags);
-
-		/*outb(DT2811_CLRERROR|DT2811_INTENB,
-			dev->iobase+DT2811_ADCSR);*/
-
-		if (inb(dev->iobase + DT2811_ADCSR) & DT2811_ADERROR)
-			printk(KERN_ERR "error probing irq (bad)\n");
-		dev->irq = 0;
-		if (irq > 0) {
-			i = inb(dev->iobase + DT2811_ADDATLO);
-			i = inb(dev->iobase + DT2811_ADDATHI);
-			printk(KERN_INFO "(irq = %d)\n", irq);
-			ret = request_irq(irq, dt2811_interrupt, 0,
-					  dev->board_name, dev);
-			if (ret < 0)
-				return -EIO;
-			dev->irq = irq;
-		} else if (irq == 0) {
-			printk(KERN_INFO "(no irq)\n");
-		} else {
-			printk(KERN_ERR "( multiple irq's -- this is bad! )\n");
-		}
-	}
 #endif
 
 	ret = comedi_alloc_subdevices(dev, 4);
