@@ -1692,17 +1692,6 @@ static int hdmi_parse_codec(struct hda_codec *codec)
 		}
 	}
 
-#ifdef CONFIG_PM
-	/*
-	 * G45/IbexPeak don't support EPSS: the unsolicited pin hot plug event
-	 * can be lost and presence sense verb will become inaccurate if the
-	 * HDA link is powered off at hot plug or hw initialization time.
-	 */
-	if (!(snd_hda_param_read(codec, codec->afg, AC_PAR_POWER_STATE) &
-	      AC_PWRST_EPSS))
-		codec->bus->power_keep_link_on = 1;
-#endif
-
 	return 0;
 }
 

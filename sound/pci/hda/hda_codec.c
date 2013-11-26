@@ -1510,11 +1510,14 @@ int snd_hda_codec_new(struct hda_bus *bus,
 #ifdef CONFIG_PM
 	codec->d3_stop_clk = snd_hda_codec_get_supported_ps(codec, fg,
 					AC_PWRST_CLKSTOP);
-	if (!codec->d3_stop_clk)
-		bus->power_keep_link_on = 1;
 #endif
 	codec->epss = snd_hda_codec_get_supported_ps(codec, fg,
 					AC_PWRST_EPSS);
+#ifdef CONFIG_PM
+	if (!codec->d3_stop_clk || !codec->epss)
+		bus->power_keep_link_on = 1;
+#endif
+
 
 	/* power-up all before initialization */
 	hda_set_power_state(codec, AC_PWRST_D0);
