@@ -1117,11 +1117,11 @@ struct se_lun *core_dev_add_lun(
 	struct se_lun *lun;
 	int rc;
 
-	lun = core_tpg_pre_addlun(tpg, unpacked_lun);
+	lun = core_tpg_alloc_lun(tpg, unpacked_lun);
 	if (IS_ERR(lun))
 		return lun;
 
-	rc = core_tpg_post_addlun(tpg, lun,
+	rc = core_tpg_add_lun(tpg, lun,
 				TRANSPORT_LUNFLAGS_READ_WRITE, dev);
 	if (rc < 0)
 		return ERR_PTR(rc);

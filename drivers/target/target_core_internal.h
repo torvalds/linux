@@ -77,8 +77,8 @@ struct se_node_acl *__core_tpg_get_initiator_node_acl(struct se_portal_group *tp
 		const char *);
 void	core_tpg_add_node_to_devs(struct se_node_acl *, struct se_portal_group *);
 void	core_tpg_wait_for_nacl_pr_ref(struct se_node_acl *);
-struct se_lun *core_tpg_pre_addlun(struct se_portal_group *, u32);
-int	core_tpg_post_addlun(struct se_portal_group *, struct se_lun *,
+struct se_lun *core_tpg_alloc_lun(struct se_portal_group *, u32);
+int	core_tpg_add_lun(struct se_portal_group *, struct se_lun *,
 		u32, void *);
 struct se_lun *core_tpg_pre_dellun(struct se_portal_group *, u32 unpacked_lun);
 int	core_tpg_post_dellun(struct se_portal_group *, struct se_lun *);
