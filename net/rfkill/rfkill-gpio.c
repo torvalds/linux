@@ -25,15 +25,15 @@
 #include <linux/clk.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
-#include <linux/acpi_gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include <linux/rfkill-gpio.h>
 
 struct rfkill_gpio_data {
 	const char		*name;
 	enum rfkill_type	type;
-	int			reset_gpio;
-	int			shutdown_gpio;
+	struct gpio_desc	*reset_gpio;
+	struct gpio_desc	*shutdown_gpio;
 
 	struct rfkill		*rfkill_dev;
 	char			*reset_name;
@@ -48,19 +48,15 @@ static int rfkill_gpio_set_power(void *data, bool blocked)
 	struct rfkill_gpio_data *rfkill = data;
 
 	if (blocked) {
-		if (gpio_is_valid(rfkill->shutdown_gpio))
-			gpio_set_value(rfkill->shutdown_gpio, 0);
-		if (gpio_is_valid(rfkill->reset_gpio))
-			gpio_set_value(rfkill->reset_gpio, 0);
+		gpiod_set_value(rfkill->shutdown_gpio, 0);
+		gpiod_set_value(rfkill->reset_gpio, 0);
 		if (!IS_ERR(rfkill->clk) && rfkill->clk_enabled)
 			clk_disable(rfkill->clk);
 	} else {
 		if (!IS_ERR(rfkill->clk) && !rfkill->clk_enabled)
 			clk_enable(rfkill->clk);
-		if (gpio_is_valid(rfkill->reset_gpio))
-			gpio_set_value(rfkill->reset_gpio, 1);
-		if (gpio_is_valid(rfkill->shutdown_gpio))
-			gpio_set_value(rfkill->shutdown_gpio, 1);
+		gpiod_set_value(rfkill->reset_gpio, 1);
+		gpiod_set_value(rfkill->shutdown_gpio, 1);
 	}
 
 	rfkill->clk_enabled = blocked;
@@ -83,8 +79,6 @@ static int rfkill_gpio_acpi_probe(struct device *dev,
 
 	rfkill->name = dev_name(dev);
 	rfkill->type = (unsigned)id->driver_data;
-	rfkill->reset_gpio = acpi_get_gpio_by_index(dev, 0, NULL);
-	rfkill->shutdown_gpio = acpi_get_gpio_by_index(dev, 1, NULL);
 
 	return 0;
 }
@@ -94,8 +88,9 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 	struct rfkill_gpio_platform_data *pdata = pdev->dev.platform_data;
 	struct rfkill_gpio_data *rfkill;
 	const char *clk_name = NULL;
-	int ret = 0;
-	int len = 0;
+	struct gpio_desc *gpio;
+	int ret;
+	int len;
 
 	rfkill = devm_kzalloc(&pdev->dev, sizeof(*rfkill), GFP_KERNEL);
 	if (!rfkill)
@@ -109,26 +104,8 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 		clk_name = pdata->power_clk_name;
 		rfkill->name = pdata->name;
 		rfkill->type = pdata->type;
-		rfkill->reset_gpio = pdata->reset_gpio;
-		rfkill->shutdown_gpio = pdata->shutdown_gpio;
 	} else {
 		return -ENODEV;
-	}
-
-	/* make sure at-least one of the GPIO is defined and that
-	 * a name is specified for this instance */
-	if ((!gpio_is_valid(rfkill->reset_gpio) &&
-	     !gpio_is_valid(rfkill->shutdown_gpio)) || !rfkill->name) {
-		pr_warn("%s: invalid platform data\n", __func__);
-		return -EINVAL;
-	}
-
-	if (pdata && pdata->gpio_runtime_setup) {
-		ret = pdata->gpio_runtime_setup(pdev);
-		if (ret) {
-			pr_warn("%s: can't set up gpio\n", __func__);
-			return ret;
-		}
 	}
 
 	len = strlen(rfkill->name);
@@ -145,20 +122,34 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 
 	rfkill->clk = devm_clk_get(&pdev->dev, clk_name);
 
-	if (gpio_is_valid(rfkill->reset_gpio)) {
-		ret = devm_gpio_request_one(&pdev->dev, rfkill->reset_gpio,
-					    0, rfkill->reset_name);
-		if (ret) {
-			pr_warn("%s: failed to get reset gpio.\n", __func__);
+	gpio = devm_gpiod_get_index(&pdev->dev, rfkill->reset_name, 0);
+	if (!IS_ERR(gpio)) {
+		ret = gpiod_direction_output(gpio, 0);
+		if (ret)
 			return ret;
-		}
+		rfkill->reset_gpio = gpio;
 	}
 
-	if (gpio_is_valid(rfkill->shutdown_gpio)) {
-		ret = devm_gpio_request_one(&pdev->dev, rfkill->shutdown_gpio,
-					    0, rfkill->shutdown_name);
+	gpio = devm_gpiod_get_index(&pdev->dev, rfkill->shutdown_name, 1);
+	if (!IS_ERR(gpio)) {
+		ret = gpiod_direction_output(gpio, 0);
+		if (ret)
+			return ret;
+		rfkill->shutdown_gpio = gpio;
+	}
+
+	/* Make sure at-least one of the GPIO is defined and that
+	 * a name is specified for this instance
+	 */
+	if ((!rfkill->reset_gpio && !rfkill->shutdown_gpio) || !rfkill->name) {
+		dev_err(&pdev->dev, "invalid platform data\n");
+		return -EINVAL;
+	}
+
+	if (pdata && pdata->gpio_runtime_setup) {
+		ret = pdata->gpio_runtime_setup(pdev);
 		if (ret) {
-			pr_warn("%s: failed to get shutdown gpio.\n", __func__);
+			dev_err(&pdev->dev, "can't set up gpio\n");
 			return ret;
 		}
 	}
