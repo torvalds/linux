@@ -1080,30 +1080,22 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 		bh = bh->b_this_page;
 	} while(bh != head);
 	spin_unlock(&sdp->sd_ail_lock);
-	gfs2_log_unlock(sdp);
 
 	head = bh = page_buffers(page);
 	do {
-		gfs2_log_lock(sdp);
 		bd = bh->b_private;
 		if (bd) {
 			gfs2_assert_warn(sdp, bd->bd_bh == bh);
-			if (!list_empty(&bd->bd_list)) {
-				if (!buffer_pinned(bh))
-					list_del_init(&bd->bd_list);
-				else
-					bd = NULL;
-			}
-			if (bd)
-				bd->bd_bh = NULL;
+			if (!list_empty(&bd->bd_list))
+				list_del_init(&bd->bd_list);
+			bd->bd_bh = NULL;
 			bh->b_private = NULL;
-		}
-		gfs2_log_unlock(sdp);
-		if (bd)
 			kmem_cache_free(gfs2_bufdata_cachep, bd);
+		}
 
 		bh = bh->b_this_page;
 	} while (bh != head);
+	gfs2_log_unlock(sdp);
 
 	return try_to_free_buffers(page);
 
