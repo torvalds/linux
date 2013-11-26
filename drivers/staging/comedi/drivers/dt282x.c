@@ -314,7 +314,7 @@ static void dt282x_ao_dma_interrupt(struct comedi_device *dev)
 	outw(devpriv->supcsr | DT2821_CLRDMADNE, dev->iobase + DT2821_SUPCSR);
 
 	if (!s->async->prealloc_buf) {
-		printk(KERN_ERR "async->data disappeared.  dang!\n");
+		dev_err(dev->class_dev, "no buffer in %s\n", __func__);
 		return;
 	}
 
@@ -327,7 +327,7 @@ static void dt282x_ao_dma_interrupt(struct comedi_device *dev)
 
 	size = cfc_read_array_from_buffer(s, ptr, devpriv->dma_maxsize);
 	if (size == 0) {
-		printk(KERN_ERR "dt282x: AO underrun\n");
+		dev_err(dev->class_dev, "AO underrun\n");
 		dt282x_ao_cancel(dev, s);
 		s->async->events |= COMEDI_CB_OVERFLOW;
 		return;
