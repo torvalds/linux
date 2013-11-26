@@ -723,12 +723,6 @@ static int dmm32at_attach(struct comedi_device *dev,
 	intstat = inb(dev->iobase + DMM32AT_INTCLOCK);
 	airback = inb(dev->iobase + DMM32AT_AIRBACK);
 
-	printk(KERN_DEBUG "dmm32at: lo=0x%02x hi=0x%02x fifostat=0x%02x\n",
-	       ailo, aihi, fifostat);
-	printk(KERN_DEBUG
-	       "dmm32at: aistat=0x%02x intstat=0x%02x airback=0x%02x\n",
-	       aistat, intstat, airback);
-
 	if ((ailo != 0x00) || (aihi != 0x1f) || (fifostat != 0x80) ||
 	    (aistat != 0x60 || (intstat != 0x00) || airback != 0x0c)) {
 		printk(KERN_ERR "dmmat32: board detection failed\n");
