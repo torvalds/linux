@@ -1466,7 +1466,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 	} else if (strncmp(cmd_buf, "read", 4) == 0) {
 		u32 address;
 		u32 value;
-		cnt = sscanf(&cmd_buf[4], "%x", &address);
+		cnt = sscanf(&cmd_buf[4], "%i", &address);
 		if (cnt != 1) {
 			dev_info(&pf->pdev->dev, "read <reg>\n");
 			goto command_write_done;
@@ -1485,7 +1485,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 
 	} else if (strncmp(cmd_buf, "write", 5) == 0) {
 		u32 address, value;
-		cnt = sscanf(&cmd_buf[5], "%x %x", &address, &value);
+		cnt = sscanf(&cmd_buf[5], "%i %i", &address, &value);
 		if (cnt != 2) {
 			dev_info(&pf->pdev->dev, "write <reg> <value>\n");
 			goto command_write_done;
@@ -1503,7 +1503,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			 address, value);
 	} else if (strncmp(cmd_buf, "clear_stats", 11) == 0) {
 		if (strncmp(&cmd_buf[12], "vsi", 3) == 0) {
-			cnt = sscanf(&cmd_buf[15], "%d", &vsi_seid);
+			cnt = sscanf(&cmd_buf[15], "%i", &vsi_seid);
 			if (cnt == 0) {
 				int i;
 				for (i = 0; i < pf->hw.func_caps.num_vsis; i++)
