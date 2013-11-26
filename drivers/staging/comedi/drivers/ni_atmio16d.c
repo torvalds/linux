@@ -495,18 +495,13 @@ static int atmio16d_ai_insn_read(struct comedi_device *dev,
 				break;
 			}
 			if (status & STAT_AD_OVERFLOW) {
-				printk(KERN_INFO "atmio16d: a/d FIFO overflow\n");
 				outw(0, dev->iobase + AD_CLEAR_REG);
-
 				return -ETIME;
 			}
 		}
 		/* end waiting, now check if it timed out */
-		if (t == ATMIO16D_TIMEOUT) {
-			printk(KERN_INFO "atmio16d: timeout\n");
-
+		if (t == ATMIO16D_TIMEOUT)
 			return -ETIME;
-		}
 	}
 
 	return i;
