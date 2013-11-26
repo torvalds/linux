@@ -748,7 +748,6 @@ static int i40e_reg_test(struct net_device *netdev, u64 *data)
 	netif_info(pf, hw, netdev, "register test\n");
 	*data = i40e_diag_reg_test(&pf->hw);
 
-	i40e_do_reset(pf, (1 << __I40E_PF_RESET_REQUESTED));
 	return *data;
 }
 
@@ -796,18 +795,16 @@ static void i40e_diag_test(struct net_device *netdev,
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_pf *pf = np->vsi->back;
 
-	set_bit(__I40E_TESTING, &pf->state);
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
 		/* Offline tests */
 		netif_info(pf, drv, netdev, "offline testing starting\n");
+
+		set_bit(__I40E_TESTING, &pf->state);
 
 		/* Link test performed before hardware reset
 		 * so autoneg doesn't interfere with test result
 		 */
 		if (i40e_link_test(netdev, &data[I40E_ETH_TEST_LINK]))
-			eth_test->flags |= ETH_TEST_FL_FAILED;
-
-		if (i40e_reg_test(netdev, &data[I40E_ETH_TEST_REG]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		if (i40e_eeprom_test(netdev, &data[I40E_ETH_TEST_EEPROM]))
@@ -819,6 +816,12 @@ static void i40e_diag_test(struct net_device *netdev,
 		if (i40e_loopback_test(netdev, &data[I40E_ETH_TEST_LOOPBACK]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
+		/* run reg test last, a reset is required after it */
+		if (i40e_reg_test(netdev, &data[I40E_ETH_TEST_REG]))
+			eth_test->flags |= ETH_TEST_FL_FAILED;
+
+		clear_bit(__I40E_TESTING, &pf->state);
+		i40e_do_reset(pf, (1 << __I40E_PF_RESET_REQUESTED));
 	} else {
 		/* Online tests */
 		netif_info(pf, drv, netdev, "online testing starting\n");
@@ -832,7 +835,6 @@ static void i40e_diag_test(struct net_device *netdev,
 		data[I40E_ETH_TEST_INTR] = 0;
 		data[I40E_ETH_TEST_LOOPBACK] = 0;
 	}
-	clear_bit(__I40E_TESTING, &pf->state);
 
 	netif_info(pf, drv, netdev, "testing finished\n");
 }
