@@ -24,14 +24,7 @@
 #include <linux/slab.h>
 #include "../comedidev.h"
 
-/*  #define DEBUG_MITE */
 #define PCIMIO_COMPAT
-
-#ifdef DEBUG_MITE
-#define MDPRINTK(format, args...)	pr_debug(format , ## args)
-#else
-#define MDPRINTK(format, args...)	do { } while (0)
-#endif
 
 #define MAX_MITE_DMA_CHANNELS 8
 

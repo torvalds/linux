@@ -63,10 +63,6 @@
 #include "mite.h"
 #include "comedi_fc.h"
 
-#ifndef MDPRINTK
-#define MDPRINTK(format, args...)
-#endif
-
 /* A timeout count */
 #define NI_TIMEOUT 1000
 static const unsigned old_RTSI_clock_channel = 7;
@@ -1214,12 +1210,9 @@ static void handle_b_interrupt(struct comedi_device *dev,
 		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
 
-	if (b_status & AO_BC_TC_St) {
-		MDPRINTK
-		    ("ni_mio_common: AO BC_TC status=0x%04x status2=0x%04x\n",
-		     b_status, devpriv->stc_readw(dev, AO_Status_2_Register));
+	if (b_status & AO_BC_TC_St)
 		s->async->events |= COMEDI_CB_EOA;
-	}
+
 #ifndef PCIDMA
 	if (b_status & AO_FIFO_Request_St) {
 		int ret;
@@ -2392,7 +2385,6 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned int stop_count;
 	int interrupt_a_enable = 0;
 
-	MDPRINTK("ni_ai_cmd\n");
 	if (dev->irq == 0) {
 		comedi_error(dev, "cannot run command without an irq");
 		return -EIO;
@@ -2630,15 +2622,11 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 		ni_set_bits(dev, Interrupt_A_Enable_Register,
 			    interrupt_a_enable, 1);
-
-		MDPRINTK("Interrupt_A_Enable_Register = 0x%04x\n",
-			 devpriv->int_a_enable_reg);
 	} else {
 		/* interrupt on nothing */
 		ni_set_bits(dev, Interrupt_A_Enable_Register, ~0, 0);
 
 		/* XXX start polling if necessary */
-		MDPRINTK("interrupting on nothing\n");
 	}
 
 	/* end configuration */
@@ -2681,8 +2669,6 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		s->async->inttrig = &ni_ai_inttrig;
 		break;
 	}
-
-	MDPRINTK("exit ni_ai_cmd\n");
 
 	return 0;
 }

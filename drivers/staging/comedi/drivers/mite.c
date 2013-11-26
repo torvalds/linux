@@ -288,7 +288,6 @@ void mite_dma_arm(struct mite_channel *mite_chan)
 	int chor;
 	unsigned long flags;
 
-	MDPRINTK("mite_dma_arm ch%i\n", mite_chan->channel);
 	/*
 	 * memory barrier is intended to insure any twiddling with the buffer
 	 * is done before writing to the mite to arm dma transfer
@@ -329,8 +328,6 @@ int mite_buf_change(struct mite_dma_descriptor_ring *ring,
 
 	n_links = async->prealloc_bufsz >> PAGE_SHIFT;
 
-	MDPRINTK("ring->hw_dev=%p, n_links=0x%04x\n", ring->hw_dev, n_links);
-
 	ring->descriptors =
 	    dma_alloc_coherent(ring->hw_dev,
 			       n_links * sizeof(struct mite_dma_descriptor),
@@ -367,8 +364,6 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 {
 	unsigned int chor, chcr, mcr, dcr, lkcr;
 	struct mite_struct *mite = mite_chan->mite;
-
-	MDPRINTK("mite_prep_dma ch%i\n", mite_chan->channel);
 
 	/* reset DMA and FIFO */
 	chor = CHOR_DMARESET | CHOR_FRESET;
@@ -448,8 +443,6 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 	/* starting address for link chaining */
 	writel(mite_chan->ring->descriptors_dma_addr,
 	       mite->mite_io_addr + MITE_LKAR(mite_chan->channel));
-
-	MDPRINTK("exit mite_prep_dma\n");
 }
 EXPORT_SYMBOL_GPL(mite_prep_dma);
 
@@ -515,8 +508,6 @@ unsigned mite_dma_tcr(struct mite_channel *mite_chan)
 
 	lkar = readl(mite->mite_io_addr + MITE_LKAR(mite_chan->channel));
 	tcr = readl(mite->mite_io_addr + MITE_TCR(mite_chan->channel));
-	MDPRINTK("mite_dma_tcr ch%i, lkar=0x%08x tcr=%d\n", mite_chan->channel,
-		 lkar, tcr);
 
 	return tcr;
 }
