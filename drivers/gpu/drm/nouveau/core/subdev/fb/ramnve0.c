@@ -134,17 +134,20 @@ struct nve0_ram {
  * GDDR5
  ******************************************************************************/
 static void
-train(struct nve0_ramfuc *fuc, u32 magic)
+nve0_ram_train(struct nve0_ramfuc *fuc, u32 magic)
 {
 	struct nve0_ram *ram = container_of(fuc, typeof(*ram), fuc);
 	struct nouveau_fb *pfb = nouveau_fb(ram);
-	const int mc = nv_rd32(pfb, 0x02243c);
-	int i;
+	u32 part = nv_rd32(pfb, 0x022438), i;
+	u32 mask = nv_rd32(pfb, 0x022554);
+	u32 addr = 0x110974;
 
 	ram_mask(fuc, 0x10f910, 0xbc0e0000, magic);
 	ram_mask(fuc, 0x10f914, 0xbc0e0000, magic);
-	for (i = 0; i < mc; i++) {
-		const u32 addr = 0x110974 + (i * 0x1000);
+
+	for (i = 0; (magic & 0x80000000) && i < part; addr += 0x1000, i++) {
+		if (mask & (1 << i))
+			continue;
 		ram_wait(fuc, addr, 0x0000000f, 0x00000000, 500000);
 	}
 }
@@ -518,7 +521,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 
 	if ((nv_ro08(bios, ramcfg + 0x08) & 0x10) && (ram->mode == 2) /*XXX*/) {
 		u32 temp = ram_mask(fuc, 0x10f294, 0xff000000, 0x24000000);
-		train(fuc, 0xa4010000); /*XXX*/
+		nve0_ram_train(fuc, 0xa4010000); /*XXX*/
 		ram_nsec(fuc, 1000);
 		ram_wr32(fuc, 0x10f294, temp);
 	}
@@ -572,7 +575,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	} else {
 		data = 0xa40e0000;
 	}
-	train(fuc, data);
+	nve0_ram_train(fuc, data);
 	ram_nsec(fuc, 1000);
 
 	if (ram->mode == 2) { /*XXX*/
