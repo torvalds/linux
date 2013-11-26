@@ -202,7 +202,7 @@ static inline kuid_t audit_get_loginuid(struct task_struct *tsk)
 	return tsk->loginuid;
 }
 
-static inline int audit_get_sessionid(struct task_struct *tsk)
+static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
 {
 	return tsk->sessionid;
 }
@@ -359,7 +359,7 @@ static inline kuid_t audit_get_loginuid(struct task_struct *tsk)
 {
 	return INVALID_UID;
 }
-static inline int audit_get_sessionid(struct task_struct *tsk)
+static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
 {
 	return -1;
 }
