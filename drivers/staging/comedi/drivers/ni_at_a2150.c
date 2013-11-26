@@ -74,9 +74,6 @@ TRIG_WAKE_EOS
 #define A2150_SIZE           28
 #define A2150_DMA_BUFFER_SIZE	0xff00	/*  size in bytes of dma buffer */
 
-/* #define A2150_DEBUG     enable debugging code */
-#undef A2150_DEBUG		/*  disable debugging code */
-
 /* Registers and bits */
 #define CONFIG_REG		0x0
 #define   CHANNEL_BITS(x)		((x) & 0x7)
@@ -167,19 +164,6 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 static int a2150_set_chanlist(struct comedi_device *dev,
 			      unsigned int start_channel,
 			      unsigned int num_channels);
-#ifdef A2150_DEBUG
-
-static void ni_dump_regs(struct comedi_device *dev)
-{
-	struct a2150_private *devpriv = dev->private;
-
-	printk("config bits 0x%x\n", devpriv->config_bits);
-	printk("irq dma bits 0x%x\n", devpriv->irq_dma_bits);
-	printk("status bits 0x%x\n", inw(dev->iobase + STATUS_REG));
-}
-
-#endif
-
 /* interrupt service routine */
 static irqreturn_t a2150_interrupt(int irq, void *d)
 {
@@ -506,9 +490,6 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/*  start acquisition for soft trigger */
 	if (cmd->start_src == TRIG_NOW)
 		outw(0, dev->iobase + FIFO_START_REG);
-#ifdef A2150_DEBUG
-	ni_dump_regs(dev);
-#endif
 
 	return 0;
 }
@@ -573,13 +554,7 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			comedi_error(dev, "timeout");
 			return -ETIME;
 		}
-#ifdef A2150_DEBUG
-		ni_dump_regs(dev);
-#endif
 		data[n] = inw(dev->iobase + FIFO_DATA_REG);
-#ifdef A2150_DEBUG
-		printk(" data is %i\n", data[n]);
-#endif
 		data[n] ^= 0x8000;
 	}
 
