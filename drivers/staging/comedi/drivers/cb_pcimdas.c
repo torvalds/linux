@@ -44,9 +44,6 @@ See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
 #include "plx9052.h"
 #include "8255.h"
 
-/* #define CBPCIMDAS_DEBUG */
-#undef CBPCIMDAS_DEBUG
-
 /* Registers for the PCIM-DAS1602/16 */
 
 /* sizes of io regions (bytes) */
