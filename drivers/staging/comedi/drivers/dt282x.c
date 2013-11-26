@@ -1118,9 +1118,9 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct dt282x_board *board = comedi_board(dev);
 	struct dt282x_private *devpriv;
-	int i, irq;
-	int ret;
 	struct comedi_subdevice *s;
+	int ret;
+	int i;
 
 	ret = comedi_request_region(dev, it->options[0], DT2821_SIZE);
 	if (ret)
@@ -1144,53 +1144,23 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	/* should do board test */
 
-	irq = it->options[opt_irq];
-#if 0
-	if (irq < 0) {
-		unsigned long flags;
-		int irqs;
-
-		save_flags(flags);
-		sti();
-		irqs = probe_irq_on();
-
-		/* trigger interrupt */
-
-		udelay(100);
-
-		irq = probe_irq_off(irqs);
-		restore_flags(flags);
-		if (0 /* error */)
-			printk(KERN_ERR " error probing irq (bad)");
-	}
-#endif
-	if (irq > 0) {
-		printk(KERN_INFO " ( irq = %d )", irq);
-		ret = request_irq(irq, dt282x_interrupt, 0,
+	if (it->options[opt_irq] > 0) {
+		ret = request_irq(it->options[opt_irq], dt282x_interrupt, 0,
 				  dev->board_name, dev);
-		if (ret < 0) {
-			printk(KERN_ERR " failed to get irq\n");
-			return -EIO;
-		}
-		dev->irq = irq;
-	} else if (irq == 0) {
-		printk(KERN_INFO " (no irq)");
-	} else {
-#if 0
-		printk(KERN_INFO " (probe returned multiple irqs--bad)");
-#else
-		printk(KERN_INFO " (irq probe not implemented)");
-#endif
+		if (ret == 0)
+			dev->irq = it->options[opt_irq];
 	}
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
 
-	ret = dt282x_grab_dma(dev, it->options[opt_dma1],
-			      it->options[opt_dma2]);
-	if (ret < 0)
-		return ret;
+	if (dev->irq) {
+		ret = dt282x_grab_dma(dev, it->options[opt_dma1],
+				      it->options[opt_dma2]);
+		if (ret < 0)
+			return ret;
+	}
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
@@ -1198,22 +1168,25 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	s = &dev->subdevices[0];
 
-	dev->read_subdev = s;
 	/* ai subdevice */
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_CMD_READ |
+	s->subdev_flags = SDF_READABLE |
 	    ((it->options[opt_diff]) ? SDF_DIFF : SDF_COMMON);
 	s->n_chan =
 	    (it->options[opt_diff]) ? board->adchan_di : board->adchan_se;
 	s->insn_read = dt282x_ai_insn_read;
-	s->do_cmdtest = dt282x_ai_cmdtest;
-	s->do_cmd = dt282x_ai_cmd;
-	s->cancel = dt282x_ai_cancel;
 	s->maxdata = (1 << board->adbits) - 1;
-	s->len_chanlist = 16;
 	s->range_table =
 	    opt_ai_range_lkup(board->ispgl, it->options[opt_ai_range]);
 	devpriv->ad_2scomp = it->options[opt_ai_twos];
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags |= SDF_CMD_READ;
+		s->len_chanlist = 16;
+		s->do_cmdtest = dt282x_ai_cmdtest;
+		s->do_cmd = dt282x_ai_cmd;
+		s->cancel = dt282x_ai_cancel;
+	}
 
 	s = &dev->subdevices[1];
 
@@ -1221,15 +1194,10 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (s->n_chan) {
 		/* ao subsystem */
 		s->type = COMEDI_SUBD_AO;
-		dev->write_subdev = s;
-		s->subdev_flags = SDF_WRITABLE | SDF_CMD_WRITE;
+		s->subdev_flags = SDF_WRITABLE;
 		s->insn_read = dt282x_ao_insn_read;
 		s->insn_write = dt282x_ao_insn_write;
-		s->do_cmdtest = dt282x_ao_cmdtest;
-		s->do_cmd = dt282x_ao_cmd;
-		s->cancel = dt282x_ao_cancel;
 		s->maxdata = (1 << board->dabits) - 1;
-		s->len_chanlist = 2;
 		s->range_table_list = devpriv->darangelist;
 		devpriv->darangelist[0] =
 		    opt_ao_range_lkup(it->options[opt_ao0_range]);
@@ -1237,6 +1205,14 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		    opt_ao_range_lkup(it->options[opt_ao1_range]);
 		devpriv->da0_2scomp = it->options[opt_ao0_twos];
 		devpriv->da1_2scomp = it->options[opt_ao1_twos];
+		if (dev->irq) {
+			dev->write_subdev = s;
+			s->subdev_flags |= SDF_CMD_WRITE;
+			s->len_chanlist = 2;
+			s->do_cmdtest = dt282x_ao_cmdtest;
+			s->do_cmd = dt282x_ao_cmd;
+			s->cancel = dt282x_ao_cancel;
+		}
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
