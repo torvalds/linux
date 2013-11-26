@@ -159,10 +159,6 @@ static int mpc624_ai_rinsn(struct comedi_device *dev,
 	 *  We always write 0 to GNSWA bit, so the channel range is +-/10.1Vdc
 	 */
 	outb(insn->chanspec, dev->iobase + MPC624_GNMUXCH);
-	if (!insn->n) {
-		printk(KERN_INFO "MPC624: Warning, no data to acquire\n");
-		return 0;
-	}
 
 	for (n = 0; n < insn->n; n++) {
 		/*  Trigger the conversion */
