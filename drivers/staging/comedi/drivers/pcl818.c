@@ -478,7 +478,6 @@ conv_finish:
 
 	s->async->cur_chan++;
 	if (s->async->cur_chan >= devpriv->ai_n_chan) {
-		/*  printk("E"); */
 		s->async->cur_chan = 0;
 		devpriv->ai_act_scan--;
 	}
@@ -562,7 +561,6 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 				pcl818_ai_cancel(dev, s);
 				s->async->events |= COMEDI_CB_EOA;
 				comedi_event(dev, s);
-				/*  printk("done int ai13 dma\n"); */
 				return IRQ_HANDLED;
 			}
 	}
@@ -661,7 +659,6 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 		comedi_error(dev, "premature interrupt");
 		return IRQ_HANDLED;
 	}
-	/* printk("I\n"); */
 
 	if (devpriv->irq_blocked && devpriv->irq_was_now_closed) {
 		if ((devpriv->neverending_ai || (!devpriv->neverending_ai &&
@@ -824,7 +821,6 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 	case 0:
 		if (!devpriv->usefifo) {
 			/* IRQ */
-			/* printk("IRQ\n"); */
 			if (mode == 1) {
 				devpriv->ai_mode = INT_TYPE_AI1_INT;
 				/* Pacer+IRQ */
@@ -899,10 +895,6 @@ static int check_channel_list(struct comedi_device *dev,
 		chansegment[0] = chanlist[0];
 		/*  build part of chanlist */
 		for (i = 1, seglen = 1; i < n_chan; i++, seglen++) {
-
-			/* printk("%d. %d * %d\n",i,
-			 * CR_CHAN(it->chanlist[i]),CR_RANGE(it->chanlist[i]));*/
-
 			/* we detect loop, this must by finish */
 
 			if (chanlist[0] == chanlist[i])
@@ -922,7 +914,6 @@ static int check_channel_list(struct comedi_device *dev,
 
 		/*  check whole chanlist */
 		for (i = 0, segpos = 0; i < n_chan; i++) {
-			/* printk("%d %d=%d %d\n",CR_CHAN(chansegment[i%seglen]),CR_RANGE(chansegment[i%seglen]),CR_CHAN(it->chanlist[i]),CR_RANGE(it->chanlist[i])); */
 			if (chanlist[i] != chansegment[i % seglen]) {
 				dev_dbg(dev->class_dev,
 					"bad channel or range number! chanlist[%i]=%d,%d,%d and not %d,%d,%d!\n",
@@ -1296,7 +1287,6 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->dmapages[0] = pages;
 		devpriv->hwdmaptr[0] = virt_to_bus((void *)devpriv->dmabuf[0]);
 		devpriv->hwdmasize[0] = (1 << pages) * PAGE_SIZE;
-		/* printk("%d %d %ld, ",devpriv->dmapages[0],devpriv->hwdmasize[0],PAGE_SIZE); */
 		devpriv->dmabuf[1] = __get_dma_pages(GFP_KERNEL, pages);
 		if (!devpriv->dmabuf[1])
 			return -EBUSY;
