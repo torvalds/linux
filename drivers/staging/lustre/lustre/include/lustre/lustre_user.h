@@ -1121,11 +1121,10 @@ static inline int hal_size(struct hsm_action_list *hal)
 
 	sz = sizeof(*hal) + cfs_size_round(strlen(hal->hal_fsname));
 	hai = hai_zero(hal);
-	for (i = 0 ; i < hal->hal_count ; i++) {
+	for (i = 0; i < hal->hal_count; i++, hai = hai_next(hai))
 		sz += cfs_size_round(hai->hai_len);
-		hai = hai_next(hai);
-	}
-	return(sz);
+
+	return sz;
 }
 
 /* Copytool progress reporting */

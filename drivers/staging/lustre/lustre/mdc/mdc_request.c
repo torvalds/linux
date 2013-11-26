@@ -1919,10 +1919,8 @@ static void lustre_swab_hal(struct hsm_action_list *h)
 	__swab32s(&h->hal_archive_id);
 	__swab64s(&h->hal_flags);
 	hai = hai_zero(h);
-	for (i = 0; i < h->hal_count; i++) {
+	for (i = 0; i < h->hal_count; i++, hai = hai_next(hai))
 		lustre_swab_hai(hai);
-		hai = hai_next(hai);
-	}
 }
 
 static void lustre_swab_kuch(struct kuc_hdr *l)
