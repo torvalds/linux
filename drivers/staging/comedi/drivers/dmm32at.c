@@ -670,9 +670,6 @@ static int dmm32at_attach(struct comedi_device *dev,
 	int ret;
 	struct comedi_subdevice *s;
 	unsigned char aihi, ailo, fifostat, aistat, intstat, airback;
-	unsigned int irq;
-
-	irq = it->options[1];
 
 	ret = comedi_request_region(dev, it->options[0], DMM32AT_MEMSIZE);
 	if (ret)
@@ -717,14 +714,11 @@ static int dmm32at_attach(struct comedi_device *dev,
 		return -EIO;
 	}
 
-	/* board is there, register interrupt */
-	if (irq) {
-		ret = request_irq(irq, dmm32at_isr, 0, dev->board_name, dev);
-		if (ret < 0) {
-			printk(KERN_ERR "dmm32at: irq conflict\n");
-			return ret;
-		}
-		dev->irq = irq;
+	if (it->options[1]) {
+		ret = request_irq(it->options[1], dmm32at_isr, 0,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = it->options[1];
 	}
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
@@ -736,20 +730,22 @@ static int dmm32at_attach(struct comedi_device *dev,
 		return ret;
 
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
 	/* we support single-ended (ground) and differential */
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
 	s->n_chan = 32;
 	s->maxdata = 0xffff;
 	s->range_table = &dmm32at_airanges;
-	s->len_chanlist = 32;	/* This is the maximum chanlist length that
-				   the board can handle */
 	s->insn_read = dmm32at_ai_rinsn;
-	s->do_cmd = dmm32at_ai_cmd;
-	s->do_cmdtest = dmm32at_ai_cmdtest;
-	s->cancel = dmm32at_ai_cancel;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags |= SDF_CMD_READ;
+		s->len_chanlist = 32;
+		s->do_cmd = dmm32at_ai_cmd;
+		s->do_cmdtest = dmm32at_ai_cmdtest;
+		s->cancel = dmm32at_ai_cancel;
+	}
 
 	s = &dev->subdevices[1];
 	/* analog output subdevice */
