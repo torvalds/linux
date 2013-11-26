@@ -476,9 +476,9 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 				 * TODO here: dispatch io lines to subdevs
 				 * with commands..
 				 */
-				printk
-				    (KERN_DEBUG "got edge detect interrupt %d asic %d which_chans: %06x\n",
-				     irq, asic, triggered);
+				dev_dbg(dev->class_dev,
+					"got edge detect interrupt %d asic %d which_chans: %06x\n",
+					irq, asic, triggered);
 				for (i = 2; i < dev->n_subdevices; i++) {
 					s = &dev->subdevices[i];
 					/*
