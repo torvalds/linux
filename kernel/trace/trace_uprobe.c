@@ -114,6 +114,58 @@ DEFINE_BASIC_FETCH_FUNCS(stack)
 #define fetch_stack_string	NULL
 #define fetch_stack_string_size	NULL
 
+#define DEFINE_FETCH_memory(type)					\
+static __kprobes void FETCH_FUNC_NAME(memory, type)(struct pt_regs *regs,\
+						void *addr, void *dest) \
+{									\
+	type retval;							\
+	void __user *vaddr = (void __force __user *) addr;		\
+									\
+	if (copy_from_user(&retval, vaddr, sizeof(type)))		\
+		*(type *)dest = 0;					\
+	else								\
+		*(type *) dest = retval;				\
+}
+DEFINE_BASIC_FETCH_FUNCS(memory)
+/*
+ * Fetch a null-terminated string. Caller MUST set *(u32 *)dest with max
+ * length and relative data location.
+ */
+static __kprobes void FETCH_FUNC_NAME(memory, string)(struct pt_regs *regs,
+						      void *addr, void *dest)
+{
+	long ret;
+	u32 rloc = *(u32 *)dest;
+	int maxlen  = get_rloc_len(rloc);
+	u8 *dst = get_rloc_data(dest);
+	void __user *src = (void __force __user *) addr;
+
+	if (!maxlen)
+		return;
+
+	ret = strncpy_from_user(dst, src, maxlen);
+
+	if (ret < 0) {	/* Failed to fetch string */
+		((u8 *)get_rloc_data(dest))[0] = '\0';
+		*(u32 *)dest = make_data_rloc(0, get_rloc_offs(rloc));
+	} else {
+		*(u32 *)dest = make_data_rloc(ret, get_rloc_offs(rloc));
+	}
+}
+
+static __kprobes void FETCH_FUNC_NAME(memory, string_size)(struct pt_regs *regs,
+						      void *addr, void *dest)
+{
+	int len;
+	void __user *vaddr = (void __force __user *) addr;
+
+	len = strnlen_user(vaddr, MAX_STRING_SIZE);
+
+	if (len == 0 || len > MAX_STRING_SIZE)  /* Failed to check length */
+		*(u32 *)dest = 0;
+	else
+		*(u32 *)dest = len;
+}
 
 /* uprobes do not support symbol fetch methods */
 #define fetch_symbol_u8			NULL
