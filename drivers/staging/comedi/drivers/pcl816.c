@@ -539,15 +539,6 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->ai_neverending = 1;
 	}
 
-	/*  don't we want wake up every scan? */
-	if ((cmd->flags & TRIG_WAKE_EOS)) {
-		printk(KERN_INFO
-		       "pl816: You wankt WAKE_EOS but I dont want handle it");
-		/*               devpriv->ai_eos=1; */
-		/* if (devpriv->ai_n_chan==1) */
-		/*       devpriv->dma=0; // DMA is useless for this situation */
-	}
-
 	if (devpriv->dma) {
 		bytes = devpriv->hwdmasize[0];
 		if (!devpriv->ai_neverending) {
