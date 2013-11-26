@@ -54,10 +54,6 @@ DEFINE_BASIC_PRINT_TYPE_FUNC(s16, "%d")
 DEFINE_BASIC_PRINT_TYPE_FUNC(s32, "%d")
 DEFINE_BASIC_PRINT_TYPE_FUNC(s64, "%Ld")
 
-/* For defining macros, define string/string_size types */
-typedef u32 string;
-typedef u32 string_size;
-
 /* Print type function for string type */
 __kprobes int PRINT_TYPE_FUNC_NAME(string)(struct trace_seq *s,
 						  const char *name,
@@ -74,7 +70,6 @@ __kprobes int PRINT_TYPE_FUNC_NAME(string)(struct trace_seq *s,
 
 const char PRINT_TYPE_FMT_NAME(string)[] = "\\\"%s\\\"";
 
-#define FETCH_FUNC_NAME(method, type)	fetch_##method##_##type
 /*
  * Define macro for basic types - we don't need to define s* types, because
  * we have to care only about bitwidth at recording time.
@@ -359,25 +354,8 @@ free_bitfield_fetch_param(struct bitfield_fetch_param *data)
 	kfree(data);
 }
 
-/* Fetch type information table */
-static const struct fetch_type fetch_type_table[] = {
-	/* Special types */
-	[FETCH_TYPE_STRING] = __ASSIGN_FETCH_TYPE("string", string, string,
-					sizeof(u32), 1, "__data_loc char[]"),
-	[FETCH_TYPE_STRSIZE] = __ASSIGN_FETCH_TYPE("string_size", u32,
-					string_size, sizeof(u32), 0, "u32"),
-	/* Basic types */
-	ASSIGN_FETCH_TYPE(u8,  u8,  0),
-	ASSIGN_FETCH_TYPE(u16, u16, 0),
-	ASSIGN_FETCH_TYPE(u32, u32, 0),
-	ASSIGN_FETCH_TYPE(u64, u64, 0),
-	ASSIGN_FETCH_TYPE(s8,  u8,  1),
-	ASSIGN_FETCH_TYPE(s16, u16, 1),
-	ASSIGN_FETCH_TYPE(s32, u32, 1),
-	ASSIGN_FETCH_TYPE(s64, u64, 1),
-};
-
-static const struct fetch_type *find_fetch_type(const char *type)
+static const struct fetch_type *find_fetch_type(const char *type,
+						const struct fetch_type *ftbl)
 {
 	int i;
 
@@ -398,21 +376,22 @@ static const struct fetch_type *find_fetch_type(const char *type)
 
 		switch (bs) {
 		case 8:
-			return find_fetch_type("u8");
+			return find_fetch_type("u8", ftbl);
 		case 16:
-			return find_fetch_type("u16");
+			return find_fetch_type("u16", ftbl);
 		case 32:
-			return find_fetch_type("u32");
+			return find_fetch_type("u32", ftbl);
 		case 64:
-			return find_fetch_type("u64");
+			return find_fetch_type("u64", ftbl);
 		default:
 			goto fail;
 		}
 	}
 
-	for (i = 0; i < ARRAY_SIZE(fetch_type_table); i++)
-		if (strcmp(type, fetch_type_table[i].name) == 0)
-			return &fetch_type_table[i];
+	for (i = 0; ftbl[i].name; i++) {
+		if (strcmp(type, ftbl[i].name) == 0)
+			return &ftbl[i];
+	}
 
 fail:
 	return NULL;
@@ -426,16 +405,17 @@ static __kprobes void fetch_stack_address(struct pt_regs *regs,
 }
 
 static fetch_func_t get_fetch_size_function(const struct fetch_type *type,
-					fetch_func_t orig_fn)
+					    fetch_func_t orig_fn,
+					    const struct fetch_type *ftbl)
 {
 	int i;
 
-	if (type != &fetch_type_table[FETCH_TYPE_STRING])
+	if (type != &ftbl[FETCH_TYPE_STRING])
 		return NULL;	/* Only string type needs size function */
 
 	for (i = 0; i < FETCH_MTD_END; i++)
 		if (type->fetch[i] == orig_fn)
-			return fetch_type_table[FETCH_TYPE_STRSIZE].fetch[i];
+			return ftbl[FETCH_TYPE_STRSIZE].fetch[i];
 
 	WARN_ON(1);	/* This should not happen */
 
@@ -504,12 +484,14 @@ static int parse_probe_vars(char *arg, const struct fetch_type *t,
 static int parse_probe_arg(char *arg, const struct fetch_type *t,
 		     struct fetch_param *f, bool is_return, bool is_kprobe)
 {
+	const struct fetch_type *ftbl;
 	unsigned long param;
 	long offset;
 	char *tmp;
-	int ret;
+	int ret = 0;
 
-	ret = 0;
+	ftbl = is_kprobe ? kprobes_fetch_type_table : uprobes_fetch_type_table;
+	BUG_ON(ftbl == NULL);
 
 	/* Until uprobe_events supports only reg arguments */
 	if (!is_kprobe && arg[0] != '%')
@@ -568,7 +550,7 @@ static int parse_probe_arg(char *arg, const struct fetch_type *t,
 			struct deref_fetch_param	*dprm;
 			const struct fetch_type		*t2;
 
-			t2 = find_fetch_type(NULL);
+			t2 = find_fetch_type(NULL, ftbl);
 			*tmp = '\0';
 			dprm = kzalloc(sizeof(struct deref_fetch_param), GFP_KERNEL);
 
@@ -637,8 +619,12 @@ static int __parse_bitfield_probe_arg(const char *bf,
 int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
 		struct probe_arg *parg, bool is_return, bool is_kprobe)
 {
+	const struct fetch_type *ftbl;
 	const char *t;
 	int ret;
+
+	ftbl = is_kprobe ? kprobes_fetch_type_table : uprobes_fetch_type_table;
+	BUG_ON(ftbl == NULL);
 
 	if (strlen(arg) > MAX_ARGSTR_LEN) {
 		pr_info("Argument is too long.: %s\n",  arg);
@@ -654,7 +640,7 @@ int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
 		arg[t - parg->comm] = '\0';
 		t++;
 	}
-	parg->type = find_fetch_type(t);
+	parg->type = find_fetch_type(t, ftbl);
 	if (!parg->type) {
 		pr_info("Unsupported type: %s\n", t);
 		return -EINVAL;
@@ -668,7 +654,8 @@ int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
 
 	if (ret >= 0) {
 		parg->fetch_size.fn = get_fetch_size_function(parg->type,
-							      parg->fetch.fn);
+							      parg->fetch.fn,
+							      ftbl);
 		parg->fetch_size.data = parg->fetch.data;
 	}
 

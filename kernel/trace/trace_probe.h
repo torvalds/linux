@@ -126,6 +126,10 @@ struct fetch_param {
 	void 			*data;
 };
 
+/* For defining macros, define string/string_size types */
+typedef u32 string;
+typedef u32 string_size;
+
 #define PRINT_TYPE_FUNC_NAME(type)	print_type_##type
 #define PRINT_TYPE_FMT_NAME(type)	print_type_format_##type
 
@@ -145,6 +149,47 @@ DECLARE_BASIC_PRINT_TYPE_FUNC(s16);
 DECLARE_BASIC_PRINT_TYPE_FUNC(s32);
 DECLARE_BASIC_PRINT_TYPE_FUNC(s64);
 DECLARE_BASIC_PRINT_TYPE_FUNC(string);
+
+#define FETCH_FUNC_NAME(method, type)	fetch_##method##_##type
+
+/* Declare macro for basic types */
+#define DECLARE_FETCH_FUNC(method, type)				\
+extern void FETCH_FUNC_NAME(method, type)(struct pt_regs *regs, 	\
+					  void *data, void *dest)
+
+#define DECLARE_BASIC_FETCH_FUNCS(method) 	\
+DECLARE_FETCH_FUNC(method, u8);			\
+DECLARE_FETCH_FUNC(method, u16);		\
+DECLARE_FETCH_FUNC(method, u32);		\
+DECLARE_FETCH_FUNC(method, u64)
+
+DECLARE_BASIC_FETCH_FUNCS(reg);
+#define fetch_reg_string			NULL
+#define fetch_reg_string_size			NULL
+
+DECLARE_BASIC_FETCH_FUNCS(stack);
+#define fetch_stack_string			NULL
+#define fetch_stack_string_size			NULL
+
+DECLARE_BASIC_FETCH_FUNCS(retval);
+#define fetch_retval_string			NULL
+#define fetch_retval_string_size		NULL
+
+DECLARE_BASIC_FETCH_FUNCS(memory);
+DECLARE_FETCH_FUNC(memory, string);
+DECLARE_FETCH_FUNC(memory, string_size);
+
+DECLARE_BASIC_FETCH_FUNCS(symbol);
+DECLARE_FETCH_FUNC(symbol, string);
+DECLARE_FETCH_FUNC(symbol, string_size);
+
+DECLARE_BASIC_FETCH_FUNCS(deref);
+DECLARE_FETCH_FUNC(deref, string);
+DECLARE_FETCH_FUNC(deref, string_size);
+
+DECLARE_BASIC_FETCH_FUNCS(bitfield);
+#define fetch_bitfield_string			NULL
+#define fetch_bitfield_string_size		NULL
 
 /* Default (unsigned long) fetch type */
 #define __DEFAULT_FETCH_TYPE(t) u##t
@@ -176,9 +221,17 @@ ASSIGN_FETCH_FUNC(bitfield, ftype),			\
 #define ASSIGN_FETCH_TYPE(ptype, ftype, sign)			\
 	__ASSIGN_FETCH_TYPE(#ptype, ptype, ftype, sizeof(ftype), sign, #ptype)
 
+#define ASSIGN_FETCH_TYPE_END {}
+
 #define FETCH_TYPE_STRING	0
 #define FETCH_TYPE_STRSIZE	1
 
+/*
+ * Fetch type information table.
+ * It's declared as a weak symbol due to conditional compilation.
+ */
+extern __weak const struct fetch_type kprobes_fetch_type_table[];
+extern __weak const struct fetch_type uprobes_fetch_type_table[];
 
 struct probe_arg {
 	struct fetch_param	fetch;
