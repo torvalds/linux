@@ -3798,10 +3798,6 @@ static int ni_serial_insn_config(struct comedi_device *dev,
 
 	switch (data[0]) {
 	case INSN_CONFIG_SERIAL_CLOCK:
-
-#ifdef DEBUG_DIO
-		printk("SPI serial clock Config cd\n", data[1]);
-#endif
 		devpriv->serial_hw_mode = 1;
 		devpriv->dio_control |= DIO_HW_Serial_Enable;
 
@@ -3890,10 +3886,6 @@ static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 	unsigned int status1;
 	int err = 0, count = 20;
 
-#ifdef DEBUG_DIO
-	printk("ni_serial_hw_readwrite8: outputting 0x%x\n", data_out);
-#endif
-
 	devpriv->dio_output &= ~DIO_Serial_Data_Mask;
 	devpriv->dio_output |= DIO_Serial_Data_Out(data_out);
 	devpriv->stc_writew(dev, devpriv->dio_output, DIO_Output_Register);
@@ -3927,12 +3919,8 @@ static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 	   DIO_Serial_IO_In_Progress_St goes high one bit too early. */
 	udelay((devpriv->serial_interval_ns + 999) / 1000);
 
-	if (data_in != NULL) {
+	if (data_in != NULL)
 		*data_in = devpriv->stc_readw(dev, DIO_Serial_Input_Register);
-#ifdef DEBUG_DIO
-		printk("ni_serial_hw_readwrite8: inputted 0x%x\n", *data_in);
-#endif
-	}
 
 Error:
 	devpriv->stc_writew(dev, devpriv->dio_control, DIO_Control_Register);
@@ -3947,10 +3935,6 @@ static int ni_serial_sw_readwrite8(struct comedi_device *dev,
 {
 	struct ni_private *devpriv = dev->private;
 	unsigned char mask, input = 0;
-
-#ifdef DEBUG_DIO
-	printk("ni_serial_sw_readwrite8: outputting 0x%x\n", data_out);
-#endif
 
 	/* Wait for one bit before transfer */
 	udelay((devpriv->serial_interval_ns + 999) / 1000);
@@ -3988,9 +3972,7 @@ static int ni_serial_sw_readwrite8(struct comedi_device *dev,
 			input |= mask;
 		}
 	}
-#ifdef DEBUG_DIO
-	printk("ni_serial_sw_readwrite8: inputted 0x%x\n", input);
-#endif
+
 	if (data_in)
 		*data_in = input;
 
