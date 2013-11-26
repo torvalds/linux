@@ -528,7 +528,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	ram_mask(fuc, mr[8], 0xfff, ram->base.mr[8]);
 	ram_nsec(fuc, 1000);
 	ram_mask(fuc, mr[1], 0xfff, ram->base.mr[1]);
-	ram_mask(fuc, mr[5], 0xfff, ram->base.mr[5]);
+	ram_mask(fuc, mr[5], 0xfff, ram->base.mr[5] & ~0x004); /* LP3 later */
 	ram_mask(fuc, mr[6], 0xfff, ram->base.mr[6]);
 	ram_mask(fuc, mr[7], 0xfff, ram->base.mr[7]);
 
@@ -582,7 +582,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	/* MR5: (re)enable LP3 if necessary
 	 * XXX: need to find the switch, keeping off for now
 	 */
-	ram_mask(fuc, mr[5], 0x00000004, 0x00000000);
+	ram_mask(fuc, mr[5], 0xfff, ram->base.mr[5]);
 
 	if (ram->mode != 2) {
 		ram_mask(fuc, 0x10f830, 0x01000000, 0x01000000);

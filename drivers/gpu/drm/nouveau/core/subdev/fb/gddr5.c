@@ -78,6 +78,9 @@ nouveau_gddr5_calc(struct nouveau_ram *ram)
 	ram->mr[3] &= ~0x020;
 	ram->mr[3] |= (rq & 0x01) << 5;
 
+	/*XXX: LP3, where's the bit?  Let's hardcode to off for now */
+	ram->mr[5] &= ~0x004;
+
 	if (!vo)
 		vo = (ram->mr[6] & 0xff0) >> 4;
 	if (ram->mr[6] & 0x001)
