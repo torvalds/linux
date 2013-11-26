@@ -186,6 +186,17 @@
 	pinctrl-0 = <&i2c3_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+
+	pcf8575: gpio@20 {
+		compatible = "nxp,pcf8575";
+		reg = <0x20>;
+		interrupt-parent = <&irqpin2>;
+		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
 };
 
 &mmcif {
