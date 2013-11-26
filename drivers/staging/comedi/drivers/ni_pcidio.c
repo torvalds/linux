@@ -410,9 +410,6 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 		       Interrupt_And_Window_Status);
 	flags = readb(devpriv->mite->daq_io_addr + Group_1_Flags);
 
-	DPRINTK("ni_pcidio_interrupt: status=0x%02x,flags=0x%02x\n",
-		status, flags);
-
 	spin_lock(&devpriv->mite_channel_lock);
 	if (devpriv->di_mite_chan)
 		m_status = mite_get_status(devpriv->di_mite_chan);
@@ -431,7 +428,8 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 		}
 		if (m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_DRDY |
 				 CHSR_DRQ1 | CHSR_MRDY)) {
-			DPRINTK("unknown mite interrupt, disabling IRQ\n");
+			dev_dbg(dev->class_dev,
+				"unknown mite interrupt, disabling IRQ\n");
 			async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 			disable_irq(dev->irq);
 		}
@@ -441,7 +439,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	while (status & DataLeft) {
 		work++;
 		if (work > 20) {
-			DPRINTK("too much work in interrupt\n");
+			dev_dbg(dev->class_dev, "too much work in interrupt\n");
 			writeb(0x00,
 			       devpriv->mite->daq_io_addr +
 			       Master_DMA_And_Interrupt_Control);
@@ -451,11 +449,11 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 		flags &= IntEn;
 
 		if (flags & TransferReady) {
-			/* DPRINTK("TransferReady\n"); */
 			while (flags & TransferReady) {
 				work++;
 				if (work > 100) {
-					DPRINTK("too much work in interrupt\n");
+					dev_dbg(dev->class_dev,
+						"too much work in interrupt\n");
 					writeb(0x00,
 					       devpriv->mite->daq_io_addr +
 					       Master_DMA_And_Interrupt_Control
@@ -469,19 +467,13 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 				data2 = (auxdata & 0xffff0000) >> 16;
 				comedi_buf_put(async, data1);
 				comedi_buf_put(async, data2);
-				/* DPRINTK("read:%d, %d\n",data1,data2); */
 				flags = readb(devpriv->mite->daq_io_addr +
 					      Group_1_Flags);
 			}
-			/* DPRINTK("buf_int_count: %d\n",
-				async->buf_int_count); */
-			/* DPRINTK("1) IntEn=%d,flags=%d,status=%d\n",
-				IntEn,flags,status); */
 			async->events |= COMEDI_CB_BLOCK;
 		}
 
 		if (flags & CountExpired) {
-			DPRINTK("CountExpired\n");
 			writeb(ClearExpired,
 			       devpriv->mite->daq_io_addr +
 			       Group_1_Second_Clear);
@@ -490,39 +482,26 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 			writeb(0x00, devpriv->mite->daq_io_addr + OpMode);
 			break;
 		} else if (flags & Waited) {
-			DPRINTK("Waited\n");
 			writeb(ClearWaited,
 			       devpriv->mite->daq_io_addr +
 			       Group_1_First_Clear);
 			async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 			break;
 		} else if (flags & PrimaryTC) {
-			DPRINTK("PrimaryTC\n");
 			writeb(ClearPrimaryTC,
 			       devpriv->mite->daq_io_addr +
 			       Group_1_First_Clear);
 			async->events |= COMEDI_CB_EOA;
 		} else if (flags & SecondaryTC) {
-			DPRINTK("SecondaryTC\n");
 			writeb(ClearSecondaryTC,
 			       devpriv->mite->daq_io_addr +
 			       Group_1_First_Clear);
 			async->events |= COMEDI_CB_EOA;
 		}
-#if 0
-		else {
-			DPRINTK("ni_pcidio: unknown interrupt\n");
-			async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-			writeb(0x00,
-			       devpriv->mite->daq_io_addr +
-			       Master_DMA_And_Interrupt_Control);
-		}
-#endif
+
 		flags = readb(devpriv->mite->daq_io_addr + Group_1_Flags);
 		status = readb(devpriv->mite->daq_io_addr +
 			       Interrupt_And_Window_Status);
-		/* DPRINTK("loop end: IntEn=0x%02x,flags=0x%02x,"
-			"status=0x%02x\n", IntEn, flags, status); */
 	}
 
 out:
@@ -784,7 +763,6 @@ static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		s->async->inttrig = ni_pcidio_inttrig;
 	}
 
-	DPRINTK("ni_pcidio: command started\n");
 	return 0;
 }
 
