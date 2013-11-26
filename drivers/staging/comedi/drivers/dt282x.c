@@ -1133,7 +1133,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	     != DT2821_SUPCSR_VAL) ||
 	    ((inw(dev->iobase + DT2821_TMRCTR) & DT2821_TMRCTR_MASK)
 	     != DT2821_TMRCTR_VAL)) {
-		printk(KERN_ERR " board not found");
+		dev_err(dev->class_dev, "board not found\n");
 		return -EIO;
 	}
 	/* should do board test */
