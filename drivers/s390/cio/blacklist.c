@@ -269,7 +269,7 @@ static int blacklist_parse_proc_parameters(char *buf)
 	else
 		return -EINVAL;
 
-	css_schedule_reprobe();
+	css_schedule_eval_all_unreg(0);
 
 	return rc;
 }
