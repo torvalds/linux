@@ -511,8 +511,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 	}
 #endif
 	comedi_event(dev, s);
-	/* printk("adcsr=0x%02x dacsr-0x%02x supcsr=0x%02x\n",
-		adcsr, dacsr, supcsr); */
+
 	return IRQ_RETVAL(handled);
 }
 
