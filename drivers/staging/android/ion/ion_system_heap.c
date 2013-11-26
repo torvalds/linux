@@ -148,9 +148,6 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 	if (align > PAGE_SIZE)
 		return -EINVAL;
 
-	if (ion_buffer_fault_user_mappings(buffer))
-		return -EINVAL;
-
 	INIT_LIST_HEAD(&pages);
 	while (size_remaining > 0) {
 		info = alloc_largest_available(sys_heap, buffer, size_remaining, max_order);
