@@ -479,13 +479,6 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 		handled = 1;
 	}
 	if (dacsr & DT2821_DAERR) {
-#if 0
-		static int warn = 5;
-		if (--warn <= 0) {
-			disable_irq(dev->irq);
-			printk(KERN_INFO "disabling irq\n");
-		}
-#endif
 		comedi_error(dev, "D/A error");
 		dt282x_ao_cancel(dev, s_ao);
 		s->async->events |= COMEDI_CB_ERROR;
