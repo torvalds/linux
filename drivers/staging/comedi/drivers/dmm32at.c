@@ -710,7 +710,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 
 	if ((ailo != 0x00) || (aihi != 0x1f) || (fifostat != 0x80) ||
 	    (aistat != 0x60 || (intstat != 0x00) || airback != 0x0c)) {
-		printk(KERN_ERR "dmmat32: board detection failed\n");
+		dev_err(dev->class_dev, "board detection failed\n");
 		return -EIO;
 	}
 
