@@ -55,13 +55,26 @@ struct dvb_frontend *rtl2832_attach(
 	const struct rtl2832_config *cfg,
 	struct i2c_adapter *i2c
 );
+
+extern struct i2c_adapter *rtl2832_get_i2c_adapter(
+	struct dvb_frontend *fe
+);
+
 #else
+
 static inline struct dvb_frontend *rtl2832_attach(
 	const struct rtl2832_config *config,
 	struct i2c_adapter *i2c
 )
 {
 	pr_warn("%s: driver disabled by Kconfig\n", __func__);
+	return NULL;
+}
+
+static inline struct i2c_adapter *rtl2832_get_i2c_adapter(
+	struct dvb_frontend *fe
+)
+{
 	return NULL;
 }
 #endif

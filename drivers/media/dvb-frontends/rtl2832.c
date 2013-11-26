@@ -891,8 +891,28 @@ static void rtl2832_release(struct dvb_frontend *fe)
 	struct rtl2832_priv *priv = fe->demodulator_priv;
 
 	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
+	i2c_del_mux_adapter(priv->i2c_adapter);
 	kfree(priv);
 }
+
+static int rtl2832_select(struct i2c_adapter *adap, void *mux_priv, u32 chan)
+{
+	struct rtl2832_priv *priv = mux_priv;
+	return rtl2832_i2c_gate_ctrl(&priv->fe, 1);
+}
+
+static int rtl2832_deselect(struct i2c_adapter *adap, void *mux_priv, u32 chan)
+{
+	struct rtl2832_priv *priv = mux_priv;
+	return rtl2832_i2c_gate_ctrl(&priv->fe, 0);
+}
+
+struct i2c_adapter *rtl2832_get_i2c_adapter(struct dvb_frontend *fe)
+{
+	struct rtl2832_priv *priv = fe->demodulator_priv;
+	return priv->i2c_adapter;
+}
+EXPORT_SYMBOL(rtl2832_get_i2c_adapter);
 
 struct dvb_frontend *rtl2832_attach(const struct rtl2832_config *cfg,
 	struct i2c_adapter *i2c)
@@ -916,6 +936,12 @@ struct dvb_frontend *rtl2832_attach(const struct rtl2832_config *cfg,
 	/* check if the demod is there */
 	ret = rtl2832_rd_reg(priv, 0x00, 0x0, &tmp);
 	if (ret)
+		goto err;
+
+	/* create muxed i2c adapter */
+	priv->i2c_adapter = i2c_add_mux_adapter(i2c, &i2c->dev, priv, 0, 0, 0,
+			rtl2832_select, rtl2832_deselect);
+	if (priv->i2c_adapter == NULL)
 		goto err;
 
 	/* create dvb_frontend */
