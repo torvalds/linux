@@ -162,8 +162,6 @@ static int adq12b_ai_rinsn(struct comedi_device *dev,
 		hi = inb(dev->iobase + ADQ12B_ADHIG);
 		lo = inb(dev->iobase + ADQ12B_ADLOW);
 
-		/* printk("debug: chan=%d range=%d status=%d hi=%d lo=%d\n",
-		       channel, range, status,  hi, lo); */
 		data[n] = (hi << 8) | lo;
 
 	}
