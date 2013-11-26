@@ -52,8 +52,6 @@
 		fully tested as yet. Terry Barnaby, BEAM Ltd.
 */
 
-/* #define DEBUG_INTERRUPT */
-
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
@@ -1029,11 +1027,6 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 	if (s->type == COMEDI_SUBD_UNUSED)
 		return;
 
-#ifdef DEBUG_INTERRUPT
-	printk
-	    ("ni_mio_common: interrupt: a_status=%04x ai_mite_status=%08x\n",
-	     status, ai_mite_status);
-#endif
 #ifdef PCIDMA
 	if (ai_mite_status & CHSR_LINKC) {
 		ni_sync_ai_dma(dev);
@@ -1081,9 +1074,6 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 			return;
 		}
 		if (status & AI_SC_TC_St) {
-#ifdef DEBUG_INTERRUPT
-			printk("ni_mio_common: SC_TC interrupt\n");
-#endif
 			if (!devpriv->ai_continuous) {
 				shutdown_ai_command(dev);
 			}
@@ -1110,15 +1100,6 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 	}
 
 	ni_event(dev, s);
-
-#ifdef DEBUG_INTERRUPT
-	status = devpriv->stc_readw(dev, AI_Status_1_Register);
-	if (status & Interrupt_A_St) {
-		printk
-		    ("handle_a_interrupt: didn't clear interrupt? status=0x%x\n",
-		     status);
-	}
-#endif
 }
 
 static void ack_b_interrupt(struct comedi_device *dev, unsigned short b_status)
@@ -1157,11 +1138,6 @@ static void handle_b_interrupt(struct comedi_device *dev,
 	struct ni_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[NI_AO_SUBDEV];
 	/* unsigned short ack=0; */
-
-#ifdef DEBUG_INTERRUPT
-	printk("ni_mio_common: interrupt: b_status=%04x m1_status=%08x\n",
-	       b_status, ao_mite_status);
-#endif
 
 #ifdef PCIDMA
 	/* Currently, mite.c requires us to handle LINKC */
