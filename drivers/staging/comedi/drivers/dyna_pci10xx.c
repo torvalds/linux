@@ -90,8 +90,7 @@ static int dyna_pci10xx_insn_read_ai(struct comedi_device *dev,
 				goto conv_finish;
 		}
 		data[n] = 0;
-		printk(KERN_DEBUG "comedi: dyna_pci10xx: "
-			"timeout reading analog input\n");
+		dev_dbg(dev->class_dev, "timeout reading analog input\n");
 		continue;
 conv_finish:
 		/* mask the first 4 bits - EOC bits */
