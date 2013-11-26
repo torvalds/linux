@@ -181,7 +181,6 @@ static void pcips2_remove(struct pci_dev *dev)
 	struct pcips2_data *ps2if = pci_get_drvdata(dev);
 
 	serio_unregister_port(ps2if->io);
-	pci_set_drvdata(dev, NULL);
 	kfree(ps2if);
 	pci_release_regions(dev);
 	pci_disable_device(dev);
