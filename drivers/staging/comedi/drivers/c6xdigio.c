@@ -338,26 +338,6 @@ static int c6xdigio_pwmo_insn_write(struct comedi_device *dev,
 	return i;
 }
 
-/* static int c6xdigio_ei_init_insn_read(struct comedi_device *dev, */
-/* struct comedi_subdevice *s, */
-/* struct comedi_insn *insn, */
-/* unsigned int *data) */
-/* { */
-/* printk("c6xdigio_ei_init_insn_read %x\n", insn->n); */
-/* return insn->n; */
-/* } */
-
-/* static int c6xdigio_ei_init_insn_write(struct comedi_device *dev, */
-/* struct comedi_subdevice *s, */
-/* struct comedi_insn *insn, */
-/* unsigned int *data) */
-/* { */
-/* int i; */
-/* int chan = CR_CHAN(insn->chanspec); */
-      /*  *//* C6X_encResetAll( dev->iobase ); */
-      /*  *//* return insn->n; */
-/* } */
-
 static int c6xdigio_ei_insn_read(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
@@ -431,17 +411,6 @@ static int c6xdigio_attach(struct comedi_device *dev,
 	s->insn_read = c6xdigio_ei_insn_read;
 	s->maxdata = 0xffffff;
 	s->range_table = &range_unknown;
-
-	/*	s = &dev->subdevices[2]; */
-	/* pwm output subdevice */
-	/*	s->type = COMEDI_SUBD_COUNTER;  // Not sure what to put here */
-	/*	s->subdev_flags = SDF_WRITEABLE; */
-	/*	s->n_chan = 1; */
-	/*	s->trig[0] = c6xdigio_ei_init; */
-	/*	s->insn_read = c6xdigio_ei_init_insn_read; */
-	/*	s->insn_write = c6xdigio_ei_init_insn_write; */
-	/*	s->maxdata = 0xFFFF;  // Really just a don't care */
-	/*	s->range_table = &range_unknown; // Not sure what to put here */
 
 	/*  I will call this init anyway but more than likely the DSP board */
 	/*  will not be connected when device driver is loaded. */
