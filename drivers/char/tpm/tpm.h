@@ -64,9 +64,6 @@ enum tpm_duration {
 struct tpm_chip;
 
 struct tpm_vendor_specific {
-	u8 req_complete_mask;
-	u8 req_complete_val;
-	bool (*req_canceled)(struct tpm_chip *chip, u8 status);
 	void __iomem *iobase;		/* ioremapped address */
 	unsigned long base;		/* TPM base address */
 
@@ -76,11 +73,6 @@ struct tpm_vendor_specific {
 	int region_size;
 	int have_region;
 
-	int (*recv) (struct tpm_chip *, u8 *, size_t);
-	int (*send) (struct tpm_chip *, u8 *, size_t);
-	void (*cancel) (struct tpm_chip *);
-	u8 (*status) (struct tpm_chip *);
-	void (*release) (struct device *);
 	struct miscdevice miscdev;
 	struct list_head list;
 	int locality;
@@ -104,6 +96,7 @@ struct tpm_vendor_specific {
 
 struct tpm_chip {
 	struct device *dev;	/* Device stuff */
+	const struct tpm_class_ops *ops;
 
 	int dev_num;		/* /dev/tpm# */
 	char devname[7];

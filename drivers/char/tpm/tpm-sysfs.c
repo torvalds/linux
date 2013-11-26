@@ -245,7 +245,7 @@ static ssize_t cancel_store(struct device *dev, struct device_attribute *attr,
 	if (chip == NULL)
 		return 0;
 
-	chip->vendor.cancel(chip);
+	chip->ops->cancel(chip);
 	return count;
 }
 static DEVICE_ATTR_WO(cancel);

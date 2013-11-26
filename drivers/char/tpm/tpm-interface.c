@@ -353,7 +353,7 @@ ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 
 	mutex_lock(&chip->tpm_mutex);
 
-	rc = chip->vendor.send(chip, (u8 *) buf, count);
+	rc = chip->ops->send(chip, (u8 *) buf, count);
 	if (rc < 0) {
 		dev_err(chip->dev,
 			"tpm_transmit: tpm_send: error %zd\n", rc);
@@ -365,12 +365,12 @@ ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 
 	stop = jiffies + tpm_calc_ordinal_duration(chip, ordinal);
 	do {
-		u8 status = chip->vendor.status(chip);
-		if ((status & chip->vendor.req_complete_mask) ==
-		    chip->vendor.req_complete_val)
+		u8 status = chip->ops->status(chip);
+		if ((status & chip->ops->req_complete_mask) ==
+		    chip->ops->req_complete_val)
 			goto out_recv;
 
-		if (chip->vendor.req_canceled(chip, status)) {
+		if (chip->ops->req_canceled(chip, status)) {
 			dev_err(chip->dev, "Operation Canceled\n");
 			rc = -ECANCELED;
 			goto out;
@@ -380,13 +380,13 @@ ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 		rmb();
 	} while (time_before(jiffies, stop));
 
-	chip->vendor.cancel(chip);
+	chip->ops->cancel(chip);
 	dev_err(chip->dev, "Operation Timed out\n");
 	rc = -ETIME;
 	goto out;
 
 out_recv:
-	rc = chip->vendor.recv(chip, (u8 *) buf, bufsiz);
+	rc = chip->ops->recv(chip, (u8 *) buf, bufsiz);
 	if (rc < 0)
 		dev_err(chip->dev,
 			"tpm_transmit: tpm_recv: error %zd\n", rc);
@@ -807,12 +807,12 @@ EXPORT_SYMBOL_GPL(tpm_send);
 static bool wait_for_tpm_stat_cond(struct tpm_chip *chip, u8 mask,
 					bool check_cancel, bool *canceled)
 {
-	u8 status = chip->vendor.status(chip);
+	u8 status = chip->ops->status(chip);
 
 	*canceled = false;
 	if ((status & mask) == mask)
 		return true;
-	if (check_cancel && chip->vendor.req_canceled(chip, status)) {
+	if (check_cancel && chip->ops->req_canceled(chip, status)) {
 		*canceled = true;
 		return true;
 	}
@@ -828,7 +828,7 @@ int wait_for_tpm_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
 	bool canceled = false;
 
 	/* check current status */
-	status = chip->vendor.status(chip);
+	status = chip->ops->status(chip);
 	if ((status & mask) == mask)
 		return 0;
 
@@ -855,7 +855,7 @@ again:
 	} else {
 		do {
 			msleep(TPM_TIMEOUT);
-			status = chip->vendor.status(chip);
+			status = chip->ops->status(chip);
 			if ((status & mask) == mask)
 				return 0;
 		} while (time_before(jiffies, stop));
@@ -1027,9 +1027,6 @@ void tpm_dev_vendor_release(struct tpm_chip *chip)
 	if (!chip)
 		return;
 
-	if (chip->vendor.release)
-		chip->vendor.release(chip->dev);
-
 	clear_bit(chip->dev_num, dev_mask);
 }
 EXPORT_SYMBOL_GPL(tpm_dev_vendor_release);
@@ -1073,14 +1070,7 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 	mutex_init(&chip->tpm_mutex);
 	INIT_LIST_HEAD(&chip->list);
 
-	chip->vendor.req_complete_mask = ops->req_complete_mask;
-	chip->vendor.req_complete_val = ops->req_complete_val;
-	chip->vendor.req_canceled = ops->req_canceled;
-	chip->vendor.recv = ops->recv;
-	chip->vendor.send = ops->send;
-	chip->vendor.cancel = ops->cancel;
-	chip->vendor.status = ops->status;
-
+	chip->ops = ops;
 	chip->dev_num = find_first_zero_bit(dev_mask, TPM_NUM_DEVICES);
 
 	if (chip->dev_num >= TPM_NUM_DEVICES) {

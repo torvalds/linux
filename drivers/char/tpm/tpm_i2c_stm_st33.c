@@ -564,7 +564,7 @@ static int tpm_stm_i2c_recv(struct tpm_chip *chip, unsigned char *buf,
 	}
 
 out:
-	chip->vendor.cancel(chip);
+	chip->ops->cancel(chip);
 	release_locality(chip);
 	return size;
 }
@@ -807,7 +807,7 @@ static int tpm_st33_i2c_pm_resume(struct device *dev)
 	if (power_mgt) {
 		gpio_set_value(pin_infos->io_lpcpd, 1);
 		ret = wait_for_serirq_timeout(chip,
-					  (chip->vendor.status(chip) &
+					  (chip->ops->status(chip) &
 					  TPM_STS_VALID) == TPM_STS_VALID,
 					  chip->vendor.timeout_b);
 	} else {
