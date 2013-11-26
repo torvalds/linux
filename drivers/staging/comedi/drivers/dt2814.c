@@ -235,9 +235,9 @@ static irqreturn_t dt2814_interrupt(int irq, void *d)
 static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct dt2814_private *devpriv;
-	int i, irq;
-	int ret;
 	struct comedi_subdevice *s;
+	int ret;
+	int i;
 
 	ret = comedi_request_region(dev, it->options[0], DT2814_SIZE);
 	if (ret)
@@ -252,17 +252,11 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	i = inb(dev->iobase + DT2814_DATA);
 	i = inb(dev->iobase + DT2814_DATA);
 
-	irq = it->options[1];
-	dev->irq = 0;
-	if (irq > 0) {
-		if (request_irq(irq, dt2814_interrupt, 0, "dt2814", dev)) {
-			printk(KERN_WARNING "(irq %d unavailable)\n", irq);
-		} else {
-			printk(KERN_INFO "( irq = %d )\n", irq);
-			dev->irq = irq;
-		}
-	} else if (irq == 0) {
-		printk(KERN_WARNING "(no irq)\n");
+	if (it->options[1]) {
+		ret = request_irq(it->options[1], dt2814_interrupt, 0,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = it->options[1];
 	}
 
 	ret = comedi_alloc_subdevices(dev, 1);
@@ -274,16 +268,19 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = 16;		/* XXX */
-	s->len_chanlist = 1;
 	s->insn_read = dt2814_ai_insn_read;
-	s->do_cmd = dt2814_ai_cmd;
-	s->do_cmdtest = dt2814_ai_cmdtest;
 	s->maxdata = 0xfff;
 	s->range_table = &range_unknown;	/* XXX */
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags |= SDF_CMD_READ;
+		s->len_chanlist = 1;
+		s->do_cmd = dt2814_ai_cmd;
+		s->do_cmdtest = dt2814_ai_cmdtest;
+	}
 
 	return 0;
 }
