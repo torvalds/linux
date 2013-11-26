@@ -773,13 +773,12 @@ static inline void inc_valid_inode_count(struct f2fs_sb_info *sbi)
 	spin_unlock(&sbi->stat_lock);
 }
 
-static inline int dec_valid_inode_count(struct f2fs_sb_info *sbi)
+static inline void dec_valid_inode_count(struct f2fs_sb_info *sbi)
 {
 	spin_lock(&sbi->stat_lock);
 	f2fs_bug_on(!sbi->total_valid_inode_count);
 	sbi->total_valid_inode_count--;
 	spin_unlock(&sbi->stat_lock);
-	return 0;
 }
 
 static inline unsigned int valid_inode_count(struct f2fs_sb_info *sbi)
