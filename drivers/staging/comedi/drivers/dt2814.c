@@ -246,7 +246,7 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	outb(0, dev->iobase + DT2814_CSR);
 	udelay(100);
 	if (inb(dev->iobase + DT2814_CSR) & DT2814_ERR) {
-		printk(KERN_ERR "reset error (fatal)\n");
+		dev_err(dev->class_dev, "reset error (fatal)\n");
 		return -EIO;
 	}
 	i = inb(dev->iobase + DT2814_DATA);
