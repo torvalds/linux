@@ -215,3 +215,10 @@
 &usbhsehci {
 	phys = <0 &hsusb2_phy>;
 };
+
+&vaux2 {
+	regulator-name = "usb_1v8";
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+	regulator-always-on;
+};
