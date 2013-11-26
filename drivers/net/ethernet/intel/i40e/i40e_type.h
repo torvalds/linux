@@ -49,6 +49,10 @@
 #define I40E_VF_DEVICE_ID		0x154C
 #define I40E_VF_HV_DEVICE_ID		0x1571
 
+#define i40e_is_40G_device(d)		((d) == I40E_QSFP_A_DEVICE_ID  || \
+					 (d) == I40E_QSFP_B_DEVICE_ID  || \
+					 (d) == I40E_QSFP_C_DEVICE_ID)
+
 #define I40E_FW_API_VERSION_MAJOR  0x0001
 #define I40E_FW_API_VERSION_MINOR  0x0000
 

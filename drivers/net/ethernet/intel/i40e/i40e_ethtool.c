@@ -193,32 +193,48 @@ static int i40e_get_settings(struct net_device *netdev,
 		ecmd->supported = SUPPORTED_10000baseKR_Full;
 		ecmd->advertising = ADVERTISED_10000baseKR_Full;
 		break;
-	case I40E_PHY_TYPE_10GBASE_T:
 	default:
-		ecmd->supported = SUPPORTED_10000baseT_Full;
-		ecmd->advertising = ADVERTISED_10000baseT_Full;
+		if (i40e_is_40G_device(hw->device_id)) {
+			ecmd->supported = SUPPORTED_40000baseSR4_Full;
+			ecmd->advertising = ADVERTISED_40000baseSR4_Full;
+		} else {
+			ecmd->supported = SUPPORTED_10000baseT_Full;
+			ecmd->advertising = ADVERTISED_10000baseT_Full;
+		}
 		break;
 	}
 
-	/* for now just say autoneg all the time */
 	ecmd->supported |= SUPPORTED_Autoneg;
+	ecmd->advertising |= ADVERTISED_Autoneg;
+	ecmd->autoneg = ((hw_link_info->an_info & I40E_AQ_AN_COMPLETED) ?
+			  AUTONEG_ENABLE : AUTONEG_DISABLE);
 
-	if (hw->phy.media_type == I40E_MEDIA_TYPE_BACKPLANE) {
+	switch (hw->phy.media_type) {
+	case I40E_MEDIA_TYPE_BACKPLANE:
 		ecmd->supported |= SUPPORTED_Backplane;
 		ecmd->advertising |= ADVERTISED_Backplane;
 		ecmd->port = PORT_NONE;
-	} else if (hw->phy.media_type == I40E_MEDIA_TYPE_BASET) {
+		break;
+	case I40E_MEDIA_TYPE_BASET:
 		ecmd->supported |= SUPPORTED_TP;
 		ecmd->advertising |= ADVERTISED_TP;
 		ecmd->port = PORT_TP;
-	} else if (hw->phy.media_type == I40E_MEDIA_TYPE_DA) {
+		break;
+	case I40E_MEDIA_TYPE_DA:
+	case I40E_MEDIA_TYPE_CX4:
 		ecmd->supported |= SUPPORTED_FIBRE;
 		ecmd->advertising |= ADVERTISED_FIBRE;
 		ecmd->port = PORT_DA;
-	} else {
+		break;
+	case I40E_MEDIA_TYPE_FIBER:
 		ecmd->supported |= SUPPORTED_FIBRE;
 		ecmd->advertising |= ADVERTISED_FIBRE;
 		ecmd->port = PORT_FIBRE;
+		break;
+	case I40E_MEDIA_TYPE_UNKNOWN:
+	default:
+		ecmd->port = PORT_OTHER;
+		break;
 	}
 
 	ecmd->transceiver = XCVR_EXTERNAL;
