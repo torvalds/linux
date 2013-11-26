@@ -823,6 +823,10 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	if (err)
 		return false;
 
+	/* channel switch is not supported, disconnect */
+	if (!(sdata->local->hw.wiphy->flags & WIPHY_FLAG_HAS_CHANNEL_SWITCH))
+		goto disconnect;
+
 	params.count = csa_ie.count;
 	params.chandef = csa_ie.chandef;
 
