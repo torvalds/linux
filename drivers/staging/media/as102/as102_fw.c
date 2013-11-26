@@ -109,8 +109,6 @@ static int as102_firmware_upload(struct as10x_bus_adapter_t *bus_adap,
 	int total_read_bytes = 0, errno = 0;
 	unsigned char addr_has_changed = 0;
 
-	ENTER();
-
 	for (total_read_bytes = 0; total_read_bytes < firmware->size; ) {
 		int read_bytes = 0, data_len = 0;
 
@@ -158,7 +156,6 @@ static int as102_firmware_upload(struct as10x_bus_adapter_t *bus_adap,
 		}
 	}
 error:
-	LEAVE();
 	return (errno == 0) ? total_read_bytes : errno;
 }
 
@@ -169,8 +166,6 @@ int as102_fw_upload(struct as10x_bus_adapter_t *bus_adap)
 	unsigned char *cmd_buf = NULL;
 	const char *fw1, *fw2;
 	struct usb_device *dev = bus_adap->usb_dev;
-
-	ENTER();
 
 	/* select fw file to upload */
 	if (dual_tuner) {
@@ -233,6 +228,5 @@ error:
 	kfree(cmd_buf);
 	release_firmware(firmware);
 
-	LEAVE();
 	return errno;
 }
