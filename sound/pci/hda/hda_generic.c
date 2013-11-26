@@ -2703,7 +2703,7 @@ static int hp_mic_jack_mode_put(struct snd_kcontrol *kcontrol,
 			val &= ~(AC_PINCTL_VREFEN | PIN_HP);
 			val |= get_vref_idx(vref_caps, idx) | PIN_IN;
 		} else
-			val = snd_hda_get_default_vref(codec, nid);
+			val = snd_hda_get_default_vref(codec, nid) | PIN_IN;
 	}
 	snd_hda_set_pin_ctl_cache(codec, nid, val);
 	call_hp_automute(codec, NULL);
