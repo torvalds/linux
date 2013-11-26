@@ -107,8 +107,9 @@ static int dt2815_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		status = dt2815_wait_for_status(dev, 0x00);
 		if (status != 0) {
-			printk(KERN_WARNING "dt2815: failed to write low byte "
-			       "on %d reason %x\n", chan, status);
+			dev_dbg(dev->class_dev,
+				"failed to write low byte on %d reason %x\n",
+				chan, status);
 			return -EBUSY;
 		}
 
@@ -116,8 +117,9 @@ static int dt2815_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		status = dt2815_wait_for_status(dev, 0x10);
 		if (status != 0x10) {
-			printk(KERN_WARNING "dt2815: failed to write high byte "
-			       "on %d reason %x\n", chan, status);
+			dev_dbg(dev->class_dev,
+				"failed to write high byte on %d reason %x\n",
+				chan, status);
 			return -EBUSY;
 		}
 		devpriv->ao_readback[chan] = data[i];
