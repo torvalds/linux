@@ -48,8 +48,6 @@ Configuration Options:
 /* IO space len */
 #define PCLx1x_RANGE 16
 
-/* #define outb(x,y)  printk("OUTB(%x, 200+%d)\n", x,y-0x200); outb(x,y) */
-
 /* INTEL 8254 counters */
 #define PCL816_CTR0 4
 #define PCL816_CTR1 5
