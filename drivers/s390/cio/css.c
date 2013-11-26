@@ -553,6 +553,9 @@ static int slow_eval_unknown_fn(struct subchannel_id schid, void *data)
 		default:
 			rc = 0;
 		}
+		/* Allow scheduling here since the containing loop might
+		 * take a while.  */
+		cond_resched();
 	}
 	return rc;
 }
