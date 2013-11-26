@@ -15,7 +15,9 @@
  */
 
 #include <linux/io.h>
+#include <linux/mfd/syscon.h>
 #include <linux/of_address.h>
+#include <linux/regmap.h>
 #include <linux/clk/zynq.h>
 #include "common.h"
 
@@ -30,6 +32,7 @@
 #define SLCR_A9_CPU_RST			0x1
 
 void __iomem *zynq_slcr_base;
+static struct regmap *zynq_slcr_regmap;
 
 /**
  * zynq_slcr_system_reset - Reset the entire system.
@@ -80,12 +83,31 @@ void zynq_slcr_cpu_stop(int cpu)
 }
 
 /**
- * zynq_slcr_init
- * Returns 0 on success, negative errno otherwise.
+ * zynq_slcr_init - Regular slcr driver init
+ *
+ * Return:	0 on success, negative errno otherwise.
  *
  * Called early during boot from platform code to remap SLCR area.
  */
 int __init zynq_slcr_init(void)
+{
+	zynq_slcr_regmap = syscon_regmap_lookup_by_compatible("xlnx,zynq-slcr");
+	if (IS_ERR(zynq_slcr_regmap)) {
+		pr_err("%s: failed to find zynq-slcr\n", __func__);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+/**
+ * zynq_early_slcr_init - Early slcr init function
+ *
+ * Return:	0 on success, negative errno otherwise.
+ *
+ * Called very early during boot from platform code to unlock SLCR.
+ */
+int __init zynq_early_slcr_init(void)
 {
 	struct device_node *np;
 

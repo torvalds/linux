@@ -123,7 +123,7 @@
 		} ;
 
 		slcr: slcr@f8000000 {
-			compatible = "xlnx,zynq-slcr";
+			compatible = "xlnx,zynq-slcr", "syscon";
 			reg = <0xF8000000 0x1000>;
 
 			clocks {
