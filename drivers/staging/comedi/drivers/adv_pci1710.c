@@ -740,16 +740,15 @@ static void interrupt_pci1710_every_sample(void *d)
 
 	m = inw(dev->iobase + PCI171x_STATUS);
 	if (m & Status_FE) {
-		printk("comedi%d: A/D FIFO empty (%4x)\n", dev->minor, m);
+		dev_dbg(dev->class_dev, "A/D FIFO empty (%4x)\n", m);
 		pci171x_ai_cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return;
 	}
 	if (m & Status_FF) {
-		printk
-		    ("comedi%d: A/D FIFO Full status (Fatal Error!) (%4x)\n",
-		     dev->minor, m);
+		dev_dbg(dev->class_dev,
+			"A/D FIFO Full status (Fatal Error!) (%4x)\n", m);
 		pci171x_ai_cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
@@ -825,12 +824,12 @@ static int move_block_from_fifo(struct comedi_device *dev,
 		sampl = inw(dev->iobase + PCI171x_AD_DATA);
 		if (this_board->cardtype != TYPE_PCI1713)
 			if ((sampl & 0xf000) != devpriv->act_chanlist[j]) {
-				printk
-				    ("comedi%d: A/D  FIFO data dropout: received data from channel %d, expected %d! (%d/%d/%d/%d/%d/%4x)\n",
-				     dev->minor, (sampl & 0xf000) >> 12,
-				     (devpriv->act_chanlist[j] & 0xf000) >> 12,
-				     i, j, devpriv->ai_act_scan, n, turn,
-				     sampl);
+				dev_dbg(dev->class_dev,
+					"A/D FIFO data dropout: received data from channel %d, expected %d! (%d/%d/%d/%d/%d/%4x)\n",
+					(sampl & 0xf000) >> 12,
+					(devpriv->act_chanlist[j] & 0xf000) >> 12,
+					i, j, devpriv->ai_act_scan, n, turn,
+					sampl);
 				pci171x_ai_cancel(dev, s);
 				s->async->events |=
 				    COMEDI_CB_EOA | COMEDI_CB_ERROR;
@@ -865,17 +864,15 @@ static void interrupt_pci1710_half_fifo(void *d)
 
 	m = inw(dev->iobase + PCI171x_STATUS);
 	if (!(m & Status_FH)) {
-		printk("comedi%d: A/D FIFO not half full! (%4x)\n",
-		       dev->minor, m);
+		dev_dbg(dev->class_dev, "A/D FIFO not half full! (%4x)\n", m);
 		pci171x_ai_cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return;
 	}
 	if (m & Status_FF) {
-		printk
-		    ("comedi%d: A/D FIFO Full status (Fatal Error!) (%4x)\n",
-		     dev->minor, m);
+		dev_dbg(dev->class_dev,
+			"A/D FIFO Full status (Fatal Error!) (%4x)\n", m);
 		pci171x_ai_cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
