@@ -1151,8 +1151,8 @@ static void wacom_bpt3_touch_msg(struct wacom_wac *wacom, unsigned char *data)
 		int width, height;
 
 		if (features->type >= INTUOSPS && features->type <= INTUOSPL) {
-			width  = data[5];
-			height = data[6];
+			width  = data[5] * 100;
+			height = data[6] * 100;
 		} else {
 			/*
 			 * "a" is a scaled-down area which we assume is
