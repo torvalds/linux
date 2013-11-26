@@ -1060,10 +1060,8 @@ static int dt282x_grab_dma(struct comedi_device *dev, int dma1, int dma2)
 
 	devpriv->usedma = 0;
 
-	if (!dma1 && !dma2) {
-		printk(KERN_ERR " (no dma)");
+	if (!dma1 && !dma2)
 		return 0;
-	}
 
 	if (dma1 == dma2 || dma1 < 5 || dma2 < 5 || dma1 > 7 || dma2 > 7)
 		return -EINVAL;
@@ -1088,12 +1086,8 @@ static int dt282x_grab_dma(struct comedi_device *dev, int dma1, int dma2)
 	devpriv->dma_maxsize = PAGE_SIZE;
 	devpriv->dma[0].buf = (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
 	devpriv->dma[1].buf = (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
-	if (!devpriv->dma[0].buf || !devpriv->dma[1].buf) {
-		printk(KERN_ERR " can't get DMA memory");
+	if (!devpriv->dma[0].buf || !devpriv->dma[1].buf)
 		return -ENOMEM;
-	}
-
-	printk(KERN_INFO " (dma=%d,%d)", dma1, dma2);
 
 	devpriv->usedma = 1;
 
