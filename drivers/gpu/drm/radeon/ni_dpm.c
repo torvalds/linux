@@ -785,8 +785,8 @@ static void ni_apply_state_adjust_rules(struct radeon_device *rdev,
 	struct ni_ps *ps = ni_get_ps(rps);
 	struct radeon_clock_and_voltage_limits *max_limits;
 	bool disable_mclk_switching;
-	u32 mclk, sclk;
-	u16 vddc, vddci;
+	u32 mclk;
+	u16 vddci;
 	u32 max_sclk_vddc, max_mclk_vddci, max_mclk_vddc;
 	int i;
 
@@ -839,23 +839,13 @@ static void ni_apply_state_adjust_rules(struct radeon_device *rdev,
 
 	/* XXX validate the min clocks required for display */
 
+	/* adjust low state */
 	if (disable_mclk_switching) {
-		mclk  = ps->performance_levels[ps->performance_level_count - 1].mclk;
-		sclk = ps->performance_levels[0].sclk;
-		vddc = ps->performance_levels[0].vddc;
-		vddci = ps->performance_levels[ps->performance_level_count - 1].vddci;
-	} else {
-		sclk = ps->performance_levels[0].sclk;
-		mclk = ps->performance_levels[0].mclk;
-		vddc = ps->performance_levels[0].vddc;
-		vddci = ps->performance_levels[0].vddci;
+		ps->performance_levels[0].mclk =
+			ps->performance_levels[ps->performance_level_count - 1].mclk;
+		ps->performance_levels[0].vddci =
+			ps->performance_levels[ps->performance_level_count - 1].vddci;
 	}
-
-	/* adjusted low state */
-	ps->performance_levels[0].sclk = sclk;
-	ps->performance_levels[0].mclk = mclk;
-	ps->performance_levels[0].vddc = vddc;
-	ps->performance_levels[0].vddci = vddci;
 
 	btc_skip_blacklist_clocks(rdev, max_limits->sclk, max_limits->mclk,
 				  &ps->performance_levels[0].sclk,
@@ -868,11 +858,15 @@ static void ni_apply_state_adjust_rules(struct radeon_device *rdev,
 			ps->performance_levels[i].vddc = ps->performance_levels[i - 1].vddc;
 	}
 
+	/* adjust remaining states */
 	if (disable_mclk_switching) {
 		mclk = ps->performance_levels[0].mclk;
+		vddci = ps->performance_levels[0].vddci;
 		for (i = 1; i < ps->performance_level_count; i++) {
 			if (mclk < ps->performance_levels[i].mclk)
 				mclk = ps->performance_levels[i].mclk;
+			if (vddci < ps->performance_levels[i].vddci)
+				vddci = ps->performance_levels[i].vddci;
 		}
 		for (i = 0; i < ps->performance_level_count; i++) {
 			ps->performance_levels[i].mclk = mclk;
