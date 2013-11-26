@@ -69,7 +69,8 @@ static int call_fn_known_sch(struct device *dev, void *data)
 	struct cb_data *cb = data;
 	int rc = 0;
 
-	idset_sch_del(cb->set, sch->schid);
+	if (cb->set)
+		idset_sch_del(cb->set, sch->schid);
 	if (cb->fn_known_sch)
 		rc = cb->fn_known_sch(sch, cb->data);
 	return rc;
@@ -114,6 +115,13 @@ int for_each_subchannel_staged(int (*fn_known)(struct subchannel *, void *),
 	cb.data = data;
 	cb.fn_known_sch = fn_known;
 	cb.fn_unknown_sch = fn_unknown;
+
+	if (fn_known && !fn_unknown) {
+		/* Skip idset allocation in case of known-only loop. */
+		cb.set = NULL;
+		return bus_for_each_dev(&css_bus_type, NULL, &cb,
+					call_fn_known_sch);
+	}
 
 	cb.set = idset_sch_new();
 	if (!cb.set)
