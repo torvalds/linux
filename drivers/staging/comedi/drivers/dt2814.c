@@ -80,7 +80,6 @@ static int dt2814_ai_insn_read(struct comedi_device *dev,
 		outb(chan, dev->iobase + DT2814_CSR);
 		for (i = 0; i < DT2814_TIMEOUT; i++) {
 			status = inb(dev->iobase + DT2814_CSR);
-			printk(KERN_INFO "dt2814: status: %02x\n", status);
 			udelay(10);
 			if (status & DT2814_FINISH)
 				break;
