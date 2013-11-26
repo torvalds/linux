@@ -318,10 +318,6 @@ static int cs5529_do_conversion(struct comedi_device *dev,
 static int cs5529_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data);
-#ifdef NI_CS5529_DEBUG
-static unsigned int cs5529_config_read(struct comedi_device *dev,
-				       unsigned int reg_select_bits);
-#endif
 static void cs5529_config_write(struct comedi_device *dev, unsigned int value,
 				unsigned int reg_select_bits);
 
@@ -5856,25 +5852,6 @@ static void cs5529_config_write(struct comedi_device *dev, unsigned int value,
 		comedi_error(dev, "time or signal in cs5529_config_write()");
 }
 
-#ifdef NI_CS5529_DEBUG
-/* read from cs5529 register */
-static unsigned int cs5529_config_read(struct comedi_device *dev,
-				       unsigned int reg_select_bits)
-{
-	unsigned int value;
-
-	reg_select_bits &= CSCMD_REGISTER_SELECT_MASK;
-	cs5529_command(dev, CSCMD_COMMAND | CSCMD_READ | reg_select_bits);
-	if (cs5529_wait_for_idle(dev))
-		comedi_error(dev, "timeout or signal in cs5529_config_read()");
-	value = (ni_ao_win_inw(dev,
-			       CAL_ADC_Config_Data_High_Word_67xx) << 16) &
-	    0xff0000;
-	value |= ni_ao_win_inw(dev, CAL_ADC_Config_Data_Low_Word_67xx) & 0xffff;
-	return value;
-}
-#endif
-
 static int cs5529_do_conversion(struct comedi_device *dev, unsigned short *data)
 {
 	int retval;
@@ -5950,13 +5927,6 @@ static int init_cs5529(struct comedi_device *dev)
 			    CSCMD_CONFIG_REGISTER);
 	if (cs5529_wait_for_idle(dev))
 		comedi_error(dev, "timeout or signal in init_cs5529()\n");
-#endif
-#ifdef NI_CS5529_DEBUG
-	printk("config: 0x%x\n", cs5529_config_read(dev,
-						    CSCMD_CONFIG_REGISTER));
-	printk("gain: 0x%x\n", cs5529_config_read(dev, CSCMD_GAIN_REGISTER));
-	printk("offset: 0x%x\n", cs5529_config_read(dev,
-						    CSCMD_OFFSET_REGISTER));
 #endif
 	return 0;
 }
