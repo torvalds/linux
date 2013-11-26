@@ -191,7 +191,7 @@ static int as102_read_ep2(struct as10x_bus_adapter_t *bus_adap,
 	return ret ? ret : actual_len;
 }
 
-struct as102_priv_ops_t as102_priv_ops = {
+static struct as102_priv_ops_t as102_priv_ops = {
 	.upload_fw_pkt	= as102_send_ep1,
 	.xfer_cmd	= as102_usb_xfer_cmd,
 	.as102_read_ep2	= as102_read_ep2,

@@ -26,10 +26,10 @@
 #include "as102_drv.h"
 #include "as102_fw.h"
 
-char as102_st_fw1[] = "as102_data1_st.hex";
-char as102_st_fw2[] = "as102_data2_st.hex";
-char as102_dt_fw1[] = "as102_data1_dt.hex";
-char as102_dt_fw2[] = "as102_data2_dt.hex";
+static const char as102_st_fw1[] = "as102_data1_st.hex";
+static const char as102_st_fw2[] = "as102_data2_st.hex";
+static const char as102_dt_fw1[] = "as102_data1_dt.hex";
+static const char as102_dt_fw2[] = "as102_data2_dt.hex";
 
 static unsigned char atohx(unsigned char *dst, char *src)
 {
@@ -167,7 +167,7 @@ int as102_fw_upload(struct as10x_bus_adapter_t *bus_adap)
 	int errno = -EFAULT;
 	const struct firmware *firmware = NULL;
 	unsigned char *cmd_buf = NULL;
-	char *fw1, *fw2;
+	const char *fw1, *fw2;
 	struct usb_device *dev = bus_adap->usb_dev;
 
 	ENTER();
