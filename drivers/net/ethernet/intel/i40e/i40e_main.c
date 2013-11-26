@@ -574,10 +574,11 @@ static void i40e_update_veb_stats(struct i40e_veb *veb)
 	i40e_stat_update32(hw, I40E_GLSW_TDPC(idx),
 			   veb->stat_offsets_loaded,
 			   &oes->tx_discards, &es->tx_discards);
-	i40e_stat_update32(hw, I40E_GLSW_RUPP(idx),
-			   veb->stat_offsets_loaded,
-			   &oes->rx_unknown_protocol, &es->rx_unknown_protocol);
-
+	if (hw->revision_id > 0)
+		i40e_stat_update32(hw, I40E_GLSW_RUPP(idx),
+				   veb->stat_offsets_loaded,
+				   &oes->rx_unknown_protocol,
+				   &es->rx_unknown_protocol);
 	i40e_stat_update48(hw, I40E_GLSW_GORCH(idx), I40E_GLSW_GORCL(idx),
 			   veb->stat_offsets_loaded,
 			   &oes->rx_bytes, &es->rx_bytes);
@@ -2240,7 +2241,10 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	rx_ctx.tphwdesc_ena = 1;
 	rx_ctx.tphdata_ena = 1;
 	rx_ctx.tphhead_ena = 1;
-	rx_ctx.lrxqthresh = 2;
+	if (hw->revision_id == 0)
+		rx_ctx.lrxqthresh = 0;
+	else
+		rx_ctx.lrxqthresh = 2;
 	rx_ctx.crcstrip = 1;
 	rx_ctx.l2tsel = 1;
 	rx_ctx.showiv = 1;
@@ -3020,6 +3024,9 @@ static int i40e_vsi_control_tx(struct i40e_vsi *vsi, bool enable)
 			return -ETIMEDOUT;
 		}
 	}
+
+	if (hw->revision_id == 0)
+		mdelay(50);
 
 	return 0;
 }
@@ -4612,6 +4619,13 @@ static int i40e_get_capabilities(struct i40e_pf *pf)
 		}
 	} while (err);
 
+	if (pf->hw.revision_id == 0 && pf->hw.func_caps.npar_enable) {
+		pf->hw.func_caps.num_msix_vectors += 1;
+		pf->hw.func_caps.num_tx_qp =
+			min_t(int, pf->hw.func_caps.num_tx_qp,
+			      I40E_MAX_NPAR_QPS);
+	}
+
 	if (pf->hw.debug_mask & I40E_DEBUG_USER)
 		dev_info(&pf->pdev->dev,
 			 "pf=%d, num_vfs=%d, msix_pf=%d, msix_vf=%d, fd_g=%d, fd_b=%d, pf_max_q=%d num_vsi=%d\n",
@@ -4622,6 +4636,15 @@ static int i40e_get_capabilities(struct i40e_pf *pf)
 			 pf->hw.func_caps.fd_filters_best_effort,
 			 pf->hw.func_caps.num_tx_qp,
 			 pf->hw.func_caps.num_vsis);
+
+#define DEF_NUM_VSI (1 + (pf->hw.func_caps.fcoe ? 1 : 0) \
+		       + pf->hw.func_caps.num_vfs)
+	if (pf->hw.revision_id == 0 && (DEF_NUM_VSI > pf->hw.func_caps.num_vsis)) {
+		dev_info(&pf->pdev->dev,
+			 "got num_vsis %d, setting num_vsis to %d\n",
+			 pf->hw.func_caps.num_vsis, DEF_NUM_VSI);
+		pf->hw.func_caps.num_vsis = DEF_NUM_VSI;
+	}
 
 	return 0;
 }
@@ -5618,7 +5641,12 @@ static int i40e_sw_init(struct i40e_pf *pf)
 		    I40E_FLAG_MQ_ENABLED      |
 		    I40E_FLAG_RX_1BUF_ENABLED;
 
+	/* Depending on PF configurations, it is possible that the RSS
+	 * maximum might end up larger than the available queues
+	 */
 	pf->rss_size_max = 0x1 << pf->hw.func_caps.rss_table_entry_width;
+	pf->rss_size_max = min_t(int, pf->rss_size_max,
+				 pf->hw.func_caps.num_tx_qp);
 	if (pf->hw.func_caps.rss) {
 		pf->flags |= I40E_FLAG_RSS_ENABLED;
 		pf->rss_size = min_t(int, pf->rss_size_max,
@@ -7141,6 +7169,17 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->subsystem_device_id = pdev->subsystem_device;
 	hw->bus.device = PCI_SLOT(pdev->devfn);
 	hw->bus.func = PCI_FUNC(pdev->devfn);
+
+	/* do a special CORER for clearing PXE mode once at init */
+	if (hw->revision_id == 0 &&
+	    (rd32(hw, I40E_GLLAN_RCTL_0) & I40E_GLLAN_RCTL_0_PXE_MODE_MASK)) {
+		wr32(hw, I40E_GLGEN_RTRIG, I40E_GLGEN_RTRIG_CORER_MASK);
+		i40e_flush(hw);
+		msleep(200);
+		pf->corer_count++;
+
+		i40e_clear_pxe_mode(hw);
+	}
 
 	/* Reset here to make sure all is clean and to define PF 'n' */
 	err = i40e_pf_reset(hw);

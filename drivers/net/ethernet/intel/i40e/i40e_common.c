@@ -312,6 +312,8 @@ static enum i40e_media_type i40e_get_media_type(struct i40e_hw *hw)
 	return media;
 }
 
+#define I40E_PF_RESET_WAIT_COUNT_A0	200
+#define I40E_PF_RESET_WAIT_COUNT	10
 /**
  * i40e_pf_reset - Reset the PF
  * @hw: pointer to the hardware structure
@@ -321,7 +323,7 @@ static enum i40e_media_type i40e_get_media_type(struct i40e_hw *hw)
  **/
 i40e_status i40e_pf_reset(struct i40e_hw *hw)
 {
-	u32 wait_cnt = 0;
+	u32 cnt = 0;
 	u32 reg = 0;
 	u32 grst_del;
 
@@ -331,7 +333,7 @@ i40e_status i40e_pf_reset(struct i40e_hw *hw)
 	 */
 	grst_del = rd32(hw, I40E_GLGEN_RSTCTL) & I40E_GLGEN_RSTCTL_GRSTDEL_MASK
 			>> I40E_GLGEN_RSTCTL_GRSTDEL_SHIFT;
-	for (wait_cnt = 0; wait_cnt < grst_del + 2; wait_cnt++) {
+	for (cnt = 0; cnt < grst_del + 2; cnt++) {
 		reg = rd32(hw, I40E_GLGEN_RSTAT);
 		if (!(reg & I40E_GLGEN_RSTAT_DEVSTATE_MASK))
 			break;
@@ -352,11 +354,15 @@ i40e_status i40e_pf_reset(struct i40e_hw *hw)
 	/* If there was a Global Reset in progress when we got here,
 	 * we don't need to do the PF Reset
 	 */
-	if (!wait_cnt) {
+	if (!cnt) {
+		if (hw->revision_id == 0)
+			cnt = I40E_PF_RESET_WAIT_COUNT_A0;
+		else
+			cnt = I40E_PF_RESET_WAIT_COUNT;
 		reg = rd32(hw, I40E_PFGEN_CTRL);
 		wr32(hw, I40E_PFGEN_CTRL,
 		     (reg | I40E_PFGEN_CTRL_PFSWR_MASK));
-		for (wait_cnt = 0; wait_cnt < 10; wait_cnt++) {
+		for (; cnt; cnt--) {
 			reg = rd32(hw, I40E_PFGEN_CTRL);
 			if (!(reg & I40E_PFGEN_CTRL_PFSWR_MASK))
 				break;
@@ -385,7 +391,13 @@ void i40e_clear_pxe_mode(struct i40e_hw *hw)
 
 	/* Clear single descriptor fetch/write-back mode */
 	reg = rd32(hw, I40E_GLLAN_RCTL_0);
-	wr32(hw, I40E_GLLAN_RCTL_0, (reg | I40E_GLLAN_RCTL_0_PXE_MODE_MASK));
+
+	if (hw->revision_id == 0) {
+		/* As a work around clear PXE_MODE instead of setting it */
+		wr32(hw, I40E_GLLAN_RCTL_0, (reg & (~I40E_GLLAN_RCTL_0_PXE_MODE_MASK)));
+	} else {
+		wr32(hw, I40E_GLLAN_RCTL_0, (reg | I40E_GLLAN_RCTL_0_PXE_MODE_MASK));
+	}
 }
 
 /**
