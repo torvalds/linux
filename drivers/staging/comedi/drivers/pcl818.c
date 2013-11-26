@@ -1257,8 +1257,6 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 					    (", unable to allocate IRQ %u, DISABLING IT",
 					     irq);
 					irq = 0;	/* Can't use IRQ */
-				} else {
-					printk(KERN_DEBUG "irq=%u", irq);
 				}
 			}
 		}
