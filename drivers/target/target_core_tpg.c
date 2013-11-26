@@ -656,15 +656,9 @@ static int core_tpg_setup_virtual_lun0(struct se_portal_group *se_tpg)
 	spin_lock_init(&lun->lun_sep_lock);
 	init_completion(&lun->lun_ref_comp);
 
-	ret = percpu_ref_init(&lun->lun_ref, core_tpg_lun_ref_release);
+	ret = core_tpg_post_addlun(se_tpg, lun, lun_access, dev);
 	if (ret < 0)
 		return ret;
-
-	ret = core_tpg_post_addlun(se_tpg, lun, lun_access, dev);
-	if (ret < 0) {
-		percpu_ref_cancel_init(&lun->lun_ref);
-		return ret;
-	}
 
 	return 0;
 }
