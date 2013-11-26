@@ -357,13 +357,6 @@ static void init_asics(struct comedi_device *dev)
 				outb(0, baseaddr + reg);
 		}
 
-		/* DEBUG  set rising edge interrupts on port0 of both asics */
-		/*switch_page(dev, asic, PAGE_POL);
-		   outb(0xff, baseaddr + REG_POL0);
-		   switch_page(dev, asic, PAGE_ENAB);
-		   outb(0xff, baseaddr + REG_ENAB0); */
-		/* END DEBUG */
-
 		/* switch back to default page 0 */
 		switch_page(dev, asic, 0);
 	}
