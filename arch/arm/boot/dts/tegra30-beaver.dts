@@ -168,19 +168,6 @@
 				<&gpio TEGRA_GPIO(X, 2) GPIO_ACTIVE_HIGH>;
 		};
 
-		tps62361@60 {
-			compatible = "ti,tps62361";
-			reg = <0x60>;
-
-			regulator-name = "tps62361-vout";
-			regulator-min-microvolt = <500000>;
-			regulator-max-microvolt = <1500000>;
-			regulator-boot-on;
-			regulator-always-on;
-			ti,vsel0-state-high;
-			ti,vsel1-state-high;
-		};
-
 		pmic: tps65911@2d {
 			compatible = "ti,tps65911";
 			reg = <0x2d>;
@@ -284,6 +271,19 @@
 				};
 			};
 		};
+
+		tps62361@60 {
+			compatible = "ti,tps62361";
+			reg = <0x60>;
+
+			regulator-name = "tps62361-vout";
+			regulator-min-microvolt = <500000>;
+			regulator-max-microvolt = <1500000>;
+			regulator-boot-on;
+			regulator-always-on;
+			ti,vsel0-state-high;
+			ti,vsel1-state-high;
+		};
 	};
 
 	spi@7000da00 {
@@ -293,12 +293,6 @@
 			compatible = "winbond,w25q32";
 			reg = <1>;
 			spi-max-frequency = <20000000>;
-		};
-	};
-
-	ahub@70080000 {
-		i2s@70080400 {
-			status = "okay";
 		};
 	};
 
@@ -312,6 +306,12 @@
 		nvidia,core-pwr-off-time = <0>;
 		nvidia,core-power-req-active-high;
 		nvidia,sys-clock-req-active-high;
+	};
+
+	ahub@70080000 {
+		i2s@70080400 {
+			status = "okay";
+		};
 	};
 
 	sdhci@78000000 {
@@ -347,6 +347,19 @@
 			reg=<0>;
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		gpled1 {
+			label = "LED1"; /* CR5A1 (blue) */
+			gpios = <&gpio TEGRA_GPIO(L, 1) GPIO_ACTIVE_HIGH>;
+		};
+		gpled2 {
+			label = "LED2"; /* CR4A2 (green) */
+			gpios = <&gpio TEGRA_GPIO(L, 0) GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -450,19 +463,6 @@
 			enable-active-high;
 			gpio = <&gpio TEGRA_GPIO(L, 7) GPIO_ACTIVE_HIGH>;
 			vin-supply = <&sys_3v3_reg>;
-		};
-	};
-
-	gpio-leds {
-		compatible = "gpio-leds";
-
-		gpled1 {
-			label = "LED1"; /* CR5A1 (blue) */
-			gpios = <&gpio TEGRA_GPIO(L, 1) GPIO_ACTIVE_HIGH>;
-		};
-		gpled2 {
-			label = "LED2"; /* CR4A2 (green) */
-			gpios = <&gpio TEGRA_GPIO(L, 0) GPIO_ACTIVE_HIGH>;
 		};
 	};
 

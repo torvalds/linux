@@ -36,6 +36,18 @@
 		};
 	};
 
+	serial@70006000 {
+		status = "okay";
+	};
+
+	serial@70006300 {
+		status = "okay";
+	};
+
+	i2c_ddc: i2c@7000c400 {
+		status = "okay";
+	};
+
 	usb@c5000000 {
 		status = "okay";
 	};
@@ -49,18 +61,6 @@
 	};
 
 	usb-phy@c5008000 {
-		status = "okay";
-	};
-
-	serial@70006000 {
-		status = "okay";
-	};
-
-	serial@70006300 {
-		status = "okay";
-	};
-
-	i2c_ddc: i2c@7000c400 {
 		status = "okay";
 	};
 

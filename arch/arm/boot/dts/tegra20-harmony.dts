@@ -415,98 +415,6 @@
 		};
 	};
 
-	pmc@7000e400 {
-		nvidia,invert-interrupt;
-		nvidia,suspend-mode = <1>;
-		nvidia,cpu-pwr-good-time = <5000>;
-		nvidia,cpu-pwr-off-time = <5000>;
-		nvidia,core-pwr-good-time = <3845 3845>;
-		nvidia,core-pwr-off-time = <3875>;
-		nvidia,sys-clock-req-active-high;
-	};
-
-	pcie-controller@80003000 {
-		pex-clk-supply = <&pci_clk_reg>;
-		vdd-supply = <&pci_vdd_reg>;
-		status = "okay";
-
-		pci@1,0 {
-			status = "okay";
-		};
-
-		pci@2,0 {
-			status = "okay";
-		};
-	};
-
-	usb@c5000000 {
-		status = "okay";
-	};
-
-	usb-phy@c5000000 {
-		status = "okay";
-	};
-
-	usb@c5004000 {
-		status = "okay";
-		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 1)
-			GPIO_ACTIVE_LOW>;
-	};
-
-	usb-phy@c5004000 {
-		status = "okay";
-		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 1)
-			GPIO_ACTIVE_LOW>;
-	};
-
-	usb@c5008000 {
-		status = "okay";
-	};
-
-	usb-phy@c5008000 {
-		status = "okay";
-	};
-
-	sdhci@c8000200 {
-		status = "okay";
-		cd-gpios = <&gpio TEGRA_GPIO(I, 5) GPIO_ACTIVE_LOW>;
-		wp-gpios = <&gpio TEGRA_GPIO(H, 1) GPIO_ACTIVE_HIGH>;
-		power-gpios = <&gpio TEGRA_GPIO(T, 3) GPIO_ACTIVE_HIGH>;
-		bus-width = <4>;
-	};
-
-	sdhci@c8000600 {
-		status = "okay";
-		cd-gpios = <&gpio TEGRA_GPIO(H, 2) GPIO_ACTIVE_LOW>;
-		wp-gpios = <&gpio TEGRA_GPIO(H, 3) GPIO_ACTIVE_HIGH>;
-		power-gpios = <&gpio TEGRA_GPIO(I, 6) GPIO_ACTIVE_HIGH>;
-		bus-width = <8>;
-	};
-
-	clocks {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		clk32k_in: clock@0 {
-			compatible = "fixed-clock";
-			reg=<0>;
-			#clock-cells = <0>;
-			clock-frequency = <32768>;
-		};
-	};
-
-	gpio-keys {
-		compatible = "gpio-keys";
-
-		power {
-			label = "Power";
-			gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
-			linux,code = <116>; /* KEY_POWER */
-			gpio-key,wakeup;
-		};
-	};
-
 	kbc@7000e200 {
 		status = "okay";
 		nvidia,debounce-delay-ms = <2>;
@@ -622,6 +530,98 @@
 				0x1E010046	/* KEY_SCROLLLOCK */
 				0x1E020071	/* KEY_MUTE */
 				0x1F0400D6>;	/* KEY_QUESTION */
+	};
+
+	pmc@7000e400 {
+		nvidia,invert-interrupt;
+		nvidia,suspend-mode = <1>;
+		nvidia,cpu-pwr-good-time = <5000>;
+		nvidia,cpu-pwr-off-time = <5000>;
+		nvidia,core-pwr-good-time = <3845 3845>;
+		nvidia,core-pwr-off-time = <3875>;
+		nvidia,sys-clock-req-active-high;
+	};
+
+	pcie-controller@80003000 {
+		pex-clk-supply = <&pci_clk_reg>;
+		vdd-supply = <&pci_vdd_reg>;
+		status = "okay";
+
+		pci@1,0 {
+			status = "okay";
+		};
+
+		pci@2,0 {
+			status = "okay";
+		};
+	};
+
+	usb@c5000000 {
+		status = "okay";
+	};
+
+	usb-phy@c5000000 {
+		status = "okay";
+	};
+
+	usb@c5004000 {
+		status = "okay";
+		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 1)
+			GPIO_ACTIVE_LOW>;
+	};
+
+	usb-phy@c5004000 {
+		status = "okay";
+		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 1)
+			GPIO_ACTIVE_LOW>;
+	};
+
+	usb@c5008000 {
+		status = "okay";
+	};
+
+	usb-phy@c5008000 {
+		status = "okay";
+	};
+
+	sdhci@c8000200 {
+		status = "okay";
+		cd-gpios = <&gpio TEGRA_GPIO(I, 5) GPIO_ACTIVE_LOW>;
+		wp-gpios = <&gpio TEGRA_GPIO(H, 1) GPIO_ACTIVE_HIGH>;
+		power-gpios = <&gpio TEGRA_GPIO(T, 3) GPIO_ACTIVE_HIGH>;
+		bus-width = <4>;
+	};
+
+	sdhci@c8000600 {
+		status = "okay";
+		cd-gpios = <&gpio TEGRA_GPIO(H, 2) GPIO_ACTIVE_LOW>;
+		wp-gpios = <&gpio TEGRA_GPIO(H, 3) GPIO_ACTIVE_HIGH>;
+		power-gpios = <&gpio TEGRA_GPIO(I, 6) GPIO_ACTIVE_HIGH>;
+		bus-width = <8>;
+	};
+
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		clk32k_in: clock@0 {
+			compatible = "fixed-clock";
+			reg=<0>;
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "Power";
+			gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
+			linux,code = <116>; /* KEY_POWER */
+			gpio-key,wakeup;
+		};
 	};
 
 	regulators {

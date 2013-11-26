@@ -326,12 +326,6 @@
 		};
 	};
 
-	ahub@70080000 {
-		i2s@70080400 {
-			status = "okay";
-		};
-	};
-
 	pmc@7000e400 {
 		status = "okay";
 		nvidia,invert-interrupt;
@@ -342,6 +336,12 @@
 		nvidia,core-pwr-off-time = <0>;
 		nvidia,core-power-req-active-high;
 		nvidia,sys-clock-req-active-high;
+	};
+
+	ahub@70080000 {
+		i2s@70080400 {
+			status = "okay";
+		};
 	};
 
 	sdhci@78000000 {

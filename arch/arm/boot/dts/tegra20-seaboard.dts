@@ -386,6 +386,13 @@
 		status = "okay";
 		clock-frequency = <400000>;
 
+		magnetometer@c {
+			compatible = "ak,ak8975";
+			reg = <0xc>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(N, 5) IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		pmic: tps6586x@34 {
 			compatible = "ti,tps6586x";
 			reg = <0x34>;
@@ -506,146 +513,6 @@
 		temperature-sensor@4c {
 			compatible = "onnn,nct1008";
 			reg = <0x4c>;
-		};
-
-		magnetometer@c {
-			compatible = "ak,ak8975";
-			reg = <0xc>;
-			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(N, 5) IRQ_TYPE_LEVEL_HIGH>;
-		};
-	};
-
-	pmc@7000e400 {
-		nvidia,invert-interrupt;
-		nvidia,suspend-mode = <1>;
-		nvidia,cpu-pwr-good-time = <5000>;
-		nvidia,cpu-pwr-off-time = <5000>;
-		nvidia,core-pwr-good-time = <3845 3845>;
-		nvidia,core-pwr-off-time = <3875>;
-		nvidia,sys-clock-req-active-high;
-	};
-
-	memory-controller@7000f400 {
-		emc-table@190000 {
-			reg = <190000>;
-			compatible = "nvidia,tegra20-emc-table";
-			clock-frequency = <190000>;
-			nvidia,emc-registers = <0x0000000c 0x00000026
-				0x00000009 0x00000003 0x00000004 0x00000004
-				0x00000002 0x0000000c 0x00000003 0x00000003
-				0x00000002 0x00000001 0x00000004 0x00000005
-				0x00000004 0x00000009 0x0000000d 0x0000059f
-				0x00000000 0x00000003 0x00000003 0x00000003
-				0x00000003 0x00000001 0x0000000b 0x000000c8
-				0x00000003 0x00000007 0x00000004 0x0000000f
-				0x00000002 0x00000000 0x00000000 0x00000002
-				0x00000000 0x00000000 0x00000083 0xa06204ae
-				0x007dc010 0x00000000 0x00000000 0x00000000
-				0x00000000 0x00000000 0x00000000 0x00000000>;
-		};
-
-		emc-table@380000 {
-			reg = <380000>;
-			compatible = "nvidia,tegra20-emc-table";
-			clock-frequency = <380000>;
-			nvidia,emc-registers = <0x00000017 0x0000004b
-				0x00000012 0x00000006 0x00000004 0x00000005
-				0x00000003 0x0000000c 0x00000006 0x00000006
-				0x00000003 0x00000001 0x00000004 0x00000005
-				0x00000004 0x00000009 0x0000000d 0x00000b5f
-				0x00000000 0x00000003 0x00000003 0x00000006
-				0x00000006 0x00000001 0x00000011 0x000000c8
-				0x00000003 0x0000000e 0x00000007 0x0000000f
-				0x00000002 0x00000000 0x00000000 0x00000002
-				0x00000000 0x00000000 0x00000083 0xe044048b
-				0x007d8010 0x00000000 0x00000000 0x00000000
-				0x00000000 0x00000000 0x00000000 0x00000000>;
-		};
-	};
-
-	usb@c5000000 {
-		status = "okay";
-		dr_mode = "otg";
-	};
-
-	usb-phy@c5000000 {
-		status = "okay";
-		vbus-supply = <&vbus_reg>;
-		dr_mode = "otg";
-	};
-
-	usb@c5004000 {
-		status = "okay";
-		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 1)
-			GPIO_ACTIVE_LOW>;
-	};
-
-	usb-phy@c5004000 {
-		status = "okay";
-		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 1)
-			GPIO_ACTIVE_LOW>;
-	};
-
-	usb@c5008000 {
-		status = "okay";
-	};
-
-	usb-phy@c5008000 {
-		status = "okay";
-	};
-
-	sdhci@c8000000 {
-		status = "okay";
-		power-gpios = <&gpio TEGRA_GPIO(K, 6) GPIO_ACTIVE_HIGH>;
-		bus-width = <4>;
-		keep-power-in-suspend;
-	};
-
-	sdhci@c8000400 {
-		status = "okay";
-		cd-gpios = <&gpio TEGRA_GPIO(I, 5) GPIO_ACTIVE_LOW>;
-		wp-gpios = <&gpio TEGRA_GPIO(H, 1) GPIO_ACTIVE_HIGH>;
-		power-gpios = <&gpio TEGRA_GPIO(I, 6) GPIO_ACTIVE_HIGH>;
-		bus-width = <4>;
-	};
-
-	sdhci@c8000600 {
-		status = "okay";
-		bus-width = <8>;
-		non-removable;
-	};
-
-	clocks {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		clk32k_in: clock@0 {
-			compatible = "fixed-clock";
-			reg=<0>;
-			#clock-cells = <0>;
-			clock-frequency = <32768>;
-		};
-	};
-
-	gpio-keys {
-		compatible = "gpio-keys";
-
-		power {
-			label = "Power";
-			gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
-			linux,code = <116>; /* KEY_POWER */
-			gpio-key,wakeup;
-		};
-
-		lid {
-			label = "Lid";
-			gpios = <&gpio TEGRA_GPIO(C, 7) GPIO_ACTIVE_HIGH>;
-			linux,input-type = <5>; /* EV_SW */
-			linux,code = <0>; /* SW_LID */
-			debounce-interval = <1>;
-			gpio-key,wakeup;
 		};
 	};
 
@@ -788,6 +655,140 @@
 
 				0x1F04008A>;	/* KEY_HELP */
 	};
+
+	pmc@7000e400 {
+		nvidia,invert-interrupt;
+		nvidia,suspend-mode = <1>;
+		nvidia,cpu-pwr-good-time = <5000>;
+		nvidia,cpu-pwr-off-time = <5000>;
+		nvidia,core-pwr-good-time = <3845 3845>;
+		nvidia,core-pwr-off-time = <3875>;
+		nvidia,sys-clock-req-active-high;
+	};
+
+	memory-controller@7000f400 {
+		emc-table@190000 {
+			reg = <190000>;
+			compatible = "nvidia,tegra20-emc-table";
+			clock-frequency = <190000>;
+			nvidia,emc-registers = <0x0000000c 0x00000026
+				0x00000009 0x00000003 0x00000004 0x00000004
+				0x00000002 0x0000000c 0x00000003 0x00000003
+				0x00000002 0x00000001 0x00000004 0x00000005
+				0x00000004 0x00000009 0x0000000d 0x0000059f
+				0x00000000 0x00000003 0x00000003 0x00000003
+				0x00000003 0x00000001 0x0000000b 0x000000c8
+				0x00000003 0x00000007 0x00000004 0x0000000f
+				0x00000002 0x00000000 0x00000000 0x00000002
+				0x00000000 0x00000000 0x00000083 0xa06204ae
+				0x007dc010 0x00000000 0x00000000 0x00000000
+				0x00000000 0x00000000 0x00000000 0x00000000>;
+		};
+
+		emc-table@380000 {
+			reg = <380000>;
+			compatible = "nvidia,tegra20-emc-table";
+			clock-frequency = <380000>;
+			nvidia,emc-registers = <0x00000017 0x0000004b
+				0x00000012 0x00000006 0x00000004 0x00000005
+				0x00000003 0x0000000c 0x00000006 0x00000006
+				0x00000003 0x00000001 0x00000004 0x00000005
+				0x00000004 0x00000009 0x0000000d 0x00000b5f
+				0x00000000 0x00000003 0x00000003 0x00000006
+				0x00000006 0x00000001 0x00000011 0x000000c8
+				0x00000003 0x0000000e 0x00000007 0x0000000f
+				0x00000002 0x00000000 0x00000000 0x00000002
+				0x00000000 0x00000000 0x00000083 0xe044048b
+				0x007d8010 0x00000000 0x00000000 0x00000000
+				0x00000000 0x00000000 0x00000000 0x00000000>;
+		};
+	};
+
+	usb@c5000000 {
+		status = "okay";
+		dr_mode = "otg";
+	};
+
+	usb-phy@c5000000 {
+		status = "okay";
+		vbus-supply = <&vbus_reg>;
+		dr_mode = "otg";
+	};
+
+	usb@c5004000 {
+		status = "okay";
+		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 1)
+			GPIO_ACTIVE_LOW>;
+	};
+
+	usb-phy@c5004000 {
+		status = "okay";
+		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 1)
+			GPIO_ACTIVE_LOW>;
+	};
+
+	usb@c5008000 {
+		status = "okay";
+	};
+
+	usb-phy@c5008000 {
+		status = "okay";
+	};
+
+	sdhci@c8000000 {
+		status = "okay";
+		power-gpios = <&gpio TEGRA_GPIO(K, 6) GPIO_ACTIVE_HIGH>;
+		bus-width = <4>;
+		keep-power-in-suspend;
+	};
+
+	sdhci@c8000400 {
+		status = "okay";
+		cd-gpios = <&gpio TEGRA_GPIO(I, 5) GPIO_ACTIVE_LOW>;
+		wp-gpios = <&gpio TEGRA_GPIO(H, 1) GPIO_ACTIVE_HIGH>;
+		power-gpios = <&gpio TEGRA_GPIO(I, 6) GPIO_ACTIVE_HIGH>;
+		bus-width = <4>;
+	};
+
+	sdhci@c8000600 {
+		status = "okay";
+		bus-width = <8>;
+		non-removable;
+	};
+
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		clk32k_in: clock@0 {
+			compatible = "fixed-clock";
+			reg=<0>;
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "Power";
+			gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
+			linux,code = <116>; /* KEY_POWER */
+			gpio-key,wakeup;
+		};
+
+		lid {
+			label = "Lid";
+			gpios = <&gpio TEGRA_GPIO(C, 7) GPIO_ACTIVE_HIGH>;
+			linux,input-type = <5>; /* EV_SW */
+			linux,code = <0>; /* SW_LID */
+			debounce-interval = <1>;
+			gpio-key,wakeup;
+		};
+	};
+
 	regulators {
 		compatible = "simple-bus";
 		#address-cells = <1>;

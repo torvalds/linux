@@ -199,6 +199,14 @@
 		};
 	};
 
+	ac97: ac97@70002000 {
+		status = "okay";
+		nvidia,codec-reset-gpio = <&gpio TEGRA_GPIO(V, 0)
+			GPIO_ACTIVE_HIGH>;
+		nvidia,codec-sync-gpio = <&gpio TEGRA_GPIO(P, 0)
+			GPIO_ACTIVE_HIGH>;
+	};
+
 	i2c@7000c000 {
 		clock-frequency = <400000>;
 	};
@@ -442,14 +450,6 @@
 		};
 	};
 
-	ac97: ac97@70002000 {
-		status = "okay";
-		nvidia,codec-reset-gpio = <&gpio TEGRA_GPIO(V, 0)
-			GPIO_ACTIVE_HIGH>;
-		nvidia,codec-sync-gpio = <&gpio TEGRA_GPIO(P, 0)
-			GPIO_ACTIVE_HIGH>;
-	};
-
 	usb@c5004000 {
 		status = "okay";
 		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 1)
@@ -479,26 +479,6 @@
 		};
 	};
 
-	sound {
-		compatible = "nvidia,tegra-audio-wm9712-colibri_t20",
-			         "nvidia,tegra-audio-wm9712";
-		nvidia,model = "Colibri T20 AC97 Audio";
-
-		nvidia,audio-routing =
-			"Headphone", "HPOUTL",
-			"Headphone", "HPOUTR",
-			"LineIn", "LINEINL",
-			"LineIn", "LINEINR",
-			"Mic", "MIC1";
-
-		nvidia,ac97-controller = <&ac97>;
-
-		clocks = <&tegra_car TEGRA20_CLK_PLL_A>,
-			 <&tegra_car TEGRA20_CLK_PLL_A_OUT0>,
-			 <&tegra_car TEGRA20_CLK_CDEV1>;
-		clock-names = "pll_a", "pll_a_out0", "mclk";
-	};
-
 	regulators {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -524,5 +504,25 @@
 			regulator-always-on;
 			gpio = <&gpio TEGRA_GPIO(BB, 1) GPIO_ACTIVE_HIGH>;
 		};
+	};
+
+	sound {
+		compatible = "nvidia,tegra-audio-wm9712-colibri_t20",
+			         "nvidia,tegra-audio-wm9712";
+		nvidia,model = "Colibri T20 AC97 Audio";
+
+		nvidia,audio-routing =
+			"Headphone", "HPOUTL",
+			"Headphone", "HPOUTR",
+			"LineIn", "LINEINL",
+			"LineIn", "LINEINR",
+			"Mic", "MIC1";
+
+		nvidia,ac97-controller = <&ac97>;
+
+		clocks = <&tegra_car TEGRA20_CLK_PLL_A>,
+			 <&tegra_car TEGRA20_CLK_PLL_A_OUT0>,
+			 <&tegra_car TEGRA20_CLK_CDEV1>;
+		clock-names = "pll_a", "pll_a_out0", "mclk";
 	};
 };
