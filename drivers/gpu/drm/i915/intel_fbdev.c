@@ -127,11 +127,12 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	mutex_lock(&dev->struct_mutex);
 
 	if (!intel_fb->obj) {
-		DRM_ERROR("no BIOS fb, allocating a new one\n");
+		DRM_DEBUG_KMS("no BIOS fb, allocating a new one\n");
 		ret = intelfb_alloc(helper, sizes);
 		if (ret)
 			goto out_unlock;
 	} else {
+		DRM_DEBUG_KMS("re-using BIOS fb\n");
 		sizes->fb_width = intel_fb->base.width;
 		sizes->fb_height = intel_fb->base.height;
 	}
