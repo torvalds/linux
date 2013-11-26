@@ -7749,7 +7749,11 @@ static pci_ers_result_t i40e_pci_error_detected(struct pci_dev *pdev,
 	dev_info(&pdev->dev, "%s: error %d\n", __func__, error);
 
 	/* shutdown all operations */
-	i40e_pf_quiesce_all_vsi(pf);
+	if (!test_bit(__I40E_SUSPENDED, &pf->state)) {
+		rtnl_lock();
+		i40e_prep_for_reset(pf);
+		rtnl_unlock();
+	}
 
 	/* Request a slot reset */
 	return PCI_ERS_RESULT_NEED_RESET;
@@ -7812,9 +7816,95 @@ static void i40e_pci_error_resume(struct pci_dev *pdev)
 	struct i40e_pf *pf = pci_get_drvdata(pdev);
 
 	dev_info(&pdev->dev, "%s\n", __func__);
+	if (test_bit(__I40E_SUSPENDED, &pf->state))
+		return;
+
+	rtnl_lock();
 	i40e_handle_reset_warning(pf);
+	rtnl_lock();
 }
 
+/**
+ * i40e_shutdown - PCI callback for shutting down
+ * @pdev: PCI device information struct
+ **/
+static void i40e_shutdown(struct pci_dev *pdev)
+{
+	struct i40e_pf *pf = pci_get_drvdata(pdev);
+
+	set_bit(__I40E_SUSPENDED, &pf->state);
+	set_bit(__I40E_DOWN, &pf->state);
+	rtnl_lock();
+	i40e_prep_for_reset(pf);
+	rtnl_unlock();
+
+	if (system_state == SYSTEM_POWER_OFF) {
+		pci_wake_from_d3(pdev, false);    /* No WoL support yet */
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
+}
+
+#ifdef CONFIG_PM
+/**
+ * i40e_suspend - PCI callback for moving to D3
+ * @pdev: PCI device information struct
+ **/
+static int i40e_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct i40e_pf *pf = pci_get_drvdata(pdev);
+
+	set_bit(__I40E_SUSPENDED, &pf->state);
+	set_bit(__I40E_DOWN, &pf->state);
+	rtnl_lock();
+	i40e_prep_for_reset(pf);
+	rtnl_unlock();
+
+	pci_wake_from_d3(pdev, false);    /* No WoL support yet */
+	pci_set_power_state(pdev, PCI_D3hot);
+
+	return 0;
+}
+
+/**
+ * i40e_resume - PCI callback for waking up from D3
+ * @pdev: PCI device information struct
+ **/
+static int i40e_resume(struct pci_dev *pdev)
+{
+	struct i40e_pf *pf = pci_get_drvdata(pdev);
+	u32 err;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	/* pci_restore_state() clears dev->state_saves, so
+	 * call pci_save_state() again to restore it.
+	 */
+	pci_save_state(pdev);
+
+	err = pci_enable_device_mem(pdev);
+	if (err) {
+		dev_err(&pdev->dev,
+			"%s: Cannot enable PCI device from suspend\n",
+			__func__);
+		return err;
+	}
+	pci_set_master(pdev);
+
+	/* no wakeup events while running */
+	pci_wake_from_d3(pdev, false);
+
+	/* handling the reset will rebuild the device state */
+	if (test_and_clear_bit(__I40E_SUSPENDED, &pf->state)) {
+		clear_bit(__I40E_DOWN, &pf->state);
+		rtnl_lock();
+		i40e_reset_and_rebuild(pf, false);
+		rtnl_unlock();
+	}
+
+	return 0;
+}
+
+#endif
 static const struct pci_error_handlers i40e_err_handler = {
 	.error_detected = i40e_pci_error_detected,
 	.slot_reset = i40e_pci_error_slot_reset,
@@ -7826,6 +7916,11 @@ static struct pci_driver i40e_driver = {
 	.id_table = i40e_pci_tbl,
 	.probe    = i40e_probe,
 	.remove   = i40e_remove,
+#ifdef CONFIG_PM
+	.suspend  = i40e_suspend,
+	.resume   = i40e_resume,
+#endif
+	.shutdown = i40e_shutdown,
 	.err_handler = &i40e_err_handler,
 	.sriov_configure = i40e_pci_sriov_configure,
 };

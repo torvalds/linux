@@ -133,6 +133,7 @@ enum i40e_state_t {
 	__I40E_GLOBAL_RESET_REQUESTED,
 	__I40E_EMP_RESET_REQUESTED,
 	__I40E_FILTER_OVERFLOW_PROMISC,
+	__I40E_SUSPENDED,
 };
 
 enum i40e_interrupt_policy {
