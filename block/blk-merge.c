@@ -89,6 +89,8 @@ static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
 	struct bio_vec end_bv, nxt_bv;
 	struct bvec_iter iter;
 
+	uninitialized_var(end_bv);
+
 	if (!blk_queue_cluster(q))
 		return 0;
 
@@ -173,6 +175,8 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	struct scatterlist *sg;
 	int nsegs, cluster;
 
+	uninitialized_var(bvprv);
+
 	nsegs = 0;
 	cluster = blk_queue_cluster(q);
 
@@ -234,6 +238,8 @@ int blk_bio_map_sg(struct request_queue *q, struct bio *bio,
 	struct scatterlist *sg;
 	int nsegs, cluster;
 	struct bvec_iter iter;
+
+	uninitialized_var(bvprv);
 
 	nsegs = 0;
 	cluster = blk_queue_cluster(q);
