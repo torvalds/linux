@@ -172,8 +172,9 @@ armada_gem_linear_back(struct drm_device *dev, struct armada_gem_object *obj)
 		obj->dev_addr = obj->linear->start;
 	}
 
-	DRM_DEBUG_DRIVER("obj %p phys %#x dev %#x\n",
-			 obj, obj->phys_addr, obj->dev_addr);
+	DRM_DEBUG_DRIVER("obj %p phys %#llx dev %#llx\n", obj,
+			 (unsigned long long)obj->phys_addr,
+			 (unsigned long long)obj->dev_addr);
 
 	return 0;
 }
