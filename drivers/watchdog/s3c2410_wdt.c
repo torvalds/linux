@@ -188,7 +188,7 @@ static int s3c2410wdt_set_heartbeat(struct watchdog_device *wdd, unsigned timeou
 	if (timeout < 1)
 		return -EINVAL;
 
-	freq /= 128;
+	freq = DIV_ROUND_UP(freq, 128);
 	count = timeout * freq;
 
 	DBG("%s: count=%d, timeout=%d, freq=%lu\n",
@@ -200,21 +200,18 @@ static int s3c2410wdt_set_heartbeat(struct watchdog_device *wdd, unsigned timeou
 	*/
 
 	if (count >= 0x10000) {
-		for (divisor = 1; divisor <= 0x100; divisor++) {
-			if ((count / divisor) < 0x10000)
-				break;
-		}
+		divisor = DIV_ROUND_UP(count, 0xffff);
 
-		if ((count / divisor) >= 0x10000) {
+		if (divisor > 0x100) {
 			dev_err(wdt->dev, "timeout %d too big\n", timeout);
 			return -EINVAL;
 		}
 	}
 
 	DBG("%s: timeout=%d, divisor=%d, count=%d (%08x)\n",
-	    __func__, timeout, divisor, count, count/divisor);
+	    __func__, timeout, divisor, count, DIV_ROUND_UP(count, divisor));
 
-	count /= divisor;
+	count = DIV_ROUND_UP(count, divisor);
 	wdt->count = count;
 
 	/* update the pre-scaler */
