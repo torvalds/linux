@@ -548,9 +548,9 @@ static void __init hdmi_init_pm_clock(void)
 		 clk_get_rate(&sh7372_pllc2_clk));
 
 	rate = clk_round_rate(&sh7372_pllc2_clk, 594000000);
-	if (rate < 0) {
+	if (rate <= 0) {
 		pr_err("Cannot get suitable rate: %ld\n", rate);
-		ret = rate;
+		ret = -EINVAL;
 		goto out;
 	}
 
