@@ -1337,6 +1337,7 @@ static inline void parity_protection_init(void)
 	case CPU_34K:
 	case CPU_74K:
 	case CPU_1004K:
+	case CPU_INTERAPTIV:
 	case CPU_PROAPTIV:
 		{
 #define ERRCTL_PE	0x80000000
