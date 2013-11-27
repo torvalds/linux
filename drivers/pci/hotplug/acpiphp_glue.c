@@ -279,7 +279,9 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 
 	status = acpi_evaluate_integer(handle, "_ADR", NULL, &adr);
 	if (ACPI_FAILURE(status)) {
-		acpi_handle_warn(handle, "can't evaluate _ADR (%#x)\n", status);
+		if (status != AE_NOT_FOUND)
+			acpi_handle_warn(handle,
+				"can't evaluate _ADR (%#x)\n", status);
 		return AE_OK;
 	}
 
