@@ -845,11 +845,14 @@ static int intel_backlight_device_get_brightness(struct backlight_device *bd)
 {
 	struct intel_connector *connector = bl_get_data(bd);
 	struct drm_device *dev = connector->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
+	intel_runtime_pm_get(dev_priv);
 	mutex_lock(&dev->mode_config.mutex);
 	ret = intel_panel_get_backlight(connector);
 	mutex_unlock(&dev->mode_config.mutex);
+	intel_runtime_pm_put(dev_priv);
 
 	return ret;
 }

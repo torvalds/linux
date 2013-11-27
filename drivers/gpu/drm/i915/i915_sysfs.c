@@ -40,9 +40,12 @@ static u32 calc_residency(struct drm_device *dev, const u32 reg)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u64 raw_time; /* 32b value may overflow during fixed point math */
 	u64 units = 128ULL, div = 100000ULL, bias = 100ULL;
+	u32 ret;
 
 	if (!intel_enable_rc6(dev))
 		return 0;
+
+	intel_runtime_pm_get(dev_priv);
 
 	/* On VLV, residency time is in CZ units rather than 1.28us */
 	if (IS_VALLEYVIEW(dev)) {
@@ -52,7 +55,8 @@ static u32 calc_residency(struct drm_device *dev, const u32 reg)
 			CLK_CTL2_CZCOUNT_30NS_SHIFT;
 		if (!clkctl2) {
 			WARN(!clkctl2, "bogus CZ count value");
-			return 0;
+			ret = 0;
+			goto out;
 		}
 		units = DIV_ROUND_UP_ULL(30ULL * bias, (u64)clkctl2);
 		if (I915_READ(VLV_COUNTER_CONTROL) & VLV_COUNT_RANGE_HIGH)
@@ -62,7 +66,11 @@ static u32 calc_residency(struct drm_device *dev, const u32 reg)
 	}
 
 	raw_time = I915_READ(reg) * units;
-	return DIV_ROUND_UP_ULL(raw_time, div);
+	ret = DIV_ROUND_UP_ULL(raw_time, div);
+
+out:
+	intel_runtime_pm_put(dev_priv);
+	return ret;
 }
 
 static ssize_t
@@ -448,7 +456,9 @@ static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
+	intel_runtime_pm_get(dev_priv);
 	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
+	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
 	if (attr == &dev_attr_gt_RP0_freq_mhz) {

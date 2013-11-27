@@ -370,6 +370,8 @@ void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine)
 	if (!dev_priv->uncore.funcs.force_wake_get)
 		return;
 
+	intel_runtime_pm_get(dev_priv);
+
 	/* Redirect to VLV specific routine */
 	if (IS_VALLEYVIEW(dev_priv->dev))
 		return vlv_force_wake_get(dev_priv, fw_engine);
@@ -403,6 +405,8 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 				 1);
 	}
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+
+	intel_runtime_pm_put(dev_priv);
 }
 
 /* We give fast paths for the really cool registers */

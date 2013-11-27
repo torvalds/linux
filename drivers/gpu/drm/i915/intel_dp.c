@@ -3072,8 +3072,11 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *intel_encoder = &intel_dig_port->base;
 	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum drm_connector_status status;
 	struct edid *edid = NULL;
+
+	intel_runtime_pm_get(dev_priv);
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, drm_get_connector_name(connector));
@@ -3086,7 +3089,7 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 		status = g4x_dp_detect(intel_dp);
 
 	if (status != connector_status_connected)
-		return status;
+		goto out;
 
 	intel_dp_probe_oui(intel_dp);
 
@@ -3102,7 +3105,11 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 
 	if (intel_encoder->type != INTEL_OUTPUT_EDP)
 		intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
-	return connector_status_connected;
+	status = connector_status_connected;
+
+out:
+	intel_runtime_pm_put(dev_priv);
+	return status;
 }
 
 static int intel_dp_get_modes(struct drm_connector *connector)
