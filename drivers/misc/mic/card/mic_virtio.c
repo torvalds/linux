@@ -187,11 +187,12 @@ static void mic_reset(struct virtio_device *vdev)
 /*
  * The virtio_ring code calls this API when it wants to notify the Host.
  */
-static void mic_notify(struct virtqueue *vq)
+static bool mic_notify(struct virtqueue *vq)
 {
 	struct mic_vdev *mvdev = vq->priv;
 
 	mic_send_intr(mvdev->mdev, mvdev->c2h_vdev_db);
+	return true;
 }
 
 static void mic_del_vq(struct virtqueue *vq, int n)
