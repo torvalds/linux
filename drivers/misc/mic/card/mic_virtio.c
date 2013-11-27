@@ -520,8 +520,8 @@ static void mic_scan_devices(struct mic_driver *mdrv, bool remove)
 	struct device *dev;
 	int ret;
 
-	for (i = mic_aligned_size(struct mic_bootparam);
-		i < MIC_DP_SIZE; i += mic_total_desc_size(d)) {
+	for (i = sizeof(struct mic_bootparam); i < MIC_DP_SIZE;
+		i += mic_total_desc_size(d)) {
 		d = mdrv->dp + i;
 		dc = (void __iomem *)d + mic_aligned_desc_size(d);
 		/*

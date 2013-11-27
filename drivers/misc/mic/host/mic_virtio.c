@@ -467,7 +467,7 @@ static int mic_copy_dp_entry(struct mic_vdev *mvdev,
 	}
 
 	/* Find the first free device page entry */
-	for (i = mic_aligned_size(struct mic_bootparam);
+	for (i = sizeof(struct mic_bootparam);
 		i < MIC_DP_SIZE - mic_total_desc_size(dd_config);
 		i += mic_total_desc_size(devp)) {
 		devp = mdev->dp + i;

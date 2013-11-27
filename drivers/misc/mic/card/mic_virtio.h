@@ -42,8 +42,8 @@
 
 static inline unsigned mic_desc_size(struct mic_device_desc __iomem *desc)
 {
-	return mic_aligned_size(*desc)
-		+ ioread8(&desc->num_vq) * mic_aligned_size(struct mic_vqconfig)
+	return sizeof(*desc)
+		+ ioread8(&desc->num_vq) * sizeof(struct mic_vqconfig)
 		+ ioread8(&desc->feature_len) * 2
 		+ ioread8(&desc->config_len);
 }
@@ -67,8 +67,7 @@ mic_vq_configspace(struct mic_device_desc __iomem *desc)
 }
 static inline unsigned mic_total_desc_size(struct mic_device_desc __iomem *desc)
 {
-	return mic_aligned_desc_size(desc) +
-		mic_aligned_size(struct mic_device_ctrl);
+	return mic_aligned_desc_size(desc) + sizeof(struct mic_device_ctrl);
 }
 
 int mic_devices_init(struct mic_driver *mdrv);

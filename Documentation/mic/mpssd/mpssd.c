@@ -313,7 +313,7 @@ static struct mic_device_desc *get_device_desc(struct mic_info *mic, int type)
 	int i;
 	void *dp = get_dp(mic, type);
 
-	for (i = mic_aligned_size(struct mic_bootparam); i < PAGE_SIZE;
+	for (i = sizeof(struct mic_bootparam); i < PAGE_SIZE;
 		i += mic_total_desc_size(d)) {
 		d = dp + i;
 
@@ -520,7 +520,7 @@ static void *
 virtio_net(void *arg)
 {
 	static __u8 vnet_hdr[2][sizeof(struct virtio_net_hdr)];
-	static __u8 vnet_buf[2][MAX_NET_PKT_SIZE] __aligned(64);
+	static __u8 vnet_buf[2][MAX_NET_PKT_SIZE] __attribute__ ((aligned(64)));
 	struct iovec vnet_iov[2][2] = {
 		{ { .iov_base = vnet_hdr[0], .iov_len = sizeof(vnet_hdr[0]) },
 		  { .iov_base = vnet_buf[0], .iov_len = sizeof(vnet_buf[0]) } },
