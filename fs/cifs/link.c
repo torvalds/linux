@@ -518,10 +518,7 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 		rc = query_mf_symlink(xid, tcon, cifs_sb, full_path,
 				      &target_path);
 
-	if ((rc != 0) && cap_unix(tcon->ses))
-		rc = CIFSSMBUnixQuerySymLink(xid, tcon, full_path, &target_path,
-					     cifs_sb->local_nls);
-	else if (rc != 0 && server->ops->query_symlink)
+	if (rc != 0 && server->ops->query_symlink)
 		rc = server->ops->query_symlink(xid, tcon, full_path,
 						&target_path, cifs_sb);
 
