@@ -15,8 +15,6 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <mach/clk.h>
-
 #include "mdp4_kms.h"
 
 #include "drm_crtc.h"
