@@ -256,8 +256,9 @@ static struct virtqueue *mic_find_vq(struct virtio_device *vdev,
 	mvdev->vr[index] = va;
 	memset_io(va, 0x0, _vr_size);
 	vq = vring_new_virtqueue(index, le16_to_cpu(config.num),
-				 MIC_VIRTIO_RING_ALIGN, vdev, false, va,
-				 mic_notify, callback, name);
+				 MIC_VIRTIO_RING_ALIGN, vdev, false,
+				 (void __force *)va, mic_notify, callback,
+				 name);
 	if (!vq) {
 		err = -ENOMEM;
 		goto unmap;
@@ -540,7 +541,8 @@ static void mic_scan_devices(struct mic_driver *mdrv, bool remove)
 			continue;
 
 		/* device already exists */
-		dev = device_find_child(mdrv->dev, d, mic_match_desc);
+		dev = device_find_child(mdrv->dev, (void __force *)d,
+					mic_match_desc);
 		if (dev) {
 			if (remove)
 				iowrite8(MIC_VIRTIO_PARAM_DEV_REMOVE,

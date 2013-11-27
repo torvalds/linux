@@ -41,7 +41,7 @@ static int mic_virtio_copy_to_user(struct mic_vdev *mvdev,
 	 * We are copying from IO below an should ideally use something
 	 * like copy_to_user_fromio(..) if it existed.
 	 */
-	if (copy_to_user(ubuf, dbuf, len)) {
+	if (copy_to_user(ubuf, (void __force *)dbuf, len)) {
 		err = -EFAULT;
 		dev_err(mic_dev(mvdev), "%s %d err %d\n",
 			__func__, __LINE__, err);
@@ -66,7 +66,7 @@ static int mic_virtio_copy_from_user(struct mic_vdev *mvdev,
 	 * We are copying to IO below and should ideally use something
 	 * like copy_from_user_toio(..) if it existed.
 	 */
-	if (copy_from_user(dbuf, ubuf, len)) {
+	if (copy_from_user((void __force *)dbuf, ubuf, len)) {
 		err = -EFAULT;
 		dev_err(mic_dev(mvdev), "%s %d err %d\n",
 			__func__, __LINE__, err);
@@ -293,8 +293,8 @@ static void mic_virtio_init_post(struct mic_vdev *mvdev)
 			continue;
 		}
 		mvdev->mvr[i].vrh.vring.used =
-			mvdev->mdev->aper.va
-			+ le64_to_cpu(vqconfig[i].used_address);
+			(void __force *)mvdev->mdev->aper.va +
+			le64_to_cpu(vqconfig[i].used_address);
 	}
 
 	mvdev->dc->used_address_updated = 0;
