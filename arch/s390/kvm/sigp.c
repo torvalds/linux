@@ -363,7 +363,8 @@ static int __sigp_sense_running(struct kvm_vcpu *vcpu, u16 cpu_addr,
 	return rc;
 }
 
-static int __sigp_restart(struct kvm_vcpu *vcpu, u16 cpu_addr)
+/* Test whether the destination CPU is available and not busy */
+static int sigp_check_callable(struct kvm_vcpu *vcpu, u16 cpu_addr)
 {
 	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
 	struct kvm_s390_local_interrupt *li;
@@ -382,9 +383,6 @@ static int __sigp_restart(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	spin_lock_bh(&li->lock);
 	if (li->action_bits & ACTION_STOP_ON_STOP)
 		rc = SIGP_CC_BUSY;
-	else
-		VCPU_EVENT(vcpu, 4, "sigp restart %x to handle userspace",
-			cpu_addr);
 	spin_unlock_bh(&li->lock);
 out:
 	spin_unlock(&fi->lock);
@@ -459,10 +457,15 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 		break;
 	case SIGP_RESTART:
 		vcpu->stat.instruction_sigp_restart++;
-		rc = __sigp_restart(vcpu, cpu_addr);
-		if (rc == SIGP_CC_BUSY)
-			break;
-		/* user space must know about restart */
+		rc = sigp_check_callable(vcpu, cpu_addr);
+		if (rc == SIGP_CC_ORDER_CODE_ACCEPTED) {
+			VCPU_EVENT(vcpu, 4,
+				   "sigp restart %x to handle userspace",
+				   cpu_addr);
+			/* user space must know about restart */
+			rc = -EOPNOTSUPP;
+		}
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
