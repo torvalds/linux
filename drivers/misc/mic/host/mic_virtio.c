@@ -378,7 +378,7 @@ int mic_virtio_config_change(struct mic_vdev *mvdev,
 			void __user *argp)
 {
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wake);
-	int ret = 0, retry = 100, i;
+	int ret = 0, retry, i;
 	struct mic_bootparam *bootparam = mvdev->mdev->dp;
 	s8 db = bootparam->h2c_config_db;
 
@@ -401,7 +401,7 @@ int mic_virtio_config_change(struct mic_vdev *mvdev,
 	mvdev->dc->config_change = MIC_VIRTIO_PARAM_CONFIG_CHANGED;
 	mvdev->mdev->ops->send_intr(mvdev->mdev, db);
 
-	for (i = retry; i--;) {
+	for (retry = 100; retry--;) {
 		ret = wait_event_timeout(wake,
 			mvdev->dc->guest_ack, msecs_to_jiffies(100));
 		if (ret)
@@ -639,7 +639,7 @@ void mic_virtio_del_device(struct mic_vdev *mvdev)
 	struct mic_vdev *tmp_mvdev;
 	struct mic_device *mdev = mvdev->mdev;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wake);
-	int i, ret, retry = 100;
+	int i, ret, retry;
 	struct mic_vqconfig *vqconfig;
 	struct mic_bootparam *bootparam = mdev->dp;
 	s8 db;
@@ -652,16 +652,16 @@ void mic_virtio_del_device(struct mic_vdev *mvdev)
 		"Requesting hot remove id %d\n", mvdev->virtio_id);
 	mvdev->dc->config_change = MIC_VIRTIO_PARAM_DEV_REMOVE;
 	mdev->ops->send_intr(mdev, db);
-	for (i = retry; i--;) {
+	for (retry = 100; retry--;) {
 		ret = wait_event_timeout(wake,
 			mvdev->dc->guest_ack, msecs_to_jiffies(100));
 		if (ret)
 			break;
 	}
 	dev_dbg(mdev->sdev->parent,
-		"Device id %d config_change %d guest_ack %d\n",
+		"Device id %d config_change %d guest_ack %d retry %d\n",
 		mvdev->virtio_id, mvdev->dc->config_change,
-		mvdev->dc->guest_ack);
+		mvdev->dc->guest_ack, retry);
 	mvdev->dc->config_change = 0;
 	mvdev->dc->guest_ack = 0;
 skip_hot_remove:

@@ -154,14 +154,14 @@ static void mic_reset_inform_host(struct virtio_device *vdev)
 {
 	struct mic_vdev *mvdev = to_micvdev(vdev);
 	struct mic_device_ctrl __iomem *dc = mvdev->dc;
-	int retry = 100, i;
+	int retry;
 
 	iowrite8(0, &dc->host_ack);
 	iowrite8(1, &dc->vdev_reset);
 	mic_send_intr(mvdev->mdev, mvdev->c2h_vdev_db);
 
 	/* Wait till host completes all card accesses and acks the reset */
-	for (i = retry; i--;) {
+	for (retry = 100; retry--;) {
 		if (ioread8(&dc->host_ack))
 			break;
 		msleep(100);
@@ -310,7 +310,7 @@ static int mic_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 {
 	struct mic_vdev *mvdev = to_micvdev(vdev);
 	struct mic_device_ctrl __iomem *dc = mvdev->dc;
-	int i, err, retry = 100;
+	int i, err, retry;
 
 	/* We must have this many virtqueues. */
 	if (nvqs > ioread8(&mvdev->desc->num_vq))
@@ -332,7 +332,7 @@ static int mic_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	 * rings have been re-assigned.
 	 */
 	mic_send_intr(mvdev->mdev, mvdev->c2h_vdev_db);
-	for (i = retry; i--;) {
+	for (retry = 100; retry--;) {
 		if (!ioread8(&dc->used_address_updated))
 			break;
 		msleep(100);
