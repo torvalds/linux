@@ -268,7 +268,7 @@ static int qspi_set_config_register(struct rspi_data *rspi, int access_size)
 		spcmd = SPCMD_SPB_8BIT;
 	else if (access_size == 16)
 		spcmd = SPCMD_SPB_16BIT;
-	else if (access_size == 32)
+	else
 		spcmd = SPCMD_SPB_32BIT;
 
 	spcmd |= SPCMD_SCKDEN | SPCMD_SLNDEN | SPCMD_SSLKP | SPCMD_SPNDEN;
