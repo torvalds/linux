@@ -921,7 +921,9 @@ struct hda_codec {
 	unsigned long power_off_acct;
 	unsigned long power_jiffies;
 	spinlock_t power_lock;
-	struct work_struct pm_work; /* task to parallel multi-codec PM */
+	/* tasks to parallel multi-codec suspend/resume */
+	struct work_struct suspend_work;
+	struct work_struct resume_work;
 #endif
 
 	/* filter the requested power state per nid */

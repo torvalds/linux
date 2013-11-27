@@ -96,7 +96,8 @@ EXPORT_SYMBOL_HDA(snd_hda_delete_codec_preset);
 
 #ifdef CONFIG_PM
 #define codec_in_pm(codec)	((codec)->in_pm)
-static void hda_pm_work(struct work_struct *work);
+static void hda_suspend_work(struct work_struct *work);
+static void hda_resume_work(struct work_struct *work);
 static void hda_power_work(struct work_struct *work);
 static void hda_keep_power_on(struct hda_codec *codec);
 #define hda_codec_is_power_on(codec)	((codec)->power_on)
@@ -1474,7 +1475,8 @@ int snd_hda_codec_new(struct hda_bus *bus,
 #ifdef CONFIG_PM
 	spin_lock_init(&codec->power_lock);
 	INIT_DELAYED_WORK(&codec->power_work, hda_power_work);
-	INIT_WORK(&codec->pm_work, hda_pm_work);
+	INIT_WORK(&codec->suspend_work, hda_suspend_work);
+	INIT_WORK(&codec->resume_work, hda_resume_work);
 	/* snd_hda_codec_new() marks the codec as power-up, and leave it as is.
 	 * the caller has to power down appropriatley after initialization
 	 * phase.
@@ -5116,12 +5118,20 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_HDA(snd_hda_check_amp_list_power);
 
-static void hda_pm_work(struct work_struct *work)
+static void hda_suspend_work(struct work_struct *work)
 {
 	struct hda_codec *codec =
-		container_of(work, struct hda_codec, pm_work);
+		container_of(work, struct hda_codec, suspend_work);
 
 	hda_call_codec_suspend(codec, false);
+}
+
+static void hda_resume_work(struct work_struct *work)
+{
+	struct hda_codec *codec =
+		container_of(work, struct hda_codec, resume_work);
+
+	hda_call_codec_resume(codec);
 }
 #endif
 
@@ -5700,7 +5710,7 @@ int snd_hda_suspend(struct hda_bus *bus)
 		cancel_delayed_work_sync(&codec->jackpoll_work);
 		if (hda_codec_is_power_on(codec)) {
 			if (bus->num_codecs > 1)
-				queue_work(bus->pm_wq, &codec->pm_work);
+				queue_work(bus->pm_wq, &codec->suspend_work);
 			else
 				hda_call_codec_suspend(codec, false);
 		}
@@ -5724,8 +5734,15 @@ int snd_hda_resume(struct hda_bus *bus)
 	struct hda_codec *codec;
 
 	list_for_each_entry(codec, &bus->codec_list, list) {
-		hda_call_codec_resume(codec);
+		if (bus->num_codecs > 1)
+			queue_work(bus->pm_wq, &codec->resume_work);
+		else
+			hda_call_codec_resume(codec);
 	}
+
+	if (bus->num_codecs > 1)
+		flush_workqueue(bus->pm_wq);
+
 	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_resume);
