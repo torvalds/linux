@@ -3,7 +3,6 @@ snd-hda-intel-objs := hda_intel.o
 snd-hda-intel-$(CONFIG_SND_HDA_I915) +=	hda_i915.o
 
 snd-hda-codec-y := hda_codec.o hda_jack.o hda_auto_parser.o
-snd-hda-codec-$(CONFIG_SND_HDA_GENERIC) += hda_generic.o
 snd-hda-codec-$(CONFIG_PROC_FS) += hda_proc.o
 snd-hda-codec-$(CONFIG_SND_HDA_HWDEP) += hda_hwdep.o
 snd-hda-codec-$(CONFIG_SND_HDA_INPUT_BEEP) += hda_beep.o
@@ -12,6 +11,7 @@ snd-hda-codec-$(CONFIG_SND_HDA_INPUT_BEEP) += hda_beep.o
 CFLAGS_hda_codec.o := -I$(src)
 CFLAGS_hda_intel.o := -I$(src)
 
+snd-hda-codec-generic-objs :=	hda_generic.o
 snd-hda-codec-realtek-objs :=	patch_realtek.o
 snd-hda-codec-cmedia-objs :=	patch_cmedia.o
 snd-hda-codec-analog-objs :=	patch_analog.o
@@ -28,6 +28,9 @@ snd-hda-codec-hdmi-objs :=	patch_hdmi.o hda_eld.o
 obj-$(CONFIG_SND_HDA_INTEL) := snd-hda-codec.o
 
 # codec drivers (note: CONFIG_SND_HDA_CODEC_XXX are booleans)
+ifdef CONFIG_SND_HDA_GENERIC
+obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-codec-generic.o
+endif
 ifdef CONFIG_SND_HDA_CODEC_REALTEK
 obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-codec-realtek.o
 endif

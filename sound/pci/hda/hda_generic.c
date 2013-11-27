@@ -28,6 +28,7 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/bitops.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include "hda_codec.h"
@@ -5291,3 +5292,6 @@ error:
 	return err;
 }
 EXPORT_SYMBOL_HDA(snd_hda_parse_generic_codec);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Generic HD-audio codec parser");
