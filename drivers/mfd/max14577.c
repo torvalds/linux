@@ -26,7 +26,10 @@
 
 static struct mfd_cell max14577_devs[] = {
 	{ .name = "max14577-muic", },
-	{ .name = "max14577-regulator", },
+	{
+		.name = "max14577-regulator",
+		.of_compatible = "maxim,max14577-regulator",
+	},
 	{ .name = "max14577-charger", },
 };
 
