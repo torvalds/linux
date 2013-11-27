@@ -511,7 +511,7 @@ typedef int (*tracepoint_handler)(struct perf_evsel *evsel,
 				  const char *backtrace);
 
 static int process_sample_event(struct perf_tool *tool __maybe_unused,
-				union perf_event *event __maybe_unused,
+				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
 				struct machine *machine __maybe_unused)
