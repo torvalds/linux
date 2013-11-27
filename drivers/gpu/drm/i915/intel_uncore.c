@@ -479,7 +479,7 @@ gen6_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 static u##x \
 vlv_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	unsigned fwengine = 0; \
-	unsigned *fwcount = 0; \
+	unsigned *fwcount; \
 	REG_READ_HEADER(x); \
 	if (FORCEWAKE_VLV_RENDER_RANGE_OFFSET(reg)) {   \
 		fwengine = FORCEWAKE_RENDER;            \
