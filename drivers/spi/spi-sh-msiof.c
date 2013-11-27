@@ -421,7 +421,7 @@ static void sh_msiof_spi_chipselect(struct spi_device *spi, int is_on)
 	}
 
 	/* use spi->controller data for CS (same strategy as spi_gpio) */
-	gpio_set_value((unsigned)spi->controller_data, value);
+	gpio_set_value((uintptr_t)spi->controller_data, value);
 
 	if (is_on == BITBANG_CS_INACTIVE) {
 		if (test_and_clear_bit(0, &p->flags)) {
