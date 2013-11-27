@@ -5688,6 +5688,8 @@ static void hsw_set_power_well(struct drm_device *dev,
 	unsigned long irqflags;
 	uint32_t tmp;
 
+	WARN_ON(dev_priv->pc8.enabled);
+
 	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
 	is_enabled = tmp & HSW_PWR_WELL_STATE_ENABLED;
 	enable_requested = tmp & HSW_PWR_WELL_ENABLE_REQUEST;
@@ -5747,17 +5749,26 @@ static void hsw_set_power_well(struct drm_device *dev,
 static void __intel_power_well_get(struct drm_device *dev,
 				   struct i915_power_well *power_well)
 {
-	if (!power_well->count++ && power_well->set)
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!power_well->count++ && power_well->set) {
+		hsw_disable_package_c8(dev_priv);
 		power_well->set(dev, power_well, true);
+	}
 }
 
 static void __intel_power_well_put(struct drm_device *dev,
 				   struct i915_power_well *power_well)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	WARN_ON(!power_well->count);
 
-	if (!--power_well->count && power_well->set && i915_disable_power_well)
+	if (!--power_well->count && power_well->set &&
+	    i915_disable_power_well) {
 		power_well->set(dev, power_well, false);
+		hsw_enable_package_c8(dev_priv);
+	}
 }
 
 void intel_display_power_get(struct drm_device *dev,
