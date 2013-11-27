@@ -353,7 +353,7 @@ config GPIO_GE_FPGA
 	  board computers.
 
 config GPIO_LYNXPOINT
-	bool "Intel Lynxpoint GPIO support"
+	tristate "Intel Lynxpoint GPIO support"
 	depends on ACPI && X86
 	select IRQ_DOMAIN
 	help
