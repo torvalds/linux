@@ -25,10 +25,11 @@
  * Software defined PTE bits definition.
  */
 #define PTE_VALID		(_AT(pteval_t, 1) << 0)
-#define PTE_PROT_NONE		(_AT(pteval_t, 1) << 2)	/* only when !PTE_VALID */
-#define PTE_FILE		(_AT(pteval_t, 1) << 3)	/* only when !pte_present() */
+#define PTE_FILE		(_AT(pteval_t, 1) << 2)	/* only when !pte_present() */
 #define PTE_DIRTY		(_AT(pteval_t, 1) << 55)
 #define PTE_SPECIAL		(_AT(pteval_t, 1) << 56)
+				/* bit 57 for PMD_SECT_SPLITTING */
+#define PTE_PROT_NONE		(_AT(pteval_t, 1) << 58) /* only when !PTE_VALID */
 
 /*
  * VMALLOC and SPARSEMEM_VMEMMAP ranges.
@@ -345,18 +346,20 @@ extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
 
 /*
  * Encode and decode a swap entry:
- *	bits 0, 2:	present (must both be zero)
- *	bit  3:		PTE_FILE
- *	bits 4-8:	swap type
- *	bits 9-63:	swap offset
+ *	bits 0-1:	present (must be zero)
+ *	bit  2:		PTE_FILE
+ *	bits 3-8:	swap type
+ *	bits 9-57:	swap offset
  */
-#define __SWP_TYPE_SHIFT	4
+#define __SWP_TYPE_SHIFT	3
 #define __SWP_TYPE_BITS		6
+#define __SWP_OFFSET_BITS	49
 #define __SWP_TYPE_MASK		((1 << __SWP_TYPE_BITS) - 1)
 #define __SWP_OFFSET_SHIFT	(__SWP_TYPE_BITS + __SWP_TYPE_SHIFT)
+#define __SWP_OFFSET_MASK	((1UL << __SWP_OFFSET_BITS) - 1)
 
 #define __swp_type(x)		(((x).val >> __SWP_TYPE_SHIFT) & __SWP_TYPE_MASK)
-#define __swp_offset(x)		((x).val >> __SWP_OFFSET_SHIFT)
+#define __swp_offset(x)		(((x).val >> __SWP_OFFSET_SHIFT) & __SWP_OFFSET_MASK)
 #define __swp_entry(type,offset) ((swp_entry_t) { ((type) << __SWP_TYPE_SHIFT) | ((offset) << __SWP_OFFSET_SHIFT) })
 
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
@@ -370,15 +373,15 @@ extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
 
 /*
  * Encode and decode a file entry:
- *	bits 0, 2:	present (must both be zero)
- *	bit  3:		PTE_FILE
- *	bits 4-63:	file offset / PAGE_SIZE
+ *	bits 0-1:	present (must be zero)
+ *	bit  2:		PTE_FILE
+ *	bits 3-57:	file offset / PAGE_SIZE
  */
 #define pte_file(pte)		(pte_val(pte) & PTE_FILE)
-#define pte_to_pgoff(x)		(pte_val(x) >> 4)
-#define pgoff_to_pte(x)		__pte(((x) << 4) | PTE_FILE)
+#define pte_to_pgoff(x)		(pte_val(x) >> 3)
+#define pgoff_to_pte(x)		__pte(((x) << 3) | PTE_FILE)
 
-#define PTE_FILE_MAX_BITS	60
+#define PTE_FILE_MAX_BITS	55
 
 extern int kern_addr_valid(unsigned long addr);
 
