@@ -121,7 +121,7 @@ static const char *rdev_get_name(struct regulator_dev *rdev)
 
 static bool have_full_constraints(void)
 {
-	return has_full_constraints;
+	return has_full_constraints || of_have_populated_dt();
 }
 
 /**
