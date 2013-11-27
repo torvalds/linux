@@ -21,7 +21,9 @@
 #include <linux/spinlock.h>
 #include <linux/notifier.h>
 #include <asm/cputime.h>
+#ifdef CONFIG_BL_SWITCHER
 #include <asm/bL_switcher.h>
+#endif
 
 static spinlock_t cpufreq_stats_lock;
 
@@ -448,6 +450,7 @@ static void cpufreq_stats_cleanup(void)
 	}
 }
 
+#ifdef CONFIG_BL_SWITCHER
 static int cpufreq_stats_switcher_notifier(struct notifier_block *nfb,
 					unsigned long action, void *_arg)
 {
@@ -472,6 +475,7 @@ static int cpufreq_stats_switcher_notifier(struct notifier_block *nfb,
 static struct notifier_block switcher_notifier = {
 	.notifier_call = cpufreq_stats_switcher_notifier,
 };
+#endif
 
 static int __init cpufreq_stats_init(void)
 {
@@ -479,15 +483,18 @@ static int __init cpufreq_stats_init(void)
 	spin_lock_init(&cpufreq_stats_lock);
 
 	ret = cpufreq_stats_setup();
+#ifdef CONFIG_BL_SWITCHER
 	if (!ret)
 		bL_switcher_register_notifier(&switcher_notifier);
-
+#endif
 	return ret;
 }
 
 static void __exit cpufreq_stats_exit(void)
 {
+#ifdef CONFIG_BL_SWITCHER
 	bL_switcher_unregister_notifier(&switcher_notifier);
+#endif
 	cpufreq_stats_cleanup();
 }
 
