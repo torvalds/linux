@@ -1005,7 +1005,7 @@ static void audit_log_rule_change(char *action, struct audit_krule *rule, int re
 {
 	struct audit_buffer *ab;
 	uid_t loginuid = from_kuid(&init_user_ns, audit_get_loginuid(current));
-	u32 sessionid = audit_get_sessionid(current);
+	unsigned int sessionid = audit_get_sessionid(current);
 
 	if (!audit_enabled)
 		return;

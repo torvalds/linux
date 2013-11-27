@@ -2899,12 +2899,12 @@ static void xfrm_policy_fini(struct net *net)
 	flush_work(&net->xfrm.policy_hash_work);
 #ifdef CONFIG_XFRM_SUB_POLICY
 	audit_info.loginuid = INVALID_UID;
-	audit_info.sessionid = -1;
+	audit_info.sessionid = (unsigned int)-1;
 	audit_info.secid = 0;
 	xfrm_policy_flush(net, XFRM_POLICY_TYPE_SUB, &audit_info);
 #endif
 	audit_info.loginuid = INVALID_UID;
-	audit_info.sessionid = -1;
+	audit_info.sessionid = (unsigned int)-1;
 	audit_info.secid = 0;
 	xfrm_policy_flush(net, XFRM_POLICY_TYPE_MAIN, &audit_info);
 
@@ -3010,7 +3010,7 @@ static void xfrm_audit_common_policyinfo(struct xfrm_policy *xp,
 }
 
 void xfrm_audit_policy_add(struct xfrm_policy *xp, int result,
-			   kuid_t auid, u32 sessionid, u32 secid)
+			   kuid_t auid, unsigned int sessionid, u32 secid)
 {
 	struct audit_buffer *audit_buf;
 
@@ -3025,7 +3025,7 @@ void xfrm_audit_policy_add(struct xfrm_policy *xp, int result,
 EXPORT_SYMBOL_GPL(xfrm_audit_policy_add);
 
 void xfrm_audit_policy_delete(struct xfrm_policy *xp, int result,
-			      kuid_t auid, u32 sessionid, u32 secid)
+			      kuid_t auid, unsigned int sessionid, u32 secid)
 {
 	struct audit_buffer *audit_buf;
 

@@ -1611,7 +1611,7 @@ void audit_log_d_path(struct audit_buffer *ab, const char *prefix,
 
 void audit_log_session_info(struct audit_buffer *ab)
 {
-	u32 sessionid = audit_get_sessionid(current);
+	unsigned int sessionid = audit_get_sessionid(current);
 	uid_t auid = from_kuid(&init_user_ns, audit_get_loginuid(current));
 
 	audit_log_format(ab, " auid=%u ses=%u", auid, sessionid);
