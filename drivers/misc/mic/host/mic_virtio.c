@@ -293,8 +293,8 @@ static void mic_virtio_init_post(struct mic_vdev *mvdev)
 			continue;
 		}
 		mvdev->mvr[i].vrh.vring.used =
-			mvdev->mdev->aper.va +
-			le64_to_cpu(vqconfig[i].used_address);
+			mvdev->mdev->aper.va
+			+ le64_to_cpu(vqconfig[i].used_address);
 	}
 
 	mvdev->dc->used_address_updated = 0;
@@ -525,6 +525,7 @@ int mic_virtio_add_device(struct mic_vdev *mvdev,
 	char irqname[10];
 	struct mic_bootparam *bootparam = mdev->dp;
 	u16 num;
+	dma_addr_t vr_addr;
 
 	mutex_lock(&mdev->mic_mutex);
 
@@ -559,17 +560,16 @@ int mic_virtio_add_device(struct mic_vdev *mvdev,
 		}
 		vr->len = vr_size;
 		vr->info = vr->va + vring_size(num, MIC_VIRTIO_RING_ALIGN);
-		vr->info->magic = MIC_MAGIC + mvdev->virtio_id + i;
-		vqconfig[i].address = mic_map_single(mdev,
-			vr->va, vr_size);
-		if (mic_map_error(vqconfig[i].address)) {
+		vr->info->magic = cpu_to_le32(MIC_MAGIC + mvdev->virtio_id + i);
+		vr_addr = mic_map_single(mdev, vr->va, vr_size);
+		if (mic_map_error(vr_addr)) {
 			free_pages((unsigned long)vr->va, get_order(vr_size));
 			ret = -ENOMEM;
 			dev_err(mic_dev(mvdev), "%s %d err %d\n",
 				__func__, __LINE__, ret);
 			goto err;
 		}
-		vqconfig[i].address = cpu_to_le64(vqconfig[i].address);
+		vqconfig[i].address = cpu_to_le64(vr_addr);
 
 		vring_init(&vr->vr, num, vr->va, MIC_VIRTIO_RING_ALIGN);
 		ret = vringh_init_kern(&mvr->vrh,

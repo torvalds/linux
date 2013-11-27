@@ -62,7 +62,7 @@ void mic_bootparam_init(struct mic_device *mdev)
 {
 	struct mic_bootparam *bootparam = mdev->dp;
 
-	bootparam->magic = MIC_MAGIC;
+	bootparam->magic = cpu_to_le32(MIC_MAGIC);
 	bootparam->c2h_shutdown_db = mdev->shutdown_db;
 	bootparam->h2c_shutdown_db = -1;
 	bootparam->h2c_config_db = -1;

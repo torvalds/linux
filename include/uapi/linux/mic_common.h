@@ -43,7 +43,7 @@ struct mic_device_desc {
 	__u8 feature_len;
 	__u8 config_len;
 	__u8 status;
-	__u64 config[0];
+	__le64 config[0];
 } __attribute__ ((aligned(8)));
 
 /**
@@ -61,7 +61,7 @@ struct mic_device_desc {
  * @h2c_vdev_db: The doorbell number to be used by host. Set by guest.
  */
 struct mic_device_ctrl {
-	__u64 vdev;
+	__le64 vdev;
 	__u8 config_change;
 	__u8 vdev_reset;
 	__u8 guest_ack;
@@ -82,7 +82,7 @@ struct mic_device_ctrl {
  * @shutdown_card: Set to 1 by the host when a card shutdown is initiated
  */
 struct mic_bootparam {
-	__u32 magic;
+	__le32 magic;
 	__s8 c2h_shutdown_db;
 	__s8 h2c_shutdown_db;
 	__s8 h2c_config_db;
@@ -111,9 +111,9 @@ struct mic_device_page {
  * @num: The number of entries in the virtio_ring
  */
 struct mic_vqconfig {
-	__u64 address;
-	__u64 used_address;
-	__u16 num;
+	__le64 address;
+	__le64 used_address;
+	__le16 num;
 } __attribute__ ((aligned(8)));
 
 /*
@@ -149,7 +149,7 @@ struct mic_vqconfig {
  */
 struct _mic_vring_info {
 	__u16 avail_idx;
-	int magic;
+	__le32 magic;
 };
 
 /**

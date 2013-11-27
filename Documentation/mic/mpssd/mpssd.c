@@ -445,8 +445,8 @@ init_vr(struct mic_info *mic, int fd, int type,
 		__func__, mic->name, vr0->va, vr0->info, vr_size,
 		vring_size(MIC_VRING_ENTRIES, MIC_VIRTIO_RING_ALIGN));
 	mpsslog("magic 0x%x expected 0x%x\n",
-		vr0->info->magic, MIC_MAGIC + type);
-	assert(vr0->info->magic == MIC_MAGIC + type);
+		le32toh(vr0->info->magic), MIC_MAGIC + type);
+	assert(le32toh(vr0->info->magic) == MIC_MAGIC + type);
 	if (vr1) {
 		vr1->va = (struct mic_vring *)
 			&va[MIC_DEVICE_PAGE_END + vr_size];
@@ -458,8 +458,8 @@ init_vr(struct mic_info *mic, int fd, int type,
 			__func__, mic->name, vr1->va, vr1->info, vr_size,
 			vring_size(MIC_VRING_ENTRIES, MIC_VIRTIO_RING_ALIGN));
 		mpsslog("magic 0x%x expected 0x%x\n",
-			vr1->info->magic, MIC_MAGIC + type + 1);
-		assert(vr1->info->magic == MIC_MAGIC + type + 1);
+			le32toh(vr1->info->magic), MIC_MAGIC + type + 1);
+		assert(le32toh(vr1->info->magic) == MIC_MAGIC + type + 1);
 	}
 done:
 	return va;

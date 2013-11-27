@@ -248,17 +248,16 @@ static struct virtqueue *mic_find_vq(struct virtio_device *vdev,
 	/* First assign the vring's allocated in host memory */
 	vqconfig = mic_vq_config(mvdev->desc) + index;
 	memcpy_fromio(&config, vqconfig, sizeof(config));
-	_vr_size = vring_size(config.num, MIC_VIRTIO_RING_ALIGN);
+	_vr_size = vring_size(le16_to_cpu(config.num), MIC_VIRTIO_RING_ALIGN);
 	vr_size = PAGE_ALIGN(_vr_size + sizeof(struct _mic_vring_info));
-	va = mic_card_map(mvdev->mdev, config.address, vr_size);
+	va = mic_card_map(mvdev->mdev, le64_to_cpu(config.address), vr_size);
 	if (!va)
 		return ERR_PTR(-ENOMEM);
 	mvdev->vr[index] = va;
 	memset_io(va, 0x0, _vr_size);
-	vq = vring_new_virtqueue(index,
-				config.num, MIC_VIRTIO_RING_ALIGN, vdev,
-				false,
-				va, mic_notify, callback, name);
+	vq = vring_new_virtqueue(index, le16_to_cpu(config.num),
+				 MIC_VIRTIO_RING_ALIGN, vdev, false, va,
+				 mic_notify, callback, name);
 	if (!vq) {
 		err = -ENOMEM;
 		goto unmap;
@@ -273,7 +272,8 @@ static struct virtqueue *mic_find_vq(struct virtio_device *vdev,
 
 	/* Allocate and reassign used ring now */
 	mvdev->used_size[index] = PAGE_ALIGN(sizeof(__u16) * 3 +
-			sizeof(struct vring_used_elem) * config.num);
+					     sizeof(struct vring_used_elem) *
+					     le16_to_cpu(config.num));
 	used = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 					get_order(mvdev->used_size[index]));
 	if (!used) {
