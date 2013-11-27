@@ -1108,6 +1108,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		}
 	}
 
+	intel_runtime_pm_get(dev_priv);
+
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
 		goto pre_mutex_err;
@@ -1237,6 +1239,10 @@ err:
 
 pre_mutex_err:
 	kfree(cliprects);
+
+	/* intel_gpu_busy should also get a ref, so it will free when the device
+	 * is really idle. */
+	intel_runtime_pm_put(dev_priv);
 	return ret;
 }
 

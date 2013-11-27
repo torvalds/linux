@@ -1380,6 +1380,8 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	int ret = 0;
 	bool write = !!(vmf->flags & FAULT_FLAG_WRITE);
 
+	intel_runtime_pm_get(dev_priv);
+
 	/* We don't use vmf->pgoff since that has the fake offset */
 	page_offset = ((unsigned long)vmf->virtual_address - vma->vm_start) >>
 		PAGE_SHIFT;
@@ -1427,8 +1429,10 @@ out:
 		/* If this -EIO is due to a gpu hang, give the reset code a
 		 * chance to clean up the mess. Otherwise return the proper
 		 * SIGBUS. */
-		if (i915_terminally_wedged(&dev_priv->gpu_error))
-			return VM_FAULT_SIGBUS;
+		if (i915_terminally_wedged(&dev_priv->gpu_error)) {
+			ret = VM_FAULT_SIGBUS;
+			break;
+		}
 	case -EAGAIN:
 		/*
 		 * EAGAIN means the gpu is hung and we'll wait for the error
@@ -1443,15 +1447,22 @@ out:
 		 * EBUSY is ok: this just means that another thread
 		 * already did the job.
 		 */
-		return VM_FAULT_NOPAGE;
+		ret = VM_FAULT_NOPAGE;
+		break;
 	case -ENOMEM:
-		return VM_FAULT_OOM;
+		ret = VM_FAULT_OOM;
+		break;
 	case -ENOSPC:
-		return VM_FAULT_SIGBUS;
+		ret = VM_FAULT_SIGBUS;
+		break;
 	default:
 		WARN_ONCE(ret, "unhandled error in i915_gem_fault: %i\n", ret);
-		return VM_FAULT_SIGBUS;
+		ret = VM_FAULT_SIGBUS;
+		break;
 	}
+
+	intel_runtime_pm_put(dev_priv);
+	return ret;
 }
 
 /**
@@ -4169,6 +4180,8 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct i915_vma *vma, *next;
 
+	intel_runtime_pm_get(dev_priv);
+
 	trace_i915_gem_object_destroy(obj);
 
 	if (obj->phys_obj)
@@ -4213,6 +4226,8 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 
 	kfree(obj->bit_17);
 	i915_gem_object_free(obj);
+
+	intel_runtime_pm_put(dev_priv);
 }
 
 struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
