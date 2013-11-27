@@ -272,7 +272,8 @@ static int clk_debug_create_one(struct clk *clk, struct dentry *pdentry)
 	goto out;
 
 err_out:
-	debugfs_remove(clk->dentry);
+	debugfs_remove_recursive(clk->dentry);
+	clk->dentry = NULL;
 out:
 	return ret;
 }
