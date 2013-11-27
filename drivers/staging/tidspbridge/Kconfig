@@ -4,7 +4,7 @@
 
 menuconfig TIDSPBRIDGE
 	tristate "DSP Bridge driver"
-	depends on ARCH_OMAP3 && !ARCH_MULTIPLATFORM
+	depends on ARCH_OMAP3 && !ARCH_MULTIPLATFORM && BROKEN
 	select MAILBOX
 	select OMAP2PLUS_MBOX
 	help
