@@ -5641,6 +5641,17 @@ static bool hsw_power_well_enabled(struct drm_device *dev,
 		     (HSW_PWR_WELL_ENABLE_REQUEST | HSW_PWR_WELL_STATE_ENABLED);
 }
 
+bool intel_display_power_enabled_sw(struct drm_device *dev,
+				    enum intel_display_power_domain domain)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_power_domains *power_domains;
+
+	power_domains = &dev_priv->power_domains;
+
+	return power_domains->domain_use_count[domain];
+}
+
 bool intel_display_power_enabled(struct drm_device *dev,
 				 enum intel_display_power_domain domain)
 {
@@ -5761,11 +5772,10 @@ void intel_display_power_get(struct drm_device *dev,
 
 	mutex_lock(&power_domains->lock);
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
-	power_domains->domain_use_count[domain]++;
-#endif
 	for_each_power_well(i, power_well, BIT(domain), power_domains)
 		__intel_power_well_get(dev, power_well);
+
+	power_domains->domain_use_count[domain]++;
 
 	mutex_unlock(&power_domains->lock);
 }
@@ -5782,13 +5792,11 @@ void intel_display_power_put(struct drm_device *dev,
 
 	mutex_lock(&power_domains->lock);
 
-	for_each_power_well_rev(i, power_well, BIT(domain), power_domains)
-		__intel_power_well_put(dev, power_well);
-
-#if IS_ENABLED(CONFIG_DEBUG_FS)
 	WARN_ON(!power_domains->domain_use_count[domain]);
 	power_domains->domain_use_count[domain]--;
-#endif
+
+	for_each_power_well_rev(i, power_well, BIT(domain), power_domains)
+		__intel_power_well_put(dev, power_well);
 
 	mutex_unlock(&power_domains->lock);
 }

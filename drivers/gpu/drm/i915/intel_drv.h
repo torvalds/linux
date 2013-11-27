@@ -842,6 +842,8 @@ int intel_power_domains_init(struct drm_device *dev);
 void intel_power_domains_remove(struct drm_device *dev);
 bool intel_display_power_enabled(struct drm_device *dev,
 				 enum intel_display_power_domain domain);
+bool intel_display_power_enabled_sw(struct drm_device *dev,
+				    enum intel_display_power_domain domain);
 void intel_display_power_get(struct drm_device *dev,
 			     enum intel_display_power_domain domain);
 void intel_display_power_put(struct drm_device *dev,

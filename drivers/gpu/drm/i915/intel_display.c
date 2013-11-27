@@ -11317,6 +11317,7 @@ struct intel_display_error_state {
 	} cursor[I915_MAX_PIPES];
 
 	struct intel_pipe_error_state {
+		bool power_domain_on;
 		u32 source;
 	} pipe[I915_MAX_PIPES];
 
@@ -11331,6 +11332,7 @@ struct intel_display_error_state {
 	} plane[I915_MAX_PIPES];
 
 	struct intel_transcoder_error_state {
+		bool power_domain_on;
 		enum transcoder cpu_transcoder;
 
 		u32 conf;
@@ -11368,7 +11370,9 @@ intel_display_capture_error_state(struct drm_device *dev)
 		error->power_well_driver = I915_READ(HSW_PWR_WELL_DRIVER);
 
 	for_each_pipe(i) {
-		if (!intel_display_power_enabled(dev, POWER_DOMAIN_PIPE(i)))
+		error->pipe[i].power_domain_on =
+			intel_display_power_enabled_sw(dev, POWER_DOMAIN_PIPE(i));
+		if (!error->pipe[i].power_domain_on)
 			continue;
 
 		if (INTEL_INFO(dev)->gen <= 6 || IS_VALLEYVIEW(dev)) {
@@ -11404,8 +11408,9 @@ intel_display_capture_error_state(struct drm_device *dev)
 	for (i = 0; i < error->num_transcoders; i++) {
 		enum transcoder cpu_transcoder = transcoders[i];
 
-		if (!intel_display_power_enabled(dev,
-				POWER_DOMAIN_TRANSCODER(cpu_transcoder)))
+		error->transcoder[i].power_domain_on =
+			intel_display_power_enabled_sw(dev, POWER_DOMAIN_PIPE(i));
+		if (!error->transcoder[i].power_domain_on)
 			continue;
 
 		error->transcoder[i].cpu_transcoder = cpu_transcoder;
@@ -11440,6 +11445,8 @@ intel_display_print_error_state(struct drm_i915_error_state_buf *m,
 			   error->power_well_driver);
 	for_each_pipe(i) {
 		err_printf(m, "Pipe [%d]:\n", i);
+		err_printf(m, "  Power: %s\n",
+			   error->pipe[i].power_domain_on ? "on" : "off");
 		err_printf(m, "  SRC: %08x\n", error->pipe[i].source);
 
 		err_printf(m, "Plane [%d]:\n", i);
@@ -11465,6 +11472,8 @@ intel_display_print_error_state(struct drm_i915_error_state_buf *m,
 	for (i = 0; i < error->num_transcoders; i++) {
 		err_printf(m, "CPU transcoder: %c\n",
 			   transcoder_name(error->transcoder[i].cpu_transcoder));
+		err_printf(m, "  Power: %s\n",
+			   error->transcoder[i].power_domain_on ? "on" : "off");
 		err_printf(m, "  CONF: %08x\n", error->transcoder[i].conf);
 		err_printf(m, "  HTOTAL: %08x\n", error->transcoder[i].htotal);
 		err_printf(m, "  HBLANK: %08x\n", error->transcoder[i].hblank);
