@@ -496,7 +496,7 @@ vlv_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 		val = __raw_i915_read##x(dev_priv, reg); \
 		if (--(*fwcount) == 0) \
 			(dev_priv)->uncore.funcs.force_wake_put(dev_priv, \
-							FORCEWAKE_ALL); \
+							fwengine); \
 	} else { \
 		val = __raw_i915_read##x(dev_priv, reg); \
 	} \
