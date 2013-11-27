@@ -117,7 +117,7 @@ struct nve0_ramfuc {
 	struct ramfuc_reg r_0x10f65c;
 	struct ramfuc_reg r_0x10f6bc;
 	struct ramfuc_reg r_0x100710;
-	struct ramfuc_reg r_0x10f750;
+	struct ramfuc_reg r_0x100750;
 };
 
 struct nve0_ram {
@@ -484,8 +484,8 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	data = nv_ro08(bios, ramcfg + 0x02) & 0x03;
 	if (nv_ro08(bios, ramcfg + 0x01) & 0x10)
 		data |= 0x00000004;
-	if ((nv_rd32(bios, 0x100770) & 0x00000004) != (data & 0x00000004)) {
-		ram_wr32(fuc, 0x10f750, 0x04000009);
+	if ((ram_rd32(fuc, 0x100770) & 0x00000004) != (data & 0x00000004)) {
+		ram_wr32(fuc, 0x100750, 0x04000009);
 		ram_wr32(fuc, 0x100710, 0x00000000);
 		ram_wait(fuc, 0x100710, 0x80000000, 0x80000000, 200000);
 	}
@@ -1240,7 +1240,7 @@ nve0_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	ram->fuc.r_0x10f65c = ramfuc_reg(0x10f65c);
 	ram->fuc.r_0x10f6bc = ramfuc_reg(0x10f6bc);
 	ram->fuc.r_0x100710 = ramfuc_reg(0x100710);
-	ram->fuc.r_0x10f750 = ramfuc_reg(0x10f750);
+	ram->fuc.r_0x100750 = ramfuc_reg(0x100750);
 	return 0;
 }
 
