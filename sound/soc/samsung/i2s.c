@@ -443,8 +443,6 @@ static int i2s_set_sysclk(struct snd_soc_dai *dai,
 					&& !(mod & MOD_CDCLKCON)) ||
 				((dir == SND_SOC_CLOCK_OUT)
 					&& (mod & MOD_CDCLKCON))))) {
-			dev_debug(&i2s->pdev->dev,
-				"%s:%d Other DAI busy\n", __func__, __LINE__);
 			return -EAGAIN;
 		}
 
