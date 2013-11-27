@@ -135,7 +135,7 @@
 	};
 
 	irqpin0: irqpin@fe780010 {
-		compatible = "renesas,intc-irqpin";
+		compatible = "renesas,intc-irqpin-r8a7779", "renesas,intc-irqpin";
 		#interrupt-cells = <2>;
 		status = "disabled";
 		interrupt-controller;
