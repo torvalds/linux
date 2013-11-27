@@ -2241,7 +2241,12 @@ void intel_display_handle_reset(struct drm_device *dev)
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
 		mutex_lock(&crtc->mutex);
-		if (intel_crtc->active)
+		/*
+		 * FIXME: Once we have proper support for primary planes (and
+		 * disabling them without disabling the entire crtc) allow again
+		 * a NULL crtc->fb.
+		 */
+		if (intel_crtc->active && crtc->fb)
 			dev_priv->display.update_plane(crtc, crtc->fb,
 						       crtc->x, crtc->y);
 		mutex_unlock(&crtc->mutex);
