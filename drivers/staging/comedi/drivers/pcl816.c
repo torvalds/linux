@@ -854,7 +854,7 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct pcl816_board *board = comedi_board(dev);
 	struct pcl816_private *devpriv;
 	int ret;
-	unsigned int irq, dma;
+	unsigned int dma;
 	unsigned long pages;
 	/* int i; */
 	struct comedi_subdevice *s;
@@ -872,35 +872,14 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	/* grab our IRQ */
-	irq = 0;
-	if (board->IRQbits != 0) {	/* board support IRQ */
-		irq = it->options[1];
-		if (irq) {	/* we want to use IRQ */
-			if (((1 << irq) & board->IRQbits) == 0) {
-				printk
-				    (", IRQ %u is out of allowed range, "
-				     "DISABLING IT", irq);
-				irq = 0;	/* Bad IRQ */
-			} else {
-				if (request_irq(irq, interrupt_pcl816, 0,
-						dev->board_name, dev)) {
-					printk
-					    (", unable to allocate IRQ %u, "
-					     "DISABLING IT", irq);
-					irq = 0;	/* Can't use IRQ */
-				} else {
-					printk(KERN_INFO ", irq=%u", irq);
-				}
-			}
+	if ((1 << it->options[1]) & board->IRQbits) {
+		ret = request_irq(it->options[1], interrupt_pcl816, 0,
+				  dev->board_name, dev);
+		if (ret == 0) {
+			dev->irq = it->options[1];
+			devpriv->irq_free = 1;
 		}
 	}
-
-	dev->irq = irq;
-	if (irq)	/* 1=we have allocated irq */
-		devpriv->irq_free = 1;
-	else
-		devpriv->irq_free = 0;
 
 	devpriv->irq_blocked = 0;	/* number of subdevice which use IRQ */
 	devpriv->int816_mode = 0;	/* mode of irq */
