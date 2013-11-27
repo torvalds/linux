@@ -896,8 +896,10 @@ static int rtsx_probe(struct pci_dev *pci,
 	memset(dev, 0, sizeof(struct rtsx_dev));
 
 	dev->chip = kzalloc(sizeof(struct rtsx_chip), GFP_KERNEL);
-	if (dev->chip == NULL)
+	if (dev->chip == NULL) {
+		err = -ENOMEM;
 		goto errout;
+	}
 
 	spin_lock_init(&dev->reg_lock);
 	mutex_init(&(dev->dev_mutex));
