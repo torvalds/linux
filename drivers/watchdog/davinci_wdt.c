@@ -247,7 +247,7 @@ MODULE_DEVICE_TABLE(of, davinci_wdt_of_match);
 
 static struct platform_driver platform_wdt_driver = {
 	.driver = {
-		.name = "watchdog",
+		.name = "davinci-wdt",
 		.owner	= THIS_MODULE,
 		.of_match_table = davinci_wdt_of_match,
 	},
@@ -267,4 +267,4 @@ MODULE_PARM_DESC(heartbeat,
 		 __MODULE_STRING(DEFAULT_HEARTBEAT));
 
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:watchdog");
+MODULE_ALIAS("platform:davinci-wdt");
