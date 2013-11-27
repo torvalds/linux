@@ -151,7 +151,7 @@ static void flctl_setup_dma(struct sh_flctl *flctl)
 	dma_cap_set(DMA_SLAVE, mask);
 
 	flctl->chan_fifo0_tx = dma_request_channel(mask, shdma_chan_filter,
-					    (void *)pdata->slave_id_fifo0_tx);
+				(void *)(uintptr_t)pdata->slave_id_fifo0_tx);
 	dev_dbg(&pdev->dev, "%s: TX: got channel %p\n", __func__,
 		flctl->chan_fifo0_tx);
 
@@ -168,7 +168,7 @@ static void flctl_setup_dma(struct sh_flctl *flctl)
 		goto err;
 
 	flctl->chan_fifo0_rx = dma_request_channel(mask, shdma_chan_filter,
-					    (void *)pdata->slave_id_fifo0_rx);
+				(void *)(uintptr_t)pdata->slave_id_fifo0_rx);
 	dev_dbg(&pdev->dev, "%s: RX: got channel %p\n", __func__,
 		flctl->chan_fifo0_rx);
 
