@@ -55,14 +55,8 @@ static bool		tasks_only;
 static bool		with_backtrace;
 
 
-struct per_pid;
 struct per_pidcomm;
-
 struct cpu_sample;
-struct power_event;
-struct wake_event;
-
-struct sample_wrapper;
 
 /*
  * Datastructure layout:
@@ -155,7 +149,6 @@ struct wake_event {
 static struct power_event    *power_events;
 static struct wake_event     *wake_events;
 
-struct process_filter;
 struct process_filter {
 	char			*name;
 	int			pid;
