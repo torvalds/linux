@@ -261,7 +261,7 @@ int btrfs_check_dir_item_collision(struct btrfs_root *root, u64 dir,
 	 * see if there is room in the item to insert this
 	 * name
 	 */
-	data_size = sizeof(*di) + name_len + sizeof(struct btrfs_item);
+	data_size = sizeof(*di) + name_len;
 	leaf = path->nodes[0];
 	slot = path->slots[0];
 	if (data_size + btrfs_item_size_nr(leaf, slot) +
