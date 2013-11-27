@@ -103,7 +103,9 @@ struct nve0_ramfuc {
 	struct ramfuc_reg r_mr[16]; /* MR0 - MR8, MR15 */
 
 	struct ramfuc_reg r_0x62c000;
+
 	struct ramfuc_reg r_0x10f200;
+
 	struct ramfuc_reg r_0x10f210;
 	struct ramfuc_reg r_0x10f310;
 	struct ramfuc_reg r_0x10f314;
@@ -123,6 +125,11 @@ struct nve0_ramfuc {
 struct nve0_ram {
 	struct nouveau_ram base;
 	struct nve0_ramfuc fuc;
+
+	u32 parts;
+	u32 pmask;
+	u32 pnuts;
+
 	int from;
 	int mode;
 	int N1, fN1, M1, P1;
@@ -136,16 +143,13 @@ static void
 nve0_ram_train(struct nve0_ramfuc *fuc, u32 magic)
 {
 	struct nve0_ram *ram = container_of(fuc, typeof(*ram), fuc);
-	struct nouveau_fb *pfb = nouveau_fb(ram);
-	u32 part = nv_rd32(pfb, 0x022438), i;
-	u32 mask = nv_rd32(pfb, 0x022554);
-	u32 addr = 0x110974;
+	u32 addr = 0x110974, i;
 
 	ram_mask(fuc, 0x10f910, 0xbc0e0000, magic);
 	ram_mask(fuc, 0x10f914, 0xbc0e0000, magic);
 
-	for (i = 0; (magic & 0x80000000) && i < part; addr += 0x1000, i++) {
-		if (mask & (1 << i))
+	for (i = 0; (magic & 0x80000000) && i < ram->parts; addr += 0x1000, i++) {
+		if (ram->pmask & (1 << i))
 			continue;
 		ram_wait(fuc, addr, 0x0000000f, 0x00000000, 500000);
 	}
@@ -222,6 +226,28 @@ r1373f4_fini(struct nve0_ramfuc *fuc, u32 ramcfg)
 	ram_mask(fuc, 0x10f800, 0x00000030, (v0 ^ v1) << 4);
 }
 
+static void
+nve0_ram_nuts(struct nve0_ram *ram, struct ramfuc_reg *reg,
+	      u32 _mask, u32 _data, u32 _copy)
+{
+	struct nve0_fb_priv *priv = (void *)nouveau_fb(ram);
+	struct ramfuc *fuc = &ram->fuc.base;
+	u32 addr = 0x110000 + (reg->addr[0] & 0xfff);
+	u32 mask = _mask | _copy;
+	u32 data = (_data & _mask) | (reg->data & _copy);
+	u32 i;
+
+	for (i = 0; i < 16; i++, addr += 0x1000) {
+		if (ram->pnuts & (1 << i)) {
+			u32 prev = nv_rd32(priv, addr);
+			u32 next = (prev & ~mask) | data;
+			nouveau_memx_wr32(fuc->memx, addr, next);
+		}
+	}
+}
+#define ram_nuts(s,r,m,d,c)                                                    \
+	nve0_ram_nuts((s), &(s)->fuc.r_##r, (m), (d), (c))
+
 static int
 nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 {
@@ -233,14 +259,16 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	const u32 timing = ram->base.timing.data;
 	int vc = !(nv_ro08(bios, ramcfg + 0x02) & 0x08);
 	int mv = 1; /*XXX*/
-	u32 mask, data;
+	u32 mask, data, i;
 
 	ram_mask(fuc, 0x10f808, 0x40000000, 0x40000000);
 	ram_wr32(fuc, 0x62c000, 0x0f0f0000);
 
 	/* MR1: turn termination on early, for some reason.. */
-	if ((ram->base.mr[1] & 0x03c) != 0x030)
+	if ((ram->base.mr[1] & 0x03c) != 0x030) {
 		ram_mask(fuc, mr[1], 0x03c, ram->base.mr[1] & 0x03c);
+		ram_nuts(ram, mr[1], 0x03c, ram->base.mr1_nuts & 0x03c, 0x000);
+	}
 
 	if (vc == 1 && ram_have(fuc, gpio2E)) {
 		u32 temp  = ram_mask(fuc, gpio2E, 0x3000, fuc->r_func2E[1]);
@@ -546,6 +574,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	ram_wr32(fuc, 0x10f318, 0x00000001); /* NOP? */
 	ram_mask(fuc, 0x10f200, 0x80000000, 0x00000000);
 	ram_nsec(fuc, 1000);
+	ram_nuts(ram, 0x10f200, 0x00808800, 0x00000000, 0x00808800);
 
 	data  = ram_rd32(fuc, 0x10f978);
 	data &= ~0x00046144;
@@ -603,6 +632,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	else
 		data = 0x00000000;
 	ram_mask(fuc, 0x10f200, 0x00000800, data);
+	ram_nuts(ram, 0x10f200, 0x00808800, data, 0x00808800);
 	return 0;
 }
 
@@ -980,7 +1010,7 @@ nve0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 			ret = nve0_ram_calc_sddr3(pfb, freq);
 		break;
 	case NV_MEM_TYPE_GDDR5:
-		ret = nouveau_gddr5_calc(&ram->base);
+		ret = nouveau_gddr5_calc(&ram->base, ram->pnuts != 0);
 		if (ret == 0)
 			ret = nve0_ram_calc_gddr5(pfb, freq);
 		break;
@@ -1109,7 +1139,8 @@ nve0_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nouveau_gpio *gpio = nouveau_gpio(pfb);
 	struct dcb_gpio_func func;
 	struct nve0_ram *ram;
-	int ret;
+	int ret, i;
+	u32 tmp;
 
 	ret = nvc0_ram_create(parent, engine, oclass, &ram);
 	*pobject = nv_object(ram);
@@ -1126,6 +1157,25 @@ nve0_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	default:
 		nv_warn(pfb, "reclocking of this RAM type is unsupported\n");
 		break;
+	}
+
+	/* calculate a mask of differently configured memory partitions,
+	 * because, of course reclocking wasn't complicated enough
+	 * already without having to treat some of them differently to
+	 * the others....
+	 */
+	ram->parts = nv_rd32(pfb, 0x022438);
+	ram->pmask = nv_rd32(pfb, 0x022554);
+	ram->pnuts = 0;
+	for (i = 0, tmp = 0; i < ram->parts; i++) {
+		if (!(ram->pmask & (1 << i))) {
+			u32 cfg1 = nv_rd32(pfb, 0x110204 + (i * 0x1000));
+			if (tmp && tmp != cfg1) {
+				ram->pnuts |= (1 << i);
+				continue;
+			}
+			tmp = cfg1;
+		}
 	}
 
 	// parse bios data for both pll's

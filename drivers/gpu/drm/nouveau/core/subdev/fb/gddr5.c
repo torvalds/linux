@@ -26,11 +26,11 @@
 #include "priv.h"
 
 int
-nouveau_gddr5_calc(struct nouveau_ram *ram)
+nouveau_gddr5_calc(struct nouveau_ram *ram, bool nuts)
 {
 	struct nouveau_bios *bios = nouveau_bios(ram);
 	int pd, lf, xd, vh, vr, vo;
-	int WL, CL, WR, at, dt, ds;
+	int WL, CL, WR, at[2], dt, ds;
 	int rq = ram->freq < 1000000; /* XXX */
 
 	switch (!!ram->ramcfg.data * ram->ramcfg.version) {
@@ -51,7 +51,8 @@ nouveau_gddr5_calc(struct nouveau_ram *ram)
 		WL = (nv_ro16(bios, ram->timing.data + 0x04) & 0x0f80) >> 7;
 		CL =  nv_ro08(bios, ram->timing.data + 0x04) & 0x1f;
 		WR =  nv_ro08(bios, ram->timing.data + 0x0a) & 0x7f;
-		at = (nv_ro08(bios, ram->timing.data + 0x2e) & 0xc0) >> 6;
+		at[0] = (nv_ro08(bios, ram->timing.data + 0x2e) & 0xc0) >> 6;
+		at[1] = (nv_ro08(bios, ram->timing.data + 0x2e) & 0x30) >> 4;
 		dt =  nv_ro08(bios, ram->timing.data + 0x2e) & 0x03;
 		ds =  nv_ro08(bios, ram->timing.data + 0x2f) & 0x03;
 		break;
@@ -71,9 +72,18 @@ nouveau_gddr5_calc(struct nouveau_ram *ram)
 
 	ram->mr[1] &= ~0x0bf;
 	ram->mr[1] |= (xd & 0x01) << 7;
-	ram->mr[1] |= (at & 0x03) << 4;
+	ram->mr[1] |= (at[0] & 0x03) << 4;
 	ram->mr[1] |= (dt & 0x03) << 2;
 	ram->mr[1] |= (ds & 0x03) << 0;
+
+	/* this seems wrong, alternate field used for the broadcast
+	 * on nuts vs non-nuts configs..  meh, it matches for now.
+	 */
+	ram->mr1_nuts = ram->mr[1];
+	if (nuts) {
+		ram->mr[1] &= ~0x030;
+		ram->mr[1] |= (at[1] & 0x03) << 4;
+	}
 
 	ram->mr[3] &= ~0x020;
 	ram->mr[3] |= (rq & 0x01) << 5;

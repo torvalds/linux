@@ -142,6 +142,7 @@ struct nouveau_ram {
 	} rammap, ramcfg, timing;
 	u32 freq;
 	u32 mr[16];
+	u32 mr1_nuts;
 };
 
 #endif
