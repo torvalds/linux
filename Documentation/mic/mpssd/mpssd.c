@@ -1412,6 +1412,12 @@ mic_config(void *arg)
 	}
 
 	do {
+		ret = lseek(fd, 0, SEEK_SET);
+		if (ret < 0) {
+			mpsslog("%s: Failed to seek to file start '%s': %s\n",
+				mic->name, pathname, strerror(errno));
+			goto close_error1;
+		}
 		ret = read(fd, value, sizeof(value));
 		if (ret < 0) {
 			mpsslog("%s: Failed to read sysfs entry '%s': %s\n",
