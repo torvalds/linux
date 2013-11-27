@@ -39,12 +39,41 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 #include "core.h"
 #include "hcd.h"
 
 static const char dwc2_driver_name[] = "dwc2";
+
+static const struct dwc2_core_params params_bcm2835 = {
+	.otg_cap			= 0,	/* HNP/SRP capable */
+	.otg_ver			= 0,	/* 1.3 */
+	.dma_enable			= 1,
+	.dma_desc_enable		= 0,
+	.speed				= 0,	/* High Speed */
+	.enable_dynamic_fifo		= 1,
+	.en_multiple_tx_fifo		= 1,
+	.host_rx_fifo_size		= 774,	/* 774 DWORDs */
+	.host_nperio_tx_fifo_size	= 256,	/* 256 DWORDs */
+	.host_perio_tx_fifo_size	= 512,	/* 512 DWORDs */
+	.max_transfer_size		= 65535,
+	.max_packet_count		= 511,
+	.host_channels			= 8,
+	.phy_type			= 1,	/* UTMI */
+	.phy_utmi_width			= 8,	/* 8 bits */
+	.phy_ulpi_ddr			= 0,	/* Single */
+	.phy_ulpi_ext_vbus		= 0,
+	.i2c_enable			= 0,
+	.ulpi_fs_ls			= 0,
+	.host_support_fs_ls_low_power	= 0,
+	.host_ls_low_power_phy_clk	= 0,	/* 48 MHz */
+	.ts_dline			= 0,
+	.reload_ctl			= 0,
+	.ahbcfg				= 0x10,
+	.uframe_sched			= 1,
+};
 
 /**
  * dwc2_driver_remove() - Called when the DWC_otg core is unregistered with the
@@ -66,6 +95,13 @@ static int dwc2_driver_remove(struct platform_device *dev)
 	return 0;
 }
 
+static const struct of_device_id dwc2_of_match_table[] = {
+	{ .compatible = "brcm,bcm2835-usb", .data = &params_bcm2835 },
+	{ .compatible = "snps,dwc2", .data = NULL },
+	{},
+};
+MODULE_DEVICE_TABLE(of, dwc2_of_match_table);
+
 /**
  * dwc2_driver_probe() - Called when the DWC_otg core is bound to the DWC_otg
  * driver
@@ -80,14 +116,22 @@ static int dwc2_driver_remove(struct platform_device *dev)
  */
 static int dwc2_driver_probe(struct platform_device *dev)
 {
+	const struct of_device_id *match;
+	const struct dwc2_core_params *params;
+	struct dwc2_core_params defparams;
 	struct dwc2_hsotg *hsotg;
 	struct resource *res;
 	int retval;
 	int irq;
-	struct dwc2_core_params params;
 
-	/* Default all params to autodetect */
-	dwc2_set_all_params(&params, -1);
+	match = of_match_device(dwc2_of_match_table, &dev->dev);
+	if (match && match->data) {
+		params = match->data;
+	} else {
+		/* Default all params to autodetect */
+		dwc2_set_all_params(&defparams, -1);
+		params = &defparams;
+	}
 
 	hsotg = devm_kzalloc(&dev->dev, sizeof(*hsotg), GFP_KERNEL);
 	if (!hsotg)
@@ -118,7 +162,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	dev_dbg(&dev->dev, "mapped PA %08lx to VA %p\n",
 		(unsigned long)res->start, hsotg->regs);
 
-	retval = dwc2_hcd_init(hsotg, irq, &params);
+	retval = dwc2_hcd_init(hsotg, irq, params);
 	if (retval)
 		return retval;
 
@@ -126,12 +170,6 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	return retval;
 }
-
-static const struct of_device_id dwc2_of_match_table[] = {
-	{ .compatible = "snps,dwc2" },
-	{},
-};
-MODULE_DEVICE_TABLE(of, dwc2_of_match_table);
 
 static struct platform_driver dwc2_platform_driver = {
 	.driver = {
