@@ -673,6 +673,7 @@ struct hda_bus {
 
 	/* codec linked list */
 	struct list_head codec_list;
+	unsigned int num_codecs;
 	/* link caddr -> codec */
 	struct hda_codec *caddr_tbl[HDA_MAX_CODEC_ADDRESS + 1];
 
@@ -683,6 +684,9 @@ struct hda_bus {
 	struct hda_bus_unsolicited *unsol;
 	char workq_name[16];
 	struct workqueue_struct *workq;	/* common workqueue for codecs */
+#ifdef CONFIG_PM
+	struct workqueue_struct *pm_wq;	/* workqueue to parallel codec PM */
+#endif
 
 	/* assigned PCMs */
 	DECLARE_BITMAP(pcm_dev_bits, SNDRV_PCM_DEVICES);
@@ -917,6 +921,7 @@ struct hda_codec {
 	unsigned long power_off_acct;
 	unsigned long power_jiffies;
 	spinlock_t power_lock;
+	struct work_struct pm_work; /* task to parallel multi-codec PM */
 #endif
 
 	/* filter the requested power state per nid */
