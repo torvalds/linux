@@ -79,7 +79,6 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	struct nva3_ram *ram = (void *)pfb->ram;
 	struct nva3_ramfuc *fuc = &ram->fuc;
 	struct nva3_clock_info mclk;
-	struct bit_entry M;
 	u8  ver, cnt, strap;
 	u32 data;
 	struct {
@@ -99,16 +98,7 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	}
 
 	/* locate specific data set for the attached memory */
-	if (bit_entry(bios, 'M', &M) || M.version != 2 || M.length < 3) {
-		nv_error(pfb, "invalid/missing memory table\n");
-		return -EINVAL;
-	}
-
-	strap = (nv_rd32(pfb, 0x101000) & 0x0000003c) >> 2;
-	data = nv_ro16(bios, M.offset + 1);
-	if (data)
-		strap = nv_ro08(bios, data + strap);
-
+	strap = nvbios_ramcfg_index(bios);
 	if (strap >= cnt) {
 		nv_error(pfb, "invalid ramcfg strap\n");
 		return -EINVAL;
