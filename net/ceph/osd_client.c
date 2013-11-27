@@ -1581,6 +1581,13 @@ done:
 	return;
 
 bad_put:
+	req->r_result = -EIO;
+	__unregister_request(osdc, req);
+	if (req->r_callback)
+		req->r_callback(req, msg);
+	else
+		complete_all(&req->r_completion);
+	complete_request(req);
 	ceph_osdc_put_request(req);
 bad_mutex:
 	mutex_unlock(&osdc->request_mutex);
