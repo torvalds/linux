@@ -511,6 +511,9 @@ static void __exit chromeos_laptop_exit(void)
 		i2c_unregister_device(tp);
 	if (ts)
 		i2c_unregister_device(ts);
+
+	platform_device_unregister(cros_platform_device);
+	platform_driver_unregister(&cros_platform_driver);
 }
 
 module_init(chromeos_laptop_init);
