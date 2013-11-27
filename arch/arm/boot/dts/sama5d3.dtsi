@@ -26,6 +26,7 @@
 		serial2 = &usart1;
 		serial3 = &usart2;
 		serial4 = &usart3;
+		serial5 = &uart0;
 		gpio0 = &pioA;
 		gpio1 = &pioB;
 		gpio2 = &pioC;
@@ -202,6 +203,17 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart1>;
 				clocks = <&usart1_clk>;
+				clock-names = "usart";
+				status = "disabled";
+			};
+
+			uart0: serial@f0024000 {
+				compatible = "atmel,at91sam9260-usart";
+				reg = <0xf0024000 0x100>;
+				interrupts = <16 IRQ_TYPE_LEVEL_HIGH 5>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart0>;
+				clocks = <&uart0_clk>;
 				clock-names = "usart";
 				status = "disabled";
 			};
@@ -764,6 +776,14 @@
 					};
 				};
 
+				uart0 {
+					pinctrl_uart0: uart0-0 {
+						atmel,pins =
+							<AT91_PIOC 29 AT91_PERIPH_A AT91_PINCTRL_NONE	/* conflicts with PWMFI2, ISI_D8 */
+							 AT91_PIOC 30 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;	/* conflicts with ISI_PCK */
+					};
+				};
+
 				usart0 {
 					pinctrl_usart0: usart0-0 {
 						atmel,pins =
@@ -1095,6 +1115,12 @@
 					usart3_clk: usart3_clk {
 						#clock-cells = <0>;
 						reg = <15>;
+						atmel,clk-output-range = <0 66000000>;
+					};
+
+					uart0_clk: uart0_clk {
+						#clock-cells = <0>;
+						reg = <16>;
 						atmel,clk-output-range = <0 66000000>;
 					};
 
