@@ -1286,6 +1286,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 					reg = wm_adsp_region_to_reg(mem,
 								    reg);
 					reg += offset;
+					break;
 				}
 			}
 
