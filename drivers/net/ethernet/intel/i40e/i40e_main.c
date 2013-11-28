@@ -3110,7 +3110,7 @@ static int i40e_vsi_control_rx(struct i40e_vsi *vsi, bool enable)
  * @vsi: the VSI being configured
  * @enable: start or stop the rings
  **/
-static int i40e_vsi_control_rings(struct i40e_vsi *vsi, bool request)
+int i40e_vsi_control_rings(struct i40e_vsi *vsi, bool request)
 {
 	int ret;
 
