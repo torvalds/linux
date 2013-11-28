@@ -438,7 +438,8 @@ void __init of_irq_init(const struct of_device_id *matches)
 	INIT_LIST_HEAD(&intc_parent_list);
 
 	for_each_matching_node(np, matches) {
-		if (!of_find_property(np, "interrupt-controller", NULL))
+		if (!of_find_property(np, "interrupt-controller", NULL) ||
+				!of_device_is_available(np))
 			continue;
 		/*
 		 * Here, we allocate and populate an intc_desc with the node
