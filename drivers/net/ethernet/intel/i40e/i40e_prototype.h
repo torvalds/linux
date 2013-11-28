@@ -205,7 +205,6 @@ void i40e_clear_pxe_mode(struct i40e_hw *hw);
 bool i40e_get_link_status(struct i40e_hw *hw);
 i40e_status i40e_get_mac_addr(struct i40e_hw *hw,
 						u8 *mac_addr);
-i40e_status i40e_validate_mac_addr(u8 *mac_addr);
 i40e_status i40e_read_lldp_cfg(struct i40e_hw *hw,
 					struct i40e_lldp_variables *lldp_cfg);
 /* prototype for functions used for NVM access */

@@ -7644,7 +7644,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	i40e_get_mac_addr(hw, hw->mac.addr);
-	if (i40e_validate_mac_addr(hw->mac.addr)) {
+	if (!is_valid_ether_addr(hw->mac.addr)) {
 		dev_info(&pdev->dev, "invalid MAC address %pM\n", hw->mac.addr);
 		err = -EIO;
 		goto err_mac_addr;
