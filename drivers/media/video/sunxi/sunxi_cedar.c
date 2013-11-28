@@ -924,8 +924,10 @@ static int __init cedardev_init(void)
 	unsigned int val;
 	dev_t dev = 0;
 
-	if (ve_size == 0)
+	if (ve_size == 0) {
+		printk("[cedar dev]: not installed! ve_mem_reserve=0\n");
 		return -ENODEV;
+	}
 
 	printk("[cedar dev]: install start!!!\n");
 	if((platform_device_register(&sw_device_cedar))<0)
