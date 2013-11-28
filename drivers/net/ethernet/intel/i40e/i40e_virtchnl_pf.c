@@ -720,7 +720,7 @@ static bool i40e_vfs_are_assigned(struct i40e_pf *pf)
 void i40e_free_vfs(struct i40e_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
-	int i;
+	int i, tmp;
 
 	if (!pf->vf)
 		return;
@@ -728,9 +728,11 @@ void i40e_free_vfs(struct i40e_pf *pf)
 	/* Disable interrupt 0 so we don't try to handle the VFLR. */
 	wr32(hw, I40E_PFINT_DYN_CTL0, 0);
 	i40e_flush(hw);
-
+	mdelay(10); /* let any messages in transit get finished up */
 	/* free up vf resources */
-	for (i = 0; i < pf->num_alloc_vfs; i++) {
+	tmp = pf->num_alloc_vfs;
+	pf->num_alloc_vfs = 0;
+	for (i = 0; i < tmp; i++) {
 		if (test_bit(I40E_VF_STAT_INIT, &pf->vf[i].vf_states))
 			i40e_free_vf_res(&pf->vf[i]);
 		/* disable qp mappings */
@@ -739,7 +741,6 @@ void i40e_free_vfs(struct i40e_pf *pf)
 
 	kfree(pf->vf);
 	pf->vf = NULL;
-	pf->num_alloc_vfs = 0;
 
 	if (!i40e_vfs_are_assigned(pf))
 		pci_disable_sriov(pf->pdev);
@@ -765,9 +766,13 @@ void i40e_free_vfs(struct i40e_pf *pf)
  **/
 static int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 {
+	struct i40e_hw *hw = &pf->hw;
 	struct i40e_vf *vfs;
 	int i, ret = 0;
 
+	/* Disable interrupt 0 so we don't try to handle the VFLR. */
+	wr32(hw, I40E_PFINT_DYN_CTL0, 0);
+	i40e_flush(hw);
 	ret = pci_enable_sriov(pf->pdev, num_alloc_vfs);
 	if (ret) {
 		dev_err(&pf->pdev->dev,
@@ -804,6 +809,11 @@ err_alloc:
 	if (ret)
 		i40e_free_vfs(pf);
 err_iov:
+	/* Re-enable interrupt 0. */
+	wr32(hw, I40E_PFINT_DYN_CTL0,
+	     I40E_PFINT_DYN_CTL0_INTENA_MASK |
+	     I40E_PFINT_DYN_CTL0_CLEARPBA_MASK |
+	     (I40E_ITR_NONE << I40E_PFINT_DYN_CTL0_ITR_INDX_SHIFT));
 	return ret;
 }
 
@@ -1644,11 +1654,14 @@ static int i40e_vc_validate_vf_msg(struct i40e_vf *vf, u32 v_opcode,
 int i40e_vc_process_vf_msg(struct i40e_pf *pf, u16 vf_id, u32 v_opcode,
 			   u32 v_retval, u8 *msg, u16 msglen)
 {
-	struct i40e_vf *vf = &(pf->vf[vf_id]);
 	struct i40e_hw *hw = &pf->hw;
+	struct i40e_vf *vf;
 	int ret;
 
 	pf->vf_aq_requests++;
+	if (vf_id >= pf->num_alloc_vfs)
+		return -EINVAL;
+	vf = &(pf->vf[vf_id]);
 	/* perform basic checks on the msg */
 	ret = i40e_vc_validate_vf_msg(vf, v_opcode, v_retval, msg, msglen);
 
