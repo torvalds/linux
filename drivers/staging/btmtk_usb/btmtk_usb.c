@@ -1284,9 +1284,8 @@ done:
 	kfree_skb(skb);
 }
 
-static int btmtk_usb_send_frame(struct sk_buff *skb)
+static int btmtk_usb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct hci_dev *hdev = (struct hci_dev *)skb->dev;
 	struct btmtk_usb_data *data = hci_get_drvdata(hdev);
 	struct usb_ctrlrequest *dr;
 	struct urb *urb;

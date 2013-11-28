@@ -72,6 +72,7 @@ int imx_drm_crtc_id(struct imx_drm_crtc *crtc)
 {
 	return crtc->pipe;
 }
+EXPORT_SYMBOL_GPL(imx_drm_crtc_id);
 
 static void imx_drm_driver_lastclose(struct drm_device *drm)
 {
