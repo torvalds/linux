@@ -565,7 +565,7 @@ static int mxs_spi_remove(struct platform_device *pdev)
 	struct mxs_spi *spi;
 	struct mxs_ssp *ssp;
 
-	master = spi_master_get(platform_get_drvdata(pdev));
+	master = platform_get_drvdata(pdev);
 	spi = spi_master_get_devdata(master);
 	ssp = &spi->ssp;
 
