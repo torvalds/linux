@@ -538,7 +538,8 @@ static void pci_setup_bridge_io(struct pci_bus *bus)
 	struct pci_bus_region region;
 	unsigned long io_mask;
 	u8 io_base_lo, io_limit_lo;
-	u32 l, io_upper16;
+	u16 l;
+	u32 io_upper16;
 
 	io_mask = PCI_IO_RANGE_MASK;
 	if (bridge->io_window_1k)
@@ -548,11 +549,10 @@ static void pci_setup_bridge_io(struct pci_bus *bus)
 	res = bus->resource[0];
 	pcibios_resource_to_bus(bridge, &region, res);
 	if (res->flags & IORESOURCE_IO) {
-		pci_read_config_dword(bridge, PCI_IO_BASE, &l);
-		l &= 0xffff0000;
+		pci_read_config_word(bridge, PCI_IO_BASE, &l);
 		io_base_lo = (region.start >> 8) & io_mask;
 		io_limit_lo = (region.end >> 8) & io_mask;
-		l |= ((u32) io_limit_lo << 8) | io_base_lo;
+		l = ((u16) io_limit_lo << 8) | io_base_lo;
 		/* Set up upper 16 bits of I/O base/limit. */
 		io_upper16 = (region.end & 0xffff0000) | (region.start >> 16);
 		dev_info(&bridge->dev, "  bridge window %pR\n", res);
@@ -564,7 +564,7 @@ static void pci_setup_bridge_io(struct pci_bus *bus)
 	/* Temporarily disable the I/O range before updating PCI_IO_BASE. */
 	pci_write_config_dword(bridge, PCI_IO_BASE_UPPER16, 0x0000ffff);
 	/* Update lower 16 bits of I/O base/limit. */
-	pci_write_config_dword(bridge, PCI_IO_BASE, l);
+	pci_write_config_word(bridge, PCI_IO_BASE, l);
 	/* Update upper 16 bits of I/O base/limit. */
 	pci_write_config_dword(bridge, PCI_IO_BASE_UPPER16, io_upper16);
 }
