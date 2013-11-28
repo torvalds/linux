@@ -240,6 +240,9 @@ struct page *find_data_page(struct inode *inode, pgoff_t index, bool sync)
 
 	err = f2fs_readpage(sbi, page, dn.data_blkaddr,
 					sync ? READ_SYNC : READA);
+	if (err)
+		return ERR_PTR(err);
+
 	if (sync) {
 		wait_on_page_locked(page);
 		if (!PageUptodate(page)) {
