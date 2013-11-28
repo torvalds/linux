@@ -1740,10 +1740,10 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			dev_info(&pf->pdev->dev,
 				 "Read NVM module=0x%x offset=0x%x words=%d\n",
 				 module, offset, buffer_len);
-			if (buffer_len)
+			if (bytes)
 				print_hex_dump(KERN_INFO, "NVM Dump: ",
 					DUMP_PREFIX_OFFSET, 16, 2,
-					buff, buffer_len, true);
+					buff, bytes, true);
 		}
 		kfree(buff);
 		buff = NULL;
