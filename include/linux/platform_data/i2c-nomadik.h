@@ -18,10 +18,6 @@ enum i2c_freq_mode {
 /**
  * struct nmk_i2c_controller - client specific controller configuration
  * @clk_freq:	clock frequency for the operation mode
- * @slsu:	Slave data setup time in ns.
- *		The needed setup time for three modes of operation
- *		are 250ns, 100ns and 10ns respectively thus leading
- *		to the values of 14, 6, 2 for a 48 MHz i2c clk
  * @tft:	Tx FIFO Threshold in bytes
  * @rft:	Rx FIFO Threshold in bytes
  * @timeout	Slave response timeout(ms)
@@ -29,7 +25,6 @@ enum i2c_freq_mode {
  */
 struct nmk_i2c_controller {
 	u32             clk_freq;
-	unsigned short	slsu;
 	unsigned char	tft;
 	unsigned char	rft;
 	int timeout;
