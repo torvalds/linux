@@ -602,7 +602,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	} else {
 		data = 0xa40e0000;
 	}
-	nve0_ram_train(fuc, 0xbc0e0000, data);
+	nve0_ram_train(fuc, 0xbc0f0000, data);
 	ram_nsec(fuc, 1000);
 
 	if (ram->mode == 2) { /*XXX*/
