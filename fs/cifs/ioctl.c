@@ -26,12 +26,14 @@
 #include <linux/mount.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
-#include <linux/btrfs.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "cifsfs.h"
+
+#define CIFS_IOCTL_MAGIC	0xCF
+#define CIFS_IOC_COPYCHUNK_FILE	_IOW(CIFS_IOCTL_MAGIC, 3, int)
 
 static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
 			unsigned long srcfd, u64 off, u64 len, u64 destoff)
@@ -213,7 +215,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				cifs_dbg(FYI, "set compress flag rc %d\n", rc);
 			}
 			break;
-		case BTRFS_IOC_CLONE:
+		case CIFS_IOC_COPYCHUNK_FILE:
 			rc = cifs_ioctl_clone(xid, filep, arg, 0, 0, 0);
 			break;
 		default:
