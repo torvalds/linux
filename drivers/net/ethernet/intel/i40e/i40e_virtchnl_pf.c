@@ -1653,7 +1653,8 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, u16 vf_id, u32 v_opcode,
 	ret = i40e_vc_validate_vf_msg(vf, v_opcode, v_retval, msg, msglen);
 
 	if (ret) {
-		dev_err(&pf->pdev->dev, "invalid message from vf %d\n", vf_id);
+		dev_err(&pf->pdev->dev, "Invalid message from vf %d, opcode %d, len %d\n",
+			vf_id, v_opcode, msglen);
 		return ret;
 	}
 	wr32(hw, I40E_VFGEN_RSTAT1(vf_id), I40E_VFR_VFACTIVE);
