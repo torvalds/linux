@@ -25,6 +25,9 @@
  *
  ******************************************************************************/
 
+#ifndef _I40E_TXRX_H_
+#define _I40E_TXRX_H_
+
 /* Interrupt Throttling and Rate Limiting (storm control) Goodies */
 
 #define I40E_MAX_ITR               0x07FF
@@ -295,3 +298,4 @@ int i40e_setup_rx_descriptors(struct i40e_ring *rx_ring);
 void i40e_free_tx_resources(struct i40e_ring *tx_ring);
 void i40e_free_rx_resources(struct i40e_ring *rx_ring);
 int i40e_napi_poll(struct napi_struct *napi, int budget);
+#endif /* _I40E_TXRX_H_ */
