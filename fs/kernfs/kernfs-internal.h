@@ -112,4 +112,17 @@ struct sysfs_addrm_cxt {
 
 #include "../sysfs/sysfs.h"
 
+/*
+ * inode.c
+ */
+struct inode *sysfs_get_inode(struct super_block *sb, struct sysfs_dirent *sd);
+void sysfs_evict_inode(struct inode *inode);
+int sysfs_permission(struct inode *inode, int mask);
+int sysfs_setattr(struct dentry *dentry, struct iattr *iattr);
+int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
+		  struct kstat *stat);
+int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
+		   size_t size, int flags);
+int sysfs_inode_init(void);
+
 #endif	/* __KERNFS_INTERNAL_H */

@@ -52,19 +52,6 @@ void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt);
 struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type);
 
 /*
- * inode.c
- */
-struct inode *sysfs_get_inode(struct super_block *sb, struct sysfs_dirent *sd);
-void sysfs_evict_inode(struct inode *inode);
-int sysfs_permission(struct inode *inode, int mask);
-int sysfs_setattr(struct dentry *dentry, struct iattr *iattr);
-int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		  struct kstat *stat);
-int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
-		   size_t size, int flags);
-int sysfs_inode_init(void);
-
-/*
  * file.c
  */
 extern const struct file_operations kernfs_file_operations;
