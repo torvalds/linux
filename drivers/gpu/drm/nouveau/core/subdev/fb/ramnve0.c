@@ -466,20 +466,23 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	ram_mask(fuc, 0x10f2cc, 0xffffffff, nv_ro32(bios, timing + 0x20));
 	ram_mask(fuc, 0x10f2e8, 0xffffffff, nv_ro32(bios, timing + 0x24));
 
-	data = (nv_ro08(bios, ramcfg + 0x02) & 0x03) << 8;
-	if (nv_ro08(bios, ramcfg + 0x01) & 0x10)
-		data |= 0x70000000;
-	ram_mask(fuc, 0x10f604, 0x70000300, data);
+	/*XXX: what's the condition here? */
+	if (1) {
+		data = (nv_ro08(bios, ramcfg + 0x02) & 0x03) << 8;
+		if (nv_ro08(bios, ramcfg + 0x01) & 0x10)
+			data |= 0x70000000;
+		ram_mask(fuc, 0x10f604, 0x70000300, data);
 
-	data = (nv_ro08(bios, timing + 0x30) & 0x07) << 28;
-	if (nv_ro08(bios, ramcfg + 0x01) & 0x01)
-		data |= 0x00000100;
-	ram_mask(fuc, 0x10f614, 0x70000000, data);
+		data = (nv_ro08(bios, timing + 0x30) & 0x07) << 28;
+		if (nv_ro08(bios, ramcfg + 0x01) & 0x01)
+			data |= 0x00000100;
+		ram_mask(fuc, 0x10f614, 0x70000000, data);
 
-	data = (nv_ro08(bios, timing + 0x30) & 0x07) << 28;
-	if (nv_ro08(bios, ramcfg + 0x01) & 0x02)
-		data |= 0x00000100;
-	ram_mask(fuc, 0x10f610, 0x70000000, data);
+		data = (nv_ro08(bios, timing + 0x30) & 0x07) << 28;
+		if (nv_ro08(bios, ramcfg + 0x01) & 0x02)
+			data |= 0x00000100;
+		ram_mask(fuc, 0x10f610, 0x70000000, data);
+	}
 
 	mask = 0x33f00000;
 	data = 0x00000000;
