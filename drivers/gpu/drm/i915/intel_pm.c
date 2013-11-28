@@ -104,8 +104,11 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	if (fb->pitches[0] < cfb_pitch)
 		cfb_pitch = fb->pitches[0];
 
-	/* FBC_CTL wants 64B units */
-	cfb_pitch = (cfb_pitch / 64) - 1;
+	/* FBC_CTL wants 32B or 64B units */
+	if (IS_GEN2(dev))
+		cfb_pitch = (cfb_pitch / 32) - 1;
+	else
+		cfb_pitch = (cfb_pitch / 64) - 1;
 	plane = intel_crtc->plane == 0 ? FBC_CTL_PLANEA : FBC_CTL_PLANEB;
 
 	/* Clear old tags */
