@@ -41,15 +41,11 @@ void sysfs_warn_dup(struct sysfs_dirent *parent, const char *name);
 /*
  * file.c
  */
-extern const struct file_operations kernfs_file_operations;
-
 int sysfs_add_file(struct sysfs_dirent *dir_sd,
 		   const struct attribute *attr, bool is_bin);
-
 int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 			   const struct attribute *attr, bool is_bin,
 			   umode_t amode, const void *ns);
-void sysfs_unmap_bin_file(struct sysfs_dirent *sd);
 
 /*
  * symlink.c
