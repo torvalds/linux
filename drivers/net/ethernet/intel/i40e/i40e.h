@@ -249,9 +249,6 @@ struct i40e_pf {
 #define I40E_FLAG_VXLAN_FILTER_SYNC            (u64)(1 << 27)
 #endif
 
-	u16 num_tx_queues;
-	u16 num_rx_queues;
-
 	bool stat_offsets_loaded;
 	struct i40e_hw_port_stats stats;
 	struct i40e_hw_port_stats stats_offsets;

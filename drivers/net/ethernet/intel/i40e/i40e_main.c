@@ -3981,11 +3981,11 @@ static int i40e_open(struct net_device *netdev)
 		goto err_setup_rx;
 
 	/* Notify the stack of the actual queue counts. */
-	err = netif_set_real_num_tx_queues(netdev, pf->num_tx_queues);
+	err = netif_set_real_num_tx_queues(netdev, vsi->num_queue_pairs);
 	if (err)
 		goto err_set_queues;
 
-	err = netif_set_real_num_rx_queues(netdev, pf->num_rx_queues);
+	err = netif_set_real_num_rx_queues(netdev, vsi->num_queue_pairs);
 	if (err)
 		goto err_set_queues;
 
@@ -5364,7 +5364,7 @@ static void i40e_vsi_clear_rings(struct i40e_vsi *vsi)
 	int i;
 
 	if (vsi->tx_rings[0]) {
-		for (i = 0; i < vsi->num_queue_pairs; i++) {
+		for (i = 0; i < vsi->alloc_queue_pairs; i++) {
 			kfree_rcu(vsi->tx_rings[i], rcu);
 			vsi->tx_rings[i] = NULL;
 			vsi->rx_rings[i] = NULL;
@@ -5382,7 +5382,7 @@ static int i40e_alloc_rings(struct i40e_vsi *vsi)
 	int i;
 
 	/* Set basic values in the rings to be used later during open() */
-	for (i = 0; i < vsi->num_queue_pairs; i++) {
+	for (i = 0; i < vsi->alloc_queue_pairs; i++) {
 		struct i40e_ring *tx_ring;
 		struct i40e_ring *rx_ring;
 
@@ -7225,12 +7225,6 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 			i40e_fdir_teardown(pf);
 			return -EAGAIN;
 		}
-		/* accommodate kcompat by copying the main VSI queue count
-		 * into the pf, since this newer code pushes the pf queue
-		 * info down a level into a VSI
-		 */
-		pf->num_rx_queues = vsi->num_queue_pairs;
-		pf->num_tx_queues = vsi->num_queue_pairs;
 	} else {
 		/* force a reset of TC and queue layout configurations */
 		u8 enabled_tc = pf->vsi[pf->lan_vsi]->tc_config.enabled_tc;
