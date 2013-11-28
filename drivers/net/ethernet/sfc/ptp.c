@@ -890,13 +890,10 @@ static enum ptp_packet_state efx_ptp_match_rx(struct efx_nic *efx,
 /* Process any queued receive events and corresponding packets
  *
  * q is returned with all the packets that are ready for delivery.
- * true is returned if at least one of those packets requires
- * synchronisation.
  */
-static bool efx_ptp_process_events(struct efx_nic *efx, struct sk_buff_head *q)
+static void efx_ptp_process_events(struct efx_nic *efx, struct sk_buff_head *q)
 {
 	struct efx_ptp_data *ptp = efx->ptp_data;
-	bool rc = false;
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(&ptp->rxq))) {
@@ -907,7 +904,6 @@ static bool efx_ptp_process_events(struct efx_nic *efx, struct sk_buff_head *q)
 			__skb_queue_tail(q, skb);
 		} else if (efx_ptp_match_rx(efx, skb) ==
 			   PTP_PACKET_STATE_MATCHED) {
-			rc = true;
 			__skb_queue_tail(q, skb);
 		} else if (time_after(jiffies, match->expiry)) {
 			match->state = PTP_PACKET_STATE_TIMED_OUT;
@@ -921,8 +917,6 @@ static bool efx_ptp_process_events(struct efx_nic *efx, struct sk_buff_head *q)
 			break;
 		}
 	}
-
-	return rc;
 }
 
 /* Complete processing of a received packet */
@@ -1088,12 +1082,10 @@ static void efx_ptp_worker(struct work_struct *work)
 	efx_ptp_drop_time_expired_events(efx);
 
 	__skb_queue_head_init(&tempq);
-	if (efx_ptp_process_events(efx, &tempq) ||
-	    !skb_queue_empty(&ptp_data->txq)) {
+	efx_ptp_process_events(efx, &tempq);
 
-		while ((skb = skb_dequeue(&ptp_data->txq)))
-			efx_ptp_xmit_skb(efx, skb);
-	}
+	while ((skb = skb_dequeue(&ptp_data->txq)))
+		efx_ptp_xmit_skb(efx, skb);
 
 	while ((skb = __skb_dequeue(&tempq)))
 		efx_ptp_process_rx(efx, skb);
