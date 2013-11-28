@@ -271,12 +271,12 @@ static void recover_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 	iput(inode);
 }
 
-int recover_orphan_inodes(struct f2fs_sb_info *sbi)
+void recover_orphan_inodes(struct f2fs_sb_info *sbi)
 {
 	block_t start_blk, orphan_blkaddr, i, j;
 
 	if (!is_set_ckpt_flags(F2FS_CKPT(sbi), CP_ORPHAN_PRESENT_FLAG))
-		return 0;
+		return;
 
 	sbi->por_doing = true;
 	start_blk = __start_cp_addr(sbi) + 1;
@@ -296,7 +296,7 @@ int recover_orphan_inodes(struct f2fs_sb_info *sbi)
 	/* clear Orphan Flag */
 	clear_ckpt_flags(F2FS_CKPT(sbi), CP_ORPHAN_PRESENT_FLAG);
 	sbi->por_doing = false;
-	return 0;
+	return;
 }
 
 static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)

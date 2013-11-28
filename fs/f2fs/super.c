@@ -952,9 +952,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	/* if there are nt orphan nodes free them */
-	err = -EINVAL;
-	if (recover_orphan_inodes(sbi))
-		goto free_node_inode;
+	recover_orphan_inodes(sbi);
 
 	/* read root inode and dentry */
 	root = f2fs_iget(sb, F2FS_ROOT_INO(sbi));
@@ -963,8 +961,10 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 		err = PTR_ERR(root);
 		goto free_node_inode;
 	}
-	if (!S_ISDIR(root->i_mode) || !root->i_blocks || !root->i_size)
+	if (!S_ISDIR(root->i_mode) || !root->i_blocks || !root->i_size) {
+		err = -EINVAL;
 		goto free_root_inode;
+	}
 
 	sb->s_root = d_make_root(root); /* allocate root dentry */
 	if (!sb->s_root) {
