@@ -12,6 +12,7 @@
 #include "emev2.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "EMEV2 KZM9D Board";
@@ -49,7 +50,7 @@
 		reg = <0x20000000 0x10000>;
 		phy-mode = "mii";
 		interrupt-parent = <&gpio0>;
-		interrupts = <1 1>;	/* active high */
+		interrupts = <1 IRQ_TYPE_EDGE_RISING>;
 		reg-io-width = <4>;
 		smsc,irq-active-high;
 		smsc,irq-push-pull;
