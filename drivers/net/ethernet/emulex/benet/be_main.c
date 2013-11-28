@@ -2663,8 +2663,8 @@ static int be_close(struct net_device *netdev)
 			napi_disable(&eqo->napi);
 			be_disable_busy_poll(eqo);
 		}
+		adapter->flags &= ~BE_FLAGS_NAPI_ENABLED;
 	}
-	adapter->flags &= ~BE_FLAGS_NAPI_ENABLED;
 
 	be_async_mcc_disable(adapter);
 
