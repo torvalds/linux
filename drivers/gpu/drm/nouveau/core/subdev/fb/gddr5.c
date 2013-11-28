@@ -105,5 +105,9 @@ nouveau_gddr5_calc(struct nouveau_ram *ram, bool nuts)
 	ram->mr[7] |= (vr & 0x01) << 8;
 	ram->mr[7] |= (vh & 0x01) << 7;
 	ram->mr[7] |= (lf & 0x01) << 3;
+
+	ram->mr[8] &= ~0x003;
+	ram->mr[8] |= (WR & 0x10) >> 3;
+	ram->mr[8] |= (CL & 0x10) >> 4;
 	return 0;
 }
