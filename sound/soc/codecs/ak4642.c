@@ -469,9 +469,6 @@ static int ak4642_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	snd_soc_add_codec_controls(codec, ak4642_snd_controls,
-			     ARRAY_SIZE(ak4642_snd_controls));
-
 	ak4642_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
@@ -491,6 +488,8 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4642 = {
 	.reg_cache_default	= ak4642_reg,			/* ak4642 reg */
 	.reg_cache_size		= ARRAY_SIZE(ak4642_reg),	/* ak4642 reg */
 	.reg_word_size		= sizeof(u8),
+	.controls		= ak4642_snd_controls,
+	.num_controls		= ARRAY_SIZE(ak4642_snd_controls),
 	.dapm_widgets		= ak4642_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(ak4642_dapm_widgets),
 	.dapm_routes		= ak4642_intercon,
@@ -505,6 +504,8 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4648 = {
 	.reg_cache_default	= ak4648_reg,			/* ak4648 reg */
 	.reg_cache_size		= ARRAY_SIZE(ak4648_reg),	/* ak4648 reg */
 	.reg_word_size		= sizeof(u8),
+	.controls		= ak4642_snd_controls,
+	.num_controls		= ARRAY_SIZE(ak4642_snd_controls),
 	.dapm_widgets		= ak4642_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(ak4642_dapm_widgets),
 	.dapm_routes		= ak4642_intercon,
