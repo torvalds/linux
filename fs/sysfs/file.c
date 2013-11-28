@@ -923,6 +923,7 @@ int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 	const struct kernfs_ops *ops;
 	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent *sd;
+	loff_t size;
 	int rc;
 
 	if (type == SYSFS_KOBJ_ATTR) {
@@ -943,6 +944,8 @@ int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 			ops = &sysfs_file_kfops_wo;
 		else
 			ops = &sysfs_file_kfops_empty;
+
+		size = PAGE_SIZE;
 	} else {
 		struct bin_attribute *battr = (void *)attr;
 
@@ -954,6 +957,8 @@ int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 			ops = &sysfs_bin_kfops_wo;
 		else
 			ops = &sysfs_file_kfops_empty;
+
+		size = battr->size;
 	}
 
 	sd = sysfs_new_dirent(attr->name, mode, type);
@@ -961,6 +966,7 @@ int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 		return -ENOMEM;
 
 	sd->s_attr.ops = ops;
+	sd->s_attr.size = size;
 	sd->s_ns = ns;
 	sd->priv = (void *)attr;
 	sysfs_dirent_init_lockdep(sd);

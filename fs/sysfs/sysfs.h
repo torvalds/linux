@@ -29,6 +29,7 @@ struct sysfs_elem_symlink {
 struct sysfs_elem_attr {
 	const struct kernfs_ops	*ops;
 	struct sysfs_open_dirent *open;
+	loff_t			size;
 };
 
 struct sysfs_inode_attrs {
