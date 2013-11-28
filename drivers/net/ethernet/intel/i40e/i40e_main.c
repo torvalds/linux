@@ -2018,7 +2018,7 @@ int i40e_vsi_add_pvid(struct i40e_vsi *vsi, u16 vid)
 	vsi->info.pvid = cpu_to_le16(vid);
 	vsi->info.port_vlan_flags = I40E_AQ_VSI_PVLAN_MODE_TAGGED |
 				    I40E_AQ_VSI_PVLAN_INSERT_PVID |
-				    I40E_AQ_VSI_PVLAN_EMOD_STR_BOTH;
+				    I40E_AQ_VSI_PVLAN_EMOD_STR;
 
 	ctxt.seid = vsi->seid;
 	memcpy(&ctxt.info, &vsi->info, sizeof(vsi->info));
