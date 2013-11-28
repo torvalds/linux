@@ -121,7 +121,7 @@ struct mmp_tdma_chan {
 	int				idx;
 	enum mmp_tdma_type		type;
 	int				irq;
-	unsigned long			reg_base;
+	void __iomem			*reg_base;
 
 	size_t				buf_len;
 	size_t				period_len;
@@ -526,7 +526,7 @@ static int mmp_tdma_chan_init(struct mmp_tdma_device *tdev,
 	tdmac->chan.device = &tdev->device;
 	tdmac->idx	   = idx;
 	tdmac->type	   = type;
-	tdmac->reg_base	   = (unsigned long)tdev->base + idx * 4;
+	tdmac->reg_base	   = tdev->base + idx * 4;
 	tdmac->status = DMA_COMPLETE;
 	tdev->tdmac[tdmac->idx] = tdmac;
 	tasklet_init(&tdmac->tasklet, dma_do_tasklet, (unsigned long)tdmac);
