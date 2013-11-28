@@ -70,7 +70,7 @@ static int sysfs_do_create_link(struct kobject *kobj, struct kobject *target,
 	struct sysfs_dirent *parent_sd = NULL;
 
 	if (!kobj)
-		parent_sd = &sysfs_root;
+		parent_sd = sysfs_root_sd;
 	else
 		parent_sd = kobj->sd;
 
@@ -144,7 +144,7 @@ void sysfs_remove_link(struct kobject *kobj, const char *name)
 	struct sysfs_dirent *parent_sd = NULL;
 
 	if (!kobj)
-		parent_sd = &sysfs_root;
+		parent_sd = sysfs_root_sd;
 	else
 		parent_sd = kobj->sd;
 
@@ -170,7 +170,7 @@ int sysfs_rename_link_ns(struct kobject *kobj, struct kobject *targ,
 	int result;
 
 	if (!kobj)
-		parent_sd = &sysfs_root;
+		parent_sd = sysfs_root_sd;
 	else
 		parent_sd = kobj->sd;
 

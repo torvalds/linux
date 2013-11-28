@@ -68,7 +68,7 @@ int sysfs_create_dir_ns(struct kobject *kobj, const void *ns)
 	if (kobj->parent)
 		parent_sd = kobj->parent->sd;
 	else
-		parent_sd = &sysfs_root;
+		parent_sd = sysfs_root_sd;
 
 	if (!parent_sd)
 		return -ENOENT;
@@ -134,7 +134,7 @@ int sysfs_move_dir_ns(struct kobject *kobj, struct kobject *new_parent_kobj,
 
 	BUG_ON(!sd->s_parent);
 	new_parent_sd = new_parent_kobj && new_parent_kobj->sd ?
-		new_parent_kobj->sd : &sysfs_root;
+		new_parent_kobj->sd : sysfs_root_sd;
 
 	return kernfs_rename_ns(sd, new_parent_sd, sd->s_name, new_ns);
 }

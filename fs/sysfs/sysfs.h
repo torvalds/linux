@@ -28,7 +28,7 @@ struct sysfs_super_info {
 	const void		*ns;
 };
 #define sysfs_info(SB) ((struct sysfs_super_info *)(SB->s_fs_info))
-extern struct sysfs_dirent sysfs_root;
+extern struct sysfs_dirent *sysfs_root_sd;
 extern struct kmem_cache *sysfs_dir_cachep;
 
 /*
