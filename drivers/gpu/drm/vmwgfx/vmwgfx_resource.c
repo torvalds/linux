@@ -781,54 +781,55 @@ err_ref:
 }
 
 
+/**
+ * vmw_dumb_create - Create a dumb kms buffer
+ *
+ * @file_priv: Pointer to a struct drm_file identifying the caller.
+ * @dev: Pointer to the drm device.
+ * @args: Pointer to a struct drm_mode_create_dumb structure
+ *
+ * This is a driver callback for the core drm create_dumb functionality.
+ * Note that this is very similar to the vmw_dmabuf_alloc ioctl, except
+ * that the arguments have a different format.
+ */
 int vmw_dumb_create(struct drm_file *file_priv,
 		    struct drm_device *dev,
 		    struct drm_mode_create_dumb *args)
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct vmw_master *vmaster = vmw_master(file_priv->master);
-	struct vmw_user_dma_buffer *vmw_user_bo;
-	struct ttm_buffer_object *tmp;
+	struct vmw_dma_buffer *dma_buf;
 	int ret;
 
 	args->pitch = args->width * ((args->bpp + 7) / 8);
 	args->size = args->pitch * args->height;
 
-	vmw_user_bo = kzalloc(sizeof(*vmw_user_bo), GFP_KERNEL);
-	if (vmw_user_bo == NULL)
-		return -ENOMEM;
-
 	ret = ttm_read_lock(&vmaster->lock, true);
-	if (ret != 0) {
-		kfree(vmw_user_bo);
+	if (unlikely(ret != 0))
 		return ret;
-	}
 
-	ret = vmw_dmabuf_init(dev_priv, &vmw_user_bo->dma, args->size,
-			      &vmw_vram_sys_placement, true,
-			      &vmw_user_dmabuf_destroy);
-	if (ret != 0)
+	ret = vmw_user_dmabuf_alloc(dev_priv, vmw_fpriv(file_priv)->tfile,
+				    args->size, false, &args->handle,
+				    &dma_buf);
+	if (unlikely(ret != 0))
 		goto out_no_dmabuf;
 
-	tmp = ttm_bo_reference(&vmw_user_bo->dma.base);
-	ret = ttm_prime_object_init(vmw_fpriv(file_priv)->tfile,
-				    args->size,
-				    &vmw_user_bo->prime,
-				    false,
-				    ttm_buffer_type,
-				    &vmw_user_dmabuf_release, NULL);
-	if (unlikely(ret != 0))
-		goto out_no_base_object;
-
-	args->handle = vmw_user_bo->prime.base.hash.key;
-
-out_no_base_object:
-	ttm_bo_unref(&tmp);
+	vmw_dmabuf_unreference(&dma_buf);
 out_no_dmabuf:
 	ttm_read_unlock(&vmaster->lock);
 	return ret;
 }
 
+/**
+ * vmw_dumb_map_offset - Return the address space offset of a dumb buffer
+ *
+ * @file_priv: Pointer to a struct drm_file identifying the caller.
+ * @dev: Pointer to the drm device.
+ * @handle: Handle identifying the dumb buffer.
+ * @offset: The address space offset returned.
+ *
+ * This is a driver callback for the core drm dumb_map_offset functionality.
+ */
 int vmw_dumb_map_offset(struct drm_file *file_priv,
 			struct drm_device *dev, uint32_t handle,
 			uint64_t *offset)
@@ -846,6 +847,15 @@ int vmw_dumb_map_offset(struct drm_file *file_priv,
 	return 0;
 }
 
+/**
+ * vmw_dumb_destroy - Destroy a dumb boffer
+ *
+ * @file_priv: Pointer to a struct drm_file identifying the caller.
+ * @dev: Pointer to the drm device.
+ * @handle: Handle identifying the dumb buffer.
+ *
+ * This is a driver callback for the core drm dumb_destroy functionality.
+ */
 int vmw_dumb_destroy(struct drm_file *file_priv,
 		     struct drm_device *dev,
 		     uint32_t handle)
