@@ -719,15 +719,14 @@ static bool i40e_vfs_are_assigned(struct i40e_pf *pf)
  **/
 void i40e_free_vfs(struct i40e_pf *pf)
 {
-	struct i40e_hw *hw = &pf->hw;
 	int i, tmp;
 
 	if (!pf->vf)
 		return;
 
 	/* Disable interrupt 0 so we don't try to handle the VFLR. */
-	wr32(hw, I40E_PFINT_DYN_CTL0, 0);
-	i40e_flush(hw);
+	i40e_irq_dynamic_disable_icr0(pf);
+
 	mdelay(10); /* let any messages in transit get finished up */
 	/* free up vf resources */
 	tmp = pf->num_alloc_vfs;
@@ -749,11 +748,7 @@ void i40e_free_vfs(struct i40e_pf *pf)
 			 "unable to disable SR-IOV because VFs are assigned.\n");
 
 	/* Re-enable interrupt 0. */
-	wr32(hw, I40E_PFINT_DYN_CTL0,
-	     I40E_PFINT_DYN_CTL0_INTENA_MASK |
-	     I40E_PFINT_DYN_CTL0_CLEARPBA_MASK |
-	     (I40E_ITR_NONE << I40E_PFINT_DYN_CTL0_ITR_INDX_SHIFT));
-	i40e_flush(hw);
+	i40e_irq_dynamic_enable_icr0(pf);
 }
 
 #ifdef CONFIG_PCI_IOV
@@ -766,13 +761,12 @@ void i40e_free_vfs(struct i40e_pf *pf)
  **/
 static int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 {
-	struct i40e_hw *hw = &pf->hw;
 	struct i40e_vf *vfs;
 	int i, ret = 0;
 
 	/* Disable interrupt 0 so we don't try to handle the VFLR. */
-	wr32(hw, I40E_PFINT_DYN_CTL0, 0);
-	i40e_flush(hw);
+	i40e_irq_dynamic_disable_icr0(pf);
+
 	ret = pci_enable_sriov(pf->pdev, num_alloc_vfs);
 	if (ret) {
 		dev_err(&pf->pdev->dev,
@@ -810,10 +804,7 @@ err_alloc:
 		i40e_free_vfs(pf);
 err_iov:
 	/* Re-enable interrupt 0. */
-	wr32(hw, I40E_PFINT_DYN_CTL0,
-	     I40E_PFINT_DYN_CTL0_INTENA_MASK |
-	     I40E_PFINT_DYN_CTL0_CLEARPBA_MASK |
-	     (I40E_ITR_NONE << I40E_PFINT_DYN_CTL0_ITR_INDX_SHIFT));
+	i40e_irq_dynamic_enable_icr0(pf);
 	return ret;
 }
 

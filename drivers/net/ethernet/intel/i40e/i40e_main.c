@@ -2543,6 +2543,19 @@ static void i40e_configure_msi_and_legacy(struct i40e_vsi *vsi)
 }
 
 /**
+ * i40e_irq_dynamic_disable_icr0 - Disable default interrupt generation for icr0
+ * @pf: board private structure
+ **/
+void i40e_irq_dynamic_disable_icr0(struct i40e_pf *pf)
+{
+	struct i40e_hw *hw = &pf->hw;
+
+	wr32(hw, I40E_PFINT_DYN_CTL0,
+	     I40E_ITR_NONE << I40E_PFINT_DYN_CTLN_ITR_INDX_SHIFT);
+	i40e_flush(hw);
+}
+
+/**
  * i40e_irq_dynamic_enable_icr0 - Enable default interrupt generation for icr0
  * @pf: board private structure
  **/
