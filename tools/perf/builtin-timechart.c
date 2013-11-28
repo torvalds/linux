@@ -41,19 +41,18 @@
 #define SUPPORT_OLD_POWER_EVENTS 1
 #define PWR_EVENT_EXIT -1
 
-static int proc_num = 15;
-
-static unsigned int	numcpus;
-static u64		min_freq;	/* Lowest CPU frequency seen */
-static u64		max_freq;	/* Highest CPU frequency seen */
-static u64		turbo_frequency;
-
-static u64		first_time, last_time;
-
-static bool		power_only;
-static bool		tasks_only;
-static bool		with_backtrace;
-
+struct timechart {
+	struct perf_tool	tool;
+	int			proc_num;
+	unsigned int		numcpus;
+	u64			min_freq,	/* Lowest CPU frequency seen */
+				max_freq,	/* Highest CPU frequency seen */
+				turbo_frequency,
+				first_time, last_time;
+	bool			power_only,
+				tasks_only,
+				with_backtrace;
+};
 
 struct per_pidcomm;
 struct cpu_sample;
@@ -326,7 +325,7 @@ static void c_state_end(int cpu, u64 timestamp)
 	power_events = pwr;
 }
 
-static void p_state_change(int cpu, u64 timestamp, u64 new_freq)
+static void p_state_change(struct timechart *tchart, int cpu, u64 timestamp, u64 new_freq)
 {
 	struct power_event *pwr;
 
@@ -345,21 +344,21 @@ static void p_state_change(int cpu, u64 timestamp, u64 new_freq)
 	pwr->next = power_events;
 
 	if (!pwr->start_time)
-		pwr->start_time = first_time;
+		pwr->start_time = tchart->first_time;
 
 	power_events = pwr;
 
 	cpus_pstate_state[cpu] = new_freq;
 	cpus_pstate_start_times[cpu] = timestamp;
 
-	if ((u64)new_freq > max_freq)
-		max_freq = new_freq;
+	if ((u64)new_freq > tchart->max_freq)
+		tchart->max_freq = new_freq;
 
-	if (new_freq < min_freq || min_freq == 0)
-		min_freq = new_freq;
+	if (new_freq < tchart->min_freq || tchart->min_freq == 0)
+		tchart->min_freq = new_freq;
 
-	if (new_freq == max_freq - 1000)
-			turbo_frequency = max_freq;
+	if (new_freq == tchart->max_freq - 1000)
+		tchart->turbo_frequency = tchart->max_freq;
 }
 
 static void sched_wakeup(int cpu, u64 timestamp, int waker, int wakee,
@@ -506,36 +505,40 @@ exit:
 	return p;
 }
 
-typedef int (*tracepoint_handler)(struct perf_evsel *evsel,
+typedef int (*tracepoint_handler)(struct timechart *tchart,
+				  struct perf_evsel *evsel,
 				  struct perf_sample *sample,
 				  const char *backtrace);
 
-static int process_sample_event(struct perf_tool *tool __maybe_unused,
+static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
-				struct machine *machine __maybe_unused)
+				struct machine *machine)
 {
+	struct timechart *tchart = container_of(tool, struct timechart, tool);
+
 	if (evsel->attr.sample_type & PERF_SAMPLE_TIME) {
-		if (!first_time || first_time > sample->time)
-			first_time = sample->time;
-		if (last_time < sample->time)
-			last_time = sample->time;
+		if (!tchart->first_time || tchart->first_time > sample->time)
+			tchart->first_time = sample->time;
+		if (tchart->last_time < sample->time)
+			tchart->last_time = sample->time;
 	}
 
-	if (sample->cpu > numcpus)
-		numcpus = sample->cpu;
+	if (sample->cpu > tchart->numcpus)
+		tchart->numcpus = sample->cpu;
 
 	if (evsel->handler != NULL) {
 		tracepoint_handler f = evsel->handler;
-		return f(evsel, sample, cat_backtrace(event, sample, machine));
+		return f(tchart, evsel, sample, cat_backtrace(event, sample, machine));
 	}
 
 	return 0;
 }
 
 static int
-process_sample_cpu_idle(struct perf_evsel *evsel,
+process_sample_cpu_idle(struct timechart *tchart __maybe_unused,
+			struct perf_evsel *evsel,
 			struct perf_sample *sample,
 			const char *backtrace __maybe_unused)
 {
@@ -550,19 +553,21 @@ process_sample_cpu_idle(struct perf_evsel *evsel,
 }
 
 static int
-process_sample_cpu_frequency(struct perf_evsel *evsel,
+process_sample_cpu_frequency(struct timechart *tchart,
+			     struct perf_evsel *evsel,
 			     struct perf_sample *sample,
 			     const char *backtrace __maybe_unused)
 {
 	u32 state = perf_evsel__intval(evsel, sample, "state");
 	u32 cpu_id = perf_evsel__intval(evsel, sample, "cpu_id");
 
-	p_state_change(cpu_id, sample->time, state);
+	p_state_change(tchart, cpu_id, sample->time, state);
 	return 0;
 }
 
 static int
-process_sample_sched_wakeup(struct perf_evsel *evsel,
+process_sample_sched_wakeup(struct timechart *tchart __maybe_unused,
+			    struct perf_evsel *evsel,
 			    struct perf_sample *sample,
 			    const char *backtrace)
 {
@@ -575,7 +580,8 @@ process_sample_sched_wakeup(struct perf_evsel *evsel,
 }
 
 static int
-process_sample_sched_switch(struct perf_evsel *evsel,
+process_sample_sched_switch(struct timechart *tchart __maybe_unused,
+			    struct perf_evsel *evsel,
 			    struct perf_sample *sample,
 			    const char *backtrace)
 {
@@ -590,7 +596,8 @@ process_sample_sched_switch(struct perf_evsel *evsel,
 
 #ifdef SUPPORT_OLD_POWER_EVENTS
 static int
-process_sample_power_start(struct perf_evsel *evsel,
+process_sample_power_start(struct timechart *tchart __maybe_unused,
+			   struct perf_evsel *evsel,
 			   struct perf_sample *sample,
 			   const char *backtrace __maybe_unused)
 {
@@ -602,7 +609,8 @@ process_sample_power_start(struct perf_evsel *evsel,
 }
 
 static int
-process_sample_power_end(struct perf_evsel *evsel __maybe_unused,
+process_sample_power_end(struct timechart *tchart __maybe_unused,
+			 struct perf_evsel *evsel __maybe_unused,
 			 struct perf_sample *sample,
 			 const char *backtrace __maybe_unused)
 {
@@ -611,14 +619,15 @@ process_sample_power_end(struct perf_evsel *evsel __maybe_unused,
 }
 
 static int
-process_sample_power_frequency(struct perf_evsel *evsel,
+process_sample_power_frequency(struct timechart *tchart,
+			       struct perf_evsel *evsel,
 			       struct perf_sample *sample,
 			       const char *backtrace __maybe_unused)
 {
 	u64 cpu_id = perf_evsel__intval(evsel, sample, "cpu_id");
 	u64 value = perf_evsel__intval(evsel, sample, "value");
 
-	p_state_change(cpu_id, sample->time, value);
+	p_state_change(tchart, cpu_id, sample->time, value);
 	return 0;
 }
 #endif /* SUPPORT_OLD_POWER_EVENTS */
@@ -627,12 +636,12 @@ process_sample_power_frequency(struct perf_evsel *evsel,
  * After the last sample we need to wrap up the current C/P state
  * and close out each CPU for these.
  */
-static void end_sample_processing(void)
+static void end_sample_processing(struct timechart *tchart)
 {
 	u64 cpu;
 	struct power_event *pwr;
 
-	for (cpu = 0; cpu <= numcpus; cpu++) {
+	for (cpu = 0; cpu <= tchart->numcpus; cpu++) {
 		/* C state */
 #if 0
 		pwr = zalloc(sizeof(*pwr));
@@ -641,7 +650,7 @@ static void end_sample_processing(void)
 
 		pwr->state = cpus_cstate_state[cpu];
 		pwr->start_time = cpus_cstate_start_times[cpu];
-		pwr->end_time = last_time;
+		pwr->end_time = tchart->last_time;
 		pwr->cpu = cpu;
 		pwr->type = CSTATE;
 		pwr->next = power_events;
@@ -656,15 +665,15 @@ static void end_sample_processing(void)
 
 		pwr->state = cpus_pstate_state[cpu];
 		pwr->start_time = cpus_pstate_start_times[cpu];
-		pwr->end_time = last_time;
+		pwr->end_time = tchart->last_time;
 		pwr->cpu = cpu;
 		pwr->type = PSTATE;
 		pwr->next = power_events;
 
 		if (!pwr->start_time)
-			pwr->start_time = first_time;
+			pwr->start_time = tchart->first_time;
 		if (!pwr->state)
-			pwr->state = min_freq;
+			pwr->state = tchart->min_freq;
 		power_events = pwr;
 	}
 }
@@ -718,7 +727,7 @@ static void sort_pids(void)
 }
 
 
-static void draw_c_p_states(void)
+static void draw_c_p_states(struct timechart *tchart)
 {
 	struct power_event *pwr;
 	pwr = power_events;
@@ -736,7 +745,7 @@ static void draw_c_p_states(void)
 	while (pwr) {
 		if (pwr->type == PSTATE) {
 			if (!pwr->state)
-				pwr->state = min_freq;
+				pwr->state = tchart->min_freq;
 			svg_pstate(pwr->cpu, pwr->start_time, pwr->end_time, pwr->state);
 		}
 		pwr = pwr->next;
@@ -833,14 +842,14 @@ static void draw_cpu_usage(void)
 	}
 }
 
-static void draw_process_bars(void)
+static void draw_process_bars(struct timechart *tchart)
 {
 	struct per_pid *p;
 	struct per_pidcomm *c;
 	struct cpu_sample *sample;
 	int Y = 0;
 
-	Y = 2 * numcpus + 2;
+	Y = 2 * tchart->numcpus + 2;
 
 	p = all_data;
 	while (p) {
@@ -922,7 +931,7 @@ static int passes_filter(struct per_pid *p, struct per_pidcomm *c)
 	return 0;
 }
 
-static int determine_display_tasks_filtered(void)
+static int determine_display_tasks_filtered(struct timechart *tchart)
 {
 	struct per_pid *p;
 	struct per_pidcomm *c;
@@ -932,11 +941,11 @@ static int determine_display_tasks_filtered(void)
 	while (p) {
 		p->display = 0;
 		if (p->start_time == 1)
-			p->start_time = first_time;
+			p->start_time = tchart->first_time;
 
 		/* no exit marker, task kept running to the end */
 		if (p->end_time == 0)
-			p->end_time = last_time;
+			p->end_time = tchart->last_time;
 
 		c = p->all;
 
@@ -944,7 +953,7 @@ static int determine_display_tasks_filtered(void)
 			c->display = 0;
 
 			if (c->start_time == 1)
-				c->start_time = first_time;
+				c->start_time = tchart->first_time;
 
 			if (passes_filter(p, c)) {
 				c->display = 1;
@@ -953,7 +962,7 @@ static int determine_display_tasks_filtered(void)
 			}
 
 			if (c->end_time == 0)
-				c->end_time = last_time;
+				c->end_time = tchart->last_time;
 
 			c = c->next;
 		}
@@ -962,24 +971,24 @@ static int determine_display_tasks_filtered(void)
 	return count;
 }
 
-static int determine_display_tasks(u64 threshold)
+static int determine_display_tasks(struct timechart *tchart, u64 threshold)
 {
 	struct per_pid *p;
 	struct per_pidcomm *c;
 	int count = 0;
 
 	if (process_filter)
-		return determine_display_tasks_filtered();
+		return determine_display_tasks_filtered(tchart);
 
 	p = all_data;
 	while (p) {
 		p->display = 0;
 		if (p->start_time == 1)
-			p->start_time = first_time;
+			p->start_time = tchart->first_time;
 
 		/* no exit marker, task kept running to the end */
 		if (p->end_time == 0)
-			p->end_time = last_time;
+			p->end_time = tchart->last_time;
 		if (p->total_time >= threshold)
 			p->display = 1;
 
@@ -989,7 +998,7 @@ static int determine_display_tasks(u64 threshold)
 			c->display = 0;
 
 			if (c->start_time == 1)
-				c->start_time = first_time;
+				c->start_time = tchart->first_time;
 
 			if (c->total_time >= threshold) {
 				c->display = 1;
@@ -997,7 +1006,7 @@ static int determine_display_tasks(u64 threshold)
 			}
 
 			if (c->end_time == 0)
-				c->end_time = last_time;
+				c->end_time = tchart->last_time;
 
 			c = c->next;
 		}
@@ -1010,52 +1019,45 @@ static int determine_display_tasks(u64 threshold)
 
 #define TIME_THRESH 10000000
 
-static void write_svg_file(const char *filename)
+static void write_svg_file(struct timechart *tchart, const char *filename)
 {
 	u64 i;
 	int count;
 	int thresh = TIME_THRESH;
 
-	numcpus++;
+	tchart->numcpus++;
 
-	if (power_only)
-		proc_num = 0;
+	if (tchart->power_only)
+		tchart->proc_num = 0;
 
 	/* We'd like to show at least proc_num tasks;
 	 * be less picky if we have fewer */
 	do {
-		count = determine_display_tasks(thresh);
+		count = determine_display_tasks(tchart, thresh);
 		thresh /= 10;
-	} while (!process_filter && thresh && count < proc_num);
+	} while (!process_filter && thresh && count < tchart->proc_num);
 
-	open_svg(filename, numcpus, count, first_time, last_time);
+	open_svg(filename, tchart->numcpus, count, tchart->first_time, tchart->last_time);
 
 	svg_time_grid();
 	svg_legenda();
 
-	for (i = 0; i < numcpus; i++)
-		svg_cpu_box(i, max_freq, turbo_frequency);
+	for (i = 0; i < tchart->numcpus; i++)
+		svg_cpu_box(i, tchart->max_freq, tchart->turbo_frequency);
 
 	draw_cpu_usage();
-	if (proc_num)
-		draw_process_bars();
-	if (!tasks_only)
-		draw_c_p_states();
-	if (proc_num)
+	if (tchart->proc_num)
+		draw_process_bars(tchart);
+	if (!tchart->tasks_only)
+		draw_c_p_states(tchart);
+	if (tchart->proc_num)
 		draw_wakeups();
 
 	svg_close();
 }
 
-static int __cmd_timechart(const char *output_name)
+static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 {
-	struct perf_tool perf_timechart = {
-		.comm		 = process_comm_event,
-		.fork		 = process_fork_event,
-		.exit		 = process_exit_event,
-		.sample		 = process_sample_event,
-		.ordered_samples = true,
-	};
 	const struct perf_evsel_str_handler power_tracepoints[] = {
 		{ "power:cpu_idle",		process_sample_cpu_idle },
 		{ "power:cpu_frequency",	process_sample_cpu_frequency },
@@ -1073,7 +1075,7 @@ static int __cmd_timechart(const char *output_name)
 	};
 
 	struct perf_session *session = perf_session__new(&file, false,
-							 &perf_timechart);
+							 &tchart->tool);
 	int ret = -EINVAL;
 
 	if (session == NULL)
@@ -1088,24 +1090,24 @@ static int __cmd_timechart(const char *output_name)
 		goto out_delete;
 	}
 
-	ret = perf_session__process_events(session, &perf_timechart);
+	ret = perf_session__process_events(session, &tchart->tool);
 	if (ret)
 		goto out_delete;
 
-	end_sample_processing();
+	end_sample_processing(tchart);
 
 	sort_pids();
 
-	write_svg_file(output_name);
+	write_svg_file(tchart, output_name);
 
 	pr_info("Written %2.1f seconds of trace to %s.\n",
-		(last_time - first_time) / 1000000000.0, output_name);
+		(tchart->last_time - tchart->first_time) / 1000000000.0, output_name);
 out_delete:
 	perf_session__delete(session);
 	return ret;
 }
 
-static int __cmd_record(int argc, const char **argv)
+static int timechart__record(struct timechart *tchart, int argc, const char **argv)
 {
 	unsigned int rec_argc, i, j;
 	const char **rec_argv;
@@ -1153,15 +1155,15 @@ static int __cmd_record(int argc, const char **argv)
 	}
 #endif
 
-	if (power_only)
+	if (tchart->power_only)
 		tasks_args_nr = 0;
 
-	if (tasks_only) {
+	if (tchart->tasks_only) {
 		power_args_nr = 0;
 		old_power_args_nr = 0;
 	}
 
-	if (!with_backtrace)
+	if (!tchart->with_backtrace)
 		backtrace_args_no = 0;
 
 	record_elems = common_args_nr + tasks_args_nr +
@@ -1207,20 +1209,30 @@ parse_process(const struct option *opt __maybe_unused, const char *arg,
 int cmd_timechart(int argc, const char **argv,
 		  const char *prefix __maybe_unused)
 {
+	struct timechart tchart = {
+		.tool = {
+			.comm		 = process_comm_event,
+			.fork		 = process_fork_event,
+			.exit		 = process_exit_event,
+			.sample		 = process_sample_event,
+			.ordered_samples = true,
+		},
+		.proc_num = 15,
+	};
 	const char *output_name = "output.svg";
 	const struct option timechart_options[] = {
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
 	OPT_STRING('o', "output", &output_name, "file", "output file name"),
 	OPT_INTEGER('w', "width", &svg_page_width, "page width"),
-	OPT_BOOLEAN('P', "power-only", &power_only, "output power data only"),
-	OPT_BOOLEAN('T', "tasks-only", &tasks_only,
+	OPT_BOOLEAN('P', "power-only", &tchart.power_only, "output power data only"),
+	OPT_BOOLEAN('T', "tasks-only", &tchart.tasks_only,
 		    "output processes data only"),
 	OPT_CALLBACK('p', "process", NULL, "process",
 		      "process selector. Pass a pid or process name.",
 		       parse_process),
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
-	OPT_INTEGER('n', "proc-num", &proc_num,
+	OPT_INTEGER('n', "proc-num", &tchart.proc_num,
 		    "min. number of tasks to print"),
 	OPT_END()
 	};
@@ -1230,10 +1242,10 @@ int cmd_timechart(int argc, const char **argv,
 	};
 
 	const struct option record_options[] = {
-	OPT_BOOLEAN('P', "power-only", &power_only, "output power data only"),
-	OPT_BOOLEAN('T', "tasks-only", &tasks_only,
+	OPT_BOOLEAN('P', "power-only", &tchart.power_only, "output power data only"),
+	OPT_BOOLEAN('T', "tasks-only", &tchart.tasks_only,
 		    "output processes data only"),
-	OPT_BOOLEAN('g', "callchain", &with_backtrace, "record callchain"),
+	OPT_BOOLEAN('g', "callchain", &tchart.with_backtrace, "record callchain"),
 	OPT_END()
 	};
 	const char * const record_usage[] = {
@@ -1243,7 +1255,7 @@ int cmd_timechart(int argc, const char **argv,
 	argc = parse_options(argc, argv, timechart_options, timechart_usage,
 			PARSE_OPT_STOP_AT_NON_OPTION);
 
-	if (power_only && tasks_only) {
+	if (tchart.power_only && tchart.tasks_only) {
 		pr_err("-P and -T options cannot be used at the same time.\n");
 		return -1;
 	}
@@ -1254,16 +1266,16 @@ int cmd_timechart(int argc, const char **argv,
 		argc = parse_options(argc, argv, record_options, record_usage,
 				     PARSE_OPT_STOP_AT_NON_OPTION);
 
-		if (power_only && tasks_only) {
+		if (tchart.power_only && tchart.tasks_only) {
 			pr_err("-P and -T options cannot be used at the same time.\n");
 			return -1;
 		}
 
-		return __cmd_record(argc, argv);
+		return timechart__record(&tchart, argc, argv);
 	} else if (argc)
 		usage_with_options(timechart_usage, timechart_options);
 
 	setup_pager();
 
-	return __cmd_timechart(output_name);
+	return __cmd_timechart(&tchart, output_name);
 }
