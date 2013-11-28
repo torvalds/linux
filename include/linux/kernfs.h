@@ -17,6 +17,9 @@ struct sysfs_dirent;
 
 #ifdef CONFIG_SYSFS
 
+struct sysfs_dirent *kernfs_create_dir_ns(struct sysfs_dirent *parent,
+					  const char *name, void *priv,
+					  const void *ns);
 struct sysfs_dirent *kernfs_create_link(struct sysfs_dirent *parent,
 					const char *name,
 					struct sysfs_dirent *target);
@@ -25,9 +28,15 @@ int kernfs_remove_by_name_ns(struct sysfs_dirent *parent, const char *name,
 			     const void *ns);
 int kernfs_rename_ns(struct sysfs_dirent *sd, struct sysfs_dirent *new_parent,
 		     const char *new_name, const void *new_ns);
+void kernfs_enable_ns(struct sysfs_dirent *sd);
 int kernfs_setattr(struct sysfs_dirent *sd, const struct iattr *iattr);
 
 #else	/* CONFIG_SYSFS */
+
+static inline struct sysfs_dirent *
+kernfs_create_dir_ns(struct sysfs_dirent *parent, const char *name, void *priv,
+		     const void *ns)
+{ return ERR_PTR(-ENOSYS); }
 
 static inline struct sysfs_dirent *
 kernfs_create_link(struct sysfs_dirent *parent, const char *name,
@@ -45,11 +54,19 @@ static inline int kernfs_rename_ns(struct sysfs_dirent *sd,
 				   const char *new_name, const void *new_ns)
 { return -ENOSYS; }
 
+static inline void kernfs_enable_ns(struct sysfs_dirent *sd) { }
+
 static inline int kernfs_setattr(struct sysfs_dirent *sd,
 				 const struct iattr *iattr)
 { return -ENOSYS; }
 
 #endif	/* CONFIG_SYSFS */
+
+static inline struct sysfs_dirent *
+kernfs_create_dir(struct sysfs_dirent *parent, const char *name, void *priv)
+{
+	return kernfs_create_dir_ns(parent, name, priv, NULL);
+}
 
 static inline int kernfs_remove_by_name(struct sysfs_dirent *parent,
 					const char *name)

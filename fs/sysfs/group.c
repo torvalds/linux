@@ -101,9 +101,12 @@ static int internal_create_group(struct kobject *kobj, int update,
 		return -EINVAL;
 	}
 	if (grp->name) {
-		error = sysfs_create_subdir(kobj, grp->name, &sd);
-		if (error)
-			return error;
+		sd = kernfs_create_dir(kobj->sd, grp->name, kobj);
+		if (IS_ERR(sd)) {
+			if (PTR_ERR(sd) == -EEXIST)
+				sysfs_warn_dup(kobj->sd, grp->name);
+			return PTR_ERR(sd);
+		}
 	} else
 		sd = kobj->sd;
 	sysfs_get(sd);

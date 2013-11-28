@@ -219,8 +219,6 @@ int sysfs_rename_link_ns(struct kobject *kobj, struct kobject *target,
 void sysfs_delete_link(struct kobject *dir, struct kobject *targ,
 			const char *name);
 
-void sysfs_enable_ns(struct sysfs_dirent *sd);
-
 int __must_check sysfs_create_group(struct kobject *kobj,
 				    const struct attribute_group *grp);
 int __must_check sysfs_create_groups(struct kobject *kobj,
@@ -351,10 +349,6 @@ static inline int sysfs_rename_link_ns(struct kobject *k, struct kobject *t,
 
 static inline void sysfs_delete_link(struct kobject *k, struct kobject *t,
 				     const char *name)
-{
-}
-
-static inline void sysfs_enable_ns(struct sysfs_dirent *sd)
 {
 }
 

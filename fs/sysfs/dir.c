@@ -666,9 +666,18 @@ struct sysfs_dirent *sysfs_get_dirent_ns(struct sysfs_dirent *parent_sd,
 }
 EXPORT_SYMBOL_GPL(sysfs_get_dirent_ns);
 
-static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
-		      const char *name, const void *ns,
-		      struct sysfs_dirent **p_sd)
+/**
+ * kernfs_create_dir_ns - create a directory
+ * @parent: parent in which to create a new directory
+ * @name: name of the new directory
+ * @priv: opaque data associated with the new directory
+ * @ns: optional namespace tag of the directory
+ *
+ * Returns the created node on success, ERR_PTR() value on failure.
+ */
+struct sysfs_dirent *kernfs_create_dir_ns(struct sysfs_dirent *parent,
+					  const char *name, void *priv,
+					  const void *ns)
 {
 	umode_t mode = S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO;
 	struct sysfs_addrm_cxt acxt;
@@ -678,28 +687,21 @@ static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
 	/* allocate */
 	sd = sysfs_new_dirent(name, mode, SYSFS_DIR);
 	if (!sd)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	sd->s_ns = ns;
-	sd->priv = kobj;
+	sd->priv = priv;
 
 	/* link in */
 	sysfs_addrm_start(&acxt);
-	rc = sysfs_add_one(&acxt, sd, parent_sd);
+	rc = __sysfs_add_one(&acxt, sd, parent);
 	sysfs_addrm_finish(&acxt);
 
-	if (rc == 0)
-		*p_sd = sd;
-	else
-		sysfs_put(sd);
+	if (!rc)
+		return sd;
 
-	return rc;
-}
-
-int sysfs_create_subdir(struct kobject *kobj, const char *name,
-			struct sysfs_dirent **p_sd)
-{
-	return create_dir(kobj, kobj->sd, name, NULL, p_sd);
+	sysfs_put(sd);
+	return ERR_PTR(rc);
 }
 
 /**
@@ -710,7 +712,6 @@ int sysfs_create_subdir(struct kobject *kobj, const char *name,
 int sysfs_create_dir_ns(struct kobject *kobj, const void *ns)
 {
 	struct sysfs_dirent *parent_sd, *sd;
-	int error = 0;
 
 	BUG_ON(!kobj);
 
@@ -722,10 +723,15 @@ int sysfs_create_dir_ns(struct kobject *kobj, const void *ns)
 	if (!parent_sd)
 		return -ENOENT;
 
-	error = create_dir(kobj, parent_sd, kobject_name(kobj), ns, &sd);
-	if (!error)
-		kobj->sd = sd;
-	return error;
+	sd = kernfs_create_dir_ns(parent_sd, kobject_name(kobj), kobj, ns);
+	if (IS_ERR(sd)) {
+		if (PTR_ERR(sd) == -EEXIST)
+			sysfs_warn_dup(parent_sd, kobject_name(kobj));
+		return PTR_ERR(sd);
+	}
+
+	kobj->sd = sd;
+	return 0;
 }
 
 static struct dentry *sysfs_lookup(struct inode *dir, struct dentry *dentry,
@@ -1005,14 +1011,14 @@ int sysfs_move_dir_ns(struct kobject *kobj, struct kobject *new_parent_kobj,
 }
 
 /**
- * sysfs_enable_ns - enable namespace under a directory
+ * kernfs_enable_ns - enable namespace under a directory
  * @sd: directory of interest, should be empty
  *
  * This is to be called right after @sd is created to enable namespace
  * under it.  All children of @sd must have non-NULL namespace tags and
  * only the ones which match the super_block's tag will be visible.
  */
-void sysfs_enable_ns(struct sysfs_dirent *sd)
+void kernfs_enable_ns(struct sysfs_dirent *sd)
 {
 	WARN_ON_ONCE(sysfs_type(sd) != SYSFS_DIR);
 	WARN_ON_ONCE(!RB_EMPTY_ROOT(&sd->s_dir.children));
