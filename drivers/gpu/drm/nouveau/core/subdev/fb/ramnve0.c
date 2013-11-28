@@ -999,6 +999,7 @@ nve0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 		if (ram_have(fuc, mr[i]))
 			ram->base.mr[i] = ram_rd32(fuc, mr[i]);
 	}
+	ram->base.freq = freq;
 
 	switch (ram->base.type) {
 	case NV_MEM_TYPE_DDR3:
