@@ -149,4 +149,9 @@ extern const struct file_operations kernfs_file_operations;
 
 void sysfs_unmap_bin_file(struct sysfs_dirent *sd);
 
+/*
+ * symlink.c
+ */
+extern const struct inode_operations sysfs_symlink_inode_operations;
+
 #endif	/* __KERNFS_INTERNAL_H */

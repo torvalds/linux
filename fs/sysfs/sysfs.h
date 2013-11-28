@@ -50,7 +50,6 @@ int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 /*
  * symlink.c
  */
-extern const struct inode_operations sysfs_symlink_inode_operations;
 int sysfs_create_link_sd(struct sysfs_dirent *sd, struct kobject *target,
 			 const char *name);
 
