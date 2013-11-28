@@ -14,6 +14,7 @@
 #include <linux/lockdep.h>
 #include <linux/fs.h>
 #include <linux/rbtree.h>
+#include <linux/mutex.h>
 
 #include <linux/kernfs.h>
 
@@ -124,5 +125,21 @@ int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		   size_t size, int flags);
 int sysfs_inode_init(void);
+
+/*
+ * dir.c
+ */
+extern struct mutex sysfs_mutex;
+extern const struct dentry_operations sysfs_dentry_ops;
+extern const struct file_operations sysfs_dir_operations;
+extern const struct inode_operations sysfs_dir_inode_operations;
+
+struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd);
+void sysfs_put_active(struct sysfs_dirent *sd);
+void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt);
+int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd,
+		  struct sysfs_dirent *parent_sd);
+void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt);
+struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type);
 
 #endif	/* __KERNFS_INTERNAL_H */

@@ -34,22 +34,9 @@ extern struct kmem_cache *sysfs_dir_cachep;
 /*
  * dir.c
  */
-extern struct mutex sysfs_mutex;
 extern spinlock_t sysfs_symlink_target_lock;
-extern const struct dentry_operations sysfs_dentry_ops;
 
-extern const struct file_operations sysfs_dir_operations;
-extern const struct inode_operations sysfs_dir_inode_operations;
-
-struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd);
-void sysfs_put_active(struct sysfs_dirent *sd);
-void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt);
 void sysfs_warn_dup(struct sysfs_dirent *parent, const char *name);
-int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd,
-		  struct sysfs_dirent *parent_sd);
-void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt);
-
-struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type);
 
 /*
  * file.c
