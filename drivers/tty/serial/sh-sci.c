@@ -421,9 +421,9 @@ static void sci_port_enable(struct sci_port *sci_port)
 
 	pm_runtime_get_sync(sci_port->port.dev);
 
-	clk_enable(sci_port->iclk);
+	clk_prepare_enable(sci_port->iclk);
 	sci_port->port.uartclk = clk_get_rate(sci_port->iclk);
-	clk_enable(sci_port->fclk);
+	clk_prepare_enable(sci_port->fclk);
 }
 
 static void sci_port_disable(struct sci_port *sci_port)
@@ -439,8 +439,8 @@ static void sci_port_disable(struct sci_port *sci_port)
 	del_timer_sync(&sci_port->break_timer);
 	sci_port->break_flag = 0;
 
-	clk_disable(sci_port->fclk);
-	clk_disable(sci_port->iclk);
+	clk_disable_unprepare(sci_port->fclk);
+	clk_disable_unprepare(sci_port->iclk);
 
 	pm_runtime_put_sync(sci_port->port.dev);
 }
