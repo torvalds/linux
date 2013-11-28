@@ -86,9 +86,9 @@
 #define TOTAL_SECS(sbi)	(sbi->total_sections)
 
 #define SECTOR_FROM_BLOCK(sbi, blk_addr)				\
-	(blk_addr << ((sbi)->log_blocksize - F2FS_LOG_SECTOR_SIZE))
+	(((sector_t)blk_addr) << (sbi)->log_sectors_per_block)
 #define SECTOR_TO_BLOCK(sbi, sectors)					\
-	(sectors >> ((sbi)->log_blocksize - F2FS_LOG_SECTOR_SIZE))
+	(sectors >> (sbi)->log_sectors_per_block)
 #define MAX_BIO_BLOCKS(max_hw_blocks)					\
 	(min((int)max_hw_blocks, BIO_MAX_PAGES))
 

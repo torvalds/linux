@@ -270,8 +270,8 @@ static void locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno)
 static void f2fs_issue_discard(struct f2fs_sb_info *sbi,
 				block_t blkstart, block_t blklen)
 {
-	sector_t start = ((sector_t)blkstart) << sbi->log_sectors_per_block;
-	sector_t len = ((sector_t)blklen) << sbi->log_sectors_per_block;
+	sector_t start = SECTOR_FROM_BLOCK(sbi, blkstart);
+	sector_t len = SECTOR_FROM_BLOCK(sbi, blklen);
 	blkdev_issue_discard(sbi->sb->s_bdev, start, len, GFP_NOFS, 0);
 	trace_f2fs_issue_discard(sbi->sb, blkstart, blklen);
 }

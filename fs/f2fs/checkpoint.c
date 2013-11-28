@@ -426,7 +426,8 @@ int get_valid_checkpoint(struct f2fs_sb_info *sbi)
 	cp1 = validate_checkpoint(sbi, cp_start_blk_no, &cp1_version);
 
 	/* The second checkpoint pack should start at the next segment */
-	cp_start_blk_no += 1 << le32_to_cpu(fsb->log_blocks_per_seg);
+	cp_start_blk_no += ((unsigned long long)1) <<
+				le32_to_cpu(fsb->log_blocks_per_seg);
 	cp2 = validate_checkpoint(sbi, cp_start_blk_no, &cp2_version);
 
 	if (cp1 && cp2) {

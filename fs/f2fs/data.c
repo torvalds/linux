@@ -525,7 +525,7 @@ static int get_data_block_ro(struct inode *inode, sector_t iblock,
 				!= (dn.data_blkaddr + i)) || maxblocks == i)
 				break;
 		map_bh(bh_result, inode->i_sb, dn.data_blkaddr);
-		bh_result->b_size = (i << blkbits);
+		bh_result->b_size = (((size_t)i) << blkbits);
 	}
 	f2fs_put_dnode(&dn);
 	trace_f2fs_get_data_block(inode, iblock, bh_result, 0);
