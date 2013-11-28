@@ -513,7 +513,6 @@ static const struct regmap_config ak4648_regmap = {
 	.num_reg_defaults	= ARRAY_SIZE(ak4648_reg),
 };
 
-#if IS_ENABLED(CONFIG_I2C)
 static struct of_device_id ak4642_of_match[];
 static int ak4642_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
@@ -577,27 +576,8 @@ static struct i2c_driver ak4642_i2c_driver = {
 	.remove		= ak4642_i2c_remove,
 	.id_table	= ak4642_i2c_id,
 };
-#endif
 
-static int __init ak4642_modinit(void)
-{
-	int ret = 0;
-#if IS_ENABLED(CONFIG_I2C)
-	ret = i2c_add_driver(&ak4642_i2c_driver);
-#endif
-	return ret;
-
-}
-module_init(ak4642_modinit);
-
-static void __exit ak4642_exit(void)
-{
-#if IS_ENABLED(CONFIG_I2C)
-	i2c_del_driver(&ak4642_i2c_driver);
-#endif
-
-}
-module_exit(ak4642_exit);
+module_i2c_driver(ak4642_i2c_driver);
 
 MODULE_DESCRIPTION("Soc AK4642 driver");
 MODULE_AUTHOR("Kuninori Morimoto <morimoto.kuninori@renesas.com>");
