@@ -2386,15 +2386,7 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	/* These values will be overridden later */
 	lq_sta->lq.single_stream_ant_msk =
 		first_antenna(iwl_fw_valid_tx_ant(mvm->fw));
-	lq_sta->lq.dual_stream_ant_msk =
-		iwl_fw_valid_tx_ant(mvm->fw) &
-		~first_antenna(iwl_fw_valid_tx_ant(mvm->fw));
-	if (!lq_sta->lq.dual_stream_ant_msk) {
-		lq_sta->lq.dual_stream_ant_msk = ANT_AB;
-	} else if (num_of_ant(iwl_fw_valid_tx_ant(mvm->fw)) == 2) {
-		lq_sta->lq.dual_stream_ant_msk =
-			iwl_fw_valid_tx_ant(mvm->fw);
-	}
+	lq_sta->lq.dual_stream_ant_msk = ANT_AB;
 
 	/* as default allow aggregation for all tids */
 	lq_sta->tx_agg_tid_en = IWL_AGG_ALL_TID;
@@ -2463,8 +2455,6 @@ static void rs_fill_link_cmd(struct iwl_mvm *mvm,
 
 	if (num_of_ant(rate.ant) == 1)
 		lq_cmd->single_stream_ant_msk = rate.ant;
-	else if (num_of_ant(rate.ant) == 2)
-		lq_cmd->dual_stream_ant_msk = rate.ant;
 	/* otherwise we don't modify the existing value */
 
 	index++;
