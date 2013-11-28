@@ -18,6 +18,8 @@ struct file;
 struct iattr;
 struct seq_file;
 struct vm_area_struct;
+struct super_block;
+struct file_system_type;
 
 struct sysfs_dirent;
 
@@ -109,6 +111,13 @@ void kernfs_enable_ns(struct sysfs_dirent *sd);
 int kernfs_setattr(struct sysfs_dirent *sd, const struct iattr *iattr);
 void kernfs_notify(struct sysfs_dirent *sd);
 
+const void *kernfs_super_ns(struct super_block *sb);
+struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
+			       struct kernfs_root *root, const void *ns);
+void kernfs_kill_sb(struct super_block *sb);
+
+void kernfs_init(void);
+
 #else	/* CONFIG_SYSFS */
 
 static inline struct sysfs_dirent *
@@ -160,6 +169,18 @@ static inline int kernfs_setattr(struct sysfs_dirent *sd,
 
 static inline void kernfs_notify(struct sysfs_dirent *sd) { }
 
+static inline const void *kernfs_super_ns(struct super_block *sb)
+{ return NULL; }
+
+static inline struct dentry *
+kernfs_mount_ns(struct file_system_type *fs_type, int flags,
+		struct kernfs_root *root, const void *ns)
+{ return ERR_PTR(-ENOSYS); }
+
+static inline void kernfs_kill_sb(struct super_block *sb) { }
+
+static inline void kernfs_init(void) { }
+
 #endif	/* CONFIG_SYSFS */
 
 static inline struct sysfs_dirent *
@@ -199,6 +220,13 @@ static inline int kernfs_remove_by_name(struct sysfs_dirent *parent,
 					const char *name)
 {
 	return kernfs_remove_by_name_ns(parent, name, NULL);
+}
+
+static inline struct dentry *
+kernfs_mount(struct file_system_type *fs_type, int flags,
+	     struct kernfs_root *root)
+{
+	return kernfs_mount_ns(fs_type, flags, root, NULL);
 }
 
 #endif	/* __LINUX_KERNFS_H */

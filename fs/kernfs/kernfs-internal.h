@@ -144,7 +144,7 @@ int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		  struct kstat *stat);
 int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		   size_t size, int flags);
-int sysfs_inode_init(void);
+void sysfs_inode_init(void);
 
 /*
  * dir.c

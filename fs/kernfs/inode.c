@@ -37,9 +37,10 @@ static const struct inode_operations sysfs_inode_operations = {
 	.setxattr	= sysfs_setxattr,
 };
 
-int __init sysfs_inode_init(void)
+void __init sysfs_inode_init(void)
 {
-	return bdi_init(&sysfs_backing_dev_info);
+	if (bdi_init(&sysfs_backing_dev_info))
+		panic("failed to init sysfs_backing_dev_info");
 }
 
 static struct sysfs_inode_attrs *sysfs_init_inode_attrs(struct sysfs_dirent *sd)
