@@ -217,6 +217,9 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 				goto fail;
 			}
 
+			if (!of_device_is_available(newpar))
+				match = 0;
+
 			/* Get #interrupt-cells and #address-cells of new
 			 * parent
 			 */
