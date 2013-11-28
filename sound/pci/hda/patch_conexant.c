@@ -3244,8 +3244,28 @@ enum {
 #if IS_ENABLED(CONFIG_THINKPAD_ACPI)
 
 #include <linux/thinkpad_acpi.h>
+#include <acpi/acpi.h>
 
 static int (*led_set_func)(int, bool);
+
+static acpi_status acpi_check_cb(acpi_handle handle, u32 lvl, void *context,
+				 void **rv)
+{
+	bool *found = context;
+	*found = true;
+	return AE_OK;
+}
+
+static bool is_thinkpad(struct hda_codec *codec)
+{
+	bool found = false;
+	if (codec->subsystem_id >> 16 != 0x17aa)
+		return false;
+	if (ACPI_SUCCESS(acpi_get_devices("LEN0068", acpi_check_cb, &found, NULL)) && found)
+		return true;
+	found = false;
+	return ACPI_SUCCESS(acpi_get_devices("IBM0068", acpi_check_cb, &found, NULL)) && found;
+}
 
 static void update_tpacpi_mute_led(void *private_data, int enabled)
 {
@@ -3279,6 +3299,8 @@ static void cxt_fixup_thinkpad_acpi(struct hda_codec *codec,
 	bool removefunc = false;
 
 	if (action == HDA_FIXUP_ACT_PROBE) {
+		if (!is_thinkpad(codec))
+			return;
 		if (!led_set_func)
 			led_set_func = symbol_request(tpacpi_led_set);
 		if (!led_set_func) {
@@ -3494,6 +3516,7 @@ static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x17aa, 0x3975, "Lenovo U300s", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x3977, "Lenovo IdeaPad U310", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x397b, "Lenovo S205", CXT_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK_VENDOR(0x17aa, "Thinkpad", CXT_FIXUP_THINKPAD_ACPI),
 	SND_PCI_QUIRK(0x1c06, 0x2011, "Lemote A1004", CXT_PINCFG_LEMOTE_A1004),
 	SND_PCI_QUIRK(0x1c06, 0x2012, "Lemote A1205", CXT_PINCFG_LEMOTE_A1205),
 	{}
