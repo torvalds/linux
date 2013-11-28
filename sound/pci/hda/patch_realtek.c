@@ -1783,6 +1783,7 @@ enum {
 	ALC882_FIXUP_INV_DMIC,
 	ALC882_FIXUP_NO_PRIMARY_HP,
 	ALC887_FIXUP_ASUS_BASS,
+	ALC887_FIXUP_BASS_CHMAP,
 };
 
 static void alc889_fixup_coef(struct hda_codec *codec,
@@ -1915,6 +1916,9 @@ static void alc882_fixup_no_primary_hp(struct hda_codec *codec,
 		spec->gen.no_multi_io = 1;
 	}
 }
+
+static void alc_fixup_bass_chmap(struct hda_codec *codec,
+				 const struct hda_fixup *fix, int action);
 
 static const struct hda_fixup alc882_fixups[] = {
 	[ALC882_FIXUP_ABIT_AW9D_MAX] = {
@@ -2112,6 +2116,12 @@ static const struct hda_fixup alc882_fixups[] = {
 			{0x16, 0x99130130}, /* bass speaker */
 			{}
 		},
+		.chained = true,
+		.chain_id = ALC887_FIXUP_BASS_CHMAP,
+	},
+	[ALC887_FIXUP_BASS_CHMAP] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc_fixup_bass_chmap,
 	},
 };
 
@@ -4731,7 +4741,7 @@ static const struct snd_pcm_chmap_elem asus_pcm_2_1_chmaps[] = {
 };
 
 /* override the 2.1 chmap */
-static void alc662_fixup_bass_chmap(struct hda_codec *codec,
+static void alc_fixup_bass_chmap(struct hda_codec *codec,
 				    const struct hda_fixup *fix, int action)
 {
 	if (action == HDA_FIXUP_ACT_BUILD) {
@@ -4939,7 +4949,7 @@ static const struct hda_fixup alc662_fixups[] = {
 	},
 	[ALC662_FIXUP_BASS_CHMAP] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc662_fixup_bass_chmap,
+		.v.func = alc_fixup_bass_chmap,
 		.chained = true,
 		.chain_id = ALC662_FIXUP_ASUS_MODE4
 	},
@@ -4952,7 +4962,7 @@ static const struct hda_fixup alc662_fixups[] = {
 	},
 	[ALC662_FIXUP_BASS_1A_CHMAP] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc662_fixup_bass_chmap,
+		.v.func = alc_fixup_bass_chmap,
 		.chained = true,
 		.chain_id = ALC662_FIXUP_BASS_1A,
 	},
