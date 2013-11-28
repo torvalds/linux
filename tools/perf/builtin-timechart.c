@@ -42,10 +42,12 @@
 #define PWR_EVENT_EXIT -1
 
 struct per_pid;
+struct power_event;
 
 struct timechart {
 	struct perf_tool	tool;
 	struct per_pid		*all_data;
+	struct power_event	*power_events;
 	int			proc_num;
 	unsigned int		numcpus;
 	u64			min_freq,	/* Lowest CPU frequency seen */
@@ -146,7 +148,6 @@ struct wake_event {
 	const char *backtrace;
 };
 
-static struct power_event    *power_events;
 static struct wake_event     *wake_events;
 
 struct process_filter {
@@ -312,7 +313,7 @@ static void c_state_start(int cpu, u64 timestamp, int state)
 	cpus_cstate_state[cpu] = state;
 }
 
-static void c_state_end(int cpu, u64 timestamp)
+static void c_state_end(struct timechart *tchart, int cpu, u64 timestamp)
 {
 	struct power_event *pwr = zalloc(sizeof(*pwr));
 
@@ -324,9 +325,9 @@ static void c_state_end(int cpu, u64 timestamp)
 	pwr->end_time = timestamp;
 	pwr->cpu = cpu;
 	pwr->type = CSTATE;
-	pwr->next = power_events;
+	pwr->next = tchart->power_events;
 
-	power_events = pwr;
+	tchart->power_events = pwr;
 }
 
 static void p_state_change(struct timechart *tchart, int cpu, u64 timestamp, u64 new_freq)
@@ -345,12 +346,12 @@ static void p_state_change(struct timechart *tchart, int cpu, u64 timestamp, u64
 	pwr->end_time = timestamp;
 	pwr->cpu = cpu;
 	pwr->type = PSTATE;
-	pwr->next = power_events;
+	pwr->next = tchart->power_events;
 
 	if (!pwr->start_time)
 		pwr->start_time = tchart->first_time;
 
-	power_events = pwr;
+	tchart->power_events = pwr;
 
 	cpus_pstate_state[cpu] = new_freq;
 	cpus_pstate_start_times[cpu] = timestamp;
@@ -551,7 +552,7 @@ process_sample_cpu_idle(struct timechart *tchart __maybe_unused,
 	u32 cpu_id = perf_evsel__intval(evsel, sample, "cpu_id");
 
 	if (state == (u32)PWR_EVENT_EXIT)
-		c_state_end(cpu_id, sample->time);
+		c_state_end(tchart, cpu_id, sample->time);
 	else
 		c_state_start(cpu_id, sample->time, state);
 	return 0;
@@ -614,12 +615,12 @@ process_sample_power_start(struct timechart *tchart __maybe_unused,
 }
 
 static int
-process_sample_power_end(struct timechart *tchart __maybe_unused,
+process_sample_power_end(struct timechart *tchart,
 			 struct perf_evsel *evsel __maybe_unused,
 			 struct perf_sample *sample,
 			 const char *backtrace __maybe_unused)
 {
-	c_state_end(sample->cpu, sample->time);
+	c_state_end(tchart, sample->cpu, sample->time);
 	return 0;
 }
 
@@ -658,9 +659,9 @@ static void end_sample_processing(struct timechart *tchart)
 		pwr->end_time = tchart->last_time;
 		pwr->cpu = cpu;
 		pwr->type = CSTATE;
-		pwr->next = power_events;
+		pwr->next = tchart->power_events;
 
-		power_events = pwr;
+		tchart->power_events = pwr;
 #endif
 		/* P state */
 
@@ -673,13 +674,13 @@ static void end_sample_processing(struct timechart *tchart)
 		pwr->end_time = tchart->last_time;
 		pwr->cpu = cpu;
 		pwr->type = PSTATE;
-		pwr->next = power_events;
+		pwr->next = tchart->power_events;
 
 		if (!pwr->start_time)
 			pwr->start_time = tchart->first_time;
 		if (!pwr->state)
 			pwr->state = tchart->min_freq;
-		power_events = pwr;
+		tchart->power_events = pwr;
 	}
 }
 
@@ -735,7 +736,7 @@ static void sort_pids(struct timechart *tchart)
 static void draw_c_p_states(struct timechart *tchart)
 {
 	struct power_event *pwr;
-	pwr = power_events;
+	pwr = tchart->power_events;
 
 	/*
 	 * two pass drawing so that the P state bars are on top of the C state blocks
@@ -746,7 +747,7 @@ static void draw_c_p_states(struct timechart *tchart)
 		pwr = pwr->next;
 	}
 
-	pwr = power_events;
+	pwr = tchart->power_events;
 	while (pwr) {
 		if (pwr->type == PSTATE) {
 			if (!pwr->state)
