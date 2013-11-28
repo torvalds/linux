@@ -4776,7 +4776,8 @@ static int i40e_prep_for_reset(struct i40e_pf *pf)
 
 	dev_info(&pf->pdev->dev, "Tearing down internal switch for reset\n");
 
-	i40e_vc_notify_reset(pf);
+	if (i40e_check_asq_alive(hw))
+		i40e_vc_notify_reset(pf);
 
 	/* quiesce the VSIs and their queues that are not already DOWN */
 	i40e_pf_quiesce_all_vsi(pf);
