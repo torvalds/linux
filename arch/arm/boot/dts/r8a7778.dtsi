@@ -247,7 +247,7 @@
 		compatible = "renesas,hspi";
 		reg = <0xfffc7000 0x18>;
 		interrupt-controller = <&gic>;
-		interrupts = <0 63 4>;
+		interrupts = <0 63 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
@@ -255,7 +255,7 @@
 		compatible = "renesas,hspi";
 		reg = <0xfffc8000 0x18>;
 		interrupt-controller = <&gic>;
-		interrupts = <0 84 4>;
+		interrupts = <0 84 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
@@ -263,7 +263,7 @@
 		compatible = "renesas,hspi";
 		reg = <0xfffc6000 0x18>;
 		interrupt-controller = <&gic>;
-		interrupts = <0 85 4>;
+		interrupts = <0 85 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 };

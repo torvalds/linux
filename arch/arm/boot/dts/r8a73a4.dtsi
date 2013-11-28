@@ -137,27 +137,27 @@
 			compatible = "renesas,shdma-r8a73a4";
 			reg = <0 0xe6700020 0 0x89e0>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 220 4
-					0 200 4
-					0 201 4
-					0 202 4
-					0 203 4
-					0 204 4
-					0 205 4
-					0 206 4
-					0 207 4
-					0 208 4
-					0 209 4
-					0 210 4
-					0 211 4
-					0 212 4
-					0 213 4
-					0 214 4
-					0 215 4
-					0 216 4
-					0 217 4
-					0 218 4
-					0 219 4>;
+			interrupts = <0 220 IRQ_TYPE_LEVEL_HIGH
+					0 200 IRQ_TYPE_LEVEL_HIGH
+					0 201 IRQ_TYPE_LEVEL_HIGH
+					0 202 IRQ_TYPE_LEVEL_HIGH
+					0 203 IRQ_TYPE_LEVEL_HIGH
+					0 204 IRQ_TYPE_LEVEL_HIGH
+					0 205 IRQ_TYPE_LEVEL_HIGH
+					0 206 IRQ_TYPE_LEVEL_HIGH
+					0 207 IRQ_TYPE_LEVEL_HIGH
+					0 208 IRQ_TYPE_LEVEL_HIGH
+					0 209 IRQ_TYPE_LEVEL_HIGH
+					0 210 IRQ_TYPE_LEVEL_HIGH
+					0 211 IRQ_TYPE_LEVEL_HIGH
+					0 212 IRQ_TYPE_LEVEL_HIGH
+					0 213 IRQ_TYPE_LEVEL_HIGH
+					0 214 IRQ_TYPE_LEVEL_HIGH
+					0 215 IRQ_TYPE_LEVEL_HIGH
+					0 216 IRQ_TYPE_LEVEL_HIGH
+					0 217 IRQ_TYPE_LEVEL_HIGH
+					0 218 IRQ_TYPE_LEVEL_HIGH
+					0 219 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "error",
 					"ch0", "ch1", "ch2", "ch3",
 					"ch4", "ch5", "ch6", "ch7",
@@ -181,7 +181,7 @@
 		compatible = "renesas,rmobile-iic";
 		reg = <0 0xe6500000 0 0x428>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 174 0x4>;
+		interrupts = <0 174 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
@@ -191,7 +191,7 @@
 		compatible = "renesas,rmobile-iic";
 		reg = <0 0xe6510000 0 0x428>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 175 0x4>;
+		interrupts = <0 175 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
@@ -201,7 +201,7 @@
 		compatible = "renesas,rmobile-iic";
 		reg = <0 0xe6520000 0 0x428>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 176 0x4>;
+		interrupts = <0 176 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
@@ -211,7 +211,7 @@
 		compatible = "renesas,rmobile-iic";
 		reg = <0 0xe6530000 0 0x428>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 177 0x4>;
+		interrupts = <0 177 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
