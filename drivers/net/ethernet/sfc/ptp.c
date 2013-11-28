@@ -1323,13 +1323,7 @@ static bool efx_ptp_rx(struct efx_channel *channel, struct sk_buff *skb)
 
 	/* Does this packet require timestamping? */
 	if (ntohs(*(__be16 *)&skb->data[PTP_DPORT_OFFSET]) == PTP_EVENT_PORT) {
-		struct skb_shared_hwtstamps *timestamps;
-
 		match->state = PTP_PACKET_STATE_UNMATCHED;
-
-		/* Clear all timestamps held: filled in later */
-		timestamps = skb_hwtstamps(skb);
-		memset(timestamps, 0, sizeof(*timestamps));
 
 		/* We expect the sequence number to be in the same position in
 		 * the packet for PTP V1 and V2
