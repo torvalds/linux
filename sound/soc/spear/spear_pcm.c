@@ -49,16 +49,10 @@ static const struct snd_dmaengine_pcm_config spear_dmaengine_pcm_config = {
 
 static int spear_soc_platform_probe(struct platform_device *pdev)
 {
-	return snd_dmaengine_pcm_register(&pdev->dev,
+	return devm_snd_dmaengine_pcm_register(&pdev->dev,
 		&spear_dmaengine_pcm_config,
 		SND_DMAENGINE_PCM_FLAG_NO_DT |
 		SND_DMAENGINE_PCM_FLAG_COMPAT);
-}
-
-static int spear_soc_platform_remove(struct platform_device *pdev)
-{
-	snd_dmaengine_pcm_unregister(&pdev->dev);
-	return 0;
 }
 
 static struct platform_driver spear_pcm_driver = {
@@ -68,7 +62,6 @@ static struct platform_driver spear_pcm_driver = {
 	},
 
 	.probe = spear_soc_platform_probe,
-	.remove = spear_soc_platform_remove,
 };
 
 module_platform_driver(spear_pcm_driver);
