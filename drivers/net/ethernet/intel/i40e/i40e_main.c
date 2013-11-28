@@ -1509,11 +1509,6 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 				cpu_to_le16((u16)(f->vlan ==
 					    I40E_VLAN_ANY ? 0 : f->vlan));
 
-			/* vlan0 as wild card to allow packets from all vlans */
-			if (f->vlan == I40E_VLAN_ANY ||
-			    (vsi->netdev && !(vsi->netdev->features &
-					      NETIF_F_HW_VLAN_CTAG_FILTER)))
-				cmd_flags |= I40E_AQC_MACVLAN_DEL_IGNORE_VLAN;
 			cmd_flags |= I40E_AQC_MACVLAN_DEL_PERFECT_MATCH;
 			del_list[num_del].flags = cmd_flags;
 			num_del++;
@@ -1579,12 +1574,6 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 			add_list[num_add].queue_number = 0;
 
 			cmd_flags |= I40E_AQC_MACVLAN_ADD_PERFECT_MATCH;
-
-			/* vlan0 as wild card to allow packets from all vlans */
-			if (f->vlan == I40E_VLAN_ANY || (vsi->netdev &&
-			    !(vsi->netdev->features &
-						 NETIF_F_HW_VLAN_CTAG_FILTER)))
-				cmd_flags |= I40E_AQC_MACVLAN_ADD_IGNORE_VLAN;
 			add_list[num_add].flags = cpu_to_le16(cmd_flags);
 			num_add++;
 
