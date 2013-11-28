@@ -19,16 +19,11 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 
-/* The current code can have up to 256 pages for virtio */
-#define VIRTIODESCSPACE (256ul * 4096ul)
-
 typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 
 /* declare vfacilities extern */
 extern unsigned long *vfacilities;
 
-/* negativ values are error codes, positive values for internal conditions */
-#define SIE_INTERCEPT_UCONTROL		(1<<0)
 int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu);
 
 #define VM_EVENT(d_kvm, d_loglevel, d_string, d_args...)\
@@ -133,7 +128,6 @@ int __must_check kvm_s390_inject_vm(struct kvm *kvm,
 int __must_check kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 				      struct kvm_s390_interrupt *s390int);
 int __must_check kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code);
-int __must_check kvm_s390_inject_sigp_stop(struct kvm_vcpu *vcpu, int action);
 struct kvm_s390_interrupt_info *kvm_s390_get_io_int(struct kvm *kvm,
 						    u64 cr6, u64 schid);
 
@@ -150,8 +144,8 @@ int kvm_s390_handle_eb(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);
 
 /* implemented in kvm-s390.c */
-int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu,
-				 unsigned long addr);
+int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long addr);
+int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr);
 void s390_vcpu_block(struct kvm_vcpu *vcpu);
 void s390_vcpu_unblock(struct kvm_vcpu *vcpu);
 void exit_sie(struct kvm_vcpu *vcpu);

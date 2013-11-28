@@ -130,6 +130,7 @@ unlock:
 static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
 {
 	struct kvm_s390_interrupt_info *inti;
+	int rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 
 	inti = kzalloc(sizeof(*inti), GFP_ATOMIC);
 	if (!inti)
@@ -139,6 +140,8 @@ static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
 	spin_lock_bh(&li->lock);
 	if ((atomic_read(li->cpuflags) & CPUSTAT_STOPPED)) {
 		kfree(inti);
+		if ((action & ACTION_STORE_ON_STOP) != 0)
+			rc = -ESHUTDOWN;
 		goto out;
 	}
 	list_add_tail(&inti->list, &li->list);
@@ -150,7 +153,7 @@ static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
 out:
 	spin_unlock_bh(&li->lock);
 
-	return SIGP_CC_ORDER_CODE_ACCEPTED;
+	return rc;
 }
 
 static int __sigp_stop(struct kvm_vcpu *vcpu, u16 cpu_addr, int action)
@@ -174,13 +177,17 @@ static int __sigp_stop(struct kvm_vcpu *vcpu, u16 cpu_addr, int action)
 unlock:
 	spin_unlock(&fi->lock);
 	VCPU_EVENT(vcpu, 4, "sent sigp stop to cpu %x", cpu_addr);
-	return rc;
-}
 
-int kvm_s390_inject_sigp_stop(struct kvm_vcpu *vcpu, int action)
-{
-	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
-	return __inject_sigp_stop(li, action);
+	if ((action & ACTION_STORE_ON_STOP) != 0 && rc == -ESHUTDOWN) {
+		/* If the CPU has already been stopped, we still have
+		 * to save the status when doing stop-and-store. This
+		 * has to be done after unlocking all spinlocks. */
+		struct kvm_vcpu *dst_vcpu = kvm_get_vcpu(vcpu->kvm, cpu_addr);
+		rc = kvm_s390_store_status_unloaded(dst_vcpu,
+						KVM_S390_STORE_STATUS_NOADDR);
+	}
+
+	return rc;
 }
 
 static int __sigp_set_arch(struct kvm_vcpu *vcpu, u32 parameter)
@@ -259,6 +266,37 @@ out_li:
 	spin_unlock_bh(&li->lock);
 out_fi:
 	spin_unlock(&fi->lock);
+	return rc;
+}
+
+static int __sigp_store_status_at_addr(struct kvm_vcpu *vcpu, u16 cpu_id,
+					u32 addr, u64 *reg)
+{
+	struct kvm_vcpu *dst_vcpu = NULL;
+	int flags;
+	int rc;
+
+	if (cpu_id < KVM_MAX_VCPUS)
+		dst_vcpu = kvm_get_vcpu(vcpu->kvm, cpu_id);
+	if (!dst_vcpu)
+		return SIGP_CC_NOT_OPERATIONAL;
+
+	spin_lock_bh(&dst_vcpu->arch.local_int.lock);
+	flags = atomic_read(dst_vcpu->arch.local_int.cpuflags);
+	spin_unlock_bh(&dst_vcpu->arch.local_int.lock);
+	if (!(flags & CPUSTAT_STOPPED)) {
+		*reg &= 0xffffffff00000000UL;
+		*reg |= SIGP_STATUS_INCORRECT_STATE;
+		return SIGP_CC_STATUS_STORED;
+	}
+
+	addr &= 0x7ffffe00;
+	rc = kvm_s390_store_status_unloaded(dst_vcpu, addr);
+	if (rc == -EFAULT) {
+		*reg &= 0xffffffff00000000UL;
+		*reg |= SIGP_STATUS_INVALID_PARAMETER;
+		rc = SIGP_CC_STATUS_STORED;
+	}
 	return rc;
 }
 
@@ -365,6 +403,10 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 		vcpu->stat.instruction_sigp_stop++;
 		rc = __sigp_stop(vcpu, cpu_addr, ACTION_STORE_ON_STOP |
 						 ACTION_STOP_ON_STOP);
+		break;
+	case SIGP_STORE_STATUS_AT_ADDRESS:
+		rc = __sigp_store_status_at_addr(vcpu, cpu_addr, parameter,
+						 &vcpu->run->s.regs.gprs[r1]);
 		break;
 	case SIGP_SET_ARCHITECTURE:
 		vcpu->stat.instruction_sigp_arch++;
