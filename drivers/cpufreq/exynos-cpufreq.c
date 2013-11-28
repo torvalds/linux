@@ -17,6 +17,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/cpufreq.h>
 #include <linux/suspend.h>
+#include <linux/platform_device.h>
 
 #include <plat/cpu.h>
 
@@ -232,7 +233,7 @@ static struct cpufreq_driver exynos_driver = {
 #endif
 };
 
-static int __init exynos_cpufreq_init(void)
+static int exynos_cpufreq_probe(struct platform_device *pdev)
 {
 	int ret = -EINVAL;
 
@@ -281,4 +282,12 @@ err_vdd_arm:
 	kfree(exynos_info);
 	return -EINVAL;
 }
-late_initcall(exynos_cpufreq_init);
+
+static struct platform_driver exynos_cpufreq_platdrv = {
+	.driver = {
+		.name	= "exynos-cpufreq",
+		.owner	= THIS_MODULE,
+	},
+	.probe = exynos_cpufreq_probe,
+};
+module_platform_driver(exynos_cpufreq_platdrv);
