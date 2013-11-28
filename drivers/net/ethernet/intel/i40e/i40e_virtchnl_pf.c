@@ -600,8 +600,7 @@ static int i40e_quiesce_vf_pci(struct i40e_vf *vf)
 	int vf_abs_id, i;
 	u32 reg;
 
-	reg = rd32(hw, I40E_PF_VT_PFALLOC);
-	vf_abs_id = vf->vf_id + (reg & I40E_PF_VT_PFALLOC_FIRSTVF_MASK);
+	vf_abs_id = vf->vf_id + hw->func_caps.vf_base_id;
 
 	wr32(hw, I40E_PF_PCI_CIAA,
 	     VF_DEVICE_STATUS | (vf_abs_id << I40E_PF_PCI_CIAA_VF_NUM_SHIFT));
