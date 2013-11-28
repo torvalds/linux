@@ -140,6 +140,10 @@ int snd_dmaengine_pcm_register(struct device *dev,
 	unsigned int flags);
 void snd_dmaengine_pcm_unregister(struct device *dev);
 
+int devm_snd_dmaengine_pcm_register(struct device *dev,
+	const struct snd_dmaengine_pcm_config *config,
+	unsigned int flags);
+
 int snd_dmaengine_pcm_prepare_slave_config(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params,
 	struct dma_slave_config *slave_config);
