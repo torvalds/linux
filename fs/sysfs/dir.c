@@ -395,7 +395,7 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt)
 }
 
 /**
- *	__sysfs_add_one - add sysfs_dirent to parent without warning
+ *	sysfs_add_one - add sysfs_dirent to parent without warning
  *	@acxt: addrm context to use
  *	@sd: sysfs_dirent to be added
  *	@parent_sd: the parent sysfs_dirent to add @sd to
@@ -415,8 +415,8 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt)
  *	0 on success, -EEXIST if entry with the given name already
  *	exists.
  */
-int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd,
-		    struct sysfs_dirent *parent_sd)
+int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd,
+		  struct sysfs_dirent *parent_sd)
 {
 	bool has_ns = parent_sd->s_flags & SYSFS_FLAG_NS;
 	struct sysfs_inode_attrs *ps_iattr;
@@ -485,39 +485,6 @@ void sysfs_warn_dup(struct sysfs_dirent *parent, const char *name)
 	     path ? path : name);
 
 	kfree(path);
-}
-
-/**
- *	sysfs_add_one - add sysfs_dirent to parent
- *	@acxt: addrm context to use
- *	@sd: sysfs_dirent to be added
- *	@parent_sd: the parent sysfs_dirent to add @sd to
- *
- *	Get @parent_sd and set @sd->s_parent to it and increment nlink of
- *	the parent inode if @sd is a directory and link into the children
- *	list of the parent.
- *
- *	This function should be called between calls to
- *	sysfs_addrm_start() and sysfs_addrm_finish() and should be
- *	passed the same @acxt as passed to sysfs_addrm_start().
- *
- *	LOCKING:
- *	Determined by sysfs_addrm_start().
- *
- *	RETURNS:
- *	0 on success, -EEXIST if entry with the given name already
- *	exists.
- */
-int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd,
-		  struct sysfs_dirent *parent_sd)
-{
-	int ret;
-
-	ret = __sysfs_add_one(acxt, sd, parent_sd);
-
-	if (ret == -EEXIST)
-		sysfs_warn_dup(parent_sd, sd->s_name);
-	return ret;
 }
 
 /**
@@ -694,7 +661,7 @@ struct sysfs_dirent *kernfs_create_dir_ns(struct sysfs_dirent *parent,
 
 	/* link in */
 	sysfs_addrm_start(&acxt);
-	rc = __sysfs_add_one(&acxt, sd, parent);
+	rc = sysfs_add_one(&acxt, sd, parent);
 	sysfs_addrm_finish(&acxt);
 
 	if (!rc)

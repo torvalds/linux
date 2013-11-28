@@ -47,7 +47,7 @@ struct sysfs_dirent *kernfs_create_link(struct sysfs_dirent *parent,
 	sysfs_get(target);	/* ref owned by symlink */
 
 	sysfs_addrm_start(&acxt);
-	error = __sysfs_add_one(&acxt, sd, parent);
+	error = sysfs_add_one(&acxt, sd, parent);
 	sysfs_addrm_finish(&acxt);
 
 	if (!error)

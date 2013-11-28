@@ -1007,7 +1007,7 @@ struct sysfs_dirent *kernfs_create_file_ns(struct sysfs_dirent *parent,
 		sd->s_flags |= SYSFS_FLAG_HAS_MMAP;
 
 	sysfs_addrm_start(&acxt);
-	rc = __sysfs_add_one(&acxt, sd, parent);
+	rc = sysfs_add_one(&acxt, sd, parent);
 	sysfs_addrm_finish(&acxt);
 
 	if (rc) {
