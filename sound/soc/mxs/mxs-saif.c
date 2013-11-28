@@ -804,13 +804,6 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mxs_saif_remove(struct platform_device *pdev)
-{
-	mxs_pcm_platform_unregister(&pdev->dev);
-
-	return 0;
-}
-
 static const struct of_device_id mxs_saif_dt_ids[] = {
 	{ .compatible = "fsl,imx28-saif", },
 	{ /* sentinel */ }
@@ -819,7 +812,6 @@ MODULE_DEVICE_TABLE(of, mxs_saif_dt_ids);
 
 static struct platform_driver mxs_saif_driver = {
 	.probe = mxs_saif_probe,
-	.remove = mxs_saif_remove,
 
 	.driver = {
 		.name = "mxs-saif",
