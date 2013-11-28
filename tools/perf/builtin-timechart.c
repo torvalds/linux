@@ -43,11 +43,13 @@
 
 struct per_pid;
 struct power_event;
+struct wake_event;
 
 struct timechart {
 	struct perf_tool	tool;
 	struct per_pid		*all_data;
 	struct power_event	*power_events;
+	struct wake_event	*wake_events;
 	int			proc_num;
 	unsigned int		numcpus;
 	u64			min_freq,	/* Lowest CPU frequency seen */
@@ -147,8 +149,6 @@ struct wake_event {
 	u64 time;
 	const char *backtrace;
 };
-
-static struct wake_event     *wake_events;
 
 struct process_filter {
 	char			*name;
@@ -383,8 +383,8 @@ static void sched_wakeup(struct timechart *tchart, int cpu, u64 timestamp,
 		we->waker = -1;
 
 	we->wakee = wakee;
-	we->next = wake_events;
-	wake_events = we;
+	we->next = tchart->wake_events;
+	tchart->wake_events = we;
 	p = find_create_pid(tchart, we->wakee);
 
 	if (p && p->current && p->current->state == TYPE_NONE) {
@@ -764,7 +764,7 @@ static void draw_wakeups(struct timechart *tchart)
 	struct per_pid *p;
 	struct per_pidcomm *c;
 
-	we = wake_events;
+	we = tchart->wake_events;
 	while (we) {
 		int from = 0, to = 0;
 		char *task_from = NULL, *task_to = NULL;
