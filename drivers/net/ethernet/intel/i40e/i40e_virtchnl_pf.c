@@ -388,8 +388,16 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 		dev_info(&pf->pdev->dev,
 			 "LAN VSI index %d, VSI id %d\n",
 			 vsi->idx, vsi->id);
+		/* If the port VLAN has been configured and then the
+		 * VF driver was removed then the VSI port VLAN
+		 * configuration was destroyed.  Check if there is
+		 * a port VLAN and restore the VSI configuration if
+		 * needed.
+		 */
+		if (vf->port_vlan_id)
+			i40e_vsi_add_pvid(vsi, vf->port_vlan_id);
 		f = i40e_add_filter(vsi, vf->default_lan_addr.addr,
-				    0, true, false);
+				    vf->port_vlan_id, true, false);
 	}
 
 	if (!f) {
@@ -1958,7 +1966,7 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev,
 		ret = i40e_vsi_add_pvid(vsi,
 				vlan_id | (qos << I40E_VLAN_PRIORITY_SHIFT));
 	else
-		i40e_vlan_stripping_disable(vsi);
+		i40e_vsi_remove_pvid(vsi);
 
 	if (vlan_id) {
 		dev_info(&pf->pdev->dev, "Setting VLAN %d, QOS 0x%x on VF %d\n",
@@ -1978,6 +1986,10 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev,
 		dev_err(&pf->pdev->dev, "Unable to update VF vsi context\n");
 		goto error_pvid;
 	}
+	/* The Port VLAN needs to be saved across resets the same as the
+	 * default LAN MAC address.
+	 */
+	vf->port_vlan_id = le16_to_cpu(vsi->info.pvid);
 	ret = 0;
 
 error_pvid:

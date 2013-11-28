@@ -82,6 +82,7 @@ struct i40e_vf {
 
 	struct i40e_virtchnl_ether_addr default_lan_addr;
 	struct i40e_virtchnl_ether_addr default_fcoe_addr;
+	u16 port_vlan_id;
 
 	/* VSI indices - actual VSI pointers are maintained in the PF structure
 	 * When assigned, these will be non-zero, because VSI 0 is always
