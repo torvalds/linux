@@ -2029,3 +2029,47 @@ i40e_status i40e_set_filter_control(struct i40e_hw *hw,
 
 	return 0;
 }
+/**
+ * i40e_set_pci_config_data - store PCI bus info
+ * @hw: pointer to hardware structure
+ * @link_status: the link status word from PCI config space
+ *
+ * Stores the PCI bus info (speed, width, type) within the i40e_hw structure
+ **/
+void i40e_set_pci_config_data(struct i40e_hw *hw, u16 link_status)
+{
+	hw->bus.type = i40e_bus_type_pci_express;
+
+	switch (link_status & PCI_EXP_LNKSTA_NLW) {
+	case PCI_EXP_LNKSTA_NLW_X1:
+		hw->bus.width = i40e_bus_width_pcie_x1;
+		break;
+	case PCI_EXP_LNKSTA_NLW_X2:
+		hw->bus.width = i40e_bus_width_pcie_x2;
+		break;
+	case PCI_EXP_LNKSTA_NLW_X4:
+		hw->bus.width = i40e_bus_width_pcie_x4;
+		break;
+	case PCI_EXP_LNKSTA_NLW_X8:
+		hw->bus.width = i40e_bus_width_pcie_x8;
+		break;
+	default:
+		hw->bus.width = i40e_bus_width_unknown;
+		break;
+	}
+
+	switch (link_status & PCI_EXP_LNKSTA_CLS) {
+	case PCI_EXP_LNKSTA_CLS_2_5GB:
+		hw->bus.speed = i40e_bus_speed_2500;
+		break;
+	case PCI_EXP_LNKSTA_CLS_5_0GB:
+		hw->bus.speed = i40e_bus_speed_5000;
+		break;
+	case PCI_EXP_LNKSTA_CLS_8_0GB:
+		hw->bus.speed = i40e_bus_speed_8000;
+		break;
+	default:
+		hw->bus.speed = i40e_bus_speed_unknown;
+		break;
+	}
+}

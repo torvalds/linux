@@ -215,6 +215,7 @@ i40e_status i40e_read_nvm_buffer(struct i40e_hw *hw, u16 offset,
 					   u16 *words, u16 *data);
 i40e_status i40e_validate_nvm_checksum(struct i40e_hw *hw,
 						 u16 *checksum);
+void i40e_set_pci_config_data(struct i40e_hw *hw, u16 link_status);
 
 /* prototype for functions used for SW locks */
 

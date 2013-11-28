@@ -7369,6 +7369,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct i40e_pf *pf;
 	struct i40e_hw *hw;
 	static u16 pfs_found;
+	u16 link_status;
 	int err = 0;
 	u32 len;
 
@@ -7602,6 +7603,28 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* since everything's happy, start the service_task timer */
 	mod_timer(&pf->service_timer,
 		  round_jiffies(jiffies + pf->service_timer_period));
+
+	/* Get the negotiated link width and speed from PCI config space */
+	pcie_capability_read_word(pf->pdev, PCI_EXP_LNKSTA, &link_status);
+
+	i40e_set_pci_config_data(hw, link_status);
+
+	dev_info(&pdev->dev, "PCI Express: %s %s\n",
+		(hw->bus.speed == i40e_bus_speed_8000 ? "Speed 8.0GT/s" :
+		 hw->bus.speed == i40e_bus_speed_5000 ? "Speed 5.0GT/s" :
+		 hw->bus.speed == i40e_bus_speed_2500 ? "Speed 2.5GT/s" :
+		 "Unknown"),
+		(hw->bus.width == i40e_bus_width_pcie_x8 ? "Width x8" :
+		 hw->bus.width == i40e_bus_width_pcie_x4 ? "Width x4" :
+		 hw->bus.width == i40e_bus_width_pcie_x2 ? "Width x2" :
+		 hw->bus.width == i40e_bus_width_pcie_x1 ? "Width x1" :
+		 "Unknown"));
+
+	if (hw->bus.width < i40e_bus_width_pcie_x8 ||
+	    hw->bus.speed < i40e_bus_speed_8000) {
+		dev_warn(&pdev->dev, "PCI-Express bandwidth available for this device may be insufficient for optimal performance.\n");
+		dev_warn(&pdev->dev, "Please move the device to a different PCI-e link with more lanes and/or higher transfer rate.\n");
+	}
 
 	return 0;
 
