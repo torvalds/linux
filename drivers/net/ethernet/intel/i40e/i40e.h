@@ -517,13 +517,6 @@ struct rtnl_link_stats64 *i40e_get_vsi_stats_struct(struct i40e_vsi *vsi);
 int i40e_fetch_switch_configuration(struct i40e_pf *pf,
 				    bool printconfig);
 
-/* needed by i40e_main.c */
-void i40e_add_fdir_filter(struct i40e_fdir_data fdir_data,
-			  struct i40e_ring *tx_ring);
-void i40e_add_remove_filter(struct i40e_fdir_data fdir_data,
-			    struct i40e_ring *tx_ring);
-void i40e_update_fdir_filter(struct i40e_fdir_data fdir_data,
-			     struct i40e_ring *tx_ring);
 int i40e_program_fdir_filter(struct i40e_fdir_data *fdir_data,
 			     struct i40e_pf *pf, bool add);
 
