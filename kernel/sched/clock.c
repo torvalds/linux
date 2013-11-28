@@ -58,6 +58,7 @@
 #include <linux/percpu.h>
 #include <linux/ktime.h>
 #include <linux/sched.h>
+#include <linux/static_key.h>
 
 /*
  * Scheduler clock - returns current time in nanosec units.
@@ -74,7 +75,27 @@ EXPORT_SYMBOL_GPL(sched_clock);
 __read_mostly int sched_clock_running;
 
 #ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
-__read_mostly int sched_clock_stable;
+static struct static_key __sched_clock_stable = STATIC_KEY_INIT;
+
+int sched_clock_stable(void)
+{
+	if (static_key_false(&__sched_clock_stable))
+		return false;
+	return true;
+}
+
+void set_sched_clock_stable(void)
+{
+	if (!sched_clock_stable())
+		static_key_slow_dec(&__sched_clock_stable);
+}
+
+void clear_sched_clock_stable(void)
+{
+	/* XXX worry about clock continuity */
+	if (sched_clock_stable())
+		static_key_slow_inc(&__sched_clock_stable);
+}
 
 struct sched_clock_data {
 	u64			tick_raw;
@@ -234,7 +255,7 @@ u64 sched_clock_cpu(int cpu)
 	struct sched_clock_data *scd;
 	u64 clock;
 
-	if (sched_clock_stable)
+	if (sched_clock_stable())
 		return sched_clock();
 
 	if (unlikely(!sched_clock_running))
@@ -257,7 +278,7 @@ void sched_clock_tick(void)
 	struct sched_clock_data *scd;
 	u64 now, now_gtod;
 
-	if (sched_clock_stable)
+	if (sched_clock_stable())
 		return;
 
 	if (unlikely(!sched_clock_running))
@@ -308,7 +329,10 @@ EXPORT_SYMBOL_GPL(sched_clock_idle_wakeup_event);
  */
 u64 cpu_clock(int cpu)
 {
-	return sched_clock_cpu(cpu);
+	if (static_key_false(&__sched_clock_stable))
+		return sched_clock_cpu(cpu);
+
+	return sched_clock();
 }
 
 /*
@@ -320,7 +344,10 @@ u64 cpu_clock(int cpu)
  */
 u64 local_clock(void)
 {
-	return sched_clock_cpu(raw_smp_processor_id());
+	if (static_key_false(&__sched_clock_stable))
+		return sched_clock_cpu(raw_smp_processor_id());
+
+	return sched_clock();
 }
 
 #else /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
@@ -340,12 +367,12 @@ u64 sched_clock_cpu(int cpu)
 
 u64 cpu_clock(int cpu)
 {
-	return sched_clock_cpu(cpu);
+	return sched_clock();
 }
 
 u64 local_clock(void)
 {
-	return sched_clock_cpu(0);
+	return sched_clock();
 }
 
 #endif /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
