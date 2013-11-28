@@ -2005,7 +2005,6 @@ int i40e_ndo_get_vf_config(struct net_device *netdev,
 			   int vf_id, struct ifla_vf_info *ivi)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
-	struct i40e_mac_filter *f, *ftmp;
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_vf *vf;
@@ -2029,11 +2028,7 @@ int i40e_ndo_get_vf_config(struct net_device *netdev,
 
 	ivi->vf = vf_id;
 
-	/* first entry of the list is the default ethernet address */
-	list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list) {
-		memcpy(&ivi->mac, f->macaddr, I40E_ETH_LENGTH_OF_ADDRESS);
-		break;
-	}
+	memcpy(&ivi->mac, vf->default_lan_addr.addr, ETH_ALEN);
 
 	ivi->tx_rate = 0;
 	ivi->vlan = le16_to_cpu(vsi->info.pvid) & I40E_VLAN_MASK;
