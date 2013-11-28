@@ -476,14 +476,18 @@ static struct sk_buff *efx_rx_mk_skb(struct efx_channel *channel,
 	struct sk_buff *skb;
 
 	/* Allocate an SKB to store the headers */
-	skb = netdev_alloc_skb(efx->net_dev, hdr_len + EFX_PAGE_SKB_ALIGN);
+	skb = netdev_alloc_skb(efx->net_dev,
+			       efx->rx_ip_align + efx->rx_prefix_size +
+			       hdr_len);
 	if (unlikely(skb == NULL))
 		return NULL;
 
 	EFX_BUG_ON_PARANOID(rx_buf->len < hdr_len);
 
-	skb_reserve(skb, EFX_PAGE_SKB_ALIGN);
-	memcpy(__skb_put(skb, hdr_len), eh, hdr_len);
+	memcpy(skb->data + efx->rx_ip_align, eh - efx->rx_prefix_size,
+	       efx->rx_prefix_size + hdr_len);
+	skb_reserve(skb, efx->rx_ip_align + efx->rx_prefix_size);
+	__skb_put(skb, hdr_len);
 
 	/* Append the remaining page(s) onto the frag list */
 	if (rx_buf->len > hdr_len) {
