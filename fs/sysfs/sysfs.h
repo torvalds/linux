@@ -141,29 +141,7 @@ int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd,
 		  struct sysfs_dirent *parent_sd);
 void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt);
 
-struct sysfs_dirent *sysfs_find_dirent(struct sysfs_dirent *parent_sd,
-				       const unsigned char *name,
-				       const void *ns);
 struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type);
-
-void release_sysfs_dirent(struct sysfs_dirent *sd);
-
-static inline struct sysfs_dirent *__sysfs_get(struct sysfs_dirent *sd)
-{
-	if (sd) {
-		WARN_ON(!atomic_read(&sd->s_count));
-		atomic_inc(&sd->s_count);
-	}
-	return sd;
-}
-#define sysfs_get(sd) __sysfs_get(sd)
-
-static inline void __sysfs_put(struct sysfs_dirent *sd)
-{
-	if (sd && atomic_dec_and_test(&sd->s_count))
-		release_sysfs_dirent(sd);
-}
-#define sysfs_put(sd) __sysfs_put(sd)
 
 /*
  * inode.c

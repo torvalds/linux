@@ -881,19 +881,19 @@ void sysfs_notify(struct kobject *k, const char *dir, const char *attr)
 	struct sysfs_dirent *sd = k->sd, *tmp;
 
 	if (sd && dir)
-		sd = sysfs_get_dirent(sd, dir);
+		sd = kernfs_find_and_get(sd, dir);
 	else
-		sysfs_get(sd);
+		kernfs_get(sd);
 
 	if (sd && attr) {
-		tmp = sysfs_get_dirent(sd, attr);
-		sysfs_put(sd);
+		tmp = kernfs_find_and_get(sd, attr);
+		kernfs_put(sd);
 		sd = tmp;
 	}
 
 	if (sd) {
 		kernfs_notify(sd);
-		sysfs_put(sd);
+		kernfs_put(sd);
 	}
 }
 EXPORT_SYMBOL_GPL(sysfs_notify);
@@ -1052,7 +1052,7 @@ struct sysfs_dirent *kernfs_create_file_ns_key(struct sysfs_dirent *parent,
 	sysfs_addrm_finish(&acxt);
 
 	if (rc) {
-		sysfs_put(sd);
+		kernfs_put(sd);
 		return ERR_PTR(rc);
 	}
 	return sd;
@@ -1106,16 +1106,18 @@ int sysfs_add_file_to_group(struct kobject *kobj,
 	struct sysfs_dirent *dir_sd;
 	int error;
 
-	if (group)
-		dir_sd = sysfs_get_dirent(kobj->sd, group);
-	else
-		dir_sd = sysfs_get(kobj->sd);
+	if (group) {
+		dir_sd = kernfs_find_and_get(kobj->sd, group);
+	} else {
+		dir_sd = kobj->sd;
+		kernfs_get(dir_sd);
+	}
 
 	if (!dir_sd)
 		return -ENOENT;
 
 	error = sysfs_add_file(dir_sd, attr, false);
-	sysfs_put(dir_sd);
+	kernfs_put(dir_sd);
 
 	return error;
 }
@@ -1135,7 +1137,7 @@ int sysfs_chmod_file(struct kobject *kobj, const struct attribute *attr,
 	struct iattr newattrs;
 	int rc;
 
-	sd = sysfs_get_dirent(kobj->sd, attr->name);
+	sd = kernfs_find_and_get(kobj->sd, attr->name);
 	if (!sd)
 		return -ENOENT;
 
@@ -1144,7 +1146,7 @@ int sysfs_chmod_file(struct kobject *kobj, const struct attribute *attr,
 
 	rc = kernfs_setattr(sd, &newattrs);
 
-	sysfs_put(sd);
+	kernfs_put(sd);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(sysfs_chmod_file);
@@ -1185,13 +1187,16 @@ void sysfs_remove_file_from_group(struct kobject *kobj,
 {
 	struct sysfs_dirent *dir_sd;
 
-	if (group)
-		dir_sd = sysfs_get_dirent(kobj->sd, group);
-	else
-		dir_sd = sysfs_get(kobj->sd);
+	if (group) {
+		dir_sd = kernfs_find_and_get(kobj->sd, group);
+	} else {
+		dir_sd = kobj->sd;
+		kernfs_get(dir_sd);
+	}
+
 	if (dir_sd) {
 		kernfs_remove_by_name(dir_sd, attr->name);
-		sysfs_put(dir_sd);
+		kernfs_put(dir_sd);
 	}
 }
 EXPORT_SYMBOL_GPL(sysfs_remove_file_from_group);

@@ -44,7 +44,7 @@ struct sysfs_dirent *kernfs_create_link(struct sysfs_dirent *parent,
 	if (parent->s_flags & SYSFS_FLAG_NS)
 		sd->s_ns = target->s_ns;
 	sd->s_symlink.target_sd = target;
-	sysfs_get(target);	/* ref owned by symlink */
+	kernfs_get(target);	/* ref owned by symlink */
 
 	sysfs_addrm_start(&acxt);
 	error = sysfs_add_one(&acxt, sd, parent);
@@ -53,7 +53,7 @@ struct sysfs_dirent *kernfs_create_link(struct sysfs_dirent *parent,
 	if (!error)
 		return sd;
 
-	sysfs_put(sd);
+	kernfs_put(sd);
 	return ERR_PTR(error);
 }
 
@@ -72,15 +72,17 @@ static int sysfs_do_create_link_sd(struct sysfs_dirent *parent_sd,
 	 * sysfs_remove_dir() for details.
 	 */
 	spin_lock(&sysfs_symlink_target_lock);
-	if (target->sd)
-		target_sd = sysfs_get(target->sd);
+	if (target->sd) {
+		target_sd = target->sd;
+		kernfs_get(target_sd);
+	}
 	spin_unlock(&sysfs_symlink_target_lock);
 
 	if (!target_sd)
 		return -ENOENT;
 
 	sd = kernfs_create_link(parent_sd, name, target_sd);
-	sysfs_put(target_sd);
+	kernfs_put(target_sd);
 
 	if (!IS_ERR(sd))
 		return 0;
@@ -216,7 +218,7 @@ int sysfs_rename_link_ns(struct kobject *kobj, struct kobject *targ,
 		old_ns = targ->sd->s_ns;
 
 	result = -ENOENT;
-	sd = sysfs_get_dirent_ns(parent_sd, old, old_ns);
+	sd = kernfs_find_and_get_ns(parent_sd, old, old_ns);
 	if (!sd)
 		goto out;
 
@@ -229,7 +231,7 @@ int sysfs_rename_link_ns(struct kobject *kobj, struct kobject *targ,
 	result = kernfs_rename_ns(sd, parent_sd, new, new_ns);
 
 out:
-	sysfs_put(sd);
+	kernfs_put(sd);
 	return result;
 }
 EXPORT_SYMBOL_GPL(sysfs_rename_link_ns);

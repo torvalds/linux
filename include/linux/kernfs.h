@@ -71,6 +71,11 @@ struct kernfs_ops {
 
 #ifdef CONFIG_SYSFS
 
+struct sysfs_dirent *kernfs_find_and_get_ns(struct sysfs_dirent *parent,
+					    const char *name, const void *ns);
+void kernfs_get(struct sysfs_dirent *sd);
+void kernfs_put(struct sysfs_dirent *sd);
+
 struct sysfs_dirent *kernfs_create_dir_ns(struct sysfs_dirent *parent,
 					  const char *name, void *priv,
 					  const void *ns);
@@ -93,6 +98,14 @@ int kernfs_setattr(struct sysfs_dirent *sd, const struct iattr *iattr);
 void kernfs_notify(struct sysfs_dirent *sd);
 
 #else	/* CONFIG_SYSFS */
+
+static inline struct sysfs_dirent *
+kernfs_find_and_get_ns(struct sysfs_dirent *parent, const char *name,
+		       const void *ns)
+{ return NULL; }
+
+static inline void kernfs_get(struct sysfs_dirent *sd) { }
+static inline void kernfs_put(struct sysfs_dirent *sd) { }
 
 static inline struct sysfs_dirent *
 kernfs_create_dir_ns(struct sysfs_dirent *parent, const char *name, void *priv,
@@ -131,6 +144,12 @@ static inline int kernfs_setattr(struct sysfs_dirent *sd,
 static inline void kernfs_notify(struct sysfs_dirent *sd) { }
 
 #endif	/* CONFIG_SYSFS */
+
+static inline struct sysfs_dirent *
+kernfs_find_and_get(struct sysfs_dirent *sd, const char *name)
+{
+	return kernfs_find_and_get_ns(sd, name, NULL);
+}
 
 static inline struct sysfs_dirent *
 kernfs_create_dir(struct sysfs_dirent *parent, const char *name, void *priv)
