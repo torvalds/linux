@@ -140,15 +140,15 @@ struct nve0_ram {
  * GDDR5
  ******************************************************************************/
 static void
-nve0_ram_train(struct nve0_ramfuc *fuc, u32 magic)
+nve0_ram_train(struct nve0_ramfuc *fuc, u32 mask, u32 data)
 {
 	struct nve0_ram *ram = container_of(fuc, typeof(*ram), fuc);
 	u32 addr = 0x110974, i;
 
-	ram_mask(fuc, 0x10f910, 0xbc0e0000, magic);
-	ram_mask(fuc, 0x10f914, 0xbc0e0000, magic);
+	ram_mask(fuc, 0x10f910, mask, data);
+	ram_mask(fuc, 0x10f914, mask, data);
 
-	for (i = 0; (magic & 0x80000000) && i < ram->parts; addr += 0x1000, i++) {
+	for (i = 0; (data & 0x80000000) && i < ram->parts; addr += 0x1000, i++) {
 		if (ram->pmask & (1 << i))
 			continue;
 		ram_wait(fuc, addr, 0x0000000f, 0x00000000, 500000);
@@ -280,8 +280,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 
 	ram_mask(fuc, 0x10f200, 0x00000800, 0x00000000);
 
-	ram_mask(fuc, 0x10f914, 0x01020000, 0x000c0000);
-	ram_mask(fuc, 0x10f910, 0x01020000, 0x000c0000);
+	nve0_ram_train(fuc, 0x01020000, 0x000c0000);
 
 	ram_wr32(fuc, 0x10f210, 0x00000000); /* REFRESH_AUTO = 0 */
 	ram_nsec(fuc, 1000);
@@ -548,7 +547,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 
 	if ((nv_ro08(bios, ramcfg + 0x08) & 0x10) && (ram->mode == 2) /*XXX*/) {
 		u32 temp = ram_mask(fuc, 0x10f294, 0xff000000, 0x24000000);
-		nve0_ram_train(fuc, 0xa4010000); /*XXX*/
+		nve0_ram_train(fuc, 0xbc0e0000, 0xa4010000); /*XXX*/
 		ram_nsec(fuc, 1000);
 		ram_wr32(fuc, 0x10f294, temp);
 	}
@@ -603,7 +602,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	} else {
 		data = 0xa40e0000;
 	}
-	nve0_ram_train(fuc, data);
+	nve0_ram_train(fuc, 0xbc0e0000, data);
 	ram_nsec(fuc, 1000);
 
 	if (ram->mode == 2) { /*XXX*/
@@ -620,10 +619,8 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 		ram_mask(fuc, 0x10f830, 0x01000000, 0x00000000);
 	}
 
-	if (nv_ro08(bios, ramcfg + 0x07) & 0x02) {
-		ram_mask(fuc, 0x10f910, 0x80020000, 0x01000000);
-		ram_mask(fuc, 0x10f914, 0x80020000, 0x01000000);
-	}
+	if (nv_ro08(bios, ramcfg + 0x07) & 0x02)
+		nve0_ram_train(fuc, 0x80020000, 0x01000000);
 
 	ram_wr32(fuc, 0x62c000, 0x0f0f0f00);
 
