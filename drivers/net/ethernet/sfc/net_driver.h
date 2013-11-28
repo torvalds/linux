@@ -360,12 +360,6 @@ struct efx_rx_queue {
 	unsigned int slow_fill_count;
 };
 
-enum efx_rx_alloc_method {
-	RX_ALLOC_METHOD_AUTO = 0,
-	RX_ALLOC_METHOD_SKB = 1,
-	RX_ALLOC_METHOD_PAGE = 2,
-};
-
 enum efx_sync_events_state {
 	SYNC_EVENTS_DISABLED = 0,
 	SYNC_EVENTS_QUIESCENT,
