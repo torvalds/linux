@@ -774,8 +774,8 @@ static const struct efx_hw_stat_desc efx_ef10_stat_desc[EF10_STAT_COUNT] = {
 	EF10_DMA_STAT(rx_dp_q_disabled_packets, RXDP_Q_DISABLED_PKTS),
 	EF10_DMA_STAT(rx_dp_di_dropped_packets, RXDP_DI_DROPPED_PKTS),
 	EF10_DMA_STAT(rx_dp_streaming_packets, RXDP_STREAMING_PKTS),
-	EF10_DMA_STAT(rx_dp_emerg_fetch, RXDP_EMERGENCY_FETCH_CONDITIONS),
-	EF10_DMA_STAT(rx_dp_emerg_wait, RXDP_EMERGENCY_WAIT_CONDITIONS),
+	EF10_DMA_STAT(rx_dp_hlb_fetch, RXDP_EMERGENCY_FETCH_CONDITIONS),
+	EF10_DMA_STAT(rx_dp_hlb_wait, RXDP_EMERGENCY_WAIT_CONDITIONS),
 };
 
 #define HUNT_COMMON_STAT_MASK ((1ULL << EF10_STAT_tx_bytes) |		\
@@ -844,8 +844,8 @@ static const struct efx_hw_stat_desc efx_ef10_stat_desc[EF10_STAT_COUNT] = {
 	(1ULL << EF10_STAT_rx_dp_q_disabled_packets) |			\
 	(1ULL << EF10_STAT_rx_dp_di_dropped_packets) |			\
 	(1ULL << EF10_STAT_rx_dp_streaming_packets) |			\
-	(1ULL << EF10_STAT_rx_dp_emerg_fetch) |				\
-	(1ULL << EF10_STAT_rx_dp_emerg_wait))
+	(1ULL << EF10_STAT_rx_dp_hlb_fetch) |				\
+	(1ULL << EF10_STAT_rx_dp_hlb_wait))
 
 static u64 efx_ef10_raw_stat_mask(struct efx_nic *efx)
 {

@@ -412,8 +412,8 @@ enum {
 	EF10_STAT_rx_dp_q_disabled_packets,
 	EF10_STAT_rx_dp_di_dropped_packets,
 	EF10_STAT_rx_dp_streaming_packets,
-	EF10_STAT_rx_dp_emerg_fetch,
-	EF10_STAT_rx_dp_emerg_wait,
+	EF10_STAT_rx_dp_hlb_fetch,
+	EF10_STAT_rx_dp_hlb_wait,
 	EF10_STAT_COUNT
 };
 
