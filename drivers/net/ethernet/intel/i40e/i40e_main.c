@@ -4492,6 +4492,7 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 	if (!test_bit(__I40E_ADMINQ_EVENT_PENDING, &pf->state))
 		return;
 
+	event.msg_size = I40E_MAX_AQ_BUF_SIZE;
 	event.msg_buf = kzalloc(event.msg_size, GFP_KERNEL);
 	if (!event.msg_buf)
 		return;
