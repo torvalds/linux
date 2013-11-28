@@ -7854,7 +7854,6 @@ static void i40e_remove(struct pci_dev *pdev)
 			 "Failed to destroy the HMC resources: %d\n", ret_code);
 
 	/* shutdown the adminq */
-	i40e_aq_queue_shutdown(&pf->hw, true);
 	ret_code = i40e_shutdown_adminq(&pf->hw);
 	if (ret_code)
 		dev_warn(&pdev->dev,

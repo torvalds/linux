@@ -609,6 +609,9 @@ i40e_status i40e_shutdown_adminq(struct i40e_hw *hw)
 {
 	i40e_status ret_code = 0;
 
+	if (i40e_check_asq_alive(hw))
+		i40e_aq_queue_shutdown(hw, true);
+
 	i40e_shutdown_asq(hw);
 	i40e_shutdown_arq(hw);
 
