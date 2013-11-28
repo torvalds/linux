@@ -346,3 +346,113 @@ int drm_dp_bw_code_to_link_rate(u8 link_bw)
 	}
 }
 EXPORT_SYMBOL(drm_dp_bw_code_to_link_rate);
+
+/**
+ * DOC: dp helpers
+ *
+ * The DisplayPort AUX channel is an abstraction to allow generic, driver-
+ * independent access to AUX functionality. Drivers can take advantage of
+ * this by filling in the fields of the drm_dp_aux structure.
+ *
+ * Transactions are described using a hardware-independent drm_dp_aux_msg
+ * structure, which is passed into a driver's .transfer() implementation.
+ * Both native and I2C-over-AUX transactions are supported.
+ *
+ * An AUX channel can also be used to transport I2C messages to a sink. A
+ * typical application of that is to access an EDID that's present in the
+ * sink device. The .transfer() function can also be used to execute such
+ * transactions. The drm_dp_aux_register_i2c_bus() function registers an
+ * I2C adapter that can be passed to drm_probe_ddc(). Upon removal, drivers
+ * should call drm_dp_aux_unregister_i2c_bus() to remove the I2C adapter.
+ */
+
+static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
+			      unsigned int offset, void *buffer, size_t size)
+{
+	struct drm_dp_aux_msg msg;
+	unsigned int retry;
+	int err;
+
+	memset(&msg, 0, sizeof(msg));
+	msg.address = offset;
+	msg.request = request;
+	msg.buffer = buffer;
+	msg.size = size;
+
+	/*
+	 * The specification doesn't give any recommendation on how often to
+	 * retry native transactions, so retry 7 times like for I2C-over-AUX
+	 * transactions.
+	 */
+	for (retry = 0; retry < 7; retry++) {
+		err = aux->transfer(aux, &msg);
+		if (err < 0) {
+			if (err == -EBUSY)
+				continue;
+
+			return err;
+		}
+
+		if (err < size)
+			return -EPROTO;
+
+		switch (msg.reply & DP_AUX_NATIVE_REPLY_MASK) {
+		case DP_AUX_NATIVE_REPLY_ACK:
+			return err;
+
+		case DP_AUX_NATIVE_REPLY_NACK:
+			return -EIO;
+
+		case DP_AUX_NATIVE_REPLY_DEFER:
+			usleep_range(400, 500);
+			break;
+		}
+	}
+
+	DRM_ERROR("too many retries, giving up\n");
+	return -EIO;
+}
+
+/**
+ * drm_dp_dpcd_read() - read a series of bytes from the DPCD
+ * @aux: DisplayPort AUX channel
+ * @offset: address of the (first) register to read
+ * @buffer: buffer to store the register values
+ * @size: number of bytes in @buffer
+ *
+ * Returns the number of bytes transferred on success, or a negative error
+ * code on failure. -EIO is returned if the request was NAKed by the sink or
+ * if the retry count was exceeded. If not all bytes were transferred, this
+ * function returns -EPROTO. Errors from the underlying AUX channel transfer
+ * function, with the exception of -EBUSY (which causes the transaction to
+ * be retried), are propagated to the caller.
+ */
+ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
+			 void *buffer, size_t size)
+{
+	return drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset, buffer,
+				  size);
+}
+EXPORT_SYMBOL(drm_dp_dpcd_read);
+
+/**
+ * drm_dp_dpcd_write() - write a series of bytes to the DPCD
+ * @aux: DisplayPort AUX channel
+ * @offset: address of the (first) register to write
+ * @buffer: buffer containing the values to write
+ * @size: number of bytes in @buffer
+ *
+ * Returns the number of bytes transferred on success, or a negative error
+ * code on failure. -EIO is returned if the request was NAKed by the sink or
+ * if the retry count was exceeded. If not all bytes were transferred, this
+ * function returns -EPROTO. Errors from the underlying AUX channel transfer
+ * function, with the exception of -EBUSY (which causes the transaction to
+ * be retried), are propagated to the caller.
+ */
+ssize_t drm_dp_dpcd_write(struct drm_dp_aux *aux, unsigned int offset,
+			  void *buffer, size_t size)
+{
+	return drm_dp_dpcd_access(aux, DP_AUX_NATIVE_WRITE, offset, buffer,
+				  size);
+}
+EXPORT_SYMBOL(drm_dp_dpcd_write);

@@ -398,4 +398,83 @@ drm_dp_enhanced_frame_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 		(dpcd[DP_MAX_LANE_COUNT] & DP_ENHANCED_FRAME_CAP);
 }
 
+/*
+ * DisplayPort AUX channel
+ */
+
+/**
+ * struct drm_dp_aux_msg - DisplayPort AUX channel transaction
+ * @address: address of the (first) register to access
+ * @request: contains the type of transaction (see DP_AUX_* macros)
+ * @reply: upon completion, contains the reply type of the transaction
+ * @buffer: pointer to a transmission or reception buffer
+ * @size: size of @buffer
+ */
+struct drm_dp_aux_msg {
+	unsigned int address;
+	u8 request;
+	u8 reply;
+	void *buffer;
+	size_t size;
+};
+
+/**
+ * struct drm_dp_aux - DisplayPort AUX channel
+ * @dev: pointer to struct device that is the parent for this AUX channel
+ * @transfer: transfers a message representing a single AUX transaction
+ *
+ * The .dev field should be set to a pointer to the device that implements
+ * the AUX channel.
+ *
+ * Drivers provide a hardware-specific implementation of how transactions
+ * are executed via the .transfer() function. A pointer to a drm_dp_aux_msg
+ * structure describing the transaction is passed into this function. Upon
+ * success, the implementation should return the number of payload bytes
+ * that were transferred, or a negative error-code on failure. Helpers
+ * propagate errors from the .transfer() function, with the exception of
+ * the -EBUSY error, which causes a transaction to be retried. On a short,
+ * helpers will return -EPROTO to make it simpler to check for failure.
+ */
+struct drm_dp_aux {
+	struct device *dev;
+
+	ssize_t (*transfer)(struct drm_dp_aux *aux,
+			    struct drm_dp_aux_msg *msg);
+};
+
+ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
+			 void *buffer, size_t size);
+ssize_t drm_dp_dpcd_write(struct drm_dp_aux *aux, unsigned int offset,
+			  void *buffer, size_t size);
+
+/**
+ * drm_dp_dpcd_readb() - read a single byte from the DPCD
+ * @aux: DisplayPort AUX channel
+ * @offset: address of the register to read
+ * @valuep: location where the value of the register will be stored
+ *
+ * Returns the number of bytes transferred (1) on success, or a negative
+ * error code on failure.
+ */
+static inline ssize_t drm_dp_dpcd_readb(struct drm_dp_aux *aux,
+					unsigned int offset, u8 *valuep)
+{
+	return drm_dp_dpcd_read(aux, offset, valuep, 1);
+}
+
+/**
+ * drm_dp_dpcd_writeb() - write a single byte to the DPCD
+ * @aux: DisplayPort AUX channel
+ * @offset: address of the register to write
+ * @value: value to write to the register
+ *
+ * Returns the number of bytes transferred (1) on success, or a negative
+ * error code on failure.
+ */
+static inline ssize_t drm_dp_dpcd_writeb(struct drm_dp_aux *aux,
+					 unsigned int offset, u8 value)
+{
+	return drm_dp_dpcd_write(aux, offset, &value, 1);
+}
+
 #endif /* _DRM_DP_HELPER_H_ */
