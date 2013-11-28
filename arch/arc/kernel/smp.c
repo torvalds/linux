@@ -215,16 +215,31 @@ static DEFINE_PER_CPU(unsigned long, ipi_data);
 static void ipi_send_msg_one(int cpu, enum ipi_msg_type msg)
 {
 	unsigned long __percpu *ipi_data_ptr = per_cpu_ptr(&ipi_data, cpu);
+	unsigned long old, new;
 	unsigned long flags;
 
 	pr_debug("%d Sending msg [%d] to %d\n", smp_processor_id(), msg, cpu);
 
 	local_irq_save(flags);
 
-	set_bit(msg, ipi_data_ptr);
+	/*
+	 * Atomically write new msg bit (in case others are writing too),
+	 * and read back old value
+	 */
+	do {
+		new = old = *ipi_data_ptr;
+		new |= 1U << msg;
+	} while (cmpxchg(ipi_data_ptr, old, new) != old);
 
-	/* Call the platform specific cross-CPU call function  */
-	if (plat_smp_ops.ipi_send)
+	/*
+	 * Call the platform specific IPI kick function, but avoid if possible:
+	 * Only do so if there's no pending msg from other concurrent sender(s).
+	 * Otherwise, recevier will see this msg as well when it takes the
+	 * IPI corresponding to that msg. This is true, even if it is already in
+	 * IPI handler, because !@old means it has not yet dequeued the msg(s)
+	 * so @new msg can be a free-loader
+	 */
+	if (plat_smp_ops.ipi_send && !old)
 		plat_smp_ops.ipi_send(cpu);
 
 	local_irq_restore(flags);
@@ -269,31 +284,23 @@ static void ipi_cpu_stop(void)
 	machine_halt();
 }
 
-static inline void __do_IPI(unsigned long pending)
+static inline void __do_IPI(unsigned long msg)
 {
-	while (pending) {
+	switch (msg) {
+	case IPI_RESCHEDULE:
+		scheduler_ipi();
+		break;
 
-		unsigned long msg = __ffs(pending);
+	case IPI_CALL_FUNC:
+		generic_smp_call_function_interrupt();
+		break;
 
-		switch (msg) {
-		case IPI_RESCHEDULE:
-			scheduler_ipi();
-			break;
+	case IPI_CPU_STOP:
+		ipi_cpu_stop();
+		break;
 
-		case IPI_CALL_FUNC:
-			generic_smp_call_function_interrupt();
-			break;
-
-		case IPI_CPU_STOP:
-			ipi_cpu_stop();
-			break;
-
-		default:
-			pr_warn("IPI missing msg\n");
-
-		}
-
-		pending &= ~(1U << msg);
+	default:
+		pr_warn("IPI with unexpected msg %ld\n", msg);
 	}
 }
 
@@ -312,11 +319,16 @@ irqreturn_t do_IPI(int irq, void *dev_id)
 		plat_smp_ops.ipi_clear(irq);
 
 	/*
-	 * XXX: is this loop really needed
-	 * And do we need to move ipi_clean inside
+	 * "dequeue" the msg corresponding to this IPI (and possibly other
+	 * piggybacked msg from elided IPIs: see ipi_send_msg_one() above)
 	 */
-	while ((pending = xchg(this_cpu_ptr(&ipi_data), 0)) != 0)
-		__do_IPI(pending);
+	pending = xchg(this_cpu_ptr(&ipi_data), 0);
+
+	do {
+		unsigned long msg = __ffs(pending);
+		__do_IPI(msg);
+		pending &= ~(1U << msg);
+	} while (pending);
 
 	return IRQ_HANDLED;
 }
