@@ -2769,10 +2769,6 @@ static irqreturn_t i40e_intr(int irq, void *data)
 
 	icr0 = rd32(hw, I40E_PFINT_ICR0);
 
-	val = rd32(hw, I40E_PFINT_DYN_CTL0);
-	val = val | I40E_PFINT_DYN_CTL0_CLEARPBA_MASK;
-	wr32(hw, I40E_PFINT_DYN_CTL0, val);
-
 	/* if sharing a legacy IRQ, we might get called w/o an intr pending */
 	if ((icr0 & I40E_PFINT_ICR0_INTEVENT_MASK) == 0)
 		return IRQ_NONE;
