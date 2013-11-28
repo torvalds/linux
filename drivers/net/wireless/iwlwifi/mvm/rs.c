@@ -56,19 +56,16 @@
 
 
 static u8 rs_ht_to_legacy[] = {
-	[IWL_RATE_1M_INDEX] = IWL_RATE_6M_INDEX,
-	[IWL_RATE_2M_INDEX] = IWL_RATE_6M_INDEX,
-	[IWL_RATE_5M_INDEX] = IWL_RATE_6M_INDEX,
-	[IWL_RATE_11M_INDEX] = IWL_RATE_6M_INDEX,
-	[IWL_RATE_6M_INDEX] = IWL_RATE_6M_INDEX,
-	[IWL_RATE_9M_INDEX] = IWL_RATE_6M_INDEX,
-	[IWL_RATE_12M_INDEX] = IWL_RATE_9M_INDEX,
-	[IWL_RATE_18M_INDEX] = IWL_RATE_12M_INDEX,
-	[IWL_RATE_24M_INDEX] = IWL_RATE_18M_INDEX,
-	[IWL_RATE_36M_INDEX] = IWL_RATE_24M_INDEX,
-	[IWL_RATE_48M_INDEX] = IWL_RATE_36M_INDEX,
-	[IWL_RATE_54M_INDEX] = IWL_RATE_48M_INDEX,
-	[IWL_RATE_60M_INDEX] = IWL_RATE_54M_INDEX,
+	[IWL_RATE_MCS_0_INDEX] = IWL_RATE_6M_INDEX,
+	[IWL_RATE_MCS_1_INDEX] = IWL_RATE_9M_INDEX,
+	[IWL_RATE_MCS_2_INDEX] = IWL_RATE_12M_INDEX,
+	[IWL_RATE_MCS_3_INDEX] = IWL_RATE_18M_INDEX,
+	[IWL_RATE_MCS_4_INDEX] = IWL_RATE_24M_INDEX,
+	[IWL_RATE_MCS_5_INDEX] = IWL_RATE_36M_INDEX,
+	[IWL_RATE_MCS_6_INDEX] = IWL_RATE_48M_INDEX,
+	[IWL_RATE_MCS_7_INDEX] = IWL_RATE_54M_INDEX,
+	[IWL_RATE_MCS_8_INDEX] = IWL_RATE_54M_INDEX,
+	[IWL_RATE_MCS_9_INDEX] = IWL_RATE_54M_INDEX,
 };
 
 static const u8 ant_toggle_lookup[] = {
@@ -682,6 +679,8 @@ static u32 rs_get_lower_rate(struct iwl_lq_sta *lq_sta,
 	 * are always supported (spec demand) */
 	if (!is_legacy(rate) && (!ht_possible || !scale_index)) {
 		switch_to_legacy = 1;
+		WARN_ON_ONCE(scale_index < IWL_RATE_MCS_0_INDEX &&
+			     scale_index > IWL_RATE_MCS_9_INDEX);
 		scale_index = rs_ht_to_legacy[scale_index];
 		if (lq_sta->band == IEEE80211_BAND_5GHZ)
 			rate->type = LQ_LEGACY_A;
