@@ -149,6 +149,7 @@ struct acpi_device *acpi_find_child_device(struct acpi_device *parent,
 	}
 	return ret;
 }
+EXPORT_SYMBOL_GPL(acpi_find_child_device);
 
 acpi_handle acpi_get_child(acpi_handle handle, u64 addr)
 {
@@ -297,15 +298,6 @@ int acpi_unbind_one(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(acpi_unbind_one);
-
-void acpi_preset_companion(struct device *dev, acpi_handle parent, u64 addr)
-{
-	struct acpi_device *adev;
-
-	if (!acpi_bus_get_device(acpi_get_child(parent, addr), &adev))
-		ACPI_COMPANION_SET(dev, adev);
-}
-EXPORT_SYMBOL_GPL(acpi_preset_companion);
 
 static int acpi_platform_notify(struct device *dev)
 {
