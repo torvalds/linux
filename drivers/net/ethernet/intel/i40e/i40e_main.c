@@ -5703,25 +5703,6 @@ static int i40e_setup_misc_vector(struct i40e_pf *pf)
  **/
 static int i40e_config_rss(struct i40e_pf *pf)
 {
-	const u64 default_hena =
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP) |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP) |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_SCTP) |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_TCP_SYN) |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_TCP) |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_OTHER) |
-			((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4) |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP) |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP) |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP_SYN) |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP) |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_SCTP) |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER) |
-			((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6) |
-			((u64)1 << I40E_FILTER_PCTYPE_L2_PAYLOAD);
-
 	/* Set of random keys generated using kernel random number generator */
 	static const u32 seed[I40E_PFQF_HKEY_MAX_INDEX + 1] = {0x41b01687,
 				0x183cfd8c, 0xce880440, 0x580cbc3c, 0x35897377,
@@ -5739,7 +5720,7 @@ static int i40e_config_rss(struct i40e_pf *pf)
 	/* By default we enable TCP/UDP with IPv4/IPv6 ptypes */
 	hena = (u64)rd32(hw, I40E_PFQF_HENA(0)) |
 		((u64)rd32(hw, I40E_PFQF_HENA(1)) << 32);
-	hena |= default_hena;
+	hena |= I40E_DEFAULT_RSS_HENA;
 	wr32(hw, I40E_PFQF_HENA(0), (u32)hena);
 	wr32(hw, I40E_PFQF_HENA(1), (u32)(hena >> 32));
 
