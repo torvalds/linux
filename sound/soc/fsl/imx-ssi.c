@@ -624,9 +624,6 @@ static int imx_ssi_remove(struct platform_device *pdev)
 {
 	struct imx_ssi *ssi = platform_get_drvdata(pdev);
 
-	if (!ssi->dma_init)
-		imx_pcm_dma_exit(pdev);
-
 	if (!ssi->fiq_init)
 		imx_pcm_fiq_exit(pdev);
 

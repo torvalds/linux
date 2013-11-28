@@ -1109,8 +1109,6 @@ done:
 	return 0;
 
 error_dai:
-	if (ssi_private->ssi_on_imx)
-		imx_pcm_dma_exit(pdev);
 	snd_soc_unregister_component(&pdev->dev);
 
 error_dev:
@@ -1132,8 +1130,6 @@ static int fsl_ssi_remove(struct platform_device *pdev)
 
 	if (!ssi_private->new_binding)
 		platform_device_unregister(ssi_private->pdev);
-	if (ssi_private->ssi_on_imx)
-		imx_pcm_dma_exit(pdev);
 	snd_soc_unregister_component(&pdev->dev);
 	device_remove_file(&pdev->dev, &ssi_private->dev_attr);
 	if (ssi_private->ssi_on_imx)
