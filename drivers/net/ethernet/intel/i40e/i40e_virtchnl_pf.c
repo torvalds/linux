@@ -1340,7 +1340,7 @@ static int i40e_vc_add_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 		    is_zero_ether_addr(al->list[i].addr)) {
 			dev_err(&pf->pdev->dev, "invalid VF MAC addr %pMAC\n",
 				al->list[i].addr);
-			aq_ret = I40E_ERR_PARAM;
+			aq_ret = I40E_ERR_INVALID_MAC_ADDR;
 			goto error_param;
 		}
 	}
