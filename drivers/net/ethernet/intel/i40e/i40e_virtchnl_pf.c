@@ -903,6 +903,7 @@ static int i40e_vc_send_msg_to_vf(struct i40e_vf *vf, u32 v_opcode,
 {
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_hw *hw = &pf->hw;
+	int true_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 	i40e_status aq_ret;
 
 	/* single place to detect unsuccessful return values */
@@ -922,8 +923,8 @@ static int i40e_vc_send_msg_to_vf(struct i40e_vf *vf, u32 v_opcode,
 		vf->num_valid_msgs++;
 	}
 
-	aq_ret = i40e_aq_send_msg_to_vf(hw, vf->vf_id, v_opcode, v_retval,
-				     msg, msglen, NULL);
+	aq_ret = i40e_aq_send_msg_to_vf(hw, true_vf_id,	v_opcode, v_retval,
+					msg, msglen, NULL);
 	if (aq_ret) {
 		dev_err(&pf->pdev->dev,
 			"Unable to send the message to VF %d aq_err %d\n",
@@ -1664,22 +1665,23 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, u16 vf_id, u32 v_opcode,
 			   u32 v_retval, u8 *msg, u16 msglen)
 {
 	struct i40e_hw *hw = &pf->hw;
+	int local_vf_id = vf_id - hw->func_caps.vf_base_id;
 	struct i40e_vf *vf;
 	int ret;
 
 	pf->vf_aq_requests++;
-	if (vf_id >= pf->num_alloc_vfs)
+	if (local_vf_id >= pf->num_alloc_vfs)
 		return -EINVAL;
-	vf = &(pf->vf[vf_id]);
+	vf = &(pf->vf[local_vf_id]);
 	/* perform basic checks on the msg */
 	ret = i40e_vc_validate_vf_msg(vf, v_opcode, v_retval, msg, msglen);
 
 	if (ret) {
 		dev_err(&pf->pdev->dev, "Invalid message from vf %d, opcode %d, len %d\n",
-			vf_id, v_opcode, msglen);
+			local_vf_id, v_opcode, msglen);
 		return ret;
 	}
-	wr32(hw, I40E_VFGEN_RSTAT1(vf_id), I40E_VFR_VFACTIVE);
+	wr32(hw, I40E_VFGEN_RSTAT1(local_vf_id), I40E_VFR_VFACTIVE);
 	switch (v_opcode) {
 	case I40E_VIRTCHNL_OP_VERSION:
 		ret = i40e_vc_get_version_msg(vf);
@@ -1723,8 +1725,8 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, u16 vf_id, u32 v_opcode,
 		break;
 	case I40E_VIRTCHNL_OP_UNKNOWN:
 	default:
-		dev_err(&pf->pdev->dev,
-			"Unsupported opcode %d from vf %d\n", v_opcode, vf_id);
+		dev_err(&pf->pdev->dev, "Unsupported opcode %d from vf %d\n",
+			v_opcode, local_vf_id);
 		ret = i40e_vc_send_resp_to_vf(vf, v_opcode,
 					      I40E_ERR_NOT_IMPLEMENTED);
 		break;
