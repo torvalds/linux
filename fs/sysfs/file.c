@@ -58,7 +58,7 @@ static struct sysfs_open_file *sysfs_of(struct file *file)
  */
 static const struct kernfs_ops *kernfs_ops(struct sysfs_dirent *sd)
 {
-	if (!sysfs_ignore_lockdep(sd))
+	if (sd->s_flags & SYSFS_FLAG_LOCKDEP)
 		lockdep_assert_held(sd);
 	return sd->s_attr.ops;
 }
@@ -71,7 +71,7 @@ static const struct sysfs_ops *sysfs_file_ops(struct sysfs_dirent *sd)
 {
 	struct kobject *kobj = sd->s_parent->priv;
 
-	if (!sysfs_ignore_lockdep(sd))
+	if (sd->s_flags & SYSFS_FLAG_LOCKDEP)
 		lockdep_assert_held(sd);
 	return kobj->ktype ? kobj->ktype->sysfs_ops : NULL;
 }
@@ -942,6 +942,7 @@ int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 			   const struct attribute *attr, bool is_bin,
 			   umode_t mode, const void *ns)
 {
+	struct lock_class_key *key = NULL;
 	const struct kernfs_ops *ops;
 	struct sysfs_dirent *sd;
 	loff_t size;
@@ -981,8 +982,12 @@ int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 		size = battr->size;
 	}
 
-	sd = kernfs_create_file_ns(dir_sd, attr->name, mode, size,
-				   ops, (void *)attr, ns);
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	if (!attr->ignore_lockdep)
+		key = attr->key ?: (struct lock_class_key *)&attr->skey;
+#endif
+	sd = kernfs_create_file_ns_key(dir_sd, attr->name, mode, size,
+				       ops, (void *)attr, ns, key);
 	if (IS_ERR(sd)) {
 		if (PTR_ERR(sd) == -EEXIST)
 			sysfs_warn_dup(dir_sd, attr->name);
@@ -992,7 +997,7 @@ int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 }
 
 /**
- * kernfs_create_file_ns - create a file
+ * kernfs_create_file_ns_key - create a file
  * @parent: directory to create the file in
  * @name: name of the file
  * @mode: mode of the file
@@ -1000,14 +1005,16 @@ int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
  * @ops: kernfs operations for the file
  * @priv: private data for the file
  * @ns: optional namespace tag of the file
+ * @key: lockdep key for the file's active_ref, %NULL to disable lockdep
  *
  * Returns the created node on success, ERR_PTR() value on error.
  */
-struct sysfs_dirent *kernfs_create_file_ns(struct sysfs_dirent *parent,
-					   const char *name,
-					   umode_t mode, loff_t size,
-					   const struct kernfs_ops *ops,
-					   void *priv, const void *ns)
+struct sysfs_dirent *kernfs_create_file_ns_key(struct sysfs_dirent *parent,
+					       const char *name,
+					       umode_t mode, loff_t size,
+					       const struct kernfs_ops *ops,
+					       void *priv, const void *ns,
+					       struct lock_class_key *key)
 {
 	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent *sd;
@@ -1022,7 +1029,13 @@ struct sysfs_dirent *kernfs_create_file_ns(struct sysfs_dirent *parent,
 	sd->s_attr.size = size;
 	sd->s_ns = ns;
 	sd->priv = priv;
-	sysfs_dirent_init_lockdep(sd);
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	if (key) {
+		lockdep_init_map(&sd->dep_map, "s_active", key, 0);
+		sd->s_flags |= SYSFS_FLAG_LOCKDEP;
+	}
+#endif
 
 	/*
 	 * sd->s_attr.ops is accesible only while holding active ref.  We

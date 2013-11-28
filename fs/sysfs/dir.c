@@ -150,7 +150,7 @@ struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd)
 	if (!atomic_inc_unless_negative(&sd->s_active))
 		return NULL;
 
-	if (likely(!sysfs_ignore_lockdep(sd)))
+	if (sd->s_flags & SYSFS_FLAG_LOCKDEP)
 		rwsem_acquire_read(&sd->dep_map, 0, 1, _RET_IP_);
 	return sd;
 }
@@ -169,7 +169,7 @@ void sysfs_put_active(struct sysfs_dirent *sd)
 	if (unlikely(!sd))
 		return;
 
-	if (likely(!sysfs_ignore_lockdep(sd)))
+	if (sd->s_flags & SYSFS_FLAG_LOCKDEP)
 		rwsem_release(&sd->dep_map, 1, _RET_IP_);
 	v = atomic_dec_return(&sd->s_active);
 	if (likely(v != SD_DEACTIVATED_BIAS))

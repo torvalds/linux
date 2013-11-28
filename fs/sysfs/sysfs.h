@@ -92,42 +92,12 @@ struct sysfs_dirent {
 #define SYSFS_FLAG_NS			0x0020
 #define SYSFS_FLAG_HAS_SEQ_SHOW		0x0040
 #define SYSFS_FLAG_HAS_MMAP		0x0080
+#define SYSFS_FLAG_LOCKDEP		0x0100
 
 static inline unsigned int sysfs_type(struct sysfs_dirent *sd)
 {
 	return sd->s_flags & SYSFS_TYPE_MASK;
 }
-
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-
-#define sysfs_dirent_init_lockdep(sd)				\
-do {								\
-	struct attribute *attr = sd->priv;			\
-	struct lock_class_key *key = attr->key;			\
-	if (!key)						\
-		key = &attr->skey;				\
-								\
-	lockdep_init_map(&sd->dep_map, "s_active", key, 0);	\
-} while (0)
-
-/* Test for attributes that want to ignore lockdep for read-locking */
-static inline bool sysfs_ignore_lockdep(struct sysfs_dirent *sd)
-{
-	struct attribute *attr = sd->priv;
-
-	return sysfs_type(sd) == SYSFS_KOBJ_ATTR && attr->ignore_lockdep;
-}
-
-#else
-
-#define sysfs_dirent_init_lockdep(sd) do {} while (0)
-
-static inline bool sysfs_ignore_lockdep(struct sysfs_dirent *sd)
-{
-	return true;
-}
-
-#endif
 
 /*
  * Context structure to be used while adding/removing nodes.
