@@ -160,7 +160,8 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt);
 int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd,
 		  struct sysfs_dirent *parent_sd);
 void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt);
-struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type);
+struct sysfs_dirent *sysfs_new_dirent(struct kernfs_root *root,
+				      const char *name, umode_t mode, int type);
 
 /*
  * file.c

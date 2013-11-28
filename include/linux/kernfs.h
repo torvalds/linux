@@ -11,6 +11,7 @@
 #include <linux/err.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/idr.h>
 #include <linux/lockdep.h>
 
 struct file;
@@ -23,6 +24,9 @@ struct sysfs_dirent;
 struct kernfs_root {
 	/* published fields */
 	struct sysfs_dirent	*sd;
+
+	/* private fields, do not use outside kernfs proper */
+	struct ida		ino_ida;
 };
 
 struct sysfs_open_file {

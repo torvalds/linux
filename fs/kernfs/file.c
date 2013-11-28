@@ -775,8 +775,8 @@ struct sysfs_dirent *kernfs_create_file_ns_key(struct sysfs_dirent *parent,
 	struct sysfs_dirent *sd;
 	int rc;
 
-	sd = sysfs_new_dirent(name, (mode & S_IALLUGO) | S_IFREG,
-			      SYSFS_KOBJ_ATTR);
+	sd = sysfs_new_dirent(kernfs_root(parent), name,
+			      (mode & S_IALLUGO) | S_IFREG, SYSFS_KOBJ_ATTR);
 	if (!sd)
 		return ERR_PTR(-ENOMEM);
 

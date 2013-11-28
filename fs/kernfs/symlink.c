@@ -30,7 +30,8 @@ struct sysfs_dirent *kernfs_create_link(struct sysfs_dirent *parent,
 	struct sysfs_addrm_cxt acxt;
 	int error;
 
-	sd = sysfs_new_dirent(name, S_IFLNK|S_IRWXUGO, SYSFS_KOBJ_LINK);
+	sd = sysfs_new_dirent(kernfs_root(parent), name, S_IFLNK|S_IRWXUGO,
+			      SYSFS_KOBJ_LINK);
 	if (!sd)
 		return ERR_PTR(-ENOMEM);
 
