@@ -6903,7 +6903,7 @@ void i40e_veb_release(struct i40e_veb *veb)
  **/
 static int i40e_add_veb(struct i40e_veb *veb, struct i40e_vsi *vsi)
 {
-	bool is_default = (vsi->idx == vsi->back->lan_vsi);
+	bool is_default = false;
 	bool is_cloud = false;
 	int ret;
 
