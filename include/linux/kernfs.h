@@ -84,6 +84,7 @@ int kernfs_rename_ns(struct sysfs_dirent *sd, struct sysfs_dirent *new_parent,
 		     const char *new_name, const void *new_ns);
 void kernfs_enable_ns(struct sysfs_dirent *sd);
 int kernfs_setattr(struct sysfs_dirent *sd, const struct iattr *iattr);
+void kernfs_notify(struct sysfs_dirent *sd);
 
 #else	/* CONFIG_SYSFS */
 
@@ -119,6 +120,8 @@ static inline void kernfs_enable_ns(struct sysfs_dirent *sd) { }
 static inline int kernfs_setattr(struct sysfs_dirent *sd,
 				 const struct iattr *iattr)
 { return -ENOSYS; }
+
+static inline void kernfs_notify(struct sysfs_dirent *sd) { }
 
 #endif	/* CONFIG_SYSFS */
 

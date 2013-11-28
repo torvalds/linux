@@ -851,7 +851,13 @@ static unsigned int kernfs_file_poll(struct file *filp, poll_table *wait)
 	return DEFAULT_POLLMASK|POLLERR|POLLPRI;
 }
 
-void sysfs_notify_dirent(struct sysfs_dirent *sd)
+/**
+ * kernfs_notify - notify a kernfs file
+ * @sd: file to notify
+ *
+ * Notify @sd such that poll(2) on @sd wakes up.
+ */
+void kernfs_notify(struct sysfs_dirent *sd)
 {
 	struct sysfs_open_dirent *od;
 	unsigned long flags;
@@ -868,22 +874,27 @@ void sysfs_notify_dirent(struct sysfs_dirent *sd)
 
 	spin_unlock_irqrestore(&sysfs_open_dirent_lock, flags);
 }
-EXPORT_SYMBOL_GPL(sysfs_notify_dirent);
+EXPORT_SYMBOL_GPL(kernfs_notify);
 
 void sysfs_notify(struct kobject *k, const char *dir, const char *attr)
 {
-	struct sysfs_dirent *sd = k->sd;
-
-	mutex_lock(&sysfs_mutex);
+	struct sysfs_dirent *sd = k->sd, *tmp;
 
 	if (sd && dir)
-		sd = sysfs_find_dirent(sd, dir, NULL);
-	if (sd && attr)
-		sd = sysfs_find_dirent(sd, attr, NULL);
-	if (sd)
-		sysfs_notify_dirent(sd);
+		sd = sysfs_get_dirent(sd, dir);
+	else
+		sysfs_get(sd);
 
-	mutex_unlock(&sysfs_mutex);
+	if (sd && attr) {
+		tmp = sysfs_get_dirent(sd, attr);
+		sysfs_put(sd);
+		sd = tmp;
+	}
+
+	if (sd) {
+		kernfs_notify(sd);
+		sysfs_put(sd);
+	}
 }
 EXPORT_SYMBOL_GPL(sysfs_notify);
 
