@@ -83,10 +83,9 @@ struct sysfs_dirent {
 #define SYSFS_TYPE_MASK			0x00ff
 #define SYSFS_DIR			0x0001
 #define SYSFS_KOBJ_ATTR			0x0002
-#define SYSFS_KOBJ_BIN_ATTR		0x0004
 #define SYSFS_KOBJ_LINK			0x0008
 #define SYSFS_COPY_NAME			(SYSFS_DIR | SYSFS_KOBJ_LINK)
-#define SYSFS_ACTIVE_REF		(SYSFS_KOBJ_ATTR | SYSFS_KOBJ_BIN_ATTR)
+#define SYSFS_ACTIVE_REF		SYSFS_KOBJ_ATTR
 
 #define SYSFS_FLAG_MASK			~SYSFS_TYPE_MASK
 #define SYSFS_FLAG_NS			0x01000
@@ -115,10 +114,8 @@ do {								\
 static inline bool sysfs_ignore_lockdep(struct sysfs_dirent *sd)
 {
 	struct attribute *attr = sd->priv;
-	int type = sysfs_type(sd);
 
-	return (type == SYSFS_KOBJ_ATTR || type == SYSFS_KOBJ_BIN_ATTR) &&
-		attr->ignore_lockdep;
+	return sysfs_type(sd) == SYSFS_KOBJ_ATTR && attr->ignore_lockdep;
 }
 
 #else
@@ -219,10 +216,10 @@ int sysfs_inode_init(void);
 extern const struct file_operations kernfs_file_operations;
 
 int sysfs_add_file(struct sysfs_dirent *dir_sd,
-		   const struct attribute *attr, int type);
+		   const struct attribute *attr, bool is_bin);
 
 int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
-			   const struct attribute *attr, int type,
+			   const struct attribute *attr, bool is_bin,
 			   umode_t amode, const void *ns);
 void sysfs_unmap_bin_file(struct sysfs_dirent *sd);
 

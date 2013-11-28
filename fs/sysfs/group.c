@@ -55,8 +55,7 @@ static int create_files(struct sysfs_dirent *dir_sd, struct kobject *kobj,
 				if (!mode)
 					continue;
 			}
-			error = sysfs_add_file_mode_ns(dir_sd, *attr,
-						       SYSFS_KOBJ_ATTR,
+			error = sysfs_add_file_mode_ns(dir_sd, *attr, false,
 						       (*attr)->mode | mode,
 						       NULL);
 			if (unlikely(error))
@@ -269,7 +268,7 @@ int sysfs_merge_group(struct kobject *kobj,
 		return -ENOENT;
 
 	for ((i = 0, attr = grp->attrs); *attr && !error; (++i, ++attr))
-		error = sysfs_add_file(dir_sd, *attr, SYSFS_KOBJ_ATTR);
+		error = sysfs_add_file(dir_sd, *attr, false);
 	if (error) {
 		while (--i >= 0)
 			kernfs_remove_by_name(dir_sd, (*--attr)->name);
