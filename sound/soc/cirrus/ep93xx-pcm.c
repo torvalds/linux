@@ -78,17 +78,11 @@ static const struct snd_dmaengine_pcm_config ep93xx_dmaengine_pcm_config = {
 
 static int ep93xx_soc_platform_probe(struct platform_device *pdev)
 {
-	return snd_dmaengine_pcm_register(&pdev->dev,
+	return devm_snd_dmaengine_pcm_register(&pdev->dev,
 		&ep93xx_dmaengine_pcm_config,
 		SND_DMAENGINE_PCM_FLAG_NO_RESIDUE |
 		SND_DMAENGINE_PCM_FLAG_NO_DT |
 		SND_DMAENGINE_PCM_FLAG_COMPAT);
-}
-
-static int ep93xx_soc_platform_remove(struct platform_device *pdev)
-{
-	snd_dmaengine_pcm_unregister(&pdev->dev);
-	return 0;
 }
 
 static struct platform_driver ep93xx_pcm_driver = {
@@ -98,7 +92,6 @@ static struct platform_driver ep93xx_pcm_driver = {
 	},
 
 	.probe = ep93xx_soc_platform_probe,
-	.remove = ep93xx_soc_platform_remove,
 };
 
 module_platform_driver(ep93xx_pcm_driver);
