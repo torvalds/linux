@@ -41,8 +41,11 @@
 #define SUPPORT_OLD_POWER_EVENTS 1
 #define PWR_EVENT_EXIT -1
 
+struct per_pid;
+
 struct timechart {
 	struct perf_tool	tool;
+	struct per_pid		*all_data;
 	int			proc_num;
 	unsigned int		numcpus;
 	u64			min_freq,	/* Lowest CPU frequency seen */
@@ -123,8 +126,6 @@ struct cpu_sample {
 	const char *backtrace;
 };
 
-static struct per_pid *all_data;
-
 #define CSTATE 1
 #define PSTATE 2
 
@@ -157,9 +158,9 @@ struct process_filter {
 static struct process_filter *process_filter;
 
 
-static struct per_pid *find_create_pid(int pid)
+static struct per_pid *find_create_pid(struct timechart *tchart, int pid)
 {
-	struct per_pid *cursor = all_data;
+	struct per_pid *cursor = tchart->all_data;
 
 	while (cursor) {
 		if (cursor->pid == pid)
@@ -169,16 +170,16 @@ static struct per_pid *find_create_pid(int pid)
 	cursor = zalloc(sizeof(*cursor));
 	assert(cursor != NULL);
 	cursor->pid = pid;
-	cursor->next = all_data;
-	all_data = cursor;
+	cursor->next = tchart->all_data;
+	tchart->all_data = cursor;
 	return cursor;
 }
 
-static void pid_set_comm(int pid, char *comm)
+static void pid_set_comm(struct timechart *tchart, int pid, char *comm)
 {
 	struct per_pid *p;
 	struct per_pidcomm *c;
-	p = find_create_pid(pid);
+	p = find_create_pid(tchart, pid);
 	c = p->all;
 	while (c) {
 		if (c->comm && strcmp(c->comm, comm) == 0) {
@@ -200,14 +201,14 @@ static void pid_set_comm(int pid, char *comm)
 	p->all = c;
 }
 
-static void pid_fork(int pid, int ppid, u64 timestamp)
+static void pid_fork(struct timechart *tchart, int pid, int ppid, u64 timestamp)
 {
 	struct per_pid *p, *pp;
-	p = find_create_pid(pid);
-	pp = find_create_pid(ppid);
+	p = find_create_pid(tchart, pid);
+	pp = find_create_pid(tchart, ppid);
 	p->ppid = ppid;
 	if (pp->current && pp->current->comm && !p->current)
-		pid_set_comm(pid, pp->current->comm);
+		pid_set_comm(tchart, pid, pp->current->comm);
 
 	p->start_time = timestamp;
 	if (p->current) {
@@ -216,24 +217,24 @@ static void pid_fork(int pid, int ppid, u64 timestamp)
 	}
 }
 
-static void pid_exit(int pid, u64 timestamp)
+static void pid_exit(struct timechart *tchart, int pid, u64 timestamp)
 {
 	struct per_pid *p;
-	p = find_create_pid(pid);
+	p = find_create_pid(tchart, pid);
 	p->end_time = timestamp;
 	if (p->current)
 		p->current->end_time = timestamp;
 }
 
-static void
-pid_put_sample(int pid, int type, unsigned int cpu, u64 start, u64 end,
-	       const char *backtrace)
+static void pid_put_sample(struct timechart *tchart, int pid, int type,
+			   unsigned int cpu, u64 start, u64 end,
+			   const char *backtrace)
 {
 	struct per_pid *p;
 	struct per_pidcomm *c;
 	struct cpu_sample *sample;
 
-	p = find_create_pid(pid);
+	p = find_create_pid(tchart, pid);
 	c = p->current;
 	if (!c) {
 		c = zalloc(sizeof(*c));
@@ -271,30 +272,33 @@ static int cpus_cstate_state[MAX_CPUS];
 static u64 cpus_pstate_start_times[MAX_CPUS];
 static u64 cpus_pstate_state[MAX_CPUS];
 
-static int process_comm_event(struct perf_tool *tool __maybe_unused,
+static int process_comm_event(struct perf_tool *tool,
 			      union perf_event *event,
 			      struct perf_sample *sample __maybe_unused,
 			      struct machine *machine __maybe_unused)
 {
-	pid_set_comm(event->comm.tid, event->comm.comm);
+	struct timechart *tchart = container_of(tool, struct timechart, tool);
+	pid_set_comm(tchart, event->comm.tid, event->comm.comm);
 	return 0;
 }
 
-static int process_fork_event(struct perf_tool *tool __maybe_unused,
+static int process_fork_event(struct perf_tool *tool,
 			      union perf_event *event,
 			      struct perf_sample *sample __maybe_unused,
 			      struct machine *machine __maybe_unused)
 {
-	pid_fork(event->fork.pid, event->fork.ppid, event->fork.time);
+	struct timechart *tchart = container_of(tool, struct timechart, tool);
+	pid_fork(tchart, event->fork.pid, event->fork.ppid, event->fork.time);
 	return 0;
 }
 
-static int process_exit_event(struct perf_tool *tool __maybe_unused,
+static int process_exit_event(struct perf_tool *tool,
 			      union perf_event *event,
 			      struct perf_sample *sample __maybe_unused,
 			      struct machine *machine __maybe_unused)
 {
-	pid_exit(event->fork.pid, event->fork.time);
+	struct timechart *tchart = container_of(tool, struct timechart, tool);
+	pid_exit(tchart, event->fork.pid, event->fork.time);
 	return 0;
 }
 
@@ -361,8 +365,8 @@ static void p_state_change(struct timechart *tchart, int cpu, u64 timestamp, u64
 		tchart->turbo_frequency = tchart->max_freq;
 }
 
-static void sched_wakeup(int cpu, u64 timestamp, int waker, int wakee,
-			 u8 flags, const char *backtrace)
+static void sched_wakeup(struct timechart *tchart, int cpu, u64 timestamp,
+			 int waker, int wakee, u8 flags, const char *backtrace)
 {
 	struct per_pid *p;
 	struct wake_event *we = zalloc(sizeof(*we));
@@ -380,36 +384,37 @@ static void sched_wakeup(int cpu, u64 timestamp, int waker, int wakee,
 	we->wakee = wakee;
 	we->next = wake_events;
 	wake_events = we;
-	p = find_create_pid(we->wakee);
+	p = find_create_pid(tchart, we->wakee);
 
 	if (p && p->current && p->current->state == TYPE_NONE) {
 		p->current->state_since = timestamp;
 		p->current->state = TYPE_WAITING;
 	}
 	if (p && p->current && p->current->state == TYPE_BLOCKED) {
-		pid_put_sample(p->pid, p->current->state, cpu,
+		pid_put_sample(tchart, p->pid, p->current->state, cpu,
 			       p->current->state_since, timestamp, NULL);
 		p->current->state_since = timestamp;
 		p->current->state = TYPE_WAITING;
 	}
 }
 
-static void sched_switch(int cpu, u64 timestamp, int prev_pid, int next_pid,
-			 u64 prev_state, const char *backtrace)
+static void sched_switch(struct timechart *tchart, int cpu, u64 timestamp,
+			 int prev_pid, int next_pid, u64 prev_state,
+			 const char *backtrace)
 {
 	struct per_pid *p = NULL, *prev_p;
 
-	prev_p = find_create_pid(prev_pid);
+	prev_p = find_create_pid(tchart, prev_pid);
 
-	p = find_create_pid(next_pid);
+	p = find_create_pid(tchart, next_pid);
 
 	if (prev_p->current && prev_p->current->state != TYPE_NONE)
-		pid_put_sample(prev_pid, TYPE_RUNNING, cpu,
+		pid_put_sample(tchart, prev_pid, TYPE_RUNNING, cpu,
 			       prev_p->current->state_since, timestamp,
 			       backtrace);
 	if (p && p->current) {
 		if (p->current->state != TYPE_NONE)
-			pid_put_sample(next_pid, p->current->state, cpu,
+			pid_put_sample(tchart, next_pid, p->current->state, cpu,
 				       p->current->state_since, timestamp,
 				       backtrace);
 
@@ -566,7 +571,7 @@ process_sample_cpu_frequency(struct timechart *tchart,
 }
 
 static int
-process_sample_sched_wakeup(struct timechart *tchart __maybe_unused,
+process_sample_sched_wakeup(struct timechart *tchart,
 			    struct perf_evsel *evsel,
 			    struct perf_sample *sample,
 			    const char *backtrace)
@@ -575,12 +580,12 @@ process_sample_sched_wakeup(struct timechart *tchart __maybe_unused,
 	int waker = perf_evsel__intval(evsel, sample, "common_pid");
 	int wakee = perf_evsel__intval(evsel, sample, "pid");
 
-	sched_wakeup(sample->cpu, sample->time, waker, wakee, flags, backtrace);
+	sched_wakeup(tchart, sample->cpu, sample->time, waker, wakee, flags, backtrace);
 	return 0;
 }
 
 static int
-process_sample_sched_switch(struct timechart *tchart __maybe_unused,
+process_sample_sched_switch(struct timechart *tchart,
 			    struct perf_evsel *evsel,
 			    struct perf_sample *sample,
 			    const char *backtrace)
@@ -589,8 +594,8 @@ process_sample_sched_switch(struct timechart *tchart __maybe_unused,
 	int next_pid = perf_evsel__intval(evsel, sample, "next_pid");
 	u64 prev_state = perf_evsel__intval(evsel, sample, "prev_state");
 
-	sched_switch(sample->cpu, sample->time, prev_pid, next_pid, prev_state,
-		     backtrace);
+	sched_switch(tchart, sample->cpu, sample->time, prev_pid, next_pid,
+		     prev_state, backtrace);
 	return 0;
 }
 
@@ -681,16 +686,16 @@ static void end_sample_processing(struct timechart *tchart)
 /*
  * Sort the pid datastructure
  */
-static void sort_pids(void)
+static void sort_pids(struct timechart *tchart)
 {
 	struct per_pid *new_list, *p, *cursor, *prev;
 	/* sort by ppid first, then by pid, lowest to highest */
 
 	new_list = NULL;
 
-	while (all_data) {
-		p = all_data;
-		all_data = p->next;
+	while (tchart->all_data) {
+		p = tchart->all_data;
+		tchart->all_data = p->next;
 		p->next = NULL;
 
 		if (new_list == NULL) {
@@ -723,7 +728,7 @@ static void sort_pids(void)
 				prev->next = p;
 		}
 	}
-	all_data = new_list;
+	tchart->all_data = new_list;
 }
 
 
@@ -752,7 +757,7 @@ static void draw_c_p_states(struct timechart *tchart)
 	}
 }
 
-static void draw_wakeups(void)
+static void draw_wakeups(struct timechart *tchart)
 {
 	struct wake_event *we;
 	struct per_pid *p;
@@ -764,7 +769,7 @@ static void draw_wakeups(void)
 		char *task_from = NULL, *task_to = NULL;
 
 		/* locate the column of the waker and wakee */
-		p = all_data;
+		p = tchart->all_data;
 		while (p) {
 			if (p->pid == we->waker || p->pid == we->wakee) {
 				c = p->all;
@@ -820,12 +825,12 @@ static void draw_wakeups(void)
 	}
 }
 
-static void draw_cpu_usage(void)
+static void draw_cpu_usage(struct timechart *tchart)
 {
 	struct per_pid *p;
 	struct per_pidcomm *c;
 	struct cpu_sample *sample;
-	p = all_data;
+	p = tchart->all_data;
 	while (p) {
 		c = p->all;
 		while (c) {
@@ -851,7 +856,7 @@ static void draw_process_bars(struct timechart *tchart)
 
 	Y = 2 * tchart->numcpus + 2;
 
-	p = all_data;
+	p = tchart->all_data;
 	while (p) {
 		c = p->all;
 		while (c) {
@@ -937,7 +942,7 @@ static int determine_display_tasks_filtered(struct timechart *tchart)
 	struct per_pidcomm *c;
 	int count = 0;
 
-	p = all_data;
+	p = tchart->all_data;
 	while (p) {
 		p->display = 0;
 		if (p->start_time == 1)
@@ -980,7 +985,7 @@ static int determine_display_tasks(struct timechart *tchart, u64 threshold)
 	if (process_filter)
 		return determine_display_tasks_filtered(tchart);
 
-	p = all_data;
+	p = tchart->all_data;
 	while (p) {
 		p->display = 0;
 		if (p->start_time == 1)
@@ -1045,13 +1050,13 @@ static void write_svg_file(struct timechart *tchart, const char *filename)
 	for (i = 0; i < tchart->numcpus; i++)
 		svg_cpu_box(i, tchart->max_freq, tchart->turbo_frequency);
 
-	draw_cpu_usage();
+	draw_cpu_usage(tchart);
 	if (tchart->proc_num)
 		draw_process_bars(tchart);
 	if (!tchart->tasks_only)
 		draw_c_p_states(tchart);
 	if (tchart->proc_num)
-		draw_wakeups();
+		draw_wakeups(tchart);
 
 	svg_close();
 }
@@ -1096,7 +1101,7 @@ static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 
 	end_sample_processing(tchart);
 
-	sort_pids();
+	sort_pids(tchart);
 
 	write_svg_file(tchart, output_name);
 
