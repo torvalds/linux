@@ -1028,14 +1028,14 @@
 #define   FBC_CTL_UNCOMPRESSIBLE (1<<14)
 #define   FBC_CTL_C3_IDLE	(1<<13)
 #define   FBC_CTL_STRIDE_SHIFT	(5)
-#define   FBC_CTL_FENCENO	(1<<0)
+#define   FBC_CTL_FENCENO_SHIFT	(0)
 #define FBC_COMMAND		0x0320c
 #define   FBC_CMD_COMPRESS	(1<<0)
 #define FBC_STATUS		0x03210
 #define   FBC_STAT_COMPRESSING	(1<<31)
 #define   FBC_STAT_COMPRESSED	(1<<30)
 #define   FBC_STAT_MODIFIED	(1<<29)
-#define   FBC_STAT_CURRENT_LINE	(1<<0)
+#define   FBC_STAT_CURRENT_LINE_SHIFT	(0)
 #define FBC_CONTROL2		0x03214
 #define   FBC_CTL_FENCE_DBL	(0<<4)
 #define   FBC_CTL_IDLE_IMM	(0<<2)
