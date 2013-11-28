@@ -7,7 +7,7 @@
  */
 
 #ifndef __LINUX_OF_MTD_H
-#define __LINUX_OF_NET_H
+#define __LINUX_OF_MTD_H
 
 #ifdef CONFIG_OF_MTD
 
