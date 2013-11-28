@@ -48,8 +48,6 @@ struct sysfs_addrm_cxt {
 	struct sysfs_dirent	*removed;
 };
 
-#include "../sysfs/sysfs.h"
-
 /*
  * mount.c
  */

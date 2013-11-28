@@ -11,7 +11,6 @@
 #ifndef __SYSFS_INTERNAL_H
 #define __SYSFS_INTERNAL_H
 
-#include "../kernfs/kernfs-internal.h"
 #include <linux/sysfs.h>
 
 /*
