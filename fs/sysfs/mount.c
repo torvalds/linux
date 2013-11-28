@@ -92,7 +92,7 @@ static int sysfs_set_super(struct super_block *sb, void *data)
 
 static void free_sysfs_super_info(struct sysfs_super_info *info)
 {
-	kobj_ns_drop(KOBJ_NS_TYPE_NET, info->ns);
+	kobj_ns_drop(KOBJ_NS_TYPE_NET, (void *)info->ns);
 	kfree(info);
 }
 

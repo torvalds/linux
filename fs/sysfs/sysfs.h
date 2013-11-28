@@ -18,14 +18,14 @@
  * mount.c
  */
 
-/*
- * Each sb is associated with one namespace tag, currently the network
- * namespace of the task which mounted this sysfs instance.  If multiple
- * tags become necessary, make the following an array and compare
- * sysfs_dirent tag against every entry.
- */
 struct sysfs_super_info {
-	void *ns;
+	/*
+	 * Each sb is associated with one namespace tag, currently the network
+	 * namespace of the task which mounted this sysfs instance.  If multiple
+	 * tags become necessary, make the following an array and compare
+	 * sysfs_dirent tag against every entry.
+	 */
+	const void		*ns;
 };
 #define sysfs_info(SB) ((struct sysfs_super_info *)(SB->s_fs_info))
 extern struct sysfs_dirent sysfs_root;
