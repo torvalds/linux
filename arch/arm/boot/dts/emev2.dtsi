@@ -130,7 +130,7 @@
 	sti@e0180000 {
 		compatible = "renesas,em-sti";
 		reg = <0xe0180000 0x54>;
-		interrupts = <0 125 IRQ_TYPE_NONE>;
+		interrupts = <0 125 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&sti_sclk>;
 		clock-names = "sclk";
 	};
@@ -138,7 +138,7 @@
 	uart@e1020000 {
 		compatible = "renesas,em-uart";
 		reg = <0xe1020000 0x38>;
-		interrupts = <0 8 IRQ_TYPE_NONE>;
+		interrupts = <0 8 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&usia_u0_sclk>;
 		clock-names = "sclk";
 	};
@@ -146,7 +146,7 @@
 	uart@e1030000 {
 		compatible = "renesas,em-uart";
 		reg = <0xe1030000 0x38>;
-		interrupts = <0 9 IRQ_TYPE_NONE>;
+		interrupts = <0 9 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&usib_u1_sclk>;
 		clock-names = "sclk";
 	};
@@ -154,7 +154,7 @@
 	uart@e1040000 {
 		compatible = "renesas,em-uart";
 		reg = <0xe1040000 0x38>;
-		interrupts = <0 10 IRQ_TYPE_NONE>;
+		interrupts = <0 10 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&usib_u2_sclk>;
 		clock-names = "sclk";
 	};
@@ -162,7 +162,7 @@
 	uart@e1050000 {
 		compatible = "renesas,em-uart";
 		reg = <0xe1050000 0x38>;
-		interrupts = <0 11 IRQ_TYPE_NONE>;
+		interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&usib_u3_sclk>;
 		clock-names = "sclk";
 	};
@@ -170,8 +170,8 @@
 	gpio0: gpio@e0050000 {
 		compatible = "renesas,em-gio";
 		reg = <0xe0050000 0x2c>, <0xe0050040 0x20>;
-		interrupts = <0 67 IRQ_TYPE_NONE>,
-			     <0 68 IRQ_TYPE_NONE>;
+		interrupts = <0 67 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 68 IRQ_TYPE_LEVEL_HIGH>;
 		gpio-controller;
 		#gpio-cells = <2>;
 		ngpios = <32>;
@@ -181,8 +181,8 @@
 	gpio1: gpio@e0050080 {
 		compatible = "renesas,em-gio";
 		reg = <0xe0050080 0x2c>, <0xe00500c0 0x20>;
-		interrupts = <0 69 IRQ_TYPE_NONE>,
-			     <0 70 IRQ_TYPE_NONE>;
+		interrupts = <0 69 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 70 IRQ_TYPE_LEVEL_HIGH>;
 		gpio-controller;
 		#gpio-cells = <2>;
 		ngpios = <32>;
@@ -192,8 +192,8 @@
 	gpio2: gpio@e0050100 {
 		compatible = "renesas,em-gio";
 		reg = <0xe0050100 0x2c>, <0xe0050140 0x20>;
-		interrupts = <0 71 IRQ_TYPE_NONE>,
-			     <0 72 IRQ_TYPE_NONE>;
+		interrupts = <0 71 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 72 IRQ_TYPE_LEVEL_HIGH>;
 		gpio-controller;
 		#gpio-cells = <2>;
 		ngpios = <32>;
@@ -203,8 +203,8 @@
 	gpio3: gpio@e0050180 {
 		compatible = "renesas,em-gio";
 		reg = <0xe0050180 0x2c>, <0xe00501c0 0x20>;
-		interrupts = <0 73 IRQ_TYPE_NONE>,
-			     <0 74 IRQ_TYPE_NONE>;
+		interrupts = <0 73 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 74 IRQ_TYPE_LEVEL_HIGH>;
 		gpio-controller;
 		#gpio-cells = <2>;
 		ngpios = <32>;
@@ -214,8 +214,8 @@
 	gpio4: gpio@e0050200 {
 		compatible = "renesas,em-gio";
 		reg = <0xe0050200 0x2c>, <0xe0050240 0x20>;
-		interrupts = <0 75 IRQ_TYPE_NONE>,
-			     <0 76 IRQ_TYPE_NONE>;
+		interrupts = <0 75 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 76 IRQ_TYPE_LEVEL_HIGH>;
 		gpio-controller;
 		#gpio-cells = <2>;
 		ngpios = <31>;
