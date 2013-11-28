@@ -58,6 +58,17 @@ static struct sysfs_open_file *sysfs_of(struct file *file)
 }
 
 /*
+ * Determine the kernfs_ops for the given sysfs_dirent.  This function must
+ * be called while holding an active reference.
+ */
+static const struct kernfs_ops *kernfs_ops(struct sysfs_dirent *sd)
+{
+	if (!sysfs_ignore_lockdep(sd))
+		lockdep_assert_held(sd);
+	return sd->s_attr.ops;
+}
+
+/*
  * Determine ktype->sysfs_ops for the given sysfs_dirent.  This function
  * must be called while holding an active reference.
  */
@@ -180,7 +191,7 @@ static int kernfs_seq_show(struct seq_file *sf, void *v)
 
 	of->event = atomic_read(&of->sd->s_attr.open->event);
 
-	return sysfs_kf_seq_show(sf, v);
+	return of->sd->s_attr.ops->seq_show(sf, v);
 }
 
 static const struct seq_operations kernfs_seq_ops = {
@@ -201,6 +212,7 @@ static ssize_t kernfs_file_direct_read(struct sysfs_open_file *of,
 				       loff_t *ppos)
 {
 	ssize_t len = min_t(size_t, count, PAGE_SIZE);
+	const struct kernfs_ops *ops;
 	char *buf;
 
 	buf = kmalloc(len, GFP_KERNEL);
@@ -218,7 +230,11 @@ static ssize_t kernfs_file_direct_read(struct sysfs_open_file *of,
 		goto out_free;
 	}
 
-	len = sysfs_kf_bin_read(of, buf, len, *ppos);
+	ops = kernfs_ops(of->sd);
+	if (ops->read)
+		len = ops->read(of, buf, len, *ppos);
+	else
+		len = -EINVAL;
 
 	sysfs_put_active(of->sd);
 	mutex_unlock(&of->mutex);
@@ -250,10 +266,10 @@ static ssize_t kernfs_file_read(struct file *file, char __user *user_buf,
 {
 	struct sysfs_open_file *of = sysfs_of(file);
 
-	if (sysfs_is_bin(of->sd))
-		return kernfs_file_direct_read(of, user_buf, count, ppos);
-	else
+	if (of->sd->s_flags & SYSFS_FLAG_HAS_SEQ_SHOW)
 		return seq_read(file, user_buf, count, ppos);
+	else
+		return kernfs_file_direct_read(of, user_buf, count, ppos);
 }
 
 /* kernfs write callback for regular sysfs files */
@@ -312,6 +328,7 @@ static ssize_t kernfs_file_write(struct file *file, const char __user *user_buf,
 {
 	struct sysfs_open_file *of = sysfs_of(file);
 	ssize_t len = min_t(size_t, count, PAGE_SIZE);
+	const struct kernfs_ops *ops;
 	char *buf;
 
 	buf = kmalloc(len + 1, GFP_KERNEL);
@@ -335,10 +352,11 @@ static ssize_t kernfs_file_write(struct file *file, const char __user *user_buf,
 		goto out_free;
 	}
 
-	if (sysfs_is_bin(of->sd))
-		len = sysfs_kf_bin_write(of, buf, len, *ppos);
+	ops = kernfs_ops(of->sd);
+	if (ops->write)
+		len = ops->write(of, buf, len, *ppos);
 	else
-		len = sysfs_kf_write(of, buf, len, *ppos);
+		len = -EINVAL;
 
 	sysfs_put_active(of->sd);
 	mutex_unlock(&of->mutex);
@@ -524,6 +542,7 @@ static const struct vm_operations_struct kernfs_vm_ops = {
 static int kernfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct sysfs_open_file *of = sysfs_of(file);
+	const struct kernfs_ops *ops;
 	int rc;
 
 	mutex_lock(&of->mutex);
@@ -532,8 +551,9 @@ static int kernfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	if (!sysfs_get_active(of->sd))
 		goto out_unlock;
 
-	if (sysfs_is_bin(of->sd))
-		rc = sysfs_kf_bin_mmap(of, vma);
+	ops = kernfs_ops(of->sd);
+	if (ops->mmap)
+		rc = ops->mmap(of, vma);
 	if (rc)
 		goto out_put;
 
@@ -660,34 +680,19 @@ static void sysfs_put_open_dirent(struct sysfs_dirent *sd,
 static int kernfs_file_open(struct inode *inode, struct file *file)
 {
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
-	struct kobject *kobj = attr_sd->s_parent->priv;
+	const struct kernfs_ops *ops;
 	struct sysfs_open_file *of;
 	bool has_read, has_write, has_mmap;
 	int error = -EACCES;
 
-	/* need attr_sd for attr and ops, its parent for kobj */
 	if (!sysfs_get_active(attr_sd))
 		return -ENODEV;
 
-	if (sysfs_is_bin(attr_sd)) {
-		struct bin_attribute *battr = attr_sd->priv;
+	ops = kernfs_ops(attr_sd);
 
-		has_read = battr->read || battr->mmap;
-		has_write = battr->write || battr->mmap;
-		has_mmap = battr->mmap;
-	} else {
-		const struct sysfs_ops *ops = sysfs_file_ops(attr_sd);
-
-		/* every kobject with an attribute needs a ktype assigned */
-		if (WARN(!ops, KERN_ERR
-			 "missing sysfs attribute operations for kobject: %s\n",
-			 kobject_name(kobj)))
-			goto err_out;
-
-		has_read = ops->show;
-		has_write = ops->store;
-		has_mmap = false;
-	}
+	has_read = ops->seq_show || ops->read || ops->mmap;
+	has_write = ops->write || ops->mmap;
+	has_mmap = ops->mmap;
 
 	/* check perms and supported operations */
 	if ((file->f_mode & FMODE_WRITE) &&
@@ -729,10 +734,10 @@ static int kernfs_file_open(struct inode *inode, struct file *file)
 	 * seq_file or is not requested.  This unifies private data access
 	 * and readable regular files are the vast majority anyway.
 	 */
-	if (sysfs_is_bin(attr_sd))
-		error = seq_open(file, NULL);
-	else
+	if (ops->seq_show)
 		error = seq_open(file, &kernfs_seq_ops);
+	else
+		error = seq_open(file, NULL);
 	if (error)
 		goto err_free;
 
@@ -777,7 +782,7 @@ void sysfs_unmap_bin_file(struct sysfs_dirent *sd)
 	struct sysfs_open_dirent *od;
 	struct sysfs_open_file *of;
 
-	if (!sysfs_is_bin(sd))
+	if (!(sd->s_flags & SYSFS_FLAG_HAS_MMAP))
 		return;
 
 	spin_lock_irq(&sysfs_open_dirent_lock);
@@ -880,22 +885,95 @@ const struct file_operations kernfs_file_operations = {
 	.poll		= kernfs_file_poll,
 };
 
+static const struct kernfs_ops sysfs_file_kfops_empty = {
+};
+
+static const struct kernfs_ops sysfs_file_kfops_ro = {
+	.seq_show	= sysfs_kf_seq_show,
+};
+
+static const struct kernfs_ops sysfs_file_kfops_wo = {
+	.write		= sysfs_kf_write,
+};
+
+static const struct kernfs_ops sysfs_file_kfops_rw = {
+	.seq_show	= sysfs_kf_seq_show,
+	.write		= sysfs_kf_write,
+};
+
+static const struct kernfs_ops sysfs_bin_kfops_ro = {
+	.read		= sysfs_kf_bin_read,
+};
+
+static const struct kernfs_ops sysfs_bin_kfops_wo = {
+	.write		= sysfs_kf_bin_write,
+};
+
+static const struct kernfs_ops sysfs_bin_kfops_rw = {
+	.read		= sysfs_kf_bin_read,
+	.write		= sysfs_kf_bin_write,
+	.mmap		= sysfs_kf_bin_mmap,
+};
+
 int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 			   const struct attribute *attr, int type,
 			   umode_t amode, const void *ns)
 {
 	umode_t mode = (amode & S_IALLUGO) | S_IFREG;
+	const struct kernfs_ops *ops;
 	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent *sd;
 	int rc;
+
+	if (type == SYSFS_KOBJ_ATTR) {
+		struct kobject *kobj = dir_sd->priv;
+		const struct sysfs_ops *sysfs_ops = kobj->ktype->sysfs_ops;
+
+		/* every kobject with an attribute needs a ktype assigned */
+		if (WARN(!sysfs_ops, KERN_ERR
+			 "missing sysfs attribute operations for kobject: %s\n",
+			 kobject_name(kobj)))
+			return -EINVAL;
+
+		if (sysfs_ops->show && sysfs_ops->store)
+			ops = &sysfs_file_kfops_rw;
+		else if (sysfs_ops->show)
+			ops = &sysfs_file_kfops_ro;
+		else if (sysfs_ops->store)
+			ops = &sysfs_file_kfops_wo;
+		else
+			ops = &sysfs_file_kfops_empty;
+	} else {
+		struct bin_attribute *battr = (void *)attr;
+
+		if ((battr->read && battr->write) || battr->mmap)
+			ops = &sysfs_bin_kfops_rw;
+		else if (battr->read)
+			ops = &sysfs_bin_kfops_ro;
+		else if (battr->write)
+			ops = &sysfs_bin_kfops_wo;
+		else
+			ops = &sysfs_file_kfops_empty;
+	}
 
 	sd = sysfs_new_dirent(attr->name, mode, type);
 	if (!sd)
 		return -ENOMEM;
 
+	sd->s_attr.ops = ops;
 	sd->s_ns = ns;
 	sd->priv = (void *)attr;
 	sysfs_dirent_init_lockdep(sd);
+
+	/*
+	 * sd->s_attr.ops is accesible only while holding active ref.  We
+	 * need to know whether some ops are implemented outside active
+	 * ref.  Cache their existence in flags.
+	 */
+	if (ops->seq_show)
+		sd->s_flags |= SYSFS_FLAG_HAS_SEQ_SHOW;
+	if (ops->mmap)
+		sd->s_flags |= SYSFS_FLAG_HAS_MMAP;
 
 	sysfs_addrm_start(&acxt);
 	rc = sysfs_add_one(&acxt, sd, dir_sd);

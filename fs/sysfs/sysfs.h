@@ -27,6 +27,7 @@ struct sysfs_elem_symlink {
 };
 
 struct sysfs_elem_attr {
+	const struct kernfs_ops	*ops;
 	struct sysfs_open_dirent *open;
 };
 
@@ -89,6 +90,8 @@ struct sysfs_dirent {
 #define SYSFS_FLAG_MASK			~SYSFS_TYPE_MASK
 #define SYSFS_FLAG_NS			0x01000
 #define SYSFS_FLAG_REMOVED		0x02000
+#define SYSFS_FLAG_HAS_SEQ_SHOW		0x04000
+#define SYSFS_FLAG_HAS_MMAP		0x08000
 
 static inline unsigned int sysfs_type(struct sysfs_dirent *sd)
 {

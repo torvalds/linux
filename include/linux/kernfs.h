@@ -33,6 +33,32 @@ struct sysfs_open_file {
 	const struct vm_operations_struct *vm_ops;
 };
 
+struct kernfs_ops {
+	/*
+	 * Read is handled by either seq_file or raw_read().
+	 *
+	 * If seq_show() is present, seq_file path is active.  The behavior
+	 * is equivalent to single_open().  @sf->private points to the
+	 * associated sysfs_open_file.
+	 *
+	 * read() is bounced through kernel buffer and a read larger than
+	 * PAGE_SIZE results in partial operation of PAGE_SIZE.
+	 */
+	int (*seq_show)(struct seq_file *sf, void *v);
+
+	ssize_t (*read)(struct sysfs_open_file *of, char *buf, size_t bytes,
+			loff_t off);
+
+	/*
+	 * write() is bounced through kernel buffer and a write larger than
+	 * PAGE_SIZE results in partial operation of PAGE_SIZE.
+	 */
+	ssize_t (*write)(struct sysfs_open_file *of, char *buf, size_t bytes,
+			 loff_t off);
+
+	int (*mmap)(struct sysfs_open_file *of, struct vm_area_struct *vma);
+};
+
 #ifdef CONFIG_SYSFS
 
 struct sysfs_dirent *kernfs_create_dir_ns(struct sysfs_dirent *parent,
