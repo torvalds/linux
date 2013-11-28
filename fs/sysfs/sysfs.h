@@ -80,18 +80,18 @@ struct sysfs_dirent {
 
 #define SD_DEACTIVATED_BIAS		INT_MIN
 
-#define SYSFS_TYPE_MASK			0x00ff
+#define SYSFS_TYPE_MASK			0x000f
 #define SYSFS_DIR			0x0001
 #define SYSFS_KOBJ_ATTR			0x0002
-#define SYSFS_KOBJ_LINK			0x0008
+#define SYSFS_KOBJ_LINK			0x0004
 #define SYSFS_COPY_NAME			(SYSFS_DIR | SYSFS_KOBJ_LINK)
 #define SYSFS_ACTIVE_REF		SYSFS_KOBJ_ATTR
 
 #define SYSFS_FLAG_MASK			~SYSFS_TYPE_MASK
-#define SYSFS_FLAG_NS			0x01000
-#define SYSFS_FLAG_REMOVED		0x02000
-#define SYSFS_FLAG_HAS_SEQ_SHOW		0x04000
-#define SYSFS_FLAG_HAS_MMAP		0x08000
+#define SYSFS_FLAG_REMOVED		0x0010
+#define SYSFS_FLAG_NS			0x0020
+#define SYSFS_FLAG_HAS_SEQ_SHOW		0x0040
+#define SYSFS_FLAG_HAS_MMAP		0x0080
 
 static inline unsigned int sysfs_type(struct sysfs_dirent *sd)
 {
