@@ -682,6 +682,12 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
+	ret = clk_prepare(p->clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "unable to prepare clock\n");
+		goto err1;
+	}
+
 	p->pdev = pdev;
 	pm_runtime_enable(&pdev->dev);
 
@@ -718,6 +724,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 		return 0;
 
 	pm_runtime_disable(&pdev->dev);
+	clk_unprepare(p->clk);
  err1:
 	spi_master_put(master);
 	return ret;
@@ -731,6 +738,7 @@ static int sh_msiof_spi_remove(struct platform_device *pdev)
 	ret = spi_bitbang_stop(&p->bitbang);
 	if (!ret) {
 		pm_runtime_disable(&pdev->dev);
+		clk_unprepare(p->clk);
 		spi_master_put(p->bitbang.master);
 	}
 	return ret;
