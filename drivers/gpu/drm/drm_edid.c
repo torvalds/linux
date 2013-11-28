@@ -2701,7 +2701,7 @@ static int add_3d_struct_modes(struct drm_connector *connector, u16 structure,
 	if (structure & (1 << 8)) {
 		newmode = drm_mode_duplicate(dev, &edid_cea_modes[cea_mode]);
 		if (newmode) {
-			newmode->flags = DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF;
+			newmode->flags |= DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF;
 			drm_mode_probed_add(connector, newmode);
 			modes++;
 		}
