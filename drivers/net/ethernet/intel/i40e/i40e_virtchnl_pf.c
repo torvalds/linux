@@ -1310,7 +1310,7 @@ static int i40e_vc_get_stats_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 		goto error_param;
 	}
 	i40e_update_eth_stats(vsi);
-	memcpy(&stats, &vsi->eth_stats, sizeof(struct i40e_eth_stats));
+	stats = vsi->eth_stats;
 
 error_param:
 	/* send the response back to the vf */
