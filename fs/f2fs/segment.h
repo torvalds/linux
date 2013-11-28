@@ -96,7 +96,7 @@
 struct bio_private {
 	struct f2fs_sb_info *sbi;
 	bool is_sync;
-	void *wait;
+	struct completion *wait;
 };
 
 /*
