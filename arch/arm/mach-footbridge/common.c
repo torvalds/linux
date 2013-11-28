@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
+#include <video/vga.h>
  
 #include <asm/pgtable.h>
 #include <asm/page.h>
@@ -198,6 +199,8 @@ void __init footbridge_map_io(void)
 	 */
 	if (footbridge_cfn_mode())
 		iotable_init(ebsa285_host_io_desc, ARRAY_SIZE(ebsa285_host_io_desc));
+
+	vga_base = PCIMEM_BASE;
 }
 
 void footbridge_restart(char mode, const char *cmd)
