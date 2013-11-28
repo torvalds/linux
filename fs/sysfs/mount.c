@@ -37,6 +37,7 @@ struct sysfs_dirent *sysfs_root_sd;
 
 static int sysfs_fill_super(struct super_block *sb)
 {
+	struct sysfs_super_info *info = sysfs_info(sb);
 	struct inode *inode;
 	struct dentry *root;
 
@@ -48,7 +49,7 @@ static int sysfs_fill_super(struct super_block *sb)
 
 	/* get root inode, initialize and unlock it */
 	mutex_lock(&sysfs_mutex);
-	inode = sysfs_get_inode(sb, sysfs_root_sd);
+	inode = sysfs_get_inode(sb, info->root->sd);
 	mutex_unlock(&sysfs_mutex);
 	if (!inode) {
 		pr_debug("sysfs: could not get root inode\n");
@@ -61,8 +62,8 @@ static int sysfs_fill_super(struct super_block *sb)
 		pr_debug("%s: could not get root dentry!\n", __func__);
 		return -ENOMEM;
 	}
-	kernfs_get(sysfs_root_sd);
-	root->d_fsdata = sysfs_root_sd;
+	kernfs_get(info->root->sd);
+	root->d_fsdata = info->root->sd;
 	sb->s_root = root;
 	sb->s_d_op = &sysfs_dentry_ops;
 	return 0;
@@ -73,7 +74,7 @@ static int sysfs_test_super(struct super_block *sb, void *data)
 	struct sysfs_super_info *sb_info = sysfs_info(sb);
 	struct sysfs_super_info *info = data;
 
-	return sb_info->ns == info->ns;
+	return sb_info->root == info->root && sb_info->ns == info->ns;
 }
 
 static int sysfs_set_super(struct super_block *sb, void *data)
@@ -110,6 +111,7 @@ static struct dentry *sysfs_mount(struct file_system_type *fs_type,
 	if (!info)
 		return ERR_PTR(-ENOMEM);
 
+	info->root = sysfs_root;
 	info->ns = kobj_ns_grab_current(KOBJ_NS_TYPE_NET);
 
 	sb = sget(fs_type, sysfs_test_super, sysfs_set_super, flags, info);

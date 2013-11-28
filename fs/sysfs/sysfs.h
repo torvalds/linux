@@ -20,6 +20,12 @@
 
 struct sysfs_super_info {
 	/*
+	 * The root associated with this super_block.  Each super_block is
+	 * identified by the root and ns it's associated with.
+	 */
+	struct kernfs_root	*root;
+
+	/*
 	 * Each sb is associated with one namespace tag, currently the network
 	 * namespace of the task which mounted this sysfs instance.  If multiple
 	 * tags become necessary, make the following an array and compare
