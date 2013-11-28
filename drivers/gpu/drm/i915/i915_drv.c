@@ -172,6 +172,7 @@ static const struct intel_device_info intel_i85x_info = {
 	.gen = 2, .is_i85x = 1, .is_mobile = 1, .num_pipes = 2,
 	.cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
+	.has_fbc = 1,
 	.ring_mask = RENDER_RING,
 };
 
@@ -191,6 +192,7 @@ static const struct intel_device_info intel_i915gm_info = {
 	.cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.supports_tv = 1,
+	.has_fbc = 1,
 	.ring_mask = RENDER_RING,
 };
 static const struct intel_device_info intel_i945g_info = {
@@ -203,6 +205,7 @@ static const struct intel_device_info intel_i945gm_info = {
 	.has_hotplug = 1, .cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.supports_tv = 1,
+	.has_fbc = 1,
 	.ring_mask = RENDER_RING,
 };
 
