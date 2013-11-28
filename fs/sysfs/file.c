@@ -668,7 +668,7 @@ static void sysfs_put_open_dirent(struct sysfs_dirent *sd,
 	kfree(od);
 }
 
-static int sysfs_open_file(struct inode *inode, struct file *file)
+static int kernfs_file_open(struct inode *inode, struct file *file)
 {
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
 	struct kobject *kobj = attr_sd->s_parent->priv;
@@ -771,7 +771,7 @@ err_out:
 	return error;
 }
 
-static int sysfs_release(struct inode *inode, struct file *filp)
+static int kernfs_file_release(struct inode *inode, struct file *filp)
 {
 	struct sysfs_dirent *sd = filp->f_path.dentry->d_fsdata;
 	struct sysfs_open_file *of = sysfs_of(filp);
@@ -822,7 +822,7 @@ void sysfs_unmap_bin_file(struct sysfs_dirent *sd)
  * to see if it supports poll (Neither 'poll' nor 'select' return
  * an appropriate error code).  When in doubt, set a suitable timeout value.
  */
-static unsigned int sysfs_poll(struct file *filp, poll_table *wait)
+static unsigned int kernfs_file_poll(struct file *filp, poll_table *wait)
 {
 	struct sysfs_open_file *of = sysfs_of(filp);
 	struct sysfs_dirent *attr_sd = filp->f_path.dentry->d_fsdata;
@@ -881,24 +881,14 @@ void sysfs_notify(struct kobject *k, const char *dir, const char *attr)
 }
 EXPORT_SYMBOL_GPL(sysfs_notify);
 
-const struct file_operations sysfs_file_operations = {
+const struct file_operations kernfs_file_operations = {
 	.read		= kernfs_file_read,
 	.write		= kernfs_file_write,
 	.llseek		= generic_file_llseek,
 	.mmap		= kernfs_file_mmap,
-	.open		= sysfs_open_file,
-	.release	= sysfs_release,
-	.poll		= sysfs_poll,
-};
-
-const struct file_operations sysfs_bin_operations = {
-	.read		= kernfs_file_read,
-	.write		= kernfs_file_write,
-	.llseek		= generic_file_llseek,
-	.mmap		= kernfs_file_mmap,
-	.open		= sysfs_open_file,
-	.release	= sysfs_release,
-	.poll		= sysfs_poll,
+	.open		= kernfs_file_open,
+	.release	= kernfs_file_release,
+	.poll		= kernfs_file_poll,
 };
 
 int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
