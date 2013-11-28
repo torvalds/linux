@@ -214,5 +214,12 @@
 			reg = <0x022f0080 0x80>;
 			clocks = <&clkwdtimer0>;
 		};
+
+		clock_event: timer@22f0000 {
+			compatible = "ti,keystone-timer";
+			reg = <0x022f0000 0x80>;
+			interrupts = <GIC_SPI 110 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clktimer15>;
+		};
 	};
 };
