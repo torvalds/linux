@@ -41,7 +41,7 @@ struct sysfs_dirent sysfs_root = {
 	.s_ino		= 1,
 };
 
-static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
+static int sysfs_fill_super(struct super_block *sb)
 {
 	struct inode *inode;
 	struct dentry *root;
@@ -123,7 +123,7 @@ static struct dentry *sysfs_mount(struct file_system_type *fs_type,
 	if (IS_ERR(sb))
 		return ERR_CAST(sb);
 	if (!sb->s_root) {
-		error = sysfs_fill_super(sb, data, flags & MS_SILENT ? 1 : 0);
+		error = sysfs_fill_super(sb);
 		if (error) {
 			deactivate_locked_super(sb);
 			return ERR_PTR(error);
