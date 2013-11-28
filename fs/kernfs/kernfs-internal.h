@@ -134,6 +134,28 @@ struct sysfs_addrm_cxt {
 #include "../sysfs/sysfs.h"
 
 /*
+ * mount.c
+ */
+struct sysfs_super_info {
+	/*
+	 * The root associated with this super_block.  Each super_block is
+	 * identified by the root and ns it's associated with.
+	 */
+	struct kernfs_root	*root;
+
+	/*
+	 * Each sb is associated with one namespace tag, currently the network
+	 * namespace of the task which mounted this sysfs instance.  If multiple
+	 * tags become necessary, make the following an array and compare
+	 * sysfs_dirent tag against every entry.
+	 */
+	const void		*ns;
+};
+#define sysfs_info(SB) ((struct sysfs_super_info *)(SB->s_fs_info))
+
+extern struct kmem_cache *sysfs_dir_cachep;
+
+/*
  * inode.c
  */
 struct inode *sysfs_get_inode(struct super_block *sb, struct sysfs_dirent *sd);
