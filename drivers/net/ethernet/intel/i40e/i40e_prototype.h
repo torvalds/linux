@@ -61,7 +61,7 @@ void i40e_debug_aq(struct i40e_hw *hw,
 void i40e_idle_aq(struct i40e_hw *hw);
 
 u32 i40e_led_get(struct i40e_hw *hw);
-void i40e_led_set(struct i40e_hw *hw, u32 mode);
+void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink);
 
 /* admin send queue commands */
 

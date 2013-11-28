@@ -916,13 +916,13 @@ static int i40e_set_phys_id(struct net_device *netdev,
 		pf->led_status = i40e_led_get(hw);
 		return blink_freq;
 	case ETHTOOL_ID_ON:
-		i40e_led_set(hw, 0xF);
+		i40e_led_set(hw, 0xF, false);
 		break;
 	case ETHTOOL_ID_OFF:
-		i40e_led_set(hw, 0x0);
+		i40e_led_set(hw, 0x0, false);
 		break;
 	case ETHTOOL_ID_INACTIVE:
-		i40e_led_set(hw, pf->led_status);
+		i40e_led_set(hw, pf->led_status, false);
 		break;
 	}
 
