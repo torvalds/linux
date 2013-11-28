@@ -275,7 +275,7 @@ static void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode)
 		inode->i_fop = &sysfs_file_operations;
 		break;
 	case SYSFS_KOBJ_BIN_ATTR:
-		bin_attr = sd->s_attr.bin_attr;
+		bin_attr = sd->priv;
 		inode->i_size = bin_attr->size;
 		inode->i_fop = &sysfs_bin_operations;
 		break;

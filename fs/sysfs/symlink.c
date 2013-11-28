@@ -223,7 +223,7 @@ int sysfs_rename_link_ns(struct kobject *kobj, struct kobject *targ,
 	result = -EINVAL;
 	if (sysfs_type(sd) != SYSFS_KOBJ_LINK)
 		goto out;
-	if (sd->s_symlink.target_sd->s_dir.kobj != targ)
+	if (sd->s_symlink.target_sd->priv != targ)
 		goto out;
 
 	result = kernfs_rename_ns(sd, parent_sd, new, new_ns);

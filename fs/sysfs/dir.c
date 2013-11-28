@@ -681,7 +681,7 @@ static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
 		return -ENOMEM;
 
 	sd->s_ns = ns;
-	sd->s_dir.kobj = kobj;
+	sd->priv = kobj;
 
 	/* link in */
 	sysfs_addrm_start(&acxt);

@@ -17,8 +17,6 @@ struct sysfs_open_dirent;
 
 /* type-specific structures for sysfs_dirent->s_* union members */
 struct sysfs_elem_dir {
-	struct kobject		*kobj;
-
 	unsigned long		subdirs;
 	/* children rbtree starts here and goes through sd->s_rb */
 	struct rb_root		children;
@@ -29,10 +27,6 @@ struct sysfs_elem_symlink {
 };
 
 struct sysfs_elem_attr {
-	union {
-		struct attribute	*attr;
-		struct bin_attribute	*bin_attr;
-	};
 	struct sysfs_open_dirent *open;
 };
 
@@ -74,6 +68,8 @@ struct sysfs_dirent {
 		struct sysfs_elem_attr		s_attr;
 	};
 
+	void			*priv;
+
 	unsigned short		s_flags;
 	umode_t			s_mode;
 	unsigned int		s_ino;
@@ -103,7 +99,7 @@ static inline unsigned int sysfs_type(struct sysfs_dirent *sd)
 
 #define sysfs_dirent_init_lockdep(sd)				\
 do {								\
-	struct attribute *attr = sd->s_attr.attr;		\
+	struct attribute *attr = sd->priv;			\
 	struct lock_class_key *key = attr->key;			\
 	if (!key)						\
 		key = &attr->skey;				\
@@ -114,10 +110,11 @@ do {								\
 /* Test for attributes that want to ignore lockdep for read-locking */
 static inline bool sysfs_ignore_lockdep(struct sysfs_dirent *sd)
 {
+	struct attribute *attr = sd->priv;
 	int type = sysfs_type(sd);
 
 	return (type == SYSFS_KOBJ_ATTR || type == SYSFS_KOBJ_BIN_ATTR) &&
-		sd->s_attr.attr->ignore_lockdep;
+		attr->ignore_lockdep;
 }
 
 #else

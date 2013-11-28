@@ -74,7 +74,7 @@ static struct sysfs_open_file *sysfs_of(struct file *file)
  */
 static const struct sysfs_ops *sysfs_file_ops(struct sysfs_dirent *sd)
 {
-	struct kobject *kobj = sd->s_parent->s_dir.kobj;
+	struct kobject *kobj = sd->s_parent->priv;
 
 	if (!sysfs_ignore_lockdep(sd))
 		lockdep_assert_held(sd);
@@ -89,7 +89,7 @@ static const struct sysfs_ops *sysfs_file_ops(struct sysfs_dirent *sd)
 static int sysfs_seq_show(struct seq_file *sf, void *v)
 {
 	struct sysfs_open_file *of = sf->private;
-	struct kobject *kobj = of->sd->s_parent->s_dir.kobj;
+	struct kobject *kobj = of->sd->s_parent->priv;
 	const struct sysfs_ops *ops;
 	char *buf;
 	ssize_t count;
@@ -120,7 +120,7 @@ static int sysfs_seq_show(struct seq_file *sf, void *v)
 	 */
 	ops = sysfs_file_ops(of->sd);
 	if (ops->show)
-		count = ops->show(kobj, of->sd->s_attr.attr, buf);
+		count = ops->show(kobj, of->sd->priv, buf);
 	else
 		count = 0;
 
@@ -154,8 +154,8 @@ static ssize_t sysfs_bin_read(struct file *file, char __user *userbuf,
 			      size_t bytes, loff_t *off)
 {
 	struct sysfs_open_file *of = sysfs_of(file);
-	struct bin_attribute *battr = of->sd->s_attr.bin_attr;
-	struct kobject *kobj = of->sd->s_parent->s_dir.kobj;
+	struct bin_attribute *battr = of->sd->priv;
+	struct kobject *kobj = of->sd->s_parent->priv;
 	loff_t size = file_inode(file)->i_size;
 	int count = min_t(size_t, bytes, PAGE_SIZE);
 	loff_t offs = *off;
@@ -221,7 +221,7 @@ static ssize_t sysfs_bin_read(struct file *file, char __user *userbuf,
 static int flush_write_buffer(struct sysfs_open_file *of, char *buf, loff_t off,
 			      size_t count)
 {
-	struct kobject *kobj = of->sd->s_parent->s_dir.kobj;
+	struct kobject *kobj = of->sd->s_parent->priv;
 	int rc = 0;
 
 	/*
@@ -236,7 +236,7 @@ static int flush_write_buffer(struct sysfs_open_file *of, char *buf, loff_t off,
 	}
 
 	if (sysfs_is_bin(of->sd)) {
-		struct bin_attribute *battr = of->sd->s_attr.bin_attr;
+		struct bin_attribute *battr = of->sd->priv;
 
 		rc = -EIO;
 		if (battr->write)
@@ -245,7 +245,7 @@ static int flush_write_buffer(struct sysfs_open_file *of, char *buf, loff_t off,
 	} else {
 		const struct sysfs_ops *ops = sysfs_file_ops(of->sd);
 
-		rc = ops->store(kobj, of->sd->s_attr.attr, buf, count);
+		rc = ops->store(kobj, of->sd->priv, buf, count);
 	}
 
 	sysfs_put_active(of->sd);
@@ -466,8 +466,8 @@ static const struct vm_operations_struct sysfs_bin_vm_ops = {
 static int sysfs_bin_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct sysfs_open_file *of = sysfs_of(file);
-	struct bin_attribute *battr = of->sd->s_attr.bin_attr;
-	struct kobject *kobj = of->sd->s_parent->s_dir.kobj;
+	struct bin_attribute *battr = of->sd->priv;
+	struct kobject *kobj = of->sd->s_parent->priv;
 	int rc;
 
 	mutex_lock(&of->mutex);
@@ -607,7 +607,7 @@ static void sysfs_put_open_dirent(struct sysfs_dirent *sd,
 static int sysfs_open_file(struct inode *inode, struct file *file)
 {
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
-	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
+	struct kobject *kobj = attr_sd->s_parent->priv;
 	struct sysfs_open_file *of;
 	bool has_read, has_write, has_mmap;
 	int error = -EACCES;
@@ -617,7 +617,7 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 		return -ENODEV;
 
 	if (sysfs_is_bin(attr_sd)) {
-		struct bin_attribute *battr = attr_sd->s_attr.bin_attr;
+		struct bin_attribute *battr = attr_sd->priv;
 
 		has_read = battr->read || battr->mmap;
 		has_write = battr->write || battr->mmap;
@@ -848,7 +848,7 @@ int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 		return -ENOMEM;
 
 	sd->s_ns = ns;
-	sd->s_attr.attr = (void *)attr;
+	sd->priv = (void *)attr;
 	sysfs_dirent_init_lockdep(sd);
 
 	sysfs_addrm_start(&acxt);
