@@ -5300,18 +5300,17 @@ free_vsi:
  * i40e_vsi_clear_rings - Deallocates the Rx and Tx rings for the provided VSI
  * @vsi: the VSI being cleaned
  **/
-static s32 i40e_vsi_clear_rings(struct i40e_vsi *vsi)
+static void i40e_vsi_clear_rings(struct i40e_vsi *vsi)
 {
 	int i;
 
-	if (vsi->tx_rings[0])
+	if (vsi->tx_rings[0]) {
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
 			kfree_rcu(vsi->tx_rings[i], rcu);
 			vsi->tx_rings[i] = NULL;
 			vsi->rx_rings[i] = NULL;
 		}
-
-	return 0;
+	}
 }
 
 /**
