@@ -24,7 +24,6 @@
 #include "sysfs.h"
 
 
-static struct vfsmount *sysfs_mnt;
 struct kmem_cache *sysfs_dir_cachep;
 
 static const struct super_operations sysfs_ops = {
@@ -153,34 +152,26 @@ static struct file_system_type sysfs_fs_type = {
 
 int __init sysfs_init(void)
 {
-	int err = -ENOMEM;
+	int err;
 
 	sysfs_dir_cachep = kmem_cache_create("sysfs_dir_cache",
 					      sizeof(struct sysfs_dirent),
 					      0, 0, NULL);
 	if (!sysfs_dir_cachep)
-		goto out;
+		return -ENOMEM;
 
 	err = sysfs_inode_init();
 	if (err)
 		goto out_err;
 
 	err = register_filesystem(&sysfs_fs_type);
-	if (!err) {
-		sysfs_mnt = kern_mount(&sysfs_fs_type);
-		if (IS_ERR(sysfs_mnt)) {
-			printk(KERN_ERR "sysfs: could not mount!\n");
-			err = PTR_ERR(sysfs_mnt);
-			sysfs_mnt = NULL;
-			unregister_filesystem(&sysfs_fs_type);
-			goto out_err;
-		}
-	} else
+	if (err)
 		goto out_err;
-out:
-	return err;
+
+	return 0;
+
 out_err:
 	kmem_cache_destroy(sysfs_dir_cachep);
 	sysfs_dir_cachep = NULL;
-	goto out;
+	return err;
 }
