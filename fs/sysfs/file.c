@@ -146,6 +146,7 @@ static ssize_t sysfs_kf_bin_read(struct sysfs_open_file *of, char *buf,
 static void *kernfs_seq_start(struct seq_file *sf, loff_t *ppos)
 {
 	struct sysfs_open_file *of = sf->private;
+	const struct kernfs_ops *ops;
 
 	/*
 	 * @of->mutex nests outside active ref and is just to ensure that
@@ -155,26 +156,42 @@ static void *kernfs_seq_start(struct seq_file *sf, loff_t *ppos)
 	if (!sysfs_get_active(of->sd))
 		return ERR_PTR(-ENODEV);
 
-	/*
-	 * The same behavior and code as single_open().  Returns !NULL if
-	 * pos is at the beginning; otherwise, NULL.
-	 */
-	return NULL + !*ppos;
+	ops = kernfs_ops(of->sd);
+	if (ops->seq_start) {
+		return ops->seq_start(sf, ppos);
+	} else {
+		/*
+		 * The same behavior and code as single_open().  Returns
+		 * !NULL if pos is at the beginning; otherwise, NULL.
+		 */
+		return NULL + !*ppos;
+	}
 }
 
 static void *kernfs_seq_next(struct seq_file *sf, void *v, loff_t *ppos)
 {
-	/*
-	 * The same behavior and code as single_open(), always terminate
-	 * after the initial read.
-	 */
-	++*ppos;
-	return NULL;
+	struct sysfs_open_file *of = sf->private;
+	const struct kernfs_ops *ops = kernfs_ops(of->sd);
+
+	if (ops->seq_next) {
+		return ops->seq_next(sf, v, ppos);
+	} else {
+		/*
+		 * The same behavior and code as single_open(), always
+		 * terminate after the initial read.
+		 */
+		++*ppos;
+		return NULL;
+	}
 }
 
 static void kernfs_seq_stop(struct seq_file *sf, void *v)
 {
 	struct sysfs_open_file *of = sf->private;
+	const struct kernfs_ops *ops = kernfs_ops(of->sd);
+
+	if (ops->seq_stop)
+		ops->seq_stop(sf, v);
 
 	sysfs_put_active(of->sd);
 	mutex_unlock(&of->mutex);

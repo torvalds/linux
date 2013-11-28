@@ -37,14 +37,19 @@ struct kernfs_ops {
 	/*
 	 * Read is handled by either seq_file or raw_read().
 	 *
-	 * If seq_show() is present, seq_file path is active.  The behavior
-	 * is equivalent to single_open().  @sf->private points to the
+	 * If seq_show() is present, seq_file path is active.  Other seq
+	 * operations are optional and if not implemented, the behavior is
+	 * equivalent to single_open().  @sf->private points to the
 	 * associated sysfs_open_file.
 	 *
 	 * read() is bounced through kernel buffer and a read larger than
 	 * PAGE_SIZE results in partial operation of PAGE_SIZE.
 	 */
 	int (*seq_show)(struct seq_file *sf, void *v);
+
+	void *(*seq_start)(struct seq_file *sf, loff_t *ppos);
+	void *(*seq_next)(struct seq_file *sf, void *v, loff_t *ppos);
+	void (*seq_stop)(struct seq_file *sf, void *v);
 
 	ssize_t (*read)(struct sysfs_open_file *of, char *buf, size_t bytes,
 			loff_t off);
