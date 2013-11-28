@@ -2814,6 +2814,11 @@ static irqreturn_t i40e_intr(int irq, void *data)
 			pf->empr_count++;
 	}
 
+	if (icr0 & I40E_PFINT_ICR0_HMC_ERR_MASK) {
+		icr0 &= ~I40E_PFINT_ICR0_HMC_ERR_MASK;
+		dev_info(&pf->pdev->dev, "HMC error interrupt\n");
+	}
+
 	/* If a critical error is pending we have no choice but to reset the
 	 * device.
 	 * Report and mask out any remaining unexpected interrupts.
@@ -2822,18 +2827,13 @@ static irqreturn_t i40e_intr(int irq, void *data)
 	if (icr0_remaining) {
 		dev_info(&pf->pdev->dev, "unhandled interrupt icr0=0x%08x\n",
 			 icr0_remaining);
-		if ((icr0_remaining & I40E_PFINT_ICR0_HMC_ERR_MASK) ||
-		    (icr0_remaining & I40E_PFINT_ICR0_PE_CRITERR_MASK) ||
+		if ((icr0_remaining & I40E_PFINT_ICR0_PE_CRITERR_MASK) ||
 		    (icr0_remaining & I40E_PFINT_ICR0_PCI_EXCEPTION_MASK) ||
 		    (icr0_remaining & I40E_PFINT_ICR0_ECC_ERR_MASK) ||
 		    (icr0_remaining & I40E_PFINT_ICR0_MAL_DETECT_MASK)) {
-			if (icr0 & I40E_PFINT_ICR0_HMC_ERR_MASK) {
-				dev_info(&pf->pdev->dev, "HMC error interrupt\n");
-			} else {
-				dev_info(&pf->pdev->dev, "device will be reset\n");
-				set_bit(__I40E_PF_RESET_REQUESTED, &pf->state);
-				i40e_service_event_schedule(pf);
-			}
+			dev_info(&pf->pdev->dev, "device will be reset\n");
+			set_bit(__I40E_PF_RESET_REQUESTED, &pf->state);
+			i40e_service_event_schedule(pf);
 		}
 		ena_mask &= ~icr0_remaining;
 	}
