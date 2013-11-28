@@ -20,6 +20,11 @@ struct vm_area_struct;
 
 struct sysfs_dirent;
 
+struct kernfs_root {
+	/* published fields */
+	struct sysfs_dirent	*sd;
+};
+
 struct sysfs_open_file {
 	/* published fields */
 	struct sysfs_dirent	*sd;
@@ -76,6 +81,9 @@ struct sysfs_dirent *kernfs_find_and_get_ns(struct sysfs_dirent *parent,
 void kernfs_get(struct sysfs_dirent *sd);
 void kernfs_put(struct sysfs_dirent *sd);
 
+struct kernfs_root *kernfs_create_root(void *priv);
+void kernfs_destroy_root(struct kernfs_root *root);
+
 struct sysfs_dirent *kernfs_create_dir_ns(struct sysfs_dirent *parent,
 					  const char *name, void *priv,
 					  const void *ns);
@@ -106,6 +114,11 @@ kernfs_find_and_get_ns(struct sysfs_dirent *parent, const char *name,
 
 static inline void kernfs_get(struct sysfs_dirent *sd) { }
 static inline void kernfs_put(struct sysfs_dirent *sd) { }
+
+static inline struct kernfs_root *kernfs_create_root(void *priv)
+{ return ERR_PTR(-ENOSYS); }
+
+static inline void kernfs_destroy_root(struct kernfs_root *root) { }
 
 static inline struct sysfs_dirent *
 kernfs_create_dir_ns(struct sysfs_dirent *parent, const char *name, void *priv,

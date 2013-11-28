@@ -25,6 +25,12 @@ struct sysfs_elem_dir {
 	unsigned long		subdirs;
 	/* children rbtree starts here and goes through sd->s_rb */
 	struct rb_root		children;
+
+	/*
+	 * The kernfs hierarchy this directory belongs to.  This fits
+	 * better directly in sysfs_dirent but is here to save space.
+	 */
+	struct kernfs_root	*root;
 };
 
 struct sysfs_elem_symlink {
@@ -102,6 +108,20 @@ struct sysfs_dirent {
 static inline unsigned int sysfs_type(struct sysfs_dirent *sd)
 {
 	return sd->s_flags & SYSFS_TYPE_MASK;
+}
+
+/**
+ * kernfs_root - find out the kernfs_root a sysfs_dirent belongs to
+ * @sd: sysfs_dirent of interest
+ *
+ * Return the kernfs_root @sd belongs to.
+ */
+static inline struct kernfs_root *kernfs_root(struct sysfs_dirent *sd)
+{
+	/* if parent exists, it's always a dir; otherwise, @sd is a dir */
+	if (sd->s_parent)
+		sd = sd->s_parent;
+	return sd->s_dir.root;
 }
 
 /*

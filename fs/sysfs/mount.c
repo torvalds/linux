@@ -32,15 +32,8 @@ static const struct super_operations sysfs_ops = {
 	.evict_inode	= sysfs_evict_inode,
 };
 
-static struct sysfs_dirent sysfs_root = {
-	.s_name		= "",
-	.s_count	= ATOMIC_INIT(1),
-	.s_flags	= SYSFS_DIR,
-	.s_mode		= S_IFDIR | S_IRUGO | S_IXUGO,
-	.s_ino		= 1,
-};
-
-struct sysfs_dirent *sysfs_root_sd = &sysfs_root;
+static struct kernfs_root *sysfs_root;
+struct sysfs_dirent *sysfs_root_sd;
 
 static int sysfs_fill_super(struct super_block *sb)
 {
@@ -68,6 +61,7 @@ static int sysfs_fill_super(struct super_block *sb)
 		pr_debug("%s: could not get root dentry!\n", __func__);
 		return -ENOMEM;
 	}
+	kernfs_get(sysfs_root_sd);
 	root->d_fsdata = sysfs_root_sd;
 	sb->s_root = root;
 	sb->s_d_op = &sysfs_dentry_ops;
@@ -138,11 +132,15 @@ static struct dentry *sysfs_mount(struct file_system_type *fs_type,
 static void sysfs_kill_sb(struct super_block *sb)
 {
 	struct sysfs_super_info *info = sysfs_info(sb);
-	/* Remove the superblock from fs_supers/s_instances
+	struct sysfs_dirent *root_sd = sb->s_root->d_fsdata;
+
+	/*
+	 * Remove the superblock from fs_supers/s_instances
 	 * so we can't find it, before freeing sysfs_super_info.
 	 */
 	kill_anon_super(sb);
 	free_sysfs_super_info(info);
+	kernfs_put(root_sd);
 }
 
 static struct file_system_type sysfs_fs_type = {
@@ -166,12 +164,21 @@ int __init sysfs_init(void)
 	if (err)
 		goto out_err;
 
+	sysfs_root = kernfs_create_root(NULL);
+	if (IS_ERR(sysfs_root)) {
+		err = PTR_ERR(sysfs_root);
+		goto out_err;
+	}
+	sysfs_root_sd = sysfs_root->sd;
+
 	err = register_filesystem(&sysfs_fs_type);
 	if (err)
-		goto out_err;
+		goto out_destroy_root;
 
 	return 0;
 
+out_destroy_root:
+	kernfs_destroy_root(sysfs_root);
 out_err:
 	kmem_cache_destroy(sysfs_dir_cachep);
 	sysfs_dir_cachep = NULL;

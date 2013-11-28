@@ -211,7 +211,7 @@ static int sysfs_alloc_ino(unsigned int *pino)
 
  retry:
 	spin_lock(&sysfs_ino_lock);
-	rc = ida_get_new_above(&sysfs_ino_ida, 2, &ino);
+	rc = ida_get_new_above(&sysfs_ino_ida, 1, &ino);
 	spin_unlock(&sysfs_ino_lock);
 
 	if (rc == -EAGAIN) {
@@ -253,9 +253,11 @@ EXPORT_SYMBOL_GPL(kernfs_get);
 void kernfs_put(struct sysfs_dirent *sd)
 {
 	struct sysfs_dirent *parent_sd;
+	struct kernfs_root *root;
 
 	if (!sd || !atomic_dec_and_test(&sd->s_count))
 		return;
+	root = kernfs_root(sd);
  repeat:
 	/* Moving/renaming is always done while holding reference.
 	 * sd->s_parent won't change beneath us.
@@ -278,8 +280,13 @@ void kernfs_put(struct sysfs_dirent *sd)
 	kmem_cache_free(sysfs_dir_cachep, sd);
 
 	sd = parent_sd;
-	if (sd && atomic_dec_and_test(&sd->s_count))
-		goto repeat;
+	if (sd) {
+		if (atomic_dec_and_test(&sd->s_count))
+			goto repeat;
+	} else {
+		/* just released the root sd, free @root too */
+		kfree(root);
+	}
 }
 EXPORT_SYMBOL_GPL(kernfs_put);
 
@@ -493,13 +500,15 @@ static void sysfs_remove_one(struct sysfs_addrm_cxt *acxt,
 	if (sd->s_flags & SYSFS_FLAG_REMOVED)
 		return;
 
-	sysfs_unlink_sibling(sd);
+	if (sd->s_parent) {
+		sysfs_unlink_sibling(sd);
 
-	/* Update timestamps on the parent */
-	ps_iattr = sd->s_parent->s_iattr;
-	if (ps_iattr) {
-		struct iattr *ps_iattrs = &ps_iattr->ia_iattr;
-		ps_iattrs->ia_ctime = ps_iattrs->ia_mtime = CURRENT_TIME;
+		/* Update timestamps on the parent */
+		ps_iattr = sd->s_parent->s_iattr;
+		if (ps_iattr) {
+			ps_iattr->ia_iattr.ia_ctime = CURRENT_TIME;
+			ps_iattr->ia_iattr.ia_mtime = CURRENT_TIME;
+		}
 	}
 
 	sd->s_flags |= SYSFS_FLAG_REMOVED;
@@ -604,6 +613,49 @@ struct sysfs_dirent *kernfs_find_and_get_ns(struct sysfs_dirent *parent,
 EXPORT_SYMBOL_GPL(kernfs_find_and_get_ns);
 
 /**
+ * kernfs_create_root - create a new kernfs hierarchy
+ * @priv: opaque data associated with the new directory
+ *
+ * Returns the root of the new hierarchy on success, ERR_PTR() value on
+ * failure.
+ */
+struct kernfs_root *kernfs_create_root(void *priv)
+{
+	struct kernfs_root *root;
+	struct sysfs_dirent *sd;
+
+	root = kzalloc(sizeof(*root), GFP_KERNEL);
+	if (!root)
+		return ERR_PTR(-ENOMEM);
+
+	sd = sysfs_new_dirent("", S_IFDIR | S_IRUGO | S_IXUGO, SYSFS_DIR);
+	if (!sd) {
+		kfree(root);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	sd->s_flags &= ~SYSFS_FLAG_REMOVED;
+	sd->priv = priv;
+	sd->s_dir.root = root;
+
+	root->sd = sd;
+
+	return root;
+}
+
+/**
+ * kernfs_destroy_root - destroy a kernfs hierarchy
+ * @root: root of the hierarchy to destroy
+ *
+ * Destroy the hierarchy anchored at @root by removing all existing
+ * directories and destroying @root.
+ */
+void kernfs_destroy_root(struct kernfs_root *root)
+{
+	kernfs_remove(root->sd);	/* will also free @root */
+}
+
+/**
  * kernfs_create_dir_ns - create a directory
  * @parent: parent in which to create a new directory
  * @name: name of the new directory
@@ -626,6 +678,7 @@ struct sysfs_dirent *kernfs_create_dir_ns(struct sysfs_dirent *parent,
 	if (!sd)
 		return ERR_PTR(-ENOMEM);
 
+	sd->s_dir.root = parent->s_dir.root;
 	sd->s_ns = ns;
 	sd->priv = priv;
 
