@@ -2217,7 +2217,7 @@ struct btree_insert_op {
 	struct bkey	*replace_key;
 };
 
-int btree_insert_fn(struct btree_op *b_op, struct btree *b)
+static int btree_insert_fn(struct btree_op *b_op, struct btree *b)
 {
 	struct btree_insert_op *op = container_of(b_op,
 					struct btree_insert_op, op);
