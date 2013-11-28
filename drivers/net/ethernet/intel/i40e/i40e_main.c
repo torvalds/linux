@@ -7537,6 +7537,10 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pf->flags |= I40E_FLAG_NEED_LINK_UPDATE;
 	pf->link_check_timeout = jiffies;
 
+	/* WoL defaults to disabled */
+	pf->wol_en = false;
+	device_set_wakeup_enable(&pf->pdev->dev, pf->wol_en);
+
 	/* set up the main switch operations */
 	i40e_determine_queue_usage(pf);
 	i40e_init_interrupt_scheme(pf);
@@ -7858,6 +7862,7 @@ static void i40e_pci_error_resume(struct pci_dev *pdev)
 static void i40e_shutdown(struct pci_dev *pdev)
 {
 	struct i40e_pf *pf = pci_get_drvdata(pdev);
+	struct i40e_hw *hw = &pf->hw;
 
 	set_bit(__I40E_SUSPENDED, &pf->state);
 	set_bit(__I40E_DOWN, &pf->state);
@@ -7865,8 +7870,11 @@ static void i40e_shutdown(struct pci_dev *pdev)
 	i40e_prep_for_reset(pf);
 	rtnl_unlock();
 
+	wr32(hw, I40E_PFPM_APM, (pf->wol_en ? I40E_PFPM_APM_APME_MASK : 0));
+	wr32(hw, I40E_PFPM_WUFC, (pf->wol_en ? I40E_PFPM_WUFC_MAG_MASK : 0));
+
 	if (system_state == SYSTEM_POWER_OFF) {
-		pci_wake_from_d3(pdev, false);    /* No WoL support yet */
+		pci_wake_from_d3(pdev, pf->wol_en);
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
 }
@@ -7879,6 +7887,7 @@ static void i40e_shutdown(struct pci_dev *pdev)
 static int i40e_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct i40e_pf *pf = pci_get_drvdata(pdev);
+	struct i40e_hw *hw = &pf->hw;
 
 	set_bit(__I40E_SUSPENDED, &pf->state);
 	set_bit(__I40E_DOWN, &pf->state);
@@ -7886,7 +7895,10 @@ static int i40e_suspend(struct pci_dev *pdev, pm_message_t state)
 	i40e_prep_for_reset(pf);
 	rtnl_unlock();
 
-	pci_wake_from_d3(pdev, false);    /* No WoL support yet */
+	wr32(hw, I40E_PFPM_APM, (pf->wol_en ? I40E_PFPM_APM_APME_MASK : 0));
+	wr32(hw, I40E_PFPM_WUFC, (pf->wol_en ? I40E_PFPM_WUFC_MAG_MASK : 0));
+
+	pci_wake_from_d3(pdev, pf->wol_en);
 	pci_set_power_state(pdev, PCI_D3hot);
 
 	return 0;

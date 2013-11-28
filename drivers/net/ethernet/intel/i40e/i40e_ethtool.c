@@ -844,8 +844,45 @@ static void i40e_diag_test(struct net_device *netdev,
 static void i40e_get_wol(struct net_device *netdev,
 			 struct ethtool_wolinfo *wol)
 {
-	wol->supported = 0;
-	wol->wolopts = 0;
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_pf *pf = np->vsi->back;
+	struct i40e_hw *hw = &pf->hw;
+	u16 wol_nvm_bits;
+
+	/* NVM bit on means WoL disabled for the port */
+	i40e_read_nvm_word(hw, I40E_SR_NVM_WAKE_ON_LAN, &wol_nvm_bits);
+	if ((1 << hw->port) & wol_nvm_bits) {
+		wol->supported = 0;
+		wol->wolopts = 0;
+	} else {
+		wol->supported = WAKE_MAGIC;
+		wol->wolopts = (pf->wol_en ? WAKE_MAGIC : 0);
+	}
+}
+
+static int i40e_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_pf *pf = np->vsi->back;
+	struct i40e_hw *hw = &pf->hw;
+	u16 wol_nvm_bits;
+
+	/* NVM bit on means WoL disabled for the port */
+	i40e_read_nvm_word(hw, I40E_SR_NVM_WAKE_ON_LAN, &wol_nvm_bits);
+	if (((1 << hw->port) & wol_nvm_bits))
+		return -EOPNOTSUPP;
+
+	/* only magic packet is supported */
+	if (wol->wolopts && (wol->wolopts != WAKE_MAGIC))
+		return -EOPNOTSUPP;
+
+	/* is this a new value? */
+	if (pf->wol_en != !!wol->wolopts) {
+		pf->wol_en = !!wol->wolopts;
+		device_set_wakeup_enable(&pf->pdev->dev, pf->wol_en);
+	}
+
+	return 0;
 }
 
 static int i40e_nway_reset(struct net_device *netdev)
@@ -1568,6 +1605,7 @@ static const struct ethtool_ops i40e_ethtool_ops = {
 	.nway_reset		= i40e_nway_reset,
 	.get_link		= ethtool_op_get_link,
 	.get_wol		= i40e_get_wol,
+	.set_wol		= i40e_set_wol,
 	.get_eeprom_len		= i40e_get_eeprom_len,
 	.get_eeprom		= i40e_get_eeprom,
 	.get_ringparam		= i40e_get_ringparam,

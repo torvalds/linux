@@ -205,6 +205,7 @@ struct i40e_pf {
 	u16 rss_size_max;          /* HW defined max RSS queues */
 	u16 fdir_pf_filter_count;  /* num of guaranteed filters for this PF */
 	u8 atr_sample_rate;
+	bool wol_en;
 
 	enum i40e_interrupt_policy int_policy;
 	u16 rx_itr_default;
