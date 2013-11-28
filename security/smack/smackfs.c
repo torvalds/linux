@@ -301,7 +301,8 @@ static int smk_perm_from_str(const char *string)
  * @import: if non-zero, import labels
  * @len: label length limit
  *
- * Returns 0 on success, -1 on failure
+ * Returns 0 on success, -EINVAL on failure and -ENOENT when either subject
+ * or object is missing.
  */
 static int smk_fill_rule(const char *subject, const char *object,
 				const char *access1, const char *access2,
@@ -314,28 +315,28 @@ static int smk_fill_rule(const char *subject, const char *object,
 	if (import) {
 		rule->smk_subject = smk_import_entry(subject, len);
 		if (rule->smk_subject == NULL)
-			return -1;
+			return -EINVAL;
 
 		rule->smk_object = smk_import(object, len);
 		if (rule->smk_object == NULL)
-			return -1;
+			return -EINVAL;
 	} else {
 		cp = smk_parse_smack(subject, len);
 		if (cp == NULL)
-			return -1;
+			return -EINVAL;
 		skp = smk_find_entry(cp);
 		kfree(cp);
 		if (skp == NULL)
-			return -1;
+			return -ENOENT;
 		rule->smk_subject = skp;
 
 		cp = smk_parse_smack(object, len);
 		if (cp == NULL)
-			return -1;
+			return -EINVAL;
 		skp = smk_find_entry(cp);
 		kfree(cp);
 		if (skp == NULL)
-			return -1;
+			return -ENOENT;
 		rule->smk_object = skp->smk_known;
 	}
 
@@ -381,6 +382,7 @@ static ssize_t smk_parse_long_rule(char *data, struct smack_parsed_rule *rule,
 {
 	ssize_t cnt = 0;
 	char *tok[4];
+	int rc;
 	int i;
 
 	/*
@@ -405,10 +407,8 @@ static ssize_t smk_parse_long_rule(char *data, struct smack_parsed_rule *rule,
 	while (i < 4)
 		tok[i++] = NULL;
 
-	if (smk_fill_rule(tok[0], tok[1], tok[2], tok[3], rule, import, 0))
-		return -1;
-
-	return cnt;
+	rc = smk_fill_rule(tok[0], tok[1], tok[2], tok[3], rule, import, 0);
+	return rc == 0 ? cnt : rc;
 }
 
 #define SMK_FIXED24_FMT	0	/* Fixed 24byte label format */
@@ -1856,11 +1856,12 @@ static ssize_t smk_user_access(struct file *file, const char __user *buf,
 		res = smk_parse_long_rule(data, &rule, 0, 3);
 	}
 
-	if (res < 0)
+	if (res >= 0)
+		res = smk_access(rule.smk_subject, rule.smk_object,
+				 rule.smk_access1, NULL);
+	else if (res != -ENOENT)
 		return -EINVAL;
 
-	res = smk_access(rule.smk_subject, rule.smk_object,
-				rule.smk_access1, NULL);
 	data[0] = res == 0 ? '1' : '0';
 	data[1] = '\0';
 
