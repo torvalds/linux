@@ -112,7 +112,7 @@ int padata_do_parallel(struct padata_instance *pinst,
 
 	rcu_read_lock_bh();
 
-	pd = rcu_dereference(pinst->pd);
+	pd = rcu_dereference_bh(pinst->pd);
 
 	err = -EINVAL;
 	if (!(pinst->flags & PADATA_INIT) || pinst->flags & PADATA_INVALID)
