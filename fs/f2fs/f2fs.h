@@ -792,7 +792,7 @@ static inline unsigned int valid_inode_count(struct f2fs_sb_info *sbi)
 
 static inline void f2fs_put_page(struct page *page, int unlock)
 {
-	if (!page || IS_ERR(page))
+	if (!page)
 		return;
 
 	if (unlock) {

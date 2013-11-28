@@ -664,8 +664,6 @@ static void do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 
 	/* read segment summary of victim */
 	sum_page = get_sum_page(sbi, segno);
-	if (IS_ERR(sum_page))
-		return;
 
 	blk_start_plug(&plug);
 
