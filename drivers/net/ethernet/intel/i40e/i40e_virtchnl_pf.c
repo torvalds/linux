@@ -726,7 +726,9 @@ static bool i40e_vfs_are_assigned(struct i40e_pf *pf)
  **/
 void i40e_free_vfs(struct i40e_pf *pf)
 {
-	int i, tmp;
+	struct i40e_hw *hw = &pf->hw;
+	u32 reg_idx, bit_idx;
+	int i, tmp, vf_id;
 
 	if (!pf->vf)
 		return;
@@ -748,8 +750,17 @@ void i40e_free_vfs(struct i40e_pf *pf)
 	kfree(pf->vf);
 	pf->vf = NULL;
 
-	if (!i40e_vfs_are_assigned(pf))
+	if (!i40e_vfs_are_assigned(pf)) {
 		pci_disable_sriov(pf->pdev);
+		/* Acknowledge VFLR for all VFS. Without this, VFs will fail to
+		 * work correctly when SR-IOV gets re-enabled.
+		 */
+		for (vf_id = 0; vf_id < tmp; vf_id++) {
+			reg_idx = (hw->func_caps.vf_base_id + vf_id) / 32;
+			bit_idx = (hw->func_caps.vf_base_id + vf_id) % 32;
+			wr32(hw, I40E_GLGEN_VFLRSTAT(reg_idx), (1 << bit_idx));
+		}
+	}
 	else
 		dev_warn(&pf->pdev->dev,
 			 "unable to disable SR-IOV because VFs are assigned.\n");
