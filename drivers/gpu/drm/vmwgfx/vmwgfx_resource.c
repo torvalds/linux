@@ -352,11 +352,50 @@ int vmw_user_lookup_handle(struct vmw_private *dev_priv,
 /**
  * Buffer management.
  */
+
+/**
+ * vmw_dmabuf_acc_size - Calculate the pinned memory usage of buffers
+ *
+ * @dev_priv: Pointer to a struct vmw_private identifying the device.
+ * @size: The requested buffer size.
+ * @user: Whether this is an ordinary dma buffer or a user dma buffer.
+ */
+static size_t vmw_dmabuf_acc_size(struct vmw_private *dev_priv, size_t size,
+				  bool user)
+{
+	static size_t struct_size, user_struct_size;
+	size_t num_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	size_t page_array_size = ttm_round_pot(num_pages * sizeof(void *));
+
+	if (unlikely(struct_size == 0)) {
+		size_t backend_size = ttm_round_pot(vmw_tt_size);
+
+		struct_size = backend_size +
+			ttm_round_pot(sizeof(struct vmw_dma_buffer));
+		user_struct_size = backend_size +
+			ttm_round_pot(sizeof(struct vmw_user_dma_buffer));
+	}
+
+	if (dev_priv->map_mode == vmw_dma_alloc_coherent)
+		page_array_size +=
+			ttm_round_pot(num_pages * sizeof(dma_addr_t));
+
+	return ((user) ? user_struct_size : struct_size) +
+		page_array_size;
+}
+
 void vmw_dmabuf_bo_free(struct ttm_buffer_object *bo)
 {
 	struct vmw_dma_buffer *vmw_bo = vmw_dma_buffer(bo);
 
 	kfree(vmw_bo);
+}
+
+static void vmw_user_dmabuf_destroy(struct ttm_buffer_object *bo)
+{
+	struct vmw_user_dma_buffer *vmw_user_bo = vmw_user_dma_buffer(bo);
+
+	ttm_prime_object_kfree(vmw_user_bo, prime);
 }
 
 int vmw_dmabuf_init(struct vmw_private *dev_priv,
@@ -368,26 +407,21 @@ int vmw_dmabuf_init(struct vmw_private *dev_priv,
 	struct ttm_bo_device *bdev = &dev_priv->bdev;
 	size_t acc_size;
 	int ret;
+	bool user = (bo_free == &vmw_user_dmabuf_destroy);
 
-	BUG_ON(!bo_free);
+	BUG_ON(!bo_free && (!user && (bo_free != vmw_dmabuf_bo_free)));
 
-	acc_size = ttm_bo_acc_size(bdev, size, sizeof(struct vmw_dma_buffer));
+	acc_size = vmw_dmabuf_acc_size(dev_priv, size, user);
 	memset(vmw_bo, 0, sizeof(*vmw_bo));
 
 	INIT_LIST_HEAD(&vmw_bo->res_list);
 
 	ret = ttm_bo_init(bdev, &vmw_bo->base, size,
-			  ttm_bo_type_device, placement,
+			  (user) ? ttm_bo_type_device :
+			  ttm_bo_type_kernel, placement,
 			  0, interruptible,
 			  NULL, acc_size, NULL, bo_free);
 	return ret;
-}
-
-static void vmw_user_dmabuf_destroy(struct ttm_buffer_object *bo)
-{
-	struct vmw_user_dma_buffer *vmw_user_bo = vmw_user_dma_buffer(bo);
-
-	ttm_prime_object_kfree(vmw_user_bo, prime);
 }
 
 static void vmw_user_dmabuf_release(struct ttm_base_object **p_base)
