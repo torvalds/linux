@@ -912,14 +912,11 @@ static const struct kernfs_ops sysfs_bin_kfops_rw = {
 
 int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 			   const struct attribute *attr, bool is_bin,
-			   umode_t amode, const void *ns)
+			   umode_t mode, const void *ns)
 {
-	umode_t mode = (amode & S_IALLUGO) | S_IFREG;
 	const struct kernfs_ops *ops;
-	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent *sd;
 	loff_t size;
-	int rc;
 
 	if (!is_bin) {
 		struct kobject *kobj = dir_sd->priv;
@@ -956,14 +953,47 @@ int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 		size = battr->size;
 	}
 
-	sd = sysfs_new_dirent(attr->name, mode, SYSFS_KOBJ_ATTR);
+	sd = kernfs_create_file_ns(dir_sd, attr->name, mode, size,
+				   ops, (void *)attr, ns);
+	if (IS_ERR(sd)) {
+		if (PTR_ERR(sd) == -EEXIST)
+			sysfs_warn_dup(dir_sd, attr->name);
+		return PTR_ERR(sd);
+	}
+	return 0;
+}
+
+/**
+ * kernfs_create_file_ns - create a file
+ * @parent: directory to create the file in
+ * @name: name of the file
+ * @mode: mode of the file
+ * @size: size of the file
+ * @ops: kernfs operations for the file
+ * @priv: private data for the file
+ * @ns: optional namespace tag of the file
+ *
+ * Returns the created node on success, ERR_PTR() value on error.
+ */
+struct sysfs_dirent *kernfs_create_file_ns(struct sysfs_dirent *parent,
+					   const char *name,
+					   umode_t mode, loff_t size,
+					   const struct kernfs_ops *ops,
+					   void *priv, const void *ns)
+{
+	struct sysfs_addrm_cxt acxt;
+	struct sysfs_dirent *sd;
+	int rc;
+
+	sd = sysfs_new_dirent(name, (mode & S_IALLUGO) | S_IFREG,
+			      SYSFS_KOBJ_ATTR);
 	if (!sd)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	sd->s_attr.ops = ops;
 	sd->s_attr.size = size;
 	sd->s_ns = ns;
-	sd->priv = (void *)attr;
+	sd->priv = priv;
 	sysfs_dirent_init_lockdep(sd);
 
 	/*
@@ -977,13 +1007,14 @@ int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 		sd->s_flags |= SYSFS_FLAG_HAS_MMAP;
 
 	sysfs_addrm_start(&acxt);
-	rc = sysfs_add_one(&acxt, sd, dir_sd);
+	rc = __sysfs_add_one(&acxt, sd, parent);
 	sysfs_addrm_finish(&acxt);
 
-	if (rc)
+	if (rc) {
 		sysfs_put(sd);
-
-	return rc;
+		return ERR_PTR(rc);
+	}
+	return sd;
 }
 
 int sysfs_add_file(struct sysfs_dirent *dir_sd, const struct attribute *attr,

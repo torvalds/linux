@@ -64,6 +64,11 @@ struct kernfs_ops {
 struct sysfs_dirent *kernfs_create_dir_ns(struct sysfs_dirent *parent,
 					  const char *name, void *priv,
 					  const void *ns);
+struct sysfs_dirent *kernfs_create_file_ns(struct sysfs_dirent *parent,
+					   const char *name,
+					   umode_t mode, loff_t size,
+					   const struct kernfs_ops *ops,
+					   void *priv, const void *ns);
 struct sysfs_dirent *kernfs_create_link(struct sysfs_dirent *parent,
 					const char *name,
 					struct sysfs_dirent *target);
@@ -80,6 +85,12 @@ int kernfs_setattr(struct sysfs_dirent *sd, const struct iattr *iattr);
 static inline struct sysfs_dirent *
 kernfs_create_dir_ns(struct sysfs_dirent *parent, const char *name, void *priv,
 		     const void *ns)
+{ return ERR_PTR(-ENOSYS); }
+
+static inline struct sysfs_dirent *
+kernfs_create_file_ns(struct sysfs_dirent *parent, const char *name,
+		      umode_t mode, loff_t size, const struct kernfs_ops *ops,
+		      void *priv, const void *ns)
 { return ERR_PTR(-ENOSYS); }
 
 static inline struct sysfs_dirent *
@@ -110,6 +121,13 @@ static inline struct sysfs_dirent *
 kernfs_create_dir(struct sysfs_dirent *parent, const char *name, void *priv)
 {
 	return kernfs_create_dir_ns(parent, name, priv, NULL);
+}
+
+static inline struct sysfs_dirent *
+kernfs_create_file(struct sysfs_dirent *parent, const char *name, umode_t mode,
+		   loff_t size, const struct kernfs_ops *ops, void *priv)
+{
+	return kernfs_create_file_ns(parent, name, mode, size, ops, priv, NULL);
 }
 
 static inline int kernfs_remove_by_name(struct sysfs_dirent *parent,
