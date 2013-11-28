@@ -10109,10 +10109,13 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 		intel_crtc->lut_b[i] = i;
 	}
 
-	/* Swap pipes & planes for FBC on pre-965 */
+	/*
+	 * On gen2/3 only plane A can do fbc, but the panel fitter and lvds port
+	 * is hooked to plane B. Hence we want plane A feeding pipe B.
+	 */
 	intel_crtc->pipe = pipe;
 	intel_crtc->plane = pipe;
-	if (IS_MOBILE(dev) && IS_GEN3(dev)) {
+	if (IS_MOBILE(dev) && INTEL_INFO(dev)->gen < 4) {
 		DRM_DEBUG_KMS("swapping pipes & planes for FBC\n");
 		intel_crtc->plane = !pipe;
 	}
