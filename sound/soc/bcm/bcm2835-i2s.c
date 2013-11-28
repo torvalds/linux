@@ -848,7 +848,7 @@ static int bcm2835_i2s_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
+	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register PCM: %d\n", ret);
 		return ret;
@@ -862,15 +862,8 @@ static const struct of_device_id bcm2835_i2s_of_match[] = {
 	{},
 };
 
-static int bcm2835_i2s_remove(struct platform_device *pdev)
-{
-	snd_dmaengine_pcm_unregister(&pdev->dev);
-	return 0;
-}
-
 static struct platform_driver bcm2835_i2s_driver = {
 	.probe		= bcm2835_i2s_probe,
-	.remove		= bcm2835_i2s_remove,
 	.driver		= {
 		.name	= "bcm2835-i2s",
 		.owner	= THIS_MODULE,
