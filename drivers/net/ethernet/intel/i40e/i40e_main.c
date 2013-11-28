@@ -3153,7 +3153,8 @@ static void i40e_vsi_free_irq(struct i40e_vsi *vsi)
 			u16 vector = i + base;
 
 			/* free only the irqs that were actually requested */
-			if (vsi->q_vectors[i]->num_ringpairs == 0)
+			if (!vsi->q_vectors[i] ||
+			    !vsi->q_vectors[i]->num_ringpairs)
 				continue;
 
 			/* clear the affinity_mask in the IRQ descriptor */
