@@ -691,7 +691,7 @@ static u32 rs_get_lower_rate(struct iwl_lq_sta *lq_sta,
 			rate->ant =
 			    first_antenna(iwl_fw_valid_tx_ant(mvm->fw));
 
-		rate->bw = 0;
+		rate->bw = RATE_MCS_CHAN_WIDTH_20;
 		rate->sgi = false;
 	}
 
