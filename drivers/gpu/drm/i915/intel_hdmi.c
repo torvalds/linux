@@ -853,8 +853,9 @@ static int hdmi_portclock_limit(struct intel_hdmi *hdmi)
 		return 225000;
 }
 
-static int intel_hdmi_mode_valid(struct drm_connector *connector,
-				 struct drm_display_mode *mode)
+static enum drm_mode_status
+intel_hdmi_mode_valid(struct drm_connector *connector,
+		      struct drm_display_mode *mode)
 {
 	if (mode->clock > hdmi_portclock_limit(intel_attached_hdmi(connector)))
 		return MODE_CLOCK_HIGH;

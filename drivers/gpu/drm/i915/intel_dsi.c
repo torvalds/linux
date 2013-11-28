@@ -251,8 +251,9 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 	/* XXX: read flags, set to adjusted_mode */
 }
 
-static int intel_dsi_mode_valid(struct drm_connector *connector,
-				struct drm_display_mode *mode)
+static enum drm_mode_status
+intel_dsi_mode_valid(struct drm_connector *connector,
+		     struct drm_display_mode *mode)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
