@@ -152,16 +152,14 @@ unsigned long convert_unit(unsigned long value, char *unit)
 	return value;
 }
 
-/*
- * Read exactly 'n' bytes or return an error.
- */
-ssize_t readn(int fd, void *buf, size_t n)
+static ssize_t ion(bool is_read, int fd, void *buf, size_t n)
 {
 	void *buf_start = buf;
 	size_t left = n;
 
 	while (left) {
-		ssize_t ret = read(fd, buf, left);
+		ssize_t ret = is_read ? read(fd, buf, left) :
+					write(fd, buf, left);
 
 		if (ret <= 0)
 			return ret;
@@ -172,6 +170,22 @@ ssize_t readn(int fd, void *buf, size_t n)
 
 	BUG_ON((size_t)(buf - buf_start) != n);
 	return n;
+}
+
+/*
+ * Read exactly 'n' bytes or return an error.
+ */
+ssize_t readn(int fd, void *buf, size_t n)
+{
+	return ion(true, fd, buf, n);
+}
+
+/*
+ * Write exactly 'n' bytes or return an error.
+ */
+ssize_t writen(int fd, void *buf, size_t n)
+{
+	return ion(false, fd, buf, n);
 }
 
 size_t hex_width(u64 v)
