@@ -306,7 +306,8 @@ void acpi_pci_remove_bus(struct pci_bus *bus)
 static int acpi_pci_find_device(struct device *dev, acpi_handle *handle)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	bool is_bridge;
+	struct acpi_device *adev;
+	bool check_children;
 	u64 addr;
 
 	/*
@@ -314,14 +315,17 @@ static int acpi_pci_find_device(struct device *dev, acpi_handle *handle)
 	 * is set only after acpi_pci_find_device() has been called for the
 	 * given device.
 	 */
-	is_bridge = pci_dev->hdr_type == PCI_HEADER_TYPE_BRIDGE
+	check_children = pci_dev->hdr_type == PCI_HEADER_TYPE_BRIDGE
 			|| pci_dev->hdr_type == PCI_HEADER_TYPE_CARDBUS;
 	/* Please ref to ACPI spec for the syntax of _ADR */
 	addr = (PCI_SLOT(pci_dev->devfn) << 16) | PCI_FUNC(pci_dev->devfn);
-	*handle = acpi_find_child(ACPI_HANDLE(dev->parent), addr, is_bridge);
-	if (!*handle)
-		return -ENODEV;
-	return 0;
+	adev = acpi_find_child_device(ACPI_COMPANION(dev->parent), addr,
+				      check_children);
+	if (adev) {
+		*handle = adev->handle;
+		return 0;
+	}
+	return -ENODEV;
 }
 
 static void pci_acpi_setup(struct device *dev)

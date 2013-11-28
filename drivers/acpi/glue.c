@@ -106,6 +106,9 @@ struct acpi_device *acpi_find_child_device(struct acpi_device *parent,
 	struct acpi_device *adev, *ret = NULL;
 	int ret_score = 0;
 
+	if (!parent)
+		return NULL;
+
 	list_for_each_entry(adev, &parent->children, node) {
 		unsigned long long addr;
 		acpi_status status;
