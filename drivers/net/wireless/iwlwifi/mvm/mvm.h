@@ -488,6 +488,7 @@ struct iwl_mvm {
 	/* Scan status, cmd (pre-allocated) and auxiliary station */
 	enum iwl_scan_status scan_status;
 	struct iwl_scan_cmd *scan_cmd;
+	struct iwl_mcast_filter_cmd *mcast_filter_cmd;
 
 	/* rx chain antennas set through debugfs for the scan command */
 	u8 scan_rx_ant;

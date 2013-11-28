@@ -1134,6 +1134,7 @@ struct iwl_set_calib_default_cmd {
 } __packed; /* PHY_CALIB_OVERRIDE_VALUES_S */
 
 #define MAX_PORT_ID_NUM	2
+#define MAX_MCAST_FILTERING_ADDRESSES 256
 
 /**
  * struct iwl_mcast_filter_cmd - configure multicast filter.
