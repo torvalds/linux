@@ -47,17 +47,6 @@ struct sysfs_open_dirent {
 	struct list_head	files; /* goes through sysfs_open_file.list */
 };
 
-struct sysfs_open_file {
-	struct sysfs_dirent	*sd;
-	struct file		*file;
-	struct mutex		mutex;
-	int			event;
-	struct list_head	list;
-
-	bool			mmapped;
-	const struct vm_operations_struct *vm_ops;
-};
-
 static bool sysfs_is_bin(struct sysfs_dirent *sd)
 {
 	return sysfs_type(sd) == SYSFS_KOBJ_BIN_ATTR;

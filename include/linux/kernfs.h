@@ -9,11 +9,29 @@
 
 #include <linux/kernel.h>
 #include <linux/err.h>
+#include <linux/list.h>
+#include <linux/mutex.h>
 
 struct file;
 struct iattr;
+struct seq_file;
+struct vm_area_struct;
 
 struct sysfs_dirent;
+
+struct sysfs_open_file {
+	/* published fields */
+	struct sysfs_dirent	*sd;
+	struct file		*file;
+
+	/* private fields, do not use outside kernfs proper */
+	struct mutex		mutex;
+	int			event;
+	struct list_head	list;
+
+	bool			mmapped;
+	const struct vm_operations_struct *vm_ops;
+};
 
 #ifdef CONFIG_SYSFS
 
