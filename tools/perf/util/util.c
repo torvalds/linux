@@ -151,12 +151,12 @@ unsigned long convert_unit(unsigned long value, char *unit)
 	return value;
 }
 
-int readn(int fd, void *buf, size_t n)
+ssize_t readn(int fd, void *buf, size_t n)
 {
 	void *buf_start = buf;
 
 	while (n) {
-		int ret = read(fd, buf, n);
+		ssize_t ret = read(fd, buf, n);
 
 		if (ret <= 0)
 			return ret;
