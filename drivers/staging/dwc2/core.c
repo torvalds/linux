@@ -2510,7 +2510,7 @@ void dwc2_set_param_otg_ver(struct dwc2_hsotg *hsotg, int val)
 	hsotg->core_params->otg_ver = val;
 }
 
-void dwc2_set_param_uframe_sched(struct dwc2_hsotg *hsotg, int val)
+static void dwc2_set_param_uframe_sched(struct dwc2_hsotg *hsotg, int val)
 {
 	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
 		if (val >= 0) {
