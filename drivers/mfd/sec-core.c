@@ -134,12 +134,12 @@ static bool s5m8763_volatile(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct regmap_config sec_regmap_config = {
+static const struct regmap_config sec_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };
 
-static struct regmap_config s2mps11_regmap_config = {
+static const struct regmap_config s2mps11_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
@@ -148,7 +148,7 @@ static struct regmap_config s2mps11_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
-static struct regmap_config s5m8763_regmap_config = {
+static const struct regmap_config s5m8763_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
@@ -157,7 +157,7 @@ static struct regmap_config s5m8763_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
-static struct regmap_config s5m8767_regmap_config = {
+static const struct regmap_config s5m8767_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
