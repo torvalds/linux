@@ -60,6 +60,8 @@
 &cspi1 {
 	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio4 28 1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_cspi1>;
 	status = "okay";
 };
 
@@ -67,17 +69,23 @@
 	fsl,spi-num-chipselects = <3>;
 	cs-gpios = <&gpio4 21 1>, <&gpio4 27 1>,
 			<&gpio2 17 1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_cspi2>;
 	status = "okay";
 };
 
 &fb {
 	display = <&display>;
 	fsl,dmacr = <0x00020010>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_imxfb1>;
 	status = "okay";
 };
 
 &i2c1 {
 	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
 	rtc@68 {
@@ -87,11 +95,92 @@
 };
 
 &i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
+};
+
+&iomuxc {
+	imx27-apf27dev {
+		pinctrl_cspi1: cspi1grp {
+			fsl,pins = <
+				MX27_PAD_CSPI1_MISO__CSPI1_MISO 0x0
+				MX27_PAD_CSPI1_MOSI__CSPI1_MOSI 0x0
+				MX27_PAD_CSPI1_SCLK__CSPI1_SCLK 0x0
+			>;
+		};
+
+		pinctrl_cspi2: cspi2grp {
+			fsl,pins = <
+				MX27_PAD_CSPI2_MISO__CSPI2_MISO 0x0
+				MX27_PAD_CSPI2_MOSI__CSPI2_MOSI 0x0
+				MX27_PAD_CSPI2_SCLK__CSPI2_SCLK 0x0
+			>;
+		};
+
+		pinctrl_imxfb1: imxfbgrp {
+			fsl,pins = <
+				MX27_PAD_CLS__CLS 0x0
+				MX27_PAD_CONTRAST__CONTRAST 0x0
+				MX27_PAD_LD0__LD0 0x0
+				MX27_PAD_LD1__LD1 0x0
+				MX27_PAD_LD2__LD2 0x0
+				MX27_PAD_LD3__LD3 0x0
+				MX27_PAD_LD4__LD4 0x0
+				MX27_PAD_LD5__LD5 0x0
+				MX27_PAD_LD6__LD6 0x0
+				MX27_PAD_LD7__LD7 0x0
+				MX27_PAD_LD8__LD8 0x0
+				MX27_PAD_LD9__LD9 0x0
+				MX27_PAD_LD10__LD10 0x0
+				MX27_PAD_LD11__LD11 0x0
+				MX27_PAD_LD12__LD12 0x0
+				MX27_PAD_LD13__LD13 0x0
+				MX27_PAD_LD14__LD14 0x0
+				MX27_PAD_LD15__LD15 0x0
+				MX27_PAD_LD16__LD16 0x0
+				MX27_PAD_LD17__LD17 0x0
+				MX27_PAD_LSCLK__LSCLK 0x0
+				MX27_PAD_OE_ACD__OE_ACD 0x0
+				MX27_PAD_PS__PS 0x0
+				MX27_PAD_REV__REV 0x0
+				MX27_PAD_SPL_SPR__SPL_SPR 0x0
+				MX27_PAD_HSYNC__HSYNC 0x0
+				MX27_PAD_VSYNC__VSYNC 0x0
+			>;
+		};
+
+		pinctrl_i2c1: i2c1grp {
+			fsl,pins = <
+				MX27_PAD_I2C_DATA__I2C_DATA 0x0
+				MX27_PAD_I2C_CLK__I2C_CLK 0x0
+			>;
+		};
+
+		pinctrl_i2c2: i2c2grp {
+			fsl,pins = <
+				MX27_PAD_I2C2_SDA__I2C2_SDA 0x0
+				MX27_PAD_I2C2_SCL__I2C2_SCL 0x0
+			>;
+		};
+
+		pinctrl_sdhc2: sdhc2grp {
+			fsl,pins = <
+				MX27_PAD_SD2_CLK__SD2_CLK 0x0
+				MX27_PAD_SD2_CMD__SD2_CMD 0x0
+				MX27_PAD_SD2_D0__SD2_D0 0x0
+				MX27_PAD_SD2_D1__SD2_D1 0x0
+				MX27_PAD_SD2_D2__SD2_D2 0x0
+				MX27_PAD_SD2_D3__SD2_D3 0x0
+			>;
+		};
+	};
 };
 
 &sdhci2 {
 	bus-width = <4>;
 	cd-gpios = <&gpio3 14 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sdhc2>;
 	status = "okay";
 };
