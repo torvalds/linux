@@ -369,7 +369,6 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 {
 	struct i40e_mac_filter *f = NULL;
 	struct i40e_pf *pf = vf->pf;
-	struct i40e_hw *hw = &pf->hw;
 	struct i40e_vsi *vsi;
 	int ret = 0;
 
@@ -383,6 +382,7 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 		goto error_alloc_vsi_res;
 	}
 	if (type == I40E_VSI_SRIOV) {
+		u8 brdcast[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 		vf->lan_vsi_index = vsi->idx;
 		vf->lan_vsi_id = vsi->id;
 		dev_info(&pf->pdev->dev,
@@ -398,6 +398,14 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 			i40e_vsi_add_pvid(vsi, vf->port_vlan_id);
 		f = i40e_add_filter(vsi, vf->default_lan_addr.addr,
 				    vf->port_vlan_id, true, false);
+		if (!f)
+			dev_info(&pf->pdev->dev,
+				 "Could not allocate VF MAC addr\n");
+		f = i40e_add_filter(vsi, brdcast, vf->port_vlan_id,
+				    true, false);
+		if (!f)
+			dev_info(&pf->pdev->dev,
+				 "Could not allocate VF broadcast filter\n");
 	}
 
 	if (!f) {
@@ -411,15 +419,6 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 	if (ret) {
 		dev_err(&pf->pdev->dev, "Unable to program ucast filters\n");
 		goto error_alloc_vsi_res;
-	}
-
-	/* accept bcast pkts. by default */
-	ret = i40e_aq_set_vsi_broadcast(hw, vsi->seid, true, NULL);
-	if (ret) {
-		dev_err(&pf->pdev->dev,
-			"set vsi bcast failed for vf %d, vsi %d, aq_err %d\n",
-			vf->vf_id, vsi->idx, pf->hw.aq.asq_last_status);
-		ret = -EINVAL;
 	}
 
 error_alloc_vsi_res:

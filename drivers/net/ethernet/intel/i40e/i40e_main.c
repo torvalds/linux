@@ -1650,6 +1650,13 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 			dev_info(&pf->pdev->dev,
 				 "set uni promisc failed, err %d, aq_err %d\n",
 				 aq_ret, pf->hw.aq.asq_last_status);
+		aq_ret = i40e_aq_set_vsi_broadcast(&vsi->back->hw,
+						   vsi->seid,
+						   cur_promisc, NULL);
+		if (aq_ret)
+			dev_info(&pf->pdev->dev,
+				 "set brdcast promisc failed, err %d, aq_err %d\n",
+				 aq_ret, pf->hw.aq.asq_last_status);
 	}
 
 	clear_bit(__I40E_CONFIG_BUSY, &vsi->state);
@@ -3987,13 +3994,6 @@ static int i40e_open(struct net_device *netdev)
 	if (err)
 		goto err_up_complete;
 
-	if ((vsi->type == I40E_VSI_MAIN) || (vsi->type == I40E_VSI_VMDQ2)) {
-		err = i40e_aq_set_vsi_broadcast(&pf->hw, vsi->seid, true, NULL);
-		if (err)
-			netdev_info(netdev,
-				    "couldn't set broadcast err %d aq_err %d\n",
-				    err, pf->hw.aq.asq_last_status);
-	}
 #ifdef CONFIG_I40E_VXLAN
 	vxlan_get_rx_port(netdev);
 #endif
@@ -6067,6 +6067,7 @@ static const struct net_device_ops i40e_netdev_ops = {
  **/
 static int i40e_config_netdev(struct i40e_vsi *vsi)
 {
+	u8 brdcast[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_netdev_priv *np;
@@ -6116,6 +6117,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 		random_ether_addr(mac_addr);
 		i40e_add_filter(vsi, mac_addr, I40E_VLAN_ANY, false, false);
 	}
+	i40e_add_filter(vsi, brdcast, I40E_VLAN_ANY, false, false);
 
 	memcpy(netdev->dev_addr, mac_addr, ETH_ALEN);
 	memcpy(netdev->perm_addr, mac_addr, ETH_ALEN);
