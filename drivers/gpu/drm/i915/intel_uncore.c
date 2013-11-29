@@ -150,6 +150,13 @@ static int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 {
 	int ret = 0;
 
+	/* On VLV, FIFO will be shared by both SW and HW.
+	 * So, we need to read the FREE_ENTRIES everytime */
+	if (IS_VALLEYVIEW(dev_priv->dev))
+		dev_priv->uncore.fifo_count =
+			__raw_i915_read32(dev_priv, GTFIFOCTL) &
+						GT_FIFO_FREE_ENTRIES_MASK;
+
 	if (dev_priv->uncore.fifo_count < GT_FIFO_NUM_RESERVED_ENTRIES) {
 		int loop = 500;
 		u32 fifo = __raw_i915_read32(dev_priv, GTFIFOCTL) & GT_FIFO_FREE_ENTRIES_MASK;
