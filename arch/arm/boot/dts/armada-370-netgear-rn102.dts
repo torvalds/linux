@@ -64,6 +64,7 @@
 					marvell,pins = "mpp57";
 					marvell,function = "gpio";
 				};
+
 				sata1_led_pin: sata1-led-pin {
 					marvell,pins = "mpp15";
 					marvell,function = "gpio";
