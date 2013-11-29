@@ -1048,8 +1048,6 @@ int brcmf_attach(struct device *dev)
 	/* attach firmware event handler */
 	brcmf_fweh_attach(drvr);
 
-	INIT_LIST_HEAD(&drvr->bus_if->dcmd_list);
-
 	return ret;
 
 fail:
@@ -1204,6 +1202,14 @@ void brcmf_detach(struct device *dev)
 	brcmf_debugfs_detach(drvr);
 	bus_if->drvr = NULL;
 	kfree(drvr);
+}
+
+s32 brcmf_iovar_data_set(struct device *dev, char *name, void *data, u32 len)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_if *ifp = bus_if->drvr->iflist[0];
+
+	return brcmf_fil_iovar_data_set(ifp, name, data, len);
 }
 
 static int brcmf_get_pend_8021x_cnt(struct brcmf_if *ifp)

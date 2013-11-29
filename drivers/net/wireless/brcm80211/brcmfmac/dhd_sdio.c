@@ -3425,6 +3425,35 @@ brcmf_sdbrcm_download_firmware(struct brcmf_sdio *bus)
 	return ret;
 }
 
+static int brcmf_sdbrcm_bus_preinit(struct device *dev)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
+	struct brcmf_sdio *bus = sdiodev->bus;
+	u32 value;
+	u8 idx;
+	int err;
+
+	/* sdio bus core specific dcmd */
+	idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
+	if (bus->ci->c_inf[idx].rev < 12) {
+		/* for sdio core rev < 12, disable txgloming */
+		value = 0;
+		err = brcmf_iovar_data_set(dev, "bus:txglom", &value,
+					   sizeof(u32));
+	} else {
+		/* otherwise, set txglomalign */
+		value = 4;
+		if (sdiodev->pdata)
+			value = sdiodev->pdata->sd_sgentry_align;
+		/* SDIO ADMA requires at least 32 bit alignment */
+		value = max_t(u32, value, 4);
+		err = brcmf_iovar_data_set(dev, "bus:txglomalign", &value,
+					   sizeof(u32));
+	}
+	return err;
+}
+
 static int brcmf_sdbrcm_bus_init(struct device *dev)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
@@ -3905,6 +3934,7 @@ static void brcmf_sdbrcm_release(struct brcmf_sdio *bus)
 
 static struct brcmf_bus_ops brcmf_sdio_bus_ops = {
 	.stop = brcmf_sdbrcm_bus_stop,
+	.preinit = brcmf_sdbrcm_bus_preinit,
 	.init = brcmf_sdbrcm_bus_init,
 	.txdata = brcmf_sdbrcm_bus_txdata,
 	.txctl = brcmf_sdbrcm_bus_txctl,
@@ -3916,10 +3946,6 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 {
 	int ret;
 	struct brcmf_sdio *bus;
-	struct brcmf_bus_dcmd *dlst;
-	u32 dngl_txglom;
-	u32 txglomalign = 0;
-	u8 idx;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -4002,30 +4028,6 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 
 	brcmf_sdio_debugfs_create(bus);
 	brcmf_dbg(INFO, "completed!!\n");
-
-	/* sdio bus core specific dcmd */
-	idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
-	dlst = kzalloc(sizeof(struct brcmf_bus_dcmd), GFP_KERNEL);
-	if (dlst) {
-		if (bus->ci->c_inf[idx].rev < 12) {
-			/* for sdio core rev < 12, disable txgloming */
-			dngl_txglom = 0;
-			dlst->name = "bus:txglom";
-			dlst->param = (char *)&dngl_txglom;
-			dlst->param_len = sizeof(u32);
-		} else {
-			/* otherwise, set txglomalign */
-			if (sdiodev->pdata)
-				txglomalign = sdiodev->pdata->sd_sgentry_align;
-			/* SDIO ADMA requires at least 32 bit alignment */
-			if (txglomalign < 4)
-				txglomalign = 4;
-			dlst->name = "bus:txglomalign";
-			dlst->param = (char *)&txglomalign;
-			dlst->param_len = sizeof(u32);
-		}
-		list_add(&dlst->list, &bus->sdiodev->bus_if->dcmd_list);
-	}
 
 	brcmf_bus_add_txhdrlen(bus->sdiodev->dev, bus->tx_hdrlen);
 

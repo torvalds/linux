@@ -257,8 +257,6 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	u8 buf[BRCMF_DCMD_SMLEN];
 	char *ptr;
 	s32 err;
-	struct brcmf_bus_dcmd *cmdlst;
-	struct list_head *cur, *q;
 
 	/* retreive mac address */
 	err = brcmf_fil_iovar_data_get(ifp, "cur_etheraddr", ifp->mac_addr,
@@ -342,17 +340,8 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	brcmf_c_pktfilter_offload_enable(ifp, BRCMF_DEFAULT_PACKET_FILTER,
 					 0, true);
 
-	/* set bus specific command if there is any */
-	list_for_each_safe(cur, q, &ifp->drvr->bus_if->dcmd_list) {
-		cmdlst = list_entry(cur, struct brcmf_bus_dcmd, list);
-		if (cmdlst->name && cmdlst->param && cmdlst->param_len) {
-			brcmf_fil_iovar_data_set(ifp, cmdlst->name,
-						 cmdlst->param,
-						 cmdlst->param_len);
-		}
-		list_del(cur);
-		kfree(cmdlst);
-	}
+	/* do bus specific preinit here */
+	err = brcmf_bus_preinit(ifp->drvr->bus_if);
 done:
 	return err;
 }
