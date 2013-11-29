@@ -1513,7 +1513,7 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 
 	if (wait_for((I915_READ(DPLL(0)) & port_mask) == 0, 1000))
 		WARN(1, "timed out waiting for port %c ready: 0x%08x\n",
-		     'B' + dport->port, I915_READ(DPLL(0)));
+		     port_name(dport->port), I915_READ(DPLL(0)));
 }
 
 /**
