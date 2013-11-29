@@ -535,7 +535,7 @@ struct brcmf_fws_info; /* firmware signalling info */
 struct brcmf_pub {
 	/* Linkage ponters */
 	struct brcmf_bus *bus_if;
-	struct brcmf_proto *prot;
+	struct brcmf_proto *proto;
 	struct brcmf_cfg80211_info *config;
 
 	/* Internal brcmf items */
@@ -634,28 +634,6 @@ int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 
 /* Return pointer to interface name */
 char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
-
-/* Linkage, sets prot link and updates hdrlen in pub */
-int brcmf_proto_attach(struct brcmf_pub *drvr);
-
-/* Unlink, frees allocated protocol memory (including brcmf_proto) */
-void brcmf_proto_detach(struct brcmf_pub *drvr);
-
-/* Add any protocol-specific data header.
- * Caller must reserve prot_hdrlen prepend space.
- */
-void brcmf_proto_hdrpush(struct brcmf_pub *, int ifidx, u8 offset,
-			 struct sk_buff *txp);
-
-/* Query dongle */
-int brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
-			       void *buf, uint len);
-int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
-			     void *buf, uint len);
-
-/* Remove any protocol-specific data header. */
-int brcmf_proto_hdrpull(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
-			struct sk_buff *rxp);
 
 int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked);
 struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,

@@ -35,6 +35,7 @@
 #include "fwsignal.h"
 #include "p2p.h"
 #include "wl_cfg80211.h"
+#include "proto.h"
 
 /**
  * DOC: Firmware Signalling

@@ -28,6 +28,7 @@ brcmfmac-objs += \
 		fweh.o \
 		fwsignal.o \
 		p2p.o \
+		proto.o \
 		bcdc.o \
 		dhd_common.o \
 		dhd_linux.o \

@@ -30,6 +30,8 @@
 #include "fwsignal.h"
 #include "dhd_dbg.h"
 #include "tracepoint.h"
+#include "proto.h"
+#include "bcdc.h"
 
 struct brcmf_proto_cdc_dcmd {
 	__le32 cmd;	/* dongle command value */
@@ -104,7 +106,7 @@ struct brcmf_proto_bdc_header {
 				 * Currently is SDIO
 				 */
 
-struct brcmf_proto {
+struct brcmf_bcdc {
 	u16 reqid;
 	u8 bus_header[BUS_HEADER_LEN];
 	struct brcmf_proto_cdc_dcmd msg;
@@ -113,8 +115,8 @@ struct brcmf_proto {
 
 static int brcmf_proto_cdc_msg(struct brcmf_pub *drvr)
 {
-	struct brcmf_proto *prot = drvr->prot;
-	int len = le32_to_cpu(prot->msg.len) +
+	struct brcmf_bcdc *bcdc = (struct brcmf_bcdc *)drvr->proto->pd;
+	int len = le32_to_cpu(bcdc->msg.len) +
 			sizeof(struct brcmf_proto_cdc_dcmd);
 
 	brcmf_dbg(CDC, "Enter\n");
@@ -127,32 +129,32 @@ static int brcmf_proto_cdc_msg(struct brcmf_pub *drvr)
 		len = CDC_MAX_MSG_SIZE;
 
 	/* Send request */
-	return brcmf_bus_txctl(drvr->bus_if, (unsigned char *)&prot->msg, len);
+	return brcmf_bus_txctl(drvr->bus_if, (unsigned char *)&bcdc->msg, len);
 }
 
 static int brcmf_proto_cdc_cmplt(struct brcmf_pub *drvr, u32 id, u32 len)
 {
 	int ret;
-	struct brcmf_proto *prot = drvr->prot;
+	struct brcmf_bcdc *bcdc = (struct brcmf_bcdc *)drvr->proto->pd;
 
 	brcmf_dbg(CDC, "Enter\n");
 	len += sizeof(struct brcmf_proto_cdc_dcmd);
 	do {
-		ret = brcmf_bus_rxctl(drvr->bus_if, (unsigned char *)&prot->msg,
+		ret = brcmf_bus_rxctl(drvr->bus_if, (unsigned char *)&bcdc->msg,
 				      len);
 		if (ret < 0)
 			break;
-	} while (CDC_DCMD_ID(le32_to_cpu(prot->msg.flags)) != id);
+	} while (CDC_DCMD_ID(le32_to_cpu(bcdc->msg.flags)) != id);
 
 	return ret;
 }
 
-int
-brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
-			       void *buf, uint len)
+static int
+brcmf_proto_bcdc_query_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
+			    void *buf, uint len)
 {
-	struct brcmf_proto *prot = drvr->prot;
-	struct brcmf_proto_cdc_dcmd *msg = &prot->msg;
+	struct brcmf_bcdc *bcdc = (struct brcmf_bcdc *)drvr->proto->pd;
+	struct brcmf_proto_cdc_dcmd *msg = &bcdc->msg;
 	void *info;
 	int ret = 0, retries = 0;
 	u32 id, flags;
@@ -163,13 +165,13 @@ brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 
 	msg->cmd = cpu_to_le32(cmd);
 	msg->len = cpu_to_le32(len);
-	flags = (++prot->reqid << CDC_DCMD_ID_SHIFT);
+	flags = (++bcdc->reqid << CDC_DCMD_ID_SHIFT);
 	flags = (flags & ~CDC_DCMD_IF_MASK) |
 		(ifidx << CDC_DCMD_IF_SHIFT);
 	msg->flags = cpu_to_le32(flags);
 
 	if (buf)
-		memcpy(prot->buf, buf, len);
+		memcpy(bcdc->buf, buf, len);
 
 	ret = brcmf_proto_cdc_msg(drvr);
 	if (ret < 0) {
@@ -180,18 +182,18 @@ brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 
 retry:
 	/* wait for interrupt and get first fragment */
-	ret = brcmf_proto_cdc_cmplt(drvr, prot->reqid, len);
+	ret = brcmf_proto_cdc_cmplt(drvr, bcdc->reqid, len);
 	if (ret < 0)
 		goto done;
 
 	flags = le32_to_cpu(msg->flags);
 	id = (flags & CDC_DCMD_ID_MASK) >> CDC_DCMD_ID_SHIFT;
 
-	if ((id < prot->reqid) && (++retries < RETRIES))
+	if ((id < bcdc->reqid) && (++retries < RETRIES))
 		goto retry;
-	if (id != prot->reqid) {
+	if (id != bcdc->reqid) {
 		brcmf_err("%s: unexpected request id %d (expected %d)\n",
-			  brcmf_ifname(drvr, ifidx), id, prot->reqid);
+			  brcmf_ifname(drvr, ifidx), id, bcdc->reqid);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -214,11 +216,12 @@ done:
 	return ret;
 }
 
-int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
-				 void *buf, uint len)
+static int
+brcmf_proto_bcdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
+			  void *buf, uint len)
 {
-	struct brcmf_proto *prot = drvr->prot;
-	struct brcmf_proto_cdc_dcmd *msg = &prot->msg;
+	struct brcmf_bcdc *bcdc = (struct brcmf_bcdc *)drvr->proto->pd;
+	struct brcmf_proto_cdc_dcmd *msg = &bcdc->msg;
 	int ret = 0;
 	u32 flags, id;
 
@@ -228,28 +231,28 @@ int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 
 	msg->cmd = cpu_to_le32(cmd);
 	msg->len = cpu_to_le32(len);
-	flags = (++prot->reqid << CDC_DCMD_ID_SHIFT) | CDC_DCMD_SET;
+	flags = (++bcdc->reqid << CDC_DCMD_ID_SHIFT) | CDC_DCMD_SET;
 	flags = (flags & ~CDC_DCMD_IF_MASK) |
 		(ifidx << CDC_DCMD_IF_SHIFT);
 	msg->flags = cpu_to_le32(flags);
 
 	if (buf)
-		memcpy(prot->buf, buf, len);
+		memcpy(bcdc->buf, buf, len);
 
 	ret = brcmf_proto_cdc_msg(drvr);
 	if (ret < 0)
 		goto done;
 
-	ret = brcmf_proto_cdc_cmplt(drvr, prot->reqid, len);
+	ret = brcmf_proto_cdc_cmplt(drvr, bcdc->reqid, len);
 	if (ret < 0)
 		goto done;
 
 	flags = le32_to_cpu(msg->flags);
 	id = (flags & CDC_DCMD_ID_MASK) >> CDC_DCMD_ID_SHIFT;
 
-	if (id != prot->reqid) {
+	if (id != bcdc->reqid) {
 		brcmf_err("%s: unexpected request id %d (expected %d)\n",
-			  brcmf_ifname(drvr, ifidx), id, prot->reqid);
+			  brcmf_ifname(drvr, ifidx), id, bcdc->reqid);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -272,7 +275,8 @@ static void pkt_set_sum_good(struct sk_buff *skb, bool x)
 	skb->ip_summed = (x ? CHECKSUM_UNNECESSARY : CHECKSUM_NONE);
 }
 
-void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx, u8 offset,
+static void
+brcmf_proto_bcdc_hdrpush(struct brcmf_pub *drvr, int ifidx, u8 offset,
 			 struct sk_buff *pktbuf)
 {
 	struct brcmf_proto_bdc_header *h;
@@ -295,8 +299,9 @@ void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx, u8 offset,
 	trace_brcmf_bdchdr(pktbuf->data);
 }
 
-int brcmf_proto_hdrpull(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
-			struct sk_buff *pktbuf)
+static int
+brcmf_proto_bcdc_hdrpull(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
+			 struct sk_buff *pktbuf)
 {
 	struct brcmf_proto_bdc_header *h;
 
@@ -353,34 +358,38 @@ int brcmf_proto_hdrpull(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
 	return 0;
 }
 
-int brcmf_proto_attach(struct brcmf_pub *drvr)
+int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr)
 {
-	struct brcmf_proto *cdc;
+	struct brcmf_bcdc *bcdc;
 
-	cdc = kzalloc(sizeof(struct brcmf_proto), GFP_ATOMIC);
-	if (!cdc)
+	bcdc = kzalloc(sizeof(*bcdc), GFP_ATOMIC);
+	if (!bcdc)
 		goto fail;
 
 	/* ensure that the msg buf directly follows the cdc msg struct */
-	if ((unsigned long)(&cdc->msg + 1) != (unsigned long)cdc->buf) {
-		brcmf_err("struct brcmf_proto is not correctly defined\n");
+	if ((unsigned long)(&bcdc->msg + 1) != (unsigned long)bcdc->buf) {
+		brcmf_err("struct brcmf_proto_bcdc is not correctly defined\n");
 		goto fail;
 	}
 
-	drvr->prot = cdc;
+	drvr->proto->hdrpush = brcmf_proto_bcdc_hdrpush;
+	drvr->proto->hdrpull = brcmf_proto_bcdc_hdrpull;
+	drvr->proto->query_dcmd = brcmf_proto_bcdc_query_dcmd;
+	drvr->proto->set_dcmd = brcmf_proto_bcdc_set_dcmd;
+	drvr->proto->pd = bcdc;
+
 	drvr->hdrlen += BDC_HEADER_LEN + BRCMF_PROT_FW_SIGNAL_MAX_TXBYTES;
 	drvr->bus_if->maxctl = BRCMF_DCMD_MAXLEN +
 			sizeof(struct brcmf_proto_cdc_dcmd) + ROUND_UP_MARGIN;
 	return 0;
 
 fail:
-	kfree(cdc);
+	kfree(bcdc);
 	return -ENOMEM;
 }
 
-/* ~NOTE~ What if another thread is waiting on the semaphore?  Holding it? */
-void brcmf_proto_detach(struct brcmf_pub *drvr)
+void brcmf_proto_bcdc_detach(struct brcmf_pub *drvr)
 {
-	kfree(drvr->prot);
-	drvr->prot = NULL;
+	kfree(drvr->proto->pd);
+	drvr->proto->pd = NULL;
 }

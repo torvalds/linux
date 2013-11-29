@@ -30,6 +30,7 @@
 #include "wl_cfg80211.h"
 #include "fwil.h"
 #include "fwsignal.h"
+#include "proto.h"
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11 wireless LAN fullmac driver.");
@@ -1040,8 +1041,7 @@ void brcmf_detach(struct device *dev)
 
 	brcmf_bus_detach(drvr);
 
-	if (drvr->prot)
-		brcmf_proto_detach(drvr);
+	brcmf_proto_detach(drvr);
 
 	brcmf_fws_deinit(drvr);
 
