@@ -241,7 +241,7 @@ static void read_dirty(struct cached_dev *dc)
 		if (KEY_START(&w->key) != dc->last_read ||
 		    jiffies_to_msecs(delay) > 50)
 			while (!kthread_should_stop() && delay)
-				delay = schedule_timeout_interruptible(delay);
+				delay = schedule_timeout_uninterruptible(delay);
 
 		dc->last_read	= KEY_OFFSET(&w->key);
 
@@ -438,7 +438,7 @@ static int bch_writeback_thread(void *arg)
 			while (delay &&
 			       !kthread_should_stop() &&
 			       !test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags))
-				delay = schedule_timeout_interruptible(delay);
+				delay = schedule_timeout_uninterruptible(delay);
 		}
 	}
 
