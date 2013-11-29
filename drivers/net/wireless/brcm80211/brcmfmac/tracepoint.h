@@ -89,7 +89,7 @@ TRACE_EVENT(brcmf_hexdump,
 	TP_printk("hexdump [addr=%lx, length=%lu]", __entry->addr, __entry->len)
 );
 
-TRACE_EVENT(brcmf_bdchdr,
+TRACE_EVENT(brcmf_bcdchdr,
 	TP_PROTO(void *data),
 	TP_ARGS(data),
 	TP_STRUCT__entry(
@@ -107,7 +107,7 @@ TRACE_EVENT(brcmf_bdchdr,
 		memcpy(__get_dynamic_array(signal),
 		       (u8 *)data + 4, __entry->siglen);
 	),
-	TP_printk("bdc: prio=%d siglen=%d", __entry->prio, __entry->siglen)
+	TP_printk("bcdc: prio=%d siglen=%d", __entry->prio, __entry->siglen)
 );
 
 #ifndef SDPCM_RX
