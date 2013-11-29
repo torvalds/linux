@@ -769,7 +769,6 @@ static int brcmf_netdev_open(struct net_device *ndev)
 	struct brcmf_pub *drvr = ifp->drvr;
 	struct brcmf_bus *bus_if = drvr->bus_if;
 	u32 toe_ol;
-	s32 ret = 0;
 
 	brcmf_dbg(TRACE, "Enter, idx=%d\n", ifp->bssidx);
 
@@ -788,14 +787,14 @@ static int brcmf_netdev_open(struct net_device *ndev)
 	else
 		ndev->features &= ~NETIF_F_IP_CSUM;
 
-	/* Allow transmit calls */
-	netif_start_queue(ndev);
 	if (brcmf_cfg80211_up(ndev)) {
 		brcmf_err("failed to bring up cfg80211\n");
-		return -1;
+		return -EIO;
 	}
 
-	return ret;
+	/* Allow transmit calls */
+	netif_start_queue(ndev);
+	return 0;
 }
 
 static const struct net_device_ops brcmf_netdev_ops_pri = {
