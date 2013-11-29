@@ -115,6 +115,33 @@ void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
 				  mask, data);
 }
 
+static int rsnd_gen_regmap_init(struct rsnd_priv *priv,
+				struct rsnd_gen  *gen,
+				struct reg_field *regf)
+{
+	int i;
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct regmap_config regc;
+
+	memset(&regc, 0, sizeof(regc));
+	regc.reg_bits = 32;
+	regc.val_bits = 32;
+
+	gen->regmap = devm_regmap_init(dev, &rsnd_regmap_bus, priv, &regc);
+	if (IS_ERR(gen->regmap)) {
+		dev_err(dev, "regmap error %ld\n", PTR_ERR(gen->regmap));
+		return PTR_ERR(gen->regmap);
+	}
+
+	for (i = 0; i < RSND_REG_MAX; i++) {
+		gen->regs[i] = devm_regmap_field_alloc(dev, gen->regmap, regf[i]);
+		if (IS_ERR(gen->regs[i]))
+			return PTR_ERR(gen->regs[i]);
+
+	}
+
+	return 0;
+}
 /*
  *		Gen2
  *		will be filled in the future
@@ -189,9 +216,6 @@ static int rsnd_gen1_path_exit(struct rsnd_priv *priv,
 
 static int rsnd_gen1_regmap_init(struct rsnd_priv *priv, struct rsnd_gen *gen)
 {
-	int i;
-	struct device *dev = rsnd_priv_to_dev(priv);
-	struct regmap_config regc;
 	struct reg_field regf[RSND_REG_MAX] = {
 		RSND_GEN1_S_REG(gen, SRU,	SRC_ROUTE_SEL,	0x00),
 		RSND_GEN1_S_REG(gen, SRU,	SRC_TMG_SEL0,	0x08),
@@ -216,24 +240,7 @@ static int rsnd_gen1_regmap_init(struct rsnd_priv *priv, struct rsnd_gen *gen)
 		RSND_GEN1_M_REG(gen, SSI,	SSIWSR,		0x20,	0x40),
 	};
 
-	memset(&regc, 0, sizeof(regc));
-	regc.reg_bits = 32;
-	regc.val_bits = 32;
-
-	gen->regmap = devm_regmap_init(dev, &rsnd_regmap_bus, priv, &regc);
-	if (IS_ERR(gen->regmap)) {
-		dev_err(dev, "regmap error %ld\n", PTR_ERR(gen->regmap));
-		return PTR_ERR(gen->regmap);
-	}
-
-	for (i = 0; i < RSND_REG_MAX; i++) {
-		gen->regs[i] = devm_regmap_field_alloc(dev, gen->regmap, regf[i]);
-		if (IS_ERR(gen->regs[i]))
-			return PTR_ERR(gen->regs[i]);
-
-	}
-
-	return 0;
+	return rsnd_gen_regmap_init(priv, gen, regf);
 }
 
 static int rsnd_gen1_probe(struct platform_device *pdev,
