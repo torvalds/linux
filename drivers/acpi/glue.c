@@ -37,7 +37,7 @@ int register_acpi_bus_type(struct acpi_bus_type *type)
 {
 	if (acpi_disabled)
 		return -ENODEV;
-	if (type && type->match && type->find_device) {
+	if (type && type->match && type->find_companion) {
 		down_write(&bus_type_sem);
 		list_add_tail(&type->list, &bus_type_list);
 		up_write(&bus_type_sem);
@@ -302,17 +302,19 @@ EXPORT_SYMBOL_GPL(acpi_unbind_one);
 static int acpi_platform_notify(struct device *dev)
 {
 	struct acpi_bus_type *type = acpi_get_bus_type(dev);
-	acpi_handle handle;
 	int ret;
 
 	ret = acpi_bind_one(dev, NULL);
 	if (ret && type) {
-		ret = type->find_device(dev, &handle);
-		if (ret) {
+		struct acpi_device *adev;
+
+		adev = type->find_companion(dev);
+		if (!adev) {
 			DBG("Unable to get handle for %s\n", dev_name(dev));
+			ret = -ENODEV;
 			goto out;
 		}
-		ret = acpi_bind_one(dev, handle);
+		ret = acpi_bind_one(dev, adev->handle);
 		if (ret)
 			goto out;
 	}

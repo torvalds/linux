@@ -412,7 +412,7 @@ struct acpi_bus_type {
 	struct list_head list;
 	const char *name;
 	bool (*match)(struct device *dev);
-	int (*find_device) (struct device *, acpi_handle *);
+	struct acpi_device * (*find_companion)(struct device *);
 	void (*setup)(struct device *);
 	void (*cleanup)(struct device *);
 };
