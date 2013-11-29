@@ -156,10 +156,21 @@ int brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
 		}
 	}
 
-	if (err_ret)
-		brcmf_err("Failed to %s byte F%d:@0x%05x=%02x, Err: %d\n",
-			  rw ? "write" : "read", func, regaddr, *byte, err_ret);
-
+	if (err_ret) {
+		/*
+		 * SleepCSR register access can fail when
+		 * waking up the device so reduce this noise
+		 * in the logs.
+		 */
+		if (regaddr != SBSDIO_FUNC1_SLEEPCSR)
+			brcmf_err("Failed to %s byte F%d:@0x%05x=%02x, Err: %d\n",
+				  rw ? "write" : "read", func, regaddr, *byte,
+				  err_ret);
+		else
+			brcmf_dbg(SDIO, "Failed to %s byte F%d:@0x%05x=%02x, Err: %d\n",
+				  rw ? "write" : "read", func, regaddr, *byte,
+				  err_ret);
+	}
 	return err_ret;
 }
 
