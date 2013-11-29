@@ -345,10 +345,10 @@ static int dw_msi_setup_irq(struct msi_chip *chip, struct pci_dev *pdev,
 	if (irq < 0)
 		return irq;
 
-	msg_ctr &= ~PCI_MSI_FLAGS_QSIZE;
-	msg_ctr |= msgvec << 4;
-	pci_write_config_word(pdev, desc->msi_attrib.pos + PCI_MSI_FLAGS,
-				msg_ctr);
+	/*
+	 * write_msi_msg() will update PCI_MSI_FLAGS so there is
+	 * no need to explicitly call pci_write_config_word().
+	 */
 	desc->msi_attrib.multiple = msgvec;
 
 	msg.address_lo = virt_to_phys((void *)pp->msi_data);
