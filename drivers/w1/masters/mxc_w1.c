@@ -46,7 +46,6 @@
 
 struct mxc_w1_device {
 	void __iomem *regs;
-	unsigned int clkdiv;
 	struct clk *clk;
 	struct w1_bus_master bus_master;
 };
@@ -107,6 +106,7 @@ static int mxc_w1_probe(struct platform_device *pdev)
 {
 	struct mxc_w1_device *mdev;
 	struct resource *res;
+	unsigned int clkdiv;
 	int err = 0;
 
 	mdev = devm_kzalloc(&pdev->dev, sizeof(struct mxc_w1_device),
@@ -118,7 +118,7 @@ static int mxc_w1_probe(struct platform_device *pdev)
 	if (IS_ERR(mdev->clk))
 		return PTR_ERR(mdev->clk);
 
-	mdev->clkdiv = (clk_get_rate(mdev->clk) / 1000000) - 1;
+	clkdiv = (clk_get_rate(mdev->clk) / 1000000) - 1;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mdev->regs = devm_ioremap_resource(&pdev->dev, res);
@@ -126,7 +126,7 @@ static int mxc_w1_probe(struct platform_device *pdev)
 		return PTR_ERR(mdev->regs);
 
 	clk_prepare_enable(mdev->clk);
-	__raw_writeb(mdev->clkdiv, mdev->regs + MXC_W1_TIME_DIVIDER);
+	__raw_writeb(clkdiv, mdev->regs + MXC_W1_TIME_DIVIDER);
 
 	mdev->bus_master.data = mdev;
 	mdev->bus_master.reset_bus = mxc_w1_ds2_reset_bus;
