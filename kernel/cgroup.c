@@ -3473,6 +3473,8 @@ struct cgroup_pidlist_open_file {
 	struct cgroup_pidlist		*pidlist;
 };
 
+static void cgroup_release_pid_array(struct cgroup_pidlist *l);
+
 /*
  * The following two functions "fix" the issue where there are more pids
  * than kmalloc will give memory for; in such cases, we use vmalloc/vfree.
@@ -3630,6 +3632,8 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 	struct task_struct *tsk;
 	struct cgroup_pidlist *l;
 
+	lockdep_assert_held(&cgrp->pidlist_mutex);
+
 	/*
 	 * If cgroup gets more users after we read count, we won't have
 	 * enough space - tough.  This race is indistinguishable to the
@@ -3660,8 +3664,6 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 	if (type == CGROUP_FILE_PROCS)
 		length = pidlist_uniq(array, length);
 
-	mutex_lock(&cgrp->pidlist_mutex);
-
 	l = cgroup_pidlist_find_create(cgrp, type);
 	if (!l) {
 		mutex_unlock(&cgrp->pidlist_mutex);
@@ -3673,10 +3675,6 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 	pidlist_free(l->list);
 	l->list = array;
 	l->length = length;
-	l->use_count++;
-
-	mutex_unlock(&cgrp->pidlist_mutex);
-
 	*lp = l;
 	return 0;
 }
@@ -3751,11 +3749,34 @@ static void *cgroup_pidlist_start(struct seq_file *s, loff_t *pos)
 	 * next pid to display, if any
 	 */
 	struct cgroup_pidlist_open_file *of = s->private;
-	struct cgroup_pidlist *l = of->pidlist;
+	struct cgroup *cgrp = of->cgrp;
+	struct cgroup_pidlist *l;
 	int index = 0, pid = *pos;
-	int *iter;
+	int *iter, ret;
 
-	mutex_lock(&of->cgrp->pidlist_mutex);
+	mutex_lock(&cgrp->pidlist_mutex);
+
+	/*
+	 * !NULL @of->pidlist indicates that this isn't the first start()
+	 * after open.  If the matching pidlist is around, we can use that.
+	 * Look for it.  Note that @of->pidlist can't be used directly.  It
+	 * could already have been destroyed.
+	 */
+	if (of->pidlist)
+		of->pidlist = cgroup_pidlist_find(cgrp, of->type);
+
+	/*
+	 * Either this is the first start() after open or the matching
+	 * pidlist has been destroyed inbetween.  Create a new one.
+	 */
+	if (!of->pidlist) {
+		ret = pidlist_array_load(of->cgrp, of->type, &of->pidlist);
+		if (ret)
+			return ERR_PTR(ret);
+	}
+	l = of->pidlist;
+	l->use_count++;
+
 	if (pid) {
 		int end = l->length;
 
@@ -3784,6 +3805,8 @@ static void cgroup_pidlist_stop(struct seq_file *s, void *v)
 	struct cgroup_pidlist_open_file *of = s->private;
 
 	mutex_unlock(&of->cgrp->pidlist_mutex);
+	if (of->pidlist)
+		cgroup_release_pid_array(of->pidlist);
 }
 
 static void *cgroup_pidlist_next(struct seq_file *s, void *v, loff_t *pos)
@@ -3832,20 +3855,11 @@ static void cgroup_release_pid_array(struct cgroup_pidlist *l)
 	mutex_unlock(&l->owner->pidlist_mutex);
 }
 
-static int cgroup_pidlist_release(struct inode *inode, struct file *file)
-{
-	struct cgroup_pidlist_open_file *of;
-
-	of = ((struct seq_file *)file->private_data)->private;
-	cgroup_release_pid_array(of->pidlist);
-	return seq_release_private(inode, file);
-}
-
 static const struct file_operations cgroup_pidlist_operations = {
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.write = cgroup_file_write,
-	.release = cgroup_pidlist_release,
+	.release = seq_release_private,
 };
 
 /*
@@ -3858,26 +3872,17 @@ static int cgroup_pidlist_open(struct file *file, enum cgroup_filetype type)
 {
 	struct cgroup *cgrp = __d_cgrp(file->f_dentry->d_parent);
 	struct cgroup_pidlist_open_file *of;
-	struct cgroup_pidlist *l;
-	int retval;
 
-	/* have the array populated */
-	retval = pidlist_array_load(cgrp, type, &l);
-	if (retval)
-		return retval;
 	/* configure file information */
 	file->f_op = &cgroup_pidlist_operations;
 
 	of = __seq_open_private(file, &cgroup_pidlist_seq_operations,
 				sizeof(*of));
-	if (!of) {
-		cgroup_release_pid_array(l);
+	if (!of)
 		return -ENOMEM;
-	}
 
 	of->type = type;
 	of->cgrp = cgrp;
-	of->pidlist = l;
 	return 0;
 }
 static int cgroup_tasks_open(struct inode *unused, struct file *file)
