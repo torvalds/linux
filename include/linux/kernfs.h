@@ -13,6 +13,9 @@
 #include <linux/mutex.h>
 #include <linux/idr.h>
 #include <linux/lockdep.h>
+#include <linux/rbtree.h>
+#include <linux/atomic.h>
+#include <linux/completion.h>
 
 struct file;
 struct iattr;
@@ -21,7 +24,92 @@ struct vm_area_struct;
 struct super_block;
 struct file_system_type;
 
-struct sysfs_dirent;
+struct sysfs_open_dirent;
+struct sysfs_inode_attrs;
+
+enum kernfs_node_type {
+	SYSFS_DIR		= 0x0001,
+	SYSFS_KOBJ_ATTR		= 0x0002,
+	SYSFS_KOBJ_LINK		= 0x0004,
+};
+
+#define SYSFS_TYPE_MASK		0x000f
+#define SYSFS_COPY_NAME		(SYSFS_DIR | SYSFS_KOBJ_LINK)
+#define SYSFS_ACTIVE_REF	SYSFS_KOBJ_ATTR
+#define SYSFS_FLAG_MASK		~SYSFS_TYPE_MASK
+
+enum kernfs_node_flag {
+	SYSFS_FLAG_REMOVED	= 0x0010,
+	SYSFS_FLAG_NS		= 0x0020,
+	SYSFS_FLAG_HAS_SEQ_SHOW	= 0x0040,
+	SYSFS_FLAG_HAS_MMAP	= 0x0080,
+	SYSFS_FLAG_LOCKDEP	= 0x0100,
+};
+
+/* type-specific structures for sysfs_dirent->s_* union members */
+struct sysfs_elem_dir {
+	unsigned long		subdirs;
+	/* children rbtree starts here and goes through sd->s_rb */
+	struct rb_root		children;
+
+	/*
+	 * The kernfs hierarchy this directory belongs to.  This fits
+	 * better directly in sysfs_dirent but is here to save space.
+	 */
+	struct kernfs_root	*root;
+};
+
+struct sysfs_elem_symlink {
+	struct sysfs_dirent	*target_sd;
+};
+
+struct sysfs_elem_attr {
+	const struct kernfs_ops	*ops;
+	struct sysfs_open_dirent *open;
+	loff_t			size;
+};
+
+/*
+ * sysfs_dirent - the building block of sysfs hierarchy.  Each and every
+ * sysfs node is represented by single sysfs_dirent.  Most fields are
+ * private to kernfs and shouldn't be accessed directly by kernfs users.
+ *
+ * As long as s_count reference is held, the sysfs_dirent itself is
+ * accessible.  Dereferencing s_elem or any other outer entity
+ * requires s_active reference.
+ */
+struct sysfs_dirent {
+	atomic_t		s_count;
+	atomic_t		s_active;
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lockdep_map	dep_map;
+#endif
+	/* the following two fields are published */
+	struct sysfs_dirent	*s_parent;
+	const char		*s_name;
+
+	struct rb_node		s_rb;
+
+	union {
+		struct completion	*completion;
+		struct sysfs_dirent	*removed_list;
+	} u;
+
+	const void		*s_ns; /* namespace tag */
+	unsigned int		s_hash; /* ns + name hash */
+	union {
+		struct sysfs_elem_dir		s_dir;
+		struct sysfs_elem_symlink	s_symlink;
+		struct sysfs_elem_attr		s_attr;
+	};
+
+	void			*priv;
+
+	unsigned short		s_flags;
+	umode_t			s_mode;
+	unsigned int		s_ino;
+	struct sysfs_inode_attrs *s_iattr;
+};
 
 struct kernfs_root {
 	/* published fields */
@@ -82,6 +170,26 @@ struct kernfs_ops {
 
 #ifdef CONFIG_SYSFS
 
+static inline enum kernfs_node_type sysfs_type(struct sysfs_dirent *sd)
+{
+	return sd->s_flags & SYSFS_TYPE_MASK;
+}
+
+/**
+ * kernfs_enable_ns - enable namespace under a directory
+ * @sd: directory of interest, should be empty
+ *
+ * This is to be called right after @sd is created to enable namespace
+ * under it.  All children of @sd must have non-NULL namespace tags and
+ * only the ones which match the super_block's tag will be visible.
+ */
+static inline void kernfs_enable_ns(struct sysfs_dirent *sd)
+{
+	WARN_ON_ONCE(sysfs_type(sd) != SYSFS_DIR);
+	WARN_ON_ONCE(!RB_EMPTY_ROOT(&sd->s_dir.children));
+	sd->s_flags |= SYSFS_FLAG_NS;
+}
+
 struct sysfs_dirent *kernfs_find_and_get_ns(struct sysfs_dirent *parent,
 					    const char *name, const void *ns);
 void kernfs_get(struct sysfs_dirent *sd);
@@ -107,7 +215,6 @@ int kernfs_remove_by_name_ns(struct sysfs_dirent *parent, const char *name,
 			     const void *ns);
 int kernfs_rename_ns(struct sysfs_dirent *sd, struct sysfs_dirent *new_parent,
 		     const char *new_name, const void *new_ns);
-void kernfs_enable_ns(struct sysfs_dirent *sd);
 int kernfs_setattr(struct sysfs_dirent *sd, const struct iattr *iattr);
 void kernfs_notify(struct sysfs_dirent *sd);
 
@@ -119,6 +226,11 @@ void kernfs_kill_sb(struct super_block *sb);
 void kernfs_init(void);
 
 #else	/* CONFIG_SYSFS */
+
+static inline enum kernfs_node_type sysfs_type(struct sysfs_dirent *sd)
+{ return 0; }	/* whatever */
+
+static inline void kernfs_enable_ns(struct sysfs_dirent *sd) { }
 
 static inline struct sysfs_dirent *
 kernfs_find_and_get_ns(struct sysfs_dirent *parent, const char *name,
@@ -160,8 +272,6 @@ static inline int kernfs_rename_ns(struct sysfs_dirent *sd,
 				   struct sysfs_dirent *new_parent,
 				   const char *new_name, const void *new_ns)
 { return -ENOSYS; }
-
-static inline void kernfs_enable_ns(struct sysfs_dirent *sd) { }
 
 static inline int kernfs_setattr(struct sysfs_dirent *sd,
 				 const struct iattr *iattr)

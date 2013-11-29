@@ -895,21 +895,6 @@ int kernfs_rename_ns(struct sysfs_dirent *sd, struct sysfs_dirent *new_parent,
 	return error;
 }
 
-/**
- * kernfs_enable_ns - enable namespace under a directory
- * @sd: directory of interest, should be empty
- *
- * This is to be called right after @sd is created to enable namespace
- * under it.  All children of @sd must have non-NULL namespace tags and
- * only the ones which match the super_block's tag will be visible.
- */
-void kernfs_enable_ns(struct sysfs_dirent *sd)
-{
-	WARN_ON_ONCE(sysfs_type(sd) != SYSFS_DIR);
-	WARN_ON_ONCE(!RB_EMPTY_ROOT(&sd->s_dir.children));
-	sd->s_flags |= SYSFS_FLAG_NS;
-}
-
 /* Relationship between s_mode and the DT_xxx types */
 static inline unsigned char dt_type(struct sysfs_dirent *sd)
 {
