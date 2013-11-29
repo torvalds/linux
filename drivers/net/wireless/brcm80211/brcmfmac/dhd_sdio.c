@@ -3983,7 +3983,7 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 	bus->tx_hdrlen = SDPCM_HWHDR_LEN + SDPCM_SWHDR_LEN;
 
 	/* Attach to the common layer, reserve hdr space */
-	ret = brcmf_attach(bus->tx_hdrlen, bus->sdiodev->dev);
+	ret = brcmf_attach(bus->sdiodev->dev);
 	if (ret != 0) {
 		brcmf_err("brcmf_attach failed\n");
 		goto fail;
@@ -4026,6 +4026,8 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 		}
 		list_add(&dlst->list, &bus->sdiodev->bus_if->dcmd_list);
 	}
+
+	brcmf_bus_add_txhdrlen(bus->sdiodev->dev, bus->tx_hdrlen);
 
 	/* if firmware path present try to download and bring up bus */
 	ret = brcmf_bus_start(bus->sdiodev->dev);

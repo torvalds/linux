@@ -1016,7 +1016,7 @@ void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 	}
 }
 
-int brcmf_attach(uint bus_hdrlen, struct device *dev)
+int brcmf_attach(struct device *dev)
 {
 	struct brcmf_pub *drvr = NULL;
 	int ret = 0;
@@ -1031,7 +1031,7 @@ int brcmf_attach(uint bus_hdrlen, struct device *dev)
 	mutex_init(&drvr->proto_block);
 
 	/* Link to bus module */
-	drvr->hdrlen = bus_hdrlen;
+	drvr->hdrlen = 0;
 	drvr->bus_if = dev_get_drvdata(dev);
 	drvr->bus_if->drvr = drvr;
 
@@ -1136,6 +1136,16 @@ fail:
 			brcmf_p2p_enable = 0;
 
 	return 0;
+}
+
+void brcmf_bus_add_txhdrlen(struct device *dev, uint len)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
+
+	if (drvr) {
+		drvr->hdrlen += len;
+	}
 }
 
 static void brcmf_bus_detach(struct brcmf_pub *drvr)

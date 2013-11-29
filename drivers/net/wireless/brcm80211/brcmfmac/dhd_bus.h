@@ -139,7 +139,7 @@ bool brcmf_c_prec_enq(struct device *dev, struct pktq *q, struct sk_buff *pkt,
 void brcmf_rx_frame(struct device *dev, struct sk_buff *rxp);
 
 /* Indication from bus module regarding presence/insertion of dongle. */
-int brcmf_attach(uint bus_hdrlen, struct device *dev);
+int brcmf_attach(struct device *dev);
 /* Indication from bus module regarding removal/absence of dongle */
 void brcmf_detach(struct device *dev);
 /* Indication from bus module that dongle should be reset */
@@ -151,6 +151,7 @@ void brcmf_txflowblock(struct device *dev, bool state);
 void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success);
 
 int brcmf_bus_start(struct device *dev);
+void brcmf_bus_add_txhdrlen(struct device *dev, uint len);
 
 #ifdef CONFIG_BRCMFMAC_SDIO
 void brcmf_sdio_exit(void);
