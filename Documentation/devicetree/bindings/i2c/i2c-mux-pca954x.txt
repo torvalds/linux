@@ -13,6 +13,10 @@ Required Properties:
   - Standard I2C mux properties. See i2c-mux.txt in this directory.
   - I2C child bus nodes. See i2c-mux.txt in this directory.
 
+Optional Properties:
+
+  - reset-gpios: Reference to the GPIO connected to the reset input.
+
 
 Example:
 
