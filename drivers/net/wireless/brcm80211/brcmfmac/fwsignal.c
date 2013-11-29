@@ -105,8 +105,6 @@ static struct {
 };
 #undef BRCMF_FWS_TLV_DEF
 
-#define BRCMF_FWS_TYPE_SEQ_LEN				2
-
 
 static const char *brcmf_fws_get_tlv_name(enum brcmf_fws_tlv_type id)
 {
@@ -124,6 +122,12 @@ static const char *brcmf_fws_get_tlv_name(enum brcmf_fws_tlv_type id)
 	return "NODEBUG";
 }
 #endif /* DEBUG */
+
+/*
+ * The PKTTAG tlv has additional bytes when firmware-signalling
+ * mode has REUSESEQ flag set.
+ */
+#define BRCMF_FWS_TYPE_SEQ_LEN				2
 
 /*
  * flags used to enable tlv signalling from firmware.
