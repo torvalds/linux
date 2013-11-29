@@ -109,6 +109,8 @@ static inline int brcmf_sdioh_f0_write_byte(struct brcmf_sdio_dev *sdiodev,
 					brcmf_err("Disable F2 failed:%d\n",
 						  err_ret);
 			}
+		} else {
+			err_ret = -ENOENT;
 		}
 	} else if ((regaddr == SDIO_CCCR_ABORT) ||
 		   (regaddr == SDIO_CCCR_IENx)) {
