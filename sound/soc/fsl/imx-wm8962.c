@@ -108,7 +108,6 @@ static int hpjack_status_check(void *data)
 		snd_soc_dapm_enable_pin(&priv->codec->dapm, "Ext Spk");
 		ret = 0;
 	}
-	snd_soc_dapm_sync(&priv->codec->dapm);
 
 	envp[0] = "NAME=headphone";
 	envp[1] = buf;
@@ -154,7 +153,6 @@ static int micjack_status_check(void *data)
 		snd_soc_dapm_enable_pin(&priv->codec->dapm, "DMIC");
 		ret = 0;
 	}
-	snd_soc_dapm_sync(&priv->codec->dapm);
 
 	envp[0] = "NAME=microphone";
 	envp[1] = buf;
