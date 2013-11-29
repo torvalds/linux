@@ -4,6 +4,7 @@
 #include <linux/pm.h>
 #include <linux/percpu.h>
 #include <linux/interrupt.h>
+#include <linux/math64.h>
 
 #define TICK_SIZE (tick_nsec / 1000)
 
@@ -57,10 +58,8 @@ DECLARE_PER_CPU(unsigned long long, cyc2ns_offset);
 
 static inline unsigned long long __cycles_2_ns(unsigned long long cyc)
 {
-	int cpu = smp_processor_id();
-	unsigned long long ns = per_cpu(cyc2ns_offset, cpu);
-	ns += mult_frac(cyc, per_cpu(cyc2ns, cpu),
-			(1UL << CYC2NS_SCALE_FACTOR));
+	unsigned long long ns = this_cpu_read(cyc2ns_offset);
+	ns += mul_u64_u32_shr(cyc, this_cpu_read(cyc2ns), CYC2NS_SCALE_FACTOR);
 	return ns;
 }
 
