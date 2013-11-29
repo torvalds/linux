@@ -3456,8 +3456,6 @@ struct cgroup_pidlist {
 	pid_t *list;
 	/* how many elements the above list has */
 	int length;
-	/* how many files are using the current array */
-	int use_count;
 	/* each of these stored in a list by its cgroup */
 	struct list_head links;
 	/* pointer to the cgroup we belong to, for list removal purposes */
@@ -3472,8 +3470,6 @@ struct cgroup_pidlist_open_file {
 	struct cgroup			*cgrp;
 	struct cgroup_pidlist		*pidlist;
 };
-
-static void cgroup_release_pid_array(struct cgroup_pidlist *l);
 
 /*
  * The following two functions "fix" the issue where there are more pids
@@ -3524,10 +3520,10 @@ static void cgroup_pidlist_destroy_work_fn(struct work_struct *work)
 	mutex_lock(&l->owner->pidlist_mutex);
 
 	/*
-	 * Destroy iff we didn't race with a new user or get queued again.
-	 * Queued state won't change as it can only be queued while locked.
+	 * Destroy iff we didn't get queued again.  The state won't change
+	 * as destroy_dwork can only be queued while locked.
 	 */
-	if (!l->use_count && !delayed_work_pending(dwork)) {
+	if (!delayed_work_pending(dwork)) {
 		list_del(&l->links);
 		pidlist_free(l->list);
 		put_pid_ns(l->key.ns);
@@ -3775,7 +3771,6 @@ static void *cgroup_pidlist_start(struct seq_file *s, loff_t *pos)
 			return ERR_PTR(ret);
 	}
 	l = of->pidlist;
-	l->use_count++;
 
 	if (pid) {
 		int end = l->length;
@@ -3804,9 +3799,11 @@ static void cgroup_pidlist_stop(struct seq_file *s, void *v)
 {
 	struct cgroup_pidlist_open_file *of = s->private;
 
-	mutex_unlock(&of->cgrp->pidlist_mutex);
 	if (of->pidlist)
-		cgroup_release_pid_array(of->pidlist);
+		mod_delayed_work(cgroup_pidlist_destroy_wq,
+				 &of->pidlist->destroy_dwork,
+				 CGROUP_PIDLIST_DESTROY_DELAY);
+	mutex_unlock(&of->cgrp->pidlist_mutex);
 }
 
 static void *cgroup_pidlist_next(struct seq_file *s, void *v, loff_t *pos)
@@ -3843,17 +3840,6 @@ static const struct seq_operations cgroup_pidlist_seq_operations = {
 	.next = cgroup_pidlist_next,
 	.show = cgroup_pidlist_show,
 };
-
-static void cgroup_release_pid_array(struct cgroup_pidlist *l)
-{
-	mutex_lock(&l->owner->pidlist_mutex);
-	BUG_ON(!l->use_count);
-	/* if the last user, arm the destroy work */
-	if (!--l->use_count)
-		mod_delayed_work(cgroup_pidlist_destroy_wq, &l->destroy_dwork,
-				 CGROUP_PIDLIST_DESTROY_DELAY);
-	mutex_unlock(&l->owner->pidlist_mutex);
-}
 
 static const struct file_operations cgroup_pidlist_operations = {
 	.read = seq_read,
