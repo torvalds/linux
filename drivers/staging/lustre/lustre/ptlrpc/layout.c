@@ -1882,8 +1882,11 @@ swabber_dumper_helper(struct req_capsule *pill,
 	else
 		do_swab = 0;
 
+	if (!field->rmf_dumper)
+		dump = 0;
+
 	if (!(field->rmf_flags & RMF_F_STRUCT_ARRAY)) {
-		if (dump && field->rmf_dumper) {
+		if (dump) {
 			CDEBUG(D_RPCTRACE, "Dump of %sfield %s follows\n",
 			       do_swab ? "unswabbed " : "", field->rmf_name);
 			field->rmf_dumper(value);
@@ -1909,7 +1912,7 @@ swabber_dumper_helper(struct req_capsule *pill,
 	for (p = value, i = 0, n = len / field->rmf_size;
 	     i < n;
 	     i++, p += field->rmf_size) {
-		if (dump && field->rmf_dumper) {
+		if (dump) {
 			CDEBUG(D_RPCTRACE, "Dump of %sarray field %s, "
 			       "element %d follows\n",
 			       do_swab ? "unswabbed " : "", field->rmf_name, i);
@@ -1918,7 +1921,7 @@ swabber_dumper_helper(struct req_capsule *pill,
 		if (!do_swab)
 			continue;
 		swabber(p);
-		if (dump && field->rmf_dumper) {
+		if (dump) {
 			CDEBUG(D_RPCTRACE, "Dump of swabbed array field %s, "
 			       "element %d follows\n", field->rmf_name, i);
 			field->rmf_dumper(value);
