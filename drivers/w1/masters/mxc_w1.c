@@ -108,7 +108,7 @@ static int mxc_w1_probe(struct platform_device *pdev)
 	unsigned long clkrate;
 	struct resource *res;
 	unsigned int clkdiv;
-	int err = 0;
+	int err;
 
 	mdev = devm_kzalloc(&pdev->dev, sizeof(struct mxc_w1_device),
 			    GFP_KERNEL);
@@ -135,20 +135,23 @@ static int mxc_w1_probe(struct platform_device *pdev)
 	if (IS_ERR(mdev->regs))
 		return PTR_ERR(mdev->regs);
 
-	clk_prepare_enable(mdev->clk);
+	err = clk_prepare_enable(mdev->clk);
+	if (err)
+		return err;
+
 	__raw_writeb(clkdiv - 1, mdev->regs + MXC_W1_TIME_DIVIDER);
 
 	mdev->bus_master.data = mdev;
 	mdev->bus_master.reset_bus = mxc_w1_ds2_reset_bus;
 	mdev->bus_master.touch_bit = mxc_w1_ds2_touch_bit;
 
-	err = w1_add_master_device(&mdev->bus_master);
-
-	if (err)
-		return err;
-
 	platform_set_drvdata(pdev, mdev);
-	return 0;
+
+	err = w1_add_master_device(&mdev->bus_master);
+	if (err)
+		clk_disable_unprepare(mdev->clk);
+
+	return err;
 }
 
 /*
