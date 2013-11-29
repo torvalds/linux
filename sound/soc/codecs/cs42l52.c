@@ -1232,7 +1232,7 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client,
 
 			if (of_property_read_u32(i2c_client->dev.of_node,
 				"cirrus,chgfreq-divisor", &val32) >= 0)
-				pdata->chgfreq_divisor = val32;
+				pdata->chgfreq = val32;
 
 			pdata->reset_gpio =
 				of_get_named_gpio(i2c_client->dev.of_node,
