@@ -33,47 +33,6 @@
 
 #define DOT11_MAX_DEFAULT_KEYS	4
 
-#define BRCMF_E_STATUS_SUCCESS			0
-#define BRCMF_E_STATUS_FAIL			1
-#define BRCMF_E_STATUS_TIMEOUT			2
-#define BRCMF_E_STATUS_NO_NETWORKS		3
-#define BRCMF_E_STATUS_ABORT			4
-#define BRCMF_E_STATUS_NO_ACK			5
-#define BRCMF_E_STATUS_UNSOLICITED		6
-#define BRCMF_E_STATUS_ATTEMPT			7
-#define BRCMF_E_STATUS_PARTIAL			8
-#define BRCMF_E_STATUS_NEWSCAN			9
-#define BRCMF_E_STATUS_NEWASSOC			10
-#define BRCMF_E_STATUS_11HQUIET			11
-#define BRCMF_E_STATUS_SUPPRESS			12
-#define BRCMF_E_STATUS_NOCHANS			13
-#define BRCMF_E_STATUS_CS_ABORT			15
-#define BRCMF_E_STATUS_ERROR			16
-
-#define BRCMF_E_REASON_INITIAL_ASSOC		0
-#define BRCMF_E_REASON_LOW_RSSI			1
-#define BRCMF_E_REASON_DEAUTH			2
-#define BRCMF_E_REASON_DISASSOC			3
-#define BRCMF_E_REASON_BCNS_LOST		4
-#define BRCMF_E_REASON_MINTXRATE		9
-#define BRCMF_E_REASON_TXFAIL			10
-
-#define BRCMF_E_REASON_LINK_BSSCFG_DIS		4
-#define BRCMF_E_REASON_FAST_ROAM_FAILED		5
-#define BRCMF_E_REASON_DIRECTED_ROAM		6
-#define BRCMF_E_REASON_TSPEC_REJECTED		7
-#define BRCMF_E_REASON_BETTER_AP		8
-
-#define BRCMF_E_IF_ADD				1
-#define BRCMF_E_IF_DEL				2
-#define BRCMF_E_IF_CHANGE			3
-
-#define BRCMF_E_IF_FLAG_NOIF			1
-
-#define BRCMF_E_IF_ROLE_STA			0
-#define BRCMF_E_IF_ROLE_AP			1
-#define BRCMF_E_IF_ROLE_WDS			2
-
 /* Small, medium and maximum buffer size for dcmd
  */
 #define BRCMF_DCMD_SMLEN	256
@@ -154,14 +113,6 @@ struct brcmf_pub {
 #ifdef DEBUG
 	struct dentry *dbgfs_dir;
 #endif
-};
-
-struct brcmf_if_event {
-	u8 ifidx;
-	u8 action;
-	u8 flags;
-	u8 bssidx;
-	u8 role;
 };
 
 /* forward declarations */
