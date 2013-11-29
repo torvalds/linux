@@ -2447,7 +2447,7 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 	}
 
 	if (IS_ERR(desc)) {
-		dev_warn(dev, "lookup for GPIO %s failed\n", con_id);
+		dev_dbg(dev, "lookup for GPIO %s failed\n", con_id);
 		return desc;
 	}
 
