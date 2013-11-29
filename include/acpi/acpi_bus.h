@@ -434,7 +434,6 @@ struct acpi_pci_root {
 
 struct acpi_device *acpi_find_child_device(struct acpi_device *parent,
 					   u64 address, bool check_children);
-acpi_handle acpi_get_child(acpi_handle handle, u64 addr);
 int acpi_is_root_bridge(acpi_handle);
 struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle);
 
