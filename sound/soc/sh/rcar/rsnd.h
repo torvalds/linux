@@ -31,7 +31,7 @@
  * see gen1/gen2 for detail
  */
 enum rsnd_reg {
-	/* SRU/SCU */
+	/* SRU/SCU/SSIU */
 	RSND_REG_SRC_ROUTE_SEL,
 	RSND_REG_SRC_TMG_SEL0,
 	RSND_REG_SRC_TMG_SEL1,
@@ -41,6 +41,7 @@ enum rsnd_reg {
 	RSND_REG_SSI_MODE1,
 	RSND_REG_BUSIF_MODE,
 	RSND_REG_BUSIF_ADINR,
+	RSND_REG_INT_ENABLE,
 
 	/* ADG */
 	RSND_REG_BRRA,

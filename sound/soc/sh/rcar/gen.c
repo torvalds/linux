@@ -213,8 +213,87 @@ int rsnd_gen_path_exit(struct rsnd_priv *priv,
 
 /*
  *		Gen2
- *		will be filled in the future
  */
+
+/* single address mapping */
+#define RSND_GEN2_S_REG(gen, reg, id, offset)				\
+	RSND_REG_SET(gen, RSND_REG_##id, RSND_GEN2_##reg, offset, 0, 9)
+
+/* multi address mapping */
+#define RSND_GEN2_M_REG(gen, reg, id, offset, _id_offset)		\
+	RSND_REG_SET(gen, RSND_REG_##id, RSND_GEN2_##reg, offset, _id_offset, 9)
+
+static int rsnd_gen2_regmap_init(struct rsnd_priv *priv, struct rsnd_gen *gen)
+{
+	struct reg_field regf[RSND_REG_MAX] = {
+		RSND_GEN2_S_REG(gen, SSIU,	SSI_MODE0,	0x800),
+		RSND_GEN2_S_REG(gen, SSIU,	SSI_MODE1,	0x804),
+		/* FIXME: it needs SSI_MODE2/3 in the future */
+		RSND_GEN2_M_REG(gen, SSIU,	INT_ENABLE,	0x18,	0x80),
+
+		RSND_GEN2_S_REG(gen, ADG,	BRRA,		0x00),
+		RSND_GEN2_S_REG(gen, ADG,	BRRB,		0x04),
+		RSND_GEN2_S_REG(gen, ADG,	SSICKR,		0x08),
+		RSND_GEN2_S_REG(gen, ADG,	AUDIO_CLK_SEL0,	0x0c),
+		RSND_GEN2_S_REG(gen, ADG,	AUDIO_CLK_SEL1,	0x10),
+		RSND_GEN2_S_REG(gen, ADG,	AUDIO_CLK_SEL2,	0x14),
+
+		RSND_GEN2_M_REG(gen, SSI,	SSICR,		0x00,	0x40),
+		RSND_GEN2_M_REG(gen, SSI,	SSISR,		0x04,	0x40),
+		RSND_GEN2_M_REG(gen, SSI,	SSITDR,		0x08,	0x40),
+		RSND_GEN2_M_REG(gen, SSI,	SSIRDR,		0x0c,	0x40),
+		RSND_GEN2_M_REG(gen, SSI,	SSIWSR,		0x20,	0x40),
+	};
+
+	return rsnd_gen_regmap_init(priv, gen, regf);
+}
+
+static int rsnd_gen2_probe(struct platform_device *pdev,
+			   struct rcar_snd_info *info,
+			   struct rsnd_priv *priv)
+{
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
+	struct resource *scu_res;
+	struct resource *adg_res;
+	struct resource *ssiu_res;
+	struct resource *ssi_res;
+	int ret;
+
+	/*
+	 * map address
+	 */
+	scu_res  = platform_get_resource(pdev, IORESOURCE_MEM, RSND_GEN2_SCU);
+	adg_res  = platform_get_resource(pdev, IORESOURCE_MEM, RSND_GEN2_ADG);
+	ssiu_res = platform_get_resource(pdev, IORESOURCE_MEM, RSND_GEN2_SSIU);
+	ssi_res  = platform_get_resource(pdev, IORESOURCE_MEM, RSND_GEN2_SSI);
+
+	gen->base[RSND_GEN2_SCU]  = devm_ioremap_resource(dev, scu_res);
+	gen->base[RSND_GEN2_ADG]  = devm_ioremap_resource(dev, adg_res);
+	gen->base[RSND_GEN2_SSIU] = devm_ioremap_resource(dev, ssiu_res);
+	gen->base[RSND_GEN2_SSI]  = devm_ioremap_resource(dev, ssi_res);
+	if (IS_ERR(gen->base[RSND_GEN2_SCU])  ||
+	    IS_ERR(gen->base[RSND_GEN2_ADG])  ||
+	    IS_ERR(gen->base[RSND_GEN2_SSIU]) ||
+	    IS_ERR(gen->base[RSND_GEN2_SSI]))
+		return -ENODEV;
+
+	ret = rsnd_gen2_regmap_init(priv, gen);
+	if (ret < 0)
+		return ret;
+
+	dev_dbg(dev, "Gen2 device probed\n");
+	dev_dbg(dev, "SRU  : %08x => %p\n", scu_res->start,
+		gen->base[RSND_GEN2_SCU]);
+	dev_dbg(dev, "ADG  : %08x => %p\n", adg_res->start,
+		gen->base[RSND_GEN2_ADG]);
+	dev_dbg(dev, "SSIU : %08x => %p\n", ssiu_res->start,
+		gen->base[RSND_GEN2_SSIU]);
+	dev_dbg(dev, "SSI  : %08x => %p\n", ssi_res->start,
+		gen->base[RSND_GEN2_SSI]);
+
+	return 0;
+}
 
 /*
  *		Gen1
@@ -318,12 +397,14 @@ int rsnd_gen_probe(struct platform_device *pdev,
 
 	priv->gen = gen;
 
-	if (rsnd_is_gen1(priv)) {
+	ret = -ENODEV;
+	if (rsnd_is_gen1(priv))
 		ret = rsnd_gen1_probe(pdev, info, priv);
-	} else {
+	else if (rsnd_is_gen2(priv))
+		ret = rsnd_gen2_probe(pdev, info, priv);
+
+	if (ret < 0)
 		dev_err(dev, "unknown generation R-Car sound device\n");
-		return -ENODEV;
-	}
 
 	return ret;
 }
