@@ -17,7 +17,6 @@
 
 #include <linux/types.h>
 #include <linux/netdevice.h>
-#include <linux/export.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/sched.h>
@@ -774,7 +773,6 @@ out:
 
 	return ret;
 }
-EXPORT_SYMBOL(brcmf_sdio_probe);
 
 int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev)
 {
@@ -791,7 +789,6 @@ int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev)
 
 	return 0;
 }
-EXPORT_SYMBOL(brcmf_sdio_remove);
 
 void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev, bool enable)
 {
