@@ -182,7 +182,7 @@ static void mmp_tdma_pause_chan(struct mmp_tdma_chan *tdmac)
 
 static int mmp_tdma_config_chan(struct mmp_tdma_chan *tdmac)
 {
-	unsigned int tdcr;
+	unsigned int tdcr = 0;
 
 	mmp_tdma_disable_chan(tdmac);
 
