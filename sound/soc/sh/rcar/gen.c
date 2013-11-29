@@ -10,14 +10,6 @@
  */
 #include "rsnd.h"
 
-struct rsnd_gen_ops {
-	int (*probe)(struct platform_device *pdev,
-		     struct rcar_snd_info *info,
-		     struct rsnd_priv *priv);
-	void (*remove)(struct platform_device *pdev,
-		      struct rsnd_priv *priv);
-};
-
 struct rsnd_gen {
 	void __iomem *base[RSND_BASE_MAX];
 
@@ -307,16 +299,6 @@ static int rsnd_gen1_probe(struct platform_device *pdev,
 
 }
 
-static void rsnd_gen1_remove(struct platform_device *pdev,
-			     struct rsnd_priv *priv)
-{
-}
-
-static struct rsnd_gen_ops rsnd_gen1_ops = {
-	.probe		= rsnd_gen1_probe,
-	.remove		= rsnd_gen1_remove,
-};
-
 /*
  *		Gen
  */
@@ -326,6 +308,7 @@ int rsnd_gen_probe(struct platform_device *pdev,
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_gen *gen;
+	int ret;
 
 	gen = devm_kzalloc(dev, sizeof(*gen), GFP_KERNEL);
 	if (!gen) {
@@ -333,23 +316,19 @@ int rsnd_gen_probe(struct platform_device *pdev,
 		return -ENOMEM;
 	}
 
-	if (rsnd_is_gen1(priv))
-		gen->ops = &rsnd_gen1_ops;
+	priv->gen = gen;
 
-	if (!gen->ops) {
+	if (rsnd_is_gen1(priv)) {
+		ret = rsnd_gen1_probe(pdev, info, priv);
+	} else {
 		dev_err(dev, "unknown generation R-Car sound device\n");
 		return -ENODEV;
 	}
 
-	priv->gen = gen;
-
-	return gen->ops->probe(pdev, info, priv);
+	return ret;
 }
 
 void rsnd_gen_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv)
 {
-	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
-
-	gen->ops->remove(pdev, priv);
 }
