@@ -275,6 +275,9 @@ enum {
 	 * - "tasks" is removed.  Everything should be at process
 	 *   granularity.  Use "cgroup.procs" instead.
 	 *
+	 * - "cgroup.procs" is not sorted.  pids will be unique unless they
+	 *   got recycled inbetween reads.
+	 *
 	 * - "release_agent" and "notify_on_release" are removed.
 	 *   Replacement notification mechanism will be implemented.
 	 *
