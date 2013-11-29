@@ -190,12 +190,13 @@ int acquire_orphan_inode(struct f2fs_sb_info *sbi)
 	int err = 0;
 
 	/*
-	 * considering 512 blocks in a segment 5 blocks are needed for cp
+	 * considering 512 blocks in a segment 8 blocks are needed for cp
 	 * and log segment summaries. Remaining blocks are used to keep
 	 * orphan entries with the limitation one reserved segment
-	 * for cp pack we can have max 1020*507 orphan entries
+	 * for cp pack we can have max 1020*504 orphan entries
 	 */
-	max_orphans = (sbi->blocks_per_seg - 5) * F2FS_ORPHANS_PER_BLOCK;
+	max_orphans = (sbi->blocks_per_seg - 2 - NR_CURSEG_TYPE)
+				* F2FS_ORPHANS_PER_BLOCK;
 	mutex_lock(&sbi->orphan_inode_mutex);
 	if (sbi->n_orphans >= max_orphans)
 		err = -ENOSPC;
