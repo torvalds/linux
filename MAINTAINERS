@@ -4044,6 +4044,12 @@ W:	http://www.pharscape.org
 S:	Maintained
 F:	drivers/net/usb/hso.c
 
+HSR NETWORK PROTOCOL
+M:	Arvid Brodin <arvid.brodin@alten.se>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	net/hsr/
+
 HTCPEN TOUCHSCREEN DRIVER
 M:	Pau Oliva Fora <pof@eslack.org>
 L:	linux-input@vger.kernel.org
