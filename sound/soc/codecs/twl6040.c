@@ -219,8 +219,8 @@ static int twl6040_read_reg_volatile(struct snd_soc_codec *codec,
 	return value;
 }
 
-static bool twl6040_is_path_unmuted(struct snd_soc_codec *codec,
-				    unsigned int reg)
+static bool twl6040_can_write_to_chip(struct snd_soc_codec *codec,
+				  unsigned int reg)
 {
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 
@@ -250,7 +250,7 @@ static int twl6040_write(struct snd_soc_codec *codec,
 		return -EIO;
 
 	twl6040_write_reg_cache(codec, reg, value);
-	if (twl6040_is_path_unmuted(codec, reg))
+	if (twl6040_can_write_to_chip(codec, reg))
 		return twl6040_reg_write(twl6040, reg, value);
 	else
 		return 0;
