@@ -129,6 +129,7 @@ kvm_start_lightweight:
 	 * R12      = exit handler id
 	 * R13      = PACA
 	 * SVCPU.*  = guest *
+	 * MSR.EE   = 1
 	 *
 	 */
 
@@ -148,11 +149,6 @@ kvm_start_lightweight:
 	nop
 
 #ifdef CONFIG_PPC_BOOK3S_64
-	/* Re-enable interrupts */
-	ld	r3, HSTATE_HOST_MSR(r13)
-	ori	r3, r3, MSR_EE
-	MTMSR_EERI(r3)
-
 	/*
 	 * Reload kernel SPRG3 value.
 	 * No need to save guest value as usermode can't modify SPRG3.
