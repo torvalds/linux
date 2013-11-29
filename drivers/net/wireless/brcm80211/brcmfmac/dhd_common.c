@@ -278,8 +278,13 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	}
 	ptr = (char *)buf;
 	strsep(&ptr, "\n");
+
 	/* Print fw version info */
 	brcmf_err("Firmware version = %s\n", buf);
+
+	/* locate firmware version number for ethtool */
+	ptr = strrchr(buf, ' ') + 1;
+	strlcpy(ifp->drvr->fwver, ptr, sizeof(ifp->drvr->fwver));
 
 	/*
 	 * Setup timeout if Beacons are lost and roam is off to report

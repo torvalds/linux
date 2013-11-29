@@ -211,6 +211,11 @@
 
 #define BRCMF_AMPDU_RX_REORDER_MAXFLOWS		256
 
+/* Length of firmware version string stored for
+ * ethtool driver info which uses 32 bytes as well.
+ */
+#define BRCMF_DRIVER_FIRMWARE_VERSION_LEN	32
+
 /* Pattern matching filter. Specifies an offset within received packets to
  * start matching, the pattern to match, the size of the pattern, and a bitmask
  * that indicates which bits within the pattern should be matched.
@@ -544,7 +549,7 @@ struct brcmf_pub {
 	u8 wme_dp;		/* wme discard priority */
 
 	/* Dongle media info */
-	unsigned long drv_version;	/* Version of dongle-resident driver */
+	char fwver[BRCMF_DRIVER_FIRMWARE_VERSION_LEN];
 	u8 mac[ETH_ALEN];		/* MAC address obtained from dongle */
 
 	/* Multicast data packets sent to dongle */

@@ -599,8 +599,8 @@ static void brcmf_ethtool_get_drvinfo(struct net_device *ndev,
 	struct brcmf_pub *drvr = ifp->drvr;
 
 	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
-	snprintf(info->version, sizeof(info->version), "%lu",
-		 drvr->drv_version);
+	snprintf(info->version, sizeof(info->version), "n/a");
+	strlcpy(info->fw_version, drvr->fwver, sizeof(info->fw_version));
 	strlcpy(info->bus_info, dev_name(drvr->bus_if->dev),
 		sizeof(info->bus_info));
 }
