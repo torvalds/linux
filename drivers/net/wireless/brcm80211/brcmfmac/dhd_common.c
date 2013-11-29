@@ -21,7 +21,6 @@
 #include <brcmu_utils.h>
 #include "dhd.h"
 #include "dhd_bus.h"
-#include "dhd_proto.h"
 #include "dhd_dbg.h"
 #include "fwil.h"
 #include "tracepoint.h"

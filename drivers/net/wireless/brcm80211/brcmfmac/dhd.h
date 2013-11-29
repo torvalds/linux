@@ -635,6 +635,18 @@ int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 /* Return pointer to interface name */
 char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
 
+/* Linkage, sets prot link and updates hdrlen in pub */
+int brcmf_proto_attach(struct brcmf_pub *drvr);
+
+/* Unlink, frees allocated protocol memory (including brcmf_proto) */
+void brcmf_proto_detach(struct brcmf_pub *drvr);
+
+/* Add any protocol-specific data header.
+ * Caller must reserve prot_hdrlen prepend space.
+ */
+void brcmf_proto_hdrpush(struct brcmf_pub *, int ifidx, u8 offset,
+			 struct sk_buff *txp);
+
 /* Query dongle */
 int brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 			       void *buf, uint len);
@@ -654,5 +666,8 @@ void brcmf_txflowblock_if(struct brcmf_if *ifp,
 u32 brcmf_get_chip_info(struct brcmf_if *ifp);
 void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp,
 		      bool success);
+
+/* Sets dongle media info (drv_version, mac address). */
+int brcmf_c_preinit_dcmds(struct brcmf_if *ifp);
 
 #endif				/* _BRCMF_H_ */
