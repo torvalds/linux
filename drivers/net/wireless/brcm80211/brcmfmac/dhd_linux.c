@@ -591,28 +591,6 @@ static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *ndev)
 	return &ifp->stats;
 }
 
-/*
- * Set current toe component enables in toe_ol iovar,
- * and set toe global enable iovar
- */
-static int brcmf_toe_set(struct brcmf_if *ifp, u32 toe_ol)
-{
-	s32 err;
-
-	err = brcmf_fil_iovar_int_set(ifp, "toe_ol", toe_ol);
-	if (err < 0) {
-		brcmf_err("Setting toe_ol failed, %d\n", err);
-		return err;
-	}
-
-	err = brcmf_fil_iovar_int_set(ifp, "toe", (toe_ol != 0));
-	if (err < 0)
-		brcmf_err("Setting toe failed, %d\n", err);
-
-	return err;
-
-}
-
 static void brcmf_ethtool_get_drvinfo(struct net_device *ndev,
 				    struct ethtool_drvinfo *info)
 {
@@ -629,124 +607,6 @@ static void brcmf_ethtool_get_drvinfo(struct net_device *ndev,
 static const struct ethtool_ops brcmf_ethtool_ops = {
 	.get_drvinfo = brcmf_ethtool_get_drvinfo,
 };
-
-static int brcmf_ethtool(struct brcmf_if *ifp, void __user *uaddr)
-{
-	struct brcmf_pub *drvr = ifp->drvr;
-	struct ethtool_drvinfo info;
-	char drvname[sizeof(info.driver)];
-	u32 cmd;
-	struct ethtool_value edata;
-	u32 toe_cmpnt, csum_dir;
-	int ret;
-
-	brcmf_dbg(TRACE, "Enter, idx=%d\n", ifp->bssidx);
-
-	/* all ethtool calls start with a cmd word */
-	if (copy_from_user(&cmd, uaddr, sizeof(u32)))
-		return -EFAULT;
-
-	switch (cmd) {
-	case ETHTOOL_GDRVINFO:
-		/* Copy out any request driver name */
-		if (copy_from_user(&info, uaddr, sizeof(info)))
-			return -EFAULT;
-		strncpy(drvname, info.driver, sizeof(info.driver));
-		drvname[sizeof(info.driver) - 1] = '\0';
-
-		/* clear struct for return */
-		memset(&info, 0, sizeof(info));
-		info.cmd = cmd;
-
-		/* if requested, identify ourselves */
-		if (strcmp(drvname, "?dhd") == 0) {
-			sprintf(info.driver, "dhd");
-			strcpy(info.version, BRCMF_VERSION_STR);
-		}
-		/* report dongle driver type */
-		else
-			sprintf(info.driver, "wl");
-
-		sprintf(info.version, "%lu", drvr->drv_version);
-		if (copy_to_user(uaddr, &info, sizeof(info)))
-			return -EFAULT;
-		brcmf_dbg(TRACE, "given %*s, returning %s\n",
-			  (int)sizeof(drvname), drvname, info.driver);
-		break;
-
-		/* Get toe offload components from dongle */
-	case ETHTOOL_GRXCSUM:
-	case ETHTOOL_GTXCSUM:
-		ret = brcmf_fil_iovar_int_get(ifp, "toe_ol", &toe_cmpnt);
-		if (ret < 0)
-			return ret;
-
-		csum_dir =
-		    (cmd == ETHTOOL_GTXCSUM) ? TOE_TX_CSUM_OL : TOE_RX_CSUM_OL;
-
-		edata.cmd = cmd;
-		edata.data = (toe_cmpnt & csum_dir) ? 1 : 0;
-
-		if (copy_to_user(uaddr, &edata, sizeof(edata)))
-			return -EFAULT;
-		break;
-
-		/* Set toe offload components in dongle */
-	case ETHTOOL_SRXCSUM:
-	case ETHTOOL_STXCSUM:
-		if (copy_from_user(&edata, uaddr, sizeof(edata)))
-			return -EFAULT;
-
-		/* Read the current settings, update and write back */
-		ret = brcmf_fil_iovar_int_get(ifp, "toe_ol", &toe_cmpnt);
-		if (ret < 0)
-			return ret;
-
-		csum_dir =
-		    (cmd == ETHTOOL_STXCSUM) ? TOE_TX_CSUM_OL : TOE_RX_CSUM_OL;
-
-		if (edata.data != 0)
-			toe_cmpnt |= csum_dir;
-		else
-			toe_cmpnt &= ~csum_dir;
-
-		ret = brcmf_toe_set(ifp, toe_cmpnt);
-		if (ret < 0)
-			return ret;
-
-		/* If setting TX checksum mode, tell Linux the new mode */
-		if (cmd == ETHTOOL_STXCSUM) {
-			if (edata.data)
-				ifp->ndev->features |= NETIF_F_IP_CSUM;
-			else
-				ifp->ndev->features &= ~NETIF_F_IP_CSUM;
-		}
-
-		break;
-
-	default:
-		return -EOPNOTSUPP;
-	}
-
-	return 0;
-}
-
-static int brcmf_netdev_ioctl_entry(struct net_device *ndev, struct ifreq *ifr,
-				    int cmd)
-{
-	struct brcmf_if *ifp = netdev_priv(ndev);
-	struct brcmf_pub *drvr = ifp->drvr;
-
-	brcmf_dbg(TRACE, "Enter, idx=%d, cmd=0x%04x\n", ifp->bssidx, cmd);
-
-	if (!drvr->iflist[ifp->bssidx])
-		return -1;
-
-	if (cmd == SIOCETHTOOL)
-		return brcmf_ethtool(ifp, ifr->ifr_data);
-
-	return -EOPNOTSUPP;
-}
 
 static int brcmf_netdev_stop(struct net_device *ndev)
 {
@@ -800,7 +660,6 @@ static const struct net_device_ops brcmf_netdev_ops_pri = {
 	.ndo_open = brcmf_netdev_open,
 	.ndo_stop = brcmf_netdev_stop,
 	.ndo_get_stats = brcmf_netdev_get_stats,
-	.ndo_do_ioctl = brcmf_netdev_ioctl_entry,
 	.ndo_start_xmit = brcmf_netdev_start_xmit,
 	.ndo_set_mac_address = brcmf_netdev_set_mac_address,
 	.ndo_set_rx_mode = brcmf_netdev_set_multicast_list
@@ -866,13 +725,6 @@ static int brcmf_net_p2p_stop(struct net_device *ndev)
 	return brcmf_cfg80211_down(ndev);
 }
 
-static int brcmf_net_p2p_do_ioctl(struct net_device *ndev,
-				  struct ifreq *ifr, int cmd)
-{
-	brcmf_dbg(TRACE, "Enter\n");
-	return 0;
-}
-
 static netdev_tx_t brcmf_net_p2p_start_xmit(struct sk_buff *skb,
 					    struct net_device *ndev)
 {
@@ -885,7 +737,6 @@ static netdev_tx_t brcmf_net_p2p_start_xmit(struct sk_buff *skb,
 static const struct net_device_ops brcmf_netdev_ops_p2p = {
 	.ndo_open = brcmf_net_p2p_open,
 	.ndo_stop = brcmf_net_p2p_stop,
-	.ndo_do_ioctl = brcmf_net_p2p_do_ioctl,
 	.ndo_start_xmit = brcmf_net_p2p_start_xmit
 };
 
