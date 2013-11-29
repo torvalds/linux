@@ -132,9 +132,17 @@ kvm_start_lightweight:
 	 *
 	 */
 
+	PPC_LL	r3, GPR4(r1)		/* vcpu pointer */
+
+	/*
+	 * kvmppc_copy_from_svcpu can clobber volatile registers, save
+	 * the exit handler id to the vcpu and restore it from there later.
+	 */
+	stw	r12, VCPU_TRAP(r3)
+
 	/* Transfer reg values from shadow vcpu back to vcpu struct */
 	/* On 64-bit, interrupts are still off at this point */
-	PPC_LL	r3, GPR4(r1)		/* vcpu pointer */
+
 	GET_SHADOW_VCPU(r4)
 	bl	FUNC(kvmppc_copy_from_svcpu)
 	nop
@@ -151,7 +159,6 @@ kvm_start_lightweight:
 	 */
 	ld	r3, PACA_SPRG3(r13)
 	mtspr	SPRN_SPRG3, r3
-
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 	/* R7 = vcpu */
@@ -177,7 +184,7 @@ kvm_start_lightweight:
 	PPC_STL	r31, VCPU_GPR(R31)(r7)
 
 	/* Pass the exit number as 3rd argument to kvmppc_handle_exit */
-	mr	r5, r12
+	lwz	r5, VCPU_TRAP(r7)
 
 	/* Restore r3 (kvm_run) and r4 (vcpu) */
 	REST_2GPRS(3, r1)
