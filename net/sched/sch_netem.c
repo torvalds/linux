@@ -268,6 +268,7 @@ static bool loss_gilb_ell(struct netem_sched_data *q)
 			clg->state = 2;
 		if (net_random() < clg->a4)
 			return true;
+		break;
 	case 2:
 		if (net_random() < clg->a2)
 			clg->state = 1;
