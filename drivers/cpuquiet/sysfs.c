@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2012-2013 NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -70,10 +70,10 @@ static ssize_t store_current_governor(const char *buf, size_t count)
 
 	mutex_lock(&cpuquiet_lock);
 	gov = cpuquiet_find_governor(name);
-	mutex_unlock(&cpuquiet_lock);
 
 	if (gov)
 		ret = cpuquiet_switch_governor(gov);
+	mutex_unlock(&cpuquiet_lock);
 
 	if (ret)
 		return ret;
