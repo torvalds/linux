@@ -178,7 +178,6 @@ static int i2c_nuvoton_wait_for_stat(struct tpm_chip *chip, u8 mask, u8 value,
 {
 	if (chip->vendor.irq && queue) {
 		s32 rc;
-		DEFINE_WAIT(wait);
 		struct priv_data *priv = chip->vendor.priv;
 		unsigned int cur_intrs = priv->intrs;
 
