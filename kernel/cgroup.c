@@ -2448,12 +2448,9 @@ static int cgroup_file_open(struct inode *inode, struct file *file)
 static int cgroup_file_release(struct inode *inode, struct file *file)
 {
 	struct cfent *cfe = __d_cfe(file->f_dentry);
-	struct cftype *cft = __d_cft(file->f_dentry);
 	struct cgroup_subsys_state *css = cfe->css;
 	int ret = 0;
 
-	if (cft->release)
-		ret = cft->release(inode, file);
 	if (css->ss)
 		css_put(css);
 	if (file->f_op == &cgroup_seqfile_operations)
