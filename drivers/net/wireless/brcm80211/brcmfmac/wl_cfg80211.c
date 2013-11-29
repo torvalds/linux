@@ -2556,8 +2556,8 @@ brcmf_compare_update_same_bss(struct brcmf_cfg80211_info *cfg,
 		ch_bss.band == ch_bss_info_le.band &&
 		bss_info_le->SSID_len == bss->SSID_len &&
 		!memcmp(bss_info_le->SSID, bss->SSID, bss_info_le->SSID_len)) {
-		if ((bss->flags & WLC_BSS_RSSI_ON_CHANNEL) ==
-			(bss_info_le->flags & WLC_BSS_RSSI_ON_CHANNEL)) {
+		if ((bss->flags & BRCMF_BSS_RSSI_ON_CHANNEL) ==
+			(bss_info_le->flags & BRCMF_BSS_RSSI_ON_CHANNEL)) {
 			s16 bss_rssi = le16_to_cpu(bss->RSSI);
 			s16 bss_info_rssi = le16_to_cpu(bss_info_le->RSSI);
 
@@ -2566,13 +2566,13 @@ brcmf_compare_update_same_bss(struct brcmf_cfg80211_info *cfg,
 			*/
 			if (bss_info_rssi > bss_rssi)
 				bss->RSSI = bss_info_le->RSSI;
-		} else if ((bss->flags & WLC_BSS_RSSI_ON_CHANNEL) &&
-			(bss_info_le->flags & WLC_BSS_RSSI_ON_CHANNEL) == 0) {
+		} else if ((bss->flags & BRCMF_BSS_RSSI_ON_CHANNEL) &&
+			(bss_info_le->flags & BRCMF_BSS_RSSI_ON_CHANNEL) == 0) {
 			/* preserve the on-channel rssi measurement
 			* if the new measurement is off channel
 			*/
 			bss->RSSI = bss_info_le->RSSI;
-			bss->flags |= WLC_BSS_RSSI_ON_CHANNEL;
+			bss->flags |= BRCMF_BSS_RSSI_ON_CHANNEL;
 		}
 		return 1;
 	}

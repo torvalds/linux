@@ -23,6 +23,7 @@
 #include "dhd_bus.h"
 #include "dhd_dbg.h"
 #include "fwil.h"
+#include "fwil_types.h"
 #include "tracepoint.h"
 
 #define PKTFILTER_BUF_SIZE		128
