@@ -2674,7 +2674,7 @@ static int add_3d_struct_modes(struct drm_connector *connector, u16 structure,
 	int modes = 0;
 	u8 cea_mode;
 
-	if (video_db == NULL || video_index > video_len)
+	if (video_db == NULL || video_index >= video_len)
 		return 0;
 
 	/* CEA modes are numbered 1..127 */
