@@ -3575,12 +3575,6 @@ static int cmppid(const void *a, const void *b)
 	return *(pid_t *)a - *(pid_t *)b;
 }
 
-/*
- * find the appropriate pidlist for our purpose (given procs vs tasks)
- * returns with the lock on that pidlist already held, and takes care
- * of the use count, or returns NULL with no locks held if we're out of
- * memory.
- */
 static struct cgroup_pidlist *cgroup_pidlist_find(struct cgroup *cgrp,
 						  enum cgroup_filetype type)
 {
@@ -3588,35 +3582,43 @@ static struct cgroup_pidlist *cgroup_pidlist_find(struct cgroup *cgrp,
 	/* don't need task_nsproxy() if we're looking at ourself */
 	struct pid_namespace *ns = task_active_pid_ns(current);
 
-	/*
-	 * We can't drop the pidlist_mutex before taking the l->rwsem in case
-	 * the last ref-holder is trying to remove l from the list at the same
-	 * time. Holding the pidlist_mutex precludes somebody taking whichever
-	 * list we find out from under us - compare release_pid_array().
-	 */
-	mutex_lock(&cgrp->pidlist_mutex);
-	list_for_each_entry(l, &cgrp->pidlists, links) {
-		if (l->key.type == type && l->key.ns == ns) {
-			/* make sure l doesn't vanish out from under us */
-			down_write(&l->rwsem);
-			mutex_unlock(&cgrp->pidlist_mutex);
+	lockdep_assert_held(&cgrp->pidlist_mutex);
+
+	list_for_each_entry(l, &cgrp->pidlists, links)
+		if (l->key.type == type && l->key.ns == ns)
 			return l;
-		}
-	}
+	return NULL;
+}
+
+/*
+ * find the appropriate pidlist for our purpose (given procs vs tasks)
+ * returns with the lock on that pidlist already held, and takes care
+ * of the use count, or returns NULL with no locks held if we're out of
+ * memory.
+ */
+static struct cgroup_pidlist *cgroup_pidlist_find_create(struct cgroup *cgrp,
+						enum cgroup_filetype type)
+{
+	struct cgroup_pidlist *l;
+
+	lockdep_assert_held(&cgrp->pidlist_mutex);
+
+	l = cgroup_pidlist_find(cgrp, type);
+	if (l)
+		return l;
+
 	/* entry not found; create a new one */
 	l = kzalloc(sizeof(struct cgroup_pidlist), GFP_KERNEL);
-	if (!l) {
-		mutex_unlock(&cgrp->pidlist_mutex);
+	if (!l)
 		return l;
-	}
+
 	init_rwsem(&l->rwsem);
 	INIT_DELAYED_WORK(&l->destroy_dwork, cgroup_pidlist_destroy_work_fn);
-	down_write(&l->rwsem);
 	l->key.type = type;
-	l->key.ns = get_pid_ns(ns);
+	/* don't need task_nsproxy() if we're looking at ourself */
+	l->key.ns = get_pid_ns(task_active_pid_ns(current));
 	l->owner = cgrp;
 	list_add(&l->links, &cgrp->pidlists);
-	mutex_unlock(&cgrp->pidlist_mutex);
 	return l;
 }
 
@@ -3662,17 +3664,26 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 	sort(array, length, sizeof(pid_t), cmppid, NULL);
 	if (type == CGROUP_FILE_PROCS)
 		length = pidlist_uniq(array, length);
-	l = cgroup_pidlist_find(cgrp, type);
+
+	mutex_lock(&cgrp->pidlist_mutex);
+
+	l = cgroup_pidlist_find_create(cgrp, type);
 	if (!l) {
+		mutex_unlock(&cgrp->pidlist_mutex);
 		pidlist_free(array);
 		return -ENOMEM;
 	}
-	/* store array, freeing old if necessary - lock already held */
+
+	/* store array, freeing old if necessary */
+	down_write(&l->rwsem);
 	pidlist_free(l->list);
 	l->list = array;
 	l->length = length;
 	l->use_count++;
 	up_write(&l->rwsem);
+
+	mutex_unlock(&cgrp->pidlist_mutex);
+
 	*lp = l;
 	return 0;
 }
