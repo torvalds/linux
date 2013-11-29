@@ -395,7 +395,7 @@ static int acpi_processor_add(struct acpi_device *device,
 		goto err;
 	}
 
-	result = acpi_bind_one(dev, pr->handle);
+	result = acpi_bind_one(dev, device);
 	if (result)
 		goto err;
 

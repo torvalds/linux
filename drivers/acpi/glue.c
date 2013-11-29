@@ -172,9 +172,8 @@ static void acpi_physnode_link_name(char *buf, unsigned int node_id)
 		strcpy(buf, PHYSICAL_NODE_STRING);
 }
 
-int acpi_bind_one(struct device *dev, acpi_handle handle)
+int acpi_bind_one(struct device *dev, struct acpi_device *acpi_dev)
 {
-	struct acpi_device *acpi_dev = NULL;
 	struct acpi_device_physical_node *physical_node, *pn;
 	char physical_node_name[PHYSICAL_NODE_NAME_SIZE];
 	struct list_head *physnode_list;
@@ -182,14 +181,12 @@ int acpi_bind_one(struct device *dev, acpi_handle handle)
 	int retval = -EINVAL;
 
 	if (ACPI_COMPANION(dev)) {
-		if (handle) {
+		if (acpi_dev) {
 			dev_warn(dev, "ACPI companion already set\n");
 			return -EINVAL;
 		} else {
 			acpi_dev = ACPI_COMPANION(dev);
 		}
-	} else {
-		acpi_bus_get_device(handle, &acpi_dev);
 	}
 	if (!acpi_dev)
 		return -EINVAL;
@@ -314,7 +311,7 @@ static int acpi_platform_notify(struct device *dev)
 			ret = -ENODEV;
 			goto out;
 		}
-		ret = acpi_bind_one(dev, adev->handle);
+		ret = acpi_bind_one(dev, adev);
 		if (ret)
 			goto out;
 	}
