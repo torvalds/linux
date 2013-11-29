@@ -118,7 +118,8 @@ struct alc_spec {
 
 	int init_amp;
 	int codec_variant;	/* flag for other variants */
-	bool has_alc5505_dsp;
+	unsigned int has_alc5505_dsp:1;
+	unsigned int no_depop_delay:1;
 
 	/* for PLL fix */
 	hda_nid_t pll_nid;
@@ -280,8 +281,11 @@ static void alc_auto_setup_eapd(struct hda_codec *codec, bool on)
  */
 static void alc_eapd_shutup(struct hda_codec *codec)
 {
+	struct alc_spec *spec = codec->spec;
+
 	alc_auto_setup_eapd(codec, false);
-	msleep(200);
+	if (!spec->no_depop_delay)
+		msleep(200);
 	snd_hda_shutup_pins(codec);
 }
 
@@ -863,7 +867,10 @@ static int alc_suspend(struct hda_codec *codec)
 #ifdef CONFIG_PM
 static int alc_resume(struct hda_codec *codec)
 {
-	msleep(150); /* to avoid pop noise */
+	struct alc_spec *spec = codec->spec;
+
+	if (!spec->no_depop_delay)
+		msleep(150); /* to avoid pop noise */
 	codec->patch_ops.init(codec);
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
@@ -4457,7 +4464,7 @@ static int patch_alc269(struct hda_codec *codec)
 	}
 
 	if (snd_hda_codec_read(codec, 0x51, 0, AC_VERB_PARAMETERS, 0) == 0x10ec5505) {
-		spec->has_alc5505_dsp = true;
+		spec->has_alc5505_dsp = 1;
 		spec->init_hook = alc5505_dsp_init;
 	}
 
