@@ -35,7 +35,7 @@ struct sysfs_dirent *kernfs_create_link(struct sysfs_dirent *parent,
 	if (!sd)
 		return ERR_PTR(-ENOMEM);
 
-	if (parent->s_flags & SYSFS_FLAG_NS)
+	if (kernfs_ns_enabled(parent))
 		sd->s_ns = target->s_ns;
 	sd->s_symlink.target_sd = target;
 	kernfs_get(target);	/* ref owned by symlink */

@@ -128,7 +128,7 @@ void sysfs_delete_link(struct kobject *kobj, struct kobject *targ,
 	 * sysfs_remove_dir() for details.
 	 */
 	spin_lock(&sysfs_symlink_target_lock);
-	if (targ->sd && (kobj->sd->s_flags & SYSFS_FLAG_NS))
+	if (targ->sd && kernfs_ns_enabled(kobj->sd))
 		ns = targ->sd->s_ns;
 	spin_unlock(&sysfs_symlink_target_lock);
 	kernfs_remove_by_name_ns(kobj->sd, name, ns);

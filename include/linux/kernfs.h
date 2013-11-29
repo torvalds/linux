@@ -190,6 +190,17 @@ static inline void kernfs_enable_ns(struct sysfs_dirent *sd)
 	sd->s_flags |= SYSFS_FLAG_NS;
 }
 
+/**
+ * kernfs_ns_enabled - test whether namespace is enabled
+ * @sd: the node to test
+ *
+ * Test whether namespace filtering is enabled for the children of @ns.
+ */
+static inline bool kernfs_ns_enabled(struct sysfs_dirent *sd)
+{
+	return sd->s_flags & SYSFS_FLAG_NS;
+}
+
 struct sysfs_dirent *kernfs_find_and_get_ns(struct sysfs_dirent *parent,
 					    const char *name, const void *ns);
 void kernfs_get(struct sysfs_dirent *sd);
@@ -231,6 +242,9 @@ static inline enum kernfs_node_type sysfs_type(struct sysfs_dirent *sd)
 { return 0; }	/* whatever */
 
 static inline void kernfs_enable_ns(struct sysfs_dirent *sd) { }
+
+static inline bool kernfs_ns_enabled(struct sysfs_dirent *sd)
+{ return false; }
 
 static inline struct sysfs_dirent *
 kernfs_find_and_get_ns(struct sysfs_dirent *parent, const char *name,

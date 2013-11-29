@@ -291,7 +291,7 @@ static int sysfs_dentry_revalidate(struct dentry *dentry, unsigned int flags)
 		goto out_bad;
 
 	/* The sysfs dirent has been moved to a different namespace */
-	if (sd->s_parent && (sd->s_parent->s_flags & SYSFS_FLAG_NS) &&
+	if (sd->s_parent && kernfs_ns_enabled(sd->s_parent) &&
 	    sysfs_info(dentry->d_sb)->ns != sd->s_ns)
 		goto out_bad;
 
@@ -414,7 +414,7 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt)
 int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd,
 		  struct sysfs_dirent *parent_sd)
 {
-	bool has_ns = parent_sd->s_flags & SYSFS_FLAG_NS;
+	bool has_ns = kernfs_ns_enabled(parent_sd);
 	struct sysfs_inode_attrs *ps_iattr;
 	int ret;
 
@@ -535,7 +535,7 @@ static struct sysfs_dirent *kernfs_find_ns(struct sysfs_dirent *parent,
 					   const void *ns)
 {
 	struct rb_node *node = parent->s_dir.children.rb_node;
-	bool has_ns = parent->s_flags & SYSFS_FLAG_NS;
+	bool has_ns = kernfs_ns_enabled(parent);
 	unsigned int hash;
 
 	lockdep_assert_held(&sysfs_mutex);
@@ -685,7 +685,7 @@ static struct dentry *sysfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	mutex_lock(&sysfs_mutex);
 
-	if (parent_sd->s_flags & SYSFS_FLAG_NS)
+	if (kernfs_ns_enabled(parent_sd))
 		ns = sysfs_info(dir->i_sb)->ns;
 
 	sd = kernfs_find_ns(parent_sd, dentry->d_name.name, ns);
@@ -968,7 +968,7 @@ static int sysfs_readdir(struct file *file, struct dir_context *ctx)
 		return 0;
 	mutex_lock(&sysfs_mutex);
 
-	if (parent_sd->s_flags & SYSFS_FLAG_NS)
+	if (kernfs_ns_enabled(parent_sd))
 		ns = sysfs_info(dentry->d_sb)->ns;
 
 	for (pos = sysfs_dir_pos(ns, parent_sd, ctx->pos, pos);
