@@ -389,7 +389,7 @@ struct brcmf_sdio {
 	u8 tx_seq;		/* Transmit sequence number (next) */
 	u8 tx_max;		/* Maximum transmit sequence allowed */
 
-	u8 hdrbuf[MAX_HDR_READ + BRCMF_SDALIGN];
+	u8 *hdrbuf;		/* buffer for handling rx frame */
 	u8 *rxhdr;		/* Header of current rx frame (in hdrbuf) */
 	u8 rx_seq;		/* Receive sequence number (expected) */
 	struct brcmf_sdio_hdrinfo cur_read;
@@ -1580,9 +1580,9 @@ brcmf_sdbrcm_read_control(struct brcmf_sdio *bus, u8 *hdr, uint len, uint doff)
 		goto done;
 
 	rbuf = bus->rxbuf;
-	pad = ((unsigned long)rbuf % BRCMF_SDALIGN);
+	pad = ((unsigned long)rbuf % bus->head_align);
 	if (pad)
-		rbuf += (BRCMF_SDALIGN - pad);
+		rbuf += (bus->head_align - pad);
 
 	/* Copy the already-read portion over */
 	memcpy(buf, hdr, BRCMF_FIRSTREAD);
@@ -1596,13 +1596,9 @@ brcmf_sdbrcm_read_control(struct brcmf_sdio *bus, u8 *hdr, uint len, uint doff)
 		if ((pad <= bus->roundup) && (pad < bus->blocksize) &&
 		    ((len + pad) < bus->sdiodev->bus_if->maxctl))
 			rdlen += pad;
-	} else if (rdlen % BRCMF_SDALIGN) {
-		rdlen += BRCMF_SDALIGN - (rdlen % BRCMF_SDALIGN);
+	} else if (rdlen % bus->head_align) {
+		rdlen += bus->head_align - (rdlen % bus->head_align);
 	}
-
-	/* Satisfy length-alignment requirements */
-	if (rdlen & (ALIGNMENT - 1))
-		rdlen = roundup(rdlen, ALIGNMENT);
 
 	/* Drop if the read is too big or it exceeds our maximum */
 	if ((rdlen + BRCMF_FIRSTREAD) > bus->sdiodev->bus_if->maxctl) {
@@ -1668,8 +1664,8 @@ static void brcmf_pad(struct brcmf_sdio *bus, u16 *pad, u16 *rdlen)
 		if (*pad <= bus->roundup && *pad < bus->blocksize &&
 		    *rdlen + *pad + BRCMF_FIRSTREAD < MAX_RX_DATASZ)
 			*rdlen += *pad;
-	} else if (*rdlen % BRCMF_SDALIGN) {
-		*rdlen += BRCMF_SDALIGN - (*rdlen % BRCMF_SDALIGN);
+	} else if (*rdlen % bus->head_align) {
+		*rdlen += bus->head_align - (*rdlen % bus->head_align);
 	}
 }
 
@@ -1757,7 +1753,7 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 		brcmf_pad(bus, &pad, &rd->len_left);
 
 		pkt = brcmu_pkt_buf_get_skb(rd->len_left + head_read +
-					    BRCMF_SDALIGN);
+					    bus->head_align);
 		if (!pkt) {
 			/* Give up on data, request rtx of events */
 			brcmf_err("brcmu_pkt_buf_get_skb failed\n");
@@ -1767,7 +1763,7 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 			continue;
 		}
 		skb_pull(pkt, head_read);
-		pkt_align(pkt, rd->len_left, BRCMF_SDALIGN);
+		pkt_align(pkt, rd->len_left, bus->head_align);
 
 		ret = brcmf_sdcard_recv_pkt(bus->sdiodev, bus->sdiodev->sbwad,
 					      SDIO_FUNC_2, F2SYNC, pkt);
@@ -2762,14 +2758,14 @@ brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 	len = (msglen += bus->tx_hdrlen);
 
 	/* Add alignment padding (optional for ctl frames) */
-	doff = ((unsigned long)frame % BRCMF_SDALIGN);
+	doff = ((unsigned long)frame % bus->head_align);
 	if (doff) {
 		frame -= doff;
 		len += doff;
 		msglen += doff;
 		memset(frame, 0, doff + bus->tx_hdrlen);
 	}
-	/* precondition: doff < BRCMF_SDALIGN */
+	/* precondition: doff < bus->head_align */
 	doff += bus->tx_hdrlen;
 
 	/* Round send length to next SDIO block */
@@ -2778,14 +2774,10 @@ brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 		pad = bus->blocksize - (len % bus->blocksize);
 		if ((pad > bus->roundup) || (pad >= bus->blocksize))
 			pad = 0;
-	} else if (len % BRCMF_SDALIGN) {
-		pad = BRCMF_SDALIGN - (len % BRCMF_SDALIGN);
+	} else if (len % bus->head_align) {
+		pad = bus->head_align - (len % bus->head_align);
 	}
 	len += pad;
-
-	/* Satisfy length-alignment requirements */
-	if (len & (ALIGNMENT - 1))
-		len = roundup(len, ALIGNMENT);
 
 	/* precondition: IS_ALIGNED((unsigned long)frame, 2) */
 
@@ -2798,10 +2790,8 @@ brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 	hd_info.channel = SDPCM_CONTROL_CHANNEL;
 	hd_info.dat_offset = doff;
 	hd_info.seq_num = bus->tx_seq;
-	if (bus->txglom) {
-		hd_info.lastfrm = true;
-		hd_info.tail_pad = pad;
-	}
+	hd_info.lastfrm = true;
+	hd_info.tail_pad = pad;
 	brcmf_sdio_hdpack(bus, frame, &hd_info);
 
 	if (bus->txglom)
@@ -3823,7 +3813,7 @@ static bool brcmf_sdbrcm_probe_malloc(struct brcmf_sdio *bus)
 	if (bus->sdiodev->bus_if->maxctl) {
 		bus->rxblen =
 		    roundup((bus->sdiodev->bus_if->maxctl + SDPCM_HDRLEN),
-			    ALIGNMENT) + BRCMF_SDALIGN;
+			    ALIGNMENT) + bus->head_align;
 		bus->rxbuf = kmalloc(bus->rxblen, GFP_ATOMIC);
 		if (!(bus->rxbuf))
 			return false;
@@ -3924,9 +3914,13 @@ brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus, u32 regsva)
 
 	brcmu_pktq_init(&bus->txq, (PRIOMASK + 1), TXQLEN);
 
+	/* allocate header buffer */
+	bus->hdrbuf = kzalloc(MAX_HDR_READ + bus->head_align, GFP_KERNEL);
+	if (!bus->hdrbuf)
+		return false;
 	/* Locate an appropriately-aligned portion of hdrbuf */
 	bus->rxhdr = (u8 *) roundup((unsigned long)&bus->hdrbuf[0],
-				    BRCMF_SDALIGN);
+				    bus->head_align);
 
 	/* Set the poll and/or interrupt flags */
 	bus->intr = true;
@@ -4047,7 +4041,7 @@ static void brcmf_sdbrcm_release(struct brcmf_sdio *bus)
 
 		brcmu_pkt_buf_free_skb(bus->txglom_sgpad);
 		brcmf_sdbrcm_release_malloc(bus);
-
+		kfree(bus->hdrbuf);
 		kfree(bus);
 	}
 
