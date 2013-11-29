@@ -72,6 +72,7 @@ struct twl6040_data {
 	int hs_power_mode_locked;
 	bool dl1_unmuted;
 	bool dl2_unmuted;
+	u8 dl12_cache[TWL6040_REG_HFRCTL - TWL6040_REG_HSLCTL + 1];
 	unsigned int clk_in;
 	unsigned int sysclk;
 	struct twl6040_jack_data hs_jack;
@@ -174,18 +175,62 @@ static struct snd_pcm_hw_constraint_list sysclk_constraints[] = {
 	{ .count = ARRAY_SIZE(hp_rates), .list = hp_rates, },
 };
 
+static inline int twl6040_read_dl12_cache(struct snd_soc_codec *codec,
+					   u8 reg, u8 *value)
+{
+	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
+	int ret = 0;
+
+	switch (reg) {
+	case TWL6040_REG_HSLCTL:
+	case TWL6040_REG_HSRCTL:
+	case TWL6040_REG_EARCTL:
+	case TWL6040_REG_HFLCTL:
+	case TWL6040_REG_HFRCTL:
+		*value = priv->dl12_cache[reg - TWL6040_REG_HSLCTL];
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
 /*
  * read twl6040 register cache
  */
 static inline unsigned int twl6040_read_reg_cache(struct snd_soc_codec *codec,
-						unsigned int reg)
+						  unsigned int reg)
 {
 	u8 *cache = codec->reg_cache;
+	u8 value;
 
 	if (reg >= TWL6040_CACHEREGNUM)
 		return -EIO;
 
-	return cache[reg];
+	if (twl6040_read_dl12_cache(codec, reg, &value))
+		value = cache[reg];
+
+	return value;
+}
+
+static inline void twl6040_update_dl12_cache(struct snd_soc_codec *codec,
+					     u8 reg, u8 value)
+{
+	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
+
+	switch (reg) {
+	case TWL6040_REG_HSLCTL:
+	case TWL6040_REG_HSRCTL:
+	case TWL6040_REG_EARCTL:
+	case TWL6040_REG_HFLCTL:
+	case TWL6040_REG_HFRCTL:
+		priv->dl12_cache[reg - TWL6040_REG_HSLCTL] = value;
+		break;
+	default:
+		break;
+	}
 }
 
 /*
@@ -199,6 +244,8 @@ static inline void twl6040_write_reg_cache(struct snd_soc_codec *codec,
 	if (reg >= TWL6040_CACHEREGNUM)
 		return;
 	cache[reg] = value;
+
+	twl6040_update_dl12_cache(codec, reg, value);
 }
 
 /*
