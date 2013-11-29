@@ -288,7 +288,8 @@ void hsr_addr_subst_dest(struct hsr_priv *hsr_priv, struct ethhdr *ethhdr,
 static bool seq_nr_after(u16 a, u16 b)
 {
 	/* Remove inconsistency where
-	 * seq_nr_after(a, b) == seq_nr_before(a, b) */
+	 * seq_nr_after(a, b) == seq_nr_before(a, b)
+	 */
 	if ((int) b - a == 32768)
 		return false;
 
