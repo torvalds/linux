@@ -1150,9 +1150,6 @@ static void brcmf_bus_detach(struct brcmf_pub *drvr)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	if (drvr) {
-		/* Stop the protocol module */
-		brcmf_proto_stop(drvr);
-
 		/* Stop the bus module */
 		brcmf_bus_stop(drvr->bus_if);
 	}

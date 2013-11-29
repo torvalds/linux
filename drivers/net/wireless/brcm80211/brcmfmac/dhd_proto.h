@@ -27,9 +27,6 @@ int brcmf_proto_attach(struct brcmf_pub *drvr);
 /* Unlink, frees allocated protocol memory (including brcmf_proto) */
 void brcmf_proto_detach(struct brcmf_pub *drvr);
 
-/* Stop protocol: sync w/dongle state. */
-void brcmf_proto_stop(struct brcmf_pub *drvr);
-
 /* Add any protocol-specific data header.
  * Caller must reserve prot_hdrlen prepend space.
  */

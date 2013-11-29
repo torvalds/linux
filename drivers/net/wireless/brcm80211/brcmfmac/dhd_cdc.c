@@ -385,8 +385,3 @@ void brcmf_proto_detach(struct brcmf_pub *drvr)
 	kfree(drvr->prot);
 	drvr->prot = NULL;
 }
-
-void brcmf_proto_stop(struct brcmf_pub *drvr)
-{
-	/* Nothing to do for CDC */
-}
