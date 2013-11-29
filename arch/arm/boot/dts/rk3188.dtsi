@@ -96,42 +96,47 @@
 	};
 
 	uart0: serial@10124000 {
-		compatible = "snps,dw-apb-uart";
+		compatible = "rockchip,serial";
 		reg = <0x10124000 0x100>;
 		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <24000000>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		id = <0>;
 		status = "disabled";
 	};
 
 	uart1: serial@10126000 {
-		compatible = "snps,dw-apb-uart";
+		compatible = "rockchip,serial";
 		reg = <0x10126000 0x100>;
 		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <24000000>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		id = <1>;
 		status = "disabled";
 	};
 
 	uart2: serial@20064000 {
-		compatible = "snps,dw-apb-uart";
+		compatible = "rockchip,serial";
 		reg = <0x20064000 0x100>;
 		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <24000000>;
+		current-speed = <115200>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		id = <2>;
 		status = "disabled";
 	};
 
 	uart3: serial@20068000 {
-		compatible = "snps,dw-apb-uart";
+		compatible = "rockchip,serial";
 		reg = <0x20068000 0x100>;
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <24000000>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		id = <3>;
 		status = "disabled";
 	};
 };

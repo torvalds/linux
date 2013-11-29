@@ -14,13 +14,7 @@
  * Date: 2011.06.18
  */
 
-#ifndef CONFIG_SERIAL_RK_CONSOLE
-#if defined(CONFIG_SERIAL_RK29_CONSOLE)
-#define CONFIG_SERIAL_RK_CONSOLE
-#endif
-#endif
-
-#if defined(CONFIG_SERIAL_RK_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
+#if defined(CONFIG_SERIAL_ROCKCHIP_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
 #endif
 
@@ -44,9 +38,13 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/dma-mapping.h>
-
 #include <asm/io.h>
 #include <asm/irq.h>
+
+#ifdef CONFIG_OF
+#include <linux/of.h>
+#endif
+
 
 /*
 *			 Driver Version Note
@@ -68,8 +66,10 @@
 *		1.fix bug dma buffer free error
 *v1.5 : 2013-10-17
 *		1.in some case, set uart rx as gpio interrupt to wake up arm, when arm suspends 
+*v1.6 : 2013-11-29
+		migrate to kernel3.10,and fit device tree	
 */
-#define VERSION_AND_TIME  "rk_serial.c v1.5 2013-10-17"
+#define VERSION_AND_TIME  "rk_serial.c v1.5 2013-11-29"
 
 #define PORT_RK		90
 #define UART_USR	0x1F	/* UART Status Register */
@@ -82,7 +82,7 @@
 
 //#define BOTH_EMPTY 	(UART_LSR_TEMT | UART_LSR_THRE)
 
-#define UART_NR	4   //uart port number
+#define UART_NR	5   //uart port number
 
 
 /* configurate whether the port transmit-receive by DMA in menuconfig*/
@@ -135,16 +135,18 @@
 #define UART3_USE_WAKEUP 0
 #endif
 
-
-
 #define USE_TIMER    1           // use timer for dma transport
 #define POWER_MANEGEMENT 1
 #define RX_TIMEOUT		(3000*3)  //uint ms
 #define DMA_TX_TRRIGE_LEVEL 128
 #define SERIAL_CIRC_CNT_TO_END(xmit)   CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE)
 
+#ifdef CONFIG_OF
+#define USE_DMA 	0
+#else
+#define USE_DMA 	(UART0_USE_DMA | UART1_USE_DMA | UART2_USE_DMA | UART3_USE_DMA)
+#endif
 
-#define USE_DMA (UART0_USE_DMA | UART1_USE_DMA | UART2_USE_DMA | UART3_USE_DMA)
 #define USE_WAKEUP (UART0_USE_WAKEUP | UART1_USE_WAKEUP | UART2_USE_WAKEUP | UART3_USE_WAKEUP)
 
 #if USE_DMA
@@ -211,6 +213,8 @@ module_param(log_port, int, S_IRUGO|S_IWUSR);
 #endif
 
 
+//#define CONFIG_CLOCK_CTRL
+
 #if USE_DMA
 /* added by hhb@rock-chips.com for uart dma transfer */
 
@@ -261,6 +265,15 @@ struct uart_wake_up {
 	char wakelock_name[32];
 };
 #endif
+
+#ifdef CONFIG_OF
+struct of_rk_serial {
+	unsigned int id;
+	unsigned int use_dma;	
+	unsigned int uartclk;
+};
+#endif
+
 
 struct uart_rk_port {
 	struct uart_port	port;
@@ -808,7 +821,7 @@ static void serial_rk_report_dma_rx(unsigned long uart)
 		up->port.icount.rx += count;
 		flip = tty_insert_flip_string(up->port.state->port.tty, uart_dma->rx_buffer
 				+ uart_dma->rb_tail, count);
-		tty_flip_buffer_push(up->port.state->port.tty);
+		tty_flip_buffer_push(&up->port.state->port);
 		uart_dma->rb_tail = (uart_dma->rb_tail + count) & (uart_dma->rb_size - 1);
 		up->port_activity = jiffies;
 	}
@@ -842,7 +855,7 @@ static void serial_rk_report_revdata_workfunc(struct work_struct *work)
 	if(up->port.state->port.tty && up->dma->use_timer != 1 && up->fifo_size > 0){
 
 		tty_insert_flip_string(up->port.state->port.tty, up->fifo, up->fifo_size);
-		tty_flip_buffer_push(up->port.state->port.tty);
+		tty_flip_buffer_push(&up->port.state->port);
 		up->port.icount.rx += up->fifo_size;
 		up->ier |= UART_IER_RDI;
 		serial_out(up, UART_IER, up->ier);
@@ -941,7 +954,7 @@ ignore_char:
 		lsr = serial_in(up, UART_LSR);
 	} while ((lsr & (UART_LSR_DR | UART_LSR_BI)) && (max_count-- > 0));
 	spin_unlock(&up->port.lock);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(tty->port);
 	spin_lock(&up->port.lock);
 	*status = lsr;
 }
@@ -1211,7 +1224,7 @@ static void serial_rk_break_ctl(struct uart_port *port, int break_state)
 	dev_dbg(port->dev, "-%s lcr: 0x%02x\n", __func__, up->lcr);
 }
 
-#if defined(CONFIG_SERIAL_RK_CONSOLE) || defined(CONFIG_CONSOLE_POLL)
+#if defined(CONFIG_SERIAL_ROCKCHIP_CONSOLE) || defined(CONFIG_CONSOLE_POLL)
 /*
  *	Wait for transmitter & holding register to empty
  */
@@ -1305,10 +1318,10 @@ static int serial_rk_startup(struct uart_port *port)
 		return retval;
 
 	up->mcr = 0;
-
+#ifdef CONFIG_CLOCK_CTRL
 	clk_enable(up->pclk);
 	clk_enable(up->clk);  // enable the config uart clock
-
+#endif
 	/*
 	 * Clear the FIFO buffers and disable them.
 	 * (they will be reenabled in set_termios())
@@ -1417,8 +1430,10 @@ static void serial_rk_shutdown(struct uart_port *port)
 		up->port.state->xmit.buf = NULL;
 #endif
 	free_irq(up->port.irq, up);
+#ifdef CONFIG_CLOCK_CTRL
 	clk_disable(up->clk);
 	clk_disable(up->pclk);
+#endif
 }
 
 static void
@@ -1655,11 +1670,15 @@ serial_rk_pm(struct uart_port *port, unsigned int state,
 
 	dev_dbg(port->dev, "%s: %s\n", __func__, state ? "disable" : "enable");
 	if (state) {
+#ifdef CONFIG_CLOCK_CTRL
 		clk_disable(up->clk);
 		clk_disable(up->pclk);
+#endif
 	} else {
+#ifdef CONFIG_CLOCK_CTRL
 		clk_enable(up->pclk);
 		clk_enable(up->clk);
+#endif
 	}
 }
 
@@ -1725,7 +1744,7 @@ static struct uart_ops serial_rk_pops = {
 #endif
 };
 
-#ifdef CONFIG_SERIAL_RK_CONSOLE
+#ifdef CONFIG_SERIAL_ROCKCHIP_CONSOLE
 
 static struct uart_rk_port *serial_rk_console_ports[UART_NR];
 
@@ -1843,7 +1862,7 @@ static inline void serial_rk_add_console_port(struct uart_rk_port *up)
 
 static struct uart_driver serial_rk_reg = {
 	.owner			= THIS_MODULE,
-	.driver_name		= "rk29_serial",
+	.driver_name		= "rk_serial",
 	.dev_name		= "ttyS",
 	.major			= TTY_MAJOR,
 	.minor			= 64,
@@ -1924,15 +1943,33 @@ static int serial_rk_remove_wakeup_irq(struct uart_rk_port *up) {
 }
 #endif
 
+#ifdef CONFIG_OF
+static int of_rk_serial_parse_dt(const struct device_node *np, struct of_rk_serial *rks) {
+	unsigned int val = 0;
+	if(!of_property_read_u32(np, "id", &val))
+		rks->id = val;
+	if(!of_property_read_u32(np, "clock-frequency", &val))
+		rks->uartclk = val;
+#if USE_DMA
+	rks->use_dma = 0;	
+	if(of_find_property(np, "use-dma-rx", &val))
+		rks->use_dma |= RX_DMA;
+	if(of_find_property(np, "use-dma-tx", &val))
+		rks->use_dma |= TX_DMA;
+#endif
+	return 0;
+}
+#endif
 
 
-static int __devinit serial_rk_probe(struct platform_device *pdev)
+static int serial_rk_probe(struct platform_device *pdev)
 {
 	struct uart_rk_port	*up;
 	struct resource		*mem;
 	int irq;
 	int ret = -ENOSPC;
-	
+	struct of_rk_serial rks;	
+
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
 		dev_err(&pdev->dev, "no mem resource?\n");
@@ -1945,29 +1982,38 @@ static int __devinit serial_rk_probe(struct platform_device *pdev)
 		return irq;
 	}
 
+#ifdef CONFIG_OF
+	of_rk_serial_parse_dt(pdev->dev.of_node, &rks);
+	pdev->id = rks.id;
+#endif
 	if (!request_mem_region(mem->start, (mem->end - mem->start) + 1,
 				pdev->dev.driver->name)) {
 		dev_err(&pdev->dev, "memory region already claimed\n");
 		return -EBUSY;
 	}
-
+	
 	up = kzalloc(sizeof(*up), GFP_KERNEL);
 	if (up == NULL) {
 		ret = -ENOMEM;
 		goto do_release_region;
 	}
-
+	
 	sprintf(up->name, "rk29_serial.%d", pdev->id);
 	up->pdev = pdev;
+#ifdef CONFIG_CLOCK_CTRL
 	up->pclk = clk_get(&pdev->dev, "pclk_uart");
 	up->clk = clk_get(&pdev->dev, "uart");
 	if (unlikely(IS_ERR(up->clk))) {
 		ret = PTR_ERR(up->clk);
+		printk("%s:%d\n", __func__, __LINE__);
 		goto do_free;
+		
 	}
+#endif
 	up->tx_loadsz = 30;
 #if USE_DMA
 	up->dma = &rk29_uart_ports_dma[pdev->id];
+	up->dma->use_dma = rks.use_dma;
 #endif
 #if USE_WAKEUP
 	up->wakeup = &rk29_uart_ports_wakeup[pdev->id];
@@ -1975,8 +2021,8 @@ static int __devinit serial_rk_probe(struct platform_device *pdev)
 	up->port.dev = &pdev->dev;
 	up->port.type = PORT_RK;
 	up->port.irq = irq;
-	up->port.iotype = UPIO_DWAPB;
-
+	up->port.iotype = UPIO_MEM;
+	
 	up->port.regshift = 2;
 	//fifo size default is 32, but it will be updated later when start_up
 	up->port.fifosize = 32;
@@ -1990,8 +2036,13 @@ static int __devinit serial_rk_probe(struct platform_device *pdev)
 	}
 	up->port.mapbase = mem->start;
 	up->port.irqflags = IRQF_DISABLED;
+#if defined(CONFIG_CLOCK_CTRL)
 	up->port.uartclk = clk_get_rate(up->clk);
-
+#elif defined(CONFIG_OF)
+	up->port.uartclk = rks.uartclk;
+#else
+	up->port.uartclk = 24000000;
+#endif
 #if USE_DMA
 	/* set dma config */
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
@@ -2048,7 +2099,6 @@ static int __devinit serial_rk_probe(struct platform_device *pdev)
 	ret = uart_add_one_port(&serial_rk_reg, &up->port);
 	if (ret != 0)
 		goto do_iounmap;
-
 	platform_set_drvdata(pdev, up);
 	dev_info(&pdev->dev, "membase 0x%08x\n", (unsigned) up->port.membase);
 #if USE_WAKEUP
@@ -2060,16 +2110,18 @@ do_iounmap:
 	iounmap(up->port.membase);
 	up->port.membase = NULL;
 do_put_clk:
+#ifdef CONFIG_CLOCK_CTRL
 	clk_put(up->clk);
 	clk_put(up->pclk);
 do_free:
+#endif
 	kfree(up);
 do_release_region:
 	release_mem_region(mem->start, (mem->end - mem->start) + 1);
 	return ret;
 }
 
-static int __devexit serial_rk_remove(struct platform_device *pdev)
+static int serial_rk_remove(struct platform_device *pdev)
 {
 	struct uart_rk_port *up = platform_get_drvdata(pdev);
 
@@ -2081,8 +2133,10 @@ static int __devexit serial_rk_remove(struct platform_device *pdev)
 		mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		iounmap(up->port.membase);
 		up->port.membase = NULL;
+#ifdef CONFIG_CLOCK_CTRL
 		clk_put(up->clk);
 		clk_put(up->pclk);
+#endif
 		kfree(up);
 		release_mem_region(mem->start, (mem->end - mem->start) + 1);
 	}
@@ -2122,19 +2176,21 @@ static int serial_rk_resume(struct platform_device *dev)
 	}
 	return 0;
 }
-
+#ifdef CONFIG_OF
+static const struct of_device_id of_rk_serial_match[] = {
+	{ .compatible = "rockchip,serial" },
+	{ /* Sentinel */ }
+};
+#endif
 static struct platform_driver serial_rk_driver = {
 	.probe		= serial_rk_probe,
-	.remove		= __devexit_p(serial_rk_remove),
+	.remove		= serial_rk_remove,
 	.suspend	= serial_rk_suspend,
 	.resume		= serial_rk_resume,
 	.driver		= {
-#if defined(CONFIG_ARCH_RK29)
-		.name	= "rk29_serial",
-#elif defined(CONFIG_SERIAL_RK2818)
-		.name	= "rk2818_serial",
-#else
-		.name	= "rk_serial",
+		.name	= "serial",
+#ifdef CONFIG_OF
+		.of_match_table	= of_rk_serial_match,
 #endif
 		.owner	= THIS_MODULE,
 	},
@@ -2145,15 +2201,12 @@ static int __init serial_rk_init(void)
 	int ret;
 	//hhb@rock-chips.com
 	printk("%s\n", VERSION_AND_TIME);
-
 	ret = uart_register_driver(&serial_rk_reg);
 	if (ret)
 		return ret;
-
 	ret = platform_driver_register(&serial_rk_driver);
 	if (ret != 0)
 		uart_unregister_driver(&serial_rk_reg);
-
 	return ret;
 }
 

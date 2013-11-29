@@ -9,7 +9,7 @@
 	};
 
 	chosen {
-		bootargs ="console=ttyS1,115200 androidboot.console=ttyS1";
+		bootargs ="console=ttyS2,115200 androidboot.console=ttyS2";
 	};
 };
 
