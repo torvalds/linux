@@ -33,12 +33,11 @@ MODE_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/include/shared/skas
 
 HEADER_ARCH 	:= $(SUBARCH)
 
-# Additional ARCH settings for x86
-ifeq ($(SUBARCH),i386)
-        HEADER_ARCH := x86
+ifneq ($(filter $(SUBARCH),x86 x86_64 i386),)
+	HEADER_ARCH := x86
 endif
-ifeq ($(SUBARCH),x86_64)
-        HEADER_ARCH := x86
+
+ifdef CONFIG_64BIT
 	KBUILD_CFLAGS += -mcmodel=large
 endif
 
