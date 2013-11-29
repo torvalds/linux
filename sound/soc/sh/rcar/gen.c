@@ -16,12 +16,6 @@ struct rsnd_gen_ops {
 		     struct rsnd_priv *priv);
 	void (*remove)(struct platform_device *pdev,
 		      struct rsnd_priv *priv);
-	int (*path_init)(struct rsnd_priv *priv,
-			 struct rsnd_dai *rdai,
-			 struct rsnd_dai_stream *io);
-	int (*path_exit)(struct rsnd_priv *priv,
-			 struct rsnd_dai *rdai,
-			 struct rsnd_dai_stream *io);
 };
 
 struct rsnd_gen {
@@ -168,17 +162,10 @@ static int rsnd_gen_regmap_init(struct rsnd_priv *priv,
 
 	return 0;
 }
-/*
- *		Gen2
- *		will be filled in the future
- */
 
-/*
- *		Gen1
- */
-static int rsnd_gen1_path_init(struct rsnd_priv *priv,
-			       struct rsnd_dai *rdai,
-			       struct rsnd_dai_stream *io)
+int rsnd_gen_path_init(struct rsnd_priv *priv,
+		       struct rsnd_dai *rdai,
+		       struct rsnd_dai_stream *io)
 {
 	struct rsnd_mod *mod;
 	int ret;
@@ -216,9 +203,9 @@ static int rsnd_gen1_path_init(struct rsnd_priv *priv,
 	return ret;
 }
 
-static int rsnd_gen1_path_exit(struct rsnd_priv *priv,
-			       struct rsnd_dai *rdai,
-			       struct rsnd_dai_stream *io)
+int rsnd_gen_path_exit(struct rsnd_priv *priv,
+		       struct rsnd_dai *rdai,
+		       struct rsnd_dai_stream *io)
 {
 	struct rsnd_mod *mod, *n;
 	int ret = 0;
@@ -231,6 +218,15 @@ static int rsnd_gen1_path_exit(struct rsnd_priv *priv,
 
 	return ret;
 }
+
+/*
+ *		Gen2
+ *		will be filled in the future
+ */
+
+/*
+ *		Gen1
+ */
 
 /* single address mapping */
 #define RSND_GEN1_S_REG(gen, reg, id, offset)	\
@@ -319,31 +315,11 @@ static void rsnd_gen1_remove(struct platform_device *pdev,
 static struct rsnd_gen_ops rsnd_gen1_ops = {
 	.probe		= rsnd_gen1_probe,
 	.remove		= rsnd_gen1_remove,
-	.path_init	= rsnd_gen1_path_init,
-	.path_exit	= rsnd_gen1_path_exit,
 };
 
 /*
  *		Gen
  */
-int rsnd_gen_path_init(struct rsnd_priv *priv,
-		       struct rsnd_dai *rdai,
-		       struct rsnd_dai_stream *io)
-{
-	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
-
-	return gen->ops->path_init(priv, rdai, io);
-}
-
-int rsnd_gen_path_exit(struct rsnd_priv *priv,
-		       struct rsnd_dai *rdai,
-		       struct rsnd_dai_stream *io)
-{
-	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
-
-	return gen->ops->path_exit(priv, rdai, io);
-}
-
 int rsnd_gen_probe(struct platform_device *pdev,
 		   struct rcar_snd_info *info,
 		   struct rsnd_priv *priv)
