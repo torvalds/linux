@@ -1855,7 +1855,7 @@ out:
 int wcn36xx_smd_trigger_ba(struct wcn36xx *wcn, u8 sta_index)
 {
 	struct wcn36xx_hal_trigger_ba_req_msg msg_body;
-	struct wcn36xx_hal_trigget_ba_req_candidate *candidate;
+	struct wcn36xx_hal_trigger_ba_req_candidate *candidate;
 	int ret = 0;
 
 	mutex_lock(&wcn->hal_mutex);
@@ -1866,7 +1866,7 @@ int wcn36xx_smd_trigger_ba(struct wcn36xx *wcn, u8 sta_index)
 	msg_body.header.len += sizeof(*candidate);
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
 
-	candidate = (struct wcn36xx_hal_trigget_ba_req_candidate *)
+	candidate = (struct wcn36xx_hal_trigger_ba_req_candidate *)
 		(wcn->hal_buf + sizeof(msg_body));
 	candidate->sta_index = sta_index;
 	candidate->tid_bitmap = 1;
