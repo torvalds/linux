@@ -86,11 +86,27 @@ static struct regmap_bus rsnd_regmap_bus = {
 	.val_format_endian_default	= REGMAP_ENDIAN_NATIVE,
 };
 
+static int rsnd_is_accessible_reg(struct rsnd_priv *priv,
+				  struct rsnd_gen *gen, enum rsnd_reg reg)
+{
+	if (!gen->regs[reg]) {
+		struct device *dev = rsnd_priv_to_dev(priv);
+
+		dev_err(dev, "unsupported register access %x\n", reg);
+		return 0;
+	}
+
+	return 1;
+}
+
 u32 rsnd_read(struct rsnd_priv *priv,
 	      struct rsnd_mod *mod, enum rsnd_reg reg)
 {
 	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
 	u32 val;
+
+	if (!rsnd_is_accessible_reg(priv, gen, reg))
+		return 0;
 
 	regmap_fields_read(gen->regs[reg], rsnd_mod_id(mod), &val);
 
@@ -103,6 +119,9 @@ void rsnd_write(struct rsnd_priv *priv,
 {
 	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
 
+	if (!rsnd_is_accessible_reg(priv, gen, reg))
+		return;
+
 	regmap_fields_write(gen->regs[reg], rsnd_mod_id(mod), data);
 }
 
@@ -110,6 +129,9 @@ void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
 	       enum rsnd_reg reg, u32 mask, u32 data)
 {
 	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
+
+	if (!rsnd_is_accessible_reg(priv, gen, reg))
+		return;
 
 	regmap_fields_update_bits(gen->regs[reg], rsnd_mod_id(mod),
 				  mask, data);
@@ -134,6 +156,10 @@ static int rsnd_gen_regmap_init(struct rsnd_priv *priv,
 	}
 
 	for (i = 0; i < RSND_REG_MAX; i++) {
+		gen->regs[i] = NULL;
+		if (!regf[i].reg)
+			continue;
+
 		gen->regs[i] = devm_regmap_field_alloc(dev, gen->regmap, regf[i]);
 		if (IS_ERR(gen->regs[i]))
 			return PTR_ERR(gen->regs[i]);
