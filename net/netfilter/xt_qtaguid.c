@@ -594,7 +594,7 @@ static void put_tag_ref_tree(tag_t full_tag, struct uid_tag_data *utd_entry)
 	}
 }
 
-static int read_proc_u64(struct file *file, char __user *buf,
+static ssize_t read_proc_u64(struct file *file, char __user *buf,
 			 size_t size, loff_t *ppos)
 {
 	uint64_t *valuep = PDE_DATA(file_inode(file));
@@ -605,7 +605,7 @@ static int read_proc_u64(struct file *file, char __user *buf,
 	return simple_read_from_buffer(buf, size, ppos, tmp, tmp_size);
 }
 
-static int read_proc_bool(struct file *file, char __user *buf,
+static ssize_t read_proc_bool(struct file *file, char __user *buf,
 			  size_t size, loff_t *ppos)
 {
 	bool *valuep = PDE_DATA(file_inode(file));
@@ -702,7 +702,7 @@ static void pp_iface_stat_line(struct seq_file *m,
 }
 
 struct proc_iface_stat_fmt_info {
-	int fmt;
+	long fmt;
 };
 
 static void *iface_stat_fmt_proc_start(struct seq_file *m, loff_t *pos)
@@ -1488,7 +1488,7 @@ static int proc_iface_stat_fmt_open(struct inode *inode, struct file *file)
 	if (!s)
 		return -ENOMEM;
 
-	s->fmt = (int)PDE_DATA(inode);
+	s->fmt = (long)PDE_DATA(inode);
 	return 0;
 }
 
@@ -2479,7 +2479,7 @@ err:
 }
 
 #define MAX_QTAGUID_CTRL_INPUT_LEN 255
-static int qtaguid_ctrl_proc_write(struct file *file, const char __user *buffer,
+static ssize_t qtaguid_ctrl_proc_write(struct file *file, const char __user *buffer,
 				   size_t count, loff_t *offp)
 {
 	char input_buf[MAX_QTAGUID_CTRL_INPUT_LEN];
