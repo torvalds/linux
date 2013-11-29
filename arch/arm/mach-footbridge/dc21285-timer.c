@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/sched_clock.h>
 
 #include <asm/irq.h>
 
@@ -103,4 +104,20 @@ void __init footbridge_timer_init(void)
 
 	ce->cpumask = cpumask_of(smp_processor_id());
 	clockevents_config_and_register(ce, mem_fclk_21285, 0x4, 0xffffff);
+}
+
+static u32 notrace footbridge_read_sched_clock(void)
+{
+	return ~*CSR_TIMER3_VALUE;
+}
+
+void __init footbridge_sched_clock(void)
+{
+	unsigned rate = DIV_ROUND_CLOSEST(mem_fclk_21285, 16);
+
+	*CSR_TIMER3_LOAD = 0;
+	*CSR_TIMER3_CLR = 0;
+	*CSR_TIMER3_CNTL = TIMER_CNTL_ENABLE | TIMER_CNTL_DIV16;
+
+	setup_sched_clock(footbridge_read_sched_clock, 24, rate);
 }

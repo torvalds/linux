@@ -104,6 +104,7 @@ MACHINE_START(EBSA285, "EBSA285")
 	.video_start	= 0x000a0000,
 	.video_end	= 0x000bffff,
 	.map_io		= footbridge_map_io,
+	.init_early	= footbridge_sched_clock,
 	.init_irq	= footbridge_init_irq,
 	.init_time	= footbridge_timer_init,
 	.restart	= footbridge_restart,
