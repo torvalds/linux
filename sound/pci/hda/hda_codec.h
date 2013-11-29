@@ -944,6 +944,8 @@ struct hda_codec {
 	struct snd_array jacks;
 #endif
 
+	int depop_delay; /* depop delay in ms, -1 for default delay time */
+
 	/* fix-up list */
 	int fixup_id;
 	const struct hda_fixup *fixup_list;

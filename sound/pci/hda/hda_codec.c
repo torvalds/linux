@@ -1471,6 +1471,7 @@ int snd_hda_codec_new(struct hda_bus *bus,
 	INIT_LIST_HEAD(&codec->conn_list);
 
 	INIT_DELAYED_WORK(&codec->jackpoll_work, hda_jackpoll_work);
+	codec->depop_delay = -1;
 
 #ifdef CONFIG_PM
 	spin_lock_init(&codec->power_lock);
@@ -3975,8 +3976,10 @@ static unsigned int hda_set_power_state(struct hda_codec *codec,
 
 	/* this delay seems necessary to avoid click noise at power-down */
 	if (power_state == AC_PWRST_D3) {
-		/* transition time less than 10ms for power down */
-		msleep(codec->epss ? 10 : 100);
+		if (codec->depop_delay < 0)
+			msleep(codec->epss ? 10 : 100);
+		else if (codec->depop_delay > 0)
+			msleep(codec->depop_delay);
 		flags = HDA_RW_NO_RESPONSE_FALLBACK;
 	}
 
