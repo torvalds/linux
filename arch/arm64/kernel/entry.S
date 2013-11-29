@@ -309,15 +309,12 @@ el1_irq:
 #ifdef CONFIG_TRACE_IRQFLAGS
 	bl	trace_hardirqs_off
 #endif
+
+	irq_handler
+
 #ifdef CONFIG_PREEMPT
 	get_thread_info tsk
-	ldr	w24, [tsk, #TI_PREEMPT]		// get preempt count
-	add	w0, w24, #1			// increment it
-	str	w0, [tsk, #TI_PREEMPT]
-#endif
-	irq_handler
-#ifdef CONFIG_PREEMPT
-	str	w24, [tsk, #TI_PREEMPT]		// restore preempt count
+	ldr	w24, [tsk, #TI_PREEMPT]		// restore preempt count
 	cbnz	w24, 1f				// preempt count != 0
 	ldr	x0, [tsk, #TI_FLAGS]		// get flags
 	tbz	x0, #TIF_NEED_RESCHED, 1f	// needs rescheduling?
@@ -507,22 +504,10 @@ el0_irq_naked:
 #ifdef CONFIG_TRACE_IRQFLAGS
 	bl	trace_hardirqs_off
 #endif
-	get_thread_info tsk
-#ifdef CONFIG_PREEMPT
-	ldr	w24, [tsk, #TI_PREEMPT]		// get preempt count
-	add	w23, w24, #1			// increment it
-	str	w23, [tsk, #TI_PREEMPT]
-#endif
+
 	irq_handler
-#ifdef CONFIG_PREEMPT
-	ldr	w0, [tsk, #TI_PREEMPT]
-	str	w24, [tsk, #TI_PREEMPT]
-	cmp	w0, w23
-	b.eq	1f
-	mov	x1, #0
-	str	x1, [x1]			// BUG
-1:
-#endif
+	get_thread_info tsk
+
 #ifdef CONFIG_TRACE_IRQFLAGS
 	bl	trace_hardirqs_on
 #endif

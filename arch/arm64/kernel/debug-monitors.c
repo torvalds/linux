@@ -248,7 +248,8 @@ static int brk_handler(unsigned long addr, unsigned int esr,
 int aarch32_break_handler(struct pt_regs *regs)
 {
 	siginfo_t info;
-	unsigned int instr;
+	u32 arm_instr;
+	u16 thumb_instr;
 	bool bp = false;
 	void __user *pc = (void __user *)instruction_pointer(regs);
 
@@ -257,18 +258,21 @@ int aarch32_break_handler(struct pt_regs *regs)
 
 	if (compat_thumb_mode(regs)) {
 		/* get 16-bit Thumb instruction */
-		get_user(instr, (u16 __user *)pc);
-		if (instr == AARCH32_BREAK_THUMB2_LO) {
+		get_user(thumb_instr, (u16 __user *)pc);
+		thumb_instr = le16_to_cpu(thumb_instr);
+		if (thumb_instr == AARCH32_BREAK_THUMB2_LO) {
 			/* get second half of 32-bit Thumb-2 instruction */
-			get_user(instr, (u16 __user *)(pc + 2));
-			bp = instr == AARCH32_BREAK_THUMB2_HI;
+			get_user(thumb_instr, (u16 __user *)(pc + 2));
+			thumb_instr = le16_to_cpu(thumb_instr);
+			bp = thumb_instr == AARCH32_BREAK_THUMB2_HI;
 		} else {
-			bp = instr == AARCH32_BREAK_THUMB;
+			bp = thumb_instr == AARCH32_BREAK_THUMB;
 		}
 	} else {
 		/* 32-bit ARM instruction */
-		get_user(instr, (u32 __user *)pc);
-		bp = (instr & ~0xf0000000) == AARCH32_BREAK_ARM;
+		get_user(arm_instr, (u32 __user *)pc);
+		arm_instr = le32_to_cpu(arm_instr);
+		bp = (arm_instr & ~0xf0000000) == AARCH32_BREAK_ARM;
 	}
 
 	if (!bp)
