@@ -369,6 +369,15 @@ static void alc_fixup_sku_ignore(struct hda_codec *codec,
 	}
 }
 
+static void alc_fixup_no_depop_delay(struct hda_codec *codec,
+				    const struct hda_fixup *fix, int action)
+{
+	struct alc_spec *spec = codec->spec;
+
+	if (action == HDA_FIXUP_ACT_PROBE)
+		spec->no_depop_delay = 1;
+}
+
 static int alc_auto_parse_customize_define(struct hda_codec *codec)
 {
 	unsigned int ass, tmp, i;
@@ -2308,6 +2317,7 @@ enum {
 	ALC262_FIXUP_BENQ,
 	ALC262_FIXUP_BENQ_T31,
 	ALC262_FIXUP_INV_DMIC,
+	ALC262_FIXUP_INTEL_BAYLEYBAY,
 };
 
 static const struct hda_fixup alc262_fixups[] = {
@@ -2372,6 +2382,10 @@ static const struct hda_fixup alc262_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_inv_dmic_0x12,
 	},
+	[ALC262_FIXUP_INTEL_BAYLEYBAY] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc_fixup_no_depop_delay,
+	},
 };
 
 static const struct snd_pci_quirk alc262_fixup_tbl[] = {
@@ -2383,6 +2397,7 @@ static const struct snd_pci_quirk alc262_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x384e, "Lenovo 3000", ALC262_FIXUP_LENOVO_3000),
 	SND_PCI_QUIRK(0x17ff, 0x0560, "Benq ED8", ALC262_FIXUP_BENQ),
 	SND_PCI_QUIRK(0x17ff, 0x058d, "Benq T31-16", ALC262_FIXUP_BENQ_T31),
+	SND_PCI_QUIRK(0x8086, 0x7270, "BayleyBay", ALC262_FIXUP_INTEL_BAYLEYBAY),
 	{}
 };
 
