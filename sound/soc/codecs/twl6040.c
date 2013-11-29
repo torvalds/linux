@@ -133,22 +133,6 @@ static const u8 twl6040_reg[TWL6040_CACHEREGNUM] = {
 	0x00, /* REG_STATUS	0x2E (ro) */
 };
 
-/* List of registers to be restored after power up */
-static const int twl6040_restore_list[] = {
-	TWL6040_REG_MICLCTL,
-	TWL6040_REG_MICRCTL,
-	TWL6040_REG_MICGAIN,
-	TWL6040_REG_LINEGAIN,
-	TWL6040_REG_HSLCTL,
-	TWL6040_REG_HSRCTL,
-	TWL6040_REG_HSGAIN,
-	TWL6040_REG_EARCTL,
-	TWL6040_REG_HFLCTL,
-	TWL6040_REG_HFLGAIN,
-	TWL6040_REG_HFRCTL,
-	TWL6040_REG_HFRGAIN,
-};
-
 /* set of rates for each pll: low-power and high-performance */
 static unsigned int lp_rates[] = {
 	8000,
@@ -333,17 +317,6 @@ static void twl6040_init_chip(struct snd_soc_codec *codec)
 	twl6040_write_reg_cache(codec, TWL6040_REG_HFLGAIN, 0x1d);
 	twl6040_write_reg_cache(codec, TWL6040_REG_HFRGAIN, 0x1d);
 	twl6040_write_reg_cache(codec, TWL6040_REG_LINEGAIN, 0);
-}
-
-static void twl6040_restore_regs(struct snd_soc_codec *codec)
-{
-	u8 *cache = codec->reg_cache;
-	int reg, i;
-
-	for (i = 0; i < ARRAY_SIZE(twl6040_restore_list); i++) {
-		reg = twl6040_restore_list[i];
-		twl6040_write(codec, reg, cache[reg]);
-	}
 }
 
 /* set headset dac and driver power mode */
@@ -977,8 +950,6 @@ static int twl6040_set_bias_level(struct snd_soc_codec *codec,
 			return ret;
 
 		priv->codec_powered = 1;
-
-		twl6040_restore_regs(codec);
 
 		/* Set external boost GPO */
 		twl6040_write(codec, TWL6040_REG_GPOCTL, 0x02);
