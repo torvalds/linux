@@ -46,6 +46,7 @@ static bool ixgbe_get_i2c_data(u32 *i2cctl);
 static void ixgbe_i2c_bus_clear(struct ixgbe_hw *hw);
 static enum ixgbe_phy_type ixgbe_get_phy_type_from_id(u32 phy_id);
 static s32 ixgbe_get_phy_id(struct ixgbe_hw *hw);
+static s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw);
 
 /**
  *  ixgbe_identify_phy_generic - Get physical layer module
@@ -1164,7 +1165,7 @@ err_read_i2c_eeprom:
  *
  * Searches for and identifies the QSFP module and assigns appropriate PHY type
  **/
-s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
+static s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 {
 	struct ixgbe_adapter *adapter = hw->back;
 	s32 status = IXGBE_ERR_PHY_ADDR_INVALID;
