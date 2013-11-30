@@ -150,6 +150,24 @@ static int msm_unload(struct drm_device *dev)
 	return 0;
 }
 
+static int get_mdp_ver(struct platform_device *pdev)
+{
+#ifdef CONFIG_OF
+	const static struct of_device_id match_types[] = { {
+		.compatible = "qcom,mdss_mdp",
+		.data	= (void	*)5,
+	}, {
+		/* end node */
+	} };
+	struct device *dev = &pdev->dev;
+	const struct of_device_id *match;
+	match = of_match_node(match_types, dev->of_node);
+	if (match)
+		return (int)match->data;
+#endif
+	return 4;
+}
+
 static int msm_load(struct drm_device *dev, unsigned long flags)
 {
 	struct platform_device *pdev = dev->platformdev;
@@ -208,7 +226,18 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 				(uint32_t)(priv->vram.paddr + size));
 	}
 
-	kms = mdp4_kms_init(dev);
+	switch (get_mdp_ver(pdev)) {
+	case 4:
+		kms = mdp4_kms_init(dev);
+		break;
+	case 5:
+		kms = mdp5_kms_init(dev);
+		break;
+	default:
+		kms = ERR_PTR(-ENODEV);
+		break;
+	}
+
 	if (IS_ERR(kms)) {
 		/*
 		 * NOTE: once we have GPU support, having no kms should not
@@ -811,12 +840,19 @@ static const struct platform_device_id msm_id[] = {
 	{ }
 };
 
+static const struct of_device_id dt_match[] = {
+	{ .compatible = "qcom,mdss_mdp" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, dt_match);
+
 static struct platform_driver msm_platform_driver = {
 	.probe      = msm_pdev_probe,
 	.remove     = msm_pdev_remove,
 	.driver     = {
 		.owner  = THIS_MODULE,
 		.name   = "msm",
+		.of_match_table = dt_match,
 		.pm     = &msm_pm_ops,
 	},
 	.id_table   = msm_id,
