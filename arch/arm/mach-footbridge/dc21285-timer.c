@@ -47,6 +47,16 @@ static struct clocksource cksrc_dc21285 = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
+static int ckevt_dc21285_set_next_event(unsigned long delta,
+	struct clock_event_device *c)
+{
+	*CSR_TIMER1_CLR = 0;
+	*CSR_TIMER1_LOAD = delta;
+	*CSR_TIMER1_CNTL = TIMER_CNTL_ENABLE | TIMER_CNTL_DIV16;
+
+	return 0;
+}
+
 static void ckevt_dc21285_set_mode(enum clock_event_mode mode,
 	struct clock_event_device *c)
 {
@@ -59,7 +69,9 @@ static void ckevt_dc21285_set_mode(enum clock_event_mode mode,
 				   TIMER_CNTL_DIV16;
 		break;
 
-	default:
+	case CLOCK_EVT_MODE_ONESHOT:
+	case CLOCK_EVT_MODE_UNUSED:
+	case CLOCK_EVT_MODE_SHUTDOWN:
 		*CSR_TIMER1_CNTL = 0;
 		break;
 	}
@@ -67,9 +79,11 @@ static void ckevt_dc21285_set_mode(enum clock_event_mode mode,
 
 static struct clock_event_device ckevt_dc21285 = {
 	.name		= "dc21285_timer1",
-	.features	= CLOCK_EVT_FEAT_PERIODIC,
+	.features	= CLOCK_EVT_FEAT_PERIODIC |
+			  CLOCK_EVT_FEAT_ONESHOT,
 	.rating		= 200,
 	.irq		= IRQ_TIMER1,
+	.set_next_event	= ckevt_dc21285_set_next_event,
 	.set_mode	= ckevt_dc21285_set_mode,
 };
 
@@ -78,6 +92,10 @@ static irqreturn_t timer1_interrupt(int irq, void *dev_id)
 	struct clock_event_device *ce = dev_id;
 
 	*CSR_TIMER1_CLR = 0;
+
+	/* Stop the timer if in one-shot mode */
+	if (ce->mode == CLOCK_EVT_MODE_ONESHOT)
+		*CSR_TIMER1_CNTL = 0;
 
 	ce->event_handler(ce);
 
