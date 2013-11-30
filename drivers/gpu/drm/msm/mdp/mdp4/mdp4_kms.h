@@ -18,12 +18,8 @@
 #ifndef __MDP4_KMS_H__
 #define __MDP4_KMS_H__
 
-#include <linux/clk.h>
-#include <linux/platform_device.h>
-#include <linux/regulator/consumer.h>
-
 #include "msm_drv.h"
-#include "mdp/mdp_common.xml.h"
+#include "mdp/mdp_kms.h"
 #include "mdp4.xml.h"
 
 
@@ -73,16 +69,6 @@ struct mdp4_platform_config {
 	struct iommu_domain *iommu;
 	uint32_t max_clk;
 };
-
-struct mdp4_format {
-	struct msm_format base;
-	enum mdp_bpc bpc_r, bpc_g, bpc_b;
-	enum mdp_bpc_alpha bpc_a;
-	uint8_t unpack[4];
-	bool alpha_enable, unpack_tight;
-	uint8_t cpp, unpack_count;
-};
-#define to_mdp4_format(x) container_of(x, struct mdp4_format, base)
 
 static inline void mdp4_write(struct mdp4_kms *mdp4_kms, u32 reg, u32 data)
 {
@@ -189,9 +175,15 @@ void mdp4_irq_unregister(struct mdp4_kms *mdp4_kms, struct mdp4_irq *irq);
 int mdp4_enable_vblank(struct msm_kms *kms, struct drm_crtc *crtc);
 void mdp4_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc);
 
-uint32_t mdp4_get_formats(enum mdp4_pipe pipe_id, uint32_t *formats,
-		uint32_t max_formats);
-const struct msm_format *mdp4_get_format(struct msm_kms *kms, uint32_t format);
+static inline
+uint32_t mdp4_get_formats(enum mdp4_pipe pipe_id, uint32_t *pixel_formats,
+		uint32_t max_formats)
+{
+	/* TODO when we have YUV, we need to filter supported formats
+	 * based on pipe_id..
+	 */
+	return mdp_get_formats(pixel_formats, max_formats);
+}
 
 void mdp4_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj);
