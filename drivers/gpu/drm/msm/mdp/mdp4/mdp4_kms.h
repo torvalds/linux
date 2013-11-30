@@ -23,6 +23,7 @@
 #include <linux/regulator/consumer.h>
 
 #include "msm_drv.h"
+#include "mdp/mdp_common.xml.h"
 #include "mdp4.xml.h"
 
 
@@ -75,8 +76,8 @@ struct mdp4_platform_config {
 
 struct mdp4_format {
 	struct msm_format base;
-	enum mdp4_bpc bpc_r, bpc_g, bpc_b;
-	enum mdp4_bpc_alpha bpc_a;
+	enum mdp_bpc bpc_r, bpc_g, bpc_b;
+	enum mdp_bpc_alpha bpc_a;
 	uint8_t unpack[4];
 	bool alpha_enable, unpack_tight;
 	uint8_t cpp, unpack_count;
@@ -134,7 +135,7 @@ static inline uint32_t dma2err(enum mdp4_dma dma)
 }
 
 static inline uint32_t mixercfg(int mixer, enum mdp4_pipe pipe,
-		enum mdp4_mixer_stage_id stage)
+		enum mdp_mixer_stage_id stage)
 {
 	uint32_t mixer_cfg = 0;
 

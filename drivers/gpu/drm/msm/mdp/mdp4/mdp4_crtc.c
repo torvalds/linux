@@ -232,7 +232,7 @@ static void blend_setup(struct drm_crtc *crtc)
 	struct mdp4_kms *mdp4_kms = get_kms(crtc);
 	int i, ovlp = mdp4_crtc->ovlp;
 	uint32_t mixer_cfg = 0;
-	static const enum mdp4_mixer_stage_id stages[] = {
+	static const enum mdp_mixer_stage_id stages[] = {
 			STAGE_BASE, STAGE0, STAGE1, STAGE2, STAGE3,
 	};
 	/* statically (for now) map planes to mixer stage (z-order): */
