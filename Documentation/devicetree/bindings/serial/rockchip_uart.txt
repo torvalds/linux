@@ -1,0 +1,27 @@
+* Universal Asynchronous Receiver/Transmitter (UART)
+
+- compatible: "rockchip,rk_serial"
+
+  Compatibility with all rk28xx rk29xx rk30xx rk31xx SOCs.
+
+- reg: The base address of the UART register bank.
+
+- interrupts: A single interrupt specifier.
+
+- id: port line, determine the ttySx
+ 
+- use-dma-rx: enable dma receive
+
+- use-dma-tx: enable dma tramsmit
+
+Example:
+uart0: serial@10124000 {
+		compatible = "rockchip,rk_serial";
+		reg = <0x10124000 0x100>;
+		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+		clock-frequency = <24000000>;
+		id = <0>;
+		use-dma-rx;
+		use-dma-tx;
+		status = "disabled";
+	};
