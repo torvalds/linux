@@ -12,12 +12,12 @@ msm-y := \
 	hdmi/hdmi_i2c.o \
 	hdmi/hdmi_phy_8960.o \
 	hdmi/hdmi_phy_8x60.o \
-	mdp4/mdp4_crtc.o \
-	mdp4/mdp4_dtv_encoder.o \
-	mdp4/mdp4_format.o \
-	mdp4/mdp4_irq.o \
-	mdp4/mdp4_kms.o \
-	mdp4/mdp4_plane.o \
+	mdp/mdp4/mdp4_crtc.o \
+	mdp/mdp4/mdp4_dtv_encoder.o \
+	mdp/mdp4/mdp4_format.o \
+	mdp/mdp4/mdp4_irq.o \
+	mdp/mdp4/mdp4_kms.o \
+	mdp/mdp4/mdp4_plane.o \
 	msm_drv.o \
 	msm_fb.o \
 	msm_gem.o \
