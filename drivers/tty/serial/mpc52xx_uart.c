@@ -619,29 +619,55 @@ static irqreturn_t mpc512x_psc_handle_irq(struct uart_port *port)
 }
 
 static struct clk *psc_mclk_clk[MPC52xx_PSC_MAXNUM];
+static struct clk *psc_ipg_clk[MPC52xx_PSC_MAXNUM];
 
 /* called from within the .request_port() callback (allocation) */
 static int mpc512x_psc_alloc_clock(struct uart_port *port)
 {
 	int psc_num;
-	char clk_name[16];
 	struct clk *clk;
 	int err;
 
 	psc_num = (port->mapbase & 0xf00) >> 8;
-	snprintf(clk_name, sizeof(clk_name), "psc%d_mclk", psc_num);
-	clk = devm_clk_get(port->dev, clk_name);
+
+	clk = devm_clk_get(port->dev, "mclk");
 	if (IS_ERR(clk)) {
 		dev_err(port->dev, "Failed to get MCLK!\n");
-		return PTR_ERR(clk);
+		err = PTR_ERR(clk);
+		goto out_err;
 	}
 	err = clk_prepare_enable(clk);
 	if (err) {
 		dev_err(port->dev, "Failed to enable MCLK!\n");
-		return err;
+		goto out_err;
 	}
 	psc_mclk_clk[psc_num] = clk;
+
+	clk = devm_clk_get(port->dev, "ipg");
+	if (IS_ERR(clk)) {
+		dev_err(port->dev, "Failed to get IPG clock!\n");
+		err = PTR_ERR(clk);
+		goto out_err;
+	}
+	err = clk_prepare_enable(clk);
+	if (err) {
+		dev_err(port->dev, "Failed to enable IPG clock!\n");
+		goto out_err;
+	}
+	psc_ipg_clk[psc_num] = clk;
+
 	return 0;
+
+out_err:
+	if (psc_mclk_clk[psc_num]) {
+		clk_disable_unprepare(psc_mclk_clk[psc_num]);
+		psc_mclk_clk[psc_num] = NULL;
+	}
+	if (psc_ipg_clk[psc_num]) {
+		clk_disable_unprepare(psc_ipg_clk[psc_num]);
+		psc_ipg_clk[psc_num] = NULL;
+	}
+	return err;
 }
 
 /* called from within the .release_port() callback (release) */
@@ -655,6 +681,10 @@ static void mpc512x_psc_relse_clock(struct uart_port *port)
 	if (clk) {
 		clk_disable_unprepare(clk);
 		psc_mclk_clk[psc_num] = NULL;
+	}
+	if (psc_ipg_clk[psc_num]) {
+		clk_disable_unprepare(psc_ipg_clk[psc_num]);
+		psc_ipg_clk[psc_num] = NULL;
 	}
 }
 
