@@ -125,7 +125,7 @@ int vdso_alloc_per_cpu(struct _lowcore *lowcore)
 		psal[i] = 0x80000000;
 
 	lowcore->paste[4] = (u32)(addr_t) psal;
-	psal[0] = 0x20000000;
+	psal[0] = 0x02000000;
 	psal[2] = (u32)(addr_t) aste;
 	*(unsigned long *) (aste + 2) = segment_table +
 		_ASCE_TABLE_LENGTH + _ASCE_USER_BITS + _ASCE_TYPE_SEGMENT;
