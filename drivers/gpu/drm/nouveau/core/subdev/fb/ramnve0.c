@@ -542,10 +542,9 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 					    (data & 0x7000) >> 12);
 
 	ram_wr32(fuc, 0x10f090, 0x4000007e);
-	ram_nsec(fuc, 1000);
+	ram_nsec(fuc, 2000);
 	ram_wr32(fuc, 0x10f314, 0x00000001); /* PRECHARGE */
 	ram_wr32(fuc, 0x10f310, 0x00000001); /* REFRESH */
-	ram_nsec(fuc, 2000);
 	ram_wr32(fuc, 0x10f210, 0x80000000); /* REFRESH_AUTO = 1 */
 
 	if ((nv_ro08(bios, ramcfg + 0x08) & 0x10) && (ram->mode == 2) /*XXX*/) {
