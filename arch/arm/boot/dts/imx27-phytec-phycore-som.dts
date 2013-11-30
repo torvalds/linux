@@ -201,6 +201,7 @@
 &nfc {
 	nand-bus-width = <8>;
 	nand-ecc-mode = "hw";
+	nand-on-flash-bbt;
 	status = "okay";
 };
 
