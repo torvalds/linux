@@ -180,6 +180,21 @@ static int soc_pcm_params_symmetry(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static bool soc_pcm_has_symmetry(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai_driver *cpu_driver = rtd->cpu_dai->driver;
+	struct snd_soc_dai_driver *codec_driver = rtd->codec_dai->driver;
+	struct snd_soc_dai_link *link = rtd->dai_link;
+
+	return cpu_driver->symmetric_rates || codec_driver->symmetric_rates ||
+		link->symmetric_rates || cpu_driver->symmetric_channels ||
+		codec_driver->symmetric_channels || link->symmetric_channels ||
+		cpu_driver->symmetric_samplebits ||
+		codec_driver->symmetric_samplebits ||
+		link->symmetric_samplebits;
+}
+
 /*
  * List of sample sizes that might go over the bus for parameter
  * application.  There ought to be a wildcard sample size for things
@@ -308,6 +323,9 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 		soc_pcm_init_runtime_hw(&runtime->hw, &codec_dai_drv->capture,
 			&cpu_dai_drv->capture);
 	}
+
+	if (soc_pcm_has_symmetry(substream))
+		runtime->hw.info |= SNDRV_PCM_INFO_JOINT_DUPLEX;
 
 	ret = -EINVAL;
 	snd_pcm_limit_hw_rates(runtime);
