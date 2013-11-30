@@ -17,6 +17,7 @@
 
 #include "msm_drv.h"
 #include "msm_gpu.h"
+#include "msm_kms.h"
 
 static void msm_fb_output_poll_changed(struct drm_device *dev)
 {

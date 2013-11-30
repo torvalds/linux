@@ -19,6 +19,7 @@
 #define __MDP4_KMS_H__
 
 #include "msm_drv.h"
+#include "msm_kms.h"
 #include "mdp/mdp_kms.h"
 #include "mdp4.xml.h"
 

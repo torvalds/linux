@@ -17,6 +17,7 @@
 
 #include <linux/gpio.h>
 
+#include "msm_kms.h"
 #include "hdmi.h"
 
 struct hdmi_connector {

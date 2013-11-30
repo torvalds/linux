@@ -134,36 +134,6 @@ void __msm_fence_worker(struct work_struct *work);
 		(_cb)->func = _func;                         \
 	} while (0)
 
-/* As there are different display controller blocks depending on the
- * snapdragon version, the kms support is split out and the appropriate
- * implementation is loaded at runtime.  The kms module is responsible
- * for constructing the appropriate planes/crtcs/encoders/connectors.
- */
-struct msm_kms_funcs {
-	/* hw initialization: */
-	int (*hw_init)(struct msm_kms *kms);
-	/* irq handling: */
-	void (*irq_preinstall)(struct msm_kms *kms);
-	int (*irq_postinstall)(struct msm_kms *kms);
-	void (*irq_uninstall)(struct msm_kms *kms);
-	irqreturn_t (*irq)(struct msm_kms *kms);
-	int (*enable_vblank)(struct msm_kms *kms, struct drm_crtc *crtc);
-	void (*disable_vblank)(struct msm_kms *kms, struct drm_crtc *crtc);
-	/* misc: */
-	const struct msm_format *(*get_format)(struct msm_kms *kms, uint32_t format);
-	long (*round_pixclk)(struct msm_kms *kms, unsigned long rate,
-			struct drm_encoder *encoder);
-	/* cleanup: */
-	void (*preclose)(struct msm_kms *kms, struct drm_file *file);
-	void (*destroy)(struct msm_kms *kms);
-};
-
-struct msm_kms {
-	const struct msm_kms_funcs *funcs;
-};
-
-struct msm_kms *mdp4_kms_init(struct drm_device *dev);
-
 int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu);
 
 int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
