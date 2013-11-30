@@ -782,6 +782,7 @@ extern int ceph_add_cap(struct inode *inode,
 extern void __ceph_remove_cap(struct ceph_cap *cap, bool queue_release);
 extern void ceph_put_cap(struct ceph_mds_client *mdsc,
 			 struct ceph_cap *cap);
+extern int ceph_is_any_caps(struct inode *inode);
 
 extern void __queue_cap_release(struct ceph_mds_session *session, u64 ino,
 				u64 cap_id, u32 migrate_seq, u32 issue_seq);

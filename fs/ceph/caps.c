@@ -891,6 +891,18 @@ static int __ceph_is_any_caps(struct ceph_inode_info *ci)
 	return !RB_EMPTY_ROOT(&ci->i_caps) || ci->i_cap_exporting_mds >= 0;
 }
 
+int ceph_is_any_caps(struct inode *inode)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	int ret;
+
+	spin_lock(&ci->i_ceph_lock);
+	ret = __ceph_is_any_caps(ci);
+	spin_unlock(&ci->i_ceph_lock);
+
+	return ret;
+}
+
 /*
  * Remove a cap.  Take steps to deal with a racing iterate_session_caps.
  *
