@@ -391,18 +391,6 @@ xfs_vn_follow_link(
 	return NULL;
 }
 
-STATIC void
-xfs_vn_put_link(
-	struct dentry	*dentry,
-	struct nameidata *nd,
-	void		*p)
-{
-	char		*s = nd_get_link(nd);
-
-	if (!IS_ERR(s))
-		kfree(s);
-}
-
 STATIC int
 xfs_vn_getattr(
 	struct vfsmount		*mnt,
@@ -1118,7 +1106,7 @@ static const struct inode_operations xfs_dir_ci_inode_operations = {
 static const struct inode_operations xfs_symlink_inode_operations = {
 	.readlink		= generic_readlink,
 	.follow_link		= xfs_vn_follow_link,
-	.put_link		= xfs_vn_put_link,
+	.put_link		= kfree_put_link,
 	.get_acl		= xfs_get_acl,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
