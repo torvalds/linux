@@ -79,7 +79,7 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	struct nva3_ram *ram = (void *)pfb->ram;
 	struct nva3_ramfuc *fuc = &ram->fuc;
 	struct nva3_clock_info mclk;
-	u8  ver, cnt, strap;
+	u8  ver, cnt, len, strap;
 	u32 data;
 	struct {
 		u32 data;
@@ -113,8 +113,8 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	/* lookup memory timings, if bios says they're present */
 	strap = nv_ro08(bios, ramcfg.data + 0x01);
 	if (strap != 0xff) {
-		timing.data = nvbios_timing_entry(bios, strap, &ver,
-						 &timing.size);
+		timing.data = nvbios_timingEe(bios, strap, &ver, &timing.size,
+					     &cnt, &len);
 		if (!timing.data || ver != 0x10 || timing.size < 0x19) {
 			nv_error(pfb, "invalid/missing timing entry\n");
 			return -EINVAL;

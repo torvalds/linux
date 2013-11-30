@@ -27,8 +27,8 @@
 #include <subdev/bios/timing.h>
 
 u16
-nvbios_timing_table(struct nouveau_bios *bios,
-		    u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
+nvbios_timingTe(struct nouveau_bios *bios,
+		u8 *ver, u8 *hdr, u8 *cnt, u8 *len, u8 *snr, u8 *ssz)
 {
 	struct bit_entry bit_P;
 	u16 timing = 0x0000;
@@ -47,11 +47,15 @@ nvbios_timing_table(struct nouveau_bios *bios,
 				*hdr = nv_ro08(bios, timing + 1);
 				*cnt = nv_ro08(bios, timing + 2);
 				*len = nv_ro08(bios, timing + 3);
+				*snr = 0;
+				*ssz = 0;
 				return timing;
 			case 0x20:
 				*hdr = nv_ro08(bios, timing + 1);
-				*cnt = nv_ro08(bios, timing + 3);
+				*cnt = nv_ro08(bios, timing + 5);
 				*len = nv_ro08(bios, timing + 2);
+				*snr = nv_ro08(bios, timing + 4);
+				*ssz = nv_ro08(bios, timing + 3);
 				return timing;
 			default:
 				break;
@@ -63,11 +67,17 @@ nvbios_timing_table(struct nouveau_bios *bios,
 }
 
 u16
-nvbios_timing_entry(struct nouveau_bios *bios, int idx, u8 *ver, u8 *len)
+nvbios_timingEe(struct nouveau_bios *bios, int idx,
+		u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
-	u8  hdr, cnt;
-	u16 timing = nvbios_timing_table(bios, ver, &hdr, &cnt, len);
-	if (timing && idx < cnt)
-		return timing + hdr + (idx * *len);
+	u8  snr, ssz;
+	u16 timing = nvbios_timingTe(bios, ver, hdr, cnt, len, &snr, &ssz);
+	if (timing && idx < *cnt) {
+		timing += *hdr + idx * (*len + (snr * ssz));
+		*hdr = *len;
+		*cnt = snr;
+		*len = ssz;
+		return timing;
+	}
 	return 0x0000;
 }

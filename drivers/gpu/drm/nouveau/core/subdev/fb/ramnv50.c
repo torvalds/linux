@@ -74,7 +74,7 @@ nv50_ram_calc(struct nouveau_fb *pfb, u32 freq)
 		u32 data;
 		u8  size;
 	} ramcfg, timing;
-	u8  ver, hdr, cnt, strap;
+	u8  ver, hdr, cnt, len, strap;
 	int N1, M1, N2, M2, P;
 	int ret, i;
 
@@ -102,7 +102,8 @@ nv50_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	/* lookup memory timings, if bios says they're present */
 	strap = nv_ro08(bios, ramcfg.data + 0x01);
 	if (strap != 0xff) {
-		timing.data = nvbios_timing_entry(bios, strap, &ver, &hdr);
+		timing.data = nvbios_timingEe(bios, strap, &ver, &hdr,
+					     &cnt, &len);
 		if (!timing.data || ver != 0x10 || hdr < 0x12) {
 			nv_error(pfb, "invalid/missing timing entry "
 				 "%02x %04x %02x %02x\n",
