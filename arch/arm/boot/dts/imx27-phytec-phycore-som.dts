@@ -19,6 +19,20 @@
 	memory {
 		reg = <0xa0000000 0x08000000>;
 	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_3v3: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "3V3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
+	};
 };
 
 &audmux {
@@ -134,7 +148,9 @@
 };
 
 &fec {
+	phy-mode = "mii";
 	phy-reset-gpios = <&gpio3 30 0>;
+	phy-supply = <&reg_3v3>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec1>;
 	status = "okay";
