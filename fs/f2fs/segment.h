@@ -92,13 +92,6 @@
 #define MAX_BIO_BLOCKS(max_hw_blocks)					\
 	(min((int)max_hw_blocks, BIO_MAX_PAGES))
 
-/* during checkpoint, bio_private is used to synchronize the last bio */
-struct bio_private {
-	struct f2fs_sb_info *sbi;
-	bool is_sync;
-	struct completion *wait;
-};
-
 /*
  * indicate a block allocation direction: RIGHT and LEFT.
  * RIGHT means allocating new sections towards the end of volume.

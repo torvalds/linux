@@ -791,7 +791,7 @@ static void f2fs_end_io_write(struct bio *bio, int err)
 {
 	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
-	struct bio_private *p = bio->bi_private;
+	struct f2fs_sb_info *sbi = F2FS_SB(bvec->bv_page->mapping->host->i_sb);
 
 	do {
 		struct page *page = bvec->bv_page;
@@ -802,21 +802,21 @@ static void f2fs_end_io_write(struct bio *bio, int err)
 			SetPageError(page);
 			if (page->mapping)
 				set_bit(AS_EIO, &page->mapping->flags);
-			set_ckpt_flags(p->sbi->ckpt, CP_ERROR_FLAG);
-			p->sbi->sb->s_flags |= MS_RDONLY;
+
+			set_ckpt_flags(sbi->ckpt, CP_ERROR_FLAG);
+			sbi->sb->s_flags |= MS_RDONLY;
 		}
 		end_page_writeback(page);
-		dec_page_count(p->sbi, F2FS_WRITEBACK);
+		dec_page_count(sbi, F2FS_WRITEBACK);
 	} while (bvec >= bio->bi_io_vec);
 
-	if (p->is_sync)
-		complete(p->wait);
+	if (bio->bi_private)
+		complete(bio->bi_private);
 
-	if (!get_pages(p->sbi, F2FS_WRITEBACK) &&
-			!list_empty(&p->sbi->cp_wait.task_list))
-		wake_up(&p->sbi->cp_wait);
+	if (!get_pages(sbi, F2FS_WRITEBACK) &&
+			!list_empty(&sbi->cp_wait.task_list))
+		wake_up(&sbi->cp_wait);
 
-	kfree(p);
 	bio_put(bio);
 }
 
@@ -838,7 +838,6 @@ static void do_submit_bio(struct f2fs_sb_info *sbi,
 	int rw = sync ? WRITE_SYNC : WRITE;
 	enum page_type btype = PAGE_TYPE_OF_BIO(type);
 	struct f2fs_bio_info *io = &sbi->write_io[btype];
-	struct bio_private *p;
 
 	if (!io->bio)
 		return;
@@ -851,18 +850,16 @@ static void do_submit_bio(struct f2fs_sb_info *sbi,
 
 	trace_f2fs_submit_write_bio(sbi->sb, rw, btype, io->bio);
 
-	p = io->bio->bi_private;
-	p->sbi = sbi;
-	io->bio->bi_end_io = f2fs_end_io_write;
-
+	/*
+	 * META_FLUSH is only from the checkpoint procedure, and we should wait
+	 * this metadata bio for FS consistency.
+	 */
 	if (type == META_FLUSH) {
 		DECLARE_COMPLETION_ONSTACK(wait);
-		p->is_sync = true;
-		p->wait = &wait;
+		io->bio->bi_private = &wait;
 		submit_bio(rw, io->bio);
 		wait_for_completion(&wait);
 	} else {
-		p->is_sync = false;
 		submit_bio(rw, io->bio);
 	}
 	io->bio = NULL;
@@ -897,18 +894,10 @@ static void submit_write_page(struct f2fs_sb_info *sbi, struct page *page,
 		do_submit_bio(sbi, type, false);
 alloc_new:
 	if (io->bio == NULL) {
-		struct bio_private *priv;
-retry:
-		priv = kmalloc(sizeof(struct bio_private), GFP_NOFS);
-		if (!priv) {
-			cond_resched();
-			goto retry;
-		}
-
 		bio_blocks = MAX_BIO_BLOCKS(max_hw_blocks(sbi));
 		io->bio = f2fs_bio_alloc(bdev, bio_blocks);
 		io->bio->bi_sector = SECTOR_FROM_BLOCK(sbi, blk_addr);
-		io->bio->bi_private = priv;
+		io->bio->bi_end_io = f2fs_end_io_write;
 		/*
 		 * The end_io will be assigned at the sumbission phase.
 		 * Until then, let bio_add_page() merge consecutive IOs as much
