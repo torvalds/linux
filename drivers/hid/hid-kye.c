@@ -341,6 +341,7 @@ static __u8 *kye_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	case USB_DEVICE_ID_GENIUS_GX_IMPERATOR:
 		rdesc = kye_consumer_control_fixup(hdev, rdesc, rsize, 83,
 					"Genius Gx Imperator Keyboard");
+		break;
 	case USB_DEVICE_ID_GENIUS_MANTICORE:
 		rdesc = kye_consumer_control_fixup(hdev, rdesc, rsize, 104,
 					"Genius Manticore Keyboard");
