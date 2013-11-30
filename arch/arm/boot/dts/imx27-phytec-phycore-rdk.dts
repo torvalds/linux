@@ -19,8 +19,30 @@
 	cs-gpios = <&gpio4 28 0>, <&gpio4 27 0>;
 };
 
+&i2c1 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	status = "okay";
+
+	camgpio: pca9536@41 {
+		compatible = "nxp,pca9536";
+		reg = <0x41>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
 &iomuxc {
 	imx27_phycore_rdk {
+		pinctrl_i2c1: i2c1grp {
+			/* Add pullup to DATA line */
+			fsl,pins = <
+				MX27_PAD_I2C_DATA__I2C_DATA	0x1
+				MX27_PAD_I2C_CLK__I2C_CLK	0x0
+			>;
+		};
+
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <
 				MX27_PAD_UART1_TXD__UART1_TXD 0x0
