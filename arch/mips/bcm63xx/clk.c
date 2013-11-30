@@ -390,3 +390,21 @@ void clk_put(struct clk *clk)
 }
 
 EXPORT_SYMBOL(clk_put);
+
+#define HSSPI_PLL_HZ_6328	133333333
+#define HSSPI_PLL_HZ_6362	400000000
+
+static int __init bcm63xx_clk_init(void)
+{
+	switch (bcm63xx_get_cpu_id()) {
+	case BCM6328_CPU_ID:
+		clk_hsspi.rate = HSSPI_PLL_HZ_6328;
+		break;
+	case BCM6362_CPU_ID:
+		clk_hsspi.rate = HSSPI_PLL_HZ_6362;
+		break;
+	}
+
+	return 0;
+}
+arch_initcall(bcm63xx_clk_init);
