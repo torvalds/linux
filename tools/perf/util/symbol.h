@@ -240,6 +240,7 @@ size_t symbol__fprintf(struct symbol *sym, FILE *fp);
 bool symbol_type__is_a(char symbol_type, enum map_type map_type);
 bool symbol__restricted_filename(const char *filename,
 				 const char *restricted_filename);
+bool symbol__is_idle(struct symbol *sym);
 
 int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		  struct symsrc *runtime_ss, symbol_filter_t filter,
@@ -272,5 +273,8 @@ void kcore_extract__delete(struct kcore_extract *kce);
 
 int kcore_copy(const char *from_dir, const char *to_dir);
 int compare_proc_modules(const char *from, const char *to);
+
+int setup_list(struct strlist **list, const char *list_str,
+	       const char *list_name);
 
 #endif /* __PERF_SYMBOL */

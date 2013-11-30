@@ -12,7 +12,8 @@ struct target {
 	uid_t	     uid;
 	bool	     system_wide;
 	bool	     uses_mmap;
-	bool	     force_per_cpu;
+	bool	     default_per_cpu;
+	bool	     per_thread;
 };
 
 enum target_errno {
@@ -33,6 +34,7 @@ enum target_errno {
 	TARGET_ERRNO__UID_OVERRIDE_CPU,
 	TARGET_ERRNO__PID_OVERRIDE_SYSTEM,
 	TARGET_ERRNO__UID_OVERRIDE_SYSTEM,
+	TARGET_ERRNO__SYSTEM_OVERRIDE_THREAD,
 
 	/* for target__parse_uid() */
 	TARGET_ERRNO__INVALID_UID,

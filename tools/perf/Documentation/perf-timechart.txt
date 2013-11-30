@@ -8,8 +8,7 @@ perf-timechart - Tool to visualize total system behavior during a workload
 SYNOPSIS
 --------
 [verse]
-'perf timechart' record <command>
-'perf timechart' [<options>]
+'perf timechart' [<timechart options>] {record} [<record options>]
 
 DESCRIPTION
 -----------
@@ -21,8 +20,8 @@ There are two variants of perf timechart:
   'perf timechart' to turn a trace into a Scalable Vector Graphics file,
   that can be viewed with popular SVG viewers such as 'Inkscape'.
 
-OPTIONS
--------
+TIMECHART OPTIONS
+-----------------
 -o::
 --output=::
         Select the output file (default: output.svg)
@@ -35,6 +34,9 @@ OPTIONS
 -P::
 --power-only::
         Only output the CPU power section of the diagram
+-T::
+--tasks-only::
+        Don't output processor state transitions
 -p::
 --process::
         Select the processes to display, by name or PID
@@ -53,6 +55,22 @@ $ perf timechart record git pull
 $ perf timechart
 
   Written 10.2 seconds of trace to output.svg.
+
+-n::
+--proc-num::
+        Print task info for at least given number of tasks.
+
+RECORD OPTIONS
+--------------
+-P::
+--power-only::
+        Record only power-related events
+-T::
+--tasks-only::
+        Record only tasks-related events
+-g::
+--callchain::
+        Do call-graph (stack chain/backtrace) recording
 
 SEE ALSO
 --------

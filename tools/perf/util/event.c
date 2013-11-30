@@ -732,8 +732,7 @@ int perf_event__preprocess_sample(const union perf_event *event,
 	if (thread == NULL)
 		return -1;
 
-	if (symbol_conf.comm_list &&
-	    !strlist__has_entry(symbol_conf.comm_list, thread__comm_str(thread)))
+	if (thread__is_filtered(thread))
 		goto out_filtered;
 
 	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread->tid);

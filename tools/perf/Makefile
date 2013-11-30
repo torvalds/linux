@@ -60,8 +60,11 @@ endef
 
 #
 # Needed if no target specified:
+# (Except for tags and TAGS targets. The reason is that the
+# Makefile does not treat tags/TAGS as targets but as files
+# and thus won't rebuilt them once they are in place.)
 #
-all:
+all tags TAGS:
 	$(print_msg)
 	$(make)
 
@@ -77,3 +80,5 @@ clean:
 %:
 	$(print_msg)
 	$(make)
+
+.PHONY: tags TAGS

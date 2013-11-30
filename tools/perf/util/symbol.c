@@ -573,6 +573,36 @@ static u8 kallsyms2elf_type(char type)
 	return isupper(type) ? STB_GLOBAL : STB_LOCAL;
 }
 
+bool symbol__is_idle(struct symbol *sym)
+{
+	const char * const idle_symbols[] = {
+		"cpu_idle",
+		"intel_idle",
+		"default_idle",
+		"native_safe_halt",
+		"enter_idle",
+		"exit_idle",
+		"mwait_idle",
+		"mwait_idle_with_hints",
+		"poll_idle",
+		"ppc64_runlatch_off",
+		"pseries_dedicated_idle_sleep",
+		NULL
+	};
+
+	int i;
+
+	if (!sym)
+		return false;
+
+	for (i = 0; idle_symbols[i]; i++) {
+		if (!strcmp(idle_symbols[i], sym->name))
+			return true;
+	}
+
+	return false;
+}
+
 static int map__process_kallsym_symbol(void *arg, const char *name,
 				       char type, u64 start)
 {
@@ -1496,14 +1526,15 @@ static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 
 	build_id__sprintf(dso->build_id, sizeof(dso->build_id), sbuild_id);
 
+	scnprintf(path, sizeof(path), "%s/[kernel.kcore]/%s", buildid_dir,
+		  sbuild_id);
+
 	/* Use /proc/kallsyms if possible */
 	if (is_host) {
 		DIR *d;
 		int fd;
 
 		/* If no cached kcore go with /proc/kallsyms */
-		scnprintf(path, sizeof(path), "%s/[kernel.kcore]/%s",
-			  buildid_dir, sbuild_id);
 		d = opendir(path);
 		if (!d)
 			goto proc_kallsyms;
@@ -1527,6 +1558,10 @@ static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 
 		goto proc_kallsyms;
 	}
+
+	/* Find kallsyms in build-id cache with kcore */
+	if (!find_matching_kcore(map, path, sizeof(path)))
+		return strdup(path);
 
 	scnprintf(path, sizeof(path), "%s/[kernel.kallsyms]/%s",
 		  buildid_dir, sbuild_id);
@@ -1719,7 +1754,7 @@ out_fail:
 	return -1;
 }
 
-static int setup_list(struct strlist **list, const char *list_str,
+int setup_list(struct strlist **list, const char *list_str,
 		      const char *list_name)
 {
 	if (list_str == NULL)

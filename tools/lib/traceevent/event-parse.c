@@ -4099,6 +4099,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 	unsigned long long val;
 	struct func_map *func;
 	const char *saveptr;
+	struct trace_seq p;
 	char *bprint_fmt = NULL;
 	char format[32];
 	int show_func;
@@ -4306,8 +4307,12 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 				format[len] = 0;
 				if (!len_as_arg)
 					len_arg = -1;
-				print_str_arg(s, data, size, event,
+				/* Use helper trace_seq */
+				trace_seq_init(&p);
+				print_str_arg(&p, data, size, event,
 					      format, len_arg, arg);
+				trace_seq_terminate(&p);
+				trace_seq_puts(s, p.buffer);
 				arg = arg->next;
 				break;
 			default:
