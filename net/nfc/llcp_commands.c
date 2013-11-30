@@ -684,8 +684,10 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 
 		pdu = llcp_allocate_pdu(sock, LLCP_PDU_I,
 					frag_len + LLCP_SEQUENCE_SIZE);
-		if (pdu == NULL)
+		if (pdu == NULL) {
+			kfree(msg_data);
 			return -ENOMEM;
+		}
 
 		skb_put(pdu, LLCP_SEQUENCE_SIZE);
 
