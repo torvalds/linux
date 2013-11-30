@@ -41,6 +41,14 @@
 
 #include "ramfuc.h"
 
+/* binary driver only executes this path if the condition (a) is true
+ * for any configuration (combination of rammap+ramcfg+timing) that
+ * can be reached on a given card.  for now, we will execute the branch
+ * unconditionally in the hope that a "false everywhere" in the bios
+ * tables doesn't actually mean "don't touch this".
+ */
+#define NOTE00(a) 1
+
 struct nve0_ramfuc {
 	struct ramfuc base;
 
@@ -466,23 +474,41 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	ram_mask(fuc, 0x10f2cc, 0xffffffff, nv_ro32(bios, timing + 0x20));
 	ram_mask(fuc, 0x10f2e8, 0xffffffff, nv_ro32(bios, timing + 0x24));
 
-	/*XXX: what's the condition here? */
-	if (1) {
-		data = (nv_ro08(bios, ramcfg + 0x02) & 0x03) << 8;
+	data = mask = 0x00000000;
+	if (NOTE00(ramcfg_02_03 != 0)) {
+		data |= (nv_ro08(bios, ramcfg + 0x02) & 0x03) << 8;
+		mask |= 0x00000300;
+	}
+	if (NOTE00(ramcfg_01_10)) {
 		if (nv_ro08(bios, ramcfg + 0x01) & 0x10)
 			data |= 0x70000000;
-		ram_mask(fuc, 0x10f604, 0x70000300, data);
+		mask |= 0x70000000;
+	}
+	ram_mask(fuc, 0x10f604, mask, data);
 
-		data = (nv_ro08(bios, timing + 0x30) & 0x07) << 28;
+	data = mask = 0x00000000;
+	if (NOTE00(timing_30_07 != 0)) {
+		data |= (nv_ro08(bios, timing + 0x30) & 0x07) << 28;
+		mask |= 0x70000000;
+	}
+	if (NOTE00(ramcfg_01_01)) {
 		if (nv_ro08(bios, ramcfg + 0x01) & 0x01)
 			data |= 0x00000100;
-		ram_mask(fuc, 0x10f614, 0x70000000, data);
+		mask |= 0x00000100;
+	}
+	ram_mask(fuc, 0x10f614, mask, data);
 
-		data = (nv_ro08(bios, timing + 0x30) & 0x07) << 28;
+	data = mask = 0x00000000;
+	if (NOTE00(timing_30_07 != 0)) {
+		data |= (nv_ro08(bios, timing + 0x30) & 0x07) << 28;
+		mask |= 0x70000000;
+	}
+	if (NOTE00(ramcfg_01_02)) {
 		if (nv_ro08(bios, ramcfg + 0x01) & 0x02)
 			data |= 0x00000100;
-		ram_mask(fuc, 0x10f610, 0x70000000, data);
+		mask |= 0x00000100;
 	}
+	ram_mask(fuc, 0x10f610, mask, data);
 
 	mask = 0x33f00000;
 	data = 0x00000000;
@@ -511,15 +537,22 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	data = nv_ro08(bios, ramcfg + 0x03) & 0x0f;
 	ram_wr32(fuc, 0x10f870, 0x11111111 * data);
 
-	data = nv_ro08(bios, ramcfg + 0x02) & 0x03;
-	if (nv_ro08(bios, ramcfg + 0x01) & 0x10)
-		data |= 0x00000004;
-	if ((ram_rd32(fuc, 0x100770) & 0x00000004) != (data & 0x00000004)) {
-		ram_wr32(fuc, 0x100750, 0x04000009);
+	data = mask = 0x00000000;
+	if (NOTE00(ramcfg_02_03 != 0)) {
+		data |= nv_ro08(bios, ramcfg + 0x02) & 0x03;
+		mask |= 0x00000003;
+	}
+	if (NOTE00(ramcfg_01_10)) {
+		if (nv_ro08(bios, ramcfg + 0x01) & 0x10)
+			data |= 0x00000004;
+		mask |= 0x00000004;
+	}
+
+	if ((ram_mask(fuc, 0x100770, mask, data) & mask & 4) != (data & 4)) {
+		ram_mask(fuc, 0x100750, 0x00000008, 0x00000008);
 		ram_wr32(fuc, 0x100710, 0x00000000);
 		ram_wait(fuc, 0x100710, 0x80000000, 0x80000000, 200000);
 	}
-	ram_mask(fuc, 0x100770, 0x00000007, data);
 
 	data = (nv_ro08(bios, timing + 0x30) & 0x07) << 8;
 	if (nv_ro08(bios, ramcfg + 0x01) & 0x01)
