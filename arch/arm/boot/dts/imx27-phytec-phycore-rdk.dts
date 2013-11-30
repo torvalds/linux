@@ -16,7 +16,8 @@
 
 &cspi1 {
 	fsl,spi-num-chipselects = <2>;
-	cs-gpios = <&gpio4 28 0>, <&gpio4 27 0>;
+	cs-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>,
+		   <&gpio4 27 GPIO_ACTIVE_LOW>;
 };
 
 &i2c1 {
@@ -65,8 +66,8 @@
 
 &sdhci2 {
 	bus-width = <4>;
-	cd-gpios = <&gpio3 29 0>;
-	wp-gpios = <&gpio3 28 0>;
+	cd-gpios = <&gpio3 29 GPIO_ACTIVE_HIGH>;
+	wp-gpios = <&gpio3 28 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&vmmc1_reg>;
 	status = "okay";
 };
@@ -90,7 +91,7 @@
 		compatible = "nxp,sja1000";
 		reg = <4 0x00000000 0x00000100>;
 		interrupt-parent = <&gpio5>;
-		interrupts = <19 0x2>;
+		interrupts = <19 IRQ_TYPE_EDGE_FALLING>;
 		nxp,external-clock-frequency = <16000000>;
 		nxp,tx-output-config = <0x16>;
 		nxp,no-comparator-bypass;

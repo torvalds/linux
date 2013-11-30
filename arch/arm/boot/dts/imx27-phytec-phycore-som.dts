@@ -52,7 +52,7 @@
 
 &cspi1 {
 	fsl,spi-num-chipselects = <1>;
-	cs-gpios = <&gpio4 28 0>;
+	cs-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
 	pmic: mc13783@0 {
@@ -62,7 +62,7 @@
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 		interrupt-parent = <&gpio2>;
-		interrupts = <23 0x4>;
+		interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
 		fsl,mc13xxx-uses-adc;
 		fsl,mc13xxx-uses-rtc;
 
@@ -149,7 +149,7 @@
 
 &fec {
 	phy-mode = "mii";
-	phy-reset-gpios = <&gpio3 30 0>;
+	phy-reset-gpios = <&gpio3 30 GPIO_ACTIVE_HIGH>;
 	phy-supply = <&reg_3v3>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec1>;
