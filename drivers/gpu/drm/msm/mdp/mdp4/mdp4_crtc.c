@@ -66,15 +66,15 @@ struct mdp4_crtc {
 	/* for unref'ing cursor bo's after scanout completes: */
 	struct drm_flip_work unref_cursor_work;
 
-	struct mdp4_irq vblank;
-	struct mdp4_irq err;
+	struct mdp_irq vblank;
+	struct mdp_irq err;
 };
 #define to_mdp4_crtc(x) container_of(x, struct mdp4_crtc, base)
 
 static struct mdp4_kms *get_kms(struct drm_crtc *crtc)
 {
 	struct msm_drm_private *priv = crtc->dev->dev_private;
-	return to_mdp4_kms(priv->kms);
+	return to_mdp4_kms(to_mdp_kms(priv->kms));
 }
 
 static void update_fb(struct drm_crtc *crtc, bool async,
@@ -93,7 +93,7 @@ static void update_fb(struct drm_crtc *crtc, bool async,
 
 	if (!async) {
 		/* enable vblank to pick up the old_fb */
-		mdp4_irq_register(get_kms(crtc), &mdp4_crtc->vblank);
+		mdp_irq_register(&get_kms(crtc)->base, &mdp4_crtc->vblank);
 	}
 }
 
@@ -145,7 +145,7 @@ static void request_pending(struct drm_crtc *crtc, uint32_t pending)
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 
 	atomic_or(pending, &mdp4_crtc->pending);
-	mdp4_irq_register(get_kms(crtc), &mdp4_crtc->vblank);
+	mdp_irq_register(&get_kms(crtc)->base, &mdp4_crtc->vblank);
 }
 
 static void pageflip_cb(struct msm_fence_cb *cb)
@@ -210,9 +210,9 @@ static void mdp4_crtc_dpms(struct drm_crtc *crtc, int mode)
 	if (enabled != mdp4_crtc->enabled) {
 		if (enabled) {
 			mdp4_enable(mdp4_kms);
-			mdp4_irq_register(mdp4_kms, &mdp4_crtc->err);
+			mdp_irq_register(&mdp4_kms->base, &mdp4_crtc->err);
 		} else {
-			mdp4_irq_unregister(mdp4_kms, &mdp4_crtc->err);
+			mdp_irq_unregister(&mdp4_kms->base, &mdp4_crtc->err);
 			mdp4_disable(mdp4_kms);
 		}
 		mdp4_crtc->enabled = enabled;
@@ -571,14 +571,14 @@ static const struct drm_crtc_helper_funcs mdp4_crtc_helper_funcs = {
 	.load_lut = mdp4_crtc_load_lut,
 };
 
-static void mdp4_crtc_vblank_irq(struct mdp4_irq *irq, uint32_t irqstatus)
+static void mdp4_crtc_vblank_irq(struct mdp_irq *irq, uint32_t irqstatus)
 {
 	struct mdp4_crtc *mdp4_crtc = container_of(irq, struct mdp4_crtc, vblank);
 	struct drm_crtc *crtc = &mdp4_crtc->base;
 	struct msm_drm_private *priv = crtc->dev->dev_private;
 	unsigned pending;
 
-	mdp4_irq_unregister(get_kms(crtc), &mdp4_crtc->vblank);
+	mdp_irq_unregister(&get_kms(crtc)->base, &mdp4_crtc->vblank);
 
 	pending = atomic_xchg(&mdp4_crtc->pending, 0);
 
@@ -593,7 +593,7 @@ static void mdp4_crtc_vblank_irq(struct mdp4_irq *irq, uint32_t irqstatus)
 	}
 }
 
-static void mdp4_crtc_err_irq(struct mdp4_irq *irq, uint32_t irqstatus)
+static void mdp4_crtc_err_irq(struct mdp_irq *irq, uint32_t irqstatus)
 {
 	struct mdp4_crtc *mdp4_crtc = container_of(irq, struct mdp4_crtc, err);
 	struct drm_crtc *crtc = &mdp4_crtc->base;

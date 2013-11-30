@@ -49,7 +49,18 @@ struct msm_kms_funcs {
 
 struct msm_kms {
 	const struct msm_kms_funcs *funcs;
+
+	/* irq handling: */
+	bool in_irq;
+	struct list_head irq_list;    /* list of mdp4_irq */
+	uint32_t vblank_mask;         /* irq bits set for userspace vblank */
 };
+
+static inline void msm_kms_init(struct msm_kms *kms,
+		const struct msm_kms_funcs *funcs)
+{
+	kms->funcs = funcs;
+}
 
 struct msm_kms *mdp4_kms_init(struct drm_device *dev);
 

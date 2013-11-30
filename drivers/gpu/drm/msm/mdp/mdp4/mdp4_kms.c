@@ -24,7 +24,7 @@ static struct mdp4_platform_config *mdp4_get_config(struct platform_device *dev)
 
 static int mdp4_hw_init(struct msm_kms *kms)
 {
-	struct mdp4_kms *mdp4_kms = to_mdp4_kms(kms);
+	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
 	struct drm_device *dev = mdp4_kms->dev;
 	uint32_t version, major, minor, dmap_cfg, vg_cfg;
 	unsigned long clk;
@@ -133,7 +133,7 @@ static long mdp4_round_pixclk(struct msm_kms *kms, unsigned long rate,
 
 static void mdp4_preclose(struct msm_kms *kms, struct drm_file *file)
 {
-	struct mdp4_kms *mdp4_kms = to_mdp4_kms(kms);
+	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
 	struct msm_drm_private *priv = mdp4_kms->dev->dev_private;
 	unsigned i;
 
@@ -143,11 +143,12 @@ static void mdp4_preclose(struct msm_kms *kms, struct drm_file *file)
 
 static void mdp4_destroy(struct msm_kms *kms)
 {
-	struct mdp4_kms *mdp4_kms = to_mdp4_kms(kms);
+	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
 	kfree(mdp4_kms);
 }
 
-static const struct msm_kms_funcs kms_funcs = {
+static const struct mdp_kms_funcs kms_funcs = {
+	.base = {
 		.hw_init         = mdp4_hw_init,
 		.irq_preinstall  = mdp4_irq_preinstall,
 		.irq_postinstall = mdp4_irq_postinstall,
@@ -159,6 +160,8 @@ static const struct msm_kms_funcs kms_funcs = {
 		.round_pixclk    = mdp4_round_pixclk,
 		.preclose        = mdp4_preclose,
 		.destroy         = mdp4_destroy,
+	},
+	.set_irqmask         = mdp4_set_irqmask,
 };
 
 int mdp4_disable(struct mdp4_kms *mdp4_kms)
@@ -273,8 +276,9 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	kms = &mdp4_kms->base;
-	kms->funcs = &kms_funcs;
+	mdp_kms_init(&mdp4_kms->base, &kms_funcs);
+
+	kms = &mdp4_kms->base.base;
 
 	mdp4_kms->dev = dev;
 

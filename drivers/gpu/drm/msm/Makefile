@@ -13,6 +13,7 @@ msm-y := \
 	hdmi/hdmi_phy_8960.o \
 	hdmi/hdmi_phy_8x60.o \
 	mdp/mdp_format.o \
+	mdp/mdp_kms.o \
 	mdp/mdp4/mdp4_crtc.o \
 	mdp/mdp4/mdp4_dtv_encoder.o \
 	mdp/mdp4/mdp4_irq.o \

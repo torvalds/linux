@@ -34,7 +34,7 @@ struct mdp4_plane {
 static struct mdp4_kms *get_kms(struct drm_plane *plane)
 {
 	struct msm_drm_private *priv = plane->dev->dev_private;
-	return to_mdp4_kms(priv->kms);
+	return to_mdp4_kms(to_mdp_kms(priv->kms));
 }
 
 static int mdp4_plane_update(struct drm_plane *plane,

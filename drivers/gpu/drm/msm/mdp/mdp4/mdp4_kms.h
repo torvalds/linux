@@ -23,22 +23,8 @@
 #include "mdp/mdp_kms.h"
 #include "mdp4.xml.h"
 
-
-/* For transiently registering for different MDP4 irqs that various parts
- * of the KMS code need during setup/configuration.  We these are not
- * necessarily the same as what drm_vblank_get/put() are requesting, and
- * the hysteresis in drm_vblank_put() is not necessarily desirable for
- * internal housekeeping related irq usage.
- */
-struct mdp4_irq {
-	struct list_head node;
-	uint32_t irqmask;
-	bool registered;
-	void (*irq)(struct mdp4_irq *irq, uint32_t irqstatus);
-};
-
 struct mdp4_kms {
-	struct msm_kms base;
+	struct mdp_kms base;
 
 	struct drm_device *dev;
 
@@ -57,11 +43,7 @@ struct mdp4_kms {
 	struct clk *pclk;
 	struct clk *lut_clk;
 
-	/* irq handling: */
-	bool in_irq;
-	struct list_head irq_list;    /* list of mdp4_irq */
-	uint32_t vblank_mask;         /* irq bits set for userspace vblank */
-	struct mdp4_irq error_handler;
+	struct mdp_irq error_handler;
 };
 #define to_mdp4_kms(x) container_of(x, struct mdp4_kms, base)
 
@@ -166,13 +148,11 @@ static inline uint32_t mixercfg(int mixer, enum mdp4_pipe pipe,
 int mdp4_disable(struct mdp4_kms *mdp4_kms);
 int mdp4_enable(struct mdp4_kms *mdp4_kms);
 
+void mdp4_set_irqmask(struct mdp_kms *mdp_kms, uint32_t irqmask);
 void mdp4_irq_preinstall(struct msm_kms *kms);
 int mdp4_irq_postinstall(struct msm_kms *kms);
 void mdp4_irq_uninstall(struct msm_kms *kms);
 irqreturn_t mdp4_irq(struct msm_kms *kms);
-void mdp4_irq_wait(struct mdp4_kms *mdp4_kms, uint32_t irqmask);
-void mdp4_irq_register(struct mdp4_kms *mdp4_kms, struct mdp4_irq *irq);
-void mdp4_irq_unregister(struct mdp4_kms *mdp4_kms, struct mdp4_irq *irq);
 int mdp4_enable_vblank(struct msm_kms *kms, struct drm_crtc *crtc);
 void mdp4_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc);
 
