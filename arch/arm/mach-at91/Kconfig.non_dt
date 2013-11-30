@@ -241,7 +241,7 @@ config MACH_PCONTROL_G20
 	bool "PControl G20 CPU module"
 	help
 	  Select this if you are using taskit's Stamp9G20 CPU module on this
-	  carrier board, beeing the decentralized unit of a building automation
+	  carrier board, being the decentralized unit of a building automation
 	  system; featuring nvram, eth-switch, iso-rs485, display, io
 
 config MACH_GSIA18S
