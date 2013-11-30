@@ -1795,7 +1795,7 @@ int dwc2_hcd_get_frame_number(struct dwc2_hsotg *hsotg)
 
 int dwc2_hcd_is_b_host(struct dwc2_hsotg *hsotg)
 {
-	return (hsotg->op_state == OTG_STATE_B_HOST);
+	return hsotg->op_state == OTG_STATE_B_HOST;
 }
 
 static struct dwc2_hcd_urb *dwc2_hcd_urb_alloc(struct dwc2_hsotg *hsotg,
