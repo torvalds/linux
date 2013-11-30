@@ -381,14 +381,3 @@ int ima_inode_removexattr(struct dentry *dentry, const char *xattr_name)
 	}
 	return result;
 }
-
-#ifdef CONFIG_IMA_TRUSTED_KEYRING
-static int __init init_ima_keyring(void)
-{
-	int ret;
-
-	ret = integrity_init_keyring(INTEGRITY_KEYRING_IMA);
-	return 0;
-}
-late_initcall(init_ima_keyring);
-#endif

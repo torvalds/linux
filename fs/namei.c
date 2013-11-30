@@ -513,8 +513,7 @@ static int unlazy_walk(struct nameidata *nd, struct dentry *dentry)
 
 	if (!lockref_get_not_dead(&parent->d_lockref)) {
 		nd->path.dentry = NULL;	
-		rcu_read_unlock();
-		return -ECHILD;
+		goto out;
 	}
 
 	/*

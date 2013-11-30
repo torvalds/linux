@@ -53,6 +53,11 @@
 #define A15_BX_ADDR0		0x68
 #define A7_BX_ADDR0		0x78
 
+/* SPC CPU/cluster reset statue */
+#define STANDBYWFI_STAT		0x3c
+#define STANDBYWFI_STAT_A15_CPU_MASK(cpu)	(1 << (cpu))
+#define STANDBYWFI_STAT_A7_CPU_MASK(cpu)	(1 << (3 + (cpu)))
+
 /* SPC system config interface registers */
 #define SYSCFG_WDATA		0x70
 #define SYSCFG_RDATA		0x74
@@ -211,6 +216,41 @@ void ve_spc_powerdown(u32 cluster, bool enable)
 
 	pwdrn_reg = cluster_is_a15(cluster) ? A15_PWRDN_EN : A7_PWRDN_EN;
 	writel_relaxed(enable, info->baseaddr + pwdrn_reg);
+}
+
+static u32 standbywfi_cpu_mask(u32 cpu, u32 cluster)
+{
+	return cluster_is_a15(cluster) ?
+		  STANDBYWFI_STAT_A15_CPU_MASK(cpu)
+		: STANDBYWFI_STAT_A7_CPU_MASK(cpu);
+}
+
+/**
+ * ve_spc_cpu_in_wfi(u32 cpu, u32 cluster)
+ *
+ * @cpu: mpidr[7:0] bitfield describing CPU affinity level within cluster
+ * @cluster: mpidr[15:8] bitfield describing cluster affinity level
+ *
+ * @return: non-zero if and only if the specified CPU is in WFI
+ *
+ * Take care when interpreting the result of this function: a CPU might
+ * be in WFI temporarily due to idle, and is not necessarily safely
+ * parked.
+ */
+int ve_spc_cpu_in_wfi(u32 cpu, u32 cluster)
+{
+	int ret;
+	u32 mask = standbywfi_cpu_mask(cpu, cluster);
+
+	if (cluster >= MAX_CLUSTERS)
+		return 1;
+
+	ret = readl_relaxed(info->baseaddr + STANDBYWFI_STAT);
+
+	pr_debug("%s: PCFGREG[0x%X] = 0x%08X, mask = 0x%X\n",
+		 __func__, STANDBYWFI_STAT, ret, mask);
+
+	return ret & mask;
 }
 
 static int ve_spc_get_performance(int cluster, u32 *freq)

@@ -158,7 +158,7 @@ static int bcm_kona_gpio_get(struct gpio_chip *chip, unsigned gpio)
 	spin_unlock_irqrestore(&kona_gpio->lock, flags);
 
 	/* return the specified bit status */
-	return !!(val & bit);
+	return !!(val & BIT(bit));
 }
 
 static int bcm_kona_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)

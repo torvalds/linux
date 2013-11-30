@@ -52,40 +52,52 @@ static void authenc_request_complete(struct aead_request *req, int err)
 		aead_request_complete(req, err);
 }
 
-static int crypto_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
-				 unsigned int keylen)
+int crypto_authenc_extractkeys(struct crypto_authenc_keys *keys, const u8 *key,
+			       unsigned int keylen)
 {
-	unsigned int authkeylen;
-	unsigned int enckeylen;
-	struct crypto_authenc_ctx *ctx = crypto_aead_ctx(authenc);
-	struct crypto_ahash *auth = ctx->auth;
-	struct crypto_ablkcipher *enc = ctx->enc;
-	struct rtattr *rta = (void *)key;
+	struct rtattr *rta = (struct rtattr *)key;
 	struct crypto_authenc_key_param *param;
-	int err = -EINVAL;
 
 	if (!RTA_OK(rta, keylen))
-		goto badkey;
+		return -EINVAL;
 	if (rta->rta_type != CRYPTO_AUTHENC_KEYA_PARAM)
-		goto badkey;
+		return -EINVAL;
 	if (RTA_PAYLOAD(rta) < sizeof(*param))
-		goto badkey;
+		return -EINVAL;
 
 	param = RTA_DATA(rta);
-	enckeylen = be32_to_cpu(param->enckeylen);
+	keys->enckeylen = be32_to_cpu(param->enckeylen);
 
 	key += RTA_ALIGN(rta->rta_len);
 	keylen -= RTA_ALIGN(rta->rta_len);
 
-	if (keylen < enckeylen)
-		goto badkey;
+	if (keylen < keys->enckeylen)
+		return -EINVAL;
 
-	authkeylen = keylen - enckeylen;
+	keys->authkeylen = keylen - keys->enckeylen;
+	keys->authkey = key;
+	keys->enckey = key + keys->authkeylen;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(crypto_authenc_extractkeys);
+
+static int crypto_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
+				 unsigned int keylen)
+{
+	struct crypto_authenc_ctx *ctx = crypto_aead_ctx(authenc);
+	struct crypto_ahash *auth = ctx->auth;
+	struct crypto_ablkcipher *enc = ctx->enc;
+	struct crypto_authenc_keys keys;
+	int err = -EINVAL;
+
+	if (crypto_authenc_extractkeys(&keys, key, keylen) != 0)
+		goto badkey;
 
 	crypto_ahash_clear_flags(auth, CRYPTO_TFM_REQ_MASK);
 	crypto_ahash_set_flags(auth, crypto_aead_get_flags(authenc) &
 				    CRYPTO_TFM_REQ_MASK);
-	err = crypto_ahash_setkey(auth, key, authkeylen);
+	err = crypto_ahash_setkey(auth, keys.authkey, keys.authkeylen);
 	crypto_aead_set_flags(authenc, crypto_ahash_get_flags(auth) &
 				       CRYPTO_TFM_RES_MASK);
 
@@ -95,7 +107,7 @@ static int crypto_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 	crypto_ablkcipher_clear_flags(enc, CRYPTO_TFM_REQ_MASK);
 	crypto_ablkcipher_set_flags(enc, crypto_aead_get_flags(authenc) &
 					 CRYPTO_TFM_REQ_MASK);
-	err = crypto_ablkcipher_setkey(enc, key + authkeylen, enckeylen);
+	err = crypto_ablkcipher_setkey(enc, keys.enckey, keys.enckeylen);
 	crypto_aead_set_flags(authenc, crypto_ablkcipher_get_flags(enc) &
 				       CRYPTO_TFM_RES_MASK);
 
@@ -188,7 +200,7 @@ static void authenc_verify_ahash_update_done(struct crypto_async_request *areq,
 	scatterwalk_map_and_copy(ihash, areq_ctx->sg, areq_ctx->cryptlen,
 				 authsize, 0);
 
-	err = memcmp(ihash, ahreq->result, authsize) ? -EBADMSG : 0;
+	err = crypto_memneq(ihash, ahreq->result, authsize) ? -EBADMSG : 0;
 	if (err)
 		goto out;
 
@@ -227,7 +239,7 @@ static void authenc_verify_ahash_done(struct crypto_async_request *areq,
 	scatterwalk_map_and_copy(ihash, areq_ctx->sg, areq_ctx->cryptlen,
 				 authsize, 0);
 
-	err = memcmp(ihash, ahreq->result, authsize) ? -EBADMSG : 0;
+	err = crypto_memneq(ihash, ahreq->result, authsize) ? -EBADMSG : 0;
 	if (err)
 		goto out;
 
@@ -462,7 +474,7 @@ static int crypto_authenc_verify(struct aead_request *req,
 	ihash = ohash + authsize;
 	scatterwalk_map_and_copy(ihash, areq_ctx->sg, areq_ctx->cryptlen,
 				 authsize, 0);
-	return memcmp(ihash, ohash, authsize) ? -EBADMSG : 0;
+	return crypto_memneq(ihash, ohash, authsize) ? -EBADMSG : 0;
 }
 
 static int crypto_authenc_iverify(struct aead_request *req, u8 *iv,

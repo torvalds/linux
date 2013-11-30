@@ -106,10 +106,11 @@ struct ntb_mw {
 };
 
 struct ntb_db_cb {
-	void (*callback) (void *data, int db_num);
+	int (*callback)(void *data, int db_num);
 	unsigned int db_num;
 	void *data;
 	struct ntb_device *ndev;
+	struct tasklet_struct irq_work;
 };
 
 struct ntb_device {
@@ -228,8 +229,8 @@ struct ntb_device *ntb_register_transport(struct pci_dev *pdev,
 void ntb_unregister_transport(struct ntb_device *ndev);
 void ntb_set_mw_addr(struct ntb_device *ndev, unsigned int mw, u64 addr);
 int ntb_register_db_callback(struct ntb_device *ndev, unsigned int idx,
-			     void *data, void (*db_cb_func) (void *data,
-							     int db_num));
+			     void *data, int (*db_cb_func)(void *data,
+							   int db_num));
 void ntb_unregister_db_callback(struct ntb_device *ndev, unsigned int idx);
 int ntb_register_event_callback(struct ntb_device *ndev,
 				void (*event_cb_func) (void *handle,

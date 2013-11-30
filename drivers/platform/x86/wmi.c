@@ -672,8 +672,10 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 	struct wmi_block *wblock;
 
 	wblock = dev_get_drvdata(dev);
-	if (!wblock)
-		return -ENOMEM;
+	if (!wblock) {
+		strcat(buf, "\n");
+		return strlen(buf);
+	}
 
 	wmi_gtoa(wblock->gblock.guid, guid_string);
 

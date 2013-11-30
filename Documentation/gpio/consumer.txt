@@ -1,0 +1,197 @@
+GPIO Descriptor Consumer Interface
+==================================
+
+This document describes the consumer interface of the GPIO framework. Note that
+it describes the new descriptor-based interface. For a description of the
+deprecated integer-based GPIO interface please refer to gpio-legacy.txt.
+
+
+Guidelines for GPIOs consumers
+==============================
+
+Drivers that can't work without standard GPIO calls should have Kconfig entries
+that depend on GPIOLIB. The functions that allow a driver to obtain and use
+GPIOs are available by including the following file:
+
+	#include <linux/gpio/consumer.h>
+
+All the functions that work with the descriptor-based GPIO interface are
+prefixed with gpiod_. The gpio_ prefix is used for the legacy interface. No
+other function in the kernel should use these prefixes.
+
+
+Obtaining and Disposing GPIOs
+=============================
+
+With the descriptor-based interface, GPIOs are identified with an opaque,
+non-forgeable handler that must be obtained through a call to one of the
+gpiod_get() functions. Like many other kernel subsystems, gpiod_get() takes the
+device that will use the GPIO and the function the requested GPIO is supposed to
+fulfill:
+
+	struct gpio_desc *gpiod_get(struct device *dev, const char *con_id)
+
+If a function is implemented by using several GPIOs together (e.g. a simple LED
+device that displays digits), an additional index argument can be specified:
+
+	struct gpio_desc *gpiod_get_index(struct device *dev,
+					  const char *con_id, unsigned int idx)
+
+Both functions return either a valid GPIO descriptor, or an error code checkable
+with IS_ERR(). They will never return a NULL pointer.
+
+Device-managed variants of these functions are also defined:
+
+	struct gpio_desc *devm_gpiod_get(struct device *dev, const char *con_id)
+
+	struct gpio_desc *devm_gpiod_get_index(struct device *dev,
+					       const char *con_id,
+					       unsigned int idx)
+
+A GPIO descriptor can be disposed of using the gpiod_put() function:
+
+	void gpiod_put(struct gpio_desc *desc)
+
+It is strictly forbidden to use a descriptor after calling this function. The
+device-managed variant is, unsurprisingly:
+
+	void devm_gpiod_put(struct device *dev, struct gpio_desc *desc)
+
+
+Using GPIOs
+===========
+
+Setting Direction
+-----------------
+The first thing a driver must do with a GPIO is setting its direction. This is
+done by invoking one of the gpiod_direction_*() functions:
+
+	int gpiod_direction_input(struct gpio_desc *desc)
+	int gpiod_direction_output(struct gpio_desc *desc, int value)
+
+The return value is zero for success, else a negative errno. It should be
+checked, since the get/set calls don't return errors and since misconfiguration
+is possible. You should normally issue these calls from a task context. However,
+for spinlock-safe GPIOs it is OK to use them before tasking is enabled, as part
+of early board setup.
+
+For output GPIOs, the value provided becomes the initial output value. This
+helps avoid signal glitching during system startup.
+
+A driver can also query the current direction of a GPIO:
+
+	int gpiod_get_direction(const struct gpio_desc *desc)
+
+This function will return either GPIOF_DIR_IN or GPIOF_DIR_OUT.
+
+Be aware that there is no default direction for GPIOs. Therefore, **using a GPIO
+without setting its direction first is illegal and will result in undefined
+behavior!**
+
+
+Spinlock-Safe GPIO Access
+-------------------------
+Most GPIO controllers can be accessed with memory read/write instructions. Those
+don't need to sleep, and can safely be done from inside hard (non-threaded) IRQ
+handlers and similar contexts.
+
+Use the following calls to access GPIOs from an atomic context:
+
+	int gpiod_get_value(const struct gpio_desc *desc);
+	void gpiod_set_value(struct gpio_desc *desc, int value);
+
+The values are boolean, zero for low, nonzero for high. When reading the value
+of an output pin, the value returned should be what's seen on the pin. That
+won't always match the specified output value, because of issues including
+open-drain signaling and output latencies.
+
+The get/set calls do not return errors because "invalid GPIO" should have been
+reported earlier from gpiod_direction_*(). However, note that not all platforms
+can read the value of output pins; those that can't should always return zero.
+Also, using these calls for GPIOs that can't safely be accessed without sleeping
+(see below) is an error.
+
+
+GPIO Access That May Sleep
+--------------------------
+Some GPIO controllers must be accessed using message based buses like I2C or
+SPI. Commands to read or write those GPIO values require waiting to get to the
+head of a queue to transmit a command and get its response. This requires
+sleeping, which can't be done from inside IRQ handlers.
+
+Platforms that support this type of GPIO distinguish them from other GPIOs by
+returning nonzero from this call:
+
+	int gpiod_cansleep(const struct gpio_desc *desc)
+
+To access such GPIOs, a different set of accessors is defined:
+
+	int gpiod_get_value_cansleep(const struct gpio_desc *desc)
+	void gpiod_set_value_cansleep(struct gpio_desc *desc, int value)
+
+Accessing such GPIOs requires a context which may sleep, for example a threaded
+IRQ handler, and those accessors must be used instead of spinlock-safe
+accessors without the cansleep() name suffix.
+
+Other than the fact that these accessors might sleep, and will work on GPIOs
+that can't be accessed from hardIRQ handlers, these calls act the same as the
+spinlock-safe calls.
+
+
+Active-low State and Raw GPIO Values
+------------------------------------
+Device drivers like to manage the logical state of a GPIO, i.e. the value their
+device will actually receive, no matter what lies between it and the GPIO line.
+In some cases, it might make sense to control the actual GPIO line value. The
+following set of calls ignore the active-low property of a GPIO and work on the
+raw line value:
+
+	int gpiod_get_raw_value(const struct gpio_desc *desc)
+	void gpiod_set_raw_value(struct gpio_desc *desc, int value)
+	int gpiod_get_raw_value_cansleep(const struct gpio_desc *desc)
+	void gpiod_set_raw_value_cansleep(struct gpio_desc *desc, int value)
+
+The active-low state of a GPIO can also be queried using the following call:
+
+	int gpiod_is_active_low(const struct gpio_desc *desc)
+
+Note that these functions should only be used with great moderation ; a driver
+should not have to care about the physical line level.
+
+GPIOs mapped to IRQs
+--------------------
+GPIO lines can quite often be used as IRQs. You can get the IRQ number
+corresponding to a given GPIO using the following call:
+
+	int gpiod_to_irq(const struct gpio_desc *desc)
+
+It will return an IRQ number, or an negative errno code if the mapping can't be
+done (most likely because that particular GPIO cannot be used as IRQ). It is an
+unchecked error to use a GPIO that wasn't set up as an input using
+gpiod_direction_input(), or to use an IRQ number that didn't originally come
+from gpiod_to_irq(). gpiod_to_irq() is not allowed to sleep.
+
+Non-error values returned from gpiod_to_irq() can be passed to request_irq() or
+free_irq(). They will often be stored into IRQ resources for platform devices,
+by the board-specific initialization code. Note that IRQ trigger options are
+part of the IRQ interface, e.g. IRQF_TRIGGER_FALLING, as are system wakeup
+capabilities.
+
+
+Interacting With the Legacy GPIO Subsystem
+==========================================
+Many kernel subsystems still handle GPIOs using the legacy integer-based
+interface. Although it is strongly encouraged to upgrade them to the safer
+descriptor-based API, the following two functions allow you to convert a GPIO
+descriptor into the GPIO integer namespace and vice-versa:
+
+	int desc_to_gpio(const struct gpio_desc *desc)
+	struct gpio_desc *gpio_to_desc(unsigned gpio)
+
+The GPIO number returned by desc_to_gpio() can be safely used as long as the
+GPIO descriptor has not been freed. All the same, a GPIO number passed to
+gpio_to_desc() must have been properly acquired, and usage of the returned GPIO
+descriptor is only possible after the GPIO number has been released.
+
+Freeing a GPIO obtained by one API with the other API is forbidden and an
+unchecked error.
