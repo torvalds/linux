@@ -696,46 +696,28 @@ static void mpc5121_clk_register_of_provider(struct device_node *np)
  */
 static void mpc5121_clk_provide_migration_support(void)
 {
-	int idx;
-	char name[32];
-
-	/*
-	 * provide "pre-CCF" alias clock names for peripheral drivers
-	 * which have not yet been adjusted to do OF based clock lookups
-	 */
-	clk_register_clkdev(clks[MPC512x_CLK_REF], "ref_clk", NULL);
-	clk_register_clkdev(clks[MPC512x_CLK_SYS], "sys_clk", NULL);
-	clk_register_clkdev(clks[MPC512x_CLK_VIU], "viu_clk", NULL);
-	clk_register_clkdev(clks[MPC512x_CLK_NFC], "nfc_clk", NULL);
-	clk_register_clkdev(clks[MPC512x_CLK_USB1], "usb1_clk", NULL);
-	clk_register_clkdev(clks[MPC512x_CLK_USB2], "usb2_clk", NULL);
-	for (idx = 0; idx < NR_PSCS; idx++) {
-		snprintf(name, sizeof(name), "psc%d_mclk", idx);
-		clk_register_clkdev(clks[MPC512x_CLK_PSC0_MCLK + idx],
-				    name, NULL);
-	}
-	for (idx = 0; idx < NR_MSCANS; idx++) {
-		snprintf(name, sizeof(name), "mscan%d_mclk", idx);
-		clk_register_clkdev(clks[MPC512x_CLK_MSCAN0_MCLK + idx],
-				    name, NULL);
-	}
-	clk_register_clkdev(clks[MPC512x_CLK_SPDIF_MCLK], "spdif_mclk", NULL);
 
 	/*
 	 * pre-enable those clock items which are not yet appropriately
 	 * acquired by their peripheral driver
+	 *
+	 * the PCI clock cannot get acquired by its peripheral driver,
+	 * because for this platform the driver won't probe(), instead
+	 * initialization is done from within the .setup_arch() routine
+	 * at a point in time where the clock provider has not been
+	 * setup yet and thus isn't available yet
+	 *
+	 * so we "pre-enable" the clock here, to not have the clock
+	 * subsystem automatically disable this item in a late init call
+	 *
+	 * this PCI clock pre-enable workaround only applies when there
+	 * are device tree nodes for PCI and thus the peripheral driver
+	 * has attached to bridges, otherwise the PCI clock remains
+	 * unused and so it gets disabled
 	 */
-	clk_prepare_enable(clks[MPC512x_CLK_PSC_FIFO]);
 	clk_prepare_enable(clks[MPC512x_CLK_PSC3_MCLK]);/* serial console */
-	clk_prepare_enable(clks[MPC512x_CLK_FEC]);	/* network, NFS */
-	clk_prepare_enable(clks[MPC512x_CLK_DIU]);	/* display */
-	clk_prepare_enable(clks[MPC512x_CLK_I2C]);	/* I2C */
-	for (idx = 0; idx < NR_PSCS; idx++)		/* PSC ipg */
-		clk_prepare_enable(clks[MPC512x_CLK_PSC0 + idx]);
-	clk_prepare_enable(clks[MPC512x_CLK_BDLC]);	/* MSCAN ipg */
-	for (idx = 0; idx < NR_MSCANS; idx++)		/* MSCAN mclk */
-		clk_prepare_enable(clks[MPC512x_CLK_MSCAN0_MCLK + idx]);
-	clk_prepare_enable(clks[MPC512x_CLK_PCI]);	/* PCI */
+	if (of_find_compatible_node(NULL, "pci", "fsl,mpc5121-pci"))
+		clk_prepare_enable(clks[MPC512x_CLK_PCI]);
 }
 
 /*
