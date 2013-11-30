@@ -66,6 +66,16 @@
 					fsl,voltage = <MXS_VOLTAGE_HIGH>;
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
+
+				usb0_otg_apf28dev: otg-apf28dev@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_LCD_D23__GPIO_1_23
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
 			};
 
 			lcdif@80030000 {
@@ -131,6 +141,8 @@
 
 	ahb@80080000 {
 		usb0: usb@80080000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&usb0_otg_apf28dev>;
 			vbus-supply = <&reg_usb0_vbus>;
 			status = "okay";
 		};
@@ -160,6 +172,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio1 23 1>;
+			enable-active-high;
 		};
 	};
 
