@@ -2942,8 +2942,21 @@ static int smiapp_probe(struct i2c_client *client,
 	sensor->src->sensor = sensor;
 
 	sensor->src->pads[0].flags = MEDIA_PAD_FL_SOURCE;
-	return media_entity_init(&sensor->src->sd.entity, 2,
+	rval = media_entity_init(&sensor->src->sd.entity, 2,
 				 sensor->src->pads, 0);
+	if (rval < 0)
+		return rval;
+
+	rval = v4l2_async_register_subdev(&sensor->src->sd);
+	if (rval < 0)
+		goto out_media_entity_cleanup;
+
+	return 0;
+
+out_media_entity_cleanup:
+	media_entity_cleanup(&sensor->src->sd.entity);
+
+	return rval;
 }
 
 static int smiapp_remove(struct i2c_client *client)
@@ -2951,6 +2964,8 @@ static int smiapp_remove(struct i2c_client *client)
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct smiapp_sensor *sensor = to_smiapp_sensor(subdev);
 	unsigned int i;
+
+	v4l2_async_unregister_subdev(subdev);
 
 	if (sensor->power_count) {
 		if (gpio_is_valid(sensor->platform_data->xshutdown))
