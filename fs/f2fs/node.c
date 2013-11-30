@@ -106,11 +106,11 @@ static void ra_nat_pages(struct f2fs_sb_info *sbi, int nid)
 			f2fs_put_page(page, 1);
 			continue;
 		}
-		submit_read_page(sbi, page, index, READ_SYNC | REQ_META);
+		f2fs_submit_page_mbio(sbi, page, index, META, READ);
 		mark_page_accessed(page);
 		f2fs_put_page(page, 0);
 	}
-	f2fs_submit_read_bio(sbi, READ_SYNC | REQ_META);
+	f2fs_submit_merged_bio(sbi, META, true, READ);
 }
 
 static struct nat_entry *__lookup_nat_cache(struct f2fs_nm_info *nm_i, nid_t n)
@@ -891,7 +891,7 @@ fail:
  * LOCKED_PAGE: f2fs_put_page(page, 1)
  * error: nothing
  */
-static int read_node_page(struct page *page, int type)
+static int read_node_page(struct page *page, int rw)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(page->mapping->host->i_sb);
 	struct node_info ni;
@@ -906,7 +906,7 @@ static int read_node_page(struct page *page, int type)
 	if (PageUptodate(page))
 		return LOCKED_PAGE;
 
-	return f2fs_readpage(sbi, page, ni.blk_addr, type);
+	return f2fs_submit_page_bio(sbi, page, ni.blk_addr, rw);
 }
 
 /*
@@ -1136,8 +1136,8 @@ continue_unlock:
 	}
 
 	if (wrote)
-		f2fs_submit_bio(sbi, NODE, wbc->sync_mode == WB_SYNC_ALL);
-
+		f2fs_submit_merged_bio(sbi, NODE, wbc->sync_mode == WB_SYNC_ALL,
+									WRITE);
 	return nwritten;
 }
 
@@ -1592,7 +1592,7 @@ int restore_node_summary(struct f2fs_sb_info *sbi,
 		 */
 		ClearPageUptodate(page);
 
-		if (f2fs_readpage(sbi, page, addr, READ_SYNC))
+		if (f2fs_submit_page_bio(sbi, page, addr, READ_SYNC))
 			goto out;
 
 		lock_page(page);

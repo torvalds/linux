@@ -434,7 +434,7 @@ TRACE_EVENT(f2fs_truncate_partial_nodes,
 		__entry->err)
 );
 
-TRACE_EVENT_CONDITION(f2fs_readpage,
+TRACE_EVENT_CONDITION(f2fs_submit_page_bio,
 
 	TP_PROTO(struct page *page, sector_t blkaddr, int type),
 
@@ -641,18 +641,22 @@ DECLARE_EVENT_CLASS(f2fs__submit_bio,
 		__entry->size)
 );
 
-DEFINE_EVENT(f2fs__submit_bio, f2fs_submit_write_bio,
+DEFINE_EVENT_CONDITION(f2fs__submit_bio, f2fs_submit_write_bio,
 
 	TP_PROTO(struct super_block *sb, int rw, int type, struct bio *bio),
 
-	TP_ARGS(sb, rw, type, bio)
+	TP_ARGS(sb, rw, type, bio),
+
+	TP_CONDITION(bio)
 );
 
-DEFINE_EVENT(f2fs__submit_bio, f2fs_submit_read_bio,
+DEFINE_EVENT_CONDITION(f2fs__submit_bio, f2fs_submit_read_bio,
 
 	TP_PROTO(struct super_block *sb, int rw, int type, struct bio *bio),
 
-	TP_ARGS(sb, rw, type, bio)
+	TP_ARGS(sb, rw, type, bio),
+
+	TP_CONDITION(bio)
 );
 
 DECLARE_EVENT_CLASS(f2fs__page,
@@ -701,7 +705,7 @@ DEFINE_EVENT(f2fs__page, f2fs_vm_page_mkwrite,
 	TP_ARGS(page, type)
 );
 
-DECLARE_EVENT_CLASS(f2fs_io_page,
+TRACE_EVENT(f2fs_submit_page_mbio,
 
 	TP_PROTO(struct page *page, int rw, int type, block_t blk_addr),
 
@@ -731,20 +735,6 @@ DECLARE_EVENT_CLASS(f2fs_io_page,
 		show_block_type(__entry->type),
 		(unsigned long)__entry->index,
 		(unsigned long long)__entry->block)
-);
-
-DEFINE_EVENT(f2fs_io_page, f2fs_submit_write_page,
-
-	TP_PROTO(struct page *page, int rw, int type, block_t blk_addr),
-
-	TP_ARGS(page, rw, type, blk_addr)
-);
-
-DEFINE_EVENT(f2fs_io_page, f2fs_submit_read_page,
-
-	TP_PROTO(struct page *page, int rw, int type, block_t blk_addr),
-
-	TP_ARGS(page, rw, type, blk_addr)
 );
 
 TRACE_EVENT(f2fs_write_checkpoint,

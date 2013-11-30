@@ -61,7 +61,8 @@ repeat:
 	if (PageUptodate(page))
 		goto out;
 
-	if (f2fs_readpage(sbi, page, index, READ_SYNC | REQ_META | REQ_PRIO))
+	if (f2fs_submit_page_bio(sbi, page, index,
+				READ_SYNC | REQ_META | REQ_PRIO))
 		goto repeat;
 
 	lock_page(page);
@@ -157,7 +158,8 @@ long sync_meta_pages(struct f2fs_sb_info *sbi, enum page_type type,
 	}
 
 	if (nwritten)
-		f2fs_submit_bio(sbi, type, nr_to_write == LONG_MAX);
+		f2fs_submit_merged_bio(sbi, type, nr_to_write == LONG_MAX,
+								WRITE);
 
 	return nwritten;
 }
@@ -590,7 +592,7 @@ retry:
 		 * We should submit bio, since it exists several
 		 * wribacking dentry pages in the freeing inode.
 		 */
-		f2fs_submit_bio(sbi, DATA, true);
+		f2fs_submit_merged_bio(sbi, DATA, true, WRITE);
 	}
 	goto retry;
 }
@@ -796,9 +798,9 @@ void write_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 
 	trace_f2fs_write_checkpoint(sbi->sb, is_umount, "finish block_ops");
 
-	f2fs_submit_bio(sbi, DATA, true);
-	f2fs_submit_bio(sbi, NODE, true);
-	f2fs_submit_bio(sbi, META, true);
+	f2fs_submit_merged_bio(sbi, DATA, true, WRITE);
+	f2fs_submit_merged_bio(sbi, NODE, true, WRITE);
+	f2fs_submit_merged_bio(sbi, META, true, WRITE);
 
 	/*
 	 * update checkpoint pack index

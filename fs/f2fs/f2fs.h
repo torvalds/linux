@@ -364,6 +364,7 @@ enum page_type {
 	META_FLUSH,
 };
 
+#define is_read_io(rw)	(((rw) & 1) == READ)
 struct f2fs_bio_info {
 	struct bio *bio;		/* bios to merge */
 	sector_t last_block_in_bio;	/* last block number */
@@ -1093,9 +1094,6 @@ void clear_prefree_segments(struct f2fs_sb_info *);
 int npages_for_summary_flush(struct f2fs_sb_info *);
 void allocate_new_segments(struct f2fs_sb_info *);
 struct page *get_sum_page(struct f2fs_sb_info *, unsigned int);
-struct bio *f2fs_bio_alloc(struct block_device *, int);
-void f2fs_submit_bio(struct f2fs_sb_info *, enum page_type, bool);
-void f2fs_wait_on_page_writeback(struct page *, enum page_type, bool);
 void write_meta_page(struct f2fs_sb_info *, struct page *);
 void write_node_page(struct f2fs_sb_info *, struct page *, unsigned int,
 					block_t, block_t *);
@@ -1106,6 +1104,7 @@ void recover_data_page(struct f2fs_sb_info *, struct page *,
 				struct f2fs_summary *, block_t, block_t);
 void rewrite_node_page(struct f2fs_sb_info *, struct page *,
 				struct f2fs_summary *, block_t, block_t);
+void f2fs_wait_on_page_writeback(struct page *, enum page_type, bool);
 void write_data_summaries(struct f2fs_sb_info *, block_t);
 void write_node_summaries(struct f2fs_sb_info *, block_t);
 int lookup_journal_in_cursum(struct f2fs_summary_block *,
@@ -1141,15 +1140,16 @@ void destroy_checkpoint_caches(void);
 /*
  * data.c
  */
+void f2fs_submit_merged_bio(struct f2fs_sb_info *, enum page_type, bool, int);
+int f2fs_submit_page_bio(struct f2fs_sb_info *, struct page *, block_t, int);
+void f2fs_submit_page_mbio(struct f2fs_sb_info *, struct page *, block_t,
+							enum page_type, int);
 int reserve_new_block(struct dnode_of_data *);
 int f2fs_reserve_block(struct dnode_of_data *, pgoff_t);
 void update_extent_cache(block_t, struct dnode_of_data *);
 struct page *find_data_page(struct inode *, pgoff_t, bool);
 struct page *get_lock_data_page(struct inode *, pgoff_t);
 struct page *get_new_data_page(struct inode *, struct page *, pgoff_t, bool);
-int f2fs_readpage(struct f2fs_sb_info *, struct page *, block_t, int);
-void f2fs_submit_read_bio(struct f2fs_sb_info *, int);
-void submit_read_page(struct f2fs_sb_info *, struct page *, block_t, int);
 int do_write_data_page(struct page *);
 
 /*

@@ -787,146 +787,6 @@ static const struct segment_allocation default_salloc_ops = {
 	.allocate_segment = allocate_segment_by_default,
 };
 
-static void f2fs_end_io_write(struct bio *bio, int err)
-{
-	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
-	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
-	struct f2fs_sb_info *sbi = F2FS_SB(bvec->bv_page->mapping->host->i_sb);
-
-	do {
-		struct page *page = bvec->bv_page;
-
-		if (--bvec >= bio->bi_io_vec)
-			prefetchw(&bvec->bv_page->flags);
-		if (!uptodate) {
-			SetPageError(page);
-			if (page->mapping)
-				set_bit(AS_EIO, &page->mapping->flags);
-
-			set_ckpt_flags(sbi->ckpt, CP_ERROR_FLAG);
-			sbi->sb->s_flags |= MS_RDONLY;
-		}
-		end_page_writeback(page);
-		dec_page_count(sbi, F2FS_WRITEBACK);
-	} while (bvec >= bio->bi_io_vec);
-
-	if (bio->bi_private)
-		complete(bio->bi_private);
-
-	if (!get_pages(sbi, F2FS_WRITEBACK) &&
-			!list_empty(&sbi->cp_wait.task_list))
-		wake_up(&sbi->cp_wait);
-
-	bio_put(bio);
-}
-
-struct bio *f2fs_bio_alloc(struct block_device *bdev, int npages)
-{
-	struct bio *bio;
-
-	/* No failure on bio allocation */
-	bio = bio_alloc(GFP_NOIO, npages);
-	bio->bi_bdev = bdev;
-	bio->bi_private = NULL;
-
-	return bio;
-}
-
-static void do_submit_bio(struct f2fs_sb_info *sbi,
-				enum page_type type, bool sync)
-{
-	int rw = sync ? WRITE_SYNC : WRITE;
-	enum page_type btype = PAGE_TYPE_OF_BIO(type);
-	struct f2fs_bio_info *io = &sbi->write_io[btype];
-
-	if (!io->bio)
-		return;
-
-	if (type >= META_FLUSH)
-		rw = WRITE_FLUSH_FUA;
-
-	if (btype == META)
-		rw |= REQ_META;
-
-	trace_f2fs_submit_write_bio(sbi->sb, rw, btype, io->bio);
-
-	/*
-	 * META_FLUSH is only from the checkpoint procedure, and we should wait
-	 * this metadata bio for FS consistency.
-	 */
-	if (type == META_FLUSH) {
-		DECLARE_COMPLETION_ONSTACK(wait);
-		io->bio->bi_private = &wait;
-		submit_bio(rw, io->bio);
-		wait_for_completion(&wait);
-	} else {
-		submit_bio(rw, io->bio);
-	}
-	io->bio = NULL;
-}
-
-void f2fs_submit_bio(struct f2fs_sb_info *sbi, enum page_type type, bool sync)
-{
-	struct f2fs_bio_info *io = &sbi->write_io[PAGE_TYPE_OF_BIO(type)];
-
-	if (!io->bio)
-		return;
-
-	mutex_lock(&io->io_mutex);
-	do_submit_bio(sbi, type, sync);
-	mutex_unlock(&io->io_mutex);
-}
-
-static void submit_write_page(struct f2fs_sb_info *sbi, struct page *page,
-				block_t blk_addr, enum page_type type)
-{
-	struct block_device *bdev = sbi->sb->s_bdev;
-	struct f2fs_bio_info *io = &sbi->write_io[type];
-	int bio_blocks;
-
-	verify_block_addr(sbi, blk_addr);
-
-	mutex_lock(&io->io_mutex);
-
-	inc_page_count(sbi, F2FS_WRITEBACK);
-
-	if (io->bio && io->last_block_in_bio != blk_addr - 1)
-		do_submit_bio(sbi, type, false);
-alloc_new:
-	if (io->bio == NULL) {
-		bio_blocks = MAX_BIO_BLOCKS(max_hw_blocks(sbi));
-		io->bio = f2fs_bio_alloc(bdev, bio_blocks);
-		io->bio->bi_sector = SECTOR_FROM_BLOCK(sbi, blk_addr);
-		io->bio->bi_end_io = f2fs_end_io_write;
-		/*
-		 * The end_io will be assigned at the sumbission phase.
-		 * Until then, let bio_add_page() merge consecutive IOs as much
-		 * as possible.
-		 */
-	}
-
-	if (bio_add_page(io->bio, page, PAGE_CACHE_SIZE, 0) <
-							PAGE_CACHE_SIZE) {
-		do_submit_bio(sbi, type, false);
-		goto alloc_new;
-	}
-
-	io->last_block_in_bio = blk_addr;
-
-	mutex_unlock(&io->io_mutex);
-	trace_f2fs_submit_write_page(page, WRITE, type, blk_addr);
-}
-
-void f2fs_wait_on_page_writeback(struct page *page,
-				enum page_type type, bool sync)
-{
-	struct f2fs_sb_info *sbi = F2FS_SB(page->mapping->host->i_sb);
-	if (PageWriteback(page)) {
-		f2fs_submit_bio(sbi, type, sync);
-		wait_on_page_writeback(page);
-	}
-}
-
 static bool __has_curseg_space(struct f2fs_sb_info *sbi, int type)
 {
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
@@ -1040,7 +900,7 @@ static void do_write_page(struct f2fs_sb_info *sbi, struct page *page,
 		fill_node_footer_blkaddr(page, NEXT_FREE_BLKADDR(sbi, curseg));
 
 	/* writeout dirty page into bdev */
-	submit_write_page(sbi, page, *new_blkaddr, p_type);
+	f2fs_submit_page_mbio(sbi, page, *new_blkaddr, p_type, WRITE);
 
 	mutex_unlock(&curseg->curseg_mutex);
 }
@@ -1048,7 +908,7 @@ static void do_write_page(struct f2fs_sb_info *sbi, struct page *page,
 void write_meta_page(struct f2fs_sb_info *sbi, struct page *page)
 {
 	set_page_writeback(page);
-	submit_write_page(sbi, page, page->index, META);
+	f2fs_submit_page_mbio(sbi, page, page->index, META, WRITE);
 }
 
 void write_node_page(struct f2fs_sb_info *sbi, struct page *page,
@@ -1078,7 +938,7 @@ void write_data_page(struct inode *inode, struct page *page,
 void rewrite_data_page(struct f2fs_sb_info *sbi, struct page *page,
 					block_t old_blk_addr)
 {
-	submit_write_page(sbi, page, old_blk_addr, DATA);
+	f2fs_submit_page_mbio(sbi, page, old_blk_addr, DATA, WRITE);
 }
 
 void recover_data_page(struct f2fs_sb_info *sbi,
@@ -1165,8 +1025,8 @@ void rewrite_node_page(struct f2fs_sb_info *sbi,
 
 	/* rewrite node page */
 	set_page_writeback(page);
-	submit_write_page(sbi, page, new_blkaddr, NODE);
-	f2fs_submit_bio(sbi, NODE, true);
+	f2fs_submit_page_mbio(sbi, page, new_blkaddr, NODE, WRITE);
+	f2fs_submit_merged_bio(sbi, NODE, true, WRITE);
 	refresh_sit_entry(sbi, old_blkaddr, new_blkaddr);
 
 	locate_dirty_segment(sbi, old_cursegno);
@@ -1174,6 +1034,16 @@ void rewrite_node_page(struct f2fs_sb_info *sbi,
 
 	mutex_unlock(&sit_i->sentry_lock);
 	mutex_unlock(&curseg->curseg_mutex);
+}
+
+void f2fs_wait_on_page_writeback(struct page *page,
+				enum page_type type, bool sync)
+{
+	struct f2fs_sb_info *sbi = F2FS_SB(page->mapping->host->i_sb);
+	if (PageWriteback(page)) {
+		f2fs_submit_merged_bio(sbi, type, sync, WRITE);
+		wait_on_page_writeback(page);
+	}
 }
 
 static int read_compacted_summaries(struct f2fs_sb_info *sbi)
@@ -1723,13 +1593,13 @@ repeat:
 			continue;
 		}
 
-		submit_read_page(sbi, page, blk_addr, READ_SYNC | REQ_META);
+		f2fs_submit_page_mbio(sbi, page, blk_addr, META, READ);
 
 		mark_page_accessed(page);
 		f2fs_put_page(page, 0);
 	}
 
-	f2fs_submit_read_bio(sbi, READ_SYNC | REQ_META);
+	f2fs_submit_merged_bio(sbi, META, true, READ);
 	return blkno - start;
 }
 

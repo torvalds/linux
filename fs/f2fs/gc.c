@@ -631,7 +631,7 @@ next_iput:
 		goto next_step;
 
 	if (gc_type == FG_GC) {
-		f2fs_submit_bio(sbi, DATA, true);
+		f2fs_submit_merged_bio(sbi, DATA, true, WRITE);
 
 		/*
 		 * In the case of FG_GC, it'd be better to reclaim this victim
