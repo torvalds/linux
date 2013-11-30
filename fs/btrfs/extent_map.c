@@ -255,7 +255,7 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 		merge = rb_entry(rb, struct extent_map, rb_node);
 	if (rb && mergable_maps(em, merge)) {
 		em->len += merge->len;
-		em->block_len += merge->len;
+		em->block_len += merge->block_len;
 		rb_erase(&merge->rb_node, &tree->map);
 		merge->in_tree = 0;
 		em->mod_len = (merge->mod_start + merge->mod_len) - em->mod_start;
