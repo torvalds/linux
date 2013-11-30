@@ -118,6 +118,13 @@ config SPI_BCM63XX
 	help
           Enable support for the SPI controller on the Broadcom BCM63xx SoCs.
 
+config SPI_BCM63XX_HSSPI
+	tristate "Broadcom BCM63XX HS SPI controller driver"
+	depends on BCM63XX || COMPILE_TEST
+	help
+	  This enables support for the High Speed SPI controller present on
+	  newer Broadcom BCM63XX SoCs.
+
 config SPI_BITBANG
 	tristate "Utilities for Bitbanging SPI masters"
 	help
