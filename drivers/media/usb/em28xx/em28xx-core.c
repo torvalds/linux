@@ -600,6 +600,22 @@ int em28xx_colorlevels_set_default(struct em28xx *dev)
 	return em28xx_write_reg(dev, EM28XX_R1A_BOFFSET, 0x00);
 }
 
+const struct em28xx_led *em28xx_find_led(struct em28xx *dev,
+					 enum em28xx_led_role role)
+{
+	if (dev->board.leds) {
+		u8 k = 0;
+		while (dev->board.leds[k].role >= 0 &&
+			       dev->board.leds[k].role < EM28XX_NUM_LED_ROLES) {
+			if (dev->board.leds[k].role == role)
+				return &dev->board.leds[k];
+			k++;
+		}
+	}
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(em28xx_find_led);
+
 int em28xx_capture_start(struct em28xx *dev, int start)
 {
 	int rc;
@@ -645,13 +661,14 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 		return rc;
 
 	/* Switch (explicitly controlled) analog capturing LED on/off */
-	if ((dev->mode == EM28XX_ANALOG_MODE)
-	    && dev->board.analog_capturing_led) {
-		struct em28xx_led *led = dev->board.analog_capturing_led;
-		em28xx_write_reg_bits(dev, led->gpio_reg,
-				      (!start ^ led->inverted) ?
-				      ~led->gpio_mask : led->gpio_mask,
-				      led->gpio_mask);
+	if (dev->mode == EM28XX_ANALOG_MODE) {
+		const struct em28xx_led *led;
+		led = em28xx_find_led(dev, EM28XX_LED_ANALOG_CAPTURING);
+		if (led)
+			em28xx_write_reg_bits(dev, led->gpio_reg,
+					      (!start ^ led->inverted) ?
+					      ~led->gpio_mask : led->gpio_mask,
+					      led->gpio_mask);
 	}
 
 	return rc;

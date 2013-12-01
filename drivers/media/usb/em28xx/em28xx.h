@@ -377,7 +377,13 @@ enum em28xx_adecoder {
 	EM28XX_TVAUDIO,
 };
 
+enum em28xx_led_role {
+	EM28XX_LED_ANALOG_CAPTURING = 0,
+	EM28XX_NUM_LED_ROLES, /* must be the last */
+};
+
 struct em28xx_led {
+	enum em28xx_led_role role;
 	u8 gpio_reg;
 	u8 gpio_mask;
 	bool inverted;
@@ -433,7 +439,7 @@ struct em28xx_board {
 	char			  *ir_codes;
 
 	/* LEDs that need to be controlled explicitly */
-	struct em28xx_led	  *analog_capturing_led;
+	struct em28xx_led	  *leds;
 
 	/* Buttons */
 	struct em28xx_button	  *buttons;
@@ -711,6 +717,8 @@ int em28xx_audio_analog_set(struct em28xx *dev);
 int em28xx_audio_setup(struct em28xx *dev);
 
 int em28xx_colorlevels_set_default(struct em28xx *dev);
+const struct em28xx_led *em28xx_find_led(struct em28xx *dev,
+					 enum em28xx_led_role role);
 int em28xx_capture_start(struct em28xx *dev, int start);
 int em28xx_vbi_supported(struct em28xx *dev);
 int em28xx_set_outfmt(struct em28xx *dev);
