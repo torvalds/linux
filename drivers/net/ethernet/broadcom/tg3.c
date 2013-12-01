@@ -8932,6 +8932,9 @@ static int tg3_chip_reset(struct tg3 *tp)
 	void (*write_op)(struct tg3 *, u32, u32);
 	int i, err;
 
+	if (!pci_device_is_present(tp->pdev))
+		return -ENODEV;
+
 	tg3_nvram_lock(tp);
 
 	tg3_ape_lock(tp, TG3_APE_LOCK_GRC);
@@ -11581,10 +11584,11 @@ static int tg3_close(struct net_device *dev)
 	memset(&tp->net_stats_prev, 0, sizeof(tp->net_stats_prev));
 	memset(&tp->estats_prev, 0, sizeof(tp->estats_prev));
 
-	tg3_power_down_prepare(tp);
+	if (pci_device_is_present(tp->pdev)) {
+		tg3_power_down_prepare(tp);
 
-	tg3_carrier_off(tp);
-
+		tg3_carrier_off(tp);
+	}
 	return 0;
 }
 
@@ -17726,10 +17730,12 @@ static int tg3_suspend(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct tg3 *tp = netdev_priv(dev);
-	int err;
+	int err = 0;
+
+	rtnl_lock();
 
 	if (!netif_running(dev))
-		return 0;
+		goto unlock;
 
 	tg3_reset_task_cancel(tp);
 	tg3_phy_stop(tp);
@@ -17771,6 +17777,8 @@ out:
 			tg3_phy_start(tp);
 	}
 
+unlock:
+	rtnl_unlock();
 	return err;
 }
 
@@ -17779,10 +17787,12 @@ static int tg3_resume(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct tg3 *tp = netdev_priv(dev);
-	int err;
+	int err = 0;
+
+	rtnl_lock();
 
 	if (!netif_running(dev))
-		return 0;
+		goto unlock;
 
 	netif_device_attach(dev);
 
@@ -17806,6 +17816,8 @@ out:
 	if (!err)
 		tg3_phy_start(tp);
 
+unlock:
+	rtnl_unlock();
 	return err;
 }
 #endif /* CONFIG_PM_SLEEP */
