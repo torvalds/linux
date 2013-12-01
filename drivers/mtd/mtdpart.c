@@ -682,12 +682,11 @@ int register_mtd_parser(struct mtd_part_parser *p)
 }
 EXPORT_SYMBOL_GPL(register_mtd_parser);
 
-int deregister_mtd_parser(struct mtd_part_parser *p)
+void deregister_mtd_parser(struct mtd_part_parser *p)
 {
 	spin_lock(&part_parser_lock);
 	list_del(&p->list);
 	spin_unlock(&part_parser_lock);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(deregister_mtd_parser);
 
