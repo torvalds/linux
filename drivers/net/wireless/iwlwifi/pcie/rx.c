@@ -797,14 +797,14 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 	iwl_pcie_dump_csr(trans);
 	iwl_dump_fh(trans, NULL);
 
-	/* set the ERROR bit before we wake up the caller */
-	set_bit(STATUS_FW_ERROR, &trans->status);
+	local_bh_disable();
+	/* The STATUS_FW_ERROR bit is set in this function. This must happen
+	 * before we wake up the command caller, to ensure a proper cleanup. */
+	iwl_trans_fw_error(trans);
+	local_bh_enable();
+
 	clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 	wake_up(&trans_pcie->wait_command_queue);
-
-	local_bh_disable();
-	iwl_nic_error(trans);
-	local_bh_enable();
 }
 
 irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
