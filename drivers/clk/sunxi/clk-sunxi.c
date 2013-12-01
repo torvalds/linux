@@ -37,18 +37,16 @@ static void __init sun4i_osc_clk_setup(struct device_node *node)
 	const char *clk_name = node->name;
 	u32 rate;
 
+	if (of_property_read_u32(node, "clock-frequency", &rate))
+		return;
+
 	/* allocate fixed-rate and gate clock structs */
 	fixed = kzalloc(sizeof(struct clk_fixed_rate), GFP_KERNEL);
 	if (!fixed)
 		return;
 	gate = kzalloc(sizeof(struct clk_gate), GFP_KERNEL);
-	if (!gate) {
-		kfree(fixed);
-		return;
-	}
-
-	if (of_property_read_u32(node, "clock-frequency", &rate))
-		return;
+	if (!gate)
+		goto err_free_fixed;
 
 	/* set up gate and fixed rate properties */
 	gate->reg = of_iomap(node, 0);
@@ -63,10 +61,18 @@ static void __init sun4i_osc_clk_setup(struct device_node *node)
 			&gate->hw, &clk_gate_ops,
 			CLK_IS_ROOT);
 
-	if (!IS_ERR(clk)) {
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
-		clk_register_clkdev(clk, clk_name, NULL);
-	}
+	if (IS_ERR(clk))
+		goto err_free_gate;
+
+	of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	clk_register_clkdev(clk, clk_name, NULL);
+
+	return;
+
+err_free_gate:
+	kfree(gate);
+err_free_fixed:
+	kfree(fixed);
 }
 CLK_OF_DECLARE(sun4i_osc, "allwinner,sun4i-osc-clk", sun4i_osc_clk_setup);
 
@@ -616,7 +622,32 @@ static void __init of_sunxi_table_clock_setup(const struct of_device_id *clk_mat
 	}
 }
 
-static void __init sunxi_init_clocks(struct device_node *np)
+/**
+ * System clock protection
+ *
+ * By enabling these critical clocks, we prevent their accidental gating
+ * by the framework
+ */
+static void __init sunxi_clock_protect(void)
+{
+	struct clk *clk;
+
+	/* memory bus clock - sun5i+ */
+	clk = clk_get(NULL, "mbus");
+	if (!IS_ERR(clk)) {
+		clk_prepare_enable(clk);
+		clk_put(clk);
+	}
+
+	/* DDR clock - sun4i+ */
+	clk = clk_get(NULL, "pll5_ddr");
+	if (!IS_ERR(clk)) {
+		clk_prepare_enable(clk);
+		clk_put(clk);
+	}
+}
+
+static void __init sunxi_init_clocks(void)
 {
 	/* Register factor clocks */
 	of_sunxi_table_clock_setup(clk_factors_match, sunxi_factors_clk_setup);
@@ -629,6 +660,9 @@ static void __init sunxi_init_clocks(struct device_node *np)
 
 	/* Register gate clocks */
 	of_sunxi_table_clock_setup(clk_gates_match, sunxi_gates_clk_setup);
+
+	/* Enable core system clocks */
+	sunxi_clock_protect();
 }
 CLK_OF_DECLARE(sun4i_a10_clk_init, "allwinner,sun4i-a10", sunxi_init_clocks);
 CLK_OF_DECLARE(sun5i_a10s_clk_init, "allwinner,sun5i-a10s", sunxi_init_clocks);

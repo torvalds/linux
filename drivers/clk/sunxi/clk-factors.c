@@ -40,7 +40,7 @@ struct clk_factors {
 
 #define to_clk_factors(_hw) container_of(_hw, struct clk_factors, hw)
 
-#define SETMASK(len, pos)		(((-1U) >> (31-len))  << (pos))
+#define SETMASK(len, pos)		(((1U << (len)) - 1) << (pos))
 #define CLRMASK(len, pos)		(~(SETMASK(len, pos)))
 #define FACTOR_GET(bit, len, reg)	(((reg) & SETMASK(len, bit)) >> (bit))
 
@@ -88,7 +88,7 @@ static long clk_factors_round_rate(struct clk_hw *hw, unsigned long rate,
 static int clk_factors_set_rate(struct clk_hw *hw, unsigned long rate,
 				unsigned long parent_rate)
 {
-	u8 n, k, m, p;
+	u8 n = 0, k = 0, m = 0, p = 0;
 	u32 reg;
 	struct clk_factors *factors = to_clk_factors(hw);
 	struct clk_factors_config *config = factors->config;
