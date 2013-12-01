@@ -669,6 +669,7 @@ struct em28xx {
 	/* Button state polling */
 	struct delayed_work buttons_query_work;
 	u8 button_polling_addresses[EM28XX_NUM_BUTTON_ADDRESSES_MAX];
+	u8 button_polling_last_values[EM28XX_NUM_BUTTON_ADDRESSES_MAX];
 	u8 num_button_polling_addresses;
 	/* Snapshot button input device */
 	char snapshot_button_path[30];	/* path of the input dev */

@@ -479,7 +479,7 @@ static void em28xx_query_buttons(struct work_struct *work)
 		container_of(work, struct em28xx, buttons_query_work.work);
 	u8 i, j;
 	int regval;
-	bool pressed;
+	bool is_pressed, was_pressed;
 
 	/* Poll and evaluate all addresses */
 	for (i = 0; i < dev->num_button_polling_addresses; i++) {
@@ -497,12 +497,21 @@ static void em28xx_query_buttons(struct work_struct *work)
 				j++;
 				continue;
 			}
-			/* Determine if button is pressed */
-			pressed = regval & button->mask;
-			if (button->inverted)
-				pressed = !pressed;
+			/* Determine if button is and was pressed last time */
+			is_pressed = regval & button->mask;
+			was_pressed = dev->button_polling_last_values[i]
+				       & button->mask;
+			if (button->inverted) {
+				is_pressed = !is_pressed;
+				was_pressed = !was_pressed;
+			}
+			/* Clear button state (if needed) */
+			if (is_pressed && button->reg_clearing)
+				em28xx_write_reg(dev, button->reg_clearing,
+						 (~regval & button->mask)
+						    | (regval & ~button->mask));
 			/* Handle button state */
-			if (!pressed) {
+			if (!is_pressed || was_pressed) {
 				j++;
 				continue;
 			}
@@ -518,14 +527,11 @@ static void em28xx_query_buttons(struct work_struct *work)
 			default:
 				WARN_ONCE(1, "BUG: unhandled button role.");
 			}
-			/* Clear button state (if needed) */
-			if (button->reg_clearing)
-				em28xx_write_reg(dev, button->reg_clearing,
-						 (~regval & button->mask)
-						    | (regval & ~button->mask));
 			/* Next button */
 			j++;
 		}
+		/* Save current value for comparison during the next polling */
+		dev->button_polling_last_values[i] = regval;
 	}
 	/* Schedule next poll */
 	schedule_delayed_work(&dev->buttons_query_work,
@@ -611,6 +617,8 @@ static void em28xx_init_buttons(struct em28xx *dev)
 
 	/* Start polling */
 	if (dev->num_button_polling_addresses) {
+		memset(dev->button_polling_last_values, 0,
+					       EM28XX_NUM_BUTTON_ADDRESSES_MAX);
 		INIT_DELAYED_WORK(&dev->buttons_query_work,
 							  em28xx_query_buttons);
 		schedule_delayed_work(&dev->buttons_query_work,
