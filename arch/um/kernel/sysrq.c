@@ -19,7 +19,7 @@ struct stack_frame {
 	unsigned long return_address;
 };
 
-static void print_stack_trace(unsigned long *sp, unsigned long bp)
+static void do_stack_trace(unsigned long *sp, unsigned long bp)
 {
 	int reliable;
 	unsigned long addr;
@@ -94,5 +94,5 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	}
 	printk(KERN_CONT "\n");
 
-	print_stack_trace(sp, bp);
+	do_stack_trace(sp, bp);
 }
