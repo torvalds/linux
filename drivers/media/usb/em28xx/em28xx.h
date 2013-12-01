@@ -374,6 +374,12 @@ enum em28xx_adecoder {
 	EM28XX_TVAUDIO,
 };
 
+struct em28xx_led {
+	u8 gpio_reg;
+	u8 gpio_mask;
+	bool inverted;
+};
+
 struct em28xx_board {
 	char *name;
 	int vchannels;
@@ -410,6 +416,9 @@ struct em28xx_board {
 	struct em28xx_input       input[MAX_EM28XX_INPUT];
 	struct em28xx_input	  radio;
 	char			  *ir_codes;
+
+	/* LEDs that need to be controlled explicitly */
+	struct em28xx_led	  *analog_capturing_led;
 };
 
 struct em28xx_eeprom {
