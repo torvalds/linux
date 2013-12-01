@@ -727,6 +727,13 @@ export KBUILD_IMAGE ?= vmlinux
 export	INSTALL_PATH ?= /boot
 
 #
+# INSTALL_DTBS_PATH specifies a prefix for relocations required by build roots.
+# Like INSTALL_MOD_PATH, it isn't defined in the Makefile, but can be passed as
+# an argument if needed. Otherwise it defaults to the kernel install path
+#
+export INSTALL_DTBS_PATH ?= $(INSTALL_PATH)/dtbs/$(KERNELRELEASE)
+
+#
 # INSTALL_MOD_PATH specifies a prefix to MODLIB for module directory
 # relocations required by build roots.  This is not defined in the
 # makefile but the argument can be passed to make if needed.
