@@ -612,22 +612,22 @@ static int __init iss_net_setup(char *str)
 	struct iss_net_init *new;
 	struct list_head *ele;
 	char *end;
-	int n;
+	int rc;
+	unsigned n;
 
-	n = simple_strtoul(str, &end, 0);
-	if (end == str) {
-		printk(ERR "Failed to parse '%s'\n", str);
-		return 1;
-	}
-	if (n < 0) {
-		printk(ERR "Device %d is negative\n", n);
-		return 1;
-	}
-	str = end;
-	if (*str != '=') {
+	end = strchr(str, '=');
+	if (!end) {
 		printk(ERR "Expected '=' after device number\n");
 		return 1;
 	}
+	*end = 0;
+	rc = kstrtouint(str, 0, &n);
+	*end = '=';
+	if (rc < 0) {
+		printk(ERR "Failed to parse '%s'\n", str);
+		return 1;
+	}
+	str = end;
 
 	spin_lock(&devices_lock);
 
@@ -640,7 +640,7 @@ static int __init iss_net_setup(char *str)
 	spin_unlock(&devices_lock);
 
 	if (device && device->index == n) {
-		printk(ERR "Device %d already configured\n", n);
+		printk(ERR "Device %u already configured\n", n);
 		return 1;
 	}
 
