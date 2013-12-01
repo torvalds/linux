@@ -620,6 +620,8 @@ static void amiga_mem_console_write(struct console *co, const char *s,
 
 static int __init amiga_savekmsg_setup(char *arg)
 {
+	bool registered;
+
 	if (!MACH_IS_AMIGA || strcmp(arg, "mem"))
 		return 0;
 
@@ -636,8 +638,10 @@ static int __init amiga_savekmsg_setup(char *arg)
 	savekmsg->magicptr = ZTWO_PADDR(savekmsg);
 	savekmsg->size = 0;
 
+	registered = !!amiga_console_driver.write;
 	amiga_console_driver.write = amiga_mem_console_write;
-	register_console(&amiga_console_driver);
+	if (!registered)
+		register_console(&amiga_console_driver);
 	return 0;
 }
 
@@ -719,11 +723,16 @@ void amiga_serial_gets(struct console *co, char *s, int len)
 
 static int __init amiga_debug_setup(char *arg)
 {
-	if (MACH_IS_AMIGA && !strcmp(arg, "ser")) {
-		/* no initialization required (?) */
-		amiga_console_driver.write = amiga_serial_console_write;
+	bool registered;
+
+	if (!MACH_IS_AMIGA || strcmp(arg, "ser"))
+		return 0;
+
+	/* no initialization required (?) */
+	registered = !!amiga_console_driver.write;
+	amiga_console_driver.write = amiga_serial_console_write;
+	if (!registered)
 		register_console(&amiga_console_driver);
-	}
 	return 0;
 }
 
