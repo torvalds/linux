@@ -26,7 +26,7 @@
 	};
 
 	pic: pic {
-		compatible = "xtensa,pic";
+		compatible = "cdns,xtensa-pic";
 		/* one cell: internal irq number,
 		 * two cells: second cell == 0: internal irq number
 		 *            second cell == 1: external irq number
