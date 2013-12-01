@@ -243,7 +243,8 @@ static struct mtd_part_parser bcm47xxpart_mtd_parser = {
 
 static int __init bcm47xxpart_init(void)
 {
-	return register_mtd_parser(&bcm47xxpart_mtd_parser);
+	register_mtd_parser(&bcm47xxpart_mtd_parser);
+	return 0;
 }
 
 static void __exit bcm47xxpart_exit(void)

@@ -173,18 +173,9 @@ static struct mtd_part_parser ofoldpart_parser = {
 
 static int __init ofpart_parser_init(void)
 {
-	int rc;
-	rc = register_mtd_parser(&ofpart_parser);
-	if (rc)
-		goto out;
-
-	rc = register_mtd_parser(&ofoldpart_parser);
-	if (!rc)
-		return 0;
-
-	deregister_mtd_parser(&ofoldpart_parser);
-out:
-	return rc;
+	register_mtd_parser(&ofpart_parser);
+	register_mtd_parser(&ofoldpart_parser);
+	return 0;
 }
 
 static void __exit ofpart_parser_exit(void)

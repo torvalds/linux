@@ -76,7 +76,7 @@ struct mtd_part_parser {
 			struct mtd_part_parser_data *);
 };
 
-extern int register_mtd_parser(struct mtd_part_parser *parser);
+extern void register_mtd_parser(struct mtd_part_parser *parser);
 extern void deregister_mtd_parser(struct mtd_part_parser *parser);
 
 int mtd_is_partition(const struct mtd_info *mtd);
