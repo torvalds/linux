@@ -39,7 +39,7 @@ static int mdp4_hw_init(struct msm_kms *kms)
 	major = FIELD(version, MDP4_VERSION_MAJOR);
 	minor = FIELD(version, MDP4_VERSION_MINOR);
 
-	DBG("found MDP version v%d.%d", major, minor);
+	DBG("found MDP4 version v%d.%d", major, minor);
 
 	if (major != 4) {
 		dev_err(dev->dev, "unexpected MDP version: v%d.%d\n",
@@ -195,6 +195,7 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	struct drm_encoder *encoder;
+	struct hdmi *hdmi;
 	int ret;
 
 	/*
@@ -244,9 +245,10 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	encoder->possible_crtcs = 0x1;     /* DTV can be hooked to DMA_E */
 	priv->encoders[priv->num_encoders++] = encoder;
 
-	ret = hdmi_init(dev, encoder);
-	if (ret) {
-		dev_err(dev->dev, "failed to initialize HDMI\n");
+	hdmi = hdmi_init(dev, encoder);
+	if (IS_ERR(hdmi)) {
+		ret = PTR_ERR(hdmi);
+		dev_err(dev->dev, "failed to initialize HDMI: %d\n", ret);
 		goto fail;
 	}
 

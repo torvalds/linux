@@ -190,7 +190,9 @@ struct drm_framebuffer *msm_framebuffer_create(struct drm_device *dev,
 
 struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev);
 
-int hdmi_init(struct drm_device *dev, struct drm_encoder *encoder);
+struct hdmi;
+struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder);
+irqreturn_t hdmi_irq(int irq, void *dev_id);
 void __init hdmi_register(void);
 void __exit hdmi_unregister(void);
 
