@@ -123,6 +123,14 @@ unsigned xtensa_map_ext_irq(unsigned ext_irq)
 	return XCHAL_NUM_INTERRUPTS;
 }
 
+unsigned xtensa_get_ext_irq_no(unsigned irq)
+{
+	unsigned mask = (XCHAL_INTTYPE_MASK_EXTERN_EDGE |
+		XCHAL_INTTYPE_MASK_EXTERN_LEVEL) &
+		((1u << irq) - 1);
+	return hweight32(mask);
+}
+
 void __init init_IRQ(void)
 {
 #ifdef CONFIG_OF

@@ -50,5 +50,6 @@ int xtensa_irq_domain_xlate(const u32 *intspec, unsigned int intsize,
 		unsigned long *out_hwirq, unsigned int *out_type);
 int xtensa_irq_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw);
 unsigned xtensa_map_ext_irq(unsigned ext_irq);
+unsigned xtensa_get_ext_irq_no(unsigned irq);
 
 #endif	/* _XTENSA_IRQ_H */
