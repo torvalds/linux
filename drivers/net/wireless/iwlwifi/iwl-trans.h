@@ -317,6 +317,24 @@ enum iwl_d3_status {
 };
 
 /**
+ * enum iwl_trans_status: transport status flags
+ * @STATUS_SYNC_HCMD_ACTIVE: a SYNC command is being processed
+ * @STATUS_DEVICE_ENABLED: APM is enabled
+ * @STATUS_TPOWER_PMI: the device might be asleep (need to wake it up)
+ * @STATUS_INT_ENABLED: interrupts are enabled
+ * @STATUS_RFKILL: the HW RFkill switch is in KILL position
+ * @STATUS_FW_ERROR: the fw is in error state
+ */
+enum iwl_trans_status {
+	STATUS_SYNC_HCMD_ACTIVE,
+	STATUS_DEVICE_ENABLED,
+	STATUS_TPOWER_PMI,
+	STATUS_INT_ENABLED,
+	STATUS_RFKILL,
+	STATUS_FW_ERROR,
+};
+
+/**
  * struct iwl_trans_config - transport configuration
  *
  * @op_mode: pointer to the upper layer.
@@ -479,6 +497,7 @@ enum iwl_trans_state {
  * @ops - pointer to iwl_trans_ops
  * @op_mode - pointer to the op_mode
  * @cfg - pointer to the configuration
+ * @status: a bit-mask of transport status flags
  * @dev - pointer to struct device * that represents the device
  * @hw_id: a u32 with the ID of the device / subdevice.
  *	Set during transport allocation.
@@ -499,6 +518,7 @@ struct iwl_trans {
 	struct iwl_op_mode *op_mode;
 	const struct iwl_cfg *cfg;
 	enum iwl_trans_state state;
+	unsigned long status;
 
 	struct device *dev;
 	u32 hw_rev;
