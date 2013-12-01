@@ -620,6 +620,9 @@ static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
 {
 	int ret;
 
+	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
+		return -EIO;
+
 	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE)) {
 		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
 		return -EIO;
@@ -659,6 +662,9 @@ static inline void iwl_trans_free_tx_cmd(struct iwl_trans *trans,
 static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			       struct iwl_device_cmd *dev_cmd, int queue)
 {
+	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
+		return -EIO;
+
 	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE))
 		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
 
