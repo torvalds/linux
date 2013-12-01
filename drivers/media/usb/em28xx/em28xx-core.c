@@ -226,6 +226,25 @@ int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
 EXPORT_SYMBOL_GPL(em28xx_write_reg_bits);
 
 /*
+ * em28xx_toggle_reg_bits()
+ * toggles/inverts the bits (specified by bitmask) of a register
+ */
+int em28xx_toggle_reg_bits(struct em28xx *dev, u16 reg, u8 bitmask)
+{
+	int oldval;
+	u8 newval;
+
+	oldval = em28xx_read_reg(dev, reg);
+	if (oldval < 0)
+		return oldval;
+
+	newval = (~oldval & bitmask) | (oldval & ~bitmask);
+
+	return em28xx_write_reg(dev, reg, newval);
+}
+EXPORT_SYMBOL_GPL(em28xx_toggle_reg_bits);
+
+/*
  * em28xx_is_ac97_ready()
  * Checks if ac97 is ready
  */

@@ -379,6 +379,7 @@ enum em28xx_adecoder {
 
 enum em28xx_led_role {
 	EM28XX_LED_ANALOG_CAPTURING = 0,
+	EM28XX_LED_ILLUMINATION,
 	EM28XX_NUM_LED_ROLES, /* must be the last */
 };
 
@@ -391,6 +392,7 @@ struct em28xx_led {
 
 enum em28xx_button_role {
 	EM28XX_BUTTON_SNAPSHOT = 0,
+	EM28XX_BUTTON_ILLUMINATION,
 	EM28XX_NUM_BUTTON_ROLES, /* must be the last */
 };
 
@@ -709,6 +711,7 @@ int em28xx_write_regs(struct em28xx *dev, u16 reg, char *buf, int len);
 int em28xx_write_reg(struct em28xx *dev, u16 reg, u8 val);
 int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
 				 u8 bitmask);
+int em28xx_toggle_reg_bits(struct em28xx *dev, u16 reg, u8 bitmask);
 
 int em28xx_read_ac97(struct em28xx *dev, u8 reg);
 int em28xx_write_ac97(struct em28xx *dev, u8 reg, u16 val);

@@ -480,6 +480,7 @@ static void em28xx_query_buttons(struct work_struct *work)
 	u8 i, j;
 	int regval;
 	bool is_pressed, was_pressed;
+	const struct em28xx_led *led;
 
 	/* Poll and evaluate all addresses */
 	for (i = 0; i < dev->num_button_polling_addresses; i++) {
@@ -523,6 +524,15 @@ static void em28xx_query_buttons(struct work_struct *work)
 				/* Unpress the key */
 				input_report_key(dev->sbutton_input_dev,
 						 EM28XX_SNAPSHOT_KEY, 0);
+				break;
+			case EM28XX_BUTTON_ILLUMINATION:
+				led = em28xx_find_led(dev,
+						      EM28XX_LED_ILLUMINATION);
+				/* Switch illumination LED on/off */
+				if (led)
+					em28xx_toggle_reg_bits(dev,
+							       led->gpio_reg,
+							       led->gpio_mask);
 				break;
 			default:
 				WARN_ONCE(1, "BUG: unhandled button role.");
@@ -600,10 +610,17 @@ static void em28xx_init_buttons(struct em28xx *dev)
 			WARN_ONCE(1, "BUG: maximum number of button polling addresses exceeded.");
 			addr_new = 0;
 		}
-		/* Register input device (if needed) */
+		/* Button role specific checks and actions */
 		if (button->role == EM28XX_BUTTON_SNAPSHOT) {
+			/* Register input device */
 			if (em28xx_register_snapshot_button(dev) < 0)
 				addr_new = 0;
+		} else if (button->role == EM28XX_BUTTON_ILLUMINATION) {
+			/* Check sanity */
+			if (!em28xx_find_led(dev, EM28XX_LED_ILLUMINATION)) {
+				em28xx_errdev("BUG: illumination button defined, but no illumination LED.\n");
+				addr_new = 0;
+			}
 		}
 		/* Add read address to list of polling addresses */
 		if (addr_new) {
