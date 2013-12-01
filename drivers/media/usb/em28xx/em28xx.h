@@ -181,6 +181,9 @@
 /* time in msecs to wait for i2c writes to finish */
 #define EM2800_I2C_XFER_TIMEOUT		20
 
+/* max. number of button state polling addresses */
+#define EM28XX_NUM_BUTTON_ADDRESSES_MAX		5
+
 enum em28xx_mode {
 	EM28XX_SUSPEND,
 	EM28XX_ANALOG_MODE,
@@ -380,6 +383,19 @@ struct em28xx_led {
 	bool inverted;
 };
 
+enum em28xx_button_role {
+	EM28XX_BUTTON_SNAPSHOT = 0,
+	EM28XX_NUM_BUTTON_ROLES, /* must be the last */
+};
+
+struct em28xx_button {
+	enum em28xx_button_role role;
+	u8 reg_r;
+	u8 reg_clearing;
+	u8 mask;
+	bool inverted;
+};
+
 struct em28xx_board {
 	char *name;
 	int vchannels;
@@ -401,7 +417,6 @@ struct em28xx_board {
 	unsigned int mts_firmware:1;
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
-	unsigned int has_snapshot_button:1;
 	unsigned int is_webcam:1;
 	unsigned int valid:1;
 	unsigned int has_ir_i2c:1;
@@ -419,6 +434,9 @@ struct em28xx_board {
 
 	/* LEDs that need to be controlled explicitly */
 	struct em28xx_led	  *analog_capturing_led;
+
+	/* Buttons */
+	struct em28xx_button	  *buttons;
 };
 
 struct em28xx_eeprom {
@@ -648,10 +666,13 @@ struct em28xx {
 
 	enum em28xx_mode mode;
 
-	/* Snapshot button */
+	/* Button state polling */
+	struct delayed_work buttons_query_work;
+	u8 button_polling_addresses[EM28XX_NUM_BUTTON_ADDRESSES_MAX];
+	u8 num_button_polling_addresses;
+	/* Snapshot button input device */
 	char snapshot_button_path[30];	/* path of the input dev */
 	struct input_dev *sbutton_input_dev;
-	struct delayed_work sbutton_query_work;
 
 	struct em28xx_dvb *dvb;
 };

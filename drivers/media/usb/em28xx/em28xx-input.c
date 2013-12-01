@@ -31,7 +31,7 @@
 #include "em28xx.h"
 
 #define EM28XX_SNAPSHOT_KEY KEY_CAMERA
-#define EM28XX_SBUTTON_QUERY_INTERVAL 500
+#define EM28XX_BUTTONS_QUERY_INTERVAL 500
 
 static unsigned int ir_debug;
 module_param(ir_debug, int, 0644);
@@ -470,38 +470,69 @@ static int em28xx_probe_i2c_ir(struct em28xx *dev)
 }
 
 /**********************************************************
- Handle Webcam snapshot button
+ Handle buttons
  **********************************************************/
 
-static void em28xx_query_sbutton(struct work_struct *work)
+static void em28xx_query_buttons(struct work_struct *work)
 {
-	/* Poll the register and see if the button is depressed */
 	struct em28xx *dev =
-		container_of(work, struct em28xx, sbutton_query_work.work);
-	int ret;
+		container_of(work, struct em28xx, buttons_query_work.work);
+	u8 i, j;
+	int regval;
+	bool pressed;
 
-	ret = em28xx_read_reg(dev, EM28XX_R0C_USBSUSP);
-
-	if (ret & EM28XX_R0C_USBSUSP_SNAPSHOT) {
-		u8 cleared;
-		/* Button is depressed, clear the register */
-		cleared = ((u8) ret) & ~EM28XX_R0C_USBSUSP_SNAPSHOT;
-		em28xx_write_regs(dev, EM28XX_R0C_USBSUSP, &cleared, 1);
-
-		/* Not emulate the keypress */
-		input_report_key(dev->sbutton_input_dev, EM28XX_SNAPSHOT_KEY,
-				 1);
-		/* Now unpress the key */
-		input_report_key(dev->sbutton_input_dev, EM28XX_SNAPSHOT_KEY,
-				 0);
+	/* Poll and evaluate all addresses */
+	for (i = 0; i < dev->num_button_polling_addresses; i++) {
+		/* Read value from register */
+		regval = em28xx_read_reg(dev, dev->button_polling_addresses[i]);
+		if (regval < 0)
+			continue;
+		/* Check states of the buttons and act */
+		j = 0;
+		while (dev->board.buttons[j].role >= 0 &&
+			 dev->board.buttons[j].role < EM28XX_NUM_BUTTON_ROLES) {
+			struct em28xx_button *button = &dev->board.buttons[j];
+			/* Check if button uses the current address */
+			if (button->reg_r != dev->button_polling_addresses[i]) {
+				j++;
+				continue;
+			}
+			/* Determine if button is pressed */
+			pressed = regval & button->mask;
+			if (button->inverted)
+				pressed = !pressed;
+			/* Handle button state */
+			if (!pressed) {
+				j++;
+				continue;
+			}
+			switch (button->role) {
+			case EM28XX_BUTTON_SNAPSHOT:
+				/* Emulate the keypress */
+				input_report_key(dev->sbutton_input_dev,
+						 EM28XX_SNAPSHOT_KEY, 1);
+				/* Unpress the key */
+				input_report_key(dev->sbutton_input_dev,
+						 EM28XX_SNAPSHOT_KEY, 0);
+				break;
+			default:
+				WARN_ONCE(1, "BUG: unhandled button role.");
+			}
+			/* Clear button state (if needed) */
+			if (button->reg_clearing)
+				em28xx_write_reg(dev, button->reg_clearing,
+						 (~regval & button->mask)
+						    | (regval & ~button->mask));
+			/* Next button */
+			j++;
+		}
 	}
-
 	/* Schedule next poll */
-	schedule_delayed_work(&dev->sbutton_query_work,
-			      msecs_to_jiffies(EM28XX_SBUTTON_QUERY_INTERVAL));
+	schedule_delayed_work(&dev->buttons_query_work,
+			      msecs_to_jiffies(EM28XX_BUTTONS_QUERY_INTERVAL));
 }
 
-static void em28xx_register_snapshot_button(struct em28xx *dev)
+static int em28xx_register_snapshot_button(struct em28xx *dev)
 {
 	struct input_dev *input_dev;
 	int err;
@@ -510,14 +541,13 @@ static void em28xx_register_snapshot_button(struct em28xx *dev)
 	input_dev = input_allocate_device();
 	if (!input_dev) {
 		em28xx_errdev("input_allocate_device failed\n");
-		return;
+		return -ENOMEM;
 	}
 
 	usb_make_path(dev->udev, dev->snapshot_button_path,
 		      sizeof(dev->snapshot_button_path));
 	strlcat(dev->snapshot_button_path, "/sbutton",
 		sizeof(dev->snapshot_button_path));
-	INIT_DELAYED_WORK(&dev->sbutton_query_work, em28xx_query_sbutton);
 
 	input_dev->name = "em28xx snapshot button";
 	input_dev->phys = dev->snapshot_button_path;
@@ -535,25 +565,71 @@ static void em28xx_register_snapshot_button(struct em28xx *dev)
 	if (err) {
 		em28xx_errdev("input_register_device failed\n");
 		input_free_device(input_dev);
-		return;
+		return err;
 	}
 
 	dev->sbutton_input_dev = input_dev;
-	schedule_delayed_work(&dev->sbutton_query_work,
-			      msecs_to_jiffies(EM28XX_SBUTTON_QUERY_INTERVAL));
-	return;
-
+	return 0;
 }
 
-static void em28xx_deregister_snapshot_button(struct em28xx *dev)
+static void em28xx_init_buttons(struct em28xx *dev)
 {
+	u8  i = 0, j = 0;
+	bool addr_new = 0;
+
+	while (dev->board.buttons[i].role >= 0 &&
+			 dev->board.buttons[i].role < EM28XX_NUM_BUTTON_ROLES) {
+		struct em28xx_button *button = &dev->board.buttons[i];
+		/* Check if polling address is already on the list */
+		addr_new = 1;
+		for (j = 0; j < dev->num_button_polling_addresses; j++) {
+			if (button->reg_r == dev->button_polling_addresses[j]) {
+				addr_new = 0;
+				break;
+			}
+		}
+		/* Check if max. number of polling addresses is exceeded */
+		if (addr_new && dev->num_button_polling_addresses
+					   >= EM28XX_NUM_BUTTON_ADDRESSES_MAX) {
+			WARN_ONCE(1, "BUG: maximum number of button polling addresses exceeded.");
+			addr_new = 0;
+		}
+		/* Register input device (if needed) */
+		if (button->role == EM28XX_BUTTON_SNAPSHOT) {
+			if (em28xx_register_snapshot_button(dev) < 0)
+				addr_new = 0;
+		}
+		/* Add read address to list of polling addresses */
+		if (addr_new) {
+			unsigned int index = dev->num_button_polling_addresses;
+			dev->button_polling_addresses[index] = button->reg_r;
+			dev->num_button_polling_addresses++;
+		}
+		/* Next button */
+		i++;
+	}
+
+	/* Start polling */
+	if (dev->num_button_polling_addresses) {
+		INIT_DELAYED_WORK(&dev->buttons_query_work,
+							  em28xx_query_buttons);
+		schedule_delayed_work(&dev->buttons_query_work,
+			       msecs_to_jiffies(EM28XX_BUTTONS_QUERY_INTERVAL));
+	}
+}
+
+static void em28xx_shutdown_buttons(struct em28xx *dev)
+{
+	/* Cancel polling */
+	cancel_delayed_work_sync(&dev->buttons_query_work);
+	/* Clear polling addresses list */
+	dev->num_button_polling_addresses = 0;
+	/* Deregister input devices */
 	if (dev->sbutton_input_dev != NULL) {
 		em28xx_info("Deregistering snapshot button\n");
-		cancel_delayed_work_sync(&dev->sbutton_query_work);
 		input_unregister_device(dev->sbutton_input_dev);
 		dev->sbutton_input_dev = NULL;
 	}
-	return;
 }
 
 static int em28xx_ir_init(struct em28xx *dev)
@@ -564,8 +640,8 @@ static int em28xx_ir_init(struct em28xx *dev)
 	u64 rc_type;
 	u16 i2c_rc_dev_addr = 0;
 
-	if (dev->board.has_snapshot_button)
-		em28xx_register_snapshot_button(dev);
+	if (dev->board.buttons)
+		em28xx_init_buttons(dev);
 
 	if (dev->board.has_ir_i2c) {
 		i2c_rc_dev_addr = em28xx_probe_i2c_ir(dev);
@@ -688,7 +764,7 @@ static int em28xx_ir_fini(struct em28xx *dev)
 {
 	struct em28xx_IR *ir = dev->ir;
 
-	em28xx_deregister_snapshot_button(dev);
+	em28xx_shutdown_buttons(dev);
 
 	/* skip detach on non attached boards */
 	if (!ir)
