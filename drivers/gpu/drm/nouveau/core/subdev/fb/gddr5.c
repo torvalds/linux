@@ -101,8 +101,8 @@ nouveau_gddr5_calc(struct nouveau_ram *ram, bool nuts)
 
 	if (!(ram->mr[7] & 0x100))
 		vr = 0; /* binary driver does this.. bug? */
-	ram->mr[7] &= ~0x188;
-	ram->mr[7] |= (vr & 0x01) << 8;
+	ram->mr[7] &= ~0x388;
+	ram->mr[7] |= (vr & 0x03) << 8;
 	ram->mr[7] |= (vh & 0x01) << 7;
 	ram->mr[7] |= (lf & 0x01) << 3;
 

@@ -266,7 +266,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	const u32 ramcfg = ram->base.ramcfg.data;
 	const u32 timing = ram->base.timing.data;
 	int vc = !(nv_ro08(bios, ramcfg + 0x02) & 0x08);
-	int mv = 1; /*XXX*/
+	int mv = 1; /*XXX: !(nv_ro08(bios, ramcfg + 0x02) & 0x04); */
 	u32 mask, data, i;
 
 	ram_mask(fuc, 0x10f808, 0x40000000, 0x40000000);
@@ -685,7 +685,7 @@ nve0_ram_calc_sddr3(struct nouveau_fb *pfb, u32 freq)
 	const u32 ramcfg = ram->base.ramcfg.data;
 	const u32 timing = ram->base.timing.data;
 	int vc = !(nv_ro08(bios, ramcfg + 0x02) & 0x08);
-	int mv = 1; /*XXX*/
+	int mv = 1; /*XXX: !(nv_ro08(bios, ramcfg + 0x02) & 0x04); */
 	u32 mask, data;
 
 	ram_mask(fuc, 0x10f808, 0x40000000, 0x40000000);
