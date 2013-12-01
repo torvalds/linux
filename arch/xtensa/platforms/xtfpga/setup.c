@@ -168,7 +168,7 @@ void __init platform_calibrate_ccount(void)
 	long clk_freq = 0;
 #ifdef CONFIG_OF
 	struct device_node *cpu =
-		of_find_compatible_node(NULL, NULL, "xtensa,cpu");
+		of_find_compatible_node(NULL, NULL, "cdns,xtensa-cpu");
 	if (cpu) {
 		u32 freq;
 		update_clock_frequency(cpu);

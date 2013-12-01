@@ -1,5 +1,5 @@
 / {
-	compatible = "xtensa,xtfpga";
+	compatible = "cdns,xtensa-xtfpga";
 	#address-cells = <1>;
 	#size-cells = <1>;
 	interrupt-parent = <&pic>;
@@ -17,7 +17,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		cpu@0 {
-			compatible = "xtensa,cpu";
+			compatible = "cdns,xtensa-cpu";
 			reg = <0>;
 			/* Filled in by platform_setup from FPGA register
 			 * clock-frequency = <100000000>;
