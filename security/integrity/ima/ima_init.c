@@ -63,7 +63,6 @@ static void __init ima_add_boot_aggregate(void)
 		result = ima_calc_boot_aggregate(&hash.hdr);
 		if (result < 0) {
 			audit_cause = "hashing_error";
-			kfree(entry);
 			goto err_out;
 		}
 	}
