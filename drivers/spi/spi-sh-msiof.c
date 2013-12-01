@@ -152,7 +152,7 @@ static void sh_msiof_spi_set_clk_regs(struct sh_msiof_spi_priv *p,
 	size_t k;
 
 	if (!WARN_ON(!spi_hz || !parent_rate))
-		div = parent_rate / spi_hz;
+		div = DIV_ROUND_UP(parent_rate, spi_hz);
 
 	/* TODO: make more fine grained */
 
