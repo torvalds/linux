@@ -135,7 +135,8 @@
 		interrupt-controller;
 		#interrups-cells = <1>;
 		interrupt-parent = <&mct_map>;
-		interrupts = <0>, <1>, <2>, <3>, <4>, <5>, <6>, <7>;
+		interrupts = <0>, <1>, <2>, <3>, <4>, <5>, <6>, <7>,
+				<8>, <9>, <10>, <11>;
 		clocks = <&clock 1>, <&clock 315>;
 		clock-names = "fin_pll", "mct";
 
@@ -150,7 +151,11 @@
 					<4 &gic 0 120 0>,
 					<5 &gic 0 121 0>,
 					<6 &gic 0 122 0>,
-					<7 &gic 0 123 0>;
+					<7 &gic 0 123 0>,
+					<8 &gic 0 128 0>,
+					<9 &gic 0 129 0>,
+					<10 &gic 0 130 0>,
+					<11 &gic 0 131 0>;
 		};
 	};
 
