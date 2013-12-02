@@ -147,6 +147,8 @@ static void ad_vmaster_eapd_hook(void *private_data, int enabled)
 
 	if (!spec->eapd_nid)
 		return;
+	if (codec->inv_eapd)
+		enabled = !enabled;
 	snd_hda_codec_update_cache(codec, spec->eapd_nid, 0,
 				   AC_VERB_SET_EAPD_BTLENABLE,
 				   enabled ? 0x02 : 0x00);
