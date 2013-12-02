@@ -917,7 +917,7 @@ static void vhci_stop(struct usb_hcd *hcd)
 	sysfs_remove_group(&vhci_dev(vhci)->kobj, &dev_attr_group);
 
 	/* 2. shutdown all the ports of vhci_hcd */
-	for (rhport = 0 ; rhport < VHCI_NPORTS; rhport++) {
+	for (rhport = 0; rhport < VHCI_NPORTS; rhport++) {
 		struct vhci_device *vdev = &vhci->vdev[rhport];
 
 		usbip_event_add(&vdev->ud, VDEV_EVENT_REMOVED);
