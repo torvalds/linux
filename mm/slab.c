@@ -634,8 +634,8 @@ static void cache_estimate(unsigned long gfporder, size_t buffer_size,
 
 	} else {
 		nr_objs = calculate_nr_objs(slab_size, buffer_size,
-					sizeof(unsigned int), align);
-		mgmt_size = ALIGN(nr_objs * sizeof(unsigned int), align);
+					sizeof(freelist_idx_t), align);
+		mgmt_size = ALIGN(nr_objs * sizeof(freelist_idx_t), align);
 	}
 	*num = nr_objs;
 	*left_over = slab_size - nr_objs*buffer_size - mgmt_size;
@@ -2038,7 +2038,7 @@ static size_t calculate_slab_order(struct kmem_cache *cachep,
 			 * looping condition in cache_grow().
 			 */
 			offslab_limit = size;
-			offslab_limit /= sizeof(unsigned int);
+			offslab_limit /= sizeof(freelist_idx_t);
 
  			if (num > offslab_limit)
 				break;
@@ -2286,7 +2286,7 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
 		return -E2BIG;
 
 	freelist_size =
-		ALIGN(cachep->num * sizeof(unsigned int), cachep->align);
+		ALIGN(cachep->num * sizeof(freelist_idx_t), cachep->align);
 
 	/*
 	 * If the slab has been placed off-slab, and we have enough space then
@@ -2299,7 +2299,7 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
 
 	if (flags & CFLGS_OFF_SLAB) {
 		/* really off slab. No need for manual alignment */
-		freelist_size = cachep->num * sizeof(unsigned int);
+		freelist_size = cachep->num * sizeof(freelist_idx_t);
 
 #ifdef CONFIG_PAGE_POISONING
 		/* If we're going to use the generic kernel_map_pages()
@@ -2569,15 +2569,15 @@ static void *alloc_slabmgmt(struct kmem_cache *cachep,
 	return freelist;
 }
 
-static inline unsigned int get_free_obj(struct page *page, unsigned int idx)
+static inline freelist_idx_t get_free_obj(struct page *page, unsigned char idx)
 {
-	return ((unsigned int *)page->freelist)[idx];
+	return ((freelist_idx_t *)page->freelist)[idx];
 }
 
 static inline void set_free_obj(struct page *page,
-					unsigned int idx, unsigned int val)
+					unsigned char idx, freelist_idx_t val)
 {
-	((unsigned int *)(page->freelist))[idx] = val;
+	((freelist_idx_t *)(page->freelist))[idx] = val;
 }
 
 static void cache_init_objs(struct kmem_cache *cachep,
