@@ -160,7 +160,7 @@ static u64 mult_64x32_and_fold(u64 x, u32 y)
 static unsigned long hash_key_type_and_desc(const struct keyring_index_key *index_key)
 {
 	const unsigned level_shift = ASSOC_ARRAY_LEVEL_STEP;
-	const unsigned long level_mask = ASSOC_ARRAY_LEVEL_STEP_MASK;
+	const unsigned long fan_mask = ASSOC_ARRAY_FAN_MASK;
 	const char *description = index_key->description;
 	unsigned long hash, type;
 	u32 piece;
@@ -194,10 +194,10 @@ static unsigned long hash_key_type_and_desc(const struct keyring_index_key *inde
 	 * ordinary keys by making sure the lowest level segment in the hash is
 	 * zero for keyrings and non-zero otherwise.
 	 */
-	if (index_key->type != &key_type_keyring && (hash & level_mask) == 0)
+	if (index_key->type != &key_type_keyring && (hash & fan_mask) == 0)
 		return hash | (hash >> (ASSOC_ARRAY_KEY_CHUNK_SIZE - level_shift)) | 1;
-	if (index_key->type == &key_type_keyring && (hash & level_mask) != 0)
-		return (hash + (hash << level_shift)) & ~level_mask;
+	if (index_key->type == &key_type_keyring && (hash & fan_mask) != 0)
+		return (hash + (hash << level_shift)) & ~fan_mask;
 	return hash;
 }
 
