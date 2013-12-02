@@ -105,6 +105,13 @@ static int mn88472_rreg(struct mn88472_state *s, u16 reg, u8 *val)
 	return mn88472_rregs(s, reg, val, 1);
 }
 
+static int mn88472_get_tune_settings(struct dvb_frontend *fe,
+	struct dvb_frontend_tune_settings *s)
+{
+	s->min_delay_ms = 400;
+	return 0;
+}
+
 static int mn88472_set_frontend_c(struct dvb_frontend *fe)
 {
 	struct mn88472_state *s = fe->demodulator_priv;
@@ -397,6 +404,8 @@ static struct dvb_frontend_ops mn88472_ops_c = {
 	},
 
 	.release = mn88472_release_c,
+
+	.get_tune_settings = mn88472_get_tune_settings,
 
 	.init = mn88472_init_c,
 	.sleep = mn88472_sleep_c,
