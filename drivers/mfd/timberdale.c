@@ -851,7 +851,7 @@ static void timb_remove(struct pci_dev *dev)
 	kfree(priv);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(timberdale_pci_tbl) = {
+static const struct pci_device_id timberdale_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_TIMB, PCI_DEVICE_ID_TIMB) },
 	{ 0 }
 };

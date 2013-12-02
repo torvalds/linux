@@ -96,7 +96,7 @@ static void rdc321x_sb_remove(struct pci_dev *pdev)
 	mfd_remove_devices(&pdev->dev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(rdc321x_sb_table) = {
+static const struct pci_device_id rdc321x_sb_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_RDC, PCI_DEVICE_ID_RDC_R6030) },
 	{}
 };

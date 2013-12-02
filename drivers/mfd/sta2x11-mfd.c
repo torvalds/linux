@@ -642,7 +642,7 @@ err_disable:
 	return err;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(sta2x11_mfd_tbl) = {
+static const struct pci_device_id sta2x11_mfd_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_STMICRO, PCI_DEVICE_ID_STMICRO_GPIO)},
 	{PCI_DEVICE(PCI_VENDOR_ID_STMICRO, PCI_DEVICE_ID_STMICRO_VIC)},
 	{0,},
