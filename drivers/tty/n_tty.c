@@ -1257,7 +1257,6 @@ static int
 n_tty_receive_char_special(struct tty_struct *tty, unsigned char c)
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	int parmrk;
 
 	if (I_IXON(tty)) {
 		if (c == START_CHAR(tty)) {
@@ -1342,8 +1341,6 @@ n_tty_receive_char_special(struct tty_struct *tty, unsigned char c)
 		}
 		if ((c == EOL_CHAR(tty)) ||
 		    (c == EOL2_CHAR(tty) && L_IEXTEN(tty))) {
-			parmrk = (c == (unsigned char) '\377' && I_PARMRK(tty))
-				 ? 1 : 0;
 			/*
 			 * XXX are EOL_CHAR and EOL2_CHAR echoed?!?
 			 */
@@ -1358,7 +1355,7 @@ n_tty_receive_char_special(struct tty_struct *tty, unsigned char c)
 			 * XXX does PARMRK doubling happen for
 			 * EOL_CHAR and EOL2_CHAR?
 			 */
-			if (parmrk)
+			if (c == (unsigned char) '\377' && I_PARMRK(tty))
 				put_tty_queue(c, ldata);
 
 handle_newline:
@@ -1372,7 +1369,6 @@ handle_newline:
 		}
 	}
 
-	parmrk = (c == (unsigned char) '\377' && I_PARMRK(tty)) ? 1 : 0;
 	if (L_ECHO(tty)) {
 		finish_erasing(ldata);
 		if (c == '\n')
@@ -1386,7 +1382,8 @@ handle_newline:
 		commit_echoes(tty);
 	}
 
-	if (parmrk)
+	/* PARMRK doubling check */
+	if (c == (unsigned char) '\377' && I_PARMRK(tty))
 		put_tty_queue(c, ldata);
 
 	put_tty_queue(c, ldata);
@@ -1397,7 +1394,6 @@ static inline void
 n_tty_receive_char_inline(struct tty_struct *tty, unsigned char c)
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	int parmrk;
 
 	if (tty->stopped && !tty->flow_stopped && I_IXON(tty) && I_IXANY(tty)) {
 		start_tty(tty);
@@ -1411,8 +1407,8 @@ n_tty_receive_char_inline(struct tty_struct *tty, unsigned char c)
 		echo_char(c, tty);
 		commit_echoes(tty);
 	}
-	parmrk = (c == (unsigned char) '\377' && I_PARMRK(tty)) ? 1 : 0;
-	if (parmrk)
+	/* PARMRK doubling check */
+	if (c == (unsigned char) '\377' && I_PARMRK(tty))
 		put_tty_queue(c, ldata);
 	put_tty_queue(c, ldata);
 }
