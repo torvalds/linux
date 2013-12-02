@@ -17,9 +17,6 @@
 #ifndef __MACH_CORE_H
 #define __MACH_CORE_H
 
-extern char rockchip_secondary_trampoline;
-extern char rockchip_secondary_trampoline_end;
-
 extern unsigned long rockchip_boot_fn;
 
 extern struct smp_operations rockchip_smp_ops;

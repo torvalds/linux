@@ -55,9 +55,20 @@
 		arm,data-latency = <2 3 1>;
 	};
 
-	sram@10080000 {
-		compatible = "rockchip,sram";
-		reg = <0x10080000 0x8000>;
+	bootrom@10120000 {
+		compatible = "rockchip,bootrom";
+		reg = <0x10120000 0x4000>;
+	};
+
+	bootram@10080000 {
+		compatible = "rockchip,bootram";
+		reg = <0x10080000 0x20>; /* 32 bytes */
+	};
+
+	sram@10080020 {
+		compatible = "mmio-sram";
+		reg = <0x10080020 (0x8000 - 0x20)>; /* 32k - 32 */
+		map-exec;
 	};
 
 	pmu@20004000 {

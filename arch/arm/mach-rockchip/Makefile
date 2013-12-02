@@ -1,2 +1,2 @@
 obj-$(CONFIG_ARCH_ROCKCHIP) += rockchip.o
-obj-$(CONFIG_SMP) += platsmp.o headsmp.o
+obj-$(CONFIG_SMP) += platsmp.o

@@ -44,10 +44,21 @@ static void __iomem *pmu_base_addr;
 
 extern void secondary_startup(void);
 extern void v7_invalidate_l1(void);
+
 static void __naked rockchip_a9_secondary_startup(void)
 {
 	v7_invalidate_l1();
 	secondary_startup();
+}
+
+static void __naked rockchip_secondary_trampoline(void)
+{
+	asm volatile (
+		"ldr	pc, 1f\n"
+		".globl	rockchip_boot_fn\n"
+		"rockchip_boot_fn:\n"
+		"1:	.space	4\n"
+	);
 }
 
 static inline bool pmu_power_domain_is_on(int pd)
@@ -87,34 +98,39 @@ static int __cpuinit rockchip_boot_secondary(unsigned int cpu,
 }
 
 /**
- * rockchip_smp_prepare_sram - populate necessary sram block
- * Starting cores execute the code residing at the start of the on-chip sram
+ * rockchip_smp_prepare_bootram - populate necessary bootram block
+ * Starting cores execute the code residing at the start of the on-chip bootram
  * after power-on. Therefore make sure, this sram region is reserved and
  * big enough. After this check, copy the trampoline code that directs the
  * core to the real startup code in ram into the sram-region.
  */
-static int __init rockchip_smp_prepare_sram(void)
+static int __init rockchip_smp_prepare_bootram(void)
 {
-	void __iomem *sram_base_addr;
-	unsigned int trampoline_sz = &rockchip_secondary_trampoline_end -
-					    &rockchip_secondary_trampoline;
+	struct device_node *node;
+	void __iomem *bootram_base_addr;
 
-	sram_base_addr = ioremap_nocache(0, trampoline_sz);
-	if (!sram_base_addr) {
-		pr_err("%s: could not map sram\n", __func__);
+	node = of_find_compatible_node(NULL, NULL, "rockchip,bootram");
+	if (!node) {
+		pr_err("%s: could not find bootram dt node\n", __func__);
+		return -ENODEV;
+	}
+
+	bootram_base_addr = of_iomap(node, 0);
+	if (!bootram_base_addr) {
+		pr_err("%s: could not map bootram\n", __func__);
 		BUG();
 	}
 
-	/* set the boot function for the sram code */
+	/* set the boot function for the bootram code */
 	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9)
 		rockchip_boot_fn = virt_to_phys(rockchip_a9_secondary_startup);
 	else
 		rockchip_boot_fn = virt_to_phys(secondary_startup);
 
-	/* copy the trampoline to sram, that runs during startup of the core */
-	memcpy(sram_base_addr, &rockchip_secondary_trampoline, trampoline_sz);
+	/* copy the trampoline to bootram, that runs during startup of the core */
+	memcpy(bootram_base_addr, &rockchip_secondary_trampoline, 8);
 
-	iounmap(sram_base_addr);
+	iounmap(bootram_base_addr);
 
 	return 0;
 }
@@ -133,12 +149,12 @@ static void __init rockchip_smp_prepare_cpus(unsigned int max_cpus)
 		BUG();
 	}
 
-	if (rockchip_smp_prepare_sram())
+	if (rockchip_smp_prepare_bootram())
 		return;
 
 	node = of_find_compatible_node(NULL, NULL, "rockchip,pmu");
 	if (!node) {
-		pr_err("%s: could not find sram dt node\n", __func__);
+		pr_err("%s: could not find pmu dt node\n", __func__);
 		return;
 	}
 
