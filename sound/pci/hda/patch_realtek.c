@@ -3041,6 +3041,7 @@ static void alc_headset_mode_ctia(struct hda_codec *codec)
 		alc_write_coef_idx(codec, 0x18, 0x7388);
 		break;
 	case 0x10ec0668:
+		alc_write_coef_idx(codec, 0x11, 0x0001);
 		alc_write_coef_idx(codec, 0x15, 0x0d60);
 		alc_write_coef_idx(codec, 0xc3, 0x0000);
 		break;
@@ -3063,6 +3064,7 @@ static void alc_headset_mode_omtp(struct hda_codec *codec)
 		alc_write_coef_idx(codec, 0x18, 0x7388);
 		break;
 	case 0x10ec0668:
+		alc_write_coef_idx(codec, 0x11, 0x0001);
 		alc_write_coef_idx(codec, 0x15, 0x0d50);
 		alc_write_coef_idx(codec, 0xc3, 0x0000);
 		break;
