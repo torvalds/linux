@@ -812,7 +812,7 @@ static s32 brcmf_p2p_run_escan(struct brcmf_cfg80211_info *cfg,
 			struct ieee80211_channel *chan = request->channels[i];
 
 			if (chan->flags & (IEEE80211_CHAN_RADAR |
-					   IEEE80211_CHAN_PASSIVE_SCAN))
+					   IEEE80211_CHAN_NO_IR))
 				continue;
 
 			chanspecs[i] = channel_to_chanspec(&p2p->cfg->d11inf,

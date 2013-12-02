@@ -1109,7 +1109,9 @@ void ath6kl_cfg80211_ch_switch_notify(struct ath6kl_vif *vif, int freq,
 				(mode == WMI_11G_HT20) ?
 					NL80211_CHAN_HT20 : NL80211_CHAN_NO_HT);
 
+	mutex_lock(&vif->wdev.mtx);
 	cfg80211_ch_switch_notify(vif->ndev, &chandef);
+	mutex_unlock(&vif->wdev.mtx);
 }
 
 static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
@@ -3169,12 +3171,15 @@ static bool ath6kl_is_p2p_go_ssid(const u8 *buf, size_t len)
 }
 
 static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
-			  struct ieee80211_channel *chan, bool offchan,
-			  unsigned int wait, const u8 *buf, size_t len,
-			  bool no_cck, bool dont_wait_for_ack, u64 *cookie)
+			  struct cfg80211_mgmt_tx_params *params, u64 *cookie)
 {
 	struct ath6kl_vif *vif = ath6kl_vif_from_wdev(wdev);
 	struct ath6kl *ar = ath6kl_priv(vif->ndev);
+	struct ieee80211_channel *chan = params->chan;
+	const u8 *buf = params->buf;
+	size_t len = params->len;
+	unsigned int wait = params->wait;
+	bool no_cck = params->no_cck;
 	u32 id, freq;
 	const struct ieee80211_mgmt *mgmt;
 	bool more_data, queued;

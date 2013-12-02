@@ -9,6 +9,140 @@
 #include "ieee80211_i.h"
 #include "driver-ops.h"
 
+static enum nl80211_chan_width ieee80211_get_sta_bw(struct ieee80211_sta *sta)
+{
+	switch (sta->bandwidth) {
+	case IEEE80211_STA_RX_BW_20:
+		if (sta->ht_cap.ht_supported)
+			return NL80211_CHAN_WIDTH_20;
+		else
+			return NL80211_CHAN_WIDTH_20_NOHT;
+	case IEEE80211_STA_RX_BW_40:
+		return NL80211_CHAN_WIDTH_40;
+	case IEEE80211_STA_RX_BW_80:
+		return NL80211_CHAN_WIDTH_80;
+	case IEEE80211_STA_RX_BW_160:
+		/*
+		 * This applied for both 160 and 80+80. since we use
+		 * the returned value to consider degradation of
+		 * ctx->conf.min_def, we have to make sure to take
+		 * the bigger one (NL80211_CHAN_WIDTH_160).
+		 * Otherwise we might try degrading even when not
+		 * needed, as the max required sta_bw returned (80+80)
+		 * might be smaller than the configured bw (160).
+		 */
+		return NL80211_CHAN_WIDTH_160;
+	default:
+		WARN_ON(1);
+		return NL80211_CHAN_WIDTH_20;
+	}
+}
+
+static enum nl80211_chan_width
+ieee80211_get_max_required_bw(struct ieee80211_sub_if_data *sdata)
+{
+	enum nl80211_chan_width max_bw = NL80211_CHAN_WIDTH_20_NOHT;
+	struct sta_info *sta;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(sta, &sdata->local->sta_list, list) {
+		if (sdata != sta->sdata &&
+		    !(sta->sdata->bss && sta->sdata->bss == sdata->bss))
+			continue;
+
+		if (!sta->uploaded)
+			continue;
+
+		max_bw = max(max_bw, ieee80211_get_sta_bw(&sta->sta));
+	}
+	rcu_read_unlock();
+
+	return max_bw;
+}
+
+static enum nl80211_chan_width
+ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
+				      struct ieee80211_chanctx_conf *conf)
+{
+	struct ieee80211_sub_if_data *sdata;
+	enum nl80211_chan_width max_bw = NL80211_CHAN_WIDTH_20_NOHT;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+		struct ieee80211_vif *vif = &sdata->vif;
+		enum nl80211_chan_width width = NL80211_CHAN_WIDTH_20_NOHT;
+
+		if (!ieee80211_sdata_running(sdata))
+			continue;
+
+		if (rcu_access_pointer(sdata->vif.chanctx_conf) != conf)
+			continue;
+
+		switch (vif->type) {
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_AP_VLAN:
+			width = ieee80211_get_max_required_bw(sdata);
+			break;
+		case NL80211_IFTYPE_P2P_DEVICE:
+			continue;
+		case NL80211_IFTYPE_STATION:
+		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_WDS:
+		case NL80211_IFTYPE_MESH_POINT:
+			width = vif->bss_conf.chandef.width;
+			break;
+		case NL80211_IFTYPE_UNSPECIFIED:
+		case NUM_NL80211_IFTYPES:
+		case NL80211_IFTYPE_MONITOR:
+		case NL80211_IFTYPE_P2P_CLIENT:
+		case NL80211_IFTYPE_P2P_GO:
+			WARN_ON_ONCE(1);
+		}
+		max_bw = max(max_bw, width);
+	}
+	rcu_read_unlock();
+
+	return max_bw;
+}
+
+/*
+ * recalc the min required chan width of the channel context, which is
+ * the max of min required widths of all the interfaces bound to this
+ * channel context.
+ */
+void ieee80211_recalc_chanctx_min_def(struct ieee80211_local *local,
+				      struct ieee80211_chanctx *ctx)
+{
+	enum nl80211_chan_width max_bw;
+	struct cfg80211_chan_def min_def;
+
+	lockdep_assert_held(&local->chanctx_mtx);
+
+	/* don't optimize 5MHz, 10MHz, and radar_enabled confs */
+	if (ctx->conf.def.width == NL80211_CHAN_WIDTH_5 ||
+	    ctx->conf.def.width == NL80211_CHAN_WIDTH_10 ||
+	    ctx->conf.radar_enabled) {
+		ctx->conf.min_def = ctx->conf.def;
+		return;
+	}
+
+	max_bw = ieee80211_get_chanctx_max_required_bw(local, &ctx->conf);
+
+	/* downgrade chandef up to max_bw */
+	min_def = ctx->conf.def;
+	while (min_def.width > max_bw)
+		ieee80211_chandef_downgrade(&min_def);
+
+	if (cfg80211_chandef_identical(&ctx->conf.min_def, &min_def))
+		return;
+
+	ctx->conf.min_def = min_def;
+	if (!ctx->driver_present)
+		return;
+
+	drv_change_chanctx(local, ctx, IEEE80211_CHANCTX_CHANGE_MIN_WIDTH);
+}
+
 static void ieee80211_change_chanctx(struct ieee80211_local *local,
 				     struct ieee80211_chanctx *ctx,
 				     const struct cfg80211_chan_def *chandef)
@@ -20,6 +154,7 @@ static void ieee80211_change_chanctx(struct ieee80211_local *local,
 
 	ctx->conf.def = *chandef;
 	drv_change_chanctx(local, ctx, IEEE80211_CHANCTX_CHANGE_WIDTH);
+	ieee80211_recalc_chanctx_min_def(local, ctx);
 
 	if (!local->use_chanctx) {
 		local->_oper_chandef = *chandef;
@@ -93,6 +228,7 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 	ctx->conf.rx_chains_dynamic = 1;
 	ctx->mode = mode;
 	ctx->conf.radar_enabled = ieee80211_is_radar_required(local);
+	ieee80211_recalc_chanctx_min_def(local, ctx);
 	if (!local->use_chanctx)
 		local->hw.conf.radar_enabled = ctx->conf.radar_enabled;
 
@@ -179,6 +315,7 @@ static int ieee80211_assign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 	ctx->refcount++;
 
 	ieee80211_recalc_txpower(sdata);
+	ieee80211_recalc_chanctx_min_def(local, ctx);
 	sdata->vif.bss_conf.idle = false;
 
 	if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
@@ -243,6 +380,7 @@ static void ieee80211_unassign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 		ieee80211_recalc_chanctx_chantype(sdata->local, ctx);
 		ieee80211_recalc_smps_chanctx(local, ctx);
 		ieee80211_recalc_radar_chanctx(local, ctx);
+		ieee80211_recalc_chanctx_min_def(local, ctx);
 	}
 }
 
@@ -411,12 +549,12 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 }
 
 int ieee80211_vif_change_channel(struct ieee80211_sub_if_data *sdata,
-				 const struct cfg80211_chan_def *chandef,
 				 u32 *changed)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx_conf *conf;
 	struct ieee80211_chanctx *ctx;
+	const struct cfg80211_chan_def *chandef = &sdata->csa_chandef;
 	int ret;
 	u32 chanctx_changed = 0;
 
@@ -456,6 +594,7 @@ int ieee80211_vif_change_channel(struct ieee80211_sub_if_data *sdata,
 	ieee80211_recalc_chanctx_chantype(local, ctx);
 	ieee80211_recalc_smps_chanctx(local, ctx);
 	ieee80211_recalc_radar_chanctx(local, ctx);
+	ieee80211_recalc_chanctx_min_def(local, ctx);
 
 	ret = 0;
  out:

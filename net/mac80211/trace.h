@@ -41,14 +41,31 @@
 #define CHANDEF_PR_ARG	__entry->control_freq, __entry->chan_width,			\
 			__entry->center_freq1, __entry->center_freq2
 
+#define MIN_CHANDEF_ENTRY								\
+			__field(u32, min_control_freq)					\
+			__field(u32, min_chan_width)					\
+			__field(u32, min_center_freq1)					\
+			__field(u32, min_center_freq2)
+
+#define MIN_CHANDEF_ASSIGN(c)								\
+			__entry->min_control_freq = (c)->chan ? (c)->chan->center_freq : 0;	\
+			__entry->min_chan_width = (c)->width;				\
+			__entry->min_center_freq1 = (c)->center_freq1;			\
+			__entry->min_center_freq2 = (c)->center_freq2;
+#define MIN_CHANDEF_PR_FMT	" min_control:%d MHz min_width:%d min_center: %d/%d MHz"
+#define MIN_CHANDEF_PR_ARG	__entry->min_control_freq, __entry->min_chan_width,	\
+			__entry->min_center_freq1, __entry->min_center_freq2
+
 #define CHANCTX_ENTRY	CHANDEF_ENTRY							\
+			MIN_CHANDEF_ENTRY						\
 			__field(u8, rx_chains_static)					\
 			__field(u8, rx_chains_dynamic)
 #define CHANCTX_ASSIGN	CHANDEF_ASSIGN(&ctx->conf.def)					\
+			MIN_CHANDEF_ASSIGN(&ctx->conf.min_def)				\
 			__entry->rx_chains_static = ctx->conf.rx_chains_static;		\
 			__entry->rx_chains_dynamic = ctx->conf.rx_chains_dynamic
-#define CHANCTX_PR_FMT	CHANDEF_PR_FMT " chains:%d/%d"
-#define CHANCTX_PR_ARG	CHANDEF_PR_ARG,							\
+#define CHANCTX_PR_FMT	CHANDEF_PR_FMT MIN_CHANDEF_PR_FMT " chains:%d/%d"
+#define CHANCTX_PR_ARG	CHANDEF_PR_ARG,	MIN_CHANDEF_PR_ARG,				\
 			__entry->rx_chains_static, __entry->rx_chains_dynamic
 
 

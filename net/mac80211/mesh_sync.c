@@ -92,12 +92,20 @@ static void mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	if (stype != IEEE80211_STYPE_BEACON)
 		return;
 
-	/* The current tsf is a first approximation for the timestamp
-	 * for the received beacon.  Further down we try to get a
-	 * better value from the rx_status->mactime field if
-	 * available. Also we have to call drv_get_tsf() before
-	 * entering the rcu-read section.*/
-	t_r = drv_get_tsf(local, sdata);
+	/*
+	 * Get time when timestamp field was received.  If we don't
+	 * have rx timestamps, then use current tsf as an approximation.
+	 * drv_get_tsf() must be called before entering the rcu-read
+	 * section.
+	 */
+	if (ieee80211_have_rx_timestamp(rx_status))
+		t_r = ieee80211_calculate_rx_timestamp(local, rx_status,
+						       24 + 12 +
+						       elems->total_len +
+						       FCS_LEN,
+						       24);
+	else
+		t_r = drv_get_tsf(local, sdata);
 
 	rcu_read_lock();
 	sta = sta_info_get(sdata, mgmt->sa);
@@ -116,14 +124,6 @@ static void mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 			  sta->sta.addr);
 		goto no_sync;
 	}
-
-	if (ieee80211_have_rx_timestamp(rx_status))
-		/* time when timestamp field was received */
-		t_r = ieee80211_calculate_rx_timestamp(local, rx_status,
-						       24 + 12 +
-						       elems->total_len +
-						       FCS_LEN,
-						       24);
 
 	/* Timing offset calculation (see 13.13.2.2.2) */
 	t_t = le64_to_cpu(mgmt->u.beacon.timestamp);
