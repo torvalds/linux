@@ -28,12 +28,12 @@ struct mn88472_c_config {
 };
 
 #if IS_ENABLED(CONFIG_DVB_MN88472)
-extern struct dvb_frontend *mn88472_c_attach(
+extern struct dvb_frontend *mn88472_attach_c(
 	const struct mn88472_c_config *cfg,
 	struct i2c_adapter *i2c
 );
 #else
-static inline struct dvb_frontend *mn88472_c_attach(
+static inline struct dvb_frontend *mn88472_attach_c(
 	const struct mn88472_c_config *cfg,
 	struct i2c_adapter *i2c
 )
