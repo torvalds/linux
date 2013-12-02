@@ -426,11 +426,6 @@ static int __init imx6_pcie_probe(struct platform_device *pdev)
 		"imprecise external abort");
 
 	dbi_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!dbi_base) {
-		dev_err(&pdev->dev, "dbi_base memory resource not found\n");
-		return -ENODEV;
-	}
-
 	pp->dbi_base = devm_ioremap_resource(&pdev->dev, dbi_base);
 	if (IS_ERR(pp->dbi_base)) {
 		ret = PTR_ERR(pp->dbi_base);
