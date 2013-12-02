@@ -32,7 +32,7 @@ static int m88ts2022_wr_regs(struct m88ts2022_priv *priv,
 	u8 buf[MAX_WR_XFER_LEN];
 	struct i2c_msg msg[1] = {
 		{
-			.addr = priv->cfg->i2c_addr,
+			.addr = priv->client->addr,
 			.flags = 0,
 			.len = 1 + len,
 			.buf = buf,
@@ -45,11 +45,11 @@ static int m88ts2022_wr_regs(struct m88ts2022_priv *priv,
 	buf[0] = reg;
 	memcpy(&buf[1], val, len);
 
-	ret = i2c_transfer(priv->i2c, msg, 1);
+	ret = i2c_transfer(priv->client->adapter, msg, 1);
 	if (ret == 1) {
 		ret = 0;
 	} else {
-		dev_warn(&priv->i2c->dev,
+		dev_warn(&priv->client->dev,
 				"%s: i2c wr failed=%d reg=%02x len=%d\n",
 				KBUILD_MODNAME, ret, reg, len);
 		ret = -EREMOTEIO;
@@ -68,12 +68,12 @@ static int m88ts2022_rd_regs(struct m88ts2022_priv *priv, u8 reg,
 	u8 buf[MAX_RD_XFER_LEN];
 	struct i2c_msg msg[2] = {
 		{
-			.addr = priv->cfg->i2c_addr,
+			.addr = priv->client->addr,
 			.flags = 0,
 			.len = 1,
 			.buf = &reg,
 		}, {
-			.addr = priv->cfg->i2c_addr,
+			.addr = priv->client->addr,
 			.flags = I2C_M_RD,
 			.len = len,
 			.buf = buf,
@@ -83,12 +83,12 @@ static int m88ts2022_rd_regs(struct m88ts2022_priv *priv, u8 reg,
 	if (WARN_ON(len > MAX_RD_LEN))
 		return -EINVAL;
 
-	ret = i2c_transfer(priv->i2c, msg, 2);
+	ret = i2c_transfer(priv->client->adapter, msg, 2);
 	if (ret == 2) {
 		memcpy(val, buf, len);
 		ret = 0;
 	} else {
-		dev_warn(&priv->i2c->dev,
+		dev_warn(&priv->client->dev,
 				"%s: i2c rd failed=%d reg=%02x len=%d\n",
 				KBUILD_MODNAME, ret, reg, len);
 		ret = -EREMOTEIO;
@@ -144,7 +144,7 @@ static int m88ts2022_cmd(struct dvb_frontend *fe,
 	};
 
 	for (i = 0; i < 2; i++) {
-		dev_dbg(&priv->i2c->dev,
+		dev_dbg(&priv->client->dev,
 				"%s: i=%d op=%02x reg=%02x mask=%02x val=%02x\n",
 				__func__, i, op, reg, mask, val);
 
@@ -180,14 +180,14 @@ static int m88ts2022_set_params(struct dvb_frontend *fe)
 	unsigned int f_ref_khz, f_vco_khz, div_ref, div_out, pll_n, gdiv28;
 	u8 buf[3], u8tmp, cap_code, lpf_gm, lpf_mxdiv, div_max, div_min;
 	u16 u16tmp;
-	dev_dbg(&priv->i2c->dev,
+	dev_dbg(&priv->client->dev,
 			"%s: frequency=%d symbol_rate=%d rolloff=%d\n",
 			__func__, c->frequency, c->symbol_rate, c->rolloff);
 	/*
 	 * Integer-N PLL synthesizer
 	 * kHz is used for all calculations to keep calculations within 32-bit
 	 */
-	f_ref_khz = DIV_ROUND_CLOSEST(priv->cfg->clock, 1000);
+	f_ref_khz = DIV_ROUND_CLOSEST(priv->cfg.clock, 1000);
 	div_ref = DIV_ROUND_CLOSEST(f_ref_khz, 2000);
 
 	if (c->symbol_rate < 5000000)
@@ -230,7 +230,7 @@ static int m88ts2022_set_params(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	dev_dbg(&priv->i2c->dev,
+	dev_dbg(&priv->client->dev,
 			"%s: frequency=%u offset=%d f_vco_khz=%u pll_n=%u div_ref=%u div_out=%u\n",
 			__func__, priv->frequency_khz,
 			priv->frequency_khz - c->frequency, f_vco_khz, pll_n,
@@ -374,7 +374,7 @@ static int m88ts2022_set_params(struct dvb_frontend *fe)
 		goto err;
 err:
 	if (ret)
-		dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+		dev_dbg(&priv->client->dev, "%s: failed=%d\n", __func__, ret);
 
 	return ret;
 }
@@ -397,7 +397,7 @@ static int m88ts2022_init(struct dvb_frontend *fe)
 		{0x24, 0x02},
 		{0x12, 0xa0},
 	};
-	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
+	dev_dbg(&priv->client->dev, "%s:\n", __func__);
 
 	ret = m88ts2022_wr_reg(priv, 0x00, 0x01);
 	if (ret)
@@ -407,13 +407,13 @@ static int m88ts2022_init(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	switch (priv->cfg->clock_out) {
+	switch (priv->cfg.clock_out) {
 	case M88TS2022_CLOCK_OUT_DISABLED:
 		u8tmp = 0x60;
 		break;
 	case M88TS2022_CLOCK_OUT_ENABLED:
 		u8tmp = 0x70;
-		ret = m88ts2022_wr_reg(priv, 0x05, priv->cfg->clock_out_div);
+		ret = m88ts2022_wr_reg(priv, 0x05, priv->cfg.clock_out_div);
 		if (ret)
 			goto err;
 		break;
@@ -428,7 +428,7 @@ static int m88ts2022_init(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	if (priv->cfg->loop_through)
+	if (priv->cfg.loop_through)
 		u8tmp = 0xec;
 	else
 		u8tmp = 0x6c;
@@ -444,7 +444,7 @@ static int m88ts2022_init(struct dvb_frontend *fe)
 	}
 err:
 	if (ret)
-		dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+		dev_dbg(&priv->client->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -452,21 +452,21 @@ static int m88ts2022_sleep(struct dvb_frontend *fe)
 {
 	struct m88ts2022_priv *priv = fe->tuner_priv;
 	int ret;
-	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
+	dev_dbg(&priv->client->dev, "%s:\n", __func__);
 
 	ret = m88ts2022_wr_reg(priv, 0x00, 0x00);
 	if (ret)
 		goto err;
 err:
 	if (ret)
-		dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+		dev_dbg(&priv->client->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
 static int m88ts2022_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	struct m88ts2022_priv *priv = fe->tuner_priv;
-	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
+	dev_dbg(&priv->client->dev, "%s:\n", __func__);
 
 	*frequency = priv->frequency_khz;
 	return 0;
@@ -475,7 +475,7 @@ static int m88ts2022_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 static int m88ts2022_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	struct m88ts2022_priv *priv = fe->tuner_priv;
-	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
+	dev_dbg(&priv->client->dev, "%s:\n", __func__);
 
 	*frequency = 0; /* Zero-IF */
 	return 0;
@@ -519,17 +519,8 @@ static int m88ts2022_get_rf_strength(struct dvb_frontend *fe, u16 *strength)
 	*strength = (u16tmp - 59000) * 0xffff / (61500 - 59000);
 err:
 	if (ret)
-		dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+		dev_dbg(&priv->client->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
-}
-
-static int m88ts2022_release(struct dvb_frontend *fe)
-{
-	struct m88ts2022_priv *priv = fe->tuner_priv;
-	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
-
-	kfree(fe->tuner_priv);
-	return 0;
 }
 
 static const struct dvb_tuner_ops m88ts2022_tuner_ops = {
@@ -538,8 +529,6 @@ static const struct dvb_tuner_ops m88ts2022_tuner_ops = {
 		.frequency_min = 950000,
 		.frequency_max = 2150000,
 	},
-
-	.release = m88ts2022_release,
 
 	.init = m88ts2022_init,
 	.sleep = m88ts2022_sleep,
@@ -550,9 +539,11 @@ static const struct dvb_tuner_ops m88ts2022_tuner_ops = {
 	.get_rf_strength = m88ts2022_get_rf_strength,
 };
 
-struct dvb_frontend *m88ts2022_attach(struct dvb_frontend *fe,
-		struct i2c_adapter *i2c, const struct m88ts2022_config *cfg)
+static int m88ts2022_probe(struct i2c_client *client,
+		const struct i2c_device_id *id)
 {
+	struct m88ts2022_config *cfg = client->dev.platform_data;
+	struct dvb_frontend *fe = cfg->fe;
 	struct m88ts2022_priv *priv;
 	int ret;
 	u8 chip_id, u8tmp;
@@ -560,13 +551,12 @@ struct dvb_frontend *m88ts2022_attach(struct dvb_frontend *fe,
 	priv = kzalloc(sizeof(struct m88ts2022_priv), GFP_KERNEL);
 	if (!priv) {
 		ret = -ENOMEM;
-		dev_err(&i2c->dev, "%s: kzalloc() failed\n", KBUILD_MODNAME);
+		dev_err(&client->dev, "%s: kzalloc() failed\n", KBUILD_MODNAME);
 		goto err;
 	}
 
-	priv->cfg = cfg;
-	priv->i2c = i2c;
-	priv->fe = fe;
+	memcpy(&priv->cfg, cfg, sizeof(struct m88ts2022_config));
+	priv->client = client;
 
 	/* check if the tuner is there */
 	ret = m88ts2022_rd_reg(priv, 0x00, &u8tmp);
@@ -591,7 +581,7 @@ struct dvb_frontend *m88ts2022_attach(struct dvb_frontend *fe,
 	if (ret)
 		goto err;
 
-	dev_dbg(&priv->i2c->dev, "%s: chip_id=%02x\n", __func__, chip_id);
+	dev_dbg(&priv->client->dev, "%s: chip_id=%02x\n", __func__, chip_id);
 
 	switch (chip_id) {
 	case 0xc3:
@@ -601,13 +591,13 @@ struct dvb_frontend *m88ts2022_attach(struct dvb_frontend *fe,
 		goto err;
 	}
 
-	switch (priv->cfg->clock_out) {
+	switch (priv->cfg.clock_out) {
 	case M88TS2022_CLOCK_OUT_DISABLED:
 		u8tmp = 0x60;
 		break;
 	case M88TS2022_CLOCK_OUT_ENABLED:
 		u8tmp = 0x70;
-		ret = m88ts2022_wr_reg(priv, 0x05, priv->cfg->clock_out_div);
+		ret = m88ts2022_wr_reg(priv, 0x05, priv->cfg.clock_out_div);
 		if (ret)
 			goto err;
 		break;
@@ -622,7 +612,7 @@ struct dvb_frontend *m88ts2022_attach(struct dvb_frontend *fe,
 	if (ret)
 		goto err;
 
-	if (priv->cfg->loop_through)
+	if (priv->cfg.loop_through)
 		u8tmp = 0xec;
 	else
 		u8tmp = 0x6c;
@@ -636,23 +626,52 @@ struct dvb_frontend *m88ts2022_attach(struct dvb_frontend *fe,
 	if (ret)
 		goto err;
 
-	dev_info(&priv->i2c->dev,
+	dev_info(&priv->client->dev,
 			"%s: Montage M88TS2022 successfully identified\n",
 			KBUILD_MODNAME);
 
 	fe->tuner_priv = priv;
 	memcpy(&fe->ops.tuner_ops, &m88ts2022_tuner_ops,
 			sizeof(struct dvb_tuner_ops));
-err:
-	if (ret) {
-		dev_dbg(&i2c->dev, "%s: failed=%d\n", __func__, ret);
-		kfree(priv);
-		return NULL;
-	}
 
-	return fe;
+	i2c_set_clientdata(client, priv);
+	return 0;
+err:
+	dev_dbg(&client->dev, "%s: failed=%d\n", __func__, ret);
+	kfree(priv);
+	return ret;
 }
-EXPORT_SYMBOL(m88ts2022_attach);
+
+static int m88ts2022_remove(struct i2c_client *client)
+{
+	struct m88ts2022_priv *priv = i2c_get_clientdata(client);
+	struct dvb_frontend *fe = priv->cfg.fe;
+	dev_dbg(&client->dev, "%s:\n", __func__);
+
+	memset(&fe->ops.tuner_ops, 0, sizeof(struct dvb_tuner_ops));
+	fe->tuner_priv = NULL;
+	kfree(priv);
+
+	return 0;
+}
+
+static const struct i2c_device_id m88ts2022_id[] = {
+	{"m88ts2022", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, m88ts2022_id);
+
+static struct i2c_driver m88ts2022_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "m88ts2022",
+	},
+	.probe		= m88ts2022_probe,
+	.remove		= m88ts2022_remove,
+	.id_table	= m88ts2022_id,
+};
+
+module_i2c_driver(m88ts2022_driver);
 
 MODULE_DESCRIPTION("Montage M88TS2022 silicon tuner driver");
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");

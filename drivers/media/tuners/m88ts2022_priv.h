@@ -24,8 +24,8 @@
 #include "m88ts2022.h"
 
 struct m88ts2022_priv {
-	const struct m88ts2022_config *cfg;
-	struct i2c_adapter *i2c;
+	struct m88ts2022_config cfg;
+	struct i2c_client *client;
 	struct dvb_frontend *fe;
 	u32 frequency_khz;
 };

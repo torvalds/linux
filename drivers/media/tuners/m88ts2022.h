@@ -25,12 +25,6 @@
 
 struct m88ts2022_config {
 	/*
-	 * I2C address
-	 * 0x60, ...
-	 */
-	u8 i2c_addr;
-
-	/*
 	 * clock
 	 * 16000000 - 32000000
 	 */
@@ -54,19 +48,11 @@ struct m88ts2022_config {
 	 * 1 - 31
 	 */
 	u8 clock_out_div:5;
-};
 
-#if defined(CONFIG_MEDIA_TUNER_M88TS2022) || \
-	(defined(CONFIG_MEDIA_TUNER_M88TS2022_MODULE) && defined(MODULE))
-extern struct dvb_frontend *m88ts2022_attach(struct dvb_frontend *fe,
-	struct i2c_adapter *i2c, const struct m88ts2022_config *cfg);
-#else
-static inline struct dvb_frontend *m88ts2022_attach(struct dvb_frontend *fe,
-	struct i2c_adapter *i2c, const struct m88ts2022_config *cfg)
-{
-	pr_warn("%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
-}
-#endif
+	/*
+	 * pointer to DVB frontend
+	 */
+	struct dvb_frontend *fe;
+};
 
 #endif

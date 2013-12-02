@@ -89,6 +89,7 @@ struct em28xx_dvb {
 	struct semaphore      pll_mutex;
 	bool			dont_attach_fe1;
 	int			lna_gpio;
+	struct i2c_client	*i2c_client_tuner;
 };
 
 
@@ -819,11 +820,6 @@ static const struct m88ds3103_config pctv_461e_m88ds3103_config = {
 	.agc = 0x99,
 };
 
-static const struct m88ts2022_config em28xx_m88ts2022_config = {
-	.i2c_addr = 0x60,
-	.clock = 27000000,
-};
-
 /* ------------------------------------------------------------------ */
 
 static int em28xx_attach_xc3028(u8 addr, struct em28xx *dev)
@@ -1349,6 +1345,11 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		{
 			/* demod I2C adapter */
 			struct i2c_adapter *i2c_adapter;
+			struct i2c_board_info info;
+			struct m88ts2022_config m88ts2022_config = {
+				.clock = 27000000,
+			};
+			memset(&info, 0, sizeof(struct i2c_board_info));
 
 			/* attach demod */
 			dvb->fe[0] = dvb_attach(m88ds3103_attach,
@@ -1361,13 +1362,12 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			}
 
 			/* attach tuner */
-			if (!dvb_attach(m88ts2022_attach, dvb->fe[0],
-					i2c_adapter,
-					&em28xx_m88ts2022_config)) {
-				dvb_frontend_detach(dvb->fe[0]);
-				result = -ENODEV;
-				goto out_free;
-			}
+			m88ts2022_config.fe = dvb->fe[0];
+			strlcpy(info.type, "m88ts2022", I2C_NAME_SIZE);
+			info.addr = 0x60;
+			info.platform_data = &m88ts2022_config;
+			request_module("m88ts2022");
+			dvb->i2c_client_tuner = i2c_new_device(i2c_adapter, &info);
 
 			/* delegate signal strength measurement to tuner */
 			dvb->fe[0]->ops.read_signal_strength =
@@ -1445,6 +1445,7 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 				prevent_sleep(&dvb->fe[1]->ops);
 		}
 
+		i2c_release_client(dvb->i2c_client_tuner);
 		em28xx_unregister_dvb(dvb);
 		kfree(dvb);
 		dev->dvb = NULL;
