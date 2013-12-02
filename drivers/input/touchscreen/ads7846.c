@@ -101,7 +101,7 @@ struct ads7846 {
 	struct spi_device	*spi;
 	struct regulator	*reg;
 
-#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
+#if IS_ENABLED(CONFIG_HWMON)
 	struct attribute_group	*attr_group;
 	struct device		*hwmon;
 #endif
@@ -421,7 +421,7 @@ static int ads7845_read12_ser(struct device *dev, unsigned command)
 	return status;
 }
 
-#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
+#if IS_ENABLED(CONFIG_HWMON)
 
 #define SHOW(name, var, adjust) static ssize_t \
 name ## _show(struct device *dev, struct device_attribute *attr, char *buf) \
