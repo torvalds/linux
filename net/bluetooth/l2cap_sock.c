@@ -27,6 +27,7 @@
 
 /* Bluetooth L2CAP sockets. */
 
+#include <linux/module.h>
 #include <linux/export.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -34,6 +35,8 @@
 #include <net/bluetooth/l2cap.h>
 
 #include "smp.h"
+
+bool enable_lecoc;
 
 static struct bt_sock_list l2cap_sk_list = {
 	.lock = __RW_LOCK_UNLOCKED(l2cap_sk_list.lock)
@@ -73,11 +76,11 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 		return -EINVAL;
 
 	if (bdaddr_type_is_le(la.l2_bdaddr_type)) {
-		/* Connection oriented channels are not supported on LE */
-		if (la.l2_psm)
+		if (!enable_lecoc && la.l2_psm)
 			return -EINVAL;
 		/* We only allow ATT user space socket */
-		if (la.l2_cid != __constant_cpu_to_le16(L2CAP_CID_ATT))
+		if (la.l2_cid &&
+		    la.l2_cid != __constant_cpu_to_le16(L2CAP_CID_ATT))
 			return -EINVAL;
 	}
 
@@ -189,11 +192,11 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr,
 		return -EINVAL;
 
 	if (bdaddr_type_is_le(la.l2_bdaddr_type)) {
-		/* Connection oriented channels are not supported on LE */
-		if (la.l2_psm)
+		if (!enable_lecoc && la.l2_psm)
 			return -EINVAL;
 		/* We only allow ATT user space socket */
-		if (la.l2_cid != __constant_cpu_to_le16(L2CAP_CID_ATT))
+		if (la.l2_cid &&
+		    la.l2_cid != __constant_cpu_to_le16(L2CAP_CID_ATT))
 			return -EINVAL;
 	}
 
@@ -1469,3 +1472,6 @@ void l2cap_cleanup_sockets(void)
 	bt_sock_unregister(BTPROTO_L2CAP);
 	proto_unregister(&l2cap_proto);
 }
+
+module_param(enable_lecoc, bool, 0644);
+MODULE_PARM_DESC(enable_lecoc, "Enable support for LE CoC");

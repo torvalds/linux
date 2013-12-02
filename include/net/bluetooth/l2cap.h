@@ -809,6 +809,7 @@ static inline long l2cap_chan_no_get_sndtimeo(struct l2cap_chan *chan)
 }
 
 extern bool disable_ertm;
+extern bool enable_lecoc;
 
 int l2cap_init_sockets(void);
 void l2cap_cleanup_sockets(void);
