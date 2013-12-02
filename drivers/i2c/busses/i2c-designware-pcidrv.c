@@ -308,7 +308,7 @@ static void i2c_dw_pci_remove(struct pci_dev *pdev)
 /* work with hotplug and coldplug */
 MODULE_ALIAS("i2c_designware-pci");
 
-static DEFINE_PCI_DEVICE_TABLE(i2_designware_pci_ids) = {
+static const struct pci_device_id i2_designware_pci_ids[] = {
 	/* Moorestown */
 	{ PCI_VDEVICE(INTEL, 0x0802), moorestown_0 },
 	{ PCI_VDEVICE(INTEL, 0x0803), moorestown_1 },

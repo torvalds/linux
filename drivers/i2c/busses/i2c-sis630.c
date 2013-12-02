@@ -510,7 +510,7 @@ static struct i2c_adapter sis630_adapter = {
 	.retries	= 3
 };
 
-static DEFINE_PCI_DEVICE_TABLE(sis630_ids) = {
+static const struct pci_device_id sis630_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_503) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_LPC) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_964) },

@@ -88,7 +88,7 @@ static struct i2c_adapter vt586b_adapter = {
 };
 
 
-static DEFINE_PCI_DEVICE_TABLE(vt586b_ids) = {
+static const struct pci_device_id vt586b_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_3) },
 	{ 0, }
 };
