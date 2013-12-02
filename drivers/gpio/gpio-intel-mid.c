@@ -275,7 +275,7 @@ static const struct intel_mid_gpio_ddata gpio_tangier = {
 	.chip_irq_type = INTEL_MID_IRQ_TYPE_EDGE,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(intel_gpio_ids) = {
+static const struct pci_device_id intel_gpio_ids[] = {
 	{
 		/* Lincroft */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x080f),
