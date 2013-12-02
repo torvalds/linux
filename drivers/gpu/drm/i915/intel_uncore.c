@@ -533,12 +533,15 @@ __gen4_read(64)
 	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags)
 
+#define REG_WRITE_FOOTER \
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags)
+
 #define __gen4_write(x) \
 static void \
 gen4_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
 	REG_WRITE_HEADER; \
 	__raw_i915_write##x(dev_priv, reg, val); \
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
+	REG_WRITE_FOOTER; \
 }
 
 #define __gen5_write(x) \
@@ -547,7 +550,7 @@ gen5_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace
 	REG_WRITE_HEADER; \
 	ilk_dummy_write(dev_priv); \
 	__raw_i915_write##x(dev_priv, reg, val); \
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
+	REG_WRITE_FOOTER; \
 }
 
 #define __gen6_write(x) \
@@ -562,7 +565,7 @@ gen6_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace
 	if (unlikely(__fifo_ret)) { \
 		gen6_gt_check_fifodbg(dev_priv); \
 	} \
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
+	REG_WRITE_FOOTER; \
 }
 
 #define __hsw_write(x) \
@@ -579,7 +582,7 @@ hsw_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace)
 		gen6_gt_check_fifodbg(dev_priv); \
 	} \
 	hsw_unclaimed_reg_check(dev_priv, reg); \
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
+	REG_WRITE_FOOTER; \
 }
 
 static const u32 gen8_shadowed_regs[] = {
@@ -617,7 +620,7 @@ gen8_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, \
 							FORCEWAKE_ALL); \
 	} \
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
+	REG_WRITE_FOOTER; \
 }
 
 __gen8_write(8)
@@ -646,6 +649,7 @@ __gen4_write(64)
 #undef __gen6_write
 #undef __gen5_write
 #undef __gen4_write
+#undef REG_WRITE_FOOTER
 #undef REG_WRITE_HEADER
 
 void intel_uncore_init(struct drm_device *dev)
