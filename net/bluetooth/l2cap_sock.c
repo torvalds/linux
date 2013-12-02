@@ -534,6 +534,41 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname,
 			err = -EFAULT;
 		break;
 
+	case BT_SNDMTU:
+		if (!enable_lecoc) {
+			err = -EPROTONOSUPPORT;
+			break;
+		}
+
+		if (!bdaddr_type_is_le(chan->src_type)) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (sk->sk_state != BT_CONNECTED) {
+			err = -ENOTCONN;
+			break;
+		}
+
+		if (put_user(chan->omtu, (u16 __user *) optval))
+			err = -EFAULT;
+		break;
+
+	case BT_RCVMTU:
+		if (!enable_lecoc) {
+			err = -EPROTONOSUPPORT;
+			break;
+		}
+
+		if (!bdaddr_type_is_le(chan->src_type)) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (put_user(chan->imtu, (u16 __user *) optval))
+			err = -EFAULT;
+		break;
+
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -832,6 +867,47 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 		    chan->move_role == L2CAP_MOVE_ROLE_NONE)
 			l2cap_move_start(chan);
 
+		break;
+
+	case BT_SNDMTU:
+		if (!enable_lecoc) {
+			err = -EPROTONOSUPPORT;
+			break;
+		}
+
+		if (!bdaddr_type_is_le(chan->src_type)) {
+			err = -EINVAL;
+			break;
+		}
+
+		/* Setting is not supported as it's the remote side that
+		 * decides this.
+		 */
+		err = -EPERM;
+		break;
+
+	case BT_RCVMTU:
+		if (!enable_lecoc) {
+			err = -EPROTONOSUPPORT;
+			break;
+		}
+
+		if (!bdaddr_type_is_le(chan->src_type)) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (sk->sk_state == BT_CONNECTED) {
+			err = -EISCONN;
+			break;
+		}
+
+		if (get_user(opt, (u32 __user *) optval)) {
+			err = -EFAULT;
+			break;
+		}
+
+		chan->imtu = opt;
 		break;
 
 	default:
