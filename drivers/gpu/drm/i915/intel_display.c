@@ -329,6 +329,8 @@ static void vlv_clock(int refclk, intel_clock_t *clock)
 {
 	clock->m = clock->m1 * clock->m2;
 	clock->p = clock->p1 * clock->p2;
+	if (WARN_ON(clock->n == 0 || clock->p == 0))
+		return;
 	clock->vco = DIV_ROUND_CLOSEST(refclk * clock->m, clock->n);
 	clock->dot = DIV_ROUND_CLOSEST(clock->vco, clock->p);
 }
@@ -430,6 +432,8 @@ static void pineview_clock(int refclk, intel_clock_t *clock)
 {
 	clock->m = clock->m2 + 2;
 	clock->p = clock->p1 * clock->p2;
+	if (WARN_ON(clock->n == 0 || clock->p == 0))
+		return;
 	clock->vco = DIV_ROUND_CLOSEST(refclk * clock->m, clock->n);
 	clock->dot = DIV_ROUND_CLOSEST(clock->vco, clock->p);
 }
@@ -443,6 +447,8 @@ static void i9xx_clock(int refclk, intel_clock_t *clock)
 {
 	clock->m = i9xx_dpll_compute_m(clock);
 	clock->p = clock->p1 * clock->p2;
+	if (WARN_ON(clock->n + 2 == 0 || clock->p == 0))
+		return;
 	clock->vco = DIV_ROUND_CLOSEST(refclk * clock->m, clock->n + 2);
 	clock->dot = DIV_ROUND_CLOSEST(clock->vco, clock->p);
 }
