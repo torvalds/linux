@@ -837,8 +837,14 @@ static void draw_cpu_usage(struct timechart *tchart)
 		while (c) {
 			sample = c->samples;
 			while (sample) {
-				if (sample->type == TYPE_RUNNING)
-					svg_process(sample->cpu, sample->start_time, sample->end_time, "sample", c->comm);
+				if (sample->type == TYPE_RUNNING) {
+					svg_process(sample->cpu,
+						    sample->start_time,
+						    sample->end_time,
+						    "sample",
+						    c->comm,
+						    sample->backtrace);
+				}
 
 				sample = sample->next;
 			}
