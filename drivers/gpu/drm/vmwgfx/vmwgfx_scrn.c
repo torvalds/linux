@@ -467,6 +467,8 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 	encoder->possible_crtcs = (1 << unit);
 	encoder->possible_clones = 0;
 
+	(void) drm_sysfs_connector_add(connector);
+
 	drm_crtc_init(dev, crtc, &vmw_screen_object_crtc_funcs);
 
 	drm_mode_crtc_set_gamma_size(crtc, 256);
