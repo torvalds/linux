@@ -21,7 +21,7 @@
 #define DENALI_NAND_NAME    "denali-nand-pci"
 
 /* List of platforms this NAND controller has be integrated into */
-static DEFINE_PCI_DEVICE_TABLE(denali_pci_ids) = {
+static const struct pci_device_id denali_pci_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x0701), INTEL_CE4100 },
 	{ PCI_VDEVICE(INTEL, 0x0809), INTEL_MRST },
 	{ /* end: all zeroes */ }
