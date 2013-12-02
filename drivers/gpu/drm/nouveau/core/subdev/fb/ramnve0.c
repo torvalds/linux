@@ -914,20 +914,18 @@ nve0_ram_calc_sddr3(struct nouveau_fb *pfb, u32 freq)
  ******************************************************************************/
 
 static int
-nve0_ram_calc(struct nouveau_fb *pfb, u32 freq)
+nve0_ram_calc_data(struct nouveau_fb *pfb, u32 freq,
+		   struct nouveau_ram_data *data)
 {
 	struct nouveau_bios *bios = nouveau_bios(pfb);
 	struct nve0_ram *ram = (void *)pfb->ram;
-	struct nve0_ramfuc *fuc = &ram->fuc;
-	int ret, refclk, strap, i;
-	u8  cnt, len;
+	u8 strap, cnt, len;
 
 	/* lookup memory config data relevant to the target frequency */
 	ram->base.rammap.data = nvbios_rammapEp(bios, freq / 1000,
 					       &ram->base.rammap.version,
 					       &ram->base.rammap.size,
-					       &cnt, &len,
-					       &ram->base.target.bios);
+					       &cnt, &len, &data->bios);
 	if (!ram->base.rammap.data || ram->base.rammap.version != 0x11 ||
 	     ram->base.rammap.size < 0x09) {
 		nv_error(pfb, "invalid/missing rammap entry\n");
@@ -941,7 +939,7 @@ nve0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 						nvbios_ramcfg_index(bios),
 						&ram->base.ramcfg.version,
 						&ram->base.ramcfg.size,
-						&ram->base.target.bios);
+						&data->bios);
 	if (!ram->base.ramcfg.data || ram->base.ramcfg.version != 0x11 ||
 	     ram->base.ramcfg.size < 0x08) {
 		nv_error(pfb, "invalid/missing ramcfg entry\n");
@@ -954,7 +952,7 @@ nve0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 		ram->base.timing.data =
 			nvbios_timingEp(bios, strap, &ram->base.timing.version,
 				       &ram->base.timing.size, &cnt, &len,
-				       &ram->base.target.bios);
+				       &data->bios);
 		if (!ram->base.timing.data ||
 		     ram->base.timing.version != 0x20 ||
 		     ram->base.timing.size < 0x33) {
@@ -965,13 +963,23 @@ nve0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 		ram->base.timing.data = 0;
 	}
 
-	ram->base.next = &ram->base.target;
+	data->freq = freq;
+	return 0;
+}
+
+static int
+nve0_ram_calc_xits(struct nouveau_fb *pfb, struct nouveau_ram_data *next)
+{
+	struct nve0_ram *ram = (void *)pfb->ram;
+	struct nve0_ramfuc *fuc = &ram->fuc;
+	int refclk, i;
+	int ret;
 
 	ret = ram_init(fuc, pfb);
 	if (ret)
 		return ret;
 
-	ram->mode = (freq > fuc->refpll.vco1.max_freq) ? 2 : 1;
+	ram->mode = (next->freq > fuc->refpll.vco1.max_freq) ? 2 : 1;
 	ram->from = ram_rd32(fuc, 0x1373f4) & 0x0000000f;
 
 	/* XXX: this is *not* what nvidia do.  on fermi nvidia generally
@@ -982,7 +990,7 @@ nve0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	 * so far, i've seen very weird values being chosen by nvidia on
 	 * kepler boards, no idea how/why they're chosen.
 	 */
-	refclk = freq;
+	refclk = next->freq;
 	if (ram->mode == 2)
 		refclk = fuc->mempll.refclk;
 
@@ -1004,7 +1012,7 @@ nve0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 		fuc->mempll.min_p = 1;
 		fuc->mempll.max_p = 2;
 
-		ret = nva3_pll_calc(nv_subdev(pfb), &fuc->mempll, freq,
+		ret = nva3_pll_calc(nv_subdev(pfb), &fuc->mempll, next->freq,
 				   &ram->N2, NULL, &ram->M2, &ram->P2);
 		if (ret <= 0) {
 			nv_error(pfb, "unable to calc mempll\n");
@@ -1016,18 +1024,18 @@ nve0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 		if (ram_have(fuc, mr[i]))
 			ram->base.mr[i] = ram_rd32(fuc, mr[i]);
 	}
-	ram->base.freq = freq;
+	ram->base.freq = next->freq;
 
 	switch (ram->base.type) {
 	case NV_MEM_TYPE_DDR3:
 		ret = nouveau_sddr3_calc(&ram->base);
 		if (ret == 0)
-			ret = nve0_ram_calc_sddr3(pfb, freq);
+			ret = nve0_ram_calc_sddr3(pfb, next->freq);
 		break;
 	case NV_MEM_TYPE_GDDR5:
 		ret = nouveau_gddr5_calc(&ram->base, ram->pnuts != 0);
 		if (ret == 0)
-			ret = nve0_ram_calc_gddr5(pfb, freq);
+			ret = nve0_ram_calc_gddr5(pfb, next->freq);
 		break;
 	default:
 		ret = -ENOSYS;
@@ -1038,13 +1046,55 @@ nve0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 }
 
 static int
+nve0_ram_calc(struct nouveau_fb *pfb, u32 freq)
+{
+	struct nouveau_clock *clk = nouveau_clock(pfb);
+	struct nve0_ram *ram = (void *)pfb->ram;
+	struct nouveau_ram_data *xits = &ram->base.xition;
+	struct nouveau_ram_data *copy;
+	int ret;
+
+	if (ram->base.next == NULL) {
+		ret = nve0_ram_calc_data(pfb, clk->read(clk, nv_clk_src_mem),
+					&ram->base.former);
+		if (ret)
+			return ret;
+
+		ret = nve0_ram_calc_data(pfb, freq, &ram->base.target);
+		if (ret)
+			return ret;
+
+		if (ram->base.target.freq < ram->base.former.freq) {
+			*xits = ram->base.target;
+			copy = &ram->base.former;
+		} else {
+			*xits = ram->base.former;
+			copy = &ram->base.target;
+		}
+
+		xits->bios.ramcfg_11_02_04 = copy->bios.ramcfg_11_02_04;
+		xits->bios.ramcfg_11_02_03 = copy->bios.ramcfg_11_02_03;
+		xits->bios.timing_20_30_07 = copy->bios.timing_20_30_07;
+
+		ram->base.next = &ram->base.target;
+		if (memcmp(xits, &ram->base.former, sizeof(xits->bios)))
+			ram->base.next = &ram->base.xition;
+	} else {
+		BUG_ON(ram->base.next != &ram->base.xition);
+		ram->base.next = &ram->base.target;
+	}
+
+	return nve0_ram_calc_xits(pfb, ram->base.next);
+}
+
+static int
 nve0_ram_prog(struct nouveau_fb *pfb)
 {
 	struct nouveau_device *device = nv_device(pfb);
 	struct nve0_ram *ram = (void *)pfb->ram;
 	struct nve0_ramfuc *fuc = &ram->fuc;
 	ram_exec(fuc, nouveau_boolopt(device->cfgopt, "NvMemExec", false));
-	return 0;
+	return (ram->base.next == &ram->base.xition);
 }
 
 static void
@@ -1052,6 +1102,7 @@ nve0_ram_tidy(struct nouveau_fb *pfb)
 {
 	struct nve0_ram *ram = (void *)pfb->ram;
 	struct nve0_ramfuc *fuc = &ram->fuc;
+	ram->base.next = NULL;
 	ram_exec(fuc, false);
 }
 
