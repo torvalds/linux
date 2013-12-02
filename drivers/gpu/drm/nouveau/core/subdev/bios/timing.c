@@ -24,6 +24,7 @@
 
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
+#include <subdev/bios/ramcfg.h>
 #include <subdev/bios/timing.h>
 
 u16
@@ -80,4 +81,47 @@ nvbios_timingEe(struct nouveau_bios *bios, int idx,
 		return timing;
 	}
 	return 0x0000;
+}
+
+u16
+nvbios_timingEp(struct nouveau_bios *bios, int idx,
+		u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
+		struct nvbios_ramcfg *p)
+{
+	u16 data = nvbios_timingEe(bios, idx, ver, hdr, cnt, len), temp;
+	switch (!!data * *ver) {
+	case 0x20:
+		p->timing[0] = nv_ro32(bios, data + 0x00);
+		p->timing[1] = nv_ro32(bios, data + 0x04);
+		p->timing[2] = nv_ro32(bios, data + 0x08);
+		p->timing[3] = nv_ro32(bios, data + 0x0c);
+		p->timing[4] = nv_ro32(bios, data + 0x10);
+		p->timing[5] = nv_ro32(bios, data + 0x14);
+		p->timing[6] = nv_ro32(bios, data + 0x18);
+		p->timing[7] = nv_ro32(bios, data + 0x1c);
+		p->timing[8] = nv_ro32(bios, data + 0x20);
+		p->timing[9] = nv_ro32(bios, data + 0x24);
+		p->timing[10] = nv_ro32(bios, data + 0x28);
+		p->timing_20_2e_03 = (nv_ro08(bios, data + 0x2e) & 0x03) >> 0;
+		p->timing_20_2e_30 = (nv_ro08(bios, data + 0x2e) & 0x30) >> 4;
+		p->timing_20_2e_c0 = (nv_ro08(bios, data + 0x2e) & 0xc0) >> 6;
+		p->timing_20_2f_03 = (nv_ro08(bios, data + 0x2f) & 0x03) >> 0;
+		temp = nv_ro16(bios, data + 0x2c);
+		p->timing_20_2c_003f = (temp & 0x003f) >> 0;
+		p->timing_20_2c_1fc0 = (temp & 0x1fc0) >> 6;
+		p->timing_20_30_07 = (nv_ro08(bios, data + 0x30) & 0x07) >> 0;
+		p->timing_20_30_f8 = (nv_ro08(bios, data + 0x30) & 0xf8) >> 3;
+		temp = nv_ro16(bios, data + 0x31);
+		p->timing_20_31_0007 = (temp & 0x0007) >> 0;
+		p->timing_20_31_0078 = (temp & 0x0078) >> 3;
+		p->timing_20_31_0780 = (temp & 0x0780) >> 7;
+		p->timing_20_31_0800 = (temp & 0x0800) >> 11;
+		p->timing_20_31_7000 = (temp & 0x7000) >> 12;
+		p->timing_20_31_8000 = (temp & 0x8000) >> 15;
+		break;
+	default:
+		data = 0;
+		break;
+	}
+	return data;
 }

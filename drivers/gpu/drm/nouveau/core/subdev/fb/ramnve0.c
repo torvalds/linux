@@ -213,12 +213,12 @@ r1373f4_init(struct nve0_ramfuc *fuc)
 }
 
 static void
-r1373f4_fini(struct nve0_ramfuc *fuc, u32 ramcfg)
+r1373f4_fini(struct nve0_ramfuc *fuc)
 {
 	struct nve0_ram *ram = container_of(fuc, typeof(*ram), fuc);
-	struct nouveau_bios *bios = nouveau_bios(ram);
-	u8 v0 = (nv_ro08(bios, ramcfg + 0x03) & 0xc0) >> 6;
-	u8 v1 = (nv_ro08(bios, ramcfg + 0x03) & 0x30) >> 4;
+	struct nouveau_ram_data *next = ram->base.next;
+	u8 v0 = next->bios.ramcfg_11_03_c0;
+	u8 v1 = next->bios.ramcfg_11_03_30;
 	u32 tmp;
 
 	tmp = ram_rd32(fuc, 0x1373ec) & ~0x00030000;
@@ -259,15 +259,12 @@ nve0_ram_nuts(struct nve0_ram *ram, struct ramfuc_reg *reg,
 static int
 nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 {
-	struct nouveau_bios *bios = nouveau_bios(pfb);
 	struct nve0_ram *ram = (void *)pfb->ram;
 	struct nve0_ramfuc *fuc = &ram->fuc;
-	const u32 rammap = ram->base.rammap.data;
-	const u32 ramcfg = ram->base.ramcfg.data;
-	const u32 timing = ram->base.timing.data;
-	int vc = !(nv_ro08(bios, ramcfg + 0x02) & 0x08);
-	int mv = 1; /*XXX: !(nv_ro08(bios, ramcfg + 0x02) & 0x04); */
-	u32 mask, data, i;
+	struct nouveau_ram_data *next = ram->base.next;
+	int vc = !(next->bios.ramcfg_11_02_08);
+	int mv = 1; /*XXX: !(next->bios.ramcfg_11_02_04); */
+	u32 mask, data;
 
 	ram_mask(fuc, 0x10f808, 0x40000000, 0x40000000);
 	ram_wr32(fuc, 0x62c000, 0x0f0f0000);
@@ -317,28 +314,28 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 
 	if (1) {
 		data |= 0x800807e0;
-		switch (nv_ro08(bios, ramcfg + 0x03) & 0xc0) {
-		case 0xc0: data &= ~0x00000040; break;
-		case 0x80: data &= ~0x00000100; break;
-		case 0x40: data &= ~0x80000000; break;
-		case 0x00: data &= ~0x00000400; break;
+		switch (next->bios.ramcfg_11_03_c0) {
+		case 3: data &= ~0x00000040; break;
+		case 2: data &= ~0x00000100; break;
+		case 1: data &= ~0x80000000; break;
+		case 0: data &= ~0x00000400; break;
 		}
 
-		switch (nv_ro08(bios, ramcfg + 0x03) & 0x30) {
-		case 0x30: data &= ~0x00000020; break;
-		case 0x20: data &= ~0x00000080; break;
-		case 0x10: data &= ~0x00080000; break;
-		case 0x00: data &= ~0x00000200; break;
+		switch (next->bios.ramcfg_11_03_30) {
+		case 3: data &= ~0x00000020; break;
+		case 2: data &= ~0x00000080; break;
+		case 1: data &= ~0x00080000; break;
+		case 0: data &= ~0x00000200; break;
 		}
 	}
 
-	if (nv_ro08(bios, ramcfg + 0x02) & 0x80)
+	if (next->bios.ramcfg_11_02_80)
 		mask |= 0x03000000;
-	if (nv_ro08(bios, ramcfg + 0x02) & 0x40)
+	if (next->bios.ramcfg_11_02_40)
 		mask |= 0x00002000;
-	if (nv_ro08(bios, ramcfg + 0x07) & 0x10)
+	if (next->bios.ramcfg_11_07_10)
 		mask |= 0x00004000;
-	if (nv_ro08(bios, ramcfg + 0x07) & 0x08)
+	if (next->bios.ramcfg_11_07_08)
 		mask |= 0x00000003;
 	else {
 		mask |= 0x34000000;
@@ -357,12 +354,12 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 		ram_mask(fuc, 0x10f830, 0x01000000, 0x00000000);
 		r1373f4_init(fuc);
 		ram_mask(fuc, 0x1373f0, 0x00000002, 0x00000001);
-		r1373f4_fini(fuc, ramcfg);
+		r1373f4_fini(fuc);
 		ram_mask(fuc, 0x10f830, 0x00c00000, 0x00240001);
 	} else
 	if (ram->from != 2 && ram->mode != 2) {
 		r1373f4_init(fuc);
-		r1373f4_fini(fuc, ramcfg);
+		r1373f4_fini(fuc);
 	}
 
 	if (ram_have(fuc, gpioMV)) {
@@ -373,8 +370,8 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 		}
 	}
 
-	if ( (nv_ro08(bios, ramcfg + 0x02) & 0x40) ||
-	     (nv_ro08(bios, ramcfg + 0x07) & 0x10)) {
+	if ( (next->bios.ramcfg_11_02_40) ||
+	     (next->bios.ramcfg_11_07_10)) {
 		ram_mask(fuc, 0x132040, 0x00010000, 0x00010000);
 		ram_nsec(fuc, 20000);
 	}
@@ -384,38 +381,37 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 		ram_mask(fuc, 0x1373f0, 0x00000000, 0x00000002);
 		ram_mask(fuc, 0x10f830, 0x00800001, 0x00408010);
 		r1373f4_init(fuc);
-		r1373f4_fini(fuc, ramcfg);
+		r1373f4_fini(fuc);
 		ram_mask(fuc, 0x10f808, 0x00000000, 0x00080000);
 		ram_mask(fuc, 0x10f200, 0x00808000, 0x00800000);
 	} else
 	if (ram->from == 2 && ram->mode == 2) {
 		ram_mask(fuc, 0x10f800, 0x00000004, 0x00000000);
 		r1373f4_init(fuc);
-		r1373f4_fini(fuc, ramcfg);
+		r1373f4_fini(fuc);
 	}
 
 	if (ram->mode != 2) /*XXX*/ {
-		if (nv_ro08(bios, ramcfg + 0x07) & 0x40)
+		if (next->bios.ramcfg_11_07_40)
 			ram_mask(fuc, 0x10f670, 0x80000000, 0x80000000);
 	}
 
-	data = (nv_ro08(bios, rammap + 0x11) & 0x0c) >> 2;
-	ram_wr32(fuc, 0x10f65c, 0x00000011 * data);
-	ram_wr32(fuc, 0x10f6b8, 0x01010101 * nv_ro08(bios, ramcfg + 0x09));
-	ram_wr32(fuc, 0x10f6bc, 0x01010101 * nv_ro08(bios, ramcfg + 0x09));
+	ram_wr32(fuc, 0x10f65c, 0x00000011 * next->bios.rammap_11_11_0c);
+	ram_wr32(fuc, 0x10f6b8, 0x01010101 * next->bios.ramcfg_11_09);
+	ram_wr32(fuc, 0x10f6bc, 0x01010101 * next->bios.ramcfg_11_09);
 
-	data = nv_ro08(bios, ramcfg + 0x04);
-	if (!(nv_ro08(bios, ramcfg + 0x07) & 0x08)) {
-		ram_wr32(fuc, 0x10f698, 0x01010101 * data);
-		ram_wr32(fuc, 0x10f69c, 0x01010101 * data);
+	if (!next->bios.ramcfg_11_07_08) {
+		ram_wr32(fuc, 0x10f698, 0x01010101 * next->bios.ramcfg_11_04);
+		ram_wr32(fuc, 0x10f69c, 0x01010101 * next->bios.ramcfg_11_04);
 	}
 
 	if (ram->mode != 2) {
-		u32 temp = ram_rd32(fuc, 0x10f694) & ~0xff00ff00;
-		ram_wr32(fuc, 0x10f694, temp | (0x01000100 * data));
+		u32 data = 0x01000100 * next->bios.ramcfg_11_04;
+		ram_nuke(fuc, 0x10f694);
+		ram_mask(fuc, 0x10f694, 0xff00ff00, data);
 	}
 
-	if (ram->mode == 2 && (nv_ro08(bios, ramcfg + 0x08) & 0x10))
+	if (ram->mode == 2 && (next->bios.ramcfg_11_08_10))
 		data = 0x00000080;
 	else
 		data = 0x00000000;
@@ -423,19 +419,19 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 
 	mask = 0x00070000;
 	data = 0x00000000;
-	if (!(nv_ro08(bios, ramcfg + 0x02) & 0x80))
+	if (!(next->bios.ramcfg_11_02_80))
 		data |= 0x03000000;
-	if (!(nv_ro08(bios, ramcfg + 0x02) & 0x40))
+	if (!(next->bios.ramcfg_11_02_40))
 		data |= 0x00002000;
-	if (!(nv_ro08(bios, ramcfg + 0x07) & 0x10))
+	if (!(next->bios.ramcfg_11_07_10))
 		data |= 0x00004000;
-	if (!(nv_ro08(bios, ramcfg + 0x07) & 0x08))
+	if (!(next->bios.ramcfg_11_07_08))
 		data |= 0x00000003;
 	else
 		data |= 0x74000000;
 	ram_mask(fuc, 0x10f824, mask, data);
 
-	if (nv_ro08(bios, ramcfg + 0x01) & 0x08)
+	if (next->bios.ramcfg_11_01_08)
 		data = 0x00000000;
 	else
 		data = 0x00001000;
@@ -446,41 +442,41 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 		ram_mask(fuc, 0x10f670, 0x80000000, 0x00000000);
 	}
 
-	if (nv_ro08(bios, ramcfg + 0x08) & 0x01)
+	if (next->bios.ramcfg_11_08_01)
 		data = 0x00100000;
 	else
 		data = 0x00000000;
 	ram_mask(fuc, 0x10f82c, 0x00100000, data);
 
 	data = 0x00000000;
-	if (nv_ro08(bios, ramcfg + 0x08) & 0x08)
+	if (next->bios.ramcfg_11_08_08)
 		data |= 0x00002000;
-	if (nv_ro08(bios, ramcfg + 0x08) & 0x04)
+	if (next->bios.ramcfg_11_08_04)
 		data |= 0x00001000;
-	if (nv_ro08(bios, ramcfg + 0x08) & 0x02)
+	if (next->bios.ramcfg_11_08_02)
 		data |= 0x00004000;
 	ram_mask(fuc, 0x10f830, 0x00007000, data);
 
 	/* PFB timing */
-	ram_mask(fuc, 0x10f248, 0xffffffff, nv_ro32(bios, timing + 0x28));
-	ram_mask(fuc, 0x10f290, 0xffffffff, nv_ro32(bios, timing + 0x00));
-	ram_mask(fuc, 0x10f294, 0xffffffff, nv_ro32(bios, timing + 0x04));
-	ram_mask(fuc, 0x10f298, 0xffffffff, nv_ro32(bios, timing + 0x08));
-	ram_mask(fuc, 0x10f29c, 0xffffffff, nv_ro32(bios, timing + 0x0c));
-	ram_mask(fuc, 0x10f2a0, 0xffffffff, nv_ro32(bios, timing + 0x10));
-	ram_mask(fuc, 0x10f2a4, 0xffffffff, nv_ro32(bios, timing + 0x14));
-	ram_mask(fuc, 0x10f2a8, 0xffffffff, nv_ro32(bios, timing + 0x18));
-	ram_mask(fuc, 0x10f2ac, 0xffffffff, nv_ro32(bios, timing + 0x1c));
-	ram_mask(fuc, 0x10f2cc, 0xffffffff, nv_ro32(bios, timing + 0x20));
-	ram_mask(fuc, 0x10f2e8, 0xffffffff, nv_ro32(bios, timing + 0x24));
+	ram_mask(fuc, 0x10f248, 0xffffffff, next->bios.timing[10]);
+	ram_mask(fuc, 0x10f290, 0xffffffff, next->bios.timing[0]);
+	ram_mask(fuc, 0x10f294, 0xffffffff, next->bios.timing[1]);
+	ram_mask(fuc, 0x10f298, 0xffffffff, next->bios.timing[2]);
+	ram_mask(fuc, 0x10f29c, 0xffffffff, next->bios.timing[3]);
+	ram_mask(fuc, 0x10f2a0, 0xffffffff, next->bios.timing[4]);
+	ram_mask(fuc, 0x10f2a4, 0xffffffff, next->bios.timing[5]);
+	ram_mask(fuc, 0x10f2a8, 0xffffffff, next->bios.timing[6]);
+	ram_mask(fuc, 0x10f2ac, 0xffffffff, next->bios.timing[7]);
+	ram_mask(fuc, 0x10f2cc, 0xffffffff, next->bios.timing[8]);
+	ram_mask(fuc, 0x10f2e8, 0xffffffff, next->bios.timing[9]);
 
 	data = mask = 0x00000000;
 	if (NOTE00(ramcfg_02_03 != 0)) {
-		data |= (nv_ro08(bios, ramcfg + 0x02) & 0x03) << 8;
+		data |= (next->bios.ramcfg_11_02_03) << 8;
 		mask |= 0x00000300;
 	}
 	if (NOTE00(ramcfg_01_10)) {
-		if (nv_ro08(bios, ramcfg + 0x01) & 0x10)
+		if (next->bios.ramcfg_11_01_10)
 			data |= 0x70000000;
 		mask |= 0x70000000;
 	}
@@ -488,11 +484,11 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 
 	data = mask = 0x00000000;
 	if (NOTE00(timing_30_07 != 0)) {
-		data |= (nv_ro08(bios, timing + 0x30) & 0x07) << 28;
+		data |= (next->bios.timing_20_30_07) << 28;
 		mask |= 0x70000000;
 	}
 	if (NOTE00(ramcfg_01_01)) {
-		if (nv_ro08(bios, ramcfg + 0x01) & 0x01)
+		if (next->bios.ramcfg_11_01_01)
 			data |= 0x00000100;
 		mask |= 0x00000100;
 	}
@@ -500,11 +496,11 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 
 	data = mask = 0x00000000;
 	if (NOTE00(timing_30_07 != 0)) {
-		data |= (nv_ro08(bios, timing + 0x30) & 0x07) << 28;
+		data |= (next->bios.timing_20_30_07) << 28;
 		mask |= 0x70000000;
 	}
 	if (NOTE00(ramcfg_01_02)) {
-		if (nv_ro08(bios, ramcfg + 0x01) & 0x02)
+		if (next->bios.ramcfg_11_01_02)
 			data |= 0x00000100;
 		mask |= 0x00000100;
 	}
@@ -512,16 +508,16 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 
 	mask = 0x33f00000;
 	data = 0x00000000;
-	if (!(nv_ro08(bios, ramcfg + 0x01) & 0x04))
+	if (!(next->bios.ramcfg_11_01_04))
 		data |= 0x20200000;
-	if (!(nv_ro08(bios, ramcfg + 0x07) & 0x80))
+	if (!(next->bios.ramcfg_11_07_80))
 		data |= 0x12800000;
 	/*XXX: see note above about there probably being some condition
 	 *     for the 10f824 stuff that uses ramcfg 3...
 	 */
-	if ( (nv_ro08(bios, ramcfg + 0x03) & 0xf0)) {
-		if (nv_ro08(bios, rammap + 0x08) & 0x0c) {
-			if (!(nv_ro08(bios, ramcfg + 0x07) & 0x80))
+	if ( (next->bios.ramcfg_11_03_f0)) {
+		if (next->bios.rammap_11_08_0c) {
+			if (!(next->bios.ramcfg_11_07_80))
 				mask |= 0x00000020;
 			else
 				data |= 0x00000020;
@@ -534,16 +530,15 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 
 	ram_mask(fuc, 0x10f808, mask, data);
 
-	data = nv_ro08(bios, ramcfg + 0x03) & 0x0f;
-	ram_wr32(fuc, 0x10f870, 0x11111111 * data);
+	ram_wr32(fuc, 0x10f870, 0x11111111 * next->bios.ramcfg_11_03_0f);
 
 	data = mask = 0x00000000;
 	if (NOTE00(ramcfg_02_03 != 0)) {
-		data |= nv_ro08(bios, ramcfg + 0x02) & 0x03;
+		data |= next->bios.ramcfg_11_02_03;
 		mask |= 0x00000003;
 	}
 	if (NOTE00(ramcfg_01_10)) {
-		if (nv_ro08(bios, ramcfg + 0x01) & 0x10)
+		if (next->bios.ramcfg_11_01_10)
 			data |= 0x00000004;
 		mask |= 0x00000004;
 	}
@@ -554,25 +549,21 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 		ram_wait(fuc, 0x100710, 0x80000000, 0x80000000, 200000);
 	}
 
-	data = (nv_ro08(bios, timing + 0x30) & 0x07) << 8;
-	if (nv_ro08(bios, ramcfg + 0x01) & 0x01)
+	data = (next->bios.timing_20_30_07) << 8;
+	if (next->bios.ramcfg_11_01_01)
 		data |= 0x80000000;
 	ram_mask(fuc, 0x100778, 0x00000700, data);
 
-	data = nv_ro16(bios, timing + 0x2c);
-	ram_mask(fuc, 0x10f250, 0x000003f0, (data & 0x003f) <<  4);
-	ram_mask(fuc, 0x10f24c, 0x7f000000, (data & 0x1fc0) << 18);
+	ram_mask(fuc, 0x10f250, 0x000003f0, next->bios.timing_20_2c_003f << 4);
+	ram_mask(fuc, 0x10f24c, 0x7f000000, next->bios.timing_20_2c_1fc0 << 24);
+	ram_mask(fuc, 0x10f224, 0x001f0000, next->bios.timing_20_30_f8 << 16);
 
-	data = nv_ro08(bios, timing + 0x30);
-	ram_mask(fuc, 0x10f224, 0x001f0000, (data & 0xf8) << 13);
-
-	data = nv_ro16(bios, timing + 0x31);
-	ram_mask(fuc, 0x10fec4, 0x041e0f07, (data & 0x0800) << 15 |
-					    (data & 0x0780) << 10 |
-					    (data & 0x0078) <<  5 |
-					    (data & 0x0007));
-	ram_mask(fuc, 0x10fec8, 0x00000027, (data & 0x8000) >> 10 |
-					    (data & 0x7000) >> 12);
+	ram_mask(fuc, 0x10fec4, 0x041e0f07, next->bios.timing_20_31_0800 << 26 |
+					    next->bios.timing_20_31_0780 << 17 |
+					    next->bios.timing_20_31_0078 << 8 |
+					    next->bios.timing_20_31_0007);
+	ram_mask(fuc, 0x10fec8, 0x00000027, next->bios.timing_20_31_8000 << 5 |
+					    next->bios.timing_20_31_7000);
 
 	ram_wr32(fuc, 0x10f090, 0x4000007e);
 	ram_nsec(fuc, 2000);
@@ -580,7 +571,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	ram_wr32(fuc, 0x10f310, 0x00000001); /* REFRESH */
 	ram_wr32(fuc, 0x10f210, 0x80000000); /* REFRESH_AUTO = 1 */
 
-	if ((nv_ro08(bios, ramcfg + 0x08) & 0x10) && (ram->mode == 2) /*XXX*/) {
+	if ((next->bios.ramcfg_11_08_10) && (ram->mode == 2) /*XXX*/) {
 		u32 temp = ram_mask(fuc, 0x10f294, 0xff000000, 0x24000000);
 		nve0_ram_train(fuc, 0xbc0e0000, 0xa4010000); /*XXX*/
 		ram_nsec(fuc, 1000);
@@ -613,8 +604,8 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	data  = ram_rd32(fuc, 0x10f978);
 	data &= ~0x00046144;
 	data |=  0x0000000b;
-	if (!(nv_ro08(bios, ramcfg + 0x07) & 0x08)) {
-		if (!(nv_ro08(bios, ramcfg + 0x07) & 0x04))
+	if (!(next->bios.ramcfg_11_07_08)) {
+		if (!(next->bios.ramcfg_11_07_04))
 			data |= 0x0000200c;
 		else
 			data |= 0x00000000;
@@ -628,11 +619,11 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 		ram_wr32(fuc, 0x10f830, data);
 	}
 
-	if (!(nv_ro08(bios, ramcfg + 0x07) & 0x08)) {
+	if (!(next->bios.ramcfg_11_07_08)) {
 		data = 0x88020000;
-		if ( (nv_ro08(bios, ramcfg + 0x07) & 0x04))
+		if ( (next->bios.ramcfg_11_07_04))
 			data |= 0x10000000;
-		if (!(nv_ro08(bios, rammap + 0x08) & 0x10))
+		if (!(next->bios.rammap_11_08_10))
 			data |= 0x00080000;
 	} else {
 		data = 0xa40e0000;
@@ -654,12 +645,12 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 		ram_mask(fuc, 0x10f830, 0x01000000, 0x00000000);
 	}
 
-	if (nv_ro08(bios, ramcfg + 0x07) & 0x02)
+	if (next->bios.ramcfg_11_07_02)
 		nve0_ram_train(fuc, 0x80020000, 0x01000000);
 
 	ram_wr32(fuc, 0x62c000, 0x0f0f0f00);
 
-	if (nv_ro08(bios, rammap + 0x08) & 0x01)
+	if (next->bios.rammap_11_08_01)
 		data = 0x00000800;
 	else
 		data = 0x00000000;
@@ -675,17 +666,14 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 static int
 nve0_ram_calc_sddr3(struct nouveau_fb *pfb, u32 freq)
 {
-	struct nouveau_bios *bios = nouveau_bios(pfb);
 	struct nve0_ram *ram = (void *)pfb->ram;
 	struct nve0_ramfuc *fuc = &ram->fuc;
 	const u32 rcoef = ((  ram->P1 << 16) | (ram->N1 << 8) | ram->M1);
 	const u32 runk0 = ram->fN1 << 16;
 	const u32 runk1 = ram->fN1;
-	const u32 rammap = ram->base.rammap.data;
-	const u32 ramcfg = ram->base.ramcfg.data;
-	const u32 timing = ram->base.timing.data;
-	int vc = !(nv_ro08(bios, ramcfg + 0x02) & 0x08);
-	int mv = 1; /*XXX: !(nv_ro08(bios, ramcfg + 0x02) & 0x04); */
+	struct nouveau_ram_data *next = ram->base.next;
+	int vc = !(next->bios.ramcfg_11_02_08);
+	int mv = 1; /*XXX: !(next->bios.ramcfg_11_02_04); */
 	u32 mask, data;
 
 	ram_mask(fuc, 0x10f808, 0x40000000, 0x40000000);
@@ -700,7 +688,7 @@ nve0_ram_calc_sddr3(struct nouveau_fb *pfb, u32 freq)
 	}
 
 	ram_mask(fuc, 0x10f200, 0x00000800, 0x00000000);
-	if ((nv_ro08(bios, ramcfg + 0x03) & 0xf0))
+	if ((next->bios.ramcfg_11_03_f0))
 		ram_mask(fuc, 0x10f808, 0x04000000, 0x04000000);
 
 	ram_wr32(fuc, 0x10f314, 0x00000001); /* PRECHARGE */
@@ -725,28 +713,28 @@ nve0_ram_calc_sddr3(struct nouveau_fb *pfb, u32 freq)
 	if (1) {
 		mask |= 0x800807e0;
 		data |= 0x800807e0;
-		switch (nv_ro08(bios, ramcfg + 0x03) & 0xc0) {
-		case 0xc0: data &= ~0x00000040; break;
-		case 0x80: data &= ~0x00000100; break;
-		case 0x40: data &= ~0x80000000; break;
-		case 0x00: data &= ~0x00000400; break;
+		switch (next->bios.ramcfg_11_03_c0) {
+		case 3: data &= ~0x00000040; break;
+		case 2: data &= ~0x00000100; break;
+		case 1: data &= ~0x80000000; break;
+		case 0: data &= ~0x00000400; break;
 		}
 
-		switch (nv_ro08(bios, ramcfg + 0x03) & 0x30) {
-		case 0x30: data &= ~0x00000020; break;
-		case 0x20: data &= ~0x00000080; break;
-		case 0x10: data &= ~0x00080000; break;
-		case 0x00: data &= ~0x00000200; break;
+		switch (next->bios.ramcfg_11_03_30) {
+		case 3: data &= ~0x00000020; break;
+		case 2: data &= ~0x00000080; break;
+		case 1: data &= ~0x00080000; break;
+		case 0: data &= ~0x00000200; break;
 		}
 	}
 
-	if (nv_ro08(bios, ramcfg + 0x02) & 0x80)
+	if (next->bios.ramcfg_11_02_80)
 		mask |= 0x03000000;
-	if (nv_ro08(bios, ramcfg + 0x02) & 0x40)
+	if (next->bios.ramcfg_11_02_40)
 		mask |= 0x00002000;
-	if (nv_ro08(bios, ramcfg + 0x07) & 0x10)
+	if (next->bios.ramcfg_11_07_10)
 		mask |= 0x00004000;
-	if (nv_ro08(bios, ramcfg + 0x07) & 0x08)
+	if (next->bios.ramcfg_11_07_08)
 		mask |= 0x00000003;
 	else
 		mask |= 0x14000000;
@@ -756,7 +744,7 @@ nve0_ram_calc_sddr3(struct nouveau_fb *pfb, u32 freq)
 
 	ram_mask(fuc, 0x1373f4, 0x00000000, 0x00010010);
 	data  = ram_rd32(fuc, 0x1373ec) & ~0x00030000;
-	data |= (nv_ro08(bios, ramcfg + 0x03) & 0x30) << 12;
+	data |= (next->bios.ramcfg_11_03_30) << 12;
 	ram_wr32(fuc, 0x1373ec, data);
 	ram_mask(fuc, 0x1373f4, 0x00000003, 0x00000000);
 	ram_mask(fuc, 0x1373f4, 0x00000010, 0x00000000);
@@ -788,68 +776,67 @@ nve0_ram_calc_sddr3(struct nouveau_fb *pfb, u32 freq)
 		}
 	}
 
-	if ( (nv_ro08(bios, ramcfg + 0x02) & 0x40) ||
-	     (nv_ro08(bios, ramcfg + 0x07) & 0x10)) {
+	if ( (next->bios.ramcfg_11_02_40) ||
+	     (next->bios.ramcfg_11_07_10)) {
 		ram_mask(fuc, 0x132040, 0x00010000, 0x00010000);
 		ram_nsec(fuc, 20000);
 	}
 
 	if (ram->mode != 2) /*XXX*/ {
-		if (nv_ro08(bios, ramcfg + 0x07) & 0x40)
+		if (next->bios.ramcfg_11_07_40)
 			ram_mask(fuc, 0x10f670, 0x80000000, 0x80000000);
 	}
 
-	data = (nv_ro08(bios, rammap + 0x11) & 0x0c) >> 2;
-	ram_wr32(fuc, 0x10f65c, 0x00000011 * data);
-	ram_wr32(fuc, 0x10f6b8, 0x01010101 * nv_ro08(bios, ramcfg + 0x09));
-	ram_wr32(fuc, 0x10f6bc, 0x01010101 * nv_ro08(bios, ramcfg + 0x09));
+	ram_wr32(fuc, 0x10f65c, 0x00000011 * next->bios.rammap_11_11_0c);
+	ram_wr32(fuc, 0x10f6b8, 0x01010101 * next->bios.ramcfg_11_09);
+	ram_wr32(fuc, 0x10f6bc, 0x01010101 * next->bios.ramcfg_11_09);
 
 	mask = 0x00010000;
 	data = 0x00000000;
-	if (!(nv_ro08(bios, ramcfg + 0x02) & 0x80))
+	if (!(next->bios.ramcfg_11_02_80))
 		data |= 0x03000000;
-	if (!(nv_ro08(bios, ramcfg + 0x02) & 0x40))
+	if (!(next->bios.ramcfg_11_02_40))
 		data |= 0x00002000;
-	if (!(nv_ro08(bios, ramcfg + 0x07) & 0x10))
+	if (!(next->bios.ramcfg_11_07_10))
 		data |= 0x00004000;
-	if (!(nv_ro08(bios, ramcfg + 0x07) & 0x08))
+	if (!(next->bios.ramcfg_11_07_08))
 		data |= 0x00000003;
 	else
 		data |= 0x14000000;
 	ram_mask(fuc, 0x10f824, mask, data);
 	ram_nsec(fuc, 1000);
 
-	if (nv_ro08(bios, ramcfg + 0x08) & 0x01)
+	if (next->bios.ramcfg_11_08_01)
 		data = 0x00100000;
 	else
 		data = 0x00000000;
 	ram_mask(fuc, 0x10f82c, 0x00100000, data);
 
 	/* PFB timing */
-	ram_mask(fuc, 0x10f248, 0xffffffff, nv_ro32(bios, timing + 0x28));
-	ram_mask(fuc, 0x10f290, 0xffffffff, nv_ro32(bios, timing + 0x00));
-	ram_mask(fuc, 0x10f294, 0xffffffff, nv_ro32(bios, timing + 0x04));
-	ram_mask(fuc, 0x10f298, 0xffffffff, nv_ro32(bios, timing + 0x08));
-	ram_mask(fuc, 0x10f29c, 0xffffffff, nv_ro32(bios, timing + 0x0c));
-	ram_mask(fuc, 0x10f2a0, 0xffffffff, nv_ro32(bios, timing + 0x10));
-	ram_mask(fuc, 0x10f2a4, 0xffffffff, nv_ro32(bios, timing + 0x14));
-	ram_mask(fuc, 0x10f2a8, 0xffffffff, nv_ro32(bios, timing + 0x18));
-	ram_mask(fuc, 0x10f2ac, 0xffffffff, nv_ro32(bios, timing + 0x1c));
-	ram_mask(fuc, 0x10f2cc, 0xffffffff, nv_ro32(bios, timing + 0x20));
-	ram_mask(fuc, 0x10f2e8, 0xffffffff, nv_ro32(bios, timing + 0x24));
+	ram_mask(fuc, 0x10f248, 0xffffffff, next->bios.timing[10]);
+	ram_mask(fuc, 0x10f290, 0xffffffff, next->bios.timing[0]);
+	ram_mask(fuc, 0x10f294, 0xffffffff, next->bios.timing[1]);
+	ram_mask(fuc, 0x10f298, 0xffffffff, next->bios.timing[2]);
+	ram_mask(fuc, 0x10f29c, 0xffffffff, next->bios.timing[3]);
+	ram_mask(fuc, 0x10f2a0, 0xffffffff, next->bios.timing[4]);
+	ram_mask(fuc, 0x10f2a4, 0xffffffff, next->bios.timing[5]);
+	ram_mask(fuc, 0x10f2a8, 0xffffffff, next->bios.timing[6]);
+	ram_mask(fuc, 0x10f2ac, 0xffffffff, next->bios.timing[7]);
+	ram_mask(fuc, 0x10f2cc, 0xffffffff, next->bios.timing[8]);
+	ram_mask(fuc, 0x10f2e8, 0xffffffff, next->bios.timing[9]);
 
 	mask = 0x33f00000;
 	data = 0x00000000;
-	if (!(nv_ro08(bios, ramcfg + 0x01) & 0x04))
+	if (!(next->bios.ramcfg_11_01_04))
 		data |= 0x20200000;
-	if (!(nv_ro08(bios, ramcfg + 0x07) & 0x80))
+	if (!(next->bios.ramcfg_11_07_80))
 		data |= 0x12800000;
 	/*XXX: see note above about there probably being some condition
 	 *     for the 10f824 stuff that uses ramcfg 3...
 	 */
-	if ( (nv_ro08(bios, ramcfg + 0x03) & 0xf0)) {
-		if (nv_ro08(bios, rammap + 0x08) & 0x0c) {
-			if (!(nv_ro08(bios, ramcfg + 0x07) & 0x80))
+	if ( (next->bios.ramcfg_11_03_f0)) {
+		if (next->bios.rammap_11_08_0c) {
+			if (!(next->bios.ramcfg_11_07_80))
 				mask |= 0x00000020;
 			else
 				data |= 0x00000020;
@@ -863,21 +850,16 @@ nve0_ram_calc_sddr3(struct nouveau_fb *pfb, u32 freq)
 
 	ram_mask(fuc, 0x10f808, mask, data);
 
-	data = nv_ro08(bios, ramcfg + 0x03) & 0x0f;
-	ram_wr32(fuc, 0x10f870, 0x11111111 * data);
+	ram_wr32(fuc, 0x10f870, 0x11111111 * next->bios.ramcfg_11_03_0f);
 
-	data = nv_ro16(bios, timing + 0x2c);
-	ram_mask(fuc, 0x10f250, 0x000003f0, (data & 0x003f) <<  4);
+	ram_mask(fuc, 0x10f250, 0x000003f0, next->bios.timing_20_2c_003f << 4);
 
-	if (((nv_ro32(bios, timing + 0x2c) & 0x00001fc0) >>  6) >
-	    ((nv_ro32(bios, timing + 0x28) & 0x7f000000) >> 24))
-		data = (nv_ro32(bios, timing + 0x2c) & 0x00001fc0) >>  6;
-	else
-		data = (nv_ro32(bios, timing + 0x28) & 0x1f000000) >> 24;
+	data = (next->bios.timing[10] & 0x7f000000) >> 24;
+	if ( next->bios.timing_20_2c_1fc0 > data)
+		data = next->bios.timing_20_2c_1fc0;
 	ram_mask(fuc, 0x10f24c, 0x7f000000, data << 24);
 
-	data = nv_ro08(bios, timing + 0x30);
-	ram_mask(fuc, 0x10f224, 0x001f0000, (data & 0xf8) << 13);
+	ram_mask(fuc, 0x10f224, 0x001f0000, next->bios.timing_20_30_f8);
 
 	ram_wr32(fuc, 0x10f090, 0x4000007f);
 	ram_nsec(fuc, 1000);
@@ -919,7 +901,7 @@ nve0_ram_calc_sddr3(struct nouveau_fb *pfb, u32 freq)
 
 	ram_wr32(fuc, 0x62c000, 0x0f0f0f00);
 
-	if (nv_ro08(bios, rammap + 0x08) & 0x01)
+	if (next->bios.rammap_11_08_01)
 		data = 0x00000800;
 	else
 		data = 0x00000000;
@@ -938,14 +920,14 @@ nve0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	struct nve0_ram *ram = (void *)pfb->ram;
 	struct nve0_ramfuc *fuc = &ram->fuc;
 	int ret, refclk, strap, i;
-	u32 data;
 	u8  cnt, len;
 
 	/* lookup memory config data relevant to the target frequency */
-	ram->base.rammap.data = nvbios_rammap_match(bios, freq / 1000,
-						   &ram->base.rammap.version,
-						   &ram->base.rammap.size, &cnt,
-						   &ram->base.ramcfg.size);
+	ram->base.rammap.data = nvbios_rammapEp(bios, freq / 1000,
+					       &ram->base.rammap.version,
+					       &ram->base.rammap.size,
+					       &cnt, &len,
+					       &ram->base.target.bios);
 	if (!ram->base.rammap.data || ram->base.rammap.version != 0x11 ||
 	     ram->base.rammap.size < 0x09) {
 		nv_error(pfb, "invalid/missing rammap entry\n");
@@ -953,15 +935,13 @@ nve0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	}
 
 	/* locate specific data set for the attached memory */
-	strap = nvbios_ramcfg_index(bios);
-	if (strap >= cnt) {
-		nv_error(pfb, "invalid ramcfg strap\n");
-		return -EINVAL;
-	}
-
-	ram->base.ramcfg.version = ram->base.rammap.version;
-	ram->base.ramcfg.data = ram->base.rammap.data + ram->base.rammap.size +
-			       (ram->base.ramcfg.size * strap);
+	ram->base.ramcfg.data = nvbios_rammapSp(bios, ram->base.rammap.data,
+						ram->base.rammap.version,
+						ram->base.rammap.size, cnt, len,
+						nvbios_ramcfg_index(bios),
+						&ram->base.ramcfg.version,
+						&ram->base.ramcfg.size,
+						&ram->base.target.bios);
 	if (!ram->base.ramcfg.data || ram->base.ramcfg.version != 0x11 ||
 	     ram->base.ramcfg.size < 0x08) {
 		nv_error(pfb, "invalid/missing ramcfg entry\n");
@@ -972,8 +952,9 @@ nve0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	strap = nv_ro08(bios, ram->base.ramcfg.data + 0x00);
 	if (strap != 0xff) {
 		ram->base.timing.data =
-			nvbios_timingEe(bios, strap, &ram->base.timing.version,
-				       &ram->base.timing.size, &cnt, &len);
+			nvbios_timingEp(bios, strap, &ram->base.timing.version,
+				       &ram->base.timing.size, &cnt, &len,
+				       &ram->base.target.bios);
 		if (!ram->base.timing.data ||
 		     ram->base.timing.version != 0x20 ||
 		     ram->base.timing.size < 0x33) {
@@ -983,6 +964,8 @@ nve0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	} else {
 		ram->base.timing.data = 0;
 	}
+
+	ram->base.next = &ram->base.target;
 
 	ret = ram_init(fuc, pfb);
 	if (ret)
@@ -1109,7 +1092,7 @@ nve0_ram_init(struct nouveau_object *object)
 	 * binary driver skips the one that's already been setup by
 	 * the init tables.
 	 */
-	data = nvbios_rammap_table(bios, &ver, &hdr, &cnt, &len, &snr, &ssz);
+	data = nvbios_rammapTe(bios, &ver, &hdr, &cnt, &len, &snr, &ssz);
 	if (!data || hdr < 0x15)
 		return -EINVAL;
 

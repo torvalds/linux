@@ -28,34 +28,33 @@
 int
 nouveau_gddr5_calc(struct nouveau_ram *ram, bool nuts)
 {
-	struct nouveau_bios *bios = nouveau_bios(ram);
 	int pd, lf, xd, vh, vr, vo, l3;
 	int WL, CL, WR, at[2], dt, ds;
 	int rq = ram->freq < 1000000; /* XXX */
 
-	switch (!!ram->ramcfg.data * ram->ramcfg.version) {
+	switch (ram->ramcfg.version) {
 	case 0x11:
-		pd =  (nv_ro08(bios, ram->ramcfg.data + 0x01) & 0x80) >> 7;
-		lf =  (nv_ro08(bios, ram->ramcfg.data + 0x01) & 0x40) >> 6;
-		xd = !(nv_ro08(bios, ram->ramcfg.data + 0x01) & 0x20);
-		vh =  (nv_ro08(bios, ram->ramcfg.data + 0x02) & 0x10) >> 4;
-		vr =  (nv_ro08(bios, ram->ramcfg.data + 0x02) & 0x04) >> 2;
-		vo =   nv_ro08(bios, ram->ramcfg.data + 0x06) & 0xff;
-		l3 = !(nv_ro08(bios, ram->ramcfg.data + 0x07) & 0x02);
+		pd =  ram->next->bios.ramcfg_11_01_80;
+		lf =  ram->next->bios.ramcfg_11_01_40;
+		xd = !ram->next->bios.ramcfg_11_01_20;
+		vh =  ram->next->bios.ramcfg_11_02_10;
+		vr =  ram->next->bios.ramcfg_11_02_04;
+		vo =  ram->next->bios.ramcfg_11_06;
+		l3 = !ram->next->bios.ramcfg_11_07_02;
 		break;
 	default:
 		return -ENOSYS;
 	}
 
-	switch (!!ram->timing.data * ram->timing.version) {
+	switch (ram->timing.version) {
 	case 0x20:
-		WL = (nv_ro16(bios, ram->timing.data + 0x04) & 0x0f80) >> 7;
-		CL =  nv_ro08(bios, ram->timing.data + 0x04) & 0x1f;
-		WR =  nv_ro08(bios, ram->timing.data + 0x0a) & 0x7f;
-		at[0] = (nv_ro08(bios, ram->timing.data + 0x2e) & 0xc0) >> 6;
-		at[1] = (nv_ro08(bios, ram->timing.data + 0x2e) & 0x30) >> 4;
-		dt =  nv_ro08(bios, ram->timing.data + 0x2e) & 0x03;
-		ds =  nv_ro08(bios, ram->timing.data + 0x2f) & 0x03;
+		WL = (ram->next->bios.timing[1] & 0x00000f80) >> 7;
+		CL = (ram->next->bios.timing[1] & 0x0000001f);
+		WR = (ram->next->bios.timing[2] & 0x007f0000) >> 16;
+		at[0] = ram->next->bios.timing_20_2e_c0;
+		at[1] = ram->next->bios.timing_20_2e_30;
+		dt =  ram->next->bios.timing_20_2e_03;
+		ds =  ram->next->bios.timing_20_2f_03;
 		break;
 	default:
 		return -ENOSYS;
