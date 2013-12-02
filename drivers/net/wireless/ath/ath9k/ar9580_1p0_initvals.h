@@ -36,7 +36,7 @@
 
 #define ar9580_1p0_modes_fast_clock ar9300Modes_fast_clock_2p2
 
-#define ar9580_1p0_baseband_core_txfir_coeff_japan_2484 ar9462_2p0_baseband_core_txfir_coeff_japan_2484
+#define ar9580_1p0_baseband_core_txfir_coeff_japan_2484 ar9300_2p2_baseband_core_txfir_coeff_japan_2484
 
 static const u32 ar9580_1p0_radio_postamble[][5] = {
 	/* Addr      5G_HT20     5G_HT40     2G_HT40     2G_HT20   */

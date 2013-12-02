@@ -28,6 +28,8 @@
 
 #define ar9340Common_wo_xlna_rx_gain_table_1p0 ar9300Common_wo_xlna_rx_gain_table_2p2
 
+#define ar9340_1p0_baseband_core_txfir_coeff_japan_2484 ar9300_2p2_baseband_core_txfir_coeff_japan_2484
+
 static const u32 ar9340_1p0_radio_postamble[][5] = {
 	/* Addr      5G_HT20     5G_HT40     2G_HT40     2G_HT20   */
 	{0x000160ac, 0xa4646800, 0xa4646800, 0xa4646800, 0xa4646800},

@@ -1738,4 +1738,11 @@ static const u32 ar9300PciePhy_clkreq_disable_L1_2p2[][2] = {
 	{0x00004044, 0x00000000},
 };
 
+static const u32 ar9300_2p2_baseband_core_txfir_coeff_japan_2484[][2] = {
+	/* Addr      allmodes  */
+	{0x0000a398, 0x00000000},
+	{0x0000a39c, 0x6f7f0301},
+	{0x0000a3a0, 0xca9228ee},
+};
+
 #endif /* INITVALS_9003_2P2_H */
