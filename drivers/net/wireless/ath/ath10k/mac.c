@@ -2717,6 +2717,44 @@ static void ath10k_cancel_hw_scan(struct ieee80211_hw *hw,
 	mutex_unlock(&ar->conf_mutex);
 }
 
+static void ath10k_set_key_h_def_keyidx(struct ath10k *ar,
+					struct ath10k_vif *arvif,
+					enum set_key_cmd cmd,
+					struct ieee80211_key_conf *key)
+{
+	u32 vdev_param = arvif->ar->wmi.vdev_param->def_keyid;
+	int ret;
+
+	/* 10.1 firmware branch requires default key index to be set to group
+	 * key index after installing it. Otherwise FW/HW Txes corrupted
+	 * frames with multi-vif APs. This is not required for main firmware
+	 * branch (e.g. 636).
+	 *
+	 * FIXME: This has been tested only in AP. It remains unknown if this
+	 * is required for multi-vif STA interfaces on 10.1 */
+
+	if (arvif->vdev_type != WMI_VDEV_TYPE_AP)
+		return;
+
+	if (key->cipher == WLAN_CIPHER_SUITE_WEP40)
+		return;
+
+	if (key->cipher == WLAN_CIPHER_SUITE_WEP104)
+		return;
+
+	if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
+		return;
+
+	if (cmd != SET_KEY)
+		return;
+
+	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
+					key->keyidx);
+	if (ret)
+		ath10k_warn("failed to set group key as default key: %d\n",
+			    ret);
+}
+
 static int ath10k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			  struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 			  struct ieee80211_key_conf *key)
@@ -2777,6 +2815,8 @@ static int ath10k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		ath10k_warn("ath10k_install_key failed (%d)\n", ret);
 		goto exit;
 	}
+
+	ath10k_set_key_h_def_keyidx(ar, arvif, cmd, key);
 
 	spin_lock_bh(&ar->data_lock);
 	peer = ath10k_peer_find(ar, arvif->vdev_id, peer_addr);
