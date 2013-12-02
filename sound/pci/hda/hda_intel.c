@@ -3876,7 +3876,8 @@ static int azx_probe(struct pci_dev *pci,
 	}
 
 	dev++;
-	complete_all(&chip->probe_wait);
+	if (chip->disabled)
+		complete_all(&chip->probe_wait);
 	return 0;
 
 out_free:
@@ -3953,10 +3954,10 @@ static int azx_probe_continue(struct azx *chip)
 	if ((chip->driver_caps & AZX_DCAPS_PM_RUNTIME) || chip->use_vga_switcheroo)
 		pm_runtime_put_noidle(&pci->dev);
 
-	return 0;
-
 out_free:
-	chip->init_failed = 1;
+	if (err < 0)
+		chip->init_failed = 1;
+	complete_all(&chip->probe_wait);
 	return err;
 }
 
