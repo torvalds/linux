@@ -25,7 +25,7 @@ SECTIONS
 	OVERLAY : NOCROSSREFS {
 		PIE_OVERLAY_SECTION(rockchip)
 	}
-	PIE_OVERLAY_SEND
+	PIE_OVERLAY_END
 
 	__pie_rel_dyn_start : {
 		VMLINUX_SYMBOL(__pie_rel_dyn_start) = .;
