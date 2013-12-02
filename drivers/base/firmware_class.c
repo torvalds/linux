@@ -99,7 +99,11 @@ static inline long firmware_loading_timeout(void)
 /* firmware behavior options */
 #define FW_OPT_UEVENT	(1U << 0)
 #define FW_OPT_NOWAIT	(1U << 1)
+#ifdef CONFIG_FW_LOADER_USER_HELPER
 #define FW_OPT_FALLBACK	(1U << 2)
+#else
+#define FW_OPT_FALLBACK	0
+#endif
 
 struct firmware_cache {
 	/* firmware_buf instance will be added into the below list */
