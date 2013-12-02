@@ -1963,8 +1963,6 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 	}
 
 	if (skb) {
-		int align __maybe_unused;
-
 #ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 		/*
 		 * 'align' will only take the values 0 or 2 here
@@ -1975,7 +1973,8 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 		 * access fields as 2-byte aligned (e.g. for
 		 * compare_ether_addr)
 		 */
-		align = ((unsigned long)(skb->data + sizeof(struct ethhdr))) & 3;
+		int align = ((unsigned long)(skb->data +
+					     sizeof(struct ethhdr))) & 3;
 		if (align) {
 			if (WARN_ON(skb_headroom(skb) < 3)) {
 				dev_kfree_skb(skb);
