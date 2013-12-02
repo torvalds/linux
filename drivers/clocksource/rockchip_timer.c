@@ -180,14 +180,14 @@ static struct local_timer_ops rk_local_timer_ops __cpuinitdata = {
 
 static cycle_t rk_timer_read(struct clocksource *cs)
 {
-	return ~rk_timer_read_current_value64(cs_timer.base);
+	return ~rk_timer_read_current_value(cs_timer.base);
 }
 
 static struct clocksource rk_timer_clocksource = {
 	.name	= TIMER_NAME,
 	.rating	= 200,
 	.read	= rk_timer_read,
-	.mask	= CLOCKSOURCE_MASK(64),
+	.mask	= CLOCKSOURCE_MASK(32),
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
