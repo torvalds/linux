@@ -1511,7 +1511,9 @@ static int mxcnd_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	clk_prepare_enable(host->clk);
+	err = clk_prepare_enable(host->clk);
+	if (err)
+		return err;
 	host->clk_act = 1;
 
 	/*
