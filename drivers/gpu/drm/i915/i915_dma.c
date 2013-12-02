@@ -1702,6 +1702,12 @@ int i915_driver_unload(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
+	ret = i915_gem_suspend(dev);
+	if (ret) {
+		DRM_ERROR("failed to idle hardware: %d\n", ret);
+		return ret;
+	}
+
 	intel_gpu_ips_teardown();
 
 	/* The i915.ko module is still not prepared to be loaded when
@@ -1714,10 +1720,6 @@ int i915_driver_unload(struct drm_device *dev)
 
 	if (dev_priv->mm.inactive_shrinker.scan_objects)
 		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
-
-	ret = i915_gem_suspend(dev);
-	if (ret)
-		DRM_ERROR("failed to idle hardware: %d\n", ret);
 
 	io_mapping_free(dev_priv->gtt.mappable);
 	arch_phys_wc_del(dev_priv->gtt.mtrr);
