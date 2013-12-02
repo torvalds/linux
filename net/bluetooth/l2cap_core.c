@@ -5537,34 +5537,42 @@ static inline int l2cap_le_sig_cmd(struct l2cap_conn *conn,
 				   struct l2cap_cmd_hdr *cmd, u16 cmd_len,
 				   u8 *data)
 {
+	int err = 0;
+
 	switch (cmd->code) {
 	case L2CAP_COMMAND_REJ:
-		return 0;
+		break;
 
 	case L2CAP_CONN_PARAM_UPDATE_REQ:
-		return l2cap_conn_param_update_req(conn, cmd, cmd_len, data);
+		err = l2cap_conn_param_update_req(conn, cmd, cmd_len, data);
+		break;
 
 	case L2CAP_CONN_PARAM_UPDATE_RSP:
-		return 0;
+		break;
 
 	case L2CAP_LE_CONN_RSP:
 		l2cap_le_connect_rsp(conn, cmd, cmd_len, data);
-		return 0;
+		break;
 
 	case L2CAP_LE_CONN_REQ:
-		return l2cap_le_connect_req(conn, cmd, cmd_len, data);
+		err = l2cap_le_connect_req(conn, cmd, cmd_len, data);
+		break;
 
 	case L2CAP_DISCONN_REQ:
-		return l2cap_disconnect_req(conn, cmd, cmd_len, data);
+		err = l2cap_disconnect_req(conn, cmd, cmd_len, data);
+		break;
 
 	case L2CAP_DISCONN_RSP:
 		l2cap_disconnect_rsp(conn, cmd, cmd_len, data);
-		return 0;
+		break;
 
 	default:
 		BT_ERR("Unknown LE signaling command 0x%2.2x", cmd->code);
-		return -EINVAL;
+		err = -EINVAL;
+		break;
 	}
+
+	return err;
 }
 
 static inline void l2cap_le_sig_channel(struct l2cap_conn *conn,
