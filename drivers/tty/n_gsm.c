@@ -2269,14 +2269,15 @@ static void gsmld_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	char *f;
 	int i;
 	char buf[64];
-	char flags;
+	char flags = TTY_NORMAL;
 
 	if (debug & 4)
 		print_hex_dump_bytes("gsmld_receive: ", DUMP_PREFIX_OFFSET,
 				     cp, count);
 
 	for (i = count, dp = cp, f = fp; i; i--, dp++) {
-		flags = *f++;
+		if (f)
+			flags = *f++;
 		switch (flags) {
 		case TTY_NORMAL:
 			gsm->receive(gsm, *dp);
