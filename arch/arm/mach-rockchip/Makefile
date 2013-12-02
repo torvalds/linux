@@ -1,2 +1,3 @@
-obj-$(CONFIG_ARCH_ROCKCHIP) += rockchip.o
+obj-y += common.o
+obj-y += rk3188.o
 obj-$(CONFIG_SMP) += platsmp.o
