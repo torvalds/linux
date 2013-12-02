@@ -285,7 +285,7 @@ void svg_cpu_box(int cpu, u64 __max_freq, u64 __turbo_freq)
 	fprintf(svgfile, "</g>\n");
 }
 
-void svg_process(int cpu, u64 start, u64 end, const char *type, const char *name, const char *backtrace)
+void svg_process(int cpu, u64 start, u64 end, int pid, const char *type, const char *name, const char *backtrace)
 {
 	double width;
 
@@ -294,7 +294,7 @@ void svg_process(int cpu, u64 start, u64 end, const char *type, const char *name
 
 
 	fprintf(svgfile, "<g transform=\"translate(%4.8f,%4.8f)\">\n", time2pixels(start), cpu2y(cpu));
-	fprintf(svgfile, "<title>%s %s</title>\n", name, time_to_string(end - start));
+	fprintf(svgfile, "<title>%d %s running %s</title>\n", pid, name, time_to_string(end - start));
 	if (backtrace)
 		fprintf(svgfile, "<desc>Switched because:\n%s</desc>\n", backtrace);
 	fprintf(svgfile, "<rect x=\"0\" width=\"%4.8f\" y=\"0\" height=\"%4.1f\" class=\"%s\"/>\n",

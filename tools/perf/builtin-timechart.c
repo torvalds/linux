@@ -841,6 +841,7 @@ static void draw_cpu_usage(struct timechart *tchart)
 					svg_process(sample->cpu,
 						    sample->start_time,
 						    sample->end_time,
+						    p->pid,
 						    "sample",
 						    c->comm,
 						    sample->backtrace);
