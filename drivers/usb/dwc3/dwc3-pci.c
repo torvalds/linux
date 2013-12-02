@@ -182,7 +182,7 @@ static void dwc3_pci_remove(struct pci_dev *pci)
 	pci_disable_device(pci);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(dwc3_pci_id_table) = {
+static const struct pci_device_id dwc3_pci_id_table[] = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS,
 				PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3),
