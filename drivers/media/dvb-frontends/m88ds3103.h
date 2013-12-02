@@ -26,26 +26,28 @@
 struct m88ds3103_config {
 	/*
 	 * I2C address
+	 * Default: none, must set
 	 * 0x68, ...
 	 */
 	u8 i2c_addr;
 
 	/*
 	 * clock
+	 * Default: none, must set
 	 * 27000000
 	 */
 	u32 clock;
 
 	/*
 	 * max bytes I2C provider is asked to write at once
-	 * Note: Buffer is taken from the stack currently!
-	 * Value must be set.
+	 * Default: none, must set
 	 * 33, 65, ...
 	 */
 	u16 i2c_wr_max;
 
 	/*
 	 * TS output mode
+	 * Default: M88DS3103_TS_SERIAL
 	 */
 #define M88DS3103_TS_SERIAL             0 /* TS output pin D0, normal */
 #define M88DS3103_TS_SERIAL_D7          1 /* TS output pin D7 */
@@ -58,16 +60,19 @@ struct m88ds3103_config {
 
 	/*
 	 * spectrum inversion
+	 * Default: 0
 	 */
 	u8 spec_inv:1;
 
 	/*
 	 * AGC polarity
+	 * Default: 0
 	 */
 	u8 agc_inv:1;
 
 	/*
 	 * clock output
+	 * Default: M88DS3103_CLOCK_OUT_DISABLED
 	 */
 #define M88DS3103_CLOCK_OUT_DISABLED        0
 #define M88DS3103_CLOCK_OUT_ENABLED         1
@@ -76,9 +81,14 @@ struct m88ds3103_config {
 
 	/*
 	 * DiSEqC envelope mode
+	 * Default: 0
 	 */
 	u8 envelope_mode:1;
 
+	/*
+	 * AGC configuration
+	 * Default: none, must set
+	 */
 	u8 agc;
 };
 
