@@ -1037,6 +1037,8 @@ static void ironlake_wait_panel_status(struct intel_dp *intel_dp,
 				I915_READ(pp_stat_reg),
 				I915_READ(pp_ctrl_reg));
 	}
+
+	DRM_DEBUG_KMS("Wait complete\n");
 }
 
 static void ironlake_wait_panel_on(struct intel_dp *intel_dp)
