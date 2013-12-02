@@ -45,10 +45,15 @@ int bond_option_mode_set(struct bonding *bond, int mode)
 		return -EPERM;
 	}
 
-	if (BOND_MODE_IS_LB(mode) && bond->params.arp_interval) {
-		pr_err("%s: %s mode is incompatible with arp monitoring.\n",
-		       bond->dev->name, bond_mode_tbl[mode].modename);
-		return -EINVAL;
+	if (BOND_NO_USES_ARP(mode) && bond->params.arp_interval) {
+		pr_info("%s: %s mode is incompatible with arp monitoring, start mii monitoring\n",
+			bond->dev->name, bond_mode_tbl[mode].modename);
+		/* disable arp monitoring */
+		bond->params.arp_interval = 0;
+		/* set miimon to default value */
+		bond->params.miimon = BOND_DEFAULT_MIIMON;
+		pr_info("%s: Setting MII monitoring interval to %d.\n",
+			bond->dev->name, bond->params.miimon);
 	}
 
 	/* don't cache arp_validate between modes */
