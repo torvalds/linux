@@ -638,16 +638,16 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 		data = 0xa40e0000;
 	}
 	nve0_ram_train(fuc, 0xbc0f0000, data);
-	ram_nsec(fuc, 1000);
+	if (1) /* XXX: not always? */
+		ram_nsec(fuc, 1000);
 
 	if (ram->mode == 2) { /*XXX*/
 		ram_mask(fuc, 0x10f800, 0x00000004, 0x00000004);
 	}
 
-	/* MR5: (re)enable LP3 if necessary
-	 * XXX: need to find the switch, keeping off for now
-	 */
-	ram_mask(fuc, mr[5], 0xfff, ram->base.mr[5]);
+	/* LP3 */
+	if (ram_mask(fuc, mr[5], 0x004, ram->base.mr[5]) != ram->base.mr[5])
+		ram_nsec(fuc, 1000);
 
 	if (ram->mode != 2) {
 		ram_mask(fuc, 0x10f830, 0x01000000, 0x01000000);

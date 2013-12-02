@@ -29,7 +29,7 @@ int
 nouveau_gddr5_calc(struct nouveau_ram *ram, bool nuts)
 {
 	struct nouveau_bios *bios = nouveau_bios(ram);
-	int pd, lf, xd, vh, vr, vo;
+	int pd, lf, xd, vh, vr, vo, l3;
 	int WL, CL, WR, at[2], dt, ds;
 	int rq = ram->freq < 1000000; /* XXX */
 
@@ -41,6 +41,7 @@ nouveau_gddr5_calc(struct nouveau_ram *ram, bool nuts)
 		vh =  (nv_ro08(bios, ram->ramcfg.data + 0x02) & 0x10) >> 4;
 		vr =  (nv_ro08(bios, ram->ramcfg.data + 0x02) & 0x04) >> 2;
 		vo =   nv_ro08(bios, ram->ramcfg.data + 0x06) & 0xff;
+		l3 = !(nv_ro08(bios, ram->ramcfg.data + 0x07) & 0x02);
 		break;
 	default:
 		return -ENOSYS;
@@ -88,8 +89,8 @@ nouveau_gddr5_calc(struct nouveau_ram *ram, bool nuts)
 	ram->mr[3] &= ~0x020;
 	ram->mr[3] |= (rq & 0x01) << 5;
 
-	/*XXX: LP3, where's the bit?  Let's hardcode to off for now */
 	ram->mr[5] &= ~0x004;
+	ram->mr[5] |= (l3 << 2);
 
 	if (!vo)
 		vo = (ram->mr[6] & 0xff0) >> 4;
