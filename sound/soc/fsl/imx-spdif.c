@@ -35,7 +35,6 @@ static int imx_spdif_audio_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
 		ret = -ENOMEM;
 		goto end;
 	}
