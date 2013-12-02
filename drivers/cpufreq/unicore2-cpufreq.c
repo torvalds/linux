@@ -46,20 +46,18 @@ static int ucv2_target(struct cpufreq_policy *policy,
 			 unsigned int target_freq,
 			 unsigned int relation)
 {
-	unsigned int cur = ucv2_getspeed(0);
 	struct cpufreq_freqs freqs;
 	struct clk *mclk = clk_get(NULL, "MAIN_CLK");
+	int ret;
+
+	freqs.old = policy->cur;
+	freqs.new = target_freq;
 
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+	ret = clk_set_rate(mclk, target_freq * 1000);
+	cpufreq_notify_post_transition(policy, &freqs, ret);
 
-	if (!clk_set_rate(mclk, target_freq * 1000)) {
-		freqs.old = cur;
-		freqs.new = target_freq;
-	}
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-
-	return 0;
+	return ret;
 }
 
 static int __init ucv2_cpu_init(struct cpufreq_policy *policy)

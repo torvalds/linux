@@ -1739,17 +1739,8 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 			pr_err("%s: Failed to change cpu frequency: %d\n",
 					__func__, retval);
 
-		if (notify) {
-			/*
-			 * Notify with old freq in case we failed to change
-			 * frequency
-			 */
-			if (retval)
-				freqs.new = freqs.old;
-
-			cpufreq_notify_transition(policy, &freqs,
-					CPUFREQ_POSTCHANGE);
-		}
+		if (notify)
+			cpufreq_notify_post_transition(policy, &freqs, retval);
 	}
 
 out:
