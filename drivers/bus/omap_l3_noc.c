@@ -231,6 +231,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 static const struct of_device_id l3_noc_match[] = {
 	{.compatible = "ti,omap4-l3-noc", .data = &omap_l3_data},
 	{.compatible = "ti,dra7-l3-noc", .data = &dra_l3_data},
+	{.compatible = "ti,am4372-l3-noc", .data = &am4372_l3_data},
 	{},
 };
 MODULE_DEVICE_TABLE(of, l3_noc_match);

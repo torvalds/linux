@@ -381,4 +381,95 @@ static const struct omap_l3 dra_l3_data = {
 	.mst_addr_mask = 0xFC,
 };
 
+/* AM4372 data */
+static struct l3_target_data am4372_l3_target_data_200f[] = {
+	{0xf00,  "EMIF",},
+	{0x1200, "DES",},
+	{0x400,  "OCMCRAM",},
+	{0x700,  "TPTC0",},
+	{0x800,  "TPTC1",},
+	{0x900,  "TPTC2"},
+	{0xb00,  "TPCC",},
+	{0xd00,  "DEBUGSS",},
+	{0xdead, L3_TARGET_NOT_SUPPORTED,},
+	{0x200,  "SHA",},
+	{0xc00,  "SGX530",},
+	{0x500,  "AES0",},
+	{0xa00,  "L4_FAST",},
+	{0x300,  "MPUSS_L2_RAM",},
+	{0x100,  "ICSS",},
+};
+
+static struct l3_flagmux_data am4372_l3_flagmux_200f = {
+	.offset = 0x1000,
+	.l3_targ = am4372_l3_target_data_200f,
+	.num_targ_data = ARRAY_SIZE(am4372_l3_target_data_200f),
+};
+
+static struct l3_target_data am4372_l3_target_data_100s[] = {
+	{0x100, "L4_PER_0",},
+	{0x200, "L4_PER_1",},
+	{0x300, "L4_PER_2",},
+	{0x400, "L4_PER_3",},
+	{0x800, "McASP0",},
+	{0x900, "McASP1",},
+	{0xC00, "MMCHS2",},
+	{0x700, "GPMC",},
+	{0xD00, "L4_FW",},
+	{0xdead, L3_TARGET_NOT_SUPPORTED,},
+	{0x500, "ADCTSC",},
+	{0xE00, "L4_WKUP",},
+	{0xA00, "MAG_CARD",},
+};
+
+static struct l3_flagmux_data am4372_l3_flagmux_100s = {
+	.offset = 0x600,
+	.l3_targ = am4372_l3_target_data_100s,
+	.num_targ_data = ARRAY_SIZE(am4372_l3_target_data_100s),
+};
+
+static struct l3_masters_data am4372_l3_masters[] = {
+	{ 0x0, "M1 (128-bit)"},
+	{ 0x1, "M2 (64-bit)"},
+	{ 0x4, "DAP"},
+	{ 0x5, "P1500"},
+	{ 0xC, "ICSS0"},
+	{ 0xD, "ICSS1"},
+	{ 0x14, "Wakeup Processor"},
+	{ 0x18, "TPTC0 Read"},
+	{ 0x19, "TPTC0 Write"},
+	{ 0x1A, "TPTC1 Read"},
+	{ 0x1B, "TPTC1 Write"},
+	{ 0x1C, "TPTC2 Read"},
+	{ 0x1D, "TPTC2 Write"},
+	{ 0x20, "SGX530"},
+	{ 0x21, "OCP WP Traffic Probe"},
+	{ 0x22, "OCP WP DMA Profiling"},
+	{ 0x23, "OCP WP Event Trace"},
+	{ 0x25, "DSS"},
+	{ 0x28, "Crypto DMA RD"},
+	{ 0x29, "Crypto DMA WR"},
+	{ 0x2C, "VPFE0"},
+	{ 0x2D, "VPFE1"},
+	{ 0x30, "GEMAC"},
+	{ 0x34, "USB0 RD"},
+	{ 0x35, "USB0 WR"},
+	{ 0x36, "USB1 RD"},
+	{ 0x37, "USB1 WR"},
+};
+
+static struct l3_flagmux_data *am4372_l3_flagmux[] = {
+	&am4372_l3_flagmux_200f,
+	&am4372_l3_flagmux_100s,
+};
+
+static const struct omap_l3 am4372_l3_data = {
+	.l3_flagmux = am4372_l3_flagmux,
+	.num_modules = ARRAY_SIZE(am4372_l3_flagmux),
+	.l3_masters = am4372_l3_masters,
+	.num_masters = ARRAY_SIZE(am4372_l3_masters),
+	/* All 6 bits of register field used to distinguish initiator */
+	.mst_addr_mask = 0x3F,
+};
+
 #endif	/* __OMAP_L3_NOC_H */
