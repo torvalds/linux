@@ -810,7 +810,7 @@ static void rp2_remove(struct pci_dev *pdev)
 	rp2_remove_ports(card);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(rp2_pci_tbl) = {
+static const struct pci_device_id rp2_pci_tbl[] = {
 
 	/* RocketPort INFINITY cards */
 
