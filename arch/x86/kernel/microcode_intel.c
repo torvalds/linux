@@ -278,7 +278,7 @@ static enum ucode_state request_microcode_fw(int cpu, struct device *device,
 	sprintf(name, "intel-ucode/%02x-%02x-%02x",
 		c->x86, c->x86_model, c->x86_mask);
 
-	if (request_firmware(&firmware, name, device)) {
+	if (request_firmware_direct(&firmware, name, device)) {
 		pr_debug("data file %s load failed\n", name);
 		return UCODE_NFOUND;
 	}
