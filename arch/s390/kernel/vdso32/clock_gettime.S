@@ -46,18 +46,13 @@ __kernel_clock_gettime:
 	jnm	3f
 	a	%r0,__VDSO_TK_MULT(%r5)
 3:	alr	%r0,%r2
-	al	%r0,__VDSO_XTIME_NSEC(%r5)	/*  + tk->xtime_nsec */
-	al	%r1,__VDSO_XTIME_NSEC+4(%r5)
-	brc	12,4f
-	ahi	%r0,1
-4:	al	%r0,__VDSO_WTOM_NSEC(%r5)	/*  + wall_to_monotonic.nsec */
+	al	%r0,__VDSO_WTOM_NSEC(%r5)
 	al	%r1,__VDSO_WTOM_NSEC+4(%r5)
 	brc	12,5f
 	ahi	%r0,1
 5:	l	%r2,__VDSO_TK_SHIFT(%r5)	/* Timekeeper shift */
 	srdl	%r0,0(%r2)			/*  >> tk->shift */
-	l	%r2,__VDSO_XTIME_SEC+4(%r5)
-	al	%r2,__VDSO_WTOM_SEC+4(%r5)
+	l	%r2,__VDSO_WTOM_SEC+4(%r5)
 	cl	%r4,__VDSO_UPD_COUNT+4(%r5)	/* check update counter */
 	jne	1b
 	basr	%r5,0
