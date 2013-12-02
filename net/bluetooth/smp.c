@@ -143,13 +143,6 @@ static int smp_s1(struct crypto_blkcipher *tfm, u8 k[16], u8 r1[16],
 	return err;
 }
 
-static int smp_rand(u8 *buf)
-{
-	get_random_bytes(buf, 16);
-
-	return 0;
-}
-
 static struct sk_buff *smp_build_cmd(struct l2cap_conn *conn, u8 code,
 				     u16 dlen, void *data)
 {
@@ -606,9 +599,7 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (check_enc_key_size(conn, key_size))
 		return SMP_ENC_KEY_SIZE;
 
-	ret = smp_rand(smp->prnd);
-	if (ret)
-		return SMP_UNSPECIFIED;
+	get_random_bytes(smp->prnd, sizeof(smp->prnd));
 
 	smp->prsp[0] = SMP_CMD_PAIRING_RSP;
 	memcpy(&smp->prsp[1], &rsp, sizeof(rsp));
@@ -644,9 +635,7 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (check_enc_key_size(conn, key_size))
 		return SMP_ENC_KEY_SIZE;
 
-	ret = smp_rand(smp->prnd);
-	if (ret)
-		return SMP_UNSPECIFIED;
+	get_random_bytes(smp->prnd, sizeof(smp->prnd));
 
 	smp->prsp[0] = SMP_CMD_PAIRING_RSP;
 	memcpy(&smp->prsp[1], rsp, sizeof(*rsp));
