@@ -313,6 +313,8 @@ config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
 	select ARCH_HAS_CPUFREQ
 	select ARM_AMBA
+	select ARM_PATCH_PHYS_VIRT
+	select AUTO_ZRELADDR
 	select COMMON_CLK
 	select COMMON_CLK_VERSATILE
 	select GENERIC_CLOCKEVENTS
