@@ -690,8 +690,8 @@ descend_to_node:
 		smp_read_barrier_depends();
 		ptr = ACCESS_ONCE(shortcut->next_node);
 		BUG_ON(!assoc_array_ptr_is_node(ptr));
-		node = assoc_array_ptr_to_node(ptr);
 	}
+	node = assoc_array_ptr_to_node(ptr);
 
 begin_node:
 	kdebug("begin_node");
