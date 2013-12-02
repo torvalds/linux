@@ -411,9 +411,6 @@ static void __wusbhc_dev_disconnect(struct wusbhc *wusbhc,
 /*
  * Refresh the list of keep alives to emit in the MMC
  *
- * Some devices don't respond to keep alives unless they've been
- * authenticated, so skip unauthenticated devices.
- *
  * We only publish the first four devices that have a coming timeout
  * condition. Then when we are done processing those, we go for the
  * next ones. We ignore the ones that have timed out already (they'll
@@ -448,7 +445,7 @@ static void __wusbhc_keep_alive(struct wusbhc *wusbhc)
 
 		if (wusb_dev == NULL)
 			continue;
-		if (wusb_dev->usb_dev == NULL || !wusb_dev->usb_dev->authenticated)
+		if (wusb_dev->usb_dev == NULL)
 			continue;
 
 		if (time_after(jiffies, wusb_dev->entry_ts + tt)) {
