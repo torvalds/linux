@@ -201,9 +201,7 @@ static void tty_buffer_free(struct tty_port *port, struct tty_buffer *b)
  *	tty_buffer_flush		-	flush full tty buffers
  *	@tty: tty to flush
  *
- *	flush all the buffers containing receive data. If the buffer is
- *	being processed by flush_to_ldisc then we defer the processing
- *	to that function
+ *	flush all the buffers containing receive data.
  *
  *	Locking: takes buffer lock to ensure single-threaded flip buffer
  *		 'consumer'
