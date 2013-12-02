@@ -370,6 +370,16 @@ static int l2cap_sock_getsockopt_old(struct socket *sock, int optname,
 
 	switch (optname) {
 	case L2CAP_OPTIONS:
+		/* LE sockets should use BT_SNDMTU/BT_RCVMTU, but since
+		 * legacy ATT code depends on getsockopt for
+		 * L2CAP_OPTIONS we need to let this pass.
+		 */
+		if (bdaddr_type_is_le(chan->src_type) &&
+		    chan->scid != L2CAP_CID_ATT) {
+			err = -EINVAL;
+			break;
+		}
+
 		memset(&opts, 0, sizeof(opts));
 		opts.imtu     = chan->imtu;
 		opts.omtu     = chan->omtu;
@@ -564,6 +574,11 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname,
 
 	switch (optname) {
 	case L2CAP_OPTIONS:
+		if (bdaddr_type_is_le(chan->src_type)) {
+			err = -EINVAL;
+			break;
+		}
+
 		if (sk->sk_state == BT_CONNECTED) {
 			err = -EINVAL;
 			break;
