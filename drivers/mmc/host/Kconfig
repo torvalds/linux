@@ -104,6 +104,18 @@ config MMC_SDHCI_PLTFM
 
 	  If unsure, say N.
 
+config MMC_SDHCI_OF_ARASAN
+	tristate "SDHCI OF support for the Arasan SDHCI controllers"
+	depends on MMC_SDHCI_PLTFM
+	depends on OF
+	help
+	  This selects the Arasan Secure Digital Host Controller Interface
+	  (SDHCI). This hardware is found e.g. in Xilinx' Zynq SoC.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_SDHCI_OF_ESDHC
 	tristate "SDHCI OF support for the Freescale eSDHC controller"
 	depends on MMC_SDHCI_PLTFM
