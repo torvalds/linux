@@ -6612,11 +6612,10 @@ int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 		}
 
 		if (chan->state == BT_CONNECT) {
-			if (!status) {
+			if (!status)
 				l2cap_start_connection(chan);
-			} else {
+			else
 				__set_chan_timer(chan, L2CAP_DISC_TIMEOUT);
-			}
 		} else if (chan->state == BT_CONNECT2) {
 			struct l2cap_conn_rsp rsp;
 			__u16 res, stat;
