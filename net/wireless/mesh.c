@@ -99,6 +99,7 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 			 const struct mesh_config *conf)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	u8 radar_detect_width = 0;
 	int err;
 
 	BUILD_BUG_ON(IEEE80211_MAX_SSID_LEN != IEEE80211_MAX_MESH_ID_LEN);
@@ -177,8 +178,16 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 	if (!cfg80211_reg_can_beacon(&rdev->wiphy, &setup->chandef))
 		return -EINVAL;
 
-	err = cfg80211_can_use_chan(rdev, wdev, setup->chandef.chan,
-				    CHAN_MODE_SHARED);
+	err = cfg80211_chandef_dfs_required(wdev->wiphy, &setup->chandef);
+	if (err < 0)
+		return err;
+	if (err)
+		radar_detect_width = BIT(setup->chandef.width);
+
+	err = cfg80211_can_use_iftype_chan(rdev, wdev, wdev->iftype,
+					   setup->chandef.chan,
+					   CHAN_MODE_SHARED,
+					   radar_detect_width);
 	if (err)
 		return err;
 
