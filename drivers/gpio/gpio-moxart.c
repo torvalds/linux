@@ -30,7 +30,7 @@
 
 struct moxart_gpio_chip {
 	struct gpio_chip gpio;
-	void __iomem *moxart_gpio_base;
+	void __iomem *base;
 };
 
 static inline struct moxart_gpio_chip *to_moxart_gpio(struct gpio_chip *chip)
@@ -51,7 +51,7 @@ static void moxart_gpio_free(struct gpio_chip *chip, unsigned offset)
 static int moxart_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct moxart_gpio_chip *gc = to_moxart_gpio(chip);
-	void __iomem *ioaddr = gc->moxart_gpio_base + GPIO_PIN_DIRECTION;
+	void __iomem *ioaddr = gc->base + GPIO_PIN_DIRECTION;
 
 	writel(readl(ioaddr) & ~BIT(offset), ioaddr);
 	return 0;
@@ -61,7 +61,7 @@ static int moxart_gpio_direction_output(struct gpio_chip *chip,
 					unsigned offset, int value)
 {
 	struct moxart_gpio_chip *gc = to_moxart_gpio(chip);
-	void __iomem *ioaddr = gc->moxart_gpio_base + GPIO_PIN_DIRECTION;
+	void __iomem *ioaddr = gc->base + GPIO_PIN_DIRECTION;
 
 	writel(readl(ioaddr) | BIT(offset), ioaddr);
 	return 0;
@@ -70,7 +70,7 @@ static int moxart_gpio_direction_output(struct gpio_chip *chip,
 static void moxart_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct moxart_gpio_chip *gc = to_moxart_gpio(chip);
-	void __iomem *ioaddr = gc->moxart_gpio_base + GPIO_DATA_OUT;
+	void __iomem *ioaddr = gc->base + GPIO_DATA_OUT;
 	u32 reg = readl(ioaddr);
 
 	if (value)
@@ -85,14 +85,12 @@ static void moxart_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 static int moxart_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct moxart_gpio_chip *gc = to_moxart_gpio(chip);
-	u32 ret = readl(gc->moxart_gpio_base + GPIO_PIN_DIRECTION);
+	u32 ret = readl(gc->base + GPIO_PIN_DIRECTION);
 
 	if (ret & BIT(offset))
-		return !!(readl(gc->moxart_gpio_base + GPIO_DATA_OUT) &
-			  BIT(offset));
+		return !!(readl(gc->base + GPIO_DATA_OUT) & BIT(offset));
 	else
-		return !!(readl(gc->moxart_gpio_base + GPIO_DATA_IN) &
-			  BIT(offset));
+		return !!(readl(gc->base + GPIO_DATA_IN) & BIT(offset));
 }
 
 static struct gpio_chip moxart_template_chip = {
@@ -103,9 +101,7 @@ static struct gpio_chip moxart_template_chip = {
 	.direction_output	= moxart_gpio_direction_output,
 	.set			= moxart_gpio_set,
 	.get			= moxart_gpio_get,
-	.base			= 0,
 	.ngpio			= 32,
-	.can_sleep		= 0,
 };
 
 static int moxart_gpio_probe(struct platform_device *pdev)
@@ -123,11 +119,11 @@ static int moxart_gpio_probe(struct platform_device *pdev)
 	mgc->gpio = moxart_template_chip;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mgc->moxart_gpio_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(mgc->moxart_gpio_base)) {
+	mgc->base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(mgc->base)) {
 		dev_err(dev, "%s: devm_ioremap_resource res_gpio failed\n",
 			dev->of_node->full_name);
-		return PTR_ERR(mgc->moxart_gpio_base);
+		return PTR_ERR(mgc->base);
 	}
 
 	mgc->gpio.dev = dev;
