@@ -23,7 +23,9 @@ __kernel_clock_getres:
 	je	0f
 	cghi	%r2,__CLOCK_MONOTONIC
 	je	0f
-	cghi	%r2,-2		/* CLOCK_THREAD_CPUTIME_ID for this thread */
+	cghi	%r2,__CLOCK_THREAD_CPUTIME_ID
+	je	0f
+	cghi	%r2,-2		/* Per-thread CPUCLOCK with PID=0, VIRT=1 */
 	jne	2f
 	larl	%r5,_vdso_data
 	icm	%r0,15,__LC_ECTG_OK(%r5)
