@@ -1371,6 +1371,7 @@ T:	git git://git.xilinx.com/linux-xlnx.git
 S:	Supported
 F:	arch/arm/mach-zynq/
 F:	drivers/cpuidle/cpuidle-zynq.c
+F:	drivers/mmc/host/sdhci-of-arasan.c
 
 ARM SMMU DRIVER
 M:	Will Deacon <will.deacon@arm.com>
