@@ -166,11 +166,24 @@ unsigned int get_c0_compare_int(void)
 	return mips_cpu_timer_irq;
 }
 
+static void __init init_rtc(void)
+{
+	/* stop the clock whilst setting it up */
+	CMOS_WRITE(RTC_SET | RTC_24H, RTC_CONTROL);
+
+	/* 32KHz time base */
+	CMOS_WRITE(RTC_REF_CLCK_32KHZ, RTC_FREQ_SELECT);
+
+	/* start the clock */
+	CMOS_WRITE(RTC_24H, RTC_CONTROL);
+}
+
 void __init plat_time_init(void)
 {
 	unsigned int prid = read_c0_prid() & (PRID_COMP_MASK | PRID_IMP_MASK);
 	unsigned int freq;
 
+	init_rtc();
 	estimate_frequencies();
 
 	freq = mips_hpt_frequency;
