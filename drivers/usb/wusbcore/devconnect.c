@@ -97,18 +97,12 @@ static void wusbhc_devconnect_acked_work(struct work_struct *work);
 
 static void wusb_dev_free(struct wusb_dev *wusb_dev)
 {
-	if (wusb_dev) {
-		kfree(wusb_dev->set_gtk_req);
-		usb_free_urb(wusb_dev->set_gtk_urb);
-		kfree(wusb_dev);
-	}
+	kfree(wusb_dev);
 }
 
 static struct wusb_dev *wusb_dev_alloc(struct wusbhc *wusbhc)
 {
 	struct wusb_dev *wusb_dev;
-	struct urb *urb;
-	struct usb_ctrlrequest *req;
 
 	wusb_dev = kzalloc(sizeof(*wusb_dev), GFP_KERNEL);
 	if (wusb_dev == NULL)
@@ -117,22 +111,6 @@ static struct wusb_dev *wusb_dev_alloc(struct wusbhc *wusbhc)
 	wusb_dev->wusbhc = wusbhc;
 
 	INIT_WORK(&wusb_dev->devconnect_acked_work, wusbhc_devconnect_acked_work);
-
-	urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (urb == NULL)
-		goto err;
-	wusb_dev->set_gtk_urb = urb;
-
-	req = kmalloc(sizeof(*req), GFP_KERNEL);
-	if (req == NULL)
-		goto err;
-	wusb_dev->set_gtk_req = req;
-
-	req->bRequestType = USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE;
-	req->bRequest = USB_REQ_SET_DESCRIPTOR;
-	req->wValue = cpu_to_le16(USB_DT_KEY << 8 | wusbhc->gtk_index);
-	req->wIndex = 0;
-	req->wLength = cpu_to_le16(wusbhc->gtk.descr.bLength);
 
 	return wusb_dev;
 err:

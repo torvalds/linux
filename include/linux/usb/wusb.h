@@ -271,6 +271,8 @@ static inline u8 wusb_key_index(int index, int type, int originator)
 #define WUSB_KEY_INDEX_TYPE_GTK			2
 #define WUSB_KEY_INDEX_ORIGINATOR_HOST		0
 #define WUSB_KEY_INDEX_ORIGINATOR_DEVICE	1
+/* bits 0-3 used for the key index. */
+#define WUSB_KEY_INDEX_MAX			15
 
 /* A CCM Nonce, defined in WUSB1.0[6.4.1] */
 struct aes_ccm_nonce {
