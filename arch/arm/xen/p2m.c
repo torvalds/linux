@@ -25,8 +25,9 @@ struct xen_p2m_entry {
 	struct rb_node rbnode_phys;
 };
 
-rwlock_t p2m_lock;
+static rwlock_t p2m_lock;
 struct rb_root phys_to_mach = RB_ROOT;
+EXPORT_SYMBOL_GPL(phys_to_mach);
 static struct rb_root mach_to_phys = RB_ROOT;
 
 static int xen_add_phys_to_mach_entry(struct xen_p2m_entry *new)
@@ -200,7 +201,7 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 }
 EXPORT_SYMBOL_GPL(__set_phys_to_machine);
 
-int p2m_init(void)
+static int p2m_init(void)
 {
 	rwlock_init(&p2m_lock);
 	return 0;
