@@ -215,8 +215,6 @@ mt9v032_update_hblank(struct mt9v032 *mt9v032)
 			     max_t(s32, mt9v032->hblank, 660 - crop->width));
 }
 
-#define EXT_CLK		25000000
-
 static int mt9v032_power_on(struct mt9v032 *mt9v032)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9v032->subdev);
