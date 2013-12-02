@@ -135,20 +135,40 @@ static void tc2_pm_down(u64 residency)
 	if (last_man && __mcpm_outbound_enter_critical(cpu, cluster)) {
 		arch_spin_unlock(&tc2_pm_lock);
 
-		set_cr(get_cr() & ~CR_C);
-		flush_cache_all();
-		asm volatile ("clrex");
-		set_auxcr(get_auxcr() & ~(1 << 6));
-
-		cci_disable_port_by_cpu(mpidr);
+		if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A15) {
+			/*
+			 * On the Cortex-A15 we need to disable
+			 * L2 prefetching before flushing the cache.
+			 */
+			asm volatile(
+			"mcr	p15, 1, %0, c15, c0, 3 \n\t"
+			"isb	\n\t"
+			"dsb	"
+			: : "r" (0x400) );
+		}
 
 		/*
-		 * Ensure that both C & I bits are disabled in the SCTLR
-		 * before disabling ACE snoops. This ensures that no
-		 * coherency traffic will originate from this cpu after
-		 * ACE snoops are turned off.
+		 * We need to disable and flush the whole (L1 and L2) cache.
+		 * Let's do it in the safest possible way i.e. with
+		 * no memory access within the following sequence
+		 * including the stack.
 		 */
-		cpu_proc_fin();
+		asm volatile(
+		"mrc	p15, 0, r0, c1, c0, 0	@ get CR \n\t"
+		"bic	r0, r0, #"__stringify(CR_C)" \n\t"
+		"mcr	p15, 0, r0, c1, c0, 0	@ set CR \n\t"
+		"isb	\n\t"
+		"bl	v7_flush_dcache_all \n\t"
+		"clrex	\n\t"
+		"mrc	p15, 0, r0, c1, c0, 1	@ get AUXCR \n\t"
+		"bic	r0, r0, #(1 << 6)	@ disable local coherency \n\t"
+		"mcr	p15, 0, r0, c1, c0, 1	@ set AUXCR \n\t"
+		"isb	\n\t"
+		"dsb	"
+		: : : "r0","r1","r2","r3","r4","r5","r6","r7",
+		      "r9","r10","r11","lr","memory");
+
+		cci_disable_port_by_cpu(mpidr);
 
 		__mcpm_outbound_leave_critical(cluster, CLUSTER_DOWN);
 	} else {
@@ -162,10 +182,24 @@ static void tc2_pm_down(u64 residency)
 
 		arch_spin_unlock(&tc2_pm_lock);
 
-		set_cr(get_cr() & ~CR_C);
-		flush_cache_louis();
-		asm volatile ("clrex");
-		set_auxcr(get_auxcr() & ~(1 << 6));
+		/*
+		 * We need to disable and flush only the L1 cache.
+		 * Let's do it in the safest possible way as above.
+		 */
+		asm volatile(
+		"mrc	p15, 0, r0, c1, c0, 0	@ get CR \n\t"
+		"bic	r0, r0, #"__stringify(CR_C)" \n\t"
+		"mcr	p15, 0, r0, c1, c0, 0	@ set CR \n\t"
+		"isb	\n\t"
+		"bl	v7_flush_dcache_louis \n\t"
+		"clrex	\n\t"
+		"mrc	p15, 0, r0, c1, c0, 1	@ get AUXCR \n\t"
+		"bic	r0, r0, #(1 << 6)	@ disable local coherency \n\t"
+		"mcr	p15, 0, r0, c1, c0, 1	@ set AUXCR \n\t"
+		"isb	\n\t"
+		"dsb	"
+		: : : "r0","r1","r2","r3","r4","r5","r6","r7",
+		      "r9","r10","r11","lr","memory");
 	}
 
 	__mcpm_cpu_down(cpu, cluster);
