@@ -543,9 +543,7 @@ struct azx {
 	/* for pending irqs */
 	struct work_struct irq_pending_work;
 
-#ifdef CONFIG_SND_HDA_I915
 	struct work_struct probe_work;
-#endif
 
 	/* reboot notifier (for mysterious hangup problem at power-down) */
 	struct notifier_block reboot_notifier;
@@ -3500,12 +3498,10 @@ static void azx_check_snoop_available(struct azx *chip)
 	}
 }
 
-#ifdef CONFIG_SND_HDA_I915
 static void azx_probe_work(struct work_struct *work)
 {
 	azx_probe_continue(container_of(work, struct azx, probe_work));
 }
-#endif
 
 /*
  * constructor
@@ -3582,10 +3578,8 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 		return err;
 	}
 
-#ifdef CONFIG_SND_HDA_I915
 	/* continue probing in work context as may trigger request module */
 	INIT_WORK(&chip->probe_work, azx_probe_work);
-#endif
 
 	*rchip = chip;
 
@@ -3805,7 +3799,7 @@ static int azx_probe(struct pci_dev *pci,
 	static int dev;
 	struct snd_card *card;
 	struct azx *chip;
-	bool probe_now;
+	bool schedule_probe;
 	int err;
 
 	if (dev >= SNDRV_CARDS)
@@ -3844,7 +3838,7 @@ static int azx_probe(struct pci_dev *pci,
 		chip->disabled = true;
 	}
 
-	probe_now = !chip->disabled;
+	schedule_probe = !chip->disabled;
 
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 	if (patch[dev] && *patch[dev]) {
@@ -3855,25 +3849,17 @@ static int azx_probe(struct pci_dev *pci,
 					      azx_firmware_cb);
 		if (err < 0)
 			goto out_free;
-		probe_now = false; /* continued in azx_firmware_cb() */
+		schedule_probe = false; /* continued in azx_firmware_cb() */
 	}
 #endif /* CONFIG_SND_HDA_PATCH_LOADER */
 
-	/* continue probing in work context, avoid request_module deadlock */
-	if (probe_now && (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)) {
-#ifdef CONFIG_SND_HDA_I915
-		probe_now = false;
-		schedule_work(&chip->probe_work);
-#else
+#ifndef CONFIG_SND_HDA_I915
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
 		snd_printk(KERN_ERR SFX "Haswell must build in CONFIG_SND_HDA_I915\n");
 #endif
-	}
 
-	if (probe_now) {
-		err = azx_probe_continue(chip);
-		if (err < 0)
-			goto out_free;
-	}
+	if (schedule_probe)
+		schedule_work(&chip->probe_work);
 
 	dev++;
 	if (chip->disabled)
