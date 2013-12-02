@@ -345,6 +345,9 @@ static int patch_ad1986a(struct hda_codec *codec)
 	 */
 	spec->gen.multiout.no_share_stream = 1;
 
+	/* AD1986A can't manage the dynamic pin on/off smoothly */
+	spec->gen.auto_mute_via_amp = 1;
+
 	snd_hda_pick_fixup(codec, ad1986a_fixup_models, ad1986a_fixup_tbl,
 			   ad1986a_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
