@@ -895,7 +895,7 @@ static int iwl_mvm_get_last_nonqos_seq(struct iwl_mvm *mvm,
 		/* new API returns next, not last-used seqno */
 		if (mvm->fw->ucode_capa.flags &
 				IWL_UCODE_TLV_FLAGS_D3_CONTINUITY_API)
-			err -= 0x10;
+			err = (u16) (err - 0x10);
 	}
 
 	iwl_free_resp(&cmd);
@@ -1549,7 +1549,7 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 	if (gtkdata.unhandled_cipher)
 		return false;
 	if (!gtkdata.num_keys)
-		return true;
+		goto out;
 	if (!gtkdata.last_gtk)
 		return false;
 
@@ -1600,6 +1600,7 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 					   (void *)&replay_ctr, GFP_KERNEL);
 	}
 
+out:
 	mvmvif->seqno_valid = true;
 	/* +0x10 because the set API expects next-to-use, not last-used */
 	mvmvif->seqno = le16_to_cpu(status->non_qos_seq_ctr) + 0x10;
