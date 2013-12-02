@@ -531,12 +531,10 @@ static int process_sample_event(struct perf_tool *tool,
 			tchart->last_time = sample->time;
 	}
 
-	if (sample->cpu > tchart->numcpus)
-		tchart->numcpus = sample->cpu;
-
 	if (evsel->handler != NULL) {
 		tracepoint_handler f = evsel->handler;
-		return f(tchart, evsel, sample, cat_backtrace(event, sample, machine));
+		return f(tchart, evsel, sample,
+			 cat_backtrace(event, sample, machine));
 	}
 
 	return 0;
@@ -1038,8 +1036,6 @@ static void write_svg_file(struct timechart *tchart, const char *filename)
 	int count;
 	int thresh = TIME_THRESH;
 
-	tchart->numcpus++;
-
 	if (tchart->power_only)
 		tchart->proc_num = 0;
 
@@ -1069,6 +1065,25 @@ static void write_svg_file(struct timechart *tchart, const char *filename)
 	svg_close();
 }
 
+static int process_header(struct perf_file_section *section __maybe_unused,
+			  struct perf_header *ph,
+			  int feat,
+			  int fd __maybe_unused,
+			  void *data)
+{
+	struct timechart *tchart = data;
+
+	switch (feat) {
+	case HEADER_NRCPUS:
+		tchart->numcpus = ph->env.nr_cpus_avail;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 {
 	const struct perf_evsel_str_handler power_tracepoints[] = {
@@ -1093,6 +1108,11 @@ static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 
 	if (session == NULL)
 		return -ENOMEM;
+
+	(void)perf_header__process_sections(&session->header,
+					    perf_data_file__fd(session->file),
+					    tchart,
+					    process_header);
 
 	if (!perf_session__has_traces(session, "timechart record"))
 		goto out_delete;
