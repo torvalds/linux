@@ -315,8 +315,6 @@ struct batadv_bcast_packet {
 	 */
 };
 
-#pragma pack()
-
 /**
  * struct batadv_coded_packet - network coded packet
  * @header: common batman packet header and ttl of first included packet
@@ -348,6 +346,8 @@ struct batadv_coded_packet {
 	__be32   second_crc;
 	__be16   coded_len;
 };
+
+#pragma pack()
 
 /**
  * struct batadv_unicast_tvlv - generic unicast packet with tvlv payload
