@@ -920,7 +920,7 @@ failed_free:
  * 0x712 (LynxEM+)
  * 0x720 (Lynx3DM, Lynx3DM+)
  */
-static DEFINE_PCI_DEVICE_TABLE(smtcfb_pci_table) = {
+static const struct pci_device_id smtcfb_pci_table[] = {
 	{ PCI_DEVICE(0x126f, 0x710), },
 	{ PCI_DEVICE(0x126f, 0x712), },
 	{ PCI_DEVICE(0x126f, 0x720), },

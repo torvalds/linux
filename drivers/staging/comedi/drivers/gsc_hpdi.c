@@ -836,7 +836,7 @@ static int gsc_hpdi_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &gsc_hpdi_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(gsc_hpdi_pci_table) = {
+static const struct pci_device_id gsc_hpdi_pci_table[] = {
 	{ PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9080, PCI_VENDOR_ID_PLX,
 		    0x2400, 0, 0, 0},
 	{ 0 }

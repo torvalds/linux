@@ -152,7 +152,7 @@ static int dwc2_driver_probe(struct pci_dev *dev,
 	return retval;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(dwc2_pci_ids) = {
+static const struct pci_device_id dwc2_pci_ids[] = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS, PCI_PRODUCT_ID_HAPS_HSOTG),
 	},

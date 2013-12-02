@@ -1635,7 +1635,7 @@ static int me4000_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &me4000_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(me4000_pci_table) = {
+static const struct pci_device_id me4000_pci_table[] = {
 	{ PCI_VDEVICE(MEILHAUS, 0x4650), BOARD_ME4650 },
 	{ PCI_VDEVICE(MEILHAUS, 0x4660), BOARD_ME4660 },
 	{ PCI_VDEVICE(MEILHAUS, 0x4661), BOARD_ME4660I },

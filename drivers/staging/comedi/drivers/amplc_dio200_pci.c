@@ -439,7 +439,7 @@ static struct comedi_driver dio200_pci_comedi_driver = {
 	.detach = dio200_pci_detach,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(dio200_pci_table) = {
+static const struct pci_device_id dio200_pci_table[] = {
 	{
 		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI215),
 		pci215_model

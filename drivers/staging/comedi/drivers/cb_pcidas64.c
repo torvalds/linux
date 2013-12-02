@@ -4041,7 +4041,7 @@ static int cb_pcidas64_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(cb_pcidas64_pci_table) = {
+static const struct pci_device_id cb_pcidas64_pci_table[] = {
 	{ PCI_VDEVICE(CB, 0x001d), BOARD_PCIDAS6402_16 },
 	{ PCI_VDEVICE(CB, 0x001e), BOARD_PCIDAS6402_12 },
 	{ PCI_VDEVICE(CB, 0x0035), BOARD_PCIDAS64_M1_16 },

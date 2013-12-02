@@ -567,7 +567,7 @@ static struct comedi_driver amplc_pc236_driver = {
 };
 
 #if DO_PCI
-static DEFINE_PCI_DEVICE_TABLE(pc236_pci_table) = {
+static const struct pci_device_id pc236_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI236) },
 	{0}
 };

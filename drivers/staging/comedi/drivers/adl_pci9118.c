@@ -2217,7 +2217,7 @@ static int adl_pci9118_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(adl_pci9118_pci_table) = {
+static const struct pci_device_id adl_pci9118_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMCC, 0x80d9) },
 	{ 0 }
 };

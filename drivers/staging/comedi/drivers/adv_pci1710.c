@@ -1374,7 +1374,7 @@ static int adv_pci1710_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(adv_pci1710_pci_table) = {
+static const struct pci_device_id adv_pci1710_pci_table[] = {
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
 			       PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050),

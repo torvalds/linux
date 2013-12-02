@@ -267,7 +267,7 @@ static CHIP_INFO chip_info_table[] = {
 	{0, NULL}
 };
 
-DEFINE_PCI_DEVICE_TABLE(vt6655_pci_id_table) = {
+const struct pci_device_id vt6655_pci_id_table[] = {
 	{ PCI_VDEVICE(VIA, 0x3253), (kernel_ulong_t)chip_info_table},
 	{ 0, }
 };

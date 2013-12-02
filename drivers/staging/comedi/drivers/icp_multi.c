@@ -597,7 +597,7 @@ static int icp_multi_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &icp_multi_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(icp_multi_pci_table) = {
+static const struct pci_device_id icp_multi_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ICP, PCI_DEVICE_ID_ICP_MULTI) },
 	{ 0 }
 };

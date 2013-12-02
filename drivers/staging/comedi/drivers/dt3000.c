@@ -795,7 +795,7 @@ static int dt3000_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &dt3000_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(dt3000_pci_table) = {
+static const struct pci_device_id dt3000_pci_table[] = {
 	{ PCI_VDEVICE(DT, 0x0022), BOARD_DT3001 },
 	{ PCI_VDEVICE(DT, 0x0023), BOARD_DT3002 },
 	{ PCI_VDEVICE(DT, 0x0024), BOARD_DT3003 },

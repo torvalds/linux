@@ -1427,7 +1427,7 @@ static int rtd520_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &rtd520_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(rtd520_pci_table) = {
+static const struct pci_device_id rtd520_pci_table[] = {
 	{ PCI_VDEVICE(RTD, 0x7520), BOARD_DM7520 },
 	{ PCI_VDEVICE(RTD, 0x4520), BOARD_PCI4520 },
 	{ 0 }

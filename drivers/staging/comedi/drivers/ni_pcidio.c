@@ -1075,7 +1075,7 @@ static int ni_pcidio_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &ni_pcidio_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(ni_pcidio_pci_table) = {
+static const struct pci_device_id ni_pcidio_pci_table[] = {
 	{ PCI_VDEVICE(NI, 0x1150), BOARD_PCIDIO_32HS },
 	{ PCI_VDEVICE(NI, 0x12b0), BOARD_PCI6534 },
 	{ PCI_VDEVICE(NI, 0x1320), BOARD_PXI6533 },

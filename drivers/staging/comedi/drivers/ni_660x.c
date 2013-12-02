@@ -1320,7 +1320,7 @@ static int ni_660x_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &ni_660x_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(ni_660x_pci_table) = {
+static const struct pci_device_id ni_660x_pci_table[] = {
 	{ PCI_VDEVICE(NI, 0x1310), BOARD_PCI6602 },
 	{ PCI_VDEVICE(NI, 0x1360), BOARD_PXI6602 },
 	{ PCI_VDEVICE(NI, 0x2c60), BOARD_PCI6601 },

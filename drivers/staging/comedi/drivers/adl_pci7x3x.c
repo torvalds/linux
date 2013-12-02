@@ -259,7 +259,7 @@ static int adl_pci7x3x_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(adl_pci7x3x_pci_table) = {
+static const struct pci_device_id adl_pci7x3x_pci_table[] = {
 	{ PCI_VDEVICE(ADLINK, 0x7230), BOARD_PCI7230 },
 	{ PCI_VDEVICE(ADLINK, 0x7233), BOARD_PCI7233 },
 	{ PCI_VDEVICE(ADLINK, 0x7234), BOARD_PCI7234 },

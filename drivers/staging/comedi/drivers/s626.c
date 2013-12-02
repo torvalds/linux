@@ -2965,7 +2965,7 @@ static int s626_pci_probe(struct pci_dev *dev,
  * also subvendor:subdevice ids, because otherwise it will conflict with
  * Philips SAA7146 media/dvb based cards.
  */
-static DEFINE_PCI_DEVICE_TABLE(s626_pci_table) = {
+static const struct pci_device_id s626_pci_table[] = {
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7146,
 			 0x6000, 0x0272) },
 	{ 0 }

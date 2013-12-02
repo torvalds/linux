@@ -30,7 +30,7 @@ MODULE_LICENSE("GPL v2");
 
 static const char xillyname[] = "xillybus_pcie";
 
-static DEFINE_PCI_DEVICE_TABLE(xillyids) = {
+static const struct pci_device_id xillyids[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_XILINX, PCI_DEVICE_ID_XILLYBUS)},
 	{PCI_DEVICE(PCI_VENDOR_ID_ALTERA, PCI_DEVICE_ID_XILLYBUS)},
 	{PCI_DEVICE(PCI_VENDOR_ID_ACTEL, PCI_DEVICE_ID_XILLYBUS)},

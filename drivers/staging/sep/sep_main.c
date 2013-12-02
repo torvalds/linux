@@ -4292,7 +4292,7 @@ static void sep_remove(struct pci_dev *pdev)
 }
 
 /* Initialize struct pci_device_id for our driver */
-static DEFINE_PCI_DEVICE_TABLE(sep_pci_id_tbl) = {
+static const struct pci_device_id sep_pci_id_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0826)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x08e9)},
 	{0}
