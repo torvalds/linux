@@ -1301,10 +1301,10 @@ static const struct hid_device_id mt_devices[] = {
 
 	/* SiS panels */
 	{ .driver_data = MT_CLS_DEFAULT,
-		HID_USB_DEVICE(USB_VENDOR_ID_SIS2_TOUCH,
+		HID_USB_DEVICE(USB_VENDOR_ID_SIS_TOUCH,
 		USB_DEVICE_ID_SIS9200_TOUCH) },
 	{ .driver_data = MT_CLS_DEFAULT,
-		HID_USB_DEVICE(USB_VENDOR_ID_SIS2_TOUCH,
+		HID_USB_DEVICE(USB_VENDOR_ID_SIS_TOUCH,
 		USB_DEVICE_ID_SIS817_TOUCH) },
 
 	/* Stantum panels */
