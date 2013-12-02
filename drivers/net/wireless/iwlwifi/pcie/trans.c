@@ -573,6 +573,12 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 		}
 	}
 
+	/* release CPU reset */
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+		iwl_write_prph(trans, RELEASE_CPU_RESET, RELEASE_CPU_RESET_BIT);
+	else
+		iwl_write32(trans, CSR_RESET, 0);
+
 	return 0;
 }
 
