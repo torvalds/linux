@@ -41,10 +41,10 @@ struct assoc_array_ops {
 	/* Is this the object we're looking for? */
 	bool (*compare_object)(const void *object, const void *index_key);
 
-	/* How different are two objects, to a bit position in their keys? (or
-	 * -1 if they're the same)
+	/* How different is an object from an index key, to a bit position in
+	 * their keys? (or -1 if they're the same)
 	 */
-	int (*diff_objects)(const void *a, const void *b);
+	int (*diff_objects)(const void *object, const void *index_key);
 
 	/* Method to free an object. */
 	void (*free_object)(void *object);

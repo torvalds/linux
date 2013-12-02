@@ -279,12 +279,11 @@ static bool keyring_compare_object(const void *object, const void *data)
  * Compare the index keys of a pair of objects and determine the bit position
  * at which they differ - if they differ.
  */
-static int keyring_diff_objects(const void *_a, const void *_b)
+static int keyring_diff_objects(const void *object, const void *data)
 {
-	const struct key *key_a = keyring_ptr_to_key(_a);
-	const struct key *key_b = keyring_ptr_to_key(_b);
+	const struct key *key_a = keyring_ptr_to_key(object);
 	const struct keyring_index_key *a = &key_a->index_key;
-	const struct keyring_index_key *b = &key_b->index_key;
+	const struct keyring_index_key *b = data;
 	unsigned long seg_a, seg_b;
 	int level, i;
 
