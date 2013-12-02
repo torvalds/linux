@@ -94,6 +94,7 @@ int ima_store_template(struct ima_template_entry *entry,
 		/* this function uses default algo */
 		hash.hdr.algo = HASH_ALGO_SHA1;
 		result = ima_calc_field_array_hash(&entry->template_data[0],
+						   entry->template_desc,
 						   num_fields, &hash.hdr);
 		if (result < 0) {
 			integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode,

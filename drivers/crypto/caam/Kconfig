@@ -4,16 +4,29 @@ config CRYPTO_DEV_FSL_CAAM
 	help
 	  Enables the driver module for Freescale's Cryptographic Accelerator
 	  and Assurance Module (CAAM), also known as the SEC version 4 (SEC4).
-	  This module adds a job ring operation interface, and configures h/w
+	  This module creates job ring devices, and configures h/w
 	  to operate as a DPAA component automatically, depending
 	  on h/w feature availability.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called caam.
 
+config CRYPTO_DEV_FSL_CAAM_JR
+	tristate "Freescale CAAM Job Ring driver backend"
+	depends on CRYPTO_DEV_FSL_CAAM
+	default y
+	help
+	  Enables the driver module for Job Rings which are part of
+	  Freescale's Cryptographic Accelerator
+	  and Assurance Module (CAAM). This module adds a job ring operation
+	  interface.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called caam_jr.
+
 config CRYPTO_DEV_FSL_CAAM_RINGSIZE
 	int "Job Ring size"
-	depends on CRYPTO_DEV_FSL_CAAM
+	depends on CRYPTO_DEV_FSL_CAAM_JR
 	range 2 9
 	default "9"
 	help
@@ -31,7 +44,7 @@ config CRYPTO_DEV_FSL_CAAM_RINGSIZE
 
 config CRYPTO_DEV_FSL_CAAM_INTC
 	bool "Job Ring interrupt coalescing"
-	depends on CRYPTO_DEV_FSL_CAAM
+	depends on CRYPTO_DEV_FSL_CAAM_JR
 	default n
 	help
 	  Enable the Job Ring's interrupt coalescing feature.
@@ -62,7 +75,7 @@ config CRYPTO_DEV_FSL_CAAM_INTC_TIME_THLD
 
 config CRYPTO_DEV_FSL_CAAM_CRYPTO_API
 	tristate "Register algorithm implementations with the Crypto API"
-	depends on CRYPTO_DEV_FSL_CAAM
+	depends on CRYPTO_DEV_FSL_CAAM && CRYPTO_DEV_FSL_CAAM_JR
 	default y
 	select CRYPTO_ALGAPI
 	select CRYPTO_AUTHENC
@@ -76,7 +89,7 @@ config CRYPTO_DEV_FSL_CAAM_CRYPTO_API
 
 config CRYPTO_DEV_FSL_CAAM_AHASH_API
 	tristate "Register hash algorithm implementations with Crypto API"
-	depends on CRYPTO_DEV_FSL_CAAM
+	depends on CRYPTO_DEV_FSL_CAAM && CRYPTO_DEV_FSL_CAAM_JR
 	default y
 	select CRYPTO_HASH
 	help
@@ -88,7 +101,7 @@ config CRYPTO_DEV_FSL_CAAM_AHASH_API
 
 config CRYPTO_DEV_FSL_CAAM_RNG_API
 	tristate "Register caam device for hwrng API"
-	depends on CRYPTO_DEV_FSL_CAAM
+	depends on CRYPTO_DEV_FSL_CAAM && CRYPTO_DEV_FSL_CAAM_JR
 	default y
 	select CRYPTO_RNG
 	select HW_RANDOM

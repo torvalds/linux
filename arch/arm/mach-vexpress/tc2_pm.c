@@ -12,6 +12,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -32,10 +33,16 @@
 #include "spc.h"
 
 /* SCC conf registers */
+#define RESET_CTRL		0x018
+#define RESET_A15_NCORERESET(cpu)	(1 << (2 + (cpu)))
+#define RESET_A7_NCORERESET(cpu)	(1 << (16 + (cpu)))
+
 #define A15_CONF		0x400
 #define A7_CONF			0x500
 #define SYS_INFO		0x700
 #define SPC_BASE		0xb00
+
+static void __iomem *scc;
 
 /*
  * We can't use regular spinlocks. In the switcher case, it is possible
@@ -190,6 +197,55 @@ static void tc2_pm_power_down(void)
 	tc2_pm_down(0);
 }
 
+static int tc2_core_in_reset(unsigned int cpu, unsigned int cluster)
+{
+	u32 mask = cluster ?
+		  RESET_A7_NCORERESET(cpu)
+		: RESET_A15_NCORERESET(cpu);
+
+	return !(readl_relaxed(scc + RESET_CTRL) & mask);
+}
+
+#define POLL_MSEC 10
+#define TIMEOUT_MSEC 1000
+
+static int tc2_pm_power_down_finish(unsigned int cpu, unsigned int cluster)
+{
+	unsigned tries;
+
+	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
+	BUG_ON(cluster >= TC2_CLUSTERS || cpu >= TC2_MAX_CPUS_PER_CLUSTER);
+
+	for (tries = 0; tries < TIMEOUT_MSEC / POLL_MSEC; ++tries) {
+		/*
+		 * Only examine the hardware state if the target CPU has
+		 * caught up at least as far as tc2_pm_down():
+		 */
+		if (ACCESS_ONCE(tc2_pm_use_count[cpu][cluster]) == 0) {
+			pr_debug("%s(cpu=%u, cluster=%u): RESET_CTRL = 0x%08X\n",
+				 __func__, cpu, cluster,
+				 readl_relaxed(scc + RESET_CTRL));
+
+			/*
+			 * We need the CPU to reach WFI, but the power
+			 * controller may put the cluster in reset and
+			 * power it off as soon as that happens, before
+			 * we have a chance to see STANDBYWFI.
+			 *
+			 * So we need to check for both conditions:
+			 */
+			if (tc2_core_in_reset(cpu, cluster) ||
+			    ve_spc_cpu_in_wfi(cpu, cluster))
+				return 0; /* success: the CPU is halted */
+		}
+
+		/* Otherwise, wait and retry: */
+		msleep(POLL_MSEC);
+	}
+
+	return -ETIMEDOUT; /* timeout */
+}
+
 static void tc2_pm_suspend(u64 residency)
 {
 	unsigned int mpidr, cpu, cluster;
@@ -232,10 +288,11 @@ static void tc2_pm_powered_up(void)
 }
 
 static const struct mcpm_platform_ops tc2_pm_power_ops = {
-	.power_up	= tc2_pm_power_up,
-	.power_down	= tc2_pm_power_down,
-	.suspend	= tc2_pm_suspend,
-	.powered_up	= tc2_pm_powered_up,
+	.power_up		= tc2_pm_power_up,
+	.power_down		= tc2_pm_power_down,
+	.power_down_finish	= tc2_pm_power_down_finish,
+	.suspend		= tc2_pm_suspend,
+	.powered_up		= tc2_pm_powered_up,
 };
 
 static bool __init tc2_pm_usage_count_init(void)
@@ -269,7 +326,6 @@ static void __naked tc2_pm_power_up_setup(unsigned int affinity_level)
 static int __init tc2_pm_init(void)
 {
 	int ret, irq;
-	void __iomem *scc;
 	u32 a15_cluster_id, a7_cluster_id, sys_info;
 	struct device_node *np;
 

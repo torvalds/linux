@@ -16,6 +16,7 @@ struct vmemmap_backing {
 	unsigned long phys;
 	unsigned long virt_addr;
 };
+extern struct vmemmap_backing *vmemmap_list;
 
 /*
  * Functions that deal with pagetables that could be at any level of

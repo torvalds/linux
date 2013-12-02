@@ -21,6 +21,7 @@
 #include <linux/err.h>
 #include <linux/dmi.h>
 #include <linux/io.h>
+#include <linux/rfkill.h>
 #include <linux/power_supply.h>
 #include <linux/acpi.h>
 #include <linux/mm.h>
@@ -89,6 +90,13 @@ static struct platform_driver platform_driver = {
 
 static struct platform_device *platform_device;
 static struct backlight_device *dell_backlight_device;
+static struct rfkill *wifi_rfkill;
+static struct rfkill *bluetooth_rfkill;
+static struct rfkill *wwan_rfkill;
+static bool force_rfkill;
+
+module_param(force_rfkill, bool, 0444);
+MODULE_PARM_DESC(force_rfkill, "enable rfkill on non whitelisted models");
 
 static const struct dmi_system_id dell_device_table[] __initconst = {
 	{
@@ -355,6 +363,108 @@ dell_send_request(struct calling_interface_buffer *buffer, int class,
 	return buffer;
 }
 
+/* Derived from information in DellWirelessCtl.cpp:
+   Class 17, select 11 is radio control. It returns an array of 32-bit values.
+
+   Input byte 0 = 0: Wireless information
+
+   result[0]: return code
+   result[1]:
+     Bit 0:      Hardware switch supported
+     Bit 1:      Wifi locator supported
+     Bit 2:      Wifi is supported
+     Bit 3:      Bluetooth is supported
+     Bit 4:      WWAN is supported
+     Bit 5:      Wireless keyboard supported
+     Bits 6-7:   Reserved
+     Bit 8:      Wifi is installed
+     Bit 9:      Bluetooth is installed
+     Bit 10:     WWAN is installed
+     Bits 11-15: Reserved
+     Bit 16:     Hardware switch is on
+     Bit 17:     Wifi is blocked
+     Bit 18:     Bluetooth is blocked
+     Bit 19:     WWAN is blocked
+     Bits 20-31: Reserved
+   result[2]: NVRAM size in bytes
+   result[3]: NVRAM format version number
+
+   Input byte 0 = 2: Wireless switch configuration
+   result[0]: return code
+   result[1]:
+     Bit 0:      Wifi controlled by switch
+     Bit 1:      Bluetooth controlled by switch
+     Bit 2:      WWAN controlled by switch
+     Bits 3-6:   Reserved
+     Bit 7:      Wireless switch config locked
+     Bit 8:      Wifi locator enabled
+     Bits 9-14:  Reserved
+     Bit 15:     Wifi locator setting locked
+     Bits 16-31: Reserved
+*/
+
+static int dell_rfkill_set(void *data, bool blocked)
+{
+	int disable = blocked ? 1 : 0;
+	unsigned long radio = (unsigned long)data;
+	int hwswitch_bit = (unsigned long)data - 1;
+
+	get_buffer();
+	dell_send_request(buffer, 17, 11);
+
+	/* If the hardware switch controls this radio, and the hardware
+	   switch is disabled, always disable the radio */
+	if ((hwswitch_state & BIT(hwswitch_bit)) &&
+	    !(buffer->output[1] & BIT(16)))
+		disable = 1;
+
+	buffer->input[0] = (1 | (radio<<8) | (disable << 16));
+	dell_send_request(buffer, 17, 11);
+
+	release_buffer();
+	return 0;
+}
+
+/* Must be called with the buffer held */
+static void dell_rfkill_update_sw_state(struct rfkill *rfkill, int radio,
+					int status)
+{
+	if (status & BIT(0)) {
+		/* Has hw-switch, sync sw_state to BIOS */
+		int block = rfkill_blocked(rfkill);
+		buffer->input[0] = (1 | (radio << 8) | (block << 16));
+		dell_send_request(buffer, 17, 11);
+	} else {
+		/* No hw-switch, sync BIOS state to sw_state */
+		rfkill_set_sw_state(rfkill, !!(status & BIT(radio + 16)));
+	}
+}
+
+static void dell_rfkill_update_hw_state(struct rfkill *rfkill, int radio,
+					int status)
+{
+	if (hwswitch_state & (BIT(radio - 1)))
+		rfkill_set_hw_state(rfkill, !(status & BIT(16)));
+}
+
+static void dell_rfkill_query(struct rfkill *rfkill, void *data)
+{
+	int status;
+
+	get_buffer();
+	dell_send_request(buffer, 17, 11);
+	status = buffer->output[1];
+
+	dell_rfkill_update_hw_state(rfkill, (unsigned long)data, status);
+
+	release_buffer();
+}
+
+static const struct rfkill_ops dell_rfkill_ops = {
+	.set_block = dell_rfkill_set,
+	.query = dell_rfkill_query,
+};
+
 static struct dentry *dell_laptop_dir;
 
 static int dell_debugfs_show(struct seq_file *s, void *data)
@@ -423,6 +533,136 @@ static const struct file_operations dell_debugfs_fops = {
 	.llseek = seq_lseek,
 	.release = single_release,
 };
+
+static void dell_update_rfkill(struct work_struct *ignored)
+{
+	int status;
+
+	get_buffer();
+	dell_send_request(buffer, 17, 11);
+	status = buffer->output[1];
+
+	if (wifi_rfkill) {
+		dell_rfkill_update_hw_state(wifi_rfkill, 1, status);
+		dell_rfkill_update_sw_state(wifi_rfkill, 1, status);
+	}
+	if (bluetooth_rfkill) {
+		dell_rfkill_update_hw_state(bluetooth_rfkill, 2, status);
+		dell_rfkill_update_sw_state(bluetooth_rfkill, 2, status);
+	}
+	if (wwan_rfkill) {
+		dell_rfkill_update_hw_state(wwan_rfkill, 3, status);
+		dell_rfkill_update_sw_state(wwan_rfkill, 3, status);
+	}
+
+	release_buffer();
+}
+static DECLARE_DELAYED_WORK(dell_rfkill_work, dell_update_rfkill);
+
+
+static int __init dell_setup_rfkill(void)
+{
+	int status;
+	int ret;
+	const char *product;
+
+	/*
+	 * rfkill causes trouble on various non Latitudes, according to Dell
+	 * actually testing the rfkill functionality is only done on Latitudes.
+	 */
+	product = dmi_get_system_info(DMI_PRODUCT_NAME);
+	if (!force_rfkill && (!product || strncmp(product, "Latitude", 8)))
+		return 0;
+
+	get_buffer();
+	dell_send_request(buffer, 17, 11);
+	status = buffer->output[1];
+	buffer->input[0] = 0x2;
+	dell_send_request(buffer, 17, 11);
+	hwswitch_state = buffer->output[1];
+	release_buffer();
+
+	if (!(status & BIT(0))) {
+		if (force_rfkill) {
+			/* No hwsitch, clear all hw-controlled bits */
+			hwswitch_state &= ~7;
+		} else {
+			/* rfkill is only tested on laptops with a hwswitch */
+			return 0;
+		}
+	}
+
+	if ((status & (1<<2|1<<8)) == (1<<2|1<<8)) {
+		wifi_rfkill = rfkill_alloc("dell-wifi", &platform_device->dev,
+					   RFKILL_TYPE_WLAN,
+					   &dell_rfkill_ops, (void *) 1);
+		if (!wifi_rfkill) {
+			ret = -ENOMEM;
+			goto err_wifi;
+		}
+		ret = rfkill_register(wifi_rfkill);
+		if (ret)
+			goto err_wifi;
+	}
+
+	if ((status & (1<<3|1<<9)) == (1<<3|1<<9)) {
+		bluetooth_rfkill = rfkill_alloc("dell-bluetooth",
+						&platform_device->dev,
+						RFKILL_TYPE_BLUETOOTH,
+						&dell_rfkill_ops, (void *) 2);
+		if (!bluetooth_rfkill) {
+			ret = -ENOMEM;
+			goto err_bluetooth;
+		}
+		ret = rfkill_register(bluetooth_rfkill);
+		if (ret)
+			goto err_bluetooth;
+	}
+
+	if ((status & (1<<4|1<<10)) == (1<<4|1<<10)) {
+		wwan_rfkill = rfkill_alloc("dell-wwan",
+					   &platform_device->dev,
+					   RFKILL_TYPE_WWAN,
+					   &dell_rfkill_ops, (void *) 3);
+		if (!wwan_rfkill) {
+			ret = -ENOMEM;
+			goto err_wwan;
+		}
+		ret = rfkill_register(wwan_rfkill);
+		if (ret)
+			goto err_wwan;
+	}
+
+	return 0;
+err_wwan:
+	rfkill_destroy(wwan_rfkill);
+	if (bluetooth_rfkill)
+		rfkill_unregister(bluetooth_rfkill);
+err_bluetooth:
+	rfkill_destroy(bluetooth_rfkill);
+	if (wifi_rfkill)
+		rfkill_unregister(wifi_rfkill);
+err_wifi:
+	rfkill_destroy(wifi_rfkill);
+
+	return ret;
+}
+
+static void dell_cleanup_rfkill(void)
+{
+	if (wifi_rfkill) {
+		rfkill_unregister(wifi_rfkill);
+		rfkill_destroy(wifi_rfkill);
+	}
+	if (bluetooth_rfkill) {
+		rfkill_unregister(bluetooth_rfkill);
+		rfkill_destroy(bluetooth_rfkill);
+	}
+	if (wwan_rfkill) {
+		rfkill_unregister(wwan_rfkill);
+		rfkill_destroy(wwan_rfkill);
+	}
+}
 
 static int dell_send_intensity(struct backlight_device *bd)
 {
@@ -515,6 +755,30 @@ static void touchpad_led_exit(void)
 	led_classdev_unregister(&touchpad_led);
 }
 
+static bool dell_laptop_i8042_filter(unsigned char data, unsigned char str,
+			      struct serio *port)
+{
+	static bool extended;
+
+	if (str & 0x20)
+		return false;
+
+	if (unlikely(data == 0xe0)) {
+		extended = true;
+		return false;
+	} else if (unlikely(extended)) {
+		switch (data) {
+		case 0x8:
+			schedule_delayed_work(&dell_rfkill_work,
+					      round_jiffies_relative(HZ / 4));
+			break;
+		}
+		extended = false;
+	}
+
+	return false;
+}
+
 static int __init dell_init(void)
 {
 	int max_intensity = 0;
@@ -557,10 +821,26 @@ static int __init dell_init(void)
 	}
 	buffer = page_address(bufferpage);
 
+	ret = dell_setup_rfkill();
+
+	if (ret) {
+		pr_warn("Unable to setup rfkill\n");
+		goto fail_rfkill;
+	}
+
+	ret = i8042_install_filter(dell_laptop_i8042_filter);
+	if (ret) {
+		pr_warn("Unable to install key filter\n");
+		goto fail_filter;
+	}
+
 	if (quirks && quirks->touchpad_led)
 		touchpad_led_init(&platform_device->dev);
 
 	dell_laptop_dir = debugfs_create_dir("dell_laptop", NULL);
+	if (dell_laptop_dir != NULL)
+		debugfs_create_file("rfkill", 0444, dell_laptop_dir, NULL,
+				    &dell_debugfs_fops);
 
 #ifdef CONFIG_ACPI
 	/* In the event of an ACPI backlight being available, don't
@@ -603,6 +883,11 @@ static int __init dell_init(void)
 	return 0;
 
 fail_backlight:
+	i8042_remove_filter(dell_laptop_i8042_filter);
+	cancel_delayed_work_sync(&dell_rfkill_work);
+fail_filter:
+	dell_cleanup_rfkill();
+fail_rfkill:
 	free_page((unsigned long)bufferpage);
 fail_buffer:
 	platform_device_del(platform_device);
@@ -620,7 +905,10 @@ static void __exit dell_exit(void)
 	debugfs_remove_recursive(dell_laptop_dir);
 	if (quirks && quirks->touchpad_led)
 		touchpad_led_exit();
+	i8042_remove_filter(dell_laptop_i8042_filter);
+	cancel_delayed_work_sync(&dell_rfkill_work);
 	backlight_device_unregister(dell_backlight_device);
+	dell_cleanup_rfkill();
 	if (platform_device) {
 		platform_device_unregister(platform_device);
 		platform_driver_unregister(&platform_driver);
