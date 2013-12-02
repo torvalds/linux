@@ -263,7 +263,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	struct nve0_ramfuc *fuc = &ram->fuc;
 	struct nouveau_ram_data *next = ram->base.next;
 	int vc = !(next->bios.ramcfg_11_02_08);
-	int mv = 1; /*XXX: !(next->bios.ramcfg_11_02_04); */
+	int mv = !(next->bios.ramcfg_11_02_04);
 	u32 mask, data;
 
 	ram_mask(fuc, 0x10f808, 0x40000000, 0x40000000);
@@ -673,7 +673,7 @@ nve0_ram_calc_sddr3(struct nouveau_fb *pfb, u32 freq)
 	const u32 runk1 = ram->fN1;
 	struct nouveau_ram_data *next = ram->base.next;
 	int vc = !(next->bios.ramcfg_11_02_08);
-	int mv = 1; /*XXX: !(next->bios.ramcfg_11_02_04); */
+	int mv = !(next->bios.ramcfg_11_02_04);
 	u32 mask, data;
 
 	ram_mask(fuc, 0x10f808, 0x40000000, 0x40000000);
