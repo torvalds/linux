@@ -58,7 +58,8 @@ struct timechart {
 				first_time, last_time;
 	bool			power_only,
 				tasks_only,
-				with_backtrace;
+				with_backtrace,
+				topology;
 };
 
 struct per_pidcomm;
@@ -1077,6 +1078,18 @@ static int process_header(struct perf_file_section *section __maybe_unused,
 	case HEADER_NRCPUS:
 		tchart->numcpus = ph->env.nr_cpus_avail;
 		break;
+
+	case HEADER_CPU_TOPOLOGY:
+		if (!tchart->topology)
+			break;
+
+		if (svg_build_topology_map(ph->env.sibling_cores,
+					   ph->env.nr_sibling_cores,
+					   ph->env.sibling_threads,
+					   ph->env.nr_sibling_threads))
+			fprintf(stderr, "problem building topology\n");
+		break;
+
 	default:
 		break;
 	}
@@ -1267,6 +1280,8 @@ int cmd_timechart(int argc, const char **argv,
 		    "Look for files with symbols relative to this directory"),
 	OPT_INTEGER('n', "proc-num", &tchart.proc_num,
 		    "min. number of tasks to print"),
+	OPT_BOOLEAN('t', "topology", &tchart.topology,
+		    "sort CPUs according to topology"),
 	OPT_END()
 	};
 	const char * const timechart_usage[] = {

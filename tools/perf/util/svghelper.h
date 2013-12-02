@@ -23,6 +23,8 @@ extern void svg_partial_wakeline(u64 start, int row1, char *desc1, int row2, cha
 extern void svg_interrupt(u64 start, int row, const char *backtrace);
 extern void svg_text(int Yslot, u64 start, const char *text);
 extern void svg_close(void);
+extern int svg_build_topology_map(char *sib_core, int sib_core_nr,
+				  char *sib_thr, int sib_thr_nr);
 
 extern int svg_page_width;
 

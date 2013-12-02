@@ -59,6 +59,9 @@ $ perf timechart
 -n::
 --proc-num::
         Print task info for at least given number of tasks.
+-t::
+--topology::
+        Sort CPUs according to topology.
 
 RECORD OPTIONS
 --------------

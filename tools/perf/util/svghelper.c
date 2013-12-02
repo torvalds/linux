@@ -17,8 +17,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <linux/bitops.h>
 
+#include "perf.h"
 #include "svghelper.h"
+#include "cpumap.h"
 
 static u64 first_time, last_time;
 static u64 turbo_frequency, max_freq;
@@ -39,9 +42,14 @@ static double cpu2slot(int cpu)
 	return 2 * cpu + 1;
 }
 
+static int *topology_map;
+
 static double cpu2y(int cpu)
 {
-	return cpu2slot(cpu) * SLOT_MULT;
+	if (topology_map)
+		return cpu2slot(topology_map[cpu]) * SLOT_MULT;
+	else
+		return cpu2slot(cpu) * SLOT_MULT;
 }
 
 static double time2pixels(u64 __time)
@@ -275,7 +283,7 @@ void svg_cpu_box(int cpu, u64 __max_freq, u64 __turbo_freq)
 		time2pixels(last_time)-time2pixels(first_time),
 		cpu2y(cpu), SLOT_MULT+SLOT_HEIGHT);
 
-	sprintf(cpu_string, "CPU %i", (int)cpu+1);
+	sprintf(cpu_string, "CPU %i", (int)cpu);
 	fprintf(svgfile, "<text x=\"%4.8f\" y=\"%4.8f\">%s</text>\n",
 		10+time2pixels(first_time), cpu2y(cpu) + SLOT_HEIGHT/2, cpu_string);
 
@@ -567,4 +575,124 @@ void svg_close(void)
 		fclose(svgfile);
 		svgfile = NULL;
 	}
+}
+
+#define cpumask_bits(maskp) ((maskp)->bits)
+typedef struct { DECLARE_BITMAP(bits, MAX_NR_CPUS); } cpumask_t;
+
+struct topology {
+	cpumask_t *sib_core;
+	int sib_core_nr;
+	cpumask_t *sib_thr;
+	int sib_thr_nr;
+};
+
+static void scan_thread_topology(int *map, struct topology *t, int cpu, int *pos)
+{
+	int i;
+	int thr;
+
+	for (i = 0; i < t->sib_thr_nr; i++) {
+		if (!test_bit(cpu, cpumask_bits(&t->sib_thr[i])))
+			continue;
+
+		for_each_set_bit(thr,
+				 cpumask_bits(&t->sib_thr[i]),
+				 MAX_NR_CPUS)
+			if (map[thr] == -1)
+				map[thr] = (*pos)++;
+	}
+}
+
+static void scan_core_topology(int *map, struct topology *t)
+{
+	int pos = 0;
+	int i;
+	int cpu;
+
+	for (i = 0; i < t->sib_core_nr; i++)
+		for_each_set_bit(cpu,
+				 cpumask_bits(&t->sib_core[i]),
+				 MAX_NR_CPUS)
+			scan_thread_topology(map, t, cpu, &pos);
+}
+
+static int str_to_bitmap(char *s, cpumask_t *b)
+{
+	int i;
+	int ret = 0;
+	struct cpu_map *m;
+	int c;
+
+	m = cpu_map__new(s);
+	if (!m)
+		return -1;
+
+	for (i = 0; i < m->nr; i++) {
+		c = m->map[i];
+		if (c >= MAX_NR_CPUS) {
+			ret = -1;
+			break;
+		}
+
+		set_bit(c, cpumask_bits(b));
+	}
+
+	cpu_map__delete(m);
+
+	return ret;
+}
+
+int svg_build_topology_map(char *sib_core, int sib_core_nr,
+			   char *sib_thr, int sib_thr_nr)
+{
+	int i;
+	struct topology t;
+
+	t.sib_core_nr = sib_core_nr;
+	t.sib_thr_nr = sib_thr_nr;
+	t.sib_core = calloc(sib_core_nr, sizeof(cpumask_t));
+	t.sib_thr = calloc(sib_thr_nr, sizeof(cpumask_t));
+
+	if (!t.sib_core || !t.sib_thr) {
+		fprintf(stderr, "topology: no memory\n");
+		goto exit;
+	}
+
+	for (i = 0; i < sib_core_nr; i++) {
+		if (str_to_bitmap(sib_core, &t.sib_core[i])) {
+			fprintf(stderr, "topology: can't parse siblings map\n");
+			goto exit;
+		}
+
+		sib_core += strlen(sib_core) + 1;
+	}
+
+	for (i = 0; i < sib_thr_nr; i++) {
+		if (str_to_bitmap(sib_thr, &t.sib_thr[i])) {
+			fprintf(stderr, "topology: can't parse siblings map\n");
+			goto exit;
+		}
+
+		sib_thr += strlen(sib_thr) + 1;
+	}
+
+	topology_map = malloc(sizeof(int) * MAX_NR_CPUS);
+	if (!topology_map) {
+		fprintf(stderr, "topology: no memory\n");
+		goto exit;
+	}
+
+	for (i = 0; i < MAX_NR_CPUS; i++)
+		topology_map[i] = -1;
+
+	scan_core_topology(topology_map, &t);
+
+	return 0;
+
+exit:
+	free(t.sib_core);
+	free(t.sib_thr);
+
+	return -1;
 }
