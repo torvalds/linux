@@ -90,6 +90,10 @@
 #define TRACE_EVENT_FLAGS(name, value)					\
 	__TRACE_EVENT_FLAGS(name, value)
 
+#undef TRACE_EVENT_PERF_PERM
+#define TRACE_EVENT_PERF_PERM(name, expr...)				\
+	__TRACE_EVENT_PERF_PERM(name, expr)
+
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
 
@@ -139,6 +143,9 @@
 
 #undef TRACE_EVENT_FLAGS
 #define TRACE_EVENT_FLAGS(event, flag)
+
+#undef TRACE_EVENT_PERF_PERM
+#define TRACE_EVENT_PERF_PERM(event, expr...)
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
