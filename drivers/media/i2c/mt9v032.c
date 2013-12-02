@@ -27,8 +27,9 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
 
-#define MT9V032_PIXEL_ARRAY_HEIGHT			492
-#define MT9V032_PIXEL_ARRAY_WIDTH			782
+/* The first four rows are black rows. The active area spans 753x481 pixels. */
+#define MT9V032_PIXEL_ARRAY_HEIGHT			485
+#define MT9V032_PIXEL_ARRAY_WIDTH			753
 
 #define MT9V032_SYSCLK_FREQ_DEF				26600000
 
