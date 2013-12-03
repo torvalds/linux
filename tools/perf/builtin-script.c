@@ -1786,7 +1786,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			return -1;
 		}
 
-		err = scripting_ops->generate_script(session->pevent,
+		err = scripting_ops->generate_script(session->tevent.pevent,
 						     "perf-script");
 		goto out;
 	}
