@@ -49,13 +49,15 @@
 #include <asm/io.h>
 #include "cxgb4_uld.h"
 
-#define FW_VERSION_MAJOR 1
-#define FW_VERSION_MINOR 4
-#define FW_VERSION_MICRO 0
+#define T4FW_VERSION_MAJOR 0x01
+#define T4FW_VERSION_MINOR 0x06
+#define T4FW_VERSION_MICRO 0x18
+#define T4FW_VERSION_BUILD 0x00
 
-#define FW_VERSION_MAJOR_T5 0
-#define FW_VERSION_MINOR_T5 0
-#define FW_VERSION_MICRO_T5 0
+#define T5FW_VERSION_MAJOR 0x01
+#define T5FW_VERSION_MINOR 0x08
+#define T5FW_VERSION_MICRO 0x1C
+#define T5FW_VERSION_BUILD 0x00
 
 #define CH_WARN(adap, fmt, ...) dev_warn(adap->pdev_dev, fmt, ## __VA_ARGS__)
 
@@ -286,6 +288,23 @@ struct adapter_params {
 
 	unsigned int ofldq_wr_cred;
 };
+
+#include "t4fw_api.h"
+
+#define FW_VERSION(chip) ( \
+		FW_HDR_FW_VER_MAJOR_GET(chip##FW_VERSION_MAJOR) | \
+		FW_HDR_FW_VER_MINOR_GET(chip##FW_VERSION_MINOR) | \
+		FW_HDR_FW_VER_MICRO_GET(chip##FW_VERSION_MICRO) | \
+		FW_HDR_FW_VER_BUILD_GET(chip##FW_VERSION_BUILD))
+#define FW_INTFVER(chip, intf) (FW_HDR_INTFVER_##intf)
+
+struct fw_info {
+	u8 chip;
+	char *fs_name;
+	char *fw_mod_name;
+	struct fw_hdr fw_hdr;
+};
+
 
 struct trace_params {
 	u32 data[TRACE_LEN / 4];
@@ -901,7 +920,11 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
 unsigned int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_load_cfg(struct adapter *adapter, const u8 *cfg_data, unsigned int size);
-int t4_check_fw_version(struct adapter *adapter);
+int t4_get_fw_version(struct adapter *adapter, u32 *vers);
+int t4_get_tp_version(struct adapter *adapter, u32 *vers);
+int t4_prep_fw(struct adapter *adap, struct fw_info *fw_info,
+	       const u8 *fw_data, unsigned int fw_size,
+	       struct fw_hdr *card_fw, enum dev_state state, int *reset);
 int t4_prep_adapter(struct adapter *adapter);
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf);
 void t4_fatal_err(struct adapter *adapter);

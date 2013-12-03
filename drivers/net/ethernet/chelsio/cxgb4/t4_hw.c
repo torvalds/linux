@@ -863,102 +863,167 @@ unlock:
 }
 
 /**
- *	get_fw_version - read the firmware version
+ *	t4_get_fw_version - read the firmware version
  *	@adapter: the adapter
  *	@vers: where to place the version
  *
  *	Reads the FW version from flash.
  */
-static int get_fw_version(struct adapter *adapter, u32 *vers)
+int t4_get_fw_version(struct adapter *adapter, u32 *vers)
 {
-	return t4_read_flash(adapter, adapter->params.sf_fw_start +
-			     offsetof(struct fw_hdr, fw_ver), 1, vers, 0);
+	return t4_read_flash(adapter, FLASH_FW_START +
+			     offsetof(struct fw_hdr, fw_ver), 1,
+			     vers, 0);
 }
 
 /**
- *	get_tp_version - read the TP microcode version
+ *	t4_get_tp_version - read the TP microcode version
  *	@adapter: the adapter
  *	@vers: where to place the version
  *
  *	Reads the TP microcode version from flash.
  */
-static int get_tp_version(struct adapter *adapter, u32 *vers)
+int t4_get_tp_version(struct adapter *adapter, u32 *vers)
 {
-	return t4_read_flash(adapter, adapter->params.sf_fw_start +
+	return t4_read_flash(adapter, FLASH_FW_START +
 			     offsetof(struct fw_hdr, tp_microcode_ver),
 			     1, vers, 0);
 }
 
-/**
- *	t4_check_fw_version - check if the FW is compatible with this driver
- *	@adapter: the adapter
- *
- *	Checks if an adapter's FW is compatible with the driver.  Returns 0
- *	if there's exact match, a negative error if the version could not be
- *	read or there's a major version mismatch, and a positive value if the
- *	expected major version is found but there's a minor version mismatch.
+/* Is the given firmware API compatible with the one the driver was compiled
+ * with?
  */
-int t4_check_fw_version(struct adapter *adapter)
+static int fw_compatible(const struct fw_hdr *hdr1, const struct fw_hdr *hdr2)
 {
-	u32 api_vers[2];
-	int ret, major, minor, micro;
-	int exp_major, exp_minor, exp_micro;
 
-	ret = get_fw_version(adapter, &adapter->params.fw_vers);
-	if (!ret)
-		ret = get_tp_version(adapter, &adapter->params.tp_vers);
-	if (!ret)
-		ret = t4_read_flash(adapter, adapter->params.sf_fw_start +
-				    offsetof(struct fw_hdr, intfver_nic),
-				    2, api_vers, 1);
-	if (ret)
-		return ret;
+	/* short circuit if it's the exact same firmware version */
+	if (hdr1->chip == hdr2->chip && hdr1->fw_ver == hdr2->fw_ver)
+		return 1;
 
-	major = FW_HDR_FW_VER_MAJOR_GET(adapter->params.fw_vers);
-	minor = FW_HDR_FW_VER_MINOR_GET(adapter->params.fw_vers);
-	micro = FW_HDR_FW_VER_MICRO_GET(adapter->params.fw_vers);
+#define SAME_INTF(x) (hdr1->intfver_##x == hdr2->intfver_##x)
+	if (hdr1->chip == hdr2->chip && SAME_INTF(nic) && SAME_INTF(vnic) &&
+	    SAME_INTF(ri) && SAME_INTF(iscsi) && SAME_INTF(fcoe))
+		return 1;
+#undef SAME_INTF
 
-	switch (CHELSIO_CHIP_VERSION(adapter->params.chip)) {
-	case CHELSIO_T4:
-		exp_major = FW_VERSION_MAJOR;
-		exp_minor = FW_VERSION_MINOR;
-		exp_micro = FW_VERSION_MICRO;
-		break;
-	case CHELSIO_T5:
-		exp_major = FW_VERSION_MAJOR_T5;
-		exp_minor = FW_VERSION_MINOR_T5;
-		exp_micro = FW_VERSION_MICRO_T5;
-		break;
-	default:
-		dev_err(adapter->pdev_dev, "Unsupported chip type, %x\n",
-			adapter->params.chip);
-		return -EINVAL;
+	return 0;
+}
+
+/* The firmware in the filesystem is usable, but should it be installed?
+ * This routine explains itself in detail if it indicates the filesystem
+ * firmware should be installed.
+ */
+static int should_install_fs_fw(struct adapter *adap, int card_fw_usable,
+				int k, int c)
+{
+	const char *reason;
+
+	if (!card_fw_usable) {
+		reason = "incompatible or unusable";
+		goto install;
 	}
 
-	memcpy(adapter->params.api_vers, api_vers,
-	       sizeof(adapter->params.api_vers));
-
-	if (major < exp_major || (major == exp_major && minor < exp_minor) ||
-	    (major == exp_major && minor == exp_minor && micro < exp_micro)) {
-		dev_err(adapter->pdev_dev,
-			"Card has firmware version %u.%u.%u, minimum "
-			"supported firmware is %u.%u.%u.\n", major, minor,
-			micro, exp_major, exp_minor, exp_micro);
-		return -EFAULT;
+	if (k > c) {
+		reason = "older than the version supported with this driver";
+		goto install;
 	}
 
-	if (major != exp_major) {            /* major mismatch - fail */
-		dev_err(adapter->pdev_dev,
-			"card FW has major version %u, driver wants %u\n",
-			major, exp_major);
-		return -EINVAL;
-	}
+	return 0;
 
-	if (minor == exp_minor && micro == exp_micro)
-		return 0;                                   /* perfect match */
+install:
+	dev_err(adap->pdev_dev, "firmware on card (%u.%u.%u.%u) is %s, "
+		"installing firmware %u.%u.%u.%u on card.\n",
+		FW_HDR_FW_VER_MAJOR_GET(c), FW_HDR_FW_VER_MINOR_GET(c),
+		FW_HDR_FW_VER_MICRO_GET(c), FW_HDR_FW_VER_BUILD_GET(c), reason,
+		FW_HDR_FW_VER_MAJOR_GET(k), FW_HDR_FW_VER_MINOR_GET(k),
+		FW_HDR_FW_VER_MICRO_GET(k), FW_HDR_FW_VER_BUILD_GET(k));
 
-	/* Minor/micro version mismatch.  Report it but often it's OK. */
 	return 1;
+}
+
+int t4_prep_fw(struct adapter *adap, struct fw_info *fw_info,
+	       const u8 *fw_data, unsigned int fw_size,
+	       struct fw_hdr *card_fw, enum dev_state state,
+	       int *reset)
+{
+	int ret, card_fw_usable, fs_fw_usable;
+	const struct fw_hdr *fs_fw;
+	const struct fw_hdr *drv_fw;
+
+	drv_fw = &fw_info->fw_hdr;
+
+	/* Read the header of the firmware on the card */
+	ret = -t4_read_flash(adap, FLASH_FW_START,
+			    sizeof(*card_fw) / sizeof(uint32_t),
+			    (uint32_t *)card_fw, 1);
+	if (ret == 0) {
+		card_fw_usable = fw_compatible(drv_fw, (const void *)card_fw);
+	} else {
+		dev_err(adap->pdev_dev,
+			"Unable to read card's firmware header: %d\n", ret);
+		card_fw_usable = 0;
+	}
+
+	if (fw_data != NULL) {
+		fs_fw = (const void *)fw_data;
+		fs_fw_usable = fw_compatible(drv_fw, fs_fw);
+	} else {
+		fs_fw = NULL;
+		fs_fw_usable = 0;
+	}
+
+	if (card_fw_usable && card_fw->fw_ver == drv_fw->fw_ver &&
+	    (!fs_fw_usable || fs_fw->fw_ver == drv_fw->fw_ver)) {
+		/* Common case: the firmware on the card is an exact match and
+		 * the filesystem one is an exact match too, or the filesystem
+		 * one is absent/incompatible.
+		 */
+	} else if (fs_fw_usable && state == DEV_STATE_UNINIT &&
+		   should_install_fs_fw(adap, card_fw_usable,
+					be32_to_cpu(fs_fw->fw_ver),
+					be32_to_cpu(card_fw->fw_ver))) {
+		ret = -t4_fw_upgrade(adap, adap->mbox, fw_data,
+				     fw_size, 0);
+		if (ret != 0) {
+			dev_err(adap->pdev_dev,
+				"failed to install firmware: %d\n", ret);
+			goto bye;
+		}
+
+		/* Installed successfully, update the cached header too. */
+		memcpy(card_fw, fs_fw, sizeof(*card_fw));
+		card_fw_usable = 1;
+		*reset = 0;	/* already reset as part of load_fw */
+	}
+
+	if (!card_fw_usable) {
+		uint32_t d, c, k;
+
+		d = be32_to_cpu(drv_fw->fw_ver);
+		c = be32_to_cpu(card_fw->fw_ver);
+		k = fs_fw ? be32_to_cpu(fs_fw->fw_ver) : 0;
+
+		dev_err(adap->pdev_dev, "Cannot find a usable firmware: "
+			"chip state %d, "
+			"driver compiled with %d.%d.%d.%d, "
+			"card has %d.%d.%d.%d, filesystem has %d.%d.%d.%d\n",
+			state,
+			FW_HDR_FW_VER_MAJOR_GET(d), FW_HDR_FW_VER_MINOR_GET(d),
+			FW_HDR_FW_VER_MICRO_GET(d), FW_HDR_FW_VER_BUILD_GET(d),
+			FW_HDR_FW_VER_MAJOR_GET(c), FW_HDR_FW_VER_MINOR_GET(c),
+			FW_HDR_FW_VER_MICRO_GET(c), FW_HDR_FW_VER_BUILD_GET(c),
+			FW_HDR_FW_VER_MAJOR_GET(k), FW_HDR_FW_VER_MINOR_GET(k),
+			FW_HDR_FW_VER_MICRO_GET(k), FW_HDR_FW_VER_BUILD_GET(k));
+		ret = EINVAL;
+		goto bye;
+	}
+
+	/* We're using whatever's on the card and it's known to be good. */
+	adap->params.fw_vers = be32_to_cpu(card_fw->fw_ver);
+	adap->params.tp_vers = be32_to_cpu(card_fw->tp_microcode_ver);
+
+bye:
+	return ret;
 }
 
 /**
