@@ -925,7 +925,16 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 		BUG();
 	}
 
-	if (!HAS_DDI(dev))
+	/*
+	 * The AUX_CTL register is usually DP_CTL + 0x10.
+	 *
+	 * On Haswell and Broadwell though:
+	 *   - Both port A DDI_BUF_CTL and DDI_AUX_CTL are on the CPU
+	 *   - Port B/C/D AUX channels are on the PCH, DDI_BUF_CTL on the CPU
+	 *
+	 * Skylake moves AUX_CTL back next to DDI_BUF_CTL, on the CPU.
+	 */
+	if (!IS_HASWELL(dev) && !IS_BROADWELL(dev))
 		intel_dp->aux_ch_ctl_reg = intel_dp->output_reg + 0x10;
 
 	intel_dp->aux.name = name;
