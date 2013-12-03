@@ -432,91 +432,36 @@ static const struct snd_soc_component_driver jz4740_i2s_component = {
 static int jz4740_i2s_dev_probe(struct platform_device *pdev)
 {
 	struct jz4740_i2s *i2s;
+	struct resource *mem;
 	int ret;
 
-	i2s = kzalloc(sizeof(*i2s), GFP_KERNEL);
-
+	i2s = devm_kzalloc(&pdev->dev, sizeof(*i2s), GFP_KERNEL);
 	if (!i2s)
 		return -ENOMEM;
 
-	i2s->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!i2s->mem) {
-		ret = -ENOENT;
-		goto err_free;
-	}
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	i2s->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(i2s->base))
+		return PTR_ERR(i2s->base);
 
-	i2s->mem = request_mem_region(i2s->mem->start, resource_size(i2s->mem),
-				pdev->name);
-	if (!i2s->mem) {
-		ret = -EBUSY;
-		goto err_free;
-	}
+	i2s->phys_base = mem->start;
 
-	i2s->base = ioremap_nocache(i2s->mem->start, resource_size(i2s->mem));
-	if (!i2s->base) {
-		ret = -EBUSY;
-		goto err_release_mem_region;
-	}
+	i2s->clk_aic = devm_clk_get(&pdev->dev, "aic");
+	if (IS_ERR(i2s->clk_aic))
+		return PTR_ERR(i2s->clk_aic);
 
-	i2s->phys_base = i2s->mem->start;
-
-	i2s->clk_aic = clk_get(&pdev->dev, "aic");
-	if (IS_ERR(i2s->clk_aic)) {
-		ret = PTR_ERR(i2s->clk_aic);
-		goto err_iounmap;
-	}
-
-	i2s->clk_i2s = clk_get(&pdev->dev, "i2s");
-	if (IS_ERR(i2s->clk_i2s)) {
-		ret = PTR_ERR(i2s->clk_i2s);
-		goto err_clk_put_aic;
-	}
+	i2s->clk_i2s = devm_clk_get(&pdev->dev, "i2s");
+	if (IS_ERR(i2s->clk_i2s))
+		return PTR_ERR(i2s->clk_i2s);
 
 	platform_set_drvdata(pdev, i2s);
-	ret = snd_soc_register_component(&pdev->dev, &jz4740_i2s_component,
-					 &jz4740_i2s_dai, 1);
 
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to register DAI\n");
-		goto err_clk_put_i2s;
-	}
-
-	return 0;
-
-err_clk_put_i2s:
-	clk_put(i2s->clk_i2s);
-err_clk_put_aic:
-	clk_put(i2s->clk_aic);
-err_iounmap:
-	iounmap(i2s->base);
-err_release_mem_region:
-	release_mem_region(i2s->mem->start, resource_size(i2s->mem));
-err_free:
-	kfree(i2s);
-
-	return ret;
-}
-
-static int jz4740_i2s_dev_remove(struct platform_device *pdev)
-{
-	struct jz4740_i2s *i2s = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_component(&pdev->dev);
-
-	clk_put(i2s->clk_i2s);
-	clk_put(i2s->clk_aic);
-
-	iounmap(i2s->base);
-	release_mem_region(i2s->mem->start, resource_size(i2s->mem));
-
-	kfree(i2s);
-
-	return 0;
+	return devm_snd_soc_register_component(&pdev->dev,
+		&jz4740_i2s_component, &jz4740_i2s_dai, 1);
 }
 
 static struct platform_driver jz4740_i2s_driver = {
 	.probe = jz4740_i2s_dev_probe,
-	.remove = jz4740_i2s_dev_remove,
 	.driver = {
 		.name = "jz4740-i2s",
 		.owner = THIS_MODULE,
