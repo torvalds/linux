@@ -1149,49 +1149,72 @@ static int xenvif_set_skb_gso(struct xenvif *vif,
 	return 0;
 }
 
-static inline void maybe_pull_tail(struct sk_buff *skb, unsigned int len)
+static inline int maybe_pull_tail(struct sk_buff *skb, unsigned int len,
+				  unsigned int max)
 {
-	if (skb_is_nonlinear(skb) && skb_headlen(skb) < len) {
-		/* If we need to pullup then pullup to the max, so we
-		 * won't need to do it again.
-		 */
-		int target = min_t(int, skb->len, MAX_TCP_HEADER);
-		__pskb_pull_tail(skb, target - skb_headlen(skb));
-	}
+	if (skb_headlen(skb) >= len)
+		return 0;
+
+	/* If we need to pullup then pullup to the max, so we
+	 * won't need to do it again.
+	 */
+	if (max > skb->len)
+		max = skb->len;
+
+	if (__pskb_pull_tail(skb, max - skb_headlen(skb)) == NULL)
+		return -ENOMEM;
+
+	if (skb_headlen(skb) < len)
+		return -EPROTO;
+
+	return 0;
 }
+
+/* This value should be large enough to cover a tagged ethernet header plus
+ * maximally sized IP and TCP or UDP headers.
+ */
+#define MAX_IP_HDR_LEN 128
 
 static int checksum_setup_ip(struct xenvif *vif, struct sk_buff *skb,
 			     int recalculate_partial_csum)
 {
-	struct iphdr *iph = (void *)skb->data;
-	unsigned int header_size;
 	unsigned int off;
-	int err = -EPROTO;
+	bool fragment;
+	int err;
 
-	off = sizeof(struct iphdr);
+	fragment = false;
 
-	header_size = skb->network_header + off + MAX_IPOPTLEN;
-	maybe_pull_tail(skb, header_size);
+	err = maybe_pull_tail(skb,
+			      sizeof(struct iphdr),
+			      MAX_IP_HDR_LEN);
+	if (err < 0)
+		goto out;
 
-	off = iph->ihl * 4;
+	if (ip_hdr(skb)->frag_off & htons(IP_OFFSET | IP_MF))
+		fragment = true;
 
-	switch (iph->protocol) {
+	off = ip_hdrlen(skb);
+
+	err = -EPROTO;
+
+	switch (ip_hdr(skb)->protocol) {
 	case IPPROTO_TCP:
 		if (!skb_partial_csum_set(skb, off,
 					  offsetof(struct tcphdr, check)))
 			goto out;
 
 		if (recalculate_partial_csum) {
-			struct tcphdr *tcph = tcp_hdr(skb);
+			err = maybe_pull_tail(skb,
+					      off + sizeof(struct tcphdr),
+					      MAX_IP_HDR_LEN);
+			if (err < 0)
+				goto out;
 
-			header_size = skb->network_header +
-				off +
-				sizeof(struct tcphdr);
-			maybe_pull_tail(skb, header_size);
-
-			tcph->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr,
-							 skb->len - off,
-							 IPPROTO_TCP, 0);
+			tcp_hdr(skb)->check =
+				~csum_tcpudp_magic(ip_hdr(skb)->saddr,
+						   ip_hdr(skb)->daddr,
+						   skb->len - off,
+						   IPPROTO_TCP, 0);
 		}
 		break;
 	case IPPROTO_UDP:
@@ -1200,24 +1223,20 @@ static int checksum_setup_ip(struct xenvif *vif, struct sk_buff *skb,
 			goto out;
 
 		if (recalculate_partial_csum) {
-			struct udphdr *udph = udp_hdr(skb);
+			err = maybe_pull_tail(skb,
+					      off + sizeof(struct udphdr),
+					      MAX_IP_HDR_LEN);
+			if (err < 0)
+				goto out;
 
-			header_size = skb->network_header +
-				off +
-				sizeof(struct udphdr);
-			maybe_pull_tail(skb, header_size);
-
-			udph->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr,
-							 skb->len - off,
-							 IPPROTO_UDP, 0);
+			udp_hdr(skb)->check =
+				~csum_tcpudp_magic(ip_hdr(skb)->saddr,
+						   ip_hdr(skb)->daddr,
+						   skb->len - off,
+						   IPPROTO_UDP, 0);
 		}
 		break;
 	default:
-		if (net_ratelimit())
-			netdev_err(vif->dev,
-				   "Attempting to checksum a non-TCP/UDP packet, "
-				   "dropping a protocol %d packet\n",
-				   iph->protocol);
 		goto out;
 	}
 
@@ -1227,75 +1246,99 @@ out:
 	return err;
 }
 
+/* This value should be large enough to cover a tagged ethernet header plus
+ * an IPv6 header, all options, and a maximal TCP or UDP header.
+ */
+#define MAX_IPV6_HDR_LEN 256
+
+#define OPT_HDR(type, skb, off) \
+	(type *)(skb_network_header(skb) + (off))
+
 static int checksum_setup_ipv6(struct xenvif *vif, struct sk_buff *skb,
 			       int recalculate_partial_csum)
 {
-	int err = -EPROTO;
-	struct ipv6hdr *ipv6h = (void *)skb->data;
+	int err;
 	u8 nexthdr;
-	unsigned int header_size;
 	unsigned int off;
+	unsigned int len;
 	bool fragment;
 	bool done;
 
+	fragment = false;
 	done = false;
 
 	off = sizeof(struct ipv6hdr);
 
-	header_size = skb->network_header + off;
-	maybe_pull_tail(skb, header_size);
+	err = maybe_pull_tail(skb, off, MAX_IPV6_HDR_LEN);
+	if (err < 0)
+		goto out;
 
-	nexthdr = ipv6h->nexthdr;
+	nexthdr = ipv6_hdr(skb)->nexthdr;
 
-	while ((off <= sizeof(struct ipv6hdr) + ntohs(ipv6h->payload_len)) &&
-	       !done) {
+	len = sizeof(struct ipv6hdr) + ntohs(ipv6_hdr(skb)->payload_len);
+	while (off <= len && !done) {
 		switch (nexthdr) {
 		case IPPROTO_DSTOPTS:
 		case IPPROTO_HOPOPTS:
 		case IPPROTO_ROUTING: {
-			struct ipv6_opt_hdr *hp = (void *)(skb->data + off);
+			struct ipv6_opt_hdr *hp;
 
-			header_size = skb->network_header +
-				off +
-				sizeof(struct ipv6_opt_hdr);
-			maybe_pull_tail(skb, header_size);
+			err = maybe_pull_tail(skb,
+					      off +
+					      sizeof(struct ipv6_opt_hdr),
+					      MAX_IPV6_HDR_LEN);
+			if (err < 0)
+				goto out;
 
+			hp = OPT_HDR(struct ipv6_opt_hdr, skb, off);
 			nexthdr = hp->nexthdr;
 			off += ipv6_optlen(hp);
 			break;
 		}
 		case IPPROTO_AH: {
-			struct ip_auth_hdr *hp = (void *)(skb->data + off);
+			struct ip_auth_hdr *hp;
 
-			header_size = skb->network_header +
-				off +
-				sizeof(struct ip_auth_hdr);
-			maybe_pull_tail(skb, header_size);
+			err = maybe_pull_tail(skb,
+					      off +
+					      sizeof(struct ip_auth_hdr),
+					      MAX_IPV6_HDR_LEN);
+			if (err < 0)
+				goto out;
 
+			hp = OPT_HDR(struct ip_auth_hdr, skb, off);
 			nexthdr = hp->nexthdr;
-			off += (hp->hdrlen+2)<<2;
+			off += ipv6_authlen(hp);
 			break;
 		}
-		case IPPROTO_FRAGMENT:
-			fragment = true;
-			/* fall through */
+		case IPPROTO_FRAGMENT: {
+			struct frag_hdr *hp;
+
+			err = maybe_pull_tail(skb,
+					      off +
+					      sizeof(struct frag_hdr),
+					      MAX_IPV6_HDR_LEN);
+			if (err < 0)
+				goto out;
+
+			hp = OPT_HDR(struct frag_hdr, skb, off);
+
+			if (hp->frag_off & htons(IP6_OFFSET | IP6_MF))
+				fragment = true;
+
+			nexthdr = hp->nexthdr;
+			off += sizeof(struct frag_hdr);
+			break;
+		}
 		default:
 			done = true;
 			break;
 		}
 	}
 
-	if (!done) {
-		if (net_ratelimit())
-			netdev_err(vif->dev, "Failed to parse packet header\n");
-		goto out;
-	}
+	err = -EPROTO;
 
-	if (fragment) {
-		if (net_ratelimit())
-			netdev_err(vif->dev, "Packet is a fragment!\n");
+	if (!done || fragment)
 		goto out;
-	}
 
 	switch (nexthdr) {
 	case IPPROTO_TCP:
@@ -1304,17 +1347,17 @@ static int checksum_setup_ipv6(struct xenvif *vif, struct sk_buff *skb,
 			goto out;
 
 		if (recalculate_partial_csum) {
-			struct tcphdr *tcph = tcp_hdr(skb);
+			err = maybe_pull_tail(skb,
+					      off + sizeof(struct tcphdr),
+					      MAX_IPV6_HDR_LEN);
+			if (err < 0)
+				goto out;
 
-			header_size = skb->network_header +
-				off +
-				sizeof(struct tcphdr);
-			maybe_pull_tail(skb, header_size);
-
-			tcph->check = ~csum_ipv6_magic(&ipv6h->saddr,
-						       &ipv6h->daddr,
-						       skb->len - off,
-						       IPPROTO_TCP, 0);
+			tcp_hdr(skb)->check =
+				~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
+						 &ipv6_hdr(skb)->daddr,
+						 skb->len - off,
+						 IPPROTO_TCP, 0);
 		}
 		break;
 	case IPPROTO_UDP:
@@ -1323,25 +1366,20 @@ static int checksum_setup_ipv6(struct xenvif *vif, struct sk_buff *skb,
 			goto out;
 
 		if (recalculate_partial_csum) {
-			struct udphdr *udph = udp_hdr(skb);
+			err = maybe_pull_tail(skb,
+					      off + sizeof(struct udphdr),
+					      MAX_IPV6_HDR_LEN);
+			if (err < 0)
+				goto out;
 
-			header_size = skb->network_header +
-				off +
-				sizeof(struct udphdr);
-			maybe_pull_tail(skb, header_size);
-
-			udph->check = ~csum_ipv6_magic(&ipv6h->saddr,
-						       &ipv6h->daddr,
-						       skb->len - off,
-						       IPPROTO_UDP, 0);
+			udp_hdr(skb)->check =
+				~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
+						 &ipv6_hdr(skb)->daddr,
+						 skb->len - off,
+						 IPPROTO_UDP, 0);
 		}
 		break;
 	default:
-		if (net_ratelimit())
-			netdev_err(vif->dev,
-				   "Attempting to checksum a non-TCP/UDP packet, "
-				   "dropping a protocol %d packet\n",
-				   nexthdr);
 		goto out;
 	}
 
