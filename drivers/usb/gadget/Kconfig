@@ -896,6 +896,7 @@ config USB_FUNCTIONFS_ETH
 	depends on USB_FUNCTIONFS && NET
 	select USB_U_ETHER
 	select USB_F_ECM
+	select USB_F_SUBSET
 	help
 	  Include a configuration with CDC ECM function (Ethernet) and the
 	  Function Filesystem.

@@ -21,6 +21,8 @@
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
 #if defined CONFIG_USB_FUNCTIONFS_ETH || defined CONFIG_USB_FUNCTIONFS_RNDIS
+#include <linux/netdevice.h>
+
 #  if defined USB_ETH_RNDIS
 #    undef USB_ETH_RNDIS
 #  endif
@@ -29,8 +31,7 @@
 #  endif
 
 #  include "u_ecm.h"
-#define USB_FSUBSET_INCLUDED
-#  include "f_subset.c"
+#  include "u_gether.h"
 #  ifdef USB_ETH_RNDIS
 #    define USB_FRNDIS_INCLUDED
 #    include "f_rndis.c"
@@ -47,6 +48,8 @@ static int eth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
 		struct eth_dev *dev);
 static struct usb_function_instance *fi_ecm;
 static struct usb_function *f_ecm;
+static struct usb_function_instance *fi_geth;
+static struct usb_function *f_geth;
 #  endif
 #else
 #  define the_dev	NULL
@@ -348,6 +351,9 @@ static void functionfs_release_dev_callback(struct ffs_data *ffs_data)
  */
 static int gfs_bind(struct usb_composite_dev *cdev)
 {
+#if defined CONFIG_USB_FUNCTIONFS_ETH
+	struct net_device *net;
+#endif
 	int ret, i;
 
 	ENTER();
@@ -362,19 +368,25 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 		if (IS_ERR(fi_ecm))
 			return PTR_ERR(fi_ecm);
 		ecm_opts = container_of(fi_ecm, struct f_ecm_opts, func_inst);
-
-		gether_set_qmult(ecm_opts->net, qmult);
-
-		if (!gether_set_host_addr(ecm_opts->net, host_addr))
-			pr_info("using host ethernet address: %s", host_addr);
-		if (!gether_set_dev_addr(ecm_opts->net, dev_addr))
-			pr_info("using self ethernet address: %s", dev_addr);
-
-		the_dev = netdev_priv(ecm_opts->net);
+		net = ecm_opts->net;
 	} else {
-		the_dev = gether_setup(cdev->gadget, dev_addr, host_addr,
-				       gfs_host_mac, qmult);
+		struct f_gether_opts *geth_opts;
+
+		fi_geth = usb_get_function_instance("geth");
+		if (IS_ERR(fi_geth))
+			return PTR_ERR(fi_geth);
+		geth_opts = container_of(fi_geth, struct f_gether_opts,
+					 func_inst);
+		net = geth_opts->net;
 	}
+	gether_set_qmult(net, qmult);
+
+	if (!gether_set_host_addr(net, host_addr))
+		pr_info("using host ethernet address: %s", host_addr);
+	if (!gether_set_dev_addr(net, dev_addr))
+		pr_info("using self ethernet address: %s", dev_addr);
+
+	the_dev = netdev_priv(net);
 
 #elif defined CONFIG_USB_FUNCTIONFS_RNDIS
 
@@ -385,18 +397,24 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 		return PTR_ERR(the_dev);
 
 #if defined CONFIG_USB_FUNCTIONFS_RNDIS && defined CONFIG_USB_FUNCTIONFS_ETH
+	gether_set_gadget(net, cdev->gadget);
+	ret = gether_register_netdev(net);
+	if (ret)
+		goto error;
+
 	if (can_support_ecm(cdev->gadget)) {
 		struct f_ecm_opts *ecm_opts;
 
 		ecm_opts = container_of(fi_ecm, struct f_ecm_opts, func_inst);
-
-		gether_set_gadget(ecm_opts->net, cdev->gadget);
-		ret = gether_register_netdev(ecm_opts->net);
-		if (ret)
-			goto error;
 		ecm_opts->bound = true;
-		gether_get_host_addr_u8(ecm_opts->net, gfs_host_mac);
+	} else {
+		struct f_gether_opts *geth_opts;
+
+		geth_opts = container_of(fi_geth, struct f_gether_opts,
+					 func_inst);
+		geth_opts->bound = true;
 	}
+	gether_get_host_addr_u8(net, gfs_host_mac);
 #endif
 
 	ret = usb_string_ids_tab(cdev, gfs_strings);
@@ -437,7 +455,7 @@ error:
 	if (can_support_ecm(cdev->gadget))
 		usb_put_function_instance(fi_ecm);
 	else
-		gether_cleanup(the_dev);
+		usb_put_function_instance(fi_geth);
 	the_dev = NULL;
 #elif defined CONFIG_USB_FUNCTIONFS_RNDIS
 	gether_cleanup(the_dev);
@@ -461,7 +479,8 @@ static int gfs_unbind(struct usb_composite_dev *cdev)
 		usb_put_function(f_ecm);
 		usb_put_function_instance(fi_ecm);
 	} else {
-		gether_cleanup(the_dev);
+		usb_put_function(f_geth);
+		usb_put_function_instance(fi_geth);
 	}
 	the_dev = NULL;
 #elif defined CONFIG_USB_FUNCTIONFS_RNDIS
@@ -548,7 +567,13 @@ static int eth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
 			usb_put_function(f_ecm);
 
 	} else {
-		status = geth_bind_config(c, ethaddr, dev);
+		f_geth = usb_get_function(fi_geth);
+		if (IS_ERR(f_geth))
+			return PTR_ERR(f_geth);
+
+		status = usb_add_function(c, f_geth);
+		if (status < 0)
+			usb_put_function(f_geth);
 	}
 	return status;
 }
