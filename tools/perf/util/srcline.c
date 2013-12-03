@@ -146,18 +146,24 @@ static void addr2line_cleanup(struct a2l_data *a2l)
 }
 
 static int addr2line(const char *dso_name, unsigned long addr,
-		     char **file, unsigned int *line)
+		     char **file, unsigned int *line, struct dso *dso)
 {
 	int ret = 0;
-	struct a2l_data *a2l;
+	struct a2l_data *a2l = dso->a2l;
 
-	a2l = addr2line_init(dso_name);
+	if (!a2l) {
+		dso->a2l = addr2line_init(dso_name);
+		a2l = dso->a2l;
+	}
+
 	if (a2l == NULL) {
 		pr_warning("addr2line_init failed for %s\n", dso_name);
 		return 0;
 	}
 
 	a2l->addr = addr;
+	a2l->found = false;
+
 	bfd_map_over_sections(a2l->abfd, find_address_in_section, a2l);
 
 	if (a2l->found && a2l->filename) {
@@ -168,14 +174,26 @@ static int addr2line(const char *dso_name, unsigned long addr,
 			ret = 1;
 	}
 
-	addr2line_cleanup(a2l);
 	return ret;
+}
+
+void dso__free_a2l(struct dso *dso)
+{
+	struct a2l_data *a2l = dso->a2l;
+
+	if (!a2l)
+		return;
+
+	addr2line_cleanup(a2l);
+
+	dso->a2l = NULL;
 }
 
 #else /* HAVE_LIBBFD_SUPPORT */
 
 static int addr2line(const char *dso_name, unsigned long addr,
-		     char **file, unsigned int *line_nr)
+		     char **file, unsigned int *line_nr,
+		     struct dso *dso __maybe_unused)
 {
 	FILE *fp;
 	char cmd[PATH_MAX];
@@ -219,6 +237,11 @@ out:
 	pclose(fp);
 	return ret;
 }
+
+void dso__free_a2l(struct dso *dso __maybe_unused)
+{
+}
+
 #endif /* HAVE_LIBBFD_SUPPORT */
 
 char *get_srcline(struct dso *dso, unsigned long addr)
@@ -237,7 +260,7 @@ char *get_srcline(struct dso *dso, unsigned long addr)
 	if (!strncmp(dso_name, "/tmp/perf-", 10))
 		goto out;
 
-	if (!addr2line(dso_name, addr, &file, &line))
+	if (!addr2line(dso_name, addr, &file, &line, dso))
 		goto out;
 
 	if (asprintf(&srcline, "%s:%u", file, line) < 0)
@@ -248,6 +271,7 @@ char *get_srcline(struct dso *dso, unsigned long addr)
 
 out:
 	dso->has_srcline = 0;
+	dso__free_a2l(dso);
 	return SRCLINE_UNKNOWN;
 }
 

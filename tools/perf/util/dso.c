@@ -469,6 +469,7 @@ void dso__delete(struct dso *dso)
 	if (dso->lname_alloc)
 		free(dso->long_name);
 	dso_cache__free(&dso->cache);
+	dso__free_a2l(dso);
 	free(dso);
 }
 
