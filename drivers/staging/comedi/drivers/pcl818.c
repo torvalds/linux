@@ -290,7 +290,6 @@ struct pcl818_private {
 	unsigned int ai_data_len;	/*  len of data buffer */
 	unsigned int ai_timer1;	/*  timers */
 	unsigned int ai_timer2;
-	struct comedi_subdevice *sub_ai;	/*  ptr to AI subdevice */
 	unsigned char usefifo;	/*  1=use fifo */
 	unsigned int ao_readback[2];
 };
@@ -1269,7 +1268,6 @@ no_dma:
 		s->type = COMEDI_SUBD_UNUSED;
 	} else {
 		s->type = COMEDI_SUBD_AI;
-		devpriv->sub_ai = s;
 		s->subdev_flags = SDF_READABLE;
 		if (check_single_ended(dev->iobase)) {
 			s->n_chan = board->n_aichan_se;
@@ -1403,7 +1401,7 @@ static void pcl818_detach(struct comedi_device *dev)
 	struct pcl818_private *devpriv = dev->private;
 
 	if (devpriv) {
-		pcl818_ai_cancel(dev, devpriv->sub_ai);
+		pcl818_ai_cancel(dev, dev->read_subdev);
 		pcl818_reset(dev);
 		if (devpriv->dma)
 			free_dma(devpriv->dma);
