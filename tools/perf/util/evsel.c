@@ -23,6 +23,7 @@
 #include "target.h"
 #include "perf_regs.h"
 #include "debug.h"
+#include "trace-event.h"
 
 static struct {
 	bool sample_id_all;
@@ -180,47 +181,6 @@ struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx)
 	return evsel;
 }
 
-struct event_format *event_format__new(const char *sys, const char *name)
-{
-	int fd, n;
-	char *filename;
-	void *bf = NULL, *nbf;
-	size_t size = 0, alloc_size = 0;
-	struct event_format *format = NULL;
-
-	if (asprintf(&filename, "%s/%s/%s/format", tracing_events_path, sys, name) < 0)
-		goto out;
-
-	fd = open(filename, O_RDONLY);
-	if (fd < 0)
-		goto out_free_filename;
-
-	do {
-		if (size == alloc_size) {
-			alloc_size += BUFSIZ;
-			nbf = realloc(bf, alloc_size);
-			if (nbf == NULL)
-				goto out_free_bf;
-			bf = nbf;
-		}
-
-		n = read(fd, bf + size, alloc_size - size);
-		if (n < 0)
-			goto out_free_bf;
-		size += n;
-	} while (n > 0);
-
-	pevent_parse_format(NULL, &format, bf, size, sys);
-
-out_free_bf:
-	free(bf);
-	close(fd);
-out_free_filename:
-	free(filename);
-out:
-	return format;
-}
-
 struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int idx)
 {
 	struct perf_evsel *evsel = zalloc(sizeof(*evsel));
@@ -235,7 +195,7 @@ struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int 
 		if (asprintf(&evsel->name, "%s:%s", sys, name) < 0)
 			goto out_free;
 
-		evsel->tp_format = event_format__new(sys, name);
+		evsel->tp_format = trace_event__tp_format(sys, name);
 		if (evsel->tp_format == NULL)
 			goto out_free;
 

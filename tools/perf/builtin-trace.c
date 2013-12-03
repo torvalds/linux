@@ -11,6 +11,7 @@
 #include "util/intlist.h"
 #include "util/thread_map.h"
 #include "util/stat.h"
+#include "trace-event.h"
 
 #include <libaudit.h>
 #include <stdlib.h>
@@ -1430,11 +1431,11 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	sc->fmt  = syscall_fmt__find(sc->name);
 
 	snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->name);
-	sc->tp_format = event_format__new("syscalls", tp_name);
+	sc->tp_format = trace_event__tp_format("syscalls", tp_name);
 
 	if (sc->tp_format == NULL && sc->fmt && sc->fmt->alias) {
 		snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->fmt->alias);
-		sc->tp_format = event_format__new("syscalls", tp_name);
+		sc->tp_format = trace_event__tp_format("syscalls", tp_name);
 	}
 
 	if (sc->tp_format == NULL)
