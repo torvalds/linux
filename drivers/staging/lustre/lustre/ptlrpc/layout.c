@@ -462,6 +462,25 @@ static const struct req_msg_field *ldlm_intent_unlink_client[] = {
 	&RMF_NAME
 };
 
+static const struct req_msg_field *ldlm_intent_getxattr_client[] = {
+	&RMF_PTLRPC_BODY,
+	&RMF_DLM_REQ,
+	&RMF_LDLM_INTENT,
+	&RMF_MDT_BODY,
+	&RMF_CAPA1,
+};
+
+static const struct req_msg_field *ldlm_intent_getxattr_server[] = {
+	&RMF_PTLRPC_BODY,
+	&RMF_DLM_REP,
+	&RMF_MDT_BODY,
+	&RMF_MDT_MD,
+	&RMF_ACL, /* for req_capsule_extend/mdt_intent_policy */
+	&RMF_EADATA,
+	&RMF_EAVALS,
+	&RMF_EAVALS_LENS
+};
+
 static const struct req_msg_field *mds_getxattr_client[] = {
 	&RMF_PTLRPC_BODY,
 	&RMF_MDT_BODY,
@@ -739,6 +758,7 @@ static struct req_format *req_formats[] = {
 	&RQF_LDLM_INTENT_OPEN,
 	&RQF_LDLM_INTENT_CREATE,
 	&RQF_LDLM_INTENT_UNLINK,
+	&RQF_LDLM_INTENT_GETXATTR,
 	&RQF_LDLM_INTENT_QUOTA,
 	&RQF_QUOTA_DQACQ,
 	&RQF_LOG_CANCEL,
@@ -1013,6 +1033,9 @@ struct req_msg_field RMF_EADATA = DEFINE_MSGF("eadata", 0, -1,
 						    NULL, NULL);
 EXPORT_SYMBOL(RMF_EADATA);
 
+struct req_msg_field RMF_EAVALS = DEFINE_MSGF("eavals", 0, -1, NULL, NULL);
+EXPORT_SYMBOL(RMF_EAVALS);
+
 struct req_msg_field RMF_ACL =
 	DEFINE_MSGF("acl", RMF_F_NO_SIZE_CHECK,
 		    LUSTRE_POSIX_ACL_MAX_SIZE, NULL, NULL);
@@ -1063,6 +1086,11 @@ struct req_msg_field RMF_RCS =
 	DEFINE_MSGF("niobuf_remote", RMF_F_STRUCT_ARRAY, sizeof(__u32),
 		    lustre_swab_generic_32s, dump_rcs);
 EXPORT_SYMBOL(RMF_RCS);
+
+struct req_msg_field RMF_EAVALS_LENS =
+	DEFINE_MSGF("eavals_lens", RMF_F_STRUCT_ARRAY, sizeof(__u32),
+		lustre_swab_generic_32s, NULL);
+EXPORT_SYMBOL(RMF_EAVALS_LENS);
 
 struct req_msg_field RMF_OBD_ID =
 	DEFINE_MSGF("obd_id", 0,
@@ -1420,6 +1448,12 @@ struct req_format RQF_LDLM_INTENT_UNLINK =
 	DEFINE_REQ_FMT0("LDLM_INTENT_UNLINK",
 			ldlm_intent_unlink_client, ldlm_intent_server);
 EXPORT_SYMBOL(RQF_LDLM_INTENT_UNLINK);
+
+struct req_format RQF_LDLM_INTENT_GETXATTR =
+	DEFINE_REQ_FMT0("LDLM_INTENT_GETXATTR",
+			ldlm_intent_getxattr_client,
+			ldlm_intent_getxattr_server);
+EXPORT_SYMBOL(RQF_LDLM_INTENT_GETXATTR);
 
 struct req_format RQF_MDS_CLOSE =
 	DEFINE_REQ_FMT0("MDS_CLOSE",

@@ -360,6 +360,62 @@ static struct ptlrpc_request *mdc_intent_open_pack(struct obd_export *exp,
 	return req;
 }
 
+static struct ptlrpc_request *
+mdc_intent_getxattr_pack(struct obd_export *exp,
+			 struct lookup_intent *it,
+			 struct md_op_data *op_data)
+{
+	struct ptlrpc_request	*req;
+	struct ldlm_intent	*lit;
+	int			rc, count = 0, maxdata;
+	LIST_HEAD(cancels);
+
+
+
+	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
+					&RQF_LDLM_INTENT_GETXATTR);
+	if (req == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
+
+	if (it->it_op == IT_SETXATTR)
+		/* If we want to upgrade to LCK_PW, let's cancel LCK_PR
+		 * locks now. This avoids unnecessary ASTs. */
+		count = mdc_resource_get_unused(exp, &op_data->op_fid1,
+						&cancels, LCK_PW,
+						MDS_INODELOCK_XATTR);
+
+	rc = ldlm_prep_enqueue_req(exp, req, &cancels, count);
+	if (rc) {
+		ptlrpc_request_free(req);
+		return ERR_PTR(rc);
+	}
+
+	/* pack the intent */
+	lit = req_capsule_client_get(&req->rq_pill, &RMF_LDLM_INTENT);
+	lit->opc = IT_GETXATTR;
+
+	maxdata = class_exp2cliimp(exp)->imp_connect_data.ocd_max_easize;
+
+	/* pack the intended request */
+	mdc_pack_body(req, &op_data->op_fid1, op_data->op_capa1,
+			op_data->op_valid, maxdata, -1, 0);
+
+	req_capsule_set_size(&req->rq_pill, &RMF_EADATA,
+				RCL_SERVER, maxdata);
+
+	req_capsule_set_size(&req->rq_pill, &RMF_EAVALS,
+				RCL_SERVER, maxdata);
+
+	req_capsule_set_size(&req->rq_pill, &RMF_EAVALS_LENS,
+				RCL_SERVER, maxdata);
+
+	ptlrpc_request_set_replen(req);
+
+	return req;
+}
+
 static struct ptlrpc_request *mdc_intent_unlink_pack(struct obd_export *exp,
 						     struct lookup_intent *it,
 						     struct md_op_data *op_data)
@@ -735,6 +791,8 @@ int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 			    { .l_inodebits = { MDS_INODELOCK_UPDATE } };
 	static const ldlm_policy_data_t layout_policy =
 			    { .l_inodebits = { MDS_INODELOCK_LAYOUT } };
+	static const ldlm_policy_data_t getxattr_policy = {
+			      .l_inodebits = { MDS_INODELOCK_XATTR } };
 	ldlm_policy_data_t const *policy = &lookup_policy;
 	int		    generation, resends = 0;
 	struct ldlm_reply     *lockrep;
@@ -751,6 +809,8 @@ int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 			policy = &update_policy;
 		else if (it->it_op & IT_LAYOUT)
 			policy = &layout_policy;
+		else if (it->it_op & (IT_GETXATTR | IT_SETXATTR))
+			policy = &getxattr_policy;
 	}
 
 	LASSERT(reqp == NULL);
@@ -781,9 +841,10 @@ resend:
 	} else if (it->it_op & IT_LAYOUT) {
 		if (!imp_connect_lvb_type(class_exp2cliimp(exp)))
 			return -EOPNOTSUPP;
-
 		req = mdc_intent_layout_pack(exp, it, op_data);
 		lvb_type = LVB_T_LAYOUT;
+	} else if (it->it_op & (IT_GETXATTR | IT_SETXATTR)) {
+		req = mdc_intent_getxattr_pack(exp, it, op_data);
 	} else {
 		LBUG();
 		return -EINVAL;

@@ -223,6 +223,10 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 			break;
 
 		LASSERT(lock->l_flags & LDLM_FL_CANCELING);
+
+		if (bits & MDS_INODELOCK_XATTR)
+			ll_xattr_cache_destroy(inode);
+
 		/* For OPEN locks we differentiate between lock modes
 		 * LCK_CR, LCK_CW, LCK_PR - bug 22891 */
 		if (bits & (MDS_INODELOCK_LOOKUP | MDS_INODELOCK_UPDATE |
