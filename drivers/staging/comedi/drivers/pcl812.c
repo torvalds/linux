@@ -755,7 +755,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 	unsigned int mask, timeout;
 	struct comedi_device *dev = d;
 	struct pcl812_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int next_chan;
 
 	s->async->events = 0;
@@ -858,7 +858,7 @@ static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct pcl812_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned long dma_flags;
 	int len, bufptr;
 	unsigned short *ptr;
