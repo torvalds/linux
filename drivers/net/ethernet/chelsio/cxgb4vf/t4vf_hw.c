@@ -1027,7 +1027,7 @@ int t4vf_alloc_mac_filt(struct adapter *adapter, unsigned int viid, bool free,
 	unsigned nfilters = 0;
 	unsigned int rem = naddr;
 	struct fw_vi_mac_cmd cmd, rpl;
-	unsigned int max_naddr = is_t4(adapter->chip) ?
+	unsigned int max_naddr = is_t4(adapter->params.chip) ?
 				 NUM_MPS_CLS_SRAM_L_INSTANCES :
 				 NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
 
@@ -1121,7 +1121,7 @@ int t4vf_change_mac(struct adapter *adapter, unsigned int viid,
 	struct fw_vi_mac_exact *p = &cmd.u.exact[0];
 	size_t len16 = DIV_ROUND_UP(offsetof(struct fw_vi_mac_cmd,
 					     u.exact[1]), 16);
-	unsigned int max_naddr = is_t4(adapter->chip) ?
+	unsigned int max_naddr = is_t4(adapter->params.chip) ?
 				 NUM_MPS_CLS_SRAM_L_INSTANCES :
 				 NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
 
