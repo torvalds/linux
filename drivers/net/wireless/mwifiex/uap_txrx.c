@@ -267,12 +267,7 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 			skb->len, le16_to_cpu(uap_rx_pd->rx_pkt_offset),
 			le16_to_cpu(uap_rx_pd->rx_pkt_length));
 		priv->stats.rx_dropped++;
-
-		if (adapter->if_ops.data_complete)
-			adapter->if_ops.data_complete(adapter, skb);
-		else
-			dev_kfree_skb_any(skb);
-
+		dev_kfree_skb_any(skb);
 		return 0;
 	}
 
@@ -326,12 +321,8 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 					 uap_rx_pd->priority, ta, pkt_type,
 					 skb);
 
-	if (ret || (rx_pkt_type == PKT_TYPE_BAR)) {
-		if (adapter->if_ops.data_complete)
-			adapter->if_ops.data_complete(adapter, skb);
-		else
-			dev_kfree_skb_any(skb);
-	}
+	if (ret || (rx_pkt_type == PKT_TYPE_BAR))
+		dev_kfree_skb_any(skb);
 
 	if (ret)
 		priv->stats.rx_dropped++;
