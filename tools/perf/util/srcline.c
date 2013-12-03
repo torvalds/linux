@@ -227,7 +227,6 @@ char *get_srcline(struct dso *dso, unsigned long addr)
 	unsigned line = 0;
 	char *srcline;
 	char *dso_name = dso->long_name;
-	size_t size;
 
 	if (!dso->has_srcline)
 		return SRCLINE_UNKNOWN;
@@ -241,13 +240,7 @@ char *get_srcline(struct dso *dso, unsigned long addr)
 	if (!addr2line(dso_name, addr, &file, &line))
 		goto out;
 
-	/* just calculate actual length */
-	size = snprintf(NULL, 0, "%s:%u", file, line) + 1;
-
-	srcline = malloc(size);
-	if (srcline)
-		snprintf(srcline, size, "%s:%u", file, line);
-	else
+	if (asprintf(&srcline, "%s:%u", file, line) < 0)
 		srcline = SRCLINE_UNKNOWN;
 
 	free(file);
