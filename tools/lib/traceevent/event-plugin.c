@@ -47,7 +47,11 @@ load_plugin(struct pevent *pevent, const char *path,
 	char *plugin;
 	void *handle;
 
-	plugin = malloc_or_die(strlen(path) + strlen(file) + 2);
+	plugin = malloc(strlen(path) + strlen(file) + 2);
+	if (!plugin) {
+		warning("could not allocate plugin memory\n");
+		return;
+	}
 
 	strcpy(plugin, path);
 	strcat(plugin, "/");
@@ -71,7 +75,12 @@ load_plugin(struct pevent *pevent, const char *path,
 		goto out_free;
 	}
 
-	list = malloc_or_die(sizeof(*list));
+	list = malloc(sizeof(*list));
+	if (!list) {
+		warning("could not allocate plugin memory\n");
+		goto out_free;
+	}
+
 	list->next = *plugin_list;
 	list->handle = handle;
 	list->name = plugin;
@@ -163,7 +172,11 @@ load_plugins(struct pevent *pevent, const char *suffix,
 	if (!home)
 		return;
 
-	path = malloc_or_die(strlen(home) + strlen(LOCAL_PLUGIN_DIR) + 2);
+	path = malloc(strlen(home) + strlen(LOCAL_PLUGIN_DIR) + 2);
+	if (!path) {
+		warning("could not allocate plugin memory\n");
+		return;
+	}
 
 	strcpy(path, home);
 	strcat(path, "/");
