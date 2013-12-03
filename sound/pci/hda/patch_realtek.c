@@ -374,8 +374,10 @@ static void alc_fixup_no_depop_delay(struct hda_codec *codec,
 {
 	struct alc_spec *spec = codec->spec;
 
-	if (action == HDA_FIXUP_ACT_PROBE)
+	if (action == HDA_FIXUP_ACT_PROBE) {
 		spec->no_depop_delay = 1;
+		codec->depop_delay = 0;
+	}
 }
 
 static int alc_auto_parse_customize_define(struct hda_codec *codec)
