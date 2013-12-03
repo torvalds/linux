@@ -96,7 +96,6 @@ static void show_all(struct host1x *m, struct output *o)
 		show_channels(ch, o, true);
 }
 
-#ifdef CONFIG_DEBUG_FS
 static void show_all_no_fifo(struct host1x *host1x, struct output *o)
 {
 	struct host1x_channel *ch;
@@ -153,7 +152,7 @@ static const struct file_operations host1x_debug_fops = {
 	.release	= single_release,
 };
 
-void host1x_debug_init(struct host1x *host1x)
+static void host1x_debugfs_init(struct host1x *host1x)
 {
 	struct dentry *de = debugfs_create_dir("tegra-host1x", NULL);
 
@@ -180,18 +179,22 @@ void host1x_debug_init(struct host1x *host1x)
 			   &host1x_debug_force_timeout_channel);
 }
 
-void host1x_debug_deinit(struct host1x *host1x)
+static void host1x_debugfs_exit(struct host1x *host1x)
 {
 	debugfs_remove_recursive(host1x->debugfs);
 }
-#else
+
 void host1x_debug_init(struct host1x *host1x)
 {
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		host1x_debugfs_init(host1x);
 }
+
 void host1x_debug_deinit(struct host1x *host1x)
 {
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		host1x_debugfs_exit(host1x);
 }
-#endif
 
 void host1x_debug_dump(struct host1x *host1x)
 {
