@@ -949,18 +949,20 @@ no_dma:
 	if (board->n_aichan > 0) {
 		s->type = COMEDI_SUBD_AI;
 		devpriv->sub_ai = s;
-		dev->read_subdev = s;
-		s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
+		s->subdev_flags = SDF_CMD_READ | SDF_DIFF;
 		s->n_chan = board->n_aichan;
-		s->subdev_flags |= SDF_DIFF;
 		s->maxdata = board->ai_maxdata;
-		s->len_chanlist = board->ai_chanlist;
 		s->range_table = board->ai_range_type;
-		s->cancel = pcl816_ai_cancel;
-		s->do_cmdtest = pcl816_ai_cmdtest;
-		s->do_cmd = pcl816_ai_cmd;
-		s->poll = pcl816_ai_poll;
 		s->insn_read = pcl816_ai_insn_read;
+		if (dev->irq) {
+			dev->read_subdev = s;
+			s->subdev_flags |= SDF_CMD_READ;
+			s->len_chanlist = board->ai_chanlist;
+			s->do_cmdtest = pcl816_ai_cmdtest;
+			s->do_cmd = pcl816_ai_cmd;
+			s->poll = pcl816_ai_poll;
+			s->cancel = pcl816_ai_cancel;
+		}
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
