@@ -25,7 +25,6 @@
 #include "event-utils.h"
 
 static struct func_stack {
-	int index;
 	int size;
 	char **stack;
 } *fstack;
@@ -57,7 +56,7 @@ static void add_child(struct func_stack *stack, const char *child, int pos)
 	stack->stack[pos] = strdup(child);
 }
 
-static int get_index(const char *parent, const char *child, int cpu)
+static int add_and_get_index(const char *parent, const char *child, int cpu)
 {
 	int i;
 
@@ -97,7 +96,7 @@ static int function_handler(struct trace_seq *s, struct pevent_record *record,
 	unsigned long long pfunction;
 	const char *func;
 	const char *parent;
-	int i, index;
+	int index;
 
 	if (pevent_get_field_val(s, event, "ip", record, &function, 1))
 		return trace_seq_putc(s, '!');
@@ -109,10 +108,9 @@ static int function_handler(struct trace_seq *s, struct pevent_record *record,
 
 	parent = pevent_find_function(pevent, pfunction);
 
-	index = get_index(parent, func, record->cpu);
+	index = add_and_get_index(parent, func, record->cpu);
 
-	for (i = 0; i < index; i++)
-		trace_seq_printf(s, "   ");
+	trace_seq_printf(s, "%*s", index*3, "");
 
 	if (func)
 		trace_seq_printf(s, "%s", func);
