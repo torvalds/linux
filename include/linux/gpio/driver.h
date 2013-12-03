@@ -141,7 +141,6 @@ enum gpio_lookup_flags {
  * platform data.
  */
 struct gpiod_lookup {
-	struct list_head list;
 	/*
 	 * name of the chip the GPIO belongs to
 	 */
@@ -150,10 +149,6 @@ struct gpiod_lookup {
 	 * hardware number (i.e. relative to the chip) of the GPIO
 	 */
 	u16 chip_hwnum;
-	/*
-	 * name of device that can claim this GPIO
-	 */
-	const char *dev_id;
 	/*
 	 * name of the GPIO from the device's point of view
 	 */
@@ -168,28 +163,32 @@ struct gpiod_lookup {
 	enum gpio_lookup_flags flags;
 };
 
+struct gpiod_lookup_table {
+	struct list_head list;
+	const char *dev_id;
+	struct gpiod_lookup table[];
+};
+
 /*
  * Simple definition of a single GPIO under a con_id
  */
-#define GPIO_LOOKUP(_chip_label, _chip_hwnum, _dev_id, _con_id, _flags) \
-	GPIO_LOOKUP_IDX(_chip_label, _chip_hwnum, _dev_id, _con_id, 0, _flags)
+#define GPIO_LOOKUP(_chip_label, _chip_hwnum, _con_id, _flags) \
+	GPIO_LOOKUP_IDX(_chip_label, _chip_hwnum, _con_id, 0, _flags)
 
 /*
  * Use this macro if you need to have several GPIOs under the same con_id.
  * Each GPIO needs to use a different index and can be accessed using
  * gpiod_get_index()
  */
-#define GPIO_LOOKUP_IDX(_chip_label, _chip_hwnum, _dev_id, _con_id, _idx, \
-			_flags)                                           \
+#define GPIO_LOOKUP_IDX(_chip_label, _chip_hwnum, _con_id, _idx, _flags)  \
 {                                                                         \
 	.chip_label = _chip_label,                                        \
 	.chip_hwnum = _chip_hwnum,                                        \
-	.dev_id = _dev_id,                                                \
 	.con_id = _con_id,                                                \
 	.idx = _idx,                                                      \
 	.flags = _flags,                                                  \
 }
 
-void gpiod_add_table(struct gpiod_lookup *table, size_t size);
+void gpiod_add_lookup_table(struct gpiod_lookup_table *table);
 
 #endif

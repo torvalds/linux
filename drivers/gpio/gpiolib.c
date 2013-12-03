@@ -2260,18 +2260,14 @@ void gpiod_set_value_cansleep(struct gpio_desc *desc, int value)
 EXPORT_SYMBOL_GPL(gpiod_set_value_cansleep);
 
 /**
- * gpiod_add_table() - register GPIO device consumers
- * @table: array of consumers to register
- * @num: number of consumers in table
+ * gpiod_add_lookup_table() - register GPIO device consumers
+ * @table: table of consumers to register
  */
-void gpiod_add_table(struct gpiod_lookup *table, size_t size)
+void gpiod_add_lookup_table(struct gpiod_lookup_table *table)
 {
 	mutex_lock(&gpio_lookup_lock);
 
-	while (size--) {
-		list_add_tail(&table->list, &gpio_lookup_list);
-		table++;
-	}
+	list_add_tail(&table->list, &gpio_lookup_list);
 
 	mutex_unlock(&gpio_lookup_lock);
 }
@@ -2327,72 +2323,84 @@ static struct gpio_desc *acpi_find_gpio(struct device *dev, const char *con_id,
 	return desc;
 }
 
+static struct gpiod_lookup_table *gpiod_find_lookup_table(struct device *dev)
+{
+	const char *dev_id = dev ? dev_name(dev) : NULL;
+	struct gpiod_lookup_table *table;
+
+	mutex_lock(&gpio_lookup_lock);
+
+	list_for_each_entry(table, &gpio_lookup_list, list) {
+		if (table->dev_id && dev_id) {
+			/*
+			 * Valid strings on both ends, must be identical to have
+			 * a match
+			 */
+			if (!strcmp(table->dev_id, dev_id))
+				goto found;
+		} else {
+			/*
+			 * One of the pointers is NULL, so both must be to have
+			 * a match
+			 */
+			if (dev_id == table->dev_id)
+				goto found;
+		}
+	}
+	table = NULL;
+
+found:
+	mutex_unlock(&gpio_lookup_lock);
+	return table;
+}
+
 static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
 				    unsigned int idx,
 				    enum gpio_lookup_flags *flags)
 {
-	const char *dev_id = dev ? dev_name(dev) : NULL;
 	struct gpio_desc *desc = ERR_PTR(-ENODEV);
-	unsigned int match, best = 0;
+	struct gpiod_lookup_table *table;
 	struct gpiod_lookup *p;
 
-	mutex_lock(&gpio_lookup_lock);
+	table = gpiod_find_lookup_table(dev);
+	if (!table)
+		return desc;
 
-	list_for_each_entry(p, &gpio_lookup_list, list) {
-		match = 0;
+	for (p = &table->table[0]; p->chip_label; p++) {
+		struct gpio_chip *chip;
 
-		if (p->dev_id) {
-			if (!dev_id || strcmp(p->dev_id, dev_id))
-				continue;
-
-			match += 2;
-		}
-
-		if (p->con_id) {
-			if (!con_id || strcmp(p->con_id, con_id))
-				continue;
-
-			match += 1;
-		}
-
+		/* idx must always match exactly */
 		if (p->idx != idx)
 			continue;
 
-		if (match > best) {
-			struct gpio_chip *chip;
+		/* If the lookup entry has a con_id, require exact match */
+		if (p->con_id && (!con_id || strcmp(p->con_id, con_id)))
+			continue;
 
-			chip = find_chip_by_name(p->chip_label);
+		chip = find_chip_by_name(p->chip_label);
 
-			if (!chip) {
-				dev_warn(dev, "cannot find GPIO chip %s\n",
-					 p->chip_label);
-				continue;
-			}
-
-			if (chip->ngpio <= p->chip_hwnum) {
-				dev_warn(dev, "GPIO chip %s has %d GPIOs\n",
-					 chip->label, chip->ngpio);
-				continue;
-			}
-
-			desc = gpio_to_desc(chip->base + p->chip_hwnum);
-			*flags = p->flags;
-
-			if (match != 3)
-				best = match;
-			else
-				break;
+		if (!chip) {
+			dev_warn(dev, "cannot find GPIO chip %s\n",
+				 p->chip_label);
+			continue;
 		}
-	}
 
-	mutex_unlock(&gpio_lookup_lock);
+		if (chip->ngpio <= p->chip_hwnum) {
+			dev_warn(dev, "GPIO chip %s has %d GPIOs\n",
+				 chip->label, chip->ngpio);
+			continue;
+		}
+
+		desc = gpiochip_offset_to_desc(chip, p->chip_hwnum);
+		*flags = p->flags;
+	}
 
 	return desc;
 }
 
 /**
  * gpio_get - obtain a GPIO for a given GPIO function
- * @dev:	GPIO consumer
+ * @dev:	GPIO consumer, can be NULL for system-global GPIOs
  * @con_id:	function within the GPIO consumer
  *
  * Return the GPIO descriptor corresponding to the function con_id of device
