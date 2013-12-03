@@ -1558,8 +1558,8 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 
 		for(j=0; j<32; j++)
 		{
-			if(bank->domain->ops->map)
-			bank->domain->ops->map(bank->domain, 6*32+bank->pin_base+j, j);
+		//	if(bank->domain->ops->map)
+		//	bank->domain->ops->map(bank->domain, 6*32+bank->pin_base+j, j);
 		}
 #else
 		
