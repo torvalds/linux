@@ -216,6 +216,7 @@ PLUGIN_OBJS  = plugin_jbd2.o
 PLUGIN_OBJS += plugin_hrtimer.o
 PLUGIN_OBJS += plugin_kmem.o
 PLUGIN_OBJS += plugin_kvm.o
+PLUGIN_OBJS += plugin_mac80211.o
 
 PLUGINS := $(PLUGIN_OBJS:.o=.so)
 
