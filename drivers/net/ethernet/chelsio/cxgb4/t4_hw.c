@@ -296,7 +296,7 @@ int t4_mc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 	u32 mc_bist_cmd, mc_bist_cmd_addr, mc_bist_cmd_len;
 	u32 mc_bist_status_rdata, mc_bist_data_pattern;
 
-	if (is_t4(adap->chip)) {
+	if (is_t4(adap->params.chip)) {
 		mc_bist_cmd = MC_BIST_CMD;
 		mc_bist_cmd_addr = MC_BIST_CMD_ADDR;
 		mc_bist_cmd_len = MC_BIST_CMD_LEN;
@@ -349,7 +349,7 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 	u32 edc_bist_cmd, edc_bist_cmd_addr, edc_bist_cmd_len;
 	u32 edc_bist_cmd_data_pattern, edc_bist_status_rdata;
 
-	if (is_t4(adap->chip)) {
+	if (is_t4(adap->params.chip)) {
 		edc_bist_cmd = EDC_REG(EDC_BIST_CMD, idx);
 		edc_bist_cmd_addr = EDC_REG(EDC_BIST_CMD_ADDR, idx);
 		edc_bist_cmd_len = EDC_REG(EDC_BIST_CMD_LEN, idx);
@@ -402,7 +402,7 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 static int t4_mem_win_rw(struct adapter *adap, u32 addr, __be32 *data, int dir)
 {
 	int i;
-	u32 win_pf = is_t4(adap->chip) ? 0 : V_PFNUM(adap->fn);
+	u32 win_pf = is_t4(adap->params.chip) ? 0 : V_PFNUM(adap->fn);
 
 	/*
 	 * Setup offset into PCIE memory window.  Address must be a
@@ -918,7 +918,7 @@ int t4_check_fw_version(struct adapter *adapter)
 	minor = FW_HDR_FW_VER_MINOR_GET(adapter->params.fw_vers);
 	micro = FW_HDR_FW_VER_MICRO_GET(adapter->params.fw_vers);
 
-	switch (CHELSIO_CHIP_VERSION(adapter->chip)) {
+	switch (CHELSIO_CHIP_VERSION(adapter->params.chip)) {
 	case CHELSIO_T4:
 		exp_major = FW_VERSION_MAJOR;
 		exp_minor = FW_VERSION_MINOR;
@@ -931,7 +931,7 @@ int t4_check_fw_version(struct adapter *adapter)
 		break;
 	default:
 		dev_err(adapter->pdev_dev, "Unsupported chip type, %x\n",
-			adapter->chip);
+			adapter->params.chip);
 		return -EINVAL;
 	}
 
@@ -1368,7 +1368,7 @@ static void pcie_intr_handler(struct adapter *adapter)
 				    PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS,
 				    pcie_port_intr_info) +
 	      t4_handle_intr_status(adapter, PCIE_INT_CAUSE,
-				    is_t4(adapter->chip) ?
+				    is_t4(adapter->params.chip) ?
 				    pcie_intr_info : t5_pcie_intr_info);
 
 	if (fat)
@@ -1782,7 +1782,7 @@ static void xgmac_intr_handler(struct adapter *adap, int port)
 {
 	u32 v, int_cause_reg;
 
-	if (is_t4(adap->chip))
+	if (is_t4(adap->params.chip))
 		int_cause_reg = PORT_REG(port, XGMAC_PORT_INT_CAUSE);
 	else
 		int_cause_reg = T5_PORT_REG(port, MAC_PORT_INT_CAUSE);
@@ -2250,7 +2250,7 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 
 #define GET_STAT(name) \
 	t4_read_reg64(adap, \
-	(is_t4(adap->chip) ? PORT_REG(idx, MPS_PORT_STAT_##name##_L) : \
+	(is_t4(adap->params.chip) ? PORT_REG(idx, MPS_PORT_STAT_##name##_L) : \
 	T5_PORT_REG(idx, MPS_PORT_STAT_##name##_L)))
 #define GET_STAT_COM(name) t4_read_reg64(adap, MPS_STAT_##name##_L)
 
@@ -2332,7 +2332,7 @@ void t4_wol_magic_enable(struct adapter *adap, unsigned int port,
 {
 	u32 mag_id_reg_l, mag_id_reg_h, port_cfg_reg;
 
-	if (is_t4(adap->chip)) {
+	if (is_t4(adap->params.chip)) {
 		mag_id_reg_l = PORT_REG(port, XGMAC_PORT_MAGIC_MACID_LO);
 		mag_id_reg_h = PORT_REG(port, XGMAC_PORT_MAGIC_MACID_HI);
 		port_cfg_reg = PORT_REG(port, XGMAC_PORT_CFG2);
@@ -2374,7 +2374,7 @@ int t4_wol_pat_enable(struct adapter *adap, unsigned int port, unsigned int map,
 	int i;
 	u32 port_cfg_reg;
 
-	if (is_t4(adap->chip))
+	if (is_t4(adap->params.chip))
 		port_cfg_reg = PORT_REG(port, XGMAC_PORT_CFG2);
 	else
 		port_cfg_reg = T5_PORT_REG(port, MAC_PORT_CFG2);
@@ -2387,7 +2387,7 @@ int t4_wol_pat_enable(struct adapter *adap, unsigned int port, unsigned int map,
 		return -EINVAL;
 
 #define EPIO_REG(name) \
-	(is_t4(adap->chip) ? PORT_REG(port, XGMAC_PORT_EPIO_##name) : \
+	(is_t4(adap->params.chip) ? PORT_REG(port, XGMAC_PORT_EPIO_##name) : \
 	T5_PORT_REG(port, MAC_PORT_EPIO_##name))
 
 	t4_write_reg(adap, EPIO_REG(DATA1), mask0 >> 32);
@@ -2474,7 +2474,7 @@ int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
 int t4_mem_win_read_len(struct adapter *adap, u32 addr, __be32 *data, int len)
 {
 	int i, off;
-	u32 win_pf = is_t4(adap->chip) ? 0 : V_PFNUM(adap->fn);
+	u32 win_pf = is_t4(adap->params.chip) ? 0 : V_PFNUM(adap->fn);
 
 	/* Align on a 2KB boundary.
 	 */
@@ -3306,7 +3306,7 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
 	int i, ret;
 	struct fw_vi_mac_cmd c;
 	struct fw_vi_mac_exact *p;
-	unsigned int max_naddr = is_t4(adap->chip) ?
+	unsigned int max_naddr = is_t4(adap->params.chip) ?
 				       NUM_MPS_CLS_SRAM_L_INSTANCES :
 				       NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
 
@@ -3368,7 +3368,7 @@ int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 	int ret, mode;
 	struct fw_vi_mac_cmd c;
 	struct fw_vi_mac_exact *p = c.u.exact;
-	unsigned int max_mac_addr = is_t4(adap->chip) ?
+	unsigned int max_mac_addr = is_t4(adap->params.chip) ?
 				    NUM_MPS_CLS_SRAM_L_INSTANCES :
 				    NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
 
@@ -3699,13 +3699,14 @@ int t4_prep_adapter(struct adapter *adapter)
 {
 	int ret, ver;
 	uint16_t device_id;
+	u32 pl_rev;
 
 	ret = t4_wait_dev_ready(adapter);
 	if (ret < 0)
 		return ret;
 
 	get_pci_mode(adapter, &adapter->params.pci);
-	adapter->params.rev = t4_read_reg(adapter, PL_REV);
+	pl_rev = G_REV(t4_read_reg(adapter, PL_REV));
 
 	ret = get_flash_params(adapter);
 	if (ret < 0) {
@@ -3717,23 +3718,19 @@ int t4_prep_adapter(struct adapter *adapter)
 	 */
 	pci_read_config_word(adapter->pdev, PCI_DEVICE_ID, &device_id);
 	ver = device_id >> 12;
+	adapter->params.chip = 0;
 	switch (ver) {
 	case CHELSIO_T4:
-		adapter->chip = CHELSIO_CHIP_CODE(CHELSIO_T4,
-						  adapter->params.rev);
+		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T4, pl_rev);
 		break;
 	case CHELSIO_T5:
-		adapter->chip = CHELSIO_CHIP_CODE(CHELSIO_T5,
-						  adapter->params.rev);
+		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T5, pl_rev);
 		break;
 	default:
 		dev_err(adapter->pdev_dev, "Device %d is not supported\n",
 			device_id);
 		return -EINVAL;
 	}
-
-	/* Reassign the updated revision field */
-	adapter->params.rev = adapter->chip;
 
 	init_cong_ctrl(adapter->params.a_wnd, adapter->params.b_wnd);
 

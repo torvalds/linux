@@ -1092,6 +1092,11 @@
 
 #define PL_REV 0x1943c
 
+#define S_REV    0
+#define M_REV    0xfU
+#define V_REV(x) ((x) << S_REV)
+#define G_REV(x) (((x) >> S_REV) & M_REV)
+
 #define LE_DB_CONFIG 0x19c04
 #define  HASHEN 0x00100000U
 
