@@ -5597,6 +5597,17 @@ static inline int l2cap_le_sig_cmd(struct l2cap_conn *conn,
 {
 	int err = 0;
 
+	if (!enable_lecoc) {
+		switch (cmd->code) {
+		case L2CAP_LE_CONN_REQ:
+		case L2CAP_LE_CONN_RSP:
+		case L2CAP_LE_CREDITS:
+		case L2CAP_DISCONN_REQ:
+		case L2CAP_DISCONN_RSP:
+			return -EINVAL;
+		}
+	}
+
 	switch (cmd->code) {
 	case L2CAP_COMMAND_REJ:
 		break;
