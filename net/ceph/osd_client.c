@@ -1225,6 +1225,22 @@ void ceph_osdc_set_request_linger(struct ceph_osd_client *osdc,
 EXPORT_SYMBOL(ceph_osdc_set_request_linger);
 
 /*
+ * Returns whether a request should be blocked from being sent
+ * based on the current osdmap and osd_client settings.
+ *
+ * Caller should hold map_sem for read.
+ */
+static bool __req_should_be_paused(struct ceph_osd_client *osdc,
+				   struct ceph_osd_request *req)
+{
+	bool pauserd = ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_PAUSERD);
+	bool pausewr = ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_PAUSEWR) ||
+		ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_FULL);
+	return (req->r_flags & CEPH_OSD_FLAG_READ && pauserd) ||
+		(req->r_flags & CEPH_OSD_FLAG_WRITE && pausewr);
+}
+
+/*
  * Pick an osd (the first 'up' osd in the pg), allocate the osd struct
  * (as needed), and set the request r_osd appropriately.  If there is
  * no up osd, set r_osd to NULL.  Move the request to the appropriate list
@@ -1241,6 +1257,7 @@ static int __map_request(struct ceph_osd_client *osdc,
 	int acting[CEPH_PG_MAX_SIZE];
 	int o = -1, num = 0;
 	int err;
+	bool was_paused;
 
 	dout("map_request %p tid %lld\n", req, req->r_tid);
 	err = ceph_calc_ceph_pg(&pgid, req->r_oid, osdc->osdmap,
@@ -1257,12 +1274,18 @@ static int __map_request(struct ceph_osd_client *osdc,
 		num = err;
 	}
 
+	was_paused = req->r_paused;
+	req->r_paused = __req_should_be_paused(osdc, req);
+	if (was_paused && !req->r_paused)
+		force_resend = 1;
+
 	if ((!force_resend &&
 	     req->r_osd && req->r_osd->o_osd == o &&
 	     req->r_sent >= req->r_osd->o_incarnation &&
 	     req->r_num_pg_osds == num &&
 	     memcmp(req->r_pg_osds, acting, sizeof(acting[0])*num) == 0) ||
-	    (req->r_osd == NULL && o == -1))
+	    (req->r_osd == NULL && o == -1) ||
+	    req->r_paused)
 		return 0;  /* no change */
 
 	dout("map_request tid %llu pgid %lld.%x osd%d (was osd%d)\n",
@@ -1797,7 +1820,9 @@ done:
 	 * we find out when we are no longer full and stop returning
 	 * ENOSPC.
 	 */
-	if (ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_FULL))
+	if (ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_FULL) ||
+		ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_PAUSERD) ||
+		ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_PAUSEWR))
 		ceph_monc_request_next_osdmap(&osdc->client->monc);
 
 	mutex_lock(&osdc->request_mutex);
