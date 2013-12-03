@@ -36,10 +36,8 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-# ifdef CONFIG_FS_POSIX_ACL
-#  include <linux/fs.h>
-#  include <linux/posix_acl_xattr.h>
-# endif
+#include <linux/fs.h>
+#include <linux/posix_acl_xattr.h>
 
 #include <obd_support.h>
 #include <obd_class.h>

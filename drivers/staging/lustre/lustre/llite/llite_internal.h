@@ -47,6 +47,7 @@
 #include <lustre_mdc.h>
 #include <linux/lustre_intent.h>
 #include <linux/compat.h>
+#include <linux/posix_acl_xattr.h>
 
 #ifndef FMODE_EXEC
 #define FMODE_EXEC 0
