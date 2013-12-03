@@ -2079,12 +2079,6 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (cmd == NULL)
 		return -EINVAL;
 
-	if (dev->irq == 0) {
-		comedi_error(dev,
-			     "s626_ai_cmd: cannot run command without an irq");
-		return -EIO;
-	}
-
 	s626_ai_load_polllist(ppl, cmd);
 	devpriv->ai_cmd_running = 1;
 	devpriv->ai_convert_count = 0;
@@ -2833,7 +2827,7 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[0];
 	/* analog input subdevice */
 	s->type		= COMEDI_SUBD_AI;
-	s->subdev_flags	= SDF_READABLE | SDF_DIFF | SDF_CMD_READ;
+	s->subdev_flags	= SDF_READABLE | SDF_DIFF;
 	s->n_chan	= S626_ADC_CHANNELS;
 	s->maxdata	= 0x3fff;
 	s->range_table	= &s626_range_table;
@@ -2841,6 +2835,7 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s->insn_read	= s626_ai_insn_read;
 	if (dev->irq) {
 		dev->read_subdev = s;
+		s->subdev_flags	|= SDF_CMD_READ;
 		s->do_cmd	= s626_ai_cmd;
 		s->do_cmdtest	= s626_ai_cmdtest;
 		s->cancel	= s626_ai_cancel;
