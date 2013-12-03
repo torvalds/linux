@@ -1520,6 +1520,10 @@ enum nl80211_commands {
  * @NL80211_ATTR_SUPPORT_10_MHZ: A flag indicating that the device supports
  *	10 MHz channel bandwidth.
  *
+ * @NL80211_ATTR_OPMODE_NOTIF: Operating mode field from Operating Mode
+ *	Notification Element based on association request when used with
+ *	%NL80211_CMD_NEW_STATION; u8 attribute.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1838,6 +1842,8 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_SUPPORT_5_MHZ,
 	NL80211_ATTR_SUPPORT_10_MHZ,
+
+	NL80211_ATTR_OPMODE_NOTIF,
 
 	/* add attributes here, update the policy in nl80211.c */
 

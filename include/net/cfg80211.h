@@ -747,6 +747,8 @@ enum station_parameters_apply_mask {
  * @supported_channels_len: number of supported channels
  * @supported_oper_classes: supported oper classes in IEEE 802.11 format
  * @supported_oper_classes_len: number of supported operating classes
+ * @opmode_notif: operating mode field from Operating Mode Notification
+ * @opmode_notif_used: information if operating mode field is used
  */
 struct station_parameters {
 	const u8 *supported_rates;
@@ -770,6 +772,8 @@ struct station_parameters {
 	u8 supported_channels_len;
 	const u8 *supported_oper_classes;
 	u8 supported_oper_classes_len;
+	u8 opmode_notif;
+	bool opmode_notif_used;
 };
 
 /**
