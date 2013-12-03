@@ -54,7 +54,13 @@ struct list_head obd_types;
 DEFINE_RWLOCK(obd_dev_lock);
 
 __u64 obd_max_pages = 0;
+EXPORT_SYMBOL(obd_max_pages);
 __u64 obd_max_alloc = 0;
+EXPORT_SYMBOL(obd_max_alloc);
+__u64 obd_alloc;
+EXPORT_SYMBOL(obd_alloc);
+__u64 obd_pages;
+EXPORT_SYMBOL(obd_pages);
 DEFINE_SPINLOCK(obd_updatemax_lock);
 
 /* The following are visible and mutable through /proc/sys/lustre/. */
