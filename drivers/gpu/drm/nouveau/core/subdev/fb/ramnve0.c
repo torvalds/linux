@@ -348,7 +348,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 
 	if (ram->from == 2 && ram->mode != 2) {
 		ram_mask(fuc, 0x10f808, 0x00080000, 0x00000000);
-		ram_mask(fuc, 0x10f200, 0x00008000, 0x00008000);
+		ram_mask(fuc, 0x10f200, 0x18008000, 0x00008000);
 		ram_mask(fuc, 0x10f800, 0x00000000, 0x00000004);
 		ram_mask(fuc, 0x10f830, 0x00008000, 0x01040010);
 		ram_mask(fuc, 0x10f830, 0x01000000, 0x00000000);
@@ -377,6 +377,8 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	}
 
 	if (ram->from != 2 && ram->mode == 2) {
+		if (0 /*XXX: Titan */)
+			ram_mask(fuc, 0x10f200, 0x18000000, 0x18000000);
 		ram_mask(fuc, 0x10f800, 0x00000004, 0x00000000);
 		ram_mask(fuc, 0x1373f0, 0x00000000, 0x00000002);
 		ram_mask(fuc, 0x10f830, 0x00800001, 0x00408010);
@@ -603,7 +605,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	ram_wr32(fuc, 0x10f318, 0x00000001); /* NOP? */
 	ram_mask(fuc, 0x10f200, 0x80000000, 0x00000000);
 	ram_nsec(fuc, 1000);
-	ram_nuts(ram, 0x10f200, 0x00808800, 0x00000000, 0x00808800);
+	ram_nuts(ram, 0x10f200, 0x18808800, 0x00000000, 0x18808800);
 
 	data  = ram_rd32(fuc, 0x10f978);
 	data &= ~0x00046144;
@@ -659,7 +661,7 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	else
 		data = 0x00000000;
 	ram_mask(fuc, 0x10f200, 0x00000800, data);
-	ram_nuts(ram, 0x10f200, 0x00808800, data, 0x00808800);
+	ram_nuts(ram, 0x10f200, 0x18808800, data, 0x18808800);
 	return 0;
 }
 
