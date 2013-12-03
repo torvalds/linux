@@ -491,7 +491,7 @@ static int ab8500_handle_hierarchical_line(struct ab8500 *ab8500,
 		if (line == AB8540_INT_GPIO43F || line == AB8540_INT_GPIO44F)
 			line += 1;
 
-		handle_nested_irq(ab8500->irq_base + line);
+		handle_nested_irq(irq_create_mapping(ab8500->domain, line));
 	}
 
 	return 0;
