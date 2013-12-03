@@ -33,29 +33,25 @@
 #  include "u_ecm.h"
 #  include "u_gether.h"
 #  ifdef USB_ETH_RNDIS
-#    define USB_FRNDIS_INCLUDED
-#    include "f_rndis.c"
+#    include "u_rndis.h"
 #    include "rndis.h"
 #  endif
 #  include "u_ether.h"
 
 USB_ETHERNET_MODULE_PARAMETERS();
 
-static u8 gfs_host_mac[ETH_ALEN];
-static struct eth_dev *the_dev;
 #  ifdef CONFIG_USB_FUNCTIONFS_ETH
-static int eth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
-		struct eth_dev *dev);
+static int eth_bind_config(struct usb_configuration *c);
 static struct usb_function_instance *fi_ecm;
 static struct usb_function *f_ecm;
 static struct usb_function_instance *fi_geth;
 static struct usb_function *f_geth;
 #  endif
-#else
-#  define the_dev	NULL
-#  define gether_cleanup(dev) do { } while (0)
-#  define gfs_host_mac NULL
-struct eth_dev;
+#  ifdef CONFIG_USB_FUNCTIONFS_RNDIS
+static int bind_rndis_config(struct usb_configuration *c);
+static struct usb_function_instance *fi_rndis;
+static struct usb_function *f_rndis;
+#  endif
 #endif
 
 #include "f_fs.c"
@@ -148,12 +144,11 @@ static struct usb_gadget_strings *gfs_dev_strings[] = {
 
 struct gfs_configuration {
 	struct usb_configuration c;
-	int (*eth)(struct usb_configuration *c, u8 *ethaddr,
-			struct eth_dev *dev);
+	int (*eth)(struct usb_configuration *c);
 } gfs_configurations[] = {
 #ifdef CONFIG_USB_FUNCTIONFS_RNDIS
 	{
-		.eth		= rndis_bind_config,
+		.eth		= bind_rndis_config,
 	},
 #endif
 
@@ -351,7 +346,7 @@ static void functionfs_release_dev_callback(struct ffs_data *ffs_data)
  */
 static int gfs_bind(struct usb_composite_dev *cdev)
 {
-#if defined CONFIG_USB_FUNCTIONFS_ETH
+#if defined CONFIG_USB_FUNCTIONFS_ETH || defined CONFIG_USB_FUNCTIONFS_RNDIS
 	struct net_device *net;
 #endif
 	int ret, i;
@@ -379,28 +374,38 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 					 func_inst);
 		net = geth_opts->net;
 	}
-	gether_set_qmult(net, qmult);
+#endif
 
+#ifdef CONFIG_USB_FUNCTIONFS_RNDIS
+	{
+		struct f_rndis_opts *rndis_opts;
+
+		fi_rndis = usb_get_function_instance("rndis");
+		if (IS_ERR(fi_rndis)) {
+			ret = PTR_ERR(fi_rndis);
+			goto error;
+		}
+		rndis_opts = container_of(fi_rndis, struct f_rndis_opts,
+					  func_inst);
+#ifndef CONFIG_USB_FUNCTIONFS_ETH
+		net = rndis_opts->net;
+#endif
+	}
+#endif
+
+#if defined CONFIG_USB_FUNCTIONFS_ETH || defined CONFIG_USB_FUNCTIONFS_RNDIS
+	gether_set_qmult(net, qmult);
 	if (!gether_set_host_addr(net, host_addr))
 		pr_info("using host ethernet address: %s", host_addr);
 	if (!gether_set_dev_addr(net, dev_addr))
 		pr_info("using self ethernet address: %s", dev_addr);
-
-	the_dev = netdev_priv(net);
-
-#elif defined CONFIG_USB_FUNCTIONFS_RNDIS
-
-	the_dev = gether_setup(cdev->gadget, dev_addr, host_addr, gfs_host_mac,
-			       qmult);
 #endif
-	if (IS_ERR(the_dev))
-		return PTR_ERR(the_dev);
 
 #if defined CONFIG_USB_FUNCTIONFS_RNDIS && defined CONFIG_USB_FUNCTIONFS_ETH
 	gether_set_gadget(net, cdev->gadget);
 	ret = gether_register_netdev(net);
 	if (ret)
-		goto error;
+		goto error_rndis;
 
 	if (can_support_ecm(cdev->gadget)) {
 		struct f_ecm_opts *ecm_opts;
@@ -414,12 +419,13 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 					 func_inst);
 		geth_opts->bound = true;
 	}
-	gether_get_host_addr_u8(net, gfs_host_mac);
+
+	rndis_borrow_net(fi_rndis, net);
 #endif
 
 	ret = usb_string_ids_tab(cdev, gfs_strings);
 	if (unlikely(ret < 0))
-		goto error;
+		goto error_rndis;
 	gfs_dev_desc.iProduct = gfs_strings[USB_GADGET_PRODUCT_IDX].id;
 
 	for (i = func_num; i--; ) {
@@ -427,7 +433,7 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 		if (unlikely(ret < 0)) {
 			while (++i < func_num)
 				functionfs_unbind(ffs_tab[i].ffs_data);
-			goto error;
+			goto error_rndis;
 		}
 	}
 
@@ -450,16 +456,16 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 error_unbind:
 	for (i = 0; i < func_num; i++)
 		functionfs_unbind(ffs_tab[i].ffs_data);
+error_rndis:
+#ifdef CONFIG_USB_FUNCTIONFS_RNDIS
+	usb_put_function_instance(fi_rndis);
 error:
+#endif
 #if defined CONFIG_USB_FUNCTIONFS_ETH
 	if (can_support_ecm(cdev->gadget))
 		usb_put_function_instance(fi_ecm);
 	else
 		usb_put_function_instance(fi_geth);
-	the_dev = NULL;
-#elif defined CONFIG_USB_FUNCTIONFS_RNDIS
-	gether_cleanup(the_dev);
-	the_dev = NULL;
 #endif
 	return ret;
 }
@@ -474,6 +480,11 @@ static int gfs_unbind(struct usb_composite_dev *cdev)
 	ENTER();
 
 
+#ifdef CONFIG_USB_FUNCTIONFS_RNDIS
+	usb_put_function(f_rndis);
+	usb_put_function_instance(fi_rndis);
+#endif
+
 #if defined CONFIG_USB_FUNCTIONFS_ETH
 	if (can_support_ecm(cdev->gadget)) {
 		usb_put_function(f_ecm);
@@ -482,10 +493,6 @@ static int gfs_unbind(struct usb_composite_dev *cdev)
 		usb_put_function(f_geth);
 		usb_put_function_instance(fi_geth);
 	}
-	the_dev = NULL;
-#elif defined CONFIG_USB_FUNCTIONFS_RNDIS
-	gether_cleanup(the_dev);
-	the_dev = NULL;
 #endif
 
 	/*
@@ -523,7 +530,7 @@ static int gfs_do_config(struct usb_configuration *c)
 	}
 
 	if (gc->eth) {
-		ret = gc->eth(c, gfs_host_mac, the_dev);
+		ret = gc->eth(c);
 		if (unlikely(ret < 0))
 			return ret;
 	}
@@ -552,8 +559,7 @@ static int gfs_do_config(struct usb_configuration *c)
 
 #ifdef CONFIG_USB_FUNCTIONFS_ETH
 
-static int eth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
-		struct eth_dev *dev)
+static int eth_bind_config(struct usb_configuration *c)
 {
 	int status = 0;
 
@@ -575,6 +581,25 @@ static int eth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
 		if (status < 0)
 			usb_put_function(f_geth);
 	}
+	return status;
+}
+
+#endif
+
+#ifdef CONFIG_USB_FUNCTIONFS_RNDIS
+
+static int bind_rndis_config(struct usb_configuration *c)
+{
+	int status = 0;
+
+	f_rndis = usb_get_function(fi_rndis);
+	if (IS_ERR(f_rndis))
+		return PTR_ERR(f_rndis);
+
+	status = usb_add_function(c, f_rndis);
+	if (status < 0)
+		usb_put_function(f_rndis);
+
 	return status;
 }
 

@@ -906,6 +906,7 @@ config USB_FUNCTIONFS_RNDIS
 	depends on USB_FUNCTIONFS && NET
 	select USB_U_ETHER
 	select USB_U_RNDIS
+	select USB_F_RNDIS
 	help
 	  Include a configuration with RNDIS function (Ethernet) and the Filesystem.
 
