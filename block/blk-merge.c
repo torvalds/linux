@@ -86,10 +86,8 @@ EXPORT_SYMBOL(blk_recount_segments);
 static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
 				   struct bio *nxt)
 {
-	struct bio_vec end_bv, nxt_bv;
+	struct bio_vec end_bv = { NULL }, nxt_bv;
 	struct bvec_iter iter;
-
-	uninitialized_var(end_bv);
 
 	if (!blk_queue_cluster(q))
 		return 0;
@@ -170,12 +168,10 @@ new_segment:
 int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 		  struct scatterlist *sglist)
 {
-	struct bio_vec bvec, bvprv;
+	struct bio_vec bvec, bvprv = { NULL };
 	struct req_iterator iter;
 	struct scatterlist *sg;
 	int nsegs, cluster;
-
-	uninitialized_var(bvprv);
 
 	nsegs = 0;
 	cluster = blk_queue_cluster(q);
@@ -234,12 +230,10 @@ EXPORT_SYMBOL(blk_rq_map_sg);
 int blk_bio_map_sg(struct request_queue *q, struct bio *bio,
 		   struct scatterlist *sglist)
 {
-	struct bio_vec bvec, bvprv;
+	struct bio_vec bvec, bvprv = { NULL };
 	struct scatterlist *sg;
 	int nsegs, cluster;
 	struct bvec_iter iter;
-
-	uninitialized_var(bvprv);
 
 	nsegs = 0;
 	cluster = blk_queue_cluster(q);
