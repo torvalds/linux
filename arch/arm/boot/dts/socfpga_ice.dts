@@ -106,28 +106,8 @@
 			cpu1-start-addr = <0xffd080c4>;
 		};
 
-		timer0@ffc08000 {
-			clock-frequency = <77161>;
-		};
-
-		timer1@ffc09000 {
-			clock-frequency = <77161>;
-		};
-
-		timer2@ffd00000 {
-			clock-frequency = <19290>;
-		};
-
-		timer3@ffd01000 {
-			clock-frequency = <19290>;
-		};
-
 		serial0@ffc02000 {
-			clock-frequency = <77161>;
-		};
-
-		serial1@ffc03000 {
-			clock-frequency = <77161>;
+			status = "okay";
 		};
 
 		watchdog0: wd@ffd02000 {

@@ -748,24 +748,32 @@
 			compatible = "snps,dw-apb-timer-sp";
 			interrupts = <0 167 4>;
 			reg = <0xffc08000 0x1000>;
+			clocks = <&l4_sp_clk>;
+			clock-names = "timer";
 		};
 
 		timer1: timer1@ffc09000 {
 			compatible = "snps,dw-apb-timer-sp";
 			interrupts = <0 168 4>;
 			reg = <0xffc09000 0x1000>;
+			clocks = <&l4_sp_clk>;
+			clock-names = "timer";
 		};
 
 		timer2: timer2@ffd00000 {
 			compatible = "snps,dw-apb-timer-osc";
 			interrupts = <0 169 4>;
 			reg = <0xffd00000 0x1000>;
+			clocks = <&osc>;
+			clock-names = "timer";
 		};
 
 		timer3: timer3@ffd01000 {
 			compatible = "snps,dw-apb-timer-osc";
 			interrupts = <0 170 4>;
 			reg = <0xffd01000 0x1000>;
+			clocks = <&osc>;
+			clock-names = "timer";
 		};
 
 		uart0: serial0@ffc02000 {
@@ -774,6 +782,8 @@
 			interrupts = <0 162 4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			clocks = <&l4_sp_clk>;
+			status = "disabled";
 		};
 
 		uart1: serial1@ffc03000 {
@@ -782,6 +792,8 @@
 			interrupts = <0 163 4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			clocks = <&l4_sp_clk>;
+			status = "disabled";
 		};
 
 		usbphy0: usbphy@0 {
