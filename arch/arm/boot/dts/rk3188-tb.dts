@@ -9,15 +9,15 @@
 	};
 
 	chosen {
-		bootargs ="console=ttyS2,115200 androidboot.console=ttyS2";
+
+	};
+
+	ttyFIQ0 {
+		id = <2>;
 	};
 };
 
 &uart0 {
-	status = "okay";
-};
-
-&uart2 {
 	status = "okay";
 };
 

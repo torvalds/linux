@@ -416,4 +416,11 @@
 		pinctrl-0 = <&uart3_xfer &uart3_cts &uart3_rts>;
 		status = "disabled";
 	};
+
+	ttyFIQ0 {
+		id = <2>;
+		signal_irq = <112>;
+		wake_irq = <0>;
+		status = "disabled";
+	};
 };
