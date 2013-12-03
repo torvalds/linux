@@ -202,10 +202,12 @@ static struct request *blk_mq_alloc_request_pinned(struct request_queue *q,
 		if (rq) {
 			blk_mq_rq_ctx_init(q, ctx, rq, rw);
 			break;
-		} else if (!(gfp & __GFP_WAIT))
-			break;
+		}
 
 		blk_mq_put_ctx(ctx);
+		if (!(gfp & __GFP_WAIT))
+			break;
+
 		__blk_mq_run_hw_queue(hctx);
 		blk_mq_wait_for_tags(hctx->tags);
 	} while (1);
@@ -222,7 +224,8 @@ struct request *blk_mq_alloc_request(struct request_queue *q, int rw,
 		return NULL;
 
 	rq = blk_mq_alloc_request_pinned(q, rw, gfp, reserved);
-	blk_mq_put_ctx(rq->mq_ctx);
+	if (rq)
+		blk_mq_put_ctx(rq->mq_ctx);
 	return rq;
 }
 
@@ -235,7 +238,8 @@ struct request *blk_mq_alloc_reserved_request(struct request_queue *q, int rw,
 		return NULL;
 
 	rq = blk_mq_alloc_request_pinned(q, rw, gfp, true);
-	blk_mq_put_ctx(rq->mq_ctx);
+	if (rq)
+		blk_mq_put_ctx(rq->mq_ctx);
 	return rq;
 }
 EXPORT_SYMBOL(blk_mq_alloc_reserved_request);
