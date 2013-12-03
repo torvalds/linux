@@ -182,7 +182,6 @@ static __refdata struct usb_composite_driver gfs_driver = {
 
 static DEFINE_MUTEX(gfs_lock);
 static unsigned int missing_funcs;
-static bool gfs_ether_setup;
 static bool gfs_registered;
 static bool gfs_single_func;
 static struct gfs_ffs_obj *ffs_tab;
@@ -364,7 +363,6 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 		ret = PTR_ERR(the_dev);
 		goto error_quick;
 	}
-	gfs_ether_setup = true;
 
 	ret = usb_string_ids_tab(cdev, gfs_strings);
 	if (unlikely(ret < 0))
@@ -401,8 +399,8 @@ error_unbind:
 		functionfs_unbind(ffs_tab[i].ffs_data);
 error:
 	gether_cleanup(the_dev);
+	the_dev = NULL;
 error_quick:
-	gfs_ether_setup = false;
 	return ret;
 }
 
@@ -415,18 +413,17 @@ static int gfs_unbind(struct usb_composite_dev *cdev)
 
 	ENTER();
 
+	gether_cleanup(the_dev);
+	the_dev = NULL;
+
 	/*
 	 * We may have been called in an error recovery from
 	 * composite_bind() after gfs_unbind() failure so we need to
-	 * check if gfs_ffs_data is not NULL since gfs_bind() handles
+	 * check if instance's ffs_data is not NULL since gfs_bind() handles
 	 * all error recovery itself.  I'd rather we werent called
 	 * from composite on orror recovery, but what you're gonna
 	 * do...?
 	 */
-	if (gfs_ether_setup)
-		gether_cleanup(the_dev);
-	gfs_ether_setup = false;
-
 	for (i = func_num; i--; )
 		if (ffs_tab[i].ffs_data)
 			functionfs_unbind(ffs_tab[i].ffs_data);
