@@ -100,12 +100,12 @@ static int n810_startup(struct snd_pcm_substream *substream)
 				     SNDRV_PCM_HW_PARAM_CHANNELS, 2, 2);
 
 	n810_ext_control(&codec->dapm);
-	return clk_enable(sys_clkout2);
+	return clk_prepare_enable(sys_clkout2);
 }
 
 static void n810_shutdown(struct snd_pcm_substream *substream)
 {
-	clk_disable(sys_clkout2);
+	clk_disable_unprepare(sys_clkout2);
 }
 
 static int n810_hw_params(struct snd_pcm_substream *substream,

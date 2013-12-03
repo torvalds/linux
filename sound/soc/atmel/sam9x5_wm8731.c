@@ -97,6 +97,8 @@ static int sam9x5_wm8731_driver_probe(struct platform_device *pdev)
 		goto out;
 	}
 
+	snd_soc_card_set_drvdata(card, priv);
+
 	card->dev = &pdev->dev;
 	card->owner = THIS_MODULE;
 	card->dai_link = dai;
