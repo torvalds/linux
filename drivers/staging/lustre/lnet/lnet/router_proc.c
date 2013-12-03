@@ -908,21 +908,17 @@ static ctl_table_t top_table[] = {
 void
 lnet_proc_init(void)
 {
-#ifdef CONFIG_SYSCTL
 	if (lnet_table_header == NULL)
 		lnet_table_header = register_sysctl_table(top_table);
-#endif
 }
 
 void
 lnet_proc_fini(void)
 {
-#ifdef CONFIG_SYSCTL
 	if (lnet_table_header != NULL)
 		unregister_sysctl_table(lnet_table_header);
 
 	lnet_table_header = NULL;
-#endif
 }
 
 #else
