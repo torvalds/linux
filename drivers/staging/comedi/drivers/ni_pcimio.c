@@ -1469,6 +1469,7 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct ni_board_struct *board = NULL;
 	struct ni_private *devpriv;
+	unsigned int irq;
 	int ret;
 
 	if (context < ARRAY_SIZE(ni_boards))
@@ -1530,18 +1531,12 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 	if (board->reg_type == ni_reg_6143)
 		init_6143(dev);
 
-	dev->irq = mite_irq(devpriv->mite);
-
-	if (dev->irq == 0) {
-		pr_warn("unknown irq (bad)\n");
-	} else {
-		pr_debug("( irq = %u )\n", dev->irq);
-		ret = request_irq(dev->irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
-				  DRV_NAME, dev);
-		if (ret < 0) {
-			pr_warn("irq not available\n");
-			dev->irq = 0;
-		}
+	irq = mite_irq(devpriv->mite);
+	if (irq) {
+		ret = request_irq(irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = irq;
 	}
 
 	ret = ni_E_init(dev);
