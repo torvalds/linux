@@ -414,6 +414,10 @@
 	status = "okay";
 };
 
+&sata {
+	status = "okay";
+};
+
 &vpu {
 	status = "okay";
 };
