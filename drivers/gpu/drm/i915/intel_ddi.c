@@ -73,7 +73,7 @@ static const u32 hsw_ddi_translations_hdmi[] = {
 };
 
 static const u32 bdw_ddi_translations_edp[] = {
-	0x00FFFFFF, 0x00000012,		/* DP parameters */
+	0x00FFFFFF, 0x00000012,		/* eDP parameters */
 	0x00EBAFFF, 0x00020011,
 	0x00C71FFF, 0x0006000F,
 	0x00FFFFFF, 0x00020011,
