@@ -107,15 +107,11 @@ void update_cr_regs(struct task_struct *task)
 void user_enable_single_step(struct task_struct *task)
 {
 	set_tsk_thread_flag(task, TIF_SINGLE_STEP);
-	if (task == current)
-		update_cr_regs(task);
 }
 
 void user_disable_single_step(struct task_struct *task)
 {
 	clear_tsk_thread_flag(task, TIF_SINGLE_STEP);
-	if (task == current)
-		update_cr_regs(task);
 }
 
 /*
