@@ -49,6 +49,9 @@ static u8 l2cap_fixed_chan[8] = { L2CAP_FC_L2CAP | L2CAP_FC_CONNLESS, };
 static LIST_HEAD(chan_list);
 static DEFINE_RWLOCK(chan_list_lock);
 
+static u16 le_max_credits = L2CAP_LE_MAX_CREDITS;
+static u16 le_default_mps = L2CAP_LE_DEFAULT_MPS;
+
 static struct sk_buff *l2cap_build_cmd(struct l2cap_conn *conn,
 				       u8 code, u8 ident, u16 dlen, void *data);
 static void l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len,
@@ -501,7 +504,7 @@ void l2cap_le_flowctl_init(struct l2cap_chan *chan)
 	chan->omtu = L2CAP_LE_MIN_MTU;
 	chan->mode = L2CAP_MODE_LE_FLOWCTL;
 	chan->tx_credits = 0;
-	chan->rx_credits = L2CAP_LE_MAX_CREDITS;
+	chan->rx_credits = le_max_credits;
 
 	if (chan->imtu < L2CAP_LE_DEFAULT_MPS)
 		chan->mps = chan->imtu;
@@ -1214,7 +1217,7 @@ static void l2cap_le_flowctl_start(struct l2cap_chan *chan)
 	if (chan->imtu < L2CAP_LE_DEFAULT_MPS)
 		chan->mps = chan->imtu;
 	else
-		chan->mps = L2CAP_LE_DEFAULT_MPS;
+		chan->mps = le_default_mps;
 
 	skb_queue_head_init(&chan->tx_q);
 
@@ -6831,10 +6834,10 @@ static void l2cap_chan_le_send_credits(struct l2cap_chan *chan)
 	/* We return more credits to the sender only after the amount of
 	 * credits falls below half of the initial amount.
 	 */
-	if (chan->rx_credits >= (L2CAP_LE_MAX_CREDITS + 1) / 2)
+	if (chan->rx_credits >= (le_max_credits + 1) / 2)
 		return;
 
-	return_credits = L2CAP_LE_MAX_CREDITS - chan->rx_credits;
+	return_credits = le_max_credits - chan->rx_credits;
 
 	BT_DBG("chan %p returning %u credits to sender", chan, return_credits);
 
@@ -7447,6 +7450,11 @@ int __init l2cap_init(void)
 
 	l2cap_debugfs = debugfs_create_file("l2cap", 0444, bt_debugfs,
 					    NULL, &l2cap_debugfs_fops);
+
+	debugfs_create_u16("l2cap_le_max_credits", 0466, bt_debugfs,
+			   &le_max_credits);
+	debugfs_create_u16("l2cap_le_default_mps", 0466, bt_debugfs,
+			   &le_default_mps);
 
 	return 0;
 }
