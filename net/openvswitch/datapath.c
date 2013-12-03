@@ -701,8 +701,7 @@ static int ovs_flow_cmd_fill_info(struct sw_flow *flow, struct datapath *dp,
 	if (start) {
 		const struct sw_flow_actions *sf_acts;
 
-		sf_acts = rcu_dereference_check(flow->sf_acts,
-						lockdep_ovsl_is_held());
+		sf_acts = rcu_dereference_ovsl(flow->sf_acts);
 
 		err = ovs_nla_put_actions(sf_acts->actions,
 					  sf_acts->actions_len, skb);

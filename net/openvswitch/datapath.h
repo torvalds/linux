@@ -145,6 +145,8 @@ int lockdep_ovsl_is_held(void);
 #define ASSERT_OVSL()		WARN_ON(unlikely(!lockdep_ovsl_is_held()))
 #define ovsl_dereference(p)					\
 	rcu_dereference_protected(p, lockdep_ovsl_is_held())
+#define rcu_dereference_ovsl(p)					\
+	rcu_dereference_check(p, lockdep_ovsl_is_held())
 
 static inline struct net *ovs_dp_get_net(struct datapath *dp)
 {
