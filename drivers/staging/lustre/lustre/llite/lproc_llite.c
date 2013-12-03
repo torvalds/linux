@@ -42,9 +42,6 @@
 
 #include "llite_internal.h"
 
-struct proc_dir_entry *proc_lustre_fs_root;
-
-#ifdef LPROCFS
 /* /proc/lustre/llite mount point registration */
 extern struct file_operations vvp_dump_pgcache_file_ops;
 struct file_operations ll_rw_extents_stats_fops;
@@ -1404,4 +1401,3 @@ void lprocfs_llite_init_vars(struct lprocfs_static_vars *lvars)
     lvars->module_vars  = NULL;
     lvars->obd_vars     = lprocfs_llite_obd_vars;
 }
-#endif /* LPROCFS */

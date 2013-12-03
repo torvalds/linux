@@ -397,6 +397,7 @@ static int config_log_end(char *logname, struct config_llog_instance *cfg)
 	return rc;
 }
 
+#ifdef LPROCFS
 int lprocfs_mgc_rd_ir_state(struct seq_file *m, void *data)
 {
 	struct obd_device       *obd = data;
@@ -420,6 +421,7 @@ int lprocfs_mgc_rd_ir_state(struct seq_file *m, void *data)
 
 	return 0;
 }
+#endif
 
 /* reenqueue any lost locks */
 #define RQ_RUNNING 0x1

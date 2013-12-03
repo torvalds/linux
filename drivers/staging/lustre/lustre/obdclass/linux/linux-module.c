@@ -295,9 +295,6 @@ struct lprocfs_vars lprocfs_base[] = {
 	{ "jobid_var", &obd_proc_jobid_var_fops },
 	{ 0 }
 };
-#else
-#define lprocfs_base NULL
-#endif /* LPROCFS */
 
 static void *obd_device_list_seq_start(struct seq_file *p, loff_t *pos)
 {
@@ -403,3 +400,4 @@ int class_procfs_clean(void)
 	}
 	return 0;
 }
+#endif /* LPROCFS */

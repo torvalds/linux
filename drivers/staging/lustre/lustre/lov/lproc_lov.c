@@ -41,7 +41,6 @@
 #include <linux/seq_file.h>
 #include "lov_internal.h"
 
-#ifdef LPROCFS
 static int lov_stripesize_seq_show(struct seq_file *m, void *v)
 {
 	struct obd_device *dev = (struct obd_device *)m->private;
@@ -291,11 +290,10 @@ void lprocfs_lov_init_vars(struct lprocfs_static_vars *lvars)
     lvars->obd_vars     = lprocfs_lov_obd_vars;
 }
 
-struct file_operations lov_proc_target_fops = {
+const struct file_operations lov_proc_target_fops = {
 	.owner   = THIS_MODULE,
 	.open    = lov_target_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
 	.release = lprocfs_seq_release,
 };
-#endif /* LPROCFS */

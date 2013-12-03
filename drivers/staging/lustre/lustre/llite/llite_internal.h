@@ -702,15 +702,22 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 void lprocfs_unregister_mountpoint(struct ll_sb_info *sbi);
 void ll_stats_ops_tally(struct ll_sb_info *sbi, int op, int count);
 void lprocfs_llite_init_vars(struct lprocfs_static_vars *lvars);
+void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
+		       struct ll_file_data *file, loff_t pos,
+		       size_t count, int rw);
 #else
 static inline int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 			struct super_block *sb, char *osc, char *mdc){return 0;}
 static inline void lprocfs_unregister_mountpoint(struct ll_sb_info *sbi) {}
-static void ll_stats_ops_tally(struct ll_sb_info *sbi, int op, int count) {}
-static void lprocfs_llite_init_vars(struct lprocfs_static_vars *lvars)
+static inline
+void ll_stats_ops_tally(struct ll_sb_info *sbi, int op, int count) {}
+static inline void lprocfs_llite_init_vars(struct lprocfs_static_vars *lvars)
 {
 	memset(lvars, 0, sizeof(*lvars));
 }
+static inline void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
+				     struct ll_file_data *file, loff_t pos,
+				     size_t count, int rw) {}
 #endif
 
 
@@ -786,9 +793,6 @@ int ll_md_setattr(struct dentry *dentry, struct md_op_data *op_data,
 		  struct md_open_data **mod);
 void ll_pack_inode2opdata(struct inode *inode, struct md_op_data *op_data,
 			  struct lustre_handle *fh);
-extern void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
-			      struct ll_file_data *file, loff_t pos,
-			      size_t count, int rw);
 int ll_getattr_it(struct vfsmount *mnt, struct dentry *de,
 	       struct lookup_intent *it, struct kstat *stat);
 int ll_getattr(struct vfsmount *mnt, struct dentry *de, struct kstat *stat);

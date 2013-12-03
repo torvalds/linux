@@ -259,8 +259,14 @@ void sptlrpc_enc_pool_fini(void);
 int sptlrpc_proc_enc_pool_seq_show(struct seq_file *m, void *v);
 
 /* sec_lproc.c */
+#ifdef LPROCFS
 int  sptlrpc_lproc_init(void);
 void sptlrpc_lproc_fini(void);
+#else
+static inline int sptlrpc_lproc_init(void)
+{ return 0; }
+static inline void sptlrpc_lproc_fini(void) {}
+#endif
 
 /* sec_gc.c */
 int sptlrpc_gc_init(void);

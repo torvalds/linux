@@ -56,6 +56,7 @@
 #include "llite_internal.h"
 
 struct kmem_cache *ll_file_data_slab;
+struct proc_dir_entry *proc_lustre_fs_root;
 
 LIST_HEAD(ll_super_blocks);
 DEFINE_SPINLOCK(ll_sb_lock);

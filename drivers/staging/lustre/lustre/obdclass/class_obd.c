@@ -507,8 +507,15 @@ int obd_init_checks(void)
 }
 
 extern spinlock_t obd_types_lock;
+#ifdef LPROCFS
 extern int class_procfs_init(void);
 extern int class_procfs_clean(void);
+#else
+static inline int class_procfs_init(void)
+{ return 0; }
+static inline int class_procfs_clean(void)
+{ return 0; }
+#endif
 
 static int __init init_obdclass(void)
 {

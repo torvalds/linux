@@ -46,7 +46,179 @@
 #include <lustre/lustre_idl.h>
 #include <linux/seq_file.h>
 
-#if defined(LPROCFS)
+static const char * const obd_connect_names[] = {
+	"read_only",
+	"lov_index",
+	"unused",
+	"write_grant",
+	"server_lock",
+	"version",
+	"request_portal",
+	"acl",
+	"xattr",
+	"create_on_write",
+	"truncate_lock",
+	"initial_transno",
+	"inode_bit_locks",
+	"join_file(obsolete)",
+	"getattr_by_fid",
+	"no_oh_for_devices",
+	"remote_client",
+	"remote_client_by_force",
+	"max_byte_per_rpc",
+	"64bit_qdata",
+	"mds_capability",
+	"oss_capability",
+	"early_lock_cancel",
+	"som",
+	"adaptive_timeouts",
+	"lru_resize",
+	"mds_mds_connection",
+	"real_conn",
+	"change_qunit_size",
+	"alt_checksum_algorithm",
+	"fid_is_enabled",
+	"version_recovery",
+	"pools",
+	"grant_shrink",
+	"skip_orphan",
+	"large_ea",
+	"full20",
+	"layout_lock",
+	"64bithash",
+	"object_max_bytes",
+	"imp_recov",
+	"jobstats",
+	"umask",
+	"einprogress",
+	"grant_param",
+	"flock_owner",
+	"lvb_type",
+	"nanoseconds_times",
+	"lightweight_conn",
+	"short_io",
+	"pingless",
+	"unknown",
+	NULL
+};
+
+int obd_connect_flags2str(char *page, int count, __u64 flags, char *sep)
+{
+	__u64 mask = 1;
+	int i, ret = 0;
+
+	for (i = 0; obd_connect_names[i] != NULL; i++, mask <<= 1) {
+		if (flags & mask)
+			ret += snprintf(page + ret, count - ret, "%s%s",
+					ret ? sep : "", obd_connect_names[i]);
+	}
+	if (flags & ~(mask - 1))
+		ret += snprintf(page + ret, count - ret,
+				"%sunknown flags "LPX64,
+				ret ? sep : "", flags & ~(mask - 1));
+	return ret;
+}
+EXPORT_SYMBOL(obd_connect_flags2str);
+
+int lprocfs_read_frac_helper(char *buffer, unsigned long count, long val,
+			     int mult)
+{
+	long decimal_val, frac_val;
+	int prtn;
+
+	if (count < 10)
+		return -EINVAL;
+
+	decimal_val = val / mult;
+	prtn = snprintf(buffer, count, "%ld", decimal_val);
+	frac_val = val % mult;
+
+	if (prtn < (count - 4) && frac_val > 0) {
+		long temp_frac;
+		int i, temp_mult = 1, frac_bits = 0;
+
+		temp_frac = frac_val * 10;
+		buffer[prtn++] = '.';
+		while (frac_bits < 2 && (temp_frac / mult) < 1) {
+			/* only reserved 2 bits fraction */
+			buffer[prtn++] = '0';
+			temp_frac *= 10;
+			frac_bits++;
+		}
+		/*
+		 * Need to think these cases :
+		 *      1. #echo x.00 > /proc/xxx       output result : x
+		 *      2. #echo x.0x > /proc/xxx       output result : x.0x
+		 *      3. #echo x.x0 > /proc/xxx       output result : x.x
+		 *      4. #echo x.xx > /proc/xxx       output result : x.xx
+		 *      Only reserved 2 bits fraction.
+		 */
+		for (i = 0; i < (5 - prtn); i++)
+			temp_mult *= 10;
+
+		frac_bits = min((int)count - prtn, 3 - frac_bits);
+		prtn += snprintf(buffer + prtn, frac_bits, "%ld",
+				 frac_val * temp_mult / mult);
+
+		prtn--;
+		while (buffer[prtn] < '1' || buffer[prtn] > '9') {
+			prtn--;
+			if (buffer[prtn] == '.') {
+				prtn--;
+				break;
+			}
+		}
+		prtn++;
+	}
+	buffer[prtn++] = '\n';
+	return prtn;
+}
+EXPORT_SYMBOL(lprocfs_read_frac_helper);
+
+int lprocfs_write_frac_helper(const char *buffer, unsigned long count,
+			      int *val, int mult)
+{
+	char kernbuf[20], *end, *pbuf;
+
+	if (count > (sizeof(kernbuf) - 1))
+		return -EINVAL;
+
+	if (copy_from_user(kernbuf, buffer, count))
+		return -EFAULT;
+
+	kernbuf[count] = '\0';
+	pbuf = kernbuf;
+	if (*pbuf == '-') {
+		mult = -mult;
+		pbuf++;
+	}
+
+	*val = (int)simple_strtoul(pbuf, &end, 10) * mult;
+	if (pbuf == end)
+		return -EINVAL;
+
+	if (end != NULL && *end == '.') {
+		int temp_val, pow = 1;
+		int i;
+
+		pbuf = end + 1;
+		if (strlen(pbuf) > 5)
+			pbuf[5] = '\0'; /*only allow 5bits fractional*/
+
+		temp_val = (int)simple_strtoul(pbuf, &end, 10) * mult;
+
+		if (pbuf < end) {
+			for (i = 0; i < (end - pbuf); i++)
+				pow *= 10;
+
+			*val += temp_val / pow;
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL(lprocfs_write_frac_helper);
+
+#ifdef LPROCFS
 
 static int lprocfs_no_percpu_stats = 0;
 module_param(lprocfs_no_percpu_stats, int, 0644);
@@ -479,62 +651,6 @@ static int obd_import_flags2str(struct obd_import *imp, struct seq_file *m)
 }
 #undef flags2str
 
-static const char *obd_connect_names[] = {
-	"read_only",
-	"lov_index",
-	"unused",
-	"write_grant",
-	"server_lock",
-	"version",
-	"request_portal",
-	"acl",
-	"xattr",
-	"create_on_write",
-	"truncate_lock",
-	"initial_transno",
-	"inode_bit_locks",
-	"join_file(obsolete)",
-	"getattr_by_fid",
-	"no_oh_for_devices",
-	"remote_client",
-	"remote_client_by_force",
-	"max_byte_per_rpc",
-	"64bit_qdata",
-	"mds_capability",
-	"oss_capability",
-	"early_lock_cancel",
-	"som",
-	"adaptive_timeouts",
-	"lru_resize",
-	"mds_mds_connection",
-	"real_conn",
-	"change_qunit_size",
-	"alt_checksum_algorithm",
-	"fid_is_enabled",
-	"version_recovery",
-	"pools",
-	"grant_shrink",
-	"skip_orphan",
-	"large_ea",
-	"full20",
-	"layout_lock",
-	"64bithash",
-	"object_max_bytes",
-	"imp_recov",
-	"jobstats",
-	"umask",
-	"einprogress",
-	"grant_param",
-	"flock_owner",
-	"lvb_type",
-	"nanoseconds_times",
-	"lightweight_conn",
-	"short_io",
-	"pingless",
-	"unknown",
-	NULL
-};
-
 static void obd_connect_seq_flags2str(struct seq_file *m, __u64 flags, char *sep)
 {
 	__u64 mask = 1;
@@ -552,24 +668,6 @@ static void obd_connect_seq_flags2str(struct seq_file *m, __u64 flags, char *sep
 		seq_printf(m, "%sunknown flags "LPX64,
 				first ? sep : "", flags & ~(mask - 1));
 }
-
-int obd_connect_flags2str(char *page, int count, __u64 flags, char *sep)
-{
-	__u64 mask = 1;
-	int i, ret = 0;
-
-	for (i = 0; obd_connect_names[i] != NULL; i++, mask <<= 1) {
-		if (flags & mask)
-			ret += snprintf(page + ret, count - ret, "%s%s",
-					ret ? sep : "", obd_connect_names[i]);
-	}
-	if (flags & ~(mask - 1))
-		ret += snprintf(page + ret, count - ret,
-				"%sunknown flags "LPX64,
-				ret ? sep : "", flags & ~(mask - 1));
-	return ret;
-}
-EXPORT_SYMBOL(obd_connect_flags2str);
 
 int lprocfs_rd_import(struct seq_file *m, void *data)
 {
@@ -1658,104 +1756,6 @@ int lprocfs_write_helper(const char *buffer, unsigned long count,
 }
 EXPORT_SYMBOL(lprocfs_write_helper);
 
-int lprocfs_write_frac_helper(const char *buffer, unsigned long count,
-			      int *val, int mult)
-{
-	char kernbuf[20], *end, *pbuf;
-
-	if (count > (sizeof(kernbuf) - 1))
-		return -EINVAL;
-
-	if (copy_from_user(kernbuf, buffer, count))
-		return -EFAULT;
-
-	kernbuf[count] = '\0';
-	pbuf = kernbuf;
-	if (*pbuf == '-') {
-		mult = -mult;
-		pbuf++;
-	}
-
-	*val = (int)simple_strtoul(pbuf, &end, 10) * mult;
-	if (pbuf == end)
-		return -EINVAL;
-
-	if (end != NULL && *end == '.') {
-		int temp_val, pow = 1;
-		int i;
-
-		pbuf = end + 1;
-		if (strlen(pbuf) > 5)
-			pbuf[5] = '\0'; /*only allow 5bits fractional*/
-
-		temp_val = (int)simple_strtoul(pbuf, &end, 10) * mult;
-
-		if (pbuf < end) {
-			for (i = 0; i < (end - pbuf); i++)
-				pow *= 10;
-
-			*val += temp_val / pow;
-		}
-	}
-	return 0;
-}
-EXPORT_SYMBOL(lprocfs_write_frac_helper);
-
-int lprocfs_read_frac_helper(char *buffer, unsigned long count, long val,
-			     int mult)
-{
-	long decimal_val, frac_val;
-	int prtn;
-
-	if (count < 10)
-		return -EINVAL;
-
-	decimal_val = val / mult;
-	prtn = snprintf(buffer, count, "%ld", decimal_val);
-	frac_val = val % mult;
-
-	if (prtn < (count - 4) && frac_val > 0) {
-		long temp_frac;
-		int i, temp_mult = 1, frac_bits = 0;
-
-		temp_frac = frac_val * 10;
-		buffer[prtn++] = '.';
-		while (frac_bits < 2 && (temp_frac / mult) < 1 ) {
-			/* only reserved 2 bits fraction */
-			buffer[prtn++] ='0';
-			temp_frac *= 10;
-			frac_bits++;
-		}
-		/*
-		 * Need to think these cases :
-		 *      1. #echo x.00 > /proc/xxx       output result : x
-		 *      2. #echo x.0x > /proc/xxx       output result : x.0x
-		 *      3. #echo x.x0 > /proc/xxx       output result : x.x
-		 *      4. #echo x.xx > /proc/xxx       output result : x.xx
-		 *      Only reserved 2 bits fraction.
-		 */
-		for (i = 0; i < (5 - prtn); i++)
-			temp_mult *= 10;
-
-		frac_bits = min((int)count - prtn, 3 - frac_bits);
-		prtn += snprintf(buffer + prtn, frac_bits, "%ld",
-				 frac_val * temp_mult / mult);
-
-		prtn--;
-		while(buffer[prtn] < '1' || buffer[prtn] > '9') {
-			prtn--;
-			if (buffer[prtn] == '.') {
-				prtn--;
-				break;
-			}
-		}
-		prtn++;
-	}
-	buffer[prtn++] ='\n';
-	return prtn;
-}
-EXPORT_SYMBOL(lprocfs_read_frac_helper);
-
 int lprocfs_seq_read_frac_helper(struct seq_file *m, long val, int mult)
 {
 	long decimal_val, frac_val;
@@ -1979,4 +1979,4 @@ int lprocfs_obd_rd_max_pages_per_rpc(struct seq_file *m, void *data)
 }
 EXPORT_SYMBOL(lprocfs_obd_rd_max_pages_per_rpc);
 
-#endif /* LPROCFS*/
+#endif

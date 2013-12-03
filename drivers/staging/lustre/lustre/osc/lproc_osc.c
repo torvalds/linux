@@ -42,7 +42,6 @@
 #include <linux/seq_file.h>
 #include "osc_internal.h"
 
-#ifdef LPROCFS
 static int osc_active_seq_show(struct seq_file *m, void *v)
 {
 	struct obd_device *dev = m->private;
@@ -724,4 +723,3 @@ void lprocfs_osc_init_vars(struct lprocfs_static_vars *lvars)
 	lvars->module_vars = lprocfs_osc_module_vars;
 	lvars->obd_vars    = lprocfs_osc_obd_vars;
 }
-#endif /* LPROCFS */
