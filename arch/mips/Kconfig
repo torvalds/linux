@@ -1455,6 +1455,26 @@ config CPU_XLP
 	  Netlogic Microsystems XLP processors.
 endchoice
 
+config CPU_MIPS32_3_5_FEATURES
+	bool "MIPS32 Release 3.5 Features"
+	depends on SYS_HAS_CPU_MIPS32_R3_5
+	depends on CPU_MIPS32_R2
+	help
+	  Choose this option to build a kernel for release 2 or later of the
+	  MIPS32 architecture including features from the 3.5 release such as
+	  support for Enhanced Virtual Addressing (EVA).
+
+config CPU_MIPS32_3_5_EVA
+	bool "Enhanced Virtual Addressing (EVA)"
+	depends on CPU_MIPS32_3_5_FEATURES
+	select EVA
+	default y
+	help
+	  Choose this option if you want to enable the Enhanced Virtual
+	  Addressing (EVA) on your MIPS32 core (such as proAptiv).
+	  One of its primary benefits is an increase in the maximum size
+	  of lowmem (up to 3GB). If unsure, say 'N' here.
+
 if CPU_LOONGSON2F
 config CPU_NOP_WORKAROUNDS
 	bool
@@ -1546,6 +1566,9 @@ config SYS_HAS_CPU_MIPS32_R1
 	bool
 
 config SYS_HAS_CPU_MIPS32_R2
+	bool
+
+config SYS_HAS_CPU_MIPS32_R3_5
 	bool
 
 config SYS_HAS_CPU_MIPS64_R1
@@ -1663,6 +1686,9 @@ config CPU_MIPSR1
 config CPU_MIPSR2
 	bool
 	default y if CPU_MIPS32_R2 || CPU_MIPS64_R2 || CPU_CAVIUM_OCTEON
+
+config EVA
+	bool
 
 config SYS_SUPPORTS_32BIT_KERNEL
 	bool
@@ -2149,7 +2175,7 @@ config CPU_R4400_WORKAROUNDS
 #
 config HIGHMEM
 	bool "High Memory Support"
-	depends on 32BIT && CPU_SUPPORTS_HIGHMEM && SYS_SUPPORTS_HIGHMEM
+	depends on 32BIT && CPU_SUPPORTS_HIGHMEM && SYS_SUPPORTS_HIGHMEM && !CPU_MIPS32_3_5_EVA
 
 config CPU_SUPPORTS_HIGHMEM
 	bool
