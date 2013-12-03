@@ -249,7 +249,7 @@ static void fam15h_power_remove(struct pci_dev *pdev)
 	sysfs_remove_group(&dev->kobj, &fam15h_power_attr_group);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(fam15h_power_id_table) = {
+static const struct pci_device_id fam15h_power_id_table[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_NB_F4) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_NB_F4) },
 	{}
