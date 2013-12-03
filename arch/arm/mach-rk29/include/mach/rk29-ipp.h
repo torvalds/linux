@@ -1,1 +1,0 @@
-#include <plat/ipp.h>
