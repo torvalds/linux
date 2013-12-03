@@ -572,9 +572,6 @@ swi_state2str (int state)
 #undef STATE2STR
 }
 
-#define UNUSED(x)       ( (void)(x) )
-
-
 #define selftest_wait_events()	cfs_pause(cfs_time_seconds(1) / 10)
 
 

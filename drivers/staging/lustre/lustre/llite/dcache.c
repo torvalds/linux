@@ -404,7 +404,6 @@ int ll_revalidate_it(struct dentry *de, int lookup_flags,
 		struct inode *inode = de->d_inode;
 		struct ll_inode_info *lli = ll_i2info(inode);
 		struct obd_client_handle **och_p;
-		__u64 *och_usecount;
 		__u64 ibits;
 
 		/*
@@ -418,37 +417,32 @@ int ll_revalidate_it(struct dentry *de, int lookup_flags,
 		 */
 
 
-		if (it->it_flags & FMODE_WRITE) {
+		if (it->it_flags & FMODE_WRITE)
 			och_p = &lli->lli_mds_write_och;
-			och_usecount = &lli->lli_open_fd_write_count;
-		} else if (it->it_flags & FMODE_EXEC) {
+		else if (it->it_flags & FMODE_EXEC)
 			och_p = &lli->lli_mds_exec_och;
-			och_usecount = &lli->lli_open_fd_exec_count;
-		} else {
+		else
 			och_p = &lli->lli_mds_read_och;
-			och_usecount = &lli->lli_open_fd_read_count;
-		}
+
 		/* Check for the proper lock. */
 		ibits = MDS_INODELOCK_LOOKUP;
 		if (!ll_have_md_lock(inode, &ibits, LCK_MINMODE))
 			goto do_lock;
 		mutex_lock(&lli->lli_och_mutex);
 		if (*och_p) { /* Everything is open already, do nothing */
-			/*(*och_usecount)++;  Do not let them steal our open
-			  handle from under us */
-			SET_BUT_UNUSED(och_usecount);
-			/* XXX The code above was my original idea, but in case
-			   we have the handle, but we cannot use it due to later
-			   checks (e.g. O_CREAT|O_EXCL flags set), nobody
-			   would decrement counter increased here. So we just
-			   hope the lock won't be invalidated in between. But
-			   if it would be, we'll reopen the open request to
-			   MDS later during file open path */
+			/* Originally it was idea to do not let them steal our
+			 * open handle from under us by (*och_usecount)++ here.
+			 * But in case we have the handle, but we cannot use it
+			 * due to later checks (e.g. O_CREAT|O_EXCL flags set),
+			 * nobody would decrement counter increased here. So we
+			 * just hope the lock won't be invalidated in between.
+			 * But if it would be, we'll reopen the open request to
+			 * MDS later during file open path.
+			 */
 			mutex_unlock(&lli->lli_och_mutex);
 			return 1;
-		} else {
-			mutex_unlock(&lli->lli_och_mutex);
 		}
+		mutex_unlock(&lli->lli_och_mutex);
 	}
 
 	if (it->it_op == IT_GETATTR) {
