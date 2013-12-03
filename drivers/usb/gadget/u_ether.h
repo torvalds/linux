@@ -267,40 +267,4 @@ static inline bool can_support_ecm(struct usb_gadget *gadget)
 	return true;
 }
 
-/* each configuration may bind one instance of an ethernet link */
-#ifdef USB_ETH_RNDIS
-
-int rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
-		u32 vendorID, const char *manufacturer, struct eth_dev *dev);
-
-#else
-
-static inline int
-rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
-		u32 vendorID, const char *manufacturer, struct eth_dev *dev)
-{
-	return 0;
-}
-
-#endif
-
-/**
- * rndis_bind_config - add RNDIS network link to a configuration
- * @c: the configuration to support the network link
- * @ethaddr: a buffer in which the ethernet address of the host side
- *	side of the link was recorded
- * Context: single threaded during gadget setup
- *
- * Returns zero on success, else negative errno.
- *
- * Caller must have called @gether_setup().  Caller is also responsible
- * for calling @gether_cleanup() before module unload.
- */
-static inline int rndis_bind_config(struct usb_configuration *c,
-		u8 ethaddr[ETH_ALEN], struct eth_dev *dev)
-{
-	return rndis_bind_config_vendor(c, ethaddr, 0, NULL, dev);
-}
-
-
 #endif /* __U_ETHER_H */
