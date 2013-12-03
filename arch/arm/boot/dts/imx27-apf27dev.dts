@@ -165,6 +165,12 @@
 			>;
 		};
 
+		pinctrl_pwm: pwmgrp {
+			fsl,pins = <
+				MX27_PAD_PWMO__PWMO 0x0
+			>;
+		};
+
 		pinctrl_sdhc2: sdhc2grp {
 			fsl,pins = <
 				MX27_PAD_SD2_CLK__SD2_CLK 0x0
@@ -184,4 +190,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sdhc2>;
 	status = "okay";
+};
+
+&pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm>;
 };
