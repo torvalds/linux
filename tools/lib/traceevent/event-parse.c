@@ -5121,8 +5121,38 @@ enum pevent_errno __pevent_parse_format(struct event_format **eventp,
 	return ret;
 }
 
+static enum pevent_errno
+__pevent_parse_event(struct pevent *pevent,
+		     struct event_format **eventp,
+		     const char *buf, unsigned long size,
+		     const char *sys)
+{
+	int ret = __pevent_parse_format(eventp, pevent, buf, size, sys);
+	struct event_format *event = *eventp;
+
+	if (event == NULL)
+		return ret;
+
+	if (pevent && add_event(pevent, event)) {
+		ret = PEVENT_ERRNO__MEM_ALLOC_FAILED;
+		goto event_add_failed;
+	}
+
+#define PRINT_ARGS 0
+	if (PRINT_ARGS && event->print_fmt.args)
+		print_args(event->print_fmt.args);
+
+	return 0;
+
+event_add_failed:
+	pevent_free_format(event);
+	return ret;
+}
+
 /**
  * pevent_parse_format - parse the event format
+ * @pevent: the handle to the pevent
+ * @eventp: returned format
  * @buf: the buffer storing the event format string
  * @size: the size of @buf
  * @sys: the system the event belongs to
@@ -5134,10 +5164,12 @@ enum pevent_errno __pevent_parse_format(struct event_format **eventp,
  *
  * /sys/kernel/debug/tracing/events/.../.../format
  */
-enum pevent_errno pevent_parse_format(struct event_format **eventp, const char *buf,
+enum pevent_errno pevent_parse_format(struct pevent *pevent,
+				      struct event_format **eventp,
+				      const char *buf,
 				      unsigned long size, const char *sys)
 {
-	return __pevent_parse_format(eventp, NULL, buf, size, sys);
+	return __pevent_parse_event(pevent, eventp, buf, size, sys);
 }
 
 /**
@@ -5158,25 +5190,7 @@ enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
 				     unsigned long size, const char *sys)
 {
 	struct event_format *event = NULL;
-	int ret = __pevent_parse_format(&event, pevent, buf, size, sys);
-
-	if (event == NULL)
-		return ret;
-
-	if (add_event(pevent, event)) {
-		ret = PEVENT_ERRNO__MEM_ALLOC_FAILED;
-		goto event_add_failed;
-	}
-
-#define PRINT_ARGS 0
-	if (PRINT_ARGS && event->print_fmt.args)
-		print_args(event->print_fmt.args);
-
-	return 0;
-
-event_add_failed:
-	pevent_free_format(event);
-	return ret;
+	return __pevent_parse_event(pevent, &event, buf, size, sys);
 }
 
 #undef _PE

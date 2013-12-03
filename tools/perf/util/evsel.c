@@ -210,7 +210,7 @@ struct event_format *event_format__new(const char *sys, const char *name)
 		size += n;
 	} while (n > 0);
 
-	pevent_parse_format(&format, bf, size, sys);
+	pevent_parse_format(NULL, &format, bf, size, sys);
 
 out_free_bf:
 	free(bf);
