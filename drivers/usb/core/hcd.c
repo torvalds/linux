@@ -2589,6 +2589,24 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	int retval;
 	struct usb_device *rhdev;
 
+	if (IS_ENABLED(CONFIG_USB_PHY) && !hcd->phy) {
+		struct usb_phy *phy = usb_get_phy_dev(hcd->self.controller, 0);
+
+		if (IS_ERR(phy)) {
+			retval = PTR_ERR(phy);
+			if (retval == -EPROBE_DEFER)
+				return retval;
+		} else {
+			retval = usb_phy_init(phy);
+			if (retval) {
+				usb_put_phy(phy);
+				return retval;
+			}
+			hcd->phy = phy;
+			hcd->remove_phy = 1;
+		}
+	}
+
 	dev_info(hcd->self.controller, "%s\n", hcd->product_desc);
 
 	/* Keep old behaviour if authorized_default is not in [0, 1]. */
