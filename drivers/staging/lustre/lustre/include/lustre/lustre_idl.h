@@ -321,8 +321,11 @@ static inline int range_compare_loc(const struct lu_seq_range *r1,
  * xattr.
  */
 enum lma_compat {
-	LMAC_HSM = 0x00000001,
-	LMAC_SOM = 0x00000002,
+	LMAC_HSM	= 0x00000001,
+	LMAC_SOM	= 0x00000002,
+	LMAC_NOT_IN_OI	= 0x00000004, /* the object does NOT need OI mapping */
+	LMAC_FID_ON_OST = 0x00000008, /* For OST-object, its OI mapping is
+				       * under /O/<seq>/d<x>. */
 };
 
 /**

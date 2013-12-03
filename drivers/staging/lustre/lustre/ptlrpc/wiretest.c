@@ -431,6 +431,10 @@ void lustre_assert_wire_constants(void)
 		(unsigned)LMAC_HSM);
 	LASSERTF(LMAC_SOM == 0x00000002UL, "found 0x%.8xUL\n",
 		(unsigned)LMAC_SOM);
+	LASSERTF(LMAC_NOT_IN_OI == 0x00000004UL, "found 0x%.8xUL\n",
+		(unsigned)LMAC_NOT_IN_OI);
+	LASSERTF(LMAC_FID_ON_OST == 0x00000008UL, "found 0x%.8xUL\n",
+		(unsigned)LMAC_FID_ON_OST);
 	LASSERTF(OBJ_CREATE == 1, "found %lld\n",
 		 (long long)OBJ_CREATE);
 	LASSERTF(OBJ_DESTROY == 2, "found %lld\n",
