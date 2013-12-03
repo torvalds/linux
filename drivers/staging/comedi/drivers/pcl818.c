@@ -1333,7 +1333,6 @@ no_dma:
 		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = board->n_aochan;
 		s->maxdata = board->ao_maxdata;
-		s->len_chanlist = board->n_aochan;
 		s->range_table = board->ao_range_type;
 		s->insn_read = pcl818_ao_insn_read;
 		s->insn_write = pcl818_ao_insn_write;
@@ -1358,7 +1357,6 @@ no_dma:
 		s->subdev_flags = SDF_READABLE;
 		s->n_chan = board->n_dichan;
 		s->maxdata = 1;
-		s->len_chanlist = board->n_dichan;
 		s->range_table = &range_digital;
 		s->insn_bits = pcl818_di_insn_bits;
 	}
@@ -1371,7 +1369,6 @@ no_dma:
 		s->subdev_flags = SDF_WRITABLE;
 		s->n_chan = board->n_dochan;
 		s->maxdata = 1;
-		s->len_chanlist = board->n_dochan;
 		s->range_table = &range_digital;
 		s->insn_bits = pcl818_do_insn_bits;
 	}
