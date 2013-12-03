@@ -30,7 +30,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
 #include <linux/dmi.h>
 
 #include "internal.h"

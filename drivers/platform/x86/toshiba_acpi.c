@@ -54,10 +54,8 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/i8042.h>
-
+#include <linux/acpi.h>
 #include <asm/uaccess.h>
-
-#include <acpi/acpi_drivers.h>
 
 MODULE_AUTHOR("John Belmonte");
 MODULE_DESCRIPTION("Toshiba Laptop ACPI Extras Driver");

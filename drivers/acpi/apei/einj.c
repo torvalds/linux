@@ -33,7 +33,6 @@
 #include <linux/nmi.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
-#include <acpi/acpi.h>
 
 #include "apei-internal.h"
 

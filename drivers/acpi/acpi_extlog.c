@@ -9,7 +9,6 @@
 
 #include <linux/module.h>
 #include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
 #include <linux/cper.h>
 #include <linux/ratelimit.h>
 #include <asm/cpu.h>

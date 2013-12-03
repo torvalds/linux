@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
-#include <acpi/acpi_bus.h>
 
 struct ioapic {
 	acpi_handle	handle;

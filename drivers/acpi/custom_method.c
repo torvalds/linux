@@ -7,7 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/uaccess.h>
 #include <linux/debugfs.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 
 #include "internal.h"
 

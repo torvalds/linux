@@ -49,9 +49,6 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 
-#include <acpi/acpi.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/processor.h>
 #include "internal.h"
 
 #define _COMPONENT		ACPI_OS_SERVICES
