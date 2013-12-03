@@ -24,7 +24,7 @@
 #include "gc.h"
 
 static LIST_HEAD(f2fs_stat_list);
-static struct dentry *debugfs_root;
+static struct dentry *f2fs_debugfs_root;
 static DEFINE_MUTEX(f2fs_stat_mutex);
 
 static void update_general_status(struct f2fs_sb_info *sbi)
@@ -342,11 +342,11 @@ void __init f2fs_create_root_stats(void)
 {
 	struct dentry *file;
 
-	debugfs_root = debugfs_create_dir("f2fs", NULL);
-	if (!debugfs_root)
+	f2fs_debugfs_root = debugfs_create_dir("f2fs", NULL);
+	if (!f2fs_debugfs_root)
 		goto bail;
 
-	file = debugfs_create_file("status", S_IRUGO, debugfs_root,
+	file = debugfs_create_file("status", S_IRUGO, f2fs_debugfs_root,
 			NULL, &stat_fops);
 	if (!file)
 		goto free_debugfs_dir;
@@ -354,18 +354,18 @@ void __init f2fs_create_root_stats(void)
 	return;
 
 free_debugfs_dir:
-	debugfs_remove(debugfs_root);
+	debugfs_remove(f2fs_debugfs_root);
 
 bail:
-	debugfs_root = NULL;
+	f2fs_debugfs_root = NULL;
 	return;
 }
 
 void f2fs_destroy_root_stats(void)
 {
-	if (!debugfs_root)
+	if (!f2fs_debugfs_root)
 		return;
 
-	debugfs_remove_recursive(debugfs_root);
-	debugfs_root = NULL;
+	debugfs_remove_recursive(f2fs_debugfs_root);
+	f2fs_debugfs_root = NULL;
 }
