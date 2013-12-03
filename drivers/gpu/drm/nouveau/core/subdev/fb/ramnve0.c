@@ -569,7 +569,10 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	ram_mask(fuc, 0x100778, 0x00000700, data);
 
 	ram_mask(fuc, 0x10f250, 0x000003f0, next->bios.timing_20_2c_003f << 4);
-	ram_mask(fuc, 0x10f24c, 0x7f000000, next->bios.timing_20_2c_1fc0 << 24);
+	data = (next->bios.timing[10] & 0x7f000000) >> 24;
+	if (data < next->bios.timing_20_2c_1fc0)
+		data = next->bios.timing_20_2c_1fc0;
+	ram_mask(fuc, 0x10f24c, 0x7f000000, data << 24);
 	ram_mask(fuc, 0x10f224, 0x001f0000, next->bios.timing_20_30_f8 << 16);
 
 	ram_mask(fuc, 0x10fec4, 0x041e0f07, next->bios.timing_20_31_0800 << 26 |
@@ -869,7 +872,7 @@ nve0_ram_calc_sddr3(struct nouveau_fb *pfb, u32 freq)
 	ram_mask(fuc, 0x10f250, 0x000003f0, next->bios.timing_20_2c_003f << 4);
 
 	data = (next->bios.timing[10] & 0x7f000000) >> 24;
-	if ( next->bios.timing_20_2c_1fc0 > data)
+	if (data < next->bios.timing_20_2c_1fc0)
 		data = next->bios.timing_20_2c_1fc0;
 	ram_mask(fuc, 0x10f24c, 0x7f000000, data << 24);
 
