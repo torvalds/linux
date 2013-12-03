@@ -111,8 +111,12 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 		return;
 	}
 
-	if (!memcmp(&rx_pkt_hdr->rfc1042_hdr, rfc1042_header,
-		    sizeof(rfc1042_header))) {
+	if ((!memcmp(&rx_pkt_hdr->rfc1042_hdr, bridge_tunnel_header,
+		     sizeof(bridge_tunnel_header))) ||
+	    (!memcmp(&rx_pkt_hdr->rfc1042_hdr, rfc1042_header,
+		     sizeof(rfc1042_header)) &&
+	     ntohs(rx_pkt_hdr->rfc1042_hdr.snap_type) != ETH_P_AARP &&
+	     ntohs(rx_pkt_hdr->rfc1042_hdr.snap_type) != ETH_P_IPX)) {
 		/* Replace the 803 header and rfc1042 header (llc/snap) with
 		 * an Ethernet II header, keep the src/dst and snap_type
 		 * (ethertype).
