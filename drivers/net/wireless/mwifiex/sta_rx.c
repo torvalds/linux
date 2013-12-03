@@ -88,15 +88,14 @@ int mwifiex_process_rx_packet(struct mwifiex_private *priv,
 	struct rxpd *local_rx_pd;
 	int hdr_chop;
 	struct ethhdr *eth_hdr;
-	u8 rfc1042_eth_hdr[ETH_ALEN] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
 
 	local_rx_pd = (struct rxpd *) (skb->data);
 
 	rx_pkt_hdr = (void *)local_rx_pd +
 		     le16_to_cpu(local_rx_pd->rx_pkt_offset);
 
-	if (!memcmp(&rx_pkt_hdr->rfc1042_hdr,
-		    rfc1042_eth_hdr, sizeof(rfc1042_eth_hdr))) {
+	if (!memcmp(&rx_pkt_hdr->rfc1042_hdr, rfc1042_header,
+		    sizeof(rfc1042_header))) {
 		/*
 		 *  Replace the 803 header and rfc1042 header (llc/snap) with an
 		 *    EthernetII header, keep the src/dst and snap_type

@@ -98,7 +98,6 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 	int hdr_chop;
 	struct timeval tv;
 	struct ethhdr *p_ethhdr;
-	u8 rfc1042_eth_hdr[ETH_ALEN] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
 
 	uap_rx_pd = (struct uap_rxpd *)(skb->data);
 	rx_pkt_hdr = (void *)uap_rx_pd + le16_to_cpu(uap_rx_pd->rx_pkt_offset);
@@ -112,8 +111,8 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 		return;
 	}
 
-	if (!memcmp(&rx_pkt_hdr->rfc1042_hdr,
-		    rfc1042_eth_hdr, sizeof(rfc1042_eth_hdr))) {
+	if (!memcmp(&rx_pkt_hdr->rfc1042_hdr, rfc1042_header,
+		    sizeof(rfc1042_header))) {
 		/* Replace the 803 header and rfc1042 header (llc/snap) with
 		 * an Ethernet II header, keep the src/dst and snap_type
 		 * (ethertype).
