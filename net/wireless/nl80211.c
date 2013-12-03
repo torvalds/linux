@@ -7349,15 +7349,14 @@ static int nl80211_set_tx_bitrate_mask(struct sk_buff *skb,
 	/* Default to all rates enabled */
 	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
 		sband = rdev->wiphy.bands[i];
-		mask.control[i].legacy =
-			sband ? (1 << sband->n_bitrates) - 1 : 0;
-		if (sband)
-			memcpy(mask.control[i].mcs,
-			       sband->ht_cap.mcs.rx_mask,
-			       sizeof(mask.control[i].mcs));
-		else
-			memset(mask.control[i].mcs, 0,
-			       sizeof(mask.control[i].mcs));
+
+		if (!sband)
+			continue;
+
+		mask.control[i].legacy = (1 << sband->n_bitrates) - 1;
+		memcpy(mask.control[i].mcs,
+		       sband->ht_cap.mcs.rx_mask,
+		       sizeof(mask.control[i].mcs));
 	}
 
 	/*
