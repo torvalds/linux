@@ -1279,15 +1279,15 @@ no_dma:
 			s->subdev_flags |= SDF_DIFF;
 		}
 		s->maxdata = board->ai_maxdata;
-		s->len_chanlist = s->n_chan;
 		s->range_table = board->ai_range_type;
-		s->cancel = pcl818_ai_cancel;
 		s->insn_read = pcl818_ai_insn_read;
 		if (dev->irq) {
 			dev->read_subdev = s;
 			s->subdev_flags |= SDF_CMD_READ;
+			s->len_chanlist = s->n_chan;
 			s->do_cmdtest = ai_cmdtest;
 			s->do_cmd = ai_cmd;
+			s->cancel = pcl818_ai_cancel;
 		}
 		if (board->is_818) {
 			if ((it->options[4] == 1) || (it->options[4] == 10))
