@@ -90,7 +90,7 @@ enum ffs_state {
 
 	/*
 	 * We've got descriptors and strings.  We are or have called
-	 * functionfs_ready_callback().  functionfs_bind() may have
+	 * ffs_ready().  functionfs_bind() may have
 	 * been called but we don't know.
 	 *
 	 * This is the only state in which operations on epfiles may
@@ -103,7 +103,7 @@ enum ffs_state {
 	 * we encounter an unrecoverable error.  The only
 	 * unrecoverable error is situation when after reading strings
 	 * from user space we fail to initialise epfiles or
-	 * functionfs_ready_callback() returns with error (<0).
+	 * ffs_ready() returns with error (<0).
 	 *
 	 * In this state no open(2), read(2) or write(2) (both on ep0
 	 * as well as epfile) may succeed (at this point epfiles are
@@ -361,6 +361,15 @@ ffs_sb_create_file(struct super_block *sb, const char *name, void *data,
 		   const struct file_operations *fops,
 		   struct dentry **dentry_p);
 
+/* Devices management *******************************************************/
+
+DEFINE_MUTEX(ffs_lock);
+
+static struct ffs_dev *ffs_find_dev(const char *name);
+static void *ffs_acquire_dev(const char *dev_name);
+static void ffs_release_dev(struct ffs_data *ffs_data);
+static int ffs_ready(struct ffs_data *ffs);
+static void ffs_closed(struct ffs_data *ffs);
 
 /* Misc helper functions ****************************************************/
 
@@ -486,7 +495,7 @@ static ssize_t ffs_ep0_write(struct file *file, const char __user *buf,
 			ffs->state = FFS_ACTIVE;
 			mutex_unlock(&ffs->mutex);
 
-			ret = functionfs_ready_callback(ffs);
+			ret = ffs_ready(ffs);
 			if (unlikely(ret < 0)) {
 				ffs->state = FFS_CLOSING;
 				return ret;
@@ -1218,7 +1227,7 @@ ffs_fs_mount(struct file_system_type *t, int flags,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	ffs_dev = functionfs_acquire_dev_callback(dev_name);
+	ffs_dev = ffs_acquire_dev(dev_name);
 	if (IS_ERR(ffs_dev)) {
 		ffs_data_put(ffs);
 		return ERR_CAST(ffs_dev);
@@ -1228,7 +1237,7 @@ ffs_fs_mount(struct file_system_type *t, int flags,
 
 	rv = mount_nodev(t, flags, &data, ffs_sb_fill);
 	if (IS_ERR(rv) && data.ffs_data) {
-		functionfs_release_dev_callback(data.ffs_data);
+		ffs_release_dev(data.ffs_data);
 		ffs_data_put(data.ffs_data);
 	}
 	return rv;
@@ -1241,7 +1250,7 @@ ffs_fs_kill_sb(struct super_block *sb)
 
 	kill_litter_super(sb);
 	if (sb->s_fs_info) {
-		functionfs_release_dev_callback(sb->s_fs_info);
+		ffs_release_dev(sb->s_fs_info);
 		ffs_data_put(sb->s_fs_info);
 	}
 }
@@ -1354,7 +1363,7 @@ static void ffs_data_clear(struct ffs_data *ffs)
 	ENTER();
 
 	if (test_and_clear_bit(FFS_FL_CALL_CLOSED_CALLBACK, &ffs->flags))
-		functionfs_closed_callback(ffs);
+		ffs_closed(ffs);
 
 	BUG_ON(ffs->gadget);
 
@@ -2465,6 +2474,221 @@ static int ffs_func_revmap_intf(struct ffs_function *func, u8 intf)
 	return -EDOM;
 }
 
+
+/* Devices management *******************************************************/
+
+static LIST_HEAD(ffs_devices);
+
+static struct ffs_dev *_ffs_find_dev(const char *name)
+{
+	struct ffs_dev *dev;
+
+	list_for_each_entry(dev, &ffs_devices, entry) {
+		if (!dev->name || !name)
+			continue;
+		if (strcmp(dev->name, name) == 0)
+			return dev;
+	}
+	
+	return NULL;
+}
+
+/*
+ * ffs_lock must be taken by the caller of this function
+ */
+static struct ffs_dev *ffs_get_single_dev(void)
+{
+	struct ffs_dev *dev;
+
+	if (list_is_singular(&ffs_devices)) {
+		dev = list_first_entry(&ffs_devices, struct ffs_dev, entry);
+		if (dev->single)
+			return dev;
+	}
+
+	return NULL;
+}
+
+/*
+ * ffs_lock must be taken by the caller of this function
+ */
+static struct ffs_dev *ffs_find_dev(const char *name)
+{
+	struct ffs_dev *dev;
+
+	dev = ffs_get_single_dev();
+	if (dev)
+		return dev;
+
+	return _ffs_find_dev(name);
+}
+
+/*
+ * ffs_lock must be taken by the caller of this function
+ */
+struct ffs_dev *ffs_alloc_dev(void)
+{
+	struct ffs_dev *dev;
+	int ret;
+
+	if (ffs_get_single_dev())
+			return ERR_PTR(-EBUSY);
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return ERR_PTR(-ENOMEM);
+
+	if (list_empty(&ffs_devices)) {
+		ret = functionfs_init();
+		if (ret) {
+			kfree(dev);
+			return ERR_PTR(ret);
+		}
+	}
+
+	list_add(&dev->entry, &ffs_devices);
+
+	return dev;
+}
+
+/*
+ * ffs_lock must be taken by the caller of this function
+ * The caller is responsible for "name" being available whenever f_fs needs it
+ */
+static int _ffs_name_dev(struct ffs_dev *dev, const char *name)
+{
+	struct ffs_dev *existing;
+
+	existing = _ffs_find_dev(name);
+	if (existing)
+		return -EBUSY;
+	
+	dev->name = name;
+
+	return 0;
+}
+
+/*
+ * The caller is responsible for "name" being available whenever f_fs needs it
+ */
+int ffs_name_dev(struct ffs_dev *dev, const char *name)
+{
+	int ret;
+
+	ffs_dev_lock();
+	ret = _ffs_name_dev(dev, name);
+	ffs_dev_unlock();
+
+	return ret;
+}
+
+int ffs_single_dev(struct ffs_dev *dev)
+{
+	int ret;
+
+	ret = 0;
+	ffs_dev_lock();
+
+	if (!list_is_singular(&ffs_devices))
+		ret = -EBUSY;
+	else
+		dev->single = true;
+
+	ffs_dev_unlock();
+	return ret;
+}
+
+/*
+ * ffs_lock must be taken by the caller of this function
+ */
+void ffs_free_dev(struct ffs_dev *dev)
+{
+	list_del(&dev->entry);
+	kfree(dev);
+	if (list_empty(&ffs_devices))
+		functionfs_cleanup();
+}
+
+static void *ffs_acquire_dev(const char *dev_name)
+{
+	struct ffs_dev *ffs_dev;
+
+	ENTER();
+	ffs_dev_lock();
+
+	ffs_dev = ffs_find_dev(dev_name);
+	if (!ffs_dev)
+		ffs_dev = ERR_PTR(-ENODEV);
+	else if (ffs_dev->mounted)
+		ffs_dev = ERR_PTR(-EBUSY);
+	else
+		ffs_dev->mounted = true;
+
+	ffs_dev_unlock();
+	return ffs_dev;
+}
+
+static void ffs_release_dev(struct ffs_data *ffs_data)
+{
+	struct ffs_dev *ffs_dev;
+
+	ENTER();
+	ffs_dev_lock();
+
+	ffs_dev = ffs_data->private_data;
+	if (ffs_dev)
+		ffs_dev->mounted = false;
+
+	ffs_dev_unlock();
+}
+
+static int ffs_ready(struct ffs_data *ffs)
+{
+	struct ffs_dev *ffs_obj;
+	int ret = 0;
+
+	ENTER();
+	ffs_dev_lock();
+
+	ffs_obj = ffs->private_data;
+	if (!ffs_obj) {
+		ret = -EINVAL;
+		goto done;
+	}
+	if (WARN_ON(ffs_obj->desc_ready)) {
+		ret = -EBUSY;
+		goto done;
+	}
+
+	ffs_obj->desc_ready = true;
+	ffs_obj->ffs_data = ffs;
+
+	if (ffs_obj->ffs_ready_callback)
+		ret = ffs_obj->ffs_ready_callback(ffs);
+
+done:
+	ffs_dev_unlock();
+	return ret;
+}
+
+static void ffs_closed(struct ffs_data *ffs)
+{
+	struct ffs_dev *ffs_obj;
+
+	ENTER();
+	ffs_dev_lock();
+
+	ffs_obj = ffs->private_data;
+	if (!ffs_obj)
+		goto done;
+
+	ffs_obj->desc_ready = false;
+
+	if (ffs_obj->ffs_closed_callback)
+		ffs_obj->ffs_closed_callback(ffs);
+done:
+	ffs_dev_unlock();
+}
 
 /* Misc helper functions ****************************************************/
 

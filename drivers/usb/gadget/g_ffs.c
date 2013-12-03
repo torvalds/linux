@@ -157,6 +157,8 @@ struct gfs_configuration {
 #endif
 };
 
+static int functionfs_ready_callback(struct ffs_data *ffs);
+static void functionfs_closed_callback(struct ffs_data *ffs);
 static int gfs_bind(struct usb_composite_dev *cdev);
 static int gfs_unbind(struct usb_composite_dev *cdev);
 static int gfs_do_config(struct usb_configuration *c);
@@ -170,172 +172,113 @@ static __refdata struct usb_composite_driver gfs_driver = {
 	.unbind		= gfs_unbind,
 };
 
-static DEFINE_MUTEX(gfs_lock);
 static unsigned int missing_funcs;
 static bool gfs_registered;
 static bool gfs_single_func;
-static struct ffs_dev *ffs_tab;
+static struct ffs_dev **ffs_tab;
 
 static int __init gfs_init(void)
 {
 	int i;
+	int ret = 0;
 
 	ENTER();
 
-	if (!func_num) {
+	if (func_num < 2) {
 		gfs_single_func = true;
 		func_num = 1;
 	}
 
-	ffs_tab = kcalloc(func_num, sizeof *ffs_tab, GFP_KERNEL);
+	ffs_tab = kcalloc(func_num, sizeof(*ffs_tab), GFP_KERNEL);
 	if (!ffs_tab)
 		return -ENOMEM;
 
-	if (!gfs_single_func)
-		for (i = 0; i < func_num; i++)
-			ffs_tab[i].name = func_names[i];
+	for (i = 0; i < func_num; i++) {
+		ffs_dev_lock();
+		ffs_tab[i] = ffs_alloc_dev();
+		ffs_dev_unlock();
+		if (IS_ERR(ffs_tab[i])) {
+			ret = PTR_ERR(ffs_tab[i]);
+			--i;
+			goto no_dev;
+		}
+		if (gfs_single_func)
+			ret = ffs_single_dev(ffs_tab[i]);
+		else
+			ret = ffs_name_dev(ffs_tab[i], func_names[i]);
+		if (ret)
+			goto no_dev;
+		ffs_tab[i]->ffs_ready_callback = functionfs_ready_callback;
+		ffs_tab[i]->ffs_closed_callback = functionfs_closed_callback;
+	}
 
 	missing_funcs = func_num;
 
-	return functionfs_init();
+	return 0;
+no_dev:
+	ffs_dev_lock();
+	while (i >= 0)
+		ffs_free_dev(ffs_tab[i--]);
+	ffs_dev_unlock();
+	kfree(ffs_tab);
+	return ret;
 }
 module_init(gfs_init);
 
 static void __exit gfs_exit(void)
 {
+	int i;
+
 	ENTER();
-	mutex_lock(&gfs_lock);
+	ffs_dev_lock();
 
 	if (gfs_registered)
 		usb_composite_unregister(&gfs_driver);
 	gfs_registered = false;
 
-	functionfs_cleanup();
-
-	mutex_unlock(&gfs_lock);
+	for (i = 0; i < func_num; i++)
+		ffs_free_dev(ffs_tab[i]);
+	ffs_dev_unlock();
 	kfree(ffs_tab);
 }
 module_exit(gfs_exit);
 
-static struct ffs_dev *gfs_find_dev(const char *dev_name)
-{
-	int i;
-
-	ENTER();
-
-	if (gfs_single_func)
-		return &ffs_tab[0];
-
-	for (i = 0; i < func_num; i++)
-		if (strcmp(ffs_tab[i].name, dev_name) == 0)
-			return &ffs_tab[i];
-
-	return NULL;
-}
-
+/*
+ * The caller of this function takes ffs_lock 
+ */
 static int functionfs_ready_callback(struct ffs_data *ffs)
 {
-	struct ffs_dev *ffs_obj;
-	int ret;
+	int ret = 0;
 
-	ENTER();
-	mutex_lock(&gfs_lock);
+	if (--missing_funcs)
+		return 0;
 
-	ffs_obj = ffs->private_data;
-	if (!ffs_obj) {
-		ret = -EINVAL;
-		goto done;
-	}
+	if (gfs_registered)
+		return -EBUSY;
 
-	if (WARN_ON(ffs_obj->desc_ready)) {
-		ret = -EBUSY;
-		goto done;
-	}
-	ffs_obj->desc_ready = true;
-	ffs_obj->ffs_data = ffs;
-
-	if (--missing_funcs) {
-		ret = 0;
-		goto done;
-	}
-
-	if (gfs_registered) {
-		ret = -EBUSY;
-		goto done;
-	}
 	gfs_registered = true;
 
 	ret = usb_composite_probe(&gfs_driver);
 	if (unlikely(ret < 0))
 		gfs_registered = false;
-
-done:
-	mutex_unlock(&gfs_lock);
+	
 	return ret;
 }
 
+/*
+ * The caller of this function takes ffs_lock 
+ */
 static void functionfs_closed_callback(struct ffs_data *ffs)
 {
-	struct ffs_dev *ffs_obj;
-
-	ENTER();
-	mutex_lock(&gfs_lock);
-
-	ffs_obj = ffs->private_data;
-	if (!ffs_obj)
-		goto done;
-
-	ffs_obj->desc_ready = false;
 	missing_funcs++;
 
 	if (gfs_registered)
 		usb_composite_unregister(&gfs_driver);
 	gfs_registered = false;
-
-done:
-	mutex_unlock(&gfs_lock);
-}
-
-static void *functionfs_acquire_dev_callback(const char *dev_name)
-{
-	struct ffs_dev *ffs_dev;
-
-	ENTER();
-	mutex_lock(&gfs_lock);
-
-	ffs_dev = gfs_find_dev(dev_name);
-	if (!ffs_dev) {
-		ffs_dev = ERR_PTR(-ENODEV);
-		goto done;
-	}
-
-	if (ffs_dev->mounted) {
-		ffs_dev = ERR_PTR(-EBUSY);
-		goto done;
-	}
-	ffs_dev->mounted = true;
-
-done:
-	mutex_unlock(&gfs_lock);
-	return ffs_dev;
-}
-
-static void functionfs_release_dev_callback(struct ffs_data *ffs_data)
-{
-	struct ffs_dev *ffs_dev;
-
-	ENTER();
-	mutex_lock(&gfs_lock);
-
-	ffs_dev = ffs_data->private_data;
-	if (ffs_dev)
-		ffs_dev->mounted = false;
-
-	mutex_unlock(&gfs_lock);
 }
 
 /*
- * It is assumed that gfs_bind is called from a context where gfs_lock is held
+ * It is assumed that gfs_bind is called from a context where ffs_lock is held
  */
 static int gfs_bind(struct usb_composite_dev *cdev)
 {
@@ -422,10 +365,10 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 	gfs_dev_desc.iProduct = gfs_strings[USB_GADGET_PRODUCT_IDX].id;
 
 	for (i = func_num; i--; ) {
-		ret = functionfs_bind(ffs_tab[i].ffs_data, cdev);
+		ret = functionfs_bind(ffs_tab[i]->ffs_data, cdev);
 		if (unlikely(ret < 0)) {
 			while (++i < func_num)
-				functionfs_unbind(ffs_tab[i].ffs_data);
+				functionfs_unbind(ffs_tab[i]->ffs_data);
 			goto error_rndis;
 		}
 	}
@@ -448,7 +391,7 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 
 error_unbind:
 	for (i = 0; i < func_num; i++)
-		functionfs_unbind(ffs_tab[i].ffs_data);
+		functionfs_unbind(ffs_tab[i]->ffs_data);
 error_rndis:
 #ifdef CONFIG_USB_FUNCTIONFS_RNDIS
 	usb_put_function_instance(fi_rndis);
@@ -464,7 +407,7 @@ error:
 }
 
 /*
- * It is assumed that gfs_unbind is called from a context where gfs_lock is held
+ * It is assumed that gfs_unbind is called from a context where ffs_lock is held
  */
 static int gfs_unbind(struct usb_composite_dev *cdev)
 {
@@ -497,15 +440,15 @@ static int gfs_unbind(struct usb_composite_dev *cdev)
 	 * do...?
 	 */
 	for (i = func_num; i--; )
-		if (ffs_tab[i].ffs_data)
-			functionfs_unbind(ffs_tab[i].ffs_data);
+		if (ffs_tab[i]->ffs_data)
+			functionfs_unbind(ffs_tab[i]->ffs_data);
 
 	return 0;
 }
 
 /*
  * It is assumed that gfs_do_config is called from a context where
- * gfs_lock is held
+ * ffs_lock is held
  */
 static int gfs_do_config(struct usb_configuration *c)
 {
@@ -529,7 +472,7 @@ static int gfs_do_config(struct usb_configuration *c)
 	}
 
 	for (i = 0; i < func_num; i++) {
-		ret = functionfs_bind_config(c->cdev, c, ffs_tab[i].ffs_data);
+		ret = functionfs_bind_config(c->cdev, c, ffs_tab[i]->ffs_data);
 		if (unlikely(ret < 0))
 			return ret;
 	}
