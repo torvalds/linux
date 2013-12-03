@@ -170,7 +170,6 @@ int ptlrpc_set_import_discon(struct obd_import *imp, __u32 conn_cnt)
 			       target_len, target_start,
 			       libcfs_nid2str(imp->imp_connection->c_peer.nid));
 		}
-		ptlrpc_deactivate_timeouts(imp);
 		IMPORT_SET_STATE_NOLOCK(imp, LUSTRE_IMP_DISCON);
 		spin_unlock(&imp->imp_lock);
 
@@ -383,7 +382,6 @@ void ptlrpc_activate_import(struct obd_import *imp)
 
 	spin_lock(&imp->imp_lock);
 	imp->imp_invalid = 0;
-	ptlrpc_activate_timeouts(imp);
 	spin_unlock(&imp->imp_lock);
 	obd_import_event(obd, imp, IMP_EVENT_ACTIVE);
 }

@@ -3403,10 +3403,8 @@ int ptlrpc_del_timeout_client(struct list_head *obd_list,
 			      enum timeout_event event);
 struct ptlrpc_request * ptlrpc_prep_ping(struct obd_import *imp);
 int ptlrpc_obd_ping(struct obd_device *obd);
-cfs_time_t ptlrpc_suspend_wakeup_time(void);
 void ping_evictor_start(void);
 void ping_evictor_stop(void);
-int ptlrpc_check_and_wait_suspend(struct ptlrpc_request *req);
 void ptlrpc_pinger_ir_up(void);
 void ptlrpc_pinger_ir_down(void);
 /** @} */

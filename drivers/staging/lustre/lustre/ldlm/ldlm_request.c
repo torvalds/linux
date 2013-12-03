@@ -97,9 +97,6 @@ int ldlm_expired_completion_wait(void *data)
 	if (lock->l_conn_export == NULL) {
 		static cfs_time_t next_dump = 0, last_dump = 0;
 
-		if (ptlrpc_check_suspend())
-			return 0;
-
 		LCONSOLE_WARN("lock timed out (enqueued at "CFS_TIME_T", "
 			      CFS_DURATION_T"s ago)\n",
 			      lock->l_last_activity,
