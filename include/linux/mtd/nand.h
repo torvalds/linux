@@ -285,7 +285,8 @@ struct nand_onfi_params {
 	u8 reserved4[7];
 
 	/* vendor */
-	u8 reserved5[90];
+	__le16 vendor_revision;
+	u8 vendor[88];
 
 	__le16 crc;
 } __attribute__((packed));
@@ -324,6 +325,26 @@ struct onfi_ext_param_page {
 	 * The following are the variable length sections.
 	 * So we do not add any fields below. Please see the ONFI spec.
 	 */
+} __packed;
+
+struct nand_onfi_vendor_micron {
+	u8 two_plane_read;
+	u8 read_cache;
+	u8 read_unique_id;
+	u8 dq_imped;
+	u8 dq_imped_num_settings;
+	u8 dq_imped_feat_addr;
+	u8 rb_pulldown_strength;
+	u8 rb_pulldown_strength_feat_addr;
+	u8 rb_pulldown_strength_num_settings;
+	u8 otp_mode;
+	u8 otp_page_start;
+	u8 otp_data_prot_addr;
+	u8 otp_num_pages;
+	u8 otp_feat_addr;
+	u8 read_retry_options;
+	u8 reserved[72];
+	u8 param_revision;
 } __packed;
 
 /**
