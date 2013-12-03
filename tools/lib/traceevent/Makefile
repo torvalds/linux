@@ -214,6 +214,7 @@ PEVENT_LIB_OBJS += kbuffer-parse.o
 
 PLUGIN_OBJS  = plugin_jbd2.o
 PLUGIN_OBJS += plugin_hrtimer.o
+PLUGIN_OBJS += plugin_kmem.o
 
 PLUGINS := $(PLUGIN_OBJS:.o=.so)
 
