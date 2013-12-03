@@ -8,16 +8,6 @@
 #ifndef _AB8500_GPIO_H
 #define _AB8500_GPIO_H
 
-/*
- * Platform data to register a block: only the initial gpio/irq number.
- * Array sizes are large enough to contain all AB8500 and AB9540 GPIO
- * registers.
- */
-
-struct abx500_gpio_platform_data {
-	int gpio_base;
-};
-
 enum abx500_gpio_pull_updown {
 	ABX500_GPIO_PULL_DOWN = 0x0,
 	ABX500_GPIO_PULL_NONE = 0x1,
