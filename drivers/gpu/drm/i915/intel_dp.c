@@ -1941,18 +1941,6 @@ intel_dp_get_link_status(struct intel_dp *intel_dp, uint8_t link_status[DP_LINK_
 					      DP_LINK_STATUS_SIZE);
 }
 
-#if 0
-static char	*voltage_names[] = {
-	"0.4V", "0.6V", "0.8V", "1.2V"
-};
-static char	*pre_emph_names[] = {
-	"0dB", "3.5dB", "6dB", "9.5dB"
-};
-static char	*link_train_names[] = {
-	"pattern 1", "pattern 2", "idle", "off"
-};
-#endif
-
 /*
  * These are source-specific values; current Intel hardware supports
  * a maximum voltage of 800mV and a maximum pre-emphasis of 6dB
