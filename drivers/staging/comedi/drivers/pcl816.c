@@ -221,7 +221,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct pcl816_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned char low, hi;
 	int timeout = 50;	/* wait max 50us */
 
@@ -315,7 +315,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct pcl816_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 	int len, bufptr, this_dma_buf;
 	unsigned long dma_flags;
 	unsigned short *ptr;
