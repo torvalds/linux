@@ -138,7 +138,6 @@ struct pcl816_private {
 	unsigned int ai_act_chanlist_pos;	/*  actual position in MUX list */
 	unsigned int ai_n_chan;		/*  how many channels per scan */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
-	struct comedi_subdevice *sub_ai;	/*  ptr to AI subdevice */
 };
 
 /*
@@ -948,7 +947,6 @@ no_dma:
 	s = &dev->subdevices[0];
 	if (board->n_aichan > 0) {
 		s->type = COMEDI_SUBD_AI;
-		devpriv->sub_ai = s;
 		s->subdev_flags = SDF_CMD_READ | SDF_DIFF;
 		s->n_chan = board->n_aichan;
 		s->maxdata = board->ai_maxdata;
@@ -1003,7 +1001,7 @@ static void pcl816_detach(struct comedi_device *dev)
 	struct pcl816_private *devpriv = dev->private;
 
 	if (dev->private) {
-		pcl816_ai_cancel(dev, devpriv->sub_ai);
+		pcl816_ai_cancel(dev, dev->read_subdev);
 		pcl816_reset(dev);
 		if (devpriv->dma)
 			free_dma(devpriv->dma);
