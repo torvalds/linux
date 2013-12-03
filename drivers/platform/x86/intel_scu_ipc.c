@@ -62,6 +62,11 @@
 #define IPC_RWBUF_SIZE    20		/* IPC Read buffer Size */
 #define IPC_IOC	          0x100		/* IPC command register IOC bit */
 
+#define PCI_DEVICE_ID_LINCROFT		0x082a
+#define PCI_DEVICE_ID_PENWELL		0x080e
+#define PCI_DEVICE_ID_CLOVERVIEW	0x08ea
+#define PCI_DEVICE_ID_TANGIER		0x11a0
+
 /* intel scu ipc driver data*/
 struct intel_scu_ipc_pdata_t {
 	u32 ipc_base;
@@ -637,16 +642,16 @@ static void ipc_remove(struct pci_dev *pdev)
 
 static DEFINE_PCI_DEVICE_TABLE(pci_ids) = {
 	{
-		PCI_VDEVICE(INTEL, 0x082a),
+		PCI_VDEVICE(INTEL, PCI_DEVICE_ID_LINCROFT),
 		(kernel_ulong_t)&intel_scu_ipc_lincroft_pdata,
 	}, {
-		PCI_VDEVICE(INTEL, 0x080e),
+		PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PENWELL),
 		(kernel_ulong_t)&intel_scu_ipc_penwell_pdata,
 	}, {
-		PCI_VDEVICE(INTEL, 0x08ea),
+		PCI_VDEVICE(INTEL, PCI_DEVICE_ID_CLOVERVIEW),
 		(kernel_ulong_t)&intel_scu_ipc_penwell_pdata,
 	}, {
-		PCI_VDEVICE(INTEL, 0x11a0),
+		PCI_VDEVICE(INTEL, PCI_DEVICE_ID_TANGIER),
 		(kernel_ulong_t)&intel_scu_ipc_tangier_pdata,
 	}, {
 		0,
