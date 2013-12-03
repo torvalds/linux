@@ -28,6 +28,7 @@
 struct rtl2832_priv {
 	struct i2c_adapter *i2c;
 	struct i2c_adapter *i2c_adapter;
+	struct i2c_adapter *i2c_adapter_tuner;
 	struct dvb_frontend fe;
 	struct rtl2832_config cfg;
 
