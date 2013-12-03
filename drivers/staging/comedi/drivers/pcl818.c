@@ -439,7 +439,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct pcl818_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned char low;
 	int timeout = 50;	/* wait max 50us */
 
@@ -498,7 +498,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct pcl818_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 	int i, len, bufptr;
 	unsigned long flags;
 	unsigned short *ptr;
@@ -575,7 +575,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct pcl818_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 	int i, len;
 	unsigned char lo;
 
@@ -667,10 +667,9 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 			   being reprogrammed while a DMA transfer is in
 			   progress.
 			 */
-			struct comedi_subdevice *s = &dev->subdevices[0];
 			devpriv->ai_act_scan = 0;
 			devpriv->neverending_ai = 0;
-			pcl818_ai_cancel(dev, s);
+			pcl818_ai_cancel(dev, dev->read_subdev);
 		}
 
 		outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
