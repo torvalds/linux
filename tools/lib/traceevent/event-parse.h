@@ -23,6 +23,7 @@
 #include <stdbool.h>
 #include <stdarg.h>
 #include <regex.h>
+#include <string.h>
 
 #ifndef __maybe_unused
 #define __maybe_unused __attribute__((unused))
@@ -526,6 +527,15 @@ __data2host8(struct pevent *pevent, unsigned long long data)
 	memcpy(&__val, (ptr), sizeof(unsigned long long));	\
 	__data2host8(pevent, __val);				\
 })
+
+static inline int traceevent_host_bigendian(void)
+{
+	unsigned char str[] = { 0x1, 0x2, 0x3, 0x4 };
+	unsigned int val;
+
+	memcpy(&val, str, 4);
+	return val == 0x01020304;
+}
 
 /* taken from kernel/trace/trace.h */
 enum trace_flag_type {
