@@ -701,6 +701,18 @@ config USB_CONFIGFS_F_LB_SS
 	  test software, like the "usbtest" driver, to put your hardware
 	  and its driver through a basic set of functional tests.
 
+config USB_CONFIGFS_F_FS
+	boolean "Function filesystem (FunctionFS)"
+	depends on USB_CONFIGFS
+	select USB_F_FS
+	help
+	  The Function Filesystem (FunctionFS) lets one create USB
+	  composite functions in user space in the same way GadgetFS
+	  lets one create USB gadgets in user space.  This allows creation
+	  of composite gadgets such that some of the functions are
+	  implemented in kernel space (for instance Ethernet, serial or
+	  mass storage) and other are implemented in user space.
+
 config USB_ZERO
 	tristate "Gadget Zero (DEVELOPMENT)"
 	select USB_LIBCOMPOSITE

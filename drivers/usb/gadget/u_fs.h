@@ -35,13 +35,16 @@
 
 #define ENTER()    pr_vdebug("%s()\n", __func__)
 
+struct f_fs_opts;
 
 struct ffs_dev {
 	const char *name;
+	bool name_allocated;
 	bool mounted;
 	bool desc_ready;
 	bool single;
 	struct ffs_data *ffs_data;
+	struct f_fs_opts *opts;
 	struct list_head entry;
 
 	int (*ffs_ready_callback)(struct ffs_data *ffs);

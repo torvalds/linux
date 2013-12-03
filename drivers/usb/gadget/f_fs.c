@@ -29,6 +29,7 @@
 #include <linux/usb/functionfs.h>
 
 #include "u_fs.h"
+#include "configfs.h"
 
 #define FUNCTIONFS_MAGIC	0xa647361 /* Chosen by a honest dice roll ;) */
 
@@ -161,6 +162,7 @@ DEFINE_MUTEX(ffs_lock);
 EXPORT_SYMBOL(ffs_lock);
 
 static struct ffs_dev *ffs_find_dev(const char *name);
+static int _ffs_name_dev(struct ffs_dev *dev, const char *name);
 static void *ffs_acquire_dev(const char *dev_name);
 static void ffs_release_dev(struct ffs_data *ffs_data);
 static int ffs_ready(struct ffs_data *ffs);
@@ -2261,7 +2263,7 @@ static struct ffs_dev *_ffs_find_dev(const char *name)
 		if (strcmp(dev->name, name) == 0)
 			return dev;
 	}
-	
+
 	return NULL;
 }
 
@@ -2295,6 +2297,31 @@ static struct ffs_dev *ffs_find_dev(const char *name)
 	return _ffs_find_dev(name);
 }
 
+/* Configfs support *********************************************************/
+
+static inline struct f_fs_opts *to_ffs_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct f_fs_opts,
+			    func_inst.group);
+}
+
+static void ffs_attr_release(struct config_item *item)
+{
+	struct f_fs_opts *opts = to_ffs_opts(item);
+
+	usb_put_function_instance(&opts->func_inst);
+}
+
+static struct configfs_item_operations ffs_item_ops = {
+	.release	= ffs_attr_release,
+};
+
+static struct config_item_type ffs_func_type = {
+	.ct_item_ops	= &ffs_item_ops,
+	.ct_owner	= THIS_MODULE,
+};
+
+
 /* Function registration interface ******************************************/
 
 static void ffs_free_inst(struct usb_function_instance *f)
@@ -2308,6 +2335,44 @@ static void ffs_free_inst(struct usb_function_instance *f)
 	kfree(opts);
 }
 
+#define MAX_INST_NAME_LEN	40
+
+static int ffs_set_inst_name(struct usb_function_instance *fi, const char *name)
+{
+	struct f_fs_opts *opts;
+	char *ptr;
+	const char *tmp;
+	int name_len, ret;
+
+	name_len = strlen(name) + 1;
+	if (name_len > MAX_INST_NAME_LEN)
+		return -ENAMETOOLONG;
+
+	ptr = kstrndup(name, name_len, GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	opts = to_f_fs_opts(fi);
+	tmp = NULL;
+
+	ffs_dev_lock();
+
+	tmp = opts->dev->name_allocated ? opts->dev->name : NULL;
+	ret = _ffs_name_dev(opts->dev, ptr);
+	if (ret) {
+		kfree(ptr);
+		ffs_dev_unlock();
+		return ret;
+	}
+	opts->dev->name_allocated = true;
+
+	ffs_dev_unlock();
+
+	kfree(tmp);
+
+	return 0;
+}
+
 static struct usb_function_instance *ffs_alloc_inst(void)
 {
 	struct f_fs_opts *opts;
@@ -2317,6 +2382,7 @@ static struct usb_function_instance *ffs_alloc_inst(void)
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 
+	opts->func_inst.set_inst_name = ffs_set_inst_name;
 	opts->func_inst.free_func_inst = ffs_free_inst;
 	ffs_dev_lock();
 	dev = ffs_alloc_dev();
@@ -2326,7 +2392,10 @@ static struct usb_function_instance *ffs_alloc_inst(void)
 		return ERR_CAST(dev);
 	}
 	opts->dev = dev;
+	dev->opts = opts;
 
+	config_group_init_type_name(&opts->func_inst.group, "",
+				    &ffs_func_type);
 	return &opts->func_inst;
 }
 
@@ -2484,6 +2553,8 @@ EXPORT_SYMBOL(ffs_single_dev);
 void ffs_free_dev(struct ffs_dev *dev)
 {
 	list_del(&dev->entry);
+	if (dev->name_allocated)
+		kfree(dev->name);
 	kfree(dev);
 	if (list_empty(&ffs_devices))
 		functionfs_cleanup();
@@ -2572,6 +2643,13 @@ static void ffs_closed(struct ffs_data *ffs)
 
 	if (ffs_obj->ffs_closed_callback)
 		ffs_obj->ffs_closed_callback(ffs);
+
+	if (!ffs_obj->opts || ffs_obj->opts->no_configfs
+	    || !ffs_obj->opts->func_inst.group.cg_item.ci_parent)
+		goto done;
+
+	unregister_gadget_item(ffs_obj->opts->
+			       func_inst.group.cg_item.ci_parent->ci_parent);
 done:
 	ffs_dev_unlock();
 }
