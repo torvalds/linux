@@ -175,11 +175,6 @@ drm_gem_remove_prime_handles(struct drm_gem_object *obj, struct drm_file *filp)
 	mutex_unlock(&filp->prime.lock);
 }
 
-static void drm_gem_object_ref_bug(struct kref *list_kref)
-{
-	BUG();
-}
-
 /**
  * Called after the last handle to the object has been closed
  *
@@ -195,13 +190,6 @@ static void drm_gem_object_handle_free(struct drm_gem_object *obj)
 	if (obj->name) {
 		idr_remove(&dev->object_name_idr, obj->name);
 		obj->name = 0;
-		/*
-		 * The object name held a reference to this object, drop
-		 * that now.
-		*
-		* This cannot be the last reference, since the handle holds one too.
-		 */
-		kref_put(&obj->refcount, drm_gem_object_ref_bug);
 	}
 }
 
@@ -602,9 +590,6 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 			goto err;
 
 		obj->name = ret;
-
-		/* Allocate a reference for the name table.  */
-		drm_gem_object_reference(obj);
 	}
 
 	args->name = (uint64_t) obj->name;
