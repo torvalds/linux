@@ -147,7 +147,7 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 		hdr_chop = (u8 *)&rx_pkt_hdr->eth803_hdr - (u8 *)uap_rx_pd;
 	}
 
-	/* Chop off the leading header bytes so the it points
+	/* Chop off the leading header bytes so that it points
 	 * to the start of either the reconstructed EthII frame
 	 * or the 802.2/llc/snap frame.
 	 */
@@ -178,6 +178,19 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 	tx_info->bss_num = priv->bss_num;
 	tx_info->bss_type = priv->bss_type;
 	tx_info->flags |= MWIFIEX_BUF_FLAG_BRIDGED_PKT;
+
+	if (is_unicast_ether_addr(rx_pkt_hdr->eth803_hdr.h_dest)) {
+		/* Update bridge packet statistics as the
+		 * packet is not going to kernel/upper layer.
+		 */
+		priv->stats.rx_bytes += skb->len;
+		priv->stats.rx_packets++;
+
+		/* Sending bridge packet to TX queue, so save the packet
+		 * length in TXCB to update statistics in TX complete.
+		 */
+		tx_info->pkt_len = skb->len;
+	}
 
 	do_gettimeofday(&tv);
 	skb->tstamp = timeval_to_ktime(tv);
