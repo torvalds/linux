@@ -218,6 +218,7 @@ PLUGIN_OBJS += plugin_kmem.o
 PLUGIN_OBJS += plugin_kvm.o
 PLUGIN_OBJS += plugin_mac80211.o
 PLUGIN_OBJS += plugin_sched_switch.o
+PLUGIN_OBJS += plugin_function.o
 
 PLUGINS := $(PLUGIN_OBJS:.o=.so)
 
