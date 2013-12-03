@@ -25,6 +25,14 @@
 #include <subdev/bios.h>
 #include "priv.h"
 
+/* binary driver only executes this path if the condition (a) is true
+ * for any configuration (combination of rammap+ramcfg+timing) that
+ * can be reached on a given card.  for now, we will execute the branch
+ * unconditionally in the hope that a "false everywhere" in the bios
+ * tables doesn't actually mean "don't touch this".
+ */
+#define NOTE00(a) 1
+
 int
 nouveau_gddr5_calc(struct nouveau_ram *ram, bool nuts)
 {
@@ -99,10 +107,11 @@ nouveau_gddr5_calc(struct nouveau_ram *ram, bool nuts)
 	ram->mr[6] |= (vo & 0xff) << 4;
 	ram->mr[6] |= (pd & 0x01) << 0;
 
-	if (!(ram->mr[7] & 0x100))
-		vr = 0; /* binary driver does this.. bug? */
-	ram->mr[7] &= ~0x388;
-	ram->mr[7] |= (vr & 0x03) << 8;
+	if (NOTE00(vr)) {
+		ram->mr[7] &= ~0x300;
+		ram->mr[7] |= (vr & 0x03) << 8;
+	}
+	ram->mr[7] &= ~0x088;
 	ram->mr[7] |= (vh & 0x01) << 7;
 	ram->mr[7] |= (lf & 0x01) << 3;
 
