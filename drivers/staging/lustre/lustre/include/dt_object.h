@@ -692,7 +692,7 @@ struct local_oid_storage {
 	struct dt_object *los_obj;
 
 	/* data used to generate new fids */
-	struct mutex	 los_id_lock;
+	struct mutex	  los_id_lock;
 	__u64		  los_seq;
 	__u32		  los_last_oid;
 };
