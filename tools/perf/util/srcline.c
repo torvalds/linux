@@ -244,6 +244,12 @@ void dso__free_a2l(struct dso *dso __maybe_unused)
 
 #endif /* HAVE_LIBBFD_SUPPORT */
 
+/*
+ * Number of addr2line failures (without success) before disabling it for that
+ * dso.
+ */
+#define A2L_FAIL_LIMIT 123
+
 char *get_srcline(struct dso *dso, unsigned long addr)
 {
 	char *file = NULL;
@@ -268,15 +274,21 @@ char *get_srcline(struct dso *dso, unsigned long addr)
 	if (!addr2line(dso_name, addr, &file, &line, dso))
 		goto out;
 
-	if (asprintf(&srcline, "%s:%u", file, line) < 0)
-		srcline = SRCLINE_UNKNOWN;
+	if (asprintf(&srcline, "%s:%u", file, line) < 0) {
+		free(file);
+		goto out;
+	}
+
+	dso->a2l_fails = 0;
 
 	free(file);
 	return srcline;
 
 out:
-	dso->has_srcline = 0;
-	dso__free_a2l(dso);
+	if (dso->a2l_fails && ++dso->a2l_fails > A2L_FAIL_LIMIT) {
+		dso->has_srcline = 0;
+		dso__free_a2l(dso);
+	}
 	return SRCLINE_UNKNOWN;
 }
 
