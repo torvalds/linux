@@ -332,6 +332,11 @@ void intel_uncore_early_sanitize(struct drm_device *dev)
 		DRM_INFO("Found %zuMB of eLLC\n", dev_priv->ellc_size);
 	}
 
+	/* clear out old GT FIFO errors */
+	if (IS_GEN6(dev) || IS_GEN7(dev))
+		__raw_i915_write32(dev_priv, GTFIFODBG,
+				   __raw_i915_read32(dev_priv, GTFIFODBG));
+
 	intel_uncore_forcewake_reset(dev);
 }
 
