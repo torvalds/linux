@@ -5297,6 +5297,8 @@ static void btrfs_end_bio(struct bio *bio, int err)
 		if (!is_orig_bio) {
 			bio_put(bio);
 			bio = bbio->orig_bio;
+		} else {
+			atomic_inc(&bio->bi_remaining);
 		}
 		bio->bi_private = bbio->private;
 		bio->bi_end_io = bbio->end_io;

@@ -1692,7 +1692,7 @@ static void end_workqueue_fn(struct btrfs_work *work)
 	bio->bi_private = end_io_wq->private;
 	bio->bi_end_io = end_io_wq->end_io;
 	kfree(end_io_wq);
-	bio_endio(bio, error);
+	bio_endio_nodec(bio, error);
 }
 
 static int cleaner_kthread(void *arg)
