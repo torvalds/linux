@@ -44,6 +44,7 @@
 
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <linux/usb/phy.h>
 
 #include "usb.h"
 
@@ -2603,7 +2604,7 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	 */
 	if ((retval = hcd_buffer_create(hcd)) != 0) {
 		dev_dbg(hcd->self.controller, "pool alloc failed\n");
-		return retval;
+		goto err_remove_phy;
 	}
 
 	if ((retval = usb_register_bus(&hcd->self)) < 0)
@@ -2734,6 +2735,12 @@ err_allocate_root_hub:
 	usb_deregister_bus(&hcd->self);
 err_register_bus:
 	hcd_buffer_destroy(hcd);
+err_remove_phy:
+	if (hcd->remove_phy && hcd->phy) {
+		usb_phy_shutdown(hcd->phy);
+		usb_put_phy(hcd->phy);
+		hcd->phy = NULL;
+	}
 	return retval;
 }
 EXPORT_SYMBOL_GPL(usb_add_hcd);
@@ -2806,6 +2813,11 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	usb_put_dev(hcd->self.root_hub);
 	usb_deregister_bus(&hcd->self);
 	hcd_buffer_destroy(hcd);
+	if (hcd->remove_phy && hcd->phy) {
+		usb_phy_shutdown(hcd->phy);
+		usb_put_phy(hcd->phy);
+		hcd->phy = NULL;
+	}
 }
 EXPORT_SYMBOL_GPL(usb_remove_hcd);
 
