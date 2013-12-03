@@ -786,14 +786,6 @@ void ieee80211_scan_work(struct work_struct *work)
 	}
 
 	/*
-	 * Avoid re-scheduling when the sdata is going away.
-	 */
-	if (!ieee80211_sdata_running(sdata)) {
-		aborted = true;
-		goto out_complete;
-	}
-
-	/*
 	 * as long as no delay is required advance immediately
 	 * without scheduling a new work
 	 */
