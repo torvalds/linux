@@ -477,6 +477,14 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	ram_mask(fuc, 0x10f2e8, 0xffffffff, next->bios.timing[9]);
 
 	data = mask = 0x00000000;
+	if (NOTE00(ramcfg_08_20)) {
+		if (next->bios.ramcfg_11_08_20)
+			data |= 0x01000000;
+		mask |= 0x01000000;
+	}
+	ram_mask(fuc, 0x10f200, mask, data);
+
+	data = mask = 0x00000000;
 	if (NOTE00(ramcfg_02_03 != 0)) {
 		data |= (next->bios.ramcfg_11_02_03) << 8;
 		mask |= 0x00000300;

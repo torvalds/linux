@@ -40,6 +40,7 @@ struct nvbios_ramcfg {
 	unsigned ramcfg_11_08_04:1;
 	unsigned ramcfg_11_08_08:1;
 	unsigned ramcfg_11_08_10:1;
+	unsigned ramcfg_11_08_20:1;
 	unsigned ramcfg_11_09:8;
 
 	unsigned timing[11];

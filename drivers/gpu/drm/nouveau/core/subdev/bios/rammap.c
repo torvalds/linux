@@ -162,6 +162,7 @@ nvbios_rammapSp(struct nouveau_bios *bios, u32 data,
 		p->ramcfg_11_08_04 = (nv_ro08(bios, data + 0x08) & 0x04) >> 2;
 		p->ramcfg_11_08_08 = (nv_ro08(bios, data + 0x08) & 0x08) >> 3;
 		p->ramcfg_11_08_10 = (nv_ro08(bios, data + 0x08) & 0x10) >> 4;
+		p->ramcfg_11_08_20 = (nv_ro08(bios, data + 0x08) & 0x20) >> 5;
 		p->ramcfg_11_09    = (nv_ro08(bios, data + 0x09) & 0xff) >> 0;
 		break;
 	default:
