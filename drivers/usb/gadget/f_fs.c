@@ -27,6 +27,7 @@
 #include <linux/usb/composite.h>
 #include <linux/usb/functionfs.h>
 
+#include "u_fs.h"
 
 #define FUNCTIONFS_MAGIC	0xa647361 /* Chosen by a honest dice roll ;) */
 
