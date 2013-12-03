@@ -700,7 +700,7 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 
 	outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
 
-	if (!dev->irq || !devpriv->irq_blocked || !devpriv->ai_mode) {
+	if (!devpriv->irq_blocked || !devpriv->ai_mode) {
 		comedi_error(dev, "bad IRQ!");
 		return IRQ_NONE;
 	}
@@ -762,10 +762,6 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 	unsigned int seglen;
 
 	dev_dbg(dev->class_dev, "pcl818_ai_cmd_mode()\n");
-	if (!dev->irq) {
-		comedi_error(dev, "IRQ not defined!");
-		return -EINVAL;
-	}
 
 	if (devpriv->irq_blocked)
 		return -EBUSY;
