@@ -175,7 +175,7 @@ int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
 	mwifiex_set_trans_start(priv->netdev);
 	if (!status) {
 		priv->stats.tx_packets++;
-		priv->stats.tx_bytes += skb->len;
+		priv->stats.tx_bytes += tx_info->pkt_len;
 		if (priv->tx_timeout_cnt)
 			priv->tx_timeout_cnt = 0;
 	} else {
