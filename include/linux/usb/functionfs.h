@@ -3,6 +3,7 @@
 
 #include <uapi/linux/usb/functionfs.h>
 
+#ifdef USB_FFS_INCLUDED
 
 struct ffs_data;
 struct usb_composite_dev;
@@ -19,4 +20,5 @@ static int functionfs_bind_config(struct usb_composite_dev *cdev,
 	__attribute__((warn_unused_result, nonnull));
 
 
+#endif
 #endif
