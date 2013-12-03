@@ -48,10 +48,6 @@ static int timer_start_handler(struct trace_seq *s,
 			       struct pevent_record *record,
 			       struct event_format *event, void *context)
 {
-	struct pevent *pevent = event->pevent;
-	struct format_field *fn = pevent_find_field(event, "function");
-	void *data = record->data;
-
 	trace_seq_printf(s, "hrtimer=");
 
 	if (pevent_print_num_field(s, "0x%llx", event, "timer",
@@ -59,19 +55,8 @@ static int timer_start_handler(struct trace_seq *s,
 		pevent_print_num_field(s, "0x%llx", event, "hrtimer",
 				       record, 1);
 
-	if (!fn) {
-		trace_seq_printf(s, " function=MISSING");
-	} else {
-		unsigned long long function;
-		const char *func;
-
-		if (pevent_read_number_field(fn, data, &function))
-			trace_seq_printf(s, " function=INVALID");
-
-		func = pevent_find_function(pevent, function);
-
-		trace_seq_printf(s, " function=%s", func);
-	}
+	pevent_print_func_field(s, " function=%s", event, "function",
+				record, 0);
 
 	trace_seq_printf(s, " expires=");
 	pevent_print_num_field(s, "%llu", event, "expires", record, 1);
