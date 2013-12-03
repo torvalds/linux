@@ -268,9 +268,6 @@ static inline bool can_support_ecm(struct usb_gadget *gadget)
 }
 
 /* each configuration may bind one instance of an ethernet link */
-int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
-		struct eth_dev *dev);
-
 #ifdef USB_ETH_RNDIS
 
 int rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
