@@ -36,12 +36,12 @@ mwifiex_discard_gratuitous_arp(struct mwifiex_private *priv,
 			       struct sk_buff *skb)
 {
 	const struct mwifiex_arp_eth_header *arp;
-	struct ethhdr *eth_hdr;
+	struct ethhdr *eth;
 	struct ipv6hdr *ipv6;
 	struct icmp6hdr *icmpv6;
 
-	eth_hdr = (struct ethhdr *)skb->data;
-	switch (ntohs(eth_hdr->h_proto)) {
+	eth = (struct ethhdr *)skb->data;
+	switch (ntohs(eth->h_proto)) {
 	case ETH_P_ARP:
 		arp = (void *)(skb->data + sizeof(struct ethhdr));
 		if (arp->hdr.ar_op == htons(ARPOP_REPLY) ||
@@ -87,7 +87,7 @@ int mwifiex_process_rx_packet(struct mwifiex_private *priv,
 	struct rx_packet_hdr *rx_pkt_hdr;
 	struct rxpd *local_rx_pd;
 	int hdr_chop;
-	struct ethhdr *eth_hdr;
+	struct ethhdr *eth;
 
 	local_rx_pd = (struct rxpd *) (skb->data);
 
@@ -109,7 +109,7 @@ int mwifiex_process_rx_packet(struct mwifiex_private *priv,
 		 *  To create the Ethernet II, just move the src, dst address
 		 *    right before the snap_type.
 		 */
-		eth_hdr = (struct ethhdr *)
+		eth = (struct ethhdr *)
 			((u8 *) &rx_pkt_hdr->eth803_hdr
 			 + sizeof(rx_pkt_hdr->eth803_hdr) +
 			 sizeof(rx_pkt_hdr->rfc1042_hdr)
@@ -117,14 +117,14 @@ int mwifiex_process_rx_packet(struct mwifiex_private *priv,
 			 - sizeof(rx_pkt_hdr->eth803_hdr.h_source)
 			 - sizeof(rx_pkt_hdr->rfc1042_hdr.snap_type));
 
-		memcpy(eth_hdr->h_source, rx_pkt_hdr->eth803_hdr.h_source,
-		       sizeof(eth_hdr->h_source));
-		memcpy(eth_hdr->h_dest, rx_pkt_hdr->eth803_hdr.h_dest,
-		       sizeof(eth_hdr->h_dest));
+		memcpy(eth->h_source, rx_pkt_hdr->eth803_hdr.h_source,
+		       sizeof(eth->h_source));
+		memcpy(eth->h_dest, rx_pkt_hdr->eth803_hdr.h_dest,
+		       sizeof(eth->h_dest));
 
 		/* Chop off the rxpd + the excess memory from the 802.2/llc/snap
 		   header that was removed. */
-		hdr_chop = (u8 *) eth_hdr - (u8 *) local_rx_pd;
+		hdr_chop = (u8 *) eth - (u8 *) local_rx_pd;
 	} else {
 		/* Chop off the rxpd */
 		hdr_chop = (u8 *) &rx_pkt_hdr->eth803_hdr -
