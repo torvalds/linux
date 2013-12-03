@@ -180,7 +180,11 @@ $(obj)/%.o: $(src)/%.c
 %.o: $(src)/%.c
 	$(Q)$(call do_compile)
 
-PEVENT_LIB_OBJS = event-parse.o trace-seq.o parse-filter.o parse-utils.o
+PEVENT_LIB_OBJS  = event-parse.o
+PEVENT_LIB_OBJS += event-plugin.o
+PEVENT_LIB_OBJS += trace-seq.o
+PEVENT_LIB_OBJS += parse-filter.o
+PEVENT_LIB_OBJS += parse-utils.o
 PEVENT_LIB_OBJS += kbuffer-parse.o
 
 ALL_OBJS = $(PEVENT_LIB_OBJS)

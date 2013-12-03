@@ -377,6 +377,11 @@ enum pevent_errno {
 };
 #undef _PE
 
+struct plugin_list;
+
+struct plugin_list *traceevent_load_plugins(struct pevent *pevent);
+void traceevent_unload_plugins(struct plugin_list *plugin_list);
+
 struct cmdline;
 struct cmdline_list;
 struct func_map;
