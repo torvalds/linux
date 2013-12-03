@@ -1185,7 +1185,7 @@ static ssize_t ll_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 {
 	struct lu_env      *env;
 	struct vvp_io_args *args;
-	size_t	      count;
+	size_t	      count = 0;
 	ssize_t	     result;
 	int		 refcheck;
 
@@ -1244,7 +1244,7 @@ static ssize_t ll_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 {
 	struct lu_env      *env;
 	struct vvp_io_args *args;
-	size_t	      count;
+	size_t	      count = 0;
 	ssize_t	     result;
 	int		 refcheck;
 
