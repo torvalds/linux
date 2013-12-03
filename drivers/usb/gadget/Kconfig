@@ -895,6 +895,7 @@ config USB_FUNCTIONFS_ETH
 	bool "Include configuration with CDC ECM (Ethernet)"
 	depends on USB_FUNCTIONFS && NET
 	select USB_U_ETHER
+	select USB_F_ECM
 	help
 	  Include a configuration with CDC ECM function (Ethernet) and the
 	  Function Filesystem.
