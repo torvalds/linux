@@ -355,8 +355,6 @@ static void rs_fill_link_cmd(struct iwl_mvm *mvm,
 			     struct ieee80211_sta *sta,
 			     struct iwl_lq_sta *lq_sta, u32 rate_n_flags);
 static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search);
-static const char *rs_pretty_lq_type(enum iwl_table_type type);
-static const char *rs_pretty_ant(u8 ant);
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 static void rs_dbgfs_set_mcs(struct iwl_lq_sta *lq_sta,
@@ -445,6 +443,43 @@ static const struct iwl_rate_mcs_info iwl_rate_mcs[IWL_RATE_COUNT] = {
 };
 
 #define MCS_INDEX_PER_STREAM	(8)
+
+static const char *rs_pretty_ant(u8 ant)
+{
+	static const char * const ant_name[] = {
+		[ANT_NONE] = "None",
+		[ANT_A]    = "A",
+		[ANT_B]    = "B",
+		[ANT_AB]   = "AB",
+		[ANT_C]    = "C",
+		[ANT_AC]   = "AC",
+		[ANT_BC]   = "BC",
+		[ANT_ABC]  = "ABC",
+	};
+
+	if (ant > ANT_ABC)
+		return "UNKNOWN";
+
+	return ant_name[ant];
+}
+
+static const char *rs_pretty_lq_type(enum iwl_table_type type)
+{
+	static const char * const lq_types[] = {
+		[LQ_NONE] = "NONE",
+		[LQ_LEGACY_A] = "LEGACY_A",
+		[LQ_LEGACY_G] = "LEGACY_G",
+		[LQ_HT_SISO] = "HT SISO",
+		[LQ_HT_MIMO2] = "HT MIMO",
+		[LQ_VHT_SISO] = "VHT SISO",
+		[LQ_VHT_MIMO2] = "VHT MIMO",
+	};
+
+	if (type < LQ_NONE || type >= LQ_MAX)
+		return "UNKNOWN";
+
+	return lq_types[type];
+}
 
 static inline void rs_dump_rate(struct iwl_mvm *mvm, const struct rs_rate *rate,
 				const char *prefix)
@@ -2524,69 +2559,6 @@ static void rs_dbgfs_set_mcs(struct iwl_lq_sta *lq_sta,
 	}
 }
 
-static ssize_t rs_sta_dbgfs_scale_table_write(struct file *file,
-			const char __user *user_buf, size_t count, loff_t *ppos)
-{
-	struct iwl_lq_sta *lq_sta = file->private_data;
-	struct iwl_mvm *mvm;
-	char buf[64];
-	size_t buf_size;
-	u32 parsed_rate;
-
-
-	mvm = lq_sta->drv;
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) -  1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-
-	if (sscanf(buf, "%x", &parsed_rate) == 1)
-		lq_sta->dbg_fixed_rate = parsed_rate;
-	else
-		lq_sta->dbg_fixed_rate = 0;
-
-	rs_program_fix_rate(mvm, lq_sta);
-
-	return count;
-}
-
-static const char *rs_pretty_lq_type(enum iwl_table_type type)
-{
-	static const char * const lq_types[] = {
-		[LQ_NONE] = "NONE",
-		[LQ_LEGACY_A] = "LEGACY_A",
-		[LQ_LEGACY_G] = "LEGACY_G",
-		[LQ_HT_SISO] = "HT SISO",
-		[LQ_HT_MIMO2] = "HT MIMO",
-		[LQ_VHT_SISO] = "VHT SISO",
-		[LQ_VHT_MIMO2] = "VHT MIMO",
-	};
-
-	if (type < LQ_NONE || type >= LQ_MAX)
-		return "UNKNOWN";
-
-	return lq_types[type];
-}
-
-static const char *rs_pretty_ant(u8 ant)
-{
-	static const char * const ant_name[] = {
-		[ANT_NONE] = "None",
-		[ANT_A]    = "A",
-		[ANT_B]    = "B",
-		[ANT_AB]   = "AB",
-		[ANT_C]    = "C",
-		[ANT_AC]   = "AC",
-		[ANT_BC]   = "BC",
-		[ANT_ABC]  = "ABC",
-	};
-
-	if (ant > ANT_ABC)
-		return "UNKNOWN";
-
-	return ant_name[ant];
-}
-
 static int rs_pretty_print_rate(char *buf, const u32 rate)
 {
 
@@ -2638,6 +2610,32 @@ static int rs_pretty_print_rate(char *buf, const u32 rate)
 		       (rate & RATE_MCS_LDPC_MSK) ? "LDPC " : "",
 		       (rate & RATE_MCS_BF_MSK) ? "BF " : "",
 		       (rate & RATE_MCS_ZLF_MSK) ? "ZLF " : "");
+}
+
+static ssize_t rs_sta_dbgfs_scale_table_write(struct file *file,
+			const char __user *user_buf, size_t count, loff_t *ppos)
+{
+	struct iwl_lq_sta *lq_sta = file->private_data;
+	struct iwl_mvm *mvm;
+	char buf[64];
+	size_t buf_size;
+	u32 parsed_rate;
+
+
+	mvm = lq_sta->drv;
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) -  1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+
+	if (sscanf(buf, "%x", &parsed_rate) == 1)
+		lq_sta->dbg_fixed_rate = parsed_rate;
+	else
+		lq_sta->dbg_fixed_rate = 0;
+
+	rs_program_fix_rate(mvm, lq_sta);
+
+	return count;
 }
 
 static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
