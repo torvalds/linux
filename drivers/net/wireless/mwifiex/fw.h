@@ -30,7 +30,7 @@ struct rfc_1042_hdr {
 	u8 llc_ssap;
 	u8 llc_ctrl;
 	u8 snap_oui[3];
-	u16 snap_type;
+	__be16 snap_type;
 };
 
 struct rx_packet_hdr {
