@@ -18,6 +18,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/gpio/driver.h>
 #include <linux/rfkill-gpio.h>
 #include "board.h"
 
@@ -36,7 +37,17 @@ static struct platform_device wifi_rfkill_device = {
 	},
 };
 
+static struct gpiod_lookup_table wifi_gpio_lookup = {
+	.dev_id = "rfkill_gpio",
+	.table = {
+		GPIO_LOOKUP_IDX("tegra-gpio", 25, NULL, 0, 0),
+		GPIO_LOOKUP_IDX("tegra-gpio", 85, NULL, 1, 0),
+		{ },
+	},
+};
+
 void __init tegra_paz00_wifikill_init(void)
 {
+	gpiod_add_lookup_table(&wifi_gpio_lookup);
 	platform_device_register(&wifi_rfkill_device);
 }
