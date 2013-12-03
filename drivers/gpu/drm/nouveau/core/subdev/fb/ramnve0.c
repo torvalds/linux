@@ -400,9 +400,13 @@ nve0_ram_calc_gddr5(struct nouveau_fb *pfb, u32 freq)
 	ram_wr32(fuc, 0x10f6b8, 0x01010101 * next->bios.ramcfg_11_09);
 	ram_wr32(fuc, 0x10f6bc, 0x01010101 * next->bios.ramcfg_11_09);
 
-	if (!next->bios.ramcfg_11_07_08) {
+	if (!next->bios.ramcfg_11_07_08 && !next->bios.ramcfg_11_07_04) {
 		ram_wr32(fuc, 0x10f698, 0x01010101 * next->bios.ramcfg_11_04);
 		ram_wr32(fuc, 0x10f69c, 0x01010101 * next->bios.ramcfg_11_04);
+	} else
+	if (!next->bios.ramcfg_11_07_08) {
+		ram_wr32(fuc, 0x10f698, 0x00000000);
+		ram_wr32(fuc, 0x10f69c, 0x00000000);
 	}
 
 	if (ram->mode != 2) {
