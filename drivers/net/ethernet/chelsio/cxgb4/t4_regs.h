@@ -1204,4 +1204,13 @@
 #define EDC_STRIDE_T5 (EDC_T51_BASE_ADDR - EDC_T50_BASE_ADDR)
 #define EDC_REG_T5(reg, idx) (reg + EDC_STRIDE_T5 * idx)
 
+#define A_PL_VF_REV 0x4
+#define A_PL_VF_WHOAMI 0x0
+#define A_PL_VF_REVISION 0x8
+
+#define S_CHIPID    4
+#define M_CHIPID    0xfU
+#define V_CHIPID(x) ((x) << S_CHIPID)
+#define G_CHIPID(x) (((x) >> S_CHIPID) & M_CHIPID)
+
 #endif /* __T4_REGS_H */
