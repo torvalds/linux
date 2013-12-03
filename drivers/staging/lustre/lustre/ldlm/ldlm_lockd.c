@@ -1012,11 +1012,9 @@ static int ldlm_setup(void)
 	if (ldlm_state == NULL)
 		return -ENOMEM;
 
-#ifdef LPROCFS
 	rc = ldlm_proc_setup();
 	if (rc != 0)
 		GOTO(out, rc);
-#endif
 
 	memset(&conf, 0, sizeof(conf));
 	conf = (typeof(conf)) {
