@@ -179,7 +179,7 @@ int ptlrpc_register_bulk(struct ptlrpc_request *req)
 				  LNET_UNLINK, LNET_INS_AFTER, &me_h);
 		if (rc != 0) {
 			CERROR("%s: LNetMEAttach failed x"LPU64"/%d: rc = %d\n",
-			       desc->bd_export->exp_obd->obd_name, xid,
+			       desc->bd_import->imp_obd->obd_name, xid,
 			       posted_md, rc);
 			break;
 		}
@@ -189,7 +189,7 @@ int ptlrpc_register_bulk(struct ptlrpc_request *req)
 				  &desc->bd_mds[posted_md]);
 		if (rc != 0) {
 			CERROR("%s: LNetMDAttach failed x"LPU64"/%d: rc = %d\n",
-			       desc->bd_export->exp_obd->obd_name, xid,
+			       desc->bd_import->imp_obd->obd_name, xid,
 			       posted_md, rc);
 			rc2 = LNetMEUnlink(me_h);
 			LASSERT(rc2 == 0);
@@ -219,7 +219,7 @@ int ptlrpc_register_bulk(struct ptlrpc_request *req)
 	/* Holler if peer manages to touch buffers before he knows the xid */
 	if (desc->bd_md_count != total_md)
 		CWARN("%s: Peer %s touched %d buffers while I registered\n",
-		      desc->bd_export->exp_obd->obd_name, libcfs_id2str(peer),
+		      desc->bd_import->imp_obd->obd_name, libcfs_id2str(peer),
 		      total_md - desc->bd_md_count);
 	spin_unlock(&desc->bd_lock);
 
