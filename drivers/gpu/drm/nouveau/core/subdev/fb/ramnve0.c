@@ -1178,6 +1178,7 @@ nve0_ram_init(struct nouveau_object *object)
 		data += 4;
 	}
 	nv_wr32(pfb, 0x10f65c, save);
+	nv_mask(pfb, 0x10f584, 0x11000000, 0x00000000);
 
 	switch (ram->base.type) {
 	case NV_MEM_TYPE_GDDR5:
