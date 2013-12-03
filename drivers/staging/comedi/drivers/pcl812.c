@@ -1201,7 +1201,6 @@ no_dma:
 			break;
 		}
 		s->maxdata = board->ai_maxdata;
-		s->len_chanlist = MAX_CHANLIST_LEN;
 		s->range_table = board->rangelist_ai;
 		if (board->board_type == boardACL8216)
 			s->insn_read = acl8216_ai_insn_read;
@@ -1209,13 +1208,14 @@ no_dma:
 			s->insn_read = pcl812_ai_insn_read;
 
 		devpriv->use_MPC = board->haveMPC508;
-		s->cancel = pcl812_ai_cancel;
 		if (dev->irq) {
 			dev->read_subdev = s;
 			s->subdev_flags |= SDF_CMD_READ;
+			s->len_chanlist = MAX_CHANLIST_LEN;
 			s->do_cmdtest = pcl812_ai_cmdtest;
 			s->do_cmd = pcl812_ai_cmd;
 			s->poll = pcl812_ai_poll;
+			s->cancel = pcl812_ai_cancel;
 		}
 		switch (board->board_type) {
 		case boardPCL812PG:
