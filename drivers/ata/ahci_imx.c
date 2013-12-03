@@ -140,7 +140,7 @@ static void ahci_imx_error_handler(struct ata_port *ap)
 	imxpriv->no_device = true;
 }
 
-int ahci_imx_softreset(struct ata_link *link, unsigned int *class,
+static int ahci_imx_softreset(struct ata_link *link, unsigned int *class,
 		       unsigned long deadline)
 {
 	struct ata_port *ap = link->ap;
