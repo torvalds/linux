@@ -212,7 +212,8 @@ PEVENT_LIB_OBJS += parse-filter.o
 PEVENT_LIB_OBJS += parse-utils.o
 PEVENT_LIB_OBJS += kbuffer-parse.o
 
-PLUGIN_OBJS = plugin_jbd2.o
+PLUGIN_OBJS  = plugin_jbd2.o
+PLUGIN_OBJS += plugin_hrtimer.o
 
 PLUGINS := $(PLUGIN_OBJS:.o=.so)
 
