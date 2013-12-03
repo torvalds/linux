@@ -2840,7 +2840,9 @@ intel_dp_voltage_max(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	enum port port = dp_to_dig_port(intel_dp)->port;
 
-	if (IS_VALLEYVIEW(dev))
+	if (INTEL_INFO(dev)->gen >= 9)
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
+	else if (IS_VALLEYVIEW(dev))
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 	else if (IS_GEN7(dev) && port == PORT_A)
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
@@ -2856,7 +2858,18 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	enum port port = dp_to_dig_port(intel_dp)->port;
 
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	if (INTEL_INFO(dev)->gen >= 9) {
+		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
+			return DP_TRAIN_PRE_EMPH_LEVEL_3;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
+			return DP_TRAIN_PRE_EMPH_LEVEL_2;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
+			return DP_TRAIN_PRE_EMPH_LEVEL_1;
+		default:
+			return DP_TRAIN_PRE_EMPH_LEVEL_0;
+		}
+	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
 		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
 			return DP_TRAIN_PRE_EMPH_LEVEL_3;
@@ -3338,7 +3351,7 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp, uint32_t *DP)
 	uint32_t signal_levels, mask;
 	uint8_t train_set = intel_dp->train_set[0];
 
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev) || INTEL_INFO(dev)->gen >= 9) {
 		signal_levels = intel_hsw_signal_levels(train_set);
 		mask = DDI_BUF_EMP_MASK;
 	} else if (IS_CHERRYVIEW(dev)) {
