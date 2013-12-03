@@ -171,6 +171,7 @@ device_initcall(octeon_ohci_device_init);
 static struct of_device_id __initdata octeon_ids[] = {
 	{ .compatible = "simple-bus", },
 	{ .compatible = "cavium,octeon-6335-uctl", },
+	{ .compatible = "cavium,octeon-5750-usbn", },
 	{ .compatible = "cavium,octeon-3860-bootbus", },
 	{ .compatible = "cavium,mdio-mux", },
 	{ .compatible = "gpio-leds", },
@@ -679,6 +680,37 @@ end_led:
 			   octeon_bootinfo->board_type == CVMX_BOARD_TYPE_NIC4E) {
 			/* Missing "refclk-type" defaults to crystal. */
 			fdt_nop_property(initial_boot_params, uctl, "refclk-type");
+		}
+	}
+
+	/* DWC2 USB */
+	alias_prop = fdt_getprop(initial_boot_params, aliases,
+				 "usbn", NULL);
+	if (alias_prop) {
+		int usbn = fdt_path_offset(initial_boot_params, alias_prop);
+
+		if (usbn >= 0 && (current_cpu_type() == CPU_CAVIUM_OCTEON2 ||
+				  !octeon_has_feature(OCTEON_FEATURE_USB))) {
+			pr_debug("Deleting usbn\n");
+			fdt_nop_node(initial_boot_params, usbn);
+			fdt_nop_property(initial_boot_params, aliases, "usbn");
+		} else  {
+			__be32 new_f[1];
+			enum cvmx_helper_board_usb_clock_types c;
+			c = __cvmx_helper_board_usb_get_clock_type();
+			switch (c) {
+			case USB_CLOCK_TYPE_REF_48:
+				new_f[0] = cpu_to_be32(48000000);
+				fdt_setprop_inplace(initial_boot_params, usbn,
+						    "refclk-frequency",  new_f, sizeof(new_f));
+				/* Fall through ...*/
+			case USB_CLOCK_TYPE_REF_12:
+				/* Missing "refclk-type" defaults to external. */
+				fdt_nop_property(initial_boot_params, usbn, "refclk-type");
+				break;
+			default:
+				break;
+			}
 		}
 	}
 
