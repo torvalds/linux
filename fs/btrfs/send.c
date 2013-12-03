@@ -2188,12 +2188,12 @@ static int send_subvol_begin(struct send_ctx *sctx)
 	TLV_PUT_UUID(sctx, BTRFS_SEND_A_UUID,
 			sctx->send_root->root_item.uuid);
 	TLV_PUT_U64(sctx, BTRFS_SEND_A_CTRANSID,
-			sctx->send_root->root_item.ctransid);
+		    le64_to_cpu(sctx->send_root->root_item.ctransid));
 	if (parent_root) {
 		TLV_PUT_UUID(sctx, BTRFS_SEND_A_CLONE_UUID,
 				sctx->parent_root->root_item.uuid);
 		TLV_PUT_U64(sctx, BTRFS_SEND_A_CLONE_CTRANSID,
-				sctx->parent_root->root_item.ctransid);
+			    le64_to_cpu(sctx->parent_root->root_item.ctransid));
 	}
 
 	ret = send_cmd(sctx);
@@ -3714,7 +3714,7 @@ verbose_printk("btrfs: send_clone offset=%llu, len=%d, clone_root=%llu, "
 	TLV_PUT_UUID(sctx, BTRFS_SEND_A_CLONE_UUID,
 			clone_root->root->root_item.uuid);
 	TLV_PUT_U64(sctx, BTRFS_SEND_A_CLONE_CTRANSID,
-			clone_root->root->root_item.ctransid);
+		    le64_to_cpu(clone_root->root->root_item.ctransid));
 	TLV_PUT_PATH(sctx, BTRFS_SEND_A_CLONE_PATH, p);
 	TLV_PUT_U64(sctx, BTRFS_SEND_A_CLONE_OFFSET,
 			clone_root->offset);
