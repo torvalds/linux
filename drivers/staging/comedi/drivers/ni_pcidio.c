@@ -990,7 +990,6 @@ static int nidio_auto_attach(struct comedi_device *dev,
 	if (devpriv->di_mite_ring == NULL)
 		return -ENOMEM;
 
-	irq = mite_irq(devpriv->mite);
 	if (board->uses_firmware) {
 		ret = pci_6534_upload_firmware(dev);
 		if (ret < 0)
@@ -1033,12 +1032,13 @@ static int nidio_auto_attach(struct comedi_device *dev,
 		devpriv->mite->daq_io_addr +
 		Master_DMA_And_Interrupt_Control);
 
-	ret = request_irq(irq, nidio_interrupt, IRQF_SHARED,
-				"ni_pcidio", dev);
-	if (ret < 0)
-		dev_warn(dev->class_dev, "irq not available\n");
-
-	dev->irq = irq;
+	irq = mite_irq(devpriv->mite);
+	if (irq) {
+		ret = request_irq(irq, nidio_interrupt, IRQF_SHARED,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = irq;
+	}
 
 	return 0;
 }
