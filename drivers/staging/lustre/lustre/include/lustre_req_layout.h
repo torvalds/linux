@@ -164,6 +164,7 @@ extern struct req_format RQF_UPDATE_OBJ;
  */
 extern struct req_format RQF_MDS_GETATTR_NAME;
 extern struct req_format RQF_MDS_CLOSE;
+extern struct req_format RQF_MDS_RELEASE_CLOSE;
 extern struct req_format RQF_MDS_PIN;
 extern struct req_format RQF_MDS_UNPIN;
 extern struct req_format RQF_MDS_CONNECT;
@@ -262,6 +263,7 @@ extern struct req_msg_field RMF_GETINFO_VAL;
 extern struct req_msg_field RMF_GETINFO_VALLEN;
 extern struct req_msg_field RMF_GETINFO_KEY;
 extern struct req_msg_field RMF_IDX_INFO;
+extern struct req_msg_field RMF_CLOSE_DATA;
 
 /*
  * connection handle received in MDS_CONNECT request.

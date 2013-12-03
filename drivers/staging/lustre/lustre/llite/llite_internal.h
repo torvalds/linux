@@ -788,9 +788,10 @@ int ll_get_grouplock(struct inode *inode, struct file *file, unsigned long arg);
 int ll_put_grouplock(struct inode *inode, struct file *file, unsigned long arg);
 int ll_fid2path(struct inode *inode, void *arg);
 int ll_data_version(struct inode *inode, __u64 *data_version, int extent_lock);
+int ll_hsm_release(struct inode *inode);
 
 struct obd_client_handle *ll_lease_open(struct inode *inode, struct file *file,
-					fmode_t mode);
+					fmode_t mode, __u64 flags);
 int ll_lease_close(struct obd_client_handle *och, struct inode *inode,
 		   bool *lease_broken);
 

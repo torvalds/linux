@@ -800,10 +800,27 @@ int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 {
 	struct obd_device     *obd = class_exp2obd(exp);
 	struct ptlrpc_request *req;
-	int		    rc;
+	struct req_format     *req_fmt;
+	int                    rc;
+	int		       saved_rc = 0;
+
+
+	req_fmt = &RQF_MDS_CLOSE;
+	if (op_data->op_bias & MDS_HSM_RELEASE) {
+		req_fmt = &RQF_MDS_RELEASE_CLOSE;
+
+		/* allocate a FID for volatile file */
+		rc = mdc_fid_alloc(exp, &op_data->op_fid2, op_data);
+		if (rc < 0) {
+			CERROR("%s: "DFID" failed to allocate FID: %d\n",
+			       obd->obd_name, PFID(&op_data->op_fid1), rc);
+			/* save the errcode and proceed to close */
+			saved_rc = rc;
+		}
+	}
 
 	*request = NULL;
-	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_MDS_CLOSE);
+	req = ptlrpc_request_alloc(class_exp2cliimp(exp), req_fmt);
 	if (req == NULL)
 		return -ENOMEM;
 
@@ -893,7 +910,7 @@ int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 	}
 	*request = req;
 	mdc_close_handle_reply(req, op_data, rc);
-	return rc;
+	return rc < 0 ? rc : saved_rc;
 }
 
 int mdc_done_writing(struct obd_export *exp, struct md_op_data *op_data,

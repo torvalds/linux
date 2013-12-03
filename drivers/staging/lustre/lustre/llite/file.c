@@ -115,7 +115,8 @@ out:
 
 static int ll_close_inode_openhandle(struct obd_export *md_exp,
 				     struct inode *inode,
-				     struct obd_client_handle *och)
+				     struct obd_client_handle *och,
+				     const __u64 *data_version)
 {
 	struct obd_export *exp = ll_i2mdexp(inode);
 	struct md_op_data *op_data;
@@ -139,6 +140,13 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 		GOTO(out, rc = -ENOMEM); // XXX We leak openhandle and request here.
 
 	ll_prepare_close(inode, op_data, och);
+	if (data_version != NULL) {
+		/* Pass in data_version implies release. */
+		op_data->op_bias |= MDS_HSM_RELEASE;
+		op_data->op_data_version = *data_version;
+		op_data->op_lease_handle = och->och_lease_handle;
+		op_data->op_attr.ia_valid |= ATTR_SIZE | ATTR_BLOCKS;
+	}
 	epoch_close = (op_data->op_flags & MF_EPOCH_CLOSE);
 	rc = md_close(md_exp, op_data, och->och_mod, &req);
 	if (rc == -EAGAIN) {
@@ -167,14 +175,20 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 		spin_unlock(&lli->lli_lock);
 	}
 
-	ll_finish_md_op_data(op_data);
-
 	if (rc == 0) {
 		rc = ll_objects_destroy(req, inode);
 		if (rc)
 			CERROR("inode %lu ll_objects destroy: rc = %d\n",
 			       inode->i_ino, rc);
 	}
+	if (rc == 0 && op_data->op_bias & MDS_HSM_RELEASE) {
+		struct mdt_body *body;
+		body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
+		if (!(body->valid & OBD_MD_FLRELEASED))
+			rc = -EBUSY;
+	}
+
+	ll_finish_md_op_data(op_data);
 
 out:
 	if (exp_connect_som(exp) && !epoch_close &&
@@ -224,7 +238,7 @@ int ll_md_real_close(struct inode *inode, int flags)
 	if (och) { /* There might be a race and somebody have freed this och
 		      already */
 		rc = ll_close_inode_openhandle(ll_i2sbi(inode)->ll_md_exp,
-					       inode, och);
+					       inode, och, NULL);
 	}
 
 	return rc;
@@ -254,7 +268,7 @@ int ll_md_close(struct obd_export *md_exp, struct inode *inode,
 	}
 
 	if (fd->fd_och != NULL) {
-		rc = ll_close_inode_openhandle(md_exp, inode, fd->fd_och);
+		rc = ll_close_inode_openhandle(md_exp, inode, fd->fd_och, NULL);
 		fd->fd_och = NULL;
 		GOTO(out, rc);
 	}
@@ -719,7 +733,7 @@ static int ll_md_blocking_lease_ast(struct ldlm_lock *lock,
  * Acquire a lease and open the file.
  */
 struct obd_client_handle *ll_lease_open(struct inode *inode, struct file *file,
-					fmode_t fmode)
+					fmode_t fmode, __u64 open_flags)
 {
 	struct lookup_intent it = { .it_op = IT_OPEN };
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
@@ -787,7 +801,8 @@ struct obd_client_handle *ll_lease_open(struct inode *inode, struct file *file,
 	/* To tell the MDT this openhandle is from the same owner */
 	op_data->op_handle = old_handle;
 
-	it.it_flags = fmode | MDS_OPEN_LOCK | MDS_OPEN_BY_FID | MDS_OPEN_LEASE;
+	it.it_flags = fmode | open_flags;
+	it.it_flags |= MDS_OPEN_LOCK | MDS_OPEN_BY_FID | MDS_OPEN_LEASE;
 	rc = md_intent_lock(sbi->ll_md_exp, op_data, NULL, 0, &it, 0, &req,
 				ll_md_blocking_lease_ast,
 	/* LDLM_FL_NO_LRU: To not put the lease lock into LRU list, otherwise
@@ -833,7 +848,7 @@ struct obd_client_handle *ll_lease_open(struct inode *inode, struct file *file,
 	return och;
 
 out_close:
-	rc2 = ll_close_inode_openhandle(sbi->ll_md_exp, inode, och);
+	rc2 = ll_close_inode_openhandle(sbi->ll_md_exp, inode, och, NULL);
 	if (rc2)
 		CERROR("Close openhandle returned %d\n", rc2);
 
@@ -878,7 +893,8 @@ int ll_lease_close(struct obd_client_handle *och, struct inode *inode,
 	if (lease_broken != NULL)
 		*lease_broken = cancelled;
 
-	rc = ll_close_inode_openhandle(ll_i2sbi(inode)->ll_md_exp, inode, och);
+	rc = ll_close_inode_openhandle(ll_i2sbi(inode)->ll_md_exp, inode, och,
+				       NULL);
 	return rc;
 }
 EXPORT_SYMBOL(ll_lease_close);
@@ -1687,8 +1703,8 @@ int ll_release_openhandle(struct dentry *dentry, struct lookup_intent *it)
 	ll_och_fill(ll_i2sbi(inode)->ll_md_exp, it, och);
 
 	rc = ll_close_inode_openhandle(ll_i2sbi(inode)->ll_md_exp,
-				       inode, och);
- out:
+				       inode, och, NULL);
+out:
 	/* this one is in place of ll_file_open */
 	if (it_disposition(it, DISP_ENQ_OPEN_REF)) {
 		ptlrpc_req_finished(it->d.lustre.it_data);
@@ -1890,6 +1906,53 @@ int ll_data_version(struct inode *inode, __u64 *data_version,
 	OBD_FREE_PTR(obdo);
 out:
 	ccc_inode_lsm_put(inode, lsm);
+	return rc;
+}
+
+/*
+ * Trigger a HSM release request for the provided inode.
+ */
+int ll_hsm_release(struct inode *inode)
+{
+	struct cl_env_nest nest;
+	struct lu_env *env;
+	struct obd_client_handle *och = NULL;
+	__u64 data_version = 0;
+	int rc;
+
+
+	CDEBUG(D_INODE, "%s: Releasing file "DFID".\n",
+	       ll_get_fsname(inode->i_sb, NULL, 0),
+	       PFID(&ll_i2info(inode)->lli_fid));
+
+	och = ll_lease_open(inode, NULL, FMODE_WRITE, MDS_OPEN_RELEASE);
+	if (IS_ERR(och))
+		GOTO(out, rc = PTR_ERR(och));
+
+	/* Grab latest data_version and [am]time values */
+	rc = ll_data_version(inode, &data_version, 1);
+	if (rc != 0)
+		GOTO(out, rc);
+
+	env = cl_env_nested_get(&nest);
+	if (IS_ERR(env))
+		GOTO(out, rc = PTR_ERR(env));
+
+	ll_merge_lvb(env, inode);
+	cl_env_nested_put(&nest, env);
+
+	/* Release the file.
+	 * NB: lease lock handle is released in mdc_hsm_release_pack() because
+	 * we still need it to pack l_remote_handle to MDT. */
+	rc = ll_close_inode_openhandle(ll_i2sbi(inode)->ll_md_exp, inode, och,
+				       &data_version);
+	och = NULL;
+
+
+out:
+	if (och != NULL && !IS_ERR(och)) /* close the file */
+		ll_lease_close(och, inode, NULL);
+
 	return rc;
 }
 
@@ -2320,7 +2383,7 @@ long ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		CDEBUG(D_INODE, "Set lease with mode %d\n", mode);
 
 		/* apply for lease */
-		och = ll_lease_open(inode, file, mode);
+		och = ll_lease_open(inode, file, mode, 0);
 		if (IS_ERR(och))
 			return PTR_ERR(och);
 

@@ -145,6 +145,14 @@ static const struct req_msg_field *mdt_close_client[] = {
 	&RMF_CAPA1
 };
 
+static const struct req_msg_field *mdt_release_close_client[] = {
+	&RMF_PTLRPC_BODY,
+	&RMF_MDT_EPOCH,
+	&RMF_REC_REINT,
+	&RMF_CAPA1,
+	&RMF_CLOSE_DATA
+};
+
 static const struct req_msg_field *obd_statfs_server[] = {
 	&RMF_PTLRPC_BODY,
 	&RMF_OBD_STATFS
@@ -666,6 +674,7 @@ static struct req_format *req_formats[] = {
 	&RQF_MDS_GETXATTR,
 	&RQF_MDS_SYNC,
 	&RQF_MDS_CLOSE,
+	&RQF_MDS_RELEASE_CLOSE,
 	&RQF_MDS_PIN,
 	&RQF_MDS_UNPIN,
 	&RQF_MDS_READPAGE,
@@ -884,6 +893,11 @@ struct req_msg_field RMF_PTLRPC_BODY =
 	DEFINE_MSGF("ptlrpc_body", 0,
 		    sizeof(struct ptlrpc_body), lustre_swab_ptlrpc_body, NULL);
 EXPORT_SYMBOL(RMF_PTLRPC_BODY);
+
+struct req_msg_field RMF_CLOSE_DATA =
+	DEFINE_MSGF("data_version", 0,
+		    sizeof(struct close_data), lustre_swab_close_data, NULL);
+EXPORT_SYMBOL(RMF_CLOSE_DATA);
 
 struct req_msg_field RMF_OBD_STATFS =
 	DEFINE_MSGF("obd_statfs", 0,
@@ -1411,6 +1425,11 @@ struct req_format RQF_MDS_CLOSE =
 	DEFINE_REQ_FMT0("MDS_CLOSE",
 			mdt_close_client, mds_last_unlink_server);
 EXPORT_SYMBOL(RQF_MDS_CLOSE);
+
+struct req_format RQF_MDS_RELEASE_CLOSE =
+	DEFINE_REQ_FMT0("MDS_CLOSE",
+			mdt_release_close_client, mds_last_unlink_server);
+EXPORT_SYMBOL(RQF_MDS_RELEASE_CLOSE);
 
 struct req_format RQF_MDS_PIN =
 	DEFINE_REQ_FMT0("MDS_PIN",
