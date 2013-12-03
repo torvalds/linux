@@ -5140,6 +5140,23 @@ static void init_multi_io(struct hda_codec *codec)
 	}
 }
 
+static void init_aamix_paths(struct hda_codec *codec)
+{
+	struct hda_gen_spec *spec = codec->spec;
+
+	if (!spec->have_aamix_ctl)
+		return;
+	update_aamix_paths(codec, spec->aamix_mode, spec->out_paths[0],
+			   spec->aamix_out_paths[0],
+			   spec->autocfg.line_out_type);
+	update_aamix_paths(codec, spec->aamix_mode, spec->hp_paths[0],
+			   spec->aamix_out_paths[1],
+			   AUTO_PIN_HP_OUT);
+	update_aamix_paths(codec, spec->aamix_mode, spec->speaker_paths[0],
+			   spec->aamix_out_paths[2],
+			   AUTO_PIN_SPEAKER_OUT);
+}
+
 /* set up input pins and loopback paths */
 static void init_analog_input(struct hda_codec *codec)
 {
@@ -5242,6 +5259,7 @@ int snd_hda_gen_init(struct hda_codec *codec)
 	init_multi_out(codec);
 	init_extra_out(codec);
 	init_multi_io(codec);
+	init_aamix_paths(codec);
 	init_analog_input(codec);
 	init_input_src(codec);
 	init_digital(codec);
