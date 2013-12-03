@@ -128,7 +128,6 @@ struct pcl816_private {
 
 	unsigned int ai_scans;	/*  len of scanlist */
 	unsigned char ai_neverending;	/*  if=1, then we do neverending record (you must use cancel()) */
-	int irq_free;		/*  1=have allocated IRQ */
 	int irq_blocked;	/*  1=IRQ now uses any subdev */
 	int irq_was_now_closed;	/*  when IRQ finish, there's stored int816_mode for last interrupt */
 	int int816_mode;	/*  who now uses IRQ - 1=AI1 int, 2=AI1 dma, 3=AI3 int, 4AI3 dma */
@@ -382,8 +381,7 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 	}
 
 	outb(0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
-	if (!dev->irq || !devpriv->irq_free || !devpriv->irq_blocked ||
-	    !devpriv->int816_mode) {
+	if (!dev->irq || !devpriv->irq_blocked || !devpriv->int816_mode) {
 		if (devpriv->irq_was_now_closed) {
 			devpriv->irq_was_now_closed = 0;
 			/*  comedi_error(dev,"last IRQ.."); */
@@ -875,10 +873,8 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if ((1 << it->options[1]) & board->IRQbits) {
 		ret = request_irq(it->options[1], interrupt_pcl816, 0,
 				  dev->board_name, dev);
-		if (ret == 0) {
+		if (ret == 0)
 			dev->irq = it->options[1];
-			devpriv->irq_free = 1;
-		}
 	}
 
 	devpriv->irq_blocked = 0;	/* number of subdevice which use IRQ */
@@ -887,7 +883,7 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* grab our DMA */
 	dma = 0;
 	devpriv->dma = dma;
-	if (!devpriv->irq_free)
+	if (!dev->irq)
 		goto no_dma;	/* if we haven't IRQ, we can't use DMA */
 
 	if (board->DMAbits != 0) {	/* board support DMA */
