@@ -380,7 +380,6 @@ int class_procfs_init(void)
 {
 	int rc = 0;
 
-	obd_sysctl_init();
 	proc_lustre_root = lprocfs_register("fs/lustre", NULL,
 					    lprocfs_base, NULL);
 	if (IS_ERR(proc_lustre_root)) {
