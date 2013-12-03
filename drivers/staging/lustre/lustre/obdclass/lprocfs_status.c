@@ -420,7 +420,6 @@ void lprocfs_stats_collect(struct lprocfs_stats *stats, int idx,
 {
 	unsigned int			num_entry;
 	struct lprocfs_counter		*percpu_cntr;
-	struct lprocfs_counter_header	*cntr_header;
 	int				i;
 	unsigned long			flags = 0;
 
@@ -439,7 +438,6 @@ void lprocfs_stats_collect(struct lprocfs_stats *stats, int idx,
 	for (i = 0; i < num_entry; i++) {
 		if (stats->ls_percpu[i] == NULL)
 			continue;
-		cntr_header = &stats->ls_cnt_header[idx];
 		percpu_cntr = lprocfs_stats_counter_get(stats, i, idx);
 
 		cnt->lc_count += percpu_cntr->lc_count;
@@ -999,7 +997,6 @@ EXPORT_SYMBOL(lprocfs_free_stats);
 void lprocfs_clear_stats(struct lprocfs_stats *stats)
 {
 	struct lprocfs_counter		*percpu_cntr;
-	struct lprocfs_counter_header	*header;
 	int				i;
 	int				j;
 	unsigned int			num_entry;
@@ -1011,7 +1008,6 @@ void lprocfs_clear_stats(struct lprocfs_stats *stats)
 		if (stats->ls_percpu[i] == NULL)
 			continue;
 		for (j = 0; j < stats->ls_num; j++) {
-			header = &stats->ls_cnt_header[j];
 			percpu_cntr = lprocfs_stats_counter_get(stats, i, j);
 			percpu_cntr->lc_count		= 0;
 			percpu_cntr->lc_min		= LC_MIN_INIT;
