@@ -470,6 +470,7 @@ void dso__delete(struct dso *dso)
 		free(dso->long_name);
 	dso_cache__free(&dso->cache);
 	dso__free_a2l(dso);
+	free(dso->symsrc_filename);
 	free(dso);
 }
 

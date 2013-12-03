@@ -249,10 +249,15 @@ char *get_srcline(struct dso *dso, unsigned long addr)
 	char *file = NULL;
 	unsigned line = 0;
 	char *srcline;
-	char *dso_name = dso->long_name;
+	char *dso_name;
 
 	if (!dso->has_srcline)
 		return SRCLINE_UNKNOWN;
+
+	if (dso->symsrc_filename)
+		dso_name = dso->symsrc_filename;
+	else
+		dso_name = dso->long_name;
 
 	if (dso_name[0] == '[')
 		goto out;

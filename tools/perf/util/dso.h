@@ -78,6 +78,7 @@ struct dso {
 	struct rb_root	 symbol_names[MAP__NR_TYPES];
 	struct rb_root	 cache;
 	void		 *a2l;
+	char		 *symsrc_filename;
 	enum dso_kernel_type	kernel;
 	enum dso_swap_type	needs_swap;
 	enum dso_binary_type	symtab_type;
