@@ -49,8 +49,8 @@ static int rtl8411b_is_qfn48(struct rtsx_pcr *pcr)
 
 static void rtl8411_fetch_vendor_settings(struct rtsx_pcr *pcr)
 {
-	u32 reg1;
-	u8 reg3;
+	u32 reg1 = 0;
+	u8 reg3 = 0;
 
 	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG1, &reg1);
 	dev_dbg(&(pcr->pci->dev), "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG1, reg1);
@@ -71,7 +71,7 @@ static void rtl8411_fetch_vendor_settings(struct rtsx_pcr *pcr)
 
 static void rtl8411b_fetch_vendor_settings(struct rtsx_pcr *pcr)
 {
-	u32 reg;
+	u32 reg = 0;
 
 	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG1, &reg);
 	dev_dbg(&(pcr->pci->dev), "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG1, reg);
