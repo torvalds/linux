@@ -249,7 +249,6 @@ struct ffs_data {
 };
 
 
-#ifndef USB_FFS_INCLUDED
 struct f_fs_opts {
 	struct usb_function_instance	func_inst;
 	struct ffs_dev			*dev;
@@ -261,6 +260,5 @@ static inline struct f_fs_opts *to_f_fs_opts(struct usb_function_instance *fi)
 {
 	return container_of(fi, struct f_fs_opts, func_inst);
 }
-#endif
 
 #endif /* U_FFS_H */
