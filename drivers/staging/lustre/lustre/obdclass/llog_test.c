@@ -1048,7 +1048,7 @@ static struct obd_ops llog_obd_ops = {
 
 static int __init llog_test_init(void)
 {
-	struct lprocfs_static_vars lvars;
+	struct lprocfs_static_vars uninitialized_var(lvars);
 
 	lprocfs_llog_test_init_vars(&lvars);
 	return class_register_type(&llog_obd_ops, NULL,
