@@ -455,6 +455,11 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 		rc = __sigp_sense_running(vcpu, cpu_addr,
 					  &vcpu->run->s.regs.gprs[r1]);
 		break;
+	case SIGP_START:
+		rc = sigp_check_callable(vcpu, cpu_addr);
+		if (rc == SIGP_CC_ORDER_CODE_ACCEPTED)
+			rc = -EOPNOTSUPP;    /* Handle START in user space */
+		break;
 	case SIGP_RESTART:
 		vcpu->stat.instruction_sigp_restart++;
 		rc = sigp_check_callable(vcpu, cpu_addr);

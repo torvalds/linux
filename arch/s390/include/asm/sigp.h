@@ -5,6 +5,7 @@
 #define SIGP_SENSE		      1
 #define SIGP_EXTERNAL_CALL	      2
 #define SIGP_EMERGENCY_SIGNAL	      3
+#define SIGP_START		      4
 #define SIGP_STOP		      5
 #define SIGP_RESTART		      6
 #define SIGP_STOP_AND_STORE_STATUS    9
