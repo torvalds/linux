@@ -1148,38 +1148,6 @@ out:
 	return result;
 }
 
-
-/*
- * XXX: exact copy from kernel code (__generic_file_aio_write_nolock)
- */
-static int ll_file_get_iov_count(const struct iovec *iov,
-				 unsigned long *nr_segs, size_t *count)
-{
-	size_t cnt = 0;
-	unsigned long seg;
-
-	for (seg = 0; seg < *nr_segs; seg++) {
-		const struct iovec *iv = &iov[seg];
-
-		/*
-		 * If any segment has a negative length, or the cumulative
-		 * length ever wraps negative then return -EINVAL.
-		 */
-		cnt += iv->iov_len;
-		if (unlikely((ssize_t)(cnt|iv->iov_len) < 0))
-			return -EINVAL;
-		if (access_ok(VERIFY_READ, iv->iov_base, iv->iov_len))
-			continue;
-		if (seg == 0)
-			return -EFAULT;
-		*nr_segs = seg;
-		cnt -= iv->iov_len;   /* This segment is no good */
-		break;
-	}
-	*count = cnt;
-	return 0;
-}
-
 static ssize_t ll_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 				unsigned long nr_segs, loff_t pos)
 {
@@ -1189,7 +1157,7 @@ static ssize_t ll_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	ssize_t	     result;
 	int		 refcheck;
 
-	result = ll_file_get_iov_count(iov, &nr_segs, &count);
+	result = generic_segment_checks(iov, &nr_segs, &count, VERIFY_WRITE);
 	if (result)
 		return result;
 
@@ -1248,7 +1216,7 @@ static ssize_t ll_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	ssize_t	     result;
 	int		 refcheck;
 
-	result = ll_file_get_iov_count(iov, &nr_segs, &count);
+	result = generic_segment_checks(iov, &nr_segs, &count, VERIFY_READ);
 	if (result)
 		return result;
 
