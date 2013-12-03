@@ -564,6 +564,13 @@ static struct config_group *function_make(
 		usb_put_function_instance(fi);
 		return ERR_PTR(ret);
 	}
+	if (fi->set_inst_name) {
+		ret = fi->set_inst_name(fi, instance_name);
+		if (ret) {
+			usb_put_function_instance(fi);
+			return ERR_PTR(ret);
+		}
+	}
 
 	gi = container_of(group, struct gadget_info, functions_group);
 
