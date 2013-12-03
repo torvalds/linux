@@ -516,7 +516,7 @@ static int __init init_obdclass(void)
 
 	spin_lock_init(&obd_types_lock);
 	obd_zombie_impexp_init();
-#ifdef LPROCFS
+
 	obd_memory = lprocfs_alloc_stats(OBD_STATS_NUM,
 					 LPROCFS_STATS_FLAG_NONE |
 					 LPROCFS_STATS_FLAG_IRQ_SAFE);
@@ -531,7 +531,7 @@ static int __init init_obdclass(void)
 	lprocfs_counter_init(obd_memory, OBD_MEMORY_PAGES_STAT,
 			     LPROCFS_CNTR_AVGMINMAX,
 			     "pagesused", "pages");
-#endif
+
 	err = obd_init_checks();
 	if (err == -EOVERFLOW)
 		return err;
