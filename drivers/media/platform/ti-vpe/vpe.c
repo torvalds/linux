@@ -30,6 +30,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
+#include <linux/log2.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
@@ -54,10 +55,6 @@
 /* required alignments */
 #define S_ALIGN		0	/* multiple of 1 */
 #define H_ALIGN		1	/* multiple of 2 */
-#define W_ALIGN		1	/* multiple of 2 */
-
-/* multiple of 128 bits, line stride, 16 bytes */
-#define L_ALIGN		4
 
 /* flags that indicate a format can be used for capture/output */
 #define VPE_FMT_TYPE_CAPTURE	(1 << 0)
@@ -780,12 +777,21 @@ static int set_srcdst_params(struct vpe_ctx *ctx)
 
 	if ((s_q_data->flags & Q_DATA_INTERLACED) &&
 			!(d_q_data->flags & Q_DATA_INTERLACED)) {
+		int bytes_per_line;
 		const struct vpdma_data_format *mv =
 			&vpdma_misc_fmts[VPDMA_DATA_FMT_MV];
 
 		ctx->deinterlacing = 1;
-		mv_buf_size =
-			(s_q_data->width * s_q_data->height * mv->depth) >> 3;
+		/*
+		 * we make sure that the source image has a 16 byte aligned
+		 * stride, we need to do the same for the motion vector buffer
+		 * by aligning it's stride to the next 16 byte boundry. this
+		 * extra space will not be used by the de-interlacer, but will
+		 * ensure that vpdma operates correctly
+		 */
+		bytes_per_line = ALIGN((s_q_data->width * mv->depth) >> 3,
+					VPDMA_STRIDE_ALIGN);
+		mv_buf_size = bytes_per_line * s_q_data->height;
 	} else {
 		ctx->deinterlacing = 0;
 		mv_buf_size = 0;
@@ -1352,7 +1358,8 @@ static int __vpe_try_fmt(struct vpe_ctx *ctx, struct v4l2_format *f,
 {
 	struct v4l2_pix_format_mplane *pix = &f->fmt.pix_mp;
 	struct v4l2_plane_pix_format *plane_fmt;
-	int i;
+	unsigned int w_align;
+	int i, depth, depth_bytes;
 
 	if (!fmt || !(fmt->types & type)) {
 		vpe_err(ctx->dev, "Fourcc format (0x%08x) invalid.\n",
@@ -1363,7 +1370,31 @@ static int __vpe_try_fmt(struct vpe_ctx *ctx, struct v4l2_format *f,
 	if (pix->field != V4L2_FIELD_NONE && pix->field != V4L2_FIELD_ALTERNATE)
 		pix->field = V4L2_FIELD_NONE;
 
-	v4l_bound_align_image(&pix->width, MIN_W, MAX_W, W_ALIGN,
+	depth = fmt->vpdma_fmt[VPE_LUMA]->depth;
+
+	/*
+	 * the line stride should 16 byte aligned for VPDMA to work, based on
+	 * the bytes per pixel, figure out how much the width should be aligned
+	 * to make sure line stride is 16 byte aligned
+	 */
+	depth_bytes = depth >> 3;
+
+	if (depth_bytes == 3)
+		/*
+		 * if bpp is 3(as in some RGB formats), the pixel width doesn't
+		 * really help in ensuring line stride is 16 byte aligned
+		 */
+		w_align = 4;
+	else
+		/*
+		 * for the remainder bpp(4, 2 and 1), the pixel width alignment
+		 * can ensure a line stride alignment of 16 bytes. For example,
+		 * if bpp is 2, then the line stride can be 16 byte aligned if
+		 * the width is 8 byte aligned
+		 */
+		w_align = order_base_2(VPDMA_DESC_ALIGN / depth_bytes);
+
+	v4l_bound_align_image(&pix->width, MIN_W, MAX_W, w_align,
 			      &pix->height, MIN_H, MAX_H, H_ALIGN,
 			      S_ALIGN);
 
@@ -1383,15 +1414,11 @@ static int __vpe_try_fmt(struct vpe_ctx *ctx, struct v4l2_format *f,
 	}
 
 	for (i = 0; i < pix->num_planes; i++) {
-		int depth;
-
 		plane_fmt = &pix->plane_fmt[i];
 		depth = fmt->vpdma_fmt[i]->depth;
 
 		if (i == VPE_LUMA)
-			plane_fmt->bytesperline =
-					round_up((pix->width * depth) >> 3,
-						1 << L_ALIGN);
+			plane_fmt->bytesperline = (pix->width * depth) >> 3;
 		else
 			plane_fmt->bytesperline = pix->width;
 

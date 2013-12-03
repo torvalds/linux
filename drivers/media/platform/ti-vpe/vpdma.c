@@ -602,7 +602,7 @@ void vpdma_add_out_dtd(struct vpdma_desc_list *list, struct v4l2_rect *c_rect,
 	if (fmt->data_type == DATA_TYPE_C420)
 		depth = 8;
 
-	stride = (depth * c_rect->width) >> 3;
+	stride = ALIGN((depth * c_rect->width) >> 3, VPDMA_STRIDE_ALIGN);
 	dma_addr += (c_rect->left * depth) >> 3;
 
 	dtd = list->next;
@@ -655,7 +655,7 @@ void vpdma_add_in_dtd(struct vpdma_desc_list *list, int frame_width,
 		depth = 8;
 	}
 
-	stride = (depth * c_rect->width) >> 3;
+	stride = ALIGN((depth * c_rect->width) >> 3, VPDMA_STRIDE_ALIGN);
 	dma_addr += (c_rect->left * depth) >> 3;
 
 	dtd = list->next;
