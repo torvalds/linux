@@ -9,6 +9,7 @@
  */
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/omap.h>
 
 #include "skeleton.dtsi"
@@ -21,6 +22,8 @@
 		serial0 = &uart1;
 		serial1 = &uart2;
 		serial2 = &uart3;
+		i2c0 = &i2c1;
+		i2c1 = &i2c2;
 	};
 
 	cpus {
@@ -53,6 +56,28 @@
 		ranges;
 		ti,hwmods = "l3_main";
 
+		aes: aes@480a6000 {
+			compatible = "ti,omap2-aes";
+			ti,hwmods = "aes";
+			reg = <0x480a6000 0x50>;
+			dmas = <&sdma 9 &sdma 10>;
+			dma-names = "tx", "rx";
+		};
+
+		hdq1w: 1w@480b2000 {
+			compatible = "ti,omap2420-1w";
+			ti,hwmods = "hdq1w";
+			reg = <0x480b2000 0x1000>;
+			interrupts = <58>;
+		};
+
+		mailbox: mailbox@48094000 {
+			compatible = "ti,omap2-mailbox";
+			ti,hwmods = "mailbox";
+			reg = <0x48094000 0x200>;
+			interrupts = <26>;
+		};
+
 		intc: interrupt-controller@1 {
 			compatible = "ti,omap2-intc";
 			interrupt-controller;
@@ -63,6 +88,7 @@
 
 		sdma: dma-controller@48056000 {
 			compatible = "ti,omap2430-sdma", "ti,omap2420-sdma";
+			ti,hwmods = "dma";
 			reg = <0x48056000 0x1000>;
 			interrupts = <12>,
 				     <13>,
@@ -73,21 +99,91 @@
 			#dma-requests = <64>;
 		};
 
+		i2c1: i2c@48070000 {
+			compatible = "ti,omap2-i2c";
+			ti,hwmods = "i2c1";
+			reg = <0x48070000 0x80>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <56>;
+			dmas = <&sdma 27 &sdma 28>;
+			dma-names = "tx", "rx";
+		};
+
+		i2c2: i2c@48072000 {
+			compatible = "ti,omap2-i2c";
+			ti,hwmods = "i2c2";
+			reg = <0x48072000 0x80>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <57>;
+			dmas = <&sdma 29 &sdma 30>;
+			dma-names = "tx", "rx";
+		};
+
+		mcspi1: mcspi@48098000 {
+			compatible = "ti,omap2-mcspi";
+			ti,hwmods = "mcspi1";
+			reg = <0x48098000 0x100>;
+			interrupts = <65>;
+			dmas = <&sdma 35 &sdma 36 &sdma 37 &sdma 38
+				&sdma 39 &sdma 40 &sdma 41 &sdma 42>;
+			dma-names = "tx0", "rx0", "tx1", "rx1",
+				    "tx2", "rx2", "tx3", "rx3";
+		};
+
+		mcspi2: mcspi@4809a000 {
+			compatible = "ti,omap2-mcspi";
+			ti,hwmods = "mcspi2";
+			reg = <0x4809a000 0x100>;
+			interrupts = <66>;
+			dmas = <&sdma 43 &sdma 44 &sdma 45 &sdma 46>;
+			dma-names = "tx0", "rx0", "tx1", "rx1";
+		};
+
+		rng: rng@480a0000 {
+			compatible = "ti,omap2-rng";
+			ti,hwmods = "rng";
+			reg = <0x480a0000 0x50>;
+			interrupts = <36>;
+		};
+
+		sham: sham@480a4000 {
+			compatible = "ti,omap2-sham";
+			ti,hwmods = "sham";
+			reg = <0x480a4000 0x64>;
+			interrupts = <51>;
+			dmas = <&sdma 13>;
+			dma-names = "rx";
+		};
+
 		uart1: serial@4806a000 {
 			compatible = "ti,omap2-uart";
 			ti,hwmods = "uart1";
+			reg = <0x4806a000 0x2000>;
+			interrupts = <72>;
+			dmas = <&sdma 49 &sdma 50>;
+			dma-names = "tx", "rx";
 			clock-frequency = <48000000>;
 		};
 
 		uart2: serial@4806c000 {
 			compatible = "ti,omap2-uart";
 			ti,hwmods = "uart2";
+			reg = <0x4806c000 0x400>;
+			interrupts = <73>;
+			dmas = <&sdma 51 &sdma 52>;
+			dma-names = "tx", "rx";
 			clock-frequency = <48000000>;
 		};
 
 		uart3: serial@4806e000 {
 			compatible = "ti,omap2-uart";
 			ti,hwmods = "uart3";
+			reg = <0x4806e000 0x400>;
+			interrupts = <74>;
+			dmas = <&sdma 53 &sdma 54>;
+			dma-names = "tx", "rx";
 			clock-frequency = <48000000>;
 		};
 

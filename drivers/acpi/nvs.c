@@ -13,7 +13,6 @@
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/acpi_io.h>
-#include <acpi/acpiosxf.h>
 
 /* ACPI NVS regions, APEI may use it */
 

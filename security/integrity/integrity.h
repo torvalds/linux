@@ -137,18 +137,11 @@ static inline int integrity_digsig_verify(const unsigned int id,
 #ifdef CONFIG_INTEGRITY_ASYMMETRIC_KEYS
 int asymmetric_verify(struct key *keyring, const char *sig,
 		      int siglen, const char *data, int datalen);
-
-int integrity_init_keyring(const unsigned int id);
 #else
 static inline int asymmetric_verify(struct key *keyring, const char *sig,
 				    int siglen, const char *data, int datalen)
 {
 	return -EOPNOTSUPP;
-}
-
-static int integrity_init_keyring(const unsigned int id)
-{
-	return 0;
 }
 #endif
 

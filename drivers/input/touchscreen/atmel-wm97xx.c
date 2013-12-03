@@ -391,7 +391,7 @@ static int __exit atmel_wm97xx_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int atmel_wm97xx_suspend(struct *dev)
+static int atmel_wm97xx_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct atmel_wm97xx *atmel_wm97xx = platform_get_drvdata(pdev);

@@ -465,7 +465,7 @@ static int vmk80xx_do_insn_bits(struct comedi_device *dev,
 	unsigned char *rx_buf = devpriv->usb_rx_buf;
 	unsigned char *tx_buf = devpriv->usb_tx_buf;
 	int reg, cmd;
-	int ret;
+	int ret = 0;
 
 	if (devpriv->model == VMK8061_MODEL) {
 		reg = VMK8061_DO_REG;
