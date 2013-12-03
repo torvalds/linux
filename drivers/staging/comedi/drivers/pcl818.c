@@ -761,8 +761,6 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 	int divisor1 = 0, divisor2 = 0;
 	unsigned int seglen;
 
-	dev_dbg(dev->class_dev, "pcl818_ai_cmd_mode()\n");
-
 	if (devpriv->irq_blocked)
 		return -EBUSY;
 
@@ -841,7 +839,6 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 
 	start_pacer(dev, mode, divisor1, divisor2);
 
-	dev_dbg(dev->class_dev, "pcl818_ai_cmd_mode() end\n");
 	return 0;
 }
 
@@ -1049,7 +1046,6 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int retval;
 
-	dev_dbg(dev->class_dev, "pcl818_ai_cmd()\n");
 	devpriv->ai_n_chan = cmd->chanlist_len;
 	devpriv->ai_chanlist = cmd->chanlist;
 	devpriv->ai_flags = cmd->flags;
@@ -1066,7 +1062,6 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		if (cmd->convert_src == TRIG_TIMER) {	/*  mode 1 */
 			devpriv->ai_timer1 = cmd->convert_arg;
 			retval = pcl818_ai_cmd_mode(1, dev, s);
-			dev_dbg(dev->class_dev, "pcl818_ai_cmd() end\n");
 			return retval;
 		}
 		if (cmd->convert_src == TRIG_EXT) {	/*  mode 3 */
@@ -1087,7 +1082,6 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 	struct pcl818_private *devpriv = dev->private;
 
 	if (devpriv->irq_blocked > 0) {
-		dev_dbg(dev->class_dev, "pcl818_ai_cancel()\n");
 		devpriv->irq_was_now_closed = 1;
 
 		switch (devpriv->ai_mode) {
@@ -1131,7 +1125,6 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 	}
 
 end:
-	dev_dbg(dev->class_dev, "pcl818_ai_cancel() end\n");
 	return 0;
 }
 
