@@ -20,6 +20,7 @@
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/sh_eth.h>
 #include <linux/spi/rspi.h>
 #include <linux/spi/spi.h>
 #include <mach/common.h>
@@ -27,6 +28,20 @@
 #include <mach/r7s72100.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+
+/* Ether */
+static const struct sh_eth_plat_data ether_pdata __initconst = {
+	.phy			= 0x00, /* PD60610 */
+	.edmac_endian		= EDMAC_LITTLE_ENDIAN,
+	.phy_interface		= PHY_INTERFACE_MODE_MII,
+	.no_ether_link		= 1
+};
+
+static const struct resource ether_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe8203000, 0x800),
+	DEFINE_RES_MEM(0xe8204800, 0x200),
+	DEFINE_RES_IRQ(gic_iid(359)),
+};
 
 /* RSPI */
 #define RSPI_RESOURCE(idx, baseaddr, irq)				\
@@ -66,6 +81,11 @@ static void __init genmai_add_standard_devices(void)
 {
 	r7s72100_clock_init();
 	r7s72100_add_dt_devices();
+
+	platform_device_register_resndata(&platform_bus, "r7s72100-ether", -1,
+					  ether_resources,
+					  ARRAY_SIZE(ether_resources),
+					  &ether_pdata, sizeof(ether_pdata));
 
 	r7s72100_register_rspi(0);
 	r7s72100_register_rspi(1);
