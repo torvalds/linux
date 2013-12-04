@@ -356,7 +356,8 @@ struct CfgTable {
 	u32           TransMethodOffset;
 	u8            ServerName[16];
 	u32           HeartBeat;
-	u32           SCSI_Prefetch;
+	u32           driver_support;
+#define			ENABLE_SCSI_PREFETCH 0x100
 	u32	 	MaxScatterGatherElements;
 	u32		MaxLogicalUnits;
 	u32		MaxPhysicalDevices;
