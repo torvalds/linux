@@ -1400,6 +1400,7 @@ static void set_pool_mode(struct pool *pool, enum pool_mode mode)
 	case PM_FAIL:
 		DMERR("%s: switching pool to failure mode",
 		      dm_device_name(pool->pool_md));
+		dm_pool_metadata_read_only(pool->pmd);
 		pool->process_bio = process_bio_fail;
 		pool->process_discard = process_bio_fail;
 		pool->process_prepared_mapping = process_prepared_mapping_fail;
