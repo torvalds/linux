@@ -1709,7 +1709,7 @@ static int process_nrcpus(struct perf_file_section *section __maybe_unused,
 			  struct perf_header *ph, int fd,
 			  void *data __maybe_unused)
 {
-	size_t ret;
+	ssize_t ret;
 	u32 nr;
 
 	ret = readn(fd, &nr, sizeof(nr));
@@ -1753,7 +1753,7 @@ static int process_total_mem(struct perf_file_section *section __maybe_unused,
 			     void *data __maybe_unused)
 {
 	uint64_t mem;
-	size_t ret;
+	ssize_t ret;
 
 	ret = readn(fd, &mem, sizeof(mem));
 	if (ret != sizeof(mem))
@@ -1822,7 +1822,7 @@ static int process_cmdline(struct perf_file_section *section __maybe_unused,
 			   struct perf_header *ph, int fd,
 			   void *data __maybe_unused)
 {
-	size_t ret;
+	ssize_t ret;
 	char *str;
 	u32 nr, i;
 	struct strbuf sb;
@@ -1858,7 +1858,7 @@ static int process_cpu_topology(struct perf_file_section *section __maybe_unused
 				struct perf_header *ph, int fd,
 				void *data __maybe_unused)
 {
-	size_t ret;
+	ssize_t ret;
 	u32 nr, i;
 	char *str;
 	struct strbuf sb;
@@ -1914,7 +1914,7 @@ static int process_numa_topology(struct perf_file_section *section __maybe_unuse
 				 struct perf_header *ph, int fd,
 				 void *data __maybe_unused)
 {
-	size_t ret;
+	ssize_t ret;
 	u32 nr, node, i;
 	char *str;
 	uint64_t mem_total, mem_free;
@@ -1974,7 +1974,7 @@ static int process_pmu_mappings(struct perf_file_section *section __maybe_unused
 				struct perf_header *ph, int fd,
 				void *data __maybe_unused)
 {
-	size_t ret;
+	ssize_t ret;
 	char *name;
 	u32 pmu_num;
 	u32 type;
@@ -2534,7 +2534,7 @@ static int check_magic_endian(u64 magic, uint64_t hdr_sz,
 int perf_file_header__read(struct perf_file_header *header,
 			   struct perf_header *ph, int fd)
 {
-	int ret;
+	ssize_t ret;
 
 	lseek(fd, 0, SEEK_SET);
 
@@ -2628,7 +2628,7 @@ static int perf_file_header__read_pipe(struct perf_pipe_file_header *header,
 				       struct perf_header *ph, int fd,
 				       bool repipe)
 {
-	int ret;
+	ssize_t ret;
 
 	ret = readn(fd, header, sizeof(*header));
 	if (ret <= 0)
@@ -2669,7 +2669,7 @@ static int read_attr(int fd, struct perf_header *ph,
 	struct perf_event_attr *attr = &f_attr->attr;
 	size_t sz, left;
 	size_t our_sz = sizeof(f_attr->attr);
-	int ret;
+	ssize_t ret;
 
 	memset(f_attr, 0, sizeof(*f_attr));
 
