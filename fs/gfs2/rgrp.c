@@ -1943,7 +1943,7 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, const struct gfs2_alloc_parms *a
 		/* Skip unuseable resource groups */
 		if ((rs->rs_rbm.rgd->rd_flags & (GFS2_RGF_NOALLOC |
 						 GFS2_RDF_ERROR)) ||
-		    (ap && (ap->target > rs->rs_rbm.rgd->rd_extfail_pt)))
+		    (ap->target > rs->rs_rbm.rgd->rd_extfail_pt))
 			goto skip_rgrp;
 
 		if (sdp->sd_args.ar_rgrplvb)
