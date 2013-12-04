@@ -31,6 +31,7 @@ obj-$(CONFIG_DRM_KMS_HELPER) += drm_kms_helper.o
 CFLAGS_drm_trace_points.o := -I$(src)
 
 obj-$(CONFIG_DRM)	+= drm.o
+obj-$(CONFIG_DRM_MIPI_DSI) += drm_mipi_dsi.o
 obj-$(CONFIG_DRM_USB)   += drm_usb.o
 obj-$(CONFIG_DRM_TTM)	+= ttm/
 obj-$(CONFIG_DRM_TDFX)	+= tdfx/
