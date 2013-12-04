@@ -301,7 +301,7 @@ static struct fb_ops offb_ops = {
 static void __iomem *offb_map_reg(struct device_node *np, int index,
 				  unsigned long offset, unsigned long size)
 {
-	const u32 *addrp;
+	const __be32 *addrp;
 	u64 asize, taddr;
 	unsigned int flags;
 
@@ -369,7 +369,11 @@ static void offb_init_palette_hacks(struct fb_info *info, struct device_node *dp
 		}
 		of_node_put(pciparent);
 	} else if (dp && of_device_is_compatible(dp, "qemu,std-vga")) {
-		const u32 io_of_addr[3] = { 0x01000000, 0x0, 0x0 };
+#ifdef __BIG_ENDIAN
+		const __be32 io_of_addr[3] = { 0x01000000, 0x0, 0x0 };
+#else
+		const __be32 io_of_addr[3] = { 0x00000001, 0x0, 0x0 };
+#endif
 		u64 io_addr = of_translate_address(dp, io_of_addr);
 		if (io_addr != OF_BAD_ADDR) {
 			par->cmap_adr = ioremap(io_addr + 0x3c8, 2);
@@ -535,7 +539,7 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 	unsigned int flags, rsize, addr_prop = 0;
 	unsigned long max_size = 0;
 	u64 rstart, address = OF_BAD_ADDR;
-	const u32 *pp, *addrp, *up;
+	const __be32 *pp, *addrp, *up;
 	u64 asize;
 	int foreign_endian = 0;
 
@@ -551,25 +555,25 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 	if (pp == NULL)
 		pp = of_get_property(dp, "depth", &len);
 	if (pp && len == sizeof(u32))
-		depth = *pp;
+		depth = be32_to_cpup(pp);
 
 	pp = of_get_property(dp, "linux,bootx-width", &len);
 	if (pp == NULL)
 		pp = of_get_property(dp, "width", &len);
 	if (pp && len == sizeof(u32))
-		width = *pp;
+		width = be32_to_cpup(pp);
 
 	pp = of_get_property(dp, "linux,bootx-height", &len);
 	if (pp == NULL)
 		pp = of_get_property(dp, "height", &len);
 	if (pp && len == sizeof(u32))
-		height = *pp;
+		height = be32_to_cpup(pp);
 
 	pp = of_get_property(dp, "linux,bootx-linebytes", &len);
 	if (pp == NULL)
 		pp = of_get_property(dp, "linebytes", &len);
 	if (pp && len == sizeof(u32) && (*pp != 0xffffffffu))
-		pitch = *pp;
+		pitch = be32_to_cpup(pp);
 	else
 		pitch = width * ((depth + 7) / 8);
 
