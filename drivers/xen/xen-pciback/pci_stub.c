@@ -278,8 +278,8 @@ void pcistub_put_pci_dev(struct pci_dev *dev)
 	xen_pcibk_reset_device(dev);
 
 	/* And cleanup up our emulated fields. */
-	xen_pcibk_config_free_dyn_fields(dev);
 	xen_pcibk_config_reset_dev(dev);
+	xen_pcibk_config_free_dyn_fields(dev);
 
 	xen_unregister_device_domain_owner(dev);
 
