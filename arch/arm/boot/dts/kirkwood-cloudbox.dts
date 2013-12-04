@@ -66,7 +66,7 @@
 
 		button@1 {
 			label = "Power push button";
-			linux,code = <116>;
+			linux,code = <KEY_POWER>;
 			gpios = <&gpio0 16 1>;
 		};
 	};

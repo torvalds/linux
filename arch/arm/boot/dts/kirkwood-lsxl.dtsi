@@ -108,18 +108,18 @@
 
 		button@1 {
 			label = "Function Button";
-			linux,code = <357>;
+			linux,code = <KEY_OPTION>;
 			gpios = <&gpio1 9 1>;
 		};
 		button@2 {
 			label = "Power-on Switch";
-			linux,code = <0>;
+			linux,code = <KEY_RESERVED>;
 			linux,input-type = <5>;
 			gpios = <&gpio1 10 1>;
 		};
 		button@3 {
 			label = "Power-auto Switch";
-			linux,code = <1>;
+			linux,code = <KEY_ESC>;
 			linux,input-type = <5>;
 			gpios = <&gpio1 11 1>;
 		};

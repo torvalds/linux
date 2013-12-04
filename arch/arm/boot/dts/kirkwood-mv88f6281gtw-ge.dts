@@ -113,12 +113,12 @@
 
 		button@1 {
 			label = "SWR Button";
-			linux,code = <0x198>; /* KEY_RESTART */
+			linux,code = <KEY_RESTART>;
 			gpios = <&gpio1 15 1>;
 		};
 		button@2 {
 			label = "WPS Button";
-			linux,code = <0x211>; /* KEY_WPS_BUTTON */
+			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&gpio1 14 1>;
 		};
 	};

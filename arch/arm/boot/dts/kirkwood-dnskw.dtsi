@@ -15,17 +15,17 @@
 
 		button@1 {
 			label = "Power button";
-			linux,code = <116>;
+			linux,code = <KEY_POWER>;
 			gpios = <&gpio1 2 1>;
 		};
 		button@2 {
 			label = "USB unmount button";
-			linux,code = <161>;
+			linux,code = <KEY_EJECTCD>;
 			gpios = <&gpio1 15 1>;
 		};
 		button@3 {
 			label = "Reset button";
-			linux,code = <0x198>;
+			linux,code = <KEY_RESTART>;
 			gpios = <&gpio1 16 1>;
 		};
 	};

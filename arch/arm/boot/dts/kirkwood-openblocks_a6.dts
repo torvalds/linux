@@ -124,7 +124,7 @@
 
 		button@1 {
 			label = "Init Button";
-			linux,code = <116>;
+			linux,code = <KEY_POWER>;
 			gpios = <&gpio1 6 0>;
 		};
 	};
