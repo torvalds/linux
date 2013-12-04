@@ -551,6 +551,8 @@ static void pcistub_remove(struct pci_dev *dev)
 			pr_warn("****** shutdown driver domain before binding device\n");
 			pr_warn("****** to other drivers or domains\n");
 
+			/* N.B. This ends up calling pcistub_put_pci_dev which ends up
+			 * doing the FLR. */
 			xen_pcibk_release_pci_dev(found_psdev->pdev,
 						found_psdev->dev);
 		}
