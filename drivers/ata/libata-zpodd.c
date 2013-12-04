@@ -88,15 +88,13 @@ static enum odd_mech_type zpodd_get_mech_type(struct ata_device *dev)
 static bool odd_can_poweroff(struct ata_device *ata_dev)
 {
 	acpi_handle handle;
-	acpi_status status;
 	struct acpi_device *acpi_dev;
 
 	handle = ata_dev_acpi_handle(ata_dev);
 	if (!handle)
 		return false;
 
-	status = acpi_bus_get_device(handle, &acpi_dev);
-	if (ACPI_FAILURE(status))
+	if (acpi_bus_get_device(handle, &acpi_dev))
 		return false;
 
 	return acpi_device_can_poweroff(acpi_dev);

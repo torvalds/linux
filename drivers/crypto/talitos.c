@@ -673,39 +673,20 @@ static int aead_setkey(struct crypto_aead *authenc,
 		       const u8 *key, unsigned int keylen)
 {
 	struct talitos_ctx *ctx = crypto_aead_ctx(authenc);
-	struct rtattr *rta = (void *)key;
-	struct crypto_authenc_key_param *param;
-	unsigned int authkeylen;
-	unsigned int enckeylen;
+	struct crypto_authenc_keys keys;
 
-	if (!RTA_OK(rta, keylen))
+	if (crypto_authenc_extractkeys(&keys, key, keylen) != 0)
 		goto badkey;
 
-	if (rta->rta_type != CRYPTO_AUTHENC_KEYA_PARAM)
+	if (keys.authkeylen + keys.enckeylen > TALITOS_MAX_KEY_SIZE)
 		goto badkey;
 
-	if (RTA_PAYLOAD(rta) < sizeof(*param))
-		goto badkey;
+	memcpy(ctx->key, keys.authkey, keys.authkeylen);
+	memcpy(&ctx->key[keys.authkeylen], keys.enckey, keys.enckeylen);
 
-	param = RTA_DATA(rta);
-	enckeylen = be32_to_cpu(param->enckeylen);
-
-	key += RTA_ALIGN(rta->rta_len);
-	keylen -= RTA_ALIGN(rta->rta_len);
-
-	if (keylen < enckeylen)
-		goto badkey;
-
-	authkeylen = keylen - enckeylen;
-
-	if (keylen > TALITOS_MAX_KEY_SIZE)
-		goto badkey;
-
-	memcpy(&ctx->key, key, keylen);
-
-	ctx->keylen = keylen;
-	ctx->enckeylen = enckeylen;
-	ctx->authkeylen = authkeylen;
+	ctx->keylen = keys.authkeylen + keys.enckeylen;
+	ctx->enckeylen = keys.enckeylen;
+	ctx->authkeylen = keys.authkeylen;
 
 	return 0;
 
