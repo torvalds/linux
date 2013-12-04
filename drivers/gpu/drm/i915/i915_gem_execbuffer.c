@@ -93,7 +93,7 @@ eb_lookup_vmas(struct eb_vmas *eb,
 {
 	struct drm_i915_gem_object *obj;
 	struct list_head objects;
-	int i, ret = 0;
+	int i, ret;
 
 	INIT_LIST_HEAD(&objects);
 	spin_lock(&file->table_lock);
@@ -106,7 +106,7 @@ eb_lookup_vmas(struct eb_vmas *eb,
 			DRM_DEBUG("Invalid object handle %d at index %d\n",
 				   exec[i].handle, i);
 			ret = -ENOENT;
-			goto out;
+			goto err;
 		}
 
 		if (!list_empty(&obj->obj_exec_link)) {
@@ -114,7 +114,7 @@ eb_lookup_vmas(struct eb_vmas *eb,
 			DRM_DEBUG("Object %p [handle %d, index %d] appears more than once in object list\n",
 				   obj, exec[i].handle, i);
 			ret = -EINVAL;
-			goto out;
+			goto err;
 		}
 
 		drm_gem_object_reference(&obj->base);
@@ -123,8 +123,12 @@ eb_lookup_vmas(struct eb_vmas *eb,
 	spin_unlock(&file->table_lock);
 
 	i = 0;
-	list_for_each_entry(obj, &objects, obj_exec_link) {
+	while (!list_empty(&objects)) {
 		struct i915_vma *vma;
+
+		obj = list_first_entry(&objects,
+				       struct drm_i915_gem_object,
+				       obj_exec_link);
 
 		/*
 		 * NOTE: We can leak any vmas created here when something fails
@@ -138,10 +142,12 @@ eb_lookup_vmas(struct eb_vmas *eb,
 		if (IS_ERR(vma)) {
 			DRM_DEBUG("Failed to lookup VMA\n");
 			ret = PTR_ERR(vma);
-			goto out;
+			goto err;
 		}
 
+		/* Transfer ownership from the objects list to the vmas list. */
 		list_add_tail(&vma->exec_list, &eb->vmas);
+		list_del_init(&obj->obj_exec_link);
 
 		vma->exec_entry = &exec[i];
 		if (eb->and < 0) {
@@ -155,16 +161,22 @@ eb_lookup_vmas(struct eb_vmas *eb,
 		++i;
 	}
 
+	return 0;
 
-out:
+
+err:
 	while (!list_empty(&objects)) {
 		obj = list_first_entry(&objects,
 				       struct drm_i915_gem_object,
 				       obj_exec_link);
 		list_del_init(&obj->obj_exec_link);
-		if (ret)
-			drm_gem_object_unreference(&obj->base);
+		drm_gem_object_unreference(&obj->base);
 	}
+	/*
+	 * Objects already transfered to the vmas list will be unreferenced by
+	 * eb_destroy.
+	 */
+
 	return ret;
 }
 
