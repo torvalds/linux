@@ -1847,8 +1847,10 @@ void i915_driver_lastclose(struct drm_device * dev)
 
 void i915_driver_preclose(struct drm_device * dev, struct drm_file *file_priv)
 {
+	mutex_lock(&dev->struct_mutex);
 	i915_gem_context_close(dev, file_priv);
 	i915_gem_release(dev, file_priv);
+	mutex_unlock(&dev->struct_mutex);
 }
 
 void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
