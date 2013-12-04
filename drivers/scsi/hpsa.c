@@ -1241,10 +1241,8 @@ static void complete_scsi_command(struct CommandList *cp)
 		}
 
 		if (ei->ScsiStatus == SAM_STAT_CHECK_CONDITION) {
-			if (check_for_unit_attention(h, cp)) {
-				cmd->result = DID_SOFT_ERROR << 16;
+			if (check_for_unit_attention(h, cp))
 				break;
-			}
 			if (sense_key == ILLEGAL_REQUEST) {
 				/*
 				 * SCSI REPORT_LUNS is commonly unsupported on
