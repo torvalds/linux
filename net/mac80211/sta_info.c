@@ -868,7 +868,7 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 	ieee80211_sta_tear_down_BA_sessions(sta, AGG_STOP_DESTROY_STA);
 
 	ret = sta_info_hash_del(local, sta);
-	if (ret)
+	if (WARN_ON(ret))
 		return ret;
 
 	list_del_rcu(&sta->list);
