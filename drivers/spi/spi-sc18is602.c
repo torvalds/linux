@@ -319,7 +319,7 @@ static int sc18is602_probe(struct i2c_client *client,
 	master->transfer_one_message = sc18is602_transfer_one;
 	master->dev.of_node = np;
 
-	error = spi_register_master(master);
+	error = devm_spi_register_master(dev, master);
 	if (error)
 		goto error_reg;
 
@@ -328,16 +328,6 @@ static int sc18is602_probe(struct i2c_client *client,
 error_reg:
 	spi_master_put(master);
 	return error;
-}
-
-static int sc18is602_remove(struct i2c_client *client)
-{
-	struct sc18is602 *hw = i2c_get_clientdata(client);
-	struct spi_master *master = hw->master;
-
-	spi_unregister_master(master);
-
-	return 0;
 }
 
 static const struct i2c_device_id sc18is602_id[] = {
@@ -353,7 +343,6 @@ static struct i2c_driver sc18is602_driver = {
 		.name = "sc18is602",
 	},
 	.probe = sc18is602_probe,
-	.remove = sc18is602_remove,
 	.id_table = sc18is602_id,
 };
 
