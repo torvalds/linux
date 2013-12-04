@@ -275,7 +275,7 @@ static int timbgpio_probe(struct platform_device *pdev)
 	gc->dbg_show = NULL;
 	gc->base = pdata->gpio_base;
 	gc->ngpio = pdata->nr_pins;
-	gc->can_sleep = 0;
+	gc->can_sleep = false;
 
 	err = gpiochip_add(gc);
 	if (err)

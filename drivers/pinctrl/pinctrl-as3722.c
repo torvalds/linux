@@ -531,7 +531,7 @@ static const struct gpio_chip as3722_gpio_chip = {
 	.direction_input	= as3722_gpio_direction_input,
 	.direction_output	= as3722_gpio_direction_output,
 	.to_irq			= as3722_gpio_to_irq,
-	.can_sleep		= 1,
+	.can_sleep		= true,
 	.ngpio			= AS3722_PIN_NUM,
 	.base			= -1,
 };

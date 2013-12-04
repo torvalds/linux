@@ -188,7 +188,7 @@ int __max730x_probe(struct max7301 *ts)
 	ts->chip.set = max7301_set;
 
 	ts->chip.ngpio = PIN_NUMBER;
-	ts->chip.can_sleep = 1;
+	ts->chip.can_sleep = true;
 	ts->chip.dev = dev;
 	ts->chip.owner = THIS_MODULE;
 

@@ -221,7 +221,7 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 	tb10x_gpio->gc.free		= tb10x_gpio_free;
 	tb10x_gpio->gc.base		= -1;
 	tb10x_gpio->gc.ngpio		= ngpio;
-	tb10x_gpio->gc.can_sleep	= 0;
+	tb10x_gpio->gc.can_sleep	= false;
 
 
 	ret = gpiochip_add(&tb10x_gpio->gc);

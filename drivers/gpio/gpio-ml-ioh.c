@@ -242,7 +242,7 @@ static void ioh_gpio_setup(struct ioh_gpio *chip, int num_port)
 	gpio->dbg_show = NULL;
 	gpio->base = -1;
 	gpio->ngpio = num_port;
-	gpio->can_sleep = 0;
+	gpio->can_sleep = false;
 	gpio->to_irq = ioh_gpio_to_irq;
 }
 

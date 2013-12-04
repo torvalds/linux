@@ -169,7 +169,7 @@ static void bt8xxgpio_gpio_setup(struct bt8xxgpio *bg)
 	c->dbg_show = NULL;
 	c->base = modparam_gpiobase;
 	c->ngpio = BT8XXGPIO_NR_GPIOS;
-	c->can_sleep = 0;
+	c->can_sleep = false;
 }
 
 static int bt8xxgpio_probe(struct pci_dev *dev,

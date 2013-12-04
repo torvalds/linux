@@ -260,7 +260,7 @@ static int adnp_gpio_setup(struct adnp *adnp, unsigned int num_gpios)
 	chip->direction_output = adnp_gpio_direction_output;
 	chip->get = adnp_gpio_get;
 	chip->set = adnp_gpio_set;
-	chip->can_sleep = 1;
+	chip->can_sleep = true;
 
 	if (IS_ENABLED(CONFIG_DEBUG_FS))
 		chip->dbg_show = adnp_gpio_dbg_show;

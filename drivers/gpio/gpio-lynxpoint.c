@@ -391,7 +391,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	gc->set = lp_gpio_set;
 	gc->base = -1;
 	gc->ngpio = LP_NUM_GPIO;
-	gc->can_sleep = 0;
+	gc->can_sleep = false;
 	gc->dev = dev;
 
 	/* set up interrupts  */

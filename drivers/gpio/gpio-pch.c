@@ -224,7 +224,7 @@ static void pch_gpio_setup(struct pch_gpio *chip)
 	gpio->dbg_show = NULL;
 	gpio->base = -1;
 	gpio->ngpio = gpio_pins[chip->ioh];
-	gpio->can_sleep = 0;
+	gpio->can_sleep = false;
 	gpio->to_irq = pch_gpio_to_irq;
 }
 

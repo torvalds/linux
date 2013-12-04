@@ -91,7 +91,7 @@ static struct gpio_chip template_chip = {
 	.get			= arizona_gpio_get,
 	.direction_output	= arizona_gpio_direction_out,
 	.set			= arizona_gpio_set,
-	.can_sleep		= 1,
+	.can_sleep		= true,
 };
 
 static int arizona_gpio_probe(struct platform_device *pdev)

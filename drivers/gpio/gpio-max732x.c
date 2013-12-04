@@ -564,7 +564,7 @@ static int max732x_setup_gpio(struct max732x_chip *chip,
 		gc->set = max732x_gpio_set_value;
 	}
 	gc->get = max732x_gpio_get_value;
-	gc->can_sleep = 1;
+	gc->can_sleep = true;
 
 	gc->base = gpio_start;
 	gc->ngpio = port;

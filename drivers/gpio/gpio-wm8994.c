@@ -242,7 +242,7 @@ static struct gpio_chip template_chip = {
 	.set			= wm8994_gpio_set,
 	.to_irq			= wm8994_gpio_to_irq,
 	.dbg_show		= wm8994_gpio_dbg_show,
-	.can_sleep		= 1,
+	.can_sleep		= true,
 };
 
 static int wm8994_gpio_probe(struct platform_device *pdev)

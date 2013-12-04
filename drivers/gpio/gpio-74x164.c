@@ -159,7 +159,7 @@ static int gen_74x164_probe(struct spi_device *spi)
 		goto exit_destroy;
 	}
 
-	chip->gpio_chip.can_sleep = 1;
+	chip->gpio_chip.can_sleep = true;
 	chip->gpio_chip.dev = &spi->dev;
 	chip->gpio_chip.owner = THIS_MODULE;
 

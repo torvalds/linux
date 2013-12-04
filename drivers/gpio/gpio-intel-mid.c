@@ -425,7 +425,7 @@ static int intel_gpio_probe(struct pci_dev *pdev,
 	priv->chip.to_irq = intel_gpio_to_irq;
 	priv->chip.base = gpio_base;
 	priv->chip.ngpio = ddata->ngpio;
-	priv->chip.can_sleep = 0;
+	priv->chip.can_sleep = false;
 	priv->pdev = pdev;
 
 	spin_lock_init(&priv->lock);

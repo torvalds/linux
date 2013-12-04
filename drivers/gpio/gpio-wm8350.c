@@ -106,7 +106,7 @@ static struct gpio_chip template_chip = {
 	.direction_output	= wm8350_gpio_direction_out,
 	.set			= wm8350_gpio_set,
 	.to_irq			= wm8350_gpio_to_irq,
-	.can_sleep		= 1,
+	.can_sleep		= true,
 };
 
 static int wm8350_gpio_probe(struct platform_device *pdev)

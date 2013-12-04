@@ -292,7 +292,7 @@ static int platform_msic_gpio_probe(struct platform_device *pdev)
 	mg->chip.to_irq = msic_gpio_to_irq;
 	mg->chip.base = pdata->gpio_base;
 	mg->chip.ngpio = MSIC_NUM_GPIO;
-	mg->chip.can_sleep = 1;
+	mg->chip.can_sleep = true;
 	mg->chip.dev = dev;
 
 	mutex_init(&mg->buslock);

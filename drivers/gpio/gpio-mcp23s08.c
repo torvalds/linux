@@ -425,7 +425,7 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 	}
 
 	mcp->chip.base = base;
-	mcp->chip.can_sleep = 1;
+	mcp->chip.can_sleep = true;
 	mcp->chip.dev = dev;
 	mcp->chip.owner = THIS_MODULE;
 

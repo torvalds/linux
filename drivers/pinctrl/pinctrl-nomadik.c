@@ -904,7 +904,7 @@ static struct gpio_chip nmk_gpio_template = {
 	.set			= nmk_gpio_set_output,
 	.to_irq			= nmk_gpio_to_irq,
 	.dbg_show		= nmk_gpio_dbg_show,
-	.can_sleep		= 0,
+	.can_sleep		= false,
 };
 
 void nmk_gpio_clocks_enable(void)

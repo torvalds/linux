@@ -461,7 +461,7 @@ static int byt_gpio_probe(struct platform_device *pdev)
 	gc->set = byt_gpio_set;
 	gc->dbg_show = byt_gpio_dbg_show;
 	gc->base = -1;
-	gc->can_sleep = 0;
+	gc->can_sleep = false;
 	gc->dev = dev;
 
 	ret = gpiochip_add(gc);
