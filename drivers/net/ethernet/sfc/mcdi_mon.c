@@ -89,6 +89,9 @@ static const struct {
 				 "Controller die temp. (ext. ADC)", TEMP,  -1),
 	SENSOR(AMBIENT_TEMP,		"Ambient temp.",	    TEMP,  -1),
 	SENSOR(AIRFLOW,			"Air flow raw",		    IN,    -1),
+	SENSOR(VDD08D_VSS08D_CSR,	"0.9V die (int. ADC)",	    IN,    -1),
+	SENSOR(VDD08D_VSS08D_CSR_EXTADC, "0.9V die (ext. ADC)",	    IN,    -1),
+	SENSOR(HOTPOINT_TEMP,  "Controller board temp. (hotpoint)", TEMP,  -1),
 #undef SENSOR
 };
 
