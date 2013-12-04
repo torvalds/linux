@@ -282,7 +282,8 @@ iss_video_check_format(struct iss_video *video, struct iss_video_fh *vfh)
  * Video queue operations
  */
 
-static int iss_video_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+static int iss_video_queue_setup(struct vb2_queue *vq,
+				 const struct v4l2_format *fmt,
 				 unsigned int *count, unsigned int *num_planes,
 				 unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -298,7 +299,7 @@ static int iss_video_queue_setup(struct vb2_queue *vq, const struct v4l2_format 
 
 	alloc_ctxs[0] = video->alloc_ctx;
 
-	*count = min(*count, (unsigned int)(video->capture_mem / PAGE_ALIGN(sizes[0])));
+	*count = min(*count, video->capture_mem / PAGE_ALIGN(sizes[0]));
 
 	return 0;
 }
@@ -425,11 +426,13 @@ struct iss_buffer *omap4iss_video_buffer_next(struct iss_video *video)
 	 * first, so the input number might lag behind by 1 in some cases.
 	 */
 	if (video == pipe->output && !pipe->do_propagation)
-		buf->vb.v4l2_buf.sequence = atomic_inc_return(&pipe->frame_number);
+		buf->vb.v4l2_buf.sequence =
+			atomic_inc_return(&pipe->frame_number);
 	else
 		buf->vb.v4l2_buf.sequence = atomic_read(&pipe->frame_number);
 
-	vb2_buffer_done(&buf->vb, pipe->error ? VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
+	vb2_buffer_done(&buf->vb, pipe->error ?
+			VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
 	pipe->error = false;
 
 	spin_lock_irqsave(&video->qlock, flags);

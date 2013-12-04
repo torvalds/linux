@@ -178,7 +178,8 @@ int omap4iss_csiphy_config(struct iss_device *iss,
 		if (lanes->data[i].pos == 0)
 			continue;
 
-		if (lanes->data[i].pol > 1 || lanes->data[i].pos > (csi2->phy->max_data_lanes + 1))
+		if (lanes->data[i].pol > 1 ||
+		    lanes->data[i].pos > (csi2->phy->max_data_lanes + 1))
 			return -EINVAL;
 
 		if (used_lanes & (1 << lanes->data[i].pos))
@@ -188,7 +189,8 @@ int omap4iss_csiphy_config(struct iss_device *iss,
 		csi2->phy->used_data_lanes++;
 	}
 
-	if (lanes->clk.pol > 1 || lanes->clk.pos > (csi2->phy->max_data_lanes + 1))
+	if (lanes->clk.pol > 1 ||
+	    lanes->clk.pos > (csi2->phy->max_data_lanes + 1))
 		return -EINVAL;
 
 	if (lanes->clk.pos == 0 || used_lanes & (1 << lanes->clk.pos))

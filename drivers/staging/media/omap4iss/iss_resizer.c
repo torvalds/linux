@@ -23,10 +23,6 @@
 #include "iss_regs.h"
 #include "iss_resizer.h"
 
-static struct v4l2_mbus_framefmt *
-__resizer_get_format(struct iss_resizer_device *resizer, struct v4l2_subdev_fh *fh,
-		  unsigned int pad, enum v4l2_subdev_format_whence which);
-
 static const unsigned int resizer_fmts[] = {
 	V4L2_MBUS_FMT_UYVY8_1X16,
 	V4L2_MBUS_FMT_YUYV8_1X16,
@@ -329,7 +325,8 @@ void omap4iss_resizer_isr(struct iss_resizer_device *resizer, u32 events)
 		pipe->error = true;
 	}
 
-	if (omap4iss_module_sync_is_stopping(&resizer->wait, &resizer->stopping))
+	if (omap4iss_module_sync_is_stopping(&resizer->wait,
+					     &resizer->stopping))
 		return;
 
 	if (events & ISP5_IRQ_RSZ_INT_DMA)
@@ -340,7 +337,8 @@ void omap4iss_resizer_isr(struct iss_resizer_device *resizer, u32 events)
  * ISS video operations
  */
 
-static int resizer_video_queue(struct iss_video *video, struct iss_buffer *buffer)
+static int resizer_video_queue(struct iss_video *video,
+			       struct iss_buffer *buffer)
 {
 	struct iss_resizer_device *resizer = container_of(video,
 				struct iss_resizer_device, video_out);
@@ -453,8 +451,9 @@ static int resizer_set_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static struct v4l2_mbus_framefmt *
-__resizer_get_format(struct iss_resizer_device *resizer, struct v4l2_subdev_fh *fh,
-		  unsigned int pad, enum v4l2_subdev_format_whence which)
+__resizer_get_format(struct iss_resizer_device *resizer,
+		     struct v4l2_subdev_fh *fh, unsigned int pad,
+		     enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_format(fh, pad);
@@ -470,9 +469,10 @@ __resizer_get_format(struct iss_resizer_device *resizer, struct v4l2_subdev_fh *
  * @fmt: Format
  */
 static void
-resizer_try_format(struct iss_resizer_device *resizer, struct v4l2_subdev_fh *fh,
-		unsigned int pad, struct v4l2_mbus_framefmt *fmt,
-		enum v4l2_subdev_format_whence which)
+resizer_try_format(struct iss_resizer_device *resizer,
+		   struct v4l2_subdev_fh *fh, unsigned int pad,
+		   struct v4l2_mbus_framefmt *fmt,
+		   enum v4l2_subdev_format_whence which)
 {
 	enum v4l2_mbus_pixelcode pixelcode;
 	struct v4l2_mbus_framefmt *format;
@@ -498,7 +498,8 @@ resizer_try_format(struct iss_resizer_device *resizer, struct v4l2_subdev_fh *fh
 
 	case RESIZER_PAD_SOURCE_MEM:
 		pixelcode = fmt->code;
-		format = __resizer_get_format(resizer, fh, RESIZER_PAD_SINK, which);
+		format = __resizer_get_format(resizer, fh, RESIZER_PAD_SINK,
+					      which);
 		memcpy(fmt, format, sizeof(*fmt));
 
 		if ((pixelcode == V4L2_MBUS_FMT_YUYV8_1_5X8) &&
@@ -586,7 +587,8 @@ static int resizer_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = 1;
 	format.height = 1;
-	resizer_try_format(resizer, fh, fse->pad, &format, V4L2_SUBDEV_FORMAT_TRY);
+	resizer_try_format(resizer, fh, fse->pad, &format,
+			   V4L2_SUBDEV_FORMAT_TRY);
 	fse->min_width = format.width;
 	fse->min_height = format.height;
 
@@ -596,7 +598,8 @@ static int resizer_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = -1;
 	format.height = -1;
-	resizer_try_format(resizer, fh, fse->pad, &format, V4L2_SUBDEV_FORMAT_TRY);
+	resizer_try_format(resizer, fh, fse->pad, &format,
+			   V4L2_SUBDEV_FORMAT_TRY);
 	fse->max_width = format.width;
 	fse->max_height = format.height;
 
@@ -650,8 +653,9 @@ static int resizer_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 
 	/* Propagate the format from sink to source */
 	if (fmt->pad == RESIZER_PAD_SINK) {
-		format = __resizer_get_format(resizer, fh, RESIZER_PAD_SOURCE_MEM,
-					   fmt->which);
+		format = __resizer_get_format(resizer, fh,
+					      RESIZER_PAD_SOURCE_MEM,
+					      fmt->which);
 		*format = fmt->format;
 		resizer_try_format(resizer, fh, RESIZER_PAD_SOURCE_MEM, format,
 				fmt->which);
@@ -660,7 +664,8 @@ static int resizer_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	return 0;
 }
 
-static int resizer_link_validate(struct v4l2_subdev *sd, struct media_link *link,
+static int resizer_link_validate(struct v4l2_subdev *sd,
+				 struct media_link *link,
 				 struct v4l2_subdev_format *source_fmt,
 				 struct v4l2_subdev_format *sink_fmt)
 {
@@ -684,7 +689,8 @@ static int resizer_link_validate(struct v4l2_subdev *sd, struct media_link *link
  * formats are initialized on the file handle. Otherwise active formats are
  * initialized on the device.
  */
-static int resizer_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+static int resizer_init_formats(struct v4l2_subdev *sd,
+				struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_subdev_format format;
 
@@ -833,8 +839,9 @@ static int resizer_init_entities(struct iss_resizer_device *resizer)
 		return ret;
 
 	/* Connect the RESIZER subdev to the video node. */
-	ret = media_entity_create_link(&resizer->subdev.entity, RESIZER_PAD_SOURCE_MEM,
-			&resizer->video_out.video.entity, 0, 0);
+	ret = media_entity_create_link(&resizer->subdev.entity,
+				       RESIZER_PAD_SOURCE_MEM,
+				       &resizer->video_out.video.entity, 0, 0);
 	if (ret < 0)
 		return ret;
 

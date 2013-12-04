@@ -23,10 +23,6 @@
 #include "iss_regs.h"
 #include "iss_ipipeif.h"
 
-static struct v4l2_mbus_framefmt *
-__ipipeif_get_format(struct iss_ipipeif_device *ipipeif, struct v4l2_subdev_fh *fh,
-		  unsigned int pad, enum v4l2_subdev_format_whence which);
-
 static const unsigned int ipipeif_fmts[] = {
 	V4L2_MBUS_FMT_SGRBG10_1X10,
 	V4L2_MBUS_FMT_SRGGB10_1X10,
@@ -274,7 +270,8 @@ static void ipipeif_isif0_isr(struct iss_ipipeif_device *ipipeif)
  */
 void omap4iss_ipipeif_isr(struct iss_ipipeif_device *ipipeif, u32 events)
 {
-	if (omap4iss_module_sync_is_stopping(&ipipeif->wait, &ipipeif->stopping))
+	if (omap4iss_module_sync_is_stopping(&ipipeif->wait,
+					     &ipipeif->stopping))
 		return;
 
 	if (events & ISP5_IRQ_ISIF0)
@@ -285,7 +282,8 @@ void omap4iss_ipipeif_isr(struct iss_ipipeif_device *ipipeif, u32 events)
  * ISP video operations
  */
 
-static int ipipeif_video_queue(struct iss_video *video, struct iss_buffer *buffer)
+static int ipipeif_video_queue(struct iss_video *video,
+			       struct iss_buffer *buffer)
 {
 	struct iss_ipipeif_device *ipipeif = container_of(video,
 				struct iss_ipipeif_device, video_out);
@@ -385,8 +383,9 @@ static int ipipeif_set_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static struct v4l2_mbus_framefmt *
-__ipipeif_get_format(struct iss_ipipeif_device *ipipeif, struct v4l2_subdev_fh *fh,
-		  unsigned int pad, enum v4l2_subdev_format_whence which)
+__ipipeif_get_format(struct iss_ipipeif_device *ipipeif,
+		     struct v4l2_subdev_fh *fh, unsigned int pad,
+		     enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_format(fh, pad);
@@ -402,9 +401,10 @@ __ipipeif_get_format(struct iss_ipipeif_device *ipipeif, struct v4l2_subdev_fh *
  * @fmt: Format
  */
 static void
-ipipeif_try_format(struct iss_ipipeif_device *ipipeif, struct v4l2_subdev_fh *fh,
-		unsigned int pad, struct v4l2_mbus_framefmt *fmt,
-		enum v4l2_subdev_format_whence which)
+ipipeif_try_format(struct iss_ipipeif_device *ipipeif,
+		   struct v4l2_subdev_fh *fh, unsigned int pad,
+		   struct v4l2_mbus_framefmt *fmt,
+		   enum v4l2_subdev_format_whence which)
 {
 	struct v4l2_mbus_framefmt *format;
 	unsigned int width = fmt->width;
@@ -413,8 +413,8 @@ ipipeif_try_format(struct iss_ipipeif_device *ipipeif, struct v4l2_subdev_fh *fh
 
 	switch (pad) {
 	case IPIPEIF_PAD_SINK:
-		/* TODO: If the IPIPEIF output formatter pad is connected directly
-		 * to the resizer, only YUV formats can be used.
+		/* TODO: If the IPIPEIF output formatter pad is connected
+		 * directly to the resizer, only YUV formats can be used.
 		 */
 		for (i = 0; i < ARRAY_SIZE(ipipeif_fmts); i++) {
 			if (fmt->code == ipipeif_fmts[i])
@@ -431,7 +431,8 @@ ipipeif_try_format(struct iss_ipipeif_device *ipipeif, struct v4l2_subdev_fh *fh
 		break;
 
 	case IPIPEIF_PAD_SOURCE_ISIF_SF:
-		format = __ipipeif_get_format(ipipeif, fh, IPIPEIF_PAD_SINK, which);
+		format = __ipipeif_get_format(ipipeif, fh, IPIPEIF_PAD_SINK,
+					      which);
 		memcpy(fmt, format, sizeof(*fmt));
 
 		/* The data formatter truncates the number of horizontal output
@@ -445,7 +446,8 @@ ipipeif_try_format(struct iss_ipipeif_device *ipipeif, struct v4l2_subdev_fh *fh
 		break;
 
 	case IPIPEIF_PAD_SOURCE_VP:
-		format = __ipipeif_get_format(ipipeif, fh, IPIPEIF_PAD_SINK, which);
+		format = __ipipeif_get_format(ipipeif, fh, IPIPEIF_PAD_SINK,
+					      which);
 		memcpy(fmt, format, sizeof(*fmt));
 
 		fmt->width = clamp_t(u32, width, 32, fmt->width);
@@ -514,7 +516,8 @@ static int ipipeif_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = 1;
 	format.height = 1;
-	ipipeif_try_format(ipipeif, fh, fse->pad, &format, V4L2_SUBDEV_FORMAT_TRY);
+	ipipeif_try_format(ipipeif, fh, fse->pad, &format,
+			   V4L2_SUBDEV_FORMAT_TRY);
 	fse->min_width = format.width;
 	fse->min_height = format.height;
 
@@ -524,7 +527,8 @@ static int ipipeif_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = -1;
 	format.height = -1;
-	ipipeif_try_format(ipipeif, fh, fse->pad, &format, V4L2_SUBDEV_FORMAT_TRY);
+	ipipeif_try_format(ipipeif, fh, fse->pad, &format,
+			   V4L2_SUBDEV_FORMAT_TRY);
 	fse->max_width = format.width;
 	fse->max_height = format.height;
 
@@ -578,14 +582,16 @@ static int ipipeif_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 
 	/* Propagate the format from sink to source */
 	if (fmt->pad == IPIPEIF_PAD_SINK) {
-		format = __ipipeif_get_format(ipipeif, fh, IPIPEIF_PAD_SOURCE_ISIF_SF,
-					   fmt->which);
+		format = __ipipeif_get_format(ipipeif, fh,
+					      IPIPEIF_PAD_SOURCE_ISIF_SF,
+					      fmt->which);
 		*format = fmt->format;
-		ipipeif_try_format(ipipeif, fh, IPIPEIF_PAD_SOURCE_ISIF_SF, format,
-				fmt->which);
+		ipipeif_try_format(ipipeif, fh, IPIPEIF_PAD_SOURCE_ISIF_SF,
+				   format, fmt->which);
 
-		format = __ipipeif_get_format(ipipeif, fh, IPIPEIF_PAD_SOURCE_VP,
-					   fmt->which);
+		format = __ipipeif_get_format(ipipeif, fh,
+					      IPIPEIF_PAD_SOURCE_VP,
+					      fmt->which);
 		*format = fmt->format;
 		ipipeif_try_format(ipipeif, fh, IPIPEIF_PAD_SOURCE_VP, format,
 				fmt->which);
@@ -594,7 +600,8 @@ static int ipipeif_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	return 0;
 }
 
-static int ipipeif_link_validate(struct v4l2_subdev *sd, struct media_link *link,
+static int ipipeif_link_validate(struct v4l2_subdev *sd,
+				 struct media_link *link,
 				 struct v4l2_subdev_format *source_fmt,
 				 struct v4l2_subdev_format *sink_fmt)
 {
@@ -618,7 +625,8 @@ static int ipipeif_link_validate(struct v4l2_subdev *sd, struct media_link *link
  * formats are initialized on the file handle. Otherwise active formats are
  * initialized on the device.
  */
-static int ipipeif_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+static int ipipeif_init_formats(struct v4l2_subdev *sd,
+				struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_subdev_format format;
 
@@ -778,8 +786,9 @@ static int ipipeif_init_entities(struct iss_ipipeif_device *ipipeif)
 		return ret;
 
 	/* Connect the IPIPEIF subdev to the video node. */
-	ret = media_entity_create_link(&ipipeif->subdev.entity, IPIPEIF_PAD_SOURCE_ISIF_SF,
-			&ipipeif->video_out.video.entity, 0, 0);
+	ret = media_entity_create_link(&ipipeif->subdev.entity,
+				       IPIPEIF_PAD_SOURCE_ISIF_SF,
+				       &ipipeif->video_out.video.entity, 0, 0);
 	if (ret < 0)
 		return ret;
 
