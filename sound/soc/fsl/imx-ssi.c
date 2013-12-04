@@ -535,7 +535,9 @@ static int imx_ssi_probe(struct platform_device *pdev)
 			ret);
 		goto failed_clk;
 	}
-	clk_prepare_enable(ssi->clk);
+	ret = clk_prepare_enable(ssi->clk);
+	if (ret)
+		goto failed_clk;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ssi->base = devm_ioremap_resource(&pdev->dev, res);
