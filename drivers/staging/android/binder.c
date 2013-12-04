@@ -143,6 +143,7 @@ module_param_call(stop_on_user_error, binder_set_stop_on_user_error,
 
 #define align_helper(ptr)	    ALIGN(ptr, sizeof(void *))
 #define deref_helper(ptr)	    (*(typeof(size_t *))ptr)
+#define size_helper(x)		    sizeof(x)
 
 enum binder_stat_types {
 	BINDER_STAT_PROC,
@@ -1248,10 +1249,10 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 		off_end = failed_at;
 	else
 		off_end = (void *)offp + buffer->offsets_size;
-	for (; offp < off_end; offp += sizeof(size_t)) {
+	for (; offp < off_end; offp += size_helper(size_t)) {
 		struct flat_binder_object *fp;
-		if (deref_helper(offp) > buffer->data_size - sizeof(*fp) ||
-		    buffer->data_size < sizeof(*fp) ||
+		if (deref_helper(offp) > buffer->data_size - size_helper(*fp) ||
+		    buffer->data_size < size_helper(*fp) ||
 		    !IS_ALIGNED(deref_helper(offp), sizeof(u32))) {
 			pr_err("transaction release %d bad offset %zd, size %zd\n",
 			 debug_id, deref_helper(offp), buffer->data_size);
@@ -1494,17 +1495,17 @@ static void binder_transaction(struct binder_proc *proc,
 		return_error = BR_FAILED_REPLY;
 		goto err_copy_data_failed;
 	}
-	if (!IS_ALIGNED(tr->offsets_size, sizeof(size_t))) {
+	if (!IS_ALIGNED(tr->offsets_size, size_helper(size_t))) {
 		binder_user_error("%d:%d got transaction with invalid offsets size, %zd\n",
 				proc->pid, thread->pid, tr->offsets_size);
 		return_error = BR_FAILED_REPLY;
 		goto err_bad_offset;
 	}
 	off_end = (void *)offp + tr->offsets_size;
-	for (; offp < off_end; offp += sizeof(size_t)) {
+	for (; offp < off_end; offp += size_helper(size_t)) {
 		struct flat_binder_object *fp;
-		if (deref_helper(offp) > t->buffer->data_size - sizeof(*fp) ||
-		    t->buffer->data_size < sizeof(*fp) ||
+		if (deref_helper(offp) > t->buffer->data_size - size_helper(*fp) ||
+		    t->buffer->data_size < size_helper(*fp) ||
 		    !IS_ALIGNED(deref_helper(offp), sizeof(u32))) {
 			binder_user_error("%d:%d got transaction with invalid offset, %zd\n",
 					proc->pid, thread->pid, deref_helper(offp));
@@ -2247,7 +2248,7 @@ retry:
 			break;
 		}
 
-		if (end - ptr < sizeof(tr) + 4)
+		if (end - ptr < size_helper(tr) + 4)
 			break;
 
 		switch (w->type) {
