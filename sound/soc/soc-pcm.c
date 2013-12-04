@@ -390,11 +390,6 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	if (!codec_dai->active)
 		codec_dai->rate = 0;
 
-	/* Muting the DAC suppresses artifacts caused during digital
-	 * shutdown, for example from stopping clocks.
-	 */
-	snd_soc_dai_digital_mute(codec_dai, 1, substream->stream);
-
 	if (cpu_dai->driver->ops->shutdown)
 		cpu_dai->driver->ops->shutdown(substream, cpu_dai);
 
