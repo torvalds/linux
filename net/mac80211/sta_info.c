@@ -831,7 +831,8 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 	    rcu_access_pointer(sdata->u.vlan.sta) == sta)
 		RCU_INIT_POINTER(sdata->u.vlan.sta, NULL);
 
-	/* this always calls synchronize_net() */
+	synchronize_net();
+	/* now keys can no longer be reached */
 	ieee80211_free_sta_keys(local, sta);
 
 	sta->dead = true;

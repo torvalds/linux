@@ -628,8 +628,7 @@ void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata)
 void ieee80211_free_sta_keys(struct ieee80211_local *local,
 			     struct sta_info *sta)
 {
-	struct ieee80211_key *key, *tmp;
-	LIST_HEAD(keys);
+	struct ieee80211_key *key;
 	int i;
 
 	mutex_lock(&local->key_mtx);
@@ -640,7 +639,7 @@ void ieee80211_free_sta_keys(struct ieee80211_local *local,
 		ieee80211_key_replace(key->sdata, key->sta,
 				key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
 				key, NULL);
-		list_add(&key->list, &keys);
+		__ieee80211_key_destroy(key, true);
 	}
 
 	for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
@@ -650,17 +649,8 @@ void ieee80211_free_sta_keys(struct ieee80211_local *local,
 		ieee80211_key_replace(key->sdata, key->sta,
 				key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
 				key, NULL);
-		list_add(&key->list, &keys);
-	}
-
-	/*
-	 * NB: the station code relies on this being
-	 * done even if there aren't any keys
-	 */
-	synchronize_net();
-
-	list_for_each_entry_safe(key, tmp, &keys, list)
 		__ieee80211_key_destroy(key, true);
+	}
 
 	mutex_unlock(&local->key_mtx);
 }
