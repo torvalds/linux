@@ -1097,9 +1097,7 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	if (old_probe_resp)
 		kfree_rcu(old_probe_resp, rcu_head);
 
-	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
-		sta_info_flush(vlan);
-	sta_info_flush(sdata);
+	__sta_info_flush(sdata, true);
 	synchronize_net();
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
 		ieee80211_free_keys(vlan);

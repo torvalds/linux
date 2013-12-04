@@ -613,8 +613,14 @@ void sta_info_stop(struct ieee80211_local *local);
  * Returns the number of removed STA entries.
  *
  * @sdata: sdata to remove all stations from
+ * @vlans: if the given interface is an AP interface, also flush VLANs
  */
-int sta_info_flush(struct ieee80211_sub_if_data *sdata);
+int __sta_info_flush(struct ieee80211_sub_if_data *sdata, bool vlans);
+
+static inline int sta_info_flush(struct ieee80211_sub_if_data *sdata)
+{
+	return __sta_info_flush(sdata, false);
+}
 
 void sta_set_rate_info_tx(struct sta_info *sta,
 			  const struct ieee80211_tx_rate *rate,
