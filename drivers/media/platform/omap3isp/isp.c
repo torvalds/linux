@@ -2130,28 +2130,13 @@ static int isp_map_mem_resource(struct platform_device *pdev,
 	/* request the mem region for the camera registers */
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, res);
-	if (!mem) {
-		dev_err(isp->dev, "no mem resource?\n");
-		return -ENODEV;
-	}
-
-	if (!devm_request_mem_region(isp->dev, mem->start, resource_size(mem),
-				     pdev->name)) {
-		dev_err(isp->dev,
-			"cannot reserve camera register I/O region\n");
-		return -ENODEV;
-	}
-	isp->mmio_base_phys[res] = mem->start;
-	isp->mmio_size[res] = resource_size(mem);
 
 	/* map the region */
-	isp->mmio_base[res] = devm_ioremap_nocache(isp->dev,
-						   isp->mmio_base_phys[res],
-						   isp->mmio_size[res]);
-	if (!isp->mmio_base[res]) {
-		dev_err(isp->dev, "cannot map camera register I/O region\n");
-		return -ENODEV;
-	}
+	isp->mmio_base[res] = devm_ioremap_resource(isp->dev, mem);
+	if (IS_ERR(isp->mmio_base[res]))
+		return PTR_ERR(isp->mmio_base[res]);
+
+	isp->mmio_base_phys[res] = mem->start;
 
 	return 0;
 }

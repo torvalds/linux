@@ -152,7 +152,6 @@ struct isp_xclk {
  *             regions.
  * @mmio_base_phys: Array with physical L4 bus addresses for ISP register
  *                  regions.
- * @mmio_size: Array with ISP register regions size in bytes.
  * @stat_lock: Spinlock for handling statistics
  * @isp_mutex: Mutex for serializing requests to ISP.
  * @crashed: Bitmask of crashed entities (indexed by entity ID)
@@ -188,7 +187,6 @@ struct isp_device {
 
 	void __iomem *mmio_base[OMAP3_ISP_IOMEM_LAST];
 	unsigned long mmio_base_phys[OMAP3_ISP_IOMEM_LAST];
-	resource_size_t mmio_size[OMAP3_ISP_IOMEM_LAST];
 
 	/* ISP Obj */
 	spinlock_t stat_lock;	/* common lock for statistic drivers */
