@@ -4517,7 +4517,9 @@ enum punit_power_well {
 #define   PLANE_CTL_FORMAT_INDEXED		( 12 << 24)
 #define   PLANE_CTL_FORMAT_RGB_565		( 14 << 24)
 #define   PLANE_CTL_PIPE_CSC_ENABLE		(1 << 23)
-#define   PLANE_CTL_KEY_ENABLE			(1 << 22)
+#define   PLANE_CTL_KEY_ENABLE_MASK		(0x3 << 21)
+#define   PLANE_CTL_KEY_ENABLE_SOURCE		(  1 << 21)
+#define   PLANE_CTL_KEY_ENABLE_DESTINATION	(  2 << 21)
 #define   PLANE_CTL_ORDER_BGRX			(0 << 20)
 #define   PLANE_CTL_ORDER_RGBX			(1 << 20)
 #define   PLANE_CTL_YUV422_ORDER_MASK		(0x3 << 16)
@@ -4552,6 +4554,12 @@ enum punit_power_well {
 #define _PLANE_OFFSET_1_A			0x701a4
 #define _PLANE_OFFSET_2_A			0x702a4
 #define _PLANE_OFFSET_3_A			0x703a4
+#define _PLANE_KEYVAL_1_A			0x70194
+#define _PLANE_KEYVAL_2_A			0x70294
+#define _PLANE_KEYMSK_1_A			0x70198
+#define _PLANE_KEYMSK_2_A			0x70298
+#define _PLANE_KEYMAX_1_A			0x701a0
+#define _PLANE_KEYMAX_2_A			0x702a0
 
 #define _PLANE_CTL_1_B				0x71180
 #define _PLANE_CTL_2_B				0x71280
@@ -4607,6 +4615,27 @@ enum punit_power_well {
 #define _PLANE_OFFSET_2(pipe) _PIPE(pipe, _PLANE_OFFSET_2_A, _PLANE_OFFSET_2_B)
 #define PLANE_OFFSET(pipe, plane)	\
 	_PLANE(plane, _PLANE_OFFSET_1(pipe), _PLANE_OFFSET_2(pipe))
+
+#define _PLANE_KEYVAL_1_B			0x71194
+#define _PLANE_KEYVAL_2_B			0x71294
+#define _PLANE_KEYVAL_1(pipe) _PIPE(pipe, _PLANE_KEYVAL_1_A, _PLANE_KEYVAL_1_B)
+#define _PLANE_KEYVAL_2(pipe) _PIPE(pipe, _PLANE_KEYVAL_2_A, _PLANE_KEYVAL_2_B)
+#define PLANE_KEYVAL(pipe, plane)	\
+	_PLANE(plane, _PLANE_KEYVAL_1(pipe), _PLANE_KEYVAL_2(pipe))
+
+#define _PLANE_KEYMSK_1_B			0x71198
+#define _PLANE_KEYMSK_2_B			0x71298
+#define _PLANE_KEYMSK_1(pipe) _PIPE(pipe, _PLANE_KEYMSK_1_A, _PLANE_KEYMSK_1_B)
+#define _PLANE_KEYMSK_2(pipe) _PIPE(pipe, _PLANE_KEYMSK_2_A, _PLANE_KEYMSK_2_B)
+#define PLANE_KEYMSK(pipe, plane)	\
+	_PLANE(plane, _PLANE_KEYMSK_1(pipe), _PLANE_KEYMSK_2(pipe))
+
+#define _PLANE_KEYMAX_1_B			0x711a0
+#define _PLANE_KEYMAX_2_B			0x712a0
+#define _PLANE_KEYMAX_1(pipe) _PIPE(pipe, _PLANE_KEYMAX_1_A, _PLANE_KEYMAX_1_B)
+#define _PLANE_KEYMAX_2(pipe) _PIPE(pipe, _PLANE_KEYMAX_2_A, _PLANE_KEYMAX_2_B)
+#define PLANE_KEYMAX(pipe, plane)	\
+	_PLANE(plane, _PLANE_KEYMAX_1(pipe), _PLANE_KEYMAX_2(pipe))
 
 /* VBIOS regs */
 #define VGACNTRL		0x71400
