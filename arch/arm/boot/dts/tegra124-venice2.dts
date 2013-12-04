@@ -17,6 +17,13 @@
 	i2c@7000c000 {
 		status = "okay";
 		clock-frequency = <100000>;
+
+		acodec: audio-codec@10 {
+			compatible = "maxim,max98090";
+			reg = <0x10>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(H, 4) GPIO_ACTIVE_HIGH>;
+		};
 	};
 
 	i2c@7000c400 {
@@ -62,6 +69,12 @@
 		bus-width = <8>;
 	};
 
+	ahub@70300000 {
+		i2s@70301100 {
+			status = "okay";
+		};
+	};
+
 	clocks {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -73,5 +86,27 @@
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
 		};
+	};
+
+	sound {
+		compatible = "nvidia,tegra-audio-max98090-venice2",
+			     "nvidia,tegra-audio-max98090";
+		nvidia,model = "NVIDIA Tegra Venice2";
+
+		nvidia,audio-routing =
+			"Headphones", "HPR",
+			"Headphones", "HPL",
+			"Speakers", "SPKR",
+			"Speakers", "SPKL",
+			"Mic Jack", "MICBIAS",
+			"IN34", "Mic Jack";
+
+		nvidia,i2s-controller = <&tegra_i2s1>;
+		nvidia,audio-codec = <&acodec>;
+
+		clocks = <&tegra_car TEGRA124_CLK_PLL_A>,
+			 <&tegra_car TEGRA124_CLK_PLL_A_OUT0>,
+			 <&tegra_car TEGRA124_CLK_EXTERN1>;
+		clock-names = "pll_a", "pll_a_out0", "mclk";
 	};
 };
