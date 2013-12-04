@@ -256,6 +256,7 @@ static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root,
 static int copy_nocow_pages(struct scrub_ctx *sctx, u64 logical, u64 len,
 			    int mirror_num, u64 physical_for_dev_replace);
 static void copy_nocow_pages_worker(struct btrfs_work *work);
+static void scrub_blocked_if_needed(struct btrfs_fs_info *fs_info);
 
 
 static void scrub_pending_bio_inc(struct scrub_ctx *sctx)
@@ -267,6 +268,16 @@ static void scrub_pending_bio_dec(struct scrub_ctx *sctx)
 {
 	atomic_dec(&sctx->bios_in_flight);
 	wake_up(&sctx->list_wait);
+}
+
+static void scrub_blocked_if_needed(struct btrfs_fs_info *fs_info)
+{
+	while (atomic_read(&fs_info->scrub_pause_req)) {
+		mutex_unlock(&fs_info->scrub_lock);
+		wait_event(fs_info->scrub_pause_wait,
+		   atomic_read(&fs_info->scrub_pause_req) == 0);
+		mutex_lock(&fs_info->scrub_lock);
+	}
 }
 
 /*
@@ -2310,14 +2321,10 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 		btrfs_reada_wait(reada2);
 
 	mutex_lock(&fs_info->scrub_lock);
-	while (atomic_read(&fs_info->scrub_pause_req)) {
-		mutex_unlock(&fs_info->scrub_lock);
-		wait_event(fs_info->scrub_pause_wait,
-		   atomic_read(&fs_info->scrub_pause_req) == 0);
-		mutex_lock(&fs_info->scrub_lock);
-	}
+	scrub_blocked_if_needed(fs_info);
 	atomic_dec(&fs_info->scrubs_paused);
 	mutex_unlock(&fs_info->scrub_lock);
+
 	wake_up(&fs_info->scrub_pause_wait);
 
 	/*
@@ -2357,15 +2364,12 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 			atomic_set(&sctx->wr_ctx.flush_all_writes, 0);
 			atomic_inc(&fs_info->scrubs_paused);
 			wake_up(&fs_info->scrub_pause_wait);
+
 			mutex_lock(&fs_info->scrub_lock);
-			while (atomic_read(&fs_info->scrub_pause_req)) {
-				mutex_unlock(&fs_info->scrub_lock);
-				wait_event(fs_info->scrub_pause_wait,
-				   atomic_read(&fs_info->scrub_pause_req) == 0);
-				mutex_lock(&fs_info->scrub_lock);
-			}
+			scrub_blocked_if_needed(fs_info);
 			atomic_dec(&fs_info->scrubs_paused);
 			mutex_unlock(&fs_info->scrub_lock);
+
 			wake_up(&fs_info->scrub_pause_wait);
 		}
 
@@ -2687,14 +2691,10 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			   atomic_read(&sctx->workers_pending) == 0);
 
 		mutex_lock(&fs_info->scrub_lock);
-		while (atomic_read(&fs_info->scrub_pause_req)) {
-			mutex_unlock(&fs_info->scrub_lock);
-			wait_event(fs_info->scrub_pause_wait,
-			   atomic_read(&fs_info->scrub_pause_req) == 0);
-			mutex_lock(&fs_info->scrub_lock);
-		}
+		scrub_blocked_if_needed(fs_info);
 		atomic_dec(&fs_info->scrubs_paused);
 		mutex_unlock(&fs_info->scrub_lock);
+
 		wake_up(&fs_info->scrub_pause_wait);
 
 		btrfs_put_block_group(cache);
@@ -2906,7 +2906,13 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	}
 	sctx->readonly = readonly;
 	dev->scrub_device = sctx;
+	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 
+	/*
+	 * checking @scrub_pause_req here, we can avoid
+	 * race between committing transaction and scrubbing.
+	 */
+	scrub_blocked_if_needed(fs_info);
 	atomic_inc(&fs_info->scrubs_running);
 	mutex_unlock(&fs_info->scrub_lock);
 
@@ -2915,9 +2921,10 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		 * by holding device list mutex, we can
 		 * kick off writing super in log tree sync.
 		 */
+		mutex_lock(&fs_info->fs_devices->device_list_mutex);
 		ret = scrub_supers(sctx, dev);
+		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 	}
-	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 
 	if (!ret)
 		ret = scrub_enumerate_chunks(sctx, dev, start, end,
