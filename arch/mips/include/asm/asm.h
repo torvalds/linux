@@ -18,6 +18,7 @@
 #define __ASM_ASM_H
 
 #include <asm/sgidefs.h>
+#include <asm/asm-eva.h>
 
 #ifndef CAT
 #ifdef __STDC__
