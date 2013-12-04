@@ -168,10 +168,6 @@ static struct board_type products[] = {
 
 static int number_of_controllers;
 
-static struct list_head hpsa_ctlr_list = LIST_HEAD_INIT(hpsa_ctlr_list);
-static spinlock_t lockup_detector_lock;
-static struct task_struct *hpsa_lockup_detector;
-
 static irqreturn_t do_hpsa_intr_intx(int irq, void *dev_id);
 static irqreturn_t do_hpsa_intr_msi(int irq, void *dev_id);
 static int hpsa_ioctl(struct scsi_device *dev, int cmd, void *arg);
@@ -4716,16 +4712,6 @@ static void hpsa_undo_allocations_after_kdump_soft_reset(struct ctlr_info *h)
 	kfree(h);
 }
 
-static void remove_ctlr_from_lockup_detector_list(struct ctlr_info *h)
-{
-	assert_spin_locked(&lockup_detector_lock);
-	if (!hpsa_lockup_detector)
-		return;
-	if (h->lockup_detected)
-		return; /* already stopped the lockup detector */
-	list_del(&h->lockup_list);
-}
-
 /* Called when controller lockup detected. */
 static void fail_all_cmds_on_list(struct ctlr_info *h, struct list_head *list)
 {
@@ -4744,8 +4730,6 @@ static void controller_lockup_detected(struct ctlr_info *h)
 {
 	unsigned long flags;
 
-	assert_spin_locked(&lockup_detector_lock);
-	remove_ctlr_from_lockup_detector_list(h);
 	h->access.set_intr_mask(h, HPSA_INTR_OFF);
 	spin_lock_irqsave(&h->lock, flags);
 	h->lockup_detected = readl(h->vaddr + SA5_SCRATCHPAD_OFFSET);
@@ -4765,7 +4749,6 @@ static void detect_controller_lockup(struct ctlr_info *h)
 	u32 heartbeat;
 	unsigned long flags;
 
-	assert_spin_locked(&lockup_detector_lock);
 	now = get_jiffies_64();
 	/* If we've received an interrupt recently, we're ok. */
 	if (time_after64(h->last_intr_timestamp +
@@ -4795,68 +4778,22 @@ static void detect_controller_lockup(struct ctlr_info *h)
 	h->last_heartbeat_timestamp = now;
 }
 
-static int detect_controller_lockup_thread(void *notused)
-{
-	struct ctlr_info *h;
-	unsigned long flags;
-
-	while (1) {
-		struct list_head *this, *tmp;
-
-		schedule_timeout_interruptible(HEARTBEAT_SAMPLE_INTERVAL);
-		if (kthread_should_stop())
-			break;
-		spin_lock_irqsave(&lockup_detector_lock, flags);
-		list_for_each_safe(this, tmp, &hpsa_ctlr_list) {
-			h = list_entry(this, struct ctlr_info, lockup_list);
-			detect_controller_lockup(h);
-		}
-		spin_unlock_irqrestore(&lockup_detector_lock, flags);
-	}
-	return 0;
-}
-
-static void add_ctlr_to_lockup_detector_list(struct ctlr_info *h)
+static void hpsa_monitor_ctlr_worker(struct work_struct *work)
 {
 	unsigned long flags;
-
-	h->heartbeat_sample_interval = HEARTBEAT_SAMPLE_INTERVAL;
-	spin_lock_irqsave(&lockup_detector_lock, flags);
-	list_add_tail(&h->lockup_list, &hpsa_ctlr_list);
-	spin_unlock_irqrestore(&lockup_detector_lock, flags);
-}
-
-static void start_controller_lockup_detector(struct ctlr_info *h)
-{
-	/* Start the lockup detector thread if not already started */
-	if (!hpsa_lockup_detector) {
-		spin_lock_init(&lockup_detector_lock);
-		hpsa_lockup_detector =
-			kthread_run(detect_controller_lockup_thread,
-						NULL, HPSA);
-	}
-	if (!hpsa_lockup_detector) {
-		dev_warn(&h->pdev->dev,
-			"Could not start lockup detector thread\n");
+	struct ctlr_info *h = container_of(to_delayed_work(work),
+					struct ctlr_info, monitor_ctlr_work);
+	detect_controller_lockup(h);
+	if (h->lockup_detected)
+		return;
+	spin_lock_irqsave(&h->lock, flags);
+	if (h->remove_in_progress) {
+		spin_unlock_irqrestore(&h->lock, flags);
 		return;
 	}
-	add_ctlr_to_lockup_detector_list(h);
-}
-
-static void stop_controller_lockup_detector(struct ctlr_info *h)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&lockup_detector_lock, flags);
-	remove_ctlr_from_lockup_detector_list(h);
-	/* If the list of ctlr's to monitor is empty, stop the thread */
-	if (list_empty(&hpsa_ctlr_list)) {
-		spin_unlock_irqrestore(&lockup_detector_lock, flags);
-		kthread_stop(hpsa_lockup_detector);
-		spin_lock_irqsave(&lockup_detector_lock, flags);
-		hpsa_lockup_detector = NULL;
-	}
-	spin_unlock_irqrestore(&lockup_detector_lock, flags);
+	schedule_delayed_work(&h->monitor_ctlr_work,
+				h->heartbeat_sample_interval);
+	spin_unlock_irqrestore(&h->lock, flags);
 }
 
 static int hpsa_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -5004,7 +4941,12 @@ reinit_after_soft_reset:
 
 	hpsa_hba_inquiry(h);
 	hpsa_register_scsi(h);	/* hook ourselves into SCSI subsystem */
-	start_controller_lockup_detector(h);
+
+	/* Monitor the controller for firmware lockups */
+	h->heartbeat_sample_interval = HEARTBEAT_SAMPLE_INTERVAL;
+	INIT_DELAYED_WORK(&h->monitor_ctlr_work, hpsa_monitor_ctlr_worker);
+	schedule_delayed_work(&h->monitor_ctlr_work,
+				h->heartbeat_sample_interval);
 	return 0;
 
 clean4:
@@ -5079,13 +5021,20 @@ static void hpsa_free_device_info(struct ctlr_info *h)
 static void hpsa_remove_one(struct pci_dev *pdev)
 {
 	struct ctlr_info *h;
+	unsigned long flags;
 
 	if (pci_get_drvdata(pdev) == NULL) {
 		dev_err(&pdev->dev, "unable to remove device\n");
 		return;
 	}
 	h = pci_get_drvdata(pdev);
-	stop_controller_lockup_detector(h);
+
+	/* Get rid of any controller monitoring work items */
+	spin_lock_irqsave(&h->lock, flags);
+	h->remove_in_progress = 1;
+	cancel_delayed_work(&h->monitor_ctlr_work);
+	spin_unlock_irqrestore(&h->lock, flags);
+
 	hpsa_unregister_scsi(h);	/* unhook from SCSI subsystem */
 	hpsa_shutdown(pdev);
 	iounmap(h->vaddr);
