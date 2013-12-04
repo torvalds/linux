@@ -21,6 +21,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/interrupt.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
@@ -287,53 +288,58 @@ out2:
 	kfree(t);
 }
 
+static const struct of_device_id ids[] __initconst = {
+	{ .compatible = "rockchip,fiq-debugger" },
+	{}
+};
+
 static int __init rk_fiq_debugger_init(void) {
 
 	void __iomem *base;
-	u32 out_values[6] = {0};
-	struct device_node *from = NULL;
-	unsigned int i = 0, id = 0, serial_id = 0, ok = 0;
-	u32 irq = 32, signal_irq = 0, wake_irq = 0;
-	
-	from = of_find_node_by_name(from, "ttyFIQ0");
-	
-	if(!from) {
-		printk("ttyFIQ0 is missing in device tree!\n");
+	struct device_node *np;
+	unsigned int i, id, serial_id, ok = 0;
+	u32 irq, signal_irq = 0, wake_irq = 0;
+
+	np = of_find_matching_node(NULL, ids);
+
+	if (!np) {
+		printk("fiq-debugger is missing in device tree!\n");
 		return -ENODEV;
 	}
 		
-	if(of_property_read_u32(from, "id", &id)) {
+	if (of_property_read_u32(np, "serial-id", &serial_id)) {
 		return -EINVAL;	
 	}
 
-	if(of_property_read_u32(from, "signal_irq", &signal_irq)) {
+	if (of_property_read_u32(np, "signal-irq", &signal_irq)) {
 		signal_irq = -1;
 	}
 
-	if(of_property_read_u32(from, "wake_irq", &wake_irq)) {
+	if (of_property_read_u32(np, "wake-irq", &wake_irq)) {
 		wake_irq = -1;
 	}
 	
-	from = NULL;
-	for(i = 0; i < 5; i++) {
-		from = of_find_node_by_name(from, "serial");
-		if(from && !of_property_read_u32(from, "id", &serial_id)) {
-			if(id == serial_id) {
+	np = NULL;
+	for (i = 0; i < 5; i++) {
+		np = of_find_node_by_name(np, "serial");
+		if (np && !of_property_read_u32(np, "id", &id)) {
+			if (id == serial_id) {
 				ok = 1;
 				break;
 			}
 		}
 	}
-	
-	if(ok != 1)
+	if (!ok)
 		return -EINVAL;
 
-	if(of_property_read_u32_array(from, "interrupts", out_values, 3))
+	irq = irq_of_parse_and_map(np, 0);
+	if (!irq)
 		return -EINVAL;
-	irq += *(out_values + 1);
-	base = of_iomap(from, 0);
-	if(base)
+
+	base = of_iomap(np, 0);
+	if (base)
 		rk_serial_debug_init(base, irq, signal_irq, wake_irq);
+
 	return 0;
 }
 

@@ -417,10 +417,11 @@
 		status = "disabled";
 	};
 
-	ttyFIQ0 {
-		id = <2>;
-		signal_irq = <112>;
-		wake_irq = <0>;
+	fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		serial-id = <2>;
+		signal-irq = <112>;
+		wake-irq = <0>;
 		status = "disabled";
 	};
 };

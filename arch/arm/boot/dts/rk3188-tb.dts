@@ -9,11 +9,12 @@
 	};
 
 	chosen {
-
+		bootargs = "";
 	};
 
-	ttyFIQ0 {
-		id = <2>;
+	fiq-debugger {
+		serial-id = <2>;
+		status = "okay";
 	};
 };
 
