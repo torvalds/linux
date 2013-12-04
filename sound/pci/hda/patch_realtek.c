@@ -3613,7 +3613,6 @@ static void alc283_fixup_chromebook(struct hda_codec *codec,
 		snd_hda_override_wcaps(codec, 0x03, 0);
 		/* Disable AA-loopback as it causes white noise */
 		spec->gen.mixer_nid = 0;
-		spec->gen.hp_automute_hook = alc283_hp_automute_hook;
 		break;
 	case HDA_FIXUP_ACT_INIT:
 		/* Enable Line1 input control by verb */
