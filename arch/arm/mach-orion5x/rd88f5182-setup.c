@@ -108,7 +108,7 @@ static struct platform_device rd88f5182_gpio_leds = {
  * PCI
  ****************************************************************************/
 
-void __init rd88f5182_pci_preinit(void)
+static void __init rd88f5182_pci_preinit(void)
 {
 	int pin;
 

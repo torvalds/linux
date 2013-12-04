@@ -10,54 +10,20 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_net.h>
 #include <linux/of_platform.h>
-#include <linux/clk-provider.h>
 #include <linux/dma-mapping.h>
 #include <linux/irqchip.h>
 #include <linux/kexec.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
 #include <mach/bridge-regs.h>
-#include <linux/platform_data/usb-ehci-orion.h>
-#include <plat/irq.h>
 #include <plat/common.h>
 #include "common.h"
-
-/*
- * There are still devices that doesn't know about DT yet.  Get clock
- * gates here and add a clock lookup alias, so that old platform
- * devices still work.
-*/
-
-static void __init kirkwood_legacy_clk_init(void)
-{
-
-	struct device_node *np = of_find_compatible_node(
-		NULL, NULL, "marvell,kirkwood-gating-clock");
-	struct of_phandle_args clkspec;
-	struct clk *clk;
-
-	clkspec.np = np;
-	clkspec.args_count = 1;
-
-	/*
-	 * The ethernet interfaces forget the MAC address assigned by
-	 * u-boot if the clocks are turned off. Until proper DT support
-	 * is available we always enable them for now.
-	 */
-	clkspec.args[0] = CGC_BIT_GE0;
-	clk = of_clk_get_from_provider(&clkspec);
-	clk_prepare_enable(clk);
-
-	clkspec.args[0] = CGC_BIT_GE1;
-	clk = of_clk_get_from_provider(&clkspec);
-	clk_prepare_enable(clk);
-}
 
 #define MV643XX_ETH_MAC_ADDR_LOW	0x0414
 #define MV643XX_ETH_MAC_ADDR_HIGH	0x0418
@@ -140,7 +106,7 @@ eth_fixup_skip:
 
 static void __init kirkwood_dt_init(void)
 {
-	pr_info("Kirkwood: %s, TCLK=%d.\n", kirkwood_id(), kirkwood_tclk);
+	pr_info("Kirkwood: %s.\n", kirkwood_id());
 
 	/*
 	 * Disable propagation of mbus errors to the CPU local bus,
@@ -156,8 +122,6 @@ static void __init kirkwood_dt_init(void)
 
 	kirkwood_cpufreq_init();
 	kirkwood_cpuidle_init();
-	/* Setup clocks for legacy devices */
-	kirkwood_legacy_clk_init();
 
 	kirkwood_pm_init();
 	kirkwood_dt_eth_fixup();

@@ -27,6 +27,7 @@
 #include <asm/smp_plat.h>
 #include <asm/cacheflush.h>
 #include "armada-370-xp.h"
+#include "coherency.h"
 
 unsigned long coherency_phys_base;
 static void __iomem *coherency_base;
