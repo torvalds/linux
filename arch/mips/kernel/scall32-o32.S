@@ -6,6 +6,7 @@
  * Copyright (C) 1995-99, 2000- 02, 06 Ralf Baechle <ralf@linux-mips.org>
  * Copyright (C) 2001 MIPS Technologies, Inc.
  * Copyright (C) 2004 Thiemo Seufer
+ * Copyright (C) 2014 Imagination Technologies Ltd.
  */
 #include <linux/errno.h>
 #include <asm/asm.h>
@@ -74,10 +75,10 @@ NESTED(handle_sys, PT_SIZE, sp)
 	.set    noreorder
 	.set	nomacro
 
-1:	lw	t5, 16(t0)		# argument #5 from usp
-4:	lw	t6, 20(t0)		# argument #6 from usp
-3:	lw	t7, 24(t0)		# argument #7 from usp
-2:	lw	t8, 28(t0)		# argument #8 from usp
+1:	user_lw(t5, 16(t0))		# argument #5 from usp
+4:	user_lw(t6, 20(t0))		# argument #6 from usp
+3:	user_lw(t7, 24(t0))		# argument #7 from usp
+2:	user_lw(t8, 28(t0))		# argument #8 from usp
 
 	sw	t5, 16(sp)		# argument #5 to ksp
 	sw	t6, 20(sp)		# argument #6 to ksp
