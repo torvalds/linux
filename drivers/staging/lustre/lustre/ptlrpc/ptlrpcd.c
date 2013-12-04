@@ -636,7 +636,7 @@ int ptlrpcd_start(int index, int max, const char *name, struct ptlrpcd_ctl *pc)
 				GOTO(out_env, rc);
 		}
 
-		task = kthread_run(ptlrpcd, pc, pc->pc_name);
+		task = kthread_run(ptlrpcd, pc, "%s", pc->pc_name);
 		if (IS_ERR(task))
 			GOTO(out_env, rc = PTR_ERR(task));
 
