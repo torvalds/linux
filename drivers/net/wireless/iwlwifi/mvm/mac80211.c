@@ -1114,6 +1114,28 @@ static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 	}
 }
 
+static void iwl_mvm_sta_pre_rcu_remove(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif,
+				       struct ieee80211_sta *sta)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
+
+	/*
+	 * This is called before mac80211 does RCU synchronisation,
+	 * so here we already invalidate our internal RCU-protected
+	 * station pointer. The rest of the code will thus no longer
+	 * be able to find the station this way, and we don't rely
+	 * on further RCU synchronisation after the sta_state()
+	 * callback deleted the station.
+	 */
+	mutex_lock(&mvm->mutex);
+	if (sta == rcu_access_pointer(mvm->fw_id_to_mac_id[mvm_sta->sta_id]))
+		rcu_assign_pointer(mvm->fw_id_to_mac_id[mvm_sta->sta_id],
+				   ERR_PTR(-ENOENT));
+	mutex_unlock(&mvm->mutex);
+}
+
 static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta,
@@ -1761,6 +1783,7 @@ struct ieee80211_ops iwl_mvm_hw_ops = {
 	.bss_info_changed = iwl_mvm_bss_info_changed,
 	.hw_scan = iwl_mvm_mac_hw_scan,
 	.cancel_hw_scan = iwl_mvm_mac_cancel_hw_scan,
+	.sta_pre_rcu_remove = iwl_mvm_sta_pre_rcu_remove,
 	.sta_state = iwl_mvm_mac_sta_state,
 	.sta_notify = iwl_mvm_mac_sta_notify,
 	.allow_buffered_frames = iwl_mvm_mac_allow_buffered_frames,

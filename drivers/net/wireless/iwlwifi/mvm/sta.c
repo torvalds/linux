@@ -452,8 +452,15 @@ void iwl_mvm_sta_drained_wk(struct work_struct *wk)
 			rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
 						  lockdep_is_held(&mvm->mutex));
 
-		/* This station is in use */
-		if (!IS_ERR(sta))
+		/*
+		 * This station is in use or RCU-removed; the latter happens in
+		 * managed mode, where mac80211 removes the station before we
+		 * can remove it from firmware (we can only do that after the
+		 * MAC is marked unassociated), and possibly while the deauth
+		 * frame to disconnect from the AP is still queued. Then, the
+		 * station pointer is -ENOENT when the last skb is reclaimed.
+		 */
+		if (!IS_ERR(sta) || PTR_ERR(sta) == -ENOENT)
 			continue;
 
 		if (PTR_ERR(sta) == -EINVAL) {
