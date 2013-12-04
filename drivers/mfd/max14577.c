@@ -96,8 +96,7 @@ static int max14577_i2c_probe(struct i2c_client *i2c,
 	}
 
 	if (!pdata) {
-		dev_err(&i2c->dev, "No platform data found: %ld\n",
-				PTR_ERR(pdata));
+		dev_err(&i2c->dev, "No platform data found.\n");
 		return -EINVAL;
 	}
 
