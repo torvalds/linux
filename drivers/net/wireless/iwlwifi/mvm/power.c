@@ -406,6 +406,13 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 			cmd->flags &=
 				cpu_to_le16(~POWER_FLAGS_SNOOZE_ENA_MSK);
 	}
+	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_UAPSD_MISBEHAVING) {
+		u16 flag = POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK;
+		if (mvmvif->dbgfs_pm.uapsd_misbehaving)
+			cmd->flags |= cpu_to_le16(flag);
+		else
+			cmd->flags &= cpu_to_le16(flag);
+	}
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 }
 
