@@ -776,10 +776,6 @@ struct ieee80211_sub_if_data {
 		u32 mntr_flags;
 	} u;
 
-	spinlock_t cleanup_stations_lock;
-	struct list_head cleanup_stations;
-	struct work_struct cleanup_stations_wk;
-
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct {
 		struct dentry *subdir_stations;

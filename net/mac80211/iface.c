@@ -786,10 +786,8 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	 * This is relevant only in WDS mode, in all other modes we've
 	 * already removed all stations when disconnecting or similar,
 	 * so warn otherwise.
-	 *
-	 * We call sta_info_flush_cleanup() later, to combine RCU waits.
 	 */
-	flushed = sta_info_flush_defer(sdata);
+	flushed = sta_info_flush(sdata);
 	WARN_ON_ONCE((sdata->vif.type != NL80211_IFTYPE_WDS && flushed > 0) ||
 		     (sdata->vif.type == NL80211_IFTYPE_WDS && flushed != 1));
 
@@ -892,16 +890,11 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		/*
 		 * When we get here, the interface is marked down.
 		 *
-		 * sta_info_flush_cleanup() requires rcu_barrier()
-		 * first to wait for the station call_rcu() calls
-		 * to complete, and we also need synchronize_rcu()
-		 * to wait for the RX path in case it is using the
-		 * interface and enqueuing frames at this very time on
-		 * another CPU.
+		 * We need synchronize_rcu() to wait for the RX path in
+		 * case it is using the interface and enqueuing frames
+		 * at this very time on another CPU.
 		 */
 		synchronize_rcu();
-		rcu_barrier();
-		sta_info_flush_cleanup(sdata);
 
 		/*
 		 * Free all remaining keys, there shouldn't be any,
@@ -1568,15 +1561,6 @@ static void ieee80211_assign_perm_addr(struct ieee80211_local *local,
 	mutex_unlock(&local->iflist_mtx);
 }
 
-static void ieee80211_cleanup_sdata_stas_wk(struct work_struct *wk)
-{
-	struct ieee80211_sub_if_data *sdata;
-
-	sdata = container_of(wk, struct ieee80211_sub_if_data, cleanup_stations_wk);
-
-	ieee80211_cleanup_sdata_stas(sdata);
-}
-
 int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		     struct wireless_dev **new_wdev, enum nl80211_iftype type,
 		     struct vif_params *params)
@@ -1649,9 +1633,6 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 	INIT_LIST_HEAD(&sdata->key_list);
 
-	spin_lock_init(&sdata->cleanup_stations_lock);
-	INIT_LIST_HEAD(&sdata->cleanup_stations);
-	INIT_WORK(&sdata->cleanup_stations_wk, ieee80211_cleanup_sdata_stas_wk);
 	INIT_DELAYED_WORK(&sdata->dfs_cac_timer_work,
 			  ieee80211_dfs_cac_timer_work);
 	INIT_DELAYED_WORK(&sdata->dec_tailroom_needed_wk,

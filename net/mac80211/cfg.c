@@ -1098,15 +1098,11 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 		kfree_rcu(old_probe_resp, rcu_head);
 
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
-		sta_info_flush_defer(vlan);
-	sta_info_flush_defer(sdata);
+		sta_info_flush(vlan);
+	sta_info_flush(sdata);
 	synchronize_net();
-	rcu_barrier();
-	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list) {
-		sta_info_flush_cleanup(vlan);
+	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
 		ieee80211_free_keys(vlan);
-	}
-	sta_info_flush_cleanup(sdata);
 	ieee80211_free_keys(sdata);
 
 	sdata->vif.bss_conf.enable_beacon = false;
