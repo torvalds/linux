@@ -78,7 +78,7 @@ static int csiphy_set_power(struct iss_csiphy *phy, u32 power)
 	} while ((reg != power >> 2) && (retry_count < 250));
 
 	if (retry_count == 250) {
-		printk(KERN_ERR "CSI2 CIO set power failed!\n");
+		dev_err(phy->iss->dev, "CSI2 CIO set power failed!\n");
 		return -EBUSY;
 	}
 

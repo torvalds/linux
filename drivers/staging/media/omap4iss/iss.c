@@ -1108,7 +1108,7 @@ static int iss_register_entities(struct iss_device *iss)
 	iss->media_dev.link_notify = iss_pipeline_link_notify;
 	ret = media_device_register(&iss->media_dev);
 	if (ret < 0) {
-		printk(KERN_ERR "%s: Media device registration failed (%d)\n",
+		dev_err(iss->dev, "%s: Media device registration failed (%d)\n",
 			__func__, ret);
 		return ret;
 	}
@@ -1116,7 +1116,7 @@ static int iss_register_entities(struct iss_device *iss)
 	iss->v4l2_dev.mdev = &iss->media_dev;
 	ret = v4l2_device_register(iss->dev, &iss->v4l2_dev);
 	if (ret < 0) {
-		printk(KERN_ERR "%s: V4L2 device registration failed (%d)\n",
+		dev_err(iss->dev, "%s: V4L2 device registration failed (%d)\n",
 			__func__, ret);
 		goto done;
 	}
@@ -1175,8 +1175,8 @@ static int iss_register_entities(struct iss_device *iss)
 			break;
 
 		default:
-			printk(KERN_ERR "%s: invalid interface type %u\n",
-			       __func__, subdevs->interface);
+			dev_err(iss->dev, "%s: invalid interface type %u\n",
+				__func__, subdevs->interface);
 			ret = -EINVAL;
 			goto done;
 		}
