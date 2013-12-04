@@ -75,6 +75,7 @@ void vmw_display_unit_cleanup(struct vmw_display_unit *du)
 		vmw_surface_unreference(&du->cursor_surface);
 	if (du->cursor_dmabuf)
 		vmw_dmabuf_unreference(&du->cursor_dmabuf);
+	drm_sysfs_connector_remove(&du->connector);
 	drm_crtc_cleanup(&du->crtc);
 	drm_encoder_cleanup(&du->encoder);
 	drm_connector_cleanup(&du->connector);
