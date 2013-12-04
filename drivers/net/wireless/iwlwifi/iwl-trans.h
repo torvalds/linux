@@ -590,6 +590,7 @@ static inline int iwl_trans_start_fw(struct iwl_trans *trans,
 
 	WARN_ON_ONCE(!trans->rx_mpdu_cmd);
 
+	clear_bit(STATUS_FW_ERROR, &trans->status);
 	return trans->ops->start_fw(trans, fw, run_in_rfkill);
 }
 
