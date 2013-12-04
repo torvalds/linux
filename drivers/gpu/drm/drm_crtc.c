@@ -2767,10 +2767,8 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	}
 
 	if (fb->funcs->dirty) {
-		drm_modeset_lock_all(dev);
 		ret = fb->funcs->dirty(fb, file_priv, flags, r->color,
 				       clips, num_clips);
-		drm_modeset_unlock_all(dev);
 	} else {
 		ret = -ENOSYS;
 	}

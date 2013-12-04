@@ -609,9 +609,13 @@ int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 	if (!dev_priv->sou_priv)
 		return -EINVAL;
 
+	drm_modeset_lock_all(dev_priv->dev);
+
 	ret = ttm_read_lock(&vmaster->lock, true);
-	if (unlikely(ret != 0))
+	if (unlikely(ret != 0)) {
+		drm_modeset_unlock_all(dev_priv->dev);
 		return ret;
+	}
 
 	if (!num_clips) {
 		num_clips = 1;
@@ -629,6 +633,9 @@ int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 				   clips, num_clips, inc, NULL);
 
 	ttm_read_unlock(&vmaster->lock);
+
+	drm_modeset_unlock_all(dev_priv->dev);
+
 	return 0;
 }
 
@@ -953,9 +960,13 @@ int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 	struct drm_clip_rect norect;
 	int ret, increment = 1;
 
+	drm_modeset_lock_all(dev_priv->dev);
+
 	ret = ttm_read_lock(&vmaster->lock, true);
-	if (unlikely(ret != 0))
+	if (unlikely(ret != 0)) {
+		drm_modeset_unlock_all(dev_priv->dev);
 		return ret;
+	}
 
 	if (!num_clips) {
 		num_clips = 1;
@@ -979,6 +990,9 @@ int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 	}
 
 	ttm_read_unlock(&vmaster->lock);
+
+	drm_modeset_unlock_all(dev_priv->dev);
+
 	return ret;
 }
 
