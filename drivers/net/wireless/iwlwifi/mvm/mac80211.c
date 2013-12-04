@@ -1397,26 +1397,20 @@ iwl_mvm_bss_info_changed_ap_ibss(struct iwl_mvm *mvm,
 				 u32 changes)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	enum ieee80211_bss_change ht_change = BSS_CHANGED_ERP_CTS_PROT |
-					      BSS_CHANGED_HT |
-					      BSS_CHANGED_BANDWIDTH;
-	int ret;
 
 	/* Changes will be applied when the AP/IBSS is started */
 	if (!mvmvif->ap_ibss_active)
 		return;
 
-	if (changes & ht_change) {
-		ret = iwl_mvm_mac_ctxt_changed(mvm, vif);
-		if (ret)
-			IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
-	}
+	if (changes & (BSS_CHANGED_ERP_CTS_PROT | BSS_CHANGED_HT |
+		       BSS_CHANGED_BANDWIDTH) &&
+	    iwl_mvm_mac_ctxt_changed(mvm, vif))
+		IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
 
 	/* Need to send a new beacon template to the FW */
-	if (changes & BSS_CHANGED_BEACON) {
-		if (iwl_mvm_mac_ctxt_beacon_changed(mvm, vif))
-			IWL_WARN(mvm, "Failed updating beacon data\n");
-	}
+	if (changes & BSS_CHANGED_BEACON &&
+	    iwl_mvm_mac_ctxt_beacon_changed(mvm, vif))
+		IWL_WARN(mvm, "Failed updating beacon data\n");
 }
 
 static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
