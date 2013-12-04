@@ -2135,6 +2135,18 @@ static int binder_has_thread_work(struct binder_thread *thread)
 		(thread->looper & BINDER_LOOPER_STATE_NEED_RETURN);
 }
 
+static int binder_copy_to_user(uint32_t cmd, void *parcel,
+			       void __user **ptr, size_t size)
+{
+	if (put_user(cmd, (uint32_t __user *)*ptr))
+		return -EFAULT;
+	*ptr += sizeof(uint32_t);
+	if (copy_to_user(*ptr, parcel, size))
+		return -EFAULT;
+	*ptr += size;
+	return 0;
+}
+
 static int binder_thread_read(struct binder_proc *proc,
 			      struct binder_thread *thread,
 			      void  __user *buffer, size_t size,
@@ -2281,15 +2293,12 @@ retry:
 				node->has_weak_ref = 0;
 			}
 			if (cmd != BR_NOOP) {
-				if (put_user(cmd, (uint32_t __user *)ptr))
+				struct binder_ptr_cookie tmp;
+
+				tmp.ptr = node->ptr;
+				tmp.cookie = node->cookie;
+				if (binder_copy_to_user(cmd, &tmp, &ptr, sizeof(struct binder_ptr_cookie)))
 					return -EFAULT;
-				ptr += sizeof(uint32_t);
-				if (put_user(node->ptr, (void * __user *)ptr))
-					return -EFAULT;
-				ptr += sizeof(void *);
-				if (put_user(node->cookie, (void * __user *)ptr))
-					return -EFAULT;
-				ptr += sizeof(void *);
 
 				binder_stat_br(proc, thread, cmd);
 				binder_debug(BINDER_DEBUG_USER_REFS,
@@ -2324,12 +2333,10 @@ retry:
 				cmd = BR_CLEAR_DEATH_NOTIFICATION_DONE;
 			else
 				cmd = BR_DEAD_BINDER;
-			if (put_user(cmd, (uint32_t __user *)ptr))
+
+			if (binder_copy_to_user(cmd, &death->cookie, &ptr, sizeof(void *)))
 				return -EFAULT;
-			ptr += sizeof(uint32_t);
-			if (put_user(death->cookie, (void * __user *)ptr))
-				return -EFAULT;
-			ptr += sizeof(void *);
+
 			binder_stat_br(proc, thread, cmd);
 			binder_debug(BINDER_DEBUG_DEATH_NOTIFICATION,
 				     "%d:%d %s %p\n",
@@ -2391,12 +2398,8 @@ retry:
 					ALIGN(t->buffer->data_size,
 					    sizeof(void *));
 
-		if (put_user(cmd, (uint32_t __user *)ptr))
+		if (binder_copy_to_user(cmd, &tr, &ptr, sizeof(struct binder_transaction_data)))
 			return -EFAULT;
-		ptr += sizeof(uint32_t);
-		if (copy_to_user(ptr, &tr, sizeof(tr)))
-			return -EFAULT;
-		ptr += sizeof(tr);
 
 		trace_binder_transaction_received(t);
 		binder_stat_br(proc, thread, cmd);
