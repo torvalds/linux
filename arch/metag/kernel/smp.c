@@ -491,7 +491,7 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 
 void arch_send_call_function_single_ipi(int cpu)
 {
-	send_ipi_message(cpumask_of(cpu), IPI_CALL_FUNC_SINGLE);
+	send_ipi_message(cpumask_of(cpu), IPI_CALL_FUNC);
 }
 
 void show_ipi_list(struct seq_file *p)
@@ -543,10 +543,6 @@ static int do_IPI(void)
 
 		case IPI_CALL_FUNC:
 			generic_smp_call_function_interrupt();
-			break;
-
-		case IPI_CALL_FUNC_SINGLE:
-			generic_smp_call_function_single_interrupt();
 			break;
 
 		default:
