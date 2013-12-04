@@ -1039,7 +1039,7 @@ static int iss_video_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct iss_video_fh *vfh = to_iss_video_fh(file->private_data);
 
-	return vb2_mmap(&vfh->queue, vma);;
+	return vb2_mmap(&vfh->queue, vma);
 }
 
 static struct v4l2_file_operations iss_video_fops = {
