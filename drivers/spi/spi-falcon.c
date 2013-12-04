@@ -433,19 +433,10 @@ static int falcon_sflash_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret)
 		spi_master_put(master);
 	return ret;
-}
-
-static int falcon_sflash_remove(struct platform_device *pdev)
-{
-	struct falcon_sflash *priv = platform_get_drvdata(pdev);
-
-	spi_unregister_master(priv->master);
-
-	return 0;
 }
 
 static const struct of_device_id falcon_sflash_match[] = {
@@ -456,7 +447,6 @@ MODULE_DEVICE_TABLE(of, falcon_sflash_match);
 
 static struct platform_driver falcon_sflash_driver = {
 	.probe	= falcon_sflash_probe,
-	.remove	= falcon_sflash_remove,
 	.driver = {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
