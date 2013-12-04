@@ -589,14 +589,10 @@ void ieee80211_iter_keys(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(ieee80211_iter_keys);
 
-void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata)
+static void ieee80211_free_keys_iface(struct ieee80211_sub_if_data *sdata,
+				      struct list_head *keys)
 {
 	struct ieee80211_key *key, *tmp;
-	LIST_HEAD(keys);
-
-	cancel_delayed_work_sync(&sdata->dec_tailroom_needed_wk);
-
-	mutex_lock(&sdata->local->key_mtx);
 
 	sdata->crypto_tx_tailroom_needed_cnt -=
 		sdata->crypto_tx_tailroom_pending_dec;
@@ -608,21 +604,45 @@ void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata)
 		ieee80211_key_replace(key->sdata, key->sta,
 				key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
 				key, NULL);
-		list_add_tail(&key->list, &keys);
+		list_add_tail(&key->list, keys);
 	}
 
 	ieee80211_debugfs_key_update_default(sdata);
+}
 
-	if (!list_empty(&keys)) {
-		synchronize_net();
-		list_for_each_entry_safe(key, tmp, &keys, list)
-			__ieee80211_key_destroy(key, false);
+void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata,
+			 bool force_synchronize)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_sub_if_data *vlan;
+	struct ieee80211_key *key, *tmp;
+	LIST_HEAD(keys);
+
+	cancel_delayed_work_sync(&sdata->dec_tailroom_needed_wk);
+
+	mutex_lock(&local->key_mtx);
+
+	ieee80211_free_keys_iface(sdata, &keys);
+
+	if (sdata->vif.type == NL80211_IFTYPE_AP) {
+		list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
+			ieee80211_free_keys_iface(vlan, &keys);
 	}
+
+	if (!list_empty(&keys) || force_synchronize)
+		synchronize_net();
+	list_for_each_entry_safe(key, tmp, &keys, list)
+		__ieee80211_key_destroy(key, false);
 
 	WARN_ON_ONCE(sdata->crypto_tx_tailroom_needed_cnt ||
 		     sdata->crypto_tx_tailroom_pending_dec);
+	if (sdata->vif.type == NL80211_IFTYPE_AP) {
+		list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
+			WARN_ON_ONCE(vlan->crypto_tx_tailroom_needed_cnt ||
+				     vlan->crypto_tx_tailroom_pending_dec);
+	}
 
-	mutex_unlock(&sdata->local->key_mtx);
+	mutex_unlock(&local->key_mtx);
 }
 
 void ieee80211_free_sta_keys(struct ieee80211_local *local,

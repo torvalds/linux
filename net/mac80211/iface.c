@@ -889,18 +889,15 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		cancel_work_sync(&sdata->work);
 		/*
 		 * When we get here, the interface is marked down.
+		 * Free the remaining keys, if there are any
+		 * (shouldn't be, except maybe in WDS mode?)
 		 *
-		 * We need synchronize_rcu() to wait for the RX path in
-		 * case it is using the interface and enqueuing frames
-		 * at this very time on another CPU.
+		 * Force the key freeing to always synchronize_net()
+		 * to wait for the RX path in case it is using this
+		 * interface enqueuing frames * at this very time on
+		 * another CPU.
 		 */
-		synchronize_rcu();
-
-		/*
-		 * Free all remaining keys, there shouldn't be any,
-		 * except maybe in WDS mode?
-		 */
-		ieee80211_free_keys(sdata);
+		ieee80211_free_keys(sdata, true);
 
 		/* fall through */
 	case NL80211_IFTYPE_AP:
@@ -1026,7 +1023,7 @@ static void ieee80211_teardown_sdata(struct ieee80211_sub_if_data *sdata)
 	int i;
 
 	/* free extra data */
-	ieee80211_free_keys(sdata);
+	ieee80211_free_keys(sdata, false);
 
 	ieee80211_debugfs_remove_netdev(sdata);
 
