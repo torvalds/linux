@@ -4384,14 +4384,15 @@ static inline bool hpsa_CISS_signature_present(struct ctlr_info *h)
 
 static inline void hpsa_set_driver_support_bits(struct ctlr_info *h)
 {
-#ifdef CONFIG_X86
-	/* Need to enable prefetch in the SCSI core for 6400 in x86 */
 	u32 driver_support;
 
+#ifdef CONFIG_X86
+	/* Need to enable prefetch in the SCSI core for 6400 in x86 */
 	driver_support = readl(&(h->cfgtable->driver_support));
 	driver_support |= ENABLE_SCSI_PREFETCH;
-	writel(driver_support, &(h->cfgtable->driver_support));
 #endif
+	driver_support |= ENABLE_UNIT_ATTN;
+	writel(driver_support, &(h->cfgtable->driver_support));
 }
 
 /* Disable DMA prefetch for the P600.  Otherwise an ASIC bug may result

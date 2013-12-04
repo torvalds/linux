@@ -358,6 +358,7 @@ struct CfgTable {
 	u32           HeartBeat;
 	u32           driver_support;
 #define			ENABLE_SCSI_PREFETCH 0x100
+#define			ENABLE_UNIT_ATTN 0x01
 	u32	 	MaxScatterGatherElements;
 	u32		MaxLogicalUnits;
 	u32		MaxPhysicalDevices;
