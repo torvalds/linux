@@ -335,9 +335,13 @@ EXPORT_SYMBOL_GPL(tegra30_ahub_unset_rx_cif_source);
 
 #define MOD_LIST_MASK_TEGRA30	BIT(0)
 #define MOD_LIST_MASK_TEGRA114	BIT(1)
+#define MOD_LIST_MASK_TEGRA124	BIT(2)
 
 #define MOD_LIST_MASK_TEGRA30_OR_LATER \
-		(MOD_LIST_MASK_TEGRA30 | MOD_LIST_MASK_TEGRA114)
+		(MOD_LIST_MASK_TEGRA30 | MOD_LIST_MASK_TEGRA114 | \
+			MOD_LIST_MASK_TEGRA124)
+#define MOD_LIST_MASK_TEGRA114_OR_LATER \
+		(MOD_LIST_MASK_TEGRA114 | MOD_LIST_MASK_TEGRA124)
 
 static const struct {
 	const char *rst_name;
@@ -352,8 +356,16 @@ static const struct {
 	{ "dam1", MOD_LIST_MASK_TEGRA30_OR_LATER },
 	{ "dam2", MOD_LIST_MASK_TEGRA30_OR_LATER },
 	{ "spdif", MOD_LIST_MASK_TEGRA30_OR_LATER },
-	{ "amx", MOD_LIST_MASK_TEGRA114 },
-	{ "adx", MOD_LIST_MASK_TEGRA114 },
+	{ "amx", MOD_LIST_MASK_TEGRA114_OR_LATER },
+	{ "adx", MOD_LIST_MASK_TEGRA114_OR_LATER },
+	{ "amx1", MOD_LIST_MASK_TEGRA124 },
+	{ "adx1", MOD_LIST_MASK_TEGRA124 },
+	{ "afc0", MOD_LIST_MASK_TEGRA124 },
+	{ "afc1", MOD_LIST_MASK_TEGRA124 },
+	{ "afc2", MOD_LIST_MASK_TEGRA124 },
+	{ "afc3", MOD_LIST_MASK_TEGRA124 },
+	{ "afc4", MOD_LIST_MASK_TEGRA124 },
+	{ "afc5", MOD_LIST_MASK_TEGRA124 },
 };
 
 #define LAST_REG(name) \
@@ -492,7 +504,7 @@ static struct tegra30_ahub_soc_data soc_data_tegra114 = {
 };
 
 static struct tegra30_ahub_soc_data soc_data_tegra124 = {
-	.mod_list_mask = MOD_LIST_MASK_TEGRA114,
+	.mod_list_mask = MOD_LIST_MASK_TEGRA124,
 	.set_audio_cif = tegra124_ahub_set_cif,
 };
 

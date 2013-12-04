@@ -30,6 +30,15 @@ Required properties:
   Tegra114 and later additionally require:
   - amx
   - adx
+  Tegra124 and later additionally require:
+  - amx1
+  - adx1
+  - afc0
+  - afc1
+  - afc2
+  - afc3
+  - afc4
+  - afc5
 - ranges : The bus address mapping for the configlink register bus.
   Can be empty since the mapping is 1:1.
 - dmas : Must contain an entry for each entry in clock-names.
