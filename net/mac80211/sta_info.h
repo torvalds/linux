@@ -247,6 +247,7 @@ struct ieee80211_tx_latency_stat {
  * mac80211 is communicating with.
  *
  * @list: global linked list entry
+ * @free_list: list entry for keeping track of stations to free
  * @hnext: hash table linked list pointer
  * @local: pointer to the global information
  * @sdata: virtual interface this station belongs to
@@ -329,7 +330,7 @@ struct ieee80211_tx_latency_stat {
  */
 struct sta_info {
 	/* General information, mostly static */
-	struct list_head list;
+	struct list_head list, free_list;
 	struct rcu_head rcu_head;
 	struct sta_info __rcu *hnext;
 	struct ieee80211_local *local;

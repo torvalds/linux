@@ -794,7 +794,7 @@ static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 	return have_buffered;
 }
 
-int __must_check __sta_info_destroy(struct sta_info *sta)
+static int __must_check __sta_info_destroy_part1(struct sta_info *sta)
 {
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
@@ -831,7 +831,23 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 	    rcu_access_pointer(sdata->u.vlan.sta) == sta)
 		RCU_INIT_POINTER(sdata->u.vlan.sta, NULL);
 
-	synchronize_net();
+	return 0;
+}
+
+static void __sta_info_destroy_part2(struct sta_info *sta)
+{
+	struct ieee80211_local *local = sta->local;
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	int ret;
+
+	/*
+	 * NOTE: This assumes at least synchronize_net() was done
+	 *	 after _part1 and before _part2!
+	 */
+
+	might_sleep();
+	lockdep_assert_held(&local->sta_mtx);
+
 	/* now keys can no longer be reached */
 	ieee80211_free_sta_keys(local, sta);
 
@@ -863,6 +879,18 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 	ieee80211_recalc_min_chandef(sdata);
 
 	cleanup_single_sta(sta);
+}
+
+int __must_check __sta_info_destroy(struct sta_info *sta)
+{
+	int err = __sta_info_destroy_part1(sta);
+
+	if (err)
+		return err;
+
+	synchronize_net();
+
+	__sta_info_destroy_part2(sta);
 
 	return 0;
 }
@@ -936,6 +964,7 @@ int sta_info_flush(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta, *tmp;
+	LIST_HEAD(free_list);
 	int ret = 0;
 
 	might_sleep();
@@ -943,9 +972,16 @@ int sta_info_flush(struct ieee80211_sub_if_data *sdata)
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry_safe(sta, tmp, &local->sta_list, list) {
 		if (sdata == sta->sdata) {
-			WARN_ON(__sta_info_destroy(sta));
+			if (!WARN_ON(__sta_info_destroy_part1(sta)))
+				list_add(&sta->free_list, &free_list);
 			ret++;
 		}
+	}
+
+	if (!list_empty(&free_list)) {
+		synchronize_net();
+		list_for_each_entry_safe(sta, tmp, &free_list, free_list)
+			__sta_info_destroy_part2(sta);
 	}
 	mutex_unlock(&local->sta_mtx);
 
