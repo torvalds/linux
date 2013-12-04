@@ -270,6 +270,10 @@ int tcf_register_action(struct tc_action_ops *act)
 {
 	struct tc_action_ops *a, **ap;
 
+	/* Must supply act, dump, cleanup and init */
+	if (!act->act || !act->dump || !act->cleanup || !act->init)
+		return -EINVAL;
+
 	write_lock(&act_mod_lock);
 	for (ap = &act_base; (a = *ap) != NULL; ap = &a->next) {
 		if (act->type == a->type || (strcmp(act->kind, a->kind) == 0)) {
@@ -381,7 +385,7 @@ int tcf_action_exec(struct sk_buff *skb, const struct tc_action *act,
 	}
 	while ((a = act) != NULL) {
 repeat:
-		if (a->ops && a->ops->act) {
+		if (a->ops) {
 			ret = a->ops->act(skb, a, res);
 			if (TC_MUNGED & skb->tc_verd) {
 				/* copied already, allow trampling */
@@ -405,7 +409,7 @@ void tcf_action_destroy(struct tc_action *act, int bind)
 	struct tc_action *a;
 
 	for (a = act; a; a = act) {
-		if (a->ops && a->ops->cleanup) {
+		if (a->ops) {
 			if (a->ops->cleanup(a, bind) == ACT_P_DELETED)
 				module_put(a->ops->owner);
 			act = act->next;
@@ -424,7 +428,7 @@ tcf_action_dump_old(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 {
 	int err = -EINVAL;
 
-	if (a->ops == NULL || a->ops->dump == NULL)
+	if (a->ops == NULL)
 		return err;
 	return a->ops->dump(skb, a, bind, ref);
 }
@@ -436,7 +440,7 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;
 
-	if (a->ops == NULL || a->ops->dump == NULL)
+	if (a->ops == NULL)
 		return err;
 
 	if (nla_put_string(skb, TCA_KIND, a->ops->kind))
