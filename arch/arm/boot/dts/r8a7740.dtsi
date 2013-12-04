@@ -208,4 +208,13 @@
 		cap-sdio-irq;
 		status = "disabled";
 	};
+
+	sh_fsi2: sound@fe1f0000 {
+		#sound-dai-cells = <1>;
+		compatible = "renesas,sh_fsi2";
+		reg = <0xfe1f0000 0x400>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 9 0x4>;
+		status = "disabled";
+	};
 };
