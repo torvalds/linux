@@ -8,6 +8,7 @@
  * Copyright (C) 1996, 2000 by Ralf Baechle
  * Copyright (C) 2006 by Thiemo Seufer
  * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2014 Imagination Technologies Ltd.
  */
 #ifndef _UAPI_ASM_INST_H
 #define _UAPI_ASM_INST_H
@@ -598,6 +599,15 @@ struct v_format {				/* MDMX vector format */
 	;)))))))
 };
 
+struct spec3_format {   /* SPEC3 */
+	BITFIELD_FIELD(unsigned int opcode:6,
+	BITFIELD_FIELD(unsigned int rs:5,
+	BITFIELD_FIELD(unsigned int rt:5,
+	BITFIELD_FIELD(signed int simmediate:9,
+	BITFIELD_FIELD(unsigned int func:7,
+	;)))))
+};
+
 /*
  * microMIPS instruction formats (32-bit length)
  *
@@ -869,6 +879,7 @@ union mips_instruction {
 	struct b_format b_format;
 	struct ps_format ps_format;
 	struct v_format v_format;
+	struct spec3_format spec3_format;
 	struct fb_format fb_format;
 	struct fp0_format fp0_format;
 	struct mm_fp0_format mm_fp0_format;
