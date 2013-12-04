@@ -873,6 +873,8 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	list_del_rcu(&sta->list);
 
+	drv_sta_pre_rcu_remove(local, sta->sdata, sta);
+
 	/* this always calls synchronize_net() */
 	ieee80211_free_sta_keys(local, sta);
 

@@ -534,6 +534,22 @@ static inline void drv_sta_remove_debugfs(struct ieee80211_local *local,
 }
 #endif
 
+static inline void drv_sta_pre_rcu_remove(struct ieee80211_local *local,
+					  struct ieee80211_sub_if_data *sdata,
+					  struct sta_info *sta)
+{
+	might_sleep();
+
+	sdata = get_bss_sdata(sdata);
+	check_sdata_in_driver(sdata);
+
+	trace_drv_sta_pre_rcu_remove(local, sdata, &sta->sta);
+	if (local->ops->sta_pre_rcu_remove)
+		local->ops->sta_pre_rcu_remove(&local->hw, &sdata->vif,
+					       &sta->sta);
+	trace_drv_return_void(local);
+}
+
 static inline __must_check
 int drv_sta_state(struct ieee80211_local *local,
 		  struct ieee80211_sub_if_data *sdata,
