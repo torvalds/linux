@@ -278,7 +278,6 @@ struct iwl_scale_tbl_info {
 	struct rs_rate rate;
 	enum rs_column column;
 	s32 *expected_tpt;	/* throughput metrics; expected_tpt_G, etc. */
-	u32 current_rate;  /* rate_n_flags, uCode API format */
 	struct iwl_rate_scale_data win[IWL_RATE_COUNT]; /* rate histories */
 };
 
