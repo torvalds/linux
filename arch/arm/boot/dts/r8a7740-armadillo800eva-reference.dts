@@ -87,6 +87,24 @@
 		pinctrl-0 = <&backlight_pins>;
 		pinctrl-names = "default";
 	};
+
+	sound {
+		compatible = "simple-audio-card";
+
+		simple-audio-card,format = "i2s";
+
+		simple-audio-card,cpu {
+			sound-dai = <&sh_fsi2 0>;
+			bitclock-inversion;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&wm8978>;
+			bitclock-master;
+			frame-master;
+			system-clock-frequency = <12288000>;
+		};
+	};
 };
 
 &i2c0 {
@@ -99,6 +117,12 @@
 		pinctrl-0 = <&st1232_pins>;
 		pinctrl-names = "default";
 		gpios = <&pfc 166 GPIO_ACTIVE_LOW>;
+	};
+
+	wm8978: wm8978@1a {
+		#sound-dai-cells = <0>;
+		compatible = "wlf,wm8978";
+		reg = <0x1a>;
 	};
 };
 
@@ -130,6 +154,12 @@
 		renesas,groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_wp";
 		renesas,function = "sdhi0";
 	};
+
+	fsia_pins: sounda {
+		renesas,groups = "fsia_sclk_in", "fsia_mclk_out",
+				 "fsia_data_in_1", "fsia_data_out_0";
+		renesas,function = "fsia";
+	};
 };
 
 &tpu {
@@ -154,5 +184,12 @@
 	vqmmc-supply = <&vccq_sdhi0>;
 	bus-width = <4>;
 	cd-gpios = <&pfc 167 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&sh_fsi2 {
+	pinctrl-0 = <&fsia_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 };
