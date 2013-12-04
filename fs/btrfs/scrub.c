@@ -256,6 +256,7 @@ static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root,
 static int copy_nocow_pages(struct scrub_ctx *sctx, u64 logical, u64 len,
 			    int mirror_num, u64 physical_for_dev_replace);
 static void copy_nocow_pages_worker(struct btrfs_work *work);
+static void __scrub_blocked_if_needed(struct btrfs_fs_info *fs_info);
 static void scrub_blocked_if_needed(struct btrfs_fs_info *fs_info);
 
 
@@ -270,7 +271,7 @@ static void scrub_pending_bio_dec(struct scrub_ctx *sctx)
 	wake_up(&sctx->list_wait);
 }
 
-static void scrub_blocked_if_needed(struct btrfs_fs_info *fs_info)
+static void __scrub_blocked_if_needed(struct btrfs_fs_info *fs_info)
 {
 	while (atomic_read(&fs_info->scrub_pause_req)) {
 		mutex_unlock(&fs_info->scrub_lock);
@@ -278,6 +279,19 @@ static void scrub_blocked_if_needed(struct btrfs_fs_info *fs_info)
 		   atomic_read(&fs_info->scrub_pause_req) == 0);
 		mutex_lock(&fs_info->scrub_lock);
 	}
+}
+
+static void scrub_blocked_if_needed(struct btrfs_fs_info *fs_info)
+{
+	atomic_inc(&fs_info->scrubs_paused);
+	wake_up(&fs_info->scrub_pause_wait);
+
+	mutex_lock(&fs_info->scrub_lock);
+	__scrub_blocked_if_needed(fs_info);
+	atomic_dec(&fs_info->scrubs_paused);
+	mutex_unlock(&fs_info->scrub_lock);
+
+	wake_up(&fs_info->scrub_pause_wait);
 }
 
 /*
@@ -2295,8 +2309,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 
 	wait_event(sctx->list_wait,
 		   atomic_read(&sctx->bios_in_flight) == 0);
-	atomic_inc(&fs_info->scrubs_paused);
-	wake_up(&fs_info->scrub_pause_wait);
+	scrub_blocked_if_needed(fs_info);
 
 	/* FIXME it might be better to start readahead at commit root */
 	key_start.objectid = logical;
@@ -2320,12 +2333,6 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	if (!IS_ERR(reada2))
 		btrfs_reada_wait(reada2);
 
-	mutex_lock(&fs_info->scrub_lock);
-	scrub_blocked_if_needed(fs_info);
-	atomic_dec(&fs_info->scrubs_paused);
-	mutex_unlock(&fs_info->scrub_lock);
-
-	wake_up(&fs_info->scrub_pause_wait);
 
 	/*
 	 * collect all data csums for the stripe to avoid seeking during
@@ -2362,15 +2369,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 			wait_event(sctx->list_wait,
 				   atomic_read(&sctx->bios_in_flight) == 0);
 			atomic_set(&sctx->wr_ctx.flush_all_writes, 0);
-			atomic_inc(&fs_info->scrubs_paused);
-			wake_up(&fs_info->scrub_pause_wait);
-
-			mutex_lock(&fs_info->scrub_lock);
 			scrub_blocked_if_needed(fs_info);
-			atomic_dec(&fs_info->scrubs_paused);
-			mutex_unlock(&fs_info->scrub_lock);
-
-			wake_up(&fs_info->scrub_pause_wait);
 		}
 
 		key.objectid = logical;
@@ -2685,17 +2684,9 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		wait_event(sctx->list_wait,
 			   atomic_read(&sctx->bios_in_flight) == 0);
 		atomic_set(&sctx->wr_ctx.flush_all_writes, 0);
-		atomic_inc(&fs_info->scrubs_paused);
-		wake_up(&fs_info->scrub_pause_wait);
 		wait_event(sctx->list_wait,
 			   atomic_read(&sctx->workers_pending) == 0);
-
-		mutex_lock(&fs_info->scrub_lock);
 		scrub_blocked_if_needed(fs_info);
-		atomic_dec(&fs_info->scrubs_paused);
-		mutex_unlock(&fs_info->scrub_lock);
-
-		wake_up(&fs_info->scrub_pause_wait);
 
 		btrfs_put_block_group(cache);
 		if (ret)
@@ -2912,7 +2903,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	 * checking @scrub_pause_req here, we can avoid
 	 * race between committing transaction and scrubbing.
 	 */
-	scrub_blocked_if_needed(fs_info);
+	__scrub_blocked_if_needed(fs_info);
 	atomic_inc(&fs_info->scrubs_running);
 	mutex_unlock(&fs_info->scrub_lock);
 

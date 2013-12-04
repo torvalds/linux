@@ -1748,6 +1748,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		goto cleanup_transaction;
 
 	btrfs_wait_delalloc_flush(root->fs_info);
+
+	btrfs_scrub_pause(root);
 	/*
 	 * Ok now we need to make sure to block out any other joins while we
 	 * commit the transaction.  We could have started a join before setting
@@ -1812,7 +1814,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	WARN_ON(cur_trans != trans->transaction);
 
-	btrfs_scrub_pause(root);
 	/* btrfs_commit_tree_roots is responsible for getting the
 	 * various roots consistent with each other.  Every pointer
 	 * in the tree of tree roots has to point to the most up to date
