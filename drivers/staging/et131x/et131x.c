@@ -2450,7 +2450,6 @@ static int et131x_init_recv(struct et131x_adapter *adapter)
 {
 	struct rfd *rfd;
 	u32 rfdct;
-	u32 numrfd = 0;
 	struct rx_ring *rx_ring;
 
 	/* Setup some convenience pointers */
@@ -2467,9 +2466,8 @@ static int et131x_init_recv(struct et131x_adapter *adapter)
 		/* Add this RFD to the recv_list */
 		list_add_tail(&rfd->list_node, &rx_ring->recv_list);
 
-		/* Increment both the available RFD's, and the total RFD's. */
+		/* Increment the available RFD's */
 		rx_ring->num_ready_recv++;
-		numrfd++;
 	}
 
 	return 0;
