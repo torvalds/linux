@@ -244,6 +244,15 @@ config GPIO_SAMSUNG
 	  Legacy GPIO support. Use only for platforms without support for
 	  pinctrl.
 
+config GPIO_SCH311X
+	tristate "SMSC SCH311x SuperI/O GPIO"
+	help
+	  Driver to enable the GPIOs found on SMSC SMSC SCH3112, SCH3114 and
+	  SCH3116 "Super I/O" chipsets.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gpio-sch311x.
+
 config GPIO_SPEAR_SPICS
 	bool "ST SPEAr13xx SPI Chip Select as GPIO support"
 	depends on PLAT_SPEAR
