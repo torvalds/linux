@@ -274,8 +274,11 @@ int tcf_register_action(struct tc_action_ops *act)
 	if (!act->act || !act->dump || !act->cleanup || !act->init)
 		return -EINVAL;
 
+	/* Supply defaults */
 	if (!act->lookup)
 		act->lookup = tcf_hash_search;
+	if (!act->walk)
+		act->walk = tcf_generic_walker;
 
 	write_lock(&act_mod_lock);
 	for (ap = &act_base; (a = *ap) != NULL; ap = &a->next) {
@@ -1088,12 +1091,6 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 
 	memset(&a, 0, sizeof(struct tc_action));
 	a.ops = a_o;
-
-	if (a_o->walk == NULL) {
-		WARN(1, "tc_dump_action: %s !capable of dumping table\n",
-		     a_o->kind);
-		goto out_module_put;
-	}
 
 	nlh = nlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
 			cb->nlh->nlmsg_type, sizeof(*t), 0);
