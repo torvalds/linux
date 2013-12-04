@@ -875,6 +875,10 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	drv_sta_pre_rcu_remove(local, sta->sdata, sta);
 
+	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
+	    rcu_access_pointer(sdata->u.vlan.sta) == sta)
+		RCU_INIT_POINTER(sdata->u.vlan.sta, NULL);
+
 	/* this always calls synchronize_net() */
 	ieee80211_free_sta_keys(local, sta);
 
@@ -882,9 +886,6 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	local->num_sta--;
 	local->sta_generation++;
-
-	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-		RCU_INIT_POINTER(sdata->u.vlan.sta, NULL);
 
 	while (sta->sta_state > IEEE80211_STA_NONE) {
 		ret = sta_info_move_state(sta, sta->sta_state - 1);
