@@ -235,11 +235,33 @@ static void intel_mid_irq_mask(struct irq_data *d)
 {
 }
 
+static unsigned int intel_mid_irq_startup(struct irq_data *d)
+{
+	struct intel_mid_gpio *priv = irq_data_get_irq_chip_data(d);
+
+	if (gpio_lock_as_irq(&priv->chip, irqd_to_hwirq(d)))
+		dev_err(priv->chip.dev,
+			"unable to lock HW IRQ %lu for IRQ\n",
+			irqd_to_hwirq(d));
+	intel_mid_irq_unmask(d);
+	return 0;
+}
+
+static void intel_mid_irq_shutdown(struct irq_data *d)
+{
+	struct intel_mid_gpio *priv = irq_data_get_irq_chip_data(d);
+
+	intel_mid_irq_mask(d);
+	gpio_unlock_as_irq(&priv->chip, irqd_to_hwirq(d));
+}
+
 static struct irq_chip intel_mid_irqchip = {
 	.name		= "INTEL_MID-GPIO",
 	.irq_mask	= intel_mid_irq_mask,
 	.irq_unmask	= intel_mid_irq_unmask,
 	.irq_set_type	= intel_mid_irq_type,
+	.irq_startup	= intel_mid_irq_startup,
+	.irq_shutdown	= intel_mid_irq_shutdown,
 };
 
 static const struct intel_mid_gpio_ddata gpio_lincroft = {
@@ -417,6 +439,7 @@ static int intel_gpio_probe(struct pci_dev *pdev,
 
 	priv->reg_base = pcim_iomap_table(pdev)[0];
 	priv->chip.label = dev_name(&pdev->dev);
+	priv->chip.dev = &pdev->dev;
 	priv->chip.request = intel_gpio_request;
 	priv->chip.direction_input = intel_gpio_direction_input;
 	priv->chip.direction_output = intel_gpio_direction_output;
