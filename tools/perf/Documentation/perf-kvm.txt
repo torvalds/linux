@@ -60,14 +60,14 @@ There are a couple of variants of perf kvm:
 OPTIONS
 -------
 -i::
---input=::
+--input=<path>::
         Input file name.
 -o::
---output::
+--output=<path>::
         Output file name.
---host=::
+--host::
         Collect host side performance profile.
---guest=::
+--guest::
         Collect guest side performance profile.
 --guestmount=<path>::
 	Guest os root file system mount directory. Users mounts guest os
