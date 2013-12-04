@@ -271,7 +271,6 @@ static struct tc_action_ops act_mirred_ops = {
 	.act		=	tcf_mirred,
 	.dump		=	tcf_mirred_dump,
 	.cleanup	=	tcf_mirred_cleanup,
-	.lookup		=	tcf_hash_search,
 	.init		=	tcf_mirred_init,
 	.walk		=	tcf_generic_walker
 };

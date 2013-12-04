@@ -308,7 +308,6 @@ static struct tc_action_ops act_nat_ops = {
 	.act		=	tcf_nat,
 	.dump		=	tcf_nat_dump,
 	.cleanup	=	tcf_nat_cleanup,
-	.lookup		=	tcf_hash_search,
 	.init		=	tcf_nat_init,
 	.walk		=	tcf_generic_walker
 };
