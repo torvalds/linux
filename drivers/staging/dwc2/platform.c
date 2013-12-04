@@ -72,7 +72,7 @@ static const struct dwc2_core_params params_bcm2835 = {
 	.ts_dline			= 0,
 	.reload_ctl			= 0,
 	.ahbcfg				= 0x10,
-	.uframe_sched			= 1,
+	.uframe_sched			= 0,
 };
 
 /**
