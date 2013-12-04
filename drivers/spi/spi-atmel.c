@@ -1510,7 +1510,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	clk = clk_get(&pdev->dev, "spi_clk");
+	clk = devm_clk_get(&pdev->dev, "spi_clk");
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
@@ -1570,14 +1570,14 @@ static int atmel_spi_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "Atmel SPI Controller using PIO only\n");
 
 	if (as->use_pdc) {
-		ret = request_irq(irq, atmel_spi_pdc_interrupt, 0,
-					dev_name(&pdev->dev), master);
+		ret = devm_request_irq(&pdev->dev, irq, atmel_spi_pdc_interrupt,
+					0, dev_name(&pdev->dev), master);
 	} else {
 		tasklet_init(&as->tasklet, atmel_spi_tasklet_func,
 					(unsigned long)master);
 
-		ret = request_irq(irq, atmel_spi_pio_interrupt, 0,
-					dev_name(&pdev->dev), master);
+		ret = devm_request_irq(&pdev->dev, irq, atmel_spi_pio_interrupt,
+					0, dev_name(&pdev->dev), master);
 	}
 	if (ret)
 		goto out_unmap_regs;
@@ -1603,7 +1603,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "Atmel SPI Controller at 0x%08lx (irq %d)\n",
 			(unsigned long)regs->start, irq);
 
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret)
 		goto out_free_dma;
 
@@ -1617,7 +1617,6 @@ out_free_dma:
 	spi_writel(as, CR, SPI_BIT(SWRST)); /* AT91SAM9263 Rev B workaround */
 	clk_disable_unprepare(clk);
 out_free_irq:
-	free_irq(irq, master);
 out_unmap_regs:
 out_free_buffer:
 	if (!as->use_pdc)
@@ -1625,7 +1624,6 @@ out_free_buffer:
 	dma_free_coherent(&pdev->dev, BUFFER_SIZE, as->buffer,
 			as->buffer_dma);
 out_free:
-	clk_put(clk);
 	spi_master_put(master);
 	return ret;
 }
@@ -1668,10 +1666,6 @@ static int atmel_spi_remove(struct platform_device *pdev)
 			as->buffer_dma);
 
 	clk_disable_unprepare(as->clk);
-	clk_put(as->clk);
-	free_irq(as->irq, master);
-
-	spi_unregister_master(master);
 
 	return 0;
 }
