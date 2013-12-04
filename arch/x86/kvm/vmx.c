@@ -2340,6 +2340,7 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 	rdmsr(MSR_IA32_VMX_MISC, nested_vmx_misc_low, nested_vmx_misc_high);
 	nested_vmx_misc_low &= VMX_MISC_PREEMPTION_TIMER_RATE_MASK |
 		VMX_MISC_SAVE_EFER_LMA;
+	nested_vmx_misc_low |= VMX_MISC_ACTIVITY_HLT;
 	nested_vmx_misc_high = 0;
 }
 
@@ -7938,7 +7939,8 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 		return 1;
 	}
 
-	if (vmcs12->guest_activity_state != GUEST_ACTIVITY_ACTIVE) {
+	if (vmcs12->guest_activity_state != GUEST_ACTIVITY_ACTIVE &&
+	    vmcs12->guest_activity_state != GUEST_ACTIVITY_HLT) {
 		nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
 		return 1;
 	}
@@ -8066,6 +8068,9 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	vmcs12->launch_state = 1;
 
 	prepare_vmcs02(vcpu, vmcs12);
+
+	if (vmcs12->guest_activity_state == GUEST_ACTIVITY_HLT)
+		return kvm_emulate_halt(vcpu);
 
 	/*
 	 * Note no nested_vmx_succeed or nested_vmx_fail here. At this point
