@@ -138,7 +138,7 @@
 		blue_power_led {
 			label = "rn102:blue:pwr";
 			gpios = <&gpio1 25 1>;  /* GPIO 57 Active Low */
-			linux,default-trigger = "heartbeat";
+			default-state = "keep";
 		};
 
 		green_sata1_led {

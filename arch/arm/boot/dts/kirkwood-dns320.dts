@@ -25,7 +25,7 @@
 		blue-power {
 			label = "dns320:blue:power";
 			gpios = <&gpio0 26 1>; /* GPIO 26 Active Low */
-			linux,default-trigger = "default-on";
+			default-state = "keep";
 		};
 		blue-usb {
 			label = "dns320:blue:usb";

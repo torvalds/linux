@@ -12,6 +12,7 @@
 /dts-v1/;
 
 #include "armada-370.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "NETGEAR ReadyNAS 104";
@@ -123,6 +124,13 @@
 					fan_startv = <1>;
 					pwm_polarity = <0>;
 				};
+
+				pca9554: pca9554@23 {
+					compatible = "nxp,pca9554";
+					gpio-controller;
+					#gpio-cells = <2>;
+					reg = <0x23>;
+				};
 			};
 		};
 	};
@@ -153,6 +161,30 @@
 			label = "rn104:blue:pwr";
 			gpios = <&gpio2 0 1>;    /* GPIO 64 Active Low */
 			linux,default-trigger = "keep";
+		};
+
+		sata1_led {
+			label = "rn104:blue:sata1";
+			gpios = <&pca9554 0 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		sata2_led {
+			label = "rn104:blue:sata2";
+			gpios = <&pca9554 1 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		sata3_led {
+			label = "rn104:blue:sata3";
+			gpios = <&pca9554 2 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		sata4_led {
+			label = "rn104:blue:sata4";
+			gpios = <&pca9554 3 GPIO_ACTIVE_LOW>;
+			default-state = "off";
 		};
 	};
 

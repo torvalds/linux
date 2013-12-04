@@ -128,7 +128,7 @@
 		power_led {
 			label = "status:white:power_led";
 			gpios = <&gpio0 16 0>;
-			linux,default-trigger = "default-on";
+			default-state = "keep";
 		};
 		rebuild_led {
 			label = "status:white:rebuild_led";

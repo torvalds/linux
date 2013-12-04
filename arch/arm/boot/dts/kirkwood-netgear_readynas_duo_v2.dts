@@ -1,5 +1,6 @@
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
 #include "kirkwood.dtsi"
 #include "kirkwood-6282.dtsi"
 
@@ -60,6 +61,10 @@
 				marvell,pins = "mpp29";
 				marvell,function = "gpio";
 			};
+			pmx_poweroff: pmx-poweroff {
+				marvell,pins = "mpp30";
+				marvell,function = "gpio";
+			};
 		};
 
 		clocks {
@@ -113,7 +118,7 @@
 		power_led {
 			label = "status:blue:power_led";
 			gpios = <&gpio0 31 1>;   /* GPIO 31 Active Low */
-			linux,default-trigger = "default-on";
+			default-state = "keep";
 		};
 		activity_led {
 			label = "status:blue:activity_led";
@@ -156,6 +161,13 @@
 			linux,code = <133>;     /* KEY_COPY */
 			gpios = <&gpio1 13 1>;
 		};
+	};
+
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		pinctrl-0 = <&pmx_poweroff>;
+		pinctrl-names = "default";
+		gpios = <&gpio0 30 GPIO_ACTIVE_LOW>;
 	};
 
         regulators {

@@ -150,7 +150,7 @@
 		led@4 {
 			label = "lsxl:blue:power";
 			gpios = <&gpio1 7 1>;
-			linux,default-trigger = "default-on";
+			default-state = "keep";
 		};
 
 		led@5 {

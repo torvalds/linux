@@ -86,7 +86,7 @@
 		health {
 			label = "status:green:health";
 			gpios = <&gpio1 14 1>;
-			linux,default-trigger = "default-on";
+			default-state = "keep";
 		};
 		fault {
 			label = "status:orange:fault";
