@@ -4048,23 +4048,6 @@ static int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	   need a little pause here */
 	msleep(HPSA_POST_RESET_PAUSE_MSECS);
 
-	if (!use_doorbell) {
-		/* Wait for board to become not ready, then ready.
-		 * (if we used the doorbell, then we already waited 5 secs
-		 * so the "not ready" state is already gone by so we
-		 * won't catch it.)
-		 */
-		dev_info(&pdev->dev, "Waiting for board to reset.\n");
-		rc = hpsa_wait_for_board_state(pdev, vaddr, BOARD_NOT_READY);
-		if (rc) {
-			dev_warn(&pdev->dev,
-				"failed waiting for board to reset."
-				" Will try soft reset.\n");
-			/* Not expected, but try soft reset later */
-			rc = -ENOTSUPP;
-			goto unmap_cfgtable;
-		}
-	}
 	rc = hpsa_wait_for_board_state(pdev, vaddr, BOARD_READY);
 	if (rc) {
 		dev_warn(&pdev->dev,
