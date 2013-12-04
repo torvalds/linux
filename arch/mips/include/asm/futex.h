@@ -12,6 +12,7 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
+#include <asm/asm-eva.h>
 #include <asm/barrier.h>
 #include <asm/errno.h>
 #include <asm/war.h>
@@ -49,11 +50,11 @@
 		"	.set	push				\n"	\
 		"	.set	noat				\n"	\
 		"	.set	mips3				\n"	\
-		"1:	ll	%1, %4	# __futex_atomic_op	\n"	\
+		"1:	"user_ll("%1", "%4")" # __futex_atomic_op\n"	\
 		"	.set	mips0				\n"	\
 		"	" insn	"				\n"	\
 		"	.set	mips3				\n"	\
-		"2:	sc	$1, %2				\n"	\
+		"2:	"user_sc("$1", "%2")"			\n"	\
 		"	beqz	$1, 1b				\n"	\
 		__WEAK_LLSC_MB						\
 		"3:						\n"	\
@@ -174,12 +175,12 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		"	.set	push					\n"
 		"	.set	noat					\n"
 		"	.set	mips3					\n"
-		"1:	ll	%1, %3					\n"
+		"1:	"user_ll("%1", "%3")"				\n"
 		"	bne	%1, %z4, 3f				\n"
 		"	.set	mips0					\n"
 		"	move	$1, %z5					\n"
 		"	.set	mips3					\n"
-		"2:	sc	$1, %2					\n"
+		"2:	"user_sc("$1", "%2")"				\n"
 		"	beqz	$1, 1b					\n"
 		__WEAK_LLSC_MB
 		"3:							\n"
