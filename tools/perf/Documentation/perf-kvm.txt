@@ -24,10 +24,17 @@ There are a couple of variants of perf kvm:
   of an arbitrary workload.
 
   'perf kvm record <command>' to record the performance counter profile
-  of an arbitrary workload and save it into a perf data file. If both
-  --host and --guest are input, the perf data file name is perf.data.kvm.
-  If there is  no --host but --guest, the file name is perf.data.guest.
-  If there is no --guest but --host, the file name is perf.data.host.
+  of an arbitrary workload and save it into a perf data file. We set the
+  default behavior of perf kvm as --guest, so if neither --host nor --guest
+  is input, the perf data file name is perf.data.guest. If --host is input,
+  the perf data file name is perf.data.kvm. If you want to record data into
+  perf.data.host, please input --host --no-guest. The behaviors are shown as
+  following:
+    Default('')         ->  perf.data.guest
+    --host              ->  perf.data.kvm
+    --guest             ->  perf.data.guest
+    --host --guest      ->  perf.data.kvm
+    --host --no-guest   ->  perf.data.host
 
   'perf kvm report' to display the performance counter profile information
   recorded via perf kvm record.
