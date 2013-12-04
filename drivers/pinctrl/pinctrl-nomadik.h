@@ -1,12 +1,22 @@
 #ifndef PINCTRL_PINCTRL_NOMADIK_H
 #define PINCTRL_PINCTRL_NOMADIK_H
 
-#include <linux/platform_data/pinctrl-nomadik.h>
-
 /* Package definitions */
 #define PINCTRL_NMK_STN8815	0
 #define PINCTRL_NMK_DB8500	1
 #define PINCTRL_NMK_DB8540	2
+
+/* Alternate functions: function C is set in hw by setting both A and B */
+#define NMK_GPIO_ALT_GPIO	0
+#define NMK_GPIO_ALT_A	1
+#define NMK_GPIO_ALT_B	2
+#define NMK_GPIO_ALT_C	(NMK_GPIO_ALT_A | NMK_GPIO_ALT_B)
+
+#define NMK_GPIO_ALT_CX_SHIFT 2
+#define NMK_GPIO_ALT_C1	((1<<NMK_GPIO_ALT_CX_SHIFT) | NMK_GPIO_ALT_C)
+#define NMK_GPIO_ALT_C2	((2<<NMK_GPIO_ALT_CX_SHIFT) | NMK_GPIO_ALT_C)
+#define NMK_GPIO_ALT_C3	((3<<NMK_GPIO_ALT_CX_SHIFT) | NMK_GPIO_ALT_C)
+#define NMK_GPIO_ALT_C4	((4<<NMK_GPIO_ALT_CX_SHIFT) | NMK_GPIO_ALT_C)
 
 #define PRCM_GPIOCR_ALTCX(pin_num,\
 	altc1_used, altc1_ri, altc1_cb,\
