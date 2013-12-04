@@ -1487,11 +1487,10 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 	return NULL;
 }
 
-void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
-			  struct perf_sample *sample, struct machine *machine,
+void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
+			  struct machine *machine, struct addr_location *al,
 			  unsigned int print_opts, unsigned int stack_depth)
 {
-	struct addr_location al;
 	struct callchain_cursor_node *node;
 	int print_ip = print_opts & PRINT_IP_OPT_IP;
 	int print_sym = print_opts & PRINT_IP_OPT_SYM;
@@ -1500,15 +1499,10 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 	int print_oneline = print_opts & PRINT_IP_OPT_ONELINE;
 	char s = print_oneline ? ' ' : '\t';
 
-	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
-		error("problem processing %d event, skipping it.\n",
-			event->header.type);
-		return;
-	}
-
 	if (symbol_conf.use_callchain && sample->callchain) {
+		struct addr_location node_al;
 
-		if (machine__resolve_callchain(machine, evsel, al.thread,
+		if (machine__resolve_callchain(machine, evsel, al->thread,
 					       sample, NULL, NULL,
 					       PERF_MAX_STACK_DEPTH) != 0) {
 			if (verbose)
@@ -1516,6 +1510,9 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 			return;
 		}
 		callchain_cursor_commit(&callchain_cursor);
+
+		if (print_symoffset)
+			node_al = *al;
 
 		while (stack_depth) {
 			node = callchain_cursor_current(&callchain_cursor);
@@ -1531,9 +1528,9 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 			if (print_sym) {
 				printf(" ");
 				if (print_symoffset) {
-					al.addr = node->ip;
-					al.map  = node->map;
-					symbol__fprintf_symname_offs(node->sym, &al, stdout);
+					node_al.addr = node->ip;
+					node_al.map  = node->map;
+					symbol__fprintf_symname_offs(node->sym, &node_al, stdout);
 				} else
 					symbol__fprintf_symname(node->sym, stdout);
 			}
@@ -1553,7 +1550,7 @@ next:
 		}
 
 	} else {
-		if (al.sym && al.sym->ignore)
+		if (al->sym && al->sym->ignore)
 			return;
 
 		if (print_ip)
@@ -1562,15 +1559,15 @@ next:
 		if (print_sym) {
 			printf(" ");
 			if (print_symoffset)
-				symbol__fprintf_symname_offs(al.sym, &al,
+				symbol__fprintf_symname_offs(al->sym, al,
 							     stdout);
 			else
-				symbol__fprintf_symname(al.sym, stdout);
+				symbol__fprintf_symname(al->sym, stdout);
 		}
 
 		if (print_dso) {
 			printf(" (");
-			map__fprintf_dsoname(al.map, stdout);
+			map__fprintf_dsoname(al->map, stdout);
 			printf(")");
 		}
 	}

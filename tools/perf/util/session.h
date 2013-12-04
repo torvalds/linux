@@ -105,8 +105,8 @@ size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp);
 struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 					    unsigned int type);
 
-void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
-			  struct perf_sample *sample, struct machine *machine,
+void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
+			  struct machine *machine, struct addr_location *al,
 			  unsigned int print_opts, unsigned int stack_depth);
 
 int perf_session__cpu_bitmap(struct perf_session *session,
