@@ -1053,10 +1053,15 @@ iwl_mvm_bss_info_changed_ap_ibss(struct iwl_mvm *mvm,
 				 struct ieee80211_bss_conf *bss_conf,
 				 u32 changes)
 {
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	enum ieee80211_bss_change ht_change = BSS_CHANGED_ERP_CTS_PROT |
 					      BSS_CHANGED_HT |
 					      BSS_CHANGED_BANDWIDTH;
 	int ret;
+
+	/* Changes will be applied when the AP/IBSS is started */
+	if (!mvmvif->ap_ibss_active)
+		return;
 
 	if (changes & ht_change) {
 		ret = iwl_mvm_mac_ctxt_changed(mvm, vif);
