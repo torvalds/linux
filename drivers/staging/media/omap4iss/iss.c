@@ -1073,9 +1073,9 @@ iss_register_subdev_group(struct iss_device *iss,
 
 		adapter = i2c_get_adapter(board_info->i2c_adapter_id);
 		if (adapter == NULL) {
-			dev_err(iss->dev, "%s: Unable to get I2C adapter %d for "
-				"device %s\n", __func__,
-				board_info->i2c_adapter_id,
+			dev_err(iss->dev,
+				"%s: Unable to get I2C adapter %d for device %s\n",
+				__func__, board_info->i2c_adapter_id,
 				board_info->board_info->type);
 			continue;
 		}

@@ -321,10 +321,7 @@ void omap4iss_resizer_isr(struct iss_resizer_device *resizer, u32 events)
 
 	if (events & (ISP5_IRQ_RSZ_FIFO_IN_BLK |
 		      ISP5_IRQ_RSZ_FIFO_OVF)) {
-		dev_dbg(iss->dev, "RSZ Err:"
-			" FIFO_IN_BLK:%d,"
-			" FIFO_OVF:%d,"
-			"\n",
+		dev_dbg(iss->dev, "RSZ Err: FIFO_IN_BLK:%d, FIFO_OVF:%d\n",
 			(events &
 			 ISP5_IRQ_RSZ_FIFO_IN_BLK) ? 1 : 0,
 			(events &

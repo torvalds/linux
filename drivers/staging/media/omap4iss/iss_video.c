@@ -324,8 +324,8 @@ static int iss_video_buf_prepare(struct vb2_buffer *vb)
 
 	addr = vb2_dma_contig_plane_dma_addr(vb, 0);
 	if (!IS_ALIGNED(addr, 32)) {
-		dev_dbg(video->iss->dev, "Buffer address must be "
-			"aligned to 32 bytes boundary.\n");
+		dev_dbg(video->iss->dev,
+			"Buffer address must be aligned to 32 bytes boundary.\n");
 		return -EINVAL;
 	}
 
