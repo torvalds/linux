@@ -309,7 +309,6 @@ static struct tc_action_ops act_nat_ops = {
 	.dump		=	tcf_nat_dump,
 	.cleanup	=	tcf_nat_cleanup,
 	.init		=	tcf_nat_init,
-	.walk		=	tcf_generic_walker
 };
 
 MODULE_DESCRIPTION("Stateless NAT actions");
