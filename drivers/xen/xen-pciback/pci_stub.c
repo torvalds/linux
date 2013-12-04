@@ -272,16 +272,16 @@ void pcistub_put_pci_dev(struct pci_dev *dev)
 	 * and want to inhibit the user from fiddling with 'reset'
 	 */
 	pci_reset_function(dev);
-	pci_restore_state(psdev->dev);
+	pci_restore_state(dev);
 
 	/* This disables the device. */
-	xen_pcibk_reset_device(found_psdev->dev);
+	xen_pcibk_reset_device(dev);
 
 	/* And cleanup up our emulated fields. */
-	xen_pcibk_config_free_dyn_fields(found_psdev->dev);
-	xen_pcibk_config_reset_dev(found_psdev->dev);
+	xen_pcibk_config_free_dyn_fields(dev);
+	xen_pcibk_config_reset_dev(dev);
 
-	xen_unregister_device_domain_owner(found_psdev->dev);
+	xen_unregister_device_domain_owner(dev);
 
 	spin_lock_irqsave(&found_psdev->lock, flags);
 	found_psdev->pdev = NULL;
