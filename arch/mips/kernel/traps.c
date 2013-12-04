@@ -865,6 +865,11 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	enum ctx_state prev_state;
 	unsigned long epc;
 	u16 instr[2];
+	mm_segment_t seg;
+
+	seg = get_fs();
+	if (!user_mode(regs))
+		set_fs(KERNEL_DS);
 
 	prev_state = exception_enter();
 	if (get_isa16_mode(regs->cp0_epc)) {
@@ -924,6 +929,7 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	do_trap_or_bp(regs, bcode, "Break");
 
 out:
+	set_fs(seg);
 	exception_exit(prev_state);
 	return;
 
@@ -937,7 +943,12 @@ asmlinkage void do_tr(struct pt_regs *regs)
 	u32 opcode, tcode = 0;
 	enum ctx_state prev_state;
 	u16 instr[2];
+	mm_segment_t seg;
 	unsigned long epc = msk_isa16_mode(exception_epc(regs));
+
+	seg = get_fs();
+	if (!user_mode(regs))
+		set_fs(get_ds());
 
 	prev_state = exception_enter();
 	if (get_isa16_mode(regs->cp0_epc)) {
@@ -959,6 +970,7 @@ asmlinkage void do_tr(struct pt_regs *regs)
 	do_trap_or_bp(regs, tcode, "Trap");
 
 out:
+	set_fs(seg);
 	exception_exit(prev_state);
 	return;
 
