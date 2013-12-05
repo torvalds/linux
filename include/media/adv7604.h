@@ -86,9 +86,6 @@ enum adv7604_drive_strength {
 
 /* Platform dependent definition */
 struct adv7604_platform_data {
-	/* connector - HDMI or DVI? */
-	unsigned connector_hdmi:1;
-
 	/* DIS_PWRDNB: 1 if the PWRDNB pin is unused and unconnected */
 	unsigned disable_pwrdnb:1;
 

@@ -77,7 +77,6 @@ struct adv7604_state {
 	u32 rgb_quantization_range;
 	struct workqueue_struct *work_queues;
 	struct delayed_work delayed_work_enable_hotplug;
-	bool connector_hdmi;
 	bool restart_stdi_once;
 	u32 prev_input_status;
 
@@ -1817,8 +1816,6 @@ static int adv7604_log_status(struct v4l2_subdev *sd)
 
 	v4l2_info(sd, "-----Chip status-----\n");
 	v4l2_info(sd, "Chip power: %s\n", no_power(sd) ? "off" : "on");
-	v4l2_info(sd, "Connector type: %s\n", state->connector_hdmi ?
-			"HDMI" : (is_digital_input(sd) ? "DVI-D" : "DVI-A"));
 	v4l2_info(sd, "EDID enabled port A: %s, B: %s, C: %s, D: %s\n",
 			((rep_read(sd, 0x7d) & 0x01) ? "Yes" : "No"),
 			((rep_read(sd, 0x7d) & 0x02) ? "Yes" : "No"),
@@ -2138,7 +2135,6 @@ static int adv7604_probe(struct i2c_client *client,
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &adv7604_ops);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	state->connector_hdmi = pdata->connector_hdmi;
 
 	/* i2c access to adv7604? */
 	if (adv_smbus_read_byte_data_check(client, 0xfb, false) != 0x68) {
