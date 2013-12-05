@@ -73,7 +73,7 @@
 };
 
 &phy0 {
-	interrupts = <3 1 0 0>;
+	interrupts = <1 1 0 0>;
 };
 
 &phy1 {
@@ -81,5 +81,5 @@
 };
 
 &phy2 {
-	interrupts = <2 1 0 0>;
+	interrupts = <4 1 0 0>;
 };
