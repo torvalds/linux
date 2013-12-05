@@ -452,6 +452,29 @@ static int adv7511_log_status(struct v4l2_subdev *sd)
 			  errors[adv7511_rd(sd, 0xc8) >> 4], state->edid_detect_counter,
 			  adv7511_rd(sd, 0x94), adv7511_rd(sd, 0x96));
 	v4l2_info(sd, "RGB quantization: %s range\n", adv7511_rd(sd, 0x18) & 0x80 ? "limited" : "full");
+	if (adv7511_rd(sd, 0xaf) & 0x02) {
+		/* HDMI only */
+		u8 manual_cts = adv7511_rd(sd, 0x0a) & 0x80;
+		u32 N = (adv7511_rd(sd, 0x01) & 0xf) << 16 |
+			adv7511_rd(sd, 0x02) << 8 |
+			adv7511_rd(sd, 0x03);
+		u8 vic_detect = adv7511_rd(sd, 0x3e) >> 2;
+		u8 vic_sent = adv7511_rd(sd, 0x3d) & 0x3f;
+		u32 CTS;
+
+		if (manual_cts)
+			CTS = (adv7511_rd(sd, 0x07) & 0xf) << 16 |
+			      adv7511_rd(sd, 0x08) << 8 |
+			      adv7511_rd(sd, 0x09);
+		else
+			CTS = (adv7511_rd(sd, 0x04) & 0xf) << 16 |
+			      adv7511_rd(sd, 0x05) << 8 |
+			      adv7511_rd(sd, 0x06);
+		v4l2_info(sd, "CTS %s mode: N %d, CTS %d\n",
+			  manual_cts ? "manual" : "automatic", N, CTS);
+		v4l2_info(sd, "VIC: detected %d, sent %d\n",
+			  vic_detect, vic_sent);
+	}
 	if (state->dv_timings.type == V4L2_DV_BT_656_1120)
 		v4l2_print_dv_timings(sd->name, "timings: ",
 				&state->dv_timings, false);
