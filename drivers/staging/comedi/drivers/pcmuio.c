@@ -130,8 +130,6 @@ static const struct pcmuio_board pcmuio_boards[] = {
 struct pcmuio_subdev_private {
 	/* The below is only used for intr subdevices */
 	struct {
-		/* if non-negative, this subdev has an interrupt asic */
-		int asic;
 		/*
 		 * subdev-relative channel mask for channels
 		 * we are interested in
@@ -279,11 +277,7 @@ static void pcmuio_stop_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
 	struct pcmuio_subdev_private *subpriv = s->private;
-	int asic;
-
-	asic = subpriv->intr.asic;
-	if (asic < 0)
-		return;		/* not an interrupt subdev */
+	int asic = s->index / 2;
 
 	subpriv->intr.enabled_mask = 0;
 	subpriv->intr.active = 0;
@@ -399,14 +393,10 @@ static int pcmuio_start_intr(struct comedi_device *dev,
 		subpriv->intr.active = 0;
 		return 1;
 	} else {
-		unsigned bits = 0, pol_bits = 0, n;
-		int asic;
 		struct comedi_cmd *cmd = &s->async->cmd;
+		int asic = s->index / 2;
+		unsigned bits = 0, pol_bits = 0, n;
 
-		asic = subpriv->intr.asic;
-		if (asic < 0)
-			return 1;	/* not an interrupt
-					   subdev */
 		subpriv->intr.enabled_mask = 0;
 		subpriv->intr.active = 1;
 		if (cmd->chanlist) {
@@ -636,7 +626,6 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		if ((sdev_no == 0 && dev->irq) ||
 		    (sdev_no == 2 && devpriv->irq2)) {
 			/* setup the interrupt subdevice */
-			subpriv->intr.asic = sdev_no / 2;
 			dev->read_subdev = s;
 			s->subdev_flags |= SDF_CMD_READ;
 			s->cancel = pcmuio_cancel;
@@ -644,7 +633,6 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			s->do_cmdtest = pcmuio_cmdtest;
 			s->len_chanlist = s->n_chan;
 		} else {
-			subpriv->intr.asic = -1;
 			s->len_chanlist = 1;
 		}
 		spin_lock_init(&subpriv->intr.spinlock);
