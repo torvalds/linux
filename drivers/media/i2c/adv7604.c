@@ -1387,14 +1387,12 @@ static void enable_input(struct v4l2_subdev *sd)
 	struct adv7604_state *state = to_state(sd);
 
 	if (is_analog_input(sd)) {
-		/* enable */
 		io_write(sd, 0x15, 0xb0);   /* Disable Tristate of Pins (no audio) */
 	} else if (is_digital_input(sd)) {
-		/* enable */
 		hdmi_write_and_or(sd, 0x00, 0xfc, state->selected_input);
-		hdmi_write(sd, 0x1a, 0x0a); /* Unmute audio */
 		hdmi_write(sd, 0x01, 0x00); /* Enable HDMI clock terminators */
 		io_write(sd, 0x15, 0xa0);   /* Disable Tristate of Pins */
+		hdmi_write_and_or(sd, 0x1a, 0xef, 0x00); /* Unmute audio */
 	} else {
 		v4l2_dbg(2, debug, sd, "%s: Unknown port %d selected\n",
 				__func__, state->selected_input);
@@ -1403,9 +1401,9 @@ static void enable_input(struct v4l2_subdev *sd)
 
 static void disable_input(struct v4l2_subdev *sd)
 {
-	/* disable */
+	hdmi_write_and_or(sd, 0x1a, 0xef, 0x10); /* Mute audio */
+	msleep(16); /* 512 samples with >= 32 kHz sample rate [REF_03, c. 7.16.10] */
 	io_write(sd, 0x15, 0xbe);   /* Tristate all outputs from video core */
-	hdmi_write(sd, 0x1a, 0x1a); /* Mute audio */
 	hdmi_write(sd, 0x01, 0x78); /* Disable HDMI clock terminators */
 }
 
@@ -2043,6 +2041,11 @@ static int adv7604_core_init(struct v4l2_subdev *sd)
 				      ADI recommended setting [REF_01, c. 2.3.3] */
 	cp_write(sd, 0xc9, 0x2d); /* use prim_mode and vid_std as free run resolution
 				     for digital formats */
+
+	/* HDMI audio */
+	hdmi_write_and_or(sd, 0x15, 0xfc, 0x03); /* Mute on FIFO over-/underflow [REF_01, c. 1.2.18] */
+	hdmi_write_and_or(sd, 0x1a, 0xf1, 0x08); /* Wait 1 s before unmute */
+	hdmi_write_and_or(sd, 0x68, 0xf9, 0x06); /* FIFO reset on over-/underflow [REF_01, c. 1.2.19] */
 
 	/* TODO from platform data */
 	afe_write(sd, 0xb5, 0x01);  /* Setting MCLK to 256Fs */
