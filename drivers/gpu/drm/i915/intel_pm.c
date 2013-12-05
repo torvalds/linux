@@ -2864,6 +2864,7 @@ static unsigned int ilk_compute_wm_dirty(struct drm_device *dev,
 static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 				struct hsw_wm_values *results)
 {
+	struct drm_device *dev = dev_priv->dev;
 	struct hsw_wm_values *previous = &dev_priv->wm.hw;
 	unsigned int dirty;
 	uint32_t val;
@@ -2894,12 +2895,21 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 		I915_WRITE(PIPE_WM_LINETIME(PIPE_C), results->wm_linetime[2]);
 
 	if (dirty & WM_DIRTY_DDB) {
-		val = I915_READ(WM_MISC);
-		if (results->partitioning == INTEL_DDB_PART_1_2)
-			val &= ~WM_MISC_DATA_PARTITION_5_6;
-		else
-			val |= WM_MISC_DATA_PARTITION_5_6;
-		I915_WRITE(WM_MISC, val);
+		if (IS_HASWELL(dev)) {
+			val = I915_READ(WM_MISC);
+			if (results->partitioning == INTEL_DDB_PART_1_2)
+				val &= ~WM_MISC_DATA_PARTITION_5_6;
+			else
+				val |= WM_MISC_DATA_PARTITION_5_6;
+			I915_WRITE(WM_MISC, val);
+		} else {
+			val = I915_READ(DISP_ARB_CTL2);
+			if (results->partitioning == INTEL_DDB_PART_1_2)
+				val &= ~DISP_DATA_PARTITION_5_6;
+			else
+				val |= DISP_DATA_PARTITION_5_6;
+			I915_WRITE(DISP_ARB_CTL2, val);
+		}
 	}
 
 	if (dirty & WM_DIRTY_FBC) {
@@ -3210,8 +3220,12 @@ void ilk_wm_get_hw_state(struct drm_device *dev)
 	hw->wm_lp_spr[1] = I915_READ(WM2S_LP_IVB);
 	hw->wm_lp_spr[2] = I915_READ(WM3S_LP_IVB);
 
-	hw->partitioning = (I915_READ(WM_MISC) & WM_MISC_DATA_PARTITION_5_6) ?
-		INTEL_DDB_PART_5_6 : INTEL_DDB_PART_1_2;
+	if (IS_HASWELL(dev))
+		hw->partitioning = (I915_READ(WM_MISC) & WM_MISC_DATA_PARTITION_5_6) ?
+			INTEL_DDB_PART_5_6 : INTEL_DDB_PART_1_2;
+	else if (IS_IVYBRIDGE(dev))
+		hw->partitioning = (I915_READ(DISP_ARB_CTL2) & DISP_DATA_PARTITION_5_6) ?
+			INTEL_DDB_PART_5_6 : INTEL_DDB_PART_1_2;
 
 	hw->enable_fbc_wm =
 		!(I915_READ(DISP_ARB_CTL) & DISP_FBC_WM_DIS);
