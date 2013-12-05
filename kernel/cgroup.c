@@ -41,7 +41,6 @@
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
 #include <linux/backing-dev.h>
-#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/magic.h>
 #include <linux/spinlock.h>
@@ -129,19 +128,6 @@ static struct cgroupfs_root cgroup_dummy_root;
 
 /* dummy_top is a shorthand for the dummy hierarchy's top cgroup */
 static struct cgroup * const cgroup_dummy_top = &cgroup_dummy_root.top_cgroup;
-
-/*
- * cgroupfs file entry, pointed to from leaf dentry->d_fsdata.
- */
-struct cfent {
-	struct list_head		node;
-	struct dentry			*dentry;
-	struct cftype			*type;
-	struct cgroup_subsys_state	*css;
-
-	/* file xattrs */
-	struct simple_xattrs		xattrs;
-};
 
 /* The list of hierarchy roots */
 
@@ -2302,9 +2288,8 @@ out_free:
 
 static int cgroup_seqfile_show(struct seq_file *m, void *arg)
 {
-	struct cfent *cfe = m->private;
-	struct cftype *cft = cfe->type;
-	struct cgroup_subsys_state *css = cfe->css;
+	struct cftype *cft = seq_cft(m);
+	struct cgroup_subsys_state *css = seq_css(m);
 
 	if (cft->read_seq_string)
 		return cft->read_seq_string(css, cft, m);
@@ -2353,10 +2338,20 @@ static int cgroup_file_open(struct inode *inode, struct file *file)
 	WARN_ON_ONCE(cfe->css && cfe->css != css);
 	cfe->css = css;
 
-	if (cft->open)
+	if (cft->open) {
 		err = cft->open(inode, file);
-	else
-		err = single_open(file, cgroup_seqfile_show, cfe);
+	} else {
+		struct cgroup_open_file *of;
+
+		err = -ENOMEM;
+		of = kzalloc(sizeof(*of), GFP_KERNEL);
+		if (of) {
+			of->cfe = cfe;
+			err = single_open(file, cgroup_seqfile_show, of);
+			if (err)
+				kfree(of);
+		}
+	}
 
 	if (css->ss && err)
 		css_put(css);
@@ -2370,6 +2365,7 @@ static int cgroup_file_release(struct inode *inode, struct file *file)
 
 	if (css->ss)
 		css_put(css);
+	kfree(((struct seq_file *)file->private_data)->private);
 	return single_release(inode, file);
 }
 
@@ -3368,12 +3364,6 @@ struct cgroup_pidlist {
 	struct delayed_work destroy_dwork;
 };
 
-/* seq_file->private points to the following */
-struct cgroup_open_file {
-	struct cfent			*cfe;
-	void				*priv;
-};
-
 /*
  * The following two functions "fix" the issue where there are more pids
  * than kmalloc will give memory for; in such cases, we use vmalloc/vfree.
@@ -3689,9 +3679,9 @@ static void *cgroup_pidlist_start(struct seq_file *s, loff_t *pos)
 	 * next pid to display, if any
 	 */
 	struct cgroup_open_file *of = s->private;
-	struct cgroup *cgrp = of->cfe->css->cgroup;
+	struct cgroup *cgrp = seq_css(s)->cgroup;
 	struct cgroup_pidlist *l;
-	enum cgroup_filetype type = of->cfe->type->private;
+	enum cgroup_filetype type = seq_cft(s)->private;
 	int index = 0, pid = *pos;
 	int *iter, ret;
 
@@ -3749,7 +3739,7 @@ static void cgroup_pidlist_stop(struct seq_file *s, void *v)
 	if (l)
 		mod_delayed_work(cgroup_pidlist_destroy_wq, &l->destroy_dwork,
 				 CGROUP_PIDLIST_DESTROY_DELAY);
-	mutex_unlock(&of->cfe->css->cgroup->pidlist_mutex);
+	mutex_unlock(&seq_css(s)->cgroup->pidlist_mutex);
 }
 
 static void *cgroup_pidlist_next(struct seq_file *s, void *v, loff_t *pos)
@@ -3766,7 +3756,7 @@ static void *cgroup_pidlist_next(struct seq_file *s, void *v, loff_t *pos)
 	if (p >= end) {
 		return NULL;
 	} else {
-		*pos = cgroup_pid_fry(of->cfe->css->cgroup, *p);
+		*pos = cgroup_pid_fry(seq_css(s)->cgroup, *p);
 		return p;
 	}
 }

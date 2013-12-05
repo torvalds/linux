@@ -21,6 +21,7 @@
 #include <linux/xattr.h>
 #include <linux/fs.h>
 #include <linux/percpu-refcount.h>
+#include <linux/seq_file.h>
 
 #ifdef CONFIG_CGROUPS
 
@@ -490,6 +491,26 @@ struct cftype_set {
 };
 
 /*
+ * cgroupfs file entry, pointed to from leaf dentry->d_fsdata.  Don't
+ * access directly.
+ */
+struct cfent {
+	struct list_head		node;
+	struct dentry			*dentry;
+	struct cftype			*type;
+	struct cgroup_subsys_state	*css;
+
+	/* file xattrs */
+	struct simple_xattrs		xattrs;
+};
+
+/* seq_file->private points to the following, only ->priv is public */
+struct cgroup_open_file {
+	struct cfent			*cfe;
+	void				*priv;
+};
+
+/*
  * See the comment above CGRP_ROOT_SANE_BEHAVIOR for details.  This
  * function can be called as long as @cgrp is accessible.
  */
@@ -502,6 +523,18 @@ static inline bool cgroup_sane_behavior(const struct cgroup *cgrp)
 static inline const char *cgroup_name(const struct cgroup *cgrp)
 {
 	return rcu_dereference(cgrp->name)->name;
+}
+
+static inline struct cgroup_subsys_state *seq_css(struct seq_file *seq)
+{
+	struct cgroup_open_file *of = seq->private;
+	return of->cfe->css;
+}
+
+static inline struct cftype *seq_cft(struct seq_file *seq)
+{
+	struct cgroup_open_file *of = seq->private;
+	return of->cfe->type;
 }
 
 int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
