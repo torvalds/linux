@@ -146,7 +146,7 @@ struct pcmuio_subdev_private {
 
 struct pcmuio_private {
 	struct {
-		spinlock_t spinlock;
+		spinlock_t pagelock;
 	} asics[PCMUIO_MAX_ASICS];
 	struct pcmuio_subdev_private *sprivs;
 	unsigned int irq2;
@@ -155,8 +155,11 @@ struct pcmuio_private {
 static void pcmuio_write(struct comedi_device *dev, unsigned int val,
 			 int asic, int page, int port)
 {
+	struct pcmuio_private *devpriv = dev->private;
 	unsigned long iobase = dev->iobase + (asic * PCMUIO_ASIC_IOSIZE);
+	unsigned long flags;
 
+	spin_lock_irqsave(&devpriv->asics[asic].pagelock, flags);
 	if (page == 0) {
 		/* Port registers are valid for any page */
 		outb(val & 0xff, iobase + PCMUIO_PORT_REG(port + 0));
@@ -168,14 +171,18 @@ static void pcmuio_write(struct comedi_device *dev, unsigned int val,
 		outb((val >> 8) & 0xff, iobase + PCMUIO_PAGE_REG(1));
 		outb((val >> 16) & 0xff, iobase + PCMUIO_PAGE_REG(2));
 	}
+	spin_unlock_irqrestore(&devpriv->asics[asic].pagelock, flags);
 }
 
 static unsigned int pcmuio_read(struct comedi_device *dev,
 				int asic, int page, int port)
 {
+	struct pcmuio_private *devpriv = dev->private;
 	unsigned long iobase = dev->iobase + (asic * PCMUIO_ASIC_IOSIZE);
+	unsigned long flags;
 	unsigned int val;
 
+	spin_lock_irqsave(&devpriv->asics[asic].pagelock, flags);
 	if (page == 0) {
 		/* Port registers are valid for any page */
 		val = inb(iobase + PCMUIO_PORT_REG(port + 0));
@@ -187,6 +194,7 @@ static unsigned int pcmuio_read(struct comedi_device *dev,
 		val |= (inb(iobase + PCMUIO_PAGE_REG(1)) << 8);
 		val |= (inb(iobase + PCMUIO_PAGE_REG(2)) << 16);
 	}
+	spin_unlock_irqrestore(&devpriv->asics[asic].pagelock, flags);
 
 	return val;
 }
@@ -346,16 +354,12 @@ done:
 
 static int pcmuio_handle_asic_interrupt(struct comedi_device *dev, int asic)
 {
-	struct pcmuio_private *devpriv = dev->private;
 	struct pcmuio_subdev_private *subpriv;
 	unsigned long iobase = dev->iobase + (asic * PCMUIO_ASIC_IOSIZE);
 	unsigned int triggered = 0;
 	int got1 = 0;
-	unsigned long flags;
 	unsigned char int_pend;
 	int i;
-
-	spin_lock_irqsave(&devpriv->asics[asic].spinlock, flags);
 
 	int_pend = inb(iobase + PCMUIO_INT_PENDING_REG) & 0x07;
 	if (int_pend) {
@@ -364,8 +368,6 @@ static int pcmuio_handle_asic_interrupt(struct comedi_device *dev, int asic)
 
 		++got1;
 	}
-
-	spin_unlock_irqrestore(&devpriv->asics[asic].spinlock, flags);
 
 	if (triggered) {
 		struct comedi_subdevice *s;
@@ -598,7 +600,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 
 	for (asic = 0; asic < PCMUIO_MAX_ASICS; ++asic)
-		spin_lock_init(&devpriv->asics[asic].spinlock);
+		spin_lock_init(&devpriv->asics[asic].pagelock);
 
 	pcmuio_reset(dev);
 
