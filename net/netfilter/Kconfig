@@ -456,6 +456,15 @@ config NFT_NAT
 	depends on NF_NAT
 	tristate "Netfilter nf_tables nat module"
 
+config NFT_QUEUE
+	depends on NF_TABLES
+	depends on NETFILTER_XTABLES
+	depends on NETFILTER_NETLINK_QUEUE
+	tristate "Netfilter nf_tables queue module"
+	help
+	  This is required if you intend to use the userspace queueing
+	  infrastructure (also known as NFQUEUE) from nftables.
+
 config NFT_COMPAT
 	depends on NF_TABLES
 	depends on NETFILTER_XTABLES
