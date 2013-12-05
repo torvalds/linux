@@ -339,11 +339,11 @@ static void dt282x_ao_dma_interrupt(struct comedi_device *dev)
 static void dt282x_ai_dma_interrupt(struct comedi_device *dev)
 {
 	struct dt282x_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
 	void *ptr;
 	int size;
 	int i;
 	int ret;
-	struct comedi_subdevice *s = &dev->subdevices[0];
 
 	outw(devpriv->supcsr | DT2821_CLRDMADNE, dev->iobase + DT2821_SUPCSR);
 
@@ -448,7 +448,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct dt282x_private *devpriv = dev->private;
-	struct comedi_subdevice *s;
+	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_subdevice *s_ao;
 	unsigned int supcsr, adcsr, dacsr;
 	int handled = 0;
@@ -458,7 +458,6 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	s = &dev->subdevices[0];
 	s_ao = &dev->subdevices[1];
 	adcsr = inw(dev->iobase + DT2821_ADCSR);
 	dacsr = inw(dev->iobase + DT2821_DACSR);
