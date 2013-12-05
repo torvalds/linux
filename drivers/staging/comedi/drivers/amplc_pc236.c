@@ -356,7 +356,7 @@ static int pc236_intr_cancel(struct comedi_device *dev,
 static irqreturn_t pc236_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = &dev->subdevices[1];
+	struct comedi_subdevice *s = dev->read_subdev;
 	int handled;
 
 	handled = pc236_intr_check(dev);
