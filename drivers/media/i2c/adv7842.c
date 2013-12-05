@@ -82,7 +82,6 @@ struct adv7842_state {
 	bool is_cea_format;
 	struct workqueue_struct *work_queues;
 	struct delayed_work delayed_work_enable_hotplug;
-	bool connector_hdmi;
 	bool hdmi_port_a;
 
 	/* i2c clients */
@@ -2166,8 +2165,6 @@ static int adv7842_cp_log_status(struct v4l2_subdev *sd)
 
 	v4l2_info(sd, "-----Chip status-----\n");
 	v4l2_info(sd, "Chip power: %s\n", no_power(sd) ? "off" : "on");
-	v4l2_info(sd, "Connector type: %s\n", state->connector_hdmi ?
-			"HDMI" : (is_digital_input(sd) ? "DVI-D" : "DVI-A"));
 	v4l2_info(sd, "HDMI/DVI-D port selected: %s\n",
 			state->hdmi_port_a ? "A" : "B");
 	v4l2_info(sd, "EDID A %s, B %s\n",
@@ -2801,7 +2798,6 @@ static int adv7842_probe(struct i2c_client *client,
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &adv7842_ops);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	state->connector_hdmi = pdata->connector_hdmi;
 	state->mode = pdata->mode;
 
 	state->hdmi_port_a = pdata->input == ADV7842_SELECT_HDMI_PORT_A;

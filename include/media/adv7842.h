@@ -139,9 +139,6 @@ struct adv7842_sdp_io_sync_adjustment {
 
 /* Platform dependent definition */
 struct adv7842_platform_data {
-	/* connector - HDMI or DVI? */
-	unsigned connector_hdmi:1;
-
 	/* chip reset during probe */
 	unsigned chip_reset:1;
 
