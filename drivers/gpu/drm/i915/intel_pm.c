@@ -2690,10 +2690,16 @@ static void ilk_merge_wm_level(struct drm_device *dev,
  * Merge all low power watermarks for all active pipes.
  */
 static void ilk_wm_merge(struct drm_device *dev,
+			 const struct intel_wm_config *config,
 			 const struct hsw_wm_maximums *max,
 			 struct intel_pipe_wm *merged)
 {
 	int level, max_level = ilk_wm_max_level(dev);
+
+	/* ILK/SNB/IVB: LP1+ watermarks only w/ single pipe */
+	if ((INTEL_INFO(dev)->gen <= 6 || IS_IVYBRIDGE(dev)) &&
+	    config->num_pipes_active > 1)
+		return;
 
 	merged->fbc_wm_enabled = true;
 
@@ -3000,13 +3006,13 @@ static void haswell_update_wm(struct drm_crtc *crtc)
 	intel_crtc->wm.active = pipe_wm;
 
 	ilk_compute_wm_maximums(dev, 1, &config, INTEL_DDB_PART_1_2, &max);
-	ilk_wm_merge(dev, &max, &lp_wm_1_2);
+	ilk_wm_merge(dev, &config, &max, &lp_wm_1_2);
 
 	/* 5/6 split only in single pipe config on IVB+ */
 	if (INTEL_INFO(dev)->gen >= 7 &&
 	    config.num_pipes_active == 1 && config.sprites_enabled) {
 		ilk_compute_wm_maximums(dev, 1, &config, INTEL_DDB_PART_5_6, &max);
-		ilk_wm_merge(dev, &max, &lp_wm_5_6);
+		ilk_wm_merge(dev, &config, &max, &lp_wm_5_6);
 
 		best_lp_wm = hsw_find_best_result(dev, &lp_wm_1_2, &lp_wm_5_6);
 	} else {
