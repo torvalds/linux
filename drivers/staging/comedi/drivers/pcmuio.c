@@ -410,34 +410,38 @@ static int pcmuio_start_intr(struct comedi_device *dev,
 	struct pcmuio_private *devpriv = dev->private;
 	int asic = pcmuio_subdevice_to_asic(s);
 	struct pcmuio_asic *chip = &devpriv->asics[asic];
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int bits = 0;
+	unsigned int pol_bits = 0;
+	int i;
 
 	if (!chip->continuous && chip->stop_count == 0) {
 		/* An empty acquisition! */
 		s->async->events |= COMEDI_CB_EOA;
 		chip->active = 0;
 		return 1;
-	} else {
-		struct comedi_cmd *cmd = &s->async->cmd;
-		unsigned bits = 0, pol_bits = 0, n;
-
-		chip->enabled_mask = 0;
-		chip->active = 1;
-		if (cmd->chanlist) {
-			for (n = 0; n < cmd->chanlist_len; n++) {
-				bits |= (1U << CR_CHAN(cmd->chanlist[n]));
-				pol_bits |= (CR_AREF(cmd->chanlist[n])
-					     || CR_RANGE(cmd->
-							 chanlist[n]) ? 1U : 0U)
-				    << CR_CHAN(cmd->chanlist[n]);
-			}
-		}
-		bits &= ((0x1 << s->n_chan) - 1);
-		chip->enabled_mask = bits;
-
-		/* set pol and enab intrs for this subdev.. */
-		pcmuio_write(dev, pol_bits, asic, PCMUIO_PAGE_POL, 0);
-		pcmuio_write(dev, bits, asic, PCMUIO_PAGE_ENAB, 0);
 	}
+
+	chip->enabled_mask = 0;
+	chip->active = 1;
+	if (cmd->chanlist) {
+		for (i = 0; i < cmd->chanlist_len; i++) {
+			unsigned int chanspec = cmd->chanlist[i];
+			unsigned int chan = CR_CHAN(chanspec);
+			unsigned int range = CR_RANGE(chanspec);
+			unsigned int aref = CR_AREF(chanspec);
+
+			bits |= (1 << chan);
+			pol_bits |= ((aref || range) ? 1 : 0) << chan;
+		}
+	}
+	bits &= ((1 << s->n_chan) - 1);
+	chip->enabled_mask = bits;
+
+	/* set pol and enab intrs for this subdev.. */
+	pcmuio_write(dev, pol_bits, asic, PCMUIO_PAGE_POL, 0);
+	pcmuio_write(dev, bits, asic, PCMUIO_PAGE_ENAB, 0);
+
 	return 0;
 }
 
