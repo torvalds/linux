@@ -88,7 +88,8 @@ static int host_start(struct ci_hdrc *ci)
 	return ret;
 
 disable_reg:
-	regulator_disable(ci->platdata->reg_vbus);
+	if (ci->platdata->reg_vbus)
+		regulator_disable(ci->platdata->reg_vbus);
 
 put_hcd:
 	usb_put_hcd(hcd);
