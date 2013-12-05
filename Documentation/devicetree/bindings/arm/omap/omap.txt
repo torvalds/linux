@@ -31,6 +31,59 @@ spinlock@1 {
     ti,hwmods = "spinlock";
 };
 
+SoC Type (optional):
+
+- General Purpose devices
+  compatible = "ti,gp"
+- High Security devices
+  compatible = "ti,hs"
+
+SoC Families:
+
+- OMAP2 generic - defaults to OMAP2420
+  compatible = "ti,omap2"
+- OMAP3 generic - defaults to OMAP3430
+  compatible = "ti,omap3"
+- OMAP4 generic - defaults to OMAP4430
+  compatible = "ti,omap4"
+- OMAP5 generic - defaults to OMAP5430
+  compatible = "ti,omap5"
+- DRA7 generic - defaults to DRA742
+  compatible = "ti,dra7"
+- AM43x generic - defaults to AM4372
+  compatible = "ti,am43"
+
+SoCs:
+
+- OMAP2420
+  compatible = "ti,omap2420", "ti,omap2"
+- OMAP2430
+  compatible = "ti,omap2430", "ti,omap2"
+
+- OMAP3430
+  compatible = "ti,omap3430", "ti,omap3"
+- AM3517
+  compatible = "ti,am3517", "ti,omap3"
+- OMAP3630
+  compatible = "ti,omap36xx", "ti,omap3"
+- AM33xx
+  compatible = "ti,am33xx", "ti,omap3"
+
+- OMAP4430
+  compatible = "ti,omap4430", "ti,omap4"
+- OMAP4460
+  compatible = "ti,omap4460", "ti,omap4"
+
+- OMAP5430
+  compatible = "ti,omap5430", "ti,omap5"
+- OMAP5432
+  compatible = "ti,omap5432", "ti,omap5"
+
+- DRA742
+  compatible = "ti,dra7xx", "ti,dra7"
+
+- AM4372
+  compatible = "ti,am4372", "ti,am43"
 
 Boards:
 
