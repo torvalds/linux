@@ -1479,7 +1479,11 @@ static int adv7604_s_routing(struct v4l2_subdev *sd,
 {
 	struct adv7604_state *state = to_state(sd);
 
-	v4l2_dbg(2, debug, sd, "%s: input %d", __func__, input);
+	v4l2_dbg(2, debug, sd, "%s: input %d, selected input %d",
+			__func__, input, state->selected_input);
+
+	if (input == state->selected_input)
+		return 0;
 
 	state->selected_input = input;
 
@@ -1523,6 +1527,8 @@ static int adv7604_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 	struct adv7604_state *state = to_state(sd);
 	u8 fmt_change, fmt_change_digital, tx_5v;
 	u32 input_status;
+
+	v4l2_dbg(2, debug, sd, "%s: ", __func__);
 
 	/* format change */
 	fmt_change = io_read(sd, 0x43) & 0x98;
@@ -2124,6 +2130,7 @@ static int adv7604_probe(struct i2c_client *client,
 	/* initialize variables */
 	state->restart_stdi_once = true;
 	state->prev_input_status = ~0;
+	state->selected_input = ~0;
 
 	/* platform data */
 	if (!pdata) {
