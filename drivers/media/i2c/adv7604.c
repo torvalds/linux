@@ -911,25 +911,41 @@ static void set_rgb_quantization_range(struct v4l2_subdev *sd)
 {
 	struct adv7604_state *state = to_state(sd);
 
+	v4l2_dbg(2, debug, sd, "%s: rgb_quantization_range = %d\n",
+		       __func__, state->rgb_quantization_range);
+
 	switch (state->rgb_quantization_range) {
 	case V4L2_DV_RGB_RANGE_AUTO:
-		/* automatic */
-		if (is_digital_input(sd) && !(hdmi_read(sd, 0x05) & 0x80)) {
-			/* receiving DVI-D signal */
+		if (state->selected_input == ADV7604_INPUT_VGA_RGB) {
+			/* Receiving analog RGB signal
+			 * Set RGB full range (0-255) */
+			io_write_and_or(sd, 0x02, 0x0f, 0x10);
+			break;
+		}
 
-			/* ADV7604 selects RGB limited range regardless of
-			   input format (CE/IT) in automatic mode */
-			if (state->timings.bt.standards & V4L2_DV_BT_STD_CEA861) {
-				/* RGB limited range (16-235) */
-				io_write_and_or(sd, 0x02, 0x0f, 0x00);
-
-			} else {
-				/* RGB full range (0-255) */
-				io_write_and_or(sd, 0x02, 0x0f, 0x10);
-			}
-		} else {
-			/* receiving HDMI or analog signal, set automode */
+		if (state->selected_input == ADV7604_INPUT_VGA_COMP) {
+			/* Receiving analog YPbPr signal
+			 * Set automode */
 			io_write_and_or(sd, 0x02, 0x0f, 0xf0);
+			break;
+		}
+
+		if (hdmi_read(sd, 0x05) & 0x80) {
+			/* Receiving HDMI signal
+			 * Set automode */
+			io_write_and_or(sd, 0x02, 0x0f, 0xf0);
+			break;
+		}
+
+		/* Receiving DVI-D signal
+		 * ADV7604 selects RGB limited range regardless of
+		 * input format (CE/IT) in automatic mode */
+		if (state->timings.bt.standards & V4L2_DV_BT_STD_CEA861) {
+			/* RGB limited range (16-235) */
+			io_write_and_or(sd, 0x02, 0x0f, 0x00);
+		} else {
+			/* RGB full range (0-255) */
+			io_write_and_or(sd, 0x02, 0x0f, 0x10);
 		}
 		break;
 	case V4L2_DV_RGB_RANGE_LIMITED:
@@ -1709,7 +1725,7 @@ static int adv7604_log_status(struct v4l2_subdev *sd)
 	char *input_color_space_txt[16] = {
 		"RGB limited range (16-235)", "RGB full range (0-255)",
 		"YCbCr Bt.601 (16-235)", "YCbCr Bt.709 (16-235)",
-		"XvYCC Bt.601", "XvYCC Bt.709",
+		"xvYCC Bt.601", "xvYCC Bt.709",
 		"YCbCr Bt.601 (0-255)", "YCbCr Bt.709 (0-255)",
 		"invalid", "invalid", "invalid", "invalid", "invalid",
 		"invalid", "invalid", "automatic"
