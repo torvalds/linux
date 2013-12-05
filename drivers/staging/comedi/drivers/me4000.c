@@ -1505,6 +1505,13 @@ static int me4000_auto_attach(struct comedi_device *dev,
 
 	me4000_reset(dev);
 
+	if (pcidev->irq > 0) {
+		result = request_irq(pcidev->irq, me4000_ai_isr, IRQF_SHARED,
+				  dev->board_name, dev);
+		if (result == 0)
+			dev->irq = pcidev->irq;
+	}
+
 	result = comedi_alloc_subdevices(dev, 4);
 	if (result)
 		return result;
@@ -1525,22 +1532,12 @@ static int me4000_auto_attach(struct comedi_device *dev,
 		s->range_table = &me4000_ai_range;
 		s->insn_read = me4000_ai_insn_read;
 
-		if (pcidev->irq > 0) {
-			if (request_irq(pcidev->irq, me4000_ai_isr,
-					IRQF_SHARED, dev->board_name, dev)) {
-				dev_warn(dev->class_dev,
-					"request_irq failed\n");
-			} else {
-				dev->read_subdev = s;
-				s->subdev_flags |= SDF_CMD_READ;
-				s->cancel = me4000_ai_cancel;
-				s->do_cmdtest = me4000_ai_do_cmd_test;
-				s->do_cmd = me4000_ai_do_cmd;
-
-				dev->irq = pcidev->irq;
-			}
-		} else {
-			dev_warn(dev->class_dev, "No interrupt available\n");
+		if (dev->irq) {
+			dev->read_subdev = s;
+			s->subdev_flags |= SDF_CMD_READ;
+			s->cancel = me4000_ai_cancel;
+			s->do_cmdtest = me4000_ai_do_cmd_test;
+			s->do_cmd = me4000_ai_do_cmd;
 		}
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
