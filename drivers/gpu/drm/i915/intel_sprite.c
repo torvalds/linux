@@ -469,7 +469,7 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	crtc_h--;
 
 	dvsscale = 0;
-	if (IS_GEN5(dev) || crtc_w != src_w || crtc_h != src_h)
+	if (crtc_w != src_w || crtc_h != src_h)
 		dvsscale = DVS_SCALE_ENABLE | (src_w << 16) | src_h;
 
 	I915_WRITE(DVSSTRIDE(pipe), fb->pitches[0]);
