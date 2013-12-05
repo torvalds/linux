@@ -12,6 +12,7 @@
 #include "util/thread_map.h"
 #include "util/stat.h"
 #include "trace-event.h"
+#include "util/parse-events.h"
 
 #include <libaudit.h>
 #include <stdlib.h>
@@ -172,6 +173,10 @@ out_delete:
 static struct perf_evsel *perf_evsel__syscall_newtp(const char *direction, void *handler)
 {
 	struct perf_evsel *evsel = perf_evsel__newtp("raw_syscalls", direction);
+
+	/* older kernel (e.g., RHEL6) use syscalls:{enter,exit} */
+	if (evsel == NULL)
+		evsel = perf_evsel__newtp("syscalls", direction);
 
 	if (evsel) {
 		if (perf_evsel__init_syscall_tp(evsel, handler))
@@ -1801,10 +1806,11 @@ static int trace__record(int argc, const char **argv)
 		"-R",
 		"-m", "1024",
 		"-c", "1",
-		"-e", "raw_syscalls:sys_enter,raw_syscalls:sys_exit",
+		"-e",
 	};
 
-	rec_argc = ARRAY_SIZE(record_args) + argc;
+	/* +1 is for the event string below */
+	rec_argc = ARRAY_SIZE(record_args) + 1 + argc;
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 
 	if (rec_argv == NULL)
@@ -1812,6 +1818,17 @@ static int trace__record(int argc, const char **argv)
 
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)
 		rec_argv[i] = record_args[i];
+
+	/* event string may be different for older kernels - e.g., RHEL6 */
+	if (is_valid_tracepoint("raw_syscalls:sys_enter"))
+		rec_argv[i] = "raw_syscalls:sys_enter,raw_syscalls:sys_exit";
+	else if (is_valid_tracepoint("syscalls:sys_enter"))
+		rec_argv[i] = "syscalls:sys_enter,syscalls:sys_exit";
+	else {
+		pr_err("Neither raw_syscalls nor syscalls events exist.\n");
+		return -1;
+	}
+	i++;
 
 	for (j = 0; j < (unsigned int)argc; j++, i++)
 		rec_argv[i] = argv[j];
@@ -2048,6 +2065,10 @@ static int trace__replay(struct trace *trace)
 
 	evsel = perf_evlist__find_tracepoint_by_name(session->evlist,
 						     "raw_syscalls:sys_enter");
+	/* older kernels have syscalls tp versus raw_syscalls */
+	if (evsel == NULL)
+		evsel = perf_evlist__find_tracepoint_by_name(session->evlist,
+							     "syscalls:sys_enter");
 	if (evsel == NULL) {
 		pr_err("Data file does not have raw_syscalls:sys_enter event\n");
 		goto out;
@@ -2061,6 +2082,9 @@ static int trace__replay(struct trace *trace)
 
 	evsel = perf_evlist__find_tracepoint_by_name(session->evlist,
 						     "raw_syscalls:sys_exit");
+	if (evsel == NULL)
+		evsel = perf_evlist__find_tracepoint_by_name(session->evlist,
+							     "syscalls:sys_exit");
 	if (evsel == NULL) {
 		pr_err("Data file does not have raw_syscalls:sys_exit event\n");
 		goto out;
