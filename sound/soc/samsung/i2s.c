@@ -702,6 +702,8 @@ static int i2s_hw_params(struct snd_pcm_substream *substream,
 	}
 	writel(mod, i2s->addr + I2SMOD);
 
+	samsung_asoc_init_dma_data(dai, &i2s->dma_playback, &i2s->dma_capture);
+
 	i2s->frmclk = params_rate(params);
 
 	return 0;
