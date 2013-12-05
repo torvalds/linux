@@ -256,10 +256,10 @@ over a rather long period of time, but improvements are always welcome!
 		variations on this theme.
 
 	b.	Limiting update rate.  For example, if updates occur only
-		once per hour, then no explicit rate limiting is required,
-		unless your system is already badly broken.  The dcache
-		subsystem takes this approach -- updates are guarded
-		by a global lock, limiting their rate.
+		once per hour, then no explicit rate limiting is
+		required, unless your system is already badly broken.
+		Older versions of the dcache subsystem take this approach,
+		guarding updates with a global lock, limiting their rate.
 
 	c.	Trusted update -- if updates can only be done manually by
 		superuser or some other trusted user, then it might not
@@ -268,13 +268,21 @@ over a rather long period of time, but improvements are always welcome!
 		the machine.
 
 	d.	Use call_rcu_bh() rather than call_rcu(), in order to take
-		advantage of call_rcu_bh()'s faster grace periods.
+		advantage of call_rcu_bh()'s faster grace periods.  (This
+		is only a partial solution, though.)
 
 	e.	Periodically invoke synchronize_rcu(), permitting a limited
 		number of updates per grace period.
 
 	The same cautions apply to call_rcu_bh(), call_rcu_sched(),
 	call_srcu(), and kfree_rcu().
+
+	Note that although these primitives do take action to avoid memory
+	exhaustion when any given CPU has too many callbacks, a determined
+	user could still exhaust memory.  This is especially the case
+	if a system with a large number of CPUs has been configured to
+	offload all of its RCU callbacks onto a single CPU, or if the
+	system has relatively little free memory.
 
 9.	All RCU list-traversal primitives, which include
 	rcu_dereference(), list_for_each_entry_rcu(), and
