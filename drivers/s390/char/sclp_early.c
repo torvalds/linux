@@ -36,6 +36,8 @@ struct read_info_sccb {
 } __packed __aligned(PAGE_SIZE);
 
 static char sccb_early[PAGE_SIZE] __aligned(PAGE_SIZE) __initdata;
+static unsigned int sclp_con_has_vt220 __initdata;
+static unsigned int sclp_con_has_linemode __initdata;
 static unsigned long sclp_hsa_size;
 static struct sclp_ipl_info sclp_ipl_info;
 
@@ -109,26 +111,12 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 
 bool __init sclp_has_linemode(void)
 {
-	struct init_sccb *sccb = (void *) &sccb_early;
-
-	if (sccb->header.response_code != 0x20)
-		return 0;
-	if (!(sccb->sclp_send_mask & (EVTYP_OPCMD_MASK | EVTYP_PMSGCMD_MASK)))
-		return 0;
-	if (!(sccb->sclp_receive_mask & (EVTYP_MSG_MASK | EVTYP_PMSGCMD_MASK)))
-		return 0;
-	return 1;
+	return !!sclp_con_has_linemode;
 }
 
 bool __init sclp_has_vt220(void)
 {
-	struct init_sccb *sccb = (void *) &sccb_early;
-
-	if (sccb->header.response_code != 0x20)
-		return 0;
-	if (sccb->sclp_send_mask & EVTYP_VT220MSG_MASK)
-		return 1;
-	return 0;
+	return !!sclp_con_has_vt220;
 }
 
 unsigned long long sclp_get_rnmax(void)
@@ -240,11 +228,37 @@ out:
 	sclp_hsa_size = size;
 }
 
+static unsigned int __init sclp_con_check_linemode(struct init_sccb *sccb)
+{
+	if (!(sccb->sclp_send_mask & (EVTYP_OPCMD_MASK | EVTYP_PMSGCMD_MASK)))
+		return 0;
+	if (!(sccb->sclp_receive_mask & (EVTYP_MSG_MASK | EVTYP_PMSGCMD_MASK)))
+		return 0;
+	return 1;
+}
+
+static void __init sclp_console_detect(struct init_sccb *sccb)
+{
+	if (sccb->header.response_code != 0x20)
+		return;
+
+	if (sccb->sclp_send_mask & EVTYP_VT220MSG_MASK)
+		sclp_con_has_vt220 = 1;
+
+	if (sclp_con_check_linemode(sccb))
+		sclp_con_has_linemode = 1;
+}
+
 void __init sclp_early_detect(void)
 {
 	void *sccb = &sccb_early;
 
 	sclp_facilities_detect(sccb);
 	sclp_hsa_size_detect(sccb);
+
+	/* Turn off SCLP event notifications.  Also save remote masks in the
+	 * sccb.  These are sufficient to detect sclp console capabilities.
+	 */
 	sclp_set_event_mask(sccb, 0, 0);
+	sclp_console_detect(sccb);
 }
