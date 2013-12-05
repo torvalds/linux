@@ -61,6 +61,7 @@ MODULE_LICENSE("GPL");
 */
 
 struct adv7842_state {
+	struct adv7842_platform_data pdata;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_ctrl_handler hdl;
@@ -2730,6 +2731,9 @@ static int adv7842_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 
+	/* platform data */
+	state->pdata = *pdata;
+
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &adv7842_ops);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -2834,7 +2838,7 @@ static int adv7842_probe(struct i2c_client *client,
 	if (err)
 		goto err_work_queues;
 
-	err = adv7842_core_init(sd, pdata);
+	err = adv7842_core_init(sd);
 	if (err)
 		goto err_entity;
 
