@@ -1140,7 +1140,7 @@ static irqreturn_t pci224_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct pci224_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->write_subdev;
 	struct comedi_cmd *cmd;
 	unsigned char intstat, valid_intstat;
 	unsigned char curenab;
