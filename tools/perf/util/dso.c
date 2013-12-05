@@ -413,7 +413,28 @@ void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated)
 
 static void dso__set_basename(struct dso *dso)
 {
-	dso__set_short_name(dso, basename((char *)dso->long_name), false);
+       /*
+        * basename() may modify path buffer, so we must pass
+        * a copy.
+        */
+       char *base, *lname = strdup(dso->long_name);
+
+       if (!lname)
+               return;
+
+       /*
+        * basename() may return a pointer to internal
+        * storage which is reused in subsequent calls
+        * so copy the result.
+        */
+       base = strdup(basename(lname));
+
+       free(lname);
+
+       if (!base)
+               return;
+
+       dso__set_short_name(dso, base, true);
 }
 
 int dso__name_len(const struct dso *dso)
