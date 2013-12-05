@@ -787,7 +787,8 @@ static inline u32 iwl_trans_write_mem32(struct iwl_trans *trans, u32 addr,
 
 static inline void iwl_trans_set_pmi(struct iwl_trans *trans, bool state)
 {
-	trans->ops->set_pmi(trans, state);
+	if (trans->ops->set_pmi)
+		trans->ops->set_pmi(trans, state);
 }
 
 static inline void
