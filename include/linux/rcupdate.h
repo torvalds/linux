@@ -479,11 +479,9 @@ static inline void rcu_preempt_sleep_check(void)
 	do {								\
 		rcu_preempt_sleep_check();				\
 		rcu_lockdep_assert(!lock_is_held(&rcu_bh_lock_map),	\
-				   "Illegal context switch in RCU-bh"	\
-				   " read-side critical section");	\
+				   "Illegal context switch in RCU-bh read-side critical section"); \
 		rcu_lockdep_assert(!lock_is_held(&rcu_sched_lock_map),	\
-				   "Illegal context switch in RCU-sched"\
-				   " read-side critical section");	\
+				   "Illegal context switch in RCU-sched read-side critical section"); \
 	} while (0)
 
 #else /* #ifdef CONFIG_PROVE_RCU */
@@ -518,16 +516,14 @@ static inline void rcu_preempt_sleep_check(void)
 #define __rcu_dereference_check(p, c, space) \
 	({ \
 		typeof(*p) *_________p1 = (typeof(*p)*__force )ACCESS_ONCE(p); \
-		rcu_lockdep_assert(c, "suspicious rcu_dereference_check()" \
-				      " usage"); \
+		rcu_lockdep_assert(c, "suspicious rcu_dereference_check() usage"); \
 		rcu_dereference_sparse(p, space); \
 		smp_read_barrier_depends(); \
 		((typeof(*p) __force __kernel *)(_________p1)); \
 	})
 #define __rcu_dereference_protected(p, c, space) \
 	({ \
-		rcu_lockdep_assert(c, "suspicious rcu_dereference_protected()" \
-				      " usage"); \
+		rcu_lockdep_assert(c, "suspicious rcu_dereference_protected() usage"); \
 		rcu_dereference_sparse(p, space); \
 		((typeof(*p) __force __kernel *)(p)); \
 	})
@@ -542,8 +538,7 @@ static inline void rcu_preempt_sleep_check(void)
 	({ \
 		typeof(p) _________p1 = ACCESS_ONCE(p); \
 		rcu_lockdep_assert(c, \
-				   "suspicious rcu_dereference_index_check()" \
-				   " usage"); \
+				   "suspicious rcu_dereference_index_check() usage"); \
 		smp_read_barrier_depends(); \
 		(_________p1); \
 	})
