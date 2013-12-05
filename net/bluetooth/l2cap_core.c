@@ -6610,6 +6610,32 @@ drop:
 	return 0;
 }
 
+static void l2cap_chan_le_send_credits(struct l2cap_chan *chan)
+{
+	struct l2cap_conn *conn = chan->conn;
+	struct l2cap_le_credits pkt;
+	u16 return_credits;
+
+	/* We return more credits to the sender only after the amount of
+	 * credits falls below half of the initial amount.
+	 */
+	if (chan->rx_credits >= (L2CAP_LE_MAX_CREDITS + 1) / 2)
+		return;
+
+	return_credits = L2CAP_LE_MAX_CREDITS - chan->rx_credits;
+
+	BT_DBG("chan %p returning %u credits to sender", chan, return_credits);
+
+	chan->rx_credits += return_credits;
+
+	pkt.cid     = cpu_to_le16(chan->scid);
+	pkt.credits = cpu_to_le16(return_credits);
+
+	chan->ident = l2cap_get_ident(conn);
+
+	l2cap_send_cmd(conn, chan->ident, L2CAP_LE_CREDITS, sizeof(pkt), &pkt);
+}
+
 static void l2cap_data_channel(struct l2cap_conn *conn, u16 cid,
 			       struct sk_buff *skb)
 {
