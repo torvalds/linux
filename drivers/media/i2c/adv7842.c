@@ -2696,6 +2696,7 @@ static int adv7842_command_ram_test(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct adv7842_state *state = to_state(sd);
 	struct adv7842_platform_data *pdata = client->dev.platform_data;
+	struct v4l2_dv_timings timings;
 	int ret = 0;
 
 	if (!pdata)
@@ -2726,11 +2727,15 @@ static int adv7842_command_ram_test(struct v4l2_subdev *sd)
 
 	enable_input(sd);
 
-	adv7842_s_dv_timings(sd, &state->timings);
-
 	edid_write_vga_segment(sd);
 	edid_write_hdmi_segment(sd, ADV7842_EDID_PORT_A);
 	edid_write_hdmi_segment(sd, ADV7842_EDID_PORT_B);
+
+	timings = state->timings;
+
+	memset(&state->timings, 0, sizeof(struct v4l2_dv_timings));
+
+	adv7842_s_dv_timings(sd, &timings);
 
 	return ret;
 }
