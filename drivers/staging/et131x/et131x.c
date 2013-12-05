@@ -2302,8 +2302,6 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 			  "Cannot alloc memory for Packet Status Ring\n");
 		return -ENOMEM;
 	}
-	pr_info("Packet Status Ring %llx\n",
-		(unsigned long long) rx_ring->ps_ring_physaddr);
 
 	/* NOTE : dma_alloc_coherent(), used above to alloc DMA regions,
 	 * ALWAYS returns SAC (32-bit) addresses. If DAC (64-bit) addresses
@@ -2322,7 +2320,6 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 		return -ENOMEM;
 	}
 	rx_ring->num_rfd = NIC_DEFAULT_NUM_RFD;
-	pr_info("PRS %llx\n", (unsigned long long)rx_ring->rx_status_bus);
 
 	/* The RFDs are going to be put on lists later on, so initialize the
 	 * lists now.
