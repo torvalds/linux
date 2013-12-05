@@ -1910,6 +1910,46 @@ static int adv7842_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 	return 0;
 }
 
+static int adv7842_get_edid(struct v4l2_subdev *sd, struct v4l2_subdev_edid *edid)
+{
+	struct adv7842_state *state = to_state(sd);
+	u8 *data = NULL;
+
+	if (edid->pad > ADV7842_EDID_PORT_VGA)
+		return -EINVAL;
+	if (edid->blocks == 0)
+		return -EINVAL;
+	if (edid->blocks > 2)
+		return -EINVAL;
+	if (edid->start_block > 1)
+		return -EINVAL;
+	if (edid->start_block == 1)
+		edid->blocks = 1;
+	if (!edid->edid)
+		return -EINVAL;
+
+	switch (edid->pad) {
+	case ADV7842_EDID_PORT_A:
+	case ADV7842_EDID_PORT_B:
+		if (state->hdmi_edid.present & (0x04 << edid->pad))
+			data = state->hdmi_edid.edid;
+		break;
+	case ADV7842_EDID_PORT_VGA:
+		if (state->vga_edid.present)
+			data = state->vga_edid.edid;
+		break;
+	default:
+		return -EINVAL;
+	}
+	if (!data)
+		return -ENODATA;
+
+	memcpy(edid->edid,
+	       data + edid->start_block * 128,
+	       edid->blocks * 128);
+	return 0;
+}
+
 static int adv7842_set_edid(struct v4l2_subdev *sd, struct v4l2_subdev_edid *e)
 {
 	struct adv7842_state *state = to_state(sd);
@@ -2722,6 +2762,7 @@ static const struct v4l2_subdev_video_ops adv7842_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops adv7842_pad_ops = {
+	.get_edid = adv7842_get_edid,
 	.set_edid = adv7842_set_edid,
 };
 
