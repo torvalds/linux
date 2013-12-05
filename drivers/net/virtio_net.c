@@ -1396,10 +1396,10 @@ static void free_unused_bufs(struct virtnet_info *vi)
 		struct virtqueue *vq = vi->rq[i].vq;
 
 		while ((buf = virtqueue_detach_unused_buf(vq)) != NULL) {
-			if (vi->big_packets)
-				give_pages(&vi->rq[i], buf);
-			else if (vi->mergeable_rx_bufs)
+			if (vi->mergeable_rx_bufs)
 				put_page(virt_to_head_page(buf));
+			else if (vi->big_packets)
+				give_pages(&vi->rq[i], buf);
 			else
 				dev_kfree_skb(buf);
 			--vi->rq[i].num;
