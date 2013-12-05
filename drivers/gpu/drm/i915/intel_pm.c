@@ -2767,7 +2767,11 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 			results->wm_lp[wm_lp - 1] |=
 				r->fbc_val << WM1_LP_FBC_SHIFT;
 
-		results->wm_lp_spr[wm_lp - 1] = r->spr_val;
+		if (INTEL_INFO(dev)->gen <= 6 && r->spr_val) {
+			WARN_ON(wm_lp != 1);
+			results->wm_lp_spr[wm_lp - 1] = WM1S_LP_EN | r->spr_val;
+		} else
+			results->wm_lp_spr[wm_lp - 1] = r->spr_val;
 	}
 
 	/* LP0 register values */
@@ -2899,6 +2903,10 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 	if (dirty & WM_DIRTY_LP(1) && previous->wm_lp[0] != 0)
 		I915_WRITE(WM1_LP_ILK, 0);
 
+	if (INTEL_INFO(dev)->gen <= 6 &&
+	    dirty & WM_DIRTY_LP(1) && previous->wm_lp_spr[0] != 0)
+		I915_WRITE(WM1S_LP_ILK, 0);
+
 	if (dirty & WM_DIRTY_PIPE(PIPE_A))
 		I915_WRITE(WM0_PIPEA_ILK, results->wm_pipe[0]);
 	if (dirty & WM_DIRTY_PIPE(PIPE_B))
@@ -2940,12 +2948,17 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 		I915_WRITE(DISP_ARB_CTL, val);
 	}
 
-	if (dirty & WM_DIRTY_LP(1) && previous->wm_lp_spr[0] != results->wm_lp_spr[0])
-		I915_WRITE(WM1S_LP_ILK, results->wm_lp_spr[0]);
-	if (dirty & WM_DIRTY_LP(2) && previous->wm_lp_spr[1] != results->wm_lp_spr[1])
-		I915_WRITE(WM2S_LP_IVB, results->wm_lp_spr[1]);
-	if (dirty & WM_DIRTY_LP(3) && previous->wm_lp_spr[2] != results->wm_lp_spr[2])
-		I915_WRITE(WM3S_LP_IVB, results->wm_lp_spr[2]);
+	if (INTEL_INFO(dev)->gen <= 6) {
+		if (dirty & WM_DIRTY_LP(1) && results->wm_lp_spr[0] != 0)
+			I915_WRITE(WM1S_LP_ILK, results->wm_lp_spr[0]);
+	} else {
+		if (dirty & WM_DIRTY_LP(1) && previous->wm_lp_spr[0] != results->wm_lp_spr[0])
+			I915_WRITE(WM1S_LP_ILK, results->wm_lp_spr[0]);
+		if (dirty & WM_DIRTY_LP(2) && previous->wm_lp_spr[1] != results->wm_lp_spr[1])
+			I915_WRITE(WM2S_LP_IVB, results->wm_lp_spr[1]);
+		if (dirty & WM_DIRTY_LP(3) && previous->wm_lp_spr[2] != results->wm_lp_spr[2])
+			I915_WRITE(WM3S_LP_IVB, results->wm_lp_spr[2]);
+	}
 
 	if (dirty & WM_DIRTY_LP(1) && results->wm_lp[0] != 0)
 		I915_WRITE(WM1_LP_ILK, results->wm_lp[0]);
