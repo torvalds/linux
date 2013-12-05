@@ -22,6 +22,47 @@
 MODULE_AUTHOR("Grant Likely <grant.likely@secretlab.ca>");
 MODULE_LICENSE("GPL");
 
+static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *child,
+				   u32 addr)
+{
+	struct phy_device *phy;
+	bool is_c45;
+	int rc;
+
+	is_c45 = of_device_is_compatible(child,
+					 "ethernet-phy-ieee802.3-c45");
+
+	phy = get_phy_device(mdio, addr, is_c45);
+	if (!phy || IS_ERR(phy))
+		return 1;
+
+	if (mdio->irq) {
+		mdio->irq[addr] =
+			irq_of_parse_and_map(child, 0);
+		if (!mdio->irq[addr])
+			mdio->irq[addr] = PHY_POLL;
+	}
+
+	/* Associate the OF node with the device structure so it
+	 * can be looked up later */
+	of_node_get(child);
+	phy->dev.of_node = child;
+
+	/* All data is now stored in the phy struct;
+	 * register it */
+	rc = phy_device_register(phy);
+	if (rc) {
+		phy_device_free(phy);
+		of_node_put(child);
+		return 1;
+	}
+
+	dev_dbg(&mdio->dev, "registered phy %s at address %i\n",
+		 child->name, addr);
+
+	return 0;
+}
+
 /**
  * of_mdiobus_register - Register mii_bus and create PHYs from the device tree
  * @mdio: pointer to mii_bus structure
@@ -32,11 +73,10 @@ MODULE_LICENSE("GPL");
  */
 int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 {
-	struct phy_device *phy;
 	struct device_node *child;
 	const __be32 *paddr;
 	u32 addr;
-	bool is_c45, scanphys = false;
+	bool scanphys = false;
 	int rc, i, len;
 
 	/* Mask out all PHYs from auto probing.  Instead the PHYs listed in
@@ -73,38 +113,9 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 			continue;
 		}
 
-		if (mdio->irq) {
-			mdio->irq[addr] = irq_of_parse_and_map(child, 0);
-			if (!mdio->irq[addr])
-				mdio->irq[addr] = PHY_POLL;
-		}
-
-		is_c45 = of_device_is_compatible(child,
-						 "ethernet-phy-ieee802.3-c45");
-		phy = get_phy_device(mdio, addr, is_c45);
-
-		if (!phy || IS_ERR(phy)) {
-			dev_err(&mdio->dev,
-				"cannot get PHY at address %i\n",
-				addr);
+		rc = of_mdiobus_register_phy(mdio, child, addr);
+		if (rc)
 			continue;
-		}
-
-		/* Associate the OF node with the device structure so it
-		 * can be looked up later */
-		of_node_get(child);
-		phy->dev.of_node = child;
-
-		/* All data is now stored in the phy struct; register it */
-		rc = phy_device_register(phy);
-		if (rc) {
-			phy_device_free(phy);
-			of_node_put(child);
-			continue;
-		}
-
-		dev_dbg(&mdio->dev, "registered phy %s at address %i\n",
-			child->name, addr);
 	}
 
 	if (!scanphys)
@@ -117,9 +128,6 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 		if (paddr)
 			continue;
 
-		is_c45 = of_device_is_compatible(child,
-						 "ethernet-phy-ieee802.3-c45");
-
 		for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
 			/* skip already registered PHYs */
 			if (mdio->phy_map[addr])
@@ -129,34 +137,9 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 			dev_info(&mdio->dev, "scan phy %s at address %i\n",
 				 child->name, addr);
 
-			phy = get_phy_device(mdio, addr, is_c45);
-			if (!phy || IS_ERR(phy))
+			rc = of_mdiobus_register_phy(mdio, child, addr);
+			if (rc)
 				continue;
-
-			if (mdio->irq) {
-				mdio->irq[addr] =
-					irq_of_parse_and_map(child, 0);
-				if (!mdio->irq[addr])
-					mdio->irq[addr] = PHY_POLL;
-			}
-
-			/* Associate the OF node with the device structure so it
-			 * can be looked up later */
-			of_node_get(child);
-			phy->dev.of_node = child;
-
-			/* All data is now stored in the phy struct;
-			 * register it */
-			rc = phy_device_register(phy);
-			if (rc) {
-				phy_device_free(phy);
-				of_node_put(child);
-				continue;
-			}
-
-			dev_info(&mdio->dev, "registered phy %s at address %i\n",
-				 child->name, addr);
-			break;
 		}
 	}
 
