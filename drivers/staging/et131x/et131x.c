@@ -3754,97 +3754,99 @@ static void et131x_adjust_link(struct net_device *netdev)
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	struct  phy_device *phydev = adapter->phydev;
 
-	if (phydev && phydev->link != adapter->link) {
-		/* Check to see if we are in coma mode and if
-		 * so, disable it because we will not be able
-		 * to read PHY values until we are out.
-		 */
-		if (et1310_in_phy_coma(adapter))
-			et1310_disable_phy_coma(adapter);
+	if (!phydev)
+		return;
+	if (phydev->link == adapter->link)
+		return;
 
-		adapter->link = phydev->link;
-		phy_print_status(phydev);
+	/* Check to see if we are in coma mode and if
+	 * so, disable it because we will not be able
+	 * to read PHY values until we are out.
+	 */
+	if (et1310_in_phy_coma(adapter))
+		et1310_disable_phy_coma(adapter);
 
-		if (phydev->link) {
-			adapter->boot_coma = 20;
-			if (phydev && phydev->speed == SPEED_10) {
-				/* NOTE - Is there a way to query this without
-				 * TruePHY?
-				 * && TRU_QueryCoreType(adapter->hTruePhy, 0)==
-				 * EMI_TRUEPHY_A13O) {
-				 */
-				u16 register18;
+	adapter->link = phydev->link;
+	phy_print_status(phydev);
 
-				et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
-						 &register18);
-				et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
-						 register18 | 0x4);
-				et131x_mii_write(adapter, PHY_INDEX_REG,
-						 register18 | 0x8402);
-				et131x_mii_write(adapter, PHY_DATA_REG,
-						 register18 | 511);
-				et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
-						 register18);
-			}
-
-			et1310_config_flow_control(adapter);
-
-			if (phydev && phydev->speed == SPEED_1000 &&
-					adapter->registry_jumbo_packet > 2048) {
-				u16 reg;
-
-				et131x_mii_read(adapter, PHY_CONFIG, &reg);
-				reg &= ~ET_PHY_CONFIG_TX_FIFO_DEPTH;
-				reg |= ET_PHY_CONFIG_FIFO_DEPTH_32;
-				et131x_mii_write(adapter, PHY_CONFIG, reg);
-			}
-
-			et131x_set_rx_dma_timer(adapter);
-			et1310_config_mac_regs2(adapter);
-		} else {
-			adapter->boot_coma = 0;
-
-			if (phydev->speed == SPEED_10) {
-				/* NOTE - Is there a way to query this without
-				 * TruePHY?
-				 * && TRU_QueryCoreType(adapter->hTruePhy, 0) ==
-				 * EMI_TRUEPHY_A13O)
-				 */
-				u16 register18;
-
-				et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
-						 &register18);
-				et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
-						 register18 | 0x4);
-				et131x_mii_write(adapter, PHY_INDEX_REG,
-						 register18 | 0x8402);
-				et131x_mii_write(adapter, PHY_DATA_REG,
-						 register18 | 511);
-				et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
-						 register18);
-			}
-
-			/* Free the packets being actively sent & stopped */
-			et131x_free_busy_send_packets(adapter);
-
-			/* Re-initialize the send structures */
-			et131x_init_send(adapter);
-
-			/* Bring the device back to the state it was during
-			 * init prior to autonegotiation being complete. This
-			 * way, when we get the auto-neg complete interrupt,
-			 * we can complete init by calling config_mac_regs2.
+	if (phydev->link) {
+		adapter->boot_coma = 20;
+		if (phydev && phydev->speed == SPEED_10) {
+			/* NOTE - Is there a way to query this without
+			 * TruePHY?
+			 * && TRU_QueryCoreType(adapter->hTruePhy, 0)==
+			 * EMI_TRUEPHY_A13O) {
 			 */
-			et131x_soft_reset(adapter);
+			u16 register18;
 
-			/* Setup ET1310 as per the documentation */
-			et131x_adapter_setup(adapter);
-
-			/* perform reset of tx/rx */
-			et131x_disable_txrx(netdev);
-			et131x_enable_txrx(netdev);
+			et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
+					 &register18);
+			et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
+					 register18 | 0x4);
+			et131x_mii_write(adapter, PHY_INDEX_REG,
+					 register18 | 0x8402);
+			et131x_mii_write(adapter, PHY_DATA_REG,
+					 register18 | 511);
+			et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
+					 register18);
 		}
 
+		et1310_config_flow_control(adapter);
+
+		if (phydev && phydev->speed == SPEED_1000 &&
+		    adapter->registry_jumbo_packet > 2048) {
+			u16 reg;
+
+			et131x_mii_read(adapter, PHY_CONFIG, &reg);
+			reg &= ~ET_PHY_CONFIG_TX_FIFO_DEPTH;
+			reg |= ET_PHY_CONFIG_FIFO_DEPTH_32;
+			et131x_mii_write(adapter, PHY_CONFIG, reg);
+		}
+
+		et131x_set_rx_dma_timer(adapter);
+		et1310_config_mac_regs2(adapter);
+	} else {
+		adapter->boot_coma = 0;
+
+		if (phydev->speed == SPEED_10) {
+			/* NOTE - Is there a way to query this without
+			 * TruePHY?
+			 * && TRU_QueryCoreType(adapter->hTruePhy, 0) ==
+			 * EMI_TRUEPHY_A13O)
+			 */
+			u16 register18;
+
+			et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
+					 &register18);
+			et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
+					 register18 | 0x4);
+			et131x_mii_write(adapter, PHY_INDEX_REG,
+					 register18 | 0x8402);
+			et131x_mii_write(adapter, PHY_DATA_REG,
+					 register18 | 511);
+			et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
+					 register18);
+		}
+
+		/* Free the packets being actively sent & stopped */
+		et131x_free_busy_send_packets(adapter);
+
+		/* Re-initialize the send structures */
+		et131x_init_send(adapter);
+
+		/* Bring the device back to the state it was during
+		 * init prior to autonegotiation being complete. This
+		 * way, when we get the auto-neg complete interrupt,
+		 * we can complete init by calling config_mac_regs2.
+		 */
+		et131x_soft_reset(adapter);
+
+		/* Setup ET1310 as per the documentation */
+		et131x_adapter_setup(adapter);
+
+		/* perform reset of tx/rx */
+		et131x_disable_txrx(netdev);
+		et131x_enable_txrx(netdev);
 	}
 }
 
