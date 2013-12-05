@@ -128,8 +128,8 @@ static const struct pcmuio_board pcmuio_boards[] = {
 };
 
 struct pcmuio_asic {
-	spinlock_t pagelock;
-	spinlock_t spinlock;
+	spinlock_t pagelock;	/* protects the page registers */
+	spinlock_t spinlock;	/* protects member variables */
 	int enabled_mask;
 	int active;
 	int stop_count;
@@ -295,6 +295,7 @@ static void pcmuio_reset(struct comedi_device *dev)
 	}
 }
 
+/* chip->spinlock is already locked */
 static void pcmuio_stop_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
@@ -403,6 +404,7 @@ static irqreturn_t pcmuio_interrupt(int irq, void *d)
 	return handled ? IRQ_HANDLED : IRQ_NONE;
 }
 
+/* chip->spinlock is already locked */
 static int pcmuio_start_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
