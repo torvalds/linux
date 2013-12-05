@@ -59,7 +59,7 @@ enum {
 };
 
 struct pcpu {
-	struct cpu cpu;
+	struct cpu *cpu;
 	struct _lowcore *lowcore;	/* lowcore page(s) for the cpu */
 	unsigned long async_stack;	/* async stack for the cpu */
 	unsigned long panic_stack;	/* panic stack for the cpu */
@@ -958,7 +958,7 @@ static int smp_cpu_notify(struct notifier_block *self, unsigned long action,
 			  void *hcpu)
 {
 	unsigned int cpu = (unsigned int)(long)hcpu;
-	struct cpu *c = &pcpu_devices[cpu].cpu;
+	struct cpu *c = pcpu_devices[cpu].cpu;
 	struct device *s = &c->dev;
 	int err = 0;
 
@@ -975,10 +975,15 @@ static int smp_cpu_notify(struct notifier_block *self, unsigned long action,
 
 static int smp_add_present_cpu(int cpu)
 {
-	struct cpu *c = &pcpu_devices[cpu].cpu;
-	struct device *s = &c->dev;
+	struct device *s;
+	struct cpu *c;
 	int rc;
 
+	c = kzalloc(sizeof(*c), GFP_KERNEL);
+	if (!c)
+		return -ENOMEM;
+	pcpu_devices[cpu].cpu = c;
+	s = &c->dev;
 	c->hotpluggable = 1;
 	rc = register_cpu(c, cpu);
 	if (rc)
