@@ -269,11 +269,6 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int byte, i;
 
-	if (dev->irq == 0) {
-		comedi_error(dev, "irq required to execute comedi_cmd");
-		return -1;
-	}
-
 	/* disable interrupts and internal pacer */
 	devpriv->control_state &= ~INTE & ~PACER_MASK;
 	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
