@@ -202,30 +202,35 @@ static unsigned int pcmuio_read(struct comedi_device *dev,
  */
 static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	unsigned int mask = data[0] & s->io_bits;	/* outputs only */
-	unsigned int bits = data[1];
+	unsigned int chanmask = (1 << s->n_chan) - 1;
 	int asic = s->index / 2;
 	int port = (s->index % 2) ? 3 : 0;
+	unsigned int mask;
 	unsigned int val;
+
+	mask = comedi_dio_update_state(s, data);
+	if (mask) {
+		/*
+		 * Outputs are inverted, invert the state and
+		 * update the channels.
+		 *
+		 * The s->io_bits mask makes sure the input channels
+		 * are '0' so that the outputs pins stay in a high
+		 * z-state.
+		 */
+		val = ~s->state & chanmask;
+		val &= s->io_bits;
+		pcmuio_write(dev, val, asic, 0, port);
+	}
 
 	/* get inverted state of the channels from the port */
 	val = pcmuio_read(dev, asic, 0, port);
 
-	/* get the true state of the channels */
-	s->state = val ^ ((0x1 << s->n_chan) - 1);
-
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (mask & bits);
-
-		/* invert the state and update the channels */
-		val = s->state ^ ((0x1 << s->n_chan) - 1);
-		pcmuio_write(dev, val, asic, 0, port);
-	}
-
-	data[1] = s->state;
+	/* return the true state of the channels */
+	data[1] = ~val & chanmask;
 
 	return insn->n;
 }
