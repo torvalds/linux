@@ -1038,6 +1038,12 @@ static void adv7511_init_setup(struct v4l2_subdev *sd)
 
 	/* clear all interrupts */
 	adv7511_wr(sd, 0x96, 0xff);
+	/*
+	 * Stop HPD from resetting a lot of registers.
+	 * It might leave the chip in a partly un-initialized state,
+	 * in particular with regards to hotplug bounces.
+	 */
+	adv7511_wr_and_or(sd, 0xd6, 0x3f, 0xc0);
 	memset(edid, 0, sizeof(struct adv7511_state_edid));
 	state->have_monitor = false;
 	adv7511_set_isr(sd, false);
