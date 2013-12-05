@@ -72,7 +72,6 @@ struct mxs_mmc_host {
 	int				wp_gpio;
 	bool				wp_inverted;
 	bool				cd_inverted;
-	bool				broken_cd;
 };
 
 static int mxs_mmc_get_ro(struct mmc_host *mmc)
@@ -96,8 +95,7 @@ static int mxs_mmc_get_cd(struct mmc_host *mmc)
 	struct mxs_mmc_host *host = mmc_priv(mmc);
 	struct mxs_ssp *ssp = &host->ssp;
 
-	return host->broken_cd ||
-		!(readl(ssp->base + HW_SSP_STATUS(ssp)) &
+	return !(readl(ssp->base + HW_SSP_STATUS(ssp)) &
 		  BM_SSP_STATUS_CARD_DETECT) ^ host->cd_inverted;
 }
 
@@ -652,7 +650,8 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 	else if (bus_width == 8)
 		mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;
-	host->broken_cd = of_property_read_bool(np, "broken-cd");
+	if (of_property_read_bool(np, "broken-cd"))
+		mmc->caps |= MMC_CAP_NEEDS_POLL;
 	if (of_property_read_bool(np, "non-removable"))
 		mmc->caps |= MMC_CAP_NONREMOVABLE;
 	host->wp_gpio = of_get_named_gpio_flags(np, "wp-gpios", 0, &flags);
