@@ -40,7 +40,7 @@ static int msm_iommu_attach(struct msm_mmu *mmu, const char **names, int cnt)
 	for (i = 0; i < cnt; i++) {
 		struct device *msm_iommu_get_ctx(const char *ctx_name);
 		struct device *ctx = msm_iommu_get_ctx(names[i]);
-		if (!ctx)
+		if (IS_ERR_OR_NULL(ctx))
 			continue;
 		ret = iommu_attach_device(iommu->domain, ctx);
 		if (ret) {

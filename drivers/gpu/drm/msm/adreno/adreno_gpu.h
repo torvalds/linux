@@ -51,6 +51,7 @@ struct adreno_gpu {
 	struct msm_gpu base;
 	struct adreno_rev rev;
 	const struct adreno_info *info;
+	uint32_t gmem;  /* actual gmem size */
 	uint32_t revn;  /* numeric revision name */
 	const struct adreno_gpu_funcs *funcs;
 
@@ -95,6 +96,11 @@ static inline bool adreno_is_a320(struct adreno_gpu *gpu)
 static inline bool adreno_is_a330(struct adreno_gpu *gpu)
 {
 	return gpu->revn == 330;
+}
+
+static inline bool adreno_is_a330v2(struct adreno_gpu *gpu)
+{
+	return adreno_is_a330(gpu) && (gpu->rev.patchid > 0);
 }
 
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);
