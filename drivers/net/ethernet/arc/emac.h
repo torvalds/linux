@@ -122,7 +122,6 @@ struct buffer_state {
  * @link:	PHY's last seen link state.
  * @duplex:	PHY's last set duplex mode.
  * @speed:	PHY's last set speed.
- * @max_speed:	Maximum supported by current system network data-rate.
  */
 struct arc_emac_priv {
 	/* Devices */
@@ -152,7 +151,6 @@ struct arc_emac_priv {
 	unsigned int link;
 	unsigned int duplex;
 	unsigned int speed;
-	unsigned int max_speed;
 };
 
 /**
