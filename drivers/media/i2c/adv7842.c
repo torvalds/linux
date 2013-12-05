@@ -533,7 +533,7 @@ static void main_reset(struct v4l2_subdev *sd)
 
 	adv_smbus_write_byte_no_check(client, 0xff, 0x80);
 
-	mdelay(2);
+	mdelay(5);
 }
 
 /* ----------------------------------------------------------------------- */
