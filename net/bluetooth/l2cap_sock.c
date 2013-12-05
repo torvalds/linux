@@ -153,7 +153,7 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	chan->src_type = la.l2_bdaddr_type;
 
 	if (chan->psm && bdaddr_type_is_le(chan->src_type))
-		l2cap_le_flowctl_init(chan);
+		chan->mode = L2CAP_MODE_LE_FLOWCTL;
 
 	chan->state = BT_BOUND;
 	sk->sk_state = BT_BOUND;
@@ -226,7 +226,7 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr,
 	}
 
 	if (chan->psm && bdaddr_type_is_le(chan->src_type))
-		l2cap_le_flowctl_init(chan);
+		chan->mode = L2CAP_MODE_LE_FLOWCTL;
 
 	err = l2cap_chan_connect(chan, la.l2_psm, __le16_to_cpu(la.l2_cid),
 				 &la.l2_bdaddr, la.l2_bdaddr_type);

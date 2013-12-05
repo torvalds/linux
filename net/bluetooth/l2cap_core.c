@@ -498,11 +498,11 @@ void l2cap_chan_set_defaults(struct l2cap_chan *chan)
 	set_bit(FLAG_FORCE_ACTIVE, &chan->flags);
 }
 
-void l2cap_le_flowctl_init(struct l2cap_chan *chan)
+static void l2cap_le_flowctl_init(struct l2cap_chan *chan)
 {
-	chan->imtu = L2CAP_DEFAULT_MTU;
-	chan->omtu = L2CAP_LE_MIN_MTU;
-	chan->mode = L2CAP_MODE_LE_FLOWCTL;
+	chan->sdu = NULL;
+	chan->sdu_last_frag = NULL;
+	chan->sdu_len = 0;
 	chan->tx_credits = 0;
 	chan->rx_credits = le_max_credits;
 
@@ -510,6 +510,8 @@ void l2cap_le_flowctl_init(struct l2cap_chan *chan)
 		chan->mps = chan->imtu;
 	else
 		chan->mps = L2CAP_LE_DEFAULT_MPS;
+
+	skb_queue_head_init(&chan->tx_q);
 }
 
 void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
@@ -1208,31 +1210,14 @@ static void l2cap_move_done(struct l2cap_chan *chan)
 	}
 }
 
-static void l2cap_le_flowctl_start(struct l2cap_chan *chan)
-{
-	chan->sdu = NULL;
-	chan->sdu_last_frag = NULL;
-	chan->sdu_len = 0;
-
-	if (chan->imtu < L2CAP_LE_DEFAULT_MPS)
-		chan->mps = chan->imtu;
-	else
-		chan->mps = le_default_mps;
-
-	skb_queue_head_init(&chan->tx_q);
-
-	if (!chan->tx_credits)
-		chan->ops->suspend(chan);
-}
-
 static void l2cap_chan_ready(struct l2cap_chan *chan)
 {
 	/* This clears all conf flags, including CONF_NOT_COMPLETE */
 	chan->conf_state = 0;
 	__clear_chan_timer(chan);
 
-	if (chan->mode == L2CAP_MODE_LE_FLOWCTL)
-		l2cap_le_flowctl_start(chan);
+	if (chan->mode == L2CAP_MODE_LE_FLOWCTL && !chan->tx_credits)
+		chan->ops->suspend(chan);
 
 	chan->state = BT_CONNECTED;
 
@@ -1909,7 +1894,9 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 
 	switch (chan->mode) {
 	case L2CAP_MODE_BASIC:
+		break;
 	case L2CAP_MODE_LE_FLOWCTL:
+		l2cap_le_flowctl_init(chan);
 		break;
 	case L2CAP_MODE_ERTM:
 	case L2CAP_MODE_STREAMING:
@@ -5662,6 +5649,8 @@ static int l2cap_le_connect_req(struct l2cap_conn *conn,
 		result = L2CAP_CR_NO_MEM;
 		goto response_unlock;
 	}
+
+	l2cap_le_flowctl_init(chan);
 
 	bacpy(&chan->src, &conn->hcon->src);
 	bacpy(&chan->dst, &conn->hcon->dst);
