@@ -448,6 +448,11 @@ static int __init mxs_restart_init(void)
 	return 0;
 }
 
+static void __init eukrea_mbmx283lc_init(void)
+{
+	mxs_saif_clkmux_select(MXS_DIGCTL_SAIF_CLKMUX_EXTMSTR0);
+}
+
 static void __init mxs_machine_init(void)
 {
 	struct device_node *root;
@@ -486,6 +491,8 @@ static void __init mxs_machine_init(void)
 		apx4devkit_init();
 	else if (of_machine_is_compatible("crystalfontz,cfa10036"))
 		crystalfontz_init();
+	else if (of_machine_is_compatible("eukrea,mbmx283lc"))
+		eukrea_mbmx283lc_init();
 	else if (of_machine_is_compatible("i2se,duckbill"))
 		duckbill_init();
 	else if (of_machine_is_compatible("msr,m28cu3"))
