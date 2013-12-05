@@ -802,9 +802,6 @@ int __init acpi_sleep_init(void)
 	char *pos = supported;
 	int i;
 
-	if (acpi_disabled)
-		return 0;
-
 	acpi_sleep_dmi_check();
 
 	sleep_states[ACPI_STATE_S0] = 1;
