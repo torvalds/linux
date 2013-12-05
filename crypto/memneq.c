@@ -108,8 +108,9 @@ static inline unsigned long __crypto_memneq_16(const void *a, const void *b)
 		OPTIMIZER_HIDE_VAR(neq);
 		neq |= *(unsigned int *)(a+12) ^ *(unsigned int *)(b+12);
 		OPTIMIZER_HIDE_VAR(neq);
-	} else {
+	} else
 #endif /* CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS */
+	{
 		neq |= *(unsigned char *)(a)    ^ *(unsigned char *)(b);
 		OPTIMIZER_HIDE_VAR(neq);
 		neq |= *(unsigned char *)(a+1)  ^ *(unsigned char *)(b+1);
