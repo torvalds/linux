@@ -427,7 +427,7 @@ static irqreturn_t ni_65xx_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct ni_65xx_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[2];
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int status;
 
 	status = readb(devpriv->mite->daq_io_addr + Change_Status);
