@@ -716,15 +716,15 @@ static int edid_write_hdmi_segment(struct v4l2_subdev *sd, u8 port)
 		}
 		rep_write(sd, 0x76, spa_loc);
 	} else {
-		/* default register values for SPA */
+		/* Edid values for SPA location */
 		if (port == 0) {
-			/* port A SPA */
-			rep_write(sd, 0x72, 0);
-			rep_write(sd, 0x73, 0);
+			/* port A */
+			rep_write(sd, 0x72, val[0xc0]);
+			rep_write(sd, 0x73, val[0xc1]);
 		} else {
-			/* port B SPA */
-			rep_write(sd, 0x74, 0);
-			rep_write(sd, 0x75, 0);
+			/* port B */
+			rep_write(sd, 0x74, val[0xc0]);
+			rep_write(sd, 0x75, val[0xc1]);
 		}
 		rep_write(sd, 0x76, 0xc0);
 	}
