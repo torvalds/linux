@@ -756,13 +756,16 @@ void cfg80211_leave(struct cfg80211_registered_device *rdev,
 {
 	struct net_device *dev = wdev->netdev;
 
+	ASSERT_RTNL();
+
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_ADHOC:
 		cfg80211_leave_ibss(rdev, dev, true);
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_STATION:
-		__cfg80211_stop_sched_scan(rdev, false);
+		if (rdev->sched_scan_req && dev == rdev->sched_scan_req->dev)
+			__cfg80211_stop_sched_scan(rdev, false);
 
 		wdev_lock(wdev);
 #ifdef CONFIG_CFG80211_WEXT
