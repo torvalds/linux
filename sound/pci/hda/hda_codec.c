@@ -26,6 +26,7 @@
 #include <linux/pci.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
+#include <linux/async.h>
 #include <sound/core.h>
 #include "hda_codec.h"
 #include <sound/asoundef.h>
@@ -96,8 +97,6 @@ EXPORT_SYMBOL_HDA(snd_hda_delete_codec_preset);
 
 #ifdef CONFIG_PM
 #define codec_in_pm(codec)	((codec)->in_pm)
-static void hda_suspend_work(struct work_struct *work);
-static void hda_resume_work(struct work_struct *work);
 static void hda_power_work(struct work_struct *work);
 static void hda_keep_power_on(struct hda_codec *codec);
 #define hda_codec_is_power_on(codec)	((codec)->power_on)
@@ -842,11 +841,6 @@ static int snd_hda_bus_free(struct hda_bus *bus)
 	if (bus->workq)
 		destroy_workqueue(bus->workq);
 
-#ifdef CONFIG_PM
-	if (bus->pm_wq)
-		destroy_workqueue(bus->pm_wq);
-#endif
-
 	kfree(bus);
 	return 0;
 }
@@ -891,9 +885,6 @@ int snd_hda_bus_new(struct snd_card *card,
 		.dev_register = snd_hda_bus_dev_register,
 		.dev_free = snd_hda_bus_dev_free,
 	};
-#ifdef CONFIG_PM
-	char wqname[16];
-#endif
 
 	if (snd_BUG_ON(!temp))
 		return -EINVAL;
@@ -929,16 +920,6 @@ int snd_hda_bus_new(struct snd_card *card,
 		kfree(bus);
 		return -ENOMEM;
 	}
-
-#ifdef CONFIG_PM
-	sprintf(wqname, "hda-pm-wq-%d", card->number);
-	bus->pm_wq = create_workqueue(wqname);
-	if (!bus->pm_wq) {
-		snd_printk(KERN_ERR "cannot create PM workqueue\n");
-		snd_hda_bus_free(bus);
-		return -ENOMEM;
-	}
-#endif
 
 	err = snd_device_new(card, SNDRV_DEV_BUS, bus, &dev_ops);
 	if (err < 0) {
@@ -1476,8 +1457,6 @@ int snd_hda_codec_new(struct hda_bus *bus,
 #ifdef CONFIG_PM
 	spin_lock_init(&codec->power_lock);
 	INIT_DELAYED_WORK(&codec->power_work, hda_power_work);
-	INIT_WORK(&codec->suspend_work, hda_suspend_work);
-	INIT_WORK(&codec->resume_work, hda_resume_work);
 	/* snd_hda_codec_new() marks the codec as power-up, and leave it as is.
 	 * the caller has to power down appropriatley after initialization
 	 * phase.
@@ -1495,9 +1474,6 @@ int snd_hda_codec_new(struct hda_bus *bus,
 
 	list_add_tail(&codec->list, &bus->codec_list);
 	bus->num_codecs++;
-#ifdef CONFIG_PM
-	workqueue_set_max_active(bus->pm_wq, bus->num_codecs);
-#endif
 
 	bus->caddr_tbl[codec_addr] = codec;
 
@@ -5120,22 +5096,6 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
 	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_check_amp_list_power);
-
-static void hda_suspend_work(struct work_struct *work)
-{
-	struct hda_codec *codec =
-		container_of(work, struct hda_codec, suspend_work);
-
-	hda_call_codec_suspend(codec, false);
-}
-
-static void hda_resume_work(struct work_struct *work)
-{
-	struct hda_codec *codec =
-		container_of(work, struct hda_codec, resume_work);
-
-	hda_call_codec_resume(codec);
-}
 #endif
 
 /*
@@ -5699,6 +5659,17 @@ EXPORT_SYMBOL_HDA(snd_hda_add_imux_item);
  * power management
  */
 
+
+static void hda_async_suspend(void *data, async_cookie_t cookie)
+{
+	hda_call_codec_suspend(data, false);
+}
+
+static void hda_async_resume(void *data, async_cookie_t cookie)
+{
+	hda_call_codec_resume(data);
+}
+
 /**
  * snd_hda_suspend - suspend the codecs
  * @bus: the HDA bus
@@ -5708,19 +5679,21 @@ EXPORT_SYMBOL_HDA(snd_hda_add_imux_item);
 int snd_hda_suspend(struct hda_bus *bus)
 {
 	struct hda_codec *codec;
+	ASYNC_DOMAIN_EXCLUSIVE(domain);
 
 	list_for_each_entry(codec, &bus->codec_list, list) {
 		cancel_delayed_work_sync(&codec->jackpoll_work);
 		if (hda_codec_is_power_on(codec)) {
 			if (bus->num_codecs > 1)
-				queue_work(bus->pm_wq, &codec->suspend_work);
+				async_schedule_domain(hda_async_suspend, codec,
+						      &domain);
 			else
 				hda_call_codec_suspend(codec, false);
 		}
 	}
 
 	if (bus->num_codecs > 1)
-		flush_workqueue(bus->pm_wq);
+		async_synchronize_full_domain(&domain);
 
 	return 0;
 }
@@ -5735,16 +5708,17 @@ EXPORT_SYMBOL_HDA(snd_hda_suspend);
 int snd_hda_resume(struct hda_bus *bus)
 {
 	struct hda_codec *codec;
+	ASYNC_DOMAIN_EXCLUSIVE(domain);
 
 	list_for_each_entry(codec, &bus->codec_list, list) {
 		if (bus->num_codecs > 1)
-			queue_work(bus->pm_wq, &codec->resume_work);
+			async_schedule_domain(hda_async_resume, codec, &domain);
 		else
 			hda_call_codec_resume(codec);
 	}
 
 	if (bus->num_codecs > 1)
-		flush_workqueue(bus->pm_wq);
+		async_synchronize_full_domain(&domain);
 
 	return 0;
 }
