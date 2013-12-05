@@ -306,7 +306,12 @@ static int __init rk_fiq_debugger_init(void) {
 		printk("fiq-debugger is missing in device tree!\n");
 		return -ENODEV;
 	}
-		
+
+	if (!of_device_is_available(np)) {
+		printk("fiq-debugger is disabled in device tree\n");
+		return -ENODEV;
+	}
+
 	if (of_property_read_u32(np, "serial-id", &serial_id)) {
 		return -EINVAL;	
 	}
