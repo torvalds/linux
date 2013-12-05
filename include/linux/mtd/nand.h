@@ -292,7 +292,7 @@ struct nand_onfi_params {
 	u8 vendor[88];
 
 	__le16 crc;
-} __attribute__((packed));
+} __packed;
 
 #define ONFI_CRC_BASE	0x4F4E
 
