@@ -1126,7 +1126,7 @@ static irqreturn_t interrupt_pci9118(int irq, void *d)
 				}
 			}
 
-		(devpriv->int_ai_func) (dev, &dev->subdevices[0], int_adstat,
+		(devpriv->int_ai_func) (dev, dev->read_subdev, int_adstat,
 					int_amcc, int_daq);
 
 	}
