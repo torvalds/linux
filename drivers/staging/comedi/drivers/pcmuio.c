@@ -297,7 +297,6 @@ static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
 	unsigned oldevents = s->async->events;
 	unsigned int val = 0;
 	unsigned long flags;
-	unsigned mytrig;
 	unsigned int i;
 
 	spin_lock_irqsave(&chip->spinlock, flags);
@@ -305,16 +304,13 @@ static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
 	if (!chip->active)
 		goto done;
 
-	mytrig = triggered;
-	mytrig &= ((0x1 << s->n_chan) - 1);
-
-	if (!(mytrig & chip->enabled_mask))
+	if (!(triggered & chip->enabled_mask))
 		goto done;
 
 	for (i = 0; i < len; i++) {
 		unsigned int chan = CR_CHAN(s->async->cmd.chanlist[i]);
-		if (mytrig & (1U << chan))
-			val |= (1U << i);
+		if (triggered & (1 << chan))
+			val |= (1 << i);
 	}
 
 	/* Write the scan to the buffer. */
