@@ -2426,6 +2426,36 @@ static unsigned int ilk_compute_wm_dirty(struct drm_device *dev,
 	return dirty;
 }
 
+static bool _ilk_disable_lp_wm(struct drm_i915_private *dev_priv,
+			       unsigned int dirty)
+{
+	struct hsw_wm_values *previous = &dev_priv->wm.hw;
+	bool changed = false;
+
+	if (dirty & WM_DIRTY_LP(3) && previous->wm_lp[2] & WM1_LP_SR_EN) {
+		previous->wm_lp[2] &= ~WM1_LP_SR_EN;
+		I915_WRITE(WM3_LP_ILK, previous->wm_lp[2]);
+		changed = true;
+	}
+	if (dirty & WM_DIRTY_LP(2) && previous->wm_lp[1] & WM1_LP_SR_EN) {
+		previous->wm_lp[1] &= ~WM1_LP_SR_EN;
+		I915_WRITE(WM2_LP_ILK, previous->wm_lp[1]);
+		changed = true;
+	}
+	if (dirty & WM_DIRTY_LP(1) && previous->wm_lp[0] & WM1_LP_SR_EN) {
+		previous->wm_lp[0] &= ~WM1_LP_SR_EN;
+		I915_WRITE(WM1_LP_ILK, previous->wm_lp[0]);
+		changed = true;
+	}
+
+	/*
+	 * Don't touch WM1S_LP_EN here.
+	 * Doing so could cause underruns.
+	 */
+
+	return changed;
+}
+
 /*
  * The spec says we shouldn't write when we don't need, because every write
  * causes WMs to be re-evaluated, expending some power.
@@ -2438,27 +2468,11 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 	unsigned int dirty;
 	uint32_t val;
 
-	dirty = ilk_compute_wm_dirty(dev_priv->dev, previous, results);
+	dirty = ilk_compute_wm_dirty(dev, previous, results);
 	if (!dirty)
 		return;
 
-	if (dirty & WM_DIRTY_LP(3) && previous->wm_lp[2] & WM1_LP_SR_EN) {
-		previous->wm_lp[2] &= ~WM1_LP_SR_EN;
-		I915_WRITE(WM3_LP_ILK, previous->wm_lp[2]);
-	}
-	if (dirty & WM_DIRTY_LP(2) && previous->wm_lp[1] & WM1_LP_SR_EN) {
-		previous->wm_lp[1] &= ~WM1_LP_SR_EN;
-		I915_WRITE(WM2_LP_ILK, previous->wm_lp[1]);
-	}
-	if (dirty & WM_DIRTY_LP(1) && previous->wm_lp[0] & WM1_LP_SR_EN) {
-		previous->wm_lp[0] &= ~WM1_LP_SR_EN;
-		I915_WRITE(WM1_LP_ILK, previous->wm_lp[0]);
-	}
-
-	/*
-	 * Don't touch WM1S_LP_EN here.
-	 * Doing so could cause underruns.
-	 */
+	_ilk_disable_lp_wm(dev_priv, dirty);
 
 	if (dirty & WM_DIRTY_PIPE(PIPE_A))
 		I915_WRITE(WM0_PIPEA_ILK, results->wm_pipe[0]);
@@ -2523,6 +2537,13 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 	dev_priv->wm.hw = *results;
 }
 
+static bool ilk_disable_lp_wm(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	return _ilk_disable_lp_wm(dev_priv, WM_DIRTY_LP_ALL);
+}
+
 static void haswell_update_wm(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -2572,12 +2593,23 @@ static void haswell_update_sprite_wm(struct drm_plane *plane,
 				     uint32_t sprite_width, int pixel_size,
 				     bool enabled, bool scaled)
 {
+	struct drm_device *dev = plane->dev;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 
 	intel_plane->wm.enabled = enabled;
 	intel_plane->wm.scaled = scaled;
 	intel_plane->wm.horiz_pixels = sprite_width;
 	intel_plane->wm.bytes_per_pixel = pixel_size;
+
+	/*
+	 * IVB workaround: must disable low power watermarks for at least
+	 * one frame before enabling scaling.  LP watermarks can be re-enabled
+	 * when scaling is disabled.
+	 *
+	 * WaCxSRDisabledForSpriteScaling:ivb
+	 */
+	if (IS_IVYBRIDGE(dev) && scaled && ilk_disable_lp_wm(dev))
+		intel_wait_for_vblank(dev, intel_plane->pipe);
 
 	haswell_update_wm(crtc);
 }
