@@ -1352,7 +1352,7 @@ rcu_torture_shutdown(void *arg)
 	unsigned long jiffies_snap;
 
 	VERBOSE_PRINTK_STRING("rcu_torture_shutdown task started");
-	jiffies_snap = ACCESS_ONCE(jiffies);
+	jiffies_snap = jiffies;
 	while (ULONG_CMP_LT(jiffies_snap, shutdown_time) &&
 	       !kthread_should_stop()) {
 		delta = shutdown_time - jiffies_snap;
@@ -1361,7 +1361,7 @@ rcu_torture_shutdown(void *arg)
 				 "rcu_torture_shutdown task: %lu jiffies remaining\n",
 				 torture_type, delta);
 		schedule_timeout_interruptible(delta);
-		jiffies_snap = ACCESS_ONCE(jiffies);
+		jiffies_snap = jiffies;
 	}
 	if (kthread_should_stop()) {
 		VERBOSE_PRINTK_STRING("rcu_torture_shutdown task stopping");
