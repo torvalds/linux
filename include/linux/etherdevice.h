@@ -26,6 +26,7 @@
 #include <linux/netdevice.h>
 #include <linux/random.h>
 #include <asm/unaligned.h>
+#include <asm/bitsperlong.h>
 
 #ifdef __KERNEL__
 __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev);
@@ -211,40 +212,26 @@ static inline void eth_hw_addr_inherit(struct net_device *dst,
 }
 
 /**
- * compare_ether_addr - Compare two Ethernet addresses
- * @addr1: Pointer to a six-byte array containing the Ethernet address
- * @addr2: Pointer other six-byte array containing the Ethernet address
- *
- * Compare two Ethernet addresses, returns 0 if equal, non-zero otherwise.
- * Unlike memcmp(), it doesn't return a value suitable for sorting.
- */
-static inline unsigned compare_ether_addr(const u8 *addr1, const u8 *addr2)
-{
-	const u16 *a = (const u16 *) addr1;
-	const u16 *b = (const u16 *) addr2;
-
-	BUILD_BUG_ON(ETH_ALEN != 6);
-	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | (a[2] ^ b[2])) != 0;
-}
-
-/**
  * ether_addr_equal - Compare two Ethernet addresses
  * @addr1: Pointer to a six-byte array containing the Ethernet address
  * @addr2: Pointer other six-byte array containing the Ethernet address
  *
  * Compare two Ethernet addresses, returns true if equal
+ *
+ * Please note: addr1 & addr2 must both be aligned to u16.
  */
 static inline bool ether_addr_equal(const u8 *addr1, const u8 *addr2)
 {
-	return !compare_ether_addr(addr1, addr2);
-}
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+	u32 fold = ((*(const u32 *)addr1) ^ (*(const u32 *)addr2)) |
+		   ((*(const u16 *)(addr1 + 4)) ^ (*(const u16 *)(addr2 + 4)));
 
-static inline unsigned long zap_last_2bytes(unsigned long value)
-{
-#ifdef __BIG_ENDIAN
-	return value >> 16;
+	return fold == 0;
 #else
-	return value << 16;
+	const u16 *a = (const u16 *)addr1;
+	const u16 *b = (const u16 *)addr2;
+
+	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | (a[2] ^ b[2])) == 0;
 #endif
 }
 
@@ -265,16 +252,14 @@ static inline unsigned long zap_last_2bytes(unsigned long value)
 static inline bool ether_addr_equal_64bits(const u8 addr1[6+2],
 					   const u8 addr2[6+2])
 {
-#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
-	unsigned long fold = ((*(unsigned long *)addr1) ^
-			      (*(unsigned long *)addr2));
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+	u64 fold = (*(const u64 *)addr1) ^ (*(const u64 *)addr2);
 
-	if (sizeof(fold) == 8)
-		return zap_last_2bytes(fold) == 0;
-
-	fold |= zap_last_2bytes((*(unsigned long *)(addr1 + 4)) ^
-				(*(unsigned long *)(addr2 + 4)));
-	return fold == 0;
+#ifdef __BIG_ENDIAN
+	return (fold >> 16) == 0;
+#else
+	return (fold << 16) == 0;
+#endif
 #else
 	return ether_addr_equal(addr1, addr2);
 #endif
