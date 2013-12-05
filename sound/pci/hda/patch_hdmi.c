@@ -2247,6 +2247,10 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 		intel_haswell_fixup_enable_dp12(codec);
 	}
 
+	if (is_haswell(codec) || is_valleyview(codec)) {
+		codec->depop_delay = 0;
+	}
+
 	if (hdmi_parse_codec(codec) < 0) {
 		codec->spec = NULL;
 		kfree(spec);
