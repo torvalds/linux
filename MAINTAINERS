@@ -5980,10 +5980,10 @@ F:	drivers/nfc/
 F:	include/linux/platform_data/pn544.h
 
 NFS, SUNRPC, AND LOCKD CLIENTS
-M:	Trond Myklebust <Trond.Myklebust@netapp.com>
+M:	Trond Myklebust <trond.myklebust@primarydata.com>
 L:	linux-nfs@vger.kernel.org
 W:	http://client.linux-nfs.org
-T:	git git://git.linux-nfs.org/pub/linux/nfs-2.6.git
+T:	git git://git.linux-nfs.org/projects/trondmy/linux-nfs.git
 S:	Maintained
 F:	fs/lockd/
 F:	fs/nfs/
