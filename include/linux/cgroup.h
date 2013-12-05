@@ -444,12 +444,9 @@ struct cftype {
 	 * read_s64() is a signed version of read_u64()
 	 */
 	s64 (*read_s64)(struct cgroup_subsys_state *css, struct cftype *cft);
-	/*
-	 * read_seq_string() is used for outputting a simple sequence
-	 * using seqfile.
-	 */
-	int (*read_seq_string)(struct cgroup_subsys_state *css,
-			       struct cftype *cft, struct seq_file *m);
+
+	/* generic seq_file read interface */
+	int (*seq_show)(struct seq_file *sf, void *v);
 
 	/*
 	 * write_u64() is a shortcut for the common case of accepting

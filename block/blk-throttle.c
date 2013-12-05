@@ -1303,13 +1303,10 @@ static u64 tg_prfill_cpu_rwstat(struct seq_file *sf,
 	return __blkg_prfill_rwstat(sf, pd, &rwstat);
 }
 
-static int tg_print_cpu_rwstat(struct cgroup_subsys_state *css,
-			       struct cftype *cft, struct seq_file *sf)
+static int tg_print_cpu_rwstat(struct seq_file *sf, void *v)
 {
-	struct blkcg *blkcg = css_to_blkcg(css);
-
-	blkcg_print_blkgs(sf, blkcg, tg_prfill_cpu_rwstat, &blkcg_policy_throtl,
-			  cft->private, true);
+	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)), tg_prfill_cpu_rwstat,
+			  &blkcg_policy_throtl, seq_cft(sf)->private, true);
 	return 0;
 }
 
@@ -1335,19 +1332,17 @@ static u64 tg_prfill_conf_uint(struct seq_file *sf, struct blkg_policy_data *pd,
 	return __blkg_prfill_u64(sf, pd, v);
 }
 
-static int tg_print_conf_u64(struct cgroup_subsys_state *css,
-			     struct cftype *cft, struct seq_file *sf)
+static int tg_print_conf_u64(struct seq_file *sf, void *v)
 {
-	blkcg_print_blkgs(sf, css_to_blkcg(css), tg_prfill_conf_u64,
-			  &blkcg_policy_throtl, cft->private, false);
+	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)), tg_prfill_conf_u64,
+			  &blkcg_policy_throtl, seq_cft(sf)->private, false);
 	return 0;
 }
 
-static int tg_print_conf_uint(struct cgroup_subsys_state *css,
-			      struct cftype *cft, struct seq_file *sf)
+static int tg_print_conf_uint(struct seq_file *sf, void *v)
 {
-	blkcg_print_blkgs(sf, css_to_blkcg(css), tg_prfill_conf_uint,
-			  &blkcg_policy_throtl, cft->private, false);
+	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)), tg_prfill_conf_uint,
+			  &blkcg_policy_throtl, seq_cft(sf)->private, false);
 	return 0;
 }
 
@@ -1428,40 +1423,40 @@ static struct cftype throtl_files[] = {
 	{
 		.name = "throttle.read_bps_device",
 		.private = offsetof(struct throtl_grp, bps[READ]),
-		.read_seq_string = tg_print_conf_u64,
+		.seq_show = tg_print_conf_u64,
 		.write_string = tg_set_conf_u64,
 		.max_write_len = 256,
 	},
 	{
 		.name = "throttle.write_bps_device",
 		.private = offsetof(struct throtl_grp, bps[WRITE]),
-		.read_seq_string = tg_print_conf_u64,
+		.seq_show = tg_print_conf_u64,
 		.write_string = tg_set_conf_u64,
 		.max_write_len = 256,
 	},
 	{
 		.name = "throttle.read_iops_device",
 		.private = offsetof(struct throtl_grp, iops[READ]),
-		.read_seq_string = tg_print_conf_uint,
+		.seq_show = tg_print_conf_uint,
 		.write_string = tg_set_conf_uint,
 		.max_write_len = 256,
 	},
 	{
 		.name = "throttle.write_iops_device",
 		.private = offsetof(struct throtl_grp, iops[WRITE]),
-		.read_seq_string = tg_print_conf_uint,
+		.seq_show = tg_print_conf_uint,
 		.write_string = tg_set_conf_uint,
 		.max_write_len = 256,
 	},
 	{
 		.name = "throttle.io_service_bytes",
 		.private = offsetof(struct tg_stats_cpu, service_bytes),
-		.read_seq_string = tg_print_cpu_rwstat,
+		.seq_show = tg_print_cpu_rwstat,
 	},
 	{
 		.name = "throttle.io_serviced",
 		.private = offsetof(struct tg_stats_cpu, serviced),
-		.read_seq_string = tg_print_cpu_rwstat,
+		.seq_show = tg_print_cpu_rwstat,
 	},
 	{ }	/* terminate */
 };

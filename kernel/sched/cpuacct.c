@@ -163,10 +163,9 @@ out:
 	return err;
 }
 
-static int cpuacct_percpu_seq_read(struct cgroup_subsys_state *css,
-				   struct cftype *cft, struct seq_file *m)
+static int cpuacct_percpu_seq_show(struct seq_file *m, void *V)
 {
-	struct cpuacct *ca = css_ca(css);
+	struct cpuacct *ca = css_ca(seq_css(m));
 	u64 percpu;
 	int i;
 
@@ -183,10 +182,9 @@ static const char * const cpuacct_stat_desc[] = {
 	[CPUACCT_STAT_SYSTEM] = "system",
 };
 
-static int cpuacct_stats_show(struct cgroup_subsys_state *css,
-			      struct cftype *cft, struct seq_file *sf)
+static int cpuacct_stats_show(struct seq_file *sf, void *v)
 {
-	struct cpuacct *ca = css_ca(css);
+	struct cpuacct *ca = css_ca(seq_css(sf));
 	int cpu;
 	s64 val = 0;
 
@@ -220,11 +218,11 @@ static struct cftype files[] = {
 	},
 	{
 		.name = "usage_percpu",
-		.read_seq_string = cpuacct_percpu_seq_read,
+		.seq_show = cpuacct_percpu_seq_show,
 	},
 	{
 		.name = "stat",
-		.read_seq_string = cpuacct_stats_show,
+		.seq_show = cpuacct_stats_show,
 	},
 	{ }	/* terminate */
 };

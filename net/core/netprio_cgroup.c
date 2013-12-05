@@ -173,14 +173,14 @@ static u64 read_prioidx(struct cgroup_subsys_state *css, struct cftype *cft)
 	return css->cgroup->id;
 }
 
-static int read_priomap(struct cgroup_subsys_state *css, struct cftype *cft,
-			struct seq_file *sf)
+static int read_priomap(struct seq_file *sf, void *v)
 {
 	struct net_device *dev;
 
 	rcu_read_lock();
 	for_each_netdev_rcu(&init_net, dev)
-		seq_printf(sf, "%s %u\n", dev->name, netprio_prio(css, dev));
+		seq_printf(sf, "%s %u\n", dev->name,
+			   netprio_prio(seq_css(sf), dev));
 	rcu_read_unlock();
 	return 0;
 }
@@ -238,7 +238,7 @@ static struct cftype ss_files[] = {
 	},
 	{
 		.name = "ifpriomap",
-		.read_seq_string = read_priomap,
+		.seq_show = read_priomap,
 		.write_string = write_priomap,
 	},
 	{ }	/* terminate */
