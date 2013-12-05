@@ -2423,7 +2423,7 @@ EXPORT_SYMBOL_GPL(gpiod_get);
 
 /**
  * gpiod_get_index - obtain a GPIO from a multi-index GPIO function
- * @dev:	GPIO consumer
+ * @dev:	GPIO consumer, can be NULL for system-global GPIOs
  * @con_id:	function within the GPIO consumer
  * @idx:	index of the GPIO to obtain in the consumer
  *
