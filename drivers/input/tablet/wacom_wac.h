@@ -55,6 +55,7 @@
 #define WACOM_REPORT_TPC1FGE		18
 #define WACOM_REPORT_24HDT		1
 #define WACOM_REPORT_WL			128
+#define WACOM_REPORT_USB		192
 
 /* device quirks */
 #define WACOM_QUIRK_MULTI_INPUT		0x0001
@@ -131,6 +132,10 @@ struct wacom_features {
 struct wacom_shared {
 	bool stylus_in_proximity;
 	bool touch_down;
+	/* for wireless device to access USB interfaces */
+	unsigned touch_max;
+	int type;
+	struct input_dev *touch_input;
 };
 
 struct wacom_wac {

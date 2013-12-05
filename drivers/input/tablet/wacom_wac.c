@@ -1219,12 +1219,22 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom)
 
 static int wacom_bpt_pen(struct wacom_wac *wacom)
 {
+	struct wacom_features *features = &wacom->features;
 	struct input_dev *input = wacom->input;
 	unsigned char *data = wacom->data;
 	int prox = 0, x = 0, y = 0, p = 0, d = 0, pen = 0, btn1 = 0, btn2 = 0;
 
-	if (data[0] != WACOM_REPORT_PENABLED)
+	if (data[0] != WACOM_REPORT_PENABLED && data[0] != WACOM_REPORT_USB)
 	    return 0;
+
+	if (data[0] == WACOM_REPORT_USB) {
+		if (features->type == INTUOSHT && features->touch_max) {
+			input_report_switch(wacom->shared->touch_input,
+					    SW_MUTE_DEVICE, data[8] & 0x40);
+			input_sync(wacom->shared->touch_input);
+		}
+		return 0;
+	}
 
 	prox = (data[1] & 0x20) == 0x20;
 
@@ -1258,8 +1268,8 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 		 * touching and applying pressure; do not report negative
 		 * distance.
 		 */
-		if (data[8] <= wacom->features.distance_max)
-			d = wacom->features.distance_max - data[8];
+		if (data[8] <= features->distance_max)
+			d = features->distance_max - data[8];
 
 		pen = data[1] & 0x01;
 		btn1 = data[1] & 0x02;
@@ -1309,6 +1319,13 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 	connected = data[1] & 0x01;
 	if (connected) {
 		int pid, battery;
+
+		if ((wacom->shared->type == INTUOSHT) &&
+				wacom->shared->touch_max) {
+			input_report_switch(wacom->shared->touch_input,
+					SW_MUTE_DEVICE, data[5] & 0x40);
+			input_sync(wacom->shared->touch_input);
+		}
 
 		pid = get_unaligned_be16(&data[6]);
 		battery = data[5] & 0x3f;
@@ -1779,6 +1796,13 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		break;
 
 	case INTUOSHT:
+		if (features->touch_max &&
+		    features->device_type == BTN_TOOL_FINGER) {
+			input_dev->evbit[0] |= BIT_MASK(EV_SW);
+			__set_bit(SW_MUTE_DEVICE, input_dev->swbit);
+		}
+		/* fall through */
+
 	case BAMBOO_PT:
 		__clear_bit(ABS_MISC, input_dev->absbit);
 
