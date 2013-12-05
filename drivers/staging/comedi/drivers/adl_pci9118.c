@@ -1965,7 +1965,6 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct comedi_subdevice *s;
 	int ret, pages, i;
-	unsigned int irq;
 	u16 u16w;
 
 	dev->board_name = this_board->name;
@@ -2036,12 +2035,18 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	pci_write_config_word(pcidev, PCI_COMMAND, u16w | 64);
 				/* Enable parity check for parity error */
 
+	if (!disable_irq && pcidev->irq) {
+		ret = request_irq(pcidev->irq, interrupt_pci9118, IRQF_SHARED,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = pcidev->irq;
+	}
+
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;
 
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
 	if (devpriv->usemux)
@@ -2050,11 +2055,17 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 		s->n_chan = this_board->n_aichan;
 
 	s->maxdata = this_board->ai_maxdata;
-	s->len_chanlist = this_board->n_aichanlist;
 	s->range_table = this_board->rangelist_ai;
-	s->cancel = pci9118_ai_cancel;
 	s->insn_read = pci9118_insn_read_ai;
-	s->munge = pci9118_ai_munge;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags |= SDF_CMD_READ;
+		s->len_chanlist = this_board->n_aichanlist;
+		s->do_cmdtest = pci9118_ai_cmdtest;
+		s->do_cmd = pci9118_ai_cmd;
+		s->cancel = pci9118_ai_cancel;
+		s->munge = pci9118_ai_munge;
+	}
 
 	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_AO;
@@ -2100,27 +2111,7 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 		break;
 	}
 
-	if (disable_irq)
-		irq = 0;
-	else
-		irq = pcidev->irq;
-	if (irq > 0) {
-		if (request_irq(irq, interrupt_pci9118, IRQF_SHARED,
-				dev->board_name, dev)) {
-			dev_warn(dev->class_dev,
-				 "unable to allocate IRQ %u, DISABLING IT\n",
-				 irq);
-		} else {
-			dev->irq = irq;
-			/* Enable AI commands */
-			s = &dev->subdevices[0];
-			s->subdev_flags |= SDF_CMD_READ;
-			s->do_cmdtest = pci9118_ai_cmdtest;
-			s->do_cmd = pci9118_ai_cmd;
-		}
-	}
-
-	pci9118_report_attach(dev, irq);
+	pci9118_report_attach(dev, dev->irq);
 	return 0;
 }
 
