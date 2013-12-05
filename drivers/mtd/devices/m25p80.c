@@ -1204,6 +1204,8 @@ static int m25p_probe(struct spi_device *spi)
 		/* If we were instantiated by DT, use it */
 		if (of_property_read_bool(np, "m25p,fast-read"))
 			flash->flash_read = M25P80_FAST;
+		else
+			flash->flash_read = M25P80_NORMAL;
 	} else {
 		/* If we weren't instantiated by DT, default to fast-read */
 		flash->flash_read = M25P80_FAST;
