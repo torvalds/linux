@@ -198,6 +198,7 @@ struct pool {
 };
 
 static enum pool_mode get_pool_mode(struct pool *pool);
+static void out_of_data_space(struct pool *pool);
 static void metadata_operation_failed(struct pool *pool, const char *op, int r);
 
 /*
@@ -922,15 +923,7 @@ static int alloc_data_block(struct thin_c *tc, dm_block_t *result)
 {
 	int r;
 	dm_block_t free_blocks;
-	unsigned long flags;
 	struct pool *pool = tc->pool;
-
-	/*
-	 * Once no_free_space is set we must not allow allocation to succeed.
-	 * Otherwise it is difficult to explain, debug, test and support.
-	 */
-	if (pool->no_free_space)
-		return -ENOSPC;
 
 	if (get_pool_mode(pool) != PM_WRITE)
 		return -EINVAL;
@@ -958,31 +951,14 @@ static int alloc_data_block(struct thin_c *tc, dm_block_t *result)
 			return r;
 		}
 
-		/*
-		 * If we still have no space we set a flag to avoid
-		 * doing all this checking and return -ENOSPC.  This
-		 * flag serves as a latch that disallows allocations from
-		 * this pool until the admin takes action (e.g. resize or
-		 * table reload).
-		 */
 		if (!free_blocks) {
-			DMWARN("%s: no free data space available.",
-			       dm_device_name(pool->pool_md));
-			spin_lock_irqsave(&pool->lock, flags);
-			pool->no_free_space = true;
-			spin_unlock_irqrestore(&pool->lock, flags);
+			out_of_data_space(pool);
 			return -ENOSPC;
 		}
 	}
 
 	r = dm_pool_alloc_data_block(pool->pmd, result);
 	if (r) {
-		if (r == -ENOSPC &&
-		    !dm_pool_get_free_metadata_block_count(pool->pmd, &free_blocks) &&
-		    !free_blocks)
-			DMWARN("%s: no free metadata space available.",
-			       dm_device_name(pool->pool_md));
-
 		metadata_operation_failed(pool, "dm_pool_alloc_data_block", r);
 		return r;
 	}
@@ -1006,7 +982,7 @@ static void retry_on_resume(struct bio *bio)
 	spin_unlock_irqrestore(&pool->lock, flags);
 }
 
-static void no_space(struct pool *pool, struct dm_bio_prison_cell *cell)
+static void retry_bios_on_resume(struct pool *pool, struct dm_bio_prison_cell *cell)
 {
 	struct bio *bio;
 	struct bio_list bios;
@@ -1119,7 +1095,7 @@ static void break_sharing(struct thin_c *tc, struct bio *bio, dm_block_t block,
 		break;
 
 	case -ENOSPC:
-		no_space(pool, cell);
+		retry_bios_on_resume(pool, cell);
 		break;
 
 	default:
@@ -1197,7 +1173,7 @@ static void provision_block(struct thin_c *tc, struct bio *bio, dm_block_t block
 		break;
 
 	case -ENOSPC:
-		no_space(pool, cell);
+		retry_bios_on_resume(pool, cell);
 		break;
 
 	default:
@@ -1446,14 +1422,41 @@ static void set_pool_mode(struct pool *pool, enum pool_mode mode)
 	}
 }
 
+static void set_no_free_space(struct pool *pool)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&pool->lock, flags);
+	pool->no_free_space = true;
+	spin_unlock_irqrestore(&pool->lock, flags);
+}
+
 /*
  * Rather than calling set_pool_mode directly, use these which describe the
  * reason for mode degradation.
  */
+static void out_of_data_space(struct pool *pool)
+{
+	DMERR_LIMIT("%s: no free data space available.",
+		    dm_device_name(pool->pool_md));
+	set_no_free_space(pool);
+	set_pool_mode(pool, PM_READ_ONLY);
+}
+
 static void metadata_operation_failed(struct pool *pool, const char *op, int r)
 {
+	dm_block_t free_blocks;
+
 	DMERR_LIMIT("%s: metadata operation '%s' failed: error = %d",
 		    dm_device_name(pool->pool_md), op, r);
+
+	if (r == -ENOSPC &&
+	    !dm_pool_get_free_metadata_block_count(pool->pmd, &free_blocks) &&
+	    !free_blocks) {
+		DMERR_LIMIT("%s: no free metadata space available.",
+			    dm_device_name(pool->pool_md));
+		set_no_free_space(pool);
+	}
 
 	set_pool_mode(pool, PM_READ_ONLY);
 }
