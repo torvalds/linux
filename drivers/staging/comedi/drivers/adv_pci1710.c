@@ -1264,21 +1264,21 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 
 	if (this_board->n_aichan) {
 		s = &dev->subdevices[subdev];
-		dev->read_subdev = s;
 		s->type = COMEDI_SUBD_AI;
 		s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND;
 		if (this_board->n_aichand)
 			s->subdev_flags |= SDF_DIFF;
 		s->n_chan = this_board->n_aichan;
 		s->maxdata = this_board->ai_maxdata;
-		s->len_chanlist = this_board->n_aichan;
 		s->range_table = this_board->rangelist_ai;
-		s->cancel = pci171x_ai_cancel;
 		s->insn_read = pci171x_insn_read_ai;
 		if (dev->irq) {
+			dev->read_subdev = s;
 			s->subdev_flags |= SDF_CMD_READ;
+			s->len_chanlist = s->n_chan;
 			s->do_cmdtest = pci171x_ai_cmdtest;
 			s->do_cmd = pci171x_ai_cmd;
+			s->cancel = pci171x_ai_cancel;
 		}
 		devpriv->i8254_osc_base = I8254_OSC_BASE_10MHZ;
 		subdev++;
