@@ -2286,6 +2286,45 @@ out_free:
  * supports string->u64 maps, but can be extended in future.
  */
 
+static void *cgroup_seqfile_start(struct seq_file *seq, loff_t *ppos)
+{
+	struct cftype *cft = seq_cft(seq);
+
+	if (cft->seq_start) {
+		return cft->seq_start(seq, ppos);
+	} else {
+		/*
+		 * The same behavior and code as single_open().  Returns
+		 * !NULL if pos is at the beginning; otherwise, NULL.
+		 */
+		return NULL + !*ppos;
+	}
+}
+
+static void *cgroup_seqfile_next(struct seq_file *seq, void *v, loff_t *ppos)
+{
+	struct cftype *cft = seq_cft(seq);
+
+	if (cft->seq_next) {
+		return cft->seq_next(seq, v, ppos);
+	} else {
+		/*
+		 * The same behavior and code as single_open(), always
+		 * terminate after the initial read.
+		 */
+		++*ppos;
+		return NULL;
+	}
+}
+
+static void cgroup_seqfile_stop(struct seq_file *seq, void *v)
+{
+	struct cftype *cft = seq_cft(seq);
+
+	if (cft->seq_stop)
+		cft->seq_stop(seq, v);
+}
+
 static int cgroup_seqfile_show(struct seq_file *m, void *arg)
 {
 	struct cftype *cft = seq_cft(m);
@@ -2303,12 +2342,20 @@ static int cgroup_seqfile_show(struct seq_file *m, void *arg)
 	return 0;
 }
 
+static struct seq_operations cgroup_seq_operations = {
+	.start		= cgroup_seqfile_start,
+	.next		= cgroup_seqfile_next,
+	.stop		= cgroup_seqfile_stop,
+	.show		= cgroup_seqfile_show,
+};
+
 static int cgroup_file_open(struct inode *inode, struct file *file)
 {
 	struct cfent *cfe = __d_cfe(file->f_dentry);
 	struct cftype *cft = __d_cft(file->f_dentry);
 	struct cgroup *cgrp = __d_cgrp(cfe->dentry->d_parent);
 	struct cgroup_subsys_state *css;
+	struct cgroup_open_file *of;
 	int err;
 
 	err = generic_file_open(inode, file);
@@ -2338,24 +2385,16 @@ static int cgroup_file_open(struct inode *inode, struct file *file)
 	WARN_ON_ONCE(cfe->css && cfe->css != css);
 	cfe->css = css;
 
-	if (cft->open) {
-		err = cft->open(inode, file);
-	} else {
-		struct cgroup_open_file *of;
-
-		err = -ENOMEM;
-		of = kzalloc(sizeof(*of), GFP_KERNEL);
-		if (of) {
-			of->cfe = cfe;
-			err = single_open(file, cgroup_seqfile_show, of);
-			if (err)
-				kfree(of);
-		}
+	of = __seq_open_private(file, &cgroup_seq_operations,
+				sizeof(struct cgroup_open_file));
+	if (of) {
+		of->cfe = cfe;
+		return 0;
 	}
 
-	if (css->ss && err)
+	if (css->ss)
 		css_put(css);
-	return err;
+	return -ENOMEM;
 }
 
 static int cgroup_file_release(struct inode *inode, struct file *file)
@@ -2365,8 +2404,7 @@ static int cgroup_file_release(struct inode *inode, struct file *file)
 
 	if (css->ss)
 		css_put(css);
-	kfree(((struct seq_file *)file->private_data)->private);
-	return single_release(inode, file);
+	return seq_release_private(inode, file);
 }
 
 /*
@@ -3777,36 +3815,6 @@ static const struct seq_operations cgroup_pidlist_seq_operations = {
 	.show = cgroup_pidlist_show,
 };
 
-static const struct file_operations cgroup_pidlist_operations = {
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.write = cgroup_file_write,
-	.release = seq_release_private,
-};
-
-/*
- * The following functions handle opens on a file that displays a pidlist
- * (tasks or procs). Prepare an array of the process/thread IDs of whoever's
- * in the cgroup.
- */
-/* helper function for the two below it */
-static int cgroup_pidlist_open(struct inode *unused, struct file *file)
-{
-	struct cfent *cfe = __d_cfe(file->f_dentry);
-	struct cgroup_open_file *of;
-
-	/* configure file information */
-	file->f_op = &cgroup_pidlist_operations;
-
-	of = __seq_open_private(file, &cgroup_pidlist_seq_operations,
-				sizeof(*of));
-	if (!of)
-		return -ENOMEM;
-
-	of->cfe = cfe;
-	return 0;
-}
-
 static u64 cgroup_read_notify_on_release(struct cgroup_subsys_state *css,
 					 struct cftype *cft)
 {
@@ -3860,7 +3868,10 @@ static int cgroup_clone_children_write(struct cgroup_subsys_state *css,
 static struct cftype cgroup_base_files[] = {
 	{
 		.name = "cgroup.procs",
-		.open = cgroup_pidlist_open,
+		.seq_start = cgroup_pidlist_start,
+		.seq_next = cgroup_pidlist_next,
+		.seq_stop = cgroup_pidlist_stop,
+		.seq_show = cgroup_pidlist_show,
 		.private = CGROUP_FILE_PROCS,
 		.write_u64 = cgroup_procs_write,
 		.mode = S_IRUGO | S_IWUSR,
@@ -3885,7 +3896,10 @@ static struct cftype cgroup_base_files[] = {
 	{
 		.name = "tasks",
 		.flags = CFTYPE_INSANE,		/* use "procs" instead */
-		.open = cgroup_pidlist_open,
+		.seq_start = cgroup_pidlist_start,
+		.seq_next = cgroup_pidlist_next,
+		.seq_stop = cgroup_pidlist_stop,
+		.seq_show = cgroup_pidlist_show,
 		.private = CGROUP_FILE_TASKS,
 		.write_u64 = cgroup_tasks_write,
 		.mode = S_IRUGO | S_IWUSR,

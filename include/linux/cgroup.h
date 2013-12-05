@@ -434,7 +434,6 @@ struct cftype {
 	 */
 	struct cgroup_subsys *ss;
 
-	int (*open)(struct inode *inode, struct file *file);
 	/*
 	 * read_u64() is a shortcut for the common case of returning a
 	 * single integer. Use it in place of read()
@@ -447,6 +446,11 @@ struct cftype {
 
 	/* generic seq_file read interface */
 	int (*seq_show)(struct seq_file *sf, void *v);
+
+	/* optional ops, implement all or none */
+	void *(*seq_start)(struct seq_file *sf, loff_t *ppos);
+	void *(*seq_next)(struct seq_file *sf, void *v, loff_t *ppos);
+	void (*seq_stop)(struct seq_file *sf, void *v);
 
 	/*
 	 * write_u64() is a shortcut for the common case of accepting
