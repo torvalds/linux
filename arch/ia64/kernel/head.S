@@ -416,8 +416,6 @@ start_ap:
 
 default_setup_hook = 0		// Currently nothing needs to be done.
 
-	.weak xen_setup_hook
-
 	.global hypervisor_type
 hypervisor_type:
 	data8		PARAVIRT_HYPERVISOR_TYPE_DEFAULT
@@ -426,7 +424,6 @@ hypervisor_type:
 
 hypervisor_setup_hooks:
 	data8		default_setup_hook
-	data8		xen_setup_hook
 num_hypervisor_hooks = (. - hypervisor_setup_hooks) / 8
 	.previous
 
