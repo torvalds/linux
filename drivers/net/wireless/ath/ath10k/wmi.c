@@ -937,7 +937,11 @@ static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = le16_to_cpu(hdr->frame_control);
 
-	if (fc & IEEE80211_FCTL_PROTECTED) {
+	/* FW delivers WEP Shared Auth frame with Protected Bit set and
+	 * encrypted payload. However in case of PMF it delivers decrypted
+	 * frames with Protected Bit set. */
+	if (ieee80211_has_protected(hdr->frame_control) &&
+	    !ieee80211_is_auth(hdr->frame_control)) {
 		status->flag |= RX_FLAG_DECRYPTED | RX_FLAG_IV_STRIPPED |
 				RX_FLAG_MMIC_STRIPPED;
 		hdr->frame_control = __cpu_to_le16(fc &
