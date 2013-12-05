@@ -57,15 +57,15 @@ enum r600_hdmi_iec_status_bits {
 static const struct radeon_hdmi_acr r600_hdmi_predefined_acr[] = {
     /*	     32kHz	  44.1kHz	48kHz    */
     /* Clock      N     CTS      N     CTS      N     CTS */
-    {  25174,  4576,  28125,  7007,  31250,  6864,  28125 }, /*  25,20/1.001 MHz */
+    {  25175,  4576,  28125,  7007,  31250,  6864,  28125 }, /*  25,20/1.001 MHz */
     {  25200,  4096,  25200,  6272,  28000,  6144,  25200 }, /*  25.20       MHz */
     {  27000,  4096,  27000,  6272,  30000,  6144,  27000 }, /*  27.00       MHz */
     {  27027,  4096,  27027,  6272,  30030,  6144,  27027 }, /*  27.00*1.001 MHz */
     {  54000,  4096,  54000,  6272,  60000,  6144,  54000 }, /*  54.00       MHz */
     {  54054,  4096,  54054,  6272,  60060,  6144,  54054 }, /*  54.00*1.001 MHz */
-    {  74175, 11648, 210937, 17836, 234375, 11648, 140625 }, /*  74.25/1.001 MHz */
+    {  74176, 11648, 210937, 17836, 234375, 11648, 140625 }, /*  74.25/1.001 MHz */
     {  74250,  4096,  74250,  6272,  82500,  6144,  74250 }, /*  74.25       MHz */
-    { 148351, 11648, 421875,  8918, 234375,  5824, 140625 }, /* 148.50/1.001 MHz */
+    { 148352, 11648, 421875,  8918, 234375,  5824, 140625 }, /* 148.50/1.001 MHz */
     { 148500,  4096, 148500,  6272, 165000,  6144, 148500 }, /* 148.50       MHz */
     {      0,  4096,      0,  6272,      0,  6144,      0 }  /* Other */
 };
@@ -75,8 +75,15 @@ static const struct radeon_hdmi_acr r600_hdmi_predefined_acr[] = {
  */
 static void r600_hdmi_calc_cts(uint32_t clock, int *CTS, int N, int freq)
 {
-	if (*CTS == 0)
-		*CTS = clock * N / (128 * freq) * 1000;
+	u64 n;
+	u32 d;
+
+	if (*CTS == 0) {
+		n = (u64)clock * (u64)N * 1000ULL;
+		d = 128 * freq;
+		do_div(n, d);
+		*CTS = n;
+	}
 	DRM_DEBUG("Using ACR timing N=%d CTS=%d for frequency %d\n",
 		  N, *CTS, freq);
 }
@@ -313,8 +320,8 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	}
 
 	WREG32(HDMI0_ACR_PACKET_CONTROL + offset,
-	       HDMI0_ACR_AUTO_SEND | /* allow hw to sent ACR packets when required */
-	       HDMI0_ACR_SOURCE); /* select SW CTS value */
+	       HDMI0_ACR_SOURCE | /* select SW CTS value - XXX verify that hw CTS works on all families */
+	       HDMI0_ACR_AUTO_SEND); /* allow hw to sent ACR packets when required */
 
 	WREG32(HDMI0_VBI_PACKET_CONTROL + offset,
 	       HDMI0_NULL_SEND | /* send null packets when required */
