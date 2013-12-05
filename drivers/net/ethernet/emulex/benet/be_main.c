@@ -2940,27 +2940,34 @@ static void be_cancel_worker(struct be_adapter *adapter)
 	}
 }
 
-static int be_clear(struct be_adapter *adapter)
+static void be_mac_clear(struct be_adapter *adapter)
 {
 	int i;
 
+	if (adapter->pmac_id) {
+		for (i = 0; i < (adapter->uc_macs + 1); i++)
+			be_cmd_pmac_del(adapter, adapter->if_handle,
+					adapter->pmac_id[i], 0);
+		adapter->uc_macs = 0;
+
+		kfree(adapter->pmac_id);
+		adapter->pmac_id = NULL;
+	}
+}
+
+static int be_clear(struct be_adapter *adapter)
+{
 	be_cancel_worker(adapter);
 
 	if (sriov_enabled(adapter))
 		be_vf_clear(adapter);
 
 	/* delete the primary mac along with the uc-mac list */
-	for (i = 0; i < (adapter->uc_macs + 1); i++)
-		be_cmd_pmac_del(adapter, adapter->if_handle,
-				adapter->pmac_id[i], 0);
-	adapter->uc_macs = 0;
+	be_mac_clear(adapter);
 
 	be_cmd_if_destroy(adapter, adapter->if_handle,  0);
 
 	be_clear_queues(adapter);
-
-	kfree(adapter->pmac_id);
-	adapter->pmac_id = NULL;
 
 	be_msix_disable(adapter);
 	return 0;
