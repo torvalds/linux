@@ -352,13 +352,12 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct dt3k_private *devpriv = dev->private;
-	struct comedi_subdevice *s;
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int status;
 
 	if (!dev->attached)
 		return IRQ_NONE;
 
-	s = &dev->subdevices[0];
 	status = readw(devpriv->io_addr + DPR_Intr_Flag);
 
 	if (status & DT3000_ADFULL) {
