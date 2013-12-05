@@ -7327,9 +7327,6 @@ static int nl80211_set_tx_bitrate_mask(struct sk_buff *skb,
 	struct nlattr *tx_rates;
 	struct ieee80211_supported_band *sband;
 
-	if (info->attrs[NL80211_ATTR_TX_RATES] == NULL)
-		return -EINVAL;
-
 	if (!rdev->ops->set_bitrate_mask)
 		return -EOPNOTSUPP;
 
@@ -7346,6 +7343,10 @@ static int nl80211_set_tx_bitrate_mask(struct sk_buff *skb,
 		       sband->ht_cap.mcs.rx_mask,
 		       sizeof(mask.control[i].mcs));
 	}
+
+	/* if no rates are given set it back to the defaults */
+	if (!info->attrs[NL80211_ATTR_TX_RATES])
+		goto out;
 
 	/*
 	 * The nested attribute uses enum nl80211_band as the index. This maps
@@ -7396,6 +7397,7 @@ static int nl80211_set_tx_bitrate_mask(struct sk_buff *skb,
 		}
 	}
 
+out:
 	return rdev_set_bitrate_mask(rdev, dev, NULL, &mask);
 }
 
