@@ -2397,6 +2397,10 @@ static int adv7842_core_init(struct v4l2_subdev *sd,
 		sdp_io_write(sd, 0x99, s->de_beg & 0xff);
 		sdp_io_write(sd, 0x9a, (s->de_end>>8) & 0xf);
 		sdp_io_write(sd, 0x9b, s->de_end & 0xff);
+		sdp_io_write(sd, 0xac, s->de_v_beg_o);
+		sdp_io_write(sd, 0xad, s->de_v_beg_e);
+		sdp_io_write(sd, 0xae, s->de_v_end_o);
+		sdp_io_write(sd, 0xaf, s->de_v_end_e);
 	}
 
 	/* todo, improve settings for sdram */

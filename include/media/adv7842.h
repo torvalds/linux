@@ -131,6 +131,10 @@ struct adv7842_sdp_io_sync_adjustment {
 	uint16_t hs_width;
 	uint16_t de_beg;
 	uint16_t de_end;
+	uint8_t de_v_beg_o;
+	uint8_t de_v_beg_e;
+	uint8_t de_v_end_o;
+	uint8_t de_v_end_e;
 };
 
 /* Platform dependent definition */
