@@ -141,12 +141,36 @@ struct pcmuio_private {
 	unsigned int irq2;
 };
 
+static inline unsigned long pcmuio_asic_iobase(struct comedi_device *dev,
+					       int asic)
+{
+	return dev->iobase + (asic * PCMUIO_ASIC_IOSIZE);
+}
+
+static inline int pcmuio_subdevice_to_asic(struct comedi_subdevice *s)
+{
+	/*
+	 * subdevice 0 and 1 are handled by the first asic
+	 * subdevice 2 and 3 are handled by the second asic
+	 */
+	return s->index / 2;
+}
+
+static inline int pcmuio_subdevice_to_port(struct comedi_subdevice *s)
+{
+	/*
+	 * subdevice 0 and 2 use port registers 0-2
+	 * subdevice 1 and 3 use port registers 3-5
+	 */
+	return (s->index % 2) ? 3 : 0;
+}
+
 static void pcmuio_write(struct comedi_device *dev, unsigned int val,
 			 int asic, int page, int port)
 {
 	struct pcmuio_private *devpriv = dev->private;
 	struct pcmuio_asic *chip = &devpriv->asics[asic];
-	unsigned long iobase = dev->iobase + (asic * PCMUIO_ASIC_IOSIZE);
+	unsigned long iobase = pcmuio_asic_iobase(dev, asic);
 	unsigned long flags;
 
 	spin_lock_irqsave(&chip->pagelock, flags);
@@ -169,7 +193,7 @@ static unsigned int pcmuio_read(struct comedi_device *dev,
 {
 	struct pcmuio_private *devpriv = dev->private;
 	struct pcmuio_asic *chip = &devpriv->asics[asic];
-	unsigned long iobase = dev->iobase + (asic * PCMUIO_ASIC_IOSIZE);
+	unsigned long iobase = pcmuio_asic_iobase(dev, asic);
 	unsigned long flags;
 	unsigned int val;
 
@@ -205,9 +229,9 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
+	int asic = pcmuio_subdevice_to_asic(s);
+	int port = pcmuio_subdevice_to_port(s);
 	unsigned int chanmask = (1 << s->n_chan) - 1;
-	int asic = s->index / 2;
-	int port = (s->index % 2) ? 3 : 0;
 	unsigned int mask;
 	unsigned int val;
 
@@ -240,8 +264,8 @@ static int pcmuio_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
 {
-	int asic = s->index / 2;
-	int port = (s->index % 2) ? 3 : 0;
+	int asic = pcmuio_subdevice_to_asic(s);
+	int port = pcmuio_subdevice_to_port(s);
 	int ret;
 
 	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
@@ -275,7 +299,7 @@ static void pcmuio_stop_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
 	struct pcmuio_private *devpriv = dev->private;
-	int asic = s->index / 2;
+	int asic = pcmuio_subdevice_to_asic(s);
 	struct pcmuio_asic *chip = &devpriv->asics[asic];
 
 	chip->enabled_mask = 0;
@@ -291,7 +315,7 @@ static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
 				      unsigned triggered)
 {
 	struct pcmuio_private *devpriv = dev->private;
-	int asic = s->index / 2;
+	int asic = pcmuio_subdevice_to_asic(s);
 	struct pcmuio_asic *chip = &devpriv->asics[asic];
 	unsigned int len = s->async->cmd.chanlist_len;
 	unsigned oldevents = s->async->events;
@@ -347,7 +371,7 @@ static int pcmuio_handle_asic_interrupt(struct comedi_device *dev, int asic)
 {
 	/* there are could be two asics so we can't use dev->read_subdev */
 	struct comedi_subdevice *s = &dev->subdevices[asic * 2];
-	unsigned long iobase = dev->iobase + (asic * PCMUIO_ASIC_IOSIZE);
+	unsigned long iobase = pcmuio_asic_iobase(dev, asic);
 	unsigned int val;
 
 	/* are there any interrupts pending */
@@ -383,7 +407,7 @@ static int pcmuio_start_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
 	struct pcmuio_private *devpriv = dev->private;
-	int asic = s->index / 2;
+	int asic = pcmuio_subdevice_to_asic(s);
 	struct pcmuio_asic *chip = &devpriv->asics[asic];
 
 	if (!chip->continuous && chip->stop_count == 0) {
@@ -419,7 +443,7 @@ static int pcmuio_start_intr(struct comedi_device *dev,
 static int pcmuio_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pcmuio_private *devpriv = dev->private;
-	int asic = s->index / 2;
+	int asic = pcmuio_subdevice_to_asic(s);
 	struct pcmuio_asic *chip = &devpriv->asics[asic];
 	unsigned long flags;
 
@@ -439,7 +463,7 @@ pcmuio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
 			  unsigned int trignum)
 {
 	struct pcmuio_private *devpriv = dev->private;
-	int asic = s->index / 2;
+	int asic = pcmuio_subdevice_to_asic(s);
 	struct pcmuio_asic *chip = &devpriv->asics[asic];
 	unsigned long flags;
 	int event = 0;
@@ -467,7 +491,7 @@ static int pcmuio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pcmuio_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int asic = s->index / 2;
+	int asic = pcmuio_subdevice_to_asic(s);
 	struct pcmuio_asic *chip = &devpriv->asics[asic];
 	unsigned long flags;
 	int event = 0;
