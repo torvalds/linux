@@ -326,6 +326,7 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 
 /* this forward declaration can avoid to export the function */
 static void iwl_mvm_async_handlers_wk(struct work_struct *wk);
+static void iwl_mvm_d0i3_exit_work(struct work_struct *wk);
 
 static u32 calc_min_backoff(struct iwl_trans *trans, const struct iwl_cfg *cfg)
 {
@@ -404,6 +405,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	INIT_WORK(&mvm->async_handlers_wk, iwl_mvm_async_handlers_wk);
 	INIT_WORK(&mvm->roc_done_wk, iwl_mvm_roc_done_wk);
 	INIT_WORK(&mvm->sta_drained_wk, iwl_mvm_sta_drained_wk);
+	INIT_WORK(&mvm->d0i3_exit_work, iwl_mvm_d0i3_exit_work);
 
 	SET_IEEE80211_DEV(mvm->hw, mvm->trans->dev);
 
@@ -819,10 +821,18 @@ static void iwl_mvm_cmd_queue_full(struct iwl_op_mode *op_mode)
 	iwl_mvm_nic_restart(mvm);
 }
 
+struct iwl_d0i3_iter_data {
+	struct iwl_mvm *mvm;
+	u8 ap_sta_id;
+	u8 vif_count;
+};
+
 static void iwl_mvm_enter_d0i3_iterator(void *_data, u8 *mac,
 					struct ieee80211_vif *vif)
 {
-	struct iwl_mvm *mvm = _data;
+	struct iwl_d0i3_iter_data *data = _data;
+	struct iwl_mvm *mvm = data->mvm;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	u32 flags = CMD_ASYNC | CMD_HIGH_PRIO | CMD_SEND_IN_IDLE;
 
 	IWL_DEBUG_RPM(mvm, "entering D0i3 - vif %pM\n", vif->addr);
@@ -838,6 +848,8 @@ static void iwl_mvm_enter_d0i3_iterator(void *_data, u8 *mac,
 	 * reconfigure them (we might want to use different
 	 * params later on, though).
 	 */
+	data->ap_sta_id = mvmvif->ap_sta_id;
+	data->vif_count++;
 }
 
 static int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
@@ -845,6 +857,9 @@ static int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 	u32 flags = CMD_ASYNC | CMD_HIGH_PRIO | CMD_SEND_IN_IDLE;
 	int ret;
+	struct iwl_d0i3_iter_data d0i3_iter_data = {
+		.mvm = mvm,
+	};
 	struct iwl_wowlan_config_cmd wowlan_config_cmd = {
 		.wakeup_filter = cpu_to_le32(IWL_WOWLAN_WAKEUP_RX_FRAME |
 					     IWL_WOWLAN_WAKEUP_BEACON_MISS |
@@ -860,7 +875,13 @@ static int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
 						   IEEE80211_IFACE_ITER_NORMAL,
 						   iwl_mvm_enter_d0i3_iterator,
-						   mvm);
+						   &d0i3_iter_data);
+	if (d0i3_iter_data.vif_count == 1) {
+		mvm->d0i3_ap_sta_id = d0i3_iter_data.ap_sta_id;
+	} else {
+		WARN_ON_ONCE(d0i3_iter_data.vif_count > 1);
+		mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
+	}
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, flags,
 				   sizeof(wowlan_config_cmd),
@@ -887,6 +908,54 @@ static void iwl_mvm_exit_d0i3_iterator(void *_data, u8 *mac,
 	iwl_mvm_update_d0i3_power_mode(mvm, vif, false, flags);
 }
 
+static void iwl_mvm_d0i3_disconnect_iter(void *data, u8 *mac,
+					 struct ieee80211_vif *vif)
+{
+	struct iwl_mvm *mvm = data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (vif->type == NL80211_IFTYPE_STATION && vif->bss_conf.assoc &&
+	    mvm->d0i3_ap_sta_id == mvmvif->ap_sta_id)
+		ieee80211_connection_loss(vif);
+}
+
+static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
+{
+	struct iwl_mvm *mvm = container_of(wk, struct iwl_mvm, d0i3_exit_work);
+	struct iwl_host_cmd get_status_cmd = {
+		.id = WOWLAN_GET_STATUSES,
+		.flags = CMD_SYNC | CMD_HIGH_PRIO | CMD_WANT_SKB,
+	};
+	struct iwl_wowlan_status_v6 *status;
+	int ret;
+	u32 disconnection_reasons, wakeup_reasons;
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_send_cmd(mvm, &get_status_cmd);
+	if (ret)
+		goto out;
+
+	if (!get_status_cmd.resp_pkt)
+		goto out;
+
+	status = (void *)get_status_cmd.resp_pkt->data;
+	wakeup_reasons = le32_to_cpu(status->wakeup_reasons);
+
+	IWL_DEBUG_RPM(mvm, "wakeup reasons: 0x%x\n", wakeup_reasons);
+
+	disconnection_reasons =
+		IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_MISSED_BEACON |
+		IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_DEAUTH;
+	if (wakeup_reasons & disconnection_reasons)
+		ieee80211_iterate_active_interfaces(
+			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+			iwl_mvm_d0i3_disconnect_iter, mvm);
+
+	iwl_free_resp(&get_status_cmd);
+out:
+	mutex_unlock(&mvm->mutex);
+}
+
 static int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
@@ -898,13 +967,15 @@ static int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode)
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, D0I3_END_CMD, flags, 0, NULL);
 	if (ret)
-		return ret;
+		goto out;
 
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
 						   IEEE80211_IFACE_ITER_NORMAL,
 						   iwl_mvm_exit_d0i3_iterator,
 						   mvm);
-	return 0;
+out:
+	schedule_work(&mvm->d0i3_exit_work);
+	return ret;
 }
 
 static const struct iwl_op_mode_ops iwl_mvm_ops = {

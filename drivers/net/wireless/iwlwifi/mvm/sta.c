@@ -522,6 +522,10 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 
 		/* unassoc - go ahead - remove the AP STA now */
 		mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
+
+		/* clear d0i3_ap_sta_id if no longer relevant */
+		if (mvm->d0i3_ap_sta_id == mvm_sta->sta_id)
+			mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
 	}
 
 	/*

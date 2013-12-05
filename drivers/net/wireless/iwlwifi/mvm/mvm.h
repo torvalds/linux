@@ -577,6 +577,10 @@ struct iwl_mvm {
 #endif
 #endif
 
+	/* d0i3 */
+	u8 d0i3_ap_sta_id;
+	struct work_struct d0i3_exit_work;
+
 	/* BT-Coex */
 	u8 bt_kill_msk;
 	struct iwl_bt_coex_profile_notif last_bt_notif;
