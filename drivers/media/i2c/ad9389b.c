@@ -978,7 +978,7 @@ static bool edid_block_verify_crc(u8 *edid_block)
 	return sum == 0;
 }
 
-static bool edid_segment_verify_crc(struct v4l2_subdev *sd, u32 segment)
+static bool edid_verify_crc(struct v4l2_subdev *sd, u32 segment)
 {
 	struct ad9389b_state *state = get_ad9389b_state(sd);
 	u32 blocks = state->edid.blocks;
@@ -990,6 +990,25 @@ static bool edid_segment_verify_crc(struct v4l2_subdev *sd, u32 segment)
 		return true;
 	}
 	return false;
+}
+
+static bool edid_verify_header(struct v4l2_subdev *sd, u32 segment)
+{
+	static const u8 hdmi_header[] = {
+		0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00
+	};
+	struct ad9389b_state *state = get_ad9389b_state(sd);
+	u8 *data = state->edid.data;
+	int i;
+
+	if (segment)
+		return true;
+
+	for (i = 0; i < ARRAY_SIZE(hdmi_header); i++)
+		if (data[i] != hdmi_header[i])
+			return false;
+
+	return true;
 }
 
 static bool ad9389b_check_edid_status(struct v4l2_subdev *sd)
@@ -1019,9 +1038,10 @@ static bool ad9389b_check_edid_status(struct v4l2_subdev *sd)
 		v4l2_dbg(1, debug, sd, "%s: %d blocks in total\n",
 				__func__, state->edid.blocks);
 	}
-	if (!edid_segment_verify_crc(sd, segment)) {
+	if (!edid_verify_crc(sd, segment) ||
+			!edid_verify_header(sd, segment)) {
 		/* edid crc error, force reread of edid segment */
-		v4l2_err(sd, "%s: edid crc error\n", __func__);
+		v4l2_err(sd, "%s: edid crc or header error\n", __func__);
 		state->have_monitor = false;
 		ad9389b_s_power(sd, false);
 		ad9389b_s_power(sd, true);
