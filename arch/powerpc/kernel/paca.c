@@ -99,7 +99,7 @@ static inline void free_lppacas(void) { }
  * 3 persistent SLBs are registered here.  The buffer will be zero
  * initially, hence will all be invaild until we actually write them.
  */
-struct slb_shadow slb_shadow[] __cacheline_aligned = {
+static struct slb_shadow slb_shadow[] __cacheline_aligned = {
 	[0 ... (NR_CPUS-1)] = {
 		.persistent = cpu_to_be32(SLB_NUM_BOLTED),
 		.buffer_length = cpu_to_be32(sizeof(struct slb_shadow)),

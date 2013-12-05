@@ -92,7 +92,7 @@ void vpa_init(int cpu)
 	 * PAPR says this feature is SLB-Buffer but firmware never
 	 * reports that.  All SPLPAR support SLB shadow buffer.
 	 */
-	addr = __pa(&slb_shadow[cpu]);
+	addr = __pa(paca[cpu].slb_shadow_ptr);
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		ret = register_slb_shadow(hwcpu, addr);
 		if (ret)
