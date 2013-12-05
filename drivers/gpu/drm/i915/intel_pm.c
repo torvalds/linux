@@ -2715,6 +2715,17 @@ static int ilk_wm_lp_to_level(int wm_lp, const struct intel_pipe_wm *pipe_wm)
 	return wm_lp + (wm_lp >= 2 && pipe_wm->wm[4].enable);
 }
 
+/* The value we need to program into the WM_LPx latency field */
+static unsigned int ilk_wm_lp_latency(struct drm_device *dev, int level)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (IS_HASWELL(dev))
+		return 2 * level;
+	else
+		return dev_priv->wm.pri_latency[level];
+}
+
 static void hsw_compute_wm_results(struct drm_device *dev,
 				   const struct intel_pipe_wm *merged,
 				   enum intel_ddb_partitioning partitioning,
@@ -2737,7 +2748,7 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 			break;
 
 		results->wm_lp[wm_lp - 1] = WM3_LP_EN |
-			((level * 2) << WM1_LP_LATENCY_SHIFT) |
+			(ilk_wm_lp_latency(dev, level) << WM1_LP_LATENCY_SHIFT) |
 			(r->pri_val << WM1_LP_SR_SHIFT) |
 			r->cur_val;
 
