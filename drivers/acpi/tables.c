@@ -306,7 +306,7 @@ int __init acpi_table_parse(char *id, acpi_tbl_table_handler handler)
 		early_acpi_os_unmap_memory(table, tbl_size);
 		return 0;
 	} else
-		return 1;
+		return -ENODEV;
 }
 
 /* 
@@ -351,7 +351,7 @@ int __init acpi_table_init(void)
 
 	status = acpi_initialize_tables(initial_tables, ACPI_MAX_TABLES, 0);
 	if (ACPI_FAILURE(status))
-		return 1;
+		return -EINVAL;
 
 	check_multiple_madt();
 	return 0;
