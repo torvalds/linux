@@ -700,6 +700,9 @@ static int edid_write_hdmi_segment(struct v4l2_subdev *sd, u8 port)
 	/* Disable I2C access to internal EDID ram from HDMI DDC ports */
 	rep_write_and_or(sd, 0x77, 0xf3, 0x00);
 
+	if (!state->hdmi_edid.present)
+		return 0;
+
 	/* edid segment pointer '0' for HDMI ports */
 	rep_write_and_or(sd, 0x77, 0xef, 0x00);
 
@@ -2638,8 +2641,8 @@ static int adv7842_command_ram_test(struct v4l2_subdev *sd)
 	adv7842_s_dv_timings(sd, &state->timings);
 
 	edid_write_vga_segment(sd);
-	edid_write_hdmi_segment(sd, 0);
-	edid_write_hdmi_segment(sd, 1);
+	edid_write_hdmi_segment(sd, ADV7842_EDID_PORT_A);
+	edid_write_hdmi_segment(sd, ADV7842_EDID_PORT_B);
 
 	return ret;
 }
