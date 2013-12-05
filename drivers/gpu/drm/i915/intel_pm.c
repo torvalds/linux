@@ -2701,7 +2701,8 @@ static void ilk_wm_merge(struct drm_device *dev,
 	    config->num_pipes_active > 1)
 		return;
 
-	merged->fbc_wm_enabled = true;
+	/* ILK: FBC WM must be disabled always */
+	merged->fbc_wm_enabled = INTEL_INFO(dev)->gen >= 6;
 
 	/* merge each WM1+ level */
 	for (level = 1; level <= max_level; level++) {
@@ -2719,6 +2720,20 @@ static void ilk_wm_merge(struct drm_device *dev,
 		if (wm->fbc_val > max->fbc) {
 			merged->fbc_wm_enabled = false;
 			wm->fbc_val = 0;
+		}
+	}
+
+	/* ILK: LP2+ must be disabled when FBC WM is disabled but FBC enabled */
+	/*
+	 * FIXME this is racy. FBC might get enabled later.
+	 * What we should check here is whether FBC can be
+	 * enabled sometime later.
+	 */
+	if (IS_GEN5(dev) && !merged->fbc_wm_enabled && intel_fbc_enabled(dev)) {
+		for (level = 2; level <= max_level; level++) {
+			struct intel_wm_level *wm = &merged->wm[level];
+
+			wm->enable = false;
 		}
 	}
 }
