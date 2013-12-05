@@ -137,29 +137,21 @@ enum gpio_lookup_flags {
 };
 
 /**
- * Lookup table for associating GPIOs to specific devices and functions using
- * platform data.
+ * struct gpiod_lookup - lookup table
+ * @chip_label: name of the chip the GPIO belongs to
+ * @chip_hwnum: hardware number (i.e. relative to the chip) of the GPIO
+ * @con_id: name of the GPIO from the device's point of view
+ * @idx: index of the GPIO in case several GPIOs share the same name
+ * @flags: mask of GPIO_* values
+ *
+ * gpiod_lookup is a lookup table for associating GPIOs to specific devices and
+ * functions using platform data.
  */
 struct gpiod_lookup {
-	/*
-	 * name of the chip the GPIO belongs to
-	 */
 	const char *chip_label;
-	/*
-	 * hardware number (i.e. relative to the chip) of the GPIO
-	 */
 	u16 chip_hwnum;
-	/*
-	 * name of the GPIO from the device's point of view
-	 */
 	const char *con_id;
-	/*
-	 * index of the GPIO in case several GPIOs share the same name
-	 */
 	unsigned int idx;
-	/*
-	 * mask of GPIO_* values
-	 */
 	enum gpio_lookup_flags flags;
 };
 
