@@ -312,12 +312,12 @@ void blk_mq_complete_request(struct request *rq, int error)
 
 	blk_account_io_completion(rq, bytes);
 
+	blk_account_io_done(rq);
+
 	if (rq->end_io)
 		rq->end_io(rq, error);
 	else
 		blk_mq_free_request(rq);
-
-	blk_account_io_done(rq);
 }
 
 void __blk_mq_end_io(struct request *rq, int error)
