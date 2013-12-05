@@ -771,6 +771,7 @@ struct vfdi_status;
  * @local_lock: Mutex protecting %local_addr_list and %local_page_list.
  * @peer_work: Work item to broadcast peer addresses to VMs.
  * @ptp_data: PTP state data
+ * @vpd_sn: Serial number read from VPD
  * @monitor_work: Hardware monitor workitem
  * @biu_lock: BIU (bus interface unit) lock
  * @last_irq_cpu: Last CPU to handle a possible test interrupt.  This
@@ -919,6 +920,8 @@ struct efx_nic {
 #endif
 
 	struct efx_ptp_data *ptp_data;
+
+	char *vpd_sn;
 
 	/* The following fields may be written more often */
 
