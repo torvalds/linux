@@ -286,7 +286,6 @@ nvf0_grctx_init_hub[] = {
 	nvf0_grctx_init_unk64xx,
 	nve4_grctx_init_unk80xx,
 	nvf0_grctx_init_unk88xx,
-	nvd9_grctx_init_rop,
 	NULL
 };
 
