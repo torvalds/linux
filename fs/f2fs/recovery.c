@@ -145,7 +145,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 
 		err = f2fs_submit_page_bio(sbi, page, blkaddr, READ_SYNC);
 		if (err)
-			goto out;
+			return err;
 
 		lock_page(page);
 
@@ -191,9 +191,10 @@ next:
 		/* check next segment */
 		blkaddr = next_blkaddr_of_node(page);
 	}
+
 	unlock_page(page);
-out:
 	__free_pages(page, 0);
+
 	return err;
 }
 
@@ -388,7 +389,7 @@ static int recover_data(struct f2fs_sb_info *sbi,
 
 		err = f2fs_submit_page_bio(sbi, page, blkaddr, READ_SYNC);
 		if (err)
-			goto out;
+			return err;
 
 		lock_page(page);
 
@@ -412,8 +413,8 @@ next:
 		/* check next segment */
 		blkaddr = next_blkaddr_of_node(page);
 	}
+
 	unlock_page(page);
-out:
 	__free_pages(page, 0);
 
 	if (!err)
