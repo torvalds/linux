@@ -1577,7 +1577,7 @@ static int ra_sum_pages(struct f2fs_sb_info *sbi, struct list_head *pages,
 
 	for (; page_idx < start + nrpages; page_idx++) {
 		/* alloc temporal page for read node summary info*/
-		page = alloc_page(GFP_NOFS | __GFP_ZERO);
+		page = alloc_page(GFP_F2FS_ZERO);
 		if (!page) {
 			struct page *tmp;
 			list_for_each_entry_safe(page, tmp, pages, lru) {

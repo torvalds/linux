@@ -377,7 +377,7 @@ static int recover_data(struct f2fs_sb_info *sbi,
 	blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
 
 	/* read node page */
-	page = alloc_page(GFP_NOFS | __GFP_ZERO);
+	page = alloc_page(GFP_F2FS_ZERO);
 	if (!page)
 		return -ENOMEM;
 
