@@ -968,7 +968,7 @@ static void et1310_config_mac_regs2(struct et131x_adapter *adapter)
 
 	/* Set up the if mode bits */
 	cfg2 &= ~ET_MAC_CFG2_IFMODE_MASK;
-	if (phydev && phydev->speed == SPEED_1000) {
+	if (phydev->speed == SPEED_1000) {
 		cfg2 |= ET_MAC_CFG2_IFMODE_1000;
 		/* Phy mode bit */
 		ifctrl &= ~ET_MAC_IFCTRL_PHYMODE;
@@ -999,11 +999,11 @@ static void et1310_config_mac_regs2(struct et131x_adapter *adapter)
 	cfg2 &= ~ET_MAC_CFG2_IFMODE_FULL_DPLX;
 
 	/* Turn on duplex if needed */
-	if (phydev && phydev->duplex == DUPLEX_FULL)
+	if (phydev->duplex == DUPLEX_FULL)
 		cfg2 |= ET_MAC_CFG2_IFMODE_FULL_DPLX;
 
 	ifctrl &= ~ET_MAC_IFCTRL_GHDMODE;
-	if (phydev && phydev->duplex == DUPLEX_HALF)
+	if (phydev->duplex == DUPLEX_HALF)
 		ifctrl |= ET_MAC_IFCTRL_GHDMODE;
 
 	writel(ifctrl, &mac->if_ctrl);
@@ -2480,9 +2480,6 @@ static void et131x_set_rx_dma_timer(struct et131x_adapter *adapter)
 {
 	struct phy_device *phydev = adapter->phydev;
 
-	if (!phydev)
-		return;
-
 	/* For version B silicon, we do not use the RxDMA timer for 10 and 100
 	 * Mbits/s line rates. We do not enable and RxDMA interrupt coalescing.
 	 */
@@ -3771,7 +3768,7 @@ static void et131x_adjust_link(struct net_device *netdev)
 
 	if (phydev->link) {
 		adapter->boot_coma = 20;
-		if (phydev && phydev->speed == SPEED_10) {
+		if (phydev->speed == SPEED_10) {
 			/* NOTE - Is there a way to query this without
 			 * TruePHY?
 			 * && TRU_QueryCoreType(adapter->hTruePhy, 0)==
@@ -3793,7 +3790,7 @@ static void et131x_adjust_link(struct net_device *netdev)
 
 		et1310_config_flow_control(adapter);
 
-		if (phydev && phydev->speed == SPEED_1000 &&
+		if (phydev->speed == SPEED_1000 &&
 		    adapter->registry_jumbo_packet > 2048) {
 			u16 reg;
 
