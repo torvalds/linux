@@ -87,10 +87,8 @@ static int __init sclp_read_info_early(struct read_info_sccb *sccb)
 	return -EIO;
 }
 
-static void __init sclp_facilities_detect(void)
+static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 {
-	struct read_info_sccb *sccb = (void *) &sccb_early;
-
 	if (sclp_read_info_early(sccb))
 		return;
 
@@ -181,11 +179,10 @@ static void __init sccb_init_eq_size(struct sdias_sccb *sccb)
 	sccb->evbuf.dbs = 1;
 }
 
-static int __init sclp_set_event_mask(unsigned long receive_mask,
+static int __init sclp_set_event_mask(struct init_sccb *sccb,
+				      unsigned long receive_mask,
 				      unsigned long send_mask)
 {
-	struct init_sccb *sccb = (void *) &sccb_early;
-
 	memset(sccb, 0, sizeof(*sccb));
 	sccb->header.length = sizeof(*sccb);
 	sccb->mask_length = sizeof(sccb_mask_t);
@@ -194,10 +191,8 @@ static int __init sclp_set_event_mask(unsigned long receive_mask,
 	return sclp_cmd_early(SCLP_CMDW_WRITE_EVENT_MASK, sccb);
 }
 
-static long __init sclp_hsa_size_init(void)
+static long __init sclp_hsa_size_init(struct sdias_sccb *sccb)
 {
-	struct sdias_sccb *sccb = (void *) &sccb_early;
-
 	sccb_init_eq_size(sccb);
 	if (sclp_cmd_early(SCLP_CMDW_WRITE_EVENT_DATA, sccb))
 		return -EIO;
@@ -206,10 +201,8 @@ static long __init sclp_hsa_size_init(void)
 	return 0;
 }
 
-static long __init sclp_hsa_copy_wait(void)
+static long __init sclp_hsa_copy_wait(struct sccb_header *sccb)
 {
-	struct sccb_header *sccb = (void *) &sccb_early;
-
 	memset(sccb, 0, PAGE_SIZE);
 	sccb->length = PAGE_SIZE;
 	if (sclp_cmd_early(SCLP_CMDW_READ_EVENT_DATA, sccb))
@@ -222,25 +215,25 @@ unsigned long sclp_get_hsa_size(void)
 	return sclp_hsa_size;
 }
 
-static void __init sclp_hsa_size_detect(void)
+static void __init sclp_hsa_size_detect(void *sccb)
 {
 	long size;
 
 	/* First try synchronous interface (LPAR) */
-	if (sclp_set_event_mask(0, 0x40000010))
+	if (sclp_set_event_mask(sccb, 0, 0x40000010))
 		return;
-	size = sclp_hsa_size_init();
+	size = sclp_hsa_size_init(sccb);
 	if (size < 0)
 		return;
 	if (size != 0)
 		goto out;
 	/* Then try asynchronous interface (z/VM) */
-	if (sclp_set_event_mask(0x00000010, 0x40000010))
+	if (sclp_set_event_mask(sccb, 0x00000010, 0x40000010))
 		return;
-	size = sclp_hsa_size_init();
+	size = sclp_hsa_size_init(sccb);
 	if (size < 0)
 		return;
-	size = sclp_hsa_copy_wait();
+	size = sclp_hsa_copy_wait(sccb);
 	if (size < 0)
 		return;
 out:
@@ -249,7 +242,9 @@ out:
 
 void __init sclp_early_detect(void)
 {
-	sclp_facilities_detect();
-	sclp_hsa_size_detect();
-	sclp_set_event_mask(0, 0);
+	void *sccb = &sccb_early;
+
+	sclp_facilities_detect(sccb);
+	sclp_hsa_size_detect(sccb);
+	sclp_set_event_mask(sccb, 0, 0);
 }
