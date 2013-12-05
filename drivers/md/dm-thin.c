@@ -923,6 +923,9 @@ static int alloc_data_block(struct thin_c *tc, dm_block_t *result)
 	if (pool->no_free_space)
 		return -ENOSPC;
 
+	if (get_pool_mode(pool) != PM_WRITE)
+		return -EINVAL;
+
 	r = dm_pool_get_free_block_count(pool->pmd, &free_blocks);
 	if (r)
 		return r;
