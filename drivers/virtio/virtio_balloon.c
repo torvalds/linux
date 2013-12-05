@@ -285,7 +285,7 @@ static void update_balloon_size(struct virtio_balloon *vb)
 {
 	__le32 actual = cpu_to_le32(vb->num_pages);
 
-	virtio_cwrite(vb->vdev, struct virtio_balloon_config, num_pages,
+	virtio_cwrite(vb->vdev, struct virtio_balloon_config, actual,
 		      &actual);
 }
 
