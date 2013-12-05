@@ -7312,8 +7312,8 @@ static bool ht_rateset_to_mask(struct ieee80211_supported_band *sband,
 static const struct nla_policy nl80211_txattr_policy[NL80211_TXRATE_MAX + 1] = {
 	[NL80211_TXRATE_LEGACY] = { .type = NLA_BINARY,
 				    .len = NL80211_MAX_SUPP_RATES },
-	[NL80211_TXRATE_MCS] = { .type = NLA_BINARY,
-				 .len = NL80211_MAX_SUPP_HT_RATES },
+	[NL80211_TXRATE_HT] = { .type = NLA_BINARY,
+				.len = NL80211_MAX_SUPP_HT_RATES },
 };
 
 static int nl80211_set_tx_bitrate_mask(struct sk_buff *skb,
@@ -7339,9 +7339,9 @@ static int nl80211_set_tx_bitrate_mask(struct sk_buff *skb,
 			continue;
 
 		mask.control[i].legacy = (1 << sband->n_bitrates) - 1;
-		memcpy(mask.control[i].mcs,
+		memcpy(mask.control[i].ht_mcs,
 		       sband->ht_cap.mcs.rx_mask,
-		       sizeof(mask.control[i].mcs));
+		       sizeof(mask.control[i].ht_mcs));
 	}
 
 	/* if no rates are given set it back to the defaults */
@@ -7372,12 +7372,12 @@ static int nl80211_set_tx_bitrate_mask(struct sk_buff *skb,
 			    nla_len(tb[NL80211_TXRATE_LEGACY]))
 				return -EINVAL;
 		}
-		if (tb[NL80211_TXRATE_MCS]) {
+		if (tb[NL80211_TXRATE_HT]) {
 			if (!ht_rateset_to_mask(
 					sband,
-					nla_data(tb[NL80211_TXRATE_MCS]),
-					nla_len(tb[NL80211_TXRATE_MCS]),
-					mask.control[band].mcs))
+					nla_data(tb[NL80211_TXRATE_HT]),
+					nla_len(tb[NL80211_TXRATE_HT]),
+					mask.control[band].ht_mcs))
 				return -EINVAL;
 		}
 
@@ -7388,7 +7388,7 @@ static int nl80211_set_tx_bitrate_mask(struct sk_buff *skb,
 				return -EINVAL;
 
 			for (i = 0; i < IEEE80211_HT_MCS_MASK_LEN; i++)
-				if (mask.control[band].mcs[i])
+				if (mask.control[band].ht_mcs[i])
 					break;
 
 			/* legacy and mcs rates may not be both empty */

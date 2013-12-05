@@ -1766,7 +1766,7 @@ enum wiphy_params_flags {
 struct cfg80211_bitrate_mask {
 	struct {
 		u32 legacy;
-		u8 mcs[IEEE80211_HT_MCS_MASK_LEN];
+		u8 ht_mcs[IEEE80211_HT_MCS_MASK_LEN];
 	} control[IEEE80211_NUM_BANDS];
 };
 /**

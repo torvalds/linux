@@ -3110,7 +3110,7 @@ enum nl80211_key_attributes {
  *	in an array of rates as defined in IEEE 802.11 7.3.2.2 (u8 values with
  *	1 = 500 kbps) but without the IE length restriction (at most
  *	%NL80211_MAX_SUPP_RATES in a single array).
- * @NL80211_TXRATE_MCS: HT (MCS) rates allowed for TX rate selection
+ * @NL80211_TXRATE_HT: HT (MCS) rates allowed for TX rate selection
  *	in an array of MCS numbers.
  * @__NL80211_TXRATE_AFTER_LAST: internal
  * @NL80211_TXRATE_MAX: highest TX rate attribute
@@ -3118,12 +3118,14 @@ enum nl80211_key_attributes {
 enum nl80211_tx_rate_attributes {
 	__NL80211_TXRATE_INVALID,
 	NL80211_TXRATE_LEGACY,
-	NL80211_TXRATE_MCS,
+	NL80211_TXRATE_HT,
 
 	/* keep last */
 	__NL80211_TXRATE_AFTER_LAST,
 	NL80211_TXRATE_MAX = __NL80211_TXRATE_AFTER_LAST - 1
 };
+
+#define NL80211_TXRATE_MCS NL80211_TXRATE_HT
 
 /**
  * enum nl80211_band - Frequency band

@@ -2588,8 +2588,8 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 		int j;
 
 		sdata->rc_rateidx_mask[i] = mask->control[i].legacy;
-		memcpy(sdata->rc_rateidx_mcs_mask[i], mask->control[i].mcs,
-		       sizeof(mask->control[i].mcs));
+		memcpy(sdata->rc_rateidx_mcs_mask[i], mask->control[i].ht_mcs,
+		       sizeof(mask->control[i].ht_mcs));
 
 		sdata->rc_has_mcs_mask[i] = false;
 		if (!sband)

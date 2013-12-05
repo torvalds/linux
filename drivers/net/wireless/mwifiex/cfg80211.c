@@ -1170,10 +1170,10 @@ static int mwifiex_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
 	else
 		bitmap_rates[1] = mask->control[band].legacy;
 
-	/* Fill MCS rates */
-	bitmap_rates[2] = mask->control[band].mcs[0];
+	/* Fill HT MCS rates */
+	bitmap_rates[2] = mask->control[band].ht_mcs[0];
 	if (priv->adapter->hw_dev_mcs_support == HT_STREAM_2X2)
-		bitmap_rates[2] |= mask->control[band].mcs[1] << 8;
+		bitmap_rates[2] |= mask->control[band].ht_mcs[1] << 8;
 
 	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_TX_RATE_CFG,
 				     HostCmd_ACT_GEN_SET, 0, bitmap_rates);
