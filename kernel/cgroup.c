@@ -2324,8 +2324,6 @@ static ssize_t cgroup_file_write(struct file *file, const char __user *buf,
 	struct cftype *cft = __d_cft(file->f_dentry);
 	struct cgroup_subsys_state *css = cfe->css;
 
-	if (cft->write)
-		return cft->write(css, cft, file, buf, nbytes, ppos);
 	if (cft->write_u64 || cft->write_s64)
 		return cgroup_write_X64(css, cft, file, buf, nbytes, ppos);
 	if (cft->write_string)
@@ -2366,8 +2364,6 @@ static ssize_t cgroup_file_read(struct file *file, char __user *buf,
 	struct cftype *cft = __d_cft(file->f_dentry);
 	struct cgroup_subsys_state *css = cfe->css;
 
-	if (cft->read)
-		return cft->read(css, cft, file, buf, nbytes, ppos);
 	if (cft->read_u64)
 		return cgroup_read_u64(css, cft, file, buf, nbytes, ppos);
 	if (cft->read_s64)
@@ -2380,25 +2376,12 @@ static ssize_t cgroup_file_read(struct file *file, char __user *buf,
  * supports string->u64 maps, but can be extended in future.
  */
 
-static int cgroup_map_add(struct cgroup_map_cb *cb, const char *key, u64 value)
-{
-	struct seq_file *sf = cb->state;
-	return seq_printf(sf, "%s %llu\n", key, (unsigned long long)value);
-}
-
 static int cgroup_seqfile_show(struct seq_file *m, void *arg)
 {
 	struct cfent *cfe = m->private;
 	struct cftype *cft = cfe->type;
 	struct cgroup_subsys_state *css = cfe->css;
 
-	if (cft->read_map) {
-		struct cgroup_map_cb cb = {
-			.fill = cgroup_map_add,
-			.state = m,
-		};
-		return cft->read_map(css, cft, &cb);
-	}
 	return cft->read_seq_string(css, cft, m);
 }
 
@@ -2444,7 +2427,7 @@ static int cgroup_file_open(struct inode *inode, struct file *file)
 	WARN_ON_ONCE(cfe->css && cfe->css != css);
 	cfe->css = css;
 
-	if (cft->read_map || cft->read_seq_string) {
+	if (cft->read_seq_string) {
 		file->f_op = &cgroup_seqfile_operations;
 		err = single_open(file, cgroup_seqfile_show, cfe);
 	} else if (cft->open) {
@@ -2658,12 +2641,11 @@ static umode_t cgroup_file_mode(const struct cftype *cft)
 	if (cft->mode)
 		return cft->mode;
 
-	if (cft->read || cft->read_u64 || cft->read_s64 ||
-	    cft->read_map || cft->read_seq_string)
+	if (cft->read_u64 || cft->read_s64 || cft->read_seq_string)
 		mode |= S_IRUGO;
 
-	if (cft->write || cft->write_u64 || cft->write_s64 ||
-	    cft->write_string || cft->trigger)
+	if (cft->write_u64 || cft->write_s64 || cft->write_string ||
+	    cft->trigger)
 		mode |= S_IWUSR;
 
 	return mode;
