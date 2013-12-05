@@ -2643,6 +2643,14 @@ static bool intel_compute_pipe_wm(struct drm_crtc *crtc,
 	/* LP0 watermarks always use 1/2 DDB partitioning */
 	ilk_compute_wm_maximums(dev, 0, &config, INTEL_DDB_PART_1_2, &max);
 
+	/* ILK/SNB: LP2+ watermarks only w/o sprites */
+	if (INTEL_INFO(dev)->gen <= 6 && params->spr.enabled)
+		max_level = 1;
+
+	/* ILK/SNB/IVB: LP1+ watermarks only w/o scaling */
+	if (params->spr.scaled)
+		max_level = 0;
+
 	for (level = 0; level <= max_level; level++)
 		ilk_compute_wm_level(dev_priv, level, params,
 				     &pipe_wm->wm[level]);
