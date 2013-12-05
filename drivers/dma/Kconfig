@@ -289,9 +289,11 @@ config MMP_TDMA
 	bool "MMP Two-Channel DMA support"
 	depends on ARCH_MMP
 	select DMA_ENGINE
+	select MMP_SRAM
 	help
 	  Support the MMP Two-Channel DMA engine.
 	  This engine used for MMP Audio DMA and pxa910 SQU.
+	  It needs sram driver under mach-mmp.
 
 	  Say Y here if you enabled MMP ADMA, otherwise say N.
 
