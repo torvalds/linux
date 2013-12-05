@@ -1496,7 +1496,7 @@ static const struct file_operations proc_iface_stat_fmt_fops = {
 	.open		= proc_iface_stat_fmt_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= seq_release_private,
 };
 
 static int __init iface_stat_init(struct proc_dir_entry *parent_procdir)
@@ -2904,7 +2904,7 @@ static const struct file_operations proc_qtaguid_ctrl_fops = {
 	.read		= seq_read,
 	.write		= qtaguid_ctrl_proc_write,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= seq_release_private,
 };
 
 static const struct seq_operations proc_qtaguid_stats_seqops = {
