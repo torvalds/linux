@@ -163,8 +163,8 @@ struct pool {
 	int sectors_per_block_shift;
 
 	struct pool_features pf;
-	unsigned low_water_triggered:1;	/* A dm event has been sent */
-	unsigned no_free_space:1;	/* A -ENOSPC warning has been issued */
+	bool low_water_triggered:1;	/* A dm event has been sent */
+	bool no_free_space:1;		/* A -ENOSPC warning has been issued */
 
 	struct dm_bio_prison *prison;
 	struct dm_kcopyd_client *copier;
@@ -909,6 +909,20 @@ static int commit(struct pool *pool)
 	return r;
 }
 
+static void check_low_water_mark(struct pool *pool, dm_block_t free_blocks)
+{
+	unsigned long flags;
+
+	if (free_blocks <= pool->low_water_blocks && !pool->low_water_triggered) {
+		DMWARN("%s: reached low water mark for data device: sending event.",
+		       dm_device_name(pool->pool_md));
+		spin_lock_irqsave(&pool->lock, flags);
+		pool->low_water_triggered = true;
+		spin_unlock_irqrestore(&pool->lock, flags);
+		dm_table_event(pool->ti->table);
+	}
+}
+
 static int alloc_data_block(struct thin_c *tc, dm_block_t *result)
 {
 	int r;
@@ -930,14 +944,7 @@ static int alloc_data_block(struct thin_c *tc, dm_block_t *result)
 	if (r)
 		return r;
 
-	if (free_blocks <= pool->low_water_blocks && !pool->low_water_triggered) {
-		DMWARN("%s: reached low water mark for data device: sending event.",
-		       dm_device_name(pool->pool_md));
-		spin_lock_irqsave(&pool->lock, flags);
-		pool->low_water_triggered = 1;
-		spin_unlock_irqrestore(&pool->lock, flags);
-		dm_table_event(pool->ti->table);
-	}
+	check_low_water_mark(pool, free_blocks);
 
 	if (!free_blocks) {
 		/*
@@ -963,7 +970,7 @@ static int alloc_data_block(struct thin_c *tc, dm_block_t *result)
 			DMWARN("%s: no free data space available.",
 			       dm_device_name(pool->pool_md));
 			spin_lock_irqsave(&pool->lock, flags);
-			pool->no_free_space = 1;
+			pool->no_free_space = true;
 			spin_unlock_irqrestore(&pool->lock, flags);
 			return -ENOSPC;
 		}
@@ -1780,8 +1787,8 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 	bio_list_init(&pool->deferred_flush_bios);
 	INIT_LIST_HEAD(&pool->prepared_mappings);
 	INIT_LIST_HEAD(&pool->prepared_discards);
-	pool->low_water_triggered = 0;
-	pool->no_free_space = 0;
+	pool->low_water_triggered = false;
+	pool->no_free_space = false;
 	bio_list_init(&pool->retry_on_resume_list);
 
 	pool->shared_read_ds = dm_deferred_set_create();
@@ -2298,8 +2305,8 @@ static void pool_resume(struct dm_target *ti)
 	unsigned long flags;
 
 	spin_lock_irqsave(&pool->lock, flags);
-	pool->low_water_triggered = 0;
-	pool->no_free_space = 0;
+	pool->low_water_triggered = false;
+	pool->no_free_space = false;
 	__requeue_bios(pool);
 	spin_unlock_irqrestore(&pool->lock, flags);
 
