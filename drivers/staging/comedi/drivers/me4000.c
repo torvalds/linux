@@ -1116,12 +1116,6 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 	/* Reset all events */
 	s->async->events = 0;
 
-	/* Check if irq number is right */
-	if (irq != dev->irq) {
-		dev_err(dev->class_dev, "Incorrect interrupt num: %d\n", irq);
-		return IRQ_HANDLED;
-	}
-
 	if (inl(dev->iobase + ME4000_IRQ_STATUS_REG) &
 	    ME4000_IRQ_STATUS_BIT_AI_HF) {
 		/* Read status register to find out what happened */
