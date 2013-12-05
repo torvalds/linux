@@ -1039,9 +1039,7 @@ static void et1310_config_mac_regs2(struct et131x_adapter *adapter)
  */
 static int et1310_in_phy_coma(struct et131x_adapter *adapter)
 {
-	u32 pmcsr;
-
-	pmcsr = readl(&adapter->regs->global.pm_csr);
+	u32 pmcsr = readl(&adapter->regs->global.pm_csr);
 
 	return ET_PM_PHY_SW_COMA & pmcsr ? 1 : 0;
 }
@@ -1930,7 +1928,7 @@ static void et131x_enable_interrupts(struct et131x_adapter *adapter)
 
 	/* Enable all global interrupts */
 	if (adapter->flowcontrol == FLOW_TXONLY ||
-			    adapter->flowcontrol == FLOW_BOTH)
+	    adapter->flowcontrol == FLOW_BOTH)
 		mask = INT_MASK_ENABLE;
 	else
 		mask = INT_MASK_ENABLE_NO_FLOW;
@@ -2115,7 +2113,7 @@ static inline u32 bump_free_buff_ring(u32 *free_buff_ring, u32 limit)
 		tmp_free_buff_ring ^= ET_DMA10_WRAP;
 	}
 	/* For the 1023 case */
-	tmp_free_buff_ring &= (ET_DMA10_MASK|ET_DMA10_WRAP);
+	tmp_free_buff_ring &= (ET_DMA10_MASK | ET_DMA10_WRAP);
 	*free_buff_ring = tmp_free_buff_ring;
 	return tmp_free_buff_ring;
 }
@@ -2620,7 +2618,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 		adapter->stats.unicast_pkts_rcvd++;
 	}
 
-	if (len == 0) {
+	if (!len) {
 		rfd->len = 0;
 		goto out;
 	}
@@ -3474,7 +3472,7 @@ static void et131x_hwaddr_init(struct et131x_adapter *adapter)
  * the MAC address. At this point the I/O registers have yet to be mapped
  */
 static int et131x_pci_init(struct et131x_adapter *adapter,
-						struct pci_dev *pdev)
+			   struct pci_dev *pdev)
 {
 	u16 max_payload;
 	int i, rc;
@@ -3607,14 +3605,14 @@ static int et131x_adapter_memory_alloc(struct et131x_adapter *adapter)
 
 	/* Allocate memory for the Tx Ring */
 	status = et131x_tx_dma_memory_alloc(adapter);
-	if (status != 0) {
+	if (status) {
 		dev_err(&adapter->pdev->dev,
 			  "et131x_tx_dma_memory_alloc FAILED\n");
 		return status;
 	}
 	/* Receive buffer memory allocation */
 	status = et131x_rx_dma_memory_alloc(adapter);
-	if (status != 0) {
+	if (status) {
 		dev_err(&adapter->pdev->dev,
 			  "et131x_rx_dma_memory_alloc FAILED\n");
 		et131x_tx_dma_memory_free(adapter);
@@ -3624,8 +3622,7 @@ static int et131x_adapter_memory_alloc(struct et131x_adapter *adapter)
 	/* Init receive data structures */
 	status = et131x_init_recv(adapter);
 	if (status) {
-		dev_err(&adapter->pdev->dev,
-			"et131x_init_recv FAILED\n");
+		dev_err(&adapter->pdev->dev, "et131x_init_recv FAILED\n");
 		et131x_adapter_memory_free(adapter);
 	}
 	return status;
@@ -3755,7 +3752,8 @@ static int et131x_mii_probe(struct net_device *netdev)
 	phydev->advertising = phydev->supported;
 	adapter->phydev = phydev;
 
-	dev_info(&adapter->pdev->dev, "attached PHY driver [%s] (mii_bus:phy_addr=%s)\n",
+	dev_info(&adapter->pdev->dev,
+		 "attached PHY driver [%s] (mii_bus:phy_addr=%s)\n",
 		 phydev->drv->name, dev_name(&phydev->dev));
 
 	return 0;
@@ -3767,7 +3765,7 @@ static int et131x_mii_probe(struct net_device *netdev)
  * them together with the platform provided device structures.
  */
 static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
-		struct pci_dev *pdev)
+						  struct pci_dev *pdev)
 {
 	static const u8 default_mac[] = { 0x00, 0x05, 0x3d, 0x00, 0x02, 0x00 };
 
@@ -3940,7 +3938,7 @@ static irqreturn_t et131x_isr(int irq, void *dev_id)
 		status &= ~ET_INTR_WATCHDOG;
 	}
 
-	if (status == 0) {
+	if (!status) {
 		/* This interrupt has in some way been "handled" by
 		 * the ISR. Either it was a spurious Rx interrupt, or
 		 * it was a Tx interrupt that has been filtered by
@@ -3996,10 +3994,8 @@ static void et131x_isr_handler(struct work_struct *work)
 
 	/* Handle the TXDMA Error interrupt */
 	if (status & ET_INTR_TXDMA_ERR) {
-		u32 txdma_err;
-
 		/* Following read also clears the register (COR) */
-		txdma_err = readl(&iomem->txdma.tx_dma_error);
+		u32 txdma_err = readl(&iomem->txdma.tx_dma_error);
 
 		dev_warn(&adapter->pdev->dev,
 			    "TXDMA_ERR interrupt, error = %d\n",
@@ -4577,7 +4573,7 @@ static const struct net_device_ops et131x_netdev_ops = {
  * a device insertion routine.
  */
 static int et131x_pci_setup(struct pci_dev *pdev,
-			       const struct pci_device_id *ent)
+			    const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
 	struct et131x_adapter *adapter;
