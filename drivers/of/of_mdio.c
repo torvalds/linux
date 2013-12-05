@@ -27,7 +27,7 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 {
 	struct phy_device *phy;
 	bool is_c45;
-	int rc;
+	int rc, prev_irq;
 
 	is_c45 = of_device_is_compatible(child,
 					 "ethernet-phy-ieee802.3-c45");
@@ -37,10 +37,11 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 		return 1;
 
 	if (mdio->irq) {
+		prev_irq = mdio->irq[addr];
 		mdio->irq[addr] =
 			irq_of_parse_and_map(child, 0);
 		if (!mdio->irq[addr])
-			mdio->irq[addr] = PHY_POLL;
+			mdio->irq[addr] = prev_irq;
 	}
 
 	/* Associate the OF node with the device structure so it
