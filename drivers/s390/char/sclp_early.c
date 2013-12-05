@@ -35,8 +35,7 @@ struct read_info_sccb {
 	u8	_reserved5[4096 - 112];	/* 112-4095 */
 } __packed __aligned(PAGE_SIZE);
 
-static __initdata struct read_info_sccb early_read_info_sccb;
-static __initdata char sccb_early[PAGE_SIZE] __aligned(PAGE_SIZE);
+static char sccb_early[PAGE_SIZE] __aligned(PAGE_SIZE) __initdata;
 static unsigned long sclp_hsa_size;
 static struct sclp_ipl_info sclp_ipl_info;
 
@@ -63,14 +62,12 @@ out:
 	return rc;
 }
 
-static int __init sclp_read_info_early(void)
+static int __init sclp_read_info_early(struct read_info_sccb *sccb)
 {
 	int rc, i;
-	struct read_info_sccb *sccb;
 	sclp_cmdw_t commands[] = {SCLP_CMDW_READ_SCP_INFO_FORCED,
 				  SCLP_CMDW_READ_SCP_INFO};
 
-	sccb = &early_read_info_sccb;
 	for (i = 0; i < ARRAY_SIZE(commands); i++) {
 		do {
 			memset(sccb, 0, sizeof(*sccb));
@@ -92,12 +89,11 @@ static int __init sclp_read_info_early(void)
 
 static void __init sclp_facilities_detect(void)
 {
-	struct read_info_sccb *sccb;
+	struct read_info_sccb *sccb = (void *) &sccb_early;
 
-	if (sclp_read_info_early())
+	if (sclp_read_info_early(sccb))
 		return;
 
-	sccb = &early_read_info_sccb;
 	sclp_facilities = sccb->facilities;
 	sclp_fac84 = sccb->fac84;
 	if (sccb->fac85 & 0x02)
