@@ -644,7 +644,7 @@ static int das1800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 static void das1800_ai_handler(struct comedi_device *dev)
 {
 	struct das1800_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int status = inb(dev->iobase + DAS1800_STATUS);
