@@ -210,6 +210,9 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 			config->type = REGULATOR_VOLTAGE;
 		else if (!strncmp("current", regtype, 7))
 			config->type = REGULATOR_CURRENT;
+		else
+			dev_warn(dev, "Unknown regulator-type '%s'\n",
+				 regtype);
 	}
 
 	return config;
