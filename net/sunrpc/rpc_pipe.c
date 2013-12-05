@@ -17,6 +17,7 @@
 #include <linux/fsnotify.h>
 #include <linux/kernel.h>
 #include <linux/rcupdate.h>
+#include <linux/utsname.h>
 
 #include <asm/ioctls.h>
 #include <linux/poll.h>
@@ -1275,6 +1276,44 @@ static const struct rpc_pipe_ops gssd_dummy_pipe_ops = {
 	.downcall	= dummy_downcall,
 };
 
+/*
+ * Here we present a bogus "info" file to keep rpc.gssd happy. We don't expect
+ * that it will ever use this info to handle an upcall, but rpc.gssd expects
+ * that this file will be there and have a certain format.
+ */
+static int
+rpc_show_dummy_info(struct seq_file *m, void *v)
+{
+	seq_printf(m, "RPC server: %s\n", utsname()->nodename);
+	seq_printf(m, "service: foo (1) version 0\n");
+	seq_printf(m, "address: 127.0.0.1\n");
+	seq_printf(m, "protocol: tcp\n");
+	seq_printf(m, "port: 0\n");
+	return 0;
+}
+
+static int
+rpc_dummy_info_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rpc_show_dummy_info, NULL);
+}
+
+static const struct file_operations rpc_dummy_info_operations = {
+	.owner		= THIS_MODULE,
+	.open		= rpc_dummy_info_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static const struct rpc_filelist gssd_dummy_info_file[] = {
+	[0] = {
+		.name = "info",
+		.i_fop = &rpc_dummy_info_operations,
+		.mode = S_IFREG | S_IRUSR,
+	},
+};
+
 /**
  * rpc_gssd_dummy_populate - create a dummy gssd pipe
  * @root:	root of the rpc_pipefs filesystem
@@ -1312,9 +1351,18 @@ rpc_gssd_dummy_populate(struct dentry *root, struct rpc_pipe *pipe_data)
 		goto out;
 	}
 
-	pipe_dentry = rpc_mkpipe_dentry(clnt_dentry, "gssd", NULL, pipe_data);
-	if (IS_ERR(pipe_dentry))
+	ret = rpc_populate(clnt_dentry, gssd_dummy_info_file, 0, 1, NULL);
+	if (ret) {
 		__rpc_depopulate(gssd_dentry, gssd_dummy_clnt_dir, 0, 1);
+		pipe_dentry = ERR_PTR(ret);
+		goto out;
+	}
+
+	pipe_dentry = rpc_mkpipe_dentry(clnt_dentry, "gssd", NULL, pipe_data);
+	if (IS_ERR(pipe_dentry)) {
+		__rpc_depopulate(clnt_dentry, gssd_dummy_info_file, 0, 1);
+		__rpc_depopulate(gssd_dentry, gssd_dummy_clnt_dir, 0, 1);
+	}
 out:
 	dput(clnt_dentry);
 	dput(gssd_dentry);
