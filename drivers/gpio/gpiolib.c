@@ -84,6 +84,8 @@ static DEFINE_IDR(dirent_idr);
 static int gpiod_request(struct gpio_desc *desc, const char *label);
 static void gpiod_free(struct gpio_desc *desc);
 
+/* With descriptor prefix */
+
 #ifdef CONFIG_DEBUG_FS
 #define gpiod_emerg(desc, fmt, ...)					       \
 	pr_emerg("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?",\
@@ -117,6 +119,21 @@ static void gpiod_free(struct gpio_desc *desc);
 #define gpiod_dbg(desc, fmt, ...)					\
 	pr_debug("gpio-%d: " fmt, desc_to_gpio(desc), ##__VA_ARGS__)
 #endif
+
+/* With chip prefix */
+
+#define chip_emerg(chip, fmt, ...)					\
+	pr_emerg("GPIO chip %s: " fmt, chip->label, ##__VA_ARGS__)
+#define chip_crit(chip, fmt, ...)					\
+	pr_crit("GPIO chip %s: " fmt, chip->label, ##__VA_ARGS__)
+#define chip_err(chip, fmt, ...)					\
+	pr_err("GPIO chip %s: " fmt, chip->label, ##__VA_ARGS__)
+#define chip_warn(chip, fmt, ...)					\
+	pr_warn("GPIO chip %s: " fmt, chip->label, ##__VA_ARGS__)
+#define chip_info(chip, fmt, ...)					\
+	pr_info("GPIO chip %s: " fmt, chip->label, ##__VA_ARGS__)
+#define chip_dbg(chip, fmt, ...)					\
+	pr_debug("GPIO chip %s: " fmt, chip->label, ##__VA_ARGS__)
 
 static inline void desc_set_label(struct gpio_desc *d, const char *label)
 {
@@ -1032,8 +1049,7 @@ static int gpiochip_export(struct gpio_chip *chip)
 			chip->desc[gpio++].chip = NULL;
 		spin_unlock_irqrestore(&gpio_lock, flags);
 
-		pr_debug("%s: chip %s status %d\n", __func__,
-				chip->label, status);
+		chip_dbg(chip, "%s: status %d\n", __func__, status);
 	}
 
 	return status;
@@ -1056,8 +1072,7 @@ static void gpiochip_unexport(struct gpio_chip *chip)
 	mutex_unlock(&sysfs_lock);
 
 	if (status)
-		pr_debug("%s: chip %s status %d\n", __func__,
-				chip->label, status);
+		chip_dbg(chip, "%s: status %d\n", __func__, status);
 }
 
 static int __init gpiolib_sysfs_init(void)
@@ -1337,8 +1352,7 @@ int gpiochip_add_pingroup_range(struct gpio_chip *chip,
 
 	pin_range = kzalloc(sizeof(*pin_range), GFP_KERNEL);
 	if (!pin_range) {
-		pr_err("%s: GPIO chip: failed to allocate pin ranges\n",
-				chip->label);
+		chip_err(chip, "failed to allocate pin ranges\n");
 		return -ENOMEM;
 	}
 
@@ -1359,9 +1373,8 @@ int gpiochip_add_pingroup_range(struct gpio_chip *chip,
 
 	pinctrl_add_gpio_range(pctldev, &pin_range->range);
 
-	pr_debug("GPIO chip %s: created GPIO range %d->%d ==> %s PINGRP %s\n",
-		 chip->label, gpio_offset,
-		 gpio_offset + pin_range->range.npins - 1,
+	chip_dbg(chip, "created GPIO range %d->%d ==> %s PINGRP %s\n",
+		 gpio_offset, gpio_offset + pin_range->range.npins - 1,
 		 pinctrl_dev_get_devname(pctldev), pin_group);
 
 	list_add_tail(&pin_range->node, &chip->pin_ranges);
@@ -1388,8 +1401,7 @@ int gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 
 	pin_range = kzalloc(sizeof(*pin_range), GFP_KERNEL);
 	if (!pin_range) {
-		pr_err("%s: GPIO chip: failed to allocate pin ranges\n",
-				chip->label);
+		chip_err(chip, "failed to allocate pin ranges\n");
 		return -ENOMEM;
 	}
 
@@ -1404,13 +1416,12 @@ int gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 			&pin_range->range);
 	if (IS_ERR(pin_range->pctldev)) {
 		ret = PTR_ERR(pin_range->pctldev);
-		pr_err("%s: GPIO chip: could not create pin range\n",
-		       chip->label);
+		chip_err(chip, "could not create pin range\n");
 		kfree(pin_range);
 		return ret;
 	}
-	pr_debug("GPIO chip %s: created GPIO range %d->%d ==> %s PIN %d->%d\n",
-		 chip->label, gpio_offset, gpio_offset + npins - 1,
+	chip_dbg(chip, "created GPIO range %d->%d ==> %s PIN %d->%d\n",
+		 gpio_offset, gpio_offset + npins - 1,
 		 pinctl_name,
 		 pin_offset, pin_offset + npins - 1);
 
