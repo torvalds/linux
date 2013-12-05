@@ -197,7 +197,8 @@ struct adv7842_platform_data {
 
 	struct adv7842_sdp_csc_coeff sdp_csc_coeff;
 
-	struct adv7842_sdp_io_sync_adjustment sdp_io_sync;
+	struct adv7842_sdp_io_sync_adjustment sdp_io_sync_625;
+	struct adv7842_sdp_io_sync_adjustment sdp_io_sync_525;
 
 	/* i2c addresses */
 	u8 i2c_sdp_io;
