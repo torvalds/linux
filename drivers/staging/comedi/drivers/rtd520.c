@@ -689,7 +689,7 @@ static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
 static irqreturn_t rtd_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 	struct rtd_private *devpriv = dev->private;
 	u32 overrun;
 	u16 status;
