@@ -2896,16 +2896,23 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 	if (!dirty)
 		return;
 
-	if (dirty & WM_DIRTY_LP(3) && previous->wm_lp[2] != 0)
-		I915_WRITE(WM3_LP_ILK, 0);
-	if (dirty & WM_DIRTY_LP(2) && previous->wm_lp[1] != 0)
-		I915_WRITE(WM2_LP_ILK, 0);
-	if (dirty & WM_DIRTY_LP(1) && previous->wm_lp[0] != 0)
-		I915_WRITE(WM1_LP_ILK, 0);
+	if (dirty & WM_DIRTY_LP(3) && previous->wm_lp[2] & WM1_LP_SR_EN) {
+		previous->wm_lp[2] &= ~WM1_LP_SR_EN;
+		I915_WRITE(WM3_LP_ILK, previous->wm_lp[2]);
+	}
+	if (dirty & WM_DIRTY_LP(2) && previous->wm_lp[1] & WM1_LP_SR_EN) {
+		previous->wm_lp[1] &= ~WM1_LP_SR_EN;
+		I915_WRITE(WM2_LP_ILK, previous->wm_lp[1]);
+	}
+	if (dirty & WM_DIRTY_LP(1) && previous->wm_lp[0] & WM1_LP_SR_EN) {
+		previous->wm_lp[0] &= ~WM1_LP_SR_EN;
+		I915_WRITE(WM1_LP_ILK, previous->wm_lp[0]);
+	}
 
-	if (INTEL_INFO(dev)->gen <= 6 &&
-	    dirty & WM_DIRTY_LP(1) && previous->wm_lp_spr[0] != 0)
-		I915_WRITE(WM1S_LP_ILK, 0);
+	/*
+	 * Don't touch WM1S_LP_EN here.
+	 * Doing so could cause underruns.
+	 */
 
 	if (dirty & WM_DIRTY_PIPE(PIPE_A))
 		I915_WRITE(WM0_PIPEA_ILK, results->wm_pipe[0]);
@@ -2949,7 +2956,7 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 	}
 
 	if (INTEL_INFO(dev)->gen <= 6) {
-		if (dirty & WM_DIRTY_LP(1) && results->wm_lp_spr[0] != 0)
+		if (dirty & WM_DIRTY_LP(1) && previous->wm_lp_spr[0] != results->wm_lp_spr[0])
 			I915_WRITE(WM1S_LP_ILK, results->wm_lp_spr[0]);
 	} else {
 		if (dirty & WM_DIRTY_LP(1) && previous->wm_lp_spr[0] != results->wm_lp_spr[0])
@@ -2960,11 +2967,11 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 			I915_WRITE(WM3S_LP_IVB, results->wm_lp_spr[2]);
 	}
 
-	if (dirty & WM_DIRTY_LP(1) && results->wm_lp[0] != 0)
+	if (dirty & WM_DIRTY_LP(1) && previous->wm_lp[0] != results->wm_lp[0])
 		I915_WRITE(WM1_LP_ILK, results->wm_lp[0]);
-	if (dirty & WM_DIRTY_LP(2) && results->wm_lp[1] != 0)
+	if (dirty & WM_DIRTY_LP(2) && previous->wm_lp[1] != results->wm_lp[1])
 		I915_WRITE(WM2_LP_ILK, results->wm_lp[1]);
-	if (dirty & WM_DIRTY_LP(3) && results->wm_lp[2] != 0)
+	if (dirty & WM_DIRTY_LP(3) && previous->wm_lp[2] != results->wm_lp[2])
 		I915_WRITE(WM3_LP_ILK, results->wm_lp[2]);
 
 	dev_priv->wm.hw = *results;
