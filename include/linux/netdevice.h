@@ -2368,17 +2368,52 @@ static inline int netif_copy_real_num_queues(struct net_device *to_dev,
 #define DEFAULT_MAX_NUM_RSS_QUEUES	(8)
 int netif_get_num_default_rss_queues(void);
 
-/* Use this variant when it is known for sure that it
- * is executing from hardware interrupt context or with hardware interrupts
- * disabled.
- */
-void dev_kfree_skb_irq(struct sk_buff *skb);
+enum skb_free_reason {
+	SKB_REASON_CONSUMED,
+	SKB_REASON_DROPPED,
+};
 
-/* Use this variant in places where it could be invoked
- * from either hardware interrupt or other context, with hardware interrupts
- * either disabled or enabled.
+void __dev_kfree_skb_irq(struct sk_buff *skb, enum skb_free_reason reason);
+void __dev_kfree_skb_any(struct sk_buff *skb, enum skb_free_reason reason);
+
+/*
+ * It is not allowed to call kfree_skb() or consume_skb() from hardware
+ * interrupt context or with hardware interrupts being disabled.
+ * (in_irq() || irqs_disabled())
+ *
+ * We provide four helpers that can be used in following contexts :
+ *
+ * dev_kfree_skb_irq(skb) when caller drops a packet from irq context,
+ *  replacing kfree_skb(skb)
+ *
+ * dev_consume_skb_irq(skb) when caller consumes a packet from irq context.
+ *  Typically used in place of consume_skb(skb) in TX completion path
+ *
+ * dev_kfree_skb_any(skb) when caller doesn't know its current irq context,
+ *  replacing kfree_skb(skb)
+ *
+ * dev_consume_skb_any(skb) when caller doesn't know its current irq context,
+ *  and consumed a packet. Used in place of consume_skb(skb)
  */
-void dev_kfree_skb_any(struct sk_buff *skb);
+static inline void dev_kfree_skb_irq(struct sk_buff *skb)
+{
+	__dev_kfree_skb_irq(skb, SKB_REASON_DROPPED);
+}
+
+static inline void dev_consume_skb_irq(struct sk_buff *skb)
+{
+	__dev_kfree_skb_irq(skb, SKB_REASON_CONSUMED);
+}
+
+static inline void dev_kfree_skb_any(struct sk_buff *skb)
+{
+	__dev_kfree_skb_any(skb, SKB_REASON_DROPPED);
+}
+
+static inline void dev_consume_skb_any(struct sk_buff *skb)
+{
+	__dev_kfree_skb_any(skb, SKB_REASON_CONSUMED);
+}
 
 int netif_rx(struct sk_buff *skb);
 int netif_rx_ni(struct sk_buff *skb);
