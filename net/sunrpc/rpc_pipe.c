@@ -1313,6 +1313,8 @@ rpc_gssd_dummy_populate(struct dentry *root, struct rpc_pipe *pipe_data)
 	}
 
 	pipe_dentry = rpc_mkpipe_dentry(clnt_dentry, "gssd", NULL, pipe_data);
+	if (IS_ERR(pipe_dentry))
+		__rpc_depopulate(gssd_dentry, gssd_dummy_clnt_dir, 0, 1);
 out:
 	dput(clnt_dentry);
 	dput(gssd_dentry);
