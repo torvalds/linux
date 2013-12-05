@@ -271,11 +271,12 @@ static struct Qdisc *qdisc_match_from_root(struct Qdisc *root, u32 handle)
 	return NULL;
 }
 
-static void qdisc_list_add(struct Qdisc *q)
+void qdisc_list_add(struct Qdisc *q)
 {
 	if ((q->parent != TC_H_ROOT) && !(q->flags & TCQ_F_INGRESS))
 		list_add_tail(&q->list, &qdisc_dev(q)->qdisc->list);
 }
+EXPORT_SYMBOL(qdisc_list_add);
 
 void qdisc_list_del(struct Qdisc *q)
 {
