@@ -31,7 +31,7 @@
 #define Bit(_b) (1 << (_b))
 
 #define OCRDMA_GEN1_FAMILY	0xB
-#define OCRDMA_GEN2_FAMILY	0x2
+#define OCRDMA_GEN2_FAMILY	0x0F
 
 #define OCRDMA_SUBSYS_ROCE 10
 enum {
