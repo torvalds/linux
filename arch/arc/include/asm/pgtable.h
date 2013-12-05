@@ -60,7 +60,7 @@
 #define _PAGE_EXECUTE       (1<<3)	/* Page has user execute perm (H) */
 #define _PAGE_WRITE         (1<<4)	/* Page has user write perm (H) */
 #define _PAGE_READ          (1<<5)	/* Page has user read perm (H) */
-#define _PAGE_MODIFIED      (1<<6)	/* Page modified (dirty) (S) */
+#define _PAGE_DIRTY         (1<<6)	/* Page modified (dirty) (S) */
 #define _PAGE_GLOBAL        (1<<8)	/* Page is global (H) */
 #define _PAGE_PRESENT       (1<<10)	/* TLB entry is valid (H) */
 
@@ -71,7 +71,7 @@
 #define _PAGE_WRITE         (1<<2)	/* Page has user write perm (H) */
 #define _PAGE_READ          (1<<3)	/* Page has user read perm (H) */
 #define _PAGE_ACCESSED      (1<<4)	/* Page is accessed (S) */
-#define _PAGE_MODIFIED      (1<<5)	/* Page modified (dirty) (S) */
+#define _PAGE_DIRTY         (1<<5)	/* Page modified (dirty) (S) */
 
 #if (CONFIG_ARC_MMU_VER >= 4)
 #define _PAGE_WTHRU         (1<<7)	/* Page cache mode write-thru (H) */
@@ -92,21 +92,16 @@
 #define _K_PAGE_PERMS  (_PAGE_EXECUTE | _PAGE_WRITE | _PAGE_READ | \
 			_PAGE_GLOBAL | _PAGE_PRESENT)
 
-#ifdef CONFIG_ARC_CACHE_PAGES
-#define _PAGE_DEF_CACHEABLE _PAGE_CACHEABLE
-#else
-#define _PAGE_DEF_CACHEABLE (0)
+#ifndef CONFIG_ARC_CACHE_PAGES
+#undef _PAGE_CACHEABLE
+#define _PAGE_CACHEABLE 0
 #endif
 
-/* Helper for every "user" page
- * -kernel can R/W/X
- * -by default cached, unless config otherwise
- * -present in memory
- */
-#define ___DEF (_PAGE_PRESENT | _PAGE_DEF_CACHEABLE)
+/* Defaults for every user page */
+#define ___DEF (_PAGE_PRESENT | _PAGE_CACHEABLE)
 
 /* Set of bits not changed in pte_modify */
-#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_MODIFIED)
+#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
 
 /* More Abbrevaited helpers */
 #define PAGE_U_NONE     __pgprot(___DEF)
@@ -122,7 +117,7 @@
  * user vaddr space - visible in all addr spaces, but kernel mode only
  * Thus Global, all-kernel-access, no-user-access, cached
  */
-#define PAGE_KERNEL          __pgprot(_K_PAGE_PERMS | _PAGE_DEF_CACHEABLE)
+#define PAGE_KERNEL          __pgprot(_K_PAGE_PERMS | _PAGE_CACHEABLE)
 
 /* ioremap */
 #define PAGE_KERNEL_NO_CACHE __pgprot(_K_PAGE_PERMS)
@@ -191,16 +186,16 @@
 
 /* Optimal Sizing of Pg Tbl - based on MMU page size */
 #if defined(CONFIG_ARC_PAGE_SIZE_8K)
-#define BITS_FOR_PTE	8
+#define BITS_FOR_PTE	8		/* 11:8:13 */
 #elif defined(CONFIG_ARC_PAGE_SIZE_16K)
-#define BITS_FOR_PTE	8
+#define BITS_FOR_PTE	8		/* 10:8:14 */
 #elif defined(CONFIG_ARC_PAGE_SIZE_4K)
-#define BITS_FOR_PTE	9
+#define BITS_FOR_PTE	9		/* 11:9:12 */
 #endif
 
 #define BITS_FOR_PGD	(32 - BITS_FOR_PTE - BITS_IN_PAGE)
 
-#define PGDIR_SHIFT	(BITS_FOR_PTE + BITS_IN_PAGE)
+#define PGDIR_SHIFT	(32 - BITS_FOR_PGD)
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)	/* vaddr span, not PDG sz */
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
@@ -295,7 +290,7 @@ static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
 /* Zoo of pte_xxx function */
 #define pte_read(pte)		(pte_val(pte) & _PAGE_READ)
 #define pte_write(pte)		(pte_val(pte) & _PAGE_WRITE)
-#define pte_dirty(pte)		(pte_val(pte) & _PAGE_MODIFIED)
+#define pte_dirty(pte)		(pte_val(pte) & _PAGE_DIRTY)
 #define pte_young(pte)		(pte_val(pte) & _PAGE_ACCESSED)
 #define pte_special(pte)	(0)
 
@@ -304,8 +299,8 @@ static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
 
 PTE_BIT_FUNC(wrprotect,	&= ~(_PAGE_WRITE));
 PTE_BIT_FUNC(mkwrite,	|= (_PAGE_WRITE));
-PTE_BIT_FUNC(mkclean,	&= ~(_PAGE_MODIFIED));
-PTE_BIT_FUNC(mkdirty,	|= (_PAGE_MODIFIED));
+PTE_BIT_FUNC(mkclean,	&= ~(_PAGE_DIRTY));
+PTE_BIT_FUNC(mkdirty,	|= (_PAGE_DIRTY));
 PTE_BIT_FUNC(mkold,	&= ~(_PAGE_ACCESSED));
 PTE_BIT_FUNC(mkyoung,	|= (_PAGE_ACCESSED));
 PTE_BIT_FUNC(exprotect,	&= ~(_PAGE_EXECUTE));
