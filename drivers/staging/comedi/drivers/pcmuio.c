@@ -591,8 +591,8 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct pcmuio_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	struct pcmuio_private *devpriv;
-	int sdev_no, n_subdevs, asic;
 	int ret;
+	int i;
 
 	ret = comedi_request_region(dev, it->options[0],
 				    board->num_asics * PCMUIO_ASIC_IOSIZE);
@@ -603,8 +603,8 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	for (asic = 0; asic < PCMUIO_MAX_ASICS; ++asic) {
-		struct pcmuio_asic *chip = &devpriv->asics[asic];
+	for (i = 0; i < PCMUIO_MAX_ASICS; ++i) {
+		struct pcmuio_asic *chip = &devpriv->asics[i];
 
 		spin_lock_init(&chip->pagelock);
 		spin_lock_init(&chip->spinlock);
@@ -633,34 +633,29 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 	}
 
-	n_subdevs = board->num_asics * 2;
-
-	ret = comedi_alloc_subdevices(dev, n_subdevs);
+	ret = comedi_alloc_subdevices(dev, board->num_asics * 2);
 	if (ret)
 		return ret;
 
-	for (sdev_no = 0; sdev_no < (int)dev->n_subdevices; ++sdev_no) {
-		s = &dev->subdevices[sdev_no];
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->type = COMEDI_SUBD_DIO;
-		s->insn_bits = pcmuio_dio_insn_bits;
-		s->insn_config = pcmuio_dio_insn_config;
-		s->n_chan = 24;
+	for (i = 0; i < dev->n_subdevices; ++i) {
+		s = &dev->subdevices[i];
+		s->type		= COMEDI_SUBD_DIO;
+		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+		s->n_chan	= 24;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= pcmuio_dio_insn_bits;
+		s->insn_config	= pcmuio_dio_insn_config;
 
 		/* subdevices 0 and 2 can suppport interrupts */
-		if ((sdev_no == 0 && dev->irq) ||
-		    (sdev_no == 2 && devpriv->irq2)) {
+		if ((i == 0 && dev->irq) || (i == 2 && devpriv->irq2)) {
 			/* setup the interrupt subdevice */
 			dev->read_subdev = s;
-			s->subdev_flags |= SDF_CMD_READ;
-			s->cancel = pcmuio_cancel;
-			s->do_cmd = pcmuio_cmd;
-			s->do_cmdtest = pcmuio_cmdtest;
-			s->len_chanlist = s->n_chan;
-		} else {
-			s->len_chanlist = 1;
+			s->subdev_flags	|= SDF_CMD_READ;
+			s->len_chanlist	= s->n_chan;
+			s->cancel	= pcmuio_cancel;
+			s->do_cmd	= pcmuio_cmd;
+			s->do_cmdtest	= pcmuio_cmdtest;
 		}
 	}
 
