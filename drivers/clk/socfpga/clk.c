@@ -347,13 +347,3 @@ static void __init socfpga_clkmgr_init(struct device_node *node)
 }
 CLK_OF_DECLARE(socfpga_mgr, "altr,clk-mgr", socfpga_clkmgr_init);
 
-void __init socfpga_init_clocks(void)
-{
-	struct clk *clk;
-	int ret;
-
-	clk = clk_register_fixed_factor(NULL, "smp_twd", "mpuclk", 0, 1, 4);
-	ret = clk_register_clkdev(clk, NULL, "smp_twd");
-	if (ret)
-		pr_err("smp_twd alias not registered\n");
-}
