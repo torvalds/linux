@@ -702,29 +702,33 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	if (!devpriv->io_addr)
 		return -ENOMEM;
 
-	ret = request_irq(pcidev->irq, dt3k_interrupt, IRQF_SHARED,
-			  dev->board_name, dev);
-	if (ret)
-		return ret;
-	dev->irq = pcidev->irq;
+	if (pcidev->irq) {
+		ret = request_irq(pcidev->irq, dt3k_interrupt, IRQF_SHARED,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = pcidev->irq;
+	}
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;
 
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
 	/* ai subdevice */
 	s->type		= COMEDI_SUBD_AI;
-	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF;
 	s->n_chan	= this_board->adchan;
 	s->insn_read	= dt3k_ai_insn;
 	s->maxdata	= (1 << this_board->adbits) - 1;
-	s->len_chanlist	= 512;
 	s->range_table	= &range_dt3000_ai;	/* XXX */
-	s->do_cmd	= dt3k_ai_cmd;
-	s->do_cmdtest	= dt3k_ai_cmdtest;
-	s->cancel	= dt3k_ai_cancel;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= 512;
+		s->do_cmd	= dt3k_ai_cmd;
+		s->do_cmdtest	= dt3k_ai_cmdtest;
+		s->cancel	= dt3k_ai_cancel;
+	}
 
 	s = &dev->subdevices[1];
 	/* ao subsystem */
