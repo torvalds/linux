@@ -275,6 +275,7 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	bool hw_scan = local->ops->hw_scan;
+	bool was_scanning = local->scanning;
 
 	lockdep_assert_held(&local->mtx);
 
@@ -327,7 +328,8 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	ieee80211_mlme_notify_scan_completed(local);
 	ieee80211_ibss_notify_scan_completed(local);
 	ieee80211_mesh_notify_scan_completed(local);
-	ieee80211_start_next_roc(local);
+	if (was_scanning)
+		ieee80211_start_next_roc(local);
 }
 
 void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
