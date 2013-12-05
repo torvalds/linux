@@ -85,36 +85,36 @@ static int gpiod_request(struct gpio_desc *desc, const char *label);
 static void gpiod_free(struct gpio_desc *desc);
 
 #ifdef CONFIG_DEBUG_FS
-#define gpiod_emerg(desc, fmt, ...)			                \
-	pr_emerg("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label, \
+#define gpiod_emerg(desc, fmt, ...)					       \
+	pr_emerg("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?",\
                  ##__VA_ARGS__)
-#define gpiod_crit(desc, fmt, ...)			                \
-	pr_crit("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label,  \
+#define gpiod_crit(desc, fmt, ...)					       \
+	pr_crit("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?", \
                  ##__VA_ARGS__)
-#define gpiod_err(desc, fmt, ...)				        \
-	pr_err("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label,   \
+#define gpiod_err(desc, fmt, ...)					       \
+	pr_err("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?",  \
                  ##__VA_ARGS__)
-#define gpiod_warn(desc, fmt, ...)				        \
-	pr_warn("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label,  \
+#define gpiod_warn(desc, fmt, ...)					       \
+	pr_warn("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?", \
                  ##__VA_ARGS__)
-#define gpiod_info(desc, fmt, ...)				        \
-	pr_info("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label,  \
+#define gpiod_info(desc, fmt, ...)					       \
+	pr_info("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?", \
                 ##__VA_ARGS__)
-#define gpiod_dbg(desc, fmt, ...)				   \
-	pr_debug("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label, \
+#define gpiod_dbg(desc, fmt, ...)					       \
+	pr_debug("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?",\
                  ##__VA_ARGS__)
 #else
-#define gpiod_emerg(desc, fmt, ...)			           \
+#define gpiod_emerg(desc, fmt, ...)					\
 	pr_emerg("gpio-%d: " fmt, desc_to_gpio(desc), ##__VA_ARGS__)
-#define gpiod_crit(desc, fmt, ...)			           \
+#define gpiod_crit(desc, fmt, ...)					\
 	pr_crit("gpio-%d: " fmt, desc_to_gpio(desc), ##__VA_ARGS__)
-#define gpiod_err(desc, fmt, ...)				   \
+#define gpiod_err(desc, fmt, ...)					\
 	pr_err("gpio-%d: " fmt, desc_to_gpio(desc), ##__VA_ARGS__)
-#define gpiod_warn(desc, fmt, ...)				   \
+#define gpiod_warn(desc, fmt, ...)					\
 	pr_warn("gpio-%d: " fmt, desc_to_gpio(desc), ##__VA_ARGS__)
-#define gpiod_info(desc, fmt, ...)				   \
+#define gpiod_info(desc, fmt, ...)					\
 	pr_info("gpio-%d: " fmt, desc_to_gpio(desc), ##__VA_ARGS__)
-#define gpiod_dbg(desc, fmt, ...)				   \
+#define gpiod_dbg(desc, fmt, ...)					\
 	pr_debug("gpio-%d: " fmt, desc_to_gpio(desc), ##__VA_ARGS__)
 #endif
 
@@ -188,7 +188,8 @@ static int gpio_ensure_requested(struct gpio_desc *desc)
 	if (WARN(test_and_set_bit(FLAG_REQUESTED, &desc->flags) == 0,
 			"autorequest GPIO-%d\n", gpio)) {
 		if (!try_module_get(chip->owner)) {
-			pr_err("GPIO-%d: module can't be gotten \n", gpio);
+			gpiod_err(desc, "%s: module can't be gotten\n",
+					__func__);
 			clear_bit(FLAG_REQUESTED, &desc->flags);
 			/* lose */
 			return -EIO;
@@ -809,8 +810,8 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	if (!test_bit(FLAG_REQUESTED, &desc->flags) ||
 	     test_bit(FLAG_EXPORT, &desc->flags)) {
 		spin_unlock_irqrestore(&gpio_lock, flags);
-		pr_debug("%s: gpio %d unavailable (requested=%d, exported=%d)\n",
-				__func__, desc_to_gpio(desc),
+		gpiod_dbg(desc, "%s: unavailable (requested=%d, exported=%d)\n",
+				__func__,
 				test_bit(FLAG_REQUESTED, &desc->flags),
 				test_bit(FLAG_EXPORT, &desc->flags));
 		status = -EPERM;
@@ -858,8 +859,7 @@ fail_unregister_device:
 	device_unregister(dev);
 fail_unlock:
 	mutex_unlock(&sysfs_lock);
-	pr_debug("%s: gpio%d status %d\n", __func__, desc_to_gpio(desc),
-		 status);
+	gpiod_dbg(desc, "%s: status %d\n", __func__, status);
 	return status;
 }
 EXPORT_SYMBOL_GPL(gpiod_export);
@@ -907,8 +907,7 @@ int gpiod_export_link(struct device *dev, const char *name,
 	mutex_unlock(&sysfs_lock);
 
 	if (status)
-		pr_debug("%s: gpio%d status %d\n", __func__, desc_to_gpio(desc),
-			 status);
+		gpiod_dbg(desc, "%s: status %d\n", __func__, status);
 
 	return status;
 }
@@ -952,8 +951,7 @@ unlock:
 	mutex_unlock(&sysfs_lock);
 
 	if (status)
-		pr_debug("%s: gpio%d status %d\n", __func__, desc_to_gpio(desc),
-			 status);
+		gpiod_dbg(desc, "%s: status %d\n", __func__, status);
 
 	return status;
 }
@@ -995,8 +993,7 @@ void gpiod_unexport(struct gpio_desc *desc)
 	}
 
 	if (status)
-		pr_debug("%s: gpio%d status %d\n", __func__, desc_to_gpio(desc),
-			 status);
+		gpiod_dbg(desc, "%s: status %d\n", __func__, status);
 }
 EXPORT_SYMBOL_GPL(gpiod_unexport);
 
@@ -1222,7 +1219,7 @@ int gpiochip_add(struct gpio_chip *chip)
 	if (status)
 		goto fail;
 
-	pr_debug("gpiochip_add: registered GPIOs %d to %d on device: %s\n",
+	pr_debug("%s: registered GPIOs %d to %d on device: %s\n", __func__,
 		chip->base, chip->base + chip->ngpio - 1,
 		chip->label ? : "generic");
 
@@ -1232,7 +1229,7 @@ unlock:
 	spin_unlock_irqrestore(&gpio_lock, flags);
 fail:
 	/* failures here can mean systems won't boot... */
-	pr_err("gpiochip_add: gpios %d..%d (%s) failed to register\n",
+	pr_err("%s: GPIOs %d..%d (%s) failed to register\n", __func__,
 		chip->base, chip->base + chip->ngpio - 1,
 		chip->label ? : "generic");
 	return status;
@@ -1500,8 +1497,7 @@ static int gpiod_request(struct gpio_desc *desc, const char *label)
 	}
 done:
 	if (status)
-		pr_debug("_gpio_request: gpio-%d (%s) status %d\n",
-			 desc_to_gpio(desc), label ? : "?", status);
+		gpiod_dbg(desc, "%s: status %d\n", __func__, status);
 	spin_unlock_irqrestore(&gpio_lock, flags);
 	return status;
 }
@@ -1702,7 +1698,7 @@ int gpiod_direction_input(struct gpio_desc *desc)
 	if (!chip->get || !chip->direction_input) {
 		gpiod_warn(desc,
 			"%s: missing get() or direction_input() operations\n",
-			 __func__);
+			__func__);
 		return -EIO;
 	}
 
@@ -1722,7 +1718,8 @@ int gpiod_direction_input(struct gpio_desc *desc)
 	if (status) {
 		status = chip->request(chip, offset);
 		if (status < 0) {
-			gpiod_dbg(desc, "chip request fail, %d\n", status);
+			gpiod_dbg(desc, "%s: chip request fail, %d\n",
+					__func__, status);
 			/* and it's not available to anyone else ...
 			 * gpio_request() is the fully clean solution.
 			 */
@@ -1740,7 +1737,7 @@ lose:
 fail:
 	spin_unlock_irqrestore(&gpio_lock, flags);
 	if (status)
-		gpiod_dbg(desc, "%s status %d\n", __func__, status);
+		gpiod_dbg(desc, "%s: status %d\n", __func__, status);
 	return status;
 }
 EXPORT_SYMBOL_GPL(gpiod_direction_input);
@@ -1807,7 +1804,8 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
 	if (status) {
 		status = chip->request(chip, offset);
 		if (status < 0) {
-			gpiod_dbg(desc, "chip request fail, %d\n", status);
+			gpiod_dbg(desc, "%s: chip request fail, %d\n",
+					__func__, status);
 			/* and it's not available to anyone else ...
 			 * gpio_request() is the fully clean solution.
 			 */
@@ -2448,8 +2446,10 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 	 */
 	if (!desc || IS_ERR(desc)) {
 		struct gpio_desc *pdesc;
+
 		dev_dbg(dev, "using lookup tables for GPIO lookup");
 		pdesc = gpiod_find(dev, con_id, idx, &flags);
+
 		/* If used as fallback, do not replace the previous error */
 		if (!IS_ERR(pdesc) || !desc)
 			desc = pdesc;
