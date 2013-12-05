@@ -229,7 +229,7 @@ static void reset_atmio16d(struct comedi_device *dev)
 static irqreturn_t atmio16d_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 
 	comedi_buf_put(s->async, inw(dev->iobase + AD_FIFO_REG));
 
