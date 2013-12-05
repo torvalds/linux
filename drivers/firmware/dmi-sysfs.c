@@ -685,6 +685,7 @@ static void __exit dmi_sysfs_exit(void)
 	pr_debug("dmi-sysfs: unloading.\n");
 	cleanup_entry_list();
 	kset_unregister(dmi_kset);
+	kobject_del(dmi_kobj);
 	kobject_put(dmi_kobj);
 }
 
