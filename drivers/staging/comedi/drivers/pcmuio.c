@@ -127,26 +127,17 @@ static const struct pcmuio_board pcmuio_boards[] = {
 	},
 };
 
-struct pcmuio_subdev_private {
-	/* The below is only used for intr subdevices */
-	struct {
-		/*
-		 * subdev-relative channel mask for channels
-		 * we are interested in
-		 */
-		int enabled_mask;
-		int active;
-		int stop_count;
-		int continuous;
-		spinlock_t spinlock;
-	} intr;
+struct pcmuio_asic {
+	spinlock_t pagelock;
+	spinlock_t spinlock;
+	int enabled_mask;
+	int active;
+	int stop_count;
+	int continuous;
 };
 
 struct pcmuio_private {
-	struct {
-		spinlock_t pagelock;
-	} asics[PCMUIO_MAX_ASICS];
-	struct pcmuio_subdev_private *sprivs;
+	struct pcmuio_asic asics[PCMUIO_MAX_ASICS];
 	unsigned int irq2;
 };
 
@@ -154,10 +145,11 @@ static void pcmuio_write(struct comedi_device *dev, unsigned int val,
 			 int asic, int page, int port)
 {
 	struct pcmuio_private *devpriv = dev->private;
+	struct pcmuio_asic *chip = &devpriv->asics[asic];
 	unsigned long iobase = dev->iobase + (asic * PCMUIO_ASIC_IOSIZE);
 	unsigned long flags;
 
-	spin_lock_irqsave(&devpriv->asics[asic].pagelock, flags);
+	spin_lock_irqsave(&chip->pagelock, flags);
 	if (page == 0) {
 		/* Port registers are valid for any page */
 		outb(val & 0xff, iobase + PCMUIO_PORT_REG(port + 0));
@@ -169,18 +161,19 @@ static void pcmuio_write(struct comedi_device *dev, unsigned int val,
 		outb((val >> 8) & 0xff, iobase + PCMUIO_PAGE_REG(1));
 		outb((val >> 16) & 0xff, iobase + PCMUIO_PAGE_REG(2));
 	}
-	spin_unlock_irqrestore(&devpriv->asics[asic].pagelock, flags);
+	spin_unlock_irqrestore(&chip->pagelock, flags);
 }
 
 static unsigned int pcmuio_read(struct comedi_device *dev,
 				int asic, int page, int port)
 {
 	struct pcmuio_private *devpriv = dev->private;
+	struct pcmuio_asic *chip = &devpriv->asics[asic];
 	unsigned long iobase = dev->iobase + (asic * PCMUIO_ASIC_IOSIZE);
 	unsigned long flags;
 	unsigned int val;
 
-	spin_lock_irqsave(&devpriv->asics[asic].pagelock, flags);
+	spin_lock_irqsave(&chip->pagelock, flags);
 	if (page == 0) {
 		/* Port registers are valid for any page */
 		val = inb(iobase + PCMUIO_PORT_REG(port + 0));
@@ -192,7 +185,7 @@ static unsigned int pcmuio_read(struct comedi_device *dev,
 		val |= (inb(iobase + PCMUIO_PAGE_REG(1)) << 8);
 		val |= (inb(iobase + PCMUIO_PAGE_REG(2)) << 16);
 	}
-	spin_unlock_irqrestore(&devpriv->asics[asic].pagelock, flags);
+	spin_unlock_irqrestore(&chip->pagelock, flags);
 
 	return val;
 }
@@ -276,11 +269,12 @@ static void pcmuio_reset(struct comedi_device *dev)
 static void pcmuio_stop_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	struct pcmuio_subdev_private *subpriv = s->private;
+	struct pcmuio_private *devpriv = dev->private;
 	int asic = s->index / 2;
+	struct pcmuio_asic *chip = &devpriv->asics[asic];
 
-	subpriv->intr.enabled_mask = 0;
-	subpriv->intr.active = 0;
+	chip->enabled_mask = 0;
+	chip->active = 0;
 	s->async->inttrig = NULL;
 
 	/* disable all intrs for this subdev.. */
@@ -291,7 +285,9 @@ static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
 				      unsigned triggered)
 {
-	struct pcmuio_subdev_private *subpriv = s->private;
+	struct pcmuio_private *devpriv = dev->private;
+	int asic = s->index / 2;
+	struct pcmuio_asic *chip = &devpriv->asics[asic];
 	unsigned int len = s->async->cmd.chanlist_len;
 	unsigned oldevents = s->async->events;
 	unsigned int val = 0;
@@ -299,15 +295,15 @@ static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
 	unsigned mytrig;
 	unsigned int i;
 
-	spin_lock_irqsave(&subpriv->intr.spinlock, flags);
+	spin_lock_irqsave(&chip->spinlock, flags);
 
-	if (!subpriv->intr.active)
+	if (!chip->active)
 		goto done;
 
 	mytrig = triggered;
 	mytrig &= ((0x1 << s->n_chan) - 1);
 
-	if (!(mytrig & subpriv->intr.enabled_mask))
+	if (!(mytrig & chip->enabled_mask))
 		goto done;
 
 	for (i = 0; i < len; i++) {
@@ -327,11 +323,11 @@ static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
 	}
 
 	/* Check for end of acquisition. */
-	if (!subpriv->intr.continuous) {
+	if (!chip->continuous) {
 		/* stop_src == TRIG_COUNT */
-		if (subpriv->intr.stop_count > 0) {
-			subpriv->intr.stop_count--;
-			if (subpriv->intr.stop_count == 0) {
+		if (chip->stop_count > 0) {
+			chip->stop_count--;
+			if (chip->stop_count == 0) {
 				s->async->events |= COMEDI_CB_EOA;
 				/* TODO: STOP_ACQUISITION_CALL_HERE!! */
 				pcmuio_stop_intr(dev, s);
@@ -340,7 +336,7 @@ static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
 	}
 
 done:
-	spin_unlock_irqrestore(&subpriv->intr.spinlock, flags);
+	spin_unlock_irqrestore(&chip->spinlock, flags);
 
 	if (oldevents != s->async->events)
 		comedi_event(dev, s);
@@ -385,20 +381,21 @@ static irqreturn_t pcmuio_interrupt(int irq, void *d)
 static int pcmuio_start_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	struct pcmuio_subdev_private *subpriv = s->private;
+	struct pcmuio_private *devpriv = dev->private;
+	int asic = s->index / 2;
+	struct pcmuio_asic *chip = &devpriv->asics[asic];
 
-	if (!subpriv->intr.continuous && subpriv->intr.stop_count == 0) {
+	if (!chip->continuous && chip->stop_count == 0) {
 		/* An empty acquisition! */
 		s->async->events |= COMEDI_CB_EOA;
-		subpriv->intr.active = 0;
+		chip->active = 0;
 		return 1;
 	} else {
 		struct comedi_cmd *cmd = &s->async->cmd;
-		int asic = s->index / 2;
 		unsigned bits = 0, pol_bits = 0, n;
 
-		subpriv->intr.enabled_mask = 0;
-		subpriv->intr.active = 1;
+		chip->enabled_mask = 0;
+		chip->active = 1;
 		if (cmd->chanlist) {
 			for (n = 0; n < cmd->chanlist_len; n++) {
 				bits |= (1U << CR_CHAN(cmd->chanlist[n]));
@@ -409,7 +406,7 @@ static int pcmuio_start_intr(struct comedi_device *dev,
 			}
 		}
 		bits &= ((0x1 << s->n_chan) - 1);
-		subpriv->intr.enabled_mask = bits;
+		chip->enabled_mask = bits;
 
 		/* set pol and enab intrs for this subdev.. */
 		pcmuio_write(dev, pol_bits, asic, PCMUIO_PAGE_POL, 0);
@@ -420,13 +417,15 @@ static int pcmuio_start_intr(struct comedi_device *dev,
 
 static int pcmuio_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct pcmuio_subdev_private *subpriv = s->private;
+	struct pcmuio_private *devpriv = dev->private;
+	int asic = s->index / 2;
+	struct pcmuio_asic *chip = &devpriv->asics[asic];
 	unsigned long flags;
 
-	spin_lock_irqsave(&subpriv->intr.spinlock, flags);
-	if (subpriv->intr.active)
+	spin_lock_irqsave(&chip->spinlock, flags);
+	if (chip->active)
 		pcmuio_stop_intr(dev, s);
-	spin_unlock_irqrestore(&subpriv->intr.spinlock, flags);
+	spin_unlock_irqrestore(&chip->spinlock, flags);
 
 	return 0;
 }
@@ -438,19 +437,21 @@ static int
 pcmuio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
 			  unsigned int trignum)
 {
-	struct pcmuio_subdev_private *subpriv = s->private;
+	struct pcmuio_private *devpriv = dev->private;
+	int asic = s->index / 2;
+	struct pcmuio_asic *chip = &devpriv->asics[asic];
 	unsigned long flags;
 	int event = 0;
 
 	if (trignum != 0)
 		return -EINVAL;
 
-	spin_lock_irqsave(&subpriv->intr.spinlock, flags);
+	spin_lock_irqsave(&chip->spinlock, flags);
 	s->async->inttrig = NULL;
-	if (subpriv->intr.active)
+	if (chip->active)
 		event = pcmuio_start_intr(dev, s);
 
-	spin_unlock_irqrestore(&subpriv->intr.spinlock, flags);
+	spin_unlock_irqrestore(&chip->spinlock, flags);
 
 	if (event)
 		comedi_event(dev, s);
@@ -463,24 +464,26 @@ pcmuio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
  */
 static int pcmuio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct pcmuio_subdev_private *subpriv = s->private;
+	struct pcmuio_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
+	int asic = s->index / 2;
+	struct pcmuio_asic *chip = &devpriv->asics[asic];
 	unsigned long flags;
 	int event = 0;
 
-	spin_lock_irqsave(&subpriv->intr.spinlock, flags);
-	subpriv->intr.active = 1;
+	spin_lock_irqsave(&chip->spinlock, flags);
+	chip->active = 1;
 
 	/* Set up end of acquisition. */
 	switch (cmd->stop_src) {
 	case TRIG_COUNT:
-		subpriv->intr.continuous = 0;
-		subpriv->intr.stop_count = cmd->stop_arg;
+		chip->continuous = 0;
+		chip->stop_count = cmd->stop_arg;
 		break;
 	default:
 		/* TRIG_NONE */
-		subpriv->intr.continuous = 1;
-		subpriv->intr.stop_count = 0;
+		chip->continuous = 1;
+		chip->stop_count = 0;
 		break;
 	}
 
@@ -494,7 +497,7 @@ static int pcmuio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		event = pcmuio_start_intr(dev, s);
 		break;
 	}
-	spin_unlock_irqrestore(&subpriv->intr.spinlock, flags);
+	spin_unlock_irqrestore(&chip->spinlock, flags);
 
 	if (event)
 		comedi_event(dev, s);
@@ -562,7 +565,6 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct pcmuio_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	struct pcmuio_private *devpriv;
-	struct pcmuio_subdev_private *subpriv;
 	int sdev_no, n_subdevs, asic;
 	int ret;
 
@@ -575,8 +577,12 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	for (asic = 0; asic < PCMUIO_MAX_ASICS; ++asic)
-		spin_lock_init(&devpriv->asics[asic].pagelock);
+	for (asic = 0; asic < PCMUIO_MAX_ASICS; ++asic) {
+		struct pcmuio_asic *chip = &devpriv->asics[asic];
+
+		spin_lock_init(&chip->pagelock);
+		spin_lock_init(&chip->spinlock);
+	}
 
 	pcmuio_reset(dev);
 
@@ -602,9 +608,6 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	n_subdevs = board->num_asics * 2;
-	devpriv->sprivs = kcalloc(n_subdevs, sizeof(*subpriv), GFP_KERNEL);
-	if (!devpriv->sprivs)
-		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, n_subdevs);
 	if (ret)
@@ -612,8 +615,6 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	for (sdev_no = 0; sdev_no < (int)dev->n_subdevices; ++sdev_no) {
 		s = &dev->subdevices[sdev_no];
-		subpriv = &devpriv->sprivs[sdev_no];
-		s->private = subpriv;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -635,7 +636,6 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		} else {
 			s->len_chanlist = 1;
 		}
-		spin_lock_init(&subpriv->intr.spinlock);
 	}
 
 	return 0;
@@ -651,8 +651,6 @@ static void pcmuio_detach(struct comedi_device *dev)
 		/* free the 2nd irq if used, the core will free the 1st one */
 		if (devpriv->irq2 && devpriv->irq2 != dev->irq)
 			free_irq(devpriv->irq2, dev);
-
-		kfree(devpriv->sprivs);
 	}
 	comedi_legacy_detach(dev);
 }
