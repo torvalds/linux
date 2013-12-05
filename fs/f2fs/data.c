@@ -251,7 +251,7 @@ int reserve_new_block(struct dnode_of_data *dn)
 
 	if (is_inode_flag_set(F2FS_I(dn->inode), FI_NO_ALLOC))
 		return -EPERM;
-	if (!inc_valid_block_count(sbi, dn->inode, 1))
+	if (unlikely(!inc_valid_block_count(sbi, dn->inode, 1)))
 		return -ENOSPC;
 
 	trace_f2fs_reserve_new_block(dn->inode, dn->nid, dn->ofs_in_node);
@@ -711,7 +711,7 @@ static int f2fs_write_data_page(struct page *page,
 
 	zero_user_segment(page, offset, PAGE_CACHE_SIZE);
 write:
-	if (sbi->por_doing) {
+	if (unlikely(sbi->por_doing)) {
 		err = AOP_WRITEPAGE_ACTIVATE;
 		goto redirty_out;
 	}

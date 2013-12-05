@@ -190,7 +190,7 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 	unsigned int max_depth;
 	unsigned int level;
 
-	if (namelen > F2FS_NAME_LEN)
+	if (unlikely(namelen > F2FS_NAME_LEN))
 		return NULL;
 
 	if (npages == 0)
@@ -461,7 +461,7 @@ int __f2fs_add_link(struct inode *dir, const struct qstr *name, struct inode *in
 	}
 
 start:
-	if (current_depth == MAX_DIR_HASH_DEPTH)
+	if (unlikely(current_depth == MAX_DIR_HASH_DEPTH))
 		return -ENOSPC;
 
 	/* Increase the depth, if required */

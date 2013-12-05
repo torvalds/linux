@@ -457,7 +457,7 @@ static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi, int freed)
 	int node_secs = get_blocktype_secs(sbi, F2FS_DIRTY_NODES);
 	int dent_secs = get_blocktype_secs(sbi, F2FS_DIRTY_DENTS);
 
-	if (sbi->por_doing)
+	if (unlikely(sbi->por_doing))
 		return false;
 
 	return ((free_sections(sbi) + freed) <= (node_secs + 2 * dent_secs +

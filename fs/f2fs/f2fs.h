@@ -574,7 +574,7 @@ static inline void f2fs_unlock_all(struct f2fs_sb_info *sbi)
 static inline int check_nid_range(struct f2fs_sb_info *sbi, nid_t nid)
 {
 	WARN_ON((nid >= NM_I(sbi)->max_nid));
-	if (nid >= NM_I(sbi)->max_nid)
+	if (unlikely(nid >= NM_I(sbi)->max_nid))
 		return -EINVAL;
 	return 0;
 }
@@ -600,7 +600,7 @@ static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
 	spin_lock(&sbi->stat_lock);
 	valid_block_count =
 		sbi->total_valid_block_count + (block_t)count;
-	if (valid_block_count > sbi->user_block_count) {
+	if (unlikely(valid_block_count > sbi->user_block_count)) {
 		spin_unlock(&sbi->stat_lock);
 		return false;
 	}
@@ -719,13 +719,13 @@ static inline bool inc_valid_node_count(struct f2fs_sb_info *sbi,
 	spin_lock(&sbi->stat_lock);
 
 	valid_block_count = sbi->total_valid_block_count + 1;
-	if (valid_block_count > sbi->user_block_count) {
+	if (unlikely(valid_block_count > sbi->user_block_count)) {
 		spin_unlock(&sbi->stat_lock);
 		return false;
 	}
 
 	valid_node_count = sbi->total_valid_node_count + 1;
-	if (valid_node_count > sbi->total_node_count) {
+	if (unlikely(valid_node_count > sbi->total_node_count)) {
 		spin_unlock(&sbi->stat_lock);
 		return false;
 	}

@@ -94,7 +94,7 @@ static void ra_nat_pages(struct f2fs_sb_info *sbi, int nid)
 	int i;
 
 	for (i = 0; i < FREE_NID_PAGES; i++, nid += NAT_ENTRY_PER_BLOCK) {
-		if (nid >= nm_i->max_nid)
+		if (unlikely(nid >= nm_i->max_nid))
 			nid = 0;
 		index = current_nat_addr(sbi, nid);
 
@@ -1160,7 +1160,7 @@ int wait_on_node_pages_writeback(struct f2fs_sb_info *sbi, nid_t ino)
 			struct page *page = pvec.pages[i];
 
 			/* until radix tree lookup accepts end_index */
-			if (page->index > end)
+			if (unlikely(page->index > end))
 				continue;
 
 			if (ino && ino_of_node(page) == ino) {
@@ -1190,7 +1190,7 @@ static int f2fs_write_node_page(struct page *page,
 	block_t new_addr;
 	struct node_info ni;
 
-	if (sbi->por_doing)
+	if (unlikely(sbi->por_doing))
 		goto redirty_out;
 
 	wait_on_page_writeback(page);
@@ -1326,7 +1326,7 @@ static int add_free_nid(struct f2fs_nm_info *nm_i, nid_t nid, bool build)
 		return -1;
 
 	/* 0 nid should not be used */
-	if (nid == 0)
+	if (unlikely(nid == 0))
 		return 0;
 
 	if (build) {
@@ -1379,7 +1379,7 @@ static void scan_nat_page(struct f2fs_nm_info *nm_i,
 
 	for (; i < NAT_ENTRY_PER_BLOCK; i++, start_nid++) {
 
-		if (start_nid >= nm_i->max_nid)
+		if (unlikely(start_nid >= nm_i->max_nid))
 			break;
 
 		blk_addr = le32_to_cpu(nat_blk->entries[i].block_addr);
@@ -1413,7 +1413,7 @@ static void build_free_nids(struct f2fs_sb_info *sbi)
 		f2fs_put_page(page, 1);
 
 		nid += (NAT_ENTRY_PER_BLOCK - (nid % NAT_ENTRY_PER_BLOCK));
-		if (nid >= nm_i->max_nid)
+		if (unlikely(nid >= nm_i->max_nid))
 			nid = 0;
 
 		if (i++ == FREE_NID_PAGES)
@@ -1447,7 +1447,7 @@ bool alloc_nid(struct f2fs_sb_info *sbi, nid_t *nid)
 	struct free_nid *i = NULL;
 	struct list_head *this;
 retry:
-	if (sbi->total_valid_node_count + 1 >= nm_i->max_nid)
+	if (unlikely(sbi->total_valid_node_count + 1 >= nm_i->max_nid))
 		return false;
 
 	spin_lock(&nm_i->free_nid_list_lock);
@@ -1557,7 +1557,7 @@ int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
 	new_ni = old_ni;
 	new_ni.ino = ino;
 
-	if (!inc_valid_node_count(sbi, NULL))
+	if (unlikely(!inc_valid_node_count(sbi, NULL)))
 		WARN_ON(1);
 	set_node_addr(sbi, &new_ni, NEW_ADDR);
 	inc_valid_inode_count(sbi);

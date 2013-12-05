@@ -82,13 +82,12 @@ static int f2fs_write_meta_page(struct page *page,
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 
 	/* Should not write any meta pages, if any IO error was occurred */
-	if (wbc->for_reclaim || sbi->por_doing ||
-			is_set_ckpt_flags(F2FS_CKPT(sbi), CP_ERROR_FLAG)) {
-		dec_page_count(sbi, F2FS_DIRTY_META);
-		wbc->pages_skipped++;
-		set_page_dirty(page);
-		return AOP_WRITEPAGE_ACTIVATE;
-	}
+	if (unlikely(sbi->por_doing ||
+			is_set_ckpt_flags(F2FS_CKPT(sbi), CP_ERROR_FLAG)))
+		goto redirty_out;
+
+	if (wbc->for_reclaim)
+		goto redirty_out;
 
 	wait_on_page_writeback(page);
 
@@ -96,6 +95,12 @@ static int f2fs_write_meta_page(struct page *page,
 	dec_page_count(sbi, F2FS_DIRTY_META);
 	unlock_page(page);
 	return 0;
+
+redirty_out:
+	dec_page_count(sbi, F2FS_DIRTY_META);
+	wbc->pages_skipped++;
+	set_page_dirty(page);
+	return AOP_WRITEPAGE_ACTIVATE;
 }
 
 static int f2fs_write_meta_pages(struct address_space *mapping,
@@ -137,7 +142,7 @@ long sync_meta_pages(struct f2fs_sb_info *sbi, enum page_type type,
 		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
 				PAGECACHE_TAG_DIRTY,
 				min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1);
-		if (nr_pages == 0)
+		if (unlikely(nr_pages == 0))
 			break;
 
 		for (i = 0; i < nr_pages; i++) {
@@ -150,7 +155,8 @@ long sync_meta_pages(struct f2fs_sb_info *sbi, enum page_type type,
 				unlock_page(page);
 				break;
 			}
-			if (nwritten++ >= nr_to_write)
+			nwritten++;
+			if (unlikely(nwritten >= nr_to_write))
 				break;
 		}
 		pagevec_release(&pvec);
@@ -200,7 +206,7 @@ int acquire_orphan_inode(struct f2fs_sb_info *sbi)
 	max_orphans = (sbi->blocks_per_seg - 2 - NR_CURSEG_TYPE)
 				* F2FS_ORPHANS_PER_BLOCK;
 	mutex_lock(&sbi->orphan_inode_mutex);
-	if (sbi->n_orphans >= max_orphans)
+	if (unlikely(sbi->n_orphans >= max_orphans))
 		err = -ENOSPC;
 	else
 		sbi->n_orphans++;
