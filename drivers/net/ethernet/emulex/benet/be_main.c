@@ -2464,8 +2464,16 @@ void be_detect_error(struct be_adapter *adapter)
 	 */
 	if (sliport_status & SLIPORT_STATUS_ERR_MASK) {
 		adapter->hw_error = true;
-		dev_err(&adapter->pdev->dev,
-			"Error detected in the card\n");
+		/* Do not log error messages if its a FW reset */
+		if (sliport_err1 == SLIPORT_ERROR_FW_RESET1 &&
+		    sliport_err2 == SLIPORT_ERROR_FW_RESET2) {
+			dev_info(&adapter->pdev->dev,
+				 "Firmware update in progress\n");
+			return;
+		} else {
+			dev_err(&adapter->pdev->dev,
+				"Error detected in the card\n");
+		}
 	}
 
 	if (sliport_status & SLIPORT_STATUS_ERR_MASK) {
@@ -3812,6 +3820,8 @@ static int lancer_fw_download(struct be_adapter *adapter,
 	}
 
 	if (change_status == LANCER_FW_RESET_NEEDED) {
+		dev_info(&adapter->pdev->dev,
+			 "Resetting adapter to activate new FW\n");
 		status = lancer_physdev_ctrl(adapter,
 					     PHYSDEV_CONTROL_FW_RESET_MASK);
 		if (status) {
@@ -4363,13 +4373,13 @@ static int lancer_recover_func(struct be_adapter *adapter)
 			goto err;
 	}
 
-	dev_err(dev, "Error recovery successful\n");
+	dev_err(dev, "Adapter recovery successful\n");
 	return 0;
 err:
 	if (status == -EAGAIN)
 		dev_err(dev, "Waiting for resource provisioning\n");
 	else
-		dev_err(dev, "Error recovery failed\n");
+		dev_err(dev, "Adapter recovery failed\n");
 
 	return status;
 }
