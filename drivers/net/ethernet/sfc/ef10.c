@@ -264,6 +264,8 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	if (rc)
 		goto fail3;
 
+	efx_ptp_probe(efx, NULL);
+
 	return 0;
 
 fail3:
@@ -472,9 +474,10 @@ static void efx_ef10_remove(struct efx_nic *efx)
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	int rc;
 
+	efx_ptp_remove(efx);
+
 	efx_mcdi_mon_remove(efx);
 
-	/* This needs to be after efx_ptp_remove_channel() with no filters */
 	efx_ef10_rx_free_indir_table(efx);
 
 	if (nic_data->wc_membase)

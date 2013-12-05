@@ -248,7 +248,7 @@ struct efx_ptp_timeset {
  * @start: Address at which MC indicates ready for synchronisation
  * @host_time_pps: Host time at last PPS
  * @current_adjfreq: Current ppb adjustment.
- * @phc_clock: Pointer to registered phc device
+ * @phc_clock: Pointer to registered phc device (if primary function)
  * @phc_clock_info: Registration structure for phc device
  * @pps_work: pps work task for handling pps events
  * @pps_workwq: pps work queue
@@ -1163,19 +1163,22 @@ int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel)
 	if (rc < 0)
 		goto fail3;
 
-	ptp->phc_clock_info = efx_phc_clock_info;
-	ptp->phc_clock = ptp_clock_register(&ptp->phc_clock_info,
-					    &efx->pci_dev->dev);
-	if (IS_ERR(ptp->phc_clock)) {
-		rc = PTR_ERR(ptp->phc_clock);
-		goto fail3;
-	}
+	if (efx->mcdi->fn_flags &
+	    (1 << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_PRIMARY)) {
+		ptp->phc_clock_info = efx_phc_clock_info;
+		ptp->phc_clock = ptp_clock_register(&ptp->phc_clock_info,
+						    &efx->pci_dev->dev);
+		if (IS_ERR(ptp->phc_clock)) {
+			rc = PTR_ERR(ptp->phc_clock);
+			goto fail3;
+		}
 
-	INIT_WORK(&ptp->pps_work, efx_ptp_pps_worker);
-	ptp->pps_workwq = create_singlethread_workqueue("sfc_pps");
-	if (!ptp->pps_workwq) {
-		rc = -ENOMEM;
-		goto fail4;
+		INIT_WORK(&ptp->pps_work, efx_ptp_pps_worker);
+		ptp->pps_workwq = create_singlethread_workqueue("sfc_pps");
+		if (!ptp->pps_workwq) {
+			rc = -ENOMEM;
+			goto fail4;
+		}
 	}
 	ptp->nic_ts_enabled = false;
 
@@ -1224,10 +1227,12 @@ void efx_ptp_remove(struct efx_nic *efx)
 	skb_queue_purge(&efx->ptp_data->rxq);
 	skb_queue_purge(&efx->ptp_data->txq);
 
-	ptp_clock_unregister(efx->ptp_data->phc_clock);
+	if (efx->ptp_data->phc_clock) {
+		destroy_workqueue(efx->ptp_data->pps_workwq);
+		ptp_clock_unregister(efx->ptp_data->phc_clock);
+	}
 
 	destroy_workqueue(efx->ptp_data->workwq);
-	destroy_workqueue(efx->ptp_data->pps_workwq);
 
 	efx_nic_free_buffer(efx, &efx->ptp_data->start);
 	kfree(efx->ptp_data);
@@ -1440,6 +1445,9 @@ static int efx_ptp_ts_init(struct efx_nic *efx, struct hwtstamp_config *init)
 void efx_ptp_get_ts_info(struct efx_nic *efx, struct ethtool_ts_info *ts_info)
 {
 	struct efx_ptp_data *ptp = efx->ptp_data;
+	struct efx_nic *primary = efx->primary;
+
+	ASSERT_RTNL();
 
 	if (!ptp)
 		return;
@@ -1447,7 +1455,9 @@ void efx_ptp_get_ts_info(struct efx_nic *efx, struct ethtool_ts_info *ts_info)
 	ts_info->so_timestamping |= (SOF_TIMESTAMPING_TX_HARDWARE |
 				     SOF_TIMESTAMPING_RX_HARDWARE |
 				     SOF_TIMESTAMPING_RAW_HARDWARE);
-	ts_info->phc_index = ptp_clock_index(ptp->phc_clock);
+	if (primary && primary->ptp_data && primary->ptp_data->phc_clock)
+		ts_info->phc_index =
+			ptp_clock_index(primary->ptp_data->phc_clock);
 	ts_info->tx_types = 1 << HWTSTAMP_TX_OFF | 1 << HWTSTAMP_TX_ON;
 	ts_info->rx_filters = ptp->efx->type->hwtstamp_filters;
 }
