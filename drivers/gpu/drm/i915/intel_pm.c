@@ -2655,7 +2655,8 @@ static bool intel_compute_pipe_wm(struct drm_crtc *crtc,
 		ilk_compute_wm_level(dev_priv, level, params,
 				     &pipe_wm->wm[level]);
 
-	pipe_wm->linetime = hsw_compute_linetime_wm(dev, crtc);
+	if (IS_HASWELL(dev))
+		pipe_wm->linetime = hsw_compute_linetime_wm(dev, crtc);
 
 	/* At least LP0 must be valid */
 	return ilk_validate_wm_level(0, &max, &pipe_wm->wm[0]);
@@ -3234,7 +3235,8 @@ static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 	};
 
 	hw->wm_pipe[pipe] = I915_READ(wm0_pipe_reg[pipe]);
-	hw->wm_linetime[pipe] = I915_READ(PIPE_WM_LINETIME(pipe));
+	if (IS_HASWELL(dev))
+		hw->wm_linetime[pipe] = I915_READ(PIPE_WM_LINETIME(pipe));
 
 	if (intel_crtc_active(crtc)) {
 		u32 tmp = hw->wm_pipe[pipe];
