@@ -160,6 +160,9 @@ struct adv7842_platform_data {
 	/* Default mode */
 	enum adv7842_mode mode;
 
+	/* Default input */
+	unsigned input;
+
 	/* Video standard */
 	enum adv7842_vid_std_select vid_std_select;
 

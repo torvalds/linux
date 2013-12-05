@@ -2804,7 +2804,7 @@ static int adv7842_probe(struct i2c_client *client,
 	state->connector_hdmi = pdata->connector_hdmi;
 	state->mode = pdata->mode;
 
-	state->hdmi_port_a = true;
+	state->hdmi_port_a = pdata->input == ADV7842_SELECT_HDMI_PORT_A;
 
 	/* i2c access to adv7842? */
 	rev = adv_smbus_read_byte_data_check(client, 0xea, false) << 8 |
