@@ -1494,10 +1494,10 @@ static int et131x_mii_write(struct et131x_adapter *adapter, u8 reg, u16 value)
 	return status;
 }
 
-/* Still used from _mac for BIT_READ */
-static void et1310_phy_access_mii_bit(struct et131x_adapter *adapter,
-				      u16 action, u16 regnum, u16 bitnum,
-				      u8 *value)
+static void et1310_phy_read_mii_bit(struct et131x_adapter *adapter,
+				    u16 regnum,
+				    u16 bitnum,
+				    u8 *value)
 {
 	u16 reg;
 	u16 mask = 1 << bitnum;
@@ -1505,22 +1505,7 @@ static void et1310_phy_access_mii_bit(struct et131x_adapter *adapter,
 	/* Read the requested register */
 	et131x_mii_read(adapter, regnum, &reg);
 
-	switch (action) {
-	case TRUEPHY_BIT_READ:
-		*value = (reg & mask) >> bitnum;
-		break;
-
-	case TRUEPHY_BIT_SET:
-		et131x_mii_write(adapter, regnum, reg | mask);
-		break;
-
-	case TRUEPHY_BIT_CLEAR:
-		et131x_mii_write(adapter, regnum, reg & ~mask);
-		break;
-
-	default:
-		break;
-	}
+	*value = (reg & mask) >> bitnum;
 }
 
 static void et1310_config_flow_control(struct et131x_adapter *adapter)
@@ -1532,27 +1517,19 @@ static void et1310_config_flow_control(struct et131x_adapter *adapter)
 	} else {
 		char remote_pause, remote_async_pause;
 
-		et1310_phy_access_mii_bit(adapter,
-				TRUEPHY_BIT_READ, 5, 10, &remote_pause);
-		et1310_phy_access_mii_bit(adapter,
-				TRUEPHY_BIT_READ, 5, 11,
-				&remote_async_pause);
+		et1310_phy_read_mii_bit(adapter, 5, 10, &remote_pause);
+		et1310_phy_read_mii_bit(adapter, 5, 11, &remote_async_pause);
 
-		if ((remote_pause == TRUEPHY_BIT_SET) &&
-		    (remote_async_pause == TRUEPHY_BIT_SET)) {
+		if (remote_pause && remote_async_pause) {
 			adapter->flowcontrol = adapter->wanted_flow;
-		} else if ((remote_pause == TRUEPHY_BIT_SET) &&
-			   (remote_async_pause == TRUEPHY_BIT_CLEAR)) {
+		} else if (remote_pause && !remote_async_pause) {
 			if (adapter->wanted_flow == FLOW_BOTH)
 				adapter->flowcontrol = FLOW_BOTH;
 			else
 				adapter->flowcontrol = FLOW_NONE;
-		} else if ((remote_pause == TRUEPHY_BIT_CLEAR) &&
-			   (remote_async_pause == TRUEPHY_BIT_CLEAR)) {
+		} else if (!remote_pause && !remote_async_pause) {
 			adapter->flowcontrol = FLOW_NONE;
-		} else {/* if (remote_pause == TRUEPHY_CLEAR_BIT &&
-			 *     remote_async_pause == TRUEPHY_SET_BIT)
-			 */
+		} else {
 			if (adapter->wanted_flow == FLOW_BOTH)
 				adapter->flowcontrol = FLOW_RXONLY;
 			else
