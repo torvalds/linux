@@ -3112,6 +3112,8 @@ enum nl80211_key_attributes {
  *	%NL80211_MAX_SUPP_RATES in a single array).
  * @NL80211_TXRATE_HT: HT (MCS) rates allowed for TX rate selection
  *	in an array of MCS numbers.
+ * @NL80211_TXRATE_VHT: VHT rates allowed for TX rate selection,
+ *	see &struct nl80211_txrate_vht
  * @__NL80211_TXRATE_AFTER_LAST: internal
  * @NL80211_TXRATE_MAX: highest TX rate attribute
  */
@@ -3119,6 +3121,7 @@ enum nl80211_tx_rate_attributes {
 	__NL80211_TXRATE_INVALID,
 	NL80211_TXRATE_LEGACY,
 	NL80211_TXRATE_HT,
+	NL80211_TXRATE_VHT,
 
 	/* keep last */
 	__NL80211_TXRATE_AFTER_LAST,
@@ -3126,6 +3129,15 @@ enum nl80211_tx_rate_attributes {
 };
 
 #define NL80211_TXRATE_MCS NL80211_TXRATE_HT
+#define NL80211_VHT_NSS_MAX		8
+
+/**
+ * struct nl80211_txrate_vht - VHT MCS/NSS txrate bitmap
+ * @mcs: MCS bitmap table for each NSS (array index 0 for 1 stream, etc.)
+ */
+struct nl80211_txrate_vht {
+	__u16 mcs[NL80211_VHT_NSS_MAX];
+};
 
 /**
  * enum nl80211_band - Frequency band
