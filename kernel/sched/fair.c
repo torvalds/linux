@@ -4346,6 +4346,16 @@ unlock:
  * load-balance).
  */
 #ifdef CONFIG_FAIR_GROUP_SCHED
+
+#ifdef CONFIG_NO_HZ_COMMON
+static int nohz_test_cpu(int cpu);
+#else
+static inline int nohz_test_cpu(int cpu)
+{
+	return 0;
+}
+#endif
+
 /*
  * Called immediately before a task is migrated to a new cpu; task_cpu(p) and
  * cfs_rq_of(p) references at time of call are still valid and identify the
@@ -4365,6 +4375,25 @@ migrate_task_rq_fair(struct task_struct *p, int next_cpu)
 	 * be negative here since on-rq tasks have decay-count == 0.
 	 */
 	if (se->avg.decay_count) {
+		/*
+		 * If we migrate a sleeping task away from a CPU
+		 * which has the tick stopped, then both the clock_task
+		 * and decay_counter will be out of date for that CPU
+		 * and we will not decay load correctly.
+		 */
+		if (!se->on_rq && nohz_test_cpu(task_cpu(p))) {
+			struct rq *rq = cpu_rq(task_cpu(p));
+			unsigned long flags;
+			/*
+			 * Current CPU cannot be holding rq->lock in this
+			 * circumstance, but another might be. We must hold
+			 * rq->lock before we go poking around in its clocks
+			 */
+			raw_spin_lock_irqsave(&rq->lock, flags);
+			update_rq_clock(rq);
+			update_cfs_rq_blocked_load(cfs_rq, 0);
+			raw_spin_unlock_irqrestore(&rq->lock, flags);
+		}
 		se->avg.decay_count = -__synchronize_entity_decay(se);
 		atomic64_add(se->avg.load_avg_contrib, &cfs_rq->removed_load);
 	}
@@ -6296,6 +6325,18 @@ static struct {
 	atomic_t nr_cpus;
 	unsigned long next_balance;     /* in jiffy units */
 } nohz ____cacheline_aligned;
+
+/*
+ * nohz_test_cpu used when load tracking is enabled. FAIR_GROUP_SCHED
+ * dependency below may be removed when load tracking guards are
+ * removed.
+ */
+#ifdef CONFIG_FAIR_GROUP_SCHED
+static int nohz_test_cpu(int cpu)
+{
+	return cpumask_test_cpu(cpu, nohz.idle_cpus_mask);
+}
+#endif
 
 #ifdef CONFIG_SCHED_HMP_LITTLE_PACKING
 /*
