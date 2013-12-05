@@ -191,7 +191,7 @@ struct batadv_ogm_packet {
 #define BATADV_OGM_HLEN sizeof(struct batadv_ogm_packet)
 
 /**
- * batadv_icmp_header - common ICMP header
+ * batadv_icmp_header - common members among all the ICMP packets
  * @packet_type: batman-adv packet type, part of the general header
  * @version: batman-adv protocol version, part of the genereal header
  * @ttl: time to live for this packet, part of the genereal header
@@ -199,6 +199,11 @@ struct batadv_ogm_packet {
  * @dst: address of the destination node
  * @orig: address of the source node
  * @uid: local ICMP socket identifier
+ * @align: not used - useful for alignment purposes only
+ *
+ * This structure is used for ICMP packets parsing only and it is never sent
+ * over the wire. The alignment field at the end is there to ensure that
+ * members are padded the same way as they are in real packets.
  */
 struct batadv_icmp_header {
 	uint8_t  packet_type;
@@ -208,16 +213,29 @@ struct batadv_icmp_header {
 	uint8_t  dst[ETH_ALEN];
 	uint8_t  orig[ETH_ALEN];
 	uint8_t  uid;
+	uint8_t  align[3];
 };
 
 /**
  * batadv_icmp_packet - ICMP packet
- * @icmph: common ICMP header
+ * @packet_type: batman-adv packet type, part of the general header
+ * @version: batman-adv protocol version, part of the genereal header
+ * @ttl: time to live for this packet, part of the genereal header
+ * @msg_type: ICMP packet type
+ * @dst: address of the destination node
+ * @orig: address of the source node
+ * @uid: local ICMP socket identifier
  * @reserved: not used - useful for alignment
  * @seqno: ICMP sequence number
  */
 struct batadv_icmp_packet {
-	struct batadv_icmp_header icmph;
+	uint8_t  packet_type;
+	uint8_t  version;
+	uint8_t  ttl;
+	uint8_t  msg_type; /* see ICMP message types above */
+	uint8_t  dst[ETH_ALEN];
+	uint8_t  orig[ETH_ALEN];
+	uint8_t  uid;
 	uint8_t  reserved;
 	__be16   seqno;
 };
@@ -226,13 +244,25 @@ struct batadv_icmp_packet {
 
 /**
  * batadv_icmp_packet_rr - ICMP RouteRecord packet
- * @icmph: common ICMP header
+ * @packet_type: batman-adv packet type, part of the general header
+ * @version: batman-adv protocol version, part of the genereal header
+ * @ttl: time to live for this packet, part of the genereal header
+ * @msg_type: ICMP packet type
+ * @dst: address of the destination node
+ * @orig: address of the source node
+ * @uid: local ICMP socket identifier
  * @rr_cur: number of entries the rr array
  * @seqno: ICMP sequence number
  * @rr: route record array
  */
 struct batadv_icmp_packet_rr {
-	struct batadv_icmp_header icmph;
+	uint8_t  packet_type;
+	uint8_t  version;
+	uint8_t  ttl;
+	uint8_t  msg_type; /* see ICMP message types above */
+	uint8_t  dst[ETH_ALEN];
+	uint8_t  orig[ETH_ALEN];
+	uint8_t  uid;
 	uint8_t  rr_cur;
 	__be16   seqno;
 	uint8_t  rr[BATADV_RR_LEN][ETH_ALEN];
