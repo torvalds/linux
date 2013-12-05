@@ -130,10 +130,10 @@ static const struct pcmuio_board pcmuio_boards[] = {
 struct pcmuio_asic {
 	spinlock_t pagelock;	/* protects the page registers */
 	spinlock_t spinlock;	/* protects member variables */
-	int enabled_mask;
-	int active;
-	int stop_count;
-	int continuous;
+	unsigned int enabled_mask;
+	unsigned int stop_count;
+	unsigned int active:1;
+	unsigned int continuous:1;
 };
 
 struct pcmuio_private {
