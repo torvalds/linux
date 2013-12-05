@@ -1694,7 +1694,7 @@ struct ocrdma_grh {
 	u16	rsvd;
 } __packed;
 
-#define OCRDMA_AV_VALID		Bit(0)
+#define OCRDMA_AV_VALID		Bit(7)
 #define OCRDMA_AV_VLAN_VALID	Bit(1)
 
 struct ocrdma_av {
