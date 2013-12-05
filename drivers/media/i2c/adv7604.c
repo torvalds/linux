@@ -949,16 +949,25 @@ static void set_rgb_quantization_range(struct v4l2_subdev *sd)
 		}
 		break;
 	case V4L2_DV_RGB_RANGE_LIMITED:
-		/* RGB limited range (16-235) */
-		io_write_and_or(sd, 0x02, 0x0f, 0x00);
+		if (state->selected_input == ADV7604_INPUT_VGA_COMP) {
+			/* YCrCb limited range (16-235) */
+			io_write_and_or(sd, 0x02, 0x0f, 0x20);
+		} else {
+			/* RGB limited range (16-235) */
+			io_write_and_or(sd, 0x02, 0x0f, 0x00);
+		}
 		break;
 	case V4L2_DV_RGB_RANGE_FULL:
-		/* RGB full range (0-255) */
-		io_write_and_or(sd, 0x02, 0x0f, 0x10);
+		if (state->selected_input == ADV7604_INPUT_VGA_COMP) {
+			/* YCrCb full range (0-255) */
+			io_write_and_or(sd, 0x02, 0x0f, 0x60);
+		} else {
+			/* RGB full range (0-255) */
+			io_write_and_or(sd, 0x02, 0x0f, 0x10);
+		}
 		break;
 	}
 }
-
 
 static int adv7604_s_ctrl(struct v4l2_ctrl *ctrl)
 {
