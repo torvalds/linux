@@ -141,7 +141,6 @@ CORE_FEATURE_TESTS =			\
 	libslang			\
 	libunwind			\
 	on-exit				\
-	stackprotector			\
 	stackprotector-all		\
 	timerfd
 
@@ -207,10 +206,6 @@ endif
 
 ifeq ($(feature-stackprotector-all), 1)
   CFLAGS += -fstack-protector-all
-endif
-
-ifeq ($(feature-stackprotector), 1)
-  CFLAGS += -Wstack-protector
 endif
 
 ifeq ($(DEBUG),0)
@@ -598,3 +593,11 @@ else
 perfexec_instdir = $(prefix)/$(perfexecdir)
 endif
 perfexec_instdir_SQ = $(subst ','\'',$(perfexec_instdir))
+
+# If we install to $(HOME) we keep the traceevent default:
+# $(HOME)/.traceevent/plugins
+# Otherwise we install plugins into the global $(libdir).
+ifdef DESTDIR
+plugindir=$(libdir)/traceevent/plugins
+plugindir_SQ= $(subst ','\'',$(prefix)/$(plugindir))
+endif

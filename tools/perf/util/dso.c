@@ -451,6 +451,7 @@ struct dso *dso__new(const char *name)
 		dso->sorted_by_name = 0;
 		dso->has_build_id = 0;
 		dso->has_srcline = 1;
+		dso->a2l_fails = 1;
 		dso->kernel = DSO_TYPE_USER;
 		dso->needs_swap = DSO_SWAP__UNSET;
 		INIT_LIST_HEAD(&dso->node);
@@ -469,6 +470,8 @@ void dso__delete(struct dso *dso)
 	if (dso->lname_alloc)
 		free(dso->long_name);
 	dso_cache__free(&dso->cache);
+	dso__free_a2l(dso);
+	free(dso->symsrc_filename);
 	free(dso);
 }
 

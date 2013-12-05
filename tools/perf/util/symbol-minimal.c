@@ -253,6 +253,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso __maybe_unused,
 	if (!ss->name)
 		goto out_close;
 
+	ss->fd = fd;
 	ss->type = type;
 
 	return 0;

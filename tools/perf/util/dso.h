@@ -77,6 +77,9 @@ struct dso {
 	struct rb_root	 symbols[MAP__NR_TYPES];
 	struct rb_root	 symbol_names[MAP__NR_TYPES];
 	struct rb_root	 cache;
+	void		 *a2l;
+	char		 *symsrc_filename;
+	unsigned int	 a2l_fails;
 	enum dso_kernel_type	kernel;
 	enum dso_swap_type	needs_swap;
 	enum dso_binary_type	symtab_type;
@@ -165,5 +168,7 @@ static inline bool dso__is_kcore(struct dso *dso)
 	return dso->data_type == DSO_BINARY_TYPE__KCORE ||
 	       dso->data_type == DSO_BINARY_TYPE__GUEST_KCORE;
 }
+
+void dso__free_a2l(struct dso *dso);
 
 #endif /* __PERF_DSO */

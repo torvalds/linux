@@ -23,6 +23,7 @@
 #include <stdbool.h>
 #include <stdarg.h>
 #include <regex.h>
+#include <string.h>
 
 #ifndef __maybe_unused
 #define __maybe_unused __attribute__((unused))
@@ -377,6 +378,11 @@ enum pevent_errno {
 };
 #undef _PE
 
+struct plugin_list;
+
+struct plugin_list *traceevent_load_plugins(struct pevent *pevent);
+void traceevent_unload_plugins(struct plugin_list *plugin_list);
+
 struct cmdline;
 struct cmdline_list;
 struct func_map;
@@ -522,6 +528,15 @@ __data2host8(struct pevent *pevent, unsigned long long data)
 	__data2host8(pevent, __val);				\
 })
 
+static inline int traceevent_host_bigendian(void)
+{
+	unsigned char str[] = { 0x1, 0x2, 0x3, 0x4 };
+	unsigned int val;
+
+	memcpy(&val, str, 4);
+	return val == 0x01020304;
+}
+
 /* taken from kernel/trace/trace.h */
 enum trace_flag_type {
 	TRACE_FLAG_IRQS_OFF		= 0x01,
@@ -547,7 +562,9 @@ int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long siz
 
 enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
 				     unsigned long size, const char *sys);
-enum pevent_errno pevent_parse_format(struct event_format **eventp, const char *buf,
+enum pevent_errno pevent_parse_format(struct pevent *pevent,
+				      struct event_format **eventp,
+				      const char *buf,
 				      unsigned long size, const char *sys);
 void pevent_free_format(struct event_format *event);
 

@@ -414,7 +414,8 @@ static void print_sample_bts(union perf_event *event,
 			     struct perf_sample *sample,
 			     struct perf_evsel *evsel,
 			     struct machine *machine,
-			     struct thread *thread)
+			     struct thread *thread,
+			     struct addr_location *al)
 {
 	struct perf_event_attr *attr = &evsel->attr;
 
@@ -424,7 +425,7 @@ static void print_sample_bts(union perf_event *event,
 			printf(" ");
 		else
 			printf("\n");
-		perf_evsel__print_ip(evsel, event, sample, machine,
+		perf_evsel__print_ip(evsel, sample, machine, al,
 				     output[attr->type].print_ip_opts,
 				     PERF_MAX_STACK_DEPTH);
 	}
@@ -443,7 +444,7 @@ static void print_sample_bts(union perf_event *event,
 static void process_event(union perf_event *event, struct perf_sample *sample,
 			  struct perf_evsel *evsel, struct machine *machine,
 			  struct thread *thread,
-			  struct addr_location *al __maybe_unused)
+			  struct addr_location *al)
 {
 	struct perf_event_attr *attr = &evsel->attr;
 
@@ -458,7 +459,7 @@ static void process_event(union perf_event *event, struct perf_sample *sample,
 	}
 
 	if (is_bts_event(attr)) {
-		print_sample_bts(event, sample, evsel, machine, thread);
+		print_sample_bts(event, sample, evsel, machine, thread, al);
 		return;
 	}
 
@@ -474,7 +475,7 @@ static void process_event(union perf_event *event, struct perf_sample *sample,
 		else
 			printf("\n");
 
-		perf_evsel__print_ip(evsel, event, sample, machine,
+		perf_evsel__print_ip(evsel, sample, machine, al,
 				     output[attr->type].print_ip_opts,
 				     PERF_MAX_STACK_DEPTH);
 	}
@@ -1785,7 +1786,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			return -1;
 		}
 
-		err = scripting_ops->generate_script(session->pevent,
+		err = scripting_ops->generate_script(session->tevent.pevent,
 						     "perf-script");
 		goto out;
 	}
