@@ -949,6 +949,19 @@ static int pci_6534_upload_firmware(struct comedi_device *dev)
 	return ret;
 }
 
+static void nidio_reset_board(struct comedi_device *dev)
+{
+	struct nidio96_private *devpriv = dev->private;
+	void __iomem *daq_mmio = devpriv->mite->daq_io_addr;
+
+	writel(0, daq_mmio + Port_IO(0));
+	writel(0, daq_mmio + Port_Pin_Directions(0));
+	writel(0, daq_mmio + Port_Pin_Mask(0));
+
+	/* disable interrupts on board */
+	writeb(0, daq_mmio + Master_DMA_And_Interrupt_Control);
+}
+
 static int nidio_auto_attach(struct comedi_device *dev,
 			     unsigned long context)
 {
@@ -996,6 +1009,8 @@ static int nidio_auto_attach(struct comedi_device *dev,
 			return ret;
 	}
 
+	nidio_reset_board(dev);
+
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
 		return ret;
@@ -1022,15 +1037,6 @@ static int nidio_auto_attach(struct comedi_device *dev,
 	s->buf_change = &ni_pcidio_change;
 	s->async_dma_dir = DMA_BIDIRECTIONAL;
 	s->poll = &ni_pcidio_poll;
-
-	writel(0, devpriv->mite->daq_io_addr + Port_IO(0));
-	writel(0, devpriv->mite->daq_io_addr + Port_Pin_Directions(0));
-	writel(0, devpriv->mite->daq_io_addr + Port_Pin_Mask(0));
-
-	/* disable interrupts on board */
-	writeb(0x00,
-		devpriv->mite->daq_io_addr +
-		Master_DMA_And_Interrupt_Control);
 
 	irq = mite_irq(devpriv->mite);
 	if (irq) {
