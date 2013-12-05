@@ -1216,6 +1216,7 @@ static int adv7604_query_dv_timings(struct v4l2_subdev *sd,
 	memset(timings, 0, sizeof(struct v4l2_dv_timings));
 
 	if (no_signal(sd)) {
+		state->restart_stdi_once = true;
 		v4l2_dbg(1, debug, sd, "%s: no valid signal\n", __func__);
 		return -ENOLINK;
 	}
