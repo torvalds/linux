@@ -636,6 +636,15 @@ format_is_yuv(uint32_t format)
 	}
 }
 
+static bool colorkey_enabled(struct intel_plane *intel_plane)
+{
+	struct drm_intel_sprite_colorkey key;
+
+	intel_plane->get_colorkey(&intel_plane->base, &key);
+
+	return key.flags != I915_SET_COLORKEY_NONE;
+}
+
 static int
 intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		   struct drm_framebuffer *fb, int crtc_x, int crtc_y,
@@ -821,7 +830,7 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	 * If the sprite is completely covering the primary plane,
 	 * we can disable the primary and save power.
 	 */
-	disable_primary = drm_rect_equals(&dst, &clip);
+	disable_primary = drm_rect_equals(&dst, &clip) && !colorkey_enabled(intel_plane);
 	WARN_ON(disable_primary && !visible && intel_crtc->active);
 
 	mutex_lock(&dev->struct_mutex);
