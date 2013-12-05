@@ -822,6 +822,17 @@
 					fsl,voltage = <MXS_VOLTAGE_HIGH>;
 					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
+
+				usb0_id_pins_b: usb0id1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_PWM2__USB0_ID
+					>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
 			};
 
 			digctl: digctl@8001c000 {
