@@ -336,6 +336,12 @@ ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	I915_MODIFY_DISPBASE(SPRSURF(pipe), 0);
 	POSTING_READ(SPRSURF(pipe));
 
+	/*
+	 * Avoid underruns when disabling the sprite.
+	 * FIXME remove once watermark updates are done properly.
+	 */
+	intel_wait_for_vblank(dev, pipe);
+
 	intel_update_sprite_watermarks(plane, crtc, 0, 0, false, false);
 }
 
@@ -502,6 +508,12 @@ ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	/* Flush double buffered register updates */
 	I915_MODIFY_DISPBASE(DVSSURF(pipe), 0);
 	POSTING_READ(DVSSURF(pipe));
+
+	/*
+	 * Avoid underruns when disabling the sprite.
+	 * FIXME remove once watermark updates are done properly.
+	 */
+	intel_wait_for_vblank(dev, pipe);
 
 	intel_update_sprite_watermarks(plane, crtc, 0, 0, false, false);
 }
