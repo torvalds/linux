@@ -1614,12 +1614,13 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 static void s626_reset_adc(struct comedi_device *dev, uint8_t *ppl)
 {
 	struct s626_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	uint32_t *rps;
 	uint32_t jmp_adrs;
 	uint16_t i;
 	uint16_t n;
 	uint32_t local_ppl;
-	struct comedi_cmd *cmd = &dev->subdevices->async->cmd;
 
 	/* Stop RPS program in case it is currently running */
 	s626_mc_disable(dev, S626_MC1_ERPS1, S626_P_MC1);
@@ -2639,6 +2640,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 * a defined state after a PCI reset.
 	 */
 	{
+		struct comedi_subdevice *s = dev->read_subdev;
 		uint8_t poll_list;
 		uint16_t adc_data;
 		uint16_t start_val;
@@ -2650,7 +2652,7 @@ static void s626_initialize(struct comedi_device *dev)
 		s626_reset_adc(dev, &poll_list);
 
 		/* Get initial ADC value */
-		s626_ai_rinsn(dev, dev->subdevices, NULL, data);
+		s626_ai_rinsn(dev, s, NULL, data);
 		start_val = data[0];
 
 		/*
@@ -2664,7 +2666,7 @@ static void s626_initialize(struct comedi_device *dev)
 		 * being unusually quiet or at the rail.
 		 */
 		for (index = 0; index < 500; index++) {
-			s626_ai_rinsn(dev, dev->subdevices, NULL, data);
+			s626_ai_rinsn(dev, s, NULL, data);
 			adc_data = data[0];
 			if (adc_data != start_val)
 				break;
