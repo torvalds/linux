@@ -38,8 +38,8 @@ struct read_info_sccb {
 static __initdata struct read_info_sccb early_read_info_sccb;
 static __initdata char sccb_early[PAGE_SIZE] __aligned(PAGE_SIZE);
 static unsigned long sclp_hsa_size;
+static struct sclp_ipl_info sclp_ipl_info;
 
-__initdata int sclp_early_read_info_sccb_valid;
 u64 sclp_facilities;
 u8 sclp_fac84;
 unsigned long long sclp_rzm;
@@ -63,10 +63,9 @@ out:
 	return rc;
 }
 
-static void __init sclp_read_info_early(void)
+static int __init sclp_read_info_early(void)
 {
-	int rc;
-	int i;
+	int rc, i;
 	struct read_info_sccb *sccb;
 	sclp_cmdw_t commands[] = {SCLP_CMDW_READ_SCP_INFO_FORCED,
 				  SCLP_CMDW_READ_SCP_INFO};
@@ -83,21 +82,19 @@ static void __init sclp_read_info_early(void)
 
 		if (rc)
 			break;
-		if (sccb->header.response_code == 0x10) {
-			sclp_early_read_info_sccb_valid = 1;
-			break;
-		}
+		if (sccb->header.response_code == 0x10)
+			return 0;
 		if (sccb->header.response_code != 0x1f0)
 			break;
 	}
+	return -EIO;
 }
 
 static void __init sclp_facilities_detect(void)
 {
 	struct read_info_sccb *sccb;
 
-	sclp_read_info_early();
-	if (!sclp_early_read_info_sccb_valid)
+	if (sclp_read_info_early())
 		return;
 
 	sccb = &early_read_info_sccb;
@@ -108,6 +105,12 @@ static void __init sclp_facilities_detect(void)
 	sclp_rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
 	sclp_rzm = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
 	sclp_rzm <<= 20;
+
+	/* Save IPL information */
+	sclp_ipl_info.is_valid = 1;
+	if (sccb->flags & 0x2)
+		sclp_ipl_info.has_dump = 1;
+	memcpy(&sclp_ipl_info.loadparm, &sccb->loadparm, LOADPARM_LEN);
 }
 
 bool __init sclp_has_linemode(void)
@@ -146,19 +149,12 @@ unsigned long long sclp_get_rzm(void)
 
 /*
  * This function will be called after sclp_facilities_detect(), which gets
- * called from early.c code. Therefore the sccb should have valid contents.
+ * called from early.c code. The sclp_facilities_detect() function retrieves
+ * and saves the IPL information.
  */
 void __init sclp_get_ipl_info(struct sclp_ipl_info *info)
 {
-	struct read_info_sccb *sccb;
-
-	if (!sclp_early_read_info_sccb_valid)
-		return;
-	sccb = &early_read_info_sccb;
-	info->is_valid = 1;
-	if (sccb->flags & 0x2)
-		info->has_dump = 1;
-	memcpy(&info->loadparm, &sccb->loadparm, LOADPARM_LEN);
+	*info = sclp_ipl_info;
 }
 
 static int __init sclp_cmd_early(sclp_cmdw_t cmd, void *sccb)
