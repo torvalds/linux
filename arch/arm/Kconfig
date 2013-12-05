@@ -931,9 +931,10 @@ endmenu
 
 config ARCH_VIRT
 	bool "Dummy Virtual Machine" if ARCH_MULTI_V7
+	select ARM_AMBA
 	select ARM_GIC
-	select HAVE_ARM_ARCH_TIMER
 	select ARM_PSCI
+	select HAVE_ARM_ARCH_TIMER
 
 #
 # This is sorted alphabetically by mach-* pathname.  However, plat-*
