@@ -107,7 +107,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 		}
 
 		addr = be32_to_cpup(paddr);
-		if (addr >= 32) {
+		if (addr >= PHY_MAX_ADDR) {
 			dev_err(&mdio->dev, "%s PHY address %i is too large\n",
 				child->full_name, addr);
 			continue;
