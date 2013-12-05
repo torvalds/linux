@@ -3,7 +3,7 @@
  *
  * Watchdog driver for DaVinci DM644x/DM646x processors
  *
- * Copyright (C) 2006 Texas Instruments.
+ * Copyright (C) 2006-2013 Texas Instruments.
  *
  * 2007 (c) MontaVista Software, Inc. This file is licensed under
  * the terms of the GNU General Public License version 2. This program
@@ -15,18 +15,12 @@
 #include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/fs.h>
-#include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/init.h>
-#include <linux/bitops.h>
 #include <linux/platform_device.h>
-#include <linux/spinlock.h>
-#include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/device.h>
 #include <linux/clk.h>
-#include <linux/slab.h>
 #include <linux/err.h>
 
 #define MODULE_NAME "DAVINCI-WDT: "
@@ -61,39 +55,18 @@
 #define WDKEY_SEQ0		(0xa5c6 << 16)
 #define WDKEY_SEQ1		(0xda7e << 16)
 
-static int heartbeat = DEFAULT_HEARTBEAT;
-
-static DEFINE_SPINLOCK(io_lock);
-static unsigned long wdt_status;
-#define WDT_IN_USE        0
-#define WDT_OK_TO_CLOSE   1
-#define WDT_REGION_INITED 2
-#define WDT_DEVICE_INITED 3
-
+static int heartbeat;
 static void __iomem	*wdt_base;
 struct clk		*wdt_clk;
+static struct watchdog_device	wdt_wdd;
 
-static void wdt_service(void)
-{
-	spin_lock(&io_lock);
-
-	/* put watchdog in service state */
-	iowrite32(WDKEY_SEQ0, wdt_base + WDTCR);
-	/* put watchdog in active state */
-	iowrite32(WDKEY_SEQ1, wdt_base + WDTCR);
-
-	spin_unlock(&io_lock);
-}
-
-static void wdt_enable(void)
+static int davinci_wdt_start(struct watchdog_device *wdd)
 {
 	u32 tgcr;
 	u32 timer_margin;
 	unsigned long wdt_freq;
 
 	wdt_freq = clk_get_rate(wdt_clk);
-
-	spin_lock(&io_lock);
 
 	/* disable, internal clock source */
 	iowrite32(0, wdt_base + TCR);
@@ -105,9 +78,9 @@ static void wdt_enable(void)
 	iowrite32(0, wdt_base + TIM12);
 	iowrite32(0, wdt_base + TIM34);
 	/* set timeout period */
-	timer_margin = (((u64)heartbeat * wdt_freq) & 0xffffffff);
+	timer_margin = (((u64)wdd->timeout * wdt_freq) & 0xffffffff);
 	iowrite32(timer_margin, wdt_base + PRD12);
-	timer_margin = (((u64)heartbeat * wdt_freq) >> 32);
+	timer_margin = (((u64)wdd->timeout * wdt_freq) >> 32);
 	iowrite32(timer_margin, wdt_base + PRD34);
 	/* enable run continuously */
 	iowrite32(ENAMODE12_PERIODIC, wdt_base + TCR);
@@ -119,84 +92,28 @@ static void wdt_enable(void)
 	iowrite32(WDKEY_SEQ0 | WDEN, wdt_base + WDTCR);
 	/* put watchdog in active state */
 	iowrite32(WDKEY_SEQ1 | WDEN, wdt_base + WDTCR);
-
-	spin_unlock(&io_lock);
+	return 0;
 }
 
-static int davinci_wdt_open(struct inode *inode, struct file *file)
+static int davinci_wdt_ping(struct watchdog_device *wdd)
 {
-	if (test_and_set_bit(WDT_IN_USE, &wdt_status))
-		return -EBUSY;
-
-	wdt_enable();
-
-	return nonseekable_open(inode, file);
+	/* put watchdog in service state */
+	iowrite32(WDKEY_SEQ0, wdt_base + WDTCR);
+	/* put watchdog in active state */
+	iowrite32(WDKEY_SEQ1, wdt_base + WDTCR);
+	return 0;
 }
 
-static ssize_t
-davinci_wdt_write(struct file *file, const char *data, size_t len,
-		  loff_t *ppos)
-{
-	if (len)
-		wdt_service();
-
-	return len;
-}
-
-static const struct watchdog_info ident = {
+static const struct watchdog_info davinci_wdt_info = {
 	.options = WDIOF_KEEPALIVEPING,
 	.identity = "DaVinci Watchdog",
 };
 
-static long davinci_wdt_ioctl(struct file *file,
-					unsigned int cmd, unsigned long arg)
-{
-	int ret = -ENOTTY;
-
-	switch (cmd) {
-	case WDIOC_GETSUPPORT:
-		ret = copy_to_user((struct watchdog_info *)arg, &ident,
-				   sizeof(ident)) ? -EFAULT : 0;
-		break;
-
-	case WDIOC_GETSTATUS:
-	case WDIOC_GETBOOTSTATUS:
-		ret = put_user(0, (int *)arg);
-		break;
-
-	case WDIOC_KEEPALIVE:
-		wdt_service();
-		ret = 0;
-		break;
-
-	case WDIOC_GETTIMEOUT:
-		ret = put_user(heartbeat, (int *)arg);
-		break;
-	}
-	return ret;
-}
-
-static int davinci_wdt_release(struct inode *inode, struct file *file)
-{
-	wdt_service();
-	clear_bit(WDT_IN_USE, &wdt_status);
-
-	return 0;
-}
-
-static const struct file_operations davinci_wdt_fops = {
-	.owner = THIS_MODULE,
-	.llseek = no_llseek,
-	.write = davinci_wdt_write,
-	.unlocked_ioctl = davinci_wdt_ioctl,
-	.open = davinci_wdt_open,
-	.release = davinci_wdt_release,
-};
-
-static struct miscdevice davinci_wdt_miscdev = {
-	.minor = WATCHDOG_MINOR,
-	.name = "watchdog",
-	.fops = &davinci_wdt_fops,
+static const struct watchdog_ops davinci_wdt_ops = {
+	.owner		= THIS_MODULE,
+	.start		= davinci_wdt_start,
+	.stop		= davinci_wdt_ping,
+	.ping		= davinci_wdt_ping,
 };
 
 static int davinci_wdt_probe(struct platform_device *pdev)
@@ -204,6 +121,7 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct device *dev = &pdev->dev;
 	struct resource  *wdt_mem;
+	struct watchdog_device *wdd;
 
 	wdt_clk = devm_clk_get(dev, NULL);
 	if (WARN_ON(IS_ERR(wdt_clk)))
@@ -211,29 +129,34 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 
 	clk_prepare_enable(wdt_clk);
 
-	if (heartbeat < 1 || heartbeat > MAX_HEARTBEAT)
-		heartbeat = DEFAULT_HEARTBEAT;
+	wdd			= &wdt_wdd;
+	wdd->info		= &davinci_wdt_info;
+	wdd->ops		= &davinci_wdt_ops;
+	wdd->min_timeout	= 1;
+	wdd->max_timeout	= MAX_HEARTBEAT;
+	wdd->timeout		= DEFAULT_HEARTBEAT;
 
-	dev_info(dev, "heartbeat %d sec\n", heartbeat);
+	watchdog_init_timeout(wdd, heartbeat, dev);
+
+	dev_info(dev, "heartbeat %d sec\n", wdd->timeout);
+
+	watchdog_set_nowayout(wdd, 1);
 
 	wdt_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	wdt_base = devm_ioremap_resource(dev, wdt_mem);
 	if (IS_ERR(wdt_base))
 		return PTR_ERR(wdt_base);
 
-	ret = misc_register(&davinci_wdt_miscdev);
-	if (ret < 0) {
-		dev_err(dev, "cannot register misc device\n");
-	} else {
-		set_bit(WDT_DEVICE_INITED, &wdt_status);
-	}
+	ret = watchdog_register_device(wdd);
+	if (ret < 0)
+		dev_err(dev, "cannot register watchdog device\n");
 
 	return ret;
 }
 
 static int davinci_wdt_remove(struct platform_device *pdev)
 {
-	misc_deregister(&davinci_wdt_miscdev);
+	watchdog_unregister_device(&wdt_wdd);
 	clk_disable_unprepare(wdt_clk);
 
 	return 0;
