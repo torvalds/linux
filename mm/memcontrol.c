@@ -5150,14 +5150,12 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
 	return val << PAGE_SHIFT;
 }
 
-static ssize_t mem_cgroup_read(struct cgroup_subsys_state *css,
-			       struct cftype *cft, struct file *file,
-			       char __user *buf, size_t nbytes, loff_t *ppos)
+static u64 mem_cgroup_read_u64(struct cgroup_subsys_state *css,
+				   struct cftype *cft)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-	char str[64];
 	u64 val;
-	int name, len;
+	int name;
 	enum res_type type;
 
 	type = MEMFILE_TYPE(cft->private);
@@ -5183,8 +5181,7 @@ static ssize_t mem_cgroup_read(struct cgroup_subsys_state *css,
 		BUG();
 	}
 
-	len = scnprintf(str, sizeof(str), "%llu\n", (unsigned long long)val);
-	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
+	return val;
 }
 
 static int memcg_update_kmem_limit(struct cgroup_subsys_state *css, u64 val)
@@ -5911,16 +5908,12 @@ static void mem_cgroup_oom_unregister_event(struct mem_cgroup *memcg,
 }
 
 static int mem_cgroup_oom_control_read(struct cgroup_subsys_state *css,
-	struct cftype *cft,  struct cgroup_map_cb *cb)
+				       struct cftype *cft, struct seq_file *sf)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 
-	cb->fill(cb, "oom_kill_disable", memcg->oom_kill_disable);
-
-	if (atomic_read(&memcg->under_oom))
-		cb->fill(cb, "under_oom", 1);
-	else
-		cb->fill(cb, "under_oom", 0);
+	seq_printf(sf, "oom_kill_disable %d\n", memcg->oom_kill_disable);
+	seq_printf(sf, "under_oom %d\n", (bool)atomic_read(&memcg->under_oom));
 	return 0;
 }
 
@@ -6239,31 +6232,31 @@ static struct cftype mem_cgroup_files[] = {
 	{
 		.name = "usage_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEM, RES_USAGE),
-		.read = mem_cgroup_read,
+		.read_u64 = mem_cgroup_read_u64,
 	},
 	{
 		.name = "max_usage_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEM, RES_MAX_USAGE),
 		.trigger = mem_cgroup_reset,
-		.read = mem_cgroup_read,
+		.read_u64 = mem_cgroup_read_u64,
 	},
 	{
 		.name = "limit_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEM, RES_LIMIT),
 		.write_string = mem_cgroup_write,
-		.read = mem_cgroup_read,
+		.read_u64 = mem_cgroup_read_u64,
 	},
 	{
 		.name = "soft_limit_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEM, RES_SOFT_LIMIT),
 		.write_string = mem_cgroup_write,
-		.read = mem_cgroup_read,
+		.read_u64 = mem_cgroup_read_u64,
 	},
 	{
 		.name = "failcnt",
 		.private = MEMFILE_PRIVATE(_MEM, RES_FAILCNT),
 		.trigger = mem_cgroup_reset,
-		.read = mem_cgroup_read,
+		.read_u64 = mem_cgroup_read_u64,
 	},
 	{
 		.name = "stat",
@@ -6297,7 +6290,7 @@ static struct cftype mem_cgroup_files[] = {
 	},
 	{
 		.name = "oom_control",
-		.read_map = mem_cgroup_oom_control_read,
+		.read_seq_string = mem_cgroup_oom_control_read,
 		.write_u64 = mem_cgroup_oom_control_write,
 		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
 	},
@@ -6315,24 +6308,24 @@ static struct cftype mem_cgroup_files[] = {
 		.name = "kmem.limit_in_bytes",
 		.private = MEMFILE_PRIVATE(_KMEM, RES_LIMIT),
 		.write_string = mem_cgroup_write,
-		.read = mem_cgroup_read,
+		.read_u64 = mem_cgroup_read_u64,
 	},
 	{
 		.name = "kmem.usage_in_bytes",
 		.private = MEMFILE_PRIVATE(_KMEM, RES_USAGE),
-		.read = mem_cgroup_read,
+		.read_u64 = mem_cgroup_read_u64,
 	},
 	{
 		.name = "kmem.failcnt",
 		.private = MEMFILE_PRIVATE(_KMEM, RES_FAILCNT),
 		.trigger = mem_cgroup_reset,
-		.read = mem_cgroup_read,
+		.read_u64 = mem_cgroup_read_u64,
 	},
 	{
 		.name = "kmem.max_usage_in_bytes",
 		.private = MEMFILE_PRIVATE(_KMEM, RES_MAX_USAGE),
 		.trigger = mem_cgroup_reset,
-		.read = mem_cgroup_read,
+		.read_u64 = mem_cgroup_read_u64,
 	},
 #ifdef CONFIG_SLABINFO
 	{
@@ -6349,25 +6342,25 @@ static struct cftype memsw_cgroup_files[] = {
 	{
 		.name = "memsw.usage_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_USAGE),
-		.read = mem_cgroup_read,
+		.read_u64 = mem_cgroup_read_u64,
 	},
 	{
 		.name = "memsw.max_usage_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_MAX_USAGE),
 		.trigger = mem_cgroup_reset,
-		.read = mem_cgroup_read,
+		.read_u64 = mem_cgroup_read_u64,
 	},
 	{
 		.name = "memsw.limit_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_LIMIT),
 		.write_string = mem_cgroup_write,
-		.read = mem_cgroup_read,
+		.read_u64 = mem_cgroup_read_u64,
 	},
 	{
 		.name = "memsw.failcnt",
 		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_FAILCNT),
 		.trigger = mem_cgroup_reset,
-		.read = mem_cgroup_read,
+		.read_u64 = mem_cgroup_read_u64,
 	},
 	{ },	/* terminate */
 };
