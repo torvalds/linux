@@ -1472,6 +1472,10 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		dev_info(&pf->pdev->dev, "forcing GlobR\n");
 		i40e_do_reset(pf, (1 << __I40E_GLOBAL_RESET_REQUESTED));
 
+	} else if (strncmp(cmd_buf, "empr", 4) == 0) {
+		dev_info(&pf->pdev->dev, "forcing EMPR\n");
+		i40e_do_reset(pf, (1 << __I40E_EMP_RESET_REQUESTED));
+
 	} else if (strncmp(cmd_buf, "read", 4) == 0) {
 		u32 address;
 		u32 value;

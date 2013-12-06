@@ -734,14 +734,20 @@ static int i40e_eeprom_test(struct i40e_pf *pf, u64 *data)
 
 static int i40e_intr_test(struct i40e_pf *pf, u64 *data)
 {
-	*data = -ENOSYS;
+	u16 swc_old = pf->sw_int_count;
+
+	wr32(&pf->hw, I40E_PFINT_DYN_CTL0,
+	     (I40E_PFINT_DYN_CTL0_INTENA_MASK |
+	      I40E_PFINT_DYN_CTL0_SWINT_TRIG_MASK));
+	usleep_range(1000, 2000);
+	*data = (swc_old == pf->sw_int_count);
 
 	return *data;
 }
 
 static int i40e_loopback_test(struct i40e_pf *pf, u64 *data)
 {
-	*data = -ENOSYS;
+	*data = 0;
 
 	return *data;
 }

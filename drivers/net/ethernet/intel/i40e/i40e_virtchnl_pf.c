@@ -70,7 +70,7 @@ static inline bool i40e_vc_isvalid_vector_id(struct i40e_vf *vf, u8 vector_id)
 {
 	struct i40e_pf *pf = vf->pf;
 
-	return vector_id < pf->hw.func_caps.num_msix_vectors_vf;
+	return vector_id <= pf->hw.func_caps.num_msix_vectors_vf;
 }
 
 /***********************vf resource mgmt routines*****************/
@@ -620,13 +620,13 @@ int i40e_reset_vf(struct i40e_vf *vf, bool flr)
 		if (ret)
 			dev_info(&pf->pdev->dev,
 				 "Queue control check failed on Tx queue %d of VSI %d VF %d\n",
-				 vf->lan_vsi_index, j, vf->vf_id);
+				 j, vf->lan_vsi_index, vf->vf_id);
 		ret = i40e_ctrl_vsi_rx_queue(vf, vf->lan_vsi_index, j,
 					     I40E_QUEUE_CTRL_FASTDISABLECHECK);
 		if (ret)
 			dev_info(&pf->pdev->dev,
 				 "Queue control check failed on Rx queue %d of VSI %d VF %d\n",
-				 vf->lan_vsi_index, j, vf->vf_id);
+				 j, vf->lan_vsi_index, vf->vf_id);
 	}
 
 	/* clear the irq settings */
@@ -1603,7 +1603,7 @@ static int i40e_vc_add_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 		struct i40e_mac_filter *f;
 
 		f = i40e_find_mac(vsi, al->list[i].addr, true, false);
-		if (f) {
+		if (!f) {
 			if (i40e_is_vsi_in_vlan(vsi))
 				f = i40e_put_mac_in_vlan(vsi, al->list[i].addr,
 							 true, false);

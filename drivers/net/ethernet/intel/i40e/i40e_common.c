@@ -297,7 +297,11 @@ i40e_status i40e_pf_reset(struct i40e_hw *hw)
 	}
 
 	/* Determine the PF number based on the PCI fn */
-	hw->pf_id = (u8)hw->bus.func;
+	reg = rd32(hw, I40E_GLPCI_CAPSUP);
+	if (reg & I40E_GLPCI_CAPSUP_ARI_EN_MASK)
+		hw->pf_id = (u8)((hw->bus.device << 3) | hw->bus.func);
+	else
+		hw->pf_id = (u8)hw->bus.func;
 
 	/* If there was a Global Reset in progress when we got here,
 	 * we don't need to do the PF Reset

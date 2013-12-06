@@ -43,13 +43,17 @@ static void i40e_adminq_init_regs(struct i40e_hw *hw)
 	if (hw->mac.type == I40E_MAC_VF) {
 		hw->aq.asq.tail = I40E_VF_ATQT1;
 		hw->aq.asq.head = I40E_VF_ATQH1;
+		hw->aq.asq.len  = I40E_VF_ATQLEN1;
 		hw->aq.arq.tail = I40E_VF_ARQT1;
 		hw->aq.arq.head = I40E_VF_ARQH1;
+		hw->aq.arq.len  = I40E_VF_ARQLEN1;
 	} else {
 		hw->aq.asq.tail = I40E_PF_ATQT;
 		hw->aq.asq.head = I40E_PF_ATQH;
+		hw->aq.asq.len  = I40E_PF_ATQLEN;
 		hw->aq.arq.tail = I40E_PF_ARQT;
 		hw->aq.arq.head = I40E_PF_ARQH;
+		hw->aq.arq.len  = I40E_PF_ARQLEN;
 	}
 }
 
@@ -466,10 +470,9 @@ static i40e_status i40e_shutdown_asq(struct i40e_hw *hw)
 		return I40E_ERR_NOT_READY;
 
 	/* Stop firmware AdminQ processing */
-	if (hw->mac.type == I40E_MAC_VF)
-		wr32(hw, I40E_VF_ATQLEN1, 0);
-	else
-		wr32(hw, I40E_PF_ATQLEN, 0);
+	wr32(hw, hw->aq.asq.head, 0);
+	wr32(hw, hw->aq.asq.tail, 0);
+	wr32(hw, hw->aq.asq.len, 0);
 
 	/* make sure lock is available */
 	mutex_lock(&hw->aq.asq_mutex);
@@ -500,10 +503,9 @@ static i40e_status i40e_shutdown_arq(struct i40e_hw *hw)
 		return I40E_ERR_NOT_READY;
 
 	/* Stop firmware AdminQ processing */
-	if (hw->mac.type == I40E_MAC_VF)
-		wr32(hw, I40E_VF_ARQLEN1, 0);
-	else
-		wr32(hw, I40E_PF_ARQLEN, 0);
+	wr32(hw, hw->aq.arq.head, 0);
+	wr32(hw, hw->aq.arq.tail, 0);
+	wr32(hw, hw->aq.arq.len, 0);
 
 	/* make sure lock is available */
 	mutex_lock(&hw->aq.arq_mutex);
@@ -533,8 +535,9 @@ static i40e_status i40e_shutdown_arq(struct i40e_hw *hw)
  **/
 i40e_status i40e_init_adminq(struct i40e_hw *hw)
 {
-	u16 eetrack_lo, eetrack_hi;
 	i40e_status ret_code;
+	u16 eetrack_lo, eetrack_hi;
+	int retry = 0;
 
 	/* verify input for valid configuration */
 	if ((hw->aq.num_arq_entries == 0) ||
@@ -562,11 +565,24 @@ i40e_status i40e_init_adminq(struct i40e_hw *hw)
 	if (ret_code)
 		goto init_adminq_free_asq;
 
-	ret_code = i40e_aq_get_firmware_version(hw,
-				     &hw->aq.fw_maj_ver, &hw->aq.fw_min_ver,
-				     &hw->aq.api_maj_ver, &hw->aq.api_min_ver,
-				     NULL);
-	if (ret_code)
+	/* There are some cases where the firmware may not be quite ready
+	 * for AdminQ operations, so we retry the AdminQ setup a few times
+	 * if we see timeouts in this first AQ call.
+	 */
+	do {
+		ret_code = i40e_aq_get_firmware_version(hw,
+							&hw->aq.fw_maj_ver,
+							&hw->aq.fw_min_ver,
+							&hw->aq.api_maj_ver,
+							&hw->aq.api_min_ver,
+							NULL);
+		if (ret_code != I40E_ERR_ADMIN_QUEUE_TIMEOUT)
+			break;
+		retry++;
+		msleep(100);
+		i40e_resume_aq(hw);
+	} while (retry < 10);
+	if (ret_code != I40E_SUCCESS)
 		goto init_adminq_free_arq;
 
 	if (hw->aq.api_maj_ver != I40E_FW_API_VERSION_MAJOR ||
@@ -956,27 +972,13 @@ void i40e_resume_aq(struct i40e_hw *hw)
 	hw->aq.asq.next_to_clean = 0;
 
 	i40e_config_asq_regs(hw);
-	reg = hw->aq.num_asq_entries;
-
-	if (hw->mac.type == I40E_MAC_VF) {
-		reg |= I40E_VF_ATQLEN_ATQENABLE_MASK;
-		wr32(hw, I40E_VF_ATQLEN1, reg);
-	} else {
-		reg |= I40E_PF_ATQLEN_ATQENABLE_MASK;
-		wr32(hw, I40E_PF_ATQLEN, reg);
-	}
+	reg = hw->aq.num_asq_entries | I40E_PF_ATQLEN_ATQENABLE_MASK;
+	wr32(hw, hw->aq.asq.len, reg);
 
 	hw->aq.arq.next_to_use = 0;
 	hw->aq.arq.next_to_clean = 0;
 
 	i40e_config_arq_regs(hw);
-	reg = hw->aq.num_arq_entries;
-
-	if (hw->mac.type == I40E_MAC_VF) {
-		reg |= I40E_VF_ATQLEN_ATQENABLE_MASK;
-		wr32(hw, I40E_VF_ARQLEN1, reg);
-	} else {
-		reg |= I40E_PF_ATQLEN_ATQENABLE_MASK;
-		wr32(hw, I40E_PF_ARQLEN, reg);
-	}
+	reg = hw->aq.num_arq_entries | I40E_PF_ATQLEN_ATQENABLE_MASK;
+	wr32(hw, hw->aq.arq.len, reg);
 }

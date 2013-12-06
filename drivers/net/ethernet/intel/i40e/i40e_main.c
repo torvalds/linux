@@ -2752,6 +2752,11 @@ static irqreturn_t i40e_intr(int irq, void *data)
 
 	ena_mask = rd32(hw, I40E_PFINT_ICR0_ENA);
 
+	/* if interrupt but no bits showing, must be SWINT */
+	if (((icr0 & ~I40E_PFINT_ICR0_INTEVENT_MASK) == 0) ||
+	    (icr0 & I40E_PFINT_ICR0_SWINT_MASK))
+		pf->sw_int_count++;
+
 	/* only q0 is used in MSI/Legacy mode, and none are used in MSIX */
 	if (icr0 & I40E_PFINT_ICR0_QUEUE_0_MASK) {
 
@@ -2790,11 +2795,11 @@ static irqreturn_t i40e_intr(int irq, void *data)
 		val = rd32(hw, I40E_GLGEN_RSTAT);
 		val = (val & I40E_GLGEN_RSTAT_RESET_TYPE_MASK)
 		       >> I40E_GLGEN_RSTAT_RESET_TYPE_SHIFT;
-		if (val & I40E_RESET_CORER)
+		if (val == I40E_RESET_CORER)
 			pf->corer_count++;
-		else if (val & I40E_RESET_GLOBR)
+		else if (val == I40E_RESET_GLOBR)
 			pf->globr_count++;
-		else if (val & I40E_RESET_EMPR)
+		else if (val == I40E_RESET_EMPR)
 			pf->empr_count++;
 	}
 
@@ -4048,6 +4053,24 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 		dev_info(&pf->pdev->dev, "CoreR requested\n");
 		val = rd32(&pf->hw, I40E_GLGEN_RTRIG);
 		val |= I40E_GLGEN_RTRIG_CORER_MASK;
+		wr32(&pf->hw, I40E_GLGEN_RTRIG, val);
+		i40e_flush(&pf->hw);
+
+	} else if (reset_flags & (1 << __I40E_EMP_RESET_REQUESTED)) {
+
+		/* Request a Firmware Reset
+		 *
+		 * Same as Global reset, plus restarting the
+		 * embedded firmware engine.
+		 */
+		/* enable EMP Reset */
+		val = rd32(&pf->hw, I40E_GLGEN_RSTENA_EMP);
+		val |= I40E_GLGEN_RSTENA_EMP_EMP_RST_ENA_MASK;
+		wr32(&pf->hw, I40E_GLGEN_RSTENA_EMP, val);
+
+		/* force the reset */
+		val = rd32(&pf->hw, I40E_GLGEN_RTRIG);
+		val |= I40E_GLGEN_RTRIG_EMPFWR_MASK;
 		wr32(&pf->hw, I40E_GLGEN_RTRIG, val);
 		i40e_flush(&pf->hw);
 
@@ -5579,6 +5602,7 @@ static int i40e_sw_init(struct i40e_pf *pf)
 
 	pf->msg_enable = netif_msg_init(I40E_DEFAULT_MSG_ENABLE,
 				(NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK));
+	pf->hw.debug_mask = pf->msg_enable | I40E_DEBUG_DIAG;
 	if (debug != -1 && debug != I40E_DEFAULT_MSG_ENABLE) {
 		if (I40E_DEBUG_USER & debug)
 			pf->hw.debug_mask = debug;
@@ -7141,6 +7165,13 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = i40e_init_adminq(hw);
 	dev_info(&pdev->dev, "%s\n", i40e_fw_version_str(hw));
+	if (((hw->nvm.version & I40E_NVM_VERSION_HI_MASK)
+		 >> I40E_NVM_VERSION_HI_SHIFT) != I40E_CURRENT_NVM_VERSION_HI) {
+		dev_info(&pdev->dev,
+			 "warning: NVM version not supported, supported version: %02x.%02x\n",
+			 I40E_CURRENT_NVM_VERSION_HI,
+			 I40E_CURRENT_NVM_VERSION_LO);
+	}
 	if (err) {
 		dev_info(&pdev->dev,
 			 "init_adminq failed: %d expecting API %02x.%02x\n",
