@@ -460,6 +460,62 @@ err_out:
 	return ret;
 }
 
+static void gen6_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
+{
+	struct drm_i915_private *dev_priv = ppgtt->base.dev->dev_private;
+	struct i915_address_space *vm = &ppgtt->base;
+	gen6_gtt_pte_t __iomem *pd_addr;
+	gen6_gtt_pte_t scratch_pte;
+	uint32_t pd_entry;
+	int pte, pde;
+
+	scratch_pte = vm->pte_encode(vm->scratch.addr, I915_CACHE_LLC, true);
+
+	pd_addr = (gen6_gtt_pte_t __iomem *)dev_priv->gtt.gsm +
+		ppgtt->pd_offset / sizeof(gen6_gtt_pte_t);
+
+	seq_printf(m, "  VM %p (pd_offset %x-%x):\n", vm,
+		   ppgtt->pd_offset, ppgtt->pd_offset + ppgtt->num_pd_entries);
+	for (pde = 0; pde < ppgtt->num_pd_entries; pde++) {
+		u32 expected;
+		gen6_gtt_pte_t *pt_vaddr;
+		dma_addr_t pt_addr = ppgtt->pt_dma_addr[pde];
+		pd_entry = readl(pd_addr + pde);
+		expected = (GEN6_PDE_ADDR_ENCODE(pt_addr) | GEN6_PDE_VALID);
+
+		if (pd_entry != expected)
+			seq_printf(m, "\tPDE #%d mismatch: Actual PDE: %x Expected PDE: %x\n",
+				   pde,
+				   pd_entry,
+				   expected);
+		seq_printf(m, "\tPDE: %x\n", pd_entry);
+
+		pt_vaddr = kmap_atomic(ppgtt->pt_pages[pde]);
+		for (pte = 0; pte < I915_PPGTT_PT_ENTRIES; pte+=4) {
+			unsigned long va =
+				(pde * PAGE_SIZE * I915_PPGTT_PT_ENTRIES) +
+				(pte * PAGE_SIZE);
+			int i;
+			bool found = false;
+			for (i = 0; i < 4; i++)
+				if (pt_vaddr[pte + i] != scratch_pte)
+					found = true;
+			if (!found)
+				continue;
+
+			seq_printf(m, "\t\t0x%lx [%03d,%04d]: =", va, pde, pte);
+			for (i = 0; i < 4; i++) {
+				if (pt_vaddr[pte + i] != scratch_pte)
+					seq_printf(m, " %08x", pt_vaddr[pte + i]);
+				else
+					seq_puts(m, "  SCRATCH ");
+			}
+			seq_puts(m, "\n");
+		}
+		kunmap_atomic(pt_vaddr);
+	}
+}
+
 static void gen6_write_pdes(struct i915_hw_ppgtt *ppgtt)
 {
 	struct drm_i915_private *dev_priv = ppgtt->base.dev->dev_private;
@@ -873,6 +929,7 @@ alloc:
 
 	ppgtt->base.clear_range(&ppgtt->base, 0,
 				ppgtt->num_pd_entries * I915_PPGTT_PT_ENTRIES, true);
+	ppgtt->debug_dump = gen6_dump_ppgtt;
 
 	DRM_DEBUG_DRIVER("Allocated pde space (%ldM) at GTT entry: %lx\n",
 			 ppgtt->node.size >> 20,

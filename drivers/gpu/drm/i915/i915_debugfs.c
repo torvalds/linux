@@ -1704,6 +1704,7 @@ static void gen6_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 
 		seq_puts(m, "aliasing PPGTT:\n");
 		seq_printf(m, "pd gtt offset: 0x%08x\n", ppgtt->pd_offset);
+		ppgtt->debug_dump(ppgtt, m);
 	}
 	seq_printf(m, "ECOCHK: 0x%08x\n", I915_READ(GAM_ECOCHK));
 }

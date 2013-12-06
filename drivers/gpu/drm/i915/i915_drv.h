@@ -678,6 +678,7 @@ struct i915_hw_ppgtt {
 	int (*switch_mm)(struct i915_hw_ppgtt *ppgtt,
 			 struct intel_ring_buffer *ring,
 			 bool synchronous);
+	void (*debug_dump)(struct i915_hw_ppgtt *ppgtt, struct seq_file *m);
 };
 
 struct i915_ctx_hang_stats {
