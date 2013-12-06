@@ -164,6 +164,7 @@ xfs_attr_get(
 {
 	int		error;
 	struct xfs_name	xname;
+	uint		lock_mode;
 
 	XFS_STATS_INC(xs_attr_get);
 
@@ -174,9 +175,9 @@ xfs_attr_get(
 	if (error)
 		return error;
 
-	xfs_ilock(ip, XFS_ILOCK_SHARED);
+	lock_mode = xfs_ilock_attr_map_shared(ip);
 	error = xfs_attr_get_int(ip, &xname, value, valuelenp, flags);
-	xfs_iunlock(ip, XFS_ILOCK_SHARED);
+	xfs_iunlock(ip, lock_mode);
 	return(error);
 }
 
