@@ -1851,7 +1851,7 @@ static bool is_valid_psm(u16 psm, u8 dst_type)
 		return false;
 
 	if (bdaddr_type_is_le(dst_type))
-		return (psm < 0x00ff);
+		return (psm <= 0x00ff);
 
 	/* PSM must be odd and lsb of upper byte must be 0 */
 	return ((psm & 0x0101) == 0x0001);
