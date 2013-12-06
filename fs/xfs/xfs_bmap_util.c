@@ -737,7 +737,7 @@ xfs_getbmap(
  out_free_map:
 	kmem_free(map);
  out_unlock_ilock:
-	xfs_iunlock_map_shared(ip, lock);
+	xfs_iunlock(ip, lock);
  out_unlock_iolock:
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
