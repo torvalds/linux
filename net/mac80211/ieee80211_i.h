@@ -728,6 +728,7 @@ struct ieee80211_sub_if_data {
 	u16 sequence_number;
 	__be16 control_port_protocol;
 	bool control_port_no_encrypt;
+	int encrypt_headroom;
 
 	struct ieee80211_tx_queue_params tx_conf[IEEE80211_NUM_ACS];
 
@@ -735,6 +736,7 @@ struct ieee80211_sub_if_data {
 	int csa_counter_offset_beacon;
 	int csa_counter_offset_presp;
 	bool csa_radar_required;
+	struct cfg80211_chan_def csa_chandef;
 
 	/* used to reconfigure hardware SM PS */
 	struct work_struct recalc_smps;
@@ -810,6 +812,9 @@ static inline void sdata_unlock(struct ieee80211_sub_if_data *sdata)
 	mutex_unlock(&sdata->wdev.mtx);
 	__release(&sdata->wdev.mtx);
 }
+
+#define sdata_dereference(p, sdata) \
+	rcu_dereference_protected(p, lockdep_is_held(&sdata->wdev.mtx))
 
 static inline void
 sdata_assert_lock(struct ieee80211_sub_if_data *sdata)
@@ -895,6 +900,24 @@ struct tpt_led_trigger {
 	bool running;
 };
 #endif
+
+/*
+ * struct ieee80211_tx_latency_bin_ranges - Tx latency statistics bins ranges
+ *
+ * Measuring Tx latency statistics. Counts how many Tx frames transmitted in a
+ * certain latency range (in Milliseconds). Each station that uses these
+ * ranges will have bins to count the amount of frames received in that range.
+ * The user can configure the ranges via debugfs.
+ * If ranges is NULL then Tx latency statistics bins are disabled for all
+ * stations.
+ *
+ * @n_ranges: number of ranges that are taken in account
+ * @ranges: the ranges that the user requested or NULL if disabled.
+ */
+struct ieee80211_tx_latency_bin_ranges {
+	int n_ranges;
+	u32 ranges[];
+};
 
 /**
  * mac80211 scan flags - currently active scan mode
@@ -1048,6 +1071,12 @@ struct ieee80211_local {
 	struct timer_list sta_cleanup;
 	int sta_generation;
 
+	/*
+	 * Tx latency statistics parameters for all stations.
+	 * Can enable via debugfs (NULL when disabled).
+	 */
+	struct ieee80211_tx_latency_bin_ranges __rcu *tx_latency;
+
 	struct sk_buff_head pending[IEEE80211_MAX_QUEUES];
 	struct tasklet_struct tx_pending_tasklet;
 
@@ -1093,7 +1122,6 @@ struct ieee80211_local {
 	enum mac80211_scan_state next_scan_state;
 	struct delayed_work scan_work;
 	struct ieee80211_sub_if_data __rcu *scan_sdata;
-	struct cfg80211_chan_def csa_chandef;
 	/* For backward compatibility only -- do not use */
 	struct cfg80211_chan_def _oper_chandef;
 
@@ -1693,6 +1721,7 @@ int __ieee80211_request_smps_mgd(struct ieee80211_sub_if_data *sdata,
 int __ieee80211_request_smps_ap(struct ieee80211_sub_if_data *sdata,
 				enum ieee80211_smps_mode smps_mode);
 void ieee80211_recalc_smps(struct ieee80211_sub_if_data *sdata);
+void ieee80211_recalc_min_chandef(struct ieee80211_sub_if_data *sdata);
 
 size_t ieee80211_ie_split(const u8 *ies, size_t ielen,
 			  const u8 *ids, int n_ids, size_t offset);
@@ -1731,7 +1760,6 @@ ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
 /* NOTE: only use ieee80211_vif_change_channel() for channel switch */
 int __must_check
 ieee80211_vif_change_channel(struct ieee80211_sub_if_data *sdata,
-			     const struct cfg80211_chan_def *chandef,
 			     u32 *changed);
 void ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata);
 void ieee80211_vif_vlan_copy_chanctx(struct ieee80211_sub_if_data *sdata);
@@ -1742,6 +1770,8 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 				   struct ieee80211_chanctx *chanctx);
 void ieee80211_recalc_radar_chanctx(struct ieee80211_local *local,
 				    struct ieee80211_chanctx *chanctx);
+void ieee80211_recalc_chanctx_min_def(struct ieee80211_local *local,
+				      struct ieee80211_chanctx *ctx);
 
 void ieee80211_dfs_cac_timer(unsigned long data);
 void ieee80211_dfs_cac_timer_work(struct work_struct *work);
@@ -1749,6 +1779,15 @@ void ieee80211_dfs_cac_cancel(struct ieee80211_local *local);
 void ieee80211_dfs_radar_detected_work(struct work_struct *work);
 int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,
 			      struct cfg80211_csa_settings *csa_settings);
+
+bool ieee80211_cs_valid(const struct ieee80211_cipher_scheme *cs);
+bool ieee80211_cs_list_valid(const struct ieee80211_cipher_scheme *cs, int n);
+const struct ieee80211_cipher_scheme *
+ieee80211_cs_get(struct ieee80211_local *local, u32 cipher,
+		 enum nl80211_iftype iftype);
+int ieee80211_cs_headroom(struct ieee80211_local *local,
+			  struct cfg80211_crypto_settings *crypto,
+			  enum nl80211_iftype iftype);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline

@@ -91,8 +91,7 @@ static void wl1271_reg_notify(struct wiphy *wiphy,
 			continue;
 
 		if (ch->flags & IEEE80211_CHAN_RADAR)
-			ch->flags |= IEEE80211_CHAN_NO_IBSS |
-				     IEEE80211_CHAN_PASSIVE_SCAN;
+			ch->flags |= IEEE80211_CHAN_NO_IR;
 
 	}
 

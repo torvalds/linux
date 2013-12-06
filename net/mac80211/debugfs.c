@@ -17,6 +17,172 @@
 
 #define DEBUGFS_FORMAT_BUFFER_SIZE 100
 
+#define TX_LATENCY_BIN_DELIMTER_C ','
+#define TX_LATENCY_BIN_DELIMTER_S ","
+#define TX_LATENCY_BINS_DISABLED "enable(bins disabled)\n"
+#define TX_LATENCY_DISABLED "disable\n"
+
+
+/*
+ * Display if Tx latency statistics & bins are enabled/disabled
+ */
+static ssize_t sta_tx_latency_stat_read(struct file *file,
+					char __user *userbuf,
+					size_t count, loff_t *ppos)
+{
+	struct ieee80211_local *local = file->private_data;
+	struct ieee80211_tx_latency_bin_ranges  *tx_latency;
+	char *buf;
+	int bufsz, i, ret;
+	int pos = 0;
+
+	rcu_read_lock();
+
+	tx_latency = rcu_dereference(local->tx_latency);
+
+	if (tx_latency && tx_latency->n_ranges) {
+		bufsz = tx_latency->n_ranges * 15;
+		buf = kzalloc(bufsz, GFP_ATOMIC);
+		if (!buf)
+			goto err;
+
+		for (i = 0; i < tx_latency->n_ranges; i++)
+			pos += scnprintf(buf + pos, bufsz - pos, "%d,",
+					 tx_latency->ranges[i]);
+		pos += scnprintf(buf + pos, bufsz - pos, "\n");
+	} else if (tx_latency) {
+		bufsz = sizeof(TX_LATENCY_BINS_DISABLED) + 1;
+		buf = kzalloc(bufsz, GFP_ATOMIC);
+		if (!buf)
+			goto err;
+
+		pos += scnprintf(buf + pos, bufsz - pos, "%s\n",
+				 TX_LATENCY_BINS_DISABLED);
+	} else {
+		bufsz = sizeof(TX_LATENCY_DISABLED) + 1;
+		buf = kzalloc(bufsz, GFP_ATOMIC);
+		if (!buf)
+			goto err;
+
+		pos += scnprintf(buf + pos, bufsz - pos, "%s\n",
+				 TX_LATENCY_DISABLED);
+	}
+
+	rcu_read_unlock();
+
+	ret = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
+	kfree(buf);
+
+	return ret;
+err:
+	rcu_read_unlock();
+	return -ENOMEM;
+}
+
+/*
+ * Receive input from user regarding Tx latency statistics
+ * The input should indicate if Tx latency statistics and bins are
+ * enabled/disabled.
+ * If bins are enabled input should indicate the amount of different bins and
+ * their ranges. Each bin will count how many Tx frames transmitted within the
+ * appropriate latency.
+ * Legal input is:
+ * a) "enable(bins disabled)" - to enable only general statistics
+ * b) "a,b,c,d,...z" - to enable general statistics and bins, where all are
+ * numbers and a < b < c < d.. < z
+ * c) "disable" - disable all statistics
+ * NOTE: must configure Tx latency statistics bins before stations connected.
+ */
+
+static ssize_t sta_tx_latency_stat_write(struct file *file,
+					 const char __user *userbuf,
+					 size_t count, loff_t *ppos)
+{
+	struct ieee80211_local *local = file->private_data;
+	char buf[128] = {};
+	char *bins = buf;
+	char *token;
+	int buf_size, i, alloc_size;
+	int prev_bin = 0;
+	int n_ranges = 0;
+	int ret = count;
+	struct ieee80211_tx_latency_bin_ranges  *tx_latency;
+
+	if (sizeof(buf) <= count)
+		return -EINVAL;
+	buf_size = count;
+	if (copy_from_user(buf, userbuf, buf_size))
+		return -EFAULT;
+
+	mutex_lock(&local->sta_mtx);
+
+	/* cannot change config once we have stations */
+	if (local->num_sta)
+		goto unlock;
+
+	tx_latency =
+		rcu_dereference_protected(local->tx_latency,
+					  lockdep_is_held(&local->sta_mtx));
+
+	/* disable Tx statistics */
+	if (!strcmp(buf, TX_LATENCY_DISABLED)) {
+		if (!tx_latency)
+			goto unlock;
+		rcu_assign_pointer(local->tx_latency, NULL);
+		synchronize_rcu();
+		kfree(tx_latency);
+		goto unlock;
+	}
+
+	/* Tx latency already enabled */
+	if (tx_latency)
+		goto unlock;
+
+	if (strcmp(TX_LATENCY_BINS_DISABLED, buf)) {
+		/* check how many bins and between what ranges user requested */
+		token = buf;
+		while (*token != '\0') {
+			if (*token == TX_LATENCY_BIN_DELIMTER_C)
+				n_ranges++;
+			token++;
+		}
+		n_ranges++;
+	}
+
+	alloc_size = sizeof(struct ieee80211_tx_latency_bin_ranges) +
+		     n_ranges * sizeof(u32);
+	tx_latency = kzalloc(alloc_size, GFP_ATOMIC);
+	if (!tx_latency) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+	tx_latency->n_ranges = n_ranges;
+	for (i = 0; i < n_ranges; i++) { /* setting bin ranges */
+		token = strsep(&bins, TX_LATENCY_BIN_DELIMTER_S);
+		sscanf(token, "%d", &tx_latency->ranges[i]);
+		/* bins values should be in ascending order */
+		if (prev_bin >= tx_latency->ranges[i]) {
+			ret = -EINVAL;
+			kfree(tx_latency);
+			goto unlock;
+		}
+		prev_bin = tx_latency->ranges[i];
+	}
+	rcu_assign_pointer(local->tx_latency, tx_latency);
+
+unlock:
+	mutex_unlock(&local->sta_mtx);
+
+	return ret;
+}
+
+static const struct file_operations stats_tx_latency_ops = {
+	.write = sta_tx_latency_stat_write,
+	.read = sta_tx_latency_stat_read,
+	.open = simple_open,
+	.llseek = generic_file_llseek,
+};
+
 int mac80211_format_buffer(char __user *userbuf, size_t count,
 				  loff_t *ppos, char *fmt, ...)
 {
@@ -315,4 +481,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_DEVSTATS_ADD(dot11RTSFailureCount);
 	DEBUGFS_DEVSTATS_ADD(dot11FCSErrorCount);
 	DEBUGFS_DEVSTATS_ADD(dot11RTSSuccessCount);
+
+	DEBUGFS_DEVSTATS_ADD(tx_latency);
 }

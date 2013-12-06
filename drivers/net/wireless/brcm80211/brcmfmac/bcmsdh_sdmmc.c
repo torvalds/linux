@@ -158,10 +158,21 @@ int brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
 		}
 	}
 
-	if (err_ret)
-		brcmf_err("Failed to %s byte F%d:@0x%05x=%02x, Err: %d\n",
-			  rw ? "write" : "read", func, regaddr, *byte, err_ret);
-
+	if (err_ret) {
+		/*
+		 * SleepCSR register access can fail when
+		 * waking up the device so reduce this noise
+		 * in the logs.
+		 */
+		if (regaddr != SBSDIO_FUNC1_SLEEPCSR)
+			brcmf_err("Failed to %s byte F%d:@0x%05x=%02x, Err: %d\n",
+				  rw ? "write" : "read", func, regaddr, *byte,
+				  err_ret);
+		else
+			brcmf_dbg(SDIO, "Failed to %s byte F%d:@0x%05x=%02x, Err: %d\n",
+				  rw ? "write" : "read", func, regaddr, *byte,
+				  err_ret);
+	}
 	return err_ret;
 }
 
@@ -269,6 +280,9 @@ static int brcmf_sdioh_enablefuncs(struct brcmf_sdio_dev *sdiodev)
 int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev)
 {
 	int err_ret = 0;
+	struct mmc_host *host;
+	struct sdio_func *func;
+	uint max_blocks;
 
 	brcmf_dbg(SDIO, "\n");
 
@@ -290,6 +304,20 @@ int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev)
 
 	brcmf_sdioh_enablefuncs(sdiodev);
 
+	/*
+	 * determine host related variables after brcmf_sdio_probe()
+	 * as func->cur_blksize is properly set and F2 init has been
+	 * completed successfully.
+	 */
+	func = sdiodev->func[2];
+	host = func->card->host;
+	sdiodev->sg_support = host->max_segs > 1;
+	max_blocks = min_t(uint, host->max_blk_count, 511u);
+	sdiodev->max_request_size = min_t(uint, host->max_req_size,
+					  max_blocks * func->cur_blksize);
+	sdiodev->max_segment_count = min_t(uint, host->max_segs,
+					   SG_MAX_SINGLE_ALLOC);
+	sdiodev->max_segment_size = host->max_seg_size;
 out:
 	sdio_release_host(sdiodev->func[1]);
 	brcmf_dbg(SDIO, "Done\n");
@@ -318,8 +346,6 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	int err;
 	struct brcmf_sdio_dev *sdiodev;
 	struct brcmf_bus *bus_if;
-	struct mmc_host *host;
-	uint max_blocks;
 
 	brcmf_dbg(SDIO, "Enter\n");
 	brcmf_dbg(SDIO, "Class=%x\n", func->class);
@@ -367,19 +393,6 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 		goto fail;
 	}
 
-	/*
-	 * determine host related variables after brcmf_sdio_probe()
-	 * as func->cur_blksize is properly set and F2 init has been
-	 * completed successfully.
-	 */
-	host = func->card->host;
-	sdiodev->sg_support = host->max_segs > 1;
-	max_blocks = min_t(uint, host->max_blk_count, 511u);
-	sdiodev->max_request_size = min_t(uint, host->max_req_size,
-					  max_blocks * func->cur_blksize);
-	sdiodev->max_segment_count = min_t(uint, host->max_segs,
-					   SG_MAX_SINGLE_ALLOC);
-	sdiodev->max_segment_size = host->max_seg_size;
 	brcmf_dbg(SDIO, "F2 init completed...\n");
 	return 0;
 

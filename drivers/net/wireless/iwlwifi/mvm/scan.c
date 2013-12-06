@@ -192,7 +192,7 @@ static void iwl_mvm_scan_fill_channels(struct iwl_scan_cmd *cmd,
 	for (i = 0; i < cmd->channel_count; i++) {
 		chan->channel = cpu_to_le16(req->channels[i]->hw_value);
 		chan->type = cpu_to_le32(type);
-		if (req->channels[i]->flags & IEEE80211_CHAN_PASSIVE_SCAN)
+		if (req->channels[i]->flags & IEEE80211_CHAN_NO_IR)
 			chan->type &= cpu_to_le32(~SCAN_CHANNEL_TYPE_ACTIVE);
 		chan->active_dwell = cpu_to_le16(active_dwell);
 		chan->passive_dwell = cpu_to_le16(passive_dwell);
@@ -642,7 +642,7 @@ static void iwl_build_channel_cfg(struct iwl_mvm *mvm,
 		channels->iter_count[index] = cpu_to_le16(1);
 		channels->iter_interval[index] = 0;
 
-		if (!(s_band->channels[i].flags & IEEE80211_CHAN_PASSIVE_SCAN))
+		if (!(s_band->channels[i].flags & IEEE80211_CHAN_NO_IR))
 			channels->type[index] |=
 				cpu_to_le32(IWL_SCAN_OFFLOAD_CHANNEL_ACTIVE);
 

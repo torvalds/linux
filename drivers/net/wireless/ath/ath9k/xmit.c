@@ -1786,6 +1786,9 @@ bool ath_drain_all_txq(struct ath_softc *sc)
 		if (!ATH_TXQ_SETUP(sc, i))
 			continue;
 
+		if (!sc->tx.txq[i].axq_depth)
+			continue;
+
 		if (ath9k_hw_numtxpending(ah, sc->tx.txq[i].axq_qnum))
 			npend |= BIT(i);
 	}
@@ -2749,6 +2752,8 @@ void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 	}
 }
 
+#ifdef CONFIG_ATH9K_TX99
+
 int ath9k_tx99_send(struct ath_softc *sc, struct sk_buff *skb,
 		    struct ath_tx_control *txctl)
 {
@@ -2791,3 +2796,5 @@ int ath9k_tx99_send(struct ath_softc *sc, struct sk_buff *skb,
 
 	return 0;
 }
+
+#endif /* CONFIG_ATH9K_TX99 */

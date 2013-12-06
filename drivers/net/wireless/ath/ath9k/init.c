@@ -589,6 +589,9 @@ static void ath9k_init_platform(struct ath_softc *sc)
 	if (sc->driver_data & ATH9K_PCI_AR9565_2ANT)
 		ath_info(common, "WB335 2-ANT card detected\n");
 
+	if (sc->driver_data & ATH9K_PCI_KILLER)
+		ath_info(common, "Killer Wireless card detected\n");
+
 	/*
 	 * Some WB335 cards do not support antenna diversity. Since
 	 * we use a hardcoded value for AR9565 instead of using the
@@ -688,6 +691,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	common = ath9k_hw_common(ah);
 	sc->dfs_detector = dfs_pattern_detector_init(common, NL80211_DFS_UNSET);
 	sc->tx99_power = MAX_RATE_POWER + 1;
+	init_waitqueue_head(&sc->tx_wait);
 
 	if (!pdata) {
 		ah->ah_flags |= AH_USE_EEPROM;
@@ -735,6 +739,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	tasklet_init(&sc->bcon_tasklet, ath9k_beacon_tasklet,
 		     (unsigned long)sc);
 
+	setup_timer(&sc->sleep_timer, ath_ps_full_sleep, (unsigned long)sc);
 	INIT_WORK(&sc->hw_reset_work, ath_reset_work);
 	INIT_WORK(&sc->hw_check_work, ath_hw_check);
 	INIT_WORK(&sc->paprd_work, ath_paprd_calibrate);
@@ -873,15 +878,6 @@ static const struct ieee80211_iface_combination if_comb[] = {
 	}
 };
 
-#ifdef CONFIG_PM
-static const struct wiphy_wowlan_support ath9k_wowlan_support = {
-	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
-	.n_patterns = MAX_NUM_USER_PATTERN,
-	.pattern_min_len = 1,
-	.pattern_max_len = MAX_PATTERN_SIZE,
-};
-#endif
-
 void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
 	struct ath_hw *ah = sc->sc_ah;
@@ -931,16 +927,6 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_5_10_MHZ;
 	hw->wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
-#ifdef CONFIG_PM_SLEEP
-	if ((ah->caps.hw_caps & ATH9K_HW_WOW_DEVICE_CAPABLE) &&
-	    (sc->driver_data & ATH9K_PCI_WOW) &&
-	    device_can_wakeup(sc->dev))
-		hw->wiphy->wowlan = &ath9k_wowlan_support;
-
-	atomic_set(&sc->wow_sleep_proc_intr, -1);
-	atomic_set(&sc->wow_got_bmiss_intr, -1);
-#endif
-
 	hw->queues = 4;
 	hw->max_rates = 4;
 	hw->channel_change_time = 5000;
@@ -966,6 +952,7 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&sc->sbands[IEEE80211_BAND_5GHZ];
 
+	ath9k_init_wow(hw);
 	ath9k_reload_chainmask_settings(sc);
 
 	SET_IEEE80211_PERM_ADDR(hw, common->macaddr);
@@ -1064,6 +1051,7 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 
+	del_timer_sync(&sc->sleep_timer);
 	ath9k_hw_deinit(sc->sc_ah);
 	if (sc->dfs_detector != NULL)
 		sc->dfs_detector->exit(sc->dfs_detector);
