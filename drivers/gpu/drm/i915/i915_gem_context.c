@@ -212,9 +212,9 @@ static inline bool is_default_context(struct i915_hw_context *ctx)
  * context state of the GPU for applications that don't utilize HW contexts, as
  * well as an idle case.
  */
-static int create_default_context(struct drm_device *dev)
+static struct i915_hw_context *
+create_default_context(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_hw_context *ctx;
 	int ret;
 
@@ -222,7 +222,7 @@ static int create_default_context(struct drm_device *dev)
 
 	ctx = create_hw_context(dev, NULL);
 	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
+		return ctx;
 
 	/* We may need to do things with the shrinker which require us to
 	 * immediately switch back to the default context. This can cause a
@@ -237,14 +237,12 @@ static int create_default_context(struct drm_device *dev)
 		goto err_destroy;
 	}
 
-	dev_priv->ring[RCS].default_context = ctx;
-
 	DRM_DEBUG_DRIVER("Default HW context loaded\n");
-	return 0;
+	return ctx;
 
 err_destroy:
 	i915_gem_context_unreference(ctx);
-	return ret;
+	return ERR_PTR(ret);
 }
 
 void i915_gem_context_reset(struct drm_device *dev)
@@ -294,7 +292,7 @@ int i915_gem_context_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
-	int i, ret;
+	int i;
 
 	if (!HAS_HW_CONTEXTS(dev))
 		return 0;
@@ -311,11 +309,12 @@ int i915_gem_context_init(struct drm_device *dev)
 		return -E2BIG;
 	}
 
-	ret = create_default_context(dev);
-	if (ret) {
-		DRM_DEBUG_DRIVER("Disabling HW Contexts; create failed %d\n",
-				 ret);
-		return ret;
+
+	dev_priv->ring[RCS].default_context = create_default_context(dev);
+	if (IS_ERR_OR_NULL(dev_priv->ring[RCS].default_context)) {
+		DRM_DEBUG_DRIVER("Disabling HW Contexts; create failed %ld\n",
+				 PTR_ERR(dev_priv->ring[RCS].default_context));
+		return PTR_ERR(dev_priv->ring[RCS].default_context);
 	}
 
 	for (i = RCS + 1; i < I915_NUM_RINGS; i++) {
