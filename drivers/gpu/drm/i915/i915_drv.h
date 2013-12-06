@@ -655,6 +655,7 @@ struct i915_gtt {
 
 struct i915_hw_ppgtt {
 	struct i915_address_space base;
+	struct kref ref;
 	struct drm_mm_node node;
 	unsigned num_pd_entries;
 	union {
@@ -704,6 +705,7 @@ struct i915_hw_context {
 	struct intel_ring_buffer *last_ring;
 	struct drm_i915_gem_object *obj;
 	struct i915_ctx_hang_stats hang_stats;
+	struct i915_address_space *vm;
 
 	struct list_head link;
 };
@@ -2292,6 +2294,12 @@ static inline bool intel_enable_ppgtt(struct drm_device *dev, bool full)
 	return HAS_ALIASING_PPGTT(dev);
 }
 
+static inline void ppgtt_release(struct kref *kref)
+{
+	struct i915_hw_ppgtt *ppgtt = container_of(kref, struct i915_hw_ppgtt, ref);
+
+	ppgtt->base.cleanup(&ppgtt->base);
+}
 
 
 /* i915_gem_evict.c */

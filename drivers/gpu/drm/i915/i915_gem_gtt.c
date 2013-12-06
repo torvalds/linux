@@ -902,9 +902,11 @@ int i915_gem_init_ppgtt(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 	else
 		BUG();
 
-	if (!ret)
+	if (!ret) {
+		kref_init(&ppgtt->ref);
 		drm_mm_init(&ppgtt->base.mm, ppgtt->base.start,
 			    ppgtt->base.total);
+	}
 
 	return ret;
 }
@@ -917,7 +919,8 @@ void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
 	if (!ppgtt)
 		return;
 
-	ppgtt->base.cleanup(&ppgtt->base);
+	kref_put(&dev_priv->mm.aliasing_ppgtt->ref, ppgtt_release);
+
 	dev_priv->mm.aliasing_ppgtt = NULL;
 }
 
