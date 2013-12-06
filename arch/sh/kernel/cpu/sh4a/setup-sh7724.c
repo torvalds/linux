@@ -293,7 +293,6 @@ static struct plat_sci_port scif0_platform_data = {
 	.port_reg	= SCIx_NOT_SUPPORTED,
 	.flags          = UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type           = PORT_SCIF,
 	.regtype	= SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
 };
@@ -317,7 +316,6 @@ static struct plat_sci_port scif1_platform_data = {
 	.port_reg	= SCIx_NOT_SUPPORTED,
 	.flags          = UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type           = PORT_SCIF,
 	.regtype	= SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
 };
@@ -341,7 +339,6 @@ static struct plat_sci_port scif2_platform_data = {
 	.port_reg	= SCIx_NOT_SUPPORTED,
 	.flags          = UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type           = PORT_SCIF,
 	.regtype	= SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
 };
