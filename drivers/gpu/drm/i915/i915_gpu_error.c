@@ -655,6 +655,32 @@ static void i915_gem_record_fences(struct drm_device *dev,
 	}
 }
 
+/* This assumes all batchbuffers are executed from the PPGTT. It might have to
+ * change in the future. */
+static bool is_active_vm(struct i915_address_space *vm,
+			 struct intel_ring_buffer *ring)
+{
+	struct drm_device *dev = vm->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_hw_ppgtt *ppgtt;
+
+	if (INTEL_INFO(dev)->gen < 7)
+		return i915_is_ggtt(vm);
+
+	/* FIXME: This ignores that the global gtt vm is also on this list. */
+	ppgtt = container_of(vm, struct i915_hw_ppgtt, base);
+
+	if (INTEL_INFO(dev)->gen >= 8) {
+		u64 pdp0 = (u64)I915_READ(GEN8_RING_PDP_UDW(ring, 0)) << 32;
+		pdp0 |=  I915_READ(GEN8_RING_PDP_LDW(ring, 0));
+		return pdp0 == ppgtt->pd_dma_addr[0];
+	} else {
+		u32 pp_db;
+		pp_db = I915_READ(RING_PP_DIR_BASE(ring));
+		return (pp_db >> 10) == ppgtt->pd_offset;
+	}
+}
+
 static struct drm_i915_error_object *
 i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 			     struct intel_ring_buffer *ring)
@@ -662,6 +688,7 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 	struct i915_address_space *vm;
 	struct i915_vma *vma;
 	struct drm_i915_gem_object *obj;
+	bool found_active = false;
 	u32 seqno;
 
 	if (!ring->get_seqno)
@@ -681,6 +708,11 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 
 	seqno = ring->get_seqno(ring, false);
 	list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
+		if (!is_active_vm(vm, ring))
+			continue;
+
+		found_active = true;
+
 		list_for_each_entry(vma, &vm->active_list, mm_list) {
 			obj = vma->obj;
 			if (obj->ring != ring)
@@ -699,6 +731,7 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 		}
 	}
 
+	WARN_ON(!found_active);
 	return NULL;
 }
 
