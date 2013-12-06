@@ -3189,7 +3189,7 @@ static enum vxge_hw_status vxge_timestamp_config(struct __vxge_hw_device *devh)
 	return status;
 }
 
-static int vxge_hwtstamp_ioctl(struct vxgedev *vdev, void __user *data)
+static int vxge_hwtstamp_set(struct vxgedev *vdev, void __user *data)
 {
 	struct hwtstamp_config config;
 	int i;
@@ -3250,6 +3250,21 @@ static int vxge_hwtstamp_ioctl(struct vxgedev *vdev, void __user *data)
 	return 0;
 }
 
+static int vxge_hwtstamp_get(struct vxgedev *vdev, void __user *data)
+{
+	struct hwtstamp_config config;
+
+	config.flags = 0;
+	config.tx_type = HWTSTAMP_TX_OFF;
+	config.rx_filter = (vdev->rx_hwts ?
+			    HWTSTAMP_FILTER_ALL : HWTSTAMP_FILTER_NONE);
+
+	if (copy_to_user(data, &config, sizeof(config)))
+		return -EFAULT;
+
+	return 0;
+}
+
 /**
  * vxge_ioctl
  * @dev: Device pointer.
@@ -3263,19 +3278,15 @@ static int vxge_hwtstamp_ioctl(struct vxgedev *vdev, void __user *data)
 static int vxge_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct vxgedev *vdev = netdev_priv(dev);
-	int ret;
 
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
-		ret = vxge_hwtstamp_ioctl(vdev, rq->ifr_data);
-		if (ret)
-			return ret;
-		break;
+		return vxge_hwtstamp_set(vdev, rq->ifr_data);
+	case SIOCGHWTSTAMP:
+		return vxge_hwtstamp_get(vdev, rq->ifr_data);
 	default:
 		return -EOPNOTSUPP;
 	}
-
-	return 0;
 }
 
 /**

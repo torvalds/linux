@@ -85,7 +85,7 @@ Filled in if SOF_TIMESTAMPING_SYS_HARDWARE is set. Requires support
 by the network device and will be empty without that support.
 
 
-SIOCSHWTSTAMP:
+SIOCSHWTSTAMP, SIOCGHWTSTAMP:
 
 Hardware time stamping must also be initialized for each device driver
 that is expected to do hardware time stamping. The parameter is defined in
@@ -114,6 +114,10 @@ indicates that SIOCSHWTSTAMP is not supported at all).
 Only a processes with admin rights may change the configuration. User
 space is responsible to ensure that multiple processes don't interfere
 with each other and that the settings are reset.
+
+Any process can read the actual configuration by passing this
+structure to ioctl(SIOCGHWTSTAMP) in the same way.  However, this has
+not been implemented in all drivers.
 
 /* possible values for hwtstamp_config->tx_type */
 enum {
@@ -157,7 +161,8 @@ DEVICE IMPLEMENTATION
 
 A driver which supports hardware time stamping must support the
 SIOCSHWTSTAMP ioctl and update the supplied struct hwtstamp_config with
-the actual values as described in the section on SIOCSHWTSTAMP.
+the actual values as described in the section on SIOCSHWTSTAMP.  It
+should also support SIOCGHWTSTAMP.
 
 Time stamps for received packets must be stored in the skb. To get a pointer
 to the shared time stamp structure of the skb call skb_hwtstamps(). Then
