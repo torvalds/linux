@@ -40,6 +40,8 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/of.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 #define S3C2410_WTCON		0x00
 #define S3C2410_WTDAT		0x04
@@ -59,6 +61,10 @@
 
 #define CONFIG_S3C2410_WATCHDOG_ATBOOT		(0)
 #define CONFIG_S3C2410_WATCHDOG_DEFAULT_TIME	(15)
+
+#define EXYNOS5_WDT_DISABLE_REG_OFFSET		0x0408
+#define EXYNOS5_WDT_MASK_RESET_REG_OFFSET	0x040c
+#define QUIRK_HAS_PMU_CONFIG			(1 << 0)
 
 static bool nowayout	= WATCHDOG_NOWAYOUT;
 static int tmr_margin;
@@ -83,6 +89,25 @@ MODULE_PARM_DESC(soft_noboot, "Watchdog action, set to 1 to ignore reboots, "
 			"0 to reboot (default 0)");
 MODULE_PARM_DESC(debug, "Watchdog debug, set to >1 for debug (default 0)");
 
+/**
+ * struct s3c2410_wdt_variant - Per-variant config data
+ *
+ * @disable_reg: Offset in pmureg for the register that disables the watchdog
+ * timer reset functionality.
+ * @mask_reset_reg: Offset in pmureg for the register that masks the watchdog
+ * timer reset functionality.
+ * @mask_bit: Bit number for the watchdog timer in the disable register and the
+ * mask reset register.
+ * @quirks: A bitfield of quirks.
+ */
+
+struct s3c2410_wdt_variant {
+	int disable_reg;
+	int mask_reset_reg;
+	int mask_bit;
+	u32 quirks;
+};
+
 struct s3c2410_wdt {
 	struct device		*dev;
 	struct clk		*clock;
@@ -93,7 +118,49 @@ struct s3c2410_wdt {
 	unsigned long		wtdat_save;
 	struct watchdog_device	wdt_device;
 	struct notifier_block	freq_transition;
+	struct s3c2410_wdt_variant *drv_data;
+	struct regmap *pmureg;
 };
+
+static const struct s3c2410_wdt_variant drv_data_s3c2410 = {
+	.quirks = 0
+};
+
+#ifdef CONFIG_OF
+static const struct s3c2410_wdt_variant drv_data_exynos5250  = {
+	.disable_reg = EXYNOS5_WDT_DISABLE_REG_OFFSET,
+	.mask_reset_reg = EXYNOS5_WDT_MASK_RESET_REG_OFFSET,
+	.mask_bit = 20,
+	.quirks = QUIRK_HAS_PMU_CONFIG
+};
+
+static const struct s3c2410_wdt_variant drv_data_exynos5420 = {
+	.disable_reg = EXYNOS5_WDT_DISABLE_REG_OFFSET,
+	.mask_reset_reg = EXYNOS5_WDT_MASK_RESET_REG_OFFSET,
+	.mask_bit = 0,
+	.quirks = QUIRK_HAS_PMU_CONFIG
+};
+
+static const struct of_device_id s3c2410_wdt_match[] = {
+	{ .compatible = "samsung,s3c2410-wdt",
+	  .data = &drv_data_s3c2410 },
+	{ .compatible = "samsung,exynos5250-wdt",
+	  .data = &drv_data_exynos5250 },
+	{ .compatible = "samsung,exynos5420-wdt",
+	  .data = &drv_data_exynos5420 },
+	{},
+};
+MODULE_DEVICE_TABLE(of, s3c2410_wdt_match);
+#endif
+
+static const struct platform_device_id s3c2410_wdt_ids[] = {
+	{
+		.name = "s3c2410-wdt",
+		.driver_data = (unsigned long)&drv_data_s3c2410,
+	},
+	{}
+};
+MODULE_DEVICE_TABLE(platform, s3c2410_wdt_ids);
 
 /* watchdog control routines */
 
@@ -108,6 +175,35 @@ do {							\
 static inline struct s3c2410_wdt *freq_to_wdt(struct notifier_block *nb)
 {
 	return container_of(nb, struct s3c2410_wdt, freq_transition);
+}
+
+static int s3c2410wdt_mask_and_disable_reset(struct s3c2410_wdt *wdt, bool mask)
+{
+	int ret;
+	u32 mask_val = 1 << wdt->drv_data->mask_bit;
+	u32 val = 0;
+
+	/* No need to do anything if no PMU CONFIG needed */
+	if (!(wdt->drv_data->quirks & QUIRK_HAS_PMU_CONFIG))
+		return 0;
+
+	if (mask)
+		val = mask_val;
+
+	ret = regmap_update_bits(wdt->pmureg,
+			wdt->drv_data->disable_reg,
+			mask_val, val);
+	if (ret < 0)
+		goto error;
+
+	ret = regmap_update_bits(wdt->pmureg,
+			wdt->drv_data->mask_reset_reg,
+			mask_val, val);
+ error:
+	if (ret < 0)
+		dev_err(wdt->dev, "failed to update reg(%d)\n", ret);
+
+	return ret;
 }
 
 static int s3c2410wdt_keepalive(struct watchdog_device *wdd)
@@ -328,6 +424,20 @@ static inline void s3c2410wdt_cpufreq_deregister(struct s3c2410_wdt *wdt)
 }
 #endif
 
+/* s3c2410_get_wdt_driver_data */
+static inline struct s3c2410_wdt_variant *
+get_wdt_drv_data(struct platform_device *pdev)
+{
+	if (pdev->dev.of_node) {
+		const struct of_device_id *match;
+		match = of_match_node(s3c2410_wdt_match, pdev->dev.of_node);
+		return (struct s3c2410_wdt_variant *)match->data;
+	} else {
+		return (struct s3c2410_wdt_variant *)
+			platform_get_device_id(pdev)->driver_data;
+	}
+}
+
 static int s3c2410wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev;
@@ -349,6 +459,16 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	wdt->dev = &pdev->dev;
 	spin_lock_init(&wdt->lock);
 	wdt->wdt_device = s3c2410_wdd;
+
+	wdt->drv_data = get_wdt_drv_data(pdev);
+	if (wdt->drv_data->quirks & QUIRK_HAS_PMU_CONFIG) {
+		wdt->pmureg = syscon_regmap_lookup_by_phandle(dev->of_node,
+						"samsung,syscon-phandle");
+		if (IS_ERR(wdt->pmureg)) {
+			dev_err(dev, "syscon regmap lookup failed.\n");
+			return PTR_ERR(wdt->pmureg);
+		}
+	}
 
 	wdt_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (wdt_irq == NULL) {
@@ -418,6 +538,10 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		goto err_cpufreq;
 	}
 
+	ret = s3c2410wdt_mask_and_disable_reset(wdt, false);
+	if (ret < 0)
+		goto err_unregister;
+
 	if (tmr_atboot && started == 0) {
 		dev_info(dev, "starting watchdog timer\n");
 		s3c2410wdt_start(&wdt->wdt_device);
@@ -442,6 +566,9 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 
 	return 0;
 
+ err_unregister:
+	watchdog_unregister_device(&wdt->wdt_device);
+
  err_cpufreq:
 	s3c2410wdt_cpufreq_deregister(wdt);
 
@@ -455,7 +582,12 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 
 static int s3c2410wdt_remove(struct platform_device *dev)
 {
+	int ret;
 	struct s3c2410_wdt *wdt = platform_get_drvdata(dev);
+
+	ret = s3c2410wdt_mask_and_disable_reset(wdt, true);
+	if (ret < 0)
+		return ret;
 
 	watchdog_unregister_device(&wdt->wdt_device);
 
@@ -471,6 +603,8 @@ static void s3c2410wdt_shutdown(struct platform_device *dev)
 {
 	struct s3c2410_wdt *wdt = platform_get_drvdata(dev);
 
+	s3c2410wdt_mask_and_disable_reset(wdt, true);
+
 	s3c2410wdt_stop(&wdt->wdt_device);
 }
 
@@ -478,11 +612,16 @@ static void s3c2410wdt_shutdown(struct platform_device *dev)
 
 static int s3c2410wdt_suspend(struct device *dev)
 {
+	int ret;
 	struct s3c2410_wdt *wdt = dev_get_drvdata(dev);
 
 	/* Save watchdog state, and turn it off. */
 	wdt->wtcon_save = readl(wdt->reg_base + S3C2410_WTCON);
 	wdt->wtdat_save = readl(wdt->reg_base + S3C2410_WTDAT);
+
+	ret = s3c2410wdt_mask_and_disable_reset(wdt, true);
+	if (ret < 0)
+		return ret;
 
 	/* Note that WTCNT doesn't need to be saved. */
 	s3c2410wdt_stop(&wdt->wdt_device);
@@ -492,12 +631,17 @@ static int s3c2410wdt_suspend(struct device *dev)
 
 static int s3c2410wdt_resume(struct device *dev)
 {
+	int ret;
 	struct s3c2410_wdt *wdt = dev_get_drvdata(dev);
 
 	/* Restore watchdog state. */
 	writel(wdt->wtdat_save, wdt->reg_base + S3C2410_WTDAT);
 	writel(wdt->wtdat_save, wdt->reg_base + S3C2410_WTCNT);/* Reset count */
 	writel(wdt->wtcon_save, wdt->reg_base + S3C2410_WTCON);
+
+	ret = s3c2410wdt_mask_and_disable_reset(wdt, false);
+	if (ret < 0)
+		return ret;
 
 	dev_info(dev, "watchdog %sabled\n",
 		(wdt->wtcon_save & S3C2410_WTCON_ENABLE) ? "en" : "dis");
@@ -509,18 +653,11 @@ static int s3c2410wdt_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(s3c2410wdt_pm_ops, s3c2410wdt_suspend,
 			s3c2410wdt_resume);
 
-#ifdef CONFIG_OF
-static const struct of_device_id s3c2410_wdt_match[] = {
-	{ .compatible = "samsung,s3c2410-wdt" },
-	{},
-};
-MODULE_DEVICE_TABLE(of, s3c2410_wdt_match);
-#endif
-
 static struct platform_driver s3c2410wdt_driver = {
 	.probe		= s3c2410wdt_probe,
 	.remove		= s3c2410wdt_remove,
 	.shutdown	= s3c2410wdt_shutdown,
+	.id_table	= s3c2410_wdt_ids,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "s3c2410-wdt",
@@ -535,4 +672,3 @@ MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>, "
 	      "Dimitry Andric <dimitry.andric@tomtom.com>");
 MODULE_DESCRIPTION("S3C2410 Watchdog Device Driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:s3c2410-wdt");
