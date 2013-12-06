@@ -562,16 +562,19 @@ static DECLARE_DELAYED_WORK(dell_rfkill_work, dell_update_rfkill);
 
 static int __init dell_setup_rfkill(void)
 {
-	int status;
-	int ret;
+	int status, ret, whitelisted;
 	const char *product;
 
 	/*
-	 * rfkill causes trouble on various non Latitudes, according to Dell
-	 * actually testing the rfkill functionality is only done on Latitudes.
+	 * rfkill support causes trouble on various models, mostly Inspirons.
+	 * So we whitelist certain series, and don't support rfkill on others.
 	 */
+	whitelisted = 0;
 	product = dmi_get_system_info(DMI_PRODUCT_NAME);
-	if (!force_rfkill && (!product || strncmp(product, "Latitude", 8)))
+	if (product &&  (strncmp(product, "Latitude", 8) == 0 ||
+			 strncmp(product, "Precision", 9) == 0))
+		whitelisted = 1;
+	if (!force_rfkill && !whitelisted)
 		return 0;
 
 	get_buffer();
