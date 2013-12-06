@@ -6,6 +6,8 @@ config BRCMSMAC
 	depends on MAC80211
 	depends on BCMA_POSSIBLE
 	select BCMA
+	select NEW_LEDS if BCMA_DRIVER_GPIO
+	select LEDS_CLASS if BCMA_DRIVER_GPIO
 	select BRCMUTIL
 	select FW_LOADER
 	select CORDIC

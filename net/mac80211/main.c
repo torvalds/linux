@@ -995,6 +995,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		wiphy_debug(local->hw.wiphy, "Failed to initialize wep: %d\n",
 			    result);
 
+	local->hw.conf.flags = IEEE80211_CONF_IDLE;
+
 	ieee80211_led_init(local);
 
 	rtnl_lock();
@@ -1102,6 +1104,7 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 
 	cancel_work_sync(&local->restart_work);
 	cancel_work_sync(&local->reconfig_filter);
+	flush_work(&local->sched_scan_stopped_work);
 
 	ieee80211_clear_tx_pending(local);
 	rate_control_deinitialize(local);
