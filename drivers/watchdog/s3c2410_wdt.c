@@ -62,9 +62,15 @@
 #define CONFIG_S3C2410_WATCHDOG_ATBOOT		(0)
 #define CONFIG_S3C2410_WATCHDOG_DEFAULT_TIME	(15)
 
+#define EXYNOS5_RST_STAT_REG_OFFSET		0x0404
 #define EXYNOS5_WDT_DISABLE_REG_OFFSET		0x0408
 #define EXYNOS5_WDT_MASK_RESET_REG_OFFSET	0x040c
 #define QUIRK_HAS_PMU_CONFIG			(1 << 0)
+#define QUIRK_HAS_RST_STAT			(1 << 1)
+
+/* These quirks require that we have a PMU register map */
+#define QUIRKS_HAVE_PMUREG			(QUIRK_HAS_PMU_CONFIG | \
+						 QUIRK_HAS_RST_STAT)
 
 static bool nowayout	= WATCHDOG_NOWAYOUT;
 static int tmr_margin;
@@ -98,6 +104,9 @@ MODULE_PARM_DESC(debug, "Watchdog debug, set to >1 for debug (default 0)");
  * timer reset functionality.
  * @mask_bit: Bit number for the watchdog timer in the disable register and the
  * mask reset register.
+ * @rst_stat_reg: Offset in pmureg for the register that has the reset status.
+ * @rst_stat_bit: Bit number in the rst_stat register indicating a watchdog
+ * reset.
  * @quirks: A bitfield of quirks.
  */
 
@@ -105,6 +114,8 @@ struct s3c2410_wdt_variant {
 	int disable_reg;
 	int mask_reset_reg;
 	int mask_bit;
+	int rst_stat_reg;
+	int rst_stat_bit;
 	u32 quirks;
 };
 
@@ -131,14 +142,18 @@ static const struct s3c2410_wdt_variant drv_data_exynos5250  = {
 	.disable_reg = EXYNOS5_WDT_DISABLE_REG_OFFSET,
 	.mask_reset_reg = EXYNOS5_WDT_MASK_RESET_REG_OFFSET,
 	.mask_bit = 20,
-	.quirks = QUIRK_HAS_PMU_CONFIG
+	.rst_stat_reg = EXYNOS5_RST_STAT_REG_OFFSET,
+	.rst_stat_bit = 20,
+	.quirks = QUIRK_HAS_PMU_CONFIG | QUIRK_HAS_RST_STAT,
 };
 
 static const struct s3c2410_wdt_variant drv_data_exynos5420 = {
 	.disable_reg = EXYNOS5_WDT_DISABLE_REG_OFFSET,
 	.mask_reset_reg = EXYNOS5_WDT_MASK_RESET_REG_OFFSET,
 	.mask_bit = 0,
-	.quirks = QUIRK_HAS_PMU_CONFIG
+	.rst_stat_reg = EXYNOS5_RST_STAT_REG_OFFSET,
+	.rst_stat_bit = 9,
+	.quirks = QUIRK_HAS_PMU_CONFIG | QUIRK_HAS_RST_STAT,
 };
 
 static const struct of_device_id s3c2410_wdt_match[] = {
@@ -424,6 +439,23 @@ static inline void s3c2410wdt_cpufreq_deregister(struct s3c2410_wdt *wdt)
 }
 #endif
 
+static inline unsigned int s3c2410wdt_get_bootstatus(struct s3c2410_wdt *wdt)
+{
+	unsigned int rst_stat;
+	int ret;
+
+	if (!(wdt->drv_data->quirks & QUIRK_HAS_RST_STAT))
+		return 0;
+
+	ret = regmap_read(wdt->pmureg, wdt->drv_data->rst_stat_reg, &rst_stat);
+	if (ret)
+		dev_warn(wdt->dev, "Couldn't get RST_STAT register\n");
+	else if (rst_stat & BIT(wdt->drv_data->rst_stat_bit))
+		return WDIOF_CARDRESET;
+
+	return 0;
+}
+
 /* s3c2410_get_wdt_driver_data */
 static inline struct s3c2410_wdt_variant *
 get_wdt_drv_data(struct platform_device *pdev)
@@ -461,7 +493,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	wdt->wdt_device = s3c2410_wdd;
 
 	wdt->drv_data = get_wdt_drv_data(pdev);
-	if (wdt->drv_data->quirks & QUIRK_HAS_PMU_CONFIG) {
+	if (wdt->drv_data->quirks & QUIRKS_HAVE_PMUREG) {
 		wdt->pmureg = syscon_regmap_lookup_by_phandle(dev->of_node,
 						"samsung,syscon-phandle");
 		if (IS_ERR(wdt->pmureg)) {
@@ -531,6 +563,8 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	}
 
 	watchdog_set_nowayout(&wdt->wdt_device, nowayout);
+
+	wdt->wdt_device.bootstatus = s3c2410wdt_get_bootstatus(wdt);
 
 	ret = watchdog_register_device(&wdt->wdt_device);
 	if (ret) {
