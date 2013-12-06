@@ -2795,7 +2795,7 @@ static void amd64_remove_one_instance(struct pci_dev *pdev)
  * PCI core identifies what devices are on a system during boot, and then
  * inquiry this table to see if this driver is for a given device found.
  */
-static DEFINE_PCI_DEVICE_TABLE(amd64_pci_table) = {
+static const struct pci_device_id amd64_pci_table[] = {
 	{
 		.vendor		= PCI_VENDOR_ID_AMD,
 		.device		= PCI_DEVICE_ID_AMD_K8_NB_MEMCTL,
