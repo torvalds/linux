@@ -1006,41 +1006,20 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (args->flags & I915_EXEC_IS_PINNED)
 		flags |= I915_DISPATCH_PINNED;
 
-	switch (args->flags & I915_EXEC_RING_MASK) {
-	case I915_EXEC_DEFAULT:
-	case I915_EXEC_RENDER:
-		ring = &dev_priv->ring[RCS];
-		break;
-	case I915_EXEC_BSD:
-		ring = &dev_priv->ring[VCS];
-		if (ctx_id != DEFAULT_CONTEXT_ID) {
-			DRM_DEBUG("Ring %s doesn't support contexts\n",
-				  ring->name);
-			return -EPERM;
-		}
-		break;
-	case I915_EXEC_BLT:
-		ring = &dev_priv->ring[BCS];
-		if (ctx_id != DEFAULT_CONTEXT_ID) {
-			DRM_DEBUG("Ring %s doesn't support contexts\n",
-				  ring->name);
-			return -EPERM;
-		}
-		break;
-	case I915_EXEC_VEBOX:
-		ring = &dev_priv->ring[VECS];
-		if (ctx_id != DEFAULT_CONTEXT_ID) {
-			DRM_DEBUG("Ring %s doesn't support contexts\n",
-				  ring->name);
-			return -EPERM;
-		}
-		break;
-
-	default:
+	if ((args->flags & I915_EXEC_RING_MASK) > I915_NUM_RINGS) {
 		DRM_DEBUG("execbuf with unknown ring: %d\n",
 			  (int)(args->flags & I915_EXEC_RING_MASK));
 		return -EINVAL;
 	}
+	if (ctx_id != DEFAULT_CONTEXT_ID &&
+	    (args->flags & I915_EXEC_RING_MASK) > I915_EXEC_RENDER)
+		return -EPERM;
+
+	if ((args->flags & I915_EXEC_RING_MASK) == I915_EXEC_DEFAULT)
+		ring = &dev_priv->ring[RCS];
+	else
+		ring = &dev_priv->ring[(args->flags & I915_EXEC_RING_MASK) - 1];
+
 	if (!intel_ring_initialized(ring)) {
 		DRM_DEBUG("execbuf with invalid ring: %d\n",
 			  (int)(args->flags & I915_EXEC_RING_MASK));
