@@ -486,12 +486,59 @@ static uint32_t get_pd_offset(struct i915_hw_ppgtt *ppgtt)
 	return (ppgtt->pd_offset / 64) << 16;
 }
 
+static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
+			  struct intel_ring_buffer *ring,
+			  bool synchronous)
+{
+	struct drm_device *dev = ppgtt->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	/* If we're in reset, we can assume the GPU is sufficiently idle to
+	 * manually frob these bits. Ideally we could use the ring functions,
+	 * except our error handling makes it quite difficult (can't use
+	 * intel_ring_begin, ring->flush, or intel_ring_advance)
+	 *
+	 * FIXME: We should try not to special case reset
+	 */
+	if (synchronous ||
+	    i915_reset_in_progress(&dev_priv->gpu_error)) {
+		WARN_ON(ppgtt != dev_priv->mm.aliasing_ppgtt);
+		I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
+		I915_WRITE(RING_PP_DIR_BASE(ring), get_pd_offset(ppgtt));
+		POSTING_READ(RING_PP_DIR_BASE(ring));
+		return 0;
+	}
+
+	/* NB: TLBs must be flushed and invalidated before a switch */
+	ret = ring->flush(ring, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
+	if (ret)
+		return ret;
+
+	ret = intel_ring_begin(ring, 6);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(2));
+	intel_ring_emit(ring, RING_PP_DIR_DCLV(ring));
+	intel_ring_emit(ring, PP_DIR_DCLV_2G);
+	intel_ring_emit(ring, RING_PP_DIR_BASE(ring));
+	intel_ring_emit(ring, get_pd_offset(ppgtt));
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
 static int gen6_mm_switch(struct i915_hw_ppgtt *ppgtt,
 			  struct intel_ring_buffer *ring,
 			  bool synchronous)
 {
 	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!synchronous)
+		return 0;
 
 	I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
 	I915_WRITE(RING_PP_DIR_BASE(ring), get_pd_offset(ppgtt));
@@ -712,13 +759,14 @@ alloc:
 
 	ppgtt->base.pte_encode = dev_priv->gtt.base.pte_encode;
 	ppgtt->num_pd_entries = GEN6_PPGTT_PD_ENTRIES;
-	if (IS_GEN6(dev))
+	if (IS_GEN6(dev)) {
 		ppgtt->enable = gen6_ppgtt_enable;
-	if (IS_GEN7(dev))
+		ppgtt->switch_mm = gen6_mm_switch;
+	} else if (IS_GEN7(dev)) {
 		ppgtt->enable = gen7_ppgtt_enable;
-	else
+		ppgtt->switch_mm = gen7_mm_switch;
+	} else
 		BUG();
-	ppgtt->switch_mm = gen6_mm_switch;
 	ppgtt->base.clear_range = gen6_ppgtt_clear_range;
 	ppgtt->base.insert_entries = gen6_ppgtt_insert_entries;
 	ppgtt->base.cleanup = gen6_ppgtt_cleanup;
