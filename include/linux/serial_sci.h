@@ -152,9 +152,6 @@ struct plat_sci_port {
 	/*
 	 * Platform overrides if necessary, defaults otherwise.
 	 */
-	int		overrun_bit;
-	unsigned int	error_mask;
-
 	int		port_reg;
 	unsigned char	regshift;
 	unsigned char	regtype;

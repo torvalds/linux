@@ -64,6 +64,9 @@ struct sci_port {
 
 	/* Platform configuration */
 	struct plat_sci_port	*cfg;
+	int			overrun_bit;
+	unsigned int		error_mask;
+
 
 	/* Break timer */
 	struct timer_list	break_timer;
@@ -760,19 +763,15 @@ static int sci_handle_errors(struct uart_port *port)
 	struct tty_port *tport = &port->state->port;
 	struct sci_port *s = to_sci_port(port);
 
-	/*
-	 * Handle overruns, if supported.
-	 */
-	if (s->cfg->overrun_bit != SCIx_NOT_SUPPORTED) {
-		if (status & (1 << s->cfg->overrun_bit)) {
-			port->icount.overrun++;
+	/* Handle overruns */
+	if (status & (1 << s->overrun_bit)) {
+		port->icount.overrun++;
 
-			/* overrun error */
-			if (tty_insert_flip_char(tport, 0, TTY_OVERRUN))
-				copied++;
+		/* overrun error */
+		if (tty_insert_flip_char(tport, 0, TTY_OVERRUN))
+			copied++;
 
-			dev_notice(port->dev, "overrun error");
-		}
+		dev_notice(port->dev, "overrun error");
 	}
 
 	if (status & SCxSR_FER(port)) {
@@ -834,7 +833,7 @@ static int sci_handle_fifo_overrun(struct uart_port *port)
 	if (!reg->size)
 		return 0;
 
-	if ((serial_port_in(port, SCLSR) & (1 << s->cfg->overrun_bit))) {
+	if ((serial_port_in(port, SCLSR) & (1 << s->overrun_bit))) {
 		serial_port_out(port, SCLSR, 0);
 
 		port->icount.overrun++;
@@ -2253,28 +2252,25 @@ static int sci_init_single(struct platform_device *dev,
 	/*
 	 * Establish some sensible defaults for the error detection.
 	 */
-	if (!p->error_mask)
-		p->error_mask = (p->type == PORT_SCI) ?
+	sci_port->error_mask = (p->type == PORT_SCI) ?
 			SCI_DEFAULT_ERROR_MASK : SCIF_DEFAULT_ERROR_MASK;
 
 	/*
 	 * Establish sensible defaults for the overrun detection, unless
 	 * the part has explicitly disabled support for it.
 	 */
-	if (p->overrun_bit != SCIx_NOT_SUPPORTED) {
-		if (p->type == PORT_SCI)
-			p->overrun_bit = 5;
-		else if (p->scbrr_algo_id == SCBRR_ALGO_4)
-			p->overrun_bit = 9;
-		else
-			p->overrun_bit = 0;
+	if (p->type == PORT_SCI)
+		sci_port->overrun_bit = 5;
+	else if (p->scbrr_algo_id == SCBRR_ALGO_4)
+		sci_port->overrun_bit = 9;
+	else
+		sci_port->overrun_bit = 0;
 
-		/*
-		 * Make the error mask inclusive of overrun detection, if
-		 * supported.
-		 */
-		p->error_mask |= (1 << p->overrun_bit);
-	}
+	/*
+	 * Make the error mask inclusive of overrun detection, if
+	 * supported.
+	 */
+	sci_port->error_mask |= 1 << sci_port->overrun_bit;
 
 	port->type		= p->type;
 	port->flags		= UPF_FIXED_PORT | p->flags;
