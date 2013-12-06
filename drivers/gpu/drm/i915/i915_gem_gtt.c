@@ -612,6 +612,12 @@ static int gen8_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
 	for_each_ring(ring, dev_priv, j) {
 		I915_WRITE(RING_MODE_GEN7(ring),
 			   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
+
+		/* We promise to do a switch later with FULL PPGTT. If this is
+		 * aliasing, this is the one and only switch we'll do */
+		if (USES_FULL_PPGTT(dev))
+			continue;
+
 		ret = ppgtt->switch_mm(ppgtt, ring, true);
 		if (ret)
 			goto err_out;
@@ -651,11 +657,17 @@ static int gen7_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
 		/* GFX_MODE is per-ring on gen7+ */
 		I915_WRITE(RING_MODE_GEN7(ring),
 			   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
+
+		/* We promise to do a switch later with FULL PPGTT. If this is
+		 * aliasing, this is the one and only switch we'll do */
+		if (USES_FULL_PPGTT(dev))
+			continue;
+
 		ret = ppgtt->switch_mm(ppgtt, ring, true);
 		if (ret)
 			return ret;
-
 	}
+
 	return 0;
 }
 
