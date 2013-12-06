@@ -152,6 +152,21 @@ config OMAP_OTG
 	  This driver can also be built as a module. If so, the module
 	  will be called omap-otg.
 
+config TAHVO_USB
+	tristate "Tahvo USB transceiver driver"
+	depends on MFD_RETU && EXTCON
+	select USB_PHY
+	help
+	  Enable this to support USB transceiver on Tahvo. This is used
+	  at least on Nokia 770.
+
+config TAHVO_USB_HOST_BY_DEFAULT
+	depends on TAHVO_USB
+	boolean "Device in USB host mode by default"
+	help
+	  Say Y here, if you want the device to enter USB host mode
+	  by default on bootup.
+
 config USB_ISP1301
 	tristate "NXP ISP1301 USB transceiver support"
 	depends on USB || USB_GADGET
