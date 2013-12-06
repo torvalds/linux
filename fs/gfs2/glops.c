@@ -142,8 +142,8 @@ static void rgrp_go_sync(struct gfs2_glock *gl)
 	GLOCK_BUG_ON(gl, gl->gl_state != LM_ST_EXCLUSIVE);
 
 	gfs2_log_flush(gl->gl_sbd, gl);
-	filemap_fdatawrite(metamapping);
-	error = filemap_fdatawait(metamapping);
+	filemap_fdatawrite_range(metamapping, gl->gl_vm.start, gl->gl_vm.end);
+	error = filemap_fdatawait_range(metamapping, gl->gl_vm.start, gl->gl_vm.end);
         mapping_set_error(metamapping, error);
 	gfs2_ail_empty_gl(gl);
 
@@ -170,7 +170,7 @@ static void rgrp_go_inval(struct gfs2_glock *gl, int flags)
 
 	WARN_ON_ONCE(!(flags & DIO_METADATA));
 	gfs2_assert_withdraw(gl->gl_sbd, !atomic_read(&gl->gl_ail_count));
-	truncate_inode_pages(mapping, 0);
+	truncate_inode_pages_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
 
 	if (gl->gl_object) {
 		struct gfs2_rgrpd *rgd = (struct gfs2_rgrpd *)gl->gl_object;

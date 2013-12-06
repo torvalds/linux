@@ -351,7 +351,15 @@ struct gfs2_glock {
 	atomic_t gl_ail_count;
 	atomic_t gl_revokes;
 	struct delayed_work gl_work;
-	struct work_struct gl_delete;
+	union {
+		/* For inode and iopen glocks only */
+		struct work_struct gl_delete;
+		/* For rgrp glocks only */
+		struct {
+			loff_t start;
+			loff_t end;
+		} gl_vm;
+	};
 	struct rcu_head gl_rcu;
 };
 
