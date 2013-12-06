@@ -93,11 +93,20 @@
  * I've seen in a spec to date, and that was a workaround for a non-shipping
  * part. It should be safe to decrease this, but it's more future proof as is.
  */
-#define CONTEXT_ALIGN (64<<10)
+#define GEN6_CONTEXT_ALIGN (64<<10)
+#define GEN7_CONTEXT_ALIGN 4096
 
 static struct i915_hw_context *
 i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id);
 static int do_switch(struct i915_hw_context *to);
+
+static size_t get_context_alignment(struct drm_device *dev)
+{
+	if (IS_GEN6(dev))
+		return GEN6_CONTEXT_ALIGN;
+
+	return GEN7_CONTEXT_ALIGN;
+}
 
 static int get_context_size(struct drm_device *dev)
 {
@@ -206,14 +215,15 @@ static inline bool is_default_context(struct i915_hw_context *ctx)
  * context state of the GPU for applications that don't utilize HW contexts, as
  * well as an idle case.
  */
-static int create_default_context(struct drm_i915_private *dev_priv)
+static int create_default_context(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_hw_context *ctx;
 	int ret;
 
-	BUG_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	ctx = create_hw_context(dev_priv->dev, NULL);
+	ctx = create_hw_context(dev, NULL);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
@@ -223,7 +233,8 @@ static int create_default_context(struct drm_i915_private *dev_priv)
 	 * may not be available. To avoid this we always pin the
 	 * default context.
 	 */
-	ret = i915_gem_obj_ggtt_pin(ctx->obj, CONTEXT_ALIGN, false, false);
+	ret = i915_gem_obj_ggtt_pin(ctx->obj, get_context_alignment(dev),
+				    false, false);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Couldn't pin %d\n", ret);
 		goto err_destroy;
@@ -266,7 +277,7 @@ int i915_gem_context_init(struct drm_device *dev)
 		return -E2BIG;
 	}
 
-	ret = create_default_context(dev_priv);
+	ret = create_default_context(dev);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Disabling HW Contexts; create failed %d\n",
 				 ret);
@@ -433,7 +444,8 @@ static int do_switch(struct i915_hw_context *to)
 	if (from == to && !to->remap_slice)
 		return 0;
 
-	ret = i915_gem_obj_ggtt_pin(to->obj, CONTEXT_ALIGN, false, false);
+	ret = i915_gem_obj_ggtt_pin(to->obj, get_context_alignment(ring->dev),
+				    false, false);
 	if (ret)
 		return ret;
 
