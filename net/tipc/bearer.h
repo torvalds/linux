@@ -108,7 +108,6 @@ struct tipc_media {
  * struct tipc_bearer - TIPC bearer structure
  * @usr_handle: pointer to additional media-specific information about bearer
  * @mtu: max packet size bearer can support
- * @blocked: non-zero if bearer is blocked
  * @lock: spinlock for controlling access to bearer
  * @addr: media-specific address associated with bearer
  * @name: bearer name (format = media:interface)
@@ -130,7 +129,6 @@ struct tipc_media {
 struct tipc_bearer {
 	void *usr_handle;			/* initalized by media */
 	u32 mtu;				/* initalized by media */
-	int blocked;				/* initalized by media */
 	struct tipc_media_addr addr;		/* initalized by media */
 	char name[TIPC_MAX_BEARER_NAME];
 	spinlock_t lock;
@@ -163,8 +161,7 @@ int tipc_register_media(struct tipc_media *m_ptr);
 
 void tipc_recv_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr);
 
-int  tipc_block_bearer(struct tipc_bearer *b_ptr);
-void tipc_continue(struct tipc_bearer *tb_ptr);
+int  tipc_reset_bearer(struct tipc_bearer *b_ptr);
 
 int tipc_enable_bearer(const char *bearer_name, u32 disc_domain, u32 priority);
 int tipc_disable_bearer(const char *name);
@@ -194,7 +191,6 @@ void tipc_bearer_remove_dest(struct tipc_bearer *b_ptr, u32 dest);
 struct tipc_bearer *tipc_bearer_find(const char *name);
 struct tipc_bearer *tipc_bearer_find_interface(const char *if_name);
 struct tipc_media *tipc_media_find(const char *name);
-int tipc_bearer_blocked(struct tipc_bearer *b_ptr);
 void tipc_bearer_stop(void);
 
 /**

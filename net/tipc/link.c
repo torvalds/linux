@@ -790,8 +790,7 @@ int tipc_link_send_buf(struct tipc_link *l_ptr, struct sk_buff *buf)
 		return link_send_long_buf(l_ptr, buf);
 
 	/* Packet can be queued or sent. */
-	if (likely(!tipc_bearer_blocked(l_ptr->b_ptr) &&
-		   !link_congested(l_ptr))) {
+	if (likely(!link_congested(l_ptr))) {
 		link_add_to_outqueue(l_ptr, buf, msg);
 
 		tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr);
@@ -957,14 +956,13 @@ static int link_send_buf_fast(struct tipc_link *l_ptr, struct sk_buff *buf,
 
 	if (likely(!link_congested(l_ptr))) {
 		if (likely(msg_size(msg) <= l_ptr->max_pkt)) {
-			if (likely(!tipc_bearer_blocked(l_ptr->b_ptr))) {
-				link_add_to_outqueue(l_ptr, buf, msg);
-				tipc_bearer_send(l_ptr->b_ptr, buf,
-						 &l_ptr->media_addr);
-				l_ptr->unacked_window = 0;
-				return res;
-			}
-		} else
+			link_add_to_outqueue(l_ptr, buf, msg);
+			tipc_bearer_send(l_ptr->b_ptr, buf,
+					 &l_ptr->media_addr);
+			l_ptr->unacked_window = 0;
+			return res;
+		}
+		else
 			*used_max_pkt = l_ptr->max_pkt;
 	}
 	return tipc_link_send_buf(l_ptr, buf);  /* All other cases */
@@ -1013,8 +1011,7 @@ exit:
 			}
 
 			/* Exit if link (or bearer) is congested */
-			if (link_congested(l_ptr) ||
-			    tipc_bearer_blocked(l_ptr->b_ptr)) {
+			if (link_congested(l_ptr)) {
 				res = link_schedule_port(l_ptr,
 							 sender->ref, res);
 				goto exit;
@@ -1281,9 +1278,6 @@ void tipc_link_push_queue(struct tipc_link *l_ptr)
 {
 	u32 res;
 
-	if (tipc_bearer_blocked(l_ptr->b_ptr))
-		return;
-
 	do {
 		res = tipc_link_push_packet(l_ptr);
 	} while (!res);
@@ -1370,26 +1364,15 @@ void tipc_link_retransmit(struct tipc_link *l_ptr, struct sk_buff *buf,
 
 	msg = buf_msg(buf);
 
-	if (tipc_bearer_blocked(l_ptr->b_ptr)) {
-		if (l_ptr->retransm_queue_size == 0) {
-			l_ptr->retransm_queue_head = msg_seqno(msg);
-			l_ptr->retransm_queue_size = retransmits;
-		} else {
-			pr_err("Unexpected retransmit on link %s (qsize=%d)\n",
-			       l_ptr->name, l_ptr->retransm_queue_size);
+	/* Detect repeated retransmit failures */
+	if (l_ptr->last_retransmitted == msg_seqno(msg)) {
+		if (++l_ptr->stale_count > 100) {
+			link_retransmit_failure(l_ptr, buf);
+			return;
 		}
-		return;
 	} else {
-		/* Detect repeated retransmit failures on unblocked bearer */
-		if (l_ptr->last_retransmitted == msg_seqno(msg)) {
-			if (++l_ptr->stale_count > 100) {
-				link_retransmit_failure(l_ptr, buf);
-				return;
-			}
-		} else {
-			l_ptr->last_retransmitted = msg_seqno(msg);
-			l_ptr->stale_count = 1;
-		}
+		l_ptr->last_retransmitted = msg_seqno(msg);
+		l_ptr->stale_count = 1;
 	}
 
 	while (retransmits && (buf != l_ptr->next_out) && buf) {
@@ -1860,12 +1843,6 @@ void tipc_link_send_proto_msg(struct tipc_link *l_ptr, u32 msg_typ,
 
 	skb_copy_to_linear_data(buf, msg, sizeof(l_ptr->proto_msg));
 	buf->priority = TC_PRIO_CONTROL;
-
-	/* Defer message if bearer is already blocked */
-	if (tipc_bearer_blocked(l_ptr->b_ptr)) {
-		l_ptr->proto_msg_queue = buf;
-		return;
-	}
 
 	tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr);
 	l_ptr->unacked_window = 0;

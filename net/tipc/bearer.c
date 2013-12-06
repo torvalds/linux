@@ -275,31 +275,6 @@ void tipc_bearer_remove_dest(struct tipc_bearer *b_ptr, u32 dest)
 	tipc_disc_remove_dest(b_ptr->link_req);
 }
 
-/*
- * Interrupt enabling new requests after bearer blocking:
- * See bearer_send().
- */
-void tipc_continue(struct tipc_bearer *b)
-{
-	spin_lock_bh(&b->lock);
-	b->blocked = 0;
-	spin_unlock_bh(&b->lock);
-}
-
-/*
- * tipc_bearer_blocked - determines if bearer is currently blocked
- */
-int tipc_bearer_blocked(struct tipc_bearer *b)
-{
-	int res;
-
-	spin_lock_bh(&b->lock);
-	res = b->blocked;
-	spin_unlock_bh(&b->lock);
-
-	return res;
-}
-
 /**
  * tipc_enable_bearer - enable bearer with the given name
  */
@@ -420,17 +395,16 @@ exit:
 }
 
 /**
- * tipc_block_bearer - Block the bearer, and reset all its links
+ * tipc_reset_bearer - Reset all links established over this bearer
  */
-int tipc_block_bearer(struct tipc_bearer *b_ptr)
+int tipc_reset_bearer(struct tipc_bearer *b_ptr)
 {
 	struct tipc_link *l_ptr;
 	struct tipc_link *temp_l_ptr;
 
 	read_lock_bh(&tipc_net_lock);
-	pr_info("Blocking bearer <%s>\n", b_ptr->name);
+	pr_info("Resetting bearer <%s>\n", b_ptr->name);
 	spin_lock_bh(&b_ptr->lock);
-	b_ptr->blocked = 1;
 	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
 		struct tipc_node *n_ptr = l_ptr->owner;
 
@@ -456,7 +430,6 @@ static void bearer_disable(struct tipc_bearer *b_ptr)
 
 	pr_info("Disabling bearer <%s>\n", b_ptr->name);
 	spin_lock_bh(&b_ptr->lock);
-	b_ptr->blocked = 1;
 	b_ptr->media->disable_media(b_ptr);
 	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
 		tipc_link_delete(l_ptr);

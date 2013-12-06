@@ -621,12 +621,6 @@ static int tipc_bcbearer_send(struct sk_buff *buf, struct tipc_bearer *unused1,
 		if (!p)
 			break; /* No more bearers to try */
 
-		if (tipc_bearer_blocked(p)) {
-			if (!s || tipc_bearer_blocked(s))
-				continue; /* Can't use either bearer */
-			b = s;
-		}
-
 		tipc_nmap_diff(&bcbearer->remains, &b->nodes,
 			       &bcbearer->remains_new);
 		if (bcbearer->remains_new.count == bcbearer->remains.count)

@@ -192,7 +192,6 @@ static int enable_media(struct tipc_bearer *tb_ptr)
 	tb_ptr->bcast_addr.media_id = TIPC_MEDIA_TYPE_IB;
 	tb_ptr->bcast_addr.broadcast = 1;
 	tb_ptr->mtu = dev->mtu;
-	tb_ptr->blocked = 0;
 	ib_media_addr_set(tb_ptr, &tb_ptr->addr, (char *)dev->dev_addr);
 	return 0;
 }
@@ -256,20 +255,11 @@ static int recv_notification(struct notifier_block *nb, unsigned long evt,
 	switch (evt) {
 	case NETDEV_CHANGE:
 		if (netif_carrier_ok(dev))
-			tipc_continue(ib_ptr->bearer);
-		else
-			tipc_block_bearer(ib_ptr->bearer);
-		break;
-	case NETDEV_UP:
-		tipc_continue(ib_ptr->bearer);
-		break;
+			break;
 	case NETDEV_DOWN:
-		tipc_block_bearer(ib_ptr->bearer);
-		break;
 	case NETDEV_CHANGEMTU:
 	case NETDEV_CHANGEADDR:
-		tipc_block_bearer(ib_ptr->bearer);
-		tipc_continue(ib_ptr->bearer);
+		tipc_reset_bearer(ib_ptr->bearer);
 		break;
 	case NETDEV_UNREGISTER:
 	case NETDEV_CHANGENAME:
