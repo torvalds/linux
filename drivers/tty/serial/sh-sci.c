@@ -1757,17 +1757,6 @@ static unsigned int sci_scbrr_calc(struct sci_port *s, unsigned int bps,
 	if (s->sampling_rate)
 		return DIV_ROUND_CLOSEST(freq, s->sampling_rate * bps) - 1;
 
-	switch (s->cfg->scbrr_algo_id) {
-	case SCBRR_ALGO_1:
-		return freq / (16 * bps);
-	case SCBRR_ALGO_2:
-		return DIV_ROUND_CLOSEST(freq, 32 * bps) - 1;
-	case SCBRR_ALGO_3:
-		return freq / (8 * bps);
-	case SCBRR_ALGO_4:
-		return DIV_ROUND_CLOSEST(freq, 16 * bps) - 1;
-	}
-
 	/* Warn, but use a safe default */
 	WARN_ON(1);
 
@@ -2176,17 +2165,12 @@ static int sci_init_single(struct platform_device *dev,
 		break;
 	}
 
-	/* Set the sampling rate if the baud rate calculation algorithm isn't
-	 * specified.
+	/* SCIFA on sh7723 and sh7724 need a custom sampling rate that doesn't
+	 * match the SoC datasheet, this should be investigated. Let platform
+	 * data override the sampling rate for now.
 	 */
-	if (p->scbrr_algo_id == SCBRR_ALGO_NONE) {
-		/* SCIFA on sh7723 and sh7724 need a custom sampling rate that
-		 * doesn't match the SoC datasheet, this should be investigated.
-		 * Let platform data override the sampling rate for now.
-		 */
-		sci_port->sampling_rate = p->sampling_rate ? p->sampling_rate
-					: sampling_rate;
-	}
+	sci_port->sampling_rate = p->sampling_rate ? p->sampling_rate
+				: sampling_rate;
 
 	if (!early) {
 		sci_port->iclk = clk_get(&dev->dev, "sci_ick");
