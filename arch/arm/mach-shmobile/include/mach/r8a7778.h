@@ -20,7 +20,6 @@
 #define __ASM_R8A7778_H__
 
 #include <linux/sh_eth.h>
-#include <linux/platform_data/camera-rcar.h>
 
 /* HPB-DMA slave IDs */
 enum {
