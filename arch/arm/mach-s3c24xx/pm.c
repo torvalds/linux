@@ -34,6 +34,7 @@
 #include <linux/interrupt.h>
 #include <linux/serial_core.h>
 #include <linux/io.h>
+#include <linux/platform_data/gpio-samsung-s3c24xx.h>
 
 #include <plat/regs-serial.h>
 #include <mach/regs-clock.h>

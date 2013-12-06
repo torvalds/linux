@@ -23,6 +23,7 @@
 #include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/platform_data/gpio-samsung-s3c24xx.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

@@ -35,6 +35,7 @@
 #include <linux/platform_data/hwmon-s3c.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
+#include <linux/platform_data/gpio-samsung-s3c24xx.h>
 
 #include <net/ax88796.h>
 

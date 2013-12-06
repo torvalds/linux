@@ -26,6 +26,7 @@
 #include <mach/dma.h>
 
 #include <linux/platform_data/mmc-s3cmci.h>
+#include <linux/platform_data/gpio-samsung-s3c24xx.h>
 
 #include "s3cmci.h"
 

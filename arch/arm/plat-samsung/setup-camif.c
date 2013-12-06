@@ -9,6 +9,7 @@
  */
 
 #include <linux/gpio.h>
+#include <linux/platform_data/gpio-samsung-s3c24xx.h>
 #include <plat/gpio-cfg.h>
 
 /* Number of camera port pins, without FIELD */

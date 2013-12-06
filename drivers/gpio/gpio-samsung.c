@@ -27,6 +27,9 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/of_address.h>
+#ifdef CONFIG_ARCH_S3C24XX
+#include <linux/platform_data/gpio-samsung-s3c24xx.h>
+#endif
 
 #include <asm/irq.h>
 

@@ -46,6 +46,7 @@
 #include <linux/platform_data/mmc-s3cmci.h>
 #include <linux/platform_data/touchscreen-s3c2410.h>
 #include <linux/platform_data/usb-s3c2410_udc.h>
+#include <linux/platform_data/gpio-samsung-s3c24xx.h>
 
 #include <sound/uda1380.h>
 

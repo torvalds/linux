@@ -70,6 +70,7 @@
 #include <linux/platform_data/touchscreen-s3c2410.h>
 #include <linux/platform_data/usb-ohci-s3c2410.h>
 #include <linux/platform_data/usb-s3c2410_udc.h>
+#include <linux/platform_data/gpio-samsung-s3c24xx.h>
 
 #include <mach/fb.h>
 #include <mach/hardware.h>

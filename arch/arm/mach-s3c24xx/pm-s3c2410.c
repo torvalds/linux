@@ -28,6 +28,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
+#include <linux/platform_data/gpio-samsung-s3c24xx.h>
 
 #include <asm/mach-types.h>
 

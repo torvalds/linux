@@ -35,6 +35,7 @@
 #include <asm/mach/map.h>
 
 #include <linux/platform_data/mtd-nand-s3c2410.h>
+#include <linux/platform_data/gpio-samsung-s3c24xx.h>
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>

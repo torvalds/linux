@@ -14,16 +14,8 @@
  * devices that need GPIO.
  */
 
-#ifndef __MACH_GPIO_H
-#define __MACH_GPIO_H __FILE__
-
-#ifdef CONFIG_CPU_S3C244X
-#define ARCH_NR_GPIOS	(32 * 9 + CONFIG_S3C24XX_GPIO_EXTRA)
-#elif defined(CONFIG_CPU_S3C2443) || defined(CONFIG_CPU_S3C2416)
-#define ARCH_NR_GPIOS	(32 * 12 + CONFIG_S3C24XX_GPIO_EXTRA)
-#else
-#define ARCH_NR_GPIOS	(256 + CONFIG_S3C24XX_GPIO_EXTRA)
-#endif
+#ifndef GPIO_SAMSUNG_S3C24XX_H
+#define GPIO_SAMSUNG_S3C24XX_H
 
 /*
  * GPIO sizes for various SoCs:
@@ -111,4 +103,4 @@ enum s3c_gpio_number {
 #define S3C_GPIO_END	(S3C2410_GPH(0) + 32)
 #endif
 
-#endif /* __MACH_GPIO_H */
+#endif /* GPIO_SAMSUNG_S3C24XX_H */

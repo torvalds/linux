@@ -12,6 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/gpio.h>
+#include <linux/platform_data/gpio-samsung-s3c24xx.h>
 
 struct platform_device; /* don't need the contents */
 

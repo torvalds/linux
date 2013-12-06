@@ -38,7 +38,7 @@
 
 #include <mach/regs-gpio.h>
 #include <linux/platform_data/leds-s3c24xx.h>
-
+#include <linux/platform_data/gpio-samsung-s3c24xx.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
 
 #include <plat/gpio-cfg.h>
