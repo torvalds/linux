@@ -864,6 +864,7 @@ struct ath_hw {
 	u32 gpio_mask;
 	u32 gpio_val;
 
+	struct ar5416IniArray ini_dfs;
 	struct ar5416IniArray iniModes;
 	struct ar5416IniArray iniCommon;
 	struct ar5416IniArray iniBB_RfGain;

@@ -152,6 +152,8 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 			       ar9340Modes_fast_clock_1p0);
 		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
 			       ar9340_1p0_baseband_core_txfir_coeff_japan_2484);
+		INIT_INI_ARRAY(&ah->ini_dfs,
+			       ar9340_1p0_baseband_postamble_dfs_channel);
 
 		if (!ah->is_clk_25mhz)
 			INIT_INI_ARRAY(&ah->iniAdditional,
@@ -340,6 +342,8 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 			       ar9580_1p0_modes_fast_clock);
 		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
 			       ar9580_1p0_baseband_core_txfir_coeff_japan_2484);
+		INIT_INI_ARRAY(&ah->ini_dfs,
+			       ar9580_1p0_baseband_postamble_dfs_channel);
 	} else if (AR_SREV_9565_11_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_CORE],
 			       ar9565_1p1_mac_core);
@@ -458,6 +462,8 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 			       ar9300Modes_fast_clock_2p2);
 		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
 			       ar9300_2p2_baseband_core_txfir_coeff_japan_2484);
+		INIT_INI_ARRAY(&ah->ini_dfs,
+			       ar9300_2p2_baseband_postamble_dfs_channel);
 	}
 }
 
