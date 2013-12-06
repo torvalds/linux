@@ -252,8 +252,11 @@ static int si4713_send_command(struct si4713_device *sdev, const u8 command,
 
 		if (client->irq)
 			return -EBUSY;
-		msleep(1);
-	} while (jiffies <= until_jiffies);
+		if (usecs <= 1000)
+			usleep_range(usecs, 1000);
+		else
+			usleep_range(1000, 2000);
+	} while (time_is_after_jiffies(until_jiffies));
 
 	return -EBUSY;
 }
@@ -505,11 +508,11 @@ static int si4713_wait_stc(struct si4713_device *sdev, const int usecs)
 		}
 		if (jiffies_to_usecs(jiffies - start_jiffies) > usecs)
 			return err < 0 ? err : -EIO;
-		/* We sleep here for 3 ms in order to avoid flooding the device
+		/* We sleep here for 3-4 ms in order to avoid flooding the device
 		 * with USB requests. The si4713 USB driver was developed
 		 * by reverse engineering the Windows USB driver. The windows
 		 * driver also has a ~2.5 ms delay between responses. */
-		msleep(3);
+		usleep_range(3000, 4000);
 	}
 }
 
