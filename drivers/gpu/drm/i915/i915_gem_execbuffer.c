@@ -566,7 +566,7 @@ i915_gem_execbuffer_unreserve_vma(struct i915_vma *vma)
 		i915_gem_object_unpin_fence(obj);
 
 	if (entry->flags & __EXEC_OBJECT_HAS_PIN)
-		i915_gem_object_unpin(obj);
+		vma->pin_count--;
 
 	entry->flags &= ~(__EXEC_OBJECT_HAS_FENCE | __EXEC_OBJECT_HAS_PIN);
 }
@@ -923,7 +923,9 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 		if (obj->base.write_domain) {
 			obj->dirty = 1;
 			obj->last_write_seqno = intel_ring_get_seqno(ring);
-			if (obj->pin_count) /* check for potential scanout */
+			/* check for potential scanout */
+			if (i915_gem_obj_ggtt_bound(obj) &&
+			    i915_gem_obj_to_ggtt(obj)->pin_count)
 				intel_mark_fb_busy(obj, ring);
 		}
 

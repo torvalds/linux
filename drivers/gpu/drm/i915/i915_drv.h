@@ -651,6 +651,19 @@ struct i915_vma {
 	unsigned long exec_handle;
 	struct drm_i915_gem_exec_object2 *exec_entry;
 
+	/**
+	 * How many users have pinned this object in GTT space. The following
+	 * users can each hold at most one reference: pwrite/pread, pin_ioctl
+	 * (via user_pin_count), execbuffer (objects are not allowed multiple
+	 * times for the same batchbuffer), and the framebuffer code. When
+	 * switching/pageflipping, the framebuffer code has at most two buffers
+	 * pinned per crtc.
+	 *
+	 * In the worst case this is 1 + 1 + 1 + 2*2 = 7. That would fit into 3
+	 * bits with absolutely no headroom. So use 4 bits.
+	 */
+	unsigned int pin_count:4;
+#define DRM_I915_GEM_OBJECT_MAX_PIN_COUNT 0xf
 };
 
 struct i915_ctx_hang_stats {
@@ -1617,18 +1630,6 @@ struct drm_i915_gem_object {
 	 */
 	unsigned int fence_dirty:1;
 
-	/** How many users have pinned this object in GTT space. The following
-	 * users can each hold at most one reference: pwrite/pread, pin_ioctl
-	 * (via user_pin_count), execbuffer (objects are not allowed multiple
-	 * times for the same batchbuffer), and the framebuffer code. When
-	 * switching/pageflipping, the framebuffer code has at most two buffers
-	 * pinned per crtc.
-	 *
-	 * In the worst case this is 1 + 1 + 1 + 2*2 = 7. That would fit into 3
-	 * bits with absolutely no headroom. So use 4 bits. */
-	unsigned int pin_count:4;
-#define DRM_I915_GEM_OBJECT_MAX_PIN_COUNT 0xf
-
 	/**
 	 * Is the object at the current location in the gtt mappable and
 	 * fenceable? Used to avoid costly recalculations.
@@ -2005,7 +2006,7 @@ int __must_check i915_gem_object_pin(struct drm_i915_gem_object *obj,
 				     uint32_t alignment,
 				     bool map_and_fenceable,
 				     bool nonblocking);
-void i915_gem_object_unpin(struct drm_i915_gem_object *obj);
+void i915_gem_object_ggtt_unpin(struct drm_i915_gem_object *obj);
 int __must_check i915_vma_unbind(struct i915_vma *vma);
 int __must_check i915_gem_object_ggtt_unbind(struct drm_i915_gem_object *obj);
 int i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
@@ -2168,6 +2169,13 @@ i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
 				  struct i915_address_space *vm);
 
 struct i915_vma *i915_gem_obj_to_ggtt(struct drm_i915_gem_object *obj);
+static inline bool i915_gem_obj_is_pinned(struct drm_i915_gem_object *obj) {
+	struct i915_vma *vma;
+	list_for_each_entry(vma, &obj->vma_list, vma_link)
+		if (vma->pin_count > 0)
+			return true;
+	return false;
+}
 
 /* Some GGTT VM helpers */
 #define obj_to_ggtt(obj) \

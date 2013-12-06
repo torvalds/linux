@@ -100,7 +100,7 @@ static const char *get_pin_flag(struct drm_i915_gem_object *obj)
 {
 	if (obj->user_pin_count > 0)
 		return "P";
-	else if (obj->pin_count > 0)
+	else if (i915_gem_obj_is_pinned(obj))
 		return "p";
 	else
 		return " ";
@@ -125,6 +125,8 @@ static void
 describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
+	int pin_count = 0;
+
 	seq_printf(m, "%pK: %s%s%s %8zdKiB %02x %02x %u %u %u%s%s%s",
 		   &obj->base,
 		   get_pin_flag(obj),
@@ -141,8 +143,10 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   obj->madv == I915_MADV_DONTNEED ? " purgeable" : "");
 	if (obj->base.name)
 		seq_printf(m, " (name: %d)", obj->base.name);
-	if (obj->pin_count)
-		seq_printf(m, " (pinned x %d)", obj->pin_count);
+	list_for_each_entry(vma, &obj->vma_list, vma_link)
+		if (vma->pin_count > 0)
+			pin_count++;
+		seq_printf(m, " (pinned x %d)", pin_count);
 	if (obj->pin_display)
 		seq_printf(m, " (display)");
 	if (obj->fence_reg != I915_FENCE_REG_NONE)
@@ -439,7 +443,7 @@ static int i915_gem_gtt_info(struct seq_file *m, void *data)
 
 	total_obj_size = total_gtt_size = count = 0;
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		if (list == PINNED_LIST && obj->pin_count == 0)
+		if (list == PINNED_LIST && !i915_gem_obj_is_pinned(obj))
 			continue;
 
 		seq_puts(m, "   ");
@@ -2843,7 +2847,7 @@ i915_drop_caches_set(void *data, u64 val)
 		list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
 			list_for_each_entry_safe(vma, x, &vm->inactive_list,
 						 mm_list) {
-				if (vma->obj->pin_count)
+				if (vma->pin_count)
 					continue;
 
 				ret = i915_vma_unbind(vma);

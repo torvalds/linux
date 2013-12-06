@@ -578,7 +578,7 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->write_domain = obj->base.write_domain;
 	err->fence_reg = obj->fence_reg;
 	err->pinned = 0;
-	if (obj->pin_count > 0)
+	if (i915_gem_obj_is_pinned(obj))
 		err->pinned = 1;
 	if (obj->user_pin_count > 0)
 		err->pinned = -1;
@@ -611,7 +611,7 @@ static u32 capture_pinned_bo(struct drm_i915_error_buffer *err,
 	int i = 0;
 
 	list_for_each_entry(obj, head, global_list) {
-		if (obj->pin_count == 0)
+		if (!i915_gem_obj_is_pinned(obj))
 			continue;
 
 		capture_bo(err++, obj);
@@ -875,7 +875,7 @@ static void i915_gem_capture_vm(struct drm_i915_private *dev_priv,
 		i++;
 	error->active_bo_count[ndx] = i;
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list)
-		if (obj->pin_count)
+		if (i915_gem_obj_is_pinned(obj))
 			i++;
 	error->pinned_bo_count[ndx] = i - error->active_bo_count[ndx];
 
