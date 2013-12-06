@@ -1745,4 +1745,11 @@ static const u32 ar9300_2p2_baseband_core_txfir_coeff_japan_2484[][2] = {
 	{0x0000a3a0, 0xca9228ee},
 };
 
+static const u32 ar9300_2p2_baseband_postamble_dfs_channel[][3] = {
+	/* Addr      5G          2G        */
+	{0x00009824, 0x5ac668d0, 0x5ac668d0},
+	{0x00009e0c, 0x6d4000e2, 0x6d4000e2},
+	{0x00009e14, 0x37b9625e, 0x37b9625e},
+};
+
 #endif /* INITVALS_9003_2P2_H */
