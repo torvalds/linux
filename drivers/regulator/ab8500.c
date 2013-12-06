@@ -3005,7 +3005,6 @@ static int ab8500_regulator_register(struct platform_device *pdev,
 	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
 	struct ab8500_regulator_info *info = NULL;
 	struct regulator_config config = { };
-	int err;
 
 	/* assign per-regulator data */
 	info = &abx500_regulator.info[id];
@@ -3027,17 +3026,12 @@ static int ab8500_regulator_register(struct platform_device *pdev,
 	}
 
 	/* register regulator with framework */
-	info->regulator = regulator_register(&info->desc, &config);
+	info->regulator = devm_regulator_register(&pdev->dev, &info->desc,
+						&config);
 	if (IS_ERR(info->regulator)) {
-		err = PTR_ERR(info->regulator);
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 			info->desc.name);
-		/* when we fail, un-register all earlier regulators */
-		while (--id >= 0) {
-			info = &abx500_regulator.info[id];
-			regulator_unregister(info->regulator);
-		}
-		return err;
+		return PTR_ERR(info->regulator);
 	}
 
 	return 0;
@@ -3086,17 +3080,7 @@ static int ab8500_regulator_probe(struct platform_device *pdev)
 
 static int ab8500_regulator_remove(struct platform_device *pdev)
 {
-	int i, err;
-
-	for (i = 0; i < abx500_regulator.info_size; i++) {
-		struct ab8500_regulator_info *info = NULL;
-		info = &abx500_regulator.info[i];
-
-		dev_vdbg(rdev_get_dev(info->regulator),
-			"%s-remove\n", info->desc.name);
-
-		regulator_unregister(info->regulator);
-	}
+	int err;
 
 	/* remove regulator debug */
 	err = ab8500_regulator_debug_exit(pdev);
