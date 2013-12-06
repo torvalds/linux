@@ -4084,7 +4084,7 @@ static void offline_css(struct cgroup_subsys_state *css)
 static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 			     umode_t mode)
 {
-	struct cgroup_subsys_state *css_ar[CGROUP_SUBSYS_COUNT] = { };
+	struct cgroup_subsys_state *css = NULL;
 	struct cgroup *cgrp;
 	struct cgroup_name *name;
 	struct cgroupfs_root *root = parent->root;
@@ -4173,26 +4173,20 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	if (err)
 		goto err_destroy;
 
+	/* let's create and online css's */
 	for_each_root_subsys(root, ss) {
-		struct cgroup_subsys_state *css;
-
 		css = ss->css_alloc(cgroup_css(parent, ss));
 		if (IS_ERR(css)) {
 			err = PTR_ERR(css);
+			css = NULL;
 			goto err_destroy;
 		}
-		css_ar[ss->subsys_id] = css;
 
 		err = percpu_ref_init(&css->refcnt, css_release);
 		if (err)
 			goto err_destroy;
 
 		init_css(css, ss, cgrp);
-	}
-
-	/* creation succeeded, notify subsystems */
-	for_each_root_subsys(root, ss) {
-		struct cgroup_subsys_state *css = css_ar[ss->subsys_id];
 
 		err = cgroup_populate_dir(cgrp, 1 << ss->subsys_id);
 		if (err)
@@ -4202,12 +4196,11 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 		if (err)
 			goto err_destroy;
 
-		/* each css holds a ref to the cgroup's dentry and parent css */
 		dget(dentry);
 		css_get(css->parent);
 
 		/* mark it consumed for error path */
-		css_ar[ss->subsys_id] = NULL;
+		css = NULL;
 
 		if (ss->broken_hierarchy && !ss->warned_broken_hierarchy &&
 		    parent->parent) {
@@ -4237,13 +4230,9 @@ err_free_cgrp:
 	return err;
 
 err_destroy:
-	for_each_root_subsys(root, ss) {
-		struct cgroup_subsys_state *css = css_ar[ss->subsys_id];
-
-		if (css) {
-			percpu_ref_cancel_init(&css->refcnt);
-			ss->css_free(css);
-		}
+	if (css) {
+		percpu_ref_cancel_init(&css->refcnt);
+		css->ss->css_free(css);
 	}
 	cgroup_destroy_locked(cgrp);
 	mutex_unlock(&cgroup_mutex);
