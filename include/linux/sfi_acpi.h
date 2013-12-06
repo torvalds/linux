@@ -59,6 +59,9 @@
 #ifndef _LINUX_SFI_ACPI_H
 #define _LINUX_SFI_ACPI_H
 
+#include <linux/acpi.h>
+#include <linux/sfi.h>
+
 #ifdef CONFIG_SFI
 #include <acpi/acpi.h>	/* FIXME: inclusion should be removed */
 
