@@ -48,6 +48,7 @@ enum {
 #define IFA_F_DEPRECATED	0x20
 #define IFA_F_TENTATIVE		0x40
 #define IFA_F_PERMANENT		0x80
+#define IFA_F_MANAGETEMPADDR	0x100
 
 struct ifa_cacheinfo {
 	__u32	ifa_prefered;
