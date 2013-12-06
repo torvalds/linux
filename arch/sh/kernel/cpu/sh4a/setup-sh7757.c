@@ -24,51 +24,66 @@
 #include <cpu/sh7757.h>
 
 static struct plat_sci_port scif2_platform_data = {
-	.mapbase	= 0xfe4b0000,		/* SCIF2 */
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x700)),
+};
+
+static struct resource scif2_resources[] = {
+	DEFINE_RES_MEM(0xfe4b0000, 0x100),		/* SCIF2 */
+	DEFINE_RES_IRQ(evt2irq(0x700)),
 };
 
 static struct platform_device scif2_device = {
 	.name		= "sh-sci",
 	.id		= 0,
+	.resource	= scif2_resources,
+	.num_resources	= ARRAY_SIZE(scif2_resources),
 	.dev		= {
 		.platform_data	= &scif2_platform_data,
 	},
 };
 
 static struct plat_sci_port scif3_platform_data = {
-	.mapbase	= 0xfe4c0000,		/* SCIF3 */
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0xb80)),
+};
+
+static struct resource scif3_resources[] = {
+	DEFINE_RES_MEM(0xfe4c0000, 0x100),		/* SCIF3 */
+	DEFINE_RES_IRQ(evt2irq(0xb80)),
 };
 
 static struct platform_device scif3_device = {
 	.name		= "sh-sci",
 	.id		= 1,
+	.resource	= scif3_resources,
+	.num_resources	= ARRAY_SIZE(scif3_resources),
 	.dev		= {
 		.platform_data	= &scif3_platform_data,
 	},
 };
 
 static struct plat_sci_port scif4_platform_data = {
-	.mapbase	= 0xfe4d0000,		/* SCIF4 */
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0xF00)),
+};
+
+static struct resource scif4_resources[] = {
+	DEFINE_RES_MEM(0xfe4d0000, 0x100),		/* SCIF4 */
+	DEFINE_RES_IRQ(evt2irq(0xf00)),
 };
 
 static struct platform_device scif4_device = {
 	.name		= "sh-sci",
 	.id		= 2,
+	.resource	= scif4_resources,
+	.num_resources	= ARRAY_SIZE(scif4_resources),
 	.dev		= {
 		.platform_data	= &scif4_platform_data,
 	},

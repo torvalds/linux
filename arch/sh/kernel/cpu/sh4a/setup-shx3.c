@@ -28,60 +28,75 @@
  * all rather than adding infrastructure to hack around it.
  */
 static struct plat_sci_port scif0_platform_data = {
-	.mapbase	= 0xffc30000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { evt2irq(0x700),
-			    evt2irq(0x720),
-			    evt2irq(0x760),
-			    evt2irq(0x740) },
+};
+
+static struct resource scif0_resources[] = {
+	DEFINE_RES_MEM(0xffc30000, 0x100),
+	DEFINE_RES_IRQ(evt2irq(0x700)),
+	DEFINE_RES_IRQ(evt2irq(0x720)),
+	DEFINE_RES_IRQ(evt2irq(0x760)),
+	DEFINE_RES_IRQ(evt2irq(0x740)),
 };
 
 static struct platform_device scif0_device = {
 	.name		= "sh-sci",
 	.id		= 0,
+	.resource	= scif0_resources,
+	.num_resources	= ARRAY_SIZE(scif0_resources),
 	.dev		= {
 		.platform_data	= &scif0_platform_data,
 	},
 };
 
 static struct plat_sci_port scif1_platform_data = {
-	.mapbase	= 0xffc40000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { evt2irq(0x780),
-			    evt2irq(0x7a0),
-			    evt2irq(0x7e0),
-			    evt2irq(0x7c0) },
+};
+
+static struct resource scif1_resources[] = {
+	DEFINE_RES_MEM(0xffc40000, 0x100),
+	DEFINE_RES_IRQ(evt2irq(0x780)),
+	DEFINE_RES_IRQ(evt2irq(0x7a0)),
+	DEFINE_RES_IRQ(evt2irq(0x7e0)),
+	DEFINE_RES_IRQ(evt2irq(0x7c0)),
 };
 
 static struct platform_device scif1_device = {
 	.name		= "sh-sci",
 	.id		= 1,
+	.resource	= scif1_resources,
+	.num_resources	= ARRAY_SIZE(scif1_resources),
 	.dev		= {
 		.platform_data	= &scif1_platform_data,
 	},
 };
 
 static struct plat_sci_port scif2_platform_data = {
-	.mapbase	= 0xffc60000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { evt2irq(0x880),
-			    evt2irq(0x8a0),
-			    evt2irq(0x8e0),
-			    evt2irq(0x8c0) },
+};
+
+static struct resource scif2_resources[] = {
+	DEFINE_RES_MEM(0xffc60000, 0x100),
+	DEFINE_RES_IRQ(evt2irq(0x880)),
+	DEFINE_RES_IRQ(evt2irq(0x8a0)),
+	DEFINE_RES_IRQ(evt2irq(0x8e0)),
+	DEFINE_RES_IRQ(evt2irq(0x8c0)),
 };
 
 static struct platform_device scif2_device = {
 	.name		= "sh-sci",
 	.id		= 2,
+	.resource	= scif2_resources,
+	.num_resources	= ARRAY_SIZE(scif2_resources),
 	.dev		= {
 		.platform_data	= &scif2_platform_data,
 	},
