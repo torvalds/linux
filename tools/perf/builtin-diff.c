@@ -1000,8 +1000,7 @@ static int data_init(int argc, const char **argv)
 			data__files_cnt = argc;
 			use_default = false;
 		}
-	} else if (symbol_conf.default_guest_vmlinux_name ||
-		   symbol_conf.default_guest_kallsyms) {
+	} else if (perf_guest) {
 		defaults[0] = "perf.data.host";
 		defaults[1] = "perf.data.guest";
 	}
