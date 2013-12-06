@@ -39,7 +39,6 @@
 #include <linux/workqueue.h>
 #include <linux/nmi.h>
 #include <linux/acpi.h>
-#include <linux/acpi_io.h>
 #include <linux/efi.h>
 #include <linux/ioport.h>
 #include <linux/list.h>

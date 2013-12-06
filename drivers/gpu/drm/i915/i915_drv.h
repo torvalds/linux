@@ -2336,8 +2336,8 @@ extern void intel_i2c_reset(struct drm_device *dev);
 
 /* intel_opregion.c */
 struct intel_encoder;
-extern int intel_opregion_setup(struct drm_device *dev);
 #ifdef CONFIG_ACPI
+extern int intel_opregion_setup(struct drm_device *dev);
 extern void intel_opregion_init(struct drm_device *dev);
 extern void intel_opregion_fini(struct drm_device *dev);
 extern void intel_opregion_asle_intr(struct drm_device *dev);
@@ -2346,6 +2346,7 @@ extern int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 extern int intel_opregion_notify_adapter(struct drm_device *dev,
 					 pci_power_t state);
 #else
+static inline int intel_opregion_setup(struct drm_device *dev) { return 0; }
 static inline void intel_opregion_init(struct drm_device *dev) { return; }
 static inline void intel_opregion_fini(struct drm_device *dev) { return; }
 static inline void intel_opregion_asle_intr(struct drm_device *dev) { return; }
