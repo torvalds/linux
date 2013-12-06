@@ -18,6 +18,7 @@
 #include <linux/export.h>
 #include <linux/stat.h>
 #include <linux/slab.h>
+#include <linux/random.h>
 
 /**
  * kobject_namespace - return @kobj's namespace tag
@@ -642,10 +643,12 @@ static void kobject_release(struct kref *kref)
 {
 	struct kobject *kobj = container_of(kref, struct kobject, kref);
 #ifdef CONFIG_DEBUG_KOBJECT_RELEASE
-	pr_info("kobject: '%s' (%p): %s, parent %p (delayed)\n",
-		 kobject_name(kobj), kobj, __func__, kobj->parent);
+	unsigned long delay = HZ + HZ * (get_random_int() & 0x3);
+	pr_info("kobject: '%s' (%p): %s, parent %p (delayed %ld)\n",
+		 kobject_name(kobj), kobj, __func__, kobj->parent, delay);
 	INIT_DELAYED_WORK(&kobj->release, kobject_delayed_cleanup);
-	schedule_delayed_work(&kobj->release, HZ);
+
+	schedule_delayed_work(&kobj->release, delay);
 #else
 	kobject_cleanup(kobj);
 #endif
