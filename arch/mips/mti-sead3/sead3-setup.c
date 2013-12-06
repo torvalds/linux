@@ -111,3 +111,10 @@ void __init device_tree_init(void)
 
 	unflatten_device_tree();
 }
+
+static int __init customize_machine(void)
+{
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	return 0;
+}
+arch_initcall(customize_machine);
