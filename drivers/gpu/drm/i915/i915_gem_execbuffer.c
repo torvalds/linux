@@ -300,8 +300,7 @@ relocate_entry_gtt(struct drm_i915_gem_object *obj,
 static int
 i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 				   struct eb_vmas *eb,
-				   struct drm_i915_gem_relocation_entry *reloc,
-				   struct i915_address_space *vm)
+				   struct drm_i915_gem_relocation_entry *reloc)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_gem_object *target_obj;
@@ -325,7 +324,9 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	if (unlikely(IS_GEN6(dev) &&
 	    reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION &&
 	    !target_i915_obj->has_global_gtt_mapping)) {
-		struct i915_vma *vma = i915_gem_obj_to_vma(target_i915_obj, vm);
+		struct i915_vma *vma =
+			list_first_entry(&target_i915_obj->vma_list,
+					 typeof(*vma), vma_link);
 		vma->bind_vma(vma, target_i915_obj->cache_level, GLOBAL_BIND);
 	}
 
@@ -424,8 +425,7 @@ i915_gem_execbuffer_relocate_vma(struct i915_vma *vma,
 		do {
 			u64 offset = r->presumed_offset;
 
-			ret = i915_gem_execbuffer_relocate_entry(vma->obj, eb, r,
-								 vma->vm);
+			ret = i915_gem_execbuffer_relocate_entry(vma->obj, eb, r);
 			if (ret)
 				return ret;
 
@@ -454,8 +454,7 @@ i915_gem_execbuffer_relocate_vma_slow(struct i915_vma *vma,
 	int i, ret;
 
 	for (i = 0; i < entry->relocation_count; i++) {
-		ret = i915_gem_execbuffer_relocate_entry(vma->obj, eb, &relocs[i],
-							 vma->vm);
+		ret = i915_gem_execbuffer_relocate_entry(vma->obj, eb, &relocs[i]);
 		if (ret)
 			return ret;
 	}
