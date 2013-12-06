@@ -16,6 +16,7 @@
 #include <linux/input.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/gpio-samsung-s3c64xx.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

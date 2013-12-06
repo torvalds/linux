@@ -1,5 +1,4 @@
-/* arch/arm/mach-s3c6400/include/mach/gpio.h
- *
+/*
  * Copyright 2008 Openmoko, Inc.
  * Copyright 2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
@@ -11,6 +10,9 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
 */
+
+#ifndef GPIO_SAMSUNG_S3C64XX_H
+#define GPIO_SAMSUNG_S3C64XX_H
 
 /* GPIO bank sizes */
 #define S3C64XX_GPIO_A_NR	(8)
@@ -88,6 +90,5 @@ enum s3c_gpio_number {
 /* define the number of gpios we need to the one after the GPQ() range */
 #define GPIO_BOARD_START (S3C64XX_GPQ(S3C64XX_GPIO_Q_NR) + 1)
 
-#define BOARD_NR_GPIOS	(16 + CONFIG_SAMSUNG_GPIO_EXTRA)
+#endif /* GPIO_SAMSUNG_S3C64XX_H */
 
-#define ARCH_NR_GPIOS	(GPIO_BOARD_START + BOARD_NR_GPIOS)

@@ -32,6 +32,7 @@
 
 #include <linux/platform_data/pca953x.h>
 #include <linux/platform_data/s3c-hsotg.h>
+#include <linux/platform_data/gpio-samsung-s3c64xx.h>
 
 #include <video/platform_lcd.h>
 

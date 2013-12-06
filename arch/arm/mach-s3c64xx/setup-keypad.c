@@ -11,6 +11,7 @@
 */
 
 #include <linux/gpio.h>
+#include <linux/platform_data/gpio-samsung-s3c64xx.h>
 #include <plat/gpio-cfg.h>
 #include <plat/keypad.h>
 

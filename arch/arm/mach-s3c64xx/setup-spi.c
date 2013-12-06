@@ -9,6 +9,7 @@
  */
 
 #include <linux/gpio.h>
+#include <linux/platform_data/gpio-samsung-s3c64xx.h>
 #include <plat/gpio-cfg.h>
 
 #ifdef CONFIG_S3C64XX_DEV_SPI0

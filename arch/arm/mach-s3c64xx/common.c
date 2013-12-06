@@ -32,6 +32,7 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/irqchip/arm-vic.h>
+#include <linux/platform_data/gpio-samsung-s3c64xx.h>
 #include <clocksource/samsung_pwm.h>
 
 #include <asm/mach/arch.h>

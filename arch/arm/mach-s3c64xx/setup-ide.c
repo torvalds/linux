@@ -18,6 +18,7 @@
 #include <mach/regs-clock.h>
 #include <plat/gpio-cfg.h>
 #include <linux/platform_data/ata-samsung_cf.h>
+#include <linux/platform_data/gpio-samsung-s3c64xx.h>
 
 void s3c64xx_ide_setup_gpio(void)
 {

@@ -43,6 +43,7 @@
 
 #include <plat/regs-serial.h>
 #include <linux/platform_data/i2c-s3c2410.h>
+#include <linux/platform_data/gpio-samsung-s3c64xx.h>
 #include <plat/fb.h>
 
 #include <plat/clock.h>

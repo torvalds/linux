@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/platform_data/gpio-samsung-s3c64xx.h>
 
 #include <plat/gpio-cfg.h>
 #include <plat/sdhci.h>

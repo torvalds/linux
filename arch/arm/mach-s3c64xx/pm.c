@@ -18,6 +18,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/pm_domain.h>
+#include <linux/platform_data/gpio-samsung-s3c64xx.h>
 
 #include <mach/map.h>
 #include <mach/irqs.h>

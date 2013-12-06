@@ -16,6 +16,7 @@
 #include <linux/types.h>
 #include <linux/fb.h>
 #include <linux/gpio.h>
+#include <linux/platform_data/gpio-samsung-s3c64xx.h>
 
 #include <plat/fb.h>
 #include <plat/gpio-cfg.h>

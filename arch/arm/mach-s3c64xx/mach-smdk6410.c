@@ -31,6 +31,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/pwm_backlight.h>
 #include <linux/platform_data/s3c-hsotg.h>
+#include <linux/platform_data/gpio-samsung-s3c64xx.h>
 
 #ifdef CONFIG_SMDK6410_WM1190_EV1
 #include <linux/mfd/wm8350/core.h>
