@@ -1828,7 +1828,8 @@ struct drm_i915_file_private {
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
 #define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 6)
-#define HAS_ALIASING_PPGTT(dev)	(INTEL_INFO(dev)->gen >=6 && !IS_VALLEYVIEW(dev))
+#define HAS_ALIASING_PPGTT(dev)	(INTEL_INFO(dev)->gen >= 6 && !IS_VALLEYVIEW(dev))
+#define USES_ALIASING_PPGTT(dev) intel_enable_ppgtt(dev, false)
 
 #define HAS_OVERLAY(dev)		(INTEL_INFO(dev)->has_overlay)
 #define OVERLAY_NEEDS_PHYSICAL(dev)	(INTEL_INFO(dev)->overlay_needs_physical)
@@ -2272,6 +2273,25 @@ static inline void i915_gem_chipset_flush(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen < 6)
 		intel_gtt_chipset_flush();
 }
+int i915_gem_init_ppgtt(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt);
+static inline bool intel_enable_ppgtt(struct drm_device *dev, bool full)
+{
+	if (i915_enable_ppgtt == 0 || !HAS_ALIASING_PPGTT(dev))
+		return false;
+
+	BUG_ON(full);
+
+#ifdef CONFIG_INTEL_IOMMU
+	/* Disable ppgtt on SNB if VT-d is on. */
+	if (INTEL_INFO(dev)->gen == 6 && intel_iommu_gfx_mapped) {
+		DRM_INFO("Disabling PPGTT because VT-d is on\n");
+		return false;
+	}
+#endif
+
+	return HAS_ALIASING_PPGTT(dev);
+}
+
 
 
 /* i915_gem_evict.c */

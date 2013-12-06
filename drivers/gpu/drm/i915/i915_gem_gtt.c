@@ -888,8 +888,7 @@ err_pt_alloc:
 	return ret;
 }
 
-static int i915_gem_init_ppgtt(struct drm_device *dev,
-			       struct i915_hw_ppgtt *ppgtt)
+int i915_gem_init_ppgtt(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = 0;
@@ -1397,21 +1396,6 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 	ggtt_vm->clear_range(ggtt_vm, end / PAGE_SIZE - 1, 1, true);
 }
 
-static bool
-intel_enable_ppgtt(struct drm_device *dev)
-{
-	if (i915_enable_ppgtt >= 0)
-		return i915_enable_ppgtt;
-
-#ifdef CONFIG_INTEL_IOMMU
-	/* Disable ppgtt on SNB if VT-d is on. */
-	if (INTEL_INFO(dev)->gen == 6 && intel_iommu_gfx_mapped)
-		return false;
-#endif
-
-	return true;
-}
-
 void i915_gem_init_global_gtt(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1421,7 +1405,7 @@ void i915_gem_init_global_gtt(struct drm_device *dev)
 	mappable_size = dev_priv->gtt.mappable_end;
 
 	i915_gem_setup_global_gtt(dev, 0, mappable_size, gtt_size);
-	if (intel_enable_ppgtt(dev) && HAS_ALIASING_PPGTT(dev)) {
+	if (USES_ALIASING_PPGTT(dev)) {
 		struct i915_hw_ppgtt *ppgtt;
 		int ret;
 
