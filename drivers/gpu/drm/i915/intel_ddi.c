@@ -1122,9 +1122,7 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 
 	if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-		ironlake_edp_panel_vdd_on(intel_dp);
 		ironlake_edp_panel_on(intel_dp);
-		ironlake_edp_panel_vdd_off(intel_dp, true);
 	}
 
 	WARN_ON(intel_crtc->ddi_pll_sel == PORT_CLK_SEL_NONE);
