@@ -750,7 +750,7 @@ skip_partial:
 		if (offset[1] == 0 &&
 				rn->i.i_nid[offset[0] - NODE_DIR1_BLOCK]) {
 			lock_page(page);
-			if (page->mapping != node_mapping) {
+			if (unlikely(page->mapping != node_mapping)) {
 				f2fs_put_page(page, 1);
 				goto restart;
 			}
@@ -841,14 +841,14 @@ struct page *new_node_page(struct dnode_of_data *dn,
 	struct page *page;
 	int err;
 
-	if (is_inode_flag_set(F2FS_I(dn->inode), FI_NO_ALLOC))
+	if (unlikely(is_inode_flag_set(F2FS_I(dn->inode), FI_NO_ALLOC)))
 		return ERR_PTR(-EPERM);
 
 	page = grab_cache_page(mapping, dn->nid);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
-	if (!inc_valid_node_count(sbi, dn->inode)) {
+	if (unlikely(!inc_valid_node_count(sbi, dn->inode))) {
 		err = -ENOSPC;
 		goto fail;
 	}
@@ -898,7 +898,7 @@ static int read_node_page(struct page *page, int rw)
 
 	get_node_info(sbi, page->index, &ni);
 
-	if (ni.blk_addr == NULL_ADDR) {
+	if (unlikely(ni.blk_addr == NULL_ADDR)) {
 		f2fs_put_page(page, 1);
 		return -ENOENT;
 	}
@@ -953,11 +953,11 @@ repeat:
 		goto got_it;
 
 	lock_page(page);
-	if (!PageUptodate(page)) {
+	if (unlikely(!PageUptodate(page))) {
 		f2fs_put_page(page, 1);
 		return ERR_PTR(-EIO);
 	}
-	if (page->mapping != mapping) {
+	if (unlikely(page->mapping != mapping)) {
 		f2fs_put_page(page, 1);
 		goto repeat;
 	}
@@ -1010,12 +1010,12 @@ repeat:
 	blk_finish_plug(&plug);
 
 	lock_page(page);
-	if (page->mapping != mapping) {
+	if (unlikely(page->mapping != mapping)) {
 		f2fs_put_page(page, 1);
 		goto repeat;
 	}
 page_hit:
-	if (!PageUptodate(page)) {
+	if (unlikely(!PageUptodate(page))) {
 		f2fs_put_page(page, 1);
 		return ERR_PTR(-EIO);
 	}
@@ -1173,9 +1173,9 @@ int wait_on_node_pages_writeback(struct f2fs_sb_info *sbi, nid_t ino)
 		cond_resched();
 	}
 
-	if (test_and_clear_bit(AS_ENOSPC, &mapping->flags))
+	if (unlikely(test_and_clear_bit(AS_ENOSPC, &mapping->flags)))
 		ret2 = -ENOSPC;
-	if (test_and_clear_bit(AS_EIO, &mapping->flags))
+	if (unlikely(test_and_clear_bit(AS_EIO, &mapping->flags)))
 		ret2 = -EIO;
 	if (!ret)
 		ret = ret2;
@@ -1202,7 +1202,7 @@ static int f2fs_write_node_page(struct page *page,
 	get_node_info(sbi, nid, &ni);
 
 	/* This page is already truncated */
-	if (ni.blk_addr == NULL_ADDR) {
+	if (unlikely(ni.blk_addr == NULL_ADDR)) {
 		dec_page_count(sbi, F2FS_DIRTY_NODES);
 		unlock_page(page);
 		return 0;
@@ -1627,14 +1627,14 @@ int restore_node_summary(struct f2fs_sb_info *sbi,
 		list_for_each_entry_safe(page, tmp, &page_list, lru) {
 
 			lock_page(page);
-			if(PageUptodate(page)) {
+			if (unlikely(!PageUptodate(page))) {
+				err = -EIO;
+			} else {
 				rn = F2FS_NODE(page);
 				sum_entry->nid = rn->footer.nid;
 				sum_entry->version = 0;
 				sum_entry->ofs_in_node = 0;
 				sum_entry++;
-			} else {
-				err = -EIO;
 			}
 
 			list_del(&page->lru);

@@ -49,11 +49,11 @@ static void f2fs_read_end_io(struct bio *bio, int err)
 		if (--bvec >= bio->bi_io_vec)
 			prefetchw(&bvec->bv_page->flags);
 
-		if (uptodate) {
-			SetPageUptodate(page);
-		} else {
+		if (unlikely(!uptodate)) {
 			ClearPageUptodate(page);
 			SetPageError(page);
+		} else {
+			SetPageUptodate(page);
 		}
 		unlock_page(page);
 	} while (bvec >= bio->bi_io_vec);
@@ -73,7 +73,7 @@ static void f2fs_write_end_io(struct bio *bio, int err)
 		if (--bvec >= bio->bi_io_vec)
 			prefetchw(&bvec->bv_page->flags);
 
-		if (!uptodate) {
+		if (unlikely(!uptodate)) {
 			SetPageError(page);
 			set_bit(AS_EIO, &page->mapping->flags);
 			set_ckpt_flags(sbi->ckpt, CP_ERROR_FLAG);
@@ -249,7 +249,7 @@ int reserve_new_block(struct dnode_of_data *dn)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(dn->inode->i_sb);
 
-	if (is_inode_flag_set(F2FS_I(dn->inode), FI_NO_ALLOC))
+	if (unlikely(is_inode_flag_set(F2FS_I(dn->inode), FI_NO_ALLOC)))
 		return -EPERM;
 	if (unlikely(!inc_valid_block_count(sbi, dn->inode, 1)))
 		return -ENOSPC;
@@ -424,7 +424,7 @@ struct page *find_data_page(struct inode *inode, pgoff_t index, bool sync)
 		return ERR_PTR(-ENOENT);
 
 	/* By fallocate(), there is no cached page, but with NEW_ADDR */
-	if (dn.data_blkaddr == NEW_ADDR)
+	if (unlikely(dn.data_blkaddr == NEW_ADDR))
 		return ERR_PTR(-EINVAL);
 
 	page = grab_cache_page_write_begin(mapping, index, AOP_FLAG_NOFS);
@@ -443,7 +443,7 @@ struct page *find_data_page(struct inode *inode, pgoff_t index, bool sync)
 
 	if (sync) {
 		wait_on_page_locked(page);
-		if (!PageUptodate(page)) {
+		if (unlikely(!PageUptodate(page))) {
 			f2fs_put_page(page, 0);
 			return ERR_PTR(-EIO);
 		}
@@ -477,7 +477,7 @@ repeat:
 	}
 	f2fs_put_dnode(&dn);
 
-	if (dn.data_blkaddr == NULL_ADDR) {
+	if (unlikely(dn.data_blkaddr == NULL_ADDR)) {
 		f2fs_put_page(page, 1);
 		return ERR_PTR(-ENOENT);
 	}
@@ -502,11 +502,11 @@ repeat:
 		return ERR_PTR(err);
 
 	lock_page(page);
-	if (!PageUptodate(page)) {
+	if (unlikely(!PageUptodate(page))) {
 		f2fs_put_page(page, 1);
 		return ERR_PTR(-EIO);
 	}
-	if (page->mapping != mapping) {
+	if (unlikely(page->mapping != mapping)) {
 		f2fs_put_page(page, 1);
 		goto repeat;
 	}
@@ -534,7 +534,6 @@ struct page *get_new_data_page(struct inode *inode,
 	err = f2fs_reserve_block(&dn, index);
 	if (err)
 		return ERR_PTR(err);
-
 repeat:
 	page = grab_cache_page(mapping, index);
 	if (!page)
@@ -552,11 +551,11 @@ repeat:
 		if (err)
 			return ERR_PTR(err);
 		lock_page(page);
-		if (!PageUptodate(page)) {
+		if (unlikely(!PageUptodate(page))) {
 			f2fs_put_page(page, 1);
 			return ERR_PTR(-EIO);
 		}
-		if (page->mapping != mapping) {
+		if (unlikely(page->mapping != mapping)) {
 			f2fs_put_page(page, 1);
 			goto repeat;
 		}
@@ -841,11 +840,11 @@ repeat:
 		if (err)
 			return err;
 		lock_page(page);
-		if (!PageUptodate(page)) {
+		if (unlikely(!PageUptodate(page))) {
 			f2fs_put_page(page, 1);
 			return -EIO;
 		}
-		if (page->mapping != mapping) {
+		if (unlikely(page->mapping != mapping)) {
 			f2fs_put_page(page, 1);
 			goto repeat;
 		}

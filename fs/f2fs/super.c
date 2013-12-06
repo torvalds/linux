@@ -626,7 +626,7 @@ static struct inode *f2fs_nfs_get_inode(struct super_block *sb,
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 	struct inode *inode;
 
-	if (ino < F2FS_ROOT_INO(sbi))
+	if (unlikely(ino < F2FS_ROOT_INO(sbi)))
 		return ERR_PTR(-ESTALE);
 
 	/*
@@ -637,7 +637,7 @@ static struct inode *f2fs_nfs_get_inode(struct super_block *sb,
 	inode = f2fs_iget(sb, ino);
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
-	if (generation && inode->i_generation != generation) {
+	if (unlikely(generation && inode->i_generation != generation)) {
 		/* we didn't find the right inode.. */
 		iput(inode);
 		return ERR_PTR(-ESTALE);
@@ -740,10 +740,10 @@ static int sanity_check_ckpt(struct f2fs_sb_info *sbi)
 	fsmeta += le32_to_cpu(ckpt->rsvd_segment_count);
 	fsmeta += le32_to_cpu(raw_super->segment_count_ssa);
 
-	if (fsmeta >= total)
+	if (unlikely(fsmeta >= total))
 		return 1;
 
-	if (is_set_ckpt_flags(ckpt, CP_ERROR_FLAG)) {
+	if (unlikely(is_set_ckpt_flags(ckpt, CP_ERROR_FLAG))) {
 		f2fs_msg(sbi->sb, KERN_ERR, "A bug case: need to run fsck");
 		return 1;
 	}
@@ -808,7 +808,7 @@ retry:
 		brelse(*raw_super_buf);
 		f2fs_msg(sb, KERN_ERR, "Can't find a valid F2FS filesystem "
 				"in %dth superblock", block + 1);
-		if(block == 0) {
+		if (block == 0) {
 			block++;
 			goto retry;
 		} else {
@@ -834,7 +834,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 
 	/* set a block size */
-	if (!sb_set_blocksize(sb, F2FS_BLKSIZE)) {
+	if (unlikely(!sb_set_blocksize(sb, F2FS_BLKSIZE))) {
 		f2fs_msg(sb, KERN_ERR, "unable to set blocksize");
 		goto free_sbi;
 	}
@@ -1066,7 +1066,7 @@ static int __init init_inodecache(void)
 {
 	f2fs_inode_cachep = f2fs_kmem_cache_create("f2fs_inode_cache",
 			sizeof(struct f2fs_inode_info), NULL);
-	if (f2fs_inode_cachep == NULL)
+	if (!f2fs_inode_cachep)
 		return -ENOMEM;
 	return 0;
 }

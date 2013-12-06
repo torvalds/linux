@@ -50,9 +50,9 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 
 	file_update_time(vma->vm_file);
 	lock_page(page);
-	if (page->mapping != inode->i_mapping ||
+	if (unlikely(page->mapping != inode->i_mapping ||
 			page_offset(page) > i_size_read(inode) ||
-			!PageUptodate(page)) {
+			!PageUptodate(page))) {
 		unlock_page(page);
 		err = -EFAULT;
 		goto out;
@@ -120,7 +120,7 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		.for_reclaim = 0,
 	};
 
-	if (f2fs_readonly(inode->i_sb))
+	if (unlikely(f2fs_readonly(inode->i_sb)))
 		return 0;
 
 	trace_f2fs_sync_file_enter(inode);
@@ -241,7 +241,7 @@ static void truncate_partial_data_page(struct inode *inode, u64 from)
 		return;
 
 	lock_page(page);
-	if (page->mapping != inode->i_mapping) {
+	if (unlikely(page->mapping != inode->i_mapping)) {
 		f2fs_put_page(page, 1);
 		return;
 	}
@@ -515,7 +515,6 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 		f2fs_unlock_op(sbi);
 		if (ret)
 			break;
-
 
 		if (pg_start == pg_end)
 			new_size = offset + len;

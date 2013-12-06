@@ -66,7 +66,7 @@ repeat:
 		goto repeat;
 
 	lock_page(page);
-	if (page->mapping != mapping) {
+	if (unlikely(page->mapping != mapping)) {
 		f2fs_put_page(page, 1);
 		goto repeat;
 	}
@@ -473,7 +473,7 @@ static int __add_dirty_inode(struct inode *inode, struct dir_inode_entry *new)
 	list_for_each(this, head) {
 		struct dir_inode_entry *entry;
 		entry = list_entry(this, struct dir_inode_entry, list);
-		if (entry->inode == inode)
+		if (unlikely(entry->inode == inode))
 			return -EEXIST;
 	}
 	list_add_tail(&new->list, head);
@@ -783,7 +783,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 	/* Here, we only have one bio having CP pack */
 	sync_meta_pages(sbi, META_FLUSH, LONG_MAX);
 
-	if (!is_set_ckpt_flags(ckpt, CP_ERROR_FLAG)) {
+	if (unlikely(!is_set_ckpt_flags(ckpt, CP_ERROR_FLAG))) {
 		clear_prefree_segments(sbi);
 		F2FS_RESET_SB_DIRT(sbi);
 	}
@@ -840,11 +840,11 @@ int __init create_checkpoint_caches(void)
 {
 	orphan_entry_slab = f2fs_kmem_cache_create("f2fs_orphan_entry",
 			sizeof(struct orphan_inode_entry), NULL);
-	if (unlikely(!orphan_entry_slab))
+	if (!orphan_entry_slab)
 		return -ENOMEM;
 	inode_entry_slab = f2fs_kmem_cache_create("f2fs_dirty_dir_entry",
 			sizeof(struct dir_inode_entry), NULL);
-	if (unlikely(!inode_entry_slab)) {
+	if (!inode_entry_slab) {
 		kmem_cache_destroy(orphan_entry_slab);
 		return -ENOMEM;
 	}
