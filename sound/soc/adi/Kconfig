@@ -11,3 +11,11 @@ config SND_SOC_ADI_AXI_I2S
 	select REGMAP_MMIO
 	help
 	  ASoC driver for the Analog Devices AXI-I2S softcore peripheral.
+
+config SND_SOC_ADI_AXI_SPDIF
+	tristate "AXI-SPDIF support"
+	depends on SND_SOC_ADI
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	help
+	  ASoC driver for the Analog Devices AXI-SPDIF softcore peripheral.
