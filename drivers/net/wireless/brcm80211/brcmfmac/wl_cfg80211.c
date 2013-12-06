@@ -202,9 +202,9 @@ static struct ieee80211_supported_band __wl_band_5ghz_a = {
 
 /* This is to override regulatory domains defined in cfg80211 module (reg.c)
  * By default world regulatory domain defined in reg.c puts the flags
- * NL80211_RRF_PASSIVE_SCAN and NL80211_RRF_NO_IBSS for 5GHz channels (for
- * 36..48 and 149..165). With respect to these flags, wpa_supplicant doesn't
- * start p2p operations on 5GHz channels. All the changes in world regulatory
+ * NL80211_RRF_NO_IR for 5GHz channels (for * 36..48 and 149..165).
+ * With respect to these flags, wpa_supplicant doesn't * start p2p
+ * operations on 5GHz channels. All the changes in world regulatory
  * domain are to be done here.
  */
 static const struct ieee80211_regdomain brcmf_regdom = {
@@ -2556,8 +2556,8 @@ brcmf_compare_update_same_bss(struct brcmf_cfg80211_info *cfg,
 		ch_bss.band == ch_bss_info_le.band &&
 		bss_info_le->SSID_len == bss->SSID_len &&
 		!memcmp(bss_info_le->SSID, bss->SSID, bss_info_le->SSID_len)) {
-		if ((bss->flags & WLC_BSS_RSSI_ON_CHANNEL) ==
-			(bss_info_le->flags & WLC_BSS_RSSI_ON_CHANNEL)) {
+		if ((bss->flags & BRCMF_BSS_RSSI_ON_CHANNEL) ==
+			(bss_info_le->flags & BRCMF_BSS_RSSI_ON_CHANNEL)) {
 			s16 bss_rssi = le16_to_cpu(bss->RSSI);
 			s16 bss_info_rssi = le16_to_cpu(bss_info_le->RSSI);
 
@@ -2566,13 +2566,13 @@ brcmf_compare_update_same_bss(struct brcmf_cfg80211_info *cfg,
 			*/
 			if (bss_info_rssi > bss_rssi)
 				bss->RSSI = bss_info_le->RSSI;
-		} else if ((bss->flags & WLC_BSS_RSSI_ON_CHANNEL) &&
-			(bss_info_le->flags & WLC_BSS_RSSI_ON_CHANNEL) == 0) {
+		} else if ((bss->flags & BRCMF_BSS_RSSI_ON_CHANNEL) &&
+			(bss_info_le->flags & BRCMF_BSS_RSSI_ON_CHANNEL) == 0) {
 			/* preserve the on-channel rssi measurement
 			* if the new measurement is off channel
 			*/
 			bss->RSSI = bss_info_le->RSSI;
-			bss->flags |= WLC_BSS_RSSI_ON_CHANNEL;
+			bss->flags |= BRCMF_BSS_RSSI_ON_CHANNEL;
 		}
 		return 1;
 	}
@@ -3973,11 +3973,12 @@ brcmf_cfg80211_mgmt_frame_register(struct wiphy *wiphy,
 
 static int
 brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
-		       struct ieee80211_channel *chan, bool offchan,
-		       unsigned int wait, const u8 *buf, size_t len,
-		       bool no_cck, bool dont_wait_for_ack, u64 *cookie)
+		       struct cfg80211_mgmt_tx_params *params, u64 *cookie)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+	struct ieee80211_channel *chan = params->chan;
+	const u8 *buf = params->buf;
+	size_t len = params->len;
 	const struct ieee80211_mgmt *mgmt;
 	struct brcmf_cfg80211_vif *vif;
 	s32 err = 0;
@@ -4341,7 +4342,7 @@ static struct wiphy *brcmf_setup_wiphy(struct device *phydev)
 	wiphy->max_remain_on_channel_duration = 5000;
 	brcmf_wiphy_pno_params(wiphy);
 	brcmf_dbg(INFO, "Registering custom regulatory\n");
-	wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
+	wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG;
 	wiphy_apply_custom_regulatory(wiphy, &brcmf_regdom);
 	err = wiphy_register(wiphy);
 	if (err < 0) {
@@ -5197,10 +5198,10 @@ static s32 brcmf_construct_reginfo(struct brcmf_cfg80211_info *cfg, u32 bw_cap)
 					if (channel & WL_CHAN_RADAR)
 						band_chan_arr[index].flags |=
 							(IEEE80211_CHAN_RADAR |
-							IEEE80211_CHAN_NO_IBSS);
+							IEEE80211_CHAN_NO_IR);
 					if (channel & WL_CHAN_PASSIVE)
 						band_chan_arr[index].flags |=
-						    IEEE80211_CHAN_PASSIVE_SCAN;
+						    IEEE80211_CHAN_NO_IR;
 				}
 			}
 			if (!update)

@@ -238,7 +238,6 @@ static void bcma_host_pci_remove(struct pci_dev *dev)
 	pci_release_regions(dev);
 	pci_disable_device(dev);
 	kfree(bus);
-	pci_set_drvdata(dev, NULL);
 }
 
 #ifdef CONFIG_PM_SLEEP

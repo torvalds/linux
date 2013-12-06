@@ -141,8 +141,7 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 
 			for (i = 0; i < sband->n_channels; i++) {
 				chan = &sband->channels[i];
-				if (chan->flags & (IEEE80211_CHAN_NO_IBSS |
-						   IEEE80211_CHAN_PASSIVE_SCAN |
+				if (chan->flags & (IEEE80211_CHAN_NO_IR |
 						   IEEE80211_CHAN_DISABLED |
 						   IEEE80211_CHAN_RADAR))
 					continue;

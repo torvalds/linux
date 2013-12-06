@@ -26,6 +26,7 @@
 #include "ar9462_2p0_initvals.h"
 #include "ar9462_2p1_initvals.h"
 #include "ar9565_1p0_initvals.h"
+#include "ar9565_1p1_initvals.h"
 
 /* General hardware code for the AR9003 hadware family */
 
@@ -148,7 +149,9 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 				ar9340Modes_high_ob_db_tx_gain_table_1p0);
 
 		INIT_INI_ARRAY(&ah->iniModesFastClock,
-				ar9340Modes_fast_clock_1p0);
+			       ar9340Modes_fast_clock_1p0);
+		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
+			       ar9340_1p0_baseband_core_txfir_coeff_japan_2484);
 
 		if (!ah->is_clk_25mhz)
 			INIT_INI_ARRAY(&ah->iniAdditional,
@@ -223,6 +226,10 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 			       ar9462_2p1_modes_fast_clock);
 		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
 			       ar9462_2p1_baseband_core_txfir_coeff_japan_2484);
+		INIT_INI_ARRAY(&ah->iniPcieSerdes,
+			       ar9462_2p1_pciephy_clkreq_disable_L1);
+		INIT_INI_ARRAY(&ah->iniPcieSerdesLowPower,
+			       ar9462_2p1_pciephy_clkreq_disable_L1);
 	} else if (AR_SREV_9462_20(ah)) {
 
 		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_CORE], ar9462_2p0_mac_core);
@@ -247,18 +254,18 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 				ar9462_2p0_soc_postamble);
 
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
-				ar9462_common_rx_gain_table_2p0);
+				ar9462_2p0_common_rx_gain);
 
 		/* Awake -> Sleep Setting */
 		INIT_INI_ARRAY(&ah->iniPcieSerdes,
-			       ar9462_pciephy_clkreq_disable_L1_2p0);
+			       ar9462_2p0_pciephy_clkreq_disable_L1);
 		/* Sleep -> Awake Setting */
 		INIT_INI_ARRAY(&ah->iniPcieSerdesLowPower,
-			       ar9462_pciephy_clkreq_disable_L1_2p0);
+			       ar9462_2p0_pciephy_clkreq_disable_L1);
 
 		/* Fast clock modal settings */
 		INIT_INI_ARRAY(&ah->iniModesFastClock,
-				ar9462_modes_fast_clock_2p0);
+				ar9462_2p0_modes_fast_clock);
 
 		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
 			       ar9462_2p0_baseband_core_txfir_coeff_japan_2484);
@@ -330,7 +337,44 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 				ar9580_1p0_low_ob_db_tx_gain_table);
 
 		INIT_INI_ARRAY(&ah->iniModesFastClock,
-				ar9580_1p0_modes_fast_clock);
+			       ar9580_1p0_modes_fast_clock);
+		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
+			       ar9580_1p0_baseband_core_txfir_coeff_japan_2484);
+	} else if (AR_SREV_9565_11_OR_LATER(ah)) {
+		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_CORE],
+			       ar9565_1p1_mac_core);
+		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_POST],
+			       ar9565_1p1_mac_postamble);
+
+		INIT_INI_ARRAY(&ah->iniBB[ATH_INI_CORE],
+			       ar9565_1p1_baseband_core);
+		INIT_INI_ARRAY(&ah->iniBB[ATH_INI_POST],
+			       ar9565_1p1_baseband_postamble);
+
+		INIT_INI_ARRAY(&ah->iniRadio[ATH_INI_CORE],
+			       ar9565_1p1_radio_core);
+		INIT_INI_ARRAY(&ah->iniRadio[ATH_INI_POST],
+			       ar9565_1p1_radio_postamble);
+
+		INIT_INI_ARRAY(&ah->iniSOC[ATH_INI_PRE],
+			       ar9565_1p1_soc_preamble);
+		INIT_INI_ARRAY(&ah->iniSOC[ATH_INI_POST],
+			       ar9565_1p1_soc_postamble);
+
+		INIT_INI_ARRAY(&ah->iniModesRxGain,
+			       ar9565_1p1_Common_rx_gain_table);
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       ar9565_1p1_Modes_lowest_ob_db_tx_gain_table);
+
+		INIT_INI_ARRAY(&ah->iniPcieSerdes,
+			       ar9565_1p1_pciephy_clkreq_disable_L1);
+		INIT_INI_ARRAY(&ah->iniPcieSerdesLowPower,
+			       ar9565_1p1_pciephy_clkreq_disable_L1);
+
+		INIT_INI_ARRAY(&ah->iniModesFastClock,
+				ar9565_1p1_modes_fast_clock);
+		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
+			       ar9565_1p1_baseband_core_txfir_coeff_japan_2484);
 	} else if (AR_SREV_9565(ah)) {
 		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_CORE],
 			       ar9565_1p0_mac_core);
@@ -411,7 +455,9 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 
 		/* Fast clock modal settings */
 		INIT_INI_ARRAY(&ah->iniModesFastClock,
-				ar9300Modes_fast_clock_2p2);
+			       ar9300Modes_fast_clock_2p2);
+		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
+			       ar9300_2p2_baseband_core_txfir_coeff_japan_2484);
 	}
 }
 
@@ -440,7 +486,10 @@ static void ar9003_tx_gain_table_mode0(struct ath_hw *ah)
 			ar9462_2p1_modes_low_ob_db_tx_gain);
 	else if (AR_SREV_9462_20(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			ar9462_modes_low_ob_db_tx_gain_table_2p0);
+			ar9462_2p0_modes_low_ob_db_tx_gain);
+	else if (AR_SREV_9565_11(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       ar9565_1p1_modes_low_ob_db_tx_gain_table);
 	else if (AR_SREV_9565(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			       ar9565_1p0_modes_low_ob_db_tx_gain_table);
@@ -474,7 +523,10 @@ static void ar9003_tx_gain_table_mode1(struct ath_hw *ah)
 			ar9462_2p1_modes_high_ob_db_tx_gain);
 	else if (AR_SREV_9462_20(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			ar9462_modes_high_ob_db_tx_gain_table_2p0);
+			ar9462_2p0_modes_high_ob_db_tx_gain);
+	else if (AR_SREV_9565_11(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       ar9565_1p1_modes_high_ob_db_tx_gain_table);
 	else if (AR_SREV_9565(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			       ar9565_1p0_modes_high_ob_db_tx_gain_table);
@@ -500,6 +552,9 @@ static void ar9003_tx_gain_table_mode2(struct ath_hw *ah)
 	else if (AR_SREV_9580(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9580_1p0_low_ob_db_tx_gain_table);
+	else if (AR_SREV_9565_11(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       ar9565_1p1_modes_low_ob_db_tx_gain_table);
 	else if (AR_SREV_9565(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			       ar9565_1p0_modes_low_ob_db_tx_gain_table);
@@ -525,6 +580,9 @@ static void ar9003_tx_gain_table_mode3(struct ath_hw *ah)
 	else if (AR_SREV_9580(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9580_1p0_high_power_tx_gain_table);
+	else if (AR_SREV_9565_11(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       ar9565_1p1_modes_high_power_tx_gain_table);
 	else if (AR_SREV_9565(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			       ar9565_1p0_modes_high_power_tx_gain_table);
@@ -546,7 +604,7 @@ static void ar9003_tx_gain_table_mode4(struct ath_hw *ah)
 		       ar9462_2p1_modes_mix_ob_db_tx_gain);
 	else if (AR_SREV_9462_20(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
-		       ar9462_modes_mix_ob_db_tx_gain_table_2p0);
+		       ar9462_2p0_modes_mix_ob_db_tx_gain);
 	else
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9300Modes_mixed_ob_db_tx_gain_table_2p2);
@@ -581,6 +639,13 @@ static void ar9003_tx_gain_table_mode6(struct ath_hw *ah)
 			ar9580_1p0_type6_tx_gain_table);
 }
 
+static void ar9003_tx_gain_table_mode7(struct ath_hw *ah)
+{
+	if (AR_SREV_9340(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       ar9340_cus227_tx_gain_table_1p0);
+}
+
 typedef void (*ath_txgain_tab)(struct ath_hw *ah);
 
 static void ar9003_tx_gain_table_apply(struct ath_hw *ah)
@@ -593,6 +658,7 @@ static void ar9003_tx_gain_table_apply(struct ath_hw *ah)
 		ar9003_tx_gain_table_mode4,
 		ar9003_tx_gain_table_mode5,
 		ar9003_tx_gain_table_mode6,
+		ar9003_tx_gain_table_mode7,
 	};
 	int idx = ar9003_hw_get_tx_gain_idx(ah);
 
@@ -629,7 +695,10 @@ static void ar9003_rx_gain_table_mode0(struct ath_hw *ah)
 				ar9462_2p1_common_rx_gain);
 	else if (AR_SREV_9462_20(ah))
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
-				ar9462_common_rx_gain_table_2p0);
+				ar9462_2p0_common_rx_gain);
+	else if (AR_SREV_9565_11(ah))
+		INIT_INI_ARRAY(&ah->iniModesRxGain,
+			       ar9565_1p1_Common_rx_gain_table);
 	else if (AR_SREV_9565(ah))
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
 			       ar9565_1p0_Common_rx_gain_table);
@@ -657,7 +726,7 @@ static void ar9003_rx_gain_table_mode1(struct ath_hw *ah)
 			ar9462_2p1_common_wo_xlna_rx_gain);
 	else if (AR_SREV_9462_20(ah))
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
-			ar9462_common_wo_xlna_rx_gain_table_2p0);
+			ar9462_2p0_common_wo_xlna_rx_gain);
 	else if (AR_SREV_9550(ah)) {
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
 			ar955x_1p0_common_wo_xlna_rx_gain_table);
@@ -666,6 +735,9 @@ static void ar9003_rx_gain_table_mode1(struct ath_hw *ah)
 	} else if (AR_SREV_9580(ah))
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
 			ar9580_1p0_wo_xlna_rx_gain_table);
+	else if (AR_SREV_9565_11(ah))
+		INIT_INI_ARRAY(&ah->iniModesRxGain,
+			       ar9565_1p1_common_wo_xlna_rx_gain_table);
 	else if (AR_SREV_9565(ah))
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
 			       ar9565_1p0_common_wo_xlna_rx_gain_table);
@@ -687,7 +759,7 @@ static void ar9003_rx_gain_table_mode2(struct ath_hw *ah)
 			       ar9462_2p1_baseband_postamble_5g_xlna);
 	} else if (AR_SREV_9462_20(ah)) {
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
-			       ar9462_common_mixed_rx_gain_table_2p0);
+			       ar9462_2p0_common_mixed_rx_gain);
 		INIT_INI_ARRAY(&ah->ini_modes_rxgain_bb_core,
 			       ar9462_2p0_baseband_core_mix_rxgain);
 		INIT_INI_ARRAY(&ah->ini_modes_rxgain_bb_postamble,
@@ -701,12 +773,12 @@ static void ar9003_rx_gain_table_mode3(struct ath_hw *ah)
 {
 	if (AR_SREV_9462_21(ah)) {
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
-			       ar9462_2p1_common_5g_xlna_only_rx_gain);
+			       ar9462_2p1_common_5g_xlna_only_rxgain);
 		INIT_INI_ARRAY(&ah->ini_modes_rxgain_5g_xlna,
 			       ar9462_2p1_baseband_postamble_5g_xlna);
 	} else if (AR_SREV_9462_20(ah)) {
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
-			       ar9462_2p0_5g_xlna_only_rxgain);
+			       ar9462_2p0_common_5g_xlna_only_rxgain);
 		INIT_INI_ARRAY(&ah->ini_modes_rxgain_5g_xlna,
 			       ar9462_2p0_baseband_postamble_5g_xlna);
 	}
@@ -750,6 +822,9 @@ static void ar9003_hw_init_mode_gain_regs(struct ath_hw *ah)
 static void ar9003_hw_configpcipowersave(struct ath_hw *ah,
 					 bool power_off)
 {
+	unsigned int i;
+	struct ar5416IniArray *array;
+
 	/*
 	 * Increase L1 Entry Latency. Some WB222 boards don't have
 	 * this change in eeprom/OTP.
@@ -775,18 +850,13 @@ static void ar9003_hw_configpcipowersave(struct ath_hw *ah,
 	 * Configire PCIE after Ini init. SERDES values now come from ini file
 	 * This enables PCIe low power mode.
 	 */
-	if (ah->config.pcieSerDesWrite) {
-		unsigned int i;
-		struct ar5416IniArray *array;
+	array = power_off ? &ah->iniPcieSerdes :
+		&ah->iniPcieSerdesLowPower;
 
-		array = power_off ? &ah->iniPcieSerdes :
-				    &ah->iniPcieSerdesLowPower;
-
-		for (i = 0; i < array->ia_rows; i++) {
-			REG_WRITE(ah,
-				  INI_RA(array, i, 0),
-				  INI_RA(array, i, 1));
-		}
+	for (i = 0; i < array->ia_rows; i++) {
+		REG_WRITE(ah,
+			  INI_RA(array, i, 0),
+			  INI_RA(array, i, 1));
 	}
 }
 

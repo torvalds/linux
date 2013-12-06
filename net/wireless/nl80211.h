@@ -70,7 +70,7 @@ int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
 
 void
 nl80211_radar_notify(struct cfg80211_registered_device *rdev,
-		     struct cfg80211_chan_def *chandef,
+		     const struct cfg80211_chan_def *chandef,
 		     enum nl80211_radar_event event,
 		     struct net_device *netdev, gfp_t gfp);
 

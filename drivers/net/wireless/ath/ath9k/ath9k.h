@@ -459,6 +459,7 @@ void ath_check_ani(struct ath_softc *sc);
 int ath_update_survey_stats(struct ath_softc *sc);
 void ath_update_survey_nf(struct ath_softc *sc, int channel);
 void ath9k_queue_reset(struct ath_softc *sc, enum ath_reset_type type);
+void ath_ps_full_sleep(unsigned long data);
 
 /**********/
 /* BTCOEX */
@@ -570,6 +571,34 @@ static inline void ath_fill_led_pin(struct ath_softc *sc)
 }
 #endif
 
+/************************/
+/* Wake on Wireless LAN */
+/************************/
+
+#ifdef CONFIG_ATH9K_WOW
+void ath9k_init_wow(struct ieee80211_hw *hw);
+int ath9k_suspend(struct ieee80211_hw *hw,
+		  struct cfg80211_wowlan *wowlan);
+int ath9k_resume(struct ieee80211_hw *hw);
+void ath9k_set_wakeup(struct ieee80211_hw *hw, bool enabled);
+#else
+static inline void ath9k_init_wow(struct ieee80211_hw *hw)
+{
+}
+static inline int ath9k_suspend(struct ieee80211_hw *hw,
+				struct cfg80211_wowlan *wowlan)
+{
+	return 0;
+}
+static inline int ath9k_resume(struct ieee80211_hw *hw)
+{
+	return 0;
+}
+static inline void ath9k_set_wakeup(struct ieee80211_hw *hw, bool enabled)
+{
+}
+#endif /* CONFIG_ATH9K_WOW */
+
 /*******************************/
 /* Antenna diversity/combining */
 /*******************************/
@@ -642,6 +671,7 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs);
 #define ATH9K_PCI_AR9565_1ANT     0x0080
 #define ATH9K_PCI_AR9565_2ANT     0x0100
 #define ATH9K_PCI_NO_PLL_PWRSAVE  0x0200
+#define ATH9K_PCI_KILLER          0x0400
 
 /*
  * Default cache line size, in bytes.
@@ -724,6 +754,7 @@ struct ath_softc {
 	struct work_struct hw_check_work;
 	struct work_struct hw_reset_work;
 	struct completion paprd_complete;
+	wait_queue_head_t tx_wait;
 
 	unsigned int hw_busy_count;
 	unsigned long sc_flags;
@@ -760,6 +791,7 @@ struct ath_softc {
 	struct delayed_work tx_complete_work;
 	struct delayed_work hw_pll_work;
 	struct timer_list rx_poll_timer;
+	struct timer_list sleep_timer;
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	struct ath_btcoex btcoex;
@@ -784,7 +816,7 @@ struct ath_softc {
 	bool tx99_state;
 	s16 tx99_power;
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_ATH9K_WOW
 	atomic_t wow_got_bmiss_intr;
 	atomic_t wow_sleep_proc_intr; /* in the middle of WoW sleep ? */
 	u32 wow_intr_before_sleep;
@@ -947,10 +979,25 @@ struct fft_sample_ht20_40 {
 	u8 data[SPECTRAL_HT20_40_NUM_BINS];
 } __packed;
 
-int ath9k_tx99_init(struct ath_softc *sc);
-void ath9k_tx99_deinit(struct ath_softc *sc);
+/********/
+/* TX99 */
+/********/
+
+#ifdef CONFIG_ATH9K_TX99
+void ath9k_tx99_init_debug(struct ath_softc *sc);
 int ath9k_tx99_send(struct ath_softc *sc, struct sk_buff *skb,
 		    struct ath_tx_control *txctl);
+#else
+static inline void ath9k_tx99_init_debug(struct ath_softc *sc)
+{
+}
+static inline int ath9k_tx99_send(struct ath_softc *sc,
+				  struct sk_buff *skb,
+				  struct ath_tx_control *txctl)
+{
+	return 0;
+}
+#endif /* CONFIG_ATH9K_TX99 */
 
 void ath9k_tasklet(unsigned long data);
 int ath_cabq_update(struct ath_softc *);
@@ -967,6 +1014,9 @@ extern bool is_ath9k_unloaded;
 
 u8 ath9k_parse_mpdudensity(u8 mpdudensity);
 irqreturn_t ath_isr(int irq, void *dev);
+int ath_reset(struct ath_softc *sc);
+void ath_cancel_work(struct ath_softc *sc);
+void ath_restart_work(struct ath_softc *sc);
 int ath9k_init_device(u16 devid, struct ath_softc *sc,
 		    const struct ath_bus_ops *bus_ops);
 void ath9k_deinit_device(struct ath_softc *sc);

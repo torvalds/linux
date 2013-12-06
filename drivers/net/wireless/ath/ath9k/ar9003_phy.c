@@ -641,11 +641,12 @@ static void ar9003_hw_override_ini(struct ath_hw *ah)
 		else
 			ah->enabled_cals &= ~TX_IQ_CAL;
 
-		if (REG_READ(ah, AR_PHY_CL_CAL_CTL) & AR_PHY_CL_CAL_ENABLE)
-			ah->enabled_cals |= TX_CL_CAL;
-		else
-			ah->enabled_cals &= ~TX_CL_CAL;
 	}
+
+	if (REG_READ(ah, AR_PHY_CL_CAL_CTL) & AR_PHY_CL_CAL_ENABLE)
+		ah->enabled_cals |= TX_CL_CAL;
+	else
+		ah->enabled_cals &= ~TX_CL_CAL;
 }
 
 static void ar9003_hw_prog_ini(struct ath_hw *ah,

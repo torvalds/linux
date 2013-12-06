@@ -550,12 +550,12 @@ int ieee80211_ibss_finish_csa(struct ieee80211_sub_if_data *sdata)
 					capability);
 		/* XXX: should not really modify cfg80211 data */
 		if (cbss) {
-			cbss->channel = sdata->local->csa_chandef.chan;
+			cbss->channel = sdata->csa_chandef.chan;
 			cfg80211_put_bss(sdata->local->hw.wiphy, cbss);
 		}
 	}
 
-	ifibss->chandef = sdata->local->csa_chandef;
+	ifibss->chandef = sdata->csa_chandef;
 
 	/* generate the beacon */
 	err = ieee80211_ibss_csa_beacon(sdata, NULL);
@@ -926,7 +926,7 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 				IEEE80211_MAX_QUEUE_MAP,
 				IEEE80211_QUEUE_STOP_REASON_CSA);
 
-	sdata->local->csa_chandef = params.chandef;
+	sdata->csa_chandef = params.chandef;
 	sdata->vif.csa_active = true;
 
 	ieee80211_bss_info_change_notify(sdata, err);
