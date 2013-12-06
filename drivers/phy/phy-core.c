@@ -453,7 +453,7 @@ struct phy *phy_create(struct device *dev, const struct phy_ops *ops,
 	if (id < 0) {
 		dev_err(dev, "unable to get id\n");
 		ret = id;
-		goto err0;
+		goto err1;
 	}
 
 	device_initialize(&phy->dev);
@@ -468,11 +468,11 @@ struct phy *phy_create(struct device *dev, const struct phy_ops *ops,
 
 	ret = dev_set_name(&phy->dev, "phy-%s.%d", dev_name(dev), id);
 	if (ret)
-		goto err1;
+		goto err2;
 
 	ret = device_add(&phy->dev);
 	if (ret)
-		goto err1;
+		goto err2;
 
 	if (pm_runtime_enabled(dev)) {
 		pm_runtime_enable(&phy->dev);
@@ -481,11 +481,11 @@ struct phy *phy_create(struct device *dev, const struct phy_ops *ops,
 
 	return phy;
 
-err1:
+err2:
 	ida_remove(&phy_ida, phy->id);
 	put_device(&phy->dev);
+err1:
 	kfree(phy);
-
 err0:
 	return ERR_PTR(ret);
 }
