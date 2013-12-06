@@ -8,7 +8,7 @@
 
 #include <linux/init.h>
 #include <bcm63xx_io.h>
-#include <bcm63xx_regs.h>
+#include <linux/serial_bcm63xx.h>
 
 static void wait_xfered(void)
 {
