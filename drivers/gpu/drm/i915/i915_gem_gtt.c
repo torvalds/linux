@@ -888,15 +888,11 @@ err_pt_alloc:
 	return ret;
 }
 
-static int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
+static int i915_gem_init_ppgtt(struct drm_device *dev,
+			       struct i915_hw_ppgtt *ppgtt)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct i915_hw_ppgtt *ppgtt;
-	int ret;
-
-	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
-	if (!ppgtt)
-		return -ENOMEM;
+	int ret = 0;
 
 	ppgtt->base.dev = dev;
 
@@ -907,13 +903,9 @@ static int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 	else
 		BUG();
 
-	if (ret)
-		kfree(ppgtt);
-	else {
-		dev_priv->mm.aliasing_ppgtt = ppgtt;
+	if (!ret)
 		drm_mm_init(&ppgtt->base.mm, ppgtt->base.start,
 			    ppgtt->base.total);
-	}
 
 	return ret;
 }
@@ -1430,11 +1422,23 @@ void i915_gem_init_global_gtt(struct drm_device *dev)
 
 	i915_gem_setup_global_gtt(dev, 0, mappable_size, gtt_size);
 	if (intel_enable_ppgtt(dev) && HAS_ALIASING_PPGTT(dev)) {
+		struct i915_hw_ppgtt *ppgtt;
 		int ret;
 
-		ret = i915_gem_init_aliasing_ppgtt(dev);
-		if (ret)
-			DRM_ERROR("Aliased PPGTT setup failed %d\n", ret);
+		ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
+		if (!ppgtt) {
+			DRM_ERROR("Aliased PPGTT setup failed -ENOMEM\n");
+			return;
+		}
+
+		ret = i915_gem_init_ppgtt(dev, ppgtt);
+		if (!ret) {
+			dev_priv->mm.aliasing_ppgtt = ppgtt;
+			return;
+		}
+
+		kfree(ppgtt);
+		DRM_ERROR("Aliased PPGTT setup failed %d\n", ret);
 	}
 }
 
