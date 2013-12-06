@@ -96,8 +96,6 @@
 #define GEN6_CONTEXT_ALIGN (64<<10)
 #define GEN7_CONTEXT_ALIGN 4096
 
-static struct i915_hw_context *
-i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id);
 static int do_switch(struct intel_ring_buffer *ring,
 		     struct i915_hw_context *to);
 
@@ -485,20 +483,6 @@ static int context_idr_cleanup(int id, void *p, void *data)
 	return 0;
 }
 
-struct i915_ctx_hang_stats *
-i915_gem_context_get_hang_stats(struct drm_device *dev,
-				struct drm_file *file,
-				u32 id)
-{
-	struct i915_hw_context *ctx;
-
-	ctx = i915_gem_context_get(file->driver_priv, id);
-	if (ctx == NULL)
-		return ERR_PTR(-ENOENT);
-
-	return &ctx->hang_stats;
-}
-
 int i915_gem_context_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
@@ -543,9 +527,12 @@ void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
 	mutex_unlock(&dev->struct_mutex);
 }
 
-static struct i915_hw_context *
+struct i915_hw_context *
 i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id)
 {
+	if (!HAS_HW_CONTEXTS(file_priv->dev_priv->dev))
+		return file_priv->private_default_ctx;
+
 	return (struct i915_hw_context *)idr_find(&file_priv->context_idr, id);
 }
 
@@ -708,20 +695,13 @@ done:
  */
 int i915_switch_context(struct intel_ring_buffer *ring,
 			struct drm_file *file,
-			int to_id)
+			struct i915_hw_context *to)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-	struct i915_hw_context *to;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
 
-	if (file == NULL)
-		to = ring->default_context;
-	else
-		to = i915_gem_context_get(file->driver_priv, to_id);
-
-	if (to == NULL)
-		return -ENOENT;
+	BUG_ON(file && to == NULL);
 
 	/* We have the fake context, but don't supports switching. */
 	if (!HAS_HW_CONTEXTS(ring->dev))

@@ -2239,7 +2239,9 @@ int i915_gem_context_open(struct drm_device *dev, struct drm_file *file);
 int i915_gem_context_enable(struct drm_i915_private *dev_priv);
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
 int i915_switch_context(struct intel_ring_buffer *ring,
-			struct drm_file *file, int to_id);
+			struct drm_file *file, struct i915_hw_context *to);
+struct i915_hw_context *
+i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id);
 void i915_gem_context_free(struct kref *ctx_ref);
 static inline void i915_gem_context_reference(struct i915_hw_context *ctx)
 {
@@ -2253,10 +2255,6 @@ static inline void i915_gem_context_unreference(struct i915_hw_context *ctx)
 		kref_put(&ctx->ref, i915_gem_context_free);
 }
 
-struct i915_ctx_hang_stats * __must_check
-i915_gem_context_get_hang_stats(struct drm_device *dev,
-				struct drm_file *file,
-				u32 id);
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file);
 int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
