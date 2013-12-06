@@ -203,6 +203,12 @@ config PINCTRL_IMX28
 	bool
 	select PINCTRL_MXS
 
+config PINCTRL_MSM
+	bool
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+
 config PINCTRL_NOMADIK
 	bool "Nomadik pin controller driver"
 	depends on ARCH_U8500 || ARCH_NOMADIK
