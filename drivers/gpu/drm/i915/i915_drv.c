@@ -915,6 +915,7 @@ static int i915_runtime_suspend(struct device *device)
 	DRM_DEBUG_KMS("Suspending device\n");
 
 	dev_priv->pm.suspended = true;
+	intel_opregion_notify_adapter(dev, PCI_D3cold);
 
 	return 0;
 }
@@ -929,6 +930,7 @@ static int i915_runtime_resume(struct device *device)
 
 	DRM_DEBUG_KMS("Resuming device\n");
 
+	intel_opregion_notify_adapter(dev, PCI_D0);
 	dev_priv->pm.suspended = false;
 
 	return 0;
