@@ -98,7 +98,8 @@
 
 static struct i915_hw_context *
 i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id);
-static int do_switch(struct i915_hw_context *to);
+static int do_switch(struct intel_ring_buffer *ring,
+		     struct i915_hw_context *to);
 
 static size_t get_context_alignment(struct drm_device *dev)
 {
@@ -240,7 +241,7 @@ static int create_default_context(struct drm_device *dev)
 		goto err_destroy;
 	}
 
-	ret = do_switch(ctx);
+	ret = do_switch(&dev_priv->ring[RCS], ctx);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Switch failed %d\n", ret);
 		goto err_unpin;
@@ -261,7 +262,8 @@ err_destroy:
 int i915_gem_context_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
+	struct intel_ring_buffer *ring;
+	int i, ret;
 
 	if (!HAS_HW_CONTEXTS(dev))
 		return 0;
@@ -284,6 +286,16 @@ int i915_gem_context_init(struct drm_device *dev)
 		return ret;
 	}
 
+	for (i = RCS + 1; i < I915_NUM_RINGS; i++) {
+		if (!(INTEL_INFO(dev)->ring_mask & (1<<i)))
+			continue;
+
+		ring = &dev_priv->ring[i];
+
+		/* NB: RCS will hold a ref for all rings */
+		ring->default_context = dev_priv->ring[RCS].default_context;
+	}
+
 	DRM_DEBUG_DRIVER("HW context support initialized\n");
 	return 0;
 }
@@ -292,6 +304,7 @@ void i915_gem_context_fini(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_hw_context *dctx = dev_priv->ring[RCS].default_context;
+	int i;
 
 	if (!HAS_HW_CONTEXTS(dev))
 		return;
@@ -313,12 +326,22 @@ void i915_gem_context_fini(struct drm_device *dev)
 		WARN_ON(dctx->obj->active);
 		i915_gem_object_ggtt_unpin(dctx->obj);
 		i915_gem_context_unreference(dctx);
+		dev_priv->ring[RCS].last_context = NULL;
+	}
+
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		struct intel_ring_buffer *ring = &dev_priv->ring[i];
+		if (!(INTEL_INFO(dev)->ring_mask & (1<<i)))
+			continue;
+
+		if (ring->last_context)
+			i915_gem_context_unreference(ring->last_context);
+
+		ring->default_context = NULL;
 	}
 
 	i915_gem_object_ggtt_unpin(dctx->obj);
 	i915_gem_context_unreference(dctx);
-	dev_priv->ring[RCS].default_context = NULL;
-	dev_priv->ring[RCS].last_context = NULL;
 }
 
 static int context_idr_cleanup(int id, void *p, void *data)
@@ -431,18 +454,27 @@ mi_set_context(struct intel_ring_buffer *ring,
 	return ret;
 }
 
-static int do_switch(struct i915_hw_context *to)
+static int do_switch(struct intel_ring_buffer *ring,
+		     struct i915_hw_context *to)
 {
-	struct intel_ring_buffer *ring = to->ring;
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	struct i915_hw_context *from = ring->last_context;
 	u32 hw_flags = 0;
 	int ret, i;
 
-	BUG_ON(from != NULL && from->obj != NULL && !i915_gem_obj_is_pinned(from->obj));
+	if (from != NULL && ring == &dev_priv->ring[RCS]) {
+		BUG_ON(from->obj == NULL);
+		BUG_ON(!i915_gem_obj_is_pinned(from->obj));
+	}
 
 	if (from == to && !to->remap_slice)
 		return 0;
+
+	if (ring != &dev_priv->ring[RCS]) {
+		if (from)
+			i915_gem_context_unreference(from);
+		goto done;
+	}
 
 	ret = i915_gem_obj_ggtt_pin(to->obj, get_context_alignment(ring->dev),
 				    false, false);
@@ -511,6 +543,7 @@ static int do_switch(struct i915_hw_context *to)
 		i915_gem_context_unreference(from);
 	}
 
+done:
 	i915_gem_context_reference(to);
 	ring->last_context = to;
 	to->is_initialized = true;
@@ -541,9 +574,6 @@ int i915_switch_context(struct intel_ring_buffer *ring,
 
 	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
 
-	if (ring != &dev_priv->ring[RCS])
-		return 0;
-
 	if (to_id == DEFAULT_CONTEXT_ID) {
 		to = ring->default_context;
 	} else {
@@ -555,7 +585,7 @@ int i915_switch_context(struct intel_ring_buffer *ring,
 			return -ENOENT;
 	}
 
-	return do_switch(to);
+	return do_switch(ring, to);
 }
 
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,

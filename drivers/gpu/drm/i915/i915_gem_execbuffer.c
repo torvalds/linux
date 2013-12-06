@@ -1011,9 +1011,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			  (int)(args->flags & I915_EXEC_RING_MASK));
 		return -EINVAL;
 	}
-	if (ctx_id != DEFAULT_CONTEXT_ID &&
-	    (args->flags & I915_EXEC_RING_MASK) > I915_EXEC_RENDER)
-		return -EPERM;
 
 	if ((args->flags & I915_EXEC_RING_MASK) == I915_EXEC_DEFAULT)
 		ring = &dev_priv->ring[RCS];
