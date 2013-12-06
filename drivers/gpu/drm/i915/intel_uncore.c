@@ -437,6 +437,13 @@ hsw_unclaimed_reg_check(struct drm_i915_private *dev_priv, u32 reg)
 	}
 }
 
+static void
+assert_device_not_suspended(struct drm_i915_private *dev_priv)
+{
+	WARN(HAS_RUNTIME_PM(dev_priv->dev) && dev_priv->pm.suspended,
+	     "Device suspended\n");
+}
+
 #define REG_READ_HEADER(x) \
 	unsigned long irqflags; \
 	u##x val = 0; \
@@ -568,6 +575,7 @@ gen6_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
 	} \
+	assert_device_not_suspended(dev_priv); \
 	__raw_i915_write##x(dev_priv, reg, val); \
 	if (unlikely(__fifo_ret)) { \
 		gen6_gt_check_fifodbg(dev_priv); \
@@ -583,6 +591,7 @@ hsw_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace)
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
 	} \
+	assert_device_not_suspended(dev_priv); \
 	hsw_unclaimed_reg_clear(dev_priv, reg); \
 	__raw_i915_write##x(dev_priv, reg, val); \
 	if (unlikely(__fifo_ret)) { \

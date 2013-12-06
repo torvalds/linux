@@ -42,6 +42,8 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
 #include <acpi/video.h>
+#include <linux/pm.h>
+#include <linux/pm_runtime.h>
 
 #define LP_RING(d) (&((struct drm_i915_private *)(d))->ring[RCS])
 
@@ -1663,6 +1665,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (IS_GEN5(dev))
 		intel_gpu_ips_init(dev_priv);
 
+	intel_init_runtime_pm(dev_priv);
+
 	return 0;
 
 out_power_well:
@@ -1707,6 +1711,8 @@ int i915_driver_unload(struct drm_device *dev)
 		DRM_ERROR("failed to idle hardware: %d\n", ret);
 		return ret;
 	}
+
+	intel_fini_runtime_pm(dev_priv);
 
 	intel_gpu_ips_teardown();
 

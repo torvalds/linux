@@ -31,6 +31,7 @@
 #include "../../../platform/x86/intel_ips.h"
 #include <linux/module.h>
 #include <drm/i915_powerwell.h>
+#include <linux/pm_runtime.h>
 
 /**
  * RC6 is a special power stage which allows the GPU to enter an very
@@ -5959,6 +5960,60 @@ void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv)
 void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv)
 {
 	hsw_enable_package_c8(dev_priv);
+}
+
+void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct device *device = &dev->pdev->dev;
+
+	if (!HAS_RUNTIME_PM(dev))
+		return;
+
+	pm_runtime_get_sync(device);
+	WARN(dev_priv->pm.suspended, "Device still suspended.\n");
+}
+
+void intel_runtime_pm_put(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct device *device = &dev->pdev->dev;
+
+	if (!HAS_RUNTIME_PM(dev))
+		return;
+
+	pm_runtime_mark_last_busy(device);
+	pm_runtime_put_autosuspend(device);
+}
+
+void intel_init_runtime_pm(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct device *device = &dev->pdev->dev;
+
+	dev_priv->pm.suspended = false;
+
+	if (!HAS_RUNTIME_PM(dev))
+		return;
+
+	pm_runtime_set_active(device);
+
+	pm_runtime_set_autosuspend_delay(device, 10000); /* 10s */
+	pm_runtime_mark_last_busy(device);
+	pm_runtime_use_autosuspend(device);
+}
+
+void intel_fini_runtime_pm(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct device *device = &dev->pdev->dev;
+
+	if (!HAS_RUNTIME_PM(dev))
+		return;
+
+	/* Make sure we're not suspended first. */
+	pm_runtime_get_sync(device);
+	pm_runtime_disable(device);
 }
 
 /* Set up chip specific power management-related functions */

@@ -862,6 +862,10 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv);
 void gen6_rps_boost(struct drm_i915_private *dev_priv);
 void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv);
 void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_get(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_put(struct drm_i915_private *dev_priv);
+void intel_init_runtime_pm(struct drm_i915_private *dev_priv);
+void intel_fini_runtime_pm(struct drm_i915_private *dev_priv);
 void ilk_wm_get_hw_state(struct drm_device *dev);
 
 
