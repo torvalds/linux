@@ -4144,23 +4144,6 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	if (test_bit(CGRP_CPUSET_CLONE_CHILDREN, &parent->flags))
 		set_bit(CGRP_CPUSET_CLONE_CHILDREN, &cgrp->flags);
 
-	for_each_root_subsys(root, ss) {
-		struct cgroup_subsys_state *css;
-
-		css = ss->css_alloc(cgroup_css(parent, ss));
-		if (IS_ERR(css)) {
-			err = PTR_ERR(css);
-			goto err_free_all;
-		}
-		css_ar[ss->subsys_id] = css;
-
-		err = percpu_ref_init(&css->refcnt, css_release);
-		if (err)
-			goto err_free_all;
-
-		init_css(css, ss, cgrp);
-	}
-
 	/*
 	 * Create directory.  cgroup_create_file() returns with the new
 	 * directory locked on success so that it can be populated without
@@ -4168,7 +4151,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	 */
 	err = cgroup_create_file(dentry, S_IFDIR | mode, sb);
 	if (err < 0)
-		goto err_free_all;
+		goto err_unlock;
 	lockdep_assert_held(&dentry->d_inode->i_mutex);
 
 	cgrp->serial_nr = cgroup_serial_nr_next++;
@@ -4180,9 +4163,40 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	/* hold a ref to the parent's dentry */
 	dget(parent->dentry);
 
+	/*
+	 * @cgrp is now fully operational.  If something fails after this
+	 * point, it'll be released via the normal destruction path.
+	 */
+	idr_replace(&root->cgroup_idr, cgrp, cgrp->id);
+
+	err = cgroup_addrm_files(cgrp, cgroup_base_files, true);
+	if (err)
+		goto err_destroy;
+
+	for_each_root_subsys(root, ss) {
+		struct cgroup_subsys_state *css;
+
+		css = ss->css_alloc(cgroup_css(parent, ss));
+		if (IS_ERR(css)) {
+			err = PTR_ERR(css);
+			goto err_destroy;
+		}
+		css_ar[ss->subsys_id] = css;
+
+		err = percpu_ref_init(&css->refcnt, css_release);
+		if (err)
+			goto err_destroy;
+
+		init_css(css, ss, cgrp);
+	}
+
 	/* creation succeeded, notify subsystems */
 	for_each_root_subsys(root, ss) {
 		struct cgroup_subsys_state *css = css_ar[ss->subsys_id];
+
+		err = cgroup_populate_dir(cgrp, 1 << ss->subsys_id);
+		if (err)
+			goto err_destroy;
 
 		err = online_css(css);
 		if (err)
@@ -4205,30 +4219,12 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 		}
 	}
 
-	idr_replace(&root->cgroup_idr, cgrp, cgrp->id);
-
-	err = cgroup_addrm_files(cgrp, cgroup_base_files, true);
-	if (err)
-		goto err_destroy;
-
-	err = cgroup_populate_dir(cgrp, root->subsys_mask);
-	if (err)
-		goto err_destroy;
-
 	mutex_unlock(&cgroup_mutex);
 	mutex_unlock(&cgrp->dentry->d_inode->i_mutex);
 
 	return 0;
 
-err_free_all:
-	for_each_root_subsys(root, ss) {
-		struct cgroup_subsys_state *css = css_ar[ss->subsys_id];
-
-		if (css) {
-			percpu_ref_cancel_init(&css->refcnt);
-			ss->css_free(css);
-		}
-	}
+err_unlock:
 	mutex_unlock(&cgroup_mutex);
 	/* Release the reference count that we took on the superblock */
 	deactivate_super(sb);
