@@ -4334,7 +4334,8 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 			spec->no_analog = 1;
 			goto dig_only;
 		}
-		return 0; /* can't find valid BIOS pin config */
+		if (!cfg->num_inputs && !cfg->dig_in_pin)
+			return 0; /* can't find valid BIOS pin config */
 	}
 
 	if (!spec->no_primary_hp &&
