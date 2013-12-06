@@ -4403,9 +4403,12 @@ static void tg3_phy_copper_begin(struct tg3 *tp)
 			if (tg3_flag(tp, WOL_SPEED_100MB))
 				adv |= ADVERTISED_100baseT_Half |
 				       ADVERTISED_100baseT_Full;
-			if (tp->phy_flags & TG3_PHYFLG_1G_ON_VAUX_OK)
-				adv |= ADVERTISED_1000baseT_Half |
-				       ADVERTISED_1000baseT_Full;
+			if (tp->phy_flags & TG3_PHYFLG_1G_ON_VAUX_OK) {
+				if (!(tp->phy_flags &
+				      TG3_PHYFLG_DISABLE_1G_HD_ADV))
+					adv |= ADVERTISED_1000baseT_Half;
+				adv |= ADVERTISED_1000baseT_Full;
+			}
 
 			fc = FLOW_CTRL_TX | FLOW_CTRL_RX;
 		} else {
@@ -14917,7 +14920,8 @@ static void tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 	tg3_read_mem(tp, NIC_SRAM_DATA_SIG, &val);
 	if (val == NIC_SRAM_DATA_SIG_MAGIC) {
 		u32 nic_cfg, led_cfg;
-		u32 nic_phy_id, ver, cfg2 = 0, cfg4 = 0, eeprom_phy_id;
+		u32 cfg2 = 0, cfg4 = 0, cfg5 = 0;
+		u32 nic_phy_id, ver, eeprom_phy_id;
 		int eeprom_phy_serdes = 0;
 
 		tg3_read_mem(tp, NIC_SRAM_DATA_CFG, &nic_cfg);
@@ -14933,6 +14937,11 @@ static void tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 
 		if (tg3_asic_rev(tp) == ASIC_REV_5785)
 			tg3_read_mem(tp, NIC_SRAM_DATA_CFG_4, &cfg4);
+
+		if (tg3_asic_rev(tp) == ASIC_REV_5717 ||
+		    tg3_asic_rev(tp) == ASIC_REV_5719 ||
+		    tg3_asic_rev(tp) == ASIC_REV_5720)
+			tg3_read_mem(tp, NIC_SRAM_DATA_CFG_5, &cfg5);
 
 		if ((nic_cfg & NIC_SRAM_DATA_CFG_PHY_TYPE_MASK) ==
 		    NIC_SRAM_DATA_CFG_PHY_TYPE_FIBER)
@@ -15086,6 +15095,9 @@ static void tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 			tg3_flag_set(tp, RGMII_EXT_IBND_RX_EN);
 		if (cfg4 & NIC_SRAM_RGMII_EXT_IBND_TX_EN)
 			tg3_flag_set(tp, RGMII_EXT_IBND_TX_EN);
+
+		if (cfg5 & NIC_SRAM_DISABLE_1G_HALF_ADV)
+			tp->phy_flags |= TG3_PHYFLG_DISABLE_1G_HD_ADV;
 	}
 done:
 	if (tg3_flag(tp, WOL_CAP))
@@ -15181,9 +15193,11 @@ static void tg3_phy_init_link_config(struct tg3 *tp)
 {
 	u32 adv = ADVERTISED_Autoneg;
 
-	if (!(tp->phy_flags & TG3_PHYFLG_10_100_ONLY))
-		adv |= ADVERTISED_1000baseT_Half |
-		       ADVERTISED_1000baseT_Full;
+	if (!(tp->phy_flags & TG3_PHYFLG_10_100_ONLY)) {
+		if (!(tp->phy_flags & TG3_PHYFLG_DISABLE_1G_HD_ADV))
+			adv |= ADVERTISED_1000baseT_Half;
+		adv |= ADVERTISED_1000baseT_Full;
+	}
 
 	if (!(tp->phy_flags & TG3_PHYFLG_ANY_SERDES))
 		adv |= ADVERTISED_100baseT_Half |
