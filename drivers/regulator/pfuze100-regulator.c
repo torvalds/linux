@@ -402,27 +402,14 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 		config.driver_data = pfuze_chip;
 		config.of_node = match_of_node(i);
 
-		pfuze_chip->regulators[i] = regulator_register(desc, &config);
+		pfuze_chip->regulators[i] =
+			devm_regulator_register(&client->dev, desc, &config);
 		if (IS_ERR(pfuze_chip->regulators[i])) {
 			dev_err(&client->dev, "register regulator%s failed\n",
 				pfuze100_regulators[i].desc.name);
-			ret = PTR_ERR(pfuze_chip->regulators[i]);
-			while (--i >= 0)
-				regulator_unregister(pfuze_chip->regulators[i]);
-			return ret;
+			return PTR_ERR(pfuze_chip->regulators[i]);
 		}
 	}
-
-	return 0;
-}
-
-static int pfuze100_regulator_remove(struct i2c_client *client)
-{
-	int i;
-	struct pfuze_chip *pfuze_chip = i2c_get_clientdata(client);
-
-	for (i = 0; i < PFUZE100_MAX_REGULATOR; i++)
-		regulator_unregister(pfuze_chip->regulators[i]);
 
 	return 0;
 }
@@ -435,7 +422,6 @@ static struct i2c_driver pfuze_driver = {
 		.of_match_table = pfuze_dt_ids,
 	},
 	.probe = pfuze100_regulator_probe,
-	.remove = pfuze100_regulator_remove,
 };
 module_i2c_driver(pfuze_driver);
 
