@@ -2743,12 +2743,8 @@ int i915_vma_unbind(struct i915_vma *vma)
 
 	trace_i915_vma_unbind(vma);
 
-	if (obj->has_global_gtt_mapping)
-		i915_gem_gtt_unbind_object(obj);
-	if (obj->has_aliasing_ppgtt_mapping) {
-		i915_ppgtt_unbind_object(dev_priv->mm.aliasing_ppgtt, obj);
-		obj->has_aliasing_ppgtt_mapping = 0;
-	}
+	vma->unbind_vma(vma);
+
 	i915_gem_gtt_finish_object(obj);
 
 	list_del(&vma->mm_list);
@@ -3479,7 +3475,6 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 				    enum i915_cache_level cache_level)
 {
 	struct drm_device *dev = obj->base.dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct i915_vma *vma;
 	int ret;
 
@@ -3518,11 +3513,8 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 				return ret;
 		}
 
-		if (obj->has_global_gtt_mapping)
-			i915_gem_gtt_bind_object(obj, cache_level);
-		if (obj->has_aliasing_ppgtt_mapping)
-			i915_ppgtt_bind_object(dev_priv->mm.aliasing_ppgtt,
-					       obj, cache_level);
+		list_for_each_entry(vma, &obj->vma_list, vma_link)
+			vma->bind_vma(vma, cache_level, 0);
 	}
 
 	list_for_each_entry(vma, &obj->vma_list, vma_link)
@@ -3850,6 +3842,7 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 		    bool map_and_fenceable,
 		    bool nonblocking)
 {
+	const u32 flags = map_and_fenceable ? GLOBAL_BIND : 0;
 	struct i915_vma *vma;
 	int ret;
 
@@ -3878,20 +3871,17 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 	}
 
 	if (!i915_gem_obj_bound(obj, vm)) {
-		struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
-
 		ret = i915_gem_object_bind_to_vm(obj, vm, alignment,
 						 map_and_fenceable,
 						 nonblocking);
 		if (ret)
 			return ret;
 
-		if (!dev_priv->mm.aliasing_ppgtt)
-			i915_gem_gtt_bind_object(obj, obj->cache_level);
 	}
 
-	if (!obj->has_global_gtt_mapping && map_and_fenceable)
-		i915_gem_gtt_bind_object(obj, obj->cache_level);
+	vma = i915_gem_obj_to_vma(obj, vm);
+
+	vma->bind_vma(vma, obj->cache_level, flags);
 
 	i915_gem_obj_to_vma(obj, vm)->pin_count++;
 	obj->pin_mappable |= map_and_fenceable;
@@ -4233,41 +4223,6 @@ struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
 			return vma;
 
 	return NULL;
-}
-
-static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
-					      struct i915_address_space *vm)
-{
-	struct i915_vma *vma = kzalloc(sizeof(*vma), GFP_KERNEL);
-	if (vma == NULL)
-		return ERR_PTR(-ENOMEM);
-
-	INIT_LIST_HEAD(&vma->vma_link);
-	INIT_LIST_HEAD(&vma->mm_list);
-	INIT_LIST_HEAD(&vma->exec_list);
-	vma->vm = vm;
-	vma->obj = obj;
-
-	/* Keep GGTT vmas first to make debug easier */
-	if (i915_is_ggtt(vm))
-		list_add(&vma->vma_link, &obj->vma_list);
-	else
-		list_add_tail(&vma->vma_link, &obj->vma_list);
-
-	return vma;
-}
-
-struct i915_vma *
-i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
-				  struct i915_address_space *vm)
-{
-	struct i915_vma *vma;
-
-	vma = i915_gem_obj_to_vma(obj, vm);
-	if (!vma)
-		vma = __i915_gem_vma_create(obj, vm);
-
-	return vma;
 }
 
 void i915_gem_vma_destroy(struct i915_vma *vma)

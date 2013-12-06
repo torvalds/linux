@@ -88,6 +88,7 @@ eb_lookup_vmas(struct eb_vmas *eb,
 	       struct i915_address_space *vm,
 	       struct drm_file *file)
 {
+	struct drm_i915_private *dev_priv = vm->dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	struct list_head objects;
 	int i, ret = 0;
@@ -122,6 +123,15 @@ eb_lookup_vmas(struct eb_vmas *eb,
 	i = 0;
 	list_for_each_entry(obj, &objects, obj_exec_link) {
 		struct i915_vma *vma;
+		struct i915_address_space *bind_vm = vm;
+
+		/* If we have secure dispatch, or the userspace assures us that
+		 * they know what they're doing, use the GGTT VM.
+		 */
+		if (exec[i].flags & EXEC_OBJECT_NEEDS_GTT ||
+		    ((args->flags & I915_EXEC_SECURE) &&
+		    (i == (args->buffer_count - 1))))
+			bind_vm = &dev_priv->gtt.base;
 
 		/*
 		 * NOTE: We can leak any vmas created here when something fails
@@ -131,7 +141,7 @@ eb_lookup_vmas(struct eb_vmas *eb,
 		 * from the (obj, vm) we don't run the risk of creating
 		 * duplicated vmas for the same vm.
 		 */
-		vma = i915_gem_obj_lookup_or_create_vma(obj, vm);
+		vma = i915_gem_obj_lookup_or_create_vma(obj, bind_vm);
 		if (IS_ERR(vma)) {
 			DRM_DEBUG("Failed to lookup VMA\n");
 			ret = PTR_ERR(vma);
@@ -315,8 +325,8 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	if (unlikely(IS_GEN6(dev) &&
 	    reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION &&
 	    !target_i915_obj->has_global_gtt_mapping)) {
-		i915_gem_gtt_bind_object(target_i915_obj,
-					 target_i915_obj->cache_level);
+		struct i915_vma *vma = i915_gem_obj_to_vma(target_i915_obj, vm);
+		vma->bind_vma(vma, target_i915_obj->cache_level, GLOBAL_BIND);
 	}
 
 	/* Validate that the target is in a valid r/w GPU domain */
@@ -493,11 +503,12 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 				struct intel_ring_buffer *ring,
 				bool *need_reloc)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct drm_i915_gem_object *obj = vma->obj;
 	struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
 	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
 	bool need_fence, need_mappable;
-	struct drm_i915_gem_object *obj = vma->obj;
+	u32 flags = (entry->flags & EXEC_OBJECT_NEEDS_GTT) &&
+		!vma->obj->has_global_gtt_mapping ? GLOBAL_BIND : 0;
 	int ret;
 
 	need_fence =
@@ -526,14 +537,6 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 		}
 	}
 
-	/* Ensure ppgtt mapping exists if needed */
-	if (dev_priv->mm.aliasing_ppgtt && !obj->has_aliasing_ppgtt_mapping) {
-		i915_ppgtt_bind_object(dev_priv->mm.aliasing_ppgtt,
-				       obj, obj->cache_level);
-
-		obj->has_aliasing_ppgtt_mapping = 1;
-	}
-
 	if (entry->offset != vma->node.start) {
 		entry->offset = vma->node.start;
 		*need_reloc = true;
@@ -544,9 +547,7 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 		obj->base.pending_write_domain = I915_GEM_DOMAIN_RENDER;
 	}
 
-	if (entry->flags & EXEC_OBJECT_NEEDS_GTT &&
-	    !obj->has_global_gtt_mapping)
-		i915_gem_gtt_bind_object(obj, obj->cache_level);
+	vma->bind_vma(vma, obj->cache_level, flags);
 
 	return 0;
 }
@@ -1171,8 +1172,14 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	/* snb/ivb/vlv conflate the "batch in ppgtt" bit with the "non-secure
 	 * batch" bit. Hence we need to pin secure batches into the global gtt.
 	 * hsw should have this fixed, but bdw mucks it up again. */
-	if (flags & I915_DISPATCH_SECURE && !batch_obj->has_global_gtt_mapping)
-		i915_gem_gtt_bind_object(batch_obj, batch_obj->cache_level);
+	if (flags & I915_DISPATCH_SECURE &&
+	    !batch_obj->has_global_gtt_mapping) {
+		/* When we have multiple VMs, we'll need to make sure that we
+		 * allocate space first */
+		struct i915_vma *vma = i915_gem_obj_to_ggtt(batch_obj);
+		BUG_ON(!vma);
+		vma->bind_vma(vma, batch_obj->cache_level, GLOBAL_BIND);
+	}
 
 	ret = i915_gem_execbuffer_move_to_gpu(ring, &eb->vmas);
 	if (ret)

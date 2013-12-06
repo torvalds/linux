@@ -408,6 +408,7 @@ mi_set_context(struct intel_ring_buffer *ring,
 static int do_switch(struct i915_hw_context *to)
 {
 	struct intel_ring_buffer *ring = to->ring;
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	struct i915_hw_context *from = ring->last_context;
 	u32 hw_flags = 0;
 	int ret, i;
@@ -432,8 +433,11 @@ static int do_switch(struct i915_hw_context *to)
 		return ret;
 	}
 
-	if (!to->obj->has_global_gtt_mapping)
-		i915_gem_gtt_bind_object(to->obj, to->obj->cache_level);
+	if (!to->obj->has_global_gtt_mapping) {
+		struct i915_vma *vma = i915_gem_obj_to_vma(to->obj,
+							   &dev_priv->gtt.base);
+		vma->bind_vma(vma, to->obj->cache_level, GLOBAL_BIND);
+	}
 
 	if (!to->is_initialized || is_default_context(to))
 		hw_flags |= MI_RESTORE_INHIBIT;

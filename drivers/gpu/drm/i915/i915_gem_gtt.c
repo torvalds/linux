@@ -68,6 +68,11 @@ typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
 #define PPAT_CACHED_INDEX		_PAGE_PAT /* WB LLCeLLC */
 #define PPAT_DISPLAY_ELLC_INDEX		_PAGE_PCD /* WT eLLC */
 
+static void ppgtt_bind_vma(struct i915_vma *vma,
+			   enum i915_cache_level cache_level,
+			   u32 flags);
+static void ppgtt_unbind_vma(struct i915_vma *vma);
+
 static inline gen8_gtt_pte_t gen8_pte_encode(dma_addr_t addr,
 					     enum i915_cache_level level,
 					     bool valid)
@@ -746,22 +751,26 @@ void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
 	dev_priv->mm.aliasing_ppgtt = NULL;
 }
 
-void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
-			    struct drm_i915_gem_object *obj,
-			    enum i915_cache_level cache_level)
+static void __always_unused
+ppgtt_bind_vma(struct i915_vma *vma,
+	       enum i915_cache_level cache_level,
+	       u32 flags)
 {
-	ppgtt->base.insert_entries(&ppgtt->base, obj->pages,
-				   i915_gem_obj_ggtt_offset(obj) >> PAGE_SHIFT,
-				   cache_level);
+	const unsigned long entry = vma->node.start >> PAGE_SHIFT;
+
+	WARN_ON(flags);
+
+	vma->vm->insert_entries(vma->vm, vma->obj->pages, entry, cache_level);
 }
 
-void i915_ppgtt_unbind_object(struct i915_hw_ppgtt *ppgtt,
-			      struct drm_i915_gem_object *obj)
+static void __always_unused ppgtt_unbind_vma(struct i915_vma *vma)
 {
-	ppgtt->base.clear_range(&ppgtt->base,
-				i915_gem_obj_ggtt_offset(obj) >> PAGE_SHIFT,
-				obj->base.size >> PAGE_SHIFT,
-				true);
+	const unsigned long entry = vma->node.start >> PAGE_SHIFT;
+
+	vma->vm->clear_range(vma->vm,
+			     entry,
+			     vma->obj->base.size >> PAGE_SHIFT,
+			     true);
 }
 
 extern int intel_iommu_gfx_mapped;
@@ -863,8 +872,18 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 				       true);
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+		struct i915_vma *vma = i915_gem_obj_to_vma(obj,
+							   &dev_priv->gtt.base);
+		if (!vma)
+			continue;
+
 		i915_gem_clflush_object(obj, obj->pin_display);
-		i915_gem_gtt_bind_object(obj, obj->cache_level);
+		/* The bind_vma code tries to be smart about tracking mappings.
+		 * Unfortunately above, we've just wiped out the mappings
+		 * without telling our object about it. So we need to fake it.
+		 */
+		obj->has_global_gtt_mapping = 0;
+		vma->bind_vma(vma, obj->cache_level, GLOBAL_BIND);
 	}
 
 	i915_gem_chipset_flush(dev);
@@ -1023,16 +1042,18 @@ static void gen6_ggtt_clear_range(struct i915_address_space *vm,
 	readl(gtt_base);
 }
 
-static void i915_ggtt_insert_entries(struct i915_address_space *vm,
-				     struct sg_table *st,
-				     unsigned int pg_start,
-				     enum i915_cache_level cache_level)
+
+static void i915_ggtt_bind_vma(struct i915_vma *vma,
+			       enum i915_cache_level cache_level,
+			       u32 unused)
 {
+	const unsigned long entry = vma->node.start >> PAGE_SHIFT;
 	unsigned int flags = (cache_level == I915_CACHE_NONE) ?
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 
-	intel_gtt_insert_sg_entries(st, pg_start, flags);
-
+	BUG_ON(!i915_is_ggtt(vma->vm));
+	intel_gtt_insert_sg_entries(vma->obj->pages, entry, flags);
+	vma->obj->has_global_gtt_mapping = 1;
 }
 
 static void i915_ggtt_clear_range(struct i915_address_space *vm,
@@ -1043,33 +1064,77 @@ static void i915_ggtt_clear_range(struct i915_address_space *vm,
 	intel_gtt_clear_range(first_entry, num_entries);
 }
 
-
-void i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,
-			      enum i915_cache_level cache_level)
+static void i915_ggtt_unbind_vma(struct i915_vma *vma)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	const unsigned long entry = i915_gem_obj_ggtt_offset(obj) >> PAGE_SHIFT;
+	const unsigned int first = vma->node.start >> PAGE_SHIFT;
+	const unsigned int size = vma->obj->base.size >> PAGE_SHIFT;
 
-	dev_priv->gtt.base.insert_entries(&dev_priv->gtt.base, obj->pages,
-					  entry,
-					  cache_level);
-
-	obj->has_global_gtt_mapping = 1;
+	BUG_ON(!i915_is_ggtt(vma->vm));
+	vma->obj->has_global_gtt_mapping = 0;
+	intel_gtt_clear_range(first, size);
 }
 
-void i915_gem_gtt_unbind_object(struct drm_i915_gem_object *obj)
+static void ggtt_bind_vma(struct i915_vma *vma,
+			  enum i915_cache_level cache_level,
+			  u32 flags)
 {
-	struct drm_device *dev = obj->base.dev;
+	struct drm_device *dev = vma->vm->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	const unsigned long entry = i915_gem_obj_ggtt_offset(obj) >> PAGE_SHIFT;
+	struct drm_i915_gem_object *obj = vma->obj;
+	const unsigned long entry = vma->node.start >> PAGE_SHIFT;
 
-	dev_priv->gtt.base.clear_range(&dev_priv->gtt.base,
-				       entry,
-				       obj->base.size >> PAGE_SHIFT,
-				       true);
+	/* If there is no aliasing PPGTT, or the caller needs a global mapping,
+	 * or we have a global mapping already but the cacheability flags have
+	 * changed, set the global PTEs.
+	 *
+	 * If there is an aliasing PPGTT it is anecdotally faster, so use that
+	 * instead if none of the above hold true.
+	 *
+	 * NB: A global mapping should only be needed for special regions like
+	 * "gtt mappable", SNB errata, or if specified via special execbuf
+	 * flags. At all other times, the GPU will use the aliasing PPGTT.
+	 */
+	if (!dev_priv->mm.aliasing_ppgtt || flags & GLOBAL_BIND) {
+		if (!obj->has_global_gtt_mapping ||
+		    (cache_level != obj->cache_level)) {
+			vma->vm->insert_entries(vma->vm, obj->pages, entry,
+						cache_level);
+			obj->has_global_gtt_mapping = 1;
+		}
+	}
 
-	obj->has_global_gtt_mapping = 0;
+	if (dev_priv->mm.aliasing_ppgtt &&
+	    (!obj->has_aliasing_ppgtt_mapping ||
+	     (cache_level != obj->cache_level))) {
+		struct i915_hw_ppgtt *appgtt = dev_priv->mm.aliasing_ppgtt;
+		appgtt->base.insert_entries(&appgtt->base,
+					    vma->obj->pages, entry, cache_level);
+		vma->obj->has_aliasing_ppgtt_mapping = 1;
+	}
+}
+
+static void ggtt_unbind_vma(struct i915_vma *vma)
+{
+	struct drm_device *dev = vma->vm->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj = vma->obj;
+	const unsigned long entry = vma->node.start >> PAGE_SHIFT;
+
+	if (obj->has_global_gtt_mapping) {
+		vma->vm->clear_range(vma->vm, entry,
+				     vma->obj->base.size >> PAGE_SHIFT,
+				     true);
+		obj->has_global_gtt_mapping = 0;
+	}
+
+	if (obj->has_aliasing_ppgtt_mapping) {
+		struct i915_hw_ppgtt *appgtt = dev_priv->mm.aliasing_ppgtt;
+		appgtt->base.clear_range(&appgtt->base,
+					 entry,
+					 obj->base.size >> PAGE_SHIFT,
+					 true);
+		obj->has_aliasing_ppgtt_mapping = 0;
+	}
 }
 
 void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
@@ -1444,7 +1509,6 @@ static int i915_gmch_probe(struct drm_device *dev,
 
 	dev_priv->gtt.do_idle_maps = needs_idle_maps(dev_priv->dev);
 	dev_priv->gtt.base.clear_range = i915_ggtt_clear_range;
-	dev_priv->gtt.base.insert_entries = i915_ggtt_insert_entries;
 
 	return 0;
 }
@@ -1495,4 +1559,58 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	DRM_DEBUG_DRIVER("GTT stolen size = %zdM\n", gtt->stolen_size >> 20);
 
 	return 0;
+}
+
+static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
+					      struct i915_address_space *vm)
+{
+	struct i915_vma *vma = kzalloc(sizeof(*vma), GFP_KERNEL);
+	if (vma == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	INIT_LIST_HEAD(&vma->vma_link);
+	INIT_LIST_HEAD(&vma->mm_list);
+	INIT_LIST_HEAD(&vma->exec_list);
+	vma->vm = vm;
+	vma->obj = obj;
+
+	switch (INTEL_INFO(vm->dev)->gen) {
+	case 8:
+	case 7:
+	case 6:
+		vma->unbind_vma = ggtt_unbind_vma;
+		vma->bind_vma = ggtt_bind_vma;
+		break;
+	case 5:
+	case 4:
+	case 3:
+	case 2:
+		BUG_ON(!i915_is_ggtt(vm));
+		vma->unbind_vma = i915_ggtt_unbind_vma;
+		vma->bind_vma = i915_ggtt_bind_vma;
+		break;
+	default:
+		BUG();
+	}
+
+	/* Keep GGTT vmas first to make debug easier */
+	if (i915_is_ggtt(vm))
+		list_add(&vma->vma_link, &obj->vma_list);
+	else
+		list_add_tail(&vma->vma_link, &obj->vma_list);
+
+	return vma;
+}
+
+struct i915_vma *
+i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
+				  struct i915_address_space *vm)
+{
+	struct i915_vma *vma;
+
+	vma = i915_gem_obj_to_vma(obj, vm);
+	if (!vma)
+		vma = __i915_gem_vma_create(obj, vm);
+
+	return vma;
 }
