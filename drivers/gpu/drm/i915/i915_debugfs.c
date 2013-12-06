@@ -1657,6 +1657,17 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int per_file_ctx(int id, void *ptr, void *data)
+{
+	struct i915_hw_context *ctx = ptr;
+	struct seq_file *m = data;
+	struct i915_hw_ppgtt *ppgtt = ctx_to_ppgtt(ctx);
+
+	ppgtt->debug_dump(ppgtt, m);
+
+	return 0;
+}
+
 static void gen8_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1686,6 +1697,7 @@ static void gen6_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
+	struct drm_file *file;
 	int i;
 
 	if (INTEL_INFO(dev)->gen == 6)
@@ -1704,7 +1716,20 @@ static void gen6_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 
 		seq_puts(m, "aliasing PPGTT:\n");
 		seq_printf(m, "pd gtt offset: 0x%08x\n", ppgtt->pd_offset);
+
 		ppgtt->debug_dump(ppgtt, m);
+	} else
+		return;
+
+	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
+		struct drm_i915_file_private *file_priv = file->driver_priv;
+		struct i915_hw_ppgtt *pvt_ppgtt;
+
+		pvt_ppgtt = ctx_to_ppgtt(file_priv->private_default_ctx);
+		seq_printf(m, "proc: %s\n",
+			   get_pid_task(file->pid, PIDTYPE_PID)->comm);
+		seq_puts(m, "  default context:\n");
+		idr_for_each(&file_priv->context_idr, per_file_ctx, m);
 	}
 	seq_printf(m, "ECOCHK: 0x%08x\n", I915_READ(GAM_ECOCHK));
 }
