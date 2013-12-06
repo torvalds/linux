@@ -955,17 +955,13 @@ int sctp_cmp_addr_exact(const union sctp_addr *ss1,
  */
 struct sctp_chunk *sctp_get_ecne_prepend(struct sctp_association *asoc)
 {
-	struct sctp_chunk *chunk;
+	if (!asoc->need_ecne)
+		return NULL;
 
 	/* Send ECNE if needed.
 	 * Not being able to allocate a chunk here is not deadly.
 	 */
-	if (asoc->need_ecne)
-		chunk = sctp_make_ecne(asoc, asoc->last_ecne_tsn);
-	else
-		chunk = NULL;
-
-	return chunk;
+	return sctp_make_ecne(asoc, asoc->last_ecne_tsn);
 }
 
 /*
