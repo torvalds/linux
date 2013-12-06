@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/clk.h>
+#include <linux/davinci_emac.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -16,6 +17,7 @@
 
 #include <linux/platform_data/pinctrl-single.h>
 
+#include "am35xx.h"
 #include "common.h"
 #include "common-board-devices.h"
 #include "dss-common.h"
@@ -104,6 +106,42 @@ static void __init omap3_zoom_legacy_init(void)
 {
 	legacy_init_wl12xx(WL12XX_REFCLOCK_26, 0, 162);
 }
+
+static void am35xx_enable_emac_int(void)
+{
+	u32 v;
+
+	v = omap_ctrl_readl(AM35XX_CONTROL_LVL_INTR_CLEAR);
+	v |= (AM35XX_CPGMAC_C0_RX_PULSE_CLR | AM35XX_CPGMAC_C0_TX_PULSE_CLR |
+	      AM35XX_CPGMAC_C0_MISC_PULSE_CLR | AM35XX_CPGMAC_C0_RX_THRESH_CLR);
+	omap_ctrl_writel(v, AM35XX_CONTROL_LVL_INTR_CLEAR);
+	omap_ctrl_readl(AM35XX_CONTROL_LVL_INTR_CLEAR); /* OCP barrier */
+}
+
+static void am35xx_disable_emac_int(void)
+{
+	u32 v;
+
+	v = omap_ctrl_readl(AM35XX_CONTROL_LVL_INTR_CLEAR);
+	v |= (AM35XX_CPGMAC_C0_RX_PULSE_CLR | AM35XX_CPGMAC_C0_TX_PULSE_CLR);
+	omap_ctrl_writel(v, AM35XX_CONTROL_LVL_INTR_CLEAR);
+	omap_ctrl_readl(AM35XX_CONTROL_LVL_INTR_CLEAR); /* OCP barrier */
+}
+
+static struct emac_platform_data am35xx_emac_pdata = {
+	.interrupt_enable	= am35xx_enable_emac_int,
+	.interrupt_disable	= am35xx_disable_emac_int,
+};
+
+static void __init am3517_evm_legacy_init(void)
+{
+	u32 v;
+
+	v = omap_ctrl_readl(AM35XX_CONTROL_IP_SW_RESET);
+	v &= ~AM35XX_CPGMACSS_SW_RST;
+	omap_ctrl_writel(v, AM35XX_CONTROL_IP_SW_RESET);
+	omap_ctrl_readl(AM35XX_CONTROL_IP_SW_RESET); /* OCP barrier */
+}
 #endif /* CONFIG_ARCH_OMAP3 */
 
 #ifdef CONFIG_ARCH_OMAP4
@@ -172,6 +210,10 @@ struct of_dev_auxdata omap_auxdata_lookup[] __initdata = {
 #ifdef CONFIG_ARCH_OMAP3
 	OF_DEV_AUXDATA("ti,omap3-padconf", 0x48002030, "48002030.pinmux", &pcs_pdata),
 	OF_DEV_AUXDATA("ti,omap3-padconf", 0x48002a00, "48002a00.pinmux", &pcs_pdata),
+	/* Only on am3517 */
+	OF_DEV_AUXDATA("ti,davinci_mdio", 0x5c030000, "davinci_mdio.0", NULL),
+	OF_DEV_AUXDATA("ti,am3517-emac", 0x5c000000, "davinci_emac.0",
+		       &am35xx_emac_pdata),
 #endif
 #ifdef CONFIG_ARCH_OMAP4
 	OF_DEV_AUXDATA("ti,omap4-padconf", 0x4a100040, "4a100040.pinmux", &pcs_pdata),
@@ -192,6 +234,7 @@ static struct pdata_init pdata_quirks[] __initdata = {
 	{ "isee,omap3-igep0020", omap3_igep0020_legacy_init, },
 	{ "ti,omap3-evm-37xx", omap3_evm_legacy_init, },
 	{ "ti,omap3-zoom3", omap3_zoom_legacy_init, },
+	{ "ti,am3517-evm", am3517_evm_legacy_init, },
 #endif
 #ifdef CONFIG_ARCH_OMAP4
 	{ "ti,omap4-sdp", omap4_sdp_legacy_init, },
