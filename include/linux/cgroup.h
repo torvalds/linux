@@ -319,9 +319,6 @@ struct cgroupfs_root {
 	/* Unique id for this hierarchy. */
 	int hierarchy_id;
 
-	/* A list running through the attached subsystems */
-	struct list_head subsys_list;
-
 	/* The root cgroup for this hierarchy */
 	struct cgroup top_cgroup;
 
@@ -617,12 +614,8 @@ struct cgroup_subsys {
 #define MAX_CGROUP_TYPE_NAMELEN 32
 	const char *name;
 
-	/*
-	 * Link to parent, and list entry in parent's children.
-	 * Protected by cgroup_lock()
-	 */
+	/* link to parent, protected by cgroup_lock() */
 	struct cgroupfs_root *root;
-	struct list_head sibling;
 
 	/* list of cftype_sets */
 	struct list_head cftsets;

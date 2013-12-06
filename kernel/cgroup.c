@@ -283,10 +283,6 @@ static int notify_on_release(const struct cgroup *cgrp)
 	for ((i) = 0; (i) < CGROUP_BUILTIN_SUBSYS_COUNT &&		\
 	     (((ss) = cgroup_subsys[i]) || true); (i)++)
 
-/* iterate each subsystem attached to a hierarchy */
-#define for_each_root_subsys(root, ss)					\
-	list_for_each_entry((ss), &(root)->subsys_list, sibling)
-
 /* iterate across the active hierarchies */
 #define for_each_active_root(root)					\
 	list_for_each_entry((root), &cgroup_roots, root_list)
@@ -1033,7 +1029,6 @@ static int rebind_subsystems(struct cgroupfs_root *root,
 					   cgroup_css(cgroup_dummy_top, ss));
 			cgroup_css(cgrp, ss)->cgroup = cgrp;
 
-			list_move(&ss->sibling, &root->subsys_list);
 			ss->root = root;
 			if (ss->bind)
 				ss->bind(cgroup_css(cgrp, ss));
@@ -1052,7 +1047,6 @@ static int rebind_subsystems(struct cgroupfs_root *root,
 			RCU_INIT_POINTER(cgrp->subsys[i], NULL);
 
 			cgroup_subsys[i]->root = &cgroup_dummy_root;
-			list_move(&ss->sibling, &cgroup_dummy_root.subsys_list);
 
 			/* subsystem is now free - drop reference on module */
 			module_put(ss->module);
@@ -1079,10 +1073,12 @@ static int cgroup_show_options(struct seq_file *seq, struct dentry *dentry)
 {
 	struct cgroupfs_root *root = dentry->d_sb->s_fs_info;
 	struct cgroup_subsys *ss;
+	int ssid;
 
 	mutex_lock(&cgroup_root_mutex);
-	for_each_root_subsys(root, ss)
-		seq_printf(seq, ",%s", ss->name);
+	for_each_subsys(ss, ssid)
+		if (root->subsys_mask & (1 << ssid))
+			seq_printf(seq, ",%s", ss->name);
 	if (root->flags & CGRP_ROOT_SANE_BEHAVIOR)
 		seq_puts(seq, ",sane_behavior");
 	if (root->flags & CGRP_ROOT_NOPREFIX)
@@ -1352,7 +1348,6 @@ static void init_cgroup_root(struct cgroupfs_root *root)
 {
 	struct cgroup *cgrp = &root->top_cgroup;
 
-	INIT_LIST_HEAD(&root->subsys_list);
 	INIT_LIST_HEAD(&root->root_list);
 	root->number_of_cgroups = 1;
 	cgrp->root = root;
@@ -4151,7 +4146,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	struct cgroup *cgrp;
 	struct cgroup_name *name;
 	struct cgroupfs_root *root = parent->root;
-	int err = 0;
+	int ssid, err = 0;
 	struct cgroup_subsys *ss;
 	struct super_block *sb = root->sb;
 
@@ -4237,10 +4232,12 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 		goto err_destroy;
 
 	/* let's create and online css's */
-	for_each_root_subsys(root, ss) {
-		err = create_css(cgrp, ss);
-		if (err)
-			goto err_destroy;
+	for_each_subsys(ss, ssid) {
+		if (root->subsys_mask & (1 << ssid)) {
+			err = create_css(cgrp, ss);
+			if (err)
+				goto err_destroy;
+		}
 	}
 
 	mutex_unlock(&cgroup_mutex);
@@ -4536,7 +4533,6 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 	cgroup_init_cftsets(ss);
 
 	/* Create the top cgroup state for this subsystem */
-	list_add(&ss->sibling, &cgroup_dummy_root.subsys_list);
 	ss->root = &cgroup_dummy_root;
 	css = ss->css_alloc(cgroup_css(cgroup_dummy_top, ss));
 	/* We don't handle early failures gracefully */
@@ -4626,7 +4622,6 @@ int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
 		return PTR_ERR(css);
 	}
 
-	list_add(&ss->sibling, &cgroup_dummy_root.subsys_list);
 	ss->root = &cgroup_dummy_root;
 
 	/* our new subsystem will be attached to the dummy hierarchy. */
@@ -4701,9 +4696,6 @@ void cgroup_unload_subsys(struct cgroup_subsys *ss)
 
 	/* deassign the subsys_id */
 	cgroup_subsys[ss->subsys_id] = NULL;
-
-	/* remove subsystem from the dummy root's list of subsystems */
-	list_del_init(&ss->sibling);
 
 	/*
 	 * disentangle the css from all css_sets attached to the dummy
@@ -4901,11 +4893,12 @@ int proc_cgroup_show(struct seq_file *m, void *v)
 	for_each_active_root(root) {
 		struct cgroup_subsys *ss;
 		struct cgroup *cgrp;
-		int count = 0;
+		int ssid, count = 0;
 
 		seq_printf(m, "%d:", root->hierarchy_id);
-		for_each_root_subsys(root, ss)
-			seq_printf(m, "%s%s", count++ ? "," : "", ss->name);
+		for_each_subsys(ss, ssid)
+			if (root->subsys_mask & (1 << ssid))
+				seq_printf(m, "%s%s", count++ ? "," : "", ss->name);
 		if (strlen(root->name))
 			seq_printf(m, "%sname=%s", count ? "," : "",
 				   root->name);
