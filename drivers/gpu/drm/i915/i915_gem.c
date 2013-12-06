@@ -4508,6 +4508,7 @@ int i915_gem_init(struct drm_device *dev)
 	mutex_unlock(&dev->struct_mutex);
 	if (ret) {
 		i915_gem_cleanup_aliasing_ppgtt(dev);
+		drm_mm_takedown(&dev_priv->gtt.base.mm);
 		return ret;
 	}
 
