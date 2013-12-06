@@ -61,6 +61,8 @@ static const u8 eth_reserved_addr_base[ETH_ALEN] __aligned(2) =
  *
  * Return true if address is link local reserved addr (01:80:c2:00:00:0X) per
  * IEEE 802.1Q 8.6.3 Frame filtering.
+ *
+ * Please note: addr must be aligned to u16.
  */
 static inline bool is_link_local_ether_addr(const u8 *addr)
 {
@@ -68,7 +70,12 @@ static inline bool is_link_local_ether_addr(const u8 *addr)
 	static const __be16 *b = (const __be16 *)eth_reserved_addr_base;
 	static const __be16 m = cpu_to_be16(0xfff0);
 
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+	return (((*(const u32 *)addr) ^ (*(const u32 *)b)) |
+		((a[2] ^ b[2]) & m)) == 0;
+#else
 	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | ((a[2] ^ b[2]) & m)) == 0;
+#endif
 }
 
 /**
@@ -76,10 +83,18 @@ static inline bool is_link_local_ether_addr(const u8 *addr)
  * @addr: Pointer to a six-byte array containing the Ethernet address
  *
  * Return true if the address is all zeroes.
+ *
+ * Please note: addr must be aligned to u16.
  */
 static inline bool is_zero_ether_addr(const u8 *addr)
 {
-	return !(addr[0] | addr[1] | addr[2] | addr[3] | addr[4] | addr[5]);
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+	return ((*(const u32 *)addr) | (*(const u16 *)(addr + 4))) == 0;
+#else
+	return (*(const u16 *)(addr + 0) |
+		*(const u16 *)(addr + 2) |
+		*(const u16 *)(addr + 4)) == 0;
+#endif
 }
 
 /**
@@ -110,10 +125,14 @@ static inline bool is_local_ether_addr(const u8 *addr)
  * @addr: Pointer to a six-byte array containing the Ethernet address
  *
  * Return true if the address is the broadcast address.
+ *
+ * Please note: addr must be aligned to u16.
  */
 static inline bool is_broadcast_ether_addr(const u8 *addr)
 {
-	return (addr[0] & addr[1] & addr[2] & addr[3] & addr[4] & addr[5]) == 0xff;
+	return (*(const u16 *)(addr + 0) &
+		*(const u16 *)(addr + 2) &
+		*(const u16 *)(addr + 4)) == 0xffff;
 }
 
 /**
@@ -135,6 +154,8 @@ static inline bool is_unicast_ether_addr(const u8 *addr)
  * a multicast address, and is not FF:FF:FF:FF:FF:FF.
  *
  * Return true if the address is valid.
+ *
+ * Please note: addr must be aligned to u16.
  */
 static inline bool is_valid_ether_addr(const u8 *addr)
 {
