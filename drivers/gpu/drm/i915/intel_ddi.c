@@ -1165,7 +1165,7 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 
 	if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-		ironlake_edp_panel_vdd_on(intel_dp);
+
 		ironlake_edp_panel_off(intel_dp);
 	}
 
