@@ -248,21 +248,6 @@ struct efx_ptp_timeset {
  * @nic_ts_enabled: Flag indicating if NIC generated TS events are handled
  * @txbuf: Buffer for use when transmitting (PTP) packets to MC (avoids
  *         allocations in main data path).
- * @debug_ptp_dir: PTP debugfs directory
- * @missed_rx_sync: Number of packets received without syncrhonisation.
- * @good_syncs: Number of successful synchronisations.
- * @no_time_syncs: Number of synchronisations with no good times.
- * @bad_sync_durations: Number of synchronisations with bad durations.
- * @bad_syncs: Number of failed synchronisations.
- * @last_sync_time: Number of nanoseconds for last synchronisation.
- * @sync_timeouts: Number of synchronisation timeouts
- * @fast_syncs: Number of synchronisations requiring short delay
- * @min_sync_delta: Minimum time between event and synchronisation
- * @max_sync_delta: Maximum time between event and synchronisation
- * @average_sync_delta: Average time between event and synchronisation.
- *                      Modified moving average.
- * @last_sync_delta: Last time between event and synchronisation
- * @mc_stats: Context value for MC statistics
  * @timeset: Last set of synchronisation statistics.
  */
 struct efx_ptp_data {
