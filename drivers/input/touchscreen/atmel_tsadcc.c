@@ -182,7 +182,7 @@ static int atmel_tsadcc_probe(struct platform_device *pdev)
 	struct atmel_tsadcc	*ts_dev;
 	struct input_dev	*input_dev;
 	struct resource		*res;
-	struct at91_tsadcc_data *pdata = pdev->dev.platform_data;
+	struct at91_tsadcc_data *pdata = dev_get_platdata(&pdev->dev);
 	int		err;
 	unsigned int	prsc;
 	unsigned int	reg;

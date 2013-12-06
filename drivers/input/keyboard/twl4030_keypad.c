@@ -330,7 +330,7 @@ static int twl4030_kp_program(struct twl4030_keypad *kp)
  */
 static int twl4030_kp_probe(struct platform_device *pdev)
 {
-	struct twl4030_keypad_data *pdata = pdev->dev.platform_data;
+	struct twl4030_keypad_data *pdata = dev_get_platdata(&pdev->dev);
 	const struct matrix_keymap_data *keymap_data;
 	struct twl4030_keypad *kp;
 	struct input_dev *input;

@@ -128,7 +128,8 @@ static SIMPLE_DEV_PM_OPS(pixcir_dev_pm_ops,
 static int pixcir_i2c_ts_probe(struct i2c_client *client,
 					 const struct i2c_device_id *id)
 {
-	const struct pixcir_ts_platform_data *pdata = client->dev.platform_data;
+	const struct pixcir_ts_platform_data *pdata =
+			dev_get_platdata(&client->dev);
 	struct pixcir_i2c_ts_data *tsdata;
 	struct input_dev *input;
 	int error;

@@ -98,7 +98,8 @@ static void gpio_tilt_polled_close(struct input_polled_dev *dev)
 
 static int gpio_tilt_polled_probe(struct platform_device *pdev)
 {
-	const struct gpio_tilt_platform_data *pdata = pdev->dev.platform_data;
+	const struct gpio_tilt_platform_data *pdata =
+			dev_get_platdata(&pdev->dev);
 	struct device *dev = &pdev->dev;
 	struct gpio_tilt_polled_dev *tdev;
 	struct input_polled_dev *poll_dev;

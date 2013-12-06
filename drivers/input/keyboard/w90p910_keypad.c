@@ -121,7 +121,7 @@ static void w90p910_keypad_close(struct input_dev *dev)
 static int w90p910_keypad_probe(struct platform_device *pdev)
 {
 	const struct w90p910_keypad_platform_data *pdata =
-						pdev->dev.platform_data;
+						dev_get_platdata(&pdev->dev);
 	const struct matrix_keymap_data *keymap_data;
 	struct w90p910_keypad *keypad;
 	struct input_dev *input_dev;

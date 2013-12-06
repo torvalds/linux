@@ -84,7 +84,8 @@ static void pxa930_rotary_close(struct input_dev *dev)
 
 static int pxa930_rotary_probe(struct platform_device *pdev)
 {
-	struct pxa930_rotary_platform_data *pdata = pdev->dev.platform_data;
+	struct pxa930_rotary_platform_data *pdata =
+			dev_get_platdata(&pdev->dev);
 	struct pxa930_rotary *r;
 	struct input_dev *input_dev;
 	struct resource *res;

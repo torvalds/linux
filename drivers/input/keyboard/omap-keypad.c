@@ -248,7 +248,7 @@ static int omap_kp_probe(struct platform_device *pdev)
 {
 	struct omap_kp *omap_kp;
 	struct input_dev *input_dev;
-	struct omap_kp_platform_data *pdata =  pdev->dev.platform_data;
+	struct omap_kp_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	int i, col_idx, row_idx, ret;
 	unsigned int row_shift, keycodemax;
 

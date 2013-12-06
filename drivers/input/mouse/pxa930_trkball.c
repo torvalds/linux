@@ -166,7 +166,7 @@ static int pxa930_trkball_probe(struct platform_device *pdev)
 	if (!trkball)
 		return -ENOMEM;
 
-	trkball->pdata = pdev->dev.platform_data;
+	trkball->pdata = dev_get_platdata(&pdev->dev);
 	if (!trkball->pdata) {
 		dev_err(&pdev->dev, "no platform data defined\n");
 		error = -EINVAL;

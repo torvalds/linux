@@ -321,7 +321,7 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node)
 		pdata = samsung_keypad_parse_dt(&pdev->dev);
 	else
-		pdata = pdev->dev.platform_data;
+		pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_err(&pdev->dev, "no platform data defined\n");
 		return -EINVAL;

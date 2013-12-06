@@ -193,7 +193,7 @@ static bool twl4030_vibra_check_coexist(struct twl4030_vibra_data *pdata,
 
 static int twl4030_vibra_probe(struct platform_device *pdev)
 {
-	struct twl4030_vibra_data *pdata = pdev->dev.platform_data;
+	struct twl4030_vibra_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device_node *twl4030_core_node = pdev->dev.parent->of_node;
 	struct vibra_info *info;
 	int ret;

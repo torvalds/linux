@@ -71,7 +71,7 @@ static int adp5520_keys_notifier(struct notifier_block *nb,
 
 static int adp5520_keys_probe(struct platform_device *pdev)
 {
-	struct adp5520_keys_platform_data *pdata = pdev->dev.platform_data;
+	struct adp5520_keys_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct input_dev *input;
 	struct adp5520_keys *dev;
 	int ret, i;

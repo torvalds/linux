@@ -705,7 +705,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 					 const struct i2c_device_id *id)
 {
 	const struct edt_ft5x06_platform_data *pdata =
-						client->dev.platform_data;
+						dev_get_platdata(&client->dev);
 	struct edt_ft5x06_ts_data *tsdata;
 	struct input_dev *input;
 	int error;
