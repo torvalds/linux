@@ -28,8 +28,8 @@
 #include <mach/r7s72100.h>
 #include <asm/mach/arch.h>
 
-#define SCIF_DATA(index, baseaddr, irq)					\
-[index] = {								\
+#define R7S72100_SCIF(index, baseaddr, irq)				\
+static const struct plat_sci_port scif##index##_platform_data = {	\
 	.type		= PORT_SCIF,					\
 	.regtype	= SCIx_SH2_SCIF_FIFODATA_REGTYPE,		\
 	.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,		\
@@ -40,24 +40,19 @@
 	.irqs		= { irq + 1, irq + 2, irq + 3, irq },		\
 }
 
-enum { SCIF0, SCIF1, SCIF2, SCIF3, SCIF4, SCIF5, SCIF6, SCIF7 };
+R7S72100_SCIF(0, 0xe8007000, gic_iid(221));
+R7S72100_SCIF(1, 0xe8007800, gic_iid(225));
+R7S72100_SCIF(2, 0xe8008000, gic_iid(229));
+R7S72100_SCIF(3, 0xe8008800, gic_iid(233));
+R7S72100_SCIF(4, 0xe8009000, gic_iid(237));
+R7S72100_SCIF(5, 0xe8009800, gic_iid(241));
+R7S72100_SCIF(6, 0xe800a000, gic_iid(245));
+R7S72100_SCIF(7, 0xe800a800, gic_iid(249));
 
-static const struct plat_sci_port scif[] __initconst = {
-	SCIF_DATA(SCIF0, 0xe8007000, gic_iid(221)), /* SCIF0 */
-	SCIF_DATA(SCIF1, 0xe8007800, gic_iid(225)), /* SCIF1 */
-	SCIF_DATA(SCIF2, 0xe8008000, gic_iid(229)), /* SCIF2 */
-	SCIF_DATA(SCIF3, 0xe8008800, gic_iid(233)), /* SCIF3 */
-	SCIF_DATA(SCIF4, 0xe8009000, gic_iid(237)), /* SCIF4 */
-	SCIF_DATA(SCIF5, 0xe8009800, gic_iid(241)), /* SCIF5 */
-	SCIF_DATA(SCIF6, 0xe800a000, gic_iid(245)), /* SCIF6 */
-	SCIF_DATA(SCIF7, 0xe800a800, gic_iid(249)), /* SCIF7 */
-};
-
-static inline void r7s72100_register_scif(int idx)
-{
-	platform_device_register_data(&platform_bus, "sh-sci", idx, &scif[idx],
-				      sizeof(struct plat_sci_port));
-}
+#define r7s72100_register_scif(index)					       \
+	platform_device_register_data(&platform_bus, "sh-sci", index,	       \
+				      &scif##index##_platform_data,	       \
+				      sizeof(scif##index##_platform_data))
 
 
 static struct sh_timer_config mtu2_0_platform_data __initdata = {
@@ -81,14 +76,14 @@ static struct resource mtu2_0_resources[] __initdata = {
 
 void __init r7s72100_add_dt_devices(void)
 {
-	r7s72100_register_scif(SCIF0);
-	r7s72100_register_scif(SCIF1);
-	r7s72100_register_scif(SCIF2);
-	r7s72100_register_scif(SCIF3);
-	r7s72100_register_scif(SCIF4);
-	r7s72100_register_scif(SCIF5);
-	r7s72100_register_scif(SCIF6);
-	r7s72100_register_scif(SCIF7);
+	r7s72100_register_scif(0);
+	r7s72100_register_scif(1);
+	r7s72100_register_scif(2);
+	r7s72100_register_scif(3);
+	r7s72100_register_scif(4);
+	r7s72100_register_scif(5);
+	r7s72100_register_scif(6);
+	r7s72100_register_scif(7);
 	r7s72100_register_mtu2(0);
 }
 
