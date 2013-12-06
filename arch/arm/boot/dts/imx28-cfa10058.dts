@@ -101,7 +101,7 @@
 	ahb@80080000 {
 		usb1: usb@80090000 {
 			vbus-supply = <&reg_usb1_vbus>;
-			pinctrl-0 = <&usbphy1_pins_a>;
+			pinctrl-0 = <&usb1_pins_a>;
 			pinctrl-names = "default";
 			status = "okay";
 		};

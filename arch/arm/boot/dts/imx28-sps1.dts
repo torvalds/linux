@@ -106,7 +106,7 @@
 		usb0: usb@80080000 {
 			vbus-supply = <&reg_usb0_vbus>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&usbphy0_pins_b>;
+			pinctrl-0 = <&usb0_pins_b>;
 			status = "okay";
 		};
 

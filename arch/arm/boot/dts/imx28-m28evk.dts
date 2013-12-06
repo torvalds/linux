@@ -248,14 +248,14 @@
 		usb0: usb@80080000 {
 			vbus-supply = <&reg_usb0_vbus>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&usbphy0_pins_a>;
+			pinctrl-0 = <&usb0_pins_a>;
 			status = "okay";
 		};
 
 		usb1: usb@80090000 {
 			vbus-supply = <&reg_usb1_vbus>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&usbphy1_pins_a>;
+			pinctrl-0 = <&usb1_pins_a>;
 			status = "okay";
 		};
 
