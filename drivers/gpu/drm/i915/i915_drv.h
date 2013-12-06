@@ -671,7 +671,8 @@ struct i915_hw_ppgtt {
 		dma_addr_t *pt_dma_addr;
 		dma_addr_t *gen8_pt_dma_addr[4];
 	};
-	int (*enable)(struct drm_device *dev);
+
+	int (*enable)(struct i915_hw_ppgtt *ppgtt);
 };
 
 struct i915_ctx_hang_stats {

@@ -4404,6 +4404,7 @@ int
 i915_gem_init_hw(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct i915_hw_ppgtt *ppgtt;
 	int ret, i;
 
 	if (INTEL_INFO(dev)->gen < 6 && !intel_enable_gtt())
@@ -4446,7 +4447,8 @@ i915_gem_init_hw(struct drm_device *dev)
 	}
 
 	if (dev_priv->mm.aliasing_ppgtt) {
-		ret = dev_priv->mm.aliasing_ppgtt->enable(dev);
+		ppgtt = dev_priv->mm.aliasing_ppgtt;
+		ret = ppgtt->enable(ppgtt);
 		if (ret) {
 			i915_gem_cleanup_aliasing_ppgtt(dev);
 			DRM_INFO("PPGTT enable failed. This is not fatal, but unexpected\n");

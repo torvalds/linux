@@ -230,11 +230,11 @@ static int gen8_write_pdp(struct intel_ring_buffer *ring, unsigned entry,
 	return 0;
 }
 
-static int gen8_ppgtt_enable(struct drm_device *dev)
+static int gen8_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
 {
+	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
-	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
 	int i, j, ret;
 
 	/* bit of a hack to find the actual last used pd */
@@ -491,12 +491,12 @@ static void gen6_write_pdes(struct i915_hw_ppgtt *ppgtt)
 	readl(pd_addr);
 }
 
-static int gen6_ppgtt_enable(struct drm_device *dev)
+static int gen6_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
 {
+	struct drm_device *dev = ppgtt->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	uint32_t pd_offset;
 	struct intel_ring_buffer *ring;
-	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
 	int i;
 
 	BUG_ON(ppgtt->pd_offset & 0x3f);
