@@ -91,20 +91,15 @@ xfs_get_extsz_hint(
  * xfs_iunlock() call.
  */
 uint
-xfs_ilock_map_shared(
-	xfs_inode_t	*ip)
+xfs_ilock_data_map_shared(
+	struct xfs_inode	*ip)
 {
-	uint	lock_mode;
+	uint			lock_mode = XFS_ILOCK_SHARED;
 
-	if ((ip->i_d.di_format == XFS_DINODE_FMT_BTREE) &&
-	    ((ip->i_df.if_flags & XFS_IFEXTENTS) == 0)) {
+	if (ip->i_d.di_format == XFS_DINODE_FMT_BTREE &&
+	    (ip->i_df.if_flags & XFS_IFEXTENTS) == 0)
 		lock_mode = XFS_ILOCK_EXCL;
-	} else {
-		lock_mode = XFS_ILOCK_SHARED;
-	}
-
 	xfs_ilock(ip, lock_mode);
-
 	return lock_mode;
 }
 
@@ -575,7 +570,7 @@ xfs_lookup(
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return XFS_ERROR(EIO);
 
-	lock_mode = xfs_ilock_map_shared(dp);
+	lock_mode = xfs_ilock_data_map_shared(dp);
 	error = xfs_dir_lookup(NULL, dp, name, &inum, ci_name);
 	xfs_iunlock(dp, lock_mode);
 

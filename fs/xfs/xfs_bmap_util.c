@@ -632,7 +632,7 @@ xfs_getbmap(
 		 */
 	}
 
-	lock = xfs_ilock_map_shared(ip);
+	lock = xfs_ilock_data_map_shared(ip);
 
 	/*
 	 * Don't let nex be bigger than the number of extents
