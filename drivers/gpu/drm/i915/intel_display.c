@@ -6490,7 +6490,7 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 	uint32_t val;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head)
-		WARN(crtc->base.enabled, "CRTC for pipe %c enabled\n",
+		WARN(crtc->active, "CRTC for pipe %c enabled\n",
 		     pipe_name(crtc->pipe));
 
 	WARN(I915_READ(HSW_PWR_WELL_DRIVER), "Power well on\n");
