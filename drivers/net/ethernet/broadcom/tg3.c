@@ -9969,6 +9969,7 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 	if (tg3_asic_rev(tp) == ASIC_REV_5719)
 		val |= BUFMGR_MODE_NO_TX_UNDERRUN;
 	if (tg3_asic_rev(tp) == ASIC_REV_5717 ||
+	    tg3_asic_rev(tp) == ASIC_REV_5762 ||
 	    tg3_chip_rev_id(tp) == CHIPREV_ID_5719_A0 ||
 	    tg3_chip_rev_id(tp) == CHIPREV_ID_5720_A0)
 		val |= BUFMGR_MODE_MBLOW_ATTN_ENAB;
@@ -10754,6 +10755,7 @@ static void tg3_periodic_fetch_stats(struct tg3 *tp)
 
 	TG3_STAT_ADD32(&sp->rxbds_empty, RCVLPC_NO_RCV_BD_CNT);
 	if (tg3_asic_rev(tp) != ASIC_REV_5717 &&
+	    tg3_asic_rev(tp) != ASIC_REV_5762 &&
 	    tg3_chip_rev_id(tp) != CHIPREV_ID_5719_A0 &&
 	    tg3_chip_rev_id(tp) != CHIPREV_ID_5720_A0) {
 		TG3_STAT_ADD32(&sp->rx_discards, RCVLPC_IN_DISCARDS_CNT);
@@ -16545,6 +16547,7 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 
 	/* Set these bits to enable statistics workaround. */
 	if (tg3_asic_rev(tp) == ASIC_REV_5717 ||
+	    tg3_asic_rev(tp) == ASIC_REV_5762 ||
 	    tg3_chip_rev_id(tp) == CHIPREV_ID_5719_A0 ||
 	    tg3_chip_rev_id(tp) == CHIPREV_ID_5720_A0) {
 		tp->coalesce_mode |= HOSTCC_MODE_ATTN;
