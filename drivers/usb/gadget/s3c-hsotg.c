@@ -2080,13 +2080,13 @@ static void s3c_hsotg_irq_enumdone(struct s3c_hsotg *hsotg)
 	case DSTS_EnumSpd_FS48:
 		hsotg->gadget.speed = USB_SPEED_FULL;
 		ep0_mps = EP0_MPS_LIMIT;
-		ep_mps = 64;
+		ep_mps = 1023;
 		break;
 
 	case DSTS_EnumSpd_HS:
 		hsotg->gadget.speed = USB_SPEED_HIGH;
 		ep0_mps = EP0_MPS_LIMIT;
-		ep_mps = 512;
+		ep_mps = 1024;
 		break;
 
 	case DSTS_EnumSpd_LS:
