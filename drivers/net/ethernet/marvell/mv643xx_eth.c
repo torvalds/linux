@@ -2066,23 +2066,6 @@ static inline void oom_timer_wrapper(unsigned long data)
 	napi_schedule(&mp->napi);
 }
 
-static void phy_reset(struct mv643xx_eth_private *mp)
-{
-	int data;
-
-	data = phy_read(mp->phy, MII_BMCR);
-	if (data < 0)
-		return;
-
-	data |= BMCR_RESET;
-	if (phy_write(mp->phy, MII_BMCR, data) < 0)
-		return;
-
-	do {
-		data = phy_read(mp->phy, MII_BMCR);
-	} while (data >= 0 && data & BMCR_RESET);
-}
-
 static void port_start(struct mv643xx_eth_private *mp)
 {
 	u32 pscr;
@@ -2095,7 +2078,7 @@ static void port_start(struct mv643xx_eth_private *mp)
 		struct ethtool_cmd cmd;
 
 		mv643xx_eth_get_settings(mp->dev, &cmd);
-		phy_reset(mp);
+		phy_init_hw(mp->phy);
 		mv643xx_eth_set_settings(mp->dev, &cmd);
 	}
 
@@ -2762,8 +2745,6 @@ static struct phy_device *phy_scan(struct mv643xx_eth_private *mp,
 static void phy_init(struct mv643xx_eth_private *mp, int speed, int duplex)
 {
 	struct phy_device *phy = mp->phy;
-
-	phy_reset(mp);
 
 	if (speed == 0) {
 		phy->autoneg = AUTONEG_ENABLE;
