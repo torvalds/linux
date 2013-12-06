@@ -27,6 +27,7 @@ struct pdata_init {
 };
 
 struct of_dev_auxdata omap_auxdata_lookup[];
+static struct twl4030_gpio_platform_data twl_gpio_auxdata;
 
 /*
  * Create alias for USB host PHY clock.
@@ -134,6 +135,21 @@ void omap_pcs_legacy_init(int irq, void (*rearm)(void))
 {
 	pcs_pdata.irq = irq;
 	pcs_pdata.rearm = rearm;
+}
+
+/*
+ * GPIOs for TWL are initialized by the I2C bus and need custom
+ * handing until DSS has device tree bindings.
+ */
+void omap_auxdata_legacy_init(struct device *dev)
+{
+	if (dev->platform_data)
+		return;
+
+	if (strcmp("twl4030-gpio", dev_name(dev)))
+		return;
+
+	dev->platform_data = &twl_gpio_auxdata;
 }
 
 /*

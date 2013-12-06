@@ -293,6 +293,7 @@ static inline void omap4_cpu_resume(void)
 #endif
 
 void pdata_quirks_init(struct of_device_id *);
+void omap_auxdata_legacy_init(struct device *dev);
 void omap_pcs_legacy_init(int irq, void (*rearm)(void));
 
 struct omap_sdrc_params;
