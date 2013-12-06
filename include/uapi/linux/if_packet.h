@@ -51,6 +51,7 @@ struct sockaddr_ll {
 #define PACKET_TIMESTAMP		17
 #define PACKET_FANOUT			18
 #define PACKET_TX_HAS_OFF		19
+#define PACKET_QDISC_BYPASS		20
 
 #define PACKET_FANOUT_HASH		0
 #define PACKET_FANOUT_LB		1
