@@ -655,6 +655,7 @@ struct i915_gtt {
 
 struct i915_hw_ppgtt {
 	struct i915_address_space base;
+	struct drm_mm_node node;
 	unsigned num_pd_entries;
 	union {
 		struct page **pt_pages;

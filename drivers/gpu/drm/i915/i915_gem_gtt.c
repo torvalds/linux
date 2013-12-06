@@ -618,6 +618,7 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 	int i;
 
 	drm_mm_takedown(&ppgtt->base.mm);
+	drm_mm_remove_node(&ppgtt->node);
 
 	if (ppgtt->pt_dma_addr) {
 		for (i = 0; i < ppgtt->num_pd_entries; i++)
@@ -635,16 +636,27 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 
 static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 {
+#define GEN6_PD_ALIGN (PAGE_SIZE * 16)
+#define GEN6_PD_SIZE (GEN6_PPGTT_PD_ENTRIES * PAGE_SIZE)
 	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned first_pd_entry_in_global_pt;
-	int i;
-	int ret = -ENOMEM;
+	int i, ret;
 
-	/* ppgtt PDEs reside in the global gtt pagetable, which has 512*1024
-	 * entries. For aliasing ppgtt support we just steal them at the end for
-	 * now. */
-	first_pd_entry_in_global_pt = gtt_total_entries(dev_priv->gtt);
+	/* PPGTT PDEs reside in the GGTT and consists of 512 entries. The
+	 * allocator works in address space sizes, so it's multiplied by page
+	 * size. We allocate at the top of the GTT to avoid fragmentation.
+	 */
+	BUG_ON(!drm_mm_initialized(&dev_priv->gtt.base.mm));
+	ret = drm_mm_insert_node_in_range_generic(&dev_priv->gtt.base.mm,
+						  &ppgtt->node, GEN6_PD_SIZE,
+						  GEN6_PD_ALIGN, 0,
+						  0, dev_priv->gtt.base.total,
+						  DRM_MM_SEARCH_DEFAULT);
+	if (ret)
+		return ret;
+
+	if (ppgtt->node.start < dev_priv->gtt.mappable_end)
+		DRM_DEBUG("Forced to use aperture for PDEs\n");
 
 	ppgtt->base.pte_encode = dev_priv->gtt.base.pte_encode;
 	ppgtt->num_pd_entries = GEN6_PPGTT_PD_ENTRIES;
@@ -657,8 +669,10 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	ppgtt->base.total = GEN6_PPGTT_PD_ENTRIES * I915_PPGTT_PT_ENTRIES * PAGE_SIZE;
 	ppgtt->pt_pages = kcalloc(ppgtt->num_pd_entries, sizeof(struct page *),
 				  GFP_KERNEL);
-	if (!ppgtt->pt_pages)
+	if (!ppgtt->pt_pages) {
+		drm_mm_remove_node(&ppgtt->node);
 		return -ENOMEM;
+	}
 
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
 		ppgtt->pt_pages[i] = alloc_page(GFP_KERNEL);
@@ -688,7 +702,11 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	ppgtt->base.clear_range(&ppgtt->base, 0,
 				ppgtt->num_pd_entries * I915_PPGTT_PT_ENTRIES, true);
 
-	ppgtt->pd_offset = first_pd_entry_in_global_pt * sizeof(gen6_gtt_pte_t);
+	DRM_DEBUG_DRIVER("Allocated pde space (%ldM) at GTT entry: %lx\n",
+			 ppgtt->node.size >> 20,
+			 ppgtt->node.start / PAGE_SIZE);
+	ppgtt->pd_offset =
+		ppgtt->node.start / PAGE_SIZE * sizeof(gen6_gtt_pte_t);
 
 	return 0;
 
@@ -705,6 +723,7 @@ err_pt_alloc:
 			__free_page(ppgtt->pt_pages[i]);
 	}
 	kfree(ppgtt->pt_pages);
+	drm_mm_remove_node(&ppgtt->node);
 
 	return ret;
 }
@@ -1249,27 +1268,14 @@ void i915_gem_init_global_gtt(struct drm_device *dev)
 	gtt_size = dev_priv->gtt.base.total;
 	mappable_size = dev_priv->gtt.mappable_end;
 
+	i915_gem_setup_global_gtt(dev, 0, mappable_size, gtt_size);
 	if (intel_enable_ppgtt(dev) && HAS_ALIASING_PPGTT(dev)) {
 		int ret;
 
-		if (INTEL_INFO(dev)->gen <= 7) {
-			/* PPGTT pdes are stolen from global gtt ptes, so shrink the
-			 * aperture accordingly when using aliasing ppgtt. */
-			gtt_size -= GEN6_PPGTT_PD_ENTRIES * PAGE_SIZE;
-		}
-
-		i915_gem_setup_global_gtt(dev, 0, mappable_size, gtt_size);
-
 		ret = i915_gem_init_aliasing_ppgtt(dev);
-		if (!ret)
-			return;
-
-		DRM_ERROR("Aliased PPGTT setup failed %d\n", ret);
-		drm_mm_takedown(&dev_priv->gtt.base.mm);
-		if (INTEL_INFO(dev)->gen < 8)
-			gtt_size += GEN6_PPGTT_PD_ENTRIES*PAGE_SIZE;
+		if (ret)
+			DRM_ERROR("Aliased PPGTT setup failed %d\n", ret);
 	}
-	i915_gem_setup_global_gtt(dev, 0, mappable_size, gtt_size);
 }
 
 static int setup_scratch_page(struct drm_device *dev)
