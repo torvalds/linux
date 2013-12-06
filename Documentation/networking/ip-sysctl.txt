@@ -156,6 +156,16 @@ tcp_app_win - INTEGER
 	buffer. Value 0 is special, it means that nothing is reserved.
 	Default: 31
 
+tcp_autocorking - BOOLEAN
+	Enable TCP auto corking :
+	When applications do consecutive small write()/sendmsg() system calls,
+	we try to coalesce these small writes as much as possible, to lower
+	total amount of sent packets. This is done if at least one prior
+	packet for the flow is waiting in Qdisc queues or device transmit
+	queue. Applications can still use TCP_CORK for optimal behavior
+	when they know how/when to uncork their sockets.
+	Default : 1
+
 tcp_available_congestion_control - STRING
 	Shows the available congestion control choices that are registered.
 	More congestion control algorithms may be available as modules,
