@@ -631,8 +631,6 @@ static int gen7_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
 	uint32_t ecochk, ecobits;
 	int i;
 
-	gen6_write_pdes(ppgtt);
-
 	ecobits = I915_READ(GAC_ECO_BITS);
 	I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_PPGTT_CACHE64B);
 
@@ -665,8 +663,6 @@ static int gen6_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
 	struct intel_ring_buffer *ring;
 	uint32_t ecochk, gab_ctl, ecobits;
 	int i;
-
-	gen6_write_pdes(ppgtt);
 
 	ecobits = I915_READ(GAC_ECO_BITS);
 	I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_SNB_BIT |
@@ -906,6 +902,8 @@ int i915_gem_init_ppgtt(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 		kref_init(&ppgtt->ref);
 		drm_mm_init(&ppgtt->base.mm, ppgtt->base.start,
 			    ppgtt->base.total);
+		if (INTEL_INFO(dev)->gen < 8)
+			gen6_write_pdes(ppgtt);
 	}
 
 	return ret;
@@ -1058,6 +1056,9 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 		obj->has_global_gtt_mapping = 0;
 		vma->bind_vma(vma, obj->cache_level, GLOBAL_BIND);
 	}
+
+	if (dev_priv->mm.aliasing_ppgtt)
+		gen6_write_pdes(dev_priv->mm.aliasing_ppgtt);
 
 	i915_gem_chipset_flush(dev);
 }
