@@ -341,7 +341,7 @@ static struct irqaction u300_timer_irq = {
  * stamp. (Inspired by OMAP implementation.)
  */
 
-static u32 notrace u300_read_sched_clock(void)
+static u64 notrace u300_read_sched_clock(void)
 {
 	return readl(u300_timer_base + U300_TIMER_APP_GPT2CC);
 }
@@ -379,7 +379,7 @@ static void __init u300_timer_init_of(struct device_node *np)
 	clk_prepare_enable(clk);
 	rate = clk_get_rate(clk);
 
-	setup_sched_clock(u300_read_sched_clock, 32, rate);
+	sched_clock_register(u300_read_sched_clock, 32, rate);
 
 	u300_delay_timer.read_current_timer = &u300_read_current_timer;
 	u300_delay_timer.freq = rate;

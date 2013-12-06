@@ -277,7 +277,7 @@ struct amba_pl010_data ap_uart_data = {
 
 static unsigned long timer_reload;
 
-static u32 notrace integrator_read_sched_clock(void)
+static u64 notrace integrator_read_sched_clock(void)
 {
 	return -readl((void __iomem *) TIMER2_VA_BASE + TIMER_VALUE);
 }
@@ -298,7 +298,7 @@ static void integrator_clocksource_init(unsigned long inrate,
 
 	clocksource_mmio_init(base + TIMER_VALUE, "timer2",
 			rate, 200, 16, clocksource_mmio_readl_down);
-	setup_sched_clock(integrator_read_sched_clock, 16, rate);
+	sched_clock_register(integrator_read_sched_clock, 16, rate);
 }
 
 static void __iomem * clkevt_base;
