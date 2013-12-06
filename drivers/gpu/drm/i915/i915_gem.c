@@ -4433,14 +4433,16 @@ i915_gem_init_hw(struct drm_device *dev)
 		i915_gem_l3_remap(&dev_priv->ring[RCS], i);
 
 	/*
-	 * XXX: There was some w/a described somewhere suggesting loading
-	 * contexts before PPGTT.
+	 * XXX: Contexts should only be initialized once. Doing a switch to the
+	 * default context switch however is something we'd like to do after
+	 * reset or thaw (the latter may not actually be necessary for HW, but
+	 * goes with our code better). Context switching requires rings (for
+	 * the do_switch), but before enabling PPGTT. So don't move this.
 	 */
-	ret = i915_gem_context_init(dev);
+	ret = i915_gem_context_enable(dev_priv);
 	if (ret) {
-		i915_gem_cleanup_ringbuffer(dev);
-		DRM_ERROR("Context initialization failed %d\n", ret);
-		return ret;
+		DRM_ERROR("Context enable failed %d\n", ret);
+		goto err_out;
 	}
 
 	if (dev_priv->mm.aliasing_ppgtt) {
@@ -4448,10 +4450,15 @@ i915_gem_init_hw(struct drm_device *dev)
 		if (ret) {
 			i915_gem_cleanup_aliasing_ppgtt(dev);
 			DRM_INFO("PPGTT enable failed. This is not fatal, but unexpected\n");
+			ret = 0;
 		}
 	}
 
 	return 0;
+
+err_out:
+	i915_gem_cleanup_ringbuffer(dev);
+	return ret;
 }
 
 int i915_gem_init(struct drm_device *dev)
@@ -4470,9 +4477,14 @@ int i915_gem_init(struct drm_device *dev)
 
 	i915_gem_init_global_gtt(dev);
 
+	ret = i915_gem_context_init(dev);
+	if (ret)
+		return ret;
+
 	ret = i915_gem_init_hw(dev);
 	mutex_unlock(&dev->struct_mutex);
 	if (ret) {
+		i915_gem_context_fini(dev);
 		i915_gem_cleanup_aliasing_ppgtt(dev);
 		drm_mm_takedown(&dev_priv->gtt.base.mm);
 		return ret;

@@ -237,19 +237,11 @@ static int create_default_context(struct drm_device *dev)
 		goto err_destroy;
 	}
 
-	ret = do_switch(&dev_priv->ring[RCS], ctx);
-	if (ret) {
-		DRM_DEBUG_DRIVER("Switch failed %d\n", ret);
-		goto err_unpin;
-	}
-
 	dev_priv->ring[RCS].default_context = ctx;
 
 	DRM_DEBUG_DRIVER("Default HW context loaded\n");
 	return 0;
 
-err_unpin:
-	i915_gem_object_ggtt_unpin(ctx->obj);
 err_destroy:
 	i915_gem_context_unreference(ctx);
 	return ret;
@@ -307,8 +299,9 @@ int i915_gem_context_init(struct drm_device *dev)
 	if (!HAS_HW_CONTEXTS(dev))
 		return 0;
 
-	/* If called from reset, or thaw... we've been here already */
-	if (dev_priv->ring[RCS].default_context)
+	/* Init should only be called once per module load. Eventually the
+	 * restriction on the context_disabled check can be loosened. */
+	if (WARN_ON(dev_priv->ring[RCS].default_context))
 		return 0;
 
 	dev_priv->hw_context_size = round_up(get_context_size(dev), 4096);
@@ -382,6 +375,28 @@ void i915_gem_context_fini(struct drm_device *dev)
 
 	i915_gem_object_ggtt_unpin(dctx->obj);
 	i915_gem_context_unreference(dctx);
+}
+
+int i915_gem_context_enable(struct drm_i915_private *dev_priv)
+{
+	struct intel_ring_buffer *ring;
+	int ret, i;
+
+	if (!HAS_HW_CONTEXTS(dev_priv->dev))
+		return 0;
+
+	/* FIXME: We should make this work, even in reset */
+	if (i915_reset_in_progress(&dev_priv->gpu_error))
+		return 0;
+
+	BUG_ON(!dev_priv->ring[RCS].default_context);
+	for_each_ring(ring, dev_priv, i) {
+		ret = do_switch(ring, ring->default_context);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int context_idr_cleanup(int id, void *p, void *data)
