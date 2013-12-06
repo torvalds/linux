@@ -736,6 +736,8 @@ struct gfs2_sbd {
 
 	/* Log stuff */
 
+	struct address_space sd_aspace;
+
 	spinlock_t sd_log_lock;
 
 	struct gfs2_trans *sd_log_tr;

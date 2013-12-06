@@ -133,7 +133,8 @@ void gfs2_ail_flush(struct gfs2_glock *gl, bool fsync)
 
 static void rgrp_go_sync(struct gfs2_glock *gl)
 {
-	struct address_space *metamapping = gfs2_glock2aspace(gl);
+	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct address_space *mapping = &sdp->sd_aspace;
 	struct gfs2_rgrpd *rgd;
 	int error;
 
@@ -141,10 +142,10 @@ static void rgrp_go_sync(struct gfs2_glock *gl)
 		return;
 	GLOCK_BUG_ON(gl, gl->gl_state != LM_ST_EXCLUSIVE);
 
-	gfs2_log_flush(gl->gl_sbd, gl);
-	filemap_fdatawrite_range(metamapping, gl->gl_vm.start, gl->gl_vm.end);
-	error = filemap_fdatawait_range(metamapping, gl->gl_vm.start, gl->gl_vm.end);
-        mapping_set_error(metamapping, error);
+	gfs2_log_flush(sdp, gl);
+	filemap_fdatawrite_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
+	error = filemap_fdatawait_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
+	mapping_set_error(mapping, error);
 	gfs2_ail_empty_gl(gl);
 
 	spin_lock(&gl->gl_spin);
@@ -166,10 +167,11 @@ static void rgrp_go_sync(struct gfs2_glock *gl)
 
 static void rgrp_go_inval(struct gfs2_glock *gl, int flags)
 {
-	struct address_space *mapping = gfs2_glock2aspace(gl);
+	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct address_space *mapping = &sdp->sd_aspace;
 
 	WARN_ON_ONCE(!(flags & DIO_METADATA));
-	gfs2_assert_withdraw(gl->gl_sbd, !atomic_read(&gl->gl_ail_count));
+	gfs2_assert_withdraw(sdp, !atomic_read(&gl->gl_ail_count));
 	truncate_inode_pages_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
 
 	if (gl->gl_object) {
@@ -558,7 +560,7 @@ const struct gfs2_glock_operations gfs2_rgrp_glops = {
 	.go_unlock = gfs2_rgrp_go_unlock,
 	.go_dump = gfs2_rgrp_dump,
 	.go_type = LM_TYPE_RGRP,
-	.go_flags = GLOF_ASPACE | GLOF_LVB,
+	.go_flags = GLOF_LVB,
 };
 
 const struct gfs2_glock_operations gfs2_trans_glops = {

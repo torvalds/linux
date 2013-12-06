@@ -589,7 +589,11 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 static void gfs2_meta_sync(struct gfs2_glock *gl)
 {
 	struct address_space *mapping = gfs2_glock2aspace(gl);
+	struct gfs2_sbd *sdp = gl->gl_sbd;
 	int error;
+
+	if (mapping == NULL)
+		mapping = &sdp->sd_aspace;
 
 	filemap_fdatawrite(mapping);
 	error = filemap_fdatawait(mapping);
