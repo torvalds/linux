@@ -909,11 +909,6 @@ static void i915_gem_capture_buffers(struct drm_i915_private *dev_priv,
 	list_for_each_entry(vm, &dev_priv->vm_list, global_link)
 		cnt++;
 
-	if (WARN(cnt > 1, "Multiple VMs not yet supported\n"))
-		cnt = 1;
-
-	vm = &dev_priv->gtt.base;
-
 	error->active_bo = kcalloc(cnt, sizeof(*error->active_bo), GFP_ATOMIC);
 	error->pinned_bo = kcalloc(cnt, sizeof(*error->pinned_bo), GFP_ATOMIC);
 	error->active_bo_count = kcalloc(cnt, sizeof(*error->active_bo_count),

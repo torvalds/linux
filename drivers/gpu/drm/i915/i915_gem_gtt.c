@@ -324,6 +324,7 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 		container_of(vm, struct i915_hw_ppgtt, base);
 	int i, j;
 
+	list_del(&vm->global_link);
 	drm_mm_takedown(&vm->mm);
 
 	for (i = 0; i < ppgtt->num_pd_pages ; i++) {
@@ -755,6 +756,7 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 		container_of(vm, struct i915_hw_ppgtt, base);
 	int i;
 
+	list_del(&vm->global_link);
 	drm_mm_takedown(&ppgtt->base.mm);
 	drm_mm_remove_node(&ppgtt->node);
 
@@ -901,17 +903,22 @@ int i915_gem_init_ppgtt(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 		BUG();
 
 	if (!ret) {
+		struct drm_i915_private *dev_priv = dev->dev_private;
 		kref_init(&ppgtt->ref);
 		drm_mm_init(&ppgtt->base.mm, ppgtt->base.start,
 			    ppgtt->base.total);
-		if (INTEL_INFO(dev)->gen < 8)
+		i915_init_vm(dev_priv, &ppgtt->base);
+		if (INTEL_INFO(dev)->gen < 8) {
 			gen6_write_pdes(ppgtt);
+			DRM_DEBUG("Adding PPGTT at offset %x\n",
+				  ppgtt->pd_offset << 10);
+		}
 	}
 
 	return ret;
 }
 
-static void __always_unused
+static void
 ppgtt_bind_vma(struct i915_vma *vma,
 	       enum i915_cache_level cache_level,
 	       u32 flags)
@@ -923,7 +930,7 @@ ppgtt_bind_vma(struct i915_vma *vma,
 	vma->vm->insert_entries(vma->vm, vma->obj->pages, entry, cache_level);
 }
 
-static void __always_unused ppgtt_unbind_vma(struct i915_vma *vma)
+static void ppgtt_unbind_vma(struct i915_vma *vma)
 {
 	const unsigned long entry = vma->node.start >> PAGE_SHIFT;
 
@@ -1719,8 +1726,13 @@ static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
 	case 8:
 	case 7:
 	case 6:
-		vma->unbind_vma = ggtt_unbind_vma;
-		vma->bind_vma = ggtt_bind_vma;
+		if (i915_is_ggtt(vm)) {
+			vma->unbind_vma = ggtt_unbind_vma;
+			vma->bind_vma = ggtt_bind_vma;
+		} else {
+			vma->unbind_vma = ppgtt_unbind_vma;
+			vma->bind_vma = ppgtt_bind_vma;
+		}
 		break;
 	case 5:
 	case 4:

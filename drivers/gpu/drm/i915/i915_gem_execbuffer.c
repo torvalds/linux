@@ -991,7 +991,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct i915_hw_context *ctx;
 	struct i915_address_space *vm;
 	const u32 ctx_id = i915_execbuffer2_get_context_id(*args);
-	u32 exec_start, exec_len;
+	u32 exec_start = args->batch_start_offset, exec_len;
 	u32 mask, flags;
 	int ret, mode, i;
 	bool need_relocs;
@@ -1112,9 +1112,9 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	i915_gem_context_reference(ctx);
 
-	/* HACK until we have full PPGTT */
-	/* vm = ctx->vm; */
-	vm = &dev_priv->gtt.base;
+	vm = ctx->vm;
+	if (!USES_FULL_PPGTT(dev))
+		vm = &dev_priv->gtt.base;
 
 	eb = eb_create(args);
 	if (eb == NULL) {
@@ -1170,6 +1170,11 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		vma->bind_vma(vma, batch_obj->cache_level, GLOBAL_BIND);
 	}
 
+	if (flags & I915_DISPATCH_SECURE)
+		exec_start += i915_gem_obj_ggtt_offset(batch_obj);
+	else
+		exec_start += i915_gem_obj_offset(batch_obj, vm);
+
 	ret = i915_gem_execbuffer_move_to_gpu(ring, &eb->vmas);
 	if (ret)
 		goto err;
@@ -1199,8 +1204,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			goto err;
 	}
 
-	exec_start = i915_gem_obj_offset(batch_obj, vm) +
-		args->batch_start_offset;
+
 	exec_len = args->batch_len;
 	if (cliprects) {
 		for (i = 0; i < args->num_cliprects; i++) {

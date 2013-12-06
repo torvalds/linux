@@ -2247,7 +2247,10 @@ request_to_vm(struct drm_i915_gem_request *request)
 	struct drm_i915_private *dev_priv = request->ring->dev->dev_private;
 	struct i915_address_space *vm;
 
-	vm = &dev_priv->gtt.base;
+	if (request->ctx)
+		vm = request->ctx->vm;
+	else
+		vm = &dev_priv->gtt.base;
 
 	return vm;
 }
@@ -2717,9 +2720,6 @@ int i915_vma_unbind(struct i915_vma *vma)
 	struct drm_i915_gem_object *obj = vma->obj;
 	drm_i915_private_t *dev_priv = obj->base.dev->dev_private;
 	int ret;
-
-	/* For now we only ever use 1 vma per object */
-	WARN_ON(!list_is_singular(&obj->vma_list));
 
 	if (list_empty(&vma->vma_link))
 		return 0;
@@ -3268,16 +3268,11 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 
 	i915_gem_object_pin_pages(obj);
 
-	BUG_ON(!i915_is_ggtt(vm));
-
 	vma = i915_gem_obj_lookup_or_create_vma(obj, vm);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto err_unpin;
 	}
-
-	/* For now we only ever use 1 vma per object */
-	WARN_ON(!list_is_singular(&obj->vma_list));
 
 search_free:
 	/* FIXME: Some tests are failing when they receive a reloc of 0. To
@@ -4182,9 +4177,6 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	if (obj->phys_obj)
 		i915_gem_detach_phys_object(dev, obj);
 
-	/* NB: 0 or 1 elements */
-	WARN_ON(!list_empty(&obj->vma_list) &&
-		!list_is_singular(&obj->vma_list));
 	list_for_each_entry_safe(vma, next, &obj->vma_list, vma_link) {
 		int ret;
 
@@ -4580,9 +4572,11 @@ init_ring_lists(struct intel_ring_buffer *ring)
 	INIT_LIST_HEAD(&ring->request_list);
 }
 
-static void i915_init_vm(struct drm_i915_private *dev_priv,
-			 struct i915_address_space *vm)
+void i915_init_vm(struct drm_i915_private *dev_priv,
+		  struct i915_address_space *vm)
 {
+	if (!i915_is_ggtt(vm))
+		drm_mm_init(&vm->mm, vm->start, vm->total);
 	vm->dev = dev_priv->dev;
 	INIT_LIST_HEAD(&vm->active_list);
 	INIT_LIST_HEAD(&vm->inactive_list);

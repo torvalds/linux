@@ -288,17 +288,15 @@ i915_gem_create_context(struct drm_device *dev,
 				DRM_DEBUG_DRIVER("Couldn't pin %d\n", ret);
 				goto err_destroy;
 			}
+
+			ctx->vm = &dev_priv->mm.aliasing_ppgtt->base;
 		}
 	} else if (USES_ALIASING_PPGTT(dev)) {
 		/* For platforms which only have aliasing PPGTT, we fake the
 		 * address space and refcounting. */
-		kref_get(&dev_priv->mm.aliasing_ppgtt->ref);
-	}
-
-	/* TODO: Until full ppgtt... */
-	if (USES_ALIASING_PPGTT(dev))
 		ctx->vm = &dev_priv->mm.aliasing_ppgtt->base;
-	else
+		kref_get(&dev_priv->mm.aliasing_ppgtt->ref);
+	} else
 		ctx->vm = &dev_priv->gtt.base;
 
 	return ctx;
@@ -500,7 +498,7 @@ int i915_gem_context_open(struct drm_device *dev, struct drm_file *file)
 
 	mutex_lock(&dev->struct_mutex);
 	file_priv->private_default_ctx =
-		i915_gem_create_context(dev, file_priv, false);
+		i915_gem_create_context(dev, file_priv, USES_FULL_PPGTT(dev));
 	mutex_unlock(&dev->struct_mutex);
 
 	if (IS_ERR(file_priv->private_default_ctx)) {
@@ -587,6 +585,7 @@ static int do_switch(struct intel_ring_buffer *ring,
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	struct i915_hw_context *from = ring->last_context;
+	struct i915_hw_ppgtt *ppgtt = ctx_to_ppgtt(to);
 	u32 hw_flags = 0;
 	int ret, i;
 
@@ -598,16 +597,14 @@ static int do_switch(struct intel_ring_buffer *ring,
 	if (from == to && from->last_ring == ring && !to->remap_slice)
 		return 0;
 
-	if (ring != &dev_priv->ring[RCS]) {
-		if (from)
-			i915_gem_context_unreference(from);
-		goto done;
+	/* Trying to pin first makes error handling easier. */
+	if (ring == &dev_priv->ring[RCS]) {
+		ret = i915_gem_obj_ggtt_pin(to->obj,
+					    get_context_alignment(ring->dev),
+					    false, false);
+		if (ret)
+			return ret;
 	}
-
-	ret = i915_gem_obj_ggtt_pin(to->obj, get_context_alignment(ring->dev),
-				    false, false);
-	if (ret)
-		return ret;
 
 	/*
 	 * Pin can switch back to the default context if we end up calling into
@@ -615,6 +612,18 @@ static int do_switch(struct intel_ring_buffer *ring,
 	 * switches to the default context. Hence we need to reload from here.
 	 */
 	from = ring->last_context;
+
+	if (USES_FULL_PPGTT(ring->dev)) {
+		ret = ppgtt->switch_mm(ppgtt, ring, false);
+		if (ret)
+			goto unpin_out;
+	}
+
+	if (ring != &dev_priv->ring[RCS]) {
+		if (from)
+			i915_gem_context_unreference(from);
+		goto done;
+	}
 
 	/*
 	 * Clear this page out of any CPU caches for coherent swap-in/out. Note
@@ -625,10 +634,8 @@ static int do_switch(struct intel_ring_buffer *ring,
 	 * XXX: We need a real interface to do this instead of trickery.
 	 */
 	ret = i915_gem_object_set_to_gtt_domain(to->obj, false);
-	if (ret) {
-		i915_gem_object_ggtt_unpin(to->obj);
-		return ret;
-	}
+	if (ret)
+		goto unpin_out;
 
 	if (!to->obj->has_global_gtt_mapping) {
 		struct i915_vma *vma = i915_gem_obj_to_vma(to->obj,
@@ -640,10 +647,8 @@ static int do_switch(struct intel_ring_buffer *ring,
 		hw_flags |= MI_RESTORE_INHIBIT;
 
 	ret = mi_set_context(ring, to, hw_flags);
-	if (ret) {
-		i915_gem_object_ggtt_unpin(to->obj);
-		return ret;
-	}
+	if (ret)
+		goto unpin_out;
 
 	for (i = 0; i < MAX_L3_SLICES; i++) {
 		if (!(to->remap_slice & (1<<i)))
@@ -688,6 +693,11 @@ done:
 	to->last_ring = ring;
 
 	return 0;
+
+unpin_out:
+	if (ring->id == RCS)
+		i915_gem_object_ggtt_unpin(to->obj);
+	return ret;
 }
 
 /**
@@ -736,7 +746,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	ctx = i915_gem_create_context(dev, file_priv, false);
+	ctx = i915_gem_create_context(dev, file_priv, USES_FULL_PPGTT(dev));
 	mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);

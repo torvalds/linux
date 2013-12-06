@@ -1831,7 +1831,9 @@ struct drm_i915_file_private {
 
 #define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 6)
 #define HAS_ALIASING_PPGTT(dev)	(INTEL_INFO(dev)->gen >= 6 && !IS_VALLEYVIEW(dev))
+#define HAS_PPGTT(dev)		(INTEL_INFO(dev)->gen >= 7 && !IS_VALLEYVIEW(dev) && !IS_BROADWELL(dev))
 #define USES_ALIASING_PPGTT(dev) intel_enable_ppgtt(dev, false)
+#define USES_FULL_PPGTT(dev)	intel_enable_ppgtt(dev, true)
 
 #define HAS_OVERLAY(dev)		(INTEL_INFO(dev)->has_overlay)
 #define OVERLAY_NEEDS_PHYSICAL(dev)	(INTEL_INFO(dev)->overlay_needs_physical)
@@ -2012,6 +2014,8 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			 const struct drm_i915_gem_object_ops *ops);
 struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 						  size_t size);
+void i915_init_vm(struct drm_i915_private *dev_priv,
+		  struct i915_address_space *vm);
 void i915_gem_free_object(struct drm_gem_object *obj);
 void i915_gem_vma_destroy(struct i915_vma *vma);
 
@@ -2290,7 +2294,8 @@ static inline bool intel_enable_ppgtt(struct drm_device *dev, bool full)
 	if (i915_enable_ppgtt == 0 || !HAS_ALIASING_PPGTT(dev))
 		return false;
 
-	BUG_ON(full);
+	if (i915_enable_ppgtt == 1 && full)
+		return false;
 
 #ifdef CONFIG_INTEL_IOMMU
 	/* Disable ppgtt on SNB if VT-d is on. */
@@ -2300,7 +2305,10 @@ static inline bool intel_enable_ppgtt(struct drm_device *dev, bool full)
 	}
 #endif
 
-	return HAS_ALIASING_PPGTT(dev);
+	if (full)
+		return HAS_PPGTT(dev);
+	else
+		return HAS_ALIASING_PPGTT(dev);
 }
 
 static inline void ppgtt_release(struct kref *kref)
