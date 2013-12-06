@@ -58,6 +58,23 @@
 
 #include "sh-sci.h"
 
+/* Offsets into the sci_port->irqs array */
+enum {
+	SCIx_ERI_IRQ,
+	SCIx_RXI_IRQ,
+	SCIx_TXI_IRQ,
+	SCIx_BRI_IRQ,
+	SCIx_NR_IRQS,
+
+	SCIx_MUX_IRQ = SCIx_NR_IRQS,	/* special case */
+};
+
+#define SCIx_IRQ_IS_MUXED(port)			\
+	((port)->irqs[SCIx_ERI_IRQ] ==	\
+	 (port)->irqs[SCIx_RXI_IRQ]) ||	\
+	((port)->irqs[SCIx_ERI_IRQ] &&	\
+	 ((port)->irqs[SCIx_RXI_IRQ] < 0))
+
 struct sci_port {
 	struct uart_port	port;
 
@@ -2094,36 +2111,27 @@ static int sci_init_single(struct platform_device *dev,
 	port->iotype	= UPIO_MEM;
 	port->line	= index;
 
-	if (dev->num_resources) {
-		/* Device has resources, use them. */
-		res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-		if (res == NULL)
-			return -ENOMEM;
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
+	if (res == NULL)
+		return -ENOMEM;
 
-		port->mapbase = res->start;
+	port->mapbase = res->start;
 
-		for (i = 0; i < ARRAY_SIZE(sci_port->irqs); ++i)
-			sci_port->irqs[i] = platform_get_irq(dev, i);
+	for (i = 0; i < ARRAY_SIZE(sci_port->irqs); ++i)
+		sci_port->irqs[i] = platform_get_irq(dev, i);
 
-		/* The SCI generates several interrupts. They can be muxed
-		 * together or connected to different interrupt lines. In the
-		 * muxed case only one interrupt resource is specified. In the
-		 * non-muxed case three or four interrupt resources are
-		 * specified, as the BRI interrupt is optional.
-		 */
-		if (sci_port->irqs[0] < 0)
-			return -ENXIO;
+	/* The SCI generates several interrupts. They can be muxed together or
+	 * connected to different interrupt lines. In the muxed case only one
+	 * interrupt resource is specified. In the non-muxed case three or four
+	 * interrupt resources are specified, as the BRI interrupt is optional.
+	 */
+	if (sci_port->irqs[0] < 0)
+		return -ENXIO;
 
-		if (sci_port->irqs[1] < 0) {
-			sci_port->irqs[1] = sci_port->irqs[0];
-			sci_port->irqs[2] = sci_port->irqs[0];
-			sci_port->irqs[3] = sci_port->irqs[0];
-		}
-	} else {
-		/* No resources, use old-style platform data. */
-		port->mapbase = p->mapbase;
-		for (i = 0; i < ARRAY_SIZE(sci_port->irqs); ++i)
-			sci_port->irqs[i] = p->irqs[i] ? p->irqs[i] : -ENXIO;
+	if (sci_port->irqs[1] < 0) {
+		sci_port->irqs[1] = sci_port->irqs[0];
+		sci_port->irqs[2] = sci_port->irqs[0];
+		sci_port->irqs[3] = sci_port->irqs[0];
 	}
 
 	if (p->regtype == SCIx_PROBE_REGTYPE) {

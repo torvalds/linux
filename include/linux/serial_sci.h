@@ -50,17 +50,6 @@
 /* HSSRR HSCIF */
 #define HSCIF_SRE	0x8000
 
-/* Offsets into the sci_port->irqs array */
-enum {
-	SCIx_ERI_IRQ,
-	SCIx_RXI_IRQ,
-	SCIx_TXI_IRQ,
-	SCIx_BRI_IRQ,
-	SCIx_NR_IRQS,
-
-	SCIx_MUX_IRQ = SCIx_NR_IRQS,	/* special case */
-};
-
 enum {
 	SCIx_PROBE_REGTYPE,
 
@@ -79,19 +68,6 @@ enum {
 	SCIx_NR_REGTYPES,
 };
 
-#define SCIx_IRQ_MUXED(irq)		\
-{					\
-	[SCIx_ERI_IRQ]	= (irq),	\
-	[SCIx_RXI_IRQ]	= (irq),	\
-	[SCIx_TXI_IRQ]	= (irq),	\
-	[SCIx_BRI_IRQ]	= (irq),	\
-}
-
-#define SCIx_IRQ_IS_MUXED(port)			\
-	((port)->irqs[SCIx_ERI_IRQ] ==	\
-	 (port)->irqs[SCIx_RXI_IRQ]) ||	\
-	((port)->irqs[SCIx_ERI_IRQ] &&	\
-	 ((port)->irqs[SCIx_RXI_IRQ] < 0))
 /*
  * SCI register subset common for all port types.
  * Not all registers will exist on all parts.
@@ -120,8 +96,6 @@ struct plat_sci_port_ops {
  * Platform device specific platform_data struct
  */
 struct plat_sci_port {
-	unsigned long	mapbase;		/* resource base */
-	unsigned int	irqs[SCIx_NR_IRQS];	/* ERI, RXI, TXI, BRI */
 	unsigned int	type;			/* SCI / SCIF / IRDA / HSCIF */
 	upf_t		flags;			/* UPF_* flags */
 	unsigned long	capabilities;		/* Port features/capabilities */
