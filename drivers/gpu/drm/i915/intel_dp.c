@@ -1144,7 +1144,9 @@ static void ironlake_panel_vdd_off_sync(struct intel_dp *intel_dp)
 		/* Make sure sequencer is idle before allowing subsequent activity */
 		DRM_DEBUG_KMS("PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
 		I915_READ(pp_stat_reg), I915_READ(pp_ctrl_reg));
-		msleep(intel_dp->panel_power_down_delay);
+
+		if ((pp & POWER_TARGET_ON) == 0)
+			msleep(intel_dp->panel_power_cycle_delay);
 
 		intel_runtime_pm_put(dev_priv);
 	}
