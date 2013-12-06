@@ -10,15 +10,6 @@
 
 #define SCIx_NOT_SUPPORTED	(-1)
 
-enum {
-	SCBRR_ALGO_NONE,	/* Compute sampling rate in the driver */
-	SCBRR_ALGO_1,		/* clk / (16 * bps) */
-	SCBRR_ALGO_2,		/* DIV_ROUND_CLOSEST(clk, 32 * bps) - 1 */
-	SCBRR_ALGO_3,		/* clk / (8 * bps) */
-	SCBRR_ALGO_4,		/* DIV_ROUND_CLOSEST(clk, 16 * bps) - 1 */
-	SCBRR_ALGO_6,		/* HSCIF variable sample rate algorithm */
-};
-
 #define SCSCR_TIE	(1 << 7)
 #define SCSCR_RIE	(1 << 6)
 #define SCSCR_TE	(1 << 5)
@@ -136,7 +127,6 @@ struct plat_sci_port {
 	unsigned long	capabilities;		/* Port features/capabilities */
 
 	unsigned int	sampling_rate;
-	unsigned int	scbrr_algo_id;		/* SCBRR calculation algo */
 	unsigned int	scscr;			/* SCSCR initialization */
 
 	/*
