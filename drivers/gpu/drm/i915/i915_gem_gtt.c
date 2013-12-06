@@ -1033,6 +1033,7 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
+	struct i915_address_space *vm;
 
 	i915_check_and_clear_faults(dev);
 
@@ -1057,8 +1058,20 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 		vma->bind_vma(vma, obj->cache_level, GLOBAL_BIND);
 	}
 
-	if (dev_priv->mm.aliasing_ppgtt)
-		gen6_write_pdes(dev_priv->mm.aliasing_ppgtt);
+
+	if (INTEL_INFO(dev)->gen >= 8)
+		return;
+
+	list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
+		/* TODO: Perhaps it shouldn't be gen6 specific */
+		if (i915_is_ggtt(vm)) {
+			if (dev_priv->mm.aliasing_ppgtt)
+				gen6_write_pdes(dev_priv->mm.aliasing_ppgtt);
+			continue;
+		}
+
+		gen6_write_pdes(container_of(vm, struct i915_hw_ppgtt, base));
+	}
 
 	i915_gem_chipset_flush(dev);
 }
