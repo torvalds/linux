@@ -20,7 +20,6 @@
 static struct plat_sci_port scif0_platform_data = {
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_CKE1,
-	.scbrr_algo_id	= SCBRR_ALGO_1,
 	.type		= PORT_SCIF,
 	.regtype	= SCIx_SH4_SCIF_FIFODATA_REGTYPE,
 };
@@ -43,7 +42,6 @@ static struct platform_device scif0_device = {
 static struct plat_sci_port scif1_platform_data = {
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_CKE1,
-	.scbrr_algo_id	= SCBRR_ALGO_1,
 	.type		= PORT_SCIF,
 	.regtype	= SCIx_SH4_SCIF_FIFODATA_REGTYPE,
 };
@@ -419,9 +417,7 @@ void __init plat_early_device_setup(void)
 {
 	if (mach_is_sh2007()) {
 		scif0_platform_data.scscr &= ~SCSCR_CKE1;
-		scif0_platform_data.scbrr_algo_id = SCBRR_ALGO_2;
 		scif1_platform_data.scscr &= ~SCSCR_CKE1;
-		scif1_platform_data.scbrr_algo_id = SCBRR_ALGO_2;
 	}
 
 	early_platform_add_devices(sh7780_early_devices,
