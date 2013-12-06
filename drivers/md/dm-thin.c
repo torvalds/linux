@@ -144,6 +144,7 @@ struct pool_features {
 	bool zero_new_blocks:1;
 	bool discard_enabled:1;
 	bool discard_passdown:1;
+	bool error_if_no_space:1;
 };
 
 struct thin_c;
@@ -1440,6 +1441,9 @@ static void set_no_free_space(struct pool *pool)
 {
 	unsigned long flags;
 
+	if (pool->pf.error_if_no_space)
+		return;
+
 	spin_lock_irqsave(&pool->lock, flags);
 	pool->no_free_space = true;
 	spin_unlock_irqrestore(&pool->lock, flags);
@@ -1723,6 +1727,7 @@ static void pool_features_init(struct pool_features *pf)
 	pf->zero_new_blocks = true;
 	pf->discard_enabled = true;
 	pf->discard_passdown = true;
+	pf->error_if_no_space = false;
 }
 
 static void __pool_destroy(struct pool *pool)
@@ -1968,6 +1973,9 @@ static int parse_pool_features(struct dm_arg_set *as, struct pool_features *pf,
 		else if (!strcasecmp(arg_name, "read_only"))
 			pf->mode = PM_READ_ONLY;
 
+		else if (!strcasecmp(arg_name, "error_if_no_space"))
+			pf->error_if_no_space = true;
+
 		else {
 			ti->error = "Unrecognised pool feature requested";
 			r = -EINVAL;
@@ -2038,6 +2046,8 @@ static dm_block_t calc_metadata_threshold(struct pool_c *pt)
  *	     skip_block_zeroing: skips the zeroing of newly-provisioned blocks.
  *	     ignore_discard: disable discard
  *	     no_discard_passdown: don't pass discards down to the data device
+ *	     read_only: Don't allow any changes to be made to the pool metadata.
+ *	     error_if_no_space: error IOs, instead of queueing, if no space.
  */
 static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 {
@@ -2555,7 +2565,8 @@ static void emit_flags(struct pool_features *pf, char *result,
 		       unsigned sz, unsigned maxlen)
 {
 	unsigned count = !pf->zero_new_blocks + !pf->discard_enabled +
-		!pf->discard_passdown + (pf->mode == PM_READ_ONLY);
+		!pf->discard_passdown + (pf->mode == PM_READ_ONLY) +
+		pf->error_if_no_space;
 	DMEMIT("%u ", count);
 
 	if (!pf->zero_new_blocks)
@@ -2569,6 +2580,9 @@ static void emit_flags(struct pool_features *pf, char *result,
 
 	if (pf->mode == PM_READ_ONLY)
 		DMEMIT("read_only ");
+
+	if (pf->error_if_no_space)
+		DMEMIT("error_if_no_space ");
 }
 
 /*
@@ -2663,11 +2677,16 @@ static void pool_status(struct dm_target *ti, status_type_t type,
 			DMEMIT("rw ");
 
 		if (!pool->pf.discard_enabled)
-			DMEMIT("ignore_discard");
+			DMEMIT("ignore_discard ");
 		else if (pool->pf.discard_passdown)
-			DMEMIT("discard_passdown");
+			DMEMIT("discard_passdown ");
 		else
-			DMEMIT("no_discard_passdown");
+			DMEMIT("no_discard_passdown ");
+
+		if (pool->pf.error_if_no_space)
+			DMEMIT("error_if_no_space ");
+		else
+			DMEMIT("queue_if_no_space ");
 
 		break;
 
@@ -2766,7 +2785,7 @@ static struct target_type pool_target = {
 	.name = "thin-pool",
 	.features = DM_TARGET_SINGLETON | DM_TARGET_ALWAYS_WRITEABLE |
 		    DM_TARGET_IMMUTABLE,
-	.version = {1, 9, 0},
+	.version = {1, 10, 0},
 	.module = THIS_MODULE,
 	.ctr = pool_ctr,
 	.dtr = pool_dtr,
@@ -3053,7 +3072,7 @@ static int thin_iterate_devices(struct dm_target *ti,
 
 static struct target_type thin_target = {
 	.name = "thin",
-	.version = {1, 9, 0},
+	.version = {1, 10, 0},
 	.module	= THIS_MODULE,
 	.ctr = thin_ctr,
 	.dtr = thin_dtr,
