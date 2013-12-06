@@ -342,10 +342,6 @@
 #define BGMAC_CHIPCTL_1_SW_TYPE_RGMII		0x000000C0
 #define BGMAC_CHIPCTL_1_RXC_DLL_BYPASS		0x00010000
 
-#define BGMAC_SPEED_10				0x0001
-#define BGMAC_SPEED_100				0x0002
-#define BGMAC_SPEED_1000			0x0004
-
 #define BGMAC_WEIGHT	64
 
 #define ETHER_MAX_LEN   1518
@@ -402,6 +398,7 @@ struct bgmac {
 	struct net_device *net_dev;
 	struct napi_struct napi;
 	struct mii_bus *mii_bus;
+	struct phy_device *phy_dev;
 
 	/* DMA */
 	struct bgmac_dma_ring tx_ring[BGMAC_MAX_TX_RINGS];
@@ -416,10 +413,9 @@ struct bgmac {
 	u32 int_mask;
 	u32 int_status;
 
-	/* Speed-related */
-	int speed;
-	bool autoneg;
-	bool full_duplex;
+	/* Current MAC state */
+	int mac_speed;
+	int mac_duplex;
 
 	u8 phyaddr;
 	bool has_robosw;
