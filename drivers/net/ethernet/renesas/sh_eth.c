@@ -1704,7 +1704,10 @@ static int sh_eth_phy_start(struct net_device *ndev)
 		return ret;
 
 	/* reset phy - this also wakes it from PDOWN */
-	phy_write(mdp->phydev, MII_BMCR, BMCR_RESET);
+	ret = phy_init_hw(mdp->phydev);
+	if (ret)
+		return ret;
+
 	phy_start(mdp->phydev);
 
 	return 0;
