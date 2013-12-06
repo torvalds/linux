@@ -374,6 +374,8 @@ struct module
 	/* Constructor functions. */
 	ctor_fn_t *ctors;
 	unsigned int num_ctors;
+	ctor_fn_t *init_array;
+	unsigned int num_init_array;
 #endif
 };
 #ifndef MODULE_ARCH_INIT

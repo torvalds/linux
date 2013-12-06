@@ -2753,6 +2753,9 @@ static void find_module_sections(struct module *mod, struct load_info *info)
 #ifdef CONFIG_CONSTRUCTORS
 	mod->ctors = section_objs(info, ".ctors",
 				  sizeof(*mod->ctors), &mod->num_ctors);
+	mod->init_array = section_objs(info, ".init_array",
+				  sizeof(*mod->init_array),
+				  &mod->num_init_array);
 #endif
 
 #ifdef CONFIG_TRACEPOINTS
@@ -3027,6 +3030,9 @@ static void do_mod_ctors(struct module *mod)
 
 	for (i = 0; i < mod->num_ctors; i++)
 		mod->ctors[i]();
+
+	for (i = 0; i < mod->num_init_array; i++)
+		mod->init_array[i]();
 #endif
 }
 
