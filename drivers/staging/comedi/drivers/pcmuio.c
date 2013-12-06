@@ -354,38 +354,24 @@ done:
 
 static int pcmuio_handle_asic_interrupt(struct comedi_device *dev, int asic)
 {
-	struct pcmuio_subdev_private *subpriv;
+	/* there are could be two asics so we can't use dev->read_subdev */
+	struct comedi_subdevice *s = &dev->subdevices[asic * 2];
 	unsigned long iobase = dev->iobase + (asic * PCMUIO_ASIC_IOSIZE);
-	unsigned int triggered = 0;
-	int got1 = 0;
-	unsigned char int_pend;
-	int i;
+	unsigned int val;
 
-	int_pend = inb(iobase + PCMUIO_INT_PENDING_REG) & 0x07;
-	if (int_pend) {
-		triggered = pcmuio_read(dev, asic, PCMUIO_PAGE_INT_ID, 0);
-		pcmuio_write(dev, 0, asic, PCMUIO_PAGE_INT_ID, 0);
+	/* are there any interrupts pending */
+	val = inb(iobase + PCMUIO_INT_PENDING_REG) & 0x07;
+	if (!val)
+		return 0;
 
-		++got1;
-	}
+	/* get, and clear, the pending interrupts */
+	val = pcmuio_read(dev, asic, PCMUIO_PAGE_INT_ID, 0);
+	pcmuio_write(dev, 0, asic, PCMUIO_PAGE_INT_ID, 0);
 
-	if (triggered) {
-		struct comedi_subdevice *s;
-		/* TODO here: dispatch io lines to subdevs with commands.. */
-		for (i = 0; i < dev->n_subdevices; i++) {
-			s = &dev->subdevices[i];
-			subpriv = s->private;
-			if (subpriv->intr.asic == asic) {
-				/*
-				 * This is an interrupt subdev, and it
-				 * matches this asic!
-				 */
-				pcmuio_handle_intr_subdev(dev, s,
-							  triggered);
-			}
-		}
-	}
-	return got1;
+	/* handle the pending interrupts */
+	pcmuio_handle_intr_subdev(dev, s, val);
+
+	return 1;
 }
 
 static irqreturn_t pcmuio_interrupt(int irq, void *d)
