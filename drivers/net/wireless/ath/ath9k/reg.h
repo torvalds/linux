@@ -883,9 +883,6 @@
 
 #define AR_SREV_9330(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9330))
-#define AR_SREV_9330_10(_ah) \
-	(AR_SREV_9330((_ah)) && \
-	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9330_10))
 #define AR_SREV_9330_11(_ah) \
 	(AR_SREV_9330((_ah)) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9330_11))
