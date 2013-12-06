@@ -176,11 +176,6 @@ create_hw_context(struct drm_device *dev,
 			goto err_out;
 	}
 
-	/* The ring associated with the context object is handled by the normal
-	 * object tracking code. We give an initial ring value simple to pass an
-	 * assertion in the context switch code.
-	 */
-	ctx->ring = &dev_priv->ring[RCS];
 	list_add_tail(&ctx->link, &dev_priv->context_list);
 
 	/* Default context will never have a file_priv */
@@ -208,7 +203,8 @@ err_out:
 
 static inline bool is_default_context(struct i915_hw_context *ctx)
 {
-	return (ctx == ctx->ring->default_context);
+	/* Cheap trick to determine default contexts */
+	return ctx->file_priv ? false : true;
 }
 
 /**
@@ -338,6 +334,7 @@ void i915_gem_context_fini(struct drm_device *dev)
 			i915_gem_context_unreference(ring->last_context);
 
 		ring->default_context = NULL;
+		ring->last_context = NULL;
 	}
 
 	i915_gem_object_ggtt_unpin(dctx->obj);
@@ -467,7 +464,7 @@ static int do_switch(struct intel_ring_buffer *ring,
 		BUG_ON(!i915_gem_obj_is_pinned(from->obj));
 	}
 
-	if (from == to && !to->remap_slice)
+	if (from == to && from->last_ring == ring && !to->remap_slice)
 		return 0;
 
 	if (ring != &dev_priv->ring[RCS]) {
@@ -547,6 +544,7 @@ done:
 	i915_gem_context_reference(to);
 	ring->last_context = to;
 	to->is_initialized = true;
+	to->last_ring = ring;
 
 	return 0;
 }
