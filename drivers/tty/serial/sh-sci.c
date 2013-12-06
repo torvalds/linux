@@ -2133,28 +2133,36 @@ static int sci_init_single(struct platform_device *dev,
 			sci_port->irqs[i] = p->irqs[i] ? p->irqs[i] : -ENXIO;
 	}
 
-	switch (p->type) {
-	case PORT_SCIFB:
-		port->fifosize = 256;
-		break;
-	case PORT_HSCIF:
-		port->fifosize = 128;
-		break;
-	case PORT_SCIFA:
-		port->fifosize = 64;
-		break;
-	case PORT_SCIF:
-		port->fifosize = 16;
-		break;
-	default:
-		port->fifosize = 1;
-		break;
-	}
-
 	if (p->regtype == SCIx_PROBE_REGTYPE) {
 		ret = sci_probe_regmap(p);
 		if (unlikely(ret))
 			return ret;
+	}
+
+	switch (p->type) {
+	case PORT_SCIFB:
+		port->fifosize = 256;
+		sci_port->overrun_bit = 9;
+		break;
+	case PORT_HSCIF:
+		port->fifosize = 128;
+		sci_port->overrun_bit = 0;
+		break;
+	case PORT_SCIFA:
+		port->fifosize = 64;
+		sci_port->overrun_bit = 9;
+		break;
+	case PORT_SCIF:
+		port->fifosize = 16;
+		if (p->regtype == SCIx_SH7705_SCIF_REGTYPE)
+			sci_port->overrun_bit = 9;
+		else
+			sci_port->overrun_bit = 0;
+		break;
+	default:
+		port->fifosize = 1;
+		sci_port->overrun_bit = 5;
+		break;
 	}
 
 	if (!early) {
@@ -2194,12 +2202,6 @@ static int sci_init_single(struct platform_device *dev,
 	 * Establish sensible defaults for the overrun detection, unless
 	 * the part has explicitly disabled support for it.
 	 */
-	if (p->type == PORT_SCI)
-		sci_port->overrun_bit = 5;
-	else if (p->scbrr_algo_id == SCBRR_ALGO_4)
-		sci_port->overrun_bit = 9;
-	else
-		sci_port->overrun_bit = 0;
 
 	/*
 	 * Make the error mask inclusive of overrun detection, if
