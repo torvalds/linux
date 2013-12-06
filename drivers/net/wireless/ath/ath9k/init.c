@@ -554,7 +554,7 @@ static void ath9k_init_misc(struct ath_softc *sc)
 	sc->spec_config.fft_period = 0xF;
 }
 
-static void ath9k_init_platform(struct ath_softc *sc)
+static void ath9k_init_pcoem_platform(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
@@ -664,6 +664,27 @@ static void ath9k_eeprom_release(struct ath_softc *sc)
 	release_firmware(sc->sc_ah->eeprom_blob);
 }
 
+static int ath9k_init_soc_platform(struct ath_softc *sc)
+{
+	struct ath9k_platform_data *pdata = sc->dev->platform_data;
+	struct ath_hw *ah = sc->sc_ah;
+	int ret = 0;
+
+	if (!pdata)
+		return 0;
+
+	if (pdata->eeprom_name) {
+		ret = ath9k_eeprom_request(sc, pdata->eeprom_name);
+		if (ret)
+			return ret;
+	}
+
+	if (pdata->tx_gain_buffalo)
+		ah->config.tx_gain_buffalo = true;
+
+	return ret;
+}
+
 static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 			    const struct ath_bus_ops *bus_ops)
 {
@@ -717,7 +738,11 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	/*
 	 * Platform quirks.
 	 */
-	ath9k_init_platform(sc);
+	ath9k_init_pcoem_platform(sc);
+
+	ret = ath9k_init_soc_platform(sc);
+	if (ret)
+		return ret;
 
 	/*
 	 * Enable WLAN/BT RX Antenna diversity only when:
@@ -731,7 +756,6 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 		common->bt_ant_diversity = 1;
 
 	spin_lock_init(&common->cc_lock);
-
 	spin_lock_init(&sc->sc_serial_rw);
 	spin_lock_init(&sc->sc_pm_lock);
 	mutex_init(&sc->mutex);
@@ -752,12 +776,6 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	 */
 	ath_read_cachesize(common, &csz);
 	common->cachelsz = csz << 2; /* convert to bytes */
-
-	if (pdata && pdata->eeprom_name) {
-		ret = ath9k_eeprom_request(sc, pdata->eeprom_name);
-		if (ret)
-			return ret;
-	}
 
 	/* Initializes the hardware for all supported chipsets */
 	ret = ath9k_hw_init(ah);

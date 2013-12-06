@@ -17,6 +17,7 @@
 #include "hw.h"
 #include "ar9003_mac.h"
 #include "ar9003_2p2_initvals.h"
+#include "ar9003_buffalo_initvals.h"
 #include "ar9485_initvals.h"
 #include "ar9340_initvals.h"
 #include "ar9330_1p1_initvals.h"
@@ -592,9 +593,14 @@ static void ar9003_tx_gain_table_mode3(struct ath_hw *ah)
 	else if (AR_SREV_9565(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			       ar9565_1p0_modes_high_power_tx_gain_table);
-	else
-		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			ar9300Modes_high_power_tx_gain_table_2p2);
+	else {
+		if (ah->config.tx_gain_buffalo)
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
+				       ar9300Modes_high_power_tx_gain_table_buffalo);
+		else
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
+				       ar9300Modes_high_power_tx_gain_table_2p2);
+	}
 }
 
 static void ar9003_tx_gain_table_mode4(struct ath_hw *ah)
