@@ -209,6 +209,10 @@ config PINCTRL_MSM
 	select PINCONF
 	select GENERIC_PINCONF
 
+config PINCTRL_MSM8X74
+	bool "Qualcomm 8x74 pin controller driver"
+	select PINCTRL_MSM
+
 config PINCTRL_NOMADIK
 	bool "Nomadik pin controller driver"
 	depends on ARCH_U8500 || ARCH_NOMADIK
