@@ -482,6 +482,7 @@ static void i915_error_state_free(struct kref *error_ref)
 static struct drm_i915_error_object *
 i915_error_object_create_sized(struct drm_i915_private *dev_priv,
 			       struct drm_i915_gem_object *src,
+			       struct i915_address_space *vm,
 			       const int num_pages)
 {
 	struct drm_i915_error_object *dst;
@@ -495,7 +496,7 @@ i915_error_object_create_sized(struct drm_i915_private *dev_priv,
 	if (dst == NULL)
 		return NULL;
 
-	reloc_offset = dst->gtt_offset = i915_gem_obj_ggtt_offset(src);
+	reloc_offset = dst->gtt_offset = i915_gem_obj_offset(src, vm);
 	for (i = 0; i < num_pages; i++) {
 		unsigned long flags;
 		void *d;
@@ -556,8 +557,12 @@ unwind:
 	kfree(dst);
 	return NULL;
 }
-#define i915_error_object_create(dev_priv, src) \
-	i915_error_object_create_sized((dev_priv), (src), \
+#define i915_error_object_create(dev_priv, src, vm) \
+	i915_error_object_create_sized((dev_priv), (src), (vm), \
+				       (src)->base.size>>PAGE_SHIFT)
+
+#define i915_error_ggtt_object_create(dev_priv, src) \
+	i915_error_object_create_sized((dev_priv), (src), &(dev_priv)->gtt.base, \
 				       (src)->base.size>>PAGE_SHIFT)
 
 static void capture_bo(struct drm_i915_error_buffer *err,
@@ -670,7 +675,7 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 		obj = ring->scratch.obj;
 		if (acthd >= i915_gem_obj_ggtt_offset(obj) &&
 		    acthd < i915_gem_obj_ggtt_offset(obj) + obj->base.size)
-			return i915_error_object_create(dev_priv, obj);
+			return i915_error_ggtt_object_create(dev_priv, obj);
 	}
 
 	seqno = ring->get_seqno(ring, false);
@@ -689,7 +694,7 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 			/* We need to copy these to an anonymous buffer as the simplest
 			 * method to avoid being overwritten by userspace.
 			 */
-			return i915_error_object_create(dev_priv, obj);
+			return i915_error_object_create(dev_priv, obj, vm);
 		}
 	}
 
@@ -765,7 +770,9 @@ static void i915_gem_record_active_context(struct intel_ring_buffer *ring,
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
 		if ((error->ccid & PAGE_MASK) == i915_gem_obj_ggtt_offset(obj)) {
 			ering->ctx = i915_error_object_create_sized(dev_priv,
-								    obj, 1);
+								    obj,
+								    &dev_priv->gtt.base,
+								    1);
 			break;
 		}
 	}
@@ -786,7 +793,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 			i915_error_first_batchbuffer(dev_priv, ring);
 
 		error->ring[i].ringbuffer =
-			i915_error_object_create(dev_priv, ring->obj);
+			i915_error_ggtt_object_create(dev_priv, ring->obj);
 
 
 		i915_gem_record_active_context(ring, error, &error->ring[i]);
