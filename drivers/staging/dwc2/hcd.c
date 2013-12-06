@@ -355,11 +355,25 @@ static int dwc2_hcd_urb_enqueue(struct dwc2_hsotg *hsotg,
 	unsigned long flags;
 	u32 intr_mask;
 	int retval;
+	int dev_speed;
 
 	if (!hsotg->flags.b.port_connect_status) {
 		/* No longer connected */
 		dev_err(hsotg->dev, "Not connected\n");
 		return -ENODEV;
+	}
+
+	dev_speed = dwc2_host_get_speed(hsotg, urb->priv);
+
+	/* Some configurations cannot support LS traffic on a FS root port */
+	if ((dev_speed == USB_SPEED_LOW) &&
+	    (hsotg->hw_params.fs_phy_type == GHWCFG2_FS_PHY_TYPE_DEDICATED) &&
+	    (hsotg->hw_params.hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI)) {
+		u32 hprt0 = readl(hsotg->regs + HPRT0);
+		u32 prtspd = (hprt0 & HPRT0_SPD_MASK) >> HPRT0_SPD_SHIFT;
+
+		if (prtspd == HPRT0_SPD_FULL_SPEED)
+			return -ENODEV;
 	}
 
 	qtd = kzalloc(sizeof(*qtd), mem_flags);
