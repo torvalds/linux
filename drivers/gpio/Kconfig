@@ -381,6 +381,14 @@ config GPIO_ARIZONA
 	help
 	  Support for GPIOs on Wolfson Arizona class devices.
 
+config GPIO_LP3943
+	tristate "TI/National Semiconductor LP3943 GPIO expander"
+	depends on MFD_LP3943
+	help
+	  GPIO driver for LP3943 MFD.
+	  LP3943 can be used as a GPIO expander which provides up to 16 GPIOs.
+	  Open drain outputs are required for this usage.
+
 config GPIO_MAX7300
 	tristate "Maxim MAX7300 GPIO expander"
 	depends on I2C
