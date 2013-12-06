@@ -738,6 +738,17 @@ config MFD_DM355EVM_MSP
 	  boards.  MSP430 firmware manages resets and power sequencing,
 	  inputs from buttons and the IR remote, LEDs, an RTC, and more.
 
+config MFD_LP3943
+	tristate "TI/National Semiconductor LP3943 MFD Driver"
+	depends on I2C
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Support for the TI/National Semiconductor LP3943.
+	  This driver consists of GPIO and PWM drivers.
+	  With these functionalities, it can be used for LED string control or
+	  general usage such like a GPIO controller and a PWM controller.
+
 config MFD_LP8788
 	bool "TI LP8788 Power Management Unit Driver"
 	depends on I2C=y
