@@ -22,7 +22,7 @@
 #include <linux/of_irq.h>
 
 #include <asm/exception.h>
-#include <asm/mach/irq.h>
+#include <asm/hardirq.h>
 
 #include "irqchip.h"
 
