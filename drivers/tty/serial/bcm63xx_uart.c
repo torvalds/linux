@@ -29,8 +29,7 @@
 #include <linux/sysrq.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
-
-#include <bcm63xx_regs.h>
+#include <linux/serial_bcm63xx.h>
 
 #define BCM63XX_NR_UARTS	2
 
