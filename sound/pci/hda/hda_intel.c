@@ -431,6 +431,8 @@ struct azx_dev {
 	struct timecounter  azx_tc;
 	struct cyclecounter azx_cc;
 
+	int delay_negative_threshold;
+
 #ifdef CONFIG_SND_HDA_DSP_LOADER
 	struct mutex dsp_mutex;
 #endif
@@ -2195,6 +2197,15 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 			goto unlock;
 	}
 
+	/* when LPIB delay correction gives a small negative value,
+	 * we ignore it; currently set the threshold statically to
+	 * 64 frames
+	 */
+	if (runtime->period_size > 64)
+		azx_dev->delay_negative_threshold = -frames_to_bytes(runtime, 64);
+	else
+		azx_dev->delay_negative_threshold = 0;
+
 	/* wallclk has 24Mhz clock source */
 	azx_dev->period_wallclk = (((runtime->period_size * 24000) /
 						runtime->rate) * 1000);
@@ -2447,8 +2458,12 @@ static unsigned int azx_get_position(struct azx *chip,
 			delay = pos - lpib_pos;
 		else
 			delay = lpib_pos - pos;
-		if (delay < 0)
-			delay += azx_dev->bufsize;
+		if (delay < 0) {
+			if (delay >= azx_dev->delay_negative_threshold)
+				delay = 0;
+			else
+				delay += azx_dev->bufsize;
+		}
 		if (delay >= azx_dev->period_bytes) {
 			snd_printk(KERN_WARNING SFX
 				   "%s: Unstable LPIB (%d >= %d); "
