@@ -2150,6 +2150,9 @@ static void kill_all_requests(struct s3c_hsotg *hsotg,
 		s3c_hsotg_complete_request(hsotg, ep, req,
 					   result);
 	}
+	if(hsotg->dedicated_fifos)
+		if ((readl(hsotg->regs + DTXFSTS(ep->index)) & 0xffff) * 4 < 3072)
+			s3c_hsotg_txfifo_flush(hsotg, ep->index);
 }
 
 #define call_gadget(_hs, _entry) \
