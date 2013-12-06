@@ -1173,9 +1173,15 @@ xfs_zero_remaining_bytes(
 	xfs_buf_unlock(bp);
 
 	for (offset = startoff; offset <= endoff; offset = lastoffset + 1) {
+		uint lock_mode;
+
 		offset_fsb = XFS_B_TO_FSBT(mp, offset);
 		nimap = 1;
+
+		lock_mode = xfs_ilock_data_map_shared(ip);
 		error = xfs_bmapi_read(ip, offset_fsb, 1, &imap, &nimap, 0);
+		xfs_iunlock(ip, lock_mode);
+
 		if (error || nimap < 1)
 			break;
 		ASSERT(imap.br_blockcount >= 1);
