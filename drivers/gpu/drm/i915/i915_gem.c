@@ -2008,13 +2008,17 @@ static void
 i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
-	struct i915_address_space *ggtt_vm = &dev_priv->gtt.base;
-	struct i915_vma *vma = i915_gem_obj_to_vma(obj, ggtt_vm);
+	struct i915_address_space *vm;
+	struct i915_vma *vma;
 
 	BUG_ON(obj->base.write_domain & ~I915_GEM_GPU_DOMAINS);
 	BUG_ON(!obj->active);
 
-	list_move_tail(&vma->mm_list, &ggtt_vm->inactive_list);
+	list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
+		vma = i915_gem_obj_to_vma(obj, vm);
+		if (vma && !list_empty(&vma->mm_list))
+			list_move_tail(&vma->mm_list, &vm->inactive_list);
+	}
 
 	list_del_init(&obj->ring_list);
 	obj->ring = NULL;
