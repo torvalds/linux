@@ -10,7 +10,6 @@
 #include <linux/libfdt.h>
 #include <linux/of_platform.h>
 #include <linux/of_fdt.h>
-#include <linux/bootmem.h>
 
 #include <asm/prom.h>
 #include <asm/fw/fw.h>
@@ -98,18 +97,10 @@ void __init plat_mem_setup(void)
 
 void __init device_tree_init(void)
 {
-	unsigned long base, size;
-
 	if (!initial_boot_params)
 		return;
 
-	base = virt_to_phys((void *)initial_boot_params);
-	size = be32_to_cpu(initial_boot_params->totalsize);
-
-	/* Before we do anything, lets reserve the dt blob */
-	reserve_bootmem(base, size, BOOTMEM_DEFAULT);
-
-	unflatten_device_tree();
+	unflatten_and_copy_device_tree();
 }
 
 static int __init customize_machine(void)
