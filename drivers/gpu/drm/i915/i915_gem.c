@@ -4859,6 +4859,7 @@ i915_gem_file_idle_work_handler(struct work_struct *work)
 int i915_gem_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv;
+	int ret;
 
 	DRM_DEBUG_DRIVER("\n");
 
@@ -4874,9 +4875,11 @@ int i915_gem_open(struct drm_device *dev, struct drm_file *file)
 	INIT_DELAYED_WORK(&file_priv->mm.idle_work,
 			  i915_gem_file_idle_work_handler);
 
-	idr_init(&file_priv->context_idr);
+	ret = i915_gem_context_open(dev, file);
+	if (ret)
+		kfree(file_priv);
 
-	return 0;
+	return ret;
 }
 
 static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)

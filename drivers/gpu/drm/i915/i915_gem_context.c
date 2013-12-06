@@ -341,9 +341,24 @@ i915_gem_context_get_hang_stats(struct drm_device *dev,
 	return &ctx->hang_stats;
 }
 
+int i915_gem_context_open(struct drm_device *dev, struct drm_file *file)
+{
+	struct drm_i915_file_private *file_priv = file->driver_priv;
+
+	if (!HAS_HW_CONTEXTS(dev))
+		return 0;
+
+	idr_init(&file_priv->context_idr);
+
+	return 0;
+}
+
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
+
+	if (!HAS_HW_CONTEXTS(dev))
+		return;
 
 	mutex_lock(&dev->struct_mutex);
 	idr_for_each(&file_priv->context_idr, context_idr_cleanup, NULL);
