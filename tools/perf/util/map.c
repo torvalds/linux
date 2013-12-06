@@ -11,6 +11,7 @@
 #include "strlist.h"
 #include "vdso.h"
 #include "build-id.h"
+#include "util.h"
 #include <linux/string.h>
 
 const char *map_type__name[MAP__NR_TYPES] = {
@@ -250,6 +251,22 @@ size_t map__fprintf_dsoname(struct map *map, FILE *fp)
 	}
 
 	return fprintf(fp, "%s", dsoname);
+}
+
+int map__fprintf_srcline(struct map *map, u64 addr, const char *prefix,
+			 FILE *fp)
+{
+	char *srcline;
+	int ret = 0;
+
+	if (map && map->dso) {
+		srcline = get_srcline(map->dso,
+				      map__rip_2objdump(map, addr));
+		if (srcline != SRCLINE_UNKNOWN)
+			ret = fprintf(fp, "%s%s", prefix, srcline);
+		free_srcline(srcline);
+	}
+	return ret;
 }
 
 /**

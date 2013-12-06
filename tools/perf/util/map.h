@@ -103,6 +103,8 @@ struct map *map__clone(struct map *map);
 int map__overlap(struct map *l, struct map *r);
 size_t map__fprintf(struct map *map, FILE *fp);
 size_t map__fprintf_dsoname(struct map *map, FILE *fp);
+int map__fprintf_srcline(struct map *map, u64 addr, const char *prefix,
+			 FILE *fp);
 
 int map__load(struct map *map, symbol_filter_t filter);
 struct symbol *map__find_symbol(struct map *map,

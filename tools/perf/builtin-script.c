@@ -43,6 +43,7 @@ enum perf_output_field {
 	PERF_OUTPUT_DSO             = 1U << 9,
 	PERF_OUTPUT_ADDR            = 1U << 10,
 	PERF_OUTPUT_SYMOFFSET       = 1U << 11,
+	PERF_OUTPUT_SRCLINE         = 1U << 12,
 };
 
 struct output_option {
@@ -61,6 +62,7 @@ struct output_option {
 	{.str = "dso",   .field = PERF_OUTPUT_DSO},
 	{.str = "addr",  .field = PERF_OUTPUT_ADDR},
 	{.str = "symoff", .field = PERF_OUTPUT_SYMOFFSET},
+	{.str = "srcline", .field = PERF_OUTPUT_SRCLINE},
 };
 
 /* default set to maintain compatibility with current format */
@@ -210,6 +212,11 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 		       "to DSO.\n");
 		return -EINVAL;
 	}
+	if (PRINT_FIELD(SRCLINE) && !PRINT_FIELD(IP)) {
+		pr_err("Display of source line number requested but sample IP is not\n"
+		       "selected. Hence, no address to lookup the source line number.\n");
+		return -EINVAL;
+	}
 
 	if ((PRINT_FIELD(PID) || PRINT_FIELD(TID)) &&
 		perf_evsel__check_stype(evsel, PERF_SAMPLE_TID, "TID",
@@ -245,6 +252,9 @@ static void set_print_ip_opts(struct perf_event_attr *attr)
 
 	if (PRINT_FIELD(SYMOFFSET))
 		output[type].print_ip_opts |= PRINT_IP_OPT_SYMOFFSET;
+
+	if (PRINT_FIELD(SRCLINE))
+		output[type].print_ip_opts |= PRINT_IP_OPT_SRCLINE;
 }
 
 /*

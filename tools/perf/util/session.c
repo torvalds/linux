@@ -1497,6 +1497,7 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
 	int print_dso = print_opts & PRINT_IP_OPT_DSO;
 	int print_symoffset = print_opts & PRINT_IP_OPT_SYMOFFSET;
 	int print_oneline = print_opts & PRINT_IP_OPT_ONELINE;
+	int print_srcline = print_opts & PRINT_IP_OPT_SRCLINE;
 	char s = print_oneline ? ' ' : '\t';
 
 	if (symbol_conf.use_callchain && sample->callchain) {
@@ -1546,6 +1547,10 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
 				printf(")");
 			}
 
+			if (print_srcline)
+				map__fprintf_srcline(node->map, addr, "\n  ",
+						     stdout);
+
 			if (!print_oneline)
 				printf("\n");
 
@@ -1575,6 +1580,9 @@ next:
 			map__fprintf_dsoname(al->map, stdout);
 			printf(")");
 		}
+
+		if (print_srcline)
+			map__fprintf_srcline(al->map, al->addr, "\n  ", stdout);
 	}
 }
 
