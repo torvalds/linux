@@ -69,17 +69,6 @@ enum {
 	SCIx_MUX_IRQ = SCIx_NR_IRQS,	/* special case */
 };
 
-/* Offsets into the sci_port->gpios array */
-enum {
-	SCIx_SCK,
-	SCIx_RXD,
-	SCIx_TXD,
-	SCIx_CTS,
-	SCIx_RTS,
-
-	SCIx_NR_FNS,
-};
-
 enum {
 	SCIx_PROBE_REGTYPE,
 
@@ -141,7 +130,6 @@ struct plat_sci_port_ops {
 struct plat_sci_port {
 	unsigned long	mapbase;		/* resource base */
 	unsigned int	irqs[SCIx_NR_IRQS];	/* ERI, RXI, TXI, BRI */
-	unsigned int	gpios[SCIx_NR_FNS];	/* SCK, RXD, TXD, CTS, RTS */
 	unsigned int	type;			/* SCI / SCIF / IRDA / HSCIF */
 	upf_t		flags;			/* UPF_* flags */
 	unsigned long	capabilities;		/* Port features/capabilities */
