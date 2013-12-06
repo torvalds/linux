@@ -157,6 +157,25 @@ void i915_gem_context_free(struct kref *ctx_ref)
 	kfree(ctx);
 }
 
+static struct i915_hw_ppgtt *
+create_vm_for_ctx(struct drm_device *dev, struct i915_hw_context *ctx)
+{
+	struct i915_hw_ppgtt *ppgtt;
+	int ret;
+
+	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
+	if (!ppgtt)
+		return ERR_PTR(-ENOMEM);
+
+	ret = i915_gem_init_ppgtt(dev, ppgtt);
+	if (ret) {
+		kfree(ppgtt);
+		return ERR_PTR(ret);
+	}
+
+	return ppgtt;
+}
+
 static struct i915_hw_context *
 create_hw_context(struct drm_device *dev,
 		  struct drm_i915_file_private *file_priv)
@@ -223,31 +242,70 @@ static inline bool is_default_context(struct i915_hw_context *ctx)
  * well as an idle case.
  */
 static struct i915_hw_context *
-create_default_context(struct drm_device *dev)
+create_default_context(struct drm_device *dev,
+		       struct drm_i915_file_private *file_priv,
+		       bool create_vm)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_hw_context *ctx;
-	int ret;
+	int ret = 0;
 
 	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	ctx = create_hw_context(dev, NULL);
+	/* Not yet supported */
+	BUG_ON(file_priv);
+
+	ctx = create_hw_context(dev, file_priv);
 	if (IS_ERR(ctx))
 		return ctx;
 
-	/* We may need to do things with the shrinker which require us to
-	 * immediately switch back to the default context. This can cause a
-	 * problem as pinning the default context also requires GTT space which
-	 * may not be available. To avoid this we always pin the
-	 * default context.
-	 */
-	ret = i915_gem_obj_ggtt_pin(ctx->obj, get_context_alignment(dev),
-				    false, false);
-	if (ret) {
-		DRM_DEBUG_DRIVER("Couldn't pin %d\n", ret);
-		goto err_destroy;
+	if (create_vm) {
+		struct i915_hw_ppgtt *ppgtt = create_vm_for_ctx(dev, ctx);
+
+		if (IS_ERR_OR_NULL(ppgtt)) {
+			DRM_ERROR("PPGTT setup failed (%ld)\n", PTR_ERR(ppgtt));
+			ret = PTR_ERR(ppgtt);
+			goto err_destroy;
+		} else
+			ctx->vm = &ppgtt->base;
+
+		/* This case is reserved for the global default context and
+		 * should only happen once. */
+		if (!file_priv) {
+			if (WARN_ON(dev_priv->mm.aliasing_ppgtt)) {
+				ret = -EEXIST;
+				goto err_destroy;
+			}
+
+			dev_priv->mm.aliasing_ppgtt = ppgtt;
+
+			/* We may need to do things with the shrinker which
+			 * require us to immediately switch back to the default
+			 * context. This can cause a problem as pinning the
+			 * default context also requires GTT space which may not
+			 * be available. To avoid this we always pin the default
+			 * context.
+			 */
+			ret = i915_gem_obj_ggtt_pin(ctx->obj,
+						    get_context_alignment(dev),
+						    false, false);
+			if (ret) {
+				DRM_DEBUG_DRIVER("Couldn't pin %d\n", ret);
+				goto err_destroy;
+			}
+		}
+	} else if (USES_ALIASING_PPGTT(dev)) {
+		/* For platforms which only have aliasing PPGTT, we fake the
+		 * address space and refcounting. */
+		kref_get(&dev_priv->mm.aliasing_ppgtt->ref);
 	}
 
-	DRM_DEBUG_DRIVER("Default HW context loaded\n");
+	/* TODO: Until full ppgtt... */
+	if (USES_ALIASING_PPGTT(dev))
+		ctx->vm = &dev_priv->mm.aliasing_ppgtt->base;
+	else
+		ctx->vm = &dev_priv->gtt.base;
+
 	return ctx;
 
 err_destroy:
@@ -319,8 +377,9 @@ int i915_gem_context_init(struct drm_device *dev)
 		return -E2BIG;
 	}
 
+	dev_priv->ring[RCS].default_context =
+		create_default_context(dev, NULL, USES_ALIASING_PPGTT(dev));
 
-	dev_priv->ring[RCS].default_context = create_default_context(dev);
 	if (IS_ERR_OR_NULL(dev_priv->ring[RCS].default_context)) {
 		DRM_DEBUG_DRIVER("Disabling HW Contexts; create failed %ld\n",
 				 PTR_ERR(dev_priv->ring[RCS].default_context));
@@ -384,6 +443,7 @@ void i915_gem_context_fini(struct drm_device *dev)
 
 	i915_gem_object_ggtt_unpin(dctx->obj);
 	i915_gem_context_unreference(dctx);
+	dev_priv->mm.aliasing_ppgtt = NULL;
 }
 
 int i915_gem_context_enable(struct drm_i915_private *dev_priv)
@@ -394,11 +454,19 @@ int i915_gem_context_enable(struct drm_i915_private *dev_priv)
 	if (!HAS_HW_CONTEXTS(dev_priv->dev))
 		return 0;
 
+	/* This is the only place the aliasing PPGTT gets enabled, which means
+	 * it has to happen before we bail on reset */
+	if (dev_priv->mm.aliasing_ppgtt) {
+		struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
+		ppgtt->enable(ppgtt);
+	}
+
 	/* FIXME: We should make this work, even in reset */
 	if (i915_reset_in_progress(&dev_priv->gpu_error))
 		return 0;
 
 	BUG_ON(!dev_priv->ring[RCS].default_context);
+
 	for_each_ring(ring, dev_priv, i) {
 		ret = do_switch(ring, ring->default_context);
 		if (ret)

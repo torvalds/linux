@@ -909,19 +909,6 @@ int i915_gem_init_ppgtt(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 	return ret;
 }
 
-void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
-
-	if (!ppgtt)
-		return;
-
-	kref_put(&dev_priv->mm.aliasing_ppgtt->ref, ppgtt_release);
-
-	dev_priv->mm.aliasing_ppgtt = NULL;
-}
-
 static void __always_unused
 ppgtt_bind_vma(struct i915_vma *vma,
 	       enum i915_cache_level cache_level,
@@ -1422,25 +1409,6 @@ void i915_gem_init_global_gtt(struct drm_device *dev)
 	mappable_size = dev_priv->gtt.mappable_end;
 
 	i915_gem_setup_global_gtt(dev, 0, mappable_size, gtt_size);
-	if (USES_ALIASING_PPGTT(dev)) {
-		struct i915_hw_ppgtt *ppgtt;
-		int ret;
-
-		ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
-		if (!ppgtt) {
-			DRM_ERROR("Aliased PPGTT setup failed -ENOMEM\n");
-			return;
-		}
-
-		ret = i915_gem_init_ppgtt(dev, ppgtt);
-		if (!ret) {
-			dev_priv->mm.aliasing_ppgtt = ppgtt;
-			return;
-		}
-
-		kfree(ppgtt);
-		DRM_ERROR("Aliased PPGTT setup failed %d\n", ret);
-	}
 }
 
 static int setup_scratch_page(struct drm_device *dev)
