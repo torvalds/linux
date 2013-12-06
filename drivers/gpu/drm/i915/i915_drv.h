@@ -1757,7 +1757,6 @@ struct drm_i915_file_private {
 	} mm;
 	struct idr context_idr;
 
-	struct i915_ctx_hang_stats hang_stats;
 	struct i915_hw_context *private_default_ctx;
 	atomic_t rps_wait_boost;
 };
@@ -2244,12 +2243,14 @@ int i915_switch_context(struct intel_ring_buffer *ring,
 void i915_gem_context_free(struct kref *ctx_ref);
 static inline void i915_gem_context_reference(struct i915_hw_context *ctx)
 {
-	kref_get(&ctx->ref);
+	if (ctx->obj && HAS_HW_CONTEXTS(ctx->obj->base.dev))
+		kref_get(&ctx->ref);
 }
 
 static inline void i915_gem_context_unreference(struct i915_hw_context *ctx)
 {
-	kref_put(&ctx->ref, i915_gem_context_free);
+	if (ctx->obj && HAS_HW_CONTEXTS(ctx->obj->base.dev))
+		kref_put(&ctx->ref, i915_gem_context_free);
 }
 
 struct i915_ctx_hang_stats * __must_check

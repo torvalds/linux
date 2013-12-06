@@ -2323,7 +2323,7 @@ static void i915_set_reset_status(struct intel_ring_buffer *ring,
 	if (request->ctx && request->ctx->id != DEFAULT_CONTEXT_ID)
 		hs = &request->ctx->hang_stats;
 	else if (request->file_priv)
-		hs = &request->file_priv->hang_stats;
+		hs = &request->file_priv->private_default_ctx->hang_stats;
 
 	if (hs) {
 		if (guilty) {
