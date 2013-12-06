@@ -640,6 +640,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 #define GEN6_PD_SIZE (GEN6_PPGTT_PD_ENTRIES * PAGE_SIZE)
 	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	bool retried = false;
 	int i, ret;
 
 	/* PPGTT PDEs reside in the GGTT and consists of 512 entries. The
@@ -647,13 +648,22 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	 * size. We allocate at the top of the GTT to avoid fragmentation.
 	 */
 	BUG_ON(!drm_mm_initialized(&dev_priv->gtt.base.mm));
+alloc:
 	ret = drm_mm_insert_node_in_range_generic(&dev_priv->gtt.base.mm,
 						  &ppgtt->node, GEN6_PD_SIZE,
 						  GEN6_PD_ALIGN, 0,
 						  0, dev_priv->gtt.base.total,
 						  DRM_MM_SEARCH_DEFAULT);
-	if (ret)
-		return ret;
+	if (ret == -ENOSPC && !retried) {
+		ret = i915_gem_evict_something(dev, &dev_priv->gtt.base,
+					       GEN6_PD_SIZE, GEN6_PD_ALIGN,
+					       I915_CACHE_NONE, false, true);
+		if (ret)
+			return ret;
+
+		retried = true;
+		goto alloc;
+	}
 
 	if (ppgtt->node.start < dev_priv->gtt.mappable_end)
 		DRM_DEBUG("Forced to use aperture for PDEs\n");
