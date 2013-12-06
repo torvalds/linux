@@ -145,7 +145,7 @@ void i915_gem_context_free(struct kref *ctx_ref)
 
 	/* We refcount even the aliasing PPGTT to keep the code symmetric */
 	if (USES_ALIASING_PPGTT(ctx->obj->base.dev))
-		ppgtt = container_of(ctx->vm, struct i915_hw_ppgtt, base);
+		ppgtt = ctx_to_ppgtt(ctx);
 
 	/* XXX: Free up the object before tearing down the address space, in
 	 * case we're bound in the PPGTT */
@@ -177,7 +177,7 @@ create_vm_for_ctx(struct drm_device *dev, struct i915_hw_context *ctx)
 }
 
 static struct i915_hw_context *
-create_hw_context(struct drm_device *dev,
+__create_hw_context(struct drm_device *dev,
 		  struct drm_i915_file_private *file_priv)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -211,7 +211,7 @@ create_hw_context(struct drm_device *dev,
 	if (file_priv == NULL)
 		return ctx;
 
-	ret = idr_alloc(&file_priv->context_idr, ctx, DEFAULT_CONTEXT_ID + 1, 0,
+	ret = idr_alloc(&file_priv->context_idr, ctx, DEFAULT_CONTEXT_ID, 0,
 			GFP_KERNEL);
 	if (ret < 0)
 		goto err_out;
@@ -232,8 +232,7 @@ err_out:
 
 static inline bool is_default_context(struct i915_hw_context *ctx)
 {
-	/* Cheap trick to determine default contexts */
-	return ctx->file_priv ? false : true;
+	return (ctx->id == DEFAULT_CONTEXT_ID);
 }
 
 /**
@@ -242,9 +241,9 @@ static inline bool is_default_context(struct i915_hw_context *ctx)
  * well as an idle case.
  */
 static struct i915_hw_context *
-create_default_context(struct drm_device *dev,
-		       struct drm_i915_file_private *file_priv,
-		       bool create_vm)
+i915_gem_create_context(struct drm_device *dev,
+			struct drm_i915_file_private *file_priv,
+			bool create_vm)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_hw_context *ctx;
@@ -252,10 +251,7 @@ create_default_context(struct drm_device *dev,
 
 	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	/* Not yet supported */
-	BUG_ON(file_priv);
-
-	ctx = create_hw_context(dev, file_priv);
+	ctx = __create_hw_context(dev, file_priv);
 	if (IS_ERR(ctx))
 		return ctx;
 
@@ -263,7 +259,8 @@ create_default_context(struct drm_device *dev,
 		struct i915_hw_ppgtt *ppgtt = create_vm_for_ctx(dev, ctx);
 
 		if (IS_ERR_OR_NULL(ppgtt)) {
-			DRM_ERROR("PPGTT setup failed (%ld)\n", PTR_ERR(ppgtt));
+			DRM_DEBUG_DRIVER("PPGTT setup failed (%ld)\n",
+					 PTR_ERR(ppgtt));
 			ret = PTR_ERR(ppgtt);
 			goto err_destroy;
 		} else
@@ -378,7 +375,7 @@ int i915_gem_context_init(struct drm_device *dev)
 	}
 
 	dev_priv->ring[RCS].default_context =
-		create_default_context(dev, NULL, USES_ALIASING_PPGTT(dev));
+		i915_gem_create_context(dev, NULL, USES_ALIASING_PPGTT(dev));
 
 	if (IS_ERR_OR_NULL(dev_priv->ring[RCS].default_context)) {
 		DRM_DEBUG_DRIVER("Disabling HW Contexts; create failed %ld\n",
@@ -480,7 +477,9 @@ static int context_idr_cleanup(int id, void *p, void *data)
 {
 	struct i915_hw_context *ctx = p;
 
-	BUG_ON(id == DEFAULT_CONTEXT_ID);
+	/* Ignore the default context because close will handle it */
+	if (is_default_context(ctx))
+		return 0;
 
 	i915_gem_context_unreference(ctx);
 	return 0;
@@ -516,6 +515,16 @@ int i915_gem_context_open(struct drm_device *dev, struct drm_file *file)
 
 	idr_init(&file_priv->context_idr);
 
+	mutex_lock(&dev->struct_mutex);
+	file_priv->private_default_ctx =
+		i915_gem_create_context(dev, file_priv, false);
+	mutex_unlock(&dev->struct_mutex);
+
+	if (IS_ERR(file_priv->private_default_ctx)) {
+		idr_destroy(&file_priv->context_idr);
+		return PTR_ERR(file_priv->private_default_ctx);
+	}
+
 	return 0;
 }
 
@@ -528,6 +537,7 @@ void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
 
 	mutex_lock(&dev->struct_mutex);
 	idr_for_each(&file_priv->context_idr, context_idr_cleanup, NULL);
+	i915_gem_context_unreference(file_priv->private_default_ctx);
 	idr_destroy(&file_priv->context_idr);
 	mutex_unlock(&dev->struct_mutex);
 }
@@ -702,21 +712,18 @@ int i915_switch_context(struct intel_ring_buffer *ring,
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	struct i915_hw_context *to;
 
+	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+
 	if (!HAS_HW_CONTEXTS(ring->dev))
 		return 0;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
-
-	if (to_id == DEFAULT_CONTEXT_ID) {
+	if (file == NULL)
 		to = ring->default_context;
-	} else {
-		if (file == NULL)
-			return -EINVAL;
-
+	else
 		to = i915_gem_context_get(file->driver_priv, to_id);
-		if (to == NULL)
-			return -ENOENT;
-	}
+
+	if (to == NULL)
+		return -ENOENT;
 
 	return do_switch(ring, to);
 }
@@ -739,7 +746,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	ctx = create_hw_context(dev, file_priv);
+	ctx = i915_gem_create_context(dev, file_priv, false);
 	mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
@@ -760,6 +767,9 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 
 	if (!(dev->driver->driver_features & DRIVER_GEM))
 		return -ENODEV;
+
+	if (args->ctx_id == DEFAULT_CONTEXT_ID)
+		return -EPERM;
 
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)

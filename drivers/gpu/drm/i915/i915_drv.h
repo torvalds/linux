@@ -1758,6 +1758,7 @@ struct drm_i915_file_private {
 	struct idr context_idr;
 
 	struct i915_ctx_hang_stats hang_stats;
+	struct i915_hw_context *private_default_ctx;
 	atomic_t rps_wait_boost;
 };
 
@@ -2231,6 +2232,7 @@ i915_gem_obj_ggtt_pin(struct drm_i915_gem_object *obj,
 }
 
 /* i915_gem_context.c */
+#define ctx_to_ppgtt(ctx) container_of((ctx)->vm, struct i915_hw_ppgtt, base)
 int __must_check i915_gem_context_init(struct drm_device *dev);
 void i915_gem_context_fini(struct drm_device *dev);
 void i915_gem_context_reset(struct drm_device *dev);
