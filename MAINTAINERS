@@ -6250,8 +6250,8 @@ OPEN FIRMWARE AND FLATTENED DEVICE TREE BINDINGS
 M:	Rob Herring <rob.herring@calxeda.com>
 M:	Pawel Moll <pawel.moll@arm.com>
 M:	Mark Rutland <mark.rutland@arm.com>
-M:	Stephen Warren <swarren@wwwdotorg.org>
 M:	Ian Campbell <ijc+devicetree@hellion.org.uk>
+M:	Kumar Gala <galak@codeaurora.org>
 L:	devicetree@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/
