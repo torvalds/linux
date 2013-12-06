@@ -245,7 +245,7 @@ static const char * const powergate_name_t30[] = {
 };
 
 static const char * const powergate_name_t114[] = {
-	[TEGRA_POWERGATE_CPU]	= "cpu0",
+	[TEGRA_POWERGATE_CPU]	= "crail",
 	[TEGRA_POWERGATE_3D]	= "3d",
 	[TEGRA_POWERGATE_VENC]	= "venc",
 	[TEGRA_POWERGATE_VDEC]	= "vdec",
