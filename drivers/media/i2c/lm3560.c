@@ -172,28 +172,28 @@ static int lm3560_flash_brt_ctrl(struct lm3560_flash *flash,
 static int lm3560_get_ctrl(struct v4l2_ctrl *ctrl, enum lm3560_led_id led_no)
 {
 	struct lm3560_flash *flash = to_lm3560_flash(ctrl, led_no);
+	int rval = -EINVAL;
 
 	mutex_lock(&flash->lock);
 
 	if (ctrl->id == V4L2_CID_FLASH_FAULT) {
-		int rval;
 		s32 fault = 0;
 		unsigned int reg_val;
 		rval = regmap_read(flash->regmap, REG_FLAG, &reg_val);
 		if (rval < 0)
-			return rval;
-		if (rval & FAULT_SHORT_CIRCUIT)
+			goto out;
+		if (reg_val & FAULT_SHORT_CIRCUIT)
 			fault |= V4L2_FLASH_FAULT_SHORT_CIRCUIT;
-		if (rval & FAULT_OVERTEMP)
+		if (reg_val & FAULT_OVERTEMP)
 			fault |= V4L2_FLASH_FAULT_OVER_TEMPERATURE;
-		if (rval & FAULT_TIMEOUT)
+		if (reg_val & FAULT_TIMEOUT)
 			fault |= V4L2_FLASH_FAULT_TIMEOUT;
 		ctrl->cur.val = fault;
-		return 0;
 	}
 
+out:
 	mutex_unlock(&flash->lock);
-	return -EINVAL;
+	return rval;
 }
 
 static int lm3560_set_ctrl(struct v4l2_ctrl *ctrl, enum lm3560_led_id led_no)
