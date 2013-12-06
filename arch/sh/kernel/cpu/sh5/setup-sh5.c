@@ -17,17 +17,24 @@
 #include <asm/addrspace.h>
 
 static struct plat_sci_port scif0_platform_data = {
-	.mapbase	= PHYS_PERIPHERAL_BLOCK + 0x01030000,
 	.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { 39, 40, 42, 0 },
+};
+
+static struct resource scif0_resources[] = {
+	DEFINE_RES_MEM(PHYS_PERIPHERAL_BLOCK + 0x01030000, 0x100),
+	DEFINE_RES_IRQ(39),
+	DEFINE_RES_IRQ(40),
+	DEFINE_RES_IRQ(42),
 };
 
 static struct platform_device scif0_device = {
 	.name		= "sh-sci",
 	.id		= 0,
+	.resource	= scif0_resources,
+	.num_resources	= ARRAY_SIZE(scif0_resources),
 	.dev		= {
 		.platform_data	= &scif0_platform_data,
 	},

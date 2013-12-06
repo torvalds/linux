@@ -18,36 +18,46 @@
 #include <cpu/dma-register.h>
 
 static struct plat_sci_port scif0_platform_data = {
-	.mapbase	= 0xffe00000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_1,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x700)),
 	.regtype	= SCIx_SH4_SCIF_FIFODATA_REGTYPE,
+};
+
+static struct resource scif0_resources[] = {
+	DEFINE_RES_MEM(0xffe00000, 0x100),
+	DEFINE_RES_IRQ(evt2irq(0x700)),
 };
 
 static struct platform_device scif0_device = {
 	.name		= "sh-sci",
 	.id		= 0,
+	.resource	= scif0_resources,
+	.num_resources	= ARRAY_SIZE(scif0_resources),
 	.dev		= {
 		.platform_data	= &scif0_platform_data,
 	},
 };
 
 static struct plat_sci_port scif1_platform_data = {
-	.mapbase	= 0xffe10000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_1,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0xb80)),
 	.regtype	= SCIx_SH4_SCIF_FIFODATA_REGTYPE,
+};
+
+static struct resource scif1_resources[] = {
+	DEFINE_RES_MEM(0xffe10000, 0x100),
+	DEFINE_RES_IRQ(evt2irq(0xb80)),
 };
 
 static struct platform_device scif1_device = {
 	.name		= "sh-sci",
 	.id		= 1,
+	.resource	= scif1_resources,
+	.num_resources	= ARRAY_SIZE(scif1_resources),
 	.dev		= {
 		.platform_data	= &scif1_platform_data,
 	},
