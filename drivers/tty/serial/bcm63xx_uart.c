@@ -31,7 +31,6 @@
 #include <linux/serial_core.h>
 
 #include <bcm63xx_regs.h>
-#include <bcm63xx_io.h>
 
 #define BCM63XX_NR_UARTS	2
 
@@ -80,13 +79,13 @@ static struct uart_port ports[BCM63XX_NR_UARTS];
 static inline unsigned int bcm_uart_readl(struct uart_port *port,
 					 unsigned int offset)
 {
-	return bcm_readl(port->membase + offset);
+	return __raw_readl(port->membase + offset);
 }
 
 static inline void bcm_uart_writel(struct uart_port *port,
 				  unsigned int value, unsigned int offset)
 {
-	bcm_writel(value, port->membase + offset);
+	__raw_writel(value, port->membase + offset);
 }
 
 /*
