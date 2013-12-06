@@ -491,61 +491,73 @@ static void gen6_write_pdes(struct i915_hw_ppgtt *ppgtt)
 	readl(pd_addr);
 }
 
+static uint32_t get_pd_offset(struct i915_hw_ppgtt *ppgtt)
+{
+	BUG_ON(ppgtt->pd_offset & 0x3f);
+
+	return (ppgtt->pd_offset / 64) << 16;
+}
+
+static int gen7_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
+{
+	struct drm_device *dev = ppgtt->base.dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
+	uint32_t ecochk, ecobits;
+	int i;
+
+	gen6_write_pdes(ppgtt);
+
+	ecobits = I915_READ(GAC_ECO_BITS);
+	I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_PPGTT_CACHE64B);
+
+	ecochk = I915_READ(GAM_ECOCHK);
+	if (IS_HASWELL(dev)) {
+		ecochk |= ECOCHK_PPGTT_WB_HSW;
+	} else {
+		ecochk |= ECOCHK_PPGTT_LLC_IVB;
+		ecochk &= ~ECOCHK_PPGTT_GFDT_IVB;
+	}
+	I915_WRITE(GAM_ECOCHK, ecochk);
+	/* GFX_MODE is per-ring on gen7+ */
+
+	for_each_ring(ring, dev_priv, i) {
+		I915_WRITE(RING_MODE_GEN7(ring),
+			   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
+
+		I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
+		I915_WRITE(RING_PP_DIR_BASE(ring), get_pd_offset(ppgtt));
+	}
+	return 0;
+}
+
 static int gen6_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
 {
 	struct drm_device *dev = ppgtt->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	uint32_t pd_offset;
 	struct intel_ring_buffer *ring;
+	uint32_t ecochk, gab_ctl, ecobits;
 	int i;
-
-	BUG_ON(ppgtt->pd_offset & 0x3f);
 
 	gen6_write_pdes(ppgtt);
 
-	pd_offset = ppgtt->pd_offset;
-	pd_offset /= 64; /* in cachelines, */
-	pd_offset <<= 16;
+	ecobits = I915_READ(GAC_ECO_BITS);
+	I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_SNB_BIT |
+		   ECOBITS_PPGTT_CACHE64B);
 
-	if (INTEL_INFO(dev)->gen == 6) {
-		uint32_t ecochk, gab_ctl, ecobits;
+	gab_ctl = I915_READ(GAB_CTL);
+	I915_WRITE(GAB_CTL, gab_ctl | GAB_CTL_CONT_AFTER_PAGEFAULT);
 
-		ecobits = I915_READ(GAC_ECO_BITS);
-		I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_SNB_BIT |
-					 ECOBITS_PPGTT_CACHE64B);
+	ecochk = I915_READ(GAM_ECOCHK);
+	I915_WRITE(GAM_ECOCHK, ecochk | ECOCHK_SNB_BIT | ECOCHK_PPGTT_CACHE64B);
 
-		gab_ctl = I915_READ(GAB_CTL);
-		I915_WRITE(GAB_CTL, gab_ctl | GAB_CTL_CONT_AFTER_PAGEFAULT);
-
-		ecochk = I915_READ(GAM_ECOCHK);
-		I915_WRITE(GAM_ECOCHK, ecochk | ECOCHK_SNB_BIT |
-				       ECOCHK_PPGTT_CACHE64B);
-		I915_WRITE(GFX_MODE, _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
-	} else if (INTEL_INFO(dev)->gen >= 7) {
-		uint32_t ecochk, ecobits;
-
-		ecobits = I915_READ(GAC_ECO_BITS);
-		I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_PPGTT_CACHE64B);
-
-		ecochk = I915_READ(GAM_ECOCHK);
-		if (IS_HASWELL(dev)) {
-			ecochk |= ECOCHK_PPGTT_WB_HSW;
-		} else {
-			ecochk |= ECOCHK_PPGTT_LLC_IVB;
-			ecochk &= ~ECOCHK_PPGTT_GFDT_IVB;
-		}
-		I915_WRITE(GAM_ECOCHK, ecochk);
-		/* GFX_MODE is per-ring on gen7+ */
-	}
+	I915_WRITE(GFX_MODE, _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
 
 	for_each_ring(ring, dev_priv, i) {
-		if (INTEL_INFO(dev)->gen >= 7)
-			I915_WRITE(RING_MODE_GEN7(ring),
-				   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
-
 		I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
-		I915_WRITE(RING_PP_DIR_BASE(ring), pd_offset);
+		I915_WRITE(RING_PP_DIR_BASE(ring), get_pd_offset(ppgtt));
 	}
+
 	return 0;
 }
 
@@ -670,7 +682,12 @@ alloc:
 
 	ppgtt->base.pte_encode = dev_priv->gtt.base.pte_encode;
 	ppgtt->num_pd_entries = GEN6_PPGTT_PD_ENTRIES;
-	ppgtt->enable = gen6_ppgtt_enable;
+	if (IS_GEN6(dev))
+		ppgtt->enable = gen6_ppgtt_enable;
+	if (IS_GEN7(dev))
+		ppgtt->enable = gen7_ppgtt_enable;
+	else
+		BUG();
 	ppgtt->base.clear_range = gen6_ppgtt_clear_range;
 	ppgtt->base.insert_entries = gen6_ppgtt_insert_entries;
 	ppgtt->base.cleanup = gen6_ppgtt_cleanup;
