@@ -233,15 +233,15 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 
-			sys-supply = <&vdd_5v0_reg>;
+			sys-supply = <&vdd_3v3_reg>;
 			vin-sm0-supply = <&sys_reg>;
 			vin-sm1-supply = <&sys_reg>;
 			vin-sm2-supply = <&sys_reg>;
 			vinldo01-supply = <&sm2_reg>;
-			vinldo23-supply = <&sm2_reg>;
-			vinldo4-supply = <&sm2_reg>;
-			vinldo678-supply = <&sm2_reg>;
-			vinldo9-supply = <&sm2_reg>;
+			vinldo23-supply = <&vdd_3v3_reg>;
+			vinldo4-supply = <&vdd_3v3_reg>;
+			vinldo678-supply = <&vdd_3v3_reg>;
+			vinldo9-supply = <&vdd_3v3_reg>;
 
 			regulators {
 				#address-cells = <1>;
@@ -258,8 +258,8 @@
 					reg = <1>;
 					regulator-compatible = "sm0";
 					regulator-name = "vdd_sm0,vdd_core";
-					regulator-min-microvolt = <1275000>;
-					regulator-max-microvolt = <1275000>;
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
 					regulator-always-on;
 				};
 
@@ -267,8 +267,8 @@
 					reg = <2>;
 					regulator-compatible = "sm1";
 					regulator-name = "vdd_sm1,vdd_cpu";
-					regulator-min-microvolt = <1100000>;
-					regulator-max-microvolt = <1100000>;
+					regulator-min-microvolt = <1000000>;
+					regulator-max-microvolt = <1000000>;
 					regulator-always-on;
 				};
 
@@ -324,8 +324,8 @@
 					reg = <10>;
 					regulator-compatible = "ldo6";
 					regulator-name = "vdd_ldo6,avdd_vdac,vddio_vi,vddio_cam";
-					regulator-min-microvolt = <1800000>;
-					regulator-max-microvolt = <1800000>;
+					regulator-min-microvolt = <2850000>;
+					regulator-max-microvolt = <2850000>;
 				};
 
 				hdmi_vdd_reg: regulator@11 {
@@ -484,12 +484,12 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		vdd_5v0_reg: regulator@100 {
+		vdd_3v3_reg: regulator@100 {
 			compatible = "regulator-fixed";
 			reg = <100>;
-			regulator-name = "vdd_5v0";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
+			regulator-name = "vdd_3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 		};
 
