@@ -122,7 +122,7 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
 
     올바른 패치들을 만드는 법에 관한 훌륭한 다른 문서들이 있다.
     "The Perfect Patch"
-        http://userweb.kernel.org/~akpm/stuff/tpp.txt
+        http://www.ozlabs.org/~akpm/stuff/tpp.txt
     "Linux kernel patch submission format"
         http://linux.yyz.us/patch-format.html
 
@@ -597,7 +597,7 @@ Pat이라는 이름을 가진 여자가 있을 수도 있는 것이다. 리눅�
 
 이것이 무엇인지 더 자세한 것을 알고 싶다면 다음 문서의 ChageLog 항을 봐라.
    "The Perfect Patch"
-    http://userweb.kernel.org/~akpm/stuff/tpp.txt
+    http://www.ozlabs.org/~akpm/stuff/tpp.txt
 
 
 
