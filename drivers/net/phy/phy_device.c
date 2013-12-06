@@ -839,6 +839,8 @@ int genphy_read_status(struct phy_device *phydev)
 	if (err)
 		return err;
 
+	phydev->lp_advertising = 0;
+
 	if (AUTONEG_ENABLE == phydev->autoneg) {
 		if (phydev->supported & (SUPPORTED_1000baseT_Half
 					| SUPPORTED_1000baseT_Full)) {
@@ -852,6 +854,8 @@ int genphy_read_status(struct phy_device *phydev)
 			if (adv < 0)
 				return adv;
 
+			phydev->lp_advertising =
+				mii_stat1000_to_ethtool_lpa_t(lpagb);
 			lpagb &= adv << 2;
 		}
 
@@ -859,6 +863,8 @@ int genphy_read_status(struct phy_device *phydev)
 
 		if (lpa < 0)
 			return lpa;
+
+		phydev->lp_advertising |= mii_lpa_to_ethtool_lpa_t(lpa);
 
 		adv = phy_read(phydev, MII_ADVERTISE);
 

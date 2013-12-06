@@ -289,6 +289,7 @@ int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 	cmd->supported = phydev->supported;
 
 	cmd->advertising = phydev->advertising;
+	cmd->lp_advertising = phydev->lp_advertising;
 
 	ethtool_cmd_speed_set(cmd, phydev->speed);
 	cmd->duplex = phydev->duplex;
