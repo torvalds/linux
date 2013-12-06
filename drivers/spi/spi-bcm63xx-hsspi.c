@@ -338,7 +338,7 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	}
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_request_and_ioremap(dev, res_mem);
+	regs = devm_ioremap_resource(dev, res_mem);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
