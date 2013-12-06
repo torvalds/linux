@@ -197,11 +197,18 @@ static gen6_gtt_pte_t iris_pte_encode(dma_addr_t addr,
 
 /* Broadwell Page Directory Pointer Descriptors */
 static int gen8_write_pdp(struct intel_ring_buffer *ring, unsigned entry,
-			   uint64_t val)
+			   uint64_t val, bool synchronous)
 {
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	int ret;
 
 	BUG_ON(entry >= 4);
+
+	if (synchronous) {
+		I915_WRITE(GEN8_RING_PDP_UDW(ring, entry), val >> 32);
+		I915_WRITE(GEN8_RING_PDP_LDW(ring, entry), (u32)val);
+		return 0;
+	}
 
 	ret = intel_ring_begin(ring, 6);
 	if (ret)
@@ -236,7 +243,8 @@ static int gen8_ppgtt_enable(struct drm_device *dev)
 	for (i = used_pd - 1; i >= 0; i--) {
 		dma_addr_t addr = ppgtt->pd_dma_addr[i];
 		for_each_ring(ring, dev_priv, j) {
-			ret = gen8_write_pdp(ring, i, addr);
+			ret = gen8_write_pdp(ring, i, addr,
+					     i915_reset_in_progress(&dev_priv->gpu_error));
 			if (ret)
 				goto err_out;
 		}
