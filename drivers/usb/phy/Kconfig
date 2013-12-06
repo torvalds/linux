@@ -142,6 +142,16 @@ config USB_GPIO_VBUS
 	  optionally control of a D+ pullup GPIO as well as a VBUS
 	  current limit regulator.
 
+config OMAP_OTG
+	tristate "OMAP USB OTG controller driver"
+	depends on ARCH_OMAP_OTG && EXTCON
+	help
+	  Enable this to support some transceivers on OMAP1 platforms. OTG
+	  controller is needed to switch between host and peripheral modes.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called omap-otg.
+
 config USB_ISP1301
 	tristate "NXP ISP1301 USB transceiver support"
 	depends on USB || USB_GADGET
