@@ -17,6 +17,21 @@
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
+
+        vmmc_fixed: vmmc {
+                compatible = "regulator-fixed";
+                regulator-name = "vmmc_fixed";
+                regulator-min-microvolt = <3300000>;
+                regulator-max-microvolt = <3300000>;
+        };
+};
+
+&davinci_emac {
+	     status = "okay";
+};
+
+&davinci_mdio {
+	     status = "okay";
 };
 
 &i2c1 {
@@ -30,3 +45,17 @@
 &i2c3 {
 	clock-frequency = <400000>;
 };
+
+&mmc1 {
+	vmmc-supply = <&vmmc_fixed>;
+	bus-width = <4>;
+};
+
+&mmc2 {
+      status = "disabled";
+};
+
+&mmc3 {
+      status = "disabled";
+};
+
