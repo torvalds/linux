@@ -72,6 +72,7 @@ static void ppgtt_bind_vma(struct i915_vma *vma,
 			   enum i915_cache_level cache_level,
 			   u32 flags);
 static void ppgtt_unbind_vma(struct i915_vma *vma);
+static int gen8_ppgtt_enable(struct i915_hw_ppgtt *ppgtt);
 
 static inline gen8_gtt_pte_t gen8_pte_encode(dma_addr_t addr,
 					     enum i915_cache_level level,
@@ -230,37 +231,23 @@ static int gen8_write_pdp(struct intel_ring_buffer *ring, unsigned entry,
 	return 0;
 }
 
-static int gen8_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
+static int gen8_mm_switch(struct i915_hw_ppgtt *ppgtt,
+			  struct intel_ring_buffer *ring,
+			  bool synchronous)
 {
-	struct drm_device *dev = ppgtt->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
-	int i, j, ret;
+	int i, ret;
 
 	/* bit of a hack to find the actual last used pd */
 	int used_pd = ppgtt->num_pd_entries / GEN8_PDES_PER_PAGE;
 
-	for_each_ring(ring, dev_priv, j) {
-		I915_WRITE(RING_MODE_GEN7(ring),
-			   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
-	}
-
 	for (i = used_pd - 1; i >= 0; i--) {
 		dma_addr_t addr = ppgtt->pd_dma_addr[i];
-		for_each_ring(ring, dev_priv, j) {
-			ret = gen8_write_pdp(ring, i, addr,
-					     i915_reset_in_progress(&dev_priv->gpu_error));
-			if (ret)
-				goto err_out;
-		}
+		ret = gen8_write_pdp(ring, i, addr, synchronous);
+		if (ret)
+			return ret;
 	}
-	return 0;
 
-err_out:
-	for_each_ring(ring, dev_priv, j)
-		I915_WRITE(RING_MODE_GEN7(ring),
-			   _MASKED_BIT_DISABLE(GFX_PPGTT_ENABLE));
-	return ret;
+	return 0;
 }
 
 static void gen8_ppgtt_clear_range(struct i915_address_space *vm,
@@ -397,6 +384,7 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 	ppgtt->num_pt_pages = 1 << get_order(num_pt_pages << PAGE_SHIFT);
 	ppgtt->num_pd_entries = max_pdp * GEN8_PDES_PER_PAGE;
 	ppgtt->enable = gen8_ppgtt_enable;
+	ppgtt->switch_mm = gen8_mm_switch;
 	ppgtt->base.clear_range = gen8_ppgtt_clear_range;
 	ppgtt->base.insert_entries = gen8_ppgtt_insert_entries;
 	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
@@ -498,6 +486,45 @@ static uint32_t get_pd_offset(struct i915_hw_ppgtt *ppgtt)
 	return (ppgtt->pd_offset / 64) << 16;
 }
 
+static int gen6_mm_switch(struct i915_hw_ppgtt *ppgtt,
+			  struct intel_ring_buffer *ring,
+			  bool synchronous)
+{
+	struct drm_device *dev = ppgtt->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
+	I915_WRITE(RING_PP_DIR_BASE(ring), get_pd_offset(ppgtt));
+
+	POSTING_READ(RING_PP_DIR_DCLV(ring));
+
+	return 0;
+}
+
+static int gen8_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
+{
+	struct drm_device *dev = ppgtt->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
+	int j, ret;
+
+	for_each_ring(ring, dev_priv, j) {
+		I915_WRITE(RING_MODE_GEN7(ring),
+			   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
+		ret = ppgtt->switch_mm(ppgtt, ring, true);
+		if (ret)
+			goto err_out;
+	}
+
+	return 0;
+
+err_out:
+	for_each_ring(ring, dev_priv, j)
+		I915_WRITE(RING_MODE_GEN7(ring),
+			   _MASKED_BIT_DISABLE(GFX_PPGTT_ENABLE));
+	return ret;
+}
+
 static int gen7_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
 {
 	struct drm_device *dev = ppgtt->base.dev;
@@ -519,14 +546,16 @@ static int gen7_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
 		ecochk &= ~ECOCHK_PPGTT_GFDT_IVB;
 	}
 	I915_WRITE(GAM_ECOCHK, ecochk);
-	/* GFX_MODE is per-ring on gen7+ */
 
 	for_each_ring(ring, dev_priv, i) {
+		int ret;
+		/* GFX_MODE is per-ring on gen7+ */
 		I915_WRITE(RING_MODE_GEN7(ring),
 			   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
+		ret = ppgtt->switch_mm(ppgtt, ring, true);
+		if (ret)
+			return ret;
 
-		I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
-		I915_WRITE(RING_PP_DIR_BASE(ring), get_pd_offset(ppgtt));
 	}
 	return 0;
 }
@@ -554,8 +583,9 @@ static int gen6_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
 	I915_WRITE(GFX_MODE, _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
 
 	for_each_ring(ring, dev_priv, i) {
-		I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
-		I915_WRITE(RING_PP_DIR_BASE(ring), get_pd_offset(ppgtt));
+		int ret = ppgtt->switch_mm(ppgtt, ring, true);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -688,6 +718,7 @@ alloc:
 		ppgtt->enable = gen7_ppgtt_enable;
 	else
 		BUG();
+	ppgtt->switch_mm = gen6_mm_switch;
 	ppgtt->base.clear_range = gen6_ppgtt_clear_range;
 	ppgtt->base.insert_entries = gen6_ppgtt_insert_entries;
 	ppgtt->base.cleanup = gen6_ppgtt_cleanup;
