@@ -65,6 +65,7 @@ struct sci_port {
 	struct plat_sci_port	*cfg;
 	int			overrun_bit;
 	unsigned int		error_mask;
+	unsigned int		sampling_rate;
 
 
 	/* Break timer */
@@ -1750,10 +1751,13 @@ static void sci_shutdown(struct uart_port *port)
 	sci_free_irq(s);
 }
 
-static unsigned int sci_scbrr_calc(unsigned int algo_id, unsigned int bps,
+static unsigned int sci_scbrr_calc(struct sci_port *s, unsigned int bps,
 				   unsigned long freq)
 {
-	switch (algo_id) {
+	if (s->sampling_rate)
+		return DIV_ROUND_CLOSEST(freq, s->sampling_rate * bps) - 1;
+
+	switch (s->cfg->scbrr_algo_id) {
 	case SCBRR_ALGO_1:
 		return freq / (16 * bps);
 	case SCBRR_ALGO_2:
@@ -1843,12 +1847,11 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	baud = uart_get_baud_rate(port, termios, old, 0, max_baud);
 	if (likely(baud && port->uartclk)) {
-		if (s->cfg->scbrr_algo_id == SCBRR_ALGO_6) {
+		if (s->cfg->type == PORT_HSCIF) {
 			sci_baud_calc_hscif(baud, port->uartclk, &t, &srr,
 					    &cks);
 		} else {
-			t = sci_scbrr_calc(s->cfg->scbrr_algo_id, baud,
-					   port->uartclk);
+			t = sci_scbrr_calc(s, baud, port->uartclk);
 			for (cks = 0; t >= 256 && cks <= 3; cks++)
 				t >>= 2;
 		}
@@ -2092,6 +2095,7 @@ static int sci_init_single(struct platform_device *dev,
 {
 	struct uart_port *port = &sci_port->port;
 	const struct resource *res;
+	unsigned int sampling_rate;
 	unsigned int i;
 	int ret;
 
@@ -2143,26 +2147,45 @@ static int sci_init_single(struct platform_device *dev,
 	case PORT_SCIFB:
 		port->fifosize = 256;
 		sci_port->overrun_bit = 9;
+		sampling_rate = 16;
 		break;
 	case PORT_HSCIF:
 		port->fifosize = 128;
+		sampling_rate = 0;
 		sci_port->overrun_bit = 0;
 		break;
 	case PORT_SCIFA:
 		port->fifosize = 64;
 		sci_port->overrun_bit = 9;
+		sampling_rate = 16;
 		break;
 	case PORT_SCIF:
 		port->fifosize = 16;
-		if (p->regtype == SCIx_SH7705_SCIF_REGTYPE)
+		if (p->regtype == SCIx_SH7705_SCIF_REGTYPE) {
 			sci_port->overrun_bit = 9;
-		else
+			sampling_rate = 16;
+		} else {
 			sci_port->overrun_bit = 0;
+			sampling_rate = 32;
+		}
 		break;
 	default:
 		port->fifosize = 1;
 		sci_port->overrun_bit = 5;
+		sampling_rate = 32;
 		break;
+	}
+
+	/* Set the sampling rate if the baud rate calculation algorithm isn't
+	 * specified.
+	 */
+	if (p->scbrr_algo_id == SCBRR_ALGO_NONE) {
+		/* SCIFA on sh7723 and sh7724 need a custom sampling rate that
+		 * doesn't match the SoC datasheet, this should be investigated.
+		 * Let platform data override the sampling rate for now.
+		 */
+		sci_port->sampling_rate = p->sampling_rate ? p->sampling_rate
+					: sampling_rate;
 	}
 
 	if (!early) {
