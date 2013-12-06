@@ -255,6 +255,49 @@ err_destroy:
 	return ret;
 }
 
+void i915_gem_context_reset(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
+	int i;
+
+	if (!HAS_HW_CONTEXTS(dev))
+		return;
+
+	/* Prevent the hardware from restoring the last context (which hung) on
+	 * the next switch */
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		struct i915_hw_context *dctx;
+		if (!(INTEL_INFO(dev)->ring_mask & (1<<i)))
+			continue;
+
+		/* Do a fake switch to the default context */
+		ring = &dev_priv->ring[i];
+		dctx = ring->default_context;
+		if (WARN_ON(!dctx))
+			continue;
+
+		if (!ring->last_context)
+			continue;
+
+		if (ring->last_context == dctx)
+			continue;
+
+		if (i == RCS) {
+			WARN_ON(i915_gem_obj_ggtt_pin(dctx->obj,
+						      get_context_alignment(dev),
+						      false, false));
+			/* Fake a finish/inactive */
+			dctx->obj->base.write_domain = 0;
+			dctx->obj->active = 0;
+		}
+
+		i915_gem_context_unreference(ring->last_context);
+		i915_gem_context_reference(dctx);
+		ring->last_context = dctx;
+	}
+}
+
 int i915_gem_context_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
