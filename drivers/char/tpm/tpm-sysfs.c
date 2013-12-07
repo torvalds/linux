@@ -148,7 +148,7 @@ static ssize_t enabled_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(enabled);
 
-ssize_t active_show(struct device *dev, struct device_attribute *attr,
+static ssize_t active_show(struct device *dev, struct device_attribute *attr,
 		    char *buf)
 {
 	cap_t cap;
