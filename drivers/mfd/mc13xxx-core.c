@@ -158,9 +158,6 @@ int mc13xxx_reg_read(struct mc13xxx *mc13xxx, unsigned int offset, u32 *val)
 {
 	int ret;
 
-	if (offset > MC13XXX_NUMREGS)
-		return -EINVAL;
-
 	ret = regmap_read(mc13xxx->regmap, offset, val);
 	dev_vdbg(mc13xxx->dev, "[0x%02x] -> 0x%06x\n", offset, *val);
 
@@ -172,7 +169,7 @@ int mc13xxx_reg_write(struct mc13xxx *mc13xxx, unsigned int offset, u32 val)
 {
 	dev_vdbg(mc13xxx->dev, "[0x%02x] <- 0x%06x\n", offset, val);
 
-	if (offset > MC13XXX_NUMREGS || val > 0xffffff)
+	if (val >= BIT(24))
 		return -EINVAL;
 
 	return regmap_write(mc13xxx->regmap, offset, val);
