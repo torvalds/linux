@@ -552,8 +552,7 @@ static ssize_t radeon_hwmon_show_temp_thresh(struct device *dev,
 					     struct device_attribute *attr,
 					     char *buf)
 {
-	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct radeon_device *rdev = ddev->dev_private;
+	struct radeon_device *rdev = dev_get_drvdata(dev);
 	int hyst = to_sensor_dev_attr(attr)->index;
 	int temp;
 
@@ -580,8 +579,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 					struct attribute *attr, int index)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct radeon_device *rdev = ddev->dev_private;
+	struct radeon_device *rdev = dev_get_drvdata(dev);
 
 	/* Skip limit attributes if DPM is not enabled */
 	if (rdev->pm.pm_method != PM_METHOD_DPM &&
