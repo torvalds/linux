@@ -331,7 +331,8 @@ static int imx_ahci_probe(struct platform_device *pdev)
 		if (IS_ERR(imxpriv->gpr)) {
 			dev_err(dev,
 				"failed to find fsl,imx6q-iomux-gpr regmap\n");
-			return PTR_ERR(imxpriv->gpr);
+			ret = PTR_ERR(imxpriv->gpr);
+			goto err_out;
 		}
 
 		/*
