@@ -220,6 +220,13 @@ static void xemaclite_aligned_write(void *src_ptr, u32 *dest_ptr,
 		*to_u16_ptr++ = *from_u16_ptr++;
 		*to_u16_ptr++ = *from_u16_ptr++;
 
+		/* This barrier resolves occasional issues seen around
+		 * cases where the data is not properly flushed out
+		 * from the processor store buffers to the destination
+		 * memory locations.
+		 */
+		wmb();
+
 		/* Output a word */
 		*to_u32_ptr++ = align_buffer;
 	}
@@ -235,6 +242,12 @@ static void xemaclite_aligned_write(void *src_ptr, u32 *dest_ptr,
 		for (; length > 0; length--)
 			*to_u8_ptr++ = *from_u8_ptr++;
 
+		/* This barrier resolves occasional issues seen around
+		 * cases where the data is not properly flushed out
+		 * from the processor store buffers to the destination
+		 * memory locations.
+		 */
+		wmb();
 		*to_u32_ptr = align_buffer;
 	}
 }
