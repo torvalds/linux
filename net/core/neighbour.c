@@ -2825,6 +2825,43 @@ static int neigh_proc_dointvec_zero_intmax(struct ctl_table *ctl, int write,
 	return proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
 }
 
+int neigh_proc_dointvec(struct ctl_table *ctl, int write,
+			void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	return proc_dointvec(ctl, write, buffer, lenp, ppos);
+}
+EXPORT_SYMBOL(neigh_proc_dointvec);
+
+int neigh_proc_dointvec_jiffies(struct ctl_table *ctl, int write,
+				void __user *buffer,
+				size_t *lenp, loff_t *ppos)
+{
+	return proc_dointvec_jiffies(ctl, write, buffer, lenp, ppos);
+}
+EXPORT_SYMBOL(neigh_proc_dointvec_jiffies);
+
+static int neigh_proc_dointvec_userhz_jiffies(struct ctl_table *ctl, int write,
+					      void __user *buffer,
+					      size_t *lenp, loff_t *ppos)
+{
+	return proc_dointvec_userhz_jiffies(ctl, write, buffer, lenp, ppos);
+}
+
+int neigh_proc_dointvec_ms_jiffies(struct ctl_table *ctl, int write,
+				   void __user *buffer,
+				   size_t *lenp, loff_t *ppos)
+{
+	return proc_dointvec_ms_jiffies(ctl, write, buffer, lenp, ppos);
+}
+EXPORT_SYMBOL(neigh_proc_dointvec_ms_jiffies);
+
+static int neigh_proc_dointvec_unres_qlen(struct ctl_table *ctl, int write,
+					  void __user *buffer,
+					  size_t *lenp, loff_t *ppos)
+{
+	return proc_unres_qlen(ctl, write, buffer, lenp, ppos);
+}
+
 #define NEIGH_PARMS_DATA_OFFSET(index)	\
 	(&((struct neigh_parms *) 0)->data[index])
 
@@ -2841,19 +2878,19 @@ static int neigh_proc_dointvec_zero_intmax(struct ctl_table *ctl, int write,
 	NEIGH_SYSCTL_ENTRY(attr, attr, name, 0644, neigh_proc_dointvec_zero_intmax)
 
 #define NEIGH_SYSCTL_JIFFIES_ENTRY(attr, name) \
-	NEIGH_SYSCTL_ENTRY(attr, attr, name, 0644, proc_dointvec_jiffies)
+	NEIGH_SYSCTL_ENTRY(attr, attr, name, 0644, neigh_proc_dointvec_jiffies)
 
 #define NEIGH_SYSCTL_USERHZ_JIFFIES_ENTRY(attr, name) \
-	NEIGH_SYSCTL_ENTRY(attr, attr, name, 0644, proc_dointvec_userhz_jiffies)
+	NEIGH_SYSCTL_ENTRY(attr, attr, name, 0644, neigh_proc_dointvec_userhz_jiffies)
 
 #define NEIGH_SYSCTL_MS_JIFFIES_ENTRY(attr, name) \
-	NEIGH_SYSCTL_ENTRY(attr, attr, name, 0644, proc_dointvec_ms_jiffies)
+	NEIGH_SYSCTL_ENTRY(attr, attr, name, 0644, neigh_proc_dointvec_ms_jiffies)
 
 #define NEIGH_SYSCTL_MS_JIFFIES_REUSED_ENTRY(attr, data_attr, name) \
-	NEIGH_SYSCTL_ENTRY(attr, data_attr, name, 0644, proc_dointvec_ms_jiffies)
+	NEIGH_SYSCTL_ENTRY(attr, data_attr, name, 0644, neigh_proc_dointvec_ms_jiffies)
 
 #define NEIGH_SYSCTL_UNRES_QLEN_REUSED_ENTRY(attr, data_attr, name) \
-	NEIGH_SYSCTL_ENTRY(attr, data_attr, name, 0644, proc_unres_qlen)
+	NEIGH_SYSCTL_ENTRY(attr, data_attr, name, 0644, neigh_proc_dointvec_unres_qlen)
 
 static struct neigh_sysctl_table {
 	struct ctl_table_header *sysctl_header;
@@ -2921,8 +2958,10 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 	if (!t)
 		goto err;
 
-	for (i = 0; i < ARRAY_SIZE(t->neigh_vars); i++)
+	for (i = 0; i < ARRAY_SIZE(t->neigh_vars); i++) {
 		t->neigh_vars[i].data += (long) p;
+		t->neigh_vars[i].extra1 = dev;
+	}
 
 	if (dev) {
 		dev_name_source = dev->name;
@@ -2940,16 +2979,12 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 	if (handler) {
 		/* RetransTime */
 		t->neigh_vars[NEIGH_VAR_RETRANS_TIME].proc_handler = handler;
-		t->neigh_vars[NEIGH_VAR_RETRANS_TIME].extra1 = dev;
 		/* ReachableTime */
 		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME].proc_handler = handler;
-		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME].extra1 = dev;
 		/* RetransTime (in milliseconds)*/
 		t->neigh_vars[NEIGH_VAR_RETRANS_TIME_MS].proc_handler = handler;
-		t->neigh_vars[NEIGH_VAR_RETRANS_TIME_MS].extra1 = dev;
 		/* ReachableTime (in milliseconds) */
 		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME_MS].proc_handler = handler;
-		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME_MS].extra1 = dev;
 	}
 
 	/* Don't export sysctls to unprivileged users */

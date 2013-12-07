@@ -1655,16 +1655,16 @@ int ndisc_ifinfo_sysctl_change(struct ctl_table *ctl, int write, void __user *bu
 		ndisc_warn_deprecated_sysctl(ctl, "syscall", dev ? dev->name : "default");
 
 	if (strcmp(ctl->procname, "retrans_time") == 0)
-		ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+		ret = neigh_proc_dointvec(ctl, write, buffer, lenp, ppos);
 
 	else if (strcmp(ctl->procname, "base_reachable_time") == 0)
-		ret = proc_dointvec_jiffies(ctl, write,
-					    buffer, lenp, ppos);
+		ret = neigh_proc_dointvec_jiffies(ctl, write,
+						  buffer, lenp, ppos);
 
 	else if ((strcmp(ctl->procname, "retrans_time_ms") == 0) ||
 		 (strcmp(ctl->procname, "base_reachable_time_ms") == 0))
-		ret = proc_dointvec_ms_jiffies(ctl, write,
-					       buffer, lenp, ppos);
+		ret = neigh_proc_dointvec_ms_jiffies(ctl, write,
+						     buffer, lenp, ppos);
 	else
 		ret = -1;
 
