@@ -397,12 +397,6 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	mcfqspi = spi_master_get_devdata(master);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_dbg(&pdev->dev, "platform_get_resource failed\n");
-		status = -ENXIO;
-		goto fail0;
-	}
-
 	mcfqspi->iobase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(mcfqspi->iobase)) {
 		status = PTR_ERR(mcfqspi->iobase);
