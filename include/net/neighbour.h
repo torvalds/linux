@@ -202,6 +202,11 @@ struct neigh_table {
 	struct pneigh_entry	**phash_buckets;
 };
 
+static inline int neigh_parms_family(struct neigh_parms *p)
+{
+	return p->tbl->family;
+}
+
 #define NEIGH_PRIV_ALIGN	sizeof(long long)
 #define NEIGH_ENTRY_SIZE(size)	ALIGN((size), NEIGH_PRIV_ALIGN)
 
@@ -306,7 +311,7 @@ int neigh_proc_dointvec_ms_jiffies(struct ctl_table *ctl, int write,
 				   size_t *lenp, loff_t *ppos);
 
 int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
-			  char *p_name, proc_handler *proc_handler);
+			  proc_handler *proc_handler);
 void neigh_sysctl_unregister(struct neigh_parms *p);
 
 static inline void __neigh_parms_put(struct neigh_parms *parms)
