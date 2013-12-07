@@ -13,7 +13,6 @@
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/pagemap.h>
-#include <linux/poll.h>
 #include <linux/sched.h>
 
 #include "kernfs-internal.h"
