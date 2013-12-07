@@ -37,6 +37,32 @@
 
 struct neighbour;
 
+enum {
+	NEIGH_VAR_MCAST_PROBES,
+	NEIGH_VAR_UCAST_PROBES,
+	NEIGH_VAR_APP_PROBES,
+	NEIGH_VAR_RETRANS_TIME,
+	NEIGH_VAR_BASE_REACHABLE_TIME,
+	NEIGH_VAR_DELAY_PROBE_TIME,
+	NEIGH_VAR_GC_STALETIME,
+	NEIGH_VAR_QUEUE_LEN_BYTES,
+	NEIGH_VAR_PROXY_QLEN,
+	NEIGH_VAR_ANYCAST_DELAY,
+	NEIGH_VAR_PROXY_DELAY,
+	NEIGH_VAR_LOCKTIME,
+#define NEIGH_VAR_DATA_MAX (NEIGH_VAR_LOCKTIME + 1)
+	/* Following are used as a second way to access one of the above */
+	NEIGH_VAR_QUEUE_LEN, /* same data as NEIGH_VAR_QUEUE_LEN_BYTES */
+	NEIGH_VAR_RETRANS_TIME_MS, /* same data as NEIGH_VAR_RETRANS_TIME */
+	NEIGH_VAR_BASE_REACHABLE_TIME_MS, /* same data as NEIGH_VAR_BASE_REACHABLE_TIME */
+	/* Following are used by "default" only */
+	NEIGH_VAR_GC_INTERVAL,
+	NEIGH_VAR_GC_THRESH1,
+	NEIGH_VAR_GC_THRESH2,
+	NEIGH_VAR_GC_THRESH3,
+	NEIGH_VAR_MAX
+};
+
 struct neigh_parms {
 #ifdef CONFIG_NET_NS
 	struct net *net;
@@ -53,21 +79,17 @@ struct neigh_parms {
 	atomic_t refcnt;
 	struct rcu_head rcu_head;
 
-	int	base_reachable_time;
-	int	retrans_time;
-	int	gc_staletime;
 	int	reachable_time;
-	int	delay_probe_time;
-
-	int	queue_len_bytes;
-	int	ucast_probes;
-	int	app_probes;
-	int	mcast_probes;
-	int	anycast_delay;
-	int	proxy_delay;
-	int	proxy_qlen;
-	int	locktime;
+	int	data[NEIGH_VAR_DATA_MAX];
 };
+
+static inline void neigh_var_set(struct neigh_parms *p, int index, int val)
+{
+	p->data[index] = val;
+}
+
+#define NEIGH_VAR(p, attr) ((p)->data[NEIGH_VAR_ ## attr])
+#define NEIGH_VAR_SET(p, attr, val) neigh_var_set(p, NEIGH_VAR_ ## attr, val)
 
 struct neigh_statistics {
 	unsigned long allocs;		/* number of allocated neighs */
