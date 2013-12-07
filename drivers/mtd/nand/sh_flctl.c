@@ -1021,7 +1021,6 @@ static irqreturn_t flctl_handle_flste(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_OF
 struct flctl_soc_config {
 	unsigned long flcmncr_val;
 	unsigned has_hwecc:1;
@@ -1080,12 +1079,6 @@ static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
 
 	return pdata;
 }
-#else /* CONFIG_OF */
-static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
-{
-	return NULL;
-}
-#endif /* CONFIG_OF */
 
 static int flctl_probe(struct platform_device *pdev)
 {
