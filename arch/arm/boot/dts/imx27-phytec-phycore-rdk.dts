@@ -7,7 +7,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-#include "imx27-phytec-phycore-som.dts"
+#include "imx27-phytec-phycore-som.dtsi"
 
 / {
 	model = "Phytec pcm970";
