@@ -117,9 +117,7 @@ static void mc13xxx_led_work(struct work_struct *work)
 		BUG();
 	}
 
-	mc13xxx_lock(led->master);
 	mc13xxx_reg_rmw(led->master, reg, mask << shift, value << shift);
-	mc13xxx_unlock(led->master);
 }
 
 static void mc13xxx_led_set(struct led_classdev *led_cdev,
@@ -164,19 +162,12 @@ static int __init mc13xxx_led_probe(struct platform_device *pdev)
 	leds->num_leds = num_leds;
 	platform_set_drvdata(pdev, leds);
 
-	mc13xxx_lock(mcdev);
 	for (i = 0; i < devtype->num_regs; i++) {
 		reg = pdata->led_control[i];
 		WARN_ON(reg >= (1 << 24));
 		ret = mc13xxx_reg_write(mcdev, MC13XXX_REG_LED_CONTROL(i), reg);
 		if (ret)
-			break;
-	}
-	mc13xxx_unlock(mcdev);
-
-	if (ret) {
-		dev_err(&pdev->dev, "Unable to init LED driver\n");
-		return ret;
+			return ret;
 	}
 
 	for (i = 0; i < num_leds; i++) {
@@ -237,10 +228,8 @@ static int mc13xxx_led_remove(struct platform_device *pdev)
 		cancel_work_sync(&leds->led[i].work);
 	}
 
-	mc13xxx_lock(mcdev);
 	for (i = 0; i < leds->devtype->num_regs; i++)
 		mc13xxx_reg_write(mcdev, MC13XXX_REG_LED_CONTROL(i), 0);
-	mc13xxx_unlock(mcdev);
 
 	return 0;
 }
