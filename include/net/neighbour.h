@@ -21,6 +21,7 @@
 #include <linux/skbuff.h>
 #include <linux/rcupdate.h>
 #include <linux/seq_file.h>
+#include <linux/bitmap.h>
 
 #include <linux/err.h>
 #include <linux/sysctl.h>
@@ -81,15 +82,27 @@ struct neigh_parms {
 
 	int	reachable_time;
 	int	data[NEIGH_VAR_DATA_MAX];
+	DECLARE_BITMAP(data_state, NEIGH_VAR_DATA_MAX);
 };
 
 static inline void neigh_var_set(struct neigh_parms *p, int index, int val)
 {
+	set_bit(index, p->data_state);
 	p->data[index] = val;
 }
 
 #define NEIGH_VAR(p, attr) ((p)->data[NEIGH_VAR_ ## attr])
 #define NEIGH_VAR_SET(p, attr, val) neigh_var_set(p, NEIGH_VAR_ ## attr, val)
+
+static inline void neigh_parms_data_state_setall(struct neigh_parms *p)
+{
+	bitmap_fill(p->data_state, NEIGH_VAR_DATA_MAX);
+}
+
+static inline void neigh_parms_data_state_cleanall(struct neigh_parms *p)
+{
+	bitmap_zero(p->data_state, NEIGH_VAR_DATA_MAX);
+}
 
 struct neigh_statistics {
 	unsigned long allocs;		/* number of allocated neighs */

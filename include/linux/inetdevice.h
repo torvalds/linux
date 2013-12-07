@@ -220,6 +220,13 @@ static inline struct in_device *__in_dev_get_rtnl(const struct net_device *dev)
 	return rtnl_dereference(dev->ip_ptr);
 }
 
+static inline struct neigh_parms *__in_dev_arp_parms_get_rcu(const struct net_device *dev)
+{
+	struct in_device *in_dev = __in_dev_get_rcu(dev);
+
+	return in_dev ? in_dev->arp_parms : NULL;
+}
+
 void in_dev_finish_destroy(struct in_device *idev);
 
 static inline void in_dev_put(struct in_device *idev)

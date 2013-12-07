@@ -38,6 +38,7 @@
 #include <linux/random.h>
 #include <linux/string.h>
 #include <linux/log2.h>
+#include <linux/inetdevice.h>
 
 #define DEBUG
 #define NEIGH_DEBUG 1
@@ -1464,6 +1465,8 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 		p->next		= tbl->parms.next;
 		tbl->parms.next = p;
 		write_unlock_bh(&tbl->lock);
+
+		neigh_parms_data_state_cleanall(p);
 	}
 	return p;
 }
@@ -2813,22 +2816,68 @@ static int proc_unres_qlen(struct ctl_table *ctl, int write,
 	return ret;
 }
 
+static struct neigh_parms *neigh_get_dev_parms_rcu(struct net_device *dev,
+						   int family)
+{
+	if (family == AF_INET)
+		return __in_dev_arp_parms_get_rcu(dev);
+	return NULL;
+}
+
+static void neigh_copy_dflt_parms(struct net *net, struct neigh_parms *p,
+				  int index)
+{
+	struct net_device *dev;
+	int family = neigh_parms_family(p);
+
+	rcu_read_lock();
+	for_each_netdev_rcu(net, dev) {
+		struct neigh_parms *dst_p =
+				neigh_get_dev_parms_rcu(dev, family);
+
+		if (dst_p && !test_bit(index, dst_p->data_state))
+			dst_p->data[index] = p->data[index];
+	}
+	rcu_read_unlock();
+}
+
+static void neigh_proc_update(struct ctl_table *ctl, int write)
+{
+	struct net_device *dev = ctl->extra1;
+	struct neigh_parms *p = ctl->extra2;
+	struct net *net = p->net;
+	int index = (int *) ctl->data - p->data;
+
+	if (!write)
+		return;
+
+	set_bit(index, p->data_state);
+	if (!dev) /* NULL dev means this is default value */
+		neigh_copy_dflt_parms(net, p, index);
+}
+
 static int neigh_proc_dointvec_zero_intmax(struct ctl_table *ctl, int write,
 					   void __user *buffer,
 					   size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table tmp = *ctl;
+	int ret;
 
 	tmp.extra1 = &zero;
 	tmp.extra2 = &int_max;
 
-	return proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	neigh_proc_update(ctl, write);
+	return ret;
 }
 
 int neigh_proc_dointvec(struct ctl_table *ctl, int write,
 			void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	return proc_dointvec(ctl, write, buffer, lenp, ppos);
+	int ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+
+	neigh_proc_update(ctl, write);
+	return ret;
 }
 EXPORT_SYMBOL(neigh_proc_dointvec);
 
@@ -2836,7 +2885,10 @@ int neigh_proc_dointvec_jiffies(struct ctl_table *ctl, int write,
 				void __user *buffer,
 				size_t *lenp, loff_t *ppos)
 {
-	return proc_dointvec_jiffies(ctl, write, buffer, lenp, ppos);
+	int ret = proc_dointvec_jiffies(ctl, write, buffer, lenp, ppos);
+
+	neigh_proc_update(ctl, write);
+	return ret;
 }
 EXPORT_SYMBOL(neigh_proc_dointvec_jiffies);
 
@@ -2844,14 +2896,20 @@ static int neigh_proc_dointvec_userhz_jiffies(struct ctl_table *ctl, int write,
 					      void __user *buffer,
 					      size_t *lenp, loff_t *ppos)
 {
-	return proc_dointvec_userhz_jiffies(ctl, write, buffer, lenp, ppos);
+	int ret = proc_dointvec_userhz_jiffies(ctl, write, buffer, lenp, ppos);
+
+	neigh_proc_update(ctl, write);
+	return ret;
 }
 
 int neigh_proc_dointvec_ms_jiffies(struct ctl_table *ctl, int write,
 				   void __user *buffer,
 				   size_t *lenp, loff_t *ppos)
 {
-	return proc_dointvec_ms_jiffies(ctl, write, buffer, lenp, ppos);
+	int ret = proc_dointvec_ms_jiffies(ctl, write, buffer, lenp, ppos);
+
+	neigh_proc_update(ctl, write);
+	return ret;
 }
 EXPORT_SYMBOL(neigh_proc_dointvec_ms_jiffies);
 
@@ -2859,7 +2917,10 @@ static int neigh_proc_dointvec_unres_qlen(struct ctl_table *ctl, int write,
 					  void __user *buffer,
 					  size_t *lenp, loff_t *ppos)
 {
-	return proc_unres_qlen(ctl, write, buffer, lenp, ppos);
+	int ret = proc_unres_qlen(ctl, write, buffer, lenp, ppos);
+
+	neigh_proc_update(ctl, write);
+	return ret;
 }
 
 #define NEIGH_PARMS_DATA_OFFSET(index)	\
@@ -2962,6 +3023,7 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 	for (i = 0; i < ARRAY_SIZE(t->neigh_vars); i++) {
 		t->neigh_vars[i].data += (long) p;
 		t->neigh_vars[i].extra1 = dev;
+		t->neigh_vars[i].extra2 = p;
 	}
 
 	if (dev) {
