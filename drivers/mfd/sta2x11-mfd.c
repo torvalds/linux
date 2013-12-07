@@ -339,7 +339,7 @@ static int sta2x11_mfd_platform_probe(struct platform_device *dev,
 	regmap_config->cache_type = REGCACHE_NONE;
 	mfd->regmap[index] = devm_regmap_init_mmio(&dev->dev, mfd->regs[index],
 						   regmap_config);
-	WARN_ON(!mfd->regmap[index]);
+	WARN_ON(IS_ERR(mfd->regmap[index]));
 
 	return 0;
 }
