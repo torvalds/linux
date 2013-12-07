@@ -2002,8 +2002,10 @@ static int bch_btree_insert_node(struct btree *b, struct btree_op *op,
 			return -EINTR;
 		} else {
 			/* Invalidated all iterators */
-			return btree_split(b, op, insert_keys, replace_key) ?:
-				-EINTR;
+			int ret = btree_split(b, op, insert_keys, replace_key);
+
+			return bch_keylist_empty(insert_keys) ?
+				0 : ret ?: -EINTR;
 		}
 	} else {
 		BUG_ON(write_block(b) != btree_bset_last(b));
