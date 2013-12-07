@@ -35,6 +35,7 @@
 #include <linux/clockchips.h>
 #include <linux/cpuidle.h>
 #include <linux/syscore_ops.h>
+#include <acpi/processor.h>
 
 /*
  * Include the apic definitions for x86 to have the APIC timer related defines
@@ -45,9 +46,6 @@
 #ifdef CONFIG_X86
 #include <asm/apic.h>
 #endif
-
-#include <acpi/acpi_bus.h>
-#include <acpi/processor.h>
 
 #define PREFIX "ACPI: "
 

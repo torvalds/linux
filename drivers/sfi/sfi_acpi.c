@@ -60,7 +60,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/kernel.h>
-#include <acpi/acpi.h>
+#include <acpi/acpi.h>	/* FIXME: inclusion should be removed */
 
 #include <linux/sfi.h>
 #include "sfi_core.h"

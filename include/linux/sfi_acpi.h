@@ -60,7 +60,7 @@
 #define _LINUX_SFI_ACPI_H
 
 #ifdef CONFIG_SFI
-#include <acpi/acpi.h>		/* struct acpi_table_header */
+#include <acpi/acpi.h>	/* FIXME: inclusion should be removed */
 
 extern int sfi_acpi_table_parse(char *signature, char *oem_id,
 				char *oem_table_id,

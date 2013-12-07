@@ -12,8 +12,6 @@
 #include <linux/dmi.h>
 #include <linux/nls.h>
 
-#include <acpi/acpi_drivers.h>
-
 #include <asm/pgtable.h>
 
 #include "internal.h"

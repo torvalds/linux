@@ -39,9 +39,7 @@
 #include <linux/pci.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 
 #define PREFIX "ACPI: "
 

@@ -32,13 +32,10 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/cpufreq.h>
-
+#include <linux/acpi.h>
+#include <acpi/processor.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
-
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/processor.h>
 
 #define PREFIX "ACPI: "
 

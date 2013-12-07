@@ -37,8 +37,6 @@
 #include <asm/mpspec.h>
 #endif
 #include <linux/pci.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
 #include <acpi/apei.h>
 #include <linux/dmi.h>
 #include <linux/suspend.h>
