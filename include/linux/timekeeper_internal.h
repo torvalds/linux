@@ -92,6 +92,7 @@ struct timekeeper {
 	u32			raw_interval;
 	s64			ntp_error;
 	u32			ntp_error_shift;
+	u32			ntp_err_mult;
 };
 
 #ifdef CONFIG_GENERIC_TIME_VSYSCALL
