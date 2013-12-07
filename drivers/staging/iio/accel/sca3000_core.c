@@ -1126,20 +1126,20 @@ static const struct iio_info sca3000_info = {
 	.attrs = &sca3000_attribute_group,
 	.read_raw = &sca3000_read_raw,
 	.event_attrs = &sca3000_event_attribute_group,
-	.read_event_value_new = &sca3000_read_thresh,
-	.write_event_value_new = &sca3000_write_thresh,
-	.read_event_config_new = &sca3000_read_event_config,
-	.write_event_config_new = &sca3000_write_event_config,
+	.read_event_value = &sca3000_read_thresh,
+	.write_event_value = &sca3000_write_thresh,
+	.read_event_config = &sca3000_read_event_config,
+	.write_event_config = &sca3000_write_event_config,
 	.driver_module = THIS_MODULE,
 };
 
 static const struct iio_info sca3000_info_with_temp = {
 	.attrs = &sca3000_attribute_group_with_temp,
 	.read_raw = &sca3000_read_raw,
-	.read_event_value_new = &sca3000_read_thresh,
-	.write_event_value_new = &sca3000_write_thresh,
-	.read_event_config_new = &sca3000_read_event_config,
-	.write_event_config_new = &sca3000_write_event_config,
+	.read_event_value = &sca3000_read_thresh,
+	.write_event_value = &sca3000_write_thresh,
+	.read_event_config = &sca3000_read_event_config,
+	.write_event_config = &sca3000_write_event_config,
 	.driver_module = THIS_MODULE,
 };
 

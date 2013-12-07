@@ -185,7 +185,6 @@ struct iio_event_spec {
  *			by all channels of the same direction.
  * @info_mask_shared_by_all: What information is to be exported that is shared
  *			by all channels.
- * @event_mask:		What events can this channel produce.
  * @event_spec:		Array of events which should be registered for this
  *			channel.
  * @num_event_specs:	Size of the event_spec array.
@@ -226,7 +225,6 @@ struct iio_chan_spec {
 	long			info_mask_shared_by_type;
 	long			info_mask_shared_by_dir;
 	long			info_mask_shared_by_all;
-	long			event_mask;
 	const struct iio_event_spec *event_spec;
 	unsigned int		num_event_specs;
 	const struct iio_chan_spec_ext_info *ext_info;
@@ -307,16 +305,8 @@ struct iio_dev;
  *			returns IIO_VAL_INT_PLUS_MICRO.
  * @read_event_config:	find out if the event is enabled.
  * @write_event_config:	set if the event is enabled.
- * @read_event_value:	read a value associated with the event. Meaning
- *			is event dependant. event_code specifies which event.
- * @write_event_value:	write the value associated with the event.
- *			Meaning is event dependent.
- * @read_event_config_new: find out if the event is enabled. New style interface.
- * @write_event_config_new: set if the event is enabled. New style interface.
- * @read_event_value_new: read a configuration value associated with the event.
- *                         New style interface.
- * @write_event_value_new: write a configuration value for the event. New style
- *			   interface.
+ * @read_event_value:	read a configuration value associated with the event.
+ * @write_event_value:	write a configuration value for the event.
  * @validate_trigger:	function to validate the trigger when the
  *			current trigger gets changed.
  * @update_scan_mode:	function to configure device and scan buffer when
@@ -345,37 +335,23 @@ struct iio_info {
 			 long mask);
 
 	int (*read_event_config)(struct iio_dev *indio_dev,
-				 u64 event_code);
-
-	int (*write_event_config)(struct iio_dev *indio_dev,
-				  u64 event_code,
-				  int state);
-
-	int (*read_event_value)(struct iio_dev *indio_dev,
-				u64 event_code,
-				int *val);
-	int (*write_event_value)(struct iio_dev *indio_dev,
-				 u64 event_code,
-				 int val);
-
-	int (*read_event_config_new)(struct iio_dev *indio_dev,
 				 const struct iio_chan_spec *chan,
 				 enum iio_event_type type,
 				 enum iio_event_direction dir);
 
-	int (*write_event_config_new)(struct iio_dev *indio_dev,
+	int (*write_event_config)(struct iio_dev *indio_dev,
 				  const struct iio_chan_spec *chan,
 				  enum iio_event_type type,
 				  enum iio_event_direction dir,
 				  int state);
 
-	int (*read_event_value_new)(struct iio_dev *indio_dev,
+	int (*read_event_value)(struct iio_dev *indio_dev,
 				const struct iio_chan_spec *chan,
 				enum iio_event_type type,
 				enum iio_event_direction dir,
 				enum iio_event_info info, int *val, int *val2);
 
-	int (*write_event_value_new)(struct iio_dev *indio_dev,
+	int (*write_event_value)(struct iio_dev *indio_dev,
 				 const struct iio_chan_spec *chan,
 				 enum iio_event_type type,
 				 enum iio_event_direction dir,

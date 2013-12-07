@@ -614,10 +614,10 @@ static const struct iio_info cm36651_info = {
 	.driver_module		= THIS_MODULE,
 	.read_raw		= &cm36651_read_raw,
 	.write_raw		= &cm36651_write_raw,
-	.read_event_value_new	= &cm36651_read_prox_thresh,
-	.write_event_value_new	= &cm36651_write_prox_thresh,
-	.read_event_config_new	= &cm36651_read_prox_event_config,
-	.write_event_config_new	= &cm36651_write_prox_event_config,
+	.read_event_value	= &cm36651_read_prox_thresh,
+	.write_event_value	= &cm36651_write_prox_thresh,
+	.read_event_config	= &cm36651_read_prox_event_config,
+	.write_event_config	= &cm36651_write_prox_event_config,
 	.attrs			= &cm36651_attribute_group,
 };
 

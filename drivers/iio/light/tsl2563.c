@@ -702,10 +702,10 @@ static const struct iio_info tsl2563_info = {
 	.driver_module = THIS_MODULE,
 	.read_raw = &tsl2563_read_raw,
 	.write_raw = &tsl2563_write_raw,
-	.read_event_value_new = &tsl2563_read_thresh,
-	.write_event_value_new = &tsl2563_write_thresh,
-	.read_event_config_new = &tsl2563_read_interrupt_config,
-	.write_event_config_new = &tsl2563_write_interrupt_config,
+	.read_event_value = &tsl2563_read_thresh,
+	.write_event_value = &tsl2563_write_thresh,
+	.read_event_config = &tsl2563_read_interrupt_config,
+	.write_event_config = &tsl2563_write_interrupt_config,
 };
 
 static int tsl2563_probe(struct i2c_client *client,
