@@ -558,7 +558,6 @@ armada_gem_prime_import(struct drm_device *dev, struct dma_buf *buf)
 			 * refcount on the gem object itself.
 			 */
 			drm_gem_object_reference(obj);
-			dma_buf_put(buf);
 			return obj;
 		}
 	}
@@ -574,6 +573,7 @@ armada_gem_prime_import(struct drm_device *dev, struct dma_buf *buf)
 	}
 
 	dobj->obj.import_attach = attach;
+	get_dma_buf(buf);
 
 	/*
 	 * Don't call dma_buf_map_attachment() here - it maps the
