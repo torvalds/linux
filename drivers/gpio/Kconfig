@@ -714,10 +714,10 @@ config GPIO_MC33880
 
 config GPIO_74X164
 	tristate "74x164 serial-in/parallel-out 8-bits shift register"
-	depends on SPI_MASTER
+	depends on SPI_MASTER && OF
 	help
-	  Platform driver for 74x164 compatible serial-in/parallel-out
-	  8-outputs shift registers. This driver can be used to provide access
+	  Driver for 74x164 compatible serial-in/parallel-out 8-outputs
+	  shift registers. This driver can be used to provide access
 	  to more gpio outputs.
 
 comment "AC97 GPIO expanders:"
