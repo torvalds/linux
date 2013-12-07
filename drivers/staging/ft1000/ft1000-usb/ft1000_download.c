@@ -55,7 +55,7 @@
 
 #define  MAX_LENGTH              0x7f0
 
-// Temporary download mechanism for Magnemite
+/* Temporary download mechanism for Magnemite */
 #define  DWNLD_MAG_TYPE_LOC          0x00
 #define  DWNLD_MAG_LEN_LOC           0x01
 #define  DWNLD_MAG_ADDR_LOC          0x02
@@ -74,35 +74,35 @@
 #define  HANDSHAKE_MAG_TIMEOUT_VALUE 0xF1F1
 
 
-// New Magnemite downloader
+/* New Magnemite downloader */
 #define  DWNLD_MAG1_HANDSHAKE_LOC     0x00
 #define  DWNLD_MAG1_TYPE_LOC          0x01
 #define  DWNLD_MAG1_SIZE_LOC          0x02
 #define  DWNLD_MAG1_PS_HDR_LOC        0x03
 
 struct dsp_file_hdr {
-	long              version_id;          // Version ID of this image format.
-	long              package_id;          // Package ID of code release.
-	long              build_date;          // Date/time stamp when file was built.
-	long              commands_offset;     // Offset to attached commands in Pseudo Hdr format.
-	long              loader_offset;       // Offset to bootloader code.
-	long              loader_code_address; // Start address of bootloader.
-	long              loader_code_end;     // Where bootloader code ends.
+	long              version_id;          /* Version ID of this image format. */
+	long              package_id;          /* Package ID of code release. */
+	long              build_date;          /* Date/time stamp when file was built. */
+	long              commands_offset;     /* Offset to attached commands in Pseudo Hdr format. */
+	long              loader_offset;       /* Offset to bootloader code. */
+	long              loader_code_address; /* Start address of bootloader. */
+	long              loader_code_end;     /* Where bootloader code ends. */
 	long              loader_code_size;
-	long              version_data_offset; // Offset were scrambled version data begins.
-	long              version_data_size;   // Size, in words, of scrambled version data.
-	long              nDspImages;          // Number of DSP images in file.
+	long              version_data_offset; /* Offset were scrambled version data begins. */
+	long              version_data_size;   /* Size, in words, of scrambled version data. */
+	long              nDspImages;          /* Number of DSP images in file. */
 };
 
 #pragma pack(1)
 struct dsp_image_info {
-	long              coff_date;           // Date/time when DSP Coff image was built.
-	long              begin_offset;        // Offset in file where image begins.
-	long              end_offset;          // Offset in file where image begins.
-	long              run_address;         // On chip Start address of DSP code.
-	long              image_size;          // Size of image.
-	long              version;             // Embedded version # of DSP code.
-	unsigned short    checksum;            // DSP File checksum
+	long              coff_date;           /* Date/time when DSP Coff image was built. */
+	long              begin_offset;        /* Offset in file where image begins. */
+	long              end_offset;          /* Offset in file where image begins. */
+	long              run_address;         /* On chip Start address of DSP code. */
+	long              image_size;          /* Size of image. */
+	long              version;             /* Embedded version # of DSP code. */
+	unsigned short    checksum;            /* DSP File checksum */
 	unsigned short    pad1;
 };
 
@@ -511,7 +511,7 @@ static int write_blk(struct ft1000_usb *ft1000dev, u16 **pUsFile, u8 **pUcFile,
 
 static void usb_dnld_complete(struct urb *urb)
 {
-	//DEBUG("****** usb_dnld_complete\n");
+	/* DEBUG("****** usb_dnld_complete\n"); */
 }
 
 /* writes a block of DSP image to DPRAM
@@ -651,9 +651,9 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 	ft1000dev->usbboot = 0;
 	ft1000dev->dspalive = 0xffff;
 
-	//
-	// Get version id of file, at first 4 bytes of file, for newer files.
-	//
+	/*
+	 * Get version id of file, at first 4 bytes of file, for newer files.
+	 */
 
 	state = STATE_START_DWNLD;
 
@@ -702,8 +702,8 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 					/* Reposition ptrs to beginning of code section */
 					s_file = (u16 *) (boot_end);
 					c_file = (u8 *) (boot_end);
-					//DEBUG("FT1000:download:s_file = 0x%8x\n", (int)s_file);
-					//DEBUG("FT1000:download:c_file = 0x%8x\n", (int)c_file);
+					/* DEBUG("FT1000:download:s_file = 0x%8x\n", (int)s_file); */
+					/* DEBUG("FT1000:download:c_file = 0x%8x\n", (int)c_file); */
 					state = STATE_CODE_DWNLD;
 					ft1000dev->fcodeldr = 1;
 					break;
@@ -735,7 +735,7 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 			break;
 
 		case STATE_CODE_DWNLD:
-			//DEBUG("FT1000:STATE_CODE_DWNLD\n");
+			/* DEBUG("FT1000:STATE_CODE_DWNLD\n"); */
 			ft1000dev->bootmode = 0;
 			if (ft1000dev->usbboot)
 				handshake =
@@ -805,7 +805,7 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 					state = STATE_DONE_DWNLD;
 					break;
 				case REQUEST_CODE_SEGMENT:
-					//DEBUG("FT1000:download: REQUEST_CODE_SEGMENT - CODELOADER\n");
+					/* DEBUG("FT1000:download: REQUEST_CODE_SEGMENT - CODELOADER\n"); */
 					if (!correct_version) {
 						DEBUG
 						    ("FT1000:download:Download error: Got Code Segment request before image offset request.\n");
@@ -823,7 +823,7 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 				case REQUEST_MAILBOX_DATA:
 					DEBUG
 					    ("FT1000:download: REQUEST_MAILBOX_DATA\n");
-					// Convert length from byte count to word count. Make sure we round up.
+					/* Convert length from byte count to word count. Make sure we round up. */
 					word_length =
 					    (long)(pft1000info->DSPInfoBlklen +
 						   1) / 2;
@@ -939,7 +939,7 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 						}
 						dsp_img_info++;
 
-					}	//end of for
+					}	/* end of for */
 
 					if (!correct_version) {
 						/*
@@ -1002,7 +1002,7 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 					       (u32) (pseudo_header_len +
 						      sizeof(struct
 							     pseudo_hdr)));
-					// link provisioning data
+					/* link provisioning data */
 					pprov_record =
 					    kmalloc(sizeof(struct prov_record),
 						    GFP_ATOMIC);
@@ -1013,7 +1013,7 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 							      list,
 							      &pft1000info->
 							      prov_list);
-						// Move to next entry if available
+						/* Move to next entry if available */
 						c_file =
 						    (u8 *) ((unsigned long)
 							    c_file +
