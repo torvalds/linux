@@ -1348,10 +1348,13 @@ static inline int i40e_check_vf_permission(struct i40e_vf *vf, u8 *macaddr)
 		   is_zero_ether_addr(macaddr)) {
 		dev_err(&pf->pdev->dev, "invalid VF MAC addr %pM\n", macaddr);
 		ret = I40E_ERR_INVALID_MAC_ADDR;
-	} else if (vf->pf_set_mac && !is_multicast_ether_addr(macaddr)) {
+	} else if (vf->pf_set_mac && !is_multicast_ether_addr(macaddr) &&
+		   !ether_addr_equal(macaddr, vf->default_lan_addr.addr)) {
 		/* If the host VMM administrator has set the VF MAC address
 		 * administratively via the ndo_set_vf_mac command then deny
 		 * permission to the VF to add or delete unicast MAC addresses.
+		 * The VF may request to set the MAC address filter already
+		 * assigned to it so do not return an error in that case.
 		 */
 		dev_err(&pf->pdev->dev,
 			"VF attempting to override administratively set MAC address\nPlease reload the VF driver to resume normal operation\n");
