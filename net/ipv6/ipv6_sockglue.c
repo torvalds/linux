@@ -1034,6 +1034,10 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 				int hlim = np->mcast_hops;
 				put_cmsg(&msg, SOL_IPV6, IPV6_2292HOPLIMIT, sizeof(hlim), &hlim);
 			}
+			if (np->rxopt.bits.rxflow) {
+				int flowinfo = np->rcv_flowinfo;
+				put_cmsg(&msg, SOL_IPV6, IPV6_FLOWINFO, sizeof(flowinfo), &flowinfo);
+			}
 		}
 		len -= msg.msg_controllen;
 		return put_user(len, optlen);

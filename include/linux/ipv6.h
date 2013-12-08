@@ -201,6 +201,7 @@ struct ipv6_pinfo {
 	__u8			min_hopcount;
 	__u8			tclass;
 	__u8			rcv_tclass;
+	__be32			rcv_flowinfo;
 
 	__u32			dst_cookie;
 	__u32			rx_dst_cookie;
