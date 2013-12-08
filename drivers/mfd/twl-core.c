@@ -1133,6 +1133,11 @@ static int twl_remove(struct i2c_client *client)
 	return 0;
 }
 
+static struct of_dev_auxdata twl_auxdata_lookup[] = {
+	OF_DEV_AUXDATA("ti,twl4030-gpio", 0, "twl4030-gpio", NULL),
+	{ /* sentinel */ },
+};
+
 /* NOTE: This driver only handles a single twl4030/tps659x0 chip */
 static int
 twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
@@ -1271,10 +1276,14 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		twl_i2c_write_u8(TWL4030_MODULE_INTBR, temp, REG_GPPUPDCTR1);
 	}
 
-	if (node)
-		status = of_platform_populate(node, NULL, NULL, &client->dev);
-	else
+	if (node) {
+		if (pdata)
+			twl_auxdata_lookup[0].platform_data = pdata->gpio;
+		status = of_platform_populate(node, NULL, twl_auxdata_lookup,
+					      &client->dev);
+	} else {
 		status = add_children(pdata, irq_base, id->driver_data);
+	}
 
 fail:
 	if (status < 0)
