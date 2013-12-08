@@ -996,7 +996,7 @@ out:
 				  index, dev->caps.num_mgms);
 		else
 			mlx4_bitmap_free(&priv->mcg_table.bitmap,
-					 index - dev->caps.num_mgms);
+					 index - dev->caps.num_mgms, MLX4_USE_RR);
 	}
 	mutex_unlock(&priv->mcg_table.mutex);
 
@@ -1087,7 +1087,7 @@ int mlx4_qp_detach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 					  index, amgm_index, dev->caps.num_mgms);
 			else
 				mlx4_bitmap_free(&priv->mcg_table.bitmap,
-						 amgm_index - dev->caps.num_mgms);
+						 amgm_index - dev->caps.num_mgms, MLX4_USE_RR);
 		}
 	} else {
 		/* Remove entry from AMGM */
@@ -1107,7 +1107,7 @@ int mlx4_qp_detach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 				  prev, index, dev->caps.num_mgms);
 		else
 			mlx4_bitmap_free(&priv->mcg_table.bitmap,
-					 index - dev->caps.num_mgms);
+					 index - dev->caps.num_mgms, MLX4_USE_RR);
 	}
 
 out:

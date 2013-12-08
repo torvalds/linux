@@ -187,7 +187,7 @@ err_put:
 	mlx4_table_put(dev, &cq_table->table, *cqn);
 
 err_out:
-	mlx4_bitmap_free(&cq_table->bitmap, *cqn);
+	mlx4_bitmap_free(&cq_table->bitmap, *cqn, MLX4_NO_RR);
 	return err;
 }
 
@@ -217,7 +217,7 @@ void __mlx4_cq_free_icm(struct mlx4_dev *dev, int cqn)
 
 	mlx4_table_put(dev, &cq_table->cmpt_table, cqn);
 	mlx4_table_put(dev, &cq_table->table, cqn);
-	mlx4_bitmap_free(&cq_table->bitmap, cqn);
+	mlx4_bitmap_free(&cq_table->bitmap, cqn, MLX4_NO_RR);
 }
 
 static void mlx4_cq_free_icm(struct mlx4_dev *dev, int cqn)

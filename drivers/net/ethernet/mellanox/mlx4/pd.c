@@ -59,7 +59,7 @@ EXPORT_SYMBOL_GPL(mlx4_pd_alloc);
 
 void mlx4_pd_free(struct mlx4_dev *dev, u32 pdn)
 {
-	mlx4_bitmap_free(&mlx4_priv(dev)->pd_bitmap, pdn);
+	mlx4_bitmap_free(&mlx4_priv(dev)->pd_bitmap, pdn, MLX4_USE_RR);
 }
 EXPORT_SYMBOL_GPL(mlx4_pd_free);
 
@@ -96,7 +96,7 @@ EXPORT_SYMBOL_GPL(mlx4_xrcd_alloc);
 
 void __mlx4_xrcd_free(struct mlx4_dev *dev, u32 xrcdn)
 {
-	mlx4_bitmap_free(&mlx4_priv(dev)->xrcd_bitmap, xrcdn);
+	mlx4_bitmap_free(&mlx4_priv(dev)->xrcd_bitmap, xrcdn, MLX4_USE_RR);
 }
 
 void mlx4_xrcd_free(struct mlx4_dev *dev, u32 xrcdn)
@@ -164,7 +164,7 @@ EXPORT_SYMBOL_GPL(mlx4_uar_alloc);
 
 void mlx4_uar_free(struct mlx4_dev *dev, struct mlx4_uar *uar)
 {
-	mlx4_bitmap_free(&mlx4_priv(dev)->uar_table.bitmap, uar->index);
+	mlx4_bitmap_free(&mlx4_priv(dev)->uar_table.bitmap, uar->index, MLX4_USE_RR);
 }
 EXPORT_SYMBOL_GPL(mlx4_uar_free);
 
