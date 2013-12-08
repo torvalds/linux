@@ -679,6 +679,11 @@ static inline __be32 ip6_flowinfo(const struct ipv6hdr *hdr)
 	return *(__be32 *)hdr & IPV6_FLOWINFO_MASK;
 }
 
+static inline __be32 ip6_flowlabel(const struct ipv6hdr *hdr)
+{
+	return *(__be32 *)hdr & IPV6_FLOWLABEL_MASK;
+}
+
 /*
  *	Prototypes exported by ipv6
  */
