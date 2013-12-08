@@ -1848,26 +1848,23 @@ static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 static void et131x_config_tx_dma_regs(struct et131x_adapter *adapter)
 {
 	struct txdma_regs __iomem *txdma = &adapter->regs->txdma;
+	struct tx_ring *tx_ring = &adapter->tx_ring;
 
 	/* Load the hardware with the start of the transmit descriptor ring. */
-	writel(upper_32_bits(adapter->tx_ring.tx_desc_ring_pa),
-	       &txdma->pr_base_hi);
-	writel(lower_32_bits(adapter->tx_ring.tx_desc_ring_pa),
-	       &txdma->pr_base_lo);
+	writel(upper_32_bits(tx_ring->tx_desc_ring_pa), &txdma->pr_base_hi);
+	writel(lower_32_bits(tx_ring->tx_desc_ring_pa), &txdma->pr_base_lo);
 
 	/* Initialise the transmit DMA engine */
 	writel(NUM_DESC_PER_RING_TX - 1, &txdma->pr_num_des);
 
 	/* Load the completion writeback physical address */
-	writel(upper_32_bits(adapter->tx_ring.tx_status_pa),
-	       &txdma->dma_wb_base_hi);
-	writel(lower_32_bits(adapter->tx_ring.tx_status_pa),
-	       &txdma->dma_wb_base_lo);
+	writel(upper_32_bits(tx_ring->tx_status_pa), &txdma->dma_wb_base_hi);
+	writel(lower_32_bits(tx_ring->tx_status_pa), &txdma->dma_wb_base_lo);
 
-	*adapter->tx_ring.tx_status = 0;
+	*tx_ring->tx_status = 0;
 
 	writel(0, &txdma->service_request);
-	adapter->tx_ring.send_idx = 0;
+	tx_ring->send_idx = 0;
 }
 
 /* et131x_adapter_setup - Set the adapter up as per cassini+ documentation */
@@ -1987,13 +1984,9 @@ static void et131x_disable_txrx(struct net_device *netdev)
 /* et131x_init_send - Initialize send data structures */
 static void et131x_init_send(struct et131x_adapter *adapter)
 {
-	struct tcb *tcb;
 	u32 ct;
-	struct tx_ring *tx_ring;
-
-	/* Setup some convenience pointers */
-	tx_ring = &adapter->tx_ring;
-	tcb = adapter->tx_ring.tcb_ring;
+	struct tx_ring *tx_ring = &adapter->tx_ring;
+	struct tcb *tcb = tx_ring->tcb_ring;
 
 	tx_ring->tcb_qhead = tcb;
 
@@ -2700,9 +2693,9 @@ static int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 	struct tx_ring *tx_ring = &adapter->tx_ring;
 
 	/* Allocate memory for the TCB's (Transmit Control Block) */
-	adapter->tx_ring.tcb_ring = kcalloc(NUM_TCB, sizeof(struct tcb),
-					    GFP_ATOMIC | GFP_DMA);
-	if (!adapter->tx_ring.tcb_ring)
+	tx_ring->tcb_ring = kcalloc(NUM_TCB, sizeof(struct tcb),
+				    GFP_ATOMIC | GFP_DMA);
+	if (!tx_ring->tcb_ring)
 		return -ENOMEM;
 
 	desc_size = (sizeof(struct tx_desc) * NUM_DESC_PER_RING_TX);
@@ -2710,7 +2703,7 @@ static int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 						   desc_size,
 						   &tx_ring->tx_desc_ring_pa,
 						   GFP_KERNEL);
-	if (!adapter->tx_ring.tx_desc_ring) {
+	if (!tx_ring->tx_desc_ring) {
 		dev_err(&adapter->pdev->dev,
 			"Cannot alloc memory for Tx Ring\n");
 		return -ENOMEM;
@@ -2728,9 +2721,9 @@ static int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 						    sizeof(u32),
 						    &tx_ring->tx_status_pa,
 						    GFP_KERNEL);
-	if (!adapter->tx_ring.tx_status_pa) {
+	if (!tx_ring->tx_status_pa) {
 		dev_err(&adapter->pdev->dev,
-				  "Cannot alloc memory for Tx status block\n");
+			"Cannot alloc memory for Tx status block\n");
 		return -ENOMEM;
 	}
 	return 0;
@@ -2740,28 +2733,29 @@ static int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 static void et131x_tx_dma_memory_free(struct et131x_adapter *adapter)
 {
 	int desc_size = 0;
+	struct tx_ring *tx_ring = &adapter->tx_ring;
 
-	if (adapter->tx_ring.tx_desc_ring) {
+	if (tx_ring->tx_desc_ring) {
 		/* Free memory relating to Tx rings here */
 		desc_size = (sizeof(struct tx_desc) * NUM_DESC_PER_RING_TX);
 		dma_free_coherent(&adapter->pdev->dev,
-				    desc_size,
-				    adapter->tx_ring.tx_desc_ring,
-				    adapter->tx_ring.tx_desc_ring_pa);
-		adapter->tx_ring.tx_desc_ring = NULL;
+				  desc_size,
+				  tx_ring->tx_desc_ring,
+				  tx_ring->tx_desc_ring_pa);
+		tx_ring->tx_desc_ring = NULL;
 	}
 
 	/* Free memory for the Tx status block */
-	if (adapter->tx_ring.tx_status) {
+	if (tx_ring->tx_status) {
 		dma_free_coherent(&adapter->pdev->dev,
-				    sizeof(u32),
-				    adapter->tx_ring.tx_status,
-				    adapter->tx_ring.tx_status_pa);
+				  sizeof(u32),
+				  tx_ring->tx_status,
+				  tx_ring->tx_status_pa);
 
-		adapter->tx_ring.tx_status = NULL;
+		tx_ring->tx_status = NULL;
 	}
 	/* Free the memory for the tcb structures */
-	kfree(adapter->tx_ring.tcb_ring);
+	kfree(tx_ring->tcb_ring);
 }
 
 /* nic_send_packet - NIC specific send handler for version B silicon.
@@ -2780,6 +2774,7 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 	unsigned long flags;
 	struct phy_device *phydev = adapter->phydev;
 	dma_addr_t dma_addr;
+	struct tx_ring *tx_ring = &adapter->tx_ring;
 
 	/* Part of the optimizations of this send routine restrict us to
 	 * sending 24 fragments at a pass.  In practice we should never see
@@ -2855,11 +2850,11 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 	}
 
 	if (phydev && phydev->speed == SPEED_1000) {
-		if (++adapter->tx_ring.since_irq == PARM_TX_NUM_BUFS_DEF) {
+		if (++tx_ring->since_irq == PARM_TX_NUM_BUFS_DEF) {
 			/* Last element & Interrupt flag */
 			desc[frag - 1].flags =
 				    TXDESC_FLAG_INTPROC | TXDESC_FLAG_LASTPKT;
-			adapter->tx_ring.since_irq = 0;
+			tx_ring->since_irq = 0;
 		} else { /* Last element */
 			desc[frag - 1].flags = TXDESC_FLAG_LASTPKT;
 		}
@@ -2869,12 +2864,12 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 
 	desc[0].flags |= TXDESC_FLAG_FIRSTPKT;
 
-	tcb->index_start = adapter->tx_ring.send_idx;
+	tcb->index_start = tx_ring->send_idx;
 	tcb->stale = 0;
 
 	spin_lock_irqsave(&adapter->send_hw_lock, flags);
 
-	thiscopy = NUM_DESC_PER_RING_TX - INDEX10(adapter->tx_ring.send_idx);
+	thiscopy = NUM_DESC_PER_RING_TX - INDEX10(tx_ring->send_idx);
 
 	if (thiscopy >= frag) {
 		remainder = 0;
@@ -2883,52 +2878,51 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 		remainder = frag - thiscopy;
 	}
 
-	memcpy(adapter->tx_ring.tx_desc_ring +
-	       INDEX10(adapter->tx_ring.send_idx), desc,
+	memcpy(tx_ring->tx_desc_ring + INDEX10(tx_ring->send_idx),
+	       desc,
 	       sizeof(struct tx_desc) * thiscopy);
 
-	add_10bit(&adapter->tx_ring.send_idx, thiscopy);
+	add_10bit(&tx_ring->send_idx, thiscopy);
 
-	if (INDEX10(adapter->tx_ring.send_idx) == 0 ||
-		  INDEX10(adapter->tx_ring.send_idx) == NUM_DESC_PER_RING_TX) {
-		adapter->tx_ring.send_idx &= ~ET_DMA10_MASK;
-		adapter->tx_ring.send_idx ^= ET_DMA10_WRAP;
+	if (INDEX10(tx_ring->send_idx) == 0 ||
+		  INDEX10(tx_ring->send_idx) == NUM_DESC_PER_RING_TX) {
+		tx_ring->send_idx &= ~ET_DMA10_MASK;
+		tx_ring->send_idx ^= ET_DMA10_WRAP;
 	}
 
 	if (remainder) {
-		memcpy(adapter->tx_ring.tx_desc_ring,
+		memcpy(tx_ring->tx_desc_ring,
 		       desc + thiscopy,
 		       sizeof(struct tx_desc) * remainder);
 
-		add_10bit(&adapter->tx_ring.send_idx, remainder);
+		add_10bit(&tx_ring->send_idx, remainder);
 	}
 
-	if (INDEX10(adapter->tx_ring.send_idx) == 0) {
-		if (adapter->tx_ring.send_idx)
+	if (INDEX10(tx_ring->send_idx) == 0) {
+		if (tx_ring->send_idx)
 			tcb->index = NUM_DESC_PER_RING_TX - 1;
 		else
 			tcb->index = ET_DMA10_WRAP|(NUM_DESC_PER_RING_TX - 1);
 	} else
-		tcb->index = adapter->tx_ring.send_idx - 1;
+		tcb->index = tx_ring->send_idx - 1;
 
 	spin_lock(&adapter->tcb_send_qlock);
 
-	if (adapter->tx_ring.send_tail)
-		adapter->tx_ring.send_tail->next = tcb;
+	if (tx_ring->send_tail)
+		tx_ring->send_tail->next = tcb;
 	else
-		adapter->tx_ring.send_head = tcb;
+		tx_ring->send_head = tcb;
 
-	adapter->tx_ring.send_tail = tcb;
+	tx_ring->send_tail = tcb;
 
 	WARN_ON(tcb->next != NULL);
 
-	adapter->tx_ring.used++;
+	tx_ring->used++;
 
 	spin_unlock(&adapter->tcb_send_qlock);
 
 	/* Write the new write pointer back to the device. */
-	writel(adapter->tx_ring.send_idx,
-	       &adapter->regs->txdma.service_request);
+	writel(tx_ring->send_idx, &adapter->regs->txdma.service_request);
 
 	/* For Gig only, we use Tx Interrupt coalescing.  Enable the software
 	 * timer to wake us up if this packet isn't followed by N more.
@@ -2949,9 +2943,10 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 static int send_packet(struct sk_buff *skb, struct et131x_adapter *adapter)
 {
 	int status;
-	struct tcb *tcb = NULL;
+	struct tcb *tcb;
 	u16 *shbufva;
 	unsigned long flags;
+	struct tx_ring *tx_ring = &adapter->tx_ring;
 
 	/* All packets must have at least a MAC address and a protocol type */
 	if (skb->len < ETH_HLEN)
@@ -2960,17 +2955,17 @@ static int send_packet(struct sk_buff *skb, struct et131x_adapter *adapter)
 	/* Get a TCB for this packet */
 	spin_lock_irqsave(&adapter->tcb_ready_qlock, flags);
 
-	tcb = adapter->tx_ring.tcb_qhead;
+	tcb = tx_ring->tcb_qhead;
 
 	if (tcb == NULL) {
 		spin_unlock_irqrestore(&adapter->tcb_ready_qlock, flags);
 		return -ENOMEM;
 	}
 
-	adapter->tx_ring.tcb_qhead = tcb->next;
+	tx_ring->tcb_qhead = tcb->next;
 
-	if (adapter->tx_ring.tcb_qhead == NULL)
-		adapter->tx_ring.tcb_qtail = NULL;
+	if (tx_ring->tcb_qhead == NULL)
+		tx_ring->tcb_qtail = NULL;
 
 	spin_unlock_irqrestore(&adapter->tcb_ready_qlock, flags);
 
@@ -2994,17 +2989,17 @@ static int send_packet(struct sk_buff *skb, struct et131x_adapter *adapter)
 	if (status != 0) {
 		spin_lock_irqsave(&adapter->tcb_ready_qlock, flags);
 
-		if (adapter->tx_ring.tcb_qtail)
-			adapter->tx_ring.tcb_qtail->next = tcb;
+		if (tx_ring->tcb_qtail)
+			tx_ring->tcb_qtail->next = tcb;
 		else
 			/* Apparently ready Q is empty. */
-			adapter->tx_ring.tcb_qhead = tcb;
+			tx_ring->tcb_qhead = tcb;
 
-		adapter->tx_ring.tcb_qtail = tcb;
+		tx_ring->tcb_qtail = tcb;
 		spin_unlock_irqrestore(&adapter->tcb_ready_qlock, flags);
 		return status;
 	}
-	WARN_ON(adapter->tx_ring.used > NUM_TCB);
+	WARN_ON(tx_ring->used > NUM_TCB);
 	return 0;
 }
 
@@ -3013,6 +3008,7 @@ static int et131x_send_packets(struct sk_buff *skb, struct net_device *netdev)
 {
 	int status = 0;
 	struct et131x_adapter *adapter = netdev_priv(netdev);
+	struct tx_ring *tx_ring = &adapter->tx_ring;
 
 	/* Send these packets
 	 *
@@ -3021,7 +3017,7 @@ static int et131x_send_packets(struct sk_buff *skb, struct net_device *netdev)
 	 */
 
 	/* TCB is not available */
-	if (adapter->tx_ring.used >= NUM_TCB) {
+	if (tx_ring->used >= NUM_TCB) {
 		/* NOTE: If there's an error on send, no need to queue the
 		 * packet under Linux; if we just send an error up to the
 		 * netif layer, it will resend the skb to us.
@@ -3065,6 +3061,7 @@ static inline void free_send_packet(struct et131x_adapter *adapter,
 	unsigned long flags;
 	struct tx_desc *desc = NULL;
 	struct net_device_stats *stats = &adapter->net_stats;
+	struct tx_ring *tx_ring = &adapter->tx_ring;
 	u64  dma_addr;
 
 	if (tcb->flags & FMP_DEST_BROAD)
@@ -3082,7 +3079,7 @@ static inline void free_send_packet(struct et131x_adapter *adapter,
 		 * they point to
 		 */
 		do {
-			desc = adapter->tx_ring.tx_desc_ring +
+			desc = tx_ring->tx_desc_ring +
 			       INDEX10(tcb->index_start);
 
 			dma_addr = desc->addr_lo;
@@ -3098,8 +3095,7 @@ static inline void free_send_packet(struct et131x_adapter *adapter,
 				tcb->index_start &= ~ET_DMA10_MASK;
 				tcb->index_start ^= ET_DMA10_WRAP;
 			}
-		} while (desc != (adapter->tx_ring.tx_desc_ring +
-				INDEX10(tcb->index)));
+		} while (desc != tx_ring->tx_desc_ring + INDEX10(tcb->index));
 
 		dev_kfree_skb_any(tcb->skb);
 	}
@@ -3111,16 +3107,16 @@ static inline void free_send_packet(struct et131x_adapter *adapter,
 
 	adapter->net_stats.tx_packets++;
 
-	if (adapter->tx_ring.tcb_qtail)
-		adapter->tx_ring.tcb_qtail->next = tcb;
+	if (tx_ring->tcb_qtail)
+		tx_ring->tcb_qtail->next = tcb;
 	else
 		/* Apparently ready Q is empty. */
-		adapter->tx_ring.tcb_qhead = tcb;
+		tx_ring->tcb_qhead = tcb;
 
-	adapter->tx_ring.tcb_qtail = tcb;
+	tx_ring->tcb_qtail = tcb;
 
 	spin_unlock_irqrestore(&adapter->tcb_ready_qlock, flags);
-	WARN_ON(adapter->tx_ring.used < 0);
+	WARN_ON(tx_ring->used < 0);
 }
 
 /* et131x_free_busy_send_packets - Free and complete the stopped active sends
@@ -3132,21 +3128,22 @@ static void et131x_free_busy_send_packets(struct et131x_adapter *adapter)
 	struct tcb *tcb;
 	unsigned long flags;
 	u32 freed = 0;
+	struct tx_ring *tx_ring = &adapter->tx_ring;
 
 	/* Any packets being sent? Check the first TCB on the send list */
 	spin_lock_irqsave(&adapter->tcb_send_qlock, flags);
 
-	tcb = adapter->tx_ring.send_head;
+	tcb = tx_ring->send_head;
 
 	while (tcb != NULL && freed < NUM_TCB) {
 		struct tcb *next = tcb->next;
 
-		adapter->tx_ring.send_head = next;
+		tx_ring->send_head = next;
 
 		if (next == NULL)
-			adapter->tx_ring.send_tail = NULL;
+			tx_ring->send_tail = NULL;
 
-		adapter->tx_ring.used--;
+		tx_ring->used--;
 
 		spin_unlock_irqrestore(&adapter->tcb_send_qlock, flags);
 
@@ -3155,14 +3152,14 @@ static void et131x_free_busy_send_packets(struct et131x_adapter *adapter)
 
 		spin_lock_irqsave(&adapter->tcb_send_qlock, flags);
 
-		tcb = adapter->tx_ring.send_head;
+		tcb = tx_ring->send_head;
 	}
 
 	WARN_ON(freed == NUM_TCB);
 
 	spin_unlock_irqrestore(&adapter->tcb_send_qlock, flags);
 
-	adapter->tx_ring.used = 0;
+	tx_ring->used = 0;
 }
 
 /* et131x_handle_send_interrupt - Interrupt handler for sending processing
@@ -3178,6 +3175,7 @@ static void et131x_handle_send_interrupt(struct et131x_adapter *adapter)
 	u32 serviced;
 	struct tcb *tcb;
 	u32 index;
+	struct tx_ring *tx_ring = &adapter->tx_ring;
 
 	serviced = readl(&adapter->regs->txdma.new_service_complete);
 	index = INDEX10(serviced);
@@ -3187,41 +3185,41 @@ static void et131x_handle_send_interrupt(struct et131x_adapter *adapter)
 	 */
 	spin_lock_irqsave(&adapter->tcb_send_qlock, flags);
 
-	tcb = adapter->tx_ring.send_head;
+	tcb = tx_ring->send_head;
 
 	while (tcb &&
 	       ((serviced ^ tcb->index) & ET_DMA10_WRAP) &&
 	       index < INDEX10(tcb->index)) {
-		adapter->tx_ring.used--;
-		adapter->tx_ring.send_head = tcb->next;
+		tx_ring->used--;
+		tx_ring->send_head = tcb->next;
 		if (tcb->next == NULL)
-			adapter->tx_ring.send_tail = NULL;
+			tx_ring->send_tail = NULL;
 
 		spin_unlock_irqrestore(&adapter->tcb_send_qlock, flags);
 		free_send_packet(adapter, tcb);
 		spin_lock_irqsave(&adapter->tcb_send_qlock, flags);
 
 		/* Goto the next packet */
-		tcb = adapter->tx_ring.send_head;
+		tcb = tx_ring->send_head;
 	}
 	while (tcb &&
 	       !((serviced ^ tcb->index) & ET_DMA10_WRAP)
 	       && index > (tcb->index & ET_DMA10_MASK)) {
-		adapter->tx_ring.used--;
-		adapter->tx_ring.send_head = tcb->next;
+		tx_ring->used--;
+		tx_ring->send_head = tcb->next;
 		if (tcb->next == NULL)
-			adapter->tx_ring.send_tail = NULL;
+			tx_ring->send_tail = NULL;
 
 		spin_unlock_irqrestore(&adapter->tcb_send_qlock, flags);
 		free_send_packet(adapter, tcb);
 		spin_lock_irqsave(&adapter->tcb_send_qlock, flags);
 
 		/* Goto the next packet */
-		tcb = adapter->tx_ring.send_head;
+		tcb = tx_ring->send_head;
 	}
 
 	/* Wake up the queue when we hit a low-water mark */
-	if (adapter->tx_ring.used <= NUM_TCB / 3)
+	if (tx_ring->used <= NUM_TCB / 3)
 		netif_wake_queue(adapter->netdev);
 
 	spin_unlock_irqrestore(&adapter->tcb_send_qlock, flags);
@@ -3873,6 +3871,7 @@ static irqreturn_t et131x_isr(int irq, void *dev_id)
 	struct net_device *netdev = (struct net_device *)dev_id;
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	struct rx_ring *rx_ring = &adapter->rx_ring;
+	struct tx_ring *tx_ring = &adapter->tx_ring;
 	u32 status;
 
 	if (!netif_device_present(netdev)) {
@@ -3909,7 +3908,7 @@ static irqreturn_t et131x_isr(int irq, void *dev_id)
 	/* This is our interrupt, so process accordingly */
 
 	if (status & ET_INTR_WATCHDOG) {
-		struct tcb *tcb = adapter->tx_ring.send_head;
+		struct tcb *tcb = tx_ring->send_head;
 
 		if (tcb)
 			if (++tcb->stale > 1)
@@ -4360,10 +4359,10 @@ static int et131x_tx(struct sk_buff *skb, struct net_device *netdev)
 {
 	int status = 0;
 	struct et131x_adapter *adapter = netdev_priv(netdev);
+	struct tx_ring *tx_ring = &adapter->tx_ring;
 
 	/* stop the queue if it's getting full */
-	if (adapter->tx_ring.used >= NUM_TCB - 1 &&
-	    !netif_queue_stopped(netdev))
+	if (tx_ring->used >= NUM_TCB - 1 && !netif_queue_stopped(netdev))
 		netif_stop_queue(netdev);
 
 	/* Save the timestamp for the TX timeout watchdog */
@@ -4391,6 +4390,7 @@ static int et131x_tx(struct sk_buff *skb, struct net_device *netdev)
 static void et131x_tx_timeout(struct net_device *netdev)
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
+	struct tx_ring *tx_ring = &adapter->tx_ring;
 	struct tcb *tcb;
 	unsigned long flags;
 
@@ -4413,7 +4413,7 @@ static void et131x_tx_timeout(struct net_device *netdev)
 	/* Is send stuck? */
 	spin_lock_irqsave(&adapter->tcb_send_qlock, flags);
 
-	tcb = adapter->tx_ring.send_head;
+	tcb = tx_ring->send_head;
 
 	if (tcb != NULL) {
 		tcb->count++;
