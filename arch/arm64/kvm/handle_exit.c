@@ -90,7 +90,7 @@ static exit_handle_fn kvm_get_exit_handler(struct kvm_vcpu *vcpu)
 
 	if (hsr_ec >= ARRAY_SIZE(arm_exit_handlers) ||
 	    !arm_exit_handlers[hsr_ec]) {
-		kvm_err("Unkown exception class: hsr: %#08x\n",
+		kvm_err("Unknown exception class: hsr: %#08x\n",
 			(unsigned int)kvm_vcpu_get_hsr(vcpu));
 		BUG();
 	}
