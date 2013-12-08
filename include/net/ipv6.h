@@ -238,6 +238,7 @@ struct ip6_flowlabel {
 
 #define IPV6_FLOWINFO_MASK	cpu_to_be32(0x0FFFFFFF)
 #define IPV6_FLOWLABEL_MASK	cpu_to_be32(0x000FFFFF)
+#define IPV6_TCLASS_MASK (IPV6_FLOWINFO_MASK & ~IPV6_FLOWLABEL_MASK)
 
 struct ipv6_fl_socklist {
 	struct ipv6_fl_socklist	__rcu	*next;
