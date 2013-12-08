@@ -250,12 +250,8 @@ static void ieee80211_restart_work(struct work_struct *work)
 	/* wait for scan work complete */
 	flush_workqueue(local->workqueue);
 
-	mutex_lock(&local->mtx);
-	WARN(test_bit(SCAN_HW_SCANNING, &local->scanning) ||
-	     rcu_dereference_protected(local->sched_scan_sdata,
-				       lockdep_is_held(&local->mtx)),
-		"%s called with hardware scan in progress\n", __func__);
-	mutex_unlock(&local->mtx);
+	WARN(test_bit(SCAN_HW_SCANNING, &local->scanning),
+	     "%s called with hardware scan in progress\n", __func__);
 
 	rtnl_lock();
 	ieee80211_scan_cancel(local);
