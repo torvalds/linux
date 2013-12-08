@@ -1159,7 +1159,7 @@ static int m88ds3103_select(struct i2c_adapter *adap, void *mux_priv, u32 chan)
 	mutex_lock(&priv->i2c_mutex);
 
 	/* open tuner I2C repeater for 1 xfer, closes automatically */
-	ret = i2c_transfer(priv->i2c, gate_open_msg, 1);
+	ret = __i2c_transfer(priv->i2c, gate_open_msg, 1);
 	if (ret != 1) {
 		dev_warn(&priv->i2c->dev, "%s: i2c wr failed=%d\n",
 				KBUILD_MODNAME, ret);
