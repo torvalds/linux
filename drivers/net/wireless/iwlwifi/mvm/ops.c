@@ -344,7 +344,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	op_mode = hw->priv;
 	op_mode->ops = &iwl_mvm_ops;
-	op_mode->trans = trans;
 
 	mvm = IWL_OP_MODE_GET_MVM(op_mode);
 	mvm->dev = trans->dev;
