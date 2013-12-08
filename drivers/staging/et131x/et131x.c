@@ -813,20 +813,21 @@ static void et131x_rx_dma_enable(struct et131x_adapter *adapter)
 {
 	/* Setup the receive dma configuration register for normal operation */
 	u32 csr =  ET_RXDMA_CSR_FBR1_ENABLE;
+	struct rx_ring *rx_ring = &adapter->rx_ring;
 
-	if (adapter->rx_ring.fbr[1]->buffsize == 4096)
+	if (rx_ring->fbr[1]->buffsize == 4096)
 		csr |= ET_RXDMA_CSR_FBR1_SIZE_LO;
-	else if (adapter->rx_ring.fbr[1]->buffsize == 8192)
+	else if (rx_ring->fbr[1]->buffsize == 8192)
 		csr |= ET_RXDMA_CSR_FBR1_SIZE_HI;
-	else if (adapter->rx_ring.fbr[1]->buffsize == 16384)
+	else if (rx_ring->fbr[1]->buffsize == 16384)
 		csr |= ET_RXDMA_CSR_FBR1_SIZE_LO | ET_RXDMA_CSR_FBR1_SIZE_HI;
 
 	csr |= ET_RXDMA_CSR_FBR0_ENABLE;
-	if (adapter->rx_ring.fbr[0]->buffsize == 256)
+	if (rx_ring->fbr[0]->buffsize == 256)
 		csr |= ET_RXDMA_CSR_FBR0_SIZE_LO;
-	else if (adapter->rx_ring.fbr[0]->buffsize == 512)
+	else if (rx_ring->fbr[0]->buffsize == 512)
 		csr |= ET_RXDMA_CSR_FBR0_SIZE_HI;
-	else if (adapter->rx_ring.fbr[0]->buffsize == 1024)
+	else if (rx_ring->fbr[0]->buffsize == 1024)
 		csr |= ET_RXDMA_CSR_FBR0_SIZE_LO | ET_RXDMA_CSR_FBR0_SIZE_HI;
 	writel(csr, &adapter->regs->rxdma.csr);
 
@@ -2126,11 +2127,8 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	u32 bufsize;
 	u32 pktstat_ringsize;
 	u32 fbr_chunksize;
-	struct rx_ring *rx_ring;
+	struct rx_ring *rx_ring = &adapter->rx_ring;
 	struct fbr_lookup *fbr;
-
-	/* Setup some convenience pointers */
-	rx_ring = &adapter->rx_ring;
 
 	/* Alloc memory for the lookup table */
 	rx_ring->fbr[0] = kmalloc(sizeof(struct fbr_lookup), GFP_KERNEL);
@@ -2280,11 +2278,8 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	u32 bufsize;
 	u32 pktstat_ringsize;
 	struct rfd *rfd;
-	struct rx_ring *rx_ring;
+	struct rx_ring *rx_ring = &adapter->rx_ring;
 	struct fbr_lookup *fbr;
-
-	/* Setup some convenience pointers */
-	rx_ring = &adapter->rx_ring;
 
 	/* Free RFDs and associated packet descriptors */
 	WARN_ON(rx_ring->num_ready_recv != rx_ring->num_rfd);
@@ -2334,7 +2329,7 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	/* Free Packet Status Ring */
 	if (rx_ring->ps_ring_virtaddr) {
 		pktstat_ringsize = sizeof(struct pkt_stat_desc) *
-					adapter->rx_ring.psr_num_entries;
+					rx_ring->psr_num_entries;
 
 		dma_free_coherent(&adapter->pdev->dev, pktstat_ringsize,
 				    rx_ring->ps_ring_virtaddr,
@@ -2364,10 +2359,7 @@ static int et131x_init_recv(struct et131x_adapter *adapter)
 {
 	struct rfd *rfd;
 	u32 rfdct;
-	struct rx_ring *rx_ring;
-
-	/* Setup some convenience pointers */
-	rx_ring = &adapter->rx_ring;
+	struct rx_ring *rx_ring = &adapter->rx_ring;
 
 	/* Setup each RFD */
 	for (rfdct = 0; rfdct < rx_ring->num_rfd; rfdct++) {
@@ -2650,11 +2642,12 @@ static void et131x_handle_recv_interrupt(struct et131x_adapter *adapter)
 	struct rfd *rfd = NULL;
 	u32 count = 0;
 	bool done = true;
+	struct rx_ring *rx_ring = &adapter->rx_ring;
 
 	/* Process up to available RFD's */
 	while (count < NUM_PACKETS_HANDLED) {
-		if (list_empty(&adapter->rx_ring.recv_list)) {
-			WARN_ON(adapter->rx_ring.num_ready_recv != 0);
+		if (list_empty(&rx_ring->recv_list)) {
+			WARN_ON(rx_ring->num_ready_recv != 0);
 			done = false;
 			break;
 		}
@@ -2678,19 +2671,19 @@ static void et131x_handle_recv_interrupt(struct et131x_adapter *adapter)
 		adapter->net_stats.rx_packets++;
 
 		/* Set the status on the packet, either resources or success */
-		if (adapter->rx_ring.num_ready_recv < RFD_LOW_WATER_MARK)
+		if (rx_ring->num_ready_recv < RFD_LOW_WATER_MARK)
 			dev_warn(&adapter->pdev->dev, "RFD's are running out\n");
 
 		count++;
 	}
 
 	if (count == NUM_PACKETS_HANDLED || !done) {
-		adapter->rx_ring.unfinished_receives = true;
+		rx_ring->unfinished_receives = true;
 		writel(PARM_TX_TIME_INT_DEF * NANO_IN_A_MICRO,
 		       &adapter->regs->global.watchdog_timer);
 	} else
 		/* Watchdog timer will disable itself if appropriate. */
-		adapter->rx_ring.unfinished_receives = false;
+		rx_ring->unfinished_receives = false;
 }
 
 /* et131x_tx_dma_memory_alloc
@@ -3878,15 +3871,14 @@ static irqreturn_t et131x_isr(int irq, void *dev_id)
 {
 	bool handled = true;
 	struct net_device *netdev = (struct net_device *)dev_id;
-	struct et131x_adapter *adapter = NULL;
+	struct et131x_adapter *adapter = netdev_priv(netdev);
+	struct rx_ring *rx_ring = &adapter->rx_ring;
 	u32 status;
 
 	if (!netif_device_present(netdev)) {
 		handled = false;
 		goto out;
 	}
-
-	adapter = netdev_priv(netdev);
 
 	/* If the adapter is in low power state, then it should not
 	 * recognize any interrupt
@@ -3923,7 +3915,7 @@ static irqreturn_t et131x_isr(int irq, void *dev_id)
 			if (++tcb->stale > 1)
 				status |= ET_INTR_TXDMA_ISR;
 
-		if (adapter->rx_ring.unfinished_receives)
+		if (rx_ring->unfinished_receives)
 			status |= ET_INTR_RXDMA_XFR_DONE;
 		else if (tcb == NULL)
 			writel(0, &adapter->regs->global.watchdog_timer);
