@@ -340,8 +340,6 @@ void intel_uncore_sanitize(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg_val;
 
-	intel_uncore_forcewake_reset(dev);
-
 	/* BIOS often leaves RC6 enabled, but disable it for hw init */
 	intel_disable_gt_powersave(dev);
 
