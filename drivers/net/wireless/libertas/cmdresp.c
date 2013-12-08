@@ -248,7 +248,7 @@ int lbs_process_event(struct lbs_private *priv, u32 event)
 		/* handle unexpected PS SLEEP event */
 		if (priv->psstate == PS_STATE_FULL_POWER) {
 			lbs_deb_cmd(
-			       "EVENT: in FULL POWER mode, ignoreing PS_SLEEP\n");
+			       "EVENT: in FULL POWER mode, ignoring PS_SLEEP\n");
 			break;
 		}
 		priv->psstate = PS_STATE_PRE_SLEEP;

@@ -563,7 +563,7 @@ static void digital_tg_recv_psl_req(struct nfc_digital_dev *ddev, void *arg,
 		rf_tech = NFC_DIGITAL_RF_TECH_424F;
 		break;
 	default:
-		pr_err("Unsuported dsi value %d\n", dsi);
+		pr_err("Unsupported dsi value %d\n", dsi);
 		goto exit;
 	}
 
