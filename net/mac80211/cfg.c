@@ -301,9 +301,9 @@ static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 		if (!sta)
 			goto out;
 
-		if (pairwise)
+		if (pairwise && key_idx < NUM_DEFAULT_KEYS)
 			key = rcu_dereference(sta->ptk[key_idx]);
-		else if (key_idx < NUM_DEFAULT_KEYS)
+		else if (!pairwise && key_idx < NUM_DEFAULT_KEYS)
 			key = rcu_dereference(sta->gtk[key_idx]);
 	} else
 		key = rcu_dereference(sdata->keys[key_idx]);
