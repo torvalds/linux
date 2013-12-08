@@ -574,6 +574,8 @@ static void imx_ldb_unbind(struct device *dev, struct device *master,
 
 		channel->connector.funcs->destroy(&channel->connector);
 		channel->encoder.funcs->destroy(&channel->encoder);
+
+		kfree(channel->edid);
 	}
 }
 
