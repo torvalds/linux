@@ -30,7 +30,7 @@
 #define PRIOMAP_MIN_SZ		128
 
 /*
- * Extend @dev->priomap so that it's large enough to accomodate
+ * Extend @dev->priomap so that it's large enough to accommodate
  * @target_idx.  @dev->priomap.priomap_len > @target_idx after successful
  * return.  Must be called under rtnl lock.
  */

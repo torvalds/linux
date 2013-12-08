@@ -373,7 +373,7 @@ int br_setlink(struct net_device *dev, struct nlmsghdr *nlh)
 
 	p = br_port_get_rtnl(dev);
 	/* We want to accept dev as bridge itself if the AF_SPEC
-	 * is set to see if someone is setting vlan info on the brigde
+	 * is set to see if someone is setting vlan info on the bridge
 	 */
 	if (!p && !afspec)
 		return -EINVAL;
@@ -389,7 +389,7 @@ int br_setlink(struct net_device *dev, struct nlmsghdr *nlh)
 			err = br_setport(p, tb);
 			spin_unlock_bh(&p->br->lock);
 		} else {
-			/* Binary compatability with old RSTP */
+			/* Binary compatibility with old RSTP */
 			if (nla_len(protinfo) < sizeof(u8))
 				return -EINVAL;
 

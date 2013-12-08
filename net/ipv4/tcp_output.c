@@ -408,7 +408,7 @@ struct tcp_out_options {
  * Beware: Something in the Internet is very sensitive to the ordering of
  * TCP options, we learned this through the hard way, so be careful here.
  * Luckily we can at least blame others for their non-compliance but from
- * inter-operatibility perspective it seems that we're somewhat stuck with
+ * inter-operability perspective it seems that we're somewhat stuck with
  * the ordering which we have been using if we want to keep working with
  * those broken things (not that it currently hurts anybody as there isn't
  * particular reason why the ordering would need to be changed).
@@ -681,7 +681,7 @@ static unsigned int tcp_established_options(struct sock *sk, struct sk_buff *skb
  *
  * Its important tcp_wfree() can be replaced by sock_wfree() in the event skb
  * needs to be reallocated in a driver.
- * The invariant being skb->truesize substracted from sk->sk_wmem_alloc
+ * The invariant being skb->truesize subtracted from sk->sk_wmem_alloc
  *
  * Since transmit from skb destructor is forbidden, we use a tasklet
  * to process all sockets that eventually need to send more skbs.
@@ -701,9 +701,9 @@ static void tcp_tsq_handler(struct sock *sk)
 		tcp_write_xmit(sk, tcp_current_mss(sk), 0, 0, GFP_ATOMIC);
 }
 /*
- * One tasklest per cpu tries to send more skbs.
+ * One tasklet per cpu tries to send more skbs.
  * We run in tasklet context but need to disable irqs when
- * transfering tsq->head because tcp_wfree() might
+ * transferring tsq->head because tcp_wfree() might
  * interrupt us (non NAPI drivers)
  */
 static void tcp_tasklet_func(unsigned long data)
@@ -797,7 +797,7 @@ void __init tcp_tasklet_init(void)
 
 /*
  * Write buffer destructor automatically called from kfree_skb.
- * We cant xmit new skbs from this context, as we might already
+ * We can't xmit new skbs from this context, as we might already
  * hold qdisc lock.
  */
 void tcp_wfree(struct sk_buff *skb)

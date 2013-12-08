@@ -1051,7 +1051,7 @@ e_inval:
  *
  * To support IP_CMSG_PKTINFO option, we store rt_iif and specific
  * destination in skb->cb[] before dst drop.
- * This way, receiver doesnt make cache line misses to read rtable.
+ * This way, receiver doesn't make cache line misses to read rtable.
  */
 void ipv4_pktinfo_prepare(const struct sock *sk, struct sk_buff *skb)
 {
