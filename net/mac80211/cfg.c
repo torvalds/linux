@@ -873,8 +873,8 @@ static int ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
-int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
-			    struct cfg80211_beacon_data *params)
+static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
+				   struct cfg80211_beacon_data *params)
 {
 	struct beacon_data *new, *old;
 	int new_head_len, new_tail_len;
