@@ -166,26 +166,6 @@ Configuration Options:
 #define PCMMIO_PAGE_INT_ID			3
 #define PCMMIO_PAGE_REG(x)			(0x18 + (x))
 
-/* This stuff is all from pcmuio.c -- it refers to the DIO subdevices only */
-#define CHANS_PER_PORT   8
-#define PORTS_PER_ASIC   6
-#define INTR_PORTS_PER_ASIC   3
-#define MAX_CHANS_PER_SUBDEV 24	/* number of channels per comedi subdevice */
-#define PORTS_PER_SUBDEV (MAX_CHANS_PER_SUBDEV/CHANS_PER_PORT)
-#define CHANS_PER_ASIC (CHANS_PER_PORT*PORTS_PER_ASIC)
-#define INTR_CHANS_PER_ASIC 24
-#define INTR_PORTS_PER_SUBDEV (INTR_CHANS_PER_ASIC/CHANS_PER_PORT)
-#define MAX_DIO_CHANS   (PORTS_PER_ASIC*1*CHANS_PER_PORT)
-#define MAX_ASICS       (MAX_DIO_CHANS/CHANS_PER_ASIC)
-#define CALC_N_DIO_SUBDEVS(nchans) ((nchans)/MAX_CHANS_PER_SUBDEV + (!!((nchans)%MAX_CHANS_PER_SUBDEV)) /*+ (nchans > INTR_CHANS_PER_ASIC ? 2 : 1)*/)
-/* IO Memory sizes */
-#define ASIC_IOSIZE (0x0B)
-#define PCMMIO48_IOSIZE ASIC_IOSIZE
-
-#define NUM_PAGED_REGS 3
-#define NUM_PAGES 4
-#define FIRST_PAGED_REG 0x8
-
 static const struct comedi_lrange pcmmio_ai_ranges = {
 	4, {
 		BIP_RANGE(5),
