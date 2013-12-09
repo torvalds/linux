@@ -363,7 +363,7 @@ static int pcmmio_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static void switch_page(struct comedi_device *dev, int asic, int page)
+static void switch_page(struct comedi_device *dev, int page)
 {
 	struct pcmmio_private *devpriv = dev->private;
 
@@ -380,7 +380,7 @@ static void init_asics(struct comedi_device *dev)
 		int port, page;
 		unsigned long baseaddr = devpriv->asic_iobase;
 
-		switch_page(dev, asic, 0);	/* switch back to page 0 */
+		switch_page(dev, 0);	/* switch back to page 0 */
 
 		/* first, clear all the DIO port bits */
 		for (port = 0; port < PORTS_PER_ASIC; ++port)
@@ -390,14 +390,14 @@ static void init_asics(struct comedi_device *dev)
 		for (page = 1; page < NUM_PAGES; ++page) {
 			int reg;
 			/* now clear all the paged registers */
-			switch_page(dev, asic, page);
+			switch_page(dev, page);
 			for (reg = FIRST_PAGED_REG;
 			     reg < FIRST_PAGED_REG + NUM_PAGED_REGS; ++reg)
 				outb(0, baseaddr + reg);
 		}
 
 		/* switch back to default page 0 */
-		switch_page(dev, asic, 0);
+		switch_page(dev, 0);
 	}
 }
 
@@ -416,7 +416,7 @@ static void pcmmio_stop_intr(struct comedi_device *dev,
 	s->async->inttrig = NULL;
 	nports = subpriv->dio.intr.num_asic_chans / CHANS_PER_PORT;
 	firstport = subpriv->dio.intr.asic_chan / CHANS_PER_PORT;
-	switch_page(dev, asic, PAGE_ENAB);
+	switch_page(dev, PAGE_ENAB);
 	for (port = firstport; port < firstport + nports; ++port) {
 		/* disable all intrs for this subdev.. */
 		outb(0, devpriv->asic_iobase + REG_ENAB0 + port);
@@ -449,8 +449,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 					if (int_pend & (0x1 << port)) {
 						unsigned char
 						    io_lines_with_edges = 0;
-						switch_page(dev, asic,
-							    PAGE_INT_ID);
+						switch_page(dev, PAGE_INT_ID);
 						io_lines_with_edges =
 						    inb(iobase +
 							REG_INT_ID0 + port);
@@ -634,7 +633,7 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 			/* done, we told the board what irq to use */
 		}
 
-		switch_page(dev, asic, PAGE_ENAB);
+		switch_page(dev, PAGE_ENAB);
 		for (port = firstport; port < firstport + nports; ++port) {
 			unsigned enab =
 			    bits >> (subpriv->dio.intr.first_chan + (port -
@@ -644,7 +643,7 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 					 (port - firstport) * 8) & 0xff;
 			/* set enab intrs for this subdev.. */
 			outb(enab, devpriv->asic_iobase + REG_ENAB0 + port);
-			switch_page(dev, asic, PAGE_POL);
+			switch_page(dev, PAGE_POL);
 			outb(pol, devpriv->asic_iobase + REG_ENAB0 + port);
 		}
 	}
