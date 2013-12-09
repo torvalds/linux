@@ -362,38 +362,6 @@ static void init_asics(struct comedi_device *dev)
 	}
 }
 
-#ifdef notused
-static void lock_port(struct comedi_device *dev, int asic, int port)
-{
-	struct pcmmio_private *devpriv = dev->private;
-
-	if (asic < 0 || asic >= 1)
-		return;		/* paranoia */
-	if (port < 0 || port >= PORTS_PER_ASIC)
-		return;		/* more paranoia */
-
-	devpriv->asics[asic].pagelock |= 0x1 << port;
-	/* now write out the shadow register */
-	outb(devpriv->asics[asic].pagelock,
-	     devpriv->asics[asic].iobase + REG_PAGELOCK);
-	return;
-}
-
-static void unlock_port(struct comedi_device *dev, int asic, int port)
-{
-	struct pcmmio_private *devpriv = dev->private;
-
-	if (asic < 0 || asic >= 1)
-		return;		/* paranoia */
-	if (port < 0 || port >= PORTS_PER_ASIC)
-		return;		/* more paranoia */
-	devpriv->asics[asic].pagelock &= ~(0x1 << port) | REG_LOCK_MASK;
-	/* now write out the shadow register */
-	outb(devpriv->asics[asic].pagelock,
-	     devpriv->asics[asic].iobase + REG_PAGELOCK);
-}
-#endif /* notused */
-
 static void pcmmio_stop_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
