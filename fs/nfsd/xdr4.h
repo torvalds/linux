@@ -374,7 +374,6 @@ struct nfsd4_test_stateid {
 
 struct nfsd4_free_stateid {
 	stateid_t	fr_stateid;         /* request */
-	__be32		fr_status;          /* response */
 };
 
 /* also used for NVERIFY */
