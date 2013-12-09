@@ -2486,6 +2486,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	u32 word0;
 	u32 word1;
 	struct sk_buff *skb;
+	struct fbr_lookup *fbr;
 
 	/* RX Status block is written by the DMA engine prior to every
 	 * interrupt. It contains the next to be used entry in the Packet
@@ -2507,6 +2508,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	 */
 	len = psr->word1 & 0xFFFF;
 	ring_index = (psr->word1 >> 26) & 0x03;
+	fbr = rx_local->fbr[ring_index];
 	buff_index = (psr->word1 >> 16) & 0x3FF;
 	word0 = psr->word0;
 
@@ -2522,8 +2524,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 
 	writel(rx_local->local_psr_full, &adapter->regs->rxdma.psr_full_offset);
 
-	if (ring_index > 1 ||
-		    buff_index > rx_local->fbr[ring_index]->num_entries - 1) {
+	if (ring_index > 1 || buff_index > fbr->num_entries - 1) {
 		/* Illegal buffer or ring index cannot be used by S/W*/
 		dev_err(&adapter->pdev->dev,
 			"NICRxPkts PSR Entry %d indicates length of %d and/or bad bi(%d)\n",
@@ -2576,7 +2577,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 		   && !(adapter->packet_filter & ET131X_PACKET_TYPE_PROMISCUOUS)
 		   && !(adapter->packet_filter &
 					ET131X_PACKET_TYPE_ALL_MULTICAST)) {
-			buf = rx_local->fbr[ring_index]->virt[buff_index];
+			buf = fbr->virt[buff_index];
 
 			/* Loop through our list to see if the destination
 			 * address of this packet matches one in our list.
@@ -2629,9 +2630,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 
 	adapter->net_stats.rx_bytes += rfd->len;
 
-	memcpy(skb_put(skb, rfd->len),
-	       rx_local->fbr[ring_index]->virt[buff_index],
-	       rfd->len);
+	memcpy(skb_put(skb, rfd->len), fbr->virt[buff_index], rfd->len);
 
 	skb->protocol = eth_type_trans(skb, adapter->netdev);
 	skb->ip_summed = CHECKSUM_NONE;
