@@ -6017,7 +6017,6 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 out_error:
 	if (phystate_orig)
 		writel(phystate|NVREG_ADAPTCTL_RUNNING, base + NvRegAdapterControl);
-	pci_set_drvdata(pci_dev, NULL);
 out_freering:
 	free_rings(dev);
 out_unmap:
@@ -6088,7 +6087,6 @@ static void nv_remove(struct pci_dev *pci_dev)
 	pci_release_regions(pci_dev);
 	pci_disable_device(pci_dev);
 	free_netdev(dev);
-	pci_set_drvdata(pci_dev, NULL);
 }
 
 #ifdef CONFIG_PM_SLEEP
