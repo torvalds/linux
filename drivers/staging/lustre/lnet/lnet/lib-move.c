@@ -1074,6 +1074,12 @@ lnet_compare_routes(lnet_route_t *r1, lnet_route_t *r2)
 	lnet_peer_t *p1 = r1->lr_gateway;
 	lnet_peer_t *p2 = r2->lr_gateway;
 
+	if (r1->lr_priority < r2->lr_priority)
+		return 1;
+
+	if (r1->lr_priority > r2->lr_priority)
+		return -1;
+
 	if (r1->lr_hops < r2->lr_hops)
 		return 1;
 

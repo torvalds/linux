@@ -69,6 +69,7 @@ struct libcfs_ioctl_data {
 	char ioc_bulk[0];
 };
 
+#define ioc_priority ioc_u32[0]
 
 struct libcfs_ioctl_hdr {
 	__u32 ioc_len;

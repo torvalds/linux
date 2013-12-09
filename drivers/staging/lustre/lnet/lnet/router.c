@@ -301,7 +301,8 @@ lnet_add_route_to_rnet (lnet_remotenet_t *rnet, lnet_route_t *route)
 }
 
 int
-lnet_add_route (__u32 net, unsigned int hops, lnet_nid_t gateway)
+lnet_add_route(__u32 net, unsigned int hops, lnet_nid_t gateway,
+	       unsigned int priority)
 {
 	struct list_head	  *e;
 	lnet_remotenet_t    *rnet;
@@ -311,8 +312,8 @@ lnet_add_route (__u32 net, unsigned int hops, lnet_nid_t gateway)
 	int		  add_route;
 	int		  rc;
 
-	CDEBUG(D_NET, "Add route: net %s hops %u gw %s\n",
-	       libcfs_net2str(net), hops, libcfs_nid2str(gateway));
+	CDEBUG(D_NET, "Add route: net %s hops %u priority %u gw %s\n",
+	       libcfs_net2str(net), hops, priority, libcfs_nid2str(gateway));
 
 	if (gateway == LNET_NID_ANY ||
 	    LNET_NETTYP(LNET_NIDNET(gateway)) == LOLND ||
@@ -342,6 +343,7 @@ lnet_add_route (__u32 net, unsigned int hops, lnet_nid_t gateway)
 	rnet->lrn_net = net;
 	route->lr_hops = hops;
 	route->lr_net = net;
+	route->lr_priority = priority;
 
 	lnet_net_lock(LNET_LOCK_EX);
 
@@ -552,7 +554,7 @@ lnet_destroy_routes (void)
 
 int
 lnet_get_route(int idx, __u32 *net, __u32 *hops,
-	       lnet_nid_t *gateway, __u32 *alive)
+	       lnet_nid_t *gateway, __u32 *alive, __u32 *priority)
 {
 	struct list_head		*e1;
 	struct list_head		*e2;
@@ -574,10 +576,11 @@ lnet_get_route(int idx, __u32 *net, __u32 *hops,
 						       lr_list);
 
 				if (idx-- == 0) {
-					*net     = rnet->lrn_net;
-					*hops    = route->lr_hops;
-					*gateway = route->lr_gateway->lp_nid;
-					*alive   = route->lr_gateway->lp_alive;
+					*net	  = rnet->lrn_net;
+					*hops	  = route->lr_hops;
+					*priority = route->lr_priority;
+					*gateway  = route->lr_gateway->lp_nid;
+					*alive	  = route->lr_gateway->lp_alive;
 					lnet_net_unlock(cpt);
 					return 0;
 				}

@@ -174,8 +174,8 @@ int LL_PROC_PROTO(proc_lnet_routes)
 			      the_lnet.ln_routing ? "enabled" : "disabled");
 		LASSERT(tmpstr + tmpsiz - s > 0);
 
-		s += snprintf(s, tmpstr + tmpsiz - s, "%-8s %4s %7s %s\n",
-			      "net", "hops", "state", "router");
+		s += snprintf(s, tmpstr + tmpsiz - s, "%-8s %4s %8s %7s %s\n",
+			      "net", "hops", "priority", "state", "router");
 		LASSERT(tmpstr + tmpsiz - s > 0);
 
 		lnet_net_lock(0);
@@ -229,14 +229,16 @@ int LL_PROC_PROTO(proc_lnet_routes)
 		}
 
 		if (route != NULL) {
-			__u32	net   = rnet->lrn_net;
-			unsigned int hops  = route->lr_hops;
-			lnet_nid_t   nid   = route->lr_gateway->lp_nid;
-			int	  alive = route->lr_gateway->lp_alive;
+			__u32        net	= rnet->lrn_net;
+			unsigned int hops	= route->lr_hops;
+			unsigned int priority	= route->lr_priority;
+			lnet_nid_t   nid	= route->lr_gateway->lp_nid;
+			int          alive	= route->lr_gateway->lp_alive;
 
 			s += snprintf(s, tmpstr + tmpsiz - s,
-				      "%-8s %4u %7s %s\n",
+				      "%-8s %4u %8u %7s %s\n",
 				      libcfs_net2str(net), hops,
+				      priority,
 				      alive ? "up" : "down",
 				      libcfs_nid2str(nid));
 			LASSERT(tmpstr + tmpsiz - s > 0);
