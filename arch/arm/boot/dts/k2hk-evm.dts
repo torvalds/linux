@@ -53,3 +53,11 @@
 		};
 	};
 };
+
+&usb_phy {
+	status = "okay";
+};
+
+&usb {
+	status = "okay";
+};
