@@ -122,6 +122,14 @@ Configuration Options:
 #define PCMMIO_AO_CMD_CHAN_SEL(x)		(((x) & 0x03) << 1)
 #define PCMMIO_AO_CMD_CHAN_SEL_ALL		(0x0f << 0)
 #define PCMMIO_AO_STATUS_REG			0x0b
+#define PCMMIO_AO_STATUS_DATA_READY		(1 << 7)
+#define PCMMIO_AO_STATUS_DATA_DMA_PEND		(1 << 6)
+#define PCMMIO_AO_STATUS_CMD_DMA_PEND		(1 << 5)
+#define PCMMIO_AO_STATUS_IRQ_PEND		(1 << 4)
+#define PCMMIO_AO_STATUS_DATA_DRQ_ENA		(1 << 2)
+#define PCMMIO_AO_STATUS_REG_SEL		(1 << 3)
+#define PCMMIO_AO_STATUS_CMD_DRQ_ENA		(1 << 1)
+#define PCMMIO_AO_STATUS_IRQ_ENA		(1 << 0)
 #define PCMMIO_AO_RESOURCE_ENA_REG		0x0b
 #define PCMMIO_AO_2ND_DAC_OFFSET		0x04
 
@@ -885,22 +893,16 @@ static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return n;
 }
 
-static int wait_dac_ready(unsigned long iobase)
+static int pcmmio_ao_wait_for_eoc(unsigned long iobase, unsigned int timeout)
 {
-	unsigned long retry = 100000L;
+	unsigned char status;
 
-	/* This may seem like an absurd way to handle waiting and violates the
-	   "no busy waiting" policy. The fact is that the hardware is
-	   normally so fast that we usually only need one time through the loop
-	   anyway. The longer timeout is for rare occasions and for detecting
-	   non-existent hardware.  */
-
-	while (retry--) {
-		if (inb(iobase + 3) & 0x80)
+	while (timeout--) {
+		status = inb(iobase + PCMMIO_AO_STATUS_REG);
+		if (status & PCMMIO_AO_STATUS_DATA_READY)
 			return 0;
-
 	}
-	return 1;
+	return -ETIME;
 }
 
 static int pcmmio_ao_insn_write(struct comedi_device *dev,
@@ -914,6 +916,7 @@ static int pcmmio_ao_insn_write(struct comedi_device *dev,
 	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int val = devpriv->ao_readback[chan];
 	unsigned char cmd = 0;
+	int ret;
 	int i;
 
 	/*
@@ -932,7 +935,9 @@ static int pcmmio_ao_insn_write(struct comedi_device *dev,
 	outb(PCMMIO_AO_LSB_SPAN(range), iobase + PCMMIO_AO_LSB_REG);
 	outb(0, iobase + PCMMIO_AO_MSB_REG);
 	outb(cmd | PCMMIO_AO_CMD_WR_SPAN_UPDATE, iobase + PCMMIO_AO_CMD_REG);
-	wait_dac_ready(iobase);
+	ret = pcmmio_ao_wait_for_eoc(iobase, 100000);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
@@ -942,7 +947,9 @@ static int pcmmio_ao_insn_write(struct comedi_device *dev,
 		outb((val >> 8) & 0xff, iobase + PCMMIO_AO_MSB_REG);
 		outb(cmd | PCMMIO_AO_CMD_WR_CODE_UPDATE,
 		     iobase + PCMMIO_AO_CMD_REG);
-		wait_dac_ready(iobase);
+		ret = pcmmio_ao_wait_for_eoc(iobase, 100000);
+		if (ret)
+			return ret;
 
 		devpriv->ao_readback[chan] = val;
 	}
