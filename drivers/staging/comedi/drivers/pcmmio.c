@@ -231,10 +231,6 @@ struct pcmmio_subdev_private {
 				spinlock_t spinlock;
 			} intr;
 		} dio;
-		struct {
-			/* the last unsigned int data written */
-			unsigned int shadow_samples[8];
-		} ao;
 	};
 };
 
@@ -256,6 +252,7 @@ struct pcmmio_private {
 		spinlock_t spinlock;
 	} asics[MAX_ASICS];
 	struct pcmmio_subdev_private *sprivs;
+	unsigned int ao_readback[8];
 };
 
 #define subpriv ((struct pcmmio_subdev_private *)s->private)
@@ -857,11 +854,13 @@ static int pcmmio_ai_insn_read(struct comedi_device *dev,
 static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data)
 {
+	struct pcmmio_private *devpriv = dev->private;
 	int n;
+
 	for (n = 0; n < insn->n; n++) {
 		unsigned chan = CR_CHAN(insn->chanspec);
 		if (chan < s->n_chan)
-			data[n] = subpriv->ao.shadow_samples[chan];
+			data[n] = devpriv->ao_readback[chan];
 	}
 	return n;
 }
@@ -887,6 +886,7 @@ static int wait_dac_ready(unsigned long iobase)
 static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data)
 {
+	struct pcmmio_private *devpriv = dev->private;
 	int n;
 	unsigned iobase = subpriv->iobase, iooffset = 0;
 
@@ -925,7 +925,7 @@ static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			wait_dac_ready(iobase + iooffset);
 
 			/* save to shadow register for ao_rinsn */
-			subpriv->ao.shadow_samples[chan] = data[n];
+			devpriv->ao_readback[chan] = data[n];
 		}
 	}
 	return n;
