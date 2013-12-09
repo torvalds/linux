@@ -40,6 +40,10 @@ static int link_quirk;
 module_param(link_quirk, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(link_quirk, "Don't clear the chain bit on a link TRB");
 
+static unsigned int quirks;
+module_param(quirks, uint, S_IRUGO);
+MODULE_PARM_DESC(quirks, "Bit flags for quirks to be enabled as default");
+
 /* TODO: copied from ehci-hcd.c - can this be refactored? */
 /*
  * xhci_handshake - spin reading hc until handshake completes or fails
@@ -4769,6 +4773,8 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	xhci->hci_version = HC_VERSION(xhci->hcc_params);
 	xhci->hcc_params = readl(&xhci->cap_regs->hcc_params);
 	xhci_print_registers(xhci);
+
+	xhci->quirks = quirks;
 
 	get_quirks(dev, xhci);
 
