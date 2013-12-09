@@ -996,12 +996,17 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
 
 static int rockchip_gpio_request(struct gpio_chip *chip, unsigned offset)
 {	
-	printk("%s:offset=%d\n",__func__,offset);
+	struct rockchip_pin_bank *bank = gc_to_pin_bank(chip);		
+	struct rockchip_pinctrl *info = bank->drvdata;
+	DBG_PINCTRL("%s:GPIO%d-%d\n", __func__, bank->bank_num, offset);
 	return pinctrl_request_gpio(chip->base + offset);
 }
 
 static void rockchip_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
+{		
+	struct rockchip_pin_bank *bank = gc_to_pin_bank(chip);	
+	struct rockchip_pinctrl *info = bank->drvdata;
+	DBG_PINCTRL("%s:GPIO%d-%d\n", __func__, bank->bank_num, offset);
 	pinctrl_free_gpio(chip->base + offset);
 }
 
@@ -1022,9 +1027,8 @@ static void rockchip_gpio_set(struct gpio_chip *gc, unsigned offset, int value)
 	writel(data, reg);
 
 	spin_unlock_irqrestore(&bank->slock, flags);
-
 	
-	DBG_PINCTRL("%s:offset=%d\n",__func__,offset);
+	DBG_PINCTRL("%s:GPIO%d-%d level = %d\n", __func__, bank->bank_num, offset, value);
 }
 
 /*
@@ -1033,12 +1037,15 @@ static void rockchip_gpio_set(struct gpio_chip *gc, unsigned offset, int value)
  */
 static int rockchip_gpio_get(struct gpio_chip *gc, unsigned offset)
 {
-	struct rockchip_pin_bank *bank = gc_to_pin_bank(gc);
+	struct rockchip_pin_bank *bank = gc_to_pin_bank(gc);	
+	struct rockchip_pinctrl *info = bank->drvdata;
 	u32 data;
 
 	data = readl(bank->reg_base + GPIO_EXT_PORT);
 	data >>= offset;
 	data &= 1;
+	
+	DBG_PINCTRL("%s:GPIO%d-%d level = %d\n", __func__, bank->bank_num, offset, data);
 	return data;
 }
 
@@ -1051,7 +1058,8 @@ static int rockchip_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 {
 	struct rockchip_pin_bank *bank = gc_to_pin_bank(gc);
 	struct rockchip_pinctrl *info = bank->drvdata;
-	DBG_PINCTRL("%s:offset=%d\n",__func__,offset);
+
+	DBG_PINCTRL("%s:GPIO%d-%d\n", __func__, bank->bank_num, offset);
 	return pinctrl_gpio_direction_input(gc->base + offset);
 }
 
@@ -1067,7 +1075,7 @@ static int rockchip_gpio_direction_output(struct gpio_chip *gc,
 	struct rockchip_pinctrl *info = bank->drvdata;
 	rockchip_gpio_set(gc, offset, value);
 	
-	DBG_PINCTRL("%s:irq=%d, bank_num=%d, pin_base=%d, offset=%d,value=%d\n",__func__, bank->irq, bank->bank_num, bank->pin_base, offset, value);
+	DBG_PINCTRL("%s:set GPIO%d-%d level %d\n", __func__, bank->bank_num, offset, value);	
 	return pinctrl_gpio_direction_output(gc->base + offset);
 }
 
@@ -1087,7 +1095,7 @@ static int rockchip_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 
 	virq = irq_create_mapping(bank->domain, offset);
 
-	DBG_PINCTRL("%s:virq=%d, offset=%d\n",__func__, virq, offset);
+	DBG_PINCTRL("%s:virq=%d, GPIO%d-%d\n", __func__, virq, bank->bank_num, offset);
 
 	return (virq) ? : -ENXIO;
 }
@@ -1159,7 +1167,7 @@ static void rockchip_irq_demux(unsigned int irq, struct irq_desc *desc)
 		generic_handle_irq(virq);
 
 		
-		DBG_PINCTRL("%s:irq=%d\n",__func__,irq);
+		DBG_PINCTRL("%s:irq=%d\n",__func__, irq);
 	}
 
 	if (bank->toggle_edge_mode && edge_changed) {
@@ -1438,7 +1446,7 @@ static int rockchip_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 		bank->suspend_wakeup &= ~bit;
 	spin_unlock_irqrestore(&bank->slock, flags);
 	
-	DBG_PINCTRL("%s:irq=%d,hwirq=%d\n",__func__,d->irq, (int)d->hwirq);
+	DBG_PINCTRL("%s:irq=%d,hwirq=%d,bank->reg_base=0x%x,bit=%d\n",__func__,d->irq, (int)d->hwirq, (int)bank->reg_base,bit);
 	return 0;
 }
 
@@ -1454,7 +1462,7 @@ static void rockchip_gpio_irq_unmask(struct irq_data *d)
 	GPIOEnableIntr(bank->reg_base, bit);
 	spin_unlock_irqrestore(&bank->slock, flags);
 
-	DBG_PINCTRL("%s:irq=%d,hwirq=%d\n",__func__,d->irq, (int)d->hwirq);
+	DBG_PINCTRL("%s:irq=%d,hwirq=%d,bank->reg_base=0x%x,bit=%d\n",__func__,d->irq, (int)d->hwirq, (int)bank->reg_base,bit);
 }
 
 static void rockchip_gpio_irq_mask(struct irq_data *d)
@@ -1469,7 +1477,7 @@ static void rockchip_gpio_irq_mask(struct irq_data *d)
 	GPIODisableIntr(bank->reg_base, bit);
 	spin_unlock_irqrestore(&bank->slock, flags);
 	
-	DBG_PINCTRL("%s:irq=%d,hwirq=%d\n",__func__,d->irq, (int)d->hwirq);
+	DBG_PINCTRL("%s:irq=%d,hwirq=%d,bank->reg_base=0x%x,bit=%d\n",__func__,d->irq, (int)d->hwirq, (int)bank->reg_base,bit);
 }
 
 static void rockchip_gpio_irq_ack(struct irq_data *d)
@@ -1481,7 +1489,7 @@ static void rockchip_gpio_irq_ack(struct irq_data *d)
 
 	GPIOAckIntr(bank->reg_base, bit);
 	
-	DBG_PINCTRL("%s:irq=%d,hwirq=%d\n",__func__,d->irq, (int)d->hwirq);
+	DBG_PINCTRL("%s:irq=%d,hwirq=%d,bank->reg_base=0x%x,bit=%d\n",__func__,d->irq, (int)d->hwirq, (int)bank->reg_base,bit);
 }
 
 
@@ -1516,7 +1524,7 @@ static int rockchip_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 	irq_data->hwirq = hwirq;
 	irq_data->irq = irq;
 		
-	//DBG_PINCTRL("%s:irq=%d\n",__func__,irq);
+	DBG_PINCTRL("%s:irq=%d\n",__func__,irq);
 	return 0;
 }
 
@@ -1526,16 +1534,13 @@ const struct irq_domain_ops rockchip_gpio_irq_ops = {
 };
 
 
-static struct lock_class_key gpio_lock_class;
-
 static int rockchip_interrupts_register(struct platform_device *pdev,
 						struct rockchip_pinctrl *info)
 {
 	struct rockchip_pin_ctrl *ctrl = info->ctrl;
 	struct rockchip_pin_bank *bank = ctrl->pin_banks;
 	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
-	int ret;
-	int i,j;
+	int i;
 
 	for (i = 0; i < ctrl->nr_banks; ++i, ++bank) {
 		if (!bank->valid) {
@@ -1546,7 +1551,6 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 		
 		__raw_writel(0, bank->reg_base + GPIO_INTEN);
 		
-#if 1		
 		bank->drvdata = info;
 		bank->domain = irq_domain_add_linear(bank->of_node, 32,
 				&rockchip_gpio_irq_ops, bank);
@@ -1556,22 +1560,8 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 			continue;
 		}
 
-		for(j=0; j<32; j++)
-		{
-		//	if(bank->domain->ops->map)
-		//	bank->domain->ops->map(bank->domain, 6*32+bank->pin_base+j, j);
-		}
-#else
 		
-		for (j = 0; j < 32; j++) {
-			irq_set_lockdep_class(bank->pin_base+j, &gpio_lock_class);
-			irq_set_chip_and_handler(bank->pin_base+j, &rockchip_gpio_irq_chip, handle_level_irq);
-			irq_set_chip_data(bank->pin_base+j, bank);
-			set_irq_flags(bank->pin_base+j, IRQF_VALID);
-		}
-#endif
-		
-		DBG_PINCTRL("%s:i=%d\n",__func__,i);
+		DBG_PINCTRL("%s:bank=%d\n",__func__,i);
 
 		irq_set_handler_data(bank->irq, bank);
 		irq_set_chained_handler(bank->irq, rockchip_irq_demux);
@@ -1772,7 +1762,7 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	info->ctrl = ctrl;
 	info->dev = dev;
 	
-	atomic_set(&info->debug_flag, 0);
+	atomic_set(&info->debug_flag, 1);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	info->reg_base = devm_ioremap_resource(&pdev->dev, res);
@@ -1799,14 +1789,17 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 #if 0
-	gpio_request(110, NULL);	
-	gpio_direction_output(110, 1);
-
-	gpio_request(111, NULL);
-	gpio_direction_output(111, 1);
-	
-	ret = request_irq(112, pinctrl_interrupt_test, IRQ_TYPE_EDGE_RISING, "test", info);
-	disable_irq(112);
+	int i = 0;
+	for(i=1; i<32*4; i++)
+	{
+		if(i>23 && i<32)
+		continue;
+		gpio_request(i, NULL);	
+		gpio_direction_input(i);
+		
+		ret = request_irq(gpio_to_irq(i), pinctrl_interrupt_test, IRQ_TYPE_EDGE_RISING, "test", info);
+		disable_irq(gpio_to_irq(i));
+	}
 #endif
 	printk("%s:init ok\n",__func__);
 	return 0;

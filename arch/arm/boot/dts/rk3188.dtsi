@@ -424,4 +424,15 @@
 		wake-irq = <0>;
 		status = "disabled";
 	};
+	
+	/*sample code for gpio*/
+	leds {
+		compatible = "gpio-leds";
+
+		d2 {
+			label = "d2";
+			gpios = <&gpio0 2 1>;	/* GPIO0-2 level1*/
+		};
+	};
+
 };
