@@ -142,13 +142,24 @@ Configuration Options:
 #define PAGE_ENAB 2
 #define PAGE_INT_ID 3
 
-static const struct comedi_lrange ranges_ai = {
-	4, {RANGE(-5., 5.), RANGE(-10., 10.), RANGE(0., 5.), RANGE(0., 10.)}
+static const struct comedi_lrange pcmmio_ai_ranges = {
+	4, {
+		BIP_RANGE(5),
+		BIP_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(10)
+	}
 };
 
-static const struct comedi_lrange ranges_ao = {
-	6, {RANGE(0., 5.), RANGE(0., 10.), RANGE(-5., 5.), RANGE(-10., 10.),
-	  RANGE(-2.5, 2.5), RANGE(-2.5, 7.5)}
+static const struct comedi_lrange pcmmio_ao_ranges = {
+	6, {
+		UNI_RANGE(5),
+		UNI_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(10),
+		BIP_RANGE(2.5),
+		RANGE(-2.5, 7.5)
+	}
 };
 
 /* this structure is for data unique to this subdevice.  */
@@ -960,7 +971,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s = &dev->subdevices[0];
 	s->private = &devpriv->sprivs[0];
 	s->maxdata = 0xffff;
-	s->range_table = &ranges_ai;
+	s->range_table = &pcmmio_ai_ranges;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
 	s->type = COMEDI_SUBD_AI;
 	s->n_chan = 16;
@@ -975,7 +986,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s = &dev->subdevices[1];
 	s->private = &devpriv->sprivs[1];
 	s->maxdata = 0xffff;
-	s->range_table = &ranges_ao;
+	s->range_table = &pcmmio_ao_ranges;
 	s->subdev_flags = SDF_READABLE;
 	s->type = COMEDI_SUBD_AO;
 	s->n_chan = 8;
