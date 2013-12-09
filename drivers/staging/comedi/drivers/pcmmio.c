@@ -133,6 +133,34 @@ Configuration Options:
 #define PCMMIO_AO_RESOURCE_ENA_REG		0x0b
 #define PCMMIO_AO_2ND_DAC_OFFSET		0x04
 
+/*
+ * WinSystems WS16C48
+ *
+ * Offset    Page 0       Page 1       Page 2       Page 3
+ * ------  -----------  -----------  -----------  -----------
+ *  0x10   Port 0 I/O   Port 0 I/O   Port 0 I/O   Port 0 I/O
+ *  0x11   Port 1 I/O   Port 1 I/O   Port 1 I/O   Port 1 I/O
+ *  0x12   Port 2 I/O   Port 2 I/O   Port 2 I/O   Port 2 I/O
+ *  0x13   Port 3 I/O   Port 3 I/O   Port 3 I/O   Port 3 I/O
+ *  0x14   Port 4 I/O   Port 4 I/O   Port 4 I/O   Port 4 I/O
+ *  0x15   Port 5 I/O   Port 5 I/O   Port 5 I/O   Port 5 I/O
+ *  0x16   INT_PENDING  INT_PENDING  INT_PENDING  INT_PENDING
+ *  0x17    Page/Lock    Page/Lock    Page/Lock    Page/Lock
+ *  0x18       N/A         POL_0       ENAB_0       INT_ID0
+ *  0x19       N/A         POL_1       ENAB_1       INT_ID1
+ *  0x1a       N/A         POL_2       ENAB_2       INT_ID2
+ */
+#define PCMMIO_PORT_REG(x)			(0x10 + (x))
+#define PCMMIO_INT_PENDING_REG			0x16
+#define PCMMIO_PAGE_LOCK_REG			0x17
+#define PCMMIO_LOCK_PORT(x)			((1 << (x)) & 0x3f)
+#define PCMMIO_PAGE(x)				(((x) & 0x3) << 6)
+#define PCMMIO_PAGE_MASK			PCMUIO_PAGE(3)
+#define PCMMIO_PAGE_POL				1
+#define PCMMIO_PAGE_ENAB			2
+#define PCMMIO_PAGE_INT_ID			3
+#define PCMMIO_PAGE_REG(x)			(0x18 + (x))
+
 /* This stuff is all from pcmuio.c -- it refers to the DIO subdevices only */
 #define CHANS_PER_PORT   8
 #define PORTS_PER_ASIC   6
@@ -149,51 +177,9 @@ Configuration Options:
 #define ASIC_IOSIZE (0x0B)
 #define PCMMIO48_IOSIZE ASIC_IOSIZE
 
-/* Some offsets - these are all in the 16byte IO memory offset from
-   the base address.  Note that there is a paging scheme to swap out
-   offsets 0x8-0xA using the PAGELOCK register.  See the table below.
-
-  Register(s)       Pages        R/W?        Description
-  --------------------------------------------------------------
-  REG_PORTx         All          R/W         Read/Write/Configure IO
-  REG_INT_PENDING   All          ReadOnly    Quickly see which INT_IDx has int.
-  REG_PAGELOCK      All          WriteOnly   Select a page
-  REG_POLx          Pg. 1 only   WriteOnly   Select edge-detection polarity
-  REG_ENABx         Pg. 2 only   WriteOnly   Enable/Disable edge-detect. int.
-  REG_INT_IDx       Pg. 3 only   R/W         See which ports/bits have ints.
- */
-#define REG_PORT0 0x0
-#define REG_PORT1 0x1
-#define REG_PORT2 0x2
-#define REG_PORT3 0x3
-#define REG_PORT4 0x4
-#define REG_PORT5 0x5
-#define REG_INT_PENDING 0x6
-#define REG_PAGELOCK 0x7	/*
-				 * page selector register, upper 2 bits select
-				 * a page and bits 0-5 are used to 'lock down'
-				 * a particular port above to make it readonly.
-				 */
-#define REG_POL0 0x8
-#define REG_POL1 0x9
-#define REG_POL2 0xA
-#define REG_ENAB0 0x8
-#define REG_ENAB1 0x9
-#define REG_ENAB2 0xA
-#define REG_INT_ID0 0x8
-#define REG_INT_ID1 0x9
-#define REG_INT_ID2 0xA
-
 #define NUM_PAGED_REGS 3
 #define NUM_PAGES 4
 #define FIRST_PAGED_REG 0x8
-#define REG_PAGE_BITOFFSET 6
-#define REG_LOCK_BITOFFSET 0
-#define REG_PAGE_MASK (~((0x1<<REG_PAGE_BITOFFSET)-1))
-#define REG_LOCK_MASK (~(REG_PAGE_MASK))
-#define PAGE_POL 1
-#define PAGE_ENAB 2
-#define PAGE_INT_ID 3
 
 static const struct comedi_lrange pcmmio_ai_ranges = {
 	4, {
@@ -268,7 +254,6 @@ struct pcmmio_subdev_private {
  * feel free to suggest moving the variable to the struct comedi_device struct.
  */
 struct pcmmio_private {
-	unsigned long asic_iobase;
 	spinlock_t spinlock;
 
 	struct pcmmio_subdev_private *sprivs;
@@ -365,31 +350,26 @@ static int pcmmio_dio_insn_config(struct comedi_device *dev,
 
 static void switch_page(struct comedi_device *dev, int page)
 {
-	struct pcmmio_private *devpriv = dev->private;
-
-	outb(page << REG_PAGE_BITOFFSET, devpriv->asic_iobase + REG_PAGELOCK);
+	outb(PCMMIO_PAGE(page), dev->iobase + PCMMIO_PAGE_LOCK_REG);
 }
 
 static void pcmmio_reset(struct comedi_device *dev)
 {
-	struct pcmmio_private *devpriv = dev->private;
-	unsigned long baseaddr = devpriv->asic_iobase;
 	int port, page;
 
 	switch_page(dev, 0);	/* switch back to page 0 */
 
 	/* first, clear all the DIO port bits */
 	for (port = 0; port < PORTS_PER_ASIC; ++port)
-		outb(0, baseaddr + REG_PORT0 + port);
+		outb(0, dev->iobase + PCMMIO_PORT_REG(port));
 
 	/* Next, clear all the paged registers for each page */
 	for (page = 1; page < NUM_PAGES; ++page) {
 		int reg;
 		/* now clear all the paged registers */
 		switch_page(dev, page);
-		for (reg = FIRST_PAGED_REG;
-		     reg < FIRST_PAGED_REG + NUM_PAGED_REGS; ++reg)
-			outb(0, baseaddr + reg);
+		for (reg = 0; reg < NUM_PAGED_REGS; ++reg)
+			outb(0, dev->iobase + PCMMIO_PAGE_REG(reg));
 	}
 
 	/* switch back to default page 0 */
@@ -399,7 +379,6 @@ static void pcmmio_reset(struct comedi_device *dev)
 static void pcmmio_stop_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	struct pcmmio_private *devpriv = dev->private;
 	int nports, firstport, asic, port;
 
 	asic = subpriv->dio.intr.asic;
@@ -411,10 +390,10 @@ static void pcmmio_stop_intr(struct comedi_device *dev,
 	s->async->inttrig = NULL;
 	nports = subpriv->dio.intr.num_asic_chans / CHANS_PER_PORT;
 	firstport = subpriv->dio.intr.asic_chan / CHANS_PER_PORT;
-	switch_page(dev, PAGE_ENAB);
+	switch_page(dev, PCMMIO_PAGE_ENAB);
 	for (port = firstport; port < firstport + nports; ++port) {
 		/* disable all intrs for this subdev.. */
-		outb(0, devpriv->asic_iobase + REG_ENAB0 + port);
+		outb(0, dev->iobase + PCMMIO_PAGE_REG(port));
 	}
 }
 
@@ -429,13 +408,13 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 		if (irq == dev->irq) {
 			unsigned long flags;
 			unsigned triggered = 0;
-			unsigned long iobase = devpriv->asic_iobase;
 			/* it is an interrupt for ASIC #asic */
 			unsigned char int_pend;
 
 			spin_lock_irqsave(&devpriv->spinlock, flags);
 
-			int_pend = inb(iobase + REG_INT_PENDING) & 0x07;
+			int_pend = inb(dev->iobase + PCMMIO_INT_PENDING_REG);
+			int_pend &= 0x07;
 
 			if (int_pend) {
 				int port;
@@ -444,19 +423,18 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 					if (int_pend & (0x1 << port)) {
 						unsigned char
 						    io_lines_with_edges = 0;
-						switch_page(dev, PAGE_INT_ID);
+						switch_page(dev, PCMMIO_PAGE_INT_ID);
 						io_lines_with_edges =
-						    inb(iobase +
-							REG_INT_ID0 + port);
+						    inb(dev->iobase +
+							PCMMIO_PAGE_REG(port));
 
 						if (io_lines_with_edges)
 							/*
 							 * clear pending
 							 * interrupt
 							 */
-							outb(0, iobase +
-							     REG_INT_ID0 +
-							     port);
+							outb(0, dev->iobase +
+							     PCMMIO_PAGE_REG(port));
 
 						triggered |=
 						    io_lines_with_edges <<
@@ -578,8 +556,6 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 static int pcmmio_start_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	struct pcmmio_private *devpriv = dev->private;
-
 	if (!subpriv->dio.intr.continuous && subpriv->dio.intr.stop_count == 0) {
 		/* An empty acquisition! */
 		s->async->events |= COMEDI_CB_EOA;
@@ -628,7 +604,7 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 			/* done, we told the board what irq to use */
 		}
 
-		switch_page(dev, PAGE_ENAB);
+		switch_page(dev, PCMMIO_PAGE_ENAB);
 		for (port = firstport; port < firstport + nports; ++port) {
 			unsigned enab =
 			    bits >> (subpriv->dio.intr.first_chan + (port -
@@ -637,9 +613,9 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 			    pol_bits >> (subpriv->dio.intr.first_chan +
 					 (port - firstport) * 8) & 0xff;
 			/* set enab intrs for this subdev.. */
-			outb(enab, devpriv->asic_iobase + REG_ENAB0 + port);
-			switch_page(dev, PAGE_POL);
-			outb(pol, devpriv->asic_iobase + REG_ENAB0 + port);
+			outb(enab, dev->iobase + PCMMIO_PAGE_REG(port));
+			switch_page(dev, PCMMIO_PAGE_POL);
+			outb(pol, dev->iobase + PCMMIO_PAGE_REG(port));
 		}
 	}
 	return 0;
@@ -955,7 +931,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	devpriv->asic_iobase = dev->iobase + 16;
 	spin_lock_init(&devpriv->spinlock);
 
 	chans_left = CHANS_PER_ASIC * 1;
@@ -1029,7 +1004,8 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				++asic;
 				thisasic_chanct = 0;
 			}
-			subpriv->iobases[byte_no] = devpriv->asic_iobase + port;
+			subpriv->iobases[byte_no] = dev->iobase +
+						    PCMMIO_PORT_REG(port);
 
 			if (thisasic_chanct <
 			    CHANS_PER_PORT * INTR_PORTS_PER_ASIC
