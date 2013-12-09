@@ -1259,8 +1259,11 @@ static int __wa_xfer_setup(struct wa_xfer *xfer, struct urb *urb)
 		for (cnt = 1; cnt < xfer->segs; cnt++) {
 			struct wa_xfer_packet_info_hwaiso *packet_desc;
 			struct wa_seg *seg = xfer->seg[cnt];
+			struct wa_xfer_hwaiso *xfer_iso;
 
 			xfer_hdr = &seg->xfer_hdr;
+			xfer_iso = container_of(xfer_hdr,
+						struct wa_xfer_hwaiso, hdr);
 			packet_desc = ((void *)xfer_hdr) + xfer_hdr_size;
 			/*
 			 * Copy values from the 0th header. Segment specific
@@ -1270,6 +1273,8 @@ static int __wa_xfer_setup(struct wa_xfer *xfer, struct urb *urb)
 			xfer_hdr->bTransferSegment = cnt;
 			xfer_hdr->dwTransferLength =
 				cpu_to_le32(seg->isoc_size);
+			xfer_iso->dwNumOfPackets =
+					cpu_to_le32(seg->isoc_frame_count);
 			__wa_setup_isoc_packet_descr(packet_desc, xfer, seg);
 			seg->status = WA_SEG_READY;
 		}
