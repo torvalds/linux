@@ -80,6 +80,17 @@ Configuration Options:
 
 #include "comedi_fc.h"
 
+/*
+ * Register I/O map
+ */
+#define PCMMIO_AI_LSB_REG		0x00
+#define PCMMIO_AI_MSB_REG		0x01
+#define PCMMIO_AI_CMD_REG		0x02
+#define PCMMIO_AI_CMD_SE		(1 << 7)
+#define PCMMIO_AI_CMD_ODD_CHAN		(1 << 6)
+#define PCMMIO_AI_CMD_CHAN_SEL(x)	(((x) & 0x3) << 4)
+#define PCMMIO_AI_CMD_RANGE(x)		(((x) & 0x3) << 2)
+
 /* This stuff is all from pcmuio.c -- it refers to the DIO subdevices only */
 #define CHANS_PER_PORT   8
 #define PORTS_PER_ASIC   6
@@ -761,85 +772,67 @@ static int adc_wait_ready(unsigned long iobase)
 	return 1;
 }
 
-/* All this is for AI and AO */
-static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data)
+static int pcmmio_ai_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	int n;
 	unsigned long iobase = subpriv->iobase;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int aref = CR_AREF(insn->chanspec);
+	unsigned char cmd = 0;
+	unsigned int val;
+	int i;
 
 	/*
-	   1. write the CMD byte (to BASE+2)
-	   2. read junk lo byte (BASE+0)
-	   3. read junk hi byte (BASE+1)
-	   4. (mux settled so) write CMD byte again (BASE+2)
-	   5. read valid lo byte(BASE+0)
-	   6. read valid hi byte(BASE+1)
-
-	   Additionally note that the BASE += 4 if the channel >= 8
+	 * The PCM-MIO uses two Linear Tech LTC1859CG 8-channel A/D converters.
+	 * The devices use a full duplex serial interface which transmits and
+	 * receives data simultaneously. An 8-bit command is shifted into the
+	 * ADC interface to configure it for the next conversion. At the same
+	 * time, the data from the previous conversion is shifted out of the
+	 * device. Consequently, the conversion result is delayed by one
+	 * conversion from the command word.
+	 *
+	 * Setup the cmd for the conversions then do a dummy conversion to
+	 * flush the junk data. Then do each conversion requested by the
+	 * comedi_insn. Note that the last conversion will leave junk data
+	 * in ADC which will get flushed on the next comedi_insn.
 	 */
 
-	/* convert n samples */
-	for (n = 0; n < insn->n; n++) {
-		unsigned chan = CR_CHAN(insn->chanspec), range =
-		    CR_RANGE(insn->chanspec), aref = CR_AREF(insn->chanspec);
-		unsigned char command_byte = 0;
-		unsigned iooffset = 0;
-		unsigned int val;
+	if (chan > 7) {
+		chan -= 8;
+		iobase += 0x4;
+	}
 
-		if (chan > 7)
-			chan -= 8, iooffset = 4;	/*
-							 * use the second dword
-							 * for channels > 7
-							 */
+	if (aref == AREF_GROUND)
+		cmd |= PCMMIO_AI_CMD_SE;
+	if (chan % 2)
+		cmd |= PCMMIO_AI_CMD_ODD_CHAN;
+	cmd |= PCMMIO_AI_CMD_CHAN_SEL(chan / 2);
+	cmd |= PCMMIO_AI_CMD_RANGE(range);
 
-		if (aref != AREF_DIFF) {
-			aref = AREF_GROUND;
-			command_byte |= 1 << 7;	/*
-						 * set bit 7 to indicate
-						 * single-ended
-						 */
-		}
+	outb(cmd, iobase + PCMMIO_AI_CMD_REG);
+	adc_wait_ready(iobase);
 
-		if (chan % 2) {
-			command_byte |= 1 << 6;	/*
-						 * odd-numbered channels
-						 * have bit 6 set
-						 */
-		}
+	val = inb(iobase + PCMMIO_AI_LSB_REG);
+	val |= inb(iobase + PCMMIO_AI_MSB_REG) << 8;
 
-		/* select the channel, bits 4-5 == chan/2 */
-		command_byte |= ((chan / 2) & 0x3) << 4;
+	for (i = 0; i < insn->n; i++) {
+		outb(cmd, iobase + PCMMIO_AI_CMD_REG);
+		adc_wait_ready(iobase);
 
-		/* set the range, bits 2-3 */
-		command_byte |= (range & 0x3) << 2;
-
-		/* need to do this twice to make sure mux settled */
-		/* chan/range/aref select */
-		outb(command_byte, iobase + iooffset + 2);
-
-		/* wait for the adc to say it finised the conversion */
-		adc_wait_ready(iobase + iooffset);
-
-		/* select the chan/range/aref AGAIN */
-		outb(command_byte, iobase + iooffset + 2);
-
-		adc_wait_ready(iobase + iooffset);
-
-		/* read data lo byte */
-		val = inb(iobase + iooffset + 0);
-
-		/* read data hi byte */
-		val |= inb(iobase + iooffset + 1) << 8;
+		val = inb(iobase + PCMMIO_AI_LSB_REG);
+		val |= inb(iobase + PCMMIO_AI_MSB_REG) << 8;
 
 		/* bipolar data is two's complement */
 		if (comedi_range_is_bipolar(s, range))
 			val = comedi_offset_munge(s, val);
 
-		data[n] = val;
+		data[i] = val;
 	}
-	/* return the number of samples read/written */
-	return n;
+
+	return insn->n;
 }
 
 static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -972,7 +965,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->type = COMEDI_SUBD_AI;
 	s->n_chan = 16;
 	s->len_chanlist = s->n_chan;
-	s->insn_read = ai_rinsn;
+	s->insn_read = pcmmio_ai_insn_read;
 	subpriv->iobase = dev->iobase + 0;
 	/* initialize the resource enable register by clearing it */
 	outb(0, subpriv->iobase + 3);
