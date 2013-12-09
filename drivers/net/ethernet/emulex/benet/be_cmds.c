@@ -1032,6 +1032,13 @@ int be_cmd_cq_create(struct be_adapter *adapter, struct be_queue_info *cq,
 	} else {
 		req->hdr.version = 2;
 		req->page_size = 1; /* 1 for 4K */
+
+		/* coalesce-wm field in this cmd is not relevant to Lancer.
+		 * Lancer uses COMMON_MODIFY_CQ to set this field
+		 */
+		if (!lancer_chip(adapter))
+			AMAP_SET_BITS(struct amap_cq_context_v2, coalescwm,
+				      ctxt, coalesce_wm);
 		AMAP_SET_BITS(struct amap_cq_context_v2, nodelay, ctxt,
 								no_delay);
 		AMAP_SET_BITS(struct amap_cq_context_v2, count, ctxt,

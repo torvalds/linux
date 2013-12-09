@@ -131,6 +131,7 @@ static const struct platform_device_id atmel_lcdfb_devtypes[] = {
 		/* terminator */
 	}
 };
+MODULE_DEVICE_TABLE(platform, atmel_lcdfb_devtypes);
 
 static struct atmel_lcdfb_config *
 atmel_lcdfb_get_config(struct platform_device *pdev)

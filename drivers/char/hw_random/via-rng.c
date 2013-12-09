@@ -221,7 +221,7 @@ static void __exit mod_exit(void)
 module_init(mod_init);
 module_exit(mod_exit);
 
-static struct x86_cpu_id via_rng_cpu_id[] = {
+static struct x86_cpu_id __maybe_unused via_rng_cpu_id[] = {
 	X86_FEATURE_MATCH(X86_FEATURE_XSTORE),
 	{}
 };
