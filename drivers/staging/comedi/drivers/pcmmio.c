@@ -370,35 +370,30 @@ static void switch_page(struct comedi_device *dev, int page)
 	outb(page << REG_PAGE_BITOFFSET, devpriv->asic_iobase + REG_PAGELOCK);
 }
 
-static void init_asics(struct comedi_device *dev)
-{				/* sets up an
-				   ASIC chip to defaults */
+static void pcmmio_reset(struct comedi_device *dev)
+{
 	struct pcmmio_private *devpriv = dev->private;
-	int asic;
+	unsigned long baseaddr = devpriv->asic_iobase;
+	int port, page;
 
-	for (asic = 0; asic < 1; ++asic) {
-		int port, page;
-		unsigned long baseaddr = devpriv->asic_iobase;
+	switch_page(dev, 0);	/* switch back to page 0 */
 
-		switch_page(dev, 0);	/* switch back to page 0 */
+	/* first, clear all the DIO port bits */
+	for (port = 0; port < PORTS_PER_ASIC; ++port)
+		outb(0, baseaddr + REG_PORT0 + port);
 
-		/* first, clear all the DIO port bits */
-		for (port = 0; port < PORTS_PER_ASIC; ++port)
-			outb(0, baseaddr + REG_PORT0 + port);
-
-		/* Next, clear all the paged registers for each page */
-		for (page = 1; page < NUM_PAGES; ++page) {
-			int reg;
-			/* now clear all the paged registers */
-			switch_page(dev, page);
-			for (reg = FIRST_PAGED_REG;
-			     reg < FIRST_PAGED_REG + NUM_PAGED_REGS; ++reg)
-				outb(0, baseaddr + reg);
-		}
-
-		/* switch back to default page 0 */
-		switch_page(dev, 0);
+	/* Next, clear all the paged registers for each page */
+	for (page = 1; page < NUM_PAGES; ++page) {
+		int reg;
+		/* now clear all the paged registers */
+		switch_page(dev, page);
+		for (reg = FIRST_PAGED_REG;
+		     reg < FIRST_PAGED_REG + NUM_PAGED_REGS; ++reg)
+			outb(0, baseaddr + reg);
 	}
+
+	/* switch back to default page 0 */
+	switch_page(dev, 0);
 }
 
 static void pcmmio_stop_intr(struct comedi_device *dev,
@@ -1073,7 +1068,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	}
 
-	init_asics(dev);	/* clear out all the registers, basically */
+	pcmmio_reset(dev);
 
 	if (it->options[1]) {
 		ret = request_irq(it->options[1], interrupt_pcmmio, 0,
