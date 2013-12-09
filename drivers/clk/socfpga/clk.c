@@ -22,6 +22,7 @@
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 
 /* Clock Manager offsets */
 #define CLKMGR_CTRL	0x0
@@ -55,7 +56,7 @@
 #define div_mask(width)	((1 << (width)) - 1)
 #define streq(a, b) (strcmp((a), (b)) == 0)
 
-extern void __iomem *clk_mgr_base_addr;
+static void __iomem *clk_mgr_base_addr;
 
 struct socfpga_clk {
 	struct clk_gate hw;
@@ -320,19 +321,30 @@ static void __init socfpga_pll_init(struct device_node *node)
 {
 	socfpga_clk_init(node, &clk_pll_ops);
 }
-CLK_OF_DECLARE(socfpga_pll, "altr,socfpga-pll-clock", socfpga_pll_init);
 
 static void __init socfpga_periph_init(struct device_node *node)
 {
 	socfpga_clk_init(node, &periclk_ops);
 }
-CLK_OF_DECLARE(socfpga_periph, "altr,socfpga-perip-clk", socfpga_periph_init);
 
 static void __init socfpga_gate_init(struct device_node *node)
 {
 	socfpga_gate_clk_init(node, &gateclk_ops);
 }
-CLK_OF_DECLARE(socfpga_gate, "altr,socfpga-gate-clk", socfpga_gate_init);
+
+static struct of_device_id socfpga_child_clocks[] = {
+	{ .compatible = "altr,socfpga-pll-clock", socfpga_pll_init, },
+	{ .compatible = "altr,socfpga-perip-clk", socfpga_periph_init, },
+	{ .compatible = "altr,socfpga-gate-clk", socfpga_gate_init, },
+	{},
+};
+
+static void __init socfpga_clkmgr_init(struct device_node *node)
+{
+	clk_mgr_base_addr = of_iomap(node, 0);
+	of_clk_init(socfpga_child_clocks);
+}
+CLK_OF_DECLARE(socfpga_mgr, "altr,clk-mgr", socfpga_clkmgr_init);
 
 void __init socfpga_init_clocks(void)
 {

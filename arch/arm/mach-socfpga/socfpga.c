@@ -29,7 +29,6 @@
 void __iomem *socfpga_scu_base_addr = ((void __iomem *)(SOCFPGA_SCU_VIRT_BASE));
 void __iomem *sys_manager_base_addr;
 void __iomem *rst_manager_base_addr;
-void __iomem *clk_mgr_base_addr;
 unsigned long cpu1start_addr;
 
 static struct map_desc scu_io_desc __initdata = {
@@ -78,9 +77,6 @@ void __init socfpga_sysmgr_init(void)
 
 	np = of_find_compatible_node(NULL, NULL, "altr,rst-mgr");
 	rst_manager_base_addr = of_iomap(np, 0);
-
-	np = of_find_compatible_node(NULL, NULL, "altr,clk-mgr");
-	clk_mgr_base_addr = of_iomap(np, 0);
 }
 
 static void __init socfpga_init_irq(void)
