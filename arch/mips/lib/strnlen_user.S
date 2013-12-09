@@ -35,7 +35,11 @@ FEXPORT(__strnlen_\func\()_nocheck_asm)
 	move		v0, a0
 	PTR_ADDU	a1, a0			# stop pointer
 1:	beq		v0, a1, 1f		# limit reached?
+.ifeqs "\func", "kernel"
 	EX(lb, t0, (v0), .Lfault\@)
+.else
+	EX(lbe, t0, (v0), .Lfault\@)
+.endif
 	PTR_ADDIU	v0, 1
 	bnez		t0, 1b
 1:	PTR_SUBU	v0, a0
@@ -47,4 +51,20 @@ FEXPORT(__strnlen_\func\()_nocheck_asm)
 	jr		ra
 	.endm
 
+#ifndef CONFIG_EVA
+	/* Set aliases */
+	.global __strnlen_user_asm
+	.global __strnlen_user_nocheck_asm
+	.set __strnlen_user_asm, __strnlen_kernel_asm
+	.set __strnlen_user_nocheck_asm, __strnlen_kernel_nocheck_asm
+#endif
+
+__BUILD_STRNLEN_ASM kernel
+
+#ifdef CONFIG_EVA
+
+	.set push
+	.set eva
 __BUILD_STRNLEN_ASM user
+	.set pop
+#endif
