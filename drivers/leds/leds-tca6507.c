@@ -728,8 +728,9 @@ tca6507_led_dt_init(struct i2c_client *client)
 
 	pdata->leds.leds = tca_leds;
 	pdata->leds.num_leds = NUM_LEDS;
+#ifdef CONFIG_GPIOLIB
 	pdata->gpio_base = -1;
-
+#endif
 	return pdata;
 }
 
