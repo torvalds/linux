@@ -214,8 +214,7 @@ static void clear_irq_range(struct pcie_port *pp, unsigned int irq_base,
 {
 	unsigned int i, res, bit, val;
 
-	i = 0;
-	while (i < nvec) {
+	for (i = 0; i < nvec; i++) {
 		irq_set_msi_desc_off(irq_base, i, NULL);
 		clear_bit(pos + i, pp->msi_irq_in_use);
 		/* Disable corresponding interrupt on MSI interrupt controller */
@@ -224,7 +223,6 @@ static void clear_irq_range(struct pcie_port *pp, unsigned int irq_base,
 		dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, &val);
 		val &= ~(1 << bit);
 		dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, val);
-		++i;
 	}
 }
 
@@ -268,8 +266,7 @@ static int assign_irq(int no_irqs, struct msi_desc *desc, int *pos)
 	 * descs are also successfully allocated.
 	 */
 
-	i = 0;
-	while (i < no_irqs) {
+	for (i = 0; i < no_irqs; i++) {
 		if (irq_set_msi_desc_off(irq, i, desc) != 0) {
 			clear_irq_range(pp, irq, i, pos0);
 			goto no_valid_irq;
@@ -281,7 +278,6 @@ static int assign_irq(int no_irqs, struct msi_desc *desc, int *pos)
 		dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, &val);
 		val |= 1 << bit;
 		dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, val);
-		i++;
 	}
 
 	*pos = pos0;
