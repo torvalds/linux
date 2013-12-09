@@ -270,11 +270,6 @@ struct pcmmio_subdev_private {
 struct pcmmio_private {
 	/* stuff for DIO */
 	struct {
-		/* shadow of POLx registers */
-		unsigned char pol[NUM_PAGED_REGS];
-		/* shadow of ENABx registers */
-		unsigned char enab[NUM_PAGED_REGS];
-		int num;
 		unsigned long iobase;
 		spinlock_t spinlock;
 	} asics[MAX_ASICS];
@@ -974,7 +969,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 
 	for (asic = 0; asic < MAX_ASICS; ++asic) {
-		devpriv->asics[asic].num = asic;
 		devpriv->asics[asic].iobase =
 		    dev->iobase + 16 + asic * ASIC_IOSIZE;
 		spin_lock_init(&devpriv->asics[asic].spinlock);
