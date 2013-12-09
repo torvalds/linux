@@ -1226,7 +1226,13 @@ int pevent_filter_add_filter_str(struct event_filter *filter,
 		else
 			len = strlen(filter_str);
 
-		this_event = malloc_or_die(len + 1);
+		this_event = malloc(len + 1);
+		if (this_event == NULL) {
+			show_error(error_str, "Memory allocation failure");
+			/* This can only happen when events is NULL, but still */
+			free_events(events);
+			return -1;
+		}
 		memcpy(this_event, filter_str, len);
 		this_event[len] = 0;
 
