@@ -76,6 +76,7 @@ struct iommu_table {
 	struct iommu_pool large_pool;
 	struct iommu_pool pools[IOMMU_NR_POOLS];
 	unsigned long *it_map;       /* A simple allocation bitmap for now */
+	unsigned long  it_page_shift;/* table iommu page size */
 #ifdef CONFIG_IOMMU_API
 	struct iommu_group *it_group;
 #endif

@@ -381,8 +381,9 @@ static struct wsp_dma_table *wsp_pci_create_dma32_table(struct wsp_phb *phb,
 
 	/* Init bits and pieces */
 	tbl->table.it_blocksize = 16;
-	tbl->table.it_offset = addr >> IOMMU_PAGE_SHIFT_4K;
-	tbl->table.it_size = size >> IOMMU_PAGE_SHIFT_4K;
+	tbl->table.it_page_shift = IOMMU_PAGE_SHIFT_4K;
+	tbl->table.it_offset = addr >> tbl->table.it_page_shift;
+	tbl->table.it_size = size >> tbl->table.it_page_shift;
 
 	/*
 	 * It's already blank but we clear it anyway.
