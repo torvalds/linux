@@ -210,11 +210,6 @@ struct pcmmio_subdev_private {
 			/* The below is only used for intr subdevices */
 			struct {
 				/*
-				 * if non-negative, this subdev has an
-				 * interrupt asic
-				 */
-				int asic;
-				/*
 				 * if nonnegative, the first channel id for
 				 * interrupts.
 				 */
@@ -450,11 +445,6 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 				 * TODO here: dispatch io lines to subdevs
 				 * with commands..
 				 */
-					/*
-					 * this is an interrupt subdev,
-					 * and it matches this asic!
-					 */
-					if (subpriv->dio.intr.asic == 0) {
 						unsigned long flags;
 						unsigned oldevents;
 
@@ -533,8 +523,6 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 							comedi_event(dev, s);
 						}
 
-					}
-
 			}
 
 	if (!got1)
@@ -554,13 +542,9 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 		return 1;
 	} else {
 		unsigned bits = 0, pol_bits = 0, n;
-		int nports, firstport, asic, port;
+		int nports, firstport, port;
 		struct comedi_cmd *cmd = &s->async->cmd;
 
-		asic = subpriv->dio.intr.asic;
-		if (asic < 0)
-			return 1;	/* not an interrupt
-					   subdev */
 		subpriv->dio.intr.enabled_mask = 0;
 		subpriv->dio.intr.active = 1;
 		nports = subpriv->dio.intr.num_asic_chans / CHANS_PER_PORT;
@@ -984,7 +968,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	s->private = &devpriv->sprivs[2];
 	subpriv = s->private;
-	subpriv->dio.intr.asic = 0;
 	subpriv->dio.intr.active = 0;
 	subpriv->dio.intr.stop_count = 0;
 	subpriv->dio.intr.first_chan = 0;
