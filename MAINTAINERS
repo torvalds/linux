@@ -2138,7 +2138,8 @@ S:	Maintained
 F:	Documentation/zh_CN/
 
 CHIPIDEA USB HIGH SPEED DUAL ROLE CONTROLLER
-M:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
+M:	Peter Chen <Peter.Chen@freescale.com>
+T:	git://github.com/hzpeterchen/linux-usb.git
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	drivers/usb/chipidea/
