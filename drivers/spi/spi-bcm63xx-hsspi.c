@@ -342,16 +342,14 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
-	clk = clk_get(dev, "hsspi");
+	clk = devm_clk_get(dev, "hsspi");
 
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
 	rate = clk_get_rate(clk);
-	if (!rate) {
-		ret = -EINVAL;
-		goto out_put_clk;
-	}
+	if (!rate)
+		return -EINVAL;
 
 	clk_prepare_enable(clk);
 
@@ -409,9 +407,6 @@ out_put_master:
 	spi_master_put(master);
 out_disable_clk:
 	clk_disable_unprepare(clk);
-out_put_clk:
-	clk_put(clk);
-
 	return ret;
 }
 
@@ -426,7 +421,6 @@ static int bcm63xx_hsspi_remove(struct platform_device *pdev)
 	/* reset the hardware and block queue progress */
 	__raw_writel(0, bs->regs + HSSPI_INT_MASK_REG);
 	clk_disable_unprepare(bs->clk);
-	clk_put(bs->clk);
 
 	return 0;
 }
