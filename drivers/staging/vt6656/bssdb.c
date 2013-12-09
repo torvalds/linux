@@ -1393,13 +1393,12 @@ static void s_uCalculateLinkQual(struct vnt_private *pDevice)
 
 	TxCnt = stats->tx_packets + pDevice->wstats.discard.retries;
 
-	RxCnt = pDevice->scStatistic.RxFcsErrCnt +
-	      pDevice->scStatistic.RxOkCnt;
+	RxCnt = stats->rx_packets + stats->rx_frame_errors;
 
 	TxOkRatio = (TxCnt < 6) ? 4000:((stats->tx_packets * 4000) / TxCnt);
 
 	RxOkRatio = (RxCnt < 6) ? 2000 :
-				((pDevice->scStatistic.RxOkCnt * 2000) / RxCnt);
+				((stats->rx_packets * 2000) / RxCnt);
 
 	/* decide link quality */
 	if (pDevice->bLinkPass != true) {
