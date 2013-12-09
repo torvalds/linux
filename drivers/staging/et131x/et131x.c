@@ -2281,6 +2281,7 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	u32 pktstat_ringsize;
 	struct rfd *rfd;
 	struct rx_ring *rx_ring;
+	struct fbr_lookup *fbr;
 
 	/* Setup some convenience pointers */
 	rx_ring = &adapter->rx_ring;
@@ -2299,34 +2300,35 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 
 	/* Free Free Buffer Rings */
 	for (id = 0; id < NUM_FBRS; id++) {
-		if (!rx_ring->fbr[id]->ring_virtaddr)
+		fbr = rx_ring->fbr[id];
+
+		if (!fbr->ring_virtaddr)
 			continue;
 
 		/* First the packet memory */
 		for (index = 0;
-		     index < (rx_ring->fbr[id]->num_entries / FBR_CHUNKS);
+		     index < fbr->num_entries / FBR_CHUNKS;
 		     index++) {
-			if (rx_ring->fbr[id]->mem_virtaddrs[index]) {
-				bufsize =
-				    rx_ring->fbr[id]->buffsize * FBR_CHUNKS;
+			if (fbr->mem_virtaddrs[index]) {
+				bufsize = fbr->buffsize * FBR_CHUNKS;
 
 				dma_free_coherent(&adapter->pdev->dev,
-					bufsize,
-					rx_ring->fbr[id]->mem_virtaddrs[index],
-					rx_ring->fbr[id]->mem_physaddrs[index]);
+						  bufsize,
+						  fbr->mem_virtaddrs[index],
+						  fbr->mem_physaddrs[index]);
 
-				rx_ring->fbr[id]->mem_virtaddrs[index] = NULL;
+				fbr->mem_virtaddrs[index] = NULL;
 			}
 		}
 
-		bufsize =
-		    sizeof(struct fbr_desc) * rx_ring->fbr[id]->num_entries;
+		bufsize = sizeof(struct fbr_desc) * fbr->num_entries;
 
-		dma_free_coherent(&adapter->pdev->dev, bufsize,
-				    rx_ring->fbr[id]->ring_virtaddr,
-				    rx_ring->fbr[id]->ring_physaddr);
+		dma_free_coherent(&adapter->pdev->dev,
+				  bufsize,
+				  fbr->ring_virtaddr,
+				  fbr->ring_physaddr);
 
-		rx_ring->fbr[id]->ring_virtaddr = NULL;
+		fbr->ring_virtaddr = NULL;
 	}
 
 	/* Free Packet Status Ring */
