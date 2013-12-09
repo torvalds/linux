@@ -4422,6 +4422,64 @@ void lustre_assert_wire_constants(void)
 	LASSERTF((int)sizeof(((struct hsm_user_request *)0)->hur_user_item) == 0, "found %lld\n",
 		 (long long)(int)sizeof(((struct hsm_user_request *)0)->hur_user_item));
 
+	/* Checks for struct hsm_user_import */
+	LASSERTF(sizeof(struct hsm_user_import) == 48, "found %lld\n",
+		 (long long)sizeof(struct hsm_user_import));
+	LASSERTF(offsetof(struct hsm_user_import, hui_size) == 0,
+		 "found %lld\n",
+		 (long long)offsetof(struct hsm_user_import, hui_size));
+	LASSERTF(sizeof(((struct hsm_user_import *)0)->hui_size) == 8,
+		 "found %lld\n",
+		 (long long)sizeof(((struct hsm_user_import *)0)->hui_size));
+	LASSERTF(offsetof(struct hsm_user_import, hui_uid) == 32,
+		 "found %lld\n",
+		 (long long)offsetof(struct hsm_user_import, hui_uid));
+	LASSERTF(sizeof(((struct hsm_user_import *)0)->hui_uid) == 4,
+		 "found %lld\n",
+		 (long long)sizeof(((struct hsm_user_import *)0)->hui_uid));
+	LASSERTF(offsetof(struct hsm_user_import, hui_gid) == 36,
+		 "found %lld\n",
+		 (long long)offsetof(struct hsm_user_import, hui_gid));
+	LASSERTF(sizeof(((struct hsm_user_import *)0)->hui_gid) == 4,
+		 "found %lld\n",
+		 (long long)sizeof(((struct hsm_user_import *)0)->hui_gid));
+	LASSERTF(offsetof(struct hsm_user_import, hui_mode) == 40,
+		 "found %lld\n",
+		 (long long)offsetof(struct hsm_user_import, hui_mode));
+	LASSERTF(sizeof(((struct hsm_user_import *)0)->hui_mode) == 4,
+		 "found %lld\n",
+		 (long long)sizeof(((struct hsm_user_import *)0)->hui_mode));
+	LASSERTF(offsetof(struct hsm_user_import, hui_atime) == 8,
+		 "found %lld\n",
+		 (long long)offsetof(struct hsm_user_import, hui_atime));
+	LASSERTF(sizeof(((struct hsm_user_import *)0)->hui_atime) == 8,
+		 "found %lld\n",
+		 (long long)sizeof(((struct hsm_user_import *)0)->hui_atime));
+	LASSERTF(offsetof(struct hsm_user_import, hui_atime_ns) == 24,
+		 "found %lld\n",
+		(long long)(int)offsetof(struct hsm_user_import, hui_atime_ns));
+	LASSERTF(sizeof(((struct hsm_user_import *)0)->hui_atime_ns) == 4,
+		 "found %lld\n",
+		(long long)sizeof(((struct hsm_user_import *)0)->hui_atime_ns));
+	LASSERTF(offsetof(struct hsm_user_import, hui_mtime) == 16,
+		 "found %lld\n",
+		 (long long)offsetof(struct hsm_user_import, hui_mtime));
+	LASSERTF(sizeof(((struct hsm_user_import *)0)->hui_mtime) == 8,
+		 "found %lld\n",
+		 (long long)sizeof(((struct hsm_user_import *)0)->hui_mtime));
+	LASSERTF(offsetof(struct hsm_user_import, hui_mtime_ns) == 28,
+		 "found %lld\n",
+		(long long)offsetof(struct hsm_user_import, hui_mtime_ns));
+	LASSERTF(sizeof(((struct hsm_user_import *)0)->hui_mtime_ns) == 4,
+		 "found %lld\n",
+		(long long)sizeof(((struct hsm_user_import *)0)->hui_mtime_ns));
+	LASSERTF(offsetof(struct hsm_user_import, hui_archive_id) == 44,
+		 "found %lld\n",
+		 (long long)offsetof(struct hsm_user_import, hui_archive_id));
+	LASSERTF(sizeof(((struct hsm_user_import *)0)->hui_archive_id) == 4,
+		 "found %lld\n",
+	      (long long)sizeof(((struct hsm_user_import *)0)->hui_archive_id));
+
 	/* Checks for struct update_buf */
 	LASSERTF((int)sizeof(struct update_buf) == 8, "found %lld\n",
 		 (long long)(int)sizeof(struct update_buf));
