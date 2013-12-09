@@ -222,7 +222,6 @@ typedef struct tagSTxPktInfo {
     u8    abyDestAddr[ETH_ALEN];
 } STxPktInfo, *PSTxPktInfo;
 
-#define MAX_RATE            12
 //
 // statistic counter
 //
