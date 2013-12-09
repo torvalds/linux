@@ -268,11 +268,9 @@ struct pcmmio_subdev_private {
  * feel free to suggest moving the variable to the struct comedi_device struct.
  */
 struct pcmmio_private {
-	/* stuff for DIO */
-	struct {
-		unsigned long iobase;
-		spinlock_t spinlock;
-	} asics[MAX_ASICS];
+	unsigned long asic_iobase;
+	spinlock_t spinlock;
+
 	struct pcmmio_subdev_private *sprivs;
 	unsigned int ao_readback[8];
 };
@@ -369,8 +367,7 @@ static void switch_page(struct comedi_device *dev, int asic, int page)
 {
 	struct pcmmio_private *devpriv = dev->private;
 
-	outb(page << REG_PAGE_BITOFFSET,
-	     devpriv->asics[asic].iobase + REG_PAGELOCK);
+	outb(page << REG_PAGE_BITOFFSET, devpriv->asic_iobase + REG_PAGELOCK);
 }
 
 static void init_asics(struct comedi_device *dev)
@@ -381,7 +378,7 @@ static void init_asics(struct comedi_device *dev)
 
 	for (asic = 0; asic < 1; ++asic) {
 		int port, page;
-		unsigned long baseaddr = devpriv->asics[asic].iobase;
+		unsigned long baseaddr = devpriv->asic_iobase;
 
 		switch_page(dev, asic, 0);	/* switch back to page 0 */
 
@@ -422,7 +419,7 @@ static void pcmmio_stop_intr(struct comedi_device *dev,
 	switch_page(dev, asic, PAGE_ENAB);
 	for (port = firstport; port < firstport + nports; ++port) {
 		/* disable all intrs for this subdev.. */
-		outb(0, devpriv->asics[asic].iobase + REG_ENAB0 + port);
+		outb(0, devpriv->asic_iobase + REG_ENAB0 + port);
 	}
 }
 
@@ -437,12 +434,11 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 		if (irq == dev->irq) {
 			unsigned long flags;
 			unsigned triggered = 0;
-			unsigned long iobase = devpriv->asics[asic].iobase;
+			unsigned long iobase = devpriv->asic_iobase;
 			/* it is an interrupt for ASIC #asic */
 			unsigned char int_pend;
 
-			spin_lock_irqsave(&devpriv->asics[asic].spinlock,
-					  flags);
+			spin_lock_irqsave(&devpriv->spinlock, flags);
 
 			int_pend = inb(iobase + REG_INT_PENDING) & 0x07;
 
@@ -477,8 +473,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 				++got1;
 			}
 
-			spin_unlock_irqrestore(&devpriv->asics[asic].spinlock,
-					       flags);
+			spin_unlock_irqrestore(&devpriv->spinlock, flags);
 
 			if (triggered) {
 				struct comedi_subdevice *s;
@@ -648,11 +643,9 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 			    pol_bits >> (subpriv->dio.intr.first_chan +
 					 (port - firstport) * 8) & 0xff;
 			/* set enab intrs for this subdev.. */
-			outb(enab,
-			     devpriv->asics[asic].iobase + REG_ENAB0 + port);
+			outb(enab, devpriv->asic_iobase + REG_ENAB0 + port);
 			switch_page(dev, asic, PAGE_POL);
-			outb(pol,
-			     devpriv->asics[asic].iobase + REG_ENAB0 + port);
+			outb(pol, devpriv->asic_iobase + REG_ENAB0 + port);
 		}
 	}
 	return 0;
@@ -968,11 +961,8 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	for (asic = 0; asic < MAX_ASICS; ++asic) {
-		devpriv->asics[asic].iobase =
-		    dev->iobase + 16 + asic * ASIC_IOSIZE;
-		spin_lock_init(&devpriv->asics[asic].spinlock);
-	}
+	devpriv->asic_iobase = dev->iobase + 16;
+	spin_lock_init(&devpriv->spinlock);
 
 	chans_left = CHANS_PER_ASIC * 1;
 	n_dio_subdevs = CALC_N_DIO_SUBDEVS(chans_left);
@@ -1045,8 +1035,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				++asic;
 				thisasic_chanct = 0;
 			}
-			subpriv->iobases[byte_no] =
-			    devpriv->asics[asic].iobase + port;
+			subpriv->iobases[byte_no] = devpriv->asic_iobase + port;
 
 			if (thisasic_chanct <
 			    CHANS_PER_PORT * INTR_PORTS_PER_ASIC
