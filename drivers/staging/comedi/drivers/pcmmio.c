@@ -387,22 +387,13 @@ static void pcmmio_stop_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
 	struct pcmmio_subdev_private *subpriv = s->private;
-	int nports, firstport, asic, port;
-
-	asic = subpriv->dio.intr.asic;
-	if (asic < 0)
-		return;		/* not an interrupt subdev */
 
 	subpriv->dio.intr.enabled_mask = 0;
 	subpriv->dio.intr.active = 0;
 	s->async->inttrig = NULL;
-	nports = subpriv->dio.intr.num_asic_chans / CHANS_PER_PORT;
-	firstport = subpriv->dio.intr.asic_chan / CHANS_PER_PORT;
-	switch_page(dev, PCMMIO_PAGE_ENAB);
-	for (port = firstport; port < firstport + nports; ++port) {
-		/* disable all intrs for this subdev.. */
-		outb(0, dev->iobase + PCMMIO_PAGE_REG(port));
-	}
+
+	/* disable all dio interrupts */
+	pcmmio_dio_write(dev, 0, PCMMIO_PAGE_ENAB, 0);
 }
 
 static irqreturn_t interrupt_pcmmio(int irq, void *d)
