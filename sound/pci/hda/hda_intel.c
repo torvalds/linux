@@ -297,9 +297,9 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define ULI_NUM_CAPTURE		5
 #define ULI_NUM_PLAYBACK	6
 
-/* ATI HDMI has 1 playback and 0 capture */
+/* ATI HDMI may have up to 8 playbacks and 0 capture */
 #define ATIHDMI_NUM_CAPTURE	0
-#define ATIHDMI_NUM_PLAYBACK	1
+#define ATIHDMI_NUM_PLAYBACK	8
 
 /* TERA has 4 playback and 3 capture */
 #define TERA_NUM_CAPTURE	3
