@@ -83,7 +83,7 @@ static struct fb_monspecs __initdata lcd_fb_default_monspecs = {
 	.dclkmax		= 9260000,
 };
 
-static struct atmel_lcdfb_info __initdata rmt_lcdc_data = {
+static struct atmel_lcdfb_pdata __initdata rmt_lcdc_data = {
 	.default_bpp		= 24,
 	.default_dmacon		= ATMEL_LCDC_DMAEN | ATMEL_LCDC_DMA2DEN,
 	.default_lcdcon2	= (ATMEL_LCDC_DISTYPE_TFT
@@ -126,7 +126,7 @@ static struct fb_monspecs __initdata lcd_fb_default_monspecs = {
 	.dclkmax		= 9260000,
 };
 
-static struct atmel_lcdfb_info __initdata rmt_lcdc_data = {
+static struct atmel_lcdfb_pdata __initdata rmt_lcdc_data = {
 	.default_bpp		= 24,
 	.default_dmacon		= ATMEL_LCDC_DMAEN | ATMEL_LCDC_DMA2DEN,
 	.default_lcdcon2	= (ATMEL_LCDC_DISTYPE_TFT

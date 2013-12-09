@@ -451,7 +451,9 @@ static int imx074_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto eprobe;
 
-	return v4l2_async_register_subdev(&priv->subdev);
+	ret = v4l2_async_register_subdev(&priv->subdev);
+	if (!ret)
+		return 0;
 
 epwrinit:
 eprobe:

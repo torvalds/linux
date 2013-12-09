@@ -680,7 +680,7 @@ static int bfin_serial_startup(struct uart_port *port)
 		default:
 			uart_dma_ch_rx = uart_dma_ch_tx = 0;
 			break;
-		};
+		}
 
 		if (uart_dma_ch_rx &&
 			request_dma(uart_dma_ch_rx, "BFIN_UART_RX") < 0) {
@@ -726,7 +726,7 @@ static int bfin_serial_startup(struct uart_port *port)
 #ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
 	if (uart->cts_pin >= 0) {
 		if (request_irq(uart->status_irq, bfin_serial_mctrl_cts_int,
-			IRQF_DISABLED, "BFIN_UART_MODEM_STATUS", uart)) {
+			0, "BFIN_UART_MODEM_STATUS", uart)) {
 			uart->cts_pin = -1;
 			dev_info(port->dev, "Unable to attach BlackFin UART Modem Status interrupt.\n");
 		}
@@ -765,7 +765,7 @@ static void bfin_serial_shutdown(struct uart_port *port)
 		break;
 	default:
 		break;
-	};
+	}
 #endif
 	free_irq(uart->rx_irq, uart);
 	free_irq(uart->tx_irq, uart);
@@ -1240,7 +1240,7 @@ static int bfin_serial_probe(struct platform_device *pdev)
 			 */
 #endif
 		ret = peripheral_request_list(
-			(unsigned short *)dev_get_platdata(&pdev->dev),
+			dev_get_platdata(&pdev->dev),
 			DRIVER_NAME);
 		if (ret) {
 			dev_err(&pdev->dev,
@@ -1358,8 +1358,7 @@ static int bfin_serial_probe(struct platform_device *pdev)
 out_error_unmap:
 		iounmap(uart->port.membase);
 out_error_free_peripherals:
-		peripheral_free_list(
-			(unsigned short *)dev_get_platdata(&pdev->dev));
+		peripheral_free_list(dev_get_platdata(&pdev->dev));
 out_error_free_mem:
 		kfree(uart);
 		bfin_serial_ports[pdev->id] = NULL;
@@ -1377,8 +1376,7 @@ static int bfin_serial_remove(struct platform_device *pdev)
 	if (uart) {
 		uart_remove_one_port(&bfin_serial_reg, &uart->port);
 		iounmap(uart->port.membase);
-		peripheral_free_list(
-			(unsigned short *)dev_get_platdata(&pdev->dev));
+		peripheral_free_list(dev_get_platdata(&pdev->dev));
 		kfree(uart);
 		bfin_serial_ports[pdev->id] = NULL;
 	}
@@ -1432,8 +1430,8 @@ static int bfin_earlyprintk_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	ret = peripheral_request_list(
-		(unsigned short *)dev_get_platdata(&pdev->dev), DRIVER_NAME);
+	ret = peripheral_request_list(dev_get_platdata(&pdev->dev),
+					DRIVER_NAME);
 	if (ret) {
 		dev_err(&pdev->dev,
 				"fail to request bfin serial peripherals\n");
@@ -1463,8 +1461,7 @@ static int bfin_earlyprintk_probe(struct platform_device *pdev)
 	return 0;
 
 out_error_free_peripherals:
-	peripheral_free_list(
-		(unsigned short *)dev_get_platdata(&pdev->dev));
+	peripheral_free_list(dev_get_platdata(&pdev->dev));
 
 	return ret;
 }

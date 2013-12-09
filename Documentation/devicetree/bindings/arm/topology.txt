@@ -1,0 +1,474 @@
+===========================================
+ARM topology binding description
+===========================================
+
+===========================================
+1 - Introduction
+===========================================
+
+In an ARM system, the hierarchy of CPUs is defined through three entities that
+are used to describe the layout of physical CPUs in the system:
+
+- cluster
+- core
+- thread
+
+The cpu nodes (bindings defined in [1]) represent the devices that
+correspond to physical CPUs and are to be mapped to the hierarchy levels.
+
+The bottom hierarchy level sits at core or thread level depending on whether
+symmetric multi-threading (SMT) is supported or not.
+
+For instance in a system where CPUs support SMT, "cpu" nodes represent all
+threads existing in the system and map to the hierarchy level "thread" above.
+In systems where SMT is not supported "cpu" nodes represent all cores present
+in the system and map to the hierarchy level "core" above.
+
+ARM topology bindings allow one to associate cpu nodes with hierarchical groups
+corresponding to the system hierarchy; syntactically they are defined as device
+tree nodes.
+
+The remainder of this document provides the topology bindings for ARM, based
+on the ePAPR standard, available from:
+
+http://www.power.org/documentation/epapr-version-1-1/
+
+If not stated otherwise, whenever a reference to a cpu node phandle is made its
+value must point to a cpu node compliant with the cpu node bindings as
+documented in [1].
+A topology description containing phandles to cpu nodes that are not compliant
+with bindings standardized in [1] is therefore considered invalid.
+
+===========================================
+2 - cpu-map node
+===========================================
+
+The ARM CPU topology is defined within the cpu-map node, which is a direct
+child of the cpus node and provides a container where the actual topology
+nodes are listed.
+
+- cpu-map node
+
+	Usage: Optional - On ARM SMP systems provide CPUs topology to the OS.
+			  ARM uniprocessor systems do not require a topology
+			  description and therefore should not define a
+			  cpu-map node.
+
+	Description: The cpu-map node is just a container node where its
+		     subnodes describe the CPU topology.
+
+	Node name must be "cpu-map".
+
+	The cpu-map node's parent node must be the cpus node.
+
+	The cpu-map node's child nodes can be:
+
+	- one or more cluster nodes
+
+	Any other configuration is considered invalid.
+
+The cpu-map node can only contain three types of child nodes:
+
+- cluster node
+- core node
+- thread node
+
+whose bindings are described in paragraph 3.
+
+The nodes describing the CPU topology (cluster/core/thread) can only be
+defined within the cpu-map node.
+Any other configuration is consider invalid and therefore must be ignored.
+
+===========================================
+2.1 - cpu-map child nodes naming convention
+===========================================
+
+cpu-map child nodes must follow a naming convention where the node name
+must be "clusterN", "coreN", "threadN" depending on the node type (ie
+cluster/core/thread) (where N = {0, 1, ...} is the node number; nodes which
+are siblings within a single common parent node must be given a unique and
+sequential N value, starting from 0).
+cpu-map child nodes which do not share a common parent node can have the same
+name (ie same number N as other cpu-map child nodes at different device tree
+levels) since name uniqueness will be guaranteed by the device tree hierarchy.
+
+===========================================
+3 - cluster/core/thread node bindings
+===========================================
+
+Bindings for cluster/cpu/thread nodes are defined as follows:
+
+- cluster node
+
+	 Description: must be declared within a cpu-map node, one node
+		      per cluster. A system can contain several layers of
+		      clustering and cluster nodes can be contained in parent
+		      cluster nodes.
+
+	The cluster node name must be "clusterN" as described in 2.1 above.
+	A cluster node can not be a leaf node.
+
+	A cluster node's child nodes must be:
+
+	- one or more cluster nodes; or
+	- one or more core nodes
+
+	Any other configuration is considered invalid.
+
+- core node
+
+	Description: must be declared in a cluster node, one node per core in
+		     the cluster. If the system does not support SMT, core
+		     nodes are leaf nodes, otherwise they become containers of
+		     thread nodes.
+
+	The core node name must be "coreN" as described in 2.1 above.
+
+	A core node must be a leaf node if SMT is not supported.
+
+	Properties for core nodes that are leaf nodes:
+
+	- cpu
+		Usage: required
+		Value type: <phandle>
+		Definition: a phandle to the cpu node that corresponds to the
+			    core node.
+
+	If a core node is not a leaf node (CPUs supporting SMT) a core node's
+	child nodes can be:
+
+	- one or more thread nodes
+
+	Any other configuration is considered invalid.
+
+- thread node
+
+	Description: must be declared in a core node, one node per thread
+		     in the core if the system supports SMT. Thread nodes are
+		     always leaf nodes in the device tree.
+
+	The thread node name must be "threadN" as described in 2.1 above.
+
+	A thread node must be a leaf node.
+
+	A thread node must contain the following property:
+
+	- cpu
+		Usage: required
+		Value type: <phandle>
+		Definition: a phandle to the cpu node that corresponds to
+			    the thread node.
+
+===========================================
+4 - Example dts
+===========================================
+
+Example 1 (ARM 64-bit, 16-cpu system, two clusters of clusters):
+
+cpus {
+	#size-cells = <0>;
+	#address-cells = <2>;
+
+	cpu-map {
+		cluster0 {
+			cluster0 {
+				core0 {
+					thread0 {
+						cpu = <&CPU0>;
+					};
+					thread1 {
+						cpu = <&CPU1>;
+					};
+				};
+
+				core1 {
+					thread0 {
+						cpu = <&CPU2>;
+					};
+					thread1 {
+						cpu = <&CPU3>;
+					};
+				};
+			};
+
+			cluster1 {
+				core0 {
+					thread0 {
+						cpu = <&CPU4>;
+					};
+					thread1 {
+						cpu = <&CPU5>;
+					};
+				};
+
+				core1 {
+					thread0 {
+						cpu = <&CPU6>;
+					};
+					thread1 {
+						cpu = <&CPU7>;
+					};
+				};
+			};
+		};
+
+		cluster1 {
+			cluster0 {
+				core0 {
+					thread0 {
+						cpu = <&CPU8>;
+					};
+					thread1 {
+						cpu = <&CPU9>;
+					};
+				};
+				core1 {
+					thread0 {
+						cpu = <&CPU10>;
+					};
+					thread1 {
+						cpu = <&CPU11>;
+					};
+				};
+			};
+
+			cluster1 {
+				core0 {
+					thread0 {
+						cpu = <&CPU12>;
+					};
+					thread1 {
+						cpu = <&CPU13>;
+					};
+				};
+				core1 {
+					thread0 {
+						cpu = <&CPU14>;
+					};
+					thread1 {
+						cpu = <&CPU15>;
+					};
+				};
+			};
+		};
+	};
+
+	CPU0: cpu@0 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x0 0x0>;
+		enable-method = "spin-table";
+		cpu-release-addr = <0 0x20000000>;
+	};
+
+	CPU1: cpu@1 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x0 0x1>;
+		enable-method = "spin-table";
+		cpu-release-addr = <0 0x20000000>;
+	};
+
+	CPU2: cpu@100 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x0 0x100>;
+		enable-method = "spin-table";
+		cpu-release-addr = <0 0x20000000>;
+	};
+
+	CPU3: cpu@101 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x0 0x101>;
+		enable-method = "spin-table";
+		cpu-release-addr = <0 0x20000000>;
+	};
+
+	CPU4: cpu@10000 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x0 0x10000>;
+		enable-method = "spin-table";
+		cpu-release-addr = <0 0x20000000>;
+	};
+
+	CPU5: cpu@10001 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x0 0x10001>;
+		enable-method = "spin-table";
+		cpu-release-addr = <0 0x20000000>;
+	};
+
+	CPU6: cpu@10100 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x0 0x10100>;
+		enable-method = "spin-table";
+		cpu-release-addr = <0 0x20000000>;
+	};
+
+	CPU7: cpu@10101 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x0 0x10101>;
+		enable-method = "spin-table";
+		cpu-release-addr = <0 0x20000000>;
+	};
+
+	CPU8: cpu@100000000 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x1 0x0>;
+		enable-method = "spin-table";
+		cpu-release-addr = <0 0x20000000>;
+	};
+
+	CPU9: cpu@100000001 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x1 0x1>;
+		enable-method = "spin-table";
+		cpu-release-addr = <0 0x20000000>;
+	};
+
+	CPU10: cpu@100000100 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x1 0x100>;
+		enable-method = "spin-table";
+		cpu-release-addr = <0 0x20000000>;
+	};
+
+	CPU11: cpu@100000101 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x1 0x101>;
+		enable-method = "spin-table";
+		cpu-release-addr = <0 0x20000000>;
+	};
+
+	CPU12: cpu@100010000 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x1 0x10000>;
+		enable-method = "spin-table";
+		cpu-release-addr = <0 0x20000000>;
+	};
+
+	CPU13: cpu@100010001 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x1 0x10001>;
+		enable-method = "spin-table";
+		cpu-release-addr = <0 0x20000000>;
+	};
+
+	CPU14: cpu@100010100 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x1 0x10100>;
+		enable-method = "spin-table";
+		cpu-release-addr = <0 0x20000000>;
+	};
+
+	CPU15: cpu@100010101 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x1 0x10101>;
+		enable-method = "spin-table";
+		cpu-release-addr = <0 0x20000000>;
+	};
+};
+
+Example 2 (ARM 32-bit, dual-cluster, 8-cpu system, no SMT):
+
+cpus {
+	#size-cells = <0>;
+	#address-cells = <1>;
+
+	cpu-map {
+		cluster0 {
+			core0 {
+				cpu = <&CPU0>;
+			};
+			core1 {
+				cpu = <&CPU1>;
+			};
+			core2 {
+				cpu = <&CPU2>;
+			};
+			core3 {
+				cpu = <&CPU3>;
+			};
+		};
+
+		cluster1 {
+			core0 {
+				cpu = <&CPU4>;
+			};
+			core1 {
+				cpu = <&CPU5>;
+			};
+			core2 {
+				cpu = <&CPU6>;
+			};
+			core3 {
+				cpu = <&CPU7>;
+			};
+		};
+	};
+
+	CPU0: cpu@0 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a15";
+		reg = <0x0>;
+	};
+
+	CPU1: cpu@1 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a15";
+		reg = <0x1>;
+	};
+
+	CPU2: cpu@2 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a15";
+		reg = <0x2>;
+	};
+
+	CPU3: cpu@3 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a15";
+		reg = <0x3>;
+	};
+
+	CPU4: cpu@100 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a7";
+		reg = <0x100>;
+	};
+
+	CPU5: cpu@101 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a7";
+		reg = <0x101>;
+	};
+
+	CPU6: cpu@102 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a7";
+		reg = <0x102>;
+	};
+
+	CPU7: cpu@103 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a7";
+		reg = <0x103>;
+	};
+};
+
+===============================================================================
+[1] ARM Linux kernel documentation
+    Documentation/devicetree/bindings/arm/cpus.txt

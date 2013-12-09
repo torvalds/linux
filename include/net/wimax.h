@@ -438,9 +438,9 @@ struct wimax_dev {
  *
  * These functions are not exported to user space.
  */
-extern void wimax_dev_init(struct wimax_dev *);
-extern int wimax_dev_add(struct wimax_dev *, struct net_device *);
-extern void wimax_dev_rm(struct wimax_dev *);
+void wimax_dev_init(struct wimax_dev *);
+int wimax_dev_add(struct wimax_dev *, struct net_device *);
+void wimax_dev_rm(struct wimax_dev *);
 
 static inline
 struct wimax_dev *net_dev_to_wimax(struct net_device *net_dev)
@@ -454,8 +454,8 @@ struct device *wimax_dev_to_dev(struct wimax_dev *wimax_dev)
 	return wimax_dev->net_dev->dev.parent;
 }
 
-extern void wimax_state_change(struct wimax_dev *, enum wimax_st);
-extern enum wimax_st wimax_state_get(struct wimax_dev *);
+void wimax_state_change(struct wimax_dev *, enum wimax_st);
+enum wimax_st wimax_state_get(struct wimax_dev *);
 
 /*
  * Radio Switch state reporting.
@@ -463,8 +463,8 @@ extern enum wimax_st wimax_state_get(struct wimax_dev *);
  * enum wimax_rf_state is declared in linux/wimax.h so the exports
  * to user space can use it.
  */
-extern void wimax_report_rfkill_hw(struct wimax_dev *, enum wimax_rf_state);
-extern void wimax_report_rfkill_sw(struct wimax_dev *, enum wimax_rf_state);
+void wimax_report_rfkill_hw(struct wimax_dev *, enum wimax_rf_state);
+void wimax_report_rfkill_sw(struct wimax_dev *, enum wimax_rf_state);
 
 
 /*
@@ -490,15 +490,14 @@ extern void wimax_report_rfkill_sw(struct wimax_dev *, enum wimax_rf_state);
  * send diagnostics information that a device-specific diagnostics
  * tool would be interested in.
  */
-extern struct sk_buff *wimax_msg_alloc(struct wimax_dev *, const char *,
-				       const void *, size_t, gfp_t);
-extern int wimax_msg_send(struct wimax_dev *, struct sk_buff *);
-extern int wimax_msg(struct wimax_dev *, const char *,
-		     const void *, size_t, gfp_t);
+struct sk_buff *wimax_msg_alloc(struct wimax_dev *, const char *, const void *,
+				size_t, gfp_t);
+int wimax_msg_send(struct wimax_dev *, struct sk_buff *);
+int wimax_msg(struct wimax_dev *, const char *, const void *, size_t, gfp_t);
 
-extern const void *wimax_msg_data_len(struct sk_buff *, size_t *);
-extern const void *wimax_msg_data(struct sk_buff *);
-extern ssize_t wimax_msg_len(struct sk_buff *);
+const void *wimax_msg_data_len(struct sk_buff *, size_t *);
+const void *wimax_msg_data(struct sk_buff *);
+ssize_t wimax_msg_len(struct sk_buff *);
 
 
 /*
@@ -513,7 +512,7 @@ extern ssize_t wimax_msg_len(struct sk_buff *);
  * device's control structure and (as such) the 'struct wimax_dev' is
  * referenced by the caller.
  */
-extern int wimax_rfkill(struct wimax_dev *, enum wimax_rf_state);
-extern int wimax_reset(struct wimax_dev *);
+int wimax_rfkill(struct wimax_dev *, enum wimax_rf_state);
+int wimax_reset(struct wimax_dev *);
 
 #endif /* #ifndef __NET__WIMAX_H__ */

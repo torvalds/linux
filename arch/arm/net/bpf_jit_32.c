@@ -19,6 +19,7 @@
 #include <linux/if_vlan.h>
 #include <asm/cacheflush.h>
 #include <asm/hwcap.h>
+#include <asm/opcodes.h>
 
 #include "bpf_jit_32.h"
 
@@ -113,8 +114,11 @@ static u32 jit_udiv(u32 dividend, u32 divisor)
 
 static inline void _emit(int cond, u32 inst, struct jit_ctx *ctx)
 {
+	inst |= (cond << 28);
+	inst = __opcode_to_mem_arm(inst);
+
 	if (ctx->target != NULL)
-		ctx->target[ctx->idx] = inst | (cond << 28);
+		ctx->target[ctx->idx] = inst;
 
 	ctx->idx++;
 }

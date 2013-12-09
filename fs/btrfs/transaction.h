@@ -92,6 +92,7 @@ struct btrfs_trans_handle {
 	short aborted;
 	short adding_csums;
 	bool allocating_chunk;
+	bool reloc_reserved;
 	unsigned int type;
 	/*
 	 * this root is only needed to validate that the root passed to
@@ -166,4 +167,5 @@ int btrfs_wait_marked_extents(struct btrfs_root *root,
 				struct extent_io_tree *dirty_pages, int mark);
 int btrfs_transaction_blocked(struct btrfs_fs_info *info);
 int btrfs_transaction_in_commit(struct btrfs_fs_info *info);
+void btrfs_put_transaction(struct btrfs_transaction *transaction);
 #endif

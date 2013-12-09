@@ -165,7 +165,7 @@ struct fib_result_nl {
 #define FIB_TABLE_HASHSZ 2
 #endif
 
-extern __be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh);
+__be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh);
 
 #define FIB_RES_SADDR(net, res)				\
 	((FIB_RES_NH(res).nh_saddr_genid ==		\
@@ -187,14 +187,14 @@ struct fib_table {
 	unsigned long		tb_data[0];
 };
 
-extern int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
-			    struct fib_result *res, int fib_flags);
-extern int fib_table_insert(struct fib_table *, struct fib_config *);
-extern int fib_table_delete(struct fib_table *, struct fib_config *);
-extern int fib_table_dump(struct fib_table *table, struct sk_buff *skb,
-			  struct netlink_callback *cb);
-extern int fib_table_flush(struct fib_table *table);
-extern void fib_free_table(struct fib_table *tb);
+int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
+		     struct fib_result *res, int fib_flags);
+int fib_table_insert(struct fib_table *, struct fib_config *);
+int fib_table_delete(struct fib_table *, struct fib_config *);
+int fib_table_dump(struct fib_table *table, struct sk_buff *skb,
+		   struct netlink_callback *cb);
+int fib_table_flush(struct fib_table *table);
+void fib_free_table(struct fib_table *tb);
 
 
 
@@ -234,14 +234,13 @@ static inline int fib_lookup(struct net *net, const struct flowi4 *flp,
 }
 
 #else /* CONFIG_IP_MULTIPLE_TABLES */
-extern int __net_init fib4_rules_init(struct net *net);
-extern void __net_exit fib4_rules_exit(struct net *net);
+int __net_init fib4_rules_init(struct net *net);
+void __net_exit fib4_rules_exit(struct net *net);
 
-extern struct fib_table *fib_new_table(struct net *net, u32 id);
-extern struct fib_table *fib_get_table(struct net *net, u32 id);
+struct fib_table *fib_new_table(struct net *net, u32 id);
+struct fib_table *fib_get_table(struct net *net, u32 id);
 
-extern int __fib_lookup(struct net *net, struct flowi4 *flp,
-			struct fib_result *res);
+int __fib_lookup(struct net *net, struct flowi4 *flp, struct fib_result *res);
 
 static inline int fib_lookup(struct net *net, struct flowi4 *flp,
 			     struct fib_result *res)
@@ -269,12 +268,12 @@ static inline int fib_lookup(struct net *net, struct flowi4 *flp,
 
 /* Exported by fib_frontend.c */
 extern const struct nla_policy rtm_ipv4_policy[];
-extern void		ip_fib_init(void);
-extern __be32 fib_compute_spec_dst(struct sk_buff *skb);
-extern int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
-			       u8 tos, int oif, struct net_device *dev,
-			       struct in_device *idev, u32 *itag);
-extern void fib_select_default(struct fib_result *res);
+void ip_fib_init(void);
+__be32 fib_compute_spec_dst(struct sk_buff *skb);
+int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
+			u8 tos, int oif, struct net_device *dev,
+			struct in_device *idev, u32 *itag);
+void fib_select_default(struct fib_result *res);
 #ifdef CONFIG_IP_ROUTE_CLASSID
 static inline int fib_num_tclassid_users(struct net *net)
 {
@@ -288,15 +287,15 @@ static inline int fib_num_tclassid_users(struct net *net)
 #endif
 
 /* Exported by fib_semantics.c */
-extern int ip_fib_check_default(__be32 gw, struct net_device *dev);
-extern int fib_sync_down_dev(struct net_device *dev, int force);
-extern int fib_sync_down_addr(struct net *net, __be32 local);
-extern int fib_sync_up(struct net_device *dev);
-extern void fib_select_multipath(struct fib_result *res);
+int ip_fib_check_default(__be32 gw, struct net_device *dev);
+int fib_sync_down_dev(struct net_device *dev, int force);
+int fib_sync_down_addr(struct net *net, __be32 local);
+int fib_sync_up(struct net_device *dev);
+void fib_select_multipath(struct fib_result *res);
 
 /* Exported by fib_trie.c */
-extern void fib_trie_init(void);
-extern struct fib_table *fib_trie_table(u32 id);
+void fib_trie_init(void);
+struct fib_table *fib_trie_table(u32 id);
 
 static inline void fib_combine_itag(u32 *itag, const struct fib_result *res)
 {
@@ -314,7 +313,7 @@ static inline void fib_combine_itag(u32 *itag, const struct fib_result *res)
 #endif
 }
 
-extern void free_fib_info(struct fib_info *fi);
+void free_fib_info(struct fib_info *fi);
 
 static inline void fib_info_put(struct fib_info *fi)
 {
@@ -323,8 +322,8 @@ static inline void fib_info_put(struct fib_info *fi)
 }
 
 #ifdef CONFIG_PROC_FS
-extern int __net_init  fib_proc_init(struct net *net);
-extern void __net_exit fib_proc_exit(struct net *net);
+int __net_init fib_proc_init(struct net *net);
+void __net_exit fib_proc_exit(struct net *net);
 #else
 static inline int fib_proc_init(struct net *net)
 {

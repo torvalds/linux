@@ -819,6 +819,20 @@ int vmw_overlay_num_free_overlays(struct vmw_private *dev_priv);
 extern const struct ttm_mem_type_manager_func vmw_gmrid_manager_func;
 
 /**
+ * Prime - vmwgfx_prime.c
+ */
+
+extern const struct dma_buf_ops vmw_prime_dmabuf_ops;
+extern int vmw_prime_fd_to_handle(struct drm_device *dev,
+				  struct drm_file *file_priv,
+				  int fd, u32 *handle);
+extern int vmw_prime_handle_to_fd(struct drm_device *dev,
+				  struct drm_file *file_priv,
+				  uint32_t handle, uint32_t flags,
+				  int *prime_fd);
+
+
+/**
  * Inline helper functions
  */
 

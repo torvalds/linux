@@ -34,12 +34,13 @@
 #include <linux/backing-dev.h>
 #include <linux/freezer.h>
 
-#include "xfs_sb.h"
+#include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_log.h"
+#include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_trace.h"
+#include "xfs_log.h"
 
 static kmem_zone_t *xfs_buf_zone;
 
@@ -590,7 +591,7 @@ found:
 		error = _xfs_buf_map_pages(bp, flags);
 		if (unlikely(error)) {
 			xfs_warn(target->bt_mount,
-				"%s: failed to map pages\n", __func__);
+				"%s: failed to map pagesn", __func__);
 			xfs_buf_relse(bp);
 			return NULL;
 		}
@@ -809,7 +810,7 @@ xfs_buf_get_uncached(
 	error = _xfs_buf_map_pages(bp, 0);
 	if (unlikely(error)) {
 		xfs_warn(target->bt_mount,
-			"%s: failed to map pages\n", __func__);
+			"%s: failed to map pages", __func__);
 		goto fail_free_mem;
 	}
 
@@ -1618,7 +1619,7 @@ xfs_setsize_buftarg_flags(
 		bdevname(btp->bt_bdev, name);
 
 		xfs_warn(btp->bt_mount,
-			"Cannot set_blocksize to %u on device %s\n",
+			"Cannot set_blocksize to %u on device %s",
 			sectorsize, name);
 		return EINVAL;
 	}

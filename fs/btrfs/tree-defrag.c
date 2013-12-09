@@ -37,7 +37,6 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	int ret = 0;
 	int wret;
 	int level;
-	int is_extent = 0;
 	int next_key_ret = 0;
 	u64 last_ret = 0;
 	u64 min_trans = 0;
@@ -50,7 +49,7 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	if (root->ref_cows == 0 && !is_extent)
+	if (root->ref_cows == 0)
 		goto out;
 
 	if (btrfs_test_opt(root, SSD))
@@ -85,7 +84,7 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 
 	path->keep_locks = 1;
 
-	ret = btrfs_search_forward(root, &key, NULL, path, min_trans);
+	ret = btrfs_search_forward(root, &key, path, min_trans);
 	if (ret < 0)
 		goto out;
 	if (ret > 0) {

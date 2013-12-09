@@ -577,8 +577,7 @@ static int omap_hdq_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
-	ret = devm_request_irq(dev, irq, hdq_isr, IRQF_DISABLED,
-			"omap_hdq", hdq_data);
+	ret = devm_request_irq(dev, irq, hdq_isr, 0, "omap_hdq", hdq_data);
 	if (ret < 0) {
 		dev_dbg(&pdev->dev, "could not request irq\n");
 		goto err_irq;

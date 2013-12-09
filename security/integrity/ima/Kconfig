@@ -9,6 +9,7 @@ config IMA
 	select CRYPTO_HMAC
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
+	select CRYPTO_HASH_INFO
 	select TCG_TPM if HAS_IOMEM && !UML
 	select TCG_TIS if TCG_TPM && X86
 	select TCG_IBMVTPM if TCG_TPM && PPC64
@@ -44,6 +45,69 @@ config IMA_LSM_RULES
 	default y
 	help
 	  Disabling this option will disregard LSM based policy rules.
+
+choice
+	prompt "Default template"
+	default IMA_NG_TEMPLATE
+	depends on IMA
+	help
+	  Select the default IMA measurement template.
+
+	  The original 'ima' measurement list template contains a
+	  hash, defined as 20 bytes, and a null terminated pathname,
+	  limited to 255 characters.  The 'ima-ng' measurement list
+	  template permits both larger hash digests and longer
+	  pathnames.
+
+	config IMA_TEMPLATE
+		bool "ima"
+	config IMA_NG_TEMPLATE
+		bool "ima-ng (default)"
+	config IMA_SIG_TEMPLATE
+		bool "ima-sig"
+endchoice
+
+config IMA_DEFAULT_TEMPLATE
+	string
+	depends on IMA
+	default "ima" if IMA_TEMPLATE
+	default "ima-ng" if IMA_NG_TEMPLATE
+	default "ima-sig" if IMA_SIG_TEMPLATE
+
+choice
+	prompt "Default integrity hash algorithm"
+	default IMA_DEFAULT_HASH_SHA1
+	depends on IMA
+	help
+	   Select the default hash algorithm used for the measurement
+	   list, integrity appraisal and audit log.  The compiled default
+	   hash algorithm can be overwritten using the kernel command
+	   line 'ima_hash=' option.
+
+	config IMA_DEFAULT_HASH_SHA1
+		bool "SHA1 (default)"
+		depends on CRYPTO_SHA1
+
+	config IMA_DEFAULT_HASH_SHA256
+		bool "SHA256"
+		depends on CRYPTO_SHA256 && !IMA_TEMPLATE
+
+	config IMA_DEFAULT_HASH_SHA512
+		bool "SHA512"
+		depends on CRYPTO_SHA512 && !IMA_TEMPLATE
+
+	config IMA_DEFAULT_HASH_WP512
+		bool "WP512"
+		depends on CRYPTO_WP512 && !IMA_TEMPLATE
+endchoice
+
+config IMA_DEFAULT_HASH
+	string
+	depends on IMA
+	default "sha1" if IMA_DEFAULT_HASH_SHA1
+	default "sha256" if IMA_DEFAULT_HASH_SHA256
+	default "sha512" if IMA_DEFAULT_HASH_SHA512
+	default "wp512" if IMA_DEFAULT_HASH_WP512
 
 config IMA_APPRAISE
 	bool "Appraise integrity measurements"

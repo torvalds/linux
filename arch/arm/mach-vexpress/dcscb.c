@@ -133,38 +133,8 @@ static void dcscb_power_down(void)
 	if (last_man && __mcpm_outbound_enter_critical(cpu, cluster)) {
 		arch_spin_unlock(&dcscb_lock);
 
-		/*
-		 * Flush all cache levels for this cluster.
-		 *
-		 * To do so we do:
-		 * - Clear the SCTLR.C bit to prevent further cache allocations
-		 * - Flush the whole cache
-		 * - Clear the ACTLR "SMP" bit to disable local coherency
-		 *
-		 * Let's do it in the safest possible way i.e. with
-		 * no memory access within the following sequence
-		 * including to the stack.
-		 *
-		 * Note: fp is preserved to the stack explicitly prior doing
-		 * this since adding it to the clobber list is incompatible
-		 * with having CONFIG_FRAME_POINTER=y.
-		 */
-		asm volatile(
-		"str	fp, [sp, #-4]! \n\t"
-		"mrc	p15, 0, r0, c1, c0, 0	@ get CR \n\t"
-		"bic	r0, r0, #"__stringify(CR_C)" \n\t"
-		"mcr	p15, 0, r0, c1, c0, 0	@ set CR \n\t"
-		"isb	\n\t"
-		"bl	v7_flush_dcache_all \n\t"
-		"clrex	\n\t"
-		"mrc	p15, 0, r0, c1, c0, 1	@ get AUXCR \n\t"
-		"bic	r0, r0, #(1 << 6)	@ disable local coherency \n\t"
-		"mcr	p15, 0, r0, c1, c0, 1	@ set AUXCR \n\t"
-		"isb	\n\t"
-		"dsb	\n\t"
-		"ldr	fp, [sp], #4"
-		: : : "r0","r1","r2","r3","r4","r5","r6","r7",
-		      "r9","r10","lr","memory");
+		/* Flush all cache levels for this cluster. */
+		v7_exit_coherency_flush(all);
 
 		/*
 		 * This is a harmless no-op.  On platforms with a real
@@ -183,26 +153,8 @@ static void dcscb_power_down(void)
 	} else {
 		arch_spin_unlock(&dcscb_lock);
 
-		/*
-		 * Flush the local CPU cache.
-		 * Let's do it in the safest possible way as above.
-		 */
-		asm volatile(
-		"str	fp, [sp, #-4]! \n\t"
-		"mrc	p15, 0, r0, c1, c0, 0	@ get CR \n\t"
-		"bic	r0, r0, #"__stringify(CR_C)" \n\t"
-		"mcr	p15, 0, r0, c1, c0, 0	@ set CR \n\t"
-		"isb	\n\t"
-		"bl	v7_flush_dcache_louis \n\t"
-		"clrex	\n\t"
-		"mrc	p15, 0, r0, c1, c0, 1	@ get AUXCR \n\t"
-		"bic	r0, r0, #(1 << 6)	@ disable local coherency \n\t"
-		"mcr	p15, 0, r0, c1, c0, 1	@ set AUXCR \n\t"
-		"isb	\n\t"
-		"dsb	\n\t"
-		"ldr	fp, [sp], #4"
-		: : : "r0","r1","r2","r3","r4","r5","r6","r7",
-		      "r9","r10","lr","memory");
+		/* Disable and flush the local CPU cache. */
+		v7_exit_coherency_flush(louis);
 	}
 
 	__mcpm_cpu_down(cpu, cluster);

@@ -474,8 +474,8 @@ static int lp3971_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id lp3971_i2c_id[] = {
-       { "lp3971", 0 },
-       { }
+	{ "lp3971", 0 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lp3971_i2c_id);
 

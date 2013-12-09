@@ -130,7 +130,7 @@ static long swap_inode_boot_loader(struct super_block *sb,
 
 	/* Protect orig inodes against a truncate and make sure,
 	 * that only 1 swap_inode_boot_loader is running. */
-	ext4_inode_double_lock(inode, inode_bl);
+	lock_two_nondirectories(inode, inode_bl);
 
 	truncate_inode_pages(&inode->i_data, 0);
 	truncate_inode_pages(&inode_bl->i_data, 0);
@@ -205,7 +205,7 @@ static long swap_inode_boot_loader(struct super_block *sb,
 	ext4_inode_resume_unlocked_dio(inode);
 	ext4_inode_resume_unlocked_dio(inode_bl);
 
-	ext4_inode_double_unlock(inode, inode_bl);
+	unlock_two_nondirectories(inode, inode_bl);
 
 	iput(inode_bl);
 

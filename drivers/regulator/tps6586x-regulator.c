@@ -298,7 +298,7 @@ static struct tps6586x_platform_data *tps6586x_parse_regulator_dt(
 	struct tps6586x_platform_data *pdata;
 	int err;
 
-	regs = of_find_node_by_name(np, "regulators");
+	regs = of_get_child_by_name(np, "regulators");
 	if (!regs) {
 		dev_err(&pdev->dev, "regulator node not found\n");
 		return NULL;
@@ -379,15 +379,14 @@ static int tps6586x_regulator_probe(struct platform_device *pdev)
 		ri = find_regulator_info(id);
 		if (!ri) {
 			dev_err(&pdev->dev, "invalid regulator ID specified\n");
-			err = -EINVAL;
-			goto fail;
+			return -EINVAL;
 		}
 
 		err = tps6586x_regulator_preinit(pdev->dev.parent, ri);
 		if (err) {
 			dev_err(&pdev->dev,
 				"regulator %d preinit failed, e %d\n", id, err);
-			goto fail;
+			return err;
 		}
 
 		config.dev = pdev->dev.parent;
@@ -397,12 +396,12 @@ static int tps6586x_regulator_probe(struct platform_device *pdev)
 		if (tps6586x_reg_matches)
 			config.of_node = tps6586x_reg_matches[id].of_node;
 
-		rdev[id] = regulator_register(&ri->desc, &config);
+		rdev[id] = devm_regulator_register(&pdev->dev, &ri->desc,
+						   &config);
 		if (IS_ERR(rdev[id])) {
 			dev_err(&pdev->dev, "failed to register regulator %s\n",
 					ri->desc.name);
-			err = PTR_ERR(rdev[id]);
-			goto fail;
+			return PTR_ERR(rdev[id]);
 		}
 
 		if (reg_data) {
@@ -411,29 +410,12 @@ static int tps6586x_regulator_probe(struct platform_device *pdev)
 			if (err < 0) {
 				dev_err(&pdev->dev,
 					"Slew rate config failed, e %d\n", err);
-				regulator_unregister(rdev[id]);
-				goto fail;
+				return err;
 			}
 		}
 	}
 
 	platform_set_drvdata(pdev, rdev);
-	return 0;
-
-fail:
-	while (--id >= 0)
-		regulator_unregister(rdev[id]);
-	return err;
-}
-
-static int tps6586x_regulator_remove(struct platform_device *pdev)
-{
-	struct regulator_dev **rdev = platform_get_drvdata(pdev);
-	int id = TPS6586X_ID_MAX_REGULATOR;
-
-	while (--id >= 0)
-		regulator_unregister(rdev[id]);
-
 	return 0;
 }
 
@@ -443,7 +425,6 @@ static struct platform_driver tps6586x_regulator_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= tps6586x_regulator_probe,
-	.remove		= tps6586x_regulator_remove,
 };
 
 static int __init tps6586x_regulator_init(void)

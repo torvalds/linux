@@ -287,6 +287,32 @@ static inline long disable_reloc_on_exceptions(void) {
 	return plpar_set_mode(0, 3, 0, 0);
 }
 
+/*
+ * Take exceptions in big endian mode on this partition
+ *
+ * Note: this call has a partition wide scope and can take a while to complete.
+ * If it returns H_LONG_BUSY_* it should be retried periodically until it
+ * returns H_SUCCESS.
+ */
+static inline long enable_big_endian_exceptions(void)
+{
+	/* mflags = 0: big endian exceptions */
+	return plpar_set_mode(0, 4, 0, 0);
+}
+
+/*
+ * Take exceptions in little endian mode on this partition
+ *
+ * Note: this call has a partition wide scope and can take a while to complete.
+ * If it returns H_LONG_BUSY_* it should be retried periodically until it
+ * returns H_SUCCESS.
+ */
+static inline long enable_little_endian_exceptions(void)
+{
+	/* mflags = 1: little endian exceptions */
+	return plpar_set_mode(1, 4, 0, 0);
+}
+
 static inline long plapr_set_ciabr(unsigned long ciabr)
 {
 	return plpar_set_mode(0, 1, ciabr, 0);

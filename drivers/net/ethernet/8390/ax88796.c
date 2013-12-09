@@ -702,7 +702,7 @@ static int ax_init_dev(struct net_device *dev)
 			for (i = 0; i < 16; i++)
 				SA_prom[i] = SA_prom[i+i];
 
-		memcpy(dev->dev_addr, SA_prom, 6);
+		memcpy(dev->dev_addr, SA_prom, ETH_ALEN);
 	}
 
 #ifdef CONFIG_AX88796_93CX6

@@ -46,6 +46,11 @@
 #define MSM_DEBUG_UART_PHYS	0x16440000
 #endif
 
+#ifdef CONFIG_DEBUG_MSM8974_UART
+#define MSM_DEBUG_UART_BASE	0xFA71E000
+#define MSM_DEBUG_UART_PHYS	0xF991E000
+#endif
+
 	.macro	addruart, rp, rv, tmp
 #ifdef MSM_DEBUG_UART_PHYS
 	ldr	\rp, =MSM_DEBUG_UART_PHYS

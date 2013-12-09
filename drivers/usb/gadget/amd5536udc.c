@@ -3078,8 +3078,6 @@ static void udc_pci_remove(struct pci_dev *pdev)
 	if (dev->active)
 		pci_disable_device(pdev);
 
-	pci_set_drvdata(pdev, NULL);
-
 	udc_remove(dev);
 }
 

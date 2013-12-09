@@ -106,8 +106,7 @@ nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nouveau_vma *vma)
 
 	if (mapped) {
 		spin_lock(&nvbo->bo.bdev->fence_lock);
-		if (nvbo->bo.sync_obj)
-			fence = nouveau_fence_ref(nvbo->bo.sync_obj);
+		fence = nouveau_fence_ref(nvbo->bo.sync_obj);
 		spin_unlock(&nvbo->bo.bdev->fence_lock);
 	}
 
@@ -309,7 +308,8 @@ validate_fini_list(struct list_head *list, struct nouveau_fence *fence,
 	list_for_each_safe(entry, tmp, list) {
 		nvbo = list_entry(entry, struct nouveau_bo, entry);
 
-		nouveau_bo_fence(nvbo, fence);
+		if (likely(fence))
+			nouveau_bo_fence(nvbo, fence);
 
 		if (unlikely(nvbo->validate_mapped)) {
 			ttm_bo_kunmap(&nvbo->kmap);
@@ -438,8 +438,7 @@ validate_sync(struct nouveau_channel *chan, struct nouveau_bo *nvbo)
 	int ret = 0;
 
 	spin_lock(&nvbo->bo.bdev->fence_lock);
-	if (nvbo->bo.sync_obj)
-		fence = nouveau_fence_ref(nvbo->bo.sync_obj);
+	fence = nouveau_fence_ref(nvbo->bo.sync_obj);
 	spin_unlock(&nvbo->bo.bdev->fence_lock);
 
 	if (fence) {

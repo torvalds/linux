@@ -5,7 +5,7 @@ controllers within the Exynos5420 SoC.
 
 Required Properties:
 
-- comptible: should be one of the following.
+- compatible: should be one of the following.
   - "samsung,exynos5420-clock" - controller compatible with Exynos5420 SoC.
 
 - reg: physical base address of the controller and length of memory mapped

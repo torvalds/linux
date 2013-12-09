@@ -7,7 +7,7 @@ static void pci_free_resources(struct pci_dev *dev)
 {
 	int i;
 
- 	msi_remove_pci_irq_vectors(dev);
+	msi_remove_pci_irq_vectors(dev);
 
 	pci_cleanup_rom(dev);
 	for (i = 0; i < PCI_NUM_RESOURCES; i++) {

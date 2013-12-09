@@ -136,6 +136,8 @@ source "drivers/staging/goldfish/Kconfig"
 
 source "drivers/staging/netlogic/Kconfig"
 
+source "drivers/staging/mt29f_spinand/Kconfig"
+
 source "drivers/staging/dwc2/Kconfig"
 
 source "drivers/staging/lustre/Kconfig"

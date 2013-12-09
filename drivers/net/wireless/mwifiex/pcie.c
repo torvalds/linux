@@ -93,7 +93,7 @@ static int mwifiex_pcie_suspend(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 
 	if (pdev) {
-		card = (struct pcie_service_card *) pci_get_drvdata(pdev);
+		card = pci_get_drvdata(pdev);
 		if (!card || !card->adapter) {
 			pr_err("Card or adapter structure is not valid\n");
 			return 0;
@@ -128,7 +128,7 @@ static int mwifiex_pcie_resume(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 
 	if (pdev) {
-		card = (struct pcie_service_card *) pci_get_drvdata(pdev);
+		card = pci_get_drvdata(pdev);
 		if (!card || !card->adapter) {
 			pr_err("Card or adapter structure is not valid\n");
 			return 0;
@@ -232,7 +232,6 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 	}
 
 	mwifiex_remove_card(card->adapter, &add_remove_card_sem);
-	kfree(card);
 }
 
 static void mwifiex_pcie_shutdown(struct pci_dev *pdev)
@@ -2037,7 +2036,7 @@ static irqreturn_t mwifiex_pcie_interrupt(int irq, void *context)
 		goto exit;
 	}
 
-	card = (struct pcie_service_card *) pci_get_drvdata(pdev);
+	card = pci_get_drvdata(pdev);
 	if (!card || !card->adapter) {
 		pr_debug("info: %s: card=%p adapter=%p\n", __func__, card,
 			 card ? card->adapter : NULL);
@@ -2313,6 +2312,7 @@ static void mwifiex_pcie_cleanup(struct mwifiex_adapter *adapter)
 		pci_release_region(pdev, 0);
 		pci_set_drvdata(pdev, NULL);
 	}
+	kfree(card);
 }
 
 /*

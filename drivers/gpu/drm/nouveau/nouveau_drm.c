@@ -37,6 +37,7 @@
 #include <engine/device.h>
 #include <engine/disp.h>
 #include <engine/fifo.h>
+#include <engine/software.h>
 
 #include <subdev/vm.h>
 
@@ -187,6 +188,32 @@ nouveau_accel_init(struct nouveau_drm *drm)
 				  arg0, arg1, &drm->channel);
 	if (ret) {
 		NV_ERROR(drm, "failed to create kernel channel, %d\n", ret);
+		nouveau_accel_fini(drm);
+		return;
+	}
+
+	ret = nouveau_object_new(nv_object(drm), NVDRM_CHAN, NVDRM_NVSW,
+				 nouveau_abi16_swclass(drm), NULL, 0, &object);
+	if (ret == 0) {
+		struct nouveau_software_chan *swch = (void *)object->parent;
+		ret = RING_SPACE(drm->channel, 2);
+		if (ret == 0) {
+			if (device->card_type < NV_C0) {
+				BEGIN_NV04(drm->channel, NvSubSw, 0, 1);
+				OUT_RING  (drm->channel, NVDRM_NVSW);
+			} else
+			if (device->card_type < NV_E0) {
+				BEGIN_NVC0(drm->channel, FermiSw, 0, 1);
+				OUT_RING  (drm->channel, 0x001f0000);
+			}
+		}
+		swch = (void *)object->parent;
+		swch->flip = nouveau_flip_complete;
+		swch->flip_data = drm->channel;
+	}
+
+	if (ret) {
+		NV_ERROR(drm, "failed to allocate software object, %d\n", ret);
 		nouveau_accel_fini(drm);
 		return;
 	}

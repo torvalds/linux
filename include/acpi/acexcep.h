@@ -125,8 +125,9 @@ struct acpi_exception_info {
 #define AE_NO_HANDLER                   EXCEP_ENV (0x001A)
 #define AE_OWNER_ID_LIMIT               EXCEP_ENV (0x001B)
 #define AE_NOT_CONFIGURED               EXCEP_ENV (0x001C)
+#define AE_ACCESS                       EXCEP_ENV (0x001D)
 
-#define AE_CODE_ENV_MAX                 0x001C
+#define AE_CODE_ENV_MAX                 0x001D
 
 /*
  * Programmer exceptions
@@ -227,7 +228,7 @@ static const struct acpi_exception_info acpi_gbl_exception_names_env[] = {
 	EXCEP_TXT("AE_NO_ACPI_TABLES", "ACPI tables could not be found"),
 	EXCEP_TXT("AE_NO_NAMESPACE", "A namespace has not been loaded"),
 	EXCEP_TXT("AE_NO_MEMORY", "Insufficient dynamic memory"),
-	EXCEP_TXT("AE_NOT_FOUND", "The name was not found in the namespace"),
+	EXCEP_TXT("AE_NOT_FOUND", "A requested entity is not found"),
 	EXCEP_TXT("AE_NOT_EXIST", "A required entity does not exist"),
 	EXCEP_TXT("AE_ALREADY_EXISTS", "An entity already exists"),
 	EXCEP_TXT("AE_TYPE", "The object type is incorrect"),
@@ -259,7 +260,8 @@ static const struct acpi_exception_info acpi_gbl_exception_names_env[] = {
 	EXCEP_TXT("AE_OWNER_ID_LIMIT",
 		  "There are no more Owner IDs available for ACPI tables or control methods"),
 	EXCEP_TXT("AE_NOT_CONFIGURED",
-		  "The interface is not part of the current subsystem configuration")
+		  "The interface is not part of the current subsystem configuration"),
+	EXCEP_TXT("AE_ACCESS", "Permission denied for the requested operation")
 };
 
 static const struct acpi_exception_info acpi_gbl_exception_names_pgm[] = {

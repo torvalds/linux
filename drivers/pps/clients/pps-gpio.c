@@ -201,7 +201,7 @@ static struct platform_driver pps_gpio_driver = {
 	.driver		= {
 		.name	= PPS_GPIO_NAME,
 		.owner	= THIS_MODULE,
-		.of_match_table	= of_match_ptr(pps_gpio_dt_ids),
+		.of_match_table	= pps_gpio_dt_ids,
 	},
 };
 

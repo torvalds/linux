@@ -40,26 +40,6 @@
 			status = "ok";
 		};
 
-		nand@3000000 {
-			status = "okay";
-
-			partition@0 {
-				label = "u-boot";
-				reg = <0x00000000 0x00100000>;
-				read-only;
-			};
-
-			partition@100000 {
-				label = "uImage";
-				reg = <0x00100000 0x00400000>;
-			};
-
-			partition@500000 {
-				label = "data";
-				reg = <0x00500000 0x1fb00000>;
-			};
-		};
-
 		sata@80000 {
 			status = "okay";
 			nr-ports = <1>;
@@ -94,6 +74,26 @@
 			label = "guruplug:green:wmode";
 			gpios = <&gpio1 17 1>;
 		};
+	};
+};
+
+&nand {
+	status = "okay";
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x00000000 0x00100000>;
+		read-only;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x00100000 0x00400000>;
+	};
+
+	partition@500000 {
+		label = "data";
+		reg = <0x00500000 0x1fb00000>;
 	};
 };
 

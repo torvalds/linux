@@ -47,7 +47,4 @@ void	xfs_inobp_check(struct xfs_mount *, struct xfs_buf *);
 #define	xfs_inobp_check(mp, bp)
 #endif /* DEBUG */
 
-extern const struct xfs_buf_ops xfs_inode_buf_ops;
-extern const struct xfs_buf_ops xfs_inode_buf_ra_ops;
-
 #endif	/* __XFS_INODE_BUF_H__ */

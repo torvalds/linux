@@ -533,7 +533,7 @@ arc_uart_init_one(struct platform_device *pdev, int dev_id)
 	unsigned long *plat_data;
 	struct arc_uart_port *uart = &arc_uart_ports[dev_id];
 
-	plat_data = (unsigned long *)dev_get_platdata(&pdev->dev);
+	plat_data = dev_get_platdata(&pdev->dev);
 	if (!plat_data)
 		return -ENODEV;
 

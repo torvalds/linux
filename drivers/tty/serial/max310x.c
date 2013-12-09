@@ -690,7 +690,7 @@ static void max310x_handle_tx(struct uart_port *port)
 			max310x_port_write(port, MAX310X_THR_REG,
 					   xmit->buf[xmit->tail]);
 			xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		};
+		}
 	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)

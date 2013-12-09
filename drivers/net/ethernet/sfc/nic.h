@@ -30,7 +30,7 @@ static inline int efx_nic_rev(struct efx_nic *efx)
 	return efx->type->revision;
 }
 
-extern u32 efx_farch_fpga_ver(struct efx_nic *efx);
+u32 efx_farch_fpga_ver(struct efx_nic *efx);
 
 /* NIC has two interlinked PCI functions for the same port. */
 static inline bool efx_nic_is_dual_func(struct efx_nic *efx)
@@ -71,6 +71,26 @@ efx_tx_desc(struct efx_tx_queue *tx_queue, unsigned int index)
 	return ((efx_qword_t *) (tx_queue->txd.buf.addr)) + index;
 }
 
+/* Report whether the NIC considers this TX queue empty, given the
+ * write_count used for the last doorbell push.  May return false
+ * negative.
+ */
+static inline bool __efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue,
+					 unsigned int write_count)
+{
+	unsigned int empty_read_count = ACCESS_ONCE(tx_queue->empty_read_count);
+
+	if (empty_read_count == 0)
+		return false;
+
+	return ((empty_read_count ^ write_count) & ~EFX_EMPTY_COUNT_VALID) == 0;
+}
+
+static inline bool efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue)
+{
+	return __efx_nic_tx_is_empty(tx_queue, tx_queue->write_count);
+}
+
 /* Decide whether to push a TX descriptor to the NIC vs merely writing
  * the doorbell.  This can reduce latency when we are adding a single
  * descriptor to an empty queue, but is otherwise pointless.  Further,
@@ -80,14 +100,10 @@ efx_tx_desc(struct efx_tx_queue *tx_queue, unsigned int index)
 static inline bool efx_nic_may_push_tx_desc(struct efx_tx_queue *tx_queue,
 					    unsigned int write_count)
 {
-	unsigned empty_read_count = ACCESS_ONCE(tx_queue->empty_read_count);
-
-	if (empty_read_count == 0)
-		return false;
+	bool was_empty = __efx_nic_tx_is_empty(tx_queue, write_count);
 
 	tx_queue->empty_read_count = 0;
-	return ((empty_read_count ^ write_count) & ~EFX_EMPTY_COUNT_VALID) == 0
-		&& tx_queue->write_count - write_count == 1;
+	return was_empty && tx_queue->write_count - write_count == 1;
 }
 
 /* Returns a pointer to the specified descriptor in the RX descriptor queue */
@@ -401,6 +417,12 @@ enum {
 	EF10_STAT_COUNT
 };
 
+/* Maximum number of TX PIO buffers we may allocate to a function.
+ * This matches the total number of buffers on each SFC9100-family
+ * controller.
+ */
+#define EF10_TX_PIOBUF_COUNT 16
+
 /**
  * struct efx_ef10_nic_data - EF10 architecture NIC state
  * @mcdi_buf: DMA buffer for MCDI
@@ -409,6 +431,13 @@ enum {
  * @n_allocated_vis: Number of VIs allocated to this function
  * @must_realloc_vis: Flag: VIs have yet to be reallocated after MC reboot
  * @must_restore_filters: Flag: filters have yet to be restored after MC reboot
+ * @n_piobufs: Number of PIO buffers allocated to this function
+ * @wc_membase: Base address of write-combining mapping of the memory BAR
+ * @pio_write_base: Base address for writing PIO buffers
+ * @pio_write_vi_base: Relative VI number for @pio_write_base
+ * @piobuf_handle: Handle of each PIO buffer allocated
+ * @must_restore_piobufs: Flag: PIO buffers have yet to be restored after MC
+ *	reboot
  * @rx_rss_context: Firmware handle for our RSS context
  * @stats: Hardware statistics
  * @workaround_35388: Flag: firmware supports workaround for bug 35388
@@ -424,6 +453,11 @@ struct efx_ef10_nic_data {
 	unsigned int n_allocated_vis;
 	bool must_realloc_vis;
 	bool must_restore_filters;
+	unsigned int n_piobufs;
+	void __iomem *wc_membase, *pio_write_base;
+	unsigned int pio_write_vi_base;
+	unsigned int piobuf_handle[EF10_TX_PIOBUF_COUNT];
+	bool must_restore_piobufs;
 	u32 rx_rss_context;
 	u64 stats[EF10_STAT_COUNT];
 	bool workaround_35388;
@@ -475,18 +509,18 @@ static inline unsigned int efx_vf_size(struct efx_nic *efx)
 	return 1 << efx->vi_scale;
 }
 
-extern int efx_init_sriov(void);
-extern void efx_sriov_probe(struct efx_nic *efx);
-extern int efx_sriov_init(struct efx_nic *efx);
-extern void efx_sriov_mac_address_changed(struct efx_nic *efx);
-extern void efx_sriov_tx_flush_done(struct efx_nic *efx, efx_qword_t *event);
-extern void efx_sriov_rx_flush_done(struct efx_nic *efx, efx_qword_t *event);
-extern void efx_sriov_event(struct efx_channel *channel, efx_qword_t *event);
-extern void efx_sriov_desc_fetch_err(struct efx_nic *efx, unsigned dmaq);
-extern void efx_sriov_flr(struct efx_nic *efx, unsigned flr);
-extern void efx_sriov_reset(struct efx_nic *efx);
-extern void efx_sriov_fini(struct efx_nic *efx);
-extern void efx_fini_sriov(void);
+int efx_init_sriov(void);
+void efx_sriov_probe(struct efx_nic *efx);
+int efx_sriov_init(struct efx_nic *efx);
+void efx_sriov_mac_address_changed(struct efx_nic *efx);
+void efx_sriov_tx_flush_done(struct efx_nic *efx, efx_qword_t *event);
+void efx_sriov_rx_flush_done(struct efx_nic *efx, efx_qword_t *event);
+void efx_sriov_event(struct efx_channel *channel, efx_qword_t *event);
+void efx_sriov_desc_fetch_err(struct efx_nic *efx, unsigned dmaq);
+void efx_sriov_flr(struct efx_nic *efx, unsigned flr);
+void efx_sriov_reset(struct efx_nic *efx);
+void efx_sriov_fini(struct efx_nic *efx);
+void efx_fini_sriov(void);
 
 #else
 
@@ -512,22 +546,20 @@ static inline void efx_fini_sriov(void) {}
 
 #endif
 
-extern int efx_sriov_set_vf_mac(struct net_device *dev, int vf, u8 *mac);
-extern int efx_sriov_set_vf_vlan(struct net_device *dev, int vf,
-				 u16 vlan, u8 qos);
-extern int efx_sriov_get_vf_config(struct net_device *dev, int vf,
-				   struct ifla_vf_info *ivf);
-extern int efx_sriov_set_vf_spoofchk(struct net_device *net_dev, int vf,
-				     bool spoofchk);
+int efx_sriov_set_vf_mac(struct net_device *dev, int vf, u8 *mac);
+int efx_sriov_set_vf_vlan(struct net_device *dev, int vf, u16 vlan, u8 qos);
+int efx_sriov_get_vf_config(struct net_device *dev, int vf,
+			    struct ifla_vf_info *ivf);
+int efx_sriov_set_vf_spoofchk(struct net_device *net_dev, int vf,
+			      bool spoofchk);
 
 struct ethtool_ts_info;
-extern void efx_ptp_probe(struct efx_nic *efx);
-extern int efx_ptp_ioctl(struct efx_nic *efx, struct ifreq *ifr, int cmd);
-extern void efx_ptp_get_ts_info(struct efx_nic *efx,
-				struct ethtool_ts_info *ts_info);
-extern bool efx_ptp_is_ptp_tx(struct efx_nic *efx, struct sk_buff *skb);
-extern int efx_ptp_tx(struct efx_nic *efx, struct sk_buff *skb);
-extern void efx_ptp_event(struct efx_nic *efx, efx_qword_t *ev);
+void efx_ptp_probe(struct efx_nic *efx);
+int efx_ptp_ioctl(struct efx_nic *efx, struct ifreq *ifr, int cmd);
+void efx_ptp_get_ts_info(struct efx_nic *efx, struct ethtool_ts_info *ts_info);
+bool efx_ptp_is_ptp_tx(struct efx_nic *efx, struct sk_buff *skb);
+int efx_ptp_tx(struct efx_nic *efx, struct sk_buff *skb);
+void efx_ptp_event(struct efx_nic *efx, efx_qword_t *ev);
 
 extern const struct efx_nic_type falcon_a1_nic_type;
 extern const struct efx_nic_type falcon_b0_nic_type;
@@ -541,7 +573,7 @@ extern const struct efx_nic_type efx_hunt_a0_nic_type;
  **************************************************************************
  */
 
-extern int falcon_probe_board(struct efx_nic *efx, u16 revision_info);
+int falcon_probe_board(struct efx_nic *efx, u16 revision_info);
 
 /* TX data path */
 static inline int efx_nic_probe_tx(struct efx_tx_queue *tx_queue)
@@ -609,58 +641,58 @@ static inline void efx_nic_eventq_read_ack(struct efx_channel *channel)
 {
 	channel->efx->type->ev_read_ack(channel);
 }
-extern void efx_nic_event_test_start(struct efx_channel *channel);
+void efx_nic_event_test_start(struct efx_channel *channel);
 
 /* Falcon/Siena queue operations */
-extern int efx_farch_tx_probe(struct efx_tx_queue *tx_queue);
-extern void efx_farch_tx_init(struct efx_tx_queue *tx_queue);
-extern void efx_farch_tx_fini(struct efx_tx_queue *tx_queue);
-extern void efx_farch_tx_remove(struct efx_tx_queue *tx_queue);
-extern void efx_farch_tx_write(struct efx_tx_queue *tx_queue);
-extern int efx_farch_rx_probe(struct efx_rx_queue *rx_queue);
-extern void efx_farch_rx_init(struct efx_rx_queue *rx_queue);
-extern void efx_farch_rx_fini(struct efx_rx_queue *rx_queue);
-extern void efx_farch_rx_remove(struct efx_rx_queue *rx_queue);
-extern void efx_farch_rx_write(struct efx_rx_queue *rx_queue);
-extern void efx_farch_rx_defer_refill(struct efx_rx_queue *rx_queue);
-extern int efx_farch_ev_probe(struct efx_channel *channel);
-extern int efx_farch_ev_init(struct efx_channel *channel);
-extern void efx_farch_ev_fini(struct efx_channel *channel);
-extern void efx_farch_ev_remove(struct efx_channel *channel);
-extern int efx_farch_ev_process(struct efx_channel *channel, int quota);
-extern void efx_farch_ev_read_ack(struct efx_channel *channel);
-extern void efx_farch_ev_test_generate(struct efx_channel *channel);
+int efx_farch_tx_probe(struct efx_tx_queue *tx_queue);
+void efx_farch_tx_init(struct efx_tx_queue *tx_queue);
+void efx_farch_tx_fini(struct efx_tx_queue *tx_queue);
+void efx_farch_tx_remove(struct efx_tx_queue *tx_queue);
+void efx_farch_tx_write(struct efx_tx_queue *tx_queue);
+int efx_farch_rx_probe(struct efx_rx_queue *rx_queue);
+void efx_farch_rx_init(struct efx_rx_queue *rx_queue);
+void efx_farch_rx_fini(struct efx_rx_queue *rx_queue);
+void efx_farch_rx_remove(struct efx_rx_queue *rx_queue);
+void efx_farch_rx_write(struct efx_rx_queue *rx_queue);
+void efx_farch_rx_defer_refill(struct efx_rx_queue *rx_queue);
+int efx_farch_ev_probe(struct efx_channel *channel);
+int efx_farch_ev_init(struct efx_channel *channel);
+void efx_farch_ev_fini(struct efx_channel *channel);
+void efx_farch_ev_remove(struct efx_channel *channel);
+int efx_farch_ev_process(struct efx_channel *channel, int quota);
+void efx_farch_ev_read_ack(struct efx_channel *channel);
+void efx_farch_ev_test_generate(struct efx_channel *channel);
 
 /* Falcon/Siena filter operations */
-extern int efx_farch_filter_table_probe(struct efx_nic *efx);
-extern void efx_farch_filter_table_restore(struct efx_nic *efx);
-extern void efx_farch_filter_table_remove(struct efx_nic *efx);
-extern void efx_farch_filter_update_rx_scatter(struct efx_nic *efx);
-extern s32 efx_farch_filter_insert(struct efx_nic *efx,
-				   struct efx_filter_spec *spec, bool replace);
-extern int efx_farch_filter_remove_safe(struct efx_nic *efx,
-					enum efx_filter_priority priority,
-					u32 filter_id);
-extern int efx_farch_filter_get_safe(struct efx_nic *efx,
-				     enum efx_filter_priority priority,
-				     u32 filter_id, struct efx_filter_spec *);
-extern void efx_farch_filter_clear_rx(struct efx_nic *efx,
-				      enum efx_filter_priority priority);
-extern u32 efx_farch_filter_count_rx_used(struct efx_nic *efx,
-					  enum efx_filter_priority priority);
-extern u32 efx_farch_filter_get_rx_id_limit(struct efx_nic *efx);
-extern s32 efx_farch_filter_get_rx_ids(struct efx_nic *efx,
-				       enum efx_filter_priority priority,
-				       u32 *buf, u32 size);
+int efx_farch_filter_table_probe(struct efx_nic *efx);
+void efx_farch_filter_table_restore(struct efx_nic *efx);
+void efx_farch_filter_table_remove(struct efx_nic *efx);
+void efx_farch_filter_update_rx_scatter(struct efx_nic *efx);
+s32 efx_farch_filter_insert(struct efx_nic *efx, struct efx_filter_spec *spec,
+			    bool replace);
+int efx_farch_filter_remove_safe(struct efx_nic *efx,
+				 enum efx_filter_priority priority,
+				 u32 filter_id);
+int efx_farch_filter_get_safe(struct efx_nic *efx,
+			      enum efx_filter_priority priority, u32 filter_id,
+			      struct efx_filter_spec *);
+void efx_farch_filter_clear_rx(struct efx_nic *efx,
+			       enum efx_filter_priority priority);
+u32 efx_farch_filter_count_rx_used(struct efx_nic *efx,
+				   enum efx_filter_priority priority);
+u32 efx_farch_filter_get_rx_id_limit(struct efx_nic *efx);
+s32 efx_farch_filter_get_rx_ids(struct efx_nic *efx,
+				enum efx_filter_priority priority, u32 *buf,
+				u32 size);
 #ifdef CONFIG_RFS_ACCEL
-extern s32 efx_farch_filter_rfs_insert(struct efx_nic *efx,
-				       struct efx_filter_spec *spec);
-extern bool efx_farch_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
-					    unsigned int index);
+s32 efx_farch_filter_rfs_insert(struct efx_nic *efx,
+				struct efx_filter_spec *spec);
+bool efx_farch_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
+				     unsigned int index);
 #endif
-extern void efx_farch_filter_sync_rx_mode(struct efx_nic *efx);
+void efx_farch_filter_sync_rx_mode(struct efx_nic *efx);
 
-extern bool efx_nic_event_present(struct efx_channel *channel);
+bool efx_nic_event_present(struct efx_channel *channel);
 
 /* Some statistics are computed as A - B where A and B each increase
  * linearly with some hardware counter(s) and the counters are read
@@ -681,17 +713,17 @@ static inline void efx_update_diff_stat(u64 *stat, u64 diff)
 }
 
 /* Interrupts */
-extern int efx_nic_init_interrupt(struct efx_nic *efx);
-extern void efx_nic_irq_test_start(struct efx_nic *efx);
-extern void efx_nic_fini_interrupt(struct efx_nic *efx);
+int efx_nic_init_interrupt(struct efx_nic *efx);
+void efx_nic_irq_test_start(struct efx_nic *efx);
+void efx_nic_fini_interrupt(struct efx_nic *efx);
 
 /* Falcon/Siena interrupts */
-extern void efx_farch_irq_enable_master(struct efx_nic *efx);
-extern void efx_farch_irq_test_generate(struct efx_nic *efx);
-extern void efx_farch_irq_disable_master(struct efx_nic *efx);
-extern irqreturn_t efx_farch_msi_interrupt(int irq, void *dev_id);
-extern irqreturn_t efx_farch_legacy_interrupt(int irq, void *dev_id);
-extern irqreturn_t efx_farch_fatal_interrupt(struct efx_nic *efx);
+void efx_farch_irq_enable_master(struct efx_nic *efx);
+void efx_farch_irq_test_generate(struct efx_nic *efx);
+void efx_farch_irq_disable_master(struct efx_nic *efx);
+irqreturn_t efx_farch_msi_interrupt(int irq, void *dev_id);
+irqreturn_t efx_farch_legacy_interrupt(int irq, void *dev_id);
+irqreturn_t efx_farch_fatal_interrupt(struct efx_nic *efx);
 
 static inline int efx_nic_event_test_irq_cpu(struct efx_channel *channel)
 {
@@ -703,21 +735,21 @@ static inline int efx_nic_irq_test_irq_cpu(struct efx_nic *efx)
 }
 
 /* Global Resources */
-extern int efx_nic_flush_queues(struct efx_nic *efx);
-extern void siena_prepare_flush(struct efx_nic *efx);
-extern int efx_farch_fini_dmaq(struct efx_nic *efx);
-extern void siena_finish_flush(struct efx_nic *efx);
-extern void falcon_start_nic_stats(struct efx_nic *efx);
-extern void falcon_stop_nic_stats(struct efx_nic *efx);
-extern int falcon_reset_xaui(struct efx_nic *efx);
-extern void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw);
-extern void efx_farch_init_common(struct efx_nic *efx);
-extern void efx_ef10_handle_drain_event(struct efx_nic *efx);
+int efx_nic_flush_queues(struct efx_nic *efx);
+void siena_prepare_flush(struct efx_nic *efx);
+int efx_farch_fini_dmaq(struct efx_nic *efx);
+void siena_finish_flush(struct efx_nic *efx);
+void falcon_start_nic_stats(struct efx_nic *efx);
+void falcon_stop_nic_stats(struct efx_nic *efx);
+int falcon_reset_xaui(struct efx_nic *efx);
+void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw);
+void efx_farch_init_common(struct efx_nic *efx);
+void efx_ef10_handle_drain_event(struct efx_nic *efx);
 static inline void efx_nic_push_rx_indir_table(struct efx_nic *efx)
 {
 	efx->type->rx_push_indir_table(efx);
 }
-extern void efx_farch_rx_push_indir_table(struct efx_nic *efx);
+void efx_farch_rx_push_indir_table(struct efx_nic *efx);
 
 int efx_nic_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
 			 unsigned int len, gfp_t gfp_flags);
@@ -728,24 +760,22 @@ struct efx_farch_register_test {
 	unsigned address;
 	efx_oword_t mask;
 };
-extern int efx_farch_test_registers(struct efx_nic *efx,
-				    const struct efx_farch_register_test *regs,
-				    size_t n_regs);
+int efx_farch_test_registers(struct efx_nic *efx,
+			     const struct efx_farch_register_test *regs,
+			     size_t n_regs);
 
-extern size_t efx_nic_get_regs_len(struct efx_nic *efx);
-extern void efx_nic_get_regs(struct efx_nic *efx, void *buf);
+size_t efx_nic_get_regs_len(struct efx_nic *efx);
+void efx_nic_get_regs(struct efx_nic *efx, void *buf);
 
-extern size_t
-efx_nic_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
-		       const unsigned long *mask, u8 *names);
-extern void
-efx_nic_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
-		     const unsigned long *mask,
-		     u64 *stats, const void *dma_buf, bool accumulate);
+size_t efx_nic_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
+			      const unsigned long *mask, u8 *names);
+void efx_nic_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
+			  const unsigned long *mask, u64 *stats,
+			  const void *dma_buf, bool accumulate);
 
 #define EFX_MAX_FLUSH_TIME 5000
 
-extern void efx_farch_generate_event(struct efx_nic *efx, unsigned int evq,
-				     efx_qword_t *event);
+void efx_farch_generate_event(struct efx_nic *efx, unsigned int evq,
+			      efx_qword_t *event);
 
 #endif /* EFX_NIC_H */

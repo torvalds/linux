@@ -105,15 +105,6 @@ void vResetCommandTimer(struct vnt_private *);
 
 int bScheduleCommand(struct vnt_private *, CMD_CODE eCommand, u8 *pbyItem0);
 
-void vRunCommand(struct vnt_private *);
-
-/*
-void
-WCMDvCommandThread(
-    void * Context
-    );
-*/
-
-void BSSvSecondTxData(struct vnt_private *);
+void vRunCommand(struct work_struct *work);
 
 #endif /* __WCMD_H__ */

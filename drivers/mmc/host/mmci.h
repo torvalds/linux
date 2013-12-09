@@ -200,10 +200,6 @@ struct mmci_host {
 	struct sg_mapping_iter	sg_miter;
 	unsigned int		size;
 
-	/* pinctrl handles */
-	struct pinctrl		*pinctrl;
-	struct pinctrl_state	*pins_default;
-
 #ifdef CONFIG_DMA_ENGINE
 	/* DMA stuff */
 	struct dma_chan		*dma_current;

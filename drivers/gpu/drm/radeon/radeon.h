@@ -348,6 +348,7 @@ int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence **fence, i
 void radeon_fence_process(struct radeon_device *rdev, int ring);
 bool radeon_fence_signaled(struct radeon_fence *fence);
 int radeon_fence_wait(struct radeon_fence *fence, bool interruptible);
+int radeon_fence_wait_locked(struct radeon_fence *fence);
 int radeon_fence_wait_next_locked(struct radeon_device *rdev, int ring);
 int radeon_fence_wait_empty_locked(struct radeon_device *rdev, int ring);
 int radeon_fence_wait_any(struct radeon_device *rdev,
@@ -548,17 +549,20 @@ struct radeon_semaphore {
 	struct radeon_sa_bo		*sa_bo;
 	signed				waiters;
 	uint64_t			gpu_addr;
+	struct radeon_fence		*sync_to[RADEON_NUM_RINGS];
 };
 
 int radeon_semaphore_create(struct radeon_device *rdev,
 			    struct radeon_semaphore **semaphore);
-void radeon_semaphore_emit_signal(struct radeon_device *rdev, int ring,
+bool radeon_semaphore_emit_signal(struct radeon_device *rdev, int ring,
 				  struct radeon_semaphore *semaphore);
-void radeon_semaphore_emit_wait(struct radeon_device *rdev, int ring,
+bool radeon_semaphore_emit_wait(struct radeon_device *rdev, int ring,
 				struct radeon_semaphore *semaphore);
+void radeon_semaphore_sync_to(struct radeon_semaphore *semaphore,
+			      struct radeon_fence *fence);
 int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 				struct radeon_semaphore *semaphore,
-				int signaler, int waiter);
+				int waiting_ring);
 void radeon_semaphore_free(struct radeon_device *rdev,
 			   struct radeon_semaphore **semaphore,
 			   struct radeon_fence *fence);
@@ -645,13 +649,15 @@ void radeon_scratch_free(struct radeon_device *rdev, uint32_t reg);
 /*
  * GPU doorbell structures, functions & helpers
  */
+#define RADEON_MAX_DOORBELLS 1024	/* Reserve at most 1024 doorbell slots for radeon-owned rings. */
+
 struct radeon_doorbell {
-	u32			num_pages;
-	bool			free[1024];
 	/* doorbell mmio */
-	resource_size_t			base;
-	resource_size_t			size;
-	void __iomem			*ptr;
+	resource_size_t		base;
+	resource_size_t		size;
+	u32 __iomem		*ptr;
+	u32			num_doorbells;	/* Number of doorbells actually reserved for radeon. */
+	unsigned long		used[DIV_ROUND_UP(RADEON_MAX_DOORBELLS, BITS_PER_LONG)];
 };
 
 int radeon_doorbell_get(struct radeon_device *rdev, u32 *page);
@@ -765,7 +771,6 @@ struct radeon_ib {
 	struct radeon_fence		*fence;
 	struct radeon_vm		*vm;
 	bool				is_const_ib;
-	struct radeon_fence		*sync_to[RADEON_NUM_RINGS];
 	struct radeon_semaphore		*semaphore;
 };
 
@@ -799,8 +804,7 @@ struct radeon_ring {
 	u32 pipe;
 	u32 queue;
 	struct radeon_bo	*mqd_obj;
-	u32 doorbell_page_num;
-	u32 doorbell_offset;
+	u32 doorbell_index;
 	unsigned		wptr_offs;
 };
 
@@ -921,7 +925,6 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 		  struct radeon_ib *ib, struct radeon_vm *vm,
 		  unsigned size);
 void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib);
-void radeon_ib_sync_to(struct radeon_ib *ib, struct radeon_fence *fence);
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 		       struct radeon_ib *const_ib);
 int radeon_ib_pool_init(struct radeon_device *rdev);
@@ -1638,7 +1641,7 @@ struct radeon_asic_ring {
 	/* command emmit functions */
 	void (*ib_execute)(struct radeon_device *rdev, struct radeon_ib *ib);
 	void (*emit_fence)(struct radeon_device *rdev, struct radeon_fence *fence);
-	void (*emit_semaphore)(struct radeon_device *rdev, struct radeon_ring *cp,
+	bool (*emit_semaphore)(struct radeon_device *rdev, struct radeon_ring *cp,
 			       struct radeon_semaphore *semaphore, bool emit_wait);
 	void (*vm_flush)(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
 
@@ -1979,6 +1982,7 @@ struct cik_asic {
 
 	unsigned tile_config;
 	uint32_t tile_mode_array[32];
+	uint32_t macrotile_mode_array[16];
 };
 
 union radeon_asic_config {
@@ -2239,8 +2243,8 @@ void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v,
 u32 r100_io_rreg(struct radeon_device *rdev, u32 reg);
 void r100_io_wreg(struct radeon_device *rdev, u32 reg, u32 v);
 
-u32 cik_mm_rdoorbell(struct radeon_device *rdev, u32 offset);
-void cik_mm_wdoorbell(struct radeon_device *rdev, u32 offset, u32 v);
+u32 cik_mm_rdoorbell(struct radeon_device *rdev, u32 index);
+void cik_mm_wdoorbell(struct radeon_device *rdev, u32 index, u32 v);
 
 /*
  * Cast helper
@@ -2303,8 +2307,8 @@ void cik_mm_wdoorbell(struct radeon_device *rdev, u32 offset, u32 v);
 #define RREG32_IO(reg) r100_io_rreg(rdev, (reg))
 #define WREG32_IO(reg, v) r100_io_wreg(rdev, (reg), (v))
 
-#define RDOORBELL32(offset) cik_mm_rdoorbell(rdev, (offset))
-#define WDOORBELL32(offset, v) cik_mm_wdoorbell(rdev, (offset), (v))
+#define RDOORBELL32(index) cik_mm_rdoorbell(rdev, (index))
+#define WDOORBELL32(index, v) cik_mm_wdoorbell(rdev, (index), (v))
 
 /*
  * Indirect registers accessor

@@ -34,14 +34,15 @@ __kernel_clock_gettime:
 	tmll	%r4,0x0001			/* pending update ? loop */
 	jnz	0b
 	stck	48(%r15)			/* Store TOD clock */
+	lgf	%r2,__VDSO_TK_SHIFT(%r5)	/* Timekeeper shift */
+	lg	%r0,__VDSO_XTIME_SEC(%r5)	/* tk->xtime_sec */
+	alg	%r0,__VDSO_WTOM_SEC(%r5)	/*  + wall_to_monotonic.sec */
 	lg	%r1,48(%r15)
 	sg	%r1,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
-	msgf	%r1,__VDSO_NTP_MULT(%r5)	/*  * NTP adjustment */
-	srlg	%r1,%r1,12			/* cyc2ns(clock,cycle_delta) */
-	alg	%r1,__VDSO_XTIME_NSEC(%r5)	/*  + xtime */
-	lg	%r0,__VDSO_XTIME_SEC(%r5)
-	alg	%r1,__VDSO_WTOM_NSEC(%r5)	/*  + wall_to_monotonic */
-	alg	%r0,__VDSO_WTOM_SEC(%r5)
+	msgf	%r1,__VDSO_TK_MULT(%r5)		/*  * tk->mult */
+	alg	%r1,__VDSO_XTIME_NSEC(%r5)	/*  + tk->xtime_nsec */
+	alg	%r1,__VDSO_WTOM_NSEC(%r5)	/*  + wall_to_monotonic.nsec */
+	srlg	%r1,%r1,0(%r2)			/*  >> tk->shift */
 	clg	%r4,__VDSO_UPD_COUNT(%r5)	/* check update counter */
 	jne	0b
 	larl	%r5,13f
@@ -62,12 +63,13 @@ __kernel_clock_gettime:
 	tmll	%r4,0x0001			/* pending update ? loop */
 	jnz	5b
 	stck	48(%r15)			/* Store TOD clock */
+	lgf	%r2,__VDSO_TK_SHIFT(%r5)	/* Timekeeper shift */
 	lg	%r1,48(%r15)
 	sg	%r1,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
-	msgf	%r1,__VDSO_NTP_MULT(%r5)	/*  * NTP adjustment */
-	srlg	%r1,%r1,12			/* cyc2ns(clock,cycle_delta) */
-	alg	%r1,__VDSO_XTIME_NSEC(%r5)	/*  + xtime */
-	lg	%r0,__VDSO_XTIME_SEC(%r5)
+	msgf	%r1,__VDSO_TK_MULT(%r5)		/*  * tk->mult */
+	alg	%r1,__VDSO_XTIME_NSEC(%r5)	/*  + tk->xtime_nsec */
+	srlg	%r1,%r1,0(%r2)			/*  >> tk->shift */
+	lg	%r0,__VDSO_XTIME_SEC(%r5)	/* tk->xtime_sec */
 	clg	%r4,__VDSO_UPD_COUNT(%r5)	/* check update counter */
 	jne	5b
 	larl	%r5,13f

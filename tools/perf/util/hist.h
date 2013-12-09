@@ -6,6 +6,7 @@
 #include "callchain.h"
 #include "header.h"
 #include "color.h"
+#include "ui/progress.h"
 
 extern struct callchain_param callchain_param;
 
@@ -46,6 +47,8 @@ enum hist_column {
 	HISTC_CPU,
 	HISTC_SRCLINE,
 	HISTC_MISPREDICT,
+	HISTC_IN_TX,
+	HISTC_ABORT,
 	HISTC_SYMBOL_FROM,
 	HISTC_SYMBOL_TO,
 	HISTC_DSO_FROM,
@@ -58,6 +61,7 @@ enum hist_column {
 	HISTC_MEM_TLB,
 	HISTC_MEM_LVL,
 	HISTC_MEM_SNOOP,
+	HISTC_TRANSACTION,
 	HISTC_NR_COLS, /* Last entry */
 };
 
@@ -80,54 +84,43 @@ struct hists {
 	u16			col_len[HISTC_NR_COLS];
 };
 
-struct hist_entry *__hists__add_entry(struct hists *self,
+struct hist_entry *__hists__add_entry(struct hists *hists,
 				      struct addr_location *al,
-				      struct symbol *parent, u64 period,
-				      u64 weight);
+				      struct symbol *parent,
+				      struct branch_info *bi,
+				      struct mem_info *mi, u64 period,
+				      u64 weight, u64 transaction);
 int64_t hist_entry__cmp(struct hist_entry *left, struct hist_entry *right);
 int64_t hist_entry__collapse(struct hist_entry *left, struct hist_entry *right);
-int hist_entry__sort_snprintf(struct hist_entry *self, char *bf, size_t size,
+int hist_entry__transaction_len(void);
+int hist_entry__sort_snprintf(struct hist_entry *he, char *bf, size_t size,
 			      struct hists *hists);
 void hist_entry__free(struct hist_entry *);
 
-struct hist_entry *__hists__add_branch_entry(struct hists *self,
-					     struct addr_location *al,
-					     struct symbol *sym_parent,
-					     struct branch_info *bi,
-					     u64 period,
-					     u64 weight);
-
-struct hist_entry *__hists__add_mem_entry(struct hists *self,
-					  struct addr_location *al,
-					  struct symbol *sym_parent,
-					  struct mem_info *mi,
-					  u64 period,
-					  u64 weight);
-
-void hists__output_resort(struct hists *self);
-void hists__collapse_resort(struct hists *self);
+void hists__output_resort(struct hists *hists);
+void hists__collapse_resort(struct hists *hists, struct ui_progress *prog);
 
 void hists__decay_entries(struct hists *hists, bool zap_user, bool zap_kernel);
 void hists__output_recalc_col_len(struct hists *hists, int max_rows);
 
 void hists__inc_nr_entries(struct hists *hists, struct hist_entry *h);
-void hists__inc_nr_events(struct hists *self, u32 type);
+void hists__inc_nr_events(struct hists *hists, u32 type);
 void events_stats__inc(struct events_stats *stats, u32 type);
 size_t events_stats__fprintf(struct events_stats *stats, FILE *fp);
 
-size_t hists__fprintf(struct hists *self, bool show_header, int max_rows,
+size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		      int max_cols, float min_pcnt, FILE *fp);
 
-int hist_entry__inc_addr_samples(struct hist_entry *self, int evidx, u64 addr);
-int hist_entry__annotate(struct hist_entry *self, size_t privsize);
+int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 addr);
+int hist_entry__annotate(struct hist_entry *he, size_t privsize);
 
 void hists__filter_by_dso(struct hists *hists);
 void hists__filter_by_thread(struct hists *hists);
 void hists__filter_by_symbol(struct hists *hists);
 
-u16 hists__col_len(struct hists *self, enum hist_column col);
-void hists__set_col_len(struct hists *self, enum hist_column col, u16 len);
-bool hists__new_col_len(struct hists *self, enum hist_column col, u16 len);
+u16 hists__col_len(struct hists *hists, enum hist_column col);
+void hists__set_col_len(struct hists *hists, enum hist_column col, u16 len);
+bool hists__new_col_len(struct hists *hists, enum hist_column col, u16 len);
 void hists__reset_col_len(struct hists *hists);
 void hists__calc_col_len(struct hists *hists, struct hist_entry *he);
 
@@ -196,7 +189,7 @@ struct hist_browser_timer {
 	int refresh;
 };
 
-#ifdef SLANG_SUPPORT
+#ifdef HAVE_SLANG_SUPPORT
 #include "../ui/keysyms.h"
 int hist_entry__tui_annotate(struct hist_entry *he, struct perf_evsel *evsel,
 			     struct hist_browser_timer *hbt);
@@ -217,12 +210,9 @@ int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __maybe_unused,
 	return 0;
 }
 
-static inline int hist_entry__tui_annotate(struct hist_entry *self
-					   __maybe_unused,
-					   struct perf_evsel *evsel
-					   __maybe_unused,
-					   struct hist_browser_timer *hbt
-					   __maybe_unused)
+static inline int hist_entry__tui_annotate(struct hist_entry *he __maybe_unused,
+					   struct perf_evsel *evsel __maybe_unused,
+					   struct hist_browser_timer *hbt __maybe_unused)
 {
 	return 0;
 }
@@ -237,20 +227,5 @@ static inline int script_browse(const char *script_opt __maybe_unused)
 #define K_SWITCH_INPUT_DATA -3000
 #endif
 
-#ifdef GTK2_SUPPORT
-int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist, const char *help,
-				  struct hist_browser_timer *hbt __maybe_unused,
-				  float min_pcnt);
-#else
-static inline
-int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist __maybe_unused,
-				  const char *help __maybe_unused,
-				  struct hist_browser_timer *hbt __maybe_unused,
-				  float min_pcnt __maybe_unused)
-{
-	return 0;
-}
-#endif
-
-unsigned int hists__sort_list_width(struct hists *self);
+unsigned int hists__sort_list_width(struct hists *hists);
 #endif	/* __PERF_HIST_H */

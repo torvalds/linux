@@ -766,7 +766,6 @@ static int ab8500_charger_max_usb_curr(struct ab8500_charger *di,
 			ret = -ENXIO;
 			break;
 		}
-		break;
 	case USB_STAT_CARKIT_1:
 	case USB_STAT_CARKIT_2:
 	case USB_STAT_ACA_DOCK_CHARGER:
@@ -1387,8 +1386,12 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
 		 * the GPADC module independant of the AB8500 chargers
 		 */
 		if (!di->vddadc_en_ac) {
-			regulator_enable(di->regu);
-			di->vddadc_en_ac = true;
+			ret = regulator_enable(di->regu);
+			if (ret)
+				dev_warn(di->dev,
+					"Failed to enable regulator\n");
+			else
+				di->vddadc_en_ac = true;
 		}
 
 		/* Check if the requested voltage or current is valid */
@@ -1556,8 +1559,12 @@ static int ab8500_charger_usb_en(struct ux500_charger *charger,
 		 * the GPADC module independant of the AB8500 chargers
 		 */
 		if (!di->vddadc_en_usb) {
-			regulator_enable(di->regu);
-			di->vddadc_en_usb = true;
+			ret = regulator_enable(di->regu);
+			if (ret)
+				dev_warn(di->dev,
+					"Failed to enable regulator\n");
+			else
+				di->vddadc_en_usb = true;
 		}
 
 		/* Enable USB charging */

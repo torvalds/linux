@@ -251,19 +251,18 @@ static int __init htab_dt_scan_seg_sizes(unsigned long node,
 					 void *data)
 {
 	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	u32 *prop;
+	__be32 *prop;
 	unsigned long size = 0;
 
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return 0;
 
-	prop = (u32 *)of_get_flat_dt_prop(node, "ibm,processor-segment-sizes",
-					  &size);
+	prop = of_get_flat_dt_prop(node, "ibm,processor-segment-sizes", &size);
 	if (prop == NULL)
 		return 0;
 	for (; size >= 4; size -= 4, ++prop) {
-		if (prop[0] == 40) {
+		if (be32_to_cpu(prop[0]) == 40) {
 			DBG("1T segment support detected\n");
 			cur_cpu_spec->mmu_features |= MMU_FTR_1T_SEGMENT;
 			return 1;
@@ -307,23 +306,22 @@ static int __init htab_dt_scan_page_sizes(unsigned long node,
 					  void *data)
 {
 	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	u32 *prop;
+	__be32 *prop;
 	unsigned long size = 0;
 
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return 0;
 
-	prop = (u32 *)of_get_flat_dt_prop(node,
-					  "ibm,segment-page-sizes", &size);
+	prop = of_get_flat_dt_prop(node, "ibm,segment-page-sizes", &size);
 	if (prop != NULL) {
 		pr_info("Page sizes from device-tree:\n");
 		size /= 4;
 		cur_cpu_spec->mmu_features &= ~(MMU_FTR_16M_PAGE);
 		while(size > 0) {
-			unsigned int base_shift = prop[0];
-			unsigned int slbenc = prop[1];
-			unsigned int lpnum = prop[2];
+			unsigned int base_shift = be32_to_cpu(prop[0]);
+			unsigned int slbenc = be32_to_cpu(prop[1]);
+			unsigned int lpnum = be32_to_cpu(prop[2]);
 			struct mmu_psize_def *def;
 			int idx, base_idx;
 
@@ -356,8 +354,8 @@ static int __init htab_dt_scan_page_sizes(unsigned long node,
 				def->tlbiel = 0;
 
 			while (size > 0 && lpnum) {
-				unsigned int shift = prop[0];
-				int penc  = prop[1];
+				unsigned int shift = be32_to_cpu(prop[0]);
+				int penc  = be32_to_cpu(prop[1]);
 
 				prop += 2; size -= 2;
 				lpnum--;
@@ -390,8 +388,8 @@ static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
 					const char *uname, int depth,
 					void *data) {
 	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	unsigned long *addr_prop;
-	u32 *page_count_prop;
+	__be64 *addr_prop;
+	__be32 *page_count_prop;
 	unsigned int expected_pages;
 	long unsigned int phys_addr;
 	long unsigned int block_size;
@@ -405,12 +403,12 @@ static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
 	page_count_prop = of_get_flat_dt_prop(node, "ibm,expected#pages", NULL);
 	if (page_count_prop == NULL)
 		return 0;
-	expected_pages = (1 << page_count_prop[0]);
+	expected_pages = (1 << be32_to_cpu(page_count_prop[0]));
 	addr_prop = of_get_flat_dt_prop(node, "reg", NULL);
 	if (addr_prop == NULL)
 		return 0;
-	phys_addr = addr_prop[0];
-	block_size = addr_prop[1];
+	phys_addr = be64_to_cpu(addr_prop[0]);
+	block_size = be64_to_cpu(addr_prop[1]);
 	if (block_size != (16 * GB))
 		return 0;
 	printk(KERN_INFO "Huge page(16GB) memory: "
@@ -534,16 +532,16 @@ static int __init htab_dt_scan_pftsize(unsigned long node,
 				       void *data)
 {
 	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	u32 *prop;
+	__be32 *prop;
 
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return 0;
 
-	prop = (u32 *)of_get_flat_dt_prop(node, "ibm,pft-size", NULL);
+	prop = of_get_flat_dt_prop(node, "ibm,pft-size", NULL);
 	if (prop != NULL) {
 		/* pft_size[0] is the NUMA CEC cookie */
-		ppc64_pft_size = prop[1];
+		ppc64_pft_size = be32_to_cpu(prop[1]);
 		return 1;
 	}
 	return 0;

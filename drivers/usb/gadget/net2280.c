@@ -129,7 +129,7 @@ static char *type_string (u8 bmAttributes)
 	case USB_ENDPOINT_XFER_BULK:	return "bulk";
 	case USB_ENDPOINT_XFER_ISOC:	return "iso";
 	case USB_ENDPOINT_XFER_INT:	return "intr";
-	};
+	}
 	return "control";
 }
 #endif
@@ -1630,7 +1630,7 @@ static ssize_t queues_show(struct device *_dev, struct device_attribute *attr,
 					val = "intr"; break;
 				 default:
 					val = "iso"; break;
-				 }; val; }),
+				 } val; }),
 				usb_endpoint_maxp (d) & 0x1fff,
 				ep->dma ? "dma" : "pio", ep->fifo_size
 				);
@@ -2680,7 +2680,6 @@ static void net2280_remove (struct pci_dev *pdev)
 	if (dev->enabled)
 		pci_disable_device (pdev);
 	device_remove_file (&pdev->dev, &dev_attr_registers);
-	pci_set_drvdata (pdev, NULL);
 
 	INFO (dev, "unbind\n");
 }

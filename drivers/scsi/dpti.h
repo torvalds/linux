@@ -202,7 +202,6 @@ struct adpt_channel {
 
 // HBA state flags
 #define DPTI_STATE_RESET	(0x01)
-#define DPTI_STATE_IOCTL	(0x02)
 
 typedef struct _adpt_hba {
 	struct _adpt_hba *next;

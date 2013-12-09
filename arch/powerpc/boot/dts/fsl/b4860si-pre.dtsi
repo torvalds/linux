@@ -34,6 +34,8 @@
 
 /dts-v1/;
 
+/include/ "e6500_power_isa.dtsi"
+
 / {
 	compatible = "fsl,B4860";
 	#address-cells = <2>;

@@ -56,6 +56,13 @@ static const char usbip_version_string[] = PACKAGE_STRING;
 
 static const char usbipd_help_string[] =
 	"usage: usbipd [options]\n"
+	"\n"
+	"	-4, --ipv4\n"
+	"		Bind to IPv4. Default is both.\n"
+	"\n"
+	"	-6, --ipv6\n"
+	"		Bind to IPv6. Default is both.\n"
+	"\n"
 	"	-D, --daemon\n"
 	"		Run as a daemon process.\n"
 	"\n"
@@ -354,14 +361,15 @@ static void addrinfo_to_text(struct addrinfo *ai, char buf[],
 	snprintf(buf, buf_size, "%s:%s", hbuf, sbuf);
 }
 
-static int listen_all_addrinfo(struct addrinfo *ai_head, int sockfdlist[])
+static int listen_all_addrinfo(struct addrinfo *ai_head, int sockfdlist[],
+			     int maxsockfd)
 {
 	struct addrinfo *ai;
 	int ret, nsockfd = 0;
 	const size_t ai_buf_size = NI_MAXHOST + NI_MAXSERV + 2;
 	char ai_buf[ai_buf_size];
 
-	for (ai = ai_head; ai && nsockfd < MAXSOCKFD; ai = ai->ai_next) {
+	for (ai = ai_head; ai && nsockfd < maxsockfd; ai = ai->ai_next) {
 		int sock;
 		addrinfo_to_text(ai, ai_buf, ai_buf_size);
 		dbg("opening %s", ai_buf);
@@ -374,6 +382,9 @@ static int listen_all_addrinfo(struct addrinfo *ai_head, int sockfdlist[])
 
 		usbip_net_set_reuseaddr(sock);
 		usbip_net_set_nodelay(sock);
+		/* We use seperate sockets for IPv4 and IPv6
+		 * (see do_standalone_mode()) */
+		usbip_net_set_v6only(sock);
 
 		if (sock >= FD_SETSIZE) {
 			err("FD_SETSIZE: %s: sock=%d, max=%d",
@@ -401,11 +412,6 @@ static int listen_all_addrinfo(struct addrinfo *ai_head, int sockfdlist[])
 		info("listening on %s", ai_buf);
 		sockfdlist[nsockfd++] = sock;
 	}
-
-	if (nsockfd == 0)
-		return -1;
-
-	dbg("listening on %d address%s", nsockfd, (nsockfd == 1) ? "" : "es");
 
 	return nsockfd;
 }
@@ -473,11 +479,11 @@ static void remove_pid_file()
 	}
 }
 
-static int do_standalone_mode(int daemonize)
+static int do_standalone_mode(int daemonize, int ipv4, int ipv6)
 {
 	struct addrinfo *ai_head;
 	int sockfdlist[MAXSOCKFD];
-	int nsockfd;
+	int nsockfd, family;
 	int i, terminate;
 	struct pollfd *fds;
 	struct timespec timeout;
@@ -501,21 +507,36 @@ static int do_standalone_mode(int daemonize)
 	set_signal();
 	write_pid_file();
 
-	ai_head = do_getaddrinfo(NULL, PF_UNSPEC);
+	info("starting " PROGNAME " (%s)", usbip_version_string);
+
+	/*
+	 * To suppress warnings on systems with bindv6only disabled
+	 * (default), we use seperate sockets for IPv6 and IPv4 and set
+	 * IPV6_V6ONLY on the IPv6 sockets.
+	 */
+	if (ipv4 && ipv6)
+		family = AF_UNSPEC;
+	else if (ipv4)
+		family = AF_INET;
+	else
+		family = AF_INET6;
+
+	ai_head = do_getaddrinfo(NULL, family);
 	if (!ai_head) {
 		usbip_host_driver_close();
 		return -1;
 	}
-
-	info("starting " PROGNAME " (%s)", usbip_version_string);
-
-	nsockfd = listen_all_addrinfo(ai_head, sockfdlist);
+	nsockfd = listen_all_addrinfo(ai_head, sockfdlist,
+		sizeof(sockfdlist) / sizeof(*sockfdlist));
+	freeaddrinfo(ai_head);
 	if (nsockfd <= 0) {
 		err("failed to open a listening socket");
-		freeaddrinfo(ai_head);
 		usbip_host_driver_close();
 		return -1;
 	}
+
+	dbg("listening on %d address%s", nsockfd, (nsockfd == 1) ? "" : "es");
+
 	fds = calloc(nsockfd, sizeof(struct pollfd));
 	for (i = 0; i < nsockfd; i++) {
 		fds[i].fd = sockfdlist[i];
@@ -551,7 +572,6 @@ static int do_standalone_mode(int daemonize)
 
 	info("shutting down " PROGNAME);
 	free(fds);
-	freeaddrinfo(ai_head);
 	usbip_host_driver_close();
 
 	return 0;
@@ -560,6 +580,9 @@ static int do_standalone_mode(int daemonize)
 int main(int argc, char *argv[])
 {
 	static const struct option longopts[] = {
+		{ "ipv4",     no_argument,       NULL, '4' },
+		{ "ipv6",     no_argument,       NULL, '6' },
+		{ "daemon",   no_argument,       NULL, 'D' },
 		{ "daemon",   no_argument,       NULL, 'D' },
 		{ "debug",    no_argument,       NULL, 'd' },
 		{ "pid",      optional_argument, NULL, 'P' },
@@ -576,6 +599,7 @@ int main(int argc, char *argv[])
 	} cmd;
 
 	int daemonize = 0;
+	int ipv4 = 0, ipv6 = 0;
 	int opt, rc = -1;
 	pid_file = NULL;
 
@@ -587,12 +611,18 @@ int main(int argc, char *argv[])
 
 	cmd = cmd_standalone_mode;
 	for (;;) {
-		opt = getopt_long(argc, argv, "DdP::t:hv", longopts, NULL);
+		opt = getopt_long(argc, argv, "46DdP::t:hv", longopts, NULL);
 
 		if (opt == -1)
 			break;
 
 		switch (opt) {
+		case '4':
+			ipv4 = 1;
+			break;
+		case '6':
+			ipv6 = 1;
+			break;
 		case 'D':
 			daemonize = 1;
 			break;
@@ -618,9 +648,12 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if (!ipv4 && !ipv6)
+		ipv4 = ipv6 = 1;
+
 	switch (cmd) {
 	case cmd_standalone_mode:
-		rc = do_standalone_mode(daemonize);
+		rc = do_standalone_mode(daemonize, ipv4, ipv6);
 		remove_pid_file();
 		break;
 	case cmd_version:

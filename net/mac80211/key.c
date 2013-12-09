@@ -879,7 +879,7 @@ ieee80211_gtk_rekey_add(struct ieee80211_vif *vif,
 				  keyconf->keylen, keyconf->key,
 				  0, NULL);
 	if (IS_ERR(key))
-		return ERR_PTR(PTR_ERR(key));
+		return ERR_CAST(key);
 
 	if (sdata->u.mgd.mfp != IEEE80211_MFP_DISABLED)
 		key->conf.flags |= IEEE80211_KEY_FLAG_RX_MGMT;

@@ -46,7 +46,7 @@ struct lppaca lppaca[] = {
 static struct lppaca *extra_lppacas;
 static long __initdata lppaca_size;
 
-static void allocate_lppacas(int nr_cpus, unsigned long limit)
+static void __init allocate_lppacas(int nr_cpus, unsigned long limit)
 {
 	if (nr_cpus <= NR_LPPACAS)
 		return;
@@ -57,7 +57,7 @@ static void allocate_lppacas(int nr_cpus, unsigned long limit)
 						 PAGE_SIZE, limit));
 }
 
-static struct lppaca *new_lppaca(int cpu)
+static struct lppaca * __init new_lppaca(int cpu)
 {
 	struct lppaca *lp;
 
@@ -70,7 +70,7 @@ static struct lppaca *new_lppaca(int cpu)
 	return lp;
 }
 
-static void free_lppacas(void)
+static void __init free_lppacas(void)
 {
 	long new_size = 0, nr;
 

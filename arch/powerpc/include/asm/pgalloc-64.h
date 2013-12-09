@@ -16,6 +16,7 @@ struct vmemmap_backing {
 	unsigned long phys;
 	unsigned long virt_addr;
 };
+extern struct vmemmap_backing *vmemmap_list;
 
 /*
  * Functions that deal with pagetables that could be at any level of
@@ -91,7 +92,10 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
 	if (!pte)
 		return NULL;
 	page = virt_to_page(pte);
-	pgtable_page_ctor(page);
+	if (!pgtable_page_ctor(page)) {
+		__free_page(page);
+		return NULL;
+	}
 	return page;
 }
 

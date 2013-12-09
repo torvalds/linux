@@ -1,5 +1,5 @@
 /*
- * Device Tree Source for IGEP COM Module
+ * Device Tree Source for IGEP COM MODULE (TI OMAP AM/DM37x)
  *
  * Copyright (C) 2012 Javier Martinez Canillas <javier@collabora.co.uk>
  * Copyright (C) 2012 Enric Balletbo i Serra <eballetbo@gmail.com>
@@ -12,11 +12,14 @@
 #include "omap3-igep.dtsi"
 
 / {
-	model = "IGEP COM Module";
+	model = "IGEP COM MODULE (TI OMAP AM/DM37x)";
 	compatible = "isee,omap3-igep0030", "ti,omap3";
 
 	leds {
+		pinctrl-names = "default";
+		pinctrl-0 = <&leds_pins>;
 		compatible = "gpio-leds";
+
 		boot {
 			 label = "omap3:green:boot";
 			 gpios = <&twl_gpio 13 GPIO_ACTIVE_LOW>;
@@ -41,6 +44,12 @@
 			 default-state = "off";
 		};
 	};
+};
+
+&leds_pins {
+	pinctrl-single,pins = <
+		0x5b0 (PIN_OUTPUT | MUX_MODE4) /* etk_d2.gpio_16 */
+	>;
 };
 
 &gpmc {
@@ -74,19 +83,19 @@
 			label = "SPL";
 			reg = <0 0x100000>;
 		};
-		partition@0x80000 {
+		partition@80000 {
 			label = "U-Boot";
 			reg = <0x100000 0x180000>;
 		};
-		partition@0x1c0000 {
+		partition@1c0000 {
 			label = "Environment";
 			reg = <0x280000 0x100000>;
 		};
-		partition@0x280000 {
+		partition@280000 {
 			label = "Kernel";
 			reg = <0x380000 0x300000>;
 		};
-		partition@0x780000 {
+		partition@780000 {
 			label = "Filesystem";
 			reg = <0x680000 0x1f980000>;
 		};

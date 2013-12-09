@@ -2,7 +2,6 @@
 #include <linux/export.h>
 #include <linux/of.h>
 #include <linux/of_pci.h>
-#include <asm/prom.h>
 
 static inline int __of_pci_pci_compare(struct device_node *node,
 				       unsigned int data)

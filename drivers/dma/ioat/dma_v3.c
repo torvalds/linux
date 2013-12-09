@@ -67,6 +67,8 @@
 #include "dma.h"
 #include "dma_v2.h"
 
+extern struct kmem_cache *ioat3_sed_cache;
+
 /* ioat hardware assumes at least two sources for raid operations */
 #define src_cnt_to_sw(x) ((x) + 2)
 #define src_cnt_to_hw(x) ((x) - 2)
@@ -87,21 +89,7 @@ static const u8 pq_idx_to_field[] = { 1, 4, 5, 0, 1, 2, 4, 5 };
 static const u8 pq16_idx_to_field[] = { 1, 4, 1, 2, 3, 4, 5, 6, 7,
 					0, 1, 2, 3, 4, 5, 6 };
 
-/*
- * technically sources 1 and 2 do not require SED, but the op will have
- * at least 9 descriptors so that's irrelevant.
- */
-static const u8 pq16_idx_to_sed[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				      1, 1, 1, 1, 1, 1, 1 };
-
 static void ioat3_eh(struct ioat2_dma_chan *ioat);
-
-static dma_addr_t xor_get_src(struct ioat_raw_descriptor *descs[2], int idx)
-{
-	struct ioat_raw_descriptor *raw = descs[xor_idx_to_desc >> idx & 1];
-
-	return raw->field[xor_idx_to_field[idx]];
-}
 
 static void xor_set_src(struct ioat_raw_descriptor *descs[2],
 			dma_addr_t addr, u32 offset, int idx)
@@ -133,12 +121,6 @@ static void pq_set_src(struct ioat_raw_descriptor *descs[2],
 
 	raw->field[pq_idx_to_field[idx]] = addr + offset;
 	pq->coef[idx] = coef;
-}
-
-static int sed_get_pq16_pool_idx(int src_cnt)
-{
-
-	return pq16_idx_to_sed[src_cnt];
 }
 
 static bool is_jf_ioat(struct pci_dev *pdev)
@@ -272,7 +254,7 @@ ioat3_alloc_sed(struct ioatdma_device *device, unsigned int hw_pool)
 	struct ioat_sed_ent *sed;
 	gfp_t flags = __GFP_ZERO | GFP_ATOMIC;
 
-	sed = kmem_cache_alloc(device->sed_pool, flags);
+	sed = kmem_cache_alloc(ioat3_sed_cache, flags);
 	if (!sed)
 		return NULL;
 
@@ -280,7 +262,7 @@ ioat3_alloc_sed(struct ioatdma_device *device, unsigned int hw_pool)
 	sed->hw = dma_pool_alloc(device->sed_hw_pool[hw_pool],
 				 flags, &sed->dma);
 	if (!sed->hw) {
-		kmem_cache_free(device->sed_pool, sed);
+		kmem_cache_free(ioat3_sed_cache, sed);
 		return NULL;
 	}
 
@@ -293,165 +275,7 @@ static void ioat3_free_sed(struct ioatdma_device *device, struct ioat_sed_ent *s
 		return;
 
 	dma_pool_free(device->sed_hw_pool[sed->hw_pool], sed->hw, sed->dma);
-	kmem_cache_free(device->sed_pool, sed);
-}
-
-static void ioat3_dma_unmap(struct ioat2_dma_chan *ioat,
-			    struct ioat_ring_ent *desc, int idx)
-{
-	struct ioat_chan_common *chan = &ioat->base;
-	struct pci_dev *pdev = chan->device->pdev;
-	size_t len = desc->len;
-	size_t offset = len - desc->hw->size;
-	struct dma_async_tx_descriptor *tx = &desc->txd;
-	enum dma_ctrl_flags flags = tx->flags;
-
-	switch (desc->hw->ctl_f.op) {
-	case IOAT_OP_COPY:
-		if (!desc->hw->ctl_f.null) /* skip 'interrupt' ops */
-			ioat_dma_unmap(chan, flags, len, desc->hw);
-		break;
-	case IOAT_OP_XOR_VAL:
-	case IOAT_OP_XOR: {
-		struct ioat_xor_descriptor *xor = desc->xor;
-		struct ioat_ring_ent *ext;
-		struct ioat_xor_ext_descriptor *xor_ex = NULL;
-		int src_cnt = src_cnt_to_sw(xor->ctl_f.src_cnt);
-		struct ioat_raw_descriptor *descs[2];
-		int i;
-
-		if (src_cnt > 5) {
-			ext = ioat2_get_ring_ent(ioat, idx + 1);
-			xor_ex = ext->xor_ex;
-		}
-
-		if (!(flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-			descs[0] = (struct ioat_raw_descriptor *) xor;
-			descs[1] = (struct ioat_raw_descriptor *) xor_ex;
-			for (i = 0; i < src_cnt; i++) {
-				dma_addr_t src = xor_get_src(descs, i);
-
-				ioat_unmap(pdev, src - offset, len,
-					   PCI_DMA_TODEVICE, flags, 0);
-			}
-
-			/* dest is a source in xor validate operations */
-			if (xor->ctl_f.op == IOAT_OP_XOR_VAL) {
-				ioat_unmap(pdev, xor->dst_addr - offset, len,
-					   PCI_DMA_TODEVICE, flags, 1);
-				break;
-			}
-		}
-
-		if (!(flags & DMA_COMPL_SKIP_DEST_UNMAP))
-			ioat_unmap(pdev, xor->dst_addr - offset, len,
-				   PCI_DMA_FROMDEVICE, flags, 1);
-		break;
-	}
-	case IOAT_OP_PQ_VAL:
-	case IOAT_OP_PQ: {
-		struct ioat_pq_descriptor *pq = desc->pq;
-		struct ioat_ring_ent *ext;
-		struct ioat_pq_ext_descriptor *pq_ex = NULL;
-		int src_cnt = src_cnt_to_sw(pq->ctl_f.src_cnt);
-		struct ioat_raw_descriptor *descs[2];
-		int i;
-
-		if (src_cnt > 3) {
-			ext = ioat2_get_ring_ent(ioat, idx + 1);
-			pq_ex = ext->pq_ex;
-		}
-
-		/* in the 'continue' case don't unmap the dests as sources */
-		if (dmaf_p_disabled_continue(flags))
-			src_cnt--;
-		else if (dmaf_continue(flags))
-			src_cnt -= 3;
-
-		if (!(flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-			descs[0] = (struct ioat_raw_descriptor *) pq;
-			descs[1] = (struct ioat_raw_descriptor *) pq_ex;
-			for (i = 0; i < src_cnt; i++) {
-				dma_addr_t src = pq_get_src(descs, i);
-
-				ioat_unmap(pdev, src - offset, len,
-					   PCI_DMA_TODEVICE, flags, 0);
-			}
-
-			/* the dests are sources in pq validate operations */
-			if (pq->ctl_f.op == IOAT_OP_XOR_VAL) {
-				if (!(flags & DMA_PREP_PQ_DISABLE_P))
-					ioat_unmap(pdev, pq->p_addr - offset,
-						   len, PCI_DMA_TODEVICE, flags, 0);
-				if (!(flags & DMA_PREP_PQ_DISABLE_Q))
-					ioat_unmap(pdev, pq->q_addr - offset,
-						   len, PCI_DMA_TODEVICE, flags, 0);
-				break;
-			}
-		}
-
-		if (!(flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
-			if (!(flags & DMA_PREP_PQ_DISABLE_P))
-				ioat_unmap(pdev, pq->p_addr - offset, len,
-					   PCI_DMA_BIDIRECTIONAL, flags, 1);
-			if (!(flags & DMA_PREP_PQ_DISABLE_Q))
-				ioat_unmap(pdev, pq->q_addr - offset, len,
-					   PCI_DMA_BIDIRECTIONAL, flags, 1);
-		}
-		break;
-	}
-	case IOAT_OP_PQ_16S:
-	case IOAT_OP_PQ_VAL_16S: {
-		struct ioat_pq_descriptor *pq = desc->pq;
-		int src_cnt = src16_cnt_to_sw(pq->ctl_f.src_cnt);
-		struct ioat_raw_descriptor *descs[4];
-		int i;
-
-		/* in the 'continue' case don't unmap the dests as sources */
-		if (dmaf_p_disabled_continue(flags))
-			src_cnt--;
-		else if (dmaf_continue(flags))
-			src_cnt -= 3;
-
-		if (!(flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-			descs[0] = (struct ioat_raw_descriptor *)pq;
-			descs[1] = (struct ioat_raw_descriptor *)(desc->sed->hw);
-			descs[2] = (struct ioat_raw_descriptor *)(&desc->sed->hw->b[0]);
-			for (i = 0; i < src_cnt; i++) {
-				dma_addr_t src = pq16_get_src(descs, i);
-
-				ioat_unmap(pdev, src - offset, len,
-					   PCI_DMA_TODEVICE, flags, 0);
-			}
-
-			/* the dests are sources in pq validate operations */
-			if (pq->ctl_f.op == IOAT_OP_XOR_VAL) {
-				if (!(flags & DMA_PREP_PQ_DISABLE_P))
-					ioat_unmap(pdev, pq->p_addr - offset,
-						   len, PCI_DMA_TODEVICE,
-						   flags, 0);
-				if (!(flags & DMA_PREP_PQ_DISABLE_Q))
-					ioat_unmap(pdev, pq->q_addr - offset,
-						   len, PCI_DMA_TODEVICE,
-						   flags, 0);
-				break;
-			}
-		}
-
-		if (!(flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
-			if (!(flags & DMA_PREP_PQ_DISABLE_P))
-				ioat_unmap(pdev, pq->p_addr - offset, len,
-					   PCI_DMA_BIDIRECTIONAL, flags, 1);
-			if (!(flags & DMA_PREP_PQ_DISABLE_Q))
-				ioat_unmap(pdev, pq->q_addr - offset, len,
-					   PCI_DMA_BIDIRECTIONAL, flags, 1);
-		}
-		break;
-	}
-	default:
-		dev_err(&pdev->dev, "%s: unknown op type: %#x\n",
-			__func__, desc->hw->ctl_f.op);
-	}
+	kmem_cache_free(ioat3_sed_cache, sed);
 }
 
 static bool desc_has_ext(struct ioat_ring_ent *desc)
@@ -577,7 +401,7 @@ static void __cleanup(struct ioat2_dma_chan *ioat, dma_addr_t phys_complete)
 		tx = &desc->txd;
 		if (tx->cookie) {
 			dma_cookie_complete(tx);
-			ioat3_dma_unmap(ioat, desc, idx + i);
+			dma_descriptor_unmap(tx);
 			if (tx->callback) {
 				tx->callback(tx->callback_param);
 				tx->callback = NULL;
@@ -807,7 +631,7 @@ ioat3_tx_status(struct dma_chan *c, dma_cookie_t cookie,
 	enum dma_status ret;
 
 	ret = dma_cookie_status(c, cookie, txstate);
-	if (ret == DMA_SUCCESS)
+	if (ret == DMA_COMPLETE)
 		return ret;
 
 	ioat3_cleanup(ioat);
@@ -1129,9 +953,6 @@ __ioat3_prep_pq16_lock(struct dma_chan *c, enum sum_check_flags *result,
 	u8 op;
 	int i, s, idx, num_descs;
 
-	/* this function only handles src_cnt 9 - 16 */
-	BUG_ON(src_cnt < 9);
-
 	/* this function is only called with 9-16 sources */
 	op = result ? IOAT_OP_PQ_VAL_16S : IOAT_OP_PQ_16S;
 
@@ -1159,8 +980,7 @@ __ioat3_prep_pq16_lock(struct dma_chan *c, enum sum_check_flags *result,
 
 		descs[0] = (struct ioat_raw_descriptor *) pq;
 
-		desc->sed = ioat3_alloc_sed(device,
-					    sed_get_pq16_pool_idx(src_cnt));
+		desc->sed = ioat3_alloc_sed(device, (src_cnt-2) >> 3);
 		if (!desc->sed) {
 			dev_err(to_dev(chan),
 				"%s: no free sed entries\n", __func__);
@@ -1218,13 +1038,21 @@ __ioat3_prep_pq16_lock(struct dma_chan *c, enum sum_check_flags *result,
 	return &desc->txd;
 }
 
+static int src_cnt_flags(unsigned int src_cnt, unsigned long flags)
+{
+	if (dmaf_p_disabled_continue(flags))
+		return src_cnt + 1;
+	else if (dmaf_continue(flags))
+		return src_cnt + 3;
+	else
+		return src_cnt;
+}
+
 static struct dma_async_tx_descriptor *
 ioat3_prep_pq(struct dma_chan *chan, dma_addr_t *dst, dma_addr_t *src,
 	      unsigned int src_cnt, const unsigned char *scf, size_t len,
 	      unsigned long flags)
 {
-	struct dma_device *dma = chan->device;
-
 	/* specify valid address for disabled result */
 	if (flags & DMA_PREP_PQ_DISABLE_P)
 		dst[0] = dst[1];
@@ -1244,7 +1072,7 @@ ioat3_prep_pq(struct dma_chan *chan, dma_addr_t *dst, dma_addr_t *src,
 		single_source_coef[0] = scf[0];
 		single_source_coef[1] = 0;
 
-		return (src_cnt > 8) && (dma->max_pq > 8) ?
+		return src_cnt_flags(src_cnt, flags) > 8 ?
 			__ioat3_prep_pq16_lock(chan, NULL, dst, single_source,
 					       2, single_source_coef, len,
 					       flags) :
@@ -1252,7 +1080,7 @@ ioat3_prep_pq(struct dma_chan *chan, dma_addr_t *dst, dma_addr_t *src,
 					     single_source_coef, len, flags);
 
 	} else {
-		return (src_cnt > 8) && (dma->max_pq > 8) ?
+		return src_cnt_flags(src_cnt, flags) > 8 ?
 			__ioat3_prep_pq16_lock(chan, NULL, dst, src, src_cnt,
 					       scf, len, flags) :
 			__ioat3_prep_pq_lock(chan, NULL, dst, src, src_cnt,
@@ -1265,8 +1093,6 @@ ioat3_prep_pq_val(struct dma_chan *chan, dma_addr_t *pq, dma_addr_t *src,
 		  unsigned int src_cnt, const unsigned char *scf, size_t len,
 		  enum sum_check_flags *pqres, unsigned long flags)
 {
-	struct dma_device *dma = chan->device;
-
 	/* specify valid address for disabled result */
 	if (flags & DMA_PREP_PQ_DISABLE_P)
 		pq[0] = pq[1];
@@ -1278,7 +1104,7 @@ ioat3_prep_pq_val(struct dma_chan *chan, dma_addr_t *pq, dma_addr_t *src,
 	 */
 	*pqres = 0;
 
-	return (src_cnt > 8) && (dma->max_pq > 8) ?
+	return src_cnt_flags(src_cnt, flags) > 8 ?
 		__ioat3_prep_pq16_lock(chan, pqres, pq, src, src_cnt, scf, len,
 				       flags) :
 		__ioat3_prep_pq_lock(chan, pqres, pq, src, src_cnt, scf, len,
@@ -1289,7 +1115,6 @@ static struct dma_async_tx_descriptor *
 ioat3_prep_pqxor(struct dma_chan *chan, dma_addr_t dst, dma_addr_t *src,
 		 unsigned int src_cnt, size_t len, unsigned long flags)
 {
-	struct dma_device *dma = chan->device;
 	unsigned char scf[src_cnt];
 	dma_addr_t pq[2];
 
@@ -1298,7 +1123,7 @@ ioat3_prep_pqxor(struct dma_chan *chan, dma_addr_t dst, dma_addr_t *src,
 	flags |= DMA_PREP_PQ_DISABLE_Q;
 	pq[1] = dst; /* specify valid address for disabled result */
 
-	return (src_cnt > 8) && (dma->max_pq > 8) ?
+	return src_cnt_flags(src_cnt, flags) > 8 ?
 		__ioat3_prep_pq16_lock(chan, NULL, pq, src, src_cnt, scf, len,
 				       flags) :
 		__ioat3_prep_pq_lock(chan, NULL, pq, src, src_cnt, scf, len,
@@ -1310,7 +1135,6 @@ ioat3_prep_pqxor_val(struct dma_chan *chan, dma_addr_t *src,
 		     unsigned int src_cnt, size_t len,
 		     enum sum_check_flags *result, unsigned long flags)
 {
-	struct dma_device *dma = chan->device;
 	unsigned char scf[src_cnt];
 	dma_addr_t pq[2];
 
@@ -1324,8 +1148,7 @@ ioat3_prep_pqxor_val(struct dma_chan *chan, dma_addr_t *src,
 	flags |= DMA_PREP_PQ_DISABLE_Q;
 	pq[1] = pq[0]; /* specify valid address for disabled result */
 
-
-	return (src_cnt > 8) && (dma->max_pq > 8) ?
+	return src_cnt_flags(src_cnt, flags) > 8 ?
 		__ioat3_prep_pq16_lock(chan, result, pq, &src[1], src_cnt - 1,
 				       scf, len, flags) :
 		__ioat3_prep_pq_lock(chan, result, pq, &src[1], src_cnt - 1,
@@ -1444,9 +1267,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *device)
 					   DMA_TO_DEVICE);
 	tx = dma->device_prep_dma_xor(dma_chan, dest_dma, dma_srcs,
 				      IOAT_NUM_SRC_TEST, PAGE_SIZE,
-				      DMA_PREP_INTERRUPT |
-				      DMA_COMPL_SKIP_SRC_UNMAP |
-				      DMA_COMPL_SKIP_DEST_UNMAP);
+				      DMA_PREP_INTERRUPT);
 
 	if (!tx) {
 		dev_err(dev, "Self-test xor prep failed\n");
@@ -1468,7 +1289,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *device)
 
 	tmo = wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000));
 
-	if (dma->device_tx_status(dma_chan, cookie, NULL) != DMA_SUCCESS) {
+	if (dma->device_tx_status(dma_chan, cookie, NULL) != DMA_COMPLETE) {
 		dev_err(dev, "Self-test xor timed out\n");
 		err = -ENODEV;
 		goto dma_unmap;
@@ -1507,9 +1328,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *device)
 					   DMA_TO_DEVICE);
 	tx = dma->device_prep_dma_xor_val(dma_chan, dma_srcs,
 					  IOAT_NUM_SRC_TEST + 1, PAGE_SIZE,
-					  &xor_val_result, DMA_PREP_INTERRUPT |
-					  DMA_COMPL_SKIP_SRC_UNMAP |
-					  DMA_COMPL_SKIP_DEST_UNMAP);
+					  &xor_val_result, DMA_PREP_INTERRUPT);
 	if (!tx) {
 		dev_err(dev, "Self-test zero prep failed\n");
 		err = -ENODEV;
@@ -1530,7 +1349,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *device)
 
 	tmo = wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000));
 
-	if (dma->device_tx_status(dma_chan, cookie, NULL) != DMA_SUCCESS) {
+	if (dma->device_tx_status(dma_chan, cookie, NULL) != DMA_COMPLETE) {
 		dev_err(dev, "Self-test validate timed out\n");
 		err = -ENODEV;
 		goto dma_unmap;
@@ -1545,6 +1364,8 @@ static int ioat_xor_val_self_test(struct ioatdma_device *device)
 		goto free_resources;
 	}
 
+	memset(page_address(dest), 0, PAGE_SIZE);
+
 	/* test for non-zero parity sum */
 	op = IOAT_OP_XOR_VAL;
 
@@ -1554,9 +1375,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *device)
 					   DMA_TO_DEVICE);
 	tx = dma->device_prep_dma_xor_val(dma_chan, dma_srcs,
 					  IOAT_NUM_SRC_TEST + 1, PAGE_SIZE,
-					  &xor_val_result, DMA_PREP_INTERRUPT |
-					  DMA_COMPL_SKIP_SRC_UNMAP |
-					  DMA_COMPL_SKIP_DEST_UNMAP);
+					  &xor_val_result, DMA_PREP_INTERRUPT);
 	if (!tx) {
 		dev_err(dev, "Self-test 2nd zero prep failed\n");
 		err = -ENODEV;
@@ -1577,7 +1396,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *device)
 
 	tmo = wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000));
 
-	if (dma->device_tx_status(dma_chan, cookie, NULL) != DMA_SUCCESS) {
+	if (dma->device_tx_status(dma_chan, cookie, NULL) != DMA_COMPLETE) {
 		dev_err(dev, "Self-test 2nd validate timed out\n");
 		err = -ENODEV;
 		goto dma_unmap;
@@ -1630,52 +1449,36 @@ static int ioat3_dma_self_test(struct ioatdma_device *device)
 
 static int ioat3_irq_reinit(struct ioatdma_device *device)
 {
-	int msixcnt = device->common.chancnt;
 	struct pci_dev *pdev = device->pdev;
-	int i;
-	struct msix_entry *msix;
-	struct ioat_chan_common *chan;
-	int err = 0;
+	int irq = pdev->irq, i;
+
+	if (!is_bwd_ioat(pdev))
+		return 0;
 
 	switch (device->irq_mode) {
 	case IOAT_MSIX:
+		for (i = 0; i < device->common.chancnt; i++) {
+			struct msix_entry *msix = &device->msix_entries[i];
+			struct ioat_chan_common *chan;
 
-		for (i = 0; i < msixcnt; i++) {
-			msix = &device->msix_entries[i];
 			chan = ioat_chan_by_index(device, i);
 			devm_free_irq(&pdev->dev, msix->vector, chan);
 		}
 
 		pci_disable_msix(pdev);
 		break;
-
-	case IOAT_MSIX_SINGLE:
-		msix = &device->msix_entries[0];
-		chan = ioat_chan_by_index(device, 0);
-		devm_free_irq(&pdev->dev, msix->vector, chan);
-		pci_disable_msix(pdev);
-		break;
-
 	case IOAT_MSI:
-		chan = ioat_chan_by_index(device, 0);
-		devm_free_irq(&pdev->dev, pdev->irq, chan);
 		pci_disable_msi(pdev);
-		break;
-
+		/* fall through */
 	case IOAT_INTX:
-		chan = ioat_chan_by_index(device, 0);
-		devm_free_irq(&pdev->dev, pdev->irq, chan);
+		devm_free_irq(&pdev->dev, irq, device);
 		break;
-
 	default:
 		return 0;
 	}
-
 	device->irq_mode = IOAT_NOIRQ;
 
-	err = ioat_dma_setup_interrupts(device);
-
-	return err;
+	return ioat_dma_setup_interrupts(device);
 }
 
 static int ioat3_reset_hw(struct ioat_chan_common *chan)
@@ -1718,13 +1521,11 @@ static int ioat3_reset_hw(struct ioat_chan_common *chan)
 	}
 
 	err = ioat2_reset_sync(chan, msecs_to_jiffies(200));
-	if (err) {
-		dev_err(&pdev->dev, "Failed to reset!\n");
-		return err;
-	}
-
-	if (device->irq_mode != IOAT_NOIRQ && is_bwd_ioat(pdev))
+	if (!err)
 		err = ioat3_irq_reinit(device);
+
+	if (err)
+		dev_err(&pdev->dev, "Failed to reset: %d\n", err);
 
 	return err;
 }
@@ -1835,21 +1636,15 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 		char pool_name[14];
 		int i;
 
-		/* allocate sw descriptor pool for SED */
-		device->sed_pool = kmem_cache_create("ioat_sed",
-				sizeof(struct ioat_sed_ent), 0, 0, NULL);
-		if (!device->sed_pool)
-			return -ENOMEM;
-
 		for (i = 0; i < MAX_SED_POOLS; i++) {
 			snprintf(pool_name, 14, "ioat_hw%d_sed", i);
 
 			/* allocate SED DMA pool */
-			device->sed_hw_pool[i] = dma_pool_create(pool_name,
+			device->sed_hw_pool[i] = dmam_pool_create(pool_name,
 					&pdev->dev,
 					SED_SIZE * (i + 1), 64, 0);
 			if (!device->sed_hw_pool[i])
-				goto sed_pool_cleanup;
+				return -ENOMEM;
 
 		}
 	}
@@ -1875,28 +1670,4 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 		device->dca = ioat3_dca_init(pdev, device->reg_base);
 
 	return 0;
-
-sed_pool_cleanup:
-	if (device->sed_pool) {
-		int i;
-		kmem_cache_destroy(device->sed_pool);
-
-		for (i = 0; i < MAX_SED_POOLS; i++)
-			if (device->sed_hw_pool[i])
-				dma_pool_destroy(device->sed_hw_pool[i]);
-	}
-
-	return -ENOMEM;
-}
-
-void ioat3_dma_remove(struct ioatdma_device *device)
-{
-	if (device->sed_pool) {
-		int i;
-		kmem_cache_destroy(device->sed_pool);
-
-		for (i = 0; i < MAX_SED_POOLS; i++)
-			if (device->sed_hw_pool[i])
-				dma_pool_destroy(device->sed_hw_pool[i]);
-	}
 }

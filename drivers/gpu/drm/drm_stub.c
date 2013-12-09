@@ -338,7 +338,7 @@ err_idr:
  */
 static void drm_unplug_minor(struct drm_minor *minor)
 {
-	if (!minor || !device_is_registered(minor->kdev))
+	if (!minor || !minor->kdev)
 		return;
 
 #if defined(CONFIG_DEBUG_FS)

@@ -973,7 +973,7 @@ int wusb_usb_ncb(struct notifier_block *nb, unsigned long val,
 	default:
 		WARN_ON(1);
 		result = NOTIFY_BAD;
-	};
+	}
 	return result;
 }
 

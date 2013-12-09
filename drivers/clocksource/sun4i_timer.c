@@ -37,6 +37,8 @@
 #define TIMER_INTVAL_REG(val)	(0x10 * (val) + 0x14)
 #define TIMER_CNTVAL_REG(val)	(0x10 * (val) + 0x18)
 
+#define TIMER_SYNC_TICKS	3
+
 static void __iomem *timer_base;
 static u32 ticks_per_jiffy;
 
@@ -50,7 +52,7 @@ static void sun4i_clkevt_sync(void)
 {
 	u32 old = readl(timer_base + TIMER_CNTVAL_REG(1));
 
-	while ((old - readl(timer_base + TIMER_CNTVAL_REG(1))) < 3)
+	while ((old - readl(timer_base + TIMER_CNTVAL_REG(1))) < TIMER_SYNC_TICKS)
 		cpu_relax();
 }
 
@@ -104,7 +106,7 @@ static int sun4i_clkevt_next_event(unsigned long evt,
 				   struct clock_event_device *unused)
 {
 	sun4i_clkevt_time_stop(0);
-	sun4i_clkevt_time_setup(0, evt);
+	sun4i_clkevt_time_setup(0, evt - TIMER_SYNC_TICKS);
 	sun4i_clkevt_time_start(0, false);
 
 	return 0;
@@ -131,7 +133,7 @@ static irqreturn_t sun4i_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction sun4i_timer_irq = {
 	.name = "sun4i_timer0",
-	.flags = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.flags = IRQF_TIMER | IRQF_IRQPOLL,
 	.handler = sun4i_timer_interrupt,
 	.dev_id = &sun4i_clockevent,
 };
@@ -187,8 +189,8 @@ static void __init sun4i_timer_init(struct device_node *node)
 
 	sun4i_clockevent.cpumask = cpumask_of(0);
 
-	clockevents_config_and_register(&sun4i_clockevent, rate, 0x1,
-					0xffffffff);
+	clockevents_config_and_register(&sun4i_clockevent, rate,
+					TIMER_SYNC_TICKS, 0xffffffff);
 }
 CLOCKSOURCE_OF_DECLARE(sun4i, "allwinner,sun4i-timer",
 		       sun4i_timer_init);

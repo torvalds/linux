@@ -46,6 +46,7 @@
 #define WIIPROTO_FLAG_DRM_LOCKED	0x8000
 #define WIIPROTO_FLAG_BUILTIN_MP	0x010000
 #define WIIPROTO_FLAG_NO_MP		0x020000
+#define WIIPROTO_FLAG_PRO_CALIB_DONE	0x040000
 
 #define WIIPROTO_FLAGS_LEDS (WIIPROTO_FLAG_LED1 | WIIPROTO_FLAG_LED2 | \
 					WIIPROTO_FLAG_LED3 | WIIPROTO_FLAG_LED4)
@@ -135,6 +136,7 @@ struct wiimote_state {
 
 	/* calibration/cache data */
 	__u16 calib_bboard[4][3];
+	__s16 calib_pro_sticks[4];
 	__u8 cache_rumble;
 };
 
@@ -327,7 +329,7 @@ static inline void wiimote_cmd_acquire_noint(struct wiimote_data *wdata)
 static inline void wiimote_cmd_set(struct wiimote_data *wdata, int cmd,
 								__u32 opt)
 {
-	INIT_COMPLETION(wdata->state.ready);
+	reinit_completion(&wdata->state.ready);
 	wdata->state.cmd = cmd;
 	wdata->state.opt = opt;
 }

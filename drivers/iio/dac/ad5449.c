@@ -101,7 +101,6 @@ static int ad5449_read(struct iio_dev *indio_dev, unsigned int addr,
 {
 	struct ad5449 *st = iio_priv(indio_dev);
 	int ret;
-	struct spi_message msg;
 	struct spi_transfer t[] = {
 		{
 			.tx_buf = &st->data[0],
@@ -114,15 +113,11 @@ static int ad5449_read(struct iio_dev *indio_dev, unsigned int addr,
 		},
 	};
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&t[0], &msg);
-	spi_message_add_tail(&t[1], &msg);
-
 	mutex_lock(&indio_dev->mlock);
 	st->data[0] = cpu_to_be16(addr << 12);
 	st->data[1] = cpu_to_be16(AD5449_CMD_NOOP);
 
-	ret = spi_sync(st->spi, &msg);
+	ret = spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
 	if (ret < 0)
 		goto out_unlock;
 

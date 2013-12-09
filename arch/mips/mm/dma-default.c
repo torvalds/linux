@@ -297,7 +297,6 @@ static void mips_dma_sync_single_for_cpu(struct device *dev,
 static void mips_dma_sync_single_for_device(struct device *dev,
 	dma_addr_t dma_handle, size_t size, enum dma_data_direction direction)
 {
-	plat_extra_sync_for_device(dev);
 	if (!plat_device_is_coherent(dev))
 		__dma_sync(dma_addr_to_page(dev, dma_handle),
 			   dma_handle & ~PAGE_MASK, size, direction);
@@ -327,7 +326,7 @@ static void mips_dma_sync_sg_for_device(struct device *dev,
 
 int mips_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
-	return plat_dma_mapping_error(dev, dma_addr);
+	return 0;
 }
 
 int mips_dma_supported(struct device *dev, u64 mask)
@@ -340,7 +339,6 @@ void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 {
 	BUG_ON(direction == DMA_NONE);
 
-	plat_extra_sync_for_device(dev);
 	if (!plat_device_is_coherent(dev))
 		__dma_sync_virtual(vaddr, size, direction);
 }

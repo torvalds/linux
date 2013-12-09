@@ -455,8 +455,8 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc)
 	/* Dot clock in Hz: */
 	dotclock = (u64) crtc->hwmode.clock * 1000;
 
-	/* Fields of interlaced scanout modes are only halve a frame duration.
-	 * Double the dotclock to get halve the frame-/line-/pixelduration.
+	/* Fields of interlaced scanout modes are only half a frame duration.
+	 * Double the dotclock to get half the frame-/line-/pixelduration.
 	 */
 	if (crtc->hwmode.flags & DRM_MODE_FLAG_INTERLACE)
 		dotclock *= 2;

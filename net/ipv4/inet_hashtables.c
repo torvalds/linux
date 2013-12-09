@@ -24,6 +24,31 @@
 #include <net/secure_seq.h>
 #include <net/ip.h>
 
+static unsigned int inet_ehashfn(struct net *net, const __be32 laddr,
+				 const __u16 lport, const __be32 faddr,
+				 const __be16 fport)
+{
+	static u32 inet_ehash_secret __read_mostly;
+
+	net_get_random_once(&inet_ehash_secret, sizeof(inet_ehash_secret));
+
+	return __inet_ehashfn(laddr, lport, faddr, fport,
+			      inet_ehash_secret + net_hash_mix(net));
+}
+
+
+static unsigned int inet_sk_ehashfn(const struct sock *sk)
+{
+	const struct inet_sock *inet = inet_sk(sk);
+	const __be32 laddr = inet->inet_rcv_saddr;
+	const __u16 lport = inet->inet_num;
+	const __be32 faddr = inet->inet_daddr;
+	const __be16 fport = inet->inet_dport;
+	struct net *net = sock_net(sk);
+
+	return inet_ehashfn(net, laddr, lport, faddr, fport);
+}
+
 /*
  * Allocate and initialize a new local port bind bucket.
  * The bindhash mutex for snum's hash chain must be held here.
@@ -230,6 +255,19 @@ begin:
 }
 EXPORT_SYMBOL_GPL(__inet_lookup_listener);
 
+/* All sockets share common refcount, but have different destructors */
+void sock_gen_put(struct sock *sk)
+{
+	if (!atomic_dec_and_test(&sk->sk_refcnt))
+		return;
+
+	if (sk->sk_state == TCP_TIME_WAIT)
+		inet_twsk_free(inet_twsk(sk));
+	else
+		sk_free(sk);
+}
+EXPORT_SYMBOL_GPL(sock_gen_put);
+
 struct sock *__inet_lookup_established(struct net *net,
 				  struct inet_hashinfo *hashinfo,
 				  const __be32 saddr, const __be16 sport,
@@ -255,13 +293,13 @@ begin:
 		if (likely(INET_MATCH(sk, net, acookie,
 				      saddr, daddr, ports, dif))) {
 			if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt)))
-				goto begintw;
+				goto out;
 			if (unlikely(!INET_MATCH(sk, net, acookie,
 						 saddr, daddr, ports, dif))) {
-				sock_put(sk);
+				sock_gen_put(sk);
 				goto begin;
 			}
-			goto out;
+			goto found;
 		}
 	}
 	/*
@@ -271,37 +309,9 @@ begin:
 	 */
 	if (get_nulls_value(node) != slot)
 		goto begin;
-
-begintw:
-	/* Must check for a TIME_WAIT'er before going to listener hash. */
-	sk_nulls_for_each_rcu(sk, node, &head->twchain) {
-		if (sk->sk_hash != hash)
-			continue;
-		if (likely(INET_TW_MATCH(sk, net, acookie,
-					 saddr, daddr, ports,
-					 dif))) {
-			if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt))) {
-				sk = NULL;
-				goto out;
-			}
-			if (unlikely(!INET_TW_MATCH(sk, net, acookie,
-						    saddr, daddr, ports,
-						    dif))) {
-				inet_twsk_put(inet_twsk(sk));
-				goto begintw;
-			}
-			goto out;
-		}
-	}
-	/*
-	 * if the nulls value we got at the end of this lookup is
-	 * not the expected one, we must restart lookup.
-	 * We probably met an item that was moved to another chain.
-	 */
-	if (get_nulls_value(node) != slot)
-		goto begintw;
-	sk = NULL;
 out:
+	sk = NULL;
+found:
 	rcu_read_unlock();
 	return sk;
 }
@@ -326,39 +336,29 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	spinlock_t *lock = inet_ehash_lockp(hinfo, hash);
 	struct sock *sk2;
 	const struct hlist_nulls_node *node;
-	struct inet_timewait_sock *tw;
+	struct inet_timewait_sock *tw = NULL;
 	int twrefcnt = 0;
 
 	spin_lock(lock);
 
-	/* Check TIME-WAIT sockets first. */
-	sk_nulls_for_each(sk2, node, &head->twchain) {
-		if (sk2->sk_hash != hash)
-			continue;
-
-		if (likely(INET_TW_MATCH(sk2, net, acookie,
-					 saddr, daddr, ports, dif))) {
-			tw = inet_twsk(sk2);
-			if (twsk_unique(sk, sk2, twp))
-				goto unique;
-			else
-				goto not_unique;
-		}
-	}
-	tw = NULL;
-
-	/* And established part... */
 	sk_nulls_for_each(sk2, node, &head->chain) {
 		if (sk2->sk_hash != hash)
 			continue;
+
 		if (likely(INET_MATCH(sk2, net, acookie,
-				      saddr, daddr, ports, dif)))
+					 saddr, daddr, ports, dif))) {
+			if (sk2->sk_state == TCP_TIME_WAIT) {
+				tw = inet_twsk(sk2);
+				if (twsk_unique(sk, sk2, twp))
+					break;
+			}
 			goto not_unique;
+		}
 	}
 
-unique:
 	/* Must record num and sport now. Otherwise we will see
-	 * in hash table socket with a funny identity. */
+	 * in hash table socket with a funny identity.
+	 */
 	inet->inet_num = lport;
 	inet->inet_sport = htons(lport);
 	sk->sk_hash = hash;
@@ -494,7 +494,7 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 		u32 offset = hint + port_offset;
 		struct inet_timewait_sock *tw = NULL;
 
-		inet_get_local_port_range(&low, &high);
+		inet_get_local_port_range(net, &low, &high);
 		remaining = (high - low) + 1;
 
 		local_bh_disable();

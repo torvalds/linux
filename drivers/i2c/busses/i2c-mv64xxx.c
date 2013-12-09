@@ -911,7 +911,7 @@ static struct platform_driver mv64xxx_i2c_driver = {
 	.driver	= {
 		.owner	= THIS_MODULE,
 		.name	= MV64XXX_I2C_CTLR_NAME,
-		.of_match_table = of_match_ptr(mv64xxx_i2c_of_match_table),
+		.of_match_table = mv64xxx_i2c_of_match_table,
 	},
 };
 

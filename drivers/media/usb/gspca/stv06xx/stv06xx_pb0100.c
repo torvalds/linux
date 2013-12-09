@@ -421,7 +421,7 @@ static int pb0100_set_autogain_target(struct gspca_dev *gspca_dev, __s32 val)
 
 	/* Number of pixels counted by the sensor when subsampling the pixels.
 	 * Slightly larger than the real value to avoid oscillation */
-	totalpixels = gspca_dev->width * gspca_dev->height;
+	totalpixels = gspca_dev->pixfmt.width * gspca_dev->pixfmt.height;
 	totalpixels = totalpixels/(8*8) + totalpixels/(64*64);
 
 	brightpixels = (totalpixels * val) >> 8;

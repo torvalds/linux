@@ -117,7 +117,8 @@ nouveau_therm_update(struct nouveau_therm *therm, int mode)
 		    priv->fan->bios.linear_max_temp) {
 			duty = nouveau_therm_update_linear(therm);
 		} else {
-			duty = priv->cstate;
+			if (priv->cstate)
+				duty = priv->cstate;
 			poll = false;
 		}
 		immd = false;

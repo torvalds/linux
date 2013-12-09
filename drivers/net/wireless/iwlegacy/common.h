@@ -858,9 +858,9 @@ struct il_hw_params {
  * il4965_mac_     <-- mac80211 callback
  *
  ****************************************************************************/
-extern void il4965_update_chain_flags(struct il_priv *il);
+void il4965_update_chain_flags(struct il_priv *il);
 extern const u8 il_bcast_addr[ETH_ALEN];
-extern int il_queue_space(const struct il_queue *q);
+int il_queue_space(const struct il_queue *q);
 static inline int
 il_queue_used(const struct il_queue *q, int i)
 {
@@ -1727,7 +1727,7 @@ int il_alloc_txq_mem(struct il_priv *il);
 void il_free_txq_mem(struct il_priv *il);
 
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-extern void il_update_stats(struct il_priv *il, bool is_tx, __le16 fc, u16 len);
+void il_update_stats(struct il_priv *il, bool is_tx, __le16 fc, u16 len);
 #else
 static inline void
 il_update_stats(struct il_priv *il, bool is_tx, __le16 fc, u16 len)
@@ -1760,12 +1760,12 @@ void il_chswitch_done(struct il_priv *il, bool is_success);
 /*****************************************************
 * TX
 ******************************************************/
-extern void il_txq_update_write_ptr(struct il_priv *il, struct il_tx_queue *txq);
-extern int il_tx_queue_init(struct il_priv *il, u32 txq_id);
-extern void il_tx_queue_reset(struct il_priv *il, u32 txq_id);
-extern void il_tx_queue_unmap(struct il_priv *il, int txq_id);
-extern void il_tx_queue_free(struct il_priv *il, int txq_id);
-extern void il_setup_watchdog(struct il_priv *il);
+void il_txq_update_write_ptr(struct il_priv *il, struct il_tx_queue *txq);
+int il_tx_queue_init(struct il_priv *il, u32 txq_id);
+void il_tx_queue_reset(struct il_priv *il, u32 txq_id);
+void il_tx_queue_unmap(struct il_priv *il, int txq_id);
+void il_tx_queue_free(struct il_priv *il, int txq_id);
+void il_setup_watchdog(struct il_priv *il);
 /*****************************************************
  * TX power
  ****************************************************/
@@ -1931,10 +1931,10 @@ il_is_ready_rf(struct il_priv *il)
 	return il_is_ready(il);
 }
 
-extern void il_send_bt_config(struct il_priv *il);
-extern int il_send_stats_request(struct il_priv *il, u8 flags, bool clear);
-extern void il_apm_stop(struct il_priv *il);
-extern void _il_apm_stop(struct il_priv *il);
+void il_send_bt_config(struct il_priv *il);
+int il_send_stats_request(struct il_priv *il, u8 flags, bool clear);
+void il_apm_stop(struct il_priv *il);
+void _il_apm_stop(struct il_priv *il);
 
 int il_apm_init(struct il_priv *il);
 
@@ -1968,15 +1968,15 @@ void il_tx_cmd_protection(struct il_priv *il, struct ieee80211_tx_info *info,
 
 irqreturn_t il_isr(int irq, void *data);
 
-extern void il_set_bit(struct il_priv *p, u32 r, u32 m);
-extern void il_clear_bit(struct il_priv *p, u32 r, u32 m);
-extern bool _il_grab_nic_access(struct il_priv *il);
-extern int _il_poll_bit(struct il_priv *il, u32 addr, u32 bits, u32 mask, int timeout);
-extern int il_poll_bit(struct il_priv *il, u32 addr, u32 mask, int timeout);
-extern u32 il_rd_prph(struct il_priv *il, u32 reg);
-extern void il_wr_prph(struct il_priv *il, u32 addr, u32 val);
-extern u32 il_read_targ_mem(struct il_priv *il, u32 addr);
-extern void il_write_targ_mem(struct il_priv *il, u32 addr, u32 val);
+void il_set_bit(struct il_priv *p, u32 r, u32 m);
+void il_clear_bit(struct il_priv *p, u32 r, u32 m);
+bool _il_grab_nic_access(struct il_priv *il);
+int _il_poll_bit(struct il_priv *il, u32 addr, u32 bits, u32 mask, int timeout);
+int il_poll_bit(struct il_priv *il, u32 addr, u32 mask, int timeout);
+u32 il_rd_prph(struct il_priv *il, u32 reg);
+void il_wr_prph(struct il_priv *il, u32 addr, u32 val);
+u32 il_read_targ_mem(struct il_priv *il, u32 addr);
+void il_write_targ_mem(struct il_priv *il, u32 addr, u32 val);
 
 static inline void
 _il_write8(struct il_priv *il, u32 ofs, u8 val)
@@ -2868,13 +2868,13 @@ il4965_first_antenna(u8 mask)
  * The specific throughput table used is based on the type of network
  * the associated with, including A, B, G, and G w/ TGG protection
  */
-extern void il3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id);
+void il3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id);
 
 /* Initialize station's rate scaling information after adding station */
-extern void il4965_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta,
-				u8 sta_id);
-extern void il3945_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta,
-				u8 sta_id);
+void il4965_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta,
+			 u8 sta_id);
+void il3945_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta,
+			 u8 sta_id);
 
 /**
  * il_rate_control_register - Register the rate control algorithm callbacks
@@ -2886,8 +2886,8 @@ extern void il3945_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta,
  * ieee80211_register_hw
  *
  */
-extern int il4965_rate_control_register(void);
-extern int il3945_rate_control_register(void);
+int il4965_rate_control_register(void);
+int il3945_rate_control_register(void);
 
 /**
  * il_rate_control_unregister - Unregister the rate control callbacks
@@ -2895,11 +2895,11 @@ extern int il3945_rate_control_register(void);
  * This should be called after calling ieee80211_unregister_hw, but before
  * the driver is unloaded.
  */
-extern void il4965_rate_control_unregister(void);
-extern void il3945_rate_control_unregister(void);
+void il4965_rate_control_unregister(void);
+void il3945_rate_control_unregister(void);
 
-extern int il_power_update_mode(struct il_priv *il, bool force);
-extern void il_power_initialize(struct il_priv *il);
+int il_power_update_mode(struct il_priv *il, bool force);
+void il_power_initialize(struct il_priv *il);
 
 extern u32 il_debug_level;
 

@@ -1366,6 +1366,8 @@ static int team_user_linkup_option_get(struct team *team,
 	return 0;
 }
 
+static void __team_carrier_check(struct team *team);
+
 static int team_user_linkup_option_set(struct team *team,
 				       struct team_gsetter_ctx *ctx)
 {
@@ -1373,6 +1375,7 @@ static int team_user_linkup_option_set(struct team *team,
 
 	port->user.linkup = ctx->data.bool_val;
 	team_refresh_port_linkup(port);
+	__team_carrier_check(port->team);
 	return 0;
 }
 
@@ -1392,6 +1395,7 @@ static int team_user_linkup_en_option_set(struct team *team,
 
 	port->user.linkup_enabled = ctx->data.bool_val;
 	team_refresh_port_linkup(port);
+	__team_carrier_check(port->team);
 	return 0;
 }
 
@@ -1539,6 +1543,12 @@ static int team_init(struct net_device *dev)
 	team->pcpu_stats = alloc_percpu(struct team_pcpu_stats);
 	if (!team->pcpu_stats)
 		return -ENOMEM;
+
+	for_each_possible_cpu(i) {
+		struct team_pcpu_stats *team_stats;
+		team_stats = per_cpu_ptr(team->pcpu_stats, i);
+		u64_stats_init(&team_stats->syncp);
+	}
 
 	for (i = 0; i < TEAM_PORT_HASHENTRIES; i++)
 		INIT_HLIST_HEAD(&team->en_port_hlist[i]);
@@ -2644,7 +2654,7 @@ static int team_nl_cmd_port_list_get(struct sk_buff *skb,
 	return err;
 }
 
-static struct genl_ops team_nl_ops[] = {
+static const struct genl_ops team_nl_ops[] = {
 	{
 		.cmd = TEAM_CMD_NOOP,
 		.doit = team_nl_cmd_noop,
@@ -2670,15 +2680,15 @@ static struct genl_ops team_nl_ops[] = {
 	},
 };
 
-static struct genl_multicast_group team_change_event_mcgrp = {
-	.name = TEAM_GENL_CHANGE_EVENT_MC_GRP_NAME,
+static const struct genl_multicast_group team_nl_mcgrps[] = {
+	{ .name = TEAM_GENL_CHANGE_EVENT_MC_GRP_NAME, },
 };
 
 static int team_nl_send_multicast(struct sk_buff *skb,
 				  struct team *team, u32 portid)
 {
-	return genlmsg_multicast_netns(dev_net(team->dev), skb, 0,
-				       team_change_event_mcgrp.id, GFP_KERNEL);
+	return genlmsg_multicast_netns(&team_nl_family, dev_net(team->dev),
+				       skb, 0, 0, GFP_KERNEL);
 }
 
 static int team_nl_send_event_options_get(struct team *team,
@@ -2697,23 +2707,8 @@ static int team_nl_send_event_port_get(struct team *team,
 
 static int team_nl_init(void)
 {
-	int err;
-
-	err = genl_register_family_with_ops(&team_nl_family, team_nl_ops,
-					    ARRAY_SIZE(team_nl_ops));
-	if (err)
-		return err;
-
-	err = genl_register_mc_group(&team_nl_family, &team_change_event_mcgrp);
-	if (err)
-		goto err_change_event_grp_reg;
-
-	return 0;
-
-err_change_event_grp_reg:
-	genl_unregister_family(&team_nl_family);
-
-	return err;
+	return genl_register_family_with_ops_groups(&team_nl_family, team_nl_ops,
+						    team_nl_mcgrps);
 }
 
 static void team_nl_fini(void)

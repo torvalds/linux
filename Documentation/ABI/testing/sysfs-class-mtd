@@ -104,7 +104,7 @@ Description:
 		One of the following ASCII strings, representing the device
 		type:
 
-		absent, ram, rom, nor, nand, dataflash, ubi, unknown
+		absent, ram, rom, nor, nand, mlc-nand, dataflash, ubi, unknown
 
 What:		/sys/class/mtd/mtdX/writesize
 Date:		April 2009

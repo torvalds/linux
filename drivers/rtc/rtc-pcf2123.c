@@ -327,7 +327,7 @@ kfree_exit:
 
 static int pcf2123_remove(struct spi_device *spi)
 {
-	struct pcf2123_plat_data *pdata = spi->dev.platform_data;
+	struct pcf2123_plat_data *pdata = dev_get_platdata(&spi->dev);
 	int i;
 
 	if (pdata) {
