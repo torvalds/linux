@@ -108,7 +108,7 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 	/* Receive data until we see the header byte */
 	deadline = jiffies + msecs_to_jiffies(EC_MSG_DEADLINE_MS);
 	do {
-		memset(&trans, '\0', sizeof(trans));
+		memset(&trans, 0, sizeof(trans));
 		trans.cs_change = 1;
 		trans.rx_buf = ptr = ec_dev->din;
 		trans.len = EC_MSG_PREAMBLE_COUNT;
@@ -160,7 +160,7 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 		dev_dbg(ec_dev->dev, "loop, todo=%d, need_len=%d, ptr=%zd\n",
 			todo, need_len, ptr - ec_dev->din);
 
-		memset(&trans, '\0', sizeof(trans));
+		memset(&trans, 0, sizeof(trans));
 		trans.cs_change = 1;
 		trans.rx_buf = ptr;
 		trans.len = todo;
@@ -220,7 +220,7 @@ static int cros_ec_command_spi_xfer(struct cros_ec_device *ec_dev,
 
 	/* Transmit phase - send our message */
 	debug_packet(ec_dev->dev, "out", ec_dev->dout, len);
-	memset(&trans, '\0', sizeof(trans));
+	memset(&trans, 0, sizeof(trans));
 	trans.tx_buf = ec_dev->dout;
 	trans.len = len;
 	trans.cs_change = 1;
