@@ -182,7 +182,10 @@ struct event_filter *pevent_filter_alloc(struct pevent *pevent)
 {
 	struct event_filter *filter;
 
-	filter = malloc_or_die(sizeof(*filter));
+	filter = malloc(sizeof(*filter));
+	if (filter == NULL)
+		return NULL;
+
 	memset(filter, 0, sizeof(*filter));
 	filter->pevent = pevent;
 	pevent_ref(pevent);
