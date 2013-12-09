@@ -1260,10 +1260,10 @@ static int pci_quatech_init(struct pci_dev *dev)
 		unsigned long base = pci_resource_start(dev, 0);
 		if (base) {
 			u32 tmp;
-			outl(inl(base + 0x38), base + 0x38);
+			outl(inl(base + 0x38) | 0x00002000, base + 0x38);
 			tmp = inl(base + 0x3c);
 			outl(tmp | 0x01000000, base + 0x3c);
-			outl(tmp, base + 0x3c);
+			outl(tmp &= ~0x01000000, base + 0x3c);
 		}
 	}
 	return 0;
