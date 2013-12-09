@@ -99,6 +99,7 @@ Configuration Options:
 #define PCMMIO_AI_STATUS_REG_SEL	(1 << 3)
 #define PCMMIO_AI_STATUS_CMD_DRQ_ENA	(1 << 1)
 #define PCMMIO_AI_STATUS_IRQ_ENA	(1 << 0)
+#define PCMMIO_AI_RESOURCE_REG		0x03
 #define PCMMIO_AI_2ND_ADC_OFFSET	0x04
 
 /* This stuff is all from pcmuio.c -- it refers to the DIO subdevices only */
@@ -790,7 +791,7 @@ static int pcmmio_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	unsigned long iobase = subpriv->iobase;
+	unsigned long iobase = dev->iobase;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int aref = CR_AREF(insn->chanspec);
@@ -974,20 +975,19 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	/* First, AI */
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	s->private = &devpriv->sprivs[0];
-	s->maxdata = 0xffff;
-	s->range_table = &pcmmio_ai_ranges;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
-	s->type = COMEDI_SUBD_AI;
-	s->n_chan = 16;
-	s->len_chanlist = s->n_chan;
-	s->insn_read = pcmmio_ai_insn_read;
-	subpriv->iobase = dev->iobase + 0;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF;
+	s->n_chan	= 16;
+	s->maxdata	= 0xffff;
+	s->range_table	= &pcmmio_ai_ranges;
+	s->insn_read	= pcmmio_ai_insn_read;
+
 	/* initialize the resource enable register by clearing it */
-	outb(0, subpriv->iobase + 3);
-	outb(0, subpriv->iobase + 4 + 3);
+	outb(0, dev->iobase + PCMMIO_AI_RESOURCE_REG);
+	outb(0,
+	     dev->iobase + PCMMIO_AI_2ND_ADC_OFFSET + PCMMIO_AI_RESOURCE_REG);
 
 	/* Next, AO */
 	s = &dev->subdevices[1];
