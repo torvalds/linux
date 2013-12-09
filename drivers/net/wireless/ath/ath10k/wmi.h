@@ -893,6 +893,7 @@ struct wmi_channel {
 	union {
 		__le32 reginfo0;
 		struct {
+			/* note: power unit is 0.5 dBm */
 			u8 min_power;
 			u8 max_power;
 			u8 reg_power;
@@ -915,7 +916,8 @@ struct wmi_channel_arg {
 	bool allow_ht;
 	bool allow_vht;
 	bool ht40plus;
-	/* note: power unit is 1/4th of dBm */
+	bool chan_radar;
+	/* note: power unit is 0.5 dBm */
 	u32 min_power;
 	u32 max_power;
 	u32 max_reg_power;
@@ -1977,6 +1979,10 @@ struct wmi_mgmt_rx_event_v2 {
 #define WMI_RX_STATUS_ERR_MIC			0x10
 #define WMI_RX_STATUS_ERR_KEY_CACHE_MISS	0x20
 
+#define PHY_ERROR_SPECTRAL_SCAN		0x26
+#define PHY_ERROR_FALSE_RADAR_EXT		0x24
+#define PHY_ERROR_RADAR				0x05
+
 struct wmi_single_phyerr_rx_hdr {
 	/* TSF timestamp */
 	__le32 tsf_timestamp;
@@ -2067,6 +2073,87 @@ struct wmi_comb_phyerr_rx_event {
 	 */
 	u8 bufp[0];
 } __packed;
+
+#define PHYERR_TLV_SIG				0xBB
+#define PHYERR_TLV_TAG_SEARCH_FFT_REPORT	0xFB
+#define PHYERR_TLV_TAG_RADAR_PULSE_SUMMARY	0xF8
+
+struct phyerr_radar_report {
+	__le32 reg0; /* RADAR_REPORT_REG0_* */
+	__le32 reg1; /* REDAR_REPORT_REG1_* */
+} __packed;
+
+#define RADAR_REPORT_REG0_PULSE_IS_CHIRP_MASK		0x80000000
+#define RADAR_REPORT_REG0_PULSE_IS_CHIRP_LSB		31
+
+#define RADAR_REPORT_REG0_PULSE_IS_MAX_WIDTH_MASK	0x40000000
+#define RADAR_REPORT_REG0_PULSE_IS_MAX_WIDTH_LSB	30
+
+#define RADAR_REPORT_REG0_AGC_TOTAL_GAIN_MASK		0x3FF00000
+#define RADAR_REPORT_REG0_AGC_TOTAL_GAIN_LSB		20
+
+#define RADAR_REPORT_REG0_PULSE_DELTA_DIFF_MASK		0x000F0000
+#define RADAR_REPORT_REG0_PULSE_DELTA_DIFF_LSB		16
+
+#define RADAR_REPORT_REG0_PULSE_DELTA_PEAK_MASK		0x0000FC00
+#define RADAR_REPORT_REG0_PULSE_DELTA_PEAK_LSB		10
+
+#define RADAR_REPORT_REG0_PULSE_SIDX_MASK		0x000003FF
+#define RADAR_REPORT_REG0_PULSE_SIDX_LSB		0
+
+#define RADAR_REPORT_REG1_PULSE_SRCH_FFT_VALID_MASK	0x80000000
+#define RADAR_REPORT_REG1_PULSE_SRCH_FFT_VALID_LSB	31
+
+#define RADAR_REPORT_REG1_PULSE_AGC_MB_GAIN_MASK	0x7F000000
+#define RADAR_REPORT_REG1_PULSE_AGC_MB_GAIN_LSB		24
+
+#define RADAR_REPORT_REG1_PULSE_SUBCHAN_MASK_MASK	0x00FF0000
+#define RADAR_REPORT_REG1_PULSE_SUBCHAN_MASK_LSB	16
+
+#define RADAR_REPORT_REG1_PULSE_TSF_OFFSET_MASK		0x0000FF00
+#define RADAR_REPORT_REG1_PULSE_TSF_OFFSET_LSB		8
+
+#define RADAR_REPORT_REG1_PULSE_DUR_MASK		0x000000FF
+#define RADAR_REPORT_REG1_PULSE_DUR_LSB			0
+
+struct phyerr_fft_report {
+	__le32 reg0; /* SEARCH_FFT_REPORT_REG0_ * */
+	__le32 reg1; /* SEARCH_FFT_REPORT_REG1_ * */
+} __packed;
+
+#define SEARCH_FFT_REPORT_REG0_TOTAL_GAIN_DB_MASK	0xFF800000
+#define SEARCH_FFT_REPORT_REG0_TOTAL_GAIN_DB_LSB	23
+
+#define SEARCH_FFT_REPORT_REG0_BASE_PWR_DB_MASK		0x007FC000
+#define SEARCH_FFT_REPORT_REG0_BASE_PWR_DB_LSB		14
+
+#define SEARCH_FFT_REPORT_REG0_FFT_CHN_IDX_MASK		0x00003000
+#define SEARCH_FFT_REPORT_REG0_FFT_CHN_IDX_LSB		12
+
+#define SEARCH_FFT_REPORT_REG0_PEAK_SIDX_MASK		0x00000FFF
+#define SEARCH_FFT_REPORT_REG0_PEAK_SIDX_LSB		0
+
+#define SEARCH_FFT_REPORT_REG1_RELPWR_DB_MASK		0xFC000000
+#define SEARCH_FFT_REPORT_REG1_RELPWR_DB_LSB		26
+
+#define SEARCH_FFT_REPORT_REG1_AVGPWR_DB_MASK		0x03FC0000
+#define SEARCH_FFT_REPORT_REG1_AVGPWR_DB_LSB		18
+
+#define SEARCH_FFT_REPORT_REG1_PEAK_MAG_MASK		0x0003FF00
+#define SEARCH_FFT_REPORT_REG1_PEAK_MAG_LSB		8
+
+#define SEARCH_FFT_REPORT_REG1_NUM_STR_BINS_IB_MASK	0x000000FF
+#define SEARCH_FFT_REPORT_REG1_NUM_STR_BINS_IB_LSB	0
+
+
+struct phyerr_tlv {
+	__le16 len;
+	u8 tag;
+	u8 sig;
+} __packed;
+
+#define DFS_RSSI_POSSIBLY_FALSE			50
+#define DFS_PEAK_MAG_THOLD_POSSIBLY_FALSE	40
 
 struct wmi_mgmt_tx_hdr {
 	__le32 vdev_id;
@@ -2233,7 +2320,12 @@ enum wmi_pdev_param {
 	 * 0: no protection 1:use CTS-to-self 2: use RTS/CTS
 	 */
 	WMI_PDEV_PARAM_PROTECTION_MODE,
-	/* Dynamic bandwidth 0: disable 1: enable */
+	/*
+	 * Dynamic bandwidth - 0: disable, 1: enable
+	 *
+	 * When enabled HW rate control tries different bandwidths when
+	 * retransmitting frames.
+	 */
 	WMI_PDEV_PARAM_DYNAMIC_BW,
 	/* Non aggregrate/ 11g sw retry threshold.0-disable */
 	WMI_PDEV_PARAM_NON_AGG_SW_RETRY_TH,
