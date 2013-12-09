@@ -1516,6 +1516,8 @@ static int ccdc_isr_buffer(struct isp_ccdc_device *ccdc)
 
 	if (ccdc_sbl_wait_idle(ccdc, 1000)) {
 		dev_info(isp->dev, "CCDC won't become idle!\n");
+		isp->crashed |= 1U << ccdc->subdev.entity.id;
+		omap3isp_pipeline_cancel_stream(pipe);
 		goto done;
 	}
 
