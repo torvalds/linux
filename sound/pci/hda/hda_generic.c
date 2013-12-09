@@ -3033,6 +3033,8 @@ static int parse_capture_source(struct hda_codec *codec, hda_nid_t pin,
 			spec->imux_pins[imux->num_items] = pin;
 			snd_hda_add_imux_item(imux, label, cfg_idx, NULL);
 			imux_added = true;
+			if (spec->dyn_adc_switch)
+				spec->dyn_adc_idx[imux_idx] = c;
 		}
 	}
 
@@ -3130,7 +3132,9 @@ static int create_input_ctls(struct hda_codec *codec)
 		}
 	}
 
-	if (mixer && spec->add_stereo_mix_input) {
+	/* add stereo mix when explicitly enabled via hint */
+	if (mixer && spec->add_stereo_mix_input &&
+	    snd_hda_get_bool_hint(codec, "add_stereo_mix_input") > 0) {
 		err = parse_capture_source(codec, mixer, CFG_IDX_MIX, num_adcs,
 					   "Stereo Mix", 0);
 		if (err < 0)
@@ -4402,6 +4406,19 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 	err = check_auto_mic_availability(codec);
 	if (err < 0)
 		return err;
+
+	/* add stereo mix if available and not enabled yet */
+	if (!spec->auto_mic && spec->mixer_nid &&
+	    spec->add_stereo_mix_input &&
+	    spec->input_mux.num_items > 1 &&
+	    snd_hda_get_bool_hint(codec, "add_stereo_mix_input") < 0) {
+		err = parse_capture_source(codec, spec->mixer_nid,
+					   CFG_IDX_MIX, spec->num_all_adcs,
+					   "Stereo Mix", 0);
+		if (err < 0)
+			return err;
+	}
+
 
 	err = create_capture_mixers(codec);
 	if (err < 0)

@@ -194,6 +194,7 @@ static int ad198x_parse_auto_config(struct hda_codec *codec)
 	codec->no_sticky_stream = 1;
 
 	spec->gen.indep_hp = 1;
+	spec->gen.add_stereo_mix_input = 1;
 
 	err = snd_hda_parse_pin_defcfg(codec, cfg, NULL, 0);
 	if (err < 0)
