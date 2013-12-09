@@ -2127,6 +2127,7 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	u32 pktstat_ringsize;
 	u32 fbr_chunksize;
 	struct rx_ring *rx_ring;
+	struct fbr_lookup *fbr;
 
 	/* Setup some convenience pointers */
 	rx_ring = &adapter->rx_ring;
@@ -2170,20 +2171,18 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 		rx_ring->fbr[1]->num_entries = 128;
 	}
 
-	adapter->rx_ring.psr_num_entries =
-				adapter->rx_ring.fbr[0]->num_entries +
-				adapter->rx_ring.fbr[1]->num_entries;
+	rx_ring->psr_num_entries = rx_ring->fbr[0]->num_entries +
+				   rx_ring->fbr[1]->num_entries;
 
 	for (id = 0; id < NUM_FBRS; id++) {
+		fbr = rx_ring->fbr[id];
 		/* Allocate an area of memory for Free Buffer Ring */
-		bufsize =
-		    (sizeof(struct fbr_desc) * rx_ring->fbr[id]->num_entries);
-		rx_ring->fbr[id]->ring_virtaddr =
-				dma_alloc_coherent(&adapter->pdev->dev,
-					bufsize,
-					&rx_ring->fbr[id]->ring_physaddr,
-					GFP_KERNEL);
-		if (!rx_ring->fbr[id]->ring_virtaddr) {
+		bufsize = sizeof(struct fbr_desc) * fbr->num_entries;
+		fbr->ring_virtaddr = dma_alloc_coherent(&adapter->pdev->dev,
+							bufsize,
+							&fbr->ring_physaddr,
+							GFP_KERNEL);
+		if (!fbr->ring_virtaddr) {
 			dev_err(&adapter->pdev->dev,
 			   "Cannot alloc memory for Free Buffer Ring %d\n", id);
 			return -ENOMEM;
@@ -2191,25 +2190,25 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	}
 
 	for (id = 0; id < NUM_FBRS; id++) {
-		fbr_chunksize = (FBR_CHUNKS * rx_ring->fbr[id]->buffsize);
+		fbr = rx_ring->fbr[id];
+		fbr_chunksize = (FBR_CHUNKS * fbr->buffsize);
 
-		for (i = 0;
-		     i < (rx_ring->fbr[id]->num_entries / FBR_CHUNKS); i++) {
+		for (i = 0; i < fbr->num_entries / FBR_CHUNKS; i++) {
 			dma_addr_t fbr_tmp_physaddr;
 
-			rx_ring->fbr[id]->mem_virtaddrs[i] = dma_alloc_coherent(
+			fbr->mem_virtaddrs[i] = dma_alloc_coherent(
 					&adapter->pdev->dev, fbr_chunksize,
-					&rx_ring->fbr[id]->mem_physaddrs[i],
+					&fbr->mem_physaddrs[i],
 					GFP_KERNEL);
 
-			if (!rx_ring->fbr[id]->mem_virtaddrs[i]) {
+			if (!fbr->mem_virtaddrs[i]) {
 				dev_err(&adapter->pdev->dev,
 					"Could not alloc memory\n");
 				return -ENOMEM;
 			}
 
 			/* See NOTE in "Save Physical Address" comment above */
-			fbr_tmp_physaddr = rx_ring->fbr[id]->mem_physaddrs[i];
+			fbr_tmp_physaddr = fbr->mem_physaddrs[i];
 
 			for (j = 0; j < FBR_CHUNKS; j++) {
 				u32 index = (i * FBR_CHUNKS) + j;
@@ -2217,26 +2216,25 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 				/* Save the Virtual address of this index for
 				 * quick access later
 				 */
-				rx_ring->fbr[id]->virt[index] =
-				  (u8 *) rx_ring->fbr[id]->mem_virtaddrs[i] +
-				  (j * rx_ring->fbr[id]->buffsize);
+				fbr->virt[index] = (u8 *)fbr->mem_virtaddrs[i] +
+						   (j * fbr->buffsize);
 
 				/* now store the physical address in the
 				 * descriptor so the device can access it
 				 */
-				rx_ring->fbr[id]->bus_high[index] =
+				fbr->bus_high[index] =
 						upper_32_bits(fbr_tmp_physaddr);
-				rx_ring->fbr[id]->bus_low[index] =
+				fbr->bus_low[index] =
 						lower_32_bits(fbr_tmp_physaddr);
 
-				fbr_tmp_physaddr += rx_ring->fbr[id]->buffsize;
+				fbr_tmp_physaddr += fbr->buffsize;
 			}
 		}
 	}
 
 	/* Allocate an area of memory for FIFO of Packet Status ring entries */
 	pktstat_ringsize =
-	    sizeof(struct pkt_stat_desc) * adapter->rx_ring.psr_num_entries;
+		sizeof(struct pkt_stat_desc) * rx_ring->psr_num_entries;
 
 	rx_ring->ps_ring_virtaddr = dma_alloc_coherent(&adapter->pdev->dev,
 						  pktstat_ringsize,
