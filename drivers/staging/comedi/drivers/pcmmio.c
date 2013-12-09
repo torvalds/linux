@@ -402,10 +402,8 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 	struct pcmmio_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct pcmmio_subdev_private *subpriv = s->private;
-	int asic, got1 = 0;
+	int got1 = 0;
 
-	for (asic = 0; asic < MAX_ASICS; ++asic) {
-		if (irq == dev->irq) {
 			unsigned long flags;
 			unsigned triggered = 0;
 			/* it is an interrupt for ASIC #asic */
@@ -456,7 +454,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 					 * this is an interrupt subdev,
 					 * and it matches this asic!
 					 */
-					if (subpriv->dio.intr.asic == asic) {
+					if (subpriv->dio.intr.asic == 0) {
 						unsigned long flags;
 						unsigned oldevents;
 
@@ -539,8 +537,6 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 
 			}
 
-		}
-	}
 	if (!got1)
 		return IRQ_NONE;	/* interrupt from other source */
 	return IRQ_HANDLED;
