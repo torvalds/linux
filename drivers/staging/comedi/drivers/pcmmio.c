@@ -348,24 +348,16 @@ static int pcmmio_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
 {
-	struct pcmmio_subdev_private *subpriv = s->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int byte_no = chan / 8;
-	int bit_no = chan % 8;
+	/* subdevice 2 uses ports 0-2, subdevice 3 uses ports 3-5 */
+	int port = s->index == 2 ? 0 : 3;
 	int ret;
 
 	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
 	if (ret)
 		return ret;
 
-	if (data[0] == INSN_CONFIG_DIO_INPUT) {
-		unsigned long ioaddr = subpriv->iobases[byte_no];
-		unsigned char val;
-
-		val = inb(ioaddr);
-		val &= ~(1 << bit_no);
-		outb(val, ioaddr);
-	}
+	if (data[0] == INSN_CONFIG_DIO_INPUT)
+		pcmmio_dio_write(dev, s->io_bits, 0, port);
 
 	return insn->n;
 }
