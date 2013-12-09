@@ -753,9 +753,10 @@ static ssize_t ffs_epfile_io(struct file *file,
 			     char __user *buf, size_t len, int read)
 {
 	struct ffs_epfile *epfile = file->private_data;
+	struct usb_gadget *gadget = epfile->ffs->gadget;
 	struct ffs_ep *ep;
 	char *data = NULL;
-	ssize_t ret;
+	ssize_t ret, data_len;
 	int halt;
 
 	/* Are we still active? */
@@ -788,7 +789,13 @@ static ssize_t ffs_epfile_io(struct file *file,
 
 	/* Allocate & copy */
 	if (!halt) {
-		data = kmalloc(len, GFP_KERNEL);
+		/*
+		 * Controller may require buffer size to be aligned to
+		 * maxpacketsize of an out endpoint.
+		 */
+		data_len = read ? usb_ep_align_maybe(gadget, ep->ep, len) : len;
+
+		data = kmalloc(data_len, GFP_KERNEL);
 		if (unlikely(!data))
 			return -ENOMEM;
 
@@ -823,7 +830,7 @@ static ssize_t ffs_epfile_io(struct file *file,
 		req->context  = &done;
 		req->complete = ffs_epfile_io_complete;
 		req->buf      = data;
-		req->length   = len;
+		req->length   = data_len;
 
 		ret = usb_ep_queue(ep->ep, req, GFP_ATOMIC);
 
@@ -835,9 +842,17 @@ static ssize_t ffs_epfile_io(struct file *file,
 			ret = -EINTR;
 			usb_ep_dequeue(ep->ep, req);
 		} else {
+			/*
+			 * XXX We may end up silently droping data here.
+			 * Since data_len (i.e. req->length) may be bigger
+			 * than len (after being rounded up to maxpacketsize),
+			 * we may end up with more data then user space has
+			 * space for.
+			 */
 			ret = ep->status;
 			if (read && ret > 0 &&
-			    unlikely(copy_to_user(buf, data, ret)))
+			    unlikely(copy_to_user(buf, data,
+						  min_t(size_t, ret, len))))
 				ret = -EFAULT;
 		}
 	}
