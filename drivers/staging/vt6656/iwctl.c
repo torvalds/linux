@@ -58,9 +58,6 @@ struct iw_statistics *iwctl_get_wireless_stats(struct net_device *dev)
 	long ldBm;
 
 	pDevice->wstats.status = pDevice->eOPMode;
-	if (pDevice->scStatistic.LinkQuality > 100)
-		pDevice->scStatistic.LinkQuality = 100;
-	pDevice->wstats.qual.qual = (u8)pDevice->scStatistic.LinkQuality;
 	RFvRSSITodBm(pDevice, (u8)(pDevice->uCurrRSSI), &ldBm);
 	pDevice->wstats.qual.level = ldBm;
 	pDevice->wstats.qual.noise = 0;

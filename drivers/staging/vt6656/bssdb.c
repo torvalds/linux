@@ -1384,39 +1384,44 @@ static void s_vCheckSensitivity(struct vnt_private *pDevice)
 
 static void s_uCalculateLinkQual(struct vnt_private *pDevice)
 {
+	struct net_device_stats *stats = &pDevice->stats;
 	unsigned long TxOkRatio, TxCnt;
 	unsigned long RxOkRatio, RxCnt;
 	unsigned long RssiRatio;
+	unsigned long qual;
 	long ldBm;
 
-TxCnt = pDevice->scStatistic.TxNoRetryOkCount +
-	      pDevice->scStatistic.TxRetryOkCount +
-	      pDevice->scStatistic.TxFailCount;
-RxCnt = pDevice->scStatistic.RxFcsErrCnt +
+	TxCnt = stats->tx_packets + pDevice->wstats.discard.retries;
+
+	RxCnt = pDevice->scStatistic.RxFcsErrCnt +
 	      pDevice->scStatistic.RxOkCnt;
-TxOkRatio = (TxCnt < 6) ? 4000:((pDevice->scStatistic.TxNoRetryOkCount * 4000) / TxCnt);
-RxOkRatio = (RxCnt < 6) ? 2000:((pDevice->scStatistic.RxOkCnt * 2000) / RxCnt);
-//decide link quality
-if(pDevice->bLinkPass !=true)
-{
-   pDevice->scStatistic.LinkQuality = 0;
-   pDevice->scStatistic.SignalStren = 0;
-}
-else
-{
-   RFvRSSITodBm(pDevice, (u8)(pDevice->uCurrRSSI), &ldBm);
-   if(-ldBm < 50)  {
-   	RssiRatio = 4000;
-     }
-   else if(-ldBm > 90) {
-   	RssiRatio = 0;
-     }
-   else {
-   	RssiRatio = (40-(-ldBm-50))*4000/40;
-     }
-   pDevice->scStatistic.SignalStren = RssiRatio/40;
-   pDevice->scStatistic.LinkQuality = (RssiRatio+TxOkRatio+RxOkRatio)/100;
-}
+
+	TxOkRatio = (TxCnt < 6) ? 4000:((stats->tx_packets * 4000) / TxCnt);
+
+	RxOkRatio = (RxCnt < 6) ? 2000 :
+				((pDevice->scStatistic.RxOkCnt * 2000) / RxCnt);
+
+	/* decide link quality */
+	if (pDevice->bLinkPass != true) {
+		pDevice->wstats.qual.qual = 0;
+		pDevice->scStatistic.SignalStren = 0;
+	} else {
+		RFvRSSITodBm(pDevice, (u8)(pDevice->uCurrRSSI), &ldBm);
+		if (-ldBm < 50)
+			RssiRatio = 4000;
+		else if (-ldBm > 90)
+			RssiRatio = 0;
+		else
+			RssiRatio = (40-(-ldBm-50)) * 4000 / 40;
+
+		pDevice->scStatistic.SignalStren = RssiRatio / 40;
+		qual = (RssiRatio + TxOkRatio + RxOkRatio) / 100;
+		if (qual < 100)
+			pDevice->wstats.qual.qual = (u8)qual;
+		else
+			pDevice->wstats.qual.qual = 100;
+	}
+
    pDevice->scStatistic.RxFcsErrCnt = 0;
    pDevice->scStatistic.RxOkCnt = 0;
    pDevice->scStatistic.TxFailCount = 0;
