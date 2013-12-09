@@ -49,6 +49,8 @@ struct perf_report {
 	bool			show_threads;
 	bool			inverted_callchain;
 	bool			mem_mode;
+	bool			header;
+	bool			header_only;
 	int			max_stack;
 	struct perf_read_values	show_threads_values;
 	const char		*pretty_printing_style;
@@ -514,9 +516,6 @@ static int __cmd_report(struct perf_report *rep)
 			return ret;
 	}
 
-	if (use_browser <= 0)
-		perf_session__fprintf_info(session, stdout, rep->show_full_info);
-
 	if (rep->show_threads)
 		perf_read_values_init(&rep->show_threads_values);
 
@@ -820,6 +819,9 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN(0, "gtk", &report.use_gtk, "Use the GTK2 interface"),
 	OPT_BOOLEAN(0, "stdio", &report.use_stdio,
 		    "Use the stdio interface"),
+	OPT_BOOLEAN(0, "header", &report.header, "Show data header."),
+	OPT_BOOLEAN(0, "header-only", &report.header_only,
+		    "Show only data header."),
 	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
 		   "sort by key(s): pid, comm, dso, symbol, parent, cpu, srcline,"
 		   " dso_to, dso_from, symbol_to, symbol_from, mispredict,"
@@ -963,11 +965,25 @@ repeat:
 			goto error;
 	}
 
+	/* Force tty output for header output. */
+	if (report.header || report.header_only)
+		use_browser = 0;
+
 	if (strcmp(input_name, "-") != 0)
 		setup_browser(true);
 	else {
 		use_browser = 0;
 		perf_hpp__init();
+	}
+
+	if (report.header || report.header_only) {
+		perf_session__fprintf_info(session, stdout,
+					   report.show_full_info);
+		if (report.header_only)
+			return 0;
+	} else if (use_browser == 0) {
+		fputs("# To display the perf.data header info, please use --header/--header-only options.\n#\n",
+		      stdout);
 	}
 
 	/*
