@@ -397,8 +397,8 @@ mic_x100_load_ramdisk(struct mic_device *mdev)
 	 * so copy over the ramdisk @ 128M.
 	 */
 	memcpy_toio(mdev->aper.va + (mdev->bootaddr << 1), fw->data, fw->size);
-	iowrite32(cpu_to_le32(mdev->bootaddr << 1), &bp->hdr.ramdisk_image);
-	iowrite32(cpu_to_le32(fw->size), &bp->hdr.ramdisk_size);
+	iowrite32(mdev->bootaddr << 1, &bp->hdr.ramdisk_image);
+	iowrite32(fw->size, &bp->hdr.ramdisk_size);
 	release_firmware(fw);
 error:
 	return rc;
