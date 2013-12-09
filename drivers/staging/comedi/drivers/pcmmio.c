@@ -879,18 +879,19 @@ static int pcmmio_ai_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data)
+static int pcmmio_ao_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	struct pcmmio_private *devpriv = dev->private;
-	int n;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
 
-	for (n = 0; n < insn->n; n++) {
-		unsigned chan = CR_CHAN(insn->chanspec);
-		if (chan < s->n_chan)
-			data[n] = devpriv->ao_readback[chan];
-	}
-	return n;
+	for (i = 0; i < insn->n; i++)
+		data[i] = devpriv->ao_readback[chan];
+
+	return insn->n;
 }
 
 static int pcmmio_ao_wait_for_eoc(unsigned long iobase, unsigned int timeout)
@@ -1023,7 +1024,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->type = COMEDI_SUBD_AO;
 	s->n_chan = 8;
 	s->len_chanlist = s->n_chan;
-	s->insn_read = ao_rinsn;
+	s->insn_read = pcmmio_ao_insn_read;
 	s->insn_write = pcmmio_ao_insn_write;
 
 	/* initialize the resource enable register by clearing it */
