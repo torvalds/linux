@@ -1016,16 +1016,15 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	outb(0,
 	     dev->iobase + PCMMIO_AI_2ND_ADC_OFFSET + PCMMIO_AI_RESOURCE_REG);
 
-	/* Next, AO */
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-	s->maxdata = 0xffff;
-	s->range_table = &pcmmio_ao_ranges;
-	s->subdev_flags = SDF_READABLE;
-	s->type = COMEDI_SUBD_AO;
-	s->n_chan = 8;
-	s->len_chanlist = s->n_chan;
-	s->insn_read = pcmmio_ao_insn_read;
-	s->insn_write = pcmmio_ao_insn_write;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 0xffff;
+	s->range_table	= &pcmmio_ao_ranges;
+	s->insn_read	= pcmmio_ao_insn_read;
+	s->insn_write	= pcmmio_ao_insn_write;
 
 	/* initialize the resource enable register by clearing it */
 	outb(0, dev->iobase + PCMMIO_AO_RESOURCE_ENA_REG);
