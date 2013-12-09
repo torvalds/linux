@@ -345,22 +345,19 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(dev, "no irq\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 
-	clk = clk_get(dev, "spi");
+	clk = devm_clk_get(dev, "spi");
 	if (IS_ERR(clk)) {
 		dev_err(dev, "no clock for device\n");
-		ret = PTR_ERR(clk);
-		goto out;
+		return PTR_ERR(clk);
 	}
 
 	master = spi_alloc_master(dev, sizeof(*bs));
 	if (!master) {
 		dev_err(dev, "out of memory\n");
-		ret = -ENOMEM;
-		goto out_clk;
+		return -ENOMEM;
 	}
 
 	bs = spi_master_get_devdata(master);
@@ -427,9 +424,6 @@ out_clk_disable:
 	clk_disable_unprepare(clk);
 out_err:
 	spi_master_put(master);
-out_clk:
-	clk_put(clk);
-out:
 	return ret;
 }
 
@@ -443,7 +437,6 @@ static int bcm63xx_spi_remove(struct platform_device *pdev)
 
 	/* HW shutdown */
 	clk_disable_unprepare(bs->clk);
-	clk_put(bs->clk);
 
 	return 0;
 }
