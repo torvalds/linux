@@ -69,6 +69,7 @@
 
 #define VIAUSB20_PACKET_HEADER          0x04
 
+#define USB_REG4	0x604
 
 /*---------------------  Export Classes  ----------------------------*/
 
