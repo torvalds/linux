@@ -73,6 +73,7 @@
 #include <sys/ttydefaults.h>
 #include <lk/debugfs.h>
 #include <termios.h>
+#include <linux/bitops.h>
 
 extern const char *graph_line;
 extern const char *graph_dotted_line;
@@ -279,6 +280,17 @@ static inline unsigned next_pow2(unsigned x)
 	if (!x)
 		return 1;
 	return 1ULL << (32 - __builtin_clz(x - 1));
+}
+
+static inline unsigned long next_pow2_l(unsigned long x)
+{
+#if BITS_PER_LONG == 64
+	if (x <= (1UL << 31))
+		return next_pow2(x);
+	return (unsigned long)next_pow2(x >> 32) << 32;
+#else
+	return next_pow2(x);
+#endif
 }
 
 size_t hex_width(u64 v);
