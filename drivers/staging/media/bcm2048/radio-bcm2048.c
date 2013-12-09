@@ -1987,7 +1987,7 @@ static ssize_t bcm2048_##prop##_read(struct device *dev,		\
 					char *buf)			\
 {									\
 	struct bcm2048_device *bdev = dev_get_drvdata(dev);		\
-	size value;							\
+	int value;							\
 									\
 	if (!bdev)							\
 		return -ENODEV;						\
