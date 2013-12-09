@@ -1111,21 +1111,14 @@ void iwl_pcie_disable_ict(struct iwl_trans *trans)
 }
 
 /* legacy (non-ICT) ISR. Assumes that trans_pcie->irq_lock is held */
-static irqreturn_t iwl_pcie_isr(int irq, void *data)
+static irqreturn_t iwl_pcie_isr_non_ict(struct iwl_trans *trans)
 {
-	struct iwl_trans *trans = data;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 inta;
 
 	lockdep_assert_held(&trans_pcie->irq_lock);
 
 	trace_iwlwifi_dev_irq(trans->dev);
-
-	/* Disable (but don't clear!) interrupts here to avoid
-	 *    back-to-back ISRs and sporadic interrupts from our NIC.
-	 * If we have something to service, the irq thread will re-enable ints.
-	 * If we *don't* have something, we'll re-enable before leaving here. */
-	iwl_write32(trans, CSR_INT_MASK, 0x00000000);
 
 	/* Discover which interrupts are active/pending */
 	inta = iwl_read32(trans, CSR_INT);
@@ -1181,20 +1174,14 @@ static irqreturn_t iwl_pcie_isr(int irq, void *data)
  * the interrupt we need to service, driver will set the entries back to 0 and
  * set index.
  */
-irqreturn_t iwl_pcie_isr_ict(int irq, void *data)
+static irqreturn_t iwl_pcie_isr_ict(struct iwl_trans *trans)
 {
-	struct iwl_trans *trans = data;
-	struct iwl_trans_pcie *trans_pcie;
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	unsigned long flags;
+	irqreturn_t ret;
 	u32 inta;
 	u32 val = 0;
 	u32 read;
-	unsigned long flags;
-	irqreturn_t ret = IRQ_NONE;
-
-	if (!trans)
-		return IRQ_NONE;
-
-	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 
@@ -1202,19 +1189,12 @@ irqreturn_t iwl_pcie_isr_ict(int irq, void *data)
 	 * use legacy interrupt.
 	 */
 	if (unlikely(!trans_pcie->use_ict)) {
-		ret = iwl_pcie_isr(irq, data);
+		ret = iwl_pcie_isr_non_ict(trans);
 		spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 		return ret;
 	}
 
 	trace_iwlwifi_dev_irq(trans->dev);
-
-	/* Disable (but don't clear!) interrupts here to avoid
-	 * back-to-back ISRs and sporadic interrupts from our NIC.
-	 * If we have something to service, the tasklet will re-enable ints.
-	 * If we *don't* have something, we'll re-enable before leaving here.
-	 */
-	iwl_write32(trans, CSR_INT_MASK, 0x00000000);
 
 	/* Ignore interrupt if there's nothing in NIC to service.
 	 * This may be due to IRQ shared with another device,
@@ -1285,4 +1265,21 @@ irqreturn_t iwl_pcie_isr_ict(int irq, void *data)
 
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 	return ret;
+}
+
+irqreturn_t iwl_pcie_isr(int irq, void *data)
+{
+	struct iwl_trans *trans = data;
+
+	if (!trans)
+		return IRQ_NONE;
+
+	/* Disable (but don't clear!) interrupts here to avoid
+	 * back-to-back ISRs and sporadic interrupts from our NIC.
+	 * If we have something to service, the tasklet will re-enable ints.
+	 * If we *don't* have something, we'll re-enable before leaving here.
+	 */
+	iwl_write32(trans, CSR_INT_MASK, 0x00000000);
+
+	return iwl_pcie_isr_ict(trans);
 }
