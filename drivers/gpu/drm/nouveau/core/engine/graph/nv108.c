@@ -231,6 +231,6 @@ nv108_graph_oclass = &(struct nvc0_graph_oclass) {
 	.cclass = &nv108_grctx_oclass,
 	.sclass =  nv108_graph_sclass,
 	.mmio = nv108_graph_init_mmio,
-	.fecs.ucode = 0 ? &nv108_graph_fecs_ucode : NULL,
+	.fecs.ucode = &nv108_graph_fecs_ucode,
 	.gpccs.ucode = &nv108_graph_gpccs_ucode,
 }.base;
