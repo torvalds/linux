@@ -320,6 +320,7 @@ static void pcmmio_reset(struct comedi_device *dev)
 	pcmmio_dio_write(dev, 0, PCMMIO_PAGE_INT_ID, 0);
 }
 
+/* devpriv->spinlock is already locked */
 static void pcmmio_stop_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
@@ -410,6 +411,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
+/* devpriv->spinlock is already locked */
 static int pcmmio_start_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
@@ -842,7 +844,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_bits	= pcmmio_dio_insn_bits;
 	s->insn_config	= pcmmio_dio_insn_config;
 
-	return 1;
+	return 0;
 }
 
 static struct comedi_driver pcmmio_driver = {
