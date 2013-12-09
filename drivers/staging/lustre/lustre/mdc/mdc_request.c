@@ -2076,15 +2076,6 @@ int mdc_set_info_async(const struct lu_env *env,
 		sptlrpc_import_flush_my_ctx(imp);
 		return 0;
 	}
-	if (KEY_IS(KEY_MDS_CONN)) {
-		/* mds-mds import */
-		spin_lock(&imp->imp_lock);
-		imp->imp_server_timeout = 1;
-		spin_unlock(&imp->imp_lock);
-		imp->imp_client->cli_request_portal = MDS_MDS_PORTAL;
-		CDEBUG(D_OTHER, "%s: timeout / 2\n", exp->exp_obd->obd_name);
-		return 0;
-	}
 	if (KEY_IS(KEY_CHANGELOG_CLEAR)) {
 		rc = do_set_info_async(imp, MDS_SET_INFO, LUSTRE_MDS_VERSION,
 				       keylen, key, vallen, val, set);
@@ -2594,27 +2585,6 @@ static int mdc_renew_capa(struct obd_export *exp, struct obd_capa *oc,
 	return 0;
 }
 
-static int mdc_connect(const struct lu_env *env,
-		       struct obd_export **exp,
-		       struct obd_device *obd, struct obd_uuid *cluuid,
-		       struct obd_connect_data *data,
-		       void *localdata)
-{
-	struct obd_import *imp = obd->u.cli.cl_import;
-
-	/* mds-mds import features */
-	if (data && (data->ocd_connect_flags & OBD_CONNECT_MDS_MDS)) {
-		spin_lock(&imp->imp_lock);
-		imp->imp_server_timeout = 1;
-		spin_unlock(&imp->imp_lock);
-		imp->imp_client->cli_request_portal = MDS_MDS_PORTAL;
-		CDEBUG(D_OTHER, "%s: Set 'mds' portal and timeout\n",
-		       obd->obd_name);
-	}
-
-	return client_connect_import(env, exp, obd, cluuid, data, NULL);
-}
-
 struct obd_ops mdc_obd_ops = {
 	.o_owner	    = THIS_MODULE,
 	.o_setup	    = mdc_setup,
@@ -2622,7 +2592,7 @@ struct obd_ops mdc_obd_ops = {
 	.o_cleanup	  = mdc_cleanup,
 	.o_add_conn	 = client_import_add_conn,
 	.o_del_conn	 = client_import_del_conn,
-	.o_connect	  = mdc_connect,
+	.o_connect          = client_connect_import,
 	.o_disconnect       = client_disconnect_export,
 	.o_iocontrol	= mdc_iocontrol,
 	.o_set_info_async   = mdc_set_info_async,
