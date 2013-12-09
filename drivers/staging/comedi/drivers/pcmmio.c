@@ -205,11 +205,6 @@ static const struct comedi_lrange pcmmio_ao_ranges = {
 struct pcmmio_subdev_private {
 
 	union {
-		/* for DIO: mapping of halfwords (bytes)
-		   in port/chanarray to iobase */
-		unsigned long iobases[PORTS_PER_SUBDEV];
-	};
-	union {
 		struct {
 
 			/* The below is only used for intr subdevices */
@@ -1027,8 +1022,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				++asic;
 				thisasic_chanct = 0;
 			}
-			subpriv->iobases[byte_no] = dev->iobase +
-						    PCMMIO_PORT_REG(port);
 
 			if (thisasic_chanct <
 			    CHANS_PER_PORT * INTR_PORTS_PER_ASIC
