@@ -209,6 +209,12 @@ OPTIONS
 --show-mmap-events
 	Display mmap related events (e.g. MMAP, MMAP2).
 
+--header
+	Show perf.data header.
+
+--header-only
+	Show only perf.data header.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-script-perl[1],
