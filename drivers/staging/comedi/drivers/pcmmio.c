@@ -260,6 +260,28 @@ struct pcmmio_private {
 	unsigned int ao_readback[8];
 };
 
+static void pcmmio_dio_write(struct comedi_device *dev, unsigned int val,
+			     int page, int port)
+{
+	struct pcmmio_private *devpriv = dev->private;
+	unsigned long iobase = dev->iobase;
+	unsigned long flags;
+
+	spin_lock_irqsave(&devpriv->pagelock, flags);
+	if (page == 0) {
+		/* Port registers are valid for any page */
+		outb(val & 0xff, iobase + PCMMIO_PORT_REG(port + 0));
+		outb((val >> 8) & 0xff, iobase + PCMMIO_PORT_REG(port + 1));
+		outb((val >> 16) & 0xff, iobase + PCMMIO_PORT_REG(port + 2));
+	} else {
+		outb(PCMMIO_PAGE(page), iobase + PCMMIO_PAGE_LOCK_REG);
+		outb(val & 0xff, iobase + PCMMIO_PAGE_REG(0));
+		outb((val >> 8) & 0xff, iobase + PCMMIO_PAGE_REG(1));
+		outb((val >> 16) & 0xff, iobase + PCMMIO_PAGE_REG(2));
+	}
+	spin_unlock_irqrestore(&devpriv->pagelock, flags);
+}
+
 /* DIO devices are slightly special.  Although it is possible to
  * implement the insn_read/insn_write interface, it is much more
  * useful to applications if you implement the insn_bits interface.
@@ -355,25 +377,14 @@ static void switch_page(struct comedi_device *dev, int page)
 
 static void pcmmio_reset(struct comedi_device *dev)
 {
-	int port, page;
+	/* Clear all the DIO port bits */
+	pcmmio_dio_write(dev, 0, 0, 0);
+	pcmmio_dio_write(dev, 0, 0, 3);
 
-	switch_page(dev, 0);	/* switch back to page 0 */
-
-	/* first, clear all the DIO port bits */
-	for (port = 0; port < PORTS_PER_ASIC; ++port)
-		outb(0, dev->iobase + PCMMIO_PORT_REG(port));
-
-	/* Next, clear all the paged registers for each page */
-	for (page = 1; page < NUM_PAGES; ++page) {
-		int reg;
-		/* now clear all the paged registers */
-		switch_page(dev, page);
-		for (reg = 0; reg < NUM_PAGED_REGS; ++reg)
-			outb(0, dev->iobase + PCMMIO_PAGE_REG(reg));
-	}
-
-	/* switch back to default page 0 */
-	switch_page(dev, 0);
+	/* Clear all the paged registers */
+	pcmmio_dio_write(dev, 0, PCMMIO_PAGE_POL, 0);
+	pcmmio_dio_write(dev, 0, PCMMIO_PAGE_ENAB, 0);
+	pcmmio_dio_write(dev, 0, PCMMIO_PAGE_INT_ID, 0);
 }
 
 static void pcmmio_stop_intr(struct comedi_device *dev,
