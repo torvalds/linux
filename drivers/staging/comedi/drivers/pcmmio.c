@@ -201,35 +201,13 @@ static const struct comedi_lrange pcmmio_ao_ranges = {
 	}
 };
 
-/* this structure is for data unique to this subdevice.  */
-struct pcmmio_subdev_private {
-
-	union {
-		struct {
-
-			/* The below is only used for intr subdevices */
-			struct {
-				/*
-				 * subdev-relative channel mask for channels
-				 * we are interested in
-				 */
-				int enabled_mask;
-				int active;
-				int stop_count;
-				int continuous;
-				spinlock_t spinlock;
-			} intr;
-		} dio;
-	};
-};
-
-/*
- * this structure is for data unique to this hardware driver.  If
- * several hardware drivers keep similar information in this structure,
- * feel free to suggest moving the variable to the struct comedi_device struct.
- */
 struct pcmmio_private {
 	spinlock_t pagelock;	/* protects the page registers */
+	spinlock_t spinlock;	/* protects the member variables */
+	int enabled_mask;
+	int active;
+	int stop_count;
+	int continuous;
 
 	struct pcmmio_subdev_private *sprivs;
 	unsigned int ao_readback[8];
@@ -366,10 +344,10 @@ static void pcmmio_reset(struct comedi_device *dev)
 static void pcmmio_stop_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	struct pcmmio_subdev_private *subpriv = s->private;
+	struct pcmmio_private *devpriv = dev->private;
 
-	subpriv->dio.intr.enabled_mask = 0;
-	subpriv->dio.intr.active = 0;
+	devpriv->enabled_mask = 0;
+	devpriv->active = 0;
 	s->async->inttrig = NULL;
 
 	/* disable all dio interrupts */
@@ -381,7 +359,6 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcmmio_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	struct pcmmio_subdev_private *subpriv = s->private;
 	int got1 = 0;
 
 			unsigned long flags;
@@ -433,21 +410,19 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 						unsigned long flags;
 						unsigned oldevents;
 
-						spin_lock_irqsave(&subpriv->dio.
-								  intr.spinlock,
+						spin_lock_irqsave(&devpriv->spinlock,
 								  flags);
 
 						oldevents = s->async->events;
 
-						if (subpriv->dio.intr.active) {
+						if (devpriv->active) {
 							unsigned mytrig =
 							    ((triggered >> 0)
 							     &
 							     ((0x1 << 24) -
 							      1)) << 0;
 							if (mytrig &
-							    subpriv->dio.
-							    intr.enabled_mask) {
+							    devpriv->enabled_mask) {
 								unsigned int val
 								    = 0;
 								unsigned int n,
@@ -479,11 +454,11 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 								}
 
 								/* Check for end of acquisition. */
-								if (!subpriv->dio.intr.continuous) {
+								if (!devpriv->continuous) {
 									/* stop_src == TRIG_COUNT */
-									if (subpriv->dio.intr.stop_count > 0) {
-										subpriv->dio.intr.stop_count--;
-										if (subpriv->dio.intr.stop_count == 0) {
+									if (devpriv->stop_count > 0) {
+										devpriv->stop_count--;
+										if (devpriv->stop_count == 0) {
 											s->async->events |= COMEDI_CB_EOA;
 											/* TODO: STOP_ACQUISITION_CALL_HERE!! */
 											pcmmio_stop_intr
@@ -496,8 +471,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 						}
 
 						spin_unlock_irqrestore
-						    (&subpriv->dio.intr.
-						     spinlock, flags);
+						    (&devpriv->spinlock, flags);
 
 						if (oldevents !=
 						    s->async->events) {
@@ -514,20 +488,20 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 static int pcmmio_start_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	struct pcmmio_subdev_private *subpriv = s->private;
+	struct pcmmio_private *devpriv = dev->private;
 
-	if (!subpriv->dio.intr.continuous && subpriv->dio.intr.stop_count == 0) {
+	if (!devpriv->continuous && devpriv->stop_count == 0) {
 		/* An empty acquisition! */
 		s->async->events |= COMEDI_CB_EOA;
-		subpriv->dio.intr.active = 0;
+		devpriv->active = 0;
 		return 1;
 	} else {
 		unsigned bits = 0, pol_bits = 0, n;
 		int nports, firstport, port;
 		struct comedi_cmd *cmd = &s->async->cmd;
 
-		subpriv->dio.intr.enabled_mask = 0;
-		subpriv->dio.intr.active = 1;
+		devpriv->enabled_mask = 0;
+		devpriv->active = 1;
 		nports = 24 / CHANS_PER_PORT;
 		firstport = 0 / CHANS_PER_PORT;
 		if (cmd->chanlist) {
@@ -540,7 +514,7 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 			}
 		}
 		bits &= ((0x1 << 24) - 1) << 0;
-		subpriv->dio.intr.enabled_mask = bits;
+		devpriv->enabled_mask = bits;
 
 		{
 			/*
@@ -577,13 +551,13 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 
 static int pcmmio_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct pcmmio_subdev_private *subpriv = s->private;
+	struct pcmmio_private *devpriv = dev->private;
 	unsigned long flags;
 
-	spin_lock_irqsave(&subpriv->dio.intr.spinlock, flags);
-	if (subpriv->dio.intr.active)
+	spin_lock_irqsave(&devpriv->spinlock, flags);
+	if (devpriv->active)
 		pcmmio_stop_intr(dev, s);
-	spin_unlock_irqrestore(&subpriv->dio.intr.spinlock, flags);
+	spin_unlock_irqrestore(&devpriv->spinlock, flags);
 
 	return 0;
 }
@@ -595,18 +569,18 @@ static int
 pcmmio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
 			  unsigned int trignum)
 {
-	struct pcmmio_subdev_private *subpriv = s->private;
+	struct pcmmio_private *devpriv = dev->private;
 	unsigned long flags;
 	int event = 0;
 
 	if (trignum != 0)
 		return -EINVAL;
 
-	spin_lock_irqsave(&subpriv->dio.intr.spinlock, flags);
+	spin_lock_irqsave(&devpriv->spinlock, flags);
 	s->async->inttrig = NULL;
-	if (subpriv->dio.intr.active)
+	if (devpriv->active)
 		event = pcmmio_start_intr(dev, s);
-	spin_unlock_irqrestore(&subpriv->dio.intr.spinlock, flags);
+	spin_unlock_irqrestore(&devpriv->spinlock, flags);
 
 	if (event)
 		comedi_event(dev, s);
@@ -619,24 +593,24 @@ pcmmio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
  */
 static int pcmmio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct pcmmio_subdev_private *subpriv = s->private;
+	struct pcmmio_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
 	int event = 0;
 
-	spin_lock_irqsave(&subpriv->dio.intr.spinlock, flags);
-	subpriv->dio.intr.active = 1;
+	spin_lock_irqsave(&devpriv->spinlock, flags);
+	devpriv->active = 1;
 
 	/* Set up end of acquisition. */
 	switch (cmd->stop_src) {
 	case TRIG_COUNT:
-		subpriv->dio.intr.continuous = 0;
-		subpriv->dio.intr.stop_count = cmd->stop_arg;
+		devpriv->continuous = 0;
+		devpriv->stop_count = cmd->stop_arg;
 		break;
 	default:
 		/* TRIG_NONE */
-		subpriv->dio.intr.continuous = 1;
-		subpriv->dio.intr.stop_count = 0;
+		devpriv->continuous = 1;
+		devpriv->stop_count = 0;
 		break;
 	}
 
@@ -650,7 +624,7 @@ static int pcmmio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		event = pcmmio_start_intr(dev, s);
 		break;
 	}
-	spin_unlock_irqrestore(&subpriv->dio.intr.spinlock, flags);
+	spin_unlock_irqrestore(&devpriv->spinlock, flags);
 
 	if (event)
 		comedi_event(dev, s);
@@ -875,7 +849,6 @@ static int pcmmio_ao_insn_write(struct comedi_device *dev,
 static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pcmmio_private *devpriv;
-	struct pcmmio_subdev_private *subpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
@@ -888,11 +861,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 
 	spin_lock_init(&devpriv->pagelock);
-
-	devpriv->sprivs = kcalloc(4, sizeof(struct pcmmio_subdev_private),
-				  GFP_KERNEL);
-	if (!devpriv->sprivs)
-		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -945,12 +913,10 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->do_cmd	= pcmmio_cmd;
 	s->do_cmdtest	= pcmmio_cmdtest;
 
-	s->private = &devpriv->sprivs[2];
-	subpriv = s->private;
-	subpriv->dio.intr.active = 0;
-	subpriv->dio.intr.stop_count = 0;
+	devpriv->active = 0;
+	devpriv->stop_count = 0;
 
-	spin_lock_init(&subpriv->dio.intr.spinlock);
+	spin_lock_init(&devpriv->spinlock);
 
 	/* Digital I/O subdevice */
 	s = &dev->subdevices[3];
@@ -976,10 +942,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void pcmmio_detach(struct comedi_device *dev)
 {
-	struct pcmmio_private *devpriv = dev->private;
-
-	if (devpriv)
-		kfree(devpriv->sprivs);
 	comedi_legacy_detach(dev);
 }
 
