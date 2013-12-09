@@ -211,6 +211,7 @@ config PINCTRL_MSM
 
 config PINCTRL_MSM8X74
 	bool "Qualcomm 8x74 pin controller driver"
+	depends on OF && OF_IRQ
 	select PINCTRL_MSM
 
 config PINCTRL_NOMADIK
