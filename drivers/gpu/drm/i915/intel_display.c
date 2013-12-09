@@ -4761,9 +4761,8 @@ static int i9xx_get_refclk(struct drm_crtc *crtc, int num_connectors)
 		refclk = 100000;
 	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
 	    intel_panel_use_ssc(dev_priv) && num_connectors < 2) {
-		refclk = dev_priv->vbt.lvds_ssc_freq * 1000;
-		DRM_DEBUG_KMS("using SSC reference clock of %d MHz\n",
-			      refclk / 1000);
+		refclk = dev_priv->vbt.lvds_ssc_freq;
+		DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n", refclk);
 	} else if (!IS_GEN2(dev)) {
 		refclk = 96000;
 	} else {
@@ -5909,9 +5908,9 @@ static int ironlake_get_refclk(struct drm_crtc *crtc)
 	}
 
 	if (is_lvds && intel_panel_use_ssc(dev_priv) && num_connectors < 2) {
-		DRM_DEBUG_KMS("using SSC reference clock of %d MHz\n",
+		DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n",
 			      dev_priv->vbt.lvds_ssc_freq);
-		return dev_priv->vbt.lvds_ssc_freq * 1000;
+		return dev_priv->vbt.lvds_ssc_freq;
 	}
 
 	return 120000;
@@ -6173,7 +6172,7 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	factor = 21;
 	if (is_lvds) {
 		if ((intel_panel_use_ssc(dev_priv) &&
-		     dev_priv->vbt.lvds_ssc_freq == 100) ||
+		     dev_priv->vbt.lvds_ssc_freq == 100000) ||
 		    (HAS_PCH_IBX(dev) && intel_is_dual_link_lvds(dev)))
 			factor = 25;
 	} else if (intel_crtc->config.sdvo_tv_clock)
@@ -7888,7 +7887,7 @@ static int i9xx_pll_refclk(struct drm_device *dev,
 	u32 dpll = pipe_config->dpll_hw_state.dpll;
 
 	if ((dpll & PLL_REF_INPUT_MASK) == PLLB_REF_INPUT_SPREADSPECTRUMIN)
-		return dev_priv->vbt.lvds_ssc_freq * 1000;
+		return dev_priv->vbt.lvds_ssc_freq;
 	else if (HAS_PCH_SPLIT(dev))
 		return 120000;
 	else if (!IS_GEN2(dev))
