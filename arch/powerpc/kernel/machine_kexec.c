@@ -148,7 +148,7 @@ void __init reserve_crashkernel(void)
 		 * a small SLB (128MB) since the crash kernel needs to place
 		 * itself and some stacks to be in the first segment.
 		 */
-		crashk_res.start = min(0x80000000ULL, (ppc64_rma_size / 2));
+		crashk_res.start = min(0x8000000ULL, (ppc64_rma_size / 2));
 #else
 		crashk_res.start = KDUMP_KERNELBASE;
 #endif
