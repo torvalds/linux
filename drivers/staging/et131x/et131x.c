@@ -1798,7 +1798,7 @@ static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 		}
 
 		/* Now's the best time to initialize FBR contents */
-		fbr_entry = (struct fbr_desc *) fbr->ring_virtaddr;
+		fbr_entry = fbr->ring_virtaddr;
 		for (entry = 0; entry < fbr->num_entries; entry++) {
 			fbr_entry->addr_hi = fbr->bus_high[entry];
 			fbr_entry->addr_lo = fbr->bus_low[entry];
@@ -2290,8 +2290,8 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	WARN_ON(rx_ring->num_ready_recv != rx_ring->num_rfd);
 
 	while (!list_empty(&rx_ring->recv_list)) {
-		rfd = (struct rfd *) list_entry(rx_ring->recv_list.next,
-				struct rfd, list_node);
+		rfd = list_entry(rx_ring->recv_list.next,
+				 struct rfd, list_node);
 
 		list_del(&rfd->list_node);
 		rfd->skb = NULL;
@@ -2536,7 +2536,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	spin_lock_irqsave(&adapter->rcv_lock, flags);
 
 	element = rx_local->recv_list.next;
-	rfd = (struct rfd *) list_entry(element, struct rfd, list_node);
+	rfd = list_entry(element, struct rfd, list_node);
 
 	if (!rfd) {
 		spin_unlock_irqrestore(&adapter->rcv_lock, flags);
@@ -2713,11 +2713,10 @@ static int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 		return -ENOMEM;
 
 	desc_size = (sizeof(struct tx_desc) * NUM_DESC_PER_RING_TX);
-	tx_ring->tx_desc_ring =
-	    (struct tx_desc *) dma_alloc_coherent(&adapter->pdev->dev,
-						  desc_size,
-						  &tx_ring->tx_desc_ring_pa,
-						  GFP_KERNEL);
+	tx_ring->tx_desc_ring = dma_alloc_coherent(&adapter->pdev->dev,
+						   desc_size,
+						   &tx_ring->tx_desc_ring_pa,
+						   GFP_KERNEL);
 	if (!adapter->tx_ring.tx_desc_ring) {
 		dev_err(&adapter->pdev->dev,
 			"Cannot alloc memory for Tx Ring\n");
@@ -3090,9 +3089,8 @@ static inline void free_send_packet(struct et131x_adapter *adapter,
 		 * they point to
 		 */
 		do {
-			desc = (struct tx_desc *)
-				    (adapter->tx_ring.tx_desc_ring +
-						INDEX10(tcb->index_start));
+			desc = adapter->tx_ring.tx_desc_ring +
+			       INDEX10(tcb->index_start);
 
 			dma_addr = desc->addr_lo;
 			dma_addr |= (u64)desc->addr_hi << 32;
