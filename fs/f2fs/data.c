@@ -194,8 +194,9 @@ void f2fs_submit_page_mbio(struct f2fs_sb_info *sbi, struct page *page,
 	if (!is_read_io(rw))
 		inc_page_count(sbi, F2FS_WRITEBACK);
 
-	if (io->bio && io->last_block_in_bio != blk_addr - 1)
-		__submit_merged_bio(sbi, io, type, true, rw);
+	if (io->bio && (io->last_block_in_bio != blk_addr - 1 ||
+						io->rw_flag != rw))
+		__submit_merged_bio(sbi, io, type, false, io->rw_flag);
 alloc_new:
 	if (io->bio == NULL) {
 		bio_blocks = MAX_BIO_BLOCKS(max_hw_blocks(sbi));
@@ -203,6 +204,7 @@ alloc_new:
 		io->bio->bi_sector = SECTOR_FROM_BLOCK(sbi, blk_addr);
 		io->bio->bi_end_io = is_read_io(rw) ? f2fs_read_end_io :
 							f2fs_write_end_io;
+		io->rw_flag = rw;
 		/*
 		 * The end_io will be assigned at the sumbission phase.
 		 * Until then, let bio_add_page() merge consecutive IOs as much
@@ -212,7 +214,7 @@ alloc_new:
 
 	if (bio_add_page(io->bio, page, PAGE_CACHE_SIZE, 0) <
 							PAGE_CACHE_SIZE) {
-		__submit_merged_bio(sbi, io, type, true, rw);
+		__submit_merged_bio(sbi, io, type, false, rw);
 		goto alloc_new;
 	}
 
@@ -641,7 +643,7 @@ static int f2fs_read_data_pages(struct file *file,
 	return mpage_readpages(mapping, pages, nr_pages, get_data_block_ro);
 }
 
-int do_write_data_page(struct page *page)
+int do_write_data_page(struct page *page, struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
 	block_t old_blk_addr, new_blk_addr;
@@ -669,10 +671,10 @@ int do_write_data_page(struct page *page)
 			!is_cold_data(page) &&
 			need_inplace_update(inode))) {
 		rewrite_data_page(F2FS_SB(inode->i_sb), page,
-						old_blk_addr);
+						old_blk_addr, wbc);
 	} else {
 		write_data_page(inode, page, &dn,
-				old_blk_addr, &new_blk_addr);
+				old_blk_addr, &new_blk_addr, wbc);
 		update_extent_cache(new_blk_addr, &dn);
 	}
 out_writepage:
@@ -719,10 +721,10 @@ write:
 	if (S_ISDIR(inode->i_mode)) {
 		dec_page_count(sbi, F2FS_DIRTY_DENTS);
 		inode_dec_dirty_dents(inode);
-		err = do_write_data_page(page);
+		err = do_write_data_page(page, wbc);
 	} else {
 		f2fs_lock_op(sbi);
-		err = do_write_data_page(page);
+		err = do_write_data_page(page, wbc);
 		f2fs_unlock_op(sbi);
 		need_balance_fs = true;
 	}

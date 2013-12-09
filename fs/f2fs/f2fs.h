@@ -368,6 +368,7 @@ enum page_type {
 struct f2fs_bio_info {
 	struct bio *bio;		/* bios to merge */
 	sector_t last_block_in_bio;	/* last block number */
+	int rw_flag;				/* rw flag for all pages */
 	struct mutex io_mutex;		/* mutex for bio */
 };
 
@@ -1098,8 +1099,9 @@ void write_meta_page(struct f2fs_sb_info *, struct page *);
 void write_node_page(struct f2fs_sb_info *, struct page *, unsigned int,
 					block_t, block_t *);
 void write_data_page(struct inode *, struct page *, struct dnode_of_data*,
-					block_t, block_t *);
-void rewrite_data_page(struct f2fs_sb_info *, struct page *, block_t);
+			block_t, block_t *, struct writeback_control *);
+void rewrite_data_page(struct f2fs_sb_info *, struct page *, block_t,
+				struct writeback_control *);
 void recover_data_page(struct f2fs_sb_info *, struct page *,
 				struct f2fs_summary *, block_t, block_t);
 void rewrite_node_page(struct f2fs_sb_info *, struct page *,
@@ -1150,7 +1152,7 @@ void update_extent_cache(block_t, struct dnode_of_data *);
 struct page *find_data_page(struct inode *, pgoff_t, bool);
 struct page *get_lock_data_page(struct inode *, pgoff_t);
 struct page *get_new_data_page(struct inode *, struct page *, pgoff_t, bool);
-int do_write_data_page(struct page *);
+int do_write_data_page(struct page *, struct writeback_control *);
 
 /*
  * gc.c

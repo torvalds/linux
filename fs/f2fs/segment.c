@@ -856,12 +856,13 @@ static int __get_segment_type(struct page *page, enum page_type p_type)
 
 static void do_write_page(struct f2fs_sb_info *sbi, struct page *page,
 			block_t old_blkaddr, block_t *new_blkaddr,
-			struct f2fs_summary *sum, enum page_type p_type)
+			struct f2fs_summary *sum, enum page_type p_type,
+			struct writeback_control *wbc)
 {
 	struct sit_info *sit_i = SIT_I(sbi);
 	struct curseg_info *curseg;
 	unsigned int old_cursegno;
-	int type;
+	int type, rw = WRITE;
 
 	type = __get_segment_type(page, p_type);
 	curseg = CURSEG_I(sbi, type);
@@ -900,7 +901,9 @@ static void do_write_page(struct f2fs_sb_info *sbi, struct page *page,
 		fill_node_footer_blkaddr(page, NEXT_FREE_BLKADDR(sbi, curseg));
 
 	/* writeout dirty page into bdev */
-	f2fs_submit_page_mbio(sbi, page, *new_blkaddr, p_type, WRITE);
+	if (wbc->sync_mode == WB_SYNC_ALL)
+		rw |= WRITE_SYNC;
+	f2fs_submit_page_mbio(sbi, page, *new_blkaddr, p_type, rw);
 
 	mutex_unlock(&curseg->curseg_mutex);
 }
@@ -915,13 +918,16 @@ void write_node_page(struct f2fs_sb_info *sbi, struct page *page,
 		unsigned int nid, block_t old_blkaddr, block_t *new_blkaddr)
 {
 	struct f2fs_summary sum;
+	struct writeback_control wbc = {
+		.sync_mode = 1,
+	};
 	set_summary(&sum, nid, 0, 0);
-	do_write_page(sbi, page, old_blkaddr, new_blkaddr, &sum, NODE);
+	do_write_page(sbi, page, old_blkaddr, new_blkaddr, &sum, NODE, &wbc);
 }
 
 void write_data_page(struct inode *inode, struct page *page,
 		struct dnode_of_data *dn, block_t old_blkaddr,
-		block_t *new_blkaddr)
+		block_t *new_blkaddr, struct writeback_control *wbc)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct f2fs_summary sum;
@@ -932,13 +938,14 @@ void write_data_page(struct inode *inode, struct page *page,
 	set_summary(&sum, dn->nid, dn->ofs_in_node, ni.version);
 
 	do_write_page(sbi, page, old_blkaddr,
-			new_blkaddr, &sum, DATA);
+			new_blkaddr, &sum, DATA, wbc);
 }
 
 void rewrite_data_page(struct f2fs_sb_info *sbi, struct page *page,
-					block_t old_blk_addr)
+			block_t old_blk_addr, struct writeback_control *wbc)
 {
-	f2fs_submit_page_mbio(sbi, page, old_blk_addr, DATA, WRITE);
+	int rw = wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : WRITE;
+	f2fs_submit_page_mbio(sbi, page, old_blk_addr, DATA, rw);
 }
 
 void recover_data_page(struct f2fs_sb_info *sbi,
@@ -1025,7 +1032,7 @@ void rewrite_node_page(struct f2fs_sb_info *sbi,
 
 	/* rewrite node page */
 	set_page_writeback(page);
-	f2fs_submit_page_mbio(sbi, page, new_blkaddr, NODE, WRITE);
+	f2fs_submit_page_mbio(sbi, page, new_blkaddr, NODE, WRITE_SYNC);
 	f2fs_submit_merged_bio(sbi, NODE, true, WRITE);
 	refresh_sit_entry(sbi, old_blkaddr, new_blkaddr);
 
@@ -1593,7 +1600,7 @@ repeat:
 			continue;
 		}
 
-		f2fs_submit_page_mbio(sbi, page, blk_addr, META, READ);
+		f2fs_submit_page_mbio(sbi, page, blk_addr, META, READ_SYNC);
 
 		mark_page_accessed(page);
 		f2fs_put_page(page, 0);
