@@ -148,7 +148,7 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 		return -ENODEV;
 	}
 
-	hcd = usb_create_hcd(driver, &pdev->dev, "at91");
+	hcd = usb_create_hcd(driver, dev, "at91");
 	if (!hcd)
 		return -ENOMEM;
 	hcd->rsrc_start = pdev->resource[0].start;
@@ -160,28 +160,28 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 		goto err;
 	}
 
-	iclk = clk_get(&pdev->dev, "ohci_clk");
+	iclk = clk_get(dev, "ohci_clk");
 	if (IS_ERR(iclk)) {
-		dev_err(&pdev->dev, "failed to get ohci_clk\n");
+		dev_err(dev, "failed to get ohci_clk\n");
 		retval = PTR_ERR(iclk);
 		goto err;
 	}
-	fclk = clk_get(&pdev->dev, "uhpck");
+	fclk = clk_get(dev, "uhpck");
 	if (IS_ERR(fclk)) {
-		dev_err(&pdev->dev, "failed to get uhpck\n");
+		dev_err(dev, "failed to get uhpck\n");
 		retval = PTR_ERR(fclk);
 		goto err4;
 	}
-	hclk = clk_get(&pdev->dev, "hclk");
+	hclk = clk_get(dev, "hclk");
 	if (IS_ERR(hclk)) {
-		dev_err(&pdev->dev, "failed to get hclk\n");
+		dev_err(dev, "failed to get hclk\n");
 		retval = PTR_ERR(hclk);
 		goto err5;
 	}
 	if (IS_ENABLED(CONFIG_COMMON_CLK)) {
-		uclk = clk_get(&pdev->dev, "usb_clk");
+		uclk = clk_get(dev, "usb_clk");
 		if (IS_ERR(uclk)) {
-			dev_err(&pdev->dev, "failed to get uclk\n");
+			dev_err(dev, "failed to get uclk\n");
 			retval = PTR_ERR(uclk);
 			goto err6;
 		}
