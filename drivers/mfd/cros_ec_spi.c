@@ -374,5 +374,5 @@ static struct spi_driver cros_ec_driver_spi = {
 
 module_spi_driver(cros_ec_driver_spi);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("ChromeOS EC multi function device (SPI)");
