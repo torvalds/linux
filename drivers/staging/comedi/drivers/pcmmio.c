@@ -99,6 +99,7 @@ Configuration Options:
 #define PCMMIO_AI_STATUS_REG_SEL	(1 << 3)
 #define PCMMIO_AI_STATUS_CMD_DRQ_ENA	(1 << 1)
 #define PCMMIO_AI_STATUS_IRQ_ENA	(1 << 0)
+#define PCMMIO_AI_2ND_ADC_OFFSET	0x04
 
 /* This stuff is all from pcmuio.c -- it refers to the DIO subdevices only */
 #define CHANS_PER_PORT   8
@@ -815,7 +816,7 @@ static int pcmmio_ai_insn_read(struct comedi_device *dev,
 
 	if (chan > 7) {
 		chan -= 8;
-		iobase += 0x4;
+		iobase += PCMMIO_AI_2ND_ADC_OFFSET;
 	}
 
 	if (aref == AREF_GROUND)
