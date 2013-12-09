@@ -276,7 +276,6 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 	int expected_len, len = 0;
 	u32 dummy32;
 	char *buf;
-	int host_err;
 
 	DECODE_HEAD;
 	iattr->ia_valid = 0;
@@ -303,10 +302,9 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 			return nfserr_resource;
 
 		*acl = nfs4_acl_new(nace);
-		if (*acl == NULL) {
-			host_err = -ENOMEM;
-			goto out_nfserr;
-		}
+		if (*acl == NULL)
+			return nfserr_jukebox;
+
 		defer_free(argp, kfree, *acl);
 
 		(*acl)->naces = nace;
@@ -444,10 +442,6 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		goto xdr_error;
 
 	DECODE_TAIL;
-
-out_nfserr:
-	status = nfserrno(host_err);
-	goto out;
 }
 
 static __be32
