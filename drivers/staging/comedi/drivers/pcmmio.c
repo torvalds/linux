@@ -359,50 +359,51 @@ static void pcmmio_handle_dio_intr(struct comedi_device *dev,
 				   unsigned int triggered)
 {
 	struct pcmmio_private *devpriv = dev->private;
+	unsigned int oldevents = s->async->events;
+	unsigned int len = s->async->cmd.chanlist_len;
+	unsigned int val = 0;
 	unsigned long flags;
-	unsigned oldevents;
+	int i;
 
 	spin_lock_irqsave(&devpriv->spinlock, flags);
 
-	oldevents = s->async->events;
+	if (!devpriv->active)
+		goto done;
 
-	if (devpriv->active) {
-		unsigned mytrig = ((triggered >> 0) & ((1 << 24) - 1)) << 0;
-		if (mytrig & devpriv->enabled_mask) {
-			unsigned int val = 0;
-			unsigned int n, ch, len;
+	if (!(triggered & devpriv->enabled_mask))
+		goto done;
 
-			len = s->async->cmd.chanlist_len;
-			for (n = 0; n < len; n++) {
-				ch = CR_CHAN(s->async->cmd.chanlist[n]);
-				if (mytrig & (1U << ch))
-					val |= (1U << n);
-			}
-			/* Write the scan to the buffer. */
-			if (comedi_buf_put(s->async, val) &&
-				comedi_buf_put (s->async, val >> 16)) {
-				s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
-			} else {
-				/* Overflow! Stop acquisition!! */
+	for (i = 0; i < len; i++) {
+		unsigned int chan = CR_CHAN(s->async->cmd.chanlist[i]);
+
+		if (triggered & (1 << chan))
+			val |= (1 << i);
+	}
+
+	/* Write the scan to the buffer. */
+	if (comedi_buf_put(s->async, val) &&
+	    comedi_buf_put (s->async, val >> 16)) {
+		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
+	} else {
+		/* Overflow! Stop acquisition!! */
+		/* TODO: STOP_ACQUISITION_CALL_HERE!! */
+		pcmmio_stop_intr(dev, s);
+	}
+
+	/* Check for end of acquisition. */
+	if (!devpriv->continuous) {
+		/* stop_src == TRIG_COUNT */
+		if (devpriv->stop_count > 0) {
+			devpriv->stop_count--;
+			if (devpriv->stop_count == 0) {
+				s->async->events |= COMEDI_CB_EOA;
 				/* TODO: STOP_ACQUISITION_CALL_HERE!! */
 				pcmmio_stop_intr(dev, s);
-			}
-
-			/* Check for end of acquisition. */
-			if (!devpriv->continuous) {
-				/* stop_src == TRIG_COUNT */
-				if (devpriv->stop_count > 0) {
-					devpriv->stop_count--;
-					if (devpriv->stop_count == 0) {
-						s->async->events |= COMEDI_CB_EOA;
-						/* TODO: STOP_ACQUISITION_CALL_HERE!! */
-						pcmmio_stop_intr(dev, s);
-					}
-				}
 			}
 		}
 	}
 
+done:
 	spin_unlock_irqrestore(&devpriv->spinlock, flags);
 
 	if (oldevents != s->async->events)
