@@ -932,7 +932,7 @@ repeat:
 					jbd2_alloc(jh2bh(jh)->b_size,
 							 GFP_NOFS);
 				if (!frozen_buffer) {
-					printk(KERN_EMERG
+					printk(KERN_ERR
 					       "%s: OOM for frozen_buffer\n",
 					       __func__);
 					JBUFFER_TRACE(jh, "oom!");
@@ -1166,7 +1166,7 @@ repeat:
 	if (!jh->b_committed_data) {
 		committed_data = jbd2_alloc(jh2bh(jh)->b_size, GFP_NOFS);
 		if (!committed_data) {
-			printk(KERN_EMERG "%s: No memory for committed data\n",
+			printk(KERN_ERR "%s: No memory for committed data\n",
 				__func__);
 			err = -ENOMEM;
 			goto out;
@@ -1308,7 +1308,7 @@ int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 		JBUFFER_TRACE(jh, "fastpath");
 		if (unlikely(jh->b_transaction !=
 			     journal->j_running_transaction)) {
-			printk(KERN_EMERG "JBD: %s: "
+			printk(KERN_ERR "JBD: %s: "
 			       "jh->b_transaction (%llu, %p, %u) != "
 			       "journal->j_running_transaction (%p, %u)",
 			       journal->j_devname,
@@ -1335,7 +1335,7 @@ int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 		JBUFFER_TRACE(jh, "already on other transaction");
 		if (unlikely(jh->b_transaction !=
 			     journal->j_committing_transaction)) {
-			printk(KERN_EMERG "JBD: %s: "
+			printk(KERN_ERR "JBD: %s: "
 			       "jh->b_transaction (%llu, %p, %u) != "
 			       "journal->j_committing_transaction (%p, %u)",
 			       journal->j_devname,
@@ -1348,7 +1348,7 @@ int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 			ret = -EINVAL;
 		}
 		if (unlikely(jh->b_next_transaction != transaction)) {
-			printk(KERN_EMERG "JBD: %s: "
+			printk(KERN_ERR "JBD: %s: "
 			       "jh->b_next_transaction (%llu, %p, %u) != "
 			       "transaction (%p, %u)",
 			       journal->j_devname,

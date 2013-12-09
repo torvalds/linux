@@ -702,7 +702,7 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
 	read_lock(&journal->j_state_lock);
 #ifdef CONFIG_JBD2_DEBUG
 	if (!tid_geq(journal->j_commit_request, tid)) {
-		printk(KERN_EMERG
+		printk(KERN_ERR
 		       "%s: error: j_commit_request=%d, tid=%d\n",
 		       __func__, journal->j_commit_request, tid);
 	}
@@ -718,10 +718,8 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
 	}
 	read_unlock(&journal->j_state_lock);
 
-	if (unlikely(is_journal_aborted(journal))) {
-		printk(KERN_EMERG "journal commit I/O error\n");
+	if (unlikely(is_journal_aborted(journal)))
 		err = -EIO;
-	}
 	return err;
 }
 
@@ -2645,7 +2643,7 @@ static void __exit journal_exit(void)
 #ifdef CONFIG_JBD2_DEBUG
 	int n = atomic_read(&nr_journal_heads);
 	if (n)
-		printk(KERN_EMERG "JBD2: leaked %d journal_heads!\n", n);
+		printk(KERN_ERR "JBD2: leaked %d journal_heads!\n", n);
 #endif
 	jbd2_remove_jbd_stats_proc_entry();
 	jbd2_journal_destroy_caches();
