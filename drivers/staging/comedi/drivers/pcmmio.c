@@ -856,5 +856,5 @@ static struct comedi_driver pcmmio_driver = {
 module_comedi_driver(pcmmio_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for Winsystems PCM-MIO PC/104 board");
 MODULE_LICENSE("GPL");
