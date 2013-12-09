@@ -1282,24 +1282,25 @@ static unsigned long ibmveth_get_desired_dma(struct vio_dev *vdev)
 
 	/* netdev inits at probe time along with the structures we need below*/
 	if (netdev == NULL)
-		return IOMMU_PAGE_ALIGN(IBMVETH_IO_ENTITLEMENT_DEFAULT);
+		return IOMMU_PAGE_ALIGN_4K(IBMVETH_IO_ENTITLEMENT_DEFAULT);
 
 	adapter = netdev_priv(netdev);
 
 	ret = IBMVETH_BUFF_LIST_SIZE + IBMVETH_FILT_LIST_SIZE;
-	ret += IOMMU_PAGE_ALIGN(netdev->mtu);
+	ret += IOMMU_PAGE_ALIGN_4K(netdev->mtu);
 
 	for (i = 0; i < IBMVETH_NUM_BUFF_POOLS; i++) {
 		/* add the size of the active receive buffers */
 		if (adapter->rx_buff_pool[i].active)
 			ret +=
 			    adapter->rx_buff_pool[i].size *
-			    IOMMU_PAGE_ALIGN(adapter->rx_buff_pool[i].
+			    IOMMU_PAGE_ALIGN_4K(adapter->rx_buff_pool[i].
 			            buff_size);
 		rxqentries += adapter->rx_buff_pool[i].size;
 	}
 	/* add the size of the receive queue entries */
-	ret += IOMMU_PAGE_ALIGN(rxqentries * sizeof(struct ibmveth_rx_q_entry));
+	ret += IOMMU_PAGE_ALIGN_4K(
+		rxqentries * sizeof(struct ibmveth_rx_q_entry));
 
 	return ret;
 }

@@ -488,7 +488,7 @@ static void iommu_table_setparms(struct pci_controller *phb,
 	tbl->it_busno = phb->bus->number;
 
 	/* Units of tce entries */
-	tbl->it_offset = phb->dma_window_base_cur >> IOMMU_PAGE_SHIFT;
+	tbl->it_offset = phb->dma_window_base_cur >> IOMMU_PAGE_SHIFT_4K;
 
 	/* Test if we are going over 2GB of DMA space */
 	if (phb->dma_window_base_cur + phb->dma_window_size > 0x80000000ul) {
@@ -499,7 +499,7 @@ static void iommu_table_setparms(struct pci_controller *phb,
 	phb->dma_window_base_cur += phb->dma_window_size;
 
 	/* Set the tce table size - measured in entries */
-	tbl->it_size = phb->dma_window_size >> IOMMU_PAGE_SHIFT;
+	tbl->it_size = phb->dma_window_size >> IOMMU_PAGE_SHIFT_4K;
 
 	tbl->it_index = 0;
 	tbl->it_blocksize = 16;
@@ -540,8 +540,8 @@ static void iommu_table_setparms_lpar(struct pci_controller *phb,
 	tbl->it_base   = 0;
 	tbl->it_blocksize  = 16;
 	tbl->it_type = TCE_PCI;
-	tbl->it_offset = offset >> IOMMU_PAGE_SHIFT;
-	tbl->it_size = size >> IOMMU_PAGE_SHIFT;
+	tbl->it_offset = offset >> IOMMU_PAGE_SHIFT_4K;
+	tbl->it_size = size >> IOMMU_PAGE_SHIFT_4K;
 }
 
 static void pci_dma_bus_setup_pSeries(struct pci_bus *bus)

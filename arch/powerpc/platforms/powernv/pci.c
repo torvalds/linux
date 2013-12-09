@@ -564,7 +564,7 @@ void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 {
 	tbl->it_blocksize = 16;
 	tbl->it_base = (unsigned long)tce_mem;
-	tbl->it_offset = dma_offset >> IOMMU_PAGE_SHIFT;
+	tbl->it_offset = dma_offset >> IOMMU_PAGE_SHIFT_4K;
 	tbl->it_index = 0;
 	tbl->it_size = tce_size >> 3;
 	tbl->it_busno = 0;
@@ -761,7 +761,7 @@ static struct notifier_block tce_iommu_bus_nb = {
 
 static int __init tce_iommu_bus_notifier_init(void)
 {
-	BUILD_BUG_ON(PAGE_SIZE < IOMMU_PAGE_SIZE);
+	BUILD_BUG_ON(PAGE_SIZE < IOMMU_PAGE_SIZE_4K);
 
 	bus_register_notifier(&pci_bus_type, &tce_iommu_bus_nb);
 	return 0;
