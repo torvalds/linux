@@ -103,11 +103,6 @@ xdr_error:					\
 	(x) = (u64)ntohl(*p++) << 32;		\
 	(x) |= ntohl(*p++);			\
 } while (0)
-#define READTIME(x)       do {			\
-	p++;					\
-	(x) = ntohl(*p++);			\
-	p++;					\
-} while (0)
 #define READMEM(x,nbytes) do {			\
 	x = (char *)p;				\
 	p += XDR_QUADLEN(nbytes);		\
