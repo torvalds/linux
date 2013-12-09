@@ -210,11 +210,6 @@ struct pcmmio_subdev_private {
 			/* The below is only used for intr subdevices */
 			struct {
 				/*
-				 * the number of asic channels in this subdev
-				 * that have interrutps
-				 */
-				int num_asic_chans;
-				/*
 				 * subdev-relative channel mask for channels
 				 * we are interested in
 				 */
@@ -448,9 +443,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 							unsigned mytrig =
 							    ((triggered >> 0)
 							     &
-							     ((0x1 << subpriv->
-							       dio.intr.
-							       num_asic_chans) -
+							     ((0x1 << 24) -
 							      1)) << 0;
 							if (mytrig &
 							    subpriv->dio.
@@ -535,7 +528,7 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 
 		subpriv->dio.intr.enabled_mask = 0;
 		subpriv->dio.intr.active = 1;
-		nports = subpriv->dio.intr.num_asic_chans / CHANS_PER_PORT;
+		nports = 24 / CHANS_PER_PORT;
 		firstport = 0 / CHANS_PER_PORT;
 		if (cmd->chanlist) {
 			for (n = 0; n < cmd->chanlist_len; n++) {
@@ -546,7 +539,7 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 				    << CR_CHAN(cmd->chanlist[n]);
 			}
 		}
-		bits &= ((0x1 << subpriv->dio.intr.num_asic_chans) - 1) << 0;
+		bits &= ((0x1 << 24) - 1) << 0;
 		subpriv->dio.intr.enabled_mask = bits;
 
 		{
@@ -956,7 +949,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	subpriv = s->private;
 	subpriv->dio.intr.active = 0;
 	subpriv->dio.intr.stop_count = 0;
-	subpriv->dio.intr.num_asic_chans = 24;
 
 	spin_lock_init(&subpriv->dio.intr.spinlock);
 
