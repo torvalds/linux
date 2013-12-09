@@ -61,7 +61,7 @@ static void __init imx6sl_init_irq(void)
 	irqchip_init();
 }
 
-static const char *imx6sl_dt_compat[] __initdata = {
+static const char *imx6sl_dt_compat[] __initconst = {
 	"fsl,imx6sl",
 	NULL,
 };
