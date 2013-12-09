@@ -397,13 +397,17 @@ static inline void iwl_enable_interrupts(struct iwl_trans *trans)
 
 	IWL_DEBUG_ISR(trans, "Enabling interrupts\n");
 	set_bit(STATUS_INT_ENABLED, &trans->status);
+	trans_pcie->inta_mask = CSR_INI_SET_MASK;
 	iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
 }
 
 static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
 	IWL_DEBUG_ISR(trans, "Enabling rfkill interrupt\n");
-	iwl_write32(trans, CSR_INT_MASK, CSR_INT_BIT_RF_KILL);
+	trans_pcie->inta_mask = CSR_INT_BIT_RF_KILL;
+	iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
 }
 
 static inline void iwl_wake_queue(struct iwl_trans *trans,
