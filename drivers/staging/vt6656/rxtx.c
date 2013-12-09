@@ -167,20 +167,10 @@ static void s_vSaveTxPktInfo(struct vnt_private *pDevice, u8 byPktNum,
 	u8 *pbyDestAddr, u16 wPktLength, u16 wFIFOCtl)
 {
 	struct net_device_stats *stats = &pDevice->stats;
-	PSStatCounter pStatistic = &pDevice->scStatistic;
+	struct vnt_tx_pkt_info *pkt_info = pDevice->pkt_info;
 
-    if (is_broadcast_ether_addr(pbyDestAddr))
-        pStatistic->abyTxPktInfo[byPktNum].byBroadMultiUni = TX_PKT_BROAD;
-    else if (is_multicast_ether_addr(pbyDestAddr))
-        pStatistic->abyTxPktInfo[byPktNum].byBroadMultiUni = TX_PKT_MULTI;
-    else
-        pStatistic->abyTxPktInfo[byPktNum].byBroadMultiUni = TX_PKT_UNI;
-
-    pStatistic->abyTxPktInfo[byPktNum].wLength = wPktLength;
-    pStatistic->abyTxPktInfo[byPktNum].wFIFOCtl = wFIFOCtl;
-    memcpy(pStatistic->abyTxPktInfo[byPktNum].abyDestAddr,
-	   pbyDestAddr,
-	   ETH_ALEN);
+	pkt_info[byPktNum].fifo_ctl = wFIFOCtl;
+	memcpy(pkt_info[byPktNum].dest_addr, pbyDestAddr, ETH_ALEN);
 
 	stats->tx_bytes += wPktLength;
 }

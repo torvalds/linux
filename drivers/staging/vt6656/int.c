@@ -92,7 +92,6 @@ void INTnsProcessData(struct vnt_private *pDevice)
 			pStats->tx_packets++;
 
 		BSSvUpdateNodeTxCounter(pDevice,
-					&(pDevice->scStatistic),
 					pINTData->byTSR0,
 					pINTData->byPkt0);
 		/*DBG_PRN_GRP01(("TSR0 %02x\n", pINTData->byTSR0));*/
@@ -105,7 +104,6 @@ void INTnsProcessData(struct vnt_private *pDevice)
 
 
 		BSSvUpdateNodeTxCounter(pDevice,
-					&(pDevice->scStatistic),
 					pINTData->byTSR1,
 					pINTData->byPkt1);
 		/*DBG_PRN_GRP01(("TSR1 %02x\n", pINTData->byTSR1));*/
@@ -117,7 +115,6 @@ void INTnsProcessData(struct vnt_private *pDevice)
 			pStats->tx_packets++;
 
 		BSSvUpdateNodeTxCounter(pDevice,
-					&(pDevice->scStatistic),
 					pINTData->byTSR2,
 					pINTData->byPkt2);
 		/*DBG_PRN_GRP01(("TSR2 %02x\n", pINTData->byTSR2));*/
@@ -129,7 +126,6 @@ void INTnsProcessData(struct vnt_private *pDevice)
 			pStats->tx_packets++;
 
 		BSSvUpdateNodeTxCounter(pDevice,
-					&(pDevice->scStatistic),
 					pINTData->byTSR3,
 					pINTData->byPkt3);
 		/*DBG_PRN_GRP01(("TSR3 %02x\n", pINTData->byTSR3));*/

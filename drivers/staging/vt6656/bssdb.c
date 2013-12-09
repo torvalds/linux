@@ -1160,10 +1160,10 @@ else {
  *
 -*/
 
-void BSSvUpdateNodeTxCounter(struct vnt_private *pDevice,
-	PSStatCounter pStatistic, u8 byTSR, u8 byPktNO)
+void BSSvUpdateNodeTxCounter(struct vnt_private *pDevice, u8 byTSR, u8 byPktNO)
 {
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	struct vnt_tx_pkt_info *pkt_info = pDevice->pkt_info;
 	u32 uNodeIndex = 0;
 	u8 byTxRetry;
 	u16 wRate;
@@ -1177,8 +1177,8 @@ void BSSvUpdateNodeTxCounter(struct vnt_private *pDevice,
     byPktNum = (byPktNO & 0x0F) >> 4;
     byTxRetry = (byTSR & 0xF0) >> 4;
     wRate = (u16) (byPktNO & 0xF0) >> 4;
-    wFIFOCtl = pStatistic->abyTxPktInfo[byPktNum].wFIFOCtl;
-    pbyDestAddr = (u8 *) &( pStatistic->abyTxPktInfo[byPktNum].abyDestAddr[0]);
+    wFIFOCtl = pkt_info[byPktNum].fifo_ctl;
+    pbyDestAddr = pkt_info[byPktNum].dest_addr;
 
     if (wFIFOCtl & FIFOCTL_AUTO_FB_0) {
         byFallBack = AUTO_FB_0;

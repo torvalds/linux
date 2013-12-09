@@ -264,8 +264,7 @@ void BSSvUpdateAPNode(struct vnt_private *, u16 *pwCapInfo,
 
 void BSSvSecondCallBack(struct work_struct *work);
 
-void BSSvUpdateNodeTxCounter(struct vnt_private *, PSStatCounter pStatistic,
-	u8 byTSR, u8 byPktNO);
+void BSSvUpdateNodeTxCounter(struct vnt_private *, u8 byTSR, u8 byPktNO);
 
 void BSSvRemoveOneNode(struct vnt_private *, u32 uNodeIndex);
 
