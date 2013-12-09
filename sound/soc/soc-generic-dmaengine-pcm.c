@@ -313,6 +313,20 @@ static void dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 		pcm->chan[1] = pcm->chan[0];
 }
 
+static void dmaengine_pcm_release_chan(struct dmaengine_pcm *pcm)
+{
+	unsigned int i;
+
+	for (i = SNDRV_PCM_STREAM_PLAYBACK; i <= SNDRV_PCM_STREAM_CAPTURE;
+	     i++) {
+		if (!pcm->chan[i])
+			continue;
+		dma_release_channel(pcm->chan[i]);
+		if (pcm->flags & SND_DMAENGINE_PCM_FLAG_HALF_DUPLEX)
+			break;
+	}
+}
+
 /**
  * snd_dmaengine_pcm_register - Register a dmaengine based PCM device
  * @dev: The parent device for the PCM device
@@ -323,6 +337,7 @@ int snd_dmaengine_pcm_register(struct device *dev,
 	const struct snd_dmaengine_pcm_config *config, unsigned int flags)
 {
 	struct dmaengine_pcm *pcm;
+	int ret;
 
 	pcm = kzalloc(sizeof(*pcm), GFP_KERNEL);
 	if (!pcm)
@@ -334,11 +349,20 @@ int snd_dmaengine_pcm_register(struct device *dev,
 	dmaengine_pcm_request_chan_of(pcm, dev);
 
 	if (flags & SND_DMAENGINE_PCM_FLAG_NO_RESIDUE)
-		return snd_soc_add_platform(dev, &pcm->platform,
+		ret = snd_soc_add_platform(dev, &pcm->platform,
 				&dmaengine_no_residue_pcm_platform);
 	else
-		return snd_soc_add_platform(dev, &pcm->platform,
+		ret = snd_soc_add_platform(dev, &pcm->platform,
 				&dmaengine_pcm_platform);
+	if (ret)
+		goto err_free_dma;
+
+	return 0;
+
+err_free_dma:
+	dmaengine_pcm_release_chan(pcm);
+	kfree(pcm);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_register);
 
@@ -353,7 +377,6 @@ void snd_dmaengine_pcm_unregister(struct device *dev)
 {
 	struct snd_soc_platform *platform;
 	struct dmaengine_pcm *pcm;
-	unsigned int i;
 
 	platform = snd_soc_lookup_platform(dev);
 	if (!platform)
@@ -361,15 +384,8 @@ void snd_dmaengine_pcm_unregister(struct device *dev)
 
 	pcm = soc_platform_to_pcm(platform);
 
-	for (i = SNDRV_PCM_STREAM_PLAYBACK; i <= SNDRV_PCM_STREAM_CAPTURE; i++) {
-		if (pcm->chan[i]) {
-			dma_release_channel(pcm->chan[i]);
-			if (pcm->flags & SND_DMAENGINE_PCM_FLAG_HALF_DUPLEX)
-				break;
-		}
-	}
-
 	snd_soc_remove_platform(platform);
+	dmaengine_pcm_release_chan(pcm);
 	kfree(pcm);
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_unregister);
