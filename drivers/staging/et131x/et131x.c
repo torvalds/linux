@@ -1781,6 +1781,7 @@ static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 		u32 __iomem *min_des;
 		u32 __iomem *base_hi;
 		u32 __iomem *base_lo;
+		struct fbr_lookup *fbr = rx_local->fbr[id];
 
 		if (id == 0) {
 			num_des = &rx_dma->fbr0_num_des;
@@ -1797,12 +1798,10 @@ static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 		}
 
 		/* Now's the best time to initialize FBR contents */
-		fbr_entry =
-		    (struct fbr_desc *) rx_local->fbr[id]->ring_virtaddr;
-		for (entry = 0;
-		     entry < rx_local->fbr[id]->num_entries; entry++) {
-			fbr_entry->addr_hi = rx_local->fbr[id]->bus_high[entry];
-			fbr_entry->addr_lo = rx_local->fbr[id]->bus_low[entry];
+		fbr_entry = (struct fbr_desc *) fbr->ring_virtaddr;
+		for (entry = 0; entry < fbr->num_entries; entry++) {
+			fbr_entry->addr_hi = fbr->bus_high[entry];
+			fbr_entry->addr_lo = fbr->bus_low[entry];
 			fbr_entry->word2 = entry;
 			fbr_entry++;
 		}
@@ -1810,19 +1809,16 @@ static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 		/* Set the address and parameters of Free buffer ring 1 and 0
 		 * into the 1310's registers
 		 */
-		writel(upper_32_bits(rx_local->fbr[id]->ring_physaddr),
-		       base_hi);
-		writel(lower_32_bits(rx_local->fbr[id]->ring_physaddr),
-		       base_lo);
-		writel(rx_local->fbr[id]->num_entries - 1, num_des);
+		writel(upper_32_bits(fbr->ring_physaddr), base_hi);
+		writel(lower_32_bits(fbr->ring_physaddr), base_lo);
+		writel(fbr->num_entries - 1, num_des);
 		writel(ET_DMA10_WRAP, full_offset);
 
 		/* This variable tracks the free buffer ring 1 full position,
 		 * so it has to match the above.
 		 */
-		rx_local->fbr[id]->local_full = ET_DMA10_WRAP;
-		writel(((rx_local->fbr[id]->num_entries *
-					LO_MARK_PERCENT_FOR_RX) / 100) - 1,
+		fbr->local_full = ET_DMA10_WRAP;
+		writel(((fbr->num_entries * LO_MARK_PERCENT_FOR_RX) / 100) - 1,
 		       min_des);
 	}
 
