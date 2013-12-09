@@ -95,7 +95,7 @@ static int amba_pm_runtime_suspend(struct device *dev)
 	int ret = pm_generic_runtime_suspend(dev);
 
 	if (ret == 0 && dev->driver)
-		clk_disable(pcdev->pclk);
+		clk_disable_unprepare(pcdev->pclk);
 
 	return ret;
 }
@@ -106,7 +106,7 @@ static int amba_pm_runtime_resume(struct device *dev)
 	int ret;
 
 	if (dev->driver) {
-		ret = clk_enable(pcdev->pclk);
+		ret = clk_prepare_enable(pcdev->pclk);
 		/* Failure is probably fatal to the system, but... */
 		if (ret)
 			return ret;
