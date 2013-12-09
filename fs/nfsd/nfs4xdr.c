@@ -3263,7 +3263,7 @@ nfsd4_do_encode_secinfo(struct nfsd4_compoundres *resp,
 
 		if (rpcauth_get_gssinfo(pf, &info) == 0) {
 			supported++;
-			RESERVE_SPACE(4 + 4 + info.oid.len + 4 + 4);
+			RESERVE_SPACE(4 + 4 + XDR_LEN(info.oid.len) + 4 + 4);
 			WRITE32(RPC_AUTH_GSS);
 			WRITE32(info.oid.len);
 			WRITEMEM(info.oid.data, info.oid.len);
