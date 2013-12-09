@@ -83,24 +83,47 @@ Configuration Options:
 /*
  * Register I/O map
  */
-#define PCMMIO_AI_LSB_REG		0x00
-#define PCMMIO_AI_MSB_REG		0x01
-#define PCMMIO_AI_CMD_REG		0x02
-#define PCMMIO_AI_CMD_SE		(1 << 7)
-#define PCMMIO_AI_CMD_ODD_CHAN		(1 << 6)
-#define PCMMIO_AI_CMD_CHAN_SEL(x)	(((x) & 0x3) << 4)
-#define PCMMIO_AI_CMD_RANGE(x)		(((x) & 0x3) << 2)
-#define PCMMIO_AI_STATUS_REG		0x03
-#define PCMMIO_AI_STATUS_DATA_READY	(1 << 7)
-#define PCMMIO_AI_STATUS_DATA_DMA_PEND	(1 << 6)
-#define PCMMIO_AI_STATUS_CMD_DMA_PEND	(1 << 5)
-#define PCMMIO_AI_STATUS_IRQ_PEND	(1 << 4)
-#define PCMMIO_AI_STATUS_DATA_DRQ_ENA	(1 << 2)
-#define PCMMIO_AI_STATUS_REG_SEL	(1 << 3)
-#define PCMMIO_AI_STATUS_CMD_DRQ_ENA	(1 << 1)
-#define PCMMIO_AI_STATUS_IRQ_ENA	(1 << 0)
-#define PCMMIO_AI_RESOURCE_REG		0x03
-#define PCMMIO_AI_2ND_ADC_OFFSET	0x04
+#define PCMMIO_AI_LSB_REG			0x00
+#define PCMMIO_AI_MSB_REG			0x01
+#define PCMMIO_AI_CMD_REG			0x02
+#define PCMMIO_AI_CMD_SE			(1 << 7)
+#define PCMMIO_AI_CMD_ODD_CHAN			(1 << 6)
+#define PCMMIO_AI_CMD_CHAN_SEL(x)		(((x) & 0x3) << 4)
+#define PCMMIO_AI_CMD_RANGE(x)			(((x) & 0x3) << 2)
+#define PCMMIO_AI_STATUS_REG			0x03
+#define PCMMIO_AI_STATUS_DATA_READY		(1 << 7)
+#define PCMMIO_AI_STATUS_DATA_DMA_PEND		(1 << 6)
+#define PCMMIO_AI_STATUS_CMD_DMA_PEND		(1 << 5)
+#define PCMMIO_AI_STATUS_IRQ_PEND		(1 << 4)
+#define PCMMIO_AI_STATUS_DATA_DRQ_ENA		(1 << 2)
+#define PCMMIO_AI_STATUS_REG_SEL		(1 << 3)
+#define PCMMIO_AI_STATUS_CMD_DRQ_ENA		(1 << 1)
+#define PCMMIO_AI_STATUS_IRQ_ENA		(1 << 0)
+#define PCMMIO_AI_RESOURCE_REG			0x03
+#define PCMMIO_AI_2ND_ADC_OFFSET		0x04
+
+#define PCMMIO_AO_LSB_REG			0x08
+#define PCMMIO_AO_LSB_SPAN(x)			(((x) & 0xf) << 0)
+#define PCMMIO_AO_MSB_REG			0x09
+#define PCMMIO_AO_CMD_REG			0x0a
+#define PCMMIO_AO_CMD_WR_SPAN			(0x2 << 4)
+#define PCMMIO_AO_CMD_WR_CODE			(0x3 << 4)
+#define PCMMIO_AO_CMD_UPDATE			(0x4 << 4)
+#define PCMMIO_AO_CMD_UPDATE_ALL		(0x5 << 4)
+#define PCMMIO_AO_CMD_WR_SPAN_UPDATE		(0x6 << 4)
+#define PCMMIO_AO_CMD_WR_CODE_UPDATE		(0x7 << 4)
+#define PCMMIO_AO_CMD_WR_SPAN_UPDATE_ALL	(0x8 << 4)
+#define PCMMIO_AO_CMD_WR_CODE_UPDATE_ALL	(0x9 << 4)
+#define PCMMIO_AO_CMD_RD_B1_SPAN		(0xa << 4)
+#define PCMMIO_AO_CMD_RD_B1_CODE		(0xb << 4)
+#define PCMMIO_AO_CMD_RD_B2_SPAN		(0xc << 4)
+#define PCMMIO_AO_CMD_RD_B2_CODE		(0xd << 4)
+#define PCMMIO_AO_CMD_NOP			(0xf << 4)
+#define PCMMIO_AO_CMD_CHAN_SEL(x)		(((x) & 0x03) << 1)
+#define PCMMIO_AO_CMD_CHAN_SEL_ALL		(0x0f << 0)
+#define PCMMIO_AO_STATUS_REG			0x0b
+#define PCMMIO_AO_RESOURCE_ENA_REG		0x0b
+#define PCMMIO_AO_2ND_DAC_OFFSET		0x04
 
 /* This stuff is all from pcmuio.c -- it refers to the DIO subdevices only */
 #define CHANS_PER_PORT   8
@@ -880,53 +903,51 @@ static int wait_dac_ready(unsigned long iobase)
 	return 1;
 }
 
-static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data)
+static int pcmmio_ao_insn_write(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct pcmmio_private *devpriv = dev->private;
-	unsigned long iobase = dev->iobase + 8;
-	unsigned int iooffset = 0;
-	int n;
+	unsigned long iobase = dev->iobase;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int val = devpriv->ao_readback[chan];
+	unsigned char cmd = 0;
+	int i;
 
-	for (n = 0; n < insn->n; n++) {
-		unsigned chan = CR_CHAN(insn->chanspec), range =
-		    CR_RANGE(insn->chanspec);
-		if (chan < s->n_chan) {
-			unsigned char command_byte = 0, range_byte =
-			    range & ((1 << 4) - 1);
-			if (chan >= 4)
-				chan -= 4, iooffset += 4;
-			/* set the range.. */
-			outb(range_byte, iobase + iooffset + 0);
-			outb(0, iobase + iooffset + 1);
+	/*
+	 * The PCM-MIO has two Linear Tech LTC2704 DAC devices. Each device
+	 * is a 4-channel converter with software-selectable output range.
+	 */
 
-			/* tell it to begin */
-			command_byte = (chan << 1) | 0x60;
-			outb(command_byte, iobase + iooffset + 2);
-
-			wait_dac_ready(iobase + iooffset);
-
-			/* low order byte */
-			outb(data[n] & 0xff, iobase + iooffset + 0);
-
-			/* high order byte */
-			outb((data[n] >> 8) & 0xff, iobase + iooffset + 1);
-
-			/*
-			 * set bit 4 of command byte to indicate
-			 * data is loaded and trigger conversion
-			 */
-			command_byte = 0x70 | (chan << 1);
-			/* trigger converion */
-			outb(command_byte, iobase + iooffset + 2);
-
-			wait_dac_ready(iobase + iooffset);
-
-			/* save to shadow register for ao_rinsn */
-			devpriv->ao_readback[chan] = data[n];
-		}
+	if (chan > 3) {
+		cmd |= PCMMIO_AO_CMD_CHAN_SEL(chan - 4);
+		iobase += PCMMIO_AO_2ND_DAC_OFFSET;
+	} else {
+		cmd |= PCMMIO_AO_CMD_CHAN_SEL(chan);
 	}
-	return n;
+
+	/* set the range for the channel */
+	outb(PCMMIO_AO_LSB_SPAN(range), iobase + PCMMIO_AO_LSB_REG);
+	outb(0, iobase + PCMMIO_AO_MSB_REG);
+	outb(cmd | PCMMIO_AO_CMD_WR_SPAN_UPDATE, iobase + PCMMIO_AO_CMD_REG);
+	wait_dac_ready(iobase);
+
+	for (i = 0; i < insn->n; i++) {
+		val = data[i];
+
+		/* write the data to the channel */
+		outb(val & 0xff, iobase + PCMMIO_AO_LSB_REG);
+		outb((val >> 8) & 0xff, iobase + PCMMIO_AO_MSB_REG);
+		outb(cmd | PCMMIO_AO_CMD_WR_CODE_UPDATE,
+		     iobase + PCMMIO_AO_CMD_REG);
+		wait_dac_ready(iobase);
+
+		devpriv->ao_readback[chan] = val;
+	}
+
+	return insn->n;
 }
 
 static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
@@ -996,11 +1017,12 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan = 8;
 	s->len_chanlist = s->n_chan;
 	s->insn_read = ao_rinsn;
-	s->insn_write = ao_winsn;
+	s->insn_write = pcmmio_ao_insn_write;
 
 	/* initialize the resource enable register by clearing it */
-	outb(0, dev->iobase + 8 + 3);
-	outb(0, dev->iobase + 8 + 4 + 3);
+	outb(0, dev->iobase + PCMMIO_AO_RESOURCE_ENA_REG);
+	outb(0, dev->iobase + PCMMIO_AO_2ND_DAC_OFFSET +
+		PCMMIO_AO_RESOURCE_ENA_REG);
 
 	port = 0;
 	asic = 0;
