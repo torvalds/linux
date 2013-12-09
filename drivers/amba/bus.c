@@ -151,36 +151,23 @@ postcore_initcall(amba_init);
 
 static int amba_get_enable_pclk(struct amba_device *pcdev)
 {
-	struct clk *pclk = clk_get(&pcdev->dev, "apb_pclk");
 	int ret;
 
-	pcdev->pclk = pclk;
+	pcdev->pclk = clk_get(&pcdev->dev, "apb_pclk");
+	if (IS_ERR(pcdev->pclk))
+		return PTR_ERR(pcdev->pclk);
 
-	if (IS_ERR(pclk))
-		return PTR_ERR(pclk);
-
-	ret = clk_prepare(pclk);
-	if (ret) {
-		clk_put(pclk);
-		return ret;
-	}
-
-	ret = clk_enable(pclk);
-	if (ret) {
-		clk_unprepare(pclk);
-		clk_put(pclk);
-	}
+	ret = clk_prepare_enable(pcdev->pclk);
+	if (ret)
+		clk_put(pcdev->pclk);
 
 	return ret;
 }
 
 static void amba_put_disable_pclk(struct amba_device *pcdev)
 {
-	struct clk *pclk = pcdev->pclk;
-
-	clk_disable(pclk);
-	clk_unprepare(pclk);
-	clk_put(pclk);
+	clk_disable_unprepare(pcdev->pclk);
+	clk_put(pcdev->pclk);
 }
 
 /*
