@@ -144,7 +144,7 @@ static int cbaf_check(struct cbaf *cbaf)
 		CBAF_REQ_GET_ASSOCIATION_INFORMATION,
 		USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 		0, cbaf->usb_iface->cur_altsetting->desc.bInterfaceNumber,
-		cbaf->buffer, cbaf->buffer_size, 1000 /* FIXME: arbitrary */);
+		cbaf->buffer, cbaf->buffer_size, USB_CTRL_GET_TIMEOUT);
 	if (result < 0) {
 		dev_err(dev, "Cannot get available association types: %d\n",
 			result);
@@ -265,7 +265,7 @@ static int cbaf_send_host_info(struct cbaf *cbaf)
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 			0x0101,
 			cbaf->usb_iface->cur_altsetting->desc.bInterfaceNumber,
-			hi, hi_size, 1000 /* FIXME: arbitrary */);
+			hi, hi_size, USB_CTRL_SET_TIMEOUT);
 }
 
 /*
@@ -288,7 +288,7 @@ static int cbaf_cdid_get(struct cbaf *cbaf)
 		CBAF_REQ_GET_ASSOCIATION_REQUEST,
 		USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 		0x0200, cbaf->usb_iface->cur_altsetting->desc.bInterfaceNumber,
-		di, cbaf->buffer_size, 1000 /* FIXME: arbitrary */);
+		di, cbaf->buffer_size, USB_CTRL_GET_TIMEOUT);
 	if (result < 0) {
 		dev_err(dev, "Cannot request device information: %d\n", result);
 		return result;
@@ -536,7 +536,7 @@ static int cbaf_cc_upload(struct cbaf *cbaf)
 		CBAF_REQ_SET_ASSOCIATION_RESPONSE,
 		USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 		0x0201, cbaf->usb_iface->cur_altsetting->desc.bInterfaceNumber,
-		ccd, sizeof(*ccd), 1000 /* FIXME: arbitrary */);
+		ccd, sizeof(*ccd), USB_CTRL_SET_TIMEOUT);
 
 	return result;
 }
