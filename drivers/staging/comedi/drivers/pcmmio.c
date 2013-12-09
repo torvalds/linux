@@ -189,12 +189,11 @@ static const struct comedi_lrange pcmmio_ao_ranges = {
 struct pcmmio_private {
 	spinlock_t pagelock;	/* protects the page registers */
 	spinlock_t spinlock;	/* protects the member variables */
-	int enabled_mask;
-	int active;
-	int stop_count;
-	int continuous;
+	unsigned int enabled_mask;
+	unsigned int stop_count;
+	unsigned int active:1;
+	unsigned int continuous:1;
 
-	struct pcmmio_subdev_private *sprivs;
 	unsigned int ao_readback[8];
 };
 
