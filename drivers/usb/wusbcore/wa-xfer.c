@@ -1993,7 +1993,7 @@ static int wa_xfer_status_to_errno(u8 status)
  * the xfer will complete cleanly.
  */
 static void wa_complete_remaining_xfer_segs(struct wa_xfer *xfer,
-		struct wa_seg *incoming_seg)
+		struct wa_seg *incoming_seg, enum wa_seg_status status)
 {
 	int index;
 	struct wa_rpipe *rpipe = xfer->ep->hcpriv;
@@ -2015,7 +2015,7 @@ static void wa_complete_remaining_xfer_segs(struct wa_xfer *xfer,
 		 */
 		case WA_SEG_DELAYED:
 			xfer->segs_done++;
-			current_seg->status = incoming_seg->status;
+			current_seg->status = status;
 			break;
 		case WA_SEG_ABORTED:
 			break;
@@ -2026,6 +2026,58 @@ static void wa_complete_remaining_xfer_segs(struct wa_xfer *xfer,
 			break;
 		}
 	}
+}
+
+/* Populate the wa->buf_in_urb based on the current transfer state. */
+static int wa_populate_buf_in_urb(struct wahc *wa, struct wa_xfer *xfer,
+	unsigned int seg_idx, unsigned int bytes_transferred)
+{
+	int result = 0;
+	struct wa_seg *seg = xfer->seg[seg_idx];
+
+	BUG_ON(wa->buf_in_urb->status == -EINPROGRESS);
+	/* this should always be 0 before a resubmit. */
+	wa->buf_in_urb->num_mapped_sgs	= 0;
+
+	if (xfer->is_dma) {
+		wa->buf_in_urb->transfer_dma = xfer->urb->transfer_dma
+			+ (seg_idx * xfer->seg_size);
+		wa->buf_in_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+		wa->buf_in_urb->transfer_buffer = NULL;
+		wa->buf_in_urb->sg = NULL;
+		wa->buf_in_urb->num_sgs = 0;
+	} else {
+		/* do buffer or SG processing. */
+		wa->buf_in_urb->transfer_flags &= ~URB_NO_TRANSFER_DMA_MAP;
+
+		if (xfer->urb->transfer_buffer) {
+			wa->buf_in_urb->transfer_buffer =
+				xfer->urb->transfer_buffer
+				+ (seg_idx * xfer->seg_size);
+			wa->buf_in_urb->sg = NULL;
+			wa->buf_in_urb->num_sgs = 0;
+		} else {
+			/* allocate an SG list to store seg_size bytes
+				and copy the subset of the xfer->urb->sg
+				that matches the buffer subset we are
+				about to read. */
+			wa->buf_in_urb->sg = wa_xfer_create_subset_sg(
+				xfer->urb->sg,
+				seg_idx * xfer->seg_size,
+				bytes_transferred,
+				&(wa->buf_in_urb->num_sgs));
+
+			if (!(wa->buf_in_urb->sg)) {
+				wa->buf_in_urb->num_sgs	= 0;
+				result = -ENOMEM;
+			}
+			wa->buf_in_urb->transfer_buffer = NULL;
+		}
+	}
+	wa->buf_in_urb->transfer_buffer_length = bytes_transferred;
+	wa->buf_in_urb->context = seg;
+
+	return result;
 }
 
 /*
@@ -2041,12 +2093,13 @@ static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer,
 	int result;
 	struct device *dev = &wa->usb_iface->dev;
 	unsigned long flags;
-	u8 seg_idx;
+	unsigned int seg_idx;
 	struct wa_seg *seg;
 	struct wa_rpipe *rpipe;
 	unsigned done = 0;
 	u8 usb_status;
 	unsigned rpipe_ready = 0;
+	unsigned bytes_transferred = le32_to_cpu(xfer_result->dwTransferLength);
 
 	spin_lock_irqsave(&xfer->lock, flags);
 	seg_idx = xfer_result->bTransferSegment & 0x7f;
@@ -2079,66 +2132,33 @@ static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer,
 	/* FIXME: we ignore warnings, tally them for stats */
 	if (usb_status & 0x40) 		/* Warning?... */
 		usb_status = 0;		/* ... pass */
+	/*
+	 * If the last segment bit is set, complete the remaining segments.
+	 * When the current segment is completed, either in wa_buf_in_cb for
+	 * transfers with data or below for no data, the xfer will complete.
+	 */
+	if (xfer_result->bTransferSegment & 0x80)
+		wa_complete_remaining_xfer_segs(xfer, seg, WA_SEG_DONE);
 	if (usb_pipeisoc(xfer->urb->pipe)) {
 		/* set up WA state to read the isoc packet status next. */
 		wa->dti_isoc_xfer_in_progress = wa_xfer_id(xfer);
 		wa->dti_isoc_xfer_seg = seg_idx;
 		wa->dti_state = WA_DTI_ISOC_PACKET_STATUS_PENDING;
-	} else if (xfer->is_inbound) {	/* IN data phase: read to buffer */
+	} else if ((xfer->is_inbound)
+			&& (bytes_transferred > 0)) {
+		/* IN data phase: read to buffer */
 		seg->status = WA_SEG_DTI_PENDING;
-		BUG_ON(wa->buf_in_urb->status == -EINPROGRESS);
-		/* this should always be 0 before a resubmit. */
-		wa->buf_in_urb->num_mapped_sgs	= 0;
-
-		if (xfer->is_dma) {
-			wa->buf_in_urb->transfer_dma =
-				xfer->urb->transfer_dma
-				+ (seg_idx * xfer->seg_size);
-			wa->buf_in_urb->transfer_flags
-				|= URB_NO_TRANSFER_DMA_MAP;
-			wa->buf_in_urb->transfer_buffer = NULL;
-			wa->buf_in_urb->sg = NULL;
-			wa->buf_in_urb->num_sgs = 0;
-		} else {
-			/* do buffer or SG processing. */
-			wa->buf_in_urb->transfer_flags
-				&= ~URB_NO_TRANSFER_DMA_MAP;
-
-			if (xfer->urb->transfer_buffer) {
-				wa->buf_in_urb->transfer_buffer =
-					xfer->urb->transfer_buffer
-					+ (seg_idx * xfer->seg_size);
-				wa->buf_in_urb->sg = NULL;
-				wa->buf_in_urb->num_sgs = 0;
-			} else {
-				/* allocate an SG list to store seg_size bytes
-					and copy the subset of the xfer->urb->sg
-					that matches the buffer subset we are
-					about to read. */
-				wa->buf_in_urb->sg = wa_xfer_create_subset_sg(
-					xfer->urb->sg,
-					seg_idx * xfer->seg_size,
-					le32_to_cpu(
-						xfer_result->dwTransferLength),
-					&(wa->buf_in_urb->num_sgs));
-
-				if (!(wa->buf_in_urb->sg)) {
-					wa->buf_in_urb->num_sgs	= 0;
-					goto error_sg_alloc;
-				}
-				wa->buf_in_urb->transfer_buffer = NULL;
-			}
-		}
-		wa->buf_in_urb->transfer_buffer_length =
-			le32_to_cpu(xfer_result->dwTransferLength);
-		wa->buf_in_urb->context = seg;
+		result = wa_populate_buf_in_urb(wa, xfer, seg_idx,
+			bytes_transferred);
+		if (result < 0)
+			goto error_buf_in_populate;
 		result = usb_submit_urb(wa->buf_in_urb, GFP_ATOMIC);
 		if (result < 0)
 			goto error_submit_buf_in;
 	} else {
-		/* OUT data phase, complete it -- */
+		/* OUT data phase or no data, complete it -- */
 		seg->status = WA_SEG_DONE;
-		seg->result = le32_to_cpu(xfer_result->dwTransferLength);
+		seg->result = bytes_transferred;
 		xfer->segs_done++;
 		rpipe_ready = rpipe_avail_inc(rpipe);
 		done = __wa_xfer_is_done(xfer);
@@ -2162,13 +2182,13 @@ error_submit_buf_in:
 	seg->result = result;
 	kfree(wa->buf_in_urb->sg);
 	wa->buf_in_urb->sg = NULL;
-error_sg_alloc:
+error_buf_in_populate:
 	__wa_xfer_abort(xfer);
 	seg->status = WA_SEG_ERROR;
 error_complete:
 	xfer->segs_done++;
 	rpipe_ready = rpipe_avail_inc(rpipe);
-	wa_complete_remaining_xfer_segs(xfer, seg);
+	wa_complete_remaining_xfer_segs(xfer, seg, seg->status);
 	done = __wa_xfer_is_done(xfer);
 	/*
 	 * queue work item to clear STALL for control endpoints.
