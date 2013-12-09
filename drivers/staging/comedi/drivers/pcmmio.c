@@ -329,11 +329,6 @@ static int pcmmio_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static void switch_page(struct comedi_device *dev, int page)
-{
-	outb(PCMMIO_PAGE(page), dev->iobase + PCMMIO_PAGE_LOCK_REG);
-}
-
 static void pcmmio_reset(struct comedi_device *dev)
 {
 	/* Clear all the DIO port bits */
@@ -440,46 +435,38 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
 	struct pcmmio_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int bits = 0;
+	unsigned int pol_bits = 0;
+	int i;
 
 	if (!devpriv->continuous && devpriv->stop_count == 0) {
 		/* An empty acquisition! */
 		s->async->events |= COMEDI_CB_EOA;
 		devpriv->active = 0;
 		return 1;
-	} else {
-		unsigned bits = 0, pol_bits = 0, n;
-		int nports, firstport, port;
-		struct comedi_cmd *cmd = &s->async->cmd;
+	}
 
-		devpriv->enabled_mask = 0;
-		devpriv->active = 1;
-		nports = 24 / CHANS_PER_PORT;
-		firstport = 0 / CHANS_PER_PORT;
-		if (cmd->chanlist) {
-			for (n = 0; n < cmd->chanlist_len; n++) {
-				bits |= (1U << CR_CHAN(cmd->chanlist[n]));
-				pol_bits |= (CR_AREF(cmd->chanlist[n])
-					     || CR_RANGE(cmd->
-							 chanlist[n]) ? 1U : 0U)
-				    << CR_CHAN(cmd->chanlist[n]);
-			}
-		}
-		bits &= ((0x1 << 24) - 1) << 0;
-		devpriv->enabled_mask = bits;
+	devpriv->enabled_mask = 0;
+	devpriv->active = 1;
+	if (cmd->chanlist) {
+		for (i = 0; i < cmd->chanlist_len; i++) {
+			unsigned int chanspec = cmd->chanlist[i];
+			unsigned int chan = CR_CHAN(chanspec);
+			unsigned int range = CR_RANGE(chanspec);
+			unsigned int aref = CR_AREF(chanspec);
 
-		switch_page(dev, PCMMIO_PAGE_ENAB);
-		for (port = firstport; port < firstport + nports; ++port) {
-			unsigned enab, pol;
-
-			enab = bits >> (0 + (port - firstport) * 8) & 0xff;
-			pol = pol_bits >> (0 + (port - firstport) * 8) & 0xff;
-
-			/* set enab intrs for this subdev.. */
-			outb(enab, dev->iobase + PCMMIO_PAGE_REG(port));
-			switch_page(dev, PCMMIO_PAGE_POL);
-			outb(pol, dev->iobase + PCMMIO_PAGE_REG(port));
+			bits |= (1 << chan);
+			pol_bits |= (((aref || range) ? 1 : 0) << chan);
 		}
 	}
+	bits &= ((1 << s->n_chan) - 1);
+	devpriv->enabled_mask = bits;
+
+	/* set polarity and enable interrupts */
+	pcmmio_dio_write(dev, pol_bits, PCMMIO_PAGE_POL, 0);
+	pcmmio_dio_write(dev, bits, PCMMIO_PAGE_ENAB, 0);
+
 	return 0;
 }
 
