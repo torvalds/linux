@@ -1525,13 +1525,13 @@ static int journal_get_superblock(journal_t *journal)
 	if (JBD2_HAS_COMPAT_FEATURE(journal, JBD2_FEATURE_COMPAT_CHECKSUM) &&
 	    JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2)) {
 		/* Can't have checksum v1 and v2 on at the same time! */
-		printk(KERN_ERR "JBD: Can't enable checksumming v1 and v2 "
+		printk(KERN_ERR "JBD2: Can't enable checksumming v1 and v2 "
 		       "at the same time!\n");
 		goto out;
 	}
 
 	if (!jbd2_verify_csum_type(journal, sb)) {
-		printk(KERN_ERR "JBD: Unknown checksum type\n");
+		printk(KERN_ERR "JBD2: Unknown checksum type\n");
 		goto out;
 	}
 
@@ -1539,7 +1539,7 @@ static int journal_get_superblock(journal_t *journal)
 	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2)) {
 		journal->j_chksum_driver = crypto_alloc_shash("crc32c", 0, 0);
 		if (IS_ERR(journal->j_chksum_driver)) {
-			printk(KERN_ERR "JBD: Cannot load crc32c driver.\n");
+			printk(KERN_ERR "JBD2: Cannot load crc32c driver.\n");
 			err = PTR_ERR(journal->j_chksum_driver);
 			journal->j_chksum_driver = NULL;
 			goto out;
@@ -1548,7 +1548,7 @@ static int journal_get_superblock(journal_t *journal)
 
 	/* Check superblock checksum */
 	if (!jbd2_superblock_csum_verify(journal, sb)) {
-		printk(KERN_ERR "JBD: journal checksum error\n");
+		printk(KERN_ERR "JBD2: journal checksum error\n");
 		goto out;
 	}
 
@@ -1834,7 +1834,7 @@ int jbd2_journal_set_features (journal_t *journal, unsigned long compat,
 			journal->j_chksum_driver = crypto_alloc_shash("crc32c",
 								      0, 0);
 			if (IS_ERR(journal->j_chksum_driver)) {
-				printk(KERN_ERR "JBD: Cannot load crc32c "
+				printk(KERN_ERR "JBD2: Cannot load crc32c "
 				       "driver.\n");
 				journal->j_chksum_driver = NULL;
 				return 0;
