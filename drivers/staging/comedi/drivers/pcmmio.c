@@ -191,9 +191,6 @@ struct pcmmio_subdev_private {
 		/* for DIO: mapping of halfwords (bytes)
 		   in port/chanarray to iobase */
 		unsigned long iobases[PORTS_PER_SUBDEV];
-
-		/* for AI/AO */
-		unsigned long iobase;
 	};
 	union {
 		struct {
@@ -887,8 +884,9 @@ static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data)
 {
 	struct pcmmio_private *devpriv = dev->private;
+	unsigned long iobase = dev->iobase + 8;
+	unsigned int iooffset = 0;
 	int n;
-	unsigned iobase = subpriv->iobase, iooffset = 0;
 
 	for (n = 0; n < insn->n; n++) {
 		unsigned chan = CR_CHAN(insn->chanspec), range =
@@ -991,7 +989,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* Next, AO */
 	s = &dev->subdevices[1];
-	s->private = &devpriv->sprivs[1];
 	s->maxdata = 0xffff;
 	s->range_table = &pcmmio_ao_ranges;
 	s->subdev_flags = SDF_READABLE;
@@ -1000,10 +997,10 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->len_chanlist = s->n_chan;
 	s->insn_read = ao_rinsn;
 	s->insn_write = ao_winsn;
-	subpriv->iobase = dev->iobase + 8;
+
 	/* initialize the resource enable register by clearing it */
-	outb(0, subpriv->iobase + 3);
-	outb(0, subpriv->iobase + 4 + 3);
+	outb(0, dev->iobase + 8 + 3);
+	outb(0, dev->iobase + 8 + 4 + 3);
 
 	port = 0;
 	asic = 0;
