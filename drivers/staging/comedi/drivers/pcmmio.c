@@ -785,7 +785,7 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    CR_RANGE(insn->chanspec), aref = CR_AREF(insn->chanspec);
 		unsigned char command_byte = 0;
 		unsigned iooffset = 0;
-		unsigned short sample, adc_adjust = 0;
+		unsigned int val;
 
 		if (chan > 7)
 			chan -= 8, iooffset = 4;	/*
@@ -800,14 +800,6 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 						 * single-ended
 						 */
 		}
-		if (range < 2)
-			adc_adjust = 0x8000;	/*
-						 * bipolar ranges
-						 * (-5,5 .. -10,10 need to be
-						 * adjusted -- that is.. they
-						 * need to wrap around by
-						 * adding 0x8000
-						 */
 
 		if (chan % 2) {
 			command_byte |= 1 << 6;	/*
@@ -835,12 +827,16 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		adc_wait_ready(iobase + iooffset);
 
 		/* read data lo byte */
-		sample = inb(iobase + iooffset + 0);
+		val = inb(iobase + iooffset + 0);
 
 		/* read data hi byte */
-		sample |= inb(iobase + iooffset + 1) << 8;
-		sample += adc_adjust;	/* adjustment .. munge data */
-		data[n] = sample;
+		val |= inb(iobase + iooffset + 1) << 8;
+
+		/* bipolar data is two's complement */
+		if (comedi_range_is_bipolar(s, range))
+			val = comedi_offset_munge(s, val);
+
+		data[n] = val;
 	}
 	/* return the number of samples read/written */
 	return n;
