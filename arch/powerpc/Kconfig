@@ -209,9 +209,6 @@ config DEFAULT_UIMAGE
 	  Used to allow a board to specify it wants a uImage built by default
 	default n
 
-config REDBOOT
-	bool
-
 config ARCH_HIBERNATION_POSSIBLE
 	bool
 	default y
