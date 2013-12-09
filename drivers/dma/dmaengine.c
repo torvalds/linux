@@ -912,7 +912,7 @@ struct dmaengine_unmap_pool {
 #define __UNMAP_POOL(x) { .size = x, .name = "dmaengine-unmap-" __stringify(x) }
 static struct dmaengine_unmap_pool unmap_pool[] = {
 	__UNMAP_POOL(2),
-	#if IS_ENABLED(CONFIG_ASYNC_TX_DMA)
+	#if IS_ENABLED(CONFIG_DMA_ENGINE_RAID)
 	__UNMAP_POOL(16),
 	__UNMAP_POOL(128),
 	__UNMAP_POOL(256),
