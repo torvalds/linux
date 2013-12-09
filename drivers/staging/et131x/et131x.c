@@ -2412,11 +2412,13 @@ static void nic_return_rfd(struct et131x_adapter *adapter, struct rfd *rfd)
 	u16 buff_index = rfd->bufferindex;
 	u8 ring_index = rfd->ringindex;
 	unsigned long flags;
+	struct fbr_lookup *fbr = rx_local->fbr[ring_index];
 
 	/* We don't use any of the OOB data besides status. Otherwise, we
 	 * need to clean up OOB data
 	 */
-	if (buff_index < rx_local->fbr[ring_index]->num_entries) {
+	if (buff_index < fbr->num_entries) {
+		u32 free_buff_ring;
 		u32 __iomem *offset;
 		struct fbr_desc *next;
 
@@ -2427,22 +2429,20 @@ static void nic_return_rfd(struct et131x_adapter *adapter, struct rfd *rfd)
 		else
 			offset = &rx_dma->fbr1_full_offset;
 
-		next = (struct fbr_desc *)
-			   (rx_local->fbr[ring_index]->ring_virtaddr) +
-				INDEX10(rx_local->fbr[ring_index]->local_full);
+		next = (struct fbr_desc *)(fbr->ring_virtaddr) +
+		       INDEX10(fbr->local_full);
 
 		/* Handle the Free Buffer Ring advancement here. Write
 		 * the PA / Buffer Index for the returned buffer into
 		 * the oldest (next to be freed)FBR entry
 		 */
-		next->addr_hi = rx_local->fbr[ring_index]->bus_high[buff_index];
-		next->addr_lo = rx_local->fbr[ring_index]->bus_low[buff_index];
+		next->addr_hi = fbr->bus_high[buff_index];
+		next->addr_lo = fbr->bus_low[buff_index];
 		next->word2 = buff_index;
 
-		writel(bump_free_buff_ring(
-				  &rx_local->fbr[ring_index]->local_full,
-				  rx_local->fbr[ring_index]->num_entries - 1),
-		       offset);
+		free_buff_ring = bump_free_buff_ring(&fbr->local_full,
+						     fbr->num_entries - 1);
+		writel(free_buff_ring, offset);
 
 		spin_unlock_irqrestore(&adapter->fbr_lock, flags);
 	} else {
