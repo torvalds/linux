@@ -1369,6 +1369,18 @@ out:
 	return pipe_dentry;
 }
 
+static void
+rpc_gssd_dummy_depopulate(struct dentry *pipe_dentry)
+{
+	struct dentry *clnt_dir = pipe_dentry->d_parent;
+	struct dentry *gssd_dir = clnt_dir->d_parent;
+
+	__rpc_rmpipe(clnt_dir->d_inode, pipe_dentry);
+	__rpc_depopulate(clnt_dir, gssd_dummy_info_file, 0, 1);
+	__rpc_depopulate(gssd_dir, gssd_dummy_clnt_dir, 0, 1);
+	dput(pipe_dentry);
+}
+
 static int
 rpc_fill_super(struct super_block *sb, void *data, int silent)
 {
@@ -1412,7 +1424,7 @@ rpc_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 
 err_depopulate:
-	dput(gssd_dentry);
+	rpc_gssd_dummy_depopulate(gssd_dentry);
 	blocking_notifier_call_chain(&rpc_pipefs_notifier_list,
 					   RPC_PIPEFS_UMOUNT,
 					   sb);
