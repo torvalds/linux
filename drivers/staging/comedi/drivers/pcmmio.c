@@ -90,6 +90,15 @@ Configuration Options:
 #define PCMMIO_AI_CMD_ODD_CHAN		(1 << 6)
 #define PCMMIO_AI_CMD_CHAN_SEL(x)	(((x) & 0x3) << 4)
 #define PCMMIO_AI_CMD_RANGE(x)		(((x) & 0x3) << 2)
+#define PCMMIO_AI_STATUS_REG		0x03
+#define PCMMIO_AI_STATUS_DATA_READY	(1 << 7)
+#define PCMMIO_AI_STATUS_DATA_DMA_PEND	(1 << 6)
+#define PCMMIO_AI_STATUS_CMD_DMA_PEND	(1 << 5)
+#define PCMMIO_AI_STATUS_IRQ_PEND	(1 << 4)
+#define PCMMIO_AI_STATUS_DATA_DRQ_ENA	(1 << 2)
+#define PCMMIO_AI_STATUS_REG_SEL	(1 << 3)
+#define PCMMIO_AI_STATUS_CMD_DRQ_ENA	(1 << 1)
+#define PCMMIO_AI_STATUS_IRQ_ENA	(1 << 0)
 
 /* This stuff is all from pcmuio.c -- it refers to the DIO subdevices only */
 #define CHANS_PER_PORT   8
@@ -763,13 +772,16 @@ static int pcmmio_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-static int adc_wait_ready(unsigned long iobase)
+static int pcmmio_ai_wait_for_eoc(unsigned long iobase, unsigned int timeout)
 {
-	unsigned long retry = 100000;
-	while (retry--)
-		if (inb(iobase + 3) & 0x80)
+	unsigned char status;
+
+	while (timeout--) {
+		status = inb(iobase + PCMMIO_AI_STATUS_REG);
+		if (status & PCMMIO_AI_STATUS_DATA_READY)
 			return 0;
-	return 1;
+	}
+	return -ETIME;
 }
 
 static int pcmmio_ai_insn_read(struct comedi_device *dev,
@@ -783,6 +795,7 @@ static int pcmmio_ai_insn_read(struct comedi_device *dev,
 	unsigned int aref = CR_AREF(insn->chanspec);
 	unsigned char cmd = 0;
 	unsigned int val;
+	int ret;
 	int i;
 
 	/*
@@ -813,14 +826,18 @@ static int pcmmio_ai_insn_read(struct comedi_device *dev,
 	cmd |= PCMMIO_AI_CMD_RANGE(range);
 
 	outb(cmd, iobase + PCMMIO_AI_CMD_REG);
-	adc_wait_ready(iobase);
+	ret = pcmmio_ai_wait_for_eoc(iobase, 100000);
+	if (ret)
+		return ret;
 
 	val = inb(iobase + PCMMIO_AI_LSB_REG);
 	val |= inb(iobase + PCMMIO_AI_MSB_REG) << 8;
 
 	for (i = 0; i < insn->n; i++) {
 		outb(cmd, iobase + PCMMIO_AI_CMD_REG);
-		adc_wait_ready(iobase);
+		ret = pcmmio_ai_wait_for_eoc(iobase, 100000);
+		if (ret)
+			return ret;
 
 		val = inb(iobase + PCMMIO_AI_LSB_REG);
 		val |= inb(iobase + PCMMIO_AI_MSB_REG) << 8;
