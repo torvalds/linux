@@ -407,7 +407,6 @@ static int via_ircc_open(struct pci_dev *pdev, chipio_t *info, unsigned int id)
  err_out2:
 	release_region(self->io.fir_base, self->io.fir_ext);
  err_out1:
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 	return err;
 }
@@ -441,7 +440,6 @@ static void via_remove_one(struct pci_dev *pdev)
 	if (self->rx_buff.head)
 		dma_free_coherent(&pdev->dev, self->rx_buff.truesize,
 				  self->rx_buff.head, self->rx_buff_dma);
-	pci_set_drvdata(pdev, NULL);
 
 	free_netdev(self->netdev);
 
