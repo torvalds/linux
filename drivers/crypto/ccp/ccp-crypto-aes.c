@@ -341,7 +341,7 @@ static int ccp_register_aes_alg(struct list_head *head,
 
 	/* Copy the defaults and override as necessary */
 	alg = &ccp_alg->alg;
-	memcpy(alg, def->alg_defaults, sizeof(*alg));
+	*alg = *def->alg_defaults;
 	snprintf(alg->cra_name, CRYPTO_MAX_ALG_NAME, "%s", def->name);
 	snprintf(alg->cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
 		 def->driver_name);

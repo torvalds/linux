@@ -395,7 +395,7 @@ static int ccp_register_hmac_alg(struct list_head *head,
 		return -ENOMEM;
 
 	/* Copy the base algorithm and only change what's necessary */
-	memcpy(ccp_alg, base_alg, sizeof(*ccp_alg));
+	*ccp_alg = *base_alg;
 	INIT_LIST_HEAD(&ccp_alg->entry);
 
 	strncpy(ccp_alg->child_alg, def->name, CRYPTO_MAX_ALG_NAME);

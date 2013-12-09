@@ -562,7 +562,7 @@ static int __init ccp_mod_init(void)
 			return -ENODEV;
 		return ccp_pci_init();
 		break;
-	};
+	}
 
 	return -ENODEV;
 }
@@ -575,7 +575,7 @@ static void __exit ccp_mod_exit(void)
 	case 22:
 		ccp_pci_exit();
 		break;
-	};
+	}
 }
 
 module_init(ccp_mod_init);
