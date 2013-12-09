@@ -124,6 +124,8 @@ struct wa_seg {
 	u8 index;			/* which segment we are */
 	int isoc_frame_count;	/* number of isoc frames in this segment. */
 	int isoc_frame_offset;	/* starting frame offset in the xfer URB. */
+	/* Isoc frame that the current transfer buffer corresponds to. */
+	int isoc_frame_index;
 	int isoc_size;	/* size of all isoc frames sent by this seg. */
 	enum wa_seg_status status;
 	ssize_t result;			/* bytes xfered or error */
@@ -158,8 +160,6 @@ struct wa_xfer {
 	unsigned is_dma:1;
 	size_t seg_size;
 	int result;
-	/* Isoc frame that the current transfer buffer corresponds to. */
-	int dto_isoc_frame_index;
 
 	gfp_t gfp;			/* allocation mask */
 
@@ -701,23 +701,23 @@ static void wa_seg_dto_cb(struct urb *urb)
 	if (usb_pipeisoc(xfer->urb->pipe)) {
 		/* Alereon HWA sends all isoc frames in a single transfer. */
 		if (wa->quirks & WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC)
-			xfer->dto_isoc_frame_index += seg->isoc_frame_count;
+			seg->isoc_frame_index += seg->isoc_frame_count;
 		else
-			xfer->dto_isoc_frame_index += 1;
-		if (xfer->dto_isoc_frame_index < seg->isoc_frame_count) {
+			seg->isoc_frame_index += 1;
+		if (seg->isoc_frame_index < seg->isoc_frame_count) {
 			data_send_done = 0;
 			holding_dto = 1; /* checked in error cases. */
 			/*
 			 * if this is the last isoc frame of the segment, we
 			 * can release DTO after sending this frame.
 			 */
-			if ((xfer->dto_isoc_frame_index + 1) >=
+			if ((seg->isoc_frame_index + 1) >=
 				seg->isoc_frame_count)
 				release_dto = 1;
 		}
 		dev_dbg(dev, "xfer 0x%08X#%u: isoc frame = %d, holding_dto = %d, release_dto = %d.\n",
-			wa_xfer_id(xfer), seg->index,
-			xfer->dto_isoc_frame_index, holding_dto, release_dto);
+			wa_xfer_id(xfer), seg->index, seg->isoc_frame_index,
+			holding_dto, release_dto);
 	}
 	spin_unlock_irqrestore(&xfer->lock, flags);
 
@@ -737,8 +737,7 @@ static void wa_seg_dto_cb(struct urb *urb)
 			 * send the URB and release DTO if we no longer need it.
 			 */
 			 __wa_populate_dto_urb_isoc(xfer, seg,
-				seg->isoc_frame_offset +
-				xfer->dto_isoc_frame_index);
+				seg->isoc_frame_offset + seg->isoc_frame_index);
 
 			/* resubmit the URB with the next isoc frame. */
 			result = usb_submit_urb(seg->dto_urb, GFP_ATOMIC);
@@ -1324,12 +1323,12 @@ static int __wa_seg_submit(struct wa_rpipe *rpipe, struct wa_xfer *xfer,
 		struct wahc *wa = xfer->wa;
 
 		result = usb_submit_urb(seg->isoc_pack_desc_urb, GFP_ATOMIC);
+		seg->isoc_frame_index = 0;
 		if (result < 0) {
 			pr_err("%s: xfer %p#%u: ISO packet descriptor submit failed: %d\n",
 			       __func__, xfer, seg->index, result);
 			goto error_iso_pack_desc_submit;
 		}
-		xfer->dto_isoc_frame_index = 0;
 		/*
 		 * If this segment contains more than one isoc frame, hold
 		 * onto the dto resource until we send all frames.
