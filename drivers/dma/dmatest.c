@@ -539,9 +539,9 @@ static int dmatest_func(void *data)
 
 		um->len = params->buf_size;
 		for (i = 0; i < src_cnt; i++) {
-			unsigned long buf = (unsigned long) thread->srcs[i];
+			void *buf = thread->srcs[i];
 			struct page *pg = virt_to_page(buf);
-			unsigned pg_off = buf & ~PAGE_MASK;
+			unsigned pg_off = (unsigned long) buf & ~PAGE_MASK;
 
 			um->addr[i] = dma_map_page(dev->dev, pg, pg_off,
 						   um->len, DMA_TO_DEVICE);
@@ -559,9 +559,9 @@ static int dmatest_func(void *data)
 		/* map with DMA_BIDIRECTIONAL to force writeback/invalidate */
 		dsts = &um->addr[src_cnt];
 		for (i = 0; i < dst_cnt; i++) {
-			unsigned long buf = (unsigned long) thread->dsts[i];
+			void *buf = thread->dsts[i];
 			struct page *pg = virt_to_page(buf);
-			unsigned pg_off = buf & ~PAGE_MASK;
+			unsigned pg_off = (unsigned long) buf & ~PAGE_MASK;
 
 			dsts[i] = dma_map_page(dev->dev, pg, pg_off, um->len,
 					       DMA_BIDIRECTIONAL);
