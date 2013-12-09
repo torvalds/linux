@@ -362,8 +362,11 @@ create_arg_item(struct event_format *event, const char *token,
 		arg->value.type =
 			type == EVENT_DQUOTE ? FILTER_STRING : FILTER_CHAR;
 		arg->value.str = strdup(token);
-		if (!arg->value.str)
-			die("malloc string");
+		if (!arg->value.str) {
+			free_arg(arg);
+			show_error(error_str, "failed to allocate string filter arg");
+			return NULL;
+		}
 		break;
 	case EVENT_ITEM:
 		/* if it is a number, then convert it */
