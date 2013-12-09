@@ -282,63 +282,72 @@ static void pcmmio_dio_write(struct comedi_device *dev, unsigned int val,
 	spin_unlock_irqrestore(&devpriv->pagelock, flags);
 }
 
-/* DIO devices are slightly special.  Although it is possible to
- * implement the insn_read/insn_write interface, it is much more
- * useful to applications if you implement the insn_bits interface.
- * This allows packed reading/writing of the DIO channels.  The
- * comedi core can convert between insn_bits and insn_read/write */
+static unsigned int pcmmio_dio_read(struct comedi_device *dev,
+				    int page, int port)
+{
+	struct pcmmio_private *devpriv = dev->private;
+	unsigned long iobase = dev->iobase;
+	unsigned long flags;
+	unsigned int val;
+
+	spin_lock_irqsave(&devpriv->pagelock, flags);
+	if (page == 0) {
+		/* Port registers are valid for any page */
+		val = inb(iobase + PCMMIO_PORT_REG(port + 0));
+		val |= (inb(iobase + PCMMIO_PORT_REG(port + 1)) << 8);
+		val |= (inb(iobase + PCMMIO_PORT_REG(port + 2)) << 16);
+	} else {
+		outb(PCMMIO_PAGE(page), iobase + PCMMIO_PAGE_LOCK_REG);
+		val = inb(iobase + PCMMIO_PAGE_REG(0));
+		val |= (inb(iobase + PCMMIO_PAGE_REG(1)) << 8);
+		val |= (inb(iobase + PCMMIO_PAGE_REG(2)) << 16);
+	}
+	spin_unlock_irqrestore(&devpriv->pagelock, flags);
+
+	return val;
+}
+
+/*
+ * Each channel can be individually programmed for input or output.
+ * Writing a '0' to a channel causes the corresponding output pin
+ * to go to a high-z state (pulled high by an external 10K resistor).
+ * This allows it to be used as an input. When used in the input mode,
+ * a read reflects the inverted state of the I/O pin, such that a
+ * high on the pin will read as a '0' in the register. Writing a '1'
+ * to a bit position causes the pin to sink current (up to 12mA),
+ * effectively pulling it low.
+ */
 static int pcmmio_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	struct pcmmio_subdev_private *subpriv = s->private;
-	int byte_no;
+	/* subdevice 2 uses ports 0-2, subdevice 3 uses ports 3-5 */
+	int port = s->index == 2 ? 0 : 3;
+	unsigned int chanmask = (1 << s->n_chan) - 1;
+	unsigned int mask;
+	unsigned int val;
 
-	/* NOTE:
-	   reading a 0 means this channel was high
-	   writine a 0 sets the channel high
-	   reading a 1 means this channel was low
-	   writing a 1 means set this channel low
-
-	   Therefore everything is always inverted. */
-
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit. */
-
-	s->state = 0;
-
-	for (byte_no = 0; byte_no < s->n_chan / CHANS_PER_PORT; ++byte_no) {
-		/* address of 8-bit port */
-		unsigned long ioaddr = subpriv->iobases[byte_no],
-		    /* bit offset of port in 32-bit doubleword */
-		    offset = byte_no * 8;
-		/* this 8-bit port's data */
-		unsigned char byte = 0,
-		    /* The write mask for this port (if any) */
-		    write_mask_byte = (data[0] >> offset) & 0xff,
-		    /* The data byte for this port */
-		    data_byte = (data[1] >> offset) & 0xff;
-
-		byte = inb(ioaddr);	/* read all 8-bits for this port */
-
-		if (write_mask_byte) {
-			/*
-			 * this byte has some write_bits
-			 * -- so set the output lines
-			 */
-			/* clear bits for write mask */
-			byte &= ~write_mask_byte;
-			/* set to inverted data_byte */
-			byte |= ~data_byte & write_mask_byte;
-			/* Write out the new digital output state */
-			outb(byte, ioaddr);
-		}
-		/* save the digital input lines for this byte.. */
-		s->state |= ((unsigned int)byte) << offset;
+	mask = comedi_dio_update_state(s, data);
+	if (mask) {
+		/*
+		 * Outputs are inverted, invert the state and
+		 * update the channels.
+		 *
+		 * The s->io_bits mask makes sure the input channels
+		 * are '0' so that the outputs pins stay in a high
+		 * z-state.
+		 */
+		val = ~s->state & chanmask;
+		val &= s->io_bits;
+		pcmmio_dio_write(dev, val, 0, port);
 	}
 
-	/* now return the DIO lines to data[1] - note they came inverted! */
-	data[1] = ~s->state;
+	/* get inverted state of the channels from the port */
+	val = pcmmio_dio_read(dev, 0, port);
+
+	/* return the true state of the channels */
+	data[1] = ~val & chanmask;
 
 	return insn->n;
 }
