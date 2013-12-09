@@ -360,9 +360,6 @@ void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
 			     u8 byRxRate, u8 * pbyBuffer,
 			     unsigned int cbFrameLength);
 
-void STAvUpdateTDStatCounter(PSStatCounter pStatistic, u8 byPktNum,
-			     u8 byRate, u8 byTSR);
-
 void
 STAvUpdate802_11Counter(
     PSDot11Counters         p802_11Counter,

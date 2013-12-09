@@ -166,6 +166,7 @@ static struct vnt_usb_send_context
 static void s_vSaveTxPktInfo(struct vnt_private *pDevice, u8 byPktNum,
 	u8 *pbyDestAddr, u16 wPktLength, u16 wFIFOCtl)
 {
+	struct net_device_stats *stats = &pDevice->stats;
 	PSStatCounter pStatistic = &pDevice->scStatistic;
 
     if (is_broadcast_ether_addr(pbyDestAddr))
@@ -180,6 +181,8 @@ static void s_vSaveTxPktInfo(struct vnt_private *pDevice, u8 byPktNum,
     memcpy(pStatistic->abyTxPktInfo[byPktNum].abyDestAddr,
 	   pbyDestAddr,
 	   ETH_ALEN);
+
+	stats->tx_bytes += wPktLength;
 }
 
 static void s_vFillTxKey(struct vnt_private *pDevice,
