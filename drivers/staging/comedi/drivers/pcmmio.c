@@ -940,16 +940,11 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 1;
 }
 
-static void pcmmio_detach(struct comedi_device *dev)
-{
-	comedi_legacy_detach(dev);
-}
-
 static struct comedi_driver pcmmio_driver = {
 	.driver_name	= "pcmmio",
 	.module		= THIS_MODULE,
 	.attach		= pcmmio_attach,
-	.detach		= pcmmio_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(pcmmio_driver);
 
