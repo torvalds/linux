@@ -373,7 +373,7 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (argc) {
 		/*
-		 * Special case: if there's an argument left then assume tha
+		 * Special case: if there's an argument left then assume that
 		 * it's a symbol filter:
 		 */
 		if (argc > 1)
