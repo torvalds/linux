@@ -1048,7 +1048,7 @@ int iwl_pcie_alloc_ict(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	trans_pcie->ict_tbl =
-		dma_alloc_coherent(trans->dev, ICT_SIZE,
+		dma_zalloc_coherent(trans->dev, ICT_SIZE,
 				   &trans_pcie->ict_tbl_dma,
 				   GFP_KERNEL);
 	if (!trans_pcie->ict_tbl)
@@ -1060,17 +1060,10 @@ int iwl_pcie_alloc_ict(struct iwl_trans *trans)
 		return -EINVAL;
 	}
 
-	IWL_DEBUG_ISR(trans, "ict dma addr %Lx\n",
-		      (unsigned long long)trans_pcie->ict_tbl_dma);
+	IWL_DEBUG_ISR(trans, "ict dma addr %Lx ict vir addr %p\n",
+		      (unsigned long long)trans_pcie->ict_tbl_dma,
+		      trans_pcie->ict_tbl);
 
-	IWL_DEBUG_ISR(trans, "ict vir addr %p\n", trans_pcie->ict_tbl);
-
-	/* reset table and index to all 0 */
-	memset(trans_pcie->ict_tbl, 0, ICT_SIZE);
-	trans_pcie->ict_index = 0;
-
-	/* add periodic RX interrupt */
-	trans_pcie->inta_mask |= CSR_INT_BIT_RX_PERIODIC;
 	return 0;
 }
 
