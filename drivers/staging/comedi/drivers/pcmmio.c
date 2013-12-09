@@ -90,6 +90,8 @@ Configuration Options:
 #define PCMMIO_AI_CMD_ODD_CHAN			(1 << 6)
 #define PCMMIO_AI_CMD_CHAN_SEL(x)		(((x) & 0x3) << 4)
 #define PCMMIO_AI_CMD_RANGE(x)			(((x) & 0x3) << 2)
+#define PCMMIO_RESOURCE_REG			0x02
+#define PCMMIO_RESOURCE_IRQ(x)			(((x) & 0xf) << 0)
 #define PCMMIO_AI_STATUS_REG			0x03
 #define PCMMIO_AI_STATUS_DATA_READY		(1 << 7)
 #define PCMMIO_AI_STATUS_DATA_DMA_PEND		(1 << 6)
@@ -99,7 +101,10 @@ Configuration Options:
 #define PCMMIO_AI_STATUS_REG_SEL		(1 << 3)
 #define PCMMIO_AI_STATUS_CMD_DRQ_ENA		(1 << 1)
 #define PCMMIO_AI_STATUS_IRQ_ENA		(1 << 0)
-#define PCMMIO_AI_RESOURCE_REG			0x03
+#define PCMMIO_AI_RES_ENA_REG			0x03
+#define PCMMIO_AI_RES_ENA_CMD_REG_ACCESS	(0 << 3)
+#define PCMMIO_AI_RES_ENA_AI_RES_ACCESS		(1 << 3)
+#define PCMMIO_AI_RES_ENA_DIO_RES_ACCESS	(1 << 4)
 #define PCMMIO_AI_2ND_ADC_OFFSET		0x04
 
 #define PCMMIO_AO_LSB_REG			0x08
@@ -462,23 +467,6 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 		bits &= ((0x1 << 24) - 1) << 0;
 		devpriv->enabled_mask = bits;
 
-		{
-			/*
-			 * the below code configures the board
-			 * to use a specific IRQ from 0-15.
-			 */
-			unsigned char b;
-			/*
-			 * set resource enable register
-			 * to enable IRQ operation
-			 */
-			outb(1 << 4, dev->iobase + 3);
-			/* set bits 0-3 of b to the irq number from 0-15 */
-			b = dev->irq & ((1 << 4) - 1);
-			outb(b, dev->iobase + 2);
-			/* done, we told the board what irq to use */
-		}
-
 		switch_page(dev, PCMMIO_PAGE_ENAB);
 		for (port = firstport; port < firstport + nports; ++port) {
 			unsigned enab, pol;
@@ -814,8 +802,15 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (it->options[1]) {
 		ret = request_irq(it->options[1], interrupt_pcmmio, 0,
 				  dev->board_name, dev);
-		if (ret == 0)
+		if (ret == 0) {
 			dev->irq = it->options[1];
+
+			/* configure the interrupt routing on the board */
+			outb(PCMMIO_AI_RES_ENA_DIO_RES_ACCESS,
+			     dev->iobase + PCMMIO_AI_RES_ENA_REG);
+			outb(PCMMIO_RESOURCE_IRQ(dev->irq),
+			     dev->iobase + PCMMIO_RESOURCE_REG);
+		}
 	}
 
 	ret = comedi_alloc_subdevices(dev, 4);
@@ -832,9 +827,10 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_read	= pcmmio_ai_insn_read;
 
 	/* initialize the resource enable register by clearing it */
-	outb(0, dev->iobase + PCMMIO_AI_RESOURCE_REG);
-	outb(0,
-	     dev->iobase + PCMMIO_AI_2ND_ADC_OFFSET + PCMMIO_AI_RESOURCE_REG);
+	outb(PCMMIO_AI_RES_ENA_CMD_REG_ACCESS,
+	     dev->iobase + PCMMIO_AI_RES_ENA_REG);
+	outb(PCMMIO_AI_RES_ENA_CMD_REG_ACCESS,
+	     dev->iobase + PCMMIO_AI_RES_ENA_REG + PCMMIO_AI_2ND_ADC_OFFSET);
 
 	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
