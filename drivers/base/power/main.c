@@ -29,7 +29,6 @@
 #include <linux/async.h>
 #include <linux/suspend.h>
 #include <trace/events/power.h>
-#include <linux/cpufreq.h>
 #include <linux/cpuidle.h>
 #include <linux/timer.h>
 
@@ -541,7 +540,6 @@ static void dpm_resume_noirq(pm_message_t state)
 	dpm_show_time(starttime, state, "noirq");
 	resume_device_irqs();
 	cpuidle_resume();
-	cpufreq_resume();
 }
 
 /**
@@ -957,7 +955,6 @@ static int dpm_suspend_noirq(pm_message_t state)
 	ktime_t starttime = ktime_get();
 	int error = 0;
 
-	cpufreq_suspend();
 	cpuidle_pause();
 	suspend_device_irqs();
 	mutex_lock(&dpm_list_mtx);
