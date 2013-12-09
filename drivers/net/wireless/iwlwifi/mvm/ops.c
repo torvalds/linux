@@ -427,7 +427,9 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	 * there is no need to unnecessarily power up the NIC at driver load
 	 */
 	if (iwlwifi_mod_params.nvm_file) {
-			iwl_nvm_init(mvm);
+		err = iwl_nvm_init(mvm);
+		if (err)
+			goto out_free;
 	} else {
 		err = iwl_trans_start_hw(mvm->trans);
 		if (err)
