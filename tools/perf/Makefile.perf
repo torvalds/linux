@@ -86,7 +86,7 @@ FLEX    = flex
 BISON   = bison
 STRIP   = strip
 
-LK_DIR          = $(srctree)/tools/lib/lk/
+LIB_DIR          = $(srctree)/tools/lib/api/
 TRACE_EVENT_DIR = $(srctree)/tools/lib/traceevent/
 
 # include config/Makefile by default and rule out
@@ -127,20 +127,20 @@ strip-libs = $(filter-out -l%,$(1))
 ifneq ($(OUTPUT),)
   TE_PATH=$(OUTPUT)
 ifneq ($(subdir),)
-  LK_PATH=$(OUTPUT)/../lib/lk/
+  LIB_PATH=$(OUTPUT)/../lib/api/
 else
-  LK_PATH=$(OUTPUT)
+  LIB_PATH=$(OUTPUT)
 endif
 else
   TE_PATH=$(TRACE_EVENT_DIR)
-  LK_PATH=$(LK_DIR)
+  LIB_PATH=$(LIB_DIR)
 endif
 
 LIBTRACEEVENT = $(TE_PATH)libtraceevent.a
 export LIBTRACEEVENT
 
-LIBLK = $(LK_PATH)liblk.a
-export LIBLK
+LIBAPIKFS = $(LIB_PATH)libapikfs.a
+export LIBAPIKFS
 
 # python extension build directories
 PYTHON_EXTBUILD     := $(OUTPUT)python_ext_build/
@@ -151,7 +151,7 @@ export PYTHON_EXTBUILD_LIB PYTHON_EXTBUILD_TMP
 python-clean := $(call QUIET_CLEAN, python) $(RM) -r $(PYTHON_EXTBUILD) $(OUTPUT)python/perf.so
 
 PYTHON_EXT_SRCS := $(shell grep -v ^\# util/python-ext-sources)
-PYTHON_EXT_DEPS := util/python-ext-sources util/setup.py $(LIBTRACEEVENT) $(LIBLK)
+PYTHON_EXT_DEPS := util/python-ext-sources util/setup.py $(LIBTRACEEVENT) $(LIBAPIKFS)
 
 $(OUTPUT)python/perf.so: $(PYTHON_EXT_SRCS) $(PYTHON_EXT_DEPS)
 	$(QUIET_GEN)CFLAGS='$(CFLAGS)' $(PYTHON_WORD) util/setup.py \
@@ -441,7 +441,7 @@ BUILTIN_OBJS += $(OUTPUT)builtin-inject.o
 BUILTIN_OBJS += $(OUTPUT)tests/builtin-test.o
 BUILTIN_OBJS += $(OUTPUT)builtin-mem.o
 
-PERFLIBS = $(LIB_FILE) $(LIBLK) $(LIBTRACEEVENT)
+PERFLIBS = $(LIB_FILE) $(LIBAPIKFS) $(LIBTRACEEVENT)
 
 # We choose to avoid "if .. else if .. else .. endif endif"
 # because maintaining the nesting to match is a pain.  If
@@ -730,19 +730,19 @@ $(LIBTRACEEVENT)-clean:
 install-traceevent-plugins: $(LIBTRACEEVENT)
 	$(QUIET_SUBDIR0)$(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) install_plugins
 
-LIBLK_SOURCES = $(wildcard $(LK_PATH)*.[ch])
+LIBAPIKFS_SOURCES = $(wildcard $(LIB_PATH)fs/*.[ch])
 
 # if subdir is set, we've been called from above so target has been built
 # already
-$(LIBLK): $(LIBLK_SOURCES)
+$(LIBAPIKFS): $(LIBAPIKFS_SOURCES)
 ifeq ($(subdir),)
-	$(QUIET_SUBDIR0)$(LK_DIR) $(QUIET_SUBDIR1) O=$(OUTPUT) liblk.a
+	$(QUIET_SUBDIR0)$(LIB_DIR) $(QUIET_SUBDIR1) O=$(OUTPUT) libapikfs.a
 endif
 
-$(LIBLK)-clean:
+$(LIBAPIKFS)-clean:
 ifeq ($(subdir),)
-	$(call QUIET_CLEAN, liblk)
-	@$(MAKE) -C $(LK_DIR) O=$(OUTPUT) clean >/dev/null
+	$(call QUIET_CLEAN, libapikfs)
+	@$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) clean >/dev/null
 endif
 
 help:
@@ -881,12 +881,11 @@ config-clean:
 	$(call QUIET_CLEAN, config)
 	@$(MAKE) -C config/feature-checks clean >/dev/null
 
-clean: $(LIBTRACEEVENT)-clean $(LIBLK)-clean config-clean
+clean: $(LIBTRACEEVENT)-clean $(LIBAPIKFS)-clean config-clean
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_OBJS) $(BUILTIN_OBJS) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf.o $(LANG_BINDINGS) $(GTK_OBJS)
 	$(call QUIET_CLEAN, core-progs) $(RM) $(ALL_PROGRAMS) perf
 	$(call QUIET_CLEAN, core-gen)   $(RM)  *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope* $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)PERF-CFLAGS $(OUTPUT)util/*-bison* $(OUTPUT)util/*-flex*
-	$(call QUIET_CLEAN, Documentation)
-	@$(MAKE) -C Documentation O=$(OUTPUT) clean >/dev/null
+	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) clean
 	$(python-clean)
 
 #
