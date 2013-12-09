@@ -29,18 +29,9 @@
 
 	ahb {
 		apb {
-			dbgu: serial@fffff200 {
-				status = "okay";
-			};
-
-			usart1: serial@fffc4000 {
-				pinctrl-0 =
-						<&pinctrl_uart1
-						 &pinctrl_uart1_rts
-						 &pinctrl_uart1_cts
-						 &pinctrl_uart1_dtr_dsr
-						 &pinctrl_uart1_dcd
-						 &pinctrl_uart1_ri>;
+			usb1: gadget@fffb0000 {
+				atmel,vbus-gpio = <&pioD 4 GPIO_ACTIVE_HIGH>;
+				atmel,pullup-gpio = <&pioD 5 GPIO_ACTIVE_HIGH>;
 				status = "okay";
 			};
 
@@ -54,9 +45,14 @@
 				};
 			};
 
-			usb1: gadget@fffb0000 {
-				atmel,vbus-gpio = <&pioD 4 GPIO_ACTIVE_HIGH>;
-				atmel,pullup-gpio = <&pioD 5 GPIO_ACTIVE_HIGH>;
+			usart1: serial@fffc4000 {
+				pinctrl-0 =
+						<&pinctrl_uart1
+						 &pinctrl_uart1_rts
+						 &pinctrl_uart1_cts
+						 &pinctrl_uart1_dtr_dsr
+						 &pinctrl_uart1_dcd
+						 &pinctrl_uart1_ri>;
 				status = "okay";
 			};
 
@@ -68,6 +64,10 @@
 					spi-max-frequency = <15000000>;
 					reg = <0>;
 				};
+			};
+
+			dbgu: serial@fffff200 {
+				status = "okay";
 			};
 		};
 
