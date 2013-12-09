@@ -1,76 +1,76 @@
 /*
-    comedi/drivers/pcmmio.c
-    Driver for Winsystems PC-104 based multifunction IO board.
+ * pcmmio.c
+ * Driver for Winsystems PC-104 based multifunction IO board.
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2007 Calin A. Culianu <calin@ajvar.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2007 Calin A. Culianu <calin@ajvar.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: pcmmio
-Description: A driver for the PCM-MIO multifunction board
-Devices: [Winsystems] PCM-MIO (pcmmio)
-Author: Calin Culianu <calin@ajvar.org>
-Updated: Wed, May 16 2007 16:21:10 -0500
-Status: works
-
-A driver for the relatively new PCM-MIO multifunction board from
-Winsystems.  This board is a PC-104 based I/O board.  It contains
-four subdevices:
-  subdevice 0 - 16 channels of 16-bit AI
-  subdevice 1 - 8 channels of 16-bit AO
-  subdevice 2 - first 24 channels of the 48 channel of DIO
-	(with edge-triggered interrupt support)
-  subdevice 3 - last 24 channels of the 48 channel DIO
-	(no interrupt support for this bank of channels)
-
-  Some notes:
-
-  Synchronous reads and writes are the only things implemented for AI and AO,
-  even though the hardware itself can do streaming acquisition, etc.  Anyone
-  want to add asynchronous I/O for AI/AO as a feature?  Be my guest...
-
-  Asynchronous I/O for the DIO subdevices *is* implemented, however!  They are
-  basically edge-triggered interrupts for any configuration of the first
-  24 DIO-lines.
-
-  Also note that this interrupt support is untested.
-
-  A few words about edge-detection IRQ support (commands on DIO):
-
-  * To use edge-detection IRQ support for the DIO subdevice, pass the IRQ
-    of the board to the comedi_config command.  The board IRQ is not jumpered
-    but rather configured through software, so any IRQ from 1-15 is OK.
-
-  * Due to the genericity of the comedi API, you need to create a special
-    comedi_command in order to use edge-triggered interrupts for DIO.
-
-  * Use comedi_commands with TRIG_NOW.  Your callback will be called each
-    time an edge is detected on the specified DIO line(s), and the data
-    values will be two sample_t's, which should be concatenated to form
-    one 32-bit unsigned int.  This value is the mask of channels that had
-    edges detected from your channel list.  Note that the bits positions
-    in the mask correspond to positions in your chanlist when you
-    specified the command and *not* channel id's!
-
- *  To set the polarity of the edge-detection interrupts pass a nonzero value
-    for either CR_RANGE or CR_AREF for edge-up polarity, or a zero
-    value for both CR_RANGE and CR_AREF if you want edge-down polarity.
-
-Configuration Options:
-  [0] - I/O port base address
-  [1] - IRQ (optional -- for edge-detect interrupt support only,
-	leave out if you don't need this feature)
-*/
+ * Driver: pcmmio
+ * Description: A driver for the PCM-MIO multifunction board
+ * Devices: (Winsystems) PCM-MIO [pcmmio]
+ * Author: Calin Culianu <calin@ajvar.org>
+ * Updated: Wed, May 16 2007 16:21:10 -0500
+ * Status: works
+ *
+ * A driver for the PCM-MIO multifunction board from Winsystems. This
+ * is a PC-104 based I/O board. It contains four subdevices:
+ *
+ *	subdevice 0 - 16 channels of 16-bit AI
+ *	subdevice 1 - 8 channels of 16-bit AO
+ *	subdevice 2 - first 24 channels of the 48 channel of DIO
+ *			(with edge-triggered interrupt support)
+ *	subdevice 3 - last 24 channels of the 48 channel DIO
+ *			(no interrupt support for this bank of channels)
+ *
+ * Some notes:
+ *
+ * Synchronous reads and writes are the only things implemented for analog
+ * input and output. The hardware itself can do streaming acquisition, etc.
+ *
+ * Asynchronous I/O for the DIO subdevices *is* implemented, however! They
+ * are basically edge-triggered interrupts for any configuration of the
+ * channels in subdevice 2.
+ *
+ * Also note that this interrupt support is untested.
+ *
+ * A few words about edge-detection IRQ support (commands on DIO):
+ *
+ * To use edge-detection IRQ support for the DIO subdevice, pass the IRQ
+ * of the board to the comedi_config command. The board IRQ is not jumpered
+ * but rather configured through software, so any IRQ from 1-15 is OK.
+ *
+ * Due to the genericity of the comedi API, you need to create a special
+ * comedi_command in order to use edge-triggered interrupts for DIO.
+ *
+ * Use comedi_commands with TRIG_NOW.  Your callback will be called each
+ * time an edge is detected on the specified DIO line(s), and the data
+ * values will be two sample_t's, which should be concatenated to form
+ * one 32-bit unsigned int. This value is the mask of channels that had
+ * edges detected from your channel list. Note that the bits positions
+ * in the mask correspond to positions in your chanlist when you
+ * specified the command and *not* channel id's!
+ *
+ * To set the polarity of the edge-detection interrupts pass a nonzero value
+ * for either CR_RANGE or CR_AREF for edge-up polarity, or a zero
+ * value for both CR_RANGE and CR_AREF if you want edge-down polarity.
+ *
+ * Configuration Options:
+ *   [0] - I/O port base address
+ *   [1] - IRQ (optional -- for edge-detect interrupt support only,
+ *		leave out if you don't need this feature)
+ */
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
