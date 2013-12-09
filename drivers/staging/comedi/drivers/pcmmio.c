@@ -276,7 +276,6 @@ struct pcmmio_private {
 		unsigned char enab[NUM_PAGED_REGS];
 		int num;
 		unsigned long iobase;
-		unsigned int irq;
 		spinlock_t spinlock;
 	} asics[MAX_ASICS];
 	struct pcmmio_subdev_private *sprivs;
@@ -440,7 +439,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 	int i;
 
 	for (asic = 0; asic < MAX_ASICS; ++asic) {
-		if (irq == devpriv->asics[asic].irq) {
+		if (irq == dev->irq) {
 			unsigned long flags;
 			unsigned triggered = 0;
 			unsigned long iobase = devpriv->asics[asic].iobase;
@@ -964,10 +963,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int sdev_no, chans_left, n_dio_subdevs, n_subdevs, port, asic,
 	    thisasic_chanct = 0;
-	unsigned int irq[MAX_ASICS];
 	int ret;
-
-	irq[0] = it->options[1];
 
 	ret = comedi_request_region(dev, it->options[0], 32);
 	if (ret)
@@ -981,11 +977,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->asics[asic].num = asic;
 		devpriv->asics[asic].iobase =
 		    dev->iobase + 16 + asic * ASIC_IOSIZE;
-		/*
-		 * this gets actually set at the end of this function when we
-		 * request_irqs
-		 */
-		devpriv->asics[asic].irq = 0;
 		spin_lock_init(&devpriv->asics[asic].spinlock);
 	}
 
@@ -1102,19 +1093,11 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	init_asics(dev);	/* clear out all the registers, basically */
 
-	for (asic = 0; irq[0] && asic < MAX_ASICS; ++asic) {
-		if (irq[asic]
-		    && request_irq(irq[asic], interrupt_pcmmio,
-				   IRQF_SHARED, dev->board_name, dev)) {
-			int i;
-			/* unroll the allocated irqs.. */
-			for (i = asic - 1; i >= 0; --i) {
-				free_irq(irq[i], dev);
-				devpriv->asics[i].irq = irq[i] = 0;
-			}
-			irq[asic] = 0;
-		}
-		devpriv->asics[asic].irq = irq[asic];
+	if (it->options[1]) {
+		ret = request_irq(it->options[1], interrupt_pcmmio, 0,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = it->options[1];
 	}
 
 	return 1;
@@ -1123,15 +1106,9 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static void pcmmio_detach(struct comedi_device *dev)
 {
 	struct pcmmio_private *devpriv = dev->private;
-	int i;
 
-	if (devpriv) {
-		for (i = 0; i < MAX_ASICS; ++i) {
-			if (devpriv->asics[i].irq)
-				free_irq(devpriv->asics[i].irq, dev);
-		}
+	if (devpriv)
 		kfree(devpriv->sprivs);
-	}
 	comedi_legacy_detach(dev);
 }
 
