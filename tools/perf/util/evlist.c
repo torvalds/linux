@@ -732,7 +732,7 @@ static long parse_pages_arg(const char *str, unsigned long min,
 			return -EINVAL;
 	}
 
-	if ((pages == 0) && (min == 0)) {
+	if (pages == 0 && min == 0) {
 		/* leave number of pages at 0 */
 	} else if (pages < (1UL << 31) && !is_power_of_2(pages)) {
 		/* round pages up to next power of 2 */
