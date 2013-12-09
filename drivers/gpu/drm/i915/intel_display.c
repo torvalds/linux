@@ -90,7 +90,7 @@ intel_fdi_link_freq(struct drm_device *dev)
 
 static const intel_limit_t intel_limits_i8xx_dac = {
 	.dot = { .min = 25000, .max = 350000 },
-	.vco = { .min = 930000, .max = 1512000 },
+	.vco = { .min = 908000, .max = 1512000 },
 	.n = { .min = 2, .max = 16 },
 	.m = { .min = 96, .max = 140 },
 	.m1 = { .min = 18, .max = 26 },
@@ -103,7 +103,7 @@ static const intel_limit_t intel_limits_i8xx_dac = {
 
 static const intel_limit_t intel_limits_i8xx_dvo = {
 	.dot = { .min = 25000, .max = 350000 },
-	.vco = { .min = 930000, .max = 1512000 },
+	.vco = { .min = 908000, .max = 1512000 },
 	.n = { .min = 2, .max = 16 },
 	.m = { .min = 96, .max = 140 },
 	.m1 = { .min = 18, .max = 26 },
@@ -116,7 +116,7 @@ static const intel_limit_t intel_limits_i8xx_dvo = {
 
 static const intel_limit_t intel_limits_i8xx_lvds = {
 	.dot = { .min = 25000, .max = 350000 },
-	.vco = { .min = 930000, .max = 1512000 },
+	.vco = { .min = 908000, .max = 1512000 },
 	.n = { .min = 2, .max = 16 },
 	.m = { .min = 96, .max = 140 },
 	.m1 = { .min = 18, .max = 26 },
