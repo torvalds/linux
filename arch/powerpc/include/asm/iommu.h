@@ -35,16 +35,13 @@
 #define IOMMU_PAGE_MASK_4K       (~((1 << IOMMU_PAGE_SHIFT_4K) - 1))
 #define IOMMU_PAGE_ALIGN_4K(addr) _ALIGN_UP(addr, IOMMU_PAGE_SIZE_4K)
 
+#define IOMMU_PAGE_SIZE(tblptr) (ASM_CONST(1) << (tblptr)->it_page_shift)
+#define IOMMU_PAGE_MASK(tblptr) (~((1 << (tblptr)->it_page_shift) - 1))
+#define IOMMU_PAGE_ALIGN(addr, tblptr) _ALIGN_UP(addr, IOMMU_PAGE_SIZE(tblptr))
+
 /* Boot time flags */
 extern int iommu_is_off;
 extern int iommu_force_on;
-
-/* Pure 2^n version of get_order */
-static __inline__ __attribute_const__ int get_iommu_order(unsigned long size)
-{
-	return __ilog2((size - 1) >> IOMMU_PAGE_SHIFT_4K) + 1;
-}
-
 
 /*
  * IOMAP_MAX_ORDER defines the largest contiguous block
@@ -81,6 +78,14 @@ struct iommu_table {
 	struct iommu_group *it_group;
 #endif
 };
+
+/* Pure 2^n version of get_order */
+static inline __attribute_const__
+int get_iommu_order(unsigned long size, struct iommu_table *tbl)
+{
+	return __ilog2((size - 1) >> tbl->it_page_shift) + 1;
+}
+
 
 struct scatterlist;
 

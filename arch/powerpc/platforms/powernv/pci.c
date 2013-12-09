@@ -762,8 +762,6 @@ static struct notifier_block tce_iommu_bus_nb = {
 
 static int __init tce_iommu_bus_notifier_init(void)
 {
-	BUILD_BUG_ON(PAGE_SIZE < IOMMU_PAGE_SIZE_4K);
-
 	bus_register_notifier(&pci_bus_type, &tce_iommu_bus_nb);
 	return 0;
 }
