@@ -712,7 +712,7 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 	}
 
-	if (dev->irq && ((dma >= 0 && dma <= 4) || (dma >= 5 && dma <= 7))) {
+	if (dev->irq && dma <= 7 && dma != 4) {
 		ret = request_dma(dma, dev->board_name);
 		if (ret == 0) {
 			devpriv->dma = dma;
