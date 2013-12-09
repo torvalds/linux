@@ -97,10 +97,8 @@ static int acpi_topstar_init_hkey(struct topstar_hkey *hkey)
 	int error;
 
 	input = input_allocate_device();
-	if (!input) {
-		pr_err("Unable to allocate input device\n");
+	if (!input)
 		return -ENOMEM;
-	}
 
 	input->name = "Topstar Laptop extra buttons";
 	input->phys = "topstar/input0";

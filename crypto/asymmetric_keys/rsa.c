@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <crypto/algapi.h>
 #include "public_key.h"
 
 MODULE_LICENSE("GPL");
@@ -189,12 +190,12 @@ static int RSA_verify(const u8 *H, const u8 *EM, size_t k, size_t hash_size,
 		}
 	}
 
-	if (memcmp(asn1_template, EM + T_offset, asn1_size) != 0) {
+	if (crypto_memneq(asn1_template, EM + T_offset, asn1_size) != 0) {
 		kleave(" = -EBADMSG [EM[T] ASN.1 mismatch]");
 		return -EBADMSG;
 	}
 
-	if (memcmp(H, EM + T_offset + asn1_size, hash_size) != 0) {
+	if (crypto_memneq(H, EM + T_offset + asn1_size, hash_size) != 0) {
 		kleave(" = -EKEYREJECTED [EM[T] hash mismatch]");
 		return -EKEYREJECTED;
 	}

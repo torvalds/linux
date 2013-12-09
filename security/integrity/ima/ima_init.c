@@ -63,7 +63,6 @@ static void __init ima_add_boot_aggregate(void)
 		result = ima_calc_boot_aggregate(&hash.hdr);
 		if (result < 0) {
 			audit_cause = "hashing_error";
-			kfree(entry);
 			goto err_out;
 		}
 	}
@@ -76,7 +75,7 @@ static void __init ima_add_boot_aggregate(void)
 	result = ima_store_template(entry, violation, NULL,
 				    boot_aggregate_name);
 	if (result < 0)
-		kfree(entry);
+		ima_free_template_entry(entry);
 	return;
 err_out:
 	integrity_audit_msg(AUDIT_INTEGRITY_PCR, NULL, boot_aggregate_name, op,

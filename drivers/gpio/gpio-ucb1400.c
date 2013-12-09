@@ -105,3 +105,4 @@ module_platform_driver(ucb1400_gpio_driver);
 
 MODULE_DESCRIPTION("Philips UCB1400 GPIO driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:ucb1400_gpio");
