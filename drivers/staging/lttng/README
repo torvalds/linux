@@ -1,0 +1,93 @@
+LTTng 2.x modules
+
+Mathieu Desnoyers
+March 29, 2013
+
+LTTng 2.x kernel modules build against a vanilla or distribution kernel, without
+need for additional patches. Other features:
+
+- Produces CTF (Common Trace Format) natively,
+  (http://www.efficios.com/ctf)
+- Tracepoints, Function tracer, CPU Performance Monitoring Unit (PMU)
+  counters, kprobes, and kretprobes support,
+- Integrated interface for both kernel and userspace tracing,
+- Have the ability to attach "context" information to events in the
+  trace (e.g. any PMU counter, pid, ppid, tid, comm name, etc).
+  All the extra information fields to be collected with events are
+  optional, specified on a per-tracing-session basis (except for
+  timestamp and event id, which are mandatory).
+
+To build and install, you will need to have your kernel headers available (or
+access to your full kernel source tree), and use:
+
+% make
+# make modules_install
+# depmod -a
+
+If you need to specify the target directory to the kernel you want to build
+against, use:
+
+% KERNELDIR=path_to_kernel_dir make
+# KERNELDIR=path_to_kernel_dir make modules_install
+# depmod -a kernel_version
+
+Use lttng-tools to control the tracer. LTTng tools should automatically load
+the kernel modules when needed. Use Babeltrace to print traces as a
+human-readable text log. These tools are available at the following URL:
+http://lttng.org/lttng2.0
+
+So far, it has been tested on vanilla Linux kernels 2.6.38, 2.6.39, 3.0,
+3.1, 3.2, 3.3 (on x86 32/64-bit, and powerpc 32-bit at the moment, build
+tested on ARM), 3.4, 3.5, 3.8, 3.9-rc on x86 64-bit. Kernels 2.6.32 to
+2.6.34 need up to 3 patches applied (refer to linux-patches within the
+lttng-modules tree). It should work fine with newer kernels and other
+architectures, but expect build issues with kernels older than 2.6.36.
+The clock source currently used is the standard gettimeofday (slower,
+less scalable and less precise than the LTTng 0.x clocks).  Support for
+LTTng 0.x clocks will be added back soon into LTTng 2.0.
+
+
+* Kernel config options required
+
+CONFIG_MODULES: required
+  * Kernel modules support.
+CONFIG_KALLSYMS: required
+  * See wrapper/ files. This is necessary until the few required missing
+    symbols are exported to GPL modules from mainline.
+CONFIG_HIGH_RES_TIMERS: required
+  * Needed for LTTng 2.0 clock source.
+CONFIG_TRACEPOINTS: required
+    kernel tracepoint instrumentation
+    * Enabled as side-effect of any of the perf/ftrace/blktrace
+      instrumentation features.
+
+
+* Kernel config options supported (optional)
+
+The following kernel configuration options will affect the features
+available from LTTng:
+
+
+CONFIG_HAVE_SYSCALL_TRACEPOINTS:
+            system call tracing
+               lttng enable-event -k --syscall
+               lttng enable-event -k -a
+CONFIG_PERF_EVENTS:
+            performance counters
+               lttng add-context -t perf:*
+CONFIG_EVENT_TRACING:
+            needed to allow block layer tracing
+CONFIG_KPROBES:
+            Dynamic probe.
+               lttng enable-event -k --probe ...
+CONFIG_KRETPROBES:
+            Dynamic function entry/return probe.
+               lttng enable-event -k --function ...
+
+
+* Note about Perf PMU counters support
+
+Each PMU counter has its zero value set when it is attached to a context with
+add-context. Therefore, it is normal that the same counters attached to both the
+stream context and event context show different values for a given event; what
+matters is that they increment at the same rate.

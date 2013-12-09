@@ -1,0 +1,117 @@
+Please contact Mathieu Desnoyers <mathieu.desnoyers@efficios.com> for
+questions about this TODO list. The "Cleanup/Testing" section would be
+good to go through before integration into mainline. The "Features"
+section is a wish list of features to complete before releasing the
+"LTTng 2.0" final version, but are not required to have LTTng working.
+These features are mostly performance enhancements and instrumentation
+enhancements.
+
+TODO:
+
+A) Cleanup/Testing
+
+	1) Test lib ring buffer snapshot feature.
+	   When working on the lttngtop project, Julien Desfossez
+	   reported that he needed to push the consumer position
+	   forward explicitely with lib_ring_buffer_put_next_subbuf.
+	   This means that although the usual case of pairs of
+	   lib_ring_buffer_get_next_subbuf/lib_ring_buffer_put_next_subbuf
+	   work fine, there is probably a problem that needs to be
+	   investigated in
+	   lib_ring_buffer_get_subbuf/lib_ring_buffer_put_subbuf, which
+	   depend on the producer to push the reader position.
+	   Contact: Julien Desfossez <julien.desfossez@polymtl.ca>
+
+
+B) Features
+
+	1) Integration of the LTTng 0.x trace clocks into
+	   LTTng 2.0.
+	     Currently using mainline kernel monotonic clock. NMIs can
+	     therefore not be traced, and this causes a significant
+	     performance degradation compared to the LTTng 0.x trace
+	     clocks. Imply the creation of drivers/staging/lttng/arch to
+	     contain the arch-specific clock support files.
+	     * Dependency: addition of clock descriptions to CTF.
+	   See: http://git.lttng.org/?p=linux-2.6-lttng.git;a=summary
+	        for the LTTng 0.x git tree.
+
+	2) Port OMAP3 LTTng trace clocks to x86 to support systems
+	   without constant TSC.
+	    * Dependency: (B.1)
+	   See: http://git.lttng.org/?p=linux-2.6-lttng.git;a=summary
+	        for the LTTng 0.x git tree.
+
+	3) Implement mmap operation on an anonymous file created by a
+	   LTTNG_KERNEL_CLOCK ioctl to export data to export
+	   synchronized kernel and user-level LTTng trace clocks:
+	   with:
+	      - shared per-cpu data,
+	      - read seqlock.
+	   The content exported by this shared memory area will be
+	   arch-specific.
+	   * Dependency: (B.1) && (B.2)
+	   See: http://git.lttng.org/?p=linux-2.6-lttng.git;a=summary
+	        for the LTTng 0.x git tree, which has vDSO support for
+	        LTTng trace clock on the x86 architecture.
+
+	3) Integrate the "statedump" module from LTTng 0.x into LTTng
+	   2.0.
+	   See: http://git.lttng.org/?p=lttng-modules.git;a=shortlog;h=refs/heads/v0.19-stable
+	        ltt-statedump.c
+
+	4) Generate system call TRACE_EVENT headers for all
+	   architectures (currently done: x86 32/64).
+
+	5) Define "unknown" system calls into instrumentation/syscalls
+	   override files / or do SYSCALL_DEFINE improvements to
+	   mainline kernel to allow automatic generation of these
+	   missing system call descriptions.
+
+	6) Create missing tracepoint event headers files into
+	   instrumentation/events from headers located in
+	   include/trace/events/. Choice: either do as currently done,
+	   and copy those headers locally into the lttng driver and
+	   perform the modifications locally, or push TRACE_EVENT API
+	   modification into mainline headers, which would require
+	   collaboration from Ftrace/Perf maintainers.
+
+	7) Poll: implement a poll and/or epoll exclusive wakeup scheme,
+	   which contradicts POSIX, but protect multiple consumer
+	   threads from thundering herd effect.
+
+	8) Re-integrate sample modules from libringbuffer into
+	   lttng driver. Those modules can be used as example of how to
+	   use libringbuffer in other contexts than LTTng, and are
+	   useful to perform benchmarks of the ringbuffer library.
+	   See: http://www.efficios.com/ringbuffer
+
+	9) NOHZ support for lib ring buffer. NOHZ infrastructure in the
+	   Linux kernel does not support notifiers chains, which does
+	   not let LTTng play nicely with low power consumption setups
+	   for flight recorder (overwrite mode) live traces. One way to
+	   allow integration between NOHZ and LTTng would be to add
+	   support for such notifiers into NOHZ kernel infrastructure.
+
+	10) Turn lttng-probes.c probe_list into a
+	    hash table. Turns O(n^2) trace systems registration (cost
+	    for n systems) into O(n). (O(1) per system)
+
+	11) drivers/staging/lttng/probes/lttng-ftrace.c:
+	    LTTng currently uses kretprobes for per-function tracing,
+	    not the function tracer. So lttng-ftrace.c should be used
+	    for "all" function tracing.
+
+	12) drivers/staging/lttng/probes/lttng-types.c:
+	    This is a currently unused placeholder to export entire C
+	    type declarations into the trace metadata, e.g. for support
+	    of describing the layout of structures/enumeration mapping
+	    along with syscall entry events.  The design of this support
+	    will likely change though, and become integrated with the
+	    TRACE_EVENT support within lttng, by adding new macros, and
+	    support for generation of metadata from these macros, to
+	    allow description of those compound types/enumerations.
+
+Please send patches
+To: Greg Kroah-Hartman <greg@kroah.com>
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>

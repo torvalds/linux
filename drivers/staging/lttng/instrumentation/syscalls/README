@@ -1,0 +1,18 @@
+LTTng system call tracing
+
+1) lttng-syscall-extractor
+
+You need to build a kernel with CONFIG_FTRACE_SYSCALLS=y and
+CONFIG_KALLSYMS_ALL=y for extraction. Apply the linker patch to get your
+kernel to keep the system call metadata after boot.  Then build and load
+the LTTng syscall extractor module. The module will fail to load (this
+is expected). See the dmesg output for system call metadata.
+
+2) Generate system call TRACE_EVENT().
+
+Take the dmesg metadata and feed it to lttng-syscalls-generate-headers.sh, e.g.,
+from the instrumentation/syscalls directory. See the script header for
+usage example. It should be run for both the integers and pointers types.
+
+After these are created, we just need to follow the new system call additions,
+no need to regenerate the whole thing, since system calls are only appended to.

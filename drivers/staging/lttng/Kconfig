@@ -1,0 +1,35 @@
+config LTTNG
+	tristate "LTTng kernel tracer"
+	depends on TRACEPOINTS
+	help
+	  The LTTng 2.0 Tracer Toolchain allows integrated kernel and
+	  user-space tracing from a single user interface: the "lttng"
+	  command. See http://lttng.org website for the "lttng-tools"
+	  user-space tracer control tools package and the "babeltrace"
+	  package for conversion of trace data to a human-readable
+	  format.
+
+	  LTTng features:
+	  - System-wide tracing across kernel, libraries and
+	    applications,
+	  - Tracepoints, detailed syscall tracing (fast strace replacement),
+	    Function tracer, CPU Performance Monitoring Unit (PMU) counters
+	    and kprobes support,
+	  - Have the ability to attach "context" information to events in the
+	    trace (e.g. any PMU counter, pid, ppid, tid, comm name, etc). All
+	    the extra information fields to be collected with events are
+	    optional, specified on a per-tracing-session basis (except for
+	    timestamp and event id, which are mandatory).
+	  - Precise and fast clock sources with near cycle-level
+	    timestamps,
+	  - Efficient trace data transport:
+	    - Compact Binary format with CTF,
+	    - Per-core buffers ensures scalability,
+	    - Fast-paths in caller context, amortized synchronization,
+	    - Zero-copy using splice and mmap system calls, over disk,
+	      network or consumed in-place,
+	  - Multiple concurrent tracing sessions are supported,
+	  - Designed to meet hard real-time constraints,
+	  - Supports live streaming of the trace data,
+	  - Produces CTF (Common Trace Format) natively (see
+	    http://www.efficios.com/ctf).
