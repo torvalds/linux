@@ -3262,7 +3262,6 @@ bnad_uninit(struct bnad *bnad)
 
 	if (bnad->bar0)
 		iounmap(bnad->bar0);
-	pci_set_drvdata(bnad->pcidev, NULL);
 }
 
 /*
