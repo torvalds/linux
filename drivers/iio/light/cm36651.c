@@ -387,7 +387,7 @@ static int cm36651_read_int_time(struct cm36651_data *cm36651,
 		return -EINVAL;
 	}
 
-	return IIO_VAL_INT_PLUS_MICRO;
+	return IIO_VAL_INT;
 }
 
 static int cm36651_write_int_time(struct cm36651_data *cm36651,
