@@ -10,9 +10,9 @@ SYNOPSIS
 [verse]
 'perf kvm' [--host] [--guest] [--guestmount=<path>
 	[--guestkallsyms=<path> --guestmodules=<path> | --guestvmlinux=<path>]]
-	{top|record|report|diff|buildid-list}
+	{top|record|report|diff|buildid-list} [<options>]
 'perf kvm' [--host] [--guest] [--guestkallsyms=<path> --guestmodules=<path>
-	| --guestvmlinux=<path>] {top|record|report|diff|buildid-list|stat}
+	| --guestvmlinux=<path>] {top|record|report|diff|buildid-list|stat} [<options>]
 'perf kvm stat [record|report|live] [<options>]
 
 DESCRIPTION
@@ -93,6 +93,9 @@ OPTIONS
 	kernel module information. Users copy it out from guest os.
 --guestvmlinux=<path>::
 	Guest os kernel vmlinux.
+-v::
+--verbose::
+	Be more verbose (show counter open errors, etc).
 
 STAT REPORT OPTIONS
 -------------------

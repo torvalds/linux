@@ -1690,6 +1690,8 @@ int cmd_kvm(int argc, const char **argv, const char *prefix __maybe_unused)
 			   "file", "file saving guest os /proc/kallsyms"),
 		OPT_STRING(0, "guestmodules", &symbol_conf.default_guest_modules,
 			   "file", "file saving guest os /proc/modules"),
+		OPT_INCR('v', "verbose", &verbose,
+			    "be more verbose (show counter open errors, etc)"),
 		OPT_END()
 	};
 
