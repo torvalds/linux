@@ -260,8 +260,6 @@ struct pcmmio_private {
 	unsigned int ao_readback[8];
 };
 
-#define subpriv ((struct pcmmio_subdev_private *)s->private)
-
 /* DIO devices are slightly special.  Although it is possible to
  * implement the insn_read/insn_write interface, it is much more
  * useful to applications if you implement the insn_bits interface.
@@ -271,6 +269,7 @@ static int pcmmio_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
+	struct pcmmio_subdev_private *subpriv = s->private;
 	int byte_no;
 
 	/* NOTE:
@@ -327,6 +326,7 @@ static int pcmmio_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
 {
+	struct pcmmio_subdev_private *subpriv = s->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	int byte_no = chan / 8;
 	int bit_no = chan % 8;
@@ -379,6 +379,7 @@ static void pcmmio_reset(struct comedi_device *dev)
 static void pcmmio_stop_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
+	struct pcmmio_subdev_private *subpriv = s->private;
 	int nports, firstport, asic, port;
 
 	asic = subpriv->dio.intr.asic;
@@ -457,7 +458,10 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 					"got edge detect interrupt %d asic %d which_chans: %06x\n",
 					irq, asic, triggered);
 				for (i = 2; i < dev->n_subdevices; i++) {
+					struct pcmmio_subdev_private *subpriv;
+
 					s = &dev->subdevices[i];
+					subpriv = s->private;
 					/*
 					 * this is an interrupt subdev,
 					 * and it matches this asic!
@@ -556,6 +560,8 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 static int pcmmio_start_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
+	struct pcmmio_subdev_private *subpriv = s->private;
+
 	if (!subpriv->dio.intr.continuous && subpriv->dio.intr.stop_count == 0) {
 		/* An empty acquisition! */
 		s->async->events |= COMEDI_CB_EOA;
@@ -623,6 +629,7 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 
 static int pcmmio_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct pcmmio_subdev_private *subpriv = s->private;
 	unsigned long flags;
 
 	spin_lock_irqsave(&subpriv->dio.intr.spinlock, flags);
@@ -640,6 +647,7 @@ static int
 pcmmio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
 			  unsigned int trignum)
 {
+	struct pcmmio_subdev_private *subpriv = s->private;
 	unsigned long flags;
 	int event = 0;
 
@@ -663,6 +671,7 @@ pcmmio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
  */
 static int pcmmio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct pcmmio_subdev_private *subpriv = s->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
 	int event = 0;
@@ -918,6 +927,7 @@ static int pcmmio_ao_insn_write(struct comedi_device *dev,
 static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pcmmio_private *devpriv;
+	struct pcmmio_subdev_private *subpriv;
 	struct comedi_subdevice *s;
 	int sdev_no, chans_left, n_dio_subdevs, n_subdevs, port, asic,
 	    thisasic_chanct = 0;
@@ -981,7 +991,8 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		int byte_no;
 
 		s = &dev->subdevices[sdev_no];
-		s->private = &devpriv->sprivs[sdev_no];
+		subpriv = &devpriv->sprivs[sdev_no];
+		s->private = subpriv;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
