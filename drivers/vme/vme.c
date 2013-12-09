@@ -1525,9 +1525,5 @@ static void __exit vme_exit(void)
 	bus_unregister(&vme_bus_type);
 }
 
-MODULE_DESCRIPTION("VME bridge driver framework");
-MODULE_AUTHOR("Martyn Welch <martyn.welch@ge.com");
-MODULE_LICENSE("GPL");
-
-module_init(vme_init);
+subsys_initcall(vme_init);
 module_exit(vme_exit);
