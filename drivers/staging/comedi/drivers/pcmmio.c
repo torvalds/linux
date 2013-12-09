@@ -359,38 +359,17 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcmmio_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	unsigned triggered = 0;
-	int got1 = 0;
-	unsigned long flags;
+	unsigned int triggered;
 	unsigned char int_pend;
 
-	spin_lock_irqsave(&devpriv->pagelock, flags);
+	/* are there any interrupts pending */
+	int_pend = inb(dev->iobase + PCMMIO_INT_PENDING_REG) & 0x07;
+	if (!int_pend)
+		return IRQ_NONE;
 
-	int_pend = inb(dev->iobase + PCMMIO_INT_PENDING_REG);
-	int_pend &= 0x07;
-
-	if (int_pend) {
-		int port;
-		for (port = 0; port < INTR_PORTS_PER_ASIC; ++port) {
-			if (int_pend & (0x1 << port)) {
-				unsigned char io_lines_with_edges = 0;
-				switch_page(dev, PCMMIO_PAGE_INT_ID);
-				io_lines_with_edges = inb(dev->iobase +
-							PCMMIO_PAGE_REG(port));
-
-				/* clear pending interrupt */
-				if (io_lines_with_edges)
-					outb(0, dev->iobase +
-					     PCMMIO_PAGE_REG(port));
-
-				triggered |= io_lines_with_edges << port * 8;
-			}
-		}
-
-		++got1;
-	}
-
-	spin_unlock_irqrestore(&devpriv->pagelock, flags);
+	/* get, and clear, the pending interrupts */
+	triggered = pcmmio_dio_read(dev, PCMMIO_PAGE_INT_ID, 0);
+	pcmmio_dio_write(dev, 0, PCMMIO_PAGE_INT_ID, 0);
 
 	if (triggered) {
 		/* TODO here: dispatch io lines to subdevs with commands */
@@ -444,8 +423,6 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 			comedi_event(dev, s);
 	}
 
-	if (!got1)
-		return IRQ_NONE;	/* interrupt from other source */
 	return IRQ_HANDLED;
 }
 
