@@ -1,9 +1,5 @@
-#ifndef _PERF_LINUX_MAGIC_H_
-#define _PERF_LINUX_MAGIC_H_
-
-#ifndef DEBUGFS_MAGIC
-#define DEBUGFS_MAGIC          0x64626720
-#endif
+#ifndef __API_FS__
+#define __API_FS__
 
 #ifndef SYSFS_MAGIC
 #define SYSFS_MAGIC            0x62656572
@@ -13,4 +9,6 @@
 #define PROC_SUPER_MAGIC       0x9fa0
 #endif
 
-#endif
+const char *sysfs__mountpoint(void);
+const char *procfs__mountpoint(void);
+#endif /* __API_FS__ */
