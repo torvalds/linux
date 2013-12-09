@@ -359,126 +359,90 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcmmio_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	unsigned triggered = 0;
 	int got1 = 0;
+	unsigned long flags;
+	unsigned char int_pend;
 
-			unsigned long flags;
-			unsigned triggered = 0;
-			/* it is an interrupt for ASIC #asic */
-			unsigned char int_pend;
+	spin_lock_irqsave(&devpriv->pagelock, flags);
 
-			spin_lock_irqsave(&devpriv->pagelock, flags);
+	int_pend = inb(dev->iobase + PCMMIO_INT_PENDING_REG);
+	int_pend &= 0x07;
 
-			int_pend = inb(dev->iobase + PCMMIO_INT_PENDING_REG);
-			int_pend &= 0x07;
-
-			if (int_pend) {
-				int port;
-				for (port = 0; port < INTR_PORTS_PER_ASIC;
-				     ++port) {
-					if (int_pend & (0x1 << port)) {
-						unsigned char
-						    io_lines_with_edges = 0;
-						switch_page(dev, PCMMIO_PAGE_INT_ID);
-						io_lines_with_edges =
-						    inb(dev->iobase +
+	if (int_pend) {
+		int port;
+		for (port = 0; port < INTR_PORTS_PER_ASIC; ++port) {
+			if (int_pend & (0x1 << port)) {
+				unsigned char io_lines_with_edges = 0;
+				switch_page(dev, PCMMIO_PAGE_INT_ID);
+				io_lines_with_edges = inb(dev->iobase +
 							PCMMIO_PAGE_REG(port));
 
-						if (io_lines_with_edges)
-							/*
-							 * clear pending
-							 * interrupt
-							 */
-							outb(0, dev->iobase +
-							     PCMMIO_PAGE_REG(port));
+				/* clear pending interrupt */
+				if (io_lines_with_edges)
+					outb(0, dev->iobase +
+					     PCMMIO_PAGE_REG(port));
 
-						triggered |=
-						    io_lines_with_edges <<
-						    port * 8;
-					}
+				triggered |= io_lines_with_edges << port * 8;
+			}
+		}
+
+		++got1;
+	}
+
+	spin_unlock_irqrestore(&devpriv->pagelock, flags);
+
+	if (triggered) {
+		/* TODO here: dispatch io lines to subdevs with commands */
+		unsigned long flags;
+		unsigned oldevents;
+
+		spin_lock_irqsave(&devpriv->spinlock, flags);
+
+		oldevents = s->async->events;
+
+		if (devpriv->active) {
+			unsigned mytrig = ((triggered >> 0) & ((1 << 24) - 1)) << 0;
+			if (mytrig & devpriv->enabled_mask) {
+				unsigned int val = 0;
+				unsigned int n, ch, len;
+
+				len = s->async->cmd.chanlist_len;
+				for (n = 0; n < len; n++) {
+					ch = CR_CHAN(s->async->cmd.chanlist[n]);
+					if (mytrig & (1U << ch))
+						val |= (1U << n);
+				}
+				/* Write the scan to the buffer. */
+				if (comedi_buf_put(s->async, val) &&
+				    comedi_buf_put (s->async, val >> 16)) {
+					s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
+				} else {
+					/* Overflow! Stop acquisition!! */
+					/* TODO: STOP_ACQUISITION_CALL_HERE!! */
+					pcmmio_stop_intr(dev, s);
 				}
 
-				++got1;
-			}
-
-			spin_unlock_irqrestore(&devpriv->pagelock, flags);
-
-			if (triggered) {
-				/*
-				 * TODO here: dispatch io lines to subdevs
-				 * with commands..
-				 */
-						unsigned long flags;
-						unsigned oldevents;
-
-						spin_lock_irqsave(&devpriv->spinlock,
-								  flags);
-
-						oldevents = s->async->events;
-
-						if (devpriv->active) {
-							unsigned mytrig =
-							    ((triggered >> 0)
-							     &
-							     ((0x1 << 24) -
-							      1)) << 0;
-							if (mytrig &
-							    devpriv->enabled_mask) {
-								unsigned int val
-								    = 0;
-								unsigned int n,
-								    ch, len;
-
-								len =
-								    s->
-								    async->cmd.chanlist_len;
-								for (n = 0;
-								     n < len;
-								     n++) {
-									ch = CR_CHAN(s->async->cmd.chanlist[n]);
-									if (mytrig & (1U << ch))
-										val |= (1U << n);
-								}
-								/* Write the scan to the buffer. */
-								if (comedi_buf_put(s->async, val)
-								    &&
-								    comedi_buf_put
-								    (s->async,
-								     val >> 16)) {
-									s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
-								} else {
-									/* Overflow! Stop acquisition!! */
-									/* TODO: STOP_ACQUISITION_CALL_HERE!! */
-									pcmmio_stop_intr
-									    (dev,
-									     s);
-								}
-
-								/* Check for end of acquisition. */
-								if (!devpriv->continuous) {
-									/* stop_src == TRIG_COUNT */
-									if (devpriv->stop_count > 0) {
-										devpriv->stop_count--;
-										if (devpriv->stop_count == 0) {
-											s->async->events |= COMEDI_CB_EOA;
-											/* TODO: STOP_ACQUISITION_CALL_HERE!! */
-											pcmmio_stop_intr
-											    (dev,
-											     s);
-										}
-									}
-								}
-							}
+				/* Check for end of acquisition. */
+				if (!devpriv->continuous) {
+					/* stop_src == TRIG_COUNT */
+					if (devpriv->stop_count > 0) {
+						devpriv->stop_count--;
+						if (devpriv->stop_count == 0) {
+							s->async->events |= COMEDI_CB_EOA;
+							/* TODO: STOP_ACQUISITION_CALL_HERE!! */
+							pcmmio_stop_intr(dev, s);
 						}
-
-						spin_unlock_irqrestore
-						    (&devpriv->spinlock, flags);
-
-						if (oldevents !=
-						    s->async->events) {
-							comedi_event(dev, s);
-						}
-
+					}
+				}
 			}
+		}
+
+		spin_unlock_irqrestore(&devpriv->spinlock, flags);
+
+		if (oldevents != s->async->events)
+			comedi_event(dev, s);
+	}
 
 	if (!got1)
 		return IRQ_NONE;	/* interrupt from other source */
