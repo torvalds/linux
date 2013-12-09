@@ -254,7 +254,7 @@ struct pcmmio_subdev_private {
  * feel free to suggest moving the variable to the struct comedi_device struct.
  */
 struct pcmmio_private {
-	spinlock_t spinlock;
+	spinlock_t pagelock;	/* protects the page registers */
 
 	struct pcmmio_subdev_private *sprivs;
 	unsigned int ao_readback[8];
@@ -412,7 +412,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 			/* it is an interrupt for ASIC #asic */
 			unsigned char int_pend;
 
-			spin_lock_irqsave(&devpriv->spinlock, flags);
+			spin_lock_irqsave(&devpriv->pagelock, flags);
 
 			int_pend = inb(dev->iobase + PCMMIO_INT_PENDING_REG);
 			int_pend &= 0x07;
@@ -446,7 +446,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 				++got1;
 			}
 
-			spin_unlock_irqrestore(&devpriv->spinlock, flags);
+			spin_unlock_irqrestore(&devpriv->pagelock, flags);
 
 			if (triggered) {
 				struct comedi_subdevice *s;
@@ -941,7 +941,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	spin_lock_init(&devpriv->spinlock);
+	spin_lock_init(&devpriv->pagelock);
 
 	chans_left = CHANS_PER_ASIC * 1;
 	n_dio_subdevs = CALC_N_DIO_SUBDEVS(chans_left);
