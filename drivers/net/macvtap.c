@@ -767,10 +767,14 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 				const struct sk_buff *skb,
 				const struct iovec *iv, int len)
 {
-	int ret;
+	int ret, off;
 	int vnet_hdr_len = 0;
 	int vlan_offset = 0;
 	int copied;
+	struct {
+		__be16 h_vlan_proto;
+		__be16 h_vlan_TCI;
+	} veth;
 
 	if (q->flags & IFF_VNET_HDR) {
 		struct virtio_net_hdr vnet_hdr;
@@ -785,16 +789,13 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 		if (memcpy_toiovecend(iv, (void *)&vnet_hdr, 0, sizeof(vnet_hdr)))
 			return -EFAULT;
 	}
-	copied = vnet_hdr_len;
+	off = copied = vnet_hdr_len;
 
 	if (!vlan_tx_tag_present(skb))
 		len = min_t(int, skb->len, len);
 	else {
 		int copy;
-		struct {
-			__be16 h_vlan_proto;
-			__be16 h_vlan_TCI;
-		} veth;
+
 		veth.h_vlan_proto = skb->vlan_proto;
 		veth.h_vlan_TCI = htons(vlan_tx_tag_get(skb));
 
@@ -802,22 +803,22 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 		len = min_t(int, skb->len + VLAN_HLEN, len);
 
 		copy = min_t(int, vlan_offset, len);
-		ret = skb_copy_datagram_const_iovec(skb, 0, iv, copied, copy);
+		ret = skb_copy_datagram_const_iovec(skb, 0, iv, off, copy);
 		len -= copy;
-		copied += copy;
+		off += copy;
 		if (ret || !len)
 			goto done;
 
 		copy = min_t(int, sizeof(veth), len);
-		ret = memcpy_toiovecend(iv, (void *)&veth, copied, copy);
+		ret = memcpy_toiovecend(iv, (void *)&veth, off, copy);
 		len -= copy;
-		copied += copy;
+		off += copy;
 		if (ret || !len)
 			goto done;
 	}
 
-	ret = skb_copy_datagram_const_iovec(skb, vlan_offset, iv, copied, len);
-	copied += len;
+	ret = skb_copy_datagram_const_iovec(skb, vlan_offset, iv, off, len);
+	copied += skb->len + (vlan_offset ? sizeof(veth) : 0);
 
 done:
 	return ret ? ret : copied;
@@ -875,7 +876,7 @@ static ssize_t macvtap_aio_read(struct kiocb *iocb, const struct iovec *iv,
 	}
 
 	ret = macvtap_do_read(q, iocb, iv, len, file->f_flags & O_NONBLOCK);
-	ret = min_t(ssize_t, ret, len); /* XXX copied from tun.c. Why? */
+	ret = min_t(ssize_t, ret, len);
 	if (ret > 0)
 		iocb->ki_pos = ret;
 out:
