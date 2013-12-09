@@ -185,6 +185,22 @@ struct rockchip_pinctrl {
 	atomic_t			debug_flag;	
 };
 
+struct iomux_mode{
+        unsigned int mode:4,
+                     off:4,
+                     goff:4,
+                     bank:4,
+                     reserve:16;
+};
+
+struct union_mode{
+        union{
+                struct iomux_mode mux;
+                unsigned int mode;
+        };
+};
+
+
 static inline struct rockchip_pin_bank *gc_to_pin_bank(struct gpio_chip *gc)
 {
 	return container_of(gc, struct rockchip_pin_bank, gpio_chip);
@@ -363,9 +379,20 @@ static void rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 	unsigned long flags;
 	u8 bit;
 	u32 data;
-
-	DBG_PINCTRL("%s:setting mux of GPIO%d-%d to %d\n",
-						__func__, bank->bank_num, pin, mux);
+	struct union_mode m;
+	
+	/* GPIO0_C */
+	/*GPIO0_C0 = 0x0c00, NAND_D8, */
+	/*GPIO0_C1 = 0x0c10, NAND_D9, */
+    
+        m.mode = mux;
+	
+	if((m.mux.bank != bank->bank_num) || (((m.mux.goff - 0x0A) * 8 + m.mux.off ) != pin))
+	{
+		printk("%s:error:mux_bank(%d) != gpio_bank(%d), mux_offset(%d) != gpio_offset(%d)\n",__func__,
+		m.mux.bank, bank->bank_num, ((m.mux.goff - 0x0A) * 8 + m.mux.off ), pin);
+		return;
+	}
 
 	/* get basic quadrupel of mux registers and the correct reg inside */
 	reg += bank->bank_num * 0x10;
@@ -379,6 +406,10 @@ static void rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 	writel(data, reg);
 
 	spin_unlock_irqrestore(&bank->slock, flags);
+
+	DBG_PINCTRL("%s:GPIO%d-%d mux:0x%x\n", __func__, m.mux.bank, ((m.mux.goff - 0x0A) * 8 + m.mux.off ), mux);
+		
+	DBG_PINCTRL("%s:setting mux of GPIO%d-%d to %d\n", __func__, bank->bank_num, pin, mux&0x3);
 }
 
 #define RK2928_PULL_OFFSET		0x118
@@ -792,6 +823,8 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 	int num;
 	int i, j;
 	int ret;
+	struct union_mode m;
+	
 
 	DBG_PINCTRL("%s:group(%d): %s\n", __func__, index, np->name);
 
@@ -805,8 +838,8 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 	list = of_get_property(np, "rockchip,pins", &size);
 	/* we do not check return since it's safe node passed down */
 	size /= sizeof(*list);
-	if (!size || size % 4) {
-		dev_err(info->dev, "wrong pins number or pins and configs should be by 4\n");
+	if (!size) {
+		dev_err(info->dev, "wrong pins number size=%d\n",size);
 		return -EINVAL;
 	}
 
@@ -817,13 +850,14 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 	grp->data = devm_kzalloc(info->dev, grp->npins *
 					  sizeof(struct rockchip_pin_config),
 					GFP_KERNEL);
+
 	if (!grp->pins || !grp->data)
 		return -ENOMEM;
 
 	for (i = 0, j = 0; i < size; i += 4, j++) {
 		const __be32 *phandle;
 		struct device_node *np_config;
-
+#if 0
 		num = be32_to_cpu(*list++);
 		bank = bank_num_to_bank(info, num);
 		if (IS_ERR(bank))
@@ -831,7 +865,16 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 
 		grp->pins[j] = bank->pin_base + be32_to_cpu(*list++);
 		grp->data[j].func = be32_to_cpu(*list++);
+#else	
+		m.mode = be32_to_cpu(*list++);
 
+		bank = bank_num_to_bank(info, m.mux.bank);
+		if (IS_ERR(bank))
+			return PTR_ERR(bank);
+
+		grp->pins[j] = bank->pin_base + (m.mux.goff - 0x0A) * 8 + m.mux.off;
+		grp->data[j].func = m.mode;
+#endif
 		phandle = list++;
 		if (!phandle)
 			return -EINVAL;
