@@ -54,12 +54,6 @@ static void mv_desc_init(struct mv_xor_desc_slot *desc, unsigned long flags)
 	hw_desc->desc_command = (1 << 31);
 }
 
-static u32 mv_desc_get_dest_addr(struct mv_xor_desc_slot *desc)
-{
-	struct mv_xor_desc *hw_desc = desc->hw_desc;
-	return hw_desc->phy_dest_addr;
-}
-
 static void mv_desc_set_byte_count(struct mv_xor_desc_slot *desc,
 				   u32 byte_count)
 {
