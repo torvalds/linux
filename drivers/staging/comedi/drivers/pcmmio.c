@@ -210,11 +210,6 @@ struct pcmmio_subdev_private {
 			/* The below is only used for intr subdevices */
 			struct {
 				/*
-				 * if nonnegative, the first channel id for
-				 * interrupts.
-				 */
-				int first_chan;
-				/*
 				 * the number of asic channels in this subdev
 				 * that have interrutps
 				 */
@@ -462,8 +457,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 							     ((0x1 << subpriv->
 							       dio.intr.
 							       num_asic_chans) -
-							      1)) << subpriv->
-							    dio.intr.first_chan;
+							      1)) << 0;
 							if (mytrig &
 							    subpriv->dio.
 							    intr.enabled_mask) {
@@ -558,8 +552,7 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 				    << CR_CHAN(cmd->chanlist[n]);
 			}
 		}
-		bits &= ((0x1 << subpriv->dio.intr.num_asic_chans) -
-			 1) << subpriv->dio.intr.first_chan;
+		bits &= ((0x1 << subpriv->dio.intr.num_asic_chans) - 1) << 0;
 		subpriv->dio.intr.enabled_mask = bits;
 
 		{
@@ -581,12 +574,11 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 
 		switch_page(dev, PCMMIO_PAGE_ENAB);
 		for (port = firstport; port < firstport + nports; ++port) {
-			unsigned enab =
-			    bits >> (subpriv->dio.intr.first_chan + (port -
-								     firstport)
-				     * 8) & 0xff, pol =
-			    pol_bits >> (subpriv->dio.intr.first_chan +
-					 (port - firstport) * 8) & 0xff;
+			unsigned enab, pol;
+
+			enab = bits >> (0 + (port - firstport) * 8) & 0xff;
+			pol = pol_bits >> (0 + (port - firstport) * 8) & 0xff;
+
 			/* set enab intrs for this subdev.. */
 			outb(enab, dev->iobase + PCMMIO_PAGE_REG(port));
 			switch_page(dev, PCMMIO_PAGE_POL);
@@ -970,7 +962,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	subpriv = s->private;
 	subpriv->dio.intr.active = 0;
 	subpriv->dio.intr.stop_count = 0;
-	subpriv->dio.intr.first_chan = 0;
 	subpriv->dio.intr.asic_chan = 0;
 	subpriv->dio.intr.num_asic_chans = 24;
 
