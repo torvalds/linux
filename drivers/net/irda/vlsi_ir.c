@@ -1693,7 +1693,6 @@ out_freedev:
 out_disable:
 	pci_disable_device(pdev);
 out:
-	pci_set_drvdata(pdev, NULL);
 	return -ENODEV;
 }
 
@@ -1718,8 +1717,6 @@ static void vlsi_irda_remove(struct pci_dev *pdev)
 	mutex_unlock(&idev->mtx);
 
 	free_netdev(ndev);
-
-	pci_set_drvdata(pdev, NULL);
 
 	IRDA_MESSAGE("%s: %s removed\n", drivername, pci_name(pdev));
 }
