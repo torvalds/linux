@@ -514,8 +514,8 @@ static int verity_map(struct dm_target *ti, struct bio *bio,
 /*
  * Status: V (valid) or C (corruption found)
  */
-static int verity_status(struct dm_target *ti, status_type_t type,
-			 char *result, unsigned maxlen)
+static void verity_status(struct dm_target *ti, status_type_t type,
+			  char *result, unsigned maxlen)
 {
 	struct dm_verity *v = ti->private;
 	unsigned sz = 0;
@@ -546,8 +546,6 @@ static int verity_status(struct dm_target *ti, status_type_t type,
 				DMEMIT("%02x", v->salt[x]);
 		break;
 	}
-
-	return 0;
 }
 
 static int verity_ioctl(struct dm_target *ti, unsigned cmd,

@@ -1755,7 +1755,6 @@ static void unix_copy_addr(struct msghdr *msg, struct sock *sk)
 {
 	struct unix_sock *u = unix_sk(sk);
 
-	msg->msg_namelen = 0;
 	if (u->addr) {
 		msg->msg_namelen = u->addr->len;
 		memcpy(msg->msg_name, u->addr->name, u->addr->len);
@@ -1778,8 +1777,6 @@ static int unix_dgram_recvmsg(struct kiocb *iocb, struct socket *sock,
 	err = -EOPNOTSUPP;
 	if (flags&MSG_OOB)
 		goto out;
-
-	msg->msg_namelen = 0;
 
 	err = mutex_lock_interruptible(&u->readlock);
 	if (err) {
@@ -1921,8 +1918,6 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	target = sock_rcvlowat(sk, flags&MSG_WAITALL, size);
 	timeo = sock_rcvtimeo(sk, flags&MSG_DONTWAIT);
-
-	msg->msg_namelen = 0;
 
 	/* Lock the socket to prevent queue disordering
 	 * while sleeps in memcpy_tomsg
