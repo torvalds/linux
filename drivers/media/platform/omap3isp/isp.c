@@ -1057,6 +1057,23 @@ int omap3isp_pipeline_set_stream(struct isp_pipeline *pipe,
 }
 
 /*
+ * omap3isp_pipeline_cancel_stream - Cancel stream on a pipeline
+ * @pipe: ISP pipeline
+ *
+ * Cancelling a stream mark all buffers on all video nodes in the pipeline as
+ * erroneous and makes sure no new buffer can be queued. This function is called
+ * when a fatal error that prevents any further operation on the pipeline
+ * occurs.
+ */
+void omap3isp_pipeline_cancel_stream(struct isp_pipeline *pipe)
+{
+	if (pipe->input)
+		omap3isp_video_cancel_stream(pipe->input);
+	if (pipe->output)
+		omap3isp_video_cancel_stream(pipe->output);
+}
+
+/*
  * isp_pipeline_resume - Resume streaming on a pipeline
  * @pipe: ISP pipeline
  *

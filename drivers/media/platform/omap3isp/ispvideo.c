@@ -411,6 +411,15 @@ static int isp_video_buffer_prepare(struct isp_video_buffer *buf)
 	struct isp_video *video = vfh->video;
 	unsigned long addr;
 
+	/* Refuse to prepare the buffer is the video node has registered an
+	 * error. We don't need to take any lock here as the operation is
+	 * inherently racy. The authoritative check will be performed in the
+	 * queue handler, which can't return an error, this check is just a best
+	 * effort to notify userspace as early as possible.
+	 */
+	if (unlikely(video->error))
+		return -EIO;
+
 	addr = ispmmu_vmap(video->isp, buf->sglist, buf->sglen);
 	if (IS_ERR_VALUE(addr))
 		return -EIO;
@@ -446,6 +455,12 @@ static void isp_video_buffer_queue(struct isp_video_buffer *buf)
 	unsigned long flags;
 	unsigned int empty;
 	unsigned int start;
+
+	if (unlikely(video->error)) {
+		buf->state = ISP_BUF_STATE_ERROR;
+		wake_up(&buf->wait);
+		return;
+	}
 
 	empty = list_empty(&video->dmaqueue);
 	list_add_tail(&buffer->buffer.irqlist, &video->dmaqueue);
@@ -566,6 +581,36 @@ struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
 			       irqlist);
 	buf->state = ISP_BUF_STATE_ACTIVE;
 	return to_isp_buffer(buf);
+}
+
+/*
+ * omap3isp_video_cancel_stream - Cancel stream on a video node
+ * @video: ISP video object
+ *
+ * Cancelling a stream mark all buffers on the video node as erroneous and makes
+ * sure no new buffer can be queued.
+ */
+void omap3isp_video_cancel_stream(struct isp_video *video)
+{
+	struct isp_video_queue *queue = video->queue;
+	unsigned long flags;
+
+	spin_lock_irqsave(&queue->irqlock, flags);
+
+	while (!list_empty(&video->dmaqueue)) {
+		struct isp_video_buffer *buf;
+
+		buf = list_first_entry(&video->dmaqueue,
+				       struct isp_video_buffer, irqlist);
+		list_del(&buf->irqlist);
+
+		buf->state = ISP_BUF_STATE_ERROR;
+		wake_up(&buf->wait);
+	}
+
+	video->error = true;
+
+	spin_unlock_irqrestore(&queue->irqlock, flags);
 }
 
 /*
@@ -1105,6 +1150,7 @@ isp_video_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	omap3isp_video_queue_streamoff(&vfh->queue);
 	video->queue = NULL;
 	video->streaming = 0;
+	video->error = false;
 
 	if (video->isp->pdata->set_constraints)
 		video->isp->pdata->set_constraints(video->isp, false);
