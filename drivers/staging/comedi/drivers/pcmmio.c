@@ -807,6 +807,16 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 
 	spin_lock_init(&devpriv->pagelock);
+	spin_lock_init(&devpriv->spinlock);
+
+	pcmmio_reset(dev);
+
+	if (it->options[1]) {
+		ret = request_irq(it->options[1], interrupt_pcmmio, 0,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = it->options[1];
+	}
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -851,18 +861,14 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table	= &range_digital;
 	s->insn_bits	= pcmmio_dio_insn_bits;
 	s->insn_config	= pcmmio_dio_insn_config;
-
-	dev->read_subdev = s;
-	s->subdev_flags	|= SDF_CMD_READ;
-	s->len_chanlist	= s->n_chan;
-	s->cancel	= pcmmio_cancel;
-	s->do_cmd	= pcmmio_cmd;
-	s->do_cmdtest	= pcmmio_cmdtest;
-
-	devpriv->active = 0;
-	devpriv->stop_count = 0;
-
-	spin_lock_init(&devpriv->spinlock);
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= s->n_chan;
+		s->cancel	= pcmmio_cancel;
+		s->do_cmd	= pcmmio_cmd;
+		s->do_cmdtest	= pcmmio_cmdtest;
+	}
 
 	/* Digital I/O subdevice */
 	s = &dev->subdevices[3];
@@ -873,15 +879,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table	= &range_digital;
 	s->insn_bits	= pcmmio_dio_insn_bits;
 	s->insn_config	= pcmmio_dio_insn_config;
-
-	pcmmio_reset(dev);
-
-	if (it->options[1]) {
-		ret = request_irq(it->options[1], interrupt_pcmmio, 0,
-				  dev->board_name, dev);
-		if (ret == 0)
-			dev->irq = it->options[1];
-	}
 
 	return 1;
 }
