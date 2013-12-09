@@ -63,6 +63,27 @@ config DEBUG_USER
 	      8 - SIGSEGV faults
 	     16 - SIGBUS faults
 
+config DEBUG_RODATA
+	bool "Write protect kernel text section"
+	default n
+	depends on DEBUG_KERNEL && MMU
+	---help---
+	  Mark the kernel text section as write-protected in the pagetables,
+	  in order to catch accidental (and incorrect) writes to such const
+	  data. This will cause the size of the kernel, plus up to 4MB, to
+	  be mapped as pages instead of sections, which will increase TLB
+	  pressure.
+	  If in doubt, say "N".
+
+config DEBUG_RODATA_TEST
+	bool "Testcase for the DEBUG_RODATA feature"
+	depends on DEBUG_RODATA
+	default n
+	---help---
+	  This option enables a testcase for the DEBUG_RODATA
+	  feature.
+	  If in doubt, say "N"
+
 # These options are only for real kernel hackers who want to get their hands dirty.
 config DEBUG_LL
 	bool "Kernel low-level debugging functions (read help!)"
@@ -668,6 +689,14 @@ config EARLY_PRINTK
 	  Say Y here if you want to have an early console using the
 	  kernel low-level debugging functions. Add earlyprintk to your
 	  kernel parameters to enable this console.
+
+config EARLY_PRINTK_DIRECT
+	bool "Early printk direct"
+	depends on DEBUG_LL
+	help
+	  Say Y here if you want to have an early console using the
+	  kernel low-level debugging functions and EARLY_PRINTK is
+	  not early enough.
 
 config OC_ETM
 	bool "On-chip ETM and ETB"
