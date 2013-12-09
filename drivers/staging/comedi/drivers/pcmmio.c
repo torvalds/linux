@@ -398,10 +398,11 @@ static void pcmmio_stop_intr(struct comedi_device *dev,
 
 static irqreturn_t interrupt_pcmmio(int irq, void *d)
 {
-	int asic, got1 = 0;
-	struct comedi_device *dev = (struct comedi_device *)d;
+	struct comedi_device *dev = d;
 	struct pcmmio_private *devpriv = dev->private;
-	int i;
+	struct comedi_subdevice *s = dev->read_subdev;
+	struct pcmmio_subdev_private *subpriv = s->private;
+	int asic, got1 = 0;
 
 	for (asic = 0; asic < MAX_ASICS; ++asic) {
 		if (irq == dev->irq) {
@@ -447,19 +448,10 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 			spin_unlock_irqrestore(&devpriv->pagelock, flags);
 
 			if (triggered) {
-				struct comedi_subdevice *s;
 				/*
 				 * TODO here: dispatch io lines to subdevs
 				 * with commands..
 				 */
-				dev_dbg(dev->class_dev,
-					"got edge detect interrupt %d asic %d which_chans: %06x\n",
-					irq, asic, triggered);
-				for (i = 2; i < dev->n_subdevices; i++) {
-					struct pcmmio_subdev_private *subpriv;
-
-					s = &dev->subdevices[i];
-					subpriv = s->private;
 					/*
 					 * this is an interrupt subdev,
 					 * and it matches this asic!
@@ -545,7 +537,6 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 
 					}
 
-				}
 			}
 
 		}
@@ -927,8 +918,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct pcmmio_private *devpriv;
 	struct pcmmio_subdev_private *subpriv;
 	struct comedi_subdevice *s;
-	int sdev_no, chans_left, n_dio_subdevs, n_subdevs, port, asic,
-	    thisasic_chanct = 0;
 	int ret;
 
 	ret = comedi_request_region(dev, it->options[0], 32);
@@ -941,16 +930,12 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	spin_lock_init(&devpriv->pagelock);
 
-	chans_left = CHANS_PER_ASIC * 1;
-	n_dio_subdevs = CALC_N_DIO_SUBDEVS(chans_left);
-	n_subdevs = n_dio_subdevs + 2;
-	devpriv->sprivs =
-	    kcalloc(n_subdevs, sizeof(struct pcmmio_subdev_private),
-		    GFP_KERNEL);
+	devpriv->sprivs = kcalloc(4, sizeof(struct pcmmio_subdev_private),
+				  GFP_KERNEL);
 	if (!devpriv->sprivs)
 		return -ENOMEM;
 
-	ret = comedi_alloc_subdevices(dev, n_subdevs);
+	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;
 
@@ -983,73 +968,44 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	outb(0, dev->iobase + PCMMIO_AO_2ND_DAC_OFFSET +
 		PCMMIO_AO_RESOURCE_ENA_REG);
 
-	port = 0;
-	asic = 0;
-	for (sdev_no = 2; sdev_no < dev->n_subdevices; ++sdev_no) {
-		int byte_no;
+	/* Digital I/O subdevice with interrupt support */
+	s = &dev->subdevices[2];
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 24;
+	s->maxdata	= 1;
+	s->len_chanlist	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pcmmio_dio_insn_bits;
+	s->insn_config	= pcmmio_dio_insn_config;
 
-		s = &dev->subdevices[sdev_no];
-		subpriv = &devpriv->sprivs[sdev_no];
-		s->private = subpriv;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->type = COMEDI_SUBD_DIO;
-		s->insn_bits = pcmmio_dio_insn_bits;
-		s->insn_config = pcmmio_dio_insn_config;
-		s->n_chan = min(chans_left, MAX_CHANS_PER_SUBDEV);
-		subpriv->dio.intr.asic = -1;
-		subpriv->dio.intr.first_chan = -1;
-		subpriv->dio.intr.asic_chan = -1;
-		subpriv->dio.intr.num_asic_chans = -1;
-		subpriv->dio.intr.active = 0;
-		s->len_chanlist = 1;
+	dev->read_subdev = s;
+	s->subdev_flags	|= SDF_CMD_READ;
+	s->len_chanlist	= s->n_chan;
+	s->cancel	= pcmmio_cancel;
+	s->do_cmd	= pcmmio_cmd;
+	s->do_cmdtest	= pcmmio_cmdtest;
 
-		/* save the ioport address for each 'port' of 8 channels in the
-		   subdevice */
-		for (byte_no = 0; byte_no < PORTS_PER_SUBDEV; ++byte_no, ++port) {
-			if (port >= PORTS_PER_ASIC) {
-				port = 0;
-				++asic;
-				thisasic_chanct = 0;
-			}
+	s->private = &devpriv->sprivs[2];
+	subpriv = s->private;
+	subpriv->dio.intr.asic = 0;
+	subpriv->dio.intr.active = 0;
+	subpriv->dio.intr.stop_count = 0;
+	subpriv->dio.intr.first_chan = 0;
+	subpriv->dio.intr.asic_chan = 0;
+	subpriv->dio.intr.num_asic_chans = 24;
 
-			if (thisasic_chanct <
-			    CHANS_PER_PORT * INTR_PORTS_PER_ASIC
-			    && subpriv->dio.intr.asic < 0) {
-				/*
-				 * this is an interrupt subdevice,
-				 * so setup the struct
-				 */
-				subpriv->dio.intr.asic = asic;
-				subpriv->dio.intr.active = 0;
-				subpriv->dio.intr.stop_count = 0;
-				subpriv->dio.intr.first_chan = byte_no * 8;
-				subpriv->dio.intr.asic_chan = thisasic_chanct;
-				subpriv->dio.intr.num_asic_chans =
-				    s->n_chan - subpriv->dio.intr.first_chan;
-				s->cancel = pcmmio_cancel;
-				s->do_cmd = pcmmio_cmd;
-				s->do_cmdtest = pcmmio_cmdtest;
-				s->len_chanlist =
-				    subpriv->dio.intr.num_asic_chans;
-			}
-			thisasic_chanct += CHANS_PER_PORT;
-		}
-		spin_lock_init(&subpriv->dio.intr.spinlock);
+	spin_lock_init(&subpriv->dio.intr.spinlock);
 
-		chans_left -= s->n_chan;
-
-		if (!chans_left) {
-			/*
-			 * reset the asic to our first asic,
-			 * to do intr subdevs
-			 */
-			asic = 0;
-			port = 0;
-		}
-
-	}
+	/* Digital I/O subdevice */
+	s = &dev->subdevices[3];
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 24;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pcmmio_dio_insn_bits;
+	s->insn_config	= pcmmio_dio_insn_config;
 
 	pcmmio_reset(dev);
 
