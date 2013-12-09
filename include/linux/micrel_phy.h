@@ -21,6 +21,8 @@
 #define PHY_ID_KSZ8021		0x00221555
 #define PHY_ID_KSZ8031		0x00221556
 #define PHY_ID_KSZ8041		0x00221510
+/* undocumented */
+#define PHY_ID_KSZ8041RNLI	0x00221537
 #define PHY_ID_KSZ8051		0x00221550
 /* same id: ks8001 Rev. A/B, and ks8721 Rev 3. */
 #define PHY_ID_KSZ8001		0x0022161A
