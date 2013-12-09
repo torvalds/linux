@@ -218,14 +218,12 @@ static void hdmi_power_off_full(struct omap_dss_device *dssdev)
 static int hdmi_display_check_timing(struct omap_dss_device *dssdev,
 					struct omap_video_timings *timings)
 {
-	struct hdmi_cm cm;
+	struct omap_dss_device *out = &hdmi.output;
 
-	cm = hdmi_get_code(timings);
-	if (cm.code == -1)
+	if (!dispc_mgr_timings_ok(out->dispc_channel, timings))
 		return -EINVAL;
 
 	return 0;
-
 }
 
 static void hdmi_display_set_timing(struct omap_dss_device *dssdev,
@@ -244,7 +242,16 @@ static void hdmi_display_set_timing(struct omap_dss_device *dssdev,
 		hdmi.cfg = *t;
 
 		dispc_set_tv_pclk(t->timings.pixel_clock * 1000);
+	} else {
+		hdmi.cfg.timings = *timings;
+		hdmi.cfg.cm.code = 0;
+		hdmi.cfg.cm.mode = HDMI_DVI;
+
+		dispc_set_tv_pclk(timings->pixel_clock * 1000);
 	}
+
+	DSSDBG("using mode: %s, code %d\n", hdmi.cfg.cm.mode == HDMI_DVI ?
+			"DVI" : "HDMI", hdmi.cfg.cm.code);
 
 	mutex_unlock(&hdmi.lock);
 }
