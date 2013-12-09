@@ -39,9 +39,13 @@ struct tty_buffer {
 	int size;
 	int commit;
 	int read;
+	int flags;
 	/* Data points here */
 	unsigned long data[0];
 };
+
+/* Values for .flags field of tty_buffer */
+#define TTYB_NORMAL	1	/* buffer has no flags buffer */
 
 static inline unsigned char *char_buf_ptr(struct tty_buffer *b, int ofs)
 {

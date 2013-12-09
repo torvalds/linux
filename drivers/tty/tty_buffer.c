@@ -101,6 +101,7 @@ static void tty_buffer_reset(struct tty_buffer *p, size_t size)
 	p->next = NULL;
 	p->commit = 0;
 	p->read = 0;
+	p->flags = 0;
 }
 
 /**
@@ -229,30 +230,48 @@ void tty_buffer_flush(struct tty_struct *tty)
  *	tty_buffer_request_room		-	grow tty buffer if needed
  *	@tty: tty structure
  *	@size: size desired
+ *	@flags: buffer flags if new buffer allocated (default = 0)
  *
  *	Make at least size bytes of linear space available for the tty
  *	buffer. If we fail return the size we managed to find.
+ *
+ *	Will change over to a new buffer if the current buffer is encoded as
+ *	TTY_NORMAL (so has no flags buffer) and the new buffer requires
+ *	a flags buffer.
  */
-int tty_buffer_request_room(struct tty_port *port, size_t size)
+static int __tty_buffer_request_room(struct tty_port *port, size_t size,
+				     int flags)
 {
 	struct tty_bufhead *buf = &port->buf;
 	struct tty_buffer *b, *n;
-	int left;
+	int left, change;
 
 	b = buf->tail;
-	left = b->size - b->used;
+	if (b->flags & TTYB_NORMAL)
+		left = 2 * b->size - b->used;
+	else
+		left = b->size - b->used;
 
-	if (left < size) {
+	change = (b->flags & TTYB_NORMAL) && (~flags & TTYB_NORMAL);
+	if (change || left < size) {
 		/* This is the slow path - looking for new buffers to use */
 		if ((n = tty_buffer_alloc(port, size)) != NULL) {
+			n->flags = flags;
 			buf->tail = n;
 			b->commit = b->used;
 			smp_mb();
 			b->next = n;
-		} else
+		} else if (change)
+			size = 0;
+		else
 			size = left;
 	}
 	return size;
+}
+
+int tty_buffer_request_room(struct tty_port *port, size_t size)
+{
+	return __tty_buffer_request_room(port, size, 0);
 }
 EXPORT_SYMBOL_GPL(tty_buffer_request_room);
 
@@ -273,12 +292,14 @@ int tty_insert_flip_string_fixed_flag(struct tty_port *port,
 	int copied = 0;
 	do {
 		int goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
-		int space = tty_buffer_request_room(port, goal);
+		int flags = (flag == TTY_NORMAL) ? TTYB_NORMAL : 0;
+		int space = __tty_buffer_request_room(port, goal, flags);
 		struct tty_buffer *tb = port->buf.tail;
 		if (unlikely(space == 0))
 			break;
 		memcpy(char_buf_ptr(tb, tb->used), chars, space);
-		memset(flag_buf_ptr(tb, tb->used), flag, space);
+		if (~tb->flags & TTYB_NORMAL)
+			memset(flag_buf_ptr(tb, tb->used), flag, space);
 		tb->used += space;
 		copied += space;
 		chars += space;
@@ -361,11 +382,12 @@ EXPORT_SYMBOL(tty_schedule_flip);
 int tty_prepare_flip_string(struct tty_port *port, unsigned char **chars,
 		size_t size)
 {
-	int space = tty_buffer_request_room(port, size);
+	int space = __tty_buffer_request_room(port, size, TTYB_NORMAL);
 	if (likely(space)) {
 		struct tty_buffer *tb = port->buf.tail;
 		*chars = char_buf_ptr(tb, tb->used);
-		memset(flag_buf_ptr(tb, tb->used), TTY_NORMAL, space);
+		if (~tb->flags & TTYB_NORMAL)
+			memset(flag_buf_ptr(tb, tb->used), TTY_NORMAL, space);
 		tb->used += space;
 	}
 	return space;
@@ -378,7 +400,10 @@ receive_buf(struct tty_struct *tty, struct tty_buffer *head, int count)
 {
 	struct tty_ldisc *disc = tty->ldisc;
 	unsigned char *p = char_buf_ptr(head, head->read);
-	char	      *f = flag_buf_ptr(head, head->read);
+	char	      *f = NULL;
+
+	if (~head->flags & TTYB_NORMAL)
+		f = flag_buf_ptr(head, head->read);
 
 	if (disc->ops->receive_buf2)
 		count = disc->ops->receive_buf2(tty, p, f, count);
