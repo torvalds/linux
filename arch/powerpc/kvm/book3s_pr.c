@@ -41,6 +41,7 @@
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
 #include <linux/module.h>
+#include <linux/miscdevice.h>
 
 #include "book3s.h"
 
@@ -1584,4 +1585,6 @@ module_init(kvmppc_book3s_init_pr);
 module_exit(kvmppc_book3s_exit_pr);
 
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_MISCDEV(KVM_MINOR);
+MODULE_ALIAS("devname:kvm");
 #endif

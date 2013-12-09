@@ -18,6 +18,8 @@
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/slab.h>
+#include <linux/module.h>
+#include <linux/miscdevice.h>
 
 #include <asm/reg.h>
 #include <asm/cputable.h>
@@ -879,3 +881,9 @@ static void kvmppc_book3s_exit(void)
 
 module_init(kvmppc_book3s_init);
 module_exit(kvmppc_book3s_exit);
+
+/* On 32bit this is our one and only kernel module */
+#ifdef CONFIG_KVM_BOOK3S_32
+MODULE_ALIAS_MISCDEV(KVM_MINOR);
+MODULE_ALIAS("devname:kvm");
+#endif
