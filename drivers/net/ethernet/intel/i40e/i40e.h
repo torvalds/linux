@@ -61,6 +61,7 @@
 #define I40E_BASE_VSI_SEID    512
 #define I40E_BASE_VEB_SEID    288
 #define I40E_MAX_VEB          16
+#define I40E_MAX_NPAR_QPS     32
 
 #define I40E_MAX_NUM_DESCRIPTORS      4096
 #define I40E_MAX_REGISTER     0x0038FFFF
@@ -274,6 +275,8 @@ struct i40e_pf {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *i40e_dbg_pf;
 #endif /* CONFIG_DEBUG_FS */
+
+	u16 instance; /* A unique number per i40e_pf instance in the system */
 
 	/* sr-iov config info */
 	struct i40e_vf *vf;

@@ -267,6 +267,54 @@ i40e_status i40e_validate_mac_addr(u8 *mac_addr)
 }
 
 /**
+ * i40e_get_media_type - Gets media type
+ * @hw: pointer to the hardware structure
+ **/
+static enum i40e_media_type i40e_get_media_type(struct i40e_hw *hw)
+{
+	enum i40e_media_type media;
+
+	switch (hw->phy.link_info.phy_type) {
+	case I40E_PHY_TYPE_10GBASE_SR:
+	case I40E_PHY_TYPE_10GBASE_LR:
+	case I40E_PHY_TYPE_40GBASE_SR4:
+	case I40E_PHY_TYPE_40GBASE_LR4:
+		media = I40E_MEDIA_TYPE_FIBER;
+		break;
+	case I40E_PHY_TYPE_100BASE_TX:
+	case I40E_PHY_TYPE_1000BASE_T:
+	case I40E_PHY_TYPE_10GBASE_T:
+		media = I40E_MEDIA_TYPE_BASET;
+		break;
+	case I40E_PHY_TYPE_10GBASE_CR1_CU:
+	case I40E_PHY_TYPE_40GBASE_CR4_CU:
+	case I40E_PHY_TYPE_10GBASE_CR1:
+	case I40E_PHY_TYPE_40GBASE_CR4:
+	case I40E_PHY_TYPE_10GBASE_SFPP_CU:
+		media = I40E_MEDIA_TYPE_DA;
+		break;
+	case I40E_PHY_TYPE_1000BASE_KX:
+	case I40E_PHY_TYPE_10GBASE_KX4:
+	case I40E_PHY_TYPE_10GBASE_KR:
+	case I40E_PHY_TYPE_40GBASE_KR4:
+		media = I40E_MEDIA_TYPE_BACKPLANE;
+		break;
+	case I40E_PHY_TYPE_SGMII:
+	case I40E_PHY_TYPE_XAUI:
+	case I40E_PHY_TYPE_XFI:
+	case I40E_PHY_TYPE_XLAUI:
+	case I40E_PHY_TYPE_XLPPI:
+	default:
+		media = I40E_MEDIA_TYPE_UNKNOWN;
+		break;
+	}
+
+	return media;
+}
+
+#define I40E_PF_RESET_WAIT_COUNT_A0	200
+#define I40E_PF_RESET_WAIT_COUNT	10
+/**
  * i40e_pf_reset - Reset the PF
  * @hw: pointer to the hardware structure
  *
@@ -275,7 +323,7 @@ i40e_status i40e_validate_mac_addr(u8 *mac_addr)
  **/
 i40e_status i40e_pf_reset(struct i40e_hw *hw)
 {
-	u32 wait_cnt = 0;
+	u32 cnt = 0;
 	u32 reg = 0;
 	u32 grst_del;
 
@@ -285,7 +333,7 @@ i40e_status i40e_pf_reset(struct i40e_hw *hw)
 	 */
 	grst_del = rd32(hw, I40E_GLGEN_RSTCTL) & I40E_GLGEN_RSTCTL_GRSTDEL_MASK
 			>> I40E_GLGEN_RSTCTL_GRSTDEL_SHIFT;
-	for (wait_cnt = 0; wait_cnt < grst_del + 2; wait_cnt++) {
+	for (cnt = 0; cnt < grst_del + 2; cnt++) {
 		reg = rd32(hw, I40E_GLGEN_RSTAT);
 		if (!(reg & I40E_GLGEN_RSTAT_DEVSTATE_MASK))
 			break;
@@ -306,11 +354,15 @@ i40e_status i40e_pf_reset(struct i40e_hw *hw)
 	/* If there was a Global Reset in progress when we got here,
 	 * we don't need to do the PF Reset
 	 */
-	if (!wait_cnt) {
+	if (!cnt) {
+		if (hw->revision_id == 0)
+			cnt = I40E_PF_RESET_WAIT_COUNT_A0;
+		else
+			cnt = I40E_PF_RESET_WAIT_COUNT;
 		reg = rd32(hw, I40E_PFGEN_CTRL);
 		wr32(hw, I40E_PFGEN_CTRL,
 		     (reg | I40E_PFGEN_CTRL_PFSWR_MASK));
-		for (wait_cnt = 0; wait_cnt < 10; wait_cnt++) {
+		for (; cnt; cnt--) {
 			reg = rd32(hw, I40E_PFGEN_CTRL);
 			if (!(reg & I40E_PFGEN_CTRL_PFSWR_MASK))
 				break;
@@ -339,7 +391,13 @@ void i40e_clear_pxe_mode(struct i40e_hw *hw)
 
 	/* Clear single descriptor fetch/write-back mode */
 	reg = rd32(hw, I40E_GLLAN_RCTL_0);
-	wr32(hw, I40E_GLLAN_RCTL_0, (reg | I40E_GLLAN_RCTL_0_PXE_MODE_MASK));
+
+	if (hw->revision_id == 0) {
+		/* As a work around clear PXE_MODE instead of setting it */
+		wr32(hw, I40E_GLLAN_RCTL_0, (reg & (~I40E_GLLAN_RCTL_0_PXE_MODE_MASK)));
+	} else {
+		wr32(hw, I40E_GLLAN_RCTL_0, (reg | I40E_GLLAN_RCTL_0_PXE_MODE_MASK));
+	}
 }
 
 /**
@@ -499,6 +557,7 @@ i40e_status i40e_aq_get_link_info(struct i40e_hw *hw,
 
 	/* update link status */
 	hw_link_info->phy_type = (enum i40e_aq_phy_type)resp->phy_type;
+	hw->phy.media_type = i40e_get_media_type(hw);
 	hw_link_info->link_speed = (enum i40e_aq_link_speed)resp->link_speed;
 	hw_link_info->link_info = resp->link_info;
 	hw_link_info->an_info = resp->an_info;
@@ -877,6 +936,7 @@ i40e_get_link_status_exit:
  * @downlink_seid: the VSI SEID
  * @enabled_tc: bitmap of TCs to be enabled
  * @default_port: true for default port VSI, false for control port
+ * @enable_l2_filtering: true to add L2 filter table rules to regular forwarding rules for cloud support
  * @veb_seid: pointer to where to put the resulting VEB SEID
  * @cmd_details: pointer to command details structure or NULL
  *
@@ -885,7 +945,8 @@ i40e_get_link_status_exit:
  **/
 i40e_status i40e_aq_add_veb(struct i40e_hw *hw, u16 uplink_seid,
 				u16 downlink_seid, u8 enabled_tc,
-				bool default_port, u16 *veb_seid,
+				bool default_port, bool enable_l2_filtering,
+				u16 *veb_seid,
 				struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
@@ -911,6 +972,10 @@ i40e_status i40e_aq_add_veb(struct i40e_hw *hw, u16 uplink_seid,
 		veb_flags |= I40E_AQC_ADD_VEB_PORT_TYPE_DEFAULT;
 	else
 		veb_flags |= I40E_AQC_ADD_VEB_PORT_TYPE_DATA;
+
+	if (enable_l2_filtering)
+		veb_flags |= I40E_AQC_ADD_VEB_ENABLE_L2_FILTER;
+
 	cmd->veb_flags = cpu_to_le16(veb_flags);
 
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);

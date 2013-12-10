@@ -891,13 +891,15 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 static inline u32 i40e_rx_hash(struct i40e_ring *ring,
 			       union i40e_rx_desc *rx_desc)
 {
-	if (ring->netdev->features & NETIF_F_RXHASH) {
-		if ((le64_to_cpu(rx_desc->wb.qword1.status_error_len) >>
-		     I40E_RX_DESC_STATUS_FLTSTAT_SHIFT) &
-		    I40E_RX_DESC_FLTSTAT_RSS_HASH)
-			return le32_to_cpu(rx_desc->wb.qword0.hi_dword.rss);
-	}
-	return 0;
+	const __le64 rss_mask =
+		cpu_to_le64((u64)I40E_RX_DESC_FLTSTAT_RSS_HASH <<
+			    I40E_RX_DESC_STATUS_FLTSTAT_SHIFT);
+
+	if ((ring->netdev->features & NETIF_F_RXHASH) &&
+	    (rx_desc->wb.qword1.status_error_len & rss_mask) == rss_mask)
+		return le32_to_cpu(rx_desc->wb.qword0.hi_dword.rss);
+	else
+		return 0;
 }
 
 /**
