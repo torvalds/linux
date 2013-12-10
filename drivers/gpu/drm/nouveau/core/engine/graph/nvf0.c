@@ -243,6 +243,6 @@ nvf0_graph_oclass = &(struct nvc0_graph_oclass) {
 	.cclass = &nvf0_grctx_oclass,
 	.sclass =  nvf0_graph_sclass,
 	.mmio = nvf0_graph_init_mmio,
-	.fecs.ucode = 0 ? &nvf0_graph_fecs_ucode : NULL,
+	.fecs.ucode = &nvf0_graph_fecs_ucode,
 	.gpccs.ucode = &nvf0_graph_gpccs_ucode,
 }.base;
