@@ -718,45 +718,47 @@ static int adv7604_g_register(struct v4l2_subdev *sd,
 static int adv7604_s_register(struct v4l2_subdev *sd,
 					const struct v4l2_dbg_register *reg)
 {
+	u8 val = reg->val & 0xff;
+
 	switch (reg->reg >> 8) {
 	case 0:
-		io_write(sd, reg->reg & 0xff, reg->val & 0xff);
+		io_write(sd, reg->reg & 0xff, val);
 		break;
 	case 1:
-		avlink_write(sd, reg->reg & 0xff, reg->val & 0xff);
+		avlink_write(sd, reg->reg & 0xff, val);
 		break;
 	case 2:
-		cec_write(sd, reg->reg & 0xff, reg->val & 0xff);
+		cec_write(sd, reg->reg & 0xff, val);
 		break;
 	case 3:
-		infoframe_write(sd, reg->reg & 0xff, reg->val & 0xff);
+		infoframe_write(sd, reg->reg & 0xff, val);
 		break;
 	case 4:
-		esdp_write(sd, reg->reg & 0xff, reg->val & 0xff);
+		esdp_write(sd, reg->reg & 0xff, val);
 		break;
 	case 5:
-		dpp_write(sd, reg->reg & 0xff, reg->val & 0xff);
+		dpp_write(sd, reg->reg & 0xff, val);
 		break;
 	case 6:
-		afe_write(sd, reg->reg & 0xff, reg->val & 0xff);
+		afe_write(sd, reg->reg & 0xff, val);
 		break;
 	case 7:
-		rep_write(sd, reg->reg & 0xff, reg->val & 0xff);
+		rep_write(sd, reg->reg & 0xff, val);
 		break;
 	case 8:
-		edid_write(sd, reg->reg & 0xff, reg->val & 0xff);
+		edid_write(sd, reg->reg & 0xff, val);
 		break;
 	case 9:
-		hdmi_write(sd, reg->reg & 0xff, reg->val & 0xff);
+		hdmi_write(sd, reg->reg & 0xff, val);
 		break;
 	case 0xa:
-		test_write(sd, reg->reg & 0xff, reg->val & 0xff);
+		test_write(sd, reg->reg & 0xff, val);
 		break;
 	case 0xb:
-		cp_write(sd, reg->reg & 0xff, reg->val & 0xff);
+		cp_write(sd, reg->reg & 0xff, val);
 		break;
 	case 0xc:
-		vdp_write(sd, reg->reg & 0xff, reg->val & 0xff);
+		vdp_write(sd, reg->reg & 0xff, val);
 		break;
 	default:
 		v4l2_info(sd, "Register %03llx not supported\n", reg->reg);
