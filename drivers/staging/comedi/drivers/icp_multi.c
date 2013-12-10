@@ -91,12 +91,13 @@ Configuration options: not applicable, uses PCI auto config
 #define	Status_IRQ	0x00ff	/*  All interrupts */
 
 /*  Define analogue range */
-static const struct comedi_lrange range_analog = { 4, {
-						       UNI_RANGE(5),
-						       UNI_RANGE(10),
-						       BIP_RANGE(5),
-						       BIP_RANGE(10)
-						       }
+static const struct comedi_lrange range_analog = {
+	4, {
+		UNI_RANGE(5),
+		UNI_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(10)
+	}
 };
 
 static const char range_codes_analog[] = { 0x00, 0x20, 0x10, 0x30 };
