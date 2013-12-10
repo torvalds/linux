@@ -352,7 +352,7 @@ static int u32_destroy_key(struct tcf_proto *tp, struct tc_u_knode *n)
 	return 0;
 }
 
-static int u32_delete_key(struct tcf_proto *tp, struct tc_u_knode* key)
+static int u32_delete_key(struct tcf_proto *tp, struct tc_u_knode *key)
 {
 	struct tc_u_knode **kp;
 	struct tc_u_hnode *ht = key->ht_up;
