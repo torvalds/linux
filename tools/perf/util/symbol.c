@@ -1458,7 +1458,7 @@ int dso__load_vmlinux_path(struct dso *dso, struct map *map,
 	if (filename != NULL) {
 		err = dso__load_vmlinux(dso, map, filename, filter);
 		if (err > 0) {
-			dso->lname_alloc = 1;
+			dso->long_name_allocated = 1;
 			goto out;
 		}
 		free(filename);
@@ -1468,7 +1468,7 @@ int dso__load_vmlinux_path(struct dso *dso, struct map *map,
 		err = dso__load_vmlinux(dso, map, vmlinux_path[i], filter);
 		if (err > 0) {
 			dso__set_long_name(dso, strdup(vmlinux_path[i]));
-			dso->lname_alloc = 1;
+			dso->long_name_allocated = 1;
 			break;
 		}
 	}
@@ -1612,7 +1612,7 @@ static int dso__load_kernel_sym(struct dso *dso, struct map *map,
 		if (err > 0) {
 			dso__set_long_name(dso,
 					   strdup(symbol_conf.vmlinux_name));
-			dso->lname_alloc = 1;
+			dso->long_name_allocated = 1;
 			return err;
 		}
 		return err;

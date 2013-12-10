@@ -465,9 +465,9 @@ void dso__delete(struct dso *dso)
 	int i;
 	for (i = 0; i < MAP__NR_TYPES; ++i)
 		symbols__delete(&dso->symbols[i]);
-	if (dso->sname_alloc)
+	if (dso->short_name_allocated)
 		free((char *)dso->short_name);
-	if (dso->lname_alloc)
+	if (dso->long_name_allocated)
 		free(dso->long_name);
 	dso_cache__free(&dso->cache);
 	dso__free_a2l(dso);

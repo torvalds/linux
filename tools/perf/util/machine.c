@@ -764,7 +764,7 @@ static int map_groups__set_modules_path_dir(struct map_groups *mg,
 				goto out;
 			}
 			dso__set_long_name(map->dso, long_name);
-			map->dso->lname_alloc = 1;
+			map->dso->long_name_allocated = 1;
 			dso__kernel_module_get_build_id(map->dso, "");
 		}
 	}
@@ -936,7 +936,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 			goto out_problem;
 
 		map->dso->short_name = name;
-		map->dso->sname_alloc = 1;
+		map->dso->short_name_allocated = 1;
 		map->end = map->start + event->mmap.len;
 	} else if (is_kernel_mmap) {
 		const char *symbol_name = (event->mmap.filename +
