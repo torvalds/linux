@@ -468,6 +468,20 @@ static void invalidate_nid_path(struct hda_codec *codec, int idx)
 	memset(path, 0, sizeof(*path));
 }
 
+/* return a DAC if paired to the given pin by codec driver */
+static hda_nid_t get_preferred_dac(struct hda_codec *codec, hda_nid_t pin)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	const hda_nid_t *list = spec->preferred_dacs;
+
+	if (!list)
+		return 0;
+	for (; *list; list += 2)
+		if (*list == pin)
+			return list[1];
+	return 0;
+}
+
 /* look for an empty DAC slot */
 static hda_nid_t look_for_dac(struct hda_codec *codec, hda_nid_t pin,
 			      bool is_digital)
@@ -1134,7 +1148,14 @@ static int try_assign_dacs(struct hda_codec *codec, int num_outs,
 			continue;
 		}
 
-		dacs[i] = look_for_dac(codec, pin, false);
+		dacs[i] = get_preferred_dac(codec, pin);
+		if (dacs[i]) {
+			if (is_dac_already_used(codec, dacs[i]))
+				badness += bad->shared_primary;
+		}
+
+		if (!dacs[i])
+			dacs[i] = look_for_dac(codec, pin, false);
 		if (!dacs[i] && !i) {
 			/* try to steal the DAC of surrounds for the front */
 			for (j = 1; j < num_outs; j++) {
