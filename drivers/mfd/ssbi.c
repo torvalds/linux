@@ -317,7 +317,7 @@ static int ssbi_probe(struct platform_device *pdev)
 	return of_platform_populate(np, NULL, NULL, &pdev->dev);
 }
 
-static struct of_device_id ssbi_match_table[] = {
+static const struct of_device_id ssbi_match_table[] = {
 	{ .compatible = "qcom,ssbi" },
 	{}
 };
