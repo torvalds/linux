@@ -1335,7 +1335,6 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	
  out_unmap_both:
 	kfree(card->dma_bounce);
-	pci_set_drvdata(dev, NULL);
 	pci_iounmap(dev, card->buffers);
  out_unmap_config:
 	pci_iounmap(dev, card->config_regs);
@@ -1457,7 +1456,6 @@ static void fpga_remove(struct pci_dev *dev)
 	pci_release_regions(dev);
 	pci_disable_device(dev);
 
-	pci_set_drvdata(dev, NULL);
 	kfree(card);
 }
 
