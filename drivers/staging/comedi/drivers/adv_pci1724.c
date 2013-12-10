@@ -116,8 +116,8 @@ enum board_id_contents {
 	BOARD_ID_MASK = 0xf
 };
 
-static const struct comedi_lrange ao_ranges_1724 = { 4,
-	{
+static const struct comedi_lrange ao_ranges_1724 = {
+	4, {
 		BIP_RANGE(10),
 		RANGE_mA(0, 20),
 		RANGE_mA(4, 20),
