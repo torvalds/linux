@@ -420,4 +420,4 @@ static int __init pseries_cpu_hotplug_init(void)
 
 	return 0;
 }
-arch_initcall(pseries_cpu_hotplug_init);
+machine_arch_initcall(pseries, pseries_cpu_hotplug_init);
