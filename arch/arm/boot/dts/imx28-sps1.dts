@@ -10,7 +10,7 @@
  */
 
 /dts-v1/;
-/include/ "imx28.dtsi"
+#include "imx28.dtsi"
 
 / {
 	model = "SchulerControl GmbH, SC SPS 1";
@@ -29,13 +29,13 @@
 				hog_pins_a: hog-gpios@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x0003 /* MX28_PAD_GPMI_D00__GPIO_0_0 */
-						0x0033 /* MX28_PAD_GPMI_D03__GPIO_0_3 */
-						0x0063 /* MX28_PAD_GPMI_D06__GPIO_0_6 */
+						MX28_PAD_GPMI_D00__GPIO_0_0
+						MX28_PAD_GPMI_D03__GPIO_0_3
+						MX28_PAD_GPMI_D06__GPIO_0_6
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 			};

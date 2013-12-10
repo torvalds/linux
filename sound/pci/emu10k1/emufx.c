@@ -1182,15 +1182,20 @@ static int _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 	u32 *gpr_map;
 	mm_segment_t seg;
 
-	if ((icode = kzalloc(sizeof(*icode), GFP_KERNEL)) == NULL ||
-	    (icode->gpr_map = (u_int32_t __user *)
-	     kcalloc(512 + 256 + 256 + 2 * 1024, sizeof(u_int32_t),
-		     GFP_KERNEL)) == NULL ||
-	    (controls = kcalloc(SND_EMU10K1_GPR_CONTROLS,
-				sizeof(*controls), GFP_KERNEL)) == NULL) {
-		err = -ENOMEM;
-		goto __err;
-	}
+	err = -ENOMEM;
+	icode = kzalloc(sizeof(*icode), GFP_KERNEL);
+	if (!icode)
+		return err;
+
+	icode->gpr_map = (u_int32_t __user *) kcalloc(512 + 256 + 256 + 2 * 1024,
+						      sizeof(u_int32_t), GFP_KERNEL);
+	if (!icode->gpr_map)
+		goto __err_gpr;
+	controls = kcalloc(SND_EMU10K1_GPR_CONTROLS,
+			   sizeof(*controls), GFP_KERNEL);
+	if (!controls)
+		goto __err_ctrls;
+
 	gpr_map = (u32 __force *)icode->gpr_map;
 
 	icode->tram_data_map = icode->gpr_map + 512;
@@ -1741,12 +1746,12 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 	emu->support_tlv = 0; /* clear again */
 	snd_leave_user(seg);
 
- __err:
+__err:
 	kfree(controls);
-	if (icode != NULL) {
-		kfree((void __force *)icode->gpr_map);
-		kfree(icode);
-	}
+__err_ctrls:
+	kfree((void __force *)icode->gpr_map);
+__err_gpr:
+	kfree(icode);
 	return err;
 }
 
@@ -1813,18 +1818,26 @@ static int _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 	u32 *gpr_map;
 	mm_segment_t seg;
 
-	if ((icode = kzalloc(sizeof(*icode), GFP_KERNEL)) == NULL)
-		return -ENOMEM;
-	if ((icode->gpr_map = (u_int32_t __user *)
-	     kcalloc(256 + 160 + 160 + 2 * 512, sizeof(u_int32_t),
-		     GFP_KERNEL)) == NULL ||
-            (controls = kcalloc(SND_EMU10K1_GPR_CONTROLS,
-				sizeof(struct snd_emu10k1_fx8010_control_gpr),
-				GFP_KERNEL)) == NULL ||
-	    (ipcm = kzalloc(sizeof(*ipcm), GFP_KERNEL)) == NULL) {
-		err = -ENOMEM;
-		goto __err;
-	}
+	err = -ENOMEM;
+	icode = kzalloc(sizeof(*icode), GFP_KERNEL);
+	if (!icode)
+		return err;
+
+	icode->gpr_map = (u_int32_t __user *) kcalloc(256 + 160 + 160 + 2 * 512,
+						      sizeof(u_int32_t), GFP_KERNEL);
+	if (!icode->gpr_map)
+		goto __err_gpr;
+
+	controls = kcalloc(SND_EMU10K1_GPR_CONTROLS,
+			   sizeof(struct snd_emu10k1_fx8010_control_gpr),
+			   GFP_KERNEL);
+	if (!controls)
+		goto __err_ctrls;
+
+	ipcm = kzalloc(sizeof(*ipcm), GFP_KERNEL);
+	if (!ipcm)
+		goto __err_ipcm;
+
 	gpr_map = (u32 __force *)icode->gpr_map;
 
 	icode->tram_data_map = icode->gpr_map + 256;
@@ -2363,13 +2376,14 @@ static int _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 	snd_leave_user(seg);
 	if (err >= 0)
 		err = snd_emu10k1_ipcm_poke(emu, ipcm);
-      __err:
+__err:
 	kfree(ipcm);
+__err_ipcm:
 	kfree(controls);
-	if (icode != NULL) {
-		kfree((void __force *)icode->gpr_map);
-		kfree(icode);
-	}
+__err_ctrls:
+	kfree((void __force *)icode->gpr_map);
+__err_gpr:
+	kfree(icode);
 	return err;
 }
 

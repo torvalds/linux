@@ -51,7 +51,7 @@ irqreturn_t mcfslt_profile_tick(int irq, void *dummy)
 
 static struct irqaction mcfslt_profile_irq = {
 	.name	 = "profile timer",
-	.flags	 = IRQF_DISABLED | IRQF_TIMER,
+	.flags	 = IRQF_TIMER,
 	.handler = mcfslt_profile_tick,
 };
 
@@ -93,7 +93,7 @@ static irqreturn_t mcfslt_tick(int irq, void *dummy)
 
 static struct irqaction mcfslt_timer_irq = {
 	.name	 = "timer",
-	.flags	 = IRQF_DISABLED | IRQF_TIMER,
+	.flags	 = IRQF_TIMER,
 	.handler = mcfslt_tick,
 };
 

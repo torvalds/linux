@@ -242,6 +242,9 @@ struct hda_gen_spec {
 	/* additional mute flags (only effective with auto_mute_via_amp=1) */
 	u64 mute_bits;
 
+	/* bitmask for skipping volume controls */
+	u64 out_vol_mask;
+
 	/* badness tables for output path evaluations */
 	const struct badness_table *main_out_badness;
 	const struct badness_table *extra_out_badness;

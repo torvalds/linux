@@ -83,7 +83,7 @@ int ll_unlock(__u32 mode, struct lustre_handle *lockh)
 }
 
 
-/* called from iget5_locked->find_inode() under inode_lock spinlock */
+/* called from iget5_locked->find_inode() under inode_hash_lock spinlock */
 static int ll_test_inode(struct inode *inode, void *opaque)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);

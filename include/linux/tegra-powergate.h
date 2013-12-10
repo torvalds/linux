@@ -34,10 +34,18 @@ struct clk;
 #define TEGRA_POWERGATE_CPU3	11
 #define TEGRA_POWERGATE_CELP	12
 #define TEGRA_POWERGATE_3D1	13
+#define TEGRA_POWERGATE_CPU0	14
+#define TEGRA_POWERGATE_C0NC	15
+#define TEGRA_POWERGATE_C1NC	16
+#define TEGRA_POWERGATE_DIS	18
+#define TEGRA_POWERGATE_DISB	19
+#define TEGRA_POWERGATE_XUSBA	20
+#define TEGRA_POWERGATE_XUSBB	21
+#define TEGRA_POWERGATE_XUSBC	22
 
-#define TEGRA_POWERGATE_CPU0	TEGRA_POWERGATE_CPU
 #define TEGRA_POWERGATE_3D0	TEGRA_POWERGATE_3D
 
+#ifdef CONFIG_ARCH_TEGRA
 int tegra_powergate_is_powered(int id);
 int tegra_powergate_power_on(int id);
 int tegra_powergate_power_off(int id);
@@ -45,5 +53,31 @@ int tegra_powergate_remove_clamping(int id);
 
 /* Must be called with clk disabled, and returns with clk enabled */
 int tegra_powergate_sequence_power_up(int id, struct clk *clk);
+#else
+static inline int tegra_powergate_is_powered(int id)
+{
+	return -ENOSYS;
+}
+
+static inline int tegra_powergate_power_on(int id)
+{
+	return -ENOSYS;
+}
+
+static inline int tegra_powergate_power_off(int id)
+{
+	return -ENOSYS;
+}
+
+static inline int tegra_powergate_remove_clamping(int id)
+{
+	return -ENOSYS;
+}
+
+static inline int tegra_powergate_sequence_power_up(int id, struct clk *clk)
+{
+	return -ENOSYS;
+}
+#endif
 
 #endif /* _MACH_TEGRA_POWERGATE_H_ */

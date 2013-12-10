@@ -394,6 +394,8 @@ static inline void mark_hpte_slot_valid(unsigned char *hpte_slot_array,
 	hpte_slot_array[index] = hidx << 4 | 0x1 << 3;
 }
 
+struct page *realmode_pfn_to_page(unsigned long pfn);
+
 static inline char *get_hpte_slot_array(pmd_t *pmdp)
 {
 	/*

@@ -596,52 +596,40 @@ static int dmm32at_ao_rinsn(struct comedi_device *dev,
 
 static int dmm32at_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct dmm32at_private *devpriv = dev->private;
-	unsigned char diobits;
+	unsigned int mask;
+	unsigned int val;
 
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit. */
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
-		/* Write out the new digital output lines */
-		/* outw(s->state,dev->iobase + DMM32AT_DIO); */
+	mask = comedi_dio_update_state(s, data);
+	if (mask) {
+		/* get access to the DIO regs */
+		outb(DMM32AT_DIOACC, dev->iobase + DMM32AT_CNTRL);
+
+		/* if either part of dio is set for output */
+		if (((devpriv->dio_config & DMM32AT_DIRCL) == 0) ||
+		    ((devpriv->dio_config & DMM32AT_DIRCH) == 0)) {
+			val = (s->state & 0x00ff0000) >> 16;
+			outb(val, dev->iobase + DMM32AT_DIOC);
+		}
+		if ((devpriv->dio_config & DMM32AT_DIRB) == 0) {
+			val = (s->state & 0x0000ff00) >> 8;
+			outb(val, dev->iobase + DMM32AT_DIOB);
+		}
+		if ((devpriv->dio_config & DMM32AT_DIRA) == 0) {
+			val = (s->state & 0x000000ff);
+			outb(val, dev->iobase + DMM32AT_DIOA);
+		}
 	}
 
-	/* get access to the DIO regs */
-	outb(DMM32AT_DIOACC, dev->iobase + DMM32AT_CNTRL);
+	val = inb(dev->iobase + DMM32AT_DIOA);
+	val |= inb(dev->iobase + DMM32AT_DIOB) << 8;
+	val |= inb(dev->iobase + DMM32AT_DIOC) << 16;
+	s->state = val;
 
-	/* if either part of dio is set for output */
-	if (((devpriv->dio_config & DMM32AT_DIRCL) == 0) ||
-	    ((devpriv->dio_config & DMM32AT_DIRCH) == 0)) {
-		diobits = (s->state & 0x00ff0000) >> 16;
-		outb(diobits, dev->iobase + DMM32AT_DIOC);
-	}
-	if ((devpriv->dio_config & DMM32AT_DIRB) == 0) {
-		diobits = (s->state & 0x0000ff00) >> 8;
-		outb(diobits, dev->iobase + DMM32AT_DIOB);
-	}
-	if ((devpriv->dio_config & DMM32AT_DIRA) == 0) {
-		diobits = (s->state & 0x000000ff);
-		outb(diobits, dev->iobase + DMM32AT_DIOA);
-	}
-
-	/* now read the state back in */
-	s->state = inb(dev->iobase + DMM32AT_DIOC);
-	s->state <<= 8;
-	s->state |= inb(dev->iobase + DMM32AT_DIOB);
-	s->state <<= 8;
-	s->state |= inb(dev->iobase + DMM32AT_DIOA);
-	data[1] = s->state;
-
-	/* on return, data[1] contains the value of the digital
-	 * input and output lines. */
-	/* data[1]=inw(dev->iobase + DMM32AT_DIO); */
-	/* or we could just return the software copy of the output values if
-	 * it was a purely digital output subdevice */
-	/* data[1]=s->state; */
+	data[1] = val;
 
 	return insn->n;
 }

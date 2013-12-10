@@ -72,16 +72,16 @@
 #include "fw-api-d3.h"
 #include "fw-api-bt-coex.h"
 
-/* queue and FIFO numbers by usage */
+/* maximal number of Tx queues in any platform */
+#define IWL_MVM_MAX_QUEUES	20
+
+/* Tx queue numbers */
 enum {
 	IWL_MVM_OFFCHANNEL_QUEUE = 8,
 	IWL_MVM_CMD_QUEUE = 9,
-	IWL_MVM_AUX_QUEUE = 15,
-	IWL_MVM_FIRST_AGG_QUEUE = 16,
-	IWL_MVM_NUM_QUEUES = 20,
-	IWL_MVM_LAST_AGG_QUEUE = IWL_MVM_NUM_QUEUES - 1,
-	IWL_MVM_CMD_FIFO = 7
 };
+
+#define IWL_MVM_CMD_FIFO	7
 
 #define IWL_MVM_STATION_COUNT	16
 
@@ -97,6 +97,7 @@ enum {
 	DBG_CFG = 0x9,
 
 	/* station table */
+	ADD_STA_KEY = 0x17,
 	ADD_STA = 0x18,
 	REMOVE_STA = 0x19,
 
@@ -114,6 +115,7 @@ enum {
 	TIME_EVENT_NOTIFICATION = 0x2a,
 	BINDING_CONTEXT_CMD = 0x2b,
 	TIME_QUOTA_CMD = 0x2c,
+	NON_QOS_TX_COUNTER_CMD = 0x2d,
 
 	LQ_CMD = 0x4e,
 
@@ -130,6 +132,7 @@ enum {
 	SCAN_OFFLOAD_COMPLETE = 0x6D,
 	SCAN_OFFLOAD_UPDATE_PROFILES_CMD = 0x6E,
 	SCAN_OFFLOAD_CONFIG_CMD = 0x6f,
+	MATCH_FOUND_NOTIFICATION = 0xd9,
 
 	/* Phy */
 	PHY_CONFIGURATION_CMD = 0x6a,
@@ -178,6 +181,7 @@ enum {
 	BT_COEX_PRIO_TABLE = 0xcc,
 	BT_COEX_PROT_ENV = 0xcd,
 	BT_PROFILE_NOTIFICATION = 0xce,
+	BT_COEX_CI = 0x5d,
 
 	REPLY_BEACON_FILTERING_CMD = 0xd2,
 

@@ -30,7 +30,7 @@ extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
  * APIs provided by arch SMP code to rest of arch code
  */
 extern void __init smp_init_cpus(void);
-extern void __init first_lines_of_secondary(void);
+extern void first_lines_of_secondary(void);
 extern const char *arc_platform_smp_cpuinfo(void);
 
 /*

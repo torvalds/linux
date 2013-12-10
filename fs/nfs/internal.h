@@ -88,8 +88,8 @@ struct nfs_parsed_mount_data {
 	unsigned int		namlen;
 	unsigned int		options;
 	unsigned int		bsize;
-	unsigned int		auth_flavor_len;
-	rpc_authflavor_t	auth_flavors[1];
+	struct nfs_auth_info	auth_info;
+	rpc_authflavor_t	selected_flavor;
 	char			*client_address;
 	unsigned int		version;
 	unsigned int		minorversion;
@@ -154,6 +154,7 @@ struct nfs_client *nfs_get_client(const struct nfs_client_initdata *,
 				  rpc_authflavor_t);
 int nfs_probe_fsinfo(struct nfs_server *server, struct nfs_fh *, struct nfs_fattr *);
 void nfs_server_insert_lists(struct nfs_server *);
+void nfs_server_remove_lists(struct nfs_server *);
 void nfs_init_timeout_values(struct rpc_timeout *, int, unsigned int, unsigned int);
 int nfs_init_server_rpcclient(struct nfs_server *, const struct rpc_timeout *t,
 		rpc_authflavor_t);
@@ -174,6 +175,8 @@ extern struct nfs_server *nfs4_create_server(
 					struct nfs_subversion *);
 extern struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *,
 						      struct nfs_fh *);
+extern int nfs4_update_server(struct nfs_server *server, const char *hostname,
+					struct sockaddr *sap, size_t salen);
 extern void nfs_free_server(struct nfs_server *server);
 extern struct nfs_server *nfs_clone_server(struct nfs_server *,
 					   struct nfs_fh *,
@@ -266,6 +269,21 @@ extern const u32 nfs41_maxgetdevinfo_overhead;
 extern struct rpc_procinfo nfs4_procedures[];
 #endif
 
+#ifdef CONFIG_NFS_V4_SECURITY_LABEL
+extern struct nfs4_label *nfs4_label_alloc(struct nfs_server *server, gfp_t flags);
+static inline void nfs4_label_free(struct nfs4_label *label)
+{
+	if (label) {
+		kfree(label->label);
+		kfree(label);
+	}
+	return;
+}
+#else
+static inline struct nfs4_label *nfs4_label_alloc(struct nfs_server *server, gfp_t flags) { return NULL; }
+static inline void nfs4_label_free(void *label) {}
+#endif /* CONFIG_NFS_V4_SECURITY_LABEL */
+
 /* proc.c */
 void nfs_close_context(struct nfs_open_context *ctx, int is_sync);
 extern struct nfs_client *nfs_init_client(struct nfs_client *clp,
@@ -323,6 +341,7 @@ extern struct file_system_type nfs_xdev_fs_type;
 extern struct file_system_type nfs4_xdev_fs_type;
 extern struct file_system_type nfs4_referral_fs_type;
 #endif
+bool nfs_auth_info_match(const struct nfs_auth_info *, rpc_authflavor_t);
 struct dentry *nfs_try_mount(int, const char *, struct nfs_mount_info *,
 			struct nfs_subversion *);
 void nfs_initialise_sb(struct super_block *);

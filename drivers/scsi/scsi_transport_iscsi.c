@@ -2744,6 +2744,28 @@ exit_get_chap:
 	return err;
 }
 
+static int iscsi_set_chap(struct iscsi_transport *transport,
+			  struct iscsi_uevent *ev, uint32_t len)
+{
+	char *data = (char *)ev + sizeof(*ev);
+	struct Scsi_Host *shost;
+	int err = 0;
+
+	if (!transport->set_chap)
+		return -ENOSYS;
+
+	shost = scsi_host_lookup(ev->u.set_path.host_no);
+	if (!shost) {
+		pr_err("%s could not find host no %u\n",
+		       __func__, ev->u.set_path.host_no);
+		return -ENODEV;
+	}
+
+	err = transport->set_chap(shost, data, len);
+	scsi_host_put(shost);
+	return err;
+}
+
 static int iscsi_delete_chap(struct iscsi_transport *transport,
 			     struct iscsi_uevent *ev)
 {
@@ -3233,6 +3255,10 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 		break;
 	case ISCSI_UEVENT_LOGOUT_FLASHNODE_SID:
 		err = iscsi_logout_flashnode_sid(transport, ev);
+		break;
+	case ISCSI_UEVENT_SET_CHAP:
+		err = iscsi_set_chap(transport, ev,
+				     nlmsg_attrlen(nlh, sizeof(*ev)));
 		break;
 	default:
 		err = -ENOSYS;

@@ -25,16 +25,7 @@
 
 static int st_magn_buffer_preenable(struct iio_dev *indio_dev)
 {
-	int err;
-
-	err = st_sensors_set_enable(indio_dev, true);
-	if (err < 0)
-		goto st_magn_set_enable_error;
-
-	err = iio_sw_buffer_preenable(indio_dev);
-
-st_magn_set_enable_error:
-	return err;
+	return st_sensors_set_enable(indio_dev, true);
 }
 
 static int st_magn_buffer_postenable(struct iio_dev *indio_dev)

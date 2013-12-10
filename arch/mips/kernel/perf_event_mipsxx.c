@@ -971,11 +971,11 @@ static const struct mips_perf_event mipsxx74Kcore_cache_map
 [C(LL)] = {
 	[C(OP_READ)] = {
 		[C(RESULT_ACCESS)]	= { 0x1c, CNTR_ODD, P },
-		[C(RESULT_MISS)]	= { 0x1d, CNTR_EVEN | CNTR_ODD, P },
+		[C(RESULT_MISS)]	= { 0x1d, CNTR_EVEN, P },
 	},
 	[C(OP_WRITE)] = {
 		[C(RESULT_ACCESS)]	= { 0x1c, CNTR_ODD, P },
-		[C(RESULT_MISS)]	= { 0x1d, CNTR_EVEN | CNTR_ODD, P },
+		[C(RESULT_MISS)]	= { 0x1d, CNTR_EVEN, P },
 	},
 },
 [C(ITLB)] = {

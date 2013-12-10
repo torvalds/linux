@@ -204,9 +204,6 @@ static void intr_complete (struct urb *urb)
 		break;
 	}
 
-	if (!netif_running (dev->net))
-		return;
-
 	status = usb_submit_urb (urb, GFP_ATOMIC);
 	if (status != 0)
 		netif_err(dev, timer, dev->net,
@@ -1688,8 +1685,10 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	if (dev->can_dma_sg && !(info->flags & FLAG_SEND_ZLP) &&
 		!(info->flags & FLAG_MULTI_PACKET)) {
 		dev->padding_pkt = kzalloc(1, GFP_KERNEL);
-		if (!dev->padding_pkt)
+		if (!dev->padding_pkt) {
+			status = -ENOMEM;
 			goto out4;
+		}
 	}
 
 	status = register_netdev (net);

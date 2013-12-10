@@ -2077,6 +2077,7 @@ dasd_eckd_build_format(struct dasd_device *base,
 	int intensity = 0;
 	int r0_perm;
 	int nr_tracks;
+	int use_prefix;
 
 	startdev = dasd_alias_get_start_dev(base);
 	if (!startdev)
@@ -2106,28 +2107,46 @@ dasd_eckd_build_format(struct dasd_device *base,
 		intensity = fdata->intensity;
 	}
 
+	use_prefix = base_priv->features.feature[8] & 0x01;
+
 	switch (intensity) {
 	case 0x00:	/* Normal format */
 	case 0x08:	/* Normal format, use cdl. */
 		cplength = 2 + (rpt*nr_tracks);
-		datasize = sizeof(struct PFX_eckd_data) +
-			sizeof(struct LO_eckd_data) +
-			rpt * nr_tracks * sizeof(struct eckd_count);
+		if (use_prefix)
+			datasize = sizeof(struct PFX_eckd_data) +
+				sizeof(struct LO_eckd_data) +
+				rpt * nr_tracks * sizeof(struct eckd_count);
+		else
+			datasize = sizeof(struct DE_eckd_data) +
+				sizeof(struct LO_eckd_data) +
+				rpt * nr_tracks * sizeof(struct eckd_count);
 		break;
 	case 0x01:	/* Write record zero and format track. */
 	case 0x09:	/* Write record zero and format track, use cdl. */
 		cplength = 2 + rpt * nr_tracks;
-		datasize = sizeof(struct PFX_eckd_data) +
-			sizeof(struct LO_eckd_data) +
-			sizeof(struct eckd_count) +
-			rpt * nr_tracks * sizeof(struct eckd_count);
+		if (use_prefix)
+			datasize = sizeof(struct PFX_eckd_data) +
+				sizeof(struct LO_eckd_data) +
+				sizeof(struct eckd_count) +
+				rpt * nr_tracks * sizeof(struct eckd_count);
+		else
+			datasize = sizeof(struct DE_eckd_data) +
+				sizeof(struct LO_eckd_data) +
+				sizeof(struct eckd_count) +
+				rpt * nr_tracks * sizeof(struct eckd_count);
 		break;
 	case 0x04:	/* Invalidate track. */
 	case 0x0c:	/* Invalidate track, use cdl. */
 		cplength = 3;
-		datasize = sizeof(struct PFX_eckd_data) +
-			sizeof(struct LO_eckd_data) +
-			sizeof(struct eckd_count);
+		if (use_prefix)
+			datasize = sizeof(struct PFX_eckd_data) +
+				sizeof(struct LO_eckd_data) +
+				sizeof(struct eckd_count);
+		else
+			datasize = sizeof(struct DE_eckd_data) +
+				sizeof(struct LO_eckd_data) +
+				sizeof(struct eckd_count);
 		break;
 	default:
 		dev_warn(&startdev->cdev->dev,
@@ -2147,14 +2166,25 @@ dasd_eckd_build_format(struct dasd_device *base,
 
 	switch (intensity & ~0x08) {
 	case 0x00: /* Normal format. */
-		prefix(ccw++, (struct PFX_eckd_data *) data,
-		       fdata->start_unit, fdata->stop_unit,
-		       DASD_ECKD_CCW_WRITE_CKD, base, startdev);
-		/* grant subsystem permission to format R0 */
-		if (r0_perm)
-			((struct PFX_eckd_data *)data)
-				->define_extent.ga_extended |= 0x04;
-		data += sizeof(struct PFX_eckd_data);
+		if (use_prefix) {
+			prefix(ccw++, (struct PFX_eckd_data *) data,
+			       fdata->start_unit, fdata->stop_unit,
+			       DASD_ECKD_CCW_WRITE_CKD, base, startdev);
+			/* grant subsystem permission to format R0 */
+			if (r0_perm)
+				((struct PFX_eckd_data *)data)
+					->define_extent.ga_extended |= 0x04;
+			data += sizeof(struct PFX_eckd_data);
+		} else {
+			define_extent(ccw++, (struct DE_eckd_data *) data,
+				      fdata->start_unit, fdata->stop_unit,
+				      DASD_ECKD_CCW_WRITE_CKD, startdev);
+			/* grant subsystem permission to format R0 */
+			if (r0_perm)
+				((struct DE_eckd_data *) data)
+					->ga_extended |= 0x04;
+			data += sizeof(struct DE_eckd_data);
+		}
 		ccw[-1].flags |= CCW_FLAG_CC;
 		locate_record(ccw++, (struct LO_eckd_data *) data,
 			      fdata->start_unit, 0, rpt*nr_tracks,
@@ -2163,11 +2193,18 @@ dasd_eckd_build_format(struct dasd_device *base,
 		data += sizeof(struct LO_eckd_data);
 		break;
 	case 0x01: /* Write record zero + format track. */
-		prefix(ccw++, (struct PFX_eckd_data *) data,
-		       fdata->start_unit, fdata->stop_unit,
-		       DASD_ECKD_CCW_WRITE_RECORD_ZERO,
-		       base, startdev);
-		data += sizeof(struct PFX_eckd_data);
+		if (use_prefix) {
+			prefix(ccw++, (struct PFX_eckd_data *) data,
+			       fdata->start_unit, fdata->stop_unit,
+			       DASD_ECKD_CCW_WRITE_RECORD_ZERO,
+			       base, startdev);
+			data += sizeof(struct PFX_eckd_data);
+		} else {
+			define_extent(ccw++, (struct DE_eckd_data *) data,
+			       fdata->start_unit, fdata->stop_unit,
+			       DASD_ECKD_CCW_WRITE_RECORD_ZERO, startdev);
+			data += sizeof(struct DE_eckd_data);
+		}
 		ccw[-1].flags |= CCW_FLAG_CC;
 		locate_record(ccw++, (struct LO_eckd_data *) data,
 			      fdata->start_unit, 0, rpt * nr_tracks + 1,
@@ -2176,10 +2213,17 @@ dasd_eckd_build_format(struct dasd_device *base,
 		data += sizeof(struct LO_eckd_data);
 		break;
 	case 0x04: /* Invalidate track. */
-		prefix(ccw++, (struct PFX_eckd_data *) data,
-		       fdata->start_unit, fdata->stop_unit,
-		       DASD_ECKD_CCW_WRITE_CKD, base, startdev);
-		data += sizeof(struct PFX_eckd_data);
+		if (use_prefix) {
+			prefix(ccw++, (struct PFX_eckd_data *) data,
+			       fdata->start_unit, fdata->stop_unit,
+			       DASD_ECKD_CCW_WRITE_CKD, base, startdev);
+			data += sizeof(struct PFX_eckd_data);
+		} else {
+			define_extent(ccw++, (struct DE_eckd_data *) data,
+			       fdata->start_unit, fdata->stop_unit,
+			       DASD_ECKD_CCW_WRITE_CKD, startdev);
+			data += sizeof(struct DE_eckd_data);
+		}
 		ccw[-1].flags |= CCW_FLAG_CC;
 		locate_record(ccw++, (struct LO_eckd_data *) data,
 			      fdata->start_unit, 0, 1,
@@ -3180,6 +3224,8 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 
 	fcx_multitrack = private->features.feature[40] & 0x20;
 	data_size = blk_rq_bytes(req);
+	if (data_size % blksize)
+		return ERR_PTR(-EINVAL);
 	/* tpm write request add CBC data on each track boundary */
 	if (rq_data_dir(req) == WRITE)
 		data_size += (last_trk - first_trk) * 4;

@@ -36,8 +36,8 @@
 #define AX_RXHDR_L4_TYPE_TCP			16
 #define AX_RXHDR_L3CSUM_ERR			2
 #define AX_RXHDR_L4CSUM_ERR			1
-#define AX_RXHDR_CRC_ERR			((u32)BIT(31))
-#define AX_RXHDR_DROP_ERR			((u32)BIT(30))
+#define AX_RXHDR_CRC_ERR			((u32)BIT(29))
+#define AX_RXHDR_DROP_ERR			((u32)BIT(31))
 #define AX_ACCESS_MAC				0x01
 #define AX_ACCESS_PHY				0x02
 #define AX_ACCESS_EEPROM			0x04
@@ -78,7 +78,6 @@
 #define AX_MEDIUM_STATUS_MODE			0x22
 	#define AX_MEDIUM_GIGAMODE	0x01
 	#define AX_MEDIUM_FULL_DUPLEX	0x02
-	#define AX_MEDIUM_ALWAYS_ONE	0x04
 	#define AX_MEDIUM_EN_125MHZ	0x08
 	#define AX_MEDIUM_RXFLOW_CTRLEN	0x10
 	#define AX_MEDIUM_TXFLOW_CTRLEN	0x20
@@ -1065,8 +1064,8 @@ static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	/* Configure default medium type => giga */
 	*tmp16 = AX_MEDIUM_RECEIVE_EN | AX_MEDIUM_TXFLOW_CTRLEN |
-		 AX_MEDIUM_RXFLOW_CTRLEN | AX_MEDIUM_ALWAYS_ONE |
-		 AX_MEDIUM_FULL_DUPLEX | AX_MEDIUM_GIGAMODE;
+		 AX_MEDIUM_RXFLOW_CTRLEN | AX_MEDIUM_FULL_DUPLEX |
+		 AX_MEDIUM_GIGAMODE;
 	ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_MEDIUM_STATUS_MODE,
 			  2, 2, tmp16);
 
@@ -1225,7 +1224,7 @@ static int ax88179_link_reset(struct usbnet *dev)
 	}
 
 	mode = AX_MEDIUM_RECEIVE_EN | AX_MEDIUM_TXFLOW_CTRLEN |
-	       AX_MEDIUM_RXFLOW_CTRLEN | AX_MEDIUM_ALWAYS_ONE;
+	       AX_MEDIUM_RXFLOW_CTRLEN;
 
 	ax88179_read_cmd(dev, AX_ACCESS_MAC, PHYSICAL_LINK_STATUS,
 			 1, 1, &link_sts);
@@ -1339,8 +1338,8 @@ static int ax88179_reset(struct usbnet *dev)
 
 	/* Configure default medium type => giga */
 	*tmp16 = AX_MEDIUM_RECEIVE_EN | AX_MEDIUM_TXFLOW_CTRLEN |
-		 AX_MEDIUM_RXFLOW_CTRLEN | AX_MEDIUM_ALWAYS_ONE |
-		 AX_MEDIUM_FULL_DUPLEX | AX_MEDIUM_GIGAMODE;
+		 AX_MEDIUM_RXFLOW_CTRLEN | AX_MEDIUM_FULL_DUPLEX |
+		 AX_MEDIUM_GIGAMODE;
 	ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_MEDIUM_STATUS_MODE,
 			  2, 2, tmp16);
 
@@ -1406,6 +1405,19 @@ static const struct driver_info sitecom_info = {
 	.tx_fixup = ax88179_tx_fixup,
 };
 
+static const struct driver_info samsung_info = {
+	.description = "Samsung USB Ethernet Adapter",
+	.bind = ax88179_bind,
+	.unbind = ax88179_unbind,
+	.status = ax88179_status,
+	.link_reset = ax88179_link_reset,
+	.reset = ax88179_reset,
+	.stop = ax88179_stop,
+	.flags = FLAG_ETHER | FLAG_FRAMING_AX,
+	.rx_fixup = ax88179_rx_fixup,
+	.tx_fixup = ax88179_tx_fixup,
+};
+
 static const struct usb_device_id products[] = {
 {
 	/* ASIX AX88179 10/100/1000 */
@@ -1418,7 +1430,11 @@ static const struct usb_device_id products[] = {
 }, {
 	/* Sitecom USB 3.0 to Gigabit Adapter */
 	USB_DEVICE(0x0df6, 0x0072),
-	.driver_info = (unsigned long) &sitecom_info,
+	.driver_info = (unsigned long)&sitecom_info,
+}, {
+	/* Samsung USB Ethernet Adapter */
+	USB_DEVICE(0x04e8, 0xa100),
+	.driver_info = (unsigned long)&samsung_info,
 },
 	{ },
 };

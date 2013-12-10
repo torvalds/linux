@@ -3916,7 +3916,6 @@ err_out_free_regions:
 	pci_release_regions(pdev);
 err_out_disable_pdev:
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 err_out:
 	return err;
 }
@@ -3939,7 +3938,6 @@ static void ql3xxx_remove(struct pci_dev *pdev)
 
 	iounmap(qdev->mem_map_registers);
 	pci_release_regions(pdev);
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(ndev);
 }
 

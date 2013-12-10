@@ -17,21 +17,19 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_shared.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_error.h"
-#include "xfs_log_priv.h"
-#include "xfs_buf_item.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_log_recover.h"
+#include "xfs_trans.h"
 #include "xfs_trans_priv.h"
-#include "xfs_dinode.h"
+#include "xfs_log.h"
+#include "xfs_log_priv.h"
+#include "xfs_log_recover.h"
 #include "xfs_inode.h"
 #include "xfs_trace.h"
 #include "xfs_fsops.h"
@@ -1000,25 +998,32 @@ xfs_log_space_wake(
 }
 
 /*
- * Determine if we have a transaction that has gone to disk
- * that needs to be covered. To begin the transition to the idle state
- * firstly the log needs to be idle (no AIL and nothing in the iclogs).
- * If we are then in a state where covering is needed, the caller is informed
- * that dummy transactions are required to move the log into the idle state.
+ * Determine if we have a transaction that has gone to disk that needs to be
+ * covered. To begin the transition to the idle state firstly the log needs to
+ * be idle. That means the CIL, the AIL and the iclogs needs to be empty before
+ * we start attempting to cover the log.
  *
- * Because this is called as part of the sync process, we should also indicate
- * that dummy transactions should be issued in anything but the covered or
- * idle states. This ensures that the log tail is accurately reflected in
- * the log at the end of the sync, hence if a crash occurrs avoids replay
- * of transactions where the metadata is already on disk.
+ * Only if we are then in a state where covering is needed, the caller is
+ * informed that dummy transactions are required to move the log into the idle
+ * state.
+ *
+ * If there are any items in the AIl or CIL, then we do not want to attempt to
+ * cover the log as we may be in a situation where there isn't log space
+ * available to run a dummy transaction and this can lead to deadlocks when the
+ * tail of the log is pinned by an item that is modified in the CIL.  Hence
+ * there's no point in running a dummy transaction at this point because we
+ * can't start trying to idle the log until both the CIL and AIL are empty.
  */
 int
 xfs_log_need_covered(xfs_mount_t *mp)
 {
-	int		needed = 0;
 	struct xlog	*log = mp->m_log;
+	int		needed = 0;
 
 	if (!xfs_fs_writable(mp))
+		return 0;
+
+	if (!xlog_cil_empty(log))
 		return 0;
 
 	spin_lock(&log->l_icloglock);
@@ -1029,14 +1034,17 @@ xfs_log_need_covered(xfs_mount_t *mp)
 		break;
 	case XLOG_STATE_COVER_NEED:
 	case XLOG_STATE_COVER_NEED2:
-		if (!xfs_ail_min_lsn(log->l_ailp) &&
-		    xlog_iclogs_empty(log)) {
-			if (log->l_covered_state == XLOG_STATE_COVER_NEED)
-				log->l_covered_state = XLOG_STATE_COVER_DONE;
-			else
-				log->l_covered_state = XLOG_STATE_COVER_DONE2;
-		}
-		/* FALLTHRU */
+		if (xfs_ail_min_lsn(log->l_ailp))
+			break;
+		if (!xlog_iclogs_empty(log))
+			break;
+
+		needed = 1;
+		if (log->l_covered_state == XLOG_STATE_COVER_NEED)
+			log->l_covered_state = XLOG_STATE_COVER_DONE;
+		else
+			log->l_covered_state = XLOG_STATE_COVER_DONE2;
+		break;
 	default:
 		needed = 1;
 		break;
@@ -1068,6 +1076,7 @@ xlog_assign_tail_lsn_locked(
 		tail_lsn = lip->li_lsn;
 	else
 		tail_lsn = atomic64_read(&log->l_last_sync_lsn);
+	trace_xfs_log_assign_tail_lsn(log, tail_lsn);
 	atomic64_set(&log->l_tail_lsn, tail_lsn);
 	return tail_lsn;
 }
@@ -1979,7 +1988,7 @@ xlog_print_tic_res(
 
 	for (i = 0; i < ticket->t_res_num; i++) {
 		uint r_type = ticket->t_res_arr[i].r_type;
-		xfs_warn(mp, "region[%u]: %s - %u bytes\n", i,
+		xfs_warn(mp, "region[%u]: %s - %u bytes", i,
 			    ((r_type <= 0 || r_type > XLOG_REG_TYPE_MAX) ?
 			    "bad-rtype" : res_type_str[r_type-1]),
 			    ticket->t_res_arr[i].r_len);
@@ -3702,11 +3711,9 @@ xlog_verify_iclog(
 	/* check validity of iclog pointers */
 	spin_lock(&log->l_icloglock);
 	icptr = log->l_iclog;
-	for (i=0; i < log->l_iclog_bufs; i++) {
-		if (icptr == NULL)
-			xfs_emerg(log->l_mp, "%s: invalid ptr", __func__);
-		icptr = icptr->ic_next;
-	}
+	for (i = 0; i < log->l_iclog_bufs; i++, icptr = icptr->ic_next)
+		ASSERT(icptr);
+
 	if (icptr != log->l_iclog)
 		xfs_emerg(log->l_mp, "%s: corrupt iclog ring", __func__);
 	spin_unlock(&log->l_icloglock);

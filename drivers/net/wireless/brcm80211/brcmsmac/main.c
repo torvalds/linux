@@ -1906,14 +1906,14 @@ static void brcms_c_get_macaddr(struct brcms_hardware *wlc_hw, u8 etheraddr[ETH_
 
 	/* If macaddr exists, use it (Sromrev4, CIS, ...). */
 	if (!is_zero_ether_addr(sprom->il0mac)) {
-		memcpy(etheraddr, sprom->il0mac, 6);
+		memcpy(etheraddr, sprom->il0mac, ETH_ALEN);
 		return;
 	}
 
 	if (wlc_hw->_nbands > 1)
-		memcpy(etheraddr, sprom->et1mac, 6);
+		memcpy(etheraddr, sprom->et1mac, ETH_ALEN);
 	else
-		memcpy(etheraddr, sprom->il0mac, 6);
+		memcpy(etheraddr, sprom->il0mac, ETH_ALEN);
 }
 
 /* power both the pll and external oscillator on/off */
@@ -5695,7 +5695,7 @@ static bool brcms_c_chipmatch_pci(struct bcma_device *core)
 		return true;
 	if ((device == BCM43224_D11N_ID) || (device == BCM43225_D11N2G_ID))
 		return true;
-	if (device == BCM4313_D11N2G_ID)
+	if (device == BCM4313_D11N2G_ID || device == BCM4313_CHIP_ID)
 		return true;
 	if ((device == BCM43236_D11N_ID) || (device == BCM43236_D11N2G_ID))
 		return true;

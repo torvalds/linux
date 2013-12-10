@@ -1,5 +1,6 @@
 config ZSMALLOC
 	bool "Memory allocator for compressed pages"
+	depends on MMU
 	default n
 	help
 	  zsmalloc is a slab-based memory allocator designed to store

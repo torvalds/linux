@@ -59,8 +59,6 @@
 #include <lustre_mdc.h>
 #include "fld_internal.h"
 
-struct lu_context_key fld_thread_key;
-
 /* TODO: these 3 functions are copies of flow-control code from mdc_lib.c
  * It should be common thing. The same about mdc RPC lock */
 static int fld_req_avail(struct client_obd *cli, struct mdc_cache_waiter *mcw)
@@ -509,14 +507,11 @@ static int __init fld_mod_init(void)
 	if (IS_ERR(fld_type_proc_dir))
 		return PTR_ERR(fld_type_proc_dir);
 
-	LU_CONTEXT_KEY_INIT(&fld_thread_key);
-	lu_context_key_register(&fld_thread_key);
 	return 0;
 }
 
 static void __exit fld_mod_exit(void)
 {
-	lu_context_key_degister(&fld_thread_key);
 	if (fld_type_proc_dir != NULL && !IS_ERR(fld_type_proc_dir)) {
 		lprocfs_remove(&fld_type_proc_dir);
 		fld_type_proc_dir = NULL;

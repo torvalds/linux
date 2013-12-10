@@ -501,7 +501,6 @@ void tracing_snapshot_alloc(void);
 
 extern void tracing_start(void);
 extern void tracing_stop(void);
-extern void ftrace_off_permanent(void);
 
 static inline __printf(1, 2)
 void ____trace_printk_check_format(const char *fmt, ...)
@@ -639,7 +638,6 @@ extern void ftrace_dump(enum ftrace_dump_mode oops_dump_mode);
 #else
 static inline void tracing_start(void) { }
 static inline void tracing_stop(void) { }
-static inline void ftrace_off_permanent(void) { }
 static inline void trace_dump_stack(int skip) { }
 
 static inline void tracing_on(void) { }

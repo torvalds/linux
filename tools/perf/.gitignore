@@ -13,6 +13,7 @@ perf*.html
 common-cmds.h
 perf.data
 perf.data.old
+output.svg
 perf-archive
 tags
 TAGS

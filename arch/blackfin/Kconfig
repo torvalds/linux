@@ -34,7 +34,6 @@ config BLACKFIN
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select GENERIC_ATOMIC64
 	select GENERIC_IRQ_PROBE
-	select USE_GENERIC_SMP_HELPERS if SMP
 	select HAVE_NMI_WATCHDOG if NMI_WATCHDOG
 	select GENERIC_SMP_IDLE_THREAD
 	select ARCH_USES_GETTIMEOFFSET if !GENERIC_CLOCKEVENTS
@@ -50,6 +49,9 @@ config GENERIC_BUG
 	depends on BUG
 
 config ZONE_DMA
+	def_bool y
+
+config GENERIC_GPIO
 	def_bool y
 
 config FORCE_MAX_ZONEORDER
@@ -316,6 +318,14 @@ config BF53x
 	bool
 	depends on (BF531 || BF532 || BF533 || BF534 || BF536 || BF537)
 	default y
+
+config GPIO_ADI
+	def_bool y
+	depends on (BF51x || BF52x || BF53x || BF538 || BF539 || BF561)
+
+config PINCTRL
+	def_bool y
+	depends on BF54x || BF60x
 
 config MEM_MT48LC64M4A2FB_7E
 	bool
@@ -1429,7 +1439,6 @@ source "drivers/cpufreq/Kconfig"
 config BFIN_CPU_FREQ
 	bool
 	depends on CPU_FREQ
-	select CPU_FREQ_TABLE
 	default y
 
 config CPU_VOLTAGE

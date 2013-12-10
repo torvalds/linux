@@ -253,7 +253,7 @@ musb_start_urb(struct musb *musb, int is_in, struct musb_qh *qh)
 			case USB_ENDPOINT_XFER_BULK:	s = "-bulk"; break;
 			case USB_ENDPOINT_XFER_ISOC:	s = "-iso"; break;
 			default:			s = "-intr"; break;
-			}; s; }),
+			} s; }),
 			epnum, buf + offset, len);
 
 	/* Configure endpoint */

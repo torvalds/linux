@@ -34,6 +34,12 @@ static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	struct hid_sensor_common *st = iio_trigger_get_drvdata(trig);
 	int state_val;
 
+	if (state) {
+		if (sensor_hub_device_open(st->hsdev))
+			return -EIO;
+	} else
+		sensor_hub_device_close(st->hsdev);
+
 	state_val = state ? 1 : 0;
 	if (IS_ENABLED(CONFIG_HID_SENSOR_ENUM_BASE_QUIRKS))
 		++state_val;
@@ -49,11 +55,10 @@ static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	return 0;
 }
 
-void hid_sensor_remove_trigger(struct iio_dev *indio_dev)
+void hid_sensor_remove_trigger(struct hid_sensor_common *attrb)
 {
-	iio_trigger_unregister(indio_dev->trig);
-	iio_trigger_free(indio_dev->trig);
-	indio_dev->trig = NULL;
+	iio_trigger_unregister(attrb->trigger);
+	iio_trigger_free(attrb->trigger);
 }
 EXPORT_SYMBOL(hid_sensor_remove_trigger);
 
@@ -84,7 +89,7 @@ int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 		dev_err(&indio_dev->dev, "Trigger Register Failed\n");
 		goto error_free_trig;
 	}
-	indio_dev->trig = trig;
+	indio_dev->trig = attrb->trigger = trig;
 
 	return ret;
 

@@ -78,10 +78,12 @@ static DECLARE_TASKLET(cvm_oct_tx_cleanup_tasklet, cvm_oct_tx_do_cleanup, 0);
 static inline int32_t cvm_oct_adjust_skb_to_free(int32_t skb_to_free, int fau)
 {
 	int32_t undo;
-	undo = skb_to_free > 0 ? MAX_SKB_TO_FREE : skb_to_free + MAX_SKB_TO_FREE;
+	undo = skb_to_free > 0 ? MAX_SKB_TO_FREE : skb_to_free +
+						   MAX_SKB_TO_FREE;
 	if (undo > 0)
 		cvmx_fau_atomic_add32(fau, -undo);
-	skb_to_free = -skb_to_free > MAX_SKB_TO_FREE ? MAX_SKB_TO_FREE : -skb_to_free;
+	skb_to_free = -skb_to_free > MAX_SKB_TO_FREE ? MAX_SKB_TO_FREE :
+						       -skb_to_free;
 	return skb_to_free;
 }
 
@@ -108,8 +110,10 @@ void cvm_oct_free_tx_skbs(struct net_device *dev)
 	for (qos = 0; qos < queues_per_port; qos++) {
 		if (skb_queue_len(&priv->tx_free_list[qos]) == 0)
 			continue;
-		skb_to_free = cvmx_fau_fetch_and_add32(priv->fau+qos*4, MAX_SKB_TO_FREE);
-		skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free, priv->fau+qos*4);
+		skb_to_free = cvmx_fau_fetch_and_add32(priv->fau+qos*4,
+						       MAX_SKB_TO_FREE);
+		skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free,
+							 priv->fau+qos*4);
 
 
 		total_freed += skb_to_free;
@@ -117,12 +121,14 @@ void cvm_oct_free_tx_skbs(struct net_device *dev)
 			struct sk_buff *to_free_list = NULL;
 			spin_lock_irqsave(&priv->tx_free_list[qos].lock, flags);
 			while (skb_to_free > 0) {
-				struct sk_buff *t = __skb_dequeue(&priv->tx_free_list[qos]);
+				struct sk_buff *t;
+				t = __skb_dequeue(&priv->tx_free_list[qos]);
 				t->next = to_free_list;
 				to_free_list = t;
 				skb_to_free--;
 			}
-			spin_unlock_irqrestore(&priv->tx_free_list[qos].lock, flags);
+			spin_unlock_irqrestore(&priv->tx_free_list[qos].lock,
+					       flags);
 			/* Do the actual freeing outside of the lock. */
 			while (to_free_list) {
 				struct sk_buff *t = to_free_list;
@@ -211,15 +217,23 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (unlikely(__skb_linearize(skb))) {
 			queue_type = QUEUE_DROP;
 			if (USE_ASYNC_IOBDMA) {
-				/* Get the number of skbuffs in use by the hardware */
+				/*
+				 * Get the number of skbuffs in use
+				 * by the hardware
+				 */
 				CVMX_SYNCIOBDMA;
-				skb_to_free = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
+				skb_to_free =
+					cvmx_scratch_read64(CVMX_SCR_SCRATCH);
 			} else {
-				/* Get the number of skbuffs in use by the hardware */
-				skb_to_free = cvmx_fau_fetch_and_add32(priv->fau + qos * 4,
-								       MAX_SKB_TO_FREE);
+				/*
+				 * Get the number of skbuffs in use
+				 * by the hardware
+				 */
+				skb_to_free = cvmx_fau_fetch_and_add32(
+					priv->fau + qos * 4, MAX_SKB_TO_FREE);
 			}
-			skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free, priv->fau + qos * 4);
+			skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free,
+							priv->fau + qos * 4);
 			spin_lock_irqsave(&priv->tx_free_list[qos].lock, flags);
 			goto skip_xmit;
 		}
@@ -276,7 +290,9 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 		CVM_OCT_SKB_CB(skb)[0] = hw_buffer.u64;
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			struct skb_frag_struct *fs = skb_shinfo(skb)->frags + i;
-			hw_buffer.s.addr = XKPHYS_TO_PHYS((u64)(page_address(fs->page.p) + fs->page_offset));
+			hw_buffer.s.addr = XKPHYS_TO_PHYS(
+				(u64)(page_address(fs->page.p) +
+				fs->page_offset));
 			hw_buffer.s.size = fs->size;
 			CVM_OCT_SKB_CB(skb)[i + 1] = hw_buffer.u64;
 		}
@@ -358,7 +374,9 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	pko_command.s.dontfree = 0;
 
-	hw_buffer.s.back = ((unsigned long)skb->data >> 7) - ((unsigned long)fpa_head >> 7);
+	hw_buffer.s.back = ((unsigned long)skb->data >> 7) -
+			   ((unsigned long)fpa_head >> 7);
+
 	*(struct sk_buff **)(fpa_head - sizeof(void *)) = skb;
 
 	/*
@@ -422,17 +440,22 @@ dont_put_skbuff_in_hw:
 		queue_type = QUEUE_HW;
 	}
 	if (USE_ASYNC_IOBDMA)
-		cvmx_fau_async_fetch_and_add32(CVMX_SCR_SCRATCH, FAU_TOTAL_TX_TO_CLEAN, 1);
+		cvmx_fau_async_fetch_and_add32(
+				CVMX_SCR_SCRATCH, FAU_TOTAL_TX_TO_CLEAN, 1);
 
 	spin_lock_irqsave(&priv->tx_free_list[qos].lock, flags);
 
 	/* Drop this packet if we have too many already queued to the HW */
-	if (unlikely(skb_queue_len(&priv->tx_free_list[qos]) >= MAX_OUT_QUEUE_DEPTH)) {
+	if (unlikely(skb_queue_len(&priv->tx_free_list[qos]) >=
+		     MAX_OUT_QUEUE_DEPTH)) {
+
 		if (dev->tx_queue_len != 0) {
 			/* Drop the lock when notifying the core.  */
-			spin_unlock_irqrestore(&priv->tx_free_list[qos].lock, flags);
+			spin_unlock_irqrestore(&priv->tx_free_list[qos].lock,
+					       flags);
 			netif_stop_queue(dev);
-			spin_lock_irqsave(&priv->tx_free_list[qos].lock, flags);
+			spin_lock_irqsave(&priv->tx_free_list[qos].lock,
+					  flags);
 		} else {
 			/* If not using normal queueing.  */
 			queue_type = QUEUE_DROP;
@@ -448,7 +471,8 @@ dont_put_skbuff_in_hw:
 						 priv->queue + qos,
 						 pko_command, hw_buffer,
 						 CVMX_PKO_LOCK_NONE))) {
-		printk_ratelimited("%s: Failed to send the packet\n", dev->name);
+		printk_ratelimited("%s: Failed to send the packet\n",
+				   dev->name);
 		queue_type = QUEUE_DROP;
 	}
 skip_xmit:
@@ -493,7 +517,8 @@ skip_xmit:
 		cvmx_scratch_write64(CVMX_SCR_SCRATCH, old_scratch);
 		cvmx_scratch_write64(CVMX_SCR_SCRATCH + 8, old_scratch2);
 	} else {
-		total_to_clean = cvmx_fau_fetch_and_add32(FAU_TOTAL_TX_TO_CLEAN, 1);
+		total_to_clean = cvmx_fau_fetch_and_add32(
+						FAU_TOTAL_TX_TO_CLEAN, 1);
 	}
 
 	if (total_to_clean & 0x3ff) {
@@ -527,8 +552,8 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	/* Get a work queue entry */
 	cvmx_wqe_t *work = cvmx_fpa_alloc(CVMX_FPA_WQE_POOL);
 	if (unlikely(work == NULL)) {
-		printk_ratelimited("%s: Failed to allocate a work "
-				   "queue entry\n", dev->name);
+		printk_ratelimited("%s: Failed to allocate a work queue entry\n",
+				   dev->name);
 		priv->stats.tx_dropped++;
 		dev_kfree_skb(skb);
 		return 0;
@@ -709,7 +734,7 @@ void cvm_oct_tx_initialize(void)
 
 	/* Disable the interrupt.  */
 	cvmx_write_csr(CVMX_CIU_TIMX(1), 0);
-	/* Register an IRQ hander for to receive CIU_TIMX(1) interrupts */
+	/* Register an IRQ handler to receive CIU_TIMX(1) interrupts */
 	i = request_irq(OCTEON_IRQ_TIMER1,
 			cvm_oct_tx_cleanup_watchdog, 0,
 			"Ethernet", cvm_oct_device);

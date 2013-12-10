@@ -28,6 +28,8 @@
 #include <asm/highmem.h>
 #include <asm/system_info.h>
 #include <asm/traps.h>
+#include <asm/procinfo.h>
+#include <asm/memory.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -556,8 +558,8 @@ static void __init build_mem_type_table(void)
 		mem_types[MT_CACHECLEAN].prot_sect |= PMD_SECT_WB;
 		break;
 	}
-	printk("Memory policy: ECC %sabled, Data cache %s\n",
-		ecc_mask ? "en" : "dis", cp->policy);
+	pr_info("Memory policy: %sData cache %s\n",
+		ecc_mask ? "ECC enabled, " : "", cp->policy);
 
 	for (i = 0; i < ARRAY_SIZE(mem_types); i++) {
 		struct mem_type *t = &mem_types[i];
@@ -1314,6 +1316,86 @@ static void __init map_lowmem(void)
 		create_mapping(&map);
 	}
 }
+
+#ifdef CONFIG_ARM_LPAE
+/*
+ * early_paging_init() recreates boot time page table setup, allowing machines
+ * to switch over to a high (>4G) address space on LPAE systems
+ */
+void __init early_paging_init(const struct machine_desc *mdesc,
+			      struct proc_info_list *procinfo)
+{
+	pmdval_t pmdprot = procinfo->__cpu_mm_mmu_flags;
+	unsigned long map_start, map_end;
+	pgd_t *pgd0, *pgdk;
+	pud_t *pud0, *pudk, *pud_start;
+	pmd_t *pmd0, *pmdk;
+	phys_addr_t phys;
+	int i;
+
+	if (!(mdesc->init_meminfo))
+		return;
+
+	/* remap kernel code and data */
+	map_start = init_mm.start_code;
+	map_end   = init_mm.brk;
+
+	/* get a handle on things... */
+	pgd0 = pgd_offset_k(0);
+	pud_start = pud0 = pud_offset(pgd0, 0);
+	pmd0 = pmd_offset(pud0, 0);
+
+	pgdk = pgd_offset_k(map_start);
+	pudk = pud_offset(pgdk, map_start);
+	pmdk = pmd_offset(pudk, map_start);
+
+	mdesc->init_meminfo();
+
+	/* Run the patch stub to update the constants */
+	fixup_pv_table(&__pv_table_begin,
+		(&__pv_table_end - &__pv_table_begin) << 2);
+
+	/*
+	 * Cache cleaning operations for self-modifying code
+	 * We should clean the entries by MVA but running a
+	 * for loop over every pv_table entry pointer would
+	 * just complicate the code.
+	 */
+	flush_cache_louis();
+	dsb();
+	isb();
+
+	/* remap level 1 table */
+	for (i = 0; i < PTRS_PER_PGD; pud0++, i++) {
+		set_pud(pud0,
+			__pud(__pa(pmd0) | PMD_TYPE_TABLE | L_PGD_SWAPPER));
+		pmd0 += PTRS_PER_PMD;
+	}
+
+	/* remap pmds for kernel mapping */
+	phys = __pa(map_start) & PMD_MASK;
+	do {
+		*pmdk++ = __pmd(phys | pmdprot);
+		phys += PMD_SIZE;
+	} while (phys < map_end);
+
+	flush_cache_all();
+	cpu_switch_mm(pgd0, &init_mm);
+	cpu_set_ttbr(1, __pa(pgd0) + TTBR1_OFFSET);
+	local_flush_bp_all();
+	local_flush_tlb_all();
+}
+
+#else
+
+void __init early_paging_init(const struct machine_desc *mdesc,
+			      struct proc_info_list *procinfo)
+{
+	if (mdesc->init_meminfo)
+		mdesc->init_meminfo();
+}
+
+#endif
 
 /*
  * paging_init() sets up the page tables, initialises the zone memory

@@ -723,6 +723,7 @@ static int ea_alloc_skeleton(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 			     unsigned int blks,
 			     ea_skeleton_call_t skeleton_call, void *private)
 {
+	struct gfs2_alloc_parms ap = { .target = blks };
 	struct buffer_head *dibh;
 	int error;
 
@@ -734,7 +735,7 @@ static int ea_alloc_skeleton(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 	if (error)
 		return error;
 
-	error = gfs2_inplace_reserve(ip, blks, 0);
+	error = gfs2_inplace_reserve(ip, &ap);
 	if (error)
 		goto out_gunlock_q;
 

@@ -1508,7 +1508,7 @@ int vmw_kms_cursor_bypass_ioctl(struct drm_device *dev, void *data,
 
 	obj = drm_mode_object_find(dev, arg->crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto out;
 	}
 

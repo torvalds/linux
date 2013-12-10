@@ -18,15 +18,16 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
+#include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_trace.h"
 #include "xfs_error.h"
+#include "xfs_log.h"
 
 #ifdef DEBUG
 /*
@@ -658,11 +659,13 @@ xfs_trans_ail_update_bulk(
 			if (XFS_LSN_CMP(lsn, lip->li_lsn) <= 0)
 				continue;
 
+			trace_xfs_ail_move(lip, lip->li_lsn, lsn);
 			xfs_ail_delete(ailp, lip);
 			if (mlip == lip)
 				mlip_changed = 1;
 		} else {
 			lip->li_flags |= XFS_LI_IN_AIL;
+			trace_xfs_ail_insert(lip, 0, lsn);
 		}
 		lip->li_lsn = lsn;
 		list_add(&lip->li_ail, &tmp);
@@ -731,6 +734,7 @@ xfs_trans_ail_delete_bulk(
 			return;
 		}
 
+		trace_xfs_ail_delete(lip, mlip->li_lsn, lip->li_lsn);
 		xfs_ail_delete(ailp, lip);
 		lip->li_flags &= ~XFS_LI_IN_AIL;
 		lip->li_lsn = 0;

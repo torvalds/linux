@@ -516,6 +516,8 @@ int qxl_ttm_init(struct qxl_device *qdev)
 		 (unsigned)qdev->vram_size / (1024 * 1024));
 	DRM_INFO("qxl: %luM of IO pages memory ready (VRAM domain)\n",
 		 ((unsigned)num_io_pages * PAGE_SIZE) / (1024 * 1024));
+	DRM_INFO("qxl: %uM of Surface memory size\n",
+		 (unsigned)qdev->surfaceram_size / (1024 * 1024));
 	if (unlikely(qdev->mman.bdev.dev_mapping == NULL))
 		qdev->mman.bdev.dev_mapping = qdev->ddev->dev_mapping;
 	r = qxl_ttm_debugfs_init(qdev);

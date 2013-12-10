@@ -586,6 +586,25 @@ ssize_t spk_var_show(struct kobject *kobj, struct kobj_attribute *attr,
 EXPORT_SYMBOL_GPL(spk_var_show);
 
 /*
+ * Used to reset either default_pitch or default_vol.
+ */
+static inline void spk_reset_default_value(char *header_name,
+					int *synth_default_value, int idx)
+{
+	struct st_var_header *param;
+
+	if (synth && synth_default_value) {
+		param = spk_var_header_by_name(header_name);
+		if (param)  {
+			spk_set_num_var(synth_default_value[idx],
+					param, E_NEW_DEFAULT);
+			spk_set_num_var(0, param, E_DEFAULT);
+			pr_info("%s reset to default value\n", param->name);
+		}
+	}
+}
+
+/*
  * This function is called when a user echos a value to one of the
  * variable parameters.
  */
@@ -597,7 +616,7 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 	int len;
 	char *cp;
 	struct var_t *var_data;
-	int value;
+	long value;
 	unsigned long flags;
 
 	param = spk_var_header_by_name(attr->attr.name);
@@ -619,61 +638,54 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 			len = E_INC;
 		else
 			len = E_SET;
-		value = simple_strtol(cp, NULL, 10);
-		ret = spk_set_num_var(value, param, len);
+		if (kstrtol(cp, 10, &value) == 0)
+			ret = spk_set_num_var(value, param, len);
+		else
+			pr_warn("overflow or parsing error has occured");
 		if (ret == -ERANGE) {
 			var_data = param->data;
 			pr_warn("value for %s out of range, expect %d to %d\n",
-				attr->attr.name,
+				param->name,
 				var_data->u.n.low, var_data->u.n.high);
+		}
+
+	       /*
+		* If voice was just changed, we might need to reset our default
+		* pitch and volume.
+		*/
+		if (param->var_id == VOICE && synth &&
+		    (ret == 0 || ret == -ERESTART)) {
+			var_data = param->data;
+			value = var_data->u.n.value;
+			spk_reset_default_value("pitch", synth->default_pitch,
+				value);
+			spk_reset_default_value("vol", synth->default_vol,
+				value);
 		}
 		break;
 	case VAR_STRING:
-		len = strlen(buf);
-		if ((len >= 1) && (buf[len - 1] == '\n'))
+		len = strlen(cp);
+		if ((len >= 1) && (cp[len - 1] == '\n'))
 			--len;
-		if ((len >= 2) && (buf[0] == '"') && (buf[len - 1] == '"')) {
-			++buf;
+		if ((len >= 2) && (cp[0] == '"') && (cp[len - 1] == '"')) {
+			++cp;
 			len -= 2;
 		}
-		cp = (char *) buf;
 		cp[len] = '\0';
-		ret = spk_set_string_var(buf, param, len);
+		ret = spk_set_string_var(cp, param, len);
 		if (ret == -E2BIG)
 			pr_warn("value too long for %s\n",
-					attr->attr.name);
+					param->name);
 		break;
 	default:
 		pr_warn("%s unknown type %d\n",
 			param->name, (int)param->var_type);
 	break;
 	}
-	/*
-	 * If voice was just changed, we might need to reset our default
-	 * pitch and volume.
-	 */
-	if (strcmp(attr->attr.name, "voice") == 0) {
-		if (synth && synth->default_pitch) {
-			param = spk_var_header_by_name("pitch");
-			if (param)  {
-				spk_set_num_var(synth->default_pitch[value],
-						param, E_NEW_DEFAULT);
-				spk_set_num_var(0, param, E_DEFAULT);
-			}
-		}
-		if (synth && synth->default_vol) {
-			param = spk_var_header_by_name("vol");
-			if (param)  {
-				spk_set_num_var(synth->default_vol[value],
-						param, E_NEW_DEFAULT);
-				spk_set_num_var(0, param, E_DEFAULT);
-			}
-		}
-	}
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 
 	if (ret == -ERESTART)
-		pr_info("%s reset to default value\n", attr->attr.name);
+		pr_info("%s reset to default value\n", param->name);
 	return count;
 }
 EXPORT_SYMBOL_GPL(spk_var_store);

@@ -169,7 +169,7 @@ static int scsi_debug_dix = DEF_DIX;
 static int scsi_debug_dsense = DEF_D_SENSE;
 static int scsi_debug_every_nth = DEF_EVERY_NTH;
 static int scsi_debug_fake_rw = DEF_FAKE_RW;
-static int scsi_debug_guard = DEF_GUARD;
+static unsigned int scsi_debug_guard = DEF_GUARD;
 static int scsi_debug_lowest_aligned = DEF_LOWEST_ALIGNED;
 static int scsi_debug_max_luns = DEF_MAX_LUNS;
 static int scsi_debug_max_queue = SCSI_DEBUG_CANQUEUE;
@@ -292,6 +292,20 @@ static unsigned char ctrl_m_pg[] = {0xa, 10, 2, 0, 0, 0, 0, 0,
 				    0, 0, 0x2, 0x4b};
 static unsigned char iec_m_pg[] = {0x1c, 0xa, 0x08, 0, 0, 0, 0, 0,
 			           0, 0, 0x0, 0x0};
+
+static void *fake_store(unsigned long long lba)
+{
+	lba = do_div(lba, sdebug_store_sectors);
+
+	return fake_storep + lba * scsi_debug_sector_size;
+}
+
+static struct sd_dif_tuple *dif_store(sector_t sector)
+{
+	sector = do_div(sector, sdebug_store_sectors);
+
+	return dif_storep + sector;
+}
 
 static int sdebug_add_adapter(void);
 static void sdebug_remove_adapter(void);
@@ -1731,25 +1745,22 @@ static int do_device_access(struct scsi_cmnd *scmd,
 	return ret;
 }
 
-static u16 dif_compute_csum(const void *buf, int len)
+static __be16 dif_compute_csum(const void *buf, int len)
 {
-	u16 csum;
+	__be16 csum;
 
-	switch (scsi_debug_guard) {
-	case 1:
-		csum = ip_compute_csum(buf, len);
-		break;
-	case 0:
+	if (scsi_debug_guard)
+		csum = (__force __be16)ip_compute_csum(buf, len);
+	else
 		csum = cpu_to_be16(crc_t10dif(buf, len));
-		break;
-	}
+
 	return csum;
 }
 
 static int dif_verify(struct sd_dif_tuple *sdt, const void *data,
 		      sector_t sector, u32 ei_lba)
 {
-	u16 csum = dif_compute_csum(data, scsi_debug_sector_size);
+	__be16 csum = dif_compute_csum(data, scsi_debug_sector_size);
 
 	if (sdt->guard_tag != csum) {
 		pr_err("%s: GUARD check failed on sector %lu rcvd 0x%04x, data 0x%04x\n",
@@ -1775,31 +1786,62 @@ static int dif_verify(struct sd_dif_tuple *sdt, const void *data,
 	return 0;
 }
 
-static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
-			    unsigned int sectors, u32 ei_lba)
+static void dif_copy_prot(struct scsi_cmnd *SCpnt, sector_t sector,
+			  unsigned int sectors, bool read)
 {
 	unsigned int i, resid;
 	struct scatterlist *psgl;
+	void *paddr;
+	const void *dif_store_end = dif_storep + sdebug_store_sectors;
+
+	/* Bytes of protection data to copy into sgl */
+	resid = sectors * sizeof(*dif_storep);
+
+	scsi_for_each_prot_sg(SCpnt, psgl, scsi_prot_sg_count(SCpnt), i) {
+		int len = min(psgl->length, resid);
+		void *start = dif_store(sector);
+		int rest = 0;
+
+		if (dif_store_end < start + len)
+			rest = start + len - dif_store_end;
+
+		paddr = kmap_atomic(sg_page(psgl)) + psgl->offset;
+
+		if (read)
+			memcpy(paddr, start, len - rest);
+		else
+			memcpy(start, paddr, len - rest);
+
+		if (rest) {
+			if (read)
+				memcpy(paddr + len - rest, dif_storep, rest);
+			else
+				memcpy(dif_storep, paddr + len - rest, rest);
+		}
+
+		sector += len / sizeof(*dif_storep);
+		resid -= len;
+		kunmap_atomic(paddr);
+	}
+}
+
+static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
+			    unsigned int sectors, u32 ei_lba)
+{
+	unsigned int i;
 	struct sd_dif_tuple *sdt;
 	sector_t sector;
-	sector_t tmp_sec = start_sec;
-	void *paddr;
 
-	start_sec = do_div(tmp_sec, sdebug_store_sectors);
-
-	sdt = dif_storep + start_sec;
-
-	for (i = 0 ; i < sectors ; i++) {
+	for (i = 0; i < sectors; i++) {
 		int ret;
 
-		if (sdt[i].app_tag == 0xffff)
+		sector = start_sec + i;
+		sdt = dif_store(sector);
+
+		if (sdt->app_tag == cpu_to_be16(0xffff))
 			continue;
 
-		sector = start_sec + i;
-
-		ret = dif_verify(&sdt[i],
-				 fake_storep + sector * scsi_debug_sector_size,
-				 sector, ei_lba);
+		ret = dif_verify(sdt, fake_store(sector), sector, ei_lba);
 		if (ret) {
 			dif_errors++;
 			return ret;
@@ -1808,26 +1850,7 @@ static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
 		ei_lba++;
 	}
 
-	/* Bytes of protection data to copy into sgl */
-	resid = sectors * sizeof(*dif_storep);
-	sector = start_sec;
-
-	scsi_for_each_prot_sg(SCpnt, psgl, scsi_prot_sg_count(SCpnt), i) {
-		int len = min(psgl->length, resid);
-
-		paddr = kmap_atomic(sg_page(psgl)) + psgl->offset;
-		memcpy(paddr, dif_storep + sector, len);
-
-		sector += len / sizeof(*dif_storep);
-		if (sector >= sdebug_store_sectors) {
-			/* Force wrap */
-			tmp_sec = sector;
-			sector = do_div(tmp_sec, sdebug_store_sectors);
-		}
-		resid -= len;
-		kunmap_atomic(paddr);
-	}
-
+	dif_copy_prot(SCpnt, start_sec, sectors, true);
 	dix_reads++;
 
 	return 0;
@@ -1910,14 +1933,11 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 {
 	int i, j, ret;
 	struct sd_dif_tuple *sdt;
-	struct scatterlist *dsgl = scsi_sglist(SCpnt);
+	struct scatterlist *dsgl;
 	struct scatterlist *psgl = scsi_prot_sglist(SCpnt);
 	void *daddr, *paddr;
-	sector_t tmp_sec = start_sec;
-	sector_t sector;
+	sector_t sector = start_sec;
 	int ppage_offset;
-
-	sector = do_div(tmp_sec, sdebug_store_sectors);
 
 	BUG_ON(scsi_sg_count(SCpnt) == 0);
 	BUG_ON(scsi_prot_sg_count(SCpnt) == 0);
@@ -1946,25 +1966,13 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 
 			sdt = paddr + ppage_offset;
 
-			ret = dif_verify(sdt, daddr + j, start_sec, ei_lba);
+			ret = dif_verify(sdt, daddr + j, sector, ei_lba);
 			if (ret) {
 				dump_sector(daddr + j, scsi_debug_sector_size);
 				goto out;
 			}
 
-			/* Would be great to copy this in bigger
-			 * chunks.  However, for the sake of
-			 * correctness we need to verify each sector
-			 * before writing it to "stable" storage
-			 */
-			memcpy(dif_storep + sector, sdt, sizeof(*sdt));
-
 			sector++;
-
-			if (sector == sdebug_store_sectors)
-				sector = 0;	/* Force wrap */
-
-			start_sec++;
 			ei_lba++;
 			ppage_offset += sizeof(struct sd_dif_tuple);
 		}
@@ -1973,6 +1981,7 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 		kunmap_atomic(daddr);
 	}
 
+	dif_copy_prot(SCpnt, start_sec, sectors, false);
 	dix_writes++;
 
 	return 0;
@@ -2742,7 +2751,7 @@ module_param_named(dix, scsi_debug_dix, int, S_IRUGO);
 module_param_named(dsense, scsi_debug_dsense, int, S_IRUGO | S_IWUSR);
 module_param_named(every_nth, scsi_debug_every_nth, int, S_IRUGO | S_IWUSR);
 module_param_named(fake_rw, scsi_debug_fake_rw, int, S_IRUGO | S_IWUSR);
-module_param_named(guard, scsi_debug_guard, int, S_IRUGO);
+module_param_named(guard, scsi_debug_guard, uint, S_IRUGO);
 module_param_named(lbpu, scsi_debug_lbpu, int, S_IRUGO);
 module_param_named(lbpws, scsi_debug_lbpws, int, S_IRUGO);
 module_param_named(lbpws10, scsi_debug_lbpws10, int, S_IRUGO);
@@ -3172,7 +3181,7 @@ DRIVER_ATTR(dif, S_IRUGO, sdebug_dif_show, NULL);
 
 static ssize_t sdebug_guard_show(struct device_driver *ddp, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_guard);
+	return scnprintf(buf, PAGE_SIZE, "%u\n", scsi_debug_guard);
 }
 DRIVER_ATTR(guard, S_IRUGO, sdebug_guard_show, NULL);
 

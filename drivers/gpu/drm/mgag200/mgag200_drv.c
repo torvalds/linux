@@ -99,7 +99,6 @@ static struct drm_driver driver = {
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 
-	.gem_init_object = mgag200_gem_init_object,
 	.gem_free_object = mgag200_gem_free_object,
 	.dumb_create = mgag200_dumb_create,
 	.dumb_map_offset = mgag200_dumb_mmap_offset,

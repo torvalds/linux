@@ -31,7 +31,8 @@
 
 /* Compatibility glue so we can support IPv6 when it's compiled as a module */
 struct pingv6_ops {
-	int (*ipv6_recv_error)(struct sock *sk, struct msghdr *msg, int len);
+	int (*ipv6_recv_error)(struct sock *sk, struct msghdr *msg, int len,
+			       int *addr_len);
 	int (*ip6_datagram_recv_ctl)(struct sock *sk, struct msghdr *msg,
 				     struct sk_buff *skb);
 	int (*icmpv6_err_convert)(u8 type, u8 code, int *err);
@@ -103,8 +104,8 @@ void ping_seq_stop(struct seq_file *seq, void *v);
 int ping_proc_register(struct net *net, struct ping_seq_afinfo *afinfo);
 void ping_proc_unregister(struct net *net, struct ping_seq_afinfo *afinfo);
 
-extern int __init ping_proc_init(void);
-extern void ping_proc_exit(void);
+int __init ping_proc_init(void);
+void ping_proc_exit(void);
 #endif
 
 void __init ping_init(void);

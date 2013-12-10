@@ -604,7 +604,7 @@ static void rtllib_softmac_scan_wq(void *data)
 
 	if (!ieee->ieee_up)
 		return;
-	if (rtllib_act_scanning(ieee, true) == true)
+	if (rtllib_act_scanning(ieee, true))
 		return;
 
 	down(&ieee->scan_sem);
@@ -705,7 +705,7 @@ static void rtllib_softmac_stop_scan(struct rtllib_device *ieee)
 	ieee->scan_watch_dog = 0;
 	if (ieee->scanning_continue == 1) {
 		ieee->scanning_continue = 0;
-		ieee->actscanning = 0;
+		ieee->actscanning = false;
 
 		cancel_delayed_work(&ieee->softmac_scan_wq);
 	}
@@ -1202,7 +1202,7 @@ inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,
 
 	if ((ieee->rtllib_ap_sec_type &&
 	    (ieee->rtllib_ap_sec_type(ieee) & SEC_ALG_TKIP)) ||
-	    (ieee->bForcedBgMode == true)) {
+	    ieee->bForcedBgMode) {
 		ieee->pHTInfo->bEnableHT = 0;
 		ieee->mode = WIRELESS_MODE_G;
 	}
@@ -1535,7 +1535,7 @@ static void rtllib_associate_complete_wq(void *data)
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
 					(&(ieee->PowerSaveControl));
 	printk(KERN_INFO "Associated successfully\n");
-	if (ieee->is_silent_reset == 0) {
+	if (!ieee->is_silent_reset) {
 		printk(KERN_INFO "normal associate\n");
 		notify_wx_assoc_event(ieee);
 	}
@@ -1572,9 +1572,9 @@ static void rtllib_associate_complete_wq(void *data)
 	pPSC->LpsIdleCount = 0;
 	ieee->link_change(ieee->dev);
 
-	if (ieee->is_silent_reset == 1) {
+	if (ieee->is_silent_reset) {
 		printk(KERN_INFO "silent reset associate\n");
-		ieee->is_silent_reset = 0;
+		ieee->is_silent_reset = false;
 	}
 
 	if (ieee->data_hard_resume)
@@ -2005,7 +2005,7 @@ static short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u64 *time)
 		return 0;
 
 	if (time) {
-		if (ieee->bAwakePktSent == true) {
+		if (ieee->bAwakePktSent) {
 			pPSC->LPSAwakeIntvl = 1;
 		} else {
 			u8		MaxPeriod = 1;
@@ -2338,8 +2338,7 @@ inline int rtllib_rx_auth(struct rtllib_device *ieee, struct sk_buff *skb,
 					}
 
 					if (ieee->current_network.mode ==
-					    IEEE_N_24G &&
-					    bHalfSupportNmode == true) {
+					    IEEE_N_24G && bHalfSupportNmode) {
 						printk(KERN_INFO "======>enter "
 						       "half N mode\n");
 						ieee->bHalfWirelessN24GMode =
@@ -3098,7 +3097,7 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 	ieee->sta_edca_param[2] = 0x005E4342;
 	ieee->sta_edca_param[3] = 0x002F3262;
 	ieee->aggregation = true;
-	ieee->enable_rx_imm_BA = 1;
+	ieee->enable_rx_imm_BA = true;
 	ieee->tx_pending.txb = NULL;
 
 	_setup_timer(&ieee->associate_timer,
@@ -3591,14 +3590,9 @@ int rtllib_wpa_supplicant_ioctl(struct rtllib_device *ieee, struct iw_point *p,
 		goto out;
 	}
 
-	param = kmalloc(p->length, GFP_KERNEL);
-	if (param == NULL) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	if (copy_from_user(param, p->pointer, p->length)) {
-		kfree(param);
-		ret = -EFAULT;
+	param = memdup_user(p->pointer, p->length);
+	if (IS_ERR(param)) {
+		ret = PTR_ERR(param);
 		goto out;
 	}
 

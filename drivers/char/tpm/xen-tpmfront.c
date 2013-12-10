@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
+#include <xen/xen.h>
 #include <xen/events.h>
 #include <xen/interface/io/tpmif.h>
 #include <xen/grant_table.h>
@@ -349,8 +350,6 @@ static int tpmfront_probe(struct xenbus_device *dev,
 	}
 
 	tpm_get_timeouts(priv->chip);
-
-	dev_set_drvdata(&dev->dev, priv->chip);
 
 	return rv;
 }

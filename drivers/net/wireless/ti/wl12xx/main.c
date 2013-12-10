@@ -333,11 +333,11 @@ static struct wlcore_conf wl12xx_conf = {
 		.always                        = 0,
 	},
 	.fwlog = {
-		.mode                         = WL12XX_FWLOG_ON_DEMAND,
+		.mode                         = WL12XX_FWLOG_CONTINUOUS,
 		.mem_blocks                   = 2,
 		.severity                     = 0,
 		.timestamp                    = WL12XX_FWLOG_TIMESTAMP_DISABLED,
-		.output                       = WL12XX_FWLOG_OUTPUT_HOST,
+		.output                       = WL12XX_FWLOG_OUTPUT_DBG_PINS,
 		.threshold                    = 0,
 	},
 	.rate = {
@@ -716,6 +716,9 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		ret = -ENODEV;
 		goto out;
 	}
+
+	wl->fw_mem_block_size = 256;
+	wl->fwlog_end = 0x2000000;
 
 	/* common settings */
 	wl->scan_templ_id_2_4 = CMD_TEMPL_APP_PROBE_REQ_2_4_LEGACY;
@@ -1262,8 +1265,9 @@ static int wl12xx_boot(struct wl1271 *wl)
 		BA_SESSION_RX_CONSTRAINT_EVENT_ID |
 		REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID |
 		INACTIVE_STA_EVENT_ID |
-		MAX_TX_RETRY_EVENT_ID |
 		CHANNEL_SWITCH_COMPLETE_EVENT_ID;
+
+	wl->ap_event_mask = MAX_TX_RETRY_EVENT_ID;
 
 	ret = wlcore_boot_run_firmware(wl);
 	if (ret < 0)
@@ -1648,6 +1652,11 @@ static bool wl12xx_lnk_low_prio(struct wl1271 *wl, u8 hlid,
 	return true;
 }
 
+static u32 wl12xx_convert_hwaddr(struct wl1271 *wl, u32 hwaddr)
+{
+	return hwaddr << 5;
+}
+
 static int wl12xx_setup(struct wl1271 *wl);
 
 static struct wlcore_ops wl12xx_ops = {
@@ -1684,6 +1693,7 @@ static struct wlcore_ops wl12xx_ops = {
 	.channel_switch		= wl12xx_cmd_channel_switch,
 	.pre_pkt_send		= NULL,
 	.set_peer_cap		= wl12xx_set_peer_cap,
+	.convert_hwaddr		= wl12xx_convert_hwaddr,
 	.lnk_high_prio		= wl12xx_lnk_high_prio,
 	.lnk_low_prio		= wl12xx_lnk_low_prio,
 };
@@ -1704,7 +1714,7 @@ static struct ieee80211_sta_ht_cap wl12xx_ht_cap = {
 static int wl12xx_setup(struct wl1271 *wl)
 {
 	struct wl12xx_priv *priv = wl->priv;
-	struct wlcore_platdev_data *pdev_data = wl->pdev->dev.platform_data;
+	struct wlcore_platdev_data *pdev_data = dev_get_platdata(&wl->pdev->dev);
 	struct wl12xx_platform_data *pdata = pdev_data->pdata;
 
 	wl->rtable = wl12xx_rtable;

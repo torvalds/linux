@@ -1930,7 +1930,7 @@ static int btc_set_mc_special_registers(struct radeon_device *rdev,
 			}
 			j++;
 
-			if (j > SMC_EVERGREEN_MC_REGISTER_ARRAY_SIZE)
+			if (j >= SMC_EVERGREEN_MC_REGISTER_ARRAY_SIZE)
 				return -EINVAL;
 
 			tmp = RREG32(MC_PMG_CMD_MRS);
@@ -1945,7 +1945,7 @@ static int btc_set_mc_special_registers(struct radeon_device *rdev,
 			}
 			j++;
 
-			if (j > SMC_EVERGREEN_MC_REGISTER_ARRAY_SIZE)
+			if (j >= SMC_EVERGREEN_MC_REGISTER_ARRAY_SIZE)
 				return -EINVAL;
 			break;
 		case MC_SEQ_RESERVE_M >> 2:
@@ -1959,7 +1959,7 @@ static int btc_set_mc_special_registers(struct radeon_device *rdev,
 			}
 			j++;
 
-			if (j > SMC_EVERGREEN_MC_REGISTER_ARRAY_SIZE)
+			if (j >= SMC_EVERGREEN_MC_REGISTER_ARRAY_SIZE)
 				return -EINVAL;
 			break;
 		default:

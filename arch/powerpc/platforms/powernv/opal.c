@@ -13,14 +13,19 @@
 
 #include <linux/types.h>
 #include <linux/of.h>
+#include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
 #include <linux/slab.h>
+#include <linux/kobject.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
 
 #include "powernv.h"
+
+/* /sys/firmware/opal */
+struct kobject *opal_kobj;
 
 struct opal {
 	u64 base;
@@ -77,6 +82,7 @@ int __init early_init_dt_scan_opal(unsigned long node,
 
 static int __init opal_register_exception_handlers(void)
 {
+#ifdef __BIG_ENDIAN__
 	u64 glue;
 
 	if (!(powerpc_firmware_features & FW_FEATURE_OPAL))
@@ -94,6 +100,7 @@ static int __init opal_register_exception_handlers(void)
 					0, glue);
 	glue += 128;
 	opal_register_exception_handler(OPAL_SOFTPATCH_HANDLER, 0, glue);
+#endif
 
 	return 0;
 }
@@ -164,27 +171,28 @@ void opal_notifier_disable(void)
 
 int opal_get_chars(uint32_t vtermno, char *buf, int count)
 {
-	s64 len, rc;
-	u64 evt;
+	s64 rc;
+	__be64 evt, len;
 
 	if (!opal.entry)
 		return -ENODEV;
 	opal_poll_events(&evt);
-	if ((evt & OPAL_EVENT_CONSOLE_INPUT) == 0)
+	if ((be64_to_cpu(evt) & OPAL_EVENT_CONSOLE_INPUT) == 0)
 		return 0;
-	len = count;
-	rc = opal_console_read(vtermno, &len, buf);
+	len = cpu_to_be64(count);
+	rc = opal_console_read(vtermno, &len, buf);	
 	if (rc == OPAL_SUCCESS)
-		return len;
+		return be64_to_cpu(len);
 	return 0;
 }
 
 int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 {
 	int written = 0;
+	__be64 olen;
 	s64 len, rc;
 	unsigned long flags;
-	u64 evt;
+	__be64 evt;
 
 	if (!opal.entry)
 		return -ENODEV;
@@ -199,13 +207,14 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 	 */
 	spin_lock_irqsave(&opal_write_lock, flags);
 	if (firmware_has_feature(FW_FEATURE_OPALv2)) {
-		rc = opal_console_write_buffer_space(vtermno, &len);
+		rc = opal_console_write_buffer_space(vtermno, &olen);
+		len = be64_to_cpu(olen);
 		if (rc || len < total_len) {
 			spin_unlock_irqrestore(&opal_write_lock, flags);
 			/* Closed -> drop characters */
 			if (rc)
 				return total_len;
-			opal_poll_events(&evt);
+			opal_poll_events(NULL);
 			return -EAGAIN;
 		}
 	}
@@ -216,8 +225,9 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 	rc = OPAL_BUSY;
 	while(total_len > 0 && (rc == OPAL_BUSY ||
 				rc == OPAL_BUSY_EVENT || rc == OPAL_SUCCESS)) {
-		len = total_len;
-		rc = opal_console_write(vtermno, &len, data);
+		olen = cpu_to_be64(total_len);
+		rc = opal_console_write(vtermno, &olen, data);
+		len = be64_to_cpu(olen);
 
 		/* Closed or other error drop */
 		if (rc != OPAL_SUCCESS && rc != OPAL_BUSY &&
@@ -237,7 +247,8 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 		 */
 		do
 			opal_poll_events(&evt);
-		while(rc == OPAL_SUCCESS && (evt & OPAL_EVENT_CONSOLE_OUTPUT));
+		while(rc == OPAL_SUCCESS &&
+			(be64_to_cpu(evt) & OPAL_EVENT_CONSOLE_OUTPUT));
 	}
 	spin_unlock_irqrestore(&opal_write_lock, flags);
 	return written;
@@ -360,7 +371,7 @@ int opal_machine_check(struct pt_regs *regs)
 
 static irqreturn_t opal_interrupt(int irq, void *data)
 {
-	uint64_t events;
+	__be64 events;
 
 	opal_handle_interrupt(virq_to_hw(irq), &events);
 
@@ -369,10 +380,21 @@ static irqreturn_t opal_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static int opal_sysfs_init(void)
+{
+	opal_kobj = kobject_create_and_add("opal", firmware_kobj);
+	if (!opal_kobj) {
+		pr_warn("kobject_create_and_add opal failed\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static int __init opal_init(void)
 {
 	struct device_node *np, *consoles;
-	const u32 *irqs;
+	const __be32 *irqs;
 	int rc, i, irqlen;
 
 	opal_node = of_find_node_by_path("/ibm,opal");
@@ -414,6 +436,14 @@ static int __init opal_init(void)
 				   " (0x%x)\n", rc, irq, hwirq);
 		opal_irqs[i] = irq;
 	}
+
+	/* Create "opal" kobject under /sys/firmware */
+	rc = opal_sysfs_init();
+	if (rc == 0) {
+		/* Setup code update interface */
+		opal_flash_init();
+	}
+
 	return 0;
 }
 subsys_initcall(opal_init);

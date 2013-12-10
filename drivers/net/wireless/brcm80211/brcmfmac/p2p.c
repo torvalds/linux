@@ -823,6 +823,7 @@ static s32 brcmf_p2p_run_escan(struct brcmf_cfg80211_info *cfg,
 		}
 		err = brcmf_p2p_escan(p2p, num_nodfs, chanspecs, search_state,
 				      action, P2PAPI_BSSCFG_DEVICE);
+		kfree(chanspecs);
 	}
 exit:
 	if (err)
@@ -1148,7 +1149,7 @@ static s32 brcmf_p2p_af_searching_channel(struct brcmf_p2p_info *p2p)
 
 	pri_vif = p2p->bss_idx[P2PAPI_BSSCFG_PRIMARY].vif;
 
-	INIT_COMPLETION(afx_hdl->act_frm_scan);
+	reinit_completion(&afx_hdl->act_frm_scan);
 	set_bit(BRCMF_P2P_STATUS_FINDING_COMMON_CHANNEL, &p2p->status);
 	afx_hdl->is_active = true;
 	afx_hdl->peer_chan = P2P_INVALID_CHANNEL;
@@ -1501,7 +1502,7 @@ static s32 brcmf_p2p_tx_action_frame(struct brcmf_p2p_info *p2p,
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	INIT_COMPLETION(p2p->send_af_done);
+	reinit_completion(&p2p->send_af_done);
 	clear_bit(BRCMF_P2P_STATUS_ACTION_TX_COMPLETED, &p2p->status);
 	clear_bit(BRCMF_P2P_STATUS_ACTION_TX_NOACK, &p2p->status);
 

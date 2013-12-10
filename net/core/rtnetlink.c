@@ -1647,9 +1647,8 @@ int rtnl_configure_link(struct net_device *dev, const struct ifinfomsg *ifm)
 	}
 
 	dev->rtnl_link_state = RTNL_LINK_INITIALIZED;
-	rtmsg_ifinfo(RTM_NEWLINK, dev, ~0U);
 
-	__dev_notify_flags(dev, old_flags);
+	__dev_notify_flags(dev, old_flags, ~0U);
 	return 0;
 }
 EXPORT_SYMBOL(rtnl_configure_link);
@@ -1985,14 +1984,15 @@ static int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
-void rtmsg_ifinfo(int type, struct net_device *dev, unsigned int change)
+void rtmsg_ifinfo(int type, struct net_device *dev, unsigned int change,
+		  gfp_t flags)
 {
 	struct net *net = dev_net(dev);
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
 	size_t if_info_size;
 
-	skb = nlmsg_new((if_info_size = if_nlmsg_size(dev, 0)), GFP_KERNEL);
+	skb = nlmsg_new((if_info_size = if_nlmsg_size(dev, 0)), flags);
 	if (skb == NULL)
 		goto errout;
 
@@ -2003,7 +2003,7 @@ void rtmsg_ifinfo(int type, struct net_device *dev, unsigned int change)
 		kfree_skb(skb);
 		goto errout;
 	}
-	rtnl_notify(skb, net, 0, RTNLGRP_LINK, NULL, GFP_KERNEL);
+	rtnl_notify(skb, net, 0, RTNLGRP_LINK, NULL, flags);
 	return;
 errout:
 	if (err < 0)
@@ -2717,7 +2717,7 @@ static int rtnetlink_event(struct notifier_block *this, unsigned long event, voi
 	case NETDEV_JOIN:
 		break;
 	default:
-		rtmsg_ifinfo(RTM_NEWLINK, dev, 0);
+		rtmsg_ifinfo(RTM_NEWLINK, dev, 0, GFP_KERNEL);
 		break;
 	}
 	return NOTIFY_DONE;

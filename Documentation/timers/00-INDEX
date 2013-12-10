@@ -8,5 +8,9 @@ hpet_example.c
 	- sample hpet timer test program
 hrtimers.txt
 	- subsystem for high-resolution kernel timers
+NO_HZ.txt
+	- Summary of the different methods for the scheduler clock-interrupts management.
+timers-howto.txt
+	- how to insert delays in the kernel the right (tm) way.
 timer_stats.txt
 	- timer usage statistics

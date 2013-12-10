@@ -485,6 +485,7 @@ config COMEDI_NI_ATMIO
 	tristate "NI AT-MIO E series ISA-PNP card support"
 	select COMEDI_8255
 	select COMEDI_NI_TIO
+	select COMEDI_FC
 	---help---
 	  Enable support for National Instruments AT-MIO E series cards
 	  National Instruments AT-MIO-16E-1 (ni_atmio),
@@ -990,8 +991,6 @@ config COMEDI_ME_DAQ
 
 config COMEDI_NI_6527
 	tristate "NI 6527 support"
-	depends on HAS_DMA
-	select COMEDI_MITE
 	---help---
 	  Enable support for the National Instruments 6527 PCI card
 

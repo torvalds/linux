@@ -78,6 +78,8 @@
 #include <linux/if_vlan.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
 #include <linux/ip.h>
@@ -88,6 +90,7 @@
 
 #include <asm/io.h>
 #include <asm/reg.h>
+#include <asm/mpc85xx.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 #include <linux/module.h>
@@ -939,9 +942,8 @@ static void gfar_init_filer_table(struct gfar_private *priv)
 	}
 }
 
-static void gfar_detect_errata(struct gfar_private *priv)
+static void __gfar_detect_errata_83xx(struct gfar_private *priv)
 {
-	struct device *dev = &priv->ofdev->dev;
 	unsigned int pvr = mfspr(SPRN_PVR);
 	unsigned int svr = mfspr(SPRN_SVR);
 	unsigned int mod = (svr >> 16) & 0xfff6; /* w/o E suffix */
@@ -957,15 +959,33 @@ static void gfar_detect_errata(struct gfar_private *priv)
 	    (pvr == 0x80861010 && (mod & 0xfff9) == 0x80c0))
 		priv->errata |= GFAR_ERRATA_76;
 
-	/* MPC8313 and MPC837x all rev */
-	if ((pvr == 0x80850010 && mod == 0x80b0) ||
-	    (pvr == 0x80861010 && (mod & 0xfff9) == 0x80c0))
-		priv->errata |= GFAR_ERRATA_A002;
-
-	/* MPC8313 Rev < 2.0, MPC8548 rev 2.0 */
-	if ((pvr == 0x80850010 && mod == 0x80b0 && rev < 0x0020) ||
-	    (pvr == 0x80210020 && mod == 0x8030 && rev == 0x0020))
+	/* MPC8313 Rev < 2.0 */
+	if (pvr == 0x80850010 && mod == 0x80b0 && rev < 0x0020)
 		priv->errata |= GFAR_ERRATA_12;
+}
+
+static void __gfar_detect_errata_85xx(struct gfar_private *priv)
+{
+	unsigned int svr = mfspr(SPRN_SVR);
+
+	if ((SVR_SOC_VER(svr) == SVR_8548) && (SVR_REV(svr) == 0x20))
+		priv->errata |= GFAR_ERRATA_12;
+	if (((SVR_SOC_VER(svr) == SVR_P2020) && (SVR_REV(svr) < 0x20)) ||
+	    ((SVR_SOC_VER(svr) == SVR_P2010) && (SVR_REV(svr) < 0x20)))
+		priv->errata |= GFAR_ERRATA_76; /* aka eTSEC 20 */
+}
+
+static void gfar_detect_errata(struct gfar_private *priv)
+{
+	struct device *dev = &priv->ofdev->dev;
+
+	/* no plans to fix */
+	priv->errata |= GFAR_ERRATA_A002;
+
+	if (pvr_version_is(PVR_VER_E500V1) || pvr_version_is(PVR_VER_E500V2))
+		__gfar_detect_errata_85xx(priv);
+	else /* non-mpc85xx parts, i.e. e300 core based */
+		__gfar_detect_errata_83xx(priv);
 
 	if (priv->errata)
 		dev_info(dev, "enabled errata workarounds, flags: 0x%x\n",
@@ -1599,7 +1619,7 @@ static int __gfar_is_rx_idle(struct gfar_private *priv)
 	/* Normaly TSEC should not hang on GRS commands, so we should
 	 * actually wait for IEVENT_GRSC flag.
 	 */
-	if (likely(!gfar_has_errata(priv, GFAR_ERRATA_A002)))
+	if (!gfar_has_errata(priv, GFAR_ERRATA_A002))
 		return 0;
 
 	/* Read the eTSEC register at offset 0xD1C. If bits 7-14 are
@@ -2900,7 +2920,7 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 	struct gfar_priv_rx_q *rx_queue = NULL;
 	int work_done = 0, work_done_per_q = 0;
 	int i, budget_per_q = 0;
-	int has_tx_work;
+	int has_tx_work = 0;
 	unsigned long rstat_rxf;
 	int num_act_queues;
 
@@ -2915,62 +2935,51 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 	if (num_act_queues)
 		budget_per_q = budget/num_act_queues;
 
-	while (1) {
-		has_tx_work = 0;
-		for_each_set_bit(i, &gfargrp->tx_bit_map, priv->num_tx_queues) {
-			tx_queue = priv->tx_queue[i];
-			/* run Tx cleanup to completion */
-			if (tx_queue->tx_skbuff[tx_queue->skb_dirtytx]) {
-				gfar_clean_tx_ring(tx_queue);
-				has_tx_work = 1;
-			}
+	for_each_set_bit(i, &gfargrp->tx_bit_map, priv->num_tx_queues) {
+		tx_queue = priv->tx_queue[i];
+		/* run Tx cleanup to completion */
+		if (tx_queue->tx_skbuff[tx_queue->skb_dirtytx]) {
+			gfar_clean_tx_ring(tx_queue);
+			has_tx_work = 1;
 		}
+	}
 
-		for_each_set_bit(i, &gfargrp->rx_bit_map, priv->num_rx_queues) {
-			/* skip queue if not active */
-			if (!(rstat_rxf & (RSTAT_CLEAR_RXF0 >> i)))
-				continue;
+	for_each_set_bit(i, &gfargrp->rx_bit_map, priv->num_rx_queues) {
+		/* skip queue if not active */
+		if (!(rstat_rxf & (RSTAT_CLEAR_RXF0 >> i)))
+			continue;
 
-			rx_queue = priv->rx_queue[i];
-			work_done_per_q =
-				gfar_clean_rx_ring(rx_queue, budget_per_q);
-			work_done += work_done_per_q;
+		rx_queue = priv->rx_queue[i];
+		work_done_per_q =
+			gfar_clean_rx_ring(rx_queue, budget_per_q);
+		work_done += work_done_per_q;
 
-			/* finished processing this queue */
-			if (work_done_per_q < budget_per_q) {
-				/* clear active queue hw indication */
-				gfar_write(&regs->rstat,
-					   RSTAT_CLEAR_RXF0 >> i);
-				rstat_rxf &= ~(RSTAT_CLEAR_RXF0 >> i);
-				num_act_queues--;
+		/* finished processing this queue */
+		if (work_done_per_q < budget_per_q) {
+			/* clear active queue hw indication */
+			gfar_write(&regs->rstat,
+				   RSTAT_CLEAR_RXF0 >> i);
+			num_act_queues--;
 
-				if (!num_act_queues)
-					break;
-				/* recompute budget per Rx queue */
-				budget_per_q =
-					(budget - work_done) / num_act_queues;
-			}
+			if (!num_act_queues)
+				break;
 		}
+	}
 
-		if (work_done >= budget)
-			break;
+	if (!num_act_queues && !has_tx_work) {
 
-		if (!num_act_queues && !has_tx_work) {
+		napi_complete(napi);
 
-			napi_complete(napi);
+		/* Clear the halt bit in RSTAT */
+		gfar_write(&regs->rstat, gfargrp->rstat);
 
-			/* Clear the halt bit in RSTAT */
-			gfar_write(&regs->rstat, gfargrp->rstat);
+		gfar_write(&regs->imask, IMASK_DEFAULT);
 
-			gfar_write(&regs->imask, IMASK_DEFAULT);
-
-			/* If we are coalescing interrupts, update the timer
-			 * Otherwise, clear it
-			 */
-			gfar_configure_coalescing(priv, gfargrp->rx_bit_map,
-						  gfargrp->tx_bit_map);
-			break;
-		}
+		/* If we are coalescing interrupts, update the timer
+		 * Otherwise, clear it
+		 */
+		gfar_configure_coalescing(priv, gfargrp->rx_bit_map,
+					  gfargrp->tx_bit_map);
 	}
 
 	return work_done;

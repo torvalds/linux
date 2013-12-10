@@ -35,14 +35,15 @@ static inline void nf_inet_addr_mask(const union nf_inet_addr *a1,
 	result->all[3] = a1->all[3] & mask->all[3];
 }
 
-extern int netfilter_init(void);
+int netfilter_init(void);
 
 /* Largest hook number + 1 */
 #define NF_MAX_HOOKS 8
 
 struct sk_buff;
 
-typedef unsigned int nf_hookfn(unsigned int hooknum,
+struct nf_hook_ops;
+typedef unsigned int nf_hookfn(const struct nf_hook_ops *ops,
 			       struct sk_buff *skb,
 			       const struct net_device *in,
 			       const struct net_device *out,
@@ -52,12 +53,13 @@ struct nf_hook_ops {
 	struct list_head list;
 
 	/* User fills in from here down. */
-	nf_hookfn *hook;
-	struct module *owner;
-	u_int8_t pf;
-	unsigned int hooknum;
+	nf_hookfn	*hook;
+	struct module	*owner;
+	void		*priv;
+	u_int8_t	pf;
+	unsigned int	hooknum;
 	/* Hooks are ordered in ascending priority. */
-	int priority;
+	int		priority;
 };
 
 struct nf_sockopt_ops {
@@ -208,7 +210,7 @@ int compat_nf_getsockopt(struct sock *sk, u_int8_t pf, int optval,
 /* Call this before modifying an existing packet: ensures it is
    modifiable and linear to the point you care about (writable_len).
    Returns true or false. */
-extern int skb_make_writable(struct sk_buff *skb, unsigned int writable_len);
+int skb_make_writable(struct sk_buff *skb, unsigned int writable_len);
 
 struct flowi;
 struct nf_queue_entry;
@@ -269,8 +271,8 @@ nf_checksum_partial(struct sk_buff *skb, unsigned int hook,
 	return csum;
 }
 
-extern int nf_register_afinfo(const struct nf_afinfo *afinfo);
-extern void nf_unregister_afinfo(const struct nf_afinfo *afinfo);
+int nf_register_afinfo(const struct nf_afinfo *afinfo);
+void nf_unregister_afinfo(const struct nf_afinfo *afinfo);
 
 #include <net/flow.h>
 extern void (*nf_nat_decode_session_hook)(struct sk_buff *, struct flowi *);
@@ -315,7 +317,7 @@ nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
 
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 extern void (*ip_ct_attach)(struct sk_buff *, const struct sk_buff *) __rcu;
-extern void nf_ct_attach(struct sk_buff *, const struct sk_buff *);
+void nf_ct_attach(struct sk_buff *, const struct sk_buff *);
 extern void (*nf_ct_destroy)(struct nf_conntrack *) __rcu;
 
 struct nf_conn;

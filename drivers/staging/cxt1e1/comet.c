@@ -145,10 +145,8 @@ void init_comet(void *ci, comet_t *comet, u_int32_t port_mode, int clockmaster,
     /* Enable 8 out of 10 validation */
 	 /* t1RBOC enable(BOC:BitOriented Code) */
 	pci_write_32((u_int32_t *) &comet->t1_rboc_ena, 0x00);
-	if (isT1mode)
-	{
-
-	/* IBCD cfg: aka Inband Code Detection ** loopback code length set to */
+	if (isT1mode) {
+		/* IBCD cfg: aka Inband Code Detection ** loopback code length set to */
 		/* 6 bit down, 5 bit up (assert) */
 		pci_write_32((u_int32_t *) &comet->ibcd_cfg, 0x04);
 		/* line loopback activate pattern */
@@ -353,7 +351,7 @@ void init_comet(void *ci, comet_t *comet, u_int32_t port_mode, int clockmaster,
 	/* RLPS Configuration Status */
 	pci_write_32((u_int32_t *) &comet->rlps_cfgsts, 0x11);
 	if (isT1mode)
-		 /* ? */
+		/* ? */
 		pci_write_32((u_int32_t *) &comet->rlps_alos_thresh, 0x55);
 	else
 		/* ? */
@@ -452,7 +450,7 @@ WrtRcvEqualizerTbl(ci_t *ci, comet_t *comet, u_int32_t *table)
 	volatile u_int32_t value;
 
 	for (ramaddr = 0; ramaddr < 256; ramaddr++) {
-	/*** the following lines are per Errata 7, 2.5 ***/
+		/*** the following lines are per Errata 7, 2.5 ***/
 		{
 		/* Set up for a read operation */
 		pci_write_32((u_int32_t *) &comet->rlps_eq_rwsel, 0x80);

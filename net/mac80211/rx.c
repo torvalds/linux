@@ -995,8 +995,9 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 				rx->sta->num_duplicates++;
 			}
 			return RX_DROP_UNUSABLE;
-		} else
+		} else if (!(status->flag & RX_FLAG_AMSDU_MORE)) {
 			rx->sta->last_seq_ctrl[rx->seqno_idx] = hdr->seq_ctrl;
+		}
 	}
 
 	if (unlikely(rx->skb->len < 16)) {
@@ -2402,7 +2403,8 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		return RX_DROP_UNUSABLE;
 
 	if (!rx->sta && mgmt->u.action.category != WLAN_CATEGORY_PUBLIC &&
-	    mgmt->u.action.category != WLAN_CATEGORY_SELF_PROTECTED)
+	    mgmt->u.action.category != WLAN_CATEGORY_SELF_PROTECTED &&
+	    mgmt->u.action.category != WLAN_CATEGORY_SPECTRUM_MGMT)
 		return RX_DROP_UNUSABLE;
 
 	if (!(status->rx_flags & IEEE80211_RX_RA_MATCH))
@@ -2566,31 +2568,49 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 
 		goto queue;
 	case WLAN_CATEGORY_SPECTRUM_MGMT:
-		if (status->band != IEEE80211_BAND_5GHZ)
-			break;
-
-		if (sdata->vif.type != NL80211_IFTYPE_STATION)
-			break;
-
 		/* verify action_code is present */
 		if (len < IEEE80211_MIN_ACTION_SIZE + 1)
 			break;
 
 		switch (mgmt->u.action.u.measurement.action_code) {
 		case WLAN_ACTION_SPCT_MSR_REQ:
+			if (status->band != IEEE80211_BAND_5GHZ)
+				break;
+
 			if (len < (IEEE80211_MIN_ACTION_SIZE +
 				   sizeof(mgmt->u.action.u.measurement)))
 				break;
-			ieee80211_process_measurement_req(sdata, mgmt, len);
-			goto handled;
-		case WLAN_ACTION_SPCT_CHL_SWITCH:
+
 			if (sdata->vif.type != NL80211_IFTYPE_STATION)
 				break;
 
-			if (!ether_addr_equal(mgmt->bssid, sdata->u.mgd.bssid))
+			ieee80211_process_measurement_req(sdata, mgmt, len);
+			goto handled;
+		case WLAN_ACTION_SPCT_CHL_SWITCH: {
+			u8 *bssid;
+			if (len < (IEEE80211_MIN_ACTION_SIZE +
+				   sizeof(mgmt->u.action.u.chan_switch)))
+				break;
+
+			if (sdata->vif.type != NL80211_IFTYPE_STATION &&
+			    sdata->vif.type != NL80211_IFTYPE_ADHOC &&
+			    sdata->vif.type != NL80211_IFTYPE_MESH_POINT)
+				break;
+
+			if (sdata->vif.type == NL80211_IFTYPE_STATION)
+				bssid = sdata->u.mgd.bssid;
+			else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+				bssid = sdata->u.ibss.bssid;
+			else if (sdata->vif.type == NL80211_IFTYPE_MESH_POINT)
+				bssid = mgmt->sa;
+			else
+				break;
+
+			if (!ether_addr_equal(mgmt->bssid, bssid))
 				break;
 
 			goto queue;
+			}
 		}
 		break;
 	case WLAN_CATEGORY_SA_QUERY:
@@ -3055,6 +3075,9 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		if (!bssid)
+			return 0;
+		if (ether_addr_equal(sdata->vif.addr, hdr->addr2) ||
+		    ether_addr_equal(sdata->u.ibss.bssid, hdr->addr2))
 			return 0;
 		if (ieee80211_is_beacon(hdr->frame_control)) {
 			return 1;

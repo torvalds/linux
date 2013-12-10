@@ -18,6 +18,9 @@
 	interrupt-parent = <&intc>;
 
 	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -30,6 +33,8 @@
 		usb1 = &usb1;
 		phy0 = &usb0_phy;
 		phy1 = &usb1_phy;
+		ethernet0 = &cpsw_emac0;
+		ethernet1 = &cpsw_emac1;
 	};
 
 	cpus {
@@ -55,6 +60,11 @@
 			voltage-tolerance = <2>; /* 2 percentage */
 			clock-latency = <300000>; /* From omap-cpufreq driver */
 		};
+	};
+
+	pmu {
+		compatible = "arm,cortex-a8-pmu";
+		interrupts = <3>;
 	};
 
 	/*
@@ -100,13 +110,25 @@
 			reg = <0x48200000 0x1000>;
 		};
 
+		edma: edma@49000000 {
+			compatible = "ti,edma3";
+			ti,hwmods = "tpcc", "tptc0", "tptc1", "tptc2";
+			reg =	<0x49000000 0x10000>,
+				<0x44e10f90 0x10>;
+			interrupts = <12 13 14>;
+			#dma-cells = <1>;
+			dma-channels = <64>;
+			ti,edma-regions = <4>;
+			ti,edma-slots = <256>;
+		};
+
 		gpio0: gpio@44e07000 {
 			compatible = "ti,omap4-gpio";
 			ti,hwmods = "gpio1";
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
-			#interrupt-cells = <1>;
+			#interrupt-cells = <2>;
 			reg = <0x44e07000 0x1000>;
 			interrupts = <96>;
 		};
@@ -117,7 +139,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
-			#interrupt-cells = <1>;
+			#interrupt-cells = <2>;
 			reg = <0x4804c000 0x1000>;
 			interrupts = <98>;
 		};
@@ -128,7 +150,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
-			#interrupt-cells = <1>;
+			#interrupt-cells = <2>;
 			reg = <0x481ac000 0x1000>;
 			interrupts = <32>;
 		};
@@ -139,7 +161,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
-			#interrupt-cells = <1>;
+			#interrupt-cells = <2>;
 			reg = <0x481ae000 0x1000>;
 			interrupts = <62>;
 		};
@@ -226,6 +248,50 @@
 			reg = <0x4819c000 0x1000>;
 			interrupts = <30>;
 			status = "disabled";
+		};
+
+		mmc1: mmc@48060000 {
+			compatible = "ti,omap4-hsmmc";
+			ti,hwmods = "mmc1";
+			ti,dual-volt;
+			ti,needs-special-reset;
+			ti,needs-special-hs-handling;
+			dmas = <&edma 24
+				&edma 25>;
+			dma-names = "tx", "rx";
+			interrupts = <64>;
+			interrupt-parent = <&intc>;
+			reg = <0x48060000 0x1000>;
+			status = "disabled";
+		};
+
+		mmc2: mmc@481d8000 {
+			compatible = "ti,omap4-hsmmc";
+			ti,hwmods = "mmc2";
+			ti,needs-special-reset;
+			dmas = <&edma 2
+				&edma 3>;
+			dma-names = "tx", "rx";
+			interrupts = <28>;
+			interrupt-parent = <&intc>;
+			reg = <0x481d8000 0x1000>;
+			status = "disabled";
+		};
+
+		mmc3: mmc@47810000 {
+			compatible = "ti,omap4-hsmmc";
+			ti,hwmods = "mmc3";
+			ti,needs-special-reset;
+			interrupts = <29>;
+			interrupt-parent = <&intc>;
+			reg = <0x47810000 0x1000>;
+			status = "disabled";
+		};
+
+		hwspinlock: spinlock@480ca000 {
+			compatible = "ti,omap4-hwspinlock";
+			reg = <0x480ca000 0x1000>;
+			ti,hwmods = "spinlock";
 		};
 
 		wdt2: wdt@44e35000 {
@@ -323,6 +389,11 @@
 			interrupts = <65>;
 			ti,spi-num-cs = <2>;
 			ti,hwmods = "spi0";
+			dmas = <&edma 16
+				&edma 17
+				&edma 18
+				&edma 19>;
+			dma-names = "tx0", "rx0", "tx1", "rx1";
 			status = "disabled";
 		};
 
@@ -334,6 +405,11 @@
 			interrupts = <125>;
 			ti,spi-num-cs = <2>;
 			ti,hwmods = "spi1";
+			dmas = <&edma 42
+				&edma 43
+				&edma 44
+				&edma 45>;
+			dma-names = "tx0", "rx0", "tx1", "rx1";
 			status = "disabled";
 		};
 
@@ -346,7 +422,7 @@
 			ti,hwmods = "usb_otg_hs";
 			status = "disabled";
 
-			ctrl_mod: control@44e10000 {
+			usb_ctrl_mod: control@44e10000 {
 				compatible = "ti,am335x-usb-ctrl-module";
 				reg = <0x44e10620 0x10
 					0x44e10648 0x4>;
@@ -359,7 +435,7 @@
 				reg = <0x47401300 0x100>;
 				reg-names = "phy";
 				status = "disabled";
-				ti,ctrl_mod = <&ctrl_mod>;
+				ti,ctrl_mod = <&usb_ctrl_mod>;
 			};
 
 			usb0: usb@47401000 {
@@ -407,7 +483,7 @@
 				reg = <0x47401b00 0x100>;
 				reg-names = "phy";
 				status = "disabled";
-				ti,ctrl_mod = <&ctrl_mod>;
+				ti,ctrl_mod = <&usb_ctrl_mod>;
 			};
 
 			usb1: usb@47401800 {
@@ -594,6 +670,12 @@
 				/* Filled in by U-Boot */
 				mac-address = [ 00 00 00 00 00 00 ];
 			};
+
+			phy_sel: cpsw-phy-sel@44e10650 {
+				compatible = "ti,am3352-cpsw-phy-sel";
+				reg= <0x44e10650 0x4>;
+				reg-names = "gmii-sel";
+			};
 		};
 
 		ocmcram: ocmcram@40300000 {
@@ -607,6 +689,7 @@
 			reg = <0x44d00000 0x4000	/* M3 UMEM */
 			       0x44d80000 0x2000>;	/* M3 DMEM */
 			ti,hwmods = "wkup_m3";
+			ti,no-reset-on-init;
 		};
 
 		elm: elm@48080000 {
@@ -614,6 +697,15 @@
 			reg = <0x48080000 0x2000>;
 			interrupts = <4>;
 			ti,hwmods = "elm";
+			status = "disabled";
+		};
+
+		lcdc: lcdc@4830e000 {
+			compatible = "ti,am33xx-tilcdc";
+			reg = <0x4830e000 0x1000>;
+			interrupt-parent = <&intc>;
+			interrupts = <36>;
+			ti,hwmods = "lcdc";
 			status = "disabled";
 		};
 
@@ -637,6 +729,7 @@
 		gpmc: gpmc@50000000 {
 			compatible = "ti,am3352-gpmc";
 			ti,hwmods = "gpmc";
+			ti,no-idle-on-init;
 			reg = <0x50000000 0x2000>;
 			interrupts = <100>;
 			gpmc,num-cs = <7>;
@@ -644,6 +737,60 @@
 			#address-cells = <2>;
 			#size-cells = <1>;
 			status = "disabled";
+		};
+
+		sham: sham@53100000 {
+			compatible = "ti,omap4-sham";
+			ti,hwmods = "sham";
+			reg = <0x53100000 0x200>;
+			interrupts = <109>;
+			dmas = <&edma 36>;
+			dma-names = "rx";
+		};
+
+		aes: aes@53500000 {
+			compatible = "ti,omap4-aes";
+			ti,hwmods = "aes";
+			reg = <0x53500000 0xa0>;
+			interrupts = <103>;
+			dmas = <&edma 6>,
+			       <&edma 5>;
+			dma-names = "tx", "rx";
+		};
+
+		mcasp0: mcasp@48038000 {
+			compatible = "ti,am33xx-mcasp-audio";
+			ti,hwmods = "mcasp0";
+			reg = <0x48038000 0x2000>,
+			      <0x46000000 0x400000>;
+			reg-names = "mpu", "dat";
+			interrupts = <80>, <81>;
+			interrupts-names = "tx", "rx";
+			status = "disabled";
+			dmas = <&edma 8>,
+				<&edma 9>;
+			dma-names = "tx", "rx";
+		};
+
+		mcasp1: mcasp@4803C000 {
+			compatible = "ti,am33xx-mcasp-audio";
+			ti,hwmods = "mcasp1";
+			reg = <0x4803C000 0x2000>,
+			      <0x46400000 0x400000>;
+			reg-names = "mpu", "dat";
+			interrupts = <82>, <83>;
+			interrupts-names = "tx", "rx";
+			status = "disabled";
+			dmas = <&edma 10>,
+				<&edma 11>;
+			dma-names = "tx", "rx";
+		};
+
+		rng: rng@48310000 {
+			compatible = "ti,omap4-rng";
+			ti,hwmods = "rng";
+			reg = <0x48310000 0x2000>;
+			interrupts = <111>;
 		};
 	};
 };

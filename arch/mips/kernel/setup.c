@@ -300,12 +300,13 @@ static void __init bootmem_init(void)
 	int i;
 
 	/*
-	 * Init any data related to initrd. It's a nop if INITRD is
-	 * not selected. Once that done we can determine the low bound
-	 * of usable memory.
+	 * Sanity check any INITRD first. We don't take it into account
+	 * for bootmem setup initially, rely on the end-of-kernel-code
+	 * as our memory range starting point. Once bootmem is inited we
+	 * will reserve the area used for the initrd.
 	 */
-	reserved_end = max(init_initrd(),
-			   (unsigned long) PFN_UP(__pa_symbol(&_end)));
+	init_initrd();
+	reserved_end = (unsigned long) PFN_UP(__pa_symbol(&_end));
 
 	/*
 	 * max_low_pfn is not a number of pages. The number of pages
@@ -361,6 +362,14 @@ static void __init bootmem_init(void)
 #endif
 		max_low_pfn = PFN_DOWN(HIGHMEM_START);
 	}
+
+#ifdef CONFIG_BLK_DEV_INITRD
+	/*
+	 * mapstart should be after initrd_end
+	 */
+	if (initrd_end)
+		mapstart = max(mapstart, (unsigned long)PFN_UP(__pa(initrd_end)));
+#endif
 
 	/*
 	 * Initialize the boot-time allocator with low memory only.

@@ -715,14 +715,14 @@ snd_azf3328_mixer_ac97_read(struct snd_ac97 *ac97, unsigned short reg_ac97)
 	const struct snd_azf3328 *chip = ac97->private_data;
 	unsigned short reg_azf = snd_azf3328_mixer_ac97_map_reg_idx(reg_ac97);
 	unsigned short reg_val = 0;
-	bool unsupported = 0;
+	bool unsupported = false;
 
 	snd_azf3328_dbgmixer(
 		"snd_azf3328_mixer_ac97_read reg_ac97 %u\n",
 			reg_ac97
 	);
 	if (reg_azf & AZF_AC97_REG_UNSUPPORTED)
-		unsupported = 1;
+		unsupported = true;
 	else {
 		if (reg_azf & AZF_AC97_REG_REAL_IO_READ)
 			reg_val = snd_azf3328_mixer_inw(chip,
@@ -759,7 +759,7 @@ snd_azf3328_mixer_ac97_read(struct snd_ac97 *ac97, unsigned short reg_ac97)
 				reg_val = azf_emulated_ac97_vendor_id & 0xffff;
 				break;
 			default:
-				unsupported = 1;
+				unsupported = true;
 				break;
 			}
 		}
@@ -776,14 +776,14 @@ snd_azf3328_mixer_ac97_write(struct snd_ac97 *ac97,
 {
 	const struct snd_azf3328 *chip = ac97->private_data;
 	unsigned short reg_azf = snd_azf3328_mixer_ac97_map_reg_idx(reg_ac97);
-	bool unsupported = 0;
+	bool unsupported = false;
 
 	snd_azf3328_dbgmixer(
 		"snd_azf3328_mixer_ac97_write reg_ac97 %u val %u\n",
 			reg_ac97, val
 	);
 	if (reg_azf & AZF_AC97_REG_UNSUPPORTED)
-		unsupported = 1;
+		unsupported = true;
 	else {
 		if (reg_azf & AZF_AC97_REG_REAL_IO_WRITE)
 			snd_azf3328_mixer_outw(
@@ -808,7 +808,7 @@ snd_azf3328_mixer_ac97_write(struct snd_ac97 *ac97,
 				 */
 				break;
 			default:
-				unsupported = 1;
+				unsupported = true;
 				break;
 			}
 		}
@@ -1559,7 +1559,7 @@ snd_azf3328_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct snd_azf3328_codec_data *codec = runtime->private_data;
 	int result = 0;
 	u16 flags1;
-	bool previously_muted = 0;
+	bool previously_muted = false;
 	bool is_main_mixer_playback_codec = (AZF_CODEC_PLAYBACK == codec->type);
 
 	snd_azf3328_dbgcalls("snd_azf3328_pcm_trigger cmd %d\n", cmd);

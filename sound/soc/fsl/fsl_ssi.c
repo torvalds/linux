@@ -469,19 +469,12 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 			 * parameters, then the second stream may be
 			 * constrained to the wrong sample rate or size.
 			 */
-			if (!first_runtime->sample_bits) {
-				dev_err(substream->pcm->card->dev,
-					"set sample size in %s stream first\n",
-					substream->stream ==
-					SNDRV_PCM_STREAM_PLAYBACK
-					? "capture" : "playback");
-				return -EAGAIN;
-			}
-
-			snd_pcm_hw_constraint_minmax(substream->runtime,
-				SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
+			if (first_runtime->sample_bits) {
+				snd_pcm_hw_constraint_minmax(substream->runtime,
+						SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
 				first_runtime->sample_bits,
 				first_runtime->sample_bits);
+			}
 		}
 
 		ssi_private->second_stream = substream;
@@ -748,7 +741,7 @@ static void fsl_ssi_ac97_init(void)
 	fsl_ssi_setup(fsl_ac97_data);
 }
 
-void fsl_ssi_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
+static void fsl_ssi_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 		unsigned short val)
 {
 	struct ccsr_ssi *ssi = fsl_ac97_data->ssi;
@@ -770,7 +763,7 @@ void fsl_ssi_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 	udelay(100);
 }
 
-unsigned short fsl_ssi_ac97_read(struct snd_ac97 *ac97,
+static unsigned short fsl_ssi_ac97_read(struct snd_ac97 *ac97,
 		unsigned short reg)
 {
 	struct ccsr_ssi *ssi = fsl_ac97_data->ssi;
@@ -936,7 +929,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	ssi_private->ssi_phys = res.start;
 
 	ssi_private->irq = irq_of_parse_and_map(np, 0);
-	if (ssi_private->irq == NO_IRQ) {
+	if (!ssi_private->irq) {
 		dev_err(&pdev->dev, "no irq for node %s\n", np->full_name);
 		return -ENXIO;
 	}
@@ -1135,7 +1128,6 @@ static int fsl_ssi_remove(struct platform_device *pdev)
 	if (ssi_private->ssi_on_imx)
 		imx_pcm_dma_exit(pdev);
 	snd_soc_unregister_component(&pdev->dev);
-	dev_set_drvdata(&pdev->dev, NULL);
 	device_remove_file(&pdev->dev, &ssi_private->dev_attr);
 	if (ssi_private->ssi_on_imx)
 		clk_disable_unprepare(ssi_private->clk);

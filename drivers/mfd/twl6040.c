@@ -565,13 +565,13 @@ static int twl6040_probe(struct i2c_client *client,
 				      twl6040->supplies);
 	if (ret != 0) {
 		dev_err(&client->dev, "Failed to get supplies: %d\n", ret);
-		goto regulator_get_err;
+		return ret;
 	}
 
 	ret = regulator_bulk_enable(TWL6040_NUM_SUPPLIES, twl6040->supplies);
 	if (ret != 0) {
 		dev_err(&client->dev, "Failed to enable supplies: %d\n", ret);
-		goto regulator_get_err;
+		return ret;
 	}
 
 	twl6040->dev = &client->dev;
@@ -619,7 +619,7 @@ static int twl6040_probe(struct i2c_client *client,
 					"twl6040_irq_th", twl6040);
 	if (ret) {
 		dev_err(twl6040->dev, "Thermal IRQ request failed: %d\n", ret);
-		goto thirq_err;
+		goto readyirq_err;
 	}
 
 	/* dual-access registers controlled by I2C only */
@@ -659,21 +659,14 @@ static int twl6040_probe(struct i2c_client *client,
 	ret = mfd_add_devices(&client->dev, -1, twl6040->cells, children,
 			      NULL, 0, NULL);
 	if (ret)
-		goto mfd_err;
+		goto readyirq_err;
 
 	return 0;
 
-mfd_err:
-	devm_free_irq(&client->dev, twl6040->irq_th, twl6040);
-thirq_err:
-	devm_free_irq(&client->dev, twl6040->irq_ready, twl6040);
 readyirq_err:
 	regmap_del_irq_chip(twl6040->irq, twl6040->irq_data);
 gpio_err:
 	regulator_bulk_disable(TWL6040_NUM_SUPPLIES, twl6040->supplies);
-regulator_get_err:
-	i2c_set_clientdata(client, NULL);
-
 	return ret;
 }
 
@@ -684,12 +677,9 @@ static int twl6040_remove(struct i2c_client *client)
 	if (twl6040->power_count)
 		twl6040_power(twl6040, 0);
 
-	devm_free_irq(&client->dev, twl6040->irq_ready, twl6040);
-	devm_free_irq(&client->dev, twl6040->irq_th, twl6040);
 	regmap_del_irq_chip(twl6040->irq, twl6040->irq_data);
 
 	mfd_remove_devices(&client->dev);
-	i2c_set_clientdata(client, NULL);
 
 	regulator_bulk_disable(TWL6040_NUM_SUPPLIES, twl6040->supplies);
 

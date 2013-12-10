@@ -97,7 +97,7 @@ static void shutdown_onchannelcallback(void *context)
 	struct vmbus_channel *channel = context;
 	u32 recvlen;
 	u64 requestid;
-	u8  execute_shutdown = false;
+	bool execute_shutdown = false;
 	u8  *shut_txf_buf = util_shutdown.recv_buffer;
 
 	struct shutdown_msg_data *shutdown_msg;

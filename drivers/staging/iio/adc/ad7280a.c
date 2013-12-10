@@ -783,7 +783,6 @@ static int ad7280_read_raw(struct iio_dev *indio_dev,
 			   long m)
 {
 	struct ad7280_state *st = iio_priv(indio_dev);
-	unsigned int scale_uv;
 	int ret;
 
 	switch (m) {
@@ -804,13 +803,12 @@ static int ad7280_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		if ((chan->address & 0xFF) <= AD7280A_CELL_VOLTAGE_6)
-			scale_uv = (4000 * 1000) >> AD7280A_BITS;
+			*val = 4000;
 		else
-			scale_uv = (5000 * 1000) >> AD7280A_BITS;
+			*val = 5000;
 
-		*val =  scale_uv / 1000;
-		*val2 = (scale_uv % 1000) * 1000;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val2 = AD7280A_BITS;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	}
 	return -EINVAL;
 }
@@ -835,8 +833,9 @@ static int ad7280_probe(struct spi_device *spi)
 	int ret;
 	const unsigned short tACQ_ns[4] = {465, 1010, 1460, 1890};
 	const unsigned short nAVG[4] = {1, 2, 4, 8};
-	struct iio_dev *indio_dev = iio_device_alloc(sizeof(*st));
+	struct iio_dev *indio_dev;
 
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
@@ -860,7 +859,7 @@ static int ad7280_probe(struct spi_device *spi)
 
 	ret = ad7280_chain_setup(st);
 	if (ret < 0)
-		goto error_free_device;
+		return ret;
 
 	st->slave_num = ret;
 	st->scan_cnt = (st->slave_num + 1) * AD7280A_NUM_CH;
@@ -891,7 +890,7 @@ static int ad7280_probe(struct spi_device *spi)
 
 	ret = ad7280_channel_init(st);
 	if (ret < 0)
-		goto error_free_device;
+		return ret;
 
 	indio_dev->num_channels = ret;
 	indio_dev->channels = st->channels;
@@ -940,9 +939,6 @@ error_free_attr:
 error_free_channels:
 	kfree(st->channels);
 
-error_free_device:
-	iio_device_free(indio_dev);
-
 	return ret;
 }
 
@@ -960,7 +956,6 @@ static int ad7280_remove(struct spi_device *spi)
 
 	kfree(st->channels);
 	kfree(st->iio_attr);
-	iio_device_free(indio_dev);
 
 	return 0;
 }

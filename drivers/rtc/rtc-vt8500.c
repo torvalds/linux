@@ -228,7 +228,7 @@ static int vt8500_rtc_probe(struct platform_device *pdev)
 	vt8500_rtc->irq_alarm = platform_get_irq(pdev, 0);
 	if (vt8500_rtc->irq_alarm < 0) {
 		dev_err(&pdev->dev, "No alarm IRQ resource defined\n");
-		return -ENXIO;
+		return vt8500_rtc->irq_alarm;
 	}
 
 	vt8500_rtc->res = devm_request_mem_region(&pdev->dev,
@@ -296,7 +296,7 @@ static struct platform_driver vt8500_rtc_driver = {
 	.driver		= {
 		.name	= "vt8500-rtc",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(wmt_dt_ids),
+		.of_match_table = wmt_dt_ids,
 	},
 };
 

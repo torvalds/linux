@@ -77,13 +77,13 @@ DECLARE_EVENT_CLASS(local_sdata_addr_evt,
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
 		VIF_ENTRY
-		__array(char, addr, 6)
+		__array(char, addr, ETH_ALEN)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
-		memcpy(__entry->addr, sdata->vif.addr, 6);
+		memcpy(__entry->addr, sdata->vif.addr, ETH_ALEN);
 	),
 
 	TP_printk(
@@ -1474,6 +1474,41 @@ DEFINE_EVENT(local_sdata_evt, drv_ipv6_addr_change,
 	TP_ARGS(local, sdata)
 );
 #endif
+
+TRACE_EVENT(drv_join_ibss,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_bss_conf *info),
+
+	TP_ARGS(local, sdata, info),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(u8, dtimper)
+		__field(u16, bcnint)
+		__dynamic_array(u8, ssid, info->ssid_len);
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->dtimper = info->dtim_period;
+		__entry->bcnint = info->beacon_int;
+		memcpy(__get_dynamic_array(ssid), info->ssid, info->ssid_len);
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  VIF_PR_FMT,
+		LOCAL_PR_ARG, VIF_PR_ARG
+	)
+);
+
+DEFINE_EVENT(local_sdata_evt, drv_leave_ibss,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
+);
 
 /*
  * Tracing for API calls that drivers call.

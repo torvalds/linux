@@ -10,6 +10,7 @@
 #define CPUID_TLBTYPE	3
 #define CPUID_MPUIR	4
 #define CPUID_MPIDR	5
+#define CPUID_REVIDR	6
 
 #ifdef CONFIG_CPU_V7M
 #define CPUID_EXT_PFR0	0x40

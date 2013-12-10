@@ -344,5 +344,4 @@ module_exit(ie6xx_wdt_exit);
 MODULE_AUTHOR("Alexander Stein <alexander.stein@systec-electronic.com>");
 MODULE_DESCRIPTION("Intel Atom E6xx Watchdog Device Driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 MODULE_ALIAS("platform:" DRIVER_NAME);

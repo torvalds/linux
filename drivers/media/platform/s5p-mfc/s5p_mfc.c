@@ -404,7 +404,11 @@ leave_handle_frame:
 	if (test_and_clear_bit(0, &dev->hw_lock) == 0)
 		BUG();
 	s5p_mfc_clock_off();
-	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
+	/* if suspending, wake up device and do not try_run again*/
+	if (test_bit(0, &dev->enter_suspend))
+		wake_up_dev(dev, reason, err);
+	else
+		s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 }
 
 /* Error handling for interrupt */
@@ -1101,7 +1105,7 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	}
 	dev->irq = res->start;
 	ret = devm_request_irq(&pdev->dev, dev->irq, s5p_mfc_irq,
-					IRQF_DISABLED, pdev->name, dev);
+					0, pdev->name, dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to install irq (%d)\n", ret);
 		goto err_res;
@@ -1286,9 +1290,7 @@ static int s5p_mfc_suspend(struct device *dev)
 		/* Try and lock the HW */
 		/* Wait on the interrupt waitqueue */
 		ret = wait_event_interruptible_timeout(m_dev->queue,
-			m_dev->int_cond || m_dev->ctx[m_dev->curr_ctx]->int_cond,
-			msecs_to_jiffies(MFC_INT_TIMEOUT));
-
+			m_dev->int_cond, msecs_to_jiffies(MFC_INT_TIMEOUT));
 		if (ret == 0) {
 			mfc_err("Waiting for hardware to finish timed out\n");
 			return -EIO;

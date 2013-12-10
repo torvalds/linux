@@ -110,7 +110,8 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 			data->n_interfaces[id]++;
 		break;
 	case NL80211_IFTYPE_AP:
-		if (mvmvif->ap_active)
+	case NL80211_IFTYPE_ADHOC:
+		if (mvmvif->ap_ibss_active)
 			data->n_interfaces[id]++;
 		break;
 	case NL80211_IFTYPE_MONITOR:
@@ -119,14 +120,43 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		break;
-	case NL80211_IFTYPE_ADHOC:
-		if (vif->bss_conf.ibss_joined)
-			data->n_interfaces[id]++;
-		break;
 	default:
 		WARN_ON_ONCE(1);
 		break;
 	}
+}
+
+static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
+					 struct iwl_time_quota_cmd *cmd)
+{
+#ifdef CONFIG_NL80211_TESTMODE
+	struct iwl_mvm_vif *mvmvif;
+	int i, phy_id = -1, beacon_int = 0;
+
+	if (!mvm->noa_duration || !mvm->noa_vif)
+		return;
+
+	mvmvif = iwl_mvm_vif_from_mac80211(mvm->noa_vif);
+	if (!mvmvif->ap_ibss_active)
+		return;
+
+	phy_id = mvmvif->phy_ctxt->id;
+	beacon_int = mvm->noa_vif->bss_conf.beacon_int;
+
+	for (i = 0; i < MAX_BINDINGS; i++) {
+		u32 id_n_c = le32_to_cpu(cmd->quotas[i].id_and_color);
+		u32 id = (id_n_c & FW_CTXT_ID_MSK) >> FW_CTXT_ID_POS;
+		u32 quota = le32_to_cpu(cmd->quotas[i].quota);
+
+		if (id != phy_id)
+			continue;
+
+		quota *= (beacon_int - mvm->noa_duration);
+		quota /= beacon_int;
+
+		cmd->quotas[i].quota = cpu_to_le32(quota);
+	}
+#endif
 }
 
 int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
@@ -195,6 +225,8 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 
 	/* Give the remainder of the session to the first binding */
 	le32_add_cpu(&cmd.quotas[0].quota, quota_rem);
+
+	iwl_mvm_adjust_quota_for_noa(mvm, &cmd);
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, TIME_QUOTA_CMD, CMD_SYNC,
 				   sizeof(cmd), &cmd);

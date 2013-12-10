@@ -60,13 +60,18 @@ void _nouveau_i2c_port_dtor(struct nouveau_object *);
 #define _nouveau_i2c_port_init nouveau_object_init
 #define _nouveau_i2c_port_fini nouveau_object_fini
 
+struct nouveau_i2c_board_info {
+	struct i2c_board_info dev;
+	u8 udelay; /* set to 0 to use the standard delay */
+};
+
 struct nouveau_i2c {
 	struct nouveau_subdev base;
 
 	struct nouveau_i2c_port *(*find)(struct nouveau_i2c *, u8 index);
 	struct nouveau_i2c_port *(*find_type)(struct nouveau_i2c *, u16 type);
 	int (*identify)(struct nouveau_i2c *, int index,
-			const char *what, struct i2c_board_info *,
+			const char *what, struct nouveau_i2c_board_info *,
 			bool (*match)(struct nouveau_i2c_port *,
 				      struct i2c_board_info *));
 	struct list_head ports;

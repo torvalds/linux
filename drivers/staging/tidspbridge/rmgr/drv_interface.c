@@ -332,7 +332,7 @@ static void bridge_recover(struct work_struct *work)
 	struct dev_object *dev;
 	struct cfg_devnode *dev_node;
 	if (atomic_read(&bridge_cref)) {
-		INIT_COMPLETION(bridge_comp);
+		reinit_completion(&bridge_comp);
 		while (!wait_for_completion_timeout(&bridge_comp,
 						msecs_to_jiffies(REC_TIMEOUT)))
 			pr_info("%s:%d handle(s) still opened\n",
@@ -348,7 +348,7 @@ static void bridge_recover(struct work_struct *work)
 
 void bridge_recover_schedule(void)
 {
-	INIT_COMPLETION(bridge_open_comp);
+	reinit_completion(&bridge_open_comp);
 	recover = true;
 	queue_work(bridge_rec_queue, &bridge_recovery_work);
 }
@@ -389,7 +389,7 @@ static int omap3_bridge_startup(struct platform_device *pdev)
 #ifdef CONFIG_TIDSPBRIDGE_RECOVERY
 	bridge_rec_queue = create_workqueue("bridge_rec_queue");
 	INIT_WORK(&bridge_recovery_work, bridge_recover);
-	INIT_COMPLETION(bridge_comp);
+	reinit_completion(&bridge_comp);
 #endif
 
 #ifdef CONFIG_PM

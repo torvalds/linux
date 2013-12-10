@@ -1,0 +1,30 @@
+OMAP SoC DES crypto Module
+
+Required properties:
+
+- compatible : Should contain "ti,omap4-des"
+- ti,hwmods: Name of the hwmod associated with the DES module
+- reg : Offset and length of the register set for the module
+- interrupts : the interrupt-specifier for the DES module
+- clocks : A phandle to the functional clock node of the DES module
+           corresponding to each entry in clock-names
+- clock-names : Name of the functional clock, should be "fck"
+
+Optional properties:
+- dmas: DMA specifiers for tx and rx dma. See the DMA client binding,
+	Documentation/devicetree/bindings/dma/dma.txt
+	Each entry corresponds to an entry in dma-names
+- dma-names: DMA request names should include "tx" and "rx" if present
+
+Example:
+	/* DRA7xx SoC */
+	des: des@480a5000 {
+		compatible = "ti,omap4-des";
+		ti,hwmods = "des";
+		reg = <0x480a5000 0xa0>;
+		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+		dmas = <&sdma 117>, <&sdma 116>;
+		dma-names = "tx", "rx";
+		clocks = <&l3_iclk_div>;
+		clock-names = "fck";
+	};

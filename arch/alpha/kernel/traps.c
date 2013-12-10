@@ -241,6 +241,21 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 			       (const char *)(data[1] | (long)data[2] << 32), 
 			       data[0]);
 		}
+#ifdef CONFIG_ALPHA_WTINT
+		if (type == 4) {
+			/* If CALL_PAL WTINT is totally unsupported by the
+			   PALcode, e.g. MILO, "emulate" it by overwriting
+			   the insn.  */
+			unsigned int *pinsn
+			  = (unsigned int *) regs->pc - 1;
+			if (*pinsn == PAL_wtint) {
+				*pinsn = 0x47e01400; /* mov 0,$0 */
+				imb();
+				regs->r0 = 0;
+				return;
+			}
+		}
+#endif /* ALPHA_WTINT */
 		die_if_kernel((type == 1 ? "Kernel Bug" : "Instruction fault"),
 			      regs, type, NULL);
 	}

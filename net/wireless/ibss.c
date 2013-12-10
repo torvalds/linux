@@ -83,6 +83,8 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 			 struct cfg80211_cached_keys *connkeys)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct ieee80211_channel *check_chan;
+	u8 radar_detect_width = 0;
 	int err;
 
 	ASSERT_WDEV_LOCK(wdev);
@@ -114,14 +116,28 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 	wdev->connect_keys = connkeys;
 
 	wdev->ibss_fixed = params->channel_fixed;
+	wdev->ibss_dfs_possible = params->userspace_handles_dfs;
 #ifdef CONFIG_CFG80211_WEXT
 	wdev->wext.ibss.chandef = params->chandef;
 #endif
+	check_chan = params->chandef.chan;
+	if (params->userspace_handles_dfs) {
+		/* use channel NULL to check for radar even if the current
+		 * channel is not a radar channel - it might decide to change
+		 * to DFS channel later.
+		 */
+		radar_detect_width = BIT(params->chandef.width);
+		check_chan = NULL;
+	}
 
-	err = cfg80211_can_use_chan(rdev, wdev, params->chandef.chan,
-				    params->channel_fixed
-				    ? CHAN_MODE_SHARED
-				    : CHAN_MODE_EXCLUSIVE);
+	err = cfg80211_can_use_iftype_chan(rdev, wdev, wdev->iftype,
+					   check_chan,
+					   (params->channel_fixed &&
+					    !radar_detect_width)
+					   ? CHAN_MODE_SHARED
+					   : CHAN_MODE_EXCLUSIVE,
+					   radar_detect_width);
+
 	if (err) {
 		wdev->connect_keys = NULL;
 		return err;
@@ -263,6 +279,8 @@ int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 				if (chan->flags & IEEE80211_CHAN_DISABLED)
 					continue;
 				wdev->wext.ibss.chandef.chan = chan;
+				wdev->wext.ibss.chandef.center_freq1 =
+					chan->center_freq;
 				break;
 			}
 
@@ -347,6 +365,7 @@ int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
 	if (chan) {
 		wdev->wext.ibss.chandef.chan = chan;
 		wdev->wext.ibss.chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
+		wdev->wext.ibss.chandef.center_freq1 = freq;
 		wdev->wext.ibss.channel_fixed = true;
 	} else {
 		/* cfg80211_ibss_wext_join will pick one if needed */

@@ -243,7 +243,7 @@ static int br_afspec(struct net_bridge *br,
 
 		vinfo = nla_data(tb[IFLA_BRIDGE_VLAN_INFO]);
 
-		if (vinfo->vid >= VLAN_N_VID)
+		if (!vinfo->vid || vinfo->vid >= VLAN_VID_MASK)
 			return -EINVAL;
 
 		switch (cmd) {

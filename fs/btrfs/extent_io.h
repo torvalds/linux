@@ -271,7 +271,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 struct extent_buffer *alloc_dummy_extent_buffer(u64 start, unsigned long len);
 struct extent_buffer *btrfs_clone_extent_buffer(struct extent_buffer *src);
 struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
-					 u64 start, unsigned long len);
+					 u64 start);
 void free_extent_buffer(struct extent_buffer *eb);
 void free_extent_buffer_stale(struct extent_buffer *eb);
 #define WAIT_NONE	0
@@ -345,4 +345,10 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
 int end_extent_writepage(struct page *page, int err, u64 start, u64 end);
 int repair_eb_io_failure(struct btrfs_root *root, struct extent_buffer *eb,
 			 int mirror_num);
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+noinline u64 find_lock_delalloc_range(struct inode *inode,
+				      struct extent_io_tree *tree,
+				      struct page *locked_page, u64 *start,
+				      u64 *end, u64 max_bytes);
+#endif
 #endif

@@ -237,8 +237,8 @@ void ieee80211_txb_free(struct ieee80211_txb *txb) {
 	kfree(txb);
 }
 
-struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
-					  int gfp_mask)
+static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
+						 gfp_t gfp_mask)
 {
 	struct ieee80211_txb *txb;
 	int i;
@@ -303,7 +303,8 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 }
 
 #define SN_LESS(a, b)		(((a-b)&0x800)!=0)
-void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee, struct sk_buff *skb, cb_desc *tcb_desc)
+static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
+				       struct sk_buff *skb, cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	PTX_TS_RECORD			pTxTs = NULL;
@@ -412,7 +413,8 @@ ieee80211_query_HTCapShortGI(struct ieee80211_device *ieee, cb_desc *tcb_desc)
 		tcb_desc->bUseShortGI = true;
 }
 
-void ieee80211_query_BandwidthMode(struct ieee80211_device *ieee, cb_desc *tcb_desc)
+static void ieee80211_query_BandwidthMode(struct ieee80211_device *ieee,
+					  cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 
@@ -432,7 +434,9 @@ void ieee80211_query_BandwidthMode(struct ieee80211_device *ieee, cb_desc *tcb_d
 	return;
 }
 
-void ieee80211_query_protectionmode(struct ieee80211_device *ieee, cb_desc *tcb_desc, struct sk_buff *skb)
+static void ieee80211_query_protectionmode(struct ieee80211_device *ieee,
+					   cb_desc *tcb_desc,
+					   struct sk_buff *skb)
 {
 	// Common Settings
 	tcb_desc->bRTSSTBC			= false;
@@ -543,7 +547,8 @@ NO_PROTECTION:
 }
 
 
-void ieee80211_txrate_selectmode(struct ieee80211_device *ieee, cb_desc *tcb_desc)
+static void ieee80211_txrate_selectmode(struct ieee80211_device *ieee,
+					cb_desc *tcb_desc)
 {
 #ifdef TO_DO_LIST
 	if(!IsDataFrame(pFrame))
@@ -573,7 +578,8 @@ void ieee80211_txrate_selectmode(struct ieee80211_device *ieee, cb_desc *tcb_des
 	}
 }
 
-void ieee80211_query_seqnum(struct ieee80211_device *ieee, struct sk_buff *skb, u8 *dst)
+static void ieee80211_query_seqnum(struct ieee80211_device *ieee,
+				   struct sk_buff *skb, u8 *dst)
 {
 	if (is_multicast_ether_addr(dst))
 		return;

@@ -157,6 +157,9 @@ static ssize_t mtd_type_show(struct device *dev,
 	case MTD_UBIVOLUME:
 		type = "ubi";
 		break;
+	case MTD_MLCNANDFLASH:
+		type = "mlc-nand";
+		break;
 	default:
 		type = "unknown";
 	}

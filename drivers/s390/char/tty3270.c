@@ -810,7 +810,7 @@ static void tty3270_resize_work(struct work_struct *work)
 	struct winsize ws;
 
 	screen = tty3270_alloc_screen(tp->n_rows, tp->n_cols);
-	if (!screen)
+	if (IS_ERR(screen))
 		return;
 	/* Switch to new output size */
 	spin_lock_bh(&tp->view.lock);

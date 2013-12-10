@@ -449,12 +449,6 @@ int ast_dumb_create(struct drm_file *file,
 	return 0;
 }
 
-int ast_gem_init_object(struct drm_gem_object *obj)
-{
-	BUG();
-	return 0;
-}
-
 void ast_bo_unref(struct ast_bo **bo)
 {
 	struct ttm_buffer_object *tbo;

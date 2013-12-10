@@ -97,8 +97,6 @@
 #define	WLC_PHY_TYPE_LCN	8
 #define	WLC_PHY_TYPE_NULL	0xf
 
-#define BRCMF_EVENTING_MASK_LEN	16
-
 #define TOE_TX_CSUM_OL		0x00000001
 #define TOE_RX_CSUM_OL		0x00000002
 
@@ -632,29 +630,29 @@ struct brcmf_skb_reorder_data {
 	u8 *reorder;
 };
 
-extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
+int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 
 /* Return pointer to interface name */
-extern char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
+char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
 
 /* Query dongle */
-extern int brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx,
-				       uint cmd, void *buf, uint len);
-extern int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
-				    void *buf, uint len);
+int brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
+			       void *buf, uint len);
+int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
+			     void *buf, uint len);
 
 /* Remove any protocol-specific data header. */
-extern int brcmf_proto_hdrpull(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
-			       struct sk_buff *rxp);
+int brcmf_proto_hdrpull(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
+			struct sk_buff *rxp);
 
-extern int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked);
-extern struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx,
-				     s32 ifidx, char *name, u8 *mac_addr);
-extern void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx);
+int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked);
+struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
+			      char *name, u8 *mac_addr);
+void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx);
 void brcmf_txflowblock_if(struct brcmf_if *ifp,
 			  enum brcmf_netif_stop_reason reason, bool state);
-extern u32 brcmf_get_chip_info(struct brcmf_if *ifp);
-extern void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp,
-			     bool success);
+u32 brcmf_get_chip_info(struct brcmf_if *ifp);
+void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp,
+		      bool success);
 
 #endif				/* _BRCMF_H_ */

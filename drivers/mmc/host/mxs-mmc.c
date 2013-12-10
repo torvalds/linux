@@ -724,13 +724,9 @@ static int mxs_mmc_suspend(struct device *dev)
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct mxs_mmc_host *host = mmc_priv(mmc);
 	struct mxs_ssp *ssp = &host->ssp;
-	int ret = 0;
-
-	ret = mmc_suspend_host(mmc);
 
 	clk_disable_unprepare(ssp->clk);
-
-	return ret;
+	return 0;
 }
 
 static int mxs_mmc_resume(struct device *dev)
@@ -738,13 +734,9 @@ static int mxs_mmc_resume(struct device *dev)
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct mxs_mmc_host *host = mmc_priv(mmc);
 	struct mxs_ssp *ssp = &host->ssp;
-	int ret = 0;
 
 	clk_prepare_enable(ssp->clk);
-
-	ret = mmc_resume_host(mmc);
-
-	return ret;
+	return 0;
 }
 
 static const struct dev_pm_ops mxs_mmc_pm_ops = {

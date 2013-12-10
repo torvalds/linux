@@ -615,7 +615,7 @@ static int ti_abb_init_table(struct device *dev, struct ti_abb *abb,
 					pname, *volt_table, vset_mask);
 			continue;
 		}
-		info->vset = efuse_val & vset_mask >> __ffs(vset_mask);
+		info->vset = (efuse_val & vset_mask) >> __ffs(vset_mask);
 		dev_dbg(dev, "[%d]v=%d vset=%x\n", i, *volt_table, info->vset);
 check_abb:
 		switch (info->opp_sel) {
@@ -708,39 +708,31 @@ static int ti_abb_probe(struct platform_device *pdev)
 	match = of_match_device(ti_abb_of_match, dev);
 	if (!match) {
 		/* We do not expect this to happen */
-		ret = -ENODEV;
 		dev_err(dev, "%s: Unable to match device\n", __func__);
-		goto err;
+		return -ENODEV;
 	}
 	if (!match->data) {
-		ret = -EINVAL;
 		dev_err(dev, "%s: Bad data in match\n", __func__);
-		goto err;
+		return -EINVAL;
 	}
 
 	abb = devm_kzalloc(dev, sizeof(struct ti_abb), GFP_KERNEL);
-	if (!abb) {
-		dev_err(dev, "%s: Unable to allocate ABB struct\n", __func__);
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!abb)
+		return -ENOMEM;
 	abb->regs = match->data;
 
 	/* Map ABB resources */
 	pname = "base-address";
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, pname);
 	abb->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(abb->base)) {
-		ret = PTR_ERR(abb->base);
-		goto err;
-	}
+	if (IS_ERR(abb->base))
+		return PTR_ERR(abb->base);
 
 	pname = "int-address";
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, pname);
 	if (!res) {
 		dev_err(dev, "Missing '%s' IO resource\n", pname);
-		ret = -ENODEV;
-		goto err;
+		return -ENODEV;
 	}
 	/*
 	 * We may have shared interrupt register offsets which are
@@ -750,8 +742,7 @@ static int ti_abb_probe(struct platform_device *pdev)
 					     resource_size(res));
 	if (!abb->int_base) {
 		dev_err(dev, "Unable to map '%s'\n", pname);
-		ret = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
 
 	/* Map Optional resources */
@@ -771,17 +762,19 @@ static int ti_abb_probe(struct platform_device *pdev)
 					       resource_size(res));
 	if (!abb->efuse_base) {
 		dev_err(dev, "Unable to map '%s'\n", pname);
-		ret = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
 
 	pname = "ldo-address";
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, pname);
-	abb->ldo_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(abb->ldo_base)) {
-		ret = PTR_ERR(abb->ldo_base);
-		goto err;
+	if (!res) {
+		dev_dbg(dev, "Missing '%s' IO resource\n", pname);
+		ret = -ENODEV;
+		goto skip_opt;
 	}
+	abb->ldo_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(abb->ldo_base))
+		return PTR_ERR(abb->ldo_base);
 
 	/* IF ldo_base is set, the following are mandatory */
 	pname = "ti,ldovbb-override-mask";
@@ -790,12 +783,11 @@ static int ti_abb_probe(struct platform_device *pdev)
 				 &abb->ldovbb_override_mask);
 	if (ret) {
 		dev_err(dev, "Missing '%s' (%d)\n", pname, ret);
-		goto err;
+		return ret;
 	}
 	if (!abb->ldovbb_override_mask) {
 		dev_err(dev, "Invalid property:'%s' set as 0!\n", pname);
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	pname = "ti,ldovbb-vset-mask";
@@ -804,12 +796,11 @@ static int ti_abb_probe(struct platform_device *pdev)
 				 &abb->ldovbb_vset_mask);
 	if (ret) {
 		dev_err(dev, "Missing '%s' (%d)\n", pname, ret);
-		goto err;
+		return ret;
 	}
 	if (!abb->ldovbb_vset_mask) {
 		dev_err(dev, "Invalid property:'%s' set as 0!\n", pname);
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 skip_opt:
@@ -819,31 +810,29 @@ skip_opt:
 				 &abb->txdone_mask);
 	if (ret) {
 		dev_err(dev, "Missing '%s' (%d)\n", pname, ret);
-		goto err;
+		return ret;
 	}
 	if (!abb->txdone_mask) {
 		dev_err(dev, "Invalid property:'%s' set as 0!\n", pname);
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	initdata = of_get_regulator_init_data(dev, pdev->dev.of_node);
 	if (!initdata) {
-		ret = -ENOMEM;
 		dev_err(dev, "%s: Unable to alloc regulator init data\n",
 			__func__);
-		goto err;
+		return -ENOMEM;
 	}
 
 	/* init ABB opp_sel table */
 	ret = ti_abb_init_table(dev, abb, initdata);
 	if (ret)
-		goto err;
+		return ret;
 
 	/* init ABB timing */
 	ret = ti_abb_init_timings(dev, abb);
 	if (ret)
-		goto err;
+		return ret;
 
 	desc = &abb->rdesc;
 	desc->name = dev_name(dev);
@@ -861,12 +850,12 @@ skip_opt:
 	config.driver_data = abb;
 	config.of_node = pdev->dev.of_node;
 
-	rdev = regulator_register(desc, &config);
+	rdev = devm_regulator_register(dev, desc, &config);
 	if (IS_ERR(rdev)) {
 		ret = PTR_ERR(rdev);
 		dev_err(dev, "%s: failed to register regulator(%d)\n",
 			__func__, ret);
-		goto err;
+		return ret;
 	}
 	platform_set_drvdata(pdev, rdev);
 
@@ -874,31 +863,12 @@ skip_opt:
 	ti_abb_rmw(abb->regs->sr2_en_mask, 1, abb->regs->setup_reg, abb->base);
 
 	return 0;
-
-err:
-	dev_err(dev, "%s: Failed to initialize(%d)\n", __func__, ret);
-	return ret;
-}
-
-/**
- * ti_abb_remove() - cleanups
- * @pdev: ABB platform device
- *
- * Return: 0
- */
-static int ti_abb_remove(struct platform_device *pdev)
-{
-	struct regulator_dev *rdev = platform_get_drvdata(pdev);
-
-	regulator_unregister(rdev);
-	return 0;
 }
 
 MODULE_ALIAS("platform:ti_abb");
 
 static struct platform_driver ti_abb_driver = {
 	.probe = ti_abb_probe,
-	.remove = ti_abb_remove,
 	.driver = {
 		   .name = "ti_abb",
 		   .owner = THIS_MODULE,

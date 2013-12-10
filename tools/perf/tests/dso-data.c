@@ -35,6 +35,7 @@ static char *test_file(int size)
 	if (size != write(fd, buf, size))
 		templ = NULL;
 
+	free(buf);
 	close(fd);
 	return templ;
 }

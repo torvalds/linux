@@ -2322,7 +2322,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	if (up->capabilities & UART_CAP_FIFO && port->fifosize > 1) {
 		fcr = uart_config[port->type].fcr;
-		if (baud < 2400 || fifo_bug) {
+		if ((baud < 2400 && !up->dma) || fifo_bug) {
 			fcr &= ~UART_FCR_TRIGGER_MASK;
 			fcr |= UART_FCR_TRIGGER_1;
 		}

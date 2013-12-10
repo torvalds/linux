@@ -40,6 +40,20 @@
 #define VOLTAGE_VID_OFFSET_SCALE1    625
 #define VOLTAGE_VID_OFFSET_SCALE2    100
 
+static const struct ci_pt_defaults defaults_hawaii_xt =
+{
+	1, 0xF, 0xFD, 0x19, 5, 0x14, 0, 0xB0000,
+	{ 0x84,  0x0,   0x0,   0x7F,  0x0,   0x0,   0x5A,  0x60,  0x51,  0x8E,  0x79,  0x6B,  0x5F,  0x90,  0x79  },
+	{ 0x1EA, 0x1EA, 0x1EA, 0x224, 0x224, 0x224, 0x24F, 0x24F, 0x24F, 0x28E, 0x28E, 0x28E, 0x2BC, 0x2BC, 0x2BC }
+};
+
+static const struct ci_pt_defaults defaults_hawaii_pro =
+{
+	1, 0xF, 0xFD, 0x19, 5, 0x14, 0, 0x65062,
+	{ 0x93,  0x0,   0x0,   0x97,  0x0,   0x0,   0x6B,  0x60,  0x51,  0x95,  0x79,  0x6B,  0x5F,  0x90,  0x79  },
+	{ 0x1EA, 0x1EA, 0x1EA, 0x224, 0x224, 0x224, 0x24F, 0x24F, 0x24F, 0x28E, 0x28E, 0x28E, 0x2BC, 0x2BC, 0x2BC }
+};
+
 static const struct ci_pt_defaults defaults_bonaire_xt =
 {
 	1, 0xF, 0xFD, 0x19, 5, 45, 0, 0xB0000,
@@ -187,21 +201,37 @@ static void ci_initialize_powertune_defaults(struct radeon_device *rdev)
 	struct ci_power_info *pi = ci_get_pi(rdev);
 
 	switch (rdev->pdev->device) {
-        case 0x6650:
-        case 0x6658:
-        case 0x665C:
-        default:
+	case 0x6650:
+	case 0x6658:
+	case 0x665C:
+	default:
 		pi->powertune_defaults = &defaults_bonaire_xt;
 		break;
-        case 0x6651:
-        case 0x665D:
+	case 0x6651:
+	case 0x665D:
 		pi->powertune_defaults = &defaults_bonaire_pro;
 		break;
-        case 0x6640:
+	case 0x6640:
 		pi->powertune_defaults = &defaults_saturn_xt;
 		break;
-        case 0x6641:
+	case 0x6641:
 		pi->powertune_defaults = &defaults_saturn_pro;
+		break;
+	case 0x67B8:
+	case 0x67B0:
+	case 0x67A0:
+	case 0x67A1:
+	case 0x67A2:
+	case 0x67A8:
+	case 0x67A9:
+	case 0x67AA:
+	case 0x67B9:
+	case 0x67BE:
+		pi->powertune_defaults = &defaults_hawaii_xt;
+		break;
+	case 0x67BA:
+	case 0x67B1:
+		pi->powertune_defaults = &defaults_hawaii_pro;
 		break;
 	}
 
@@ -5142,9 +5172,15 @@ int ci_dpm_init(struct radeon_device *rdev)
 	rdev->pm.dpm.dyn_state.valid_mclk_values.count = 0;
 	rdev->pm.dpm.dyn_state.valid_mclk_values.values = NULL;
 
-	pi->thermal_temp_setting.temperature_low = 99500;
-	pi->thermal_temp_setting.temperature_high = 100000;
-	pi->thermal_temp_setting.temperature_shutdown = 104000;
+	if (rdev->family == CHIP_HAWAII) {
+		pi->thermal_temp_setting.temperature_low = 94500;
+		pi->thermal_temp_setting.temperature_high = 95000;
+		pi->thermal_temp_setting.temperature_shutdown = 104000;
+	} else {
+		pi->thermal_temp_setting.temperature_low = 99500;
+		pi->thermal_temp_setting.temperature_high = 100000;
+		pi->thermal_temp_setting.temperature_shutdown = 104000;
+	}
 
 	pi->uvd_enabled = false;
 

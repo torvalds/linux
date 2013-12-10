@@ -410,7 +410,7 @@ EXPORT_SYMBOL_GPL(pci_disable_pasid);
  * Otherwise is returns a bitmask with supported features. Current
  * features reported are:
  * PCI_PASID_CAP_EXEC - Execute permission supported
- * PCI_PASID_CAP_PRIV - Priviledged mode supported
+ * PCI_PASID_CAP_PRIV - Privileged mode supported
  */
 int pci_pasid_features(struct pci_dev *pdev)
 {

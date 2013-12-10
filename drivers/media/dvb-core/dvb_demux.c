@@ -476,7 +476,9 @@ static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 void dvb_dmx_swfilter_packets(struct dvb_demux *demux, const u8 *buf,
 			      size_t count)
 {
-	spin_lock(&demux->lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&demux->lock, flags);
 
 	while (count--) {
 		if (buf[0] == 0x47)
@@ -484,7 +486,7 @@ void dvb_dmx_swfilter_packets(struct dvb_demux *demux, const u8 *buf,
 		buf += 188;
 	}
 
-	spin_unlock(&demux->lock);
+	spin_unlock_irqrestore(&demux->lock, flags);
 }
 
 EXPORT_SYMBOL(dvb_dmx_swfilter_packets);
@@ -519,8 +521,9 @@ static inline void _dvb_dmx_swfilter(struct dvb_demux *demux, const u8 *buf,
 {
 	int p = 0, i, j;
 	const u8 *q;
+	unsigned long flags;
 
-	spin_lock(&demux->lock);
+	spin_lock_irqsave(&demux->lock, flags);
 
 	if (demux->tsbufp) { /* tsbuf[0] is now 0x47. */
 		i = demux->tsbufp;
@@ -564,7 +567,7 @@ static inline void _dvb_dmx_swfilter(struct dvb_demux *demux, const u8 *buf,
 	}
 
 bailout:
-	spin_unlock(&demux->lock);
+	spin_unlock_irqrestore(&demux->lock, flags);
 }
 
 void dvb_dmx_swfilter(struct dvb_demux *demux, const u8 *buf, size_t count)
@@ -581,11 +584,13 @@ EXPORT_SYMBOL(dvb_dmx_swfilter_204);
 
 void dvb_dmx_swfilter_raw(struct dvb_demux *demux, const u8 *buf, size_t count)
 {
-	spin_lock(&demux->lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&demux->lock, flags);
 
 	demux->feed->cb.ts(buf, count, NULL, 0, &demux->feed->feed.ts, DMX_OK);
 
-	spin_unlock(&demux->lock);
+	spin_unlock_irqrestore(&demux->lock, flags);
 }
 EXPORT_SYMBOL(dvb_dmx_swfilter_raw);
 

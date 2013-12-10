@@ -2108,7 +2108,7 @@ static int isp1362_show(struct seq_file *s, void *unused)
 				   default:
 					   s = "?";
 					   break;
-				   };
+				   }
 				   s;}), ep->maxpacket) ;
 		list_for_each_entry(urb, &ep->hep->urb_list, urb_list) {
 			seq_printf(s, "  urb%p, %d/%d\n", urb,

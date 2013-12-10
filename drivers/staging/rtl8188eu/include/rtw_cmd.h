@@ -745,7 +745,7 @@ struct TDLSoption_param
 
 Result:
 0x00: success
-0x01: sucess, and check Response.
+0x01: success, and check Response.
 0x02: cmd ignored due to duplicated sequcne number
 0x03: cmd dropped due to invalid cmd code
 0x04: reserved.

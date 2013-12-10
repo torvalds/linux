@@ -148,10 +148,15 @@ static inline int da9052_group_read(struct da9052 *da9052, unsigned char reg,
 				     unsigned reg_cnt, unsigned char *val)
 {
 	int ret;
+	unsigned int tmp;
+	int i;
 
-	ret = regmap_bulk_read(da9052->regmap, reg, val, reg_cnt);
-	if (ret < 0)
-		return ret;
+	for (i = 0; i < reg_cnt; i++) {
+		ret = regmap_read(da9052->regmap, reg + i, &tmp);
+		val[i] = (unsigned char)tmp;
+		if (ret < 0)
+			return ret;
+	}
 
 	if (da9052->fix_io) {
 		ret = da9052->fix_io(da9052, reg);
@@ -166,10 +171,13 @@ static inline int da9052_group_write(struct da9052 *da9052, unsigned char reg,
 				      unsigned reg_cnt, unsigned char *val)
 {
 	int ret;
+	int i;
 
-	ret = regmap_raw_write(da9052->regmap, reg, val, reg_cnt);
-	if (ret < 0)
-		return ret;
+	for (i = 0; i < reg_cnt; i++) {
+		ret = regmap_write(da9052->regmap, reg + i, val[i]);
+		if (ret < 0)
+			return ret;
+	}
 
 	if (da9052->fix_io) {
 		ret = da9052->fix_io(da9052, reg);

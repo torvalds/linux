@@ -145,15 +145,17 @@ static ssize_t type_show(struct device *dev, struct device_attribute *attr,
 	struct tifm_dev *sock = container_of(dev, struct tifm_dev, dev);
 	return sprintf(buf, "%x", sock->type);
 }
+static DEVICE_ATTR_RO(type);
 
-static struct device_attribute tifm_dev_attrs[] = {
-	__ATTR(type, S_IRUGO, type_show, NULL),
-	__ATTR_NULL
+static struct attribute *tifm_dev_attrs[] = {
+	&dev_attr_type.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(tifm_dev);
 
 static struct bus_type tifm_bus_type = {
 	.name      = "tifm",
-	.dev_attrs = tifm_dev_attrs,
+	.dev_groups = tifm_dev_groups,
 	.match     = tifm_bus_match,
 	.uevent    = tifm_uevent,
 	.probe     = tifm_device_probe,

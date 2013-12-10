@@ -338,7 +338,7 @@ static int tdo24m_probe(struct spi_device *spi)
 	enum tdo24m_model model;
 	int err;
 
-	pdata = spi->dev.platform_data;
+	pdata = dev_get_platdata(&spi->dev);
 	if (pdata)
 		model = pdata->model;
 	else
@@ -385,21 +385,17 @@ static int tdo24m_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	lcd->lcd_dev = lcd_device_register("tdo24m", &spi->dev,
-					lcd, &tdo24m_ops);
+	lcd->lcd_dev = devm_lcd_device_register(&spi->dev, "tdo24m", &spi->dev,
+						lcd, &tdo24m_ops);
 	if (IS_ERR(lcd->lcd_dev))
 		return PTR_ERR(lcd->lcd_dev);
 
 	spi_set_drvdata(spi, lcd);
 	err = tdo24m_power(lcd, FB_BLANK_UNBLANK);
 	if (err)
-		goto out_unregister;
+		return err;
 
 	return 0;
-
-out_unregister:
-	lcd_device_unregister(lcd->lcd_dev);
-	return err;
 }
 
 static int tdo24m_remove(struct spi_device *spi)
@@ -407,8 +403,6 @@ static int tdo24m_remove(struct spi_device *spi)
 	struct tdo24m *lcd = spi_get_drvdata(spi);
 
 	tdo24m_power(lcd, FB_BLANK_POWERDOWN);
-	lcd_device_unregister(lcd->lcd_dev);
-
 	return 0;
 }
 

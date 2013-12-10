@@ -22,6 +22,7 @@ struct xfs_buf;
 struct xlog;
 struct xlog_ticket;
 struct xfs_mount;
+struct xfs_log_callback;
 
 /*
  * Flags for log structure
@@ -227,8 +228,8 @@ typedef struct xlog_in_core {
 
 	/* Callback structures need their own cacheline */
 	spinlock_t		ic_callback_lock ____cacheline_aligned_in_smp;
-	xfs_log_callback_t	*ic_callback;
-	xfs_log_callback_t	**ic_callback_tail;
+	struct xfs_log_callback	*ic_callback;
+	struct xfs_log_callback	**ic_callback_tail;
 
 	/* reference counts need their own cacheline */
 	atomic_t		ic_refcnt ____cacheline_aligned_in_smp;
@@ -254,7 +255,7 @@ struct xfs_cil_ctx {
 	int			space_used;	/* aggregate size of regions */
 	struct list_head	busy_extents;	/* busy extents in chkpt */
 	struct xfs_log_vec	*lv_chain;	/* logvecs being pushed */
-	xfs_log_callback_t	log_cb;		/* completion callback hook. */
+	struct xfs_log_callback	log_cb;		/* completion callback hook. */
 	struct list_head	committing;	/* ctx committing list */
 };
 
@@ -514,12 +515,10 @@ xlog_assign_grant_head(atomic64_t *head, int cycle, int space)
 /*
  * Committed Item List interfaces
  */
-int
-xlog_cil_init(struct xlog *log);
-void
-xlog_cil_init_post_recovery(struct xlog *log);
-void
-xlog_cil_destroy(struct xlog *log);
+int	xlog_cil_init(struct xlog *log);
+void	xlog_cil_init_post_recovery(struct xlog *log);
+void	xlog_cil_destroy(struct xlog *log);
+bool	xlog_cil_empty(struct xlog *log);
 
 /*
  * CIL force routines

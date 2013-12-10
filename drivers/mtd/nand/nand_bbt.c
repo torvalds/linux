@@ -412,25 +412,6 @@ static void read_abs_bbts(struct mtd_info *mtd, uint8_t *buf,
 	}
 }
 
-/* Scan a given block full */
-static int scan_block_full(struct mtd_info *mtd, struct nand_bbt_descr *bd,
-			   loff_t offs, uint8_t *buf, size_t readlen,
-			   int scanlen, int numpages)
-{
-	int ret, j;
-
-	ret = scan_read_oob(mtd, buf, offs, readlen);
-	/* Ignore ECC errors when checking for BBM */
-	if (ret && !mtd_is_bitflip_or_eccerr(ret))
-		return ret;
-
-	for (j = 0; j < numpages; j++, buf += scanlen) {
-		if (check_pattern(buf, scanlen, mtd->writesize, bd))
-			return 1;
-	}
-	return 0;
-}
-
 /* Scan a given block partially */
 static int scan_block_fast(struct mtd_info *mtd, struct nand_bbt_descr *bd,
 			   loff_t offs, uint8_t *buf, int numpages)
@@ -477,23 +458,16 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf,
 	struct nand_bbt_descr *bd, int chip)
 {
 	struct nand_chip *this = mtd->priv;
-	int i, numblocks, numpages, scanlen;
+	int i, numblocks, numpages;
 	int startblock;
 	loff_t from;
-	size_t readlen;
 
 	pr_info("Scanning device for bad blocks\n");
 
-	if (bd->options & NAND_BBT_SCANALLPAGES)
-		numpages = 1 << (this->bbt_erase_shift - this->page_shift);
-	else if (bd->options & NAND_BBT_SCAN2NDPAGE)
+	if (bd->options & NAND_BBT_SCAN2NDPAGE)
 		numpages = 2;
 	else
 		numpages = 1;
-
-	/* We need only read few bytes from the OOB area */
-	scanlen = 0;
-	readlen = bd->len;
 
 	if (chip == -1) {
 		numblocks = mtd->size >> this->bbt_erase_shift;
@@ -519,12 +493,7 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf,
 
 		BUG_ON(bd->options & NAND_BBT_NO_OOB);
 
-		if (bd->options & NAND_BBT_SCANALLPAGES)
-			ret = scan_block_full(mtd, bd, from, buf, readlen,
-					      scanlen, numpages);
-		else
-			ret = scan_block_fast(mtd, bd, from, buf, numpages);
-
+		ret = scan_block_fast(mtd, bd, from, buf, numpages);
 		if (ret < 0)
 			return ret;
 
@@ -1392,4 +1361,3 @@ int nand_markbad_bbt(struct mtd_info *mtd, loff_t offs)
 }
 
 EXPORT_SYMBOL(nand_scan_bbt);
-EXPORT_SYMBOL(nand_default_bbt);

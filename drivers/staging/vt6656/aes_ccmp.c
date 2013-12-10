@@ -96,9 +96,9 @@ u8 dot3_table[256] = {
 
 static void xor_128(u8 *a, u8 *b, u8 *out)
 {
-	u32 * dwPtrA = (u32 *) a;
-	u32 * dwPtrB = (u32 *) b;
-	u32 * dwPtrOut = (u32 *) out;
+	u32 *dwPtrA = (u32 *) a;
+	u32 *dwPtrB = (u32 *) b;
+	u32 *dwPtrOut = (u32 *) out;
 
 	(*dwPtrOut++) = (*dwPtrA++) ^ (*dwPtrB++);
 	(*dwPtrOut++) = (*dwPtrA++) ^ (*dwPtrB++);
@@ -108,9 +108,9 @@ static void xor_128(u8 *a, u8 *b, u8 *out)
 
 static void xor_32(u8 *a, u8 *b, u8 *out)
 {
-	u32 * dwPtrA = (u32 *) a;
-	u32 * dwPtrB = (u32 *) b;
-	u32 * dwPtrOut = (u32 *) out;
+	u32 *dwPtrA = (u32 *) a;
+	u32 *dwPtrB = (u32 *) b;
+	u32 *dwPtrOut = (u32 *) out;
 
 	(*dwPtrOut++) = (*dwPtrA++) ^ (*dwPtrB++);
 }
@@ -218,7 +218,7 @@ void AESv128(u8 *key, u8 *data, u8 *ciphertext)
  *
  */
 
-bool AESbGenCCMP(u8 * pbyRxKey, u8 * pbyFrame, u16 wFrameSize)
+bool AESbGenCCMP(u8 *pbyRxKey, u8 *pbyFrame, u16 wFrameSize)
 {
 	u8            abyNonce[13];
 	u8            MIC_IV[16];
@@ -231,8 +231,8 @@ bool AESbGenCCMP(u8 * pbyRxKey, u8 * pbyFrame, u16 wFrameSize)
 	u8            abyLastCipher[16];
 
 	struct ieee80211_hdr *pMACHeader = (struct ieee80211_hdr *) pbyFrame;
-	u8 *           pbyIV;
-	u8 *           pbyPayload;
+	u8 *pbyIV;
+	u8 *pbyPayload;
 	u16            wHLen = 22;
 	/* 8 is IV, 8 is MIC, 4 is CRC */
 	u16            wPayloadSize = wFrameSize - 8 - 8 - 4 - WLAN_HDR_ADDR3_LEN;

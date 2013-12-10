@@ -297,7 +297,7 @@ static int __init charlcd_probe(struct platform_device *pdev)
 	lcd->irq = platform_get_irq(pdev, 0);
 	/* If no IRQ is supplied, we'll survive without it */
 	if (lcd->irq >= 0) {
-		if (request_irq(lcd->irq, charlcd_interrupt, IRQF_DISABLED,
+		if (request_irq(lcd->irq, charlcd_interrupt, 0,
 				DRIVERNAME, lcd)) {
 			ret = -EIO;
 			goto out_no_irq;

@@ -161,13 +161,10 @@ static ssize_t show_color_common(struct device *dev, char *buf, int color)
 	switch (color) {
 	case RED:
 		return scnprintf(buf, PAGE_SIZE, "%02X\n", data->red);
-		break;
 	case GREEN:
 		return scnprintf(buf, PAGE_SIZE, "%02X\n", data->green);
-		break;
 	case BLUE:
 		return scnprintf(buf, PAGE_SIZE, "%02X\n", data->blue);
-		break;
 	default:
 		return -EINVAL;
 	}

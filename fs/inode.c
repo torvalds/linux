@@ -773,15 +773,11 @@ static struct inode *find_inode(struct super_block *sb,
 
 repeat:
 	hlist_for_each_entry(inode, head, i_hash) {
+		if (inode->i_sb != sb)
+			continue;
+		if (!test(inode, data))
+			continue;
 		spin_lock(&inode->i_lock);
-		if (inode->i_sb != sb) {
-			spin_unlock(&inode->i_lock);
-			continue;
-		}
-		if (!test(inode, data)) {
-			spin_unlock(&inode->i_lock);
-			continue;
-		}
 		if (inode->i_state & (I_FREEING|I_WILL_FREE)) {
 			__wait_on_freeing_inode(inode);
 			goto repeat;
@@ -804,15 +800,11 @@ static struct inode *find_inode_fast(struct super_block *sb,
 
 repeat:
 	hlist_for_each_entry(inode, head, i_hash) {
+		if (inode->i_ino != ino)
+			continue;
+		if (inode->i_sb != sb)
+			continue;
 		spin_lock(&inode->i_lock);
-		if (inode->i_ino != ino) {
-			spin_unlock(&inode->i_lock);
-			continue;
-		}
-		if (inode->i_sb != sb) {
-			spin_unlock(&inode->i_lock);
-			continue;
-		}
 		if (inode->i_state & (I_FREEING|I_WILL_FREE)) {
 			__wait_on_freeing_inode(inode);
 			goto repeat;
@@ -949,6 +941,42 @@ void unlock_new_inode(struct inode *inode)
 	spin_unlock(&inode->i_lock);
 }
 EXPORT_SYMBOL(unlock_new_inode);
+
+/**
+ * lock_two_nondirectories - take two i_mutexes on non-directory objects
+ * @inode1: first inode to lock
+ * @inode2: second inode to lock
+ */
+void lock_two_nondirectories(struct inode *inode1, struct inode *inode2)
+{
+	WARN_ON_ONCE(S_ISDIR(inode1->i_mode));
+	if (inode1 == inode2 || !inode2) {
+		mutex_lock(&inode1->i_mutex);
+		return;
+	}
+	WARN_ON_ONCE(S_ISDIR(inode2->i_mode));
+	if (inode1 < inode2) {
+		mutex_lock(&inode1->i_mutex);
+		mutex_lock_nested(&inode2->i_mutex, I_MUTEX_NONDIR2);
+	} else {
+		mutex_lock(&inode2->i_mutex);
+		mutex_lock_nested(&inode1->i_mutex, I_MUTEX_NONDIR2);
+	}
+}
+EXPORT_SYMBOL(lock_two_nondirectories);
+
+/**
+ * unlock_two_nondirectories - release locks from lock_two_nondirectories()
+ * @inode1: first inode to unlock
+ * @inode2: second inode to unlock
+ */
+void unlock_two_nondirectories(struct inode *inode1, struct inode *inode2)
+{
+	mutex_unlock(&inode1->i_mutex);
+	if (inode2 && inode2 != inode1)
+		mutex_unlock(&inode2->i_mutex);
+}
+EXPORT_SYMBOL(unlock_two_nondirectories);
 
 /**
  * iget5_locked - obtain an inode from a mounted file system
@@ -1575,7 +1603,11 @@ static int __remove_suid(struct dentry *dentry, int kill)
 	struct iattr newattrs;
 
 	newattrs.ia_valid = ATTR_FORCE | kill;
-	return notify_change(dentry, &newattrs);
+	/*
+	 * Note we call this on write, so notify_change will not
+	 * encounter any conflicting delegations:
+	 */
+	return notify_change(dentry, &newattrs, NULL);
 }
 
 int file_remove_suid(struct file *file)

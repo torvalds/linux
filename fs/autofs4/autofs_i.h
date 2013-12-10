@@ -122,6 +122,7 @@ struct autofs_sb_info {
 	spinlock_t lookup_lock;
 	struct list_head active_list;
 	struct list_head expiring_list;
+	struct rcu_head rcu;
 };
 
 static inline struct autofs_sb_info *autofs4_sbi(struct super_block *sb)
@@ -271,7 +272,7 @@ void autofs4_clean_ino(struct autofs_info *);
 
 static inline int autofs_prepare_pipe(struct file *pipe)
 {
-	if (!pipe->f_op || !pipe->f_op->write)
+	if (!pipe->f_op->write)
 		return -EINVAL;
 	if (!S_ISFIFO(file_inode(pipe)->i_mode))
 		return -EINVAL;

@@ -26,7 +26,7 @@ void ralink_clk_add(const char *dev, unsigned long rate)
 	struct clk *clk = kzalloc(sizeof(struct clk), GFP_KERNEL);
 
 	if (!clk)
-		panic("failed to add clock\n");
+		panic("failed to add clock");
 
 	clk->cl.dev_id = dev;
 	clk->cl.clk = clk;

@@ -1870,7 +1870,6 @@ static void pasemi_mac_remove(struct pci_dev *pdev)
 	pasemi_dma_free_chan(&mac->tx->chan);
 	pasemi_dma_free_chan(&mac->rx->chan);
 
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(netdev);
 }
 

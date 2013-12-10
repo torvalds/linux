@@ -384,6 +384,19 @@ int nfc_dep_link_is_up(struct nfc_dev *dev, u32 target_idx,
 {
 	dev->dep_link_up = true;
 
+	if (!dev->active_target) {
+		struct nfc_target *target;
+
+		target = nfc_find_target(dev, target_idx);
+		if (target == NULL)
+			return -ENOTCONN;
+
+		dev->active_target = target;
+	}
+
+	dev->polling = false;
+	dev->rf_mode = rf_mode;
+
 	nfc_llcp_mac_is_up(dev, target_idx, comm_mode, rf_mode);
 
 	return nfc_genl_dep_link_up_event(dev, target_idx, comm_mode, rf_mode);
@@ -536,7 +549,7 @@ error:
 	return rc;
 }
 
-static struct nfc_se *find_se(struct nfc_dev *dev, u32 se_idx)
+struct nfc_se *nfc_find_se(struct nfc_dev *dev, u32 se_idx)
 {
 	struct nfc_se *se, *n;
 
@@ -546,6 +559,7 @@ static struct nfc_se *find_se(struct nfc_dev *dev, u32 se_idx)
 
 	return NULL;
 }
+EXPORT_SYMBOL(nfc_find_se);
 
 int nfc_enable_se(struct nfc_dev *dev, u32 se_idx)
 {
@@ -577,7 +591,7 @@ int nfc_enable_se(struct nfc_dev *dev, u32 se_idx)
 		goto error;
 	}
 
-	se = find_se(dev, se_idx);
+	se = nfc_find_se(dev, se_idx);
 	if (!se) {
 		rc = -EINVAL;
 		goto error;
@@ -622,7 +636,7 @@ int nfc_disable_se(struct nfc_dev *dev, u32 se_idx)
 		goto error;
 	}
 
-	se = find_se(dev, se_idx);
+	se = nfc_find_se(dev, se_idx);
 	if (!se) {
 		rc = -EINVAL;
 		goto error;
@@ -881,7 +895,7 @@ int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type)
 
 	pr_debug("%s se index %d\n", dev_name(&dev->dev), se_idx);
 
-	se = find_se(dev, se_idx);
+	se = nfc_find_se(dev, se_idx);
 	if (se)
 		return -EALREADY;
 

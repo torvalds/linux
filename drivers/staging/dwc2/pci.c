@@ -84,6 +84,7 @@ static const struct dwc2_core_params dwc2_module_params = {
 	.ts_dline			= -1,
 	.reload_ctl			= -1,
 	.ahbcfg				= -1,
+	.uframe_sched			= -1,
 };
 
 /**

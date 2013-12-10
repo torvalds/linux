@@ -328,13 +328,13 @@ static int usbhs_runtime_resume(struct device *dev)
 	omap_tll_enable(pdata);
 
 	if (!IS_ERR(omap->ehci_logic_fck))
-		clk_enable(omap->ehci_logic_fck);
+		clk_prepare_enable(omap->ehci_logic_fck);
 
 	for (i = 0; i < omap->nports; i++) {
 		switch (pdata->port_mode[i]) {
 		case OMAP_EHCI_PORT_MODE_HSIC:
 			if (!IS_ERR(omap->hsic60m_clk[i])) {
-				r = clk_enable(omap->hsic60m_clk[i]);
+				r = clk_prepare_enable(omap->hsic60m_clk[i]);
 				if (r) {
 					dev_err(dev,
 					 "Can't enable port %d hsic60m clk:%d\n",
@@ -343,7 +343,7 @@ static int usbhs_runtime_resume(struct device *dev)
 			}
 
 			if (!IS_ERR(omap->hsic480m_clk[i])) {
-				r = clk_enable(omap->hsic480m_clk[i]);
+				r = clk_prepare_enable(omap->hsic480m_clk[i]);
 				if (r) {
 					dev_err(dev,
 					 "Can't enable port %d hsic480m clk:%d\n",
@@ -354,7 +354,7 @@ static int usbhs_runtime_resume(struct device *dev)
 
 		case OMAP_EHCI_PORT_MODE_TLL:
 			if (!IS_ERR(omap->utmi_clk[i])) {
-				r = clk_enable(omap->utmi_clk[i]);
+				r = clk_prepare_enable(omap->utmi_clk[i]);
 				if (r) {
 					dev_err(dev,
 					 "Can't enable port %d clk : %d\n",
@@ -382,15 +382,15 @@ static int usbhs_runtime_suspend(struct device *dev)
 		switch (pdata->port_mode[i]) {
 		case OMAP_EHCI_PORT_MODE_HSIC:
 			if (!IS_ERR(omap->hsic60m_clk[i]))
-				clk_disable(omap->hsic60m_clk[i]);
+				clk_disable_unprepare(omap->hsic60m_clk[i]);
 
 			if (!IS_ERR(omap->hsic480m_clk[i]))
-				clk_disable(omap->hsic480m_clk[i]);
+				clk_disable_unprepare(omap->hsic480m_clk[i]);
 		/* Fall through as utmi_clks were used in HSIC mode */
 
 		case OMAP_EHCI_PORT_MODE_TLL:
 			if (!IS_ERR(omap->utmi_clk[i]))
-				clk_disable(omap->utmi_clk[i]);
+				clk_disable_unprepare(omap->utmi_clk[i]);
 			break;
 		default:
 			break;
@@ -398,7 +398,7 @@ static int usbhs_runtime_suspend(struct device *dev)
 	}
 
 	if (!IS_ERR(omap->ehci_logic_fck))
-		clk_disable(omap->ehci_logic_fck);
+		clk_disable_unprepare(omap->ehci_logic_fck);
 
 	omap_tll_disable(pdata);
 
@@ -893,7 +893,7 @@ static struct platform_driver usbhs_omap_driver = {
 		.name		= (char *)usbhs_driver_name,
 		.owner		= THIS_MODULE,
 		.pm		= &usbhsomap_dev_pm_ops,
-		.of_match_table = of_match_ptr(usbhs_omap_dt_ids),
+		.of_match_table = usbhs_omap_dt_ids,
 	},
 	.remove		= usbhs_omap_remove,
 };

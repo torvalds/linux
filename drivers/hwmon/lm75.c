@@ -39,6 +39,7 @@ enum lm75_type {		/* keep sorted in alphabetical order */
 	ds1775,
 	ds75,
 	ds7505,
+	g751,
 	lm75,
 	lm75a,
 	max6625,
@@ -208,6 +209,7 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		data->resolution = 12;
 		data->sample_time = HZ / 4;
 		break;
+	case g751:
 	case lm75:
 	case lm75a:
 		data->resolution = 9;
@@ -296,6 +298,7 @@ static const struct i2c_device_id lm75_ids[] = {
 	{ "ds1775", ds1775, },
 	{ "ds75", ds75, },
 	{ "ds7505", ds7505, },
+	{ "g751", g751, },
 	{ "lm75", lm75, },
 	{ "lm75a", lm75a, },
 	{ "max6625", max6625, },

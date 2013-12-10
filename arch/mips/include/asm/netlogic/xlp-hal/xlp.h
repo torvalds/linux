@@ -69,6 +69,7 @@ void nlm_hal_init(void);
 int xlp_get_dram_map(int n, uint64_t *dram_map);
 
 /* Device tree related */
+void xlp_early_init_devtree(void);
 void *xlp_dt_init(void *fdtp);
 
 static inline int cpu_is_xlpii(void)

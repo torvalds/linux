@@ -464,7 +464,7 @@ static struct notifier_block kvm_cpu_notifier = {
 
 static void __init kvm_apf_trap_init(void)
 {
-	set_intr_gate(14, &async_page_fault);
+	set_intr_gate(14, async_page_fault);
 }
 
 void __init kvm_guest_init(void)
@@ -609,7 +609,7 @@ static struct dentry *d_kvm_debug;
 
 struct dentry *kvm_init_debugfs(void)
 {
-	d_kvm_debug = debugfs_create_dir("kvm", NULL);
+	d_kvm_debug = debugfs_create_dir("kvm-guest", NULL);
 	if (!d_kvm_debug)
 		printk(KERN_WARNING "Could not create 'kvm' debugfs directory\n");
 
@@ -775,11 +775,22 @@ void __init kvm_spinlock_init(void)
 	if (!kvm_para_has_feature(KVM_FEATURE_PV_UNHALT))
 		return;
 
-	printk(KERN_INFO "KVM setup paravirtual spinlock\n");
-
-	static_key_slow_inc(&paravirt_ticketlocks_enabled);
-
 	pv_lock_ops.lock_spinning = PV_CALLEE_SAVE(kvm_lock_spinning);
 	pv_lock_ops.unlock_kick = kvm_unlock_kick;
 }
+
+static __init int kvm_spinlock_init_jump(void)
+{
+	if (!kvm_para_available())
+		return 0;
+	if (!kvm_para_has_feature(KVM_FEATURE_PV_UNHALT))
+		return 0;
+
+	static_key_slow_inc(&paravirt_ticketlocks_enabled);
+	printk(KERN_INFO "KVM setup paravirtual spinlock\n");
+
+	return 0;
+}
+early_initcall(kvm_spinlock_init_jump);
+
 #endif	/* CONFIG_PARAVIRT_SPINLOCKS */

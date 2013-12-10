@@ -136,9 +136,9 @@ static void s_vProcessRxMACHeader(struct vnt_private *pDevice,
     };
 
     pbyRxBuffer = (u8 *) (pbyRxBufferAddr + cbHeaderSize);
-    if (!compare_ether_addr(pbyRxBuffer, &pDevice->abySNAP_Bridgetunnel[0])) {
+    if (ether_addr_equal(pbyRxBuffer, pDevice->abySNAP_Bridgetunnel)) {
         cbHeaderSize += 6;
-    } else if (!compare_ether_addr(pbyRxBuffer, &pDevice->abySNAP_RFC1042[0])) {
+    } else if (ether_addr_equal(pbyRxBuffer, pDevice->abySNAP_RFC1042)) {
         cbHeaderSize += 6;
         pwType = (u16 *) (pbyRxBufferAddr + cbHeaderSize);
 	if ((*pwType == cpu_to_be16(ETH_P_IPX)) ||
@@ -361,7 +361,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, struct vnt_rcb *pRCB,
     if ((pMgmt->eCurrMode == WMAC_MODE_STANDBY) ||
         (pMgmt->eCurrMode == WMAC_MODE_ESS_STA)) {
        if (pMgmt->sNodeDBTable[0].bActive) {
-	 if (!compare_ether_addr(pMgmt->abyCurrBSSID, pMACHeader->addr2)) {
+	 if (ether_addr_equal(pMgmt->abyCurrBSSID, pMACHeader->addr2)) {
 	    if (pMgmt->sNodeDBTable[0].uInActiveCount != 0)
                   pMgmt->sNodeDBTable[0].uInActiveCount = 0;
            }
@@ -374,8 +374,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, struct vnt_rcb *pRCB,
             return false;
         }
 
-	if (compare_ether_addr(pDevice->abyCurrentNetAddr,
-			       pMACHeader->addr1)) {
+	if (!ether_addr_equal(pDevice->abyCurrentNetAddr, pMACHeader->addr1)) {
 		return false;
         }
     }
@@ -383,8 +382,8 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, struct vnt_rcb *pRCB,
     // Use for TKIP MIC
     s_vGetDASA(pbyFrame, &cbHeaderSize, &pDevice->sRxEthHeader);
 
-    if (!compare_ether_addr((u8 *)&(pDevice->sRxEthHeader.h_source[0]),
-			    pDevice->abyCurrentNetAddr))
+    if (ether_addr_equal((u8 *)pDevice->sRxEthHeader.h_source,
+			 pDevice->abyCurrentNetAddr))
         return false;
 
     if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) || (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA)) {
@@ -560,7 +559,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, struct vnt_rcb *pRCB,
             }
             if (pDevice->bIsRxMngWorkItemQueued == false) {
                 pDevice->bIsRxMngWorkItemQueued = true;
-                tasklet_schedule(&pDevice->RxMngWorkItem);
+		schedule_work(&pDevice->rx_mng_work_item);
             }
 
         }
@@ -1333,10 +1332,15 @@ static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
     return true;
 }
 
-void RXvWorkItem(struct vnt_private *pDevice)
+void RXvWorkItem(struct work_struct *work)
 {
+	struct vnt_private *pDevice =
+		container_of(work, struct vnt_private, read_work_item);
 	int ntStatus;
 	struct vnt_rcb *pRCB = NULL;
+
+	if (pDevice->Flags & fMP_DISCONNECTED)
+		return;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Rx Polling Thread\n");
     spin_lock_irq(&pDevice->lock);
@@ -1384,16 +1388,21 @@ void RXvFreeRCB(struct vnt_rcb *pRCB, int bReAllocSkb)
         (pDevice->bIsRxWorkItemQueued == false) ) {
 
         pDevice->bIsRxWorkItemQueued = true;
-        tasklet_schedule(&pDevice->ReadWorkItem);
+	schedule_work(&pDevice->read_work_item);
     }
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----RXFreeRCB %d %d\n",pDevice->NumRecvFreeList, pDevice->NumRecvMngList);
 }
 
-void RXvMngWorkItem(struct vnt_private *pDevice)
+void RXvMngWorkItem(struct work_struct *work)
 {
+	struct vnt_private *pDevice =
+		container_of(work, struct vnt_private, rx_mng_work_item);
 	struct vnt_rcb *pRCB = NULL;
 	struct vnt_rx_mgmt *pRxPacket;
 	int bReAllocSkb = false;
+
+	if (pDevice->Flags & fMP_DISCONNECTED)
+		return;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Rx Mng Thread\n");
 

@@ -817,24 +817,25 @@ static int pvr2fb_common_init(void)
 
 	rev = fb_readl(par->mmio_base + 0x04);
 
-	printk("fb%d: %s (rev %ld.%ld) frame buffer device, using %ldk/%ldk of video memory\n",
-	       fb_info->node, fb_info->fix.id, (rev >> 4) & 0x0f, rev & 0x0f,
-	       modememused >> 10, (unsigned long)(fb_info->fix.smem_len >> 10));
-	printk("fb%d: Mode %dx%d-%d pitch = %ld cable: %s video output: %s\n",
-	       fb_info->node, fb_info->var.xres, fb_info->var.yres,
-	       fb_info->var.bits_per_pixel,
-	       get_line_length(fb_info->var.xres, fb_info->var.bits_per_pixel),
-	       (char *)pvr2_get_param(cables, NULL, cable_type, 3),
-	       (char *)pvr2_get_param(outputs, NULL, video_output, 3));
+	fb_info(fb_info, "%s (rev %ld.%ld) frame buffer device, using %ldk/%ldk of video memory\n",
+		fb_info->fix.id, (rev >> 4) & 0x0f, rev & 0x0f,
+		modememused >> 10,
+		(unsigned long)(fb_info->fix.smem_len >> 10));
+	fb_info(fb_info, "Mode %dx%d-%d pitch = %ld cable: %s video output: %s\n",
+		fb_info->var.xres, fb_info->var.yres,
+		fb_info->var.bits_per_pixel,
+		get_line_length(fb_info->var.xres, fb_info->var.bits_per_pixel),
+		(char *)pvr2_get_param(cables, NULL, cable_type, 3),
+		(char *)pvr2_get_param(outputs, NULL, video_output, 3));
 
 #ifdef CONFIG_SH_STORE_QUEUES
-	printk(KERN_NOTICE "fb%d: registering with SQ API\n", fb_info->node);
+	fb_notice(fb_info, "registering with SQ API\n");
 
 	pvr2fb_map = sq_remap(fb_info->fix.smem_start, fb_info->fix.smem_len,
 			      fb_info->fix.id, PAGE_SHARED);
 
-	printk(KERN_NOTICE "fb%d: Mapped video memory to SQ addr 0x%lx\n",
-	       fb_info->node, pvr2fb_map);
+	fb_notice(fb_info, "Mapped video memory to SQ addr 0x%lx\n",
+		  pvr2fb_map);
 #endif
 
 	return 0;

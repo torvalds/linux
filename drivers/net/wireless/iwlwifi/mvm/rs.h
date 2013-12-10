@@ -35,9 +35,11 @@
 #include "iwl-trans.h"
 
 struct iwl_rs_rate_info {
-	u8 plcp;	/* uCode API:  IWL_RATE_6M_PLCP, etc. */
-	u8 plcp_siso;	/* uCode API:  IWL_RATE_SISO_6M_PLCP, etc. */
-	u8 plcp_mimo2;	/* uCode API:  IWL_RATE_MIMO2_6M_PLCP, etc. */
+	u8 plcp;	  /* uCode API:  IWL_RATE_6M_PLCP, etc. */
+	u8 plcp_ht_siso;  /* uCode API:  IWL_RATE_SISO_6M_PLCP, etc. */
+	u8 plcp_ht_mimo2; /* uCode API:  IWL_RATE_MIMO2_6M_PLCP, etc. */
+	u8 plcp_vht_siso;
+	u8 plcp_vht_mimo2;
 	u8 prev_rs;      /* previous rate used in rs algo */
 	u8 next_rs;      /* next rate used in rs algo */
 };
@@ -83,35 +85,52 @@ enum {
 #define	IWL_RATE_11M_MASK  (1 << IWL_RATE_11M_INDEX)
 
 
-/* uCode API values for OFDM high-throughput (HT) bit rates */
+/* uCode API values for HT/VHT bit rates */
 enum {
-	IWL_RATE_SISO_6M_PLCP = 0,
-	IWL_RATE_SISO_12M_PLCP = 1,
-	IWL_RATE_SISO_18M_PLCP = 2,
-	IWL_RATE_SISO_24M_PLCP = 3,
-	IWL_RATE_SISO_36M_PLCP = 4,
-	IWL_RATE_SISO_48M_PLCP = 5,
-	IWL_RATE_SISO_54M_PLCP = 6,
-	IWL_RATE_SISO_60M_PLCP = 7,
-	IWL_RATE_MIMO2_6M_PLCP  = 0x8,
-	IWL_RATE_MIMO2_12M_PLCP = 0x9,
-	IWL_RATE_MIMO2_18M_PLCP = 0xa,
-	IWL_RATE_MIMO2_24M_PLCP = 0xb,
-	IWL_RATE_MIMO2_36M_PLCP = 0xc,
-	IWL_RATE_MIMO2_48M_PLCP = 0xd,
-	IWL_RATE_MIMO2_54M_PLCP = 0xe,
-	IWL_RATE_MIMO2_60M_PLCP = 0xf,
-	IWL_RATE_MIMO3_6M_PLCP  = 0x10,
-	IWL_RATE_MIMO3_12M_PLCP = 0x11,
-	IWL_RATE_MIMO3_18M_PLCP = 0x12,
-	IWL_RATE_MIMO3_24M_PLCP = 0x13,
-	IWL_RATE_MIMO3_36M_PLCP = 0x14,
-	IWL_RATE_MIMO3_48M_PLCP = 0x15,
-	IWL_RATE_MIMO3_54M_PLCP = 0x16,
-	IWL_RATE_MIMO3_60M_PLCP = 0x17,
-	IWL_RATE_SISO_INVM_PLCP,
-	IWL_RATE_MIMO2_INVM_PLCP = IWL_RATE_SISO_INVM_PLCP,
-	IWL_RATE_MIMO3_INVM_PLCP = IWL_RATE_SISO_INVM_PLCP,
+	IWL_RATE_HT_SISO_MCS_0_PLCP = 0,
+	IWL_RATE_HT_SISO_MCS_1_PLCP = 1,
+	IWL_RATE_HT_SISO_MCS_2_PLCP = 2,
+	IWL_RATE_HT_SISO_MCS_3_PLCP = 3,
+	IWL_RATE_HT_SISO_MCS_4_PLCP = 4,
+	IWL_RATE_HT_SISO_MCS_5_PLCP = 5,
+	IWL_RATE_HT_SISO_MCS_6_PLCP = 6,
+	IWL_RATE_HT_SISO_MCS_7_PLCP = 7,
+	IWL_RATE_HT_MIMO2_MCS_0_PLCP = 0x8,
+	IWL_RATE_HT_MIMO2_MCS_1_PLCP = 0x9,
+	IWL_RATE_HT_MIMO2_MCS_2_PLCP = 0xA,
+	IWL_RATE_HT_MIMO2_MCS_3_PLCP = 0xB,
+	IWL_RATE_HT_MIMO2_MCS_4_PLCP = 0xC,
+	IWL_RATE_HT_MIMO2_MCS_5_PLCP = 0xD,
+	IWL_RATE_HT_MIMO2_MCS_6_PLCP = 0xE,
+	IWL_RATE_HT_MIMO2_MCS_7_PLCP = 0xF,
+	IWL_RATE_VHT_SISO_MCS_0_PLCP = 0,
+	IWL_RATE_VHT_SISO_MCS_1_PLCP = 1,
+	IWL_RATE_VHT_SISO_MCS_2_PLCP = 2,
+	IWL_RATE_VHT_SISO_MCS_3_PLCP = 3,
+	IWL_RATE_VHT_SISO_MCS_4_PLCP = 4,
+	IWL_RATE_VHT_SISO_MCS_5_PLCP = 5,
+	IWL_RATE_VHT_SISO_MCS_6_PLCP = 6,
+	IWL_RATE_VHT_SISO_MCS_7_PLCP = 7,
+	IWL_RATE_VHT_SISO_MCS_8_PLCP = 8,
+	IWL_RATE_VHT_SISO_MCS_9_PLCP = 9,
+	IWL_RATE_VHT_MIMO2_MCS_0_PLCP = 0x10,
+	IWL_RATE_VHT_MIMO2_MCS_1_PLCP = 0x11,
+	IWL_RATE_VHT_MIMO2_MCS_2_PLCP = 0x12,
+	IWL_RATE_VHT_MIMO2_MCS_3_PLCP = 0x13,
+	IWL_RATE_VHT_MIMO2_MCS_4_PLCP = 0x14,
+	IWL_RATE_VHT_MIMO2_MCS_5_PLCP = 0x15,
+	IWL_RATE_VHT_MIMO2_MCS_6_PLCP = 0x16,
+	IWL_RATE_VHT_MIMO2_MCS_7_PLCP = 0x17,
+	IWL_RATE_VHT_MIMO2_MCS_8_PLCP = 0x18,
+	IWL_RATE_VHT_MIMO2_MCS_9_PLCP = 0x19,
+	IWL_RATE_HT_SISO_MCS_INV_PLCP,
+	IWL_RATE_HT_MIMO2_MCS_INV_PLCP = IWL_RATE_HT_SISO_MCS_INV_PLCP,
+	IWL_RATE_VHT_SISO_MCS_INV_PLCP = IWL_RATE_HT_SISO_MCS_INV_PLCP,
+	IWL_RATE_VHT_MIMO2_MCS_INV_PLCP = IWL_RATE_HT_SISO_MCS_INV_PLCP,
+	IWL_RATE_HT_SISO_MCS_8_PLCP = IWL_RATE_HT_SISO_MCS_INV_PLCP,
+	IWL_RATE_HT_SISO_MCS_9_PLCP = IWL_RATE_HT_SISO_MCS_INV_PLCP,
+	IWL_RATE_HT_MIMO2_MCS_8_PLCP = IWL_RATE_HT_SISO_MCS_INV_PLCP,
+	IWL_RATE_HT_MIMO2_MCS_9_PLCP = IWL_RATE_HT_SISO_MCS_INV_PLCP,
 };
 
 #define IWL_RATES_MASK ((1 << IWL_RATE_COUNT) - 1)
@@ -139,25 +158,33 @@ enum {
 #define IWL_RATE_DECREASE_TH		1920	/*  15% */
 
 /* possible actions when in legacy mode */
-#define IWL_LEGACY_SWITCH_ANTENNA1      0
-#define IWL_LEGACY_SWITCH_ANTENNA2      1
-#define IWL_LEGACY_SWITCH_SISO          2
-#define IWL_LEGACY_SWITCH_MIMO2         3
+enum {
+	IWL_LEGACY_SWITCH_ANTENNA,
+	IWL_LEGACY_SWITCH_SISO,
+	IWL_LEGACY_SWITCH_MIMO2,
+	IWL_LEGACY_FIRST_ACTION = IWL_LEGACY_SWITCH_ANTENNA,
+	IWL_LEGACY_LAST_ACTION = IWL_LEGACY_SWITCH_MIMO2,
+};
 
 /* possible actions when in siso mode */
-#define IWL_SISO_SWITCH_ANTENNA1        0
-#define IWL_SISO_SWITCH_ANTENNA2        1
-#define IWL_SISO_SWITCH_MIMO2           2
-#define IWL_SISO_SWITCH_GI              3
+enum {
+	IWL_SISO_SWITCH_ANTENNA,
+	IWL_SISO_SWITCH_MIMO2,
+	IWL_SISO_SWITCH_GI,
+	IWL_SISO_FIRST_ACTION = IWL_SISO_SWITCH_ANTENNA,
+	IWL_SISO_LAST_ACTION = IWL_SISO_SWITCH_GI,
+};
 
 /* possible actions when in mimo mode */
-#define IWL_MIMO2_SWITCH_ANTENNA1       0
-#define IWL_MIMO2_SWITCH_ANTENNA2       1
-#define IWL_MIMO2_SWITCH_SISO_A         2
-#define IWL_MIMO2_SWITCH_SISO_B         3
-#define IWL_MIMO2_SWITCH_GI             4
+enum {
+	IWL_MIMO2_SWITCH_SISO_A,
+	IWL_MIMO2_SWITCH_SISO_B,
+	IWL_MIMO2_SWITCH_GI,
+	IWL_MIMO2_FIRST_ACTION = IWL_MIMO2_SWITCH_SISO_A,
+	IWL_MIMO2_LAST_ACTION = IWL_MIMO2_SWITCH_GI,
+};
 
-#define IWL_MAX_SEARCH IWL_MIMO2_SWITCH_GI
+#define IWL_MAX_SEARCH IWL_MIMO2_LAST_ACTION
 
 #define IWL_ACTION_LIMIT		3	/* # possible actions */
 
@@ -188,20 +215,31 @@ enum {
 
 enum iwl_table_type {
 	LQ_NONE,
-	LQ_G,		/* legacy types */
-	LQ_A,
-	LQ_SISO,	/* high-throughput types */
-	LQ_MIMO2,
+	LQ_LEGACY_G,	/* legacy types */
+	LQ_LEGACY_A,
+	LQ_HT_SISO,	/* HT types */
+	LQ_HT_MIMO2,
+	LQ_VHT_SISO,    /* VHT types */
+	LQ_VHT_MIMO2,
 	LQ_MAX,
 };
 
-#define is_legacy(tbl) (((tbl) == LQ_G) || ((tbl) == LQ_A))
-#define is_siso(tbl) ((tbl) == LQ_SISO)
-#define is_mimo2(tbl) ((tbl) == LQ_MIMO2)
-#define is_mimo(tbl) is_mimo2(tbl)
-#define is_Ht(tbl) (is_siso(tbl) || is_mimo(tbl))
-#define is_a_band(tbl) ((tbl) == LQ_A)
-#define is_g_and(tbl) ((tbl) == LQ_G)
+#define is_legacy(tbl) (((tbl) == LQ_LEGACY_G) || ((tbl) == LQ_LEGACY_A))
+#define is_ht_siso(tbl) ((tbl) == LQ_HT_SISO)
+#define is_ht_mimo2(tbl) ((tbl) == LQ_HT_MIMO2)
+#define is_vht_siso(tbl) ((tbl) == LQ_VHT_SISO)
+#define is_vht_mimo2(tbl) ((tbl) == LQ_VHT_MIMO2)
+#define is_siso(tbl) (is_ht_siso(tbl) || is_vht_siso(tbl))
+#define is_mimo2(tbl) (is_ht_mimo2(tbl) || is_vht_mimo2(tbl))
+#define is_mimo(tbl) (is_mimo2(tbl))
+#define is_ht(tbl) (is_ht_siso(tbl) || is_ht_mimo2(tbl))
+#define is_vht(tbl) (is_vht_siso(tbl) || is_vht_mimo2(tbl))
+#define is_a_band(tbl) ((tbl) == LQ_LEGACY_A)
+#define is_g_band(tbl) ((tbl) == LQ_LEGACY_G)
+
+#define is_ht20(tbl) (tbl->bw == RATE_MCS_CHAN_WIDTH_20)
+#define is_ht40(tbl) (tbl->bw == RATE_MCS_CHAN_WIDTH_40)
+#define is_ht80(tbl) (tbl->bw == RATE_MCS_CHAN_WIDTH_80)
 
 #define IWL_MAX_MCS_DISPLAY_SIZE	12
 
@@ -232,7 +270,7 @@ struct iwl_scale_tbl_info {
 	enum iwl_table_type lq_type;
 	u8 ant_type;
 	u8 is_SGI;	/* 1 = short guard interval */
-	u8 is_ht40;	/* 1 = 40 MHz channel width */
+	u32 bw;	        /* channel bandwidth; RATE_MCS_CHAN_WIDTH_XX */
 	u8 action;	/* change modulation; IWL_[LEGACY/SISO/MIMO]_SWITCH_* */
 	u8 max_search;	/* maximun number of tables we can search */
 	s32 *expected_tpt;	/* throughput metrics; expected_tpt_G, etc. */
@@ -262,7 +300,7 @@ struct iwl_lq_sta {
 	u64 flush_timer;	/* time staying in mode before new search */
 
 	u8 action_counter;	/* # mode-switch actions tried */
-	u8 is_green;
+	bool is_vht;
 	enum ieee80211_band band;
 
 	/* The following are bitmaps of rates; IWL_RATE_6M_MASK, etc. */
@@ -314,9 +352,8 @@ static inline u8 num_of_ant(u8 mask)
 }
 
 /* Initialize station's rate scaling information after adding station */
-extern void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm,
-				 struct ieee80211_sta *sta,
-				 enum ieee80211_band band);
+void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			  enum ieee80211_band band);
 
 /**
  * iwl_rate_control_register - Register the rate control algorithm callbacks
@@ -328,7 +365,7 @@ extern void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm,
  * ieee80211_register_hw
  *
  */
-extern int iwl_mvm_rate_control_register(void);
+int iwl_mvm_rate_control_register(void);
 
 /**
  * iwl_rate_control_unregister - Unregister the rate control callbacks
@@ -336,7 +373,7 @@ extern int iwl_mvm_rate_control_register(void);
  * This should be called after calling ieee80211_unregister_hw, but before
  * the driver is unloaded.
  */
-extern void iwl_mvm_rate_control_unregister(void);
+void iwl_mvm_rate_control_unregister(void);
 
 struct iwl_mvm_sta;
 

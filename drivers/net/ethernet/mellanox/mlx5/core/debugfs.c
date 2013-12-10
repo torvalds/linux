@@ -154,10 +154,10 @@ static ssize_t average_read(struct file *filp, char __user *buf, size_t count,
 		return 0;
 
 	stats = filp->private_data;
-	spin_lock(&stats->lock);
+	spin_lock_irq(&stats->lock);
 	if (stats->n)
 		field = div64_u64(stats->sum, stats->n);
-	spin_unlock(&stats->lock);
+	spin_unlock_irq(&stats->lock);
 	ret = snprintf(tbuf, sizeof(tbuf), "%llu\n", field);
 	if (ret > 0) {
 		if (copy_to_user(buf, tbuf, ret))
@@ -175,10 +175,10 @@ static ssize_t average_write(struct file *filp, const char __user *buf,
 	struct mlx5_cmd_stats *stats;
 
 	stats = filp->private_data;
-	spin_lock(&stats->lock);
+	spin_lock_irq(&stats->lock);
 	stats->sum = 0;
 	stats->n = 0;
-	spin_unlock(&stats->lock);
+	spin_unlock_irq(&stats->lock);
 
 	*pos += count;
 

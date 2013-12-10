@@ -20,7 +20,6 @@ platforms += mti-sead3
 platforms += netlogic
 platforms += pmcs-msp71xx
 platforms += pnx833x
-platforms += powertv
 platforms += ralink
 platforms += rb532
 platforms += sgi-ip22

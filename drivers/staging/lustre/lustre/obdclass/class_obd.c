@@ -178,7 +178,7 @@ EXPORT_SYMBOL(obd_alloc_fail);
 static inline void obd_data2conn(struct lustre_handle *conn,
 				 struct obd_ioctl_data *data)
 {
-	memset(conn, 0, sizeof *conn);
+	memset(conn, 0, sizeof(*conn));
 	conn->cookie = data->ioc_cookie;
 }
 

@@ -241,7 +241,8 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum v4l2_memory memory,
 		q->bufs[q->num_buffers + buffer] = vb;
 	}
 
-	__setup_offsets(q, buffer);
+	if (memory == V4L2_MEMORY_MMAP)
+		__setup_offsets(q, buffer);
 
 	dprintk(1, "Allocated %d buffers, %d plane(s) each\n",
 			buffer, num_planes);
@@ -353,7 +354,9 @@ static int __verify_length(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 
 			if (b->m.planes[plane].bytesused > length)
 				return -EINVAL;
-			if (b->m.planes[plane].data_offset >=
+
+			if (b->m.planes[plane].data_offset > 0 &&
+			    b->m.planes[plane].data_offset >=
 			    b->m.planes[plane].bytesused)
 				return -EINVAL;
 		}
@@ -1013,6 +1016,10 @@ static int __qbuf_userptr(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 
 		/* Check if the provided plane buffer is large enough */
 		if (planes[plane].length < q->plane_sizes[plane]) {
+			dprintk(1, "qbuf: provided buffer size %u is less than "
+						"setup size %u for plane %d\n",
+						planes[plane].length,
+						q->plane_sizes[plane], plane);
 			ret = -EINVAL;
 			goto err;
 		}
@@ -1203,8 +1210,11 @@ static int __buf_prepare(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 	int ret;
 
 	ret = __verify_length(vb, b);
-	if (ret < 0)
+	if (ret < 0) {
+		dprintk(1, "%s(): plane parameters verification failed: %d\n",
+			__func__, ret);
 		return ret;
+	}
 
 	switch (q->memory) {
 	case V4L2_MEMORY_MMAP:
@@ -2467,10 +2477,11 @@ size_t vb2_read(struct vb2_queue *q, char __user *data, size_t count,
 }
 EXPORT_SYMBOL_GPL(vb2_read);
 
-size_t vb2_write(struct vb2_queue *q, char __user *data, size_t count,
+size_t vb2_write(struct vb2_queue *q, const char __user *data, size_t count,
 		loff_t *ppos, int nonblocking)
 {
-	return __vb2_perform_fileio(q, data, count, ppos, nonblocking, 0);
+	return __vb2_perform_fileio(q, (char __user *) data, count,
+							ppos, nonblocking, 0);
 }
 EXPORT_SYMBOL_GPL(vb2_write);
 
@@ -2631,7 +2642,7 @@ int vb2_fop_release(struct file *file)
 }
 EXPORT_SYMBOL_GPL(vb2_fop_release);
 
-ssize_t vb2_fop_write(struct file *file, char __user *buf,
+ssize_t vb2_fop_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *ppos)
 {
 	struct video_device *vdev = video_devdata(file);

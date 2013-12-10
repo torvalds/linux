@@ -292,8 +292,8 @@ static void assign_requested_resources_sorted(struct list_head *head,
 				      (!(res->flags & IORESOURCE_ROM_ENABLE))))
 					add_to_list(fail_head,
 						    dev_res->dev, res,
-						    0 /* dont care */,
-						    0 /* dont care */);
+						    0 /* don't care */,
+						    0 /* don't care */);
 			}
 			reset_resource(res);
 		}
@@ -667,9 +667,9 @@ static void pci_bridge_check_ranges(struct pci_bus *bus)
 	if (!io) {
 		pci_write_config_word(bridge, PCI_IO_BASE, 0xf0f0);
 		pci_read_config_word(bridge, PCI_IO_BASE, &io);
- 		pci_write_config_word(bridge, PCI_IO_BASE, 0x0);
- 	}
- 	if (io)
+		pci_write_config_word(bridge, PCI_IO_BASE, 0x0);
+	}
+	if (io)
 		b_res[0].flags |= IORESOURCE_IO;
 	/*  DECchip 21050 pass 2 errata: the bridge may miss an address
 	    disconnect boundary by one PCI data phase.
@@ -819,7 +819,7 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 	resource_size_t min_align, align;
 
 	if (!b_res)
- 		return;
+		return;
 
 	min_align = window_alignment(bus, IORESOURCE_IO);
 	list_for_each_entry(dev, &bus->devices, bus_list) {
@@ -950,7 +950,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			if (realloc_head && i >= PCI_IOV_RESOURCES &&
 					i <= PCI_IOV_RESOURCE_END) {
 				r->end = r->start - 1;
-				add_to_list(realloc_head, dev, r, r_size, 0/* dont' care */);
+				add_to_list(realloc_head, dev, r, r_size, 0/* don't care */);
 				children_add_size += r_size;
 				continue;
 			}
@@ -982,7 +982,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	}
 
 	min_align = calculate_mem_align(aligns, max_order);
-	min_align = max(min_align, window_alignment(bus, b_res->flags & mask));
+	min_align = max(min_align, window_alignment(bus, b_res->flags));
 	size0 = calculate_memsize(size, min_size, 0, resource_size(b_res), min_align);
 	if (children_add_size > add_size)
 		add_size = children_add_size;
@@ -1136,7 +1136,7 @@ void __ref __pci_bus_size_bridges(struct pci_bus *bus,
 	}
 
 	/* The root bus? */
-	if (!bus->self)
+	if (pci_is_root_bus(bus))
 		return;
 
 	switch (bus->self->class >> 8) {
@@ -1456,8 +1456,8 @@ static enum enable_type pci_realloc_detect(struct pci_bus *bus,
 
 /*
  * first try will not touch pci bridge res
- * second  and later try will clear small leaf bridge res
- * will stop till to the max  deepth if can not find good one
+ * second and later try will clear small leaf bridge res
+ * will stop till to the max depth if can not find good one
  */
 void pci_assign_unassigned_root_bus_resources(struct pci_bus *bus)
 {
