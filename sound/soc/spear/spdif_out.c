@@ -22,6 +22,7 @@
 #include <sound/spear_dma.h>
 #include <sound/spear_spdif.h>
 #include "spdif_out_regs.h"
+#include "spear_pcm.h"
 
 struct spdif_out_params {
 	u32 rate;
@@ -280,6 +281,7 @@ static int spdif_out_probe(struct platform_device *pdev)
 	struct spdif_out_dev *host;
 	struct spear_spdif_platform_data *pdata;
 	struct resource *res;
+	int ret;
 
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
 	if (!host) {
@@ -306,8 +308,12 @@ static int spdif_out_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, host);
 
-	return devm_snd_soc_register_component(&pdev->dev, &spdif_out_component,
-					       &spdif_out_dai, 1);
+	ret = devm_snd_soc_register_component(&pdev->dev, &spdif_out_component,
+					      &spdif_out_dai, 1);
+	if (ret)
+		return ret;
+
+	return devm_spear_pcm_platform_register(&pdev->dev);
 }
 
 #ifdef CONFIG_PM

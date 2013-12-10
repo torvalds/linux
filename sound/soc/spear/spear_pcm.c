@@ -18,6 +18,7 @@
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/spear_dma.h>
+#include "spear_pcm.h"
 
 static const struct snd_pcm_hardware spear_pcm_hardware = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -47,26 +48,15 @@ static const struct snd_dmaengine_pcm_config spear_dmaengine_pcm_config = {
 	.prealloc_buffer_size = 16 * 1024,
 };
 
-static int spear_soc_platform_probe(struct platform_device *pdev)
+int devm_spear_pcm_platform_register(struct device *dev)
 {
-	return devm_snd_dmaengine_pcm_register(&pdev->dev,
+	return devm_snd_dmaengine_pcm_register(dev,
 		&spear_dmaengine_pcm_config,
 		SND_DMAENGINE_PCM_FLAG_NO_DT |
 		SND_DMAENGINE_PCM_FLAG_COMPAT);
 }
-
-static struct platform_driver spear_pcm_driver = {
-	.driver = {
-		.name = "spear-pcm-audio",
-		.owner = THIS_MODULE,
-	},
-
-	.probe = spear_soc_platform_probe,
-};
-
-module_platform_driver(spear_pcm_driver);
+EXPORT_SYMBOL_GPL(devm_spear_pcm_platform_register);
 
 MODULE_AUTHOR("Rajeev Kumar <rajeev-dlh.kumar@st.com>");
 MODULE_DESCRIPTION("SPEAr PCM DMA module");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:spear-pcm-audio");

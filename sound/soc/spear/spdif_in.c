@@ -24,6 +24,7 @@
 #include <sound/spear_dma.h>
 #include <sound/spear_spdif.h>
 #include "spdif_in_regs.h"
+#include "spear_pcm.h"
 
 struct spdif_in_params {
 	u32 format;
@@ -257,8 +258,12 @@ static int spdif_in_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	return devm_snd_soc_register_component(&pdev->dev, &spdif_in_component,
-					       &spdif_in_dai, 1);
+	ret = devm_snd_soc_register_component(&pdev->dev, &spdif_in_component,
+					      &spdif_in_dai, 1);
+	if (ret)
+		return ret;
+
+	return devm_spear_pcm_platform_register(&pdev->dev);
 }
 
 static struct platform_driver spdif_in_driver = {
