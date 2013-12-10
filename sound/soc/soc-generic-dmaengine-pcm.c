@@ -287,16 +287,17 @@ static const char * const dmaengine_pcm_dma_channel_names[] = {
 	[SNDRV_PCM_STREAM_CAPTURE] = "rx",
 };
 
-static void dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
+static int dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 	struct device *dev, const struct snd_dmaengine_pcm_config *config)
 {
 	unsigned int i;
 	const char *name;
+	struct dma_chan *chan;
 
 	if ((pcm->flags & (SND_DMAENGINE_PCM_FLAG_NO_DT |
 			   SND_DMAENGINE_PCM_FLAG_CUSTOM_CHANNEL_NAME)) ||
 	    !dev->of_node)
-		return;
+		return 0;
 
 	if (config->dma_dev) {
 		/*
@@ -318,13 +319,22 @@ static void dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 			name = dmaengine_pcm_dma_channel_names[i];
 		if (config->chan_names[i])
 			name = config->chan_names[i];
-		pcm->chan[i] = dma_request_slave_channel(dev, name);
+		chan = dma_request_slave_channel_reason(dev, name);
+		if (IS_ERR(chan)) {
+			if (PTR_ERR(pcm->chan[i]) == -EPROBE_DEFER)
+				return -EPROBE_DEFER;
+			pcm->chan[i] = NULL;
+		} else {
+			pcm->chan[i] = chan;
+		}
 		if (pcm->flags & SND_DMAENGINE_PCM_FLAG_HALF_DUPLEX)
 			break;
 	}
 
 	if (pcm->flags & SND_DMAENGINE_PCM_FLAG_HALF_DUPLEX)
 		pcm->chan[1] = pcm->chan[0];
+
+	return 0;
 }
 
 static void dmaengine_pcm_release_chan(struct dmaengine_pcm *pcm)
@@ -360,7 +370,9 @@ int snd_dmaengine_pcm_register(struct device *dev,
 	pcm->config = config;
 	pcm->flags = flags;
 
-	dmaengine_pcm_request_chan_of(pcm, dev, config);
+	ret = dmaengine_pcm_request_chan_of(pcm, dev, config);
+	if (ret)
+		goto err_free_dma;
 
 	if (flags & SND_DMAENGINE_PCM_FLAG_NO_RESIDUE)
 		ret = snd_soc_add_platform(dev, &pcm->platform,
