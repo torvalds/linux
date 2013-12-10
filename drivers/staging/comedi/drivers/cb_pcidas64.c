@@ -429,91 +429,85 @@ static inline uint8_t attenuate_bit(unsigned int channel)
 
 /* analog input ranges for 64xx boards */
 static const struct comedi_lrange ai_ranges_64xx = {
-	8,
-	{
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 BIP_RANGE(2.5),
-	 BIP_RANGE(1.25),
-	 UNI_RANGE(10),
-	 UNI_RANGE(5),
-	 UNI_RANGE(2.5),
-	 UNI_RANGE(1.25)
-	 }
+	8, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
 };
 
 /* analog input ranges for 60xx boards */
 static const struct comedi_lrange ai_ranges_60xx = {
-	4,
-	{
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 BIP_RANGE(0.5),
-	 BIP_RANGE(0.05),
-	 }
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.05)
+	}
 };
 
 /* analog input ranges for 6030, etc boards */
 static const struct comedi_lrange ai_ranges_6030 = {
-	14,
-	{
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 BIP_RANGE(2),
-	 BIP_RANGE(1),
-	 BIP_RANGE(0.5),
-	 BIP_RANGE(0.2),
-	 BIP_RANGE(0.1),
-	 UNI_RANGE(10),
-	 UNI_RANGE(5),
-	 UNI_RANGE(2),
-	 UNI_RANGE(1),
-	 UNI_RANGE(0.5),
-	 UNI_RANGE(0.2),
-	 UNI_RANGE(0.1),
-	 }
+	14, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.2),
+		BIP_RANGE(0.1),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1),
+		UNI_RANGE(0.5),
+		UNI_RANGE(0.2),
+		UNI_RANGE(0.1)
+	}
 };
 
 /* analog input ranges for 6052, etc boards */
 static const struct comedi_lrange ai_ranges_6052 = {
-	15,
-	{
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 BIP_RANGE(2.5),
-	 BIP_RANGE(1),
-	 BIP_RANGE(0.5),
-	 BIP_RANGE(0.25),
-	 BIP_RANGE(0.1),
-	 BIP_RANGE(0.05),
-	 UNI_RANGE(10),
-	 UNI_RANGE(5),
-	 UNI_RANGE(2),
-	 UNI_RANGE(1),
-	 UNI_RANGE(0.5),
-	 UNI_RANGE(0.2),
-	 UNI_RANGE(0.1),
-	 }
+	15, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.25),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.05),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1),
+		UNI_RANGE(0.5),
+		UNI_RANGE(0.2),
+		UNI_RANGE(0.1)
+	}
 };
 
 /* analog input ranges for 4020 board */
 static const struct comedi_lrange ai_ranges_4020 = {
-	2,
-	{
-	 BIP_RANGE(5),
-	 BIP_RANGE(1),
-	 }
+	2, {
+		BIP_RANGE(5),
+		BIP_RANGE(1)
+	}
 };
 
 /* analog output ranges */
 static const struct comedi_lrange ao_ranges_64xx = {
-	4,
-	{
-	 BIP_RANGE(5),
-	 BIP_RANGE(10),
-	 UNI_RANGE(5),
-	 UNI_RANGE(10),
-	 }
+	4, {
+		BIP_RANGE(5),
+		BIP_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(10)
+	}
 };
 
 static const int ao_range_code_64xx[] = {
@@ -528,11 +522,10 @@ static const int ao_range_code_60xx[] = {
 };
 
 static const struct comedi_lrange ao_ranges_6030 = {
-	2,
-	{
-	 BIP_RANGE(10),
-	 UNI_RANGE(10),
-	 }
+	2, {
+		BIP_RANGE(10),
+		UNI_RANGE(10)
+	}
 };
 
 static const int ao_range_code_6030[] = {
@@ -541,11 +534,10 @@ static const int ao_range_code_6030[] = {
 };
 
 static const struct comedi_lrange ao_ranges_4020 = {
-	2,
-	{
-	 BIP_RANGE(5),
-	 BIP_RANGE(10),
-	 }
+	2, {
+		BIP_RANGE(5),
+		BIP_RANGE(10)
+	}
 };
 
 static const int ao_range_code_4020[] = {
