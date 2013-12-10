@@ -18,6 +18,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <sound/dmaengine_pcm.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -38,6 +39,8 @@ struct spdif_in_dev {
 	struct device *dev;
 	void (*reset_perip)(void);
 	int irq;
+	struct snd_dmaengine_dai_dma_data dma_params_rx;
+	struct snd_dmaengine_pcm_config config;
 };
 
 static void spdif_in_configure(struct spdif_in_dev *host)
@@ -54,7 +57,8 @@ static int spdif_in_dai_probe(struct snd_soc_dai *dai)
 {
 	struct spdif_in_dev *host = snd_soc_dai_get_drvdata(dai);
 
-	dai->capture_dma_data = &host->dma_params;
+	host->dma_params_rx.filter_data = &host->dma_params;
+	dai->capture_dma_data = &host->dma_params_rx;
 
 	return 0;
 }
@@ -245,7 +249,6 @@ static int spdif_in_probe(struct platform_device *pdev)
 	host->dma_params.addr = res_fifo->start;
 	host->dma_params.max_burst = 16;
 	host->dma_params.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	host->dma_params.filter = pdata->filter;
 	host->reset_perip = pdata->reset_perip;
 
 	host->dev = &pdev->dev;
@@ -263,7 +266,8 @@ static int spdif_in_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return devm_spear_pcm_platform_register(&pdev->dev);
+	return devm_spear_pcm_platform_register(&pdev->dev, &host->config,
+						pdata->filter);
 }
 
 static struct platform_driver spdif_in_driver = {

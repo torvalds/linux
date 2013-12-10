@@ -32,26 +32,19 @@ static const struct snd_pcm_hardware spear_pcm_hardware = {
 	.fifo_size = 0, /* fifo size in bytes */
 };
 
-static struct dma_chan *spear_pcm_request_chan(struct snd_soc_pcm_runtime *rtd,
-	struct snd_pcm_substream *substream)
-{
-	struct spear_dma_data *dma_data;
-
-	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
-
-	return snd_dmaengine_pcm_request_channel(dma_data->filter, dma_data);
-}
-
 static const struct snd_dmaengine_pcm_config spear_dmaengine_pcm_config = {
 	.pcm_hardware = &spear_pcm_hardware,
-	.compat_request_channel = spear_pcm_request_chan,
 	.prealloc_buffer_size = 16 * 1024,
 };
 
-int devm_spear_pcm_platform_register(struct device *dev)
+int devm_spear_pcm_platform_register(struct device *dev,
+			struct snd_dmaengine_pcm_config *config,
+			bool (*filter)(struct dma_chan *chan, void *slave))
 {
-	return devm_snd_dmaengine_pcm_register(dev,
-		&spear_dmaengine_pcm_config,
+	*config = spear_dmaengine_pcm_config;
+	config->compat_filter_fn = filter;
+
+	return snd_dmaengine_pcm_register(dev, config,
 		SND_DMAENGINE_PCM_FLAG_NO_DT |
 		SND_DMAENGINE_PCM_FLAG_COMPAT);
 }
