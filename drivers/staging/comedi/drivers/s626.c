@@ -199,7 +199,7 @@ static bool s626_mc_test(struct comedi_device *dev,
 static const struct comedi_lrange s626_range_table = {
 	2, {
 		BIP_RANGE(5),
-		BIP_RANGE(10),
+		BIP_RANGE(10)
 	}
 };
 
