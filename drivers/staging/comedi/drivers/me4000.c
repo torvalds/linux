@@ -328,13 +328,12 @@ static const struct me4000_board me4000_boards[] = {
 };
 
 static const struct comedi_lrange me4000_ai_range = {
-	4,
-	{
-	 UNI_RANGE(2.5),
-	 UNI_RANGE(10),
-	 BIP_RANGE(2.5),
-	 BIP_RANGE(10),
-	 }
+	4, {
+		UNI_RANGE(2.5),
+		UNI_RANGE(10),
+		BIP_RANGE(2.5),
+		BIP_RANGE(10)
+	}
 };
 
 #define FIRMWARE_NOT_AVAILABLE 1
