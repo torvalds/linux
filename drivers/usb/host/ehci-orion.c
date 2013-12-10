@@ -245,7 +245,7 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 	case EHCI_PHY_DD:
 	case EHCI_PHY_KW:
 	default:
-		printk(KERN_WARNING "Orion ehci -USB phy version isn't supported.\n");
+		dev_warn(&pdev->dev, "USB phy version isn't supported.\n");
 	}
 
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
