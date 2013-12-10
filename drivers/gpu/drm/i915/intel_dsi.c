@@ -373,9 +373,6 @@ static void intel_dsi_mode_set(struct intel_encoder *intel_encoder)
 
 	DRM_DEBUG_KMS("pipe %c\n", pipe_name(pipe));
 
-	/* Update the DSI PLL */
-	vlv_enable_dsi_pll(intel_encoder);
-
 	/* XXX: Location of the call */
 	band_gap_reset(dev_priv);
 
