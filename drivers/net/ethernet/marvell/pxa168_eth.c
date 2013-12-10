@@ -320,23 +320,6 @@ static void ethernet_phy_set_addr(struct pxa168_eth_private *pep, int phy_addr)
 	wrl(pep, PHY_ADDRESS, reg_data);
 }
 
-static void ethernet_phy_reset(struct pxa168_eth_private *pep)
-{
-	int data;
-
-	data = phy_read(pep->phy, MII_BMCR);
-	if (data < 0)
-		return;
-
-	data |= BMCR_RESET;
-	if (phy_write(pep->phy, MII_BMCR, data) < 0)
-		return;
-
-	do {
-		data = phy_read(pep->phy, MII_BMCR);
-	} while (data >= 0 && data & BMCR_RESET);
-}
-
 static void rxq_refill(struct net_device *dev)
 {
 	struct pxa168_eth_private *pep = netdev_priv(dev);
@@ -645,7 +628,7 @@ static void eth_port_start(struct net_device *dev)
 		struct ethtool_cmd cmd;
 
 		pxa168_get_settings(pep->dev, &cmd);
-		ethernet_phy_reset(pep);
+		phy_init_hw(pep->phy);
 		pxa168_set_settings(pep->dev, &cmd);
 	}
 
@@ -1382,7 +1365,6 @@ static struct phy_device *phy_scan(struct pxa168_eth_private *pep, int phy_addr)
 static void phy_init(struct pxa168_eth_private *pep, int speed, int duplex)
 {
 	struct phy_device *phy = pep->phy;
-	ethernet_phy_reset(pep);
 
 	phy_attach(pep->dev, dev_name(&phy->dev), PHY_INTERFACE_MODE_MII);
 

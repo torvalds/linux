@@ -289,6 +289,7 @@ int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 	cmd->supported = phydev->supported;
 
 	cmd->advertising = phydev->advertising;
+	cmd->lp_advertising = phydev->lp_advertising;
 
 	ethtool_cmd_speed_set(cmd, phydev->speed);
 	cmd->duplex = phydev->duplex;
@@ -317,6 +318,7 @@ int phy_mii_ioctl(struct phy_device *phydev,
 {
 	struct mii_ioctl_data *mii_data = if_mii(ifr);
 	u16 val = mii_data->val_in;
+	int ret = 0;
 
 	switch (cmd) {
 	case SIOCGMIIPHY:
@@ -360,11 +362,8 @@ int phy_mii_ioctl(struct phy_device *phydev,
 			      mii_data->reg_num, val);
 
 		if (mii_data->reg_num == MII_BMCR &&
-		    val & BMCR_RESET &&
-		    phydev->drv->config_init) {
-			phy_scan_fixups(phydev);
-			phydev->drv->config_init(phydev);
-		}
+		    val & BMCR_RESET)
+			ret = phy_init_hw(phydev);
 		break;
 
 	case SIOCSHWTSTAMP:
@@ -376,7 +375,7 @@ int phy_mii_ioctl(struct phy_device *phydev,
 		return -EOPNOTSUPP;
 	}
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(phy_mii_ioctl);
 

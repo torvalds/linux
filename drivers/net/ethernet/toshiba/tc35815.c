@@ -1170,19 +1170,12 @@ static int tc35815_tx_full(struct net_device *dev)
 static void tc35815_restart(struct net_device *dev)
 {
 	struct tc35815_local *lp = netdev_priv(dev);
+	int ret;
 
 	if (lp->phy_dev) {
-		int timeout;
-
-		phy_write(lp->phy_dev, MII_BMCR, BMCR_RESET);
-		timeout = 100;
-		while (--timeout) {
-			if (!(phy_read(lp->phy_dev, MII_BMCR) & BMCR_RESET))
-				break;
-			udelay(1);
-		}
-		if (!timeout)
-			printk(KERN_ERR "%s: BMCR reset failed.\n", dev->name);
+		ret = phy_init_hw(lp->phy_dev);
+		if (ret)
+			printk(KERN_ERR "%s: PHY init failed.\n", dev->name);
 	}
 
 	spin_lock_bh(&lp->rx_lock);
