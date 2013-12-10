@@ -29,7 +29,6 @@
 #define _OS_INTFS_C_
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/kthread.h>
 #include <linux/firmware.h>
 #include "osdep_service.h"

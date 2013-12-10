@@ -39,7 +39,6 @@
 /* #define DEBUG */
 /* #define SEP_PERF_DEBUG */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/miscdevice.h>

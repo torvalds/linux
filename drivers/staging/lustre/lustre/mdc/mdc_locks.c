@@ -39,7 +39,6 @@
 # include <linux/module.h>
 # include <linux/pagemap.h>
 # include <linux/miscdevice.h>
-# include <linux/init.h>
 
 #include <lustre_acl.h>
 #include <obd_class.h>

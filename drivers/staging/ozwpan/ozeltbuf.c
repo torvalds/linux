@@ -3,7 +3,6 @@
  * Released under the GNU General Public License Version 2 (GPLv2).
  * -----------------------------------------------------------------------------
  */
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include "ozdbg.h"

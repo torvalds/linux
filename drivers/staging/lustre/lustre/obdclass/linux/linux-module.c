@@ -56,7 +56,6 @@
 #include <linux/proc_fs.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
-#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/highmem.h>
 #include <asm/io.h>

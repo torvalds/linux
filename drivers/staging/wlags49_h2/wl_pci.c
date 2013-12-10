@@ -68,7 +68,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/ctype.h>

@@ -23,7 +23,6 @@
 #include <linux/pm.h>
 #include <linux/module.h>
 #include <linux/device.h>
-#include <linux/init.h>
 #include <linux/moduleparam.h>
 #include <linux/cdev.h>
 

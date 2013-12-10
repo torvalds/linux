@@ -42,7 +42,6 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/stat.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/unistd.h>
 #include <linux/kmod.h>
