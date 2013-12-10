@@ -83,6 +83,7 @@ struct nvme_queue {
 	u16 sq_head;
 	u16 sq_tail;
 	u16 cq_head;
+	u16 qid;
 	u8 cq_phase;
 	u8 cqe_seen;
 	u8 q_suspended;
@@ -100,6 +101,7 @@ static inline void _nvme_check_size(void)
 	BUILD_BUG_ON(sizeof(struct nvme_delete_queue) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_features) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_format_cmd) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_abort_cmd) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_command) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_id_ctrl) != 4096);
 	BUILD_BUG_ON(sizeof(struct nvme_id_ns) != 4096);
@@ -114,6 +116,7 @@ struct nvme_cmd_info {
 	nvme_completion_fn fn;
 	void *ctx;
 	unsigned long timeout;
+	int aborted;
 };
 
 static struct nvme_cmd_info *nvme_cmd_info(struct nvme_queue *nvmeq)
@@ -157,6 +160,7 @@ static int alloc_cmdid(struct nvme_queue *nvmeq, void *ctx,
 	info[cmdid].fn = handler;
 	info[cmdid].ctx = ctx;
 	info[cmdid].timeout = jiffies + timeout;
+	info[cmdid].aborted = 0;
 	return cmdid;
 }
 
@@ -175,6 +179,7 @@ static int alloc_cmdid_killable(struct nvme_queue *nvmeq, void *ctx,
 #define CMD_CTX_COMPLETED	(0x310 + CMD_CTX_BASE)
 #define CMD_CTX_INVALID		(0x314 + CMD_CTX_BASE)
 #define CMD_CTX_FLUSH		(0x318 + CMD_CTX_BASE)
+#define CMD_CTX_ABORT		(0x31C + CMD_CTX_BASE)
 
 static void special_completion(struct nvme_dev *dev, void *ctx,
 						struct nvme_completion *cqe)
@@ -183,6 +188,10 @@ static void special_completion(struct nvme_dev *dev, void *ctx,
 		return;
 	if (ctx == CMD_CTX_FLUSH)
 		return;
+	if (ctx == CMD_CTX_ABORT) {
+		++dev->abort_limit;
+		return;
+	}
 	if (ctx == CMD_CTX_COMPLETED) {
 		dev_warn(&dev->pci_dev->dev,
 				"completed id %d twice on queue %d\n",
@@ -1005,6 +1014,56 @@ int nvme_set_features(struct nvme_dev *dev, unsigned fid, unsigned dword11,
 }
 
 /**
+ * nvme_abort_cmd - Attempt aborting a command
+ * @cmdid: Command id of a timed out IO
+ * @queue: The queue with timed out IO
+ *
+ * Schedule controller reset if the command was already aborted once before and
+ * still hasn't been returned to the driver, or if this is the admin queue.
+ */
+static void nvme_abort_cmd(int cmdid, struct nvme_queue *nvmeq)
+{
+	int a_cmdid;
+	struct nvme_command cmd;
+	struct nvme_dev *dev = nvmeq->dev;
+	struct nvme_cmd_info *info = nvme_cmd_info(nvmeq);
+
+	if (!nvmeq->qid || info[cmdid].aborted) {
+		if (work_busy(&dev->reset_work))
+			return;
+		list_del_init(&dev->node);
+		dev_warn(&dev->pci_dev->dev,
+			"I/O %d QID %d timeout, reset controller\n", cmdid,
+								nvmeq->qid);
+		INIT_WORK(&dev->reset_work, nvme_reset_failed_dev);
+		queue_work(nvme_workq, &dev->reset_work);
+		return;
+	}
+
+	if (!dev->abort_limit)
+		return;
+
+	a_cmdid = alloc_cmdid(dev->queues[0], CMD_CTX_ABORT, special_completion,
+								ADMIN_TIMEOUT);
+	if (a_cmdid < 0)
+		return;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.abort.opcode = nvme_admin_abort_cmd;
+	cmd.abort.cid = cmdid;
+	cmd.abort.sqid = cpu_to_le16(nvmeq->qid);
+	cmd.abort.command_id = a_cmdid;
+
+	--dev->abort_limit;
+	info[cmdid].aborted = 1;
+	info[cmdid].timeout = jiffies + ADMIN_TIMEOUT;
+
+	dev_warn(nvmeq->q_dmadev, "Aborting I/O %d QID %d\n", cmdid,
+							nvmeq->qid);
+	nvme_submit_cmd(dev->queues[0], &cmd);
+}
+
+/**
  * nvme_cancel_ios - Cancel outstanding I/Os
  * @queue: The queue to cancel I/Os on
  * @timeout: True to only cancel I/Os which have timed out
@@ -1027,7 +1086,12 @@ static void nvme_cancel_ios(struct nvme_queue *nvmeq, bool timeout)
 			continue;
 		if (info[cmdid].ctx == CMD_CTX_CANCELLED)
 			continue;
-		dev_warn(nvmeq->q_dmadev, "Cancelling I/O %d\n", cmdid);
+		if (timeout && nvmeq->dev->initialized) {
+			nvme_abort_cmd(cmdid, nvmeq);
+			continue;
+		}
+		dev_warn(nvmeq->q_dmadev, "Cancelling I/O %d QID %d\n", cmdid,
+								nvmeq->qid);
 		ctx = cancel_cmdid(nvmeq, cmdid, &fn);
 		fn(nvmeq->dev, ctx, &cqe);
 	}
@@ -1119,6 +1183,7 @@ static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
 	nvmeq->q_db = &dev->dbs[qid * 2 * dev->db_stride];
 	nvmeq->q_depth = depth;
 	nvmeq->cq_vector = vector;
+	nvmeq->qid = qid;
 	nvmeq->q_suspended = 1;
 	dev->queue_count++;
 
@@ -1929,6 +1994,7 @@ static int nvme_dev_add(struct nvme_dev *dev)
 	ctrl = mem;
 	nn = le32_to_cpup(&ctrl->nn);
 	dev->oncs = le16_to_cpup(&ctrl->oncs);
+	dev->abort_limit = ctrl->acl + 1;
 	memcpy(dev->serial, ctrl->sn, sizeof(ctrl->sn));
 	memcpy(dev->model, ctrl->mn, sizeof(ctrl->mn));
 	memcpy(dev->firmware_rev, ctrl->fr, sizeof(ctrl->fr));

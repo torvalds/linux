@@ -95,6 +95,7 @@ struct nvme_dev {
 	u32 max_hw_sectors;
 	u32 stripe_size;
 	u16 oncs;
+	u16 abort_limit;
 	u8 initialized;
 };
 
