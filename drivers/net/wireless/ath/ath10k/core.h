@@ -306,6 +306,9 @@ enum ath10k_fw_features {
 	/* firmware support tx frame management over WMI, otherwise it's HTT */
 	ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX = 2,
 
+	/* Firmware does not support P2P */
+	ATH10K_FW_FEATURE_NO_P2P = 3,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };

@@ -3673,9 +3673,12 @@ int ath10k_mac_register(struct ath10k *ar)
 	ar->hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC) |
-		BIT(NL80211_IFTYPE_AP) |
-		BIT(NL80211_IFTYPE_P2P_CLIENT) |
-		BIT(NL80211_IFTYPE_P2P_GO);
+		BIT(NL80211_IFTYPE_AP);
+
+	if (!test_bit(ATH10K_FW_FEATURE_NO_P2P, ar->fw_features))
+		ar->hw->wiphy->interface_modes |=
+			BIT(NL80211_IFTYPE_P2P_CLIENT) |
+			BIT(NL80211_IFTYPE_P2P_GO);
 
 	ar->hw->flags = IEEE80211_HW_SIGNAL_DBM |
 			IEEE80211_HW_SUPPORTS_PS |
