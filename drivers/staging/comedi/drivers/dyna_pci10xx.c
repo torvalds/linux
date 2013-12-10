@@ -42,11 +42,12 @@
 
 #define READ_TIMEOUT 50
 
-static const struct comedi_lrange range_pci1050_ai = { 3, {
-							  BIP_RANGE(10),
-							  BIP_RANGE(5),
-							  UNI_RANGE(10)
-							  }
+static const struct comedi_lrange range_pci1050_ai = {
+	3, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		UNI_RANGE(10)
+	}
 };
 
 static const char range_codes_pci1050_ai[] = { 0x00, 0x10, 0x30 };
