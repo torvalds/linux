@@ -155,13 +155,6 @@ static void rcu_free_flow_callback(struct rcu_head *rcu)
 	flow_free(flow);
 }
 
-static void rcu_free_sw_flow_mask_cb(struct rcu_head *rcu)
-{
-	struct sw_flow_mask *mask = container_of(rcu, struct sw_flow_mask, rcu);
-
-	kfree(mask);
-}
-
 static void flow_mask_del_ref(struct sw_flow_mask *mask, bool deferred)
 {
 	if (!mask)
@@ -173,7 +166,7 @@ static void flow_mask_del_ref(struct sw_flow_mask *mask, bool deferred)
 	if (!mask->ref_count) {
 		list_del_rcu(&mask->list);
 		if (deferred)
-			call_rcu(&mask->rcu, rcu_free_sw_flow_mask_cb);
+			kfree_rcu(mask, rcu);
 		else
 			kfree(mask);
 	}

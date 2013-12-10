@@ -1176,19 +1176,11 @@ struct sw_flow_actions *ovs_nla_alloc_flow_actions(int size)
 	return sfa;
 }
 
-/* RCU callback used by ovs_nla_free_flow_actions. */
-static void rcu_free_acts_callback(struct rcu_head *rcu)
-{
-	struct sw_flow_actions *sf_acts = container_of(rcu,
-			struct sw_flow_actions, rcu);
-	kfree(sf_acts);
-}
-
 /* Schedules 'sf_acts' to be freed after the next RCU grace period.
  * The caller must hold rcu_read_lock for this to be sensible. */
 void ovs_nla_free_flow_actions(struct sw_flow_actions *sf_acts)
 {
-	call_rcu(&sf_acts->rcu, rcu_free_acts_callback);
+	kfree_rcu(sf_acts, rcu);
 }
 
 static struct nlattr *reserve_sfa_size(struct sw_flow_actions **sfa,
