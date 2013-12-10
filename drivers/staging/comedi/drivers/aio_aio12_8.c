@@ -181,13 +181,12 @@ static int aio_aio12_8_ao_write(struct comedi_device *dev,
 }
 
 static const struct comedi_lrange range_aio_aio12_8 = {
-	4,
-	{
-	 UNI_RANGE(5),
-	 BIP_RANGE(5),
-	 UNI_RANGE(10),
-	 BIP_RANGE(10),
-	 }
+	4, {
+		UNI_RANGE(5),
+		BIP_RANGE(5),
+		UNI_RANGE(10),
+		BIP_RANGE(10)
+	}
 };
 
 static int aio_aio12_8_attach(struct comedi_device *dev,
