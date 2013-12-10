@@ -166,7 +166,7 @@ void __mcpm_cpu_down(unsigned int cpu, unsigned int cluster)
 	dmb();
 	mcpm_sync.clusters[cluster].cpus[cpu].cpu = CPU_DOWN;
 	sync_cache_w(&mcpm_sync.clusters[cluster].cpus[cpu].cpu);
-	dsb_sev();
+	sev();
 }
 
 /*
@@ -182,7 +182,7 @@ void __mcpm_outbound_leave_critical(unsigned int cluster, int state)
 	dmb();
 	mcpm_sync.clusters[cluster].cluster = state;
 	sync_cache_w(&mcpm_sync.clusters[cluster].cluster);
-	dsb_sev();
+	sev();
 }
 
 /*
