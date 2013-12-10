@@ -560,9 +560,21 @@ static void mpc512x_clk_setup_clock_tree(struct device_node *np, int busfreq)
 	/* now setup anything below SYS and CSB and IPS */
 
 	clks[MPC512x_CLK_DDR_UG] = mpc512x_clk_factor("ddr-ug", "sys", 1, 2);
-	clks[MPC512x_CLK_SDHC_x4] = mpc512x_clk_factor("sdhc-x4", "csb", 4, 1);
+
+	/*
+	 * the Reference Manual discusses that for SDHC only even divide
+	 * ratios are supported because clock domain synchronization
+	 * between 'per' and 'ipg' is broken;
+	 * keep the divider's bit 0 cleared (per reset value), and only
+	 * allow to setup the divider's bits 7:1, which results in that
+	 * only even divide ratios can get configured upon rate changes;
+	 * keep the "x4" name because this bit shift hack is an internal
+	 * implementation detail, the "fractional divider with quarters"
+	 * semantics remains
+	 */
+	clks[MPC512x_CLK_SDHC_x4] = mpc512x_clk_factor("sdhc-x4", "csb", 2, 1);
 	clks[MPC512x_CLK_SDHC_UG] = mpc512x_clk_divider("sdhc-ug", "sdhc-x4", 0,
-							&clkregs->scfr2, 0, 8,
+							&clkregs->scfr2, 1, 7,
 							CLK_DIVIDER_ONE_BASED);
 	clks[MPC512x_CLK_DIU_x4] = mpc512x_clk_factor("diu-x4", "csb", 4, 1);
 	clks[MPC512x_CLK_DIU_UG] = mpc512x_clk_divider("diu-ug", "diu-x4", 0,
