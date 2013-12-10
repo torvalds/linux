@@ -475,13 +475,23 @@ void dso__delete(struct dso *dso)
 	int i;
 	for (i = 0; i < MAP__NR_TYPES; ++i)
 		symbols__delete(&dso->symbols[i]);
-	if (dso->short_name_allocated)
+
+	if (dso->short_name_allocated) {
 		free((char *)dso->short_name);
-	if (dso->long_name_allocated)
+		dso->short_name		  = NULL;
+		dso->short_name_allocated = false;
+	}
+
+	if (dso->long_name_allocated) {
 		free((char *)dso->long_name);
+		dso->long_name		 = NULL;
+		dso->long_name_allocated = false;
+	}
+
 	dso_cache__free(&dso->cache);
 	dso__free_a2l(dso);
 	free(dso->symsrc_filename);
+	dso->symsrc_filename = NULL;
 	free(dso);
 }
 
