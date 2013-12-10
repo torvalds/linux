@@ -580,6 +580,55 @@ TRACE_EVENT(sched_task_usage_ratio,
 );
 
 /*
+ * Tracepoint for HMP (CONFIG_SCHED_HMP) task migrations,
+ * marking the forced transition of runnable or running tasks.
+ */
+TRACE_EVENT(sched_hmp_migrate_force_running,
+
+	TP_PROTO(struct task_struct *tsk, int running),
+
+	TP_ARGS(tsk, running),
+
+	TP_STRUCT__entry(
+		__array(char, comm, TASK_COMM_LEN)
+		__field(int, running)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->running = running;
+	),
+
+	TP_printk("running=%d comm=%s",
+		__entry->running, __entry->comm)
+);
+
+/*
+ * Tracepoint for HMP (CONFIG_SCHED_HMP) task migrations,
+ * marking the forced transition of runnable or running
+ * tasks when a task is about to go idle.
+ */
+TRACE_EVENT(sched_hmp_migrate_idle_running,
+
+	TP_PROTO(struct task_struct *tsk, int running),
+
+	TP_ARGS(tsk, running),
+
+	TP_STRUCT__entry(
+		__array(char, comm, TASK_COMM_LEN)
+		__field(int, running)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->running = running;
+	),
+
+	TP_printk("running=%d comm=%s",
+		__entry->running, __entry->comm)
+);
+
+/*
  * Tracepoint for HMP (CONFIG_SCHED_HMP) task migrations.
  */
 #define HMP_MIGRATE_WAKEUP 0

@@ -1741,7 +1741,7 @@ static struct kobject *loop_probe(dev_t dev, int *part, void *data)
 	if (err < 0)
 		err = loop_add(&lo, MINOR(dev) >> part_shift);
 	if (err < 0)
-		kobj = ERR_PTR(err);
+		kobj = NULL;
 	else
 		kobj = get_disk(lo->lo_disk);
 	mutex_unlock(&loop_index_mutex);

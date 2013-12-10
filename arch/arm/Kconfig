@@ -1510,6 +1510,17 @@ config SCHED_HMP
 	  There is currently no support for migration of task groups, hence
 	  !SCHED_AUTOGROUP. Furthermore, normal load-balancing must be disabled
 	  between cpus of different type (DISABLE_CPU_SCHED_DOMAIN_BALANCE).
+	  When turned on, this option adds sys/kernel/hmp directory which
+	  contains the following files:
+	  up_threshold - the load average threshold used for up migration
+	                 (0 - 1023)
+	  down_threshold - the load average threshold used for down migration
+	                 (0 - 1023)
+	  hmp_domains - a list of cpumasks for the present HMP domains,
+	                starting with the 'biggest' and ending with the
+	                'smallest'.
+	  Note that both the threshold files can be written at runtime to
+	  control scheduler behaviour.
 
 config SCHED_HMP_PRIO_FILTER
 	bool "(EXPERIMENTAL) Filter HMP migrations by task priority"
@@ -1544,28 +1555,24 @@ config HMP_VARIABLE_SCALE
 	bool "Allows changing the load tracking scale through sysfs"
 	depends on SCHED_HMP
 	help
-	  When turned on, this option exports the thresholds and load average
-	  period value for the load tracking patches through sysfs.
+	  When turned on, this option exports the load average period value
+	  for the load tracking patches through sysfs.
 	  The values can be modified to change the rate of load accumulation
-	  and the thresholds used for HMP migration.
-	  The load_avg_period_ms is the time in ms to reach a load average of
-	  0.5 for an idle task of 0 load average ratio that start a busy loop.
-	  The up_threshold and down_threshold is the value to go to a faster
-	  CPU or to go back to a slower cpu.
-	  The {up,down}_threshold are devided by 1024 before being compared
-	  to the load average.
-	  For examples, with load_avg_period_ms = 128 and up_threshold = 512,
+	  used for HMP migration. 'load_avg_period_ms' is the time in ms to
+	  reach a load average of 0.5 for an idle task of 0 load average
+	  ratio which becomes 100% busy.
+	  For example, with load_avg_period_ms = 128 and up_threshold = 512,
 	  a running task with a load of 0 will be migrated to a bigger CPU after
 	  128ms, because after 128ms its load_avg_ratio is 0.5 and the real
 	  up_threshold is 0.5.
 	  This patch has the same behavior as changing the Y of the load
 	  average computation to
 	        (1002/1024)^(LOAD_AVG_PERIOD/load_avg_period_ms)
-	  but it remove intermadiate overflows in computation.
+	  but removes intermediate overflows in computation.
 
 config HMP_FREQUENCY_INVARIANT_SCALE
 	bool "(EXPERIMENTAL) Frequency-Invariant Tracked Load for HMP"
-	depends on HMP_VARIABLE_SCALE && CPU_FREQ
+	depends on SCHED_HMP && CPU_FREQ
 	help
 	  Scales the current load contribution in line with the frequency
 	  of the CPU that the task was executed on.
