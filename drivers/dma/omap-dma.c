@@ -30,6 +30,10 @@ struct omap_dmadev {
 	void __iomem *base;
 	const struct omap_dma_reg *reg_map;
 	struct omap_system_dma_plat_info *plat;
+	bool legacy;
+	spinlock_t irq_lock;
+	uint32_t irq_enable_mask;
+	struct omap_chan *lch_map[32];
 };
 
 struct omap_chan {
@@ -254,10 +258,22 @@ static void omap_dma_clear_csr(struct omap_chan *c)
 		omap_dma_chan_write(c, CSR, ~0);
 }
 
+static unsigned omap_dma_get_csr(struct omap_chan *c)
+{
+	unsigned val = omap_dma_chan_read(c, CSR);
+
+	if (!dma_omap1())
+		omap_dma_chan_write(c, CSR, val);
+
+	return val;
+}
+
 static void omap_dma_assign(struct omap_dmadev *od, struct omap_chan *c,
 	unsigned lch)
 {
 	c->channel_base = od->base + od->plat->channel_stride * lch;
+
+	od->lch_map[lch] = c;
 }
 
 static void omap_dma_start(struct omap_chan *c, struct omap_desc *d)
@@ -460,32 +476,103 @@ static void omap_dma_sched(unsigned long data)
 	}
 }
 
+static irqreturn_t omap_dma_irq(int irq, void *devid)
+{
+	struct omap_dmadev *od = devid;
+	unsigned status, channel;
+
+	spin_lock(&od->irq_lock);
+
+	status = omap_dma_glbl_read(od, IRQSTATUS_L1);
+	status &= od->irq_enable_mask;
+	if (status == 0) {
+		spin_unlock(&od->irq_lock);
+		return IRQ_NONE;
+	}
+
+	while ((channel = ffs(status)) != 0) {
+		unsigned mask, csr;
+		struct omap_chan *c;
+
+		channel -= 1;
+		mask = BIT(channel);
+		status &= ~mask;
+
+		c = od->lch_map[channel];
+		if (c == NULL) {
+			/* This should never happen */
+			dev_err(od->ddev.dev, "invalid channel %u\n", channel);
+			continue;
+		}
+
+		csr = omap_dma_get_csr(c);
+		omap_dma_glbl_write(od, IRQSTATUS_L1, mask);
+
+		omap_dma_callback(channel, csr, c);
+	}
+
+	spin_unlock(&od->irq_lock);
+
+	return IRQ_HANDLED;
+}
+
 static int omap_dma_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct omap_dmadev *od = to_omap_dma_dev(chan->device);
 	struct omap_chan *c = to_omap_dma_chan(chan);
 	int ret;
 
-	dev_dbg(od->ddev.dev, "allocating channel for %u\n", c->dma_sig);
+	if (od->legacy) {
+		ret = omap_request_dma(c->dma_sig, "DMA engine",
+				       omap_dma_callback, c, &c->dma_ch);
+	} else {
+		ret = omap_request_dma(c->dma_sig, "DMA engine", NULL, NULL,
+				       &c->dma_ch);
+	}
 
-	ret = omap_request_dma(c->dma_sig, "DMA engine", omap_dma_callback,
-			       c, &c->dma_ch);
+	dev_dbg(od->ddev.dev, "allocating channel %u for %u\n",
+		c->dma_ch, c->dma_sig);
 
-	if (ret >= 0)
+	if (ret >= 0) {
 		omap_dma_assign(od, c, c->dma_ch);
+
+		if (!od->legacy) {
+			unsigned val;
+
+			spin_lock_irq(&od->irq_lock);
+			val = BIT(c->dma_ch);
+			omap_dma_glbl_write(od, IRQSTATUS_L1, val);
+			od->irq_enable_mask |= val;
+			omap_dma_glbl_write(od, IRQENABLE_L1, od->irq_enable_mask);
+
+			val = omap_dma_glbl_read(od, IRQENABLE_L0);
+			val &= ~BIT(c->dma_ch);
+			omap_dma_glbl_write(od, IRQENABLE_L0, val);
+			spin_unlock_irq(&od->irq_lock);
+		}
+	}
 
 	return ret;
 }
 
 static void omap_dma_free_chan_resources(struct dma_chan *chan)
 {
+	struct omap_dmadev *od = to_omap_dma_dev(chan->device);
 	struct omap_chan *c = to_omap_dma_chan(chan);
 
+	if (!od->legacy) {
+		spin_lock_irq(&od->irq_lock);
+		od->irq_enable_mask &= ~BIT(c->dma_ch);
+		omap_dma_glbl_write(od, IRQENABLE_L1, od->irq_enable_mask);
+		spin_unlock_irq(&od->irq_lock);
+	}
+
 	c->channel_base = NULL;
+	od->lch_map[c->dma_ch] = NULL;
 	vchan_free_chan_resources(&c->vc);
 	omap_free_dma(c->dma_ch);
 
-	dev_dbg(c->vc.chan.device->dev, "freeing channel for %u\n", c->dma_sig);
+	dev_dbg(od->ddev.dev, "freeing channel for %u\n", c->dma_sig);
 }
 
 static size_t omap_dma_sg_size(struct omap_sg *sg)
@@ -1015,7 +1102,7 @@ static int omap_dma_probe(struct platform_device *pdev)
 {
 	struct omap_dmadev *od;
 	struct resource *res;
-	int rc, i;
+	int rc, i, irq;
 
 	od = devm_kzalloc(&pdev->dev, sizeof(*od), GFP_KERNEL);
 	if (!od)
@@ -1045,6 +1132,7 @@ static int omap_dma_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&od->ddev.channels);
 	INIT_LIST_HEAD(&od->pending);
 	spin_lock_init(&od->lock);
+	spin_lock_init(&od->irq_lock);
 
 	tasklet_init(&od->task, omap_dma_sched, (unsigned long)od);
 
@@ -1054,6 +1142,21 @@ static int omap_dma_probe(struct platform_device *pdev)
 			omap_dma_free(od);
 			return rc;
 		}
+	}
+
+	irq = platform_get_irq(pdev, 1);
+	if (irq <= 0) {
+		dev_info(&pdev->dev, "failed to get L1 IRQ: %d\n", irq);
+		od->legacy = true;
+	} else {
+		/* Disable all interrupts */
+		od->irq_enable_mask = 0;
+		omap_dma_glbl_write(od, IRQENABLE_L1, 0);
+
+		rc = devm_request_irq(&pdev->dev, irq, omap_dma_irq,
+				      IRQF_SHARED, "omap-dma-engine", od);
+		if (rc)
+			return rc;
 	}
 
 	rc = dma_async_device_register(&od->ddev);
@@ -1092,6 +1195,12 @@ static int omap_dma_remove(struct platform_device *pdev)
 		of_dma_controller_free(pdev->dev.of_node);
 
 	dma_async_device_unregister(&od->ddev);
+
+	if (!od->legacy) {
+		/* Disable all interrupts */
+		omap_dma_glbl_write(od, IRQENABLE_L0, 0);
+	}
+
 	omap_dma_free(od);
 
 	return 0;
