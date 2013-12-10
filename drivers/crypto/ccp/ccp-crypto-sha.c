@@ -324,20 +324,20 @@ static void ccp_hmac_sha_cra_exit(struct crypto_tfm *tfm)
 	ccp_sha_cra_exit(tfm);
 }
 
-static const u32 sha1_init[CCP_SHA_CTXSIZE / sizeof(u32)] = {
+static const __be32 sha1_init[CCP_SHA_CTXSIZE / sizeof(__be32)] = {
 	cpu_to_be32(SHA1_H0), cpu_to_be32(SHA1_H1),
 	cpu_to_be32(SHA1_H2), cpu_to_be32(SHA1_H3),
 	cpu_to_be32(SHA1_H4), 0, 0, 0,
 };
 
-static const u32 sha224_init[CCP_SHA_CTXSIZE / sizeof(u32)] = {
+static const __be32 sha224_init[CCP_SHA_CTXSIZE / sizeof(__be32)] = {
 	cpu_to_be32(SHA224_H0), cpu_to_be32(SHA224_H1),
 	cpu_to_be32(SHA224_H2), cpu_to_be32(SHA224_H3),
 	cpu_to_be32(SHA224_H4), cpu_to_be32(SHA224_H5),
 	cpu_to_be32(SHA224_H6), cpu_to_be32(SHA224_H7),
 };
 
-static const u32 sha256_init[CCP_SHA_CTXSIZE / sizeof(u32)] = {
+static const __be32 sha256_init[CCP_SHA_CTXSIZE / sizeof(__be32)] = {
 	cpu_to_be32(SHA256_H0), cpu_to_be32(SHA256_H1),
 	cpu_to_be32(SHA256_H2), cpu_to_be32(SHA256_H3),
 	cpu_to_be32(SHA256_H4), cpu_to_be32(SHA256_H5),
@@ -347,7 +347,7 @@ static const u32 sha256_init[CCP_SHA_CTXSIZE / sizeof(u32)] = {
 struct ccp_sha_def {
 	const char *name;
 	const char *drv_name;
-	const u32 *init;
+	const __be32 *init;
 	enum ccp_sha_type type;
 	u32 digest_size;
 	u32 block_size;

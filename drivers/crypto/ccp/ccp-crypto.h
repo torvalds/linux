@@ -39,7 +39,7 @@ struct ccp_crypto_ablkcipher_alg {
 struct ccp_crypto_ahash_alg {
 	struct list_head entry;
 
-	const u32 *init;
+	const __be32 *init;
 	u32 type;
 	u32 mode;
 
