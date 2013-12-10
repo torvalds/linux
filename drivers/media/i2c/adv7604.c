@@ -1602,18 +1602,25 @@ static int adv7604_g_mbus_fmt(struct v4l2_subdev *sd,
 
 static int adv7604_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 {
-	u8 fmt_change, fmt_change_digital, tx_5v;
+	const u8 irq_reg_0x43 = io_read(sd, 0x43);
+	const u8 irq_reg_0x6b = io_read(sd, 0x6b);
+	const u8 irq_reg_0x70 = io_read(sd, 0x70);
+	u8 fmt_change_digital;
+	u8 fmt_change;
+	u8 tx_5v;
+
+	if (irq_reg_0x43)
+		io_write(sd, 0x44, irq_reg_0x43);
+	if (irq_reg_0x70)
+		io_write(sd, 0x71, irq_reg_0x70);
+	if (irq_reg_0x6b)
+		io_write(sd, 0x6c, irq_reg_0x6b);
 
 	v4l2_dbg(2, debug, sd, "%s: ", __func__);
 
 	/* format change */
-	fmt_change = io_read(sd, 0x43) & 0x98;
-	if (fmt_change)
-		io_write(sd, 0x44, fmt_change);
-
-	fmt_change_digital = is_digital_input(sd) ? (io_read(sd, 0x6b) & 0xc0) : 0;
-	if (fmt_change_digital)
-		io_write(sd, 0x6c, fmt_change_digital);
+	fmt_change = irq_reg_0x43 & 0x98;
+	fmt_change_digital = is_digital_input(sd) ? (irq_reg_0x6b & 0xc0) : 0;
 
 	if (fmt_change || fmt_change_digital) {
 		v4l2_dbg(1, debug, sd,
@@ -1625,6 +1632,15 @@ static int adv7604_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 		if (handled)
 			*handled = true;
 	}
+	/* HDMI/DVI mode */
+	if (irq_reg_0x6b & 0x01) {
+		v4l2_dbg(1, debug, sd, "%s: irq %s mode\n", __func__,
+			(io_read(sd, 0x6a) & 0x01) ? "HDMI" : "DVI");
+		set_rgb_quantization_range(sd);
+		if (handled)
+			*handled = true;
+	}
+
 	/* tx 5v detect */
 	tx_5v = io_read(sd, 0x70) & 0x1e;
 	if (tx_5v) {
@@ -2138,7 +2154,7 @@ static int adv7604_core_init(struct v4l2_subdev *sd)
 	io_write(sd, 0x40, 0xc2); /* Configure INT1 */
 	io_write(sd, 0x41, 0xd7); /* STDI irq for any change, disable INT2 */
 	io_write(sd, 0x46, 0x98); /* Enable SSPD, STDI and CP unlocked interrupts */
-	io_write(sd, 0x6e, 0xc0); /* Enable V_LOCKED and DE_REGEN_LCK interrupts */
+	io_write(sd, 0x6e, 0xc1); /* Enable V_LOCKED, DE_REGEN_LCK, HDMI_MODE interrupts */
 	io_write(sd, 0x73, 0x1e); /* Enable CABLE_DET_A_ST (+5v) interrupts */
 
 	return v4l2_ctrl_handler_setup(sd->ctrl_handler);
