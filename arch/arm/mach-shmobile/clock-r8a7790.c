@@ -77,7 +77,7 @@ static struct sh_clk_ops followparent_clk_ops = {
 };
 
 static struct clk main_clk = {
-	/* .parent will be set r8a73a4_clock_init */
+	/* .parent will be set r8a7790_clock_init */
 	.ops	= &followparent_clk_ops,
 };
 

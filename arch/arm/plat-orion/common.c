@@ -22,6 +22,7 @@
 #include <linux/platform_data/dma-mv_xor.h>
 #include <linux/platform_data/usb-ehci-orion.h>
 #include <mach/bridge-regs.h>
+#include <plat/common.h>
 
 /* Create a clkdev entry for a given device/clk */
 void __init orion_clkdev_add(const char *con_id, const char *dev_id,
@@ -256,7 +257,7 @@ static __init void ge_complete(
 /*****************************************************************************
  * GE00
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data orion_ge00_shared_data;
+static struct mv643xx_eth_shared_platform_data orion_ge00_shared_data;
 
 static struct resource orion_ge00_shared_resources[] = {
 	{
@@ -322,7 +323,7 @@ void __init orion_ge00_init(struct mv643xx_eth_platform_data *eth_data,
 /*****************************************************************************
  * GE01
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data orion_ge01_shared_data;
+static struct mv643xx_eth_shared_platform_data orion_ge01_shared_data;
 
 static struct resource orion_ge01_shared_resources[] = {
 	{
@@ -373,7 +374,7 @@ void __init orion_ge01_init(struct mv643xx_eth_platform_data *eth_data,
 /*****************************************************************************
  * GE10
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data orion_ge10_shared_data;
+static struct mv643xx_eth_shared_platform_data orion_ge10_shared_data;
 
 static struct resource orion_ge10_shared_resources[] = {
 	{
@@ -422,7 +423,7 @@ void __init orion_ge10_init(struct mv643xx_eth_platform_data *eth_data,
 /*****************************************************************************
  * GE11
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data orion_ge11_shared_data;
+static struct mv643xx_eth_shared_platform_data orion_ge11_shared_data;
 
 static struct resource orion_ge11_shared_resources[] = {
 	{
