@@ -386,12 +386,17 @@ struct dso *dso__kernel_findnew(struct machine *machine, const char *name,
 	return dso;
 }
 
-void dso__set_long_name(struct dso *dso, char *name)
+void dso__set_long_name(struct dso *dso, char *name, bool name_allocated)
 {
 	if (name == NULL)
 		return;
-	dso->long_name = name;
-	dso->long_name_len = strlen(name);
+
+	if (dso->long_name_allocated)
+		free(dso->long_name);
+
+	dso->long_name		 = name;
+	dso->long_name_len	 = strlen(name);
+	dso->long_name_allocated = name_allocated;
 }
 
 void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated)
@@ -444,7 +449,7 @@ struct dso *dso__new(const char *name)
 	if (dso != NULL) {
 		int i;
 		strcpy(dso->name, name);
-		dso__set_long_name(dso, dso->name);
+		dso__set_long_name(dso, dso->name, false);
 		dso__set_short_name(dso, dso->name, false);
 		for (i = 0; i < MAP__NR_TYPES; ++i)
 			dso->symbols[i] = dso->symbol_names[i] = RB_ROOT;

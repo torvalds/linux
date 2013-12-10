@@ -111,7 +111,7 @@ struct dso *dso__new(const char *name);
 void dso__delete(struct dso *dso);
 
 void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated);
-void dso__set_long_name(struct dso *dso, char *name);
+void dso__set_long_name(struct dso *dso, char *name, bool name_allocated);
 
 int dso__name_len(const struct dso *dso);
 
