@@ -1141,6 +1141,8 @@ static int bgmac_open(struct net_device *net_dev)
 	}
 	napi_enable(&bgmac->napi);
 
+	phy_start(bgmac->phy_dev);
+
 	netif_carrier_on(net_dev);
 
 err_out:
@@ -1152,6 +1154,8 @@ static int bgmac_stop(struct net_device *net_dev)
 	struct bgmac *bgmac = netdev_priv(net_dev);
 
 	netif_carrier_off(net_dev);
+
+	phy_stop(bgmac->phy_dev);
 
 	napi_disable(&bgmac->napi);
 	bgmac_chip_intrs_off(bgmac);
