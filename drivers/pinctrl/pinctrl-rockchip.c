@@ -1909,7 +1909,7 @@ static struct rockchip_pin_ctrl rk3188_pin_ctrl = {
 		.nr_banks		= ARRAY_SIZE(rk3188_pin_banks),
 		.label			= "RK3188-GPIO",
 		.type			= RK3188,
-		.mux_offset		= 0x68,
+		.mux_offset		= 0x60,
 		.pull_calc_reg		= rk3188_calc_pull_reg_and_bit,
 };
 
