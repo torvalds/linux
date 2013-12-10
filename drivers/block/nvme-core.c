@@ -62,6 +62,14 @@ static struct workqueue_struct *nvme_workq;
 
 static void nvme_reset_failed_dev(struct work_struct *ws);
 
+struct async_cmd_info {
+	struct kthread_work work;
+	struct kthread_worker *worker;
+	u32 result;
+	int status;
+	void *ctx;
+};
+
 /*
  * An NVM Express queue.  Each device has at least two (one for admin
  * commands and one for I/O commands).
@@ -87,6 +95,7 @@ struct nvme_queue {
 	u8 cq_phase;
 	u8 cqe_seen;
 	u8 q_suspended;
+	struct async_cmd_info cmdinfo;
 	unsigned long cmdid_data[];
 };
 
@@ -206,6 +215,15 @@ static void special_completion(struct nvme_dev *dev, void *ctx,
 	}
 
 	dev_warn(&dev->pci_dev->dev, "Unknown special completion %p\n", ctx);
+}
+
+static void async_completion(struct nvme_dev *dev, void *ctx,
+						struct nvme_completion *cqe)
+{
+	struct async_cmd_info *cmdinfo = ctx;
+	cmdinfo->result = le32_to_cpup(&cqe->result);
+	cmdinfo->status = le16_to_cpup(&cqe->status) >> 1;
+	queue_kthread_work(cmdinfo->worker, &cmdinfo->work);
 }
 
 /*
@@ -898,10 +916,32 @@ int nvme_submit_sync_cmd(struct nvme_queue *nvmeq, struct nvme_command *cmd,
 	return cmdinfo.status;
 }
 
+static int nvme_submit_async_cmd(struct nvme_queue *nvmeq,
+			struct nvme_command *cmd,
+			struct async_cmd_info *cmdinfo, unsigned timeout)
+{
+	int cmdid;
+
+	cmdid = alloc_cmdid_killable(nvmeq, cmdinfo, async_completion, timeout);
+	if (cmdid < 0)
+		return cmdid;
+	cmdinfo->status = -EINTR;
+	cmd->common.command_id = cmdid;
+	nvme_submit_cmd(nvmeq, cmd);
+	return 0;
+}
+
 int nvme_submit_admin_cmd(struct nvme_dev *dev, struct nvme_command *cmd,
 								u32 *result)
 {
 	return nvme_submit_sync_cmd(dev->queues[0], cmd, result, ADMIN_TIMEOUT);
+}
+
+static int nvme_submit_admin_cmd_async(struct nvme_dev *dev,
+		struct nvme_command *cmd, struct async_cmd_info *cmdinfo)
+{
+	return nvme_submit_async_cmd(dev->queues[0], cmd, cmdinfo,
+								ADMIN_TIMEOUT);
 }
 
 static int adapter_delete_queue(struct nvme_dev *dev, u8 opcode, u16 id)
@@ -1124,15 +1164,20 @@ static void nvme_free_queues(struct nvme_dev *dev)
 	}
 }
 
-static void nvme_disable_queue(struct nvme_dev *dev, int qid)
+/**
+ * nvme_suspend_queue - put queue into suspended state
+ * @nvmeq - queue to suspend
+ *
+ * Returns 1 if already suspended, 0 otherwise.
+ */
+static int nvme_suspend_queue(struct nvme_queue *nvmeq)
 {
-	struct nvme_queue *nvmeq = dev->queues[qid];
-	int vector = dev->entry[nvmeq->cq_vector].vector;
+	int vector = nvmeq->dev->entry[nvmeq->cq_vector].vector;
 
 	spin_lock_irq(&nvmeq->q_lock);
 	if (nvmeq->q_suspended) {
 		spin_unlock_irq(&nvmeq->q_lock);
-		return;
+		return 1;
 	}
 	nvmeq->q_suspended = 1;
 	spin_unlock_irq(&nvmeq->q_lock);
@@ -1140,17 +1185,33 @@ static void nvme_disable_queue(struct nvme_dev *dev, int qid)
 	irq_set_affinity_hint(vector, NULL);
 	free_irq(vector, nvmeq);
 
+	return 0;
+}
+
+static void nvme_clear_queue(struct nvme_queue *nvmeq)
+{
+	spin_lock_irq(&nvmeq->q_lock);
+	nvme_process_cq(nvmeq);
+	nvme_cancel_ios(nvmeq, false);
+	spin_unlock_irq(&nvmeq->q_lock);
+}
+
+static void nvme_disable_queue(struct nvme_dev *dev, int qid)
+{
+	struct nvme_queue *nvmeq = dev->queues[qid];
+
+	if (!nvmeq)
+		return;
+	if (nvme_suspend_queue(nvmeq))
+		return;
+
 	/* Don't tell the adapter to delete the admin queue.
 	 * Don't tell a removed adapter to delete IO queues. */
 	if (qid && readl(&dev->bar->csts) != -1) {
 		adapter_delete_sq(dev, qid);
 		adapter_delete_cq(dev, qid);
 	}
-
-	spin_lock_irq(&nvmeq->q_lock);
-	nvme_process_cq(nvmeq);
-	nvme_cancel_ios(nvmeq, false);
-	spin_unlock_irq(&nvmeq->q_lock);
+	nvme_clear_queue(nvmeq);
 }
 
 static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
@@ -2089,20 +2150,164 @@ static void nvme_dev_unmap(struct nvme_dev *dev)
 		pci_disable_device(dev->pci_dev);
 }
 
+struct nvme_delq_ctx {
+	struct task_struct *waiter;
+	struct kthread_worker *worker;
+	atomic_t refcount;
+};
+
+static void nvme_wait_dq(struct nvme_delq_ctx *dq, struct nvme_dev *dev)
+{
+	dq->waiter = current;
+	mb();
+
+	for (;;) {
+		set_current_state(TASK_KILLABLE);
+		if (!atomic_read(&dq->refcount))
+			break;
+		if (!schedule_timeout(ADMIN_TIMEOUT) ||
+					fatal_signal_pending(current)) {
+			set_current_state(TASK_RUNNING);
+
+			nvme_disable_ctrl(dev, readq(&dev->bar->cap));
+			nvme_disable_queue(dev, 0);
+
+			send_sig(SIGKILL, dq->worker->task, 1);
+			flush_kthread_worker(dq->worker);
+			return;
+		}
+	}
+	set_current_state(TASK_RUNNING);
+}
+
+static void nvme_put_dq(struct nvme_delq_ctx *dq)
+{
+	atomic_dec(&dq->refcount);
+	if (dq->waiter)
+		wake_up_process(dq->waiter);
+}
+
+static struct nvme_delq_ctx *nvme_get_dq(struct nvme_delq_ctx *dq)
+{
+	atomic_inc(&dq->refcount);
+	return dq;
+}
+
+static void nvme_del_queue_end(struct nvme_queue *nvmeq)
+{
+	struct nvme_delq_ctx *dq = nvmeq->cmdinfo.ctx;
+
+	nvme_clear_queue(nvmeq);
+	nvme_put_dq(dq);
+}
+
+static int adapter_async_del_queue(struct nvme_queue *nvmeq, u8 opcode,
+						kthread_work_func_t fn)
+{
+	struct nvme_command c;
+
+	memset(&c, 0, sizeof(c));
+	c.delete_queue.opcode = opcode;
+	c.delete_queue.qid = cpu_to_le16(nvmeq->qid);
+
+	init_kthread_work(&nvmeq->cmdinfo.work, fn);
+	return nvme_submit_admin_cmd_async(nvmeq->dev, &c, &nvmeq->cmdinfo);
+}
+
+static void nvme_del_cq_work_handler(struct kthread_work *work)
+{
+	struct nvme_queue *nvmeq = container_of(work, struct nvme_queue,
+							cmdinfo.work);
+	nvme_del_queue_end(nvmeq);
+}
+
+static int nvme_delete_cq(struct nvme_queue *nvmeq)
+{
+	return adapter_async_del_queue(nvmeq, nvme_admin_delete_cq,
+						nvme_del_cq_work_handler);
+}
+
+static void nvme_del_sq_work_handler(struct kthread_work *work)
+{
+	struct nvme_queue *nvmeq = container_of(work, struct nvme_queue,
+							cmdinfo.work);
+	int status = nvmeq->cmdinfo.status;
+
+	if (!status)
+		status = nvme_delete_cq(nvmeq);
+	if (status)
+		nvme_del_queue_end(nvmeq);
+}
+
+static int nvme_delete_sq(struct nvme_queue *nvmeq)
+{
+	return adapter_async_del_queue(nvmeq, nvme_admin_delete_sq,
+						nvme_del_sq_work_handler);
+}
+
+static void nvme_del_queue_start(struct kthread_work *work)
+{
+	struct nvme_queue *nvmeq = container_of(work, struct nvme_queue,
+							cmdinfo.work);
+	allow_signal(SIGKILL);
+	if (nvme_delete_sq(nvmeq))
+		nvme_del_queue_end(nvmeq);
+}
+
+static void nvme_disable_io_queues(struct nvme_dev *dev)
+{
+	int i;
+	DEFINE_KTHREAD_WORKER_ONSTACK(worker);
+	struct nvme_delq_ctx dq;
+	struct task_struct *kworker_task = kthread_run(kthread_worker_fn,
+					&worker, "nvme%d", dev->instance);
+
+	if (IS_ERR(kworker_task)) {
+		dev_err(&dev->pci_dev->dev,
+			"Failed to create queue del task\n");
+		for (i = dev->queue_count - 1; i > 0; i--)
+			nvme_disable_queue(dev, i);
+		return;
+	}
+
+	dq.waiter = NULL;
+	atomic_set(&dq.refcount, 0);
+	dq.worker = &worker;
+	for (i = dev->queue_count - 1; i > 0; i--) {
+		struct nvme_queue *nvmeq = dev->queues[i];
+
+		if (nvme_suspend_queue(nvmeq))
+			continue;
+		nvmeq->cmdinfo.ctx = nvme_get_dq(&dq);
+		nvmeq->cmdinfo.worker = dq.worker;
+		init_kthread_work(&nvmeq->cmdinfo.work, nvme_del_queue_start);
+		queue_kthread_work(dq.worker, &nvmeq->cmdinfo.work);
+	}
+	nvme_wait_dq(&dq, dev);
+	kthread_stop(kworker_task);
+}
+
 static void nvme_dev_shutdown(struct nvme_dev *dev)
 {
 	int i;
 
 	dev->initialized = 0;
-	for (i = dev->queue_count - 1; i >= 0; i--)
-		nvme_disable_queue(dev, i);
 
 	spin_lock(&dev_list_lock);
 	list_del_init(&dev->node);
 	spin_unlock(&dev_list_lock);
 
-	if (dev->bar)
+	if (!dev->bar || (dev->bar && readl(&dev->bar->csts) == -1)) {
+		for (i = dev->queue_count - 1; i >= 0; i--) {
+			struct nvme_queue *nvmeq = dev->queues[i];
+			nvme_suspend_queue(nvmeq);
+			nvme_clear_queue(nvmeq);
+		}
+	} else {
+		nvme_disable_io_queues(dev);
 		nvme_shutdown_ctrl(dev);
+		nvme_disable_queue(dev, 0);
+	}
 	nvme_dev_unmap(dev);
 }
 
