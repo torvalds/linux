@@ -27,13 +27,16 @@ struct omap_dmadev {
 	spinlock_t lock;
 	struct tasklet_struct task;
 	struct list_head pending;
+	void __iomem *base;
+	const struct omap_dma_reg *reg_map;
 	struct omap_system_dma_plat_info *plat;
 };
 
 struct omap_chan {
 	struct virt_dma_chan vc;
 	struct list_head node;
-	struct omap_system_dma_plat_info *plat;
+	void __iomem *channel_base;
+	const struct omap_dma_reg *reg_map;
 
 	struct dma_slave_config	cfg;
 	unsigned dma_sig;
@@ -170,24 +173,77 @@ static void omap_dma_desc_free(struct virt_dma_desc *vd)
 	kfree(container_of(vd, struct omap_desc, vd));
 }
 
+static void omap_dma_write(uint32_t val, unsigned type, void __iomem *addr)
+{
+	switch (type) {
+	case OMAP_DMA_REG_16BIT:
+		writew_relaxed(val, addr);
+		break;
+	case OMAP_DMA_REG_2X16BIT:
+		writew_relaxed(val, addr);
+		writew_relaxed(val >> 16, addr + 2);
+		break;
+	case OMAP_DMA_REG_32BIT:
+		writel_relaxed(val, addr);
+		break;
+	default:
+		WARN_ON(1);
+	}
+}
+
+static unsigned omap_dma_read(unsigned type, void __iomem *addr)
+{
+	unsigned val;
+
+	switch (type) {
+	case OMAP_DMA_REG_16BIT:
+		val = readw_relaxed(addr);
+		break;
+	case OMAP_DMA_REG_2X16BIT:
+		val = readw_relaxed(addr);
+		val |= readw_relaxed(addr + 2) << 16;
+		break;
+	case OMAP_DMA_REG_32BIT:
+		val = readl_relaxed(addr);
+		break;
+	default:
+		WARN_ON(1);
+		val = 0;
+	}
+
+	return val;
+}
+
 static void omap_dma_glbl_write(struct omap_dmadev *od, unsigned reg, unsigned val)
 {
-	od->plat->dma_write(val, reg, 0);
+	const struct omap_dma_reg *r = od->reg_map + reg;
+
+	WARN_ON(r->stride);
+
+	omap_dma_write(val, r->type, od->base + r->offset);
 }
 
 static unsigned omap_dma_glbl_read(struct omap_dmadev *od, unsigned reg)
 {
-	return od->plat->dma_read(reg, 0);
+	const struct omap_dma_reg *r = od->reg_map + reg;
+
+	WARN_ON(r->stride);
+
+	return omap_dma_read(r->type, od->base + r->offset);
 }
 
 static void omap_dma_chan_write(struct omap_chan *c, unsigned reg, unsigned val)
 {
-	c->plat->dma_write(val, reg, c->dma_ch);
+	const struct omap_dma_reg *r = c->reg_map + reg;
+
+	omap_dma_write(val, r->type, c->channel_base + r->offset);
 }
 
 static unsigned omap_dma_chan_read(struct omap_chan *c, unsigned reg)
 {
-	return c->plat->dma_read(reg, c->dma_ch);
+	const struct omap_dma_reg *r = c->reg_map + reg;
+
+	return omap_dma_read(r->type, c->channel_base + r->offset);
 }
 
 static void omap_dma_clear_csr(struct omap_chan *c)
@@ -196,6 +252,12 @@ static void omap_dma_clear_csr(struct omap_chan *c)
 		omap_dma_chan_read(c, CSR);
 	else
 		omap_dma_chan_write(c, CSR, ~0);
+}
+
+static void omap_dma_assign(struct omap_dmadev *od, struct omap_chan *c,
+	unsigned lch)
+{
+	c->channel_base = od->base + od->plat->channel_stride * lch;
 }
 
 static void omap_dma_start(struct omap_chan *c, struct omap_desc *d)
@@ -400,18 +462,26 @@ static void omap_dma_sched(unsigned long data)
 
 static int omap_dma_alloc_chan_resources(struct dma_chan *chan)
 {
+	struct omap_dmadev *od = to_omap_dma_dev(chan->device);
 	struct omap_chan *c = to_omap_dma_chan(chan);
+	int ret;
 
-	dev_dbg(c->vc.chan.device->dev, "allocating channel for %u\n", c->dma_sig);
+	dev_dbg(od->ddev.dev, "allocating channel for %u\n", c->dma_sig);
 
-	return omap_request_dma(c->dma_sig, "DMA engine",
-		omap_dma_callback, c, &c->dma_ch);
+	ret = omap_request_dma(c->dma_sig, "DMA engine", omap_dma_callback,
+			       c, &c->dma_ch);
+
+	if (ret >= 0)
+		omap_dma_assign(od, c, c->dma_ch);
+
+	return ret;
 }
 
 static void omap_dma_free_chan_resources(struct dma_chan *chan)
 {
 	struct omap_chan *c = to_omap_dma_chan(chan);
 
+	c->channel_base = NULL;
 	vchan_free_chan_resources(&c->vc);
 	omap_free_dma(c->dma_ch);
 
@@ -917,7 +987,7 @@ static int omap_dma_chan_init(struct omap_dmadev *od, int dma_sig)
 	if (!c)
 		return -ENOMEM;
 
-	c->plat = od->plat;
+	c->reg_map = od->reg_map;
 	c->dma_sig = dma_sig;
 	c->vc.desc_free = omap_dma_desc_free;
 	vchan_init(&c->vc, &od->ddev);
@@ -944,15 +1014,23 @@ static void omap_dma_free(struct omap_dmadev *od)
 static int omap_dma_probe(struct platform_device *pdev)
 {
 	struct omap_dmadev *od;
+	struct resource *res;
 	int rc, i;
 
 	od = devm_kzalloc(&pdev->dev, sizeof(*od), GFP_KERNEL);
 	if (!od)
 		return -ENOMEM;
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	od->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(od->base))
+		return PTR_ERR(od->base);
+
 	od->plat = omap_get_plat_info();
 	if (!od->plat)
 		return -EPROBE_DEFER;
+
+	od->reg_map = od->plat->reg_map;
 
 	dma_cap_set(DMA_SLAVE, od->ddev.cap_mask);
 	dma_cap_set(DMA_CYCLIC, od->ddev.cap_mask);

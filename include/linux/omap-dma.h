@@ -285,6 +285,8 @@ struct omap_dma_reg {
 
 /* System DMA platform data structure */
 struct omap_system_dma_plat_info {
+	const struct omap_dma_reg *reg_map;
+	unsigned channel_stride;
 	struct omap_dma_dev_attr *dma_attr;
 	u32 errata;
 	void (*show_dma_caps)(void);

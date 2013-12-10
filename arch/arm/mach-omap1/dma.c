@@ -261,9 +261,13 @@ static const struct platform_device_info omap_dma_dev_info = {
 	.name = "omap-dma-engine",
 	.id = -1,
 	.dma_mask = DMA_BIT_MASK(32),
+	.res = res,
+	.num_res = 1,
 };
 
 static struct omap_system_dma_plat_info dma_plat_info __initdata = {
+	.reg_map	= reg_map,
+	.channel_stride	= 0x40,
 	.show_dma_caps	= omap1_show_dma_caps,
 	.clear_lch_regs	= omap1_clear_lch_regs,
 	.clear_dma	= omap1_clear_dma,

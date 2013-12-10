@@ -205,10 +205,18 @@ static unsigned configure_dma_errata(void)
 }
 
 static struct omap_system_dma_plat_info dma_plat_info __initdata = {
+	.reg_map	= reg_map,
+	.channel_stride	= 0x60,
 	.show_dma_caps	= omap2_show_dma_caps,
 	.clear_dma	= omap2_clear_dma,
 	.dma_write	= dma_write,
 	.dma_read	= dma_read,
+};
+
+static struct platform_device_info omap_dma_dev_info = {
+	.name = "omap-dma-engine",
+	.id = -1,
+	.dma_mask = DMA_BIT_MASK(32),
 };
 
 /* One time initializations */
@@ -231,11 +239,15 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 		return PTR_ERR(pdev);
 	}
 
+	omap_dma_dev_info.res = pdev->resource;
+	omap_dma_dev_info.num_res = pdev->num_resources;
+
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
 		dev_err(&pdev->dev, "%s: no mem resource\n", __func__);
 		return -EINVAL;
 	}
+
 	dma_base = ioremap(mem->start, resource_size(mem));
 	if (!dma_base) {
 		dev_err(&pdev->dev, "%s: ioremap fail\n", __func__);
@@ -255,12 +267,6 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 
 	return 0;
 }
-
-static const struct platform_device_info omap_dma_dev_info = {
-	.name = "omap-dma-engine",
-	.id = -1,
-	.dma_mask = DMA_BIT_MASK(32),
-};
 
 static int __init omap2_system_dma_init(void)
 {
