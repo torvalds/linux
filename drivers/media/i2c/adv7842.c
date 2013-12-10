@@ -85,6 +85,7 @@ struct adv7842_state {
 	bool is_cea_format;
 	struct workqueue_struct *work_queues;
 	struct delayed_work delayed_work_enable_hotplug;
+	bool restart_stdi_once;
 	bool hdmi_port_a;
 
 	/* i2c clients */
@@ -1345,6 +1346,7 @@ static int adv7842_query_dv_timings(struct v4l2_subdev *sd,
 
 	/* read STDI */
 	if (read_stdi(sd, &stdi)) {
+		state->restart_stdi_once = true;
 		v4l2_dbg(1, debug, sd, "%s: no valid signal\n", __func__);
 		return -ENOLINK;
 	}
@@ -1355,6 +1357,7 @@ static int adv7842_query_dv_timings(struct v4l2_subdev *sd,
 		uint32_t freq;
 
 		timings->type = V4L2_DV_BT_656_1120;
+
 		bt->width = (hdmi_read(sd, 0x07) & 0x0f) * 256 + hdmi_read(sd, 0x08);
 		bt->height = (hdmi_read(sd, 0x09) & 0x0f) * 256 + hdmi_read(sd, 0x0a);
 		freq = (hdmi_read(sd, 0x06) * 1000000) +
@@ -1391,21 +1394,50 @@ static int adv7842_query_dv_timings(struct v4l2_subdev *sd,
 		}
 		adv7842_fill_optional_dv_timings_fields(sd, timings);
 	} else {
-		/* Interlaced? */
-		if (stdi.interlaced) {
-			v4l2_dbg(1, debug, sd, "%s: interlaced video not supported\n", __func__);
-			return -ERANGE;
-		}
-
+		/* find format
+		 * Since LCVS values are inaccurate [REF_03, p. 339-340],
+		 * stdi2dv_timings() is called with lcvs +-1 if the first attempt fails.
+		 */
+		if (!stdi2dv_timings(sd, &stdi, timings))
+			goto found;
+		stdi.lcvs += 1;
+		v4l2_dbg(1, debug, sd, "%s: lcvs + 1 = %d\n", __func__, stdi.lcvs);
+		if (!stdi2dv_timings(sd, &stdi, timings))
+			goto found;
+		stdi.lcvs -= 2;
+		v4l2_dbg(1, debug, sd, "%s: lcvs - 1 = %d\n", __func__, stdi.lcvs);
 		if (stdi2dv_timings(sd, &stdi, timings)) {
+			/*
+			 * The STDI block may measure wrong values, especially
+			 * for lcvs and lcf. If the driver can not find any
+			 * valid timing, the STDI block is restarted to measure
+			 * the video timings again. The function will return an
+			 * error, but the restart of STDI will generate a new
+			 * STDI interrupt and the format detection process will
+			 * restart.
+			 */
+			if (state->restart_stdi_once) {
+				v4l2_dbg(1, debug, sd, "%s: restart STDI\n", __func__);
+				/* TODO restart STDI for Sync Channel 2 */
+				/* enter one-shot mode */
+				cp_write_and_or(sd, 0x86, 0xf9, 0x00);
+				/* trigger STDI restart */
+				cp_write_and_or(sd, 0x86, 0xf9, 0x04);
+				/* reset to continuous mode */
+				cp_write_and_or(sd, 0x86, 0xf9, 0x02);
+				state->restart_stdi_once = false;
+				return -ENOLINK;
+			}
 			v4l2_dbg(1, debug, sd, "%s: format not supported\n", __func__);
 			return -ERANGE;
 		}
+		state->restart_stdi_once = true;
 	}
+found:
 
 	if (debug > 1)
-		v4l2_print_dv_timings(sd->name, "adv7842_query_dv_timings: ",
-				      timings, true);
+		v4l2_print_dv_timings(sd->name, "adv7842_query_dv_timings:",
+				timings, true);
 	return 0;
 }
 
@@ -2804,6 +2836,7 @@ static int adv7842_probe(struct i2c_client *client,
 	state->mode = pdata->mode;
 
 	state->hdmi_port_a = pdata->input == ADV7842_SELECT_HDMI_PORT_A;
+	state->restart_stdi_once = true;
 
 	/* i2c access to adv7842? */
 	rev = adv_smbus_read_byte_data_check(client, 0xea, false) << 8 |
