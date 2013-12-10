@@ -904,7 +904,7 @@ static void ad9389b_notify_monitor_detect(struct v4l2_subdev *sd)
 	v4l2_subdev_notify(sd, AD9389B_MONITOR_DETECT, (void *)&mdt);
 }
 
-static void ad9389b_check_monitor_present_status(struct v4l2_subdev *sd)
+static void ad9389b_update_monitor_present_status(struct v4l2_subdev *sd)
 {
 	struct ad9389b_state *state = get_ad9389b_state(sd);
 	/* read hotplug and rx-sense state */
@@ -945,6 +945,31 @@ static void ad9389b_check_monitor_present_status(struct v4l2_subdev *sd)
 	/* update with setting from ctrls */
 	ad9389b_s_ctrl(state->rgb_quantization_range_ctrl);
 	ad9389b_s_ctrl(state->hdmi_mode_ctrl);
+}
+
+static void ad9389b_check_monitor_present_status(struct v4l2_subdev *sd)
+{
+	struct ad9389b_state *state = get_ad9389b_state(sd);
+	int retry = 0;
+
+	ad9389b_update_monitor_present_status(sd);
+
+	/*
+	 * Rapid toggling of the hotplug may leave the chip powered off,
+	 * even if we think it is on. In that case reset and power up again.
+	 */
+	while (state->power_on && (ad9389b_rd(sd, 0x41) & 0x40)) {
+		if (++retry > 5) {
+			v4l2_err(sd, "retried %d times, give up\n", retry);
+			return;
+		}
+		v4l2_dbg(1, debug, sd, "%s: reset and re-check status (%d)\n", __func__, retry);
+		ad9389b_notify_monitor_detect(sd);
+		cancel_delayed_work_sync(&state->edid_handler);
+		memset(&state->edid, 0, sizeof(struct ad9389b_state_edid));
+		ad9389b_s_power(sd, false);
+		ad9389b_update_monitor_present_status(sd);
+	}
 }
 
 static bool edid_block_verify_crc(u8 *edid_block)
