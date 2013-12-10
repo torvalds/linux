@@ -24,6 +24,8 @@
 
 #include <linux/platform_data/dma-ep93xx.h>
 
+#include "ep93xx-pcm.h"
+
 /*
  * Per channel (1-4) registers.
  */
@@ -394,8 +396,14 @@ static int ep93xx_ac97_probe(struct platform_device *pdev)
 	if (ret)
 		goto fail;
 
+	ret = devm_ep93xx_pcm_platform_register(&pdev->dev);
+	if (ret)
+		goto fail_unregister;
+
 	return 0;
 
+fail_unregister:
+	snd_soc_unregister_component(&pdev->dev);
 fail:
 	ep93xx_ac97_info = NULL;
 	snd_soc_set_ac97_ops(NULL);

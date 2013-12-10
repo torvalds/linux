@@ -83,7 +83,7 @@ static struct snd_soc_dai_link snappercl15_dai = {
 	.cpu_dai_name	= "ep93xx-i2s",
 	.codec_dai_name	= "tlv320aic23-hifi",
 	.codec_name	= "tlv320aic23-codec.0-001a",
-	.platform_name	=  "ep93xx-pcm-audio",
+	.platform_name	= "ep93xx-i2s",
 	.init		= snappercl15_tlv320aic23_init,
 	.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_IF |
 			  SND_SOC_DAIFMT_CBS_CFS,

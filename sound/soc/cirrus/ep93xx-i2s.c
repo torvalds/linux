@@ -30,6 +30,8 @@
 #include <mach/ep93xx-regs.h>
 #include <linux/platform_data/dma-ep93xx.h>
 
+#include "ep93xx-pcm.h"
+
 #define EP93XX_I2S_TXCLKCFG		0x00
 #define EP93XX_I2S_RXCLKCFG		0x04
 #define EP93XX_I2S_GLCTRL		0x0C
@@ -405,8 +407,14 @@ static int ep93xx_i2s_probe(struct platform_device *pdev)
 	if (err)
 		goto fail_put_lrclk;
 
+	err = devm_ep93xx_pcm_platform_register(&pdev->dev);
+	if (err)
+		goto fail_unregister;
+
 	return 0;
 
+fail_unregister:
+	snd_soc_unregister_component(&pdev->dev);
 fail_put_lrclk:
 	clk_put(info->lrclk);
 fail_put_sclk:
