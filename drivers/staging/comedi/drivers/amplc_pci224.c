@@ -267,17 +267,16 @@ Caveats:
 
 /* The software selectable internal ranges for PCI224 (option[2] == 0). */
 static const struct comedi_lrange range_pci224_internal = {
-	8,
-	{
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 BIP_RANGE(2.5),
-	 BIP_RANGE(1.25),
-	 UNI_RANGE(10),
-	 UNI_RANGE(5),
-	 UNI_RANGE(2.5),
-	 UNI_RANGE(1.25),
-	 }
+	8, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
 };
 
 static const unsigned short hwrange_pci224_internal[8] = {
@@ -293,11 +292,10 @@ static const unsigned short hwrange_pci224_internal[8] = {
 
 /* The software selectable external ranges for PCI224 (option[2] == 1). */
 static const struct comedi_lrange range_pci224_external = {
-	2,
-	{
-	 RANGE_ext(-1, 1),	/* bipolar [-Vref,+Vref] */
-	 RANGE_ext(0, 1),	/* unipolar [0,+Vref] */
-	 }
+	2, {
+		RANGE_ext(-1, 1),	/* bipolar [-Vref,+Vref] */
+		RANGE_ext(0, 1)		/* unipolar [0,+Vref] */
+	}
 };
 
 static const unsigned short hwrange_pci224_external[2] = {
@@ -308,19 +306,17 @@ static const unsigned short hwrange_pci224_external[2] = {
 /* The hardware selectable Vref*2 external range for PCI234
  * (option[2] == 1, option[3+n] == 0). */
 static const struct comedi_lrange range_pci234_ext2 = {
-	1,
-	{
-	 RANGE_ext(-2, 2),
-	 }
+	1, {
+		RANGE_ext(-2, 2)
+	}
 };
 
 /* The hardware selectable Vref external range for PCI234
  * (option[2] == 1, option[3+n] == 1). */
 static const struct comedi_lrange range_pci234_ext = {
-	1,
-	{
-	 RANGE_ext(-1, 1),
-	 }
+	1, {
+		RANGE_ext(-1, 1)
+	}
 };
 
 /* This serves for all the PCI234 ranges. */
