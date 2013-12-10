@@ -77,7 +77,7 @@ struct ssbi {
 	spinlock_t		lock;
 	enum ssbi_controller_type controller_type;
 	int (*read)(struct ssbi *, u16 addr, u8 *buf, int len);
-	int (*write)(struct ssbi *, u16 addr, u8 *buf, int len);
+	int (*write)(struct ssbi *, u16 addr, const u8 *buf, int len);
 };
 
 #define to_ssbi(dev)	platform_get_drvdata(to_platform_device(dev))
@@ -146,7 +146,7 @@ err:
 }
 
 static int
-ssbi_write_bytes(struct ssbi *ssbi, u16 addr, u8 *buf, int len)
+ssbi_write_bytes(struct ssbi *ssbi, u16 addr, const u8 *buf, int len)
 {
 	int ret = 0;
 
@@ -223,7 +223,7 @@ err:
 }
 
 static int
-ssbi_pa_write_bytes(struct ssbi *ssbi, u16 addr, u8 *buf, int len)
+ssbi_pa_write_bytes(struct ssbi *ssbi, u16 addr, const u8 *buf, int len)
 {
 	u32 cmd;
 	int ret = 0;
@@ -255,7 +255,7 @@ int ssbi_read(struct device *dev, u16 addr, u8 *buf, int len)
 }
 EXPORT_SYMBOL_GPL(ssbi_read);
 
-int ssbi_write(struct device *dev, u16 addr, u8 *buf, int len)
+int ssbi_write(struct device *dev, u16 addr, const u8 *buf, int len)
 {
 	struct ssbi *ssbi = to_ssbi(dev);
 	unsigned long flags;
