@@ -1229,7 +1229,7 @@ xfs_difree(
 		}
 
 		xfs_bmap_add_free(XFS_AGB_TO_FSB(mp,
-				agno, XFS_INO_TO_AGBNO(mp,rec.ir_startino)),
+				agno, XFS_AGINO_TO_AGBNO(mp, rec.ir_startino)),
 				XFS_IALLOC_BLOCKS(mp), flist, mp);
 	} else {
 		*delete = 0;
