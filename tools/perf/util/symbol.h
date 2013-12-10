@@ -206,7 +206,8 @@ bool symsrc__possibly_runtime(struct symsrc *ss);
 
 int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter);
 int dso__load_vmlinux(struct dso *dso, struct map *map,
-		      const char *vmlinux, symbol_filter_t filter);
+		      const char *vmlinux, bool vmlinux_allocated,
+		      symbol_filter_t filter);
 int dso__load_vmlinux_path(struct dso *dso, struct map *map,
 			   symbol_filter_t filter);
 int dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map,

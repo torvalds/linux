@@ -1408,7 +1408,8 @@ struct map *map_groups__find_by_name(struct map_groups *mg,
 }
 
 int dso__load_vmlinux(struct dso *dso, struct map *map,
-		      const char *vmlinux, symbol_filter_t filter)
+		      const char *vmlinux, bool vmlinux_allocated,
+		      symbol_filter_t filter)
 {
 	int err = -1;
 	struct symsrc ss;
@@ -1438,6 +1439,7 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 		else
 			dso->data_type = DSO_BINARY_TYPE__VMLINUX;
 		dso__set_long_name(dso, (char *)vmlinux);
+		dso->long_name_allocated = vmlinux_allocated;
 		dso__set_loaded(dso, map->type);
 		pr_debug("Using %s for symbols\n", symfs_vmlinux);
 	}
@@ -1456,21 +1458,16 @@ int dso__load_vmlinux_path(struct dso *dso, struct map *map,
 
 	filename = dso__build_id_filename(dso, NULL, 0);
 	if (filename != NULL) {
-		err = dso__load_vmlinux(dso, map, filename, filter);
-		if (err > 0) {
-			dso->long_name_allocated = 1;
+		err = dso__load_vmlinux(dso, map, filename, true, filter);
+		if (err > 0)
 			goto out;
-		}
 		free(filename);
 	}
 
 	for (i = 0; i < vmlinux_path__nr_entries; ++i) {
-		err = dso__load_vmlinux(dso, map, vmlinux_path[i], filter);
-		if (err > 0) {
-			dso__set_long_name(dso, strdup(vmlinux_path[i]));
-			dso->long_name_allocated = 1;
+		err = dso__load_vmlinux(dso, map, vmlinux_path[i], false, filter);
+		if (err > 0)
 			break;
-		}
 	}
 out:
 	return err;
@@ -1607,15 +1604,8 @@ static int dso__load_kernel_sym(struct dso *dso, struct map *map,
 	}
 
 	if (!symbol_conf.ignore_vmlinux && symbol_conf.vmlinux_name != NULL) {
-		err = dso__load_vmlinux(dso, map,
-					symbol_conf.vmlinux_name, filter);
-		if (err > 0) {
-			dso__set_long_name(dso,
-					   strdup(symbol_conf.vmlinux_name));
-			dso->long_name_allocated = 1;
-			return err;
-		}
-		return err;
+		return dso__load_vmlinux(dso, map, symbol_conf.vmlinux_name,
+					 false, filter);
 	}
 
 	if (!symbol_conf.ignore_vmlinux && vmlinux_path != NULL) {
@@ -1671,7 +1661,8 @@ static int dso__load_guest_kernel_sym(struct dso *dso, struct map *map,
 		 */
 		if (symbol_conf.default_guest_vmlinux_name != NULL) {
 			err = dso__load_vmlinux(dso, map,
-				symbol_conf.default_guest_vmlinux_name, filter);
+						symbol_conf.default_guest_vmlinux_name,
+						false, filter);
 			return err;
 		}
 
