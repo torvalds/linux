@@ -165,9 +165,9 @@ $(obj)/x509_certificate_list: $(X509_CERTIFICATES) $(obj)/.x509.list
 targets += $(obj)/.x509.list
 $(obj)/.x509.list:
 	@echo $(X509_CERTIFICATES) >$@
+endif
 
 clean-files := x509_certificate_list .x509.list
-endif
 
 ifeq ($(CONFIG_MODULE_SIG),y)
 ###############################################################################
