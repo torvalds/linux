@@ -1239,22 +1239,20 @@ static int prepare_uptodate_page(struct page *page, u64 pos,
  * waits for data=ordered extents to finish before allowing the pages to be
  * modified.
  */
-static noinline int prepare_pages(struct btrfs_root *root, struct file *file,
-			 struct page **pages, size_t num_pages,
-			 loff_t pos, unsigned long first_index,
-			 size_t write_bytes, bool force_uptodate)
+static noinline int prepare_pages(struct inode *inode, struct page **pages,
+				  size_t num_pages, loff_t pos,
+				  size_t write_bytes, bool force_uptodate)
 {
 	struct extent_state *cached_state = NULL;
 	int i;
 	unsigned long index = pos >> PAGE_CACHE_SHIFT;
-	struct inode *inode = file_inode(file);
 	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
 	int err = 0;
 	int faili = 0;
 	u64 start_pos;
 	u64 last_pos;
 
-	start_pos = pos & ~((u64)root->sectorsize - 1);
+	start_pos = pos & ~((u64)PAGE_CACHE_SIZE - 1);
 	last_pos = ((u64)index + num_pages) << PAGE_CACHE_SHIFT;
 
 again:
@@ -1462,8 +1460,8 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 		 * pages we want, so we don't really need to worry about the
 		 * contents of pages from loop to loop
 		 */
-		ret = prepare_pages(root, file, pages, num_pages,
-				    pos, first_index, write_bytes,
+		ret = prepare_pages(inode, pages, num_pages,
+				    pos, write_bytes,
 				    force_page_uptodate);
 		if (ret)
 			break;
