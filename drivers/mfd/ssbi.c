@@ -65,6 +65,12 @@
 
 #define SSBI_TIMEOUT_US			100
 
+enum ssbi_controller_type {
+	MSM_SBI_CTRL_SSBI = 0,
+	MSM_SBI_CTRL_SSBI2,
+	MSM_SBI_CTRL_PMIC_ARBITER,
+};
+
 struct ssbi {
 	struct device		*slave;
 	void __iomem		*base;
