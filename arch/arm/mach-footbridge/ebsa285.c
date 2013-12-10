@@ -30,10 +30,12 @@ static const struct {
 	const char *name;
 	const char *trigger;
 } ebsa285_leds[] = {
-	{ "ebsa285:amber", "heartbeat", },
-	{ "ebsa285:green", "cpu0", },
+	{ "ebsa285:amber", "cpu0", },
+	{ "ebsa285:green", "heartbeat", },
 	{ "ebsa285:red",},
 };
+
+static unsigned char hw_led_state;
 
 static void ebsa285_led_set(struct led_classdev *cdev,
 		enum led_brightness b)
@@ -41,10 +43,11 @@ static void ebsa285_led_set(struct led_classdev *cdev,
 	struct ebsa285_led *led = container_of(cdev,
 			struct ebsa285_led, cdev);
 
-	if (b != LED_OFF)
-		*XBUS_LEDS |= led->mask;
+	if (b == LED_OFF)
+		hw_led_state |= led->mask;
 	else
-		*XBUS_LEDS &= ~led->mask;
+		hw_led_state &= ~led->mask;
+	*XBUS_LEDS = hw_led_state;
 }
 
 static enum led_brightness ebsa285_led_get(struct led_classdev *cdev)
@@ -52,18 +55,19 @@ static enum led_brightness ebsa285_led_get(struct led_classdev *cdev)
 	struct ebsa285_led *led = container_of(cdev,
 			struct ebsa285_led, cdev);
 
-	return (*XBUS_LEDS & led->mask) ? LED_FULL : LED_OFF;
+	return hw_led_state & led->mask ? LED_OFF : LED_FULL;
 }
 
 static int __init ebsa285_leds_init(void)
 {
 	int i;
 
-	if (machine_is_ebsa285())
+	if (!machine_is_ebsa285())
 		return -ENODEV;
 
-	/* 3 LEDS All ON */
-	*XBUS_LEDS |= XBUS_LED_AMBER | XBUS_LED_GREEN | XBUS_LED_RED;
+	/* 3 LEDS all off */
+	hw_led_state = XBUS_LED_AMBER | XBUS_LED_GREEN | XBUS_LED_RED;
+	*XBUS_LEDS = hw_led_state;
 
 	for (i = 0; i < ARRAY_SIZE(ebsa285_leds); i++) {
 		struct ebsa285_led *led;
