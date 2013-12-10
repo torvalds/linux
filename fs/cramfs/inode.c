@@ -17,13 +17,29 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/blkdev.h>
-#include <linux/cramfs_fs.h>
 #include <linux/slab.h>
-#include <linux/cramfs_fs_sb.h>
 #include <linux/vfs.h>
 #include <linux/mutex.h>
-
+#include <uapi/linux/cramfs_fs.h>
 #include <asm/uaccess.h>
+
+#include "internal.h"
+
+/*
+ * cramfs super-block data in memory
+ */
+struct cramfs_sb_info {
+	unsigned long magic;
+	unsigned long size;
+	unsigned long blocks;
+	unsigned long files;
+	unsigned long flags;
+};
+
+static inline struct cramfs_sb_info *CRAMFS_SB(struct super_block *sb)
+{
+	return sb->s_fs_info;
+}
 
 static const struct super_operations cramfs_ops;
 static const struct inode_operations cramfs_dir_inode_operations;
@@ -221,7 +237,7 @@ static void *cramfs_read(struct super_block *sb, unsigned int offset, unsigned i
 
 static void cramfs_kill_sb(struct super_block *sb)
 {
-	struct cramfs_sb_info *sbi = sb->s_fs_info;
+	struct cramfs_sb_info *sbi = CRAMFS_SB(sb);
 	kill_block_super(sb);
 	kfree(sbi);
 }
