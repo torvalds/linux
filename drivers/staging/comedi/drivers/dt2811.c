@@ -46,55 +46,55 @@ Configuration options:
 
 static const struct comedi_lrange range_dt2811_pgh_ai_5_unipolar = {
 	4, {
-		RANGE(0, 5),
-		RANGE(0, 2.5),
-		RANGE(0, 1.25),
-		RANGE(0, 0.625)
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25),
+		UNI_RANGE(0.625)
 	}
 };
 
 static const struct comedi_lrange range_dt2811_pgh_ai_2_5_bipolar = {
 	4, {
-		RANGE(-2.5, 2.5),
-		RANGE(-1.25, 1.25),
-		RANGE(-0.625, 0.625),
-		RANGE(-0.3125, 0.3125)
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+		BIP_RANGE(0.3125)
 	}
 };
 
 static const struct comedi_lrange range_dt2811_pgh_ai_5_bipolar = {
 	4, {
-		RANGE(-5, 5),
-		RANGE(-2.5, 2.5),
-		RANGE(-1.25, 1.25),
-		RANGE(-0.625, 0.625)
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625)
 	}
 };
 
 static const struct comedi_lrange range_dt2811_pgl_ai_5_unipolar = {
 	4, {
-		RANGE(0, 5),
-		RANGE(0, 0.5),
-		RANGE(0, 0.05),
-		RANGE(0, 0.01)
+		UNI_RANGE(5),
+		UNI_RANGE(0.5),
+		UNI_RANGE(0.05),
+		UNI_RANGE(0.01)
 	}
 };
 
 static const struct comedi_lrange range_dt2811_pgl_ai_2_5_bipolar = {
 	4, {
-		RANGE(-2.5, 2.5),
-		RANGE(-0.25, 0.25),
-		RANGE(-0.025, 0.025),
-		RANGE(-0.005, 0.005)
+		BIP_RANGE(2.5),
+		BIP_RANGE(0.25),
+		BIP_RANGE(0.025),
+		BIP_RANGE(0.005)
 	}
 };
 
 static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
 	4, {
-		RANGE(-5, 5),
-		RANGE(-0.5, 0.5),
-		RANGE(-0.05, 0.05),
-		RANGE(-0.01, 0.01)
+		BIP_RANGE(5),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.05),
+		BIP_RANGE(0.01)
 	}
 };
 
