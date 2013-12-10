@@ -1017,7 +1017,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	struct timespec before, now;
 	DEFINE_WAIT(wait);
-	long timeout_jiffies;
+	unsigned long timeout_expire;
 	int ret;
 
 	WARN(dev_priv->pc8.irqs_disabled, "IRQs disabled\n");
@@ -1025,7 +1025,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	if (i915_seqno_passed(ring->get_seqno(ring, true), seqno))
 		return 0;
 
-	timeout_jiffies = timeout ? timespec_to_jiffies_timeout(timeout) : 1;
+	timeout_expire = timeout ? jiffies + timespec_to_jiffies_timeout(timeout) : 0;
 
 	if (dev_priv->info->gen >= 6 && can_wait_boost(file_priv)) {
 		gen6_rps_boost(dev_priv);
@@ -1044,7 +1044,6 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	getrawmonotonic(&before);
 	for (;;) {
 		struct timer_list timer;
-		unsigned long expire;
 
 		prepare_to_wait(&ring->irq_queue, &wait,
 				interruptible ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
@@ -1070,22 +1069,21 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 			break;
 		}
 
-		if (timeout_jiffies <= 0) {
+		if (timeout && time_after_eq(jiffies, timeout_expire)) {
 			ret = -ETIME;
 			break;
 		}
 
 		timer.function = NULL;
 		if (timeout || missed_irq(dev_priv, ring)) {
+			unsigned long expire;
+
 			setup_timer_on_stack(&timer, fake_irq, (unsigned long)current);
-			expire = jiffies + (missed_irq(dev_priv, ring) ? 1: timeout_jiffies);
+			expire = missed_irq(dev_priv, ring) ? jiffies + 1 : timeout_expire;
 			mod_timer(&timer, expire);
 		}
 
 		io_schedule();
-
-		if (timeout)
-			timeout_jiffies = expire - jiffies;
 
 		if (timer.function) {
 			del_singleshot_timer_sync(&timer);
