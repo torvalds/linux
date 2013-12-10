@@ -893,19 +893,14 @@ F:	arch/arm/include/asm/hardware/dec21285.h
 F:	arch/arm/mach-footbridge/
 
 ARM/FREESCALE IMX / MXC ARM ARCHITECTURE
+M:	Shawn Guo <shawn.guo@linaro.org>
 M:	Sascha Hauer <kernel@pengutronix.de>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-T:	git git://git.pengutronix.de/git/imx/linux-2.6.git
-F:	arch/arm/mach-imx/
-F:	arch/arm/configs/imx*_defconfig
-
-ARM/FREESCALE IMX6
-M:	Shawn Guo <shawn.guo@linaro.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
 T:	git git://git.linaro.org/people/shawnguo/linux-2.6.git
-F:	arch/arm/mach-imx/*imx6*
+F:	arch/arm/mach-imx/
+F:	arch/arm/boot/dts/imx*
+F:	arch/arm/configs/imx*_defconfig
 
 ARM/FREESCALE MXS ARM ARCHITECTURE
 M:	Shawn Guo <shawn.guo@linaro.org>
