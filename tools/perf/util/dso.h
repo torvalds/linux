@@ -110,7 +110,7 @@ static inline void dso__set_loaded(struct dso *dso, enum map_type type)
 struct dso *dso__new(const char *name);
 void dso__delete(struct dso *dso);
 
-void dso__set_short_name(struct dso *dso, const char *name);
+void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated);
 void dso__set_long_name(struct dso *dso, char *name);
 
 int dso__name_len(const struct dso *dso);

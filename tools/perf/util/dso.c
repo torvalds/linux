@@ -379,7 +379,7 @@ struct dso *dso__kernel_findnew(struct machine *machine, const char *name,
 	 * processing we had no idea this was the kernel dso.
 	 */
 	if (dso != NULL) {
-		dso__set_short_name(dso, short_name);
+		dso__set_short_name(dso, short_name, false);
 		dso->kernel = dso_type;
 	}
 
@@ -394,17 +394,22 @@ void dso__set_long_name(struct dso *dso, char *name)
 	dso->long_name_len = strlen(name);
 }
 
-void dso__set_short_name(struct dso *dso, const char *name)
+void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated)
 {
 	if (name == NULL)
 		return;
-	dso->short_name = name;
-	dso->short_name_len = strlen(name);
+
+	if (dso->short_name_allocated)
+		free((char *)dso->short_name);
+
+	dso->short_name		  = name;
+	dso->short_name_len	  = strlen(name);
+	dso->short_name_allocated = name_allocated;
 }
 
 static void dso__set_basename(struct dso *dso)
 {
-	dso__set_short_name(dso, basename(dso->long_name));
+	dso__set_short_name(dso, basename(dso->long_name), false);
 }
 
 int dso__name_len(const struct dso *dso)
@@ -440,7 +445,7 @@ struct dso *dso__new(const char *name)
 		int i;
 		strcpy(dso->name, name);
 		dso__set_long_name(dso, dso->name);
-		dso__set_short_name(dso, dso->name);
+		dso__set_short_name(dso, dso->name, false);
 		for (i = 0; i < MAP__NR_TYPES; ++i)
 			dso->symbols[i] = dso->symbol_names[i] = RB_ROOT;
 		dso->cache = RB_ROOT;
