@@ -784,7 +784,7 @@ static void mv_xor_issue_pending(struct dma_chan *chan)
 
 static int mv_xor_memcpy_self_test(struct mv_xor_chan *mv_chan)
 {
-	int i;
+	int i, ret;
 	void *src, *dest;
 	dma_addr_t src_dma, dest_dma;
 	struct dma_chan *dma_chan;
@@ -821,19 +821,44 @@ static int mv_xor_memcpy_self_test(struct mv_xor_chan *mv_chan)
 
 	src_dma = dma_map_page(dma_chan->device->dev, virt_to_page(src), 0,
 				 PAGE_SIZE, DMA_TO_DEVICE);
-	unmap->to_cnt = 1;
 	unmap->addr[0] = src_dma;
+
+	ret = dma_mapping_error(dma_chan->device->dev, src_dma);
+	if (ret) {
+		err = -ENOMEM;
+		goto free_resources;
+	}
+	unmap->to_cnt = 1;
 
 	dest_dma = dma_map_page(dma_chan->device->dev, virt_to_page(dest), 0,
 				  PAGE_SIZE, DMA_FROM_DEVICE);
-	unmap->from_cnt = 1;
 	unmap->addr[1] = dest_dma;
 
+	ret = dma_mapping_error(dma_chan->device->dev, dest_dma);
+	if (ret) {
+		err = -ENOMEM;
+		goto free_resources;
+	}
+	unmap->from_cnt = 1;
 	unmap->len = PAGE_SIZE;
 
 	tx = mv_xor_prep_dma_memcpy(dma_chan, dest_dma, src_dma,
 				    PAGE_SIZE, 0);
+	if (!tx) {
+		dev_err(dma_chan->device->dev,
+			"Self-test cannot prepare operation, disabling\n");
+		err = -ENODEV;
+		goto free_resources;
+	}
+
 	cookie = mv_xor_tx_submit(tx);
+	if (dma_submit_error(cookie)) {
+		dev_err(dma_chan->device->dev,
+			"Self-test submit error, disabling\n");
+		err = -ENODEV;
+		goto free_resources;
+	}
+
 	mv_xor_issue_pending(dma_chan);
 	async_tx_ack(tx);
 	msleep(1);
@@ -868,7 +893,7 @@ out:
 static int
 mv_xor_xor_self_test(struct mv_xor_chan *mv_chan)
 {
-	int i, src_idx;
+	int i, src_idx, ret;
 	struct page *dest;
 	struct page *xor_srcs[MV_XOR_NUM_SRC_TEST];
 	dma_addr_t dma_srcs[MV_XOR_NUM_SRC_TEST];
@@ -931,19 +956,42 @@ mv_xor_xor_self_test(struct mv_xor_chan *mv_chan)
 		unmap->addr[i] = dma_map_page(dma_chan->device->dev, xor_srcs[i],
 					      0, PAGE_SIZE, DMA_TO_DEVICE);
 		dma_srcs[i] = unmap->addr[i];
+		ret = dma_mapping_error(dma_chan->device->dev, unmap->addr[i]);
+		if (ret) {
+			err = -ENOMEM;
+			goto free_resources;
+		}
 		unmap->to_cnt++;
 	}
 
 	unmap->addr[src_count] = dma_map_page(dma_chan->device->dev, dest, 0, PAGE_SIZE,
 				      DMA_FROM_DEVICE);
 	dest_dma = unmap->addr[src_count];
+	ret = dma_mapping_error(dma_chan->device->dev, unmap->addr[src_count]);
+	if (ret) {
+		err = -ENOMEM;
+		goto free_resources;
+	}
 	unmap->from_cnt = 1;
 	unmap->len = PAGE_SIZE;
 
 	tx = mv_xor_prep_dma_xor(dma_chan, dest_dma, dma_srcs,
 				 src_count, PAGE_SIZE, 0);
+	if (!tx) {
+		dev_err(dma_chan->device->dev,
+			"Self-test cannot prepare operation, disabling\n");
+		err = -ENODEV;
+		goto free_resources;
+	}
 
 	cookie = mv_xor_tx_submit(tx);
+	if (dma_submit_error(cookie)) {
+		dev_err(dma_chan->device->dev,
+			"Self-test submit error, disabling\n");
+		err = -ENODEV;
+		goto free_resources;
+	}
+
 	mv_xor_issue_pending(dma_chan);
 	async_tx_ack(tx);
 	msleep(8);
