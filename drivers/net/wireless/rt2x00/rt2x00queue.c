@@ -635,7 +635,7 @@ static void rt2x00queue_bar_check(struct queue_entry *entry)
 }
 
 int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
-			       bool local)
+			       struct ieee80211_sta *sta, bool local)
 {
 	struct ieee80211_tx_info *tx_info;
 	struct queue_entry *entry;
@@ -649,7 +649,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	 * after that we are free to use the skb->cb array
 	 * for our information.
 	 */
-	rt2x00queue_create_tx_descriptor(queue->rt2x00dev, skb, &txdesc, NULL);
+	rt2x00queue_create_tx_descriptor(queue->rt2x00dev, skb, &txdesc, sta);
 
 	/*
 	 * All information is retrieved from the skb->cb array,

@@ -31,7 +31,6 @@
 #include <linux/task_work.h>
 
 #include <trace/events/sched.h>
-#ifdef CONFIG_HMP_VARIABLE_SCALE
 #include <linux/sysfs.h>
 #include <linux/vmalloc.h>
 #ifdef CONFIG_HMP_FREQUENCY_INVARIANT_SCALE
@@ -40,7 +39,6 @@
  */
 #include <linux/cpufreq.h>
 #endif /* CONFIG_HMP_FREQUENCY_INVARIANT_SCALE */
-#endif /* CONFIG_HMP_VARIABLE_SCALE */
 
 #include "sched.h"
 
@@ -1212,8 +1210,7 @@ static u32 __compute_runnable_contrib(u64 n)
 	return contrib + runnable_avg_yN_sum[n];
 }
 
-#ifdef CONFIG_HMP_VARIABLE_SCALE
-
+#ifdef CONFIG_SCHED_HMP
 #define HMP_VARIABLE_SCALE_SHIFT 16ULL
 struct hmp_global_attr {
 	struct attribute attr;
@@ -1224,6 +1221,7 @@ struct hmp_global_attr {
 	int *value;
 	int (*to_sysfs)(int);
 	int (*from_sysfs)(int);
+	ssize_t (*to_sysfs_text)(char *buf, int buf_size);
 };
 
 #define HMP_DATA_SYSFS_MAX 8
@@ -1294,7 +1292,7 @@ struct cpufreq_extents {
 
 static struct cpufreq_extents freq_scale[CONFIG_NR_CPUS];
 #endif /* CONFIG_HMP_FREQUENCY_INVARIANT_SCALE */
-#endif /* CONFIG_HMP_VARIABLE_SCALE */
+#endif /* CONFIG_SCHED_HMP */
 
 /* We can represent the historical contribution to runnable average as the
  * coefficients of a geometric series.  To do this we sub-divide our runnable
@@ -1340,7 +1338,7 @@ static __always_inline int __update_entity_runnable_avg(u64 now,
 #endif /* CONFIG_HMP_FREQUENCY_INVARIANT_SCALE */
 
 	delta = now - sa->last_runnable_update;
-#ifdef CONFIG_HMP_VARIABLE_SCALE
+#ifdef CONFIG_SCHED_HMP
 	delta = hmp_variable_scale_convert(delta);
 #endif
 	/*
@@ -3843,7 +3841,6 @@ static inline void hmp_next_down_delay(struct sched_entity *se, int cpu)
 	cpu_rq(cpu)->avg.hmp_last_up_migration = 0;
 }
 
-#ifdef CONFIG_HMP_VARIABLE_SCALE
 /*
  * Heterogenous multiprocessor (HMP) optimizations
  *
@@ -3876,27 +3873,35 @@ static inline void hmp_next_down_delay(struct sched_entity *se, int cpu)
  * The scale factor hmp_data.multiplier is a fixed point
  * number: (32-HMP_VARIABLE_SCALE_SHIFT).HMP_VARIABLE_SCALE_SHIFT
  */
-static u64 hmp_variable_scale_convert(u64 delta)
+static inline u64 hmp_variable_scale_convert(u64 delta)
 {
+#ifdef CONFIG_HMP_VARIABLE_SCALE
 	u64 high = delta >> 32ULL;
 	u64 low = delta & 0xffffffffULL;
 	low *= hmp_data.multiplier;
 	high *= hmp_data.multiplier;
 	return (low >> HMP_VARIABLE_SCALE_SHIFT)
 			+ (high << (32ULL - HMP_VARIABLE_SCALE_SHIFT));
+#else
+	return delta;
+#endif
 }
 
 static ssize_t hmp_show(struct kobject *kobj,
 				struct attribute *attr, char *buf)
 {
-	ssize_t ret = 0;
 	struct hmp_global_attr *hmp_attr =
 		container_of(attr, struct hmp_global_attr, attr);
-	int temp = *(hmp_attr->value);
+	int temp;
+
+	if (hmp_attr->to_sysfs_text != NULL)
+		return hmp_attr->to_sysfs_text(buf, PAGE_SIZE);
+
+	temp = *(hmp_attr->value);
 	if (hmp_attr->to_sysfs != NULL)
 		temp = hmp_attr->to_sysfs(temp);
-	ret = sprintf(buf, "%d\n", temp);
-	return ret;
+
+	return (ssize_t)sprintf(buf, "%d\n", temp);
 }
 
 static ssize_t hmp_store(struct kobject *a, struct attribute *attr,
@@ -3925,11 +3930,31 @@ static ssize_t hmp_store(struct kobject *a, struct attribute *attr,
 	return ret;
 }
 
+static ssize_t hmp_print_domains(char *outbuf, int outbufsize)
+{
+	char buf[64];
+	const char nospace[] = "%s", space[] = " %s";
+	const char *fmt = nospace;
+	struct hmp_domain *domain;
+	struct list_head *pos;
+	int outpos = 0;
+	list_for_each(pos, &hmp_domains) {
+		domain = list_entry(pos, struct hmp_domain, hmp_domains);
+		if (cpumask_scnprintf(buf, 64, &domain->possible_cpus)) {
+			outpos += sprintf(outbuf+outpos, fmt, buf);
+			fmt = space;
+		}
+	}
+	strcat(outbuf, "\n");
+	return outpos+1;
+}
+
+#ifdef CONFIG_HMP_VARIABLE_SCALE
 static int hmp_period_tofrom_sysfs(int value)
 {
 	return (LOAD_AVG_PERIOD << HMP_VARIABLE_SCALE_SHIFT) / value;
 }
-
+#endif
 /* max value for threshold is 1024 */
 static int hmp_theshold_from_sysfs(int value)
 {
@@ -3937,9 +3962,10 @@ static int hmp_theshold_from_sysfs(int value)
 		return -1;
 	return value;
 }
-#ifdef CONFIG_HMP_FREQUENCY_INVARIANT_SCALE
-/* freqinvar control is only 0,1 off/on */
-static int hmp_freqinvar_from_sysfs(int value)
+#if defined(CONFIG_SCHED_HMP_LITTLE_PACKING) || \
+		defined(CONFIG_HMP_FREQUENCY_INVARIANT_SCALE)
+/* toggle control is only 0,1 off/on */
+static int hmp_toggle_from_sysfs(int value)
 {
 	if (value < 0 || value > 1)
 		return -1;
@@ -3959,7 +3985,9 @@ static void hmp_attr_add(
 	const char *name,
 	int *value,
 	int (*to_sysfs)(int),
-	int (*from_sysfs)(int))
+	int (*from_sysfs)(int),
+	ssize_t (*to_sysfs_text)(char *, int),
+	umode_t mode)
 {
 	int i = 0;
 	while (hmp_data.attributes[i] != NULL) {
@@ -3967,13 +3995,17 @@ static void hmp_attr_add(
 		if (i >= HMP_DATA_SYSFS_MAX)
 			return;
 	}
-	hmp_data.attr[i].attr.mode = 0644;
+	if (mode)
+		hmp_data.attr[i].attr.mode = mode;
+	else
+		hmp_data.attr[i].attr.mode = 0644;
 	hmp_data.attr[i].show = hmp_show;
 	hmp_data.attr[i].store = hmp_store;
 	hmp_data.attr[i].attr.name = name;
 	hmp_data.attr[i].value = value;
 	hmp_data.attr[i].to_sysfs = to_sysfs;
 	hmp_data.attr[i].from_sysfs = from_sysfs;
+	hmp_data.attr[i].to_sysfs_text = to_sysfs_text;
 	hmp_data.attributes[i] = &hmp_data.attr[i].attr;
 	hmp_data.attributes[i + 1] = NULL;
 }
@@ -3982,40 +4014,59 @@ static int hmp_attr_init(void)
 {
 	int ret;
 	memset(&hmp_data, sizeof(hmp_data), 0);
+	hmp_attr_add("hmp_domains",
+		NULL,
+		NULL,
+		NULL,
+		hmp_print_domains,
+		0444);
+	hmp_attr_add("up_threshold",
+		&hmp_up_threshold,
+		NULL,
+		hmp_theshold_from_sysfs,
+		NULL,
+		0);
+	hmp_attr_add("down_threshold",
+		&hmp_down_threshold,
+		NULL,
+		hmp_theshold_from_sysfs,
+		NULL,
+		0);
+#ifdef CONFIG_HMP_VARIABLE_SCALE
 	/* by default load_avg_period_ms == LOAD_AVG_PERIOD
 	 * meaning no change
 	 */
 	hmp_data.multiplier = hmp_period_tofrom_sysfs(LOAD_AVG_PERIOD);
-
 	hmp_attr_add("load_avg_period_ms",
 		&hmp_data.multiplier,
 		hmp_period_tofrom_sysfs,
-		hmp_period_tofrom_sysfs);
-	hmp_attr_add("up_threshold",
-		&hmp_up_threshold,
+		hmp_period_tofrom_sysfs,
 		NULL,
-		hmp_theshold_from_sysfs);
-	hmp_attr_add("down_threshold",
-		&hmp_down_threshold,
-		NULL,
-		hmp_theshold_from_sysfs);
+		0);
+#endif
 #ifdef CONFIG_HMP_FREQUENCY_INVARIANT_SCALE
 	/* default frequency-invariant scaling ON */
 	hmp_data.freqinvar_load_scale_enabled = 1;
 	hmp_attr_add("frequency_invariant_load_scale",
 		&hmp_data.freqinvar_load_scale_enabled,
 		NULL,
-		hmp_freqinvar_from_sysfs);
+		hmp_toggle_from_sysfs,
+		NULL,
+		0);
 #endif
 #ifdef CONFIG_SCHED_HMP_LITTLE_PACKING
 	hmp_attr_add("packing_enable",
 		&hmp_packing_enabled,
 		NULL,
-		hmp_freqinvar_from_sysfs);
+		hmp_toggle_from_sysfs,
+		NULL,
+		0);
 	hmp_attr_add("packing_limit",
 		&hmp_full_threshold,
 		NULL,
-		hmp_packing_from_sysfs);
+		hmp_packing_from_sysfs,
+		NULL,
+		0);
 #endif
 	hmp_data.attr_group.name = "hmp";
 	hmp_data.attr_group.attrs = hmp_data.attributes;
@@ -4024,7 +4075,6 @@ static int hmp_attr_init(void)
 	return 0;
 }
 late_initcall(hmp_attr_init);
-#endif /* CONFIG_HMP_VARIABLE_SCALE */
 /*
  * return the load of the lowest-loaded CPU in a given HMP domain
  * min_cpu optionally points to an int to receive the CPU.
@@ -6915,6 +6965,69 @@ out_unlock:
 	return 0;
 }
 
+/*
+ * Move task in a runnable state to another CPU.
+ *
+ * Tailored on 'active_load_balance_stop_cpu' with slight
+ * modification to locking and pre-transfer checks.  Note
+ * rq->lock must be held before calling.
+ */
+static void hmp_migrate_runnable_task(struct rq *rq)
+{
+	struct sched_domain *sd;
+	int src_cpu = cpu_of(rq);
+	struct rq *src_rq = rq;
+	int dst_cpu = rq->push_cpu;
+	struct rq *dst_rq = cpu_rq(dst_cpu);
+	struct task_struct *p = rq->migrate_task;
+	/*
+	 * One last check to make sure nobody else is playing
+	 * with the source rq.
+	 */
+	if (src_rq->active_balance)
+		return;
+
+	if (src_rq->nr_running <= 1)
+		return;
+
+	if (task_rq(p) != src_rq)
+		return;
+	/*
+	 * Not sure if this applies here but one can never
+	 * be too cautious
+	 */
+	BUG_ON(src_rq == dst_rq);
+
+	double_lock_balance(src_rq, dst_rq);
+
+	rcu_read_lock();
+	for_each_domain(dst_cpu, sd) {
+		if (cpumask_test_cpu(src_cpu, sched_domain_span(sd)))
+			break;
+	}
+
+	if (likely(sd)) {
+		struct lb_env env = {
+			.sd             = sd,
+			.dst_cpu        = dst_cpu,
+			.dst_rq         = dst_rq,
+			.src_cpu        = src_cpu,
+			.src_rq         = src_rq,
+			.idle           = CPU_IDLE,
+		};
+
+		schedstat_inc(sd, alb_count);
+
+		if (move_specific_task(&env, p))
+			schedstat_inc(sd, alb_pushed);
+		else
+			schedstat_inc(sd, alb_failed);
+	}
+
+	rcu_read_unlock();
+	double_unlock_balance(src_rq, dst_rq);
+}
+
 static DEFINE_SPINLOCK(hmp_force_migration);
 
 /*
@@ -6927,13 +7040,14 @@ static void hmp_force_up_migration(int this_cpu)
 	struct sched_entity *curr, *orig;
 	struct rq *target;
 	unsigned long flags;
-	unsigned int force;
+	unsigned int force, got_target;
 	struct task_struct *p;
 
 	if (!spin_trylock(&hmp_force_migration))
 		return;
 	for_each_online_cpu(cpu) {
 		force = 0;
+		got_target = 0;
 		target = cpu_rq(cpu);
 		raw_spin_lock_irqsave(&target->lock, flags);
 		curr = target->cfs.curr;
@@ -6956,15 +7070,14 @@ static void hmp_force_up_migration(int this_cpu)
 		if (hmp_up_migration(cpu, &target_cpu, curr)) {
 			if (!target->active_balance) {
 				get_task_struct(p);
-				target->active_balance = 1;
 				target->push_cpu = target_cpu;
 				target->migrate_task = p;
-				force = 1;
+				got_target = 1;
 				trace_sched_hmp_migrate(p, target->push_cpu, HMP_MIGRATE_FORCE);
 				hmp_next_up_delay(&p->se, target->push_cpu);
 			}
 		}
-		if (!force && !target->active_balance) {
+		if (!got_target && !target->active_balance) {
 			/*
 			 * For now we just check the currently running task.
 			 * Selecting the lightest task for offloading will
@@ -6975,14 +7088,29 @@ static void hmp_force_up_migration(int this_cpu)
 			target->push_cpu = hmp_offload_down(cpu, curr);
 			if (target->push_cpu < NR_CPUS) {
 				get_task_struct(p);
-				target->active_balance = 1;
 				target->migrate_task = p;
-				force = 1;
+				got_target = 1;
 				trace_sched_hmp_migrate(p, target->push_cpu, HMP_MIGRATE_OFFLOAD);
 				hmp_next_down_delay(&p->se, target->push_cpu);
 			}
 		}
+		/*
+		 * We have a target with no active_balance.  If the task
+		 * is not currently running move it, otherwise let the
+		 * CPU stopper take care of it.
+		 */
+		if (got_target && !target->active_balance) {
+			if (!task_running(target, p)) {
+				trace_sched_hmp_migrate_force_running(p, 0);
+				hmp_migrate_runnable_task(target);
+			} else {
+				target->active_balance = 1;
+				force = 1;
+			}
+		}
+
 		raw_spin_unlock_irqrestore(&target->lock, flags);
+
 		if (force)
 			stop_one_cpu_nowait(cpu_of(target),
 				hmp_active_task_migration_cpu_stop,
@@ -7002,7 +7130,7 @@ static unsigned int hmp_idle_pull(int this_cpu)
 	int cpu;
 	struct sched_entity *curr, *orig;
 	struct hmp_domain *hmp_domain = NULL;
-	struct rq *target, *rq;
+	struct rq *target = NULL, *rq;
 	unsigned long flags, ratio = 0;
 	unsigned int force = 0;
 	struct task_struct *p = NULL;
@@ -7054,14 +7182,25 @@ static unsigned int hmp_idle_pull(int this_cpu)
 	raw_spin_lock_irqsave(&target->lock, flags);
 	if (!target->active_balance && task_rq(p) == target) {
 		get_task_struct(p);
-		target->active_balance = 1;
 		target->push_cpu = this_cpu;
 		target->migrate_task = p;
-		force = 1;
 		trace_sched_hmp_migrate(p, target->push_cpu, HMP_MIGRATE_IDLE_PULL);
 		hmp_next_up_delay(&p->se, target->push_cpu);
+		/*
+		 * if the task isn't running move it right away.
+		 * Otherwise setup the active_balance mechanic and let
+		 * the CPU stopper do its job.
+		 */
+		if (!task_running(target, p)) {
+			trace_sched_hmp_migrate_idle_running(p, 0);
+			hmp_migrate_runnable_task(target);
+		} else {
+			target->active_balance = 1;
+			force = 1;
+		}
 	}
 	raw_spin_unlock_irqrestore(&target->lock, flags);
+
 	if (force) {
 		stop_one_cpu_nowait(cpu_of(target),
 			hmp_idle_pull_cpu_stop,

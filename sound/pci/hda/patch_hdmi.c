@@ -738,9 +738,10 @@ static int hdmi_manual_setup_channel_mapping(struct hda_codec *codec,
 static void hdmi_setup_fake_chmap(unsigned char *map, int ca)
 {
 	int i;
+	int ordered_ca = get_channel_allocation_order(ca);
 	for (i = 0; i < 8; i++) {
-		if (i < channel_allocations[ca].channels)
-			map[i] = from_cea_slot((hdmi_channel_mapping[ca][i] >> 4) & 0x0f);
+		if (i < channel_allocations[ordered_ca].channels)
+			map[i] = from_cea_slot(hdmi_channel_mapping[ca][i] & 0x0f);
 		else
 			map[i] = 0;
 	}
