@@ -80,9 +80,11 @@
 #define NV_PGRAPH_FECS_CC_SCRATCH_VAL(n)                    ((n) * 4 + 0x409800)
 #define NV_PGRAPH_FECS_CC_SCRATCH_SET(n)                    ((n) * 4 + 0x409820)
 #define NV_PGRAPH_FECS_CC_SCRATCH_CLR(n)                    ((n) * 4 + 0x409840)
+#define NV_PGRAPH_FECS_UNK86C                                          0x40986c
 #else
 #define NV_PGRAPH_FECS_CC_SCRATCH_VAL(n)                    ((n) * 4 + 0x409800)
 #define NV_PGRAPH_FECS_CC_SCRATCH_CLR(n)                    ((n) * 4 + 0x409840)
+#define NV_PGRAPH_FECS_UNK86C                                          0x40988c
 #define NV_PGRAPH_FECS_CC_SCRATCH_SET(n)                    ((n) * 4 + 0x4098c0)
 #endif
 #define NV_PGRAPH_FECS_STRANDS_CNT                                     0x409880
@@ -142,9 +144,11 @@
 #define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_VAL(n)              ((n) * 4 + 0x41a800)
 #define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_SET(n)              ((n) * 4 + 0x41a820)
 #define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_CLR(n)              ((n) * 4 + 0x41a840)
+#define NV_PGRAPH_GPCX_GPCCS_UNK86C                                    0x41a86c
 #else
 #define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_VAL(n)              ((n) * 4 + 0x41a800)
 #define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_CLR(n)              ((n) * 4 + 0x41a840)
+#define NV_PGRAPH_GPCX_GPCCS_UNK86C                                    0x41a88c
 #define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_SET(n)              ((n) * 4 + 0x41a8c0)
 #endif
 #define NV_PGRAPH_GPCX_GPCCS_STRAND_SELECT                             0x41a91c

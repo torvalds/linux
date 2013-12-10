@@ -134,6 +134,13 @@ init:
 	// context size calculation, reserve first 256 bytes for use by fuc
 	mov $r1 256
 
+	//
+	mov $r15 2
+	call(ctx_4170s)
+	call(ctx_4170w)
+	mov $r15 0x10
+	call(ctx_86c)
+
 	// calculate size of mmio context data
 	ld b32 $r14 D[$r0 + #hub_mmio_list_head]
 	ld b32 $r15 D[$r0 + #hub_mmio_list_tail]
@@ -195,6 +202,12 @@ init:
 		add b32 $r4 0x8000
 		sub b32 $r3 1
 		bra ne #init_gpc
+
+	//
+	mov $r15 0
+	call(ctx_86c)
+	mov $r15 0
+	call(ctx_4170s)
 
 	// save context size, and tell host we're ready
 	nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_VAL(1), 0, $r1)
@@ -414,9 +427,9 @@ ctx_redswitch:
 // In: $r15 value to set to (0x00/0x10 are used)
 //
 ctx_86c:
-	nv_iowr(0x40986c, 0, $r15)
+	nv_iowr(NV_PGRAPH_FECS_UNK86C, 0, $r15)
 	nv_wr32(0x408a14, $r15)
-	nv_wr32(0x41a86c, $r15)
+	nv_wr32(NV_PGRAPH_GPCX_GPCCS_UNK86C, $r15)
 	ret
 
 // In: $r15 NV_PGRAPH_FECS_MEM_CMD_*
