@@ -3464,14 +3464,12 @@ static const struct ieee80211_iface_limit ath10k_if_limits[] = {
 	},
 };
 
-#ifdef CONFIG_ATH10K_DFS_CERTIFIED
-static const struct ieee80211_iface_limit ath10k_if_dfs_limits[] = {
+static const struct ieee80211_iface_limit ath10k_10x_if_limits[] = {
 	{
 	.max	= 8,
 	.types	= BIT(NL80211_IFTYPE_AP)
 	},
 };
-#endif
 
 static const struct ieee80211_iface_combination ath10k_if_comb[] = {
 	{
@@ -3481,19 +3479,22 @@ static const struct ieee80211_iface_combination ath10k_if_comb[] = {
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
 	},
-#ifdef CONFIG_ATH10K_DFS_CERTIFIED
+};
+
+static const struct ieee80211_iface_combination ath10k_10x_if_comb[] = {
 	{
-		.limits = ath10k_if_dfs_limits,
-		.n_limits = ARRAY_SIZE(ath10k_if_dfs_limits),
+		.limits = ath10k_10x_if_limits,
+		.n_limits = ARRAY_SIZE(ath10k_10x_if_limits),
 		.max_interfaces = 8,
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
+#ifdef CONFIG_ATH10K_DFS_CERTIFIED
 		.radar_detect_widths =	BIT(NL80211_CHAN_WIDTH_20_NOHT) |
 					BIT(NL80211_CHAN_WIDTH_20) |
 					BIT(NL80211_CHAN_WIDTH_40) |
 					BIT(NL80211_CHAN_WIDTH_80),
-	}
 #endif
+	},
 };
 
 static struct ieee80211_sta_vht_cap ath10k_create_vht_cap(struct ath10k *ar)
@@ -3717,8 +3718,15 @@ int ath10k_mac_register(struct ath10k *ar)
 	 */
 	ar->hw->queues = 4;
 
-	ar->hw->wiphy->iface_combinations = ath10k_if_comb;
-	ar->hw->wiphy->n_iface_combinations = ARRAY_SIZE(ath10k_if_comb);
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
+		ar->hw->wiphy->iface_combinations = ath10k_10x_if_comb;
+		ar->hw->wiphy->n_iface_combinations =
+			ARRAY_SIZE(ath10k_10x_if_comb);
+	} else {
+		ar->hw->wiphy->iface_combinations = ath10k_if_comb;
+		ar->hw->wiphy->n_iface_combinations =
+			ARRAY_SIZE(ath10k_if_comb);
+	}
 
 	ar->hw->netdev_features = NETIF_F_HW_CSUM;
 
