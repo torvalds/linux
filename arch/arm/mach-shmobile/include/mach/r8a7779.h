@@ -11,8 +11,6 @@ enum {
 	HPBDMA_SLAVE_SDHI0_RX,
 };
 
-struct platform_device;
-
 struct r8a7779_pm_ch {
 	unsigned long chan_offs;
 	unsigned int chan_bit;
