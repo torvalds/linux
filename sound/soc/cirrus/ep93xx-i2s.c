@@ -21,6 +21,7 @@
 #include <linux/io.h>
 
 #include <sound/core.h>
+#include <sound/dmaengine_pcm.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
@@ -63,6 +64,8 @@ struct ep93xx_i2s_info {
 	struct clk			*sclk;
 	struct clk			*lrclk;
 	void __iomem			*regs;
+	struct snd_dmaengine_dai_dma_data dma_params_rx;
+	struct snd_dmaengine_dai_dma_data dma_params_tx;
 };
 
 static struct ep93xx_dma_data ep93xx_i2s_dma_data[] = {
@@ -142,8 +145,15 @@ static void ep93xx_i2s_disable(struct ep93xx_i2s_info *info, int stream)
 
 static int ep93xx_i2s_dai_probe(struct snd_soc_dai *dai)
 {
-	dai->playback_dma_data = &ep93xx_i2s_dma_data[SNDRV_PCM_STREAM_PLAYBACK];
-	dai->capture_dma_data = &ep93xx_i2s_dma_data[SNDRV_PCM_STREAM_CAPTURE];
+	struct ep93xx_i2s_info *info = snd_soc_dai_get_drvdata(dai);
+
+	info->dma_params_tx.filter_data =
+		&ep93xx_i2s_dma_data[SNDRV_PCM_STREAM_PLAYBACK];
+	info->dma_params_rx.filter_data =
+		&ep93xx_i2s_dma_data[SNDRV_PCM_STREAM_CAPTURE];
+
+	dai->playback_dma_data = &info->dma_params_tx;
+	dai->capture_dma_data = &info->dma_params_rx;
 
 	return 0;
 }
