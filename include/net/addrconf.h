@@ -248,6 +248,13 @@ static inline struct inet6_dev *in6_dev_get(const struct net_device *dev)
 	return idev;
 }
 
+static inline struct neigh_parms *__in6_dev_nd_parms_get_rcu(const struct net_device *dev)
+{
+	struct inet6_dev *idev = __in6_dev_get(dev);
+
+	return idev ? idev->nd_parms : NULL;
+}
+
 void in6_dev_finish_destroy(struct inet6_dev *idev);
 
 static inline void in6_dev_put(struct inet6_dev *idev)
