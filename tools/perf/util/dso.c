@@ -67,7 +67,7 @@ int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
 
 	case DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO:
 	{
-		char *last_slash;
+		const char *last_slash;
 		size_t len;
 		size_t dir_size;
 
@@ -386,13 +386,13 @@ struct dso *dso__kernel_findnew(struct machine *machine, const char *name,
 	return dso;
 }
 
-void dso__set_long_name(struct dso *dso, char *name, bool name_allocated)
+void dso__set_long_name(struct dso *dso, const char *name, bool name_allocated)
 {
 	if (name == NULL)
 		return;
 
 	if (dso->long_name_allocated)
-		free(dso->long_name);
+		free((char *)dso->long_name);
 
 	dso->long_name		 = name;
 	dso->long_name_len	 = strlen(name);
@@ -414,7 +414,7 @@ void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated)
 
 static void dso__set_basename(struct dso *dso)
 {
-	dso__set_short_name(dso, basename(dso->long_name), false);
+	dso__set_short_name(dso, basename((char *)dso->long_name), false);
 }
 
 int dso__name_len(const struct dso *dso)
@@ -478,7 +478,7 @@ void dso__delete(struct dso *dso)
 	if (dso->short_name_allocated)
 		free((char *)dso->short_name);
 	if (dso->long_name_allocated)
-		free(dso->long_name);
+		free((char *)dso->long_name);
 	dso_cache__free(&dso->cache);
 	dso__free_a2l(dso);
 	free(dso->symsrc_filename);

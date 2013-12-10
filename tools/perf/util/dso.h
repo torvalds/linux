@@ -96,7 +96,7 @@ struct dso {
 	u8		 rel;
 	u8		 build_id[BUILD_ID_SIZE];
 	const char	 *short_name;
-	char		 *long_name;
+	const char	 *long_name;
 	u16		 long_name_len;
 	u16		 short_name_len;
 	char		 name[0];
@@ -111,7 +111,7 @@ struct dso *dso__new(const char *name);
 void dso__delete(struct dso *dso);
 
 void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated);
-void dso__set_long_name(struct dso *dso, char *name, bool name_allocated);
+void dso__set_long_name(struct dso *dso, const char *name, bool name_allocated);
 
 int dso__name_len(const struct dso *dso);
 

@@ -255,7 +255,7 @@ char *get_srcline(struct dso *dso, unsigned long addr)
 	char *file = NULL;
 	unsigned line = 0;
 	char *srcline;
-	char *dso_name;
+	const char *dso_name;
 
 	if (!dso->has_srcline)
 		return SRCLINE_UNKNOWN;
