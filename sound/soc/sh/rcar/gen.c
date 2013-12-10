@@ -217,11 +217,11 @@ int rsnd_gen_path_exit(struct rsnd_priv *priv,
 
 /* single address mapping */
 #define RSND_GEN2_S_REG(gen, reg, id, offset)				\
-	RSND_REG_SET(gen, RSND_REG_##id, RSND_GEN2_##reg, offset, 0, 9)
+	RSND_REG_SET(gen, RSND_REG_##id, RSND_GEN2_##reg, offset, 0, 10)
 
 /* multi address mapping */
 #define RSND_GEN2_M_REG(gen, reg, id, offset, _id_offset)		\
-	RSND_REG_SET(gen, RSND_REG_##id, RSND_GEN2_##reg, offset, _id_offset, 9)
+	RSND_REG_SET(gen, RSND_REG_##id, RSND_GEN2_##reg, offset, _id_offset, 10)
 
 static int rsnd_gen2_regmap_init(struct rsnd_priv *priv, struct rsnd_gen *gen)
 {
