@@ -97,21 +97,22 @@ If you do not specify any options, they will default to
 #define TIMEOUT        20
 
 /* available ranges through the PGA gains */
-static const struct comedi_lrange range_adq12b_ai_bipolar = { 4, {
-								  BIP_RANGE(5),
-								  BIP_RANGE(2),
-								  BIP_RANGE(1),
-								  BIP_RANGE(0.5)
-								  }
+static const struct comedi_lrange range_adq12b_ai_bipolar = {
+	4, {
+		BIP_RANGE(5),
+		BIP_RANGE(2),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5)
+	}
 };
 
-static const struct comedi_lrange range_adq12b_ai_unipolar = { 4, {
-								   UNI_RANGE(5),
-								   UNI_RANGE(2),
-								   UNI_RANGE(1),
-								   UNI_RANGE
-								   (0.5)
-								   }
+static const struct comedi_lrange range_adq12b_ai_unipolar = {
+	4, {
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1),
+		UNI_RANGE(0.5)
+	}
 };
 
 struct adq12b_private {
