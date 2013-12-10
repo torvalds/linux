@@ -916,17 +916,32 @@ static bool vxlan_snoop(struct net_device *dev,
 }
 
 /* See if multicast group is already in use by other ID */
-static bool vxlan_group_used(struct vxlan_net *vn, union vxlan_addr *remote_ip)
+static bool vxlan_group_used(struct vxlan_net *vn, struct vxlan_dev *dev)
 {
 	struct vxlan_dev *vxlan;
 
+	/* The vxlan_sock is only used by dev, leaving group has
+	 * no effect on other vxlan devices.
+	 */
+	if (atomic_read(&dev->vn_sock->refcnt) == 1)
+		return false;
+
 	list_for_each_entry(vxlan, &vn->vxlan_list, next) {
-		if (!netif_running(vxlan->dev))
+		if (!netif_running(vxlan->dev) || vxlan == dev)
 			continue;
 
-		if (vxlan_addr_equal(&vxlan->default_dst.remote_ip,
-				     remote_ip))
-			return true;
+		if (vxlan->vn_sock != dev->vn_sock)
+			continue;
+
+		if (!vxlan_addr_equal(&vxlan->default_dst.remote_ip,
+				      &dev->default_dst.remote_ip))
+			continue;
+
+		if (vxlan->default_dst.remote_ifindex !=
+		    dev->default_dst.remote_ifindex)
+			continue;
+
+		return true;
 	}
 
 	return false;
@@ -1981,7 +1996,7 @@ static int vxlan_stop(struct net_device *dev)
 	struct vxlan_sock *vs = vxlan->vn_sock;
 
 	if (vs && vxlan_addr_multicast(&vxlan->default_dst.remote_ip) &&
-	    ! vxlan_group_used(vn, &vxlan->default_dst.remote_ip)) {
+	    !vxlan_group_used(vn, vxlan)) {
 		vxlan_sock_hold(vs);
 		dev_hold(dev);
 		queue_work(vxlan_wq, &vxlan->igmp_leave);
