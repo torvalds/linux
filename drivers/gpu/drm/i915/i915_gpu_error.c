@@ -726,7 +726,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 		error->instdone[ring->id] = I915_READ(RING_INSTDONE(ring->mmio_base));
 		error->instps[ring->id] = I915_READ(RING_INSTPS(ring->mmio_base));
 		if (ring->id == RCS)
-			error->bbaddr = I915_READ64(BB_ADDR);
+			error->bbaddr = I915_READ(BB_ADDR);
 		error->bbstate[ring->id] = I915_READ(RING_BBSTATE(ring->mmio_base));
 	} else {
 		error->faddr[ring->id] = I915_READ(DMA_FADD_I8XX);
