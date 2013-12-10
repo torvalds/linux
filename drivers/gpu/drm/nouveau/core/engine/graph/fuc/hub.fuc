@@ -87,8 +87,8 @@ init:
 	clear b32 $r2
 	nv_iowr(NV_PGRAPH_FECS_INTR_ROUTE, 0, $r2)
 
-	// route HUB_CHANNEL_SWITCH to fuc interrupt 8
-	mov $r2 0x2003		// { HUB_CHANNEL_SWITCH, ZERO } -> intr 8
+	// route HUB_CHSW_PULSE to fuc interrupt 8
+	mov $r2 0x2003		// { HUB_CHSW_PULSE, ZERO } -> intr 8
 	nv_iowr(NV_PGRAPH_FECS_IROUTE, 0, $r2)
 
 	// not sure what these are, route them because NVIDIA does, and
@@ -97,7 +97,7 @@ init:
 	//
 	mov $r2 0x2004		// { 0x04, ZERO } -> intr 9
 	nv_iowr(NV_PGRAPH_FECS_IROUTE, 1, $r2)
-	mov $r2 0x200b		// { 0x0b, ZERO } -> intr 10
+	mov $r2 0x200b		// { HUB_FIRMWARE_MTHD, ZERO } -> intr 10
 	nv_iowr(NV_PGRAPH_FECS_IROUTE, 2, $r2)
 	mov $r2 0x200c		// { 0x0c, ZERO } -> intr 15
 	nv_iowr(NV_PGRAPH_FECS_IROUTE, 7, $r2)
@@ -106,7 +106,7 @@ init:
 	sub b32 $r3 $r0 1
 	nv_iowr(NV_PGRAPH_FECS_INTR_UP_EN, 0, $r3)
 
-	// enable fifo, ctxsw, 9, 10, 15 interrupts
+	// enable fifo, ctxsw, 9, fwmthd, 15 interrupts
 	imm32($r2, 0x8704)
 	nv_iowr(NV_PGRAPH_FECS_INTR_EN_SET, 0, $r2)
 
@@ -339,8 +339,16 @@ ih:
 		mov $r14 0x4001
 		call(queue_put)
 
-	// anything we didn't handle, bring it to the host's attention
+	// firmware method?
 	ih_no_ctxsw:
+	and $r11 $r10 NV_PGRAPH_FECS_INTR_FWMTHD
+	bra e #ih_no_fwmthd
+		// none we handle, ack, and fall-through to unhandled
+		mov $r11 0x100
+		nv_wr32(0x400144, $r11)
+
+	// anything we didn't handle, bring it to the host's attention
+	ih_no_fwmthd:
 	mov $r11 0x104 // FIFO | CHSW
 	not b32 $r11
 	and $r11 $r10 $r11

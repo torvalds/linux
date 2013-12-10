@@ -32,6 +32,7 @@
 
 #define NV_PGRAPH_FECS_INTR_ACK                                        0x409004
 #define NV_PGRAPH_FECS_INTR                                            0x409008
+#define NV_PGRAPH_FECS_INTR_FWMTHD                                   0x00000400
 #define NV_PGRAPH_FECS_INTR_CHSW                                     0x00000100
 #define NV_PGRAPH_FECS_INTR_FIFO                                     0x00000004
 #define NV_PGRAPH_FECS_INTR_MODE                                       0x40900c
