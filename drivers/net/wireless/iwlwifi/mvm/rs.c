@@ -1116,14 +1116,9 @@ static void rs_tx_status(void *mvm_r, struct ieee80211_supported_band *sband,
 				tmp_tbl = curr_tbl;
 			else if (rs_rate_match(&rate, &other_tbl->rate))
 				tmp_tbl = other_tbl;
-			else {
-				IWL_DEBUG_RATE(mvm,
-					       "Tx packet rate doesn't match ACTIVE or SEARCH tables\n");
-				rs_dump_rate(mvm, &rate, "Tx PACKET:");
-				rs_dump_rate(mvm, &curr_tbl->rate, "CURRENT:");
-				rs_dump_rate(mvm, &other_tbl->rate, "OTHER:");
+			else
 				continue;
-			}
+
 			rs_collect_tx_data(tmp_tbl, rate.index, 1,
 					   i < retries ? 0 : legacy_success);
 		}
