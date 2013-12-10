@@ -128,7 +128,7 @@ void dso__read_running_kernel_build_id(struct dso *dso,
 int dso__kernel_module_get_build_id(struct dso *dso, const char *root_dir);
 
 char dso__symtab_origin(const struct dso *dso);
-int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
+int dso__binary_type_file(const struct dso *dso, enum dso_binary_type type,
 			  char *root_dir, char *file, size_t size);
 
 int dso__data_fd(struct dso *dso, struct machine *machine);
@@ -143,7 +143,7 @@ struct dso *dso__kernel_findnew(struct machine *machine, const char *name,
 				const char *short_name, int dso_type);
 
 void dsos__add(struct list_head *head, struct dso *dso);
-struct dso *dsos__find(struct list_head *head, const char *name,
+struct dso *dsos__find(const struct list_head *head, const char *name,
 		       bool cmp_short);
 struct dso *__dsos__findnew(struct list_head *head, const char *name);
 bool __dsos__read_build_ids(struct list_head *head, bool with_hits);

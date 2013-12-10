@@ -28,7 +28,7 @@ char dso__symtab_origin(const struct dso *dso)
 	return origin[dso->symtab_type];
 }
 
-int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
+int dso__binary_type_file(const struct dso *dso, enum dso_binary_type type,
 			  char *root_dir, char *file, size_t size)
 {
 	char build_id_hex[BUILD_ID_SIZE * 2 + 1];
@@ -200,11 +200,10 @@ dso_cache__free(struct rb_root *root)
 	}
 }
 
-static struct dso_cache*
-dso_cache__find(struct rb_root *root, u64 offset)
+static struct dso_cache *dso_cache__find(const struct rb_root *root, u64 offset)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_node * const *p = &root->rb_node;
+	const struct rb_node *parent = NULL;
 	struct dso_cache *cache;
 
 	while (*p != NULL) {
@@ -566,7 +565,7 @@ void dsos__add(struct list_head *head, struct dso *dso)
 	list_add_tail(&dso->node, head);
 }
 
-struct dso *dsos__find(struct list_head *head, const char *name, bool cmp_short)
+struct dso *dsos__find(const struct list_head *head, const char *name, bool cmp_short)
 {
 	struct dso *pos;
 
