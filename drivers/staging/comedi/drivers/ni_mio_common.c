@@ -78,111 +78,109 @@ static const short ni_gainlkup[][16] = {
 	[ai_gain_6143] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 };
 
-static const struct comedi_lrange range_ni_E_ai = { 16, {
-							 RANGE(-10, 10),
-							 RANGE(-5, 5),
-							 RANGE(-2.5, 2.5),
-							 RANGE(-1, 1),
-							 RANGE(-0.5, 0.5),
-							 RANGE(-0.25, 0.25),
-							 RANGE(-0.1, 0.1),
-							 RANGE(-0.05, 0.05),
-							 RANGE(0, 20),
-							 RANGE(0, 10),
-							 RANGE(0, 5),
-							 RANGE(0, 2),
-							 RANGE(0, 1),
-							 RANGE(0, 0.5),
-							 RANGE(0, 0.2),
-							 RANGE(0, 0.1),
-							 }
+static const struct comedi_lrange range_ni_E_ai = {
+	16, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.25),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.05),
+		UNI_RANGE(20),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1),
+		UNI_RANGE(0.5),
+		UNI_RANGE(0.2),
+		UNI_RANGE(0.1)
+	}
 };
 
-static const struct comedi_lrange range_ni_E_ai_limited = { 8, {
-								RANGE(-10, 10),
-								RANGE(-5, 5),
-								RANGE(-1, 1),
-								RANGE(-0.1,
-								      0.1),
-								RANGE(0, 10),
-								RANGE(0, 5),
-								RANGE(0, 1),
-								RANGE(0, 0.1),
-								}
+static const struct comedi_lrange range_ni_E_ai_limited = {
+	8, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(1),
+		BIP_RANGE(0.1),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1)
+	}
 };
 
-static const struct comedi_lrange range_ni_E_ai_limited14 = { 14, {
-								   RANGE(-10,
-									 10),
-								   RANGE(-5, 5),
-								   RANGE(-2, 2),
-								   RANGE(-1, 1),
-								   RANGE(-0.5,
-									 0.5),
-								   RANGE(-0.2,
-									 0.2),
-								   RANGE(-0.1,
-									 0.1),
-								   RANGE(0, 10),
-								   RANGE(0, 5),
-								   RANGE(0, 2),
-								   RANGE(0, 1),
-								   RANGE(0,
-									 0.5),
-								   RANGE(0,
-									 0.2),
-								   RANGE(0,
-									 0.1),
-								   }
+static const struct comedi_lrange range_ni_E_ai_limited14 = {
+	14, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.2),
+		BIP_RANGE(0.1),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1),
+		UNI_RANGE(0.5),
+		UNI_RANGE(0.2),
+		UNI_RANGE(0.1)
+	}
 };
 
-static const struct comedi_lrange range_ni_E_ai_bipolar4 = { 4, {
-								 RANGE(-10, 10),
-								 RANGE(-5, 5),
-								 RANGE(-0.5,
-								       0.5),
-								 RANGE(-0.05,
-								       0.05),
-								 }
+static const struct comedi_lrange range_ni_E_ai_bipolar4 = {
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.05)
+	}
 };
 
-static const struct comedi_lrange range_ni_E_ai_611x = { 8, {
-							     RANGE(-50, 50),
-							     RANGE(-20, 20),
-							     RANGE(-10, 10),
-							     RANGE(-5, 5),
-							     RANGE(-2, 2),
-							     RANGE(-1, 1),
-							     RANGE(-0.5, 0.5),
-							     RANGE(-0.2, 0.2),
-							     }
+static const struct comedi_lrange range_ni_E_ai_611x = {
+	8, {
+		BIP_RANGE(50),
+		BIP_RANGE(20),
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.2)
+	}
 };
 
-static const struct comedi_lrange range_ni_M_ai_622x = { 4, {
-							     RANGE(-10, 10),
-							     RANGE(-5, 5),
-							     RANGE(-1, 1),
-							     RANGE(-0.2, 0.2),
-							     }
+static const struct comedi_lrange range_ni_M_ai_622x = {
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(1),
+		BIP_RANGE(0.2)
+	}
 };
 
-static const struct comedi_lrange range_ni_M_ai_628x = { 7, {
-							     RANGE(-10, 10),
-							     RANGE(-5, 5),
-							     RANGE(-2, 2),
-							     RANGE(-1, 1),
-							     RANGE(-0.5, 0.5),
-							     RANGE(-0.2, 0.2),
-							     RANGE(-0.1, 0.1),
-							     }
+static const struct comedi_lrange range_ni_M_ai_628x = {
+	7, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.2),
+		BIP_RANGE(0.1)
+	}
 };
 
-static const struct comedi_lrange range_ni_E_ao_ext = { 4, {
-							    RANGE(-10, 10),
-							    RANGE(0, 10),
-							    RANGE_ext(-1, 1),
-							    RANGE_ext(0, 1),
-							    }
+static const struct comedi_lrange range_ni_E_ao_ext = {
+	4, {
+		BIP_RANGE(10),
+		UNI_RANGE(10),
+		RANGE_ext(-1, 1),
+		RANGE_ext(0, 1)
+	}
 };
 
 static const struct comedi_lrange *const ni_range_lkup[] = {
