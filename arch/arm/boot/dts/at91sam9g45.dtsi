@@ -143,6 +143,22 @@
 					};
 				};
 
+				i2c0 {
+					pinctrl_i2c0: i2c0-0 {
+						atmel,pins =
+							<AT91_PIOA 21 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PA21 periph A TWCK0 */
+							 AT91_PIOA 20 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PA20 periph A TWD0 */
+					};
+				};
+
+				i2c1 {
+					pinctrl_i2c1: i2c1-0 {
+						atmel,pins =
+							<AT91_PIOB 11 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PB11 periph A TWCK1 */
+							 AT91_PIOB 10 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PB10 periph A TWD1 */
+					};
+				};
+
 				usart0 {
 					pinctrl_usart0: usart0-0 {
 						atmel,pins =
@@ -425,6 +441,42 @@
 					};
 				};
 
+				fb {
+					pinctrl_fb: fb-0 {
+						atmel,pins =
+							<AT91_PIOE 0 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE0 periph A */
+							 AT91_PIOE 2 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE2 periph A */
+							 AT91_PIOE 3 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE3 periph A */
+							 AT91_PIOE 4 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE4 periph A */
+							 AT91_PIOE 5 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE5 periph A */
+							 AT91_PIOE 6 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE6 periph A */
+							 AT91_PIOE 7 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE7 periph A */
+							 AT91_PIOE 8 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE8 periph A */
+							 AT91_PIOE 9 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE9 periph A */
+							 AT91_PIOE 10 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE10 periph A */
+							 AT91_PIOE 11 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE11 periph A */
+							 AT91_PIOE 12 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE12 periph A */
+							 AT91_PIOE 13 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE13 periph A */
+							 AT91_PIOE 14 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE14 periph A */
+							 AT91_PIOE 15 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE15 periph A */
+							 AT91_PIOE 16 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE16 periph A */
+							 AT91_PIOE 17 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE17 periph A */
+							 AT91_PIOE 18 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE18 periph A */
+							 AT91_PIOE 19 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE19 periph A */
+							 AT91_PIOE 20 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE20 periph A */
+							 AT91_PIOE 21 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE21 periph A */
+							 AT91_PIOE 22 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE22 periph A */
+							 AT91_PIOE 23 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE23 periph A */
+							 AT91_PIOE 24 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE24 periph A */
+							 AT91_PIOE 25 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE25 periph A */
+							 AT91_PIOE 26 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE26 periph A */
+							 AT91_PIOE 27 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE27 periph A */
+							 AT91_PIOE 28 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE28 periph A */
+							 AT91_PIOE 29 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PE29 periph A */
+							 AT91_PIOE 30 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PE30 periph A */
+					};
+				};
+
 				pioA: gpio@fffff200 {
 					compatible = "atmel,at91rm9200-gpio";
 					reg = <0xfffff200 0x200>;
@@ -542,6 +594,8 @@
 				compatible = "atmel,at91sam9g10-i2c";
 				reg = <0xfff84000 0x100>;
 				interrupts = <12 IRQ_TYPE_LEVEL_HIGH 6>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2c0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
@@ -551,6 +605,8 @@
 				compatible = "atmel,at91sam9g10-i2c";
 				reg = <0xfff88000 0x100>;
 				interrupts = <13 IRQ_TYPE_LEVEL_HIGH 6>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2c1>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
@@ -618,6 +674,7 @@
 				compatible = "atmel,hsmci";
 				reg = <0xfff80000 0x600>;
 				interrupts = <11 IRQ_TYPE_LEVEL_HIGH 0>;
+				pinctrl-names = "default";
 				dmas = <&dma 1 AT91_DMA_CFG_PER_ID(0)>;
 				dma-names = "rxtx";
 				#address-cells = <1>;
@@ -629,6 +686,7 @@
 				compatible = "atmel,hsmci";
 				reg = <0xfffd0000 0x600>;
 				interrupts = <29 IRQ_TYPE_LEVEL_HIGH 0>;
+				pinctrl-names = "default";
 				dmas = <&dma 1 AT91_DMA_CFG_PER_ID(13)>;
 				dma-names = "rxtx";
 				#address-cells = <1>;
@@ -725,6 +783,15 @@
 					atmel,can-isoc;
 				};
 			};
+		};
+
+		fb0: fb@0x00500000 {
+			compatible = "atmel,at91sam9g45-lcdc";
+			reg = <0x00500000 0x1000>;
+			interrupts = <23 IRQ_TYPE_LEVEL_HIGH 3>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_fb>;
+			status = "disabled";
 		};
 
 		nand0: nand@40000000 {

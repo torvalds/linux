@@ -366,6 +366,34 @@
 					};
 				};
 
+				fb {
+					pinctrl_fb: fb-0 {
+						atmel,pins =
+							<AT91_PIOC 1 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC1 periph A */
+							 AT91_PIOC 2 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC2 periph A */
+							 AT91_PIOC 3 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC3 periph A */
+							 AT91_PIOB 9 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PB9 periph B */
+							 AT91_PIOC 6 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC6 periph A */
+							 AT91_PIOC 7 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC7 periph A */
+							 AT91_PIOC 8 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC8 periph A */
+							 AT91_PIOC 9 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC9 periph A */
+							 AT91_PIOC 10 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC10 periph A */
+							 AT91_PIOC 11 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC11 periph A */
+							 AT91_PIOC 14 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC14 periph A */
+							 AT91_PIOC 15 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC15 periph A */
+							 AT91_PIOC 16 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC16 periph A */
+							 AT91_PIOC 12 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PC12 periph B */
+							 AT91_PIOC 18 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC18 periph A */
+							 AT91_PIOC 19 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC19 periph A */
+							 AT91_PIOC 22 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC22 periph A */
+							 AT91_PIOC 23 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC23 periph A */
+							 AT91_PIOC 24 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC24 periph A */
+							 AT91_PIOC 17 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PC17 periph B */
+							 AT91_PIOC 26 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC26 periph A */
+							 AT91_PIOC 27 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PC27 periph A */
+					};
+				};
+
 				pioA: gpio@fffff200 {
 					compatible = "atmel,at91rm9200-gpio";
 					reg = <0xfffff200 0x200>;
@@ -547,6 +575,15 @@
 				pinctrl-0 = <&pinctrl_spi1>;
 				status = "disabled";
 			};
+		};
+
+		fb0: fb@0x00700000 {
+			compatible = "atmel,at91sam9263-lcdc";
+			reg = <0x00700000 0x1000>;
+			interrupts = <26 IRQ_TYPE_LEVEL_HIGH 3>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_fb>;
+			status = "disabled";
 		};
 
 		nand0: nand@40000000 {
