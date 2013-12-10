@@ -142,9 +142,6 @@ static int sysfs_kf_bin_mmap(struct sysfs_open_file *of,
 	struct bin_attribute *battr = of->sd->priv;
 	struct kobject *kobj = of->sd->s_parent->priv;
 
-	if (!battr->mmap)
-		return -ENODEV;
-
 	return battr->mmap(of->file, kobj, battr, vma);
 }
 
@@ -197,6 +194,11 @@ static const struct kernfs_ops sysfs_bin_kfops_wo = {
 static const struct kernfs_ops sysfs_bin_kfops_rw = {
 	.read		= sysfs_kf_bin_read,
 	.write		= sysfs_kf_bin_write,
+};
+
+static const struct kernfs_ops sysfs_bin_kfops_mmap = {
+	.read		= sysfs_kf_bin_read,
+	.write		= sysfs_kf_bin_write,
 	.mmap		= sysfs_kf_bin_mmap,
 };
 
@@ -232,7 +234,9 @@ int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 	} else {
 		struct bin_attribute *battr = (void *)attr;
 
-		if ((battr->read && battr->write) || battr->mmap)
+		if (battr->mmap)
+			ops = &sysfs_bin_kfops_mmap;
+		else if (battr->read && battr->write)
 			ops = &sysfs_bin_kfops_rw;
 		else if (battr->read)
 			ops = &sysfs_bin_kfops_ro;

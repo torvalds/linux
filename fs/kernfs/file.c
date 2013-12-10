@@ -421,6 +421,16 @@ static int kernfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	const struct kernfs_ops *ops;
 	int rc;
 
+	/*
+	 * mmap path and of->mutex are prone to triggering spurious lockdep
+	 * warnings and we don't want to add spurious locking dependency
+	 * between the two.  Check whether mmap is actually implemented
+	 * without grabbing @of->mutex by testing HAS_MMAP flag.  See the
+	 * comment in kernfs_file_open() for more details.
+	 */
+	if (!(of->sd->s_flags & SYSFS_FLAG_HAS_MMAP))
+		return -ENODEV;
+
 	mutex_lock(&of->mutex);
 
 	rc = -ENODEV;
@@ -428,10 +438,7 @@ static int kernfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 		goto out_unlock;
 
 	ops = kernfs_ops(of->sd);
-	if (ops->mmap)
-		rc = ops->mmap(of, vma);
-	if (rc)
-		goto out_put;
+	rc = ops->mmap(of, vma);
 
 	/*
 	 * PowerPC's pci_mmap of legacy_mem uses shmem_zero_setup()
@@ -596,6 +603,9 @@ static int kernfs_file_open(struct inode *inode, struct file *file)
 	 * happen on the same file.  At this point, we can't easily give
 	 * each file a separate locking class.  Let's differentiate on
 	 * whether the file has mmap or not for now.
+	 *
+	 * Both paths of the branch look the same.  They're supposed to
+	 * look that way and give @of->mutex different static lockdep keys.
 	 */
 	if (has_mmap)
 		mutex_init(&of->mutex);
