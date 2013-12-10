@@ -927,7 +927,7 @@ static int configure_predefined_video_timings(struct v4l2_subdev *sd,
 	cp_write(sd, 0x27, 0x00);
 	cp_write(sd, 0x28, 0x00);
 	cp_write(sd, 0x29, 0x00);
-	cp_write(sd, 0x8f, 0x00);
+	cp_write(sd, 0x8f, 0x40);
 	cp_write(sd, 0x90, 0x00);
 	cp_write(sd, 0xa5, 0x00);
 	cp_write(sd, 0xa6, 0x00);
@@ -1408,7 +1408,7 @@ static int adv7842_s_dv_timings(struct v4l2_subdev *sd,
 
 	state->timings = *timings;
 
-	cp_write(sd, 0x91, bt->interlaced ? 0x50 : 0x10);
+	cp_write(sd, 0x91, bt->interlaced ? 0x40 : 0x00);
 
 	/* Use prim_mode and vid_std when available */
 	err = configure_predefined_video_timings(sd, timings);
