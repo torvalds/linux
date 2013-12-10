@@ -77,8 +77,7 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
 
 #ifdef DEBUG
 	printk ("do page fault:\nregs->sr=%#x, regs->pc=%#lx, address=%#lx, %ld, %p\n",
-		regs->sr, regs->pc, address, error_code,
-		current->mm->pgd);
+		regs->sr, regs->pc, address, error_code, mm ? mm->pgd : NULL);
 #endif
 
 	/*
