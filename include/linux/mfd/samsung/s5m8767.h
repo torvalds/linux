@@ -183,6 +183,7 @@ enum s5m8767_regulators {
 	S5M8767_REG_MAX,
 };
 
-#define S5M8767_ENCTRL_SHIFT  6
+#define S5M8767_ENCTRL_SHIFT		6
+#define S5M8767_ENCTRL_MASK		(0x3 << S5M8767_ENCTRL_SHIFT)
 
 #endif /* __LINUX_MFD_S5M8767_H */
