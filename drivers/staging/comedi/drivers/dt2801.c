@@ -90,58 +90,42 @@ Configuration options:
 
 #if 0
 /* ignore 'defined but not used' warning */
-static const struct comedi_lrange range_dt2801_ai_pgh_bipolar = { 4, {
-								      RANGE(-10,
-									    10),
-								      RANGE(-5,
-									    5),
-								      RANGE
-								      (-2.5,
-								       2.5),
-								      RANGE
-								      (-1.25,
-								       1.25),
-								      }
+static const struct comedi_lrange range_dt2801_ai_pgh_bipolar = {
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25)
+	}
 };
 #endif
-static const struct comedi_lrange range_dt2801_ai_pgl_bipolar = { 4, {
-								      RANGE(-10,
-									    10),
-								      RANGE(-1,
-									    1),
-								      RANGE
-								      (-0.1,
-								       0.1),
-								      RANGE
-								      (-0.02,
-								       0.02),
-								      }
+static const struct comedi_lrange range_dt2801_ai_pgl_bipolar = {
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(1),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.02)
+	}
 };
 
 #if 0
 /* ignore 'defined but not used' warning */
-static const struct comedi_lrange range_dt2801_ai_pgh_unipolar = { 4, {
-								       RANGE(0,
-									     10),
-								       RANGE(0,
-									     5),
-								       RANGE(0,
-									     2.5),
-								       RANGE(0,
-									     1.25),
-								       }
+static const struct comedi_lrange range_dt2801_ai_pgh_unipolar = {
+	4, {
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
 };
 #endif
-static const struct comedi_lrange range_dt2801_ai_pgl_unipolar = { 4, {
-								       RANGE(0,
-									     10),
-								       RANGE(0,
-									     1),
-								       RANGE(0,
-									     0.1),
-								       RANGE(0,
-									     0.02),
-								       }
+static const struct comedi_lrange range_dt2801_ai_pgl_unipolar = {
+	4, {
+		UNI_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.02)
+	}
 };
 
 struct dt2801_board {
