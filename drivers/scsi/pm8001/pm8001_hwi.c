@@ -5072,13 +5072,8 @@ pm8001_get_gsm_dump(struct device *cdev, u32 length, char *buf)
 		direct_data += sprintf(direct_data, "%08x ", value);
 	}
 	/* Shift back to BAR4 original address */
-	if (pm8001_ha->chip_id == chip_8001) {
-		if (-1 == pm8001_bar4_shift(pm8001_ha, 0))
+	if (-1 == pm8001_bar4_shift(pm8001_ha, 0))
 			return 1;
-	} else {
-		if (-1 == pm80xx_bar4_shift(pm8001_ha, 0))
-			return 1;
-	}
 	pm8001_ha->fatal_forensic_shift_offset += 1024;
 
 	if (pm8001_ha->fatal_forensic_shift_offset >= 0x100000)
