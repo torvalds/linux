@@ -152,7 +152,8 @@ unsigned int usb_stor_access_xfer_buf(unsigned char *buffer,
 		return cnt;
 
 	while (sg_miter_next(&miter) && cnt < buflen) {
-		unsigned int len = min(miter.length, buflen - cnt);
+		unsigned int len = min_t(unsigned int, miter.length,
+				buflen - cnt);
 
 		if (dir == FROM_XFER_BUF)
 			memcpy(buffer + cnt, miter.addr, len);
