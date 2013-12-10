@@ -63,10 +63,8 @@ static int ccp_do_cmac_update(struct ahash_request *req, unsigned int nbytes,
 	unsigned int len, need_pad, sg_count;
 	int ret;
 
-	if (!ctx->u.aes.key_len) {
-		pr_err("AES key not set\n");
+	if (!ctx->u.aes.key_len)
 		return -EINVAL;
-	}
 
 	if (nbytes)
 		rctx->null_msg = 0;

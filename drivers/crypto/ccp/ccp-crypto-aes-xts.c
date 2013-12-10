@@ -125,20 +125,14 @@ static int ccp_aes_xts_crypt(struct ablkcipher_request *req,
 	unsigned int unit;
 	int ret;
 
-	if (!ctx->u.aes.key_len) {
-		pr_err("AES key not set\n");
+	if (!ctx->u.aes.key_len)
 		return -EINVAL;
-	}
 
-	if (req->nbytes & (AES_BLOCK_SIZE - 1)) {
-		pr_err("AES request size is not a multiple of the block size\n");
+	if (req->nbytes & (AES_BLOCK_SIZE - 1))
 		return -EINVAL;
-	}
 
-	if (!req->info) {
-		pr_err("AES IV not supplied");
+	if (!req->info)
 		return -EINVAL;
-	}
 
 	for (unit = 0; unit < ARRAY_SIZE(unit_size_map); unit++)
 		if (!(req->nbytes & (unit_size_map[unit].size - 1)))

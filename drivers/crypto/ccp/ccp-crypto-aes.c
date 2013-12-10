@@ -76,24 +76,18 @@ static int ccp_aes_crypt(struct ablkcipher_request *req, bool encrypt)
 	unsigned int iv_len = 0;
 	int ret;
 
-	if (!ctx->u.aes.key_len) {
-		pr_err("AES key not set\n");
+	if (!ctx->u.aes.key_len)
 		return -EINVAL;
-	}
 
 	if (((ctx->u.aes.mode == CCP_AES_MODE_ECB) ||
 	     (ctx->u.aes.mode == CCP_AES_MODE_CBC) ||
 	     (ctx->u.aes.mode == CCP_AES_MODE_CFB)) &&
-	    (req->nbytes & (AES_BLOCK_SIZE - 1))) {
-		pr_err("AES request size is not a multiple of the block size\n");
+	    (req->nbytes & (AES_BLOCK_SIZE - 1)))
 		return -EINVAL;
-	}
 
 	if (ctx->u.aes.mode != CCP_AES_MODE_ECB) {
-		if (!req->info) {
-			pr_err("AES IV not supplied");
+		if (!req->info)
 			return -EINVAL;
-		}
 
 		memcpy(rctx->iv, req->info, AES_BLOCK_SIZE);
 		iv_sg = &rctx->iv_sg;
