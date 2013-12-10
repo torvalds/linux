@@ -4015,15 +4015,43 @@ static int cik_cp_gfx_resume(struct radeon_device *rdev)
 	return 0;
 }
 
-u32 cik_compute_ring_get_rptr(struct radeon_device *rdev,
-			      struct radeon_ring *ring)
+u32 cik_gfx_get_rptr(struct radeon_device *rdev,
+		     struct radeon_ring *ring)
 {
 	u32 rptr;
 
+	if (rdev->wb.enabled)
+		rptr = rdev->wb.wb[ring->rptr_offs/4];
+	else
+		rptr = RREG32(CP_RB0_RPTR);
 
+	return rptr;
+}
+
+u32 cik_gfx_get_wptr(struct radeon_device *rdev,
+		     struct radeon_ring *ring)
+{
+	u32 wptr;
+
+	wptr = RREG32(CP_RB0_WPTR);
+
+	return wptr;
+}
+
+void cik_gfx_set_wptr(struct radeon_device *rdev,
+		      struct radeon_ring *ring)
+{
+	WREG32(CP_RB0_WPTR, ring->wptr);
+	(void)RREG32(CP_RB0_WPTR);
+}
+
+u32 cik_compute_get_rptr(struct radeon_device *rdev,
+			 struct radeon_ring *ring)
+{
+	u32 rptr;
 
 	if (rdev->wb.enabled) {
-		rptr = le32_to_cpu(rdev->wb.wb[ring->rptr_offs/4]);
+		rptr = rdev->wb.wb[ring->rptr_offs/4];
 	} else {
 		mutex_lock(&rdev->srbm_mutex);
 		cik_srbm_select(rdev, ring->me, ring->pipe, ring->queue, 0);
@@ -4035,13 +4063,14 @@ u32 cik_compute_ring_get_rptr(struct radeon_device *rdev,
 	return rptr;
 }
 
-u32 cik_compute_ring_get_wptr(struct radeon_device *rdev,
-			      struct radeon_ring *ring)
+u32 cik_compute_get_wptr(struct radeon_device *rdev,
+			 struct radeon_ring *ring)
 {
 	u32 wptr;
 
 	if (rdev->wb.enabled) {
-		wptr = le32_to_cpu(rdev->wb.wb[ring->wptr_offs/4]);
+		/* XXX check if swapping is necessary on BE */
+		wptr = rdev->wb.wb[ring->wptr_offs/4];
 	} else {
 		mutex_lock(&rdev->srbm_mutex);
 		cik_srbm_select(rdev, ring->me, ring->pipe, ring->queue, 0);
@@ -4053,10 +4082,11 @@ u32 cik_compute_ring_get_wptr(struct radeon_device *rdev,
 	return wptr;
 }
 
-void cik_compute_ring_set_wptr(struct radeon_device *rdev,
-			       struct radeon_ring *ring)
+void cik_compute_set_wptr(struct radeon_device *rdev,
+			  struct radeon_ring *ring)
 {
-	rdev->wb.wb[ring->wptr_offs/4] = cpu_to_le32(ring->wptr);
+	/* XXX check if swapping is necessary on BE */
+	rdev->wb.wb[ring->wptr_offs/4] = ring->wptr;
 	WDOORBELL32(ring->doorbell_index, ring->wptr);
 }
 
@@ -7606,7 +7636,6 @@ static int cik_startup(struct radeon_device *rdev)
 
 	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
-			     CP_RB0_RPTR, CP_RB0_WPTR,
 			     PACKET3(PACKET3_NOP, 0x3FFF));
 	if (r)
 		return r;
@@ -7615,7 +7644,6 @@ static int cik_startup(struct radeon_device *rdev)
 	/* type-2 packets are deprecated on MEC, use type-3 instead */
 	ring = &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP1_RPTR_OFFSET,
-			     CP_HQD_PQ_RPTR, CP_HQD_PQ_WPTR,
 			     PACKET3(PACKET3_NOP, 0x3FFF));
 	if (r)
 		return r;
@@ -7627,7 +7655,6 @@ static int cik_startup(struct radeon_device *rdev)
 	/* type-2 packets are deprecated on MEC, use type-3 instead */
 	ring = &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP2_RPTR_OFFSET,
-			     CP_HQD_PQ_RPTR, CP_HQD_PQ_WPTR,
 			     PACKET3(PACKET3_NOP, 0x3FFF));
 	if (r)
 		return r;
@@ -7639,16 +7666,12 @@ static int cik_startup(struct radeon_device *rdev)
 
 	ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, R600_WB_DMA_RPTR_OFFSET,
-			     SDMA0_GFX_RB_RPTR + SDMA0_REGISTER_OFFSET,
-			     SDMA0_GFX_RB_WPTR + SDMA0_REGISTER_OFFSET,
 			     SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0));
 	if (r)
 		return r;
 
 	ring = &rdev->ring[CAYMAN_RING_TYPE_DMA1_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, CAYMAN_WB_DMA1_RPTR_OFFSET,
-			     SDMA0_GFX_RB_RPTR + SDMA1_REGISTER_OFFSET,
-			     SDMA0_GFX_RB_WPTR + SDMA1_REGISTER_OFFSET,
 			     SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0));
 	if (r)
 		return r;
@@ -7664,7 +7687,6 @@ static int cik_startup(struct radeon_device *rdev)
 	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
 	if (ring->ring_size) {
 		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
-				     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
 				     RADEON_CP_PACKET2);
 		if (!r)
 			r = uvd_v1_0_init(rdev);

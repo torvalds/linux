@@ -332,36 +332,6 @@ bool radeon_ring_supports_scratch_reg(struct radeon_device *rdev,
 	}
 }
 
-u32 radeon_ring_generic_get_rptr(struct radeon_device *rdev,
-				 struct radeon_ring *ring)
-{
-	u32 rptr;
-
-	if (rdev->wb.enabled)
-		rptr = le32_to_cpu(rdev->wb.wb[ring->rptr_offs/4]);
-	else
-		rptr = RREG32(ring->rptr_reg);
-
-	return rptr;
-}
-
-u32 radeon_ring_generic_get_wptr(struct radeon_device *rdev,
-				 struct radeon_ring *ring)
-{
-	u32 wptr;
-
-	wptr = RREG32(ring->wptr_reg);
-
-	return wptr;
-}
-
-void radeon_ring_generic_set_wptr(struct radeon_device *rdev,
-				  struct radeon_ring *ring)
-{
-	WREG32(ring->wptr_reg, ring->wptr);
-	(void)RREG32(ring->wptr_reg);
-}
-
 /**
  * radeon_ring_free_size - update the free size
  *
@@ -689,22 +659,18 @@ int radeon_ring_restore(struct radeon_device *rdev, struct radeon_ring *ring,
  * @ring: radeon_ring structure holding ring information
  * @ring_size: size of the ring
  * @rptr_offs: offset of the rptr writeback location in the WB buffer
- * @rptr_reg: MMIO offset of the rptr register
- * @wptr_reg: MMIO offset of the wptr register
  * @nop: nop packet for this ring
  *
  * Initialize the driver information for the selected ring (all asics).
  * Returns 0 on success, error on failure.
  */
 int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsigned ring_size,
-		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg, u32 nop)
+		     unsigned rptr_offs, u32 nop)
 {
 	int r;
 
 	ring->ring_size = ring_size;
 	ring->rptr_offs = rptr_offs;
-	ring->rptr_reg = rptr_reg;
-	ring->wptr_reg = wptr_reg;
 	ring->nop = nop;
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {
@@ -798,12 +764,12 @@ static int radeon_debugfs_ring_info(struct seq_file *m, void *data)
 	count = (ring->ring_size / 4) - ring->ring_free_dw;
 
 	wptr = radeon_ring_get_wptr(rdev, ring);
-	seq_printf(m, "wptr(0x%04x): 0x%08x [%5d]\n",
-		   ring->wptr_reg, wptr, wptr);
+	seq_printf(m, "wptr: 0x%08x [%5d]\n",
+		   wptr, wptr);
 
 	rptr = radeon_ring_get_rptr(rdev, ring);
-	seq_printf(m, "rptr(0x%04x): 0x%08x [%5d]\n",
-		   ring->rptr_reg, rptr, rptr);
+	seq_printf(m, "rptr: 0x%08x [%5d]\n",
+		   rptr, rptr);
 
 	if (ring->rptr_save_reg) {
 		rptr_next = RREG32(ring->rptr_save_reg);

@@ -1720,14 +1720,12 @@ static int rv770_startup(struct radeon_device *rdev)
 
 	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
-			     R600_CP_RB_RPTR, R600_CP_RB_WPTR,
 			     RADEON_CP_PACKET2);
 	if (r)
 		return r;
 
 	ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, R600_WB_DMA_RPTR_OFFSET,
-			     DMA_RB_RPTR, DMA_RB_WPTR,
 			     DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
 	if (r)
 		return r;
@@ -1746,7 +1744,6 @@ static int rv770_startup(struct radeon_device *rdev)
 	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
 	if (ring->ring_size) {
 		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
-				     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
 				     RADEON_CP_PACKET2);
 		if (!r)
 			r = uvd_v1_0_init(rdev);

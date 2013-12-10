@@ -1386,6 +1386,55 @@ static void cayman_cp_enable(struct radeon_device *rdev, bool enable)
 	}
 }
 
+u32 cayman_gfx_get_rptr(struct radeon_device *rdev,
+			struct radeon_ring *ring)
+{
+	u32 rptr;
+
+	if (rdev->wb.enabled)
+		rptr = rdev->wb.wb[ring->rptr_offs/4];
+	else {
+		if (ring->idx == RADEON_RING_TYPE_GFX_INDEX)
+			rptr = RREG32(CP_RB0_RPTR);
+		else if (ring->idx == CAYMAN_RING_TYPE_CP1_INDEX)
+			rptr = RREG32(CP_RB1_RPTR);
+		else
+			rptr = RREG32(CP_RB2_RPTR);
+	}
+
+	return rptr;
+}
+
+u32 cayman_gfx_get_wptr(struct radeon_device *rdev,
+			struct radeon_ring *ring)
+{
+	u32 wptr;
+
+	if (ring->idx == RADEON_RING_TYPE_GFX_INDEX)
+		wptr = RREG32(CP_RB0_WPTR);
+	else if (ring->idx == CAYMAN_RING_TYPE_CP1_INDEX)
+		wptr = RREG32(CP_RB1_WPTR);
+	else
+		wptr = RREG32(CP_RB2_WPTR);
+
+	return wptr;
+}
+
+void cayman_gfx_set_wptr(struct radeon_device *rdev,
+			 struct radeon_ring *ring)
+{
+	if (ring->idx == RADEON_RING_TYPE_GFX_INDEX) {
+		WREG32(CP_RB0_WPTR, ring->wptr);
+		(void)RREG32(CP_RB0_WPTR);
+	} else if (ring->idx == CAYMAN_RING_TYPE_CP1_INDEX) {
+		WREG32(CP_RB1_WPTR, ring->wptr);
+		(void)RREG32(CP_RB1_WPTR);
+	} else {
+		WREG32(CP_RB2_WPTR, ring->wptr);
+		(void)RREG32(CP_RB2_WPTR);
+	}
+}
+
 static int cayman_cp_load_microcode(struct radeon_device *rdev)
 {
 	const __be32 *fw_data;
@@ -1514,6 +1563,16 @@ static int cayman_cp_resume(struct radeon_device *rdev)
 		CP_RB1_BASE,
 		CP_RB2_BASE
 	};
+	static const unsigned cp_rb_rptr[] = {
+		CP_RB0_RPTR,
+		CP_RB1_RPTR,
+		CP_RB2_RPTR
+	};
+	static const unsigned cp_rb_wptr[] = {
+		CP_RB0_WPTR,
+		CP_RB1_WPTR,
+		CP_RB2_WPTR
+	};
 	struct radeon_ring *ring;
 	int i, r;
 
@@ -1572,8 +1631,8 @@ static int cayman_cp_resume(struct radeon_device *rdev)
 		WREG32_P(cp_rb_cntl[i], RB_RPTR_WR_ENA, ~RB_RPTR_WR_ENA);
 
 		ring->rptr = ring->wptr = 0;
-		WREG32(ring->rptr_reg, ring->rptr);
-		WREG32(ring->wptr_reg, ring->wptr);
+		WREG32(cp_rb_rptr[i], ring->rptr);
+		WREG32(cp_rb_wptr[i], ring->wptr);
 
 		mdelay(1);
 		WREG32_P(cp_rb_cntl[i], 0, ~RB_RPTR_WR_ENA);
@@ -1953,23 +2012,18 @@ static int cayman_startup(struct radeon_device *rdev)
 	evergreen_irq_set(rdev);
 
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
-			     CP_RB0_RPTR, CP_RB0_WPTR,
 			     RADEON_CP_PACKET2);
 	if (r)
 		return r;
 
 	ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, R600_WB_DMA_RPTR_OFFSET,
-			     DMA_RB_RPTR + DMA0_REGISTER_OFFSET,
-			     DMA_RB_WPTR + DMA0_REGISTER_OFFSET,
 			     DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
 	if (r)
 		return r;
 
 	ring = &rdev->ring[CAYMAN_RING_TYPE_DMA1_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, CAYMAN_WB_DMA1_RPTR_OFFSET,
-			     DMA_RB_RPTR + DMA1_REGISTER_OFFSET,
-			     DMA_RB_WPTR + DMA1_REGISTER_OFFSET,
 			     DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
 	if (r)
 		return r;
@@ -1988,7 +2042,6 @@ static int cayman_startup(struct radeon_device *rdev)
 	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
 	if (ring->ring_size) {
 		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
-				     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
 				     RADEON_CP_PACKET2);
 		if (!r)
 			r = uvd_v1_0_init(rdev);

@@ -785,13 +785,11 @@ struct radeon_ring {
 	volatile uint32_t	*ring;
 	unsigned		rptr;
 	unsigned		rptr_offs;
-	unsigned		rptr_reg;
 	unsigned		rptr_save_reg;
 	u64			next_rptr_gpu_addr;
 	volatile u32		*next_rptr_cpu_addr;
 	unsigned		wptr;
 	unsigned		wptr_old;
-	unsigned		wptr_reg;
 	unsigned		ring_size;
 	unsigned		ring_free_dw;
 	int			count_dw;
@@ -955,7 +953,7 @@ unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring
 int radeon_ring_restore(struct radeon_device *rdev, struct radeon_ring *ring,
 			unsigned size, uint32_t *data);
 int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *cp, unsigned ring_size,
-		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg, u32 nop);
+		     unsigned rptr_offs, u32 nop);
 void radeon_ring_fini(struct radeon_device *rdev, struct radeon_ring *cp);
 
 
