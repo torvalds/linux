@@ -325,7 +325,6 @@ static int ks8995_probe(struct spi_device *spi)
 	return 0;
 
 err_drvdata:
-	spi_set_drvdata(spi, NULL);
 	kfree(ks);
 	return err;
 }
@@ -337,7 +336,6 @@ static int ks8995_remove(struct spi_device *spi)
 	ks8995 = spi_get_drvdata(spi);
 	sysfs_remove_bin_file(&spi->dev.kobj, &ks8995_registers_attr);
 
-	spi_set_drvdata(spi, NULL);
 	kfree(ks8995);
 
 	return 0;
