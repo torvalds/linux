@@ -39,6 +39,11 @@ struct intel_dsi_device {
 struct intel_dsi_dev_ops {
 	bool (*init)(struct intel_dsi_device *dsi);
 
+	void (*panel_reset)(struct intel_dsi_device *dsi);
+
+	/* one time programmable commands if needed */
+	void (*send_otp_cmds)(struct intel_dsi_device *dsi);
+
 	/* This callback must be able to assume DSI commands can be sent */
 	void (*enable)(struct intel_dsi_device *dsi);
 

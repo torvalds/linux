@@ -147,6 +147,9 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 
 	DRM_DEBUG_KMS("\n");
 
+	if (intel_dsi->dev.dev_ops->panel_reset)
+		intel_dsi->dev.dev_ops->panel_reset(&intel_dsi->dev);
+
 	temp = I915_READ(MIPI_DEVICE_READY(pipe));
 	if ((temp & DEVICE_READY) == 0) {
 		temp &= ~ULPS_STATE_MASK;
@@ -162,6 +165,9 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 		I915_WRITE(MIPI_DEVICE_READY(pipe), temp);
 	}
 
+	if (intel_dsi->dev.dev_ops->send_otp_cmds)
+		intel_dsi->dev.dev_ops->send_otp_cmds(&intel_dsi->dev);
+
 	if (is_cmd_mode(intel_dsi))
 		I915_WRITE(MIPI_MAX_RETURN_PKT_SIZE(pipe), 8 * 4);
 
@@ -176,7 +182,8 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 		POSTING_READ(MIPI_PORT_CTRL(pipe));
 	}
 
-	intel_dsi->dev.dev_ops->enable(&intel_dsi->dev);
+	if (intel_dsi->dev.dev_ops->enable)
+		intel_dsi->dev.dev_ops->enable(&intel_dsi->dev);
 }
 
 static void intel_dsi_disable(struct intel_encoder *encoder)
