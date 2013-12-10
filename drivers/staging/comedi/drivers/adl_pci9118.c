@@ -194,28 +194,30 @@ Configuration options:
 
 #define EXTTRG_AI	0	/* ext trg is used by AI */
 
-static const struct comedi_lrange range_pci9118dg_hr = { 8, {
-							     BIP_RANGE(5),
-							     BIP_RANGE(2.5),
-							     BIP_RANGE(1.25),
-							     BIP_RANGE(0.625),
-							     UNI_RANGE(10),
-							     UNI_RANGE(5),
-							     UNI_RANGE(2.5),
-							     UNI_RANGE(1.25)
-							     }
+static const struct comedi_lrange range_pci9118dg_hr = {
+	8, {
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
 };
 
-static const struct comedi_lrange range_pci9118hg = { 8, {
-							  BIP_RANGE(5),
-							  BIP_RANGE(0.5),
-							  BIP_RANGE(0.05),
-							  BIP_RANGE(0.005),
-							  UNI_RANGE(10),
-							  UNI_RANGE(1),
-							  UNI_RANGE(0.1),
-							  UNI_RANGE(0.01)
-							  }
+static const struct comedi_lrange range_pci9118hg = {
+	8, {
+		BIP_RANGE(5),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.05),
+		BIP_RANGE(0.005),
+		UNI_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.01)
+	}
 };
 
 #define PCI9118_BIPOLAR_RANGES	4	/*
