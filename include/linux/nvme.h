@@ -87,6 +87,7 @@ struct nvme_dev {
 	struct list_head namespaces;
 	struct kref kref;
 	struct miscdevice miscdev;
+	struct work_struct reset_work;
 	char name[12];
 	char serial[20];
 	char model[40];
