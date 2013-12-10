@@ -178,31 +178,29 @@ enum {
 
 /* analog input ranges */
 static const struct comedi_lrange range_ai_das1801 = {
-	8,
-	{
-	 RANGE(-5, 5),
-	 RANGE(-1, 1),
-	 RANGE(-0.1, 0.1),
-	 RANGE(-0.02, 0.02),
-	 RANGE(0, 5),
-	 RANGE(0, 1),
-	 RANGE(0, 0.1),
-	 RANGE(0, 0.02),
-	 }
+	8, {
+		BIP_RANGE(5),
+		BIP_RANGE(1),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.02),
+		UNI_RANGE(5),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.02)
+	}
 };
 
 static const struct comedi_lrange range_ai_das1802 = {
-	8,
-	{
-	 RANGE(-10, 10),
-	 RANGE(-5, 5),
-	 RANGE(-2.5, 2.5),
-	 RANGE(-1.25, 1.25),
-	 RANGE(0, 10),
-	 RANGE(0, 5),
-	 RANGE(0, 2.5),
-	 RANGE(0, 1.25),
-	 }
+	8, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
 };
 
 struct das1800_board {
@@ -445,10 +443,9 @@ struct das1800_private {
 /* analog out range for 'ao' boards */
 /*
 static const struct comedi_lrange range_ao_2 = {
-	2,
-	{
-		RANGE(-10, 10),
-		RANGE(-5, 5),
+	2, {
+		BIP_RANGE(10),
+		BIP_RANGE(5)
 	}
 };
 */
