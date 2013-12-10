@@ -110,18 +110,18 @@ irq can be omitted, although the cmd interface will not work without it.
 #define DAS16M1_82C55                  0x400
 #define DAS16M1_8254_THIRD             0x404
 
-static const struct comedi_lrange range_das16m1 = { 9,
-	{
-	 BIP_RANGE(5),
-	 BIP_RANGE(2.5),
-	 BIP_RANGE(1.25),
-	 BIP_RANGE(0.625),
-	 UNI_RANGE(10),
-	 UNI_RANGE(5),
-	 UNI_RANGE(2.5),
-	 UNI_RANGE(1.25),
-	 BIP_RANGE(10),
-	 }
+static const struct comedi_lrange range_das16m1 = {
+	9, {
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25),
+		BIP_RANGE(10)
+	}
 };
 
 struct das16m1_private_struct {
