@@ -1747,26 +1747,33 @@ config RANDOMIZE_BASE
 	   possible. At best, due to page table layouts, 64-bit can use
 	   9 bits of entropy and 32-bit uses 8 bits.
 
+	   If unsure, say N.
+
 config RANDOMIZE_BASE_MAX_OFFSET
-	hex "Maximum ASLR offset allowed"
+	hex "Maximum kASLR offset allowed" if EXPERT
 	depends on RANDOMIZE_BASE
 	range 0x0 0x20000000 if X86_32
 	default "0x20000000" if X86_32
 	range 0x0 0x40000000 if X86_64
 	default "0x40000000" if X86_64
 	---help---
-	 Determines the maximal offset in bytes that will be applied to the
-	 kernel when Address Space Layout Randomization (ASLR) is active.
-	 Must be less than or equal to the actual physical memory on the
-	 system. This must be a multiple of CONFIG_PHYSICAL_ALIGN.
+	  The lesser of RANDOMIZE_BASE_MAX_OFFSET and available physical
+	  memory is used to determine the maximal offset in bytes that will
+	  be applied to the kernel when kernel Address Space Layout
+	  Randomization (kASLR) is active. This must be a multiple of
+	  PHYSICAL_ALIGN.
 
-	 On 32-bit this is limited to 512MiB.
+	  On 32-bit this is limited to 512MiB by page table layouts. The
+	  default is 512MiB.
 
-	 On 64-bit this is limited by how the kernel fixmap page table is
-	 positioned, so this cannot be larger that 1GiB currently. Normally
-	 there is a 512MiB to 1.5GiB split between kernel and modules. When
-	 this is raised above the 512MiB default, the modules area will
-	 shrink to compensate, up to the current maximum 1GiB to 1GiB split.
+	  On 64-bit this is limited by how the kernel fixmap page table is
+	  positioned, so this cannot be larger than 1GiB currently. Without
+	  RANDOMIZE_BASE, there is a 512MiB to 1.5GiB split between kernel
+	  and modules. When RANDOMIZE_BASE_MAX_OFFSET is above 512MiB, the
+	  modules area will shrink to compensate, up to the current maximum
+	  1GiB to 1GiB split. The default is 1GiB.
+
+	  If unsure, leave at the default value.
 
 # Relocation on x86 needs some additional build support
 config X86_NEED_RELOCS
