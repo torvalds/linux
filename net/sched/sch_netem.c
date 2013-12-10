@@ -729,7 +729,7 @@ static int get_loss_clg(struct Qdisc *sch, const struct nlattr *attr)
 	nla_for_each_nested(la, attr, rem) {
 		u16 type = nla_type(la);
 
-		switch(type) {
+		switch (type) {
 		case NETEM_LOSS_GI: {
 			const struct tc_netem_gimodel *gi = nla_data(la);
 
