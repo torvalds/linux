@@ -225,4 +225,8 @@ struct adv7842_platform_data {
  * deinterlacer. */
 #define ADV7842_CMD_RAM_TEST _IO('V', BASE_VIDIOC_PRIVATE)
 
+#define ADV7842_EDID_PORT_A   0
+#define ADV7842_EDID_PORT_B   1
+#define ADV7842_EDID_PORT_VGA 2
+
 #endif
