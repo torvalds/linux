@@ -1140,8 +1140,9 @@ static void nvme_disable_queue(struct nvme_dev *dev, int qid)
 	irq_set_affinity_hint(vector, NULL);
 	free_irq(vector, nvmeq);
 
-	/* Don't tell the adapter to delete the admin queue */
-	if (qid) {
+	/* Don't tell the adapter to delete the admin queue.
+	 * Don't tell a removed adapter to delete IO queues. */
+	if (qid && readl(&dev->bar->csts) != -1) {
 		adapter_delete_sq(dev, qid);
 		adapter_delete_cq(dev, qid);
 	}
@@ -2052,12 +2053,18 @@ static int nvme_dev_map(struct nvme_dev *dev)
 	dev->bar = ioremap(pci_resource_start(pdev, 0), 8192);
 	if (!dev->bar)
 		goto disable;
-
+	if (readl(&dev->bar->csts) == -1) {
+		result = -ENODEV;
+		goto unmap;
+	}
 	dev->db_stride = 1 << NVME_CAP_STRIDE(readq(&dev->bar->cap));
 	dev->dbs = ((void __iomem *)dev->bar) + 4096;
 
 	return 0;
 
+ unmap:
+	iounmap(dev->bar);
+	dev->bar = NULL;
  disable:
 	pci_release_regions(pdev);
  disable_pci:
