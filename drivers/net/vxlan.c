@@ -1935,7 +1935,6 @@ static void vxlan_uninit(struct net_device *dev)
 /* Start ageing timer and join group when device is brought up */
 static int vxlan_open(struct net_device *dev)
 {
-	struct vxlan_net *vn = net_generic(dev_net(dev), vxlan_net_id);
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_sock *vs = vxlan->vn_sock;
 
@@ -1943,8 +1942,7 @@ static int vxlan_open(struct net_device *dev)
 	if (!vs)
 		return -ENOTCONN;
 
-	if (vxlan_addr_multicast(&vxlan->default_dst.remote_ip) &&
-	    vxlan_group_used(vn, &vxlan->default_dst.remote_ip)) {
+	if (vxlan_addr_multicast(&vxlan->default_dst.remote_ip)) {
 		vxlan_sock_hold(vs);
 		dev_hold(dev);
 		queue_work(vxlan_wq, &vxlan->igmp_join);
