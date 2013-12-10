@@ -132,6 +132,8 @@ static int configure_geometry(struct atmel_isi *isi, u32 width,
 	isi_writel(isi, ISI_CTRL, ISI_CTRL_DIS);
 
 	cfg2 = isi_readl(isi, ISI_CFG2);
+	/* Set YCC swap mode */
+	cfg2 &= ~ISI_CFG2_YCC_SWAP_MODE_MASK;
 	cfg2 |= cr;
 	/* Set width */
 	cfg2 &= ~(ISI_CFG2_IM_HSIZE_MASK);
@@ -346,6 +348,7 @@ static void start_dma(struct atmel_isi *isi, struct frame_buffer *buffer)
 	isi_writel(isi, ISI_DMA_C_CTRL, ISI_DMA_CTRL_FETCH | ISI_DMA_CTRL_DONE);
 	isi_writel(isi, ISI_DMA_CHER, ISI_DMA_CHSR_C_CH);
 
+	cfg1 &= ~ISI_CFG1_FRATE_DIV_MASK;
 	/* Enable linked list */
 	cfg1 |= isi->pdata->frate | ISI_CFG1_DISCR;
 
