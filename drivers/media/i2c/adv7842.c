@@ -1786,10 +1786,8 @@ static int adv7842_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 	struct adv7842_state *state = to_state(sd);
 	u8 fmt_change_cp, fmt_change_digital, fmt_change_sdp;
 	u8 irq_status[5];
-	u8 irq_cfg = io_read(sd, 0x40);
 
-	/* disable irq-pin output */
-	io_write(sd, 0x40, irq_cfg | 0x3);
+	adv7842_irq_enable(sd, false);
 
 	/* read status */
 	irq_status[0] = io_read(sd, 0x43);
@@ -1809,6 +1807,8 @@ static int adv7842_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 		io_write(sd, 0x76, irq_status[3]);
 	if (irq_status[4])
 		io_write(sd, 0x9e, irq_status[4]);
+
+	adv7842_irq_enable(sd, true);
 
 	v4l2_dbg(1, debug, sd, "%s: irq %x, %x, %x, %x, %x\n", __func__,
 		 irq_status[0], irq_status[1], irq_status[2],
@@ -1844,9 +1844,6 @@ static int adv7842_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 
 	if (handled)
 		*handled = true;
-
-	/* re-enable irq-pin output */
-	io_write(sd, 0x40, irq_cfg);
 
 	return 0;
 }
@@ -2446,7 +2443,7 @@ static int adv7842_core_init(struct v4l2_subdev *sd,
 	io_write(sd, 0x33, 0x40);
 
 	/* interrupts */
-	io_write(sd, 0x40, 0xe2); /* Configure INT1 */
+	io_write(sd, 0x40, 0xf2); /* Configure INT1 */
 
 	adv7842_irq_enable(sd, true);
 
