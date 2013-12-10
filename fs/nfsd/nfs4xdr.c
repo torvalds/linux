@@ -3398,34 +3398,42 @@ nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
 		8 /* eir_clientid */ +
 		4 /* eir_sequenceid */ +
 		4 /* eir_flags */ +
-		4 /* spr_how */ +
-		8 /* spo_must_enforce, spo_must_allow */ +
-		8 /* so_minor_id */ +
-		4 /* so_major_id.len */ +
-		(XDR_QUADLEN(major_id_sz) * 4) +
-		4 /* eir_server_scope.len */ +
-		(XDR_QUADLEN(server_scope_sz) * 4) +
-		4 /* eir_server_impl_id.count (0) */);
+		4 /* spr_how */);
 
 	WRITEMEM(&exid->clientid, 8);
 	WRITE32(exid->seqid);
 	WRITE32(exid->flags);
 
 	WRITE32(exid->spa_how);
+	ADJUST_ARGS();
+
 	switch (exid->spa_how) {
 	case SP4_NONE:
 		break;
 	case SP4_MACH_CRED:
+		/* spo_must_enforce, spo_must_allow */
+		RESERVE_SPACE(16);
+
 		/* spo_must_enforce bitmap: */
 		WRITE32(2);
 		WRITE32(nfs4_minimal_spo_must_enforce[0]);
 		WRITE32(nfs4_minimal_spo_must_enforce[1]);
 		/* empty spo_must_allow bitmap: */
 		WRITE32(0);
+
+		ADJUST_ARGS();
 		break;
 	default:
 		WARN_ON_ONCE(1);
 	}
+
+	RESERVE_SPACE(
+		8 /* so_minor_id */ +
+		4 /* so_major_id.len */ +
+		(XDR_QUADLEN(major_id_sz) * 4) +
+		4 /* eir_server_scope.len */ +
+		(XDR_QUADLEN(server_scope_sz) * 4) +
+		4 /* eir_server_impl_id.count (0) */);
 
 	/* The server_owner struct */
 	WRITE64(minor_id);      /* Minor id */
