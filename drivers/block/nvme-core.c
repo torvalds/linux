@@ -60,6 +60,8 @@ static LIST_HEAD(dev_list);
 static struct task_struct *nvme_thread;
 static struct workqueue_struct *nvme_workq;
 
+static void nvme_reset_failed_dev(struct work_struct *ws);
+
 /*
  * An NVM Express queue.  Each device has at least two (one for admin
  * commands and one for I/O commands).
@@ -1612,13 +1614,25 @@ static void nvme_resubmit_bios(struct nvme_queue *nvmeq)
 
 static int nvme_kthread(void *data)
 {
-	struct nvme_dev *dev;
+	struct nvme_dev *dev, *next;
 
 	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_lock(&dev_list_lock);
-		list_for_each_entry(dev, &dev_list, node) {
+		list_for_each_entry_safe(dev, next, &dev_list, node) {
 			int i;
+			if (readl(&dev->bar->csts) & NVME_CSTS_CFS &&
+							dev->initialized) {
+				if (work_busy(&dev->reset_work))
+					continue;
+				list_del_init(&dev->node);
+				dev_warn(&dev->pci_dev->dev,
+					"Failed status, reset controller\n");
+				INIT_WORK(&dev->reset_work,
+							nvme_reset_failed_dev);
+				queue_work(nvme_workq, &dev->reset_work);
+				continue;
+			}
 			for (i = 0; i < dev->queue_count; i++) {
 				struct nvme_queue *nvmeq = dev->queues[i];
 				if (!nvmeq)
@@ -2006,6 +2020,7 @@ static void nvme_dev_shutdown(struct nvme_dev *dev)
 {
 	int i;
 
+	dev->initialized = 0;
 	for (i = dev->queue_count - 1; i >= 0; i--)
 		nvme_disable_queue(dev, i);
 
@@ -2196,6 +2211,7 @@ static int nvme_dev_resume(struct nvme_dev *dev)
 		queue_work(nvme_workq, &dev->reset_work);
 		spin_unlock(&dev_list_lock);
 	}
+	dev->initialized = 1;
 	return 0;
 }
 
@@ -2269,6 +2285,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (result)
 		goto remove;
 
+	dev->initialized = 1;
 	kref_init(&dev->kref);
 	return 0;
 
