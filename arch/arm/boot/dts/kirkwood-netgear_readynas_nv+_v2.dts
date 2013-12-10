@@ -1,5 +1,5 @@
 /*
- * Device Tree file for NETGEAR ReadyNAS Duo v2
+ * Device Tree file for NETGEAR ReadyNAS NV+ v2
  *
  * Copyright (C) 2013, Arnaud EBALARD <arno@natisbad.org>
  *
@@ -17,8 +17,8 @@
 #include "kirkwood-6282.dtsi"
 
 / {
-	model = "NETGEAR ReadyNAS Duo v2";
-	compatible = "netgear,readynas-duo-v2", "netgear,readynas", "marvell,kirkwood-88f6282", "marvell,kirkwood";
+	model = "NETGEAR ReadyNAS NV+ v2";
+	compatible = "netgear,readynas-nv+-v2", "netgear,readynas", "marvell,kirkwood-88f6282", "marvell,kirkwood";
 
 	memory { /* 256 MB */
 		device_type = "memory";
@@ -33,7 +33,9 @@
 		pcie-controller {
 			status = "okay";
 
+			/* Connected to NEC uPD720200 USB 3.0 controller */
 			pcie@1,0 {
+				/* Port 0, Lane 0 */
 				status = "okay";
 			};
 		};
@@ -61,22 +63,27 @@
 				marvell,function = "gpio";
 			};
 
-			pmx_led_blue_activity: pmx-led-blue-activity {
-				marvell,pins = "mpp38";
-				marvell,function = "gpio";
-			};
-
-			pmx_led_blue_disk1: pmx-led-blue-disk1 {
-				marvell,pins = "mpp23";
-				marvell,function = "gpio";
-			};
-
-			pmx_led_blue_disk2: pmx-led-blue-disk2 {
+			pmx_led_blue_backup: pmx-led-blue-backup {
 				marvell,pins = "mpp22";
 				marvell,function = "gpio";
 			};
 
-			pmx_led_blue_backup: pmx-led-blue-backup {
+			pmx_led_blue_disk1: pmx-led-blue-disk1 {
+				marvell,pins = "mpp20";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_blue_disk2: pmx-led-blue-disk2 {
+				marvell,pins = "mpp23";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_blue_disk3: pmx-led-blue-disk3 {
+				marvell,pins = "mpp24";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_blue_disk4: pmx-led-blue-disk4 {
 				marvell,pins = "mpp29";
 				marvell,function = "gpio";
 			};
@@ -119,42 +126,47 @@
 			status = "okay";
 		};
 
-		sata@80000 {
+		sata@80000 { /* Connected to Marvell 88SM4140 SATA port multiplier */
 			status = "okay";
-			nr-ports = <2>;
+			nr-ports = <1>;
 		};
 	};
 
 	gpio-leds {
 		compatible = "gpio-leds";
-		pinctrl-0 = < &pmx_led_blue_power &pmx_led_blue_activity
+		pinctrl-0 = < &pmx_led_blue_power &pmx_led_blue_backup
 			      &pmx_led_blue_disk1 &pmx_led_blue_disk2
-			      &pmx_led_blue_backup >;
+			      &pmx_led_blue_disk3 &pmx_led_blue_disk3 >;
 		pinctrl-names = "default";
 
 		power_led {
 			label = "status:blue:power_led";
 			gpios = <&gpio0 31 GPIO_ACTIVE_LOW>;
-			default-state = "keep";
-		};
-
-		activity_led {
-			label = "status:blue:activity_led";
-			gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
-		};
-
-		disk1_led {
-			label = "status:blue:disk1_led";
-			gpios = <&gpio0 23 GPIO_ACTIVE_LOW>;
-		};
-
-		disk2_led {
-			label = "status:blue:disk2_led";
-			gpios = <&gpio0 22 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-on";
 		};
 
 		backup_led {
 			label = "status:blue:backup_led";
+			gpios = <&gpio0 22 GPIO_ACTIVE_LOW>;
+		};
+
+		disk1_led {
+			label = "status:blue:disk1_led";
+			gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
+		};
+
+		disk2_led {
+			label = "status:blue:disk2_led";
+			gpios = <&gpio0 23 GPIO_ACTIVE_LOW>;
+		};
+
+		disk3_led {
+			label = "status:blue:disk3_led";
+			gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
+		};
+
+		disk4_led {
+			label = "status:blue:disk4_led";
 			gpios = <&gpio0 29 GPIO_ACTIVE_LOW>;
 		};
 	};
@@ -251,6 +263,7 @@
 
 &eth0 {
 	status = "okay";
+
 	ethernet0-port@0 {
 		phy-handle = <&ethphy0>;
 	};
