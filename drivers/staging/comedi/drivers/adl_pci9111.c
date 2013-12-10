@@ -125,8 +125,7 @@ TODO:
 				 PLX9052_INTCSR_LI2STAT)
 
 static const struct comedi_lrange pci9111_ai_range = {
-	5,
-	{
+	5, {
 		BIP_RANGE(10),
 		BIP_RANGE(5),
 		BIP_RANGE(2.5),
