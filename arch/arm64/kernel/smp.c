@@ -158,6 +158,11 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 	return ret;
 }
 
+static void __cpuinit smp_store_cpu_info(unsigned int cpuid)
+{
+	store_cpu_topology(cpuid);
+}
+
 /*
  * This is the secondary CPU boot entry.  We're using this CPUs
  * idle thread stack, but a set of temporary page tables.
@@ -205,6 +210,8 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	notify_cpu_starting(cpu);
 	local_irq_enable();
 	local_fiq_enable();
+
+	smp_store_cpu_info(cpu);
 
 	/*
 	 * OK, now it's safe to let the boot CPU continue.  Wait for
@@ -385,6 +392,11 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	int cpu, err;
 	unsigned int ncores = num_possible_cpus();
+
+	init_cpu_topology();
+
+	smp_store_cpu_info(smp_processor_id());
+
 
 	/*
 	 * are we trying to boot more cores than exist?

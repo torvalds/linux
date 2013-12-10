@@ -144,6 +144,14 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
+config ARM_CPU_TOPOLOGY
+	bool "Support CPU topology definition"
+	depends on SMP
+	default y
+	help
+	  Support CPU topology definition, based on configuration
+	  provided by the firmware.
+
 config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32
