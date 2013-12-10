@@ -1529,7 +1529,7 @@ static void pl011_write_lcr_h(struct uart_amba_port *uap, unsigned int lcr_h)
 static int pl011_startup(struct uart_port *port)
 {
 	struct uart_amba_port *uap = (struct uart_amba_port *)port;
-	unsigned int cr;
+	unsigned int cr, lcr_h, fbrd, ibrd;
 	int retval;
 
 	retval = pl011_hwinit(port);
@@ -1548,9 +1548,15 @@ static int pl011_startup(struct uart_port *port)
 	writew(uap->vendor->ifls, uap->port.membase + UART011_IFLS);
 
 	/*
-	 * Provoke TX FIFO interrupt into asserting.
+	 * Provoke TX FIFO interrupt into asserting. Taking care to preserve
+	 * baud rate and data format specified by FBRD, IBRD and LCRH as the
+	 * UART may already be in use as a console.
 	 */
 	spin_lock_irq(&uap->port.lock);
+
+	fbrd = readw(uap->port.membase + UART011_FBRD);
+	ibrd = readw(uap->port.membase + UART011_IBRD);
+	lcr_h = readw(uap->port.membase + uap->lcrh_rx);
 
 	cr = UART01x_CR_UARTEN | UART011_CR_TXE | UART011_CR_LBE;
 	writew(cr, uap->port.membase + UART011_CR);
@@ -1560,6 +1566,10 @@ static int pl011_startup(struct uart_port *port)
 	writew(0, uap->port.membase + UART01x_DR);
 	while (readw(uap->port.membase + UART01x_FR) & UART01x_FR_BUSY)
 		barrier();
+
+	writew(fbrd, uap->port.membase + UART011_FBRD);
+	writew(ibrd, uap->port.membase + UART011_IBRD);
+	pl011_write_lcr_h(uap, lcr_h);
 
 	/* restore RTS and DTR */
 	cr = uap->old_cr & (UART011_CR_RTS | UART011_CR_DTR);
