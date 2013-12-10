@@ -452,7 +452,7 @@ static DEVICE_ATTR(iop_log, S_IRUGO, pm8001_ctl_iop_log_show, NULL);
 static ssize_t pm8001_ctl_fatal_log_show(struct device *cdev,
 	struct device_attribute *attr, char *buf)
 {
-	u32 count;
+	ssize_t count;
 
 	count = pm80xx_get_fatal_dump(cdev, attr, buf);
 	return count;
@@ -470,7 +470,7 @@ static DEVICE_ATTR(fatal_log, S_IRUGO, pm8001_ctl_fatal_log_show, NULL);
 static ssize_t pm8001_ctl_gsm_log_show(struct device *cdev,
 	struct device_attribute *attr, char *buf)
 {
-	u32 count;
+	ssize_t count;
 
 	count = pm8001_get_gsm_dump(cdev, SYSFS_OFFSET, buf);
 	return count;

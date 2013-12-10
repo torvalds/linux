@@ -91,7 +91,6 @@ ssize_t pm80xx_get_fatal_dump(struct device *cdev,
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
 	void __iomem *fatal_table_address = pm8001_ha->fatal_tbl_addr;
-	u32 status = 1;
 	u32 accum_len , reg_val, index, *temp;
 	unsigned long start;
 	u8 *direct_data;
@@ -111,13 +110,10 @@ ssize_t pm80xx_get_fatal_dump(struct device *cdev,
 		direct_data = (u8 *)fatal_error_data;
 		pm8001_ha->forensic_info.data_type = TYPE_NON_FATAL;
 		pm8001_ha->forensic_info.data_buf.direct_len = SYSFS_OFFSET;
-		pm8001_ha->forensic_info.data_buf.direct_offset = 0;
 		pm8001_ha->forensic_info.data_buf.read_len = 0;
 
 		pm8001_ha->forensic_info.data_buf.direct_data = direct_data;
-	}
 
-	if (pm8001_ha->forensic_info.data_buf.direct_offset == 0) {
 		/* start to get data */
 		/* Program the MEMBASE II Shifting Register with 0x00.*/
 		pm8001_cw32(pm8001_ha, 0, MEMBASE_II_SHIFT_REGISTER,
@@ -126,6 +122,7 @@ ssize_t pm80xx_get_fatal_dump(struct device *cdev,
 		pm8001_ha->forensic_fatal_step = 0;
 		pm8001_ha->fatal_bar_loc = 0;
 	}
+
 	/* Read until accum_len is retrived */
 	accum_len = pm8001_mr32(fatal_table_address,
 				MPI_FATAL_EDUMP_TABLE_ACCUM_LEN);
@@ -135,7 +132,7 @@ ssize_t pm80xx_get_fatal_dump(struct device *cdev,
 		PM8001_IO_DBG(pm8001_ha,
 			pm8001_printk("Possible PCI issue 0x%x not expected\n",
 				accum_len));
-		return status;
+		return -EIO;
 	}
 	if (accum_len == 0 || accum_len >= 0x100000) {
 		pm8001_ha->forensic_info.data_buf.direct_data +=
@@ -178,7 +175,6 @@ moreData:
 			pm8001_ha->forensic_fatal_step = 1;
 			pm8001_ha->fatal_forensic_shift_offset = 0;
 			pm8001_ha->forensic_last_offset	= 0;
-			status = 0;
 			return (char *)pm8001_ha->
 				forensic_info.data_buf.direct_data -
 				(char *)buf;
@@ -194,7 +190,6 @@ moreData:
 					forensic_info.data_buf.direct_data,
 					"%08x ", *(temp + index));
 			}
-			status = 0;
 			return (char *)pm8001_ha->
 				forensic_info.data_buf.direct_data -
 				(char *)buf;
@@ -214,7 +209,6 @@ moreData:
 		pm8001_cw32(pm8001_ha, 0, MEMBASE_II_SHIFT_REGISTER,
 			pm8001_ha->fatal_forensic_shift_offset);
 		pm8001_ha->fatal_bar_loc = 0;
-		status = 0;
 		return (char *)pm8001_ha->forensic_info.data_buf.direct_data -
 			(char *)buf;
 	}
@@ -239,7 +233,7 @@ moreData:
 			PM8001_FAIL_DBG(pm8001_ha,
 			pm8001_printk("TIMEOUT:MEMBASE_II_SHIFT_REGISTER"
 			" = 0x%x\n", reg_val));
-			return -1;
+			return -EIO;
 		}
 
 		/* Read the next 64K of the debug data. */
@@ -259,7 +253,6 @@ moreData:
 			pm8001_ha->forensic_info.data_buf.direct_len =  0;
 			pm8001_ha->forensic_info.data_buf.direct_offset = 0;
 			pm8001_ha->forensic_info.data_buf.read_len = 0;
-			status = 0;
 		}
 	}
 
