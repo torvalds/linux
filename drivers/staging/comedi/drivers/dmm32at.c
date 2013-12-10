@@ -124,13 +124,12 @@ Configuration Options:
 
 /* board AI ranges in comedi structure */
 static const struct comedi_lrange dmm32at_airanges = {
-	4,
-	{
-	 UNI_RANGE(10),
-	 UNI_RANGE(5),
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 }
+	4, {
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		BIP_RANGE(10),
+		BIP_RANGE(5)
+	}
 };
 
 /* register values for above ranges */
@@ -145,13 +144,12 @@ static const unsigned char dmm32at_rangebits[] = {
  * board. The application should only use the range set by the jumper
  */
 static const struct comedi_lrange dmm32at_aoranges = {
-	4,
-	{
-	 UNI_RANGE(10),
-	 UNI_RANGE(5),
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 }
+	4, {
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		BIP_RANGE(10),
+		BIP_RANGE(5)
+	}
 };
 
 struct dmm32at_private {
