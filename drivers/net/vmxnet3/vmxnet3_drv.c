@@ -3132,7 +3132,6 @@ err_alloc_queue_desc:
 err_alloc_shared:
 	dma_unmap_single(&adapter->pdev->dev, adapter->adapter_pa,
 			 sizeof(struct vmxnet3_adapter), PCI_DMA_TODEVICE);
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(netdev);
 	return err;
 }
