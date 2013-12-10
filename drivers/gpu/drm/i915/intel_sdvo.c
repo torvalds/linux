@@ -952,7 +952,7 @@ static void intel_sdvo_dump_hdmi_buf(struct intel_sdvo *intel_sdvo)
 
 static bool intel_sdvo_write_infoframe(struct intel_sdvo *intel_sdvo,
 				       unsigned if_index, uint8_t tx_rate,
-				       uint8_t *data, unsigned length)
+				       const uint8_t *data, unsigned length)
 {
 	uint8_t set_buf_index[2] = { if_index, 0 };
 	uint8_t hbuf_size, tmp[8];

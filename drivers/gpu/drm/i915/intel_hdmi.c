@@ -130,9 +130,9 @@ static u32 hsw_infoframe_data_reg(enum hdmi_infoframe_type type,
 
 static void g4x_write_infoframe(struct drm_encoder *encoder,
 				enum hdmi_infoframe_type type,
-				const uint8_t *frame, ssize_t len)
+				const void *frame, ssize_t len)
 {
-	uint32_t *data = (uint32_t *)frame;
+	const uint32_t *data = frame;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 val = I915_READ(VIDEO_DIP_CTL);
@@ -167,9 +167,9 @@ static void g4x_write_infoframe(struct drm_encoder *encoder,
 
 static void ibx_write_infoframe(struct drm_encoder *encoder,
 				enum hdmi_infoframe_type type,
-				const uint8_t *frame, ssize_t len)
+				const void *frame, ssize_t len)
 {
-	uint32_t *data = (uint32_t *)frame;
+	const uint32_t *data = frame;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
@@ -205,9 +205,9 @@ static void ibx_write_infoframe(struct drm_encoder *encoder,
 
 static void cpt_write_infoframe(struct drm_encoder *encoder,
 				enum hdmi_infoframe_type type,
-				const uint8_t *frame, ssize_t len)
+				const void *frame, ssize_t len)
 {
-	uint32_t *data = (uint32_t *)frame;
+	const uint32_t *data = frame;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
@@ -246,9 +246,9 @@ static void cpt_write_infoframe(struct drm_encoder *encoder,
 
 static void vlv_write_infoframe(struct drm_encoder *encoder,
 				enum hdmi_infoframe_type type,
-				const uint8_t *frame, ssize_t len)
+				const void *frame, ssize_t len)
 {
-	uint32_t *data = (uint32_t *)frame;
+	const uint32_t *data = frame;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
@@ -284,9 +284,9 @@ static void vlv_write_infoframe(struct drm_encoder *encoder,
 
 static void hsw_write_infoframe(struct drm_encoder *encoder,
 				enum hdmi_infoframe_type type,
-				const uint8_t *frame, ssize_t len)
+				const void *frame, ssize_t len)
 {
-	uint32_t *data = (uint32_t *)frame;
+	const uint32_t *data = frame;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);

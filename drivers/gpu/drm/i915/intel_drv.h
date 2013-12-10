@@ -455,7 +455,7 @@ struct intel_hdmi {
 	bool rgb_quant_range_selectable;
 	void (*write_infoframe)(struct drm_encoder *encoder,
 				enum hdmi_infoframe_type type,
-				const uint8_t *frame, ssize_t len);
+				const void *frame, ssize_t len);
 	void (*set_infoframes)(struct drm_encoder *encoder,
 			       struct drm_display_mode *adjusted_mode);
 };
