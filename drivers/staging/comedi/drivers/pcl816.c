@@ -81,16 +81,17 @@ Configuration Options:
 
 #define MAGIC_DMA_WORD 0x5a5a
 
-static const struct comedi_lrange range_pcl816 = { 8, {
-						       BIP_RANGE(10),
-						       BIP_RANGE(5),
-						       BIP_RANGE(2.5),
-						       BIP_RANGE(1.25),
-						       UNI_RANGE(10),
-						       UNI_RANGE(5),
-						       UNI_RANGE(2.5),
-						       UNI_RANGE(1.25),
-						       }
+static const struct comedi_lrange range_pcl816 = {
+	8, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
 };
 
 struct pcl816_board {
