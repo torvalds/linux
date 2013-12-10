@@ -45,8 +45,10 @@ static struct dentry *sysfs_mount(struct file_system_type *fs_type,
 
 static void sysfs_kill_sb(struct super_block *sb)
 {
+	void *ns = (void *)kernfs_super_ns(sb);
+
 	kernfs_kill_sb(sb);
-	kobj_ns_drop(KOBJ_NS_TYPE_NET, (void *)kernfs_super_ns(sb));
+	kobj_ns_drop(KOBJ_NS_TYPE_NET, ns);
 }
 
 static struct file_system_type sysfs_fs_type = {
