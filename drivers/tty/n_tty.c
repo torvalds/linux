@@ -104,6 +104,7 @@ struct n_tty_data {
 
 	/* must hold exclusive termios_rwsem to reset these */
 	unsigned char lnext:1, erasing:1, raw:1, real_raw:1, icanon:1;
+	unsigned char push:1;
 
 	/* shared by producer and consumer */
 	char read_buf[N_TTY_BUF_SIZE];
@@ -341,6 +342,7 @@ static void reset_buffer_flags(struct n_tty_data *ldata)
 
 	ldata->erasing = 0;
 	bitmap_zero(ldata->read_flags, N_TTY_BUF_SIZE);
+	ldata->push = 0;
 }
 
 static void n_tty_packet_mode_flush(struct tty_struct *tty)
@@ -1745,7 +1747,16 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 
 	if (!old || (old->c_lflag ^ tty->termios.c_lflag) & ICANON) {
 		bitmap_zero(ldata->read_flags, N_TTY_BUF_SIZE);
-		ldata->line_start = ldata->canon_head = ldata->read_tail;
+		ldata->line_start = ldata->read_tail;
+		if (!L_ICANON(tty) || !read_cnt(ldata)) {
+			ldata->canon_head = ldata->read_tail;
+			ldata->push = 0;
+		} else {
+			set_bit((ldata->read_head - 1) & (N_TTY_BUF_SIZE - 1),
+				ldata->read_flags);
+			ldata->canon_head = ldata->read_head;
+			ldata->push = 1;
+		}
 		ldata->erasing = 0;
 		ldata->lnext = 0;
 	}
@@ -1951,6 +1962,12 @@ static int copy_from_read_buf(struct tty_struct *tty,
  *	it copies one line of input up to and including the line-delimiting
  *	character into the user-space buffer.
  *
+ *	NB: When termios is changed from non-canonical to canonical mode and
+ *	the read buffer contains data, n_tty_set_termios() simulates an EOF
+ *	push (as if C-d were input) _without_ the DISABLED_CHAR in the buffer.
+ *	This causes data already processed as input to be immediately available
+ *	as input although a newline has not been received.
+ *
  *	Called under the atomic_read_lock mutex
  *
  *	n_tty_read()/consumer path:
@@ -1997,7 +2014,7 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 	n += found;
 	c = n;
 
-	if (found && read_buf(ldata, eol) == __DISABLED_CHAR) {
+	if (found && !ldata->push && read_buf(ldata, eol) == __DISABLED_CHAR) {
 		n--;
 		eof_push = !n && ldata->read_tail != ldata->line_start;
 	}
@@ -2024,7 +2041,10 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 	ldata->read_tail += c;
 
 	if (found) {
-		ldata->line_start = ldata->read_tail;
+		if (!ldata->push)
+			ldata->line_start = ldata->read_tail;
+		else
+			ldata->push = 0;
 		tty_audit_push(tty);
 	}
 	return eof_push ? -EAGAIN : 0;
