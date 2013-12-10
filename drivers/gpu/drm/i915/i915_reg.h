@@ -734,6 +734,8 @@
 #define HWSTAM		0x02098
 #define DMA_FADD_I8XX	0x020d0
 #define RING_BBSTATE(base)	((base)+0x110)
+#define RING_BBADDR(base)	((base)+0x140)
+#define RING_BBADDR_UDW(base)	((base)+0x168) /* gen8+ */
 
 #define ERROR_GEN6	0x040a0
 #define GEN7_ERR_INT	0x44040
@@ -924,7 +926,6 @@
 #define   CM0_COLOR_EVICT_DISABLE (1<<3)
 #define   CM0_DEPTH_WRITE_DISABLE (1<<1)
 #define   CM0_RC_OP_FLUSH_DISABLE (1<<0)
-#define BB_ADDR		0x02140 /* 8 bytes */
 #define GFX_FLSH_CNTL	0x02170 /* 915+ only */
 #define GFX_FLSH_CNTL_GEN6	0x101008
 #define   GFX_FLSH_CNTL_EN	(1<<0)

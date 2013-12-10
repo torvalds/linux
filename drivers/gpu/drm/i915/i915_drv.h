@@ -323,7 +323,7 @@ struct drm_i915_error_state {
 	u32 instps[I915_NUM_RINGS];
 	u32 extra_instdone[I915_NUM_INSTDONE_REG];
 	u32 seqno[I915_NUM_RINGS];
-	u64 bbaddr;
+	u64 bbaddr[I915_NUM_RINGS];
 	u32 fault_reg[I915_NUM_RINGS];
 	u32 done_reg;
 	u32 faddr[I915_NUM_RINGS];
