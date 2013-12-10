@@ -96,6 +96,20 @@ struct intel_dsi {
 
 	/* eot for MIPI_EOT_DISABLE register */
 	u32 eot_disable;
+
+	u32 port_bits;
+	u32 bw_timer;
+	u32 dphy_reg;
+	u32 video_frmt_cfg_bits;
+	u16 lp_byte_clk;
+
+	/* timeouts in byte clocks */
+	u16 lp_rx_timeout;
+	u16 turn_arnd_val;
+	u16 rst_timer_val;
+	u16 hs_to_lp_count;
+	u16 clk_lp_to_hs_count;
+	u16 clk_hs_to_lp_count;
 };
 
 static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)

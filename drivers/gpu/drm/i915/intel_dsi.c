@@ -157,7 +157,8 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 		msleep(100);
 
 		/* assert ip_tg_enable signal */
-		temp = I915_READ(MIPI_PORT_CTRL(pipe));
+		temp = I915_READ(MIPI_PORT_CTRL(pipe)) & ~LANE_CONFIGURATION_MASK;
+		temp = temp | intel_dsi->port_bits;
 		I915_WRITE(MIPI_PORT_CTRL(pipe), temp | DPI_ENABLE);
 		POSTING_READ(MIPI_PORT_CTRL(pipe));
 	}
@@ -391,11 +392,7 @@ static void intel_dsi_mode_set(struct intel_encoder *intel_encoder)
 	I915_WRITE(MIPI_INTR_STAT(pipe), 0xffffffff);
 	I915_WRITE(MIPI_INTR_EN(pipe), 0xffffffff);
 
-	I915_WRITE(MIPI_DPHY_PARAM(pipe),
-		   0x3c << EXIT_ZERO_COUNT_SHIFT |
-		   0x1f << TRAIL_COUNT_SHIFT |
-		   0xc5 << CLK_ZERO_COUNT_SHIFT |
-		   0x1f << PREPARE_COUNT_SHIFT);
+	I915_WRITE(MIPI_DPHY_PARAM(pipe), intel_dsi->dphy_reg);
 
 	I915_WRITE(MIPI_DPI_RESOLUTION(pipe),
 		   adjusted_mode->vdisplay << VERTICAL_ADDRESS_SHIFT |
@@ -443,9 +440,9 @@ static void intel_dsi_mode_set(struct intel_encoder *intel_encoder)
 				       adjusted_mode->htotal,
 				       bpp, intel_dsi->lane_count) + 1);
 	}
-	I915_WRITE(MIPI_LP_RX_TIMEOUT(pipe), 8309); /* max */
-	I915_WRITE(MIPI_TURN_AROUND_TIMEOUT(pipe), 0x14); /* max */
-	I915_WRITE(MIPI_DEVICE_RESET_TIMER(pipe), 0xffff); /* max */
+	I915_WRITE(MIPI_LP_RX_TIMEOUT(pipe), intel_dsi->lp_rx_timeout);
+	I915_WRITE(MIPI_TURN_AROUND_TIMEOUT(pipe), intel_dsi->turn_arnd_val);
+	I915_WRITE(MIPI_DEVICE_RESET_TIMER(pipe), intel_dsi->rst_timer_val);
 
 	/* dphy stuff */
 
@@ -460,29 +457,31 @@ static void intel_dsi_mode_set(struct intel_encoder *intel_encoder)
 	 *
 	 * XXX: write MIPI_STOP_STATE_STALL?
 	 */
-	I915_WRITE(MIPI_HIGH_LOW_SWITCH_COUNT(pipe), 0x46);
+	I915_WRITE(MIPI_HIGH_LOW_SWITCH_COUNT(pipe),
+						intel_dsi->hs_to_lp_count);
 
 	/* XXX: low power clock equivalence in terms of byte clock. the number
 	 * of byte clocks occupied in one low power clock. based on txbyteclkhs
 	 * and txclkesc. txclkesc time / txbyteclk time * (105 +
 	 * MIPI_STOP_STATE_STALL) / 105.???
 	 */
-	I915_WRITE(MIPI_LP_BYTECLK(pipe), 4);
+	I915_WRITE(MIPI_LP_BYTECLK(pipe), intel_dsi->lp_byte_clk);
 
 	/* the bw essential for transmitting 16 long packets containing 252
 	 * bytes meant for dcs write memory command is programmed in this
 	 * register in terms of byte clocks. based on dsi transfer rate and the
 	 * number of lanes configured the time taken to transmit 16 long packets
 	 * in a dsi stream varies. */
-	I915_WRITE(MIPI_DBI_BW_CTRL(pipe), 0x820);
+	I915_WRITE(MIPI_DBI_BW_CTRL(pipe), intel_dsi->bw_timer);
 
 	I915_WRITE(MIPI_CLK_LANE_SWITCH_TIME_CNT(pipe),
-		   0xa << LP_HS_SSW_CNT_SHIFT |
-		   0x14 << HS_LP_PWR_SW_CNT_SHIFT);
+		   intel_dsi->clk_lp_to_hs_count << LP_HS_SSW_CNT_SHIFT |
+		   intel_dsi->clk_hs_to_lp_count << HS_LP_PWR_SW_CNT_SHIFT);
 
 	if (is_vid_mode(intel_dsi))
 		I915_WRITE(MIPI_VIDEO_MODE_FORMAT(pipe),
-			   intel_dsi->video_mode_format);
+				intel_dsi->video_frmt_cfg_bits |
+				intel_dsi->video_mode_format);
 }
 
 static enum drm_connector_status
