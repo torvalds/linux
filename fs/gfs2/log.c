@@ -551,10 +551,10 @@ void gfs2_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 	struct buffer_head *bh = bd->bd_bh;
 	struct gfs2_glock *gl = bd->bd_gl;
 
-	gfs2_remove_from_ail(bd);
-	bd->bd_bh = NULL;
 	bh->b_private = NULL;
 	bd->bd_blkno = bh->b_blocknr;
+	gfs2_remove_from_ail(bd); /* drops ref on bh */
+	bd->bd_bh = NULL;
 	bd->bd_ops = &gfs2_revoke_lops;
 	sdp->sd_log_num_revoke++;
 	atomic_inc(&gl->gl_revokes);
