@@ -213,10 +213,8 @@ static int rr_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				    rrpriv->tx_ring_dma);
 	if (rrpriv->regs)
 		pci_iounmap(pdev, rrpriv->regs);
-	if (pdev) {
+	if (pdev)
 		pci_release_regions(pdev);
-		pci_set_drvdata(pdev, NULL);
-	}
  out2:
 	free_netdev(dev);
  out3:
@@ -244,7 +242,6 @@ static void rr_remove_one(struct pci_dev *pdev)
 	pci_iounmap(pdev, rr->regs);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 }
 
