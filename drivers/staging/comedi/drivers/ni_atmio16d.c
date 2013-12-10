@@ -105,40 +105,31 @@ struct atmio16_board_t {
 };
 
 /* range structs */
-static const struct comedi_lrange range_atmio16d_ai_10_bipolar = { 4, {
-								       BIP_RANGE
-								       (10),
-								       BIP_RANGE
-								       (1),
-								       BIP_RANGE
-								       (0.1),
-								       BIP_RANGE
-								       (0.02)
-								       }
+static const struct comedi_lrange range_atmio16d_ai_10_bipolar = {
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(1),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.02)
+	}
 };
 
-static const struct comedi_lrange range_atmio16d_ai_5_bipolar = { 4, {
-								      BIP_RANGE
-								      (5),
-								      BIP_RANGE
-								      (0.5),
-								      BIP_RANGE
-								      (0.05),
-								      BIP_RANGE
-								      (0.01)
-								      }
+static const struct comedi_lrange range_atmio16d_ai_5_bipolar = {
+	4, {
+		BIP_RANGE(5),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.05),
+		BIP_RANGE(0.01)
+	}
 };
 
-static const struct comedi_lrange range_atmio16d_ai_unipolar = { 4, {
-								     UNI_RANGE
-								     (10),
-								     UNI_RANGE
-								     (1),
-								     UNI_RANGE
-								     (0.1),
-								     UNI_RANGE
-								     (0.02)
-								     }
+static const struct comedi_lrange range_atmio16d_ai_unipolar = {
+	4, {
+		UNI_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.02)
+	}
 };
 
 /* private data struct */
