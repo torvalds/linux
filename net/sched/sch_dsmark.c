@@ -47,7 +47,7 @@ struct dsmark_qdisc_data {
 
 static inline int dsmark_valid_index(struct dsmark_qdisc_data *p, u16 index)
 {
-	return (index <= p->indices && index > 0);
+	return index <= p->indices && index > 0;
 }
 
 /* ------------------------- Class/flow operations ------------------------- */

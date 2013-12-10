@@ -191,7 +191,8 @@ u32 tcf_hash_new_index(u32 *idx_gen, struct tcf_hashinfo *hinfo)
 			val = 1;
 	} while (tcf_hash_lookup(val, hinfo));
 
-	return (*idx_gen = val);
+	*idx_gen = val;
+	return val;
 }
 EXPORT_SYMBOL(tcf_hash_new_index);
 
