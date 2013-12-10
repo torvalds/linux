@@ -630,9 +630,27 @@ update_ccr:
 	regs->ccr |= (IR << ((7 - ((speinsn >> 23) & 0x7)) << 2));
 
 update_regs:
-	__FPU_FPSCR &= ~FP_EX_MASK;
+	/*
+	 * If the "invalid" exception sticky bit was set by the
+	 * processor for non-finite input, but was not set before the
+	 * instruction being emulated, clear it.  Likewise for the
+	 * "underflow" bit, which may have been set by the processor
+	 * for exact underflow, not just inexact underflow when the
+	 * flag should be set for IEEE 754 semantics.  Other sticky
+	 * exceptions will only be set by the processor when they are
+	 * correct according to IEEE 754 semantics, and we must not
+	 * clear sticky bits that were already set before the emulated
+	 * instruction as they represent the user-visible sticky
+	 * exception status.  "inexact" traps to kernel are not
+	 * required for IEEE semantics and are not enabled by default,
+	 * so the "inexact" sticky bit may have been set by a previous
+	 * instruction without the kernel being aware of it.
+	 */
+	__FPU_FPSCR
+	  &= ~(FP_EX_INVALID | FP_EX_UNDERFLOW) | current->thread.spefscr_last;
 	__FPU_FPSCR |= (FP_CUR_EXCEPTIONS & FP_EX_MASK);
 	mtspr(SPRN_SPEFSCR, __FPU_FPSCR);
+	current->thread.spefscr_last = __FPU_FPSCR;
 
 	current->thread.evr[fc] = vc.wp[0];
 	regs->gpr[fc] = vc.wp[1];
