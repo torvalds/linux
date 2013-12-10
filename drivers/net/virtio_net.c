@@ -873,7 +873,7 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 /*
  * Send command via the control virtqueue and check status.  Commands
  * supported by the hypervisor, as indicated by feature bits, should
- * never fail unless improperly formated.
+ * never fail unless improperly formatted.
  */
 static bool virtnet_send_command(struct virtnet_info *vi, u8 class, u8 cmd,
 				 struct scatterlist *out)
@@ -1061,7 +1061,7 @@ static void virtnet_set_rx_mode(struct net_device *dev)
 	void *buf;
 	int i;
 
-	/* We can't dynamicaly set ndo_set_rx_mode, so return gracefully */
+	/* We can't dynamically set ndo_set_rx_mode, so return gracefully */
 	if (!virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_RX))
 		return;
 
