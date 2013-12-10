@@ -983,27 +983,34 @@ err_out:
 	return err;
 }
 
-static void igb_reset_interrupt_capability(struct igb_adapter *adapter)
-{
-	if (adapter->msix_entries) {
-		pci_disable_msix(adapter->pdev);
-		kfree(adapter->msix_entries);
-		adapter->msix_entries = NULL;
-	} else if (adapter->flags & IGB_FLAG_HAS_MSI) {
-		pci_disable_msi(adapter->pdev);
-	}
-}
-
 /**
  *  igb_free_q_vector - Free memory allocated for specific interrupt vector
  *  @adapter: board private structure to initialize
  *  @v_idx: Index of vector to be freed
  *
- *  This function frees the memory allocated to the q_vector.  In addition if
- *  NAPI is enabled it will delete any references to the NAPI struct prior
- *  to freeing the q_vector.
+ *  This function frees the memory allocated to the q_vector.
  **/
 static void igb_free_q_vector(struct igb_adapter *adapter, int v_idx)
+{
+	struct igb_q_vector *q_vector = adapter->q_vector[v_idx];
+
+	adapter->q_vector[v_idx] = NULL;
+
+	/* igb_get_stats64() might access the rings on this vector,
+	 * we must wait a grace period before freeing it.
+	 */
+	kfree_rcu(q_vector, rcu);
+}
+
+/**
+ *  igb_reset_q_vector - Reset config for interrupt vector
+ *  @adapter: board private structure to initialize
+ *  @v_idx: Index of vector to be reset
+ *
+ *  If NAPI is enabled it will delete any references to the
+ *  NAPI struct. This is preparation for igb_free_q_vector.
+ **/
+static void igb_reset_q_vector(struct igb_adapter *adapter, int v_idx)
 {
 	struct igb_q_vector *q_vector = adapter->q_vector[v_idx];
 
@@ -1013,13 +1020,24 @@ static void igb_free_q_vector(struct igb_adapter *adapter, int v_idx)
 	if (q_vector->rx.ring)
 		adapter->tx_ring[q_vector->rx.ring->queue_index] = NULL;
 
-	adapter->q_vector[v_idx] = NULL;
 	netif_napi_del(&q_vector->napi);
 
-	/* igb_get_stats64() might access the rings on this vector,
-	 * we must wait a grace period before freeing it.
-	 */
-	kfree_rcu(q_vector, rcu);
+}
+
+static void igb_reset_interrupt_capability(struct igb_adapter *adapter)
+{
+	int v_idx = adapter->num_q_vectors;
+
+	if (adapter->msix_entries) {
+		pci_disable_msix(adapter->pdev);
+		kfree(adapter->msix_entries);
+		adapter->msix_entries = NULL;
+	} else if (adapter->flags & IGB_FLAG_HAS_MSI) {
+		pci_disable_msi(adapter->pdev);
+	}
+
+	while (v_idx--)
+		igb_reset_q_vector(adapter, v_idx);
 }
 
 /**
@@ -1038,8 +1056,10 @@ static void igb_free_q_vectors(struct igb_adapter *adapter)
 	adapter->num_rx_queues = 0;
 	adapter->num_q_vectors = 0;
 
-	while (v_idx--)
+	while (v_idx--) {
+		igb_reset_q_vector(adapter, v_idx);
 		igb_free_q_vector(adapter, v_idx);
+	}
 }
 
 /**
@@ -1172,7 +1192,9 @@ static int igb_alloc_q_vector(struct igb_adapter *adapter,
 	       (sizeof(struct igb_ring) * ring_count);
 
 	/* allocate q_vector and rings */
-	q_vector = kzalloc(size, GFP_KERNEL);
+	q_vector = adapter->q_vector[v_idx];
+	if (!q_vector)
+		q_vector = kzalloc(size, GFP_KERNEL);
 	if (!q_vector)
 		return -ENOMEM;
 
@@ -8037,7 +8059,7 @@ int igb_reinit_queues(struct igb_adapter *adapter)
 	if (netif_running(netdev))
 		igb_close(netdev);
 
-	igb_clear_interrupt_scheme(adapter);
+	igb_reset_interrupt_capability(adapter);
 
 	if (igb_init_interrupt_scheme(adapter, true)) {
 		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
