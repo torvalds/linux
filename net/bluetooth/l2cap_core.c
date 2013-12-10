@@ -5736,6 +5736,31 @@ static inline int l2cap_le_credits(struct l2cap_conn *conn,
 	return 0;
 }
 
+static inline int l2cap_le_command_rej(struct l2cap_conn *conn,
+				       struct l2cap_cmd_hdr *cmd, u16 cmd_len,
+				       u8 *data)
+{
+	struct l2cap_cmd_rej_unk *rej = (struct l2cap_cmd_rej_unk *) data;
+	struct l2cap_chan *chan;
+
+	if (cmd_len < sizeof(*rej))
+		return -EPROTO;
+
+	mutex_lock(&conn->chan_lock);
+
+	chan = __l2cap_get_chan_by_ident(conn, cmd->ident);
+	if (!chan)
+		goto done;
+
+	l2cap_chan_lock(chan);
+	l2cap_chan_del(chan, ECONNREFUSED);
+	l2cap_chan_unlock(chan);
+
+done:
+	mutex_unlock(&conn->chan_lock);
+	return 0;
+}
+
 static inline int l2cap_le_sig_cmd(struct l2cap_conn *conn,
 				   struct l2cap_cmd_hdr *cmd, u16 cmd_len,
 				   u8 *data)
@@ -5755,6 +5780,7 @@ static inline int l2cap_le_sig_cmd(struct l2cap_conn *conn,
 
 	switch (cmd->code) {
 	case L2CAP_COMMAND_REJ:
+		l2cap_le_command_rej(conn, cmd, cmd_len, data);
 		break;
 
 	case L2CAP_CONN_PARAM_UPDATE_REQ:
