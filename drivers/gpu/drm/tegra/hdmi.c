@@ -960,7 +960,7 @@ static int tegra_output_hdmi_check_mode(struct tegra_output *output,
 	parent = clk_get_parent(hdmi->clk_parent);
 
 	err = clk_round_rate(parent, pclk * 4);
-	if (err < 0)
+	if (err <= 0)
 		*status = MODE_NOCLOCK;
 	else
 		*status = MODE_OK;
