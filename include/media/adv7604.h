@@ -131,15 +131,19 @@ struct adv7604_platform_data {
 	u8 i2c_vdp;
 };
 
-/*
- * Mode of operation.
- * This is used as the input argument of the s_routing video op.
- */
-enum adv7604_mode {
-	ADV7604_MODE_COMP,
-	ADV7604_MODE_GR,
-	ADV7604_MODE_HDMI,
+enum adv7604_input_port {
+	ADV7604_INPUT_HDMI_PORT_A,
+	ADV7604_INPUT_HDMI_PORT_B,
+	ADV7604_INPUT_HDMI_PORT_C,
+	ADV7604_INPUT_HDMI_PORT_D,
+	ADV7604_INPUT_VGA_RGB,
+	ADV7604_INPUT_VGA_COMP,
 };
+
+#define ADV7604_EDID_PORT_A 0
+#define ADV7604_EDID_PORT_B 1
+#define ADV7604_EDID_PORT_C 2
+#define ADV7604_EDID_PORT_D 3
 
 #define V4L2_CID_ADV_RX_ANALOG_SAMPLING_PHASE	(V4L2_CID_DV_CLASS_BASE + 0x1000)
 #define V4L2_CID_ADV_RX_FREE_RUN_COLOR_MANUAL	(V4L2_CID_DV_CLASS_BASE + 0x1001)
