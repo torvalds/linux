@@ -475,7 +475,7 @@ void pci_setup_cardbus(struct pci_bus *bus)
 		 &bus->busn_res);
 
 	res = bus->resource[0];
-	pcibios_resource_to_bus(bridge, &region, res);
+	pcibios_resource_to_bus(bridge->bus, &region, res);
 	if (res->flags & IORESOURCE_IO) {
 		/*
 		 * The IO resource is allocated a range twice as large as it
@@ -489,7 +489,7 @@ void pci_setup_cardbus(struct pci_bus *bus)
 	}
 
 	res = bus->resource[1];
-	pcibios_resource_to_bus(bridge, &region, res);
+	pcibios_resource_to_bus(bridge->bus, &region, res);
 	if (res->flags & IORESOURCE_IO) {
 		dev_info(&bridge->dev, "  bridge window %pR\n", res);
 		pci_write_config_dword(bridge, PCI_CB_IO_BASE_1,
@@ -499,7 +499,7 @@ void pci_setup_cardbus(struct pci_bus *bus)
 	}
 
 	res = bus->resource[2];
-	pcibios_resource_to_bus(bridge, &region, res);
+	pcibios_resource_to_bus(bridge->bus, &region, res);
 	if (res->flags & IORESOURCE_MEM) {
 		dev_info(&bridge->dev, "  bridge window %pR\n", res);
 		pci_write_config_dword(bridge, PCI_CB_MEMORY_BASE_0,
@@ -509,7 +509,7 @@ void pci_setup_cardbus(struct pci_bus *bus)
 	}
 
 	res = bus->resource[3];
-	pcibios_resource_to_bus(bridge, &region, res);
+	pcibios_resource_to_bus(bridge->bus, &region, res);
 	if (res->flags & IORESOURCE_MEM) {
 		dev_info(&bridge->dev, "  bridge window %pR\n", res);
 		pci_write_config_dword(bridge, PCI_CB_MEMORY_BASE_1,
@@ -546,7 +546,7 @@ static void pci_setup_bridge_io(struct pci_bus *bus)
 
 	/* Set up the top and bottom of the PCI I/O segment for this bus. */
 	res = bus->resource[0];
-	pcibios_resource_to_bus(bridge, &region, res);
+	pcibios_resource_to_bus(bridge->bus, &region, res);
 	if (res->flags & IORESOURCE_IO) {
 		pci_read_config_dword(bridge, PCI_IO_BASE, &l);
 		l &= 0xffff0000;
@@ -578,7 +578,7 @@ static void pci_setup_bridge_mmio(struct pci_bus *bus)
 
 	/* Set up the top and bottom of the PCI Memory segment for this bus. */
 	res = bus->resource[1];
-	pcibios_resource_to_bus(bridge, &region, res);
+	pcibios_resource_to_bus(bridge->bus, &region, res);
 	if (res->flags & IORESOURCE_MEM) {
 		l = (region.start >> 16) & 0xfff0;
 		l |= region.end & 0xfff00000;
@@ -604,7 +604,7 @@ static void pci_setup_bridge_mmio_pref(struct pci_bus *bus)
 	/* Set up PREF base/limit. */
 	bu = lu = 0;
 	res = bus->resource[2];
-	pcibios_resource_to_bus(bridge, &region, res);
+	pcibios_resource_to_bus(bridge->bus, &region, res);
 	if (res->flags & IORESOURCE_PREFETCH) {
 		l = (region.start >> 16) & 0xfff0;
 		l |= region.end & 0xfff00000;
@@ -1422,7 +1422,7 @@ static int iov_resources_unassigned(struct pci_dev *dev, void *data)
 		if (!r->flags)
 			continue;
 
-		pcibios_resource_to_bus(dev, &region, r);
+		pcibios_resource_to_bus(dev->bus, &region, r);
 		if (!region.start) {
 			*unassigned = true;
 			return 1; /* return early from pci_walk_bus() */
