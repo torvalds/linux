@@ -488,10 +488,11 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 	if (!l_ptr->started && (event != STARTING_EVT))
 		return;		/* Not yet. */
 
-	if (link_blocked(l_ptr)) {
+	/* Check whether changeover is going on */
+	if (l_ptr->exp_msg_count) {
 		if (event == TIMEOUT_EVT)
 			link_set_timer(l_ptr, cont_intv);
-		return;	  /* Changeover going on */
+		return;
 	}
 
 	switch (l_ptr->state) {
@@ -1731,7 +1732,8 @@ void tipc_link_send_proto_msg(struct tipc_link *l_ptr, u32 msg_typ,
 		l_ptr->proto_msg_queue = NULL;
 	}
 
-	if (link_blocked(l_ptr))
+	/* Don't send protocol message during link changeover */
+	if (l_ptr->exp_msg_count)
 		return;
 
 	/* Abort non-RESET send if communication with node is prohibited */
@@ -1824,7 +1826,8 @@ static void link_recv_proto_msg(struct tipc_link *l_ptr, struct sk_buff *buf)
 	u32 msg_tol;
 	struct tipc_msg *msg = buf_msg(buf);
 
-	if (link_blocked(l_ptr))
+	/* Discard protocol message during link changeover */
+	if (l_ptr->exp_msg_count)
 		goto exit;
 
 	/* record unnumbered packet arrival (force mismatch on next timeout) */
