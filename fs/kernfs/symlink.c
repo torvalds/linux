@@ -22,50 +22,50 @@
  *
  * Returns the created node on success, ERR_PTR() value on error.
  */
-struct sysfs_dirent *kernfs_create_link(struct sysfs_dirent *parent,
-					const char *name,
-					struct sysfs_dirent *target)
+struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
+				       const char *name,
+				       struct kernfs_node *target)
 {
-	struct sysfs_dirent *sd;
+	struct kernfs_node *kn;
 	struct sysfs_addrm_cxt acxt;
 	int error;
 
-	sd = sysfs_new_dirent(kernfs_root(parent), name, S_IFLNK|S_IRWXUGO,
+	kn = sysfs_new_dirent(kernfs_root(parent), name, S_IFLNK|S_IRWXUGO,
 			      SYSFS_KOBJ_LINK);
-	if (!sd)
+	if (!kn)
 		return ERR_PTR(-ENOMEM);
 
 	if (kernfs_ns_enabled(parent))
-		sd->s_ns = target->s_ns;
-	sd->s_symlink.target_sd = target;
+		kn->s_ns = target->s_ns;
+	kn->s_symlink.target_kn = target;
 	kernfs_get(target);	/* ref owned by symlink */
 
 	sysfs_addrm_start(&acxt);
-	error = sysfs_add_one(&acxt, sd, parent);
+	error = sysfs_add_one(&acxt, kn, parent);
 	sysfs_addrm_finish(&acxt);
 
 	if (!error)
-		return sd;
+		return kn;
 
-	kernfs_put(sd);
+	kernfs_put(kn);
 	return ERR_PTR(error);
 }
 
-static int sysfs_get_target_path(struct sysfs_dirent *parent_sd,
-				 struct sysfs_dirent *target_sd, char *path)
+static int sysfs_get_target_path(struct kernfs_node *parent,
+				 struct kernfs_node *target, char *path)
 {
-	struct sysfs_dirent *base, *sd;
+	struct kernfs_node *base, *kn;
 	char *s = path;
 	int len = 0;
 
 	/* go up to the root, stop at the base */
-	base = parent_sd;
+	base = parent;
 	while (base->s_parent) {
-		sd = target_sd->s_parent;
-		while (sd->s_parent && base != sd)
-			sd = sd->s_parent;
+		kn = target->s_parent;
+		while (kn->s_parent && base != kn)
+			kn = kn->s_parent;
 
-		if (base == sd)
+		if (base == kn)
 			break;
 
 		strcpy(s, "../");
@@ -74,10 +74,10 @@ static int sysfs_get_target_path(struct sysfs_dirent *parent_sd,
 	}
 
 	/* determine end of target string for reverse fillup */
-	sd = target_sd;
-	while (sd->s_parent && sd != base) {
-		len += strlen(sd->s_name) + 1;
-		sd = sd->s_parent;
+	kn = target;
+	while (kn->s_parent && kn != base) {
+		len += strlen(kn->s_name) + 1;
+		kn = kn->s_parent;
 	}
 
 	/* check limits */
@@ -88,16 +88,16 @@ static int sysfs_get_target_path(struct sysfs_dirent *parent_sd,
 		return -ENAMETOOLONG;
 
 	/* reverse fillup of target string from target to base */
-	sd = target_sd;
-	while (sd->s_parent && sd != base) {
-		int slen = strlen(sd->s_name);
+	kn = target;
+	while (kn->s_parent && kn != base) {
+		int slen = strlen(kn->s_name);
 
 		len -= slen;
-		strncpy(s + len, sd->s_name, slen);
+		strncpy(s + len, kn->s_name, slen);
 		if (len)
 			s[--len] = '/';
 
-		sd = sd->s_parent;
+		kn = kn->s_parent;
 	}
 
 	return 0;
@@ -105,13 +105,13 @@ static int sysfs_get_target_path(struct sysfs_dirent *parent_sd,
 
 static int sysfs_getlink(struct dentry *dentry, char *path)
 {
-	struct sysfs_dirent *sd = dentry->d_fsdata;
-	struct sysfs_dirent *parent_sd = sd->s_parent;
-	struct sysfs_dirent *target_sd = sd->s_symlink.target_sd;
+	struct kernfs_node *kn = dentry->d_fsdata;
+	struct kernfs_node *parent = kn->s_parent;
+	struct kernfs_node *target = kn->s_symlink.target_kn;
 	int error;
 
 	mutex_lock(&sysfs_mutex);
-	error = sysfs_get_target_path(parent_sd, target_sd, path);
+	error = sysfs_get_target_path(parent, target, path);
 	mutex_unlock(&sysfs_mutex);
 
 	return error;

@@ -19,9 +19,9 @@
 
 /*
  * There's one sysfs_open_file for each open file and one sysfs_open_dirent
- * for each sysfs_dirent with one or more open files.
+ * for each kernfs_node with one or more open files.
  *
- * sysfs_dirent->s_attr.open points to sysfs_open_dirent.  s_attr.open is
+ * kernfs_node->s_attr.open points to sysfs_open_dirent.  s_attr.open is
  * protected by sysfs_open_dirent_lock.
  *
  * filp->private_data points to seq_file whose ->private points to
@@ -44,14 +44,14 @@ static struct sysfs_open_file *sysfs_of(struct file *file)
 }
 
 /*
- * Determine the kernfs_ops for the given sysfs_dirent.  This function must
+ * Determine the kernfs_ops for the given kernfs_node.  This function must
  * be called while holding an active reference.
  */
-static const struct kernfs_ops *kernfs_ops(struct sysfs_dirent *sd)
+static const struct kernfs_ops *kernfs_ops(struct kernfs_node *kn)
 {
-	if (sd->s_flags & SYSFS_FLAG_LOCKDEP)
-		lockdep_assert_held(sd);
-	return sd->s_attr.ops;
+	if (kn->s_flags & SYSFS_FLAG_LOCKDEP)
+		lockdep_assert_held(kn);
+	return kn->s_attr.ops;
 }
 
 static void *kernfs_seq_start(struct seq_file *sf, loff_t *ppos)
@@ -64,10 +64,10 @@ static void *kernfs_seq_start(struct seq_file *sf, loff_t *ppos)
 	 * the ops aren't called concurrently for the same open file.
 	 */
 	mutex_lock(&of->mutex);
-	if (!sysfs_get_active(of->sd))
+	if (!sysfs_get_active(of->kn))
 		return ERR_PTR(-ENODEV);
 
-	ops = kernfs_ops(of->sd);
+	ops = kernfs_ops(of->kn);
 	if (ops->seq_start) {
 		return ops->seq_start(sf, ppos);
 	} else {
@@ -82,7 +82,7 @@ static void *kernfs_seq_start(struct seq_file *sf, loff_t *ppos)
 static void *kernfs_seq_next(struct seq_file *sf, void *v, loff_t *ppos)
 {
 	struct sysfs_open_file *of = sf->private;
-	const struct kernfs_ops *ops = kernfs_ops(of->sd);
+	const struct kernfs_ops *ops = kernfs_ops(of->kn);
 
 	if (ops->seq_next) {
 		return ops->seq_next(sf, v, ppos);
@@ -99,12 +99,12 @@ static void *kernfs_seq_next(struct seq_file *sf, void *v, loff_t *ppos)
 static void kernfs_seq_stop(struct seq_file *sf, void *v)
 {
 	struct sysfs_open_file *of = sf->private;
-	const struct kernfs_ops *ops = kernfs_ops(of->sd);
+	const struct kernfs_ops *ops = kernfs_ops(of->kn);
 
 	if (ops->seq_stop)
 		ops->seq_stop(sf, v);
 
-	sysfs_put_active(of->sd);
+	sysfs_put_active(of->kn);
 	mutex_unlock(&of->mutex);
 }
 
@@ -112,9 +112,9 @@ static int kernfs_seq_show(struct seq_file *sf, void *v)
 {
 	struct sysfs_open_file *of = sf->private;
 
-	of->event = atomic_read(&of->sd->s_attr.open->event);
+	of->event = atomic_read(&of->kn->s_attr.open->event);
 
-	return of->sd->s_attr.ops->seq_show(sf, v);
+	return of->kn->s_attr.ops->seq_show(sf, v);
 }
 
 static const struct seq_operations kernfs_seq_ops = {
@@ -147,19 +147,19 @@ static ssize_t kernfs_file_direct_read(struct sysfs_open_file *of,
 	 * the ops aren't called concurrently for the same open file.
 	 */
 	mutex_lock(&of->mutex);
-	if (!sysfs_get_active(of->sd)) {
+	if (!sysfs_get_active(of->kn)) {
 		len = -ENODEV;
 		mutex_unlock(&of->mutex);
 		goto out_free;
 	}
 
-	ops = kernfs_ops(of->sd);
+	ops = kernfs_ops(of->kn);
 	if (ops->read)
 		len = ops->read(of, buf, len, *ppos);
 	else
 		len = -EINVAL;
 
-	sysfs_put_active(of->sd);
+	sysfs_put_active(of->kn);
 	mutex_unlock(&of->mutex);
 
 	if (len < 0)
@@ -189,7 +189,7 @@ static ssize_t kernfs_file_read(struct file *file, char __user *user_buf,
 {
 	struct sysfs_open_file *of = sysfs_of(file);
 
-	if (of->sd->s_flags & SYSFS_FLAG_HAS_SEQ_SHOW)
+	if (of->kn->s_flags & SYSFS_FLAG_HAS_SEQ_SHOW)
 		return seq_read(file, user_buf, count, ppos);
 	else
 		return kernfs_file_direct_read(of, user_buf, count, ppos);
@@ -234,19 +234,19 @@ static ssize_t kernfs_file_write(struct file *file, const char __user *user_buf,
 	 * the ops aren't called concurrently for the same open file.
 	 */
 	mutex_lock(&of->mutex);
-	if (!sysfs_get_active(of->sd)) {
+	if (!sysfs_get_active(of->kn)) {
 		mutex_unlock(&of->mutex);
 		len = -ENODEV;
 		goto out_free;
 	}
 
-	ops = kernfs_ops(of->sd);
+	ops = kernfs_ops(of->kn);
 	if (ops->write)
 		len = ops->write(of, buf, len, *ppos);
 	else
 		len = -EINVAL;
 
-	sysfs_put_active(of->sd);
+	sysfs_put_active(of->kn);
 	mutex_unlock(&of->mutex);
 
 	if (len > 0)
@@ -264,13 +264,13 @@ static void kernfs_vma_open(struct vm_area_struct *vma)
 	if (!of->vm_ops)
 		return;
 
-	if (!sysfs_get_active(of->sd))
+	if (!sysfs_get_active(of->kn))
 		return;
 
 	if (of->vm_ops->open)
 		of->vm_ops->open(vma);
 
-	sysfs_put_active(of->sd);
+	sysfs_put_active(of->kn);
 }
 
 static int kernfs_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
@@ -282,14 +282,14 @@ static int kernfs_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (!of->vm_ops)
 		return VM_FAULT_SIGBUS;
 
-	if (!sysfs_get_active(of->sd))
+	if (!sysfs_get_active(of->kn))
 		return VM_FAULT_SIGBUS;
 
 	ret = VM_FAULT_SIGBUS;
 	if (of->vm_ops->fault)
 		ret = of->vm_ops->fault(vma, vmf);
 
-	sysfs_put_active(of->sd);
+	sysfs_put_active(of->kn);
 	return ret;
 }
 
@@ -303,7 +303,7 @@ static int kernfs_vma_page_mkwrite(struct vm_area_struct *vma,
 	if (!of->vm_ops)
 		return VM_FAULT_SIGBUS;
 
-	if (!sysfs_get_active(of->sd))
+	if (!sysfs_get_active(of->kn))
 		return VM_FAULT_SIGBUS;
 
 	ret = 0;
@@ -312,7 +312,7 @@ static int kernfs_vma_page_mkwrite(struct vm_area_struct *vma,
 	else
 		file_update_time(file);
 
-	sysfs_put_active(of->sd);
+	sysfs_put_active(of->kn);
 	return ret;
 }
 
@@ -326,14 +326,14 @@ static int kernfs_vma_access(struct vm_area_struct *vma, unsigned long addr,
 	if (!of->vm_ops)
 		return -EINVAL;
 
-	if (!sysfs_get_active(of->sd))
+	if (!sysfs_get_active(of->kn))
 		return -EINVAL;
 
 	ret = -EINVAL;
 	if (of->vm_ops->access)
 		ret = of->vm_ops->access(vma, addr, buf, len, write);
 
-	sysfs_put_active(of->sd);
+	sysfs_put_active(of->kn);
 	return ret;
 }
 
@@ -348,14 +348,14 @@ static int kernfs_vma_set_policy(struct vm_area_struct *vma,
 	if (!of->vm_ops)
 		return 0;
 
-	if (!sysfs_get_active(of->sd))
+	if (!sysfs_get_active(of->kn))
 		return -EINVAL;
 
 	ret = 0;
 	if (of->vm_ops->set_policy)
 		ret = of->vm_ops->set_policy(vma, new);
 
-	sysfs_put_active(of->sd);
+	sysfs_put_active(of->kn);
 	return ret;
 }
 
@@ -369,14 +369,14 @@ static struct mempolicy *kernfs_vma_get_policy(struct vm_area_struct *vma,
 	if (!of->vm_ops)
 		return vma->vm_policy;
 
-	if (!sysfs_get_active(of->sd))
+	if (!sysfs_get_active(of->kn))
 		return vma->vm_policy;
 
 	pol = vma->vm_policy;
 	if (of->vm_ops->get_policy)
 		pol = of->vm_ops->get_policy(vma, addr);
 
-	sysfs_put_active(of->sd);
+	sysfs_put_active(of->kn);
 	return pol;
 }
 
@@ -391,14 +391,14 @@ static int kernfs_vma_migrate(struct vm_area_struct *vma,
 	if (!of->vm_ops)
 		return 0;
 
-	if (!sysfs_get_active(of->sd))
+	if (!sysfs_get_active(of->kn))
 		return 0;
 
 	ret = 0;
 	if (of->vm_ops->migrate)
 		ret = of->vm_ops->migrate(vma, from, to, flags);
 
-	sysfs_put_active(of->sd);
+	sysfs_put_active(of->kn);
 	return ret;
 }
 #endif
@@ -428,16 +428,16 @@ static int kernfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	 * without grabbing @of->mutex by testing HAS_MMAP flag.  See the
 	 * comment in kernfs_file_open() for more details.
 	 */
-	if (!(of->sd->s_flags & SYSFS_FLAG_HAS_MMAP))
+	if (!(of->kn->s_flags & SYSFS_FLAG_HAS_MMAP))
 		return -ENODEV;
 
 	mutex_lock(&of->mutex);
 
 	rc = -ENODEV;
-	if (!sysfs_get_active(of->sd))
+	if (!sysfs_get_active(of->kn))
 		goto out_unlock;
 
-	ops = kernfs_ops(of->sd);
+	ops = kernfs_ops(of->kn);
 	rc = ops->mmap(of, vma);
 
 	/*
@@ -465,7 +465,7 @@ static int kernfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	of->vm_ops = vma->vm_ops;
 	vma->vm_ops = &kernfs_vm_ops;
 out_put:
-	sysfs_put_active(of->sd);
+	sysfs_put_active(of->kn);
 out_unlock:
 	mutex_unlock(&of->mutex);
 
@@ -474,10 +474,10 @@ out_unlock:
 
 /**
  *	sysfs_get_open_dirent - get or create sysfs_open_dirent
- *	@sd: target sysfs_dirent
+ *	@kn: target kernfs_node
  *	@of: sysfs_open_file for this instance of open
  *
- *	If @sd->s_attr.open exists, increment its reference count;
+ *	If @kn->s_attr.open exists, increment its reference count;
  *	otherwise, create one.  @of is chained to the files list.
  *
  *	LOCKING:
@@ -486,7 +486,7 @@ out_unlock:
  *	RETURNS:
  *	0 on success, -errno on failure.
  */
-static int sysfs_get_open_dirent(struct sysfs_dirent *sd,
+static int sysfs_get_open_dirent(struct kernfs_node *kn,
 				 struct sysfs_open_file *of)
 {
 	struct sysfs_open_dirent *od, *new_od = NULL;
@@ -495,12 +495,12 @@ static int sysfs_get_open_dirent(struct sysfs_dirent *sd,
 	mutex_lock(&sysfs_open_file_mutex);
 	spin_lock_irq(&sysfs_open_dirent_lock);
 
-	if (!sd->s_attr.open && new_od) {
-		sd->s_attr.open = new_od;
+	if (!kn->s_attr.open && new_od) {
+		kn->s_attr.open = new_od;
 		new_od = NULL;
 	}
 
-	od = sd->s_attr.open;
+	od = kn->s_attr.open;
 	if (od) {
 		atomic_inc(&od->refcnt);
 		list_add_tail(&of->list, &od->files);
@@ -528,19 +528,19 @@ static int sysfs_get_open_dirent(struct sysfs_dirent *sd,
 
 /**
  *	sysfs_put_open_dirent - put sysfs_open_dirent
- *	@sd: target sysfs_dirent
+ *	@kn: target kernfs_nodet
  *	@of: associated sysfs_open_file
  *
- *	Put @sd->s_attr.open and unlink @of from the files list.  If
+ *	Put @kn->s_attr.open and unlink @of from the files list.  If
  *	reference count reaches zero, disassociate and free it.
  *
  *	LOCKING:
  *	None.
  */
-static void sysfs_put_open_dirent(struct sysfs_dirent *sd,
+static void sysfs_put_open_dirent(struct kernfs_node *kn,
 				  struct sysfs_open_file *of)
 {
-	struct sysfs_open_dirent *od = sd->s_attr.open;
+	struct sysfs_open_dirent *od = kn->s_attr.open;
 	unsigned long flags;
 
 	mutex_lock(&sysfs_open_file_mutex);
@@ -550,7 +550,7 @@ static void sysfs_put_open_dirent(struct sysfs_dirent *sd,
 		list_del(&of->list);
 
 	if (atomic_dec_and_test(&od->refcnt))
-		sd->s_attr.open = NULL;
+		kn->s_attr.open = NULL;
 	else
 		od = NULL;
 
@@ -562,16 +562,16 @@ static void sysfs_put_open_dirent(struct sysfs_dirent *sd,
 
 static int kernfs_file_open(struct inode *inode, struct file *file)
 {
-	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
+	struct kernfs_node *kn = file->f_path.dentry->d_fsdata;
 	const struct kernfs_ops *ops;
 	struct sysfs_open_file *of;
 	bool has_read, has_write, has_mmap;
 	int error = -EACCES;
 
-	if (!sysfs_get_active(attr_sd))
+	if (!sysfs_get_active(kn))
 		return -ENODEV;
 
-	ops = kernfs_ops(attr_sd);
+	ops = kernfs_ops(kn);
 
 	has_read = ops->seq_show || ops->read || ops->mmap;
 	has_write = ops->write || ops->mmap;
@@ -612,7 +612,7 @@ static int kernfs_file_open(struct inode *inode, struct file *file)
 	else
 		mutex_init(&of->mutex);
 
-	of->sd = attr_sd;
+	of->kn = kn;
 	of->file = file;
 
 	/*
@@ -634,12 +634,12 @@ static int kernfs_file_open(struct inode *inode, struct file *file)
 		file->f_mode |= FMODE_PWRITE;
 
 	/* make sure we have open dirent struct */
-	error = sysfs_get_open_dirent(attr_sd, of);
+	error = sysfs_get_open_dirent(kn, of);
 	if (error)
 		goto err_close;
 
 	/* open succeeded, put active references */
-	sysfs_put_active(attr_sd);
+	sysfs_put_active(kn);
 	return 0;
 
 err_close:
@@ -647,32 +647,32 @@ err_close:
 err_free:
 	kfree(of);
 err_out:
-	sysfs_put_active(attr_sd);
+	sysfs_put_active(kn);
 	return error;
 }
 
 static int kernfs_file_release(struct inode *inode, struct file *filp)
 {
-	struct sysfs_dirent *sd = filp->f_path.dentry->d_fsdata;
+	struct kernfs_node *kn = filp->f_path.dentry->d_fsdata;
 	struct sysfs_open_file *of = sysfs_of(filp);
 
-	sysfs_put_open_dirent(sd, of);
+	sysfs_put_open_dirent(kn, of);
 	seq_release(inode, filp);
 	kfree(of);
 
 	return 0;
 }
 
-void sysfs_unmap_bin_file(struct sysfs_dirent *sd)
+void sysfs_unmap_bin_file(struct kernfs_node *kn)
 {
 	struct sysfs_open_dirent *od;
 	struct sysfs_open_file *of;
 
-	if (!(sd->s_flags & SYSFS_FLAG_HAS_MMAP))
+	if (!(kn->s_flags & SYSFS_FLAG_HAS_MMAP))
 		return;
 
 	spin_lock_irq(&sysfs_open_dirent_lock);
-	od = sd->s_attr.open;
+	od = kn->s_attr.open;
 	if (od)
 		atomic_inc(&od->refcnt);
 	spin_unlock_irq(&sysfs_open_dirent_lock);
@@ -686,7 +686,7 @@ void sysfs_unmap_bin_file(struct sysfs_dirent *sd)
 	}
 	mutex_unlock(&sysfs_open_file_mutex);
 
-	sysfs_put_open_dirent(sd, NULL);
+	sysfs_put_open_dirent(kn, NULL);
 }
 
 /* Sysfs attribute files are pollable.  The idea is that you read
@@ -705,16 +705,16 @@ void sysfs_unmap_bin_file(struct sysfs_dirent *sd)
 static unsigned int kernfs_file_poll(struct file *filp, poll_table *wait)
 {
 	struct sysfs_open_file *of = sysfs_of(filp);
-	struct sysfs_dirent *attr_sd = filp->f_path.dentry->d_fsdata;
-	struct sysfs_open_dirent *od = attr_sd->s_attr.open;
+	struct kernfs_node *kn = filp->f_path.dentry->d_fsdata;
+	struct sysfs_open_dirent *od = kn->s_attr.open;
 
 	/* need parent for the kobj, grab both */
-	if (!sysfs_get_active(attr_sd))
+	if (!sysfs_get_active(kn))
 		goto trigger;
 
 	poll_wait(filp, &od->poll, wait);
 
-	sysfs_put_active(attr_sd);
+	sysfs_put_active(kn);
 
 	if (of->event != atomic_read(&od->event))
 		goto trigger;
@@ -727,19 +727,19 @@ static unsigned int kernfs_file_poll(struct file *filp, poll_table *wait)
 
 /**
  * kernfs_notify - notify a kernfs file
- * @sd: file to notify
+ * @kn: file to notify
  *
- * Notify @sd such that poll(2) on @sd wakes up.
+ * Notify @kn such that poll(2) on @kn wakes up.
  */
-void kernfs_notify(struct sysfs_dirent *sd)
+void kernfs_notify(struct kernfs_node *kn)
 {
 	struct sysfs_open_dirent *od;
 	unsigned long flags;
 
 	spin_lock_irqsave(&sysfs_open_dirent_lock, flags);
 
-	if (!WARN_ON(sysfs_type(sd) != SYSFS_KOBJ_ATTR)) {
-		od = sd->s_attr.open;
+	if (!WARN_ON(sysfs_type(kn) != SYSFS_KOBJ_ATTR)) {
+		od = kn->s_attr.open;
 		if (od) {
 			atomic_inc(&od->event);
 			wake_up_interruptible(&od->poll);
@@ -773,51 +773,51 @@ const struct file_operations kernfs_file_operations = {
  *
  * Returns the created node on success, ERR_PTR() value on error.
  */
-struct sysfs_dirent *kernfs_create_file_ns_key(struct sysfs_dirent *parent,
-					       const char *name,
-					       umode_t mode, loff_t size,
-					       const struct kernfs_ops *ops,
-					       void *priv, const void *ns,
-					       struct lock_class_key *key)
+struct kernfs_node *kernfs_create_file_ns_key(struct kernfs_node *parent,
+					      const char *name,
+					      umode_t mode, loff_t size,
+					      const struct kernfs_ops *ops,
+					      void *priv, const void *ns,
+					      struct lock_class_key *key)
 {
 	struct sysfs_addrm_cxt acxt;
-	struct sysfs_dirent *sd;
+	struct kernfs_node *kn;
 	int rc;
 
-	sd = sysfs_new_dirent(kernfs_root(parent), name,
+	kn = sysfs_new_dirent(kernfs_root(parent), name,
 			      (mode & S_IALLUGO) | S_IFREG, SYSFS_KOBJ_ATTR);
-	if (!sd)
+	if (!kn)
 		return ERR_PTR(-ENOMEM);
 
-	sd->s_attr.ops = ops;
-	sd->s_attr.size = size;
-	sd->s_ns = ns;
-	sd->priv = priv;
+	kn->s_attr.ops = ops;
+	kn->s_attr.size = size;
+	kn->s_ns = ns;
+	kn->priv = priv;
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	if (key) {
-		lockdep_init_map(&sd->dep_map, "s_active", key, 0);
-		sd->s_flags |= SYSFS_FLAG_LOCKDEP;
+		lockdep_init_map(&kn->dep_map, "s_active", key, 0);
+		kn->s_flags |= SYSFS_FLAG_LOCKDEP;
 	}
 #endif
 
 	/*
-	 * sd->s_attr.ops is accesible only while holding active ref.  We
+	 * kn->s_attr.ops is accesible only while holding active ref.  We
 	 * need to know whether some ops are implemented outside active
 	 * ref.  Cache their existence in flags.
 	 */
 	if (ops->seq_show)
-		sd->s_flags |= SYSFS_FLAG_HAS_SEQ_SHOW;
+		kn->s_flags |= SYSFS_FLAG_HAS_SEQ_SHOW;
 	if (ops->mmap)
-		sd->s_flags |= SYSFS_FLAG_HAS_MMAP;
+		kn->s_flags |= SYSFS_FLAG_HAS_MMAP;
 
 	sysfs_addrm_start(&acxt);
-	rc = sysfs_add_one(&acxt, sd, parent);
+	rc = sysfs_add_one(&acxt, kn, parent);
 	sysfs_addrm_finish(&acxt);
 
 	if (rc) {
-		kernfs_put(sd);
+		kernfs_put(kn);
 		return ERR_PTR(rc);
 	}
-	return sd;
+	return kn;
 }

@@ -20,7 +20,7 @@
 #include "sysfs.h"
 
 static struct kernfs_root *sysfs_root;
-struct sysfs_dirent *sysfs_root_sd;
+struct kernfs_node *sysfs_root_kn;
 
 static struct dentry *sysfs_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
@@ -66,7 +66,7 @@ int __init sysfs_init(void)
 	if (IS_ERR(sysfs_root))
 		return PTR_ERR(sysfs_root);
 
-	sysfs_root_sd = sysfs_root->sd;
+	sysfs_root_kn = sysfs_root->kn;
 
 	err = register_filesystem(&sysfs_fs_type);
 	if (err) {

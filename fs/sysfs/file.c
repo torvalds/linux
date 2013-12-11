@@ -22,15 +22,15 @@
 #include "../kernfs/kernfs-internal.h"
 
 /*
- * Determine ktype->sysfs_ops for the given sysfs_dirent.  This function
+ * Determine ktype->sysfs_ops for the given kernfs_node.  This function
  * must be called while holding an active reference.
  */
-static const struct sysfs_ops *sysfs_file_ops(struct sysfs_dirent *sd)
+static const struct sysfs_ops *sysfs_file_ops(struct kernfs_node *kn)
 {
-	struct kobject *kobj = sd->s_parent->priv;
+	struct kobject *kobj = kn->s_parent->priv;
 
-	if (sd->s_flags & SYSFS_FLAG_LOCKDEP)
-		lockdep_assert_held(sd);
+	if (kn->s_flags & SYSFS_FLAG_LOCKDEP)
+		lockdep_assert_held(kn);
 	return kobj->ktype ? kobj->ktype->sysfs_ops : NULL;
 }
 
@@ -42,8 +42,8 @@ static const struct sysfs_ops *sysfs_file_ops(struct sysfs_dirent *sd)
 static int sysfs_kf_seq_show(struct seq_file *sf, void *v)
 {
 	struct sysfs_open_file *of = sf->private;
-	struct kobject *kobj = of->sd->s_parent->priv;
-	const struct sysfs_ops *ops = sysfs_file_ops(of->sd);
+	struct kobject *kobj = of->kn->s_parent->priv;
+	const struct sysfs_ops *ops = sysfs_file_ops(of->kn);
 	ssize_t count;
 	char *buf;
 
@@ -59,7 +59,7 @@ static int sysfs_kf_seq_show(struct seq_file *sf, void *v)
 	 * if @ops->show() isn't implemented.
 	 */
 	if (ops->show) {
-		count = ops->show(kobj, of->sd->priv, buf);
+		count = ops->show(kobj, of->kn->priv, buf);
 		if (count < 0)
 			return count;
 	}
@@ -81,8 +81,8 @@ static int sysfs_kf_seq_show(struct seq_file *sf, void *v)
 static ssize_t sysfs_kf_bin_read(struct sysfs_open_file *of, char *buf,
 				 size_t count, loff_t pos)
 {
-	struct bin_attribute *battr = of->sd->priv;
-	struct kobject *kobj = of->sd->s_parent->priv;
+	struct bin_attribute *battr = of->kn->priv;
+	struct kobject *kobj = of->kn->s_parent->priv;
 	loff_t size = file_inode(of->file)->i_size;
 
 	if (!count)
@@ -105,21 +105,21 @@ static ssize_t sysfs_kf_bin_read(struct sysfs_open_file *of, char *buf,
 static ssize_t sysfs_kf_write(struct sysfs_open_file *of, char *buf,
 			      size_t count, loff_t pos)
 {
-	const struct sysfs_ops *ops = sysfs_file_ops(of->sd);
-	struct kobject *kobj = of->sd->s_parent->priv;
+	const struct sysfs_ops *ops = sysfs_file_ops(of->kn);
+	struct kobject *kobj = of->kn->s_parent->priv;
 
 	if (!count)
 		return 0;
 
-	return ops->store(kobj, of->sd->priv, buf, count);
+	return ops->store(kobj, of->kn->priv, buf, count);
 }
 
 /* kernfs write callback for bin sysfs files */
 static ssize_t sysfs_kf_bin_write(struct sysfs_open_file *of, char *buf,
 				  size_t count, loff_t pos)
 {
-	struct bin_attribute *battr = of->sd->priv;
-	struct kobject *kobj = of->sd->s_parent->priv;
+	struct bin_attribute *battr = of->kn->priv;
+	struct kobject *kobj = of->kn->s_parent->priv;
 	loff_t size = file_inode(of->file)->i_size;
 
 	if (size) {
@@ -139,30 +139,30 @@ static ssize_t sysfs_kf_bin_write(struct sysfs_open_file *of, char *buf,
 static int sysfs_kf_bin_mmap(struct sysfs_open_file *of,
 			     struct vm_area_struct *vma)
 {
-	struct bin_attribute *battr = of->sd->priv;
-	struct kobject *kobj = of->sd->s_parent->priv;
+	struct bin_attribute *battr = of->kn->priv;
+	struct kobject *kobj = of->kn->s_parent->priv;
 
 	return battr->mmap(of->file, kobj, battr, vma);
 }
 
-void sysfs_notify(struct kobject *k, const char *dir, const char *attr)
+void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr)
 {
-	struct sysfs_dirent *sd = k->sd, *tmp;
+	struct kernfs_node *kn = kobj->sd, *tmp;
 
-	if (sd && dir)
-		sd = kernfs_find_and_get(sd, dir);
+	if (kn && dir)
+		kn = kernfs_find_and_get(kn, dir);
 	else
-		kernfs_get(sd);
+		kernfs_get(kn);
 
-	if (sd && attr) {
-		tmp = kernfs_find_and_get(sd, attr);
-		kernfs_put(sd);
-		sd = tmp;
+	if (kn && attr) {
+		tmp = kernfs_find_and_get(kn, attr);
+		kernfs_put(kn);
+		kn = tmp;
 	}
 
-	if (sd) {
-		kernfs_notify(sd);
-		kernfs_put(sd);
+	if (kn) {
+		kernfs_notify(kn);
+		kernfs_put(kn);
 	}
 }
 EXPORT_SYMBOL_GPL(sysfs_notify);
@@ -202,17 +202,17 @@ static const struct kernfs_ops sysfs_bin_kfops_mmap = {
 	.mmap		= sysfs_kf_bin_mmap,
 };
 
-int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
+int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 			   const struct attribute *attr, bool is_bin,
 			   umode_t mode, const void *ns)
 {
 	struct lock_class_key *key = NULL;
 	const struct kernfs_ops *ops;
-	struct sysfs_dirent *sd;
+	struct kernfs_node *kn;
 	loff_t size;
 
 	if (!is_bin) {
-		struct kobject *kobj = dir_sd->priv;
+		struct kobject *kobj = parent->priv;
 		const struct sysfs_ops *sysfs_ops = kobj->ktype->sysfs_ops;
 
 		/* every kobject with an attribute needs a ktype assigned */
@@ -252,20 +252,20 @@ int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
 	if (!attr->ignore_lockdep)
 		key = attr->key ?: (struct lock_class_key *)&attr->skey;
 #endif
-	sd = kernfs_create_file_ns_key(dir_sd, attr->name, mode, size,
+	kn = kernfs_create_file_ns_key(parent, attr->name, mode, size,
 				       ops, (void *)attr, ns, key);
-	if (IS_ERR(sd)) {
-		if (PTR_ERR(sd) == -EEXIST)
-			sysfs_warn_dup(dir_sd, attr->name);
-		return PTR_ERR(sd);
+	if (IS_ERR(kn)) {
+		if (PTR_ERR(kn) == -EEXIST)
+			sysfs_warn_dup(parent, attr->name);
+		return PTR_ERR(kn);
 	}
 	return 0;
 }
 
-int sysfs_add_file(struct sysfs_dirent *dir_sd, const struct attribute *attr,
+int sysfs_add_file(struct kernfs_node *parent, const struct attribute *attr,
 		   bool is_bin)
 {
-	return sysfs_add_file_mode_ns(dir_sd, attr, is_bin, attr->mode, NULL);
+	return sysfs_add_file_mode_ns(parent, attr, is_bin, attr->mode, NULL);
 }
 
 /**
@@ -307,21 +307,21 @@ EXPORT_SYMBOL_GPL(sysfs_create_files);
 int sysfs_add_file_to_group(struct kobject *kobj,
 		const struct attribute *attr, const char *group)
 {
-	struct sysfs_dirent *dir_sd;
+	struct kernfs_node *parent;
 	int error;
 
 	if (group) {
-		dir_sd = kernfs_find_and_get(kobj->sd, group);
+		parent = kernfs_find_and_get(kobj->sd, group);
 	} else {
-		dir_sd = kobj->sd;
-		kernfs_get(dir_sd);
+		parent = kobj->sd;
+		kernfs_get(parent);
 	}
 
-	if (!dir_sd)
+	if (!parent)
 		return -ENOENT;
 
-	error = sysfs_add_file(dir_sd, attr, false);
-	kernfs_put(dir_sd);
+	error = sysfs_add_file(parent, attr, false);
+	kernfs_put(parent);
 
 	return error;
 }
@@ -337,20 +337,20 @@ EXPORT_SYMBOL_GPL(sysfs_add_file_to_group);
 int sysfs_chmod_file(struct kobject *kobj, const struct attribute *attr,
 		     umode_t mode)
 {
-	struct sysfs_dirent *sd;
+	struct kernfs_node *kn;
 	struct iattr newattrs;
 	int rc;
 
-	sd = kernfs_find_and_get(kobj->sd, attr->name);
-	if (!sd)
+	kn = kernfs_find_and_get(kobj->sd, attr->name);
+	if (!kn)
 		return -ENOENT;
 
-	newattrs.ia_mode = (mode & S_IALLUGO) | (sd->s_mode & ~S_IALLUGO);
+	newattrs.ia_mode = (mode & S_IALLUGO) | (kn->s_mode & ~S_IALLUGO);
 	newattrs.ia_valid = ATTR_MODE;
 
-	rc = kernfs_setattr(sd, &newattrs);
+	rc = kernfs_setattr(kn, &newattrs);
 
-	kernfs_put(sd);
+	kernfs_put(kn);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(sysfs_chmod_file);
@@ -366,9 +366,9 @@ EXPORT_SYMBOL_GPL(sysfs_chmod_file);
 void sysfs_remove_file_ns(struct kobject *kobj, const struct attribute *attr,
 			  const void *ns)
 {
-	struct sysfs_dirent *dir_sd = kobj->sd;
+	struct kernfs_node *parent = kobj->sd;
 
-	kernfs_remove_by_name_ns(dir_sd, attr->name, ns);
+	kernfs_remove_by_name_ns(parent, attr->name, ns);
 }
 EXPORT_SYMBOL_GPL(sysfs_remove_file_ns);
 
@@ -389,18 +389,18 @@ EXPORT_SYMBOL_GPL(sysfs_remove_files);
 void sysfs_remove_file_from_group(struct kobject *kobj,
 		const struct attribute *attr, const char *group)
 {
-	struct sysfs_dirent *dir_sd;
+	struct kernfs_node *parent;
 
 	if (group) {
-		dir_sd = kernfs_find_and_get(kobj->sd, group);
+		parent = kernfs_find_and_get(kobj->sd, group);
 	} else {
-		dir_sd = kobj->sd;
-		kernfs_get(dir_sd);
+		parent = kobj->sd;
+		kernfs_get(parent);
 	}
 
-	if (dir_sd) {
-		kernfs_remove_by_name(dir_sd, attr->name);
-		kernfs_put(dir_sd);
+	if (parent) {
+		kernfs_remove_by_name(parent, attr->name);
+		kernfs_put(parent);
 	}
 }
 EXPORT_SYMBOL_GPL(sysfs_remove_file_from_group);

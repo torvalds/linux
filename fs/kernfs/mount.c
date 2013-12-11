@@ -39,7 +39,7 @@ static int sysfs_fill_super(struct super_block *sb)
 
 	/* get root inode, initialize and unlock it */
 	mutex_lock(&sysfs_mutex);
-	inode = sysfs_get_inode(sb, info->root->sd);
+	inode = sysfs_get_inode(sb, info->root->kn);
 	mutex_unlock(&sysfs_mutex);
 	if (!inode) {
 		pr_debug("sysfs: could not get root inode\n");
@@ -52,8 +52,8 @@ static int sysfs_fill_super(struct super_block *sb)
 		pr_debug("%s: could not get root dentry!\n", __func__);
 		return -ENOMEM;
 	}
-	kernfs_get(info->root->sd);
-	root->d_fsdata = info->root->sd;
+	kernfs_get(info->root->kn);
+	root->d_fsdata = info->root->kn;
 	sb->s_root = root;
 	sb->s_d_op = &sysfs_dentry_ops;
 	return 0;
@@ -145,7 +145,7 @@ struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
 void kernfs_kill_sb(struct super_block *sb)
 {
 	struct sysfs_super_info *info = sysfs_info(sb);
-	struct sysfs_dirent *root_sd = sb->s_root->d_fsdata;
+	struct kernfs_node *root_kn = sb->s_root->d_fsdata;
 
 	/*
 	 * Remove the superblock from fs_supers/s_instances
@@ -153,13 +153,13 @@ void kernfs_kill_sb(struct super_block *sb)
 	 */
 	kill_anon_super(sb);
 	kfree(info);
-	kernfs_put(root_sd);
+	kernfs_put(root_kn);
 }
 
 void __init kernfs_init(void)
 {
 	sysfs_dir_cachep = kmem_cache_create("sysfs_dir_cache",
-					      sizeof(struct sysfs_dirent),
+					      sizeof(struct kernfs_node),
 					      0, SLAB_PANIC, NULL);
 	sysfs_inode_init();
 }

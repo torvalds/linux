@@ -18,66 +18,66 @@
 
 #include "sysfs.h"
 
-static int sysfs_do_create_link_sd(struct sysfs_dirent *parent_sd,
-				   struct kobject *target,
+static int sysfs_do_create_link_sd(struct kernfs_node *parent,
+				   struct kobject *target_kobj,
 				   const char *name, int warn)
 {
-	struct sysfs_dirent *sd, *target_sd = NULL;
+	struct kernfs_node *kn, *target = NULL;
 
-	BUG_ON(!name || !parent_sd);
+	BUG_ON(!name || !parent);
 
 	/*
-	 * We don't own @target and it may be removed at any time.
+	 * We don't own @target_kobj and it may be removed at any time.
 	 * Synchronize using sysfs_symlink_target_lock.  See
 	 * sysfs_remove_dir() for details.
 	 */
 	spin_lock(&sysfs_symlink_target_lock);
-	if (target->sd) {
-		target_sd = target->sd;
-		kernfs_get(target_sd);
+	if (target_kobj->sd) {
+		target = target_kobj->sd;
+		kernfs_get(target);
 	}
 	spin_unlock(&sysfs_symlink_target_lock);
 
-	if (!target_sd)
+	if (!target)
 		return -ENOENT;
 
-	sd = kernfs_create_link(parent_sd, name, target_sd);
-	kernfs_put(target_sd);
+	kn = kernfs_create_link(parent, name, target);
+	kernfs_put(target);
 
-	if (!IS_ERR(sd))
+	if (!IS_ERR(kn))
 		return 0;
 
-	if (warn && PTR_ERR(sd) == -EEXIST)
-		sysfs_warn_dup(parent_sd, name);
-	return PTR_ERR(sd);
+	if (warn && PTR_ERR(kn) == -EEXIST)
+		sysfs_warn_dup(parent, name);
+	return PTR_ERR(kn);
 }
 
 /**
  *	sysfs_create_link_sd - create symlink to a given object.
- *	@sd:		directory we're creating the link in.
+ *	@kn:		directory we're creating the link in.
  *	@target:	object we're pointing to.
  *	@name:		name of the symlink.
  */
-int sysfs_create_link_sd(struct sysfs_dirent *sd, struct kobject *target,
+int sysfs_create_link_sd(struct kernfs_node *kn, struct kobject *target,
 			 const char *name)
 {
-	return sysfs_do_create_link_sd(sd, target, name, 1);
+	return sysfs_do_create_link_sd(kn, target, name, 1);
 }
 
 static int sysfs_do_create_link(struct kobject *kobj, struct kobject *target,
 				const char *name, int warn)
 {
-	struct sysfs_dirent *parent_sd = NULL;
+	struct kernfs_node *parent = NULL;
 
 	if (!kobj)
-		parent_sd = sysfs_root_sd;
+		parent = sysfs_root_kn;
 	else
-		parent_sd = kobj->sd;
+		parent = kobj->sd;
 
-	if (!parent_sd)
+	if (!parent)
 		return -EFAULT;
 
-	return sysfs_do_create_link_sd(parent_sd, target, name, warn);
+	return sysfs_do_create_link_sd(parent, target, name, warn);
 }
 
 /**
@@ -141,14 +141,14 @@ void sysfs_delete_link(struct kobject *kobj, struct kobject *targ,
  */
 void sysfs_remove_link(struct kobject *kobj, const char *name)
 {
-	struct sysfs_dirent *parent_sd = NULL;
+	struct kernfs_node *parent = NULL;
 
 	if (!kobj)
-		parent_sd = sysfs_root_sd;
+		parent = sysfs_root_kn;
 	else
-		parent_sd = kobj->sd;
+		parent = kobj->sd;
 
-	kernfs_remove_by_name(parent_sd, name);
+	kernfs_remove_by_name(parent, name);
 }
 EXPORT_SYMBOL_GPL(sysfs_remove_link);
 
@@ -165,33 +165,33 @@ EXPORT_SYMBOL_GPL(sysfs_remove_link);
 int sysfs_rename_link_ns(struct kobject *kobj, struct kobject *targ,
 			 const char *old, const char *new, const void *new_ns)
 {
-	struct sysfs_dirent *parent_sd, *sd = NULL;
+	struct kernfs_node *parent, *kn = NULL;
 	const void *old_ns = NULL;
 	int result;
 
 	if (!kobj)
-		parent_sd = sysfs_root_sd;
+		parent = sysfs_root_kn;
 	else
-		parent_sd = kobj->sd;
+		parent = kobj->sd;
 
 	if (targ->sd)
 		old_ns = targ->sd->s_ns;
 
 	result = -ENOENT;
-	sd = kernfs_find_and_get_ns(parent_sd, old, old_ns);
-	if (!sd)
+	kn = kernfs_find_and_get_ns(parent, old, old_ns);
+	if (!kn)
 		goto out;
 
 	result = -EINVAL;
-	if (sysfs_type(sd) != SYSFS_KOBJ_LINK)
+	if (sysfs_type(kn) != SYSFS_KOBJ_LINK)
 		goto out;
-	if (sd->s_symlink.target_sd->priv != targ)
+	if (kn->s_symlink.target_kn->priv != targ)
 		goto out;
 
-	result = kernfs_rename_ns(sd, parent_sd, new, new_ns);
+	result = kernfs_rename_ns(kn, parent, new, new_ns);
 
 out:
-	kernfs_put(sd);
+	kernfs_put(kn);
 	return result;
 }
 EXPORT_SYMBOL_GPL(sysfs_rename_link_ns);

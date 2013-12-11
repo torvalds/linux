@@ -438,26 +438,26 @@ static inline int sysfs_rename_link(struct kobject *kobj, struct kobject *target
 	return sysfs_rename_link_ns(kobj, target, old_name, new_name, NULL);
 }
 
-static inline void sysfs_notify_dirent(struct sysfs_dirent *sd)
+static inline void sysfs_notify_dirent(struct kernfs_node *kn)
 {
-	kernfs_notify(sd);
+	kernfs_notify(kn);
 }
 
-static inline struct sysfs_dirent *
-sysfs_get_dirent(struct sysfs_dirent *parent_sd, const unsigned char *name)
+static inline struct kernfs_node *sysfs_get_dirent(struct kernfs_node *parent,
+						   const unsigned char *name)
 {
-	return kernfs_find_and_get(parent_sd, name);
+	return kernfs_find_and_get(parent, name);
 }
 
-static inline struct sysfs_dirent *sysfs_get(struct sysfs_dirent *sd)
+static inline struct kernfs_node *sysfs_get(struct kernfs_node *kn)
 {
-	kernfs_get(sd);
-	return sd;
+	kernfs_get(kn);
+	return kn;
 }
 
-static inline void sysfs_put(struct sysfs_dirent *sd)
+static inline void sysfs_put(struct kernfs_node *kn)
 {
-	kernfs_put(sd);
+	kernfs_put(kn);
 }
 
 #endif /* _SYSFS_H_ */

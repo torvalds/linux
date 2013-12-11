@@ -46,61 +46,61 @@ enum kernfs_node_flag {
 	SYSFS_FLAG_LOCKDEP	= 0x0100,
 };
 
-/* type-specific structures for sysfs_dirent->s_* union members */
-struct sysfs_elem_dir {
+/* type-specific structures for kernfs_node union members */
+struct kernfs_elem_dir {
 	unsigned long		subdirs;
-	/* children rbtree starts here and goes through sd->s_rb */
+	/* children rbtree starts here and goes through kn->s_rb */
 	struct rb_root		children;
 
 	/*
 	 * The kernfs hierarchy this directory belongs to.  This fits
-	 * better directly in sysfs_dirent but is here to save space.
+	 * better directly in kernfs_node but is here to save space.
 	 */
 	struct kernfs_root	*root;
 };
 
-struct sysfs_elem_symlink {
-	struct sysfs_dirent	*target_sd;
+struct kernfs_elem_symlink {
+	struct kernfs_node	*target_kn;
 };
 
-struct sysfs_elem_attr {
+struct kernfs_elem_attr {
 	const struct kernfs_ops	*ops;
 	struct sysfs_open_dirent *open;
 	loff_t			size;
 };
 
 /*
- * sysfs_dirent - the building block of sysfs hierarchy.  Each and every
- * sysfs node is represented by single sysfs_dirent.  Most fields are
+ * kernfs_node - the building block of kernfs hierarchy.  Each and every
+ * kernfs node is represented by single kernfs_node.  Most fields are
  * private to kernfs and shouldn't be accessed directly by kernfs users.
  *
- * As long as s_count reference is held, the sysfs_dirent itself is
- * accessible.  Dereferencing s_elem or any other outer entity
- * requires s_active reference.
+ * As long as s_count reference is held, the kernfs_node itself is
+ * accessible.  Dereferencing elem or any other outer entity requires
+ * active reference.
  */
-struct sysfs_dirent {
+struct kernfs_node {
 	atomic_t		s_count;
 	atomic_t		s_active;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
 #endif
 	/* the following two fields are published */
-	struct sysfs_dirent	*s_parent;
+	struct kernfs_node	*s_parent;
 	const char		*s_name;
 
 	struct rb_node		s_rb;
 
 	union {
 		struct completion	*completion;
-		struct sysfs_dirent	*removed_list;
+		struct kernfs_node	*removed_list;
 	} u;
 
 	const void		*s_ns; /* namespace tag */
 	unsigned int		s_hash; /* ns + name hash */
 	union {
-		struct sysfs_elem_dir		s_dir;
-		struct sysfs_elem_symlink	s_symlink;
-		struct sysfs_elem_attr		s_attr;
+		struct kernfs_elem_dir		s_dir;
+		struct kernfs_elem_symlink	s_symlink;
+		struct kernfs_elem_attr		s_attr;
 	};
 
 	void			*priv;
@@ -113,7 +113,7 @@ struct sysfs_dirent {
 
 struct kernfs_root {
 	/* published fields */
-	struct sysfs_dirent	*sd;
+	struct kernfs_node	*kn;
 
 	/* private fields, do not use outside kernfs proper */
 	struct ida		ino_ida;
@@ -121,7 +121,7 @@ struct kernfs_root {
 
 struct sysfs_open_file {
 	/* published fields */
-	struct sysfs_dirent	*sd;
+	struct kernfs_node	*kn;
 	struct file		*file;
 
 	/* private fields, do not use outside kernfs proper */
@@ -170,64 +170,64 @@ struct kernfs_ops {
 
 #ifdef CONFIG_SYSFS
 
-static inline enum kernfs_node_type sysfs_type(struct sysfs_dirent *sd)
+static inline enum kernfs_node_type sysfs_type(struct kernfs_node *kn)
 {
-	return sd->s_flags & SYSFS_TYPE_MASK;
+	return kn->s_flags & SYSFS_TYPE_MASK;
 }
 
 /**
  * kernfs_enable_ns - enable namespace under a directory
- * @sd: directory of interest, should be empty
+ * @kn: directory of interest, should be empty
  *
- * This is to be called right after @sd is created to enable namespace
- * under it.  All children of @sd must have non-NULL namespace tags and
+ * This is to be called right after @kn is created to enable namespace
+ * under it.  All children of @kn must have non-NULL namespace tags and
  * only the ones which match the super_block's tag will be visible.
  */
-static inline void kernfs_enable_ns(struct sysfs_dirent *sd)
+static inline void kernfs_enable_ns(struct kernfs_node *kn)
 {
-	WARN_ON_ONCE(sysfs_type(sd) != SYSFS_DIR);
-	WARN_ON_ONCE(!RB_EMPTY_ROOT(&sd->s_dir.children));
-	sd->s_flags |= SYSFS_FLAG_NS;
+	WARN_ON_ONCE(sysfs_type(kn) != SYSFS_DIR);
+	WARN_ON_ONCE(!RB_EMPTY_ROOT(&kn->s_dir.children));
+	kn->s_flags |= SYSFS_FLAG_NS;
 }
 
 /**
  * kernfs_ns_enabled - test whether namespace is enabled
- * @sd: the node to test
+ * @kn: the node to test
  *
  * Test whether namespace filtering is enabled for the children of @ns.
  */
-static inline bool kernfs_ns_enabled(struct sysfs_dirent *sd)
+static inline bool kernfs_ns_enabled(struct kernfs_node *kn)
 {
-	return sd->s_flags & SYSFS_FLAG_NS;
+	return kn->s_flags & SYSFS_FLAG_NS;
 }
 
-struct sysfs_dirent *kernfs_find_and_get_ns(struct sysfs_dirent *parent,
-					    const char *name, const void *ns);
-void kernfs_get(struct sysfs_dirent *sd);
-void kernfs_put(struct sysfs_dirent *sd);
+struct kernfs_node *kernfs_find_and_get_ns(struct kernfs_node *parent,
+					   const char *name, const void *ns);
+void kernfs_get(struct kernfs_node *kn);
+void kernfs_put(struct kernfs_node *kn);
 
 struct kernfs_root *kernfs_create_root(void *priv);
 void kernfs_destroy_root(struct kernfs_root *root);
 
-struct sysfs_dirent *kernfs_create_dir_ns(struct sysfs_dirent *parent,
-					  const char *name, void *priv,
-					  const void *ns);
-struct sysfs_dirent *kernfs_create_file_ns_key(struct sysfs_dirent *parent,
-					       const char *name,
-					       umode_t mode, loff_t size,
-					       const struct kernfs_ops *ops,
-					       void *priv, const void *ns,
-					       struct lock_class_key *key);
-struct sysfs_dirent *kernfs_create_link(struct sysfs_dirent *parent,
-					const char *name,
-					struct sysfs_dirent *target);
-void kernfs_remove(struct sysfs_dirent *sd);
-int kernfs_remove_by_name_ns(struct sysfs_dirent *parent, const char *name,
+struct kernfs_node *kernfs_create_dir_ns(struct kernfs_node *parent,
+					 const char *name, void *priv,
+					 const void *ns);
+struct kernfs_node *kernfs_create_file_ns_key(struct kernfs_node *parent,
+					      const char *name,
+					      umode_t mode, loff_t size,
+					      const struct kernfs_ops *ops,
+					      void *priv, const void *ns,
+					      struct lock_class_key *key);
+struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
+				       const char *name,
+				       struct kernfs_node *target);
+void kernfs_remove(struct kernfs_node *kn);
+int kernfs_remove_by_name_ns(struct kernfs_node *parent, const char *name,
 			     const void *ns);
-int kernfs_rename_ns(struct sysfs_dirent *sd, struct sysfs_dirent *new_parent,
+int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 		     const char *new_name, const void *new_ns);
-int kernfs_setattr(struct sysfs_dirent *sd, const struct iattr *iattr);
-void kernfs_notify(struct sysfs_dirent *sd);
+int kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr);
+void kernfs_notify(struct kernfs_node *kn);
 
 const void *kernfs_super_ns(struct super_block *sb);
 struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
@@ -238,60 +238,60 @@ void kernfs_init(void);
 
 #else	/* CONFIG_SYSFS */
 
-static inline enum kernfs_node_type sysfs_type(struct sysfs_dirent *sd)
+static inline enum kernfs_node_type sysfs_type(struct kernfs_node *kn)
 { return 0; }	/* whatever */
 
-static inline void kernfs_enable_ns(struct sysfs_dirent *sd) { }
+static inline void kernfs_enable_ns(struct kernfs_node *kn) { }
 
-static inline bool kernfs_ns_enabled(struct sysfs_dirent *sd)
+static inline bool kernfs_ns_enabled(struct kernfs_node *kn)
 { return false; }
 
-static inline struct sysfs_dirent *
-kernfs_find_and_get_ns(struct sysfs_dirent *parent, const char *name,
+static inline struct kernfs_node *
+kernfs_find_and_get_ns(struct kernfs_node *parent, const char *name,
 		       const void *ns)
 { return NULL; }
 
-static inline void kernfs_get(struct sysfs_dirent *sd) { }
-static inline void kernfs_put(struct sysfs_dirent *sd) { }
+static inline void kernfs_get(struct kernfs_node *kn) { }
+static inline void kernfs_put(struct kernfs_node *kn) { }
 
 static inline struct kernfs_root *kernfs_create_root(void *priv)
 { return ERR_PTR(-ENOSYS); }
 
 static inline void kernfs_destroy_root(struct kernfs_root *root) { }
 
-static inline struct sysfs_dirent *
-kernfs_create_dir_ns(struct sysfs_dirent *parent, const char *name, void *priv,
+static inline struct kernfs_node *
+kernfs_create_dir_ns(struct kernfs_node *parent, const char *name, void *priv,
 		     const void *ns)
 { return ERR_PTR(-ENOSYS); }
 
-static inline struct sysfs_dirent *
-kernfs_create_file_ns_key(struct sysfs_dirent *parent, const char *name,
+static inline struct kernfs_node *
+kernfs_create_file_ns_key(struct kernfs_node *parent, const char *name,
 			  umode_t mode, loff_t size,
 			  const struct kernfs_ops *ops, void *priv,
 			  const void *ns, struct lock_class_key *key)
 { return ERR_PTR(-ENOSYS); }
 
-static inline struct sysfs_dirent *
-kernfs_create_link(struct sysfs_dirent *parent, const char *name,
-		   struct sysfs_dirent *target)
+static inline struct kernfs_node *
+kernfs_create_link(struct kernfs_node *parent, const char *name,
+		   struct kernfs_node *target)
 { return ERR_PTR(-ENOSYS); }
 
-static inline void kernfs_remove(struct sysfs_dirent *sd) { }
+static inline void kernfs_remove(struct kernfs_node *kn) { }
 
-static inline int kernfs_remove_by_name_ns(struct sysfs_dirent *parent,
+static inline int kernfs_remove_by_name_ns(struct kernfs_node *kn,
 					   const char *name, const void *ns)
 { return -ENOSYS; }
 
-static inline int kernfs_rename_ns(struct sysfs_dirent *sd,
-				   struct sysfs_dirent *new_parent,
+static inline int kernfs_rename_ns(struct kernfs_node *kn,
+				   struct kernfs_node *new_parent,
 				   const char *new_name, const void *new_ns)
 { return -ENOSYS; }
 
-static inline int kernfs_setattr(struct sysfs_dirent *sd,
+static inline int kernfs_setattr(struct kernfs_node *kn,
 				 const struct iattr *iattr)
 { return -ENOSYS; }
 
-static inline void kernfs_notify(struct sysfs_dirent *sd) { }
+static inline void kernfs_notify(struct kernfs_node *kn) { }
 
 static inline const void *kernfs_super_ns(struct super_block *sb)
 { return NULL; }
@@ -307,20 +307,20 @@ static inline void kernfs_init(void) { }
 
 #endif	/* CONFIG_SYSFS */
 
-static inline struct sysfs_dirent *
-kernfs_find_and_get(struct sysfs_dirent *sd, const char *name)
+static inline struct kernfs_node *
+kernfs_find_and_get(struct kernfs_node *kn, const char *name)
 {
-	return kernfs_find_and_get_ns(sd, name, NULL);
+	return kernfs_find_and_get_ns(kn, name, NULL);
 }
 
-static inline struct sysfs_dirent *
-kernfs_create_dir(struct sysfs_dirent *parent, const char *name, void *priv)
+static inline struct kernfs_node *
+kernfs_create_dir(struct kernfs_node *parent, const char *name, void *priv)
 {
 	return kernfs_create_dir_ns(parent, name, priv, NULL);
 }
 
-static inline struct sysfs_dirent *
-kernfs_create_file_ns(struct sysfs_dirent *parent, const char *name,
+static inline struct kernfs_node *
+kernfs_create_file_ns(struct kernfs_node *parent, const char *name,
 		      umode_t mode, loff_t size, const struct kernfs_ops *ops,
 		      void *priv, const void *ns)
 {
@@ -333,14 +333,14 @@ kernfs_create_file_ns(struct sysfs_dirent *parent, const char *name,
 					 ns, key);
 }
 
-static inline struct sysfs_dirent *
-kernfs_create_file(struct sysfs_dirent *parent, const char *name, umode_t mode,
+static inline struct kernfs_node *
+kernfs_create_file(struct kernfs_node *parent, const char *name, umode_t mode,
 		   loff_t size, const struct kernfs_ops *ops, void *priv)
 {
 	return kernfs_create_file_ns(parent, name, mode, size, ops, priv, NULL);
 }
 
-static inline int kernfs_remove_by_name(struct sysfs_dirent *parent,
+static inline int kernfs_remove_by_name(struct kernfs_node *parent,
 					const char *name)
 {
 	return kernfs_remove_by_name_ns(parent, name, NULL);
