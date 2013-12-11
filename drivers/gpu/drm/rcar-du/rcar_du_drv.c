@@ -224,7 +224,9 @@ static int rcar_du_probe(struct platform_device *pdev)
 
 static int rcar_du_remove(struct platform_device *pdev)
 {
-	drm_platform_exit(&rcar_du_driver, pdev);
+	struct rcar_du_device *rcdu = platform_get_drvdata(pdev);
+
+	drm_put_dev(rcdu->ddev);
 
 	return 0;
 }
