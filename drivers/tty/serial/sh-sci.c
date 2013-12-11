@@ -557,7 +557,7 @@ static inline int sci_rxd_in(struct uart_port *port)
 		return 1;
 
 	/* Cast for ARM damage */
-	return !!__raw_readb((void __iomem *)s->cfg->port_reg);
+	return !!__raw_readb((void __iomem *)(uintptr_t)s->cfg->port_reg);
 }
 
 /* ********************************************************************** *
@@ -1309,7 +1309,7 @@ static int sci_dma_rx_push(struct sci_port *s, size_t count)
 	}
 
 	if (room < count)
-		dev_warn(port->dev, "Rx overrun: dropping %u bytes\n",
+		dev_warn(port->dev, "Rx overrun: dropping %zu bytes\n",
 			 count - room);
 	if (!room)
 		return room;
@@ -1442,7 +1442,7 @@ static void work_fn_rx(struct work_struct *work)
 		int count;
 
 		chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
-		dev_dbg(port->dev, "Read %u bytes with cookie %d\n",
+		dev_dbg(port->dev, "Read %zu bytes with cookie %d\n",
 			sh_desc->partial, sh_desc->cookie);
 
 		spin_lock_irqsave(&port->lock, flags);
@@ -1691,16 +1691,17 @@ static void sci_request_dma(struct uart_port *port)
 		s->chan_tx = chan;
 		sg_init_table(&s->sg_tx, 1);
 		/* UART circular tx buffer is an aligned page. */
-		BUG_ON((int)port->state->xmit.buf & ~PAGE_MASK);
+		BUG_ON((uintptr_t)port->state->xmit.buf & ~PAGE_MASK);
 		sg_set_page(&s->sg_tx, virt_to_page(port->state->xmit.buf),
-			    UART_XMIT_SIZE, (int)port->state->xmit.buf & ~PAGE_MASK);
+			    UART_XMIT_SIZE,
+			    (uintptr_t)port->state->xmit.buf & ~PAGE_MASK);
 		nent = dma_map_sg(port->dev, &s->sg_tx, 1, DMA_TO_DEVICE);
 		if (!nent)
 			sci_tx_dma_release(s, false);
 		else
-			dev_dbg(port->dev, "%s: mapped %d@%p to %x\n", __func__,
-				sg_dma_len(&s->sg_tx),
-				port->state->xmit.buf, sg_dma_address(&s->sg_tx));
+			dev_dbg(port->dev, "%s: mapped %d@%p to %pad\n", __func__,
+				sg_dma_len(&s->sg_tx), port->state->xmit.buf,
+				&sg_dma_address(&s->sg_tx));
 
 		s->sg_len_tx = nent;
 
@@ -1740,7 +1741,7 @@ static void sci_request_dma(struct uart_port *port)
 
 			sg_init_table(sg, 1);
 			sg_set_page(sg, virt_to_page(buf[i]), s->buf_len_rx,
-				    (int)buf[i] & ~PAGE_MASK);
+				    (uintptr_t)buf[i] & ~PAGE_MASK);
 			sg_dma_address(sg) = dma[i];
 		}
 
