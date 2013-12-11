@@ -58,6 +58,14 @@ MODULE_DEVICE_TABLE(i2c, pn544_hci_i2c_id_table);
 
 #define PN544_HCI_I2C_DRIVER_NAME "pn544_hci_i2c"
 
+/*
+ * Exposed through the 4 most significant bytes
+ * from the HCI SW_VERSION first byte, a.k.a.
+ * SW RomLib.
+ */
+#define PN544_HW_VARIANT_C2 0xa
+#define PN544_HW_VARIANT_C3 0xb
+
 #define PN544_FW_CMD_WRITE 0x08
 #define PN544_FW_CMD_CHECK 0x06
 
@@ -118,6 +126,8 @@ struct pn544_i2c_phy {
 	unsigned int gpio_irq;
 	unsigned int gpio_fw;
 	unsigned int en_polarity;
+
+	u8 hw_variant;
 
 	struct work_struct fw_work;
 	int fw_work_state;
@@ -469,7 +479,8 @@ static struct nfc_phy_ops i2c_phy_ops = {
 	.disable = pn544_hci_i2c_disable,
 };
 
-static int pn544_hci_i2c_fw_download(void *phy_id, const char *firmware_name)
+static int pn544_hci_i2c_fw_download(void *phy_id, const char *firmware_name,
+					u8 hw_variant)
 {
 	struct pn544_i2c_phy *phy = phy_id;
 
@@ -477,6 +488,7 @@ static int pn544_hci_i2c_fw_download(void *phy_id, const char *firmware_name)
 
 	strcpy(phy->firmware_name, firmware_name);
 
+	phy->hw_variant = hw_variant;
 	phy->fw_work_state = FW_WORK_STATE_START;
 
 	schedule_work(&phy->fw_work);
