@@ -69,7 +69,6 @@
 #include "tether.h"
 #include "wmgr.h"
 #include "wcmd.h"
-#include "mib.h"
 #include "srom.h"
 #include "rc4.h"
 #include "desc.h"

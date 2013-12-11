@@ -34,7 +34,6 @@
 #include "80211hdr.h"
 #include "80211mgr.h"
 #include "card.h"
-#include "mib.h"
 
 #define MAX_NODE_NUM             64
 #define MAX_BSS_NUM              42
