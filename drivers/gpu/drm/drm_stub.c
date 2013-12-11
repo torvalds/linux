@@ -563,8 +563,6 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 			goto err_unload;
 	}
 
-	list_add_tail(&dev->driver_item, &dev->driver->device_list);
-
 	ret = 0;
 	goto out_unlock;
 
@@ -614,7 +612,5 @@ void drm_dev_unregister(struct drm_device *dev)
 	drm_unplug_minor(dev->control);
 	drm_unplug_minor(dev->render);
 	drm_unplug_minor(dev->primary);
-
-	list_del(&dev->driver_item);
 }
 EXPORT_SYMBOL(drm_dev_unregister);

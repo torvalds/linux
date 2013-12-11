@@ -1012,8 +1012,8 @@ struct drm_driver {
 	} kdriver;
 	struct drm_bus *bus;
 
-	/* List of devices hanging off this driver */
-	struct list_head device_list;
+	/* List of devices hanging off this driver with stealth attach. */
+	struct list_head legacy_dev_list;
 };
 
 #define DRM_MINOR_UNASSIGNED 0
@@ -1102,7 +1102,7 @@ struct drm_vblank_crtc {
  * may contain multiple heads.
  */
 struct drm_device {
-	struct list_head driver_item;	/**< list of devices per driver */
+	struct list_head legacy_dev_list;/**< list of devices per driver for stealth attach cleanup */
 	char *devname;			/**< For /proc/interrupts */
 	int if_version;			/**< Highest interface version set */
 

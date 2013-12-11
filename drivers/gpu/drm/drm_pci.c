@@ -346,6 +346,11 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 		 driver->name, driver->major, driver->minor, driver->patchlevel,
 		 driver->date, pci_name(pdev), dev->primary->index);
 
+	/* No locking needed since shadow-attach is single-threaded since it may
+	 * only be called from the per-driver module init hook. */
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		list_add_tail(&dev->legacy_dev_list, &driver->legacy_dev_list);
+
 	return 0;
 
 err_pci:
@@ -375,7 +380,6 @@ int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 
 	DRM_DEBUG("\n");
 
-	INIT_LIST_HEAD(&driver->device_list);
 	driver->kdriver.pci = pdriver;
 	driver->bus = &drm_pci_bus;
 
@@ -383,6 +387,7 @@ int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 		return pci_register_driver(pdriver);
 
 	/* If not using KMS, fall back to stealth mode manual scanning. */
+	INIT_LIST_HEAD(&driver->legacy_dev_list);
 	for (i = 0; pdriver->id_table[i].vendor != 0; i++) {
 		pid = &pdriver->id_table[i];
 
@@ -465,8 +470,11 @@ void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver)
 	if (driver->driver_features & DRIVER_MODESET) {
 		pci_unregister_driver(pdriver);
 	} else {
-		list_for_each_entry_safe(dev, tmp, &driver->device_list, driver_item)
+		list_for_each_entry_safe(dev, tmp, &driver->legacy_dev_list,
+					 legacy_dev_list) {
 			drm_put_dev(dev);
+			list_del(&dev->legacy_dev_list);
+		}
 	}
 	DRM_INFO("Module unloaded\n");
 }
