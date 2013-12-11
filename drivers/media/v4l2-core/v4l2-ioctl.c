@@ -1291,8 +1291,11 @@ static int v4l_g_frequency(const struct v4l2_ioctl_ops *ops,
 	struct video_device *vfd = video_devdata(file);
 	struct v4l2_frequency *p = arg;
 
-	p->type = (vfd->vfl_type == VFL_TYPE_RADIO) ?
-			V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
+	if (vfd->vfl_type == VFL_TYPE_SDR)
+		p->type = V4L2_TUNER_ADC;
+	else
+		p->type = (vfd->vfl_type == VFL_TYPE_RADIO) ?
+				V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 	return ops->vidioc_g_frequency(file, fh, p);
 }
 
@@ -1303,10 +1306,15 @@ static int v4l_s_frequency(const struct v4l2_ioctl_ops *ops,
 	const struct v4l2_frequency *p = arg;
 	enum v4l2_tuner_type type;
 
-	type = (vfd->vfl_type == VFL_TYPE_RADIO) ?
-			V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
-	if (p->type != type)
-		return -EINVAL;
+	if (vfd->vfl_type == VFL_TYPE_SDR) {
+		if (p->type != V4L2_TUNER_ADC && p->type != V4L2_TUNER_RF)
+			return -EINVAL;
+	} else {
+		type = (vfd->vfl_type == VFL_TYPE_RADIO) ?
+				V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
+		if (type != p->type)
+			return -EINVAL;
+	}
 	return ops->vidioc_s_frequency(file, fh, p);
 }
 
@@ -1385,6 +1393,10 @@ static int v4l_s_hw_freq_seek(const struct v4l2_ioctl_ops *ops,
 	struct video_device *vfd = video_devdata(file);
 	struct v4l2_hw_freq_seek *p = arg;
 	enum v4l2_tuner_type type;
+
+	/* s_hw_freq_seek is not supported for SDR for now */
+	if (vfd->vfl_type == VFL_TYPE_SDR)
+		return -EINVAL;
 
 	type = (vfd->vfl_type == VFL_TYPE_RADIO) ?
 		V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
@@ -1885,11 +1897,16 @@ static int v4l_enum_freq_bands(const struct v4l2_ioctl_ops *ops,
 	enum v4l2_tuner_type type;
 	int err;
 
-	type = (vfd->vfl_type == VFL_TYPE_RADIO) ?
-			V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
-
-	if (type != p->type)
-		return -EINVAL;
+	if (vfd->vfl_type == VFL_TYPE_SDR) {
+		if (p->type != V4L2_TUNER_ADC && p->type != V4L2_TUNER_RF)
+			return -EINVAL;
+		type = p->type;
+	} else {
+		type = (vfd->vfl_type == VFL_TYPE_RADIO) ?
+				V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
+		if (type != p->type)
+			return -EINVAL;
+	}
 	if (ops->vidioc_enum_freq_bands)
 		return ops->vidioc_enum_freq_bands(file, fh, p);
 	if (is_valid_ioctl(vfd, VIDIOC_G_TUNER)) {
