@@ -234,13 +234,13 @@ static int via_dma_init(struct drm_device *dev, void *data, struct drm_file *fil
 
 	switch (init->func) {
 	case VIA_INIT_DMA:
-		if (!DRM_SUSER(DRM_CURPROC))
+		if (!capable(CAP_SYS_ADMIN))
 			retcode = -EPERM;
 		else
 			retcode = via_initialize(dev, dev_priv, init);
 		break;
 	case VIA_CLEANUP_DMA:
-		if (!DRM_SUSER(DRM_CURPROC))
+		if (!capable(CAP_SYS_ADMIN))
 			retcode = -EPERM;
 		else
 			retcode = via_dma_cleanup(dev);
