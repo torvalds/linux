@@ -59,6 +59,7 @@
 #include <linux/ktime.h>
 #include <linux/sched.h>
 #include <linux/static_key.h>
+#include <linux/workqueue.h>
 
 /*
  * Scheduler clock - returns current time in nanosec units.
@@ -90,11 +91,21 @@ void set_sched_clock_stable(void)
 		static_key_slow_dec(&__sched_clock_stable);
 }
 
-void clear_sched_clock_stable(void)
+static void __clear_sched_clock_stable(struct work_struct *work)
 {
 	/* XXX worry about clock continuity */
 	if (sched_clock_stable())
 		static_key_slow_inc(&__sched_clock_stable);
+}
+
+static DECLARE_WORK(sched_clock_work, __clear_sched_clock_stable);
+
+void clear_sched_clock_stable(void)
+{
+	if (keventd_up())
+		schedule_work(&sched_clock_work);
+	else
+		__clear_sched_clock_stable(&sched_clock_work);
 }
 
 struct sched_clock_data {
