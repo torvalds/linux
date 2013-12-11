@@ -96,6 +96,7 @@
 		pinctrl-0 = <&backlight_pins>;
 		pinctrl-names = "default";
 		power-supply = <&reg_5p0v>;
+		enable-gpios = <&pfc 61 GPIO_ACTIVE_HIGH>;
 	};
 
 	sound {
