@@ -636,6 +636,49 @@ static int conn_max_interval_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(conn_max_interval_fops, conn_max_interval_get,
 			conn_max_interval_set, "%llu\n");
 
+static ssize_t lowpan_read(struct file *file, char __user *user_buf,
+			   size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[3];
+
+	buf[0] = test_bit(HCI_6LOWPAN_ENABLED, &hdev->dev_flags) ? 'Y' : 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static ssize_t lowpan_write(struct file *fp, const char __user *user_buffer,
+			    size_t count, loff_t *position)
+{
+	struct hci_dev *hdev = fp->private_data;
+	bool enable;
+	char buf[32];
+	size_t buf_size = min(count, (sizeof(buf)-1));
+
+	if (copy_from_user(buf, user_buffer, buf_size))
+		return -EFAULT;
+
+	buf[buf_size] = '\0';
+
+	if (strtobool(buf, &enable) < 0)
+		return -EINVAL;
+
+	if (enable == test_bit(HCI_6LOWPAN_ENABLED, &hdev->dev_flags))
+		return -EALREADY;
+
+	change_bit(HCI_6LOWPAN_ENABLED, &hdev->dev_flags);
+
+	return count;
+}
+
+static const struct file_operations lowpan_debugfs_fops = {
+	.open		= simple_open,
+	.read		= lowpan_read,
+	.write		= lowpan_write,
+	.llseek		= default_llseek,
+};
+
 /* ---- HCI requests ---- */
 
 static void hci_req_sync_complete(struct hci_dev *hdev, u8 result)
@@ -1406,6 +1449,8 @@ static int __hci_init(struct hci_dev *hdev)
 				    hdev, &conn_min_interval_fops);
 		debugfs_create_file("conn_max_interval", 0644, hdev->debugfs,
 				    hdev, &conn_max_interval_fops);
+		debugfs_create_file("6lowpan", 0644, hdev->debugfs, hdev,
+				    &lowpan_debugfs_fops);
 	}
 
 	return 0;
