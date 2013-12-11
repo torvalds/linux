@@ -30,8 +30,8 @@ struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 	struct kernfs_addrm_cxt acxt;
 	int error;
 
-	kn = sysfs_new_dirent(kernfs_root(parent), name, S_IFLNK|S_IRWXUGO,
-			      KERNFS_LINK);
+	kn = kernfs_new_node(kernfs_root(parent), name, S_IFLNK|S_IRWXUGO,
+			     KERNFS_LINK);
 	if (!kn)
 		return ERR_PTR(-ENOMEM);
 
@@ -40,9 +40,9 @@ struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 	kn->symlink.target_kn = target;
 	kernfs_get(target);	/* ref owned by symlink */
 
-	sysfs_addrm_start(&acxt);
-	error = sysfs_add_one(&acxt, kn, parent);
-	sysfs_addrm_finish(&acxt);
+	kernfs_addrm_start(&acxt);
+	error = kernfs_add_one(&acxt, kn, parent);
+	kernfs_addrm_finish(&acxt);
 
 	if (!error)
 		return kn;
@@ -51,8 +51,8 @@ struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 	return ERR_PTR(error);
 }
 
-static int sysfs_get_target_path(struct kernfs_node *parent,
-				 struct kernfs_node *target, char *path)
+static int kernfs_get_target_path(struct kernfs_node *parent,
+				  struct kernfs_node *target, char *path)
 {
 	struct kernfs_node *base, *kn;
 	char *s = path;
@@ -103,7 +103,7 @@ static int sysfs_get_target_path(struct kernfs_node *parent,
 	return 0;
 }
 
-static int sysfs_getlink(struct dentry *dentry, char *path)
+static int kernfs_getlink(struct dentry *dentry, char *path)
 {
 	struct kernfs_node *kn = dentry->d_fsdata;
 	struct kernfs_node *parent = kn->parent;
@@ -111,18 +111,18 @@ static int sysfs_getlink(struct dentry *dentry, char *path)
 	int error;
 
 	mutex_lock(&kernfs_mutex);
-	error = sysfs_get_target_path(parent, target, path);
+	error = kernfs_get_target_path(parent, target, path);
 	mutex_unlock(&kernfs_mutex);
 
 	return error;
 }
 
-static void *sysfs_follow_link(struct dentry *dentry, struct nameidata *nd)
+static void *kernfs_iop_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	int error = -ENOMEM;
 	unsigned long page = get_zeroed_page(GFP_KERNEL);
 	if (page) {
-		error = sysfs_getlink(dentry, (char *) page);
+		error = kernfs_getlink(dentry, (char *) page);
 		if (error < 0)
 			free_page((unsigned long)page);
 	}
@@ -130,8 +130,8 @@ static void *sysfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return NULL;
 }
 
-static void sysfs_put_link(struct dentry *dentry, struct nameidata *nd,
-			   void *cookie)
+static void kernfs_iop_put_link(struct dentry *dentry, struct nameidata *nd,
+				void *cookie)
 {
 	char *page = nd_get_link(nd);
 	if (!IS_ERR(page))
@@ -139,14 +139,14 @@ static void sysfs_put_link(struct dentry *dentry, struct nameidata *nd,
 }
 
 const struct inode_operations kernfs_symlink_iops = {
-	.setxattr	= sysfs_setxattr,
-	.removexattr	= sysfs_removexattr,
-	.getxattr	= sysfs_getxattr,
-	.listxattr	= sysfs_listxattr,
+	.setxattr	= kernfs_iop_setxattr,
+	.removexattr	= kernfs_iop_removexattr,
+	.getxattr	= kernfs_iop_getxattr,
+	.listxattr	= kernfs_iop_listxattr,
 	.readlink	= generic_readlink,
-	.follow_link	= sysfs_follow_link,
-	.put_link	= sysfs_put_link,
-	.setattr	= sysfs_setattr,
-	.getattr	= sysfs_getattr,
-	.permission	= sysfs_permission,
+	.follow_link	= kernfs_iop_follow_link,
+	.put_link	= kernfs_iop_put_link,
+	.setattr	= kernfs_iop_setattr,
+	.getattr	= kernfs_iop_getattr,
+	.permission	= kernfs_iop_permission,
 };

@@ -31,16 +31,16 @@ static struct backing_dev_info kernfs_bdi = {
 };
 
 static const struct inode_operations kernfs_iops = {
-	.permission	= sysfs_permission,
-	.setattr	= sysfs_setattr,
-	.getattr	= sysfs_getattr,
-	.setxattr	= sysfs_setxattr,
-	.removexattr	= sysfs_removexattr,
-	.getxattr	= sysfs_getxattr,
-	.listxattr	= sysfs_listxattr,
+	.permission	= kernfs_iop_permission,
+	.setattr	= kernfs_iop_setattr,
+	.getattr	= kernfs_iop_getattr,
+	.setxattr	= kernfs_iop_setxattr,
+	.removexattr	= kernfs_iop_removexattr,
+	.getxattr	= kernfs_iop_getxattr,
+	.listxattr	= kernfs_iop_listxattr,
 };
 
-void __init sysfs_inode_init(void)
+void __init kernfs_inode_init(void)
 {
 	if (bdi_init(&kernfs_bdi))
 		panic("failed to init kernfs_bdi");
@@ -115,7 +115,7 @@ int kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
 	return ret;
 }
 
-int sysfs_setattr(struct dentry *dentry, struct iattr *iattr)
+int kernfs_iop_setattr(struct dentry *dentry, struct iattr *iattr)
 {
 	struct inode *inode = dentry->d_inode;
 	struct kernfs_node *kn = dentry->d_fsdata;
@@ -141,8 +141,8 @@ out:
 	return error;
 }
 
-static int sysfs_sd_setsecdata(struct kernfs_node *kn, void **secdata,
-			       u32 *secdata_len)
+static int kernfs_node_setsecdata(struct kernfs_node *kn, void **secdata,
+				  u32 *secdata_len)
 {
 	struct kernfs_iattrs *attrs;
 	void *old_secdata;
@@ -163,8 +163,8 @@ static int sysfs_sd_setsecdata(struct kernfs_node *kn, void **secdata,
 	return 0;
 }
 
-int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
-		size_t size, int flags)
+int kernfs_iop_setxattr(struct dentry *dentry, const char *name,
+			const void *value, size_t size, int flags)
 {
 	struct kernfs_node *kn = dentry->d_fsdata;
 	struct kernfs_iattrs *attrs;
@@ -188,7 +188,7 @@ int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 			return error;
 
 		mutex_lock(&kernfs_mutex);
-		error = sysfs_sd_setsecdata(kn, &secdata, &secdata_len);
+		error = kernfs_node_setsecdata(kn, &secdata, &secdata_len);
 		mutex_unlock(&kernfs_mutex);
 
 		if (secdata)
@@ -202,7 +202,7 @@ int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 	return -EINVAL;
 }
 
-int sysfs_removexattr(struct dentry *dentry, const char *name)
+int kernfs_iop_removexattr(struct dentry *dentry, const char *name)
 {
 	struct kernfs_node *kn = dentry->d_fsdata;
 	struct kernfs_iattrs *attrs;
@@ -214,8 +214,8 @@ int sysfs_removexattr(struct dentry *dentry, const char *name)
 	return simple_xattr_remove(&attrs->xattrs, name);
 }
 
-ssize_t sysfs_getxattr(struct dentry *dentry, const char *name, void *buf,
-		       size_t size)
+ssize_t kernfs_iop_getxattr(struct dentry *dentry, const char *name, void *buf,
+			    size_t size)
 {
 	struct kernfs_node *kn = dentry->d_fsdata;
 	struct kernfs_iattrs *attrs;
@@ -227,7 +227,7 @@ ssize_t sysfs_getxattr(struct dentry *dentry, const char *name, void *buf,
 	return simple_xattr_get(&attrs->xattrs, name, buf, size);
 }
 
-ssize_t sysfs_listxattr(struct dentry *dentry, char *buf, size_t size)
+ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size)
 {
 	struct kernfs_node *kn = dentry->d_fsdata;
 	struct kernfs_iattrs *attrs;
@@ -254,7 +254,7 @@ static inline void set_inode_attr(struct inode *inode, struct iattr *iattr)
 	inode->i_ctime = iattr->ia_ctime;
 }
 
-static void sysfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
+static void kernfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
 {
 	struct kernfs_iattrs *attrs = kn->iattr;
 
@@ -273,21 +273,21 @@ static void sysfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
 		set_nlink(inode, kn->dir.subdirs + 2);
 }
 
-int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		  struct kstat *stat)
+int kernfs_iop_getattr(struct vfsmount *mnt, struct dentry *dentry,
+		   struct kstat *stat)
 {
 	struct kernfs_node *kn = dentry->d_fsdata;
 	struct inode *inode = dentry->d_inode;
 
 	mutex_lock(&kernfs_mutex);
-	sysfs_refresh_inode(kn, inode);
+	kernfs_refresh_inode(kn, inode);
 	mutex_unlock(&kernfs_mutex);
 
 	generic_fillattr(inode, stat);
 	return 0;
 }
 
-static void sysfs_init_inode(struct kernfs_node *kn, struct inode *inode)
+static void kernfs_init_inode(struct kernfs_node *kn, struct inode *inode)
 {
 	kernfs_get(kn);
 	inode->i_private = kn;
@@ -296,7 +296,7 @@ static void sysfs_init_inode(struct kernfs_node *kn, struct inode *inode)
 	inode->i_op = &kernfs_iops;
 
 	set_default_inode_attr(inode, kn->mode);
-	sysfs_refresh_inode(kn, inode);
+	kernfs_refresh_inode(kn, inode);
 
 	/* initialize inode according to type */
 	switch (kernfs_type(kn)) {
@@ -319,7 +319,7 @@ static void sysfs_init_inode(struct kernfs_node *kn, struct inode *inode)
 }
 
 /**
- *	sysfs_get_inode - get inode for kernfs_node
+ *	kernfs_get_inode - get inode for kernfs_node
  *	@sb: super block
  *	@kn: kernfs_node to allocate inode for
  *
@@ -333,25 +333,25 @@ static void sysfs_init_inode(struct kernfs_node *kn, struct inode *inode)
  *	RETURNS:
  *	Pointer to allocated inode on success, NULL on failure.
  */
-struct inode *sysfs_get_inode(struct super_block *sb, struct kernfs_node *kn)
+struct inode *kernfs_get_inode(struct super_block *sb, struct kernfs_node *kn)
 {
 	struct inode *inode;
 
 	inode = iget_locked(sb, kn->ino);
 	if (inode && (inode->i_state & I_NEW))
-		sysfs_init_inode(kn, inode);
+		kernfs_init_inode(kn, inode);
 
 	return inode;
 }
 
 /*
- * The kernfs_node serves as both an inode and a directory entry for sysfs.
- * To prevent the sysfs inode numbers from being freed prematurely we take
- * a reference to kernfs_node from the sysfs inode.  A
+ * The kernfs_node serves as both an inode and a directory entry for
+ * kernfs.  To prevent the kernfs inode numbers from being freed
+ * prematurely we take a reference to kernfs_node from the kernfs inode.  A
  * super_operations.evict_inode() implementation is needed to drop that
  * reference upon inode destruction.
  */
-void sysfs_evict_inode(struct inode *inode)
+void kernfs_evict_inode(struct inode *inode)
 {
 	struct kernfs_node *kn = inode->i_private;
 
@@ -360,7 +360,7 @@ void sysfs_evict_inode(struct inode *inode)
 	kernfs_put(kn);
 }
 
-int sysfs_permission(struct inode *inode, int mask)
+int kernfs_iop_permission(struct inode *inode, int mask)
 {
 	struct kernfs_node *kn;
 
@@ -370,7 +370,7 @@ int sysfs_permission(struct inode *inode, int mask)
 	kn = inode->i_private;
 
 	mutex_lock(&kernfs_mutex);
-	sysfs_refresh_inode(kn, inode);
+	kernfs_refresh_inode(kn, inode);
 	mutex_unlock(&kernfs_mutex);
 
 	return generic_permission(inode, mask);

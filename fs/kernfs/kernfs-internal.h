@@ -76,19 +76,19 @@ extern struct kmem_cache *kernfs_node_cache;
 /*
  * inode.c
  */
-struct inode *sysfs_get_inode(struct super_block *sb, struct kernfs_node *kn);
-void sysfs_evict_inode(struct inode *inode);
-int sysfs_permission(struct inode *inode, int mask);
-int sysfs_setattr(struct dentry *dentry, struct iattr *iattr);
-int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		  struct kstat *stat);
-int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
-		   size_t size, int flags);
-int sysfs_removexattr(struct dentry *dentry, const char *name);
-ssize_t sysfs_getxattr(struct dentry *dentry, const char *name, void *buf,
-		       size_t size);
-ssize_t sysfs_listxattr(struct dentry *dentry, char *buf, size_t size);
-void sysfs_inode_init(void);
+struct inode *kernfs_get_inode(struct super_block *sb, struct kernfs_node *kn);
+void kernfs_evict_inode(struct inode *inode);
+int kernfs_iop_permission(struct inode *inode, int mask);
+int kernfs_iop_setattr(struct dentry *dentry, struct iattr *iattr);
+int kernfs_iop_getattr(struct vfsmount *mnt, struct dentry *dentry,
+		       struct kstat *stat);
+int kernfs_iop_setxattr(struct dentry *dentry, const char *name, const void *value,
+			size_t size, int flags);
+int kernfs_iop_removexattr(struct dentry *dentry, const char *name);
+ssize_t kernfs_iop_getxattr(struct dentry *dentry, const char *name, void *buf,
+			    size_t size);
+ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size);
+void kernfs_inode_init(void);
 
 /*
  * dir.c
@@ -98,21 +98,21 @@ extern const struct dentry_operations kernfs_dops;
 extern const struct file_operations kernfs_dir_fops;
 extern const struct inode_operations kernfs_dir_iops;
 
-struct kernfs_node *sysfs_get_active(struct kernfs_node *kn);
-void sysfs_put_active(struct kernfs_node *kn);
-void sysfs_addrm_start(struct kernfs_addrm_cxt *acxt);
-int sysfs_add_one(struct kernfs_addrm_cxt *acxt, struct kernfs_node *kn,
-		  struct kernfs_node *parent);
-void sysfs_addrm_finish(struct kernfs_addrm_cxt *acxt);
-struct kernfs_node *sysfs_new_dirent(struct kernfs_root *root,
-				     const char *name, umode_t mode, int type);
+struct kernfs_node *kernfs_get_active(struct kernfs_node *kn);
+void kernfs_put_active(struct kernfs_node *kn);
+void kernfs_addrm_start(struct kernfs_addrm_cxt *acxt);
+int kernfs_add_one(struct kernfs_addrm_cxt *acxt, struct kernfs_node *kn,
+		   struct kernfs_node *parent);
+void kernfs_addrm_finish(struct kernfs_addrm_cxt *acxt);
+struct kernfs_node *kernfs_new_node(struct kernfs_root *root, const char *name,
+				    umode_t mode, int type);
 
 /*
  * file.c
  */
 extern const struct file_operations kernfs_file_fops;
 
-void sysfs_unmap_bin_file(struct kernfs_node *kn);
+void kernfs_unmap_bin_file(struct kernfs_node *kn);
 
 /*
  * symlink.c

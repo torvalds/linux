@@ -22,10 +22,10 @@ struct kmem_cache *kernfs_node_cache;
 static const struct super_operations kernfs_sops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= generic_delete_inode,
-	.evict_inode	= sysfs_evict_inode,
+	.evict_inode	= kernfs_evict_inode,
 };
 
-static int sysfs_fill_super(struct super_block *sb)
+static int kernfs_fill_super(struct super_block *sb)
 {
 	struct kernfs_super_info *info = kernfs_info(sb);
 	struct inode *inode;
@@ -39,10 +39,10 @@ static int sysfs_fill_super(struct super_block *sb)
 
 	/* get root inode, initialize and unlock it */
 	mutex_lock(&kernfs_mutex);
-	inode = sysfs_get_inode(sb, info->root->kn);
+	inode = kernfs_get_inode(sb, info->root->kn);
 	mutex_unlock(&kernfs_mutex);
 	if (!inode) {
-		pr_debug("sysfs: could not get root inode\n");
+		pr_debug("kernfs: could not get root inode\n");
 		return -ENOMEM;
 	}
 
@@ -59,7 +59,7 @@ static int sysfs_fill_super(struct super_block *sb)
 	return 0;
 }
 
-static int sysfs_test_super(struct super_block *sb, void *data)
+static int kernfs_test_super(struct super_block *sb, void *data)
 {
 	struct kernfs_super_info *sb_info = kernfs_info(sb);
 	struct kernfs_super_info *info = data;
@@ -67,7 +67,7 @@ static int sysfs_test_super(struct super_block *sb, void *data)
 	return sb_info->root == info->root && sb_info->ns == info->ns;
 }
 
-static int sysfs_set_super(struct super_block *sb, void *data)
+static int kernfs_set_super(struct super_block *sb, void *data)
 {
 	int error;
 	error = set_anon_super(sb, data);
@@ -117,13 +117,13 @@ struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
 	info->root = root;
 	info->ns = ns;
 
-	sb = sget(fs_type, sysfs_test_super, sysfs_set_super, flags, info);
+	sb = sget(fs_type, kernfs_test_super, kernfs_set_super, flags, info);
 	if (IS_ERR(sb) || sb->s_fs_info != info)
 		kfree(info);
 	if (IS_ERR(sb))
 		return ERR_CAST(sb);
 	if (!sb->s_root) {
-		error = sysfs_fill_super(sb);
+		error = kernfs_fill_super(sb);
 		if (error) {
 			deactivate_locked_super(sb);
 			return ERR_PTR(error);
@@ -161,5 +161,5 @@ void __init kernfs_init(void)
 	kernfs_node_cache = kmem_cache_create("kernfs_node_cache",
 					      sizeof(struct kernfs_node),
 					      0, SLAB_PANIC, NULL);
-	sysfs_inode_init();
+	kernfs_inode_init();
 }
