@@ -234,14 +234,18 @@ int drm_vma_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_vma_entry *pt;
 	struct vm_area_struct *vma;
+	unsigned long vma_count = 0;
 #if defined(__i386__)
 	unsigned int pgprot;
 #endif
 
 	mutex_lock(&dev->struct_mutex);
-	seq_printf(m, "vma use count: %d, high_memory = %pK, 0x%pK\n",
-		   atomic_read(&dev->vma_count),
-		   high_memory, (void *)(unsigned long)virt_to_phys(high_memory));
+	list_for_each_entry(pt, &dev->vmalist, head)
+		vma_count++;
+
+	seq_printf(m, "vma use count: %lu, high_memory = %pK, 0x%pK\n",
+		   vma_count, high_memory,
+		   (void *)(unsigned long)virt_to_phys(high_memory));
 
 	list_for_each_entry(pt, &dev->vmalist, head) {
 		vma = pt->vma;

@@ -391,8 +391,6 @@ static void drm_legacy_dev_reinit(struct drm_device *dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
-	atomic_set(&dev->vma_count, 0);
-
 	dev->sigdata.lock = NULL;
 
 	dev->context_flag = 0;

@@ -220,7 +220,6 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 
 	DRM_DEBUG("0x%08lx,0x%08lx\n",
 		  vma->vm_start, vma->vm_end - vma->vm_start);
-	atomic_dec(&dev->vma_count);
 
 	map = vma->vm_private_data;
 
@@ -405,7 +404,6 @@ void drm_vm_open_locked(struct drm_device *dev,
 
 	DRM_DEBUG("0x%08lx,0x%08lx\n",
 		  vma->vm_start, vma->vm_end - vma->vm_start);
-	atomic_inc(&dev->vma_count);
 
 	vma_entry = kmalloc(sizeof(*vma_entry), GFP_KERNEL);
 	if (vma_entry) {
@@ -433,7 +431,6 @@ void drm_vm_close_locked(struct drm_device *dev,
 
 	DRM_DEBUG("0x%08lx,0x%08lx\n",
 		  vma->vm_start, vma->vm_end - vma->vm_start);
-	atomic_dec(&dev->vma_count);
 
 	list_for_each_entry_safe(pt, temp, &dev->vmalist, head) {
 		if (pt->vma == vma) {
