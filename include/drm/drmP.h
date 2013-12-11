@@ -527,7 +527,7 @@ struct drm_device_dma {
  */
 struct drm_agp_mem {
 	unsigned long handle;		/**< handle */
-	DRM_AGP_MEM *memory;
+	struct agp_memory *memory;
 	unsigned long bound;		/**< address */
 	int pages;
 	struct list_head head;
@@ -539,7 +539,7 @@ struct drm_agp_mem {
  * \sa drm_agp_init() and drm_device::agp.
  */
 struct drm_agp_head {
-	DRM_AGP_KERN agp_info;		/**< AGP device information */
+	struct agp_kern_info agp_info;		/**< AGP device information */
 	struct list_head memory;
 	unsigned long mode;		/**< AGP mode */
 	struct agp_bridge_data *bridge;
@@ -1279,6 +1279,7 @@ extern unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
 
 				/* Memory management support (drm_memory.h) */
 #include <drm/drm_memory.h>
+
 
 				/* Misc. IOCTL support (drm_ioctl.h) */
 extern int drm_irq_by_busid(struct drm_device *dev, void *data,

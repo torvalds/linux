@@ -82,19 +82,19 @@ static void *agp_remap(unsigned long offset, unsigned long size,
 }
 
 /** Wrapper around agp_free_memory() */
-void drm_free_agp(DRM_AGP_MEM * handle, int pages)
+void drm_free_agp(struct agp_memory * handle, int pages)
 {
 	agp_free_memory(handle);
 }
 
 /** Wrapper around agp_bind_memory() */
-int drm_bind_agp(DRM_AGP_MEM * handle, unsigned int start)
+int drm_bind_agp(struct agp_memory * handle, unsigned int start)
 {
 	return agp_bind_memory(handle, start);
 }
 
 /** Wrapper around agp_unbind_memory() */
-int drm_unbind_agp(DRM_AGP_MEM * handle)
+int drm_unbind_agp(struct agp_memory * handle)
 {
 	return agp_unbind_memory(handle);
 }

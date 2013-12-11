@@ -53,7 +53,7 @@
  */
 int drm_agp_info(struct drm_device *dev, struct drm_agp_info *info)
 {
-	DRM_AGP_KERN *kern;
+	struct agp_kern_info *kern;
 
 	if (!dev->agp || !dev->agp->acquired)
 		return -EINVAL;
@@ -198,7 +198,7 @@ int drm_agp_enable_ioctl(struct drm_device *dev, void *data,
 int drm_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request)
 {
 	struct drm_agp_mem *entry;
-	DRM_AGP_MEM *memory;
+	struct agp_memory *memory;
 	unsigned long pages;
 	u32 type;
 
@@ -466,14 +466,14 @@ void drm_agp_clear(struct drm_device *dev)
  * No reference is held on the pages during this time -- it is up to the
  * caller to handle that.
  */
-DRM_AGP_MEM *
+struct agp_memory *
 drm_agp_bind_pages(struct drm_device *dev,
 		   struct page **pages,
 		   unsigned long num_pages,
 		   uint32_t gtt_offset,
 		   u32 type)
 {
-	DRM_AGP_MEM *mem;
+	struct agp_memory *mem;
 	int ret, i;
 
 	DRM_DEBUG("\n");

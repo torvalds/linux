@@ -51,20 +51,6 @@ static inline void writeq(u64 val, void __iomem *reg)
 /** IRQ handler arguments and return type and values */
 #define DRM_IRQ_ARGS		int irq, void *arg
 
-/** AGP types */
-#if __OS_HAS_AGP
-#define DRM_AGP_MEM		struct agp_memory
-#define DRM_AGP_KERN		struct agp_kern_info
-#else
-/* define some dummy types for non AGP supporting kernels */
-struct no_agp_kern {
-	unsigned long aper_base;
-	unsigned long aper_size;
-};
-#define DRM_AGP_MEM             int
-#define DRM_AGP_KERN            struct no_agp_kern
-#endif
-
 /** Other copying of data to kernel space */
 #define DRM_COPY_FROM_USER(arg1, arg2, arg3)		\
 	copy_from_user(arg1, arg2, arg3)
