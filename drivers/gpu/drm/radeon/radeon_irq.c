@@ -203,7 +203,7 @@ irqreturn_t radeon_driver_irq_handler(int irq, void *arg)
 
 	/* SW interrupt */
 	if (stat & RADEON_SW_INT_TEST)
-		DRM_WAKEUP(&dev_priv->swi_queue);
+		wake_up(&dev_priv->swi_queue);
 
 	/* VBLANK interrupt */
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS600) {
@@ -354,7 +354,7 @@ int radeon_driver_irq_postinstall(struct drm_device *dev)
 	    (drm_radeon_private_t *) dev->dev_private;
 
 	atomic_set(&dev_priv->swi_emitted, 0);
-	DRM_INIT_WAITQUEUE(&dev_priv->swi_queue);
+	init_waitqueue_head(&dev_priv->swi_queue);
 
 	dev->max_vblank_count = 0x001fffff;
 

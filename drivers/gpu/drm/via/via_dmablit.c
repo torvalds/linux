@@ -338,7 +338,7 @@ via_dmablit_handler(struct drm_device *dev, int engine, int from_irq)
 
 		blitq->blits[cur]->aborted = blitq->aborting;
 		blitq->done_blit_handle++;
-		DRM_WAKEUP(blitq->blit_queue + cur);
+		wake_up(blitq->blit_queue + cur);
 
 		cur++;
 		if (cur >= VIA_NUM_BLIT_SLOTS)
@@ -521,7 +521,7 @@ via_dmablit_workqueue(struct work_struct *work)
 
 		spin_unlock_irqrestore(&blitq->blit_lock, irqsave);
 
-		DRM_WAKEUP(&blitq->busy_queue);
+		wake_up(&blitq->busy_queue);
 
 		via_free_sg_info(dev->pdev, cur_sg);
 		kfree(cur_sg);
@@ -561,8 +561,8 @@ via_init_dmablit(struct drm_device *dev)
 		blitq->aborting = 0;
 		spin_lock_init(&blitq->blit_lock);
 		for (j = 0; j < VIA_NUM_BLIT_SLOTS; ++j)
-			DRM_INIT_WAITQUEUE(blitq->blit_queue + j);
-		DRM_INIT_WAITQUEUE(&blitq->busy_queue);
+			init_waitqueue_head(blitq->blit_queue + j);
+		init_waitqueue_head(&blitq->busy_queue);
 		INIT_WORK(&blitq->wq, via_dmablit_workqueue);
 		setup_timer(&blitq->poll_timer, via_dmablit_timer,
 				(unsigned long)blitq);
@@ -713,7 +713,7 @@ via_dmablit_release_slot(drm_via_blitq_t *blitq)
 	spin_lock_irqsave(&blitq->blit_lock, irqsave);
 	blitq->num_free++;
 	spin_unlock_irqrestore(&blitq->blit_lock, irqsave);
-	DRM_WAKEUP(&blitq->busy_queue);
+	wake_up(&blitq->busy_queue);
 }
 
 /*

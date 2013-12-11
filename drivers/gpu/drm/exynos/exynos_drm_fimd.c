@@ -954,7 +954,7 @@ static int fimd_probe(struct platform_device *pdev)
 	}
 
 	ctx->driver_data = drm_fimd_get_driver_data(pdev);
-	DRM_INIT_WAITQUEUE(&ctx->wait_vsync_queue);
+	init_waitqueue_head(&ctx->wait_vsync_queue);
 	atomic_set(&ctx->wait_vsync_event, 0);
 
 	subdrv = &ctx->subdrv;

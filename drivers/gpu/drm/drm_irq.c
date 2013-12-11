@@ -368,7 +368,7 @@ int drm_irq_uninstall(struct drm_device *dev)
 	if (dev->num_crtcs) {
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
 		for (i = 0; i < dev->num_crtcs; i++) {
-			DRM_WAKEUP(&dev->vblank[i].queue);
+			wake_up(&dev->vblank[i].queue);
 			dev->vblank[i].enabled = false;
 			dev->vblank[i].last =
 				dev->driver->get_vblank_counter(dev, i);
@@ -980,7 +980,7 @@ void drm_vblank_off(struct drm_device *dev, int crtc)
 
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
 	vblank_disable_and_save(dev, crtc);
-	DRM_WAKEUP(&dev->vblank[crtc].queue);
+	wake_up(&dev->vblank[crtc].queue);
 
 	/* Send any queued vblank events, lest the natives grow disquiet */
 	seq = drm_vblank_count_and_time(dev, crtc, &now);
@@ -1363,7 +1363,7 @@ bool drm_handle_vblank(struct drm_device *dev, int crtc)
 			  crtc, (int) diff_ns);
 	}
 
-	DRM_WAKEUP(&dev->vblank[crtc].queue);
+	wake_up(&dev->vblank[crtc].queue);
 	drm_handle_vblank_events(dev, crtc);
 
 	spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);

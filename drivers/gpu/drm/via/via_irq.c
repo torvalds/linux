@@ -138,7 +138,7 @@ irqreturn_t via_driver_irq_handler(int irq, void *arg)
 	for (i = 0; i < dev_priv->num_irqs; ++i) {
 		if (status & cur_irq->pending_mask) {
 			atomic_inc(&cur_irq->irq_received);
-			DRM_WAKEUP(&cur_irq->irq_queue);
+			wake_up(&cur_irq->irq_queue);
 			handled = 1;
 			if (dev_priv->irq_map[drm_via_irq_dma0_td] == i)
 				via_dmablit_handler(dev, 0, 1);
@@ -287,7 +287,7 @@ void via_driver_irq_preinstall(struct drm_device *dev)
 			atomic_set(&cur_irq->irq_received, 0);
 			cur_irq->enable_mask = dev_priv->irq_masks[i][0];
 			cur_irq->pending_mask = dev_priv->irq_masks[i][1];
-			DRM_INIT_WAITQUEUE(&cur_irq->irq_queue);
+			init_waitqueue_head(&cur_irq->irq_queue);
 			dev_priv->irq_enable_mask |= cur_irq->enable_mask;
 			dev_priv->irq_pending_mask |= cur_irq->pending_mask;
 			cur_irq++;

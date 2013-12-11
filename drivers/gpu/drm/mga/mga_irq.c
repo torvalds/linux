@@ -79,7 +79,7 @@ irqreturn_t mga_driver_irq_handler(int irq, void *arg)
 			MGA_WRITE(MGA_PRIMEND, prim_end);
 
 		atomic_inc(&dev_priv->last_fence_retired);
-		DRM_WAKEUP(&dev_priv->fence_queue);
+		wake_up(&dev_priv->fence_queue);
 		handled = 1;
 	}
 
@@ -151,7 +151,7 @@ int mga_driver_irq_postinstall(struct drm_device *dev)
 {
 	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
 
-	DRM_INIT_WAITQUEUE(&dev_priv->fence_queue);
+	init_waitqueue_head(&dev_priv->fence_queue);
 
 	/* Turn on soft trap interrupt.  Vertical blank interrupts are enabled
 	 * in mga_enable_vblank.

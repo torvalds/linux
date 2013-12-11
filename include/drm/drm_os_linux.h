@@ -78,6 +78,3 @@ do {								\
 	__set_current_state(TASK_RUNNING);			\
 	remove_wait_queue(&(queue), &entry);			\
 } while (0)
-
-#define DRM_WAKEUP( queue ) wake_up( queue )
-#define DRM_INIT_WAITQUEUE( queue ) init_waitqueue_head( queue )
