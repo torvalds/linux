@@ -1183,11 +1183,7 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 			    const struct iovec *iv, int len)
 {
 	struct tun_pi pi = { 0, skb->protocol };
-	struct {
-		__be16 h_vlan_proto;
-		__be16 h_vlan_TCI;
-	} veth;
-	ssize_t total = 0, off = 0;
+	ssize_t total = 0;
 	int vlan_offset = 0;
 
 	if (!(tun->flags & TUN_NO_PI)) {
@@ -1252,11 +1248,14 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 		total += tun->vnet_hdr_sz;
 	}
 
-	off = total;
 	if (!vlan_tx_tag_present(skb)) {
 		len = min_t(int, skb->len, len);
 	} else {
 		int copy, ret;
+		struct {
+			__be16 h_vlan_proto;
+			__be16 h_vlan_TCI;
+		} veth;
 
 		veth.h_vlan_proto = skb->vlan_proto;
 		veth.h_vlan_TCI = htons(vlan_tx_tag_get(skb));
@@ -1265,22 +1264,22 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 		len = min_t(int, skb->len + VLAN_HLEN, len);
 
 		copy = min_t(int, vlan_offset, len);
-		ret = skb_copy_datagram_const_iovec(skb, 0, iv, off, copy);
+		ret = skb_copy_datagram_const_iovec(skb, 0, iv, total, copy);
 		len -= copy;
-		off += copy;
+		total += copy;
 		if (ret || !len)
 			goto done;
 
 		copy = min_t(int, sizeof(veth), len);
-		ret = memcpy_toiovecend(iv, (void *)&veth, off, copy);
+		ret = memcpy_toiovecend(iv, (void *)&veth, total, copy);
 		len -= copy;
-		off += copy;
+		total += copy;
 		if (ret || !len)
 			goto done;
 	}
 
-	skb_copy_datagram_const_iovec(skb, vlan_offset, iv, off, len);
-	total += skb->len + (vlan_offset ? sizeof(veth) : 0);
+	skb_copy_datagram_const_iovec(skb, vlan_offset, iv, total, len);
+	total += len;
 
 done:
 	tun->dev->stats.tx_packets++;
