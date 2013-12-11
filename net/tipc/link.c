@@ -386,14 +386,7 @@ exit:
  */
 static void link_release_outqueue(struct tipc_link *l_ptr)
 {
-	struct sk_buff *buf = l_ptr->first_out;
-	struct sk_buff *next;
-
-	while (buf) {
-		next = buf->next;
-		kfree_skb(buf);
-		buf = next;
-	}
+	kfree_skb_list(l_ptr->first_out);
 	l_ptr->first_out = NULL;
 	l_ptr->out_queue_size = 0;
 }
@@ -415,32 +408,15 @@ void tipc_link_reset_fragments(struct tipc_link *l_ptr)
  */
 void tipc_link_stop(struct tipc_link *l_ptr)
 {
-	struct sk_buff *buf;
-	struct sk_buff *next;
-
-	buf = l_ptr->oldest_deferred_in;
-	while (buf) {
-		next = buf->next;
-		kfree_skb(buf);
-		buf = next;
-	}
-
-	buf = l_ptr->first_out;
-	while (buf) {
-		next = buf->next;
-		kfree_skb(buf);
-		buf = next;
-	}
-
+	kfree_skb_list(l_ptr->oldest_deferred_in);
+	kfree_skb_list(l_ptr->first_out);
 	tipc_link_reset_fragments(l_ptr);
-
 	kfree_skb(l_ptr->proto_msg_queue);
 	l_ptr->proto_msg_queue = NULL;
 }
 
 void tipc_link_reset(struct tipc_link *l_ptr)
 {
-	struct sk_buff *buf;
 	u32 prev_state = l_ptr->state;
 	u32 checkpoint = l_ptr->next_in_no;
 	int was_active_link = tipc_link_is_active(l_ptr);
@@ -471,12 +447,7 @@ void tipc_link_reset(struct tipc_link *l_ptr)
 	link_release_outqueue(l_ptr);
 	kfree_skb(l_ptr->proto_msg_queue);
 	l_ptr->proto_msg_queue = NULL;
-	buf = l_ptr->oldest_deferred_in;
-	while (buf) {
-		struct sk_buff *next = buf->next;
-		kfree_skb(buf);
-		buf = next;
-	}
+	kfree_skb_list(l_ptr->oldest_deferred_in);
 	if (!list_empty(&l_ptr->waiting_ports))
 		tipc_link_wakeup_ports(l_ptr, 1);
 
@@ -1124,10 +1095,7 @@ again:
 		if (copy_from_user(buf->data + fragm_crs, sect_crs, sz)) {
 			res = -EFAULT;
 error:
-			for (; buf_chain; buf_chain = buf) {
-				buf = buf_chain->next;
-				kfree_skb(buf_chain);
-			}
+			kfree_skb_list(buf_chain);
 			return res;
 		}
 		sect_crs += sz;
@@ -1177,18 +1145,12 @@ error:
 		if (l_ptr->max_pkt < max_pkt) {
 			sender->max_pkt = l_ptr->max_pkt;
 			tipc_node_unlock(node);
-			for (; buf_chain; buf_chain = buf) {
-				buf = buf_chain->next;
-				kfree_skb(buf_chain);
-			}
+			kfree_skb_list(buf_chain);
 			goto again;
 		}
 	} else {
 reject:
-		for (; buf_chain; buf_chain = buf) {
-			buf = buf_chain->next;
-			kfree_skb(buf_chain);
-		}
+		kfree_skb_list(buf_chain);
 		return tipc_port_reject_sections(sender, hdr, msg_sect,
 						 len, TIPC_ERR_NO_NODE);
 	}
@@ -2283,11 +2245,7 @@ static int link_send_long_buf(struct tipc_link *l_ptr, struct sk_buff *buf)
 		fragm = tipc_buf_acquire(fragm_sz + INT_H_SIZE);
 		if (fragm == NULL) {
 			kfree_skb(buf);
-			while (buf_chain) {
-				buf = buf_chain;
-				buf_chain = buf_chain->next;
-				kfree_skb(buf);
-			}
+			kfree_skb_list(buf_chain);
 			return -ENOMEM;
 		}
 		msg_set_size(&fragm_hdr, fragm_sz + INT_H_SIZE);

@@ -291,11 +291,7 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 
 	/* Flush broadcast link info associated with lost node */
 	if (n_ptr->bclink.recv_permitted) {
-		while (n_ptr->bclink.deferred_head) {
-			struct sk_buff *buf = n_ptr->bclink.deferred_head;
-			n_ptr->bclink.deferred_head = buf->next;
-			kfree_skb(buf);
-		}
+		kfree_skb_list(n_ptr->bclink.deferred_head);
 		n_ptr->bclink.deferred_size = 0;
 
 		if (n_ptr->bclink.reasm_head) {
