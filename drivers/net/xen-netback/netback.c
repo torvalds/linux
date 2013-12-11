@@ -1475,7 +1475,7 @@ static unsigned xenvif_tx_build_gops(struct xenvif *vif, int budget)
 			continue;
 		}
 
-		RING_FINAL_CHECK_FOR_REQUESTS(&vif->tx, work_to_do);
+		work_to_do = RING_HAS_UNCONSUMED_REQUESTS(&vif->tx);
 		if (!work_to_do)
 			break;
 
