@@ -64,6 +64,7 @@ static void __init lager_add_standard_devices(void)
 }
 
 static const char *lager_boards_compat_dt[] __initdata = {
+	"renesas,lager",
 	"renesas,lager-reference",
 	NULL,
 };
