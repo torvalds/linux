@@ -70,39 +70,21 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		mbusc: mbus-controller@20000 {
-			compatible = "marvell,mbus-controller";
-			reg = <0x20000 0x80>, <0x1500 0x20>;
-		};
-
-		timer: timer@20300 {
-			compatible = "marvell,orion-timer";
-			reg = <0x20300 0x20>;
-			interrupt-parent = <&bridge_intc>;
-			interrupts = <1>, <2>;
-			clocks = <&core_clk 0>;
-		};
-
-		intc: main-interrupt-ctrl@20200 {
-			compatible = "marvell,orion-intc";
-			interrupt-controller;
-			#interrupt-cells = <1>;
-			reg = <0x20200 0x10>, <0x20210 0x10>;
-		};
-
-		bridge_intc: bridge-interrupt-ctrl@20110 {
-			compatible = "marvell,orion-bridge-intc";
-			interrupt-controller;
-			#interrupt-cells = <1>;
-			reg = <0x20110 0x8>;
-			interrupts = <1>;
-			marvell,#interrupts = <6>;
-		};
-
 		core_clk: core-clocks@10030 {
 			compatible = "marvell,kirkwood-core-clock";
 			reg = <0x10030 0x4>;
-	        	#clock-cells = <1>;
+			#clock-cells = <1>;
+		};
+
+		spi@10600 {
+			compatible = "marvell,orion-spi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <0>;
+			interrupts = <23>;
+			reg = <0x10600 0x28>;
+			clocks = <&gate_clk 7>;
+			status = "disabled";
 		};
 
 		gpio0: gpio@10100 {
@@ -129,6 +111,17 @@
 			clocks = <&gate_clk 7>;
 		};
 
+		i2c@11000 {
+			compatible = "marvell,mv64xxx-i2c";
+			reg = <0x11000 0x20>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <29>;
+			clock-frequency = <100000>;
+			clocks = <&gate_clk 7>;
+			status = "disabled";
+		};
+
 		serial@12000 {
 			compatible = "ns16550a";
 			reg = <0x12000 0x100>;
@@ -147,15 +140,18 @@
 			status = "disabled";
 		};
 
-		spi@10600 {
-			compatible = "marvell,orion-spi";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			cell-index = <0>;
-			interrupts = <23>;
-			reg = <0x10600 0x28>;
-			clocks = <&gate_clk 7>;
-			status = "disabled";
+		mbusc: mbus-controller@20000 {
+			compatible = "marvell,mbus-controller";
+			reg = <0x20000 0x80>, <0x1500 0x20>;
+		};
+
+		bridge_intc: bridge-interrupt-ctrl@20110 {
+			compatible = "marvell,orion-bridge-intc";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0x20110 0x8>;
+			interrupts = <1>;
+			marvell,#interrupts = <6>;
 		};
 
 		gate_clk: clock-gating-control@2011c {
@@ -165,12 +161,35 @@
 			#clock-cells = <1>;
 		};
 
+		intc: main-interrupt-ctrl@20200 {
+			compatible = "marvell,orion-intc";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0x20200 0x10>, <0x20210 0x10>;
+		};
+
+		timer: timer@20300 {
+			compatible = "marvell,orion-timer";
+			reg = <0x20300 0x20>;
+			interrupt-parent = <&bridge_intc>;
+			interrupts = <1>, <2>;
+			clocks = <&core_clk 0>;
+		};
+
 		wdt: watchdog-timer@20300 {
 			compatible = "marvell,orion-wdt";
 			reg = <0x20300 0x28>;
 			interrupt-parent = <&bridge_intc>;
 			interrupts = <3>;
 			clocks = <&gate_clk 7>;
+			status = "okay";
+		};
+
+		ehci@50000 {
+			compatible = "marvell,orion-ehci";
+			reg = <0x50000 0x1000>;
+			interrupts = <19>;
+			clocks = <&gate_clk 3>;
 			status = "okay";
 		};
 
@@ -214,37 +233,6 @@
 			};
 		};
 
-		ehci@50000 {
-			compatible = "marvell,orion-ehci";
-			reg = <0x50000 0x1000>;
-			interrupts = <19>;
-			clocks = <&gate_clk 3>;
-			status = "okay";
-		};
-
-		i2c@11000 {
-			compatible = "marvell,mv64xxx-i2c";
-			reg = <0x11000 0x20>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			interrupts = <29>;
-			clock-frequency = <100000>;
-			clocks = <&gate_clk 7>;
-			status = "disabled";
-		};
-
-		mdio: mdio-bus@72004 {
-			compatible = "marvell,orion-mdio";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x72004 0x84>;
-			interrupts = <46>;
-			clocks = <&gate_clk 0>;
-			status = "disabled";
-
-			/* add phy nodes in board file */
-		};
-
 		eth0: ethernet-controller@72000 {
 			compatible = "marvell,kirkwood-eth";
 			#address-cells = <1>;
@@ -263,6 +251,18 @@
 				local-mac-address = [00 00 00 00 00 00];
 				/* set phy-handle property in board file */
 			};
+		};
+
+		mdio: mdio-bus@72004 {
+			compatible = "marvell,orion-mdio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x72004 0x84>;
+			interrupts = <46>;
+			clocks = <&gate_clk 0>;
+			status = "disabled";
+
+			/* add phy nodes in board file */
 		};
 
 		eth1: ethernet-controller@76000 {
