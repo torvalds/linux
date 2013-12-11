@@ -2061,17 +2061,6 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(sdhi2),
 };
 
-#undef PORTCR
-#define PORTCR(nr, reg)							\
-	{								\
-		PINMUX_CFG_REG("PORT" nr "CR", reg, 8, 4) {		\
-			_PCRH(PORT##nr##_IN, 0, 0, PORT##nr##_OUT),	\
-				PORT##nr##_FN0, PORT##nr##_FN1,		\
-				PORT##nr##_FN2, PORT##nr##_FN3,		\
-				PORT##nr##_FN4, PORT##nr##_FN5,		\
-				PORT##nr##_FN6, PORT##nr##_FN7 }	\
-	}
-
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	PORTCR(0, 0xe6050000),
 	PORTCR(1, 0xe6050001),

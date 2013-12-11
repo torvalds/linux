@@ -2858,20 +2858,29 @@ static const char * const mmc_groups[] = {
 
 static const char * const msiof0_groups[] = {
 	"msiof0_clk",
-	"msiof0_ctrl",
-	"msiof0_data",
+	"msiof0_sync",
+	"msiof0_ss1",
+	"msiof0_ss2",
+	"msiof0_rx",
+	"msiof0_tx",
 };
 
 static const char * const msiof1_groups[] = {
 	"msiof1_clk",
-	"msiof1_ctrl",
-	"msiof1_data",
+	"msiof1_sync",
+	"msiof1_ss1",
+	"msiof1_ss2",
+	"msiof1_rx",
+	"msiof1_tx",
 };
 
 static const char * const msiof2_groups[] = {
 	"msiof2_clk",
-	"msiof2_ctrl",
-	"msiof2_data",
+	"msiof2_sync",
+	"msiof2_ss1",
+	"msiof2_ss2",
+	"msiof2_rx",
+	"msiof2_tx",
 };
 
 static const char * const scif0_groups[] = {
