@@ -181,7 +181,7 @@ static u32 radeon_acknowledge_irqs(drm_radeon_private_t *dev_priv, u32 *r500_dis
  * tied to dma at all, this is just a hangover from dri prehistory.
  */
 
-irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS)
+irqreturn_t radeon_driver_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_radeon_private_t *dev_priv =

@@ -154,7 +154,7 @@ extern int r128_do_cleanup_cce(struct drm_device *dev);
 extern int r128_enable_vblank(struct drm_device *dev, int crtc);
 extern void r128_disable_vblank(struct drm_device *dev, int crtc);
 extern u32 r128_get_vblank_counter(struct drm_device *dev, int crtc);
-extern irqreturn_t r128_driver_irq_handler(DRM_IRQ_ARGS);
+extern irqreturn_t r128_driver_irq_handler(int irq, void *arg);
 extern void r128_driver_irq_preinstall(struct drm_device *dev);
 extern int r128_driver_irq_postinstall(struct drm_device *dev);
 extern void r128_driver_irq_uninstall(struct drm_device *dev);

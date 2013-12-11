@@ -173,7 +173,7 @@ void omap_irq_disable_vblank(struct drm_device *dev, int crtc_id)
 	dispc_runtime_put();
 }
 
-irqreturn_t omap_irq_handler(DRM_IRQ_ARGS)
+irqreturn_t omap_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	struct omap_drm_private *priv = dev->dev_private;

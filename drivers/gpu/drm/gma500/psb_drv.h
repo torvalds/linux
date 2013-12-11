@@ -769,7 +769,7 @@ extern void psb_mmu_remove_pages(struct psb_mmu_pd *pd,
  *psb_irq.c
  */
 
-extern irqreturn_t psb_irq_handler(DRM_IRQ_ARGS);
+extern irqreturn_t psb_irq_handler(int irq, void *arg);
 extern int psb_irq_enable_dpst(struct drm_device *dev);
 extern int psb_irq_disable_dpst(struct drm_device *dev);
 extern void psb_irq_preinstall(struct drm_device *dev);

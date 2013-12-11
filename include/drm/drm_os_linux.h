@@ -48,9 +48,6 @@ static inline void writeq(u64 val, void __iomem *reg)
 /** Read/write memory barrier */
 #define DRM_MEMORYBARRIER()		mb()
 
-/** IRQ handler arguments and return type and values */
-#define DRM_IRQ_ARGS		int irq, void *arg
-
 /** Other copying of data to kernel space */
 #define DRM_COPY_FROM_USER(arg1, arg2, arg3)		\
 	copy_from_user(arg1, arg2, arg3)

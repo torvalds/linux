@@ -326,7 +326,7 @@ static void msm_lastclose(struct drm_device *dev)
 	}
 }
 
-static irqreturn_t msm_irq(DRM_IRQ_ARGS)
+static irqreturn_t msm_irq(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
 	struct msm_drm_private *priv = dev->dev_private;

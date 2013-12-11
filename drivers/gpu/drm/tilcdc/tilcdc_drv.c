@@ -311,7 +311,7 @@ static void tilcdc_lastclose(struct drm_device *dev)
 	drm_fbdev_cma_restore_mode(priv->fbdev);
 }
 
-static irqreturn_t tilcdc_irq(DRM_IRQ_ARGS)
+static irqreturn_t tilcdc_irq(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
 	struct tilcdc_drm_private *priv = dev->dev_private;

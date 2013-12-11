@@ -47,7 +47,7 @@ u32 mga_get_vblank_counter(struct drm_device *dev, int crtc)
 }
 
 
-irqreturn_t mga_driver_irq_handler(DRM_IRQ_ARGS)
+irqreturn_t mga_driver_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;

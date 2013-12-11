@@ -200,7 +200,7 @@ static void psb_vdc_interrupt(struct drm_device *dev, uint32_t vdc_stat)
 		mid_pipe_event_handler(dev, 1);
 }
 
-irqreturn_t psb_irq_handler(DRM_IRQ_ARGS)
+irqreturn_t psb_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
 	struct drm_psb_private *dev_priv = dev->dev_private;

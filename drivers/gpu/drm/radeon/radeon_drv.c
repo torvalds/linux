@@ -101,7 +101,7 @@ int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 void radeon_driver_irq_preinstall_kms(struct drm_device *dev);
 int radeon_driver_irq_postinstall_kms(struct drm_device *dev);
 void radeon_driver_irq_uninstall_kms(struct drm_device *dev);
-irqreturn_t radeon_driver_irq_handler_kms(DRM_IRQ_ARGS);
+irqreturn_t radeon_driver_irq_handler_kms(int irq, void *arg);
 void radeon_gem_object_free(struct drm_gem_object *obj);
 int radeon_gem_object_open(struct drm_gem_object *obj,
 				struct drm_file *file_priv);

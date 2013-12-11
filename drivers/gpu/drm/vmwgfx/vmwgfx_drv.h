@@ -701,7 +701,7 @@ extern void vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
  * IRQs and wating - vmwgfx_irq.c
  */
 
-extern irqreturn_t vmw_irq_handler(DRM_IRQ_ARGS);
+extern irqreturn_t vmw_irq_handler(int irq, void *arg);
 extern int vmw_wait_seqno(struct vmw_private *dev_priv, bool lazy,
 			     uint32_t seqno, bool interruptible,
 			     unsigned long timeout);
