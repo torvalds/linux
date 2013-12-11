@@ -330,9 +330,7 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		pci_set_drvdata(pdev, dev);
 
-	mutex_lock(&drm_global_mutex);
 	drm_pci_agp_init(dev);
-	mutex_unlock(&drm_global_mutex);
 
 	ret = drm_dev_register(dev, ent->driver_data);
 	if (ret)
@@ -350,9 +348,7 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 	return 0;
 
 err_agp:
-	mutex_lock(&drm_global_mutex);
 	drm_pci_agp_destroy(dev);
-	mutex_unlock(&drm_global_mutex);
 	pci_disable_device(pdev);
 err_free:
 	drm_dev_free(dev);
