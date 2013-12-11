@@ -28,6 +28,10 @@ config ARCH_EMEV2
 config ARCH_R7S72100
 	bool "RZ/A1H (R7S72100)"
 
+config ARCH_R8A7790
+	bool "R-Car H2 (R8A77900)"
+	select RENESAS_IRQC
+
 config ARCH_R8A7791
 	bool "R-Car M2 (R8A77910)"
 	select RENESAS_IRQC
@@ -46,6 +50,10 @@ config MACH_KZM9D
 	bool "KZM9D board"
 	depends on ARCH_EMEV2
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+
+config MACH_LAGER
+	bool "Lager board"
+	depends on ARCH_R8A7790
 
 comment "Renesas ARM SoCs System Configuration"
 endif
