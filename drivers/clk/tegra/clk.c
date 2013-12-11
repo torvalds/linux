@@ -21,9 +21,138 @@
 
 #include "clk.h"
 
+#define CLK_OUT_ENB_L			0x010
+#define CLK_OUT_ENB_H			0x014
+#define CLK_OUT_ENB_U			0x018
+#define CLK_OUT_ENB_V			0x360
+#define CLK_OUT_ENB_W			0x364
+#define CLK_OUT_ENB_X			0x280
+#define CLK_OUT_ENB_SET_L		0x320
+#define CLK_OUT_ENB_CLR_L		0x324
+#define CLK_OUT_ENB_SET_H		0x328
+#define CLK_OUT_ENB_CLR_H		0x32c
+#define CLK_OUT_ENB_SET_U		0x330
+#define CLK_OUT_ENB_CLR_U		0x334
+#define CLK_OUT_ENB_SET_V		0x440
+#define CLK_OUT_ENB_CLR_V		0x444
+#define CLK_OUT_ENB_SET_W		0x448
+#define CLK_OUT_ENB_CLR_W		0x44c
+#define CLK_OUT_ENB_SET_X		0x284
+#define CLK_OUT_ENB_CLR_X		0x288
+
+#define RST_DEVICES_L			0x004
+#define RST_DEVICES_H			0x008
+#define RST_DEVICES_U			0x00C
+#define RST_DFLL_DVCO			0x2F4
+#define RST_DEVICES_V			0x358
+#define RST_DEVICES_W			0x35C
+#define RST_DEVICES_X			0x28C
+#define RST_DEVICES_SET_L		0x300
+#define RST_DEVICES_CLR_L		0x304
+#define RST_DEVICES_SET_H		0x308
+#define RST_DEVICES_CLR_H		0x30c
+#define RST_DEVICES_SET_U		0x310
+#define RST_DEVICES_CLR_U		0x314
+#define RST_DEVICES_SET_V		0x430
+#define RST_DEVICES_CLR_V		0x434
+#define RST_DEVICES_SET_W		0x438
+#define RST_DEVICES_CLR_W		0x43c
+#define RST_DEVICES_SET_X		0x290
+#define RST_DEVICES_CLR_X		0x294
+
 /* Global data of Tegra CPU CAR ops */
 static struct tegra_cpu_car_ops dummy_car_ops;
 struct tegra_cpu_car_ops *tegra_cpu_car_ops = &dummy_car_ops;
+
+int *periph_clk_enb_refcnt;
+static int periph_banks;
+static struct clk **clks;
+static int clk_num;
+static struct clk_onecell_data clk_data;
+
+static struct tegra_clk_periph_regs periph_regs[] = {
+	[0] = {
+		.enb_reg = CLK_OUT_ENB_L,
+		.enb_set_reg = CLK_OUT_ENB_SET_L,
+		.enb_clr_reg = CLK_OUT_ENB_CLR_L,
+		.rst_reg = RST_DEVICES_L,
+		.rst_set_reg = RST_DEVICES_SET_L,
+		.rst_clr_reg = RST_DEVICES_CLR_L,
+	},
+	[1] = {
+		.enb_reg = CLK_OUT_ENB_H,
+		.enb_set_reg = CLK_OUT_ENB_SET_H,
+		.enb_clr_reg = CLK_OUT_ENB_CLR_H,
+		.rst_reg = RST_DEVICES_H,
+		.rst_set_reg = RST_DEVICES_SET_H,
+		.rst_clr_reg = RST_DEVICES_CLR_H,
+	},
+	[2] = {
+		.enb_reg = CLK_OUT_ENB_U,
+		.enb_set_reg = CLK_OUT_ENB_SET_U,
+		.enb_clr_reg = CLK_OUT_ENB_CLR_U,
+		.rst_reg = RST_DEVICES_U,
+		.rst_set_reg = RST_DEVICES_SET_U,
+		.rst_clr_reg = RST_DEVICES_CLR_U,
+	},
+	[3] = {
+		.enb_reg = CLK_OUT_ENB_V,
+		.enb_set_reg = CLK_OUT_ENB_SET_V,
+		.enb_clr_reg = CLK_OUT_ENB_CLR_V,
+		.rst_reg = RST_DEVICES_V,
+		.rst_set_reg = RST_DEVICES_SET_V,
+		.rst_clr_reg = RST_DEVICES_CLR_V,
+	},
+	[4] = {
+		.enb_reg = CLK_OUT_ENB_W,
+		.enb_set_reg = CLK_OUT_ENB_SET_W,
+		.enb_clr_reg = CLK_OUT_ENB_CLR_W,
+		.rst_reg = RST_DEVICES_W,
+		.rst_set_reg = RST_DEVICES_SET_W,
+		.rst_clr_reg = RST_DEVICES_CLR_W,
+	},
+	[5] = {
+		.enb_reg = CLK_OUT_ENB_X,
+		.enb_set_reg = CLK_OUT_ENB_SET_X,
+		.enb_clr_reg = CLK_OUT_ENB_CLR_X,
+		.rst_reg = RST_DEVICES_X,
+		.rst_set_reg = RST_DEVICES_SET_X,
+		.rst_clr_reg = RST_DEVICES_CLR_X,
+	},
+};
+
+struct tegra_clk_periph_regs *get_reg_bank(int clkid)
+{
+	int reg_bank = clkid / 32;
+
+	if (reg_bank < periph_banks)
+		return &periph_regs[reg_bank];
+	else {
+		WARN_ON(1);
+		return NULL;
+	}
+}
+
+struct clk ** __init tegra_clk_init(int num, int banks)
+{
+	if (WARN_ON(banks > ARRAY_SIZE(periph_regs)))
+		return NULL;
+
+	periph_clk_enb_refcnt = kzalloc(32 * banks *
+				sizeof(*periph_clk_enb_refcnt), GFP_KERNEL);
+	if (!periph_clk_enb_refcnt)
+		return NULL;
+
+	periph_banks = banks;
+
+	clks = kzalloc(num * sizeof(struct clk *), GFP_KERNEL);
+	if (!clks)
+		kfree(periph_clk_enb_refcnt);
+
+	clk_num = num;
+
+	return clks;
+}
 
 void __init tegra_init_dup_clks(struct tegra_clk_duplicate *dup_list,
 				struct clk *clks[], int clk_max)
@@ -72,6 +201,43 @@ void __init tegra_init_from_table(struct tegra_clk_init_table *tbl,
 				WARN_ON(1);
 			}
 	}
+}
+
+void __init tegra_add_of_provider(struct device_node *np)
+{
+	int i;
+
+	for (i = 0; i < clk_num; i++) {
+		if (IS_ERR(clks[i])) {
+			pr_err
+			    ("Tegra clk %d: register failed with %ld\n",
+			     i, PTR_ERR(clks[i]));
+		}
+		if (!clks[i])
+			clks[i] = ERR_PTR(-EINVAL);
+	}
+
+	clk_data.clks = clks;
+	clk_data.clk_num = clk_num;
+	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
+}
+
+void __init tegra_register_devclks(struct tegra_devclk *dev_clks, int num)
+{
+	int i;
+
+	for (i = 0; i < num; i++, dev_clks++)
+		clk_register_clkdev(clks[dev_clks->dt_id], dev_clks->con_id,
+				dev_clks->dev_id);
+}
+
+struct clk ** __init tegra_lookup_dt_id(int clk_id,
+					struct tegra_clk *tegra_clk)
+{
+	if (tegra_clk[clk_id].present)
+		return &clks[tegra_clk[clk_id].dt_id];
+	else
+		return NULL;
 }
 
 tegra_clk_apply_init_table_func tegra_clk_apply_init_table;
