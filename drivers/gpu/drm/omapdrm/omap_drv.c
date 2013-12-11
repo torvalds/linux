@@ -665,9 +665,9 @@ static int pdev_probe(struct platform_device *device)
 static int pdev_remove(struct platform_device *device)
 {
 	DBG("");
-	drm_platform_exit(&omap_drm_driver, device);
 
-	platform_driver_unregister(&omap_dmm_driver);
+	drm_put_dev(platform_get_drvdata(device));
+
 	return 0;
 }
 
