@@ -227,7 +227,7 @@ bool shdma_chan_filter(struct dma_chan *chan, void *arg)
 	struct shdma_chan *schan = to_shdma_chan(chan);
 	struct shdma_dev *sdev = to_shdma_dev(schan->dma_chan.device);
 	const struct shdma_ops *ops = sdev->ops;
-	int match = (int)arg;
+	int match = (long)arg;
 	int ret;
 
 	if (match < 0)
@@ -491,8 +491,8 @@ static struct shdma_desc *shdma_add_desc(struct shdma_chan *schan,
 	}
 
 	dev_dbg(schan->dev,
-		"chaining (%u/%u)@%x -> %x with %p, cookie %d\n",
-		copy_size, *len, *src, *dst, &new->async_tx,
+		"chaining (%zu/%zu)@%pad -> %pad with %p, cookie %d\n",
+		copy_size, *len, src, dst, &new->async_tx,
 		new->async_tx.cookie);
 
 	new->mark = DESC_PREPARED;
@@ -555,8 +555,8 @@ static struct dma_async_tx_descriptor *shdma_prep_sg(struct shdma_chan *schan,
 			goto err_get_desc;
 
 		do {
-			dev_dbg(schan->dev, "Add SG #%d@%p[%d], dma %llx\n",
-				i, sg, len, (unsigned long long)sg_addr);
+			dev_dbg(schan->dev, "Add SG #%d@%p[%zu], dma %pad\n",
+				i, sg, len, &sg_addr);
 
 			if (direction == DMA_DEV_TO_MEM)
 				new = shdma_add_desc(schan, flags,
