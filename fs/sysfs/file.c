@@ -41,7 +41,7 @@ static const struct sysfs_ops *sysfs_file_ops(struct kernfs_node *kn)
  */
 static int sysfs_kf_seq_show(struct seq_file *sf, void *v)
 {
-	struct sysfs_open_file *of = sf->private;
+	struct kernfs_open_file *of = sf->private;
 	struct kobject *kobj = of->kn->parent->priv;
 	const struct sysfs_ops *ops = sysfs_file_ops(of->kn);
 	ssize_t count;
@@ -78,7 +78,7 @@ static int sysfs_kf_seq_show(struct seq_file *sf, void *v)
 	return 0;
 }
 
-static ssize_t sysfs_kf_bin_read(struct sysfs_open_file *of, char *buf,
+static ssize_t sysfs_kf_bin_read(struct kernfs_open_file *of, char *buf,
 				 size_t count, loff_t pos)
 {
 	struct bin_attribute *battr = of->kn->priv;
@@ -102,7 +102,7 @@ static ssize_t sysfs_kf_bin_read(struct sysfs_open_file *of, char *buf,
 }
 
 /* kernfs write callback for regular sysfs files */
-static ssize_t sysfs_kf_write(struct sysfs_open_file *of, char *buf,
+static ssize_t sysfs_kf_write(struct kernfs_open_file *of, char *buf,
 			      size_t count, loff_t pos)
 {
 	const struct sysfs_ops *ops = sysfs_file_ops(of->kn);
@@ -115,7 +115,7 @@ static ssize_t sysfs_kf_write(struct sysfs_open_file *of, char *buf,
 }
 
 /* kernfs write callback for bin sysfs files */
-static ssize_t sysfs_kf_bin_write(struct sysfs_open_file *of, char *buf,
+static ssize_t sysfs_kf_bin_write(struct kernfs_open_file *of, char *buf,
 				  size_t count, loff_t pos)
 {
 	struct bin_attribute *battr = of->kn->priv;
@@ -136,7 +136,7 @@ static ssize_t sysfs_kf_bin_write(struct sysfs_open_file *of, char *buf,
 	return battr->write(of->file, kobj, battr, buf, pos, count);
 }
 
-static int sysfs_kf_bin_mmap(struct sysfs_open_file *of,
+static int sysfs_kf_bin_mmap(struct kernfs_open_file *of,
 			     struct vm_area_struct *vma)
 {
 	struct bin_attribute *battr = of->kn->priv;

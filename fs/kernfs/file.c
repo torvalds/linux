@@ -18,27 +18,27 @@
 #include "kernfs-internal.h"
 
 /*
- * There's one sysfs_open_file for each open file and one sysfs_open_dirent
+ * There's one kernfs_open_file for each open file and one kernfs_open_node
  * for each kernfs_node with one or more open files.
  *
- * kernfs_node->attr.open points to sysfs_open_dirent.  attr.open is
- * protected by sysfs_open_dirent_lock.
+ * kernfs_node->attr.open points to kernfs_open_node.  attr.open is
+ * protected by kernfs_open_node_lock.
  *
  * filp->private_data points to seq_file whose ->private points to
- * sysfs_open_file.  sysfs_open_files are chained at
- * sysfs_open_dirent->files, which is protected by sysfs_open_file_mutex.
+ * kernfs_open_file.  kernfs_open_files are chained at
+ * kernfs_open_node->files, which is protected by kernfs_open_file_mutex.
  */
-static DEFINE_SPINLOCK(sysfs_open_dirent_lock);
-static DEFINE_MUTEX(sysfs_open_file_mutex);
+static DEFINE_SPINLOCK(kernfs_open_node_lock);
+static DEFINE_MUTEX(kernfs_open_file_mutex);
 
-struct sysfs_open_dirent {
+struct kernfs_open_node {
 	atomic_t		refcnt;
 	atomic_t		event;
 	wait_queue_head_t	poll;
-	struct list_head	files; /* goes through sysfs_open_file.list */
+	struct list_head	files; /* goes through kernfs_open_file.list */
 };
 
-static struct sysfs_open_file *sysfs_of(struct file *file)
+static struct kernfs_open_file *kernfs_of(struct file *file)
 {
 	return ((struct seq_file *)file->private_data)->private;
 }
@@ -56,7 +56,7 @@ static const struct kernfs_ops *kernfs_ops(struct kernfs_node *kn)
 
 static void *kernfs_seq_start(struct seq_file *sf, loff_t *ppos)
 {
-	struct sysfs_open_file *of = sf->private;
+	struct kernfs_open_file *of = sf->private;
 	const struct kernfs_ops *ops;
 
 	/*
@@ -81,7 +81,7 @@ static void *kernfs_seq_start(struct seq_file *sf, loff_t *ppos)
 
 static void *kernfs_seq_next(struct seq_file *sf, void *v, loff_t *ppos)
 {
-	struct sysfs_open_file *of = sf->private;
+	struct kernfs_open_file *of = sf->private;
 	const struct kernfs_ops *ops = kernfs_ops(of->kn);
 
 	if (ops->seq_next) {
@@ -98,7 +98,7 @@ static void *kernfs_seq_next(struct seq_file *sf, void *v, loff_t *ppos)
 
 static void kernfs_seq_stop(struct seq_file *sf, void *v)
 {
-	struct sysfs_open_file *of = sf->private;
+	struct kernfs_open_file *of = sf->private;
 	const struct kernfs_ops *ops = kernfs_ops(of->kn);
 
 	if (ops->seq_stop)
@@ -110,7 +110,7 @@ static void kernfs_seq_stop(struct seq_file *sf, void *v)
 
 static int kernfs_seq_show(struct seq_file *sf, void *v)
 {
-	struct sysfs_open_file *of = sf->private;
+	struct kernfs_open_file *of = sf->private;
 
 	of->event = atomic_read(&of->kn->attr.open->event);
 
@@ -130,7 +130,7 @@ static const struct seq_operations kernfs_seq_ops = {
  * it difficult to use seq_file.  Implement simplistic custom buffering for
  * bin files.
  */
-static ssize_t kernfs_file_direct_read(struct sysfs_open_file *of,
+static ssize_t kernfs_file_direct_read(struct kernfs_open_file *of,
 				       char __user *user_buf, size_t count,
 				       loff_t *ppos)
 {
@@ -187,7 +187,7 @@ static ssize_t kernfs_file_direct_read(struct sysfs_open_file *of,
 static ssize_t kernfs_file_read(struct file *file, char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
-	struct sysfs_open_file *of = sysfs_of(file);
+	struct kernfs_open_file *of = kernfs_of(file);
 
 	if (of->kn->flags & SYSFS_FLAG_HAS_SEQ_SHOW)
 		return seq_read(file, user_buf, count, ppos);
@@ -214,7 +214,7 @@ static ssize_t kernfs_file_read(struct file *file, char __user *user_buf,
 static ssize_t kernfs_file_write(struct file *file, const char __user *user_buf,
 				 size_t count, loff_t *ppos)
 {
-	struct sysfs_open_file *of = sysfs_of(file);
+	struct kernfs_open_file *of = kernfs_of(file);
 	ssize_t len = min_t(size_t, count, PAGE_SIZE);
 	const struct kernfs_ops *ops;
 	char *buf;
@@ -259,7 +259,7 @@ out_free:
 static void kernfs_vma_open(struct vm_area_struct *vma)
 {
 	struct file *file = vma->vm_file;
-	struct sysfs_open_file *of = sysfs_of(file);
+	struct kernfs_open_file *of = kernfs_of(file);
 
 	if (!of->vm_ops)
 		return;
@@ -276,7 +276,7 @@ static void kernfs_vma_open(struct vm_area_struct *vma)
 static int kernfs_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct file *file = vma->vm_file;
-	struct sysfs_open_file *of = sysfs_of(file);
+	struct kernfs_open_file *of = kernfs_of(file);
 	int ret;
 
 	if (!of->vm_ops)
@@ -297,7 +297,7 @@ static int kernfs_vma_page_mkwrite(struct vm_area_struct *vma,
 				   struct vm_fault *vmf)
 {
 	struct file *file = vma->vm_file;
-	struct sysfs_open_file *of = sysfs_of(file);
+	struct kernfs_open_file *of = kernfs_of(file);
 	int ret;
 
 	if (!of->vm_ops)
@@ -320,7 +320,7 @@ static int kernfs_vma_access(struct vm_area_struct *vma, unsigned long addr,
 			     void *buf, int len, int write)
 {
 	struct file *file = vma->vm_file;
-	struct sysfs_open_file *of = sysfs_of(file);
+	struct kernfs_open_file *of = kernfs_of(file);
 	int ret;
 
 	if (!of->vm_ops)
@@ -342,7 +342,7 @@ static int kernfs_vma_set_policy(struct vm_area_struct *vma,
 				 struct mempolicy *new)
 {
 	struct file *file = vma->vm_file;
-	struct sysfs_open_file *of = sysfs_of(file);
+	struct kernfs_open_file *of = kernfs_of(file);
 	int ret;
 
 	if (!of->vm_ops)
@@ -363,7 +363,7 @@ static struct mempolicy *kernfs_vma_get_policy(struct vm_area_struct *vma,
 					       unsigned long addr)
 {
 	struct file *file = vma->vm_file;
-	struct sysfs_open_file *of = sysfs_of(file);
+	struct kernfs_open_file *of = kernfs_of(file);
 	struct mempolicy *pol;
 
 	if (!of->vm_ops)
@@ -385,7 +385,7 @@ static int kernfs_vma_migrate(struct vm_area_struct *vma,
 			      unsigned long flags)
 {
 	struct file *file = vma->vm_file;
-	struct sysfs_open_file *of = sysfs_of(file);
+	struct kernfs_open_file *of = kernfs_of(file);
 	int ret;
 
 	if (!of->vm_ops)
@@ -417,7 +417,7 @@ static const struct vm_operations_struct kernfs_vm_ops = {
 
 static int kernfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct sysfs_open_file *of = sysfs_of(file);
+	struct kernfs_open_file *of = kernfs_of(file);
 	const struct kernfs_ops *ops;
 	int rc;
 
@@ -473,9 +473,9 @@ out_unlock:
 }
 
 /**
- *	sysfs_get_open_dirent - get or create sysfs_open_dirent
+ *	sysfs_get_open_dirent - get or create kernfs_open_node
  *	@kn: target kernfs_node
- *	@of: sysfs_open_file for this instance of open
+ *	@of: kernfs_open_file for this instance of open
  *
  *	If @kn->attr.open exists, increment its reference count; otherwise,
  *	create one.  @of is chained to the files list.
@@ -487,49 +487,49 @@ out_unlock:
  *	0 on success, -errno on failure.
  */
 static int sysfs_get_open_dirent(struct kernfs_node *kn,
-				 struct sysfs_open_file *of)
+				 struct kernfs_open_file *of)
 {
-	struct sysfs_open_dirent *od, *new_od = NULL;
+	struct kernfs_open_node *on, *new_on = NULL;
 
  retry:
-	mutex_lock(&sysfs_open_file_mutex);
-	spin_lock_irq(&sysfs_open_dirent_lock);
+	mutex_lock(&kernfs_open_file_mutex);
+	spin_lock_irq(&kernfs_open_node_lock);
 
-	if (!kn->attr.open && new_od) {
-		kn->attr.open = new_od;
-		new_od = NULL;
+	if (!kn->attr.open && new_on) {
+		kn->attr.open = new_on;
+		new_on = NULL;
 	}
 
-	od = kn->attr.open;
-	if (od) {
-		atomic_inc(&od->refcnt);
-		list_add_tail(&of->list, &od->files);
+	on = kn->attr.open;
+	if (on) {
+		atomic_inc(&on->refcnt);
+		list_add_tail(&of->list, &on->files);
 	}
 
-	spin_unlock_irq(&sysfs_open_dirent_lock);
-	mutex_unlock(&sysfs_open_file_mutex);
+	spin_unlock_irq(&kernfs_open_node_lock);
+	mutex_unlock(&kernfs_open_file_mutex);
 
-	if (od) {
-		kfree(new_od);
+	if (on) {
+		kfree(new_on);
 		return 0;
 	}
 
 	/* not there, initialize a new one and retry */
-	new_od = kmalloc(sizeof(*new_od), GFP_KERNEL);
-	if (!new_od)
+	new_on = kmalloc(sizeof(*new_on), GFP_KERNEL);
+	if (!new_on)
 		return -ENOMEM;
 
-	atomic_set(&new_od->refcnt, 0);
-	atomic_set(&new_od->event, 1);
-	init_waitqueue_head(&new_od->poll);
-	INIT_LIST_HEAD(&new_od->files);
+	atomic_set(&new_on->refcnt, 0);
+	atomic_set(&new_on->event, 1);
+	init_waitqueue_head(&new_on->poll);
+	INIT_LIST_HEAD(&new_on->files);
 	goto retry;
 }
 
 /**
- *	sysfs_put_open_dirent - put sysfs_open_dirent
+ *	sysfs_put_open_dirent - put kernfs_open_node
  *	@kn: target kernfs_nodet
- *	@of: associated sysfs_open_file
+ *	@of: associated kernfs_open_file
  *
  *	Put @kn->attr.open and unlink @of from the files list.  If
  *	reference count reaches zero, disassociate and free it.
@@ -538,33 +538,33 @@ static int sysfs_get_open_dirent(struct kernfs_node *kn,
  *	None.
  */
 static void sysfs_put_open_dirent(struct kernfs_node *kn,
-				  struct sysfs_open_file *of)
+				  struct kernfs_open_file *of)
 {
-	struct sysfs_open_dirent *od = kn->attr.open;
+	struct kernfs_open_node *on = kn->attr.open;
 	unsigned long flags;
 
-	mutex_lock(&sysfs_open_file_mutex);
-	spin_lock_irqsave(&sysfs_open_dirent_lock, flags);
+	mutex_lock(&kernfs_open_file_mutex);
+	spin_lock_irqsave(&kernfs_open_node_lock, flags);
 
 	if (of)
 		list_del(&of->list);
 
-	if (atomic_dec_and_test(&od->refcnt))
+	if (atomic_dec_and_test(&on->refcnt))
 		kn->attr.open = NULL;
 	else
-		od = NULL;
+		on = NULL;
 
-	spin_unlock_irqrestore(&sysfs_open_dirent_lock, flags);
-	mutex_unlock(&sysfs_open_file_mutex);
+	spin_unlock_irqrestore(&kernfs_open_node_lock, flags);
+	mutex_unlock(&kernfs_open_file_mutex);
 
-	kfree(od);
+	kfree(on);
 }
 
 static int kernfs_file_open(struct inode *inode, struct file *file)
 {
 	struct kernfs_node *kn = file->f_path.dentry->d_fsdata;
 	const struct kernfs_ops *ops;
-	struct sysfs_open_file *of;
+	struct kernfs_open_file *of;
 	bool has_read, has_write, has_mmap;
 	int error = -EACCES;
 
@@ -586,9 +586,9 @@ static int kernfs_file_open(struct inode *inode, struct file *file)
 	    (!(inode->i_mode & S_IRUGO) || !has_read))
 		goto err_out;
 
-	/* allocate a sysfs_open_file for the file */
+	/* allocate a kernfs_open_file for the file */
 	error = -ENOMEM;
-	of = kzalloc(sizeof(struct sysfs_open_file), GFP_KERNEL);
+	of = kzalloc(sizeof(struct kernfs_open_file), GFP_KERNEL);
 	if (!of)
 		goto err_out;
 
@@ -654,7 +654,7 @@ err_out:
 static int kernfs_file_release(struct inode *inode, struct file *filp)
 {
 	struct kernfs_node *kn = filp->f_path.dentry->d_fsdata;
-	struct sysfs_open_file *of = sysfs_of(filp);
+	struct kernfs_open_file *of = kernfs_of(filp);
 
 	sysfs_put_open_dirent(kn, of);
 	seq_release(inode, filp);
@@ -665,26 +665,26 @@ static int kernfs_file_release(struct inode *inode, struct file *filp)
 
 void sysfs_unmap_bin_file(struct kernfs_node *kn)
 {
-	struct sysfs_open_dirent *od;
-	struct sysfs_open_file *of;
+	struct kernfs_open_node *on;
+	struct kernfs_open_file *of;
 
 	if (!(kn->flags & SYSFS_FLAG_HAS_MMAP))
 		return;
 
-	spin_lock_irq(&sysfs_open_dirent_lock);
-	od = kn->attr.open;
-	if (od)
-		atomic_inc(&od->refcnt);
-	spin_unlock_irq(&sysfs_open_dirent_lock);
-	if (!od)
+	spin_lock_irq(&kernfs_open_node_lock);
+	on = kn->attr.open;
+	if (on)
+		atomic_inc(&on->refcnt);
+	spin_unlock_irq(&kernfs_open_node_lock);
+	if (!on)
 		return;
 
-	mutex_lock(&sysfs_open_file_mutex);
-	list_for_each_entry(of, &od->files, list) {
+	mutex_lock(&kernfs_open_file_mutex);
+	list_for_each_entry(of, &on->files, list) {
 		struct inode *inode = file_inode(of->file);
 		unmap_mapping_range(inode->i_mapping, 0, 0, 1);
 	}
-	mutex_unlock(&sysfs_open_file_mutex);
+	mutex_unlock(&kernfs_open_file_mutex);
 
 	sysfs_put_open_dirent(kn, NULL);
 }
@@ -704,19 +704,19 @@ void sysfs_unmap_bin_file(struct kernfs_node *kn)
  */
 static unsigned int kernfs_file_poll(struct file *filp, poll_table *wait)
 {
-	struct sysfs_open_file *of = sysfs_of(filp);
+	struct kernfs_open_file *of = kernfs_of(filp);
 	struct kernfs_node *kn = filp->f_path.dentry->d_fsdata;
-	struct sysfs_open_dirent *od = kn->attr.open;
+	struct kernfs_open_node *on = kn->attr.open;
 
 	/* need parent for the kobj, grab both */
 	if (!sysfs_get_active(kn))
 		goto trigger;
 
-	poll_wait(filp, &od->poll, wait);
+	poll_wait(filp, &on->poll, wait);
 
 	sysfs_put_active(kn);
 
-	if (of->event != atomic_read(&od->event))
+	if (of->event != atomic_read(&on->event))
 		goto trigger;
 
 	return DEFAULT_POLLMASK;
@@ -733,20 +733,20 @@ static unsigned int kernfs_file_poll(struct file *filp, poll_table *wait)
  */
 void kernfs_notify(struct kernfs_node *kn)
 {
-	struct sysfs_open_dirent *od;
+	struct kernfs_open_node *on;
 	unsigned long flags;
 
-	spin_lock_irqsave(&sysfs_open_dirent_lock, flags);
+	spin_lock_irqsave(&kernfs_open_node_lock, flags);
 
 	if (!WARN_ON(sysfs_type(kn) != SYSFS_KOBJ_ATTR)) {
-		od = kn->attr.open;
-		if (od) {
-			atomic_inc(&od->event);
-			wake_up_interruptible(&od->poll);
+		on = kn->attr.open;
+		if (on) {
+			atomic_inc(&on->event);
+			wake_up_interruptible(&on->poll);
 		}
 	}
 
-	spin_unlock_irqrestore(&sysfs_open_dirent_lock, flags);
+	spin_unlock_irqrestore(&kernfs_open_node_lock, flags);
 }
 EXPORT_SYMBOL_GPL(kernfs_notify);
 
@@ -780,7 +780,7 @@ struct kernfs_node *kernfs_create_file_ns_key(struct kernfs_node *parent,
 					      void *priv, const void *ns,
 					      struct lock_class_key *key)
 {
-	struct sysfs_addrm_cxt acxt;
+	struct kernfs_addrm_cxt acxt;
 	struct kernfs_node *kn;
 	int rc;
 

@@ -27,7 +27,7 @@ static const struct super_operations sysfs_ops = {
 
 static int sysfs_fill_super(struct super_block *sb)
 {
-	struct sysfs_super_info *info = sysfs_info(sb);
+	struct kernfs_super_info *info = kernfs_info(sb);
 	struct inode *inode;
 	struct dentry *root;
 
@@ -61,8 +61,8 @@ static int sysfs_fill_super(struct super_block *sb)
 
 static int sysfs_test_super(struct super_block *sb, void *data)
 {
-	struct sysfs_super_info *sb_info = sysfs_info(sb);
-	struct sysfs_super_info *info = data;
+	struct kernfs_super_info *sb_info = kernfs_info(sb);
+	struct kernfs_super_info *info = data;
 
 	return sb_info->root == info->root && sb_info->ns == info->ns;
 }
@@ -84,7 +84,7 @@ static int sysfs_set_super(struct super_block *sb, void *data)
  */
 const void *kernfs_super_ns(struct super_block *sb)
 {
-	struct sysfs_super_info *info = sysfs_info(sb);
+	struct kernfs_super_info *info = kernfs_info(sb);
 
 	return info->ns;
 }
@@ -107,7 +107,7 @@ struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
 			       struct kernfs_root *root, const void *ns)
 {
 	struct super_block *sb;
-	struct sysfs_super_info *info;
+	struct kernfs_super_info *info;
 	int error;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
@@ -144,12 +144,12 @@ struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
  */
 void kernfs_kill_sb(struct super_block *sb)
 {
-	struct sysfs_super_info *info = sysfs_info(sb);
+	struct kernfs_super_info *info = kernfs_info(sb);
 	struct kernfs_node *root_kn = sb->s_root->d_fsdata;
 
 	/*
 	 * Remove the superblock from fs_supers/s_instances
-	 * so we can't find it, before freeing sysfs_super_info.
+	 * so we can't find it, before freeing kernfs_super_info.
 	 */
 	kill_anon_super(sb);
 	kfree(info);

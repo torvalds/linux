@@ -46,14 +46,14 @@ void __init sysfs_inode_init(void)
 		panic("failed to init sysfs_backing_dev_info");
 }
 
-static struct sysfs_inode_attrs *sysfs_inode_attrs(struct kernfs_node *kn)
+static struct kernfs_iattrs *kernfs_iattrs(struct kernfs_node *kn)
 {
 	struct iattr *iattrs;
 
 	if (kn->iattr)
 		return kn->iattr;
 
-	kn->iattr = kzalloc(sizeof(struct sysfs_inode_attrs), GFP_KERNEL);
+	kn->iattr = kzalloc(sizeof(struct kernfs_iattrs), GFP_KERNEL);
 	if (!kn->iattr)
 		return NULL;
 	iattrs = &kn->iattr->ia_iattr;
@@ -71,11 +71,11 @@ static struct sysfs_inode_attrs *sysfs_inode_attrs(struct kernfs_node *kn)
 
 static int __kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
 {
-	struct sysfs_inode_attrs *attrs;
+	struct kernfs_iattrs *attrs;
 	struct iattr *iattrs;
 	unsigned int ia_valid = iattr->ia_valid;
 
-	attrs = sysfs_inode_attrs(kn);
+	attrs = kernfs_iattrs(kn);
 	if (!attrs)
 		return -ENOMEM;
 
@@ -144,11 +144,11 @@ out:
 static int sysfs_sd_setsecdata(struct kernfs_node *kn, void **secdata,
 			       u32 *secdata_len)
 {
-	struct sysfs_inode_attrs *attrs;
+	struct kernfs_iattrs *attrs;
 	void *old_secdata;
 	size_t old_secdata_len;
 
-	attrs = sysfs_inode_attrs(kn);
+	attrs = kernfs_iattrs(kn);
 	if (!attrs)
 		return -ENOMEM;
 
@@ -167,12 +167,12 @@ int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		size_t size, int flags)
 {
 	struct kernfs_node *kn = dentry->d_fsdata;
-	struct sysfs_inode_attrs *attrs;
+	struct kernfs_iattrs *attrs;
 	void *secdata;
 	int error;
 	u32 secdata_len = 0;
 
-	attrs = sysfs_inode_attrs(kn);
+	attrs = kernfs_iattrs(kn);
 	if (!attrs)
 		return -ENOMEM;
 
@@ -205,9 +205,9 @@ int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 int sysfs_removexattr(struct dentry *dentry, const char *name)
 {
 	struct kernfs_node *kn = dentry->d_fsdata;
-	struct sysfs_inode_attrs *attrs;
+	struct kernfs_iattrs *attrs;
 
-	attrs = sysfs_inode_attrs(kn);
+	attrs = kernfs_iattrs(kn);
 	if (!attrs)
 		return -ENOMEM;
 
@@ -218,9 +218,9 @@ ssize_t sysfs_getxattr(struct dentry *dentry, const char *name, void *buf,
 		       size_t size)
 {
 	struct kernfs_node *kn = dentry->d_fsdata;
-	struct sysfs_inode_attrs *attrs;
+	struct kernfs_iattrs *attrs;
 
-	attrs = sysfs_inode_attrs(kn);
+	attrs = kernfs_iattrs(kn);
 	if (!attrs)
 		return -ENOMEM;
 
@@ -230,9 +230,9 @@ ssize_t sysfs_getxattr(struct dentry *dentry, const char *name, void *buf,
 ssize_t sysfs_listxattr(struct dentry *dentry, char *buf, size_t size)
 {
 	struct kernfs_node *kn = dentry->d_fsdata;
-	struct sysfs_inode_attrs *attrs;
+	struct kernfs_iattrs *attrs;
 
-	attrs = sysfs_inode_attrs(kn);
+	attrs = kernfs_iattrs(kn);
 	if (!attrs)
 		return -ENOMEM;
 
@@ -256,7 +256,7 @@ static inline void set_inode_attr(struct inode *inode, struct iattr *iattr)
 
 static void sysfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
 {
-	struct sysfs_inode_attrs *attrs = kn->iattr;
+	struct kernfs_iattrs *attrs = kn->iattr;
 
 	inode->i_mode = kn->mode;
 	if (attrs) {

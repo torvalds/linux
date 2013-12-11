@@ -295,7 +295,7 @@ static int sysfs_dentry_revalidate(struct dentry *dentry, unsigned int flags)
 
 	/* The sysfs dirent has been moved to a different namespace */
 	if (kn->parent && kernfs_ns_enabled(kn->parent) &&
-	    sysfs_info(dentry->d_sb)->ns != kn->ns)
+	    kernfs_info(dentry->d_sb)->ns != kn->ns)
 		goto out_bad;
 
 	mutex_unlock(&sysfs_mutex);
@@ -375,7 +375,7 @@ struct kernfs_node *sysfs_new_dirent(struct kernfs_root *root,
 
 /**
  *	sysfs_addrm_start - prepare for kernfs_node add/remove
- *	@acxt: pointer to sysfs_addrm_cxt to be used
+ *	@acxt: pointer to kernfs_addrm_cxt to be used
  *
  *	This function is called when the caller is about to add or remove
  *	kernfs_node.  This function acquires sysfs_mutex.  @acxt is used to
@@ -385,7 +385,7 @@ struct kernfs_node *sysfs_new_dirent(struct kernfs_root *root,
  *	Kernel thread context (may sleep).  sysfs_mutex is locked on
  *	return.
  */
-void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt)
+void sysfs_addrm_start(struct kernfs_addrm_cxt *acxt)
 	__acquires(sysfs_mutex)
 {
 	memset(acxt, 0, sizeof(*acxt));
@@ -414,11 +414,11 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt)
  *	0 on success, -EEXIST if entry with the given name already
  *	exists.
  */
-int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct kernfs_node *kn,
+int sysfs_add_one(struct kernfs_addrm_cxt *acxt, struct kernfs_node *kn,
 		  struct kernfs_node *parent)
 {
 	bool has_ns = kernfs_ns_enabled(parent);
-	struct sysfs_inode_attrs *ps_iattr;
+	struct kernfs_iattrs *ps_iattr;
 	int ret;
 
 	if (has_ns != (bool)kn->ns) {
@@ -466,10 +466,10 @@ int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct kernfs_node *kn,
  *	LOCKING:
  *	Determined by sysfs_addrm_start().
  */
-static void sysfs_remove_one(struct sysfs_addrm_cxt *acxt,
+static void sysfs_remove_one(struct kernfs_addrm_cxt *acxt,
 			     struct kernfs_node *kn)
 {
-	struct sysfs_inode_attrs *ps_iattr;
+	struct kernfs_iattrs *ps_iattr;
 
 	/*
 	 * Removal can be called multiple times on the same node.  Only the
@@ -505,7 +505,7 @@ static void sysfs_remove_one(struct sysfs_addrm_cxt *acxt,
  *	LOCKING:
  *	sysfs_mutex is released.
  */
-void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt)
+void sysfs_addrm_finish(struct kernfs_addrm_cxt *acxt)
 	__releases(sysfs_mutex)
 {
 	/* release resources acquired by sysfs_addrm_start() */
@@ -649,7 +649,7 @@ struct kernfs_node *kernfs_create_dir_ns(struct kernfs_node *parent,
 					 const void *ns)
 {
 	umode_t mode = S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO;
-	struct sysfs_addrm_cxt acxt;
+	struct kernfs_addrm_cxt acxt;
 	struct kernfs_node *kn;
 	int rc;
 
@@ -686,7 +686,7 @@ static struct dentry *sysfs_lookup(struct inode *dir, struct dentry *dentry,
 	mutex_lock(&sysfs_mutex);
 
 	if (kernfs_ns_enabled(parent))
-		ns = sysfs_info(dir->i_sb)->ns;
+		ns = kernfs_info(dir->i_sb)->ns;
 
 	kn = kernfs_find_ns(parent, dentry->d_name.name, ns);
 
@@ -778,7 +778,7 @@ static struct kernfs_node *sysfs_next_descendant_post(struct kernfs_node *pos,
 	return pos->parent;
 }
 
-static void __kernfs_remove(struct sysfs_addrm_cxt *acxt,
+static void __kernfs_remove(struct kernfs_addrm_cxt *acxt,
 			    struct kernfs_node *kn)
 {
 	struct kernfs_node *pos, *next;
@@ -805,7 +805,7 @@ static void __kernfs_remove(struct sysfs_addrm_cxt *acxt,
  */
 void kernfs_remove(struct kernfs_node *kn)
 {
-	struct sysfs_addrm_cxt acxt;
+	struct kernfs_addrm_cxt acxt;
 
 	sysfs_addrm_start(&acxt);
 	__kernfs_remove(&acxt, kn);
@@ -824,7 +824,7 @@ void kernfs_remove(struct kernfs_node *kn)
 int kernfs_remove_by_name_ns(struct kernfs_node *parent, const char *name,
 			     const void *ns)
 {
-	struct sysfs_addrm_cxt acxt;
+	struct kernfs_addrm_cxt acxt;
 	struct kernfs_node *kn;
 
 	if (!parent) {
@@ -971,7 +971,7 @@ static int sysfs_readdir(struct file *file, struct dir_context *ctx)
 	mutex_lock(&sysfs_mutex);
 
 	if (kernfs_ns_enabled(parent))
-		ns = sysfs_info(dentry->d_sb)->ns;
+		ns = kernfs_info(dentry->d_sb)->ns;
 
 	for (pos = sysfs_dir_pos(ns, parent, ctx->pos, pos);
 	     pos;

@@ -18,7 +18,7 @@
 
 #include <linux/kernfs.h>
 
-struct sysfs_inode_attrs {
+struct kernfs_iattrs {
 	struct iattr		ia_iattr;
 	void			*ia_secdata;
 	u32			ia_secdata_len;
@@ -47,14 +47,14 @@ static inline struct kernfs_root *kernfs_root(struct kernfs_node *kn)
 /*
  * Context structure to be used while adding/removing nodes.
  */
-struct sysfs_addrm_cxt {
+struct kernfs_addrm_cxt {
 	struct kernfs_node	*removed;
 };
 
 /*
  * mount.c
  */
-struct sysfs_super_info {
+struct kernfs_super_info {
 	/*
 	 * The root associated with this super_block.  Each super_block is
 	 * identified by the root and ns it's associated with.
@@ -63,13 +63,13 @@ struct sysfs_super_info {
 
 	/*
 	 * Each sb is associated with one namespace tag, currently the
-	 * network namespace of the task which mounted this sysfs instance.
-	 * If multiple tags become necessary, make the following an array
-	 * and compare kernfs_node tag against every entry.
+	 * network namespace of the task which mounted this kernfs
+	 * instance.  If multiple tags become necessary, make the following
+	 * an array and compare kernfs_node tag against every entry.
 	 */
 	const void		*ns;
 };
-#define sysfs_info(SB) ((struct sysfs_super_info *)(SB->s_fs_info))
+#define kernfs_info(SB) ((struct kernfs_super_info *)(SB->s_fs_info))
 
 extern struct kmem_cache *sysfs_dir_cachep;
 
@@ -100,10 +100,10 @@ extern const struct inode_operations sysfs_dir_inode_operations;
 
 struct kernfs_node *sysfs_get_active(struct kernfs_node *kn);
 void sysfs_put_active(struct kernfs_node *kn);
-void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt);
-int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct kernfs_node *kn,
+void sysfs_addrm_start(struct kernfs_addrm_cxt *acxt);
+int sysfs_add_one(struct kernfs_addrm_cxt *acxt, struct kernfs_node *kn,
 		  struct kernfs_node *parent);
-void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt);
+void sysfs_addrm_finish(struct kernfs_addrm_cxt *acxt);
 struct kernfs_node *sysfs_new_dirent(struct kernfs_root *root,
 				     const char *name, umode_t mode, int type);
 

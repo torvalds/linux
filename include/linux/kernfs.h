@@ -24,8 +24,8 @@ struct vm_area_struct;
 struct super_block;
 struct file_system_type;
 
-struct sysfs_open_dirent;
-struct sysfs_inode_attrs;
+struct kernfs_open_node;
+struct kernfs_iattrs;
 
 enum kernfs_node_type {
 	SYSFS_DIR		= 0x0001,
@@ -65,7 +65,7 @@ struct kernfs_elem_symlink {
 
 struct kernfs_elem_attr {
 	const struct kernfs_ops	*ops;
-	struct sysfs_open_dirent *open;
+	struct kernfs_open_node	*open;
 	loff_t			size;
 };
 
@@ -108,7 +108,7 @@ struct kernfs_node {
 	unsigned short		flags;
 	umode_t			mode;
 	unsigned int		ino;
-	struct sysfs_inode_attrs *iattr;
+	struct kernfs_iattrs	*iattr;
 };
 
 struct kernfs_root {
@@ -119,7 +119,7 @@ struct kernfs_root {
 	struct ida		ino_ida;
 };
 
-struct sysfs_open_file {
+struct kernfs_open_file {
 	/* published fields */
 	struct kernfs_node	*kn;
 	struct file		*file;
@@ -140,7 +140,7 @@ struct kernfs_ops {
 	 * If seq_show() is present, seq_file path is active.  Other seq
 	 * operations are optional and if not implemented, the behavior is
 	 * equivalent to single_open().  @sf->private points to the
-	 * associated sysfs_open_file.
+	 * associated kernfs_open_file.
 	 *
 	 * read() is bounced through kernel buffer and a read larger than
 	 * PAGE_SIZE results in partial operation of PAGE_SIZE.
@@ -151,17 +151,17 @@ struct kernfs_ops {
 	void *(*seq_next)(struct seq_file *sf, void *v, loff_t *ppos);
 	void (*seq_stop)(struct seq_file *sf, void *v);
 
-	ssize_t (*read)(struct sysfs_open_file *of, char *buf, size_t bytes,
+	ssize_t (*read)(struct kernfs_open_file *of, char *buf, size_t bytes,
 			loff_t off);
 
 	/*
 	 * write() is bounced through kernel buffer and a write larger than
 	 * PAGE_SIZE results in partial operation of PAGE_SIZE.
 	 */
-	ssize_t (*write)(struct sysfs_open_file *of, char *buf, size_t bytes,
+	ssize_t (*write)(struct kernfs_open_file *of, char *buf, size_t bytes,
 			 loff_t off);
 
-	int (*mmap)(struct sysfs_open_file *of, struct vm_area_struct *vma);
+	int (*mmap)(struct kernfs_open_file *of, struct vm_area_struct *vma);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lock_class_key	lockdep_key;
