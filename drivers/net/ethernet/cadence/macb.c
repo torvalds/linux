@@ -17,6 +17,7 @@
 #include <linux/circ_buf.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
@@ -1816,7 +1817,7 @@ static int __init macb_probe(struct platform_device *pdev)
 		goto err_out_disable_pclk;
 	}
 
-	bp->regs = ioremap(regs->start, resource_size(regs));
+	bp->regs = devm_ioremap(&pdev->dev, regs->start, resource_size(regs));
 	if (!bp->regs) {
 		dev_err(&pdev->dev, "failed to map registers, aborting.\n");
 		err = -ENOMEM;
@@ -1828,7 +1829,7 @@ static int __init macb_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev, "Unable to request IRQ %d (error %d)\n",
 			dev->irq, err);
-		goto err_out_iounmap;
+		goto err_out_disable_clocks;
 	}
 
 	dev->netdev_ops = &macb_netdev_ops;
@@ -1916,8 +1917,6 @@ err_out_unregister_netdev:
 	unregister_netdev(dev);
 err_out_free_irq:
 	free_irq(dev->irq, dev);
-err_out_iounmap:
-	iounmap(bp->regs);
 err_out_disable_clocks:
 	clk_disable_unprepare(bp->hclk);
 err_out_disable_pclk:
@@ -1944,7 +1943,6 @@ static int __exit macb_remove(struct platform_device *pdev)
 		mdiobus_free(bp->mii_bus);
 		unregister_netdev(dev);
 		free_irq(dev->irq, dev);
-		iounmap(bp->regs);
 		clk_disable_unprepare(bp->hclk);
 		clk_disable_unprepare(bp->pclk);
 		free_netdev(dev);
