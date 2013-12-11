@@ -953,6 +953,8 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 			     BGMAC_CMDCFG_CFE |
 			     BGMAC_CMDCFG_SR,
 			     false);
+	bgmac->mac_speed = SPEED_UNKNOWN;
+	bgmac->mac_duplex = DUPLEX_UNKNOWN;
 
 	bgmac_clear_mib(bgmac);
 	if (core->id.id == BCMA_CORE_4706_MAC_GBIT)
