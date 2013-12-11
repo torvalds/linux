@@ -347,7 +347,7 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 	 * GPIOs.
 	 */
 	for (i = 0; i < pfc->num_windows; ++i) {
-		struct sh_pfc_window *window = &pfc->window[i];
+		struct sh_pfc_window *window = &pfc->windows[i];
 
 		if (pfc->info->data_regs[0].reg >= window->phys &&
 		    pfc->info->data_regs[0].reg < window->phys + window->size)
@@ -358,7 +358,7 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 		return 0;
 
 	/* Register the real GPIOs chip. */
-	chip = sh_pfc_add_gpiochip(pfc, gpio_pin_setup, &pfc->window[i]);
+	chip = sh_pfc_add_gpiochip(pfc, gpio_pin_setup, &pfc->windows[i]);
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 

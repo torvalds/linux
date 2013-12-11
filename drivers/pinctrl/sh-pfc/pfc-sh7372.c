@@ -2574,7 +2574,7 @@ static void __iomem *sh7372_pinmux_portcr(struct sh_pfc *pfc, unsigned int pin)
 			&sh7372_portcr_offsets[i];
 
 		if (i <= group->end_pin)
-			return pfc->window->virt + group->offset + pin;
+			return pfc->windows->virt + group->offset + pin;
 	}
 
 	return NULL;

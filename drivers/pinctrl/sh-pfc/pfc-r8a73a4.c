@@ -2680,7 +2680,7 @@ static unsigned int r8a73a4_pinmux_get_bias(struct sh_pfc *pfc,
 {
 	void __iomem *addr;
 
-	addr = pfc->window->virt + r8a73a4_portcr_offsets[pin >> 5] + pin;
+	addr = pfc->windows->virt + r8a73a4_portcr_offsets[pin >> 5] + pin;
 
 	switch (ioread8(addr) & PORTCR_PULMD_MASK) {
 	case PORTCR_PULMD_UP:
@@ -2699,7 +2699,7 @@ static void r8a73a4_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 	void __iomem *addr;
 	u32 value;
 
-	addr = pfc->window->virt + r8a73a4_portcr_offsets[pin >> 5] + pin;
+	addr = pfc->windows->virt + r8a73a4_portcr_offsets[pin >> 5] + pin;
 	value = ioread8(addr) & ~PORTCR_PULMD_MASK;
 
 	switch (bias) {

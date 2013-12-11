@@ -34,20 +34,21 @@ static int sh_pfc_ioremap(struct sh_pfc *pfc, struct platform_device *pdev)
 	if (pdev->num_resources == 0)
 		return -EINVAL;
 
-	pfc->window = devm_kzalloc(pfc->dev, pdev->num_resources *
-				   sizeof(*pfc->window), GFP_NOWAIT);
-	if (!pfc->window)
+	pfc->windows = devm_kzalloc(pfc->dev, pdev->num_resources *
+				    sizeof(*pfc->windows), GFP_NOWAIT);
+	if (!pfc->windows)
 		return -ENOMEM;
 
 	pfc->num_windows = pdev->num_resources;
 
 	for (k = 0, res = pdev->resource; k < pdev->num_resources; k++, res++) {
 		WARN_ON(resource_type(res) != IORESOURCE_MEM);
-		pfc->window[k].phys = res->start;
-		pfc->window[k].size = resource_size(res);
-		pfc->window[k].virt = devm_ioremap_nocache(pfc->dev, res->start,
-							   resource_size(res));
-		if (!pfc->window[k].virt)
+		pfc->windows[k].phys = res->start;
+		pfc->windows[k].size = resource_size(res);
+		pfc->windows[k].virt =
+			devm_ioremap_nocache(pfc->dev, res->start,
+					     resource_size(res));
+		if (!pfc->windows[k].virt)
 			return -ENOMEM;
 	}
 
@@ -62,7 +63,7 @@ static void __iomem *sh_pfc_phys_to_virt(struct sh_pfc *pfc,
 
 	/* scan through physical windows and convert address */
 	for (i = 0; i < pfc->num_windows; i++) {
-		window = pfc->window + i;
+		window = pfc->windows + i;
 
 		if (address < window->phys)
 			continue;

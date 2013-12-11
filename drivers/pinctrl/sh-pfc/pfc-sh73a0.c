@@ -3692,7 +3692,7 @@ static const struct pinmux_irq pinmux_irqs[] = {
 static void sh73a0_vccq_mc0_endisable(struct regulator_dev *reg, bool enable)
 {
 	struct sh_pfc *pfc = reg->reg_data;
-	void __iomem *addr = pfc->window[1].virt + 4;
+	void __iomem *addr = pfc->windows[1].virt + 4;
 	unsigned long flags;
 	u32 value;
 
@@ -3725,7 +3725,7 @@ static int sh73a0_vccq_mc0_disable(struct regulator_dev *reg)
 static int sh73a0_vccq_mc0_is_enabled(struct regulator_dev *reg)
 {
 	struct sh_pfc *pfc = reg->reg_data;
-	void __iomem *addr = pfc->window[1].virt + 4;
+	void __iomem *addr = pfc->windows[1].virt + 4;
 	unsigned long flags;
 	u32 value;
 
@@ -3784,7 +3784,7 @@ static const unsigned int sh73a0_portcr_offsets[] = {
 
 static unsigned int sh73a0_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin)
 {
-	void __iomem *addr = pfc->window->virt
+	void __iomem *addr = pfc->windows->virt
 			   + sh73a0_portcr_offsets[pin >> 5] + pin;
 	u32 value = ioread8(addr) & PORTnCR_PULMD_MASK;
 
@@ -3802,7 +3802,7 @@ static unsigned int sh73a0_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin)
 static void sh73a0_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 				   unsigned int bias)
 {
-	void __iomem *addr = pfc->window->virt
+	void __iomem *addr = pfc->windows->virt
 			   + sh73a0_portcr_offsets[pin >> 5] + pin;
 	u32 value = ioread8(addr) & ~PORTnCR_PULMD_MASK;
 

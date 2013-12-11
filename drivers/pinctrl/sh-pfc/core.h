@@ -37,7 +37,7 @@ struct sh_pfc {
 	spinlock_t lock;
 
 	unsigned int num_windows;
-	struct sh_pfc_window *window;
+	struct sh_pfc_window *windows;
 
 	struct sh_pfc_pin_range *ranges;
 	unsigned int nr_ranges;
