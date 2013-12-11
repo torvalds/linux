@@ -268,17 +268,6 @@ config MACH_KOELSCH
 	select USE_OF
 	select MICREL_PHY if SH_ETH
 
-config MACH_KOELSCH_REFERENCE
-	bool "Koelsch board - Reference Device Tree Implementation"
-	depends on ARCH_R8A7791
-	select USE_OF
-	---help---
-	   Use reference implementation of Koelsch board support
-	   which makes use of device tree at the expense
-	   of not supporting a number of devices.
-
-	   This is intended to aid developers
-
 config MACH_KZM9G
 	bool "KZM-A9-GT board"
 	depends on ARCH_SH73A0
