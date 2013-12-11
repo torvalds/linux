@@ -78,12 +78,23 @@ void __init rcar_gen2_timer_init(void)
 	/* Remap "armgcnt address map" space */
 	base = ioremap(0xe6080000, PAGE_SIZE);
 
-	/* Update registers with correct frequency */
-	iowrite32(freq, base + CNTFID0);
-	asm volatile("mcr p15, 0, %0, c14, c0, 0" : : "r" (freq));
+	/*
+	 * Update the timer if it is either not running, or is not at the
+	 * right frequency. The timer is only configurable in secure mode
+	 * so this avoids an abort if the loader started the timer and
+	 * entered the kernel in non-secure mode.
+	 */
 
-	/* make sure arch timer is started by setting bit 0 of CNTCR */
-	iowrite32(1, base + CNTCR);
+	if ((ioread32(base + CNTCR) & 1) == 0 ||
+	    ioread32(base + CNTFID0) != freq) {
+		/* Update registers with correct frequency */
+		iowrite32(freq, base + CNTFID0);
+		asm volatile("mcr p15, 0, %0, c14, c0, 0" : : "r" (freq));
+
+		/* make sure arch timer is started by setting bit 0 of CNTCR */
+		iowrite32(1, base + CNTCR);
+	}
+
 	iounmap(base);
 #endif /* CONFIG_ARM_ARCH_TIMER */
 
