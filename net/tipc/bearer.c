@@ -41,7 +41,7 @@
 
 #define MAX_ADDR_STR 60
 
-static struct tipc_media * const media_list[] = {
+static struct tipc_media * const media_info_array[] = {
 	&eth_media_info,
 #ifdef CONFIG_TIPC_MEDIA_IB
 	&ib_media_info,
@@ -60,11 +60,11 @@ struct tipc_media *tipc_media_find(const char *name)
 {
 	u32 i;
 
-	for (i = 0; media_list[i] != NULL; i++) {
-		if (!strcmp(media_list[i]->name, name))
+	for (i = 0; media_info_array[i] != NULL; i++) {
+		if (!strcmp(media_info_array[i]->name, name))
 			break;
 	}
-	return media_list[i];
+	return media_info_array[i];
 }
 
 /**
@@ -74,11 +74,11 @@ static struct tipc_media *media_find_id(u8 type)
 {
 	u32 i;
 
-	for (i = 0; media_list[i] != NULL; i++) {
-		if (media_list[i]->type_id == type)
+	for (i = 0; media_info_array[i] != NULL; i++) {
+		if (media_info_array[i]->type_id == type)
 			break;
 	}
-	return media_list[i];
+	return media_info_array[i];
 }
 
 /**
@@ -116,10 +116,10 @@ struct sk_buff *tipc_media_get_names(void)
 	if (!buf)
 		return NULL;
 
-	for (i = 0; media_list[i] != NULL; i++) {
+	for (i = 0; media_info_array[i] != NULL; i++) {
 		tipc_cfg_append_tlv(buf, TIPC_TLV_MEDIA_NAME,
-				    media_list[i]->name,
-				    strlen(media_list[i]->name) + 1);
+				    media_info_array[i]->name,
+				    strlen(media_info_array[i]->name) + 1);
 	}
 	return buf;
 }
@@ -209,7 +209,7 @@ struct tipc_bearer *tipc_bearer_find_interface(const char *if_name)
 struct sk_buff *tipc_bearer_get_names(void)
 {
 	struct sk_buff *buf;
-	struct tipc_bearer *b_ptr;
+	struct tipc_bearer *b;
 	int i, j;
 
 	buf = tipc_cfg_reply_alloc(MAX_BEARERS * TLV_SPACE(TIPC_MAX_BEARER_NAME));
@@ -217,13 +217,13 @@ struct sk_buff *tipc_bearer_get_names(void)
 		return NULL;
 
 	read_lock_bh(&tipc_net_lock);
-	for (i = 0; media_list[i] != NULL; i++) {
+	for (i = 0; media_info_array[i] != NULL; i++) {
 		for (j = 0; j < MAX_BEARERS; j++) {
-			b_ptr = &tipc_bearers[j];
-			if (b_ptr->active && (b_ptr->media == media_list[i])) {
+			b = &tipc_bearers[j];
+			if (b->active && (b->media == media_info_array[i])) {
 				tipc_cfg_append_tlv(buf, TIPC_TLV_BEARER_NAME,
-						    b_ptr->name,
-						    strlen(b_ptr->name) + 1);
+						    b->name,
+						    strlen(b->name) + 1);
 			}
 		}
 	}

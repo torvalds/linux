@@ -73,14 +73,13 @@ struct tipc_media_addr {
 struct tipc_bearer;
 
 /**
- * struct tipc_media - TIPC media information available to internal users
+ * struct tipc_media - Media specific info exposed to generic bearer layer
  * @send_msg: routine which handles buffer transmission
  * @enable_media: routine which enables a media
  * @disable_media: routine which disables a media
  * @addr2str: routine which converts media address to string
  * @addr2msg: routine which converts media address to protocol message area
  * @msg2addr: routine which converts media address from protocol message area
- * @bcast_addr: media address used in broadcasting
  * @priority: default link (and bearer) priority
  * @tolerance: default time (in ms) before declaring link failure
  * @window: default window (in packets) before declaring link congestion
@@ -105,13 +104,14 @@ struct tipc_media {
 };
 
 /**
- * struct tipc_bearer - TIPC bearer structure
+ * struct tipc_bearer - Generic TIPC bearer structure
  * @usr_handle: pointer to additional media-specific information about bearer
  * @mtu: max packet size bearer can support
  * @lock: spinlock for controlling access to bearer
  * @addr: media-specific address associated with bearer
  * @name: bearer name (format = media:interface)
  * @media: ptr to media structure associated with bearer
+ * @bcast_addr: media address used in broadcasting
  * @priority: default link priority for bearer
  * @window: default window size for bearer
  * @tolerance: default link tolerance for bearer
