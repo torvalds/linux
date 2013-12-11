@@ -75,7 +75,7 @@ ifeq ($(avx2_supported),yes)
 	serpent-avx2-y := serpent-avx2-asm_64.o serpent_avx2_glue.o
 endif
 
-aesni-intel-y := aesni-intel_asm.o aesni-intel_glue.o fpu.o
+aesni-intel-y := aesni-intel_asm.o aesni-intel_avx.o aesni-intel_glue.o fpu.o
 ghash-clmulni-intel-y := ghash-clmulni-intel_asm.o ghash-clmulni-intel_glue.o
 sha1-ssse3-y := sha1_ssse3_asm.o sha1_ssse3_glue.o
 crc32c-intel-y := crc32c-intel_glue.o
