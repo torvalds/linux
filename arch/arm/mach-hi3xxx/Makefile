@@ -4,3 +4,4 @@
 
 obj-y	+= hi3xxx.o
 obj-$(CONFIG_SMP)		+= platsmp.o
+obj-$(CONFIG_HOTPLUG_CPU)	+= hotplug.o
