@@ -265,7 +265,6 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
    serial port.
 
    Required properties:
-     - device_type : "serial"
      - compatible : "marvell,mv64360-mpsc"
      - reg : Offset and length of the register set for this device
      - sdma : the phandle for the SDMA node used by this port
@@ -282,7 +281,6 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
 
    Example Discovery MPSCINTR node:
      mpsc@8000 {
-	     device_type = "serial";
 	     compatible = "marvell,mv64360-mpsc";
 	     reg = <0x8000 0x38>;
 	     virtual-reg = <0xf1008000>;

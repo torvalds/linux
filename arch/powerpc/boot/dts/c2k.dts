@@ -171,7 +171,6 @@
 		};
 
 		MPSC0: mpsc@8000 {
-			device_type = "serial";
 			compatible = "marvell,mv64360-mpsc";
 			reg = <0x8000 0x38>;
 			virtual-reg = <0xd8008000>;
@@ -186,7 +185,6 @@
 		};
 
 		MPSC1: mpsc@9000 {
-			device_type = "serial";
 			compatible = "marvell,mv64360-mpsc";
 			reg = <0x9000 0x38>;
 			virtual-reg = <0xd8009000>;
