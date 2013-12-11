@@ -119,6 +119,8 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 
 	drm_vblank_offdelay = VBLANK_OFF_DELAY;
 
+	platform_set_drvdata(dev->platformdev, dev);
+
 	return 0;
 
 err_drm_device:
@@ -305,7 +307,7 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 
 static int exynos_drm_platform_remove(struct platform_device *pdev)
 {
-	drm_platform_exit(&exynos_drm_driver, pdev);
+	drm_put_dev(platform_get_drvdata(pdev));
 
 	return 0;
 }
