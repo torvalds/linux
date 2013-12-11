@@ -758,6 +758,8 @@ static void determine_valid_ioctls(struct video_device *vdev)
  *	%VFL_TYPE_RADIO - A radio card
  *
  *	%VFL_TYPE_SUBDEV - A subdevice
+ *
+ *	%VFL_TYPE_SDR - Software Defined Radio
  */
 int __video_register_device(struct video_device *vdev, int type, int nr,
 		int warn_if_nr_in_use, struct module *owner)
@@ -796,6 +798,10 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 		break;
 	case VFL_TYPE_SUBDEV:
 		name_base = "v4l-subdev";
+		break;
+	case VFL_TYPE_SDR:
+		/* Use device name 'swradio' because 'sdr' was already taken. */
+		name_base = "swradio";
 		break;
 	default:
 		printk(KERN_ERR "%s called with unknown type: %d\n",
