@@ -779,7 +779,7 @@ static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 	}
 
 	/* Reset the entire device */
-	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
+	iwl_write32(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
 
 	usleep_range(10, 15);
 
