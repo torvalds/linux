@@ -673,6 +673,7 @@ static struct journal_write *journal_wait_for_write(struct cache_set *c,
 {
 	size_t sectors;
 	struct closure cl;
+	bool wait = false;
 
 	closure_init_stack(&cl);
 
@@ -689,9 +690,12 @@ static struct journal_write *journal_wait_for_write(struct cache_set *c,
 				     PAGE_SECTORS << JSET_BITS))
 			return w;
 
-		/* XXX: tracepoint */
+		if (wait)
+			closure_wait(&c->journal.wait, &cl);
+
 		if (!journal_full(&c->journal)) {
-			trace_bcache_journal_entry_full(c);
+			if (wait)
+				trace_bcache_journal_entry_full(c);
 
 			/*
 			 * XXX: If we were inserting so many keys that they
@@ -701,12 +705,11 @@ static struct journal_write *journal_wait_for_write(struct cache_set *c,
 			 */
 			BUG_ON(!w->data->keys);
 
-			closure_wait(&w->wait, &cl);
 			journal_try_write(c); /* unlocks */
 		} else {
-			trace_bcache_journal_full(c);
+			if (wait)
+				trace_bcache_journal_full(c);
 
-			closure_wait(&c->journal.wait, &cl);
 			journal_reclaim(c);
 			spin_unlock(&c->journal.lock);
 
@@ -715,6 +718,7 @@ static struct journal_write *journal_wait_for_write(struct cache_set *c,
 
 		closure_sync(&cl);
 		spin_lock(&c->journal.lock);
+		wait = true;
 	}
 }
 
