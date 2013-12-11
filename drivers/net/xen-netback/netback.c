@@ -1199,42 +1199,40 @@ static int checksum_setup_ip(struct xenvif *vif, struct sk_buff *skb,
 
 	switch (ip_hdr(skb)->protocol) {
 	case IPPROTO_TCP:
+		err = maybe_pull_tail(skb,
+				      off + sizeof(struct tcphdr),
+				      MAX_IP_HDR_LEN);
+		if (err < 0)
+			goto out;
+
 		if (!skb_partial_csum_set(skb, off,
 					  offsetof(struct tcphdr, check)))
 			goto out;
 
-		if (recalculate_partial_csum) {
-			err = maybe_pull_tail(skb,
-					      off + sizeof(struct tcphdr),
-					      MAX_IP_HDR_LEN);
-			if (err < 0)
-				goto out;
-
+		if (recalculate_partial_csum)
 			tcp_hdr(skb)->check =
 				~csum_tcpudp_magic(ip_hdr(skb)->saddr,
 						   ip_hdr(skb)->daddr,
 						   skb->len - off,
 						   IPPROTO_TCP, 0);
-		}
 		break;
 	case IPPROTO_UDP:
+		err = maybe_pull_tail(skb,
+				      off + sizeof(struct udphdr),
+				      MAX_IP_HDR_LEN);
+		if (err < 0)
+			goto out;
+
 		if (!skb_partial_csum_set(skb, off,
 					  offsetof(struct udphdr, check)))
 			goto out;
 
-		if (recalculate_partial_csum) {
-			err = maybe_pull_tail(skb,
-					      off + sizeof(struct udphdr),
-					      MAX_IP_HDR_LEN);
-			if (err < 0)
-				goto out;
-
+		if (recalculate_partial_csum)
 			udp_hdr(skb)->check =
 				~csum_tcpudp_magic(ip_hdr(skb)->saddr,
 						   ip_hdr(skb)->daddr,
 						   skb->len - off,
 						   IPPROTO_UDP, 0);
-		}
 		break;
 	default:
 		goto out;
@@ -1342,42 +1340,40 @@ static int checksum_setup_ipv6(struct xenvif *vif, struct sk_buff *skb,
 
 	switch (nexthdr) {
 	case IPPROTO_TCP:
+		err = maybe_pull_tail(skb,
+				      off + sizeof(struct tcphdr),
+				      MAX_IPV6_HDR_LEN);
+		if (err < 0)
+			goto out;
+
 		if (!skb_partial_csum_set(skb, off,
 					  offsetof(struct tcphdr, check)))
 			goto out;
 
-		if (recalculate_partial_csum) {
-			err = maybe_pull_tail(skb,
-					      off + sizeof(struct tcphdr),
-					      MAX_IPV6_HDR_LEN);
-			if (err < 0)
-				goto out;
-
+		if (recalculate_partial_csum)
 			tcp_hdr(skb)->check =
 				~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 						 &ipv6_hdr(skb)->daddr,
 						 skb->len - off,
 						 IPPROTO_TCP, 0);
-		}
 		break;
 	case IPPROTO_UDP:
+		err = maybe_pull_tail(skb,
+				      off + sizeof(struct udphdr),
+				      MAX_IPV6_HDR_LEN);
+		if (err < 0)
+			goto out;
+
 		if (!skb_partial_csum_set(skb, off,
 					  offsetof(struct udphdr, check)))
 			goto out;
 
-		if (recalculate_partial_csum) {
-			err = maybe_pull_tail(skb,
-					      off + sizeof(struct udphdr),
-					      MAX_IPV6_HDR_LEN);
-			if (err < 0)
-				goto out;
-
+		if (recalculate_partial_csum)
 			udp_hdr(skb)->check =
 				~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 						 &ipv6_hdr(skb)->daddr,
 						 skb->len - off,
 						 IPPROTO_UDP, 0);
-		}
 		break;
 	default:
 		goto out;
