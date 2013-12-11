@@ -62,6 +62,13 @@ struct ib_media {
 
 static struct ib_media ib_media_array[MAX_IB_MEDIA];
 static int ib_started;
+static int recv_msg(struct sk_buff *buf, struct net_device *dev,
+		    struct packet_type *pt, struct net_device *orig_dev);
+
+static struct packet_type tipc_packet_type __read_mostly = {
+	.type = __constant_htons(ETH_P_TIPC),
+	.func = recv_msg,
+};
 
 /**
  * ib_media_addr_set - initialize Infiniband media address structure
@@ -120,20 +127,25 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 		    struct packet_type *pt, struct net_device *orig_dev)
 {
-	struct ib_media *ib_ptr = (struct ib_media *)pt->af_packet_priv;
+	struct tipc_bearer *b_ptr;
 
 	if (!net_eq(dev_net(dev), &init_net)) {
 		kfree_skb(buf);
 		return NET_RX_DROP;
 	}
 
-	if (likely(ib_ptr->bearer)) {
+	rcu_read_lock();
+	b_ptr = rcu_dereference(dev->tipc_ptr);
+	if (likely(b_ptr)) {
 		if (likely(buf->pkt_type <= PACKET_BROADCAST)) {
 			buf->next = NULL;
-			tipc_recv_msg(buf, ib_ptr->bearer);
+			tipc_recv_msg(buf, b_ptr);
+			rcu_read_unlock();
 			return NET_RX_SUCCESS;
 		}
 	}
+	rcu_read_unlock();
+
 	kfree_skb(buf);
 	return NET_RX_DROP;
 }
@@ -143,10 +155,7 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
  */
 static void setup_media(struct work_struct *work)
 {
-	struct ib_media *ib_ptr =
-		container_of(work, struct ib_media, setup);
-
-	dev_add_pack(&ib_ptr->tipc_packet_type);
+	dev_add_pack(&tipc_packet_type);
 }
 
 /**
@@ -175,15 +184,11 @@ static int enable_media(struct tipc_bearer *tb_ptr)
 
 	/* Create InfiniBand bearer for device */
 	ib_ptr->dev = dev;
-	ib_ptr->tipc_packet_type.type = htons(ETH_P_TIPC);
-	ib_ptr->tipc_packet_type.dev = dev;
-	ib_ptr->tipc_packet_type.func = recv_msg;
-	ib_ptr->tipc_packet_type.af_packet_priv = ib_ptr;
-	INIT_LIST_HEAD(&(ib_ptr->tipc_packet_type.list));
 	INIT_WORK(&ib_ptr->setup, setup_media);
 	schedule_work(&ib_ptr->setup);
 
 	/* Associate TIPC bearer with InfiniBand bearer */
+	tb_ptr->dev = dev;
 	ib_ptr->bearer = tb_ptr;
 	tb_ptr->usr_handle = (void *)ib_ptr;
 	memset(tb_ptr->bcast_addr.value, 0, sizeof(tb_ptr->bcast_addr.value));
@@ -192,6 +197,7 @@ static int enable_media(struct tipc_bearer *tb_ptr)
 	tb_ptr->bcast_addr.broadcast = 1;
 	tb_ptr->mtu = dev->mtu;
 	ib_media_addr_set(tb_ptr, &tb_ptr->addr, (char *)dev->dev_addr);
+	rcu_assign_pointer(dev->tipc_ptr, tb_ptr);
 	return 0;
 }
 
@@ -205,7 +211,7 @@ static void cleanup_bearer(struct work_struct *work)
 	struct ib_media *ib_ptr =
 		container_of(work, struct ib_media, cleanup);
 
-	dev_remove_pack(&ib_ptr->tipc_packet_type);
+	dev_remove_pack(&tipc_packet_type);
 	dev_put(ib_ptr->dev);
 	ib_ptr->dev = NULL;
 }
@@ -224,6 +230,7 @@ static void disable_media(struct tipc_bearer *tb_ptr)
 	ib_ptr->bearer = NULL;
 	INIT_WORK(&ib_ptr->cleanup, cleanup_bearer);
 	schedule_work(&ib_ptr->cleanup);
+	RCU_INIT_POINTER(tb_ptr->dev->tipc_ptr, NULL);
 }
 
 /**
@@ -235,21 +242,20 @@ static void disable_media(struct tipc_bearer *tb_ptr)
 static int recv_notification(struct notifier_block *nb, unsigned long evt,
 			     void *ptr)
 {
+	struct tipc_bearer *b_ptr;
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct ib_media *ib_ptr = &ib_media_array[0];
-	struct ib_media *stop = &ib_media_array[MAX_IB_MEDIA];
 
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
-	while ((ib_ptr->dev != dev)) {
-		if (++ib_ptr == stop)
-			return NOTIFY_DONE;	/* couldn't find device */
-	}
-	if (!ib_ptr->bearer)
+	rcu_read_lock();
+	b_ptr = rcu_dereference(dev->tipc_ptr);
+	if (!b_ptr) {
+		rcu_read_unlock();
 		return NOTIFY_DONE;		/* bearer had been disabled */
+	}
 
-	ib_ptr->bearer->mtu = dev->mtu;
+	b_ptr->mtu = dev->mtu;
 
 	switch (evt) {
 	case NETDEV_CHANGE:
@@ -258,13 +264,15 @@ static int recv_notification(struct notifier_block *nb, unsigned long evt,
 	case NETDEV_DOWN:
 	case NETDEV_CHANGEMTU:
 	case NETDEV_CHANGEADDR:
-		tipc_reset_bearer(ib_ptr->bearer);
+		tipc_reset_bearer(b_ptr);
 		break;
 	case NETDEV_UNREGISTER:
 	case NETDEV_CHANGENAME:
-		tipc_disable_bearer(ib_ptr->bearer->name);
+		tipc_disable_bearer(b_ptr->name);
 		break;
 	}
+	rcu_read_unlock();
+
 	return NOTIFY_OK;
 }
 

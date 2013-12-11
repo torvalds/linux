@@ -63,12 +63,20 @@ static int eth_started;
 
 static int recv_notification(struct notifier_block *nb, unsigned long evt,
 			     void *dv);
+static int recv_msg(struct sk_buff *buf, struct net_device *dev,
+		    struct packet_type *pt, struct net_device *orig_dev);
+
 /*
  * Network device notifier info
  */
 static struct notifier_block notifier = {
 	.notifier_call	= recv_notification,
 	.priority	= 0
+};
+
+static struct packet_type tipc_packet_type __read_mostly = {
+	.type = __constant_htons(ETH_P_TIPC),
+	.func = recv_msg,
 };
 
 /**
@@ -128,20 +136,25 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 		    struct packet_type *pt, struct net_device *orig_dev)
 {
-	struct eth_media *eb_ptr = (struct eth_media *)pt->af_packet_priv;
+	struct tipc_bearer *b_ptr;
 
 	if (!net_eq(dev_net(dev), &init_net)) {
 		kfree_skb(buf);
 		return NET_RX_DROP;
 	}
 
-	if (likely(eb_ptr->bearer)) {
+	rcu_read_lock();
+	b_ptr = rcu_dereference(dev->tipc_ptr);
+	if (likely(b_ptr)) {
 		if (likely(buf->pkt_type <= PACKET_BROADCAST)) {
 			buf->next = NULL;
-			tipc_recv_msg(buf, eb_ptr->bearer);
+			tipc_recv_msg(buf, b_ptr);
+			rcu_read_unlock();
 			return NET_RX_SUCCESS;
 		}
 	}
+	rcu_read_unlock();
+
 	kfree_skb(buf);
 	return NET_RX_DROP;
 }
@@ -151,10 +164,7 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
  */
 static void setup_media(struct work_struct *work)
 {
-	struct eth_media *eb_ptr =
-		container_of(work, struct eth_media, setup);
-
-	dev_add_pack(&eb_ptr->tipc_packet_type);
+	dev_add_pack(&tipc_packet_type);
 }
 
 /**
@@ -183,15 +193,11 @@ static int enable_media(struct tipc_bearer *tb_ptr)
 
 	/* Create Ethernet bearer for device */
 	eb_ptr->dev = dev;
-	eb_ptr->tipc_packet_type.type = htons(ETH_P_TIPC);
-	eb_ptr->tipc_packet_type.dev = dev;
-	eb_ptr->tipc_packet_type.func = recv_msg;
-	eb_ptr->tipc_packet_type.af_packet_priv = eb_ptr;
-	INIT_LIST_HEAD(&(eb_ptr->tipc_packet_type.list));
 	INIT_WORK(&eb_ptr->setup, setup_media);
 	schedule_work(&eb_ptr->setup);
 
 	/* Associate TIPC bearer with Ethernet bearer */
+	tb_ptr->dev = dev;
 	eb_ptr->bearer = tb_ptr;
 	tb_ptr->usr_handle = (void *)eb_ptr;
 	memset(tb_ptr->bcast_addr.value, 0, sizeof(tb_ptr->bcast_addr.value));
@@ -200,6 +206,7 @@ static int enable_media(struct tipc_bearer *tb_ptr)
 	tb_ptr->bcast_addr.broadcast = 1;
 	tb_ptr->mtu = dev->mtu;
 	eth_media_addr_set(tb_ptr, &tb_ptr->addr, (char *)dev->dev_addr);
+	rcu_assign_pointer(dev->tipc_ptr, tb_ptr);
 	return 0;
 }
 
@@ -213,7 +220,7 @@ static void cleanup_media(struct work_struct *work)
 	struct eth_media *eb_ptr =
 		container_of(work, struct eth_media, cleanup);
 
-	dev_remove_pack(&eb_ptr->tipc_packet_type);
+	dev_remove_pack(&tipc_packet_type);
 	dev_put(eb_ptr->dev);
 	eb_ptr->dev = NULL;
 }
@@ -232,6 +239,7 @@ static void disable_media(struct tipc_bearer *tb_ptr)
 	eb_ptr->bearer = NULL;
 	INIT_WORK(&eb_ptr->cleanup, cleanup_media);
 	schedule_work(&eb_ptr->cleanup);
+	RCU_INIT_POINTER(tb_ptr->dev->tipc_ptr, NULL);
 }
 
 /**
@@ -243,21 +251,20 @@ static void disable_media(struct tipc_bearer *tb_ptr)
 static int recv_notification(struct notifier_block *nb, unsigned long evt,
 			     void *ptr)
 {
+	struct tipc_bearer *b_ptr;
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct eth_media *eb_ptr = &eth_media_array[0];
-	struct eth_media *stop = &eth_media_array[MAX_ETH_MEDIA];
 
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
-	while ((eb_ptr->dev != dev)) {
-		if (++eb_ptr == stop)
-			return NOTIFY_DONE;	/* couldn't find device */
-	}
-	if (!eb_ptr->bearer)
+	rcu_read_lock();
+	b_ptr = rcu_dereference(dev->tipc_ptr);
+	if (!b_ptr) {
+		rcu_read_unlock();
 		return NOTIFY_DONE;		/* bearer had been disabled */
+	}
 
-	eb_ptr->bearer->mtu = dev->mtu;
+	b_ptr->mtu = dev->mtu;
 
 	switch (evt) {
 	case NETDEV_CHANGE:
@@ -266,13 +273,15 @@ static int recv_notification(struct notifier_block *nb, unsigned long evt,
 	case NETDEV_DOWN:
 	case NETDEV_CHANGEMTU:
 	case NETDEV_CHANGEADDR:
-		tipc_reset_bearer(eb_ptr->bearer);
+		tipc_reset_bearer(b_ptr);
 		break;
 	case NETDEV_UNREGISTER:
 	case NETDEV_CHANGENAME:
-		tipc_disable_bearer(eb_ptr->bearer->name);
+		tipc_disable_bearer(b_ptr->name);
 		break;
 	}
+	rcu_read_unlock();
+
 	return NOTIFY_OK;
 }
 

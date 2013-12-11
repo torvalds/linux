@@ -105,6 +105,7 @@ struct tipc_media {
 
 /**
  * struct tipc_bearer - Generic TIPC bearer structure
+ * @dev: ptr to associated network device
  * @usr_handle: pointer to additional media-specific information about bearer
  * @mtu: max packet size bearer can support
  * @lock: spinlock for controlling access to bearer
@@ -127,6 +128,7 @@ struct tipc_media {
  * care of initializing all other fields.
  */
 struct tipc_bearer {
+	struct net_device *dev;
 	void *usr_handle;			/* initalized by media */
 	u32 mtu;				/* initalized by media */
 	struct tipc_media_addr addr;		/* initalized by media */
