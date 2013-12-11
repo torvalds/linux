@@ -901,25 +901,16 @@ static int r128_cce_dispatch_write_span(struct drm_device *dev,
 		return -EFAULT;
 
 	buffer_size = depth->n * sizeof(u32);
-	buffer = kmalloc(buffer_size, GFP_KERNEL);
-	if (buffer == NULL)
-		return -ENOMEM;
-	if (copy_from_user(buffer, depth->buffer, buffer_size)) {
-		kfree(buffer);
-		return -EFAULT;
-	}
+	buffer = memdup_user(depth->buffer, buffer_size);
+	if (IS_ERR(buffer))
+		return PTR_ERR(buffer);
 
 	mask_size = depth->n * sizeof(u8);
 	if (depth->mask) {
-		mask = kmalloc(mask_size, GFP_KERNEL);
-		if (mask == NULL) {
+		mask = memdup_user(depth->mask, mask_size);
+		if (IS_ERR(mask)) {
 			kfree(buffer);
-			return -ENOMEM;
-		}
-		if (copy_from_user(mask, depth->mask, mask_size)) {
-			kfree(buffer);
-			kfree(mask);
-			return -EFAULT;
+			return PTR_ERR(mask);
 		}
 
 		for (i = 0; i < count; i++, x++) {
@@ -1011,34 +1002,21 @@ static int r128_cce_dispatch_write_pixels(struct drm_device *dev,
 	}
 
 	buffer_size = depth->n * sizeof(u32);
-	buffer = kmalloc(buffer_size, GFP_KERNEL);
-	if (buffer == NULL) {
+	buffer = memdup_user(depth->buffer, buffer_size);
+	if (IS_ERR(buffer)) {
 		kfree(x);
 		kfree(y);
-		return -ENOMEM;
-	}
-	if (copy_from_user(buffer, depth->buffer, buffer_size)) {
-		kfree(x);
-		kfree(y);
-		kfree(buffer);
-		return -EFAULT;
+		return PTR_ERR(buffer);
 	}
 
 	if (depth->mask) {
 		mask_size = depth->n * sizeof(u8);
-		mask = kmalloc(mask_size, GFP_KERNEL);
-		if (mask == NULL) {
+		mask = memdup_user(depth->mask, mask_size);
+		if (IS_ERR(mask)) {
 			kfree(x);
 			kfree(y);
 			kfree(buffer);
-			return -ENOMEM;
-		}
-		if (copy_from_user(mask, depth->mask, mask_size)) {
-			kfree(x);
-			kfree(y);
-			kfree(buffer);
-			kfree(mask);
-			return -EFAULT;
+			return PTR_ERR(mask);
 		}
 
 		for (i = 0; i < count; i++) {
