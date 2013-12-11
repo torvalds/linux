@@ -84,6 +84,7 @@ struct tipc_bearer;
  * @tolerance: default time (in ms) before declaring link failure
  * @window: default window (in packets) before declaring link congestion
  * @type_id: TIPC media identifier
+ * @hwaddr_len: TIPC media address len
  * @name: media name
  */
 struct tipc_media {
@@ -100,6 +101,7 @@ struct tipc_media {
 	u32 tolerance;
 	u32 window;
 	u32 type_id;
+	u32 hwaddr_len;
 	char name[TIPC_MAX_MEDIA_NAME];
 };
 
@@ -128,8 +130,7 @@ struct tipc_media {
  * care of initializing all other fields.
  */
 struct tipc_bearer {
-	struct net_device *dev;
-	void *usr_handle;			/* initalized by media */
+	void *media_ptr;			/* initalized by media */
 	u32 mtu;				/* initalized by media */
 	struct tipc_media_addr addr;		/* initalized by media */
 	char name[TIPC_MAX_BEARER_NAME];
@@ -178,6 +179,12 @@ int tipc_media_set_priority(const char *name, u32 new_value);
 int tipc_media_set_window(const char *name, u32 new_value);
 void tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a);
 struct sk_buff *tipc_media_get_names(void);
+void tipc_l2_media_addr_set(const struct tipc_bearer *b,
+			    struct tipc_media_addr *a, char *mac);
+int tipc_enable_l2_media(struct tipc_bearer *b);
+void tipc_disable_l2_media(struct tipc_bearer *b);
+int tipc_l2_send_msg(struct sk_buff *buf, struct tipc_bearer *b,
+		     struct tipc_media_addr *dest);
 
 struct sk_buff *tipc_bearer_get_names(void);
 void tipc_bearer_add_dest(struct tipc_bearer *b_ptr, u32 dest);
@@ -188,18 +195,7 @@ struct tipc_media *tipc_media_find(const char *name);
 int tipc_bearer_setup(void);
 void tipc_bearer_cleanup(void);
 void tipc_bearer_stop(void);
-
-/**
- * tipc_bearer_send- sends buffer to destination over bearer
- *
- * IMPORTANT:
- * The media send routine must not alter the buffer being passed in
- * as it may be needed for later retransmission!
- */
-static inline void tipc_bearer_send(struct tipc_bearer *b, struct sk_buff *buf,
-				   struct tipc_media_addr *dest)
-{
-	b->media->send_msg(buf, b, dest);
-}
+void tipc_bearer_send(struct tipc_bearer *b, struct sk_buff *buf,
+		      struct tipc_media_addr *dest);
 
 #endif	/* _TIPC_BEARER_H */

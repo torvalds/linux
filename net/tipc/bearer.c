@@ -2,7 +2,7 @@
  * net/tipc/bearer.c: TIPC bearer code
  *
  * Copyright (c) 1996-2006, 2013, Ericsson AB
- * Copyright (c) 2004-2006, 2010-2011, Wind River Systems
+ * Copyright (c) 2004-2006, 2010-2013, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -332,6 +332,7 @@ restart:
 
 	b_ptr = &tipc_bearers[bearer_id];
 	strcpy(b_ptr->name, name);
+	b_ptr->media = m_ptr;
 	res = m_ptr->enable_media(b_ptr);
 	if (res) {
 		pr_warn("Bearer <%s> rejected, enable failure (%d)\n",
@@ -340,7 +341,6 @@ restart:
 	}
 
 	b_ptr->identity = bearer_id;
-	b_ptr->media = m_ptr;
 	b_ptr->tolerance = m_ptr->tolerance;
 	b_ptr->window = m_ptr->window;
 	b_ptr->net_plane = bearer_id + 'A';
@@ -430,6 +430,108 @@ int tipc_disable_bearer(const char *name)
 	}
 	write_unlock_bh(&tipc_net_lock);
 	return res;
+}
+
+
+/* tipc_l2_media_addr_set - initialize Ethernet media address structure
+ *
+ * Media-dependent "value" field stores MAC address in first 6 bytes
+ * and zeroes out the remaining bytes.
+ */
+void tipc_l2_media_addr_set(const struct tipc_bearer *b,
+			    struct tipc_media_addr *a, char *mac)
+{
+	int len = b->media->hwaddr_len;
+
+	if (unlikely(sizeof(a->value) < len)) {
+		WARN_ONCE(1, "Media length invalid\n");
+		return;
+	}
+
+	memcpy(a->value, mac, len);
+	memset(a->value + len, 0, sizeof(a->value) - len);
+	a->media_id = b->media->type_id;
+	a->broadcast = !memcmp(mac, b->bcast_addr.value, len);
+}
+
+int tipc_enable_l2_media(struct tipc_bearer *b)
+{
+	struct net_device *dev;
+	char *driver_name = strchr((const char *)b->name, ':') + 1;
+
+	/* Find device with specified name */
+	dev = dev_get_by_name(&init_net, driver_name);
+	if (!dev)
+		return -ENODEV;
+
+	/* Associate TIPC bearer with Ethernet bearer */
+	b->media_ptr = dev;
+	memset(b->bcast_addr.value, 0, sizeof(b->bcast_addr.value));
+	memcpy(b->bcast_addr.value, dev->broadcast, b->media->hwaddr_len);
+	b->bcast_addr.media_id = b->media->type_id;
+	b->bcast_addr.broadcast = 1;
+	b->mtu = dev->mtu;
+	tipc_l2_media_addr_set(b, &b->addr, (char *)dev->dev_addr);
+	rcu_assign_pointer(dev->tipc_ptr, b);
+	return 0;
+}
+
+/* tipc_disable_l2_media - detach TIPC bearer from an Ethernet interface
+ *
+ * Mark Ethernet bearer as inactive so that incoming buffers are thrown away,
+ * then get worker thread to complete bearer cleanup.  (Can't do cleanup
+ * here because cleanup code needs to sleep and caller holds spinlocks.)
+ */
+void tipc_disable_l2_media(struct tipc_bearer *b)
+{
+	struct net_device *dev = (struct net_device *)b->media_ptr;
+	RCU_INIT_POINTER(dev->tipc_ptr, NULL);
+	dev_put(dev);
+}
+
+/**
+ * tipc_l2_send_msg - send a TIPC packet out over an Ethernet interface
+ * @buf: the packet to be sent
+ * @b_ptr: the bearer throught which the packet is to be sent
+ * @dest: peer destination address
+ */
+int tipc_l2_send_msg(struct sk_buff *buf, struct tipc_bearer *b,
+		     struct tipc_media_addr *dest)
+{
+	struct sk_buff *clone;
+	int delta;
+	struct net_device *dev = (struct net_device *)b->media_ptr;
+
+	clone = skb_clone(buf, GFP_ATOMIC);
+	if (!clone)
+		return 0;
+
+	delta = dev->hard_header_len - skb_headroom(buf);
+	if ((delta > 0) &&
+	    pskb_expand_head(clone, SKB_DATA_ALIGN(delta), 0, GFP_ATOMIC)) {
+		kfree_skb(clone);
+		return 0;
+	}
+
+	skb_reset_network_header(clone);
+	clone->dev = dev;
+	clone->protocol = htons(ETH_P_TIPC);
+	dev_hard_header(clone, dev, ETH_P_TIPC, dest->value,
+			dev->dev_addr, clone->len);
+	dev_queue_xmit(clone);
+	return 0;
+}
+
+/* tipc_bearer_send- sends buffer to destination over bearer
+ *
+ * IMPORTANT:
+ * The media send routine must not alter the buffer being passed in
+ * as it may be needed for later retransmission!
+ */
+void tipc_bearer_send(struct tipc_bearer *b, struct sk_buff *buf,
+		      struct tipc_media_addr *dest)
+{
+	b->media->send_msg(buf, b, dest);
 }
 
 /**
