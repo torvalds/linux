@@ -119,6 +119,37 @@
 			enable-method = "psci";
 			clock-frequency = <1000000>;
 		};
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&big0>;
+				};
+				core1 {
+					cpu = <&big1>;
+				};
+				core2 {
+					cpu = <&big2>;
+				};
+				core3 {
+					cpu = <&big3>;
+				};
+			};
+			cluster1 {
+				core0 {
+					cpu = <&little0>;
+				};
+				core1 {
+					cpu = <&little1>;
+				};
+				core2 {
+					cpu = <&little2>;
+				};
+				core3 {
+					cpu = <&little3>;
+				};
+			};
+		};
 	};
 
 	memory@80000000 {
