@@ -622,13 +622,6 @@ struct drm_ati_pcigart_info {
 };
 
 /**
- * GEM specific mm private for tracking GEM objects
- */
-struct drm_gem_mm {
-	struct drm_vma_offset_manager vma_manager;
-};
-
-/**
  * This structure defines the drm_mm memory object, which will be used by the
  * DRM for its buffer objects.
  */
@@ -1185,7 +1178,6 @@ struct drm_device {
 	struct drm_sg_mem *sg;	/**< Scatter gather memory */
 	unsigned int num_crtcs;                  /**< Number of CRTCs on this device */
 	void *dev_private;		/**< device private data */
-	void *mm_private;
 	struct address_space *dev_mapping;
 	struct drm_sigdata sigdata;	   /**< For block_all_signals */
 	sigset_t sigmask;
@@ -1203,6 +1195,7 @@ struct drm_device {
 	/*@{ */
 	struct mutex object_name_lock;
 	struct idr object_name_idr;
+	struct drm_vma_offset_manager *vma_offset_manager;
 	/*@} */
 	int switch_power_state;
 

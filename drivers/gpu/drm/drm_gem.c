@@ -91,19 +91,19 @@
 int
 drm_gem_init(struct drm_device *dev)
 {
-	struct drm_gem_mm *mm;
+	struct drm_vma_offset_manager *vma_offset_manager;
 
 	mutex_init(&dev->object_name_lock);
 	idr_init(&dev->object_name_idr);
 
-	mm = kzalloc(sizeof(struct drm_gem_mm), GFP_KERNEL);
-	if (!mm) {
+	vma_offset_manager = kzalloc(sizeof(*vma_offset_manager), GFP_KERNEL);
+	if (!vma_offset_manager) {
 		DRM_ERROR("out of memory\n");
 		return -ENOMEM;
 	}
 
-	dev->mm_private = mm;
-	drm_vma_offset_manager_init(&mm->vma_manager,
+	dev->vma_offset_manager = vma_offset_manager;
+	drm_vma_offset_manager_init(vma_offset_manager,
 				    DRM_FILE_PAGE_OFFSET_START,
 				    DRM_FILE_PAGE_OFFSET_SIZE);
 
@@ -113,11 +113,10 @@ drm_gem_init(struct drm_device *dev)
 void
 drm_gem_destroy(struct drm_device *dev)
 {
-	struct drm_gem_mm *mm = dev->mm_private;
 
-	drm_vma_offset_manager_destroy(&mm->vma_manager);
-	kfree(mm);
-	dev->mm_private = NULL;
+	drm_vma_offset_manager_destroy(dev->vma_offset_manager);
+	kfree(dev->vma_offset_manager);
+	dev->vma_offset_manager = NULL;
 }
 
 /**
@@ -362,9 +361,8 @@ void
 drm_gem_free_mmap_offset(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
-	struct drm_gem_mm *mm = dev->mm_private;
 
-	drm_vma_offset_remove(&mm->vma_manager, &obj->vma_node);
+	drm_vma_offset_remove(dev->vma_offset_manager, &obj->vma_node);
 }
 EXPORT_SYMBOL(drm_gem_free_mmap_offset);
 
@@ -386,9 +384,8 @@ int
 drm_gem_create_mmap_offset_size(struct drm_gem_object *obj, size_t size)
 {
 	struct drm_device *dev = obj->dev;
-	struct drm_gem_mm *mm = dev->mm_private;
 
-	return drm_vma_offset_add(&mm->vma_manager, &obj->vma_node,
+	return drm_vma_offset_add(dev->vma_offset_manager, &obj->vma_node,
 				  size / PAGE_SIZE);
 }
 EXPORT_SYMBOL(drm_gem_create_mmap_offset_size);
@@ -818,7 +815,6 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->minor->dev;
-	struct drm_gem_mm *mm = dev->mm_private;
 	struct drm_gem_object *obj;
 	struct drm_vma_offset_node *node;
 	int ret = 0;
@@ -828,7 +824,8 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	mutex_lock(&dev->struct_mutex);
 
-	node = drm_vma_offset_exact_lookup(&mm->vma_manager, vma->vm_pgoff,
+	node = drm_vma_offset_exact_lookup(dev->vma_offset_manager,
+					   vma->vm_pgoff,
 					   vma_pages(vma));
 	if (!node) {
 		mutex_unlock(&dev->struct_mutex);
