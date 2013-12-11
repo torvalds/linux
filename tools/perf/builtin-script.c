@@ -43,6 +43,7 @@ enum perf_output_field {
 	PERF_OUTPUT_DSO             = 1U << 9,
 	PERF_OUTPUT_ADDR            = 1U << 10,
 	PERF_OUTPUT_SYMOFFSET       = 1U << 11,
+	PERF_OUTPUT_SRCLINE         = 1U << 12,
 };
 
 struct output_option {
@@ -61,6 +62,7 @@ struct output_option {
 	{.str = "dso",   .field = PERF_OUTPUT_DSO},
 	{.str = "addr",  .field = PERF_OUTPUT_ADDR},
 	{.str = "symoff", .field = PERF_OUTPUT_SYMOFFSET},
+	{.str = "srcline", .field = PERF_OUTPUT_SRCLINE},
 };
 
 /* default set to maintain compatibility with current format */
@@ -210,6 +212,11 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 		       "to DSO.\n");
 		return -EINVAL;
 	}
+	if (PRINT_FIELD(SRCLINE) && !PRINT_FIELD(IP)) {
+		pr_err("Display of source line number requested but sample IP is not\n"
+		       "selected. Hence, no address to lookup the source line number.\n");
+		return -EINVAL;
+	}
 
 	if ((PRINT_FIELD(PID) || PRINT_FIELD(TID)) &&
 		perf_evsel__check_stype(evsel, PERF_SAMPLE_TID, "TID",
@@ -245,6 +252,9 @@ static void set_print_ip_opts(struct perf_event_attr *attr)
 
 	if (PRINT_FIELD(SYMOFFSET))
 		output[type].print_ip_opts |= PRINT_IP_OPT_SYMOFFSET;
+
+	if (PRINT_FIELD(SRCLINE))
+		output[type].print_ip_opts |= PRINT_IP_OPT_SRCLINE;
 }
 
 /*
@@ -1484,6 +1494,8 @@ static int have_cmd(int argc, const char **argv)
 int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	bool show_full_info = false;
+	bool header = false;
+	bool header_only = false;
 	char *rec_script_path = NULL;
 	char *rep_script_path = NULL;
 	struct perf_session *session;
@@ -1522,6 +1534,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
 	OPT_BOOLEAN('d', "debug-mode", &debug_mode,
 		   "do various checks like samples ordering and lost events"),
+	OPT_BOOLEAN(0, "header", &header, "Show data header."),
+	OPT_BOOLEAN(0, "header-only", &header_only, "Show only data header."),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
@@ -1738,15 +1752,18 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (session == NULL)
 		return -ENOMEM;
 
+	if (header || header_only) {
+		perf_session__fprintf_info(session, stdout, show_full_info);
+		if (header_only)
+			return 0;
+	}
+
 	script.session = session;
 
 	if (cpu_list) {
 		if (perf_session__cpu_bitmap(session, cpu_list, cpu_bitmap))
 			return -1;
 	}
-
-	if (!script_name && !generate_script_lang)
-		perf_session__fprintf_info(session, stdout, show_full_info);
 
 	if (!no_callchain)
 		symbol_conf.use_callchain = true;

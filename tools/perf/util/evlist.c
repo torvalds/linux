@@ -732,11 +732,13 @@ static long parse_pages_arg(const char *str, unsigned long min,
 			return -EINVAL;
 	}
 
-	if ((pages == 0) && (min == 0)) {
+	if (pages == 0 && min == 0) {
 		/* leave number of pages at 0 */
-	} else if (pages < (1UL << 31) && !is_power_of_2(pages)) {
+	} else if (!is_power_of_2(pages)) {
 		/* round pages up to next power of 2 */
-		pages = next_pow2(pages);
+		pages = next_pow2_l(pages);
+		if (!pages)
+			return -EINVAL;
 		pr_info("rounding mmap pages size to %lu bytes (%lu pages)\n",
 			pages * page_size, pages);
 	}
@@ -754,7 +756,7 @@ int perf_evlist__parse_mmap_pages(const struct option *opt, const char *str,
 	unsigned long max = UINT_MAX;
 	long pages;
 
-	if (max < SIZE_MAX / page_size)
+	if (max > SIZE_MAX / page_size)
 		max = SIZE_MAX / page_size;
 
 	pages = parse_pages_arg(str, 1, max);

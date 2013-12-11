@@ -1497,6 +1497,7 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
 	int print_dso = print_opts & PRINT_IP_OPT_DSO;
 	int print_symoffset = print_opts & PRINT_IP_OPT_SYMOFFSET;
 	int print_oneline = print_opts & PRINT_IP_OPT_ONELINE;
+	int print_srcline = print_opts & PRINT_IP_OPT_SRCLINE;
 	char s = print_oneline ? ' ' : '\t';
 
 	if (symbol_conf.use_callchain && sample->callchain) {
@@ -1515,6 +1516,8 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
 			node_al = *al;
 
 		while (stack_depth) {
+			u64 addr = 0;
+
 			node = callchain_cursor_current(&callchain_cursor);
 			if (!node)
 				break;
@@ -1525,10 +1528,13 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
 			if (print_ip)
 				printf("%c%16" PRIx64, s, node->ip);
 
+			if (node->map)
+				addr = node->map->map_ip(node->map, node->ip);
+
 			if (print_sym) {
 				printf(" ");
 				if (print_symoffset) {
-					node_al.addr = node->ip;
+					node_al.addr = addr;
 					node_al.map  = node->map;
 					symbol__fprintf_symname_offs(node->sym, &node_al, stdout);
 				} else
@@ -1540,6 +1546,10 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
 				map__fprintf_dsoname(node->map, stdout);
 				printf(")");
 			}
+
+			if (print_srcline)
+				map__fprintf_srcline(node->map, addr, "\n  ",
+						     stdout);
 
 			if (!print_oneline)
 				printf("\n");
@@ -1570,6 +1580,9 @@ next:
 			map__fprintf_dsoname(al->map, stdout);
 			printf(")");
 		}
+
+		if (print_srcline)
+			map__fprintf_srcline(al->map, al->addr, "\n  ", stdout);
 	}
 }
 

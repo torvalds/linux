@@ -28,8 +28,8 @@ char dso__symtab_origin(const struct dso *dso)
 	return origin[dso->symtab_type];
 }
 
-int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
-			  char *root_dir, char *file, size_t size)
+int dso__binary_type_file(const struct dso *dso, enum dso_binary_type type,
+			  char *root_dir, char *filename, size_t size)
 {
 	char build_id_hex[BUILD_ID_SIZE * 2 + 1];
 	int ret = 0;
@@ -38,36 +38,36 @@ int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
 	case DSO_BINARY_TYPE__DEBUGLINK: {
 		char *debuglink;
 
-		strncpy(file, dso->long_name, size);
-		debuglink = file + dso->long_name_len;
-		while (debuglink != file && *debuglink != '/')
+		strncpy(filename, dso->long_name, size);
+		debuglink = filename + dso->long_name_len;
+		while (debuglink != filename && *debuglink != '/')
 			debuglink--;
 		if (*debuglink == '/')
 			debuglink++;
 		filename__read_debuglink(dso->long_name, debuglink,
-					 size - (debuglink - file));
+					 size - (debuglink - filename));
 		}
 		break;
 	case DSO_BINARY_TYPE__BUILD_ID_CACHE:
 		/* skip the locally configured cache if a symfs is given */
 		if (symbol_conf.symfs[0] ||
-		    (dso__build_id_filename(dso, file, size) == NULL))
+		    (dso__build_id_filename(dso, filename, size) == NULL))
 			ret = -1;
 		break;
 
 	case DSO_BINARY_TYPE__FEDORA_DEBUGINFO:
-		snprintf(file, size, "%s/usr/lib/debug%s.debug",
+		snprintf(filename, size, "%s/usr/lib/debug%s.debug",
 			 symbol_conf.symfs, dso->long_name);
 		break;
 
 	case DSO_BINARY_TYPE__UBUNTU_DEBUGINFO:
-		snprintf(file, size, "%s/usr/lib/debug%s",
+		snprintf(filename, size, "%s/usr/lib/debug%s",
 			 symbol_conf.symfs, dso->long_name);
 		break;
 
 	case DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO:
 	{
-		char *last_slash;
+		const char *last_slash;
 		size_t len;
 		size_t dir_size;
 
@@ -75,14 +75,14 @@ int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
 		while (last_slash != dso->long_name && *last_slash != '/')
 			last_slash--;
 
-		len = scnprintf(file, size, "%s", symbol_conf.symfs);
+		len = scnprintf(filename, size, "%s", symbol_conf.symfs);
 		dir_size = last_slash - dso->long_name + 2;
 		if (dir_size > (size - len)) {
 			ret = -1;
 			break;
 		}
-		len += scnprintf(file + len, dir_size, "%s",  dso->long_name);
-		len += scnprintf(file + len , size - len, ".debug%s",
+		len += scnprintf(filename + len, dir_size, "%s",  dso->long_name);
+		len += scnprintf(filename + len , size - len, ".debug%s",
 								last_slash);
 		break;
 	}
@@ -96,7 +96,7 @@ int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
 		build_id__sprintf(dso->build_id,
 				  sizeof(dso->build_id),
 				  build_id_hex);
-		snprintf(file, size,
+		snprintf(filename, size,
 			 "%s/usr/lib/debug/.build-id/%.2s/%s.debug",
 			 symbol_conf.symfs, build_id_hex, build_id_hex + 2);
 		break;
@@ -104,23 +104,23 @@ int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
 	case DSO_BINARY_TYPE__VMLINUX:
 	case DSO_BINARY_TYPE__GUEST_VMLINUX:
 	case DSO_BINARY_TYPE__SYSTEM_PATH_DSO:
-		snprintf(file, size, "%s%s",
+		snprintf(filename, size, "%s%s",
 			 symbol_conf.symfs, dso->long_name);
 		break;
 
 	case DSO_BINARY_TYPE__GUEST_KMODULE:
-		snprintf(file, size, "%s%s%s", symbol_conf.symfs,
+		snprintf(filename, size, "%s%s%s", symbol_conf.symfs,
 			 root_dir, dso->long_name);
 		break;
 
 	case DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE:
-		snprintf(file, size, "%s%s", symbol_conf.symfs,
+		snprintf(filename, size, "%s%s", symbol_conf.symfs,
 			 dso->long_name);
 		break;
 
 	case DSO_BINARY_TYPE__KCORE:
 	case DSO_BINARY_TYPE__GUEST_KCORE:
-		snprintf(file, size, "%s", dso->long_name);
+		snprintf(filename, size, "%s", dso->long_name);
 		break;
 
 	default:
@@ -200,11 +200,10 @@ dso_cache__free(struct rb_root *root)
 	}
 }
 
-static struct dso_cache*
-dso_cache__find(struct rb_root *root, u64 offset)
+static struct dso_cache *dso_cache__find(const struct rb_root *root, u64 offset)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_node * const *p = &root->rb_node;
+	const struct rb_node *parent = NULL;
 	struct dso_cache *cache;
 
 	while (*p != NULL) {
@@ -379,32 +378,63 @@ struct dso *dso__kernel_findnew(struct machine *machine, const char *name,
 	 * processing we had no idea this was the kernel dso.
 	 */
 	if (dso != NULL) {
-		dso__set_short_name(dso, short_name);
+		dso__set_short_name(dso, short_name, false);
 		dso->kernel = dso_type;
 	}
 
 	return dso;
 }
 
-void dso__set_long_name(struct dso *dso, char *name)
+void dso__set_long_name(struct dso *dso, const char *name, bool name_allocated)
 {
 	if (name == NULL)
 		return;
-	dso->long_name = name;
-	dso->long_name_len = strlen(name);
+
+	if (dso->long_name_allocated)
+		free((char *)dso->long_name);
+
+	dso->long_name		 = name;
+	dso->long_name_len	 = strlen(name);
+	dso->long_name_allocated = name_allocated;
 }
 
-void dso__set_short_name(struct dso *dso, const char *name)
+void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated)
 {
 	if (name == NULL)
 		return;
-	dso->short_name = name;
-	dso->short_name_len = strlen(name);
+
+	if (dso->short_name_allocated)
+		free((char *)dso->short_name);
+
+	dso->short_name		  = name;
+	dso->short_name_len	  = strlen(name);
+	dso->short_name_allocated = name_allocated;
 }
 
 static void dso__set_basename(struct dso *dso)
 {
-	dso__set_short_name(dso, basename(dso->long_name));
+       /*
+        * basename() may modify path buffer, so we must pass
+        * a copy.
+        */
+       char *base, *lname = strdup(dso->long_name);
+
+       if (!lname)
+               return;
+
+       /*
+        * basename() may return a pointer to internal
+        * storage which is reused in subsequent calls
+        * so copy the result.
+        */
+       base = strdup(basename(lname));
+
+       free(lname);
+
+       if (!base)
+               return;
+
+       dso__set_short_name(dso, base, true);
 }
 
 int dso__name_len(const struct dso *dso)
@@ -439,8 +469,8 @@ struct dso *dso__new(const char *name)
 	if (dso != NULL) {
 		int i;
 		strcpy(dso->name, name);
-		dso__set_long_name(dso, dso->name);
-		dso__set_short_name(dso, dso->name);
+		dso__set_long_name(dso, dso->name, false);
+		dso__set_short_name(dso, dso->name, false);
 		for (i = 0; i < MAP__NR_TYPES; ++i)
 			dso->symbols[i] = dso->symbol_names[i] = RB_ROOT;
 		dso->cache = RB_ROOT;
@@ -465,13 +495,23 @@ void dso__delete(struct dso *dso)
 	int i;
 	for (i = 0; i < MAP__NR_TYPES; ++i)
 		symbols__delete(&dso->symbols[i]);
-	if (dso->sname_alloc)
+
+	if (dso->short_name_allocated) {
 		free((char *)dso->short_name);
-	if (dso->lname_alloc)
-		free(dso->long_name);
+		dso->short_name		  = NULL;
+		dso->short_name_allocated = false;
+	}
+
+	if (dso->long_name_allocated) {
+		free((char *)dso->long_name);
+		dso->long_name		 = NULL;
+		dso->long_name_allocated = false;
+	}
+
 	dso_cache__free(&dso->cache);
 	dso__free_a2l(dso);
 	free(dso->symsrc_filename);
+	dso->symsrc_filename = NULL;
 	free(dso);
 }
 
@@ -546,7 +586,7 @@ void dsos__add(struct list_head *head, struct dso *dso)
 	list_add_tail(&dso->node, head);
 }
 
-struct dso *dsos__find(struct list_head *head, const char *name, bool cmp_short)
+struct dso *dsos__find(const struct list_head *head, const char *name, bool cmp_short)
 {
 	struct dso *pos;
 

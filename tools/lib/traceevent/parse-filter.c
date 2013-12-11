@@ -182,7 +182,10 @@ struct event_filter *pevent_filter_alloc(struct pevent *pevent)
 {
 	struct event_filter *filter;
 
-	filter = malloc_or_die(sizeof(*filter));
+	filter = malloc(sizeof(*filter));
+	if (filter == NULL)
+		return NULL;
+
 	memset(filter, 0, sizeof(*filter));
 	filter->pevent = pevent;
 	pevent_ref(pevent);
@@ -242,15 +245,19 @@ static void free_arg(struct filter_arg *arg)
 	free(arg);
 }
 
-static void add_event(struct event_list **events,
+static int add_event(struct event_list **events,
 		      struct event_format *event)
 {
 	struct event_list *list;
 
-	list = malloc_or_die(sizeof(*list));
+	list = malloc(sizeof(*list));
+	if (list == NULL)
+		return -1;
+
 	list->next = *events;
 	*events = list;
 	list->event = event;
+	return 0;
 }
 
 static int event_match(struct event_format *event,
@@ -273,6 +280,7 @@ find_event(struct pevent *pevent, struct event_list **events,
 	regex_t ereg;
 	regex_t sreg;
 	int match = 0;
+	int fail = 0;
 	char *reg;
 	int ret;
 	int i;
@@ -307,7 +315,10 @@ find_event(struct pevent *pevent, struct event_list **events,
 		event = pevent->events[i];
 		if (event_match(event, sys_name ? &sreg : NULL, &ereg)) {
 			match = 1;
-			add_event(events, event);
+			if (add_event(events, event) < 0) {
+				fail = 1;
+				break;
+			}
 		}
 	}
 
@@ -317,6 +328,8 @@ find_event(struct pevent *pevent, struct event_list **events,
 
 	if (!match)
 		return -1;
+	if (fail)
+		return -2;
 
 	return 0;
 }
@@ -349,8 +362,11 @@ create_arg_item(struct event_format *event, const char *token,
 		arg->value.type =
 			type == EVENT_DQUOTE ? FILTER_STRING : FILTER_CHAR;
 		arg->value.str = strdup(token);
-		if (!arg->value.str)
-			die("malloc string");
+		if (!arg->value.str) {
+			free_arg(arg);
+			show_error(error_str, "failed to allocate string filter arg");
+			return NULL;
+		}
 		break;
 	case EVENT_ITEM:
 		/* if it is a number, then convert it */
@@ -1210,7 +1226,13 @@ int pevent_filter_add_filter_str(struct event_filter *filter,
 		else
 			len = strlen(filter_str);
 
-		this_event = malloc_or_die(len + 1);
+		this_event = malloc(len + 1);
+		if (this_event == NULL) {
+			show_error(error_str, "Memory allocation failure");
+			/* This can only happen when events is NULL, but still */
+			free_events(events);
+			return -1;
+		}
 		memcpy(this_event, filter_str, len);
 		this_event[len] = 0;
 
@@ -1482,8 +1504,10 @@ int pevent_update_trivial(struct event_filter *dest, struct event_filter *source
  * @type: remove only true, false, or both
  *
  * Removes filters that only contain a TRUE or FALES boolean arg.
+ *
+ * Returns 0 on success and -1 if there was a problem.
  */
-void pevent_filter_clear_trivial(struct event_filter *filter,
+int pevent_filter_clear_trivial(struct event_filter *filter,
 				 enum filter_trivial_type type)
 {
 	struct filter_type *filter_type;
@@ -1492,13 +1516,15 @@ void pevent_filter_clear_trivial(struct event_filter *filter,
 	int i;
 
 	if (!filter->filters)
-		return;
+		return 0;
 
 	/*
 	 * Two steps, first get all ids with trivial filters.
 	 *  then remove those ids.
 	 */
 	for (i = 0; i < filter->filters; i++) {
+		int *new_ids;
+
 		filter_type = &filter->event_filters[i];
 		if (filter_type->filter->type != FILTER_ARG_BOOLEAN)
 			continue;
@@ -1513,19 +1539,24 @@ void pevent_filter_clear_trivial(struct event_filter *filter,
 			break;
 		}
 
-		ids = realloc(ids, sizeof(*ids) * (count + 1));
-		if (!ids)
-			die("Can't allocate ids");
+		new_ids = realloc(ids, sizeof(*ids) * (count + 1));
+		if (!new_ids) {
+			free(ids);
+			return -1;
+		}
+
+		ids = new_ids;
 		ids[count++] = filter_type->event_id;
 	}
 
 	if (!count)
-		return;
+		return 0;
 
 	for (i = 0; i < count; i++)
 		pevent_filter_remove_event(filter, ids[i]);
 
 	free(ids);
+	return 0;
 }
 
 /**

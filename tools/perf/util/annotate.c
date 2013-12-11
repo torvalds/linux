@@ -900,7 +900,7 @@ fallback:
 		 * cache, or is just a kallsyms file, well, lets hope that this
 		 * DSO is the same as when 'perf record' ran.
 		 */
-		filename = dso->long_name;
+		filename = (char *)dso->long_name;
 		snprintf(symfs_filename, sizeof(symfs_filename), "%s%s",
 			 symbol_conf.symfs, filename);
 		free_filename = false;

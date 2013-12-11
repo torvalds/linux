@@ -1232,7 +1232,7 @@ static int read_events(struct perf_kvm_stat *kvm)
 		.ordered_samples	= true,
 	};
 	struct perf_data_file file = {
-		.path = input_name,
+		.path = kvm->file_name,
 		.mode = PERF_DATA_MODE_READ,
 	};
 
@@ -1690,6 +1690,8 @@ int cmd_kvm(int argc, const char **argv, const char *prefix __maybe_unused)
 			   "file", "file saving guest os /proc/kallsyms"),
 		OPT_STRING(0, "guestmodules", &symbol_conf.default_guest_modules,
 			   "file", "file saving guest os /proc/modules"),
+		OPT_INCR('v', "verbose", &verbose,
+			    "be more verbose (show counter open errors, etc)"),
 		OPT_END()
 	};
 
@@ -1711,12 +1713,7 @@ int cmd_kvm(int argc, const char **argv, const char *prefix __maybe_unused)
 		perf_guest = 1;
 
 	if (!file_name) {
-		if (perf_host && !perf_guest)
-			file_name = strdup("perf.data.host");
-		else if (!perf_host && perf_guest)
-			file_name = strdup("perf.data.guest");
-		else
-			file_name = strdup("perf.data.kvm");
+		file_name = get_filename_for_perf_kvm();
 
 		if (!file_name) {
 			pr_err("Failed to allocate memory for filename\n");

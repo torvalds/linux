@@ -860,7 +860,7 @@ int pevent_event_filtered(struct event_filter *filter,
 
 void pevent_filter_reset(struct event_filter *filter);
 
-void pevent_filter_clear_trivial(struct event_filter *filter,
+int pevent_filter_clear_trivial(struct event_filter *filter,
 				 enum filter_trivial_type type);
 
 void pevent_filter_free(struct event_filter *filter);
