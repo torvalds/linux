@@ -193,4 +193,6 @@ static inline void perf_mmap__write_tail(struct perf_mmap *md,
 	pc->data_tail = tail;
 }
 
+bool perf_evlist__can_select_event(struct perf_evlist *evlist, const char *str);
+
 #endif /* __PERF_EVLIST_H */
