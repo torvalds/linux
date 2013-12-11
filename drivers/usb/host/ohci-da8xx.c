@@ -300,41 +300,28 @@ static int usb_hcd_da8xx_probe(const struct hc_driver *driver,
 	if (hub == NULL)
 		return -ENODEV;
 
-	usb11_clk = clk_get(&pdev->dev, "usb11");
+	usb11_clk = devm_clk_get(&pdev->dev, "usb11");
 	if (IS_ERR(usb11_clk))
 		return PTR_ERR(usb11_clk);
 
-	usb20_clk = clk_get(&pdev->dev, "usb20");
-	if (IS_ERR(usb20_clk)) {
-		error = PTR_ERR(usb20_clk);
-		goto err0;
-	}
+	usb20_clk = devm_clk_get(&pdev->dev, "usb20");
+	if (IS_ERR(usb20_clk))
+		return PTR_ERR(usb20_clk);
 
 	hcd = usb_create_hcd(driver, &pdev->dev, dev_name(&pdev->dev));
-	if (!hcd) {
-		error = -ENOMEM;
-		goto err1;
-	}
+	if (!hcd)
+		return -ENOMEM;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		error = -ENODEV;
-		goto err2;
-	}
+	if (!mem)
+		return -ENODEV;
 	hcd->rsrc_start = mem->start;
 	hcd->rsrc_len = resource_size(mem);
 
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
-		dev_dbg(&pdev->dev, "request_mem_region failed\n");
-		error = -EBUSY;
-		goto err2;
-	}
-
-	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
-	if (!hcd->regs) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		error = -ENOMEM;
-		goto err3;
+	hcd->regs = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(hcd->regs)) {
+		error = PTR_ERR(hcd->regs);
+		goto err;
 	}
 
 	ohci_hcd_init(hcd_to_ohci(hcd));
@@ -342,11 +329,11 @@ static int usb_hcd_da8xx_probe(const struct hc_driver *driver,
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		error = -ENODEV;
-		goto err4;
+		goto err;
 	}
 	error = usb_add_hcd(hcd, irq, 0);
 	if (error)
-		goto err4;
+		goto err;
 
 	device_wakeup_enable(hcd->self.controller);
 
@@ -357,16 +344,8 @@ static int usb_hcd_da8xx_probe(const struct hc_driver *driver,
 	}
 
 	usb_remove_hcd(hcd);
-err4:
-	iounmap(hcd->regs);
-err3:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-err2:
+err:
 	usb_put_hcd(hcd);
-err1:
-	clk_put(usb20_clk);
-err0:
-	clk_put(usb11_clk);
 	return error;
 }
 
@@ -386,11 +365,7 @@ usb_hcd_da8xx_remove(struct usb_hcd *hcd, struct platform_device *pdev)
 
 	hub->ocic_notify(NULL);
 	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
-	clk_put(usb20_clk);
-	clk_put(usb11_clk);
 }
 
 static int ohci_hcd_da8xx_drv_probe(struct platform_device *dev)
