@@ -737,10 +737,9 @@ int iwl_pcie_tx_stop(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ch, txq_id, ret;
-	unsigned long flags;
 
 	/* Turn off all Tx DMA fifos */
-	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
+	spin_lock(&trans_pcie->irq_lock);
 
 	iwl_pcie_txq_set_sched(trans, 0);
 
@@ -757,7 +756,7 @@ int iwl_pcie_tx_stop(struct iwl_trans *trans)
 				iwl_read_direct32(trans,
 						  FH_TSSR_TX_STATUS_REG));
 	}
-	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
+	spin_unlock(&trans_pcie->irq_lock);
 
 	if (!trans_pcie->txq) {
 		IWL_WARN(trans,
@@ -865,7 +864,6 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
 	int txq_id, slots_num;
-	unsigned long flags;
 	bool alloc = false;
 
 	if (!trans_pcie->txq) {
@@ -875,7 +873,7 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 		alloc = true;
 	}
 
-	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
+	spin_lock(&trans_pcie->irq_lock);
 
 	/* Turn off all Tx DMA fifos */
 	iwl_write_prph(trans, SCD_TXFACT, 0);
@@ -884,7 +882,7 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 	iwl_write_direct32(trans, FH_KW_MEM_ADDR_REG,
 			   trans_pcie->kw.dma >> 4);
 
-	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
+	spin_unlock(&trans_pcie->irq_lock);
 
 	/* Alloc and init all Tx queues, including the command queue (#4/#9) */
 	for (txq_id = 0; txq_id < trans->cfg->base_params->num_of_queues;
