@@ -430,6 +430,9 @@ int kernfs_add_one(struct kernfs_addrm_cxt *acxt, struct kernfs_node *kn,
 	if (kernfs_type(parent) != KERNFS_DIR)
 		return -EINVAL;
 
+	if (parent->flags & KERNFS_REMOVED)
+		return -ENOENT;
+
 	kn->hash = kernfs_name_hash(kn->name, kn->ns);
 	kn->parent = parent;
 	kernfs_get(parent);
@@ -862,6 +865,10 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 	int error;
 
 	mutex_lock(&kernfs_mutex);
+
+	error = -ENOENT;
+	if ((kn->flags | new_parent->flags) & KERNFS_REMOVED)
+		goto out;
 
 	error = 0;
 	if ((kn->parent == new_parent) && (kn->ns == new_ns) &&
