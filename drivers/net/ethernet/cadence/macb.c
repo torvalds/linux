@@ -225,7 +225,7 @@ static void macb_set_tx_clk(struct clk *clk, int speed, struct net_device *dev)
 		rate = 125000000;
 		break;
 	default:
-		break;
+		return;
 	}
 
 	rate_rounded = clk_round_rate(clk, rate);
