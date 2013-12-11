@@ -536,8 +536,7 @@ struct sock *sctp_err_lookup(struct net *net, int family, struct sk_buff *skb,
 	return sk;
 
 out:
-	if (asoc)
-		sctp_association_put(asoc);
+	sctp_association_put(asoc);
 	return NULL;
 }
 
@@ -545,8 +544,7 @@ out:
 void sctp_err_finish(struct sock *sk, struct sctp_association *asoc)
 {
 	sctp_bh_unlock_sock(sk);
-	if (asoc)
-		sctp_association_put(asoc);
+	sctp_association_put(asoc);
 }
 
 /*
