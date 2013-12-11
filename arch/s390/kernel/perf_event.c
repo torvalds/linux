@@ -16,6 +16,7 @@
 #include <linux/kvm_host.h>
 #include <linux/percpu.h>
 #include <linux/export.h>
+#include <linux/sysfs.h>
 #include <asm/irq.h>
 #include <asm/cpu_mf.h>
 #include <asm/lowcore.h>
@@ -171,4 +172,15 @@ void perf_callchain_kernel(struct perf_callchain_entry *entry,
 
 	__store_trace(entry, head, S390_lowcore.thread_info,
 		      S390_lowcore.thread_info + THREAD_SIZE);
+}
+
+/* Perf defintions for PMU event attributes in sysfs */
+ssize_t cpumf_events_sysfs_show(struct device *dev,
+				struct device_attribute *attr, char *page)
+{
+	struct perf_pmu_events_attr *pmu_attr;
+
+	pmu_attr = container_of(attr, struct perf_pmu_events_attr, attr);
+	return sprintf(page, "event=0x%04llx,name=%s\n",
+		       pmu_attr->id, attr->attr.name);
 }
