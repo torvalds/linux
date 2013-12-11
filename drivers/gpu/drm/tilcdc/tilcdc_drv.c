@@ -594,7 +594,7 @@ static int tilcdc_pdev_probe(struct platform_device *pdev)
 
 static int tilcdc_pdev_remove(struct platform_device *pdev)
 {
-	drm_platform_exit(&tilcdc_driver, pdev);
+	drm_put_dev(platform_get_drvdata(pdev));
 
 	return 0;
 }
