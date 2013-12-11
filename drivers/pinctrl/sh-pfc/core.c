@@ -26,30 +26,67 @@
 
 #include "core.h"
 
-static int sh_pfc_ioremap(struct sh_pfc *pfc, struct platform_device *pdev)
+static int sh_pfc_map_resources(struct sh_pfc *pfc,
+				struct platform_device *pdev)
 {
+	unsigned int num_windows = 0;
+	unsigned int num_irqs = 0;
+	struct sh_pfc_window *windows;
+	unsigned int *irqs = NULL;
 	struct resource *res;
-	unsigned int k;
+	unsigned int i;
 
-	if (pdev->num_resources == 0)
+	/* Count the MEM and IRQ resources. */
+	for (i = 0; i < pdev->num_resources; ++i) {
+		switch (resource_type(&pdev->resource[i])) {
+		case IORESOURCE_MEM:
+			num_windows++;
+			break;
+
+		case IORESOURCE_IRQ:
+			num_irqs++;
+			break;
+		}
+	}
+
+	if (num_windows == 0)
 		return -EINVAL;
 
-	pfc->windows = devm_kzalloc(pfc->dev, pdev->num_resources *
-				    sizeof(*pfc->windows), GFP_NOWAIT);
-	if (!pfc->windows)
+	/* Allocate memory windows and IRQs arrays. */
+	windows = devm_kzalloc(pfc->dev, num_windows * sizeof(*windows),
+			       GFP_KERNEL);
+	if (windows == NULL)
 		return -ENOMEM;
 
-	pfc->num_windows = pdev->num_resources;
+	pfc->num_windows = num_windows;
+	pfc->windows = windows;
 
-	for (k = 0, res = pdev->resource; k < pdev->num_resources; k++, res++) {
-		WARN_ON(resource_type(res) != IORESOURCE_MEM);
-		pfc->windows[k].phys = res->start;
-		pfc->windows[k].size = resource_size(res);
-		pfc->windows[k].virt =
-			devm_ioremap_nocache(pfc->dev, res->start,
-					     resource_size(res));
-		if (!pfc->windows[k].virt)
+	if (num_irqs) {
+		irqs = devm_kzalloc(pfc->dev, num_irqs * sizeof(*irqs),
+				    GFP_KERNEL);
+		if (irqs == NULL)
 			return -ENOMEM;
+
+		pfc->num_irqs = num_irqs;
+		pfc->irqs = irqs;
+	}
+
+	/* Fill them. */
+	for (i = 0, res = pdev->resource; i < pdev->num_resources; i++, res++) {
+		switch (resource_type(res)) {
+		case IORESOURCE_MEM:
+			windows->phys = res->start;
+			windows->size = resource_size(res);
+			windows->virt = devm_ioremap_resource(pfc->dev, res);
+			if (IS_ERR(windows->virt))
+				return -ENOMEM;
+			windows++;
+			break;
+
+		case IORESOURCE_IRQ:
+			*irqs++ = res->start;
+			break;
+		}
 	}
 
 	return 0;
@@ -482,7 +519,7 @@ static int sh_pfc_probe(struct platform_device *pdev)
 	pfc->info = info;
 	pfc->dev = &pdev->dev;
 
-	ret = sh_pfc_ioremap(pfc, pdev);
+	ret = sh_pfc_map_resources(pfc, pdev);
 	if (unlikely(ret < 0))
 		return ret;
 
