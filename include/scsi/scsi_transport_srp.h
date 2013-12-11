@@ -19,7 +19,7 @@ struct srp_rport_identifiers {
  * @SRP_RPORT_BLOCKED:   Transport layer not operational; fast I/O fail timer
  *                       is running and I/O has been blocked.
  * @SRP_RPORT_FAIL_FAST: Fast I/O fail timer has expired; fail I/O fast.
- * @SRP_RPORT_LOST:      Device loss timer has expired; port is being removed.
+ * @SRP_RPORT_LOST:      Port is being removed.
  */
 enum srp_rport_state {
 	SRP_RPORT_RUNNING,
@@ -48,7 +48,6 @@ struct srp_rport {
 
 	struct mutex		mutex;
 	enum srp_rport_state	state;
-	bool			deleted;
 	int			reconnect_delay;
 	int			failed_reconnects;
 	struct delayed_work	reconnect_work;
@@ -101,6 +100,7 @@ extern int srp_tmo_valid(int reconnect_delay, int fast_io_fail_tmo,
 extern int srp_reconnect_rport(struct srp_rport *rport);
 extern void srp_start_tl_fail_timers(struct srp_rport *rport);
 extern void srp_remove_host(struct Scsi_Host *);
+extern void srp_stop_rport_timers(struct srp_rport *rport);
 
 /**
  * srp_chkready() - evaluate the transport layer state before I/O
