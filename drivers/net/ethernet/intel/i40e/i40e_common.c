@@ -335,6 +335,7 @@ static enum i40e_media_type i40e_get_media_type(struct i40e_hw *hw)
 i40e_status i40e_pf_reset(struct i40e_hw *hw)
 {
 	u32 cnt = 0;
+	u32 cnt1 = 0;
 	u32 reg = 0;
 	u32 grst_del;
 
@@ -352,6 +353,25 @@ i40e_status i40e_pf_reset(struct i40e_hw *hw)
 	}
 	if (reg & I40E_GLGEN_RSTAT_DEVSTATE_MASK) {
 		hw_dbg(hw, "Global reset polling failed to complete.\n");
+		return I40E_ERR_RESET_FAILED;
+	}
+
+	/* Now Wait for the FW to be ready */
+	for (cnt1 = 0; cnt1 < I40E_PF_RESET_WAIT_COUNT; cnt1++) {
+		reg = rd32(hw, I40E_GLNVM_ULD);
+		reg &= (I40E_GLNVM_ULD_CONF_CORE_DONE_MASK |
+			I40E_GLNVM_ULD_CONF_GLOBAL_DONE_MASK);
+		if (reg == (I40E_GLNVM_ULD_CONF_CORE_DONE_MASK |
+			    I40E_GLNVM_ULD_CONF_GLOBAL_DONE_MASK)) {
+			hw_dbg(hw, "Core and Global modules ready %d\n", cnt1);
+			break;
+		}
+		usleep_range(10000, 20000);
+	}
+	if (!(reg & (I40E_GLNVM_ULD_CONF_CORE_DONE_MASK |
+		     I40E_GLNVM_ULD_CONF_GLOBAL_DONE_MASK))) {
+		hw_dbg(hw, "wait for FW Reset complete timedout\n");
+		hw_dbg(hw, "I40E_GLNVM_ULD = 0x%x\n", reg);
 		return I40E_ERR_RESET_FAILED;
 	}
 
