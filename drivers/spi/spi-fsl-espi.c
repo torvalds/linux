@@ -705,7 +705,7 @@ static int of_fsl_espi_probe(struct platform_device *ofdev)
 		goto err;
 
 	irq = irq_of_parse_and_map(np, 0);
-	if (!ret) {
+	if (!irq) {
 		ret = -EINVAL;
 		goto err;
 	}
