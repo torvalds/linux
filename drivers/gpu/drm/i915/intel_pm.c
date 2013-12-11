@@ -30,6 +30,7 @@
 #include "intel_drv.h"
 #include "../../../platform/x86/intel_ips.h"
 #include <linux/module.h>
+#include <linux/vgaarb.h>
 #include <drm/i915_powerwell.h>
 #include <linux/pm_runtime.h>
 
@@ -5685,6 +5686,20 @@ static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	unsigned long irqflags;
+
+	/*
+	 * After we re-enable the power well, if we touch VGA register 0x3d5
+	 * we'll get unclaimed register interrupts. This stops after we write
+	 * anything to the VGA MSR register. The vgacon module uses this
+	 * register all the time, so if we unbind our driver and, as a
+	 * consequence, bind vgacon, we'll get stuck in an infinite loop at
+	 * console_unlock(). So make here we touch the VGA MSR register, making
+	 * sure vgacon can keep working normally without triggering interrupts
+	 * and error messages.
+	 */
+	vga_get_uninterruptible(dev->pdev, VGA_RSRC_LEGACY_IO);
+	outb(inb(VGA_MSR_READ), VGA_MSR_WRITE);
+	vga_put(dev->pdev, VGA_RSRC_LEGACY_IO);
 
 	if (IS_BROADWELL(dev)) {
 		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
