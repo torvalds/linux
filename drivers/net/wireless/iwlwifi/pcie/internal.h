@@ -273,7 +273,6 @@ struct iwl_trans_pcie {
 	__le32 *ict_tbl;
 	dma_addr_t ict_tbl_dma;
 	int ict_index;
-	u32 inta;
 	bool use_ict;
 	struct isr_statistics isr_stats;
 
