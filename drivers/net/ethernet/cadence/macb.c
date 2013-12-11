@@ -204,6 +204,47 @@ static int macb_mdio_reset(struct mii_bus *bus)
 	return 0;
 }
 
+/**
+ * macb_set_tx_clk() - Set a clock to a new frequency
+ * @clk		Pointer to the clock to change
+ * @rate	New frequency in Hz
+ * @dev		Pointer to the struct net_device
+ */
+static void macb_set_tx_clk(struct clk *clk, int speed, struct net_device *dev)
+{
+	long ferr, rate, rate_rounded;
+
+	switch (speed) {
+	case SPEED_10:
+		rate = 2500000;
+		break;
+	case SPEED_100:
+		rate = 25000000;
+		break;
+	case SPEED_1000:
+		rate = 125000000;
+		break;
+	default:
+		break;
+	}
+
+	rate_rounded = clk_round_rate(clk, rate);
+	if (rate_rounded < 0)
+		return;
+
+	/* RGMII allows 50 ppm frequency error. Test and warn if this limit
+	 * is not satisfied.
+	 */
+	ferr = abs(rate_rounded - rate);
+	ferr = DIV_ROUND_UP(ferr, rate / 100000);
+	if (ferr > 5)
+		netdev_warn(dev, "unable to generate target frequency: %ld Hz\n",
+				rate);
+
+	if (clk_set_rate(clk, rate_rounded))
+		netdev_err(dev, "adjusting tx_clk failed.\n");
+}
+
 static void macb_handle_link_change(struct net_device *dev)
 {
 	struct macb *bp = netdev_priv(dev);
@@ -250,6 +291,9 @@ static void macb_handle_link_change(struct net_device *dev)
 	}
 
 	spin_unlock_irqrestore(&bp->lock, flags);
+
+	if (!IS_ERR(bp->tx_clk))
+		macb_set_tx_clk(bp->tx_clk, phydev->speed, dev);
 
 	if (status_change) {
 		if (phydev->link) {
@@ -1805,6 +1849,8 @@ static int __init macb_probe(struct platform_device *pdev)
 		goto err_out_free_dev;
 	}
 
+	bp->tx_clk = devm_clk_get(&pdev->dev, "tx_clk");
+
 	err = clk_prepare_enable(bp->pclk);
 	if (err) {
 		dev_err(&pdev->dev, "failed to enable pclk (%u)\n", err);
@@ -1815,6 +1861,15 @@ static int __init macb_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev, "failed to enable hclk (%u)\n", err);
 		goto err_out_disable_pclk;
+	}
+
+	if (!IS_ERR(bp->tx_clk)) {
+		err = clk_prepare_enable(bp->tx_clk);
+		if (err) {
+			dev_err(&pdev->dev, "failed to enable tx_clk (%u)\n",
+					err);
+			goto err_out_disable_hclk;
+		}
 	}
 
 	bp->regs = devm_ioremap(&pdev->dev, regs->start, resource_size(regs));
@@ -1917,6 +1972,9 @@ static int __init macb_probe(struct platform_device *pdev)
 err_out_unregister_netdev:
 	unregister_netdev(dev);
 err_out_disable_clocks:
+	if (!IS_ERR(bp->tx_clk))
+		clk_disable_unprepare(bp->tx_clk);
+err_out_disable_hclk:
 	clk_disable_unprepare(bp->hclk);
 err_out_disable_pclk:
 	clk_disable_unprepare(bp->pclk);
@@ -1941,6 +1999,8 @@ static int __exit macb_remove(struct platform_device *pdev)
 		kfree(bp->mii_bus->irq);
 		mdiobus_free(bp->mii_bus);
 		unregister_netdev(dev);
+		if (!IS_ERR(bp->tx_clk))
+			clk_disable_unprepare(bp->tx_clk);
 		clk_disable_unprepare(bp->hclk);
 		clk_disable_unprepare(bp->pclk);
 		free_netdev(dev);
@@ -1959,6 +2019,8 @@ static int macb_suspend(struct device *dev)
 	netif_carrier_off(netdev);
 	netif_device_detach(netdev);
 
+	if (!IS_ERR(bp->tx_clk))
+		clk_disable_unprepare(bp->tx_clk);
 	clk_disable_unprepare(bp->hclk);
 	clk_disable_unprepare(bp->pclk);
 
@@ -1973,6 +2035,8 @@ static int macb_resume(struct device *dev)
 
 	clk_prepare_enable(bp->pclk);
 	clk_prepare_enable(bp->hclk);
+	if (!IS_ERR(bp->tx_clk))
+		clk_prepare_enable(bp->tx_clk);
 
 	netif_device_attach(netdev);
 
