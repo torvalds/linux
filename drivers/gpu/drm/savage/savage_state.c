@@ -1032,7 +1032,7 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 
 	/* Make sure writes to DMA buffers are finished before sending
 	 * DMA commands to the graphics hardware. */
-	DRM_MEMORYBARRIER();
+	mb();
 
 	/* Coming from user space. Don't know if the Xserver has
 	 * emitted wait commands. Assuming the worst. */

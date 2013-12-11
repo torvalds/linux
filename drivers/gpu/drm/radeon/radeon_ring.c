@@ -463,7 +463,7 @@ void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *ring)
 	while (ring->wptr & ring->align_mask) {
 		radeon_ring_write(ring, ring->nop);
 	}
-	DRM_MEMORYBARRIER();
+	mb();
 	radeon_ring_set_wptr(rdev, ring);
 }
 

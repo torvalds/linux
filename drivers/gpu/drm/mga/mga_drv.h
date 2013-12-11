@@ -193,7 +193,7 @@ extern void mga_driver_irq_uninstall(struct drm_device *dev);
 extern long mga_compat_ioctl(struct file *filp, unsigned int cmd,
 			     unsigned long arg);
 
-#define mga_flush_write_combine()	DRM_WRITEMEMORYBARRIER()
+#define mga_flush_write_combine()	wmb()
 
 #define MGA_READ8(reg)		DRM_READ8(dev_priv->mmio, (reg))
 #define MGA_READ(reg)		DRM_READ32(dev_priv->mmio, (reg))

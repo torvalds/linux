@@ -49,7 +49,7 @@ savage_bci_wait_fifo_shadow(drm_savage_private_t * dev_priv, unsigned int n)
 #endif
 
 	for (i = 0; i < SAVAGE_DEFAULT_USEC_TIMEOUT; i++) {
-		DRM_MEMORYBARRIER();
+		mb();
 		status = dev_priv->status_ptr[0];
 		if ((status & mask) < threshold)
 			return 0;
@@ -123,7 +123,7 @@ savage_bci_wait_event_shadow(drm_savage_private_t * dev_priv, uint16_t e)
 	int i;
 
 	for (i = 0; i < SAVAGE_EVENT_USEC_TIMEOUT; i++) {
-		DRM_MEMORYBARRIER();
+		mb();
 		status = dev_priv->status_ptr[1];
 		if ((((status & 0xffff) - e) & 0xffff) <= 0x7fff ||
 		    (status & 0xffff) == 0)
@@ -449,7 +449,7 @@ static void savage_dma_flush(drm_savage_private_t * dev_priv)
 		}
 	}
 
-	DRM_MEMORYBARRIER();
+	mb();
 
 	/* do flush ... */
 	phys_addr = dev_priv->cmd_dma->offset +

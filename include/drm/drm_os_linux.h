@@ -35,18 +35,11 @@ static inline void writeq(u64 val, void __iomem *reg)
 #define DRM_WRITE16(map, offset, val)   writew(val, ((void __iomem *)(map)->handle) + (offset))
 /** Write a dword into a MMIO region */
 #define DRM_WRITE32(map, offset, val)	writel(val, ((void __iomem *)(map)->handle) + (offset))
-/** Read memory barrier */
 
 /** Read a qword from a MMIO region - be careful using these unless you really understand them */
 #define DRM_READ64(map, offset)		readq(((void __iomem *)(map)->handle) + (offset))
 /** Write a qword into a MMIO region */
 #define DRM_WRITE64(map, offset, val)	writeq(val, ((void __iomem *)(map)->handle) + (offset))
-
-#define DRM_READMEMORYBARRIER()		rmb()
-/** Write memory barrier */
-#define DRM_WRITEMEMORYBARRIER()	wmb()
-/** Read/write memory barrier */
-#define DRM_MEMORYBARRIER()		mb()
 
 #define DRM_WAIT_ON( ret, queue, timeout, condition )		\
 do {								\

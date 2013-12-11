@@ -514,7 +514,7 @@ do {									\
 	if (R128_VERBOSE)						\
 		DRM_INFO("COMMIT_RING() tail=0x%06x\n",			\
 			 dev_priv->ring.tail);				\
-	DRM_MEMORYBARRIER();						\
+	mb();						\
 	R128_WRITE(R128_PM4_BUFFER_DL_WPTR, dev_priv->ring.tail);	\
 	R128_READ(R128_PM4_BUFFER_DL_WPTR);				\
 } while (0)

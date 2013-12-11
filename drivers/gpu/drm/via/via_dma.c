@@ -60,7 +60,7 @@
 	dev_priv->dma_low += 8;					\
 }
 
-#define via_flush_write_combine() DRM_MEMORYBARRIER()
+#define via_flush_write_combine() mb()
 
 #define VIA_OUT_RING_QW(w1, w2)	do {		\
 	*vb++ = (w1);				\
@@ -543,7 +543,7 @@ static void via_cmdbuf_start(drm_via_private_t *dev_priv)
 
 	VIA_WRITE(VIA_REG_TRANSPACE, pause_addr_hi);
 	VIA_WRITE(VIA_REG_TRANSPACE, pause_addr_lo);
-	DRM_WRITEMEMORYBARRIER();
+	wmb();
 	VIA_WRITE(VIA_REG_TRANSPACE, command | HC_HAGPCMNT_MASK);
 	VIA_READ(VIA_REG_TRANSPACE);
 

@@ -217,7 +217,7 @@ via_fire_dmablit(struct drm_device *dev, drm_via_sg_info_t *vsg, int engine)
 	VIA_WRITE(VIA_PCI_DMA_MR0  + engine*0x04, VIA_DMA_MR_CM | VIA_DMA_MR_TDIE);
 	VIA_WRITE(VIA_PCI_DMA_BCR0 + engine*0x10, 0);
 	VIA_WRITE(VIA_PCI_DMA_DPR0 + engine*0x10, vsg->chain_start);
-	DRM_WRITEMEMORYBARRIER();
+	wmb();
 	VIA_WRITE(VIA_PCI_DMA_CSR0 + engine*0x04, VIA_DMA_CSR_DE | VIA_DMA_CSR_TS);
 	VIA_READ(VIA_PCI_DMA_CSR0 + engine*0x04);
 }
