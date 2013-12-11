@@ -66,8 +66,9 @@
 #endif
 
 enum rt6_nud_state {
-	RT6_NUD_FAIL_HARD = -2,
-	RT6_NUD_FAIL_SOFT = -1,
+	RT6_NUD_FAIL_HARD = -3,
+	RT6_NUD_FAIL_PROBE = -2,
+	RT6_NUD_FAIL_DO_RR = -1,
 	RT6_NUD_SUCCEED = 1
 };
 
@@ -521,7 +522,7 @@ static void rt6_probe(struct rt6_info *rt)
 		work = kmalloc(sizeof(*work), GFP_ATOMIC);
 
 		if (neigh && work)
-			neigh->updated = jiffies;
+			__neigh_set_probe_once(neigh);
 
 		if (neigh)
 			write_unlock(&neigh->lock);
@@ -577,11 +578,13 @@ static inline enum rt6_nud_state rt6_check_neigh(struct rt6_info *rt)
 #ifdef CONFIG_IPV6_ROUTER_PREF
 		else if (!(neigh->nud_state & NUD_FAILED))
 			ret = RT6_NUD_SUCCEED;
+		else
+			ret = RT6_NUD_FAIL_PROBE;
 #endif
 		read_unlock(&neigh->lock);
 	} else {
 		ret = IS_ENABLED(CONFIG_IPV6_ROUTER_PREF) ?
-		      RT6_NUD_SUCCEED : RT6_NUD_FAIL_SOFT;
+		      RT6_NUD_SUCCEED : RT6_NUD_FAIL_DO_RR;
 	}
 	rcu_read_unlock_bh();
 
@@ -618,16 +621,17 @@ static struct rt6_info *find_match(struct rt6_info *rt, int oif, int strict,
 		goto out;
 
 	m = rt6_score_route(rt, oif, strict);
-	if (m == RT6_NUD_FAIL_SOFT) {
+	if (m == RT6_NUD_FAIL_DO_RR) {
 		match_do_rr = true;
 		m = 0; /* lowest valid score */
-	} else if (m < 0) {
+	} else if (m == RT6_NUD_FAIL_HARD) {
 		goto out;
 	}
 
 	if (strict & RT6_LOOKUP_F_REACHABLE)
 		rt6_probe(rt);
 
+	/* note that m can be RT6_NUD_FAIL_PROBE at this point */
 	if (m > *mpri) {
 		*do_rr = match_do_rr;
 		*mpri = m;
