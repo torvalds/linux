@@ -10,8 +10,6 @@ Required properties:
  - interrupt-parent : the phandle for the interrupt controller that
    services interrupts for this device.
  - reg : The ID number for the phy, usually a small integer
- - linux,phandle :  phandle for this node; likely referenced by an
-   ethernet controller node.
 
 Optional Properties:
 
@@ -26,7 +24,6 @@ Example:
 
 ethernet-phy@0 {
 	compatible = "ethernet-phy-ieee802.3-c22";
-	linux,phandle = <2452000>;
 	interrupt-parent = <40000>;
 	interrupts = <35 1>;
 	reg = <0>;
