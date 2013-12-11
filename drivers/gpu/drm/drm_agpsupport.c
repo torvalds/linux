@@ -393,6 +393,9 @@ int drm_agp_free_ioctl(struct drm_device *dev, void *data,
  * Gets the drm_agp_t structure which is made available by the agpgart module
  * via the inter_module_* functions. Creates and initializes a drm_agp_head
  * structure.
+ *
+ * Note that final cleanup of the kmalloced structure is directly done in
+ * drm_pci_agp_destroy.
  */
 struct drm_agp_head *drm_agp_init(struct drm_device *dev)
 {
@@ -457,21 +460,6 @@ void drm_agp_clear(struct drm_device *dev)
 
 	dev->agp->acquired = 0;
 	dev->agp->enabled = 0;
-}
-
-/**
- * drm_agp_destroy - Destroy AGP head
- * @dev: DRM device
- *
- * Destroy resources that were previously allocated via drm_agp_initp. Caller
- * must ensure to clean up all AGP resources before calling this. See
- * drm_agp_clear().
- *
- * Call this to destroy AGP heads allocated via drm_agp_init().
- */
-void drm_agp_destroy(struct drm_agp_head *agp)
-{
-	kfree(agp);
 }
 
 /**

@@ -20,7 +20,6 @@ DRM_AGP_MEM *drm_agp_bind_pages(struct drm_device *dev,
 				uint32_t type);
 
 struct drm_agp_head *drm_agp_init(struct drm_device *dev);
-void drm_agp_destroy(struct drm_agp_head *agp);
 void drm_agp_clear(struct drm_device *dev);
 int drm_agp_acquire(struct drm_device *dev);
 int drm_agp_acquire_ioctl(struct drm_device *dev, void *data,
@@ -74,10 +73,6 @@ static inline DRM_AGP_MEM *drm_agp_bind_pages(struct drm_device *dev,
 static inline struct drm_agp_head *drm_agp_init(struct drm_device *dev)
 {
 	return NULL;
-}
-
-static inline void drm_agp_destroy(struct drm_agp_head *agp)
-{
 }
 
 static inline void drm_agp_clear(struct drm_device *dev)

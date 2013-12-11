@@ -281,7 +281,7 @@ static void drm_pci_agp_destroy(struct drm_device *dev)
 	if (dev->agp) {
 		arch_phys_wc_del(dev->agp->agp_mtrr);
 		drm_agp_clear(dev);
-		drm_agp_destroy(dev->agp);
+		kfree(dev->agp);
 		dev->agp = NULL;
 	}
 }
