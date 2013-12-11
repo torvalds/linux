@@ -886,7 +886,11 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 		if (!new_name)
 			goto out;
 
-		kfree(kn->name);
+		if (kn->flags & KERNFS_STATIC_NAME)
+			kn->flags &= ~KERNFS_STATIC_NAME;
+		else
+			kfree(kn->name);
+
 		kn->name = new_name;
 	}
 
