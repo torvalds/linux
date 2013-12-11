@@ -266,9 +266,6 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 				dmah.size = map->size;
 				__drm_pci_free(dev, &dmah);
 				break;
-			case _DRM_GEM:
-				DRM_ERROR("tried to rmmap GEM object\n");
-				break;
 			}
 			kfree(map);
 		}
