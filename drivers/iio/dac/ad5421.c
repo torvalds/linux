@@ -114,7 +114,11 @@ static const struct iio_chan_spec ad5421_channels[] = {
 			BIT(IIO_CHAN_INFO_CALIBBIAS),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |
 			BIT(IIO_CHAN_INFO_OFFSET),
-		.scan_type = IIO_ST('u', 16, 16, 0),
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 16,
+			.storagebits = 16,
+		},
 		.event_spec = ad5421_current_event,
 		.num_event_specs = ARRAY_SIZE(ad5421_current_event),
 	},
