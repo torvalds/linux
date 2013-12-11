@@ -174,16 +174,6 @@ void INTnsProcessData(struct vnt_private *pDevice)
 		  pINTData->byISR0,
 		  pINTData->dwLoTSF,
 		  pINTData->dwHiTSF)); */
-
-		STAvUpdate802_11Counter(&pDevice->s802_11Counter,
-					&pDevice->scStatistic,
-					pINTData->byRTSSuccess,
-					pINTData->byRTSFail,
-					pINTData->byACKFail,
-					pINTData->byFCSErr);
-		STAvUpdateIsrStatCounter(&pDevice->scStatistic,
-					pINTData->byISR0,
-					pINTData->byISR1);
 	}
 	if (pINTData->byISR1 != 0)
 		if (pINTData->byISR1 & ISR_GPIO3)

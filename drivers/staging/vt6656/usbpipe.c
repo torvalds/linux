@@ -390,8 +390,6 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 	    INTnsProcessData(pDevice);
     }
 
-    STAvUpdateUSBCounter(&pDevice->scStatistic.USB_InterruptStat, ntStatus);
-
     if (pDevice->fKillEventPollingThread != true) {
        usb_fill_bulk_urb(pDevice->pInterruptURB,
 		      pDevice->usb,
@@ -499,8 +497,6 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
     if (status) {
         pDevice->ulBulkInError++;
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BULK In failed %d\n", status);
-
-           pDevice->scStatistic.RxFcsErrCnt ++;
 //todo...xxxxxx
 //        if (status == USBD_STATUS_CRC) {
 //            pDevice->ulBulkInContCRCError++;
@@ -514,11 +510,7 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 		bIndicateReceive = true;
         pDevice->ulBulkInContCRCError = 0;
         pDevice->ulBulkInBytesRead += bytesRead;
-
-           pDevice->scStatistic.RxOkCnt ++;
     }
-
-    STAvUpdateUSBCounter(&pDevice->scStatistic.USB_BulkInStat, status);
 
     if (bIndicateReceive) {
         spin_lock(&pDevice->lock);
@@ -655,8 +647,6 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
     //
 
     status = urb->status;
-    //we should have failed, succeeded, or cancelled, but NOT be pending
-    STAvUpdateUSBCounter(&pDevice->scStatistic.USB_BulkOutStat, status);
 
     if(status == STATUS_SUCCESS) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Write %d bytes\n",(int)ulBufLen);

@@ -1403,7 +1403,6 @@ static void s_uCalculateLinkQual(struct vnt_private *pDevice)
 	/* decide link quality */
 	if (pDevice->bLinkPass != true) {
 		pDevice->wstats.qual.qual = 0;
-		pDevice->scStatistic.SignalStren = 0;
 	} else {
 		RFvRSSITodBm(pDevice, (u8)(pDevice->uCurrRSSI), &ldBm);
 		if (-ldBm < 50)
@@ -1413,19 +1412,12 @@ static void s_uCalculateLinkQual(struct vnt_private *pDevice)
 		else
 			RssiRatio = (40-(-ldBm-50)) * 4000 / 40;
 
-		pDevice->scStatistic.SignalStren = RssiRatio / 40;
 		qual = (RssiRatio + TxOkRatio + RxOkRatio) / 100;
 		if (qual < 100)
 			pDevice->wstats.qual.qual = (u8)qual;
 		else
 			pDevice->wstats.qual.qual = 100;
 	}
-
-   pDevice->scStatistic.RxFcsErrCnt = 0;
-   pDevice->scStatistic.RxOkCnt = 0;
-   pDevice->scStatistic.TxFailCount = 0;
-   pDevice->scStatistic.TxNoRetryOkCount = 0;
-   pDevice->scStatistic.TxRetryOkCount = 0;
 }
 
 void BSSvClearAnyBSSJoinRecord(struct vnt_private *pDevice)

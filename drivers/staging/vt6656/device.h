@@ -479,11 +479,6 @@ struct vnt_private {
 
 	int bExistSWNetAddr;
 
-	/* Adapter statistics */
-	SStatCounter scStatistic;
-	/* 802.11 counter */
-	SDot11Counters s802_11Counter;
-
 	/* Maintain statistical debug info. */
 	unsigned long packetsReceived;
 	unsigned long packetsReceivedDropped;
