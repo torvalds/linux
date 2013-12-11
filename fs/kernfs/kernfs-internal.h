@@ -26,9 +26,9 @@ struct kernfs_iattrs {
 	struct simple_xattrs	xattrs;
 };
 
-#define SD_DEACTIVATED_BIAS		INT_MIN
+#define KN_DEACTIVATED_BIAS		INT_MIN
 
-/* SYSFS_TYPE_MASK and types are defined in include/linux/kernfs.h */
+/* KERNFS_TYPE_MASK and types are defined in include/linux/kernfs.h */
 
 /**
  * kernfs_root - find out the kernfs_root a kernfs_node belongs to

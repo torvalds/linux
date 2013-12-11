@@ -28,22 +28,22 @@ struct kernfs_open_node;
 struct kernfs_iattrs;
 
 enum kernfs_node_type {
-	SYSFS_DIR		= 0x0001,
-	SYSFS_KOBJ_ATTR		= 0x0002,
-	SYSFS_KOBJ_LINK		= 0x0004,
+	KERNFS_DIR		= 0x0001,
+	KERNFS_FILE		= 0x0002,
+	KERNFS_LINK		= 0x0004,
 };
 
-#define SYSFS_TYPE_MASK		0x000f
-#define SYSFS_COPY_NAME		(SYSFS_DIR | SYSFS_KOBJ_LINK)
-#define SYSFS_ACTIVE_REF	SYSFS_KOBJ_ATTR
-#define SYSFS_FLAG_MASK		~SYSFS_TYPE_MASK
+#define KERNFS_TYPE_MASK	0x000f
+#define KERNFS_COPY_NAME	(KERNFS_DIR | KERNFS_LINK)
+#define KERNFS_ACTIVE_REF	KERNFS_FILE
+#define KERNFS_FLAG_MASK	~KERNFS_TYPE_MASK
 
 enum kernfs_node_flag {
-	SYSFS_FLAG_REMOVED	= 0x0010,
-	SYSFS_FLAG_NS		= 0x0020,
-	SYSFS_FLAG_HAS_SEQ_SHOW	= 0x0040,
-	SYSFS_FLAG_HAS_MMAP	= 0x0080,
-	SYSFS_FLAG_LOCKDEP	= 0x0100,
+	KERNFS_REMOVED		= 0x0010,
+	KERNFS_NS		= 0x0020,
+	KERNFS_HAS_SEQ_SHOW	= 0x0040,
+	KERNFS_HAS_MMAP		= 0x0080,
+	KERNFS_LOCKDEP		= 0x0100,
 };
 
 /* type-specific structures for kernfs_node union members */
@@ -170,9 +170,9 @@ struct kernfs_ops {
 
 #ifdef CONFIG_SYSFS
 
-static inline enum kernfs_node_type sysfs_type(struct kernfs_node *kn)
+static inline enum kernfs_node_type kernfs_type(struct kernfs_node *kn)
 {
-	return kn->flags & SYSFS_TYPE_MASK;
+	return kn->flags & KERNFS_TYPE_MASK;
 }
 
 /**
@@ -185,9 +185,9 @@ static inline enum kernfs_node_type sysfs_type(struct kernfs_node *kn)
  */
 static inline void kernfs_enable_ns(struct kernfs_node *kn)
 {
-	WARN_ON_ONCE(sysfs_type(kn) != SYSFS_DIR);
+	WARN_ON_ONCE(kernfs_type(kn) != KERNFS_DIR);
 	WARN_ON_ONCE(!RB_EMPTY_ROOT(&kn->dir.children));
-	kn->flags |= SYSFS_FLAG_NS;
+	kn->flags |= KERNFS_NS;
 }
 
 /**
@@ -198,7 +198,7 @@ static inline void kernfs_enable_ns(struct kernfs_node *kn)
  */
 static inline bool kernfs_ns_enabled(struct kernfs_node *kn)
 {
-	return kn->flags & SYSFS_FLAG_NS;
+	return kn->flags & KERNFS_NS;
 }
 
 struct kernfs_node *kernfs_find_and_get_ns(struct kernfs_node *parent,
@@ -238,7 +238,7 @@ void kernfs_init(void);
 
 #else	/* CONFIG_SYSFS */
 
-static inline enum kernfs_node_type sysfs_type(struct kernfs_node *kn)
+static inline enum kernfs_node_type kernfs_type(struct kernfs_node *kn)
 { return 0; }	/* whatever */
 
 static inline void kernfs_enable_ns(struct kernfs_node *kn) { }

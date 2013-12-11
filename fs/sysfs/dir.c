@@ -113,7 +113,7 @@ void sysfs_remove_dir(struct kobject *kobj)
 	spin_unlock(&sysfs_symlink_target_lock);
 
 	if (kn) {
-		WARN_ON_ONCE(sysfs_type(kn) != SYSFS_DIR);
+		WARN_ON_ONCE(kernfs_type(kn) != KERNFS_DIR);
 		kernfs_remove(kn);
 	}
 }

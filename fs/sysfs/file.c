@@ -29,7 +29,7 @@ static const struct sysfs_ops *sysfs_file_ops(struct kernfs_node *kn)
 {
 	struct kobject *kobj = kn->parent->priv;
 
-	if (kn->flags & SYSFS_FLAG_LOCKDEP)
+	if (kn->flags & KERNFS_LOCKDEP)
 		lockdep_assert_held(kn);
 	return kobj->ktype ? kobj->ktype->sysfs_ops : NULL;
 }

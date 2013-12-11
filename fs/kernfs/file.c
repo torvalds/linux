@@ -49,7 +49,7 @@ static struct kernfs_open_file *kernfs_of(struct file *file)
  */
 static const struct kernfs_ops *kernfs_ops(struct kernfs_node *kn)
 {
-	if (kn->flags & SYSFS_FLAG_LOCKDEP)
+	if (kn->flags & KERNFS_LOCKDEP)
 		lockdep_assert_held(kn);
 	return kn->attr.ops;
 }
@@ -189,7 +189,7 @@ static ssize_t kernfs_file_read(struct file *file, char __user *user_buf,
 {
 	struct kernfs_open_file *of = kernfs_of(file);
 
-	if (of->kn->flags & SYSFS_FLAG_HAS_SEQ_SHOW)
+	if (of->kn->flags & KERNFS_HAS_SEQ_SHOW)
 		return seq_read(file, user_buf, count, ppos);
 	else
 		return kernfs_file_direct_read(of, user_buf, count, ppos);
@@ -428,7 +428,7 @@ static int kernfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	 * without grabbing @of->mutex by testing HAS_MMAP flag.  See the
 	 * comment in kernfs_file_open() for more details.
 	 */
-	if (!(of->kn->flags & SYSFS_FLAG_HAS_MMAP))
+	if (!(of->kn->flags & KERNFS_HAS_MMAP))
 		return -ENODEV;
 
 	mutex_lock(&of->mutex);
@@ -668,7 +668,7 @@ void sysfs_unmap_bin_file(struct kernfs_node *kn)
 	struct kernfs_open_node *on;
 	struct kernfs_open_file *of;
 
-	if (!(kn->flags & SYSFS_FLAG_HAS_MMAP))
+	if (!(kn->flags & KERNFS_HAS_MMAP))
 		return;
 
 	spin_lock_irq(&kernfs_open_node_lock);
@@ -738,7 +738,7 @@ void kernfs_notify(struct kernfs_node *kn)
 
 	spin_lock_irqsave(&kernfs_open_node_lock, flags);
 
-	if (!WARN_ON(sysfs_type(kn) != SYSFS_KOBJ_ATTR)) {
+	if (!WARN_ON(kernfs_type(kn) != KERNFS_FILE)) {
 		on = kn->attr.open;
 		if (on) {
 			atomic_inc(&on->event);
@@ -785,7 +785,7 @@ struct kernfs_node *kernfs_create_file_ns_key(struct kernfs_node *parent,
 	int rc;
 
 	kn = sysfs_new_dirent(kernfs_root(parent), name,
-			      (mode & S_IALLUGO) | S_IFREG, SYSFS_KOBJ_ATTR);
+			      (mode & S_IALLUGO) | S_IFREG, KERNFS_FILE);
 	if (!kn)
 		return ERR_PTR(-ENOMEM);
 
@@ -797,7 +797,7 @@ struct kernfs_node *kernfs_create_file_ns_key(struct kernfs_node *parent,
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	if (key) {
 		lockdep_init_map(&kn->dep_map, "s_active", key, 0);
-		kn->flags |= SYSFS_FLAG_LOCKDEP;
+		kn->flags |= KERNFS_LOCKDEP;
 	}
 #endif
 
@@ -807,9 +807,9 @@ struct kernfs_node *kernfs_create_file_ns_key(struct kernfs_node *parent,
 	 * ref.  Cache their existence in flags.
 	 */
 	if (ops->seq_show)
-		kn->flags |= SYSFS_FLAG_HAS_SEQ_SHOW;
+		kn->flags |= KERNFS_HAS_SEQ_SHOW;
 	if (ops->mmap)
-		kn->flags |= SYSFS_FLAG_HAS_MMAP;
+		kn->flags |= KERNFS_HAS_MMAP;
 
 	sysfs_addrm_start(&acxt);
 	rc = sysfs_add_one(&acxt, kn, parent);

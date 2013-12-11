@@ -183,7 +183,7 @@ int sysfs_rename_link_ns(struct kobject *kobj, struct kobject *targ,
 		goto out;
 
 	result = -EINVAL;
-	if (sysfs_type(kn) != SYSFS_KOBJ_LINK)
+	if (kernfs_type(kn) != KERNFS_LINK)
 		goto out;
 	if (kn->symlink.target_kn->priv != targ)
 		goto out;

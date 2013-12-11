@@ -31,7 +31,7 @@ struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 	int error;
 
 	kn = sysfs_new_dirent(kernfs_root(parent), name, S_IFLNK|S_IRWXUGO,
-			      SYSFS_KOBJ_LINK);
+			      KERNFS_LINK);
 	if (!kn)
 		return ERR_PTR(-ENOMEM);
 

@@ -269,7 +269,7 @@ static void sysfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
 					    attrs->ia_secdata_len);
 	}
 
-	if (sysfs_type(kn) == SYSFS_DIR)
+	if (kernfs_type(kn) == KERNFS_DIR)
 		set_nlink(inode, kn->dir.subdirs + 2);
 }
 
@@ -299,16 +299,16 @@ static void sysfs_init_inode(struct kernfs_node *kn, struct inode *inode)
 	sysfs_refresh_inode(kn, inode);
 
 	/* initialize inode according to type */
-	switch (sysfs_type(kn)) {
-	case SYSFS_DIR:
+	switch (kernfs_type(kn)) {
+	case KERNFS_DIR:
 		inode->i_op = &sysfs_dir_inode_operations;
 		inode->i_fop = &sysfs_dir_operations;
 		break;
-	case SYSFS_KOBJ_ATTR:
+	case KERNFS_FILE:
 		inode->i_size = kn->attr.size;
 		inode->i_fop = &kernfs_file_operations;
 		break;
-	case SYSFS_KOBJ_LINK:
+	case KERNFS_LINK:
 		inode->i_op = &sysfs_symlink_inode_operations;
 		break;
 	default:
