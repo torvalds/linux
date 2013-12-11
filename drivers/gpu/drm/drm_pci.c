@@ -262,7 +262,7 @@ static int drm_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
 	return 0;
 }
 
-static int drm_pci_agp_init(struct drm_device *dev)
+static void drm_pci_agp_init(struct drm_device *dev)
 {
 	if (drm_core_has_AGP(dev)) {
 		if (drm_pci_device_is_agp(dev))
@@ -274,7 +274,6 @@ static int drm_pci_agp_init(struct drm_device *dev)
 				1024 * 1024);
 		}
 	}
-	return 0;
 }
 
 static void drm_pci_agp_destroy(struct drm_device *dev)

@@ -767,7 +767,7 @@ struct drm_bus {
 			  struct drm_unique *unique);
 	int (*irq_by_busid)(struct drm_device *dev, struct drm_irq_busid *p);
 	/* hooks that are for PCI */
-	int (*agp_init)(struct drm_device *dev);
+	void (*agp_init)(struct drm_device *dev);
 	void (*agp_destroy)(struct drm_device *dev);
 
 };

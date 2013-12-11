@@ -527,11 +527,8 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 
 	mutex_lock(&drm_global_mutex);
 
-	if (dev->driver->bus->agp_init) {
-		ret = dev->driver->bus->agp_init(dev);
-		if (ret)
-			goto out_unlock;
-	}
+	if (dev->driver->bus->agp_init)
+		dev->driver->bus->agp_init(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		ret = drm_get_minor(dev, &dev->control, DRM_MINOR_CONTROL);
