@@ -96,7 +96,7 @@ static int remap_pte_fn(pte_t *ptep, pgtable_t token, unsigned long addr,
 	struct remap_data *info = data;
 	struct page *page = info->pages[info->index++];
 	unsigned long pfn = page_to_pfn(page);
-	pte_t pte = pfn_pte(pfn, info->prot);
+	pte_t pte = pte_mkspecial(pfn_pte(pfn, info->prot));
 
 	if (map_foreign_page(pfn, info->fgmfn, info->domid))
 		return -EFAULT;
