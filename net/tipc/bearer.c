@@ -367,7 +367,7 @@ exit:
 /**
  * tipc_reset_bearer - Reset all links established over this bearer
  */
-int tipc_reset_bearer(struct tipc_bearer *b_ptr)
+static int tipc_reset_bearer(struct tipc_bearer *b_ptr)
 {
 	struct tipc_link *l_ptr;
 	struct tipc_link *temp_l_ptr;
@@ -432,7 +432,110 @@ int tipc_disable_bearer(const char *name)
 	return res;
 }
 
+/**
+ * tipc_l2_rcv_msg - handle incoming TIPC message from an interface
+ * @buf: the received packet
+ * @dev: the net device that the packet was received on
+ * @pt: the packet_type structure which was used to register this handler
+ * @orig_dev: the original receive net device in case the device is a bond
+ *
+ * Accept only packets explicitly sent to this node, or broadcast packets;
+ * ignores packets sent using interface multicast, and traffic sent to other
+ * nodes (which can happen if interface is running in promiscuous mode).
+ */
+static int tipc_l2_rcv_msg(struct sk_buff *buf, struct net_device *dev,
+			   struct packet_type *pt, struct net_device *orig_dev)
+{
+	struct tipc_bearer *b_ptr;
 
+	if (!net_eq(dev_net(dev), &init_net)) {
+		kfree_skb(buf);
+		return NET_RX_DROP;
+	}
+
+	rcu_read_lock();
+	b_ptr = rcu_dereference(dev->tipc_ptr);
+	if (likely(b_ptr)) {
+		if (likely(buf->pkt_type <= PACKET_BROADCAST)) {
+			buf->next = NULL;
+			tipc_recv_msg(buf, b_ptr);
+			rcu_read_unlock();
+			return NET_RX_SUCCESS;
+		}
+	}
+	rcu_read_unlock();
+
+	kfree_skb(buf);
+	return NET_RX_DROP;
+}
+
+/**
+ * tipc_l2_device_event - handle device events from network device
+ * @nb: the context of the notification
+ * @evt: the type of event
+ * @ptr: the net device that the event was on
+ *
+ * This function is called by the Ethernet driver in case of link
+ * change event.
+ */
+static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
+				void *ptr)
+{
+	struct tipc_bearer *b_ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+
+	if (!net_eq(dev_net(dev), &init_net))
+		return NOTIFY_DONE;
+
+	rcu_read_lock();
+	b_ptr = rcu_dereference(dev->tipc_ptr);
+	if (!b_ptr) {
+		rcu_read_unlock();
+		return NOTIFY_DONE;
+	}
+
+	b_ptr->mtu = dev->mtu;
+
+	switch (evt) {
+	case NETDEV_CHANGE:
+		if (netif_carrier_ok(dev))
+			break;
+	case NETDEV_DOWN:
+	case NETDEV_CHANGEMTU:
+	case NETDEV_CHANGEADDR:
+		tipc_reset_bearer(b_ptr);
+		break;
+	case NETDEV_UNREGISTER:
+	case NETDEV_CHANGENAME:
+		tipc_disable_bearer(b_ptr->name);
+		break;
+	}
+	rcu_read_unlock();
+
+	return NOTIFY_OK;
+}
+
+static struct packet_type tipc_packet_type __read_mostly = {
+	.type = __constant_htons(ETH_P_TIPC),
+	.func = tipc_l2_rcv_msg,
+};
+
+static struct notifier_block notifier = {
+	.notifier_call  = tipc_l2_device_event,
+	.priority	= 0,
+};
+
+int tipc_bearer_setup(void)
+{
+	dev_add_pack(&tipc_packet_type);
+	return register_netdevice_notifier(&notifier);
+}
+
+void tipc_bearer_cleanup(void)
+{
+	unregister_netdevice_notifier(&notifier);
+	dev_remove_pack(&tipc_packet_type);
+}
 
 void tipc_bearer_stop(void)
 {

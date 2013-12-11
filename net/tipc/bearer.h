@@ -162,25 +162,16 @@ extern struct tipc_bearer tipc_bearers[];
 
 void tipc_recv_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr);
 
-int  tipc_reset_bearer(struct tipc_bearer *b_ptr);
-
 int tipc_enable_bearer(const char *bearer_name, u32 disc_domain, u32 priority);
 int tipc_disable_bearer(const char *name);
 
 /*
  * Routines made available to TIPC by supported media types
  */
-int  tipc_eth_media_start(void);
-void tipc_eth_media_stop(void);
 extern struct tipc_media eth_media_info;
 
 #ifdef CONFIG_TIPC_MEDIA_IB
-int  tipc_ib_media_start(void);
-void tipc_ib_media_stop(void);
 extern struct tipc_media ib_media_info;
-#else
-static inline int tipc_ib_media_start(void) { return 0; }
-static inline void tipc_ib_media_stop(void) { return; }
 #endif
 
 int tipc_media_set_priority(const char *name, u32 new_value);
@@ -194,6 +185,8 @@ void tipc_bearer_remove_dest(struct tipc_bearer *b_ptr, u32 dest);
 struct tipc_bearer *tipc_bearer_find(const char *name);
 struct tipc_bearer *tipc_bearer_find_interface(const char *if_name);
 struct tipc_media *tipc_media_find(const char *name);
+int tipc_bearer_setup(void);
+void tipc_bearer_cleanup(void);
 void tipc_bearer_stop(void);
 
 /**

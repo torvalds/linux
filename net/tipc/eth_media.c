@@ -37,47 +37,7 @@
 #include "core.h"
 #include "bearer.h"
 
-#define MAX_ETH_MEDIA		MAX_BEARERS
-
 #define ETH_ADDR_OFFSET	4	/* message header offset of MAC address */
-
-/**
- * struct eth_media - Ethernet bearer data structure
- * @bearer: ptr to associated "generic" bearer structure
- * @dev: ptr to associated Ethernet network device
- * @tipc_packet_type: used in binding TIPC to Ethernet driver
- * @setup: work item used when enabling bearer
- * @cleanup: work item used when disabling bearer
- */
-struct eth_media {
-	struct tipc_bearer *bearer;
-	struct net_device *dev;
-	struct packet_type tipc_packet_type;
-	struct work_struct setup;
-	struct work_struct cleanup;
-};
-
-
-static struct eth_media eth_media_array[MAX_ETH_MEDIA];
-static int eth_started;
-
-static int recv_notification(struct notifier_block *nb, unsigned long evt,
-			     void *dv);
-static int recv_msg(struct sk_buff *buf, struct net_device *dev,
-		    struct packet_type *pt, struct net_device *orig_dev);
-
-/*
- * Network device notifier info
- */
-static struct notifier_block notifier = {
-	.notifier_call	= recv_notification,
-	.priority	= 0
-};
-
-static struct packet_type tipc_packet_type __read_mostly = {
-	.type = __constant_htons(ETH_P_TIPC),
-	.func = recv_msg,
-};
 
 /**
  * eth_media_addr_set - initialize Ethernet media address structure
@@ -101,16 +61,14 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 		    struct tipc_media_addr *dest)
 {
 	struct sk_buff *clone;
-	struct net_device *dev;
 	int delta;
+	struct net_device *dev = tb_ptr->dev;
 
 	clone = skb_clone(buf, GFP_ATOMIC);
 	if (!clone)
 		return 0;
 
-	dev = ((struct eth_media *)(tb_ptr->usr_handle))->dev;
 	delta = dev->hard_header_len - skb_headroom(buf);
-
 	if ((delta > 0) &&
 	    pskb_expand_head(clone, SKB_DATA_ALIGN(delta), 0, GFP_ATOMIC)) {
 		kfree_skb(clone);
@@ -127,79 +85,21 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 }
 
 /**
- * recv_msg - handle incoming TIPC message from an Ethernet interface
- *
- * Accept only packets explicitly sent to this node, or broadcast packets;
- * ignores packets sent using Ethernet multicast, and traffic sent to other
- * nodes (which can happen if interface is running in promiscuous mode).
- */
-static int recv_msg(struct sk_buff *buf, struct net_device *dev,
-		    struct packet_type *pt, struct net_device *orig_dev)
-{
-	struct tipc_bearer *b_ptr;
-
-	if (!net_eq(dev_net(dev), &init_net)) {
-		kfree_skb(buf);
-		return NET_RX_DROP;
-	}
-
-	rcu_read_lock();
-	b_ptr = rcu_dereference(dev->tipc_ptr);
-	if (likely(b_ptr)) {
-		if (likely(buf->pkt_type <= PACKET_BROADCAST)) {
-			buf->next = NULL;
-			tipc_recv_msg(buf, b_ptr);
-			rcu_read_unlock();
-			return NET_RX_SUCCESS;
-		}
-	}
-	rcu_read_unlock();
-
-	kfree_skb(buf);
-	return NET_RX_DROP;
-}
-
-/**
- * setup_media - setup association between Ethernet bearer and interface
- */
-static void setup_media(struct work_struct *work)
-{
-	dev_add_pack(&tipc_packet_type);
-}
-
-/**
  * enable_media - attach TIPC bearer to an Ethernet interface
  */
 static int enable_media(struct tipc_bearer *tb_ptr)
 {
 	struct net_device *dev;
-	struct eth_media *eb_ptr = &eth_media_array[0];
-	struct eth_media *stop = &eth_media_array[MAX_ETH_MEDIA];
 	char *driver_name = strchr((const char *)tb_ptr->name, ':') + 1;
-	int pending_dev = 0;
-
-	/* Find unused Ethernet bearer structure */
-	while (eb_ptr->dev) {
-		if (!eb_ptr->bearer)
-			pending_dev++;
-		if (++eb_ptr == stop)
-			return pending_dev ? -EAGAIN : -EDQUOT;
-	}
 
 	/* Find device with specified name */
 	dev = dev_get_by_name(&init_net, driver_name);
 	if (!dev)
 		return -ENODEV;
 
-	/* Create Ethernet bearer for device */
-	eb_ptr->dev = dev;
-	INIT_WORK(&eb_ptr->setup, setup_media);
-	schedule_work(&eb_ptr->setup);
-
 	/* Associate TIPC bearer with Ethernet bearer */
 	tb_ptr->dev = dev;
-	eb_ptr->bearer = tb_ptr;
-	tb_ptr->usr_handle = (void *)eb_ptr;
+	tb_ptr->usr_handle = NULL;
 	memset(tb_ptr->bcast_addr.value, 0, sizeof(tb_ptr->bcast_addr.value));
 	memcpy(tb_ptr->bcast_addr.value, dev->broadcast, ETH_ALEN);
 	tb_ptr->bcast_addr.media_id = TIPC_MEDIA_TYPE_ETH;
@@ -211,21 +111,6 @@ static int enable_media(struct tipc_bearer *tb_ptr)
 }
 
 /**
- * cleanup_media - break association between Ethernet bearer and interface
- *
- * This routine must be invoked from a work queue because it can sleep.
- */
-static void cleanup_media(struct work_struct *work)
-{
-	struct eth_media *eb_ptr =
-		container_of(work, struct eth_media, cleanup);
-
-	dev_remove_pack(&tipc_packet_type);
-	dev_put(eb_ptr->dev);
-	eb_ptr->dev = NULL;
-}
-
-/**
  * disable_media - detach TIPC bearer from an Ethernet interface
  *
  * Mark Ethernet bearer as inactive so that incoming buffers are thrown away,
@@ -234,55 +119,8 @@ static void cleanup_media(struct work_struct *work)
  */
 static void disable_media(struct tipc_bearer *tb_ptr)
 {
-	struct eth_media *eb_ptr = (struct eth_media *)tb_ptr->usr_handle;
-
-	eb_ptr->bearer = NULL;
-	INIT_WORK(&eb_ptr->cleanup, cleanup_media);
-	schedule_work(&eb_ptr->cleanup);
 	RCU_INIT_POINTER(tb_ptr->dev->tipc_ptr, NULL);
-}
-
-/**
- * recv_notification - handle device updates from OS
- *
- * Change the state of the Ethernet bearer (if any) associated with the
- * specified device.
- */
-static int recv_notification(struct notifier_block *nb, unsigned long evt,
-			     void *ptr)
-{
-	struct tipc_bearer *b_ptr;
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-
-	if (!net_eq(dev_net(dev), &init_net))
-		return NOTIFY_DONE;
-
-	rcu_read_lock();
-	b_ptr = rcu_dereference(dev->tipc_ptr);
-	if (!b_ptr) {
-		rcu_read_unlock();
-		return NOTIFY_DONE;		/* bearer had been disabled */
-	}
-
-	b_ptr->mtu = dev->mtu;
-
-	switch (evt) {
-	case NETDEV_CHANGE:
-		if (netif_carrier_ok(dev))
-			break;
-	case NETDEV_DOWN:
-	case NETDEV_CHANGEMTU:
-	case NETDEV_CHANGEADDR:
-		tipc_reset_bearer(b_ptr);
-		break;
-	case NETDEV_UNREGISTER:
-	case NETDEV_CHANGENAME:
-		tipc_disable_bearer(b_ptr->name);
-		break;
-	}
-	rcu_read_unlock();
-
-	return NOTIFY_OK;
+	dev_put(tb_ptr->dev);
 }
 
 /**
@@ -338,34 +176,3 @@ struct tipc_media eth_media_info = {
 	.name		= "eth"
 };
 
-/**
- * tipc_eth_media_start - activate Ethernet bearer support
- *
- * Register Ethernet media type with TIPC bearer code.  Also register
- * with OS for notifications about device state changes.
- */
-int tipc_eth_media_start(void)
-{
-	int res;
-
-	if (eth_started)
-		return -EINVAL;
-
-	res = register_netdevice_notifier(&notifier);
-	if (!res)
-		eth_started = 1;
-	return res;
-}
-
-/**
- * tipc_eth_media_stop - deactivate Ethernet bearer support
- */
-void tipc_eth_media_stop(void)
-{
-	if (!eth_started)
-		return;
-
-	flush_scheduled_work();
-	unregister_netdevice_notifier(&notifier);
-	eth_started = 0;
-}
