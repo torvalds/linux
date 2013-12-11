@@ -198,7 +198,6 @@
 			};
 
 			mdio@10d40 {
-				device_type = "mdio";
 				compatible = "fsl,pq2fads-mdio-bitbang",
 				             "fsl,mpc8280-mdio-bitbang",
 				             "fsl,cpm2-mdio-bitbang";

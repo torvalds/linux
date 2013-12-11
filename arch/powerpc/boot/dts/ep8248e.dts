@@ -67,7 +67,6 @@
 			ranges;
 
 			mdio {
-				device_type = "mdio";
 				compatible = "fsl,ep8248e-mdio-bitbang";
 				#address-cells = <1>;
 				#size-cells = <0>;

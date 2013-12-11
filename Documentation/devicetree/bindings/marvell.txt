@@ -79,7 +79,6 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
    Required properties:
      - #address-cells : Should be <1>
      - #size-cells : Should be <0>
-     - device_type : Should be "mdio"
      - compatible : Should be "marvell,mv64360-mdio"
 
    Example:
@@ -87,7 +86,6 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
      mdio {
 	     #address-cells = <1>;
 	     #size-cells = <0>;
-	     device_type = "mdio";
 	     compatible = "marvell,mv64360-mdio";
 
 	     ethernet-phy@0 {

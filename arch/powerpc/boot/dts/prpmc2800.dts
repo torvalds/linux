@@ -73,7 +73,6 @@
 		mdio {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			device_type = "mdio";
 			compatible = "marvell,mv64360-mdio";
 			PHY0: ethernet-phy@1 {
 				compatible = "broadcom,bcm5421";
