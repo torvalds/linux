@@ -1,7 +1,7 @@
 /*
  * net/tipc/bearer.h: Include file for TIPC bearer code
  *
- * Copyright (c) 1996-2006, Ericsson AB
+ * Copyright (c) 1996-2006, 2013, Ericsson AB
  * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -157,7 +157,6 @@ extern struct tipc_bearer tipc_bearers[];
 /*
  * TIPC routines available to supported media types
  */
-int tipc_register_media(struct tipc_media *m_ptr);
 
 void tipc_recv_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr);
 
@@ -171,10 +170,12 @@ int tipc_disable_bearer(const char *name);
  */
 int  tipc_eth_media_start(void);
 void tipc_eth_media_stop(void);
+extern struct tipc_media eth_media_info;
 
 #ifdef CONFIG_TIPC_MEDIA_IB
 int  tipc_ib_media_start(void);
 void tipc_ib_media_stop(void);
+extern struct tipc_media ib_media_info;
 #else
 static inline int tipc_ib_media_start(void) { return 0; }
 static inline void tipc_ib_media_stop(void) { return; }

@@ -1,7 +1,7 @@
 /*
  * net/tipc/bearer.c: TIPC bearer code
  *
- * Copyright (c) 1996-2006, Ericsson AB
+ * Copyright (c) 1996-2006, 2013, Ericsson AB
  * Copyright (c) 2004-2006, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -41,8 +41,13 @@
 
 #define MAX_ADDR_STR 60
 
-static struct tipc_media *media_list[MAX_MEDIA];
-static u32 media_count;
+static struct tipc_media * const media_list[] = {
+	&eth_media_info,
+#ifdef CONFIG_TIPC_MEDIA_IB
+	&ib_media_info,
+#endif
+	NULL
+};
 
 struct tipc_bearer tipc_bearers[MAX_BEARERS];
 
@@ -55,11 +60,11 @@ struct tipc_media *tipc_media_find(const char *name)
 {
 	u32 i;
 
-	for (i = 0; i < media_count; i++) {
+	for (i = 0; media_list[i] != NULL; i++) {
 		if (!strcmp(media_list[i]->name, name))
-			return media_list[i];
+			break;
 	}
-	return NULL;
+	return media_list[i];
 }
 
 /**
@@ -69,44 +74,11 @@ static struct tipc_media *media_find_id(u8 type)
 {
 	u32 i;
 
-	for (i = 0; i < media_count; i++) {
+	for (i = 0; media_list[i] != NULL; i++) {
 		if (media_list[i]->type_id == type)
-			return media_list[i];
+			break;
 	}
-	return NULL;
-}
-
-/**
- * tipc_register_media - register a media type
- *
- * Bearers for this media type must be activated separately at a later stage.
- */
-int tipc_register_media(struct tipc_media *m_ptr)
-{
-	int res = -EINVAL;
-
-	write_lock_bh(&tipc_net_lock);
-
-	if ((strlen(m_ptr->name) + 1) > TIPC_MAX_MEDIA_NAME)
-		goto exit;
-	if (m_ptr->priority > TIPC_MAX_LINK_PRI)
-		goto exit;
-	if ((m_ptr->tolerance < TIPC_MIN_LINK_TOL) ||
-	    (m_ptr->tolerance > TIPC_MAX_LINK_TOL))
-		goto exit;
-	if (media_count >= MAX_MEDIA)
-		goto exit;
-	if (tipc_media_find(m_ptr->name) || media_find_id(m_ptr->type_id))
-		goto exit;
-
-	media_list[media_count] = m_ptr;
-	media_count++;
-	res = 0;
-exit:
-	write_unlock_bh(&tipc_net_lock);
-	if (res)
-		pr_warn("Media <%s> registration error\n", m_ptr->name);
-	return res;
+	return media_list[i];
 }
 
 /**
@@ -144,13 +116,11 @@ struct sk_buff *tipc_media_get_names(void)
 	if (!buf)
 		return NULL;
 
-	read_lock_bh(&tipc_net_lock);
-	for (i = 0; i < media_count; i++) {
+	for (i = 0; media_list[i] != NULL; i++) {
 		tipc_cfg_append_tlv(buf, TIPC_TLV_MEDIA_NAME,
 				    media_list[i]->name,
 				    strlen(media_list[i]->name) + 1);
 	}
-	read_unlock_bh(&tipc_net_lock);
 	return buf;
 }
 
@@ -247,7 +217,7 @@ struct sk_buff *tipc_bearer_get_names(void)
 		return NULL;
 
 	read_lock_bh(&tipc_net_lock);
-	for (i = 0; i < media_count; i++) {
+	for (i = 0; media_list[i] != NULL; i++) {
 		for (j = 0; j < MAX_BEARERS; j++) {
 			b_ptr = &tipc_bearers[j];
 			if (b_ptr->active && (b_ptr->media == media_list[i])) {
@@ -472,5 +442,4 @@ void tipc_bearer_stop(void)
 		if (tipc_bearers[i].active)
 			bearer_disable(&tipc_bearers[i]);
 	}
-	media_count = 0;
 }

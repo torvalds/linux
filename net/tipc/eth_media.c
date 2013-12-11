@@ -1,7 +1,7 @@
 /*
  * net/tipc/eth_media.c: Ethernet bearer support for TIPC
  *
- * Copyright (c) 2001-2007, Ericsson AB
+ * Copyright (c) 2001-2007, 2013, Ericsson AB
  * Copyright (c) 2005-2008, 2011-2013, Wind River Systems
  * All rights reserved.
  *
@@ -57,7 +57,7 @@ struct eth_media {
 	struct work_struct cleanup;
 };
 
-static struct tipc_media eth_media_info;
+
 static struct eth_media eth_media_array[MAX_ETH_MEDIA];
 static int eth_started;
 
@@ -315,7 +315,7 @@ static int eth_msg2addr(const struct tipc_bearer *tb_ptr,
 /*
  * Ethernet media registration info
  */
-static struct tipc_media eth_media_info = {
+struct tipc_media eth_media_info = {
 	.send_msg	= send_msg,
 	.enable_media	= enable_media,
 	.disable_media	= disable_media,
@@ -341,10 +341,6 @@ int tipc_eth_media_start(void)
 
 	if (eth_started)
 		return -EINVAL;
-
-	res = tipc_register_media(&eth_media_info);
-	if (res)
-		return res;
 
 	res = register_netdevice_notifier(&notifier);
 	if (!res)

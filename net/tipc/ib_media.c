@@ -60,7 +60,6 @@ struct ib_media {
 	struct work_struct cleanup;
 };
 
-static struct tipc_media ib_media_info;
 static struct ib_media ib_media_array[MAX_IB_MEDIA];
 static int ib_started;
 
@@ -311,7 +310,7 @@ static int ib_msg2addr(const struct tipc_bearer *tb_ptr,
 /*
  * InfiniBand media registration info
  */
-static struct tipc_media ib_media_info = {
+struct tipc_media ib_media_info = {
 	.send_msg	= send_msg,
 	.enable_media	= enable_media,
 	.disable_media	= disable_media,
@@ -337,10 +336,6 @@ int tipc_ib_media_start(void)
 
 	if (ib_started)
 		return -EINVAL;
-
-	res = tipc_register_media(&ib_media_info);
-	if (res)
-		return res;
 
 	res = register_netdevice_notifier(&notifier);
 	if (!res)
