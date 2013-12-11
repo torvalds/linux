@@ -1425,6 +1425,7 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 					  async->cmd.chanlist_len * sizeof(int));
 	if (IS_ERR(async->cmd.chanlist)) {
 		ret = PTR_ERR(async->cmd.chanlist);
+		async->cmd.chanlist = NULL;
 		DPRINTK("memdup_user failed with code %d\n", ret);
 		goto cleanup;
 	}
@@ -1547,6 +1548,7 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 				       cmd.chanlist_len * sizeof(int));
 		if (IS_ERR(chanlist)) {
 			ret = PTR_ERR(chanlist);
+			chanlist = NULL;
 			DPRINTK("memdup_user exited with code %d", ret);
 			goto cleanup;
 		}
