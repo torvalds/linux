@@ -5681,12 +5681,53 @@ bool intel_display_power_enabled(struct drm_device *dev,
 	return is_enabled;
 }
 
+static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	unsigned long irqflags;
+
+	if (IS_BROADWELL(dev)) {
+		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+		I915_WRITE(GEN8_DE_PIPE_IMR(PIPE_B),
+			   dev_priv->de_irq_mask[PIPE_B]);
+		I915_WRITE(GEN8_DE_PIPE_IER(PIPE_B),
+			   ~dev_priv->de_irq_mask[PIPE_B] |
+			   GEN8_PIPE_VBLANK);
+		I915_WRITE(GEN8_DE_PIPE_IMR(PIPE_C),
+			   dev_priv->de_irq_mask[PIPE_C]);
+		I915_WRITE(GEN8_DE_PIPE_IER(PIPE_C),
+			   ~dev_priv->de_irq_mask[PIPE_C] |
+			   GEN8_PIPE_VBLANK);
+		POSTING_READ(GEN8_DE_PIPE_IER(PIPE_C));
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	}
+}
+
+static void hsw_power_well_post_disable(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	enum pipe p;
+	unsigned long irqflags;
+
+	/*
+	 * After this, the registers on the pipes that are part of the power
+	 * well will become zero, so we have to adjust our counters according to
+	 * that.
+	 *
+	 * FIXME: Should we do this in general in drm_vblank_post_modeset?
+	 */
+	spin_lock_irqsave(&dev->vbl_lock, irqflags);
+	for_each_pipe(p)
+		if (p != PIPE_A)
+			dev->vblank[p].last = 0;
+	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
+}
+
 static void hsw_set_power_well(struct drm_device *dev,
 			       struct i915_power_well *power_well, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool is_enabled, enable_requested;
-	unsigned long irqflags;
 	uint32_t tmp;
 
 	WARN_ON(dev_priv->pc8.enabled);
@@ -5707,42 +5748,14 @@ static void hsw_set_power_well(struct drm_device *dev,
 				DRM_ERROR("Timeout enabling power well\n");
 		}
 
-		if (IS_BROADWELL(dev)) {
-			spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-			I915_WRITE(GEN8_DE_PIPE_IMR(PIPE_B),
-				   dev_priv->de_irq_mask[PIPE_B]);
-			I915_WRITE(GEN8_DE_PIPE_IER(PIPE_B),
-				   ~dev_priv->de_irq_mask[PIPE_B] |
-				   GEN8_PIPE_VBLANK);
-			I915_WRITE(GEN8_DE_PIPE_IMR(PIPE_C),
-				   dev_priv->de_irq_mask[PIPE_C]);
-			I915_WRITE(GEN8_DE_PIPE_IER(PIPE_C),
-				   ~dev_priv->de_irq_mask[PIPE_C] |
-				   GEN8_PIPE_VBLANK);
-			POSTING_READ(GEN8_DE_PIPE_IER(PIPE_C));
-			spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-		}
+		hsw_power_well_post_enable(dev_priv);
 	} else {
 		if (enable_requested) {
-			enum pipe p;
-
 			I915_WRITE(HSW_PWR_WELL_DRIVER, 0);
 			POSTING_READ(HSW_PWR_WELL_DRIVER);
 			DRM_DEBUG_KMS("Requesting to disable the power well\n");
 
-			/*
-			 * After this, the registers on the pipes that are part
-			 * of the power well will become zero, so we have to
-			 * adjust our counters according to that.
-			 *
-			 * FIXME: Should we do this in general in
-			 * drm_vblank_post_modeset?
-			 */
-			spin_lock_irqsave(&dev->vbl_lock, irqflags);
-			for_each_pipe(p)
-				if (p != PIPE_A)
-					dev->vblank[p].last = 0;
-			spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
+			hsw_power_well_post_disable(dev_priv);
 		}
 	}
 }
