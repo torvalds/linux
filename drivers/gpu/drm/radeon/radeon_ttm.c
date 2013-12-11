@@ -142,7 +142,7 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->flags = TTM_MEMTYPE_FLAG_MAPPABLE | TTM_MEMTYPE_FLAG_CMA;
 #if __OS_HAS_AGP
 		if (rdev->flags & RADEON_IS_AGP) {
-			if (!(drm_core_has_AGP(rdev->ddev) && rdev->ddev->agp)) {
+			if (!rdev->ddev->agp) {
 				DRM_ERROR("AGP is not enabled for memory type %u\n",
 					  (unsigned)type);
 				return -EINVAL;

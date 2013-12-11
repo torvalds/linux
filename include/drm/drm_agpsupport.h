@@ -46,12 +46,6 @@ int drm_agp_unbind_ioctl(struct drm_device *dev, void *data,
 int drm_agp_bind(struct drm_device *dev, struct drm_agp_binding *request);
 int drm_agp_bind_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
-
-static inline int drm_core_has_AGP(struct drm_device *dev)
-{
-	return drm_core_check_feature(dev, DRIVER_USE_AGP);
-}
-
 #else /* __OS_HAS_AGP */
 
 static inline void drm_free_agp(DRM_AGP_MEM * handle, int pages)
@@ -183,12 +177,6 @@ static inline int drm_agp_bind_ioctl(struct drm_device *dev, void *data,
 {
 	return -ENODEV;
 }
-
-static inline int drm_core_has_AGP(struct drm_device *dev)
-{
-	return 0;
-}
-
 #endif /* __OS_HAS_AGP */
 
 #endif /* _DRM_AGPSUPPORT_H_ */

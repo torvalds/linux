@@ -101,7 +101,7 @@ static int drm_do_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	/*
 	 * Find the right map
 	 */
-	if (!drm_core_has_AGP(dev))
+	if (!dev->agp)
 		goto vm_fault_error;
 
 	if (!dev->agp || !dev->agp->cant_use_aperture)
@@ -592,7 +592,7 @@ int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 	switch (map->type) {
 #if !defined(__arm__)
 	case _DRM_AGP:
-		if (drm_core_has_AGP(dev) && dev->agp->cant_use_aperture) {
+		if (dev->agp && dev->agp->cant_use_aperture) {
 			/*
 			 * On some platforms we can't talk to bus dma address from the CPU, so for
 			 * memory of type DRM_AGP, we'll deal with sorting out the real physical

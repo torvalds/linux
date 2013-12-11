@@ -264,7 +264,7 @@ static int drm_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
 
 static void drm_pci_agp_init(struct drm_device *dev)
 {
-	if (drm_core_has_AGP(dev)) {
+	if (drm_core_check_feature(dev, DRIVER_USE_AGP)) {
 		if (drm_pci_device_is_agp(dev))
 			dev->agp = drm_agp_init(dev);
 		if (dev->agp) {
@@ -278,7 +278,7 @@ static void drm_pci_agp_init(struct drm_device *dev)
 
 static void drm_pci_agp_destroy(struct drm_device *dev)
 {
-	if (drm_core_has_AGP(dev) && dev->agp) {
+	if (dev->agp) {
 		arch_phys_wc_del(dev->agp->agp_mtrr);
 		drm_agp_clear(dev);
 		drm_agp_destroy(dev->agp);

@@ -439,7 +439,7 @@ void drm_agp_clear(struct drm_device *dev)
 {
 	struct drm_agp_mem *entry, *tempe;
 
-	if (!drm_core_has_AGP(dev) || !dev->agp)
+	if (!dev->agp)
 		return;
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
