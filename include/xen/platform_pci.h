@@ -46,8 +46,6 @@ static inline int xen_must_unplug_disks(void) {
 #endif
 }
 
-extern int xen_platform_pci_unplug;
-
 #if defined(CONFIG_XEN_PVHVM)
 extern bool xen_has_pv_devices(void);
 extern bool xen_has_pv_disk_devices(void);

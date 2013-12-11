@@ -30,10 +30,9 @@
 #define XEN_PLATFORM_ERR_PROTOCOL -2
 #define XEN_PLATFORM_ERR_BLACKLIST -3
 
-/* store the value of xen_emul_unplug after the unplug is done */
-int xen_platform_pci_unplug;
-EXPORT_SYMBOL_GPL(xen_platform_pci_unplug);
 #ifdef CONFIG_XEN_PVHVM
+/* store the value of xen_emul_unplug after the unplug is done */
+static int xen_platform_pci_unplug;
 static int xen_emul_unplug;
 
 static int check_platform_magic(void)
