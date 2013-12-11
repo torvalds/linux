@@ -41,7 +41,7 @@ static void chip_unmask(struct irq_data *d)
 {
 	unsigned ien;
 	ien = RDCTL(CTL_IENABLE);
-	ien |= (1 << d->irq);
+	ien |= (1 << d->hwirq);
 	WRCTL(CTL_IENABLE, ien);
 }
 
@@ -49,7 +49,7 @@ static void chip_mask(struct irq_data *d)
 {
 	unsigned ien;
 	ien = RDCTL(CTL_IENABLE);
-	ien &= ~(1 << d->irq);
+	ien &= ~(1 << d->hwirq);
 	WRCTL(CTL_IENABLE, ien);
 }
 
