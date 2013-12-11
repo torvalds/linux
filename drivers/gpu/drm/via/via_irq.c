@@ -239,12 +239,12 @@ via_driver_irq_wait(struct drm_device *dev, unsigned int irq, int force_sequence
 	cur_irq = dev_priv->via_irqs + real_irq;
 
 	if (masks[real_irq][2] && !force_sequence) {
-		DRM_WAIT_ON(ret, cur_irq->irq_queue, 3 * DRM_HZ,
+		DRM_WAIT_ON(ret, cur_irq->irq_queue, 3 * HZ,
 			    ((VIA_READ(masks[irq][2]) & masks[irq][3]) ==
 			     masks[irq][4]));
 		cur_irq_sequence = atomic_read(&cur_irq->irq_received);
 	} else {
-		DRM_WAIT_ON(ret, cur_irq->irq_queue, 3 * DRM_HZ,
+		DRM_WAIT_ON(ret, cur_irq->irq_queue, 3 * HZ,
 			    (((cur_irq_sequence =
 			       atomic_read(&cur_irq->irq_received)) -
 			      *sequence) <= (1 << 23)));

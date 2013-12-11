@@ -249,7 +249,7 @@ static int radeon_wait_irq(struct drm_device * dev, int swi_nr)
 
 	dev_priv->stats.boxes |= RADEON_BOX_WAIT_IDLE;
 
-	DRM_WAIT_ON(ret, dev_priv->swi_queue, 3 * DRM_HZ,
+	DRM_WAIT_ON(ret, dev_priv->swi_queue, 3 * HZ,
 		    RADEON_READ(RADEON_LAST_SWI_REG) >= swi_nr);
 
 	return ret;

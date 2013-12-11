@@ -128,7 +128,7 @@ int mga_driver_fence_wait(struct drm_device *dev, unsigned int *sequence)
 	 * by about a day rather than she wants to wait for years
 	 * using fences.
 	 */
-	DRM_WAIT_ON(ret, dev_priv->fence_queue, 3 * DRM_HZ,
+	DRM_WAIT_ON(ret, dev_priv->fence_queue, 3 * HZ,
 		    (((cur_fence = atomic_read(&dev_priv->last_fence_retired))
 		      - *sequence) <= (1 << 23)));
 

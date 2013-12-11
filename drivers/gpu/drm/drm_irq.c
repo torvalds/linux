@@ -960,7 +960,7 @@ void drm_vblank_put(struct drm_device *dev, int crtc)
 	if (atomic_dec_and_test(&dev->vblank[crtc].refcount) &&
 	    (drm_vblank_offdelay > 0))
 		mod_timer(&dev->vblank_disable_timer,
-			  jiffies + ((drm_vblank_offdelay * DRM_HZ)/1000));
+			  jiffies + ((drm_vblank_offdelay * HZ)/1000));
 }
 EXPORT_SYMBOL(drm_vblank_put);
 
@@ -1244,7 +1244,7 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 	DRM_DEBUG("waiting on vblank count %d, crtc %d\n",
 		  vblwait->request.sequence, crtc);
 	dev->vblank[crtc].last_wait = vblwait->request.sequence;
-	DRM_WAIT_ON(ret, dev->vblank[crtc].queue, 3 * DRM_HZ,
+	DRM_WAIT_ON(ret, dev->vblank[crtc].queue, 3 * HZ,
 		    (((drm_vblank_count(dev, crtc) -
 		       vblwait->request.sequence) <= (1 << 23)) ||
 		     !dev->irq_enabled));

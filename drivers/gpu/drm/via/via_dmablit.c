@@ -363,7 +363,7 @@ via_dmablit_handler(struct drm_device *dev, int engine, int from_irq)
 
 		via_abort_dmablit(dev, engine);
 		blitq->aborting = 1;
-		blitq->end = jiffies + DRM_HZ;
+		blitq->end = jiffies + HZ;
 	}
 
 	if (!blitq->is_active) {
@@ -372,7 +372,7 @@ via_dmablit_handler(struct drm_device *dev, int engine, int from_irq)
 			blitq->is_active = 1;
 			blitq->cur = cur;
 			blitq->num_outstanding--;
-			blitq->end = jiffies + DRM_HZ;
+			blitq->end = jiffies + HZ;
 			if (!timer_pending(&blitq->poll_timer))
 				mod_timer(&blitq->poll_timer, jiffies + 1);
 		} else {
@@ -436,7 +436,7 @@ via_dmablit_sync(struct drm_device *dev, uint32_t handle, int engine)
 	int ret = 0;
 
 	if (via_dmablit_active(blitq, engine, handle, &queue)) {
-		DRM_WAIT_ON(ret, *queue, 3 * DRM_HZ,
+		DRM_WAIT_ON(ret, *queue, 3 * HZ,
 			    !via_dmablit_active(blitq, engine, handle, NULL));
 	}
 	DRM_DEBUG("DMA blit sync handle 0x%x engine %d returned %d\n",
@@ -688,7 +688,7 @@ via_dmablit_grab_slot(drm_via_blitq_t *blitq, int engine)
 	while (blitq->num_free == 0) {
 		spin_unlock_irqrestore(&blitq->blit_lock, irqsave);
 
-		DRM_WAIT_ON(ret, blitq->busy_queue, DRM_HZ, blitq->num_free > 0);
+		DRM_WAIT_ON(ret, blitq->busy_queue, HZ, blitq->num_free > 0);
 		if (ret)
 			return (-EINTR == ret) ? -EAGAIN : ret;
 

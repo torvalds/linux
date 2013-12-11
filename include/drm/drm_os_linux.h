@@ -58,8 +58,6 @@ static inline void writeq(u64 val, void __iomem *reg)
 #define DRM_COPY_TO_USER(arg1, arg2, arg3)		\
 	copy_to_user(arg1, arg2, arg3)
 
-#define DRM_HZ HZ
-
 #define DRM_WAIT_ON( ret, queue, timeout, condition )		\
 do {								\
 	DECLARE_WAITQUEUE(entry, current);			\

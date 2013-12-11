@@ -456,7 +456,7 @@ static int psb_vblank_do_wait(struct drm_device *dev,
 {
 	unsigned int cur_vblank;
 	int ret = 0;
-	DRM_WAIT_ON(ret, dev->vblank.queue, 3 * DRM_HZ,
+	DRM_WAIT_ON(ret, dev->vblank.queue, 3 * HZ,
 		    (((cur_vblank = atomic_read(counter))
 		      - *sequence) <= (1 << 23)));
 	*sequence = cur_vblank;

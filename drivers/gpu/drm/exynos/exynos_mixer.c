@@ -868,7 +868,7 @@ static void mixer_wait_for_vblank(void *ctx)
 	 */
 	if (!wait_event_timeout(mixer_ctx->wait_vsync_queue,
 				!atomic_read(&mixer_ctx->wait_vsync_event),
-				DRM_HZ/20))
+				HZ/20))
 		DRM_DEBUG_KMS("vblank wait timed out.\n");
 }
 

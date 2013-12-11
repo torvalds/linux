@@ -83,7 +83,7 @@ int via_decoder_futex(struct drm_device *dev, void *data, struct drm_file *file_
 	switch (fx->func) {
 	case VIA_FUTEX_WAIT:
 		DRM_WAIT_ON(ret, dev_priv->decoder_queue[fx->lock],
-			    (fx->ms / 10) * (DRM_HZ / 100), *lock != fx->val);
+			    (fx->ms / 10) * (HZ / 100), *lock != fx->val);
 		return ret;
 	case VIA_FUTEX_WAKE:
 		DRM_WAKEUP(&(dev_priv->decoder_queue[fx->lock]));
