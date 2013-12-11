@@ -85,7 +85,7 @@ static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
 		goto out_fput;
 	}
 
-	src_inode = src_file.file->f_dentry->d_inode;
+	src_inode = file_inode(src_file.file);
 
 	/*
 	 * Note: cifs case is easier than btrfs since server responsible for
