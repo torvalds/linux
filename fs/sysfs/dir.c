@@ -73,7 +73,8 @@ int sysfs_create_dir_ns(struct kobject *kobj, const void *ns)
 	if (!parent)
 		return -ENOENT;
 
-	kn = kernfs_create_dir_ns(parent, kobject_name(kobj), kobj, ns);
+	kn = kernfs_create_dir_ns(parent, kobject_name(kobj),
+				  S_IRWXU | S_IRUGO | S_IXUGO, kobj, ns);
 	if (IS_ERR(kn)) {
 		if (PTR_ERR(kn) == -EEXIST)
 			sysfs_warn_dup(parent, kobject_name(kobj));

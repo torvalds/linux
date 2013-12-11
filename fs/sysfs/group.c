@@ -100,7 +100,8 @@ static int internal_create_group(struct kobject *kobj, int update,
 		return -EINVAL;
 	}
 	if (grp->name) {
-		kn = kernfs_create_dir(kobj->sd, grp->name, kobj);
+		kn = kernfs_create_dir(kobj->sd, grp->name,
+				       S_IRWXU | S_IRUGO | S_IXUGO, kobj);
 		if (IS_ERR(kn)) {
 			if (PTR_ERR(kn) == -EEXIST)
 				sysfs_warn_dup(kobj->sd, grp->name);

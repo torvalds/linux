@@ -210,8 +210,8 @@ struct kernfs_root *kernfs_create_root(void *priv);
 void kernfs_destroy_root(struct kernfs_root *root);
 
 struct kernfs_node *kernfs_create_dir_ns(struct kernfs_node *parent,
-					 const char *name, void *priv,
-					 const void *ns);
+					 const char *name, umode_t mode,
+					 void *priv, const void *ns);
 struct kernfs_node *kernfs_create_file_ns_key(struct kernfs_node *parent,
 					      const char *name,
 					      umode_t mode, loff_t size,
@@ -260,8 +260,8 @@ static inline struct kernfs_root *kernfs_create_root(void *priv)
 static inline void kernfs_destroy_root(struct kernfs_root *root) { }
 
 static inline struct kernfs_node *
-kernfs_create_dir_ns(struct kernfs_node *parent, const char *name, void *priv,
-		     const void *ns)
+kernfs_create_dir_ns(struct kernfs_node *parent, const char *name,
+		     umode_t mode, void *priv, const void *ns)
 { return ERR_PTR(-ENOSYS); }
 
 static inline struct kernfs_node *
@@ -314,9 +314,10 @@ kernfs_find_and_get(struct kernfs_node *kn, const char *name)
 }
 
 static inline struct kernfs_node *
-kernfs_create_dir(struct kernfs_node *parent, const char *name, void *priv)
+kernfs_create_dir(struct kernfs_node *parent, const char *name, umode_t mode,
+		  void *priv)
 {
-	return kernfs_create_dir_ns(parent, name, priv, NULL);
+	return kernfs_create_dir_ns(parent, name, mode, priv, NULL);
 }
 
 static inline struct kernfs_node *

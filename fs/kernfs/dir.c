@@ -639,22 +639,23 @@ void kernfs_destroy_root(struct kernfs_root *root)
  * kernfs_create_dir_ns - create a directory
  * @parent: parent in which to create a new directory
  * @name: name of the new directory
+ * @mode: mode of the new directory
  * @priv: opaque data associated with the new directory
  * @ns: optional namespace tag of the directory
  *
  * Returns the created node on success, ERR_PTR() value on failure.
  */
 struct kernfs_node *kernfs_create_dir_ns(struct kernfs_node *parent,
-					 const char *name, void *priv,
-					 const void *ns)
+					 const char *name, umode_t mode,
+					 void *priv, const void *ns)
 {
-	umode_t mode = S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO;
 	struct kernfs_addrm_cxt acxt;
 	struct kernfs_node *kn;
 	int rc;
 
 	/* allocate */
-	kn = kernfs_new_node(kernfs_root(parent), name, mode, KERNFS_DIR);
+	kn = kernfs_new_node(kernfs_root(parent), name, mode | S_IFDIR,
+			     KERNFS_DIR);
 	if (!kn)
 		return ERR_PTR(-ENOMEM);
 
