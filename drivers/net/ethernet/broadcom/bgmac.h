@@ -95,7 +95,11 @@
 #define  BGMAC_RXQ_CTL_MDP_SHIFT		24
 #define BGMAC_GPIO_SELECT			0x194
 #define BGMAC_GPIO_OUTPUT_EN			0x198
-/* For 0x1e0 see BCMA_CLKCTLST */
+
+/* For 0x1e0 see BCMA_CLKCTLST. Below are BGMAC specific bits */
+#define  BGMAC_BCMA_CLKCTLST_MISC_PLL_REQ	0x00000100
+#define  BGMAC_BCMA_CLKCTLST_MISC_PLL_ST	0x01000000
+
 #define BGMAC_HW_WAR				0x1e4
 #define BGMAC_PWR_CTL				0x1e8
 #define BGMAC_DMA_BASE0				0x200		/* Tx and Rx controller */

@@ -877,9 +877,9 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 	}
 
 	iost = bcma_aread32(core, BCMA_IOST);
-	if ((ci->id == BCMA_CHIP_ID_BCM5357 && ci->pkg == 10) ||
+	if ((ci->id == BCMA_CHIP_ID_BCM5357 && ci->pkg == BCMA_PKG_ID_BCM47186) ||
 	    (ci->id == BCMA_CHIP_ID_BCM4749 && ci->pkg == 10) ||
-	    (ci->id == BCMA_CHIP_ID_BCM53572 && ci->pkg == 9))
+	    (ci->id == BCMA_CHIP_ID_BCM53572 && ci->pkg == BCMA_PKG_ID_BCM47188))
 		iost &= ~BGMAC_BCMA_IOST_ATTACHED;
 
 	if (iost & BGMAC_BCMA_IOST_ATTACHED) {
@@ -891,12 +891,16 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 	bcma_core_enable(core, flags);
 
 	if (core->id.rev > 2) {
-		bgmac_set(bgmac, BCMA_CLKCTLST, 1 << 8);
-		bgmac_wait_value(bgmac->core, BCMA_CLKCTLST, 1 << 24, 1 << 24,
+		bgmac_set(bgmac, BCMA_CLKCTLST,
+			  BGMAC_BCMA_CLKCTLST_MISC_PLL_REQ);
+		bgmac_wait_value(bgmac->core, BCMA_CLKCTLST,
+				 BGMAC_BCMA_CLKCTLST_MISC_PLL_ST,
+				 BGMAC_BCMA_CLKCTLST_MISC_PLL_ST,
 				 1000);
 	}
 
-	if (ci->id == BCMA_CHIP_ID_BCM5357 || ci->id == BCMA_CHIP_ID_BCM4749 ||
+	if (ci->id == BCMA_CHIP_ID_BCM5357 ||
+	    ci->id == BCMA_CHIP_ID_BCM4749 ||
 	    ci->id == BCMA_CHIP_ID_BCM53572) {
 		struct bcma_drv_cc *cc = &bgmac->core->bus->drv_cc;
 		u8 et_swtype = 0;
@@ -911,10 +915,11 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 			et_swtype &= 0x0f;
 			et_swtype <<= 4;
 			sw_type = et_swtype;
-		} else if (ci->id == BCMA_CHIP_ID_BCM5357 && ci->pkg == 9) {
+		} else if (ci->id == BCMA_CHIP_ID_BCM5357 && ci->pkg == BCMA_PKG_ID_BCM5358) {
 			sw_type = BGMAC_CHIPCTL_1_SW_TYPE_EPHYRMII;
-		} else if ((ci->id != BCMA_CHIP_ID_BCM53572 && ci->pkg == 10) ||
-			   (ci->id == BCMA_CHIP_ID_BCM53572 && ci->pkg == 9)) {
+		} else if ((ci->id == BCMA_CHIP_ID_BCM5357 && ci->pkg == BCMA_PKG_ID_BCM47186) ||
+			   (ci->id == BCMA_CHIP_ID_BCM4749 && ci->pkg == 10) ||
+			   (ci->id == BCMA_CHIP_ID_BCM53572 && ci->pkg == BCMA_PKG_ID_BCM47188)) {
 			sw_type = BGMAC_CHIPCTL_1_IF_TYPE_RGMII |
 				  BGMAC_CHIPCTL_1_SW_TYPE_RGMII;
 		}
