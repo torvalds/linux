@@ -639,7 +639,7 @@ static int sh_dmae_resume(struct device *dev)
 #define sh_dmae_resume NULL
 #endif
 
-const struct dev_pm_ops sh_dmae_pm = {
+static const struct dev_pm_ops sh_dmae_pm = {
 	.suspend		= sh_dmae_suspend,
 	.resume			= sh_dmae_resume,
 	.runtime_suspend	= sh_dmae_runtime_suspend,
