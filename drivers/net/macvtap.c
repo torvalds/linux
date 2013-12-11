@@ -400,8 +400,7 @@ static int macvtap_newlink(struct net *src_net,
 	/* Don't put anything that may fail after macvlan_common_newlink
 	 * because we can't undo what it does.
 	 */
-	return macvlan_common_newlink(src_net, dev, tb, data,
-				      netif_rx, dev_forward_skb);
+	return macvlan_common_newlink(src_net, dev, tb, data);
 }
 
 static void macvtap_dellink(struct net_device *dev,
