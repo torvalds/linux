@@ -136,8 +136,8 @@ struct in_ifaddr {
 	__be32			ifa_mask;
 	__be32			ifa_broadcast;
 	unsigned char		ifa_scope;
-	unsigned char		ifa_flags;
 	unsigned char		ifa_prefixlen;
+	__u32			ifa_flags;
 	char			ifa_label[IFNAMSIZ];
 
 	/* In seconds, relative to tstamp. Expiry is at tstamp + HZ * lft. */
