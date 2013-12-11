@@ -95,7 +95,6 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@0 {
-		device_type = "ethernet-phy";
 		compatible = "marvell,88e1116";
 		reg = <0>;
 	};

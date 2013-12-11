@@ -159,7 +159,6 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
    c) Marvell Discovery PHY nodes
 
    Required properties:
-     - device_type : Should be "ethernet-phy"
      - interrupts : <a> where a is the interrupt number for this phy.
      - interrupt-parent : the phandle for the interrupt controller that
        services interrupts for this device.
@@ -167,7 +166,6 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
 
    Example Discovery PHY node:
      ethernet-phy@1 {
-	     device_type = "ethernet-phy";
 	     compatible = "broadcom,bcm5421";
 	     interrupts = <76>;      /* GPP 12 */
 	     interrupt-parent = <&PIC>;

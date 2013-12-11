@@ -2,7 +2,6 @@ PHY nodes
 
 Required properties:
 
- - device_type : Should be "ethernet-phy"
  - interrupts : <a b> where a is the interrupt number and b is a
    field that represents an encoding of the sense and level
    information for the interrupt.  This should be encoded based on
@@ -31,5 +30,4 @@ ethernet-phy@0 {
 	interrupt-parent = <40000>;
 	interrupts = <35 1>;
 	reg = <0>;
-	device_type = "ethernet-phy";
 };

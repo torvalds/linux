@@ -196,14 +196,12 @@
 					interrupt-parent = <&PIC>;
 					interrupts = <23 8>;
 					reg = <0x0>;
-					device_type = "ethernet-phy";
 				};
 
 				PHY1: ethernet-phy@1 {
 					interrupt-parent = <&PIC>;
 					interrupts = <23 8>;
 					reg = <0x3>;
-					device_type = "ethernet-phy";
 				};
 			};
 

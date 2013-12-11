@@ -61,7 +61,6 @@ or
 mdio-bus {
 	...
 	ethphy: ethernet-phy@8 {
-		device_type = "ethernet-phy";
 		...
 	};
 };

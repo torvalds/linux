@@ -73,19 +73,16 @@
 			compatible = "marvell,mv64360-mdio";
 			reg = <0x2000 4>;
 			PHY0: ethernet-phy@0 {
-				device_type = "ethernet-phy";
 				interrupts = <76>;	/* GPP 12 */
 				interrupt-parent = <&PIC>;
 				reg = <0>;
 			};
 			PHY1: ethernet-phy@1 {
-				device_type = "ethernet-phy";
 				interrupts = <76>;	/* GPP 12 */
 				interrupt-parent = <&PIC>;
 				reg = <1>;
 			};
 			PHY2: ethernet-phy@2 {
-				device_type = "ethernet-phy";
 				interrupts = <76>;	/* GPP 12 */
 				interrupt-parent = <&PIC>;
 				reg = <2>;

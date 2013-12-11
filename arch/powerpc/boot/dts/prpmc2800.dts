@@ -76,14 +76,12 @@
 			device_type = "mdio";
 			compatible = "marvell,mv64360-mdio";
 			PHY0: ethernet-phy@1 {
-				device_type = "ethernet-phy";
 				compatible = "broadcom,bcm5421";
 				interrupts = <76>;	/* GPP 12 */
 				interrupt-parent = <&PIC>;
 				reg = <1>;
 			};
 			PHY1: ethernet-phy@3 {
-				device_type = "ethernet-phy";
 				compatible = "broadcom,bcm5421";
 				interrupts = <76>;	/* GPP 12 */
 				interrupt-parent = <&PIC>;

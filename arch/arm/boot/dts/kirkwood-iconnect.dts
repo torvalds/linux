@@ -183,7 +183,6 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@11 {
-		device_type = "ethernet-phy";
 		reg = <11>;
 	};
 };
