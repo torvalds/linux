@@ -29,7 +29,7 @@
 static int sh_pfc_ioremap(struct sh_pfc *pfc, struct platform_device *pdev)
 {
 	struct resource *res;
-	int k;
+	unsigned int k;
 
 	if (pdev->num_resources == 0)
 		return -EINVAL;
@@ -147,7 +147,7 @@ static void sh_pfc_config_reg_helper(struct sh_pfc *pfc,
 				     unsigned long *maskp,
 				     unsigned long *posp)
 {
-	int k;
+	unsigned int k;
 
 	*mapped_regp = sh_pfc_phys_to_virt(pfc, crp->reg);
 
@@ -196,7 +196,7 @@ static int sh_pfc_get_config_reg(struct sh_pfc *pfc, u16 enum_id,
 {
 	const struct pinmux_cfg_reg *config_reg;
 	unsigned long r_width, f_width, curr_width, ncomb;
-	int k, m, n, pos, bit_pos;
+	unsigned int k, m, n, pos, bit_pos;
 
 	k = 0;
 	while (1) {
@@ -238,7 +238,7 @@ static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, u16 mark, int pos,
 			      u16 *enum_idp)
 {
 	const u16 *data = pfc->info->gpio_data;
-	int k;
+	unsigned int k;
 
 	if (pos) {
 		*enum_idp = data[pos + 1];

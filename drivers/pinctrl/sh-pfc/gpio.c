@@ -204,7 +204,7 @@ static void gpio_pin_set(struct gpio_chip *gc, unsigned offset, int value)
 static int gpio_pin_to_irq(struct gpio_chip *gc, unsigned offset)
 {
 	struct sh_pfc *pfc = gpio_to_pfc(gc);
-	int i, k;
+	unsigned int i, k;
 
 	for (i = 0; i < pfc->info->gpio_irq_size; i++) {
 		unsigned short *gpios = pfc->info->gpio_irq[i].gpios;
