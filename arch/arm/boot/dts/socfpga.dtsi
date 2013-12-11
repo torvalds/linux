@@ -617,6 +617,7 @@
 			dma-mask = <0xffffffff>;
 			clocks = <&nand_clk>;
 			have-hw-ecc-fixup;
+			status = "disabled";
 
 			partition@nand-boot {
 				/* 8MB for raw data. */
