@@ -572,15 +572,17 @@ i40e_status i40e_init_adminq(struct i40e_hw *hw)
 	if (ret_code != I40E_SUCCESS)
 		goto init_adminq_free_arq;
 
-	if (hw->aq.api_maj_ver != I40E_FW_API_VERSION_MAJOR ||
-	    hw->aq.api_min_ver != I40E_FW_API_VERSION_MINOR) {
-		ret_code = I40E_ERR_FIRMWARE_API_VERSION;
-		goto init_adminq_free_arq;
-	}
+	/* get the NVM version info */
 	i40e_read_nvm_word(hw, I40E_SR_NVM_IMAGE_VERSION, &hw->nvm.version);
 	i40e_read_nvm_word(hw, I40E_SR_NVM_EETRACK_LO, &eetrack_lo);
 	i40e_read_nvm_word(hw, I40E_SR_NVM_EETRACK_HI, &eetrack_hi);
 	hw->nvm.eetrack = (eetrack_hi << 16) | eetrack_lo;
+
+	if (hw->aq.api_maj_ver != I40E_FW_API_VERSION_MAJOR ||
+	    hw->aq.api_min_ver > I40E_FW_API_VERSION_MINOR) {
+		ret_code = I40E_ERR_FIRMWARE_API_VERSION;
+		goto init_adminq_free_arq;
+	}
 
 	ret_code = i40e_aq_set_hmc_resource_profile(hw,
 						    I40E_HMC_PROFILE_DEFAULT,
