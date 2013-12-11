@@ -1,5 +1,6 @@
 #include "../perf.h"
 #include "util.h"
+#include "fs.h"
 #include <sys/mman.h>
 #ifdef HAVE_BACKTRACE_SUPPORT
 #include <execinfo.h>
@@ -8,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <limits.h>
 #include <linux/kernel.h>
 
 /*
@@ -495,4 +497,21 @@ const char *get_filename_for_perf_kvm(void)
 		filename = strdup("perf.data.kvm");
 
 	return filename;
+}
+
+int perf_event_paranoid(void)
+{
+	char path[PATH_MAX];
+	const char *procfs = procfs__mountpoint();
+	int value;
+
+	if (!procfs)
+		return INT_MAX;
+
+	scnprintf(path, PATH_MAX, "%s/sys/kernel/perf_event_paranoid", procfs);
+
+	if (filename__read_int(path, &value))
+		return INT_MAX;
+
+	return value;
 }
