@@ -17,9 +17,9 @@
 
 #include "kernfs-internal.h"
 
-struct kmem_cache *sysfs_dir_cachep;
+struct kmem_cache *kernfs_node_cache;
 
-static const struct super_operations sysfs_ops = {
+static const struct super_operations kernfs_sops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= generic_delete_inode,
 	.evict_inode	= sysfs_evict_inode,
@@ -34,13 +34,13 @@ static int sysfs_fill_super(struct super_block *sb)
 	sb->s_blocksize = PAGE_CACHE_SIZE;
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 	sb->s_magic = SYSFS_MAGIC;
-	sb->s_op = &sysfs_ops;
+	sb->s_op = &kernfs_sops;
 	sb->s_time_gran = 1;
 
 	/* get root inode, initialize and unlock it */
-	mutex_lock(&sysfs_mutex);
+	mutex_lock(&kernfs_mutex);
 	inode = sysfs_get_inode(sb, info->root->kn);
-	mutex_unlock(&sysfs_mutex);
+	mutex_unlock(&kernfs_mutex);
 	if (!inode) {
 		pr_debug("sysfs: could not get root inode\n");
 		return -ENOMEM;
@@ -55,7 +55,7 @@ static int sysfs_fill_super(struct super_block *sb)
 	kernfs_get(info->root->kn);
 	root->d_fsdata = info->root->kn;
 	sb->s_root = root;
-	sb->s_d_op = &sysfs_dentry_ops;
+	sb->s_d_op = &kernfs_dops;
 	return 0;
 }
 
@@ -158,7 +158,7 @@ void kernfs_kill_sb(struct super_block *sb)
 
 void __init kernfs_init(void)
 {
-	sysfs_dir_cachep = kmem_cache_create("sysfs_dir_cache",
+	kernfs_node_cache = kmem_cache_create("kernfs_node_cache",
 					      sizeof(struct kernfs_node),
 					      0, SLAB_PANIC, NULL);
 	sysfs_inode_init();

@@ -750,7 +750,7 @@ void kernfs_notify(struct kernfs_node *kn)
 }
 EXPORT_SYMBOL_GPL(kernfs_notify);
 
-const struct file_operations kernfs_file_operations = {
+const struct file_operations kernfs_file_fops = {
 	.read		= kernfs_file_read,
 	.write		= kernfs_file_write,
 	.llseek		= generic_file_llseek,

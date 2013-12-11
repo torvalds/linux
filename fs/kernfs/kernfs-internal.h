@@ -71,7 +71,7 @@ struct kernfs_super_info {
 };
 #define kernfs_info(SB) ((struct kernfs_super_info *)(SB->s_fs_info))
 
-extern struct kmem_cache *sysfs_dir_cachep;
+extern struct kmem_cache *kernfs_node_cache;
 
 /*
  * inode.c
@@ -93,10 +93,10 @@ void sysfs_inode_init(void);
 /*
  * dir.c
  */
-extern struct mutex sysfs_mutex;
-extern const struct dentry_operations sysfs_dentry_ops;
-extern const struct file_operations sysfs_dir_operations;
-extern const struct inode_operations sysfs_dir_inode_operations;
+extern struct mutex kernfs_mutex;
+extern const struct dentry_operations kernfs_dops;
+extern const struct file_operations kernfs_dir_fops;
+extern const struct inode_operations kernfs_dir_iops;
 
 struct kernfs_node *sysfs_get_active(struct kernfs_node *kn);
 void sysfs_put_active(struct kernfs_node *kn);
@@ -110,13 +110,13 @@ struct kernfs_node *sysfs_new_dirent(struct kernfs_root *root,
 /*
  * file.c
  */
-extern const struct file_operations kernfs_file_operations;
+extern const struct file_operations kernfs_file_fops;
 
 void sysfs_unmap_bin_file(struct kernfs_node *kn);
 
 /*
  * symlink.c
  */
-extern const struct inode_operations sysfs_symlink_inode_operations;
+extern const struct inode_operations kernfs_symlink_iops;
 
 #endif	/* __KERNFS_INTERNAL_H */

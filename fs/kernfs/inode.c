@@ -18,19 +18,19 @@
 
 #include "kernfs-internal.h"
 
-static const struct address_space_operations sysfs_aops = {
+static const struct address_space_operations kernfs_aops = {
 	.readpage	= simple_readpage,
 	.write_begin	= simple_write_begin,
 	.write_end	= simple_write_end,
 };
 
-static struct backing_dev_info sysfs_backing_dev_info = {
-	.name		= "sysfs",
+static struct backing_dev_info kernfs_bdi = {
+	.name		= "kernfs",
 	.ra_pages	= 0,	/* No readahead */
 	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
 };
 
-static const struct inode_operations sysfs_inode_operations = {
+static const struct inode_operations kernfs_iops = {
 	.permission	= sysfs_permission,
 	.setattr	= sysfs_setattr,
 	.getattr	= sysfs_getattr,
@@ -42,8 +42,8 @@ static const struct inode_operations sysfs_inode_operations = {
 
 void __init sysfs_inode_init(void)
 {
-	if (bdi_init(&sysfs_backing_dev_info))
-		panic("failed to init sysfs_backing_dev_info");
+	if (bdi_init(&kernfs_bdi))
+		panic("failed to init kernfs_bdi");
 }
 
 static struct kernfs_iattrs *kernfs_iattrs(struct kernfs_node *kn)
@@ -109,9 +109,9 @@ int kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
 {
 	int ret;
 
-	mutex_lock(&sysfs_mutex);
+	mutex_lock(&kernfs_mutex);
 	ret = __kernfs_setattr(kn, iattr);
-	mutex_unlock(&sysfs_mutex);
+	mutex_unlock(&kernfs_mutex);
 	return ret;
 }
 
@@ -124,7 +124,7 @@ int sysfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (!kn)
 		return -EINVAL;
 
-	mutex_lock(&sysfs_mutex);
+	mutex_lock(&kernfs_mutex);
 	error = inode_change_ok(inode, iattr);
 	if (error)
 		goto out;
@@ -137,7 +137,7 @@ int sysfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	setattr_copy(inode, iattr);
 
 out:
-	mutex_unlock(&sysfs_mutex);
+	mutex_unlock(&kernfs_mutex);
 	return error;
 }
 
@@ -187,9 +187,9 @@ int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		if (error)
 			return error;
 
-		mutex_lock(&sysfs_mutex);
+		mutex_lock(&kernfs_mutex);
 		error = sysfs_sd_setsecdata(kn, &secdata, &secdata_len);
-		mutex_unlock(&sysfs_mutex);
+		mutex_unlock(&kernfs_mutex);
 
 		if (secdata)
 			security_release_secctx(secdata, secdata_len);
@@ -279,9 +279,9 @@ int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	struct kernfs_node *kn = dentry->d_fsdata;
 	struct inode *inode = dentry->d_inode;
 
-	mutex_lock(&sysfs_mutex);
+	mutex_lock(&kernfs_mutex);
 	sysfs_refresh_inode(kn, inode);
-	mutex_unlock(&sysfs_mutex);
+	mutex_unlock(&kernfs_mutex);
 
 	generic_fillattr(inode, stat);
 	return 0;
@@ -291,9 +291,9 @@ static void sysfs_init_inode(struct kernfs_node *kn, struct inode *inode)
 {
 	kernfs_get(kn);
 	inode->i_private = kn;
-	inode->i_mapping->a_ops = &sysfs_aops;
-	inode->i_mapping->backing_dev_info = &sysfs_backing_dev_info;
-	inode->i_op = &sysfs_inode_operations;
+	inode->i_mapping->a_ops = &kernfs_aops;
+	inode->i_mapping->backing_dev_info = &kernfs_bdi;
+	inode->i_op = &kernfs_iops;
 
 	set_default_inode_attr(inode, kn->mode);
 	sysfs_refresh_inode(kn, inode);
@@ -301,15 +301,15 @@ static void sysfs_init_inode(struct kernfs_node *kn, struct inode *inode)
 	/* initialize inode according to type */
 	switch (kernfs_type(kn)) {
 	case KERNFS_DIR:
-		inode->i_op = &sysfs_dir_inode_operations;
-		inode->i_fop = &sysfs_dir_operations;
+		inode->i_op = &kernfs_dir_iops;
+		inode->i_fop = &kernfs_dir_fops;
 		break;
 	case KERNFS_FILE:
 		inode->i_size = kn->attr.size;
-		inode->i_fop = &kernfs_file_operations;
+		inode->i_fop = &kernfs_file_fops;
 		break;
 	case KERNFS_LINK:
-		inode->i_op = &sysfs_symlink_inode_operations;
+		inode->i_op = &kernfs_symlink_iops;
 		break;
 	default:
 		BUG();
@@ -369,9 +369,9 @@ int sysfs_permission(struct inode *inode, int mask)
 
 	kn = inode->i_private;
 
-	mutex_lock(&sysfs_mutex);
+	mutex_lock(&kernfs_mutex);
 	sysfs_refresh_inode(kn, inode);
-	mutex_unlock(&sysfs_mutex);
+	mutex_unlock(&kernfs_mutex);
 
 	return generic_permission(inode, mask);
 }

@@ -110,9 +110,9 @@ static int sysfs_getlink(struct dentry *dentry, char *path)
 	struct kernfs_node *target = kn->symlink.target_kn;
 	int error;
 
-	mutex_lock(&sysfs_mutex);
+	mutex_lock(&kernfs_mutex);
 	error = sysfs_get_target_path(parent, target, path);
-	mutex_unlock(&sysfs_mutex);
+	mutex_unlock(&kernfs_mutex);
 
 	return error;
 }
@@ -138,7 +138,7 @@ static void sysfs_put_link(struct dentry *dentry, struct nameidata *nd,
 		free_page((unsigned long)page);
 }
 
-const struct inode_operations sysfs_symlink_inode_operations = {
+const struct inode_operations kernfs_symlink_iops = {
 	.setxattr	= sysfs_setxattr,
 	.removexattr	= sysfs_removexattr,
 	.getxattr	= sysfs_getxattr,
