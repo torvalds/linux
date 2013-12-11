@@ -895,16 +895,16 @@ static int r128_cce_dispatch_write_span(struct drm_device *dev,
 	if (count > 4096 || count <= 0)
 		return -EMSGSIZE;
 
-	if (DRM_COPY_FROM_USER(&x, depth->x, sizeof(x)))
+	if (copy_from_user(&x, depth->x, sizeof(x)))
 		return -EFAULT;
-	if (DRM_COPY_FROM_USER(&y, depth->y, sizeof(y)))
+	if (copy_from_user(&y, depth->y, sizeof(y)))
 		return -EFAULT;
 
 	buffer_size = depth->n * sizeof(u32);
 	buffer = kmalloc(buffer_size, GFP_KERNEL);
 	if (buffer == NULL)
 		return -ENOMEM;
-	if (DRM_COPY_FROM_USER(buffer, depth->buffer, buffer_size)) {
+	if (copy_from_user(buffer, depth->buffer, buffer_size)) {
 		kfree(buffer);
 		return -EFAULT;
 	}
@@ -916,7 +916,7 @@ static int r128_cce_dispatch_write_span(struct drm_device *dev,
 			kfree(buffer);
 			return -ENOMEM;
 		}
-		if (DRM_COPY_FROM_USER(mask, depth->mask, mask_size)) {
+		if (copy_from_user(mask, depth->mask, mask_size)) {
 			kfree(buffer);
 			kfree(mask);
 			return -EFAULT;
@@ -999,12 +999,12 @@ static int r128_cce_dispatch_write_pixels(struct drm_device *dev,
 		kfree(x);
 		return -ENOMEM;
 	}
-	if (DRM_COPY_FROM_USER(x, depth->x, xbuf_size)) {
+	if (copy_from_user(x, depth->x, xbuf_size)) {
 		kfree(x);
 		kfree(y);
 		return -EFAULT;
 	}
-	if (DRM_COPY_FROM_USER(y, depth->y, xbuf_size)) {
+	if (copy_from_user(y, depth->y, xbuf_size)) {
 		kfree(x);
 		kfree(y);
 		return -EFAULT;
@@ -1017,7 +1017,7 @@ static int r128_cce_dispatch_write_pixels(struct drm_device *dev,
 		kfree(y);
 		return -ENOMEM;
 	}
-	if (DRM_COPY_FROM_USER(buffer, depth->buffer, buffer_size)) {
+	if (copy_from_user(buffer, depth->buffer, buffer_size)) {
 		kfree(x);
 		kfree(y);
 		kfree(buffer);
@@ -1033,7 +1033,7 @@ static int r128_cce_dispatch_write_pixels(struct drm_device *dev,
 			kfree(buffer);
 			return -ENOMEM;
 		}
-		if (DRM_COPY_FROM_USER(mask, depth->mask, mask_size)) {
+		if (copy_from_user(mask, depth->mask, mask_size)) {
 			kfree(x);
 			kfree(y);
 			kfree(buffer);
@@ -1107,9 +1107,9 @@ static int r128_cce_dispatch_read_span(struct drm_device *dev,
 	if (count > 4096 || count <= 0)
 		return -EMSGSIZE;
 
-	if (DRM_COPY_FROM_USER(&x, depth->x, sizeof(x)))
+	if (copy_from_user(&x, depth->x, sizeof(x)))
 		return -EFAULT;
-	if (DRM_COPY_FROM_USER(&y, depth->y, sizeof(y)))
+	if (copy_from_user(&y, depth->y, sizeof(y)))
 		return -EFAULT;
 
 	BEGIN_RING(7);
@@ -1162,12 +1162,12 @@ static int r128_cce_dispatch_read_pixels(struct drm_device *dev,
 		kfree(x);
 		return -ENOMEM;
 	}
-	if (DRM_COPY_FROM_USER(x, depth->x, xbuf_size)) {
+	if (copy_from_user(x, depth->x, xbuf_size)) {
 		kfree(x);
 		kfree(y);
 		return -EFAULT;
 	}
-	if (DRM_COPY_FROM_USER(y, depth->y, ybuf_size)) {
+	if (copy_from_user(y, depth->y, ybuf_size)) {
 		kfree(x);
 		kfree(y);
 		return -EFAULT;
@@ -1524,7 +1524,7 @@ static int r128_cce_stipple(struct drm_device *dev, void *data, struct drm_file 
 
 	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
-	if (DRM_COPY_FROM_USER(&mask, stipple->mask, 32 * sizeof(u32)))
+	if (copy_from_user(&mask, stipple->mask, 32 * sizeof(u32)))
 		return -EFAULT;
 
 	RING_SPACE_TEST_WITH_RETURN(dev_priv);
@@ -1622,7 +1622,7 @@ static int r128_getparam(struct drm_device *dev, void *data, struct drm_file *fi
 		return -EINVAL;
 	}
 
-	if (DRM_COPY_TO_USER(param->value, &value, sizeof(int))) {
+	if (copy_to_user(param->value, &value, sizeof(int))) {
 		DRM_ERROR("copy_to_user\n");
 		return -EFAULT;
 	}

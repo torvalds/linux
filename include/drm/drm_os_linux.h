@@ -48,13 +48,6 @@ static inline void writeq(u64 val, void __iomem *reg)
 /** Read/write memory barrier */
 #define DRM_MEMORYBARRIER()		mb()
 
-/** Other copying of data to kernel space */
-#define DRM_COPY_FROM_USER(arg1, arg2, arg3)		\
-	copy_from_user(arg1, arg2, arg3)
-/** Other copying of data from kernel space */
-#define DRM_COPY_TO_USER(arg1, arg2, arg3)		\
-	copy_to_user(arg1, arg2, arg3)
-
 #define DRM_WAIT_ON( ret, queue, timeout, condition )		\
 do {								\
 	DECLARE_WAITQUEUE(entry, current);			\

@@ -302,7 +302,7 @@ int radeon_irq_emit(struct drm_device *dev, void *data, struct drm_file *file_pr
 
 	result = radeon_emit_irq(dev);
 
-	if (DRM_COPY_TO_USER(emit->irq_seq, &result, sizeof(int))) {
+	if (copy_to_user(emit->irq_seq, &result, sizeof(int))) {
 		DRM_ERROR("copy_to_user\n");
 		return -EFAULT;
 	}

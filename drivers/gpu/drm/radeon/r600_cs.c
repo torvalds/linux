@@ -2386,7 +2386,7 @@ int r600_cs_legacy(struct drm_device *dev, void *data, struct drm_file *filp,
 	ib_chunk = &parser.chunks[parser.chunk_ib_idx];
 	parser.ib.length_dw = ib_chunk->length_dw;
 	*l = parser.ib.length_dw;
-	if (DRM_COPY_FROM_USER(ib, ib_chunk->user_ptr, ib_chunk->length_dw * 4)) {
+	if (copy_from_user(ib, ib_chunk->user_ptr, ib_chunk->length_dw * 4)) {
 		r = -EFAULT;
 		r600_cs_parser_fini(&parser, r);
 		return r;

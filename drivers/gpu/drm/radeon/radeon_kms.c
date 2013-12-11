@@ -223,7 +223,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			*value = rdev->accel_working;
 		break;
 	case RADEON_INFO_CRTC_FROM_ID:
-		if (DRM_COPY_FROM_USER(value, value_ptr, sizeof(uint32_t))) {
+		if (copy_from_user(value, value_ptr, sizeof(uint32_t))) {
 			DRM_ERROR("copy_from_user %s:%u\n", __func__, __LINE__);
 			return -EFAULT;
 		}
@@ -269,7 +269,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		 *
 		 * When returning, the value is 1 if filp owns hyper-z access,
 		 * 0 otherwise. */
-		if (DRM_COPY_FROM_USER(value, value_ptr, sizeof(uint32_t))) {
+		if (copy_from_user(value, value_ptr, sizeof(uint32_t))) {
 			DRM_ERROR("copy_from_user %s:%u\n", __func__, __LINE__);
 			return -EFAULT;
 		}
@@ -281,7 +281,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		break;
 	case RADEON_INFO_WANT_CMASK:
 		/* The same logic as Hyper-Z. */
-		if (DRM_COPY_FROM_USER(value, value_ptr, sizeof(uint32_t))) {
+		if (copy_from_user(value, value_ptr, sizeof(uint32_t))) {
 			DRM_ERROR("copy_from_user %s:%u\n", __func__, __LINE__);
 			return -EFAULT;
 		}
@@ -417,7 +417,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		*value = rdev->fastfb_working;
 		break;
 	case RADEON_INFO_RING_WORKING:
-		if (DRM_COPY_FROM_USER(value, value_ptr, sizeof(uint32_t))) {
+		if (copy_from_user(value, value_ptr, sizeof(uint32_t))) {
 			DRM_ERROR("copy_from_user %s:%u\n", __func__, __LINE__);
 			return -EFAULT;
 		}
@@ -465,7 +465,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;
 	}
-	if (DRM_COPY_TO_USER(value_ptr, (char*)value, value_size)) {
+	if (copy_to_user(value_ptr, (char*)value, value_size)) {
 		DRM_ERROR("copy_to_user %s:%u\n", __func__, __LINE__);
 		return -EFAULT;
 	}

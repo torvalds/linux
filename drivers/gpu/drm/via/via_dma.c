@@ -273,7 +273,7 @@ static int via_dispatch_cmdbuffer(struct drm_device *dev, drm_via_cmdbuffer_t *c
 	if (cmd->size > VIA_PCI_BUF_SIZE)
 		return -ENOMEM;
 
-	if (DRM_COPY_FROM_USER(dev_priv->pci_buf, cmd->buf, cmd->size))
+	if (copy_from_user(dev_priv->pci_buf, cmd->buf, cmd->size))
 		return -EFAULT;
 
 	/*
@@ -346,7 +346,7 @@ static int via_dispatch_pci_cmdbuffer(struct drm_device *dev,
 
 	if (cmd->size > VIA_PCI_BUF_SIZE)
 		return -ENOMEM;
-	if (DRM_COPY_FROM_USER(dev_priv->pci_buf, cmd->buf, cmd->size))
+	if (copy_from_user(dev_priv->pci_buf, cmd->buf, cmd->size))
 		return -EFAULT;
 
 	if ((ret =
