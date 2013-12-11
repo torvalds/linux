@@ -29,11 +29,11 @@ DEFINE_SPINLOCK(sysfs_symlink_target_lock);
  */
 static char *sysfs_pathname(struct kernfs_node *kn, char *path)
 {
-	if (kn->s_parent) {
-		sysfs_pathname(kn->s_parent, path);
+	if (kn->parent) {
+		sysfs_pathname(kn->parent, path);
 		strlcat(path, "/", PATH_MAX);
 	}
-	strlcat(path, kn->s_name, PATH_MAX);
+	strlcat(path, kn->name, PATH_MAX);
 	return path;
 }
 
@@ -121,7 +121,7 @@ void sysfs_remove_dir(struct kobject *kobj)
 int sysfs_rename_dir_ns(struct kobject *kobj, const char *new_name,
 			const void *new_ns)
 {
-	struct kernfs_node *parent = kobj->sd->s_parent;
+	struct kernfs_node *parent = kobj->sd->parent;
 
 	return kernfs_rename_ns(kobj->sd, parent, new_name, new_ns);
 }
@@ -132,9 +132,9 @@ int sysfs_move_dir_ns(struct kobject *kobj, struct kobject *new_parent_kobj,
 	struct kernfs_node *kn = kobj->sd;
 	struct kernfs_node *new_parent;
 
-	BUG_ON(!kn->s_parent);
+	BUG_ON(!kn->parent);
 	new_parent = new_parent_kobj && new_parent_kobj->sd ?
 		new_parent_kobj->sd : sysfs_root_kn;
 
-	return kernfs_rename_ns(kn, new_parent, kn->s_name, new_ns);
+	return kernfs_rename_ns(kn, new_parent, kn->name, new_ns);
 }

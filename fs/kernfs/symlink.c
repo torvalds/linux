@@ -36,8 +36,8 @@ struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 		return ERR_PTR(-ENOMEM);
 
 	if (kernfs_ns_enabled(parent))
-		kn->s_ns = target->s_ns;
-	kn->s_symlink.target_kn = target;
+		kn->ns = target->ns;
+	kn->symlink.target_kn = target;
 	kernfs_get(target);	/* ref owned by symlink */
 
 	sysfs_addrm_start(&acxt);
@@ -60,24 +60,24 @@ static int sysfs_get_target_path(struct kernfs_node *parent,
 
 	/* go up to the root, stop at the base */
 	base = parent;
-	while (base->s_parent) {
-		kn = target->s_parent;
-		while (kn->s_parent && base != kn)
-			kn = kn->s_parent;
+	while (base->parent) {
+		kn = target->parent;
+		while (kn->parent && base != kn)
+			kn = kn->parent;
 
 		if (base == kn)
 			break;
 
 		strcpy(s, "../");
 		s += 3;
-		base = base->s_parent;
+		base = base->parent;
 	}
 
 	/* determine end of target string for reverse fillup */
 	kn = target;
-	while (kn->s_parent && kn != base) {
-		len += strlen(kn->s_name) + 1;
-		kn = kn->s_parent;
+	while (kn->parent && kn != base) {
+		len += strlen(kn->name) + 1;
+		kn = kn->parent;
 	}
 
 	/* check limits */
@@ -89,15 +89,15 @@ static int sysfs_get_target_path(struct kernfs_node *parent,
 
 	/* reverse fillup of target string from target to base */
 	kn = target;
-	while (kn->s_parent && kn != base) {
-		int slen = strlen(kn->s_name);
+	while (kn->parent && kn != base) {
+		int slen = strlen(kn->name);
 
 		len -= slen;
-		strncpy(s + len, kn->s_name, slen);
+		strncpy(s + len, kn->name, slen);
 		if (len)
 			s[--len] = '/';
 
-		kn = kn->s_parent;
+		kn = kn->parent;
 	}
 
 	return 0;
@@ -106,8 +106,8 @@ static int sysfs_get_target_path(struct kernfs_node *parent,
 static int sysfs_getlink(struct dentry *dentry, char *path)
 {
 	struct kernfs_node *kn = dentry->d_fsdata;
-	struct kernfs_node *parent = kn->s_parent;
-	struct kernfs_node *target = kn->s_symlink.target_kn;
+	struct kernfs_node *parent = kn->parent;
+	struct kernfs_node *target = kn->symlink.target_kn;
 	int error;
 
 	mutex_lock(&sysfs_mutex);

@@ -50,23 +50,23 @@ static struct sysfs_inode_attrs *sysfs_inode_attrs(struct kernfs_node *kn)
 {
 	struct iattr *iattrs;
 
-	if (kn->s_iattr)
-		return kn->s_iattr;
+	if (kn->iattr)
+		return kn->iattr;
 
-	kn->s_iattr = kzalloc(sizeof(struct sysfs_inode_attrs), GFP_KERNEL);
-	if (!kn->s_iattr)
+	kn->iattr = kzalloc(sizeof(struct sysfs_inode_attrs), GFP_KERNEL);
+	if (!kn->iattr)
 		return NULL;
-	iattrs = &kn->s_iattr->ia_iattr;
+	iattrs = &kn->iattr->ia_iattr;
 
 	/* assign default attributes */
-	iattrs->ia_mode = kn->s_mode;
+	iattrs->ia_mode = kn->mode;
 	iattrs->ia_uid = GLOBAL_ROOT_UID;
 	iattrs->ia_gid = GLOBAL_ROOT_GID;
 	iattrs->ia_atime = iattrs->ia_mtime = iattrs->ia_ctime = CURRENT_TIME;
 
-	simple_xattrs_init(&kn->s_iattr->xattrs);
+	simple_xattrs_init(&kn->iattr->xattrs);
 
-	return kn->s_iattr;
+	return kn->iattr;
 }
 
 static int __kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
@@ -93,7 +93,7 @@ static int __kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
 		iattrs->ia_ctime = iattr->ia_ctime;
 	if (ia_valid & ATTR_MODE) {
 		umode_t mode = iattr->ia_mode;
-		iattrs->ia_mode = kn->s_mode = mode;
+		iattrs->ia_mode = kn->mode = mode;
 	}
 	return 0;
 }
@@ -256,9 +256,9 @@ static inline void set_inode_attr(struct inode *inode, struct iattr *iattr)
 
 static void sysfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
 {
-	struct sysfs_inode_attrs *attrs = kn->s_iattr;
+	struct sysfs_inode_attrs *attrs = kn->iattr;
 
-	inode->i_mode = kn->s_mode;
+	inode->i_mode = kn->mode;
 	if (attrs) {
 		/*
 		 * kernfs_node has non-default attributes get them from
@@ -270,7 +270,7 @@ static void sysfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
 	}
 
 	if (sysfs_type(kn) == SYSFS_DIR)
-		set_nlink(inode, kn->s_dir.subdirs + 2);
+		set_nlink(inode, kn->dir.subdirs + 2);
 }
 
 int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
@@ -295,7 +295,7 @@ static void sysfs_init_inode(struct kernfs_node *kn, struct inode *inode)
 	inode->i_mapping->backing_dev_info = &sysfs_backing_dev_info;
 	inode->i_op = &sysfs_inode_operations;
 
-	set_default_inode_attr(inode, kn->s_mode);
+	set_default_inode_attr(inode, kn->mode);
 	sysfs_refresh_inode(kn, inode);
 
 	/* initialize inode according to type */
@@ -305,7 +305,7 @@ static void sysfs_init_inode(struct kernfs_node *kn, struct inode *inode)
 		inode->i_fop = &sysfs_dir_operations;
 		break;
 	case SYSFS_KOBJ_ATTR:
-		inode->i_size = kn->s_attr.size;
+		inode->i_size = kn->attr.size;
 		inode->i_fop = &kernfs_file_operations;
 		break;
 	case SYSFS_KOBJ_LINK:
@@ -337,7 +337,7 @@ struct inode *sysfs_get_inode(struct super_block *sb, struct kernfs_node *kn)
 {
 	struct inode *inode;
 
-	inode = iget_locked(sb, kn->s_ino);
+	inode = iget_locked(sb, kn->ino);
 	if (inode && (inode->i_state & I_NEW))
 		sysfs_init_inode(kn, inode);
 

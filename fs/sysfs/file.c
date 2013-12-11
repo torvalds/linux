@@ -27,9 +27,9 @@
  */
 static const struct sysfs_ops *sysfs_file_ops(struct kernfs_node *kn)
 {
-	struct kobject *kobj = kn->s_parent->priv;
+	struct kobject *kobj = kn->parent->priv;
 
-	if (kn->s_flags & SYSFS_FLAG_LOCKDEP)
+	if (kn->flags & SYSFS_FLAG_LOCKDEP)
 		lockdep_assert_held(kn);
 	return kobj->ktype ? kobj->ktype->sysfs_ops : NULL;
 }
@@ -42,7 +42,7 @@ static const struct sysfs_ops *sysfs_file_ops(struct kernfs_node *kn)
 static int sysfs_kf_seq_show(struct seq_file *sf, void *v)
 {
 	struct sysfs_open_file *of = sf->private;
-	struct kobject *kobj = of->kn->s_parent->priv;
+	struct kobject *kobj = of->kn->parent->priv;
 	const struct sysfs_ops *ops = sysfs_file_ops(of->kn);
 	ssize_t count;
 	char *buf;
@@ -82,7 +82,7 @@ static ssize_t sysfs_kf_bin_read(struct sysfs_open_file *of, char *buf,
 				 size_t count, loff_t pos)
 {
 	struct bin_attribute *battr = of->kn->priv;
-	struct kobject *kobj = of->kn->s_parent->priv;
+	struct kobject *kobj = of->kn->parent->priv;
 	loff_t size = file_inode(of->file)->i_size;
 
 	if (!count)
@@ -106,7 +106,7 @@ static ssize_t sysfs_kf_write(struct sysfs_open_file *of, char *buf,
 			      size_t count, loff_t pos)
 {
 	const struct sysfs_ops *ops = sysfs_file_ops(of->kn);
-	struct kobject *kobj = of->kn->s_parent->priv;
+	struct kobject *kobj = of->kn->parent->priv;
 
 	if (!count)
 		return 0;
@@ -119,7 +119,7 @@ static ssize_t sysfs_kf_bin_write(struct sysfs_open_file *of, char *buf,
 				  size_t count, loff_t pos)
 {
 	struct bin_attribute *battr = of->kn->priv;
-	struct kobject *kobj = of->kn->s_parent->priv;
+	struct kobject *kobj = of->kn->parent->priv;
 	loff_t size = file_inode(of->file)->i_size;
 
 	if (size) {
@@ -140,7 +140,7 @@ static int sysfs_kf_bin_mmap(struct sysfs_open_file *of,
 			     struct vm_area_struct *vma)
 {
 	struct bin_attribute *battr = of->kn->priv;
-	struct kobject *kobj = of->kn->s_parent->priv;
+	struct kobject *kobj = of->kn->parent->priv;
 
 	return battr->mmap(of->file, kobj, battr, vma);
 }
@@ -345,7 +345,7 @@ int sysfs_chmod_file(struct kobject *kobj, const struct attribute *attr,
 	if (!kn)
 		return -ENOENT;
 
-	newattrs.ia_mode = (mode & S_IALLUGO) | (kn->s_mode & ~S_IALLUGO);
+	newattrs.ia_mode = (mode & S_IALLUGO) | (kn->mode & ~S_IALLUGO);
 	newattrs.ia_valid = ATTR_MODE;
 
 	rc = kernfs_setattr(kn, &newattrs);

@@ -39,9 +39,9 @@ struct sysfs_inode_attrs {
 static inline struct kernfs_root *kernfs_root(struct kernfs_node *kn)
 {
 	/* if parent exists, it's always a dir; otherwise, @sd is a dir */
-	if (kn->s_parent)
-		kn = kn->s_parent;
-	return kn->s_dir.root;
+	if (kn->parent)
+		kn = kn->parent;
+	return kn->dir.root;
 }
 
 /*

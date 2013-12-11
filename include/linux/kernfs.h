@@ -49,7 +49,7 @@ enum kernfs_node_flag {
 /* type-specific structures for kernfs_node union members */
 struct kernfs_elem_dir {
 	unsigned long		subdirs;
-	/* children rbtree starts here and goes through kn->s_rb */
+	/* children rbtree starts here and goes through kn->rb */
 	struct rb_root		children;
 
 	/*
@@ -79,36 +79,36 @@ struct kernfs_elem_attr {
  * active reference.
  */
 struct kernfs_node {
-	atomic_t		s_count;
-	atomic_t		s_active;
+	atomic_t		count;
+	atomic_t		active;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
 #endif
 	/* the following two fields are published */
-	struct kernfs_node	*s_parent;
-	const char		*s_name;
+	struct kernfs_node	*parent;
+	const char		*name;
 
-	struct rb_node		s_rb;
+	struct rb_node		rb;
 
 	union {
 		struct completion	*completion;
 		struct kernfs_node	*removed_list;
 	} u;
 
-	const void		*s_ns; /* namespace tag */
-	unsigned int		s_hash; /* ns + name hash */
+	const void		*ns;	/* namespace tag */
+	unsigned int		hash;	/* ns + name hash */
 	union {
-		struct kernfs_elem_dir		s_dir;
-		struct kernfs_elem_symlink	s_symlink;
-		struct kernfs_elem_attr		s_attr;
+		struct kernfs_elem_dir		dir;
+		struct kernfs_elem_symlink	symlink;
+		struct kernfs_elem_attr		attr;
 	};
 
 	void			*priv;
 
-	unsigned short		s_flags;
-	umode_t			s_mode;
-	unsigned int		s_ino;
-	struct sysfs_inode_attrs *s_iattr;
+	unsigned short		flags;
+	umode_t			mode;
+	unsigned int		ino;
+	struct sysfs_inode_attrs *iattr;
 };
 
 struct kernfs_root {
@@ -172,7 +172,7 @@ struct kernfs_ops {
 
 static inline enum kernfs_node_type sysfs_type(struct kernfs_node *kn)
 {
-	return kn->s_flags & SYSFS_TYPE_MASK;
+	return kn->flags & SYSFS_TYPE_MASK;
 }
 
 /**
@@ -186,8 +186,8 @@ static inline enum kernfs_node_type sysfs_type(struct kernfs_node *kn)
 static inline void kernfs_enable_ns(struct kernfs_node *kn)
 {
 	WARN_ON_ONCE(sysfs_type(kn) != SYSFS_DIR);
-	WARN_ON_ONCE(!RB_EMPTY_ROOT(&kn->s_dir.children));
-	kn->s_flags |= SYSFS_FLAG_NS;
+	WARN_ON_ONCE(!RB_EMPTY_ROOT(&kn->dir.children));
+	kn->flags |= SYSFS_FLAG_NS;
 }
 
 /**
@@ -198,7 +198,7 @@ static inline void kernfs_enable_ns(struct kernfs_node *kn)
  */
 static inline bool kernfs_ns_enabled(struct kernfs_node *kn)
 {
-	return kn->s_flags & SYSFS_FLAG_NS;
+	return kn->flags & SYSFS_FLAG_NS;
 }
 
 struct kernfs_node *kernfs_find_and_get_ns(struct kernfs_node *parent,
