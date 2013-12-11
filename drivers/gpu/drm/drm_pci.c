@@ -293,7 +293,6 @@ static struct drm_bus drm_pci_bus = {
 	.set_busid = drm_pci_set_busid,
 	.set_unique = drm_pci_set_unique,
 	.irq_by_busid = drm_pci_irq_by_busid,
-	.agp_init = drm_pci_agp_init,
 	.agp_destroy = drm_pci_agp_destroy,
 };
 
@@ -332,9 +331,13 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		pci_set_drvdata(pdev, dev);
 
+	mutex_lock(&drm_global_mutex);
+	drm_pci_agp_init(dev);
+	mutex_unlock(&drm_global_mutex);
+
 	ret = drm_dev_register(dev, ent->driver_data);
 	if (ret)
-		goto err_pci;
+		goto err_agp;
 
 	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
 		 driver->name, driver->major, driver->minor, driver->patchlevel,
@@ -347,7 +350,10 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 
 	return 0;
 
-err_pci:
+err_agp:
+	mutex_lock(&drm_global_mutex);
+	drm_pci_agp_destroy(dev);
+	mutex_unlock(&drm_global_mutex);
 	pci_disable_device(pdev);
 err_free:
 	drm_dev_free(dev);

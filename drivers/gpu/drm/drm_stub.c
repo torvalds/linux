@@ -527,13 +527,10 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 
 	mutex_lock(&drm_global_mutex);
 
-	if (dev->driver->bus->agp_init)
-		dev->driver->bus->agp_init(dev);
-
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		ret = drm_get_minor(dev, &dev->control, DRM_MINOR_CONTROL);
 		if (ret)
-			goto err_agp;
+			goto out_unlock;
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_RENDER) && drm_rnodes) {
@@ -572,9 +569,6 @@ err_render_node:
 	drm_put_minor(dev->render);
 err_control_node:
 	drm_put_minor(dev->control);
-err_agp:
-	if (dev->driver->bus->agp_destroy)
-		dev->driver->bus->agp_destroy(dev);
 out_unlock:
 	mutex_unlock(&drm_global_mutex);
 	return ret;
