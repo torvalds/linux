@@ -86,9 +86,7 @@ struct ixgbevf_ring {
 	u64 bp_misses;
 	u64 bp_cleaned;
 #endif
-
-	u16 head;
-	u16 tail;
+	u8 __iomem *tail;
 
 	u16 reg_idx; /* holds the special value that gets the hardware register
 		      * offset associated with this ring, which is different

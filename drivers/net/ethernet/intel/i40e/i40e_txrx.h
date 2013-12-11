@@ -49,10 +49,23 @@
 
 #define I40E_QUEUE_END_OF_LIST 0x7FF
 
-#define I40E_ITR_NONE  3
-#define I40E_RX_ITR    0
-#define I40E_TX_ITR    1
-#define I40E_PE_ITR    2
+/* this enum matches hardware bits and is meant to be used by DYN_CTLN
+ * registers and QINT registers or more generally anywhere in the manual
+ * mentioning ITR_INDX, ITR_NONE cannot be used as an index 'n' into any
+ * register but instead is a special value meaning "don't update" ITR0/1/2.
+ */
+enum i40e_dyn_idx_t {
+	I40E_IDX_ITR0 = 0,
+	I40E_IDX_ITR1 = 1,
+	I40E_IDX_ITR2 = 2,
+	I40E_ITR_NONE = 3	/* ITR_NONE must not be used as an index */
+};
+
+/* these are indexes into ITRN registers */
+#define I40E_RX_ITR    I40E_IDX_ITR0
+#define I40E_TX_ITR    I40E_IDX_ITR1
+#define I40E_PE_ITR    I40E_IDX_ITR2
+
 /* Supported Rx Buffer Sizes */
 #define I40E_RXBUFFER_512   512    /* Used for packet split */
 #define I40E_RXBUFFER_2048  2048

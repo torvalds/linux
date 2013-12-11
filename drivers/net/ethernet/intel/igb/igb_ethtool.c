@@ -1983,6 +1983,10 @@ static void igb_diag_test(struct net_device *netdev,
 	bool if_running = netif_running(netdev);
 
 	set_bit(__IGB_TESTING, &adapter->state);
+
+	/* can't do offline tests on media switching devices */
+	if (adapter->hw.dev_spec._82575.mas_capable)
+		eth_test->flags &= ~ETH_TEST_FL_OFFLINE;
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
 		/* Offline tests */
 
