@@ -293,7 +293,7 @@ static const struct iio_chan_spec_ext_info ad5791_ext_info[] = {
 	{ },
 };
 
-#define AD5791_CHAN(bits, shift) {			\
+#define AD5791_CHAN(bits, _shift) {			\
 	.type = IIO_VOLTAGE,				\
 	.output = 1,					\
 	.indexed = 1,					\
@@ -302,7 +302,12 @@ static const struct iio_chan_spec_ext_info ad5791_ext_info[] = {
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |	\
 		BIT(IIO_CHAN_INFO_OFFSET),		\
-	.scan_type = IIO_ST('u', bits, 24, shift),	\
+	.scan_type = {					\
+		.sign = 'u',				\
+		.realbits = (bits),			\
+		.storagebits = 24,			\
+		.shift = (_shift),			\
+	},						\
 	.ext_info = ad5791_ext_info,			\
 }
 
