@@ -186,14 +186,14 @@ int drm_clients_info(struct seq_file *m, void *data)
 	struct drm_file *priv;
 
 	mutex_lock(&dev->struct_mutex);
-	seq_printf(m, "a dev	pid    uid	magic	  ioctls\n\n");
+	seq_printf(m, "a dev	pid    uid	magic\n\n");
 	list_for_each_entry(priv, &dev->filelist, lhead) {
-		seq_printf(m, "%c %3d %5d %5d %10u %10lu\n",
+		seq_printf(m, "%c %3d %5d %5d %10u\n",
 			   priv->authenticated ? 'y' : 'n',
 			   priv->minor->index,
 			   pid_vnr(priv->pid),
 			   from_kuid_munged(seq_user_ns(m), priv->uid),
-			   priv->magic, priv->ioctl_count);
+			   priv->magic);
 	}
 	mutex_unlock(&dev->struct_mutex);
 	return 0;

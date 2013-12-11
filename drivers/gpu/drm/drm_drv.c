@@ -315,8 +315,6 @@ long drm_ioctl(struct file *filp,
 	if (drm_device_is_unplugged(dev))
 		return -ENODEV;
 
-	++file_priv->ioctl_count;
-
 	if ((nr >= DRM_CORE_IOCTL_COUNT) &&
 	    ((nr < DRM_COMMAND_BASE) || (nr >= DRM_COMMAND_END)))
 		goto err_i1;

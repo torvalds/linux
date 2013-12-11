@@ -438,7 +438,6 @@ struct drm_file {
 	struct pid *pid;
 	kuid_t uid;
 	drm_magic_t magic;
-	unsigned long ioctl_count;
 	struct list_head lhead;
 	struct drm_minor *minor;
 	unsigned long lock_count;

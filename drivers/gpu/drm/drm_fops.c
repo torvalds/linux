@@ -232,7 +232,6 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 		goto out_put_pid;
 	}
 
-	priv->ioctl_count = 0;
 	/* for compatibility root is always authenticated */
 	priv->always_authenticated = capable(CAP_SYS_ADMIN);
 	priv->authenticated = priv->always_authenticated;
