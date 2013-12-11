@@ -130,7 +130,6 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
    Ethernet port node
 
    Required properties:
-     - device_type : Should be "network".
      - compatible : Should be "marvell,mv64360-eth".
      - reg : Should be <0>, <1>, or <2>, according to which registers
        within the silicon block the device uses.
@@ -143,7 +142,6 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
 
    Example Discovery Ethernet port node:
      ethernet@0 {
-	     device_type = "network";
 	     compatible = "marvell,mv64360-eth";
 	     reg = <0>;
 	     interrupts = <32>;

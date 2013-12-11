@@ -10,7 +10,6 @@ Currently defined compatibles:
 Example:
 
 	ethernet@11300 {
-		device_type = "network";
 		compatible = "fsl,mpc8272-fcc-enet",
 			     "fsl,cpm2-fcc-enet";
 		reg = <11300 20 8400 100 11390 1>;
