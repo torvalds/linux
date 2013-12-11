@@ -91,6 +91,7 @@ static void comedi_dev_kref_release(struct kref *kref)
 		container_of(kref, struct comedi_device, refcount);
 
 	mutex_destroy(&dev->mutex);
+	put_device(dev->class_dev);
 	kfree(dev);
 }
 
@@ -2514,7 +2515,7 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 	csdev = device_create(comedi_class, hardware_device,
 			      MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i", i);
 	if (!IS_ERR(csdev))
-		dev->class_dev = csdev;
+		dev->class_dev = get_device(csdev);
 
 	/* Note: dev->mutex needs to be unlocked by the caller. */
 	return dev;
