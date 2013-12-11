@@ -198,6 +198,13 @@ i40e_status i40e_init_shared_code(struct i40e_hw *hw)
 		break;
 	}
 
+	/* Determine the PF number based on the PCI fn */
+	reg = rd32(hw, I40E_GLPCI_CAPSUP);
+	if (reg & I40E_GLPCI_CAPSUP_ARI_EN_MASK)
+		hw->pf_id = (u8)((hw->bus.device << 3) | hw->bus.func);
+	else
+		hw->pf_id = (u8)hw->bus.func;
+
 	status = i40e_init_nvm(hw);
 	return status;
 }
@@ -374,13 +381,6 @@ i40e_status i40e_pf_reset(struct i40e_hw *hw)
 		hw_dbg(hw, "I40E_GLNVM_ULD = 0x%x\n", reg);
 		return I40E_ERR_RESET_FAILED;
 	}
-
-	/* Determine the PF number based on the PCI fn */
-	reg = rd32(hw, I40E_GLPCI_CAPSUP);
-	if (reg & I40E_GLPCI_CAPSUP_ARI_EN_MASK)
-		hw->pf_id = (u8)((hw->bus.device << 3) | hw->bus.func);
-	else
-		hw->pf_id = (u8)hw->bus.func;
 
 	/* If there was a Global Reset in progress when we got here,
 	 * we don't need to do the PF Reset
