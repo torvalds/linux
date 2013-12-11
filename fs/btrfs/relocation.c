@@ -2409,6 +2409,13 @@ out:
 		btrfs_std_error(root->fs_info, ret);
 		if (!list_empty(&reloc_roots))
 			free_reloc_roots(&reloc_roots);
+
+		/* new reloc root may be added */
+		mutex_lock(&root->fs_info->reloc_mutex);
+		list_splice_init(&rc->reloc_roots, &reloc_roots);
+		mutex_unlock(&root->fs_info->reloc_mutex);
+		if (!list_empty(&reloc_roots))
+			free_reloc_roots(&reloc_roots);
 	}
 
 	BUG_ON(!RB_EMPTY_ROOT(&rc->reloc_root_tree.rb_root));
