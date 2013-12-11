@@ -115,10 +115,9 @@ static int ohci_hcd_ppc_of_probe(struct platform_device *op)
 	hcd->rsrc_start = res.start;
 	hcd->rsrc_len = resource_size(&res);
 
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
-		dev_err(&op->dev, "%s: request_mem_region failed\n",
-			__FILE__);
-		rv = -EBUSY;
+	hcd->regs = devm_ioremap_resource(&op->dev, &res);
+	if (IS_ERR(hcd->regs)) {
+		rv = PTR_ERR(hcd->regs);
 		goto err_rmr;
 	}
 
@@ -127,14 +126,7 @@ static int ohci_hcd_ppc_of_probe(struct platform_device *op)
 		dev_err(&op->dev, "%s: irq_of_parse_and_map failed\n",
 			__FILE__);
 		rv = -EBUSY;
-		goto err_irq;
-	}
-
-	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
-	if (!hcd->regs) {
-		dev_err(&op->dev, "%s: ioremap failed\n", __FILE__);
-		rv = -ENOMEM;
-		goto err_ioremap;
+		goto err_rmr;
 	}
 
 	ohci = hcd_to_ohci(hcd);
@@ -178,11 +170,7 @@ static int ohci_hcd_ppc_of_probe(struct platform_device *op)
 			pr_debug("%s: cannot get ehci offset from fdt\n", __FILE__);
 	}
 
-	iounmap(hcd->regs);
-err_ioremap:
 	irq_dispose_mapping(irq);
-err_irq:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 err_rmr:
  	usb_put_hcd(hcd);
 
@@ -197,9 +185,7 @@ static int ohci_hcd_ppc_of_remove(struct platform_device *op)
 
 	usb_remove_hcd(hcd);
 
-	iounmap(hcd->regs);
 	irq_dispose_mapping(hcd->irq);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 
 	usb_put_hcd(hcd);
 
