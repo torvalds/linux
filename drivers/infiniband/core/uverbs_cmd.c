@@ -2795,6 +2795,9 @@ int ib_uverbs_ex_destroy_flow(struct ib_uverbs_file *file,
 	if (ret)
 		return ret;
 
+	if (cmd.comp_mask)
+		return -EINVAL;
+
 	uobj = idr_write_uobj(&ib_uverbs_rule_idr, cmd.flow_handle,
 			      file->ucontext);
 	if (!uobj)
