@@ -450,21 +450,6 @@ int psb_irq_disable_dpst(struct drm_device *dev)
 	return 0;
 }
 
-#ifdef PSB_FIXME
-static int psb_vblank_do_wait(struct drm_device *dev,
-			      unsigned int *sequence, atomic_t *counter)
-{
-	unsigned int cur_vblank;
-	int ret = 0;
-	DRM_WAIT_ON(ret, dev->vblank.queue, 3 * HZ,
-		    (((cur_vblank = atomic_read(counter))
-		      - *sequence) <= (1 << 23)));
-	*sequence = cur_vblank;
-
-	return ret;
-}
-#endif
-
 /*
  * It is used to enable VBLANK interrupt
  */
