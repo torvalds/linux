@@ -18,12 +18,19 @@
 /*
  * zsmalloc mapping modes
  *
- * NOTE: These only make a difference when a mapped object spans pages
+ * NOTE: These only make a difference when a mapped object spans pages.
+ * They also have no effect when PGTABLE_MAPPING is selected.
  */
 enum zs_mapmode {
 	ZS_MM_RW, /* normal read-write mapping */
 	ZS_MM_RO, /* read-only (no copy-out at unmap time) */
 	ZS_MM_WO /* write-only (no copy-in at map time) */
+	/*
+	 * NOTE: ZS_MM_WO should only be used for initializing new
+	 * (uninitialized) allocations.  Partial writes to already
+	 * initialized allocations should use ZS_MM_RW to preserve the
+	 * existing data.
+	 */
 };
 
 struct zs_pool;
