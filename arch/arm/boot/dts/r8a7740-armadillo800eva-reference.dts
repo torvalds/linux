@@ -63,6 +63,15 @@
 		enable-active-high;
 	};
 
+	reg_5p0v: regulator@3 {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-5.0V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		led1 {
@@ -86,6 +95,7 @@
 		default-brightness-level = <9>;
 		pinctrl-0 = <&backlight_pins>;
 		pinctrl-names = "default";
+		power-supply = <&reg_5p0v>;
 	};
 
 	sound {
