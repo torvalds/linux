@@ -879,20 +879,16 @@ static irqreturn_t iwl_pcie_isr_non_ict(struct iwl_trans *trans)
 static irqreturn_t iwl_pcie_isr_ict(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	unsigned long flags;
 	irqreturn_t ret;
 	u32 inta;
 	u32 val = 0;
 	u32 read;
-
-	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 
 	/* dram interrupt table not set yet,
 	 * use legacy interrupt.
 	 */
 	if (unlikely(!trans_pcie->use_ict)) {
 		ret = iwl_pcie_isr_non_ict(trans);
-		spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 		return ret;
 	}
 
@@ -950,10 +946,8 @@ static irqreturn_t iwl_pcie_isr_ict(struct iwl_trans *trans)
 	trans_pcie->inta |= inta;
 
 	/* iwl_pcie_tasklet() will service interrupts and re-enable them */
-	if (likely(inta)) {
-		spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
+	if (likely(inta))
 		return IRQ_WAKE_THREAD;
-	}
 
 	ret = IRQ_HANDLED;
 
@@ -965,7 +959,6 @@ static irqreturn_t iwl_pcie_isr_ict(struct iwl_trans *trans)
 	    !trans_pcie->inta)
 		iwl_enable_interrupts(trans);
 
-	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 	return ret;
 }
 
@@ -977,11 +970,18 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 	u32 inta = 0;
 	u32 handled = 0;
 	unsigned long flags;
+	irqreturn_t ret;
 	u32 i;
 
 	lock_map_acquire(&trans->sync_cmd_lockdep_map);
 
 	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
+
+	ret = iwl_pcie_isr_ict(trans);
+	if (ret != IRQ_WAKE_THREAD) {
+		spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
+		return ret;
+	}
 
 	/* Ack/clear/reset pending uCode interrupts.
 	 * Note:  Some bits in CSR_INT are "OR" of bits in CSR_FH_INT_STATUS,
@@ -1281,5 +1281,5 @@ irqreturn_t iwl_pcie_isr(int irq, void *data)
 	 */
 	iwl_write32(trans, CSR_INT_MASK, 0x00000000);
 
-	return iwl_pcie_isr_ict(trans);
+	return IRQ_WAKE_THREAD;
 }
