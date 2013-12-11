@@ -409,7 +409,13 @@ static const struct iio_event_spec ad799x_events[] = {
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
 	.scan_index = (_index), \
-	.scan_type = IIO_ST('u', _realbits, 16, 12 - (_realbits)), \
+	.scan_type = { \
+		.sign = 'u', \
+		.realbits = (_realbits), \
+		.storagebits = 16, \
+		.shift = 12 - (_realbits), \
+		.endianness = IIO_BE, \
+	}, \
 	.event_spec = _ev_spec, \
 	.num_event_specs = _num_ev_spec, \
 }
