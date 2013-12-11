@@ -402,12 +402,18 @@ And a couple of implicit varieties:
      Memory operations that occur after an UNLOCK operation may appear to
      happen before it completes.
 
-     LOCK and UNLOCK operations are guaranteed to appear with respect to each
-     other strictly in the order specified.
-
      The use of LOCK and UNLOCK operations generally precludes the need for
      other sorts of memory barrier (but note the exceptions mentioned in the
-     subsection "MMIO write barrier").
+     subsection "MMIO write barrier").  In addition, an UNLOCK+LOCK pair
+     is -not- guaranteed to act as a full memory barrier.  However,
+     after a LOCK on a given lock variable, all memory accesses preceding any
+     prior UNLOCK on that same variable are guaranteed to be visible.
+     In other words, within a given lock variable's critical section,
+     all accesses of all previous critical sections for that lock variable
+     are guaranteed to have completed.
+
+     This means that LOCK acts as a minimal "acquire" operation and
+     UNLOCK acts as a minimal "release" operation.
 
 
 Memory barriers are only required where there's a possibility of interaction
@@ -1633,8 +1639,12 @@ for each construct.  These operations all imply certain barriers:
      Memory operations issued after the LOCK will be completed after the LOCK
      operation has completed.
 
-     Memory operations issued before the LOCK may be completed after the LOCK
-     operation has completed.
+     Memory operations issued before the LOCK may be completed after the
+     LOCK operation has completed.  An smp_mb__before_spinlock(), combined
+     with a following LOCK, orders prior loads against subsequent stores
+     and stores and prior stores against subsequent stores.  Note that
+     this is weaker than smp_mb()!  The smp_mb__before_spinlock()
+     primitive is free on many architectures.
 
  (2) UNLOCK operation implication:
 
@@ -1654,18 +1664,12 @@ for each construct.  These operations all imply certain barriers:
      All LOCK operations issued before an UNLOCK operation will be completed
      before the UNLOCK operation.
 
-     All UNLOCK operations issued before a LOCK operation will be completed
-     before the LOCK operation.
-
  (5) Failed conditional LOCK implication:
 
      Certain variants of the LOCK operation may fail, either due to being
      unable to get the lock immediately, or due to receiving an unblocked
      signal whilst asleep waiting for the lock to become available.  Failed
      locks do not imply any sort of barrier.
-
-Therefore, from (1), (2) and (4) an UNLOCK followed by an unconditional LOCK is
-equivalent to a full barrier, but a LOCK followed by an UNLOCK is not.
 
 [!] Note: one of the consequences of LOCKs and UNLOCKs being only one-way
     barriers is that the effects of instructions outside of a critical section
@@ -1677,13 +1681,57 @@ LOCK, and an access following the UNLOCK to happen before the UNLOCK, and the
 two accesses can themselves then cross:
 
 	*A = a;
-	LOCK
-	UNLOCK
+	LOCK M
+	UNLOCK M
 	*B = b;
 
 may occur as:
 
-	LOCK, STORE *B, STORE *A, UNLOCK
+	LOCK M, STORE *B, STORE *A, UNLOCK M
+
+This same reordering can of course occur if the LOCK and UNLOCK are
+to the same lock variable, but only from the perspective of another
+CPU not holding that lock.
+
+In short, an UNLOCK followed by a LOCK may -not- be assumed to be a full
+memory barrier because it is possible for a preceding UNLOCK to pass a
+later LOCK from the viewpoint of the CPU, but not from the viewpoint
+of the compiler.  Note that deadlocks cannot be introduced by this
+interchange because if such a deadlock threatened, the UNLOCK would
+simply complete.
+
+If it is necessary for an UNLOCK-LOCK pair to produce a full barrier,
+the LOCK can be followed by an smp_mb__after_unlock_lock() invocation.
+This will produce a full barrier if either (a) the UNLOCK and the LOCK
+are executed by the same CPU or task, or (b) the UNLOCK and LOCK act
+on the same lock variable.  The smp_mb__after_unlock_lock() primitive
+is free on many architectures.  Without smp_mb__after_unlock_lock(),
+the critical sections corresponding to the UNLOCK and the LOCK can cross:
+
+	*A = a;
+	UNLOCK M
+	LOCK N
+	*B = b;
+
+could occur as:
+
+	LOCK N, STORE *B, STORE *A, UNLOCK M
+
+With smp_mb__after_unlock_lock(), they cannot, so that:
+
+	*A = a;
+	UNLOCK M
+	LOCK N
+	smp_mb__after_unlock_lock();
+	*B = b;
+
+will always occur as either of the following:
+
+	STORE *A, UNLOCK, LOCK, STORE *B
+	STORE *A, LOCK, UNLOCK, STORE *B
+
+If the UNLOCK and LOCK were instead both operating on the same lock
+variable, only the first of these two alternatives can occur.
 
 Locks and semaphores may not provide any guarantee of ordering on UP compiled
 systems, and so cannot be counted on in such a situation to actually achieve
@@ -1911,6 +1959,7 @@ However, if the following occurs:
 	UNLOCK M	     [1]
 	ACCESS_ONCE(*D) = d;		ACCESS_ONCE(*E) = e;
 					LOCK M		     [2]
+					smp_mb__after_unlock_lock();
 					ACCESS_ONCE(*F) = f;
 					ACCESS_ONCE(*G) = g;
 					UNLOCK M	     [2]
@@ -1927,6 +1976,11 @@ But assuming CPU 1 gets the lock first, CPU 3 won't see any of:
 	*A, *B or *C following UNLOCK M [1]
 	*F, *G or *H preceding LOCK M [2]
 	*A, *B, *C, *E, *F or *G following UNLOCK M [2]
+
+Note that the smp_mb__after_unlock_lock() is critically important
+here: Without it CPU 3 might see some of the above orderings.
+Without smp_mb__after_unlock_lock(), the accesses are not guaranteed
+to be seen in order unless CPU 3 holds lock M.
 
 
 LOCKS VS I/O ACCESSES
