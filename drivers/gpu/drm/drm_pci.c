@@ -276,7 +276,7 @@ static void drm_pci_agp_init(struct drm_device *dev)
 	}
 }
 
-static void drm_pci_agp_destroy(struct drm_device *dev)
+void drm_pci_agp_destroy(struct drm_device *dev)
 {
 	if (dev->agp) {
 		arch_phys_wc_del(dev->agp->agp_mtrr);
@@ -293,7 +293,6 @@ static struct drm_bus drm_pci_bus = {
 	.set_busid = drm_pci_set_busid,
 	.set_unique = drm_pci_set_unique,
 	.irq_by_busid = drm_pci_irq_by_busid,
-	.agp_destroy = drm_pci_agp_destroy,
 };
 
 /**
@@ -457,6 +456,7 @@ int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 	return -1;
 }
 
+void drm_pci_agp_destroy(struct drm_device *dev) {}
 #endif
 
 EXPORT_SYMBOL(drm_pci_init);

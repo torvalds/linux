@@ -766,9 +766,6 @@ struct drm_bus {
 	int (*set_unique)(struct drm_device *dev, struct drm_master *master,
 			  struct drm_unique *unique);
 	int (*irq_by_busid)(struct drm_device *dev, struct drm_irq_busid *p);
-	/* hooks that are for PCI */
-	void (*agp_destroy)(struct drm_device *dev);
-
 };
 
 /**
@@ -1684,6 +1681,7 @@ static __inline__ int drm_pci_device_is_agp(struct drm_device *dev)
 
 	return pci_find_capability(dev->pdev, PCI_CAP_ID_AGP);
 }
+void drm_pci_agp_destroy(struct drm_device *dev);
 
 extern int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver);
 extern void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver);
