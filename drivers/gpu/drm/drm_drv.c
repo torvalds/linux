@@ -315,7 +315,6 @@ long drm_ioctl(struct file *filp,
 	if (drm_device_is_unplugged(dev))
 		return -ENODEV;
 
-	atomic_inc(&dev->ioctl_count);
 	++file_priv->ioctl_count;
 
 	if ((nr >= DRM_CORE_IOCTL_COUNT) &&
@@ -410,7 +409,6 @@ long drm_ioctl(struct file *filp,
 
 	if (kdata != stack_kdata)
 		kfree(kdata);
-	atomic_dec(&dev->ioctl_count);
 	if (retcode)
 		DRM_DEBUG("ret = %d\n", retcode);
 	return retcode;
