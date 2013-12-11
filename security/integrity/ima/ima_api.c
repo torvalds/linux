@@ -92,8 +92,8 @@ int ima_store_template(struct ima_template_entry *entry,
 		       int violation, struct inode *inode,
 		       const unsigned char *filename)
 {
-	const char *op = "add_template_measure";
-	const char *audit_cause = "hashing_error";
+	static const char op[] = "add_template_measure";
+	static const char audit_cause[] = "hashing_error";
 	char *template_name = entry->template_desc->name;
 	int result;
 	struct {
@@ -260,8 +260,8 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 			   struct evm_ima_xattr_data *xattr_value,
 			   int xattr_len)
 {
-	const char *op = "add_template_measure";
-	const char *audit_cause = "ENOMEM";
+	static const char op[] = "add_template_measure";
+	static const char audit_cause[] = "ENOMEM";
 	int result = -ENOMEM;
 	struct inode *inode = file_inode(file);
 	struct ima_template_entry *entry;

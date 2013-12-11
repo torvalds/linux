@@ -42,10 +42,10 @@ int ima_used_chip;
  */
 static void __init ima_add_boot_aggregate(void)
 {
+	static const char op[] = "add_boot_aggregate";
+	const char *audit_cause = "ENOMEM";
 	struct ima_template_entry *entry;
 	struct integrity_iint_cache tmp_iint, *iint = &tmp_iint;
-	const char *op = "add_boot_aggregate";
-	const char *audit_cause = "ENOMEM";
 	int result = -ENOMEM;
 	int violation = 0;
 	struct {

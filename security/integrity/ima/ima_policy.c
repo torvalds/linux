@@ -329,7 +329,7 @@ void __init ima_init_policy(void)
  */
 void ima_update_policy(void)
 {
-	const char *op = "policy_update";
+	static const char op[] = "policy_update";
 	const char *cause = "already exists";
 	int result = 1;
 	int audit_info = 0;
@@ -645,7 +645,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
  */
 ssize_t ima_parse_add_rule(char *rule)
 {
-	const char *op = "update_policy";
+	static const char op[] = "update_policy";
 	char *p;
 	struct ima_rule_entry *entry;
 	ssize_t result, len;
