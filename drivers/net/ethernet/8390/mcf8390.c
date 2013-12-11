@@ -39,7 +39,6 @@ static const char version[] =
 
 #define NESM_START_PG	0x40	/* First page of TX buffer */
 #define NESM_STOP_PG	0x80	/* Last page +1 of RX ring */
-static u32 mcf8390_msg_enable;
 
 #ifdef NE2000_ODDOFFSET
 /*
@@ -154,9 +153,9 @@ static void mcf8390_reset_8390(struct net_device *dev)
 {
 	unsigned long reset_start_time = jiffies;
 	u32 addr = dev->base_addr;
-	struct ei_device *ei_local = netdev_priv(dev);
 
-	netif_dbg(ei_local, hw, dev, "resetting the 8390 t=%ld...\n", jiffies);
+	if (ei_debug > 1)
+		netdev_dbg(dev, "resetting the 8390 t=%ld...\n", jiffies);
 
 	ei_outb(ei_inb(addr + NE_RESET), addr + NE_RESET);
 
@@ -289,7 +288,7 @@ static void mcf8390_block_output(struct net_device *dev, int count,
 	dma_start = jiffies;
 	while ((ei_inb(addr + NE_EN0_ISR) & ENISR_RDC) == 0) {
 		if (time_after(jiffies, dma_start + 2 * HZ / 100)) { /* 20ms */
-			netdev_warn(dev, "timeout waiting for Tx RDC\n");
+			netdev_err(dev, "timeout waiting for Tx RDC\n");
 			mcf8390_reset_8390(dev);
 			__NS8390_init(dev, 1);
 			break;
@@ -438,7 +437,6 @@ static int mcf8390_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	platform_set_drvdata(pdev, dev);
 	ei_local = netdev_priv(dev);
-	ei_local->msg_enable = mcf8390_msg_enable;
 
 	dev->irq = irq->start;
 	dev->base_addr = mem->start;
