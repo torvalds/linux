@@ -64,6 +64,7 @@ static void __init koelsch_add_standard_devices(void)
 }
 
 static const char * const koelsch_boards_compat_dt[] __initconst = {
+	"renesas,koelsch",
 	"renesas,koelsch-reference",
 	NULL,
 };
