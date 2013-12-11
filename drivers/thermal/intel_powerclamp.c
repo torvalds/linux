@@ -443,7 +443,7 @@ static int clamp_thread(void *arg)
 			atomic_inc(&idle_wakeup_counter);
 		}
 		tick_nohz_idle_exit();
-		preempt_enable_no_resched();
+		preempt_enable();
 	}
 	del_timer_sync(&wakeup_timer);
 	clear_bit(cpunr, cpu_clamping_mask);
