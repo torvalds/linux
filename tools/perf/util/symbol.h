@@ -221,9 +221,6 @@ struct symbol *dso__first_symbol(struct dso *dso, enum map_type type);
 
 int filename__read_build_id(const char *filename, void *bf, size_t size);
 int sysfs__read_build_id(const char *filename, void *bf, size_t size);
-int kallsyms__parse(const char *filename, void *arg,
-		    int (*process_symbol)(void *arg, const char *name,
-					  char type, u64 start));
 int modules__parse(const char *filename, void *arg,
 		   int (*process_module)(void *arg, const char *name,
 					 u64 start));

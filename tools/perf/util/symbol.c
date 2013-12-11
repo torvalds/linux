@@ -18,11 +18,8 @@
 
 #include <elf.h>
 #include <limits.h>
+#include <symbol/kallsyms.h>
 #include <sys/utsname.h>
-
-#ifndef KSYM_NAME_LEN
-#define KSYM_NAME_LEN 256
-#endif
 
 static int dso__load_kernel_sym(struct dso *dso, struct map *map,
 				symbol_filter_t filter);
@@ -446,62 +443,6 @@ size_t dso__fprintf_symbols_by_name(struct dso *dso,
 	return ret;
 }
 
-int kallsyms__parse(const char *filename, void *arg,
-		    int (*process_symbol)(void *arg, const char *name,
-					  char type, u64 start))
-{
-	char *line = NULL;
-	size_t n;
-	int err = -1;
-	FILE *file = fopen(filename, "r");
-
-	if (file == NULL)
-		goto out_failure;
-
-	err = 0;
-
-	while (!feof(file)) {
-		u64 start;
-		int line_len, len;
-		char symbol_type;
-		char *symbol_name;
-
-		line_len = getline(&line, &n, file);
-		if (line_len < 0 || !line)
-			break;
-
-		line[--line_len] = '\0'; /* \n */
-
-		len = hex2u64(line, &start);
-
-		len++;
-		if (len + 2 >= line_len)
-			continue;
-
-		symbol_type = line[len];
-		len += 2;
-		symbol_name = line + len;
-		len = line_len - len;
-
-		if (len >= KSYM_NAME_LEN) {
-			err = -1;
-			break;
-		}
-
-		err = process_symbol(arg, symbol_name,
-				     symbol_type, start);
-		if (err)
-			break;
-	}
-
-	free(line);
-	fclose(file);
-	return err;
-
-out_failure:
-	return -1;
-}
-
 int modules__parse(const char *filename, void *arg,
 		   int (*process_module)(void *arg, const char *name,
 					 u64 start))
@@ -564,14 +505,6 @@ struct process_kallsyms_args {
 	struct map *map;
 	struct dso *dso;
 };
-
-static u8 kallsyms2elf_type(char type)
-{
-	if (type == 'W')
-		return STB_WEAK;
-
-	return isupper(type) ? STB_GLOBAL : STB_LOCAL;
-}
 
 bool symbol__is_idle(struct symbol *sym)
 {

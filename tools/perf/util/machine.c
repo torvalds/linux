@@ -9,6 +9,7 @@
 #include "strlist.h"
 #include "thread.h"
 #include <stdbool.h>
+#include <symbol/kallsyms.h>
 #include "unwind.h"
 
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
