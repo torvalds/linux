@@ -267,11 +267,6 @@ static int drm_pci_agp_init(struct drm_device *dev)
 	if (drm_core_has_AGP(dev)) {
 		if (drm_pci_device_is_agp(dev))
 			dev->agp = drm_agp_init(dev);
-		if (drm_core_check_feature(dev, DRIVER_REQUIRE_AGP)
-		    && (dev->agp == NULL)) {
-			DRM_ERROR("Cannot initialize the agpgart module.\n");
-			return -EINVAL;
-		}
 		if (dev->agp) {
 			dev->agp->agp_mtrr = arch_phys_wc_add(
 				dev->agp->agp_info.aper_base,

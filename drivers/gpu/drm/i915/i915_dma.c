@@ -1476,6 +1476,10 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		return -ENODEV;
 	}
 
+	/* UMS needs agp support. */
+	if (!drm_core_check_feature(dev, DRIVER_MODESET) && !dev->agp)
+		return -EINVAL;
+
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (dev_priv == NULL)
 		return -ENOMEM;

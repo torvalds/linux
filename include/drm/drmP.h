@@ -137,7 +137,6 @@ int drm_err(const char *func, const char *format, ...);
 
 /* driver capabilities and requirements mask */
 #define DRIVER_USE_AGP     0x1
-#define DRIVER_REQUIRE_AGP 0x2
 #define DRIVER_PCI_DMA     0x8
 #define DRIVER_SG          0x10
 #define DRIVER_HAVE_DMA    0x20
