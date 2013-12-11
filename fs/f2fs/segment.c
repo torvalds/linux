@@ -856,15 +856,14 @@ static int __get_segment_type(struct page *page, enum page_type p_type)
 
 static void do_write_page(struct f2fs_sb_info *sbi, struct page *page,
 			block_t old_blkaddr, block_t *new_blkaddr,
-			struct f2fs_summary *sum, enum page_type p_type,
-			struct writeback_control *wbc)
+			struct f2fs_summary *sum, struct f2fs_io_info *fio)
 {
 	struct sit_info *sit_i = SIT_I(sbi);
 	struct curseg_info *curseg;
 	unsigned int old_cursegno;
-	int type, rw = WRITE;
+	int type;
 
-	type = __get_segment_type(page, p_type);
+	type = __get_segment_type(page, fio->type);
 	curseg = CURSEG_I(sbi, type);
 
 	mutex_lock(&curseg->curseg_mutex);
@@ -897,55 +896,60 @@ static void do_write_page(struct f2fs_sb_info *sbi, struct page *page,
 	locate_dirty_segment(sbi, GET_SEGNO(sbi, old_blkaddr));
 	mutex_unlock(&sit_i->sentry_lock);
 
-	if (p_type == NODE)
+	if (fio->type == NODE)
 		fill_node_footer_blkaddr(page, NEXT_FREE_BLKADDR(sbi, curseg));
 
 	/* writeout dirty page into bdev */
-	if (wbc->sync_mode == WB_SYNC_ALL)
-		rw |= WRITE_SYNC;
-	f2fs_submit_page_mbio(sbi, page, *new_blkaddr, p_type, rw);
+	f2fs_submit_page_mbio(sbi, page, *new_blkaddr, fio);
 
 	mutex_unlock(&curseg->curseg_mutex);
 }
 
 void write_meta_page(struct f2fs_sb_info *sbi, struct page *page)
 {
+	struct f2fs_io_info fio = {
+		.type = META,
+		.rw = WRITE_SYNC,
+		.rw_flag = REQ_META | REQ_PRIO
+	};
+
 	set_page_writeback(page);
-	f2fs_submit_page_mbio(sbi, page, page->index, META, WRITE);
+	f2fs_submit_page_mbio(sbi, page, page->index, &fio);
 }
 
 void write_node_page(struct f2fs_sb_info *sbi, struct page *page,
 		unsigned int nid, block_t old_blkaddr, block_t *new_blkaddr)
 {
 	struct f2fs_summary sum;
-	struct writeback_control wbc = {
-		.sync_mode = 1,
+	struct f2fs_io_info fio = {
+		.type = NODE,
+		.rw = WRITE_SYNC,
+		.rw_flag = 0
 	};
+
 	set_summary(&sum, nid, 0, 0);
-	do_write_page(sbi, page, old_blkaddr, new_blkaddr, &sum, NODE, &wbc);
+	do_write_page(sbi, page, old_blkaddr, new_blkaddr, &sum, &fio);
 }
 
-void write_data_page(struct inode *inode, struct page *page,
-		struct dnode_of_data *dn, block_t old_blkaddr,
-		block_t *new_blkaddr, struct writeback_control *wbc)
+void write_data_page(struct page *page, struct dnode_of_data *dn,
+		block_t *new_blkaddr, struct f2fs_io_info *fio)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_SB(dn->inode->i_sb);
 	struct f2fs_summary sum;
 	struct node_info ni;
 
-	f2fs_bug_on(old_blkaddr == NULL_ADDR);
+	f2fs_bug_on(dn->data_blkaddr == NULL_ADDR);
 	get_node_info(sbi, dn->nid, &ni);
 	set_summary(&sum, dn->nid, dn->ofs_in_node, ni.version);
 
-	do_write_page(sbi, page, old_blkaddr,
-			new_blkaddr, &sum, DATA, wbc);
+	do_write_page(sbi, page, dn->data_blkaddr, new_blkaddr, &sum, fio);
 }
 
-void rewrite_data_page(struct f2fs_sb_info *sbi, struct page *page,
-			block_t old_blk_addr, struct writeback_control *wbc)
+void rewrite_data_page(struct page *page, block_t old_blkaddr, struct f2fs_io_info *fio)
 {
-	int rw = wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : WRITE;
-	f2fs_submit_page_mbio(sbi, page, old_blk_addr, DATA, rw);
+	struct inode *inode = page->mapping->host;
+	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	f2fs_submit_page_mbio(sbi, page, old_blkaddr, fio);
 }
 
 void recover_data_page(struct f2fs_sb_info *sbi,
@@ -1004,6 +1008,11 @@ void rewrite_node_page(struct f2fs_sb_info *sbi,
 	unsigned int segno, old_cursegno;
 	block_t next_blkaddr = next_blkaddr_of_node(page);
 	unsigned int next_segno = GET_SEGNO(sbi, next_blkaddr);
+	struct f2fs_io_info fio = {
+		.type = NODE,
+		.rw = WRITE_SYNC,
+		.rw_flag = 0
+	};
 
 	curseg = CURSEG_I(sbi, type);
 
@@ -1032,8 +1041,8 @@ void rewrite_node_page(struct f2fs_sb_info *sbi,
 
 	/* rewrite node page */
 	set_page_writeback(page);
-	f2fs_submit_page_mbio(sbi, page, new_blkaddr, NODE, WRITE_SYNC);
-	f2fs_submit_merged_bio(sbi, NODE, true, WRITE);
+	f2fs_submit_page_mbio(sbi, page, new_blkaddr, &fio);
+	f2fs_submit_merged_bio(sbi, NODE, WRITE);
 	refresh_sit_entry(sbi, old_blkaddr, new_blkaddr);
 
 	locate_dirty_segment(sbi, old_cursegno);
@@ -1048,7 +1057,7 @@ void f2fs_wait_on_page_writeback(struct page *page,
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(page->mapping->host->i_sb);
 	if (PageWriteback(page)) {
-		f2fs_submit_merged_bio(sbi, type, sync, WRITE);
+		f2fs_submit_merged_bio(sbi, type, WRITE);
 		wait_on_page_writeback(page);
 	}
 }
@@ -1580,6 +1589,11 @@ static int ra_sit_pages(struct f2fs_sb_info *sbi, int start, int nrpages)
 	block_t blk_addr, prev_blk_addr = 0;
 	int sit_blk_cnt = SIT_BLK_CNT(sbi);
 	int blkno = start;
+	struct f2fs_io_info fio = {
+		.type = META,
+		.rw = READ_SYNC,
+		.rw_flag = REQ_META | REQ_PRIO
+	};
 
 	for (; blkno < start + nrpages && blkno < sit_blk_cnt; blkno++) {
 
@@ -1600,13 +1614,13 @@ repeat:
 			continue;
 		}
 
-		f2fs_submit_page_mbio(sbi, page, blk_addr, META, READ_SYNC);
+		f2fs_submit_page_mbio(sbi, page, blk_addr, &fio);
 
 		mark_page_accessed(page);
 		f2fs_put_page(page, 0);
 	}
 
-	f2fs_submit_merged_bio(sbi, META, true, READ);
+	f2fs_submit_merged_bio(sbi, META, READ);
 	return blkno - start;
 }
 

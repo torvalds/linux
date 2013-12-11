@@ -520,8 +520,10 @@ static int check_dnode(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 
 static void move_data_page(struct inode *inode, struct page *page, int gc_type)
 {
-	struct writeback_control wbc = {
-		.sync_mode = 1,
+	struct f2fs_io_info fio = {
+		.type = DATA,
+		.rw = WRITE_SYNC,
+		.rw_flag = 0,
 	};
 
 	if (gc_type == BG_GC) {
@@ -540,7 +542,7 @@ static void move_data_page(struct inode *inode, struct page *page, int gc_type)
 			inode_dec_dirty_dents(inode);
 		}
 		set_cold_data(page);
-		do_write_data_page(page, &wbc);
+		do_write_data_page(page, &fio);
 		clear_cold_data(page);
 	}
 out:
@@ -634,7 +636,7 @@ next_iput:
 		goto next_step;
 
 	if (gc_type == FG_GC) {
-		f2fs_submit_merged_bio(sbi, DATA, true, WRITE);
+		f2fs_submit_merged_bio(sbi, DATA, WRITE);
 
 		/*
 		 * In the case of FG_GC, it'd be better to reclaim this victim

@@ -92,6 +92,12 @@ static void ra_nat_pages(struct f2fs_sb_info *sbi, int nid)
 	struct page *page;
 	pgoff_t index;
 	int i;
+	struct f2fs_io_info fio = {
+		.type = META,
+		.rw = READ_SYNC,
+		.rw_flag = REQ_META | REQ_PRIO
+	};
+
 
 	for (i = 0; i < FREE_NID_PAGES; i++, nid += NAT_ENTRY_PER_BLOCK) {
 		if (unlikely(nid >= nm_i->max_nid))
@@ -106,11 +112,11 @@ static void ra_nat_pages(struct f2fs_sb_info *sbi, int nid)
 			f2fs_put_page(page, 1);
 			continue;
 		}
-		f2fs_submit_page_mbio(sbi, page, index, META, READ);
+		f2fs_submit_page_mbio(sbi, page, index, &fio);
 		mark_page_accessed(page);
 		f2fs_put_page(page, 0);
 	}
-	f2fs_submit_merged_bio(sbi, META, true, READ);
+	f2fs_submit_merged_bio(sbi, META, READ);
 }
 
 static struct nat_entry *__lookup_nat_cache(struct f2fs_nm_info *nm_i, nid_t n)
@@ -1136,8 +1142,7 @@ continue_unlock:
 	}
 
 	if (wrote)
-		f2fs_submit_merged_bio(sbi, NODE, wbc->sync_mode == WB_SYNC_ALL,
-									WRITE);
+		f2fs_submit_merged_bio(sbi, NODE, WRITE);
 	return nwritten;
 }
 
@@ -1574,6 +1579,11 @@ static int ra_sum_pages(struct f2fs_sb_info *sbi, struct list_head *pages,
 {
 	struct page *page;
 	int page_idx = start;
+	struct f2fs_io_info fio = {
+		.type = META,
+		.rw = READ_SYNC,
+		.rw_flag = REQ_META | REQ_PRIO
+	};
 
 	for (; page_idx < start + nrpages; page_idx++) {
 		/* alloc temporal page for read node summary info*/
@@ -1594,9 +1604,9 @@ static int ra_sum_pages(struct f2fs_sb_info *sbi, struct list_head *pages,
 	}
 
 	list_for_each_entry(page, pages, lru)
-		f2fs_submit_page_mbio(sbi, page, page->index, META, READ);
+		f2fs_submit_page_mbio(sbi, page, page->index, &fio);
 
-	f2fs_submit_merged_bio(sbi, META, true, READ);
+	f2fs_submit_merged_bio(sbi, META, READ);
 	return 0;
 }
 

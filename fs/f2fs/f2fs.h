@@ -364,11 +364,18 @@ enum page_type {
 	META_FLUSH,
 };
 
+struct f2fs_io_info {
+	enum page_type type;		/* contains DATA/NODE/META/META_FLUSH */
+	int rw;				/* contains R/RS/W/WS */
+	int rw_flag;			/* contains REQ_META/REQ_PRIO */
+};
+
 #define is_read_io(rw)	(((rw) & 1) == READ)
 struct f2fs_bio_info {
+	struct f2fs_sb_info *sbi;	/* f2fs superblock */
 	struct bio *bio;		/* bios to merge */
 	sector_t last_block_in_bio;	/* last block number */
-	int rw_flag;				/* rw flag for all pages */
+	struct f2fs_io_info fio;	/* store buffered io info. */
 	struct mutex io_mutex;		/* mutex for bio */
 };
 
@@ -1098,10 +1105,9 @@ struct page *get_sum_page(struct f2fs_sb_info *, unsigned int);
 void write_meta_page(struct f2fs_sb_info *, struct page *);
 void write_node_page(struct f2fs_sb_info *, struct page *, unsigned int,
 					block_t, block_t *);
-void write_data_page(struct inode *, struct page *, struct dnode_of_data*,
-			block_t, block_t *, struct writeback_control *);
-void rewrite_data_page(struct f2fs_sb_info *, struct page *, block_t,
-				struct writeback_control *);
+void write_data_page(struct page *, struct dnode_of_data *, block_t *,
+					struct f2fs_io_info *);
+void rewrite_data_page(struct page *, block_t, struct f2fs_io_info *);
 void recover_data_page(struct f2fs_sb_info *, struct page *,
 				struct f2fs_summary *, block_t, block_t);
 void rewrite_node_page(struct f2fs_sb_info *, struct page *,
@@ -1142,17 +1148,17 @@ void destroy_checkpoint_caches(void);
 /*
  * data.c
  */
-void f2fs_submit_merged_bio(struct f2fs_sb_info *, enum page_type, bool, int);
+void f2fs_submit_merged_bio(struct f2fs_sb_info *, enum page_type, int);
 int f2fs_submit_page_bio(struct f2fs_sb_info *, struct page *, block_t, int);
 void f2fs_submit_page_mbio(struct f2fs_sb_info *, struct page *, block_t,
-							enum page_type, int);
+						struct f2fs_io_info *);
 int reserve_new_block(struct dnode_of_data *);
 int f2fs_reserve_block(struct dnode_of_data *, pgoff_t);
 void update_extent_cache(block_t, struct dnode_of_data *);
 struct page *find_data_page(struct inode *, pgoff_t, bool);
 struct page *get_lock_data_page(struct inode *, pgoff_t);
 struct page *get_new_data_page(struct inode *, struct page *, pgoff_t, bool);
-int do_write_data_page(struct page *, struct writeback_control *);
+int do_write_data_page(struct page *, struct f2fs_io_info *);
 
 /*
  * gc.c
