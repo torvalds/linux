@@ -3,7 +3,6 @@ menu "Xen driver support"
 
 config XEN_BALLOON
 	bool "Xen memory balloon driver"
-	depends on !ARM
 	default y
 	help
 	  The balloon driver allows the Xen domain to request more memory from
