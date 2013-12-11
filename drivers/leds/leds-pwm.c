@@ -66,9 +66,11 @@ static void led_pwm_set(struct led_classdev *led_cdev,
 	struct led_pwm_data *led_dat =
 		container_of(led_cdev, struct led_pwm_data, cdev);
 	unsigned int max = led_dat->cdev.max_brightness;
-	unsigned int period =  led_dat->period;
+	unsigned long long duty =  led_dat->period;
 
-	led_dat->duty = brightness * period / max;
+	duty *= brightness;
+	do_div(duty, max);
+	led_dat->duty = duty;
 
 	if (led_dat->can_sleep)
 		schedule_work(&led_dat->work);
