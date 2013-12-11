@@ -386,6 +386,7 @@ static int bnx2fc_init_tgt(struct bnx2fc_rport *tgt,
 	tgt->rq_prod_idx = 0x8000;
 	tgt->rq_cons_idx = 0;
 	atomic_set(&tgt->num_active_ios, 0);
+	tgt->retry_delay_timestamp = 0;
 
 	if (rdata->flags & FC_RP_FLAGS_RETRY &&
 	    rdata->ids.roles & FC_RPORT_ROLE_FCP_TARGET &&
