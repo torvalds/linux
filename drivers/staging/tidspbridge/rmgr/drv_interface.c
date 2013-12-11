@@ -258,6 +258,8 @@ err:
 /* This function maps kernel space memory to user space memory. */
 static int bridge_mmap(struct file *filp, struct vm_area_struct *vma)
 {
+	unsigned long base_pgoff;
+	int status;
 	struct omap_dsp_platform_data *pdata =
 					omap_dspbridge_dev->dev.platform_data;
 
@@ -269,9 +271,31 @@ static int bridge_mmap(struct file *filp, struct vm_area_struct *vma)
 		vma->vm_start, vma->vm_end, vma->vm_page_prot,
 		vma->vm_flags);
 
-	return vm_iomap_memory(vma,
-			       pdata->phys_mempool_base,
-			       pdata->phys_mempool_size);
+	/*
+	 * vm_iomap_memory() expects vma->vm_pgoff to be expressed as an offset
+	 * from the start of the physical memory pool, but we're called with
+	 * a pfn (physical page number) stored there instead.
+	 *
+	 * To avoid duplicating lots of tricky overflow checking logic,
+	 * temporarily convert vma->vm_pgoff to the offset vm_iomap_memory()
+	 * expects, but restore the original value once the mapping has been
+	 * created.
+	 */
+	base_pgoff = pdata->phys_mempool_base >> PAGE_SHIFT;
+
+	if (vma->vm_pgoff < base_pgoff)
+		return -EINVAL;
+
+	vma->vm_pgoff -= base_pgoff;
+
+	status = vm_iomap_memory(vma,
+				 pdata->phys_mempool_base,
+				 pdata->phys_mempool_size);
+
+	/* Restore the original value of vma->vm_pgoff */
+	vma->vm_pgoff += base_pgoff;
+
+	return status;
 }
 
 static const struct file_operations bridge_fops = {
