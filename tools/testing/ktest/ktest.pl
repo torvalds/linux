@@ -1129,6 +1129,10 @@ sub __eval_option {
 	} elsif (defined($opt{$var})) {
 	    $o = $opt{$var};
 	    $retval = "$retval$o";
+	} elsif ($var eq "KERNEL_VERSION" && defined($make)) {
+	    # special option KERNEL_VERSION uses kernel version
+	    get_version();
+	    $retval = "$retval$version";
 	} else {
 	    $retval = "$retval\$\{$var\}";
 	}
@@ -3919,6 +3923,18 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
     my $makecmd = set_test_option("MAKE_CMD", $i);
 
+    $outputdir = set_test_option("OUTPUT_DIR", $i);
+    $builddir = set_test_option("BUILD_DIR", $i);
+
+    chdir $builddir || die "can't change directory to $builddir";
+
+    if (!-d $outputdir) {
+	mkpath($outputdir) or
+	    die "can't create $outputdir";
+    }
+
+    $make = "$makecmd O=$outputdir";
+
     # Load all the options into their mapped variable names
     foreach my $opt (keys %option_map) {
 	${$option_map{$opt}} = set_test_option($opt, $i);
@@ -3943,13 +3959,9 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 	$start_minconfig = $minconfig;
     }
 
-    chdir $builddir || die "can't change directory to $builddir";
-
-    foreach my $dir ($tmpdir, $outputdir) {
-	if (!-d $dir) {
-	    mkpath($dir) or
-		die "can't create $dir";
-	}
+    if (!-d $tmpdir) {
+	mkpath($tmpdir) or
+	    die "can't create $tmpdir";
     }
 
     $ENV{"SSH_USER"} = $ssh_user;
@@ -3958,7 +3970,6 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $buildlog = "$tmpdir/buildlog-$machine";
     $testlog = "$tmpdir/testlog-$machine";
     $dmesg = "$tmpdir/dmesg-$machine";
-    $make = "$makecmd O=$outputdir";
     $output_config = "$outputdir/.config";
 
     if (!$buildonly) {
