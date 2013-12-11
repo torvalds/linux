@@ -1144,8 +1144,9 @@ void xen_setup_vcpu_info_placement(void)
 		xen_vcpu_setup(cpu);
 
 	/* xen_vcpu_setup managed to place the vcpu_info within the
-	   percpu area for all cpus, so make use of it */
-	if (have_vcpu_info_placement) {
+	 * percpu area for all cpus, so make use of it. Note that for
+	 * PVH we want to use native IRQ mechanism. */
+	if (have_vcpu_info_placement && !xen_pvh_domain()) {
 		pv_irq_ops.save_fl = __PV_IS_CALLEE_SAVE(xen_save_fl_direct);
 		pv_irq_ops.restore_fl = __PV_IS_CALLEE_SAVE(xen_restore_fl_direct);
 		pv_irq_ops.irq_disable = __PV_IS_CALLEE_SAVE(xen_irq_disable_direct);
