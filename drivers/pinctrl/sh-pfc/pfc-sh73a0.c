@@ -3651,6 +3651,7 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 };
 
 static const struct pinmux_irq pinmux_irqs[] = {
+	PINMUX_IRQ(irq_pin(15), 0),
 	PINMUX_IRQ(irq_pin(19), 9),
 	PINMUX_IRQ(irq_pin(1), 10),
 	PINMUX_IRQ(irq_pin(0), 11),
