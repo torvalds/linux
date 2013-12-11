@@ -3709,13 +3709,15 @@ disable_slot:
 }
 
 /*
- * Issue an Address Device command (which will issue a SetAddress request to
- * the device).
+ * Issue an Address Device command and optionally send a corresponding
+ * SetAddress request to the device.
  * We should be protected by the usb_address0_mutex in khubd's hub_port_init, so
  * we should only issue and wait on one address command at the same time.
  */
-int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
+static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
+			     enum xhci_setup_dev setup)
 {
+	const char *act = setup == SETUP_CONTEXT_ONLY ? "context" : "address";
 	unsigned long flags;
 	int timeleft;
 	struct xhci_virt_device *virt_dev;
@@ -3773,7 +3775,7 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	spin_lock_irqsave(&xhci->lock, flags);
 	cmd_trb = xhci_find_next_enqueue(xhci->cmd_ring);
 	ret = xhci_queue_address_device(xhci, virt_dev->in_ctx->dma,
-					udev->slot_id);
+					udev->slot_id, setup);
 	if (ret) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		xhci_dbg_trace(xhci, trace_xhci_dbg_address,
@@ -3791,8 +3793,8 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	 * command on a timeout.
 	 */
 	if (timeleft <= 0) {
-		xhci_warn(xhci, "%s while waiting for address device command\n",
-				timeleft == 0 ? "Timeout" : "Signal");
+		xhci_warn(xhci, "%s while waiting for setup %s command\n",
+			  timeleft == 0 ? "Timeout" : "Signal", act);
 		/* cancel the address device command */
 		ret = xhci_cancel_cmd(xhci, NULL, cmd_trb);
 		if (ret < 0)
@@ -3803,26 +3805,27 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	switch (virt_dev->cmd_status) {
 	case COMP_CTX_STATE:
 	case COMP_EBADSLT:
-		xhci_err(xhci, "Setup ERROR: address device command for slot %d.\n",
-				udev->slot_id);
+		xhci_err(xhci, "Setup ERROR: setup %s command for slot %d.\n",
+			 act, udev->slot_id);
 		ret = -EINVAL;
 		break;
 	case COMP_TX_ERR:
-		dev_warn(&udev->dev, "Device not responding to set address.\n");
+		dev_warn(&udev->dev, "Device not responding to setup %s.\n", act);
 		ret = -EPROTO;
 		break;
 	case COMP_DEV_ERR:
-		dev_warn(&udev->dev, "ERROR: Incompatible device for address "
-				"device command.\n");
+		dev_warn(&udev->dev,
+			 "ERROR: Incompatible device for setup %s command\n", act);
 		ret = -ENODEV;
 		break;
 	case COMP_SUCCESS:
 		xhci_dbg_trace(xhci, trace_xhci_dbg_address,
-				"Successful Address Device command");
+			       "Successful setup %s command", act);
 		break;
 	default:
-		xhci_err(xhci, "ERROR: unexpected command completion "
-				"code 0x%x.\n", virt_dev->cmd_status);
+		xhci_err(xhci,
+			 "ERROR: unexpected setup %s command completion code 0x%x.\n",
+			 act, virt_dev->cmd_status);
 		xhci_dbg(xhci, "Slot ID %d Output Context:\n", udev->slot_id);
 		xhci_dbg_ctx(xhci, virt_dev->out_ctx, 2);
 		trace_xhci_address_ctx(xhci, virt_dev->out_ctx, 1);
@@ -3866,6 +3869,16 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 		       le32_to_cpu(slot_ctx->dev_state) & DEV_ADDR_MASK);
 
 	return 0;
+}
+
+int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	return xhci_setup_device(hcd, udev, SETUP_CONTEXT_ADDRESS);
+}
+
+int xhci_enable_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	return xhci_setup_device(hcd, udev, SETUP_CONTEXT_ONLY);
 }
 
 /*

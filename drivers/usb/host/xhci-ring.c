@@ -4004,12 +4004,12 @@ int xhci_queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id)
 
 /* Queue an address device command TRB */
 int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
-		u32 slot_id)
+			      u32 slot_id, enum xhci_setup_dev setup)
 {
 	return queue_command(xhci, lower_32_bits(in_ctx_ptr),
 			upper_32_bits(in_ctx_ptr), 0,
-			TRB_TYPE(TRB_ADDR_DEV) | SLOT_ID_FOR_TRB(slot_id),
-			false);
+			TRB_TYPE(TRB_ADDR_DEV) | SLOT_ID_FOR_TRB(slot_id)
+			| (setup == SETUP_CONTEXT_ONLY ? TRB_BSR : 0), false);
 }
 
 int xhci_queue_vendor_command(struct xhci_hcd *xhci,
