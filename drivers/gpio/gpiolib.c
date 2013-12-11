@@ -2367,7 +2367,7 @@ static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
 				    unsigned int idx,
 				    enum gpio_lookup_flags *flags)
 {
-	struct gpio_desc *desc = ERR_PTR(-ENODEV);
+	struct gpio_desc *desc = ERR_PTR(-ENOENT);
 	struct gpiod_lookup_table *table;
 	struct gpiod_lookup *p;
 
@@ -2389,19 +2389,22 @@ static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
 		chip = find_chip_by_name(p->chip_label);
 
 		if (!chip) {
-			dev_warn(dev, "cannot find GPIO chip %s\n",
-				 p->chip_label);
-			continue;
+			dev_err(dev, "cannot find GPIO chip %s\n",
+				p->chip_label);
+			return ERR_PTR(-ENODEV);
 		}
 
 		if (chip->ngpio <= p->chip_hwnum) {
-			dev_warn(dev, "GPIO chip %s has %d GPIOs\n",
-				 chip->label, chip->ngpio);
-			continue;
+			dev_err(dev,
+				"requested GPIO %d is out of range [0..%d] for chip %s\n",
+				idx, chip->ngpio, chip->label);
+			return ERR_PTR(-EINVAL);
 		}
 
 		desc = gpiochip_offset_to_desc(chip, p->chip_hwnum);
 		*flags = p->flags;
+
+		return desc;
 	}
 
 	return desc;
@@ -2413,7 +2416,8 @@ static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
  * @con_id:	function within the GPIO consumer
  *
  * Return the GPIO descriptor corresponding to the function con_id of device
- * dev, or an IS_ERR() condition if an error occured.
+ * dev, -ENOENT if no GPIO has been assigned to the requested function, or
+ * another IS_ERR() code if an error occured while trying to acquire the GPIO.
  */
 struct gpio_desc *__must_check gpiod_get(struct device *dev, const char *con_id)
 {
@@ -2430,7 +2434,9 @@ EXPORT_SYMBOL_GPL(gpiod_get);
  * This variant of gpiod_get() allows to access GPIOs other than the first
  * defined one for functions that define several GPIOs.
  *
- * Return a valid GPIO descriptor, or an IS_ERR() condition in case of error.
+ * Return a valid GPIO descriptor, -ENOENT if no GPIO has been assigned to the
+ * requested function and/or index, or another IS_ERR() code if an error
+ * occured while trying to acquire the GPIO.
  */
 struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 					       const char *con_id,
@@ -2455,15 +2461,9 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 	 * Either we are not using DT or ACPI, or their lookup did not return
 	 * a result. In that case, use platform lookup as a fallback.
 	 */
-	if (!desc || IS_ERR(desc)) {
-		struct gpio_desc *pdesc;
-
+	if (!desc || desc == ERR_PTR(-ENOENT)) {
 		dev_dbg(dev, "using lookup tables for GPIO lookup");
-		pdesc = gpiod_find(dev, con_id, idx, &flags);
-
-		/* If used as fallback, do not replace the previous error */
-		if (!IS_ERR(pdesc) || !desc)
-			desc = pdesc;
+		desc = gpiod_find(dev, con_id, idx, &flags);
 	}
 
 	if (IS_ERR(desc)) {
