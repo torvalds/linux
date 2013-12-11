@@ -703,7 +703,6 @@ void
 ironlake_check_encoder_dotclock(const struct intel_crtc_config *pipe_config,
 				int dotclock);
 bool intel_crtc_active(struct drm_crtc *crtc);
-void i915_disable_vga_mem(struct drm_device *dev);
 void hsw_enable_ips(struct intel_crtc *crtc);
 void hsw_disable_ips(struct intel_crtc *crtc);
 void intel_display_set_init_power(struct drm_device *dev, bool enable);
