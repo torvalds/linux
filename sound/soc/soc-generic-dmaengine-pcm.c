@@ -321,7 +321,7 @@ static int dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 			name = config->chan_names[i];
 		chan = dma_request_slave_channel_reason(dev, name);
 		if (IS_ERR(chan)) {
-			if (PTR_ERR(pcm->chan[i]) == -EPROBE_DEFER)
+			if (PTR_ERR(chan) == -EPROBE_DEFER)
 				return -EPROBE_DEFER;
 			pcm->chan[i] = NULL;
 		} else {
