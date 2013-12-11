@@ -1969,21 +1969,24 @@ static void audit_log_set_loginuid(kuid_t koldloginuid, kuid_t kloginuid,
 				   int rc)
 {
 	struct audit_buffer *ab;
-	uid_t uid, ologinuid, nloginuid;
+	uid_t uid, oldloginuid, loginuid;
 
 	if (!audit_enabled)
 		return;
 
 	uid = from_kuid(&init_user_ns, task_uid(current));
-	ologinuid = from_kuid(&init_user_ns, koldloginuid);
-	nloginuid = from_kuid(&init_user_ns, kloginuid),
+	oldloginuid = from_kuid(&init_user_ns, koldloginuid);
+	loginuid = from_kuid(&init_user_ns, kloginuid),
 
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_LOGIN);
 	if (!ab)
 		return;
-	audit_log_format(ab, "pid=%d uid=%u old auid=%u new auid=%u old "
-			 "ses=%u new ses=%u res=%d", current->pid, uid, ologinuid,
-			 nloginuid, oldsessionid, sessionid, !rc);
+	audit_log_format(ab, "pid=%d uid=%u"
+			 " old-auid=%u new-auid=%u old-ses=%u new-ses=%u"
+			 " res=%d",
+			 current->pid, uid,
+			 oldloginuid, loginuid, oldsessionid, sessionid,
+			 !rc);
 	audit_log_end(ab);
 }
 
