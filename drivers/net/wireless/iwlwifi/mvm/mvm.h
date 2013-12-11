@@ -323,9 +323,9 @@ struct iwl_mvm_vif {
 #endif
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
+	struct iwl_mvm *mvm;
 	struct dentry *dbgfs_dir;
 	struct dentry *dbgfs_slink;
-	void *dbgfs_data;
 	struct iwl_dbgfs_pm dbgfs_pm;
 	struct iwl_dbgfs_bf dbgfs_bf;
 #endif
@@ -494,6 +494,11 @@ struct iwl_mvm {
 	u32 dbgfs_sram_offset, dbgfs_sram_len;
 	bool disable_power_off;
 	bool disable_power_off_d3;
+
+	struct debugfs_blob_wrapper nvm_hw_blob;
+	struct debugfs_blob_wrapper nvm_sw_blob;
+	struct debugfs_blob_wrapper nvm_calib_blob;
+	struct debugfs_blob_wrapper nvm_prod_blob;
 #endif
 
 	struct iwl_mvm_phy_ctxt phy_ctxts[NUM_PHY_CTX];
@@ -531,6 +536,7 @@ struct iwl_mvm {
 	bool store_d3_resume_sram;
 	void *d3_resume_sram;
 	u32 d3_test_pme_ptr;
+	struct ieee80211_vif *keep_vif;
 #endif
 #endif
 
@@ -750,8 +756,7 @@ iwl_mvm_vif_dbgfs_clean(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 
 /* rate scaling */
-int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq,
-			u8 flags, bool init);
+int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq, bool init);
 
 /* power managment */
 static inline int iwl_mvm_power_update_mode(struct iwl_mvm *mvm,

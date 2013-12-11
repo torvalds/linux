@@ -5,6 +5,7 @@ iwlmvm-y += scan.o time-event.o rs.o
 iwlmvm-y += power.o power_legacy.o bt-coex.o
 iwlmvm-y += led.o tt.o
 iwlmvm-$(CONFIG_IWLWIFI_DEBUGFS) += debugfs.o
+iwlmvm-$(CONFIG_IWLWIFI_DEBUGFS) += debugfs.o debugfs-vif.o
 iwlmvm-$(CONFIG_PM_SLEEP) += d3.o
 
 ccflags-y += -D__CHECK_ENDIAN__ -I$(src)/../

@@ -1542,30 +1542,24 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 	}
 
 	if (!ret) {
-		if (test_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status)) {
-			struct iwl_txq *txq =
-				&trans_pcie->txq[trans_pcie->cmd_queue];
-			struct iwl_queue *q = &txq->q;
+		struct iwl_txq *txq = &trans_pcie->txq[trans_pcie->cmd_queue];
+		struct iwl_queue *q = &txq->q;
 
-			IWL_ERR(trans,
-				"Error sending %s: time out after %dms.\n",
-				get_cmd_string(trans_pcie, cmd->id),
-				jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
+		IWL_ERR(trans, "Error sending %s: time out after %dms.\n",
+			get_cmd_string(trans_pcie, cmd->id),
+			jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
 
-			IWL_ERR(trans,
-				"Current CMD queue read_ptr %d write_ptr %d\n",
-				q->read_ptr, q->write_ptr);
+		IWL_ERR(trans, "Current CMD queue read_ptr %d write_ptr %d\n",
+			q->read_ptr, q->write_ptr);
 
-			clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
-			IWL_DEBUG_INFO(trans,
-				       "Clearing HCMD_ACTIVE for command %s\n",
-				       get_cmd_string(trans_pcie, cmd->id));
-			ret = -ETIMEDOUT;
+		clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
+		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
+			       get_cmd_string(trans_pcie, cmd->id));
+		ret = -ETIMEDOUT;
 
-			iwl_nic_error(trans);
+		iwl_nic_error(trans);
 
-			goto cancel;
-		}
+		goto cancel;
 	}
 
 	if (test_bit(STATUS_FW_ERROR, &trans_pcie->status)) {
@@ -1674,7 +1668,6 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	txq->entries[q->write_ptr].skb = skb;
 	txq->entries[q->write_ptr].cmd = dev_cmd;
 
-	dev_cmd->hdr.cmd = REPLY_TX;
 	dev_cmd->hdr.sequence =
 		cpu_to_le16((u16)(QUEUE_TO_SEQ(txq_id) |
 			    INDEX_TO_SEQ(q->write_ptr)));
