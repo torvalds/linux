@@ -291,8 +291,8 @@ static inline phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_ad
 	return 0;
 }
 
-static inline int domain_has_cap(struct iommu_domain *domain,
-				 unsigned long cap)
+static inline int iommu_domain_has_cap(struct iommu_domain *domain,
+				       unsigned long cap)
 {
 	return 0;
 }
