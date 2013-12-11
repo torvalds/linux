@@ -81,17 +81,10 @@ static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 
 	hcd->rsrc_start = pdev->resource[0].start;
 	hcd->rsrc_len = resource_size(res);
-	if (!devm_request_mem_region(&pdev->dev, hcd->rsrc_start, hcd->rsrc_len,
-				hcd_name)) {
-		dev_dbg(&pdev->dev, "request_mem_region failed\n");
-		retval = -EBUSY;
-		goto err_put_hcd;
-	}
 
-	hcd->regs = devm_ioremap(&pdev->dev, hcd->rsrc_start, hcd->rsrc_len);
-	if (!hcd->regs) {
-		dev_dbg(&pdev->dev, "ioremap failed\n");
-		retval = -ENOMEM;
+	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hcd->regs)) {
+		retval = PTR_ERR(hcd->regs);
 		goto err_put_hcd;
 	}
 
