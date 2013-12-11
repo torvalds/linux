@@ -209,7 +209,6 @@ static const struct iio_chan_spec mcp4725_channel = {
 	.channel	= 0,
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
-	.scan_type	= IIO_ST('u', 12, 16, 0),
 	.ext_info	= mcp4725_ext_info,
 };
 
