@@ -394,6 +394,22 @@ static const struct hpb_dmae_slave_config hpb_dmae_slaves[] = {
 		.port	= 0x0D0C,
 		.flags	= HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE,
 		.dma_ch	= 22,
+	}, {
+		.id	= HPBDMA_SLAVE_USBFUNC_TX, /* for D0 */
+		.addr	= 0xffe60018,
+		.dcr	= HPB_DMAE_DCR_SPDS_32BIT |
+			  HPB_DMAE_DCR_DMDL |
+			  HPB_DMAE_DCR_DPDS_32BIT,
+		.port	= 0x0000,
+		.dma_ch	= 14,
+	}, {
+		.id	= HPBDMA_SLAVE_USBFUNC_RX, /* for D1 */
+		.addr	= 0xffe6001c,
+		.dcr	= HPB_DMAE_DCR_SMDL |
+			  HPB_DMAE_DCR_SPDS_32BIT |
+			  HPB_DMAE_DCR_DPDS_32BIT,
+		.port	= 0x0101,
+		.dma_ch	= 15,
 	},
 
 	HPBDMA_SSI(0),
@@ -418,6 +434,8 @@ static const struct hpb_dmae_slave_config hpb_dmae_slaves[] = {
 };
 
 static const struct hpb_dmae_channel hpb_dmae_channels[] = {
+	HPB_DMAE_CHANNEL(0x7c, HPBDMA_SLAVE_USBFUNC_TX), /* ch. 14 */
+	HPB_DMAE_CHANNEL(0x7c, HPBDMA_SLAVE_USBFUNC_RX), /* ch. 15 */
 	HPB_DMAE_CHANNEL(0x7e, HPBDMA_SLAVE_SDHI0_TX), /* ch. 21 */
 	HPB_DMAE_CHANNEL(0x7e, HPBDMA_SLAVE_SDHI0_RX), /* ch. 22 */
 	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_SSI0_TX),   /* ch. 28 */
