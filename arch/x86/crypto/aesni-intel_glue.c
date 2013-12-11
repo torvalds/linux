@@ -1001,7 +1001,7 @@ static int __driver_rfc4106_decrypt(struct aead_request *req)
 		authTag, auth_tag_len);
 
 	/* Compare generated tag with passed in tag. */
-	retval = memcmp(src + tempCipherLen, authTag, auth_tag_len) ?
+	retval = crypto_memneq(src + tempCipherLen, authTag, auth_tag_len) ?
 		-EBADMSG : 0;
 
 	if (one_entry_in_sg) {
