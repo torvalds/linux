@@ -240,7 +240,7 @@ void kernfs_put(struct kernfs_node *kn)
 
 	if (kernfs_type(kn) == KERNFS_LINK)
 		kernfs_put(kn->symlink.target_kn);
-	if (kernfs_type(kn) & KERNFS_COPY_NAME)
+	if (!(kn->flags & KERNFS_STATIC_NAME))
 		kfree(kn->name);
 	if (kn->iattr) {
 		if (kn->iattr->ia_secdata)
@@ -336,13 +336,13 @@ const struct dentry_operations kernfs_dops = {
 };
 
 struct kernfs_node *kernfs_new_node(struct kernfs_root *root, const char *name,
-				    umode_t mode, int type)
+				    umode_t mode, unsigned flags)
 {
 	char *dup_name = NULL;
 	struct kernfs_node *kn;
 	int ret;
 
-	if (type & KERNFS_COPY_NAME) {
+	if (!(flags & KERNFS_STATIC_NAME)) {
 		name = dup_name = kstrdup(name, GFP_KERNEL);
 		if (!name)
 			return NULL;
@@ -362,7 +362,7 @@ struct kernfs_node *kernfs_new_node(struct kernfs_root *root, const char *name,
 
 	kn->name = name;
 	kn->mode = mode;
-	kn->flags = type | KERNFS_REMOVED;
+	kn->flags = flags | KERNFS_REMOVED;
 
 	return kn;
 

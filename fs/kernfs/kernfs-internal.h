@@ -105,7 +105,7 @@ int kernfs_add_one(struct kernfs_addrm_cxt *acxt, struct kernfs_node *kn,
 		   struct kernfs_node *parent);
 void kernfs_addrm_finish(struct kernfs_addrm_cxt *acxt);
 struct kernfs_node *kernfs_new_node(struct kernfs_root *root, const char *name,
-				    umode_t mode, int type);
+				    umode_t mode, unsigned flags);
 
 /*
  * file.c

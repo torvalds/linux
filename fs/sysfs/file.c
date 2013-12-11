@@ -252,8 +252,8 @@ int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 	if (!attr->ignore_lockdep)
 		key = attr->key ?: (struct lock_class_key *)&attr->skey;
 #endif
-	kn = kernfs_create_file_ns_key(parent, attr->name, mode, size,
-				       ops, (void *)attr, ns, key);
+	kn = __kernfs_create_file(parent, attr->name, mode, size, ops,
+				  (void *)attr, ns, true, key);
 	if (IS_ERR(kn)) {
 		if (PTR_ERR(kn) == -EEXIST)
 			sysfs_warn_dup(parent, attr->name);
