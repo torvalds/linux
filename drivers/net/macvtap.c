@@ -70,6 +70,11 @@ static const struct proto_ops macvtap_socket_ops;
 #define RX_OFFLOADS (NETIF_F_GRO | NETIF_F_LRO)
 #define TAP_FEATURES (NETIF_F_GSO | NETIF_F_SG)
 
+static struct macvlan_dev *macvtap_get_vlan_rcu(const struct net_device *dev)
+{
+	return rcu_dereference(dev->rx_handler_data);
+}
+
 /*
  * RCU usage:
  * The macvtap_queue and the macvlan_dev are loosely coupled, the
@@ -271,24 +276,27 @@ static void macvtap_del_queues(struct net_device *dev)
 		sock_put(&qlist[j]->sk);
 }
 
-/*
- * Forward happens for data that gets sent from one macvlan
- * endpoint to another one in bridge mode. We just take
- * the skb and put it into the receive queue.
- */
-static int macvtap_forward(struct net_device *dev, struct sk_buff *skb)
+static rx_handler_result_t macvtap_handle_frame(struct sk_buff **pskb)
 {
-	struct macvlan_dev *vlan = netdev_priv(dev);
-	struct macvtap_queue *q = macvtap_get_queue(dev, skb);
+	struct sk_buff *skb = *pskb;
+	struct net_device *dev = skb->dev;
+	struct macvlan_dev *vlan;
+	struct macvtap_queue *q;
 	netdev_features_t features = TAP_FEATURES;
 
+	vlan = macvtap_get_vlan_rcu(dev);
+	if (!vlan)
+		return RX_HANDLER_PASS;
+
+	q = macvtap_get_queue(dev, skb);
 	if (!q)
-		goto drop;
+		return RX_HANDLER_PASS;
 
 	if (skb_queue_len(&q->sk.sk_receive_queue) >= dev->tx_queue_len)
 		goto drop;
 
-	skb->dev = dev;
+	skb_push(skb, ETH_HLEN);
+
 	/* Apply the forward feature mask so that we perform segmentation
 	 * according to users wishes.  This only works if VNET_HDR is
 	 * enabled.
@@ -320,22 +328,13 @@ static int macvtap_forward(struct net_device *dev, struct sk_buff *skb)
 
 wake_up:
 	wake_up_interruptible_poll(sk_sleep(&q->sk), POLLIN | POLLRDNORM | POLLRDBAND);
-	return NET_RX_SUCCESS;
+	return RX_HANDLER_CONSUMED;
 
 drop:
+	/* Count errors/drops only here, thus don't care about args. */
+	macvlan_count_rx(vlan, 0, 0, 0);
 	kfree_skb(skb);
-	return NET_RX_DROP;
-}
-
-/*
- * Receive is for data from the external interface (lowerdev),
- * in case of macvtap, we can treat that the same way as
- * forward, which macvlan cannot.
- */
-static int macvtap_receive(struct sk_buff *skb)
-{
-	skb_push(skb, ETH_HLEN);
-	return macvtap_forward(skb->dev, skb);
+	return RX_HANDLER_CONSUMED;
 }
 
 static int macvtap_get_minor(struct macvlan_dev *vlan)
@@ -385,6 +384,8 @@ static int macvtap_newlink(struct net *src_net,
 			   struct nlattr *data[])
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
+	int err;
+
 	INIT_LIST_HEAD(&vlan->queue_list);
 
 	/* Since macvlan supports all offloads by default, make
@@ -392,16 +393,21 @@ static int macvtap_newlink(struct net *src_net,
 	 */
 	vlan->tap_features = TUN_OFFLOADS;
 
+	err = netdev_rx_handler_register(dev, macvtap_handle_frame, vlan);
+	if (err)
+		return err;
+
 	/* Don't put anything that may fail after macvlan_common_newlink
 	 * because we can't undo what it does.
 	 */
 	return macvlan_common_newlink(src_net, dev, tb, data,
-				      macvtap_receive, macvtap_forward);
+				      netif_rx, dev_forward_skb);
 }
 
 static void macvtap_dellink(struct net_device *dev,
 			    struct list_head *head)
 {
+	netdev_rx_handler_unregister(dev);
 	macvtap_del_queues(dev);
 	macvlan_dellink(dev, head);
 }
@@ -725,9 +731,8 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 		skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
 	}
 	if (vlan) {
-		local_bh_disable();
-		macvlan_start_xmit(skb, vlan->dev);
-		local_bh_enable();
+		skb->dev = vlan->dev;
+		dev_queue_xmit(skb);
 	} else {
 		kfree_skb(skb);
 	}
