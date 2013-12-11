@@ -65,6 +65,24 @@
 			interrupts = <0 50 4>;
 		};
 
+		gem0: ethernet@e000b000 {
+			compatible = "cdns,gem";
+			reg = <0xe000b000 0x4000>;
+			status = "disabled";
+			interrupts = <0 22 4>;
+			clocks = <&clkc 30>, <&clkc 30>, <&clkc 13>;
+			clock-names = "pclk", "hclk", "tx_clk";
+		};
+
+		gem1: ethernet@e000c000 {
+			compatible = "cdns,gem";
+			reg = <0xe000c000 0x4000>;
+			status = "disabled";
+			interrupts = <0 45 4>;
+			clocks = <&clkc 31>, <&clkc 31>, <&clkc 14>;
+			clock-names = "pclk", "hclk", "tx_clk";
+		};
+
 		slcr: slcr@f8000000 {
 			compatible = "xlnx,zynq-slcr";
 			reg = <0xF8000000 0x1000>;
