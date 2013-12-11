@@ -674,6 +674,11 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 		if (ex_hdr.response) {
 			if (!hdr.out_words && !ex_hdr.provider_out_words)
 				return -EINVAL;
+
+			if (!access_ok(VERIFY_WRITE,
+				       (void __user *) (unsigned long) ex_hdr.response,
+				       (hdr.out_words + ex_hdr.provider_out_words) * 8))
+				return -EFAULT;
 		} else {
 			if (hdr.out_words || ex_hdr.provider_out_words)
 				return -EINVAL;
