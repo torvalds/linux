@@ -180,14 +180,6 @@ i40e_status i40e_init_shared_code(struct i40e_hw *hw)
 	i40e_status status = 0;
 	u32 reg;
 
-	hw->phy.get_link_info = true;
-
-	/* Determine port number */
-	reg = rd32(hw, I40E_PFGEN_PORTNUM);
-	reg = ((reg & I40E_PFGEN_PORTNUM_PORT_NUM_MASK) >>
-	       I40E_PFGEN_PORTNUM_PORT_NUM_SHIFT);
-	hw->port = (u8)reg;
-
 	i40e_set_mac_type(hw);
 
 	switch (hw->mac.type) {
@@ -197,6 +189,14 @@ i40e_status i40e_init_shared_code(struct i40e_hw *hw)
 		return I40E_ERR_DEVICE_NOT_SUPPORTED;
 		break;
 	}
+
+	hw->phy.get_link_info = true;
+
+	/* Determine port number */
+	reg = rd32(hw, I40E_PFGEN_PORTNUM);
+	reg = ((reg & I40E_PFGEN_PORTNUM_PORT_NUM_MASK) >>
+	       I40E_PFGEN_PORTNUM_PORT_NUM_SHIFT);
+	hw->port = (u8)reg;
 
 	/* Determine the PF number based on the PCI fn */
 	reg = rd32(hw, I40E_GLPCI_CAPSUP);
