@@ -41,6 +41,8 @@ struct intel_dsi_dev_ops {
 
 	void (*panel_reset)(struct intel_dsi_device *dsi);
 
+	void (*disable_panel_power)(struct intel_dsi_device *dsi);
+
 	/* one time programmable commands if needed */
 	void (*send_otp_cmds)(struct intel_dsi_device *dsi);
 

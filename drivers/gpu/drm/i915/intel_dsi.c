@@ -101,14 +101,47 @@ static void intel_dsi_pre_pll_enable(struct intel_encoder *encoder)
 	vlv_enable_dsi_pll(encoder);
 }
 
+static void intel_dsi_device_ready(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	int pipe = intel_crtc->pipe;
+	u32 val;
+
+	DRM_DEBUG_KMS("\n");
+
+	val = I915_READ(MIPI_PORT_CTRL(pipe));
+	I915_WRITE(MIPI_PORT_CTRL(pipe), val | LP_OUTPUT_HOLD);
+	usleep_range(1000, 1500);
+	I915_WRITE(MIPI_DEVICE_READY(pipe), DEVICE_READY | ULPS_STATE_EXIT);
+	usleep_range(2000, 2500);
+	I915_WRITE(MIPI_DEVICE_READY(pipe), DEVICE_READY);
+	usleep_range(2000, 2500);
+	I915_WRITE(MIPI_DEVICE_READY(pipe), 0x00);
+	usleep_range(2000, 2500);
+	I915_WRITE(MIPI_DEVICE_READY(pipe), DEVICE_READY);
+	usleep_range(2000, 2500);
+}
 static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 {
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+
 	DRM_DEBUG_KMS("\n");
+
+	if (intel_dsi->dev.dev_ops->panel_reset)
+		intel_dsi->dev.dev_ops->panel_reset(&intel_dsi->dev);
+
+	/* put device in ready state */
+	intel_dsi_device_ready(encoder);
+
+	if (intel_dsi->dev.dev_ops->send_otp_cmds)
+		intel_dsi->dev.dev_ops->send_otp_cmds(&intel_dsi->dev);
 }
 
 static void intel_dsi_enable(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	int pipe = intel_crtc->pipe;
@@ -116,31 +149,9 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 
 	DRM_DEBUG_KMS("\n");
 
-	if (intel_dsi->dev.dev_ops->panel_reset)
-		intel_dsi->dev.dev_ops->panel_reset(&intel_dsi->dev);
-
-	temp = I915_READ(MIPI_DEVICE_READY(pipe));
-	if ((temp & DEVICE_READY) == 0) {
-		temp &= ~ULPS_STATE_MASK;
-		I915_WRITE(MIPI_DEVICE_READY(pipe), temp | DEVICE_READY);
-	} else if (temp & ULPS_STATE_MASK) {
-		temp &= ~ULPS_STATE_MASK;
-		I915_WRITE(MIPI_DEVICE_READY(pipe), temp | ULPS_STATE_EXIT);
-		/*
-		 * We need to ensure that there is a minimum of 1 ms time
-		 * available before clearing the UPLS exit state.
-		 */
-		msleep(2);
-		I915_WRITE(MIPI_DEVICE_READY(pipe), temp);
-	}
-
-	if (intel_dsi->dev.dev_ops->send_otp_cmds)
-		intel_dsi->dev.dev_ops->send_otp_cmds(&intel_dsi->dev);
-
 	if (is_cmd_mode(intel_dsi))
 		I915_WRITE(MIPI_MAX_RETURN_PKT_SIZE(pipe), 8 * 4);
-
-	if (is_vid_mode(intel_dsi)) {
+	else {
 		msleep(20); /* XXX */
 		dpi_send_cmd(intel_dsi, TURN_ON);
 		msleep(100);
@@ -157,15 +168,14 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 
 static void intel_dsi_disable(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	int pipe = intel_crtc->pipe;
 	u32 temp;
 
 	DRM_DEBUG_KMS("\n");
-
-	intel_dsi->dev.dev_ops->disable(&intel_dsi->dev);
 
 	if (is_vid_mode(intel_dsi)) {
 		dpi_send_cmd(intel_dsi, SHUTDOWN);
@@ -179,19 +189,53 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 		msleep(2);
 	}
 
-	temp = I915_READ(MIPI_DEVICE_READY(pipe));
-	if (temp & DEVICE_READY) {
-		temp &= ~DEVICE_READY;
-		temp &= ~ULPS_STATE_MASK;
-		I915_WRITE(MIPI_DEVICE_READY(pipe), temp);
-	}
+	/* if disable packets are sent before sending shutdown packet then in
+	 * some next enable sequence send turn on packet error is observed */
+	if (intel_dsi->dev.dev_ops->disable)
+		intel_dsi->dev.dev_ops->disable(&intel_dsi->dev);
 }
 
-static void intel_dsi_post_disable(struct intel_encoder *encoder)
+static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 {
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	int pipe = intel_crtc->pipe;
+	u32 val;
+
 	DRM_DEBUG_KMS("\n");
 
+	I915_WRITE(MIPI_DEVICE_READY(pipe), ULPS_STATE_ENTER);
+	usleep_range(2000, 2500);
+
+	I915_WRITE(MIPI_DEVICE_READY(pipe), ULPS_STATE_EXIT);
+	usleep_range(2000, 2500);
+
+	I915_WRITE(MIPI_DEVICE_READY(pipe), ULPS_STATE_ENTER);
+	usleep_range(2000, 2500);
+
+	val = I915_READ(MIPI_PORT_CTRL(pipe));
+	I915_WRITE(MIPI_PORT_CTRL(pipe), val & ~LP_OUTPUT_HOLD);
+	usleep_range(1000, 1500);
+
+	if (wait_for(((I915_READ(MIPI_PORT_CTRL(pipe)) & AFE_LATCHOUT)
+					== 0x00000), 30))
+		DRM_ERROR("DSI LP not going Low\n");
+
+	I915_WRITE(MIPI_DEVICE_READY(pipe), 0x00);
+	usleep_range(2000, 2500);
+
 	vlv_disable_dsi_pll(encoder);
+}
+static void intel_dsi_post_disable(struct intel_encoder *encoder)
+{
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+
+	DRM_DEBUG_KMS("\n");
+
+	intel_dsi_clear_device_ready(encoder);
+
+	if (intel_dsi->dev.dev_ops->disable_panel_power)
+		intel_dsi->dev.dev_ops->disable_panel_power(&intel_dsi->dev);
 }
 
 static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
