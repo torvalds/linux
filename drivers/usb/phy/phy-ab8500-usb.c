@@ -1415,8 +1415,6 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ab);
 
-	ATOMIC_INIT_NOTIFIER_HEAD(&ab->phy.notifier);
-
 	/* all: Disable phy when called from set_host and set_peripheral */
 	INIT_WORK(&ab->phy_dis_work, ab8500_usb_phy_disable_work);
 
