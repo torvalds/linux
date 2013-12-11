@@ -261,4 +261,27 @@
 
 		/include/ "rtsm_ve-motherboard.dtsi"
 	};
+
+	panels {
+		panel@0 {
+			compatible	= "panel";
+			mode		= "XVGA";
+			refresh		= <60>;
+			xres		= <1024>;
+			yres		= <768>;
+			pixclock	= <15748>;
+			left_margin	= <152>;
+			right_margin	= <48>;
+			upper_margin	= <23>;
+			lower_margin	= <3>;
+			hsync_len	= <104>;
+			vsync_len	= <4>;
+			sync		= <0>;
+			vmode		= "FB_VMODE_NONINTERLACED";
+			tim2		= "TIM2_BCD", "TIM2_IPC";
+			cntl		= "CNTL_LCDTFT", "CNTL_BGR", "CNTL_LCDVCOMP(1)";
+			caps		= "CLCD_CAP_5551", "CLCD_CAP_565", "CLCD_CAP_888";
+			bpp		= <16>;
+		};
+	};
 };
