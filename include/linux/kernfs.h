@@ -111,12 +111,27 @@ struct kernfs_node {
 	struct kernfs_iattrs	*iattr;
 };
 
+/*
+ * kernfs_dir_ops may be specified on kernfs_create_root() to support
+ * directory manipulation syscalls.  These optional callbacks are invoked
+ * on the matching syscalls and can perform any kernfs operations which
+ * don't necessarily have to be the exact operation requested.
+ */
+struct kernfs_dir_ops {
+	int (*mkdir)(struct kernfs_node *parent, const char *name,
+		     umode_t mode);
+	int (*rmdir)(struct kernfs_node *kn);
+	int (*rename)(struct kernfs_node *kn, struct kernfs_node *new_parent,
+		      const char *new_name);
+};
+
 struct kernfs_root {
 	/* published fields */
 	struct kernfs_node	*kn;
 
 	/* private fields, do not use outside kernfs proper */
 	struct ida		ino_ida;
+	struct kernfs_dir_ops	*dir_ops;
 };
 
 struct kernfs_open_file {
@@ -206,7 +221,8 @@ struct kernfs_node *kernfs_find_and_get_ns(struct kernfs_node *parent,
 void kernfs_get(struct kernfs_node *kn);
 void kernfs_put(struct kernfs_node *kn);
 
-struct kernfs_root *kernfs_create_root(void *priv);
+struct kernfs_root *kernfs_create_root(struct kernfs_dir_ops *kdops,
+				       void *priv);
 void kernfs_destroy_root(struct kernfs_root *root);
 
 struct kernfs_node *kernfs_create_dir_ns(struct kernfs_node *parent,
@@ -255,7 +271,8 @@ kernfs_find_and_get_ns(struct kernfs_node *parent, const char *name,
 static inline void kernfs_get(struct kernfs_node *kn) { }
 static inline void kernfs_put(struct kernfs_node *kn) { }
 
-static inline struct kernfs_root *kernfs_create_root(void *priv)
+static inline struct kernfs_root *
+kernfs_create_root(struct kernfs_dir_ops *kdops, void *priv)
 { return ERR_PTR(-ENOSYS); }
 
 static inline void kernfs_destroy_root(struct kernfs_root *root) { }

@@ -583,12 +583,13 @@ EXPORT_SYMBOL_GPL(kernfs_find_and_get_ns);
 
 /**
  * kernfs_create_root - create a new kernfs hierarchy
+ * @kdops: optional directory syscall operations for the hierarchy
  * @priv: opaque data associated with the new directory
  *
  * Returns the root of the new hierarchy on success, ERR_PTR() value on
  * failure.
  */
-struct kernfs_root *kernfs_create_root(void *priv)
+struct kernfs_root *kernfs_create_root(struct kernfs_dir_ops *kdops, void *priv)
 {
 	struct kernfs_root *root;
 	struct kernfs_node *kn;
@@ -610,6 +611,7 @@ struct kernfs_root *kernfs_create_root(void *priv)
 	kn->priv = priv;
 	kn->dir.root = root;
 
+	root->dir_ops = kdops;
 	root->kn = kn;
 
 	return root;
@@ -706,6 +708,42 @@ static struct dentry *kernfs_iop_lookup(struct inode *dir,
 	return ret;
 }
 
+static int kernfs_iop_mkdir(struct inode *dir, struct dentry *dentry,
+			    umode_t mode)
+{
+	struct kernfs_node *parent = dir->i_private;
+	struct kernfs_dir_ops *kdops = kernfs_root(parent)->dir_ops;
+
+	if (!kdops || !kdops->mkdir)
+		return -EPERM;
+
+	return kdops->mkdir(parent, dentry->d_name.name, mode);
+}
+
+static int kernfs_iop_rmdir(struct inode *dir, struct dentry *dentry)
+{
+	struct kernfs_node *kn  = dentry->d_fsdata;
+	struct kernfs_dir_ops *kdops = kernfs_root(kn)->dir_ops;
+
+	if (!kdops || !kdops->rmdir)
+		return -EPERM;
+
+	return kdops->rmdir(kn);
+}
+
+static int kernfs_iop_rename(struct inode *old_dir, struct dentry *old_dentry,
+			     struct inode *new_dir, struct dentry *new_dentry)
+{
+	struct kernfs_node *kn  = old_dentry->d_fsdata;
+	struct kernfs_node *new_parent = new_dir->i_private;
+	struct kernfs_dir_ops *kdops = kernfs_root(kn)->dir_ops;
+
+	if (!kdops || !kdops->rename)
+		return -EPERM;
+
+	return kdops->rename(kn, new_parent, new_dentry->d_name.name);
+}
+
 const struct inode_operations kernfs_dir_iops = {
 	.lookup		= kernfs_iop_lookup,
 	.permission	= kernfs_iop_permission,
@@ -715,6 +753,10 @@ const struct inode_operations kernfs_dir_iops = {
 	.removexattr	= kernfs_iop_removexattr,
 	.getxattr	= kernfs_iop_getxattr,
 	.listxattr	= kernfs_iop_listxattr,
+
+	.mkdir		= kernfs_iop_mkdir,
+	.rmdir		= kernfs_iop_rmdir,
+	.rename		= kernfs_iop_rename,
 };
 
 static struct kernfs_node *kernfs_leftmost_descendant(struct kernfs_node *pos)
