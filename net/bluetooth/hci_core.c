@@ -1228,7 +1228,7 @@ static void hci_set_event_mask_page_2(struct hci_request *req)
 	/* If Connectionless Slave Broadcast master role is supported
 	 * enable all necessary events for it.
 	 */
-	if (hdev->features[2][0] & 0x01) {
+	if (lmp_csb_master_capable(hdev)) {
 		events[1] |= 0x40;	/* Triggered Clock Capture */
 		events[1] |= 0x80;	/* Synchronization Train Complete */
 		events[2] |= 0x10;	/* Slave Page Response Timeout */
@@ -1238,7 +1238,7 @@ static void hci_set_event_mask_page_2(struct hci_request *req)
 	/* If Connectionless Slave Broadcast slave role is supported
 	 * enable all necessary events for it.
 	 */
-	if (hdev->features[2][0] & 0x02) {
+	if (lmp_csb_slave_capable(hdev)) {
 		events[2] |= 0x01;	/* Synchronization Train Received */
 		events[2] |= 0x02;	/* CSB Receive */
 		events[2] |= 0x04;	/* CSB Timeout */
@@ -1309,7 +1309,7 @@ static void hci_init4_req(struct hci_request *req, unsigned long opt)
 		hci_set_event_mask_page_2(req);
 
 	/* Check for Synchronization Train support */
-	if (hdev->features[2][0] & 0x04)
+	if (lmp_sync_train_capable(hdev))
 		hci_req_add(req, HCI_OP_READ_SYNC_TRAIN_PARAMS, 0, NULL);
 }
 
