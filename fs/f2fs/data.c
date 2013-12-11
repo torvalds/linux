@@ -104,11 +104,12 @@ static void __submit_merged_bio(struct f2fs_bio_info *io)
 	rw = fio->rw | fio->rw_flag;
 
 	if (is_read_io(rw)) {
-		submit_bio(rw, io->bio);
 		trace_f2fs_submit_read_bio(io->sbi->sb, rw, fio->type, io->bio);
+		submit_bio(rw, io->bio);
 		io->bio = NULL;
 		return;
 	}
+	trace_f2fs_submit_write_bio(io->sbi->sb, rw, fio->type, io->bio);
 
 	/*
 	 * META_FLUSH is only from the checkpoint procedure, and we should wait
@@ -122,7 +123,6 @@ static void __submit_merged_bio(struct f2fs_bio_info *io)
 	} else {
 		submit_bio(rw, io->bio);
 	}
-	trace_f2fs_submit_write_bio(io->sbi->sb, rw, fio->type, io->bio);
 	io->bio = NULL;
 }
 
