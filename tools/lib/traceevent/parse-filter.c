@@ -784,15 +784,18 @@ enum filter_vals {
 	FILTER_VAL_TRUE,
 };
 
-void reparent_op_arg(struct filter_arg *parent, struct filter_arg *old_child,
-		  struct filter_arg *arg)
+static enum pevent_errno
+reparent_op_arg(struct filter_arg *parent, struct filter_arg *old_child,
+		struct filter_arg *arg, char **error_str)
 {
 	struct filter_arg *other_child;
 	struct filter_arg **ptr;
 
 	if (parent->type != FILTER_ARG_OP &&
-	    arg->type != FILTER_ARG_OP)
-		die("can not reparent other than OP");
+	    arg->type != FILTER_ARG_OP) {
+		show_error(error_str, "can not reparent other than OP");
+		return PEVENT_ERRNO__REPARENT_NOT_OP;
+	}
 
 	/* Get the sibling */
 	if (old_child->op.right == arg) {
@@ -801,8 +804,10 @@ void reparent_op_arg(struct filter_arg *parent, struct filter_arg *old_child,
 	} else if (old_child->op.left == arg) {
 		ptr = &old_child->op.left;
 		other_child = old_child->op.right;
-	} else
-		die("Error in reparent op, find other child");
+	} else {
+		show_error(error_str, "Error in reparent op, find other child");
+		return PEVENT_ERRNO__REPARENT_FAILED;
+	}
 
 	/* Detach arg from old_child */
 	*ptr = NULL;
@@ -813,23 +818,29 @@ void reparent_op_arg(struct filter_arg *parent, struct filter_arg *old_child,
 		*parent = *arg;
 		/* Free arg without recussion */
 		free(arg);
-		return;
+		return 0;
 	}
 
 	if (parent->op.right == old_child)
 		ptr = &parent->op.right;
 	else if (parent->op.left == old_child)
 		ptr = &parent->op.left;
-	else
-		die("Error in reparent op");
+	else {
+		show_error(error_str, "Error in reparent op");
+		return PEVENT_ERRNO__REPARENT_FAILED;
+	}
+
 	*ptr = arg;
 
 	free_arg(old_child);
+	return 0;
 }
 
-enum filter_vals test_arg(struct filter_arg *parent, struct filter_arg *arg)
+/* Returns either filter_vals (success) or pevent_errno (failfure) */
+static int test_arg(struct filter_arg *parent, struct filter_arg *arg,
+		    char **error_str)
 {
-	enum filter_vals lval, rval;
+	int lval, rval;
 
 	switch (arg->type) {
 
@@ -844,63 +855,68 @@ enum filter_vals test_arg(struct filter_arg *parent, struct filter_arg *arg)
 		return FILTER_VAL_NORM;
 
 	case FILTER_ARG_EXP:
-		lval = test_arg(arg, arg->exp.left);
+		lval = test_arg(arg, arg->exp.left, error_str);
 		if (lval != FILTER_VAL_NORM)
 			return lval;
-		rval = test_arg(arg, arg->exp.right);
+		rval = test_arg(arg, arg->exp.right, error_str);
 		if (rval != FILTER_VAL_NORM)
 			return rval;
 		return FILTER_VAL_NORM;
 
 	case FILTER_ARG_NUM:
-		lval = test_arg(arg, arg->num.left);
+		lval = test_arg(arg, arg->num.left, error_str);
 		if (lval != FILTER_VAL_NORM)
 			return lval;
-		rval = test_arg(arg, arg->num.right);
+		rval = test_arg(arg, arg->num.right, error_str);
 		if (rval != FILTER_VAL_NORM)
 			return rval;
 		return FILTER_VAL_NORM;
 
 	case FILTER_ARG_OP:
 		if (arg->op.type != FILTER_OP_NOT) {
-			lval = test_arg(arg, arg->op.left);
+			lval = test_arg(arg, arg->op.left, error_str);
 			switch (lval) {
 			case FILTER_VAL_NORM:
 				break;
 			case FILTER_VAL_TRUE:
 				if (arg->op.type == FILTER_OP_OR)
 					return FILTER_VAL_TRUE;
-				rval = test_arg(arg, arg->op.right);
+				rval = test_arg(arg, arg->op.right, error_str);
 				if (rval != FILTER_VAL_NORM)
 					return rval;
 
-				reparent_op_arg(parent, arg, arg->op.right);
-				return FILTER_VAL_NORM;
+				return reparent_op_arg(parent, arg, arg->op.right,
+						       error_str);
 
 			case FILTER_VAL_FALSE:
 				if (arg->op.type == FILTER_OP_AND)
 					return FILTER_VAL_FALSE;
-				rval = test_arg(arg, arg->op.right);
+				rval = test_arg(arg, arg->op.right, error_str);
 				if (rval != FILTER_VAL_NORM)
 					return rval;
 
-				reparent_op_arg(parent, arg, arg->op.right);
-				return FILTER_VAL_NORM;
+				return reparent_op_arg(parent, arg, arg->op.right,
+						       error_str);
+
+			default:
+				return lval;
 			}
 		}
 
-		rval = test_arg(arg, arg->op.right);
+		rval = test_arg(arg, arg->op.right, error_str);
 		switch (rval) {
 		case FILTER_VAL_NORM:
+		default:
 			break;
+
 		case FILTER_VAL_TRUE:
 			if (arg->op.type == FILTER_OP_OR)
 				return FILTER_VAL_TRUE;
 			if (arg->op.type == FILTER_OP_NOT)
 				return FILTER_VAL_FALSE;
 
-			reparent_op_arg(parent, arg, arg->op.left);
-			return FILTER_VAL_NORM;
+			return reparent_op_arg(parent, arg, arg->op.left,
+					       error_str);
 
 		case FILTER_VAL_FALSE:
 			if (arg->op.type == FILTER_OP_AND)
@@ -908,26 +924,27 @@ enum filter_vals test_arg(struct filter_arg *parent, struct filter_arg *arg)
 			if (arg->op.type == FILTER_OP_NOT)
 				return FILTER_VAL_TRUE;
 
-			reparent_op_arg(parent, arg, arg->op.left);
-			return FILTER_VAL_NORM;
+			return reparent_op_arg(parent, arg, arg->op.left,
+					       error_str);
 		}
 
-		return FILTER_VAL_NORM;
+		return rval;
 	default:
-		die("bad arg in filter tree");
+		show_error(error_str, "bad arg in filter tree");
+		return PEVENT_ERRNO__BAD_FILTER_ARG;
 	}
 	return FILTER_VAL_NORM;
 }
 
 /* Remove any unknown event fields */
-static struct filter_arg *collapse_tree(struct filter_arg *arg)
+static struct filter_arg *collapse_tree(struct filter_arg *arg, char **error_str)
 {
 	enum filter_vals ret;
 
-	ret = test_arg(arg, arg);
+	ret = test_arg(arg, arg, error_str);
 	switch (ret) {
 	case FILTER_VAL_NORM:
-		return arg;
+		break;
 
 	case FILTER_VAL_TRUE:
 	case FILTER_VAL_FALSE:
@@ -936,7 +953,16 @@ static struct filter_arg *collapse_tree(struct filter_arg *arg)
 		if (arg) {
 			arg->type = FILTER_ARG_BOOLEAN;
 			arg->boolean.value = ret == FILTER_VAL_TRUE;
+		} else {
+			show_error(error_str, "Failed to allocate filter arg");
 		}
+		break;
+
+	default:
+		/* test_arg() already set the error_str */
+		free_arg(arg);
+		arg = NULL;
+		break;
 	}
 
 	return arg;
@@ -1152,9 +1178,9 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 	if (!current_op)
 		current_op = current_exp;
 
-	current_op = collapse_tree(current_op);
+	current_op = collapse_tree(current_op, error_str);
 	if (current_op == NULL)
-		goto fail_alloc;
+		goto fail;
 
 	*parg = current_op;
 
