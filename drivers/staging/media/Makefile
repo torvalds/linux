@@ -8,3 +8,4 @@ obj-$(CONFIG_VIDEO_GO7007)	+= go7007/
 obj-$(CONFIG_USB_MSI3101)	+= msi3101/
 obj-$(CONFIG_VIDEO_DM365_VPFE)	+= davinci_vpfe/
 obj-$(CONFIG_VIDEO_OMAP4)	+= omap4iss/
+obj-$(CONFIG_USB_SN9C102)       += sn9c102/
