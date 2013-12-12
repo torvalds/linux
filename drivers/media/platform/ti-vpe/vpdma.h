@@ -39,7 +39,14 @@ struct vpdma_data {
 	bool ready;
 };
 
+enum vpdma_data_format_type {
+	VPDMA_DATA_FMT_TYPE_YUV,
+	VPDMA_DATA_FMT_TYPE_RGB,
+	VPDMA_DATA_FMT_TYPE_MISC,
+};
+
 struct vpdma_data_format {
+	enum vpdma_data_format_type type;
 	int data_type;
 	u8 depth;
 };
