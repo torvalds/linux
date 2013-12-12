@@ -821,6 +821,7 @@ void intel_update_sprite_watermarks(struct drm_plane *plane,
 				    uint32_t sprite_width, int pixel_size,
 				    bool enabled, bool scaled);
 void intel_init_pm(struct drm_device *dev);
+void intel_pm_setup(struct drm_device *dev);
 bool intel_fbc_enabled(struct drm_device *dev);
 void intel_update_fbc(struct drm_device *dev);
 void intel_gpu_ips_init(struct drm_i915_private *dev_priv);

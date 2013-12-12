@@ -6146,10 +6146,19 @@ int vlv_freq_opcode(int ddr_freq, int val)
 	return val;
 }
 
-void intel_pm_init(struct drm_device *dev)
+void intel_pm_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	mutex_init(&dev_priv->rps.hw_lock);
+
+	mutex_init(&dev_priv->pc8.lock);
+	dev_priv->pc8.requirements_met = false;
+	dev_priv->pc8.gpu_idle = false;
+	dev_priv->pc8.irqs_disabled = false;
+	dev_priv->pc8.enabled = false;
+	dev_priv->pc8.disable_count = 2; /* requirements_met + gpu_idle */
+	INIT_DELAYED_WORK(&dev_priv->pc8.enable_work, hsw_enable_pc8_work);
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
 			  intel_gen6_powersave_work);
 }
