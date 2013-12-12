@@ -294,6 +294,11 @@
 #define DC_DISP_SD_HW_K_VALUES			0x4dd
 #define DC_DISP_SD_MAN_K_VALUES			0x4de
 
+#define DC_DISP_INTERLACE_CONTROL		0x4e5
+#define  INTERLACE_STATUS (1 << 2)
+#define  INTERLACE_START  (1 << 1)
+#define  INTERLACE_ENABLE (1 << 0)
+
 #define DC_WIN_CSC_YOF				0x611
 #define DC_WIN_CSC_KYRGB			0x612
 #define DC_WIN_CSC_KUR				0x613

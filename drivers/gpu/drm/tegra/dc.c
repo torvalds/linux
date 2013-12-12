@@ -15,6 +15,10 @@
 #include "drm.h"
 #include "gem.h"
 
+struct tegra_dc_soc_info {
+	bool supports_interlacing;
+};
+
 struct tegra_plane {
 	struct drm_plane base;
 	unsigned int index;
@@ -658,6 +662,13 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 	/* program display mode */
 	tegra_dc_set_timings(dc, mode);
 
+	/* interlacing isn't supported yet, so disable it */
+	if (dc->soc->supports_interlacing) {
+		value = tegra_dc_readl(dc, DC_DISP_INTERLACE_CONTROL);
+		value &= ~INTERLACE_ENABLE;
+		tegra_dc_writel(dc, value, DC_DISP_INTERLACE_CONTROL);
+	}
+
 	value = DE_SELECT_ACTIVE | DE_CONTROL_NORMAL;
 	tegra_dc_writel(dc, value, DC_DISP_DATA_ENABLE_OPTIONS);
 
@@ -1167,8 +1178,36 @@ static const struct host1x_client_ops dc_client_ops = {
 	.exit = tegra_dc_exit,
 };
 
+static const struct tegra_dc_soc_info tegra20_dc_soc_info = {
+	.supports_interlacing = false,
+};
+
+static const struct tegra_dc_soc_info tegra30_dc_soc_info = {
+	.supports_interlacing = false,
+};
+
+static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
+	.supports_interlacing = true,
+};
+
+static const struct of_device_id tegra_dc_of_match[] = {
+	{
+		.compatible = "nvidia,tegra124-dc",
+		.data = &tegra124_dc_soc_info,
+	}, {
+		.compatible = "nvidia,tegra30-dc",
+		.data = &tegra30_dc_soc_info,
+	}, {
+		.compatible = "nvidia,tegra20-dc",
+		.data = &tegra20_dc_soc_info,
+	}, {
+		/* sentinel */
+	}
+};
+
 static int tegra_dc_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *id;
 	struct resource *regs;
 	struct tegra_dc *dc;
 	int err;
@@ -1177,9 +1216,14 @@ static int tegra_dc_probe(struct platform_device *pdev)
 	if (!dc)
 		return -ENOMEM;
 
+	id = of_match_node(tegra_dc_of_match, pdev->dev.of_node);
+	if (!id)
+		return -ENODEV;
+
 	spin_lock_init(&dc->lock);
 	INIT_LIST_HEAD(&dc->list);
 	dc->dev = &pdev->dev;
+	dc->soc = id->data;
 
 	dc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dc->clk)) {
@@ -1252,12 +1296,6 @@ static int tegra_dc_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static struct of_device_id tegra_dc_of_match[] = {
-	{ .compatible = "nvidia,tegra30-dc", },
-	{ .compatible = "nvidia,tegra20-dc", },
-	{ },
-};
 
 struct platform_driver tegra_dc_driver = {
 	.driver = {

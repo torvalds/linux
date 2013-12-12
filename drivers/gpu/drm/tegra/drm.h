@@ -88,6 +88,7 @@ extern int tegra_drm_unregister_client(struct tegra_drm *tegra,
 extern int tegra_drm_init(struct tegra_drm *tegra, struct drm_device *drm);
 extern int tegra_drm_exit(struct tegra_drm *tegra);
 
+struct tegra_dc_soc_info;
 struct tegra_output;
 
 struct tegra_dc {
@@ -113,6 +114,8 @@ struct tegra_dc {
 
 	/* page-flip handling */
 	struct drm_pending_vblank_event *event;
+
+	const struct tegra_dc_soc_info *soc;
 };
 
 static inline struct tegra_dc *
