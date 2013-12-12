@@ -43,6 +43,7 @@
 
 #include "vpdma.h"
 #include "vpe_regs.h"
+#include "sc.h"
 
 #define VPE_MODULE_NAME "vpe"
 
@@ -324,9 +325,11 @@ struct vpe_dev {
 
 	int			irq;
 	void __iomem		*base;
+	struct resource		*res;
 
 	struct vb2_alloc_ctx	*alloc_ctx;
 	struct vpdma_data	*vpdma;		/* vpdma data handle */
+	struct sc_data		*sc;		/* scaler data handle */
 };
 
 /*
@@ -443,6 +446,9 @@ struct vpe_mmr_adb {
 	u32			csc_pad[2];
 };
 
+#define GET_OFFSET_TOP(ctx, obj, reg)	\
+	((obj)->res->start - ctx->dev->res->start + reg)
+
 #define VPE_SET_MMR_ADB_HDR(ctx, hdr, regs, offset_a)	\
 	VPDMA_SET_MMR_ADB_HDR(ctx->mmr_adb, vpe_mmr_adb, hdr, regs, offset_a)
 /*
@@ -455,7 +461,8 @@ static void init_adb_hdrs(struct vpe_ctx *ctx)
 	VPE_SET_MMR_ADB_HDR(ctx, us2_hdr, us2_regs, VPE_US2_R0);
 	VPE_SET_MMR_ADB_HDR(ctx, us3_hdr, us3_regs, VPE_US3_R0);
 	VPE_SET_MMR_ADB_HDR(ctx, dei_hdr, dei_regs, VPE_DEI_FRAME_SIZE);
-	VPE_SET_MMR_ADB_HDR(ctx, sc_hdr, sc_regs, VPE_SC_MP_SC0);
+	VPE_SET_MMR_ADB_HDR(ctx, sc_hdr, sc_regs,
+		GET_OFFSET_TOP(ctx, ctx->dev->sc, CFG_SC0));
 	VPE_SET_MMR_ADB_HDR(ctx, csc_hdr, csc_regs, VPE_CSC_CSC00);
 };
 
@@ -749,18 +756,6 @@ static void set_csc_coeff_bypass(struct vpe_ctx *ctx)
 	ctx->load_mmrs = true;
 }
 
-static void set_sc_regs_bypass(struct vpe_ctx *ctx)
-{
-	struct vpe_mmr_adb *mmr_adb = ctx->mmr_adb.addr;
-	u32 *sc_reg0 = &mmr_adb->sc_regs[0];
-	u32 val = 0;
-
-	val |= VPE_SC_BYPASS;
-	*sc_reg0 = val;
-
-	ctx->load_mmrs = true;
-}
-
 /*
  * Set the shadow registers whose values are modified when either the
  * source or destination format is changed.
@@ -769,6 +764,7 @@ static int set_srcdst_params(struct vpe_ctx *ctx)
 {
 	struct vpe_q_data *s_q_data =  &ctx->q_data[Q_DATA_SRC];
 	struct vpe_q_data *d_q_data =  &ctx->q_data[Q_DATA_DST];
+	struct vpe_mmr_adb *mmr_adb = ctx->mmr_adb.addr;
 	size_t mv_buf_size;
 	int ret;
 
@@ -806,7 +802,7 @@ static int set_srcdst_params(struct vpe_ctx *ctx)
 	set_cfg_and_line_modes(ctx);
 	set_dei_regs(ctx);
 	set_csc_coeff_bypass(ctx);
-	set_sc_regs_bypass(ctx);
+	sc_set_regs_bypass(ctx->dev->sc, &mmr_adb->sc_regs[0]);
 
 	return 0;
 }
@@ -922,28 +918,6 @@ static void vpe_dump_regs(struct vpe_dev *dev)
 	DUMPREG(DEI_FMD_STATUS_R0);
 	DUMPREG(DEI_FMD_STATUS_R1);
 	DUMPREG(DEI_FMD_STATUS_R2);
-	DUMPREG(SC_MP_SC0);
-	DUMPREG(SC_MP_SC1);
-	DUMPREG(SC_MP_SC2);
-	DUMPREG(SC_MP_SC3);
-	DUMPREG(SC_MP_SC4);
-	DUMPREG(SC_MP_SC5);
-	DUMPREG(SC_MP_SC6);
-	DUMPREG(SC_MP_SC8);
-	DUMPREG(SC_MP_SC9);
-	DUMPREG(SC_MP_SC10);
-	DUMPREG(SC_MP_SC11);
-	DUMPREG(SC_MP_SC12);
-	DUMPREG(SC_MP_SC13);
-	DUMPREG(SC_MP_SC17);
-	DUMPREG(SC_MP_SC18);
-	DUMPREG(SC_MP_SC19);
-	DUMPREG(SC_MP_SC20);
-	DUMPREG(SC_MP_SC21);
-	DUMPREG(SC_MP_SC22);
-	DUMPREG(SC_MP_SC23);
-	DUMPREG(SC_MP_SC24);
-	DUMPREG(SC_MP_SC25);
 	DUMPREG(CSC_CSC00);
 	DUMPREG(CSC_CSC01);
 	DUMPREG(CSC_CSC02);
@@ -951,6 +925,8 @@ static void vpe_dump_regs(struct vpe_dev *dev)
 	DUMPREG(CSC_CSC04);
 	DUMPREG(CSC_CSC05);
 #undef DUMPREG
+
+	sc_dump_regs(dev->sc);
 }
 
 static void add_out_dtd(struct vpe_ctx *ctx, int port)
@@ -1965,7 +1941,6 @@ static int vpe_probe(struct platform_device *pdev)
 {
 	struct vpe_dev *dev;
 	struct video_device *vfd;
-	struct resource *res;
 	int ret, irq, func;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
@@ -1981,14 +1956,15 @@ static int vpe_probe(struct platform_device *pdev)
 	atomic_set(&dev->num_instances, 0);
 	mutex_init(&dev->dev_mutex);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "vpe_top");
+	dev->res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+			"vpe_top");
 	/*
 	 * HACK: we get resource info from device tree in the form of a list of
 	 * VPE sub blocks, the driver currently uses only the base of vpe_top
 	 * for register access, the driver should be changed later to access
 	 * registers based on the sub block base addresses
 	 */
-	dev->base = devm_ioremap(&pdev->dev, res->start, SZ_32K);
+	dev->base = devm_ioremap(&pdev->dev, dev->res->start, SZ_32K);
 	if (!dev->base) {
 		ret = -ENOMEM;
 		goto v4l2_dev_unreg;
@@ -2032,6 +2008,12 @@ static int vpe_probe(struct platform_device *pdev)
 	vpe_dbg(dev, "VPE PID function %x\n", func);
 
 	vpe_top_vpdma_reset(dev);
+
+	dev->sc = sc_create(pdev);
+	if (IS_ERR(dev->sc)) {
+		ret = PTR_ERR(dev->sc);
+		goto runtime_put;
+	}
 
 	dev->vpdma = vpdma_create(pdev);
 	if (IS_ERR(dev->vpdma)) {
