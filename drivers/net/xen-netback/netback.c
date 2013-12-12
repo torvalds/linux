@@ -452,7 +452,7 @@ static int xenvif_gop_skb(struct sk_buff *skb,
 	}
 
 	/* Set up a GSO prefix descriptor, if necessary */
-	if ((1 << skb_shinfo(skb)->gso_type) & vif->gso_prefix_mask) {
+	if ((1 << gso_type) & vif->gso_prefix_mask) {
 		req = RING_GET_REQUEST(&vif->rx, vif->rx.req_cons++);
 		meta = npo->meta + npo->meta_prod++;
 		meta->gso_type = gso_type;
