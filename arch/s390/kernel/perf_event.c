@@ -1,7 +1,7 @@
 /*
  * Performance event support for s390x
  *
- *  Copyright IBM Corp. 2012
+ *  Copyright IBM Corp. 2012, 2013
  *  Author(s): Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -89,8 +89,31 @@ static unsigned long perf_misc_guest_flags(struct pt_regs *regs)
 					: PERF_RECORD_MISC_GUEST_KERNEL;
 }
 
+static unsigned long perf_misc_flags_sf(struct pt_regs *regs)
+{
+	struct perf_sf_sde_regs *sde_regs;
+	unsigned long flags;
+
+	sde_regs = (struct perf_sf_sde_regs *) &regs->int_parm_long;
+	if (sde_regs->in_guest)
+		flags = user_mode(regs) ? PERF_RECORD_MISC_GUEST_USER
+					: PERF_RECORD_MISC_GUEST_KERNEL;
+	else
+		flags = user_mode(regs) ? PERF_RECORD_MISC_USER
+					: PERF_RECORD_MISC_KERNEL;
+	return flags;
+}
+
 unsigned long perf_misc_flags(struct pt_regs *regs)
 {
+	/* Check if the cpum_sf PMU has created the pt_regs structure.
+	 * In this case, perf misc flags can be easily extracted.  Otherwise,
+	 * do regular checks on the pt_regs content.
+	 */
+	if (regs->int_code == 0x1407 && regs->int_parm == CPU_MF_INT_SF_PRA)
+		if (!regs->gprs[15])
+			return perf_misc_flags_sf(regs);
+
 	if (is_in_guest(regs))
 		return perf_misc_guest_flags(regs);
 

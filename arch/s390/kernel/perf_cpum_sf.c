@@ -840,6 +840,7 @@ static int perf_push_sample(struct perf_event *event,
 {
 	int overflow;
 	struct pt_regs regs;
+	struct perf_sf_sde_regs *sde_regs;
 	struct perf_sample_data data;
 
 	/* Skip samples that are invalid or for which the instruction address
@@ -850,7 +851,16 @@ static int perf_push_sample(struct perf_event *event,
 
 	perf_sample_data_init(&data, 0, event->hw.last_period);
 
+	/* Setup pt_regs to look like an CPU-measurement external interrupt
+	 * using the Program Request Alert code.  The regs.int_parm_long
+	 * field which is unused contains additional sample-data-entry related
+	 * indicators.
+	 */
 	memset(&regs, 0, sizeof(regs));
+	regs.int_code = 0x1407;
+	regs.int_parm = CPU_MF_INT_SF_PRA;
+	sde_regs = (struct perf_sf_sde_regs *) &regs.int_parm_long;
+
 	regs.psw.addr = sample->ia;
 	if (sample->T)
 		regs.psw.mask |= PSW_MASK_DAT;
@@ -872,6 +882,16 @@ static int perf_push_sample(struct perf_event *event,
 		regs.psw.mask |= PSW_ASC_HOME;
 		break;
 	}
+
+	/* The host-program-parameter (hpp) contains the sie control
+	 * block that is set by sie64a() in entry64.S.	Check if hpp
+	 * refers to a valid control block and set sde_regs flags
+	 * accordingly.  This would allow to use hpp values for other
+	 * purposes too.
+	 * For now, simply use a non-zero value as guest indicator.
+	 */
+	if (sample->hpp)
+		sde_regs->in_guest = 1;
 
 	overflow = 0;
 	if (perf_event_overflow(event, &data, &regs)) {
