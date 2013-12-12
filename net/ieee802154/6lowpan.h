@@ -232,6 +232,38 @@
 					dest = 16 bit inline */
 #define LOWPAN_NHC_UDP_CS_P_11	0xF3 /* source & dest = 0xF0B + 4bit inline */
 
+#ifdef DEBUG
+/* print data in line */
+static inline void raw_dump_inline(const char *caller, char *msg,
+				   unsigned char *buf, int len)
+{
+	if (msg)
+		pr_debug("%s():%s: ", caller, msg);
+
+	print_hex_dump_debug("", DUMP_PREFIX_NONE, 16, 1, buf, len, false);
+}
+
+/* print data in a table format:
+ *
+ * addr: xx xx xx xx xx xx
+ * addr: xx xx xx xx xx xx
+ * ...
+ */
+static inline void raw_dump_table(const char *caller, char *msg,
+				  unsigned char *buf, int len)
+{
+	if (msg)
+		pr_debug("%s():%s:\n", caller, msg);
+
+	print_hex_dump_debug("\t", DUMP_PREFIX_OFFSET, 16, 1, buf, len, false);
+}
+#else
+static inline void raw_dump_table(const char *caller, char *msg,
+				  unsigned char *buf, int len) { }
+static inline void raw_dump_inline(const char *caller, char *msg,
+				   unsigned char *buf, int len) { }
+#endif
+
 static inline int lowpan_fetch_skb_u8(struct sk_buff *skb, u8 *val)
 {
 	if (unlikely(!pskb_may_pull(skb, 1)))

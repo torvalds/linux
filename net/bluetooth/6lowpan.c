@@ -167,33 +167,6 @@ static struct lowpan_dev *lookup_dev(struct l2cap_conn *conn)
 	return dev;
 }
 
-/* print data in line */
-static inline void raw_dump_inline(const char *caller, char *msg,
-				   unsigned char *buf, int len)
-{
-	if (msg)
-		pr_debug("%s():%s: ", caller, msg);
-
-	print_hex_dump_debug("", DUMP_PREFIX_NONE,
-			     16, 1, buf, len, false);
-}
-
-/* print data in a table format:
- *
- * addr: xx xx xx xx xx xx
- * addr: xx xx xx xx xx xx
- * ...
- */
-static inline void raw_dump_table(const char *caller, char *msg,
-				  unsigned char *buf, int len)
-{
-	if (msg)
-		pr_debug("%s():%s:\n", caller, msg);
-
-	print_hex_dump_debug("\t", DUMP_PREFIX_OFFSET,
-			     16, 1, buf, len, false);
-}
-
 static int give_skb_to_upper(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sk_buff *skb_cp;

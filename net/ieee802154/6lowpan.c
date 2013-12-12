@@ -101,37 +101,6 @@ static inline void lowpan_address_flip(u8 *src, u8 *dest)
 		(dest)[IEEE802154_ADDR_LEN - i - 1] = (src)[i];
 }
 
-/* list of all 6lowpan devices, uses for package delivering */
-/* print data in line */
-static inline void lowpan_raw_dump_inline(const char *caller, char *msg,
-				   unsigned char *buf, int len)
-{
-#ifdef DEBUG
-	if (msg)
-		pr_debug("(%s) %s: ", caller, msg);
-	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_NONE,
-		       16, 1, buf, len, false);
-#endif /* DEBUG */
-}
-
-/*
- * print data in a table format:
- *
- * addr: xx xx xx xx xx xx
- * addr: xx xx xx xx xx xx
- * ...
- */
-static inline void lowpan_raw_dump_table(const char *caller, char *msg,
-				   unsigned char *buf, int len)
-{
-#ifdef DEBUG
-	if (msg)
-		pr_debug("(%s) %s:\n", caller, msg);
-	print_hex_dump(KERN_DEBUG, "\t", DUMP_PREFIX_OFFSET,
-		       16, 1, buf, len, false);
-#endif /* DEBUG */
-}
-
 static int lowpan_header_create(struct sk_buff *skb,
 			   struct net_device *dev,
 			   unsigned short type, const void *_daddr,
@@ -153,8 +122,8 @@ static int lowpan_header_create(struct sk_buff *skb,
 	if (!saddr)
 		saddr = dev->dev_addr;
 
-	lowpan_raw_dump_inline(__func__, "saddr", (unsigned char *)saddr, 8);
-	lowpan_raw_dump_inline(__func__, "daddr", (unsigned char *)daddr, 8);
+	raw_dump_inline(__func__, "saddr", (unsigned char *)saddr, 8);
+	raw_dump_inline(__func__, "daddr", (unsigned char *)daddr, 8);
 
 	lowpan_header_compress(skb, dev, type, daddr, saddr, len);
 
@@ -290,8 +259,7 @@ static int process_data(struct sk_buff *skb)
 	u8 iphc0, iphc1;
 	const struct ieee802154_addr *_saddr, *_daddr;
 
-	lowpan_raw_dump_table(__func__, "raw skb data dump", skb->data,
-				skb->len);
+	raw_dump_table(__func__, "raw skb data dump", skb->data, skb->len);
 	/* at least two bytes will be used for the encoding */
 	if (skb->len < 2)
 		goto drop;
@@ -429,7 +397,7 @@ lowpan_fragment_xmit(struct sk_buff *skb, u8 *head,
 	hlen = (type == LOWPAN_DISPATCH_FRAG1) ?
 			LOWPAN_FRAG1_HEAD_SIZE : LOWPAN_FRAGN_HEAD_SIZE;
 
-	lowpan_raw_dump_inline(__func__, "6lowpan fragment header", head, hlen);
+	raw_dump_inline(__func__, "6lowpan fragment header", head, hlen);
 
 	frag = netdev_alloc_skb(skb->dev,
 				hlen + mlen + plen + IEEE802154_MFR_SIZE);
@@ -449,8 +417,7 @@ lowpan_fragment_xmit(struct sk_buff *skb, u8 *head,
 	skb_copy_to_linear_data_offset(frag, mlen + hlen,
 				       skb_network_header(skb) + offset, plen);
 
-	lowpan_raw_dump_table(__func__, " raw fragment dump", frag->data,
-								frag->len);
+	raw_dump_table(__func__, " raw fragment dump", frag->data, frag->len);
 
 	return dev_queue_xmit(frag);
 }
