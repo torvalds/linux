@@ -1376,23 +1376,6 @@ void gfs2_quota_cleanup(struct gfs2_sbd *sdp)
 	while (!list_empty(head)) {
 		qd = list_entry(head->prev, struct gfs2_quota_data, qd_list);
 
-		/*
-		 * To be removed in due course... we should be able to
-		 * ensure that all refs to the qd have done by this point
-		 * so that this rather odd test is not required
-		 */
-		spin_lock(&qd->qd_lockref.lock);
-		if (qd->qd_lockref.count > 1 ||
-		    (qd->qd_lockref.count && !test_bit(QDF_CHANGE, &qd->qd_flags))) {
-			spin_unlock(&qd->qd_lockref.lock);
-			list_move(&qd->qd_list, head);
-			spin_unlock(&qd_lock);
-			schedule();
-			spin_lock(&qd_lock);
-			continue;
-		}
-		spin_unlock(&qd->qd_lockref.lock);
-
 		list_del(&qd->qd_list);
 
 		/* Also remove if this qd exists in the reclaim list */
@@ -1404,11 +1387,8 @@ void gfs2_quota_cleanup(struct gfs2_sbd *sdp)
 		hlist_bl_del_rcu(&qd->qd_hlist);
 		spin_unlock_bucket(qd->qd_hash);
 
-		if (!qd->qd_lockref.count) {
-			gfs2_assert_warn(sdp, !qd->qd_change);
-			gfs2_assert_warn(sdp, !qd->qd_slot_count);
-		} else
-			gfs2_assert_warn(sdp, qd->qd_slot_count == 1);
+		gfs2_assert_warn(sdp, !qd->qd_change);
+		gfs2_assert_warn(sdp, !qd->qd_slot_count);
 		gfs2_assert_warn(sdp, !qd->qd_bh_count);
 
 		gfs2_glock_put(qd->qd_gl);
