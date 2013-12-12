@@ -312,7 +312,8 @@ config FB_PM2_FIFO_DISCONNECT
 
 config FB_ARMCLCD
 	tristate "ARM PrimeCell PL110 support"
-	depends on FB && ARM && ARM_AMBA
+	depends on ARM || ARM64 || COMPILE_TEST
+	depends on FB && ARM_AMBA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
