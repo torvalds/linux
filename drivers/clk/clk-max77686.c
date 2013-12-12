@@ -176,7 +176,7 @@ static int max77686_clk_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, max77686_clks);
 
-	goto out;
+	return 0;
 
 err_clk_pmic:
 	clkdev_drop(max77686_clks[MAX77686_CLK_CP]->lookup);
@@ -185,7 +185,6 @@ err_clk_cp:
 	clkdev_drop(max77686_clks[MAX77686_CLK_AP]->lookup);
 	kfree(max77686_clks[MAX77686_CLK_AP]->hw.clk);
 err_clk_ap:
-out:
 	return ret;
 }
 
