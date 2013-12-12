@@ -14,6 +14,8 @@
 
 / {
 	aliases {
+		can0 = &can1;
+		can1 = &can2;
 		gpio0 = &gpio1;
 		gpio1 = &gpio2;
 		gpio2 = &gpio3;
