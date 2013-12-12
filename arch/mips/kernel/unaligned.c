@@ -431,7 +431,9 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 	unsigned long origpc;
 	unsigned long orig31;
 	void __user *fault_addr = NULL;
-
+#ifdef	CONFIG_EVA
+	mm_segment_t seg;
+#endif
 	origpc = (unsigned long)pc;
 	orig31 = regs->regs[31];
 
@@ -476,6 +478,88 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		 * The remaining opcodes are the ones that are really of
 		 * interest.
 		 */
+#ifdef CONFIG_EVA
+	case spec3_op:
+		/*
+		 * we can land here only from kernel accessing user memory,
+		 * so we need to "switch" the address limit to user space, so
+		 * address check can work properly.
+		 */
+		seg = get_fs();
+		set_fs(USER_DS);
+		switch (insn.spec3_format.func) {
+		case lhe_op:
+			if (!access_ok(VERIFY_READ, addr, 2)) {
+				set_fs(seg);
+				goto sigbus;
+			}
+			LoadHW(addr, value, res);
+			if (res) {
+				set_fs(seg);
+				goto fault;
+			}
+			compute_return_epc(regs);
+			regs->regs[insn.spec3_format.rt] = value;
+			break;
+		case lwe_op:
+			if (!access_ok(VERIFY_READ, addr, 4)) {
+				set_fs(seg);
+				goto sigbus;
+			}
+				LoadW(addr, value, res);
+			if (res) {
+				set_fs(seg);
+				goto fault;
+			}
+			compute_return_epc(regs);
+			regs->regs[insn.spec3_format.rt] = value;
+			break;
+		case lhue_op:
+			if (!access_ok(VERIFY_READ, addr, 2)) {
+				set_fs(seg);
+				goto sigbus;
+			}
+			LoadHWU(addr, value, res);
+			if (res) {
+				set_fs(seg);
+				goto fault;
+			}
+			compute_return_epc(regs);
+			regs->regs[insn.spec3_format.rt] = value;
+			break;
+		case she_op:
+			if (!access_ok(VERIFY_WRITE, addr, 2)) {
+				set_fs(seg);
+				goto sigbus;
+			}
+			compute_return_epc(regs);
+			value = regs->regs[insn.spec3_format.rt];
+			StoreHW(addr, value, res);
+			if (res) {
+				set_fs(seg);
+				goto fault;
+			}
+			break;
+		case swe_op:
+			if (!access_ok(VERIFY_WRITE, addr, 4)) {
+				set_fs(seg);
+				goto sigbus;
+			}
+			compute_return_epc(regs);
+			value = regs->regs[insn.spec3_format.rt];
+			StoreW(addr, value, res);
+			if (res) {
+				set_fs(seg);
+				goto fault;
+			}
+			break;
+		default:
+			set_fs(seg);
+			goto sigill;
+		}
+		set_fs(seg);
+		break;
+#endif
 	case lh_op:
 		if (!access_ok(VERIFY_READ, addr, 2))
 			goto sigbus;
