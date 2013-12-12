@@ -648,7 +648,7 @@ rotate_op_right(struct filter_arg *a, struct filter_arg *b)
 	return arg;
 }
 
-static int add_left(struct filter_arg *op, struct filter_arg *arg)
+static enum pevent_errno add_left(struct filter_arg *op, struct filter_arg *arg)
 {
 	switch (op->type) {
 	case FILTER_ARG_EXP:
@@ -667,11 +667,11 @@ static int add_left(struct filter_arg *op, struct filter_arg *arg)
 		/* left arg of compares must be a field */
 		if (arg->type != FILTER_ARG_FIELD &&
 		    arg->type != FILTER_ARG_BOOLEAN)
-			return -1;
+			return PEVENT_ERRNO__INVALID_ARG_TYPE;
 		op->num.left = arg;
 		break;
 	default:
-		return -1;
+		return PEVENT_ERRNO__INVALID_ARG_TYPE;
 	}
 	return 0;
 }
