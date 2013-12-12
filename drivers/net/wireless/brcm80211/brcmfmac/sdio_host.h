@@ -235,9 +235,10 @@ int brcmf_sdiod_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 /* Issue an abort to the specified function */
 int brcmf_sdiod_abort(struct brcmf_sdio_dev *sdiodev, uint fn);
 
-struct brcmf_sdio *brcmf_sdbrcm_probe(struct brcmf_sdio_dev *sdiodev);
-void brcmf_sdbrcm_disconnect(struct brcmf_sdio *bus);
-void brcmf_sdbrcm_isr(struct brcmf_sdio *bus);
-void brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick);
+struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev);
+void brcmf_sdio_disconnect(struct brcmf_sdio *bus);
+void brcmf_sdio_isr(struct brcmf_sdio *bus);
+
+void brcmf_sdio_wd_timer(struct brcmf_sdio *bus, uint wdtick);
 
 #endif				/* _BRCM_SDH_H_ */

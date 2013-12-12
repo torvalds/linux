@@ -72,7 +72,7 @@ static irqreturn_t brcmf_sdiod_oob_irqhandler(int irq, void *dev_id)
 		sdiodev->irq_en = false;
 	}
 
-	brcmf_sdbrcm_isr(sdiodev->bus);
+	brcmf_sdio_isr(sdiodev->bus);
 
 	return IRQ_HANDLED;
 }
@@ -84,7 +84,7 @@ static void brcmf_sdiod_ib_irqhandler(struct sdio_func *func)
 
 	brcmf_dbg(INTR, "IB intr triggered\n");
 
-	brcmf_sdbrcm_isr(sdiodev->bus);
+	brcmf_sdio_isr(sdiodev->bus);
 }
 
 /* dummy handler for SDIO function 2 interrupt */
@@ -901,7 +901,7 @@ static int brcmf_sdiod_remove(struct brcmf_sdio_dev *sdiodev)
 	sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 
 	if (sdiodev->bus) {
-		brcmf_sdbrcm_disconnect(sdiodev->bus);
+		brcmf_sdio_disconnect(sdiodev->bus);
 		sdiodev->bus = NULL;
 	}
 
@@ -971,7 +971,7 @@ static int brcmf_sdiod_probe(struct brcmf_sdio_dev *sdiodev)
 	sdiodev->max_segment_size = host->max_seg_size;
 
 	/* try to attach to the target device */
-	sdiodev->bus = brcmf_sdbrcm_probe(sdiodev);
+	sdiodev->bus = brcmf_sdio_probe(sdiodev);
 	if (!sdiodev->bus) {
 		ret = -ENODEV;
 		goto out;
@@ -1117,7 +1117,7 @@ static int brcmf_ops_sdio_suspend(struct device *dev)
 		return ret;
 	}
 
-	brcmf_sdbrcm_wd_timer(sdiodev->bus, 0);
+	brcmf_sdio_wd_timer(sdiodev->bus, 0);
 
 	return ret;
 }
@@ -1127,7 +1127,7 @@ static int brcmf_ops_sdio_resume(struct device *dev)
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 
-	brcmf_sdbrcm_wd_timer(sdiodev->bus, BRCMF_WD_POLL_MS);
+	brcmf_sdio_wd_timer(sdiodev->bus, BRCMF_WD_POLL_MS);
 	atomic_set(&sdiodev->suspend, false);
 	return 0;
 }
