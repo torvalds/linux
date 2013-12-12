@@ -46,6 +46,8 @@
 #include <rdma/ib_cache.h>
 #include <rdma/ib_addr.h>
 
+#include "core_priv.h"
+
 int ib_rate_to_mult(enum ib_rate rate)
 {
 	switch (rate) {
@@ -859,10 +861,51 @@ int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
 }
 EXPORT_SYMBOL(ib_modify_qp_is_ok);
 
+int ib_resolve_eth_l2_attrs(struct ib_qp *qp,
+			    struct ib_qp_attr *qp_attr, int *qp_attr_mask)
+{
+	int           ret = 0;
+	union ib_gid  sgid;
+
+	if ((*qp_attr_mask & IB_QP_AV)  &&
+	    (rdma_port_get_link_layer(qp->device, qp_attr->ah_attr.port_num) == IB_LINK_LAYER_ETHERNET)) {
+		ret = ib_query_gid(qp->device, qp_attr->ah_attr.port_num,
+				   qp_attr->ah_attr.grh.sgid_index, &sgid);
+		if (ret)
+			goto out;
+		if (rdma_link_local_addr((struct in6_addr *)qp_attr->ah_attr.grh.dgid.raw)) {
+			rdma_get_ll_mac((struct in6_addr *)qp_attr->ah_attr.grh.dgid.raw, qp_attr->ah_attr.dmac);
+			rdma_get_ll_mac((struct in6_addr *)sgid.raw, qp_attr->smac);
+			qp_attr->vlan_id = rdma_get_vlan_id(&sgid);
+		} else {
+			ret = rdma_addr_find_dmac_by_grh(&sgid, &qp_attr->ah_attr.grh.dgid,
+					qp_attr->ah_attr.dmac, &qp_attr->vlan_id);
+			if (ret)
+				goto out;
+			ret = rdma_addr_find_smac_by_sgid(&sgid, qp_attr->smac, NULL);
+			if (ret)
+				goto out;
+		}
+		*qp_attr_mask |= IB_QP_SMAC;
+		if (qp_attr->vlan_id < 0xFFFF)
+			*qp_attr_mask |= IB_QP_VID;
+	}
+out:
+	return ret;
+}
+EXPORT_SYMBOL(ib_resolve_eth_l2_attrs);
+
+
 int ib_modify_qp(struct ib_qp *qp,
 		 struct ib_qp_attr *qp_attr,
 		 int qp_attr_mask)
 {
+	int ret;
+
+	ret = ib_resolve_eth_l2_attrs(qp, qp_attr, &qp_attr_mask);
+	if (ret)
+		return ret;
+
 	return qp->device->modify_qp(qp->real_qp, qp_attr, qp_attr_mask, NULL);
 }
 EXPORT_SYMBOL(ib_modify_qp);
