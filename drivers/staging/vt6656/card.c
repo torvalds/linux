@@ -75,52 +75,48 @@ static const u16 cwRXBCNTSFOff[MAX_RATE] =
  * Parameters:
  *  In:
  *      pDevice             - The adapter to be set
- *      uConnectionChannel  - Channel to be set
+ *      connection_channel  - Channel to be set
  *  Out:
  *      none
  */
-void CARDbSetMediaChannel(struct vnt_private *pDevice, u32 uConnectionChannel)
+void CARDbSetMediaChannel(struct vnt_private *priv, u32 connection_channel)
 {
 
-    if (pDevice->byBBType == BB_TYPE_11A) { // 15 ~ 38
-        if ((uConnectionChannel < (CB_MAX_CHANNEL_24G+1)) || (uConnectionChannel > CB_MAX_CHANNEL))
-            uConnectionChannel = (CB_MAX_CHANNEL_24G+1);
-    } else {
-        if ((uConnectionChannel > CB_MAX_CHANNEL_24G) || (uConnectionChannel == 0)) // 1 ~ 14
-            uConnectionChannel = 1;
-    }
+	if (priv->byBBType == BB_TYPE_11A) {
+		if ((connection_channel < (CB_MAX_CHANNEL_24G + 1)) ||
+					(connection_channel > CB_MAX_CHANNEL))
+			connection_channel = (CB_MAX_CHANNEL_24G + 1);
+	} else {
+		if ((connection_channel > CB_MAX_CHANNEL_24G) ||
+						(connection_channel == 0))
+			connection_channel = 1;
+	}
 
-    // clear NAV
-    MACvRegBitsOn(pDevice, MAC_REG_MACCR, MACCR_CLRNAV);
+	/* clear NAV */
+	MACvRegBitsOn(priv, MAC_REG_MACCR, MACCR_CLRNAV);
 
-    // Set Channel[7] = 0 to tell H/W channel is changing now.
-    MACvRegBitsOff(pDevice, MAC_REG_CHANNEL, 0x80);
+	/* Set Channel[7] = 0 to tell H/W channel is changing now. */
+	MACvRegBitsOff(priv, MAC_REG_CHANNEL, 0xb0);
 
-    //if (pMgmt->uCurrChannel == uConnectionChannel)
-    //    return bResult;
+	CONTROLnsRequestOut(priv, MESSAGE_TYPE_SELECT_CHANNLE,
+					connection_channel, 0, 0, NULL);
 
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_SELECT_CHANNLE,
-                        (u16) uConnectionChannel,
-                        0,
-                        0,
-                        NULL
-                        );
+	if (priv->byBBType == BB_TYPE_11A) {
+		priv->byCurPwr = 0xff;
+		RFbRawSetPower(priv,
+			priv->abyOFDMAPwrTbl[connection_channel-15], RATE_54M);
+	} else if (priv->byBBType == BB_TYPE_11G) {
+		priv->byCurPwr = 0xff;
+		RFbRawSetPower(priv,
+			priv->abyOFDMPwrTbl[connection_channel-1], RATE_54M);
+	} else {
+		priv->byCurPwr = 0xff;
+		RFbRawSetPower(priv,
+			priv->abyCCKPwrTbl[connection_channel-1], RATE_1M);
+	}
 
-    //{{ RobertYu: 20041202
-    //// TX_PE will reserve 3 us for MAX2829 A mode only, it is for better TX throughput
-
-    if (pDevice->byBBType == BB_TYPE_11A) {
-        pDevice->byCurPwr = 0xFF;
-        RFbRawSetPower(pDevice, pDevice->abyOFDMAPwrTbl[uConnectionChannel-15], RATE_54M);
-    } else if (pDevice->byBBType == BB_TYPE_11G) {
-        pDevice->byCurPwr = 0xFF;
-        RFbRawSetPower(pDevice, pDevice->abyOFDMPwrTbl[uConnectionChannel-1], RATE_54M);
-    } else {
-        pDevice->byCurPwr = 0xFF;
-        RFbRawSetPower(pDevice, pDevice->abyCCKPwrTbl[uConnectionChannel-1], RATE_1M);
-    }
-    ControlvWriteByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_CHANNEL,(u8)(uConnectionChannel|0x80));
+	ControlvWriteByte(priv, MESSAGE_REQUEST_MACREG, MAC_REG_CHANNEL,
+		(u8)(connection_channel|0x80));
 }
 
 /*
