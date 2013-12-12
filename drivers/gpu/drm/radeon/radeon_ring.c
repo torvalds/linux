@@ -790,34 +790,54 @@ static int radeon_debugfs_ring_info(struct seq_file *m, void *data)
 	struct radeon_device *rdev = dev->dev_private;
 	int ridx = *(int*)node->info_ent->data;
 	struct radeon_ring *ring = &rdev->ring[ridx];
+
+	uint32_t rptr, wptr, rptr_next;
 	unsigned count, i, j;
-	u32 tmp;
 
 	radeon_ring_free_size(rdev, ring);
 	count = (ring->ring_size / 4) - ring->ring_free_dw;
-	tmp = radeon_ring_get_wptr(rdev, ring);
-	seq_printf(m, "wptr(0x%04x): 0x%08x [%5d]\n", ring->wptr_reg, tmp, tmp);
-	tmp = radeon_ring_get_rptr(rdev, ring);
-	seq_printf(m, "rptr(0x%04x): 0x%08x [%5d]\n", ring->rptr_reg, tmp, tmp);
+
+	wptr = radeon_ring_get_wptr(rdev, ring);
+	seq_printf(m, "wptr(0x%04x): 0x%08x [%5d]\n",
+		   ring->wptr_reg, wptr, wptr);
+
+	rptr = radeon_ring_get_rptr(rdev, ring);
+	seq_printf(m, "rptr(0x%04x): 0x%08x [%5d]\n",
+		   ring->rptr_reg, rptr, rptr);
+
 	if (ring->rptr_save_reg) {
-		seq_printf(m, "rptr next(0x%04x): 0x%08x\n", ring->rptr_save_reg,
-			   RREG32(ring->rptr_save_reg));
-	}
-	seq_printf(m, "driver's copy of the wptr: 0x%08x [%5d]\n", ring->wptr, ring->wptr);
-	seq_printf(m, "driver's copy of the rptr: 0x%08x [%5d]\n", ring->rptr, ring->rptr);
-	seq_printf(m, "last semaphore signal addr : 0x%016llx\n", ring->last_semaphore_signal_addr);
-	seq_printf(m, "last semaphore wait addr   : 0x%016llx\n", ring->last_semaphore_wait_addr);
+		rptr_next = RREG32(ring->rptr_save_reg);
+		seq_printf(m, "rptr next(0x%04x): 0x%08x [%5d]\n",
+			   ring->rptr_save_reg, rptr_next, rptr_next);
+	} else
+		rptr_next = ~0;
+
+	seq_printf(m, "driver's copy of the wptr: 0x%08x [%5d]\n",
+		   ring->wptr, ring->wptr);
+	seq_printf(m, "driver's copy of the rptr: 0x%08x [%5d]\n",
+		   ring->rptr, ring->rptr);
+	seq_printf(m, "last semaphore signal addr : 0x%016llx\n",
+		   ring->last_semaphore_signal_addr);
+	seq_printf(m, "last semaphore wait addr   : 0x%016llx\n",
+		   ring->last_semaphore_wait_addr);
 	seq_printf(m, "%u free dwords in ring\n", ring->ring_free_dw);
 	seq_printf(m, "%u dwords in ring\n", count);
+
+	if (!ring->ready)
+		return 0;
+
 	/* print 8 dw before current rptr as often it's the last executed
 	 * packet that is the root issue
 	 */
-	i = (ring->rptr + ring->ptr_mask + 1 - 32) & ring->ptr_mask;
-	if (ring->ready) {
-		for (j = 0; j <= (count + 32); j++) {
-			seq_printf(m, "r[%5d]=0x%08x\n", i, ring->ring[i]);
-			i = (i + 1) & ring->ptr_mask;
-		}
+	i = (rptr + ring->ptr_mask + 1 - 32) & ring->ptr_mask;
+	for (j = 0; j <= (count + 32); j++) {
+		seq_printf(m, "r[%5d]=0x%08x", i, ring->ring[i]);
+		if (rptr == i)
+			seq_puts(m, " *");
+		if (rptr_next == i)
+			seq_puts(m, " #");
+		seq_puts(m, "\n");
+		i = (i + 1) & ring->ptr_mask;
 	}
 	return 0;
 }
