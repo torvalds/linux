@@ -1199,6 +1199,7 @@ static int mv_xor_probe(struct platform_device *pdev)
 		int i = 0;
 
 		for_each_child_of_node(pdev->dev.of_node, np) {
+			struct mv_xor_chan *chan;
 			dma_cap_mask_t cap_mask;
 			int irq;
 
@@ -1216,21 +1217,21 @@ static int mv_xor_probe(struct platform_device *pdev)
 				goto err_channel_add;
 			}
 
-			xordev->channels[i] =
-				mv_xor_channel_add(xordev, pdev, i,
-						   cap_mask, irq);
-			if (IS_ERR(xordev->channels[i])) {
-				ret = PTR_ERR(xordev->channels[i]);
-				xordev->channels[i] = NULL;
+			chan = mv_xor_channel_add(xordev, pdev, i,
+						  cap_mask, irq);
+			if (IS_ERR(chan)) {
+				ret = PTR_ERR(chan);
 				irq_dispose_mapping(irq);
 				goto err_channel_add;
 			}
 
+			xordev->channels[i] = chan;
 			i++;
 		}
 	} else if (pdata && pdata->channels) {
 		for (i = 0; i < MV_XOR_MAX_CHANNELS; i++) {
 			struct mv_xor_channel_data *cd;
+			struct mv_xor_chan *chan;
 			int irq;
 
 			cd = &pdata->channels[i];
@@ -1245,13 +1246,14 @@ static int mv_xor_probe(struct platform_device *pdev)
 				goto err_channel_add;
 			}
 
-			xordev->channels[i] =
-				mv_xor_channel_add(xordev, pdev, i,
-						   cd->cap_mask, irq);
-			if (IS_ERR(xordev->channels[i])) {
-				ret = PTR_ERR(xordev->channels[i]);
+			chan = mv_xor_channel_add(xordev, pdev, i,
+						  cd->cap_mask, irq);
+			if (IS_ERR(chan)) {
+				ret = PTR_ERR(chan);
 				goto err_channel_add;
 			}
+
+			xordev->channels[i] = chan;
 		}
 	}
 
