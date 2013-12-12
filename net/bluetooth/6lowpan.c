@@ -26,6 +26,8 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
 
+#include "6lowpan.h"
+
 #include "../ieee802154/6lowpan.h" /* for the compression support */
 
 #define IFACE_NAME_TEMPLATE "bt%d"
