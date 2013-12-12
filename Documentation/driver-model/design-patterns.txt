@@ -66,7 +66,7 @@ your interrupt handler.
 2. container_of()
 ~~~~~~~~~~~~~~~~~
 
-Continuing on the above example we add a offloaded work:
+Continuing on the above example we add an offloaded work:
 
 struct foo {
     spinlock_t lock;
@@ -99,7 +99,7 @@ static int foo_probe(...)
     (...)
 }
 
-The design pattern is the same for a a hrtimer or something similar that will
+The design pattern is the same for an hrtimer or something similar that will
 return a single argument which is a pointer to a struct member in the
 callback.
 
