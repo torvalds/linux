@@ -723,9 +723,18 @@ static int cpumsf_pmu_event_init(struct perf_event *event)
 		return -ENOENT;
 	}
 
+	/* Check online status of the CPU to which the event is pinned */
 	if (event->cpu >= nr_cpumask_bits ||
 	    (event->cpu >= 0 && !cpu_online(event->cpu)))
 		return -ENODEV;
+
+	/* Force reset of idle/hv excludes regardless of what the
+	 * user requested.
+	 */
+	if (event->attr.exclude_hv)
+		event->attr.exclude_hv = 0;
+	if (event->attr.exclude_idle)
+		event->attr.exclude_idle = 0;
 
 	err = __hw_perf_event_init(event);
 	if (unlikely(err))
@@ -824,6 +833,29 @@ static void cpumsf_pmu_disable(struct pmu *pmu)
 	cpuhw->flags &= ~PMU_F_ENABLED;
 }
 
+/* perf_exclude_event() - Filter event
+ * @event:	The perf event
+ * @regs:	pt_regs structure
+ * @sde_regs:	Sample-data-entry (sde) regs structure
+ *
+ * Filter perf events according to their exclude specification.
+ *
+ * Return non-zero if the event shall be excluded.
+ */
+static int perf_exclude_event(struct perf_event *event, struct pt_regs *regs,
+			      struct perf_sf_sde_regs *sde_regs)
+{
+	if (event->attr.exclude_user && user_mode(regs))
+		return 1;
+	if (event->attr.exclude_kernel && !user_mode(regs))
+		return 1;
+	if (event->attr.exclude_guest && sde_regs->in_guest)
+		return 1;
+	if (event->attr.exclude_host && !sde_regs->in_guest)
+		return 1;
+	return 0;
+}
+
 /* perf_push_sample() - Push samples to perf
  * @event:	The perf event
  * @sample:	Hardware sample data
@@ -894,12 +926,14 @@ static int perf_push_sample(struct perf_event *event,
 		sde_regs->in_guest = 1;
 
 	overflow = 0;
+	if (perf_exclude_event(event, &regs, sde_regs))
+		goto out;
 	if (perf_event_overflow(event, &data, &regs)) {
 		overflow = 1;
 		event->pmu->stop(event, 0);
 	}
 	perf_event_update_userpage(event);
-
+out:
 	return overflow;
 }
 
