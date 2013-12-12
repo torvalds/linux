@@ -436,3 +436,25 @@ int bond_option_arp_ip_targets_set(struct bonding *bond, __be32 *targets,
 	write_unlock_bh(&bond->lock);
 	return ret;
 }
+
+int bond_option_arp_validate_set(struct bonding *bond, int arp_validate)
+{
+	if (bond->params.mode != BOND_MODE_ACTIVEBACKUP) {
+		pr_err("%s: arp_validate only supported in active-backup mode.\n",
+		       bond->dev->name);
+		return -EINVAL;
+	}
+	pr_info("%s: setting arp_validate to %s (%d).\n",
+		bond->dev->name, arp_validate_tbl[arp_validate].modename,
+		arp_validate);
+
+	if (bond->dev->flags & IFF_UP) {
+		if (!arp_validate)
+			bond->recv_probe = NULL;
+		else if (bond->params.arp_interval)
+			bond->recv_probe = bond_arp_rcv;
+	}
+	bond->params.arp_validate = arp_validate;
+
+	return 0;
+}

@@ -30,6 +30,7 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_USE_CARRIER]		= { .type = NLA_U8 },
 	[IFLA_BOND_ARP_INTERVAL]	= { .type = NLA_U32 },
 	[IFLA_BOND_ARP_IP_TARGET]	= { .type = NLA_NESTED },
+	[IFLA_BOND_ARP_VALIDATE]	= { .type = NLA_U32 },
 };
 
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -131,6 +132,19 @@ static int bond_changelink(struct net_device *bond_dev,
 		if (err)
 			return err;
 	}
+	if (data[IFLA_BOND_ARP_VALIDATE]) {
+		int arp_validate = nla_get_u32(data[IFLA_BOND_ARP_VALIDATE]);
+
+		if (arp_validate && miimon) {
+			pr_err("%s: ARP validating cannot be used with MII monitoring.\n",
+			       bond->dev->name);
+			return -EINVAL;
+		}
+
+		err = bond_option_arp_validate_set(bond, arp_validate);
+		if (err)
+			return err;
+	}
 	return 0;
 }
 
@@ -157,6 +171,7 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ARP_INTERVAL */
 						/* IFLA_BOND_ARP_IP_TARGET */
 		nla_total_size(sizeof(u32)) * BOND_MAX_ARP_TARGETS +
+		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ARP_VALIDATE */
 		0;
 }
 
@@ -208,6 +223,9 @@ static int bond_fill_info(struct sk_buff *skb,
 		nla_nest_end(skb, targets);
 	else
 		nla_nest_cancel(skb, targets);
+
+	if (nla_put_u32(skb, IFLA_BOND_ARP_VALIDATE, bond->params.arp_validate))
+		goto nla_put_failure;
 
 	return 0;
 
