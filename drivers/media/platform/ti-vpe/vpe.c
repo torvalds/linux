@@ -440,9 +440,15 @@ struct vpe_mmr_adb {
 	u32			us3_regs[8];
 	struct vpdma_adb_hdr	dei_hdr;
 	u32			dei_regs[8];
-	struct vpdma_adb_hdr	sc_hdr;
-	u32			sc_regs[1];
-	u32			sc_pad[3];
+	struct vpdma_adb_hdr	sc_hdr0;
+	u32			sc_regs0[7];
+	u32			sc_pad0[1];
+	struct vpdma_adb_hdr	sc_hdr8;
+	u32			sc_regs8[6];
+	u32			sc_pad8[2];
+	struct vpdma_adb_hdr	sc_hdr17;
+	u32			sc_regs17[9];
+	u32			sc_pad17[3];
 	struct vpdma_adb_hdr	csc_hdr;
 	u32			csc_regs[6];
 	u32			csc_pad[2];
@@ -463,8 +469,12 @@ static void init_adb_hdrs(struct vpe_ctx *ctx)
 	VPE_SET_MMR_ADB_HDR(ctx, us2_hdr, us2_regs, VPE_US2_R0);
 	VPE_SET_MMR_ADB_HDR(ctx, us3_hdr, us3_regs, VPE_US3_R0);
 	VPE_SET_MMR_ADB_HDR(ctx, dei_hdr, dei_regs, VPE_DEI_FRAME_SIZE);
-	VPE_SET_MMR_ADB_HDR(ctx, sc_hdr, sc_regs,
+	VPE_SET_MMR_ADB_HDR(ctx, sc_hdr0, sc_regs0,
 		GET_OFFSET_TOP(ctx, ctx->dev->sc, CFG_SC0));
+	VPE_SET_MMR_ADB_HDR(ctx, sc_hdr8, sc_regs8,
+		GET_OFFSET_TOP(ctx, ctx->dev->sc, CFG_SC8));
+	VPE_SET_MMR_ADB_HDR(ctx, sc_hdr17, sc_regs17,
+		GET_OFFSET_TOP(ctx, ctx->dev->sc, CFG_SC17));
 	VPE_SET_MMR_ADB_HDR(ctx, csc_hdr, csc_regs, VPE_CSC_CSC00);
 };
 
@@ -810,9 +820,13 @@ static int set_srcdst_params(struct vpe_ctx *ctx)
 	set_cfg_and_line_modes(ctx);
 	set_dei_regs(ctx);
 	set_csc_coeff_bypass(ctx);
+
 	sc_set_hs_coeffs(ctx->dev->sc, ctx->sc_coeff_h.addr, src_w, dst_w);
 	sc_set_vs_coeffs(ctx->dev->sc, ctx->sc_coeff_v.addr, src_h, dst_h);
-	sc_set_regs_bypass(ctx->dev->sc, &mmr_adb->sc_regs[0]);
+
+	sc_config_scaler(ctx->dev->sc, &mmr_adb->sc_regs0[0],
+		&mmr_adb->sc_regs8[0], &mmr_adb->sc_regs17[0],
+		src_w, src_h, dst_w, dst_h);
 
 	return 0;
 }

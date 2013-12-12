@@ -195,12 +195,14 @@ struct sc_data {
 	struct platform_device *pdev;
 };
 
-void sc_set_regs_bypass(struct sc_data *sc, u32 *sc_reg0);
 void sc_dump_regs(struct sc_data *sc);
 void sc_set_hs_coeffs(struct sc_data *sc, void *addr, unsigned int src_w,
 		unsigned int dst_w);
 void sc_set_vs_coeffs(struct sc_data *sc, void *addr, unsigned int src_h,
 		unsigned int dst_h);
+void sc_config_scaler(struct sc_data *sc, u32 *sc_reg0, u32 *sc_reg8,
+		u32 *sc_reg17, unsigned int src_w, unsigned int src_h,
+		unsigned int dst_w, unsigned int dst_h);
 struct sc_data *sc_create(struct platform_device *pdev);
 
 #endif
