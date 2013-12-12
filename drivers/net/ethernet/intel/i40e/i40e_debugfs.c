@@ -1547,7 +1547,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		if (strncmp(cmd_buf, "add", 3) == 0)
 			add = true;
 		cnt = sscanf(&cmd_buf[13],
-			     "%hx %2hhx %2hhx %hx %2hhx %2hhx %hx %x %hd %512s",
+			     "%hx %2hhx %2hhx %hx %2hhx %2hhx %hx %x %hd %511s",
 			     &fd_data.q_index,
 			     &fd_data.flex_off, &fd_data.pctype,
 			     &fd_data.dest_vsi, &fd_data.dest_ctl,
