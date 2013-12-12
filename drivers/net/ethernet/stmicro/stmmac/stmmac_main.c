@@ -1984,6 +1984,21 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv)
 	}
 }
 
+static inline void stmmac_rx_vlan(struct net_device *dev, struct sk_buff *skb)
+{
+	struct ethhdr *eth_hdr;
+	u16 vid;
+	if ((dev->features & NETIF_F_HW_VLAN_CTAG_RX) ==
+		NETIF_F_HW_VLAN_CTAG_RX &&
+		!__vlan_get_tag(skb, &vid)) {
+		/* pop the VLAN tag, fix up the packet */
+		eth_hdr = (struct ethhdr *)skb->data;
+		memmove(skb->data + VLAN_HLEN, eth_hdr, ETH_ALEN * 2);
+		skb_pull(skb, VLAN_HLEN);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
+	}
+}
+
 /**
  * stmmac_rx_refill: refill used skb preallocated buffers
  * @priv: driver private structure
@@ -2092,6 +2107,9 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 				print_pkt(skb->data, frame_len);
 			}
 #endif
+
+			stmmac_rx_vlan(priv->dev, skb);
+
 			skb->protocol = eth_type_trans(skb, priv->dev);
 
 			if (unlikely(!coe))
