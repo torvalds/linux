@@ -125,8 +125,7 @@ struct hws_trailer_entry {
 		unsigned long long flags;	/* 0 - 63: All indicators     */
 	};
 	unsigned long long overflow;	 /* 64 - sample Overflow count	      */
-	unsigned long long timestamp;	 /* 16 - time-stamp		      */
-	unsigned long long timestamp1;	 /*				      */
+	unsigned char timestamp[16];	 /* 16 - 31 timestamp		      */
 	unsigned long long reserved1;	 /* 32 -Reserved		      */
 	unsigned long long reserved2;	 /*				      */
 	unsigned long long progusage1;	 /* 48 - reserved for programming use */
@@ -231,6 +230,17 @@ static inline unsigned long sample_rate_to_freq(struct hws_qsi_info_block *qsi,
 
 #define SDB_TE_ALERT_REQ_MASK	0x4000000000000000UL
 #define SDB_TE_BUFFER_FULL_MASK 0x8000000000000000UL
+
+/* Return TOD timestamp contained in an trailer entry */
+static inline unsigned long long trailer_timestamp(struct hws_trailer_entry *te)
+{
+	/* TOD in STCKE format */
+	if (te->t)
+		return *((unsigned long long *) &te->timestamp[1]);
+
+	/* TOD in STCK format */
+	return *((unsigned long long *) &te->timestamp[0]);
+}
 
 /* Return pointer to trailer entry of an sample data block */
 static inline unsigned long *trailer_entry_ptr(unsigned long v)

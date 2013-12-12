@@ -981,7 +981,7 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 		debug_sprintf_event(sfdbg, 6, "hw_perf_event_update: sdbt=%p "
 				    "overflow=%llu timestamp=0x%llx\n",
 				    sdbt, te->overflow,
-				    (te->f) ? te->timestamp : 0ULL);
+				    (te->f) ? trailer_timestamp(te) : 0ULL);
 
 		/* Collect all samples from a single sample-data-block and
 		 * flag if an (perf) event overflow happened.  If so, the PMU
