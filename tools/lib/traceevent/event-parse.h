@@ -357,6 +357,8 @@ enum pevent_flag {
 	_PE(READ_PRINT_FAILED,	"failed to read event print fmt"), 	      \
 	_PE(OLD_FTRACE_ARG_FAILED,"failed to allocate field name for ftrace"),\
 	_PE(INVALID_ARG_TYPE,	"invalid argument type"),		      \
+	_PE(INVALID_EXP_TYPE,	"invalid expression type"),		      \
+	_PE(INVALID_OP_TYPE,	"invalid operator type"),		      \
 	_PE(INVALID_EVENT_NAME,	"invalid event name"),			      \
 	_PE(EVENT_NOT_FOUND,	"no event found"),			      \
 	_PE(SYNTAX_ERROR,	"syntax error"),			      \
@@ -373,12 +375,16 @@ enum pevent_flag {
 	_PE(INVALID_PAREN,	"open parenthesis cannot come here"), 	      \
 	_PE(UNBALANCED_PAREN,	"unbalanced number of parenthesis"),	      \
 	_PE(UNKNOWN_TOKEN,	"unknown token"),			      \
-	_PE(FILTER_NOT_FOUND,	"no filter found")
+	_PE(FILTER_NOT_FOUND,	"no filter found"),			      \
+	_PE(NOT_A_NUMBER,	"must have number field"),		      \
+	_PE(NO_FILTER,		"no filters exists"),			      \
+	_PE(FILTER_MISS,	"record does not match to filter")
 
 #undef _PE
 #define _PE(__code, __str) PEVENT_ERRNO__ ## __code
 enum pevent_errno {
 	PEVENT_ERRNO__SUCCESS			= 0,
+	PEVENT_ERRNO__FILTER_MATCH		= PEVENT_ERRNO__SUCCESS,
 
 	/*
 	 * Choose an arbitrary negative big number not to clash with standard
@@ -853,10 +859,11 @@ struct event_filter {
 
 struct event_filter *pevent_filter_alloc(struct pevent *pevent);
 
-#define FILTER_NONE		-2
-#define FILTER_NOEXIST		-1
-#define FILTER_MISS		0
-#define FILTER_MATCH		1
+/* for backward compatibility */
+#define FILTER_NONE		PEVENT_ERRNO__FILTER_NOT_FOUND
+#define FILTER_NOEXIST		PEVENT_ERRNO__NO_FILTER
+#define FILTER_MISS		PEVENT_ERRNO__FILTER_MISS
+#define FILTER_MATCH		PEVENT_ERRNO__FILTER_MATCH
 
 enum filter_trivial_type {
 	FILTER_TRIVIAL_FALSE,
@@ -868,8 +875,8 @@ enum pevent_errno pevent_filter_add_filter_str(struct event_filter *filter,
 					       const char *filter_str);
 
 
-int pevent_filter_match(struct event_filter *filter,
-			struct pevent_record *record);
+enum pevent_errno pevent_filter_match(struct event_filter *filter,
+				      struct pevent_record *record);
 
 int pevent_event_filtered(struct event_filter *filter,
 			  int event_id);
