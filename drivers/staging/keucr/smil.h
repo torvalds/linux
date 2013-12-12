@@ -45,7 +45,7 @@ Retry Counter Definition
 Hardware ECC Definition
 ***************************************************************************/
 #define HW_ECC_SUPPORTED    1	   /* Hardware ECC Supported */
-/* No difinition for Software ECC */
+/* No definition for Software ECC */
 
 /***************************************************************************
 SmartMedia Command & Status Definition

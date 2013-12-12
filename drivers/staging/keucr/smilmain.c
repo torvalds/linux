@@ -432,7 +432,7 @@ static int Copy_D_PhyOneSect(struct us_data *us)
 	int           i;
 	DWORD  err, retry;
 
-	/* pr_info("Copy_D_PhyOneSect --- Secotr = %x\n", Media.Sector); */
+	/* pr_info("Copy_D_PhyOneSect --- Sector = %x\n", Media.Sector); */
 	if (ReadBlock != NO_ASSIGN) {
 		Media.PhyBlock = ReadBlock;
 		for (retry = 0; retry < 2; retry++) {
