@@ -236,35 +236,11 @@ int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
  *   nbytes:   number of bytes to transfer to/from buf
  * Returns 0 or error code.
  */
-int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw, u32 addr,
-			u8 *buf, uint nbytes);
 int brcmf_sdio_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 		     u8 *data, uint size);
 
 /* Issue an abort to the specified function */
 int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn);
-
-/* platform specific/high level functions */
-int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev);
-int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev);
-
-/* attach, return handler on success, NULL if failed.
- *  The handler shall be provided by all subsequent calls. No local cache
- *  cfghdl points to the starting address of pci device mapped memory
- */
-int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev);
-void brcmf_sdioh_detach(struct brcmf_sdio_dev *sdiodev);
-
-/* read or write one byte using cmd52 */
-int brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint fnc,
-			     uint addr, u8 *byte);
-
-/* read or write 2/4 bytes using cmd53 */
-int brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint rw, uint fnc,
-			     uint addr, u32 *word, uint nbyte);
-
-/* Watchdog timer interface for pm ops */
-void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev, bool enable);
 
 void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev);
 void brcmf_sdbrcm_disconnect(void *ptr);
@@ -272,7 +248,4 @@ void brcmf_sdbrcm_isr(void *arg);
 
 void brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick);
 
-void brcmf_pm_resume_wait(struct brcmf_sdio_dev *sdiodev,
-			  wait_queue_head_t *wq);
-bool brcmf_pm_resume_error(struct brcmf_sdio_dev *sdiodev);
 #endif				/* _BRCM_SDH_H_ */
