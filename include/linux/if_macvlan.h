@@ -69,8 +69,6 @@ struct macvlan_dev {
 	netdev_features_t	set_features;
 	enum macvlan_mode	mode;
 	u16			flags;
-	int (*receive)(struct sk_buff *skb);
-	int (*forward)(struct net_device *dev, struct sk_buff *skb);
 	/* This array tracks active taps. */
 	struct macvtap_queue	__rcu *taps[MAX_MACVTAP_QUEUES];
 	/* This list tracks all taps (both enabled and disabled) */
@@ -103,10 +101,7 @@ static inline void macvlan_count_rx(const struct macvlan_dev *vlan,
 extern void macvlan_common_setup(struct net_device *dev);
 
 extern int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
-				  struct nlattr *tb[], struct nlattr *data[],
-				  int (*receive)(struct sk_buff *skb),
-				  int (*forward)(struct net_device *dev,
-						 struct sk_buff *skb));
+				  struct nlattr *tb[], struct nlattr *data[]);
 
 extern void macvlan_count_rx(const struct macvlan_dev *vlan,
 			     unsigned int len, bool success,
