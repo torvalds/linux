@@ -47,7 +47,7 @@
 #include <linux/mm.h>
 #include <linux/timer.h>
 #include <linux/string.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/interrupt.h>
 #include <linux/atomic.h>
 #include <asm/hardirq.h>
