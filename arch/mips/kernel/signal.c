@@ -6,6 +6,7 @@
  * Copyright (C) 1991, 1992  Linus Torvalds
  * Copyright (C) 1994 - 2000  Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
+ * Copyright (C) 2014, Imagination Technologies Ltd.
  */
 #include <linux/cache.h>
 #include <linux/context_tracking.h>
@@ -140,6 +141,7 @@ static int protected_save_fp_context(struct sigcontext __user *sc,
 {
 	int err;
 	bool save_msa = cpu_has_msa && (used_math & USEDMATH_MSA);
+#ifndef CONFIG_EVA
 	while (1) {
 		lock_fpu_owner();
 		if (is_fpu_owner()) {
@@ -162,6 +164,17 @@ static int protected_save_fp_context(struct sigcontext __user *sc,
 		if (err)
 			break;	/* really bad sigcontext */
 	}
+#else
+	/*
+	 * EVA does not have FPU EVA instructions so saving fpu context directly
+	 * does not work.
+	 */
+	disable_msa();
+	lose_fpu(1);
+	err = save_fp_context(sc); /* this might fail */
+	if (save_msa && !err)
+		err = copy_msa_to_sigcontext(sc);
+#endif
 	return err;
 }
 
@@ -170,6 +183,7 @@ static int protected_restore_fp_context(struct sigcontext __user *sc,
 {
 	int err, tmp __maybe_unused;
 	bool restore_msa = cpu_has_msa && (used_math & USEDMATH_MSA);
+#ifndef CONFIG_EVA
 	while (1) {
 		lock_fpu_owner();
 		if (is_fpu_owner()) {
@@ -197,6 +211,17 @@ static int protected_restore_fp_context(struct sigcontext __user *sc,
 		if (err)
 			break;	/* really bad sigcontext */
 	}
+#else
+	/*
+	 * EVA does not have FPU EVA instructions so restoring fpu context
+	 * directly does not work.
+	 */
+	enable_msa();
+	lose_fpu(0);
+	err = restore_fp_context(sc); /* this might fail */
+	if (restore_msa && !err)
+		err = copy_msa_from_sigcontext(sc);
+#endif
 	return err;
 }
 
@@ -685,6 +710,7 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, void *unused,
 }
 
 #ifdef CONFIG_SMP
+#ifndef CONFIG_EVA
 static int smp_save_fp_context(struct sigcontext __user *sc)
 {
 	return raw_cpu_has_fpu
@@ -698,10 +724,12 @@ static int smp_restore_fp_context(struct sigcontext __user *sc)
 	       ? _restore_fp_context(sc)
 	       : copy_fp_from_sigcontext(sc);
 }
+#endif /* CONFIG_EVA */
 #endif
 
 static int signal_setup(void)
 {
+#ifndef CONFIG_EVA
 #ifdef CONFIG_SMP
 	/* For now just do the cpu_has_fpu check when the functions are invoked */
 	save_fp_context = smp_save_fp_context;
@@ -714,6 +742,10 @@ static int signal_setup(void)
 		save_fp_context = copy_fp_from_sigcontext;
 		restore_fp_context = copy_fp_to_sigcontext;
 	}
+#endif /* CONFIG_SMP */
+#else
+	save_fp_context = copy_fp_from_sigcontext;;
+	restore_fp_context = copy_fp_to_sigcontext;
 #endif
 
 	return 0;
