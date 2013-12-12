@@ -368,7 +368,11 @@ enum pevent_flag {
 	_PE(REPARENT_NOT_OP,	"cannot reparent other than OP"),	      \
 	_PE(REPARENT_FAILED,	"failed to reparent filter OP"),	      \
 	_PE(BAD_FILTER_ARG,	"bad arg in filter tree"),		      \
-	_PE(UNEXPECTED_TYPE,	"unexpected type (not a value)")
+	_PE(UNEXPECTED_TYPE,	"unexpected type (not a value)"),	      \
+	_PE(ILLEGAL_TOKEN,	"illegal token"),			      \
+	_PE(INVALID_PAREN,	"open parenthesis cannot come here"), 	      \
+	_PE(UNBALANCED_PAREN,	"unbalanced number of parenthesis"),	      \
+	_PE(UNKNOWN_TOKEN,	"unknown token")
 
 #undef _PE
 #define _PE(__code, __str) PEVENT_ERRNO__ ## __code

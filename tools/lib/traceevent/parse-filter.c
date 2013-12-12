@@ -937,9 +937,10 @@ static int test_arg(struct filter_arg *parent, struct filter_arg *arg,
 }
 
 /* Remove any unknown event fields */
-static struct filter_arg *collapse_tree(struct filter_arg *arg, char **error_str)
+static int collapse_tree(struct filter_arg *arg,
+			 struct filter_arg **arg_collapsed, char **error_str)
 {
-	enum filter_vals ret;
+	int ret;
 
 	ret = test_arg(arg, arg, error_str);
 	switch (ret) {
@@ -955,6 +956,7 @@ static struct filter_arg *collapse_tree(struct filter_arg *arg, char **error_str
 			arg->boolean.value = ret == FILTER_VAL_TRUE;
 		} else {
 			show_error(error_str, "Failed to allocate filter arg");
+			ret = PEVENT_ERRNO__MEM_ALLOC_FAILED;
 		}
 		break;
 
@@ -965,10 +967,11 @@ static struct filter_arg *collapse_tree(struct filter_arg *arg, char **error_str
 		break;
 	}
 
-	return arg;
+	*arg_collapsed = arg;
+	return ret;
 }
 
-static int
+static enum pevent_errno
 process_filter(struct event_format *event, struct filter_arg **parg,
 	       char **error_str, int not)
 {
@@ -982,7 +985,7 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 	enum filter_op_type btype;
 	enum filter_exp_type etype;
 	enum filter_cmp_type ctype;
-	int ret;
+	enum pevent_errno ret;
 
 	*parg = NULL;
 
@@ -1007,20 +1010,20 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 				if (not) {
 					arg = NULL;
 					if (current_op)
-						goto fail_print;
+						goto fail_syntax;
 					free(token);
 					*parg = current_exp;
 					return 0;
 				}
 			} else
-				goto fail_print;
+				goto fail_syntax;
 			arg = NULL;
 			break;
 
 		case EVENT_DELIM:
 			if (*token == ',') {
-				show_error(error_str,
-					   "Illegal token ','");
+				show_error(error_str, "Illegal token ','");
+				ret = PEVENT_ERRNO__ILLEGAL_TOKEN;
 				goto fail;
 			}
 
@@ -1028,19 +1031,23 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 				if (left_item) {
 					show_error(error_str,
 						   "Open paren can not come after item");
+					ret = PEVENT_ERRNO__INVALID_PAREN;
 					goto fail;
 				}
 				if (current_exp) {
 					show_error(error_str,
 						   "Open paren can not come after expression");
+					ret = PEVENT_ERRNO__INVALID_PAREN;
 					goto fail;
 				}
 
 				ret = process_filter(event, &arg, error_str, 0);
-				if (ret != 1) {
-					if (ret == 0)
+				if (ret != PEVENT_ERRNO__UNBALANCED_PAREN) {
+					if (ret == 0) {
 						show_error(error_str,
 							   "Unbalanced number of '('");
+						ret = PEVENT_ERRNO__UNBALANCED_PAREN;
+					}
 					goto fail;
 				}
 				ret = 0;
@@ -1048,7 +1055,7 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 				/* A not wants just one expression */
 				if (not) {
 					if (current_op)
-						goto fail_print;
+						goto fail_syntax;
 					*parg = arg;
 					return 0;
 				}
@@ -1063,19 +1070,19 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 
 			} else { /* ')' */
 				if (!current_op && !current_exp)
-					goto fail_print;
+					goto fail_syntax;
 
 				/* Make sure everything is finished at this level */
 				if (current_exp && !check_op_done(current_exp))
-					goto fail_print;
+					goto fail_syntax;
 				if (current_op && !check_op_done(current_op))
-					goto fail_print;
+					goto fail_syntax;
 
 				if (current_op)
 					*parg = current_op;
 				else
 					*parg = current_exp;
-				return 1;
+				return PEVENT_ERRNO__UNBALANCED_PAREN;
 			}
 			break;
 
@@ -1087,21 +1094,22 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 			case OP_BOOL:
 				/* Logic ops need a left expression */
 				if (!current_exp && !current_op)
-					goto fail_print;
+					goto fail_syntax;
 				/* fall through */
 			case OP_NOT:
 				/* logic only processes ops and exp */
 				if (left_item)
-					goto fail_print;
+					goto fail_syntax;
 				break;
 			case OP_EXP:
 			case OP_CMP:
 				if (!left_item)
-					goto fail_print;
+					goto fail_syntax;
 				break;
 			case OP_NONE:
 				show_error(error_str,
 					   "Unknown op token %s", token);
+				ret = PEVENT_ERRNO__UNKNOWN_TOKEN;
 				goto fail;
 			}
 
@@ -1152,7 +1160,7 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 				ret = add_left(arg, left_item);
 				if (ret < 0) {
 					arg = NULL;
-					goto fail_print;
+					goto fail_syntax;
 				}
 				current_exp = arg;
 				break;
@@ -1161,25 +1169,25 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 			}
 			arg = NULL;
 			if (ret < 0)
-				goto fail_print;
+				goto fail_syntax;
 			break;
 		case EVENT_NONE:
 			break;
 		case EVENT_ERROR:
 			goto fail_alloc;
 		default:
-			goto fail_print;
+			goto fail_syntax;
 		}
 	} while (type != EVENT_NONE);
 
 	if (!current_op && !current_exp)
-		goto fail_print;
+		goto fail_syntax;
 
 	if (!current_op)
 		current_op = current_exp;
 
-	current_op = collapse_tree(current_op, error_str);
-	if (current_op == NULL)
+	ret = collapse_tree(current_op, parg, error_str);
+	if (ret < 0)
 		goto fail;
 
 	*parg = current_op;
@@ -1188,15 +1196,17 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 
  fail_alloc:
 	show_error(error_str, "failed to allocate filter arg");
+	ret = PEVENT_ERRNO__MEM_ALLOC_FAILED;
 	goto fail;
- fail_print:
+ fail_syntax:
 	show_error(error_str, "Syntax error");
+	ret = PEVENT_ERRNO__SYNTAX_ERROR;
  fail:
 	free_arg(current_op);
 	free_arg(current_exp);
 	free_arg(arg);
 	free(token);
-	return -1;
+	return ret;
 }
 
 static int
