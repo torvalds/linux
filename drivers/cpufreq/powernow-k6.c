@@ -26,6 +26,14 @@
 static unsigned int                     busfreq;   /* FSB, in 10 kHz */
 static unsigned int                     max_multiplier;
 
+static unsigned int			param_busfreq = 0;
+static unsigned int			param_max_multiplier = 0;
+
+module_param_named(max_multiplier, param_max_multiplier, uint, S_IRUGO);
+MODULE_PARM_DESC(max_multiplier, "Maximum multiplier (allowed values: 20 30 35 40 45 50 55 60)");
+
+module_param_named(bus_frequency, param_busfreq, uint, S_IRUGO);
+MODULE_PARM_DESC(bus_frequency, "Bus frequency in kHz");
 
 /* Clock ratio multiplied by 10 - see table 27 in AMD#23446 */
 static struct cpufreq_frequency_table clock_ratio[] = {
@@ -40,6 +48,27 @@ static struct cpufreq_frequency_table clock_ratio[] = {
 	{0, CPUFREQ_TABLE_END}
 };
 
+static const struct {
+	unsigned freq;
+	unsigned mult;
+} usual_frequency_table[] = {
+	{ 400000, 40 },	// 100   * 4
+	{ 450000, 45 }, // 100   * 4.5
+	{ 475000, 50 }, //  95   * 5
+	{ 500000, 50 }, // 100   * 5
+	{ 506250, 45 }, // 112.5 * 4.5
+	{ 533500, 55 }, //  97   * 5.5
+	{ 550000, 55 }, // 100   * 5.5
+	{ 562500, 50 }, // 112.5 * 5
+	{ 570000, 60 }, //  95   * 6
+	{ 600000, 60 }, // 100   * 6
+	{ 618750, 55 }, // 112.5 * 5.5
+	{ 660000, 55 }, // 120   * 5.5
+	{ 675000, 60 }, // 112.5 * 6
+	{ 720000, 60 }, // 120   * 6
+};
+
+#define FREQ_RANGE		3000
 
 /**
  * powernow_k6_get_cpu_multiplier - returns the current FSB multiplier
@@ -125,17 +154,56 @@ static int powernow_k6_target(struct cpufreq_policy *policy,
 	return 0;
 }
 
-
 static int powernow_k6_cpu_init(struct cpufreq_policy *policy)
 {
 	unsigned int i, f;
+	unsigned khz;
 
 	if (policy->cpu != 0)
 		return -ENODEV;
 
-	/* get frequencies */
-	max_multiplier = powernow_k6_get_cpu_multiplier();
-	busfreq = cpu_khz / max_multiplier;
+	max_multiplier = 0;
+	khz = cpu_khz;
+	for (i = 0; i < ARRAY_SIZE(usual_frequency_table); i++) {
+		if (khz >= usual_frequency_table[i].freq - FREQ_RANGE &&
+		    khz <= usual_frequency_table[i].freq + FREQ_RANGE) {
+			khz = usual_frequency_table[i].freq;
+			max_multiplier = usual_frequency_table[i].mult;
+			break;
+		}
+	}
+	if (param_max_multiplier) {
+		for (i = 0; (clock_ratio[i].frequency != CPUFREQ_TABLE_END); i++) {
+			if (clock_ratio[i].driver_data == param_max_multiplier) {
+				max_multiplier = param_max_multiplier;
+				goto have_max_multiplier;
+			}
+		}
+		printk(KERN_ERR "powernow-k6: invalid max_multiplier parameter, valid parameters 20, 30, 35, 40, 45, 50, 55, 60\n");
+		return -EINVAL;
+	}
+
+	if (!max_multiplier) {
+		printk(KERN_WARNING "powernow-k6: unknown frequency %u, cannot determine current multiplier\n", khz);
+		printk(KERN_WARNING "powernow-k6: use module parameters max_multiplier and bus_frequency\n");
+		return -EOPNOTSUPP;
+	}
+
+have_max_multiplier:
+	param_max_multiplier = max_multiplier;
+
+	if (param_busfreq) {
+		if (param_busfreq >= 50000 && param_busfreq <= 150000) {
+			busfreq = param_busfreq / 10;
+			goto have_busfreq;
+		}
+		printk(KERN_ERR "powernow-k6: invalid bus_frequency parameter, allowed range 50000 - 150000 kHz\n");
+		return -EINVAL;
+	}
+
+	busfreq = khz / max_multiplier;
+have_busfreq:
+	param_busfreq = busfreq * 10;
 
 	/* table init */
 	for (i = 0; (clock_ratio[i].frequency != CPUFREQ_TABLE_END); i++) {
