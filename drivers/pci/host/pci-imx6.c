@@ -48,6 +48,8 @@ struct imx6_pcie {
 #define PL_OFFSET 0x700
 #define PCIE_PHY_DEBUG_R0 (PL_OFFSET + 0x28)
 #define PCIE_PHY_DEBUG_R1 (PL_OFFSET + 0x2c)
+#define PCIE_PHY_DEBUG_R1_XMLH_LINK_IN_TRAINING	(1 << 29)
+#define PCIE_PHY_DEBUG_R1_XMLH_LINK_UP		(1 << 4)
 
 #define PCIE_PHY_CTRL (PL_OFFSET + 0x114)
 #define PCIE_PHY_CTRL_DATA_LOC 0
@@ -338,10 +340,17 @@ static int imx6_pcie_link_up(struct pcie_port *pp)
 {
 	u32 rc, ltssm, rx_valid, temp;
 
-	/* link is debug bit 36, debug register 1 starts at bit 32 */
-	rc = readl(pp->dbi_base + PCIE_PHY_DEBUG_R1) & (0x1 << (36 - 32));
-	if (rc)
-		return -EAGAIN;
+	/*
+	 * Test if the PHY reports that the link is up and also that
+	 * the link training finished.  It might happen that the PHY
+	 * reports the link is already up, but the link training bit
+	 * is still set, so make sure to check the training is done
+	 * as well here.
+	 */
+	rc = readl(pp->dbi_base + PCIE_PHY_DEBUG_R1);
+	if ((rc & PCIE_PHY_DEBUG_R1_XMLH_LINK_UP) &&
+	    !(rc & PCIE_PHY_DEBUG_R1_XMLH_LINK_IN_TRAINING))
+		return 1;
 
 	/*
 	 * From L0, initiate MAC entry to gen2 if EP/RC supports gen2.
