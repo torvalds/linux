@@ -2327,7 +2327,7 @@ current state.  "addr" is ignored.
 Capability: basic
 Architectures: arm, arm64
 Type: vcpu ioctl
-Parameters: struct struct kvm_vcpu_init (in)
+Parameters: struct kvm_vcpu_init (in)
 Returns: 0 on success; -1 on error
 Errors:
   EINVAL:    the target is unknown, or the combination of features is invalid.
