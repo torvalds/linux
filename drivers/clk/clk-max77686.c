@@ -169,6 +169,26 @@ static int max77686_clk_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, clocks);
 
+	if (iodev->dev->of_node) {
+		struct clk_onecell_data *of_data;
+
+		of_data = devm_kzalloc(&pdev->dev,
+					sizeof(*of_data), GFP_KERNEL);
+		if (!of_data) {
+			ret = -ENOMEM;
+			goto err_clocks;
+		}
+
+		of_data->clks = clocks;
+		of_data->clk_num = MAX77686_CLKS_NUM;
+		ret = of_clk_add_provider(iodev->dev->of_node,
+					of_clk_src_onecell_get, of_data);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to register OF clock provider\n");
+			goto err_clocks;
+		}
+	}
+
 	return 0;
 
 err_clocks:
@@ -182,8 +202,12 @@ err_clocks:
 
 static int max77686_clk_remove(struct platform_device *pdev)
 {
+	struct max77686_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct clk **clocks = platform_get_drvdata(pdev);
 	int i;
+
+	if (iodev->dev->of_node)
+		of_clk_del_provider(iodev->dev->of_node);
 
 	for (i = 0; i < MAX77686_CLKS_NUM; i++) {
 		struct clk_hw *hw = __clk_get_hw(clocks[i]);
