@@ -22,6 +22,11 @@
 			cd-gpios  = <&gpio2 31 0x4>; // 95
 		};
 
+		vmmci: regulator-gpio {
+			gpios = <&gpio0 5 0x4>;
+			enable-gpio = <&gpio5 9 0x4>;
+		};
+
 		pinctrl {
 			/*
 			 * Set this up using hogs, as time goes by and as seems fit, these

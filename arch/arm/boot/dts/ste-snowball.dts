@@ -146,10 +146,8 @@
 		};
 
 		vmmci: regulator-gpio {
-			gpios = <&gpio6 25 0x4>;
-			enable-gpio = <&gpio7 4 0x4>;
-
-			status = "okay";
+			gpios = <&gpio7 4 0x4>;
+			enable-gpio = <&gpio6 25 0x4>;
 		};
 
 		// External Micro SD slot
