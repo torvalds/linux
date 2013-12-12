@@ -31,6 +31,7 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_ARP_INTERVAL]	= { .type = NLA_U32 },
 	[IFLA_BOND_ARP_IP_TARGET]	= { .type = NLA_NESTED },
 	[IFLA_BOND_ARP_VALIDATE]	= { .type = NLA_U32 },
+	[IFLA_BOND_ARP_ALL_TARGETS]	= { .type = NLA_U32 },
 };
 
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -145,6 +146,14 @@ static int bond_changelink(struct net_device *bond_dev,
 		if (err)
 			return err;
 	}
+	if (data[IFLA_BOND_ARP_ALL_TARGETS]) {
+		int arp_all_targets =
+			nla_get_u32(data[IFLA_BOND_ARP_ALL_TARGETS]);
+
+		err = bond_option_arp_all_targets_set(bond, arp_all_targets);
+		if (err)
+			return err;
+	}
 	return 0;
 }
 
@@ -172,6 +181,7 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 						/* IFLA_BOND_ARP_IP_TARGET */
 		nla_total_size(sizeof(u32)) * BOND_MAX_ARP_TARGETS +
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ARP_VALIDATE */
+		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ARP_ALL_TARGETS */
 		0;
 }
 
@@ -225,6 +235,10 @@ static int bond_fill_info(struct sk_buff *skb,
 		nla_nest_cancel(skb, targets);
 
 	if (nla_put_u32(skb, IFLA_BOND_ARP_VALIDATE, bond->params.arp_validate))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, IFLA_BOND_ARP_ALL_TARGETS,
+			bond->params.arp_all_targets))
 		goto nla_put_failure;
 
 	return 0;

@@ -458,3 +458,14 @@ int bond_option_arp_validate_set(struct bonding *bond, int arp_validate)
 
 	return 0;
 }
+
+int bond_option_arp_all_targets_set(struct bonding *bond, int arp_all_targets)
+{
+	pr_info("%s: setting arp_all_targets to %s (%d).\n",
+		bond->dev->name, arp_all_targets_tbl[arp_all_targets].modename,
+		arp_all_targets);
+
+	bond->params.arp_all_targets = arp_all_targets;
+
+	return 0;
+}

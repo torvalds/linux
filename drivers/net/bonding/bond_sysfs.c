@@ -399,7 +399,7 @@ static ssize_t bonding_store_arp_all_targets(struct device *d,
 					  const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
-	int new_value;
+	int new_value, ret;
 
 	new_value = bond_parse_parm(buf, arp_all_targets_tbl);
 	if (new_value < 0) {
@@ -407,13 +407,17 @@ static ssize_t bonding_store_arp_all_targets(struct device *d,
 		       bond->dev->name, buf);
 		return -EINVAL;
 	}
-	pr_info("%s: setting arp_all_targets to %s (%d).\n",
-		bond->dev->name, arp_all_targets_tbl[new_value].modename,
-		new_value);
 
-	bond->params.arp_all_targets = new_value;
+	if (!rtnl_trylock())
+		return restart_syscall();
 
-	return count;
+	ret = bond_option_arp_all_targets_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
+	rtnl_unlock();
+
+	return ret;
 }
 
 static DEVICE_ATTR(arp_all_targets, S_IRUGO | S_IWUSR,
