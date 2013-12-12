@@ -580,7 +580,7 @@ static void tegra_debugfs_cleanup(struct drm_minor *minor)
 #endif
 
 static struct drm_driver tegra_drm_driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
 	.load = tegra_drm_load,
 	.unload = tegra_drm_unload,
 	.open = tegra_drm_open,
@@ -598,6 +598,12 @@ static struct drm_driver tegra_drm_driver = {
 
 	.gem_free_object = tegra_bo_free_object,
 	.gem_vm_ops = &tegra_bo_vm_ops,
+
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_export = tegra_gem_prime_export,
+	.gem_prime_import = tegra_gem_prime_import,
+
 	.dumb_create = tegra_bo_dumb_create,
 	.dumb_map_offset = tegra_bo_dumb_map_offset,
 	.dumb_destroy = drm_gem_dumb_destroy,
