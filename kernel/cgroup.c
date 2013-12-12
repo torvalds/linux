@@ -4652,8 +4652,10 @@ int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
 	write_unlock(&css_set_lock);
 
 	ret = online_css(css);
-	if (ret)
+	if (ret) {
+		ss->css_free(css);
 		goto err_unload;
+	}
 
 	/* success! */
 	mutex_unlock(&cgroup_root_mutex);
@@ -4680,6 +4682,7 @@ EXPORT_SYMBOL_GPL(cgroup_load_subsys);
 void cgroup_unload_subsys(struct cgroup_subsys *ss)
 {
 	struct cgrp_cset_link *link;
+	struct cgroup_subsys_state *css;
 
 	BUG_ON(ss->module == NULL);
 
@@ -4693,7 +4696,9 @@ void cgroup_unload_subsys(struct cgroup_subsys *ss)
 	mutex_lock(&cgroup_mutex);
 	mutex_lock(&cgroup_root_mutex);
 
-	offline_css(cgroup_css(cgroup_dummy_top, ss));
+	css = cgroup_css(cgroup_dummy_top, ss);
+	if (css)
+		offline_css(css);
 
 	/* deassign the subsys_id */
 	cgroup_subsys[ss->subsys_id] = NULL;
@@ -4720,7 +4725,8 @@ void cgroup_unload_subsys(struct cgroup_subsys *ss)
 	 * need to free before marking as null because ss->css_free needs
 	 * the cgrp->subsys pointer to find their state.
 	 */
-	ss->css_free(cgroup_css(cgroup_dummy_top, ss));
+	if (css)
+		ss->css_free(css);
 	RCU_INIT_POINTER(cgroup_dummy_top->subsys[ss->subsys_id], NULL);
 
 	mutex_unlock(&cgroup_root_mutex);
