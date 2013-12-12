@@ -372,7 +372,7 @@ struct dpll;
 
 struct drm_i915_display_funcs {
 	bool (*fbc_enabled)(struct drm_device *dev);
-	void (*enable_fbc)(struct drm_crtc *crtc, unsigned long interval);
+	void (*enable_fbc)(struct drm_crtc *crtc);
 	void (*disable_fbc)(struct drm_device *dev);
 	int (*get_display_clock_speed)(struct drm_device *dev);
 	int (*get_fifo_size)(struct drm_device *dev, int plane);
@@ -695,7 +695,6 @@ struct i915_fbc {
 		struct delayed_work work;
 		struct drm_crtc *crtc;
 		struct drm_framebuffer *fb;
-		int interval;
 	} *fbc_work;
 
 	enum no_fbc_reason {
