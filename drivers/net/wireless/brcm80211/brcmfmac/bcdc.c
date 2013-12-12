@@ -329,6 +329,15 @@ brcmf_proto_bcdc_hdrpull(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
 	return 0;
 }
 
+static int
+brcmf_proto_bcdc_txdata(struct brcmf_pub *drvr, int ifidx, u8 offset,
+			struct sk_buff *pktbuf)
+{
+	brcmf_proto_bcdc_hdrpush(drvr, ifidx, offset, pktbuf);
+	return brcmf_bus_txdata(drvr->bus_if, pktbuf);
+}
+
+
 int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr)
 {
 	struct brcmf_bcdc *bcdc;
@@ -343,10 +352,10 @@ int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr)
 		goto fail;
 	}
 
-	drvr->proto->hdrpush = brcmf_proto_bcdc_hdrpush;
 	drvr->proto->hdrpull = brcmf_proto_bcdc_hdrpull;
 	drvr->proto->query_dcmd = brcmf_proto_bcdc_query_dcmd;
 	drvr->proto->set_dcmd = brcmf_proto_bcdc_set_dcmd;
+	drvr->proto->txdata = brcmf_proto_bcdc_txdata;
 	drvr->proto->pd = bcdc;
 
 	drvr->hdrlen += BCDC_HEADER_LEN + BRCMF_PROT_FW_SIGNAL_MAX_TXBYTES;
