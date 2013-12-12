@@ -60,6 +60,9 @@ struct csc_data {
 
 void csc_dump_regs(struct csc_data *csc);
 void csc_set_coeff_bypass(struct csc_data *csc, u32 *csc_reg5);
+void csc_set_coeff(struct csc_data *csc, u32 *csc_reg0,
+		enum v4l2_colorspace src_colorspace,
+		enum v4l2_colorspace dst_colorspace);
 struct csc_data *csc_create(struct platform_device *pdev);
 
 #endif
