@@ -164,7 +164,6 @@ struct brcmf_sdio;
 struct brcmf_sdio_dev {
 	struct sdio_func *func[SDIO_MAX_FUNCS];
 	u8 num_funcs;			/* Supported funcs on client */
-	u32 func_cis_ptr[SDIOD_MAX_IOFUNCS];
 	u32 sbwad;			/* Save backplane window address */
 	void *bus;
 	atomic_t suspend;		/* suspend flag */

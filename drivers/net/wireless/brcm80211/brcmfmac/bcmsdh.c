@@ -920,60 +920,6 @@ int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn)
 	return 0;
 }
 
-static int brcmf_sdioh_get_cisaddr(struct brcmf_sdio_dev *sdiodev, u32 regaddr)
-{
-	/* read 24 bits and return valid 17 bit addr */
-	int i, ret;
-	u32 scratch, regdata;
-	__le32 scratch_le;
-	u8 *ptr = (u8 *)&scratch_le;
-
-	for (i = 0; i < 3; i++) {
-		regdata = brcmf_sdio_regrl(sdiodev, regaddr, &ret);
-		if (ret != 0)
-			brcmf_err("Can't read!\n");
-
-		*ptr++ = (u8) regdata;
-		regaddr++;
-	}
-
-	/* Only the lower 17-bits are valid */
-	scratch = le32_to_cpu(scratch_le);
-	scratch &= 0x0001FFFF;
-	return scratch;
-}
-
-static int brcmf_sdioh_enablefuncs(struct brcmf_sdio_dev *sdiodev)
-{
-	int err_ret;
-	u32 fbraddr;
-	u8 func;
-
-	brcmf_dbg(SDIO, "\n");
-
-	/* Get the Card's common CIS address */
-	sdiodev->func_cis_ptr[0] = brcmf_sdioh_get_cisaddr(sdiodev,
-							   SDIO_CCCR_CIS);
-	brcmf_dbg(SDIO, "Card's Common CIS Ptr = 0x%x\n",
-		  sdiodev->func_cis_ptr[0]);
-
-	/* Get the Card's function CIS (for each function) */
-	for (fbraddr = SDIO_FBR_BASE(1), func = 1;
-	     func <= sdiodev->num_funcs; func++, fbraddr += SDIOD_FBR_SIZE) {
-		sdiodev->func_cis_ptr[func] =
-		    brcmf_sdioh_get_cisaddr(sdiodev, SDIO_FBR_CIS + fbraddr);
-		brcmf_dbg(SDIO, "Function %d CIS Ptr = 0x%x\n",
-			  func, sdiodev->func_cis_ptr[func]);
-	}
-
-	/* Enable Function 1 */
-	err_ret = sdio_enable_func(sdiodev->func[1]);
-	if (err_ret)
-		brcmf_err("Failed to enable F1 Err: 0x%08x\n", err_ret);
-
-	return false;
-}
-
 static int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev)
 {
 	int err_ret = 0;
@@ -999,7 +945,12 @@ static int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev)
 		goto out;
 	}
 
-	brcmf_sdioh_enablefuncs(sdiodev);
+	/* Enable Function 1 */
+	err_ret = sdio_enable_func(sdiodev->func[1]);
+	if (err_ret) {
+		brcmf_err("Failed to enable F1 Err: 0x%08x\n", err_ret);
+		goto out;
+	}
 
 	/*
 	 * determine host related variables after brcmf_sdio_probe()
