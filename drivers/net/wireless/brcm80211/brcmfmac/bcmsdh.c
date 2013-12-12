@@ -1122,14 +1122,6 @@ static void brcmf_ops_sdio_remove(struct sdio_func *func)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev, bool enable)
-{
-	if (enable)
-		brcmf_sdbrcm_wd_timer(sdiodev->bus, BRCMF_WD_POLL_MS);
-	else
-		brcmf_sdbrcm_wd_timer(sdiodev->bus, 0);
-}
-
 static int brcmf_sdio_suspend(struct device *dev)
 {
 	mmc_pm_flag_t sdio_flags;
@@ -1153,7 +1145,7 @@ static int brcmf_sdio_suspend(struct device *dev)
 		return ret;
 	}
 
-	brcmf_sdio_wdtmr_enable(sdiodev, false);
+	brcmf_sdbrcm_wd_timer(sdiodev->bus, 0);
 
 	return ret;
 }
@@ -1163,7 +1155,7 @@ static int brcmf_sdio_resume(struct device *dev)
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 
-	brcmf_sdio_wdtmr_enable(sdiodev, true);
+	brcmf_sdbrcm_wd_timer(sdiodev->bus, BRCMF_WD_POLL_MS);
 	atomic_set(&sdiodev->suspend, false);
 	return 0;
 }
