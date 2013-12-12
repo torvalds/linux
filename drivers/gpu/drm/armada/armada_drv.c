@@ -321,6 +321,11 @@ static struct drm_ioctl_desc armada_ioctls[] = {
 		DRM_UNLOCKED),
 };
 
+static void armada_drm_lastclose(struct drm_device *dev)
+{
+	armada_fbdev_lastclose(dev);
+}
+
 static const struct file_operations armada_drm_fops = {
 	.owner			= THIS_MODULE,
 	.llseek			= no_llseek,
@@ -337,7 +342,7 @@ static struct drm_driver armada_drm_driver = {
 	.open			= NULL,
 	.preclose		= NULL,
 	.postclose		= NULL,
-	.lastclose		= NULL,
+	.lastclose		= armada_drm_lastclose,
 	.unload			= armada_drm_unload,
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= armada_drm_enable_vblank,
