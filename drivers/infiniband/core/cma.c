@@ -365,7 +365,9 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv,
 		return -EINVAL;
 
 	mutex_lock(&lock);
-	iboe_addr_get_sgid(dev_addr, &iboe_gid);
+	rdma_ip2gid((struct sockaddr *)&id_priv->id.route.addr.src_addr,
+		    &iboe_gid);
+
 	memcpy(&gid, dev_addr->src_dev_addr +
 	       rdma_addr_gid_offset(dev_addr), sizeof gid);
 	if (listen_id_priv &&
@@ -1943,10 +1945,10 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 	memcpy(route->path_rec->dmac, addr->dev_addr.dst_dev_addr, ETH_ALEN);
 	memcpy(route->path_rec->smac, ndev->dev_addr, ndev->addr_len);
 
-	iboe_mac_vlan_to_ll(&route->path_rec->sgid, addr->dev_addr.src_dev_addr,
-			    route->path_rec->vlan_id);
-	iboe_mac_vlan_to_ll(&route->path_rec->dgid, addr->dev_addr.dst_dev_addr,
-			    route->path_rec->vlan_id);
+	rdma_ip2gid((struct sockaddr *)&id_priv->id.route.addr.src_addr,
+		    &route->path_rec->sgid);
+	rdma_ip2gid((struct sockaddr *)&id_priv->id.route.addr.dst_addr,
+		    &route->path_rec->dgid);
 
 	route->path_rec->hop_limit = 1;
 	route->path_rec->reversible = 1;
@@ -2109,6 +2111,7 @@ static void addr_handler(int status, struct sockaddr *src_addr,
 			   RDMA_CM_ADDR_RESOLVED))
 		goto out;
 
+	memcpy(cma_src_addr(id_priv), src_addr, rdma_addr_size(src_addr));
 	if (!status && !id_priv->cma_dev)
 		status = cma_acquire_dev(id_priv, NULL);
 
@@ -2118,10 +2121,8 @@ static void addr_handler(int status, struct sockaddr *src_addr,
 			goto out;
 		event.event = RDMA_CM_EVENT_ADDR_ERROR;
 		event.status = status;
-	} else {
-		memcpy(cma_src_addr(id_priv), src_addr, rdma_addr_size(src_addr));
+	} else
 		event.event = RDMA_CM_EVENT_ADDR_RESOLVED;
-	}
 
 	if (id_priv->id.event_handler(&id_priv->id, &event)) {
 		cma_exch(id_priv, RDMA_CM_DESTROYING);
@@ -2602,6 +2603,7 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 	if (ret)
 		goto err1;
 
+	memcpy(cma_src_addr(id_priv), addr, rdma_addr_size(addr));
 	if (!cma_any_addr(addr)) {
 		ret = cma_translate_addr(addr, &id->route.addr.dev_addr);
 		if (ret)
@@ -2612,7 +2614,6 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 			goto err1;
 	}
 
-	memcpy(cma_src_addr(id_priv), addr, rdma_addr_size(addr));
 	if (!(id_priv->options & (1 << CMA_OPTION_AFONLY))) {
 		if (addr->sa_family == AF_INET)
 			id_priv->afonly = 1;
@@ -3341,7 +3342,8 @@ static int cma_iboe_join_multicast(struct rdma_id_private *id_priv,
 		err = -EINVAL;
 		goto out2;
 	}
-	iboe_addr_get_sgid(dev_addr, &mc->multicast.ib->rec.port_gid);
+	rdma_ip2gid((struct sockaddr *)&id_priv->id.route.addr.src_addr,
+		    &mc->multicast.ib->rec.port_gid);
 	work->id = id_priv;
 	work->mc = mc;
 	INIT_WORK(&work->work, iboe_mcast_work_handler);
