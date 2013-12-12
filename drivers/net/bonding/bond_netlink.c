@@ -1,6 +1,7 @@
 /*
  * drivers/net/bond/bond_netlink.c - Netlink interface for bonding
  * Copyright (c) 2013 Jiri Pirko <jiri@resnulli.us>
+ * Copyright (c) 2013 Scott Feldman <sfeldma@cumulusnetworks.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +24,7 @@
 static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_MODE]		= { .type = NLA_U8 },
 	[IFLA_BOND_ACTIVE_SLAVE]	= { .type = NLA_U32 },
+	[IFLA_BOND_MIIMON]		= { .type = NLA_U32 },
 };
 
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -42,14 +44,17 @@ static int bond_changelink(struct net_device *bond_dev,
 	struct bonding *bond = netdev_priv(bond_dev);
 	int err;
 
-	if (data && data[IFLA_BOND_MODE]) {
+	if (!data)
+		return 0;
+
+	if (data[IFLA_BOND_MODE]) {
 		int mode = nla_get_u8(data[IFLA_BOND_MODE]);
 
 		err = bond_option_mode_set(bond, mode);
 		if (err)
 			return err;
 	}
-	if (data && data[IFLA_BOND_ACTIVE_SLAVE]) {
+	if (data[IFLA_BOND_ACTIVE_SLAVE]) {
 		int ifindex = nla_get_u32(data[IFLA_BOND_ACTIVE_SLAVE]);
 		struct net_device *slave_dev;
 
@@ -62,6 +67,13 @@ static int bond_changelink(struct net_device *bond_dev,
 				return -ENODEV;
 		}
 		err = bond_option_active_slave_set(bond, slave_dev);
+		if (err)
+			return err;
+	}
+	if (data[IFLA_BOND_MIIMON]) {
+		int miimon = nla_get_u32(data[IFLA_BOND_MIIMON]);
+
+		err = bond_option_miimon_set(bond, miimon);
 		if (err)
 			return err;
 	}
@@ -83,7 +95,9 @@ static int bond_newlink(struct net *src_net, struct net_device *bond_dev,
 static size_t bond_get_size(const struct net_device *bond_dev)
 {
 	return nla_total_size(sizeof(u8)) +	/* IFLA_BOND_MODE */
-		nla_total_size(sizeof(u32));	/* IFLA_BOND_ACTIVE_SLAVE */
+		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ACTIVE_SLAVE */
+		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_MIIMON */
+		0;
 }
 
 static int bond_fill_info(struct sk_buff *skb,
@@ -92,10 +106,16 @@ static int bond_fill_info(struct sk_buff *skb,
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct net_device *slave_dev = bond_option_active_slave_get(bond);
 
-	if (nla_put_u8(skb, IFLA_BOND_MODE, bond->params.mode) ||
-	    (slave_dev &&
-	     nla_put_u32(skb, IFLA_BOND_ACTIVE_SLAVE, slave_dev->ifindex)))
+	if (nla_put_u8(skb, IFLA_BOND_MODE, bond->params.mode))
 		goto nla_put_failure;
+
+	if (slave_dev &&
+	    nla_put_u32(skb, IFLA_BOND_ACTIVE_SLAVE, slave_dev->ifindex))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, IFLA_BOND_MIIMON, bond->params.miimon))
+		goto nla_put_failure;
+
 	return 0;
 
 nla_put_failure:
