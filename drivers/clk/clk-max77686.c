@@ -66,7 +66,7 @@ static void max77686_clk_unprepare(struct clk_hw *hw)
 		MAX77686_REG_32KHZ, max77686->mask, ~max77686->mask);
 }
 
-static int max77686_clk_is_enabled(struct clk_hw *hw)
+static int max77686_clk_is_prepared(struct clk_hw *hw)
 {
 	struct max77686_clk *max77686 = to_max77686_clk(hw);
 	int ret;
@@ -84,7 +84,7 @@ static int max77686_clk_is_enabled(struct clk_hw *hw)
 static struct clk_ops max77686_clk_ops = {
 	.prepare	= max77686_clk_prepare,
 	.unprepare	= max77686_clk_unprepare,
-	.is_enabled	= max77686_clk_is_enabled,
+	.is_prepared	= max77686_clk_is_prepared,
 };
 
 static struct clk_init_data max77686_clks_init[MAX77686_CLKS_NUM] = {
