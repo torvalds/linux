@@ -86,6 +86,7 @@ static void tick_do_update_jiffies64(ktime_t now)
 		tick_next_period = ktime_add(last_jiffies_update, tick_period);
 	}
 	write_sequnlock(&jiffies_lock);
+	update_wall_time();
 }
 
 /*
