@@ -48,6 +48,15 @@ config ISP1301_OMAP
 	  This driver can also be built as a module.  If so, the module
 	  will be called isp1301_omap.
 
+config KEYSTONE_USB_PHY
+	tristate "Keystone USB PHY Driver"
+	depends on ARCH_KEYSTONE || COMPILE_TEST
+	select NOP_USB_XCEIV
+	help
+	  Enable this to support Keystone USB phy. This driver provides
+	  interface to interact with USB 2.0 and USB 3.0 PHY that is part
+	  of the Keystone SOC.
+
 config MV_U3D_PHY
 	bool "Marvell USB 3.0 PHY controller Driver"
 	depends on CPU_MMP3
