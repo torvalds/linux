@@ -3973,33 +3973,6 @@ static void brcmf_sdio_release_dongle(struct brcmf_sdio *bus)
 	brcmf_dbg(TRACE, "Disconnected\n");
 }
 
-/* Detach and free everything */
-static void brcmf_sdio_release(struct brcmf_sdio *bus)
-{
-	brcmf_dbg(TRACE, "Enter\n");
-
-	if (bus) {
-		/* De-register interrupt handler */
-		brcmf_sdiod_intr_unregister(bus->sdiodev);
-
-		cancel_work_sync(&bus->datawork);
-		if (bus->brcmf_wq)
-			destroy_workqueue(bus->brcmf_wq);
-
-		if (bus->sdiodev->bus_if->drvr) {
-			brcmf_detach(bus->sdiodev->dev);
-			brcmf_sdio_release_dongle(bus);
-		}
-
-		brcmu_pkt_buf_free_skb(bus->txglom_sgpad);
-		brcmf_sdio_release_malloc(bus);
-		kfree(bus->hdrbuf);
-		kfree(bus);
-	}
-
-	brcmf_dbg(TRACE, "Disconnected\n");
-}
-
 static struct brcmf_bus_ops brcmf_sdio_bus_ops = {
 	.stop = brcmf_sdio_bus_stop,
 	.preinit = brcmf_sdio_bus_preinit,
@@ -4116,15 +4089,33 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	return bus;
 
 fail:
-	brcmf_sdio_release(bus);
+	brcmf_sdio_remove(bus);
 	return NULL;
 }
 
-void brcmf_sdio_disconnect(struct brcmf_sdio *bus)
+/* Detach and free everything */
+void brcmf_sdio_remove(struct brcmf_sdio *bus)
 {
 	brcmf_dbg(TRACE, "Enter\n");
 
-	brcmf_sdio_release(bus);
+	if (bus) {
+		/* De-register interrupt handler */
+		brcmf_sdiod_intr_unregister(bus->sdiodev);
+
+		cancel_work_sync(&bus->datawork);
+		if (bus->brcmf_wq)
+			destroy_workqueue(bus->brcmf_wq);
+
+		if (bus->sdiodev->bus_if->drvr) {
+			brcmf_detach(bus->sdiodev->dev);
+			brcmf_sdio_release_dongle(bus);
+		}
+
+		brcmu_pkt_buf_free_skb(bus->txglom_sgpad);
+		brcmf_sdio_release_malloc(bus);
+		kfree(bus->hdrbuf);
+		kfree(bus);
+	}
 
 	brcmf_dbg(TRACE, "Disconnected\n");
 }

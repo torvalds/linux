@@ -901,7 +901,7 @@ static int brcmf_sdiod_remove(struct brcmf_sdio_dev *sdiodev)
 	sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 
 	if (sdiodev->bus) {
-		brcmf_sdio_disconnect(sdiodev->bus);
+		brcmf_sdio_remove(sdiodev->bus);
 		sdiodev->bus = NULL;
 	}
 
