@@ -40,7 +40,7 @@
 				nvidia,function = "i2s1";
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			dvfs_pwm_px0 {
 				nvidia,pins = "dvfs_pwm_px0";
@@ -250,7 +250,7 @@
 					      "pu3";
 				nvidia,function = "uarta";
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
-				nvidia,pull = <TEGRA_PIN_PULL_UP>;
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			uart2_cts_n_pj5 {
