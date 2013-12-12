@@ -358,7 +358,13 @@ enum pevent_flag {
 	_PE(OLD_FTRACE_ARG_FAILED,"failed to allocate field name for ftrace"),\
 	_PE(INVALID_ARG_TYPE,	"invalid argument type"),		      \
 	_PE(INVALID_EVENT_NAME,	"invalid event name"),			      \
-	_PE(EVENT_NOT_FOUND,	"No event found")
+	_PE(EVENT_NOT_FOUND,	"no event found"),			      \
+	_PE(SYNTAX_ERROR,	"syntax error"),			      \
+	_PE(ILLEGAL_RVALUE,	"illegal rvalue"),			      \
+	_PE(ILLEGAL_LVALUE,	"illegal lvalue for string comparison"),      \
+	_PE(INVALID_REGEX,	"regex did not compute"),		      \
+	_PE(ILLEGAL_STRING_CMP,	"illegal comparison for string"), 	      \
+	_PE(ILLEGAL_INTEGER_CMP,"illegal comparison for integer")
 
 #undef _PE
 #define _PE(__code, __str) PEVENT_ERRNO__ ## __code

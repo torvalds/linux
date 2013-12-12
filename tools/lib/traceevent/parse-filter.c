@@ -473,8 +473,8 @@ create_arg_cmp(enum filter_exp_type etype)
 	return arg;
 }
 
-static int add_right(struct filter_arg *op, struct filter_arg *arg,
-		     char **error_str)
+static enum pevent_errno
+add_right(struct filter_arg *op, struct filter_arg *arg, char **error_str)
 {
 	struct filter_arg *left;
 	char *str;
@@ -505,9 +505,8 @@ static int add_right(struct filter_arg *op, struct filter_arg *arg,
 		case FILTER_ARG_FIELD:
 			break;
 		default:
-			show_error(error_str,
-				   "Illegal rvalue");
-			return -1;
+			show_error(error_str, "Illegal rvalue");
+			return PEVENT_ERRNO__ILLEGAL_RVALUE;
 		}
 
 		/*
@@ -554,7 +553,7 @@ static int add_right(struct filter_arg *op, struct filter_arg *arg,
 			if (left->type != FILTER_ARG_FIELD) {
 				show_error(error_str,
 					   "Illegal lvalue for string comparison");
-				return -1;
+				return PEVENT_ERRNO__ILLEGAL_LVALUE;
 			}
 
 			/* Make sure this is a valid string compare */
@@ -573,25 +572,31 @@ static int add_right(struct filter_arg *op, struct filter_arg *arg,
 					show_error(error_str,
 						   "RegEx '%s' did not compute",
 						   str);
-					return -1;
+					return PEVENT_ERRNO__INVALID_REGEX;
 				}
 				break;
 			default:
 				show_error(error_str,
 					   "Illegal comparison for string");
-				return -1;
+				return PEVENT_ERRNO__ILLEGAL_STRING_CMP;
 			}
 
 			op->type = FILTER_ARG_STR;
 			op->str.type = op_type;
 			op->str.field = left->field.field;
 			op->str.val = strdup(str);
-			if (!op->str.val)
-				die("malloc string");
+			if (!op->str.val) {
+				show_error(error_str, "Failed to allocate string filter");
+				return PEVENT_ERRNO__MEM_ALLOC_FAILED;
+			}
 			/*
 			 * Need a buffer to copy data for tests
 			 */
-			op->str.buffer = malloc_or_die(op->str.field->size + 1);
+			op->str.buffer = malloc(op->str.field->size + 1);
+			if (!op->str.buffer) {
+				show_error(error_str, "Failed to allocate string filter");
+				return PEVENT_ERRNO__MEM_ALLOC_FAILED;
+			}
 			/* Null terminate this buffer */
 			op->str.buffer[op->str.field->size] = 0;
 
@@ -609,7 +614,7 @@ static int add_right(struct filter_arg *op, struct filter_arg *arg,
 			case FILTER_CMP_NOT_REGEX:
 				show_error(error_str,
 					   "Op not allowed with integers");
-				return -1;
+				return PEVENT_ERRNO__ILLEGAL_INTEGER_CMP;
 
 			default:
 				break;
@@ -629,9 +634,8 @@ static int add_right(struct filter_arg *op, struct filter_arg *arg,
 	return 0;
 
  out_fail:
-	show_error(error_str,
-		   "Syntax error");
-	return -1;
+	show_error(error_str, "Syntax error");
+	return PEVENT_ERRNO__SYNTAX_ERROR;
 }
 
 static struct filter_arg *
