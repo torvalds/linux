@@ -18,6 +18,7 @@ $| = 1;
 my %opt;
 my %repeat_tests;
 my %repeats;
+my %evals;
 
 #default opts
 my %default = (
@@ -448,6 +449,27 @@ $config_help{"REBOOT_SCRIPT"} = << "EOF"
 EOF
     ;
 
+sub _logit {
+    if (defined($opt{"LOG_FILE"})) {
+	open(OUT, ">> $opt{LOG_FILE}") or die "Can't write to $opt{LOG_FILE}";
+	print OUT @_;
+	close(OUT);
+    }
+}
+
+sub logit {
+    if (defined($opt{"LOG_FILE"})) {
+	_logit @_;
+    } else {
+	print @_;
+    }
+}
+
+sub doprint {
+    print @_;
+    _logit @_;
+}
+
 sub read_prompt {
     my ($cancel, $prompt) = @_;
 
@@ -663,6 +685,22 @@ sub set_value {
     } else {
 	$opt{$lvalue} = $prvalue;
     }
+}
+
+sub set_eval {
+    my ($lvalue, $rvalue, $name) = @_;
+
+    my $prvalue = process_variables($rvalue);
+    my $arr;
+
+    if (defined($evals{$lvalue})) {
+	$arr = $evals{$lvalue};
+    } else {
+	$arr = [];
+	$evals{$lvalue} = $arr;
+    }
+
+    push @{$arr}, $rvalue;
 }
 
 sub set_variable {
@@ -950,6 +988,20 @@ sub __read_config {
 		$test_case = 1;
 	    }
 
+	} elsif (/^\s*([A-Z_\[\]\d]+)\s*=~\s*(.*?)\s*$/) {
+
+	    next if ($skip);
+
+	    my $lvalue = $1;
+	    my $rvalue = $2;
+
+	    if ($default || $lvalue =~ /\[\d+\]$/) {
+		set_eval($lvalue, $rvalue, $name);
+	    } else {
+		my $val = "$lvalue\[$test_num\]";
+		set_eval($val, $rvalue, $name);
+	    }
+
 	} elsif (/^\s*([A-Z_\[\]\d]+)\s*=\s*(.*?)\s*$/) {
 
 	    next if ($skip);
@@ -1147,6 +1199,33 @@ sub __eval_option {
     return $retval;
 }
 
+sub process_evals {
+    my ($name, $option, $i) = @_;
+
+    my $option_name = "$name\[$i\]";
+    my $ev;
+
+    my $old_option = $option;
+
+    if (defined($evals{$option_name})) {
+	$ev = $evals{$option_name};
+    } elsif (defined($evals{$name})) {
+	$ev = $evals{$name};
+    } else {
+	return $option;
+    }
+
+    for my $e (@{$ev}) {
+	eval "\$option =~ $e";
+    }
+
+    if ($option ne $old_option) {
+	doprint("$name changed from '$old_option' to '$option'\n");
+    }
+
+    return $option;
+}
+
 sub eval_option {
     my ($name, $option, $i) = @_;
 
@@ -1167,28 +1246,9 @@ sub eval_option {
 	$option = __eval_option($name, $option, $i);
     }
 
+    $option = process_evals($name, $option, $i);
+
     return $option;
-}
-
-sub _logit {
-    if (defined($opt{"LOG_FILE"})) {
-	open(OUT, ">> $opt{LOG_FILE}") or die "Can't write to $opt{LOG_FILE}";
-	print OUT @_;
-	close(OUT);
-    }
-}
-
-sub logit {
-    if (defined($opt{"LOG_FILE"})) {
-	_logit @_;
-    } else {
-	print @_;
-    }
-}
-
-sub doprint {
-    print @_;
-    _logit @_;
 }
 
 sub run_command;
