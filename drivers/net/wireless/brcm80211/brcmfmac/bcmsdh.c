@@ -369,9 +369,8 @@ brcmf_sdio_addrprep(struct brcmf_sdio_dev *sdiodev, uint width, u32 *addr)
 	return 0;
 }
 
-int
-brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
-			void *data, bool write)
+static int brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
+				   void *data, bool write)
 {
 	u8 func_num, reg_size;
 	s32 retry = 0;

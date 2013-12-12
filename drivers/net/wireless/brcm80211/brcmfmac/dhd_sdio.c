@@ -2316,7 +2316,7 @@ static int brcmf_sdio_intr_rstatus(struct brcmf_sdio *bus)
 	addr = bus->ci->c_inf[idx].base +
 	       offsetof(struct sdpcmd_regs, intstatus);
 
-	ret = brcmf_sdio_regrw_helper(bus->sdiodev, addr, &val, false);
+	val = brcmf_sdio_regrl(bus->sdiodev, addr, &ret);
 	bus->sdcnt.f1regdata++;
 	if (ret != 0)
 		val = 0;
@@ -2326,7 +2326,7 @@ static int brcmf_sdio_intr_rstatus(struct brcmf_sdio *bus)
 
 	/* Clear interrupts */
 	if (val) {
-		ret = brcmf_sdio_regrw_helper(bus->sdiodev, addr, &val, true);
+		brcmf_sdio_regwl(bus->sdiodev, addr, val, &ret);
 		bus->sdcnt.f1regdata++;
 	}
 
