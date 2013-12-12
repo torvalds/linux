@@ -187,3 +187,32 @@ int bond_option_miimon_set(struct bonding *bond, int miimon)
 	}
 	return 0;
 }
+
+int bond_option_updelay_set(struct bonding *bond, int updelay)
+{
+	if (!(bond->params.miimon)) {
+		pr_err("%s: Unable to set up delay as MII monitoring is disabled\n",
+		       bond->dev->name);
+		return -EPERM;
+	}
+
+	if (updelay < 0) {
+		pr_err("%s: Invalid up delay value %d not in range %d-%d; rejected.\n",
+		       bond->dev->name, updelay, 0, INT_MAX);
+		return -EINVAL;
+	} else {
+		if ((updelay % bond->params.miimon) != 0) {
+			pr_warn("%s: Warning: up delay (%d) is not a multiple of miimon (%d), updelay rounded to %d ms\n",
+				bond->dev->name, updelay,
+				bond->params.miimon,
+				(updelay / bond->params.miimon) *
+				bond->params.miimon);
+		}
+		bond->params.updelay = updelay / bond->params.miimon;
+		pr_info("%s: Setting up delay to %d.\n",
+			bond->dev->name,
+			bond->params.updelay * bond->params.miimon);
+	}
+
+	return 0;
+}
