@@ -330,7 +330,7 @@ int bt_6lowpan_recv(struct l2cap_conn *conn, struct sk_buff *skb)
 		return -ENOENT;
 
 	dev = lookup_dev(conn);
-	if (dev && !dev->netdev)
+	if (!dev || !dev->netdev)
 		return -ENOENT;
 
 	err = recv_pkt(skb, dev->netdev, conn);
