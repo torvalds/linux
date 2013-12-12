@@ -919,13 +919,13 @@ static void zpci_mem_exit(void)
 	kmem_cache_destroy(zdev_fmb_cache);
 }
 
-static unsigned int s390_pci_probe;
+static unsigned int s390_pci_probe = 1;
 static unsigned int s390_pci_initialized;
 
 char * __init pcibios_setup(char *str)
 {
-	if (!strcmp(str, "on")) {
-		s390_pci_probe = 1;
+	if (!strcmp(str, "off")) {
+		s390_pci_probe = 0;
 		return NULL;
 	}
 	return str;
