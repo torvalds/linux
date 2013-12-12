@@ -52,5 +52,9 @@ extern unsigned long perf_misc_flags(struct pt_regs *regs);
 #define TEAR_REG(hwc)		((hwc)->last_tag)
 #define SAMPL_RATE(hwc)		((hwc)->event_base)
 
+/* Perf hardware reserve and release functions */
+int perf_reserve_sampling(void);
+void perf_release_sampling(void);
+
 #endif /* CONFIG_64BIT */
 #endif /* _ASM_S390_PERF_EVENT_H */

@@ -41,6 +41,7 @@ static DEFINE_MUTEX(hws_sem_oom);
 
 static unsigned char hws_flush_all;
 static unsigned int hws_oom;
+static unsigned int hws_alert;
 static struct workqueue_struct *hws_wq;
 
 static unsigned int hws_state;
@@ -180,6 +181,9 @@ static void hws_ext_handler(struct ext_code ext_code,
 	struct hws_cpu_buffer *cb = &__get_cpu_var(sampler_cpu_buffer);
 
 	if (!(param32 & CPU_MF_INT_SF_MASK))
+		return;
+
+	if (!hws_alert)
 		return;
 
 	inc_irq_stat(IRQEXT_CMS);
@@ -941,6 +945,7 @@ int hwsampler_deallocate(void)
 		goto deallocate_exit;
 
 	irq_subclass_unregister(IRQ_SUBCLASS_MEASUREMENT_ALERT);
+	hws_alert = 0;
 	deallocate_sdbt();
 
 	hws_state = HWS_DEALLOCATED;
@@ -1055,6 +1060,7 @@ int hwsampler_shutdown(void)
 
 		if (hws_state == HWS_STOPPED) {
 			irq_subclass_unregister(IRQ_SUBCLASS_MEASUREMENT_ALERT);
+			hws_alert = 0;
 			deallocate_sdbt();
 		}
 		if (hws_wq) {
@@ -1129,6 +1135,7 @@ start_all_exit:
 	hws_oom = 1;
 	hws_flush_all = 0;
 	/* now let them in, 1407 CPUMF external interrupts */
+	hws_alert = 1;
 	irq_subclass_register(IRQ_SUBCLASS_MEASUREMENT_ALERT);
 
 	return 0;

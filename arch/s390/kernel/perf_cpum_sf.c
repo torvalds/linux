@@ -260,16 +260,12 @@ static int sf_disable(void)
 
 #define PMC_INIT      0
 #define PMC_RELEASE   1
+#define PMC_FAILURE   2
 static void setup_pmc_cpu(void *flags)
 {
 	int err;
 	struct cpu_hw_sf *cpusf = &__get_cpu_var(cpu_hw_sf);
 
-	/* XXX Improve error handling and pass a flag in the *flags
-	 *     variable to indicate failures.  Alternatively, ignore
-	 *     (print) errors here and let the PMU functions fail if
-	 *     the per-cpu PMU_F_RESERVED flag is not.
-	 */
 	err = 0;
 	switch (*((int *) flags)) {
 	case PMC_INIT:
@@ -299,6 +295,8 @@ static void setup_pmc_cpu(void *flags)
 				    "setup_pmc_cpu: released: cpuhw=%p\n", cpusf);
 		break;
 	}
+	if (err)
+		*((int *) flags) |= PMC_FAILURE;
 }
 
 static void release_pmc_hardware(void)
@@ -307,13 +305,22 @@ static void release_pmc_hardware(void)
 
 	irq_subclass_unregister(IRQ_SUBCLASS_MEASUREMENT_ALERT);
 	on_each_cpu(setup_pmc_cpu, &flags, 1);
+	perf_release_sampling();
 }
 
 static int reserve_pmc_hardware(void)
 {
 	int flags = PMC_INIT;
+	int err;
 
+	err = perf_reserve_sampling();
+	if (err)
+		return err;
 	on_each_cpu(setup_pmc_cpu, &flags, 1);
+	if (flags & PMC_FAILURE) {
+		release_pmc_hardware();
+		return -ENODEV;
+	}
 	irq_subclass_register(IRQ_SUBCLASS_MEASUREMENT_ALERT);
 
 	return 0;
