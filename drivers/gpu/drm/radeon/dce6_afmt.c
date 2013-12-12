@@ -308,7 +308,9 @@ int dce6_audio_init(struct radeon_device *rdev)
 	rdev->audio.enabled = true;
 
 	if (ASIC_IS_DCE8(rdev))
-		rdev->audio.num_pins = 7;
+		rdev->audio.num_pins = 6;
+	else if (ASIC_IS_DCE61(rdev))
+		rdev->audio.num_pins = 4;
 	else
 		rdev->audio.num_pins = 6;
 
