@@ -1767,6 +1767,7 @@ static void bcm2048_rds_fifo_receive(struct bcm2048_device *bdev)
 				bdev->rds_info.radio_text, bdev->fifo_size);
 	if (err != 2) {
 		dev_err(&bdev->client->dev, "RDS Read problem\n");
+		mutex_unlock(&bdev->mutex);
 		return;
 	}
 
