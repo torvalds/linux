@@ -1,7 +1,7 @@
 /*
  * handling interprocessor communication
  *
- * Copyright IBM Corp. 2008, 2009
+ * Copyright IBM Corp. 2008, 2013
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (version 2 only)
@@ -87,6 +87,37 @@ static int __sigp_emergency(struct kvm_vcpu *vcpu, u16 cpu_addr)
 unlock:
 	spin_unlock(&fi->lock);
 	return rc;
+}
+
+static int __sigp_conditional_emergency(struct kvm_vcpu *vcpu, u16 cpu_addr,
+					u16 asn, u64 *reg)
+{
+	struct kvm_vcpu *dst_vcpu = NULL;
+	const u64 psw_int_mask = PSW_MASK_IO | PSW_MASK_EXT;
+	u16 p_asn, s_asn;
+	psw_t *psw;
+	u32 flags;
+
+	if (cpu_addr < KVM_MAX_VCPUS)
+		dst_vcpu = kvm_get_vcpu(vcpu->kvm, cpu_addr);
+	if (!dst_vcpu)
+		return SIGP_CC_NOT_OPERATIONAL;
+	flags = atomic_read(&dst_vcpu->arch.sie_block->cpuflags);
+	psw = &dst_vcpu->arch.sie_block->gpsw;
+	p_asn = dst_vcpu->arch.sie_block->gcr[4] & 0xffff;  /* Primary ASN */
+	s_asn = dst_vcpu->arch.sie_block->gcr[3] & 0xffff;  /* Secondary ASN */
+
+	/* Deliver the emergency signal? */
+	if (!(flags & CPUSTAT_STOPPED)
+	    || (psw->mask & psw_int_mask) != psw_int_mask
+	    || ((flags & CPUSTAT_WAIT) && psw->addr != 0)
+	    || (!(flags & CPUSTAT_WAIT) && (asn == p_asn || asn == s_asn))) {
+		return __sigp_emergency(vcpu, cpu_addr);
+	} else {
+		*reg &= 0xffffffff00000000UL;
+		*reg |= SIGP_STATUS_INCORRECT_STATE;
+		return SIGP_CC_STATUS_STORED;
+	}
 }
 
 static int __sigp_external_call(struct kvm_vcpu *vcpu, u16 cpu_addr)
@@ -332,7 +363,8 @@ static int __sigp_sense_running(struct kvm_vcpu *vcpu, u16 cpu_addr,
 	return rc;
 }
 
-static int __sigp_restart(struct kvm_vcpu *vcpu, u16 cpu_addr)
+/* Test whether the destination CPU is available and not busy */
+static int sigp_check_callable(struct kvm_vcpu *vcpu, u16 cpu_addr)
 {
 	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
 	struct kvm_s390_local_interrupt *li;
@@ -351,9 +383,6 @@ static int __sigp_restart(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	spin_lock_bh(&li->lock);
 	if (li->action_bits & ACTION_STOP_ON_STOP)
 		rc = SIGP_CC_BUSY;
-	else
-		VCPU_EVENT(vcpu, 4, "sigp restart %x to handle userspace",
-			cpu_addr);
 	spin_unlock_bh(&li->lock);
 out:
 	spin_unlock(&fi->lock);
@@ -417,17 +446,31 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 		rc = __sigp_set_prefix(vcpu, cpu_addr, parameter,
 				       &vcpu->run->s.regs.gprs[r1]);
 		break;
+	case SIGP_COND_EMERGENCY_SIGNAL:
+		rc = __sigp_conditional_emergency(vcpu, cpu_addr, parameter,
+						  &vcpu->run->s.regs.gprs[r1]);
+		break;
 	case SIGP_SENSE_RUNNING:
 		vcpu->stat.instruction_sigp_sense_running++;
 		rc = __sigp_sense_running(vcpu, cpu_addr,
 					  &vcpu->run->s.regs.gprs[r1]);
 		break;
+	case SIGP_START:
+		rc = sigp_check_callable(vcpu, cpu_addr);
+		if (rc == SIGP_CC_ORDER_CODE_ACCEPTED)
+			rc = -EOPNOTSUPP;    /* Handle START in user space */
+		break;
 	case SIGP_RESTART:
 		vcpu->stat.instruction_sigp_restart++;
-		rc = __sigp_restart(vcpu, cpu_addr);
-		if (rc == SIGP_CC_BUSY)
-			break;
-		/* user space must know about restart */
+		rc = sigp_check_callable(vcpu, cpu_addr);
+		if (rc == SIGP_CC_ORDER_CODE_ACCEPTED) {
+			VCPU_EVENT(vcpu, 4,
+				   "sigp restart %x to handle userspace",
+				   cpu_addr);
+			/* user space must know about restart */
+			rc = -EOPNOTSUPP;
+		}
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -435,7 +478,6 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 	if (rc < 0)
 		return rc;
 
-	vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
-	vcpu->arch.sie_block->gpsw.mask |= (rc & 3ul) << 44;
+	kvm_s390_set_psw_cc(vcpu, rc);
 	return 0;
 }
