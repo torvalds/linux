@@ -232,7 +232,8 @@ static const struct file_operations media_devnode_fops = {
  * the media_devnode structure is *not* called, so the caller is responsible for
  * freeing any data.
  */
-int __must_check media_devnode_register(struct media_devnode *mdev)
+int __must_check media_devnode_register(struct media_devnode *mdev,
+					struct module *owner)
 {
 	int minor;
 	int ret;
@@ -253,7 +254,7 @@ int __must_check media_devnode_register(struct media_devnode *mdev)
 
 	/* Part 2: Initialize and register the character device */
 	cdev_init(&mdev->cdev, &media_devnode_fops);
-	mdev->cdev.owner = mdev->fops->owner;
+	mdev->cdev.owner = owner;
 
 	ret = cdev_add(&mdev->cdev, MKDEV(MAJOR(media_dev_t), mdev->minor), 1);
 	if (ret < 0) {
