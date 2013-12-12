@@ -112,6 +112,8 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 		clp_rescan_pci_devices();
 		break;
 	case 0x0308: /* Standby -> Reserved */
+		if (!zdev)
+			break;
 		pci_stop_root_bus(zdev->bus);
 		pci_remove_root_bus(zdev->bus);
 		break;
