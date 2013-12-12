@@ -131,8 +131,10 @@ static u64 psched_ns_t2l(const struct psched_ratecfg *r,
 
 	do_div(len, NSEC_PER_SEC);
 
-	if (unlikely(r->linklayer == TC_LINKLAYER_ATM))
-		len = (len / 53) * 48;
+	if (unlikely(r->linklayer == TC_LINKLAYER_ATM)) {
+		do_div(len, 53);
+		len = len * 48;
+	}
 
 	if (len > r->overhead)
 		len -= r->overhead;
