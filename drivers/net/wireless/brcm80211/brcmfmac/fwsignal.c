@@ -1393,7 +1393,7 @@ static int brcmf_fws_txstatus_suppressed(struct brcmf_fws_info *fws, int fifo,
 	entry->generation = genbit;
 
 	ret = brcmf_proto_hdrpull(fws->drvr, false, &ifidx, skb);
-	if (ret == 0)
+	if (ret == 0) {
 		brcmf_skb_htod_tag_set_field(skb, GENERATION, genbit);
 		brcmf_skbcb(skb)->htod_seq = seq;
 		if (brcmf_skb_htod_seq_get_field(skb, FROMFW)) {
@@ -1404,6 +1404,8 @@ static int brcmf_fws_txstatus_suppressed(struct brcmf_fws_info *fws, int fifo,
 		}
 		ret = brcmf_fws_enq(fws, BRCMF_FWS_SKBSTATE_SUPPRESSED, fifo,
 				    skb);
+	}
+
 	if (ret != 0) {
 		/* suppress q is full or hdrpull failed, drop this packet */
 		brcmf_fws_hanger_poppkt(&fws->hanger, hslot, &skb,
