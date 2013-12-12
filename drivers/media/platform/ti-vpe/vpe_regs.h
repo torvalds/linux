@@ -306,42 +306,4 @@
 #define VPE_FMD_FRAME_DIFF_MASK		0x000fffff
 #define VPE_FMD_FRAME_DIFF_SHIFT	0
 
-/* VPE color space converter regs */
-#define VPE_CSC_CSC00			0x5700
-#define VPE_CSC_A0_MASK			0x1fff
-#define VPE_CSC_A0_SHIFT		0
-#define VPE_CSC_B0_MASK			0x1fff
-#define VPE_CSC_B0_SHIFT		16
-
-#define VPE_CSC_CSC01			0x5704
-#define VPE_CSC_C0_MASK			0x1fff
-#define VPE_CSC_C0_SHIFT		0
-#define VPE_CSC_A1_MASK			0x1fff
-#define VPE_CSC_A1_SHIFT		16
-
-#define VPE_CSC_CSC02			0x5708
-#define VPE_CSC_B1_MASK			0x1fff
-#define VPE_CSC_B1_SHIFT		0
-#define VPE_CSC_C1_MASK			0x1fff
-#define VPE_CSC_C1_SHIFT		16
-
-#define VPE_CSC_CSC03			0x570c
-#define VPE_CSC_A2_MASK			0x1fff
-#define VPE_CSC_A2_SHIFT		0
-#define VPE_CSC_B2_MASK			0x1fff
-#define VPE_CSC_B2_SHIFT		16
-
-#define VPE_CSC_CSC04			0x5710
-#define VPE_CSC_C2_MASK			0x1fff
-#define VPE_CSC_C2_SHIFT		0
-#define VPE_CSC_D0_MASK			0x0fff
-#define VPE_CSC_D0_SHIFT		16
-
-#define VPE_CSC_CSC05			0x5714
-#define VPE_CSC_D1_MASK			0x0fff
-#define VPE_CSC_D1_SHIFT		0
-#define VPE_CSC_D2_MASK			0x0fff
-#define VPE_CSC_D2_SHIFT		16
-#define VPE_CSC_BYPASS			(1 << 28)
-
 #endif

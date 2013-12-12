@@ -44,6 +44,7 @@
 #include "vpdma.h"
 #include "vpe_regs.h"
 #include "sc.h"
+#include "csc.h"
 
 #define VPE_MODULE_NAME "vpe"
 
@@ -330,6 +331,7 @@ struct vpe_dev {
 	struct vb2_alloc_ctx	*alloc_ctx;
 	struct vpdma_data	*vpdma;		/* vpdma data handle */
 	struct sc_data		*sc;		/* scaler data handle */
+	struct csc_data		*csc;		/* csc data handle */
 };
 
 /*
@@ -475,7 +477,8 @@ static void init_adb_hdrs(struct vpe_ctx *ctx)
 		GET_OFFSET_TOP(ctx, ctx->dev->sc, CFG_SC8));
 	VPE_SET_MMR_ADB_HDR(ctx, sc_hdr17, sc_regs17,
 		GET_OFFSET_TOP(ctx, ctx->dev->sc, CFG_SC17));
-	VPE_SET_MMR_ADB_HDR(ctx, csc_hdr, csc_regs, VPE_CSC_CSC00);
+	VPE_SET_MMR_ADB_HDR(ctx, csc_hdr, csc_regs,
+		GET_OFFSET_TOP(ctx, ctx->dev->csc, CSC_CSC00));
 };
 
 /*
@@ -758,16 +761,6 @@ static void set_dei_shadow_registers(struct vpe_ctx *ctx)
 	ctx->load_mmrs = true;
 }
 
-static void set_csc_coeff_bypass(struct vpe_ctx *ctx)
-{
-	struct vpe_mmr_adb *mmr_adb = ctx->mmr_adb.addr;
-	u32 *shadow_csc_reg5 = &mmr_adb->csc_regs[5];
-
-	*shadow_csc_reg5 |= VPE_CSC_BYPASS;
-
-	ctx->load_mmrs = true;
-}
-
 /*
  * Set the shadow registers whose values are modified when either the
  * source or destination format is changed.
@@ -819,7 +812,8 @@ static int set_srcdst_params(struct vpe_ctx *ctx)
 
 	set_cfg_and_line_modes(ctx);
 	set_dei_regs(ctx);
-	set_csc_coeff_bypass(ctx);
+
+	csc_set_coeff_bypass(ctx->dev->csc, &mmr_adb->csc_regs[5]);
 
 	sc_set_hs_coeffs(ctx->dev->sc, ctx->sc_coeff_h.addr, src_w, dst_w);
 	sc_set_vs_coeffs(ctx->dev->sc, ctx->sc_coeff_v.addr, src_h, dst_h);
@@ -942,15 +936,10 @@ static void vpe_dump_regs(struct vpe_dev *dev)
 	DUMPREG(DEI_FMD_STATUS_R0);
 	DUMPREG(DEI_FMD_STATUS_R1);
 	DUMPREG(DEI_FMD_STATUS_R2);
-	DUMPREG(CSC_CSC00);
-	DUMPREG(CSC_CSC01);
-	DUMPREG(CSC_CSC02);
-	DUMPREG(CSC_CSC03);
-	DUMPREG(CSC_CSC04);
-	DUMPREG(CSC_CSC05);
 #undef DUMPREG
 
 	sc_dump_regs(dev->sc);
+	csc_dump_regs(dev->csc);
 }
 
 static void add_out_dtd(struct vpe_ctx *ctx, int port)
@@ -2071,6 +2060,12 @@ static int vpe_probe(struct platform_device *pdev)
 	dev->sc = sc_create(pdev);
 	if (IS_ERR(dev->sc)) {
 		ret = PTR_ERR(dev->sc);
+		goto runtime_put;
+	}
+
+	dev->csc = csc_create(pdev);
+	if (IS_ERR(dev->csc)) {
+		ret = PTR_ERR(dev->csc);
 		goto runtime_put;
 	}
 
