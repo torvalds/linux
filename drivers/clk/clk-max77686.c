@@ -112,27 +112,26 @@ static struct clk_init_data max77686_clks_init[MAX77686_CLKS_NUM] = {
 	},
 };
 
-static int max77686_clk_register(struct device *dev,
+static struct clk *max77686_clk_register(struct device *dev,
 				struct max77686_clk *max77686)
 {
 	struct clk *clk;
 	struct clk_hw *hw = &max77686->hw;
 
 	clk = clk_register(dev, hw);
-
 	if (IS_ERR(clk))
-		return -ENOMEM;
+		return clk;
 
 	max77686->lookup = kzalloc(sizeof(struct clk_lookup), GFP_KERNEL);
 	if (!max77686->lookup)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	max77686->lookup->con_id = hw->init->name;
 	max77686->lookup->clk = clk;
 
 	clkdev_add(max77686->lookup);
 
-	return 0;
+	return clk;
 }
 
 static int max77686_clk_probe(struct platform_device *pdev)
@@ -154,12 +153,16 @@ static int max77686_clk_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < MAX77686_CLKS_NUM; i++) {
+		struct clk *clk;
+
 		max77686_clks[i]->iodev = iodev;
 		max77686_clks[i]->mask = 1 << i;
 		max77686_clks[i]->hw.init = &max77686_clks_init[i];
 
-		ret = max77686_clk_register(&pdev->dev, max77686_clks[i]);
-		if (ret) {
+		clk = max77686_clk_register(&pdev->dev, max77686_clks[i]);
+		if (IS_ERR(clk)) {
+			ret = PTR_ERR(clk);
+
 			switch (i) {
 			case MAX77686_CLK_AP:
 				dev_err(&pdev->dev, "Fail to register CLK_AP\n");
