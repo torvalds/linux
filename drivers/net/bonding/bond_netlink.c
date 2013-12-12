@@ -26,6 +26,7 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_ACTIVE_SLAVE]	= { .type = NLA_U32 },
 	[IFLA_BOND_MIIMON]		= { .type = NLA_U32 },
 	[IFLA_BOND_UPDELAY]		= { .type = NLA_U32 },
+	[IFLA_BOND_DOWNDELAY]		= { .type = NLA_U32 },
 };
 
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -85,6 +86,13 @@ static int bond_changelink(struct net_device *bond_dev,
 		if (err)
 			return err;
 	}
+	if (data[IFLA_BOND_DOWNDELAY]) {
+		int downdelay = nla_get_u32(data[IFLA_BOND_DOWNDELAY]);
+
+		err = bond_option_downdelay_set(bond, downdelay);
+		if (err)
+			return err;
+	}
 	return 0;
 }
 
@@ -106,6 +114,7 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ACTIVE_SLAVE */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_MIIMON */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_UPDELAY */
+		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_DOWNDELAY */
 		0;
 }
 
@@ -127,6 +136,10 @@ static int bond_fill_info(struct sk_buff *skb,
 
 	if (nla_put_u32(skb, IFLA_BOND_UPDELAY,
 			bond->params.updelay * bond->params.miimon))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, IFLA_BOND_DOWNDELAY,
+			bond->params.downdelay * bond->params.miimon))
 		goto nla_put_failure;
 
 	return 0;

@@ -689,44 +689,21 @@ static ssize_t bonding_store_downdelay(struct device *d,
 				       struct device_attribute *attr,
 				       const char *buf, size_t count)
 {
-	int new_value, ret = count;
+	int new_value, ret;
 	struct bonding *bond = to_bond(d);
-
-	if (!rtnl_trylock())
-		return restart_syscall();
-	if (!(bond->params.miimon)) {
-		pr_err("%s: Unable to set down delay as MII monitoring is disabled\n",
-		       bond->dev->name);
-		ret = -EPERM;
-		goto out;
-	}
 
 	if (sscanf(buf, "%d", &new_value) != 1) {
 		pr_err("%s: no down delay value specified.\n", bond->dev->name);
-		ret = -EINVAL;
-		goto out;
-	}
-	if (new_value < 0) {
-		pr_err("%s: Invalid down delay value %d not in range %d-%d; rejected.\n",
-		       bond->dev->name, new_value, 0, INT_MAX);
-		ret = -EINVAL;
-		goto out;
-	} else {
-		if ((new_value % bond->params.miimon) != 0) {
-			pr_warning("%s: Warning: down delay (%d) is not a multiple of miimon (%d), delay rounded to %d ms\n",
-				   bond->dev->name, new_value,
-				   bond->params.miimon,
-				   (new_value / bond->params.miimon) *
-				   bond->params.miimon);
-		}
-		bond->params.downdelay = new_value / bond->params.miimon;
-		pr_info("%s: Setting down delay to %d.\n",
-			bond->dev->name,
-			bond->params.downdelay * bond->params.miimon);
-
+		return -EINVAL;
 	}
 
-out:
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	ret = bond_option_downdelay_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
 	rtnl_unlock();
 	return ret;
 }
