@@ -48,6 +48,7 @@
 #include <linux/rwsem.h>
 #include <linux/scatterlist.h>
 #include <linux/workqueue.h>
+#include <uapi/linux/if_ether.h>
 
 #include <linux/atomic.h>
 #include <asm/uaccess.h>
@@ -472,6 +473,8 @@ struct ib_ah_attr {
 	u8			static_rate;
 	u8			ah_flags;
 	u8			port_num;
+	u8			dmac[ETH_ALEN];
+	u16			vlan_id;
 };
 
 enum ib_wc_status {
@@ -524,6 +527,8 @@ enum ib_wc_flags {
 	IB_WC_WITH_IMM		= (1<<1),
 	IB_WC_WITH_INVALIDATE	= (1<<2),
 	IB_WC_IP_CSUM_OK	= (1<<3),
+	IB_WC_WITH_SMAC		= (1<<4),
+	IB_WC_WITH_VLAN		= (1<<5),
 };
 
 struct ib_wc {
@@ -544,6 +549,8 @@ struct ib_wc {
 	u8			sl;
 	u8			dlid_path_bits;
 	u8			port_num;	/* valid only for DR SMPs on switches */
+	u8			smac[ETH_ALEN];
+	u16			vlan_id;
 };
 
 enum ib_cq_notify_flags {
@@ -721,7 +728,11 @@ enum ib_qp_attr_mask {
 	IB_QP_MAX_DEST_RD_ATOMIC	= (1<<17),
 	IB_QP_PATH_MIG_STATE		= (1<<18),
 	IB_QP_CAP			= (1<<19),
-	IB_QP_DEST_QPN			= (1<<20)
+	IB_QP_DEST_QPN			= (1<<20),
+	IB_QP_SMAC			= (1<<21),
+	IB_QP_ALT_SMAC			= (1<<22),
+	IB_QP_VID			= (1<<23),
+	IB_QP_ALT_VID			= (1<<24),
 };
 
 enum ib_qp_state {
@@ -771,6 +782,10 @@ struct ib_qp_attr {
 	u8			rnr_retry;
 	u8			alt_port_num;
 	u8			alt_timeout;
+	u8			smac[ETH_ALEN];
+	u8			alt_smac[ETH_ALEN];
+	u16			vlan_id;
+	u16			alt_vlan_id;
 };
 
 enum ib_wr_opcode {
@@ -1488,6 +1503,7 @@ static inline int ib_copy_to_udata(struct ib_udata *udata, void *src, size_t len
  * @next_state: Next QP state
  * @type: QP type
  * @mask: Mask of supplied QP attributes
+ * @ll : link layer of port
  *
  * This function is a helper function that a low-level driver's
  * modify_qp method can use to validate the consumer's input.  It
@@ -1496,7 +1512,8 @@ static inline int ib_copy_to_udata(struct ib_udata *udata, void *src, size_t len
  * and that the attribute mask supplied is allowed for the transition.
  */
 int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
-		       enum ib_qp_type type, enum ib_qp_attr_mask mask);
+		       enum ib_qp_type type, enum ib_qp_attr_mask mask,
+		       enum rdma_link_layer ll);
 
 int ib_register_event_handler  (struct ib_event_handler *event_handler);
 int ib_unregister_event_handler(struct ib_event_handler *event_handler);

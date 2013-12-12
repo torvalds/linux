@@ -1616,7 +1616,8 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	new_state = attr_mask & IB_QP_STATE ? attr->qp_state : cur_state;
 
 	if (ibqp->qp_type != MLX5_IB_QPT_REG_UMR &&
-	    !ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type, attr_mask))
+	    !ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type, attr_mask,
+				IB_LINK_LAYER_UNSPECIFIED))
 		goto out;
 
 	if ((attr_mask & IB_QP_PORT) &&

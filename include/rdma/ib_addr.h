@@ -42,6 +42,7 @@
 #include <linux/if_vlan.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>
+#include <net/ipv6.h>
 
 struct rdma_addr_client {
 	atomic_t refcount;
@@ -72,7 +73,8 @@ struct rdma_dev_addr {
  * rdma_translate_ip - Translate a local IP address to an RDMA hardware
  *   address.
  */
-int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr);
+int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr,
+		      u16 *vlan_id);
 
 /**
  * rdma_resolve_ip - Resolve source and destination IP addresses to
@@ -103,6 +105,10 @@ int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
 	      const unsigned char *dst_dev_addr);
 
 int rdma_addr_size(struct sockaddr *addr);
+
+int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id);
+int rdma_addr_find_dmac_by_grh(union ib_gid *sgid, union ib_gid *dgid, u8 *smac,
+			       u16 *vlan_id);
 
 static inline u16 ib_addr_get_pkey(struct rdma_dev_addr *dev_addr)
 {
@@ -140,6 +146,40 @@ static inline void iboe_mac_vlan_to_ll(union ib_gid *gid, u8 *mac, u16 vid)
 	memcpy(gid->raw + 13, mac + 3, 3);
 	memcpy(gid->raw + 8, mac, 3);
 	gid->raw[8] ^= 2;
+}
+
+static inline int rdma_ip2gid(struct sockaddr *addr, union ib_gid *gid)
+{
+	switch (addr->sa_family) {
+	case AF_INET:
+		ipv6_addr_set_v4mapped(((struct sockaddr_in *)
+					addr)->sin_addr.s_addr,
+				       (struct in6_addr *)gid);
+		break;
+	case AF_INET6:
+		memcpy(gid->raw, &((struct sockaddr_in6 *)addr)->sin6_addr, 16);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/* Important - sockaddr should be a union of sockaddr_in and sockaddr_in6 */
+static inline int rdma_gid2ip(struct sockaddr *out, union ib_gid *gid)
+{
+	if (ipv6_addr_v4mapped((struct in6_addr *)gid)) {
+		struct sockaddr_in *out_in = (struct sockaddr_in *)out;
+		memset(out_in, 0, sizeof(*out_in));
+		out_in->sin_family = AF_INET;
+		memcpy(&out_in->sin_addr.s_addr, gid->raw + 12, 4);
+	} else {
+		struct sockaddr_in6 *out_in = (struct sockaddr_in6 *)out;
+		memset(out_in, 0, sizeof(*out_in));
+		out_in->sin6_family = AF_INET6;
+		memcpy(&out_in->sin6_addr.s6_addr, gid->raw, 16);
+	}
+	return 0;
 }
 
 static inline u16 rdma_vlan_dev_vlan_id(const struct net_device *dev)
