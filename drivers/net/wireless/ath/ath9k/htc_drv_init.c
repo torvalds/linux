@@ -1000,6 +1000,8 @@ int ath9k_htc_resume(struct htc_target *htc_handle)
 
 	ret = ath9k_init_htc_services(priv, priv->ah->hw_version.devid,
 				      priv->ah->hw_version.usbdev);
+	ath9k_configure_leds(priv);
+
 	return ret;
 }
 #endif
