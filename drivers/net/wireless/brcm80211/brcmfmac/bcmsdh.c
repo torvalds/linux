@@ -197,32 +197,21 @@ int brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 	return 0;
 }
 
-static inline int brcmf_sdiod_f0_write_byte(struct brcmf_sdio_dev *sdiodev,
-					    uint regaddr, u8 *byte)
+static inline int brcmf_sdiod_f0_writeb(struct sdio_func *func,
+					uint regaddr, u8 byte)
 {
-	struct sdio_func *sdfunc = sdiodev->func[0];
 	int err_ret;
 
 	/*
 	 * Can only directly write to some F0 registers.
-	 * Handle F2 enable/disable and Abort command
+	 * Handle CCCR_IENx and CCCR_ABORT command
 	 * as a special case.
 	 */
 	if ((regaddr == SDIO_CCCR_ABORT) ||
-	    (regaddr == SDIO_CCCR_IENx)) {
-		sdfunc = kmemdup(sdiodev->func[0], sizeof(struct sdio_func),
-				 GFP_KERNEL);
-		if (!sdfunc)
-			return -ENOMEM;
-		sdfunc->num = 0;
-		sdio_writeb(sdfunc, *byte, regaddr, &err_ret);
-		kfree(sdfunc);
-	} else if (regaddr < 0xF0) {
-		brcmf_err("F0 Wr:0x%02x: write disallowed\n", regaddr);
-		err_ret = -EPERM;
-	} else {
-		sdio_f0_writeb(sdfunc, *byte, regaddr, &err_ret);
-	}
+	    (regaddr == SDIO_CCCR_IENx))
+		sdio_writeb(func, byte, regaddr, &err_ret);
+	else
+		sdio_f0_writeb(func, byte, regaddr, &err_ret);
 
 	return err_ret;
 }
@@ -240,7 +229,8 @@ static int brcmf_sdiod_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw,
 
 	if (rw && func == 0) {
 		/* handle F0 separately */
-		err_ret = brcmf_sdiod_f0_write_byte(sdiodev, regaddr, byte);
+		err_ret = brcmf_sdiod_f0_writeb(sdiodev->func[func],
+						regaddr, *byte);
 	} else {
 		if (rw) /* CMD52 Write */
 			sdio_writeb(sdiodev->func[func], *byte, regaddr,
@@ -1030,7 +1020,11 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 		return -ENOMEM;
 	}
 
-	sdiodev->func[0] = func->card->sdio_func[0];
+	/* store refs to functions used. mmc_card does
+	 * not hold the F0 function pointer.
+	 */
+	sdiodev->func[0] = kmemdup(func, sizeof(*func), GFP_KERNEL);
+	sdiodev->func[0]->num = 0;
 	sdiodev->func[1] = func->card->sdio_func[0];
 	sdiodev->func[2] = func;
 
@@ -1060,6 +1054,7 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 fail:
 	dev_set_drvdata(&func->dev, NULL);
 	dev_set_drvdata(&sdiodev->func[1]->dev, NULL);
+	kfree(sdiodev->func[0]);
 	kfree(sdiodev);
 	kfree(bus_if);
 	return err;
@@ -1087,6 +1082,7 @@ static void brcmf_ops_sdio_remove(struct sdio_func *func)
 		dev_set_drvdata(&sdiodev->func[2]->dev, NULL);
 
 		kfree(bus_if);
+		kfree(sdiodev->func[0]);
 		kfree(sdiodev);
 	}
 
