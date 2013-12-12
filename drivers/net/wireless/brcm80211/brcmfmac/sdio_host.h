@@ -165,7 +165,7 @@ struct brcmf_sdio_dev {
 	struct sdio_func *func[SDIO_MAX_FUNCS];
 	u8 num_funcs;			/* Supported funcs on client */
 	u32 sbwad;			/* Save backplane window address */
-	void *bus;
+	struct brcmf_sdio *bus;
 	atomic_t suspend;		/* suspend flag */
 	wait_queue_head_t request_byte_wait;
 	wait_queue_head_t request_word_wait;
@@ -239,10 +239,9 @@ int brcmf_sdio_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 /* Issue an abort to the specified function */
 int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn);
 
-void *brcmf_sdbrcm_probe(struct brcmf_sdio_dev *sdiodev);
-void brcmf_sdbrcm_disconnect(void *ptr);
-void brcmf_sdbrcm_isr(void *arg);
-
+struct brcmf_sdio *brcmf_sdbrcm_probe(struct brcmf_sdio_dev *sdiodev);
+void brcmf_sdbrcm_disconnect(struct brcmf_sdio *bus);
+void brcmf_sdbrcm_isr(struct brcmf_sdio *bus);
 void brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick);
 
 #endif				/* _BRCM_SDH_H_ */

@@ -3649,10 +3649,8 @@ exit:
 	return ret;
 }
 
-void brcmf_sdbrcm_isr(void *arg)
+void brcmf_sdbrcm_isr(struct brcmf_sdio *bus)
 {
-	struct brcmf_sdio *bus = (struct brcmf_sdio *) arg;
-
 	brcmf_dbg(TRACE, "Enter\n");
 
 	if (!bus) {
@@ -4037,7 +4035,7 @@ static struct brcmf_bus_ops brcmf_sdio_bus_ops = {
 	.gettxq = brcmf_sdbrcm_bus_gettxq,
 };
 
-void *brcmf_sdbrcm_probe(struct brcmf_sdio_dev *sdiodev)
+struct brcmf_sdio *brcmf_sdbrcm_probe(struct brcmf_sdio_dev *sdiodev)
 {
 	int ret;
 	struct brcmf_sdio *bus;
@@ -4147,14 +4145,11 @@ fail:
 	return NULL;
 }
 
-void brcmf_sdbrcm_disconnect(void *ptr)
+void brcmf_sdbrcm_disconnect(struct brcmf_sdio *bus)
 {
-	struct brcmf_sdio *bus = (struct brcmf_sdio *)ptr;
-
 	brcmf_dbg(TRACE, "Enter\n");
 
-	if (bus)
-		brcmf_sdbrcm_release(bus);
+	brcmf_sdbrcm_release(bus);
 
 	brcmf_dbg(TRACE, "Disconnected\n");
 }
