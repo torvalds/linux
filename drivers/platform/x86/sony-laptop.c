@@ -140,7 +140,6 @@ MODULE_PARM_DESC(kbd_backlight_timeout,
 		 "on the model (default: no change from current value)");
 
 #ifdef CONFIG_PM_SLEEP
-static void sony_nc_kbd_backlight_resume(void);
 static void sony_nc_thermal_resume(void);
 #endif
 static int sony_nc_kbd_backlight_setup(struct platform_device *pd,
@@ -1487,13 +1486,6 @@ static void sony_nc_function_resume(void)
 		case 0x0135:
 			sony_nc_rfkill_update();
 			break;
-		case 0x0137:
-		case 0x0143:
-		case 0x014b:
-		case 0x014c:
-		case 0x0163:
-			sony_nc_kbd_backlight_resume();
-			break;
 		default:
 			continue;
 		}
@@ -1898,25 +1890,6 @@ static void sony_nc_kbd_backlight_cleanup(struct platform_device *pd,
 		kbdbl_ctl = NULL;
 	}
 }
-
-#ifdef CONFIG_PM_SLEEP
-static void sony_nc_kbd_backlight_resume(void)
-{
-	int ignore = 0;
-
-	if (!kbdbl_ctl)
-		return;
-
-	if (kbdbl_ctl->mode == 0)
-		sony_call_snc_handle(kbdbl_ctl->handle, kbdbl_ctl->base,
-				&ignore);
-
-	if (kbdbl_ctl->timeout != 0)
-		sony_call_snc_handle(kbdbl_ctl->handle,
-				(kbdbl_ctl->base + 0x200) |
-				(kbdbl_ctl->timeout << 0x10), &ignore);
-}
-#endif
 
 struct battery_care_control {
 	struct device_attribute attrs[2];

@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #include <linux/crypto.h>
 #include <linux/err.h>
+#include <crypto/ablk_helper.h>
 #include <crypto/algapi.h>
 #include <crypto/serpent.h>
 #include <crypto/cryptd.h>
@@ -38,7 +39,6 @@
 #include <asm/xcr.h>
 #include <asm/xsave.h>
 #include <asm/crypto/serpent-avx.h>
-#include <asm/crypto/ablk_helper.h>
 #include <asm/crypto/glue_helper.h>
 
 /* 8-way parallel cipher functions */

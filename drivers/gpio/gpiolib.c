@@ -14,6 +14,7 @@
 #include <linux/idr.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
+#include <linux/gpio/driver.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/gpio.h>
@@ -1308,6 +1309,18 @@ struct gpio_chip *gpiochip_find(void *data,
 }
 EXPORT_SYMBOL_GPL(gpiochip_find);
 
+static int gpiochip_match_name(struct gpio_chip *chip, void *data)
+{
+	const char *name = data;
+
+	return !strcmp(chip->label, name);
+}
+
+static struct gpio_chip *find_chip_by_name(const char *name)
+{
+	return gpiochip_find((void *)name, gpiochip_match_name);
+}
+
 #ifdef CONFIG_PINCTRL
 
 /**
@@ -1341,8 +1354,10 @@ int gpiochip_add_pingroup_range(struct gpio_chip *chip,
 	ret = pinctrl_get_group_pins(pctldev, pin_group,
 					&pin_range->range.pins,
 					&pin_range->range.npins);
-	if (ret < 0)
+	if (ret < 0) {
+		kfree(pin_range);
 		return ret;
+	}
 
 	pinctrl_add_gpio_range(pctldev, &pin_range->range);
 
@@ -2260,26 +2275,10 @@ void gpiod_add_table(struct gpiod_lookup *table, size_t size)
 	mutex_unlock(&gpio_lookup_lock);
 }
 
-/*
- * Caller must have a acquired gpio_lookup_lock
- */
-static struct gpio_chip *find_chip_by_name(const char *name)
-{
-	struct gpio_chip *chip = NULL;
-
-	list_for_each_entry(chip, &gpio_lookup_list, list) {
-		if (chip->label == NULL)
-			continue;
-		if (!strcmp(chip->label, name))
-			break;
-	}
-
-	return chip;
-}
-
 #ifdef CONFIG_OF
 static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
-				      unsigned int idx, unsigned long *flags)
+				      unsigned int idx,
+				      enum gpio_lookup_flags *flags)
 {
 	char prop_name[32]; /* 32 is max size of property name */
 	enum of_gpio_flags of_flags;
@@ -2297,20 +2296,22 @@ static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 		return desc;
 
 	if (of_flags & OF_GPIO_ACTIVE_LOW)
-		*flags |= GPIOF_ACTIVE_LOW;
+		*flags |= GPIO_ACTIVE_LOW;
 
 	return desc;
 }
 #else
 static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
-				      unsigned int idx, unsigned long *flags)
+				      unsigned int idx,
+				      enum gpio_lookup_flags *flags)
 {
 	return ERR_PTR(-ENODEV);
 }
 #endif
 
 static struct gpio_desc *acpi_find_gpio(struct device *dev, const char *con_id,
-					unsigned int idx, unsigned long *flags)
+					unsigned int idx,
+					enum gpio_lookup_flags *flags)
 {
 	struct acpi_gpio_info info;
 	struct gpio_desc *desc;
@@ -2320,13 +2321,14 @@ static struct gpio_desc *acpi_find_gpio(struct device *dev, const char *con_id,
 		return desc;
 
 	if (info.gpioint && info.active_low)
-		*flags |= GPIOF_ACTIVE_LOW;
+		*flags |= GPIO_ACTIVE_LOW;
 
 	return desc;
 }
 
 static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
-				    unsigned int idx, unsigned long *flags)
+				    unsigned int idx,
+				    enum gpio_lookup_flags *flags)
 {
 	const char *dev_id = dev ? dev_name(dev) : NULL;
 	struct gpio_desc *desc = ERR_PTR(-ENODEV);
@@ -2418,7 +2420,7 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 {
 	struct gpio_desc *desc;
 	int status;
-	unsigned long flags = 0;
+	enum gpio_lookup_flags flags = 0;
 
 	dev_dbg(dev, "GPIO lookup for consumer %s\n", con_id);
 
@@ -2444,8 +2446,12 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 	if (status < 0)
 		return ERR_PTR(status);
 
-	if (flags & GPIOF_ACTIVE_LOW)
+	if (flags & GPIO_ACTIVE_LOW)
 		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
+	if (flags & GPIO_OPEN_DRAIN)
+		set_bit(FLAG_OPEN_DRAIN, &desc->flags);
+	if (flags & GPIO_OPEN_SOURCE)
+		set_bit(FLAG_OPEN_SOURCE, &desc->flags);
 
 	return desc;
 }
