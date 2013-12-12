@@ -161,15 +161,46 @@
 #define CFG_OFF_W_MASK			0x07ff
 #define CFG_OFF_W_SHIFT			16
 
+/* number of phases supported by the polyphase scalers */
+#define SC_NUM_PHASES			32
+
+/* number of taps used by horizontal polyphase scaler */
+#define SC_H_NUM_TAPS			7
+
+/* number of taps used by vertical polyphase scaler */
+#define SC_V_NUM_TAPS			5
+
+/* number of taps expected by the scaler in it's coefficient memory */
+#define SC_NUM_TAPS_MEM_ALIGN		8
+
+/*
+ * coefficient memory size in bytes:
+ * num phases x num sets(luma and chroma) x num taps(aligned) x coeff size
+ */
+#define SC_COEF_SRAM_SIZE	(SC_NUM_PHASES * 2 * SC_NUM_TAPS_MEM_ALIGN * 2)
+
 struct sc_data {
 	void __iomem		*base;
 	struct resource		*res;
+
+	dma_addr_t		loaded_coeff_h; /* loaded h coeffs in SC */
+	dma_addr_t		loaded_coeff_v; /* loaded v coeffs in SC */
+
+	bool			load_coeff_h;	/* have new h SC coeffs */
+	bool			load_coeff_v;	/* have new v SC coeffs */
+
+	unsigned int		hs_index;	/* h SC coeffs selector */
+	unsigned int		vs_index;	/* v SC coeffs selector */
 
 	struct platform_device *pdev;
 };
 
 void sc_set_regs_bypass(struct sc_data *sc, u32 *sc_reg0);
 void sc_dump_regs(struct sc_data *sc);
+void sc_set_hs_coeffs(struct sc_data *sc, void *addr, unsigned int src_w,
+		unsigned int dst_w);
+void sc_set_vs_coeffs(struct sc_data *sc, void *addr, unsigned int src_h,
+		unsigned int dst_h);
 struct sc_data *sc_create(struct platform_device *pdev);
 
 #endif
