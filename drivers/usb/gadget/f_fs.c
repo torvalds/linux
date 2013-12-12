@@ -1137,7 +1137,7 @@ static struct ffs_data *ffs_data_new(void)
 {
 	struct ffs_data *ffs = kzalloc(sizeof *ffs, GFP_KERNEL);
 	if (unlikely(!ffs))
-		return 0;
+		return NULL;
 
 	ENTER();
 
