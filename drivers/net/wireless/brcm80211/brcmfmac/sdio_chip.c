@@ -438,7 +438,7 @@ static inline int brcmf_sdio_chip_cichk(struct chip_info *ci)
 #endif
 
 static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
-				       struct chip_info *ci, u32 regs)
+				       struct chip_info *ci)
 {
 	u32 regdata;
 	int ret;
@@ -449,7 +449,7 @@ static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
 	 * other ways of recognition should be added here.
 	 */
 	ci->c_inf[0].id = BCMA_CORE_CHIPCOMMON;
-	ci->c_inf[0].base = regs;
+	ci->c_inf[0].base = SI_ENUM_BASE;
 	regdata = brcmf_sdio_regrl(sdiodev,
 				   CORE_CC_REG(ci->c_inf[0].base, chipid),
 				   NULL);
@@ -681,7 +681,7 @@ brcmf_sdio_chip_buscoresetup(struct brcmf_sdio_dev *sdiodev,
 }
 
 int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
-			   struct chip_info **ci_ptr, u32 regs)
+			   struct chip_info **ci_ptr)
 {
 	int ret;
 	struct chip_info *ci;
@@ -697,7 +697,7 @@ int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
 	if (ret != 0)
 		goto err;
 
-	ret = brcmf_sdio_chip_recognition(sdiodev, ci, regs);
+	ret = brcmf_sdio_chip_recognition(sdiodev, ci);
 	if (ret != 0)
 		goto err;
 

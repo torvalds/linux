@@ -239,7 +239,7 @@ int brcmf_sdio_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 /* Issue an abort to the specified function */
 int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn);
 
-void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev);
+void *brcmf_sdbrcm_probe(struct brcmf_sdio_dev *sdiodev);
 void brcmf_sdbrcm_disconnect(void *ptr);
 void brcmf_sdbrcm_isr(void *arg);
 

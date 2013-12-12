@@ -992,17 +992,14 @@ static int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev)
 
 static int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 {
-	u32 regs = 0;
 	int ret = 0;
 
 	ret = brcmf_sdioh_attach(sdiodev);
 	if (ret)
 		goto out;
 
-	regs = SI_ENUM_BASE;
-
 	/* try to attach to the target device */
-	sdiodev->bus = brcmf_sdbrcm_probe(regs, sdiodev);
+	sdiodev->bus = brcmf_sdbrcm_probe(sdiodev);
 	if (!sdiodev->bus) {
 		brcmf_err("device attach failed\n");
 		ret = -ENODEV;

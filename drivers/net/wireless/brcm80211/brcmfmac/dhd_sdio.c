@@ -3803,7 +3803,7 @@ static bool brcmf_sdbrcm_probe_malloc(struct brcmf_sdio *bus)
 }
 
 static bool
-brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus, u32 regsva)
+brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus)
 {
 	u8 clkctl = 0;
 	int err = 0;
@@ -3835,7 +3835,7 @@ brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus, u32 regsva)
 		goto fail;
 	}
 
-	if (brcmf_sdio_chip_attach(bus->sdiodev, &bus->ci, regsva)) {
+	if (brcmf_sdio_chip_attach(bus->sdiodev, &bus->ci)) {
 		brcmf_err("brcmf_sdio_chip_attach failed!\n");
 		goto fail;
 	}
@@ -4037,15 +4037,12 @@ static struct brcmf_bus_ops brcmf_sdio_bus_ops = {
 	.gettxq = brcmf_sdbrcm_bus_gettxq,
 };
 
-void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
+void *brcmf_sdbrcm_probe(struct brcmf_sdio_dev *sdiodev)
 {
 	int ret;
 	struct brcmf_sdio *bus;
 
 	brcmf_dbg(TRACE, "Enter\n");
-
-	/* We make an assumption about address window mappings:
-	 * regsva == SI_ENUM_BASE*/
 
 	/* Allocate private bus interface state */
 	bus = kzalloc(sizeof(struct brcmf_sdio), GFP_ATOMIC);
@@ -4080,7 +4077,7 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 	}
 
 	/* attempt to attach to the dongle */
-	if (!(brcmf_sdbrcm_probe_attach(bus, regsva))) {
+	if (!(brcmf_sdbrcm_probe_attach(bus))) {
 		brcmf_err("brcmf_sdbrcm_probe_attach failed\n");
 		goto fail;
 	}
