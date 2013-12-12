@@ -42,13 +42,14 @@
 				wt-override;
 			};
 
-			interrupt-controller@20000 {
-			      reg = <0x20a00 0x2d0>, <0x21070 0x58>;
+			i2c0: i2c@11000 {
+				compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
+				reg = <0x11000 0x100>;
 			};
 
-			armada-370-xp-pmsu@22000 {
-				compatible = "marvell,armada-370-xp-pmsu";
-				reg = <0x22100 0x430>, <0x20800 0x20>;
+			i2c1: i2c@11100 {
+				compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
+				reg = <0x11100 0x100>;
 			};
 
 			serial@12200 {
@@ -68,23 +69,9 @@
 				status = "disabled";
 			};
 
-			timer@20300 {
-				compatible = "marvell,armada-xp-timer";
-				clocks = <&coreclk 2>, <&refclk>;
-				clock-names = "nbclk", "fixed";
-			};
-
-			coreclk: mvebu-sar@18230 {
-				compatible = "marvell,armada-xp-core-clock";
-				reg = <0x18230 0x08>;
-				#clock-cells = <1>;
-			};
-
-			cpuclk: clock-complex@18700 {
-				#clock-cells = <1>;
-				compatible = "marvell,armada-xp-cpu-clock";
-				reg = <0x18700 0xA0>;
-				clocks = <&coreclk 1>;
+			system-controller@18200 {
+				compatible = "marvell,armada-370-xp-system-controller";
+				reg = <0x18200 0x500>;
 			};
 
 			gateclk: clock-gating-control@18220 {
@@ -94,9 +81,39 @@
 				#clock-cells = <1>;
 			};
 
-			system-controller@18200 {
-				compatible = "marvell,armada-370-xp-system-controller";
-				reg = <0x18200 0x500>;
+			coreclk: mvebu-sar@18230 {
+				compatible = "marvell,armada-xp-core-clock";
+				reg = <0x18230 0x08>;
+				#clock-cells = <1>;
+			};
+
+			thermal@182b0 {
+				compatible = "marvell,armadaxp-thermal";
+				reg = <0x182b0 0x4
+					0x184d0 0x4>;
+				status = "okay";
+			};
+
+			cpuclk: clock-complex@18700 {
+				#clock-cells = <1>;
+				compatible = "marvell,armada-xp-cpu-clock";
+				reg = <0x18700 0xA0>;
+				clocks = <&coreclk 1>;
+			};
+
+			interrupt-controller@20000 {
+			      reg = <0x20a00 0x2d0>, <0x21070 0x58>;
+			};
+
+			timer@20300 {
+				compatible = "marvell,armada-xp-timer";
+				clocks = <&coreclk 2>, <&refclk>;
+				clock-names = "nbclk", "fixed";
+			};
+
+			armada-370-xp-pmsu@22000 {
+				compatible = "marvell,armada-370-xp-pmsu";
+				reg = <0x22100 0x430>, <0x20800 0x20>;
 			};
 
 			eth2: ethernet@30000 {
@@ -104,6 +121,22 @@
 				reg = <0x30000 0x4000>;
 				interrupts = <12>;
 				clocks = <&gateclk 2>;
+				status = "disabled";
+			};
+
+			usb@50000 {
+				clocks = <&gateclk 18>;
+			};
+
+			usb@51000 {
+				clocks = <&gateclk 19>;
+			};
+
+			usb@52000 {
+				compatible = "marvell,orion-ehci";
+				reg = <0x52000 0x500>;
+				interrupts = <47>;
+				clocks = <&gateclk 20>;
 				status = "disabled";
 			};
 
@@ -145,39 +178,6 @@
 					dmacap,xor;
 					dmacap,memset;
 				};
-			};
-
-			i2c0: i2c@11000 {
-				compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
-				reg = <0x11000 0x100>;
-			};
-
-			i2c1: i2c@11100 {
-				compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
-				reg = <0x11100 0x100>;
-			};
-
-			usb@50000 {
-				clocks = <&gateclk 18>;
-			};
-
-			usb@51000 {
-				clocks = <&gateclk 19>;
-			};
-
-			usb@52000 {
-				compatible = "marvell,orion-ehci";
-				reg = <0x52000 0x500>;
-				interrupts = <47>;
-				clocks = <&gateclk 20>;
-				status = "disabled";
-			};
-
-			thermal@182b0 {
-				compatible = "marvell,armadaxp-thermal";
-				reg = <0x182b0 0x4
-					0x184d0 0x4>;
-				status = "okay";
 			};
 		};
 	};
