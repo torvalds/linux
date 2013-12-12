@@ -102,8 +102,12 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 
 		break;
 	case 0x0304: /* Configured -> Standby */
-		if (pdev)
+		if (pdev) {
+			/* Give the driver a hint that the function is
+			 * already unusable. */
+			pdev->error_state = pci_channel_io_perm_failure;
 			pci_stop_and_remove_bus_device(pdev);
+		}
 
 		zpci_disable_device(zdev);
 		zdev->state = ZPCI_FN_STATE_STANDBY;
