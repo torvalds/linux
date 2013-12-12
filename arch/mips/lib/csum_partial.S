@@ -8,6 +8,7 @@
  * Copyright (C) 1998, 1999 Ralf Baechle
  * Copyright (C) 1999 Silicon Graphics, Inc.
  * Copyright (C) 2007  Maciej W. Rozycki
+ * Copyright (C) 2014 Imagination Technologies Ltd.
  */
 #include <linux/errno.h>
 #include <asm/asm.h>
@@ -296,7 +297,7 @@ LEAF(csum_partial)
  * checksum and copy routines based on memcpy.S
  *
  *	csum_partial_copy_nocheck(src, dst, len, sum)
- *	__csum_partial_copy_user(src, dst, len, sum, errp)
+ *	__csum_partial_copy_kernel(src, dst, len, sum, errp)
  *
  * See "Spec" in memcpy.S for details.	Unlike __copy_user, all
  * function in this file use the standard calling convention.
@@ -396,7 +397,9 @@ LEAF(csum_partial)
 	.set	at=v1
 #endif
 
-LEAF(__csum_partial_copy_user)
+LEAF(__csum_partial_copy_kernel)
+FEXPORT(__csum_partial_copy_to_user)
+FEXPORT(__csum_partial_copy_from_user)
 	PTR_ADDU	AT, src, len	/* See (1) above. */
 #ifdef CONFIG_64BIT
 	move	errptr, a4
@@ -757,4 +760,4 @@ EXC(	lbu	t1, 0(src),	.Ll_exc)
 	jr	ra
 	 sw	v1, (errptr)
 	.set	pop
-	END(__csum_partial_copy_user)
+	END(__csum_partial_copy_kernel)
