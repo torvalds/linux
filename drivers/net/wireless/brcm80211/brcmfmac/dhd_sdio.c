@@ -260,9 +260,6 @@ struct rte_console {
 #define MAX_HDR_READ	(1 << 6)
 #define MAX_RX_DATASZ	2048
 
-/* Maximum milliseconds to wait for F2 to come up */
-#define BRCMF_WAIT_F2RDY	3000
-
 /* Bump up limit on waiting for HT to account for first startup;
  * if the image is doing a CRC calculation before programming the PMU
  * for HT availability, it could take a couple hundred ms more, so
@@ -2265,8 +2262,7 @@ static void brcmf_sdbrcm_bus_stop(struct device *dev)
 
 	/* Turn off the bus (F2), free any pending packets */
 	brcmf_dbg(INTR, "disable SDIO interrupts\n");
-	brcmf_sdio_regwb(bus->sdiodev, SDIO_CCCR_IOEx, SDIO_FUNC_ENABLE_1,
-			 NULL);
+	sdio_disable_func(bus->sdiodev->func[SDIO_FUNC_2]);
 
 	/* Clear any pending interrupts now that F2 is disabled */
 	w_sdreg32(bus, local_hostintmask,
@@ -3570,8 +3566,6 @@ static int brcmf_sdbrcm_bus_init(struct device *dev)
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 	struct brcmf_sdio *bus = sdiodev->bus;
-	unsigned long timeout;
-	u8 ready, enable;
 	int err, ret = 0;
 	u8 saveclk;
 
@@ -3612,26 +3606,13 @@ static int brcmf_sdbrcm_bus_init(struct device *dev)
 	/* Enable function 2 (frame transfers) */
 	w_sdreg32(bus, SDPCM_PROT_VERSION << SMB_DATA_VERSION_SHIFT,
 		  offsetof(struct sdpcmd_regs, tosbmailboxdata));
-	enable = (SDIO_FUNC_ENABLE_1 | SDIO_FUNC_ENABLE_2);
+	err = sdio_enable_func(bus->sdiodev->func[SDIO_FUNC_2]);
 
-	brcmf_sdio_regwb(bus->sdiodev, SDIO_CCCR_IOEx, enable, NULL);
 
-	timeout = jiffies + msecs_to_jiffies(BRCMF_WAIT_F2RDY);
-	ready = 0;
-	while (enable != ready) {
-		ready = brcmf_sdio_regrb(bus->sdiodev,
-					 SDIO_CCCR_IORx, NULL);
-		if (time_after(jiffies, timeout))
-			break;
-		else if (time_after(jiffies, timeout - BRCMF_WAIT_F2RDY + 50))
-			/* prevent busy waiting if it takes too long */
-			msleep_interruptible(20);
-	}
-
-	brcmf_dbg(INFO, "enable 0x%02x, ready 0x%02x\n", enable, ready);
+	brcmf_dbg(INFO, "enable F2: err=%d\n", err);
 
 	/* If F2 successfully enabled, set core and enable interrupts */
-	if (ready == enable) {
+	if (!err) {
 		/* Set up the interrupt mask and enable interrupts */
 		bus->hostintmask = HOSTINTMASK;
 		w_sdreg32(bus, bus->hostintmask,
@@ -3640,8 +3621,7 @@ static int brcmf_sdbrcm_bus_init(struct device *dev)
 		brcmf_sdio_regwb(bus->sdiodev, SBSDIO_WATERMARK, 8, &err);
 	} else {
 		/* Disable F2 again */
-		enable = SDIO_FUNC_ENABLE_1;
-		brcmf_sdio_regwb(bus->sdiodev, SDIO_CCCR_IOEx, enable, NULL);
+		sdio_disable_func(bus->sdiodev->func[SDIO_FUNC_2]);
 		ret = -ENODEV;
 	}
 
@@ -3942,8 +3922,7 @@ static bool brcmf_sdbrcm_probe_init(struct brcmf_sdio *bus)
 	sdio_claim_host(bus->sdiodev->func[1]);
 
 	/* Disable F2 to clear any intermediate frame state on the dongle */
-	brcmf_sdio_regwb(bus->sdiodev, SDIO_CCCR_IOEx,
-			 SDIO_FUNC_ENABLE_1, NULL);
+	sdio_disable_func(bus->sdiodev->func[SDIO_FUNC_2]);
 
 	bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 	bus->rxflow = false;

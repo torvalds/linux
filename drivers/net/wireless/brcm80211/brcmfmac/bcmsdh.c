@@ -53,6 +53,9 @@
 
 #define SDIO_FUNC1_BLOCKSIZE		64
 #define SDIO_FUNC2_BLOCKSIZE		512
+/* Maximum milliseconds to wait for F2 to come up */
+#define SDIO_WAIT_F2RDY	3000
+
 
 static irqreturn_t brcmf_sdio_oob_irqhandler(int irq, void *dev_id)
 {
@@ -205,27 +208,8 @@ static inline int brcmf_sdioh_f0_write_byte(struct brcmf_sdio_dev *sdiodev,
 	 * Handle F2 enable/disable and Abort command
 	 * as a special case.
 	 */
-	if (regaddr == SDIO_CCCR_IOEx) {
-		sdfunc = sdiodev->func[2];
-		if (sdfunc) {
-			if (*byte & SDIO_FUNC_ENABLE_2) {
-				/* Enable Function 2 */
-				err_ret = sdio_enable_func(sdfunc);
-				if (err_ret)
-					brcmf_err("enable F2 failed:%d\n",
-						  err_ret);
-			} else {
-				/* Disable Function 2 */
-				err_ret = sdio_disable_func(sdfunc);
-				if (err_ret)
-					brcmf_err("Disable F2 failed:%d\n",
-						  err_ret);
-			}
-		} else {
-			err_ret = -ENOENT;
-		}
-	} else if ((regaddr == SDIO_CCCR_ABORT) ||
-		   (regaddr == SDIO_CCCR_IENx)) {
+	if ((regaddr == SDIO_CCCR_ABORT) ||
+	    (regaddr == SDIO_CCCR_IENx)) {
 		sdfunc = kmemdup(sdiodev->func[0], sizeof(struct sdio_func),
 				 GFP_KERNEL);
 		if (!sdfunc)
@@ -944,6 +928,9 @@ static int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev)
 		brcmf_err("Failed to set F2 blocksize\n");
 		goto out;
 	}
+
+	/* increase F2 timeout */
+	sdiodev->func[2]->enable_timeout = SDIO_WAIT_F2RDY;
 
 	/* Enable Function 1 */
 	err_ret = sdio_enable_func(sdiodev->func[1]);
