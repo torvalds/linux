@@ -49,6 +49,10 @@ extern unsigned long perf_misc_flags(struct pt_regs *regs);
 #define PERF_CPUM_SF_MAX_CTR		1
 #define PERF_EVENT_CPUM_SF		0xB0000UL	/* Raw event ID */
 
+#define REG_NONE		0
+#define REG_OVERFLOW		1
+#define OVERFLOW_REG(hwc)	((hwc)->extra_reg.config)
+#define SFB_ALLOC_REG(hwc)	((hwc)->extra_reg.alloc)
 #define TEAR_REG(hwc)		((hwc)->last_tag)
 #define SAMPL_RATE(hwc)		((hwc)->event_base)
 

@@ -17,6 +17,8 @@
 #include <linux/percpu.h>
 #include <linux/notifier.h>
 #include <linux/export.h>
+#include <linux/mm.h>
+#include <linux/moduleparam.h>
 #include <asm/cpu_mf.h>
 #include <asm/irq.h>
 #include <asm/debug.h>
@@ -26,34 +28,54 @@
  * At least one table is required for the sampling buffer structure.
  * A single table contains up to 511 pointers to sample-data-blocks.
  */
-#define CPUM_SF_MIN_SDBT    1
+#define CPUM_SF_MIN_SDBT	1
 
-/* Minimum number of sample-data-blocks:
- * The minimum designates a single page for sample-data-block, i.e.,
- * up to 126 sample-data-blocks with a size of 32 bytes (bsdes).
+/* Number of sample-data-blocks per sample-data-block-table (SDBT):
+ * The table contains SDB origin (8 bytes) and one SDBT origin that
+ * points to the next table.
  */
-#define CPUM_SF_MIN_SDB	    126
+#define CPUM_SF_SDB_PER_TABLE	((PAGE_SIZE - 8) / 8)
 
-/* Maximum number of sample-data-blocks:
- * The maximum number designates approx. 256K per CPU including
- * the given number of sample-data-blocks and taking the number
- * of sample-data-block tables into account.
+/* Maximum page offset for an SDBT table-link entry:
+ * If this page offset is reached, a table-link entry to the next SDBT
+ * must be added.
+ */
+#define CPUM_SF_SDBT_TL_OFFSET	(CPUM_SF_SDB_PER_TABLE * 8)
+static inline int require_table_link(const void *sdbt)
+{
+	return ((unsigned long) sdbt & ~PAGE_MASK) == CPUM_SF_SDBT_TL_OFFSET;
+}
+
+/* Minimum and maximum sampling buffer sizes:
  *
- * Later, this number can be increased for extending the sampling
- * buffer, for example, by factor 2 (512K) or 4 (1M).
+ * This number represents the maximum size of the sampling buffer
+ * taking the number of sample-data-block-tables into account.
+ *
+ * Sampling buffer size		Buffer characteristics
+ * ---------------------------------------------------
+ *	 64KB		    ==	  16 pages (4KB per page)
+ *				   1 page  for SDB-tables
+ *				  15 pages for SDBs
+ *
+ *  32MB		    ==	8192 pages (4KB per page)
+ *				  16 pages for SDB-tables
+ *				8176 pages for SDBs
  */
-#define CPUM_SF_MAX_SDB	    6471
+static unsigned long __read_mostly CPUM_SF_MIN_SDB = 15;
+static unsigned long __read_mostly CPUM_SF_MAX_SDB = 8176;
 
 struct sf_buffer {
-	unsigned long	 sdbt;	    /* Sample-data-block-table origin */
+	unsigned long	 *sdbt;	    /* Sample-data-block-table origin */
 	/* buffer characteristics (required for buffer increments) */
-	unsigned long num_sdb;	    /* Number of sample-data-blocks */
-	unsigned long	 tail;	    /* last sample-data-block-table */
+	unsigned long  num_sdb;	    /* Number of sample-data-blocks */
+	unsigned long num_sdbt;	    /* Number of sample-data-block-tables */
+	unsigned long	 *tail;	    /* last sample-data-block-table */
 };
 
 struct cpu_hw_sf {
 	/* CPU-measurement sampling information block */
 	struct hws_qsi_info_block qsi;
+	/* CPU-measurement sampling control block */
 	struct hws_lsctl_request_block lsctl;
 	struct sf_buffer sfb;	    /* Sampling buffer */
 	unsigned int flags;	    /* Status flags */
@@ -65,11 +87,22 @@ static DEFINE_PER_CPU(struct cpu_hw_sf, cpu_hw_sf);
 static debug_info_t *sfdbg;
 
 /*
+ * sf_disable() - Switch off sampling facility
+ */
+static int sf_disable(void)
+{
+	struct hws_lsctl_request_block sreq;
+
+	memset(&sreq, 0, sizeof(sreq));
+	return lsctl(&sreq);
+}
+
+/*
  * sf_buffer_available() - Check for an allocated sampling buffer
  */
 static int sf_buffer_available(struct cpu_hw_sf *cpuhw)
 {
-	return (cpuhw->sfb.sdbt) ? 1 : 0;
+	return !!cpuhw->sfb.sdbt;
 }
 
 /*
@@ -77,32 +110,32 @@ static int sf_buffer_available(struct cpu_hw_sf *cpuhw)
  */
 static void free_sampling_buffer(struct sf_buffer *sfb)
 {
-	unsigned long sdbt, *curr;
+	unsigned long *sdbt, *curr;
 
 	if (!sfb->sdbt)
 		return;
 
 	sdbt = sfb->sdbt;
-	curr = (unsigned long *) sdbt;
+	curr = sdbt;
 
-	/* we'll free the SDBT after all SDBs are processed... */
+	/* Free the SDBT after all SDBs are processed... */
 	while (1) {
 		if (!*curr || !sdbt)
 			break;
 
-		/* watch for link entry reset if found */
+		/* Process table-link entries */
 		if (is_link_entry(curr)) {
 			curr = get_next_sdbt(curr);
 			if (sdbt)
-				free_page(sdbt);
+				free_page((unsigned long) sdbt);
 
-			/* we are done if we reach the origin */
-			if ((unsigned long) curr == sfb->sdbt)
+			/* If the origin is reached, sampling buffer is freed */
+			if (curr == sfb->sdbt)
 				break;
 			else
-				sdbt = (unsigned long) curr;
+				sdbt = curr;
 		} else {
-			/* process SDB pointer */
+			/* Process SDB pointer */
 			if (*curr) {
 				free_page(*curr);
 				curr++;
@@ -111,8 +144,104 @@ static void free_sampling_buffer(struct sf_buffer *sfb)
 	}
 
 	debug_sprintf_event(sfdbg, 5,
-			    "free_sampling_buffer: freed sdbt=%0lx\n", sfb->sdbt);
+			    "free_sampling_buffer: freed sdbt=%p\n", sfb->sdbt);
 	memset(sfb, 0, sizeof(*sfb));
+}
+
+static int alloc_sample_data_block(unsigned long *sdbt, gfp_t gfp_flags)
+{
+	unsigned long sdb, *trailer;
+
+	/* Allocate and initialize sample-data-block */
+	sdb = get_zeroed_page(gfp_flags);
+	if (!sdb)
+		return -ENOMEM;
+	trailer = trailer_entry_ptr(sdb);
+	*trailer = SDB_TE_ALERT_REQ_MASK;
+
+	/* Link SDB into the sample-data-block-table */
+	*sdbt = sdb;
+
+	return 0;
+}
+
+/*
+ * realloc_sampling_buffer() - extend sampler memory
+ *
+ * Allocates new sample-data-blocks and adds them to the specified sampling
+ * buffer memory.
+ *
+ * Important: This modifies the sampling buffer and must be called when the
+ *	      sampling facility is disabled.
+ *
+ * Returns zero on success, non-zero otherwise.
+ */
+static int realloc_sampling_buffer(struct sf_buffer *sfb,
+				   unsigned long num_sdb, gfp_t gfp_flags)
+{
+	int i, rc;
+	unsigned long *new, *tail;
+
+	if (!sfb->sdbt || !sfb->tail)
+		return -EINVAL;
+
+	if (!is_link_entry(sfb->tail))
+		return -EINVAL;
+
+	/* Append to the existing sampling buffer, overwriting the table-link
+	 * register.
+	 * The tail variables always points to the "tail" (last and table-link)
+	 * entry in an SDB-table.
+	 */
+	tail = sfb->tail;
+
+	/* Do a sanity check whether the table-link entry points to
+	 * the sampling buffer origin.
+	 */
+	if (sfb->sdbt != get_next_sdbt(tail)) {
+		debug_sprintf_event(sfdbg, 3, "realloc_sampling_buffer: "
+				    "sampling buffer is not linked: origin=%p"
+				    "tail=%p\n",
+				    (void *) sfb->sdbt, (void *) tail);
+		return -EINVAL;
+	}
+
+	/* Allocate remaining SDBs */
+	rc = 0;
+	for (i = 0; i < num_sdb; i++) {
+		/* Allocate a new SDB-table if it is full. */
+		if (require_table_link(tail)) {
+			new = (unsigned long *) get_zeroed_page(gfp_flags);
+			if (!new) {
+				rc = -ENOMEM;
+				break;
+			}
+			sfb->num_sdbt++;
+			/* Link current page to tail of chain */
+			*tail = (unsigned long)(void *) new + 1;
+			tail = new;
+		}
+
+		/* Allocate a new sample-data-block.
+		 * If there is not enough memory, stop the realloc process
+		 * and simply use what was allocated.  If this is a temporary
+		 * issue, a new realloc call (if required) might succeed.
+		 */
+		rc = alloc_sample_data_block(tail, gfp_flags);
+		if (rc)
+			break;
+		sfb->num_sdb++;
+		tail++;
+	}
+
+	/* Link sampling buffer to its origin */
+	*tail = (unsigned long) sfb->sdbt + 1;
+	sfb->tail = tail;
+
+	debug_sprintf_event(sfdbg, 4, "realloc_sampling_buffer: new buffer"
+			    " settings: sdbt=%lu sdb=%lu\n",
+			    sfb->num_sdbt, sfb->num_sdb);
+	return rc;
 }
 
 /*
@@ -128,75 +257,74 @@ static void free_sampling_buffer(struct sf_buffer *sfb)
  */
 static int alloc_sampling_buffer(struct sf_buffer *sfb, unsigned long num_sdb)
 {
-	int j, k, rc;
-	unsigned long *sdbt, *tail, *trailer;
-	unsigned long sdb;
-	unsigned long num_sdbt, sdb_per_table;
+	int rc;
 
 	if (sfb->sdbt)
 		return -EINVAL;
+
+	/* Allocate the sample-data-block-table origin */
+	sfb->sdbt = (unsigned long *) get_zeroed_page(GFP_KERNEL);
+	if (!sfb->sdbt)
+		return -ENOMEM;
 	sfb->num_sdb = 0;
+	sfb->num_sdbt = 1;
 
-	/* Compute the number of required sample-data-block-tables (SDBT) */
-	num_sdbt = num_sdb / ((PAGE_SIZE - 8) / 8);
-	if (num_sdbt < CPUM_SF_MIN_SDBT)
-		num_sdbt = CPUM_SF_MIN_SDBT;
-	sdb_per_table = (PAGE_SIZE - 8) / 8;
+	/* Link the table origin to point to itself to prepare for
+	 * realloc_sampling_buffer() invocation.
+	 */
+	sfb->tail = sfb->sdbt;
+	*sfb->tail = (unsigned long)(void *) sfb->sdbt + 1;
 
-	debug_sprintf_event(sfdbg, 4, "alloc_sampling_buffer: num_sdbt=%lu "
-			    "num_sdb=%lu sdb_per_table=%lu\n",
-			    num_sdbt, num_sdb, sdb_per_table);
-	sdbt = NULL;
-	tail = sdbt;
-
-	for (j = 0; j < num_sdbt; j++) {
-		sdbt = (unsigned long *) get_zeroed_page(GFP_KERNEL);
-		if (!sdbt) {
-			rc = -ENOMEM;
-			goto allocate_sdbt_error;
-		}
-
-		/* save origin of sample-data-block-table */
-		if (!sfb->sdbt)
-			sfb->sdbt = (unsigned long) sdbt;
-
-		/* link current page to tail of chain */
-		if (tail)
-			*tail = (unsigned long)(void *) sdbt + 1;
-
-		for (k = 0; k < num_sdb && k < sdb_per_table; k++) {
-			/* get and set SDB page */
-			sdb = get_zeroed_page(GFP_KERNEL);
-			if (!sdb) {
-				rc = -ENOMEM;
-				goto allocate_sdbt_error;
-			}
-			*sdbt = sdb;
-			trailer = trailer_entry_ptr(*sdbt);
-			*trailer = SDB_TE_ALERT_REQ_MASK;
-			sdbt++;
-		}
-		num_sdb -= k;
-		sfb->num_sdb += k;	/* count allocated sdb's */
-		tail = sdbt;
-	}
-
-	rc = 0;
-	if (tail)
-		*tail = sfb->sdbt + 1;
-	sfb->tail = (unsigned long) (void *)tail;
-
-allocate_sdbt_error:
-	if (rc)
+	/* Allocate requested number of sample-data-blocks */
+	rc = realloc_sampling_buffer(sfb, num_sdb, GFP_KERNEL);
+	if (rc) {
 		free_sampling_buffer(sfb);
-	else
+		debug_sprintf_event(sfdbg, 4, "alloc_sampling_buffer: "
+			"realloc_sampling_buffer failed with rc=%i\n", rc);
+	} else
 		debug_sprintf_event(sfdbg, 4,
-			"alloc_sampling_buffer: tear=%0lx dear=%0lx\n",
-			sfb->sdbt, *(unsigned long *) sfb->sdbt);
+			"alloc_sampling_buffer: tear=%p dear=%p\n",
+			sfb->sdbt, (void *) *sfb->sdbt);
 	return rc;
 }
 
-static int allocate_sdbt(struct cpu_hw_sf *cpuhw, const struct hw_perf_event *hwc)
+static void sfb_set_limits(unsigned long min, unsigned long max)
+{
+	CPUM_SF_MIN_SDB = min;
+	CPUM_SF_MAX_SDB = max;
+}
+
+static unsigned long sfb_pending_allocs(struct sf_buffer *sfb,
+					struct hw_perf_event *hwc)
+{
+	if (!sfb->sdbt)
+		return SFB_ALLOC_REG(hwc);
+	if (SFB_ALLOC_REG(hwc) > sfb->num_sdb)
+		return SFB_ALLOC_REG(hwc) - sfb->num_sdb;
+	return 0;
+}
+
+static int sfb_has_pending_allocs(struct sf_buffer *sfb,
+				   struct hw_perf_event *hwc)
+{
+	return sfb_pending_allocs(sfb, hwc) > 0;
+}
+
+static void sfb_account_allocs(unsigned long num, struct hw_perf_event *hwc)
+{
+	/* Limit the number SDBs to not exceed the maximum */
+	num = min_t(unsigned long, num, CPUM_SF_MAX_SDB - SFB_ALLOC_REG(hwc));
+	if (num)
+		SFB_ALLOC_REG(hwc) += num;
+}
+
+static void sfb_init_allocs(unsigned long num, struct hw_perf_event *hwc)
+{
+	SFB_ALLOC_REG(hwc) = 0;
+	sfb_account_allocs(num, hwc);
+}
+
+static int allocate_sdbt(struct cpu_hw_sf *cpuhw, struct hw_perf_event *hwc)
 {
 	unsigned long n_sdb, freq;
 	unsigned long factor;
@@ -225,19 +353,125 @@ static int allocate_sdbt(struct cpu_hw_sf *cpuhw, const struct hw_perf_event *hw
 	if (n_sdb < CPUM_SF_MIN_SDB)
 		n_sdb = CPUM_SF_MIN_SDB;
 
-	/* Return if there is already a sampling buffer allocated.
-	 * XXX Remove this later and check number of available and
-	 * required sdb's and, if necessary, increase the sampling buffer.
+	/* If there is already a sampling buffer allocated, it is very likely
+	 * that the sampling facility is enabled too.  If the event to be
+	 * initialized requires a greater sampling buffer, the allocation must
+	 * be postponed.  Changing the sampling buffer requires the sampling
+	 * facility to be in the disabled state.  So, account the number of
+	 * required SDBs and let cpumsf_pmu_enable() resize the buffer just
+	 * before the event is started.
 	 */
+	sfb_init_allocs(n_sdb, hwc);
 	if (sf_buffer_available(cpuhw))
 		return 0;
 
 	debug_sprintf_event(sfdbg, 3,
-			    "allocate_sdbt: rate=%lu f=%lu sdb=%lu/%i cpuhw=%p\n",
+			    "allocate_sdbt: rate=%lu f=%lu sdb=%lu/%lu cpuhw=%p\n",
 			    SAMPL_RATE(hwc), freq, n_sdb, CPUM_SF_MAX_SDB, cpuhw);
 
 	return alloc_sampling_buffer(&cpuhw->sfb,
-			       min_t(unsigned long, n_sdb, CPUM_SF_MAX_SDB));
+				     sfb_pending_allocs(&cpuhw->sfb, hwc));
+}
+
+static unsigned long min_percent(unsigned int percent, unsigned long base,
+				 unsigned long min)
+{
+	return min_t(unsigned long, min, DIV_ROUND_UP(percent * base, 100));
+}
+
+static unsigned long compute_sfb_extent(unsigned long ratio, unsigned long base)
+{
+	/* Use a percentage-based approach to extend the sampling facility
+	 * buffer.  Accept up to 5% sample data loss.
+	 * Vary the extents between 1% to 5% of the current number of
+	 * sample-data-blocks.
+	 */
+	if (ratio <= 5)
+		return 0;
+	if (ratio <= 25)
+		return min_percent(1, base, 1);
+	if (ratio <= 50)
+		return min_percent(1, base, 1);
+	if (ratio <= 75)
+		return min_percent(2, base, 2);
+	if (ratio <= 100)
+		return min_percent(3, base, 3);
+	if (ratio <= 250)
+		return min_percent(4, base, 4);
+
+	return min_percent(5, base, 8);
+}
+
+static void sfb_account_overflows(struct cpu_hw_sf *cpuhw,
+				  struct hw_perf_event *hwc)
+{
+	unsigned long ratio, num;
+
+	if (!OVERFLOW_REG(hwc))
+		return;
+
+	/* The sample_overflow contains the average number of sample data
+	 * that has been lost because sample-data-blocks were full.
+	 *
+	 * Calculate the total number of sample data entries that has been
+	 * discarded.  Then calculate the ratio of lost samples to total samples
+	 * per second in percent.
+	 */
+	ratio = DIV_ROUND_UP(100 * OVERFLOW_REG(hwc) * cpuhw->sfb.num_sdb,
+			     sample_rate_to_freq(&cpuhw->qsi, SAMPL_RATE(hwc)));
+
+	/* Compute number of sample-data-blocks */
+	num = compute_sfb_extent(ratio, cpuhw->sfb.num_sdb);
+	if (num)
+		sfb_account_allocs(num, hwc);
+
+	debug_sprintf_event(sfdbg, 5, "sfb: overflow: overflow=%llu ratio=%lu"
+			    " num=%lu\n", OVERFLOW_REG(hwc), ratio, num);
+	OVERFLOW_REG(hwc) = 0;
+}
+
+/* extend_sampling_buffer() - Extend sampling buffer
+ * @sfb:	Sampling buffer structure (for local CPU)
+ * @hwc:	Perf event hardware structure
+ *
+ * Use this function to extend the sampling buffer based on the overflow counter
+ * and postponed allocation extents stored in the specified Perf event hardware.
+ *
+ * Important: This function disables the sampling facility in order to safely
+ *	      change the sampling buffer structure.  Do not call this function
+ *	      when the PMU is active.
+ */
+static void extend_sampling_buffer(struct sf_buffer *sfb,
+				   struct hw_perf_event *hwc)
+{
+	unsigned long num, num_old;
+	int rc;
+
+	num = sfb_pending_allocs(sfb, hwc);
+	if (!num)
+		return;
+	num_old = sfb->num_sdb;
+
+	/* Disable the sampling facility to reset any states and also
+	 * clear pending measurement alerts.
+	 */
+	sf_disable();
+
+	/* Extend the sampling buffer.
+	 * This memory allocation typically happens in an atomic context when
+	 * called by perf.  Because this is a reallocation, it is fine if the
+	 * new SDB-request cannot be satisfied immediately.
+	 */
+	rc = realloc_sampling_buffer(sfb, num, GFP_ATOMIC);
+	if (rc)
+		debug_sprintf_event(sfdbg, 5, "sfb: extend: realloc "
+				    "failed with rc=%i\n", rc);
+
+	if (sfb_has_pending_allocs(sfb, hwc))
+		debug_sprintf_event(sfdbg, 5, "sfb: extend: "
+				    "req=%lu alloc=%lu remaining=%lu\n",
+				    num, sfb->num_sdb - num_old,
+				    sfb_pending_allocs(sfb, hwc));
 }
 
 
@@ -245,18 +479,6 @@ static int allocate_sdbt(struct cpu_hw_sf *cpuhw, const struct hw_perf_event *hw
 static atomic_t num_events;
 /* Used to avoid races in calling reserve/release_cpumf_hardware */
 static DEFINE_MUTEX(pmc_reserve_mutex);
-
-/*
- * sf_disable() - Switch off sampling facility
- */
-static int sf_disable(void)
-{
-	struct hws_lsctl_request_block sreq;
-
-	memset(&sreq, 0, sizeof(sreq));
-	return lsctl(&sreq);
-}
-
 
 #define PMC_INIT      0
 #define PMC_RELEASE   1
@@ -345,19 +567,17 @@ static void hw_init_period(struct hw_perf_event *hwc, u64 period)
 }
 
 static void hw_reset_registers(struct hw_perf_event *hwc,
-			       unsigned long sdbt_origin)
+			       unsigned long *sdbt_origin)
 {
-	TEAR_REG(hwc) = sdbt_origin;	      /* (re)set to first sdb table */
+	/* (Re)set to first sample-data-block-table */
+	TEAR_REG(hwc) = (unsigned long) sdbt_origin;
 }
 
 static unsigned long hw_limit_rate(const struct hws_qsi_info_block *si,
 				   unsigned long rate)
 {
-	if (rate < si->min_sampl_rate)
-		return si->min_sampl_rate;
-	if (rate > si->max_sampl_rate)
-		return si->max_sampl_rate;
-	return rate;
+	return clamp_t(unsigned long, rate,
+		       si->min_sampl_rate, si->max_sampl_rate);
 }
 
 static int __hw_perf_event_init(struct perf_event *event)
@@ -448,6 +668,10 @@ static int __hw_perf_event_init(struct perf_event *event)
 	SAMPL_RATE(hwc) = rate;
 	hw_init_period(hwc, SAMPL_RATE(hwc));
 
+	/* Initialize sample data overflow accounting */
+	hwc->extra_reg.reg = REG_OVERFLOW;
+	OVERFLOW_REG(hwc) = 0;
+
 	/* Allocate the per-CPU sampling buffer using the CPU information
 	 * from the event.  If the event is not pinned to a particular
 	 * CPU (event->cpu == -1; or cpuhw == NULL), allocate sampling
@@ -513,6 +737,7 @@ static int cpumsf_pmu_event_init(struct perf_event *event)
 static void cpumsf_pmu_enable(struct pmu *pmu)
 {
 	struct cpu_hw_sf *cpuhw = &__get_cpu_var(cpu_hw_sf);
+	struct hw_perf_event *hwc;
 	int err;
 
 	if (cpuhw->flags & PMU_F_ENABLED)
@@ -521,6 +746,26 @@ static void cpumsf_pmu_enable(struct pmu *pmu)
 	if (cpuhw->flags & PMU_F_ERR_MASK)
 		return;
 
+	/* Check whether to extent the sampling buffer.
+	 *
+	 * Two conditions trigger an increase of the sampling buffer for a
+	 * perf event:
+	 *    1. Postponed buffer allocations from the event initialization.
+	 *    2. Sampling overflows that contribute to pending allocations.
+	 *
+	 * Note that the extend_sampling_buffer() function disables the sampling
+	 * facility, but it can be fully re-enabled using sampling controls that
+	 * have been saved in cpumsf_pmu_disable().
+	 */
+	if (cpuhw->event) {
+		hwc = &cpuhw->event->hw;
+		/* Account number of overflow-designated buffer extents */
+		sfb_account_overflows(cpuhw, hwc);
+		if (sfb_has_pending_allocs(&cpuhw->sfb, hwc))
+			extend_sampling_buffer(&cpuhw->sfb, hwc);
+	}
+
+	/* (Re)enable the PMU and sampling facility */
 	cpuhw->flags |= PMU_F_ENABLED;
 	barrier();
 
@@ -632,8 +877,6 @@ static int perf_push_sample(struct perf_event *event,
 	if (perf_event_overflow(event, &data, &regs)) {
 		overflow = 1;
 		event->pmu->stop(event, 0);
-		debug_sprintf_event(sfdbg, 4, "perf_push_sample: PMU stopped"
-				    " because of an event overflow\n");
 	}
 	perf_event_update_userpage(event);
 
@@ -710,11 +953,11 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 	struct hw_perf_event *hwc = &event->hw;
 	struct hws_trailer_entry *te;
 	unsigned long *sdbt;
-	unsigned long long event_overflow, sampl_overflow;
+	unsigned long long event_overflow, sampl_overflow, num_sdb;
 	int done;
 
 	sdbt = (unsigned long *) TEAR_REG(hwc);
-	done = event_overflow = sampl_overflow = 0;
+	done = event_overflow = sampl_overflow = num_sdb = 0;
 	while (!done) {
 		/* Get the trailer entry of the sample-data-block */
 		te = (struct hws_trailer_entry *) trailer_entry_ptr(*sdbt);
@@ -726,17 +969,13 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 				break;
 		}
 
-		/* Check sample overflow count */
-		if (te->overflow) {
-			/* Increment sample overflow counter */
-			sampl_overflow += te->overflow;
-
-			/* XXX: If an sample overflow occurs, increase the
-			 *	sampling buffer.  Set a "realloc" flag because
-			 *	the sampler must be re-enabled for changing
-			 *	the sample-data-block-table content.
+		/* Check the sample overflow count */
+		if (te->overflow)
+			/* Account sample overflows and, if a particular limit
+			 * is reached, extend the sampling buffer.
+			 * For details, see sfb_account_overflows().
 			 */
-		}
+			sampl_overflow += te->overflow;
 
 		/* Timestamps are valid for full sample-data-blocks only */
 		debug_sprintf_event(sfdbg, 6, "hw_perf_event_update: sdbt=%p "
@@ -749,6 +988,7 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 		 * is stopped and remaining samples will be discarded.
 		 */
 		hw_collect_samples(event, sdbt, &event_overflow);
+		num_sdb++;
 
 		/* Reset trailer */
 		xchg(&te->overflow, 0);
@@ -775,6 +1015,10 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 			flush_all = 1;
 	}
 
+	/* Account sample overflows in the event hardware structure */
+	if (sampl_overflow)
+		OVERFLOW_REG(hwc) = DIV_ROUND_UP(OVERFLOW_REG(hwc) +
+						 sampl_overflow, 1 + num_sdb);
 	if (sampl_overflow || event_overflow)
 		debug_sprintf_event(sfdbg, 4, "hw_perf_event_update: "
 				    "overflow stats: sample=%llu event=%llu\n",
@@ -849,7 +1093,7 @@ static int cpumsf_pmu_add(struct perf_event *event, int flags)
 	 */
 	cpuhw->lsctl.s = 0;
 	cpuhw->lsctl.h = 1;
-	cpuhw->lsctl.tear = cpuhw->sfb.sdbt;
+	cpuhw->lsctl.tear = (unsigned long) cpuhw->sfb.sdbt;
 	cpuhw->lsctl.dear = *(unsigned long *) cpuhw->sfb.sdbt;
 	cpuhw->lsctl.interval = SAMPL_RATE(&event->hw);
 	hw_reset_registers(&event->hw, cpuhw->sfb.sdbt);
@@ -1018,6 +1262,48 @@ static int __cpuinit cpumf_pmu_notifier(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
+static int param_get_sfb_size(char *buffer, const struct kernel_param *kp)
+{
+	if (!cpum_sf_avail())
+		return -ENODEV;
+	return sprintf(buffer, "%lu,%lu", CPUM_SF_MIN_SDB, CPUM_SF_MAX_SDB);
+}
+
+static int param_set_sfb_size(const char *val, const struct kernel_param *kp)
+{
+	int rc;
+	unsigned long min, max;
+
+	if (!cpum_sf_avail())
+		return -ENODEV;
+	if (!val || !strlen(val))
+		return -EINVAL;
+
+	/* Valid parameter values: "min,max" or "max" */
+	min = CPUM_SF_MIN_SDB;
+	max = CPUM_SF_MAX_SDB;
+	if (strchr(val, ','))
+		rc = (sscanf(val, "%lu,%lu", &min, &max) == 2) ? 0 : -EINVAL;
+	else
+		rc = kstrtoul(val, 10, &max);
+
+	if (min < 2 || min >= max || max > get_num_physpages())
+		rc = -EINVAL;
+	if (rc)
+		return rc;
+
+	sfb_set_limits(min, max);
+	pr_info("Changed sampling buffer settings: min=%lu max=%lu\n",
+		CPUM_SF_MIN_SDB, CPUM_SF_MAX_SDB);
+	return 0;
+}
+
+#define param_check_sfb_size(name, p) __param_check(name, p, void)
+static struct kernel_param_ops param_ops_sfb_size = {
+	.set = param_set_sfb_size,
+	.get = param_get_sfb_size,
+};
+
 static int __init init_cpum_sampling_pmu(void)
 {
 	int err;
@@ -1047,3 +1333,4 @@ out:
 	return err;
 }
 arch_initcall(init_cpum_sampling_pmu);
+core_param(cpum_sfb_size, CPUM_SF_MAX_SDB, sfb_size, 0640);
