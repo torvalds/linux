@@ -151,9 +151,10 @@ void secondary_start_kernel(void)
 	secondary_init_irq();
 	local_timer_setup(cpu);
 
+	set_cpu_online(cpu, true);
+
 	local_irq_enable();
 
-	set_cpu_online(cpu, true);
 	complete(&cpu_running);
 
 	cpu_startup_entry(CPUHP_ONLINE);
