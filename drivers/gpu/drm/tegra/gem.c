@@ -145,7 +145,6 @@ err_dma:
 	kfree(bo);
 
 	return ERR_PTR(err);
-
 }
 
 struct tegra_bo *tegra_bo_create_with_handle(struct drm_file *file,
