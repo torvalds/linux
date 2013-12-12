@@ -59,7 +59,7 @@
 #define DRV_NAME	"etherh"
 #define DRV_VERSION	"1.11"
 
-static char version[] __initdata =
+static char version[] =
 	"EtherH/EtherM Driver (c) 2002-2004 Russell King " DRV_VERSION "\n";
 
 #include "lib8390.c"
