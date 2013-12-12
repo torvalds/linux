@@ -368,9 +368,9 @@ static void free_events(struct event_list *events)
 	}
 }
 
-static struct filter_arg *
+static enum pevent_errno
 create_arg_item(struct event_format *event, const char *token,
-		enum event_type type, char **error_str)
+		enum event_type type, struct filter_arg **parg, char **error_str)
 {
 	struct format_field *field;
 	struct filter_arg *arg;
@@ -378,7 +378,7 @@ create_arg_item(struct event_format *event, const char *token,
 	arg = allocate_arg();
 	if (arg == NULL) {
 		show_error(error_str, "failed to allocate filter arg");
-		return NULL;
+		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
 	}
 
 	switch (type) {
@@ -392,7 +392,7 @@ create_arg_item(struct event_format *event, const char *token,
 		if (!arg->value.str) {
 			free_arg(arg);
 			show_error(error_str, "failed to allocate string filter arg");
-			return NULL;
+			return PEVENT_ERRNO__MEM_ALLOC_FAILED;
 		}
 		break;
 	case EVENT_ITEM:
@@ -420,11 +420,11 @@ create_arg_item(struct event_format *event, const char *token,
 		break;
 	default:
 		free_arg(arg);
-		show_error(error_str, "expected a value but found %s",
-			   token);
-		return NULL;
+		show_error(error_str, "expected a value but found %s", token);
+		return PEVENT_ERRNO__UNEXPECTED_TYPE;
 	}
-	return arg;
+	*parg = arg;
+	return 0;
 }
 
 static struct filter_arg *
@@ -993,8 +993,8 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 		case EVENT_SQUOTE:
 		case EVENT_DQUOTE:
 		case EVENT_ITEM:
-			arg = create_arg_item(event, token, type, error_str);
-			if (!arg)
+			ret = create_arg_item(event, token, type, &arg, error_str);
+			if (ret < 0)
 				goto fail;
 			if (!left_item)
 				left_item = arg;

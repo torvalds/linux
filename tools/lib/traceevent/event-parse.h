@@ -367,7 +367,8 @@ enum pevent_flag {
 	_PE(ILLEGAL_INTEGER_CMP,"illegal comparison for integer"), 	      \
 	_PE(REPARENT_NOT_OP,	"cannot reparent other than OP"),	      \
 	_PE(REPARENT_FAILED,	"failed to reparent filter OP"),	      \
-	_PE(BAD_FILTER_ARG,	"bad arg in filter tree")
+	_PE(BAD_FILTER_ARG,	"bad arg in filter tree"),		      \
+	_PE(UNEXPECTED_TYPE,	"unexpected type (not a value)")
 
 #undef _PE
 #define _PE(__code, __str) PEVENT_ERRNO__ ## __code
