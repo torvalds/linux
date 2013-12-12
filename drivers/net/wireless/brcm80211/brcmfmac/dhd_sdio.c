@@ -1419,8 +1419,6 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 		 */
 		sdio_claim_host(bus->sdiodev->func[1]);
 		errcode = brcmf_sdiod_recv_chain(bus->sdiodev,
-						 bus->sdiodev->sbwad,
-						 SDIO_FUNC_2, F2SYNC,
 						 &bus->glom, dlen);
 		sdio_release_host(bus->sdiodev->func[1]);
 		bus->sdcnt.f2rxdata++;
@@ -1615,8 +1613,7 @@ brcmf_sdbrcm_read_control(struct brcmf_sdio *bus, u8 *hdr, uint len, uint doff)
 	}
 
 	/* Read remain of frame body */
-	sdret = brcmf_sdiod_recv_buf(bus->sdiodev, bus->sdiodev->sbwad,
-				     SDIO_FUNC_2, F2SYNC, rbuf, rdlen);
+	sdret = brcmf_sdiod_recv_buf(bus->sdiodev, rbuf, rdlen);
 	bus->sdcnt.f2rxdata++;
 
 	/* Control frame failures need retransmission */
@@ -1702,8 +1699,6 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 		sdio_claim_host(bus->sdiodev->func[1]);
 		if (!rd->len) {
 			ret = brcmf_sdiod_recv_buf(bus->sdiodev,
-						   bus->sdiodev->sbwad,
-						   SDIO_FUNC_2, F2SYNC,
 						   bus->rxhdr, BRCMF_FIRSTREAD);
 			bus->sdcnt.f2rxhdrs++;
 			if (ret < 0) {
@@ -1760,8 +1755,7 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 		skb_pull(pkt, head_read);
 		pkt_align(pkt, rd->len_left, bus->head_align);
 
-		ret = brcmf_sdiod_recv_pkt(bus->sdiodev, bus->sdiodev->sbwad,
-					   SDIO_FUNC_2, F2SYNC, pkt);
+		ret = brcmf_sdiod_recv_pkt(bus->sdiodev, pkt);
 		bus->sdcnt.f2rxdata++;
 		sdio_release_host(bus->sdiodev->func[1]);
 
@@ -2116,8 +2110,7 @@ static int brcmf_sdbrcm_txpkt(struct brcmf_sdio *bus, struct sk_buff_head *pktq,
 		goto done;
 
 	sdio_claim_host(bus->sdiodev->func[1]);
-	ret = brcmf_sdiod_send_pkt(bus->sdiodev, bus->sdiodev->sbwad,
-				   SDIO_FUNC_2, F2SYNC, pktq);
+	ret = brcmf_sdiod_send_pkt(bus->sdiodev, pktq);
 	bus->sdcnt.f2txdata++;
 
 	if (ret < 0) {
@@ -2481,9 +2474,7 @@ static void brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 		int i;
 
 		sdio_claim_host(bus->sdiodev->func[1]);
-		err = brcmf_sdiod_send_buf(bus->sdiodev, bus->sdiodev->sbwad,
-					   SDIO_FUNC_2, F2SYNC,
-					   bus->ctrl_frame_buf,
+		err = brcmf_sdiod_send_buf(bus->sdiodev, bus->ctrl_frame_buf,
 					   (u32)bus->ctrl_frame_len);
 
 		if (err < 0) {
@@ -2700,8 +2691,7 @@ static int brcmf_tx_frame(struct brcmf_sdio *bus, u8 *frame, u16 len)
 	int ret;
 
 	bus->ctrl_frame_stat = false;
-	ret = brcmf_sdiod_send_buf(bus->sdiodev, bus->sdiodev->sbwad,
-				   SDIO_FUNC_2, F2SYNC, frame, len);
+	ret = brcmf_sdiod_send_buf(bus->sdiodev, frame, len);
 
 	if (ret < 0) {
 		/* On failure, abort the command and terminate the frame */

@@ -679,9 +679,7 @@ exit:
 	return ret;
 }
 
-int
-brcmf_sdiod_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		     uint flags, u8 *buf, uint nbytes)
+int brcmf_sdiod_recv_buf(struct brcmf_sdio_dev *sdiodev, u8 *buf, uint nbytes)
 {
 	struct sk_buff *mypkt;
 	int err;
@@ -693,7 +691,7 @@ brcmf_sdiod_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		return -EIO;
 	}
 
-	err = brcmf_sdiod_recv_pkt(sdiodev, addr, fn, flags, mypkt);
+	err = brcmf_sdiod_recv_pkt(sdiodev, mypkt);
 	if (!err)
 		memcpy(buf, mypkt->data, nbytes);
 
@@ -701,50 +699,47 @@ brcmf_sdiod_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	return err;
 }
 
-int
-brcmf_sdiod_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		     uint flags, struct sk_buff *pkt)
+int brcmf_sdiod_recv_pkt(struct brcmf_sdio_dev *sdiodev, struct sk_buff *pkt)
 {
-	uint width;
+	u32 addr = sdiodev->sbwad;
 	int err = 0;
 
-	brcmf_dbg(SDIO, "fun = %d, addr = 0x%x, size = %d\n",
-		  fn, addr, pkt->len);
+	brcmf_dbg(SDIO, "addr = 0x%x, size = %d\n", addr, pkt->len);
 
-	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	err = brcmf_sdiod_addrprep(sdiodev, width, &addr);
+	err = brcmf_sdiod_addrprep(sdiodev, 4, &addr);
 	if (err)
 		goto done;
 
-	err = brcmf_sdiod_buffrw(sdiodev, fn, false, addr, pkt);
+	err = brcmf_sdiod_buffrw(sdiodev, SDIO_FUNC_2, false, addr, pkt);
 
 done:
 	return err;
 }
 
-int brcmf_sdiod_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-			   uint flags, struct sk_buff_head *pktq, uint totlen)
+int brcmf_sdiod_recv_chain(struct brcmf_sdio_dev *sdiodev,
+			   struct sk_buff_head *pktq, uint totlen)
 {
 	struct sk_buff *glom_skb;
 	struct sk_buff *skb;
-	uint width;
+	u32 addr = sdiodev->sbwad;
 	int err = 0;
 
-	brcmf_dbg(SDIO, "fun = %d, addr = 0x%x, size = %d\n",
-		  fn, addr, pktq->qlen);
+	brcmf_dbg(SDIO, "addr = 0x%x, size = %d\n",
+		  addr, pktq->qlen);
 
-	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	err = brcmf_sdiod_addrprep(sdiodev, width, &addr);
+	err = brcmf_sdiod_addrprep(sdiodev, 4, &addr);
 	if (err)
 		goto done;
 
 	if (pktq->qlen == 1)
-		err = brcmf_sdiod_buffrw(sdiodev, fn, false, addr, pktq->next);
+		err = brcmf_sdiod_buffrw(sdiodev, SDIO_FUNC_2, false, addr,
+					 pktq->next);
 	else if (!sdiodev->sg_support) {
 		glom_skb = brcmu_pkt_buf_get_skb(totlen);
 		if (!glom_skb)
 			return -ENOMEM;
-		err = brcmf_sdiod_buffrw(sdiodev, fn, false, addr, glom_skb);
+		err = brcmf_sdiod_buffrw(sdiodev, SDIO_FUNC_2, false, addr,
+					 glom_skb);
 		if (err)
 			goto done;
 
@@ -753,18 +748,17 @@ int brcmf_sdiod_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 			skb_pull(glom_skb, skb->len);
 		}
 	} else
-		err = brcmf_sdiod_sglist_rw(sdiodev, fn, false, addr, pktq);
+		err = brcmf_sdiod_sglist_rw(sdiodev, SDIO_FUNC_2, false, addr,
+					    pktq);
 
 done:
 	return err;
 }
 
-int
-brcmf_sdiod_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		     uint flags, u8 *buf, uint nbytes)
+int brcmf_sdiod_send_buf(struct brcmf_sdio_dev *sdiodev, u8 *buf, uint nbytes)
 {
 	struct sk_buff *mypkt;
-	uint width;
+	u32 addr = sdiodev->sbwad;
 	int err;
 
 	mypkt = brcmu_pkt_buf_get_skb(nbytes);
@@ -776,41 +770,40 @@ brcmf_sdiod_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 
 	memcpy(mypkt->data, buf, nbytes);
 
-	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	err = brcmf_sdiod_addrprep(sdiodev, width, &addr);
+	err = brcmf_sdiod_addrprep(sdiodev, 4, &addr);
 
 	if (!err)
-		err = brcmf_sdiod_buffrw(sdiodev, fn, true, addr, mypkt);
+		err = brcmf_sdiod_buffrw(sdiodev, SDIO_FUNC_2, true, addr,
+					 mypkt);
 
 	brcmu_pkt_buf_free_skb(mypkt);
 	return err;
 
 }
 
-int
-brcmf_sdiod_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		     uint flags, struct sk_buff_head *pktq)
+int brcmf_sdiod_send_pkt(struct brcmf_sdio_dev *sdiodev,
+			 struct sk_buff_head *pktq)
 {
 	struct sk_buff *skb;
-	uint width;
+	u32 addr = sdiodev->sbwad;
 	int err;
 
-	brcmf_dbg(SDIO, "fun = %d, addr = 0x%x, size = %d\n",
-		  fn, addr, pktq->qlen);
+	brcmf_dbg(SDIO, "addr = 0x%x, size = %d\n", addr, pktq->qlen);
 
-	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	err = brcmf_sdiod_addrprep(sdiodev, width, &addr);
+	err = brcmf_sdiod_addrprep(sdiodev, 4, &addr);
 	if (err)
 		return err;
 
 	if (pktq->qlen == 1 || !sdiodev->sg_support)
 		skb_queue_walk(pktq, skb) {
-			err = brcmf_sdiod_buffrw(sdiodev, fn, true, addr, skb);
+			err = brcmf_sdiod_buffrw(sdiodev, SDIO_FUNC_2, true,
+						 addr, skb);
 			if (err)
 				break;
 		}
 	else
-		err = brcmf_sdiod_sglist_rw(sdiodev, fn, true, addr, pktq);
+		err = brcmf_sdiod_sglist_rw(sdiodev, SDIO_FUNC_2, true, addr,
+					    pktq);
 
 	return err;
 }

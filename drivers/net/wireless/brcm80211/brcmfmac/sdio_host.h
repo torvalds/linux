@@ -197,7 +197,6 @@ void brcmf_sdiod_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data,
 
 /* Buffer transfer to/from device (client) core via cmd53.
  *   fn:       function number
- *   addr:     backplane address (i.e. >= regsva from attach)
  *   flags:    backplane width, address increment, sync/async
  *   buf:      pointer to memory data buffer
  *   nbytes:   number of bytes to transfer to/from buf
@@ -207,17 +206,14 @@ void brcmf_sdiod_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data,
  * Returns 0 or error code.
  * NOTE: Async operation is not currently supported.
  */
-int brcmf_sdiod_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-			 uint flags, struct sk_buff_head *pktq);
-int brcmf_sdiod_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-			 uint flags, u8 *buf, uint nbytes);
+int brcmf_sdiod_send_pkt(struct brcmf_sdio_dev *sdiodev,
+			 struct sk_buff_head *pktq);
+int brcmf_sdiod_send_buf(struct brcmf_sdio_dev *sdiodev, u8 *buf, uint nbytes);
 
-int brcmf_sdiod_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-			 uint flags, struct sk_buff *pkt);
-int brcmf_sdiod_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-			 uint flags, u8 *buf, uint nbytes);
-int brcmf_sdiod_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-			   uint flags, struct sk_buff_head *pktq, uint totlen);
+int brcmf_sdiod_recv_pkt(struct brcmf_sdio_dev *sdiodev, struct sk_buff *pkt);
+int brcmf_sdiod_recv_buf(struct brcmf_sdio_dev *sdiodev, u8 *buf, uint nbytes);
+int brcmf_sdiod_recv_chain(struct brcmf_sdio_dev *sdiodev,
+			   struct sk_buff_head *pktq, uint totlen);
 
 /* Flags bits */
 
