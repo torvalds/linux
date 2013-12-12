@@ -85,14 +85,12 @@ extern void __init of_at91rm9200_clk_periph_setup(struct device_node *np,
 extern void __init of_at91sam9x5_clk_periph_setup(struct device_node *np,
 						  struct at91_pmc *pmc);
 
-#if defined(CONFIG_AT91_PROGRAMMABLE_CLOCKS)
 extern void __init of_at91rm9200_clk_prog_setup(struct device_node *np,
 						struct at91_pmc *pmc);
 extern void __init of_at91sam9g45_clk_prog_setup(struct device_node *np,
 						 struct at91_pmc *pmc);
 extern void __init of_at91sam9x5_clk_prog_setup(struct device_node *np,
 						struct at91_pmc *pmc);
-#endif
 
 #if defined(CONFIG_HAVE_AT91_UTMI)
 extern void __init of_at91sam9x5_clk_utmi_setup(struct device_node *np,

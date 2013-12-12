@@ -214,12 +214,6 @@ config MACH_SAMA5_DT
 
 comment "AT91 Feature Selections"
 
-config AT91_PROGRAMMABLE_CLOCKS
-	bool "Programmable Clocks"
-	help
-	  Select this if you need to program one or more of the PCK0..PCK3
-	  programmable clock outputs.
-
 config AT91_SLOW_CLOCK
 	bool "Suspend-to-RAM disables main oscillator"
 	depends on SUSPEND
