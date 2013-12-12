@@ -468,11 +468,29 @@ static int cpumsf_pmu_event_init(struct perf_event *event)
 {
 	int err;
 
-	if (event->attr.type != PERF_TYPE_RAW)
-		return -ENOENT;
+	/* No support for taken branch sampling */
+	if (has_branch_stack(event))
+		return -EOPNOTSUPP;
 
-	if (event->attr.config != PERF_EVENT_CPUM_SF)
+	switch (event->attr.type) {
+	case PERF_TYPE_RAW:
+		if (event->attr.config != PERF_EVENT_CPUM_SF)
+			return -ENOENT;
+		break;
+	case PERF_TYPE_HARDWARE:
+		/* Support sampling of CPU cycles in addition to the
+		 * counter facility.  However, the counter facility
+		 * is more precise and, hence, restrict this PMU to
+		 * sampling events only.
+		 */
+		if (event->attr.config != PERF_COUNT_HW_CPU_CYCLES)
+			return -ENOENT;
+		if (!is_sampling_event(event))
+			return -ENOENT;
+		break;
+	default:
 		return -ENOENT;
+	}
 
 	if (event->cpu >= nr_cpumask_bits ||
 	    (event->cpu >= 0 && !cpu_online(event->cpu)))
