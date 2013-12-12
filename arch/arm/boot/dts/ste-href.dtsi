@@ -124,8 +124,6 @@
 			pinctrl-0 = <&sdi0_default_mode>;
 			pinctrl-1 = <&sdi0_sleep_mode>;
 
-			cd-gpios  = <&tc3589x_gpio 3 0x4>;
-
 			status = "okay";
 		};
 
