@@ -83,7 +83,7 @@ static struct host1x_bo *tegra_bo_get(struct host1x_bo *bo)
 	return bo;
 }
 
-const struct host1x_bo_ops tegra_bo_ops = {
+static const struct host1x_bo_ops tegra_bo_ops = {
 	.get = tegra_bo_get,
 	.put = tegra_bo_put,
 	.pin = tegra_bo_pin,

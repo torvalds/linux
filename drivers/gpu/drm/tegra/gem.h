@@ -40,8 +40,6 @@ static inline struct tegra_bo *to_tegra_bo(struct drm_gem_object *gem)
 	return container_of(gem, struct tegra_bo, gem);
 }
 
-extern const struct host1x_bo_ops tegra_bo_ops;
-
 struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size,
 				 unsigned long flags);
 struct tegra_bo *tegra_bo_create_with_handle(struct drm_file *file,
