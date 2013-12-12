@@ -210,6 +210,20 @@ static inline int lsctl(struct hws_lsctl_request_block *req)
 
 /* Sampling control helper functions */
 
+#include <linux/time.h>
+
+static inline unsigned long freq_to_sample_rate(struct hws_qsi_info_block *qsi,
+						unsigned long freq)
+{
+	return (USEC_PER_SEC / freq) * qsi->cpu_speed;
+}
+
+static inline unsigned long sample_rate_to_freq(struct hws_qsi_info_block *qsi,
+						unsigned long rate)
+{
+	return USEC_PER_SEC * qsi->cpu_speed / rate;
+}
+
 #define SDB_TE_ALERT_REQ_MASK	0x4000000000000000UL
 #define SDB_TE_BUFFER_FULL_MASK 0x8000000000000000UL
 

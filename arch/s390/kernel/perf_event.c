@@ -16,6 +16,7 @@
 #include <linux/kvm_host.h>
 #include <linux/percpu.h>
 #include <linux/export.h>
+#include <linux/spinlock.h>
 #include <linux/sysfs.h>
 #include <asm/irq.h>
 #include <asm/cpu_mf.h>
@@ -36,6 +37,8 @@ int perf_num_counters(void)
 
 	if (cpum_cf_avail())
 		num += PERF_CPUM_CF_MAX_CTR;
+	if (cpum_sf_avail())
+		num += PERF_CPUM_SF_MAX_CTR;
 
 	return num;
 }
@@ -93,24 +96,45 @@ unsigned long perf_misc_flags(struct pt_regs *regs)
 			       : PERF_RECORD_MISC_KERNEL;
 }
 
-void perf_event_print_debug(void)
+void print_debug_cf(void)
 {
 	struct cpumf_ctr_info cf_info;
-	unsigned long flags;
-	int cpu;
+	int cpu = smp_processor_id();
 
-	if (!cpum_cf_avail())
-		return;
-
-	local_irq_save(flags);
-
-	cpu = smp_processor_id();
 	memset(&cf_info, 0, sizeof(cf_info));
 	if (!qctri(&cf_info))
 		pr_info("CPU[%i] CPUM_CF: ver=%u.%u A=%04x E=%04x C=%04x\n",
 			cpu, cf_info.cfvn, cf_info.csvn,
 			cf_info.auth_ctl, cf_info.enable_ctl, cf_info.act_ctl);
+}
 
+static void print_debug_sf(void)
+{
+	struct hws_qsi_info_block si;
+	int cpu = smp_processor_id();
+
+	memset(&si, 0, sizeof(si));
+	if (qsi(&si)) {
+		pr_err("CPU[%i]: CPM_SF: qsi failed\n");
+		return;
+	}
+
+	pr_info("CPU[%i]: CPM_SF: as=%i es=%i cs=%i bsdes=%i dsdes=%i"
+		" min=%i max=%i cpu_speed=%i tear=%p dear=%p\n",
+		cpu, si.as, si.es, si.cs, si.bsdes, si.dsdes,
+		si.min_sampl_rate, si.max_sampl_rate, si.cpu_speed,
+		si.tear, si.dear);
+}
+
+void perf_event_print_debug(void)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	if (cpum_cf_avail())
+		print_debug_cf();
+	if (cpum_sf_avail())
+		print_debug_sf();
 	local_irq_restore(flags);
 }
 
