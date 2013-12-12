@@ -137,12 +137,13 @@ static struct clk *max77686_clk_register(struct device *dev,
 static int max77686_clk_probe(struct platform_device *pdev)
 {
 	struct max77686_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct max77686_clk **max77686_clks;
+	struct max77686_clk *max77686_clks[MAX77686_CLKS_NUM];
+	struct clk **clocks;
 	int i, ret;
 
-	max77686_clks = devm_kzalloc(&pdev->dev, sizeof(struct max77686_clk *)
+	clocks = devm_kzalloc(&pdev->dev, sizeof(struct clk *)
 					* MAX77686_CLKS_NUM, GFP_KERNEL);
-	if (!max77686_clks)
+	if (!clocks)
 		return -ENOMEM;
 
 	for (i = 0; i < MAX77686_CLKS_NUM; i++) {
@@ -153,22 +154,20 @@ static int max77686_clk_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < MAX77686_CLKS_NUM; i++) {
-		struct clk *clk;
-
 		max77686_clks[i]->iodev = iodev;
 		max77686_clks[i]->mask = 1 << i;
 		max77686_clks[i]->hw.init = &max77686_clks_init[i];
 
-		clk = max77686_clk_register(&pdev->dev, max77686_clks[i]);
-		if (IS_ERR(clk)) {
-			ret = PTR_ERR(clk);
+		clocks[i] = max77686_clk_register(&pdev->dev, max77686_clks[i]);
+		if (IS_ERR(clocks[i])) {
+			ret = PTR_ERR(clocks[i]);
 			dev_err(&pdev->dev, "failed to register %s\n",
 				max77686_clks[i]->hw.init->name);
 			goto err_clocks;
 		}
 	}
 
-	platform_set_drvdata(pdev, max77686_clks);
+	platform_set_drvdata(pdev, clocks);
 
 	return 0;
 
@@ -183,12 +182,15 @@ err_clocks:
 
 static int max77686_clk_remove(struct platform_device *pdev)
 {
-	struct max77686_clk **max77686_clks = platform_get_drvdata(pdev);
+	struct clk **clocks = platform_get_drvdata(pdev);
 	int i;
 
 	for (i = 0; i < MAX77686_CLKS_NUM; i++) {
-		clkdev_drop(max77686_clks[i]->lookup);
-		clk_unregister(max77686_clks[i]->hw.clk);
+		struct clk_hw *hw = __clk_get_hw(clocks[i]);
+		struct max77686_clk *max77686 = to_max77686_clk(hw);
+
+		clkdev_drop(max77686->lookup);
+		clk_unregister(clocks[i]);
 	}
 	return 0;
 }
