@@ -372,7 +372,8 @@ enum pevent_flag {
 	_PE(ILLEGAL_TOKEN,	"illegal token"),			      \
 	_PE(INVALID_PAREN,	"open parenthesis cannot come here"), 	      \
 	_PE(UNBALANCED_PAREN,	"unbalanced number of parenthesis"),	      \
-	_PE(UNKNOWN_TOKEN,	"unknown token")
+	_PE(UNKNOWN_TOKEN,	"unknown token"),			      \
+	_PE(FILTER_NOT_FOUND,	"no filter found")
 
 #undef _PE
 #define _PE(__code, __str) PEVENT_ERRNO__ ## __code
@@ -863,9 +864,8 @@ enum filter_trivial_type {
 	FILTER_TRIVIAL_BOTH,
 };
 
-int pevent_filter_add_filter_str(struct event_filter *filter,
-				 const char *filter_str,
-				 char **error_str);
+enum pevent_errno pevent_filter_add_filter_str(struct event_filter *filter,
+					       const char *filter_str);
 
 
 int pevent_filter_match(struct event_filter *filter,
