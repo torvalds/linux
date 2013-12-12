@@ -28,6 +28,7 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_UPDELAY]		= { .type = NLA_U32 },
 	[IFLA_BOND_DOWNDELAY]		= { .type = NLA_U32 },
 	[IFLA_BOND_USE_CARRIER]		= { .type = NLA_U8 },
+	[IFLA_BOND_ARP_INTERVAL]	= { .type = NLA_U32 },
 };
 
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -45,6 +46,7 @@ static int bond_changelink(struct net_device *bond_dev,
 			   struct nlattr *tb[], struct nlattr *data[])
 {
 	struct bonding *bond = netdev_priv(bond_dev);
+	int miimon = 0;
 	int err;
 
 	if (!data)
@@ -74,7 +76,7 @@ static int bond_changelink(struct net_device *bond_dev,
 			return err;
 	}
 	if (data[IFLA_BOND_MIIMON]) {
-		int miimon = nla_get_u32(data[IFLA_BOND_MIIMON]);
+		miimon = nla_get_u32(data[IFLA_BOND_MIIMON]);
 
 		err = bond_option_miimon_set(bond, miimon);
 		if (err)
@@ -101,6 +103,19 @@ static int bond_changelink(struct net_device *bond_dev,
 		if (err)
 			return err;
 	}
+	if (data[IFLA_BOND_ARP_INTERVAL]) {
+		int arp_interval = nla_get_u32(data[IFLA_BOND_ARP_INTERVAL]);
+
+		if (arp_interval && miimon) {
+			pr_err("%s: ARP monitoring cannot be used with MII monitoring.\n",
+			       bond->dev->name);
+			return -EINVAL;
+		}
+
+		err = bond_option_arp_interval_set(bond, arp_interval);
+		if (err)
+			return err;
+	}
 	return 0;
 }
 
@@ -124,6 +139,7 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_UPDELAY */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_DOWNDELAY */
 		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_USE_CARRIER */
+		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ARP_INTERVAL */
 		0;
 }
 
@@ -152,6 +168,9 @@ static int bond_fill_info(struct sk_buff *skb,
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_USE_CARRIER, bond->params.use_carrier))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, IFLA_BOND_ARP_INTERVAL, bond->params.arp_interval))
 		goto nla_put_failure;
 
 	return 0;

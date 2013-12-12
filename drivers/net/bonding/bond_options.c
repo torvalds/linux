@@ -259,3 +259,50 @@ int bond_option_use_carrier_set(struct bonding *bond, int use_carrier)
 
 	return 0;
 }
+
+int bond_option_arp_interval_set(struct bonding *bond, int arp_interval)
+{
+	if (arp_interval < 0) {
+		pr_err("%s: Invalid arp_interval value %d not in range 0-%d; rejected.\n",
+		       bond->dev->name, arp_interval, INT_MAX);
+		return -EINVAL;
+	}
+	if (BOND_NO_USES_ARP(bond->params.mode)) {
+		pr_info("%s: ARP monitoring cannot be used with ALB/TLB/802.3ad. Only MII monitoring is supported on %s.\n",
+			bond->dev->name, bond->dev->name);
+		return -EINVAL;
+	}
+	pr_info("%s: Setting ARP monitoring interval to %d.\n",
+		bond->dev->name, arp_interval);
+	bond->params.arp_interval = arp_interval;
+	if (arp_interval) {
+		if (bond->params.miimon) {
+			pr_info("%s: ARP monitoring cannot be used with MII monitoring. %s Disabling MII monitoring.\n",
+				bond->dev->name, bond->dev->name);
+			bond->params.miimon = 0;
+		}
+		if (!bond->params.arp_targets[0])
+			pr_info("%s: ARP monitoring has been set up, but no ARP targets have been specified.\n",
+				bond->dev->name);
+	}
+	if (bond->dev->flags & IFF_UP) {
+		/* If the interface is up, we may need to fire off
+		 * the ARP timer.  If the interface is down, the
+		 * timer will get fired off when the open function
+		 * is called.
+		 */
+		if (!arp_interval) {
+			if (bond->params.arp_validate)
+				bond->recv_probe = NULL;
+			cancel_delayed_work_sync(&bond->arp_work);
+		} else {
+			/* arp_validate can be set only in active-backup mode */
+			if (bond->params.arp_validate)
+				bond->recv_probe = bond_arp_rcv;
+			cancel_delayed_work_sync(&bond->mii_work);
+			queue_delayed_work(bond->wq, &bond->arp_work, 0);
+		}
+	}
+
+	return 0;
+}

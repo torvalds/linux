@@ -506,60 +506,21 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 					  const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
-	int new_value, ret = count;
+	int new_value, ret;
+
+	if (sscanf(buf, "%d", &new_value) != 1) {
+		pr_err("%s: no arp_interval value specified.\n",
+		bond->dev->name);
+		return -EINVAL;
+	}
 
 	if (!rtnl_trylock())
 		return restart_syscall();
-	if (sscanf(buf, "%d", &new_value) != 1) {
-		pr_err("%s: no arp_interval value specified.\n",
-		       bond->dev->name);
-		ret = -EINVAL;
-		goto out;
-	}
-	if (new_value < 0) {
-		pr_err("%s: Invalid arp_interval value %d not in range 0-%d; rejected.\n",
-		       bond->dev->name, new_value, INT_MAX);
-		ret = -EINVAL;
-		goto out;
-	}
-	if (BOND_NO_USES_ARP(bond->params.mode)) {
-		pr_info("%s: ARP monitoring cannot be used with ALB/TLB/802.3ad. Only MII monitoring is supported on %s.\n",
-			bond->dev->name, bond->dev->name);
-		ret = -EINVAL;
-		goto out;
-	}
-	pr_info("%s: Setting ARP monitoring interval to %d.\n",
-		bond->dev->name, new_value);
-	bond->params.arp_interval = new_value;
-	if (new_value) {
-		if (bond->params.miimon) {
-			pr_info("%s: ARP monitoring cannot be used with MII monitoring. %s Disabling MII monitoring.\n",
-				bond->dev->name, bond->dev->name);
-			bond->params.miimon = 0;
-		}
-		if (!bond->params.arp_targets[0])
-			pr_info("%s: ARP monitoring has been set up, but no ARP targets have been specified.\n",
-				bond->dev->name);
-	}
-	if (bond->dev->flags & IFF_UP) {
-		/* If the interface is up, we may need to fire off
-		 * the ARP timer.  If the interface is down, the
-		 * timer will get fired off when the open function
-		 * is called.
-		 */
-		if (!new_value) {
-			if (bond->params.arp_validate)
-				bond->recv_probe = NULL;
-			cancel_delayed_work_sync(&bond->arp_work);
-		} else {
-			/* arp_validate can be set only in active-backup mode */
-			if (bond->params.arp_validate)
-				bond->recv_probe = bond_arp_rcv;
-			cancel_delayed_work_sync(&bond->mii_work);
-			queue_delayed_work(bond->wq, &bond->arp_work, 0);
-		}
-	}
-out:
+
+	ret = bond_option_arp_interval_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
 	rtnl_unlock();
 	return ret;
 }
