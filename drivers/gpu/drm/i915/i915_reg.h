@@ -1003,6 +1003,7 @@
 
 #define GEN7_FF_THREAD_MODE		0x20a0
 #define   GEN7_FF_SCHED_MASK		0x0077070
+#define   GEN8_FF_DS_REF_CNT_FFME	(1 << 19)
 #define   GEN7_FF_TS_SCHED_HS1		(0x5<<16)
 #define   GEN7_FF_TS_SCHED_HS0		(0x3<<16)
 #define   GEN7_FF_TS_SCHED_LOAD_BALANCE	(0x1<<16)
