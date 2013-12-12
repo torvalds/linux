@@ -217,7 +217,6 @@ ENTRY(__boot_cpu_mode)
 	.quad	PAGE_OFFSET
 
 #ifdef CONFIG_SMP
-	.pushsection    .smp.pen.text, "ax"
 	.align	3
 1:	.quad	.
 	.quad	secondary_holding_pen_release
@@ -242,7 +241,16 @@ pen:	ldr	x4, [x3]
 	wfe
 	b	pen
 ENDPROC(secondary_holding_pen)
-	.popsection
+
+	/*
+	 * Secondary entry point that jumps straight into the kernel. Only to
+	 * be used where CPUs are brought online dynamically by the kernel.
+	 */
+ENTRY(secondary_entry)
+	bl	__calc_phys_offset		// x2=phys offset
+	bl	el2_setup			// Drop to EL1
+	b	secondary_startup
+ENDPROC(secondary_entry)
 
 ENTRY(secondary_startup)
 	/*
