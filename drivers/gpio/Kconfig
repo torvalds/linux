@@ -288,6 +288,14 @@ config GPIO_XILINX
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
+config GPIO_XTENSA
+	bool "Xtensa GPIO32 support"
+	depends on XTENSA
+	depends on !SMP
+	help
+	  Say yes here to support the Xtensa internal GPIO32 IMPWIRE (input)
+	  and EXPSTATE (output) ports
+
 config GPIO_VR41XX
 	tristate "NEC VR4100 series General-purpose I/O Uint support"
 	depends on CPU_VR41XX
