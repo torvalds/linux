@@ -953,7 +953,7 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 	struct hw_perf_event *hwc = &event->hw;
 	struct hws_trailer_entry *te;
 	unsigned long *sdbt;
-	unsigned long long event_overflow, sampl_overflow, num_sdb;
+	unsigned long long event_overflow, sampl_overflow, num_sdb, te_flags;
 	int done;
 
 	sdbt = (unsigned long *) TEAR_REG(hwc);
@@ -990,9 +990,13 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 		hw_collect_samples(event, sdbt, &event_overflow);
 		num_sdb++;
 
-		/* Reset trailer */
-		xchg(&te->overflow, 0);
-		xchg((unsigned char *) te, 0x40);
+		/* Reset trailer (using compare-double-and-swap) */
+		do {
+			te_flags = te->flags & ~SDB_TE_BUFFER_FULL_MASK;
+			te_flags |= SDB_TE_ALERT_REQ_MASK;
+		} while (!cmpxchg_double(&te->flags, &te->overflow,
+					 te->flags, te->overflow,
+					 te_flags, 0ULL));
 
 		/* Advance to next sample-data-block */
 		sdbt++;

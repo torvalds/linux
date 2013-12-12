@@ -115,10 +115,15 @@ struct hws_data_entry {
 } __packed;
 
 struct hws_trailer_entry {
-	unsigned int f:1;	    /* 0 - Block Full Indicator 	 */
-	unsigned int a:1;	    /* 1 - Alert request control	 */
-	unsigned int t:1;	    /* 2 - Timestamp format		 */
-	unsigned long long:61;	    /* 3 - 63: Reserved 		 */
+	union {
+		struct {
+			unsigned int f:1;	/* 0 - Block Full Indicator   */
+			unsigned int a:1;	/* 1 - Alert request control  */
+			unsigned int t:1;	/* 2 - Timestamp format	      */
+			unsigned long long:61;	/* 3 - 63: Reserved	      */
+		};
+		unsigned long long flags;	/* 0 - 63: All indicators     */
+	};
 	unsigned long long overflow;	 /* 64 - sample Overflow count	      */
 	unsigned long long timestamp;	 /* 16 - time-stamp		      */
 	unsigned long long timestamp1;	 /*				      */
