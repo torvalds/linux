@@ -669,20 +669,6 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 		tegra_dc_writel(dc, value, DC_DISP_INTERLACE_CONTROL);
 	}
 
-	value = DE_SELECT_ACTIVE | DE_CONTROL_NORMAL;
-	tegra_dc_writel(dc, value, DC_DISP_DATA_ENABLE_OPTIONS);
-
-	value = tegra_dc_readl(dc, DC_COM_PIN_OUTPUT_POLARITY(1));
-	value &= ~LVS_OUTPUT_POLARITY_LOW;
-	value &= ~LHS_OUTPUT_POLARITY_LOW;
-	tegra_dc_writel(dc, value, DC_COM_PIN_OUTPUT_POLARITY(1));
-
-	value = DISP_DATA_FORMAT_DF1P1C | DISP_ALIGNMENT_MSB |
-		DISP_ORDER_RED_BLUE;
-	tegra_dc_writel(dc, value, DC_DISP_DISP_INTERFACE_CONTROL);
-
-	tegra_dc_writel(dc, 0x00010001, DC_DISP_SHIFT_CLOCK_OPTIONS);
-
 	value = SHIFT_CLK_DIVIDER(div) | PIXEL_CLK_DIVIDER_PCD1;
 	tegra_dc_writel(dc, value, DC_DISP_DISP_CLOCK_CONTROL);
 
@@ -745,10 +731,6 @@ static void tegra_crtc_prepare(struct drm_crtc *crtc)
 	value = PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
 		PW4_ENABLE | PM0_ENABLE | PM1_ENABLE;
 	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
-
-	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_COMMAND);
-	value |= DISP_CTRL_MODE_C_DISPLAY;
-	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_COMMAND);
 
 	/* initialize timer */
 	value = CURSOR_THRESHOLD(0) | WINDOW_A_THRESHOLD(0x20) |

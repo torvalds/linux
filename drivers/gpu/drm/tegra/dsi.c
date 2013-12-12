@@ -450,14 +450,15 @@ static int tegra_output_dsi_enable(struct tegra_output *output)
 	value |= DSI_ENABLE;
 	tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
 
-	value = PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
-		PW4_ENABLE | PM0_ENABLE | PM1_ENABLE;
-	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
-
 	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_COMMAND);
 	value &= ~DISP_CTRL_MODE_MASK;
 	value |= DISP_CTRL_MODE_C_DISPLAY;
 	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_COMMAND);
+
+	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_POWER_CONTROL);
+	value |= PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
+		 PW4_ENABLE | PM0_ENABLE | PM1_ENABLE;
+	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
 
 	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
 	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
@@ -482,11 +483,15 @@ static int tegra_output_dsi_disable(struct tegra_output *output)
 	tegra_dsi_writel(dsi, value, DSI_POWER_CONTROL);
 
 	/*
-	 * FIXME: The output isn't attached to any CRTC when it's being
-	 * disabled, so the following will never be executed.
+	 * The following accesses registers of the display controller, so make
+	 * sure it's only executed when the output is attached to one.
 	 */
 	if (dc) {
-		/* disable display controller */
+		value = tegra_dc_readl(dc, DC_CMD_DISPLAY_POWER_CONTROL);
+		value &= ~(PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
+			   PW4_ENABLE | PM0_ENABLE | PM1_ENABLE);
+		tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
+
 		value = tegra_dc_readl(dc, DC_CMD_DISPLAY_COMMAND);
 		value &= ~DISP_CTRL_MODE_MASK;
 		tegra_dc_writel(dc, value, DC_CMD_DISPLAY_COMMAND);
@@ -494,6 +499,9 @@ static int tegra_output_dsi_disable(struct tegra_output *output)
 		value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
 		value &= ~DSI_ENABLE;
 		tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
+
+		tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
+		tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
 	}
 
 	clk_disable(dsi->clk);

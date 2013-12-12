@@ -843,10 +843,6 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 	value |= SOR_CSTM_ROTCLK(2);
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_SOR_CSTM);
 
-	tegra_dc_writel(dc, DISP_CTRL_MODE_STOP, DC_CMD_DISPLAY_COMMAND);
-	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
-	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
-
 	/* start SOR */
 	tegra_hdmi_writel(hdmi,
 			  SOR_PWR_NORMAL_STATE_PU |
@@ -896,14 +892,19 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 			  HDMI_NV_PDISP_SOR_STATE1);
 	tegra_hdmi_writel(hdmi, 0, HDMI_NV_PDISP_SOR_STATE0);
 
-	tegra_dc_writel(dc, HDMI_ENABLE, DC_DISP_DISP_WIN_OPTIONS);
+	value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
+	value |= HDMI_ENABLE;
+	tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
 
-	value = PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
-		PW4_ENABLE | PM0_ENABLE | PM1_ENABLE;
-	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
-
-	value = DISP_CTRL_MODE_C_DISPLAY;
+	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_COMMAND);
+	value &= ~DISP_CTRL_MODE_MASK;
+	value |= DISP_CTRL_MODE_C_DISPLAY;
 	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_COMMAND);
+
+	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_POWER_CONTROL);
+	value |= PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
+		 PW4_ENABLE | PM0_ENABLE | PM1_ENABLE;
+	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
 
 	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
 	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
@@ -917,10 +918,34 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 
 static int tegra_output_hdmi_disable(struct tegra_output *output)
 {
+	struct tegra_dc *dc = to_tegra_dc(output->encoder.crtc);
 	struct tegra_hdmi *hdmi = to_hdmi(output);
+	unsigned long value;
 
 	if (!hdmi->enabled)
 		return 0;
+
+	/*
+	 * The following accesses registers of the display controller, so make
+	 * sure it's only executed when the output is attached to one.
+	 */
+	if (dc) {
+		value = tegra_dc_readl(dc, DC_CMD_DISPLAY_POWER_CONTROL);
+		value &= ~(PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
+			   PW4_ENABLE | PM0_ENABLE | PM1_ENABLE);
+		tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
+
+		value = tegra_dc_readl(dc, DC_CMD_DISPLAY_COMMAND);
+		value &= ~DISP_CTRL_MODE_MASK;
+		tegra_dc_writel(dc, value, DC_CMD_DISPLAY_COMMAND);
+
+		value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
+		value &= ~HDMI_ENABLE;
+		tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
+
+		tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
+		tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
+	}
 
 	reset_control_assert(hdmi->rst);
 	clk_disable(hdmi->clk);
