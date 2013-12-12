@@ -851,10 +851,13 @@ struct filter_type {
 	struct filter_arg	*filter;
 };
 
+#define PEVENT_FILTER_ERROR_BUFSZ  1024
+
 struct event_filter {
 	struct pevent		*pevent;
 	int			filters;
 	struct filter_type	*event_filters;
+	char			error_buffer[PEVENT_FILTER_ERROR_BUFSZ];
 };
 
 struct event_filter *pevent_filter_alloc(struct pevent *pevent);
@@ -874,9 +877,11 @@ enum filter_trivial_type {
 enum pevent_errno pevent_filter_add_filter_str(struct event_filter *filter,
 					       const char *filter_str);
 
-
 enum pevent_errno pevent_filter_match(struct event_filter *filter,
 				      struct pevent_record *record);
+
+int pevent_filter_strerror(struct event_filter *filter, enum pevent_errno err,
+			   char *buf, size_t buflen);
 
 int pevent_event_filtered(struct event_filter *filter,
 			  int event_id);

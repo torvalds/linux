@@ -5230,22 +5230,7 @@ int pevent_strerror(struct pevent *pevent __maybe_unused,
 
 	idx = errnum - __PEVENT_ERRNO__START - 1;
 	msg = pevent_error_str[idx];
-
-	switch (errnum) {
-	case PEVENT_ERRNO__MEM_ALLOC_FAILED:
-	case PEVENT_ERRNO__PARSE_EVENT_FAILED:
-	case PEVENT_ERRNO__READ_ID_FAILED:
-	case PEVENT_ERRNO__READ_FORMAT_FAILED:
-	case PEVENT_ERRNO__READ_PRINT_FAILED:
-	case PEVENT_ERRNO__OLD_FTRACE_ARG_FAILED:
-	case PEVENT_ERRNO__INVALID_ARG_TYPE:
-		snprintf(buf, buflen, "%s", msg);
-		break;
-
-	default:
-		/* cannot reach here */
-		break;
-	}
+	snprintf(buf, buflen, "%s", msg);
 
 	return 0;
 }
