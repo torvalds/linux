@@ -3582,9 +3582,11 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 
 void gen6_rps_idle(struct drm_i915_private *dev_priv)
 {
+	struct drm_device *dev = dev_priv->dev;
+
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (dev_priv->rps.enabled) {
-		if (dev_priv->info->is_valleyview)
+		if (IS_VALLEYVIEW(dev))
 			valleyview_set_rps(dev_priv->dev, dev_priv->rps.min_delay);
 		else
 			gen6_set_rps(dev_priv->dev, dev_priv->rps.min_delay);
@@ -3595,9 +3597,11 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 
 void gen6_rps_boost(struct drm_i915_private *dev_priv)
 {
+	struct drm_device *dev = dev_priv->dev;
+
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (dev_priv->rps.enabled) {
-		if (dev_priv->info->is_valleyview)
+		if (IS_VALLEYVIEW(dev))
 			valleyview_set_rps(dev_priv->dev, dev_priv->rps.max_delay);
 		else
 			gen6_set_rps(dev_priv->dev, dev_priv->rps.max_delay);
