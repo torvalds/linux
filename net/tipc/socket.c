@@ -1507,14 +1507,12 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 				sock->state != SS_CONNECTING,
 				timeout ? (long)msecs_to_jiffies(timeout)
 					: MAX_SCHEDULE_TIMEOUT);
-		lock_sock(sk);
 		if (res <= 0) {
 			if (res == 0)
 				res = -ETIMEDOUT;
-			else
-				; /* leave "res" unchanged */
-			goto exit;
+			return res;
 		}
+		lock_sock(sk);
 	}
 
 	if (unlikely(sock->state == SS_DISCONNECTING))
