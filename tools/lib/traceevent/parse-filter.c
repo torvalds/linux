@@ -211,12 +211,7 @@ struct event_filter *pevent_filter_alloc(struct pevent *pevent)
 
 static struct filter_arg *allocate_arg(void)
 {
-	struct filter_arg *arg;
-
-	arg = malloc_or_die(sizeof(*arg));
-	memset(arg, 0, sizeof(*arg));
-
-	return arg;
+	return calloc(1, sizeof(struct filter_arg));
 }
 
 static void free_arg(struct filter_arg *arg)
@@ -369,6 +364,10 @@ create_arg_item(struct event_format *event, const char *token,
 	struct filter_arg *arg;
 
 	arg = allocate_arg();
+	if (arg == NULL) {
+		show_error(error_str, "failed to allocate filter arg");
+		return NULL;
+	}
 
 	switch (type) {
 
@@ -422,6 +421,9 @@ create_arg_op(enum filter_op_type btype)
 	struct filter_arg *arg;
 
 	arg = allocate_arg();
+	if (!arg)
+		return NULL;
+
 	arg->type = FILTER_ARG_OP;
 	arg->op.type = btype;
 
@@ -434,6 +436,9 @@ create_arg_exp(enum filter_exp_type etype)
 	struct filter_arg *arg;
 
 	arg = allocate_arg();
+	if (!arg)
+		return NULL;
+
 	arg->type = FILTER_ARG_EXP;
 	arg->op.type = etype;
 
@@ -446,6 +451,9 @@ create_arg_cmp(enum filter_exp_type etype)
 	struct filter_arg *arg;
 
 	arg = allocate_arg();
+	if (!arg)
+		return NULL;
+
 	/* Use NUM and change if necessary */
 	arg->type = FILTER_ARG_NUM;
 	arg->op.type = etype;
@@ -909,8 +917,10 @@ static struct filter_arg *collapse_tree(struct filter_arg *arg)
 	case FILTER_VAL_FALSE:
 		free_arg(arg);
 		arg = allocate_arg();
-		arg->type = FILTER_ARG_BOOLEAN;
-		arg->boolean.value = ret == FILTER_VAL_TRUE;
+		if (arg) {
+			arg->type = FILTER_ARG_BOOLEAN;
+			arg->boolean.value = ret == FILTER_VAL_TRUE;
+		}
 	}
 
 	return arg;
@@ -1057,6 +1067,8 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 			switch (op_type) {
 			case OP_BOOL:
 				arg = create_arg_op(btype);
+				if (arg == NULL)
+					goto fail_alloc;
 				if (current_op)
 					ret = add_left(arg, current_op);
 				else
@@ -1067,6 +1079,8 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 
 			case OP_NOT:
 				arg = create_arg_op(btype);
+				if (arg == NULL)
+					goto fail_alloc;
 				if (current_op)
 					ret = add_right(current_op, arg, error_str);
 				if (ret < 0)
@@ -1086,6 +1100,8 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 					arg = create_arg_exp(etype);
 				else
 					arg = create_arg_cmp(ctype);
+				if (arg == NULL)
+					goto fail_alloc;
 
 				if (current_op)
 					ret = add_right(current_op, arg, error_str);
@@ -1119,11 +1135,16 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 		current_op = current_exp;
 
 	current_op = collapse_tree(current_op);
+	if (current_op == NULL)
+		goto fail_alloc;
 
 	*parg = current_op;
 
 	return 0;
 
+ fail_alloc:
+	show_error(error_str, "failed to allocate filter arg");
+	goto fail;
  fail_print:
 	show_error(error_str, "Syntax error");
  fail:
@@ -1154,6 +1175,10 @@ process_event(struct event_format *event, const char *filter_str,
 	/* If parg is NULL, then make it into FALSE */
 	if (!*parg) {
 		*parg = allocate_arg();
+		if (*parg == NULL) {
+			show_error(error_str, "failed to allocate filter arg");
+			return -1;
+		}
 		(*parg)->type = FILTER_ARG_BOOLEAN;
 		(*parg)->boolean.value = FILTER_FALSE;
 	}
@@ -1177,6 +1202,10 @@ static int filter_event(struct event_filter *filter,
 	} else {
 		/* just add a TRUE arg */
 		arg = allocate_arg();
+		if (arg == NULL) {
+			show_error(error_str, "failed to allocate filter arg");
+			return -1;
+		}
 		arg->type = FILTER_ARG_BOOLEAN;
 		arg->boolean.value = FILTER_TRUE;
 	}
@@ -1418,6 +1447,9 @@ static int copy_filter_type(struct event_filter *filter,
 	if (strcmp(str, "TRUE") == 0 || strcmp(str, "FALSE") == 0) {
 		/* Add trivial event */
 		arg = allocate_arg();
+		if (arg == NULL)
+			return -1;
+
 		arg->type = FILTER_ARG_BOOLEAN;
 		if (strcmp(str, "TRUE") == 0)
 			arg->boolean.value = 1;
