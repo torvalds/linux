@@ -1015,6 +1015,8 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 			struct drm_i915_file_private *file_priv)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
+	const bool irq_test_in_progress =
+		ACCESS_ONCE(dev_priv->gpu_error.test_irq_rings) & intel_ring_flag(ring);
 	struct timespec before, now;
 	DEFINE_WAIT(wait);
 	unsigned long timeout_expire;
@@ -1035,8 +1037,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 					 msecs_to_jiffies(100));
 	}
 
-	if (!(dev_priv->gpu_error.test_irq_rings & intel_ring_flag(ring)) &&
-	    WARN_ON(!ring->irq_get(ring)))
+	if (!irq_test_in_progress && WARN_ON(!ring->irq_get(ring)))
 		return -ENODEV;
 
 	/* Record current time in case interrupted by signal, or wedged */
@@ -1093,7 +1094,8 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	getrawmonotonic(&now);
 	trace_i915_gem_request_wait_end(ring, seqno);
 
-	ring->irq_put(ring);
+	if (!irq_test_in_progress)
+		ring->irq_put(ring);
 
 	finish_wait(&ring->irq_queue, &wait);
 
