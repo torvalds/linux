@@ -442,6 +442,7 @@ int bond_option_active_slave_set(struct bonding *bond, struct net_device *slave_
 int bond_option_miimon_set(struct bonding *bond, int miimon);
 int bond_option_updelay_set(struct bonding *bond, int updelay);
 int bond_option_downdelay_set(struct bonding *bond, int downdelay);
+int bond_option_use_carrier_set(struct bonding *bond, int use_carrier);
 struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond);
 struct net_device *bond_option_active_slave_get(struct bonding *bond);
 

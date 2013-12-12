@@ -245,3 +245,17 @@ int bond_option_downdelay_set(struct bonding *bond, int downdelay)
 
 	return 0;
 }
+
+int bond_option_use_carrier_set(struct bonding *bond, int use_carrier)
+{
+	if ((use_carrier == 0) || (use_carrier == 1)) {
+		bond->params.use_carrier = use_carrier;
+		pr_info("%s: Setting use_carrier to %d.\n",
+			bond->dev->name, use_carrier);
+	} else {
+		pr_info("%s: Ignoring invalid use_carrier value %d.\n",
+			bond->dev->name, use_carrier);
+	}
+
+	return 0;
+}

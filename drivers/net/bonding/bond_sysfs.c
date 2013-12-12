@@ -1097,25 +1097,23 @@ static ssize_t bonding_store_carrier(struct device *d,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
-	int new_value, ret = count;
+	int new_value, ret;
 	struct bonding *bond = to_bond(d);
-
 
 	if (sscanf(buf, "%d", &new_value) != 1) {
 		pr_err("%s: no use_carrier value specified.\n",
 		       bond->dev->name);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
-	if ((new_value == 0) || (new_value == 1)) {
-		bond->params.use_carrier = new_value;
-		pr_info("%s: Setting use_carrier to %d.\n",
-			bond->dev->name, new_value);
-	} else {
-		pr_info("%s: Ignoring invalid use_carrier value %d.\n",
-			bond->dev->name, new_value);
-	}
-out:
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	ret = bond_option_use_carrier_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
+	rtnl_unlock();
 	return ret;
 }
 static DEVICE_ATTR(use_carrier, S_IRUGO | S_IWUSR,

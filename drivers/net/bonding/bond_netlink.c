@@ -27,6 +27,7 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_MIIMON]		= { .type = NLA_U32 },
 	[IFLA_BOND_UPDELAY]		= { .type = NLA_U32 },
 	[IFLA_BOND_DOWNDELAY]		= { .type = NLA_U32 },
+	[IFLA_BOND_USE_CARRIER]		= { .type = NLA_U8 },
 };
 
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -93,6 +94,13 @@ static int bond_changelink(struct net_device *bond_dev,
 		if (err)
 			return err;
 	}
+	if (data[IFLA_BOND_USE_CARRIER]) {
+		int use_carrier = nla_get_u8(data[IFLA_BOND_USE_CARRIER]);
+
+		err = bond_option_use_carrier_set(bond, use_carrier);
+		if (err)
+			return err;
+	}
 	return 0;
 }
 
@@ -115,6 +123,7 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_MIIMON */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_UPDELAY */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_DOWNDELAY */
+		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_USE_CARRIER */
 		0;
 }
 
@@ -140,6 +149,9 @@ static int bond_fill_info(struct sk_buff *skb,
 
 	if (nla_put_u32(skb, IFLA_BOND_DOWNDELAY,
 			bond->params.downdelay * bond->params.miimon))
+		goto nla_put_failure;
+
+	if (nla_put_u8(skb, IFLA_BOND_USE_CARRIER, bond->params.use_carrier))
 		goto nla_put_failure;
 
 	return 0;
