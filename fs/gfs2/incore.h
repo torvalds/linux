@@ -428,10 +428,13 @@ enum {
 };
 
 struct gfs2_quota_data {
+	struct hlist_bl_node qd_hlist;
 	struct list_head qd_list;
 	struct kqid qd_id;
+	struct gfs2_sbd *qd_sbd;
 	struct lockref qd_lockref;
 	struct list_head qd_lru;
+	unsigned qd_hash;
 
 	unsigned long qd_flags;		/* QDF_... */
 
@@ -450,6 +453,7 @@ struct gfs2_quota_data {
 
 	u64 qd_sync_gen;
 	unsigned long qd_last_warn;
+	struct rcu_head qd_rcu;
 };
 
 struct gfs2_trans {
