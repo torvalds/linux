@@ -269,6 +269,7 @@ config MACH_KOELSCH
 	bool "Koelsch board"
 	depends on ARCH_R8A7791
 	select USE_OF
+	select MICREL_PHY if SH_ETH
 
 config MACH_KOELSCH_REFERENCE
 	bool "Koelsch board - Reference Device Tree Implementation"
