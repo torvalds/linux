@@ -57,7 +57,7 @@
 #define SDIO_WAIT_F2RDY	3000
 
 
-static irqreturn_t brcmf_sdio_oob_irqhandler(int irq, void *dev_id)
+static irqreturn_t brcmf_sdiod_oob_irqhandler(int irq, void *dev_id)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev_id);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
@@ -77,7 +77,7 @@ static irqreturn_t brcmf_sdio_oob_irqhandler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void brcmf_sdio_ib_irqhandler(struct sdio_func *func)
+static void brcmf_sdiod_ib_irqhandler(struct sdio_func *func)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(&func->dev);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
@@ -88,11 +88,11 @@ static void brcmf_sdio_ib_irqhandler(struct sdio_func *func)
 }
 
 /* dummy handler for SDIO function 2 interrupt */
-static void brcmf_sdio_dummy_irqhandler(struct sdio_func *func)
+static void brcmf_sdiod_dummy_irqhandler(struct sdio_func *func)
 {
 }
 
-static bool brcmf_pm_resume_error(struct brcmf_sdio_dev *sdiodev)
+static bool brcmf_sdiod_pm_resume_error(struct brcmf_sdio_dev *sdiodev)
 {
 	bool is_err = false;
 #ifdef CONFIG_PM_SLEEP
@@ -101,8 +101,8 @@ static bool brcmf_pm_resume_error(struct brcmf_sdio_dev *sdiodev)
 	return is_err;
 }
 
-static void brcmf_pm_resume_wait(struct brcmf_sdio_dev *sdiodev,
-				 wait_queue_head_t *wq)
+static void brcmf_sdiod_pm_resume_wait(struct brcmf_sdio_dev *sdiodev,
+				       wait_queue_head_t *wq)
 {
 #ifdef CONFIG_PM_SLEEP
 	int retry = 0;
@@ -111,7 +111,7 @@ static void brcmf_pm_resume_wait(struct brcmf_sdio_dev *sdiodev,
 #endif
 }
 
-int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev)
+int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev)
 {
 	int ret = 0;
 	u8 data;
@@ -121,7 +121,7 @@ int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev)
 		brcmf_dbg(SDIO, "Enter, register OOB IRQ %d\n",
 			  sdiodev->pdata->oob_irq_nr);
 		ret = request_irq(sdiodev->pdata->oob_irq_nr,
-				  brcmf_sdio_oob_irqhandler,
+				  brcmf_sdiod_oob_irqhandler,
 				  sdiodev->pdata->oob_irq_flags,
 				  "brcmf_oob_intr",
 				  &sdiodev->func[1]->dev);
@@ -145,36 +145,36 @@ int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev)
 		sdio_claim_host(sdiodev->func[1]);
 
 		/* must configure SDIO_CCCR_IENx to enable irq */
-		data = brcmf_sdio_regrb(sdiodev, SDIO_CCCR_IENx, &ret);
+		data = brcmf_sdiod_regrb(sdiodev, SDIO_CCCR_IENx, &ret);
 		data |= 1 << SDIO_FUNC_1 | 1 << SDIO_FUNC_2 | 1;
-		brcmf_sdio_regwb(sdiodev, SDIO_CCCR_IENx, data, &ret);
+		brcmf_sdiod_regwb(sdiodev, SDIO_CCCR_IENx, data, &ret);
 
 		/* redirect, configure and enable io for interrupt signal */
 		data = SDIO_SEPINT_MASK | SDIO_SEPINT_OE;
 		if (sdiodev->pdata->oob_irq_flags & IRQF_TRIGGER_HIGH)
 			data |= SDIO_SEPINT_ACT_HI;
-		brcmf_sdio_regwb(sdiodev, SDIO_CCCR_BRCM_SEPINT, data, &ret);
+		brcmf_sdiod_regwb(sdiodev, SDIO_CCCR_BRCM_SEPINT, data, &ret);
 
 		sdio_release_host(sdiodev->func[1]);
 	} else {
 		brcmf_dbg(SDIO, "Entering\n");
 		sdio_claim_host(sdiodev->func[1]);
-		sdio_claim_irq(sdiodev->func[1], brcmf_sdio_ib_irqhandler);
-		sdio_claim_irq(sdiodev->func[2], brcmf_sdio_dummy_irqhandler);
+		sdio_claim_irq(sdiodev->func[1], brcmf_sdiod_ib_irqhandler);
+		sdio_claim_irq(sdiodev->func[2], brcmf_sdiod_dummy_irqhandler);
 		sdio_release_host(sdiodev->func[1]);
 	}
 
 	return 0;
 }
 
-int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev)
+int brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 {
 	brcmf_dbg(SDIO, "Entering\n");
 
 	if ((sdiodev->pdata) && (sdiodev->pdata->oob_irq_supported)) {
 		sdio_claim_host(sdiodev->func[1]);
-		brcmf_sdio_regwb(sdiodev, SDIO_CCCR_BRCM_SEPINT, 0, NULL);
-		brcmf_sdio_regwb(sdiodev, SDIO_CCCR_IENx, 0, NULL);
+		brcmf_sdiod_regwb(sdiodev, SDIO_CCCR_BRCM_SEPINT, 0, NULL);
+		brcmf_sdiod_regwb(sdiodev, SDIO_CCCR_IENx, 0, NULL);
 		sdio_release_host(sdiodev->func[1]);
 
 		if (sdiodev->oob_irq_requested) {
@@ -197,7 +197,7 @@ int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 	return 0;
 }
 
-static inline int brcmf_sdioh_f0_write_byte(struct brcmf_sdio_dev *sdiodev,
+static inline int brcmf_sdiod_f0_write_byte(struct brcmf_sdio_dev *sdiodev,
 					    uint regaddr, u8 *byte)
 {
 	struct sdio_func *sdfunc = sdiodev->func[0];
@@ -227,20 +227,20 @@ static inline int brcmf_sdioh_f0_write_byte(struct brcmf_sdio_dev *sdiodev,
 	return err_ret;
 }
 
-static int brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw,
+static int brcmf_sdiod_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw,
 				    uint func, uint regaddr, u8 *byte)
 {
 	int err_ret;
 
 	brcmf_dbg(SDIO, "rw=%d, func=%d, addr=0x%05x\n", rw, func, regaddr);
 
-	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_byte_wait);
-	if (brcmf_pm_resume_error(sdiodev))
+	brcmf_sdiod_pm_resume_wait(sdiodev, &sdiodev->request_byte_wait);
+	if (brcmf_sdiod_pm_resume_error(sdiodev))
 		return -EIO;
 
 	if (rw && func == 0) {
 		/* handle F0 separately */
-		err_ret = brcmf_sdioh_f0_write_byte(sdiodev, regaddr, byte);
+		err_ret = brcmf_sdiod_f0_write_byte(sdiodev, regaddr, byte);
 	} else {
 		if (rw) /* CMD52 Write */
 			sdio_writeb(sdiodev->func[func], *byte, regaddr,
@@ -272,7 +272,7 @@ static int brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw,
 	return err_ret;
 }
 
-static int brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint rw,
+static int brcmf_sdiod_request_word(struct brcmf_sdio_dev *sdiodev, uint rw,
 				    uint func, uint addr, u32 *word,
 				    uint nbytes)
 {
@@ -286,8 +286,8 @@ static int brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint rw,
 	brcmf_dbg(SDIO, "rw=%d, func=%d, addr=0x%05x, nbytes=%d\n",
 		  rw, func, addr, nbytes);
 
-	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_word_wait);
-	if (brcmf_pm_resume_error(sdiodev))
+	brcmf_sdiod_pm_resume_wait(sdiodev, &sdiodev->request_word_wait);
+	if (brcmf_sdiod_pm_resume_error(sdiodev))
 		return -EIO;
 
 	if (rw) {		/* CMD52 Write */
@@ -317,7 +317,7 @@ static int brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint rw,
 }
 
 static int
-brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
+brcmf_sdiod_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
 {
 	int err = 0, i;
 	u8 addr[3];
@@ -332,7 +332,7 @@ brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
 		do {
 			if (retry)
 				usleep_range(1000, 2000);
-			err = brcmf_sdioh_request_byte(sdiodev, SDIOH_WRITE,
+			err = brcmf_sdiod_request_byte(sdiodev, SDIOH_WRITE,
 					SDIO_FUNC_1, SBSDIO_FUNC1_SBADDRLOW + i,
 					&addr[i]);
 		} while (err != 0 && retry++ < SDIOH_API_ACCESS_RETRY_LIMIT);
@@ -348,13 +348,13 @@ brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
 }
 
 static int
-brcmf_sdio_addrprep(struct brcmf_sdio_dev *sdiodev, uint width, u32 *addr)
+brcmf_sdiod_addrprep(struct brcmf_sdio_dev *sdiodev, uint width, u32 *addr)
 {
 	uint bar0 = *addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
 
 	if (bar0 != sdiodev->sbwad) {
-		err = brcmf_sdcard_set_sbaddr_window(sdiodev, bar0);
+		err = brcmf_sdiod_set_sbaddr_window(sdiodev, bar0);
 		if (err)
 			return err;
 
@@ -369,8 +369,8 @@ brcmf_sdio_addrprep(struct brcmf_sdio_dev *sdiodev, uint width, u32 *addr)
 	return 0;
 }
 
-static int brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
-				   void *data, bool write)
+static int brcmf_sdiod_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
+				    void *data, bool write)
 {
 	u8 func_num, reg_size;
 	s32 retry = 0;
@@ -392,7 +392,7 @@ static int brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 		func_num = SDIO_FUNC_1;
 		reg_size = 4;
 
-		ret = brcmf_sdio_addrprep(sdiodev, reg_size, &addr);
+		ret = brcmf_sdiod_addrprep(sdiodev, reg_size, &addr);
 		if (ret)
 			goto done;
 	}
@@ -403,10 +403,10 @@ static int brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 		if (retry)	/* wait for 1 ms till bus get settled down */
 			usleep_range(1000, 2000);
 		if (reg_size == 1)
-			ret = brcmf_sdioh_request_byte(sdiodev, write,
+			ret = brcmf_sdiod_request_byte(sdiodev, write,
 						       func_num, addr, data);
 		else
-			ret = brcmf_sdioh_request_word(sdiodev, write,
+			ret = brcmf_sdiod_request_word(sdiodev, write,
 						       func_num, addr, data, 4);
 	} while (ret != 0 && retry++ < SDIOH_API_ACCESS_RETRY_LIMIT);
 
@@ -417,13 +417,13 @@ done:
 	return ret;
 }
 
-u8 brcmf_sdio_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret)
+u8 brcmf_sdiod_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret)
 {
 	u8 data;
 	int retval;
 
 	brcmf_dbg(SDIO, "addr:0x%08x\n", addr);
-	retval = brcmf_sdio_regrw_helper(sdiodev, addr, &data, false);
+	retval = brcmf_sdiod_regrw_helper(sdiodev, addr, &data, false);
 	brcmf_dbg(SDIO, "data:0x%02x\n", data);
 
 	if (ret)
@@ -432,13 +432,13 @@ u8 brcmf_sdio_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret)
 	return data;
 }
 
-u32 brcmf_sdio_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret)
+u32 brcmf_sdiod_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret)
 {
 	u32 data;
 	int retval;
 
 	brcmf_dbg(SDIO, "addr:0x%08x\n", addr);
-	retval = brcmf_sdio_regrw_helper(sdiodev, addr, &data, false);
+	retval = brcmf_sdiod_regrw_helper(sdiodev, addr, &data, false);
 	brcmf_dbg(SDIO, "data:0x%08x\n", data);
 
 	if (ret)
@@ -447,37 +447,37 @@ u32 brcmf_sdio_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret)
 	return data;
 }
 
-void brcmf_sdio_regwb(struct brcmf_sdio_dev *sdiodev, u32 addr,
+void brcmf_sdiod_regwb(struct brcmf_sdio_dev *sdiodev, u32 addr,
 		      u8 data, int *ret)
 {
 	int retval;
 
 	brcmf_dbg(SDIO, "addr:0x%08x, data:0x%02x\n", addr, data);
-	retval = brcmf_sdio_regrw_helper(sdiodev, addr, &data, true);
+	retval = brcmf_sdiod_regrw_helper(sdiodev, addr, &data, true);
 
 	if (ret)
 		*ret = retval;
 }
 
-void brcmf_sdio_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr,
+void brcmf_sdiod_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr,
 		      u32 data, int *ret)
 {
 	int retval;
 
 	brcmf_dbg(SDIO, "addr:0x%08x, data:0x%08x\n", addr, data);
-	retval = brcmf_sdio_regrw_helper(sdiodev, addr, &data, true);
+	retval = brcmf_sdiod_regrw_helper(sdiodev, addr, &data, true);
 
 	if (ret)
 		*ret = retval;
 }
 
-static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
+static int brcmf_sdiod_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 			     bool write, u32 addr, struct sk_buff *pkt)
 {
 	unsigned int req_sz;
 
-	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_buffer_wait);
-	if (brcmf_pm_resume_error(sdiodev))
+	brcmf_sdiod_pm_resume_wait(sdiodev, &sdiodev->request_buffer_wait);
+	if (brcmf_sdiod_pm_resume_error(sdiodev))
 		return -EIO;
 
 	/* Single skb use the standard mmc interface */
@@ -500,7 +500,7 @@ static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 }
 
 /**
- * brcmf_sdio_sglist_rw - SDIO interface function for block data access
+ * brcmf_sdiod_sglist_rw - SDIO interface function for block data access
  * @sdiodev: brcmfmac sdio device
  * @fn: SDIO function number
  * @write: direction flag
@@ -511,9 +511,9 @@ static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
  * stack for block data access. It assumes that the skb passed down by the
  * caller has already been padded and aligned.
  */
-static int brcmf_sdio_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
-				bool write, u32 addr,
-				struct sk_buff_head *pktlist)
+static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
+				 bool write, u32 addr,
+				 struct sk_buff_head *pktlist)
 {
 	unsigned int req_sz, func_blk_sz, sg_cnt, sg_data_sz, pkt_offset;
 	unsigned int max_req_sz, orig_offset, dst_offset;
@@ -531,8 +531,8 @@ static int brcmf_sdio_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
 	if (!pktlist->qlen)
 		return -EINVAL;
 
-	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_buffer_wait);
-	if (brcmf_pm_resume_error(sdiodev))
+	brcmf_sdiod_pm_resume_wait(sdiodev, &sdiodev->request_buffer_wait);
+	if (brcmf_sdiod_pm_resume_error(sdiodev))
 		return -EIO;
 
 	target_list = pktlist;
@@ -680,8 +680,8 @@ exit:
 }
 
 int
-brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, u8 *buf, uint nbytes)
+brcmf_sdiod_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+		     uint flags, u8 *buf, uint nbytes)
 {
 	struct sk_buff *mypkt;
 	int err;
@@ -693,7 +693,7 @@ brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		return -EIO;
 	}
 
-	err = brcmf_sdcard_recv_pkt(sdiodev, addr, fn, flags, mypkt);
+	err = brcmf_sdiod_recv_pkt(sdiodev, addr, fn, flags, mypkt);
 	if (!err)
 		memcpy(buf, mypkt->data, nbytes);
 
@@ -702,8 +702,8 @@ brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 }
 
 int
-brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, struct sk_buff *pkt)
+brcmf_sdiod_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+		     uint flags, struct sk_buff *pkt)
 {
 	uint width;
 	int err = 0;
@@ -712,18 +712,18 @@ brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		  fn, addr, pkt->len);
 
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	err = brcmf_sdio_addrprep(sdiodev, width, &addr);
+	err = brcmf_sdiod_addrprep(sdiodev, width, &addr);
 	if (err)
 		goto done;
 
-	err = brcmf_sdio_buffrw(sdiodev, fn, false, addr, pkt);
+	err = brcmf_sdiod_buffrw(sdiodev, fn, false, addr, pkt);
 
 done:
 	return err;
 }
 
-int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-			    uint flags, struct sk_buff_head *pktq, uint totlen)
+int brcmf_sdiod_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+			   uint flags, struct sk_buff_head *pktq, uint totlen)
 {
 	struct sk_buff *glom_skb;
 	struct sk_buff *skb;
@@ -734,17 +734,17 @@ int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		  fn, addr, pktq->qlen);
 
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	err = brcmf_sdio_addrprep(sdiodev, width, &addr);
+	err = brcmf_sdiod_addrprep(sdiodev, width, &addr);
 	if (err)
 		goto done;
 
 	if (pktq->qlen == 1)
-		err = brcmf_sdio_buffrw(sdiodev, fn, false, addr, pktq->next);
+		err = brcmf_sdiod_buffrw(sdiodev, fn, false, addr, pktq->next);
 	else if (!sdiodev->sg_support) {
 		glom_skb = brcmu_pkt_buf_get_skb(totlen);
 		if (!glom_skb)
 			return -ENOMEM;
-		err = brcmf_sdio_buffrw(sdiodev, fn, false, addr, glom_skb);
+		err = brcmf_sdiod_buffrw(sdiodev, fn, false, addr, glom_skb);
 		if (err)
 			goto done;
 
@@ -753,15 +753,15 @@ int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 			skb_pull(glom_skb, skb->len);
 		}
 	} else
-		err = brcmf_sdio_sglist_rw(sdiodev, fn, false, addr, pktq);
+		err = brcmf_sdiod_sglist_rw(sdiodev, fn, false, addr, pktq);
 
 done:
 	return err;
 }
 
 int
-brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, u8 *buf, uint nbytes)
+brcmf_sdiod_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+		     uint flags, u8 *buf, uint nbytes)
 {
 	struct sk_buff *mypkt;
 	uint width;
@@ -777,10 +777,10 @@ brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	memcpy(mypkt->data, buf, nbytes);
 
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	err = brcmf_sdio_addrprep(sdiodev, width, &addr);
+	err = brcmf_sdiod_addrprep(sdiodev, width, &addr);
 
 	if (!err)
-		err = brcmf_sdio_buffrw(sdiodev, fn, true, addr, mypkt);
+		err = brcmf_sdiod_buffrw(sdiodev, fn, true, addr, mypkt);
 
 	brcmu_pkt_buf_free_skb(mypkt);
 	return err;
@@ -788,8 +788,8 @@ brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 }
 
 int
-brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, struct sk_buff_head *pktq)
+brcmf_sdiod_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+		     uint flags, struct sk_buff_head *pktq)
 {
 	struct sk_buff *skb;
 	uint width;
@@ -799,25 +799,25 @@ brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		  fn, addr, pktq->qlen);
 
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	err = brcmf_sdio_addrprep(sdiodev, width, &addr);
+	err = brcmf_sdiod_addrprep(sdiodev, width, &addr);
 	if (err)
 		return err;
 
 	if (pktq->qlen == 1 || !sdiodev->sg_support)
 		skb_queue_walk(pktq, skb) {
-			err = brcmf_sdio_buffrw(sdiodev, fn, true, addr, skb);
+			err = brcmf_sdiod_buffrw(sdiodev, fn, true, addr, skb);
 			if (err)
 				break;
 		}
 	else
-		err = brcmf_sdio_sglist_rw(sdiodev, fn, true, addr, pktq);
+		err = brcmf_sdiod_sglist_rw(sdiodev, fn, true, addr, pktq);
 
 	return err;
 }
 
 int
-brcmf_sdio_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
-		 u8 *data, uint size)
+brcmf_sdiod_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
+		  u8 *data, uint size)
 {
 	int bcmerror = 0;
 	struct sk_buff *pkt;
@@ -844,7 +844,7 @@ brcmf_sdio_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 	/* Do the transfer(s) */
 	while (size) {
 		/* Set the backplane window to include the start address */
-		bcmerror = brcmf_sdcard_set_sbaddr_window(sdiodev, address);
+		bcmerror = brcmf_sdiod_set_sbaddr_window(sdiodev, address);
 		if (bcmerror)
 			break;
 
@@ -858,8 +858,8 @@ brcmf_sdio_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 		skb_put(pkt, dsize);
 		if (write)
 			memcpy(pkt->data, data, dsize);
-		bcmerror = brcmf_sdio_buffrw(sdiodev, SDIO_FUNC_1, write,
-					     sdaddr, pkt);
+		bcmerror = brcmf_sdiod_buffrw(sdiodev, SDIO_FUNC_1, write,
+					      sdaddr, pkt);
 		if (bcmerror) {
 			brcmf_err("membytes transfer failed\n");
 			break;
@@ -881,7 +881,7 @@ brcmf_sdio_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 	dev_kfree_skb(pkt);
 
 	/* Return the window to backplane enumeration space for core access */
-	if (brcmf_sdcard_set_sbaddr_window(sdiodev, sdiodev->sbwad))
+	if (brcmf_sdiod_set_sbaddr_window(sdiodev, sdiodev->sbwad))
 		brcmf_err("FAILED to set window back to 0x%x\n",
 			  sdiodev->sbwad);
 
@@ -890,41 +890,64 @@ brcmf_sdio_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 	return bcmerror;
 }
 
-int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn)
+int brcmf_sdiod_abort(struct brcmf_sdio_dev *sdiodev, uint fn)
 {
 	char t_func = (char)fn;
 	brcmf_dbg(SDIO, "Enter\n");
 
 	/* issue abort cmd52 command through F0 */
-	brcmf_sdioh_request_byte(sdiodev, SDIOH_WRITE, SDIO_FUNC_0,
+	brcmf_sdiod_request_byte(sdiodev, SDIOH_WRITE, SDIO_FUNC_0,
 				 SDIO_CCCR_ABORT, &t_func);
 
 	brcmf_dbg(SDIO, "Exit\n");
 	return 0;
 }
 
-static int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev)
+static int brcmf_sdiod_remove(struct brcmf_sdio_dev *sdiodev)
 {
-	int err_ret = 0;
-	struct mmc_host *host;
-	struct sdio_func *func;
-	uint max_blocks;
+	sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 
-	brcmf_dbg(SDIO, "\n");
+	if (sdiodev->bus) {
+		brcmf_sdbrcm_disconnect(sdiodev->bus);
+		sdiodev->bus = NULL;
+	}
+
+	/* Disable Function 2 */
+	sdio_claim_host(sdiodev->func[2]);
+	sdio_disable_func(sdiodev->func[2]);
+	sdio_release_host(sdiodev->func[2]);
+
+	/* Disable Function 1 */
+	sdio_claim_host(sdiodev->func[1]);
+	sdio_disable_func(sdiodev->func[1]);
+	sdio_release_host(sdiodev->func[1]);
+
+	sdiodev->sbwad = 0;
+
+	return 0;
+}
+
+static int brcmf_sdiod_probe(struct brcmf_sdio_dev *sdiodev)
+{
+	struct sdio_func *func;
+	struct mmc_host *host;
+	uint max_blocks;
+	int ret = 0;
 
 	sdiodev->num_funcs = 2;
 
 	sdio_claim_host(sdiodev->func[1]);
 
-	err_ret = sdio_set_block_size(sdiodev->func[1], SDIO_FUNC1_BLOCKSIZE);
-	if (err_ret) {
+	ret = sdio_set_block_size(sdiodev->func[1], SDIO_FUNC1_BLOCKSIZE);
+	if (ret) {
 		brcmf_err("Failed to set F1 blocksize\n");
+		sdio_release_host(sdiodev->func[1]);
 		goto out;
 	}
-
-	err_ret = sdio_set_block_size(sdiodev->func[2], SDIO_FUNC2_BLOCKSIZE);
-	if (err_ret) {
+	ret = sdio_set_block_size(sdiodev->func[2], SDIO_FUNC2_BLOCKSIZE);
+	if (ret) {
 		brcmf_err("Failed to set F2 blocksize\n");
+		sdio_release_host(sdiodev->func[1]);
 		goto out;
 	}
 
@@ -932,14 +955,15 @@ static int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev)
 	sdiodev->func[2]->enable_timeout = SDIO_WAIT_F2RDY;
 
 	/* Enable Function 1 */
-	err_ret = sdio_enable_func(sdiodev->func[1]);
-	if (err_ret) {
-		brcmf_err("Failed to enable F1 Err: 0x%08x\n", err_ret);
+	ret = sdio_enable_func(sdiodev->func[1]);
+	sdio_release_host(sdiodev->func[1]);
+	if (ret) {
+		brcmf_err("Failed to enable F1: err=%d\n", ret);
 		goto out;
 	}
 
 	/*
-	 * determine host related variables after brcmf_sdio_probe()
+	 * determine host related variables after brcmf_sdiod_probe()
 	 * as func->cur_blksize is properly set and F2 init has been
 	 * completed successfully.
 	 */
@@ -952,63 +976,17 @@ static int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev)
 	sdiodev->max_segment_count = min_t(uint, host->max_segs,
 					   SG_MAX_SINGLE_ALLOC);
 	sdiodev->max_segment_size = host->max_seg_size;
-out:
-	sdio_release_host(sdiodev->func[1]);
-	brcmf_dbg(SDIO, "Done\n");
-	return err_ret;
-}
-
-static void brcmf_sdioh_detach(struct brcmf_sdio_dev *sdiodev)
-{
-	brcmf_dbg(SDIO, "\n");
-
-	/* Disable Function 2 */
-	sdio_claim_host(sdiodev->func[2]);
-	sdio_disable_func(sdiodev->func[2]);
-	sdio_release_host(sdiodev->func[2]);
-
-	/* Disable Function 1 */
-	sdio_claim_host(sdiodev->func[1]);
-	sdio_disable_func(sdiodev->func[1]);
-	sdio_release_host(sdiodev->func[1]);
-
-}
-
-static int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev)
-{
-	sdiodev->bus_if->state = BRCMF_BUS_DOWN;
-
-	if (sdiodev->bus) {
-		brcmf_sdbrcm_disconnect(sdiodev->bus);
-		sdiodev->bus = NULL;
-	}
-
-	brcmf_sdioh_detach(sdiodev);
-
-	sdiodev->sbwad = 0;
-
-	return 0;
-}
-
-static int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
-{
-	int ret = 0;
-
-	ret = brcmf_sdioh_attach(sdiodev);
-	if (ret)
-		goto out;
 
 	/* try to attach to the target device */
 	sdiodev->bus = brcmf_sdbrcm_probe(sdiodev);
 	if (!sdiodev->bus) {
-		brcmf_err("device attach failed\n");
 		ret = -ENODEV;
 		goto out;
 	}
 
 out:
 	if (ret)
-		brcmf_sdio_remove(sdiodev);
+		brcmf_sdiod_remove(sdiodev);
 
 	return ret;
 }
@@ -1075,8 +1053,8 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	init_waitqueue_head(&sdiodev->request_word_wait);
 	init_waitqueue_head(&sdiodev->request_buffer_wait);
 
-	brcmf_dbg(SDIO, "F2 found, calling brcmf_sdio_probe...\n");
-	err = brcmf_sdio_probe(sdiodev);
+	brcmf_dbg(SDIO, "F2 found, calling brcmf_sdiod_probe...\n");
+	err = brcmf_sdiod_probe(sdiodev);
 	if (err) {
 		brcmf_err("F2 error, probe failed %d...\n", err);
 		goto fail;
@@ -1109,7 +1087,7 @@ static void brcmf_ops_sdio_remove(struct sdio_func *func)
 	bus_if = dev_get_drvdata(&func->dev);
 	if (bus_if) {
 		sdiodev = bus_if->bus_priv.sdio;
-		brcmf_sdio_remove(sdiodev);
+		brcmf_sdiod_remove(sdiodev);
 
 		dev_set_drvdata(&sdiodev->func[1]->dev, NULL);
 		dev_set_drvdata(&sdiodev->func[2]->dev, NULL);
@@ -1122,7 +1100,7 @@ static void brcmf_ops_sdio_remove(struct sdio_func *func)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int brcmf_sdio_suspend(struct device *dev)
+static int brcmf_ops_sdio_suspend(struct device *dev)
 {
 	mmc_pm_flag_t sdio_flags;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
@@ -1150,7 +1128,7 @@ static int brcmf_sdio_suspend(struct device *dev)
 	return ret;
 }
 
-static int brcmf_sdio_resume(struct device *dev)
+static int brcmf_ops_sdio_resume(struct device *dev)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
@@ -1161,8 +1139,8 @@ static int brcmf_sdio_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops brcmf_sdio_pm_ops = {
-	.suspend	= brcmf_sdio_suspend,
-	.resume		= brcmf_sdio_resume,
+	.suspend	= brcmf_ops_sdio_suspend,
+	.resume		= brcmf_ops_sdio_resume,
 };
 #endif	/* CONFIG_PM_SLEEP */
 
