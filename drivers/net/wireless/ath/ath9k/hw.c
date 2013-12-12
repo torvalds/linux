@@ -1485,7 +1485,6 @@ static bool ath9k_hw_chip_reset(struct ath_hw *ah,
 	if (AR_SREV_9330(ah))
 		ar9003_hw_internal_regulator_apply(ah);
 	ath9k_hw_init_pll(ah, chan);
-	ath9k_hw_set_rfmode(ah, chan);
 
 	return true;
 }
@@ -1953,6 +1952,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	r = ath9k_hw_process_ini(ah, chan);
 	if (r)
 		return r;
+
+	ath9k_hw_set_rfmode(ah, chan);
 
 	if (ath9k_hw_mci_is_enabled(ah))
 		ar9003_mci_reset(ah, false, IS_CHAN_2GHZ(chan), save_fullsleep);
