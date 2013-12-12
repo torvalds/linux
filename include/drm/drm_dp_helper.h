@@ -421,6 +421,7 @@ struct drm_dp_aux_msg {
 
 /**
  * struct drm_dp_aux - DisplayPort AUX channel
+ * @ddc: I2C adapter that can be used for I2C-over-AUX communication
  * @dev: pointer to struct device that is the parent for this AUX channel
  * @transfer: transfers a message representing a single AUX transaction
  *
@@ -435,8 +436,16 @@ struct drm_dp_aux_msg {
  * propagate errors from the .transfer() function, with the exception of
  * the -EBUSY error, which causes a transaction to be retried. On a short,
  * helpers will return -EPROTO to make it simpler to check for failure.
+ *
+ * An AUX channel can also be used to transport I2C messages to a sink. A
+ * typical application of that is to access an EDID that's present in the
+ * sink device. The .transfer() function can also be used to execute such
+ * transactions. The drm_dp_aux_register_i2c_bus() function registers an
+ * I2C adapter that can be passed to drm_probe_ddc(). Upon removal, drivers
+ * should call drm_dp_aux_unregister_i2c_bus() to remove the I2C adapter.
  */
 struct drm_dp_aux {
+	struct i2c_adapter ddc;
 	struct device *dev;
 
 	ssize_t (*transfer)(struct drm_dp_aux *aux,
@@ -496,5 +505,8 @@ struct drm_dp_link {
 int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link);
 int drm_dp_link_power_up(struct drm_dp_aux *aux, struct drm_dp_link *link);
 int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link);
+
+int drm_dp_aux_register_i2c_bus(struct drm_dp_aux *aux);
+void drm_dp_aux_unregister_i2c_bus(struct drm_dp_aux *aux);
 
 #endif /* _DRM_DP_HELPER_H_ */
