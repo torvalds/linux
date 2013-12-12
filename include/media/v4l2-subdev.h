@@ -584,6 +584,7 @@ struct v4l2_subdev {
 #endif
 	struct list_head list;
 	struct module *owner;
+	bool owner_v4l2_dev;
 	u32 flags;
 	struct v4l2_device *v4l2_dev;
 	const struct v4l2_subdev_ops *ops;
