@@ -240,7 +240,7 @@ int tcp_gro_complete(struct sk_buff *skb)
 {
 	struct tcphdr *th = tcp_hdr(skb);
 
-	skb->csum_start = skb_transport_header(skb) - skb->head;
+	skb->csum_start = (unsigned char *)th - skb->head;
 	skb->csum_offset = offsetof(struct tcphdr, check);
 	skb->ip_summed = CHECKSUM_PARTIAL;
 
@@ -272,6 +272,7 @@ static int tcp_v4_gso_send_check(struct sk_buff *skb)
 
 static struct sk_buff **tcp4_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 {
+	/* Use the IP hdr immediately proceeding for this transport */
 	const struct iphdr *iph = skb_gro_network_header(skb);
 	__wsum wsum;
 
@@ -303,13 +304,13 @@ skip_csum:
 	return tcp_gro_receive(head, skb);
 }
 
-static int tcp4_gro_complete(struct sk_buff *skb)
+static int tcp4_gro_complete(struct sk_buff *skb, int thoff)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	struct tcphdr *th = tcp_hdr(skb);
 
-	th->check = ~tcp_v4_check(skb->len - skb_transport_offset(skb),
-				  iph->saddr, iph->daddr, 0);
+	th->check = ~tcp_v4_check(skb->len - thoff, iph->saddr,
+				  iph->daddr, 0);
 	skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
 
 	return tcp_gro_complete(skb);
