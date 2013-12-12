@@ -552,81 +552,29 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 					 const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
-	struct list_head *iter;
-	struct slave *slave;
-	__be32 newtarget, *targets;
-	unsigned long *targets_rx;
-	int ind, i, j, ret = -EINVAL;
+	__be32 target;
+	int ret = -EPERM;
+
+	if (!in4_pton(buf + 1, -1, (u8 *)&target, -1, NULL)) {
+		pr_err("%s: invalid ARP target %pI4 specified\n",
+		       bond->dev->name, &target);
+		return -EPERM;
+	}
 
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	targets = bond->params.arp_targets;
-	if (!in4_pton(buf + 1, -1, (u8 *)&newtarget, -1, NULL) ||
-	    IS_IP_TARGET_UNUSABLE_ADDRESS(newtarget)) {
-		pr_err("%s: invalid ARP target %pI4 specified for addition\n",
-		       bond->dev->name, &newtarget);
-		goto out;
-	}
-	/* look for adds */
-	if (buf[0] == '+') {
-		if (bond_get_targets_ip(targets, newtarget) != -1) { /* dup */
-			pr_err("%s: ARP target %pI4 is already present\n",
-			       bond->dev->name, &newtarget);
-			goto out;
-		}
-
-		ind = bond_get_targets_ip(targets, 0); /* first free slot */
-		if (ind == -1) {
-			pr_err("%s: ARP target table is full!\n",
-			       bond->dev->name);
-			goto out;
-		}
-
-		pr_info("%s: adding ARP target %pI4.\n", bond->dev->name,
-			 &newtarget);
-		/* not to race with bond_arp_rcv */
-		write_lock_bh(&bond->lock);
-		bond_for_each_slave(bond, slave, iter)
-			slave->target_last_arp_rx[ind] = jiffies;
-		targets[ind] = newtarget;
-		write_unlock_bh(&bond->lock);
-	} else if (buf[0] == '-')	{
-		ind = bond_get_targets_ip(targets, newtarget);
-		if (ind == -1) {
-			pr_err("%s: unable to remove nonexistent ARP target %pI4.\n",
-				bond->dev->name, &newtarget);
-			goto out;
-		}
-
-		if (ind == 0 && !targets[1] && bond->params.arp_interval)
-			pr_warn("%s: removing last arp target with arp_interval on\n",
-				bond->dev->name);
-
-		pr_info("%s: removing ARP target %pI4.\n", bond->dev->name,
-			&newtarget);
-
-		write_lock_bh(&bond->lock);
-		bond_for_each_slave(bond, slave, iter) {
-			targets_rx = slave->target_last_arp_rx;
-			j = ind;
-			for (; (j < BOND_MAX_ARP_TARGETS-1) && targets[j+1]; j++)
-				targets_rx[j] = targets_rx[j+1];
-			targets_rx[j] = 0;
-		}
-		for (i = ind; (i < BOND_MAX_ARP_TARGETS-1) && targets[i+1]; i++)
-			targets[i] = targets[i+1];
-		targets[i] = 0;
-		write_unlock_bh(&bond->lock);
-	} else {
+	if (buf[0] == '+')
+		ret = bond_option_arp_ip_target_add(bond, target);
+	else if (buf[0] == '-')
+		ret = bond_option_arp_ip_target_rem(bond, target);
+	else
 		pr_err("no command found in arp_ip_targets file for bond %s. Use +<addr> or -<addr>.\n",
 		       bond->dev->name);
-		ret = -EPERM;
-		goto out;
-	}
 
-	ret = count;
-out:
+	if (!ret)
+		ret = count;
+
 	rtnl_unlock();
 	return ret;
 }

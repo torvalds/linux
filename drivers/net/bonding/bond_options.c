@@ -306,3 +306,133 @@ int bond_option_arp_interval_set(struct bonding *bond, int arp_interval)
 
 	return 0;
 }
+
+static void _bond_options_arp_ip_target_set(struct bonding *bond, int slot,
+					    __be32 target,
+					    unsigned long last_rx)
+{
+	__be32 *targets = bond->params.arp_targets;
+	struct list_head *iter;
+	struct slave *slave;
+
+	if (slot >= 0 && slot < BOND_MAX_ARP_TARGETS) {
+		bond_for_each_slave(bond, slave, iter)
+			slave->target_last_arp_rx[slot] = last_rx;
+		targets[slot] = target;
+	}
+}
+
+static int _bond_option_arp_ip_target_add(struct bonding *bond, __be32 target)
+{
+	__be32 *targets = bond->params.arp_targets;
+	int ind;
+
+	if (IS_IP_TARGET_UNUSABLE_ADDRESS(target)) {
+		pr_err("%s: invalid ARP target %pI4 specified for addition\n",
+		       bond->dev->name, &target);
+		return -EINVAL;
+	}
+
+	if (bond_get_targets_ip(targets, target) != -1) { /* dup */
+		pr_err("%s: ARP target %pI4 is already present\n",
+		       bond->dev->name, &target);
+		return -EINVAL;
+	}
+
+	ind = bond_get_targets_ip(targets, 0); /* first free slot */
+	if (ind == -1) {
+		pr_err("%s: ARP target table is full!\n",
+		       bond->dev->name);
+		return -EINVAL;
+	}
+
+	pr_info("%s: adding ARP target %pI4.\n", bond->dev->name, &target);
+
+	_bond_options_arp_ip_target_set(bond, ind, target, jiffies);
+
+	return 0;
+}
+
+int bond_option_arp_ip_target_add(struct bonding *bond, __be32 target)
+{
+	int ret;
+
+	/* not to race with bond_arp_rcv */
+	write_lock_bh(&bond->lock);
+	ret = _bond_option_arp_ip_target_add(bond, target);
+	write_unlock_bh(&bond->lock);
+
+	return ret;
+}
+
+int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target)
+{
+	__be32 *targets = bond->params.arp_targets;
+	struct list_head *iter;
+	struct slave *slave;
+	unsigned long *targets_rx;
+	int ind, i;
+
+	if (IS_IP_TARGET_UNUSABLE_ADDRESS(target)) {
+		pr_err("%s: invalid ARP target %pI4 specified for removal\n",
+		       bond->dev->name, &target);
+		return -EINVAL;
+	}
+
+	ind = bond_get_targets_ip(targets, target);
+	if (ind == -1) {
+		pr_err("%s: unable to remove nonexistent ARP target %pI4.\n",
+		       bond->dev->name, &target);
+		return -EINVAL;
+	}
+
+	if (ind == 0 && !targets[1] && bond->params.arp_interval)
+		pr_warn("%s: removing last arp target with arp_interval on\n",
+			bond->dev->name);
+
+	pr_info("%s: removing ARP target %pI4.\n", bond->dev->name,
+		&target);
+
+	/* not to race with bond_arp_rcv */
+	write_lock_bh(&bond->lock);
+
+	bond_for_each_slave(bond, slave, iter) {
+		targets_rx = slave->target_last_arp_rx;
+		for (i = ind; (i < BOND_MAX_ARP_TARGETS-1) && targets[i+1]; i++)
+			targets_rx[i] = targets_rx[i+1];
+		targets_rx[i] = 0;
+	}
+	for (i = ind; (i < BOND_MAX_ARP_TARGETS-1) && targets[i+1]; i++)
+		targets[i] = targets[i+1];
+	targets[i] = 0;
+
+	write_unlock_bh(&bond->lock);
+
+	return 0;
+}
+
+int bond_option_arp_ip_targets_set(struct bonding *bond, __be32 *targets,
+				   int count)
+{
+	int i, ret = 0;
+
+	/* not to race with bond_arp_rcv */
+	write_lock_bh(&bond->lock);
+
+	/* clear table */
+	for (i = 0; i < BOND_MAX_ARP_TARGETS; i++)
+		_bond_options_arp_ip_target_set(bond, i, 0, 0);
+
+	if (count == 0 && bond->params.arp_interval)
+		pr_warn("%s: removing last arp target with arp_interval on\n",
+			bond->dev->name);
+
+	for (i = 0; i < count; i++) {
+		ret = _bond_option_arp_ip_target_add(bond, targets[i]);
+		if (ret)
+			break;
+	}
+
+	write_unlock_bh(&bond->lock);
+	return ret;
+}

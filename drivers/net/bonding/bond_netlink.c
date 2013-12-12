@@ -29,6 +29,7 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_DOWNDELAY]		= { .type = NLA_U32 },
 	[IFLA_BOND_USE_CARRIER]		= { .type = NLA_U8 },
 	[IFLA_BOND_ARP_INTERVAL]	= { .type = NLA_U32 },
+	[IFLA_BOND_ARP_IP_TARGET]	= { .type = NLA_NESTED },
 };
 
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -116,6 +117,20 @@ static int bond_changelink(struct net_device *bond_dev,
 		if (err)
 			return err;
 	}
+	if (data[IFLA_BOND_ARP_IP_TARGET]) {
+		__be32 targets[BOND_MAX_ARP_TARGETS] = { 0, };
+		struct nlattr *attr;
+		int i = 0, rem;
+
+		nla_for_each_nested(attr, data[IFLA_BOND_ARP_IP_TARGET], rem) {
+			__be32 target = nla_get_u32(attr);
+			targets[i++] = target;
+		}
+
+		err = bond_option_arp_ip_targets_set(bond, targets, i);
+		if (err)
+			return err;
+	}
 	return 0;
 }
 
@@ -140,6 +155,8 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_DOWNDELAY */
 		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_USE_CARRIER */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ARP_INTERVAL */
+						/* IFLA_BOND_ARP_IP_TARGET */
+		nla_total_size(sizeof(u32)) * BOND_MAX_ARP_TARGETS +
 		0;
 }
 
@@ -148,6 +165,8 @@ static int bond_fill_info(struct sk_buff *skb,
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct net_device *slave_dev = bond_option_active_slave_get(bond);
+	struct nlattr *targets;
+	int i, targets_added;
 
 	if (nla_put_u8(skb, IFLA_BOND_MODE, bond->params.mode))
 		goto nla_put_failure;
@@ -172,6 +191,23 @@ static int bond_fill_info(struct sk_buff *skb,
 
 	if (nla_put_u32(skb, IFLA_BOND_ARP_INTERVAL, bond->params.arp_interval))
 		goto nla_put_failure;
+
+	targets = nla_nest_start(skb, IFLA_BOND_ARP_IP_TARGET);
+	if (!targets)
+		goto nla_put_failure;
+
+	targets_added = 0;
+	for (i = 0; i < BOND_MAX_ARP_TARGETS; i++) {
+		if (bond->params.arp_targets[i]) {
+			nla_put_u32(skb, i, bond->params.arp_targets[i]);
+			targets_added = 1;
+		}
+	}
+
+	if (targets_added)
+		nla_nest_end(skb, targets);
+	else
+		nla_nest_cancel(skb, targets);
 
 	return 0;
 
