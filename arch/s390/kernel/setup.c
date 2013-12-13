@@ -373,7 +373,7 @@ static void __init setup_lowcore(void)
 
 	/*
 	 * Set up PSW restart to call ipl.c:do_restart(). Copy the relevant
-	 * restart data to the absolute zero lowcore. This is necesary if
+	 * restart data to the absolute zero lowcore. This is necessary if
 	 * PSW restart is done on an offline CPU that has lowcore zero.
 	 */
 	lc->restart_stack = (unsigned long) restart_stack;

@@ -419,7 +419,7 @@ static int xcrb_msg_to_type6_ep11cprb_msgx(struct zcrypt_device *zdev,
 	 replaced by the usage domain for non-management commands only.
 	 Therefore we check the first bit of the 'flags' parameter for
 	 management command indication.
-	   0 - non managment command
+	   0 - non management command
 	   1 - management command
 	*/
 	if (!((msg->cprbx.flags & 0x80) == 0x80)) {

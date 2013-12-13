@@ -336,7 +336,7 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
 #define QDIO_FLAG_CLEANUP_USING_HALT		0x02
 
 /**
- * struct qdio_initialize - qdio initalization data
+ * struct qdio_initialize - qdio initialization data
  * @cdev: associated ccw device
  * @q_format: queue format
  * @adapter_name: name for the adapter

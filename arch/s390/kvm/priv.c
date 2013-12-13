@@ -275,7 +275,7 @@ static int handle_io_inst(struct kvm_vcpu *vcpu)
 		return -EOPNOTSUPP;
 	} else {
 		/*
-		 * Set condition code 3 to stop the guest from issueing channel
+		 * Set condition code 3 to stop the guest from issuing channel
 		 * I/O instructions.
 		 */
 		kvm_s390_set_psw_cc(vcpu, 3);
