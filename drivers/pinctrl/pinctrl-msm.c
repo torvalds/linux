@@ -429,7 +429,12 @@ static int msm_gpio_direction_output(struct gpio_chip *chip, unsigned offset, in
 
 	spin_lock_irqsave(&pctrl->lock, flags);
 
-	writel(value ? BIT(g->out_bit) : 0, pctrl->regs + g->io_reg);
+	val = readl(pctrl->regs + g->io_reg);
+	if (value)
+		val |= BIT(g->out_bit);
+	else
+		val &= ~BIT(g->out_bit);
+	writel(val, pctrl->regs + g->io_reg);
 
 	val = readl(pctrl->regs + g->ctl_reg);
 	val |= BIT(g->oe_bit);
@@ -468,7 +473,10 @@ static void msm_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	spin_lock_irqsave(&pctrl->lock, flags);
 
 	val = readl(pctrl->regs + g->io_reg);
-	val |= BIT(g->out_bit);
+	if (value)
+		val |= BIT(g->out_bit);
+	else
+		val &= ~BIT(g->out_bit);
 	writel(val, pctrl->regs + g->io_reg);
 
 	spin_unlock_irqrestore(&pctrl->lock, flags);
