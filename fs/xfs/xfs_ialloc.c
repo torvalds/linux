@@ -170,27 +170,20 @@ xfs_ialloc_inode_init(
 {
 	struct xfs_buf		*fbuf;
 	struct xfs_dinode	*free;
-	int			blks_per_cluster, nbufs, ninodes;
+	int			nbufs, blks_per_cluster, inodes_per_cluster;
 	int			version;
 	int			i, j;
 	xfs_daddr_t		d;
 	xfs_ino_t		ino = 0;
 
 	/*
-	 * Loop over the new block(s), filling in the inodes.
-	 * For small block sizes, manipulate the inodes in buffers
-	 * which are multiples of the blocks size.
+	 * Loop over the new block(s), filling in the inodes.  For small block
+	 * sizes, manipulate the inodes in buffers  which are multiples of the
+	 * blocks size.
 	 */
-	if (mp->m_sb.sb_blocksize >= mp->m_inode_cluster_size) {
-		blks_per_cluster = 1;
-		nbufs = length;
-		ninodes = mp->m_sb.sb_inopblock;
-	} else {
-		blks_per_cluster = mp->m_inode_cluster_size /
-				   mp->m_sb.sb_blocksize;
-		nbufs = length / blks_per_cluster;
-		ninodes = blks_per_cluster * mp->m_sb.sb_inopblock;
-	}
+	blks_per_cluster = xfs_icluster_size_fsb(mp);
+	inodes_per_cluster = blks_per_cluster << mp->m_sb.sb_inopblog;
+	nbufs = length / blks_per_cluster;
 
 	/*
 	 * Figure out what version number to use in the inodes we create.  If
@@ -246,7 +239,7 @@ xfs_ialloc_inode_init(
 		/* Initialize the inode buffers and log them appropriately. */
 		fbuf->b_ops = &xfs_inode_buf_ops;
 		xfs_buf_zero(fbuf, 0, BBTOB(fbuf->b_length));
-		for (i = 0; i < ninodes; i++) {
+		for (i = 0; i < inodes_per_cluster; i++) {
 			int	ioffset = i << mp->m_sb.sb_inodelog;
 			uint	isize = xfs_dinode_size(version);
 
