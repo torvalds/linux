@@ -684,8 +684,7 @@ static struct sg_table *ion_map_dma_buf(struct dma_buf_attachment *attachment,
 	struct dma_buf *dmabuf = attachment->dmabuf;
 	struct ion_buffer *buffer = dmabuf->priv;
 
-	if (buffer->flags & ION_FLAG_CACHED)
-		ion_buffer_sync_for_device(buffer, attachment->dev, direction);
+	ion_buffer_sync_for_device(buffer, attachment->dev, direction);
 	return buffer->sg_table;
 }
 
@@ -721,6 +720,10 @@ static void ion_buffer_sync_for_device(struct ion_buffer *buffer,
 
 	pr_debug("%s: syncing for device %s\n", __func__,
 		 dev ? dev_name(dev) : "null");
+
+	if (!(buffer->flags & ION_FLAG_CACHED))
+		return;
+
 	mutex_lock(&buffer->lock);
 	for_each_sg(buffer->sg_table->sgl, sg, buffer->sg_table->nents, i) {
 		if (!test_bit(i, buffer->dirty))
@@ -958,6 +961,28 @@ end:
 	return handle;
 }
 
+static int ion_sync_for_device(struct ion_client *client, int fd)
+{
+	struct dma_buf *dmabuf;
+	struct ion_buffer *buffer;
+
+	dmabuf = dma_buf_get(fd);
+	if (IS_ERR_OR_NULL(dmabuf))
+		return PTR_ERR(dmabuf);
+
+	/* if this memory came from ion */
+	if (dmabuf->ops != &dma_buf_ops) {
+		pr_err("%s: can not sync dmabuf from another exporter\n",
+		       __func__);
+		dma_buf_put(dmabuf);
+		return -EINVAL;
+	}
+	buffer = dmabuf->priv;
+	ion_buffer_sync_for_device(buffer, NULL, DMA_BIDIRECTIONAL);
+	dma_buf_put(dmabuf);
+	return 0;
+}
+
 static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct ion_client *client = filp->private_data;
@@ -1020,6 +1045,15 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (copy_to_user((void __user *)arg, &data,
 				 sizeof(struct ion_fd_data)))
 			return -EFAULT;
+		break;
+	}
+	case ION_IOC_SYNC:
+	{
+		struct ion_fd_data data;
+		if (copy_from_user(&data, (void __user *)arg,
+				   sizeof(struct ion_fd_data)))
+			return -EFAULT;
+		ion_sync_for_device(client, data.fd);
 		break;
 	}
 	case ION_IOC_CUSTOM:
