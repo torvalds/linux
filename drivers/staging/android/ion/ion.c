@@ -151,6 +151,9 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 		return ERR_PTR(ret);
 	}
 
+	buffer->dev = dev;
+	buffer->size = len;
+
 	table = buffer->heap->ops->map_dma(buffer->heap, buffer);
 	if (IS_ERR_OR_NULL(table)) {
 		heap->ops->free(buffer);
@@ -159,8 +162,6 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 	}
 	buffer->sg_table = table;
 
-	buffer->dev = dev;
-	buffer->size = len;
 	mutex_init(&buffer->lock);
 	ion_buffer_add(dev, buffer);
 	return buffer;
