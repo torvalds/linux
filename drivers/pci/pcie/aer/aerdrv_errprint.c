@@ -124,6 +124,21 @@ static const char *aer_agent_string[] = {
 	"Transmitter ID"
 };
 
+static void __print_tlp_header(struct pci_dev *dev,
+			       struct aer_header_log_regs *t)
+{
+	unsigned char *tlp = (unsigned char *)&t;
+
+	dev_err(&dev->dev, "  TLP Header:"
+		" %02x%02x%02x%02x %02x%02x%02x%02x"
+		" %02x%02x%02x%02x %02x%02x%02x%02x\n",
+		*(tlp + 3), *(tlp + 2), *(tlp + 1), *tlp,
+		*(tlp + 7), *(tlp + 6), *(tlp + 5), *(tlp + 4),
+		*(tlp + 11), *(tlp + 10), *(tlp + 9),
+		*(tlp + 8), *(tlp + 15), *(tlp + 14),
+		*(tlp + 13), *(tlp + 12));
+}
+
 static void __aer_print_error(struct pci_dev *dev,
 			      struct aer_err_info *info)
 {
@@ -178,17 +193,8 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 
 		__aer_print_error(dev, info);
 
-		if (info->tlp_header_valid) {
-			unsigned char *tlp = (unsigned char *) &info->tlp;
-			dev_err(&dev->dev, "  TLP Header:"
-				" %02x%02x%02x%02x %02x%02x%02x%02x"
-				" %02x%02x%02x%02x %02x%02x%02x%02x\n",
-				*(tlp + 3), *(tlp + 2), *(tlp + 1), *tlp,
-				*(tlp + 7), *(tlp + 6), *(tlp + 5), *(tlp + 4),
-				*(tlp + 11), *(tlp + 10), *(tlp + 9),
-				*(tlp + 8), *(tlp + 15), *(tlp + 14),
-				*(tlp + 13), *(tlp + 12));
-		}
+		if (info->tlp_header_valid)
+			__print_tlp_header(dev, &info->tlp);
 	}
 
 	if (info->id && info->error_dev_num > 1 && info->id == id)
@@ -250,18 +256,10 @@ void cper_print_aer(struct pci_dev *dev, int cper_severity,
 	if (aer_severity != AER_CORRECTABLE)
 		dev_err(&dev->dev, "aer_uncor_severity: 0x%08x\n",
 		       aer->uncor_severity);
-	if (tlp_header_valid) {
-		const unsigned char *tlp;
-		tlp = (const unsigned char *)&aer->header_log;
-		dev_err(&dev->dev, "aer_tlp_header:"
-			" %02x%02x%02x%02x %02x%02x%02x%02x"
-			" %02x%02x%02x%02x %02x%02x%02x%02x\n",
-			*(tlp + 3), *(tlp + 2), *(tlp + 1), *tlp,
-			*(tlp + 7), *(tlp + 6), *(tlp + 5), *(tlp + 4),
-			*(tlp + 11), *(tlp + 10), *(tlp + 9),
-			*(tlp + 8), *(tlp + 15), *(tlp + 14),
-			*(tlp + 13), *(tlp + 12));
-	}
+
+	if (tlp_header_valid)
+		__print_tlp_header(dev, &aer->header_log);
+
 	trace_aer_event(dev_name(&dev->dev), (status & ~mask),
 			aer_severity);
 }
