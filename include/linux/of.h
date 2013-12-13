@@ -76,6 +76,25 @@ struct of_phandle_args {
 
 extern int of_node_add(struct device_node *node);
 
+/* initialize a node */
+extern struct kobj_type of_node_ktype;
+static inline void of_node_init(struct device_node *node)
+{
+	kobject_init(&node->kobj, &of_node_ktype);
+}
+
+/* true when node is initialized */
+static inline int of_node_is_initialized(struct device_node *node)
+{
+	return node && node->kobj.state_initialized;
+}
+
+/* true when node is attached (i.e. present on sysfs) */
+static inline int of_node_is_attached(struct device_node *node)
+{
+	return node && node->kobj.state_in_sysfs;
+}
+
 #ifdef CONFIG_OF_DYNAMIC
 extern struct device_node *of_node_get(struct device_node *node);
 extern void of_node_put(struct device_node *node);
