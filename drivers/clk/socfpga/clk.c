@@ -51,7 +51,7 @@
 #define SOCFPGA_NAND_CLK		"nand_clk"
 #define SOCFPGA_NAND_X_CLK		"nand_x_clk"
 #define SOCFPGA_MMC_CLK			"sdmmc_clk"
-#define SOCFPGA_DB_CLK			"gpio_db_clk"
+#define SOCFPGA_GPIO_DB_CLK_OFFSET	0xA8
 
 #define div_mask(width)	((1 << (width)) - 1)
 #define streq(a, b) (strcmp((a), (b)) == 0)
@@ -234,7 +234,8 @@ static unsigned long socfpga_clk_recalc_rate(struct clk_hw *hwclk,
 	else if (socfpgaclk->div_reg) {
 		val = readl(socfpgaclk->div_reg) >> socfpgaclk->shift;
 		val &= div_mask(socfpgaclk->width);
-		if (streq(hwclk->init->name, SOCFPGA_DB_CLK))
+		/* Check for GPIO_DB_CLK by its offset */
+		if ((int)socfpgaclk->div_reg & SOCFPGA_GPIO_DB_CLK_OFFSET)
 			div = val + 1;
 		else
 			div = (1 << val);
