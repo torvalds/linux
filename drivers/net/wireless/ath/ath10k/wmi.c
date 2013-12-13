@@ -875,6 +875,7 @@ static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	struct wmi_mgmt_rx_event_v2 *ev_v2;
 	struct wmi_mgmt_rx_hdr_v1 *ev_hdr;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+	struct ieee80211_channel *ch;
 	struct ieee80211_hdr *hdr;
 	u32 rx_status;
 	u32 channel;
@@ -927,7 +928,25 @@ static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	if (rx_status & WMI_RX_STATUS_ERR_MIC)
 		status->flag |= RX_FLAG_MMIC_ERROR;
 
-	status->band = phy_mode_to_band(phy_mode);
+	/* HW can Rx CCK rates on 5GHz. In that case phy_mode is set to
+	 * MODE_11B. This means phy_mode is not a reliable source for the band
+	 * of mgmt rx. */
+
+	ch = ar->scan_channel;
+	if (!ch)
+		ch = ar->rx_channel;
+
+	if (ch) {
+		status->band = ch->band;
+
+		if (phy_mode == MODE_11B &&
+		    status->band == IEEE80211_BAND_5GHZ)
+			ath10k_dbg(ATH10K_DBG_MGMT, "wmi mgmt rx 11b (CCK) on 5GHz\n");
+	} else {
+		ath10k_warn("using (unreliable) phy_mode to extract band for mgmt rx\n");
+		status->band = phy_mode_to_band(phy_mode);
+	}
+
 	status->freq = ieee80211_channel_to_frequency(channel, status->band);
 	status->signal = snr + ATH10K_DEFAULT_NOISE_FLOOR;
 	status->rate_idx = get_rate_idx(rate, status->band);
