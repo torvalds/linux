@@ -917,6 +917,7 @@ static int i915_runtime_suspend(struct device *device)
 
 	DRM_DEBUG_KMS("Suspending device\n");
 
+	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
 	dev_priv->pm.suspended = true;
 	intel_opregion_notify_adapter(dev, PCI_D3cold);
 
