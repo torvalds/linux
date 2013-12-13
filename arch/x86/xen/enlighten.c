@@ -1410,8 +1410,43 @@ static void __init xen_boot_params_init_edd(void)
  * we do this, we have to be careful not to call any stack-protected
  * function, which is most of the kernel.
  */
-static void __init xen_setup_stackprotector(void)
+static void __init xen_setup_gdt(void)
 {
+	if (xen_feature(XENFEAT_auto_translated_physmap)) {
+#ifdef CONFIG_X86_64
+		unsigned long dummy;
+
+		switch_to_new_gdt(0); /* GDT and GS set */
+
+		/* We are switching of the Xen provided GDT to our HVM mode
+		 * GDT. The new GDT has  __KERNEL_CS with CS.L = 1
+		 * and we are jumping to reload it.
+		 */
+		asm volatile ("pushq %0\n"
+			      "leaq 1f(%%rip),%0\n"
+			      "pushq %0\n"
+			      "lretq\n"
+			      "1:\n"
+			      : "=&r" (dummy) : "0" (__KERNEL_CS));
+
+		/*
+		 * While not needed, we also set the %es, %ds, and %fs
+		 * to zero. We don't care about %ss as it is NULL.
+		 * Strictly speaking this is not needed as Xen zeros those
+		 * out (and also MSR_FS_BASE, MSR_GS_BASE, MSR_KERNEL_GS_BASE)
+		 *
+		 * Linux zeros them in cpu_init() and in secondary_startup_64
+		 * (for BSP).
+		 */
+		loadsegment(es, 0);
+		loadsegment(ds, 0);
+		loadsegment(fs, 0);
+#else
+		/* PVH: TODO Implement. */
+		BUG();
+#endif
+		return; /* PVH does not need any PV GDT ops. */
+	}
 	pv_cpu_ops.write_gdt_entry = xen_write_gdt_entry_boot;
 	pv_cpu_ops.load_gdt = xen_load_gdt_boot;
 
@@ -1494,7 +1529,7 @@ asmlinkage void __init xen_start_kernel(void)
 	 * Set up kernel GDT and segment registers, mainly so that
 	 * -fstack-protector code can be executed.
 	 */
-	xen_setup_stackprotector();
+	xen_setup_gdt();
 
 	xen_init_irq_ops();
 	xen_init_cpuid_mask();
