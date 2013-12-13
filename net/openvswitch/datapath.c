@@ -108,10 +108,9 @@ int lockdep_ovsl_is_held(void)
 #endif
 
 static struct vport *new_vport(const struct vport_parms *);
-static int queue_gso_packets(struct net *, int dp_ifindex, struct sk_buff *,
+static int queue_gso_packets(struct datapath *dp, struct sk_buff *,
 			     const struct dp_upcall_info *);
-static int queue_userspace_packet(struct net *, int dp_ifindex,
-				  struct sk_buff *,
+static int queue_userspace_packet(struct datapath *dp, struct sk_buff *,
 				  const struct dp_upcall_info *);
 
 /* Must be called with rcu_read_lock or ovs_mutex. */
@@ -277,7 +276,6 @@ int ovs_dp_upcall(struct datapath *dp, struct sk_buff *skb,
 		  const struct dp_upcall_info *upcall_info)
 {
 	struct dp_stats_percpu *stats;
-	int dp_ifindex;
 	int err;
 
 	if (upcall_info->portid == 0) {
@@ -285,16 +283,10 @@ int ovs_dp_upcall(struct datapath *dp, struct sk_buff *skb,
 		goto err;
 	}
 
-	dp_ifindex = get_dpifindex(dp);
-	if (!dp_ifindex) {
-		err = -ENODEV;
-		goto err;
-	}
-
 	if (!skb_is_gso(skb))
-		err = queue_userspace_packet(ovs_dp_get_net(dp), dp_ifindex, skb, upcall_info);
+		err = queue_userspace_packet(dp, skb, upcall_info);
 	else
-		err = queue_gso_packets(ovs_dp_get_net(dp), dp_ifindex, skb, upcall_info);
+		err = queue_gso_packets(dp, skb, upcall_info);
 	if (err)
 		goto err;
 
@@ -310,8 +302,7 @@ err:
 	return err;
 }
 
-static int queue_gso_packets(struct net *net, int dp_ifindex,
-			     struct sk_buff *skb,
+static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
 			     const struct dp_upcall_info *upcall_info)
 {
 	unsigned short gso_type = skb_shinfo(skb)->gso_type;
@@ -327,7 +318,7 @@ static int queue_gso_packets(struct net *net, int dp_ifindex,
 	/* Queue all of the segments. */
 	skb = segs;
 	do {
-		err = queue_userspace_packet(net, dp_ifindex, skb, upcall_info);
+		err = queue_userspace_packet(dp, skb, upcall_info);
 		if (err)
 			break;
 
@@ -394,8 +385,7 @@ static size_t upcall_msg_size(const struct sk_buff *skb,
 	return size;
 }
 
-static int queue_userspace_packet(struct net *net, int dp_ifindex,
-				  struct sk_buff *skb,
+static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 				  const struct dp_upcall_info *upcall_info)
 {
 	struct ovs_header *upcall;
@@ -403,11 +393,15 @@ static int queue_userspace_packet(struct net *net, int dp_ifindex,
 	struct sk_buff *user_skb; /* to be queued to userspace */
 	struct nlattr *nla;
 	struct genl_info info = {
-		.dst_sk = net->genl_sock,
+		.dst_sk = ovs_dp_get_net(dp)->genl_sock,
 		.snd_portid = upcall_info->portid,
 	};
 	size_t len;
-	int err;
+	int err, dp_ifindex;
+
+	dp_ifindex = get_dpifindex(dp);
+	if (!dp_ifindex)
+		return -ENODEV;
 
 	if (vlan_tx_tag_present(skb)) {
 		nskb = skb_clone(skb, GFP_ATOMIC);
@@ -452,7 +446,7 @@ static int queue_userspace_packet(struct net *net, int dp_ifindex,
 	skb_copy_and_csum_dev(skb, nla_data(nla));
 
 	genlmsg_end(user_skb, upcall);
-	err = genlmsg_unicast(net, user_skb, upcall_info->portid);
+	err = genlmsg_unicast(ovs_dp_get_net(dp), user_skb, upcall_info->portid);
 
 out:
 	kfree_skb(nskb);
