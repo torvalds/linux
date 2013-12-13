@@ -1332,6 +1332,7 @@ static void ar9003_hw_ani_cache_ini_regs(struct ath_hw *ah)
 static void ar9003_hw_set_radar_params(struct ath_hw *ah,
 				       struct ath_hw_radar_conf *conf)
 {
+	unsigned int regWrites = 0;
 	u32 radar_0 = 0, radar_1 = 0;
 
 	if (!conf) {
@@ -1358,6 +1359,11 @@ static void ar9003_hw_set_radar_params(struct ath_hw *ah,
 		REG_SET_BIT(ah, AR_PHY_RADAR_EXT, AR_PHY_RADAR_EXT_ENA);
 	else
 		REG_CLR_BIT(ah, AR_PHY_RADAR_EXT, AR_PHY_RADAR_EXT_ENA);
+
+	if (AR_SREV_9300(ah) || AR_SREV_9340(ah) || AR_SREV_9580(ah)) {
+		REG_WRITE_ARRAY(&ah->ini_dfs,
+				IS_CHAN_HT40(ah->curchan) ? 2 : 1, regWrites);
+	}
 }
 
 static void ar9003_hw_set_radar_conf(struct ath_hw *ah)

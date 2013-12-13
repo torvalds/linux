@@ -548,11 +548,11 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 	 * EEPROM needs to be initialized before we do this.
 	 * This is required for regulatory compliance.
 	 */
-	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
 		u16 regdmn = ah->eep_ops->get_eeprom(ah, EEP_REG_0);
 		if ((regdmn & 0xF0) == CTL_FCC) {
-			ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9462_FCC_2GHZ;
-			ah->nf_5g.max = AR_PHY_CCA_MAX_GOOD_VAL_9462_FCC_5GHZ;
+			ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9300_FCC_2GHZ;
+			ah->nf_5g.max = AR_PHY_CCA_MAX_GOOD_VAL_9300_FCC_5GHZ;
 		}
 	}
 

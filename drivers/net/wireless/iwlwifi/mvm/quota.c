@@ -217,8 +217,7 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 		} else {
 			cmd.quotas[idx].quota =
 				cpu_to_le32(quota * data.n_interfaces[i]);
-			cmd.quotas[idx].max_duration =
-				cpu_to_le32(IWL_MVM_MAX_QUOTA);
+			cmd.quotas[idx].max_duration = cpu_to_le32(0);
 		}
 		idx++;
 	}

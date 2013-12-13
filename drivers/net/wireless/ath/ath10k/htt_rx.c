@@ -659,23 +659,6 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 	memcpy(hdr_buf, hdr, hdr_len);
 	hdr = (struct ieee80211_hdr *)hdr_buf;
 
-	/* FIXME: Hopefully this is a temporary measure.
-	 *
-	 * Reporting individual A-MSDU subframes means each reported frame
-	 * shares the same sequence number.
-	 *
-	 * mac80211 drops frames it recognizes as duplicates, i.e.
-	 * retransmission flag is set and sequence number matches sequence
-	 * number from a previous frame (as per IEEE 802.11-2012: 9.3.2.10
-	 * "Duplicate detection and recovery")
-	 *
-	 * To avoid frames being dropped clear retransmission flag for all
-	 * received A-MSDUs.
-	 *
-	 * Worst case: actual duplicate frames will be reported but this should
-	 * still be handled gracefully by other OSI/ISO layers. */
-	hdr->frame_control &= cpu_to_le16(~IEEE80211_FCTL_RETRY);
-
 	first = skb;
 	while (skb) {
 		void *decap_hdr;
@@ -745,6 +728,9 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 		info->encrypt_type = enctype;
 		skb = skb->next;
 		info->skb->next = NULL;
+
+		if (skb)
+			info->amsdu_more = true;
 
 		ath10k_process_rx(htt->ar, info);
 	}
@@ -955,6 +941,11 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 				ath10k_dbg(ATH10K_DBG_HTT,
 					   "htt rx ignoring frame w/ status %d\n",
 					   status);
+				ath10k_htt_rx_free_msdu_chain(msdu_head);
+				continue;
+			}
+
+			if (test_bit(ATH10K_CAC_RUNNING, &htt->ar->dev_flags)) {
 				ath10k_htt_rx_free_msdu_chain(msdu_head);
 				continue;
 			}

@@ -1264,7 +1264,7 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 
 		if (cp->val == 0x02) {
 			/* Limited discoverable mode */
-			hci_cp.num_iac = 2;
+			hci_cp.num_iac = min_t(u8, hdev->num_iac, 2);
 			hci_cp.iac_lap[0] = 0x00;	/* LIAC */
 			hci_cp.iac_lap[1] = 0x8b;
 			hci_cp.iac_lap[2] = 0x9e;
@@ -4595,6 +4595,9 @@ void mgmt_device_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	struct mgmt_ev_device_disconnected ev;
 	struct sock *sk = NULL;
 
+	if (link_type != ACL_LINK && link_type != LE_LINK)
+		return;
+
 	mgmt_pending_foreach(MGMT_OP_DISCONNECT, hdev, disconnect_rsp, &sk);
 
 	bacpy(&ev.addr.bdaddr, bdaddr);
@@ -4613,6 +4616,8 @@ void mgmt_device_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr,
 void mgmt_disconnect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			    u8 link_type, u8 addr_type, u8 status)
 {
+	u8 bdaddr_type = link_to_bdaddr(link_type, addr_type);
+	struct mgmt_cp_disconnect *cp;
 	struct mgmt_rp_disconnect rp;
 	struct pending_cmd *cmd;
 
@@ -4623,8 +4628,16 @@ void mgmt_disconnect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	if (!cmd)
 		return;
 
+	cp = cmd->param;
+
+	if (bacmp(bdaddr, &cp->addr.bdaddr))
+		return;
+
+	if (cp->addr.type != bdaddr_type)
+		return;
+
 	bacpy(&rp.addr.bdaddr, bdaddr);
-	rp.addr.type = link_to_bdaddr(link_type, addr_type);
+	rp.addr.type = bdaddr_type;
 
 	cmd_complete(cmd->sk, cmd->index, MGMT_OP_DISCONNECT,
 		     mgmt_status(status), &rp, sizeof(rp));

@@ -388,7 +388,7 @@ static void iwl_mvm_tt_tx_protection(struct iwl_mvm *mvm, bool enable)
 						lockdep_is_held(&mvm->mutex));
 		if (IS_ERR_OR_NULL(sta))
 			continue;
-		mvmsta = (void *)sta->drv_priv;
+		mvmsta = iwl_mvm_sta_from_mac80211(sta);
 		if (enable == mvmsta->tt_tx_protection)
 			continue;
 		err = iwl_mvm_tx_protection(mvm, mvmsta, enable);

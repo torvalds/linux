@@ -127,6 +127,7 @@ enum iwl_bt_coex_valid_bit_msk {
 	BT_VALID_ANT_ISOLATION_THRS	= BIT(15),
 	BT_VALID_TXTX_DELTA_FREQ_THRS	= BIT(16),
 	BT_VALID_TXRX_MAX_FREQ_0	= BIT(17),
+	BT_VALID_SYNC_TO_SCO		= BIT(18),
 };
 
 /**

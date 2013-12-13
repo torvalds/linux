@@ -1228,7 +1228,7 @@ static void hci_set_event_mask_page_2(struct hci_request *req)
 	/* If Connectionless Slave Broadcast master role is supported
 	 * enable all necessary events for it.
 	 */
-	if (hdev->features[2][0] & 0x01) {
+	if (lmp_csb_master_capable(hdev)) {
 		events[1] |= 0x40;	/* Triggered Clock Capture */
 		events[1] |= 0x80;	/* Synchronization Train Complete */
 		events[2] |= 0x10;	/* Slave Page Response Timeout */
@@ -1238,7 +1238,7 @@ static void hci_set_event_mask_page_2(struct hci_request *req)
 	/* If Connectionless Slave Broadcast slave role is supported
 	 * enable all necessary events for it.
 	 */
-	if (hdev->features[2][0] & 0x02) {
+	if (lmp_csb_slave_capable(hdev)) {
 		events[2] |= 0x01;	/* Synchronization Train Received */
 		events[2] |= 0x02;	/* CSB Receive */
 		events[2] |= 0x04;	/* CSB Timeout */
@@ -1275,15 +1275,17 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 		hci_setup_link_policy(req);
 
 	if (lmp_le_capable(hdev)) {
-		/* If the controller has a public BD_ADDR, then by
-		 * default use that one. If this is a LE only
-		 * controller without one, default to the random
-		 * address.
-		 */
-		if (bacmp(&hdev->bdaddr, BDADDR_ANY))
-			hdev->own_addr_type = ADDR_LE_DEV_PUBLIC;
-		else
-			hdev->own_addr_type = ADDR_LE_DEV_RANDOM;
+		if (test_bit(HCI_SETUP, &hdev->dev_flags)) {
+			/* If the controller has a public BD_ADDR, then
+			 * by default use that one. If this is a LE only
+			 * controller without a public address, default
+			 * to the random address.
+			 */
+			if (bacmp(&hdev->bdaddr, BDADDR_ANY))
+				hdev->own_addr_type = ADDR_LE_DEV_PUBLIC;
+			else
+				hdev->own_addr_type = ADDR_LE_DEV_RANDOM;
+		}
 
 		hci_set_le_support(req);
 	}
@@ -1307,7 +1309,7 @@ static void hci_init4_req(struct hci_request *req, unsigned long opt)
 		hci_set_event_mask_page_2(req);
 
 	/* Check for Synchronization Train support */
-	if (hdev->features[2][0] & 0x04)
+	if (lmp_sync_train_capable(hdev))
 		hci_req_add(req, HCI_OP_READ_SYNC_TRAIN_PARAMS, 0, NULL);
 }
 
