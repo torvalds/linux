@@ -41,6 +41,7 @@
 #include <linux/fs.h>
 #include <linux/blkdev.h>
 #include <linux/slab.h>
+#include <linux/idr.h>
 
 #include "rbd_types.h"
 
@@ -384,6 +385,8 @@ static DEFINE_SPINLOCK(rbd_client_list_lock);
 static struct kmem_cache	*rbd_img_request_cache;
 static struct kmem_cache	*rbd_obj_request_cache;
 static struct kmem_cache	*rbd_segment_name_cache;
+
+static DEFINE_IDA(rbd_dev_id_ida);
 
 static int rbd_img_request_submit(struct rbd_img_request *img_request);
 
@@ -4371,20 +4374,27 @@ static void rbd_bus_del_dev(struct rbd_device *rbd_dev)
 	device_unregister(&rbd_dev->dev);
 }
 
-static atomic64_t rbd_dev_id_max = ATOMIC64_INIT(0);
-
 /*
  * Get a unique rbd identifier for the given new rbd_dev, and add
- * the rbd_dev to the global list.  The minimum rbd id is 1.
+ * the rbd_dev to the global list.
  */
-static void rbd_dev_id_get(struct rbd_device *rbd_dev)
+static int rbd_dev_id_get(struct rbd_device *rbd_dev)
 {
-	rbd_dev->dev_id = atomic64_inc_return(&rbd_dev_id_max);
+	int new_dev_id;
+
+	new_dev_id = ida_simple_get(&rbd_dev_id_ida, 0, 0, GFP_KERNEL);
+	if (new_dev_id < 0)
+		return new_dev_id;
+
+	rbd_dev->dev_id = new_dev_id;
 
 	spin_lock(&rbd_dev_list_lock);
 	list_add_tail(&rbd_dev->node, &rbd_dev_list);
 	spin_unlock(&rbd_dev_list_lock);
+
 	dout("rbd_dev %p given dev id %d\n", rbd_dev, rbd_dev->dev_id);
+
+	return 0;
 }
 
 /*
@@ -4393,48 +4403,13 @@ static void rbd_dev_id_get(struct rbd_device *rbd_dev)
  */
 static void rbd_dev_id_put(struct rbd_device *rbd_dev)
 {
-	struct list_head *tmp;
-	int rbd_id = rbd_dev->dev_id;
-	int max_id;
-
-	rbd_assert(rbd_id > 0);
-
-	dout("rbd_dev %p released dev id %d\n", rbd_dev, rbd_dev->dev_id);
 	spin_lock(&rbd_dev_list_lock);
 	list_del_init(&rbd_dev->node);
-
-	/*
-	 * If the id being "put" is not the current maximum, there
-	 * is nothing special we need to do.
-	 */
-	if (rbd_id != atomic64_read(&rbd_dev_id_max)) {
-		spin_unlock(&rbd_dev_list_lock);
-		return;
-	}
-
-	/*
-	 * We need to update the current maximum id.  Search the
-	 * list to find out what it is.  We're more likely to find
-	 * the maximum at the end, so search the list backward.
-	 */
-	max_id = 0;
-	list_for_each_prev(tmp, &rbd_dev_list) {
-		struct rbd_device *rbd_dev;
-
-		rbd_dev = list_entry(tmp, struct rbd_device, node);
-		if (rbd_dev->dev_id > max_id)
-			max_id = rbd_dev->dev_id;
-	}
 	spin_unlock(&rbd_dev_list_lock);
 
-	/*
-	 * The max id could have been updated by rbd_dev_id_get(), in
-	 * which case it now accurately reflects the new maximum.
-	 * Be careful not to overwrite the maximum value in that
-	 * case.
-	 */
-	atomic64_cmpxchg(&rbd_dev_id_max, rbd_id, max_id);
-	dout("  max dev id has been reset\n");
+	ida_simple_remove(&rbd_dev_id_ida, rbd_dev->dev_id);
+
+	dout("rbd_dev %p released dev id %d\n", rbd_dev, rbd_dev->dev_id);
 }
 
 /*
@@ -4857,10 +4832,12 @@ static int rbd_dev_device_setup(struct rbd_device *rbd_dev)
 {
 	int ret;
 
-	/* generate unique id: find highest unique id, add one */
-	rbd_dev_id_get(rbd_dev);
+	/* Get an id and fill in device name. */
 
-	/* Fill in the device name, now that we have its id. */
+	ret = rbd_dev_id_get(rbd_dev);
+	if (ret)
+		return ret;
+
 	BUILD_BUG_ON(DEV_NAME_LEN
 			< sizeof (RBD_DRV_NAME) + MAX_INT_FORMAT_WIDTH);
 	sprintf(rbd_dev->name, "%s%d", RBD_DRV_NAME, rbd_dev->dev_id);
