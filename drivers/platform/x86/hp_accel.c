@@ -88,7 +88,7 @@ MODULE_DEVICE_TABLE(acpi, lis3lv02d_device_ids);
  *
  * Returns 0 on success.
  */
-int lis3lv02d_acpi_init(struct lis3lv02d *lis3)
+static int lis3lv02d_acpi_init(struct lis3lv02d *lis3)
 {
 	struct acpi_device *dev = lis3->bus_priv;
 	if (acpi_evaluate_object(dev->handle, METHOD_NAME__INI,
@@ -106,7 +106,7 @@ int lis3lv02d_acpi_init(struct lis3lv02d *lis3)
  *
  * Returns 0 on success.
  */
-int lis3lv02d_acpi_read(struct lis3lv02d *lis3, int reg, u8 *ret)
+static int lis3lv02d_acpi_read(struct lis3lv02d *lis3, int reg, u8 *ret)
 {
 	struct acpi_device *dev = lis3->bus_priv;
 	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
@@ -129,7 +129,7 @@ int lis3lv02d_acpi_read(struct lis3lv02d *lis3, int reg, u8 *ret)
  *
  * Returns 0 on success.
  */
-int lis3lv02d_acpi_write(struct lis3lv02d *lis3, int reg, u8 val)
+static int lis3lv02d_acpi_write(struct lis3lv02d *lis3, int reg, u8 val)
 {
 	struct acpi_device *dev = lis3->bus_priv;
 	unsigned long long ret; /* Not used when writting */
