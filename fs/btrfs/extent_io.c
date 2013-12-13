@@ -4617,6 +4617,7 @@ again:
 	}
 	/* add one reference for the tree */
 	check_buffer_tree_ref(eb);
+	set_bit(EXTENT_BUFFER_IN_TREE, &eb->bflags);
 
 	/*
 	 * there is a race where release page may have
@@ -4660,9 +4661,7 @@ static int release_extent_buffer(struct extent_buffer *eb)
 {
 	WARN_ON(atomic_read(&eb->refs) == 0);
 	if (atomic_dec_and_test(&eb->refs)) {
-		if (test_bit(EXTENT_BUFFER_DUMMY, &eb->bflags)) {
-			spin_unlock(&eb->refs_lock);
-		} else {
+		if (test_and_clear_bit(EXTENT_BUFFER_IN_TREE, &eb->bflags)) {
 			struct extent_io_tree *tree = eb->tree;
 
 			spin_unlock(&eb->refs_lock);
@@ -4671,6 +4670,8 @@ static int release_extent_buffer(struct extent_buffer *eb)
 			radix_tree_delete(&tree->buffer,
 					  eb->start >> PAGE_CACHE_SHIFT);
 			spin_unlock(&tree->buffer_lock);
+		} else {
+			spin_unlock(&eb->refs_lock);
 		}
 
 		/* Should be safe to release our pages at this point */

@@ -43,6 +43,7 @@
 #define EXTENT_BUFFER_WRITEBACK 7
 #define EXTENT_BUFFER_IOERR 8
 #define EXTENT_BUFFER_DUMMY 9
+#define EXTENT_BUFFER_IN_TREE 10
 
 /* these are flags for extent_clear_unlock_delalloc */
 #define PAGE_UNLOCK		(1 << 0)
