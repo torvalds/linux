@@ -26,6 +26,7 @@
 #include <linux/sched.h>
 #include <linux/shrinker.h>
 #include <linux/types.h>
+#include <linux/device.h>
 
 #include "ion.h"
 
