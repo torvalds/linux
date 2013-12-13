@@ -1224,7 +1224,7 @@ test_ctrl_queue(struct usbtest_dev *dev, struct usbtest_param *param)
 				len = le16_to_cpu(udev->bos->desc->wTotalLength);
 			else
 				len = sizeof(struct usb_bos_descriptor);
-			if (udev->speed != USB_SPEED_SUPER)
+			if (le16_to_cpu(udev->descriptor.bcdUSB) < 0x0201)
 				expected = -EPIPE;
 			break;
 		default:
