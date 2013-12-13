@@ -224,7 +224,7 @@ static int jp_scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 }
 
 #ifdef CONFIG_IDE
-int jp_generic_ide_ioctl(ide_drive_t *drive, struct file *file,
+static int jp_generic_ide_ioctl(ide_drive_t *drive, struct file *file,
 			struct block_device *bdev, unsigned int cmd,
 			unsigned long arg)
 {
