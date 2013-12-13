@@ -408,7 +408,18 @@ static struct attribute *rbd_bus_attrs[] = {
 	&bus_attr_remove.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(rbd_bus);
+
+static umode_t rbd_bus_is_visible(struct kobject *kobj,
+				  struct attribute *attr, int index)
+{
+	return attr->mode;
+}
+
+static const struct attribute_group rbd_bus_group = {
+	.attrs = rbd_bus_attrs,
+	.is_visible = rbd_bus_is_visible,
+};
+__ATTRIBUTE_GROUPS(rbd_bus);
 
 static struct bus_type rbd_bus_type = {
 	.name		= "rbd",
