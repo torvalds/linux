@@ -485,10 +485,10 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 	 * request of the caller allocate from it.  Repeat until allocate has
 	 * succeeded or all heaps have been tried
 	 */
-	if (WARN_ON(!len))
-		return ERR_PTR(-EINVAL);
-
 	len = PAGE_ALIGN(len);
+
+	if (!len)
+		return ERR_PTR(-EINVAL);
 
 	down_read(&dev->lock);
 	plist_for_each_entry(heap, &dev->heaps, node) {
