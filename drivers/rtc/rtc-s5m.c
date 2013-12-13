@@ -28,6 +28,16 @@
 #include <linux/mfd/samsung/irq.h>
 #include <linux/mfd/samsung/rtc.h>
 
+/*
+ * Maximum number of retries for checking changes in UDR field
+ * of SEC_RTC_UDR_CON register (to limit possible endless loop).
+ *
+ * After writing to RTC registers (setting time or alarm) read the UDR field
+ * in SEC_RTC_UDR_CON register. UDR is auto-cleared when data have
+ * been transferred.
+ */
+#define UDR_READ_RETRY_CNT	5
+
 struct s5m_rtc_info {
 	struct device *dev;
 	struct sec_pmic_dev *s5m87xx;
@@ -84,6 +94,25 @@ static int s5m8767_tm_to_data(struct rtc_time *tm, u8 *data)
 	}
 }
 
+/*
+ * Read RTC_UDR_CON register and wait till UDR field is cleared.
+ * This indicates that time/alarm update ended.
+ */
+static inline int s5m8767_wait_for_udr_update(struct s5m_rtc_info *info)
+{
+	int ret, retry = UDR_READ_RETRY_CNT;
+	unsigned int data;
+
+	do {
+		ret = regmap_read(info->regmap, SEC_RTC_UDR_CON, &data);
+	} while (--retry && (data & RTC_UDR_MASK) && !ret);
+
+	if (!retry)
+		dev_err(info->dev, "waiting for UDR update, reached max number of retries\n");
+
+	return ret;
+}
+
 static inline int s5m8767_rtc_set_time_reg(struct s5m_rtc_info *info)
 {
 	int ret;
@@ -104,9 +133,7 @@ static inline int s5m8767_rtc_set_time_reg(struct s5m_rtc_info *info)
 		return ret;
 	}
 
-	do {
-		ret = regmap_read(info->regmap, SEC_RTC_UDR_CON, &data);
-	} while ((data & RTC_UDR_MASK) && !ret);
+	ret = s5m8767_wait_for_udr_update(info);
 
 	return ret;
 }
@@ -133,9 +160,7 @@ static inline int s5m8767_rtc_set_alarm_reg(struct s5m_rtc_info *info)
 		return ret;
 	}
 
-	do {
-		ret = regmap_read(info->regmap, SEC_RTC_UDR_CON, &data);
-	} while ((data & RTC_UDR_MASK) && !ret);
+	ret = s5m8767_wait_for_udr_update(info);
 
 	return ret;
 }
