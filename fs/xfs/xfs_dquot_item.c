@@ -286,13 +286,6 @@ xfs_qm_qoff_logitem_size(
 	*nbytes += sizeof(struct xfs_qoff_logitem);
 }
 
-/*
- * This is called to fill in the vector of log iovecs for the
- * given quotaoff log item. We use only 1 iovec, and we point that
- * at the quotaoff_log_format structure embedded in the quotaoff item.
- * It is at this point that we assert that all of the extent
- * slots in the quotaoff item have been filled.
- */
 STATIC void
 xfs_qm_qoff_logitem_format(
 	struct xfs_log_item	*lip,
@@ -300,13 +293,13 @@ xfs_qm_qoff_logitem_format(
 {
 	struct xfs_qoff_logitem	*qflip = QOFF_ITEM(lip);
 	struct xfs_log_iovec	*vecp = NULL;
+	struct xfs_qoff_logformat *qlf;
 
-	ASSERT(qflip->qql_format.qf_type == XFS_LI_QUOTAOFF);
-	qflip->qql_format.qf_size = 1;
-
-	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_QUOTAOFF,
-			&qflip->qql_format,
-			sizeof(struct xfs_qoff_logitem));
+	qlf = xlog_prepare_iovec(lv, &vecp, XLOG_REG_TYPE_QUOTAOFF);
+	qlf->qf_type = XFS_LI_QUOTAOFF;
+	qlf->qf_size = 1;
+	qlf->qf_flags = qflip->qql_flags;
+	xlog_finish_iovec(lv, vecp, sizeof(struct xfs_qoff_logitem));
 }
 
 /*
@@ -446,8 +439,7 @@ xfs_qm_qoff_logitem_init(
 	xfs_log_item_init(mp, &qf->qql_item, XFS_LI_QUOTAOFF, start ?
 			&xfs_qm_qoffend_logitem_ops : &xfs_qm_qoff_logitem_ops);
 	qf->qql_item.li_mountp = mp;
-	qf->qql_format.qf_type = XFS_LI_QUOTAOFF;
-	qf->qql_format.qf_flags = flags;
 	qf->qql_start_lip = start;
+	qf->qql_flags = flags;
 	return qf;
 }

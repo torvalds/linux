@@ -32,7 +32,7 @@ typedef struct xfs_dq_logitem {
 typedef struct xfs_qoff_logitem {
 	xfs_log_item_t		 qql_item;	/* common portion */
 	struct xfs_qoff_logitem *qql_start_lip; /* qoff-start logitem, if any */
-	xfs_qoff_logformat_t	 qql_format;	/* logged structure */
+	unsigned int		qql_flags;
 } xfs_qoff_logitem_t;
 
 
