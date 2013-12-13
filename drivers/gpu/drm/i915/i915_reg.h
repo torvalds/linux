@@ -4167,6 +4167,10 @@
 #define GEN7_L3SQCREG4				0xb034
 #define  L3SQ_URB_READ_CAM_MATCH_DISABLE	(1<<27)
 
+/* GEN8 chicken */
+#define HDC_CHICKEN0				0x7300
+#define  HDC_FORCE_NON_COHERENT			(1<<4)
+
 /* WaCatErrorRejectionIssue */
 #define GEN7_SQ_CHICKEN_MBCUNIT_CONFIG		0x9030
 #define  GEN7_SQ_CHICKEN_MBCUNIT_SQINTMOB	(1<<11)
