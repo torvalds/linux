@@ -76,6 +76,7 @@
 #define GFS2_QD_HASH_MASK       (GFS2_QD_HASH_SIZE - 1)
 
 /* Lock order: qd_lock -> bucket lock -> qd->lockref.lock -> lru lock */
+/*                     -> sd_bitmap_lock                              */
 static DEFINE_SPINLOCK(qd_lock);
 struct list_lru gfs2_qd_lru;
 
@@ -319,7 +320,7 @@ static int slot_get(struct gfs2_quota_data *qd)
 	unsigned int bit;
 	int error = 0;
 
-	spin_lock(&qd_lock);
+	spin_lock(&sdp->sd_bitmap_lock);
 	if (qd->qd_slot_count != 0)
 		goto out;
 
@@ -331,7 +332,7 @@ static int slot_get(struct gfs2_quota_data *qd)
 out:
 		qd->qd_slot_count++;
 	}
-	spin_unlock(&qd_lock);
+	spin_unlock(&sdp->sd_bitmap_lock);
 
 	return error;
 }
@@ -340,23 +341,23 @@ static void slot_hold(struct gfs2_quota_data *qd)
 {
 	struct gfs2_sbd *sdp = qd->qd_sbd;
 
-	spin_lock(&qd_lock);
+	spin_lock(&sdp->sd_bitmap_lock);
 	gfs2_assert(sdp, qd->qd_slot_count);
 	qd->qd_slot_count++;
-	spin_unlock(&qd_lock);
+	spin_unlock(&sdp->sd_bitmap_lock);
 }
 
 static void slot_put(struct gfs2_quota_data *qd)
 {
 	struct gfs2_sbd *sdp = qd->qd_sbd;
 
-	spin_lock(&qd_lock);
+	spin_lock(&sdp->sd_bitmap_lock);
 	gfs2_assert(sdp, qd->qd_slot_count);
 	if (!--qd->qd_slot_count) {
 		BUG_ON(!test_and_clear_bit(qd->qd_slot, sdp->sd_quota_bitmap));
 		qd->qd_slot = -1;
 	}
-	spin_unlock(&qd_lock);
+	spin_unlock(&sdp->sd_bitmap_lock);
 }
 
 static int bh_get(struct gfs2_quota_data *qd)
@@ -434,8 +435,7 @@ static int qd_check_sync(struct gfs2_sbd *sdp, struct gfs2_quota_data *qd,
 	list_move_tail(&qd->qd_list, &sdp->sd_quota_list);
 	set_bit(QDF_LOCKED, &qd->qd_flags);
 	qd->qd_change_sync = qd->qd_change;
-	gfs2_assert_warn(sdp, qd->qd_slot_count);
-	qd->qd_slot_count++;
+	slot_hold(qd);
 	return 1;
 }
 

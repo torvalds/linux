@@ -734,6 +734,7 @@ struct gfs2_sbd {
 
 	unsigned int sd_quota_slots;
 	unsigned long *sd_quota_bitmap;
+	spinlock_t sd_bitmap_lock;
 
 	u64 sd_quota_sync_gen;
 
