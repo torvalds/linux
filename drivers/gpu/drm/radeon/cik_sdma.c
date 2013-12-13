@@ -458,7 +458,7 @@ int cik_copy_dma(struct radeon_device *rdev,
 		radeon_ring_write(ring, 0); /* src/dst endian swap */
 		radeon_ring_write(ring, src_offset & 0xffffffff);
 		radeon_ring_write(ring, upper_32_bits(src_offset) & 0xffffffff);
-		radeon_ring_write(ring, dst_offset & 0xfffffffc);
+		radeon_ring_write(ring, dst_offset & 0xffffffff);
 		radeon_ring_write(ring, upper_32_bits(dst_offset) & 0xffffffff);
 		src_offset += cur_size_in_bytes;
 		dst_offset += cur_size_in_bytes;
