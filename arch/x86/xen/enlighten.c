@@ -46,6 +46,7 @@
 #include <xen/hvm.h>
 #include <xen/hvc-console.h>
 #include <xen/acpi.h>
+#include <xen/features.h>
 
 #include <asm/paravirt.h>
 #include <asm/apic.h>
@@ -262,8 +263,9 @@ static void __init xen_banner(void)
 	struct xen_extraversion extra;
 	HYPERVISOR_xen_version(XENVER_extraversion, &extra);
 
-	printk(KERN_INFO "Booting paravirtualized kernel on %s\n",
-	       pv_info.name);
+	pr_info("Booting paravirtualized kernel %son %s\n",
+		xen_feature(XENFEAT_auto_translated_physmap) ?
+			"with PVH extensions " : "", pv_info.name);
 	printk(KERN_INFO "Xen version: %d.%d%s%s\n",
 	       version >> 16, version & 0xffff, extra.extraversion,
 	       xen_feature(XENFEAT_mmu_pt_update_preserve_ad) ? " (preserve-AD)" : "");
@@ -433,7 +435,7 @@ static void __init xen_init_cpuid_mask(void)
 
 	ax = 1;
 	cx = 0;
-	xen_cpuid(&ax, &bx, &cx, &dx);
+	cpuid(1, &ax, &bx, &cx, &dx);
 
 	xsave_mask =
 		(1 << (X86_FEATURE_XSAVE % 32)) |
@@ -1420,6 +1422,19 @@ static void __init xen_setup_stackprotector(void)
 	pv_cpu_ops.load_gdt = xen_load_gdt;
 }
 
+static void __init xen_pvh_early_guest_init(void)
+{
+	if (!xen_feature(XENFEAT_auto_translated_physmap))
+		return;
+
+	if (xen_feature(XENFEAT_hvm_callback_vector))
+		xen_have_vector_callback = 1;
+
+#ifdef CONFIG_X86_32
+	BUG(); /* PVH: Implement proper support. */
+#endif
+}
+
 /* First C function to be called on Xen boot */
 asmlinkage void __init xen_start_kernel(void)
 {
@@ -1431,13 +1446,16 @@ asmlinkage void __init xen_start_kernel(void)
 
 	xen_domain_type = XEN_PV_DOMAIN;
 
+	xen_setup_features();
+	xen_pvh_early_guest_init();
 	xen_setup_machphys_mapping();
 
 	/* Install Xen paravirt ops */
 	pv_info = xen_info;
 	pv_init_ops = xen_init_ops;
-	pv_cpu_ops = xen_cpu_ops;
 	pv_apic_ops = xen_apic_ops;
+	if (!xen_pvh_domain())
+		pv_cpu_ops = xen_cpu_ops;
 
 	x86_init.resources.memory_setup = xen_memory_setup;
 	x86_init.oem.arch_setup = xen_arch_setup;
@@ -1468,8 +1486,6 @@ asmlinkage void __init xen_start_kernel(void)
 
 	/* Work out if we support NX */
 	x86_configure_nx();
-
-	xen_setup_features();
 
 	/* Get mfn list */
 	if (!xen_feature(XENFEAT_auto_translated_physmap))
@@ -1548,14 +1564,18 @@ asmlinkage void __init xen_start_kernel(void)
 	/* set the limit of our address space */
 	xen_reserve_top();
 
-	/* We used to do this in xen_arch_setup, but that is too late on AMD
-	 * were early_cpu_init (run before ->arch_setup()) calls early_amd_init
-	 * which pokes 0xcf8 port.
-	 */
-	set_iopl.iopl = 1;
-	rc = HYPERVISOR_physdev_op(PHYSDEVOP_set_iopl, &set_iopl);
-	if (rc != 0)
-		xen_raw_printk("physdev_op failed %d\n", rc);
+	/* PVH: runs at default kernel iopl of 0 */
+	if (!xen_pvh_domain()) {
+		/*
+		 * We used to do this in xen_arch_setup, but that is too late
+		 * on AMD were early_cpu_init (run before ->arch_setup()) calls
+		 * early_amd_init which pokes 0xcf8 port.
+		 */
+		set_iopl.iopl = 1;
+		rc = HYPERVISOR_physdev_op(PHYSDEVOP_set_iopl, &set_iopl);
+		if (rc != 0)
+			xen_raw_printk("physdev_op failed %d\n", rc);
+	}
 
 #ifdef CONFIG_X86_32
 	/* set up basic CPUID stuff */

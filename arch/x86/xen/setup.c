@@ -563,16 +563,13 @@ void xen_enable_nmi(void)
 		BUG();
 #endif
 }
-void __init xen_arch_setup(void)
+void __init xen_pvmmu_arch_setup(void)
 {
-	xen_panic_handler_init();
-
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_4gb_segments);
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_writable_pagetables);
 
-	if (!xen_feature(XENFEAT_auto_translated_physmap))
-		HYPERVISOR_vm_assist(VMASST_CMD_enable,
-				     VMASST_TYPE_pae_extended_cr3);
+	HYPERVISOR_vm_assist(VMASST_CMD_enable,
+			     VMASST_TYPE_pae_extended_cr3);
 
 	if (register_callback(CALLBACKTYPE_event, xen_hypervisor_callback) ||
 	    register_callback(CALLBACKTYPE_failsafe, xen_failsafe_callback))
@@ -581,6 +578,15 @@ void __init xen_arch_setup(void)
 	xen_enable_sysenter();
 	xen_enable_syscall();
 	xen_enable_nmi();
+}
+
+/* This function is not called for HVM domains */
+void __init xen_arch_setup(void)
+{
+	xen_panic_handler_init();
+	if (!xen_feature(XENFEAT_auto_translated_physmap))
+		xen_pvmmu_arch_setup();
+
 #ifdef CONFIG_ACPI
 	if (!(xen_start_info->flags & SIF_INITDOMAIN)) {
 		printk(KERN_INFO "ACPI in unprivileged domain disabled\n");
