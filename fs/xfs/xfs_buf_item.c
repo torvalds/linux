@@ -184,6 +184,7 @@ xfs_buf_item_size(
 
 static inline void
 xfs_buf_item_copy_iovec(
+	struct xfs_log_vec	*lv,
 	struct xfs_log_iovec	**vecp,
 	struct xfs_buf		*bp,
 	uint			offset,
@@ -191,7 +192,7 @@ xfs_buf_item_copy_iovec(
 	uint			nbits)
 {
 	offset += first_bit * XFS_BLF_CHUNK;
-	xlog_copy_iovec(vecp, XLOG_REG_TYPE_BCHUNK,
+	xlog_copy_iovec(lv, vecp, XLOG_REG_TYPE_BCHUNK,
 			xfs_buf_offset(bp, offset),
 			nbits * XFS_BLF_CHUNK);
 }
@@ -211,13 +212,13 @@ xfs_buf_item_straddle(
 static void
 xfs_buf_item_format_segment(
 	struct xfs_buf_log_item	*bip,
+	struct xfs_log_vec	*lv,
 	struct xfs_log_iovec	**vecp,
 	uint			offset,
 	struct xfs_buf_log_format *blfp)
 {
 	struct xfs_buf	*bp = bip->bli_buf;
 	uint		base_size;
-	uint		nvecs;
 	int		first_bit;
 	int		last_bit;
 	int		next_bit;
@@ -233,18 +234,17 @@ xfs_buf_item_format_segment(
 	 */
 	base_size = xfs_buf_log_format_size(blfp);
 
-	nvecs = 0;
 	first_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size, 0);
 	if (!(bip->bli_flags & XFS_BLI_STALE) && first_bit == -1) {
 		/*
 		 * If the map is not be dirty in the transaction, mark
 		 * the size as zero and do not advance the vector pointer.
 		 */
-		goto out;
+		return;
 	}
 
-	xlog_copy_iovec(vecp, XLOG_REG_TYPE_BFORMAT, blfp, base_size);
-	nvecs = 1;
+	blfp = xlog_copy_iovec(lv, vecp, XLOG_REG_TYPE_BFORMAT, blfp, base_size);
+	blfp->blf_size = 1;
 
 	if (bip->bli_flags & XFS_BLI_STALE) {
 		/*
@@ -254,7 +254,7 @@ xfs_buf_item_format_segment(
 		 */
 		trace_xfs_buf_item_format_stale(bip);
 		ASSERT(blfp->blf_flags & XFS_BLF_CANCEL);
-		goto out;
+		return;
 	}
 
 
@@ -280,15 +280,15 @@ xfs_buf_item_format_segment(
 		 * same set of bits so just keep counting and scanning.
 		 */
 		if (next_bit == -1) {
-			xfs_buf_item_copy_iovec(vecp, bp, offset,
+			xfs_buf_item_copy_iovec(lv, vecp, bp, offset,
 						first_bit, nbits);
-			nvecs++;
+			blfp->blf_size++;
 			break;
 		} else if (next_bit != last_bit + 1 ||
 		           xfs_buf_item_straddle(bp, offset, next_bit, last_bit)) {
-			xfs_buf_item_copy_iovec(vecp, bp, offset,
+			xfs_buf_item_copy_iovec(lv, vecp, bp, offset,
 						first_bit, nbits);
-			nvecs++;
+			blfp->blf_size++;
 			first_bit = next_bit;
 			last_bit = next_bit;
 			nbits = 1;
@@ -297,8 +297,6 @@ xfs_buf_item_format_segment(
 			nbits++;
 		}
 	}
-out:
-	blfp->blf_size = nvecs;
 }
 
 /*
@@ -310,10 +308,11 @@ out:
 STATIC void
 xfs_buf_item_format(
 	struct xfs_log_item	*lip,
-	struct xfs_log_iovec	*vecp)
+	struct xfs_log_vec	*lv)
 {
 	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
 	struct xfs_buf		*bp = bip->bli_buf;
+	struct xfs_log_iovec	*vecp = NULL;
 	uint			offset = 0;
 	int			i;
 
@@ -354,7 +353,7 @@ xfs_buf_item_format(
 	}
 
 	for (i = 0; i < bip->bli_format_count; i++) {
-		xfs_buf_item_format_segment(bip, &vecp, offset,
+		xfs_buf_item_format_segment(bip, lv, &vecp, offset,
 					    &bip->bli_formats[i]);
 		offset += bp->b_maps[i].bm_len;
 	}

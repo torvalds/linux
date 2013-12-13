@@ -57,18 +57,19 @@ xfs_qm_dquot_logitem_size(
 STATIC void
 xfs_qm_dquot_logitem_format(
 	struct xfs_log_item	*lip,
-	struct xfs_log_iovec	*vecp)
+	struct xfs_log_vec	*lv)
 {
 	struct xfs_dq_logitem	*qlip = DQUOT_ITEM(lip);
-
-	xlog_copy_iovec(&vecp, XLOG_REG_TYPE_QFORMAT,
-			&qlip->qli_format,
-			sizeof(struct xfs_dq_logformat));
-	xlog_copy_iovec(&vecp, XLOG_REG_TYPE_DQUOT,
-			&qlip->qli_dquot->q_core,
-			sizeof(struct xfs_disk_dquot));
+	struct xfs_log_iovec	*vecp = NULL;
 
 	qlip->qli_format.qlf_size = 2;
+
+	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_QFORMAT,
+			&qlip->qli_format,
+			sizeof(struct xfs_dq_logformat));
+	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_DQUOT,
+			&qlip->qli_dquot->q_core,
+			sizeof(struct xfs_disk_dquot));
 }
 
 /*
@@ -302,17 +303,17 @@ xfs_qm_qoff_logitem_size(
 STATIC void
 xfs_qm_qoff_logitem_format(
 	struct xfs_log_item	*lip,
-	struct xfs_log_iovec	*vecp)
+	struct xfs_log_vec	*lv)
 {
 	struct xfs_qoff_logitem	*qflip = QOFF_ITEM(lip);
+	struct xfs_log_iovec	*vecp = NULL;
 
 	ASSERT(qflip->qql_format.qf_type == XFS_LI_QUOTAOFF);
+	qflip->qql_format.qf_size = 1;
 
-	xlog_copy_iovec(&vecp, XLOG_REG_TYPE_QUOTAOFF,
+	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_QUOTAOFF,
 			&qflip->qql_format,
 			sizeof(struct xfs_qoff_logitem));
-
-	qflip->qql_format.qf_size = 1;
 }
 
 /*

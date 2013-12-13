@@ -102,9 +102,10 @@ xfs_efi_item_size(
 STATIC void
 xfs_efi_item_format(
 	struct xfs_log_item	*lip,
-	struct xfs_log_iovec	*vecp)
+	struct xfs_log_vec	*lv)
 {
 	struct xfs_efi_log_item	*efip = EFI_ITEM(lip);
+	struct xfs_log_iovec	*vecp = NULL;
 
 	ASSERT(atomic_read(&efip->efi_next_extent) ==
 				efip->efi_format.efi_nextents);
@@ -112,7 +113,7 @@ xfs_efi_item_format(
 	efip->efi_format.efi_type = XFS_LI_EFI;
 	efip->efi_format.efi_size = 1;
 
-	xlog_copy_iovec(&vecp, XLOG_REG_TYPE_EFI_FORMAT,
+	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_EFI_FORMAT,
 			&efip->efi_format,
 			xfs_efi_item_sizeof(efip));
 }
@@ -368,16 +369,17 @@ xfs_efd_item_size(
 STATIC void
 xfs_efd_item_format(
 	struct xfs_log_item	*lip,
-	struct xfs_log_iovec	*vecp)
+	struct xfs_log_vec	*lv)
 {
 	struct xfs_efd_log_item	*efdp = EFD_ITEM(lip);
+	struct xfs_log_iovec	*vecp = NULL;
 
 	ASSERT(efdp->efd_next_extent == efdp->efd_format.efd_nextents);
 
 	efdp->efd_format.efd_type = XFS_LI_EFD;
 	efdp->efd_format.efd_size = 1;
 
-	xlog_copy_iovec(&vecp, XLOG_REG_TYPE_EFD_FORMAT,
+	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_EFD_FORMAT,
 			&efdp->efd_format,
 			xfs_efd_item_sizeof(efdp));
 }

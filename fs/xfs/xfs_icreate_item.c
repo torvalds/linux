@@ -59,11 +59,12 @@ xfs_icreate_item_size(
 STATIC void
 xfs_icreate_item_format(
 	struct xfs_log_item	*lip,
-	struct xfs_log_iovec	*vecp)
+	struct xfs_log_vec	*lv)
 {
 	struct xfs_icreate_item	*icp = ICR_ITEM(lip);
+	struct xfs_log_iovec	*vecp = NULL;
 
-	xlog_copy_iovec(&vecp, XLOG_REG_TYPE_ICREATE,
+	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_ICREATE,
 			&icp->ic_format,
 			sizeof(struct xfs_icreate_log));
 }
