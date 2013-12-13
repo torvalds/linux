@@ -688,6 +688,7 @@ struct ion_client *ion_client_create(struct ion_device *dev,
 
 	return client;
 }
+EXPORT_SYMBOL(ion_client_create);
 
 void ion_client_destroy(struct ion_client *client)
 {
