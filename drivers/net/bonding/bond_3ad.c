@@ -2201,20 +2201,25 @@ void bond_3ad_adapter_speed_changed(struct slave *slave)
 
 	port = &(SLAVE_AD_INFO(slave).port);
 
-	// if slave is null, the whole port is not initialized
+	/* if slave is null, the whole port is not initialized */
 	if (!port->slave) {
 		pr_warning("Warning: %s: speed changed for uninitialized port on %s\n",
 			   slave->bond->dev->name, slave->dev->name);
 		return;
 	}
 
+	__get_state_machine_lock(port);
+
 	port->actor_admin_port_key &= ~AD_SPEED_KEY_BITS;
 	port->actor_oper_port_key = port->actor_admin_port_key |=
 		(__get_link_speed(port) << 1);
 	pr_debug("Port %d changed speed\n", port->actor_port_number);
-	// there is no need to reselect a new aggregator, just signal the
-	// state machines to reinitialize
+	/* there is no need to reselect a new aggregator, just signal the
+	 * state machines to reinitialize
+	 */
 	port->sm_vars |= AD_PORT_BEGIN;
+
+	__release_state_machine_lock(port);
 }
 
 /**
