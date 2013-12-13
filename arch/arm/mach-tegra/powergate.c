@@ -41,6 +41,8 @@
 
 #define PWRGATE_STATUS		0x38
 
+#define GPU_RG_CNTRL		0x2d4
+
 static int tegra_num_powerdomains;
 static int tegra_num_cpu_domains;
 static const u8 *tegra_cpu_domains;
@@ -135,6 +137,17 @@ int tegra_powergate_remove_clamping(int id)
 
 	if (id < 0 || id >= tegra_num_powerdomains)
 		return -EINVAL;
+
+	/*
+	 * The Tegra124 GPU has a separate register (with different semantics)
+	 * to remove clamps.
+	 */
+	if (tegra_chip_id == TEGRA124) {
+		if (id == TEGRA_POWERGATE_3D) {
+			pmc_write(0, GPU_RG_CNTRL);
+			return 0;
+		}
+	}
 
 	/*
 	 * Tegra 2 has a bug where PCIE and VDE clamping masks are
