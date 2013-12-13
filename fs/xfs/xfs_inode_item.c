@@ -370,17 +370,21 @@ xfs_inode_item_format(
 	struct xfs_inode_log_format *ilf;
 	struct xfs_log_iovec	*vecp = NULL;
 
-	ilf = xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_IFORMAT,
-			&iip->ili_format,
-			sizeof(struct xfs_inode_log_format));
-	ilf->ilf_size = 1;
+	ilf = xlog_prepare_iovec(lv, &vecp, XLOG_REG_TYPE_IFORMAT);
+	ilf->ilf_type = XFS_LI_INODE;
+	ilf->ilf_ino = ip->i_ino;
+	ilf->ilf_blkno = ip->i_imap.im_blkno;
+	ilf->ilf_len = ip->i_imap.im_len;
+	ilf->ilf_boffset = ip->i_imap.im_boffset;
+	ilf->ilf_fields = XFS_ILOG_CORE;
+	ilf->ilf_size = 2; /* format + core */
+	xlog_finish_iovec(lv, vecp, sizeof(struct xfs_inode_log_format));
 
 	if (ip->i_d.di_version == 1)
 		xfs_inode_item_format_v1_inode(ip);
 	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_ICORE,
 			&ip->i_d,
 			xfs_icdinode_size(ip->i_d.di_version));
-	ilf->ilf_size++;
 
 	xfs_inode_item_format_data_fork(iip, ilf, lv, &vecp);
 	if (XFS_IFORK_Q(ip)) {
@@ -390,14 +394,8 @@ xfs_inode_item_format(
 			~(XFS_ILOG_ADATA | XFS_ILOG_ABROOT | XFS_ILOG_AEXT);
 	}
 
-	/*
-	 * Now update the log format that goes out to disk from the in-core
-	 * values.  We always write the inode core to make the arithmetic
-	 * games in recovery easier, which isn't a big deal as just about any
-	 * transaction would dirty it anyway.
-	 */
-	iip->ili_format.ilf_fields = XFS_ILOG_CORE |
-		(iip->ili_fields & ~XFS_ILOG_TIMESTAMP);
+	/* update the format with the exact fields we actually logged */
+	ilf->ilf_fields |= (iip->ili_fields & ~XFS_ILOG_TIMESTAMP);
 }
 
 /*
@@ -601,11 +599,6 @@ xfs_inode_item_init(
 	iip->ili_inode = ip;
 	xfs_log_item_init(mp, &iip->ili_item, XFS_LI_INODE,
 						&xfs_inode_item_ops);
-	iip->ili_format.ilf_type = XFS_LI_INODE;
-	iip->ili_format.ilf_ino = ip->i_ino;
-	iip->ili_format.ilf_blkno = ip->i_imap.im_blkno;
-	iip->ili_format.ilf_len = ip->i_imap.im_len;
-	iip->ili_format.ilf_boffset = ip->i_imap.im_boffset;
 }
 
 /*
