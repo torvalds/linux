@@ -2429,7 +2429,7 @@ static int qe_ep_config(struct qe_udc *udc, unsigned char pipe_num)
 
 	ep->ep.ops = &qe_ep_ops;
 	ep->stopped = 1;
-	ep->ep.maxpacket = (unsigned short) ~0;
+	usb_ep_set_maxpacket_limit(&ep->ep, (unsigned short) ~0);
 	ep->ep.desc = NULL;
 	ep->dir = 0xff;
 	ep->epnum = (u8)pipe_num;

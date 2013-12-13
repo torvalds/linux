@@ -1904,7 +1904,7 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 		ep->dma_regs = udc->regs + USBA_DMA_BASE(i);
 		ep->fifo = udc->fifo + USBA_FIFO_BASE(i);
 		ep->ep.ops = &usba_ep_ops;
-		ep->ep.maxpacket = ep->fifo_size;
+		usb_ep_set_maxpacket_limit(&ep->ep, ep->fifo_size);
 		ep->udc = udc;
 		INIT_LIST_HEAD(&ep->queue);
 
@@ -1957,7 +1957,8 @@ static struct usba_ep * usba_udc_pdata(struct platform_device *pdev,
 		ep->fifo = udc->fifo + USBA_FIFO_BASE(i);
 		ep->ep.ops = &usba_ep_ops;
 		ep->ep.name = pdata->ep[i].name;
-		ep->fifo_size = ep->ep.maxpacket = pdata->ep[i].fifo_size;
+		ep->fifo_size = pdata->ep[i].fifo_size;
+		usb_ep_set_maxpacket_limit(&ep->ep, ep->fifo_size);
 		ep->udc = udc;
 		INIT_LIST_HEAD(&ep->queue);
 		ep->nr_banks = pdata->ep[i].nr_banks;

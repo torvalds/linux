@@ -2896,12 +2896,12 @@ static void pch_udc_pcd_reinit(struct pch_udc_dev *dev)
 			ep->offset_addr = (UDC_EPINT_OUT_SHIFT + ep->num) *
 					  UDC_EP_REG_SHIFT;
 		/* need to set ep->ep.maxpacket and set Default Configuration?*/
-		ep->ep.maxpacket = UDC_BULK_MAX_PKT_SIZE;
+		usb_ep_set_maxpacket_limit(&ep->ep, UDC_BULK_MAX_PKT_SIZE);
 		list_add_tail(&ep->ep.ep_list, &dev->gadget.ep_list);
 		INIT_LIST_HEAD(&ep->queue);
 	}
-	dev->ep[UDC_EP0IN_IDX].ep.maxpacket = UDC_EP0IN_MAX_PKT_SIZE;
-	dev->ep[UDC_EP0OUT_IDX].ep.maxpacket = UDC_EP0OUT_MAX_PKT_SIZE;
+	usb_ep_set_maxpacket_limit(&dev->ep[UDC_EP0IN_IDX].ep, UDC_EP0IN_MAX_PKT_SIZE);
+	usb_ep_set_maxpacket_limit(&dev->ep[UDC_EP0OUT_IDX].ep, UDC_EP0OUT_MAX_PKT_SIZE);
 
 	/* remove ep0 in and out from the list.  They have own pointer */
 	list_del_init(&dev->ep[UDC_EP0IN_IDX].ep.ep_list);

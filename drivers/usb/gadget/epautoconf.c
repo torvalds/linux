@@ -129,7 +129,7 @@ ep_matches (
 	 * and wants to know the maximum possible, provide the info.
 	 */
 	if (desc->wMaxPacketSize == 0)
-		desc->wMaxPacketSize = cpu_to_le16(ep->maxpacket);
+		desc->wMaxPacketSize = cpu_to_le16(ep->maxpacket_limit);
 
 	/* endpoint maxpacket size is an input parameter, except for bulk
 	 * where it's an output parameter representing the full speed limit.
@@ -145,7 +145,7 @@ ep_matches (
 
 	case USB_ENDPOINT_XFER_ISOC:
 		/* ISO:  limit 1023 bytes full speed, 1024 high/super speed */
-		if (ep->maxpacket < max)
+		if (ep->maxpacket_limit < max)
 			return 0;
 		if (!gadget_is_dualspeed(gadget) && max > 1023)
 			return 0;
@@ -178,7 +178,7 @@ ep_matches (
 
 	/* report (variable) full speed bulk maxpacket */
 	if ((USB_ENDPOINT_XFER_BULK == type) && !ep_comp) {
-		int size = ep->maxpacket;
+		int size = ep->maxpacket_limit;
 
 		/* min() doesn't work on bitfields with gcc-3.5 */
 		if (size > 64)

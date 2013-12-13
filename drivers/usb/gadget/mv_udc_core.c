@@ -1261,7 +1261,7 @@ static int eps_init(struct mv_udc *udc)
 	ep->ep.ops = &mv_ep_ops;
 	ep->wedge = 0;
 	ep->stopped = 0;
-	ep->ep.maxpacket = EP0_MAX_PKT_SIZE;
+	usb_ep_set_maxpacket_limit(&ep->ep, EP0_MAX_PKT_SIZE);
 	ep->ep_num = 0;
 	ep->ep.desc = &mv_ep0_desc;
 	INIT_LIST_HEAD(&ep->queue);
@@ -1284,7 +1284,7 @@ static int eps_init(struct mv_udc *udc)
 
 		ep->ep.ops = &mv_ep_ops;
 		ep->stopped = 0;
-		ep->ep.maxpacket = (unsigned short) ~0;
+		usb_ep_set_maxpacket_limit(&ep->ep, (unsigned short) ~0);
 		ep->ep_num = i / 2;
 
 		INIT_LIST_HEAD(&ep->queue);

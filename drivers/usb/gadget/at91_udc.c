@@ -834,7 +834,7 @@ static void udc_reinit(struct at91_udc *udc)
 		ep->ep.desc = NULL;
 		ep->stopped = 0;
 		ep->fifo_bank = 0;
-		ep->ep.maxpacket = ep->maxpacket;
+		usb_ep_set_maxpacket_limit(&ep->ep, ep->maxpacket);
 		ep->creg = (void __iomem *) udc->udp_baseaddr + AT91_UDP_CSR(i);
 		/* initialize one queue per endpoint */
 		INIT_LIST_HEAD(&ep->queue);
@@ -1759,15 +1759,15 @@ static int at91udc_probe(struct platform_device *pdev)
 
 	/* newer chips have more FIFO memory than rm9200 */
 	if (cpu_is_at91sam9260() || cpu_is_at91sam9g20()) {
-		udc->ep[0].maxpacket = 64;
-		udc->ep[3].maxpacket = 64;
-		udc->ep[4].maxpacket = 512;
-		udc->ep[5].maxpacket = 512;
+		usb_ep_set_maxpacket_limit(&udc->ep[0], 64);
+		usb_ep_set_maxpacket_limit(&udc->ep[3], 64);
+		usb_ep_set_maxpacket_limit(&udc->ep[4], 512);
+		usb_ep_set_maxpacket_limit(&udc->ep[5], 512);
 	} else if (cpu_is_at91sam9261() || cpu_is_at91sam9g10()) {
-		udc->ep[3].maxpacket = 64;
+		usb_ep_set_maxpacket_limit(&udc->ep[3], 64);
 	} else if (cpu_is_at91sam9263()) {
-		udc->ep[0].maxpacket = 64;
-		udc->ep[3].maxpacket = 64;
+		usb_ep_set_maxpacket_limit(&udc->ep[0], 64);
+		usb_ep_set_maxpacket_limit(&udc->ep[3], 64);
 	}
 
 	udc->udp_baseaddr = ioremap(res->start, resource_size(res));
