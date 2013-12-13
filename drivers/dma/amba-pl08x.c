@@ -2167,7 +2167,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	/* Register slave channels */
 	ret = pl08x_dma_init_virtual_channels(pl08x, &pl08x->slave,
 			pl08x->pd->num_slave_channels, true);
-	if (ret <= 0) {
+	if (ret < 0) {
 		dev_warn(&pl08x->adev->dev,
 			"%s failed to enumerate slave channels - %d\n",
 				__func__, ret);
