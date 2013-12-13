@@ -451,14 +451,57 @@
 #define JTAG_TMS 0x3d62
 #define HOST_DRV_VBUS 0x3d63
 
+/*warning:don not chang the following value*/
+#define VALUE_PULL_DISABLE	0
+#define VALUE_PULL_UP		1
+#define VALUE_PULL_DOWN		2
+#define VALUE_PULL_DEFAULT	3
 
-#define VOL_DOMAIN_DEFAULT	0
-#define VOL_DOMAIN_10V		1
-#define VOL_DOMAIN_12V		2
-#define VOL_DOMAIN_18V		3
-#define VOL_DOMAIN_30V		4
-#define VOL_DOMAIN_33V		5
-#define VOL_DOMAIN_50V		6
+#define VALUE_VOL_DEFAULT	0
+#define VALUE_VOL_33V		0
+#define VALUE_VOL_18V		1
+
+#define VALUE_DRV_DEFAULT	0
+#define VALUE_DRV_2MA		0
+#define VALUE_DRV_4MA		1
+#define VALUE_DRV_8MA		2
+#define VALUE_DRV_12MA		3
+
+#define VALUE_TRI_DEFAULT	0
+#define VALUE_TRI_FALSE		0
+#define VALUE_TRI_TRUE		1
+
+
+/*
+ * pin config bit field definitions
+ *
+ * pull-up:	1..0	(2)
+ * voltage:	3..2	(2)
+ * drive:		5..4	(2)
+ * trisiate:	7..6	(2)
+ *
+ * MSB of each field is presence bit for the config.
+ */
+#define PULL_SHIFT		0
+#define PULL_PRESENT		(1 << 2)
+#define VOL_SHIFT		3
+#define VOL_PRESENT		(1 << 5)
+#define DRV_SHIFT		6
+#define DRV_PRESENT		(1 << 8)
+#define TRI_SHIFT		9
+#define TRI_PRESENT		(1 << 11)
+
+#define CONFIG_TO_PULL(c)	((c) >> PULL_SHIFT & 0x3)
+#define CONFIG_TO_VOL(c)	((c) >> VOL_SHIFT & 0x3)
+#define CONFIG_TO_DRV(c)	((c) >> DRV_SHIFT & 0x3)
+#define CONFIG_TO_TRI(c)	((c) >> TRI_SHIFT & 0x3)
+
+
+#define MAX_NUM_CONFIGS 	4
+#define POS_PULL		0
+#define POS_VOL			1
+#define POS_DRV			2
+#define POS_TRI			3
 
 
 //#define rk29_mux_api_set(name, mode) iomux_set(mode)

@@ -41,6 +41,13 @@
 #include <linux/clk.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 
+
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/slab.h>
+
+
 #include "core.h"
 #include "pinconf.h"
 
@@ -329,9 +336,9 @@ static int rockchip_dt_node_to_map(struct pinctrl_dev *pctldev,
 	/* create config map */
 	new_map++;
 	for (i = 0; i < grp->npins; i++) {
-		new_map[i].type = PIN_MAP_TYPE_CONFIGS_PIN;
-		new_map[i].data.configs.group_or_pin =
-				pin_get_name(pctldev, grp->pins[i]);
+		new_map[i].type = PIN_MAP_TYPE_CONFIGS_GROUP;
+		new_map[i].data.configs.group_or_pin = grp->name;
+				//pin_get_name(pctldev, grp->pins[i]);
 		new_map[i].data.configs.configs = grp->data[i].configs;
 		new_map[i].data.configs.num_configs = grp->data[i].nconfigs;
 	}
@@ -714,35 +721,46 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	int rc;
 
 
-		param = pinconf_to_config_param(configs);
-		arg = pinconf_to_config_argument(configs);
+	param = pinconf_to_config_param(configs);
+	arg = pinconf_to_config_argument(configs);
 
-		switch (param) {
-		case PIN_CONFIG_BIAS_DISABLE:
-			rc =  rockchip_set_pull(bank, pin - bank->pin_base,
-				param);
-			if (rc)
-				return rc;
-			break;
-		case PIN_CONFIG_BIAS_PULL_UP:
-		case PIN_CONFIG_BIAS_PULL_DOWN:
-		case PIN_CONFIG_BIAS_PULL_PIN_DEFAULT:
-		case PIN_CONFIG_BIAS_BUS_HOLD:
-			if (!rockchip_pinconf_pull_valid(info->ctrl, param))
-				return -ENOTSUPP;
-
-			if (!arg)
-				return -EINVAL;
-
-			rc = rockchip_set_pull(bank, pin - bank->pin_base,
-				param);
-			if (rc)
-				return rc;
-			break;
-		default:
+	switch (param) {
+	case PIN_CONFIG_BIAS_DISABLE:
+		rc =  rockchip_set_pull(bank, pin - bank->pin_base,
+			param);
+		if (rc)
+			return rc;
+		break;
+	case PIN_CONFIG_BIAS_PULL_UP:
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+	case PIN_CONFIG_BIAS_PULL_PIN_DEFAULT:
+	case PIN_CONFIG_BIAS_BUS_HOLD:
+		if (!rockchip_pinconf_pull_valid(info->ctrl, param))
 			return -ENOTSUPP;
-			break;
-		}
+
+		if (!arg)
+			return -EINVAL;
+
+		rc = rockchip_set_pull(bank, pin - bank->pin_base,
+			param);
+		if (rc)
+			return rc;
+		break;
+		
+	case PIN_CONFIG_POWER_SOURCE:
+		//to do
+		break;
+
+	case PIN_CONFIG_DRIVE_STRENGTH:
+		//to do
+		break;
+	case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
+		//to do
+		break;
+	default:
+		return -ENOTSUPP;
+		break;
+	}
 	
 	DBG_PINCTRL("%s,pin=%d,param=%d\n",__func__,pin, param);
 
@@ -776,20 +794,80 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 
 		*config = 1;
 		break;
+	
+	case PIN_CONFIG_POWER_SOURCE:
+		//to do
+		break;
+
+	case PIN_CONFIG_DRIVE_STRENGTH:
+		//to do
+		break;
+	case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
+		//to do
+		break;
+		
 	default:
 		return -ENOTSUPP;
 		break;
 	}
 
 	
-	DBG_PINCTRL("%s:param=%d\n",__func__, param);
+	DBG_PINCTRL("%s:pin=%d, param=%d\n",__func__, pin, param);
 
 	return 0;
 }
 
+/* set the pin config settings for a specified pin group */
+static int rockchip_pinconf_group_set(struct pinctrl_dev *pctldev,
+			unsigned group, unsigned long config)
+{	
+	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
+	const unsigned int *pins;
+	unsigned int cnt;
+	
+	DBG_PINCTRL("%s:group[%d]:%s\n",__func__, group, info->groups[group].name);
+	pins = info->groups[group].pins;
+
+	for (cnt = 0; cnt < info->groups[group].npins; cnt++)
+		rockchip_pinconf_set(pctldev, pins[cnt], config);
+	
+	return 0;
+}
+
+/* get the pin config settings for a specified pin group */
+static int rockchip_pinconf_group_get(struct pinctrl_dev *pctldev,
+				unsigned int group, unsigned long *config)
+{	
+	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
+	const unsigned int *pins;
+
+	pins = info->groups[group].pins;
+	rockchip_pinconf_get(pctldev, pins[0], config);
+
+	DBG_PINCTRL("%s:group[%d]:%s\n",__func__, group, info->groups[group].name);
+	return 0;
+}
+
+static void rockchip_pinconf_dbg_show(struct pinctrl_dev *pctldev,
+				 struct seq_file *s, unsigned pin)
+{
+	//to do
+}
+
+static void rockchip_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
+				       struct seq_file *s, unsigned group)
+{
+	//to do
+}
+
+
 static const struct pinconf_ops rockchip_pinconf_ops = {
 	.pin_config_get			= rockchip_pinconf_get,
 	.pin_config_set			= rockchip_pinconf_set,
+	.pin_config_group_get		= rockchip_pinconf_group_get,
+	.pin_config_group_set		= rockchip_pinconf_group_set,
+	.pin_config_dbg_show		= rockchip_pinconf_dbg_show,
+	.pin_config_group_dbg_show	= rockchip_pinconf_group_dbg_show,
 };
 
 static const struct of_device_id rockchip_bank_match[] = {
@@ -813,81 +891,109 @@ static void rockchip_pinctrl_child_count(struct rockchip_pinctrl *info,
 }
 
 static int rockchip_pinctrl_parse_groups(struct device_node *np,
-					      struct rockchip_pin_group *grp,
-					      struct rockchip_pinctrl *info,
-					      u32 index)
+                                              struct rockchip_pin_group *grp,
+                                              struct rockchip_pinctrl *info,
+                                              u32 index)
 {
-	struct rockchip_pin_bank *bank;
-	int size;
-	const __be32 *list;
-	int num;
-	int i, j;
-	int ret;
+        struct rockchip_pin_bank *bank;
+        int size;
+        const __be32 *list;
+        int i, j;
 	struct union_mode m;
+	int configlen = 0;	
+	unsigned long *pinconfig;	
+	u32 val;
 	
-
 	DBG_PINCTRL("%s:group(%d): %s\n", __func__, index, np->name);
 
-	/* Initialise group */
-	grp->name = np->name;
+        /* Initialise group */
+        grp->name = np->name;
 
-	/*
-	 * the binding format is rockchip,pins = <bank pin mux CONFIG>,
-	 * do sanity check and calculate pins number
-	 */
-	list = of_get_property(np, "rockchip,pins", &size);
-	/* we do not check return since it's safe node passed down */
-	size /= sizeof(*list);
-	if (!size) {
-		dev_err(info->dev, "wrong pins number size=%d\n",size);
-		return -EINVAL;
-	}
+        /*
+         * the binding format is rockchip,pins = <bank pin mux CONFIG>,
+         * do sanity check and calculate pins number
+         */
+        list = of_get_property(np, "rockchip,pins", &size);
+        /* we do not check return since it's safe node passed down */
+        size /= sizeof(*list);
+        if (!size || size % 1) {
+                dev_err(info->dev, "wrong pins number or pins and configs should be by 1\n");
+                return -EINVAL;
+        }
 
-	grp->npins = size / 4;
+        grp->npins = size / 1;
 
-	grp->pins = devm_kzalloc(info->dev, grp->npins * sizeof(unsigned int),
-						GFP_KERNEL);
-	grp->data = devm_kzalloc(info->dev, grp->npins *
-					  sizeof(struct rockchip_pin_config),
-					GFP_KERNEL);
+        grp->pins = devm_kzalloc(info->dev, grp->npins * sizeof(unsigned int),
+                                                GFP_KERNEL);
+        grp->data = devm_kzalloc(info->dev, grp->npins *
+                                          sizeof(struct rockchip_pin_config),
+                                        GFP_KERNEL);
+        if (!grp->pins || !grp->data)
+                return -ENOMEM;
 
-	if (!grp->pins || !grp->data)
-		return -ENOMEM;
+	pinconfig = kzalloc(configlen * sizeof(*pinconfig), GFP_KERNEL);
 
-	for (i = 0, j = 0; i < size; i += 4, j++) {
-		const __be32 *phandle;
-		struct device_node *np_config;
-#if 0
-		num = be32_to_cpu(*list++);
-		bank = bank_num_to_bank(info, num);
-		if (IS_ERR(bank))
-			return PTR_ERR(bank);
-
-		grp->pins[j] = bank->pin_base + be32_to_cpu(*list++);
-		grp->data[j].func = be32_to_cpu(*list++);
-#else	
+        for (i = 0; i < size; i++) {
 		m.mode = be32_to_cpu(*list++);
-
+		
 		bank = bank_num_to_bank(info, m.mux.bank);
 		if (IS_ERR(bank))
 			return PTR_ERR(bank);
+		
+		grp->pins[i] = bank->pin_base + (m.mux.goff - 0x0A) * 8 + m.mux.off;
+		grp->data[i].func = m.mode;
 
-		grp->pins[j] = bank->pin_base + (m.mux.goff - 0x0A) * 8 + m.mux.off;
-		grp->data[j].func = m.mode;
-#endif
-		phandle = list++;
-		if (!phandle)
-			return -EINVAL;
+		
+		j = 0;
+		configlen = 0;
+		
+		if (of_find_property(np, "rockchip,pull", NULL))
+			configlen++;
+		if (of_find_property(np, "rockchip,voltage", NULL))
+			configlen++;	
+		if (of_find_property(np, "rockchip,drive", NULL))
+			configlen++;
+		if (of_find_property(np, "rockchip,tristate", NULL))
+			configlen++;
+		
+		pinconfig = kzalloc(configlen * sizeof(*pinconfig), GFP_KERNEL);	
+			
+		if (!of_property_read_u32(np, "allwinner,pull", &val)) {
+			enum pin_config_param pull = PIN_CONFIG_END;
+			if (val == 1)
+				pull = PIN_CONFIG_BIAS_PULL_UP;
+			else if (val == 2)
+				pull = PIN_CONFIG_BIAS_PULL_DOWN;
+			
+			pinconfig[j++] = pinconf_to_config_packed(pull, 0);
+		}
 
-		np_config = of_find_node_by_phandle(be32_to_cpup(phandle));
-		ret = pinconf_generic_parse_dt_config(np_config,
-				&grp->data[j].configs, &grp->data[j].nconfigs);
-		if (ret)
-			return ret;
-	}
+		if (!of_property_read_u32(np, "rockchip,voltage", &val)) {
+			pinconfig[j++] =
+				pinconf_to_config_packed(PIN_CONFIG_POWER_SOURCE,
+							 val);
+		}
 
-	return 0;
+		if (!of_property_read_u32(np, "rockchip,drive", &val)) {
+			pinconfig[j++] =
+				pinconf_to_config_packed(PIN_CONFIG_DRIVE_STRENGTH,
+							 val);
+		}
+
+		if (!of_property_read_u32(np, "rockchip,tristate", &val)) {
+			pinconfig[j++] =
+				pinconf_to_config_packed(PIN_CONFIG_BIAS_HIGH_IMPEDANCE,
+							 val);
+		}
+
+		grp->data[i].configs = pinconfig;
+		grp->data[i].nconfigs = configlen;
+
+        }
+
+        return 0;
 }
+
 
 static int rockchip_pinctrl_parse_functions(struct device_node *np,
 						struct rockchip_pinctrl *info,
@@ -1582,7 +1688,7 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 {
 	struct rockchip_pin_ctrl *ctrl = info->ctrl;
 	struct rockchip_pin_bank *bank = ctrl->pin_banks;
-	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
+	//unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
 	int i;
 
 	for (i = 0; i < ctrl->nr_banks; ++i, ++bank) {
@@ -1773,13 +1879,13 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(
 
 	return ctrl;
 }
-
+#if 0
 static irqreturn_t pinctrl_interrupt_test(int irq, void *dev_id)
 {
 	printk("%s:line=%d\n",__func__, __LINE__);
 	return IRQ_HANDLED;
 }
-
+#endif
 static int rockchip_pinctrl_probe(struct platform_device *pdev)
 {
 	struct rockchip_pinctrl *info;
