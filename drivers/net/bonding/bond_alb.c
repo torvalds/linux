@@ -469,7 +469,7 @@ static void rlb_teach_disabled_mac_on_primary(struct bonding *bond, u8 addr[])
 
 /* slave being removed should not be active at this point
  *
- * Caller must hold bond lock for read
+ * Caller must hold rtnl.
  */
 static void rlb_clear_slave(struct bonding *bond, struct slave *slave)
 {
@@ -1679,14 +1679,11 @@ void bond_alb_handle_link_change(struct bonding *bond, struct slave *slave, char
  * If new_slave is NULL, caller must hold curr_slave_lock or
  * bond->lock for write.
  *
- * If new_slave is not NULL, caller must hold RTNL, bond->lock for
- * read and curr_slave_lock for write.  Processing here may sleep, so
- * no other locks may be held.
+ * If new_slave is not NULL, caller must hold RTNL, curr_slave_lock
+ * for write.  Processing here may sleep, so no other locks may be held.
  */
 void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave)
 	__releases(&bond->curr_slave_lock)
-	__releases(&bond->lock)
-	__acquires(&bond->lock)
 	__acquires(&bond->curr_slave_lock)
 {
 	struct slave *swap_slave;
@@ -1722,7 +1719,6 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 	tlb_clear_slave(bond, new_slave, 1);
 
 	write_unlock_bh(&bond->curr_slave_lock);
-	read_unlock(&bond->lock);
 
 	ASSERT_RTNL();
 
@@ -1748,11 +1744,9 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 		/* swap mac address */
 		alb_swap_mac_addr(swap_slave, new_slave);
 		alb_fasten_mac_swap(bond, swap_slave, new_slave);
-		read_lock(&bond->lock);
 	} else {
 		/* set the new_slave to the bond mac address */
 		alb_set_slave_mac_addr(new_slave, bond->dev->dev_addr);
-		read_lock(&bond->lock);
 		alb_send_learning_packets(new_slave, bond->dev->dev_addr);
 	}
 

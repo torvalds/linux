@@ -697,14 +697,12 @@ static void bond_set_dev_addr(struct net_device *bond_dev,
  *
  * Perform special MAC address swapping for fail_over_mac settings
  *
- * Called with RTNL, bond->lock for read, curr_slave_lock for write_bh.
+ * Called with RTNL, curr_slave_lock for write_bh.
  */
 static void bond_do_fail_over_mac(struct bonding *bond,
 				  struct slave *new_active,
 				  struct slave *old_active)
 	__releases(&bond->curr_slave_lock)
-	__releases(&bond->lock)
-	__acquires(&bond->lock)
 	__acquires(&bond->curr_slave_lock)
 {
 	u8 tmp_mac[ETH_ALEN];
@@ -715,9 +713,7 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 	case BOND_FOM_ACTIVE:
 		if (new_active) {
 			write_unlock_bh(&bond->curr_slave_lock);
-			read_unlock(&bond->lock);
 			bond_set_dev_addr(bond->dev, new_active->dev);
-			read_lock(&bond->lock);
 			write_lock_bh(&bond->curr_slave_lock);
 		}
 		break;
@@ -731,7 +727,6 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 			return;
 
 		write_unlock_bh(&bond->curr_slave_lock);
-		read_unlock(&bond->lock);
 
 		if (old_active) {
 			memcpy(tmp_mac, new_active->dev->dev_addr, ETH_ALEN);
@@ -761,7 +756,6 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 			pr_err("%s: Error %d setting MAC of slave %s\n",
 			       bond->dev->name, -rv, new_active->dev->name);
 out:
-		read_lock(&bond->lock);
 		write_lock_bh(&bond->curr_slave_lock);
 		break;
 	default:
@@ -846,8 +840,7 @@ static bool bond_should_notify_peers(struct bonding *bond)
  * because it is apparently the best available slave we have, even though its
  * updelay hasn't timed out yet.
  *
- * If new_active is not NULL, caller must hold bond->lock for read and
- * curr_slave_lock for write_bh.
+ * If new_active is not NULL, caller must hold curr_slave_lock for write_bh.
  */
 void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 {
@@ -916,14 +909,12 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 			}
 
 			write_unlock_bh(&bond->curr_slave_lock);
-			read_unlock(&bond->lock);
 
 			call_netdevice_notifiers(NETDEV_BONDING_FAILOVER, bond->dev);
 			if (should_notify_peers)
 				call_netdevice_notifiers(NETDEV_NOTIFY_PEERS,
 							 bond->dev);
 
-			read_lock(&bond->lock);
 			write_lock_bh(&bond->curr_slave_lock);
 		}
 	}
@@ -949,7 +940,7 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
  * - The primary_slave has got its link back.
  * - A slave has got its link back and there's no old curr_active_slave.
  *
- * Caller must hold bond->lock for read and curr_slave_lock for write_bh.
+ * Caller must hold curr_slave_lock for write_bh.
  */
 void bond_select_active_slave(struct bonding *bond)
 {
