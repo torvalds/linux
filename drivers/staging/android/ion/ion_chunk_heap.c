@@ -105,8 +105,9 @@ static void ion_chunk_heap_free(struct ion_buffer *buffer)
 
 	for_each_sg(table->sgl, sg, table->nents, i) {
 		if (ion_buffer_cached(buffer))
-			__dma_page_cpu_to_dev(sg_page(sg), 0, sg_dma_len(sg),
-					      DMA_BIDIRECTIONAL);
+			arm_dma_ops.sync_single_for_device(NULL,
+				pfn_to_dma(NULL, page_to_pfn(sg_page(sg))),
+				sg_dma_len(sg), DMA_BIDIRECTIONAL);
 		gen_pool_free(chunk_heap->pool, page_to_phys(sg_page(sg)),
 			      sg_dma_len(sg));
 	}
@@ -177,8 +178,9 @@ struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *heap_data)
 	}
 	free_vm_area(vm_struct);
 
-	__dma_page_cpu_to_dev(phys_to_page(heap_data->base), 0, heap_data->size,
-			      DMA_BIDIRECTIONAL);
+	arm_dma_ops.sync_single_for_device(NULL,
+		pfn_to_dma(NULL, page_to_pfn(phys_to_page(heap_data->base))),
+		heap_data->size, DMA_BIDIRECTIONAL);
 	gen_pool_add(chunk_heap->pool, chunk_heap->base, heap_data->size, -1);
 	chunk_heap->heap.ops = &chunk_heap_ops;
 	chunk_heap->heap.type = ION_HEAP_TYPE_CHUNK;

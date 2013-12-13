@@ -37,8 +37,10 @@ static void *ion_page_pool_alloc_pages(struct ion_page_pool *pool)
 	/* this is only being used to flush the page for dma,
 	   this api is not really suitable for calling from a driver
 	   but no better way to flush a page for dma exist at this time */
-	__dma_page_cpu_to_dev(page, 0, PAGE_SIZE << pool->order,
-			      DMA_BIDIRECTIONAL);
+	arm_dma_ops.sync_single_for_device(NULL,
+					   pfn_to_dma(NULL, page_to_pfn(page)),
+					   PAGE_SIZE << pool->order,
+					   DMA_BIDIRECTIONAL);
 	return page;
 }
 
