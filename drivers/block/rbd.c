@@ -89,7 +89,6 @@ static int atomic_dec_return_safe(atomic_t *v)
 }
 
 #define RBD_DRV_NAME "rbd"
-#define RBD_DRV_NAME_LONG "rbd (rados block device)"
 
 #define RBD_MINORS_PER_MAJOR	256		/* max minors per blkdev */
 
@@ -5303,7 +5302,7 @@ static int __init rbd_init(void)
 	if (rc)
 		rbd_slab_exit();
 	else
-		pr_info("loaded " RBD_DRV_NAME_LONG "\n");
+		pr_info("loaded\n");
 
 	return rc;
 }
@@ -5320,9 +5319,8 @@ module_exit(rbd_exit);
 MODULE_AUTHOR("Alex Elder <elder@inktank.com>");
 MODULE_AUTHOR("Sage Weil <sage@newdream.net>");
 MODULE_AUTHOR("Yehuda Sadeh <yehuda@hq.newdream.net>");
-MODULE_DESCRIPTION("rados block device");
-
 /* following authorship retained from original osdblk.c */
 MODULE_AUTHOR("Jeff Garzik <jeff@garzik.org>");
 
+MODULE_DESCRIPTION("RADOS Block Device (RBD) driver");
 MODULE_LICENSE("GPL");
