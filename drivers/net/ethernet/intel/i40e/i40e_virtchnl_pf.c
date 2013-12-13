@@ -716,6 +716,76 @@ static bool i40e_vfs_are_assigned(struct i40e_pf *pf)
 
 	return false;
 }
+#ifdef CONFIG_PCI_IOV
+
+/**
+ * i40e_enable_pf_switch_lb
+ * @pf: pointer to the pf structure
+ *
+ * enable switch loop back or die - no point in a return value
+ **/
+static void i40e_enable_pf_switch_lb(struct i40e_pf *pf)
+{
+	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
+	struct i40e_vsi_context ctxt;
+	int aq_ret;
+
+	ctxt.seid = pf->main_vsi_seid;
+	ctxt.pf_num = pf->hw.pf_id;
+	ctxt.vf_num = 0;
+	aq_ret = i40e_aq_get_vsi_params(&pf->hw, &ctxt, NULL);
+	if (aq_ret) {
+		dev_info(&pf->pdev->dev,
+			 "%s couldn't get pf vsi config, err %d, aq_err %d\n",
+			 __func__, aq_ret, pf->hw.aq.asq_last_status);
+		return;
+	}
+	ctxt.flags = I40E_AQ_VSI_TYPE_PF;
+	ctxt.info.valid_sections = cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
+	ctxt.info.switch_id |= cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
+
+	aq_ret = i40e_aq_update_vsi_params(&vsi->back->hw, &ctxt, NULL);
+	if (aq_ret) {
+		dev_info(&pf->pdev->dev,
+			 "%s: update vsi switch failed, aq_err=%d\n",
+			 __func__, vsi->back->hw.aq.asq_last_status);
+	}
+}
+#endif
+
+/**
+ * i40e_disable_pf_switch_lb
+ * @pf: pointer to the pf structure
+ *
+ * disable switch loop back or die - no point in a return value
+ **/
+static void i40e_disable_pf_switch_lb(struct i40e_pf *pf)
+{
+	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
+	struct i40e_vsi_context ctxt;
+	int aq_ret;
+
+	ctxt.seid = pf->main_vsi_seid;
+	ctxt.pf_num = pf->hw.pf_id;
+	ctxt.vf_num = 0;
+	aq_ret = i40e_aq_get_vsi_params(&pf->hw, &ctxt, NULL);
+	if (aq_ret) {
+		dev_info(&pf->pdev->dev,
+			 "%s couldn't get pf vsi config, err %d, aq_err %d\n",
+			 __func__, aq_ret, pf->hw.aq.asq_last_status);
+		return;
+	}
+	ctxt.flags = I40E_AQ_VSI_TYPE_PF;
+	ctxt.info.valid_sections = cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
+	ctxt.info.switch_id &= ~cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
+
+	aq_ret = i40e_aq_update_vsi_params(&vsi->back->hw, &ctxt, NULL);
+	if (aq_ret) {
+		dev_info(&pf->pdev->dev,
+			 "%s: update vsi switch failed, aq_err=%d\n",
+			 __func__, vsi->back->hw.aq.asq_last_status);
+	}
+}
 
 /**
  * i40e_free_vfs
@@ -759,10 +829,11 @@ void i40e_free_vfs(struct i40e_pf *pf)
 			bit_idx = (hw->func_caps.vf_base_id + vf_id) % 32;
 			wr32(hw, I40E_GLGEN_VFLRSTAT(reg_idx), (1 << bit_idx));
 		}
-	}
-	else
+		i40e_disable_pf_switch_lb(pf);
+	} else {
 		dev_warn(&pf->pdev->dev,
 			 "unable to disable SR-IOV because VFs are assigned.\n");
+	}
 
 	/* Re-enable interrupt 0. */
 	i40e_irq_dynamic_enable_icr0(pf);
@@ -816,6 +887,7 @@ static int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 	pf->vf = vfs;
 	pf->num_alloc_vfs = num_alloc_vfs;
 
+	i40e_enable_pf_switch_lb(pf);
 err_alloc:
 	if (ret)
 		i40e_free_vfs(pf);
