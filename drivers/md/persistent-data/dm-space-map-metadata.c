@@ -385,13 +385,13 @@ static int sm_metadata_new_block(struct dm_space_map *sm, dm_block_t *b)
 
 	int r = sm_metadata_new_block_(sm, b);
 	if (r) {
-		DMERR("unable to allocate new metadata block");
+		DMERR_LIMIT("unable to allocate new metadata block");
 		return r;
 	}
 
 	r = sm_metadata_get_nr_free(sm, &count);
 	if (r) {
-		DMERR("couldn't get free block count");
+		DMERR_LIMIT("couldn't get free block count");
 		return r;
 	}
 
