@@ -17,6 +17,7 @@
 #ifndef _ION_PRIV_H
 #define _ION_PRIV_H
 
+#include <linux/dma-direction.h>
 #include <linux/kref.h>
 #include <linux/mm_types.h>
 #include <linux/mutex.h>
@@ -214,19 +215,7 @@ void ion_heap_unmap_kernel(struct ion_heap *, struct ion_buffer *);
 int ion_heap_map_user(struct ion_heap *, struct ion_buffer *,
 			struct vm_area_struct *);
 int ion_heap_buffer_zero(struct ion_buffer *buffer);
-
-/**
- * ion_heap_alloc_pages - allocate pages from alloc_pages
- * @buffer:		the buffer to allocate for, used to extract the flags
- * @gfp_flags:		the gfp_t for the allocation
- * @order:		the order of the allocatoin
- *
- * This funciton allocations from alloc pages and also does any other
- * necessary operations based on the buffer->flags.  For buffers which
- * will be faulted in the pages are split using split_page
- */
-struct page *ion_heap_alloc_pages(struct ion_buffer *buffer, gfp_t gfp_flags,
-				  unsigned int order);
+int ion_heap_pages_zero(struct page *page, size_t size, pgprot_t pgprot);
 
 /**
  * ion_heap_init_deferred_free -- initialize deferred free functionality
@@ -356,5 +345,16 @@ void ion_page_pool_free(struct ion_page_pool *, struct page *);
  */
 int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
 			  int nr_to_scan);
+
+/**
+ * ion_pages_sync_for_device - cache flush pages for use with the specified
+ *                             device
+ * @dev:		the device the pages will be used with
+ * @page:		the first page to be flushed
+ * @size:		size in bytes of region to be flushed
+ * @dir:		direction of dma transfer
+ */
+void ion_pages_sync_for_device(struct device *dev, struct page *page,
+		size_t size, enum dma_data_direction dir);
 
 #endif /* _ION_PRIV_H */

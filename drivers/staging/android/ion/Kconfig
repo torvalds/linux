@@ -1,10 +1,16 @@
 menuconfig ION
 	tristate "Ion Memory Manager"
-	depends on ARM
 	select GENERIC_ALLOCATOR
 	select DMA_SHARED_BUFFER
 	help
 	  Chose this option to enable the ION Memory Manager.
+
+config ION_TEST
+	tristate "Ion Test Device"
+	depends on ION
+	help
+	  Choose this option to create a device that can be used to test the
+	  kernel and device side ION functions.
 
 config ION_TEGRA
 	tristate "Ion for Tegra"
