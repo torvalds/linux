@@ -925,10 +925,9 @@ int ion_share_dma_buf(struct ion_client *client, struct ion_handle *handle)
 		return PTR_ERR(dmabuf);
 	}
 	fd = dma_buf_fd(dmabuf, O_CLOEXEC);
-	if (fd < 0) {
+	if (fd < 0)
 		dma_buf_put(dmabuf);
-		ion_buffer_put(buffer);
-	}
+
 	return fd;
 }
 EXPORT_SYMBOL(ion_share_dma_buf);
