@@ -4385,8 +4385,7 @@ static void rbd_dev_id_get(struct rbd_device *rbd_dev)
 	spin_lock(&rbd_dev_list_lock);
 	list_add_tail(&rbd_dev->node, &rbd_dev_list);
 	spin_unlock(&rbd_dev_list_lock);
-	dout("rbd_dev %p given dev id %llu\n", rbd_dev,
-		(unsigned long long) rbd_dev->dev_id);
+	dout("rbd_dev %p given dev id %d\n", rbd_dev, rbd_dev->dev_id);
 }
 
 /*
@@ -4401,8 +4400,7 @@ static void rbd_dev_id_put(struct rbd_device *rbd_dev)
 
 	rbd_assert(rbd_id > 0);
 
-	dout("rbd_dev %p released dev id %llu\n", rbd_dev,
-		(unsigned long long) rbd_dev->dev_id);
+	dout("rbd_dev %p released dev id %d\n", rbd_dev, rbd_dev->dev_id);
 	spin_lock(&rbd_dev_list_lock);
 	list_del_init(&rbd_dev->node);
 
