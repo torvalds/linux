@@ -182,6 +182,34 @@ xfs_buf_item_size(
 	trace_xfs_buf_item_size(bip);
 }
 
+static inline struct xfs_log_iovec *
+xfs_buf_item_copy_iovec(
+	struct xfs_log_iovec	*vecp,
+	struct xfs_buf		*bp,
+	uint			offset,
+	int			first_bit,
+	uint			nbits)
+{
+	offset += first_bit * XFS_BLF_CHUNK;
+
+	vecp->i_type = XLOG_REG_TYPE_BCHUNK;
+	vecp->i_addr = xfs_buf_offset(bp, offset);
+	vecp->i_len = nbits * XFS_BLF_CHUNK;
+	return vecp + 1;
+}
+
+static inline bool
+xfs_buf_item_straddle(
+	struct xfs_buf		*bp,
+	uint			offset,
+	int			next_bit,
+	int			last_bit)
+{
+	return xfs_buf_offset(bp, offset + (next_bit << XFS_BLF_SHIFT)) !=
+		(xfs_buf_offset(bp, offset + (last_bit << XFS_BLF_SHIFT)) +
+		 XFS_BLF_CHUNK);
+}
+
 static struct xfs_log_iovec *
 xfs_buf_item_format_segment(
 	struct xfs_buf_log_item	*bip,
@@ -196,7 +224,6 @@ xfs_buf_item_format_segment(
 	int		last_bit;
 	int		next_bit;
 	uint		nbits;
-	uint		buffer_offset;
 
 	/* copy the flags across from the base format item */
 	blfp->blf_flags = bip->__bli_format.blf_flags;
@@ -239,7 +266,6 @@ xfs_buf_item_format_segment(
 	/*
 	 * Fill in an iovec for each set of contiguous chunks.
 	 */
-
 	last_bit = first_bit;
 	nbits = 1;
 	for (;;) {
@@ -252,42 +278,22 @@ xfs_buf_item_format_segment(
 		next_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size,
 					(uint)last_bit + 1);
 		/*
-		 * If we run out of bits fill in the last iovec and get
-		 * out of the loop.
-		 * Else if we start a new set of bits then fill in the
-		 * iovec for the series we were looking at and start
-		 * counting the bits in the new one.
-		 * Else we're still in the same set of bits so just
-		 * keep counting and scanning.
+		 * If we run out of bits fill in the last iovec and get out of
+		 * the loop.  Else if we start a new set of bits then fill in
+		 * the iovec for the series we were looking at and start
+		 * counting the bits in the new one.  Else we're still in the
+		 * same set of bits so just keep counting and scanning.
 		 */
 		if (next_bit == -1) {
-			buffer_offset = offset + first_bit * XFS_BLF_CHUNK;
-			vecp->i_addr = xfs_buf_offset(bp, buffer_offset);
-			vecp->i_len = nbits * XFS_BLF_CHUNK;
-			vecp->i_type = XLOG_REG_TYPE_BCHUNK;
+			xfs_buf_item_copy_iovec(vecp, bp, offset,
+						first_bit, nbits);
 			nvecs++;
 			break;
-		} else if (next_bit != last_bit + 1) {
-			buffer_offset = offset + first_bit * XFS_BLF_CHUNK;
-			vecp->i_addr = xfs_buf_offset(bp, buffer_offset);
-			vecp->i_len = nbits * XFS_BLF_CHUNK;
-			vecp->i_type = XLOG_REG_TYPE_BCHUNK;
+		} else if (next_bit != last_bit + 1 ||
+		           xfs_buf_item_straddle(bp, offset, next_bit, last_bit)) {
+			vecp = xfs_buf_item_copy_iovec(vecp, bp, offset,
+						       first_bit, nbits);
 			nvecs++;
-			vecp++;
-			first_bit = next_bit;
-			last_bit = next_bit;
-			nbits = 1;
-		} else if (xfs_buf_offset(bp, offset +
-					      (next_bit << XFS_BLF_SHIFT)) !=
-			   (xfs_buf_offset(bp, offset +
-					       (last_bit << XFS_BLF_SHIFT)) +
-			    XFS_BLF_CHUNK)) {
-			buffer_offset = offset + first_bit * XFS_BLF_CHUNK;
-			vecp->i_addr = xfs_buf_offset(bp, buffer_offset);
-			vecp->i_len = nbits * XFS_BLF_CHUNK;
-			vecp->i_type = XLOG_REG_TYPE_BCHUNK;
-			nvecs++;
-			vecp++;
 			first_bit = next_bit;
 			last_bit = next_bit;
 			nbits = 1;
