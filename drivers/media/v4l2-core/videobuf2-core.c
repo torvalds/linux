@@ -2355,6 +2355,7 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 				goto err_reqbufs;
 			fileio->bufs[i].queued = 1;
 		}
+		fileio->index = q->num_buffers;
 	}
 
 	/*
@@ -2430,15 +2431,11 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 	}
 	fileio = q->fileio;
 
-	index = fileio->index;
-	buf = &fileio->bufs[index];
-
 	/*
 	 * Check if we need to dequeue the buffer.
 	 */
-	if (buf->queued) {
-		struct vb2_buffer *vb;
-
+	index = fileio->index;
+	if (index >= q->num_buffers) {
 		/*
 		 * Call vb2_dqbuf to get buffer back.
 		 */
@@ -2451,12 +2448,18 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 			return ret;
 		fileio->dq_count += 1;
 
+		index = fileio->b.index;
+		buf = &fileio->bufs[index];
+
 		/*
 		 * Get number of bytes filled by the driver
 		 */
-		vb = q->bufs[index];
-		buf->size = vb2_get_plane_payload(vb, 0);
+		buf->pos = 0;
 		buf->queued = 0;
+		buf->size = read ? vb2_get_plane_payload(q->bufs[index], 0)
+				 : vb2_plane_size(q->bufs[index], 0);
+	} else {
+		buf = &fileio->bufs[index];
 	}
 
 	/*
@@ -2519,13 +2522,10 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 		 */
 		buf->pos = 0;
 		buf->queued = 1;
-		buf->size = q->bufs[0]->v4l2_planes[0].length;
+		buf->size = vb2_plane_size(q->bufs[index], 0);
 		fileio->q_count += 1;
-
-		/*
-		 * Switch to the next buffer
-		 */
-		fileio->index = (index + 1) % q->num_buffers;
+		if (fileio->index < q->num_buffers)
+			fileio->index++;
 	}
 
 	/*
