@@ -26,3 +26,9 @@ config ARCH_SOCFPGA
 	select PL310_ERRATA_753970
 	select PL310_ERRATA_769419
 	select VIRT_TO_BUS
+
+config FPGADMA
+	tristate "FPGA DMA FIFO driver"
+	depends on DMA_ENGINE
+	help
+		Sample FPGA DMA driver, for testing with special FPGA FIFO image

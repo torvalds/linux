@@ -1,0 +1,25 @@
+Altera FPGA DMA FIFO driver
+
+Required properties:
+- compatible : "altr,fpga-dma";
+
+- reg : CSR and DATA register resource definitions (address and length).
+
+- reg-names : Names of the register resources.  Should be "csr", "data".
+
+- dmas : DMA request lines.  Should be <&pdma 0 &pdma 1>
+
+- dma-names : Names of DMA request lines. Should be "tx", "rx".
+
+Example:
+
+	fpgadma: fifo {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "altr,fpga-dma";
+		reg = <0xff230000 0x20>, <0xc0011000 0x400>;
+		reg-names = "csr", "data";
+		dmas = <&pdma 0 &pdma 1>;
+		dma-names = "tx", "rx";
+	};
+
