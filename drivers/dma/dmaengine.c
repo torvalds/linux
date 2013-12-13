@@ -1054,7 +1054,7 @@ dma_async_memcpy_pg_to_pg(struct dma_chan *chan, struct page *dest_pg,
 	dma_cookie_t cookie;
 	unsigned long flags;
 
-	unmap = dmaengine_get_unmap_data(dev->dev, 2, GFP_NOIO);
+	unmap = dmaengine_get_unmap_data(dev->dev, 2, GFP_NOWAIT);
 	if (!unmap)
 		return -ENOMEM;
 
