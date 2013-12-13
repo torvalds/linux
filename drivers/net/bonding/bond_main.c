@@ -2517,7 +2517,7 @@ re_arm:
  * place for the slave.  Returns 0 if no changes are found, >0 if changes
  * to link states must be committed.
  *
- * Called with bond->lock held for read.
+ * Called with rcu_read_lock hold.
  */
 static int bond_ab_arp_inspect(struct bonding *bond)
 {
@@ -2526,7 +2526,7 @@ static int bond_ab_arp_inspect(struct bonding *bond)
 	struct slave *slave;
 	int commit = 0;
 
-	bond_for_each_slave(bond, slave, iter) {
+	bond_for_each_slave_rcu(bond, slave, iter) {
 		slave->new_link = BOND_LINK_NOCHANGE;
 		last_rx = slave_last_rx(bond, slave);
 
@@ -2588,7 +2588,7 @@ static int bond_ab_arp_inspect(struct bonding *bond)
  * Called to commit link state changes noted by inspection step of
  * active-backup mode ARP monitor.
  *
- * Called with RTNL and bond->lock for read.
+ * Called with RTNL hold.
  */
 static void bond_ab_arp_commit(struct bonding *bond)
 {
@@ -2663,19 +2663,20 @@ do_failover:
 /*
  * Send ARP probes for active-backup mode ARP monitor.
  *
- * Called with bond->lock held for read.
+ * Called with rcu_read_lock hold.
  */
 static void bond_ab_arp_probe(struct bonding *bond)
 {
-	struct slave *slave, *before = NULL, *new_slave = NULL;
+	struct slave *slave, *before = NULL, *new_slave = NULL,
+		     *curr_arp_slave = rcu_dereference(bond->current_arp_slave);
 	struct list_head *iter;
 	bool found = false;
 
 	read_lock(&bond->curr_slave_lock);
 
-	if (bond->current_arp_slave && bond->curr_active_slave)
+	if (curr_arp_slave && bond->curr_active_slave)
 		pr_info("PROBE: c_arp %s && cas %s BAD\n",
-			bond->current_arp_slave->dev->name,
+			curr_arp_slave->dev->name,
 			bond->curr_active_slave->dev->name);
 
 	if (bond->curr_active_slave) {
@@ -2691,15 +2692,15 @@ static void bond_ab_arp_probe(struct bonding *bond)
 	 * for becoming the curr_active_slave
 	 */
 
-	if (!bond->current_arp_slave) {
-		bond->current_arp_slave = bond_first_slave(bond);
-		if (!bond->current_arp_slave)
+	if (!curr_arp_slave) {
+		curr_arp_slave = bond_first_slave_rcu(bond);
+		if (!curr_arp_slave)
 			return;
 	}
 
-	bond_set_slave_inactive_flags(bond->current_arp_slave);
+	bond_set_slave_inactive_flags(curr_arp_slave);
 
-	bond_for_each_slave(bond, slave, iter) {
+	bond_for_each_slave_rcu(bond, slave, iter) {
 		if (!found && !before && IS_UP(slave->dev))
 			before = slave;
 
@@ -2722,7 +2723,7 @@ static void bond_ab_arp_probe(struct bonding *bond)
 			pr_info("%s: backup interface %s is now down.\n",
 				bond->dev->name, slave->dev->name);
 		}
-		if (slave == bond->current_arp_slave)
+		if (slave == curr_arp_slave)
 			found = true;
 	}
 
@@ -2736,8 +2737,7 @@ static void bond_ab_arp_probe(struct bonding *bond)
 	bond_set_slave_active_flags(new_slave);
 	bond_arp_send_all(bond, new_slave);
 	new_slave->jiffies = jiffies;
-	bond->current_arp_slave = new_slave;
-
+	rcu_assign_pointer(bond->current_arp_slave, new_slave);
 }
 
 void bond_activebackup_arp_mon(struct work_struct *work)
@@ -2747,42 +2747,37 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 	bool should_notify_peers = false;
 	int delta_in_ticks;
 
-	read_lock(&bond->lock);
-
 	delta_in_ticks = msecs_to_jiffies(bond->params.arp_interval);
 
 	if (!bond_has_slaves(bond))
 		goto re_arm;
 
+	rcu_read_lock();
+
 	should_notify_peers = bond_should_notify_peers(bond);
 
 	if (bond_ab_arp_inspect(bond)) {
-		read_unlock(&bond->lock);
+		rcu_read_unlock();
 
 		/* Race avoidance with bond_close flush of workqueue */
 		if (!rtnl_trylock()) {
-			read_lock(&bond->lock);
 			delta_in_ticks = 1;
 			should_notify_peers = false;
 			goto re_arm;
 		}
 
-		read_lock(&bond->lock);
-
 		bond_ab_arp_commit(bond);
 
-		read_unlock(&bond->lock);
 		rtnl_unlock();
-		read_lock(&bond->lock);
+		rcu_read_lock();
 	}
 
 	bond_ab_arp_probe(bond);
+	rcu_read_unlock();
 
 re_arm:
 	if (bond->params.arp_interval)
 		queue_delayed_work(bond->wq, &bond->arp_work, delta_in_ticks);
-
-	read_unlock(&bond->lock);
 
 	if (should_notify_peers) {
 		if (!rtnl_trylock())
