@@ -823,7 +823,7 @@ int core_tpg_add_lun(
 	struct se_portal_group *tpg,
 	struct se_lun *lun,
 	u32 lun_access,
-	void *lun_ptr)
+	struct se_device *dev)
 {
 	int ret;
 
@@ -831,7 +831,7 @@ int core_tpg_add_lun(
 	if (ret < 0)
 		return ret;
 
-	ret = core_dev_export(lun_ptr, tpg, lun);
+	ret = core_dev_export(dev, tpg, lun);
 	if (ret < 0) {
 		percpu_ref_cancel_init(&lun->lun_ref);
 		return ret;
