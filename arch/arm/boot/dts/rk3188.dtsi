@@ -12,6 +12,11 @@
 		serial1 = &uart1;
 		serial2 = &uart2;
 		serial3 = &uart3;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
 	};
 
 	cpus {
@@ -236,4 +241,58 @@
 		status = "disabled";
 	};
 
+	i2c0: i2c@2002d000 {
+		compatible = "rockchip,rk30-i2c";
+		reg = <0x2002d000 0x1000>;
+		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c0_sda &i2c0_scl>;
+		status = "disabled";
+	};
+
+	i2c1: i2c@2002f000 {
+		compatible = "rockchip,rk30-i2c";
+		reg = <0x2002f000 0x1000>;
+		interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c1_sda &i2c1_scl>;
+		status = "disabled";
+	};
+
+	i2c2: i2c@20055000 {
+		compatible = "rockchip,rk30-i2c";
+		reg = <0x20055000 0x1000>;
+		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c2_sda &i2c2_scl>;
+		status = "disabled";
+	};
+
+	i2c3: i2c@20059000 {
+		compatible = "rockchip,rk30-i2c";
+		reg = <0x20059000 0x1000>;
+		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c3_sda &i2c3_scl>;
+		status = "disabled";
+	};
+
+	i2c4: i2c@2005d000 {
+		compatible = "rockchip,rk30-i2c";
+		reg = <0x2005d000 0x1000>;
+		interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c4_sda &i2c4_scl>;
+		status = "disabled";
+	};
 };

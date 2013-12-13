@@ -26,6 +26,7 @@
 #include "core.h"
 #include "cpu.h"
 #include "cpu_axi.h"
+#include "grf.h"
 #include "iomap.h"
 
 #define RK3188_DEVICE(name) \
@@ -93,6 +94,9 @@ static void __init rk3188_dt_map_io(void)
 	 && readl_relaxed(RK_ROM_VIRT + 0x27f8) == 0x30313331
 	 && readl_relaxed(RK_ROM_VIRT + 0x27fc) == 0x56313031)
 		rockchip_soc_id = ROCKCHIP_SOC_RK3188PLUS;
+
+	/* rki2c is used instead of old i2c */
+	writel_relaxed(0xF800F800, RK_GRF_VIRT + RK3188_GRF_SOC_CON1);
 }
 
 static void __init rk3188_dt_init_timer(void)

@@ -629,6 +629,20 @@ config I2C_PXA_SLAVE
 	  is necessary for systems where the PXA may be a target on the
 	  I2C bus.
 
+config I2C_ROCKCHIP
+	tristate "Rockchip I2C interface"
+	depends on ARCH_ROCKCHIP
+	help
+	  If you say yes to this option, support will be included for the
+	  Rockchip I2C interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-rockchip.
+
+config I2C_ROCKCHIP_COMPAT
+	bool "Support set sclk rate on i2c_msg (DEPRECATED)"
+	depends on I2C_ROCKCHIP
+
 config HAVE_S3C2410_I2C
 	bool
 	help
