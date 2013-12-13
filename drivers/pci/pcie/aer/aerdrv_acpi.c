@@ -70,6 +70,17 @@ static int aer_hest_parse(struct acpi_hest_header *hest_hdr, void *data)
 
 	p = (struct acpi_hest_aer_common *)(hest_hdr + 1);
 	ff = !!(p->flags & ACPI_HEST_FIRMWARE_FIRST);
+
+	/*
+	 * If no specific device is supplied, determine whether
+	 * FIRMWARE_FIRST is set for *any* PCIe device.
+	 */
+	if (!info->pci_dev) {
+		info->firmware_first |= ff;
+		return 0;
+	}
+
+	/* Otherwise, check the specific device */
 	if (p->flags & ACPI_HEST_GLOBAL) {
 		if (hest_match_type(hest_hdr, info->pci_dev))
 			info->firmware_first = ff;
@@ -109,30 +120,20 @@ int pcie_aer_get_firmware_first(struct pci_dev *dev)
 
 static bool aer_firmware_first;
 
-static int aer_hest_parse_aff(struct acpi_hest_header *hest_hdr, void *data)
-{
-	struct acpi_hest_aer_common *p;
-
-	if (aer_firmware_first)
-		return 0;
-
-	if (!hest_source_is_pcie_aer(hest_hdr))
-		return 0;
-
-	p = (struct acpi_hest_aer_common *)(hest_hdr + 1);
-	aer_firmware_first = !!(p->flags & ACPI_HEST_FIRMWARE_FIRST);
-	return 0;
-}
-
 /**
  * aer_acpi_firmware_first - Check if APEI should control AER.
  */
 bool aer_acpi_firmware_first(void)
 {
 	static bool parsed = false;
+	struct aer_hest_parse_info info = {
+		.pci_dev	= NULL,	/* Check all PCIe devices */
+		.firmware_first	= 0,
+	};
 
 	if (!parsed) {
-		apei_hest_parse(aer_hest_parse_aff, NULL);
+		apei_hest_parse(aer_hest_parse, &info);
+		aer_firmware_first = info.firmware_first;
 		parsed = true;
 	}
 	return aer_firmware_first;
