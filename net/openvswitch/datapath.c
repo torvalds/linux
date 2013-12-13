@@ -1040,6 +1040,7 @@ static const struct genl_ops dp_flow_genl_ops[] = {
 static const struct nla_policy datapath_policy[OVS_DP_ATTR_MAX + 1] = {
 	[OVS_DP_ATTR_NAME] = { .type = NLA_NUL_STRING, .len = IFNAMSIZ - 1 },
 	[OVS_DP_ATTR_UPCALL_PID] = { .type = NLA_U32 },
+	[OVS_DP_ATTR_USER_FEATURES] = { .type = NLA_U32 },
 };
 
 static struct genl_family dp_datapath_genl_family = {
@@ -1098,6 +1099,9 @@ static int ovs_dp_cmd_fill_info(struct datapath *dp, struct sk_buff *skb,
 			&dp_megaflow_stats))
 		goto nla_put_failure;
 
+	if (nla_put_u32(skb, OVS_DP_ATTR_USER_FEATURES, dp->user_features))
+		goto nla_put_failure;
+
 	return genlmsg_end(skb, ovs_header);
 
 nla_put_failure:
@@ -1142,6 +1146,12 @@ static struct datapath *lookup_datapath(struct net *net,
 		rcu_read_unlock();
 	}
 	return dp ? dp : ERR_PTR(-ENODEV);
+}
+
+static void ovs_dp_change(struct datapath *dp, struct nlattr **a)
+{
+	if (a[OVS_DP_ATTR_USER_FEATURES])
+		dp->user_features = nla_get_u32(a[OVS_DP_ATTR_USER_FEATURES]);
 }
 
 static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
@@ -1201,6 +1211,8 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	parms.dp = dp;
 	parms.port_no = OVSP_LOCAL;
 	parms.upcall_portid = nla_get_u32(a[OVS_DP_ATTR_UPCALL_PID]);
+
+	ovs_dp_change(dp, a);
 
 	vport = new_vport(&parms);
 	if (IS_ERR(vport)) {
@@ -1304,6 +1316,8 @@ static int ovs_dp_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	err = PTR_ERR(dp);
 	if (IS_ERR(dp))
 		goto unlock;
+
+	ovs_dp_change(dp, info->attrs);
 
 	reply = ovs_dp_cmd_build_info(dp, info, OVS_DP_CMD_NEW);
 	if (IS_ERR(reply)) {

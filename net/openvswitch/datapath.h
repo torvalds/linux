@@ -88,6 +88,8 @@ struct datapath {
 	/* Network namespace ref. */
 	struct net *net;
 #endif
+
+	u32 user_features;
 };
 
 /**
