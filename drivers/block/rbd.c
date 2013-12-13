@@ -5292,18 +5292,22 @@ static int __init rbd_init(void)
 
 	if (!libceph_compatible(NULL)) {
 		rbd_warn(NULL, "libceph incompatibility (quitting)");
-
 		return -EINVAL;
 	}
+
 	rc = rbd_slab_init();
 	if (rc)
 		return rc;
+
 	rc = rbd_sysfs_init();
 	if (rc)
-		rbd_slab_exit();
-	else
-		pr_info("loaded\n");
+		goto err_out_slab;
 
+	pr_info("loaded\n");
+	return 0;
+
+err_out_slab:
+	rbd_slab_exit();
 	return rc;
 }
 
