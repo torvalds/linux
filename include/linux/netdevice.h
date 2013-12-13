@@ -2810,17 +2810,10 @@ int register_netdev(struct net_device *dev);
 void unregister_netdev(struct net_device *dev);
 
 /* General hardware address lists handling functions */
-int __hw_addr_add_multiple(struct netdev_hw_addr_list *to_list,
-			   struct netdev_hw_addr_list *from_list,
-			   int addr_len, unsigned char addr_type);
-void __hw_addr_del_multiple(struct netdev_hw_addr_list *to_list,
-			    struct netdev_hw_addr_list *from_list,
-			    int addr_len, unsigned char addr_type);
 int __hw_addr_sync(struct netdev_hw_addr_list *to_list,
 		   struct netdev_hw_addr_list *from_list, int addr_len);
 void __hw_addr_unsync(struct netdev_hw_addr_list *to_list,
 		      struct netdev_hw_addr_list *from_list, int addr_len);
-void __hw_addr_flush(struct netdev_hw_addr_list *list);
 void __hw_addr_init(struct netdev_hw_addr_list *list);
 
 /* Functions used for device addresses handling */
@@ -2828,10 +2821,6 @@ int dev_addr_add(struct net_device *dev, const unsigned char *addr,
 		 unsigned char addr_type);
 int dev_addr_del(struct net_device *dev, const unsigned char *addr,
 		 unsigned char addr_type);
-int dev_addr_add_multiple(struct net_device *to_dev,
-			  struct net_device *from_dev, unsigned char addr_type);
-int dev_addr_del_multiple(struct net_device *to_dev,
-			  struct net_device *from_dev, unsigned char addr_type);
 void dev_addr_flush(struct net_device *dev);
 int dev_addr_init(struct net_device *dev);
 
