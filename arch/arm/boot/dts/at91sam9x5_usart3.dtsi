@@ -11,6 +11,10 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
+	aliases {
+		serial4 = &usart3;
+	};
+
 	ahb {
 		apb {
 			pinctrl@fffff400 {
