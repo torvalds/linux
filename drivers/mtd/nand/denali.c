@@ -897,7 +897,7 @@ static void read_oob_data(struct mtd_info *mtd, uint8_t *buf, int page)
 /* this function examines buffers to see if they contain data that
  * indicate that the buffer is part of an erased region of flash.
  */
-bool is_erased(uint8_t *buf, int len)
+static bool is_erased(uint8_t *buf, int len)
 {
 	int i = 0;
 	for (i = 0; i < len; i++)
