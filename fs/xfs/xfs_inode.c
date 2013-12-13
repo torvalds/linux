@@ -2155,12 +2155,12 @@ xfs_ifree_cluster(
 	if (mp->m_sb.sb_blocksize >= mp->m_inode_cluster_size) {
 		blks_per_cluster = 1;
 		ninodes = mp->m_sb.sb_inopblock;
-		nbufs = XFS_IALLOC_BLOCKS(mp);
+		nbufs = mp->m_ialloc_blks;
 	} else {
 		blks_per_cluster = mp->m_inode_cluster_size /
 				   mp->m_sb.sb_blocksize;
 		ninodes = blks_per_cluster * mp->m_sb.sb_inopblock;
-		nbufs = XFS_IALLOC_BLOCKS(mp) / blks_per_cluster;
+		nbufs = mp->m_ialloc_blks / blks_per_cluster;
 	}
 
 	for (j = 0; j < nbufs; j++, inum += ninodes) {

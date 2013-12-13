@@ -25,11 +25,6 @@ struct xfs_mount;
 struct xfs_trans;
 struct xfs_btree_cur;
 
-/*
- * Allocation parameters for inode allocation.
- */
-#define	XFS_IALLOC_BLOCKS(mp)	(mp)->m_ialloc_blks
-
 /* Move inodes in clusters of this size */
 #define	XFS_INODE_BIG_CLUSTER_SIZE	8192
 
