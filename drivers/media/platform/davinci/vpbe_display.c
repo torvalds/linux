@@ -347,7 +347,7 @@ static int vpbe_start_streaming(struct vb2_queue *vq, unsigned int count)
 	/* If buffer queue is empty, return error */
 	if (list_empty(&layer->dma_queue)) {
 		v4l2_err(&vpbe_dev->v4l2_dev, "buffer queue is empty\n");
-		return -EINVAL;
+		return -ENOBUFS;
 	}
 	/* Get the next frame from the buffer queue */
 	layer->next_frm = layer->cur_frm = list_entry(layer->dma_queue.next,

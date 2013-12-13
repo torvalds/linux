@@ -239,7 +239,7 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (list_empty(&common->dma_queue)) {
 		spin_unlock_irqrestore(&common->irqlock, flags);
 		vpif_err("buffer queue is empty\n");
-		return -EIO;
+		return -ENOBUFS;
 	}
 
 	/* Get the next frame from the buffer queue */

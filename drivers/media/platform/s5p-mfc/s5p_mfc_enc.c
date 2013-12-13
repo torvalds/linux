@@ -1863,7 +1863,7 @@ static int s5p_mfc_start_streaming(struct vb2_queue *q, unsigned int count)
 		if (ctx->src_bufs_cnt < ctx->pb_count) {
 			mfc_err("Need minimum %d OUTPUT buffers\n",
 					ctx->pb_count);
-			return -EINVAL;
+			return -ENOBUFS;
 		}
 	}
 
