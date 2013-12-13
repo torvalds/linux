@@ -2445,7 +2445,6 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 		memset(&fileio->b, 0, sizeof(fileio->b));
 		fileio->b.type = q->type;
 		fileio->b.memory = q->memory;
-		fileio->b.index = index;
 		ret = vb2_internal_dqbuf(q, &fileio->b, nonblock);
 		dprintk(5, "file io: vb2_dqbuf result: %d\n", ret);
 		if (ret)
@@ -2527,15 +2526,6 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 		 * Switch to the next buffer
 		 */
 		fileio->index = (index + 1) % q->num_buffers;
-
-		/*
-		 * Start streaming if required.
-		 */
-		if (!read && !q->streaming) {
-			ret = vb2_internal_streamon(q, q->type);
-			if (ret)
-				return ret;
-		}
 	}
 
 	/*
