@@ -25,3 +25,19 @@
 &uart3 {
 	status = "okay";
 };
+
+&i2c0 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+	rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+	};
+};
+
+&i2c3 {
+	status = "okay";
+};
