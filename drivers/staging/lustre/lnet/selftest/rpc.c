@@ -716,7 +716,7 @@ srpc_service_recycle_buffer(struct srpc_service_cd *scd, srpc_buffer_t *buf)
 		if (scd->scd_buf_adjust < 0 &&
 		    scd->scd_buf_total == 0 && scd->scd_buf_posting == 0) {
 			CDEBUG(D_INFO,
-			       "Try to recyle %d buffers but nothing left\n",
+			       "Try to recycle %d buffers but nothing left\n",
 			       scd->scd_buf_adjust);
 			scd->scd_buf_adjust = 0;
 		}

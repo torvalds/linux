@@ -350,7 +350,7 @@ typedef struct {
 } sfw_batch_t;
 
 typedef struct {
-	int  (*tso_init)(struct sfw_test_instance *tsi); /* intialize test client */
+	int  (*tso_init)(struct sfw_test_instance *tsi); /* initialize test client */
 	void (*tso_fini)(struct sfw_test_instance *tsi); /* finalize test client */
 	int  (*tso_prep_rpc)(struct sfw_test_unit *tsu,
 			     lnet_process_id_t dest,

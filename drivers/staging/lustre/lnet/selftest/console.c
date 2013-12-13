@@ -614,7 +614,7 @@ lstcon_group_del(char *name)
 
 	lstcon_group_put(grp);
 	/* -ref for session, it's destroyed,
-	 * status can't be rolled back, destroy group anway */
+	 * status can't be rolled back, destroy group anyway */
 	lstcon_group_put(grp);
 
 	return rc;

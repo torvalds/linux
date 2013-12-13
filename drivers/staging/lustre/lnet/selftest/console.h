@@ -100,7 +100,7 @@ typedef struct {
 	struct list_head	     *bat_cli_hash;   /* hash table of client nodes */
 	struct list_head	      bat_srv_list;   /* list head of server nodes */
 	struct list_head	     *bat_srv_hash;   /* hash table of server nodes */
-} lstcon_batch_t;			     /*** (tests ) batch descritptor */
+} lstcon_batch_t;			     /*** (tests ) batch descriptor */
 
 typedef struct lstcon_test {
 	lstcon_tsb_hdr_t      tes_hdr;	/* test batch header */

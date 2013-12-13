@@ -96,11 +96,11 @@ lst_session_info_ioctl(lstio_session_info_args_t *args)
 {
 	/* no checking of key */
 
-	if (args->lstio_ses_idp   == NULL || /* address for ouput sid */
-	    args->lstio_ses_keyp  == NULL || /* address for ouput key */
-	    args->lstio_ses_featp  == NULL || /* address for ouput features */
+	if (args->lstio_ses_idp   == NULL || /* address for output sid */
+	    args->lstio_ses_keyp  == NULL || /* address for output key */
+	    args->lstio_ses_featp  == NULL || /* address for output features */
 	    args->lstio_ses_ndinfo == NULL || /* address for output ndinfo */
-	    args->lstio_ses_namep == NULL || /* address for ouput name */
+	    args->lstio_ses_namep == NULL || /* address for output name */
 	    args->lstio_ses_nmlen <= 0 ||
 	    args->lstio_ses_nmlen > LST_NAME_SIZE)
 		return -EINVAL;

@@ -190,7 +190,7 @@ ping_server_handle(struct srpc_server_rpc *rpc)
 	LASSERT (reqstmsg->msg_type == srpc_service2request(sv->sv_id));
 
 	if (req->pnr_magic != LST_PING_TEST_MAGIC) {
-		CERROR ("Unexpect magic %08x from %s\n",
+		CERROR ("Unexpected magic %08x from %s\n",
 			req->pnr_magic, libcfs_id2str(rpc->srpc_peer));
 		return -EINVAL;
 	}
