@@ -548,11 +548,13 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 
 	switch (pdata->device_type) {
 	case S5M8763X:
-		info->irq = s5m87xx->irq_base + S5M8763_IRQ_ALARM0;
+		info->irq = regmap_irq_get_virq(s5m87xx->irq_data,
+				S5M8763_IRQ_ALARM0);
 		break;
 
 	case S5M8767X:
-		info->irq = s5m87xx->irq_base + S5M8767_IRQ_RTCA1;
+		info->irq = regmap_irq_get_virq(s5m87xx->irq_data,
+				S5M8767_IRQ_RTCA1);
 		break;
 
 	default:
