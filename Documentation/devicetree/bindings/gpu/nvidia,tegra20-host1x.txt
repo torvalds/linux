@@ -255,7 +255,7 @@ Example:
 			interrupts = <0 73 0x04>;
 			clocks = <&tegra_car TEGRA20_CLK_DISP1>,
 				 <&tegra_car TEGRA20_CLK_PLL_P>;
-			clock-names = "disp1", "parent";
+			clock-names = "dc", "parent";
 			resets = <&tegra_car 27>;
 			reset-names = "dc";
 
@@ -270,7 +270,7 @@ Example:
 			interrupts = <0 74 0x04>;
 			clocks = <&tegra_car TEGRA20_CLK_DISP2>,
 				 <&tegra_car TEGRA20_CLK_PLL_P>;
-			clock-names = "disp2", "parent";
+			clock-names = "dc", "parent";
 			resets = <&tegra_car 26>;
 			reset-names = "dc";
 
