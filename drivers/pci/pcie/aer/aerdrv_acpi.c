@@ -50,11 +50,23 @@ struct aer_hest_parse_info {
 	int firmware_first;
 };
 
+static int hest_source_is_pcie_aer(struct acpi_hest_header *hest_hdr)
+{
+	if (hest_hdr->type == ACPI_HEST_TYPE_AER_ROOT_PORT ||
+	    hest_hdr->type == ACPI_HEST_TYPE_AER_ENDPOINT ||
+	    hest_hdr->type == ACPI_HEST_TYPE_AER_BRIDGE)
+		return 1;
+	return 0;
+}
+
 static int aer_hest_parse(struct acpi_hest_header *hest_hdr, void *data)
 {
 	struct aer_hest_parse_info *info = data;
 	struct acpi_hest_aer_common *p;
 	int ff;
+
+	if (!hest_source_is_pcie_aer(hest_hdr))
+		return 0;
 
 	p = (struct acpi_hest_aer_common *)(hest_hdr + 1);
 	ff = !!(p->flags & ACPI_HEST_FIRMWARE_FIRST);
@@ -104,15 +116,12 @@ static int aer_hest_parse_aff(struct acpi_hest_header *hest_hdr, void *data)
 	if (aer_firmware_first)
 		return 0;
 
-	switch (hest_hdr->type) {
-	case ACPI_HEST_TYPE_AER_ROOT_PORT:
-	case ACPI_HEST_TYPE_AER_ENDPOINT:
-	case ACPI_HEST_TYPE_AER_BRIDGE:
-		p = (struct acpi_hest_aer_common *)(hest_hdr + 1);
-		aer_firmware_first = !!(p->flags & ACPI_HEST_FIRMWARE_FIRST);
-	default:
+	if (!hest_source_is_pcie_aer(hest_hdr))
 		return 0;
-	}
+
+	p = (struct acpi_hest_aer_common *)(hest_hdr + 1);
+	aer_firmware_first = !!(p->flags & ACPI_HEST_FIRMWARE_FIRST);
+	return 0;
 }
 
 /**
