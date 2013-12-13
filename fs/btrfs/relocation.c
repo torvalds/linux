@@ -4283,11 +4283,6 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 		}
 	}
 
-	filemap_write_and_wait_range(fs_info->btree_inode->i_mapping,
-				     rc->block_group->key.objectid,
-				     rc->block_group->key.objectid +
-				     rc->block_group->key.offset - 1);
-
 	WARN_ON(rc->block_group->pinned > 0);
 	WARN_ON(rc->block_group->reserved > 0);
 	WARN_ON(btrfs_block_group_used(&rc->block_group->item) > 0);
