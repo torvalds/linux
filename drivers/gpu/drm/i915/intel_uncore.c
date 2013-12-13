@@ -634,7 +634,7 @@ static bool is_gen8_shadowed(struct drm_i915_private *dev_priv, u32 reg)
 #define __gen8_write(x) \
 static void \
 gen8_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
-	bool __needs_put = !is_gen8_shadowed(dev_priv, reg); \
+	bool __needs_put = reg < 0x40000 && !is_gen8_shadowed(dev_priv, reg); \
 	REG_WRITE_HEADER; \
 	if (__needs_put) { \
 		dev_priv->uncore.funcs.force_wake_get(dev_priv, \
