@@ -46,7 +46,7 @@ void *ion_heap_map_kernel(struct ion_heap *heap,
 		pgprot = pgprot_writecombine(PAGE_KERNEL);
 
 	for_each_sg(table->sgl, sg, table->nents, i) {
-		int npages_this_entry = PAGE_ALIGN(sg_dma_len(sg)) / PAGE_SIZE;
+		int npages_this_entry = PAGE_ALIGN(sg->length) / PAGE_SIZE;
 		struct page *page = sg_page(sg);
 		BUG_ON(i >= npages);
 		for (j = 0; j < npages_this_entry; j++) {
@@ -80,14 +80,14 @@ int ion_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 	for_each_sg(table->sgl, sg, table->nents, i) {
 		struct page *page = sg_page(sg);
 		unsigned long remainder = vma->vm_end - addr;
-		unsigned long len = sg_dma_len(sg);
+		unsigned long len = sg->length;
 
-		if (offset >= sg_dma_len(sg)) {
-			offset -= sg_dma_len(sg);
+		if (offset >= sg->length) {
+			offset -= sg->length;
 			continue;
 		} else if (offset) {
 			page += offset / PAGE_SIZE;
-			len = sg_dma_len(sg) - offset;
+			len = sg->length - offset;
 			offset = 0;
 		}
 		len = min(len, remainder);
@@ -119,7 +119,7 @@ int ion_heap_buffer_zero(struct ion_buffer *buffer)
 
 	for_each_sg(table->sgl, sg, table->nents, i) {
 		struct page *page = sg_page(sg);
-		unsigned long len = sg_dma_len(sg);
+		unsigned long len = sg->length;
 
 		for (j = 0; j < len / PAGE_SIZE; j++) {
 			struct page *sub_page = page + j;
