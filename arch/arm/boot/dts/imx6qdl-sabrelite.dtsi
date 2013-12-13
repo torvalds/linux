@@ -115,7 +115,6 @@
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
 				MX6QDL_PAD_NANDF_D6__GPIO2_IO06 0x80000000
-				MX6QDL_PAD_NANDF_D7__GPIO2_IO07 0x80000000
 				MX6QDL_PAD_EIM_D19__GPIO3_IO19  0x80000000
 				MX6QDL_PAD_EIM_D22__GPIO3_IO22  0x80000000
 				MX6QDL_PAD_EIM_D23__GPIO3_IO23  0x80000000
@@ -285,7 +284,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc4>;
 	cd-gpios = <&gpio2 6 0>;
-	wp-gpios = <&gpio2 7 0>;
 	vmmc-supply = <&reg_3p3v>;
 	status = "okay";
 };
