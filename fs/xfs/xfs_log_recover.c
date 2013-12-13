@@ -3208,9 +3208,9 @@ xlog_recover_do_icreate_pass2(
 	}
 
 	/* existing allocation is fixed value */
-	ASSERT(count == XFS_IALLOC_INODES(mp));
+	ASSERT(count == mp->m_ialloc_inos);
 	ASSERT(length == XFS_IALLOC_BLOCKS(mp));
-	if (count != XFS_IALLOC_INODES(mp) ||
+	if (count != mp->m_ialloc_inos ||
 	     length != XFS_IALLOC_BLOCKS(mp)) {
 		xfs_warn(log->l_mp, "xlog_recover_do_icreate_trans: bad count 2");
 		return EINVAL;
