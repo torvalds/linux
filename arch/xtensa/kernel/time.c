@@ -36,7 +36,7 @@ static cycle_t ccount_read(struct clocksource *cs)
 	return (cycle_t)get_ccount();
 }
 
-static u32 notrace ccount_sched_clock_read(void)
+static u64 notrace ccount_sched_clock_read(void)
 {
 	return get_ccount();
 }
@@ -147,7 +147,7 @@ void __init time_init(void)
 	clocksource_register_hz(&ccount_clocksource, ccount_freq);
 	local_timer_setup(0);
 	setup_irq(this_cpu_ptr(&ccount_timer)->evt.irq, &timer_irqaction);
-	setup_sched_clock(ccount_sched_clock_read, 32, ccount_freq);
+	sched_clock_register(ccount_sched_clock_read, 32, ccount_freq);
 }
 
 /*
