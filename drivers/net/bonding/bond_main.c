@@ -1703,12 +1703,9 @@ static int __bond_release_one(struct net_device *bond_dev,
 	write_lock_bh(&bond->lock);
 
 	/* Inform AD package of unbinding of slave. */
-	if (bond->params.mode == BOND_MODE_8023AD) {
-		/* must be called before the slave is
-		 * detached from the list
-		 */
+	if (bond->params.mode == BOND_MODE_8023AD)
 		bond_3ad_unbind_slave(slave);
-	}
+
 	write_unlock_bh(&bond->lock);
 
 	pr_info("%s: releasing %s interface %s\n",
