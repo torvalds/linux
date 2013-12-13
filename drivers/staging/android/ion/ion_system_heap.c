@@ -76,9 +76,14 @@ static struct page *alloc_buffer_page(struct ion_system_heap *heap,
 		if (order > 4)
 			gfp_flags = high_order_gfp_flags;
 		page = alloc_pages(gfp_flags, order);
+		if (!page)
+			return 0;
+		__dma_page_cpu_to_dev(page, 0, PAGE_SIZE << order,
+				      DMA_BIDIRECTIONAL);
 	}
 	if (!page)
 		return 0;
+
 	if (split_pages)
 		split_page(page, order);
 	return page;
@@ -200,9 +205,6 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 		list_del(&info->list);
 		kfree(info);
 	}
-
-	dma_sync_sg_for_device(NULL, table->sgl, table->nents,
-			       DMA_BIDIRECTIONAL);
 
 	buffer->priv_virt = table;
 	return 0;
