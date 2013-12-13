@@ -33,6 +33,10 @@ major
 
 	The block device major number.
 
+minor
+
+	The block device minor number.  (December 2013, since 3.14.)
+
 name
 
 	The name of the rbd image.

@@ -323,6 +323,7 @@ struct rbd_device {
 	int			dev_id;		/* blkdev unique id */
 
 	int			major;		/* blkdev assigned major */
+	int			minor;
 	struct gendisk		*disk;		/* blkdev's gendisk and rq */
 
 	u32			image_format;	/* Either 1 or 2 */
@@ -3397,7 +3398,7 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	snprintf(disk->disk_name, sizeof(disk->disk_name), RBD_DRV_NAME "%d",
 		 rbd_dev->dev_id);
 	disk->major = rbd_dev->major;
-	disk->first_minor = 0;
+	disk->first_minor = rbd_dev->minor;
 	disk->fops = &rbd_bd_ops;
 	disk->private_data = rbd_dev;
 
@@ -3469,7 +3470,14 @@ static ssize_t rbd_major_show(struct device *dev,
 		return sprintf(buf, "%d\n", rbd_dev->major);
 
 	return sprintf(buf, "(none)\n");
+}
 
+static ssize_t rbd_minor_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
+
+	return sprintf(buf, "%d\n", rbd_dev->minor);
 }
 
 static ssize_t rbd_client_id_show(struct device *dev,
@@ -3591,6 +3599,7 @@ static ssize_t rbd_image_refresh(struct device *dev,
 static DEVICE_ATTR(size, S_IRUGO, rbd_size_show, NULL);
 static DEVICE_ATTR(features, S_IRUGO, rbd_features_show, NULL);
 static DEVICE_ATTR(major, S_IRUGO, rbd_major_show, NULL);
+static DEVICE_ATTR(minor, S_IRUGO, rbd_minor_show, NULL);
 static DEVICE_ATTR(client_id, S_IRUGO, rbd_client_id_show, NULL);
 static DEVICE_ATTR(pool, S_IRUGO, rbd_pool_show, NULL);
 static DEVICE_ATTR(pool_id, S_IRUGO, rbd_pool_id_show, NULL);
@@ -3604,6 +3613,7 @@ static struct attribute *rbd_attrs[] = {
 	&dev_attr_size.attr,
 	&dev_attr_features.attr,
 	&dev_attr_major.attr,
+	&dev_attr_minor.attr,
 	&dev_attr_client_id.attr,
 	&dev_attr_pool.attr,
 	&dev_attr_pool_id.attr,
@@ -4848,6 +4858,7 @@ static int rbd_dev_device_setup(struct rbd_device *rbd_dev)
 	if (ret < 0)
 		goto err_out_id;
 	rbd_dev->major = ret;
+	rbd_dev->minor = 0;
 
 	/* Set up the blkdev mapping. */
 
