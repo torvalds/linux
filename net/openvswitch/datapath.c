@@ -371,11 +371,11 @@ static size_t key_attr_size(void)
 		+ nla_total_size(28); /* OVS_KEY_ATTR_ND */
 }
 
-static size_t upcall_msg_size(const struct sk_buff *skb,
-			      const struct nlattr *userdata)
+static size_t upcall_msg_size(const struct nlattr *userdata,
+			      unsigned int hdrlen)
 {
 	size_t size = NLMSG_ALIGN(sizeof(struct ovs_header))
-		+ nla_total_size(skb->len) /* OVS_PACKET_ATTR_PACKET */
+		+ nla_total_size(hdrlen) /* OVS_PACKET_ATTR_PACKET */
 		+ nla_total_size(key_attr_size()); /* OVS_PACKET_ATTR_KEY */
 
 	/* OVS_PACKET_ATTR_USERDATA */
@@ -397,6 +397,7 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 		.snd_portid = upcall_info->portid,
 	};
 	size_t len;
+	unsigned int hlen;
 	int err, dp_ifindex;
 
 	dp_ifindex = get_dpifindex(dp);
@@ -421,7 +422,21 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 		goto out;
 	}
 
-	len = upcall_msg_size(skb, upcall_info->userdata);
+	/* Complete checksum if needed */
+	if (skb->ip_summed == CHECKSUM_PARTIAL &&
+	    (err = skb_checksum_help(skb)))
+		goto out;
+
+	/* Older versions of OVS user space enforce alignment of the last
+	 * Netlink attribute to NLA_ALIGNTO which would require extensive
+	 * padding logic. Only perform zerocopy if padding is not required.
+	 */
+	if (dp->user_features & OVS_DP_F_UNALIGNED)
+		hlen = skb_zerocopy_headlen(skb);
+	else
+		hlen = skb->len;
+
+	len = upcall_msg_size(upcall_info->userdata, hlen);
 	user_skb = genlmsg_new_unicast(len, &info, GFP_ATOMIC);
 	if (!user_skb) {
 		err = -ENOMEM;
@@ -441,13 +456,19 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 			  nla_len(upcall_info->userdata),
 			  nla_data(upcall_info->userdata));
 
-	nla = __nla_reserve(user_skb, OVS_PACKET_ATTR_PACKET, skb->len);
+	/* Only reserve room for attribute header, packet data is added
+	 * in skb_zerocopy() */
+	if (!(nla = nla_reserve(user_skb, OVS_PACKET_ATTR_PACKET, 0))) {
+		err = -ENOBUFS;
+		goto out;
+	}
+	nla->nla_len = nla_attr_size(skb->len);
 
-	skb_copy_and_csum_dev(skb, nla_data(nla));
+	skb_zerocopy(user_skb, skb, skb->len, hlen);
 
-	genlmsg_end(user_skb, upcall);
+	((struct nlmsghdr *) user_skb->data)->nlmsg_len = user_skb->len;
+
 	err = genlmsg_unicast(ovs_dp_get_net(dp), user_skb, upcall_info->portid);
-
 out:
 	kfree_skb(nskb);
 	return err;
