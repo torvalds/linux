@@ -475,6 +475,9 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	if (ret)
 		pr_warn("failed to set up CLKO: %d\n", ret);
 
+	/* Audio-related clocks configuration */
+	clk_set_parent(clk[spdif_sel], clk[pll3_pfd3_454m]);
+
 	/* All existing boards with PCIe use LVDS1 */
 	if (IS_ENABLED(CONFIG_PCI_IMX6))
 		clk_set_parent(clk[lvds1_sel], clk[sata_ref]);
