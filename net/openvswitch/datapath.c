@@ -1148,6 +1148,18 @@ static struct datapath *lookup_datapath(struct net *net,
 	return dp ? dp : ERR_PTR(-ENODEV);
 }
 
+static void ovs_dp_reset_user_features(struct sk_buff *skb, struct genl_info *info)
+{
+	struct datapath *dp;
+
+	dp = lookup_datapath(sock_net(skb->sk), info->userhdr, info->attrs);
+	if (!dp)
+		return;
+
+	WARN(dp->user_features, "Dropping previously announced user features\n");
+	dp->user_features = 0;
+}
+
 static void ovs_dp_change(struct datapath *dp, struct nlattr **a)
 {
 	if (a[OVS_DP_ATTR_USER_FEATURES])
@@ -1219,6 +1231,15 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 		err = PTR_ERR(vport);
 		if (err == -EBUSY)
 			err = -EEXIST;
+
+		if (err == -EEXIST) {
+			/* An outdated user space instance that does not understand
+			 * the concept of user_features has attempted to create a new
+			 * datapath and is likely to reuse it. Drop all user features.
+			 */
+			if (info->genlhdr->version < OVS_DP_VER_FEATURES)
+				ovs_dp_reset_user_features(skb, info);
+		}
 
 		goto err_destroy_ports_array;
 	}
