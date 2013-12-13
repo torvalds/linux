@@ -254,29 +254,22 @@ xlog_cil_insert_format_items(
 			 */
 			*diff_iovecs -= lv->lv_niovecs;
 			*diff_len -= lv->lv_buf_len;
-
-			/* Ensure the lv is set up according to ->iop_size */
-			lv->lv_niovecs = niovecs;
-			lv->lv_buf = (char *)lv + buf_size - nbytes;
-
-			lv->lv_buf_len = xlog_cil_lv_item_format(lip, lv);
-			goto insert;
+		} else {
+			/* allocate new data chunk */
+			lv = kmem_zalloc(buf_size, KM_SLEEP|KM_NOFS);
+			lv->lv_item = lip;
+			lv->lv_size = buf_size;
+			if (ordered) {
+				/* track as an ordered logvec */
+				ASSERT(lip->li_lv == NULL);
+				lv->lv_buf_len = XFS_LOG_VEC_ORDERED;
+				goto insert;
+			}
+			lv->lv_iovecp = (struct xfs_log_iovec *)&lv[1];
 		}
 
-		/* allocate new data chunk */
-		lv = kmem_zalloc(buf_size, KM_SLEEP|KM_NOFS);
-		lv->lv_item = lip;
-		lv->lv_size = buf_size;
+		/* Ensure the lv is set up according to ->iop_size */
 		lv->lv_niovecs = niovecs;
-		if (ordered) {
-			/* track as an ordered logvec */
-			ASSERT(lip->li_lv == NULL);
-			lv->lv_buf_len = XFS_LOG_VEC_ORDERED;
-			goto insert;
-		}
-
-		/* The allocated iovec region lies beyond the log vector. */
-		lv->lv_iovecp = (struct xfs_log_iovec *)&lv[1];
 
 		/* The allocated data region lies beyond the iovec region */
 		lv->lv_buf = (char *)lv + buf_size - nbytes;
