@@ -2411,12 +2411,12 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 	struct list_head *iter;
 	int do_failover = 0;
 
-	read_lock(&bond->lock);
-
 	if (!bond_has_slaves(bond))
 		goto re_arm;
 
-	oldcurrent = bond->curr_active_slave;
+	rcu_read_lock();
+
+	oldcurrent = ACCESS_ONCE(bond->curr_active_slave);
 	/* see if any of the previous devices are up now (i.e. they have
 	 * xmt and rcv traffic). the curr_active_slave does not come into
 	 * the picture unless it is null. also, slave->jiffies is not needed
@@ -2425,7 +2425,7 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 	 * TODO: what about up/down delay in arp mode? it wasn't here before
 	 *       so it can wait
 	 */
-	bond_for_each_slave(bond, slave, iter) {
+	bond_for_each_slave_rcu(bond, slave, iter) {
 		unsigned long trans_start = dev_trans_start(slave->dev);
 
 		if (slave->link != BOND_LINK_UP) {
@@ -2487,7 +2487,14 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 			bond_arp_send_all(bond, slave);
 	}
 
+	rcu_read_unlock();
+
 	if (do_failover) {
+		/* the bond_select_active_slave must hold RTNL
+		 * and curr_slave_lock for write.
+		 */
+		if (!rtnl_trylock())
+			goto re_arm;
 		block_netpoll_tx();
 		write_lock_bh(&bond->curr_slave_lock);
 
@@ -2495,14 +2502,13 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 
 		write_unlock_bh(&bond->curr_slave_lock);
 		unblock_netpoll_tx();
+		rtnl_unlock();
 	}
 
 re_arm:
 	if (bond->params.arp_interval)
 		queue_delayed_work(bond->wq, &bond->arp_work,
 				   msecs_to_jiffies(bond->params.arp_interval));
-
-	read_unlock(&bond->lock);
 }
 
 /*
