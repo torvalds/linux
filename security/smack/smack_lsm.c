@@ -1018,7 +1018,7 @@ static int smack_inode_removexattr(struct dentry *dentry, const char *name)
 	    strcmp(name, XATTR_NAME_SMACKIPOUT) == 0 ||
 	    strcmp(name, XATTR_NAME_SMACKEXEC) == 0 ||
 	    strcmp(name, XATTR_NAME_SMACKTRANSMUTE) == 0 ||
-	    strcmp(name, XATTR_NAME_SMACKMMAP)) {
+	    strcmp(name, XATTR_NAME_SMACKMMAP) == 0) {
 		if (!smack_privileged(CAP_MAC_ADMIN))
 			rc = -EPERM;
 	} else
@@ -2156,7 +2156,7 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 	int rc = 0;
 
 	if (value == NULL || size > SMK_LONGLABEL || size == 0)
-		return -EACCES;
+		return -EINVAL;
 
 	skp = smk_import_entry(value, size);
 	if (skp == NULL)
