@@ -96,10 +96,6 @@
 #include "audit.h"
 #include "avc_ss.h"
 
-#define SB_TYPE_FMT "%s%s%s"
-#define SB_SUBTYPE(sb) (sb->s_subtype && sb->s_subtype[0])
-#define SB_TYPE_ARGS(sb) sb->s_type->name, SB_SUBTYPE(sb) ? "." : "", SB_SUBTYPE(sb) ? sb->s_subtype : ""
-
 extern struct security_operations *security_ops;
 
 /* SECMARK reference count */
@@ -414,8 +410,8 @@ static int sb_finish_set_opts(struct super_block *sb)
 		   the first boot of the SELinux kernel before we have
 		   assigned xattr values to the filesystem. */
 		if (!root_inode->i_op->getxattr) {
-			printk(KERN_WARNING "SELinux: (dev %s, type "SB_TYPE_FMT") has no "
-			       "xattr support\n", sb->s_id, SB_TYPE_ARGS(sb));
+			printk(KERN_WARNING "SELinux: (dev %s, type %s) has no "
+			       "xattr support\n", sb->s_id, sb->s_type->name);
 			rc = -EOPNOTSUPP;
 			goto out;
 		}
@@ -423,22 +419,22 @@ static int sb_finish_set_opts(struct super_block *sb)
 		if (rc < 0 && rc != -ENODATA) {
 			if (rc == -EOPNOTSUPP)
 				printk(KERN_WARNING "SELinux: (dev %s, type "
-				       SB_TYPE_FMT") has no security xattr handler\n",
-				       sb->s_id, SB_TYPE_ARGS(sb));
+				       "%s) has no security xattr handler\n",
+				       sb->s_id, sb->s_type->name);
 			else
 				printk(KERN_WARNING "SELinux: (dev %s, type "
-				       SB_TYPE_FMT") getxattr errno %d\n", sb->s_id,
-				       SB_TYPE_ARGS(sb), -rc);
+				       "%s) getxattr errno %d\n", sb->s_id,
+				       sb->s_type->name, -rc);
 			goto out;
 		}
 	}
 
 	if (sbsec->behavior > ARRAY_SIZE(labeling_behaviors))
-		printk(KERN_ERR "SELinux: initialized (dev %s, type "SB_TYPE_FMT"), unknown behavior\n",
-		       sb->s_id, SB_TYPE_ARGS(sb));
+		printk(KERN_ERR "SELinux: initialized (dev %s, type %s), unknown behavior\n",
+		       sb->s_id, sb->s_type->name);
 	else
-		printk(KERN_DEBUG "SELinux: initialized (dev %s, type "SB_TYPE_FMT"), %s\n",
-		       sb->s_id, SB_TYPE_ARGS(sb),
+		printk(KERN_DEBUG "SELinux: initialized (dev %s, type %s), %s\n",
+		       sb->s_id, sb->s_type->name,
 		       labeling_behaviors[sbsec->behavior-1]);
 
 	sbsec->flags |= SE_SBINITIALIZED;
@@ -601,6 +597,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	const struct cred *cred = current_cred();
 	int rc = 0, i;
 	struct superblock_security_struct *sbsec = sb->s_security;
+	const char *name = sb->s_type->name;
 	struct inode *inode = sbsec->sb->s_root->d_inode;
 	struct inode_security_struct *root_isec = inode->i_security;
 	u32 fscontext_sid = 0, context_sid = 0, rootcontext_sid = 0;
@@ -659,8 +656,8 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 					     strlen(mount_options[i]), &sid);
 		if (rc) {
 			printk(KERN_WARNING "SELinux: security_context_to_sid"
-			       "(%s) failed for (dev %s, type "SB_TYPE_FMT") errno=%d\n",
-			       mount_options[i], sb->s_id, SB_TYPE_ARGS(sb), rc);
+			       "(%s) failed for (dev %s, type %s) errno=%d\n",
+			       mount_options[i], sb->s_id, name, rc);
 			goto out;
 		}
 		switch (flags[i]) {
@@ -807,8 +804,7 @@ out:
 out_double_mount:
 	rc = -EINVAL;
 	printk(KERN_WARNING "SELinux: mount invalid.  Same superblock, different "
-	       "security settings for (dev %s, type "SB_TYPE_FMT")\n", sb->s_id,
-	       SB_TYPE_ARGS(sb));
+	       "security settings for (dev %s, type %s)\n", sb->s_id, name);
 	goto out;
 }
 
@@ -2481,8 +2477,8 @@ static int selinux_sb_remount(struct super_block *sb, void *data)
 		rc = security_context_to_sid(mount_options[i], len, &sid);
 		if (rc) {
 			printk(KERN_WARNING "SELinux: security_context_to_sid"
-			       "(%s) failed for (dev %s, type "SB_TYPE_FMT") errno=%d\n",
-			       mount_options[i], sb->s_id, SB_TYPE_ARGS(sb), rc);
+			       "(%s) failed for (dev %s, type %s) errno=%d\n",
+			       mount_options[i], sb->s_id, sb->s_type->name, rc);
 			goto out_free_opts;
 		}
 		rc = -EINVAL;
@@ -2520,8 +2516,8 @@ out_free_secdata:
 	return rc;
 out_bad_option:
 	printk(KERN_WARNING "SELinux: unable to change security options "
-	       "during remount (dev %s, type "SB_TYPE_FMT")\n", sb->s_id,
-	       SB_TYPE_ARGS(sb));
+	       "during remount (dev %s, type=%s)\n", sb->s_id,
+	       sb->s_type->name);
 	goto out_free_opts;
 }
 
