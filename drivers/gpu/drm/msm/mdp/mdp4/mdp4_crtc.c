@@ -39,6 +39,7 @@ struct mdp4_crtc {
 		spinlock_t lock;
 		bool stale;
 		uint32_t width, height;
+		uint32_t x, y;
 
 		/* next cursor to scan-out: */
 		uint32_t next_iova;
@@ -484,12 +485,12 @@ static int mdp4_crtc_set_property(struct drm_crtc *crtc,
 static void update_cursor(struct drm_crtc *crtc)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
+	struct mdp4_kms *mdp4_kms = get_kms(crtc);
 	enum mdp4_dma dma = mdp4_crtc->dma;
 	unsigned long flags;
 
 	spin_lock_irqsave(&mdp4_crtc->cursor.lock, flags);
 	if (mdp4_crtc->cursor.stale) {
-		struct mdp4_kms *mdp4_kms = get_kms(crtc);
 		struct drm_gem_object *next_bo = mdp4_crtc->cursor.next_bo;
 		struct drm_gem_object *prev_bo = mdp4_crtc->cursor.scanout_bo;
 		uint32_t iova = mdp4_crtc->cursor.next_iova;
@@ -521,6 +522,11 @@ static void update_cursor(struct drm_crtc *crtc)
 		mdp4_crtc->cursor.scanout_bo = next_bo;
 		mdp4_crtc->cursor.stale = false;
 	}
+
+	mdp4_write(mdp4_kms, REG_MDP4_DMA_CURSOR_POS(dma),
+			MDP4_DMA_CURSOR_POS_X(mdp4_crtc->cursor.x) |
+			MDP4_DMA_CURSOR_POS_Y(mdp4_crtc->cursor.y));
+
 	spin_unlock_irqrestore(&mdp4_crtc->cursor.lock, flags);
 }
 
@@ -572,6 +578,7 @@ static int mdp4_crtc_cursor_set(struct drm_crtc *crtc,
 		drm_gem_object_unreference_unlocked(old_bo);
 	}
 
+	crtc_flush(crtc);
 	request_pending(crtc, PENDING_CURSOR);
 
 	return 0;
@@ -584,12 +591,15 @@ fail:
 static int mdp4_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
-	struct mdp4_kms *mdp4_kms = get_kms(crtc);
-	enum mdp4_dma dma = mdp4_crtc->dma;
+	unsigned long flags;
 
-	mdp4_write(mdp4_kms, REG_MDP4_DMA_CURSOR_POS(dma),
-			MDP4_DMA_CURSOR_POS_X(x) |
-			MDP4_DMA_CURSOR_POS_Y(y));
+	spin_lock_irqsave(&mdp4_crtc->cursor.lock, flags);
+	mdp4_crtc->cursor.x = x;
+	mdp4_crtc->cursor.y = y;
+	spin_unlock_irqrestore(&mdp4_crtc->cursor.lock, flags);
+
+	crtc_flush(crtc);
+	request_pending(crtc, PENDING_CURSOR);
 
 	return 0;
 }
