@@ -1944,10 +1944,9 @@ static int serial_rk_remove_wakeup_irq(struct uart_rk_port *up) {
 #endif
 
 #ifdef CONFIG_OF
-static int of_rk_serial_parse_dt(const struct device_node *np, struct of_rk_serial *rks) {
+static int of_rk_serial_parse_dt(struct device_node *np, struct of_rk_serial *rks) {
 	unsigned int val = 0;
-	if(!of_property_read_u32(np, "id", &val))
-		rks->id = val;
+	rks->id = of_alias_get_id(np, "serial");
 	if(!of_property_read_u32(np, "clock-frequency", &val))
 		rks->uartclk = val;
 #if USE_DMA

@@ -7,6 +7,13 @@
 	compatible = "rockchip,rk3188";
 	interrupt-parent = <&gic>;
 
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -172,7 +179,6 @@
 		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	
 	uart0: serial@10124000 {
 		compatible = "rockchip,serial";
 		reg = <0x10124000 0x100>;
@@ -180,7 +186,6 @@
 		clock-frequency = <24000000>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
-		id = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
 		status = "disabled";
@@ -193,7 +198,6 @@
 		clock-frequency = <24000000>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
-		id = <1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart1_xfer &uart1_cts &uart1_rts>;
 		status = "disabled";
@@ -207,7 +211,6 @@
 		current-speed = <115200>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
-		id = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart2_xfer>;
 		status = "disabled";
@@ -220,7 +223,6 @@
 		clock-frequency = <24000000>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
-		id = <3>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart3_xfer &uart3_cts &uart3_rts>;
 		status = "disabled";

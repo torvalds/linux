@@ -327,7 +327,8 @@ static int __init rk_fiq_debugger_init(void) {
 	np = NULL;
 	for (i = 0; i < 5; i++) {
 		np = of_find_node_by_name(np, "serial");
-		if (np && !of_property_read_u32(np, "id", &id)) {
+		if (np) {
+			id = of_alias_get_id(np, "serial");
 			if (id == serial_id) {
 				ok = 1;
 				break;
