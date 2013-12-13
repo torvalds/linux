@@ -635,6 +635,30 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	}
 
 	radio->v4l2_dev.release = si470x_usb_release;
+
+	/*
+	 * The si470x SiLabs reference design uses the same USB IDs as
+	 * 'Thanko's Raremono' si4734 based receiver. So check here which we
+	 * have: attempt to read the device ID from the si470x: the lower 12
+	 * bits should be 0x0242 for the si470x.
+	 *
+	 * We use this check to determine which device we are dealing with.
+	 */
+	if (id->idVendor == 0x10c4 && id->idProduct == 0x818a) {
+		retval = usb_control_msg(radio->usbdev,
+				usb_rcvctrlpipe(radio->usbdev, 0),
+				HID_REQ_GET_REPORT,
+				USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
+				1, 2,
+				radio->usb_buf, 3, 500);
+		if (retval != 3 ||
+		    (get_unaligned_be16(&radio->usb_buf[1]) & 0xfff) != 0x0242) {
+			dev_info(&intf->dev, "this is not a si470x device.\n");
+			retval = -ENODEV;
+			goto err_urb;
+		}
+	}
+
 	retval = v4l2_device_register(&intf->dev, &radio->v4l2_dev);
 	if (retval < 0) {
 		dev_err(&intf->dev, "couldn't register v4l2_device\n");
