@@ -1706,14 +1706,6 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 EXPORT_SYMBOL_GPL(kvm_vcpu_kick);
 #endif /* !CONFIG_S390 */
 
-void kvm_resched(struct kvm_vcpu *vcpu)
-{
-	if (!need_resched())
-		return;
-	cond_resched();
-}
-EXPORT_SYMBOL_GPL(kvm_resched);
-
 bool kvm_vcpu_yield_to(struct kvm_vcpu *target)
 {
 	struct pid *pid;
