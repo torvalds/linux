@@ -929,7 +929,7 @@ static void osc_lock_build_einfo(const struct lu_env *env,
  * Determine if the lock should be converted into a lockless lock.
  *
  * Steps to check:
- * - if the lock has an explicite requirment for a non-lockless lock;
+ * - if the lock has an explicit requirement for a non-lockless lock;
  * - if the io lock request type ci_lockreq;
  * - send the enqueue rpc to ost to make the further decision;
  * - special treat to truncate lockless lock

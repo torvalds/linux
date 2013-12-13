@@ -773,7 +773,7 @@ static int osc_destroy(const struct lu_env *env, struct obd_export *exp,
 	osc_pack_capa(req, body, (struct obd_capa *)capa);
 	ptlrpc_request_set_replen(req);
 
-	/* If osc_destory is for destroying the unlink orphan,
+	/* If osc_destroy is for destroying the unlink orphan,
 	 * sent from MDT to OST, which should not be blocked here,
 	 * because the process might be triggered by ptlrpcd, and
 	 * it is not good to block ptlrpcd thread (b=16006)*/
