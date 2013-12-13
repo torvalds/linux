@@ -1244,7 +1244,7 @@ static noinline int prepare_pages(struct inode *inode, struct page **pages,
 	int i;
 	unsigned long index = pos >> PAGE_CACHE_SHIFT;
 	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
-	int err;
+	int err = 0;
 	int faili;
 
 	for (i = 0; i < num_pages; i++) {
