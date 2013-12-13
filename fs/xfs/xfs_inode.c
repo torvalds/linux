@@ -2141,8 +2141,8 @@ xfs_ifree_cluster(
 {
 	xfs_mount_t		*mp = free_ip->i_mount;
 	int			blks_per_cluster;
+	int			inodes_per_cluster;
 	int			nbufs;
-	int			ninodes;
 	int			i, j;
 	xfs_daddr_t		blkno;
 	xfs_buf_t		*bp;
@@ -2152,18 +2152,11 @@ xfs_ifree_cluster(
 	struct xfs_perag	*pag;
 
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, inum));
-	if (mp->m_sb.sb_blocksize >= mp->m_inode_cluster_size) {
-		blks_per_cluster = 1;
-		ninodes = mp->m_sb.sb_inopblock;
-		nbufs = mp->m_ialloc_blks;
-	} else {
-		blks_per_cluster = mp->m_inode_cluster_size /
-				   mp->m_sb.sb_blocksize;
-		ninodes = blks_per_cluster * mp->m_sb.sb_inopblock;
-		nbufs = mp->m_ialloc_blks / blks_per_cluster;
-	}
+	blks_per_cluster = xfs_icluster_size_fsb(mp);
+	inodes_per_cluster = blks_per_cluster << mp->m_sb.sb_inopblog;
+	nbufs = mp->m_ialloc_blks / blks_per_cluster;
 
-	for (j = 0; j < nbufs; j++, inum += ninodes) {
+	for (j = 0; j < nbufs; j++, inum += inodes_per_cluster) {
 		blkno = XFS_AGB_TO_DADDR(mp, XFS_INO_TO_AGNO(mp, inum),
 					 XFS_INO_TO_AGBNO(mp, inum));
 
@@ -2225,7 +2218,7 @@ xfs_ifree_cluster(
 		 * transaction stale above, which means there is no point in
 		 * even trying to lock them.
 		 */
-		for (i = 0; i < ninodes; i++) {
+		for (i = 0; i < inodes_per_cluster; i++) {
 retry:
 			rcu_read_lock();
 			ip = radix_tree_lookup(&pag->pag_ici_root,
