@@ -38,6 +38,7 @@
 
 #include "ion.h"
 #include "ion_priv.h"
+#include "compat_ion.h"
 
 /**
  * struct ion_device - the metadata of the ion device node
@@ -1256,6 +1257,7 @@ static const struct file_operations ion_fops = {
 	.open           = ion_open,
 	.release        = ion_release,
 	.unlocked_ioctl = ion_ioctl,
+	.compat_ioctl   = compat_ion_ioctl,
 };
 
 static size_t ion_debug_heap_total(struct ion_client *client,
