@@ -781,7 +781,7 @@ int ldlm_prep_elc_req(struct obd_export *exp, struct ptlrpc_request *req,
 			dlm = req_capsule_client_get(pill, &RMF_DLM_REQ);
 			LASSERT(dlm);
 			/* Skip first lock handler in ldlm_request_pack(),
-			 * this method will incrment @lock_count according
+			 * this method will increment @lock_count according
 			 * to the lock handle amount actually written to
 			 * the buffer. */
 			dlm->lock_count = canceloff;
@@ -1584,7 +1584,7 @@ ldlm_cancel_lru_policy(struct ldlm_namespace *ns, int flags)
  *			      the beginning of LRU list);
  *
  * flags & LDLM_CANCEL_SHRINK - cancel not more than \a count locks according to
- *			      memory pressre policy function;
+ *			      memory pressure policy function;
  *
  * flags & LDLM_CANCEL_AGED - cancel \a count locks according to "aged policy".
  *
@@ -2076,7 +2076,7 @@ static int ldlm_chain_lock_for_replay(struct ldlm_lock *lock, void *closure)
 		 lock, &lock->l_pending_chain.next,&lock->l_pending_chain.prev);
 	/* bug 9573: don't replay locks left after eviction, or
 	 * bug 17614: locks being actively cancelled. Get a reference
-	 * on a lock so that it does not disapear under us (e.g. due to cancel)
+	 * on a lock so that it does not disappear under us (e.g. due to cancel)
 	 */
 	if (!(lock->l_flags & (LDLM_FL_FAILED|LDLM_FL_CANCELING))) {
 		list_add(&lock->l_pending_chain, list);

@@ -801,7 +801,7 @@ void ldlm_lock_addref_internal(struct ldlm_lock *lock, __u32 mode)
  * Removes reader/writer reference for LDLM lock \a lock.
  * Assumes LDLM lock is already locked.
  * only called in ldlm_flock_destroy and for local locks.
- * Does NOT add lock to LRU if no r/w references left to accomodate flock locks
+ * Does NOT add lock to LRU if no r/w references left to accommodate flock locks
  * that cannot be placed in LRU.
  */
 void ldlm_lock_decref_internal_nolock(struct ldlm_lock *lock, __u32 mode)
@@ -1254,7 +1254,7 @@ EXPORT_SYMBOL(ldlm_lock_allow_match);
  *     list will be considered
  * If 'flags' contains LDLM_FL_CBPENDING, then locks that have been marked
  *     to be canceled can still be matched as long as they still have reader
- *     or writer refernces
+ *     or writer referneces
  * If 'flags' contains LDLM_FL_TEST_LOCK, then don't actually reference a lock,
  *     just tell us if we would have matched.
  *
@@ -2097,8 +2097,8 @@ void ldlm_cancel_locks_for_export(struct obd_export *exp)
 /**
  * Downgrade an exclusive lock.
  *
- * A fast variant of ldlm_lock_convert for convertion of exclusive
- * locks. The convertion is always successful.
+ * A fast variant of ldlm_lock_convert for conversion of exclusive
+ * locks. The conversion is always successful.
  * Used by Commit on Sharing (COS) code.
  *
  * \param lock A lock to convert

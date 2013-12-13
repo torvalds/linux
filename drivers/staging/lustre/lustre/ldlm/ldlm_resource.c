@@ -162,7 +162,7 @@ static int lprocfs_ns_resources_seq_show(struct seq_file *m, void *v)
 	struct cfs_hash_bd	  bd;
 	int		    i;
 
-	/* result is not strictly consistant */
+	/* result is not strictly consistent */
 	cfs_hash_for_each_bucket(ns->ns_rs_hash, &bd, i)
 		res += cfs_hash_bd_count_get(&bd);
 	return lprocfs_rd_u64(m, &res);
@@ -874,7 +874,7 @@ void ldlm_namespace_free_prior(struct ldlm_namespace *ns,
 
 		/*
 		 * With all requests dropped and the import inactive
-		 * we are gaurenteed all reference will be dropped.
+		 * we are guaranteed all reference will be dropped.
 		 */
 		rc = __ldlm_namespace_free(ns, 1);
 		LASSERT(rc == 0);
