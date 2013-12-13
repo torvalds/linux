@@ -139,16 +139,21 @@ static void print_debug_sf(void)
 	int cpu = smp_processor_id();
 
 	memset(&si, 0, sizeof(si));
-	if (qsi(&si)) {
-		pr_err("CPU[%i]: CPM_SF: qsi failed\n");
+	if (qsi(&si))
 		return;
-	}
 
-	pr_info("CPU[%i]: CPM_SF: as=%i es=%i cs=%i bsdes=%i dsdes=%i"
-		" min=%i max=%i cpu_speed=%i tear=%p dear=%p\n",
-		cpu, si.as, si.es, si.cs, si.bsdes, si.dsdes,
-		si.min_sampl_rate, si.max_sampl_rate, si.cpu_speed,
-		si.tear, si.dear);
+	pr_info("CPU[%i] CPUM_SF: basic=%i diag=%i min=%i max=%i cpu_speed=%i\n",
+		cpu, si.as, si.ad, si.min_sampl_rate, si.max_sampl_rate,
+		si.cpu_speed);
+
+	if (si.as)
+		pr_info("CPU[%i] CPUM_SF: Basic-sampling: a=%i e=%i c=%i"
+			" bsdes=%i tear=%p dear=%p\n", cpu,
+			si.as, si.es, si.cs, si.bsdes, si.tear, si.dear);
+	if (si.ad)
+		pr_info("CPU[%i] CPUM_SF: Diagnostic-sampling: a=%i e=%i c=%i"
+			" dsdes=%i tear=%p dear=%p\n", cpu,
+			si.ad, si.ed, si.cd, si.dsdes, si.tear, si.dear);
 }
 
 void perf_event_print_debug(void)

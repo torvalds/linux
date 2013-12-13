@@ -59,13 +59,15 @@ struct cpumf_ctr_info {
 /* QUERY SAMPLING INFORMATION block */
 struct hws_qsi_info_block {	    /* Bit(s) */
 	unsigned int b0_13:14;	    /* 0-13: zeros			 */
-	unsigned int as:1;	    /* 14: sampling authorisation control*/
-	unsigned int b15_21:7;	    /* 15-21: zeros			 */
-	unsigned int es:1;	    /* 22: sampling enable control	 */
-	unsigned int b23_29:7;	    /* 23-29: zeros			 */
-	unsigned int cs:1;	    /* 30: sampling activation control	 */
-	unsigned int:1; 	    /* 31: reserved			 */
-	unsigned int bsdes:16;	    /* 4-5: size of basic sampling entry      */
+	unsigned int as:1;	    /* 14: basic-sampling authorization	 */
+	unsigned int ad:1;	    /* 15: diag-sampling authorization	 */
+	unsigned int b16_21:6;	    /* 16-21: zeros			 */
+	unsigned int es:1;	    /* 22: basic-sampling enable control */
+	unsigned int ed:1;	    /* 23: diag-sampling enable control	 */
+	unsigned int b24_29:6;	    /* 24-29: zeros			 */
+	unsigned int cs:1;	    /* 30: basic-sampling activation control */
+	unsigned int cd:1;	    /* 31: diag-sampling activation control */
+	unsigned int bsdes:16;	    /* 4-5: size of basic sampling entry */
 	unsigned int dsdes:16;	    /* 6-7: size of diagnostic sampling entry */
 	unsigned long min_sampl_rate; /* 8-15: minimum sampling interval */
 	unsigned long max_sampl_rate; /* 16-23: maximum sampling interval*/
@@ -82,10 +84,11 @@ struct hws_lsctl_request_block {
 	unsigned int s:1;	    /* 0: maximum buffer indicator	 */
 	unsigned int h:1;	    /* 1: part. level reserved for VM use*/
 	unsigned long long b2_53:52;/* 2-53: zeros			 */
-	unsigned int es:1;	    /* 54: sampling enable control	 */
-	unsigned int b55_61:7;	    /* 55-61: - zeros			 */
-	unsigned int cs:1;	    /* 62: sampling activation control	 */
-	unsigned int b63:1;	    /* 63: zero 			 */
+	unsigned int es:1;	    /* 54: basic-sampling enable control */
+	unsigned int ed:1;	    /* 55: diag-sampling enable control	 */
+	unsigned int b56_61:6;	    /* 56-61: - zeros			 */
+	unsigned int cs:1;	    /* 62: basic-sampling activation control */
+	unsigned int cd:1;	    /* 63: diag-sampling activation control  */
 	unsigned long interval;     /* 8-15: sampling interval		 */
 	unsigned long tear;	    /* 16-23: TEAR contents		 */
 	unsigned long dear;	    /* 24-31: DEAR contents		 */
@@ -96,8 +99,7 @@ struct hws_lsctl_request_block {
 	unsigned long rsvrd4;	    /* reserved 			 */
 } __packed;
 
-
-struct hws_data_entry {
+struct hws_basic_entry {
 	unsigned int def:16;	    /* 0-15  Data Entry Format		 */
 	unsigned int R:4;	    /* 16-19 reserved			 */
 	unsigned int U:4;	    /* 20-23 Number of unique instruct.  */
@@ -112,6 +114,18 @@ struct hws_data_entry {
 	unsigned long long ia;	    /* Instruction Address		 */
 	unsigned long long gpp;     /* Guest Program Parameter		 */
 	unsigned long long hpp;     /* Host Program Parameter		 */
+} __packed;
+
+struct hws_diag_entry {
+	unsigned int def:16;	    /* 0-15  Data Entry Format		 */
+	unsigned int R:14;	    /* 16-19 and 20-30 reserved		 */
+	unsigned int I:1;	    /* 31 entry valid or invalid	 */
+	u8	     data[];	    /* Machine-dependent sample data	 */
+} __packed;
+
+struct hws_combined_entry {
+	struct hws_basic_entry	basic;	/* Basic-sampling data entry */
+	struct hws_diag_entry	diag;	/* Diagnostic-sampling data entry */
 } __packed;
 
 struct hws_trailer_entry {

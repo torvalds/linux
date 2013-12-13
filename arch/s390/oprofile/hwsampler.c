@@ -799,7 +799,7 @@ static void worker_on_interrupt(unsigned int cpu)
 static void add_samples_to_oprofile(unsigned int cpu, unsigned long *sdbt,
 		unsigned long *dear)
 {
-	struct hws_data_entry *sample_data_ptr;
+	struct hws_basic_entry *sample_data_ptr;
 	unsigned long *trailer;
 
 	trailer = trailer_entry_ptr(*sdbt);
@@ -809,7 +809,7 @@ static void add_samples_to_oprofile(unsigned int cpu, unsigned long *sdbt,
 		trailer = dear;
 	}
 
-	sample_data_ptr = (struct hws_data_entry *)(*sdbt);
+	sample_data_ptr = (struct hws_basic_entry *)(*sdbt);
 
 	while ((unsigned long *)sample_data_ptr < trailer) {
 		struct pt_regs *regs = NULL;
