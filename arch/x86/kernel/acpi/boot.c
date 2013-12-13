@@ -1034,9 +1034,7 @@ static int mp_config_acpi_gsi(struct device *dev, u32 gsi, int trigger,
 
 	if (!acpi_ioapic)
 		return 0;
-	if (!dev)
-		return 0;
-	if (dev->bus != &pci_bus_type)
+	if (!dev || !dev_is_pci(dev))
 		return 0;
 
 	pdev = to_pci_dev(dev);
