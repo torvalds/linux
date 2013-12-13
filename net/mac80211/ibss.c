@@ -522,7 +522,7 @@ int ieee80211_ibss_csa_beacon(struct ieee80211_sub_if_data *sdata,
 	if (csa_settings)
 		ieee80211_send_action_csa(sdata, csa_settings);
 
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON);
+	return BSS_CHANGED_BEACON;
  out:
 	return ret;
 }
@@ -562,6 +562,9 @@ int ieee80211_ibss_finish_csa(struct ieee80211_sub_if_data *sdata)
 	err = ieee80211_ibss_csa_beacon(sdata, NULL);
 	if (err < 0)
 		return err;
+
+	if (err)
+		ieee80211_bss_info_change_notify(sdata, err);
 
 	return 0;
 }
