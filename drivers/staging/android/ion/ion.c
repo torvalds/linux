@@ -840,6 +840,22 @@ static void ion_unmap_dma_buf(struct dma_buf_attachment *attachment,
 {
 }
 
+void ion_pages_sync_for_device(struct device *dev, struct page *page,
+		size_t size, enum dma_data_direction dir)
+{
+	struct scatterlist sg;
+
+	sg_init_table(&sg, 1);
+	sg_set_page(&sg, page, size, 0);
+	/*
+	 * This is not correct - sg_dma_address needs a dma_addr_t that is valid
+	 * for the the targeted device, but this works on the currently targeted
+	 * hardware.
+	 */
+	sg_dma_address(&sg) = page_to_phys(page);
+	dma_sync_sg_for_device(dev, &sg, 1, dir);
+}
+
 struct ion_vma_list {
 	struct list_head list;
 	struct vm_area_struct *vma;
@@ -864,7 +880,9 @@ static void ion_buffer_sync_for_device(struct ion_buffer *buffer,
 		struct page *page = buffer->pages[i];
 
 		if (ion_buffer_page_is_dirty(page))
-			__dma_page_cpu_to_dev(page, 0, PAGE_SIZE, dir);
+			ion_pages_sync_for_device(dev, ion_buffer_page(page),
+							PAGE_SIZE, dir);
+
 		ion_buffer_page_clean(buffer->pages + i);
 	}
 	list_for_each_entry(vma_list, &buffer->vmas, list) {
