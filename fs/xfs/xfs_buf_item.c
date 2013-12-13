@@ -182,20 +182,18 @@ xfs_buf_item_size(
 	trace_xfs_buf_item_size(bip);
 }
 
-static inline struct xfs_log_iovec *
+static inline void
 xfs_buf_item_copy_iovec(
-	struct xfs_log_iovec	*vecp,
+	struct xfs_log_iovec	**vecp,
 	struct xfs_buf		*bp,
 	uint			offset,
 	int			first_bit,
 	uint			nbits)
 {
 	offset += first_bit * XFS_BLF_CHUNK;
-
-	vecp->i_type = XLOG_REG_TYPE_BCHUNK;
-	vecp->i_addr = xfs_buf_offset(bp, offset);
-	vecp->i_len = nbits * XFS_BLF_CHUNK;
-	return vecp + 1;
+	xlog_copy_iovec(vecp, XLOG_REG_TYPE_BCHUNK,
+			xfs_buf_offset(bp, offset),
+			nbits * XFS_BLF_CHUNK);
 }
 
 static inline bool
@@ -210,10 +208,10 @@ xfs_buf_item_straddle(
 		 XFS_BLF_CHUNK);
 }
 
-static struct xfs_log_iovec *
+static void
 xfs_buf_item_format_segment(
 	struct xfs_buf_log_item	*bip,
-	struct xfs_log_iovec	*vecp,
+	struct xfs_log_iovec	**vecp,
 	uint			offset,
 	struct xfs_buf_log_format *blfp)
 {
@@ -245,10 +243,7 @@ xfs_buf_item_format_segment(
 		goto out;
 	}
 
-	vecp->i_addr = blfp;
-	vecp->i_len = base_size;
-	vecp->i_type = XLOG_REG_TYPE_BFORMAT;
-	vecp++;
+	xlog_copy_iovec(vecp, XLOG_REG_TYPE_BFORMAT, blfp, base_size);
 	nvecs = 1;
 
 	if (bip->bli_flags & XFS_BLI_STALE) {
@@ -291,8 +286,8 @@ xfs_buf_item_format_segment(
 			break;
 		} else if (next_bit != last_bit + 1 ||
 		           xfs_buf_item_straddle(bp, offset, next_bit, last_bit)) {
-			vecp = xfs_buf_item_copy_iovec(vecp, bp, offset,
-						       first_bit, nbits);
+			xfs_buf_item_copy_iovec(vecp, bp, offset,
+						first_bit, nbits);
 			nvecs++;
 			first_bit = next_bit;
 			last_bit = next_bit;
@@ -304,7 +299,6 @@ xfs_buf_item_format_segment(
 	}
 out:
 	blfp->blf_size = nvecs;
-	return vecp;
 }
 
 /*
@@ -360,8 +354,8 @@ xfs_buf_item_format(
 	}
 
 	for (i = 0; i < bip->bli_format_count; i++) {
-		vecp = xfs_buf_item_format_segment(bip, vecp, offset,
-						&bip->bli_formats[i]);
+		xfs_buf_item_format_segment(bip, &vecp, offset,
+					    &bip->bli_formats[i]);
 		offset += bp->b_maps[i].bm_len;
 	}
 

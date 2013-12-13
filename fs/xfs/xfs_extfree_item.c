@@ -26,6 +26,7 @@
 #include "xfs_trans_priv.h"
 #include "xfs_buf_item.h"
 #include "xfs_extfree_item.h"
+#include "xfs_log.h"
 
 
 kmem_zone_t	*xfs_efi_zone;
@@ -101,7 +102,7 @@ xfs_efi_item_size(
 STATIC void
 xfs_efi_item_format(
 	struct xfs_log_item	*lip,
-	struct xfs_log_iovec	*log_vector)
+	struct xfs_log_iovec	*vecp)
 {
 	struct xfs_efi_log_item	*efip = EFI_ITEM(lip);
 
@@ -111,10 +112,9 @@ xfs_efi_item_format(
 	efip->efi_format.efi_type = XFS_LI_EFI;
 	efip->efi_format.efi_size = 1;
 
-	log_vector->i_addr = &efip->efi_format;
-	log_vector->i_len = xfs_efi_item_sizeof(efip);
-	log_vector->i_type = XLOG_REG_TYPE_EFI_FORMAT;
-	ASSERT(log_vector->i_len >= sizeof(xfs_efi_log_format_t));
+	xlog_copy_iovec(&vecp, XLOG_REG_TYPE_EFI_FORMAT,
+			&efip->efi_format,
+			xfs_efi_item_sizeof(efip));
 }
 
 
@@ -368,7 +368,7 @@ xfs_efd_item_size(
 STATIC void
 xfs_efd_item_format(
 	struct xfs_log_item	*lip,
-	struct xfs_log_iovec	*log_vector)
+	struct xfs_log_iovec	*vecp)
 {
 	struct xfs_efd_log_item	*efdp = EFD_ITEM(lip);
 
@@ -377,10 +377,9 @@ xfs_efd_item_format(
 	efdp->efd_format.efd_type = XFS_LI_EFD;
 	efdp->efd_format.efd_size = 1;
 
-	log_vector->i_addr = &efdp->efd_format;
-	log_vector->i_len = xfs_efd_item_sizeof(efdp);
-	log_vector->i_type = XLOG_REG_TYPE_EFD_FORMAT;
-	ASSERT(log_vector->i_len >= sizeof(xfs_efd_log_format_t));
+	xlog_copy_iovec(&vecp, XLOG_REG_TYPE_EFD_FORMAT,
+			&efdp->efd_format,
+			xfs_efd_item_sizeof(efdp));
 }
 
 /*

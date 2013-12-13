@@ -30,6 +30,7 @@
 #include "xfs_trace.h"
 #include "xfs_trans_priv.h"
 #include "xfs_dinode.h"
+#include "xfs_log.h"
 
 
 kmem_zone_t	*xfs_ili_zone;		/* inode log item zone */
@@ -159,14 +160,15 @@ xfs_inode_item_size(
  * here, so always use the physical fork size to determine the size of the
  * buffer we need to allocate.
  */
-STATIC void
+STATIC int
 xfs_inode_item_format_extents(
 	struct xfs_inode	*ip,
-	struct xfs_log_iovec	*vecp,
+	struct xfs_log_iovec	**vecp,
 	int			whichfork,
 	int			type)
 {
 	xfs_bmbt_rec_t		*ext_buffer;
+	int			len;
 
 	ext_buffer = kmem_alloc(XFS_IFORK_SIZE(ip, whichfork), KM_SLEEP);
 	if (whichfork == XFS_DATA_FORK)
@@ -174,9 +176,9 @@ xfs_inode_item_format_extents(
 	else
 		ip->i_itemp->ili_aextents_buf = ext_buffer;
 
-	vecp->i_addr = ext_buffer;
-	vecp->i_len = xfs_iextents_copy(ip, ext_buffer, whichfork);
-	vecp->i_type = type;
+	len = xfs_iextents_copy(ip, ext_buffer, whichfork);
+	xlog_copy_iovec(vecp, type, ext_buffer, len);
+	return len;
 }
 
 /*
@@ -207,10 +209,10 @@ xfs_inode_item_format_v1_inode(
 	}
 }
 
-STATIC struct xfs_log_iovec *
+STATIC void
 xfs_inode_item_format_data_fork(
 	struct xfs_inode_log_item *iip,
-	struct xfs_log_iovec	*vecp,
+	struct xfs_log_iovec	**vecp,
 	int			*nvecs)
 {
 	struct xfs_inode	*ip = iip->ili_inode;
@@ -237,18 +239,18 @@ xfs_inode_item_format_data_fork(
 				 * extents, so just point to the
 				 * real extents array.
 				 */
-				vecp->i_addr = ip->i_df.if_u1.if_extents;
-				vecp->i_len = ip->i_df.if_bytes;
-				vecp->i_type = XLOG_REG_TYPE_IEXT;
+				xlog_copy_iovec(vecp, XLOG_REG_TYPE_IEXT,
+						ip->i_df.if_u1.if_extents,
+						ip->i_df.if_bytes);
+				iip->ili_format.ilf_dsize = ip->i_df.if_bytes;
 			} else
 #endif
 			{
-				xfs_inode_item_format_extents(ip, vecp,
-					XFS_DATA_FORK, XLOG_REG_TYPE_IEXT);
+				iip->ili_format.ilf_dsize =
+					xfs_inode_item_format_extents(ip, vecp,
+						XFS_DATA_FORK, XLOG_REG_TYPE_IEXT);
+				ASSERT(iip->ili_format.ilf_dsize <= ip->i_df.if_bytes);
 			}
-			ASSERT(vecp->i_len <= ip->i_df.if_bytes);
-			iip->ili_format.ilf_dsize = vecp->i_len;
-			vecp++;
 			(*nvecs)++;
 		} else {
 			iip->ili_fields &= ~XFS_ILOG_DEXT;
@@ -262,10 +264,9 @@ xfs_inode_item_format_data_fork(
 		if ((iip->ili_fields & XFS_ILOG_DBROOT) &&
 		    ip->i_df.if_broot_bytes > 0) {
 			ASSERT(ip->i_df.if_broot != NULL);
-			vecp->i_addr = ip->i_df.if_broot;
-			vecp->i_len = ip->i_df.if_broot_bytes;
-			vecp->i_type = XLOG_REG_TYPE_IBROOT;
-			vecp++;
+			xlog_copy_iovec(vecp, XLOG_REG_TYPE_IBROOT,
+					ip->i_df.if_broot,
+					ip->i_df.if_broot_bytes);
 			(*nvecs)++;
 			iip->ili_format.ilf_dsize = ip->i_df.if_broot_bytes;
 		} else {
@@ -280,21 +281,18 @@ xfs_inode_item_format_data_fork(
 			  XFS_ILOG_DEV | XFS_ILOG_UUID);
 		if ((iip->ili_fields & XFS_ILOG_DDATA) &&
 		    ip->i_df.if_bytes > 0) {
-			ASSERT(ip->i_df.if_u1.if_data != NULL);
-			ASSERT(ip->i_d.di_size > 0);
-
-			vecp->i_addr = ip->i_df.if_u1.if_data;
 			/*
 			 * Round i_bytes up to a word boundary.
 			 * The underlying memory is guaranteed to
 			 * to be there by xfs_idata_realloc().
 			 */
 			data_bytes = roundup(ip->i_df.if_bytes, 4);
-			ASSERT((ip->i_df.if_real_bytes == 0) ||
-			       (ip->i_df.if_real_bytes == data_bytes));
-			vecp->i_len = (int)data_bytes;
-			vecp->i_type = XLOG_REG_TYPE_ILOCAL;
-			vecp++;
+			ASSERT(ip->i_df.if_real_bytes == 0 ||
+			       ip->i_df.if_real_bytes == data_bytes);
+			ASSERT(ip->i_df.if_u1.if_data != NULL);
+			ASSERT(ip->i_d.di_size > 0);
+			xlog_copy_iovec(vecp, XLOG_REG_TYPE_ILOCAL,
+					ip->i_df.if_u1.if_data, data_bytes);
 			(*nvecs)++;
 			iip->ili_format.ilf_dsize = (unsigned)data_bytes;
 		} else {
@@ -323,14 +321,12 @@ xfs_inode_item_format_data_fork(
 		ASSERT(0);
 		break;
 	}
-
-	return vecp;
 }
 
-STATIC struct xfs_log_iovec *
+STATIC void
 xfs_inode_item_format_attr_fork(
 	struct xfs_inode_log_item *iip,
-	struct xfs_log_iovec	*vecp,
+	struct xfs_log_iovec	**vecp,
 	int			*nvecs)
 {
 	struct xfs_inode	*ip = iip->ili_inode;
@@ -352,16 +348,16 @@ xfs_inode_item_format_attr_fork(
 			 * There are not delayed allocation extents
 			 * for attributes, so just point at the array.
 			 */
-			vecp->i_addr = ip->i_afp->if_u1.if_extents;
-			vecp->i_len = ip->i_afp->if_bytes;
-			vecp->i_type = XLOG_REG_TYPE_IATTR_EXT;
+			xlog_copy_iovec(vecp, XLOG_REG_TYPE_IATTR_EXT,
+					ip->i_afp->if_u1.if_extents,
+					ip->i_afp->if_bytes);
+			iip->ili_format.ilf_asize = ip->i_afp->if_bytes;
 #else
 			ASSERT(iip->ili_aextents_buf == NULL);
-			xfs_inode_item_format_extents(ip, vecp,
+			iip->ili_format.ilf_asize =
+				xfs_inode_item_format_extents(ip, vecp,
 					XFS_ATTR_FORK, XLOG_REG_TYPE_IATTR_EXT);
 #endif
-			iip->ili_format.ilf_asize = vecp->i_len;
-			vecp++;
 			(*nvecs)++;
 		} else {
 			iip->ili_fields &= ~XFS_ILOG_AEXT;
@@ -375,10 +371,9 @@ xfs_inode_item_format_attr_fork(
 		    ip->i_afp->if_broot_bytes > 0) {
 			ASSERT(ip->i_afp->if_broot != NULL);
 
-			vecp->i_addr = ip->i_afp->if_broot;
-			vecp->i_len = ip->i_afp->if_broot_bytes;
-			vecp->i_type = XLOG_REG_TYPE_IATTR_BROOT;
-			vecp++;
+			xlog_copy_iovec(vecp, XLOG_REG_TYPE_IATTR_BROOT,
+					ip->i_afp->if_broot,
+					ip->i_afp->if_broot_bytes);
 			(*nvecs)++;
 			iip->ili_format.ilf_asize = ip->i_afp->if_broot_bytes;
 		} else {
@@ -391,20 +386,18 @@ xfs_inode_item_format_attr_fork(
 
 		if ((iip->ili_fields & XFS_ILOG_ADATA) &&
 		    ip->i_afp->if_bytes > 0) {
-			ASSERT(ip->i_afp->if_u1.if_data != NULL);
-
-			vecp->i_addr = ip->i_afp->if_u1.if_data;
 			/*
 			 * Round i_bytes up to a word boundary.
 			 * The underlying memory is guaranteed to
 			 * to be there by xfs_idata_realloc().
 			 */
 			data_bytes = roundup(ip->i_afp->if_bytes, 4);
-			ASSERT((ip->i_afp->if_real_bytes == 0) ||
-			       (ip->i_afp->if_real_bytes == data_bytes));
-			vecp->i_len = (int)data_bytes;
-			vecp->i_type = XLOG_REG_TYPE_IATTR_LOCAL;
-			vecp++;
+			ASSERT(ip->i_afp->if_real_bytes == 0 ||
+			       ip->i_afp->if_real_bytes == data_bytes);
+			ASSERT(ip->i_afp->if_u1.if_data != NULL);
+			xlog_copy_iovec(vecp, XLOG_REG_TYPE_IATTR_LOCAL,
+					ip->i_afp->if_u1.if_data,
+					data_bytes);
 			(*nvecs)++;
 			iip->ili_format.ilf_asize = (unsigned)data_bytes;
 		} else {
@@ -415,8 +408,6 @@ xfs_inode_item_format_attr_fork(
 		ASSERT(0);
 		break;
 	}
-
-	return vecp;
 }
 
 /*
@@ -435,24 +426,22 @@ xfs_inode_item_format(
 	struct xfs_inode	*ip = iip->ili_inode;
 	uint			nvecs;
 
-	vecp->i_addr = &iip->ili_format;
-	vecp->i_len  = sizeof(xfs_inode_log_format_t);
-	vecp->i_type = XLOG_REG_TYPE_IFORMAT;
-	vecp++;
-	nvecs	     = 1;
+	xlog_copy_iovec(&vecp, XLOG_REG_TYPE_IFORMAT,
+			&iip->ili_format,
+			sizeof(struct xfs_inode_log_format));
+	nvecs = 1;
 
-	vecp->i_addr = &ip->i_d;
-	vecp->i_len  = xfs_icdinode_size(ip->i_d.di_version);
-	vecp->i_type = XLOG_REG_TYPE_ICORE;
-	vecp++;
+	xlog_copy_iovec(&vecp, XLOG_REG_TYPE_ICORE,
+			&ip->i_d,
+			xfs_icdinode_size(ip->i_d.di_version));
 	nvecs++;
 
 	if (ip->i_d.di_version == 1)
 		xfs_inode_item_format_v1_inode(ip);
 
-	vecp = xfs_inode_item_format_data_fork(iip, vecp, &nvecs);
+	xfs_inode_item_format_data_fork(iip, &vecp, &nvecs);
 	if (XFS_IFORK_Q(ip)) {
-		vecp = xfs_inode_item_format_attr_fork(iip, vecp, &nvecs);
+		xfs_inode_item_format_attr_fork(iip, &vecp, &nvecs);
 	} else {
 		iip->ili_fields &=
 			~(XFS_ILOG_ADATA | XFS_ILOG_ABROOT | XFS_ILOG_AEXT);

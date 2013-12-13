@@ -30,6 +30,19 @@ struct xfs_log_vec {
 
 #define XFS_LOG_VEC_ORDERED	(-1)
 
+static inline void *
+xlog_copy_iovec(struct xfs_log_iovec **vecp, uint type, void *data, int len)
+{
+	struct xfs_log_iovec *vec = *vecp;
+
+	vec->i_type = type;
+	vec->i_addr = data;
+	vec->i_len = len;
+
+	*vecp = vec + 1;
+	return vec->i_addr;
+}
+
 /*
  * Structure used to pass callback function and the function's argument
  * to the log manager.
