@@ -16,17 +16,19 @@
 #include <linux/kvm_host.h>
 #include <linux/percpu.h>
 #include <linux/export.h>
+#include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/sysfs.h>
 #include <asm/irq.h>
 #include <asm/cpu_mf.h>
 #include <asm/lowcore.h>
 #include <asm/processor.h>
+#include <asm/sysinfo.h>
 
 const char *perf_pmu_name(void)
 {
 	if (cpum_cf_avail() || cpum_sf_avail())
-		return "CPU-measurement facilities (CPUMF)";
+		return "CPU-Measurement Facilities (CPU-MF)";
 	return "pmu";
 }
 EXPORT_SYMBOL(perf_pmu_name);
@@ -137,6 +139,60 @@ void perf_event_print_debug(void)
 		print_debug_sf();
 	local_irq_restore(flags);
 }
+
+/* Service level infrastructure */
+static void sl_print_counter(struct seq_file *m)
+{
+	struct cpumf_ctr_info ci;
+
+	memset(&ci, 0, sizeof(ci));
+	if (qctri(&ci))
+		return;
+
+	seq_printf(m, "CPU-MF: Counter facility: version=%u.%u "
+		   "authorization=%04x\n", ci.cfvn, ci.csvn, ci.auth_ctl);
+}
+
+static void sl_print_sampling(struct seq_file *m)
+{
+	struct hws_qsi_info_block si;
+
+	memset(&si, 0, sizeof(si));
+	if (qsi(&si))
+		return;
+
+	if (!si.as && !si.ad)
+		return;
+
+	seq_printf(m, "CPU-MF: Sampling facility: min_rate=%lu max_rate=%lu"
+		   " cpu_speed=%u\n", si.min_sampl_rate, si.max_sampl_rate,
+		   si.cpu_speed);
+	if (si.as)
+		seq_printf(m, "CPU-MF: Sampling facility: mode=basic"
+			   " sample_size=%u\n", si.bsdes);
+	if (si.ad)
+		seq_printf(m, "CPU-MF: Sampling facility: mode=diagnostic"
+			   " sample_size=%u\n", si.dsdes);
+}
+
+static void service_level_perf_print(struct seq_file *m,
+				     struct service_level *sl)
+{
+	if (cpum_cf_avail())
+		sl_print_counter(m);
+	if (cpum_sf_avail())
+		sl_print_sampling(m);
+}
+
+static struct service_level service_level_perf = {
+	.seq_print = service_level_perf_print,
+};
+
+static int __init service_level_perf_register(void)
+{
+	return register_service_level(&service_level_perf);
+}
+arch_initcall(service_level_perf_register);
 
 /* See also arch/s390/kernel/traps.c */
 static unsigned long __store_trace(struct perf_callchain_entry *entry,
