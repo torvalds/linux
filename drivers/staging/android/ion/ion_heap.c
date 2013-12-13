@@ -93,6 +93,43 @@ int ion_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 	return 0;
 }
 
+int ion_heap_buffer_zero(struct ion_buffer *buffer)
+{
+	struct sg_table *table = buffer->sg_table;
+	pgprot_t pgprot;
+	struct scatterlist *sg;
+	struct vm_struct *vm_struct;
+	int i, j, ret = 0;
+
+	if (buffer->flags & ION_FLAG_CACHED)
+		pgprot = PAGE_KERNEL;
+	else
+		pgprot = pgprot_writecombine(PAGE_KERNEL);
+
+	vm_struct = get_vm_area(PAGE_SIZE, VM_ALLOC);
+	if (!vm_struct)
+		return -ENOMEM;
+
+	for_each_sg(table->sgl, sg, table->nents, i) {
+		struct page *page = sg_page(sg);
+		unsigned long len = sg_dma_len(sg);
+
+		for (j = 0; j < len / PAGE_SIZE; j++) {
+			struct page *sub_page = page + j;
+			struct page **pages = &sub_page;
+			ret = map_vm_area(vm_struct, pgprot, &pages);
+			if (ret)
+				goto end;
+			memset(vm_struct->addr, 0, PAGE_SIZE);
+			unmap_kernel_range((unsigned long)vm_struct->addr,
+					   PAGE_SIZE);
+		}
+	}
+end:
+	free_vm_area(vm_struct);
+	return ret;
+}
+
 struct ion_heap *ion_heap_create(struct ion_platform_heap *heap_data)
 {
 	struct ion_heap *heap = NULL;
