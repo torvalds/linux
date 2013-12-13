@@ -105,11 +105,6 @@ static struct device_attribute adf_interface_attrs[] = {
 	__ATTR_RO(vsync_timestamp),
 };
 
-static char *adf_devnode(struct device *dev, umode_t *mode)
-{
-	return kasprintf(GFP_KERNEL, "adf/%s", dev_name(dev));
-}
-
 int adf_obj_sysfs_init(struct adf_obj *obj, struct device *parent)
 {
 	int ret = idr_alloc(&adf_minors, obj, 0, 0, GFP_KERNEL);
@@ -142,7 +137,7 @@ static char *adf_device_devnode(struct device *dev, umode_t *mode,
 		kuid_t *uid, kgid_t *gid)
 {
 	struct adf_obj *obj = container_of(dev, struct adf_obj, dev);
-	return kasprintf(GFP_KERNEL, "adf/%s/device", obj->name);
+	return kasprintf(GFP_KERNEL, "adf%d", obj->id);
 }
 
 static char *adf_interface_devnode(struct device *dev, umode_t *mode,
@@ -151,8 +146,8 @@ static char *adf_interface_devnode(struct device *dev, umode_t *mode,
 	struct adf_obj *obj = container_of(dev, struct adf_obj, dev);
 	struct adf_interface *intf = adf_obj_to_interface(obj);
 	struct adf_device *parent = adf_interface_parent(intf);
-	return kasprintf(GFP_KERNEL, "adf/%s/interface%d",
-			parent->base.name, intf->base.id);
+	return kasprintf(GFP_KERNEL, "adf-interface%d.%d",
+			parent->base.id, intf->base.id);
 }
 
 static char *adf_overlay_engine_devnode(struct device *dev, umode_t *mode,
@@ -161,8 +156,8 @@ static char *adf_overlay_engine_devnode(struct device *dev, umode_t *mode,
 	struct adf_obj *obj = container_of(dev, struct adf_obj, dev);
 	struct adf_overlay_engine *eng = adf_obj_to_overlay_engine(obj);
 	struct adf_device *parent = adf_overlay_engine_parent(eng);
-	return kasprintf(GFP_KERNEL, "adf/%s/overlay-engine%d",
-			parent->base.name, eng->base.id);
+	return kasprintf(GFP_KERNEL, "adf-overlay-engine%d.%d",
+			parent->base.id, eng->base.id);
 }
 
 static void adf_noop_release(struct device *dev)
@@ -285,7 +280,6 @@ int adf_sysfs_init(void)
 		goto err_chrdev;
 	}
 
-	class->devnode = adf_devnode;
 	adf_class = class;
 	adf_major = ret;
 	return 0;

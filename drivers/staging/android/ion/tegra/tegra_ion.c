@@ -15,9 +15,9 @@
  */
 
 #include <linux/err.h>
-#include <linux/ion.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include "../ion.h"
 #include "../ion_priv.h"
 
 struct ion_device *idev;

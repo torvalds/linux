@@ -519,10 +519,10 @@ int adf_fbdev_blank(int blank, struct fb_info *info)
 		dpms_state = DRM_MODE_DPMS_STANDBY;
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
-		dpms_state = DRM_MODE_DPMS_STANDBY;
+		dpms_state = DRM_MODE_DPMS_SUSPEND;
 		break;
 	case FB_BLANK_HSYNC_SUSPEND:
-		dpms_state = DRM_MODE_DPMS_SUSPEND;
+		dpms_state = DRM_MODE_DPMS_STANDBY;
 		break;
 	case FB_BLANK_POWERDOWN:
 		dpms_state = DRM_MODE_DPMS_OFF;

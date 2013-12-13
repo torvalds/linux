@@ -1,8 +1,5 @@
 /*
- *  Key chord input driver
- *
- * Copyright (C) 2008 Google, Inc.
- * Author: Mike Lockwood <lockwood@android.com>
+ * Copyright (C) 2012 Google, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -13,11 +10,23 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
-*/
+ */
 
-#ifndef __LINUX_KEYCHORD_H_
-#define __LINUX_KEYCHORD_H_
+#ifndef _UAPI_LINUX_SW_SYNC_H
+#define _UAPI_LINUX_SW_SYNC_H
 
-#include <uapi/linux/keychord.h>
+#include <linux/types.h>
 
-#endif	/* __LINUX_KEYCHORD_H_ */
+struct sw_sync_create_fence_data {
+	__u32	value;
+	char	name[32];
+	__s32	fence; /* fd of new fence */
+};
+
+#define SW_SYNC_IOC_MAGIC	'W'
+
+#define SW_SYNC_IOC_CREATE_FENCE	_IOWR(SW_SYNC_IOC_MAGIC, 0,\
+		struct sw_sync_create_fence_data)
+#define SW_SYNC_IOC_INC			_IOW(SW_SYNC_IOC_MAGIC, 1, __u32)
+
+#endif /* _UAPI_LINUX_SW_SYNC_H */
