@@ -667,14 +667,16 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		gfn = (fault_ipa & PMD_MASK) >> PAGE_SHIFT;
 	} else {
 		/*
-		 * Pages belonging to VMAs not aligned to the PMD mapping
-		 * granularity cannot be mapped using block descriptors even
-		 * if the pages belong to a THP for the process, because the
-		 * stage-2 block descriptor will cover more than a single THP
-		 * and we loose atomicity for unmapping, updates, and splits
-		 * of the THP or other pages in the stage-2 block range.
+		 * Pages belonging to memslots that don't have the same
+		 * alignment for userspace and IPA cannot be mapped using
+		 * block descriptors even if the pages belong to a THP for
+		 * the process, because the stage-2 block descriptor will
+		 * cover more than a single THP and we loose atomicity for
+		 * unmapping, updates, and splits of the THP or other pages
+		 * in the stage-2 block range.
 		 */
-		if (vma->vm_start & ~PMD_MASK)
+		if ((memslot->userspace_addr & ~PMD_MASK) !=
+		    ((memslot->base_gfn << PAGE_SHIFT) & ~PMD_MASK))
 			force_pte = true;
 	}
 	up_read(&current->mm->mmap_sem);
