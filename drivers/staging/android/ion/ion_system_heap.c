@@ -192,6 +192,8 @@ int ion_system_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 		remap_pfn_range(vma, addr, page_to_pfn(sg_page(sg)),
 				sg_dma_len(sg), vma->vm_page_prot);
 		addr += sg_dma_len(sg);
+		if (addr >= vma->vm_end)
+			return 0;
 	}
 	return 0;
 }
