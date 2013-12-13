@@ -129,6 +129,20 @@ config USB_KEENE
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-keene.
 
+config USB_RAREMONO
+	tristate "Thanko's Raremono AM/FM/SW radio support"
+	depends on USB && VIDEO_V4L2
+	---help---
+	  The 'Thanko's Raremono' device contains the Si4734 chip from Silicon Labs Inc.
+	  It is one of the very few or perhaps the only consumer USB radio device
+	  to receive the AM/FM/SW bands.
+
+	  Say Y here if you want to connect this type of AM/FM/SW receiver
+	  to your computer's USB port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-raremono.
+
 config USB_MA901
 	tristate "Masterkit MA901 USB FM radio support"
 	depends on USB && VIDEO_V4L2
