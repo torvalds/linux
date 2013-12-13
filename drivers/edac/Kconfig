@@ -377,4 +377,14 @@ config EDAC_ALTERA_MC
 	  preloader must initialize the SDRAM before loading
 	  the kernel.
 
+config EDAC_ALTERA_ECC_MGR
+	bool "Altera ECC Manager for EDAC"
+	depends on EDAC_MM_EDAC && ARCH_SOCFPGA
+	help
+	  Support for error detection and correction on the
+	  Altera memories. Ensure these requirements are met.
+	  -L2    Note that the preloader must initialize
+	         the L2 memory & enable the L2 ECC before
+	         loading the kernel.
+
 endif # EDAC
