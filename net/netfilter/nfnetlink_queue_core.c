@@ -235,51 +235,6 @@ nfqnl_flush(struct nfqnl_instance *queue, nfqnl_cmpfn cmpfn, unsigned long data)
 	spin_unlock_bh(&queue->lock);
 }
 
-static void
-nfqnl_zcopy(struct sk_buff *to, const struct sk_buff *from, int len, int hlen)
-{
-	int i, j = 0;
-	int plen = 0; /* length of skb->head fragment */
-	struct page *page;
-	unsigned int offset;
-
-	/* dont bother with small payloads */
-	if (len <= skb_tailroom(to)) {
-		skb_copy_bits(from, 0, skb_put(to, len), len);
-		return;
-	}
-
-	if (hlen) {
-		skb_copy_bits(from, 0, skb_put(to, hlen), hlen);
-		len -= hlen;
-	} else {
-		plen = min_t(int, skb_headlen(from), len);
-		if (plen) {
-			page = virt_to_head_page(from->head);
-			offset = from->data - (unsigned char *)page_address(page);
-			__skb_fill_page_desc(to, 0, page, offset, plen);
-			get_page(page);
-			j = 1;
-			len -= plen;
-		}
-	}
-
-	to->truesize += len + plen;
-	to->len += len + plen;
-	to->data_len += len + plen;
-
-	for (i = 0; i < skb_shinfo(from)->nr_frags; i++) {
-		if (!len)
-			break;
-		skb_shinfo(to)->frags[j] = skb_shinfo(from)->frags[i];
-		skb_shinfo(to)->frags[j].size = min_t(int, skb_shinfo(to)->frags[j].size, len);
-		len -= skb_shinfo(to)->frags[j].size;
-		skb_frag_ref(to, j);
-		j++;
-	}
-	skb_shinfo(to)->nr_frags = j;
-}
-
 static int
 nfqnl_put_packet_info(struct sk_buff *nlskb, struct sk_buff *packet,
 		      bool csum_verify)
@@ -304,7 +259,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 {
 	size_t size;
 	size_t data_len = 0, cap_len = 0;
-	int hlen = 0;
+	unsigned int hlen = 0;
 	struct sk_buff *skb;
 	struct nlattr *nla;
 	struct nfqnl_msg_packet_hdr *pmsg;
@@ -356,14 +311,8 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 		if (data_len > entskb->len)
 			data_len = entskb->len;
 
-		if (!entskb->head_frag ||
-		    skb_headlen(entskb) < L1_CACHE_BYTES ||
-		    skb_shinfo(entskb)->nr_frags >= MAX_SKB_FRAGS)
-			hlen = skb_headlen(entskb);
-
-		if (skb_has_frag_list(entskb))
-			hlen = entskb->len;
-		hlen = min_t(int, data_len, hlen);
+		hlen = skb_zerocopy_headlen(entskb);
+		hlen = min_t(unsigned int, hlen, data_len);
 		size += sizeof(struct nlattr) + hlen;
 		cap_len = entskb->len;
 		break;
@@ -504,7 +453,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 		nla->nla_type = NFQA_PAYLOAD;
 		nla->nla_len = nla_attr_size(data_len);
 
-		nfqnl_zcopy(skb, entskb, data_len, hlen);
+		skb_zerocopy(skb, entskb, data_len, hlen);
 	}
 
 	nlh->nlmsg_len = skb->len;
