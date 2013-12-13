@@ -77,13 +77,19 @@ void btrfs_leak_debug_check(void)
 	}
 }
 
-#define btrfs_debug_check_extent_io_range(inode, start, end)		\
-	__btrfs_debug_check_extent_io_range(__func__, (inode), (start), (end))
+#define btrfs_debug_check_extent_io_range(tree, start, end)		\
+	__btrfs_debug_check_extent_io_range(__func__, (tree), (start), (end))
 static inline void __btrfs_debug_check_extent_io_range(const char *caller,
-		struct inode *inode, u64 start, u64 end)
+		struct extent_io_tree *tree, u64 start, u64 end)
 {
-	u64 isize = i_size_read(inode);
+	struct inode *inode;
+	u64 isize;
 
+	if (!tree->mapping)
+		return;
+
+	inode = tree->mapping->host;
+	isize = i_size_read(inode);
 	if (end >= PAGE_SIZE && (end % 2) == 0 && end != isize - 1) {
 		printk_ratelimited(KERN_DEBUG
 		    "btrfs: %s: ino %llu isize %llu odd range [%llu,%llu]\n",
@@ -124,6 +130,8 @@ static noinline void flush_write_bio(void *data);
 static inline struct btrfs_fs_info *
 tree_fs_info(struct extent_io_tree *tree)
 {
+	if (!tree->mapping)
+		return NULL;
 	return btrfs_sb(tree->mapping->host->i_sb);
 }
 
@@ -570,7 +578,7 @@ int clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	int err;
 	int clear = 0;
 
-	btrfs_debug_check_extent_io_range(tree->mapping->host, start, end);
+	btrfs_debug_check_extent_io_range(tree, start, end);
 
 	if (bits & EXTENT_DELALLOC)
 		bits |= EXTENT_NORESERVE;
@@ -730,7 +738,7 @@ static void wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	struct extent_state *state;
 	struct rb_node *node;
 
-	btrfs_debug_check_extent_io_range(tree->mapping->host, start, end);
+	btrfs_debug_check_extent_io_range(tree, start, end);
 
 	spin_lock(&tree->lock);
 again:
@@ -817,7 +825,7 @@ __set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	u64 last_start;
 	u64 last_end;
 
-	btrfs_debug_check_extent_io_range(tree->mapping->host, start, end);
+	btrfs_debug_check_extent_io_range(tree, start, end);
 
 	bits |= EXTENT_FIRST_DELALLOC;
 again:
@@ -1043,7 +1051,7 @@ int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	u64 last_start;
 	u64 last_end;
 
-	btrfs_debug_check_extent_io_range(tree->mapping->host, start, end);
+	btrfs_debug_check_extent_io_range(tree, start, end);
 
 again:
 	if (!prealloc && (mask & __GFP_WAIT)) {
