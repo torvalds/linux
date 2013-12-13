@@ -380,7 +380,7 @@ static int init_libcfs_module(void)
 
 	rc = cfs_crypto_register();
 	if (rc) {
-		CERROR("cfs_crypto_regster: error %d\n", rc);
+		CERROR("cfs_crypto_register: error %d\n", rc);
 		goto cleanup_wi;
 	}
 
