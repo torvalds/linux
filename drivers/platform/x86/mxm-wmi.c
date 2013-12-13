@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/mxm-wmi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
