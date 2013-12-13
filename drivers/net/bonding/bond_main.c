@@ -591,33 +591,22 @@ static int bond_set_allmulti(struct bonding *bond, int inc)
  * device and retransmit an IGMP JOIN request to the current active
  * slave.
  */
-static void bond_resend_igmp_join_requests(struct bonding *bond)
-{
-	if (!rtnl_trylock()) {
-		queue_delayed_work(bond->wq, &bond->mcast_work, 1);
-		return;
-	}
-	call_netdevice_notifiers(NETDEV_RESEND_IGMP, bond->dev);
-	rtnl_unlock();
-
-	/* We use curr_slave_lock to protect against concurrent access to
-	 * igmp_retrans from multiple running instances of this function and
-	 * bond_change_active_slave
-	 */
-	write_lock_bh(&bond->curr_slave_lock);
-	if (bond->igmp_retrans > 1) {
-		bond->igmp_retrans--;
-		queue_delayed_work(bond->wq, &bond->mcast_work, HZ/5);
-	}
-	write_unlock_bh(&bond->curr_slave_lock);
-}
-
 static void bond_resend_igmp_join_requests_delayed(struct work_struct *work)
 {
 	struct bonding *bond = container_of(work, struct bonding,
 					    mcast_work.work);
 
-	bond_resend_igmp_join_requests(bond);
+	if (!rtnl_trylock()) {
+		queue_delayed_work(bond->wq, &bond->mcast_work, 1);
+		return;
+	}
+	call_netdevice_notifiers(NETDEV_RESEND_IGMP, bond->dev);
+
+	if (bond->igmp_retrans > 1) {
+		bond->igmp_retrans--;
+		queue_delayed_work(bond->wq, &bond->mcast_work, HZ/5);
+	}
+	rtnl_unlock();
 }
 
 /* Flush bond's hardware addresses from slave
