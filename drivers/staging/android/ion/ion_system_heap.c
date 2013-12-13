@@ -91,7 +91,7 @@ static struct page *alloc_buffer_page(struct ion_system_heap *heap,
 
 static void free_buffer_page(struct ion_system_heap *heap,
 			     struct ion_buffer *buffer, struct page *page,
-			     unsigned int order)
+			     unsigned int order, struct vm_struct *vm_struct)
 {
 	bool cached = ion_buffer_cached(buffer);
 	bool split_pages = ion_buffer_fault_user_mappings(buffer);
@@ -105,10 +105,13 @@ static void free_buffer_page(struct ion_system_heap *heap,
 		   purpose is to keep the pages out of the cache */
 		for (i = 0; i < (1 << order); i++) {
 			struct page *sub_page = page + i;
-			void *addr = vmap(&sub_page, 1, VM_MAP,
-					  pgprot_writecombine(PAGE_KERNEL));
-			memset(addr, 0, PAGE_SIZE);
-			vunmap(addr);
+			struct page **pages = &sub_page;
+			map_vm_area(vm_struct,
+					 pgprot_writecombine(PAGE_KERNEL),
+					 &pages);
+			memset(vm_struct->addr, 0, PAGE_SIZE);
+			unmap_kernel_range((unsigned long)vm_struct->addr,
+					PAGE_SIZE);
 		}
 		ion_page_pool_free(pool, page);
 	} else if (split_pages) {
@@ -164,6 +167,8 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 	long size_remaining = PAGE_ALIGN(size);
 	unsigned int max_order = orders[0];
 	bool split_pages = ion_buffer_fault_user_mappings(buffer);
+	struct vm_struct *vm_struct;
+	pte_t *ptes;
 
 	INIT_LIST_HEAD(&pages);
 	while (size_remaining > 0) {
@@ -211,10 +216,13 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 err1:
 	kfree(table);
 err:
+	vm_struct = get_vm_area(PAGE_SIZE, &ptes);
 	list_for_each_entry(info, &pages, list) {
-		free_buffer_page(sys_heap, buffer, info->page, info->order);
+		free_buffer_page(sys_heap, buffer, info->page, info->order,
+				vm_struct);
 		kfree(info);
 	}
+	free_vm_area(vm_struct);
 	return -ENOMEM;
 }
 
@@ -227,10 +235,16 @@ void ion_system_heap_free(struct ion_buffer *buffer)
 	struct sg_table *table = buffer->sg_table;
 	struct scatterlist *sg;
 	LIST_HEAD(pages);
+	struct vm_struct *vm_struct;
+	pte_t *ptes;
 	int i;
 
+	vm_struct = get_vm_area(PAGE_SIZE, &ptes);
+
 	for_each_sg(table->sgl, sg, table->nents, i)
-		free_buffer_page(sys_heap, buffer, sg_page(sg), get_order(sg_dma_len(sg)));
+		free_buffer_page(sys_heap, buffer, sg_page(sg),
+				get_order(sg_dma_len(sg)), vm_struct);
+	free_vm_area(vm_struct);
 	sg_free_table(table);
 	kfree(table);
 }
