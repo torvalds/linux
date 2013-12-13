@@ -123,4 +123,5 @@ __visible void xen_adjust_exception_frame(void);
 
 extern int xen_panic_handler_init(void);
 
+void xen_setup_gdt(int cpu);
 #endif /* XEN_OPS_H */

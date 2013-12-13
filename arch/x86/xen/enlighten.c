@@ -1409,14 +1409,19 @@ static void __init xen_boot_params_init_edd(void)
  * Set up the GDT and segment registers for -fstack-protector.  Until
  * we do this, we have to be careful not to call any stack-protected
  * function, which is most of the kernel.
+ *
+ * Note, that it is __ref because the only caller of this after init
+ * is PVH which is not going to use xen_load_gdt_boot or other
+ * __init functions.
  */
-static void __init xen_setup_gdt(void)
+void __ref xen_setup_gdt(int cpu)
 {
 	if (xen_feature(XENFEAT_auto_translated_physmap)) {
 #ifdef CONFIG_X86_64
 		unsigned long dummy;
 
-		switch_to_new_gdt(0); /* GDT and GS set */
+		load_percpu_segment(cpu); /* We need to access per-cpu area */
+		switch_to_new_gdt(cpu); /* GDT and GS set */
 
 		/* We are switching of the Xen provided GDT to our HVM mode
 		 * GDT. The new GDT has  __KERNEL_CS with CS.L = 1
@@ -1529,7 +1534,7 @@ asmlinkage void __init xen_start_kernel(void)
 	 * Set up kernel GDT and segment registers, mainly so that
 	 * -fstack-protector code can be executed.
 	 */
-	xen_setup_gdt();
+	xen_setup_gdt(0);
 
 	xen_init_irq_ops();
 	xen_init_cpuid_mask();
