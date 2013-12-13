@@ -61,9 +61,9 @@
 		cache-level = <2>;
 		arm,tag-latency = <1 1 1>;
 		arm,data-latency = <2 3 1>;
-		prefetch-ctrl = <0x70000003>;
+		rockchip,prefetch-ctrl = <0x70000003>;
 		/* L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN */
-		power-ctrl = <0x3>;
+		rockchip,power-ctrl = <0x3>;
 /*
 		(0x1 << 0) |	// Full line of write zero behavior Enabled
 		(0x1 << 25) | 	// Round-robin replacement
@@ -71,7 +71,7 @@
 		(0x1 << L2X0_AUX_CTRL_INSTR_PREFETCH_SHIFT) |
 		(0x1 << L2X0_AUX_CTRL_EARLY_BRESP_SHIFT)
 */
-		aux-ctrl = <0x72000001 (~0x72000001)>;
+		rockchip,aux-ctrl = <0x72000001 (~0x72000001)>;
 	};
 
 	cpu_axi_bus: cpu_axi_bus@10128000 {
@@ -79,51 +79,51 @@
 		reg = <0x10128000 0x8000>;
 		qos {
 			dmac {
-				offset = <0x1000>;
-				priority = <0 0>;
+				rockchip,offset = <0x1000>;
+				rockchip,priority = <0 0>;
 			};
 			cpu0 {
-				offset = <0x2000>;
-				priority = <0 0>;
+				rockchip,offset = <0x2000>;
+				rockchip,priority = <0 0>;
 			};
 			cpu1r {
-				offset = <0x2080>;
-				priority = <0 0>;
+				rockchip,offset = <0x2080>;
+				rockchip,priority = <0 0>;
 			};
 			cpu1w {
-				offset = <0x2100>;
-				priority = <0 0>;
+				rockchip,offset = <0x2100>;
+				rockchip,priority = <0 0>;
 			};
 			peri {
-				offset = <0x4000>;
-				priority = <2 2>;
+				rockchip,offset = <0x4000>;
+				rockchip,priority = <2 2>;
 			};
 			gpu {
-				offset = <0x5000>;
-				priority = <2 1>;
+				rockchip,offset = <0x5000>;
+				rockchip,priority = <2 1>;
 			};
 			vpu {
-				offset = <0x6000>;
+				rockchip,offset = <0x6000>;
 			};
 			vop0 {
-				offset = <0x7000>;
-				priority = <3 3>;
+				rockchip,offset = <0x7000>;
+				rockchip,priority = <3 3>;
 			};
 			cif0 {
-				offset = <0x7080>;
+				rockchip,offset = <0x7080>;
 			};
 			ipp {
-				offset = <0x7100>;
+				rockchip,offset = <0x7100>;
 			};
 			vop1 {
-				offset = <0x7180>;
-				priority = <3 3>;
+				rockchip,offset = <0x7180>;
+				rockchip,priority = <3 3>;
 			};
 			cif1 {
-				offset = <0x7200>;
+				rockchip,offset = <0x7200>;
 			};
 			rga {
-				offset = <0x7280>;
+				rockchip,offset = <0x7280>;
 			};
 		};
 	};

@@ -36,23 +36,23 @@ static int __init rockchip_cpu_axi_init(void)
 	if (np) {
 		for_each_child_of_node(np, cp) {
 			u32 offset, priority[2], mode, bandwidth, saturation;
-			if (of_property_read_u32(cp, "offset", &offset))
+			if (of_property_read_u32(cp, "rockchip,offset", &offset))
 				continue;
 			pr_debug("qos: %s offset %x\n", cp->name, offset);
 			cbase = base + offset;
-			if (!of_property_read_u32_array(cp, "priority", priority, ARRAY_SIZE(priority))) {
+			if (!of_property_read_u32_array(cp, "rockchip,priority", priority, ARRAY_SIZE(priority))) {
 				CPU_AXI_SET_QOS_PRIORITY(priority[0], priority[1], cbase);
 				pr_debug("qos: %s priority %x %x\n", cp->name, priority[0], priority[1]);
 			}
-			if (!of_property_read_u32(cp, "mode", &mode)) {
+			if (!of_property_read_u32(cp, "rockchip,mode", &mode)) {
 				CPU_AXI_SET_QOS_MODE(mode, cbase);
 				pr_debug("qos: %s mode %x\n", cp->name, mode);
 			}
-			if (!of_property_read_u32(cp, "bandwidth", &bandwidth)) {
+			if (!of_property_read_u32(cp, "rockchip,bandwidth", &bandwidth)) {
 				CPU_AXI_SET_QOS_BANDWIDTH(bandwidth, cbase);
 				pr_debug("qos: %s bandwidth %x\n", cp->name, bandwidth);
 			}
-			if (!of_property_read_u32(cp, "saturation", &saturation)) {
+			if (!of_property_read_u32(cp, "rockchip,saturation", &saturation)) {
 				CPU_AXI_SET_QOS_SATURATION(saturation, cbase);
 				pr_debug("qos: %s saturation %x\n", cp->name, saturation);
 			}
@@ -87,13 +87,13 @@ static int __init rockchip_pl330_l2_cache_init(void)
 	if (!base)
 		return -EINVAL;
 
-	if (!of_property_read_u32(np, "prefetch-ctrl", &prefetch)) {
+	if (!of_property_read_u32(np, "rockchip,prefetch-ctrl", &prefetch)) {
 		/* L2X0 Prefetch Control */
 		writel_relaxed(prefetch, base + L2X0_PREFETCH_CTRL);
 		pr_debug("l2c: prefetch %x\n", prefetch);
 	}
 
-	if (!of_property_read_u32(np, "power-ctrl", &power)) {
+	if (!of_property_read_u32(np, "rockchip,power-ctrl", &power)) {
 		/* L2X0 Power Control */
 		writel_relaxed(power, base + L2X0_POWER_CTRL);
 		pr_debug("l2c: power %x\n", power);
@@ -101,7 +101,7 @@ static int __init rockchip_pl330_l2_cache_init(void)
 
 	iounmap(base);
 
-	of_property_read_u32_array(np, "aux-ctrl", aux, ARRAY_SIZE(aux));
+	of_property_read_u32_array(np, "rockchip,aux-ctrl", aux, ARRAY_SIZE(aux));
 	pr_debug("l2c: aux %08x mask %08x\n", aux[0], aux[1]);
 
 	l2x0_of_init(aux[0], aux[1]);
