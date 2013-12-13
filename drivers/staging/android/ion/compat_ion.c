@@ -35,6 +35,12 @@ struct compat_ion_custom_data {
 	compat_ulong_t arg;
 };
 
+#define COMPAT_ION_IOC_ALLOC	_IOWR(ION_IOC_MAGIC, 0, \
+				      struct compat_ion_allocation_data)
+#define COMPAT_ION_IOC_FREE	_IOWR(ION_IOC_MAGIC, 1, struct ion_handle_data)
+#define COMPAT_ION_IOC_CUSTOM	_IOWR(ION_IOC_MAGIC, 6, \
+				      struct compat_ion_custom_data)
+
 static int compat_get_ion_allocation_data(
 			struct compat_ion_allocation_data __user *data32,
 			struct ion_allocation_data __user *data)
@@ -105,7 +111,7 @@ long compat_ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return -ENOTTY;
 
 	switch (cmd) {
-	case ION_IOC_ALLOC:
+	case COMPAT_ION_IOC_ALLOC:
 	{
 		struct compat_ion_allocation_data __user *data32;
 		struct ion_allocation_data __user *data;
@@ -119,13 +125,12 @@ long compat_ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		err = compat_get_ion_allocation_data(data32, data);
 		if (err)
 			return err;
-
-		ret = filp->f_op->unlocked_ioctl(filp, cmd,
+		ret = filp->f_op->unlocked_ioctl(filp, ION_IOC_ALLOC,
 							(unsigned long)data);
 		err = compat_put_ion_allocation_data(data32, data);
 		return ret ? ret : err;
 	}
-	case ION_IOC_FREE:
+	case COMPAT_ION_IOC_FREE:
 	{
 		struct compat_ion_allocation_data __user *data32;
 		struct ion_allocation_data __user *data;
@@ -140,10 +145,10 @@ long compat_ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (err)
 			return err;
 
-		return filp->f_op->unlocked_ioctl(filp, cmd,
+		return filp->f_op->unlocked_ioctl(filp, ION_IOC_FREE,
 							(unsigned long)data);
 	}
-	case ION_IOC_CUSTOM: {
+	case COMPAT_ION_IOC_CUSTOM: {
 		struct compat_ion_custom_data __user *data32;
 		struct ion_custom_data __user *data;
 		int err;
@@ -157,7 +162,7 @@ long compat_ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (err)
 			return err;
 
-		return filp->f_op->unlocked_ioctl(filp, cmd,
+		return filp->f_op->unlocked_ioctl(filp, ION_IOC_CUSTOM,
 							(unsigned long)data);
 	}
 	case ION_IOC_SHARE:
