@@ -733,6 +733,10 @@ static int __hw_perf_event_init(struct perf_event *event)
 		SAMPL_FLAGS(hwc) |= PERF_CPUM_SF_DIAG_MODE;
 	}
 
+	/* Check and set other sampling flags */
+	if (attr->config1 & PERF_CPUM_SF_FULL_BLOCKS)
+		SAMPL_FLAGS(hwc) |= PERF_CPUM_SF_FULL_BLOCKS;
+
 	/* The sampling information (si) contains information about the
 	 * min/max sampling intervals and the CPU speed.  So calculate the
 	 * correct sampling interval and avoid the whole period adjust
@@ -1203,8 +1207,10 @@ static void hw_collect_samples(struct perf_event *event, unsigned long *sdbt,
  * register of the specified perf event.
  *
  * Only full sample-data-blocks are processed.	Specify the flash_all flag
- * to also walk through partially filled sample-data-blocks.
- *
+ * to also walk through partially filled sample-data-blocks.  It is ignored
+ * if PERF_CPUM_SF_FULL_BLOCKS is set.	The PERF_CPUM_SF_FULL_BLOCKS flag
+ * enforces the processing of full sample-data-blocks only (trailer entries
+ * with the block-full-indicator bit set).
  */
 static void hw_perf_event_update(struct perf_event *event, int flush_all)
 {
@@ -1213,6 +1219,9 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 	unsigned long *sdbt;
 	unsigned long long event_overflow, sampl_overflow, num_sdb, te_flags;
 	int done;
+
+	if (flush_all && SDB_FULL_BLOCKS(hwc))
+		flush_all = 0;
 
 	sdbt = (unsigned long *) TEAR_REG(hwc);
 	done = event_overflow = sampl_overflow = num_sdb = 0;

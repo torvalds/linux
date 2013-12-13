@@ -59,6 +59,7 @@ struct perf_sf_sde_regs {
 #define PERF_CPUM_SF_DIAG_MODE		0x0002	  /* Diagnostic-sampling flag */
 #define PERF_CPUM_SF_MODE_MASK		(PERF_CPUM_SF_BASIC_MODE| \
 					 PERF_CPUM_SF_DIAG_MODE)
+#define PERF_CPUM_SF_FULL_BLOCKS	0x0004	  /* Process full SDBs only */
 
 #define REG_NONE		0
 #define REG_OVERFLOW		1
@@ -69,6 +70,7 @@ struct perf_sf_sde_regs {
 #define SAMPL_RATE(hwc)		((hwc)->event_base)
 #define SAMPL_FLAGS(hwc)	((hwc)->config_base)
 #define SAMPL_DIAG_MODE(hwc)	(SAMPL_FLAGS(hwc) & PERF_CPUM_SF_DIAG_MODE)
+#define SDB_FULL_BLOCKS(hwc)	(SAMPL_FLAGS(hwc) & PERF_CPUM_SF_FULL_BLOCKS)
 
 /* Structure for sampling data entries to be passed as perf raw sample data
  * to user space.  Note that raw sample data must be aligned and, thus, might
