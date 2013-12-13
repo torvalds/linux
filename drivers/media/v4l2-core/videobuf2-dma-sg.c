@@ -185,7 +185,7 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
 	buf->pages = kzalloc(buf->num_pages * sizeof(struct page *),
 			     GFP_KERNEL);
 	if (!buf->pages)
-		return NULL;
+		goto userptr_fail_alloc_pages;
 
 	vma = find_vma(current->mm, vaddr);
 	if (!vma) {
@@ -245,6 +245,7 @@ userptr_fail_get_user_pages:
 	vb2_put_vma(buf->vma);
 userptr_fail_find_vma:
 	kfree(buf->pages);
+userptr_fail_alloc_pages:
 	kfree(buf);
 	return NULL;
 }
