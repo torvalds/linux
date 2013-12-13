@@ -312,15 +312,15 @@ static int __init rk_fiq_debugger_init(void) {
 		return -ENODEV;
 	}
 
-	if (of_property_read_u32(np, "serial-id", &serial_id)) {
+	if (of_property_read_u32(np, "rockchip,serial-id", &serial_id)) {
 		return -EINVAL;	
 	}
 
-	if (of_property_read_u32(np, "signal-irq", &signal_irq)) {
+	if (of_property_read_u32(np, "rockchip,signal-irq", &signal_irq)) {
 		signal_irq = -1;
 	}
 
-	if (of_property_read_u32(np, "wake-irq", &wake_irq)) {
+	if (of_property_read_u32(np, "rockchip,wake-irq", &wake_irq)) {
 		wake_irq = -1;
 	}
 	

@@ -230,9 +230,9 @@
 
 	fiq-debugger {
 		compatible = "rockchip,fiq-debugger";
-		serial-id = <2>;
-		signal-irq = <112>;
-		wake-irq = <0>;
+		rockchip,serial-id = <2>;
+		rockchip,signal-irq = <112>;
+		rockchip,wake-irq = <0>;
 		status = "disabled";
 	};
 
