@@ -2152,13 +2152,13 @@ xfs_ifree_cluster(
 	struct xfs_perag	*pag;
 
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, inum));
-	if (mp->m_sb.sb_blocksize >= XFS_INODE_CLUSTER_SIZE(mp)) {
+	if (mp->m_sb.sb_blocksize >= mp->m_inode_cluster_size) {
 		blks_per_cluster = 1;
 		ninodes = mp->m_sb.sb_inopblock;
 		nbufs = XFS_IALLOC_BLOCKS(mp);
 	} else {
-		blks_per_cluster = XFS_INODE_CLUSTER_SIZE(mp) /
-					mp->m_sb.sb_blocksize;
+		blks_per_cluster = mp->m_inode_cluster_size /
+				   mp->m_sb.sb_blocksize;
 		ninodes = blks_per_cluster * mp->m_sb.sb_inopblock;
 		nbufs = XFS_IALLOC_BLOCKS(mp) / blks_per_cluster;
 	}
@@ -2906,13 +2906,13 @@ xfs_iflush_cluster(
 
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
 
-	inodes_per_cluster = XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog;
+	inodes_per_cluster = mp->m_inode_cluster_size >> mp->m_sb.sb_inodelog;
 	ilist_size = inodes_per_cluster * sizeof(xfs_inode_t *);
 	ilist = kmem_alloc(ilist_size, KM_MAYFAIL|KM_NOFS);
 	if (!ilist)
 		goto out_put;
 
-	mask = ~(((XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog)) - 1);
+	mask = ~(((mp->m_inode_cluster_size >> mp->m_sb.sb_inodelog)) - 1);
 	first_index = XFS_INO_TO_AGINO(mp, ip->i_ino) & mask;
 	rcu_read_lock();
 	/* really need a gang lookup range call here */

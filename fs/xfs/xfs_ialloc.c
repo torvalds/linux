@@ -52,7 +52,7 @@ xfs_ialloc_cluster_alignment(
 {
 	if (xfs_sb_version_hasalign(&args->mp->m_sb) &&
 	    args->mp->m_sb.sb_inoalignmt >=
-	     XFS_B_TO_FSBT(args->mp, XFS_INODE_CLUSTER_SIZE(args->mp)))
+	     XFS_B_TO_FSBT(args->mp, args->mp->m_inode_cluster_size))
 		return args->mp->m_sb.sb_inoalignmt;
 	return 1;
 }
@@ -181,12 +181,12 @@ xfs_ialloc_inode_init(
 	 * For small block sizes, manipulate the inodes in buffers
 	 * which are multiples of the blocks size.
 	 */
-	if (mp->m_sb.sb_blocksize >= XFS_INODE_CLUSTER_SIZE(mp)) {
+	if (mp->m_sb.sb_blocksize >= mp->m_inode_cluster_size) {
 		blks_per_cluster = 1;
 		nbufs = length;
 		ninodes = mp->m_sb.sb_inopblock;
 	} else {
-		blks_per_cluster = XFS_INODE_CLUSTER_SIZE(mp) /
+		blks_per_cluster = mp->m_inode_cluster_size /
 				   mp->m_sb.sb_blocksize;
 		nbufs = length / blks_per_cluster;
 		ninodes = blks_per_cluster * mp->m_sb.sb_inopblock;
@@ -1384,7 +1384,7 @@ xfs_imap(
 		return XFS_ERROR(EINVAL);
 	}
 
-	blks_per_cluster = XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_blocklog;
+	blks_per_cluster = mp->m_inode_cluster_size >> mp->m_sb.sb_blocklog;
 
 	/*
 	 * For bulkstat and handle lookups, we have an untrusted inode number
@@ -1405,7 +1405,7 @@ xfs_imap(
 	 * If the inode cluster size is the same as the blocksize or
 	 * smaller we get to the buffer by simple arithmetics.
 	 */
-	if (XFS_INODE_CLUSTER_SIZE(mp) <= mp->m_sb.sb_blocksize) {
+	if (mp->m_inode_cluster_size <= mp->m_sb.sb_blocksize) {
 		offset = XFS_INO_TO_OFFSET(mp, ino);
 		ASSERT(offset < mp->m_sb.sb_inopblock);
 

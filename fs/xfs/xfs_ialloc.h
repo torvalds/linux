@@ -30,11 +30,8 @@ struct xfs_btree_cur;
  */
 #define	XFS_IALLOC_BLOCKS(mp)	(mp)->m_ialloc_blks
 
-/*
- * Move inodes in clusters of this size.
- */
+/* Move inodes in clusters of this size */
 #define	XFS_INODE_BIG_CLUSTER_SIZE	8192
-#define	XFS_INODE_CLUSTER_SIZE(mp)	(mp)->m_inode_cluster_size
 
 /*
  * Make an inode pointer out of the buffer/offset.

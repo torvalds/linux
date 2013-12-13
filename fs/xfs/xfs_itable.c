@@ -243,9 +243,9 @@ xfs_bulkstat(
 	*done = 0;
 	fmterror = 0;
 	ubufp = ubuffer;
-	nicluster = mp->m_sb.sb_blocksize >= XFS_INODE_CLUSTER_SIZE(mp) ?
+	nicluster = mp->m_sb.sb_blocksize >= mp->m_inode_cluster_size ?
 		mp->m_sb.sb_inopblock :
-		(XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog);
+		(mp->m_inode_cluster_size >> mp->m_sb.sb_inodelog);
 	nimask = ~(nicluster - 1);
 	nbcluster = nicluster >> mp->m_sb.sb_inopblog;
 	irbuf = kmem_zalloc_greedy(&irbsize, PAGE_SIZE, PAGE_SIZE * 4);
