@@ -108,7 +108,7 @@ void *ion_page_pool_alloc(struct ion_page_pool *pool)
 	return page;
 }
 
-void ion_page_pool_free(struct ion_page_pool *pool, struct page* page)
+void ion_page_pool_free(struct ion_page_pool *pool, struct page *page)
 {
 	int ret;
 

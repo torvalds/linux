@@ -91,8 +91,8 @@ static int compat_get_ion_custom_data(
 			struct compat_ion_custom_data __user *data32,
 			struct ion_custom_data __user *data)
 {
-        compat_uint_t cmd;
-        compat_ulong_t arg;
+	compat_uint_t cmd;
+	compat_ulong_t arg;
 	int err;
 
 	err = get_user(cmd, &data32->cmd);

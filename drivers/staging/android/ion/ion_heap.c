@@ -49,9 +49,8 @@ void *ion_heap_map_kernel(struct ion_heap *heap,
 		int npages_this_entry = PAGE_ALIGN(sg->length) / PAGE_SIZE;
 		struct page *page = sg_page(sg);
 		BUG_ON(i >= npages);
-		for (j = 0; j < npages_this_entry; j++) {
+		for (j = 0; j < npages_this_entry; j++)
 			*(tmp++) = page++;
-		}
 	}
 	vaddr = vmap(pages, npages, VM_MAP, pgprot);
 	vfree(pages);
@@ -159,7 +158,7 @@ int ion_heap_pages_zero(struct page *page, size_t size, pgprot_t pgprot)
 	return ion_heap_sglist_zero(&sg, 1, pgprot);
 }
 
-void ion_heap_freelist_add(struct ion_heap *heap, struct ion_buffer * buffer)
+void ion_heap_freelist_add(struct ion_heap *heap, struct ion_buffer *buffer)
 {
 	rt_mutex_lock(&heap->lock);
 	list_add(&buffer->list, &heap->free_list);

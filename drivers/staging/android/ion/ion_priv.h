@@ -230,7 +230,7 @@ int ion_heap_init_deferred_free(struct ion_heap *heap);
 /**
  * ion_heap_freelist_add - add a buffer to the deferred free list
  * @heap:		the heap
- * @buffer: 		the buffer
+ * @buffer:		the buffer
  *
  * Adds an item to the deferred freelist.
  */

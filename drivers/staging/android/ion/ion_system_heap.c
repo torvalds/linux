@@ -148,7 +148,8 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 
 	INIT_LIST_HEAD(&pages);
 	while (size_remaining > 0) {
-		info = alloc_largest_available(sys_heap, buffer, size_remaining, max_order);
+		info = alloc_largest_available(sys_heap, buffer, size_remaining,
+						max_order);
 		if (!info)
 			goto err;
 		list_add_tail(&info->list, &pages);
