@@ -206,7 +206,7 @@ config SND_SOC_IMX_SPDIF
 
 config SND_SOC_IMX_MC13783
 	tristate "SoC Audio support for I.MX boards with mc13783"
-	depends on MFD_MC13783 && ARM
+	depends on MFD_MC13XXX && ARM
 	select SND_SOC_IMX_SSI
 	select SND_SOC_IMX_AUDMUX
 	select SND_SOC_MC13783
