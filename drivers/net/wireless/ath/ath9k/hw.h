@@ -280,7 +280,6 @@ struct ath9k_hw_capabilities {
 struct ath9k_ops_config {
 	int dma_beacon_response_time;
 	int sw_beacon_response_time;
-	int additional_swba_backoff;
 	int ack_6mb;
 	u32 cwm_ignore_extcca;
 	u32 pcie_waen;

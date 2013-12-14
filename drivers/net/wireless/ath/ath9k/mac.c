@@ -481,8 +481,7 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 			    | AR_Q_MISC_CBR_INCR_DIS0);
 		value = (qi->tqi_readyTime -
 			 (ah->config.sw_beacon_response_time -
-			  ah->config.dma_beacon_response_time) -
-			 ah->config.additional_swba_backoff) * 1024;
+			  ah->config.dma_beacon_response_time)) * 1024;
 		REG_WRITE(ah, AR_QRDYTIMECFG(q),
 			  value | AR_Q_RDYTIMECFG_EN);
 		REG_SET_BIT(ah, AR_DMISC(q),
