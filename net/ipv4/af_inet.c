@@ -126,9 +126,6 @@
 static struct list_head inetsw[SOCK_MAX];
 static DEFINE_SPINLOCK(inetsw_lock);
 
-struct ipv4_config ipv4_config;
-EXPORT_SYMBOL(ipv4_config);
-
 /* New destruction routine */
 
 void inet_sock_destruct(struct sock *sk)
@@ -342,7 +339,7 @@ lookup_protocol:
 			inet->hdrincl = 1;
 	}
 
-	if (ipv4_config.no_pmtu_disc)
+	if (net->ipv4.sysctl_ip_no_pmtu_disc)
 		inet->pmtudisc = IP_PMTUDISC_DONT;
 	else
 		inet->pmtudisc = IP_PMTUDISC_WANT;

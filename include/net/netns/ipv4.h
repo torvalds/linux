@@ -69,6 +69,7 @@ struct netns_ipv4 {
 	struct local_ports sysctl_local_ports;
 
 	int sysctl_tcp_ecn;
+	int sysctl_ip_no_pmtu_disc;
 
 	kgid_t sysctl_ping_group_range[2];
 

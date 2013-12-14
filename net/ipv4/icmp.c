@@ -705,7 +705,7 @@ static void icmp_unreach(struct sk_buff *skb)
 		case ICMP_PORT_UNREACH:
 			break;
 		case ICMP_FRAG_NEEDED:
-			if (ipv4_config.no_pmtu_disc) {
+			if (net->ipv4.sysctl_ip_no_pmtu_disc) {
 				LIMIT_NETDEBUG(KERN_INFO pr_fmt("%pI4: fragmentation needed and DF set\n"),
 					       &iph->daddr);
 			} else {
