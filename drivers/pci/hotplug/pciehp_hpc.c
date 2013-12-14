@@ -771,6 +771,8 @@ static inline void dbg_ctrl(struct controller *ctrl)
 	ctrl_info(ctrl, "Slot Control           : 0x%04x\n", reg16);
 }
 
+#define FLAG(x,y)	(((x) & (y)) ? '+' : '-')
+
 struct controller *pcie_init(struct pcie_device *dev)
 {
 	struct controller *ctrl;
@@ -811,9 +813,16 @@ struct controller *pcie_init(struct pcie_device *dev)
 	/* Disable software notification */
 	pcie_disable_notification(ctrl);
 
-	ctrl_info(ctrl, "HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n",
-		  pdev->vendor, pdev->device, pdev->subsystem_vendor,
-		  pdev->subsystem_device);
+	ctrl_info(ctrl, "Slot #%d AttnBtn%c AttnInd%c PwrInd%c PwrCtrl%c MRL%c Interlock%c NoCompl%c LLActRep%c\n",
+		(slot_cap & PCI_EXP_SLTCAP_PSN) >> 19,
+		FLAG(slot_cap, PCI_EXP_SLTCAP_ABP),
+		FLAG(slot_cap, PCI_EXP_SLTCAP_AIP),
+		FLAG(slot_cap, PCI_EXP_SLTCAP_PIP),
+		FLAG(slot_cap, PCI_EXP_SLTCAP_PCP),
+		FLAG(slot_cap, PCI_EXP_SLTCAP_MRLSP),
+		FLAG(slot_cap, PCI_EXP_SLTCAP_EIP),
+		FLAG(slot_cap, PCI_EXP_SLTCAP_NCCS),
+		FLAG(link_cap, PCI_EXP_LNKCAP_DLLLARC));
 
 	if (pcie_init_slot(ctrl))
 		goto abort_ctrl;
