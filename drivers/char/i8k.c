@@ -1,7 +1,5 @@
 /*
  * i8k.c -- Linux driver for accessing the SMM BIOS on Dell laptops.
- *	    See http://www.debian.org/~dz/i8k/ for more information
- *	    and for latest version of this driver.
  *
  * Copyright (C) 2001  Massimo Dal Zotto <dz@debian.org>
  *
