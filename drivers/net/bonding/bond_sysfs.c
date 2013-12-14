@@ -878,7 +878,6 @@ static ssize_t bonding_store_primary(struct device *d,
 	if (!rtnl_trylock())
 		return restart_syscall();
 	block_netpoll_tx();
-	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
 
 	if (!USES_PRIMARY(bond->params.mode)) {
@@ -918,7 +917,6 @@ static ssize_t bonding_store_primary(struct device *d,
 		bond->dev->name, ifname, bond->dev->name);
 out:
 	write_unlock_bh(&bond->curr_slave_lock);
-	read_unlock(&bond->lock);
 	unblock_netpoll_tx();
 	rtnl_unlock();
 
@@ -966,11 +964,9 @@ static ssize_t bonding_store_primary_reselect(struct device *d,
 		new_value);
 
 	block_netpoll_tx();
-	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
 	bond_select_active_slave(bond);
 	write_unlock_bh(&bond->curr_slave_lock);
-	read_unlock(&bond->lock);
 	unblock_netpoll_tx();
 out:
 	rtnl_unlock();

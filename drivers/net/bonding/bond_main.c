@@ -591,33 +591,22 @@ static int bond_set_allmulti(struct bonding *bond, int inc)
  * device and retransmit an IGMP JOIN request to the current active
  * slave.
  */
-static void bond_resend_igmp_join_requests(struct bonding *bond)
-{
-	if (!rtnl_trylock()) {
-		queue_delayed_work(bond->wq, &bond->mcast_work, 1);
-		return;
-	}
-	call_netdevice_notifiers(NETDEV_RESEND_IGMP, bond->dev);
-	rtnl_unlock();
-
-	/* We use curr_slave_lock to protect against concurrent access to
-	 * igmp_retrans from multiple running instances of this function and
-	 * bond_change_active_slave
-	 */
-	write_lock_bh(&bond->curr_slave_lock);
-	if (bond->igmp_retrans > 1) {
-		bond->igmp_retrans--;
-		queue_delayed_work(bond->wq, &bond->mcast_work, HZ/5);
-	}
-	write_unlock_bh(&bond->curr_slave_lock);
-}
-
 static void bond_resend_igmp_join_requests_delayed(struct work_struct *work)
 {
 	struct bonding *bond = container_of(work, struct bonding,
 					    mcast_work.work);
 
-	bond_resend_igmp_join_requests(bond);
+	if (!rtnl_trylock()) {
+		queue_delayed_work(bond->wq, &bond->mcast_work, 1);
+		return;
+	}
+	call_netdevice_notifiers(NETDEV_RESEND_IGMP, bond->dev);
+
+	if (bond->igmp_retrans > 1) {
+		bond->igmp_retrans--;
+		queue_delayed_work(bond->wq, &bond->mcast_work, HZ/5);
+	}
+	rtnl_unlock();
 }
 
 /* Flush bond's hardware addresses from slave
@@ -697,14 +686,12 @@ static void bond_set_dev_addr(struct net_device *bond_dev,
  *
  * Perform special MAC address swapping for fail_over_mac settings
  *
- * Called with RTNL, bond->lock for read, curr_slave_lock for write_bh.
+ * Called with RTNL, curr_slave_lock for write_bh.
  */
 static void bond_do_fail_over_mac(struct bonding *bond,
 				  struct slave *new_active,
 				  struct slave *old_active)
 	__releases(&bond->curr_slave_lock)
-	__releases(&bond->lock)
-	__acquires(&bond->lock)
 	__acquires(&bond->curr_slave_lock)
 {
 	u8 tmp_mac[ETH_ALEN];
@@ -715,9 +702,7 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 	case BOND_FOM_ACTIVE:
 		if (new_active) {
 			write_unlock_bh(&bond->curr_slave_lock);
-			read_unlock(&bond->lock);
 			bond_set_dev_addr(bond->dev, new_active->dev);
-			read_lock(&bond->lock);
 			write_lock_bh(&bond->curr_slave_lock);
 		}
 		break;
@@ -731,7 +716,6 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 			return;
 
 		write_unlock_bh(&bond->curr_slave_lock);
-		read_unlock(&bond->lock);
 
 		if (old_active) {
 			memcpy(tmp_mac, new_active->dev->dev_addr, ETH_ALEN);
@@ -761,7 +745,6 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 			pr_err("%s: Error %d setting MAC of slave %s\n",
 			       bond->dev->name, -rv, new_active->dev->name);
 out:
-		read_lock(&bond->lock);
 		write_lock_bh(&bond->curr_slave_lock);
 		break;
 	default:
@@ -821,7 +804,11 @@ static struct slave *bond_find_best_slave(struct bonding *bond)
 
 static bool bond_should_notify_peers(struct bonding *bond)
 {
-	struct slave *slave = bond->curr_active_slave;
+	struct slave *slave;
+
+	rcu_read_lock();
+	slave = rcu_dereference(bond->curr_active_slave);
+	rcu_read_unlock();
 
 	pr_debug("bond_should_notify_peers: bond %s slave %s\n",
 		 bond->dev->name, slave ? slave->dev->name : "NULL");
@@ -846,8 +833,7 @@ static bool bond_should_notify_peers(struct bonding *bond)
  * because it is apparently the best available slave we have, even though its
  * updelay hasn't timed out yet.
  *
- * If new_active is not NULL, caller must hold bond->lock for read and
- * curr_slave_lock for write_bh.
+ * If new_active is not NULL, caller must hold curr_slave_lock for write_bh.
  */
 void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 {
@@ -916,14 +902,12 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 			}
 
 			write_unlock_bh(&bond->curr_slave_lock);
-			read_unlock(&bond->lock);
 
 			call_netdevice_notifiers(NETDEV_BONDING_FAILOVER, bond->dev);
 			if (should_notify_peers)
 				call_netdevice_notifiers(NETDEV_NOTIFY_PEERS,
 							 bond->dev);
 
-			read_lock(&bond->lock);
 			write_lock_bh(&bond->curr_slave_lock);
 		}
 	}
@@ -949,7 +933,7 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
  * - The primary_slave has got its link back.
  * - A slave has got its link back and there's no old curr_active_slave.
  *
- * Caller must hold bond->lock for read and curr_slave_lock for write_bh.
+ * Caller must hold curr_slave_lock for write_bh.
  */
 void bond_select_active_slave(struct bonding *bond)
 {
@@ -1594,11 +1578,9 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	bond_set_carrier(bond);
 
 	if (USES_PRIMARY(bond->params.mode)) {
-		read_lock(&bond->lock);
 		write_lock_bh(&bond->curr_slave_lock);
 		bond_select_active_slave(bond);
 		write_unlock_bh(&bond->curr_slave_lock);
-		read_unlock(&bond->lock);
 	}
 
 	pr_info("%s: enslaving %s as a%s interface with a%s link.\n",
@@ -1618,19 +1600,13 @@ err_detach:
 		bond_hw_addr_flush(bond_dev, slave_dev);
 
 	vlan_vids_del_by_dev(slave_dev, bond_dev);
-	write_lock_bh(&bond->lock);
 	if (bond->primary_slave == new_slave)
 		bond->primary_slave = NULL;
 	if (bond->curr_active_slave == new_slave) {
-		bond_change_active_slave(bond, NULL);
-		write_unlock_bh(&bond->lock);
-		read_lock(&bond->lock);
 		write_lock_bh(&bond->curr_slave_lock);
+		bond_change_active_slave(bond, NULL);
 		bond_select_active_slave(bond);
 		write_unlock_bh(&bond->curr_slave_lock);
-		read_unlock(&bond->lock);
-	} else {
-		write_unlock_bh(&bond->lock);
 	}
 	slave_disable_netpoll(new_slave);
 
@@ -1695,19 +1671,15 @@ static int __bond_release_one(struct net_device *bond_dev,
 	}
 
 	block_netpoll_tx();
-	write_lock_bh(&bond->lock);
 
 	slave = bond_get_slave_by_dev(bond, slave_dev);
 	if (!slave) {
 		/* not a slave of this bond */
 		pr_info("%s: %s not enslaved\n",
 			bond_dev->name, slave_dev->name);
-		write_unlock_bh(&bond->lock);
 		unblock_netpoll_tx();
 		return -EINVAL;
 	}
-
-	write_unlock_bh(&bond->lock);
 
 	/* release the slave from its bond */
 	bond->slave_cnt--;
@@ -1720,12 +1692,10 @@ static int __bond_release_one(struct net_device *bond_dev,
 	write_lock_bh(&bond->lock);
 
 	/* Inform AD package of unbinding of slave. */
-	if (bond->params.mode == BOND_MODE_8023AD) {
-		/* must be called before the slave is
-		 * detached from the list
-		 */
+	if (bond->params.mode == BOND_MODE_8023AD)
 		bond_3ad_unbind_slave(slave);
-	}
+
+	write_unlock_bh(&bond->lock);
 
 	pr_info("%s: releasing %s interface %s\n",
 		bond_dev->name,
@@ -1748,8 +1718,11 @@ static int __bond_release_one(struct net_device *bond_dev,
 	if (bond->primary_slave == slave)
 		bond->primary_slave = NULL;
 
-	if (oldcurrent == slave)
+	if (oldcurrent == slave) {
+		write_lock_bh(&bond->curr_slave_lock);
 		bond_change_active_slave(bond, NULL);
+		write_unlock_bh(&bond->curr_slave_lock);
+	}
 
 	if (bond_is_lb(bond)) {
 		/* Must be called only after the slave has been
@@ -1757,9 +1730,7 @@ static int __bond_release_one(struct net_device *bond_dev,
 		 * has been cleared (if our_slave == old_current),
 		 * but before a new active slave is selected.
 		 */
-		write_unlock_bh(&bond->lock);
 		bond_alb_deinit_slave(bond, slave);
-		write_lock_bh(&bond->lock);
 	}
 
 	if (all) {
@@ -1770,15 +1741,11 @@ static int __bond_release_one(struct net_device *bond_dev,
 		 * is no concern that another slave add/remove event
 		 * will interfere.
 		 */
-		write_unlock_bh(&bond->lock);
-		read_lock(&bond->lock);
 		write_lock_bh(&bond->curr_slave_lock);
 
 		bond_select_active_slave(bond);
 
 		write_unlock_bh(&bond->curr_slave_lock);
-		read_unlock(&bond->lock);
-		write_lock_bh(&bond->lock);
 	}
 
 	if (!bond_has_slaves(bond)) {
@@ -1793,7 +1760,6 @@ static int __bond_release_one(struct net_device *bond_dev,
 		}
 	}
 
-	write_unlock_bh(&bond->lock);
 	unblock_netpoll_tx();
 	synchronize_rcu();
 
@@ -1928,7 +1894,7 @@ static int bond_miimon_inspect(struct bonding *bond)
 
 	ignore_updelay = !bond->curr_active_slave ? true : false;
 
-	bond_for_each_slave(bond, slave, iter) {
+	bond_for_each_slave_rcu(bond, slave, iter) {
 		slave->new_link = BOND_LINK_NOCHANGE;
 
 		link_state = bond_check_dev_link(bond, slave->dev, 0);
@@ -2126,40 +2092,34 @@ void bond_mii_monitor(struct work_struct *work)
 	bool should_notify_peers = false;
 	unsigned long delay;
 
-	read_lock(&bond->lock);
-
 	delay = msecs_to_jiffies(bond->params.miimon);
 
 	if (!bond_has_slaves(bond))
 		goto re_arm;
 
+	rcu_read_lock();
+
 	should_notify_peers = bond_should_notify_peers(bond);
 
 	if (bond_miimon_inspect(bond)) {
-		read_unlock(&bond->lock);
+		rcu_read_unlock();
 
 		/* Race avoidance with bond_close cancel of workqueue */
 		if (!rtnl_trylock()) {
-			read_lock(&bond->lock);
 			delay = 1;
 			should_notify_peers = false;
 			goto re_arm;
 		}
 
-		read_lock(&bond->lock);
-
 		bond_miimon_commit(bond);
 
-		read_unlock(&bond->lock);
 		rtnl_unlock();	/* might sleep, hold no other locks */
-		read_lock(&bond->lock);
-	}
+	} else
+		rcu_read_unlock();
 
 re_arm:
 	if (bond->params.miimon)
 		queue_delayed_work(bond->wq, &bond->mii_work, delay);
-
-	read_unlock(&bond->lock);
 
 	if (should_notify_peers) {
 		if (!rtnl_trylock())
@@ -2422,12 +2382,12 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 	struct list_head *iter;
 	int do_failover = 0;
 
-	read_lock(&bond->lock);
-
 	if (!bond_has_slaves(bond))
 		goto re_arm;
 
-	oldcurrent = bond->curr_active_slave;
+	rcu_read_lock();
+
+	oldcurrent = ACCESS_ONCE(bond->curr_active_slave);
 	/* see if any of the previous devices are up now (i.e. they have
 	 * xmt and rcv traffic). the curr_active_slave does not come into
 	 * the picture unless it is null. also, slave->jiffies is not needed
@@ -2436,7 +2396,7 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 	 * TODO: what about up/down delay in arp mode? it wasn't here before
 	 *       so it can wait
 	 */
-	bond_for_each_slave(bond, slave, iter) {
+	bond_for_each_slave_rcu(bond, slave, iter) {
 		unsigned long trans_start = dev_trans_start(slave->dev);
 
 		if (slave->link != BOND_LINK_UP) {
@@ -2498,7 +2458,14 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 			bond_arp_send_all(bond, slave);
 	}
 
+	rcu_read_unlock();
+
 	if (do_failover) {
+		/* the bond_select_active_slave must hold RTNL
+		 * and curr_slave_lock for write.
+		 */
+		if (!rtnl_trylock())
+			goto re_arm;
 		block_netpoll_tx();
 		write_lock_bh(&bond->curr_slave_lock);
 
@@ -2506,14 +2473,13 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 
 		write_unlock_bh(&bond->curr_slave_lock);
 		unblock_netpoll_tx();
+		rtnl_unlock();
 	}
 
 re_arm:
 	if (bond->params.arp_interval)
 		queue_delayed_work(bond->wq, &bond->arp_work,
 				   msecs_to_jiffies(bond->params.arp_interval));
-
-	read_unlock(&bond->lock);
 }
 
 /*
@@ -2522,7 +2488,7 @@ re_arm:
  * place for the slave.  Returns 0 if no changes are found, >0 if changes
  * to link states must be committed.
  *
- * Called with bond->lock held for read.
+ * Called with rcu_read_lock hold.
  */
 static int bond_ab_arp_inspect(struct bonding *bond)
 {
@@ -2531,7 +2497,7 @@ static int bond_ab_arp_inspect(struct bonding *bond)
 	struct slave *slave;
 	int commit = 0;
 
-	bond_for_each_slave(bond, slave, iter) {
+	bond_for_each_slave_rcu(bond, slave, iter) {
 		slave->new_link = BOND_LINK_NOCHANGE;
 		last_rx = slave_last_rx(bond, slave);
 
@@ -2593,7 +2559,7 @@ static int bond_ab_arp_inspect(struct bonding *bond)
  * Called to commit link state changes noted by inspection step of
  * active-backup mode ARP monitor.
  *
- * Called with RTNL and bond->lock for read.
+ * Called with RTNL hold.
  */
 static void bond_ab_arp_commit(struct bonding *bond)
 {
@@ -2668,19 +2634,20 @@ do_failover:
 /*
  * Send ARP probes for active-backup mode ARP monitor.
  *
- * Called with bond->lock held for read.
+ * Called with rcu_read_lock hold.
  */
 static void bond_ab_arp_probe(struct bonding *bond)
 {
-	struct slave *slave, *before = NULL, *new_slave = NULL;
+	struct slave *slave, *before = NULL, *new_slave = NULL,
+		     *curr_arp_slave = rcu_dereference(bond->current_arp_slave);
 	struct list_head *iter;
 	bool found = false;
 
 	read_lock(&bond->curr_slave_lock);
 
-	if (bond->current_arp_slave && bond->curr_active_slave)
+	if (curr_arp_slave && bond->curr_active_slave)
 		pr_info("PROBE: c_arp %s && cas %s BAD\n",
-			bond->current_arp_slave->dev->name,
+			curr_arp_slave->dev->name,
 			bond->curr_active_slave->dev->name);
 
 	if (bond->curr_active_slave) {
@@ -2696,15 +2663,15 @@ static void bond_ab_arp_probe(struct bonding *bond)
 	 * for becoming the curr_active_slave
 	 */
 
-	if (!bond->current_arp_slave) {
-		bond->current_arp_slave = bond_first_slave(bond);
-		if (!bond->current_arp_slave)
+	if (!curr_arp_slave) {
+		curr_arp_slave = bond_first_slave_rcu(bond);
+		if (!curr_arp_slave)
 			return;
 	}
 
-	bond_set_slave_inactive_flags(bond->current_arp_slave);
+	bond_set_slave_inactive_flags(curr_arp_slave);
 
-	bond_for_each_slave(bond, slave, iter) {
+	bond_for_each_slave_rcu(bond, slave, iter) {
 		if (!found && !before && IS_UP(slave->dev))
 			before = slave;
 
@@ -2727,7 +2694,7 @@ static void bond_ab_arp_probe(struct bonding *bond)
 			pr_info("%s: backup interface %s is now down.\n",
 				bond->dev->name, slave->dev->name);
 		}
-		if (slave == bond->current_arp_slave)
+		if (slave == curr_arp_slave)
 			found = true;
 	}
 
@@ -2741,8 +2708,7 @@ static void bond_ab_arp_probe(struct bonding *bond)
 	bond_set_slave_active_flags(new_slave);
 	bond_arp_send_all(bond, new_slave);
 	new_slave->jiffies = jiffies;
-	bond->current_arp_slave = new_slave;
-
+	rcu_assign_pointer(bond->current_arp_slave, new_slave);
 }
 
 void bond_activebackup_arp_mon(struct work_struct *work)
@@ -2752,42 +2718,37 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 	bool should_notify_peers = false;
 	int delta_in_ticks;
 
-	read_lock(&bond->lock);
-
 	delta_in_ticks = msecs_to_jiffies(bond->params.arp_interval);
 
 	if (!bond_has_slaves(bond))
 		goto re_arm;
 
+	rcu_read_lock();
+
 	should_notify_peers = bond_should_notify_peers(bond);
 
 	if (bond_ab_arp_inspect(bond)) {
-		read_unlock(&bond->lock);
+		rcu_read_unlock();
 
 		/* Race avoidance with bond_close flush of workqueue */
 		if (!rtnl_trylock()) {
-			read_lock(&bond->lock);
 			delta_in_ticks = 1;
 			should_notify_peers = false;
 			goto re_arm;
 		}
 
-		read_lock(&bond->lock);
-
 		bond_ab_arp_commit(bond);
 
-		read_unlock(&bond->lock);
 		rtnl_unlock();
-		read_lock(&bond->lock);
+		rcu_read_lock();
 	}
 
 	bond_ab_arp_probe(bond);
+	rcu_read_unlock();
 
 re_arm:
 	if (bond->params.arp_interval)
 		queue_delayed_work(bond->wq, &bond->arp_work, delta_in_ticks);
-
-	read_unlock(&bond->lock);
 
 	if (should_notify_peers) {
 		if (!rtnl_trylock())
