@@ -1,6 +1,7 @@
 /*
  * drivers/net/bond/bond_options.c - bonding options
  * Copyright (c) 2013 Jiri Pirko <jiri@resnulli.us>
+ * Copyright (c) 2013 Scott Feldman <sfeldma@cumulusnetworks.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -144,4 +145,327 @@ int bond_option_active_slave_set(struct bonding *bond,
 	read_unlock(&bond->lock);
 	unblock_netpoll_tx();
 	return ret;
+}
+
+int bond_option_miimon_set(struct bonding *bond, int miimon)
+{
+	if (miimon < 0) {
+		pr_err("%s: Invalid miimon value %d not in range %d-%d; rejected.\n",
+		       bond->dev->name, miimon, 0, INT_MAX);
+		return -EINVAL;
+	}
+	pr_info("%s: Setting MII monitoring interval to %d.\n",
+		bond->dev->name, miimon);
+	bond->params.miimon = miimon;
+	if (bond->params.updelay)
+		pr_info("%s: Note: Updating updelay (to %d) since it is a multiple of the miimon value.\n",
+			bond->dev->name,
+			bond->params.updelay * bond->params.miimon);
+	if (bond->params.downdelay)
+		pr_info("%s: Note: Updating downdelay (to %d) since it is a multiple of the miimon value.\n",
+			bond->dev->name,
+			bond->params.downdelay * bond->params.miimon);
+	if (miimon && bond->params.arp_interval) {
+		pr_info("%s: MII monitoring cannot be used with ARP monitoring. Disabling ARP monitoring...\n",
+			bond->dev->name);
+		bond->params.arp_interval = 0;
+		if (bond->params.arp_validate)
+			bond->params.arp_validate = BOND_ARP_VALIDATE_NONE;
+	}
+	if (bond->dev->flags & IFF_UP) {
+		/* If the interface is up, we may need to fire off
+		 * the MII timer. If the interface is down, the
+		 * timer will get fired off when the open function
+		 * is called.
+		 */
+		if (!miimon) {
+			cancel_delayed_work_sync(&bond->mii_work);
+		} else {
+			cancel_delayed_work_sync(&bond->arp_work);
+			queue_delayed_work(bond->wq, &bond->mii_work, 0);
+		}
+	}
+	return 0;
+}
+
+int bond_option_updelay_set(struct bonding *bond, int updelay)
+{
+	if (!(bond->params.miimon)) {
+		pr_err("%s: Unable to set up delay as MII monitoring is disabled\n",
+		       bond->dev->name);
+		return -EPERM;
+	}
+
+	if (updelay < 0) {
+		pr_err("%s: Invalid up delay value %d not in range %d-%d; rejected.\n",
+		       bond->dev->name, updelay, 0, INT_MAX);
+		return -EINVAL;
+	} else {
+		if ((updelay % bond->params.miimon) != 0) {
+			pr_warn("%s: Warning: up delay (%d) is not a multiple of miimon (%d), updelay rounded to %d ms\n",
+				bond->dev->name, updelay,
+				bond->params.miimon,
+				(updelay / bond->params.miimon) *
+				bond->params.miimon);
+		}
+		bond->params.updelay = updelay / bond->params.miimon;
+		pr_info("%s: Setting up delay to %d.\n",
+			bond->dev->name,
+			bond->params.updelay * bond->params.miimon);
+	}
+
+	return 0;
+}
+
+int bond_option_downdelay_set(struct bonding *bond, int downdelay)
+{
+	if (!(bond->params.miimon)) {
+		pr_err("%s: Unable to set down delay as MII monitoring is disabled\n",
+		       bond->dev->name);
+		return -EPERM;
+	}
+
+	if (downdelay < 0) {
+		pr_err("%s: Invalid down delay value %d not in range %d-%d; rejected.\n",
+		       bond->dev->name, downdelay, 0, INT_MAX);
+		return -EINVAL;
+	} else {
+		if ((downdelay % bond->params.miimon) != 0) {
+			pr_warn("%s: Warning: down delay (%d) is not a multiple of miimon (%d), delay rounded to %d ms\n",
+				bond->dev->name, downdelay,
+				bond->params.miimon,
+				(downdelay / bond->params.miimon) *
+				bond->params.miimon);
+		}
+		bond->params.downdelay = downdelay / bond->params.miimon;
+		pr_info("%s: Setting down delay to %d.\n",
+			bond->dev->name,
+			bond->params.downdelay * bond->params.miimon);
+	}
+
+	return 0;
+}
+
+int bond_option_use_carrier_set(struct bonding *bond, int use_carrier)
+{
+	if ((use_carrier == 0) || (use_carrier == 1)) {
+		bond->params.use_carrier = use_carrier;
+		pr_info("%s: Setting use_carrier to %d.\n",
+			bond->dev->name, use_carrier);
+	} else {
+		pr_info("%s: Ignoring invalid use_carrier value %d.\n",
+			bond->dev->name, use_carrier);
+	}
+
+	return 0;
+}
+
+int bond_option_arp_interval_set(struct bonding *bond, int arp_interval)
+{
+	if (arp_interval < 0) {
+		pr_err("%s: Invalid arp_interval value %d not in range 0-%d; rejected.\n",
+		       bond->dev->name, arp_interval, INT_MAX);
+		return -EINVAL;
+	}
+	if (BOND_NO_USES_ARP(bond->params.mode)) {
+		pr_info("%s: ARP monitoring cannot be used with ALB/TLB/802.3ad. Only MII monitoring is supported on %s.\n",
+			bond->dev->name, bond->dev->name);
+		return -EINVAL;
+	}
+	pr_info("%s: Setting ARP monitoring interval to %d.\n",
+		bond->dev->name, arp_interval);
+	bond->params.arp_interval = arp_interval;
+	if (arp_interval) {
+		if (bond->params.miimon) {
+			pr_info("%s: ARP monitoring cannot be used with MII monitoring. %s Disabling MII monitoring.\n",
+				bond->dev->name, bond->dev->name);
+			bond->params.miimon = 0;
+		}
+		if (!bond->params.arp_targets[0])
+			pr_info("%s: ARP monitoring has been set up, but no ARP targets have been specified.\n",
+				bond->dev->name);
+	}
+	if (bond->dev->flags & IFF_UP) {
+		/* If the interface is up, we may need to fire off
+		 * the ARP timer.  If the interface is down, the
+		 * timer will get fired off when the open function
+		 * is called.
+		 */
+		if (!arp_interval) {
+			if (bond->params.arp_validate)
+				bond->recv_probe = NULL;
+			cancel_delayed_work_sync(&bond->arp_work);
+		} else {
+			/* arp_validate can be set only in active-backup mode */
+			if (bond->params.arp_validate)
+				bond->recv_probe = bond_arp_rcv;
+			cancel_delayed_work_sync(&bond->mii_work);
+			queue_delayed_work(bond->wq, &bond->arp_work, 0);
+		}
+	}
+
+	return 0;
+}
+
+static void _bond_options_arp_ip_target_set(struct bonding *bond, int slot,
+					    __be32 target,
+					    unsigned long last_rx)
+{
+	__be32 *targets = bond->params.arp_targets;
+	struct list_head *iter;
+	struct slave *slave;
+
+	if (slot >= 0 && slot < BOND_MAX_ARP_TARGETS) {
+		bond_for_each_slave(bond, slave, iter)
+			slave->target_last_arp_rx[slot] = last_rx;
+		targets[slot] = target;
+	}
+}
+
+static int _bond_option_arp_ip_target_add(struct bonding *bond, __be32 target)
+{
+	__be32 *targets = bond->params.arp_targets;
+	int ind;
+
+	if (IS_IP_TARGET_UNUSABLE_ADDRESS(target)) {
+		pr_err("%s: invalid ARP target %pI4 specified for addition\n",
+		       bond->dev->name, &target);
+		return -EINVAL;
+	}
+
+	if (bond_get_targets_ip(targets, target) != -1) { /* dup */
+		pr_err("%s: ARP target %pI4 is already present\n",
+		       bond->dev->name, &target);
+		return -EINVAL;
+	}
+
+	ind = bond_get_targets_ip(targets, 0); /* first free slot */
+	if (ind == -1) {
+		pr_err("%s: ARP target table is full!\n",
+		       bond->dev->name);
+		return -EINVAL;
+	}
+
+	pr_info("%s: adding ARP target %pI4.\n", bond->dev->name, &target);
+
+	_bond_options_arp_ip_target_set(bond, ind, target, jiffies);
+
+	return 0;
+}
+
+int bond_option_arp_ip_target_add(struct bonding *bond, __be32 target)
+{
+	int ret;
+
+	/* not to race with bond_arp_rcv */
+	write_lock_bh(&bond->lock);
+	ret = _bond_option_arp_ip_target_add(bond, target);
+	write_unlock_bh(&bond->lock);
+
+	return ret;
+}
+
+int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target)
+{
+	__be32 *targets = bond->params.arp_targets;
+	struct list_head *iter;
+	struct slave *slave;
+	unsigned long *targets_rx;
+	int ind, i;
+
+	if (IS_IP_TARGET_UNUSABLE_ADDRESS(target)) {
+		pr_err("%s: invalid ARP target %pI4 specified for removal\n",
+		       bond->dev->name, &target);
+		return -EINVAL;
+	}
+
+	ind = bond_get_targets_ip(targets, target);
+	if (ind == -1) {
+		pr_err("%s: unable to remove nonexistent ARP target %pI4.\n",
+		       bond->dev->name, &target);
+		return -EINVAL;
+	}
+
+	if (ind == 0 && !targets[1] && bond->params.arp_interval)
+		pr_warn("%s: removing last arp target with arp_interval on\n",
+			bond->dev->name);
+
+	pr_info("%s: removing ARP target %pI4.\n", bond->dev->name,
+		&target);
+
+	/* not to race with bond_arp_rcv */
+	write_lock_bh(&bond->lock);
+
+	bond_for_each_slave(bond, slave, iter) {
+		targets_rx = slave->target_last_arp_rx;
+		for (i = ind; (i < BOND_MAX_ARP_TARGETS-1) && targets[i+1]; i++)
+			targets_rx[i] = targets_rx[i+1];
+		targets_rx[i] = 0;
+	}
+	for (i = ind; (i < BOND_MAX_ARP_TARGETS-1) && targets[i+1]; i++)
+		targets[i] = targets[i+1];
+	targets[i] = 0;
+
+	write_unlock_bh(&bond->lock);
+
+	return 0;
+}
+
+int bond_option_arp_ip_targets_set(struct bonding *bond, __be32 *targets,
+				   int count)
+{
+	int i, ret = 0;
+
+	/* not to race with bond_arp_rcv */
+	write_lock_bh(&bond->lock);
+
+	/* clear table */
+	for (i = 0; i < BOND_MAX_ARP_TARGETS; i++)
+		_bond_options_arp_ip_target_set(bond, i, 0, 0);
+
+	if (count == 0 && bond->params.arp_interval)
+		pr_warn("%s: removing last arp target with arp_interval on\n",
+			bond->dev->name);
+
+	for (i = 0; i < count; i++) {
+		ret = _bond_option_arp_ip_target_add(bond, targets[i]);
+		if (ret)
+			break;
+	}
+
+	write_unlock_bh(&bond->lock);
+	return ret;
+}
+
+int bond_option_arp_validate_set(struct bonding *bond, int arp_validate)
+{
+	if (bond->params.mode != BOND_MODE_ACTIVEBACKUP) {
+		pr_err("%s: arp_validate only supported in active-backup mode.\n",
+		       bond->dev->name);
+		return -EINVAL;
+	}
+	pr_info("%s: setting arp_validate to %s (%d).\n",
+		bond->dev->name, arp_validate_tbl[arp_validate].modename,
+		arp_validate);
+
+	if (bond->dev->flags & IFF_UP) {
+		if (!arp_validate)
+			bond->recv_probe = NULL;
+		else if (bond->params.arp_interval)
+			bond->recv_probe = bond_arp_rcv;
+	}
+	bond->params.arp_validate = arp_validate;
+
+	return 0;
+}
+
+int bond_option_arp_all_targets_set(struct bonding *bond, int arp_all_targets)
+{
+	pr_info("%s: setting arp_all_targets to %s (%d).\n",
+		bond->dev->name, arp_all_targets_tbl[arp_all_targets].modename,
+		arp_all_targets);
+
+	bond->params.arp_all_targets = arp_all_targets;
+
+	return 0;
 }

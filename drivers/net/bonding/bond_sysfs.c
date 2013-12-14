@@ -358,35 +358,21 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 					  const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
-	int new_value, ret = count;
+	int new_value, ret;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
 	new_value = bond_parse_parm(buf, arp_validate_tbl);
 	if (new_value < 0) {
 		pr_err("%s: Ignoring invalid arp_validate value %s\n",
 		       bond->dev->name, buf);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
-	if (bond->params.mode != BOND_MODE_ACTIVEBACKUP) {
-		pr_err("%s: arp_validate only supported in active-backup mode.\n",
-		       bond->dev->name);
-		ret = -EINVAL;
-		goto out;
-	}
-	pr_info("%s: setting arp_validate to %s (%d).\n",
-		bond->dev->name, arp_validate_tbl[new_value].modename,
-		new_value);
+	if (!rtnl_trylock())
+		return restart_syscall();
 
-	if (bond->dev->flags & IFF_UP) {
-		if (!new_value)
-			bond->recv_probe = NULL;
-		else if (bond->params.arp_interval)
-			bond->recv_probe = bond_arp_rcv;
-	}
-	bond->params.arp_validate = new_value;
-out:
+	ret = bond_option_arp_validate_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
 	rtnl_unlock();
 
 	return ret;
@@ -413,7 +399,7 @@ static ssize_t bonding_store_arp_all_targets(struct device *d,
 					  const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
-	int new_value;
+	int new_value, ret;
 
 	new_value = bond_parse_parm(buf, arp_all_targets_tbl);
 	if (new_value < 0) {
@@ -421,13 +407,17 @@ static ssize_t bonding_store_arp_all_targets(struct device *d,
 		       bond->dev->name, buf);
 		return -EINVAL;
 	}
-	pr_info("%s: setting arp_all_targets to %s (%d).\n",
-		bond->dev->name, arp_all_targets_tbl[new_value].modename,
-		new_value);
 
-	bond->params.arp_all_targets = new_value;
+	if (!rtnl_trylock())
+		return restart_syscall();
 
-	return count;
+	ret = bond_option_arp_all_targets_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
+	rtnl_unlock();
+
+	return ret;
 }
 
 static DEVICE_ATTR(arp_all_targets, S_IRUGO | S_IWUSR,
@@ -506,60 +496,21 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 					  const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
-	int new_value, ret = count;
+	int new_value, ret;
+
+	if (sscanf(buf, "%d", &new_value) != 1) {
+		pr_err("%s: no arp_interval value specified.\n",
+		bond->dev->name);
+		return -EINVAL;
+	}
 
 	if (!rtnl_trylock())
 		return restart_syscall();
-	if (sscanf(buf, "%d", &new_value) != 1) {
-		pr_err("%s: no arp_interval value specified.\n",
-		       bond->dev->name);
-		ret = -EINVAL;
-		goto out;
-	}
-	if (new_value < 0) {
-		pr_err("%s: Invalid arp_interval value %d not in range 0-%d; rejected.\n",
-		       bond->dev->name, new_value, INT_MAX);
-		ret = -EINVAL;
-		goto out;
-	}
-	if (BOND_NO_USES_ARP(bond->params.mode)) {
-		pr_info("%s: ARP monitoring cannot be used with ALB/TLB/802.3ad. Only MII monitoring is supported on %s.\n",
-			bond->dev->name, bond->dev->name);
-		ret = -EINVAL;
-		goto out;
-	}
-	pr_info("%s: Setting ARP monitoring interval to %d.\n",
-		bond->dev->name, new_value);
-	bond->params.arp_interval = new_value;
-	if (new_value) {
-		if (bond->params.miimon) {
-			pr_info("%s: ARP monitoring cannot be used with MII monitoring. %s Disabling MII monitoring.\n",
-				bond->dev->name, bond->dev->name);
-			bond->params.miimon = 0;
-		}
-		if (!bond->params.arp_targets[0])
-			pr_info("%s: ARP monitoring has been set up, but no ARP targets have been specified.\n",
-				bond->dev->name);
-	}
-	if (bond->dev->flags & IFF_UP) {
-		/* If the interface is up, we may need to fire off
-		 * the ARP timer.  If the interface is down, the
-		 * timer will get fired off when the open function
-		 * is called.
-		 */
-		if (!new_value) {
-			if (bond->params.arp_validate)
-				bond->recv_probe = NULL;
-			cancel_delayed_work_sync(&bond->arp_work);
-		} else {
-			/* arp_validate can be set only in active-backup mode */
-			if (bond->params.arp_validate)
-				bond->recv_probe = bond_arp_rcv;
-			cancel_delayed_work_sync(&bond->mii_work);
-			queue_delayed_work(bond->wq, &bond->arp_work, 0);
-		}
-	}
-out:
+
+	ret = bond_option_arp_interval_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
 	rtnl_unlock();
 	return ret;
 }
@@ -591,81 +542,29 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 					 const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
-	struct list_head *iter;
-	struct slave *slave;
-	__be32 newtarget, *targets;
-	unsigned long *targets_rx;
-	int ind, i, j, ret = -EINVAL;
+	__be32 target;
+	int ret = -EPERM;
+
+	if (!in4_pton(buf + 1, -1, (u8 *)&target, -1, NULL)) {
+		pr_err("%s: invalid ARP target %pI4 specified\n",
+		       bond->dev->name, &target);
+		return -EPERM;
+	}
 
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	targets = bond->params.arp_targets;
-	if (!in4_pton(buf + 1, -1, (u8 *)&newtarget, -1, NULL) ||
-	    IS_IP_TARGET_UNUSABLE_ADDRESS(newtarget)) {
-		pr_err("%s: invalid ARP target %pI4 specified for addition\n",
-		       bond->dev->name, &newtarget);
-		goto out;
-	}
-	/* look for adds */
-	if (buf[0] == '+') {
-		if (bond_get_targets_ip(targets, newtarget) != -1) { /* dup */
-			pr_err("%s: ARP target %pI4 is already present\n",
-			       bond->dev->name, &newtarget);
-			goto out;
-		}
-
-		ind = bond_get_targets_ip(targets, 0); /* first free slot */
-		if (ind == -1) {
-			pr_err("%s: ARP target table is full!\n",
-			       bond->dev->name);
-			goto out;
-		}
-
-		pr_info("%s: adding ARP target %pI4.\n", bond->dev->name,
-			 &newtarget);
-		/* not to race with bond_arp_rcv */
-		write_lock_bh(&bond->lock);
-		bond_for_each_slave(bond, slave, iter)
-			slave->target_last_arp_rx[ind] = jiffies;
-		targets[ind] = newtarget;
-		write_unlock_bh(&bond->lock);
-	} else if (buf[0] == '-')	{
-		ind = bond_get_targets_ip(targets, newtarget);
-		if (ind == -1) {
-			pr_err("%s: unable to remove nonexistent ARP target %pI4.\n",
-				bond->dev->name, &newtarget);
-			goto out;
-		}
-
-		if (ind == 0 && !targets[1] && bond->params.arp_interval)
-			pr_warn("%s: removing last arp target with arp_interval on\n",
-				bond->dev->name);
-
-		pr_info("%s: removing ARP target %pI4.\n", bond->dev->name,
-			&newtarget);
-
-		write_lock_bh(&bond->lock);
-		bond_for_each_slave(bond, slave, iter) {
-			targets_rx = slave->target_last_arp_rx;
-			j = ind;
-			for (; (j < BOND_MAX_ARP_TARGETS-1) && targets[j+1]; j++)
-				targets_rx[j] = targets_rx[j+1];
-			targets_rx[j] = 0;
-		}
-		for (i = ind; (i < BOND_MAX_ARP_TARGETS-1) && targets[i+1]; i++)
-			targets[i] = targets[i+1];
-		targets[i] = 0;
-		write_unlock_bh(&bond->lock);
-	} else {
+	if (buf[0] == '+')
+		ret = bond_option_arp_ip_target_add(bond, target);
+	else if (buf[0] == '-')
+		ret = bond_option_arp_ip_target_rem(bond, target);
+	else
 		pr_err("no command found in arp_ip_targets file for bond %s. Use +<addr> or -<addr>.\n",
 		       bond->dev->name);
-		ret = -EPERM;
-		goto out;
-	}
 
-	ret = count;
-out:
+	if (!ret)
+		ret = count;
+
 	rtnl_unlock();
 	return ret;
 }
@@ -689,44 +588,21 @@ static ssize_t bonding_store_downdelay(struct device *d,
 				       struct device_attribute *attr,
 				       const char *buf, size_t count)
 {
-	int new_value, ret = count;
+	int new_value, ret;
 	struct bonding *bond = to_bond(d);
-
-	if (!rtnl_trylock())
-		return restart_syscall();
-	if (!(bond->params.miimon)) {
-		pr_err("%s: Unable to set down delay as MII monitoring is disabled\n",
-		       bond->dev->name);
-		ret = -EPERM;
-		goto out;
-	}
 
 	if (sscanf(buf, "%d", &new_value) != 1) {
 		pr_err("%s: no down delay value specified.\n", bond->dev->name);
-		ret = -EINVAL;
-		goto out;
-	}
-	if (new_value < 0) {
-		pr_err("%s: Invalid down delay value %d not in range %d-%d; rejected.\n",
-		       bond->dev->name, new_value, 0, INT_MAX);
-		ret = -EINVAL;
-		goto out;
-	} else {
-		if ((new_value % bond->params.miimon) != 0) {
-			pr_warning("%s: Warning: down delay (%d) is not a multiple of miimon (%d), delay rounded to %d ms\n",
-				   bond->dev->name, new_value,
-				   bond->params.miimon,
-				   (new_value / bond->params.miimon) *
-				   bond->params.miimon);
-		}
-		bond->params.downdelay = new_value / bond->params.miimon;
-		pr_info("%s: Setting down delay to %d.\n",
-			bond->dev->name,
-			bond->params.downdelay * bond->params.miimon);
-
+		return -EINVAL;
 	}
 
-out:
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	ret = bond_option_downdelay_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
 	rtnl_unlock();
 	return ret;
 }
@@ -747,44 +623,22 @@ static ssize_t bonding_store_updelay(struct device *d,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
-	int new_value, ret = count;
+	int new_value, ret;
 	struct bonding *bond = to_bond(d);
-
-	if (!rtnl_trylock())
-		return restart_syscall();
-	if (!(bond->params.miimon)) {
-		pr_err("%s: Unable to set up delay as MII monitoring is disabled\n",
-		       bond->dev->name);
-		ret = -EPERM;
-		goto out;
-	}
 
 	if (sscanf(buf, "%d", &new_value) != 1) {
 		pr_err("%s: no up delay value specified.\n",
-		       bond->dev->name);
-		ret = -EINVAL;
-		goto out;
-	}
-	if (new_value < 0) {
-		pr_err("%s: Invalid up delay value %d not in range %d-%d; rejected.\n",
-		       bond->dev->name, new_value, 0, INT_MAX);
-		ret = -EINVAL;
-		goto out;
-	} else {
-		if ((new_value % bond->params.miimon) != 0) {
-			pr_warning("%s: Warning: up delay (%d) is not a multiple of miimon (%d), updelay rounded to %d ms\n",
-				   bond->dev->name, new_value,
-				   bond->params.miimon,
-				   (new_value / bond->params.miimon) *
-				   bond->params.miimon);
-		}
-		bond->params.updelay = new_value / bond->params.miimon;
-		pr_info("%s: Setting up delay to %d.\n",
-			bond->dev->name,
-			bond->params.updelay * bond->params.miimon);
+		bond->dev->name);
+		return -EINVAL;
 	}
 
-out:
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	ret = bond_option_updelay_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
 	rtnl_unlock();
 	return ret;
 }
@@ -970,55 +824,22 @@ static ssize_t bonding_store_miimon(struct device *d,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
-	int new_value, ret = count;
+	int new_value, ret;
 	struct bonding *bond = to_bond(d);
 
-	if (!rtnl_trylock())
-		return restart_syscall();
 	if (sscanf(buf, "%d", &new_value) != 1) {
 		pr_err("%s: no miimon value specified.\n",
 		       bond->dev->name);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
-	if (new_value < 0) {
-		pr_err("%s: Invalid miimon value %d not in range %d-%d; rejected.\n",
-		       bond->dev->name, new_value, 0, INT_MAX);
-		ret = -EINVAL;
-		goto out;
-	}
-	pr_info("%s: Setting MII monitoring interval to %d.\n",
-		bond->dev->name, new_value);
-	bond->params.miimon = new_value;
-	if (bond->params.updelay)
-		pr_info("%s: Note: Updating updelay (to %d) since it is a multiple of the miimon value.\n",
-			bond->dev->name,
-			bond->params.updelay * bond->params.miimon);
-	if (bond->params.downdelay)
-		pr_info("%s: Note: Updating downdelay (to %d) since it is a multiple of the miimon value.\n",
-			bond->dev->name,
-			bond->params.downdelay * bond->params.miimon);
-	if (new_value && bond->params.arp_interval) {
-		pr_info("%s: MII monitoring cannot be used with ARP monitoring. Disabling ARP monitoring...\n",
-			bond->dev->name);
-		bond->params.arp_interval = 0;
-		if (bond->params.arp_validate)
-			bond->params.arp_validate = BOND_ARP_VALIDATE_NONE;
-	}
-	if (bond->dev->flags & IFF_UP) {
-		/* If the interface is up, we may need to fire off
-		 * the MII timer. If the interface is down, the
-		 * timer will get fired off when the open function
-		 * is called.
-		 */
-		if (!new_value) {
-			cancel_delayed_work_sync(&bond->mii_work);
-		} else {
-			cancel_delayed_work_sync(&bond->arp_work);
-			queue_delayed_work(bond->wq, &bond->mii_work, 0);
-		}
-	}
-out:
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	ret = bond_option_miimon_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
 	rtnl_unlock();
 	return ret;
 }
@@ -1175,25 +996,23 @@ static ssize_t bonding_store_carrier(struct device *d,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
-	int new_value, ret = count;
+	int new_value, ret;
 	struct bonding *bond = to_bond(d);
-
 
 	if (sscanf(buf, "%d", &new_value) != 1) {
 		pr_err("%s: no use_carrier value specified.\n",
 		       bond->dev->name);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
-	if ((new_value == 0) || (new_value == 1)) {
-		bond->params.use_carrier = new_value;
-		pr_info("%s: Setting use_carrier to %d.\n",
-			bond->dev->name, new_value);
-	} else {
-		pr_info("%s: Ignoring invalid use_carrier value %d.\n",
-			bond->dev->name, new_value);
-	}
-out:
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	ret = bond_option_use_carrier_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
+	rtnl_unlock();
 	return ret;
 }
 static DEVICE_ATTR(use_carrier, S_IRUGO | S_IWUSR,
