@@ -808,7 +808,10 @@ struct controller *pcie_init(struct pcie_device *dev)
         }
 
 	/* Clear all remaining event bits in Slot Status register */
-	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA, 0x1f);
+	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA,
+		PCI_EXP_SLTSTA_ABP | PCI_EXP_SLTSTA_PFD |
+		PCI_EXP_SLTSTA_MRLSC | PCI_EXP_SLTSTA_PDC |
+		PCI_EXP_SLTSTA_CC);
 
 	/* Disable software notification */
 	pcie_disable_notification(ctrl);
