@@ -65,6 +65,7 @@ static DEFINE_MUTEX(i8k_mutex);
 static char bios_version[4];
 static struct device *i8k_hwmon_dev;
 static u32 i8k_hwmon_flags;
+static int i8k_fan_mult;
 
 #define I8K_HWMON_HAVE_TEMP1	(1 << 0)
 #define I8K_HWMON_HAVE_TEMP2	(1 << 1)
@@ -275,7 +276,7 @@ static int i8k_get_fan_speed(int fan)
 	struct smm_regs regs = { .eax = I8K_SMM_GET_SPEED, };
 
 	regs.ebx = fan & 0xff;
-	return i8k_smm(&regs) ? : (regs.eax & 0xffff) * fan_mult;
+	return i8k_smm(&regs) ? : (regs.eax & 0xffff) * i8k_fan_mult;
 }
 
 /*
@@ -698,6 +699,7 @@ static struct dmi_system_id i8k_dmi_table[] __initdata = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Studio"),
 		},
+		.driver_data = (void *)1,	/* fan multiplier override */
 	},
 	{
 		.ident = "Dell XPS M140",
@@ -705,6 +707,7 @@ static struct dmi_system_id i8k_dmi_table[] __initdata = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MXC051"),
 		},
+		.driver_data = (void *)1,	/* fan multiplier override */
 	},
 	{ }
 };
@@ -716,6 +719,7 @@ static int __init i8k_probe(void)
 {
 	char buff[4];
 	int version;
+	const struct dmi_system_id *id;
 
 	/*
 	 * Get DMI information
@@ -768,6 +772,11 @@ static int __init i8k_probe(void)
 			pr_warn("BIOS version mismatch: %s != %s\n",
 				buff, bios_version);
 	}
+
+	i8k_fan_mult = fan_mult;
+	id = dmi_first_match(i8k_dmi_table);
+	if (id && fan_mult == I8K_FAN_MULT && id->driver_data)
+		i8k_fan_mult = (unsigned long)id->driver_data;
 
 	return 0;
 }
