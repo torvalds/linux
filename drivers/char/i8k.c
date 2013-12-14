@@ -19,6 +19,8 @@
  * General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/init.h>
@@ -535,7 +537,7 @@ static int __init i8k_init_hwmon(void)
 	if (IS_ERR(i8k_hwmon_dev)) {
 		err = PTR_ERR(i8k_hwmon_dev);
 		i8k_hwmon_dev = NULL;
-		printk(KERN_ERR "i8k: hwmon registration failed (%d)\n", err);
+		pr_err("hwmon registration failed (%d)\n", err);
 		return err;
 	}
 
@@ -689,8 +691,8 @@ static int __init i8k_probe(void)
 		if (!ignore_dmi && !force)
 			return -ENODEV;
 
-		printk(KERN_INFO "i8k: not running on a supported Dell system.\n");
-		printk(KERN_INFO "i8k: vendor=%s, model=%s, version=%s\n",
+		pr_info("not running on a supported Dell system.\n");
+		pr_info("vendor=%s, model=%s, version=%s\n",
 			i8k_get_dmi_data(DMI_SYS_VENDOR),
 			i8k_get_dmi_data(DMI_PRODUCT_NAME),
 			i8k_get_dmi_data(DMI_BIOS_VERSION));
@@ -703,7 +705,7 @@ static int __init i8k_probe(void)
 	 */
 	if (i8k_get_dell_signature(I8K_SMM_GET_DELL_SIG1) &&
 	    i8k_get_dell_signature(I8K_SMM_GET_DELL_SIG2)) {
-		printk(KERN_ERR "i8k: unable to get SMM Dell signature\n");
+		pr_err("unable to get SMM Dell signature\n");
 		if (!force)
 			return -ENODEV;
 	}
@@ -713,7 +715,7 @@ static int __init i8k_probe(void)
 	 */
 	version = i8k_get_bios_version();
 	if (version <= 0) {
-		printk(KERN_WARNING "i8k: unable to get SMM BIOS version\n");
+		pr_warn("unable to get SMM BIOS version\n");
 	} else {
 		buff[0] = (version >> 16) & 0xff;
 		buff[1] = (version >> 8) & 0xff;
@@ -729,7 +731,7 @@ static int __init i8k_probe(void)
 		 * Check if the two versions match.
 		 */
 		if (strncmp(buff, bios_version, sizeof(bios_version)) != 0)
-			printk(KERN_WARNING "i8k: BIOS version mismatch: %s != %s\n",
+			pr_warn("BIOS version mismatch: %s != %s\n",
 				buff, bios_version);
 	}
 
@@ -754,9 +756,8 @@ static int __init i8k_init(void)
 	if (err)
 		goto exit_remove_proc;
 
-	printk(KERN_INFO
-	       "Dell laptop SMM driver v%s Massimo Dal Zotto (dz@debian.org)\n",
-	       I8K_VERSION);
+	pr_info("Dell laptop SMM driver v%s Massimo Dal Zotto (dz@debian.org)\n",
+		I8K_VERSION);
 
 	return 0;
 
