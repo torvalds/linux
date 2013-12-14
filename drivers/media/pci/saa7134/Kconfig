@@ -6,6 +6,7 @@ config VIDEO_SAA7134
 	select VIDEO_TVEEPROM
 	select CRC32
 	select VIDEO_SAA6588 if MEDIA_SUBDRV_AUTOSELECT
+	select VIDEO_SAA6752HS if MEDIA_SUBDRV_AUTOSELECT
 	---help---
 	  This is a video4linux driver for Philips SAA713x based
 	  TV cards.
