@@ -1853,6 +1853,8 @@ int regulatory_hint(struct wiphy *wiphy, const char *alpha2)
 	if (WARN_ON(!alpha2 || !wiphy))
 		return -EINVAL;
 
+	wiphy->regulatory_flags &= ~REGULATORY_CUSTOM_REG;
+
 	request = kzalloc(sizeof(struct regulatory_request), GFP_KERNEL);
 	if (!request)
 		return -ENOMEM;
