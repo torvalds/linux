@@ -48,7 +48,7 @@ static inline int ms_check_err_code(struct rts51x_chip *chip, u8 err_code)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 
-	return (ms_card->err_code == err_code);
+	return ms_card->err_code == err_code;
 }
 
 static int ms_parse_err_code(struct rts51x_chip *chip)
