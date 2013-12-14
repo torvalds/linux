@@ -1,5 +1,5 @@
 menuconfig ION
-	tristate "Ion Memory Manager"
+	bool "Ion Memory Manager"
 	select GENERIC_ALLOCATOR
 	select DMA_SHARED_BUFFER
 	---help---
