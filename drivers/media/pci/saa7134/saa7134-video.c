@@ -369,117 +369,6 @@ static struct saa7134_tvnorm tvnorms[] = {
 };
 #define TVNORMS ARRAY_SIZE(tvnorms)
 
-#define V4L2_CID_PRIVATE_INVERT      (V4L2_CID_PRIVATE_BASE + 0)
-#define V4L2_CID_PRIVATE_Y_ODD       (V4L2_CID_PRIVATE_BASE + 1)
-#define V4L2_CID_PRIVATE_Y_EVEN      (V4L2_CID_PRIVATE_BASE + 2)
-#define V4L2_CID_PRIVATE_AUTOMUTE    (V4L2_CID_PRIVATE_BASE + 3)
-#define V4L2_CID_PRIVATE_LASTP1      (V4L2_CID_PRIVATE_BASE + 4)
-
-static const struct v4l2_queryctrl no_ctrl = {
-	.name  = "42",
-	.flags = V4L2_CTRL_FLAG_DISABLED,
-};
-static const struct v4l2_queryctrl video_ctrls[] = {
-	/* --- video --- */
-	{
-		.id            = V4L2_CID_BRIGHTNESS,
-		.name          = "Brightness",
-		.minimum       = 0,
-		.maximum       = 255,
-		.step          = 1,
-		.default_value = 128,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-	},{
-		.id            = V4L2_CID_CONTRAST,
-		.name          = "Contrast",
-		.minimum       = 0,
-		.maximum       = 127,
-		.step          = 1,
-		.default_value = 68,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-	},{
-		.id            = V4L2_CID_SATURATION,
-		.name          = "Saturation",
-		.minimum       = 0,
-		.maximum       = 127,
-		.step          = 1,
-		.default_value = 64,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-	},{
-		.id            = V4L2_CID_HUE,
-		.name          = "Hue",
-		.minimum       = -128,
-		.maximum       = 127,
-		.step          = 1,
-		.default_value = 0,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-	},{
-		.id            = V4L2_CID_HFLIP,
-		.name          = "Mirror",
-		.minimum       = 0,
-		.maximum       = 1,
-		.type          = V4L2_CTRL_TYPE_BOOLEAN,
-	},
-	/* --- audio --- */
-	{
-		.id            = V4L2_CID_AUDIO_MUTE,
-		.name          = "Mute",
-		.minimum       = 0,
-		.maximum       = 1,
-		.type          = V4L2_CTRL_TYPE_BOOLEAN,
-	},{
-		.id            = V4L2_CID_AUDIO_VOLUME,
-		.name          = "Volume",
-		.minimum       = -15,
-		.maximum       = 15,
-		.step          = 1,
-		.default_value = 0,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-	},
-	/* --- private --- */
-	{
-		.id            = V4L2_CID_PRIVATE_INVERT,
-		.name          = "Invert",
-		.minimum       = 0,
-		.maximum       = 1,
-		.type          = V4L2_CTRL_TYPE_BOOLEAN,
-	},{
-		.id            = V4L2_CID_PRIVATE_Y_ODD,
-		.name          = "y offset odd field",
-		.minimum       = 0,
-		.maximum       = 128,
-		.step          = 1,
-		.default_value = 0,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-	},{
-		.id            = V4L2_CID_PRIVATE_Y_EVEN,
-		.name          = "y offset even field",
-		.minimum       = 0,
-		.maximum       = 128,
-		.step          = 1,
-		.default_value = 0,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-	},{
-		.id            = V4L2_CID_PRIVATE_AUTOMUTE,
-		.name          = "automute",
-		.minimum       = 0,
-		.maximum       = 1,
-		.default_value = 1,
-		.type          = V4L2_CTRL_TYPE_BOOLEAN,
-	}
-};
-static const unsigned int CTRLS = ARRAY_SIZE(video_ctrls);
-
-static const struct v4l2_queryctrl* ctrl_by_id(unsigned int id)
-{
-	unsigned int i;
-
-	for (i = 0; i < CTRLS; i++)
-		if (video_ctrls[i].id == id)
-			return video_ctrls+i;
-	return NULL;
-}
-
 static struct saa7134_format* format_by_fourcc(unsigned int fourcc)
 {
 	unsigned int i;
@@ -868,7 +757,7 @@ static int verify_preview(struct saa7134_dev *dev, struct v4l2_window *win, bool
 	return 0;
 }
 
-static int start_preview(struct saa7134_dev *dev, struct saa7134_fh *fh)
+static int start_preview(struct saa7134_dev *dev)
 {
 	unsigned long base,control,bpl;
 	int err;
@@ -923,7 +812,7 @@ static int start_preview(struct saa7134_dev *dev, struct saa7134_fh *fh)
 	return 0;
 }
 
-static int stop_preview(struct saa7134_dev *dev, struct saa7134_fh *fh)
+static int stop_preview(struct saa7134_dev *dev)
 {
 	dev->ovenable = 0;
 	saa7134_set_dmabits(dev);
@@ -1114,133 +1003,56 @@ static struct videobuf_queue_ops video_qops = {
 
 /* ------------------------------------------------------------------ */
 
-int saa7134_g_ctrl_internal(struct saa7134_dev *dev, struct saa7134_fh *fh, struct v4l2_control *c)
+static int saa7134_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	const struct v4l2_queryctrl* ctrl;
-
-	ctrl = ctrl_by_id(c->id);
-	if (NULL == ctrl)
-		return -EINVAL;
-	switch (c->id) {
-	case V4L2_CID_BRIGHTNESS:
-		c->value = dev->ctl_bright;
-		break;
-	case V4L2_CID_HUE:
-		c->value = dev->ctl_hue;
-		break;
-	case V4L2_CID_CONTRAST:
-		c->value = dev->ctl_contrast;
-		break;
-	case V4L2_CID_SATURATION:
-		c->value = dev->ctl_saturation;
-		break;
-	case V4L2_CID_AUDIO_MUTE:
-		c->value = dev->ctl_mute;
-		break;
-	case V4L2_CID_AUDIO_VOLUME:
-		c->value = dev->ctl_volume;
-		break;
-	case V4L2_CID_PRIVATE_INVERT:
-		c->value = dev->ctl_invert;
-		break;
-	case V4L2_CID_HFLIP:
-		c->value = dev->ctl_mirror;
-		break;
-	case V4L2_CID_PRIVATE_Y_EVEN:
-		c->value = dev->ctl_y_even;
-		break;
-	case V4L2_CID_PRIVATE_Y_ODD:
-		c->value = dev->ctl_y_odd;
-		break;
-	case V4L2_CID_PRIVATE_AUTOMUTE:
-		c->value = dev->ctl_automute;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-EXPORT_SYMBOL_GPL(saa7134_g_ctrl_internal);
-
-static int saa7134_g_ctrl(struct file *file, void *priv, struct v4l2_control *c)
-{
-	struct saa7134_fh *fh = priv;
-
-	return saa7134_g_ctrl_internal(fh->dev, fh, c);
-}
-
-int saa7134_s_ctrl_internal(struct saa7134_dev *dev,  struct saa7134_fh *fh, struct v4l2_control *c)
-{
-	const struct v4l2_queryctrl* ctrl;
+	struct saa7134_dev *dev = container_of(ctrl->handler, struct saa7134_dev, ctrl_handler);
 	unsigned long flags;
 	int restart_overlay = 0;
-	int err;
 
-	err = -EINVAL;
-
-	mutex_lock(&dev->lock);
-
-	ctrl = ctrl_by_id(c->id);
-	if (NULL == ctrl)
-		goto error;
-
-	dprintk("set_control name=%s val=%d\n",ctrl->name,c->value);
-	switch (ctrl->type) {
-	case V4L2_CTRL_TYPE_BOOLEAN:
-	case V4L2_CTRL_TYPE_MENU:
-	case V4L2_CTRL_TYPE_INTEGER:
-		if (c->value < ctrl->minimum)
-			c->value = ctrl->minimum;
-		if (c->value > ctrl->maximum)
-			c->value = ctrl->maximum;
-		break;
-	default:
-		/* nothing */;
-	}
-	switch (c->id) {
+	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
-		dev->ctl_bright = c->value;
-		saa_writeb(SAA7134_DEC_LUMA_BRIGHT, dev->ctl_bright);
+		dev->ctl_bright = ctrl->val;
+		saa_writeb(SAA7134_DEC_LUMA_BRIGHT, ctrl->val);
 		break;
 	case V4L2_CID_HUE:
-		dev->ctl_hue = c->value;
-		saa_writeb(SAA7134_DEC_CHROMA_HUE, dev->ctl_hue);
+		dev->ctl_hue = ctrl->val;
+		saa_writeb(SAA7134_DEC_CHROMA_HUE, ctrl->val);
 		break;
 	case V4L2_CID_CONTRAST:
-		dev->ctl_contrast = c->value;
+		dev->ctl_contrast = ctrl->val;
 		saa_writeb(SAA7134_DEC_LUMA_CONTRAST,
 			   dev->ctl_invert ? -dev->ctl_contrast : dev->ctl_contrast);
 		break;
 	case V4L2_CID_SATURATION:
-		dev->ctl_saturation = c->value;
+		dev->ctl_saturation = ctrl->val;
 		saa_writeb(SAA7134_DEC_CHROMA_SATURATION,
 			   dev->ctl_invert ? -dev->ctl_saturation : dev->ctl_saturation);
 		break;
 	case V4L2_CID_AUDIO_MUTE:
-		dev->ctl_mute = c->value;
+		dev->ctl_mute = ctrl->val;
 		saa7134_tvaudio_setmute(dev);
 		break;
 	case V4L2_CID_AUDIO_VOLUME:
-		dev->ctl_volume = c->value;
+		dev->ctl_volume = ctrl->val;
 		saa7134_tvaudio_setvolume(dev,dev->ctl_volume);
 		break;
 	case V4L2_CID_PRIVATE_INVERT:
-		dev->ctl_invert = c->value;
+		dev->ctl_invert = ctrl->val;
 		saa_writeb(SAA7134_DEC_LUMA_CONTRAST,
 			   dev->ctl_invert ? -dev->ctl_contrast : dev->ctl_contrast);
 		saa_writeb(SAA7134_DEC_CHROMA_SATURATION,
 			   dev->ctl_invert ? -dev->ctl_saturation : dev->ctl_saturation);
 		break;
 	case V4L2_CID_HFLIP:
-		dev->ctl_mirror = c->value;
+		dev->ctl_mirror = ctrl->val;
 		restart_overlay = 1;
 		break;
 	case V4L2_CID_PRIVATE_Y_EVEN:
-		dev->ctl_y_even = c->value;
+		dev->ctl_y_even = ctrl->val;
 		restart_overlay = 1;
 		break;
 	case V4L2_CID_PRIVATE_Y_ODD:
-		dev->ctl_y_odd = c->value;
+		dev->ctl_y_odd = ctrl->val;
 		restart_overlay = 1;
 		break;
 	case V4L2_CID_PRIVATE_AUTOMUTE:
@@ -1250,7 +1062,7 @@ int saa7134_s_ctrl_internal(struct saa7134_dev *dev,  struct saa7134_fh *fh, str
 		tda9887_cfg.tuner = TUNER_TDA9887;
 		tda9887_cfg.priv = &dev->tda9887_conf;
 
-		dev->ctl_automute = c->value;
+		dev->ctl_automute = ctrl->val;
 		if (dev->tda9887_conf) {
 			if (dev->ctl_automute)
 				dev->tda9887_conf |= TDA9887_AUTOMUTE;
@@ -1262,27 +1074,15 @@ int saa7134_s_ctrl_internal(struct saa7134_dev *dev,  struct saa7134_fh *fh, str
 		break;
 	}
 	default:
-		goto error;
+		return -EINVAL;
 	}
-	if (restart_overlay && fh && res_check(fh, RESOURCE_OVERLAY)) {
-		spin_lock_irqsave(&dev->slock,flags);
-		stop_preview(dev,fh);
-		start_preview(dev,fh);
-		spin_unlock_irqrestore(&dev->slock,flags);
+	if (restart_overlay && res_locked(dev, RESOURCE_OVERLAY)) {
+		spin_lock_irqsave(&dev->slock, flags);
+		stop_preview(dev);
+		start_preview(dev);
+		spin_unlock_irqrestore(&dev->slock, flags);
 	}
-	err = 0;
-
-error:
-	mutex_unlock(&dev->lock);
-	return err;
-}
-EXPORT_SYMBOL_GPL(saa7134_s_ctrl_internal);
-
-static int saa7134_s_ctrl(struct file *file, void *f, struct v4l2_control *c)
-{
-	struct saa7134_fh *fh = f;
-
-	return saa7134_s_ctrl_internal(fh->dev, fh, c);
+	return 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1434,7 +1234,7 @@ static int video_release(struct file *file)
 	/* turn off overlay */
 	if (res_check(fh, RESOURCE_OVERLAY)) {
 		spin_lock_irqsave(&dev->slock,flags);
-		stop_preview(dev,fh);
+		stop_preview(dev);
 		spin_unlock_irqrestore(&dev->slock,flags);
 		res_free(dev,fh,RESOURCE_OVERLAY);
 	}
@@ -1703,29 +1503,14 @@ static int saa7134_s_fmt_vid_overlay(struct file *file, void *priv,
 
 	if (res_check(fh, RESOURCE_OVERLAY)) {
 		spin_lock_irqsave(&dev->slock, flags);
-		stop_preview(dev, fh);
-		start_preview(dev, fh);
+		stop_preview(dev);
+		start_preview(dev);
 		spin_unlock_irqrestore(&dev->slock, flags);
 	}
 
 	mutex_unlock(&dev->lock);
 	return 0;
 }
-
-int saa7134_queryctrl(struct file *file, void *priv, struct v4l2_queryctrl *c)
-{
-	const struct v4l2_queryctrl *ctrl;
-
-	if ((c->id <  V4L2_CID_BASE ||
-	     c->id >= V4L2_CID_LASTP1) &&
-	    (c->id <  V4L2_CID_PRIVATE_BASE ||
-	     c->id >= V4L2_CID_PRIVATE_LASTP1))
-		return -EINVAL;
-	ctrl = ctrl_by_id(c->id);
-	*c = (NULL != ctrl) ? *ctrl : no_ctrl;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(saa7134_queryctrl);
 
 static int saa7134_enum_input(struct file *file, void *priv,
 					struct v4l2_input *i)
@@ -1882,13 +1667,13 @@ int saa7134_s_std_internal(struct saa7134_dev *dev, struct saa7134_fh *fh, v4l2_
 	mutex_lock(&dev->lock);
 	if (fh && res_check(fh, RESOURCE_OVERLAY)) {
 		spin_lock_irqsave(&dev->slock, flags);
-		stop_preview(dev, fh);
+		stop_preview(dev);
 		spin_unlock_irqrestore(&dev->slock, flags);
 
 		set_tvnorm(dev, &tvnorms[i]);
 
 		spin_lock_irqsave(&dev->slock, flags);
-		start_preview(dev, fh);
+		start_preview(dev);
 		spin_unlock_irqrestore(&dev->slock, flags);
 	} else
 		set_tvnorm(dev, &tvnorms[i]);
@@ -2157,14 +1942,14 @@ static int saa7134_overlay(struct file *file, void *f, unsigned int on)
 		if (!res_get(dev, fh, RESOURCE_OVERLAY))
 			return -EBUSY;
 		spin_lock_irqsave(&dev->slock, flags);
-		start_preview(dev, fh);
+		start_preview(dev);
 		spin_unlock_irqrestore(&dev->slock, flags);
 	}
 	if (!on) {
 		if (!res_check(fh, RESOURCE_OVERLAY))
 			return -EINVAL;
 		spin_lock_irqsave(&dev->slock, flags);
-		stop_preview(dev, fh);
+		stop_preview(dev);
 		spin_unlock_irqrestore(&dev->slock, flags);
 		res_free(dev, fh, RESOURCE_OVERLAY);
 	}
@@ -2319,22 +2104,6 @@ static int radio_s_std(struct file *file, void *fh, v4l2_std_id norm)
 	return 0;
 }
 
-static int radio_queryctrl(struct file *file, void *priv,
-					struct v4l2_queryctrl *c)
-{
-	const struct v4l2_queryctrl *ctrl;
-
-	if (c->id <  V4L2_CID_BASE ||
-	    c->id >= V4L2_CID_LASTP1)
-		return -EINVAL;
-	if (c->id == V4L2_CID_AUDIO_MUTE) {
-		ctrl = ctrl_by_id(c->id);
-		*c = *ctrl;
-	} else
-		*c = no_ctrl;
-	return 0;
-}
-
 static const struct v4l2_file_operations video_fops =
 {
 	.owner	  = THIS_MODULE,
@@ -2369,9 +2138,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_enum_input		= saa7134_enum_input,
 	.vidioc_g_input			= saa7134_g_input,
 	.vidioc_s_input			= saa7134_s_input,
-	.vidioc_queryctrl		= saa7134_queryctrl,
-	.vidioc_g_ctrl			= saa7134_g_ctrl,
-	.vidioc_s_ctrl			= saa7134_s_ctrl,
 	.vidioc_streamon		= saa7134_streamon,
 	.vidioc_streamoff		= saa7134_streamoff,
 	.vidioc_g_tuner			= saa7134_g_tuner,
@@ -2405,10 +2171,7 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_s_tuner		= radio_s_tuner,
 	.vidioc_s_input		= radio_s_input,
 	.vidioc_s_std		= radio_s_std,
-	.vidioc_queryctrl	= radio_queryctrl,
 	.vidioc_g_input		= radio_g_input,
-	.vidioc_g_ctrl		= saa7134_g_ctrl,
-	.vidioc_s_ctrl		= saa7134_s_ctrl,
 	.vidioc_g_frequency	= saa7134_g_frequency,
 	.vidioc_s_frequency	= saa7134_s_frequency,
 };
@@ -2429,8 +2192,55 @@ struct video_device saa7134_radio_template = {
 	.ioctl_ops 		= &radio_ioctl_ops,
 };
 
+static const struct v4l2_ctrl_ops saa7134_ctrl_ops = {
+	.s_ctrl = saa7134_s_ctrl,
+};
+
+static const struct v4l2_ctrl_config saa7134_ctrl_invert = {
+	.ops = &saa7134_ctrl_ops,
+	.id = V4L2_CID_PRIVATE_INVERT,
+	.name = "Invert",
+	.type = V4L2_CTRL_TYPE_BOOLEAN,
+	.min = 0,
+	.max = 1,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config saa7134_ctrl_y_odd = {
+	.ops = &saa7134_ctrl_ops,
+	.id = V4L2_CID_PRIVATE_Y_ODD,
+	.name = "Y Offset Odd Field",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 0,
+	.max = 128,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config saa7134_ctrl_y_even = {
+	.ops = &saa7134_ctrl_ops,
+	.id = V4L2_CID_PRIVATE_Y_EVEN,
+	.name = "Y Offset Even Field",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 0,
+	.max = 128,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config saa7134_ctrl_automute = {
+	.ops = &saa7134_ctrl_ops,
+	.id = V4L2_CID_PRIVATE_AUTOMUTE,
+	.name = "Automute",
+	.type = V4L2_CTRL_TYPE_BOOLEAN,
+	.min = 0,
+	.max = 1,
+	.step = 1,
+	.def = 1,
+};
+
 int saa7134_video_init1(struct saa7134_dev *dev)
 {
+	struct v4l2_ctrl_handler *hdl = &dev->ctrl_handler;
+
 	/* sanitycheck insmod options */
 	if (gbuffers < 2 || gbuffers > VIDEO_MAX_FRAME)
 		gbuffers = 2;
@@ -2438,17 +2248,38 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 		gbufsize = gbufsize_max;
 	gbufsize = (gbufsize + PAGE_SIZE - 1) & PAGE_MASK;
 
-	/* put some sensible defaults into the data structures ... */
-	dev->ctl_bright     = ctrl_by_id(V4L2_CID_BRIGHTNESS)->default_value;
-	dev->ctl_contrast   = ctrl_by_id(V4L2_CID_CONTRAST)->default_value;
-	dev->ctl_hue        = ctrl_by_id(V4L2_CID_HUE)->default_value;
-	dev->ctl_saturation = ctrl_by_id(V4L2_CID_SATURATION)->default_value;
-	dev->ctl_volume     = ctrl_by_id(V4L2_CID_AUDIO_VOLUME)->default_value;
-	dev->ctl_mute       = 1; // ctrl_by_id(V4L2_CID_AUDIO_MUTE)->default_value;
-	dev->ctl_invert     = ctrl_by_id(V4L2_CID_PRIVATE_INVERT)->default_value;
-	dev->ctl_automute   = ctrl_by_id(V4L2_CID_PRIVATE_AUTOMUTE)->default_value;
+	v4l2_ctrl_handler_init(hdl, 11);
+	v4l2_ctrl_new_std(hdl, &saa7134_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
+	v4l2_ctrl_new_std(hdl, &saa7134_ctrl_ops,
+			V4L2_CID_CONTRAST, 0, 127, 1, 68);
+	v4l2_ctrl_new_std(hdl, &saa7134_ctrl_ops,
+			V4L2_CID_SATURATION, 0, 127, 1, 64);
+	v4l2_ctrl_new_std(hdl, &saa7134_ctrl_ops,
+			V4L2_CID_HUE, -128, 127, 1, 0);
+	v4l2_ctrl_new_std(hdl, &saa7134_ctrl_ops,
+			V4L2_CID_HFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(hdl, &saa7134_ctrl_ops,
+			V4L2_CID_AUDIO_MUTE, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(hdl, &saa7134_ctrl_ops,
+			V4L2_CID_AUDIO_VOLUME, -15, 15, 1, 0);
+	v4l2_ctrl_new_custom(hdl, &saa7134_ctrl_invert, NULL);
+	v4l2_ctrl_new_custom(hdl, &saa7134_ctrl_y_odd, NULL);
+	v4l2_ctrl_new_custom(hdl, &saa7134_ctrl_y_even, NULL);
+	v4l2_ctrl_new_custom(hdl, &saa7134_ctrl_automute, NULL);
+	if (hdl->error)
+		return hdl->error;
+	if (card_has_radio(dev)) {
+		hdl = &dev->radio_ctrl_handler;
+		v4l2_ctrl_handler_init(hdl, 2);
+		v4l2_ctrl_add_handler(hdl, &dev->ctrl_handler,
+				v4l2_ctrl_radio_filter);
+		if (hdl->error)
+			return hdl->error;
+	}
+	dev->ctl_mute       = 1;
 
-	if (dev->tda9887_conf && dev->ctl_automute)
+	if (dev->tda9887_conf && saa7134_ctrl_automute.def)
 		dev->tda9887_conf |= TDA9887_AUTOMUTE;
 	dev->automute       = 0;
 
@@ -2494,6 +2325,9 @@ void saa7134_video_fini(struct saa7134_dev *dev)
 	/* free stuff */
 	saa7134_pgtable_free(dev->pci, &dev->pt_cap);
 	saa7134_pgtable_free(dev->pci, &dev->pt_vbi);
+	v4l2_ctrl_handler_free(&dev->ctrl_handler);
+	if (card_has_radio(dev))
+		v4l2_ctrl_handler_free(&dev->radio_ctrl_handler);
 }
 
 int saa7134_videoport_init(struct saa7134_dev *dev)
@@ -2537,6 +2371,7 @@ int saa7134_video_init2(struct saa7134_dev *dev)
 	/* init video hw */
 	set_tvnorm(dev,&tvnorms[0]);
 	video_mux(dev,0);
+	v4l2_ctrl_handler_setup(&dev->ctrl_handler);
 	saa7134_tvaudio_setmute(dev);
 	saa7134_tvaudio_setvolume(dev,dev->ctl_volume);
 	return 0;

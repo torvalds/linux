@@ -1009,13 +1009,13 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 
 	/* load i2c helpers */
 	if (card_is_empress(dev)) {
-		struct v4l2_subdev *sd =
+		dev->empress_sd =
 			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
 				"saa6752hs",
 				saa7134_boards[dev->board].empress_addr, NULL);
 
-		if (sd)
-			sd->grp_id = GRP_EMPRESS;
+		if (dev->empress_sd)
+			dev->empress_sd->grp_id = GRP_EMPRESS;
 	}
 
 	if (saa7134_boards[dev->board].rds_addr) {
@@ -1047,6 +1047,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 		printk(KERN_INFO "%s: Overlay support disabled.\n", dev->name);
 
 	dev->video_dev = vdev_init(dev,&saa7134_video_template,"video");
+	dev->video_dev->ctrl_handler = &dev->ctrl_handler;
 	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,
 				    video_nr[dev->nr]);
 	if (err < 0) {
@@ -1058,6 +1059,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	       dev->name, video_device_node_name(dev->video_dev));
 
 	dev->vbi_dev = vdev_init(dev, &saa7134_video_template, "vbi");
+	dev->vbi_dev->ctrl_handler = &dev->ctrl_handler;
 
 	err = video_register_device(dev->vbi_dev,VFL_TYPE_VBI,
 				    vbi_nr[dev->nr]);
@@ -1068,6 +1070,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 
 	if (card_has_radio(dev)) {
 		dev->radio_dev = vdev_init(dev,&saa7134_radio_template,"radio");
+		dev->radio_dev->ctrl_handler = &dev->radio_ctrl_handler;
 		err = video_register_device(dev->radio_dev,VFL_TYPE_RADIO,
 					    radio_nr[dev->nr]);
 		if (err < 0)

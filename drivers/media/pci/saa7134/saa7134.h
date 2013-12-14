@@ -37,6 +37,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
+#include <media/v4l2-ctrls.h>
 #include <media/tuner.h>
 #include <media/rc-core.h>
 #include <media/ir-kbd-i2c.h>
@@ -410,6 +411,11 @@ struct saa7134_board {
 #define card(dev)             (saa7134_boards[dev->board])
 #define card_in(dev,n)        (saa7134_boards[dev->board].inputs[n])
 
+#define V4L2_CID_PRIVATE_INVERT      (V4L2_CID_USER_SAA7134_BASE + 0)
+#define V4L2_CID_PRIVATE_Y_ODD       (V4L2_CID_USER_SAA7134_BASE + 1)
+#define V4L2_CID_PRIVATE_Y_EVEN      (V4L2_CID_USER_SAA7134_BASE + 2)
+#define V4L2_CID_PRIVATE_AUTOMUTE    (V4L2_CID_USER_SAA7134_BASE + 3)
+
 /* ----------------------------------------------------------- */
 /* device / file handle status                                 */
 
@@ -595,6 +601,7 @@ struct saa7134_dev {
 	/* various v4l controls */
 	struct saa7134_tvnorm      *tvnorm;              /* video */
 	struct saa7134_tvaudio     *tvaudio;
+	struct v4l2_ctrl_handler   ctrl_handler;
 	unsigned int               ctl_input;
 	int                        ctl_bright;
 	int                        ctl_contrast;
@@ -622,6 +629,7 @@ struct saa7134_dev {
 	int                        last_carrier;
 	int                        nosignal;
 	unsigned int               insuspend;
+	struct v4l2_ctrl_handler   radio_ctrl_handler;
 
 	/* I2C keyboard data */
 	struct IR_i2c_init_data    init_data;
@@ -634,10 +642,12 @@ struct saa7134_dev {
 
 	/* SAA7134_MPEG_EMPRESS only */
 	struct video_device        *empress_dev;
+	struct v4l2_subdev	   *empress_sd;
 	struct videobuf_queue      empress_tsq;
 	atomic_t 		   empress_users;
 	struct work_struct         empress_workqueue;
 	int                        empress_started;
+	struct v4l2_ctrl_handler   empress_ctrl_handler;
 
 #if IS_ENABLED(CONFIG_VIDEO_SAA7134_DVB)
 	/* SAA7134_MPEG_DVB only */
@@ -757,9 +767,6 @@ extern unsigned int video_debug;
 extern struct video_device saa7134_video_template;
 extern struct video_device saa7134_radio_template;
 
-int saa7134_s_ctrl_internal(struct saa7134_dev *dev,  struct saa7134_fh *fh, struct v4l2_control *c);
-int saa7134_g_ctrl_internal(struct saa7134_dev *dev,  struct saa7134_fh *fh, struct v4l2_control *c);
-int saa7134_queryctrl(struct file *file, void *priv, struct v4l2_queryctrl *c);
 int saa7134_s_std_internal(struct saa7134_dev *dev,  struct saa7134_fh *fh, v4l2_std_id id);
 
 int saa7134_videoport_init(struct saa7134_dev *dev);
