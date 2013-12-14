@@ -1184,6 +1184,11 @@ struct intel_vbt_data {
 	int edp_bpp;
 	struct edp_power_seq edp_pps;
 
+	struct {
+		u16 pwm_freq_hz;
+		bool active_low_pwm;
+	} backlight;
+
 	/* MIPI DSI */
 	struct {
 		u16 panel_id;
