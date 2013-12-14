@@ -945,7 +945,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	u32			tad_offset;
 	u32			rir_way;
 	u32			mb, kb;
-	u64			ch_addr, offset, limit, prv = 0;
+	u64			ch_addr, offset, limit = 0, prv = 0;
 
 
 	/*
