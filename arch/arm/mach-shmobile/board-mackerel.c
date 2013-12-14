@@ -1406,7 +1406,7 @@ static const struct pinctrl_map mackerel_pinctrl_map[] = {
 	/* USBHS1 */
 	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs.1", "pfc-sh7372",
 				  "usb1_vbus", "usb1"),
-	PIN_MAP_CONFIGS_GROUP_DEFAULT("renesas_usbhs.&", "pfc-sh7372",
+	PIN_MAP_CONFIGS_GROUP_DEFAULT("renesas_usbhs.1", "pfc-sh7372",
 				      "usb1_vbus", pin_pulldown_conf),
 	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs.1", "pfc-sh7372",
 				  "usb1_otg_id_0", "usb1"),
