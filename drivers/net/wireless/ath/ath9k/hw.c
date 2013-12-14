@@ -486,7 +486,6 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	ah->hw_version.magic = AR5416_MAGIC;
 	ah->hw_version.subvendorid = 0;
 
-	ah->atim_window = 0;
 	ah->sta_id1_defaults =
 		AR_STA_ID1_CRPT_MIC_ENABLE |
 		AR_STA_ID1_MCAST_KSRCH;
@@ -2266,9 +2265,6 @@ void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period)
 	case NL80211_IFTYPE_ADHOC:
 		REG_SET_BIT(ah, AR_TXCFG,
 			    AR_TXCFG_ADHOC_BEACON_ATIM_TX_POLICY);
-		REG_WRITE(ah, AR_NEXT_NDP_TIMER, next_beacon +
-			  TU_TO_USEC(ah->atim_window ? ah->atim_window : 1));
-		flags |= AR_NDP_TIMER_EN;
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_AP:
 		REG_WRITE(ah, AR_NEXT_TBTT_TIMER, next_beacon);
@@ -2289,7 +2285,6 @@ void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period)
 	REG_WRITE(ah, AR_BEACON_PERIOD, beacon_period);
 	REG_WRITE(ah, AR_DMA_BEACON_PERIOD, beacon_period);
 	REG_WRITE(ah, AR_SWBA_PERIOD, beacon_period);
-	REG_WRITE(ah, AR_NDP_PERIOD, beacon_period);
 
 	REGWRITE_BUFFER_FLUSH(ah);
 
