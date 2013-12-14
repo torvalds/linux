@@ -1285,6 +1285,7 @@ static ssize_t radio_read(struct file *file, char __user *data,
 	struct saa6588_command cmd;
 
 	cmd.block_count = count/3;
+	cmd.nonblocking = file->f_flags & O_NONBLOCK;
 	cmd.buffer = data;
 	cmd.instance = file;
 	cmd.result = -ENODEV;
