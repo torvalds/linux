@@ -824,7 +824,7 @@ static int i9xx_get_fifo_size(struct drm_device *dev, int plane)
 	return size;
 }
 
-static int i85x_get_fifo_size(struct drm_device *dev, int plane)
+static int i830_get_fifo_size(struct drm_device *dev, int plane)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t dsparb = I915_READ(DSPARB);
@@ -853,21 +853,6 @@ static int i845_get_fifo_size(struct drm_device *dev, int plane)
 	DRM_DEBUG_KMS("FIFO size - (0x%08x) %s: %d\n", dsparb,
 		      plane ? "B" : "A",
 		      size);
-
-	return size;
-}
-
-static int i830_get_fifo_size(struct drm_device *dev, int plane)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t dsparb = I915_READ(DSPARB);
-	int size;
-
-	size = dsparb & 0x7f;
-	size >>= 1; /* Convert to cachelines */
-
-	DRM_DEBUG_KMS("FIFO size - (0x%08x) %s: %d\n", dsparb,
-		      plane ? "B" : "A", size);
 
 	return size;
 }
@@ -950,14 +935,14 @@ static const struct intel_watermark_params i915_wm_info = {
 	2,
 	I915_FIFO_LINE_SIZE
 };
-static const struct intel_watermark_params i855_wm_info = {
+static const struct intel_watermark_params i830_wm_info = {
 	I855GM_FIFO_SIZE,
 	I915_MAX_WM,
 	1,
 	2,
 	I830_FIFO_LINE_SIZE
 };
-static const struct intel_watermark_params i830_wm_info = {
+static const struct intel_watermark_params i845_wm_info = {
 	I830_FIFO_SIZE,
 	I915_MAX_WM,
 	1,
@@ -1515,7 +1500,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 	else if (!IS_GEN2(dev))
 		wm_info = &i915_wm_info;
 	else
-		wm_info = &i855_wm_info;
+		wm_info = &i830_wm_info;
 
 	fifo_size = dev_priv->display.get_fifo_size(dev, 0);
 	crtc = intel_get_crtc_for_plane(dev, 0);
@@ -1622,7 +1607,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 	}
 }
 
-static void i830_update_wm(struct drm_crtc *unused_crtc)
+static void i845_update_wm(struct drm_crtc *unused_crtc)
 {
 	struct drm_device *dev = unused_crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1637,7 +1622,7 @@ static void i830_update_wm(struct drm_crtc *unused_crtc)
 
 	adjusted_mode = &to_intel_crtc(crtc)->config.adjusted_mode;
 	planea_wm = intel_calculate_wm(adjusted_mode->crtc_clock,
-				       &i830_wm_info,
+				       &i845_wm_info,
 				       dev_priv->display.get_fifo_size(dev, 0),
 				       4, latency_ns);
 	fwater_lo = I915_READ(FW_BLC) & ~0xfff;
@@ -5628,21 +5613,21 @@ void intel_init_pm(struct drm_device *dev)
 		dev_priv->display.update_wm = i9xx_update_wm;
 		dev_priv->display.get_fifo_size = i9xx_get_fifo_size;
 		dev_priv->display.init_clock_gating = gen3_init_clock_gating;
-	} else if (IS_I865G(dev)) {
-		dev_priv->display.update_wm = i830_update_wm;
-		dev_priv->display.init_clock_gating = i85x_init_clock_gating;
-		dev_priv->display.get_fifo_size = i830_get_fifo_size;
-	} else if (IS_I85X(dev)) {
-		dev_priv->display.update_wm = i9xx_update_wm;
-		dev_priv->display.get_fifo_size = i85x_get_fifo_size;
-		dev_priv->display.init_clock_gating = i85x_init_clock_gating;
-	} else {
-		dev_priv->display.update_wm = i830_update_wm;
-		dev_priv->display.init_clock_gating = i830_init_clock_gating;
-		if (IS_845G(dev))
+	} else if (IS_GEN2(dev)) {
+		if (INTEL_INFO(dev)->num_pipes == 1) {
+			dev_priv->display.update_wm = i845_update_wm;
 			dev_priv->display.get_fifo_size = i845_get_fifo_size;
-		else
+		} else {
+			dev_priv->display.update_wm = i9xx_update_wm;
 			dev_priv->display.get_fifo_size = i830_get_fifo_size;
+		}
+
+		if (IS_I85X(dev) || IS_I865G(dev))
+			dev_priv->display.init_clock_gating = i85x_init_clock_gating;
+		else
+			dev_priv->display.init_clock_gating = i830_init_clock_gating;
+	} else {
+		DRM_ERROR("unexpected fall-through in intel_init_pm\n");
 	}
 }
 
