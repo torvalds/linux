@@ -31,6 +31,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/sched.h>
 
 #include <linux/i8k.h>
 
@@ -130,6 +131,17 @@ static int i8k_smm(struct smm_regs *regs)
 {
 	int rc;
 	int eax = regs->eax;
+	cpumask_var_t old_mask;
+
+	/* SMM requires CPU 0 */
+	if (!alloc_cpumask_var(&old_mask, GFP_KERNEL))
+		return -ENOMEM;
+	cpumask_copy(old_mask, &current->cpus_allowed);
+	set_cpus_allowed_ptr(current, cpumask_of(0));
+	if (smp_processor_id() != 0) {
+		rc = -EBUSY;
+		goto out;
+	}
 
 #if defined(CONFIG_X86_64)
 	asm volatile("pushq %%rax\n\t"
@@ -185,9 +197,12 @@ static int i8k_smm(struct smm_regs *regs)
 	    :    "%ebx", "%ecx", "%edx", "%esi", "%edi", "memory");
 #endif
 	if (rc != 0 || (regs->eax & 0xffff) == 0xffff || regs->eax == eax)
-		return -EINVAL;
+		rc = -EINVAL;
 
-	return 0;
+out:
+	set_cpus_allowed_ptr(current, old_mask);
+	free_cpumask_var(old_mask);
+	return rc;
 }
 
 /*
