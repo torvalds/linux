@@ -476,7 +476,7 @@ struct saa7134_dmaqueue {
 /* video filehandle status */
 struct saa7134_fh {
 	struct v4l2_fh             fh;
-	struct saa7134_dev         *dev;
+	bool			   is_empress;
 	unsigned int               resources;
 };
 

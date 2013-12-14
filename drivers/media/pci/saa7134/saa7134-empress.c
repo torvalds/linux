@@ -85,6 +85,7 @@ static int ts_open(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct saa7134_dev *dev = video_drvdata(file);
+	struct saa7134_fh *fh;
 	int err;
 
 	dprintk("open dev=%s\n", video_device_node_name(vdev));
@@ -94,12 +95,22 @@ static int ts_open(struct file *file)
 	if (atomic_read(&dev->empress_users))
 		goto done;
 
+	/* allocate + initialize per filehandle data */
+	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
+	err = -ENOMEM;
+	if (NULL == fh)
+		goto done;
+
+	v4l2_fh_init(&fh->fh, vdev);
+	file->private_data = fh;
+	fh->is_empress = true;
+	v4l2_fh_add(&fh->fh);
+
 	/* Unmute audio */
 	saa_writeb(SAA7134_AUDIO_MUTE_CTRL,
 		saa_readb(SAA7134_AUDIO_MUTE_CTRL) & ~(1 << 6));
 
 	atomic_inc(&dev->empress_users);
-	file->private_data = dev;
 	err = 0;
 
 done:
@@ -109,7 +120,8 @@ done:
 
 static int ts_release(struct file *file)
 {
-	struct saa7134_dev *dev = file->private_data;
+	struct saa7134_dev *dev = video_drvdata(file);
+	struct saa7134_fh *fh = file->private_data;
 
 	videobuf_stop(&dev->empress_tsq);
 	videobuf_mmap_free(&dev->empress_tsq);
@@ -123,13 +135,15 @@ static int ts_release(struct file *file)
 
 	atomic_dec(&dev->empress_users);
 
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
 	return 0;
 }
 
 static ssize_t
 ts_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
-	struct saa7134_dev *dev = file->private_data;
+	struct saa7134_dev *dev = video_drvdata(file);
 
 	if (!dev->empress_started)
 		ts_init_encoder(dev);
@@ -142,7 +156,7 @@ ts_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 static unsigned int
 ts_poll(struct file *file, struct poll_table_struct *wait)
 {
-	struct saa7134_dev *dev = file->private_data;
+	struct saa7134_dev *dev = video_drvdata(file);
 
 	return videobuf_poll_stream(file, &dev->empress_tsq, wait);
 }
@@ -151,7 +165,7 @@ ts_poll(struct file *file, struct poll_table_struct *wait)
 static int
 ts_mmap(struct file *file, struct vm_area_struct * vma)
 {
-	struct saa7134_dev *dev = file->private_data;
+	struct saa7134_dev *dev = video_drvdata(file);
 
 	return videobuf_mmap_mapper(&dev->empress_tsq, vma);
 }
@@ -171,7 +185,7 @@ static int empress_enum_fmt_vid_cap(struct file *file, void  *priv,
 static int empress_g_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
-	struct saa7134_dev *dev = file->private_data;
+	struct saa7134_dev *dev = video_drvdata(file);
 	struct v4l2_mbus_framefmt mbus_fmt;
 
 	saa_call_all(dev, video, g_mbus_fmt, &mbus_fmt);
@@ -188,7 +202,7 @@ static int empress_g_fmt_vid_cap(struct file *file, void *priv,
 static int empress_s_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
-	struct saa7134_dev *dev = file->private_data;
+	struct saa7134_dev *dev = video_drvdata(file);
 	struct v4l2_mbus_framefmt mbus_fmt;
 
 	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, V4L2_MBUS_FMT_FIXED);
@@ -206,7 +220,7 @@ static int empress_s_fmt_vid_cap(struct file *file, void *priv,
 static int empress_try_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
-	struct saa7134_dev *dev = file->private_data;
+	struct saa7134_dev *dev = video_drvdata(file);
 	struct v4l2_mbus_framefmt mbus_fmt;
 
 	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, V4L2_MBUS_FMT_FIXED);
@@ -224,7 +238,7 @@ static int empress_try_fmt_vid_cap(struct file *file, void *priv,
 static int empress_reqbufs(struct file *file, void *priv,
 					struct v4l2_requestbuffers *p)
 {
-	struct saa7134_dev *dev = file->private_data;
+	struct saa7134_dev *dev = video_drvdata(file);
 
 	return videobuf_reqbufs(&dev->empress_tsq, p);
 }
@@ -232,21 +246,21 @@ static int empress_reqbufs(struct file *file, void *priv,
 static int empress_querybuf(struct file *file, void *priv,
 					struct v4l2_buffer *b)
 {
-	struct saa7134_dev *dev = file->private_data;
+	struct saa7134_dev *dev = video_drvdata(file);
 
 	return videobuf_querybuf(&dev->empress_tsq, b);
 }
 
 static int empress_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 {
-	struct saa7134_dev *dev = file->private_data;
+	struct saa7134_dev *dev = video_drvdata(file);
 
 	return videobuf_qbuf(&dev->empress_tsq, b);
 }
 
 static int empress_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 {
-	struct saa7134_dev *dev = file->private_data;
+	struct saa7134_dev *dev = video_drvdata(file);
 
 	return videobuf_dqbuf(&dev->empress_tsq, b,
 				file->f_flags & O_NONBLOCK);
@@ -255,7 +269,7 @@ static int empress_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 static int empress_streamon(struct file *file, void *priv,
 					enum v4l2_buf_type type)
 {
-	struct saa7134_dev *dev = file->private_data;
+	struct saa7134_dev *dev = video_drvdata(file);
 
 	return videobuf_streamon(&dev->empress_tsq);
 }
@@ -263,7 +277,7 @@ static int empress_streamon(struct file *file, void *priv,
 static int empress_streamoff(struct file *file, void *priv,
 					enum v4l2_buf_type type)
 {
-	struct saa7134_dev *dev = file->private_data;
+	struct saa7134_dev *dev = video_drvdata(file);
 
 	return videobuf_streamoff(&dev->empress_tsq);
 }
