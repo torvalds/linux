@@ -115,14 +115,14 @@ static void ion_chunk_heap_free(struct ion_buffer *buffer)
 	kfree(table);
 }
 
-struct sg_table *ion_chunk_heap_map_dma(struct ion_heap *heap,
-					 struct ion_buffer *buffer)
+static struct sg_table *ion_chunk_heap_map_dma(struct ion_heap *heap,
+					       struct ion_buffer *buffer)
 {
 	return buffer->priv_virt;
 }
 
-void ion_chunk_heap_unmap_dma(struct ion_heap *heap,
-			       struct ion_buffer *buffer)
+static void ion_chunk_heap_unmap_dma(struct ion_heap *heap,
+				     struct ion_buffer *buffer)
 {
 	return;
 }
