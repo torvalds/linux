@@ -23,11 +23,12 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 
-#include "saa7134-reg.h"
-#include "saa7134.h"
-
 #include <media/saa6752hs.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-event.h>
+
+#include "saa7134-reg.h"
+#include "saa7134.h"
 
 /* ------------------------------------------------------------------ */
 
@@ -144,9 +145,16 @@ ts_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 static unsigned int
 ts_poll(struct file *file, struct poll_table_struct *wait)
 {
+	unsigned long req_events = poll_requested_events(wait);
 	struct saa7134_dev *dev = video_drvdata(file);
+	struct saa7134_fh *fh = file->private_data;
+	unsigned int rc = 0;
 
-	return videobuf_poll_stream(file, &dev->empress_tsq, wait);
+	if (v4l2_event_pending(&fh->fh))
+		rc = POLLPRI;
+	else if (req_events & POLLPRI)
+		poll_wait(file, &fh->fh.wait, wait);
+	return rc | videobuf_poll_stream(file, &dev->empress_tsq, wait);
 }
 
 
@@ -255,6 +263,9 @@ static const struct v4l2_ioctl_ops ts_ioctl_ops = {
 	.vidioc_s_input			= saa7134_s_input,
 	.vidioc_s_std			= saa7134_s_std,
 	.vidioc_g_std			= saa7134_g_std,
+	.vidioc_log_status		= v4l2_ctrl_log_status,
+	.vidioc_subscribe_event		= v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
 };
 
 /* ----------------------------------------------------------- */
