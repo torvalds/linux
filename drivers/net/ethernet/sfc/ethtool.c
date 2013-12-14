@@ -318,6 +318,8 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 			      "eventq.int", NULL);
 	}
 
+	efx_fill_test(n++, strings, data, &tests->memory,
+		      "core", 0, "memory", NULL);
 	efx_fill_test(n++, strings, data, &tests->registers,
 		      "core", 0, "registers", NULL);
 

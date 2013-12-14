@@ -554,13 +554,17 @@ int efx_sriov_set_vf_spoofchk(struct net_device *net_dev, int vf,
 			      bool spoofchk);
 
 struct ethtool_ts_info;
-void efx_ptp_probe(struct efx_nic *efx);
+int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel);
+void efx_ptp_defer_probe_with_channel(struct efx_nic *efx);
+void efx_ptp_remove(struct efx_nic *efx);
 int efx_ptp_set_ts_config(struct efx_nic *efx, struct ifreq *ifr);
 int efx_ptp_get_ts_config(struct efx_nic *efx, struct ifreq *ifr);
 void efx_ptp_get_ts_info(struct efx_nic *efx, struct ethtool_ts_info *ts_info);
 bool efx_ptp_is_ptp_tx(struct efx_nic *efx, struct sk_buff *skb);
 int efx_ptp_tx(struct efx_nic *efx, struct sk_buff *skb);
 void efx_ptp_event(struct efx_nic *efx, efx_qword_t *ev);
+void efx_ptp_start_datapath(struct efx_nic *efx);
+void efx_ptp_stop_datapath(struct efx_nic *efx);
 
 extern const struct efx_nic_type falcon_a1_nic_type;
 extern const struct efx_nic_type falcon_b0_nic_type;
@@ -773,6 +777,7 @@ size_t efx_nic_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
 void efx_nic_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
 			  const unsigned long *mask, u64 *stats,
 			  const void *dma_buf, bool accumulate);
+void efx_nic_fix_nodesc_drop_stat(struct efx_nic *efx, u64 *stat);
 
 #define EFX_MAX_FLUSH_TIME 5000
 

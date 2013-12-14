@@ -214,12 +214,14 @@ struct efx_ptp_timeset {
 
 /**
  * struct efx_ptp_data - Precision Time Protocol (PTP) state
- * @channel: The PTP channel
+ * @efx: The NIC context
+ * @channel: The PTP channel (Siena only)
  * @rxq: Receive queue (awaiting timestamps)
  * @txq: Transmit queue
  * @evt_list: List of MC receive events awaiting packets
  * @evt_free_list: List of free events
  * @evt_lock: Lock for manipulating evt_list and evt_free_list
+ * @evt_overflow: Boolean indicating that event list has overflowed
  * @rx_evts: Instantiated events (on evt_list and evt_free_list)
  * @workwq: Work queue for processing pending PTP operations
  * @work: Work task
@@ -264,12 +266,14 @@ struct efx_ptp_timeset {
  * @timeset: Last set of synchronisation statistics.
  */
 struct efx_ptp_data {
+	struct efx_nic *efx;
 	struct efx_channel *channel;
 	struct sk_buff_head rxq;
 	struct sk_buff_head txq;
 	struct list_head evt_list;
 	struct list_head evt_free_list;
 	spinlock_t evt_lock;
+	bool evt_overflow;
 	struct efx_ptp_event_rx rx_evts[MAX_RECEIVE_EVENTS];
 	struct workqueue_struct *workwq;
 	struct work_struct work;
@@ -311,15 +315,24 @@ static int efx_phc_enable(struct ptp_clock_info *ptp,
 static int efx_ptp_enable(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_PTP_IN_ENABLE_LEN);
+	MCDI_DECLARE_BUF_OUT_OR_ERR(outbuf, 0);
+	int rc;
 
 	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_ENABLE);
 	MCDI_SET_DWORD(inbuf, PTP_IN_PERIPH_ID, 0);
 	MCDI_SET_DWORD(inbuf, PTP_IN_ENABLE_QUEUE,
-		       efx->ptp_data->channel->channel);
+		       efx->ptp_data->channel ?
+		       efx->ptp_data->channel->channel : 0);
 	MCDI_SET_DWORD(inbuf, PTP_IN_ENABLE_MODE, efx->ptp_data->mode);
 
-	return efx_mcdi_rpc(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
-			    NULL, 0, NULL);
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf), NULL);
+	rc = (rc == -EALREADY) ? 0 : rc;
+	if (rc)
+		efx_mcdi_display_error(efx, MC_CMD_PTP,
+				       MC_CMD_PTP_IN_ENABLE_LEN,
+				       outbuf, sizeof(outbuf), rc);
+	return rc;
 }
 
 /* Disable MCDI PTP support.
@@ -330,11 +343,19 @@ static int efx_ptp_enable(struct efx_nic *efx)
 static int efx_ptp_disable(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_PTP_IN_DISABLE_LEN);
+	MCDI_DECLARE_BUF_OUT_OR_ERR(outbuf, 0);
+	int rc;
 
 	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_DISABLE);
 	MCDI_SET_DWORD(inbuf, PTP_IN_PERIPH_ID, 0);
-	return efx_mcdi_rpc(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
-			    NULL, 0, NULL);
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf), NULL);
+	rc = (rc == -EALREADY) ? 0 : rc;
+	if (rc)
+		efx_mcdi_display_error(efx, MC_CMD_PTP,
+				       MC_CMD_PTP_IN_DISABLE_LEN,
+				       outbuf, sizeof(outbuf), rc);
+	return rc;
 }
 
 static void efx_ptp_deliver_rx_queue(struct sk_buff_head *q)
@@ -635,6 +656,11 @@ static void efx_ptp_drop_time_expired_events(struct efx_nic *efx)
 			}
 		}
 	}
+	/* If the event overflow flag is set and the event list is now empty
+	 * clear the flag to re-enable the overflow warning message.
+	 */
+	if (ptp->evt_overflow && list_empty(&ptp->evt_list))
+		ptp->evt_overflow = false;
 	spin_unlock_bh(&ptp->evt_lock);
 }
 
@@ -676,6 +702,11 @@ static enum ptp_packet_state efx_ptp_match_rx(struct efx_nic *efx,
 			break;
 		}
 	}
+	/* If the event overflow flag is set and the event list is now empty
+	 * clear the flag to re-enable the overflow warning message.
+	 */
+	if (ptp->evt_overflow && list_empty(&ptp->evt_list))
+		ptp->evt_overflow = false;
 	spin_unlock_bh(&ptp->evt_lock);
 
 	return rc;
@@ -705,8 +736,9 @@ static bool efx_ptp_process_events(struct efx_nic *efx, struct sk_buff_head *q)
 			__skb_queue_tail(q, skb);
 		} else if (time_after(jiffies, match->expiry)) {
 			match->state = PTP_PACKET_STATE_TIMED_OUT;
-			netif_warn(efx, rx_err, efx->net_dev,
-				   "PTP packet - no timestamp seen\n");
+			if (net_ratelimit())
+				netif_warn(efx, rx_err, efx->net_dev,
+					   "PTP packet - no timestamp seen\n");
 			__skb_queue_tail(q, skb);
 		} else {
 			/* Replace unprocessed entry and stop */
@@ -726,13 +758,27 @@ static inline void efx_ptp_process_rx(struct efx_nic *efx, struct sk_buff *skb)
 	local_bh_enable();
 }
 
-static int efx_ptp_start(struct efx_nic *efx)
+static void efx_ptp_remove_multicast_filters(struct efx_nic *efx)
+{
+	struct efx_ptp_data *ptp = efx->ptp_data;
+
+	if (ptp->rxfilter_installed) {
+		efx_filter_remove_id_safe(efx, EFX_FILTER_PRI_REQUIRED,
+					  ptp->rxfilter_general);
+		efx_filter_remove_id_safe(efx, EFX_FILTER_PRI_REQUIRED,
+					  ptp->rxfilter_event);
+		ptp->rxfilter_installed = false;
+	}
+}
+
+static int efx_ptp_insert_multicast_filters(struct efx_nic *efx)
 {
 	struct efx_ptp_data *ptp = efx->ptp_data;
 	struct efx_filter_spec rxfilter;
 	int rc;
 
-	ptp->reset_required = false;
+	if (!ptp->channel || ptp->rxfilter_installed)
+		return 0;
 
 	/* Must filter on both event and general ports to ensure
 	 * that there is no packet re-ordering.
@@ -765,40 +811,53 @@ static int efx_ptp_start(struct efx_nic *efx)
 		goto fail;
 	ptp->rxfilter_general = rc;
 
-	rc = efx_ptp_enable(efx);
-	if (rc != 0)
-		goto fail2;
-
-	ptp->evt_frag_idx = 0;
-	ptp->current_adjfreq = 0;
 	ptp->rxfilter_installed = true;
-
 	return 0;
 
-fail2:
-	efx_filter_remove_id_safe(efx, EFX_FILTER_PRI_REQUIRED,
-				  ptp->rxfilter_general);
 fail:
 	efx_filter_remove_id_safe(efx, EFX_FILTER_PRI_REQUIRED,
 				  ptp->rxfilter_event);
+	return rc;
+}
 
+static int efx_ptp_start(struct efx_nic *efx)
+{
+	struct efx_ptp_data *ptp = efx->ptp_data;
+	int rc;
+
+	ptp->reset_required = false;
+
+	rc = efx_ptp_insert_multicast_filters(efx);
+	if (rc)
+		return rc;
+
+	rc = efx_ptp_enable(efx);
+	if (rc != 0)
+		goto fail;
+
+	ptp->evt_frag_idx = 0;
+	ptp->current_adjfreq = 0;
+
+	return 0;
+
+fail:
+	efx_ptp_remove_multicast_filters(efx);
 	return rc;
 }
 
 static int efx_ptp_stop(struct efx_nic *efx)
 {
 	struct efx_ptp_data *ptp = efx->ptp_data;
-	int rc = efx_ptp_disable(efx);
 	struct list_head *cursor;
 	struct list_head *next;
+	int rc;
 
-	if (ptp->rxfilter_installed) {
-		efx_filter_remove_id_safe(efx, EFX_FILTER_PRI_REQUIRED,
-					  ptp->rxfilter_general);
-		efx_filter_remove_id_safe(efx, EFX_FILTER_PRI_REQUIRED,
-					  ptp->rxfilter_event);
-		ptp->rxfilter_installed = false;
-	}
+	if (ptp == NULL)
+		return 0;
+
+	rc = efx_ptp_disable(efx);
+
+	efx_ptp_remove_multicast_filters(efx);
 
 	/* Make sure RX packets are really delivered */
 	efx_ptp_deliver_rx_queue(&efx->ptp_data->rxq);
@@ -809,16 +868,24 @@ static int efx_ptp_stop(struct efx_nic *efx)
 	list_for_each_safe(cursor, next, &efx->ptp_data->evt_list) {
 		list_move(cursor, &efx->ptp_data->evt_free_list);
 	}
+	ptp->evt_overflow = false;
 	spin_unlock_bh(&efx->ptp_data->evt_lock);
 
 	return rc;
+}
+
+static int efx_ptp_restart(struct efx_nic *efx)
+{
+	if (efx->ptp_data && efx->ptp_data->enabled)
+		return efx_ptp_start(efx);
+	return 0;
 }
 
 static void efx_ptp_pps_worker(struct work_struct *work)
 {
 	struct efx_ptp_data *ptp =
 		container_of(work, struct efx_ptp_data, pps_work);
-	struct efx_nic *efx = ptp->channel->efx;
+	struct efx_nic *efx = ptp->efx;
 	struct ptp_clock_event ptp_evt;
 
 	if (efx_ptp_synchronize(efx, PTP_SYNC_ATTEMPTS))
@@ -835,7 +902,7 @@ static void efx_ptp_worker(struct work_struct *work)
 {
 	struct efx_ptp_data *ptp_data =
 		container_of(work, struct efx_ptp_data, work);
-	struct efx_nic *efx = ptp_data->channel->efx;
+	struct efx_nic *efx = ptp_data->efx;
 	struct sk_buff *skb;
 	struct sk_buff_head tempq;
 
@@ -859,31 +926,25 @@ static void efx_ptp_worker(struct work_struct *work)
 		efx_ptp_process_rx(efx, skb);
 }
 
-/* Initialise PTP channel and state.
- *
- * Setting core_index to zero causes the queue to be initialised and doesn't
- * overlap with 'rxq0' because ptp.c doesn't use skb_record_rx_queue.
- */
-static int efx_ptp_probe_channel(struct efx_channel *channel)
+/* Initialise PTP state. */
+int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel)
 {
-	struct efx_nic *efx = channel->efx;
 	struct efx_ptp_data *ptp;
 	int rc = 0;
 	unsigned int pos;
-
-	channel->irq_moderation = 0;
-	channel->rx_queue.core_index = 0;
 
 	ptp = kzalloc(sizeof(struct efx_ptp_data), GFP_KERNEL);
 	efx->ptp_data = ptp;
 	if (!efx->ptp_data)
 		return -ENOMEM;
 
+	ptp->efx = efx;
+	ptp->channel = channel;
+
 	rc = efx_nic_alloc_buffer(efx, &ptp->start, sizeof(int), GFP_KERNEL);
 	if (rc != 0)
 		goto fail1;
 
-	ptp->channel = channel;
 	skb_queue_head_init(&ptp->rxq);
 	skb_queue_head_init(&ptp->txq);
 	ptp->workwq = create_singlethread_workqueue("sfc_ptp");
@@ -901,6 +962,7 @@ static int efx_ptp_probe_channel(struct efx_channel *channel)
 	spin_lock_init(&ptp->evt_lock);
 	for (pos = 0; pos < MAX_RECEIVE_EVENTS; pos++)
 		list_add(&ptp->rx_evts[pos].link, &ptp->evt_free_list);
+	ptp->evt_overflow = false;
 
 	ptp->phc_clock_info.owner = THIS_MODULE;
 	snprintf(ptp->phc_clock_info.name,
@@ -949,14 +1011,27 @@ fail1:
 	return rc;
 }
 
-static void efx_ptp_remove_channel(struct efx_channel *channel)
+/* Initialise PTP channel.
+ *
+ * Setting core_index to zero causes the queue to be initialised and doesn't
+ * overlap with 'rxq0' because ptp.c doesn't use skb_record_rx_queue.
+ */
+static int efx_ptp_probe_channel(struct efx_channel *channel)
 {
 	struct efx_nic *efx = channel->efx;
 
+	channel->irq_moderation = 0;
+	channel->rx_queue.core_index = 0;
+
+	return efx_ptp_probe(efx, channel);
+}
+
+void efx_ptp_remove(struct efx_nic *efx)
+{
 	if (!efx->ptp_data)
 		return;
 
-	(void)efx_ptp_disable(channel->efx);
+	(void)efx_ptp_disable(efx);
 
 	cancel_work_sync(&efx->ptp_data->work);
 	cancel_work_sync(&efx->ptp_data->pps_work);
@@ -971,6 +1046,11 @@ static void efx_ptp_remove_channel(struct efx_channel *channel)
 
 	efx_nic_free_buffer(efx, &efx->ptp_data->start);
 	kfree(efx->ptp_data);
+}
+
+static void efx_ptp_remove_channel(struct efx_channel *channel)
+{
+	efx_ptp_remove(channel->efx);
 }
 
 static void efx_ptp_get_channel_name(struct efx_channel *channel,
@@ -989,7 +1069,11 @@ bool efx_ptp_is_ptp_tx(struct efx_nic *efx, struct sk_buff *skb)
 		skb->len >= PTP_MIN_LENGTH &&
 		skb->len <= MC_CMD_PTP_IN_TRANSMIT_PACKET_MAXNUM &&
 		likely(skb->protocol == htons(ETH_P_IP)) &&
+		skb_transport_header_was_set(skb) &&
+		skb_network_header_len(skb) >= sizeof(struct iphdr) &&
 		ip_hdr(skb)->protocol == IPPROTO_UDP &&
+		skb_headlen(skb) >=
+		skb_transport_offset(skb) + sizeof(struct udphdr) &&
 		udp_hdr(skb)->dest == htons(PTP_EVENT_PORT);
 }
 
@@ -1106,7 +1190,7 @@ static int efx_ptp_change_mode(struct efx_nic *efx, bool enable_wanted,
 {
 	if ((enable_wanted != efx->ptp_data->enabled) ||
 	    (enable_wanted && (efx->ptp_data->mode != new_mode))) {
-		int rc;
+		int rc = 0;
 
 		if (enable_wanted) {
 			/* Change of mode requires disable */
@@ -1123,7 +1207,8 @@ static int efx_ptp_change_mode(struct efx_nic *efx, bool enable_wanted,
 			 * succeed.
 			 */
 			efx->ptp_data->mode = new_mode;
-			rc = efx_ptp_start(efx);
+			if (netif_running(efx->net_dev))
+				rc = efx_ptp_start(efx);
 			if (rc == 0) {
 				rc = efx_ptp_synchronize(efx,
 							 PTP_SYNC_ATTEMPTS * 2);
@@ -1304,8 +1389,13 @@ static void ptp_event_rx(struct efx_nic *efx, struct efx_ptp_data *ptp)
 		list_add_tail(&evt->link, &ptp->evt_list);
 
 		queue_work(ptp->workwq, &ptp->work);
-	} else {
-		netif_err(efx, rx_err, efx->net_dev, "No free PTP event");
+	} else if (!ptp->evt_overflow) {
+		/* Log a warning message and set the event overflow flag.
+		 * The message won't be logged again until the event queue
+		 * becomes empty.
+		 */
+		netif_err(efx, rx_err, efx->net_dev, "PTP event queue overflow\n");
+		ptp->evt_overflow = true;
 	}
 	spin_unlock_bh(&ptp->evt_lock);
 }
@@ -1374,7 +1464,7 @@ static int efx_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 	struct efx_ptp_data *ptp_data = container_of(ptp,
 						     struct efx_ptp_data,
 						     phc_clock_info);
-	struct efx_nic *efx = ptp_data->channel->efx;
+	struct efx_nic *efx = ptp_data->efx;
 	MCDI_DECLARE_BUF(inadj, MC_CMD_PTP_IN_ADJUST_LEN);
 	s64 adjustment_ns;
 	int rc;
@@ -1398,7 +1488,7 @@ static int efx_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 	if (rc != 0)
 		return rc;
 
-	ptp_data->current_adjfreq = delta;
+	ptp_data->current_adjfreq = adjustment_ns;
 	return 0;
 }
 
@@ -1407,13 +1497,13 @@ static int efx_phc_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	struct efx_ptp_data *ptp_data = container_of(ptp,
 						     struct efx_ptp_data,
 						     phc_clock_info);
-	struct efx_nic *efx = ptp_data->channel->efx;
+	struct efx_nic *efx = ptp_data->efx;
 	struct timespec delta_ts = ns_to_timespec(delta);
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_PTP_IN_ADJUST_LEN);
 
 	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_ADJUST);
 	MCDI_SET_DWORD(inbuf, PTP_IN_PERIPH_ID, 0);
-	MCDI_SET_QWORD(inbuf, PTP_IN_ADJUST_FREQ, 0);
+	MCDI_SET_QWORD(inbuf, PTP_IN_ADJUST_FREQ, ptp_data->current_adjfreq);
 	MCDI_SET_DWORD(inbuf, PTP_IN_ADJUST_SECONDS, (u32)delta_ts.tv_sec);
 	MCDI_SET_DWORD(inbuf, PTP_IN_ADJUST_NANOSECONDS, (u32)delta_ts.tv_nsec);
 	return efx_mcdi_rpc(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
@@ -1425,7 +1515,7 @@ static int efx_phc_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
 	struct efx_ptp_data *ptp_data = container_of(ptp,
 						     struct efx_ptp_data,
 						     phc_clock_info);
-	struct efx_nic *efx = ptp_data->channel->efx;
+	struct efx_nic *efx = ptp_data->efx;
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_PTP_IN_READ_NIC_TIME_LEN);
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_PTP_OUT_READ_NIC_TIME_LEN);
 	int rc;
@@ -1491,7 +1581,7 @@ static const struct efx_channel_type efx_ptp_channel_type = {
 	.keep_eventq		= false,
 };
 
-void efx_ptp_probe(struct efx_nic *efx)
+void efx_ptp_defer_probe_with_channel(struct efx_nic *efx)
 {
 	/* Check whether PTP is implemented on this NIC.  The DISABLE
 	 * operation will succeed if and only if it is implemented.
@@ -1499,4 +1589,15 @@ void efx_ptp_probe(struct efx_nic *efx)
 	if (efx_ptp_disable(efx) == 0)
 		efx->extra_channel_type[EFX_EXTRA_CHANNEL_PTP] =
 			&efx_ptp_channel_type;
+}
+
+void efx_ptp_start_datapath(struct efx_nic *efx)
+{
+	if (efx_ptp_restart(efx))
+		netif_err(efx, drv, efx->net_dev, "Failed to restart PTP.\n");
+}
+
+void efx_ptp_stop_datapath(struct efx_nic *efx)
+{
+	efx_ptp_stop(efx);
 }

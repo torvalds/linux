@@ -83,6 +83,7 @@ const char *const efx_reset_type_names[] = {
 	[RESET_TYPE_DMA_ERROR]          = "DMA_ERROR",
 	[RESET_TYPE_TX_SKIP]            = "TX_SKIP",
 	[RESET_TYPE_MC_FAILURE]         = "MC_FAILURE",
+	[RESET_TYPE_MC_BIST]		= "MC_BIST",
 };
 
 /* Reset workqueue. If any NIC has a hardware failure then a reset will be
@@ -90,6 +91,12 @@ const char *const efx_reset_type_names[] = {
  * efx_reset_work() acquires the rtnl lock, so resets are naturally serialised.
  */
 static struct workqueue_struct *reset_workqueue;
+
+/* How often and how many times to poll for a reset while waiting for a
+ * BIST that another function started to complete.
+ */
+#define BIST_WAIT_DELAY_MS	100
+#define BIST_WAIT_DELAY_COUNT	100
 
 /**************************************************************************
  *
@@ -246,7 +253,7 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 			efx_channel_get_rx_queue(channel);
 
 		efx_rx_flush_packet(channel);
-		efx_fast_push_rx_descriptors(rx_queue);
+		efx_fast_push_rx_descriptors(rx_queue, true);
 	}
 
 	return spent;
@@ -585,7 +592,7 @@ static void efx_start_datapath(struct efx_nic *efx)
 			   EFX_MAX_FRAME_LEN(efx->net_dev->mtu) +
 			   efx->type->rx_buffer_padding);
 	rx_buf_len = (sizeof(struct efx_rx_page_state) +
-		      NET_IP_ALIGN + efx->rx_dma_len);
+		      efx->rx_ip_align + efx->rx_dma_len);
 	if (rx_buf_len <= PAGE_SIZE) {
 		efx->rx_scatter = efx->type->always_rx_scatter;
 		efx->rx_buffer_order = 0;
@@ -639,11 +646,15 @@ static void efx_start_datapath(struct efx_nic *efx)
 		efx_for_each_channel_rx_queue(rx_queue, channel) {
 			efx_init_rx_queue(rx_queue);
 			atomic_inc(&efx->active_queues);
-			efx_nic_generate_fill_event(rx_queue);
+			efx_stop_eventq(channel);
+			efx_fast_push_rx_descriptors(rx_queue, false);
+			efx_start_eventq(channel);
 		}
 
 		WARN_ON(channel->rx_pkt_n_frags);
 	}
+
+	efx_ptp_start_datapath(efx);
 
 	if (netif_device_present(efx->net_dev))
 		netif_tx_wake_all_queues(efx->net_dev);
@@ -658,6 +669,8 @@ static void efx_stop_datapath(struct efx_nic *efx)
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 	BUG_ON(efx->port_enabled);
+
+	efx_ptp_stop_datapath(efx);
 
 	/* Stop RX refill */
 	efx_for_each_channel(channel, efx) {
@@ -1047,17 +1060,22 @@ static void efx_start_port(struct efx_nic *efx)
 	mutex_lock(&efx->mac_lock);
 	efx->port_enabled = true;
 
-	/* efx_mac_work() might have been scheduled after efx_stop_port(),
-	 * and then cancelled by efx_flush_all() */
+	/* Ensure MAC ingress/egress is enabled */
 	efx->type->reconfigure_mac(efx);
 
 	mutex_unlock(&efx->mac_lock);
 }
 
-/* Prevent efx_mac_work() and efx_monitor() from working */
+/* Cancel work for MAC reconfiguration, periodic hardware monitoring
+ * and the async self-test, wait for them to finish and prevent them
+ * being scheduled again.  This doesn't cover online resets, which
+ * should only be cancelled when removing the device.
+ */
 static void efx_stop_port(struct efx_nic *efx)
 {
 	netif_dbg(efx, ifdown, efx->net_dev, "stop port\n");
+
+	EFX_ASSERT_RESET_SERIALISED(efx);
 
 	mutex_lock(&efx->mac_lock);
 	efx->port_enabled = false;
@@ -1066,6 +1084,10 @@ static void efx_stop_port(struct efx_nic *efx)
 	/* Serialise against efx_set_multicast_list() */
 	netif_addr_lock_bh(efx->net_dev);
 	netif_addr_unlock_bh(efx->net_dev);
+
+	cancel_delayed_work_sync(&efx->monitor_work);
+	efx_selftest_async_cancel(efx);
+	cancel_work_sync(&efx->mac_work);
 }
 
 static void efx_fini_port(struct efx_nic *efx)
@@ -1671,18 +1693,10 @@ static void efx_start_all(struct efx_nic *efx)
 	}
 
 	efx->type->start_stats(efx);
-}
-
-/* Flush all delayed work. Should only be called when no more delayed work
- * will be scheduled. This doesn't flush pending online resets (efx_reset),
- * since we're holding the rtnl_lock at this point. */
-static void efx_flush_all(struct efx_nic *efx)
-{
-	/* Make sure the hardware monitor and event self-test are stopped */
-	cancel_delayed_work_sync(&efx->monitor_work);
-	efx_selftest_async_cancel(efx);
-	/* Stop scheduled port reconfigurations */
-	cancel_work_sync(&efx->mac_work);
+	efx->type->pull_stats(efx);
+	spin_lock_bh(&efx->stats_lock);
+	efx->type->update_stats(efx, NULL, NULL);
+	spin_unlock_bh(&efx->stats_lock);
 }
 
 /* Quiesce the hardware and software data path, and regular activity
@@ -1698,11 +1712,15 @@ static void efx_stop_all(struct efx_nic *efx)
 	if (!efx->port_enabled)
 		return;
 
+	/* update stats before we go down so we can accurately count
+	 * rx_nodesc_drops
+	 */
+	efx->type->pull_stats(efx);
+	spin_lock_bh(&efx->stats_lock);
+	efx->type->update_stats(efx, NULL, NULL);
+	spin_unlock_bh(&efx->stats_lock);
 	efx->type->stop_stats(efx);
 	efx_stop_port(efx);
-
-	/* Flush efx_mac_work(), refill_workqueue, monitor_work */
-	efx_flush_all(efx);
 
 	/* Stop the kernel transmit interface.  This is only valid if
 	 * the device is stopped or detached; otherwise the watchdog
@@ -2385,6 +2403,24 @@ int efx_try_recovery(struct efx_nic *efx)
 	return 0;
 }
 
+static void efx_wait_for_bist_end(struct efx_nic *efx)
+{
+	int i;
+
+	for (i = 0; i < BIST_WAIT_DELAY_COUNT; ++i) {
+		if (efx_mcdi_poll_reboot(efx))
+			goto out;
+		msleep(BIST_WAIT_DELAY_MS);
+	}
+
+	netif_err(efx, drv, efx->net_dev, "Warning: No MC reboot after BIST mode\n");
+out:
+	/* Either way unset the BIST flag. If we found no reboot we probably
+	 * won't recover, but we should try.
+	 */
+	efx->mc_bist_for_other_fn = false;
+}
+
 /* The worker thread exists so that code that cannot sleep can
  * schedule a reset for later.
  */
@@ -2396,6 +2432,9 @@ static void efx_reset_work(struct work_struct *data)
 
 	pending = ACCESS_ONCE(efx->reset_pending);
 	method = fls(pending) - 1;
+
+	if (method == RESET_TYPE_MC_BIST)
+		efx_wait_for_bist_end(efx);
 
 	if ((method == RESET_TYPE_RECOVER_OR_DISABLE ||
 	     method == RESET_TYPE_RECOVER_OR_ALL) &&
@@ -2435,6 +2474,7 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 	case RESET_TYPE_WORLD:
 	case RESET_TYPE_DISABLE:
 	case RESET_TYPE_RECOVER_OR_DISABLE:
+	case RESET_TYPE_MC_BIST:
 		method = type;
 		netif_dbg(efx, drv, efx->net_dev, "scheduling %s reset\n",
 			  RESET_TYPE(method));
@@ -2542,6 +2582,8 @@ static int efx_init_struct(struct efx_nic *efx,
 
 	efx->net_dev = net_dev;
 	efx->rx_prefix_size = efx->type->rx_prefix_size;
+	efx->rx_ip_align =
+		NET_IP_ALIGN ? (efx->rx_prefix_size + NET_IP_ALIGN) % 4 : 0;
 	efx->rx_packet_hash_offset =
 		efx->type->rx_hash_offset - efx->type->rx_prefix_size;
 	spin_lock_init(&efx->stats_lock);

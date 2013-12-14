@@ -722,7 +722,7 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 			return rc_reset;
 		}
 
-		if ((tests->registers < 0) && !rc_test)
+		if ((tests->memory < 0 || tests->registers < 0) && !rc_test)
 			rc_test = -EIO;
 	}
 
