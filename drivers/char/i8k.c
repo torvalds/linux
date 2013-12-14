@@ -31,8 +31,8 @@
 #include <linux/mutex.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
-#include <asm/uaccess.h>
-#include <asm/io.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 
 #include <linux/i8k.h>
 
@@ -105,11 +105,11 @@ static const struct file_operations i8k_fops = {
 
 struct smm_regs {
 	unsigned int eax;
-	unsigned int ebx __attribute__ ((packed));
-	unsigned int ecx __attribute__ ((packed));
-	unsigned int edx __attribute__ ((packed));
-	unsigned int esi __attribute__ ((packed));
-	unsigned int edi __attribute__ ((packed));
+	unsigned int ebx __packed;
+	unsigned int ecx __packed;
+	unsigned int edx __packed;
+	unsigned int esi __packed;
+	unsigned int edi __packed;
 };
 
 static inline const char *i8k_get_dmi_data(int field)
@@ -150,7 +150,7 @@ static int i8k_smm(struct smm_regs *regs)
 		"pushfq\n\t"
 		"popq %%rax\n\t"
 		"andl $1,%%eax\n"
-		:"=a"(rc)
+		: "=a"(rc)
 		:    "a"(regs)
 		:    "%ebx", "%ecx", "%edx", "%esi", "%edi", "memory");
 #else
@@ -176,7 +176,7 @@ static int i8k_smm(struct smm_regs *regs)
 	    "lahf\n\t"
 	    "shrl $8,%%eax\n\t"
 	    "andl $1,%%eax\n"
-	    :"=a"(rc)
+	    : "=a"(rc)
 	    :    "a"(regs)
 	    :    "%ebx", "%ecx", "%edx", "%esi", "%edi", "memory");
 #endif
@@ -205,7 +205,8 @@ static int i8k_get_fn_status(void)
 	struct smm_regs regs = { .eax = I8K_SMM_FN_STATUS, };
 	int rc;
 
-	if ((rc = i8k_smm(&regs)) < 0)
+	rc = i8k_smm(&regs);
+	if (rc < 0)
 		return rc;
 
 	switch ((regs.eax >> I8K_FN_SHIFT) & I8K_FN_MASK) {
@@ -228,7 +229,8 @@ static int i8k_get_power_status(void)
 	struct smm_regs regs = { .eax = I8K_SMM_POWER_STATUS, };
 	int rc;
 
-	if ((rc = i8k_smm(&regs)) < 0)
+	rc = i8k_smm(&regs);
+	if (rc < 0)
 		return rc;
 
 	return (regs.eax & 0xff) == I8K_POWER_AC ? I8K_AC : I8K_BATTERY;
@@ -282,7 +284,8 @@ static int i8k_get_temp(int sensor)
 	static int prev;
 #endif
 	regs.ebx = sensor & 0xff;
-	if ((rc = i8k_smm(&regs)) < 0)
+	rc = i8k_smm(&regs);
+	if (rc < 0)
 		return rc;
 
 	temp = regs.eax & 0xff;
@@ -311,7 +314,8 @@ static int i8k_get_dell_signature(int req_fn)
 	struct smm_regs regs = { .eax = req_fn, };
 	int rc;
 
-	if ((rc = i8k_smm(&regs)) < 0)
+	rc = i8k_smm(&regs);
+	if (rc < 0)
 		return rc;
 
 	return regs.eax == 1145651527 && regs.edx == 1145392204 ? 0 : -1;
@@ -335,7 +339,8 @@ i8k_ioctl_unlocked(struct file *fp, unsigned int cmd, unsigned long arg)
 
 	case I8K_MACHINE_ID:
 		memset(buff, 0, 16);
-		strlcpy(buff, i8k_get_dmi_data(DMI_PRODUCT_SERIAL), sizeof(buff));
+		strlcpy(buff, i8k_get_dmi_data(DMI_PRODUCT_SERIAL),
+			sizeof(buff));
 		break;
 
 	case I8K_FN_STATUS:
@@ -609,7 +614,7 @@ static void __exit i8k_exit_hwmon(void)
 	hwmon_device_unregister(i8k_hwmon_dev);
 }
 
-static struct dmi_system_id __initdata i8k_dmi_table[] = {
+static struct dmi_system_id i8k_dmi_table[] __initdata = {
 	{
 		.ident = "Dell Inspiron",
 		.matches = {
@@ -673,7 +678,7 @@ static struct dmi_system_id __initdata i8k_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "XPS L421X"),
 		},
 	},
-        { }
+	{ }
 };
 
 /*
@@ -698,7 +703,8 @@ static int __init i8k_probe(void)
 			i8k_get_dmi_data(DMI_BIOS_VERSION));
 	}
 
-	strlcpy(bios_version, i8k_get_dmi_data(DMI_BIOS_VERSION), sizeof(bios_version));
+	strlcpy(bios_version, i8k_get_dmi_data(DMI_BIOS_VERSION),
+		sizeof(bios_version));
 
 	/*
 	 * Get SMM Dell signature
