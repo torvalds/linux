@@ -11,7 +11,6 @@
    GNU General Public License for more details.
 */
 
-#include <linux/version.h>
 #include <linux/if_arp.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
