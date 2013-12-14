@@ -2035,7 +2035,7 @@ static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 	__log_bus_error(mci, &err, ecc_type);
 }
 
-void amd64_decode_bus_error(int node_id, struct mce *m)
+static void amd64_decode_bus_error(int node_id, struct mce *m)
 {
 	__amd64_decode_bus_error(mcis[node_id], m);
 }
