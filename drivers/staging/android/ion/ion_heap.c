@@ -281,7 +281,7 @@ struct ion_heap *ion_heap_create(struct ion_platform_heap *heap_data)
 	}
 
 	if (IS_ERR_OR_NULL(heap)) {
-		pr_err("%s: error creating heap %s type %d base %lu size %u\n",
+		pr_err("%s: error creating heap %s type %d base %lu size %zu\n",
 		       __func__, heap_data->name, heap_data->type,
 		       heap_data->base, heap_data->size);
 		return ERR_PTR(-EINVAL);
