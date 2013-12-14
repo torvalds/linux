@@ -70,11 +70,11 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 	struct ath9k_beacon_state bs;
 	enum ath9k_int imask = 0;
 	int dtimperiod, dtimcount, sleepduration;
-	int cfpperiod, cfpcount, bmiss_timeout;
+	int bmiss_timeout;
 	u32 nexttbtt = 0, intval, tsftu;
 	__be32 htc_imask = 0;
 	u64 tsf;
-	int num_beacons, offset, dtim_dec_count, cfp_dec_count;
+	int num_beacons, offset, dtim_dec_count;
 	int ret __attribute__ ((unused));
 	u8 cmd_rsp;
 
@@ -84,7 +84,7 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 	bmiss_timeout = (ATH_DEFAULT_BMISS_LIMIT * bss_conf->beacon_interval);
 
 	/*
-	 * Setup dtim and cfp parameters according to
+	 * Setup dtim parameters according to
 	 * last beacon we received (which may be none).
 	 */
 	dtimperiod = bss_conf->dtim_period;
@@ -93,8 +93,6 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 	dtimcount = 1;
 	if (dtimcount >= dtimperiod)	/* NB: sanity check */
 		dtimcount = 0;
-	cfpperiod = 1;			/* NB: no PCF support yet */
-	cfpcount = 0;
 
 	sleepduration = intval;
 	if (sleepduration <= 0)
@@ -102,7 +100,7 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 
 	/*
 	 * Pull nexttbtt forward to reflect the current
-	 * TSF and calculate dtim+cfp state for the result.
+	 * TSF and calculate dtim state for the result.
 	 */
 	tsf = ath9k_hw_gettsf64(priv->ah);
 	tsftu = TSF_TO_TU(tsf>>32, tsf) + FUDGE;
@@ -115,26 +113,14 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 
 	/* DTIM Beacon every dtimperiod Beacon */
 	dtim_dec_count = num_beacons % dtimperiod;
-	/* CFP every cfpperiod DTIM Beacon */
-	cfp_dec_count = (num_beacons / dtimperiod) % cfpperiod;
-	if (dtim_dec_count)
-		cfp_dec_count++;
-
 	dtimcount -= dtim_dec_count;
 	if (dtimcount < 0)
 		dtimcount += dtimperiod;
 
-	cfpcount -= cfp_dec_count;
-	if (cfpcount < 0)
-		cfpcount += cfpperiod;
-
-	bs.bs_intval = intval;
-	bs.bs_nexttbtt = nexttbtt;
-	bs.bs_dtimperiod = dtimperiod*intval;
-	bs.bs_nextdtim = bs.bs_nexttbtt + dtimcount*intval;
-	bs.bs_cfpperiod = cfpperiod*bs.bs_dtimperiod;
-	bs.bs_cfpnext = bs.bs_nextdtim + cfpcount*bs.bs_dtimperiod;
-	bs.bs_cfpmaxduration = 0;
+	bs.bs_intval = TU_TO_USEC(intval);
+	bs.bs_nexttbtt = TU_TO_USEC(nexttbtt);
+	bs.bs_dtimperiod = dtimperiod * bs.bs_intval;
+	bs.bs_nextdtim = bs.bs_nexttbtt + dtimcount * bs.bs_intval;
 
 	/*
 	 * Calculate the number of consecutive beacons to miss* before taking
@@ -161,7 +147,8 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 	 * XXX fixed at 100ms
 	 */
 
-	bs.bs_sleepduration = roundup(IEEE80211_MS_TO_TU(100), sleepduration);
+	bs.bs_sleepduration = TU_TO_USEC(roundup(IEEE80211_MS_TO_TU(100),
+						 sleepduration));
 	if (bs.bs_sleepduration > bs.bs_dtimperiod)
 		bs.bs_sleepduration = bs.bs_dtimperiod;
 
@@ -170,10 +157,8 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 
 	ath_dbg(common, CONFIG, "intval: %u tsf: %llu tsftu: %u\n",
 		intval, tsf, tsftu);
-	ath_dbg(common, CONFIG,
-		"bmiss: %u sleep: %u cfp-period: %u maxdur: %u next: %u\n",
-		bs.bs_bmissthreshold, bs.bs_sleepduration,
-		bs.bs_cfpperiod, bs.bs_cfpmaxduration, bs.bs_cfpnext);
+	ath_dbg(common, CONFIG, "bmiss: %u sleep: %u\n",
+		bs.bs_bmissthreshold, bs.bs_sleepduration);
 
 	/* Set the computed STA beacon timers */
 

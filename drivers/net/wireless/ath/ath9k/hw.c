@@ -2292,12 +2292,9 @@ void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
-	REG_WRITE(ah, AR_NEXT_TBTT_TIMER, TU_TO_USEC(bs->bs_nexttbtt));
-
-	REG_WRITE(ah, AR_BEACON_PERIOD,
-		  TU_TO_USEC(bs->bs_intval));
-	REG_WRITE(ah, AR_DMA_BEACON_PERIOD,
-		  TU_TO_USEC(bs->bs_intval));
+	REG_WRITE(ah, AR_NEXT_TBTT_TIMER, bs->bs_nexttbtt);
+	REG_WRITE(ah, AR_BEACON_PERIOD, bs->bs_intval);
+	REG_WRITE(ah, AR_DMA_BEACON_PERIOD, bs->bs_intval);
 
 	REGWRITE_BUFFER_FLUSH(ah);
 
@@ -2325,9 +2322,8 @@ void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
-	REG_WRITE(ah, AR_NEXT_DTIM,
-		  TU_TO_USEC(bs->bs_nextdtim - SLEEP_SLOP));
-	REG_WRITE(ah, AR_NEXT_TIM, TU_TO_USEC(nextTbtt - SLEEP_SLOP));
+	REG_WRITE(ah, AR_NEXT_DTIM, bs->bs_nextdtim - SLEEP_SLOP);
+	REG_WRITE(ah, AR_NEXT_TIM, nextTbtt - SLEEP_SLOP);
 
 	REG_WRITE(ah, AR_SLEEP1,
 		  SM((CAB_TIMEOUT_VAL << 3), AR_SLEEP1_CAB_TIMEOUT)
@@ -2341,8 +2337,8 @@ void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 	REG_WRITE(ah, AR_SLEEP2,
 		  SM(beacontimeout, AR_SLEEP2_BEACON_TIMEOUT));
 
-	REG_WRITE(ah, AR_TIM_PERIOD, TU_TO_USEC(beaconintval));
-	REG_WRITE(ah, AR_DTIM_PERIOD, TU_TO_USEC(dtimperiod));
+	REG_WRITE(ah, AR_TIM_PERIOD, beaconintval);
+	REG_WRITE(ah, AR_DTIM_PERIOD, dtimperiod);
 
 	REGWRITE_BUFFER_FLUSH(ah);
 

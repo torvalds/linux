@@ -168,7 +168,7 @@
 #define CAB_TIMEOUT_VAL             10
 #define BEACON_TIMEOUT_VAL          10
 #define MIN_BEACON_TIMEOUT_VAL      1
-#define SLEEP_SLOP                  3
+#define SLEEP_SLOP                  TU_TO_USEC(3)
 
 #define INIT_CONFIG_STATUS          0x00000000
 #define INIT_RSSI_THR               0x00000700
@@ -451,10 +451,6 @@ struct ath9k_beacon_state {
 	u32 bs_intval;
 #define ATH9K_TSFOOR_THRESHOLD    0x00004240 /* 16k us */
 	u32 bs_dtimperiod;
-	u16 bs_cfpperiod;
-	u16 bs_cfpmaxduration;
-	u32 bs_cfpnext;
-	u16 bs_timoffset;
 	u16 bs_bmissthreshold;
 	u32 bs_sleepduration;
 	u32 bs_tsfoor_threshold;
