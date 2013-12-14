@@ -15,12 +15,18 @@ ip_default_ttl - INTEGER
 	forwarded) IP packets. Should be between 1 and 255 inclusive.
 	Default: 64 (as recommended by RFC1700)
 
-ip_no_pmtu_disc - BOOLEAN
-	Disable Path MTU Discovery. If enabled and a
+ip_no_pmtu_disc - INTEGER
+	Disable Path MTU Discovery. If enabled in mode 1 and a
 	fragmentation-required ICMP is received, the PMTU to this
 	destination will be set to min_pmtu (see below). You will need
 	to raise min_pmtu to the smallest interface MTU on your system
 	manually if you want to avoid locally generated fragments.
+
+	In mode 2 incoming Path MTU Discovery messages will be
+	discarded. Outgoing frames are handled the same as in mode 1,
+	implicitly setting IP_PMTUDISC_DONT on every created socket.
+
+	Possible values: 0-2
 	Default: FALSE
 
 min_pmtu - INTEGER
