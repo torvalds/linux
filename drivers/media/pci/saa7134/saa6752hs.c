@@ -33,11 +33,11 @@
 #include <linux/i2c.h>
 #include <linux/types.h>
 #include <linux/videodev2.h>
+#include <linux/init.h>
+#include <linux/crc32.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-common.h>
-#include <linux/init.h>
-#include <linux/crc32.h>
 
 #define MPEG_VIDEO_TARGET_BITRATE_MAX  27000
 #define MPEG_VIDEO_MAX_BITRATE_MAX     27000
@@ -124,7 +124,7 @@ static inline struct saa6752hs_state *to_state(struct v4l2_subdev *sd)
 
 /* ---------------------------------------------------------------------- */
 
-static u8 PAT[] = {
+static const u8 PAT[] = {
 	0xc2, /* i2c register */
 	0x00, /* table number for encoder */
 
@@ -150,7 +150,7 @@ static u8 PAT[] = {
 	0x00, 0x00, 0x00, 0x00 /* CRC32 */
 };
 
-static u8 PMT[] = {
+static const u8 PMT[] = {
 	0xc2, /* i2c register */
 	0x01, /* table number for encoder */
 
@@ -179,7 +179,7 @@ static u8 PMT[] = {
 	0x00, 0x00, 0x00, 0x00 /* CRC32 */
 };
 
-static u8 PMT_AC3[] = {
+static const u8 PMT_AC3[] = {
 	0xc2, /* i2c register */
 	0x01, /* table number for encoder(1) */
 	0x47, /* sync */
@@ -212,7 +212,7 @@ static u8 PMT_AC3[] = {
 	0xED, 0xDE, 0x2D, 0xF3 /* CRC32 BE */
 };
 
-static struct saa6752hs_mpeg_params param_defaults =
+static const struct saa6752hs_mpeg_params param_defaults =
 {
 	.ts_pid_pmt      = 16,
 	.ts_pid_video    = 260,
@@ -643,13 +643,6 @@ static const struct v4l2_ctrl_ops saa6752hs_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops saa6752hs_core_ops = {
 	.init = saa6752hs_init,
-	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
-	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
-	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
-	.g_ctrl = v4l2_subdev_g_ctrl,
-	.s_ctrl = v4l2_subdev_s_ctrl,
-	.queryctrl = v4l2_subdev_queryctrl,
-	.querymenu = v4l2_subdev_querymenu,
 	.s_std = saa6752hs_s_std,
 };
 
