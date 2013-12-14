@@ -402,6 +402,7 @@ static long saa6588_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case SAA6588_CMD_CLOSE:
 		s->data_available_for_read = 1;
 		wake_up_interruptible(&s->read_queue);
+		s->data_available_for_read = 0;
 		a->result = 0;
 		break;
 		/* --- read() for /dev/radio --- */
