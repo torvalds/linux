@@ -156,54 +156,6 @@ ts_mmap(struct file *file, struct vm_area_struct * vma)
 	return videobuf_mmap_mapper(&dev->empress_tsq, vma);
 }
 
-/*
- * This function is _not_ called directly, but from
- * video_generic_ioctl (and maybe others).  userspace
- * copying is done already, arg is a kernel pointer.
- */
-
-static int empress_querycap(struct file *file, void  *priv,
-					struct v4l2_capability *cap)
-{
-	struct saa7134_dev *dev = file->private_data;
-
-	strcpy(cap->driver, "saa7134");
-	strlcpy(cap->card, saa7134_boards[dev->board].name,
-		sizeof(cap->card));
-	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
-	cap->capabilities =
-		V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_READWRITE |
-		V4L2_CAP_STREAMING;
-	return 0;
-}
-
-static int empress_enum_input(struct file *file, void *priv,
-					struct v4l2_input *i)
-{
-	if (i->index != 0)
-		return -EINVAL;
-
-	i->type = V4L2_INPUT_TYPE_CAMERA;
-	strcpy(i->name, "CCIR656");
-
-	return 0;
-}
-
-static int empress_g_input(struct file *file, void *priv, unsigned int *i)
-{
-	*i = 0;
-	return 0;
-}
-
-static int empress_s_input(struct file *file, void *priv, unsigned int i)
-{
-	if (i != 0)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int empress_enum_fmt_vid_cap(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
@@ -316,21 +268,6 @@ static int empress_streamoff(struct file *file, void *priv,
 	return videobuf_streamoff(&dev->empress_tsq);
 }
 
-static int empress_s_std(struct file *file, void *priv, v4l2_std_id id)
-{
-	struct saa7134_dev *dev = file->private_data;
-
-	return saa7134_s_std_internal(dev, NULL, id);
-}
-
-static int empress_g_std(struct file *file, void *priv, v4l2_std_id *id)
-{
-	struct saa7134_dev *dev = file->private_data;
-
-	*id = dev->tvnorm->id;
-	return 0;
-}
-
 static const struct v4l2_file_operations ts_fops =
 {
 	.owner	  = THIS_MODULE,
@@ -343,7 +280,7 @@ static const struct v4l2_file_operations ts_fops =
 };
 
 static const struct v4l2_ioctl_ops ts_ioctl_ops = {
-	.vidioc_querycap		= empress_querycap,
+	.vidioc_querycap		= saa7134_querycap,
 	.vidioc_enum_fmt_vid_cap	= empress_enum_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap		= empress_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap		= empress_s_fmt_vid_cap,
@@ -354,11 +291,15 @@ static const struct v4l2_ioctl_ops ts_ioctl_ops = {
 	.vidioc_dqbuf			= empress_dqbuf,
 	.vidioc_streamon		= empress_streamon,
 	.vidioc_streamoff		= empress_streamoff,
-	.vidioc_enum_input		= empress_enum_input,
-	.vidioc_g_input			= empress_g_input,
-	.vidioc_s_input			= empress_s_input,
-	.vidioc_s_std			= empress_s_std,
-	.vidioc_g_std			= empress_g_std,
+	.vidioc_g_frequency		= saa7134_g_frequency,
+	.vidioc_s_frequency		= saa7134_s_frequency,
+	.vidioc_g_tuner			= saa7134_g_tuner,
+	.vidioc_s_tuner			= saa7134_s_tuner,
+	.vidioc_enum_input		= saa7134_enum_input,
+	.vidioc_g_input			= saa7134_g_input,
+	.vidioc_s_input			= saa7134_s_input,
+	.vidioc_s_std			= saa7134_s_std,
+	.vidioc_g_std			= saa7134_g_std,
 };
 
 /* ----------------------------------------------------------- */
