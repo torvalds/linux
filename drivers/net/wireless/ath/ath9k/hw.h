@@ -292,8 +292,6 @@ struct ath9k_ops_config {
 	int serialize_regmode;
 	bool rx_intr_mitigation;
 	bool tx_intr_mitigation;
-#define AR_SPUR_5413_1      	1640
-#define AR_SPUR_5413_2      	1200
 #define AR_NO_SPUR      	0x8000
 #define AR_BASE_FREQ_2GHZ   	2300
 #define AR_BASE_FREQ_5GHZ   	4900
