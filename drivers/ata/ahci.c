@@ -1145,7 +1145,7 @@ static inline void ahci_gtf_filter_workaround(struct ata_host *host)
 {}
 #endif
 
-int ahci_init_interrupts(struct pci_dev *pdev, struct ahci_host_priv *hpriv)
+static int ahci_init_interrupts(struct pci_dev *pdev, struct ahci_host_priv *hpriv)
 {
 	int rc;
 	unsigned int maxvec;
