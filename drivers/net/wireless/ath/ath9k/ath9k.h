@@ -477,20 +477,19 @@ enum bt_op_flags {
 };
 
 struct ath_btcoex {
-	bool hw_timer_enabled;
 	spinlock_t btcoex_lock;
 	struct timer_list period_timer; /* Timer for BT period */
+	struct timer_list no_stomp_timer;
 	u32 bt_priority_cnt;
 	unsigned long bt_priority_time;
 	unsigned long op_flags;
 	int bt_stomp_type; /* Types of BT stomping */
-	u32 btcoex_no_stomp; /* in usec */
+	u32 btcoex_no_stomp; /* in msec */
 	u32 btcoex_period; /* in msec */
-	u32 btscan_no_stomp; /* in usec */
+	u32 btscan_no_stomp; /* in msec */
 	u32 duty_cycle;
 	u32 bt_wait_time;
 	int rssi_count;
-	struct ath_gen_timer *no_stomp_timer; /* Timer for no BT stomping */
 	struct ath_mci_profile mci;
 	u8 stomp_audio;
 };

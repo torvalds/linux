@@ -200,7 +200,7 @@ skip_tuning:
 	if (btcoex->duty_cycle > ATH_MCI_MAX_DUTY_CYCLE)
 		btcoex->duty_cycle = ATH_MCI_MAX_DUTY_CYCLE;
 
-	btcoex->btcoex_no_stomp =  btcoex->btcoex_period * 1000 *
+	btcoex->btcoex_no_stomp =  btcoex->btcoex_period *
 		(100 - btcoex->duty_cycle) / 100;
 
 	ath9k_hw_btcoex_enable(sc->sc_ah);
