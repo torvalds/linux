@@ -1158,28 +1158,20 @@ static u32 mwifiex_parse_cal_cfg(u8 *src, size_t len, u8 *dst)
 
 /* This function prepares command of set_cfg_data. */
 static int mwifiex_cmd_cfg_data(struct mwifiex_private *priv,
-				struct host_cmd_ds_command *cmd,
-				u16 cmd_action)
+				struct host_cmd_ds_command *cmd)
 {
-	struct host_cmd_ds_802_11_cfg_data *cfg_data = &cmd->params.cfg_data;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	u32 len, cal_data_offset;
-	u8 *tmp_cmd = (u8 *)cmd;
+	u32 len;
+	u8 *data = (u8 *)cmd + S_DS_GEN;
 
-	cal_data_offset = S_DS_GEN + sizeof(*cfg_data);
 	if ((adapter->cal_data->data) && (adapter->cal_data->size > 0))
 		len = mwifiex_parse_cal_cfg((u8 *)adapter->cal_data->data,
-					    adapter->cal_data->size,
-					    (u8 *)(tmp_cmd + cal_data_offset));
+					    adapter->cal_data->size, data);
 	else
 		return -1;
 
-	cfg_data->action = cpu_to_le16(cmd_action);
-	cfg_data->type = cpu_to_le16(CFG_DATA_TYPE_CAL);
-	cfg_data->data_len = cpu_to_le16(len);
-
 	cmd->command = cpu_to_le16(HostCmd_CMD_CFG_DATA);
-	cmd->size = cpu_to_le16(S_DS_GEN + sizeof(*cfg_data) + len);
+	cmd->size = cpu_to_le16(S_DS_GEN + len);
 
 	return 0;
 }
@@ -1267,7 +1259,7 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		ret = mwifiex_cmd_get_hw_spec(priv, cmd_ptr);
 		break;
 	case HostCmd_CMD_CFG_DATA:
-		ret = mwifiex_cmd_cfg_data(priv, cmd_ptr, cmd_action);
+		ret = mwifiex_cmd_cfg_data(priv, cmd_ptr);
 		break;
 	case HostCmd_CMD_MAC_CONTROL:
 		ret = mwifiex_cmd_mac_control(priv, cmd_ptr, cmd_action,
