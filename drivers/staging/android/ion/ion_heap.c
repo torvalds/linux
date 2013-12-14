@@ -114,38 +114,49 @@ static int ion_heap_clear_pages(struct page **pages, int num, pgprot_t pgprot)
 	return 0;
 }
 
+static int ion_heap_sglist_zero(struct scatterlist *sgl, unsigned int nents,
+						pgprot_t pgprot)
+{
+	int p = 0;
+	int ret = 0;
+	struct sg_page_iter piter;
+	struct page *pages[32];
+
+	for_each_sg_page(sgl, &piter, nents, 0) {
+		pages[p++] = sg_page_iter_page(&piter);
+		if (p == ARRAY_SIZE(pages)) {
+			ret = ion_heap_clear_pages(pages, p, pgprot);
+			if (ret)
+				return ret;
+			p = 0;
+		}
+	}
+	if (p)
+		ret = ion_heap_clear_pages(pages, p, pgprot);
+
+	return ret;
+}
+
 int ion_heap_buffer_zero(struct ion_buffer *buffer)
 {
 	struct sg_table *table = buffer->sg_table;
 	pgprot_t pgprot;
-	struct scatterlist *sg;
-	int i, j, ret = 0;
-	struct page *pages[32];
-	int k = 0;
 
 	if (buffer->flags & ION_FLAG_CACHED)
 		pgprot = PAGE_KERNEL;
 	else
 		pgprot = pgprot_writecombine(PAGE_KERNEL);
 
-	for_each_sg(table->sgl, sg, table->nents, i) {
-		struct page *page = sg_page(sg);
-		unsigned long len = sg->length;
+	return ion_heap_sglist_zero(table->sgl, table->nents, pgprot);
+}
 
-		for (j = 0; j < len / PAGE_SIZE; j++) {
-			pages[k++] = page + j;
-			if (k == ARRAY_SIZE(pages)) {
-				ret = ion_heap_clear_pages(pages, k, pgprot);
-				if (ret)
-					goto end;
-				k = 0;
-			}
-		}
-		if (k)
-			ret = ion_heap_clear_pages(pages, k, pgprot);
-	}
-end:
-	return ret;
+int ion_heap_pages_zero(struct page *page, size_t size, pgprot_t pgprot)
+{
+	struct scatterlist sg;
+
+	sg_init_table(&sg, 1);
+	sg_set_page(&sg, page, size, 0);
+	return ion_heap_sglist_zero(&sg, 1, pgprot);
 }
 
 void ion_heap_freelist_add(struct ion_heap *heap, struct ion_buffer * buffer)
