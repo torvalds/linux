@@ -501,9 +501,9 @@ int pciehp_power_on_slot(struct slot * slot)
 
 	/* Clear sticky power-fault bit from previous power failures */
 	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
-	slot_status &= PCI_EXP_SLTSTA_PFD;
-	if (slot_status)
-		pcie_capability_write_word(pdev, PCI_EXP_SLTSTA, slot_status);
+	if (slot_status & PCI_EXP_SLTSTA_PFD)
+		pcie_capability_write_word(pdev, PCI_EXP_SLTSTA,
+					   PCI_EXP_SLTSTA_PFD);
 	ctrl->power_fault_detected = 0;
 
 	slot_cmd = POWER_ON;
