@@ -5,6 +5,7 @@
  *
  * Hwmon integration:
  * Copyright (C) 2011  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2013  Guenter Roeck <linux@roeck-us.net>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
