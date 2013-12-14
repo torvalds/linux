@@ -32,12 +32,8 @@ static int ar9002_hw_init_mode_regs(struct ath_hw *ah)
 		return 0;
 	}
 
-	if (ah->config.pcie_clock_req)
-		INIT_INI_ARRAY(&ah->iniPcieSerdes,
-			   ar9280PciePhy_clkreq_off_L1_9280);
-	else
-		INIT_INI_ARRAY(&ah->iniPcieSerdes,
-			   ar9280PciePhy_clkreq_always_on_L1_9280);
+	INIT_INI_ARRAY(&ah->iniPcieSerdes,
+		       ar9280PciePhy_clkreq_always_on_L1_9280);
 
 	if (AR_SREV_9287_11_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniModes, ar9287Modes_9287_1_1);
