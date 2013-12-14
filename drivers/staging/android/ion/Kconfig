@@ -1,6 +1,5 @@
 menuconfig ION
 	tristate "Ion Memory Manager"
-	depends on ARM
 	select GENERIC_ALLOCATOR
 	select DMA_SHARED_BUFFER
 	help
