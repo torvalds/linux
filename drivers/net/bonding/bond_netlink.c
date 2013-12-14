@@ -125,7 +125,7 @@ static int bond_changelink(struct net_device *bond_dev,
 		int i = 0, rem;
 
 		nla_for_each_nested(attr, data[IFLA_BOND_ARP_IP_TARGET], rem) {
-			__be32 target = nla_get_u32(attr);
+			__be32 target = nla_get_be32(attr);
 			targets[i++] = target;
 		}
 
@@ -224,7 +224,7 @@ static int bond_fill_info(struct sk_buff *skb,
 	targets_added = 0;
 	for (i = 0; i < BOND_MAX_ARP_TARGETS; i++) {
 		if (bond->params.arp_targets[i]) {
-			nla_put_u32(skb, i, bond->params.arp_targets[i]);
+			nla_put_be32(skb, i, bond->params.arp_targets[i]);
 			targets_added = 1;
 		}
 	}
