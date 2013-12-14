@@ -476,12 +476,12 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 
 	/* XXX: Keycache */
 	rxs->rs_rssi = MS(rxsp->status5, AR_RxRSSICombined);
-	rxs->rs_rssi_ctl0 = MS(rxsp->status1, AR_RxRSSIAnt00);
-	rxs->rs_rssi_ctl1 = MS(rxsp->status1, AR_RxRSSIAnt01);
-	rxs->rs_rssi_ctl2 = MS(rxsp->status1, AR_RxRSSIAnt02);
-	rxs->rs_rssi_ext0 = MS(rxsp->status5, AR_RxRSSIAnt10);
-	rxs->rs_rssi_ext1 = MS(rxsp->status5, AR_RxRSSIAnt11);
-	rxs->rs_rssi_ext2 = MS(rxsp->status5, AR_RxRSSIAnt12);
+	rxs->rs_rssi_ctl[0] = MS(rxsp->status1, AR_RxRSSIAnt00);
+	rxs->rs_rssi_ctl[1] = MS(rxsp->status1, AR_RxRSSIAnt01);
+	rxs->rs_rssi_ctl[2] = MS(rxsp->status1, AR_RxRSSIAnt02);
+	rxs->rs_rssi_ext[0] = MS(rxsp->status5, AR_RxRSSIAnt10);
+	rxs->rs_rssi_ext[1] = MS(rxsp->status5, AR_RxRSSIAnt11);
+	rxs->rs_rssi_ext[2] = MS(rxsp->status5, AR_RxRSSIAnt12);
 
 	if (rxsp->status11 & AR_RxKeyIdxValid)
 		rxs->rs_keyix = MS(rxsp->status11, AR_KeyIdx);

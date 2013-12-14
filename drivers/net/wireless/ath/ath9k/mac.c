@@ -550,25 +550,25 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 
 	if (ads.ds_rxstatus8 & AR_PostDelimCRCErr) {
 		rs->rs_rssi = ATH9K_RSSI_BAD;
-		rs->rs_rssi_ctl0 = ATH9K_RSSI_BAD;
-		rs->rs_rssi_ctl1 = ATH9K_RSSI_BAD;
-		rs->rs_rssi_ctl2 = ATH9K_RSSI_BAD;
-		rs->rs_rssi_ext0 = ATH9K_RSSI_BAD;
-		rs->rs_rssi_ext1 = ATH9K_RSSI_BAD;
-		rs->rs_rssi_ext2 = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ctl[0] = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ctl[1] = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ctl[2] = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ext[0] = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ext[1] = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ext[2] = ATH9K_RSSI_BAD;
 	} else {
 		rs->rs_rssi = MS(ads.ds_rxstatus4, AR_RxRSSICombined);
-		rs->rs_rssi_ctl0 = MS(ads.ds_rxstatus0,
+		rs->rs_rssi_ctl[0] = MS(ads.ds_rxstatus0,
 						AR_RxRSSIAnt00);
-		rs->rs_rssi_ctl1 = MS(ads.ds_rxstatus0,
+		rs->rs_rssi_ctl[1] = MS(ads.ds_rxstatus0,
 						AR_RxRSSIAnt01);
-		rs->rs_rssi_ctl2 = MS(ads.ds_rxstatus0,
+		rs->rs_rssi_ctl[2] = MS(ads.ds_rxstatus0,
 						AR_RxRSSIAnt02);
-		rs->rs_rssi_ext0 = MS(ads.ds_rxstatus4,
+		rs->rs_rssi_ext[0] = MS(ads.ds_rxstatus4,
 						AR_RxRSSIAnt10);
-		rs->rs_rssi_ext1 = MS(ads.ds_rxstatus4,
+		rs->rs_rssi_ext[1] = MS(ads.ds_rxstatus4,
 						AR_RxRSSIAnt11);
-		rs->rs_rssi_ext2 = MS(ads.ds_rxstatus4,
+		rs->rs_rssi_ext[2] = MS(ads.ds_rxstatus4,
 						AR_RxRSSIAnt12);
 	}
 	if (ads.ds_rxstatus8 & AR_RxKeyIdxValid)
