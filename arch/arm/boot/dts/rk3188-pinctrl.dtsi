@@ -78,7 +78,7 @@
 			bias-disable;
 		};
 
-		uart0 {
+		gpio1_uart0 {
 			uart0_xfer: uart0-xfer {
 				rockchip,pins = <UART0_SIN>,
 						<UART0_SOUT>;
@@ -105,7 +105,7 @@
 			};
 		};
 
-		uart1 {
+		gpio1_uart1 {
 			uart1_xfer: uart1-xfer {
 				rockchip,pins = <UART1_SIN>,
 						<UART1_SOUT>;
@@ -132,7 +132,7 @@
 			};
 		};
 
-		uart2 {
+		gpio1_uart2 {
 			uart2_xfer: uart2-xfer {
 				rockchip,pins = <UART2_SIN>,
 						<UART2_SOUT>;
@@ -144,7 +144,7 @@
 			/* no rts / cts for uart2 */
 		};
 
-		uart3 {
+		gpio1_uart3 {
 			uart3_xfer: uart3-xfer {
 				rockchip,pins = <UART3_SIN>,
 						<UART3_SOUT>;
@@ -171,7 +171,7 @@
 			};
 		};
 
-		i2c0 {
+		gpio1_i2c0 {
 			i2c0_sda:i2c0-sda {
 				rockchip,pins = <I2C0_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -189,7 +189,7 @@
 			};
 		};
 
-		i2c1 {
+		gpio1_i2c1 {
 			i2c1_sda:i2c1-sda {
 				rockchip,pins = <I2C1_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -207,7 +207,7 @@
 			};
 		};
 
-		i2c2 {
+		gpio1_i2c2 {
 			i2c2_sda:i2c2-sda {
 				rockchip,pins = <I2C2_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -225,7 +225,7 @@
 			};
 		};
 
-		i2c3 {
+		gpio1_i2c3 {
 			i2c3_sda:i2c3-sda {
 				rockchip,pins = <I2C3_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -243,7 +243,7 @@
 			};
 		};
 
-		i2c4 {
+		gpio1_i2c4 {
 			i2c4_sda:i2c4-sda {
 				rockchip,pins = <I2C4_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -261,7 +261,7 @@
 			};
 		};
 
-		spi0 {
+		gpio1_spi0 {
 			spi0_txd:spi0-txd {
 				rockchip,pins = <SPI0_TXD>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -304,7 +304,7 @@
 
 		};
 
-		spi1 {
+		gpio1_spi1 {
 			spi1_txd:spi1-txd {
 				rockchip,pins = <SPI1_TXD>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -347,7 +347,7 @@
 
 		};
 
-		i2s0 {
+		gpio1_i2s0 {
 
 			i2s0_mclk:i2s0-mclk {
 				rockchip,pins = <I2S0_MCLK>;
@@ -406,7 +406,7 @@
 		};
 
 
-		pwm {
+		gpio3_pwm {
 			pwm0:pwm0 {
 				rockchip,pins = <PWM0>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -446,7 +446,7 @@
 		};
 
 		
-		sd0 {
+		gpio3_sdio {
 			sd0_clk: sd0-clk {
 				rockchip,pins = <MMC0_CLKOUT>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -508,7 +508,7 @@
 		};
 
 	
-		sd1 {
+		gpio3_sdmmc {
 			sd1_clk: sd1-clk {
 				rockchip,pins = <MMC1_CLKOUT>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -592,7 +592,6 @@
 			};
 
 		};
-
 
 
 		//to add

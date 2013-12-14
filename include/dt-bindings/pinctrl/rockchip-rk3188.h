@@ -451,6 +451,16 @@
 #define JTAG_TMS 0x3d62
 #define HOST_DRV_VBUS 0x3d63
 
+
+#define RK2928_PULL_OFFSET		0x118
+#define RK2928_PULL_PINS_PER_REG	16
+#define RK2928_PULL_BANK_STRIDE		8
+
+#define RK3188_PULL_BITS_PER_PIN	2
+#define RK3188_PULL_PINS_PER_REG	8
+#define RK3188_PULL_BANK_STRIDE		16
+
+
 /*warning:don not chang the following value*/
 #define VALUE_PULL_DISABLE	0
 #define VALUE_PULL_UP		1
