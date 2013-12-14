@@ -34,8 +34,6 @@
 
 #include <linux/i8k.h>
 
-#define I8K_VERSION		"1.14 21/02/2005"
-
 #define I8K_SMM_FN_STATUS	0x0025
 #define I8K_SMM_POWER_STATUS	0x0069
 #define I8K_SMM_SET_FAN		0x01a3
@@ -761,9 +759,6 @@ static int __init i8k_init(void)
 	err = i8k_init_hwmon();
 	if (err)
 		goto exit_remove_proc;
-
-	pr_info("Dell laptop SMM driver v%s Massimo Dal Zotto (dz@debian.org)\n",
-		I8K_VERSION);
 
 	return 0;
 
