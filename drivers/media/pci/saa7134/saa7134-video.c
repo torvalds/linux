@@ -403,16 +403,6 @@ static int res_get(struct saa7134_dev *dev, struct saa7134_fh *fh, unsigned int 
 	return 1;
 }
 
-static int res_check(struct saa7134_fh *fh, unsigned int bit)
-{
-	return (fh->resources & bit);
-}
-
-static int res_locked(struct saa7134_dev *dev, unsigned int bit)
-{
-	return (dev->resources & bit);
-}
-
 static
 void res_free(struct saa7134_dev *dev, struct saa7134_fh *fh, unsigned int bits)
 {
@@ -1091,11 +1081,12 @@ static struct videobuf_queue *saa7134_queue(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct saa7134_dev *dev = video_drvdata(file);
+	struct saa7134_fh *fh = file->private_data;
 	struct videobuf_queue *q = NULL;
 
 	switch (vdev->vfl_type) {
 	case VFL_TYPE_GRABBER:
-		q = &dev->cap;
+		q = fh->is_empress ? &dev->empress_tsq : &dev->cap;
 		break;
 	case VFL_TYPE_VBI:
 		q = &dev->vbi;
@@ -1109,9 +1100,10 @@ static struct videobuf_queue *saa7134_queue(struct file *file)
 static int saa7134_resource(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
+	struct saa7134_fh *fh = file->private_data;
 
 	if (vdev->vfl_type == VFL_TYPE_GRABBER)
-		return RESOURCE_VIDEO;
+		return fh->is_empress ? RESOURCE_EMPRESS : RESOURCE_VIDEO;
 
 	if (vdev->vfl_type == VFL_TYPE_VBI)
 		return RESOURCE_VBI;
@@ -1935,30 +1927,34 @@ static int saa7134_overlay(struct file *file, void *priv, unsigned int on)
 	return 0;
 }
 
-static int saa7134_reqbufs(struct file *file, void *priv,
+int saa7134_reqbufs(struct file *file, void *priv,
 					struct v4l2_requestbuffers *p)
 {
 	return videobuf_reqbufs(saa7134_queue(file), p);
 }
+EXPORT_SYMBOL_GPL(saa7134_reqbufs);
 
-static int saa7134_querybuf(struct file *file, void *priv,
+int saa7134_querybuf(struct file *file, void *priv,
 					struct v4l2_buffer *b)
 {
 	return videobuf_querybuf(saa7134_queue(file), b);
 }
+EXPORT_SYMBOL_GPL(saa7134_querybuf);
 
-static int saa7134_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
+int saa7134_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 {
 	return videobuf_qbuf(saa7134_queue(file), b);
 }
+EXPORT_SYMBOL_GPL(saa7134_qbuf);
 
-static int saa7134_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
+int saa7134_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 {
 	return videobuf_dqbuf(saa7134_queue(file), b,
 				file->f_flags & O_NONBLOCK);
 }
+EXPORT_SYMBOL_GPL(saa7134_dqbuf);
 
-static int saa7134_streamon(struct file *file, void *priv,
+int saa7134_streamon(struct file *file, void *priv,
 					enum v4l2_buf_type type)
 {
 	struct saa7134_dev *dev = video_drvdata(file);
@@ -1974,21 +1970,23 @@ static int saa7134_streamon(struct file *file, void *priv,
 	 * Unfortunately, I lack register-level documentation to check the
 	 * Linux FIFO setup and confirm the perfect value.
 	 */
-	pm_qos_add_request(&dev->qos_request,
-			   PM_QOS_CPU_DMA_LATENCY,
-			   20);
+	if (res != RESOURCE_EMPRESS)
+		pm_qos_add_request(&dev->qos_request,
+			   PM_QOS_CPU_DMA_LATENCY, 20);
 
 	return videobuf_streamon(saa7134_queue(file));
 }
+EXPORT_SYMBOL_GPL(saa7134_streamon);
 
-static int saa7134_streamoff(struct file *file, void *priv,
+int saa7134_streamoff(struct file *file, void *priv,
 					enum v4l2_buf_type type)
 {
 	struct saa7134_dev *dev = video_drvdata(file);
 	int err;
 	int res = saa7134_resource(file);
 
-	pm_qos_remove_request(&dev->qos_request);
+	if (res != RESOURCE_EMPRESS)
+		pm_qos_remove_request(&dev->qos_request);
 
 	err = videobuf_streamoff(saa7134_queue(file));
 	if (err < 0)
@@ -1996,6 +1994,7 @@ static int saa7134_streamoff(struct file *file, void *priv,
 	res_free(dev, priv, res);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(saa7134_streamoff);
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int vidioc_g_register (struct file *file, void *priv,

@@ -86,20 +86,11 @@ static int ts_open(struct file *file)
 	struct video_device *vdev = video_devdata(file);
 	struct saa7134_dev *dev = video_drvdata(file);
 	struct saa7134_fh *fh;
-	int err;
-
-	dprintk("open dev=%s\n", video_device_node_name(vdev));
-	err = -EBUSY;
-	if (!mutex_trylock(&dev->empress_tsq.vb_lock))
-		return err;
-	if (atomic_read(&dev->empress_users))
-		goto done;
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
-	err = -ENOMEM;
 	if (NULL == fh)
-		goto done;
+		return -ENOMEM;
 
 	v4l2_fh_init(&fh->fh, vdev);
 	file->private_data = fh;
@@ -110,12 +101,7 @@ static int ts_open(struct file *file)
 	saa_writeb(SAA7134_AUDIO_MUTE_CTRL,
 		saa_readb(SAA7134_AUDIO_MUTE_CTRL) & ~(1 << 6));
 
-	atomic_inc(&dev->empress_users);
-	err = 0;
-
-done:
-	mutex_unlock(&dev->empress_tsq.vb_lock);
-	return err;
+	return 0;
 }
 
 static int ts_release(struct file *file)
@@ -123,17 +109,17 @@ static int ts_release(struct file *file)
 	struct saa7134_dev *dev = video_drvdata(file);
 	struct saa7134_fh *fh = file->private_data;
 
-	videobuf_stop(&dev->empress_tsq);
-	videobuf_mmap_free(&dev->empress_tsq);
+	if (res_check(fh, RESOURCE_EMPRESS)) {
+		videobuf_stop(&dev->empress_tsq);
+		videobuf_mmap_free(&dev->empress_tsq);
 
-	/* stop the encoder */
-	ts_reset_encoder(dev);
+		/* stop the encoder */
+		ts_reset_encoder(dev);
 
-	/* Mute audio */
-	saa_writeb(SAA7134_AUDIO_MUTE_CTRL,
-		saa_readb(SAA7134_AUDIO_MUTE_CTRL) | (1 << 6));
-
-	atomic_dec(&dev->empress_users);
+		/* Mute audio */
+		saa_writeb(SAA7134_AUDIO_MUTE_CTRL,
+				saa_readb(SAA7134_AUDIO_MUTE_CTRL) | (1 << 6));
+	}
 
 	v4l2_fh_del(&fh->fh);
 	v4l2_fh_exit(&fh->fh);
@@ -145,6 +131,8 @@ ts_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
 	struct saa7134_dev *dev = video_drvdata(file);
 
+	if (res_locked(dev, RESOURCE_EMPRESS))
+		return -EBUSY;
 	if (!dev->empress_started)
 		ts_init_encoder(dev);
 
@@ -235,53 +223,6 @@ static int empress_try_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int empress_reqbufs(struct file *file, void *priv,
-					struct v4l2_requestbuffers *p)
-{
-	struct saa7134_dev *dev = video_drvdata(file);
-
-	return videobuf_reqbufs(&dev->empress_tsq, p);
-}
-
-static int empress_querybuf(struct file *file, void *priv,
-					struct v4l2_buffer *b)
-{
-	struct saa7134_dev *dev = video_drvdata(file);
-
-	return videobuf_querybuf(&dev->empress_tsq, b);
-}
-
-static int empress_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
-{
-	struct saa7134_dev *dev = video_drvdata(file);
-
-	return videobuf_qbuf(&dev->empress_tsq, b);
-}
-
-static int empress_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
-{
-	struct saa7134_dev *dev = video_drvdata(file);
-
-	return videobuf_dqbuf(&dev->empress_tsq, b,
-				file->f_flags & O_NONBLOCK);
-}
-
-static int empress_streamon(struct file *file, void *priv,
-					enum v4l2_buf_type type)
-{
-	struct saa7134_dev *dev = video_drvdata(file);
-
-	return videobuf_streamon(&dev->empress_tsq);
-}
-
-static int empress_streamoff(struct file *file, void *priv,
-					enum v4l2_buf_type type)
-{
-	struct saa7134_dev *dev = video_drvdata(file);
-
-	return videobuf_streamoff(&dev->empress_tsq);
-}
-
 static const struct v4l2_file_operations ts_fops =
 {
 	.owner	  = THIS_MODULE,
@@ -299,12 +240,12 @@ static const struct v4l2_ioctl_ops ts_ioctl_ops = {
 	.vidioc_try_fmt_vid_cap		= empress_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap		= empress_s_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap		= empress_g_fmt_vid_cap,
-	.vidioc_reqbufs			= empress_reqbufs,
-	.vidioc_querybuf		= empress_querybuf,
-	.vidioc_qbuf			= empress_qbuf,
-	.vidioc_dqbuf			= empress_dqbuf,
-	.vidioc_streamon		= empress_streamon,
-	.vidioc_streamoff		= empress_streamoff,
+	.vidioc_reqbufs			= saa7134_reqbufs,
+	.vidioc_querybuf		= saa7134_querybuf,
+	.vidioc_qbuf			= saa7134_qbuf,
+	.vidioc_dqbuf			= saa7134_dqbuf,
+	.vidioc_streamon		= saa7134_streamon,
+	.vidioc_streamoff		= saa7134_streamoff,
 	.vidioc_g_frequency		= saa7134_g_frequency,
 	.vidioc_s_frequency		= saa7134_s_frequency,
 	.vidioc_g_tuner			= saa7134_g_tuner,
@@ -375,6 +316,7 @@ static int empress_init(struct saa7134_dev *dev)
 	snprintf(dev->empress_dev->name, sizeof(dev->empress_dev->name),
 		 "%s empress (%s)", dev->name,
 		 saa7134_boards[dev->board].name);
+	set_bit(V4L2_FL_USE_FH_PRIO, &dev->empress_dev->flags);
 	v4l2_ctrl_handler_init(hdl, 21);
 	v4l2_ctrl_add_handler(hdl, &dev->ctrl_handler, empress_ctrl_filter);
 	if (dev->empress_sd)

@@ -422,6 +422,7 @@ struct saa7134_board {
 #define RESOURCE_OVERLAY       1
 #define RESOURCE_VIDEO         2
 #define RESOURCE_VBI           4
+#define RESOURCE_EMPRESS       8
 
 #define INTERLACE_AUTO         0
 #define INTERLACE_ON           1
@@ -644,7 +645,6 @@ struct saa7134_dev {
 	struct video_device        *empress_dev;
 	struct v4l2_subdev	   *empress_sd;
 	struct videobuf_queue      empress_tsq;
-	atomic_t 		   empress_users;
 	struct work_struct         empress_workqueue;
 	int                        empress_started;
 	struct v4l2_ctrl_handler   empress_ctrl_handler;
@@ -704,6 +704,16 @@ struct saa7134_dev {
 		dev->gate_ctrl(dev, 0);					\
 	_rc;								\
 })
+
+static inline int res_check(struct saa7134_fh *fh, unsigned int bit)
+{
+	return fh->resources & bit;
+}
+
+static inline int res_locked(struct saa7134_dev *dev, unsigned int bit)
+{
+	return dev->resources & bit;
+}
 
 /* ----------------------------------------------------------- */
 /* saa7134-core.c                                              */
@@ -782,6 +792,16 @@ int saa7134_g_frequency(struct file *file, void *priv,
 					struct v4l2_frequency *f);
 int saa7134_s_frequency(struct file *file, void *priv,
 					const struct v4l2_frequency *f);
+int saa7134_reqbufs(struct file *file, void *priv,
+					struct v4l2_requestbuffers *p);
+int saa7134_querybuf(struct file *file, void *priv,
+					struct v4l2_buffer *b);
+int saa7134_qbuf(struct file *file, void *priv, struct v4l2_buffer *b);
+int saa7134_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b);
+int saa7134_streamon(struct file *file, void *priv,
+					enum v4l2_buf_type type);
+int saa7134_streamoff(struct file *file, void *priv,
+					enum v4l2_buf_type type);
 
 int saa7134_videoport_init(struct saa7134_dev *dev);
 void saa7134_set_tvnorm_hw(struct saa7134_dev *dev);
