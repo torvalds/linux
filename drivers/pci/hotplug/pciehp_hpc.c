@@ -153,7 +153,7 @@ static void pcie_wait_cmd(struct controller *ctrl, int poll)
  * @cmd:  command value written to slot control register
  * @mask: bitmask of slot control register to be modified
  */
-static int pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
+static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 {
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	u16 slot_status;
@@ -208,7 +208,6 @@ static int pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
                 pcie_wait_cmd(ctrl, poll);
 	}
 	mutex_unlock(&ctrl->ctrl_lock);
-	return 0;
 }
 
 static bool check_link_active(struct controller *ctrl)
@@ -342,7 +341,7 @@ static int pciehp_link_disable(struct controller *ctrl)
 	return __pciehp_link_set(ctrl, false);
 }
 
-int pciehp_get_attention_status(struct slot *slot, u8 *status)
+void pciehp_get_attention_status(struct slot *slot, u8 *status)
 {
 	struct controller *ctrl = slot->ctrl;
 	struct pci_dev *pdev = ctrl_dev(ctrl);
@@ -372,11 +371,9 @@ int pciehp_get_attention_status(struct slot *slot, u8 *status)
 		*status = 0xFF;
 		break;
 	}
-
-	return 0;
 }
 
-int pciehp_get_power_status(struct slot *slot, u8 *status)
+void pciehp_get_power_status(struct slot *slot, u8 *status)
 {
 	struct controller *ctrl = slot->ctrl;
 	struct pci_dev *pdev = ctrl_dev(ctrl);
@@ -400,28 +397,24 @@ int pciehp_get_power_status(struct slot *slot, u8 *status)
 		*status = 0xFF;
 		break;
 	}
-
-	return 0;
 }
 
-int pciehp_get_latch_status(struct slot *slot, u8 *status)
+void pciehp_get_latch_status(struct slot *slot, u8 *status)
 {
 	struct pci_dev *pdev = ctrl_dev(slot->ctrl);
 	u16 slot_status;
 
 	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
 	*status = !!(slot_status & PCI_EXP_SLTSTA_MRLSS);
-	return 0;
 }
 
-int pciehp_get_adapter_status(struct slot *slot, u8 *status)
+void pciehp_get_adapter_status(struct slot *slot, u8 *status)
 {
 	struct pci_dev *pdev = ctrl_dev(slot->ctrl);
 	u16 slot_status;
 
 	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
 	*status = !!(slot_status & PCI_EXP_SLTSTA_PDS);
-	return 0;
 }
 
 int pciehp_query_power_fault(struct slot *slot)
@@ -433,7 +426,7 @@ int pciehp_query_power_fault(struct slot *slot)
 	return !!(slot_status & PCI_EXP_SLTSTA_PFD);
 }
 
-int pciehp_set_attention_status(struct slot *slot, u8 value)
+void pciehp_set_attention_status(struct slot *slot, u8 value)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
@@ -451,11 +444,11 @@ int pciehp_set_attention_status(struct slot *slot, u8 value)
 		slot_cmd = 0x0080;
 		break;
 	default:
-		return -EINVAL;
+		return;
 	}
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, slot_cmd);
-	return pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
+	pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
 }
 
 void pciehp_green_led_on(struct slot *slot)
@@ -515,11 +508,7 @@ int pciehp_power_on_slot(struct slot * slot)
 
 	slot_cmd = POWER_ON;
 	cmd_mask = PCI_EXP_SLTCTL_PCC;
-	retval = pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
-	if (retval) {
-		ctrl_err(ctrl, "Write %x command failed!\n", slot_cmd);
-		return retval;
-	}
+	pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, slot_cmd);
 
@@ -530,12 +519,11 @@ int pciehp_power_on_slot(struct slot * slot)
 	return retval;
 }
 
-int pciehp_power_off_slot(struct slot * slot)
+void pciehp_power_off_slot(struct slot * slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
 	u16 cmd_mask;
-	int retval;
 
 	/* Disable the link at first */
 	pciehp_link_disable(ctrl);
@@ -547,14 +535,9 @@ int pciehp_power_off_slot(struct slot * slot)
 
 	slot_cmd = POWER_OFF;
 	cmd_mask = PCI_EXP_SLTCTL_PCC;
-	retval = pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
-	if (retval) {
-		ctrl_err(ctrl, "Write command failed!\n");
-		return retval;
-	}
+	pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, slot_cmd);
-	return 0;
 }
 
 static irqreturn_t pcie_isr(int irq, void *dev_id)
@@ -617,7 +600,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int pcie_enable_notification(struct controller *ctrl)
+void pcie_enable_notification(struct controller *ctrl)
 {
 	u16 cmd, mask;
 
@@ -643,22 +626,18 @@ int pcie_enable_notification(struct controller *ctrl)
 		PCI_EXP_SLTCTL_MRLSCE | PCI_EXP_SLTCTL_PFDE |
 		PCI_EXP_SLTCTL_HPIE | PCI_EXP_SLTCTL_CCIE);
 
-	if (pcie_write_cmd(ctrl, cmd, mask)) {
-		ctrl_err(ctrl, "Cannot enable software notification\n");
-		return -1;
-	}
-	return 0;
+	pcie_write_cmd(ctrl, cmd, mask);
 }
 
 static void pcie_disable_notification(struct controller *ctrl)
 {
 	u16 mask;
+
 	mask = (PCI_EXP_SLTCTL_PDCE | PCI_EXP_SLTCTL_ABPE |
 		PCI_EXP_SLTCTL_MRLSCE | PCI_EXP_SLTCTL_PFDE |
 		PCI_EXP_SLTCTL_HPIE | PCI_EXP_SLTCTL_CCIE |
 		PCI_EXP_SLTCTL_DLLSCE);
-	if (pcie_write_cmd(ctrl, 0, mask))
-		ctrl_warn(ctrl, "Cannot disable software notification\n");
+	pcie_write_cmd(ctrl, 0, mask);
 }
 
 /*
@@ -698,10 +677,7 @@ int pcie_init_notification(struct controller *ctrl)
 {
 	if (pciehp_request_irq(ctrl))
 		return -1;
-	if (pcie_enable_notification(ctrl)) {
-		pciehp_free_irq(ctrl);
-		return -1;
-	}
+	pcie_enable_notification(ctrl);
 	ctrl->notification_enabled = 1;
 	return 0;
 }
