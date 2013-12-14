@@ -234,6 +234,13 @@ static int mwifiex_process_country_ie(struct mwifiex_private *priv,
 		return -1;
 	}
 
+	if (priv->adapter->dt_node) {
+		char txpwr[] = {"marvell,00_txpwrlimit"};
+
+		memcpy(&txpwr[8], priv->adapter->country_code, 2);
+		mwifiex_dnld_dt_cfgdata(priv, priv->adapter->dt_node, txpwr);
+	}
+
 	return 0;
 }
 

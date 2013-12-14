@@ -538,6 +538,8 @@ static void mwifiex_reg_notifier(struct wiphy *wiphy,
 				 struct regulatory_request *request)
 {
 	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
+	struct mwifiex_private *priv = mwifiex_get_priv(adapter,
+							MWIFIEX_BSS_ROLE_ANY);
 
 	wiphy_dbg(wiphy, "info: cfg80211 regulatory domain callback for %c%c\n",
 		  request->alpha2[0], request->alpha2[1]);
@@ -561,6 +563,14 @@ static void mwifiex_reg_notifier(struct wiphy *wiphy,
 		memcpy(adapter->country_code, request->alpha2,
 		       sizeof(request->alpha2));
 		mwifiex_send_domain_info_cmd_fw(wiphy);
+
+		if (adapter->dt_node) {
+			char txpwr[] = {"marvell,00_txpwrlimit"};
+
+			memcpy(&txpwr[8], adapter->country_code, 2);
+			mwifiex_dnld_dt_cfgdata(priv, adapter->dt_node,
+						txpwr);
+		}
 	}
 }
 

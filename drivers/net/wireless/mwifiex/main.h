@@ -1153,6 +1153,8 @@ void mwifiex_uap_del_sta_data(struct mwifiex_private *priv,
 void mwifiex_11h_process_join(struct mwifiex_private *priv, u8 **buffer,
 			      struct mwifiex_bssdescriptor *bss_desc);
 int mwifiex_11h_handle_event_chanswann(struct mwifiex_private *priv);
+int mwifiex_dnld_dt_cfgdata(struct mwifiex_private *priv,
+			    struct device_node *node, const char *prefix);
 
 extern const struct ethtool_ops mwifiex_ethtool_ops;
 

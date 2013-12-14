@@ -1156,8 +1156,8 @@ static u32 mwifiex_parse_cal_cfg(u8 *src, size_t len, u8 *dst)
 	return d - dst;
 }
 
-static int mwifiex_dnld_dt_cfgdata(struct mwifiex_private *priv,
-				   struct device_node *node, const char *prefix)
+int mwifiex_dnld_dt_cfgdata(struct mwifiex_private *priv,
+			    struct device_node *node, const char *prefix)
 {
 #ifdef CONFIG_OF
 	struct property *prop;
