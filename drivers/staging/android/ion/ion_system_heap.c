@@ -422,17 +422,6 @@ void ion_system_contig_heap_unmap_dma(struct ion_heap *heap,
 	kfree(buffer->sg_table);
 }
 
-int ion_system_contig_heap_map_user(struct ion_heap *heap,
-				    struct ion_buffer *buffer,
-				    struct vm_area_struct *vma)
-{
-	unsigned long pfn = page_to_pfn(virt_to_page(buffer->priv_virt));
-	return remap_pfn_range(vma, vma->vm_start, pfn + vma->vm_pgoff,
-			       vma->vm_end - vma->vm_start,
-			       vma->vm_page_prot);
-
-}
-
 static struct ion_heap_ops kmalloc_ops = {
 	.allocate = ion_system_contig_heap_allocate,
 	.free = ion_system_contig_heap_free,
@@ -441,7 +430,7 @@ static struct ion_heap_ops kmalloc_ops = {
 	.unmap_dma = ion_system_contig_heap_unmap_dma,
 	.map_kernel = ion_heap_map_kernel,
 	.unmap_kernel = ion_heap_unmap_kernel,
-	.map_user = ion_system_contig_heap_map_user,
+	.map_user = ion_heap_map_user,
 };
 
 struct ion_heap *ion_system_contig_heap_create(struct ion_platform_heap *unused)
