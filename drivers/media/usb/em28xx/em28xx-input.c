@@ -30,8 +30,9 @@
 
 #include "em28xx.h"
 
-#define EM28XX_SNAPSHOT_KEY KEY_CAMERA
-#define EM28XX_BUTTONS_QUERY_INTERVAL 500
+#define EM28XX_SNAPSHOT_KEY				KEY_CAMERA
+#define EM28XX_BUTTONS_DEBOUNCED_QUERY_INTERVAL		500 /* [ms] */
+#define EM28XX_BUTTONS_VOLATILE_QUERY_INTERVAL		100 /* [ms] */
 
 static unsigned int ir_debug;
 module_param(ir_debug, int, 0644);
@@ -546,7 +547,7 @@ static void em28xx_query_buttons(struct work_struct *work)
 	}
 	/* Schedule next poll */
 	schedule_delayed_work(&dev->buttons_query_work,
-			      msecs_to_jiffies(EM28XX_BUTTONS_QUERY_INTERVAL));
+			      msecs_to_jiffies(dev->button_polling_interval));
 }
 
 static int em28xx_register_snapshot_button(struct em28xx *dev)
@@ -594,6 +595,7 @@ static void em28xx_init_buttons(struct em28xx *dev)
 	u8  i = 0, j = 0;
 	bool addr_new = 0;
 
+	dev->button_polling_interval = EM28XX_BUTTONS_DEBOUNCED_QUERY_INTERVAL;
 	while (dev->board.buttons[i].role >= 0 &&
 			 dev->board.buttons[i].role < EM28XX_NUM_BUTTON_ROLES) {
 		struct em28xx_button *button = &dev->board.buttons[i];
@@ -609,18 +611,18 @@ static void em28xx_init_buttons(struct em28xx *dev)
 		if (addr_new && dev->num_button_polling_addresses
 					   >= EM28XX_NUM_BUTTON_ADDRESSES_MAX) {
 			WARN_ONCE(1, "BUG: maximum number of button polling addresses exceeded.");
-			addr_new = 0;
+			goto next_button;
 		}
 		/* Button role specific checks and actions */
 		if (button->role == EM28XX_BUTTON_SNAPSHOT) {
 			/* Register input device */
 			if (em28xx_register_snapshot_button(dev) < 0)
-				addr_new = 0;
+				goto next_button;
 		} else if (button->role == EM28XX_BUTTON_ILLUMINATION) {
 			/* Check sanity */
 			if (!em28xx_find_led(dev, EM28XX_LED_ILLUMINATION)) {
 				em28xx_errdev("BUG: illumination button defined, but no illumination LED.\n");
-				addr_new = 0;
+				goto next_button;
 			}
 		}
 		/* Add read address to list of polling addresses */
@@ -629,6 +631,11 @@ static void em28xx_init_buttons(struct em28xx *dev)
 			dev->button_polling_addresses[index] = button->reg_r;
 			dev->num_button_polling_addresses++;
 		}
+		/* Reduce polling interval if necessary */
+		if (!button->reg_clearing)
+			dev->button_polling_interval =
+					 EM28XX_BUTTONS_VOLATILE_QUERY_INTERVAL;
+next_button:
 		/* Next button */
 		i++;
 	}
@@ -640,7 +647,7 @@ static void em28xx_init_buttons(struct em28xx *dev)
 		INIT_DELAYED_WORK(&dev->buttons_query_work,
 							  em28xx_query_buttons);
 		schedule_delayed_work(&dev->buttons_query_work,
-			       msecs_to_jiffies(EM28XX_BUTTONS_QUERY_INTERVAL));
+			       msecs_to_jiffies(dev->button_polling_interval));
 	}
 }
 
