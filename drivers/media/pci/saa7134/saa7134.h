@@ -472,14 +472,6 @@ struct saa7134_fh {
 	struct v4l2_fh             fh;
 	struct saa7134_dev         *dev;
 	unsigned int               resources;
-
-	/* video capture */
-	struct videobuf_queue      cap;
-	struct saa7134_pgtable     pt_cap;
-
-	/* vbi capture */
-	struct videobuf_queue      vbi;
-	struct saa7134_pgtable     pt_vbi;
 };
 
 /* dmasound dsp status */
@@ -589,7 +581,11 @@ struct saa7134_dev {
 
 	/* video+ts+vbi capture */
 	struct saa7134_dmaqueue    video_q;
+	struct videobuf_queue      cap;
+	struct saa7134_pgtable     pt_cap;
 	struct saa7134_dmaqueue    vbi_q;
+	struct videobuf_queue      vbi;
+	struct saa7134_pgtable     pt_vbi;
 	unsigned int               video_fieldcount;
 	unsigned int               vbi_fieldcount;
 	struct saa7134_format      *fmt;
@@ -773,6 +769,7 @@ int saa7134_video_init1(struct saa7134_dev *dev);
 int saa7134_video_init2(struct saa7134_dev *dev);
 void saa7134_irq_video_signalchange(struct saa7134_dev *dev);
 void saa7134_irq_video_done(struct saa7134_dev *dev, unsigned long status);
+void saa7134_video_fini(struct saa7134_dev *dev);
 
 
 /* ----------------------------------------------------------- */

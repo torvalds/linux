@@ -1018,8 +1018,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 			  struct videobuf_buffer *vb,
 			  enum v4l2_field field)
 {
-	struct saa7134_fh *fh = q->priv_data;
-	struct saa7134_dev *dev = fh->dev;
+	struct saa7134_dev *dev = q->priv_data;
 	struct saa7134_buf *buf = container_of(vb,struct saa7134_buf,vb);
 	unsigned int size;
 	int err;
@@ -1057,7 +1056,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 		buf->vb.size   = size;
 		buf->vb.field  = field;
 		buf->fmt       = dev->fmt;
-		buf->pt        = &fh->pt_cap;
+		buf->pt        = &dev->pt_cap;
 		dev->video_q.curr = NULL;
 
 		err = videobuf_iolock(q,&buf->vb,&dev->ovbuf);
@@ -1082,8 +1081,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 static int
 buffer_setup(struct videobuf_queue *q, unsigned int *count, unsigned int *size)
 {
-	struct saa7134_fh *fh = q->priv_data;
-	struct saa7134_dev *dev = fh->dev;
+	struct saa7134_dev *dev = q->priv_data;
 
 	*size = dev->fmt->depth * dev->width * dev->height >> 3;
 	if (0 == *count)
@@ -1094,10 +1092,10 @@ buffer_setup(struct videobuf_queue *q, unsigned int *count, unsigned int *size)
 
 static void buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 {
-	struct saa7134_fh *fh = q->priv_data;
+	struct saa7134_dev *dev = q->priv_data;
 	struct saa7134_buf *buf = container_of(vb,struct saa7134_buf,vb);
 
-	saa7134_buffer_queue(fh->dev,&fh->dev->video_q,buf);
+	saa7134_buffer_queue(dev, &dev->video_q, buf);
 }
 
 static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
@@ -1293,14 +1291,15 @@ static struct videobuf_queue *saa7134_queue(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct saa7134_fh *fh = file->private_data;
+	struct saa7134_dev *dev = fh->dev;
 	struct videobuf_queue *q = NULL;
 
 	switch (vdev->vfl_type) {
 	case VFL_TYPE_GRABBER:
-		q = &fh->cap;
+		q = &dev->cap;
 		break;
 	case VFL_TYPE_VBI:
-		q = &fh->vbi;
+		q = &dev->vbi;
 		break;
 	default:
 		BUG();
@@ -1336,21 +1335,6 @@ static int video_open(struct file *file)
 	v4l2_fh_init(&fh->fh, vdev);
 	file->private_data = fh;
 	fh->dev      = dev;
-
-	videobuf_queue_sg_init(&fh->cap, &video_qops,
-			    &dev->pci->dev, &dev->slock,
-			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			    V4L2_FIELD_INTERLACED,
-			    sizeof(struct saa7134_buf),
-			    fh, NULL);
-	videobuf_queue_sg_init(&fh->vbi, &saa7134_vbi_qops,
-			    &dev->pci->dev, &dev->slock,
-			    V4L2_BUF_TYPE_VBI_CAPTURE,
-			    V4L2_FIELD_SEQ_TB,
-			    sizeof(struct saa7134_buf),
-			    fh, NULL);
-	saa7134_pgtable_alloc(dev->pci,&fh->pt_cap);
-	saa7134_pgtable_alloc(dev->pci,&fh->pt_vbi);
 
 	if (vdev->vfl_type == VFL_TYPE_RADIO) {
 		/* switch to radio mode */
@@ -1396,28 +1380,30 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct saa7134_fh *fh = file->private_data;
+	struct saa7134_dev *dev = fh->dev;
 	struct videobuf_buffer *buf = NULL;
 	unsigned int rc = 0;
 
 	if (vdev->vfl_type == VFL_TYPE_VBI)
-		return videobuf_poll_stream(file, &fh->vbi, wait);
+		return videobuf_poll_stream(file, &dev->vbi, wait);
 
 	if (res_check(fh,RESOURCE_VIDEO)) {
-		mutex_lock(&fh->cap.vb_lock);
-		if (!list_empty(&fh->cap.stream))
-			buf = list_entry(fh->cap.stream.next, struct videobuf_buffer, stream);
+		mutex_lock(&dev->cap.vb_lock);
+		if (!list_empty(&dev->cap.stream))
+			buf = list_entry(dev->cap.stream.next, struct videobuf_buffer, stream);
 	} else {
-		mutex_lock(&fh->cap.vb_lock);
-		if (UNSET == fh->cap.read_off) {
+		mutex_lock(&dev->cap.vb_lock);
+		if (UNSET == dev->cap.read_off) {
 			/* need to capture a new frame */
 			if (res_locked(fh->dev,RESOURCE_VIDEO))
 				goto err;
-			if (0 != fh->cap.ops->buf_prepare(&fh->cap,fh->cap.read_buf,fh->cap.field))
+			if (0 != dev->cap.ops->buf_prepare(&dev->cap,
+					dev->cap.read_buf, dev->cap.field))
 				goto err;
-			fh->cap.ops->buf_queue(&fh->cap,fh->cap.read_buf);
-			fh->cap.read_off = 0;
+			dev->cap.ops->buf_queue(&dev->cap, dev->cap.read_buf);
+			dev->cap.read_off = 0;
 		}
-		buf = fh->cap.read_buf;
+		buf = dev->cap.read_buf;
 	}
 
 	if (!buf)
@@ -1427,11 +1413,11 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 	if (buf->state == VIDEOBUF_DONE ||
 	    buf->state == VIDEOBUF_ERROR)
 		rc = POLLIN|POLLRDNORM;
-	mutex_unlock(&fh->cap.vb_lock);
+	mutex_unlock(&dev->cap.vb_lock);
 	return rc;
 
 err:
-	mutex_unlock(&fh->cap.vb_lock);
+	mutex_unlock(&dev->cap.vb_lock);
 	return POLLERR;
 }
 
@@ -1456,18 +1442,20 @@ static int video_release(struct file *file)
 	/* stop video capture */
 	if (res_check(fh, RESOURCE_VIDEO)) {
 		pm_qos_remove_request(&dev->qos_request);
-		videobuf_streamoff(&fh->cap);
+		videobuf_streamoff(&dev->cap);
 		res_free(dev,fh,RESOURCE_VIDEO);
+		videobuf_mmap_free(&dev->cap);
 	}
-	if (fh->cap.read_buf) {
-		buffer_release(&fh->cap,fh->cap.read_buf);
-		kfree(fh->cap.read_buf);
+	if (dev->cap.read_buf) {
+		buffer_release(&dev->cap, dev->cap.read_buf);
+		kfree(dev->cap.read_buf);
 	}
 
 	/* stop vbi capture */
 	if (res_check(fh, RESOURCE_VBI)) {
-		videobuf_stop(&fh->vbi);
+		videobuf_stop(&dev->vbi);
 		res_free(dev,fh,RESOURCE_VBI);
+		videobuf_mmap_free(&dev->vbi);
 	}
 
 	/* ts-capture will not work in planar mode, so turn it off Hac: 04.05*/
@@ -1479,12 +1467,6 @@ static int video_release(struct file *file)
 	saa_call_all(dev, core, s_power, 0);
 	if (vdev->vfl_type == VFL_TYPE_RADIO)
 		saa_call_all(dev, core, ioctl, SAA6588_CMD_CLOSE, &cmd);
-
-	/* free stuff */
-	videobuf_mmap_free(&fh->cap);
-	videobuf_mmap_free(&fh->vbi);
-	saa7134_pgtable_free(dev->pci,&fh->pt_cap);
-	saa7134_pgtable_free(dev->pci,&fh->pt_vbi);
 
 	v4l2_fh_del(&fh->fh);
 	v4l2_fh_exit(&fh->fh);
@@ -1560,7 +1542,7 @@ static int saa7134_g_fmt_vid_cap(struct file *file, void *priv,
 
 	f->fmt.pix.width        = dev->width;
 	f->fmt.pix.height       = dev->height;
-	f->fmt.pix.field        = fh->cap.field;
+	f->fmt.pix.field        = dev->cap.field;
 	f->fmt.pix.pixelformat  = dev->fmt->fourcc;
 	f->fmt.pix.bytesperline =
 		(f->fmt.pix.width * dev->fmt->depth) >> 3;
@@ -1686,7 +1668,7 @@ static int saa7134_s_fmt_vid_cap(struct file *file, void *priv,
 	dev->fmt       = format_by_fourcc(f->fmt.pix.pixelformat);
 	dev->width     = f->fmt.pix.width;
 	dev->height    = f->fmt.pix.height;
-	fh->cap.field = f->fmt.pix.field;
+	dev->cap.field = f->fmt.pix.field;
 	return 0;
 }
 
@@ -2489,7 +2471,29 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 	if (saa7134_boards[dev->board].video_out)
 		saa7134_videoport_init(dev);
 
+	videobuf_queue_sg_init(&dev->cap, &video_qops,
+			    &dev->pci->dev, &dev->slock,
+			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
+			    V4L2_FIELD_INTERLACED,
+			    sizeof(struct saa7134_buf),
+			    dev, NULL);
+	videobuf_queue_sg_init(&dev->vbi, &saa7134_vbi_qops,
+			    &dev->pci->dev, &dev->slock,
+			    V4L2_BUF_TYPE_VBI_CAPTURE,
+			    V4L2_FIELD_SEQ_TB,
+			    sizeof(struct saa7134_buf),
+			    dev, NULL);
+	saa7134_pgtable_alloc(dev->pci, &dev->pt_cap);
+	saa7134_pgtable_alloc(dev->pci, &dev->pt_vbi);
+
 	return 0;
+}
+
+void saa7134_video_fini(struct saa7134_dev *dev)
+{
+	/* free stuff */
+	saa7134_pgtable_free(dev->pci, &dev->pt_cap);
+	saa7134_pgtable_free(dev->pci, &dev->pt_vbi);
 }
 
 int saa7134_videoport_init(struct saa7134_dev *dev)
