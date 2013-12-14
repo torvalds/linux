@@ -336,8 +336,8 @@ static inline int skbuff_copy(void *msg, int len, int count, int mtu,
 		count = min_t(unsigned int, mtu, len);
 
 		tmp = bt_skb_alloc(count, GFP_ATOMIC);
-		if (IS_ERR(tmp))
-			return PTR_ERR(tmp);
+		if (!tmp)
+			return -ENOMEM;
 
 		*frag = tmp;
 
@@ -383,8 +383,8 @@ static struct sk_buff *create_pdu(struct l2cap_conn *conn, void *msg,
 	BT_DBG("conn %p len %zu mtu %d count %d", conn, len, conn->mtu, count);
 
 	skb = bt_skb_alloc(count + L2CAP_HDR_SIZE, GFP_ATOMIC);
-	if (IS_ERR(skb))
-		return skb;
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
 
 	skb->priority = priority;
 
