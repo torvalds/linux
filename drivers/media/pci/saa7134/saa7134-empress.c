@@ -23,7 +23,6 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 
-#include <media/saa6752hs.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-event.h>
 
