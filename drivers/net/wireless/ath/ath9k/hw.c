@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/time.h>
+#include <linux/bitops.h>
 #include <asm/unaligned.h>
 
 #include "hw.h"
@@ -2991,20 +2992,6 @@ static const struct ath_gen_timer_configuration gen_tmr_configuration[] =
 
 /* HW generic timer primitives */
 
-/* compute and clear index of rightmost 1 */
-static u32 rightmost_index(struct ath_gen_timer_table *timer_table, u32 *mask)
-{
-	u32 b;
-
-	b = *mask;
-	b &= (0-b);
-	*mask &= ~b;
-	b *= debruijn32;
-	b >>= 27;
-
-	return timer_table->gen_timer_index[b];
-}
-
 u32 ath9k_hw_gettsf32(struct ath_hw *ah)
 {
 	return REG_READ(ah, AR_TSF_L32);
@@ -3019,6 +3006,10 @@ struct ath_gen_timer *ath_gen_timer_alloc(struct ath_hw *ah,
 {
 	struct ath_gen_timer_table *timer_table = &ah->hw_gen_timers;
 	struct ath_gen_timer *timer;
+
+	if ((timer_index < AR_FIRST_NDP_TIMER) ||
+		(timer_index >= ATH_MAX_GEN_TIMER))
+		return NULL;
 
 	timer = kzalloc(sizeof(struct ath_gen_timer), GFP_KERNEL);
 	if (timer == NULL)
@@ -3037,23 +3028,13 @@ EXPORT_SYMBOL(ath_gen_timer_alloc);
 
 void ath9k_hw_gen_timer_start(struct ath_hw *ah,
 			      struct ath_gen_timer *timer,
-			      u32 trig_timeout,
+			      u32 timer_next,
 			      u32 timer_period)
 {
 	struct ath_gen_timer_table *timer_table = &ah->hw_gen_timers;
-	u32 tsf, timer_next;
+	u32 mask = 0;
 
-	BUG_ON(!timer_period);
-
-	set_bit(timer->index, &timer_table->timer_mask.timer_bits);
-
-	tsf = ath9k_hw_gettsf32(ah);
-
-	timer_next = tsf + trig_timeout;
-
-	ath_dbg(ath9k_hw_common(ah), BTCOEX,
-		"current tsf %x period %x timer_next %x\n",
-		tsf, timer_period, timer_next);
+	timer_table->timer_mask |= BIT(timer->index);
 
 	/*
 	 * Program generic timer registers
@@ -3079,21 +3060,25 @@ void ath9k_hw_gen_timer_start(struct ath_hw *ah,
 				       (1 << timer->index));
 	}
 
-	/* Enable both trigger and thresh interrupt masks */
-	REG_SET_BIT(ah, AR_IMR_S5,
-		(SM(AR_GENTMR_BIT(timer->index), AR_IMR_S5_GENTIMER_THRESH) |
-		SM(AR_GENTMR_BIT(timer->index), AR_IMR_S5_GENTIMER_TRIG)));
+	if (timer->trigger)
+		mask |= SM(AR_GENTMR_BIT(timer->index),
+			   AR_IMR_S5_GENTIMER_TRIG);
+	if (timer->overflow)
+		mask |= SM(AR_GENTMR_BIT(timer->index),
+			   AR_IMR_S5_GENTIMER_THRESH);
+
+	REG_SET_BIT(ah, AR_IMR_S5, mask);
+
+	if ((ah->imask & ATH9K_INT_GENTIMER) == 0) {
+		ah->imask |= ATH9K_INT_GENTIMER;
+		ath9k_hw_set_interrupts(ah);
+	}
 }
 EXPORT_SYMBOL(ath9k_hw_gen_timer_start);
 
 void ath9k_hw_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
 {
 	struct ath_gen_timer_table *timer_table = &ah->hw_gen_timers;
-
-	if ((timer->index < AR_FIRST_NDP_TIMER) ||
-		(timer->index >= ATH_MAX_GEN_TIMER)) {
-		return;
-	}
 
 	/* Clear generic timer enable bits. */
 	REG_CLR_BIT(ah, gen_tmr_configuration[timer->index].mode_addr,
@@ -3114,7 +3099,12 @@ void ath9k_hw_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
 		(SM(AR_GENTMR_BIT(timer->index), AR_IMR_S5_GENTIMER_THRESH) |
 		SM(AR_GENTMR_BIT(timer->index), AR_IMR_S5_GENTIMER_TRIG)));
 
-	clear_bit(timer->index, &timer_table->timer_mask.timer_bits);
+	timer_table->timer_mask &= ~BIT(timer->index);
+
+	if (timer_table->timer_mask == 0) {
+		ah->imask &= ~ATH9K_INT_GENTIMER;
+		ath9k_hw_set_interrupts(ah);
+	}
 }
 EXPORT_SYMBOL(ath9k_hw_gen_timer_stop);
 
@@ -3135,32 +3125,32 @@ void ath_gen_timer_isr(struct ath_hw *ah)
 {
 	struct ath_gen_timer_table *timer_table = &ah->hw_gen_timers;
 	struct ath_gen_timer *timer;
-	struct ath_common *common = ath9k_hw_common(ah);
-	u32 trigger_mask, thresh_mask, index;
+	unsigned long trigger_mask, thresh_mask;
+	unsigned int index;
 
 	/* get hardware generic timer interrupt status */
 	trigger_mask = ah->intr_gen_timer_trigger;
 	thresh_mask = ah->intr_gen_timer_thresh;
-	trigger_mask &= timer_table->timer_mask.val;
-	thresh_mask &= timer_table->timer_mask.val;
+	trigger_mask &= timer_table->timer_mask;
+	thresh_mask &= timer_table->timer_mask;
 
 	trigger_mask &= ~thresh_mask;
 
-	while (thresh_mask) {
-		index = rightmost_index(timer_table, &thresh_mask);
+	for_each_set_bit(index, &thresh_mask, ARRAY_SIZE(timer_table->timers)) {
 		timer = timer_table->timers[index];
-		BUG_ON(!timer);
-		ath_dbg(common, BTCOEX, "TSF overflow for Gen timer %d\n",
-			index);
+		if (!timer)
+		    continue;
+		if (!timer->overflow)
+		    continue;
 		timer->overflow(timer->arg);
 	}
 
-	while (trigger_mask) {
-		index = rightmost_index(timer_table, &trigger_mask);
+	for_each_set_bit(index, &trigger_mask, ARRAY_SIZE(timer_table->timers)) {
 		timer = timer_table->timers[index];
-		BUG_ON(!timer);
-		ath_dbg(common, BTCOEX,
-			"Gen timer[%d] trigger\n", index);
+		if (!timer)
+		    continue;
+		if (!timer->trigger)
+		    continue;
 		timer->trigger(timer->arg);
 	}
 }

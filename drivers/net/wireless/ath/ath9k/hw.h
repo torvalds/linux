@@ -499,12 +499,6 @@ struct ath9k_hw_version {
 
 #define AR_GENTMR_BIT(_index)	(1 << (_index))
 
-/*
- * Using de Bruijin sequence to look up 1's index in a 32 bit number
- * debruijn32 = 0000 0111 0111 1100 1011 0101 0011 0001
- */
-#define debruijn32 0x077CB531U
-
 struct ath_gen_timer_configuration {
 	u32 next_addr;
 	u32 period_addr;
@@ -520,12 +514,8 @@ struct ath_gen_timer {
 };
 
 struct ath_gen_timer_table {
-	u32 gen_timer_index[32];
 	struct ath_gen_timer *timers[ATH_MAX_GEN_TIMER];
-	union {
-		unsigned long timer_bits;
-		u16 val;
-	} timer_mask;
+	u16 timer_mask;
 };
 
 struct ath_hw_antcomb_conf {

@@ -157,36 +157,6 @@ static void ath_detect_bt_priority(struct ath_softc *sc)
 	}
 }
 
-static void ath9k_gen_timer_start(struct ath_hw *ah,
-				  struct ath_gen_timer *timer,
-				  u32 trig_timeout,
-				  u32 timer_period)
-{
-	ath9k_hw_gen_timer_start(ah, timer, trig_timeout, timer_period);
-
-	if ((ah->imask & ATH9K_INT_GENTIMER) == 0) {
-		ath9k_hw_disable_interrupts(ah);
-		ah->imask |= ATH9K_INT_GENTIMER;
-		ath9k_hw_set_interrupts(ah);
-		ath9k_hw_enable_interrupts(ah);
-	}
-}
-
-static void ath9k_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
-{
-	struct ath_gen_timer_table *timer_table = &ah->hw_gen_timers;
-
-	ath9k_hw_gen_timer_stop(ah, timer);
-
-	/* if no timer is enabled, turn off interrupt mask */
-	if (timer_table->timer_mask.val == 0) {
-		ath9k_hw_disable_interrupts(ah);
-		ah->imask &= ~ATH9K_INT_GENTIMER;
-		ath9k_hw_set_interrupts(ah);
-		ath9k_hw_enable_interrupts(ah);
-	}
-}
-
 static void ath_mci_ftp_adjust(struct ath_softc *sc)
 {
 	struct ath_btcoex *btcoex = &sc->btcoex;
@@ -373,12 +343,6 @@ u16 ath9k_btcoex_aggr_limit(struct ath_softc *sc, u32 max_4ms_framelen)
 
 void ath9k_btcoex_handle_interrupt(struct ath_softc *sc, u32 status)
 {
-	struct ath_hw *ah = sc->sc_ah;
-
-	if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE)
-		if (status & ATH9K_INT_GENTIMER)
-			ath_gen_timer_isr(sc->sc_ah);
-
 	if (status & ATH9K_INT_MCI)
 		ath_mci_intr(sc);
 }

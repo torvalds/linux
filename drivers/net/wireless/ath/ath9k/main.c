@@ -508,6 +508,9 @@ void ath9k_tasklet(unsigned long data)
 		wake_up(&sc->tx_wait);
 	}
 
+	if (status & ATH9K_INT_GENTIMER)
+		ath_gen_timer_isr(sc->sc_ah);
+
 	ath9k_btcoex_handle_interrupt(sc, status);
 
 	/* re-enable hardware interrupt */
