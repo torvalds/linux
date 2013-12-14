@@ -439,19 +439,12 @@ static bool ath9k_hw_chip_test(struct ath_hw *ah)
 
 static void ath9k_hw_init_config(struct ath_hw *ah)
 {
-	int i;
-
 	ah->config.dma_beacon_response_time = 1;
 	ah->config.sw_beacon_response_time = 6;
 	ah->config.additional_swba_backoff = 0;
 	ah->config.ack_6mb = 0x0;
 	ah->config.cwm_ignore_extcca = 0;
 	ah->config.analog_shiftreg = 1;
-
-	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
-		ah->config.spurchans[i][0] = AR_NO_SPUR;
-		ah->config.spurchans[i][1] = AR_NO_SPUR;
-	}
 
 	ah->config.rx_intr_mitigation = true;
 
