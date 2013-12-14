@@ -760,6 +760,8 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	 */
 	ath9k_cmn_init_crypto(sc->sc_ah);
 
+	ath9k_hw_reset_tsf(ah);
+
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
 	mutex_unlock(&sc->mutex);
