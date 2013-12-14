@@ -915,7 +915,7 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 	}
 }
 
-struct mem_ctl_info *get_mci_for_node_id(u8 node_id)
+static struct mem_ctl_info *get_mci_for_node_id(u8 node_id)
 {
 	struct sbridge_dev *sbridge_dev;
 
