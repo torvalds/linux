@@ -4509,6 +4509,8 @@ static void evict_inode_truncate_pages(struct inode *inode)
 
 		node = rb_first(&map_tree->map);
 		em = rb_entry(node, struct extent_map, rb_node);
+		clear_bit(EXTENT_FLAG_PINNED, &em->flags);
+		clear_bit(EXTENT_FLAG_LOGGING, &em->flags);
 		remove_extent_mapping(map_tree, em);
 		free_extent_map(em);
 	}
