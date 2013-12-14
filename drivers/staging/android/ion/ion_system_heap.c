@@ -426,7 +426,7 @@ int ion_system_contig_heap_map_user(struct ion_heap *heap,
 				    struct ion_buffer *buffer,
 				    struct vm_area_struct *vma)
 {
-	unsigned long pfn = __phys_to_pfn(virt_to_phys(buffer->priv_virt));
+	unsigned long pfn = page_to_pfn(virt_to_page(buffer->priv_virt));
 	return remap_pfn_range(vma, vma->vm_start, pfn + vma->vm_pgoff,
 			       vma->vm_end - vma->vm_start,
 			       vma->vm_page_prot);

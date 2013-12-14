@@ -71,7 +71,8 @@ static int ion_chunk_heap_allocate(struct ion_heap *heap,
 						     chunk_heap->chunk_size);
 		if (!paddr)
 			goto err;
-		sg_set_page(sg, phys_to_page(paddr), chunk_heap->chunk_size, 0);
+		sg_set_page(sg, pfn_to_page(PFN_DOWN(paddr)),
+				chunk_heap->chunk_size, 0);
 		sg = sg_next(sg);
 	}
 
@@ -167,7 +168,7 @@ struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *heap_data)
 		goto error;
 	}
 	for (i = 0; i < chunk_heap->size; i += PAGE_SIZE) {
-		struct page *page = phys_to_page(chunk_heap->base + i);
+		struct page *page = pfn_to_page(PFN_DOWN(chunk_heap->base + i));
 		struct page **pages = &page;
 
 		ret = map_vm_area(vm_struct, pgprot, &pages);

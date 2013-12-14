@@ -96,8 +96,8 @@ struct sg_table *ion_carveout_heap_map_dma(struct ion_heap *heap,
 		kfree(table);
 		return ERR_PTR(ret);
 	}
-	sg_set_page(table->sgl, phys_to_page(buffer->priv_phys), buffer->size,
-		    0);
+	sg_set_page(table->sgl, pfn_to_page(PFN_DOWN(buffer->priv_phys)),
+			buffer->size, 0);
 	return table;
 }
 
