@@ -1,7 +1,6 @@
 ccflags-y += -I$(src)			# needed for trace events
 
-# ION doesn't build just yet, so disable it from the build
-#obj-y					+= ion/
+obj-y					+= ion/
 
 obj-$(CONFIG_ANDROID_BINDER_IPC)	+= binder.o
 obj-$(CONFIG_ASHMEM)			+= ashmem.o
