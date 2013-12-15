@@ -3276,15 +3276,27 @@ static int dib8000_sleep(struct dvb_frontend *fe)
 	return dib8000_set_adc_state(state, DIBX000_SLOW_ADC_OFF) | dib8000_set_adc_state(state, DIBX000_ADC_OFF);
 }
 
+static int dib8000_read_status(struct dvb_frontend *fe, fe_status_t * stat);
+
 static int dib8000_get_frontend(struct dvb_frontend *fe)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	u16 i, val = 0;
-	fe_status_t stat;
+	fe_status_t stat = 0;
 	u8 index_frontend, sub_index_frontend;
 
 	fe->dtv_property_cache.bandwidth_hz = 6000000;
 
+	/*
+	 * If called to early, get_frontend makes dib8000_tune to either
+	 * not lock or not sync. This causes dvbv5-scan/dvbv5-zap to fail.
+	 * So, let's just return if frontend 0 has not locked.
+	 */
+	dib8000_read_status(fe, &stat);
+	if (!(stat & FE_HAS_SYNC))
+		return 0;
+
+	dprintk("TMCC lock");
 	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 		state->fe[index_frontend]->ops.read_status(state->fe[index_frontend], &stat);
 		if (stat&FE_HAS_SYNC) {
