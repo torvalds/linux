@@ -1930,6 +1930,9 @@ int fb_get_options(const char *name, char **option)
 				options = opt + name_len + 1;
 		}
 	}
+	/* No match, pass global option */
+	if (!options && option && fb_mode_option)
+		options = kstrdup(fb_mode_option, GFP_KERNEL);
 	if (options && !strncmp(options, "off", 3))
 		retval = 1;
 
