@@ -36,6 +36,8 @@
 #include "pinctrl-msm.h"
 #include "pinctrl-utils.h"
 
+#define MAX_NR_GPIO 300
+
 /**
  * struct msm_pinctrl - state for a pinctrl-msm device
  * @dev:            device handle.
@@ -61,9 +63,9 @@ struct msm_pinctrl {
 
 	spinlock_t lock;
 
-	unsigned long *enabled_irqs;
-	unsigned long *dual_edge_irqs;
-	unsigned long *wake_irqs;
+	DECLARE_BITMAP(dual_edge_irqs, MAX_NR_GPIO);
+	DECLARE_BITMAP(enabled_irqs, MAX_NR_GPIO);
+	DECLARE_BITMAP(wake_irqs, MAX_NR_GPIO);
 
 	const struct msm_pinctrl_soc_data *soc;
 	void __iomem *regs;
@@ -874,30 +876,6 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	chip->dev = pctrl->dev;
 	chip->owner = THIS_MODULE;
 	chip->of_node = pctrl->dev->of_node;
-
-	pctrl->enabled_irqs = devm_kzalloc(pctrl->dev,
-					   sizeof(unsigned long) * BITS_TO_LONGS(chip->ngpio),
-					   GFP_KERNEL);
-	if (!pctrl->enabled_irqs) {
-		dev_err(pctrl->dev, "Failed to allocate enabled_irqs bitmap\n");
-		return -ENOMEM;
-	}
-
-	pctrl->dual_edge_irqs = devm_kzalloc(pctrl->dev,
-					     sizeof(unsigned long) * BITS_TO_LONGS(chip->ngpio),
-					     GFP_KERNEL);
-	if (!pctrl->dual_edge_irqs) {
-		dev_err(pctrl->dev, "Failed to allocate dual_edge_irqs bitmap\n");
-		return -ENOMEM;
-	}
-
-	pctrl->wake_irqs = devm_kzalloc(pctrl->dev,
-					sizeof(unsigned long) * BITS_TO_LONGS(chip->ngpio),
-					GFP_KERNEL);
-	if (!pctrl->wake_irqs) {
-		dev_err(pctrl->dev, "Failed to allocate wake_irqs bitmap\n");
-		return -ENOMEM;
-	}
 
 	ret = gpiochip_add(&pctrl->chip);
 	if (ret) {
