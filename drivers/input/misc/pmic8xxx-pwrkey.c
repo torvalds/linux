@@ -36,22 +36,22 @@ struct pmic8xxx_pwrkey {
 	int key_press_irq;
 };
 
-static irqreturn_t pwrkey_press_irq(int irq, void *_pwrkey)
+static irqreturn_t pwrkey_press_irq(int irq, void *_pwr)
 {
-	struct pmic8xxx_pwrkey *pwrkey = _pwrkey;
+	struct input_dev *pwr = _pwr;
 
-	input_report_key(pwrkey->pwr, KEY_POWER, 1);
-	input_sync(pwrkey->pwr);
+	input_report_key(pwr, KEY_POWER, 1);
+	input_sync(pwr);
 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t pwrkey_release_irq(int irq, void *_pwrkey)
+static irqreturn_t pwrkey_release_irq(int irq, void *_pwr)
 {
-	struct pmic8xxx_pwrkey *pwrkey = _pwrkey;
+	struct input_dev *pwr = _pwr;
 
-	input_report_key(pwrkey->pwr, KEY_POWER, 0);
-	input_sync(pwrkey->pwr);
+	input_report_key(pwr, KEY_POWER, 0);
+	input_sync(pwr);
 
 	return IRQ_HANDLED;
 }
@@ -154,7 +154,7 @@ static int pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pwrkey);
 
 	err = request_irq(key_press_irq, pwrkey_press_irq,
-		IRQF_TRIGGER_RISING, "pmic8xxx_pwrkey_press", pwrkey);
+		IRQF_TRIGGER_RISING, "pmic8xxx_pwrkey_press", pwr);
 	if (err < 0) {
 		dev_dbg(&pdev->dev, "Can't get %d IRQ for pwrkey: %d\n",
 				 key_press_irq, err);
@@ -162,7 +162,7 @@ static int pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	}
 
 	err = request_irq(key_release_irq, pwrkey_release_irq,
-		 IRQF_TRIGGER_RISING, "pmic8xxx_pwrkey_release", pwrkey);
+		 IRQF_TRIGGER_RISING, "pmic8xxx_pwrkey_release", pwr);
 	if (err < 0) {
 		dev_dbg(&pdev->dev, "Can't get %d IRQ for pwrkey: %d\n",
 				 key_release_irq, err);
@@ -194,8 +194,8 @@ static int pmic8xxx_pwrkey_remove(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 0);
 
-	free_irq(key_press_irq, pwrkey);
-	free_irq(key_release_irq, pwrkey);
+	free_irq(key_press_irq, pwrkey->pwr);
+	free_irq(key_release_irq, pwrkey->pwr);
 	input_unregister_device(pwrkey->pwr);
 	kfree(pwrkey);
 
