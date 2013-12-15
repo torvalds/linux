@@ -102,6 +102,10 @@ int efx_mcdi_init(struct efx_nic *efx)
 		netif_err(efx, probe, efx->net_dev,
 			  "Host already registered with MCPU\n");
 
+	if (efx->mcdi->fn_flags &
+	    (1 << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_PRIMARY))
+		efx->primary = efx;
+
 	return 0;
 }
 
@@ -1018,6 +1022,9 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 	case MCDI_EVENT_CODE_PTP_PPS:
 		efx_ptp_event(efx, event);
 		break;
+	case MCDI_EVENT_CODE_PTP_TIME:
+		efx_time_sync_event(channel, event);
+		break;
 	case MCDI_EVENT_CODE_TX_FLUSH:
 	case MCDI_EVENT_CODE_RX_FLUSH:
 		/* Two flush events will be sent: one to the same event
@@ -1132,13 +1139,27 @@ static int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 		goto fail;
 	}
 
+	if (driver_operating) {
+		if (outlen >= MC_CMD_DRV_ATTACH_EXT_OUT_LEN) {
+			efx->mcdi->fn_flags =
+				MCDI_DWORD(outbuf,
+					   DRV_ATTACH_EXT_OUT_FUNC_FLAGS);
+		} else {
+			/* Synthesise flags for Siena */
+			efx->mcdi->fn_flags =
+				1 << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_LINKCTRL |
+				1 << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_TRUSTED |
+				(efx_port_num(efx) == 0) <<
+				MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_PRIMARY;
+		}
+	}
+
 	/* We currently assume we have control of the external link
 	 * and are completely trusted by firmware.  Abort probing
 	 * if that's not true for this function.
 	 */
 	if (driver_operating &&
-	    outlen >= MC_CMD_DRV_ATTACH_EXT_OUT_LEN &&
-	    (MCDI_DWORD(outbuf, DRV_ATTACH_EXT_OUT_FUNC_FLAGS) &
+	    (efx->mcdi->fn_flags &
 	     (1 << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_LINKCTRL |
 	      1 << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_TRUSTED)) !=
 	    (1 << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_LINKCTRL |

@@ -94,12 +94,14 @@ struct efx_mcdi_mtd_partition {
  * struct efx_mcdi_data - extra state for NICs that implement MCDI
  * @iface: Interface/protocol state
  * @hwmon: Hardware monitor state
+ * @fn_flags: Flags for this function, as returned by %MC_CMD_DRV_ATTACH.
  */
 struct efx_mcdi_data {
 	struct efx_mcdi_iface iface;
 #ifdef CONFIG_SFC_MCDI_MON
 	struct efx_mcdi_mon hwmon;
 #endif
+	u32 fn_flags;
 };
 
 #ifdef CONFIG_SFC_MCDI_MON

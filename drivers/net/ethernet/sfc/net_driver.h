@@ -91,6 +91,7 @@
 
 /* Forward declare Precision Time Protocol (PTP) support structure. */
 struct efx_ptp_data;
+struct hwtstamp_config;
 
 struct efx_self_tests;
 
@@ -368,6 +369,13 @@ enum efx_rx_alloc_method {
 	RX_ALLOC_METHOD_PAGE = 2,
 };
 
+enum efx_sync_events_state {
+	SYNC_EVENTS_DISABLED = 0,
+	SYNC_EVENTS_QUIESCENT,
+	SYNC_EVENTS_REQUESTED,
+	SYNC_EVENTS_VALID,
+};
+
 /**
  * struct efx_channel - An Efx channel
  *
@@ -407,6 +415,9 @@ enum efx_rx_alloc_method {
  *	by __efx_rx_packet(), if @rx_pkt_n_frags != 0
  * @rx_queue: RX queue for this channel
  * @tx_queue: TX queues for this channel
+ * @sync_events_state: Current state of sync events on this channel
+ * @sync_timestamp_major: Major part of the last ptp sync event
+ * @sync_timestamp_minor: Minor part of the last ptp sync event
  */
 struct efx_channel {
 	struct efx_nic *efx;
@@ -445,6 +456,10 @@ struct efx_channel {
 
 	struct efx_rx_queue rx_queue;
 	struct efx_tx_queue tx_queue[EFX_TXQ_TYPES];
+
+	enum efx_sync_events_state sync_events_state;
+	u32 sync_timestamp_major;
+	u32 sync_timestamp_minor;
 };
 
 /**
@@ -519,15 +534,6 @@ enum nic_state {
 	STATE_DISABLED = 2,	/* device disabled due to hardware errors */
 	STATE_RECOVERY = 3,	/* device recovering from PCI error */
 };
-
-/*
- * Alignment of the skb->head which wraps a page-allocated RX buffer
- *
- * The skb allocated to wrap an rx_buffer can have this alignment. Since
- * the data is memcpy'd from the rx_buf, it does not need to be equal to
- * NET_IP_ALIGN.
- */
-#define EFX_PAGE_SKB_ALIGN 2
 
 /* Forward declaration */
 struct efx_nic;
@@ -651,6 +657,13 @@ struct vfdi_status;
  * struct efx_nic - an Efx NIC
  * @name: Device name (net device name or bus id before net device registered)
  * @pci_dev: The PCI device
+ * @node: List node for maintaning primary/secondary function lists
+ * @primary: &struct efx_nic instance for the primary function of this
+ *	controller.  May be the same structure, and may be %NULL if no
+ *	primary function is bound.  Serialised by rtnl_lock.
+ * @secondary_list: List of &struct efx_nic instances for the secondary PCI
+ *	functions of the controller, if this is for the primary function.
+ *	Serialised by rtnl_lock.
  * @type: Controller type attributes
  * @legacy_irq: IRQ number
  * @workqueue: Workqueue for port reconfigures and the HW monitor.
@@ -694,6 +707,8 @@ struct vfdi_status;
  *	(valid only if @rx_prefix_size != 0; always negative)
  * @rx_packet_len_offset: Offset of RX packet length from start of packet data
  *	(valid only for NICs that set %EFX_RX_PKT_PREFIX_LEN; always negative)
+ * @rx_packet_ts_offset: Offset of timestamp from start of packet data
+ *	(valid only if channel->sync_timestamps_enabled; always negative)
  * @rx_hash_key: Toeplitz hash key for RSS
  * @rx_indir_table: Indirection table for RSS
  * @rx_scatter: Scatter mode enabled for receives
@@ -763,6 +778,7 @@ struct vfdi_status;
  * @local_lock: Mutex protecting %local_addr_list and %local_page_list.
  * @peer_work: Work item to broadcast peer addresses to VMs.
  * @ptp_data: PTP state data
+ * @vpd_sn: Serial number read from VPD
  * @monitor_work: Hardware monitor workitem
  * @biu_lock: BIU (bus interface unit) lock
  * @last_irq_cpu: Last CPU to handle a possible test interrupt.  This
@@ -777,6 +793,9 @@ struct efx_nic {
 	/* The following fields should be written very rarely */
 
 	char name[IFNAMSIZ];
+	struct list_head node;
+	struct efx_nic *primary;
+	struct list_head secondary_list;
 	struct pci_dev *pci_dev;
 	unsigned int port_num;
 	const struct efx_nic_type *type;
@@ -828,6 +847,7 @@ struct efx_nic {
 	unsigned int rx_prefix_size;
 	int rx_packet_hash_offset;
 	int rx_packet_len_offset;
+	int rx_packet_ts_offset;
 	u8 rx_hash_key[40];
 	u32 rx_indir_table[128];
 	bool rx_scatter;
@@ -910,6 +930,8 @@ struct efx_nic {
 #endif
 
 	struct efx_ptp_data *ptp_data;
+
+	char *vpd_sn;
 
 	/* The following fields may be written more often */
 
@@ -1042,6 +1064,12 @@ struct efx_mtd_partition {
  * @mtd_sync: Wait for write-back to complete on MTD partition.  This
  *	also notifies the driver that a writer has finished using this
  *	partition.
+ * @ptp_write_host_time: Send host time to MC as part of sync protocol
+ * @ptp_set_ts_sync_events: Enable or disable sync events for inline RX
+ *	timestamping, possibly only temporarily for the purposes of a reset.
+ * @ptp_set_ts_config: Set hardware timestamp configuration.  The flags
+ *	and tx_type will already have been validated but this operation
+ *	must validate and update rx_filter.
  * @revision: Hardware architecture revision
  * @txd_ptr_tbl_base: TX descriptor ring base address
  * @rxd_ptr_tbl_base: RX descriptor ring base address
@@ -1051,6 +1079,7 @@ struct efx_mtd_partition {
  * @max_dma_mask: Maximum possible DMA mask
  * @rx_prefix_size: Size of RX prefix before packet data
  * @rx_hash_offset: Offset of RX flow hash within prefix
+ * @rx_ts_offset: Offset of timestamp within prefix
  * @rx_buffer_padding: Size of padding at end of RX packet
  * @can_rx_scatter: NIC is able to scatter packets to multiple buffers
  * @always_rx_scatter: NIC will always scatter packets to multiple buffers
@@ -1060,6 +1089,7 @@ struct efx_mtd_partition {
  * @offload_features: net_device feature flags for protocol offload
  *	features implemented in hardware
  * @mcdi_max_ver: Maximum MCDI version supported
+ * @hwtstamp_filters: Mask of hardware timestamp filter types supported
  */
 struct efx_nic_type {
 	unsigned int (*mem_map_size)(struct efx_nic *efx);
@@ -1161,6 +1191,9 @@ struct efx_nic_type {
 	int (*mtd_sync)(struct mtd_info *mtd);
 #endif
 	void (*ptp_write_host_time)(struct efx_nic *efx, u32 host_time);
+	int (*ptp_set_ts_sync_events)(struct efx_nic *efx, bool en, bool temp);
+	int (*ptp_set_ts_config)(struct efx_nic *efx,
+				 struct hwtstamp_config *init);
 
 	int revision;
 	unsigned int txd_ptr_tbl_base;
@@ -1171,6 +1204,7 @@ struct efx_nic_type {
 	u64 max_dma_mask;
 	unsigned int rx_prefix_size;
 	unsigned int rx_hash_offset;
+	unsigned int rx_ts_offset;
 	unsigned int rx_buffer_padding;
 	bool can_rx_scatter;
 	bool always_rx_scatter;
@@ -1179,6 +1213,7 @@ struct efx_nic_type {
 	netdev_features_t offload_features;
 	int mcdi_max_ver;
 	unsigned int max_rx_ip_filters;
+	u32 hwtstamp_filters;
 };
 
 /**************************************************************************

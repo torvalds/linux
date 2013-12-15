@@ -264,6 +264,8 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	if (rc)
 		goto fail3;
 
+	efx_ptp_probe(efx, NULL);
+
 	return 0;
 
 fail3:
@@ -472,9 +474,10 @@ static void efx_ef10_remove(struct efx_nic *efx)
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	int rc;
 
+	efx_ptp_remove(efx);
+
 	efx_mcdi_mon_remove(efx);
 
-	/* This needs to be after efx_ptp_remove_channel() with no filters */
 	efx_ef10_rx_free_indir_table(efx);
 
 	if (nic_data->wc_membase)
@@ -1469,8 +1472,9 @@ static void efx_ef10_rx_init(struct efx_rx_queue *rx_queue)
 	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_LABEL, efx_rx_queue_index(rx_queue));
 	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_INSTANCE,
 		       efx_rx_queue_index(rx_queue));
-	MCDI_POPULATE_DWORD_1(inbuf, INIT_RXQ_IN_FLAGS,
-			      INIT_RXQ_IN_FLAG_PREFIX, 1);
+	MCDI_POPULATE_DWORD_2(inbuf, INIT_RXQ_IN_FLAGS,
+			      INIT_RXQ_IN_FLAG_PREFIX, 1,
+			      INIT_RXQ_IN_FLAG_TIMESTAMP, 1);
 	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_OWNER_ID, 0);
 	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_PORT_ID, EVB_PORT_ID_ASSIGNED);
 
@@ -3406,6 +3410,119 @@ static void efx_ef10_ptp_write_host_time(struct efx_nic *efx, u32 host_time)
 	_efx_writed(efx, cpu_to_le32(host_time), ER_DZ_MC_DB_LWRD);
 }
 
+static int efx_ef10_rx_enable_timestamping(struct efx_channel *channel,
+					   bool temp)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_PTP_IN_TIME_EVENT_SUBSCRIBE_LEN);
+	int rc;
+
+	if (channel->sync_events_state == SYNC_EVENTS_REQUESTED ||
+	    channel->sync_events_state == SYNC_EVENTS_VALID ||
+	    (temp && channel->sync_events_state == SYNC_EVENTS_DISABLED))
+		return 0;
+	channel->sync_events_state = SYNC_EVENTS_REQUESTED;
+
+	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_TIME_EVENT_SUBSCRIBE);
+	MCDI_SET_DWORD(inbuf, PTP_IN_PERIPH_ID, 0);
+	MCDI_SET_DWORD(inbuf, PTP_IN_TIME_EVENT_SUBSCRIBE_QUEUE,
+		       channel->channel);
+
+	rc = efx_mcdi_rpc(channel->efx, MC_CMD_PTP,
+			  inbuf, sizeof(inbuf), NULL, 0, NULL);
+
+	if (rc != 0)
+		channel->sync_events_state = temp ? SYNC_EVENTS_QUIESCENT :
+						    SYNC_EVENTS_DISABLED;
+
+	return rc;
+}
+
+static int efx_ef10_rx_disable_timestamping(struct efx_channel *channel,
+					    bool temp)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_PTP_IN_TIME_EVENT_UNSUBSCRIBE_LEN);
+	int rc;
+
+	if (channel->sync_events_state == SYNC_EVENTS_DISABLED ||
+	    (temp && channel->sync_events_state == SYNC_EVENTS_QUIESCENT))
+		return 0;
+	if (channel->sync_events_state == SYNC_EVENTS_QUIESCENT) {
+		channel->sync_events_state = SYNC_EVENTS_DISABLED;
+		return 0;
+	}
+	channel->sync_events_state = temp ? SYNC_EVENTS_QUIESCENT :
+					    SYNC_EVENTS_DISABLED;
+
+	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_TIME_EVENT_UNSUBSCRIBE);
+	MCDI_SET_DWORD(inbuf, PTP_IN_PERIPH_ID, 0);
+	MCDI_SET_DWORD(inbuf, PTP_IN_TIME_EVENT_UNSUBSCRIBE_CONTROL,
+		       MC_CMD_PTP_IN_TIME_EVENT_UNSUBSCRIBE_SINGLE);
+	MCDI_SET_DWORD(inbuf, PTP_IN_TIME_EVENT_UNSUBSCRIBE_QUEUE,
+		       channel->channel);
+
+	rc = efx_mcdi_rpc(channel->efx, MC_CMD_PTP,
+			  inbuf, sizeof(inbuf), NULL, 0, NULL);
+
+	return rc;
+}
+
+static int efx_ef10_ptp_set_ts_sync_events(struct efx_nic *efx, bool en,
+					   bool temp)
+{
+	int (*set)(struct efx_channel *channel, bool temp);
+	struct efx_channel *channel;
+
+	set = en ?
+	      efx_ef10_rx_enable_timestamping :
+	      efx_ef10_rx_disable_timestamping;
+
+	efx_for_each_channel(channel, efx) {
+		int rc = set(channel, temp);
+		if (en && rc != 0) {
+			efx_ef10_ptp_set_ts_sync_events(efx, false, temp);
+			return rc;
+		}
+	}
+
+	return 0;
+}
+
+static int efx_ef10_ptp_set_ts_config(struct efx_nic *efx,
+				      struct hwtstamp_config *init)
+{
+	int rc;
+
+	switch (init->rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		efx_ef10_ptp_set_ts_sync_events(efx, false, false);
+		/* if TX timestamping is still requested then leave PTP on */
+		return efx_ptp_change_mode(efx,
+					   init->tx_type != HWTSTAMP_TX_OFF, 0);
+	case HWTSTAMP_FILTER_ALL:
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+		init->rx_filter = HWTSTAMP_FILTER_ALL;
+		rc = efx_ptp_change_mode(efx, true, 0);
+		if (!rc)
+			rc = efx_ef10_ptp_set_ts_sync_events(efx, true, false);
+		if (rc)
+			efx_ptp_change_mode(efx, false, 0);
+		return rc;
+	default:
+		return -ERANGE;
+	}
+}
+
 const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.mem_map_size = efx_ef10_mem_map_size,
 	.probe = efx_ef10_probe,
@@ -3484,11 +3601,14 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.mtd_sync = efx_mcdi_mtd_sync,
 #endif
 	.ptp_write_host_time = efx_ef10_ptp_write_host_time,
+	.ptp_set_ts_sync_events = efx_ef10_ptp_set_ts_sync_events,
+	.ptp_set_ts_config = efx_ef10_ptp_set_ts_config,
 
 	.revision = EFX_REV_HUNT_A0,
 	.max_dma_mask = DMA_BIT_MASK(ESF_DZ_TX_KER_BUF_ADDR_WIDTH),
 	.rx_prefix_size = ES_DZ_RX_PREFIX_SIZE,
 	.rx_hash_offset = ES_DZ_RX_PREFIX_HASH_OFST,
+	.rx_ts_offset = ES_DZ_RX_PREFIX_TSTAMP_OFST,
 	.can_rx_scatter = true,
 	.always_rx_scatter = true,
 	.max_interrupt_mode = EFX_INT_MODE_MSIX,
@@ -3497,4 +3617,6 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 			     NETIF_F_RXHASH | NETIF_F_NTUPLE),
 	.mcdi_max_ver = 2,
 	.max_rx_ip_filters = HUNT_FILTER_TBL_ROWS,
+	.hwtstamp_filters = 1 << HWTSTAMP_FILTER_NONE |
+			    1 << HWTSTAMP_FILTER_ALL,
 };

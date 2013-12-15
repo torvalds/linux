@@ -1117,6 +1117,77 @@ static void efx_remove_port(struct efx_nic *efx)
  *
  **************************************************************************/
 
+static LIST_HEAD(efx_primary_list);
+static LIST_HEAD(efx_unassociated_list);
+
+static bool efx_same_controller(struct efx_nic *left, struct efx_nic *right)
+{
+	return left->type == right->type &&
+		left->vpd_sn && right->vpd_sn &&
+		!strcmp(left->vpd_sn, right->vpd_sn);
+}
+
+static void efx_associate(struct efx_nic *efx)
+{
+	struct efx_nic *other, *next;
+
+	if (efx->primary == efx) {
+		/* Adding primary function; look for secondaries */
+
+		netif_dbg(efx, probe, efx->net_dev, "adding to primary list\n");
+		list_add_tail(&efx->node, &efx_primary_list);
+
+		list_for_each_entry_safe(other, next, &efx_unassociated_list,
+					 node) {
+			if (efx_same_controller(efx, other)) {
+				list_del(&other->node);
+				netif_dbg(other, probe, other->net_dev,
+					  "moving to secondary list of %s %s\n",
+					  pci_name(efx->pci_dev),
+					  efx->net_dev->name);
+				list_add_tail(&other->node,
+					      &efx->secondary_list);
+				other->primary = efx;
+			}
+		}
+	} else {
+		/* Adding secondary function; look for primary */
+
+		list_for_each_entry(other, &efx_primary_list, node) {
+			if (efx_same_controller(efx, other)) {
+				netif_dbg(efx, probe, efx->net_dev,
+					  "adding to secondary list of %s %s\n",
+					  pci_name(other->pci_dev),
+					  other->net_dev->name);
+				list_add_tail(&efx->node,
+					      &other->secondary_list);
+				efx->primary = other;
+				return;
+			}
+		}
+
+		netif_dbg(efx, probe, efx->net_dev,
+			  "adding to unassociated list\n");
+		list_add_tail(&efx->node, &efx_unassociated_list);
+	}
+}
+
+static void efx_dissociate(struct efx_nic *efx)
+{
+	struct efx_nic *other, *next;
+
+	list_del(&efx->node);
+	efx->primary = NULL;
+
+	list_for_each_entry_safe(other, next, &efx->secondary_list, node) {
+		list_del(&other->node);
+		netif_dbg(other, probe, other->net_dev,
+			  "moving to unassociated list\n");
+		list_add_tail(&other->node, &efx_unassociated_list);
+		other->primary = NULL;
+	}
+}
+
 /* This configures the PCI device to enable I/O and DMA. */
 static int efx_init_io(struct efx_nic *efx)
 {
@@ -2214,6 +2285,8 @@ static int efx_register_netdev(struct efx_nic *efx)
 			efx_init_tx_queue_core_txq(tx_queue);
 	}
 
+	efx_associate(efx);
+
 	rtnl_unlock();
 
 	rc = device_create_file(&efx->pci_dev->dev, &dev_attr_phy_type);
@@ -2227,6 +2300,7 @@ static int efx_register_netdev(struct efx_nic *efx)
 
 fail_registered:
 	rtnl_lock();
+	efx_dissociate(efx);
 	unregister_netdevice(net_dev);
 fail_locked:
 	efx->state = STATE_UNINIT;
@@ -2568,6 +2642,8 @@ static int efx_init_struct(struct efx_nic *efx,
 	int i;
 
 	/* Initialise common structures */
+	INIT_LIST_HEAD(&efx->node);
+	INIT_LIST_HEAD(&efx->secondary_list);
 	spin_lock_init(&efx->biu_lock);
 #ifdef CONFIG_SFC_MTD
 	INIT_LIST_HEAD(&efx->mtd_list);
@@ -2586,6 +2662,8 @@ static int efx_init_struct(struct efx_nic *efx,
 		NET_IP_ALIGN ? (efx->rx_prefix_size + NET_IP_ALIGN) % 4 : 0;
 	efx->rx_packet_hash_offset =
 		efx->type->rx_hash_offset - efx->type->rx_prefix_size;
+	efx->rx_packet_ts_offset =
+		efx->type->rx_ts_offset - efx->type->rx_prefix_size;
 	spin_lock_init(&efx->stats_lock);
 	mutex_init(&efx->mac_lock);
 	efx->phy_op = &efx_dummy_phy_operations;
@@ -2625,6 +2703,8 @@ static void efx_fini_struct(struct efx_nic *efx)
 
 	for (i = 0; i < EFX_MAX_CHANNELS; i++)
 		kfree(efx->channel[i]);
+
+	kfree(efx->vpd_sn);
 
 	if (efx->workqueue) {
 		destroy_workqueue(efx->workqueue);
@@ -2670,6 +2750,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 
 	/* Mark the NIC as fini, then stop the interface */
 	rtnl_lock();
+	efx_dissociate(efx);
 	dev_close(efx->net_dev);
 	efx_disable_interrupts(efx);
 	rtnl_unlock();
@@ -2696,12 +2777,12 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
  * always appear within the first 512 bytes.
  */
 #define SFC_VPD_LEN 512
-static void efx_print_product_vpd(struct efx_nic *efx)
+static void efx_probe_vpd_strings(struct efx_nic *efx)
 {
 	struct pci_dev *dev = efx->pci_dev;
 	char vpd_data[SFC_VPD_LEN];
 	ssize_t vpd_size;
-	int i, j;
+	int ro_start, ro_size, i, j;
 
 	/* Get the vpd data from the device */
 	vpd_size = pci_read_vpd(dev, 0, sizeof(vpd_data), vpd_data);
@@ -2711,14 +2792,15 @@ static void efx_print_product_vpd(struct efx_nic *efx)
 	}
 
 	/* Get the Read only section */
-	i = pci_vpd_find_tag(vpd_data, 0, vpd_size, PCI_VPD_LRDT_RO_DATA);
-	if (i < 0) {
+	ro_start = pci_vpd_find_tag(vpd_data, 0, vpd_size, PCI_VPD_LRDT_RO_DATA);
+	if (ro_start < 0) {
 		netif_err(efx, drv, efx->net_dev, "VPD Read-only not found\n");
 		return;
 	}
 
-	j = pci_vpd_lrdt_size(&vpd_data[i]);
-	i += PCI_VPD_LRDT_TAG_SIZE;
+	ro_size = pci_vpd_lrdt_size(&vpd_data[ro_start]);
+	j = ro_size;
+	i = ro_start + PCI_VPD_LRDT_TAG_SIZE;
 	if (i + j > vpd_size)
 		j = vpd_size - i;
 
@@ -2738,6 +2820,27 @@ static void efx_print_product_vpd(struct efx_nic *efx)
 
 	netif_info(efx, drv, efx->net_dev,
 		   "Part Number : %.*s\n", j, &vpd_data[i]);
+
+	i = ro_start + PCI_VPD_LRDT_TAG_SIZE;
+	j = ro_size;
+	i = pci_vpd_find_info_keyword(vpd_data, i, j, "SN");
+	if (i < 0) {
+		netif_err(efx, drv, efx->net_dev, "Serial number not found\n");
+		return;
+	}
+
+	j = pci_vpd_info_field_size(&vpd_data[i]);
+	i += PCI_VPD_INFO_FLD_HDR_SIZE;
+	if (i + j > vpd_size) {
+		netif_err(efx, drv, efx->net_dev, "Incomplete serial number\n");
+		return;
+	}
+
+	efx->vpd_sn = kmalloc(j + 1, GFP_KERNEL);
+	if (!efx->vpd_sn)
+		return;
+
+	snprintf(efx->vpd_sn, j + 1, "%s", &vpd_data[i]);
 }
 
 
@@ -2834,7 +2937,7 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 	netif_info(efx, probe, efx->net_dev,
 		   "Solarflare NIC detected\n");
 
-	efx_print_product_vpd(efx);
+	efx_probe_vpd_strings(efx);
 
 	/* Set up basic I/O (BAR mappings etc) */
 	rc = efx_init_io(efx);
