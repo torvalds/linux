@@ -1385,10 +1385,8 @@ void at91_pinctrl_gpio_resume(void)
 
 		pio = gpio_chips[i]->regbase;
 
-		if (!wakeups[i]) {
-			if (clk_prepare(gpio_chips[i]->clock) == 0)
-				clk_enable(gpio_chips[i]->clock);
-		}
+		if (!wakeups[i])
+			clk_prepare_enable(gpio_chips[i]->clock);
 
 		__raw_writel(wakeups[i], pio + PIO_IDR);
 		__raw_writel(backups[i], pio + PIO_IER);
