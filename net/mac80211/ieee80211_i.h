@@ -232,6 +232,7 @@ struct ieee80211_rx_data {
 struct beacon_data {
 	u8 *head, *tail;
 	int head_len, tail_len;
+	struct ieee80211_meshconf_ie *meshconf;
 	struct rcu_head rcu_head;
 };
 
@@ -540,7 +541,10 @@ struct ieee80211_mesh_sync_ops {
 			     struct ieee80211_mgmt *mgmt,
 			     struct ieee802_11_elems *elems,
 			     struct ieee80211_rx_status *rx_status);
-	void (*adjust_tbtt)(struct ieee80211_sub_if_data *sdata);
+
+	/* should be called with beacon_data under RCU read lock */
+	void (*adjust_tbtt)(struct ieee80211_sub_if_data *sdata,
+			    struct beacon_data *beacon);
 	/* add other framework functions here */
 };
 
@@ -614,6 +618,9 @@ struct ieee80211_if_mesh {
 	bool chsw_init;
 	u8 chsw_ttl;
 	u16 pre_value;
+
+	/* offset from skb->data while building IE */
+	int meshconf_offset;
 };
 
 #ifdef CONFIG_MAC80211_MESH

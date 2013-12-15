@@ -2604,8 +2604,7 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 			ieee80211_update_csa(sdata, bcn);
 
 		if (ifmsh->sync_ops)
-			ifmsh->sync_ops->adjust_tbtt(
-						sdata);
+			ifmsh->sync_ops->adjust_tbtt(sdata, bcn);
 
 		skb = dev_alloc_skb(local->tx_headroom +
 				    bcn->head_len +

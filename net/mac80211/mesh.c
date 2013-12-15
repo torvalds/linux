@@ -259,6 +259,9 @@ int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
 	*pos++ = WLAN_EID_MESH_CONFIG;
 	*pos++ = meshconf_len;
 
+	/* save a pointer for quick updates in pre-tbtt */
+	ifmsh->meshconf_offset = pos - skb->data;
+
 	/* Active path selection protocol ID */
 	*pos++ = ifmsh->mesh_pp_id;
 	/* Active path selection metric ID   */
@@ -723,6 +726,8 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 
 	bcn->tail_len = skb->len;
 	memcpy(bcn->tail, skb->data, bcn->tail_len);
+	bcn->meshconf = (struct ieee80211_meshconf_ie *)
+					(bcn->tail + ifmsh->meshconf_offset);
 
 	dev_kfree_skb(skb);
 	rcu_assign_pointer(ifmsh->beacon, bcn);
