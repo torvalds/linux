@@ -18,9 +18,9 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/log2.h>
 
-#include <linux/mfd/pm8xxx/core.h>
 #include <linux/input/pmic8xxx-pwrkey.h>
 
 #define PON_CNTL_1 0x1C
@@ -88,7 +88,8 @@ static int pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	int key_press_irq = platform_get_irq(pdev, 1);
 	int err;
 	unsigned int delay;
-	u8 pon_cntl;
+	unsigned int pon_cntl;
+	struct regmap *regmap;
 	struct pmic8xxx_pwrkey *pwrkey;
 	const struct pm8xxx_pwrkey_platform_data *pdata =
 					dev_get_platdata(&pdev->dev);
@@ -101,6 +102,12 @@ static int pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	if (pdata->kpd_trigger_delay_us > 62500) {
 		dev_err(&pdev->dev, "invalid power key trigger delay\n");
 		return -EINVAL;
+	}
+
+	regmap = dev_get_regmap(pdev->dev.parent, NULL);
+	if (!regmap) {
+		dev_err(&pdev->dev, "failed to locate regmap for the device\n");
+		return -ENODEV;
 	}
 
 	pwrkey = kzalloc(sizeof(*pwrkey), GFP_KERNEL);
@@ -123,7 +130,7 @@ static int pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	delay = (pdata->kpd_trigger_delay_us << 10) / USEC_PER_SEC;
 	delay = 1 + ilog2(delay);
 
-	err = pm8xxx_readb(pdev->dev.parent, PON_CNTL_1, &pon_cntl);
+	err = regmap_read(regmap, PON_CNTL_1, &pon_cntl);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed reading PON_CNTL_1 err=%d\n", err);
 		goto free_input_dev;
@@ -136,7 +143,7 @@ static int pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	else
 		pon_cntl &= ~PON_CNTL_PULL_UP;
 
-	err = pm8xxx_writeb(pdev->dev.parent, PON_CNTL_1, pon_cntl);
+	err = regmap_write(regmap, PON_CNTL_1, pon_cntl);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed writing PON_CNTL_1 err=%d\n", err);
 		goto free_input_dev;
