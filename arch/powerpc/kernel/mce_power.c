@@ -50,12 +50,12 @@ static void flush_and_reload_slb(void)
 	if (!slb)
 		return;
 
-	n = min_t(u32, slb->persistent, SLB_MIN_SIZE);
+	n = min_t(u32, be32_to_cpu(slb->persistent), SLB_MIN_SIZE);
 
 	/* Load up the SLB entries from shadow SLB */
 	for (i = 0; i < n; i++) {
-		unsigned long rb = slb->save_area[i].esid;
-		unsigned long rs = slb->save_area[i].vsid;
+		unsigned long rb = be64_to_cpu(slb->save_area[i].esid);
+		unsigned long rs = be64_to_cpu(slb->save_area[i].vsid);
 
 		rb = (rb & ~0xFFFul) | i;
 		asm volatile("slbmte %0,%1" : : "r" (rs), "r" (rb));
