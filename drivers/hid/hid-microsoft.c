@@ -73,6 +73,7 @@ static int ms_ergonomy_kb_quirk(struct hid_input *hi, struct hid_usage *usage,
 		set_bit(KEY_F16, input->keybit);
 		set_bit(KEY_F17, input->keybit);
 		set_bit(KEY_F18, input->keybit);
+		break;
 	default:
 		return 0;
 	}
