@@ -186,13 +186,13 @@ static int pm8xxx_vib_probe(struct platform_device *pdev)
 	int error;
 	u8 val;
 
-	vib = kzalloc(sizeof(*vib), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!vib || !input_dev) {
-		dev_err(&pdev->dev, "couldn't allocate memory\n");
-		error = -ENOMEM;
-		goto err_free_mem;
-	}
+	vib = devm_kzalloc(&pdev->dev, sizeof(*vib), GFP_KERNEL);
+	if (!vib)
+		return -ENOMEM;
+
+	input_dev = devm_input_allocate_device(&pdev->dev);
+	if (!input_dev)
+		return -ENOMEM;
 
 	INIT_WORK(&vib->work, pm8xxx_work_handler);
 	vib->dev = &pdev->dev;
@@ -201,17 +201,17 @@ static int pm8xxx_vib_probe(struct platform_device *pdev)
 	/* operate in manual mode */
 	error = pm8xxx_vib_read_u8(vib, &val, VIB_DRV);
 	if (error < 0)
-		goto err_free_mem;
+		return error;
+
 	val &= ~VIB_DRV_EN_MANUAL_MASK;
 	error = pm8xxx_vib_write_u8(vib, val, VIB_DRV);
 	if (error < 0)
-		goto err_free_mem;
+		return error;
 
 	vib->reg_vib_drv = val;
 
 	input_dev->name = "pm8xxx_vib_ffmemless";
 	input_dev->id.version = 1;
-	input_dev->dev.parent = &pdev->dev;
 	input_dev->close = pm8xxx_vib_close;
 	input_set_drvdata(input_dev, vib);
 	input_set_capability(vib->vib_input_dev, EV_FF, FF_RUMBLE);
@@ -221,34 +221,16 @@ static int pm8xxx_vib_probe(struct platform_device *pdev)
 	if (error) {
 		dev_err(&pdev->dev,
 			"couldn't register vibrator as FF device\n");
-		goto err_free_mem;
+		return error;
 	}
 
 	error = input_register_device(input_dev);
 	if (error) {
 		dev_err(&pdev->dev, "couldn't register input device\n");
-		goto err_destroy_memless;
+		return error;
 	}
 
 	platform_set_drvdata(pdev, vib);
-	return 0;
-
-err_destroy_memless:
-	input_ff_destroy(input_dev);
-err_free_mem:
-	input_free_device(input_dev);
-	kfree(vib);
-
-	return error;
-}
-
-static int pm8xxx_vib_remove(struct platform_device *pdev)
-{
-	struct pm8xxx_vib *vib = platform_get_drvdata(pdev);
-
-	input_unregister_device(vib->vib_input_dev);
-	kfree(vib);
-
 	return 0;
 }
 
@@ -268,7 +250,6 @@ static SIMPLE_DEV_PM_OPS(pm8xxx_vib_pm_ops, pm8xxx_vib_suspend, NULL);
 
 static struct platform_driver pm8xxx_vib_driver = {
 	.probe		= pm8xxx_vib_probe,
-	.remove		= pm8xxx_vib_remove,
 	.driver		= {
 		.name	= "pm8xxx-vib",
 		.owner	= THIS_MODULE,
