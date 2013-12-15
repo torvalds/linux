@@ -55,4 +55,17 @@ futex_wake(u_int32_t *uaddr, int nr_wake, int opflags)
 	return futex(uaddr, FUTEX_WAKE, nr_wake, NULL, NULL, 0, opflags);
 }
 
+/**
+* futex_cmp_requeue() - requeue tasks from uaddr to uaddr2
+* @nr_wake:        wake up to this many tasks
+* @nr_requeue:        requeue up to this many tasks
+*/
+static inline int
+futex_cmp_requeue(u_int32_t *uaddr, u_int32_t val, u_int32_t *uaddr2, int nr_wake,
+		 int nr_requeue, int opflags)
+{
+	return futex(uaddr, FUTEX_CMP_REQUEUE, nr_wake, nr_requeue, uaddr2,
+		 val, opflags);
+}
+
 #endif /* _FUTEX_H */
