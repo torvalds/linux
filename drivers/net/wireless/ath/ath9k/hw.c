@@ -146,10 +146,9 @@ static void ath9k_hw_set_clockrate(struct ath_hw *ah)
 	else
 		clockrate = ATH9K_CLOCK_RATE_5GHZ_OFDM;
 
-	if (IS_CHAN_HT40(chan))
-		clockrate *= 2;
-
-	if (ah->curchan) {
+	if (chan) {
+		if (IS_CHAN_HT40(chan))
+			clockrate *= 2;
 		if (IS_CHAN_HALF_RATE(chan))
 			clockrate /= 2;
 		if (IS_CHAN_QUARTER_RATE(chan))
