@@ -397,6 +397,9 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (sk->sk_state == TCP_LISTEN)
 			goto out;
 
+		if (!ip6_sk_accept_pmtu(sk))
+			goto out;
+
 		tp->mtu_info = ntohl(info);
 		if (!sock_owned_by_user(sk))
 			tcp_v6_mtu_reduced(sk);

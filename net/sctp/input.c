@@ -389,6 +389,9 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 	if (!t || (t->pathmtu <= pmtu))
 		return;
 
+	if (!ip6_sk_accept_pmtu(sk))
+		return;
+
 	if (sock_owned_by_user(sk)) {
 		asoc->pmtu_pending = 1;
 		t->pmtu_pending = 1;

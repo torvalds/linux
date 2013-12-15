@@ -178,8 +178,13 @@ static inline int ip6_skb_dst_mtu(struct sk_buff *skb)
 {
 	struct ipv6_pinfo *np = skb->sk ? inet6_sk(skb->sk) : NULL;
 
-	return (np && np->pmtudisc == IPV6_PMTUDISC_PROBE) ?
+	return (np && np->pmtudisc >= IPV6_PMTUDISC_PROBE) ?
 	       skb_dst(skb)->dev->mtu : dst_mtu(skb_dst(skb));
+}
+
+static inline bool ip6_sk_accept_pmtu(const struct sock *sk)
+{
+	return inet6_sk(sk)->pmtudisc != IPV6_PMTUDISC_INTERFACE;
 }
 
 static inline struct in6_addr *rt6_nexthop(struct rt6_info *rt)
