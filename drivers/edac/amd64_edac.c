@@ -2005,9 +2005,9 @@ static void __log_bus_error(struct mem_ctl_info *mci, struct err_info *err,
 			     string, "");
 }
 
-static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
-					    struct mce *m)
+static inline void decode_bus_error(int node_id, struct mce *m)
 {
+	struct mem_ctl_info *mci = mcis[node_id];
 	struct amd64_pvt *pvt = mci->pvt_info;
 	u8 ecc_type = (m->status >> 45) & 0x3;
 	u8 xec = XEC(m->status, 0x1f);
@@ -2033,11 +2033,6 @@ static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 	pvt->ops->map_sysaddr_to_csrow(mci, sys_addr, &err);
 
 	__log_bus_error(mci, &err, ecc_type);
-}
-
-static void amd64_decode_bus_error(int node_id, struct mce *m)
-{
-	__amd64_decode_bus_error(mcis[node_id], m);
 }
 
 /*
@@ -2680,7 +2675,7 @@ static int amd64_init_one_instance(struct pci_dev *F2)
 	if (report_gart_errors)
 		amd_report_gart_errors(true);
 
-	amd_register_ecc_decoder(amd64_decode_bus_error);
+	amd_register_ecc_decoder(decode_bus_error);
 
 	mcis[nid] = mci;
 
@@ -2777,7 +2772,7 @@ static void amd64_remove_one_instance(struct pci_dev *pdev)
 
 	/* unregister from EDAC MCE */
 	amd_report_gart_errors(false);
-	amd_unregister_ecc_decoder(amd64_decode_bus_error);
+	amd_unregister_ecc_decoder(decode_bus_error);
 
 	kfree(ecc_stngs[nid]);
 	ecc_stngs[nid] = NULL;
