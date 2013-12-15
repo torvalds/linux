@@ -1488,8 +1488,7 @@ asmlinkage void __init xen_start_kernel(void)
 	x86_configure_nx();
 
 	/* Get mfn list */
-	if (!xen_feature(XENFEAT_auto_translated_physmap))
-		xen_build_dynamic_phys_to_machine();
+	xen_build_dynamic_phys_to_machine();
 
 	/*
 	 * Set up kernel GDT and segment registers, mainly so that
