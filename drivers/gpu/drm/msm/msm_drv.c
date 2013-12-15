@@ -905,6 +905,25 @@ static int compare_of(struct device *dev, void *data)
 {
 	return dev->of_node == data;
 }
+
+static int add_components(struct device *dev, struct component_match **matchptr,
+		const char *name)
+{
+	struct device_node *np = dev->of_node;
+	unsigned i;
+
+	for (i = 0; ; i++) {
+		struct device_node *node;
+
+		node = of_parse_phandle(np, name, i);
+		if (!node)
+			break;
+
+		component_match_add(dev, matchptr, compare_of, node);
+	}
+
+	return 0;
+}
 #else
 static int compare_dev(struct device *dev, void *data)
 {
@@ -935,21 +954,8 @@ static int msm_pdev_probe(struct platform_device *pdev)
 {
 	struct component_match *match = NULL;
 #ifdef CONFIG_OF
-	/* NOTE: the CONFIG_OF case duplicates the same code as exynos or imx
-	 * (or probably any other).. so probably some room for some helpers
-	 */
-	struct device_node *np = pdev->dev.of_node;
-	unsigned i;
-
-	for (i = 0; ; i++) {
-		struct device_node *node;
-
-		node = of_parse_phandle(np, "connectors", i);
-		if (!node)
-			break;
-
-		component_match_add(&pdev->dev, &match, compare_of, node);
-	}
+	add_components(&pdev->dev, &match, "connectors");
+	add_components(&pdev->dev, &match, "gpus");
 #else
 	/* For non-DT case, it kinda sucks.  We don't actually have a way
 	 * to know whether or not we are waiting for certain devices (or if
@@ -995,7 +1001,8 @@ static const struct platform_device_id msm_id[] = {
 };
 
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "qcom,mdss_mdp" },
+	{ .compatible = "qcom,mdp" },      /* mdp4 */
+	{ .compatible = "qcom,mdss_mdp" }, /* mdp5 */
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);

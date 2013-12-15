@@ -294,15 +294,17 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	mdp4_kms->dsi_pll_vdda = devm_regulator_get(&pdev->dev, "dsi_pll_vdda");
+	mdp4_kms->dsi_pll_vdda =
+			devm_regulator_get_optional(&pdev->dev, "dsi_pll_vdda");
 	if (IS_ERR(mdp4_kms->dsi_pll_vdda))
 		mdp4_kms->dsi_pll_vdda = NULL;
 
-	mdp4_kms->dsi_pll_vddio = devm_regulator_get(&pdev->dev, "dsi_pll_vddio");
+	mdp4_kms->dsi_pll_vddio =
+			devm_regulator_get_optional(&pdev->dev, "dsi_pll_vddio");
 	if (IS_ERR(mdp4_kms->dsi_pll_vddio))
 		mdp4_kms->dsi_pll_vddio = NULL;
 
-	mdp4_kms->vdd = devm_regulator_get(&pdev->dev, "vdd");
+	mdp4_kms->vdd = devm_regulator_get_exclusive(&pdev->dev, "vdd");
 	if (IS_ERR(mdp4_kms->vdd))
 		mdp4_kms->vdd = NULL;
 
@@ -406,6 +408,8 @@ static struct mdp4_platform_config *mdp4_get_config(struct platform_device *dev)
 	static struct mdp4_platform_config config = {};
 #ifdef CONFIG_OF
 	/* TODO */
+	config.max_clk = 266667000;
+	config.iommu = iommu_domain_alloc(&platform_bus_type);
 #else
 	if (cpu_is_apq8064())
 		config.max_clk = 266667000;
