@@ -790,4 +790,29 @@ struct tc_fq_qd_stats {
 	__u32	throttled_flows;
 	__u32	pad;
 };
+
+/* Heavy-Hitter Filter */
+
+enum {
+	TCA_HHF_UNSPEC,
+	TCA_HHF_BACKLOG_LIMIT,
+	TCA_HHF_QUANTUM,
+	TCA_HHF_HH_FLOWS_LIMIT,
+	TCA_HHF_RESET_TIMEOUT,
+	TCA_HHF_ADMIT_BYTES,
+	TCA_HHF_EVICT_TIMEOUT,
+	TCA_HHF_NON_HH_WEIGHT,
+	__TCA_HHF_MAX
+};
+
+#define TCA_HHF_MAX	(__TCA_HHF_MAX - 1)
+
+struct tc_hhf_xstats {
+	__u32	drop_overlimit; /* number of times max qdisc packet limit
+				 * was hit
+				 */
+	__u32	hh_overlimit;   /* number of times max heavy-hitters was hit */
+	__u32	hh_tot_count;   /* number of captured heavy-hitters so far */
+	__u32	hh_cur_count;   /* number of current heavy-hitters */
+};
 #endif
