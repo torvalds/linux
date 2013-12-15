@@ -352,7 +352,7 @@ static const unsigned int sdc2_data_pins[] = { 151 };
 			MSM_MUX_##f6,			\
 			MSM_MUX_##f7			\
 		},					\
-		.ctl_reg = 0x1000 + 0x10 * id ,		\
+		.ctl_reg = 0x1000 + 0x10 * id,		\
 		.io_reg = 0x1004 + 0x10 * id,		\
 		.intr_cfg_reg = 0x1008 + 0x10 * id,	\
 		.intr_status_reg = 0x100c + 0x10 * id,	\
@@ -602,7 +602,7 @@ static int msm8x74_pinctrl_probe(struct platform_device *pdev)
 	return msm_pinctrl_probe(pdev, &msm8x74_pinctrl);
 }
 
-static struct of_device_id msm8x74_pinctrl_of_match[] = {
+static const struct of_device_id msm8x74_pinctrl_of_match[] = {
 	{ .compatible = "qcom,msm8x74-pinctrl", },
 	{ },
 };

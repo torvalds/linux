@@ -96,7 +96,7 @@ static int msm_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinctrl_ops msm_pinctrl_ops = {
+static const struct pinctrl_ops msm_pinctrl_ops = {
 	.get_groups_count	= msm_get_groups_count,
 	.get_group_name		= msm_get_group_name,
 	.get_group_pins		= msm_get_group_pins,
@@ -190,7 +190,7 @@ static void msm_pinmux_disable(struct pinctrl_dev *pctldev,
 	spin_unlock_irqrestore(&pctrl->lock, flags);
 }
 
-static struct pinmux_ops msm_pinmux_ops = {
+static const struct pinmux_ops msm_pinmux_ops = {
 	.get_functions_count	= msm_get_functions_count,
 	.get_function_name	= msm_get_function_name,
 	.get_function_groups	= msm_get_function_groups,
@@ -378,7 +378,7 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinconf_ops msm_pinconf_ops = {
+static const struct pinconf_ops msm_pinconf_ops = {
 	.pin_config_get		= msm_config_get,
 	.pin_config_set		= msm_config_set,
 	.pin_config_group_get	= msm_config_group_get,
@@ -518,7 +518,7 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 	int pull;
 	u32 ctl_reg;
 
-	const char *pulls[] = {
+	static const char * const pulls[] = {
 		"no pull",
 		"pull down",
 		"keeper",
@@ -545,7 +545,7 @@ static void msm_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 
 	for (i = 0; i < chip->ngpio; i++, gpio++) {
 		msm_gpio_dbg_show_one(s, NULL, chip, i, gpio);
-		seq_printf(s, "\n");
+		seq_puts(s, "\n");
 	}
 }
 
@@ -868,7 +868,7 @@ static void msm_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	chained_irq_enter(chip, desc);
 
 	/*
-	 * Each pin have it's own IRQ status register, so use
+	 * Each pin has it's own IRQ status register, so use
 	 * enabled_irq bitmap to limit the number of reads.
 	 */
 	for_each_set_bit(i, pctrl->enabled_irqs, pctrl->chip.ngpio) {
@@ -881,7 +881,7 @@ static void msm_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 		}
 	}
 
-	/* No interrutps where flagged */
+	/* No interrupts were flagged */
 	if (handled == 0)
 		handle_bad_irq(irq, desc);
 
