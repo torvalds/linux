@@ -40,8 +40,6 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
-#if defined(CONFIG_DEBUG_FS)
-
 enum {
 	ACTIVE_LIST,
 	INACTIVE_LIST,
@@ -3282,5 +3280,3 @@ void i915_debugfs_cleanup(struct drm_minor *minor)
 		drm_debugfs_remove_files(info_list, 1, minor);
 	}
 }
-
-#endif /* CONFIG_DEBUG_FS */
