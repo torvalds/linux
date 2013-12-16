@@ -1002,6 +1002,10 @@ int qla4xxx_session_logout_ddb(struct scsi_qla_host *ha,
 				  "%s: MBOX_CMD_CONN_CLOSE_SESS_LOGOUT "
 				  "failed sts %04X %04X", __func__,
 				  mbox_sts[0], mbox_sts[1]));
+		if ((mbox_sts[0] == MBOX_STS_COMMAND_ERROR) &&
+		    (mbox_sts[1] == DDB_NOT_LOGGED_IN)) {
+			set_bit(DDB_CONN_CLOSE_FAILURE, &ddb_entry->flags);
+		}
 	}
 
 	return status;

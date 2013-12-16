@@ -297,6 +297,8 @@ struct ddb_entry {
 
 	/* Driver Re-login  */
 	unsigned long flags;		  /* DDB Flags */
+#define DDB_CONN_CLOSE_FAILURE		0 /* 0x00000001 */
+
 	uint16_t default_relogin_timeout; /*  Max time to wait for
 					   *  relogin to complete */
 	atomic_t retry_relogin_timer;	  /* Min Time between relogins
