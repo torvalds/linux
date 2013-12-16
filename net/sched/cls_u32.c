@@ -79,11 +79,6 @@ struct tc_u_common {
 	u32			hgenerator;
 };
 
-static const struct tcf_ext_map u32_ext_map = {
-	.action = TCA_U32_ACT,
-	.police = TCA_U32_POLICE
-};
-
 static inline unsigned int u32_hash_fold(__be32 key,
 					 const struct tc_u32_sel *sel,
 					 u8 fshift)
@@ -496,7 +491,8 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 	int err;
 	struct tcf_exts e;
 
-	err = tcf_exts_validate(net, tp, tb, est, &e, &u32_ext_map);
+	tcf_exts_init(&e, TCA_U32_ACT, TCA_U32_POLICE);
+	err = tcf_exts_validate(net, tp, tb, est, &e);
 	if (err < 0)
 		return err;
 
@@ -646,7 +642,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	n->ht_up = ht;
 	n->handle = handle;
 	n->fshift = s->hmask ? ffs(ntohl(s->hmask)) - 1 : 0;
-	tcf_exts_init(&n->exts);
+	tcf_exts_init(&n->exts, TCA_U32_ACT, TCA_U32_POLICE);
 
 #ifdef CONFIG_CLS_U32_MARK
 	if (tb[TCA_U32_MARK]) {
@@ -760,7 +756,7 @@ static int u32_dump(struct tcf_proto *tp, unsigned long fh,
 			goto nla_put_failure;
 #endif
 
-		if (tcf_exts_dump(skb, &n->exts, &u32_ext_map) < 0)
+		if (tcf_exts_dump(skb, &n->exts) < 0)
 			goto nla_put_failure;
 
 #ifdef CONFIG_NET_CLS_IND
@@ -779,7 +775,7 @@ static int u32_dump(struct tcf_proto *tp, unsigned long fh,
 	nla_nest_end(skb, nest);
 
 	if (TC_U32_KEY(n->handle))
-		if (tcf_exts_dump_stats(skb, &n->exts, &u32_ext_map) < 0)
+		if (tcf_exts_dump_stats(skb, &n->exts) < 0)
 			goto nla_put_failure;
 	return skb->len;
 

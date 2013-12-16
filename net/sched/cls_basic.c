@@ -34,11 +34,6 @@ struct basic_filter {
 	struct list_head	link;
 };
 
-static const struct tcf_ext_map basic_ext_map = {
-	.action = TCA_BASIC_ACT,
-	.police = TCA_BASIC_POLICE
-};
-
 static int basic_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			  struct tcf_result *res)
 {
@@ -141,7 +136,8 @@ static int basic_set_parms(struct net *net, struct tcf_proto *tp,
 	struct tcf_exts e;
 	struct tcf_ematch_tree t;
 
-	err = tcf_exts_validate(net, tp, tb, est, &e, &basic_ext_map);
+	tcf_exts_init(&e, TCA_BASIC_ACT, TCA_BASIC_POLICE);
+	err = tcf_exts_validate(net, tp, tb, est, &e);
 	if (err < 0)
 		return err;
 
@@ -191,7 +187,7 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 	if (f == NULL)
 		goto errout;
 
-	tcf_exts_init(&f->exts);
+	tcf_exts_init(&f->exts, TCA_BASIC_ACT, TCA_BASIC_POLICE);
 	err = -EINVAL;
 	if (handle)
 		f->handle = handle;
@@ -264,13 +260,13 @@ static int basic_dump(struct tcf_proto *tp, unsigned long fh,
 	    nla_put_u32(skb, TCA_BASIC_CLASSID, f->res.classid))
 		goto nla_put_failure;
 
-	if (tcf_exts_dump(skb, &f->exts, &basic_ext_map) < 0 ||
+	if (tcf_exts_dump(skb, &f->exts) < 0 ||
 	    tcf_em_tree_dump(skb, &f->ematches, TCA_BASIC_EMATCHES) < 0)
 		goto nla_put_failure;
 
 	nla_nest_end(skb, nest);
 
-	if (tcf_exts_dump_stats(skb, &f->exts, &basic_ext_map) < 0)
+	if (tcf_exts_dump_stats(skb, &f->exts) < 0)
 		goto nla_put_failure;
 
 	return skb->len;

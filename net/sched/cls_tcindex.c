@@ -50,11 +50,6 @@ struct tcindex_data {
 	int fall_through;	/* 0: only classify if explicit match */
 };
 
-static const struct tcf_ext_map tcindex_ext_map = {
-	.police = TCA_TCINDEX_POLICE,
-	.action = TCA_TCINDEX_ACT
-};
-
 static inline int
 tcindex_filter_is_set(struct tcindex_filter_result *r)
 {
@@ -209,19 +204,20 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 	struct tcindex_filter *f = NULL; /* make gcc behave */
 	struct tcf_exts e;
 
-	err = tcf_exts_validate(net, tp, tb, est, &e, &tcindex_ext_map);
+	tcf_exts_init(&e, TCA_TCINDEX_ACT, TCA_TCINDEX_POLICE);
+	err = tcf_exts_validate(net, tp, tb, est, &e);
 	if (err < 0)
 		return err;
 
 	memcpy(&cp, p, sizeof(cp));
 	memset(&new_filter_result, 0, sizeof(new_filter_result));
-	tcf_exts_init(&new_filter_result.exts);
+	tcf_exts_init(&new_filter_result.exts, TCA_TCINDEX_ACT, TCA_TCINDEX_POLICE);
 
 	if (old_r)
 		memcpy(&cr, r, sizeof(cr));
 	else {
 		memset(&cr, 0, sizeof(cr));
-		tcf_exts_init(&cr.exts);
+		tcf_exts_init(&cr.exts, TCA_TCINDEX_ACT, TCA_TCINDEX_POLICE);
 	}
 
 	if (tb[TCA_TCINDEX_HASH])
@@ -471,11 +467,11 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 		    nla_put_u32(skb, TCA_TCINDEX_CLASSID, r->res.classid))
 			goto nla_put_failure;
 
-		if (tcf_exts_dump(skb, &r->exts, &tcindex_ext_map) < 0)
+		if (tcf_exts_dump(skb, &r->exts) < 0)
 			goto nla_put_failure;
 		nla_nest_end(skb, nest);
 
-		if (tcf_exts_dump_stats(skb, &r->exts, &tcindex_ext_map) < 0)
+		if (tcf_exts_dump_stats(skb, &r->exts) < 0)
 			goto nla_put_failure;
 	}
 

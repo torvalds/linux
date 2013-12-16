@@ -172,11 +172,6 @@ static int cls_cgroup_init(struct tcf_proto *tp)
 	return 0;
 }
 
-static const struct tcf_ext_map cgroup_ext_map = {
-	.action = TCA_CGROUP_ACT,
-	.police = TCA_CGROUP_POLICE,
-};
-
 static const struct nla_policy cgroup_policy[TCA_CGROUP_MAX + 1] = {
 	[TCA_CGROUP_EMATCHES]	= { .type = NLA_NESTED },
 };
@@ -203,7 +198,7 @@ static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 		if (head == NULL)
 			return -ENOBUFS;
 
-		tcf_exts_init(&head->exts);
+		tcf_exts_init(&head->exts, TCA_CGROUP_ACT, TCA_CGROUP_POLICE);
 		head->handle = handle;
 
 		tcf_tree_lock(tp);
@@ -219,8 +214,8 @@ static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 	if (err < 0)
 		return err;
 
-	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e,
-				&cgroup_ext_map);
+	tcf_exts_init(&e, TCA_CGROUP_ACT, TCA_CGROUP_POLICE);
+	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e);
 	if (err < 0)
 		return err;
 
@@ -278,13 +273,13 @@ static int cls_cgroup_dump(struct tcf_proto *tp, unsigned long fh,
 	if (nest == NULL)
 		goto nla_put_failure;
 
-	if (tcf_exts_dump(skb, &head->exts, &cgroup_ext_map) < 0 ||
+	if (tcf_exts_dump(skb, &head->exts) < 0 ||
 	    tcf_em_tree_dump(skb, &head->ematches, TCA_CGROUP_EMATCHES) < 0)
 		goto nla_put_failure;
 
 	nla_nest_end(skb, nest);
 
-	if (tcf_exts_dump_stats(skb, &head->exts, &cgroup_ext_map) < 0)
+	if (tcf_exts_dump_stats(skb, &head->exts) < 0)
 		goto nla_put_failure;
 
 	return skb->len;

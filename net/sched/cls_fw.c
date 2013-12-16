@@ -46,11 +46,6 @@ struct fw_filter {
 	struct tcf_exts		exts;
 };
 
-static const struct tcf_ext_map fw_ext_map = {
-	.action = TCA_FW_ACT,
-	.police = TCA_FW_POLICE
-};
-
 static inline int fw_hash(u32 handle)
 {
 	if (HTSIZE == 4096)
@@ -200,7 +195,8 @@ fw_change_attrs(struct net *net, struct tcf_proto *tp, struct fw_filter *f,
 	u32 mask;
 	int err;
 
-	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, &fw_ext_map);
+	tcf_exts_init(&e, TCA_FW_ACT, TCA_FW_POLICE);
+	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e);
 	if (err < 0)
 		return err;
 
@@ -280,7 +276,7 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 	if (f == NULL)
 		return -ENOBUFS;
 
-	tcf_exts_init(&f->exts);
+	tcf_exts_init(&f->exts, TCA_FW_ACT, TCA_FW_POLICE);
 	f->id = handle;
 
 	err = fw_change_attrs(net, tp, f, tb, tca, base);
@@ -360,12 +356,12 @@ static int fw_dump(struct tcf_proto *tp, unsigned long fh,
 	    nla_put_u32(skb, TCA_FW_MASK, head->mask))
 		goto nla_put_failure;
 
-	if (tcf_exts_dump(skb, &f->exts, &fw_ext_map) < 0)
+	if (tcf_exts_dump(skb, &f->exts) < 0)
 		goto nla_put_failure;
 
 	nla_nest_end(skb, nest);
 
-	if (tcf_exts_dump_stats(skb, &f->exts, &fw_ext_map) < 0)
+	if (tcf_exts_dump_stats(skb, &f->exts) < 0)
 		goto nla_put_failure;
 
 	return skb->len;

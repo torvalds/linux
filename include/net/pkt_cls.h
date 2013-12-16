@@ -65,21 +65,21 @@ struct tcf_exts {
 	__u32	type; /* for backward compat(TCA_OLD_COMPAT) */
 	struct list_head actions;
 #endif
-};
-
-/* Map to export classifier specific extension TLV types to the
- * generic extensions API. Unsupported extensions must be set to 0.
- */
-struct tcf_ext_map {
+	/* Map to export classifier specific extension TLV types to the
+	 * generic extensions API. Unsupported extensions must be set to 0.
+	 */
 	int action;
 	int police;
 };
 
-static inline void tcf_exts_init(struct tcf_exts *exts)
+static inline void tcf_exts_init(struct tcf_exts *exts, int action, int police)
 {
 #ifdef CONFIG_NET_CLS_ACT
+	exts->type = 0;
 	INIT_LIST_HEAD(&exts->actions);
 #endif
+	exts->action = action;
+	exts->police = police;
 }
 
 /**
@@ -136,15 +136,12 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 
 int tcf_exts_validate(struct net *net, struct tcf_proto *tp,
 		      struct nlattr **tb, struct nlattr *rate_tlv,
-		      struct tcf_exts *exts,
-		      const struct tcf_ext_map *map);
+		      struct tcf_exts *exts);
 void tcf_exts_destroy(struct tcf_proto *tp, struct tcf_exts *exts);
 void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
 		     struct tcf_exts *src);
-int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts,
-		  const struct tcf_ext_map *map);
-int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts,
-			const struct tcf_ext_map *map);
+int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts);
+int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts);
 
 /**
  * struct tcf_pkt_info - packet information

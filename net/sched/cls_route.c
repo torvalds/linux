@@ -59,11 +59,6 @@ struct route4_filter {
 
 #define ROUTE4_FAILURE ((struct route4_filter *)(-1L))
 
-static const struct tcf_ext_map route_ext_map = {
-	.police = TCA_ROUTE4_POLICE,
-	.action = TCA_ROUTE4_ACT
-};
-
 static inline int route4_fastmap_hash(u32 id, int iif)
 {
 	return id & 0xF;
@@ -347,7 +342,8 @@ static int route4_set_parms(struct net *net, struct tcf_proto *tp,
 	struct route4_bucket *b;
 	struct tcf_exts e;
 
-	err = tcf_exts_validate(net, tp, tb, est, &e, &route_ext_map);
+	tcf_exts_init(&e, TCA_ROUTE4_ACT, TCA_ROUTE4_POLICE);
+	err = tcf_exts_validate(net, tp, tb, est, &e);
 	if (err < 0)
 		return err;
 
@@ -481,7 +477,7 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 	if (f == NULL)
 		goto errout;
 
-	tcf_exts_init(&f->exts);
+	tcf_exts_init(&f->exts, TCA_ROUTE4_ACT, TCA_ROUTE4_POLICE);
 	err = route4_set_parms(net, tp, base, f, handle, head, tb,
 		tca[TCA_RATE], 1);
 	if (err < 0)
@@ -590,12 +586,12 @@ static int route4_dump(struct tcf_proto *tp, unsigned long fh,
 	    nla_put_u32(skb, TCA_ROUTE4_CLASSID, f->res.classid))
 		goto nla_put_failure;
 
-	if (tcf_exts_dump(skb, &f->exts, &route_ext_map) < 0)
+	if (tcf_exts_dump(skb, &f->exts) < 0)
 		goto nla_put_failure;
 
 	nla_nest_end(skb, nest);
 
-	if (tcf_exts_dump_stats(skb, &f->exts, &route_ext_map) < 0)
+	if (tcf_exts_dump_stats(skb, &f->exts) < 0)
 		goto nla_put_failure;
 
 	return skb->len;
