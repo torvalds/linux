@@ -168,9 +168,9 @@ static int xilly_probe(struct pci_dev *pdev,
 	}
 
 	endpoint->registers = pci_iomap(pdev, 0, 128);
-
 	if (!endpoint->registers) {
 		dev_err(endpoint->dev, "Failed to map BAR 0. Aborting.\n");
+		rc = -EIO;
 		goto failed_iomap0;
 	}
 
