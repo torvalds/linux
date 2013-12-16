@@ -7763,6 +7763,11 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 			else
 				vmcs_write64(APIC_ACCESS_ADDR,
 				  page_to_phys(vmx->nested.apic_access_page));
+		} else if (vm_need_virtualize_apic_accesses(vmx->vcpu.kvm)) {
+			exec_control |=
+				SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
+			vmcs_write64(APIC_ACCESS_ADDR,
+				page_to_phys(vcpu->kvm->arch.apic_access_page));
 		}
 
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
