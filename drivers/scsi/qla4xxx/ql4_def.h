@@ -595,10 +595,10 @@ struct scsi_qla_host {
 #define DPC_AEN				9 /* 0x00000200 */
 #define DPC_GET_DHCP_IP_ADDR		15 /* 0x00008000 */
 #define DPC_LINK_CHANGED		18 /* 0x00040000 */
-#define DPC_RESET_ACTIVE		20 /* 0x00040000 */
-#define DPC_HA_UNRECOVERABLE		21 /* 0x00080000 ISP-82xx only*/
-#define DPC_HA_NEED_QUIESCENT		22 /* 0x00100000 ISP-82xx only*/
-#define DPC_POST_IDC_ACK		23 /* 0x00200000 */
+#define DPC_RESET_ACTIVE		20 /* 0x00100000 */
+#define DPC_HA_UNRECOVERABLE		21 /* 0x00200000 ISP-82xx only*/
+#define DPC_HA_NEED_QUIESCENT		22 /* 0x00400000 ISP-82xx only*/
+#define DPC_POST_IDC_ACK		23 /* 0x00800000 */
 #define DPC_RESTORE_ACB			24 /* 0x01000000 */
 
 	struct Scsi_Host *host; /* pointer to host data */
