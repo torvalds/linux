@@ -5283,9 +5283,9 @@ static void qla4xxx_do_dpc(struct work_struct *work)
 		container_of(work, struct scsi_qla_host, dpc_work);
 	int status = QLA_ERROR;
 
-	DEBUG2(printk("scsi%ld: %s: DPC handler waking up."
-	    "flags = 0x%08lx, dpc_flags = 0x%08lx\n",
-	    ha->host_no, __func__, ha->flags, ha->dpc_flags))
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+			  "scsi%ld: %s: DPC handler waking up. flags = 0x%08lx, dpc_flags = 0x%08lx\n",
+			  ha->host_no, __func__, ha->flags, ha->dpc_flags));
 
 	/* Initialization not yet finished. Don't do anything yet. */
 	if (!test_bit(AF_INIT_DONE, &ha->flags))
