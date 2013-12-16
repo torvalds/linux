@@ -143,7 +143,8 @@ struct btree {
 	struct bset_tree	sets[MAX_BSETS];
 
 	/* For outstanding btree writes, used as a lock - protects write_idx */
-	struct closure_with_waitlist	io;
+	struct closure		io;
+	struct semaphore	io_mutex;
 
 	struct list_head	list;
 	struct delayed_work	work;

@@ -564,6 +564,14 @@ static void journal_write_done(struct closure *cl)
 	continue_at_nobarrier(cl, journal_write, system_wq);
 }
 
+static void journal_write_unlock(struct closure *cl)
+{
+	struct cache_set *c = container_of(cl, struct cache_set, journal.io);
+
+	c->journal.io_in_flight = 0;
+	spin_unlock(&c->journal.lock);
+}
+
 static void journal_write_unlocked(struct closure *cl)
 	__releases(c->journal.lock)
 {
@@ -578,15 +586,7 @@ static void journal_write_unlocked(struct closure *cl)
 	bio_list_init(&list);
 
 	if (!w->need_write) {
-		/*
-		 * XXX: have to unlock closure before we unlock journal lock,
-		 * else we race with bch_journal(). But this way we race
-		 * against cache set unregister. Doh.
-		 */
-		set_closure_fn(cl, NULL, NULL);
-		closure_sub(cl, CLOSURE_RUNNING + 1);
-		spin_unlock(&c->journal.lock);
-		return;
+		closure_return_with_destructor(cl, journal_write_unlock);
 	} else if (journal_full(&c->journal)) {
 		journal_reclaim(c);
 		spin_unlock(&c->journal.lock);
@@ -662,10 +662,12 @@ static void journal_try_write(struct cache_set *c)
 
 	w->need_write = true;
 
-	if (closure_trylock(cl, &c->cl))
-		journal_write_unlocked(cl);
-	else
+	if (!c->journal.io_in_flight) {
+		c->journal.io_in_flight = 1;
+		closure_call(cl, journal_write_unlocked, NULL, &c->cl);
+	} else {
 		spin_unlock(&c->journal.lock);
+	}
 }
 
 static struct journal_write *journal_wait_for_write(struct cache_set *c,
@@ -793,7 +795,6 @@ int bch_journal_alloc(struct cache_set *c)
 {
 	struct journal *j = &c->journal;
 
-	closure_init_unlocked(&j->io);
 	spin_lock_init(&j->lock);
 	INIT_DELAYED_WORK(&j->work, journal_write_work);
 

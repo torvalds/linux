@@ -225,7 +225,7 @@ static void write_bdev_super_endio(struct bio *bio, int error)
 	struct cached_dev *dc = bio->bi_private;
 	/* XXX: error checking */
 
-	closure_put(&dc->sb_write.cl);
+	closure_put(&dc->sb_write);
 }
 
 static void __write_super(struct cache_sb *sb, struct bio *bio)
@@ -263,12 +263,20 @@ static void __write_super(struct cache_sb *sb, struct bio *bio)
 	submit_bio(REQ_WRITE, bio);
 }
 
+static void bch_write_bdev_super_unlock(struct closure *cl)
+{
+	struct cached_dev *dc = container_of(cl, struct cached_dev, sb_write);
+
+	up(&dc->sb_write_mutex);
+}
+
 void bch_write_bdev_super(struct cached_dev *dc, struct closure *parent)
 {
-	struct closure *cl = &dc->sb_write.cl;
+	struct closure *cl = &dc->sb_write;
 	struct bio *bio = &dc->sb_bio;
 
-	closure_lock(&dc->sb_write, parent);
+	down(&dc->sb_write_mutex);
+	closure_init(cl, parent);
 
 	bio_reset(bio);
 	bio->bi_bdev	= dc->bdev;
@@ -278,7 +286,7 @@ void bch_write_bdev_super(struct cached_dev *dc, struct closure *parent)
 	closure_get(cl);
 	__write_super(&dc->sb, bio);
 
-	closure_return(cl);
+	closure_return_with_destructor(cl, bch_write_bdev_super_unlock);
 }
 
 static void write_super_endio(struct bio *bio, int error)
@@ -286,16 +294,24 @@ static void write_super_endio(struct bio *bio, int error)
 	struct cache *ca = bio->bi_private;
 
 	bch_count_io_errors(ca, error, "writing superblock");
-	closure_put(&ca->set->sb_write.cl);
+	closure_put(&ca->set->sb_write);
+}
+
+static void bcache_write_super_unlock(struct closure *cl)
+{
+	struct cache_set *c = container_of(cl, struct cache_set, sb_write);
+
+	up(&c->sb_write_mutex);
 }
 
 void bcache_write_super(struct cache_set *c)
 {
-	struct closure *cl = &c->sb_write.cl;
+	struct closure *cl = &c->sb_write;
 	struct cache *ca;
 	unsigned i;
 
-	closure_lock(&c->sb_write, &c->cl);
+	down(&c->sb_write_mutex);
+	closure_init(cl, &c->cl);
 
 	c->sb.seq++;
 
@@ -317,7 +333,7 @@ void bcache_write_super(struct cache_set *c)
 		__write_super(&ca->sb, bio);
 	}
 
-	closure_return(cl);
+	closure_return_with_destructor(cl, bcache_write_super_unlock);
 }
 
 /* UUID io */
@@ -325,23 +341,31 @@ void bcache_write_super(struct cache_set *c)
 static void uuid_endio(struct bio *bio, int error)
 {
 	struct closure *cl = bio->bi_private;
-	struct cache_set *c = container_of(cl, struct cache_set, uuid_write.cl);
+	struct cache_set *c = container_of(cl, struct cache_set, uuid_write);
 
 	cache_set_err_on(error, c, "accessing uuids");
 	bch_bbio_free(bio, c);
 	closure_put(cl);
 }
 
+static void uuid_io_unlock(struct closure *cl)
+{
+	struct cache_set *c = container_of(cl, struct cache_set, uuid_write);
+
+	up(&c->uuid_write_mutex);
+}
+
 static void uuid_io(struct cache_set *c, unsigned long rw,
 		    struct bkey *k, struct closure *parent)
 {
-	struct closure *cl = &c->uuid_write.cl;
+	struct closure *cl = &c->uuid_write;
 	struct uuid_entry *u;
 	unsigned i;
 	char buf[80];
 
 	BUG_ON(!parent);
-	closure_lock(&c->uuid_write, parent);
+	down(&c->uuid_write_mutex);
+	closure_init(cl, parent);
 
 	for (i = 0; i < KEY_PTRS(k); i++) {
 		struct bio *bio = bch_bbio_alloc(c);
@@ -368,7 +392,7 @@ static void uuid_io(struct cache_set *c, unsigned long rw,
 				 u - c->uuids, u->uuid, u->label,
 				 u->first_reg, u->last_reg, u->invalidated);
 
-	closure_return(cl);
+	closure_return_with_destructor(cl, uuid_io_unlock);
 }
 
 static char *uuid_read(struct cache_set *c, struct jset *j, struct closure *cl)
@@ -1098,7 +1122,7 @@ static int cached_dev_init(struct cached_dev *dc, unsigned block_size)
 	set_closure_fn(&dc->disk.cl, cached_dev_flush, system_wq);
 	kobject_init(&dc->disk.kobj, &bch_cached_dev_ktype);
 	INIT_WORK(&dc->detach, cached_dev_detach_finish);
-	closure_init_unlocked(&dc->sb_write);
+	sema_init(&dc->sb_write_mutex, 1);
 	INIT_LIST_HEAD(&dc->io_lru);
 	spin_lock_init(&dc->io_lock);
 	bch_cache_accounting_init(&dc->accounting, &dc->disk.cl);
@@ -1454,11 +1478,11 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 
 	c->sort_crit_factor = int_sqrt(c->btree_pages);
 
-	closure_init_unlocked(&c->sb_write);
+	sema_init(&c->sb_write_mutex, 1);
 	mutex_init(&c->bucket_lock);
 	init_waitqueue_head(&c->try_wait);
 	init_waitqueue_head(&c->bucket_wait);
-	closure_init_unlocked(&c->uuid_write);
+	sema_init(&c->uuid_write_mutex, 1);
 	mutex_init(&c->sort_lock);
 
 	spin_lock_init(&c->sort_time.lock);

@@ -309,7 +309,8 @@ struct cached_dev {
 	struct cache_sb		sb;
 	struct bio		sb_bio;
 	struct bio_vec		sb_bv[1];
-	struct closure_with_waitlist sb_write;
+	struct closure		sb_write;
+	struct semaphore	sb_write_mutex;
 
 	/* Refcount on the cache set. Always nonzero when we're caching. */
 	atomic_t		count;
@@ -514,7 +515,8 @@ struct cache_set {
 	uint64_t		cached_dev_sectors;
 	struct closure		caching;
 
-	struct closure_with_waitlist sb_write;
+	struct closure		sb_write;
+	struct semaphore	sb_write_mutex;
 
 	mempool_t		*search;
 	mempool_t		*bio_meta;
@@ -635,7 +637,8 @@ struct cache_set {
 	unsigned		nr_uuids;
 	struct uuid_entry	*uuids;
 	BKEY_PADDED(uuid_bucket);
-	struct closure_with_waitlist uuid_write;
+	struct closure		uuid_write;
+	struct semaphore	uuid_write_mutex;
 
 	/*
 	 * A btree node on disk could have too many bsets for an iterator to fit

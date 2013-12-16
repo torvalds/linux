@@ -340,9 +340,16 @@ static void btree_complete_write(struct btree *b, struct btree_write *w)
 	w->journal	= NULL;
 }
 
+static void btree_node_write_unlock(struct closure *cl)
+{
+	struct btree *b = container_of(cl, struct btree, io);
+
+	up(&b->io_mutex);
+}
+
 static void __btree_node_write_done(struct closure *cl)
 {
-	struct btree *b = container_of(cl, struct btree, io.cl);
+	struct btree *b = container_of(cl, struct btree, io);
 	struct btree_write *w = btree_prev_write(b);
 
 	bch_bbio_free(b->bio, b->c);
@@ -353,12 +360,12 @@ static void __btree_node_write_done(struct closure *cl)
 		queue_delayed_work(btree_io_wq, &b->work,
 				   msecs_to_jiffies(30000));
 
-	closure_return(cl);
+	closure_return_with_destructor(cl, btree_node_write_unlock);
 }
 
 static void btree_node_write_done(struct closure *cl)
 {
-	struct btree *b = container_of(cl, struct btree, io.cl);
+	struct btree *b = container_of(cl, struct btree, io);
 	struct bio_vec *bv;
 	int n;
 
@@ -371,7 +378,7 @@ static void btree_node_write_done(struct closure *cl)
 static void btree_node_write_endio(struct bio *bio, int error)
 {
 	struct closure *cl = bio->bi_private;
-	struct btree *b = container_of(cl, struct btree, io.cl);
+	struct btree *b = container_of(cl, struct btree, io);
 
 	if (error)
 		set_btree_node_io_error(b);
@@ -382,7 +389,7 @@ static void btree_node_write_endio(struct bio *bio, int error)
 
 static void do_btree_node_write(struct btree *b)
 {
-	struct closure *cl = &b->io.cl;
+	struct closure *cl = &b->io;
 	struct bset *i = b->sets[b->nsets].data;
 	BKEY_PADDED(key) k;
 
@@ -435,7 +442,7 @@ static void do_btree_node_write(struct btree *b)
 		bch_submit_bbio(b->bio, b->c, &k.key, 0);
 
 		closure_sync(cl);
-		__btree_node_write_done(cl);
+		continue_at_nobarrier(cl, __btree_node_write_done, NULL);
 	}
 }
 
@@ -454,7 +461,8 @@ void bch_btree_node_write(struct btree *b, struct closure *parent)
 	cancel_delayed_work(&b->work);
 
 	/* If caller isn't waiting for write, parent refcount is cache set */
-	closure_lock(&b->io, parent ?: &b->c->cl);
+	down(&b->io_mutex);
+	closure_init(&b->io, parent ?: &b->c->cl);
 
 	clear_bit(BTREE_NODE_dirty,	 &b->flags);
 	change_bit(BTREE_NODE_write_idx, &b->flags);
@@ -554,7 +562,8 @@ static void mca_reinit(struct btree *b)
 static void mca_data_free(struct btree *b)
 {
 	struct bset_tree *t = b->sets;
-	BUG_ON(!closure_is_unlocked(&b->io.cl));
+
+	BUG_ON(b->io_mutex.count != 1);
 
 	if (bset_prev_bytes(b) < PAGE_SIZE)
 		kfree(t->prev);
@@ -635,7 +644,7 @@ static struct btree *mca_bucket_alloc(struct cache_set *c,
 	INIT_LIST_HEAD(&b->list);
 	INIT_DELAYED_WORK(&b->work, btree_node_write_work);
 	b->c = c;
-	closure_init_unlocked(&b->io);
+	sema_init(&b->io_mutex, 1);
 
 	mca_data_alloc(b, k, gfp);
 	return b;
@@ -653,22 +662,29 @@ static int mca_reap(struct btree *b, unsigned min_order, bool flush)
 
 	BUG_ON(btree_node_dirty(b) && !b->sets[0].data);
 
-	if (b->page_order < min_order ||
-	    (!flush &&
-	     (btree_node_dirty(b) ||
-	      atomic_read(&b->io.cl.remaining) != -1))) {
-		rw_unlock(true, b);
-		return -ENOMEM;
+	if (b->page_order < min_order)
+		goto out_unlock;
+
+	if (!flush) {
+		if (btree_node_dirty(b))
+			goto out_unlock;
+
+		if (down_trylock(&b->io_mutex))
+			goto out_unlock;
+		up(&b->io_mutex);
 	}
 
 	if (btree_node_dirty(b))
 		bch_btree_node_write_sync(b);
 
 	/* wait for any in flight btree write */
-	closure_wait_event(&b->io.wait, &cl,
-			   atomic_read(&b->io.cl.remaining) == -1);
+	down(&b->io_mutex);
+	up(&b->io_mutex);
 
 	return 0;
+out_unlock:
+	rw_unlock(true, b);
+	return -ENOMEM;
 }
 
 static unsigned long bch_mca_scan(struct shrinker *shrink,
@@ -918,7 +934,7 @@ static struct btree *mca_alloc(struct cache_set *c, struct bkey *k, int level)
 	if (!b->sets->data)
 		goto err;
 out:
-	BUG_ON(!closure_is_unlocked(&b->io.cl));
+	BUG_ON(b->io_mutex.count != 1);
 
 	bkey_copy(&b->key, k);
 	list_move(&b->list, &c->btree_cache);

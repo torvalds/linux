@@ -127,9 +127,7 @@ void bch_btree_verify(struct btree *b, struct bset *new)
 	if (!b->c->verify)
 		return;
 
-	closure_wait_event(&b->io.wait, &cl,
-			   atomic_read(&b->io.cl.remaining) == -1);
-
+	down(&b->io_mutex);
 	mutex_lock(&b->c->verify_lock);
 
 	bkey_copy(&v->key, &b->key);
@@ -137,8 +135,6 @@ void bch_btree_verify(struct btree *b, struct bset *new)
 	v->level = b->level;
 
 	bch_btree_node_read(v);
-	closure_wait_event(&v->io.wait, &cl,
-			   atomic_read(&b->io.cl.remaining) == -1);
 
 	if (new->keys != v->sets[0].data->keys ||
 	    memcmp(new->start,
@@ -167,6 +163,7 @@ void bch_btree_verify(struct btree *b, struct bset *new)
 	}
 
 	mutex_unlock(&b->c->verify_lock);
+	up(&b->io_mutex);
 }
 
 void bch_data_verify(struct cached_dev *dc, struct bio *bio)
