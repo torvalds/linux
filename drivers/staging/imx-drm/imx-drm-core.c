@@ -88,8 +88,9 @@ static int imx_drm_driver_unload(struct drm_device *drm)
 
 	imx_drm_device_put();
 
-	drm_mode_config_cleanup(imxdrm->drm);
+	drm_vblank_cleanup(imxdrm->drm);
 	drm_kms_helper_poll_fini(imxdrm->drm);
+	drm_mode_config_cleanup(imxdrm->drm);
 
 	return 0;
 }
@@ -428,11 +429,11 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 	ret = drm_mode_group_init_legacy_group(imxdrm->drm,
 			&imxdrm->drm->primary->mode_group);
 	if (ret)
-		goto err_init;
+		goto err_kms;
 
 	ret = drm_vblank_init(imxdrm->drm, MAX_CRTC);
 	if (ret)
-		goto err_init;
+		goto err_kms;
 
 	/*
 	 * with vblank_disable_allowed = true, vblank interrupt will be disabled
@@ -441,12 +442,19 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 	 */
 	imxdrm->drm->vblank_disable_allowed = true;
 
-	if (!imx_drm_device_get())
+	if (!imx_drm_device_get()) {
 		ret = -EINVAL;
+		goto err_vblank;
+	}
 
-	ret = 0;
+	mutex_unlock(&imxdrm->mutex);
+	return 0;
 
-err_init:
+err_vblank:
+	drm_vblank_cleanup(drm);
+err_kms:
+	drm_kms_helper_poll_fini(drm);
+	drm_mode_config_cleanup(drm);
 	mutex_unlock(&imxdrm->mutex);
 
 	return ret;
