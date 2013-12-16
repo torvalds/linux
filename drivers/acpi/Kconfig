@@ -348,7 +348,6 @@ source "drivers/acpi/apei/Kconfig"
 config ACPI_EXTLOG
 	tristate "Extended Error Log support"
 	depends on X86_MCE && X86_LOCAL_APIC
-	select EFI
 	select UEFI_CPER
 	default n
 	help
