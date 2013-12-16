@@ -528,14 +528,14 @@ struct qla_flt_region {
 #define ACB_CONFIG_DISABLE		0x00
 #define ACB_CONFIG_SET			0x01
 
-/* ACB State Defines */
-#define ACB_STATE_UNCONFIGURED	0x00
-#define ACB_STATE_INVALID	0x01
-#define ACB_STATE_ACQUIRING	0x02
-#define ACB_STATE_TENTATIVE	0x03
-#define ACB_STATE_DEPRICATED	0x04
-#define ACB_STATE_VALID		0x05
-#define ACB_STATE_DISABLING	0x06
+/* ACB/IP Address State Defines */
+#define IP_ADDRSTATE_UNCONFIGURED	0
+#define IP_ADDRSTATE_INVALID		1
+#define IP_ADDRSTATE_ACQUIRING		2
+#define IP_ADDRSTATE_TENTATIVE		3
+#define IP_ADDRSTATE_DEPRICATED		4
+#define IP_ADDRSTATE_PREFERRED		5
+#define IP_ADDRSTATE_DISABLING		6
 
 /* FLASH offsets */
 #define FLASH_SEGMENT_IFCB	0x04000000
@@ -698,14 +698,6 @@ struct addr_ctrl_blk {
 	uint8_t ipv6_lnk_lcl_addr_state;/* 222 */
 	uint8_t ipv6_addr0_state;	/* 223 */
 	uint8_t ipv6_addr1_state;	/* 224 */
-#define IP_ADDRSTATE_UNCONFIGURED	0
-#define IP_ADDRSTATE_INVALID		1
-#define IP_ADDRSTATE_ACQUIRING		2
-#define IP_ADDRSTATE_TENTATIVE		3
-#define IP_ADDRSTATE_DEPRICATED		4
-#define IP_ADDRSTATE_PREFERRED		5
-#define IP_ADDRSTATE_DISABLING		6
-
 	uint8_t ipv6_dflt_rtr_state;    /* 225 */
 #define IPV6_RTRSTATE_UNKNOWN                   0
 #define IPV6_RTRSTATE_MANUAL                    1

@@ -781,21 +781,21 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 						    mbox_sts[3]);
 			/* mbox_sts[2] = Old ACB state
 			 * mbox_sts[3] = new ACB state */
-			if ((mbox_sts[3] == ACB_STATE_VALID) &&
-			    ((mbox_sts[2] == ACB_STATE_TENTATIVE) ||
-			    (mbox_sts[2] == ACB_STATE_ACQUIRING))) {
+			if ((mbox_sts[3] == IP_ADDRSTATE_PREFERRED) &&
+			    ((mbox_sts[2] == IP_ADDRSTATE_TENTATIVE) ||
+			     (mbox_sts[2] == IP_ADDRSTATE_ACQUIRING))) {
 				set_bit(DPC_GET_DHCP_IP_ADDR, &ha->dpc_flags);
-			} else if ((mbox_sts[3] == ACB_STATE_ACQUIRING) &&
-				   (mbox_sts[2] == ACB_STATE_VALID)) {
+			} else if ((mbox_sts[3] == IP_ADDRSTATE_ACQUIRING) &&
+				   (mbox_sts[2] == IP_ADDRSTATE_PREFERRED)) {
 				if (is_qla80XX(ha))
 					set_bit(DPC_RESET_HA_FW_CONTEXT,
 						&ha->dpc_flags);
 				else
 					set_bit(DPC_RESET_HA, &ha->dpc_flags);
-			} else if (mbox_sts[3] == ACB_STATE_DISABLING) {
+			} else if (mbox_sts[3] == IP_ADDRSTATE_DISABLING) {
 				ql4_printk(KERN_INFO, ha, "scsi%ld: %s: ACB in disabling state\n",
 					   ha->host_no, __func__);
-			} else if ((mbox_sts[3] == ACB_STATE_UNCONFIGURED)) {
+			} else if (mbox_sts[3] == IP_ADDRSTATE_UNCONFIGURED) {
 				complete(&ha->disable_acb_comp);
 				ql4_printk(KERN_INFO, ha, "scsi%ld: %s: ACB state unconfigured\n",
 					   ha->host_no, __func__);
