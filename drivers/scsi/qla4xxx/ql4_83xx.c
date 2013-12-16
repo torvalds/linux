@@ -1664,3 +1664,23 @@ void qla4_83xx_disable_pause(struct scsi_qla_host *ha)
 	__qla4_83xx_disable_pause(ha);
 	ha->isp_ops->idc_unlock(ha);
 }
+
+/**
+ * qla4_83xx_is_detached - Check if we are marked invisible.
+ * @ha: Pointer to host adapter structure.
+ **/
+int qla4_83xx_is_detached(struct scsi_qla_host *ha)
+{
+	uint32_t drv_active;
+
+	drv_active = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_ACTIVE);
+
+	if (test_bit(AF_INIT_DONE, &ha->flags) &&
+	    !(drv_active & (1 << ha->func_num))) {
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: drv_active = 0x%X\n",
+				  __func__, drv_active));
+		return QLA_SUCCESS;
+	}
+
+	return QLA_ERROR;
+}

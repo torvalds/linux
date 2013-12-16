@@ -4372,6 +4372,11 @@ void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 	uint32_t dev_state;
 	uint32_t idc_ctrl;
 
+	if (is_qla8032(ha) &&
+	    (qla4_83xx_is_detached(ha) == QLA_SUCCESS))
+		WARN_ONCE(1, "%s: iSCSI function %d marked invisible\n",
+			  __func__, ha->func_num);
+
 	/* don't poll if reset is going on */
 	if (!(test_bit(DPC_RESET_ACTIVE, &ha->dpc_flags) ||
 	    test_bit(DPC_RESET_HA, &ha->dpc_flags) ||
