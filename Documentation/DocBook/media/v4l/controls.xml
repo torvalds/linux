@@ -3193,6 +3193,15 @@ V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_REF_PERIOD as a golden frame.</entry>
 	      <row><entry spanname="descr">Quantization parameter for a P frame for VP8.</entry>
 	      </row>
 
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_VPX_PROFILE</constant>&nbsp;</entry>
+		<entry>integer</entry>
+	      </row>
+	      <row><entry spanname="descr">Select the desired profile for VPx encoder.
+Acceptable values are 0, 1, 2 and 3 corresponding to encoder profiles 0, 1, 2 and 3.</entry>
+	      </row>
+
           <row><entry></entry></row>
         </tbody>
       </tgroup>

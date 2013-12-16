@@ -1197,10 +1197,8 @@ static int s5p_mfc_set_enc_params_vp8(struct s5p_mfc_ctx *ctx)
 	reg |= ((p->num_b_frame & 0x3) << 16);
 	WRITEL(reg, S5P_FIMV_E_GOP_CONFIG_V6);
 
-	/* profile & level */
-	reg = 0;
-	/** profile */
-	reg |= (0x1 << 4);
+	/* profile - 0 ~ 3 */
+	reg = p_vp8->profile & 0x3;
 	WRITEL(reg, S5P_FIMV_E_PICTURE_PROFILE_V6);
 
 	/* rate control config. */
