@@ -44,6 +44,7 @@
 #include <linux/debugobjects.h>
 #include <linux/bug.h>
 #include <linux/compiler.h>
+#include <asm/barrier.h>
 
 #ifdef CONFIG_RCU_TORTURE_TEST
 extern int rcutorture_runnable; /* for sysctl */
@@ -580,12 +581,7 @@ static inline void rcu_preempt_sleep_check(void)
  * please be careful when making changes to rcu_assign_pointer() and the
  * other macros that it invokes.
  */
-#define rcu_assign_pointer(p, v) \
-	do { \
-		smp_wmb(); \
-		ACCESS_ONCE(p) = RCU_INITIALIZER(v); \
-	} while (0)
-
+#define rcu_assign_pointer(p, v) smp_store_release(&p, RCU_INITIALIZER(v))
 
 /**
  * rcu_access_pointer() - fetch RCU pointer with no dereferencing
