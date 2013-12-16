@@ -194,11 +194,9 @@ void extent_io_tree_init(struct extent_io_tree *tree,
 			 struct address_space *mapping)
 {
 	tree->state = RB_ROOT;
-	INIT_RADIX_TREE(&tree->buffer, GFP_ATOMIC);
 	tree->ops = NULL;
 	tree->dirty_bytes = 0;
 	spin_lock_init(&tree->lock);
-	spin_lock_init(&tree->buffer_lock);
 	tree->mapping = mapping;
 }
 
@@ -3489,6 +3487,7 @@ static int write_one_eb(struct extent_buffer *eb,
 			struct extent_page_data *epd)
 {
 	struct block_device *bdev = fs_info->fs_devices->latest_bdev;
+	struct extent_io_tree *tree = &BTRFS_I(fs_info->btree_inode)->io_tree;
 	u64 offset = eb->start;
 	unsigned long i, num_pages;
 	unsigned long bio_flags = 0;
@@ -3506,7 +3505,7 @@ static int write_one_eb(struct extent_buffer *eb,
 
 		clear_page_dirty_for_io(p);
 		set_page_writeback(p);
-		ret = submit_extent_page(rw, eb->tree, p, offset >> 9,
+		ret = submit_extent_page(rw, tree, p, offset >> 9,
 					 PAGE_CACHE_SIZE, 0, bdev, &epd->bio,
 					 -1, end_bio_extent_buffer_writepage,
 					 0, epd->bio_flags, bio_flags);
@@ -4370,10 +4369,9 @@ static inline void btrfs_release_extent_buffer(struct extent_buffer *eb)
 	__free_extent_buffer(eb);
 }
 
-static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
-						   u64 start,
-						   unsigned long len,
-						   gfp_t mask)
+static struct extent_buffer *
+__alloc_extent_buffer(struct btrfs_fs_info *fs_info, u64 start,
+		      unsigned long len, gfp_t mask)
 {
 	struct extent_buffer *eb = NULL;
 
@@ -4382,7 +4380,7 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 		return NULL;
 	eb->start = start;
 	eb->len = len;
-	eb->tree = tree;
+	eb->fs_info = fs_info;
 	eb->bflags = 0;
 	rwlock_init(&eb->lock);
 	atomic_set(&eb->write_locks, 0);
@@ -4514,13 +4512,14 @@ static void mark_extent_buffer_accessed(struct extent_buffer *eb)
 	}
 }
 
-struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
-					 		u64 start)
+struct extent_buffer *find_extent_buffer(struct btrfs_fs_info *fs_info,
+					 u64 start)
 {
 	struct extent_buffer *eb;
 
 	rcu_read_lock();
-	eb = radix_tree_lookup(&tree->buffer, start >> PAGE_CACHE_SHIFT);
+	eb = radix_tree_lookup(&fs_info->buffer_radix,
+			       start >> PAGE_CACHE_SHIFT);
 	if (eb && atomic_inc_not_zero(&eb->refs)) {
 		rcu_read_unlock();
 		mark_extent_buffer_accessed(eb);
@@ -4531,7 +4530,7 @@ struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
 	return NULL;
 }
 
-struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
+struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 					  u64 start, unsigned long len)
 {
 	unsigned long num_pages = num_extent_pages(start, len);
@@ -4540,16 +4539,15 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 	struct extent_buffer *eb;
 	struct extent_buffer *exists = NULL;
 	struct page *p;
-	struct address_space *mapping = tree->mapping;
+	struct address_space *mapping = fs_info->btree_inode->i_mapping;
 	int uptodate = 1;
 	int ret;
 
-
-	eb = find_extent_buffer(tree, start);
+	eb = find_extent_buffer(fs_info, start);
 	if (eb)
 		return eb;
 
-	eb = __alloc_extent_buffer(tree, start, len, GFP_NOFS);
+	eb = __alloc_extent_buffer(fs_info, start, len, GFP_NOFS);
 	if (!eb)
 		return NULL;
 
@@ -4604,12 +4602,13 @@ again:
 	if (ret)
 		goto free_eb;
 
-	spin_lock(&tree->buffer_lock);
-	ret = radix_tree_insert(&tree->buffer, start >> PAGE_CACHE_SHIFT, eb);
-	spin_unlock(&tree->buffer_lock);
+	spin_lock(&fs_info->buffer_lock);
+	ret = radix_tree_insert(&fs_info->buffer_radix,
+				start >> PAGE_CACHE_SHIFT, eb);
+	spin_unlock(&fs_info->buffer_lock);
 	radix_tree_preload_end();
 	if (ret == -EEXIST) {
-		exists = find_extent_buffer(tree, start);
+		exists = find_extent_buffer(fs_info, start);
 		if (exists)
 			goto free_eb;
 		else
@@ -4662,14 +4661,14 @@ static int release_extent_buffer(struct extent_buffer *eb)
 	WARN_ON(atomic_read(&eb->refs) == 0);
 	if (atomic_dec_and_test(&eb->refs)) {
 		if (test_and_clear_bit(EXTENT_BUFFER_IN_TREE, &eb->bflags)) {
-			struct extent_io_tree *tree = eb->tree;
+			struct btrfs_fs_info *fs_info = eb->fs_info;
 
 			spin_unlock(&eb->refs_lock);
 
-			spin_lock(&tree->buffer_lock);
-			radix_tree_delete(&tree->buffer,
+			spin_lock(&fs_info->buffer_lock);
+			radix_tree_delete(&fs_info->buffer_radix,
 					  eb->start >> PAGE_CACHE_SHIFT);
-			spin_unlock(&tree->buffer_lock);
+			spin_unlock(&fs_info->buffer_lock);
 		} else {
 			spin_unlock(&eb->refs_lock);
 		}
