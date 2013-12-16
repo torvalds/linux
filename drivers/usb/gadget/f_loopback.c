@@ -120,7 +120,7 @@ static struct usb_endpoint_descriptor ss_loop_source_desc = {
 	.wMaxPacketSize =	cpu_to_le16(1024),
 };
 
-struct usb_ss_ep_comp_descriptor ss_loop_source_comp_desc = {
+static struct usb_ss_ep_comp_descriptor ss_loop_source_comp_desc = {
 	.bLength =		USB_DT_SS_EP_COMP_SIZE,
 	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
 	.bMaxBurst =		0,
@@ -136,7 +136,7 @@ static struct usb_endpoint_descriptor ss_loop_sink_desc = {
 	.wMaxPacketSize =	cpu_to_le16(1024),
 };
 
-struct usb_ss_ep_comp_descriptor ss_loop_sink_comp_desc = {
+static struct usb_ss_ep_comp_descriptor ss_loop_sink_comp_desc = {
 	.bLength =		USB_DT_SS_EP_COMP_SIZE,
 	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
 	.bMaxBurst =		0,
