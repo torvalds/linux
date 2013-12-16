@@ -1047,6 +1047,8 @@ static void __exit cedardev_exit(void)
 	iounmap(cedar_devp->iomap_addrs.regs_avs);
 	/* Destroy char device */
 	if(cedar_devp){
+		del_timer(&cedar_devp->cedar_engine_timer);
+		del_timer(&cedar_devp->cedar_engine_timer_rel);
 		cdev_del(&cedar_devp->cdev);
 		device_destroy(cedar_devp->class, dev);
 		class_destroy(cedar_devp->class);
@@ -1067,6 +1069,7 @@ static void __exit cedardev_exit(void)
 
 	unregister_chrdev_region(dev, 1);
   	platform_driver_unregister(&sw_cedar_driver);
+	platform_device_unregister(&sw_device_cedar);
 	if (cedar_devp) {
 		kfree(cedar_devp);
 	}
