@@ -9,7 +9,7 @@
 #include <net/pkt_sched.h>
 
 struct tcf_common {
-	struct tcf_common		*tcfc_next;
+	struct hlist_node		tcfc_head;
 	u32				tcfc_index;
 	int				tcfc_refcnt;
 	int				tcfc_bindcnt;
@@ -22,7 +22,7 @@ struct tcf_common {
 	spinlock_t			tcfc_lock;
 	struct rcu_head			tcfc_rcu;
 };
-#define tcf_next	common.tcfc_next
+#define tcf_head	common.tcfc_head
 #define tcf_index	common.tcfc_index
 #define tcf_refcnt	common.tcfc_refcnt
 #define tcf_bindcnt	common.tcfc_bindcnt
@@ -36,9 +36,9 @@ struct tcf_common {
 #define tcf_rcu		common.tcfc_rcu
 
 struct tcf_hashinfo {
-	struct tcf_common	**htab;
+	struct hlist_head	*htab;
 	unsigned int		hmask;
-	rwlock_t		lock;
+	spinlock_t		lock;
 };
 
 static inline unsigned int tcf_hash(u32 index, unsigned int hmask)
@@ -48,12 +48,16 @@ static inline unsigned int tcf_hash(u32 index, unsigned int hmask)
 
 static inline int tcf_hashinfo_init(struct tcf_hashinfo *hf, unsigned int mask)
 {
-	rwlock_init(&hf->lock);
+	int i;
+
+	spin_lock_init(&hf->lock);
 	hf->hmask = mask;
-	hf->htab = kzalloc((mask + 1) * sizeof(struct tcf_common *),
+	hf->htab = kzalloc((mask + 1) * sizeof(struct hlist_head),
 			   GFP_KERNEL);
 	if (!hf->htab)
 		return -ENOMEM;
+	for (i = 0; i < mask + 1; i++)
+		INIT_HLIST_HEAD(&hf->htab[i]);
 	return 0;
 }
 
