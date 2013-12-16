@@ -1922,6 +1922,7 @@ int qla4xxx_disable_acb(struct scsi_qla_host *ha)
 				  mbox_sts[0], mbox_sts[1], mbox_sts[2]));
 	} else {
 		if (is_qla8042(ha) &&
+		    test_bit(DPC_POST_IDC_ACK, &ha->dpc_flags) &&
 		    (mbox_sts[0] != MBOX_STS_COMMAND_COMPLETE)) {
 			/*
 			 * Disable ACB mailbox command takes time to complete
