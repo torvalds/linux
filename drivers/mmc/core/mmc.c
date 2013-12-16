@@ -1358,9 +1358,6 @@ static int mmc_sleep(struct mmc_host *host)
 	struct mmc_card *card = host->card;
 	int err;
 
-	if (host->caps2 & MMC_CAP2_NO_SLEEP_CMD)
-		return 0;
-
 	err = mmc_deselect_cards(host);
 	if (err)
 		return err;
