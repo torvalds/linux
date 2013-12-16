@@ -75,59 +75,8 @@ void sw_pdev_init(void);
  * Only reserve certain important memory blocks if there are actually
  * drivers which use them.
  */
-static int reserved_mali_mem;
 static unsigned long reserved_start;
 static unsigned long reserved_max;
-
-#ifdef CONFIG_SUNXI_MALI_RESERVED_MEM
-void __init sunxi_mali_core_fixup(struct tag *tags, char **cmdline,
-				  struct meminfo *mi)
-{
-	struct tag *t;
-	u32 bank = 0;
-
-	for (t = tags; t->hdr.size; t = tag_next(t)) {
-		if (t->hdr.tag != ATAG_CMDLINE)
-			continue;
-		if (strstr(t->u.cmdline.cmdline, "sunxi_no_mali_mem_reserve"))
-			return;
-	}
-
-	for (t = tags; t->hdr.size; t = tag_next(t)) {
-		if (t->hdr.tag != ATAG_MEM)
-			continue;
-		if (bank) {
-			mi->nr_banks++;
-			mi->bank[bank].start = t->u.mem.start;
-			mi->bank[bank].size = t->u.mem.size;
-		} else { /* first bank */
-			u32 size = t->u.mem.size / SZ_1M;
-			mi->nr_banks = 1;
-			mi->bank[0].start = t->u.mem.start;
-			if (size < 512) {
-				mi->bank[0].size = SZ_1M * size;
-
-				pr_err("MALI: not enough memory in first bank to make reserve.\n");
-			} else {
-				mi->bank[0].size = SZ_1M * (512 - 64);
-				reserved_mali_mem = 1;
-				size -= 512;
-				if (size) {
-					bank++;
-					mi->nr_banks++;
-					mi->bank[1].start = t->u.mem.start + (512 * SZ_1M);
-					mi->bank[1].size = SZ_1M * size;
-				}
-
-				pr_info("Memory cut off:\n");
-				pr_reserve_info("MALI", t->u.mem.start + SZ_512M - SZ_64M,
-						SZ_64M);
-			}
-		}
-		bank++;
-	}
-}
-#endif
 
 /**
  * Machine Implementations
@@ -267,14 +216,6 @@ static void __init sw_core_reserve(void)
 	/* 0 - 64M is used by reserve_sys */
 	reserved_start = meminfo.bank[0].start + SZ_64M;
 	reserved_max   = meminfo.bank[0].start + meminfo.bank[0].size;
-#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
-	if (reserved_mali_mem) {
-		/* The stupid mali blob expects the fb at a fixed address :( */
-		fb_start = meminfo.bank[0].start + SZ_512M - SZ_64M - SZ_32M;
-		if (fb_start < reserved_max)
-			reserved_max = fb_start;
-	}
-#endif
 #ifdef RESERVE_VE_MEM
 	reserve_mem(&ve_start, &ve_size, "VE  ");
 #endif
@@ -282,11 +223,6 @@ static void __init sw_core_reserve(void)
 	reserve_mem(&g2d_start, &g2d_size, "G2D ");
 #endif
 #ifdef CONFIG_FB_SUNXI_RESERVED_MEM
-	if (reserved_mali_mem) {
-		/* Give the mali blob the fb at its expected address */
-		reserved_start = fb_start;
-		reserved_max   = meminfo.bank[0].start + meminfo.bank[0].size;
-	}
 	reserve_mem(&fb_start, &fb_size, "LCD ");
 #endif
 	/* Ensure this is set before any arch_init funcs call script_foo */
@@ -453,9 +389,6 @@ void __init sw_core_init(void)
 MACHINE_START(SUN4I, "sun4i")
 	.atag_offset	= 0x100,
 	.timer          = &sw_sys_timer,
-#ifdef CONFIG_SUNXI_MALI_RESERVED_MEM
-	.fixup          = sunxi_mali_core_fixup,
-#endif
 	.map_io         = sw_core_map_io,
 	.init_early     = NULL,
 	.init_irq       = sw_core_init_irq,
@@ -467,9 +400,6 @@ MACHINE_END
 MACHINE_START(SUN5I, "sun5i")
 	.atag_offset	= 0x100,
 	.timer          = &sw_sys_timer,
-#ifdef CONFIG_SUNXI_MALI_RESERVED_MEM
-	.fixup          = sunxi_mali_core_fixup,
-#endif
 	.map_io         = sw_core_map_io,
 	.init_early     = NULL,
 	.init_irq       = sw_core_init_irq,
@@ -481,9 +411,6 @@ MACHINE_END
 MACHINE_START(SUN7I, "sun7i")
 	.atag_offset	= 0x100,
 	.timer          = &sw_sys_timer,
-#ifdef CONFIG_SUNXI_MALI_RESERVED_MEM
-	.fixup          = sunxi_mali_core_fixup,
-#endif
 	.map_io         = sun7i_map_io,
 	.init_early     = NULL,
 	.init_irq	= gic_init_irq,

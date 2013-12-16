@@ -23,12 +23,4 @@
 		(u32)((SIZE) < SZ_1M ? (SIZE) / SZ_1K : (SIZE) / SZ_1M), \
 		(SIZE) < SZ_1M ? "kB" : "MB")
 
-#ifdef CONFIG_SUNXI_MALI_RESERVED_MEM
-struct meminfo;
-struct tag;
-
-void __init sunxi_mali_core_fixup(struct tag *t, char **cmdline,
-				  struct meminfo *mi);
-#endif
-
 #endif

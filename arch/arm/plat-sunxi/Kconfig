@@ -12,11 +12,6 @@ config SUNXI_MULTIPLATFORM
 	bool "enable sunxi_is_foo() even for other mach-sunNi"
 	default y
 
-config SUNXI_MALI_RESERVED_MEM
-	bool
-	depends on MALI
-	default y
-
 config SUNXI_SCALING_MIN
 	int "Minimum clockspeed for the cpu governor"
 	default "60"
