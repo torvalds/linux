@@ -460,6 +460,7 @@ int bond_option_primary_reselect_set(struct bonding *bond,
 int bond_option_fail_over_mac_set(struct bonding *bond, int fail_over_mac);
 int bond_option_xmit_hash_policy_set(struct bonding *bond,
 				     int xmit_hash_policy);
+int bond_option_resend_igmp_set(struct bonding *bond, int resend_igmp);
 struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond);
 struct net_device *bond_option_active_slave_get(struct bonding *bond);
 

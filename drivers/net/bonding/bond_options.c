@@ -561,3 +561,18 @@ int bond_option_xmit_hash_policy_set(struct bonding *bond, int xmit_hash_policy)
 
 	return 0;
 }
+
+int bond_option_resend_igmp_set(struct bonding *bond, int resend_igmp)
+{
+	if (resend_igmp < 0 || resend_igmp > 255) {
+		pr_err("%s: Invalid resend_igmp value %d not in range 0-255; rejected.\n",
+		       bond->dev->name, resend_igmp);
+		return -EINVAL;
+	}
+
+	bond->params.resend_igmp = resend_igmp;
+	pr_info("%s: Setting resend_igmp to %d.\n",
+		bond->dev->name, resend_igmp);
+
+	return 0;
+}

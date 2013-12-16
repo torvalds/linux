@@ -1336,21 +1336,17 @@ static ssize_t bonding_store_resend_igmp(struct device *d,
 	if (sscanf(buf, "%d", &new_value) != 1) {
 		pr_err("%s: no resend_igmp value specified.\n",
 		       bond->dev->name);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
-	if (new_value < 0 || new_value > 255) {
-		pr_err("%s: Invalid resend_igmp value %d not in range 0-255; rejected.\n",
-		       bond->dev->name, new_value);
-		ret = -EINVAL;
-		goto out;
-	}
+	if (!rtnl_trylock())
+		return restart_syscall();
 
-	pr_info("%s: Setting resend_igmp to %d.\n",
-		bond->dev->name, new_value);
-	bond->params.resend_igmp = new_value;
-out:
+	ret = bond_option_resend_igmp_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
+	rtnl_unlock();
 	return ret;
 }
 

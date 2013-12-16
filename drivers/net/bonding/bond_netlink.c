@@ -36,6 +36,7 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_PRIMARY_RESELECT]	= { .type = NLA_U8 },
 	[IFLA_BOND_FAIL_OVER_MAC]	= { .type = NLA_U8 },
 	[IFLA_BOND_XMIT_HASH_POLICY]	= { .type = NLA_U8 },
+	[IFLA_BOND_RESEND_IGMP]		= { .type = NLA_U32 },
 };
 
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -195,6 +196,14 @@ static int bond_changelink(struct net_device *bond_dev,
 		if (err)
 			return err;
 	}
+	if (data[IFLA_BOND_RESEND_IGMP]) {
+		int resend_igmp =
+			nla_get_u32(data[IFLA_BOND_RESEND_IGMP]);
+
+		err = bond_option_resend_igmp_set(bond, resend_igmp);
+		if (err)
+			return err;
+	}
 	return 0;
 }
 
@@ -227,6 +236,7 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_PRIMARY_RESELECT */
 		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_FAIL_OVER_MAC */
 		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_XMIT_HASH_POLICY */
+		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_RESEND_IGMP */
 		0;
 }
 
@@ -301,6 +311,10 @@ static int bond_fill_info(struct sk_buff *skb,
 
 	if (nla_put_u8(skb, IFLA_BOND_XMIT_HASH_POLICY,
 		       bond->params.xmit_policy))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, IFLA_BOND_RESEND_IGMP,
+		        bond->params.resend_igmp))
 		goto nla_put_failure;
 
 	return 0;
