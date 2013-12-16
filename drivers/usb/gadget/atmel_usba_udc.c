@@ -1012,7 +1012,7 @@ static void nop_release(struct device *dev)
 
 }
 
-struct usb_gadget usba_gadget_template = {
+static struct usb_gadget usba_gadget_template = {
 	.ops		= &usba_udc_ops,
 	.max_speed	= USB_SPEED_HIGH,
 	.name		= "atmel_usba_udc",
