@@ -324,7 +324,7 @@ union snd_codec_options {
 
 /** struct snd_codec_desc - description of codec capabilities
  * @max_ch: Maximum number of audio channels
- * @sample_rates: Sampling rates in Hz, use SNDRV_PCM_RATE_xxx for this
+ * @sample_rates: Sampling rates in Hz, use values like 48000 for this
  * @bit_rate: Indexed array containing supported bit rates
  * @num_bitrates: Number of valid values in bit_rate array
  * @rate_control: value is specified by SND_RATECONTROLMODE defines.
