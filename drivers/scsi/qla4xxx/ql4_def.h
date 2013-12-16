@@ -909,7 +909,8 @@ static inline int is_qla80XX(struct scsi_qla_host *ha)
 static inline int is_aer_supported(struct scsi_qla_host *ha)
 {
 	return ((ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8022) ||
-		(ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8324));
+		(ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8324) ||
+		(ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8042));
 }
 
 static inline int adapter_up(struct scsi_qla_host *ha)
