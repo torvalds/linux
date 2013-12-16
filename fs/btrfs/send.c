@@ -344,16 +344,6 @@ out:
 	return ret;
 }
 
-#if 0
-static void fs_path_remove(struct fs_path *p)
-{
-	BUG_ON(p->reversed);
-	while (p->start != p->end && *p->end != '/')
-		p->end--;
-	*p->end = 0;
-}
-#endif
-
 static int fs_path_copy(struct fs_path *p, struct fs_path *from)
 {
 	int ret;
@@ -444,30 +434,15 @@ static int tlv_put(struct send_ctx *sctx, u16 attr, const void *data, int len)
 	return 0;
 }
 
-#if 0
-static int tlv_put_u8(struct send_ctx *sctx, u16 attr, u8 value)
-{
-	return tlv_put(sctx, attr, &value, sizeof(value));
-}
+#define TLV_PUT_DEFINE_INT(bits) \
+	static int tlv_put_u##bits(struct send_ctx *sctx,	 	\
+			u##bits attr, u##bits value)			\
+	{								\
+		__le##bits __tmp = cpu_to_le##bits(value);		\
+		return tlv_put(sctx, attr, &__tmp, sizeof(__tmp));	\
+	}
 
-static int tlv_put_u16(struct send_ctx *sctx, u16 attr, u16 value)
-{
-	__le16 tmp = cpu_to_le16(value);
-	return tlv_put(sctx, attr, &tmp, sizeof(tmp));
-}
-
-static int tlv_put_u32(struct send_ctx *sctx, u16 attr, u32 value)
-{
-	__le32 tmp = cpu_to_le32(value);
-	return tlv_put(sctx, attr, &tmp, sizeof(tmp));
-}
-#endif
-
-static int tlv_put_u64(struct send_ctx *sctx, u16 attr, u64 value)
-{
-	__le64 tmp = cpu_to_le64(value);
-	return tlv_put(sctx, attr, &tmp, sizeof(tmp));
-}
+TLV_PUT_DEFINE_INT(64)
 
 static int tlv_put_string(struct send_ctx *sctx, u16 attr,
 			  const char *str, int len)
@@ -482,17 +457,6 @@ static int tlv_put_uuid(struct send_ctx *sctx, u16 attr,
 {
 	return tlv_put(sctx, attr, uuid, BTRFS_UUID_SIZE);
 }
-
-#if 0
-static int tlv_put_timespec(struct send_ctx *sctx, u16 attr,
-			    struct timespec *ts)
-{
-	struct btrfs_timespec bts;
-	bts.sec = cpu_to_le64(ts->tv_sec);
-	bts.nsec = cpu_to_le32(ts->tv_nsec);
-	return tlv_put(sctx, attr, &bts, sizeof(bts));
-}
-#endif
 
 static int tlv_put_btrfs_timespec(struct send_ctx *sctx, u16 attr,
 				  struct extent_buffer *eb,
@@ -538,12 +502,6 @@ static int tlv_put_btrfs_timespec(struct send_ctx *sctx, u16 attr,
 #define TLV_PUT_UUID(sctx, attrtype, uuid) \
 	do { \
 		ret = tlv_put_uuid(sctx, attrtype, uuid); \
-		if (ret < 0) \
-			goto tlv_put_failure; \
-	} while (0)
-#define TLV_PUT_TIMESPEC(sctx, attrtype, ts) \
-	do { \
-		ret = tlv_put_timespec(sctx, attrtype, ts); \
 		if (ret < 0) \
 			goto tlv_put_failure; \
 	} while (0)
