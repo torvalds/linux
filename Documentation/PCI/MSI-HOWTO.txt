@@ -129,7 +129,7 @@ call to succeed.
 
 4.2.3 pci_enable_msi_block_auto
 
-int pci_enable_msi_block_auto(struct pci_dev *dev, unsigned int *count)
+int pci_enable_msi_block_auto(struct pci_dev *dev, int *count)
 
 This variation on pci_enable_msi() call allows a device driver to request
 the maximum possible number of MSIs.  The MSI specification only allows

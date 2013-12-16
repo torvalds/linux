@@ -855,7 +855,7 @@ static int pci_msi_check_device(struct pci_dev *dev, int nvec, int type)
  * updates the @dev's irq member to the lowest new interrupt number; the
  * other interrupt numbers allocated to this device are consecutive.
  */
-int pci_enable_msi_block(struct pci_dev *dev, unsigned int nvec)
+int pci_enable_msi_block(struct pci_dev *dev, int nvec)
 {
 	int status, maxvec;
 	u16 msgctl;
@@ -886,7 +886,7 @@ int pci_enable_msi_block(struct pci_dev *dev, unsigned int nvec)
 }
 EXPORT_SYMBOL(pci_enable_msi_block);
 
-int pci_enable_msi_block_auto(struct pci_dev *dev, unsigned int *maxvec)
+int pci_enable_msi_block_auto(struct pci_dev *dev, int *maxvec)
 {
 	int ret, nvec;
 	u16 msgctl;
