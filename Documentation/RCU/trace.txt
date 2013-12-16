@@ -396,14 +396,14 @@ o	Each element of the form "3/3 ..>. 0:7 ^0" represents one rcu_node
 
 The output of "cat rcu/rcu_sched/rcu_pending" looks as follows:
 
-  0!np=26111 qsp=29 rpq=5386 cbr=1 cng=570 gpc=3674 gps=577 nn=15903
-  1!np=28913 qsp=35 rpq=6097 cbr=1 cng=448 gpc=3700 gps=554 nn=18113
-  2!np=32740 qsp=37 rpq=6202 cbr=0 cng=476 gpc=4627 gps=546 nn=20889
-  3 np=23679 qsp=22 rpq=5044 cbr=1 cng=415 gpc=3403 gps=347 nn=14469
-  4!np=30714 qsp=4 rpq=5574 cbr=0 cng=528 gpc=3931 gps=639 nn=20042
-  5 np=28910 qsp=2 rpq=5246 cbr=0 cng=428 gpc=4105 gps=709 nn=18422
-  6!np=38648 qsp=5 rpq=7076 cbr=0 cng=840 gpc=4072 gps=961 nn=25699
-  7 np=37275 qsp=2 rpq=6873 cbr=0 cng=868 gpc=3416 gps=971 nn=25147
+  0!np=26111 qsp=29 rpq=5386 cbr=1 cng=570 gpc=3674 gps=577 nn=15903 ndw=0
+  1!np=28913 qsp=35 rpq=6097 cbr=1 cng=448 gpc=3700 gps=554 nn=18113 ndw=0
+  2!np=32740 qsp=37 rpq=6202 cbr=0 cng=476 gpc=4627 gps=546 nn=20889 ndw=0
+  3 np=23679 qsp=22 rpq=5044 cbr=1 cng=415 gpc=3403 gps=347 nn=14469 ndw=0
+  4!np=30714 qsp=4 rpq=5574 cbr=0 cng=528 gpc=3931 gps=639 nn=20042 ndw=0
+  5 np=28910 qsp=2 rpq=5246 cbr=0 cng=428 gpc=4105 gps=709 nn=18422 ndw=0
+  6!np=38648 qsp=5 rpq=7076 cbr=0 cng=840 gpc=4072 gps=961 nn=25699 ndw=0
+  7 np=37275 qsp=2 rpq=6873 cbr=0 cng=868 gpc=3416 gps=971 nn=25147 ndw=0
 
 The fields are as follows:
 
@@ -432,6 +432,10 @@ o	"gpc" is the number of times that an old grace period had
 o	"gps" is the number of times that a new grace period had started,
 	but this CPU was not yet aware of it.
 
+o	"ndw" is the number of times that a wakeup of an rcuo
+	callback-offload kthread had to be deferred in order to avoid
+	deadlock.
+
 o	"nn" is the number of times that this CPU needed nothing.
 
 
@@ -443,7 +447,7 @@ The output of "cat rcu/rcuboost" looks as follows:
     balk: nt=0 egt=6541 bt=0 nb=0 ny=126 nos=0
 
 This information is output only for rcu_preempt.  Each two-line entry
-corresponds to a leaf rcu_node strcuture.  The fields are as follows:
+corresponds to a leaf rcu_node structure.  The fields are as follows:
 
 o	"n:m" is the CPU-number range for the corresponding two-line
 	entry.  In the sample output above, the first entry covers
