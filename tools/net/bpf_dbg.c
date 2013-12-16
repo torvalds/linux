@@ -512,11 +512,11 @@ static bool bpf_runnable(struct sock_filter *f, unsigned int len)
 		return false;
 	}
 	ret = setsockopt(sock, SOL_SOCKET, SO_ATTACH_FILTER, &bpf, sizeof(bpf));
+	close(sock);
 	if (ret < 0) {
 		rl_printf("program not allowed to run by kernel!\n");
 		return false;
 	}
-	close(sock);
 	for (i = 0; i < len; i++) {
 		if (BPF_CLASS(f[i].code) == BPF_LD &&
 		    f[i].k > SKF_AD_OFF) {
