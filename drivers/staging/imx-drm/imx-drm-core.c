@@ -377,14 +377,15 @@ static int imx_drm_crtc_register(struct imx_drm_crtc *imx_drm_crtc)
 	struct imx_drm_device *imxdrm = __imx_drm_device();
 	int ret;
 
-	drm_crtc_init(imxdrm->drm, imx_drm_crtc->crtc,
-			imx_drm_crtc->imx_drm_helper_funcs.crtc_funcs);
 	ret = drm_mode_crtc_set_gamma_size(imx_drm_crtc->crtc, 256);
 	if (ret)
 		return ret;
 
 	drm_crtc_helper_add(imx_drm_crtc->crtc,
 			imx_drm_crtc->imx_drm_helper_funcs.crtc_helper_funcs);
+
+	drm_crtc_init(imxdrm->drm, imx_drm_crtc->crtc,
+			imx_drm_crtc->imx_drm_helper_funcs.crtc_funcs);
 
 	drm_mode_group_reinit(imxdrm->drm);
 
