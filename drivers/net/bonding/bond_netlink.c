@@ -32,6 +32,7 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_ARP_IP_TARGET]	= { .type = NLA_NESTED },
 	[IFLA_BOND_ARP_VALIDATE]	= { .type = NLA_U32 },
 	[IFLA_BOND_ARP_ALL_TARGETS]	= { .type = NLA_U32 },
+	[IFLA_BOND_PRIMARY]		= { .type = NLA_U32 },
 };
 
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -154,6 +155,19 @@ static int bond_changelink(struct net_device *bond_dev,
 		if (err)
 			return err;
 	}
+	if (data[IFLA_BOND_PRIMARY]) {
+		int ifindex = nla_get_u32(data[IFLA_BOND_PRIMARY]);
+		struct net_device *dev;
+		char *primary = "";
+
+		dev = __dev_get_by_index(dev_net(bond_dev), ifindex);
+		if (dev)
+			primary = dev->name;
+
+		err = bond_option_primary_set(bond, primary);
+		if (err)
+			return err;
+	}
 	return 0;
 }
 
@@ -182,6 +196,7 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(u32)) * BOND_MAX_ARP_TARGETS +
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ARP_VALIDATE */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ARP_ALL_TARGETS */
+		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_PRIMARY */
 		0;
 }
 
@@ -239,6 +254,11 @@ static int bond_fill_info(struct sk_buff *skb,
 
 	if (nla_put_u32(skb, IFLA_BOND_ARP_ALL_TARGETS,
 			bond->params.arp_all_targets))
+		goto nla_put_failure;
+
+	if (bond->primary_slave &&
+	    nla_put_u32(skb, IFLA_BOND_PRIMARY,
+			bond->primary_slave->dev->ifindex))
 		goto nla_put_failure;
 
 	return 0;

@@ -467,3 +467,55 @@ int bond_option_arp_all_targets_set(struct bonding *bond, int arp_all_targets)
 
 	return 0;
 }
+
+int bond_option_primary_set(struct bonding *bond, const char *primary)
+{
+	struct list_head *iter;
+	struct slave *slave;
+	int err = 0;
+
+	block_netpoll_tx();
+	read_lock(&bond->lock);
+	write_lock_bh(&bond->curr_slave_lock);
+
+	if (!USES_PRIMARY(bond->params.mode)) {
+		pr_err("%s: Unable to set primary slave; %s is in mode %d\n",
+		       bond->dev->name, bond->dev->name, bond->params.mode);
+		err = -EINVAL;
+		goto out;
+	}
+
+	/* check to see if we are clearing primary */
+	if (!strlen(primary)) {
+		pr_info("%s: Setting primary slave to None.\n",
+			bond->dev->name);
+		bond->primary_slave = NULL;
+		memset(bond->params.primary, 0, sizeof(bond->params.primary));
+		bond_select_active_slave(bond);
+		goto out;
+	}
+
+	bond_for_each_slave(bond, slave, iter) {
+		if (strncmp(slave->dev->name, primary, IFNAMSIZ) == 0) {
+			pr_info("%s: Setting %s as primary slave.\n",
+				bond->dev->name, slave->dev->name);
+			bond->primary_slave = slave;
+			strcpy(bond->params.primary, slave->dev->name);
+			bond_select_active_slave(bond);
+			goto out;
+		}
+	}
+
+	strncpy(bond->params.primary, primary, IFNAMSIZ);
+	bond->params.primary[IFNAMSIZ - 1] = 0;
+
+	pr_info("%s: Recording %s as primary, but it has not been enslaved to %s yet.\n",
+		bond->dev->name, primary, bond->dev->name);
+
+out:
+	write_unlock_bh(&bond->curr_slave_lock);
+	read_unlock(&bond->lock);
+	unblock_netpoll_tx();
+
+	return err;
+}

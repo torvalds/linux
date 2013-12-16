@@ -871,56 +871,22 @@ static ssize_t bonding_store_primary(struct device *d,
 				     const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
-	struct list_head *iter;
 	char ifname[IFNAMSIZ];
-	struct slave *slave;
+	int ret;
+
+	sscanf(buf, "%15s", ifname); /* IFNAMSIZ */
+	if (ifname[0] == '\n')
+		ifname[0] = '\0';
 
 	if (!rtnl_trylock())
 		return restart_syscall();
-	block_netpoll_tx();
-	write_lock_bh(&bond->curr_slave_lock);
 
-	if (!USES_PRIMARY(bond->params.mode)) {
-		pr_info("%s: Unable to set primary slave; %s is in mode %d\n",
-			bond->dev->name, bond->dev->name, bond->params.mode);
-		goto out;
-	}
+	ret = bond_option_primary_set(bond, ifname);
+	if (!ret)
+		ret = count;
 
-	sscanf(buf, "%15s", ifname); /* IFNAMSIZ */
-
-	/* check to see if we are clearing primary */
-	if (!strlen(ifname) || buf[0] == '\n') {
-		pr_info("%s: Setting primary slave to None.\n",
-			bond->dev->name);
-		bond->primary_slave = NULL;
-		memset(bond->params.primary, 0, sizeof(bond->params.primary));
-		bond_select_active_slave(bond);
-		goto out;
-	}
-
-	bond_for_each_slave(bond, slave, iter) {
-		if (strncmp(slave->dev->name, ifname, IFNAMSIZ) == 0) {
-			pr_info("%s: Setting %s as primary slave.\n",
-				bond->dev->name, slave->dev->name);
-			bond->primary_slave = slave;
-			strcpy(bond->params.primary, slave->dev->name);
-			bond_select_active_slave(bond);
-			goto out;
-		}
-	}
-
-	strncpy(bond->params.primary, ifname, IFNAMSIZ);
-	bond->params.primary[IFNAMSIZ - 1] = 0;
-
-	pr_info("%s: Recording %s as primary, "
-		"but it has not been enslaved to %s yet.\n",
-		bond->dev->name, ifname, bond->dev->name);
-out:
-	write_unlock_bh(&bond->curr_slave_lock);
-	unblock_netpoll_tx();
 	rtnl_unlock();
-
-	return count;
+	return ret;
 }
 static DEVICE_ATTR(primary, S_IRUGO | S_IWUSR,
 		   bonding_show_primary, bonding_store_primary);
