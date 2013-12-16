@@ -3836,3 +3836,24 @@ qla4_8xxx_enable_msix(struct scsi_qla_host *ha)
 msix_out:
 	return ret;
 }
+
+int qla4_8xxx_check_init_adapter_retry(struct scsi_qla_host *ha)
+{
+	int status = QLA_SUCCESS;
+
+	/* Dont retry adapter initialization if IRQ allocation failed */
+	if (!test_bit(AF_IRQ_ATTACHED, &ha->flags)) {
+		ql4_printk(KERN_WARNING, ha, "%s: Skipping retry of adapter initialization as IRQs are not attached\n",
+			   __func__);
+		status = QLA_ERROR;
+		goto exit_init_adapter_failure;
+	}
+
+	/* Since interrupts are registered in start_firmware for
+	 * 8xxx, release them here if initialize_adapter fails
+	 * and retry adapter initialization */
+	qla4xxx_free_irqs(ha);
+
+exit_init_adapter_failure:
+	return status;
+}

@@ -279,6 +279,7 @@ int qla4_83xx_ms_mem_write_128b(struct scsi_qla_host *ha,
 uint8_t qla4xxx_set_ipaddr_state(uint8_t fw_ipaddr_state);
 int qla4_83xx_get_port_config(struct scsi_qla_host *ha, uint32_t *config);
 int qla4_83xx_set_port_config(struct scsi_qla_host *ha, uint32_t *config);
+int qla4_8xxx_check_init_adapter_retry(struct scsi_qla_host *ha);
 
 extern int ql4xextended_error_logging;
 extern int ql4xdontresethba;
