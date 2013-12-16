@@ -2828,37 +2828,28 @@ int qla4_8xxx_device_bootstrap(struct scsi_qla_host *ha)
 	int rval = QLA_ERROR;
 	int i;
 	uint32_t old_count, count;
-	int need_reset = 0, peg_stuck = 1;
+	int need_reset = 0;
 
 	need_reset = ha->isp_ops->need_reset(ha);
-	old_count = qla4_8xxx_rd_direct(ha, QLA8XXX_PEG_ALIVE_COUNTER);
-
-	for (i = 0; i < 10; i++) {
-		msleep(200);
-		count = qla4_8xxx_rd_direct(ha, QLA8XXX_PEG_ALIVE_COUNTER);
-		if (count != old_count)
-			peg_stuck = 0;
-	}
 
 	if (need_reset) {
 		/* We are trying to perform a recovery here. */
-		if (peg_stuck)
+		if (test_bit(AF_FW_RECOVERY, &ha->flags))
 			ha->isp_ops->rom_lock_recovery(ha);
-		goto dev_initialize;
 	} else  {
-		/* Start of day for this ha context. */
-		if (peg_stuck) {
-			/* Either we are the first or recovery in progress. */
-			ha->isp_ops->rom_lock_recovery(ha);
-			goto dev_initialize;
-		} else {
-			/* Firmware already running. */
-			rval = QLA_SUCCESS;
-			goto dev_ready;
+		old_count = qla4_8xxx_rd_direct(ha, QLA8XXX_PEG_ALIVE_COUNTER);
+		for (i = 0; i < 10; i++) {
+			msleep(200);
+			count = qla4_8xxx_rd_direct(ha,
+						    QLA8XXX_PEG_ALIVE_COUNTER);
+			if (count != old_count) {
+				rval = QLA_SUCCESS;
+				goto dev_ready;
+			}
 		}
+		ha->isp_ops->rom_lock_recovery(ha);
 	}
 
-dev_initialize:
 	/* set to DEV_INITIALIZING */
 	ql4_printk(KERN_INFO, ha, "HW State: INITIALIZING\n");
 	qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
