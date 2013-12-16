@@ -1079,29 +1079,6 @@ out_noput:
 	return err;
 }
 
-static int verify_userspi_info(struct xfrm_userspi_info *p)
-{
-	switch (p->info.id.proto) {
-	case IPPROTO_AH:
-	case IPPROTO_ESP:
-		break;
-
-	case IPPROTO_COMP:
-		/* IPCOMP spi is 16-bits. */
-		if (p->max >= 0x10000)
-			return -EINVAL;
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	if (p->min > p->max)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int xfrm_alloc_userspi(struct sk_buff *skb, struct nlmsghdr *nlh,
 		struct nlattr **attrs)
 {
@@ -1116,7 +1093,7 @@ static int xfrm_alloc_userspi(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct xfrm_mark m;
 
 	p = nlmsg_data(nlh);
-	err = verify_userspi_info(p);
+	err = verify_spi_info(p->info.id.proto, p->min, p->max);
 	if (err)
 		goto out_noput;
 

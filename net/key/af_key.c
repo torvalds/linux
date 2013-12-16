@@ -1340,6 +1340,12 @@ static int pfkey_getspi(struct sock *sk, struct sk_buff *skb, const struct sadb_
 		max_spi = range->sadb_spirange_max;
 	}
 
+	err = verify_spi_info(x->id.proto, min_spi, max_spi);
+	if (err) {
+		xfrm_state_put(x);
+		return err;
+	}
+
 	err = xfrm_alloc_spi(x, min_spi, max_spi);
 	resp_skb = err ? ERR_PTR(err) : pfkey_xfrm_state2msg(x);
 

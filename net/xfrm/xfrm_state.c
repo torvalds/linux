@@ -1489,6 +1489,30 @@ u32 xfrm_get_acqseq(void)
 }
 EXPORT_SYMBOL(xfrm_get_acqseq);
 
+int verify_spi_info(u8 proto, u32 min, u32 max)
+{
+	switch (proto) {
+	case IPPROTO_AH:
+	case IPPROTO_ESP:
+		break;
+
+	case IPPROTO_COMP:
+		/* IPCOMP spi is 16-bits. */
+		if (max >= 0x10000)
+			return -EINVAL;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	if (min > max)
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL(verify_spi_info);
+
 int xfrm_alloc_spi(struct xfrm_state *x, u32 low, u32 high)
 {
 	struct net *net = xs_net(x);
