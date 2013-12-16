@@ -637,10 +637,6 @@ int tcf_action_copy_stats(struct sk_buff *skb, struct tc_action *a,
 	if (err < 0)
 		goto errout;
 
-	if (a->ops != NULL && a->ops->get_stats != NULL)
-		if (a->ops->get_stats(skb, a) < 0)
-			goto errout;
-
 	if (gnet_stats_copy_basic(&d, &h->tcf_bstats) < 0 ||
 	    gnet_stats_copy_rate_est(&d, &h->tcf_bstats,
 				     &h->tcf_rate_est) < 0 ||
