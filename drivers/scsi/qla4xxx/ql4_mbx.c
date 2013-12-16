@@ -212,9 +212,8 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 			    ha->host_no, __func__));
 			goto mbox_exit;
 		}
-		DEBUG2(printk("scsi%ld: Mailbox Cmd 0x%08X timed out ...,"
-			      " Scheduling Adapter Reset\n", ha->host_no,
-			      mbx_cmd[0]));
+		ql4_printk(KERN_WARNING, ha, "scsi%ld: Mailbox Cmd 0x%08X timed out, Scheduling Adapter Reset\n",
+			   ha->host_no, mbx_cmd[0]);
 		ha->mailbox_timeout_count++;
 		mbx_sts[0] = (-1);
 		set_bit(DPC_RESET_HA, &ha->dpc_flags);
@@ -251,15 +250,16 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		break;
 
 	case MBOX_STS_BUSY:
-		DEBUG2( printk("scsi%ld: %s: Cmd = %08X, ISP BUSY\n",
-			       ha->host_no, __func__, mbx_cmd[0]));
+		ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: Cmd = %08X, ISP BUSY\n",
+			   ha->host_no, __func__, mbx_cmd[0]);
 		ha->mailbox_timeout_count++;
 		break;
 
 	default:
-		DEBUG2(printk("scsi%ld: %s: **** FAILED, cmd = %08X, "
-			      "sts = %08X ****\n", ha->host_no, __func__,
-			      mbx_cmd[0], mbx_sts[0]));
+		ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: FAILED, MBOX CMD = %08X, MBOX STS = %08X %08X %08X %08X %08X %08X %08X %08X\n",
+			   ha->host_no, __func__, mbx_cmd[0], mbx_sts[0],
+			   mbx_sts[1], mbx_sts[2], mbx_sts[3], mbx_sts[4],
+			   mbx_sts[5], mbx_sts[6], mbx_sts[7]);
 		break;
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
