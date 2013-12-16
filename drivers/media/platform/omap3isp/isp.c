@@ -873,15 +873,12 @@ static int isp_pipeline_enable(struct isp_pipeline *pipe,
 	unsigned long flags;
 	int ret;
 
-	/* If the preview engine crashed it might not respond to read/write
-	 * operations on the L4 bus. This would result in a bus fault and a
-	 * kernel oops. Refuse to start streaming in that case. This check must
-	 * be performed before the loop below to avoid starting entities if the
-	 * pipeline won't start anyway (those entities would then likely fail to
-	 * stop, making the problem worse).
+	/* Refuse to start streaming if an entity included in the pipeline has
+	 * crashed. This check must be performed before the loop below to avoid
+	 * starting entities if the pipeline won't start anyway (those entities
+	 * would then likely fail to stop, making the problem worse).
 	 */
-	if ((pipe->entities & isp->crashed) &
-	    (1U << isp->isp_prev.subdev.entity.id))
+	if (pipe->entities & isp->crashed)
 		return -EIO;
 
 	spin_lock_irqsave(&pipe->lock, flags);
@@ -1014,13 +1011,23 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
 		else
 			ret = 0;
 
+		/* Handle stop failures. An entity that fails to stop can
+		 * usually just be restarted. Flag the stop failure nonetheless
+		 * to trigger an ISP reset the next time the device is released,
+		 * just in case.
+		 *
+		 * The preview engine is a special case. A failure to stop can
+		 * mean a hardware crash. When that happens the preview engine
+		 * won't respond to read/write operations on the L4 bus anymore,
+		 * resulting in a bus fault and a kernel oops next time it gets
+		 * accessed. Mark it as crashed to prevent pipelines including
+		 * it from being started.
+		 */
 		if (ret) {
 			dev_info(isp->dev, "Unable to stop %s\n", subdev->name);
-			/* If the entity failed to stopped, assume it has
-			 * crashed. Mark it as such, the ISP will be reset when
-			 * applications will release it.
-			 */
-			isp->crashed |= 1U << subdev->entity.id;
+			isp->stop_failure = true;
+			if (subdev == &isp->isp_prev.subdev)
+				isp->crashed |= 1U << subdev->entity.id;
 			failure = -ETIMEDOUT;
 		}
 	}
@@ -1225,6 +1232,7 @@ static int isp_reset(struct isp_device *isp)
 		udelay(1);
 	}
 
+	isp->stop_failure = false;
 	isp->crashed = 0;
 	return 0;
 }
@@ -1636,7 +1644,7 @@ void omap3isp_put(struct isp_device *isp)
 		/* Reset the ISP if an entity has failed to stop. This is the
 		 * only way to recover from such conditions.
 		 */
-		if (isp->crashed)
+		if (isp->crashed || isp->stop_failure)
 			isp_reset(isp);
 		isp_disable_clocks(isp);
 	}
