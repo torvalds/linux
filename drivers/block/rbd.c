@@ -5143,6 +5143,12 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 
 	rc = rbd_dev_device_setup(rbd_dev);
 	if (rc) {
+		/*
+		 * rbd_dev_header_unwatch_sync() can't be moved into
+		 * rbd_dev_image_release() without refactoring, see
+		 * commit 1f3ef78861ac.
+		 */
+		rbd_dev_header_unwatch_sync(rbd_dev);
 		rbd_dev_image_release(rbd_dev);
 		goto err_out_module;
 	}
