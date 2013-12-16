@@ -43,6 +43,7 @@ char *proc_stat = "/proc/stat";
 unsigned int interval_sec = 5;	/* set with -i interval_sec */
 unsigned int verbose;		/* set with -v */
 unsigned int rapl_verbose;	/* set with -R */
+unsigned int rapl_joules;	/* set with -J */
 unsigned int thermal_verbose;	/* set with -T */
 unsigned int summary_only;	/* set with -s */
 unsigned int skip_c0;
@@ -317,19 +318,35 @@ void print_header(void)
 		outp += sprintf(outp, "  %%pc10");
 	}
 
-	if (do_rapl & RAPL_PKG)
-		outp += sprintf(outp, "  Pkg_W");
-	if (do_rapl & RAPL_CORES)
-		outp += sprintf(outp, "  Cor_W");
-	if (do_rapl & RAPL_GFX)
-		outp += sprintf(outp, " GFX_W");
-	if (do_rapl & RAPL_DRAM)
-		outp += sprintf(outp, " RAM_W");
-	if (do_rapl & RAPL_PKG_PERF_STATUS)
-		outp += sprintf(outp, " PKG_%%");
-	if (do_rapl & RAPL_DRAM_PERF_STATUS)
-		outp += sprintf(outp, " RAM_%%");
+	if (do_rapl && !rapl_joules) {
+		if (do_rapl & RAPL_PKG)
+			outp += sprintf(outp, "  Pkg_W");
+		if (do_rapl & RAPL_CORES)
+			outp += sprintf(outp, "  Cor_W");
+		if (do_rapl & RAPL_GFX)
+			outp += sprintf(outp, " GFX_W");
+		if (do_rapl & RAPL_DRAM)
+			outp += sprintf(outp, " RAM_W");
+		if (do_rapl & RAPL_PKG_PERF_STATUS)
+			outp += sprintf(outp, " PKG_%%");
+		if (do_rapl & RAPL_DRAM_PERF_STATUS)
+			outp += sprintf(outp, " RAM_%%");
+	} else {
+		if (do_rapl & RAPL_PKG)
+			outp += sprintf(outp, "  Pkg_J");
+		if (do_rapl & RAPL_CORES)
+			outp += sprintf(outp, "  Cor_J");
+		if (do_rapl & RAPL_GFX)
+			outp += sprintf(outp, " GFX_J");
+		if (do_rapl & RAPL_DRAM)
+			outp += sprintf(outp, " RAM_W");
+		if (do_rapl & RAPL_PKG_PERF_STATUS)
+			outp += sprintf(outp, " PKG_%%");
+		if (do_rapl & RAPL_DRAM_PERF_STATUS)
+			outp += sprintf(outp, " RAM_%%");
+		outp += sprintf(outp, " time");
 
+	}
 	outp += sprintf(outp, "\n");
 }
 
@@ -548,19 +565,39 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		fmt6 = " %4.0f**";
 	}
 
-	if (do_rapl & RAPL_PKG)
-		outp += sprintf(outp, fmt6, p->energy_pkg * rapl_energy_units / interval_float);
-	if (do_rapl & RAPL_CORES)
-		outp += sprintf(outp, fmt6, p->energy_cores * rapl_energy_units / interval_float);
-	if (do_rapl & RAPL_GFX)
-		outp += sprintf(outp, fmt5, p->energy_gfx * rapl_energy_units / interval_float); 
-	if (do_rapl & RAPL_DRAM)
-		outp += sprintf(outp, fmt5, p->energy_dram * rapl_energy_units / interval_float);
-	if (do_rapl & RAPL_PKG_PERF_STATUS )
-		outp += sprintf(outp, fmt5, 100.0 * p->rapl_pkg_perf_status * rapl_time_units / interval_float);
-	if (do_rapl & RAPL_DRAM_PERF_STATUS )
-		outp += sprintf(outp, fmt5, 100.0 * p->rapl_dram_perf_status * rapl_time_units / interval_float);
+	if (do_rapl && !rapl_joules) {
+		if (do_rapl & RAPL_PKG)
+			outp += sprintf(outp, fmt6, p->energy_pkg * rapl_energy_units / interval_float);
+		if (do_rapl & RAPL_CORES)
+			outp += sprintf(outp, fmt6, p->energy_cores * rapl_energy_units / interval_float);
+		if (do_rapl & RAPL_GFX)
+			outp += sprintf(outp, fmt5, p->energy_gfx * rapl_energy_units / interval_float);
+		if (do_rapl & RAPL_DRAM)
+			outp += sprintf(outp, fmt5, p->energy_dram * rapl_energy_units / interval_float);
+		if (do_rapl & RAPL_PKG_PERF_STATUS)
+			outp += sprintf(outp, fmt5, 100.0 * p->rapl_pkg_perf_status * rapl_time_units / interval_float);
+		if (do_rapl & RAPL_DRAM_PERF_STATUS)
+			outp += sprintf(outp, fmt5, 100.0 * p->rapl_dram_perf_status * rapl_time_units / interval_float);
+	} else {
+		if (do_rapl & RAPL_PKG)
+			outp += sprintf(outp, fmt6,
+					p->energy_pkg * rapl_energy_units);
+		if (do_rapl & RAPL_CORES)
+			outp += sprintf(outp, fmt6,
+					p->energy_cores * rapl_energy_units);
+		if (do_rapl & RAPL_GFX)
+			outp += sprintf(outp, fmt5,
+					p->energy_gfx * rapl_energy_units);
+		if (do_rapl & RAPL_DRAM)
+			outp += sprintf(outp, fmt5,
+					p->energy_dram * rapl_energy_units);
+		if (do_rapl & RAPL_PKG_PERF_STATUS)
+			outp += sprintf(outp, fmt5, 100.0 * p->rapl_pkg_perf_status * rapl_time_units / interval_float);
+		if (do_rapl & RAPL_DRAM_PERF_STATUS)
+			outp += sprintf(outp, fmt5, 100.0 * p->rapl_dram_perf_status * rapl_time_units / interval_float);
+	outp += sprintf(outp, fmt5, interval_float);
 
+	}
 done:
 	outp += sprintf(outp, "\n");
 
@@ -2340,7 +2377,7 @@ void cmdline(int argc, char **argv)
 
 	progname = argv[0];
 
-	while ((opt = getopt(argc, argv, "+pPSvi:sc:sC:m:M:RT:")) != -1) {
+	while ((opt = getopt(argc, argv, "+pPSvi:sc:sC:m:M:RJT:")) != -1) {
 		switch (opt) {
 		case 'p':
 			show_core_only++;
@@ -2375,6 +2412,10 @@ void cmdline(int argc, char **argv)
 		case 'T':
 			tcc_activation_temp_override = atoi(optarg);
 			break;
+		case 'J':
+			rapl_joules++;
+			break;
+
 		default:
 			usage();
 		}
