@@ -442,33 +442,23 @@ static ssize_t bonding_store_fail_over_mac(struct device *d,
 					   struct device_attribute *attr,
 					   const char *buf, size_t count)
 {
-	int new_value, ret = count;
+	int new_value, ret;
 	struct bonding *bond = to_bond(d);
-
-	if (!rtnl_trylock())
-		return restart_syscall();
-
-	if (bond_has_slaves(bond)) {
-		pr_err("%s: Can't alter fail_over_mac with slaves in bond.\n",
-		       bond->dev->name);
-		ret = -EPERM;
-		goto out;
-	}
 
 	new_value = bond_parse_parm(buf, fail_over_mac_tbl);
 	if (new_value < 0) {
 		pr_err("%s: Ignoring invalid fail_over_mac value %s.\n",
 		       bond->dev->name, buf);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
-	bond->params.fail_over_mac = new_value;
-	pr_info("%s: Setting fail_over_mac to %s (%d).\n",
-		bond->dev->name, fail_over_mac_tbl[new_value].modename,
-		new_value);
+	if (!rtnl_trylock())
+		return restart_syscall();
 
-out:
+	ret = bond_option_fail_over_mac_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
 	rtnl_unlock();
 	return ret;
 }

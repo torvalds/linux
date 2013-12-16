@@ -535,3 +535,19 @@ int bond_option_primary_reselect_set(struct bonding *bond, int primary_reselect)
 
 	return 0;
 }
+
+int bond_option_fail_over_mac_set(struct bonding *bond, int fail_over_mac)
+{
+	if (bond_has_slaves(bond)) {
+		pr_err("%s: Can't alter fail_over_mac with slaves in bond.\n",
+		       bond->dev->name);
+		return -EPERM;
+	}
+
+	bond->params.fail_over_mac = fail_over_mac;
+	pr_info("%s: Setting fail_over_mac to %s (%d).\n",
+		bond->dev->name, fail_over_mac_tbl[fail_over_mac].modename,
+		fail_over_mac);
+
+	return 0;
+}
