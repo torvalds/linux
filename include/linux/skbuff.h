@@ -764,6 +764,12 @@ static inline void skb_clear_hash_if_not_l4(struct sk_buff *skb)
 		skb_clear_hash(skb);
 }
 
+static inline void skb_copy_hash(struct sk_buff *to, const struct sk_buff *from)
+{
+	to->rxhash = from->rxhash;
+	to->l4_rxhash = from->l4_rxhash;
+};
+
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 static inline unsigned char *skb_end_pointer(const struct sk_buff *skb)
 {
