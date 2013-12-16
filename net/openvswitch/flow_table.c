@@ -44,8 +44,6 @@
 #include <net/ipv6.h>
 #include <net/ndisc.h>
 
-#include "datapath.h"
-
 #define TBL_MIN_BUCKETS		1024
 #define REHASH_INTERVAL		(10 * 60 * HZ)
 
