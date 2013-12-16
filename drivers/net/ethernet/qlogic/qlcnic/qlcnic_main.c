@@ -1178,6 +1178,7 @@ qlcnic_initialize_nic(struct qlcnic_adapter *adapter)
 	} else {
 		adapter->ahw->nic_mode = QLCNIC_DEFAULT_MODE;
 		adapter->max_tx_rings = QLCNIC_MAX_HW_TX_RINGS;
+		adapter->max_sds_rings = QLCNIC_MAX_SDS_RINGS;
 		adapter->flags &= ~QLCNIC_ESWITCH_ENABLED;
 	}
 

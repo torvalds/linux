@@ -2073,8 +2073,8 @@ int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter)
 		ahw->nic_mode = QLCNIC_DEFAULT_MODE;
 		adapter->nic_ops->init_driver = qlcnic_83xx_init_default_driver;
 		ahw->idc.state_entry = qlcnic_83xx_idc_ready_state_entry;
-		adapter->max_sds_rings = ahw->max_rx_ques;
-		adapter->max_tx_rings = ahw->max_tx_ques;
+		adapter->max_sds_rings = QLCNIC_MAX_SDS_RINGS;
+		adapter->max_tx_rings = QLCNIC_MAX_TX_RINGS;
 	} else {
 		return -EIO;
 	}
