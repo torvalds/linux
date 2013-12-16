@@ -844,7 +844,7 @@ static const u16 pinmux_data[] = {
 #define SH7372_PIN_O(pin)		SH_PFC_PIN_CFG(pin, __O)
 #define SH7372_PIN_O_PU_PD(pin)		SH_PFC_PIN_CFG(pin, __O | __PUD)
 
-static struct sh_pfc_pin pinmux_pins[] = {
+static const struct sh_pfc_pin pinmux_pins[] = {
 	/* Table 57-1 (I/O and Pull U/D) */
 	SH7372_PIN_IO_PD(0),		SH7372_PIN_IO_PD(1),
 	SH7372_PIN_O(2),		SH7372_PIN_I_PD(3),

@@ -1674,7 +1674,7 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_MODSEL_DATA(IP16_11_10, CAN1_RX_B, SEL_CAN1_1),
 };
 
-static struct sh_pfc_pin pinmux_pins[] = {
+static const struct sh_pfc_pin pinmux_pins[] = {
 	PINMUX_GPIO_GP_ALL(),
 };
 
@@ -3056,7 +3056,7 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(usb1),
 };
 
-static struct pinmux_cfg_reg pinmux_config_regs[] = {
+static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ PINMUX_CFG_REG("GPSR0", 0xE6060004, 32, 1) {
 		GP_0_31_FN, FN_IP1_22_20,
 		GP_0_30_FN, FN_IP1_19_17,

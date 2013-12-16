@@ -1179,7 +1179,7 @@ static const u16 pinmux_data[] = {
  */
 #define PIN_NUMBER(row, col)		(1000+((row)-1)*34+(col)-1)
 
-static struct sh_pfc_pin pinmux_pins[] = {
+static const struct sh_pfc_pin pinmux_pins[] = {
 	/* Table 25-1 (I/O and Pull U/D) */
 	SH73A0_PIN_I_PD(0),
 	SH73A0_PIN_I_PU(1),

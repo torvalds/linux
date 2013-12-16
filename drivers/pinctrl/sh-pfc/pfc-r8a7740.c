@@ -1543,7 +1543,7 @@ static const u16 pinmux_data[] = {
 #define R8A7740_PIN_O(pin)		SH_PFC_PIN_CFG(pin, __O)
 #define R8A7740_PIN_O_PU_PD(pin)	SH_PFC_PIN_CFG(pin, __O | __PUD)
 
-static struct sh_pfc_pin pinmux_pins[] = {
+static const struct sh_pfc_pin pinmux_pins[] = {
 	/* Table 56-1 (I/O and Pull U/D) */
 	R8A7740_PIN_IO_PD(0),		R8A7740_PIN_IO_PD(1),
 	R8A7740_PIN_IO_PD(2),		R8A7740_PIN_IO_PD(3),

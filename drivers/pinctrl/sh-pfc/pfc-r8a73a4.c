@@ -1272,7 +1272,7 @@ static const u16 pinmux_data[] = {
 #define R8A73A4_PIN_IO_PU_PD(pin)       SH_PFC_PIN_CFG(pin, __IO | __PUD)
 #define R8A73A4_PIN_O(pin)              SH_PFC_PIN_CFG(pin, __O)
 
-static struct sh_pfc_pin pinmux_pins[] = {
+static const struct sh_pfc_pin pinmux_pins[] = {
 	R8A73A4_PIN_IO_PU_PD(0), R8A73A4_PIN_IO_PU_PD(1),
 	R8A73A4_PIN_IO_PU_PD(2), R8A73A4_PIN_IO_PU_PD(3),
 	R8A73A4_PIN_IO_PU_PD(4), R8A73A4_PIN_IO_PU_PD(5),
