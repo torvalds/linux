@@ -188,6 +188,7 @@ static void __init pnv_setup_machdep_opal(void)
 	ppc_md.power_off = pnv_power_off;
 	ppc_md.halt = pnv_halt;
 	ppc_md.machine_check_exception = opal_machine_check;
+	ppc_md.mce_check_early_recovery = opal_mce_check_early_recovery;
 }
 
 #ifdef CONFIG_PPC_POWERNV_RTAS

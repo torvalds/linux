@@ -21,6 +21,7 @@
 #include <linux/sched.h>
 #include <linux/kobject.h>
 #include <linux/delay.h>
+#include <linux/memblock.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
 #include <asm/mce.h>
@@ -33,7 +34,17 @@ struct kobject *opal_kobj;
 struct opal {
 	u64 base;
 	u64 entry;
+	u64 size;
 } opal;
+
+struct mcheck_recoverable_range {
+	u64 start_addr;
+	u64 end_addr;
+	u64 recover_addr;
+};
+
+static struct mcheck_recoverable_range *mc_recoverable_range;
+static int mc_recoverable_range_len;
 
 static struct device_node *opal_node;
 static DEFINE_SPINLOCK(opal_write_lock);
@@ -49,25 +60,29 @@ static atomic_t opal_notifier_hold = ATOMIC_INIT(0);
 int __init early_init_dt_scan_opal(unsigned long node,
 				   const char *uname, int depth, void *data)
 {
-	const void *basep, *entryp;
-	unsigned long basesz, entrysz;
+	const void *basep, *entryp, *sizep;
+	unsigned long basesz, entrysz, runtimesz;
 
 	if (depth != 1 || strcmp(uname, "ibm,opal") != 0)
 		return 0;
 
 	basep  = of_get_flat_dt_prop(node, "opal-base-address", &basesz);
 	entryp = of_get_flat_dt_prop(node, "opal-entry-address", &entrysz);
+	sizep = of_get_flat_dt_prop(node, "opal-runtime-size", &runtimesz);
 
-	if (!basep || !entryp)
+	if (!basep || !entryp || !sizep)
 		return 1;
 
 	opal.base = of_read_number(basep, basesz/4);
 	opal.entry = of_read_number(entryp, entrysz/4);
+	opal.size = of_read_number(sizep, runtimesz/4);
 
 	pr_debug("OPAL Base  = 0x%llx (basep=%p basesz=%ld)\n",
 		 opal.base, basep, basesz);
 	pr_debug("OPAL Entry = 0x%llx (entryp=%p basesz=%ld)\n",
 		 opal.entry, entryp, entrysz);
+	pr_debug("OPAL Entry = 0x%llx (sizep=%p runtimesz=%ld)\n",
+		 opal.size, sizep, runtimesz);
 
 	powerpc_firmware_features |= FW_FEATURE_OPAL;
 	if (of_flat_dt_is_compatible(node, "ibm,opal-v3")) {
@@ -81,6 +96,53 @@ int __init early_init_dt_scan_opal(unsigned long node,
 		printk("OPAL V1 detected !\n");
 	}
 
+	return 1;
+}
+
+int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
+				   const char *uname, int depth, void *data)
+{
+	unsigned long i, size;
+	const __be32 *prop;
+
+	if (depth != 1 || strcmp(uname, "ibm,opal") != 0)
+		return 0;
+
+	prop = of_get_flat_dt_prop(node, "mcheck-recoverable-ranges", &size);
+
+	if (!prop)
+		return 1;
+
+	pr_debug("Found machine check recoverable ranges.\n");
+
+	/*
+	 * Allocate a buffer to hold the MC recoverable ranges. We would be
+	 * accessing them in real mode, hence it needs to be within
+	 * RMO region.
+	 */
+	mc_recoverable_range =__va(memblock_alloc_base(size, __alignof__(u64),
+							ppc64_rma_size));
+	memset(mc_recoverable_range, 0, size);
+
+	/*
+	 * Each recoverable address entry is an (start address,len,
+	 * recover address) pair, * 2 cells each, totalling 4 cells per entry.
+	 */
+	for (i = 0; i < size / (sizeof(*prop) * 5); i++) {
+		mc_recoverable_range[i].start_addr =
+					of_read_number(prop + (i * 5) + 0, 2);
+		mc_recoverable_range[i].end_addr =
+					mc_recoverable_range[i].start_addr +
+					of_read_number(prop + (i * 5) + 2, 1);
+		mc_recoverable_range[i].recover_addr =
+					of_read_number(prop + (i * 5) + 3, 2);
+
+		pr_debug("Machine check recoverable range: %llx..%llx: %llx\n",
+				mc_recoverable_range[i].start_addr,
+				mc_recoverable_range[i].end_addr,
+				mc_recoverable_range[i].recover_addr);
+	}
+	mc_recoverable_range_len = i;
 	return 1;
 }
 
@@ -399,6 +461,38 @@ int opal_machine_check(struct pt_regs *regs)
 	if (opal_recover_mce(regs, &evt))
 		return 1;
 	return 0;
+}
+
+static uint64_t find_recovery_address(uint64_t nip)
+{
+	int i;
+
+	for (i = 0; i < mc_recoverable_range_len; i++)
+		if ((nip >= mc_recoverable_range[i].start_addr) &&
+		    (nip < mc_recoverable_range[i].end_addr))
+		    return mc_recoverable_range[i].recover_addr;
+	return 0;
+}
+
+bool opal_mce_check_early_recovery(struct pt_regs *regs)
+{
+	uint64_t recover_addr = 0;
+
+	if (!opal.base || !opal.size)
+		goto out;
+
+	if ((regs->nip >= opal.base) &&
+			(regs->nip <= (opal.base + opal.size)))
+		recover_addr = find_recovery_address(regs->nip);
+
+	/*
+	 * Setup regs->nip to rfi into fixup address.
+	 */
+	if (recover_addr)
+		regs->nip = recover_addr;
+
+out:
+	return !!recover_addr;
 }
 
 static irqreturn_t opal_interrupt(int irq, void *data)
