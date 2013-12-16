@@ -809,6 +809,8 @@
 #define AR_SREV_REVISION_9462_21	3
 #define AR_SREV_VERSION_9565            0x2C0
 #define AR_SREV_REVISION_9565_10        0
+#define AR_SREV_REVISION_9565_101       1
+#define AR_SREV_REVISION_9565_11        2
 #define AR_SREV_VERSION_9550		0x400
 
 #define AR_SREV_5416(_ah) \
@@ -881,9 +883,6 @@
 
 #define AR_SREV_9330(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9330))
-#define AR_SREV_9330_10(_ah) \
-	(AR_SREV_9330((_ah)) && \
-	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9330_10))
 #define AR_SREV_9330_11(_ah) \
 	(AR_SREV_9330((_ah)) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9330_11))
@@ -927,10 +926,18 @@
 
 #define AR_SREV_9565(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9565))
-
 #define AR_SREV_9565_10(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9565) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9565_10))
+#define AR_SREV_9565_101(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9565) && \
+	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9565_101))
+#define AR_SREV_9565_11(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9565) && \
+	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9565_11))
+#define AR_SREV_9565_11_OR_LATER(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9565) && \
+	 ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9565_11))
 
 #define AR_SREV_9550(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9550))

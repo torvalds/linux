@@ -22,24 +22,18 @@
  * Authors: Ben Skeggs
  */
 
-#include "priv.h"
-
-struct nvc0_fb_priv {
-	struct nouveau_fb base;
-	struct page *r100c10_page;
-	dma_addr_t r100c10;
-};
+#include "nvc0.h"
 
 extern const u8 nvc0_pte_storage_type_map[256];
 
-static bool
+bool
 nvc0_fb_memtype_valid(struct nouveau_fb *pfb, u32 tile_flags)
 {
 	u8 memtype = (tile_flags & 0x0000ff00) >> 8;
 	return likely((nvc0_pte_storage_type_map[memtype] != 0xff));
 }
 
-static int
+int
 nvc0_fb_init(struct nouveau_object *object)
 {
 	struct nvc0_fb_priv *priv = (void *)object;
@@ -54,7 +48,7 @@ nvc0_fb_init(struct nouveau_object *object)
 	return 0;
 }
 
-static void
+void
 nvc0_fb_dtor(struct nouveau_object *object)
 {
 	struct nouveau_device *device = nv_device(object);
@@ -69,7 +63,7 @@ nvc0_fb_dtor(struct nouveau_object *object)
 	nouveau_fb_destroy(&priv->base);
 }
 
-static int
+int
 nvc0_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	     struct nouveau_oclass *oclass, void *data, u32 size,
 	     struct nouveau_object **pobject)
@@ -78,12 +72,10 @@ nvc0_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nvc0_fb_priv *priv;
 	int ret;
 
-	ret = nouveau_fb_create(parent, engine, oclass, &nvc0_ram_oclass, &priv);
+	ret = nouveau_fb_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
-
-	priv->base.memtype_valid = nvc0_fb_memtype_valid;
 
 	priv->r100c10_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (priv->r100c10_page) {
@@ -97,14 +89,15 @@ nvc0_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-
-struct nouveau_oclass
-nvc0_fb_oclass = {
-	.handle = NV_SUBDEV(FB, 0xc0),
-	.ofuncs = &(struct nouveau_ofuncs) {
+struct nouveau_oclass *
+nvc0_fb_oclass = &(struct nouveau_fb_impl) {
+	.base.handle = NV_SUBDEV(FB, 0xc0),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nvc0_fb_ctor,
 		.dtor = nvc0_fb_dtor,
 		.init = nvc0_fb_init,
 		.fini = _nouveau_fb_fini,
 	},
-};
+	.memtype = nvc0_fb_memtype_valid,
+	.ram = &nvc0_ram_oclass,
+}.base;

@@ -263,7 +263,7 @@ static struct ptlrpc_hr_service		ptlrpc_hr;
  */
 static void rs_batch_init(struct rs_batch *b)
 {
-	memset(b, 0, sizeof *b);
+	memset(b, 0, sizeof(*b));
 	INIT_LIST_HEAD(&b->rsb_replies);
 }
 
@@ -1306,12 +1306,12 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	}
 	newdl = cfs_time_current_sec() + at_get(&svcpt->scp_at_estimate);
 
-	OBD_ALLOC(reqcopy, sizeof *reqcopy);
+	OBD_ALLOC(reqcopy, sizeof(*reqcopy));
 	if (reqcopy == NULL)
 		return -ENOMEM;
 	OBD_ALLOC_LARGE(reqmsg, req->rq_reqlen);
 	if (!reqmsg) {
-		OBD_FREE(reqcopy, sizeof *reqcopy);
+		OBD_FREE(reqcopy, sizeof(*reqcopy));
 		return -ENOMEM;
 	}
 
@@ -1370,7 +1370,7 @@ out_put:
 out:
 	sptlrpc_svc_ctx_decref(reqcopy);
 	OBD_FREE_LARGE(reqmsg, req->rq_reqlen);
-	OBD_FREE(reqcopy, sizeof *reqcopy);
+	OBD_FREE(reqcopy, sizeof(*reqcopy));
 	return rc;
 }
 
@@ -2718,15 +2718,15 @@ int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 	spin_unlock(&svcpt->scp_lock);
 
 	if (svcpt->scp_cpt >= 0) {
-		snprintf(thread->t_name, PTLRPC_THR_NAME_LEN, "%s%02d_%03d",
+		snprintf(thread->t_name, sizeof(thread->t_name), "%s%02d_%03d",
 			 svc->srv_thread_name, svcpt->scp_cpt, thread->t_id);
 	} else {
-		snprintf(thread->t_name, PTLRPC_THR_NAME_LEN, "%s_%04d",
+		snprintf(thread->t_name, sizeof(thread->t_name), "%s_%04d",
 			 svc->srv_thread_name, thread->t_id);
 	}
 
 	CDEBUG(D_RPCTRACE, "starting thread '%s'\n", thread->t_name);
-	rc = PTR_ERR(kthread_run(ptlrpc_main, thread, thread->t_name));
+	rc = PTR_ERR(kthread_run(ptlrpc_main, thread, "%s", thread->t_name));
 	if (IS_ERR_VALUE(rc)) {
 		CERROR("cannot start thread '%s': rc %d\n",
 		       thread->t_name, rc);

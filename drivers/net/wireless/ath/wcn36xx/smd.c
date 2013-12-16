@@ -115,6 +115,22 @@ static void wcn36xx_smd_set_sta_ht_params(struct ieee80211_sta *sta,
 	}
 }
 
+static void wcn36xx_smd_set_sta_default_ht_params(
+		struct wcn36xx_hal_config_sta_params *sta_params)
+{
+	sta_params->ht_capable = 1;
+	sta_params->tx_channel_width_set = 1;
+	sta_params->lsig_txop_protection = 1;
+	sta_params->max_ampdu_size = 3;
+	sta_params->max_ampdu_density = 5;
+	sta_params->max_amsdu_size = 0;
+	sta_params->sgi_20Mhz = 1;
+	sta_params->sgi_40mhz = 1;
+	sta_params->green_field_capable = 1;
+	sta_params->delayed_ba_support = 0;
+	sta_params->dsss_cck_mode_40mhz = 1;
+}
+
 static void wcn36xx_smd_set_sta_params(struct wcn36xx *wcn,
 		struct ieee80211_vif *vif,
 		struct ieee80211_sta *sta,
@@ -172,6 +188,7 @@ static void wcn36xx_smd_set_sta_params(struct wcn36xx *wcn,
 			sizeof(priv_sta->supported_rates));
 	} else {
 		wcn36xx_set_default_rates(&sta_params->supported_rates);
+		wcn36xx_smd_set_sta_default_ht_params(sta_params);
 	}
 }
 
@@ -1134,14 +1151,14 @@ int wcn36xx_smd_config_bss(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 		/* STA */
 		bss->oper_mode = 1;
 		bss->wcn36xx_hal_persona = WCN36XX_HAL_STA_MODE;
-	} else if (vif->type == NL80211_IFTYPE_AP) {
+	} else if (vif->type == NL80211_IFTYPE_AP ||
+		   vif->type == NL80211_IFTYPE_MESH_POINT) {
 		bss->bss_type = WCN36XX_HAL_INFRA_AP_MODE;
 
 		/* AP */
 		bss->oper_mode = 0;
 		bss->wcn36xx_hal_persona = WCN36XX_HAL_STA_SAP_MODE;
-	} else if (vif->type == NL80211_IFTYPE_ADHOC ||
-		   vif->type == NL80211_IFTYPE_MESH_POINT) {
+	} else if (vif->type == NL80211_IFTYPE_ADHOC) {
 		bss->bss_type = WCN36XX_HAL_IBSS_MODE;
 
 		/* STA */
@@ -1286,12 +1303,17 @@ int wcn36xx_smd_send_beacon(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 	} else {
 		wcn36xx_err("Beacon is to big: beacon size=%d\n",
 			      msg_body.beacon_length);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 	memcpy(msg_body.bssid, vif->addr, ETH_ALEN);
 
 	/* TODO need to find out why this is needed? */
-	msg_body.tim_ie_offset = tim_off+4;
+	if (vif->type == NL80211_IFTYPE_MESH_POINT)
+		/* mesh beacon don't need this, so push further down */
+		msg_body.tim_ie_offset = 256;
+	else
+		msg_body.tim_ie_offset = tim_off+4;
 	msg_body.p2p_ie_offset = p2p_off;
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
 
@@ -1327,7 +1349,8 @@ int wcn36xx_smd_update_proberesp_tmpl(struct wcn36xx *wcn,
 	if (skb->len > BEACON_TEMPLATE_SIZE) {
 		wcn36xx_warn("probe response template is too big: %d\n",
 			     skb->len);
-		return -E2BIG;
+		ret = -E2BIG;
+		goto out;
 	}
 
 	msg.probe_resp_template_len = skb->len;
@@ -1606,7 +1629,8 @@ int wcn36xx_smd_keep_alive_req(struct wcn36xx *wcn,
 		/* TODO: it also support ARP response type */
 	} else {
 		wcn36xx_warn("unknow keep alive packet type %d\n", packet_type);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
@@ -1835,7 +1859,7 @@ out:
 int wcn36xx_smd_trigger_ba(struct wcn36xx *wcn, u8 sta_index)
 {
 	struct wcn36xx_hal_trigger_ba_req_msg msg_body;
-	struct wcn36xx_hal_trigget_ba_req_candidate *candidate;
+	struct wcn36xx_hal_trigger_ba_req_candidate *candidate;
 	int ret = 0;
 
 	mutex_lock(&wcn->hal_mutex);
@@ -1846,7 +1870,7 @@ int wcn36xx_smd_trigger_ba(struct wcn36xx *wcn, u8 sta_index)
 	msg_body.header.len += sizeof(*candidate);
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
 
-	candidate = (struct wcn36xx_hal_trigget_ba_req_candidate *)
+	candidate = (struct wcn36xx_hal_trigger_ba_req_candidate *)
 		(wcn->hal_buf + sizeof(msg_body));
 	candidate->sta_index = sta_index;
 	candidate->tid_bitmap = 1;
@@ -2038,13 +2062,20 @@ static void wcn36xx_smd_rsp_process(struct wcn36xx *wcn, void *buf, size_t len)
 	case WCN36XX_HAL_DELETE_STA_CONTEXT_IND:
 		mutex_lock(&wcn->hal_ind_mutex);
 		msg_ind = kmalloc(sizeof(*msg_ind), GFP_KERNEL);
-		msg_ind->msg_len = len;
-		msg_ind->msg = kmalloc(len, GFP_KERNEL);
-		memcpy(msg_ind->msg, buf, len);
-		list_add_tail(&msg_ind->list, &wcn->hal_ind_queue);
-		queue_work(wcn->hal_ind_wq, &wcn->hal_ind_work);
-		wcn36xx_dbg(WCN36XX_DBG_HAL, "indication arrived\n");
+		if (msg_ind) {
+			msg_ind->msg_len = len;
+			msg_ind->msg = kmalloc(len, GFP_KERNEL);
+			memcpy(msg_ind->msg, buf, len);
+			list_add_tail(&msg_ind->list, &wcn->hal_ind_queue);
+			queue_work(wcn->hal_ind_wq, &wcn->hal_ind_work);
+			wcn36xx_dbg(WCN36XX_DBG_HAL, "indication arrived\n");
+		}
 		mutex_unlock(&wcn->hal_ind_mutex);
+		if (msg_ind)
+			break;
+		/* FIXME: Do something smarter then just printing an error. */
+		wcn36xx_err("Run out of memory while handling SMD_EVENT (%d)\n",
+			    msg_header->msg_type);
 		break;
 	default:
 		wcn36xx_err("SMD_EVENT (%d) not supported\n",

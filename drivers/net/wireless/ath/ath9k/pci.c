@@ -87,6 +87,19 @@ static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 	{ PCI_VDEVICE(ATHEROS, 0x002C) }, /* PCI-E 802.11n bonded out */
 	{ PCI_VDEVICE(ATHEROS, 0x002D) }, /* PCI   */
 	{ PCI_VDEVICE(ATHEROS, 0x002E) }, /* PCI-E */
+
+	/* Killer Wireless (3x3) */
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0030,
+			 0x1A56,
+			 0x2000),
+	  .driver_data = ATH9K_PCI_KILLER },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0030,
+			 0x1A56,
+			 0x2001),
+	  .driver_data = ATH9K_PCI_KILLER },
+
 	{ PCI_VDEVICE(ATHEROS, 0x0030) }, /* PCI-E  AR9300 */
 
 	/* PCI-E CUS198 */
@@ -195,6 +208,93 @@ static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 			 0x3219),
 	  .driver_data = ATH9K_PCI_BT_ANT_DIV },
 
+	/* AR9485 cards with PLL power-save disabled by default. */
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0032,
+			 PCI_VENDOR_ID_AZWAVE,
+			 0x2C97),
+	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0032,
+			 PCI_VENDOR_ID_AZWAVE,
+			 0x2100),
+	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0032,
+			 0x1C56, /* ASKEY */
+			 0x4001),
+	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0032,
+			 0x11AD, /* LITEON */
+			 0x6627),
+	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0032,
+			 0x11AD, /* LITEON */
+			 0x6628),
+	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0032,
+			 PCI_VENDOR_ID_FOXCONN,
+			 0xE04E),
+	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0032,
+			 PCI_VENDOR_ID_FOXCONN,
+			 0xE04F),
+	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0032,
+			 0x144F, /* ASKEY */
+			 0x7197),
+	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0032,
+			 0x1B9A, /* XAVI */
+			 0x2000),
+	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0032,
+			 0x1B9A, /* XAVI */
+			 0x2001),
+	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0032,
+			 PCI_VENDOR_ID_AZWAVE,
+			 0x1186),
+	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0032,
+			 PCI_VENDOR_ID_AZWAVE,
+			 0x1F86),
+	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0032,
+			 PCI_VENDOR_ID_AZWAVE,
+			 0x1195),
+	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0032,
+			 PCI_VENDOR_ID_AZWAVE,
+			 0x1F95),
+	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0032,
+			 0x1B9A, /* XAVI */
+			 0x1C00),
+	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0032,
+			 0x1B9A, /* XAVI */
+			 0x1C01),
+	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0032,
+			 PCI_VENDOR_ID_ASUSTEK,
+			 0x850D),
+	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+
 	{ PCI_VDEVICE(ATHEROS, 0x0032) }, /* PCI-E  AR9485 */
 	{ PCI_VDEVICE(ATHEROS, 0x0033) }, /* PCI-E  AR9580 */
 
@@ -266,6 +366,13 @@ static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 			 0x10CF, /* Fujitsu */
 			 0x1783),
 	  .driver_data = ATH9K_PCI_WOW },
+
+	/* Killer Wireless (2x2) */
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0030,
+			 0x1A56,
+			 0x2003),
+	  .driver_data = ATH9K_PCI_KILLER },
 
 	{ PCI_VDEVICE(ATHEROS, 0x0034) }, /* PCI-E  AR9462 */
 	{ PCI_VDEVICE(ATHEROS, 0x0037) }, /* PCI-E  AR1111/AR9485 */
@@ -361,6 +468,11 @@ static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 	  .driver_data = ATH9K_PCI_AR9565_1ANT | ATH9K_PCI_BT_ANT_DIV },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0036,
+			 0x11AD, /* LITEON */
+			 0x0682),
+	  .driver_data = ATH9K_PCI_AR9565_1ANT | ATH9K_PCI_BT_ANT_DIV },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0036,
 			 PCI_VENDOR_ID_AZWAVE,
 			 0x213A),
 	  .driver_data = ATH9K_PCI_AR9565_1ANT | ATH9K_PCI_BT_ANT_DIV },
@@ -371,6 +483,11 @@ static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 	  .driver_data = ATH9K_PCI_AR9565_1ANT | ATH9K_PCI_BT_ANT_DIV },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0036,
+			 PCI_VENDOR_ID_LENOVO,
+			 0x4026),
+	  .driver_data = ATH9K_PCI_AR9565_1ANT | ATH9K_PCI_BT_ANT_DIV },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0036,
 			 PCI_VENDOR_ID_HP,
 			 0x18E3),
 	  .driver_data = ATH9K_PCI_AR9565_1ANT | ATH9K_PCI_BT_ANT_DIV },
@@ -378,6 +495,11 @@ static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 			 0x0036,
 			 PCI_VENDOR_ID_HP,
 			 0x217F),
+	  .driver_data = ATH9K_PCI_AR9565_1ANT | ATH9K_PCI_BT_ANT_DIV },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0036,
+			 PCI_VENDOR_ID_HP,
+			 0x2005),
 	  .driver_data = ATH9K_PCI_AR9565_1ANT | ATH9K_PCI_BT_ANT_DIV },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0036,
@@ -457,6 +579,16 @@ static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 			 0x0036,
 			 0x185F, /* WNC */
 			 0x3027),
+	  .driver_data = ATH9K_PCI_AR9565_2ANT | ATH9K_PCI_BT_ANT_DIV },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0036,
+			 0x185F, /* WNC */
+			 0xA120),
+	  .driver_data = ATH9K_PCI_AR9565_2ANT | ATH9K_PCI_BT_ANT_DIV },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0036,
+			 PCI_VENDOR_ID_FOXCONN,
+			 0xE07F),
 	  .driver_data = ATH9K_PCI_AR9565_2ANT | ATH9K_PCI_BT_ANT_DIV },
 
 	/* PCI-E AR9565 (WB335) */

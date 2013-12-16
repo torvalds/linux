@@ -393,7 +393,7 @@ static int cnic_iscsi_nl_msg_recv(struct cnic_dev *dev, u32 msg_type,
 
 			csk->vlan_id = path_resp->vlan_id;
 
-			memcpy(csk->ha, path_resp->mac_addr, 6);
+			memcpy(csk->ha, path_resp->mac_addr, ETH_ALEN);
 			if (test_bit(SK_F_IPV6, &csk->flags))
 				memcpy(&csk->src_ip[0], &path_resp->src.v6_addr,
 				       sizeof(struct in6_addr));
@@ -5572,7 +5572,7 @@ static struct cnic_dev *init_bnx2x_cnic(struct net_device *dev)
 	if (cdev->max_fcoe_conn > BNX2X_FCOE_NUM_CONNECTIONS)
 		cdev->max_fcoe_conn = BNX2X_FCOE_NUM_CONNECTIONS;
 
-	memcpy(cdev->mac_addr, ethdev->iscsi_mac, 6);
+	memcpy(cdev->mac_addr, ethdev->iscsi_mac, ETH_ALEN);
 
 	cp->cnic_ops = &cnic_bnx2x_ops;
 	cp->start_hw = cnic_start_bnx2x_hw;

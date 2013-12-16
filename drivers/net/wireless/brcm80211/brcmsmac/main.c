@@ -1906,14 +1906,14 @@ static void brcms_c_get_macaddr(struct brcms_hardware *wlc_hw, u8 etheraddr[ETH_
 
 	/* If macaddr exists, use it (Sromrev4, CIS, ...). */
 	if (!is_zero_ether_addr(sprom->il0mac)) {
-		memcpy(etheraddr, sprom->il0mac, 6);
+		memcpy(etheraddr, sprom->il0mac, ETH_ALEN);
 		return;
 	}
 
 	if (wlc_hw->_nbands > 1)
-		memcpy(etheraddr, sprom->et1mac, 6);
+		memcpy(etheraddr, sprom->et1mac, ETH_ALEN);
 	else
-		memcpy(etheraddr, sprom->il0mac, 6);
+		memcpy(etheraddr, sprom->il0mac, ETH_ALEN);
 }
 
 /* power both the pll and external oscillator on/off */

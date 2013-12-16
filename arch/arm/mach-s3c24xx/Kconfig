@@ -28,6 +28,7 @@ config CPU_S3C2410
 	select CPU_ARM920T
 	select CPU_LLSERIAL_S3C2410
 	select S3C2410_CLOCK
+	select S3C2410_DMA if S3C24XX_DMA
 	select ARM_S3C2410_CPUFREQ if ARM_S3C24XX_CPUFREQ
 	select S3C2410_PM if PM
 	select SAMSUNG_WDT_RESET
@@ -70,6 +71,7 @@ config CPU_S3C2442
 	select CPU_ARM920T
 	select CPU_LLSERIAL_S3C2440
 	select S3C2410_CLOCK
+	select S3C2410_DMA if S3C24XX_DMA
 	select S3C2410_PM if PM
 	help
 	  Support for S3C2442 Samsung Mobile CPU based systems.
@@ -148,7 +150,6 @@ config S3C2410_DMA_DEBUG
 config S3C2410_DMA
 	bool
 	depends on S3C24XX_DMA && (CPU_S3C2410 || CPU_S3C2442)
-	default y if CPU_S3C2410 || CPU_S3C2442
 	help
 	  DMA device selection for S3C2410 and compatible CPUs
 

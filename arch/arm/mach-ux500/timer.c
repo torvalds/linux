@@ -97,8 +97,8 @@ dt_fail:
 	 * sched_clock with higher rating then MTU since is always-on.
 	 *
 	 */
-
-	nmdk_timer_init(mtu_timer_base, IRQ_MTU0);
+	if (!of_have_populated_dt())
+		nmdk_timer_init(mtu_timer_base, IRQ_MTU0);
 	clksrc_dbx500_prcmu_init(prcmu_timer_base);
 	ux500_twd_init();
 }

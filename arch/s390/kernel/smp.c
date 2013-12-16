@@ -283,7 +283,7 @@ static void pcpu_delegate(struct pcpu *pcpu, void (*func)(void *),
 	struct _lowcore *lc = lowcore_ptr[pcpu - pcpu_devices];
 	unsigned long source_cpu = stap();
 
-	__load_psw_mask(psw_kernel_bits);
+	__load_psw_mask(PSW_KERNEL_BITS);
 	if (pcpu->address == source_cpu)
 		func(data);	/* should not return */
 	/* Stop target cpu (if func returns this stops the current cpu). */
@@ -395,7 +395,7 @@ void smp_send_stop(void)
 	int cpu;
 
 	/* Disable all interrupts/machine checks */
-	__load_psw_mask(psw_kernel_bits | PSW_MASK_DAT);
+	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
 	trace_hardirqs_off();
 
 	debug_set_critical();
@@ -533,9 +533,6 @@ EXPORT_SYMBOL(smp_ctl_clear_bit);
 
 #if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_CRASH_DUMP)
 
-struct save_area *zfcpdump_save_areas[NR_CPUS + 1];
-EXPORT_SYMBOL_GPL(zfcpdump_save_areas);
-
 static void __init smp_get_save_area(int cpu, u16 address)
 {
 	void *lc = pcpu_devices[0].lowcore;
@@ -546,15 +543,9 @@ static void __init smp_get_save_area(int cpu, u16 address)
 	if (!OLDMEM_BASE && (address == boot_cpu_address ||
 			     ipl_info.type != IPL_TYPE_FCP_DUMP))
 		return;
-	if (cpu >= NR_CPUS) {
-		pr_warning("CPU %i exceeds the maximum %i and is excluded "
-			   "from the dump\n", cpu, NR_CPUS - 1);
-		return;
-	}
-	save_area = kmalloc(sizeof(struct save_area), GFP_KERNEL);
+	save_area = dump_save_area_create(cpu);
 	if (!save_area)
 		panic("could not allocate memory for save area\n");
-	zfcpdump_save_areas[cpu] = save_area;
 #ifdef CONFIG_CRASH_DUMP
 	if (address == boot_cpu_address) {
 		/* Copy the registers of the boot cpu. */
@@ -693,7 +684,7 @@ static void smp_start_secondary(void *cpuvoid)
 	S390_lowcore.restart_source = -1UL;
 	restore_access_regs(S390_lowcore.access_regs_save_area);
 	__ctl_load(S390_lowcore.cregs_save_area, 0, 15);
-	__load_psw_mask(psw_kernel_bits | PSW_MASK_DAT);
+	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
 	cpu_init();
 	preempt_disable();
 	init_cpu_timer();
@@ -929,7 +920,7 @@ static ssize_t show_idle_count(struct device *dev,
 		idle_count = ACCESS_ONCE(idle->idle_count);
 		if (ACCESS_ONCE(idle->clock_idle_enter))
 			idle_count++;
-	} while ((sequence & 1) || (idle->sequence != sequence));
+	} while ((sequence & 1) || (ACCESS_ONCE(idle->sequence) != sequence));
 	return sprintf(buf, "%llu\n", idle_count);
 }
 static DEVICE_ATTR(idle_count, 0444, show_idle_count, NULL);
@@ -947,7 +938,7 @@ static ssize_t show_idle_time(struct device *dev,
 		idle_time = ACCESS_ONCE(idle->idle_time);
 		idle_enter = ACCESS_ONCE(idle->clock_idle_enter);
 		idle_exit = ACCESS_ONCE(idle->clock_idle_exit);
-	} while ((sequence & 1) || (idle->sequence != sequence));
+	} while ((sequence & 1) || (ACCESS_ONCE(idle->sequence) != sequence));
 	idle_time += idle_enter ? ((idle_exit ? : now) - idle_enter) : 0;
 	return sprintf(buf, "%llu\n", idle_time >> 12);
 }

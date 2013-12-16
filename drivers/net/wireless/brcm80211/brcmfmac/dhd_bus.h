@@ -34,6 +34,7 @@ struct brcmf_bus_dcmd {
 /**
  * struct brcmf_bus_ops - bus callback operations.
  *
+ * @preinit: execute bus/device specific dongle init commands (optional).
  * @init: prepare for communication with dongle.
  * @stop: clear pending frames, disable data flow.
  * @txdata: send a data frame to the dongle. When the data
@@ -51,6 +52,7 @@ struct brcmf_bus_dcmd {
  * indicated otherwise these callbacks are mandatory.
  */
 struct brcmf_bus_ops {
+	int (*preinit)(struct device *dev);
 	int (*init)(struct device *dev);
 	void (*stop)(struct device *dev);
 	int (*txdata)(struct device *dev, struct sk_buff *skb);
@@ -85,7 +87,6 @@ struct brcmf_bus {
 	unsigned long tx_realloc;
 	u32 chip;
 	u32 chiprev;
-	struct list_head dcmd_list;
 
 	struct brcmf_bus_ops *ops;
 };
@@ -93,6 +94,13 @@ struct brcmf_bus {
 /*
  * callback wrappers
  */
+static inline int brcmf_bus_preinit(struct brcmf_bus *bus)
+{
+	if (!bus->ops->preinit)
+		return 0;
+	return bus->ops->preinit(bus->dev);
+}
+
 static inline int brcmf_bus_init(struct brcmf_bus *bus)
 {
 	return bus->ops->init(bus->dev);
@@ -132,35 +140,37 @@ struct pktq *brcmf_bus_gettxq(struct brcmf_bus *bus)
  * interface functions from common layer
  */
 
-extern bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
-			 struct sk_buff *pkt, int prec);
+bool brcmf_c_prec_enq(struct device *dev, struct pktq *q, struct sk_buff *pkt,
+		      int prec);
 
 /* Receive frame for delivery to OS.  Callee disposes of rxp. */
-extern void brcmf_rx_frame(struct device *dev, struct sk_buff *rxp);
+void brcmf_rx_frame(struct device *dev, struct sk_buff *rxp);
 
 /* Indication from bus module regarding presence/insertion of dongle. */
-extern int brcmf_attach(uint bus_hdrlen, struct device *dev);
+int brcmf_attach(struct device *dev);
 /* Indication from bus module regarding removal/absence of dongle */
-extern void brcmf_detach(struct device *dev);
+void brcmf_detach(struct device *dev);
 /* Indication from bus module that dongle should be reset */
-extern void brcmf_dev_reset(struct device *dev);
+void brcmf_dev_reset(struct device *dev);
 /* Indication from bus module to change flow-control state */
-extern void brcmf_txflowblock(struct device *dev, bool state);
+void brcmf_txflowblock(struct device *dev, bool state);
 
 /* Notify the bus has transferred the tx packet to firmware */
-extern void brcmf_txcomplete(struct device *dev, struct sk_buff *txp,
-			     bool success);
+void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success);
 
-extern int brcmf_bus_start(struct device *dev);
+int brcmf_bus_start(struct device *dev);
+s32 brcmf_iovar_data_set(struct device *dev, char *name, void *data,
+				u32 len);
+void brcmf_bus_add_txhdrlen(struct device *dev, uint len);
 
 #ifdef CONFIG_BRCMFMAC_SDIO
-extern void brcmf_sdio_exit(void);
-extern void brcmf_sdio_init(void);
-extern void brcmf_sdio_register(void);
+void brcmf_sdio_exit(void);
+void brcmf_sdio_init(void);
+void brcmf_sdio_register(void);
 #endif
 #ifdef CONFIG_BRCMFMAC_USB
-extern void brcmf_usb_exit(void);
-extern void brcmf_usb_register(void);
+void brcmf_usb_exit(void);
+void brcmf_usb_register(void);
 #endif
 
 #endif				/* _BRCMF_BUS_H_ */

@@ -776,6 +776,22 @@ config CRYPTO_AES_ARM
 
 	  See <http://csrc.nist.gov/encryption/aes/> for more information.
 
+config CRYPTO_AES_ARM_BS
+	tristate "Bit sliced AES using NEON instructions"
+	depends on ARM && KERNEL_MODE_NEON
+	select CRYPTO_ALGAPI
+	select CRYPTO_AES_ARM
+	select CRYPTO_ABLK_HELPER
+	help
+	  Use a faster and more secure NEON based implementation of AES in CBC,
+	  CTR and XTS modes
+
+	  Bit sliced AES gives around 45% speedup on Cortex-A15 for CTR mode
+	  and for XTS mode encryption, CBC and XTS mode decryption speedup is
+	  around 25%. (CBC encryption speed is not affected by this driver.)
+	  This implementation does not rely on any lookup tables so it is
+	  believed to be invulnerable to cache timing attacks.
+
 config CRYPTO_ANUBIS
 	tristate "Anubis cipher algorithm"
 	select CRYPTO_ALGAPI

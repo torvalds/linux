@@ -14,8 +14,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -183,7 +182,7 @@ prism54_update_stats(struct work_struct *work)
 	data = r.ptr;
 
 	/* copy this MAC to the bss */
-	memcpy(bss.address, data, 6);
+	memcpy(bss.address, data, ETH_ALEN);
 	kfree(data);
 
 	/* now ask for the corresponding bss */
@@ -531,7 +530,7 @@ prism54_set_wap(struct net_device *ndev, struct iw_request_info *info,
 		return -EINVAL;
 
 	/* prepare the structure for the set object */
-	memcpy(&bssid[0], awrq->sa_data, 6);
+	memcpy(&bssid[0], awrq->sa_data, ETH_ALEN);
 
 	/* set the bssid -- does this make sense when in AP mode? */
 	rvalue = mgt_set_request(priv, DOT11_OID_BSSID, 0, &bssid);
@@ -550,7 +549,7 @@ prism54_get_wap(struct net_device *ndev, struct iw_request_info *info,
 	int rvalue;
 
 	rvalue = mgt_get_request(priv, DOT11_OID_BSSID, 0, NULL, &r);
-	memcpy(awrq->sa_data, r.ptr, 6);
+	memcpy(awrq->sa_data, r.ptr, ETH_ALEN);
 	awrq->sa_family = ARPHRD_ETHER;
 	kfree(r.ptr);
 
@@ -582,7 +581,7 @@ prism54_translate_bss(struct net_device *ndev, struct iw_request_info *info,
 	size_t wpa_ie_len;
 
 	/* The first entry must be the MAC address */
-	memcpy(iwe.u.ap_addr.sa_data, bss->address, 6);
+	memcpy(iwe.u.ap_addr.sa_data, bss->address, ETH_ALEN);
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 	iwe.cmd = SIOCGIWAP;
 	current_ev = iwe_stream_add_event(info, current_ev, end_buf,
@@ -2489,7 +2488,7 @@ prism54_set_mac_address(struct net_device *ndev, void *addr)
 			      &((struct sockaddr *) addr)->sa_data);
 	if (!ret)
 		memcpy(priv->ndev->dev_addr,
-		       &((struct sockaddr *) addr)->sa_data, 6);
+		       &((struct sockaddr *) addr)->sa_data, ETH_ALEN);
 
 	return ret;
 }

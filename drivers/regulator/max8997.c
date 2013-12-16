@@ -690,8 +690,9 @@ static int max8997_set_voltage_buck(struct regulator_dev *rdev,
 	if (max8997->ignore_gpiodvs_side_effect == false)
 		return -EINVAL;
 
-	dev_warn(&rdev->dev, "MAX8997 GPIO-DVS Side Effect Warning: GPIO SET:"
-			" %d -> %d\n", max8997->buck125_gpioindex, tmp_idx);
+	dev_warn(&rdev->dev,
+		"MAX8997 GPIO-DVS Side Effect Warning: GPIO SET:  %d -> %d\n",
+		max8997->buck125_gpioindex, tmp_idx);
 
 out:
 	if (new_idx < 0 || new_val < 0)
@@ -1081,7 +1082,7 @@ static int max8997_pmic_probe(struct platform_device *pdev)
 					pdata->buck1_voltage[i] +
 					buck1245_voltage_map_desc.step);
 		if (ret < 0)
-			goto err_out;
+			return ret;
 
 		max8997->buck2_vol[i] = ret =
 			max8997_get_voltage_proper_val(
@@ -1090,7 +1091,7 @@ static int max8997_pmic_probe(struct platform_device *pdev)
 					pdata->buck2_voltage[i] +
 					buck1245_voltage_map_desc.step);
 		if (ret < 0)
-			goto err_out;
+			return ret;
 
 		max8997->buck5_vol[i] = ret =
 			max8997_get_voltage_proper_val(
@@ -1099,7 +1100,7 @@ static int max8997_pmic_probe(struct platform_device *pdev)
 					pdata->buck5_voltage[i] +
 					buck1245_voltage_map_desc.step);
 		if (ret < 0)
-			goto err_out;
+			return ret;
 
 		if (max_buck1 < max8997->buck1_vol[i])
 			max_buck1 = max8997->buck1_vol[i];
@@ -1143,24 +1144,23 @@ static int max8997_pmic_probe(struct platform_device *pdev)
 				!gpio_is_valid(pdata->buck125_gpios[1]) ||
 				!gpio_is_valid(pdata->buck125_gpios[2])) {
 			dev_err(&pdev->dev, "GPIO NOT VALID\n");
-			ret = -EINVAL;
-			goto err_out;
+			return -EINVAL;
 		}
 
 		ret = devm_gpio_request(&pdev->dev, pdata->buck125_gpios[0],
 					"MAX8997 SET1");
 		if (ret)
-			goto err_out;
+			return ret;
 
 		ret = devm_gpio_request(&pdev->dev, pdata->buck125_gpios[1],
 					"MAX8997 SET2");
 		if (ret)
-			goto err_out;
+			return ret;
 
 		ret = devm_gpio_request(&pdev->dev, pdata->buck125_gpios[2],
 				"MAX8997 SET3");
 		if (ret)
-			goto err_out;
+			return ret;
 
 		gpio_direction_output(pdata->buck125_gpios[0],
 				(max8997->buck125_gpioindex >> 2)
@@ -1205,32 +1205,15 @@ static int max8997_pmic_probe(struct platform_device *pdev)
 		config.driver_data = max8997;
 		config.of_node = pdata->regulators[i].reg_node;
 
-		rdev[i] = regulator_register(&regulators[id], &config);
+		rdev[i] = devm_regulator_register(&pdev->dev, &regulators[id],
+						  &config);
 		if (IS_ERR(rdev[i])) {
-			ret = PTR_ERR(rdev[i]);
 			dev_err(max8997->dev, "regulator init failed for %d\n",
 					id);
-			rdev[i] = NULL;
-			goto err;
+			return PTR_ERR(rdev[i]);
 		}
 	}
 
-	return 0;
-err:
-	while (--i >= 0)
-		regulator_unregister(rdev[i]);
-err_out:
-	return ret;
-}
-
-static int max8997_pmic_remove(struct platform_device *pdev)
-{
-	struct max8997_data *max8997 = platform_get_drvdata(pdev);
-	struct regulator_dev **rdev = max8997->rdev;
-	int i;
-
-	for (i = 0; i < max8997->num_regulators; i++)
-		regulator_unregister(rdev[i]);
 	return 0;
 }
 
@@ -1246,7 +1229,6 @@ static struct platform_driver max8997_pmic_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = max8997_pmic_probe,
-	.remove = max8997_pmic_remove,
 	.id_table = max8997_pmic_id,
 };
 

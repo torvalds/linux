@@ -18,9 +18,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -164,7 +162,7 @@ static bool rt2800usb_tx_sta_fifo_read_completed(struct rt2x00_dev *rt2x00dev,
 
 	valid = rt2x00_get_field32(tx_status, TX_STA_FIFO_VALID);
 	if (valid) {
-		if (!kfifo_put(&rt2x00dev->txstatus_fifo, &tx_status))
+		if (!kfifo_put(&rt2x00dev->txstatus_fifo, tx_status))
 			rt2x00_warn(rt2x00dev, "TX status FIFO overrun\n");
 
 		queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);

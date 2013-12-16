@@ -134,7 +134,7 @@ static int whc_urb_enqueue(struct usb_hcd *usb_hcd, struct urb *urb,
 	default:
 		ret = asl_urb_enqueue(whc, urb, mem_flags);
 		break;
-	};
+	}
 
 	return ret;
 }
@@ -160,7 +160,7 @@ static int whc_urb_dequeue(struct usb_hcd *usb_hcd, struct urb *urb, int status)
 	default:
 		ret = asl_urb_dequeue(whc, urb, status);
 		break;
-	};
+	}
 
 	return ret;
 }

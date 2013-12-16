@@ -96,6 +96,15 @@ config COMEDI_SKEL
 	  To compile this driver as a module, choose M here: the module will be
 	  called skel.
 
+config COMEDI_SSV_DNP
+	tristate "SSV Embedded Systems DIL/Net-PC support"
+	depends on X86_32 || COMPILE_TEST
+	---help---
+	  Enable support for SSV Embedded Systems DIL/Net-PC
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ssv_dnp.
+
 endif # COMEDI_MISC_DRIVERS
 
 menuconfig COMEDI_ISA_DRIVERS
@@ -386,6 +395,14 @@ config COMEDI_DMM32AT
 	  To compile this driver as a module, choose M here: the module will be
 	  called dmm32at.
 
+config COMEDI_UNIOXX5
+	tristate "Fastwel UNIOxx-5 analog and digital io board support"
+	---help---
+	  Enable support for Fastwel UNIOxx-5 (analog and digital i/o) boards
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called unioxx5.
+
 config COMEDI_FL512
 	tristate "FL512 ISA card support"
 	---help---
@@ -468,6 +485,7 @@ config COMEDI_NI_ATMIO
 	tristate "NI AT-MIO E series ISA-PNP card support"
 	select COMEDI_8255
 	select COMEDI_NI_TIO
+	select COMEDI_FC
 	---help---
 	  Enable support for National Instruments AT-MIO E series cards
 	  National Instruments AT-MIO-16E-1 (ni_atmio),
@@ -855,14 +873,6 @@ config COMEDI_DYNA_PCI10XX
 	  To compile this driver as a module, choose M here: the module will be
 	  called dyna_pci10xx.
 
-config COMEDI_UNIOXX5
-	tristate "Fastwel UNIOxx-5 analog and digital io board support"
-	---help---
-	  Enable support for Fastwel UNIOxx-5 (analog and digital i/o) boards
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called unioxx5.
-
 config COMEDI_GSC_HPDI
 	tristate "General Standards PCI-HPDI32 / PMC-HPDI32 support"
 	select COMEDI_FC
@@ -981,8 +991,6 @@ config COMEDI_ME_DAQ
 
 config COMEDI_NI_6527
 	tristate "NI 6527 support"
-	depends on HAS_DMA
-	select COMEDI_MITE
 	---help---
 	  Enable support for the National Instruments 6527 PCI card
 
@@ -1084,14 +1092,6 @@ config COMEDI_S626
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called s626.
-
-config COMEDI_SSV_DNP
-	tristate "SSV Embedded Systems DIL/Net-PC support"
-	---help---
-	  Enable support for SSV Embedded Systems DIL/Net-PC
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called ssv_dnp.
 
 config COMEDI_MITE
 	depends on HAS_DMA

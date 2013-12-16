@@ -36,7 +36,7 @@ struct msm_gem_object {
 	 */
 	struct list_head mm_list;
 	struct msm_gpu *gpu;     /* non-null if active */
-	uint32_t fence;
+	uint32_t read_fence, write_fence;
 
 	/* Transiently in the process of submit ioctl, objects associated
 	 * with the submit are on submit->bo_list.. this only lasts for
@@ -44,9 +44,6 @@ struct msm_gem_object {
 	 * submit lists.
 	 */
 	struct list_head submit_entry;
-
-	/* work defered until bo is inactive: */
-	struct list_head inactive_work;
 
 	struct page **pages;
 	struct sg_table *sgt;

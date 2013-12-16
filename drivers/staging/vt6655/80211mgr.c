@@ -165,9 +165,8 @@ vMgrDecodeBeacon(
 			break;
 
 		case WLAN_EID_RSN:
-			if (pFrame->pRSN == NULL) {
+			if (pFrame->pRSN == NULL)
 				pFrame->pRSN = (PWLAN_IE_RSN)pItem;
-			}
 			break;
 		case WLAN_EID_RSN_WPA:
 			if (pFrame->pRSNWPA == NULL) {
@@ -382,9 +381,8 @@ vMgrDecodeAssocRequest(
 			break;
 
 		case WLAN_EID_RSN:
-			if (pFrame->pRSN == NULL) {
+			if (pFrame->pRSN == NULL)
 				pFrame->pRSN = (PWLAN_IE_RSN)pItem;
-			}
 			break;
 		case WLAN_EID_RSN_WPA:
 			if (pFrame->pRSNWPA == NULL) {
@@ -556,9 +554,8 @@ vMgrDecodeReassocRequest(
 			break;
 
 		case WLAN_EID_RSN:
-			if (pFrame->pRSN == NULL) {
+			if (pFrame->pRSN == NULL)
 				pFrame->pRSN = (PWLAN_IE_RSN)pItem;
-			}
 			break;
 		case WLAN_EID_RSN_WPA:
 			if (pFrame->pRSNWPA == NULL) {
@@ -742,9 +739,8 @@ vMgrDecodeProbeResponse(
 			break;
 
 		case WLAN_EID_RSN:
-			if (pFrame->pRSN == NULL) {
+			if (pFrame->pRSN == NULL)
 				pFrame->pRSN = (PWLAN_IE_RSN)pItem;
-			}
 			break;
 		case WLAN_EID_RSN_WPA:
 			if (pFrame->pRSNWPA == NULL) {
@@ -858,9 +854,9 @@ vMgrDecodeAuthen(
 	pItem = (PWLAN_IE)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3))
 			   + WLAN_AUTHEN_OFF_CHALLENGE);
 
-	if ((((unsigned char *)pItem) < (pFrame->pBuf + pFrame->len)) && (pItem->byElementID == WLAN_EID_CHALLENGE)) {
+	if (((unsigned char *)pItem) < (pFrame->pBuf + pFrame->len) &&
+	    pItem->byElementID == WLAN_EID_CHALLENGE)
 		pFrame->pChallenge = (PWLAN_IE_CHALLENGE)pItem;
-	}
 
 	return;
 }

@@ -396,9 +396,9 @@ struct mei_device {
 	struct mei_me_client *me_clients; /* Note: memory has to be allocated */
 	DECLARE_BITMAP(me_clients_map, MEI_CLIENTS_MAX);
 	DECLARE_BITMAP(host_clients_map, MEI_CLIENTS_MAX);
-	u8 me_clients_num;
-	u8 me_client_presentation_num;
-	u8 me_client_index;
+	unsigned long me_clients_num;
+	unsigned long me_client_presentation_num;
+	unsigned long me_client_index;
 
 	struct mei_cl wd_cl;
 	enum mei_wd_states wd_state;
@@ -414,6 +414,7 @@ struct mei_device {
 	struct file *iamthif_file_object;
 	struct mei_cl iamthif_cl;
 	struct mei_cl_cb *iamthif_current_cb;
+	long iamthif_open_count;
 	int iamthif_mtu;
 	unsigned long iamthif_timer;
 	u32 iamthif_stall_timer;

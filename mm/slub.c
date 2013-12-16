@@ -955,7 +955,7 @@ static inline void slab_free_hook(struct kmem_cache *s, void *x)
 	kmemleak_free_recursive(x, s->flags);
 
 	/*
-	 * Trouble is that we may no longer disable interupts in the fast path
+	 * Trouble is that we may no longer disable interrupts in the fast path
 	 * So in order to make the debug calls that expect irqs to be
 	 * disabled we need to disable interrupts temporarily.
 	 */
@@ -4983,7 +4983,7 @@ static ssize_t slab_attr_store(struct kobject *kobj,
 		 * through the descendants with best-effort propagation.
 		 */
 		for_each_memcg_cache_index(i) {
-			struct kmem_cache *c = cache_from_memcg(s, i);
+			struct kmem_cache *c = cache_from_memcg_idx(s, i);
 			if (c)
 				attribute->store(c, buf, len);
 		}

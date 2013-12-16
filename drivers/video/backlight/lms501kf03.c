@@ -344,14 +344,14 @@ static int lms501kf03_probe(struct spi_device *spi)
 	lcd->spi = spi;
 	lcd->dev = &spi->dev;
 
-	lcd->lcd_pd = spi->dev.platform_data;
+	lcd->lcd_pd = dev_get_platdata(&spi->dev);
 	if (!lcd->lcd_pd) {
 		dev_err(&spi->dev, "platform data is NULL\n");
 		return -EINVAL;
 	}
 
-	ld = lcd_device_register("lms501kf03", &spi->dev, lcd,
-				&lms501kf03_lcd_ops);
+	ld = devm_lcd_device_register(&spi->dev, "lms501kf03", &spi->dev, lcd,
+					&lms501kf03_lcd_ops);
 	if (IS_ERR(ld))
 		return PTR_ERR(ld);
 
@@ -382,8 +382,6 @@ static int lms501kf03_remove(struct spi_device *spi)
 	struct lms501kf03 *lcd = spi_get_drvdata(spi);
 
 	lms501kf03_power(lcd, FB_BLANK_POWERDOWN);
-	lcd_device_unregister(lcd->ld);
-
 	return 0;
 }
 

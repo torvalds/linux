@@ -15,7 +15,7 @@ extern int rtnetlink_put_metrics(struct sk_buff *skb, u32 *metrics);
 extern int rtnl_put_cacheinfo(struct sk_buff *skb, struct dst_entry *dst,
 			      u32 id, long expires, u32 error);
 
-extern void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change);
+void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change, gfp_t flags);
 
 /* RTNL is used as a global lock for all changes to network configuration  */
 extern void rtnl_lock(void);

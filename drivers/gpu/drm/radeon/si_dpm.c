@@ -2910,6 +2910,7 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 	bool disable_sclk_switching = false;
 	u32 mclk, sclk;
 	u16 vddc, vddci;
+	u32 max_sclk_vddc, max_mclk_vddci, max_mclk_vddc;
 	int i;
 
 	if ((rdev->pm.dpm.new_active_crtc_count > 1) ||
@@ -2940,6 +2941,29 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 				ps->performance_levels[i].vddc = max_limits->vddc;
 			if (ps->performance_levels[i].vddci > max_limits->vddci)
 				ps->performance_levels[i].vddci = max_limits->vddci;
+		}
+	}
+
+	/* limit clocks to max supported clocks based on voltage dependency tables */
+	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk,
+							&max_sclk_vddc);
+	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk,
+							&max_mclk_vddci);
+	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk,
+							&max_mclk_vddc);
+
+	for (i = 0; i < ps->performance_level_count; i++) {
+		if (max_sclk_vddc) {
+			if (ps->performance_levels[i].sclk > max_sclk_vddc)
+				ps->performance_levels[i].sclk = max_sclk_vddc;
+		}
+		if (max_mclk_vddci) {
+			if (ps->performance_levels[i].mclk > max_mclk_vddci)
+				ps->performance_levels[i].mclk = max_mclk_vddci;
+		}
+		if (max_mclk_vddc) {
+			if (ps->performance_levels[i].mclk > max_mclk_vddc)
+				ps->performance_levels[i].mclk = max_mclk_vddc;
 		}
 	}
 
@@ -3565,7 +3589,12 @@ static void si_program_display_gap(struct radeon_device *rdev)
 		WREG32(DCCG_DISP_SLOW_SELECT_REG, tmp);
 	}
 
-	si_notify_smc_display_change(rdev, rdev->pm.dpm.new_active_crtc_count > 0);
+	/* Setting this to false forces the performance state to low if the crtcs are disabled.
+	 * This can be a problem on PowerXpress systems or if you want to use the card
+	 * for offscreen rendering or compute if there are no crtcs enabled.  Set it to
+	 * true for now so that performance scales even if the displays are off.
+	 */
+	si_notify_smc_display_change(rdev, true /*rdev->pm.dpm.new_active_crtc_count > 0*/);
 }
 
 static void si_enable_spread_spectrum(struct radeon_device *rdev, bool enable)
@@ -4529,7 +4558,7 @@ static int si_init_smc_table(struct radeon_device *rdev)
 		table->systemFlags |= PPSMC_SYSTEMFLAG_GDDR5;
 
 	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_REVERT_GPIO5_POLARITY)
-		table->systemFlags |= PPSMC_EXTRAFLAGS_AC2DC_GPIO5_POLARITY_HIGH;
+		table->extraFlags |= PPSMC_EXTRAFLAGS_AC2DC_GPIO5_POLARITY_HIGH;
 
 	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_VRHOT_GPIO_CONFIGURABLE) {
 		table->systemFlags |= PPSMC_SYSTEMFLAG_REGULATOR_HOT_PROG_GPIO;
@@ -5184,7 +5213,7 @@ static int si_set_mc_special_registers(struct radeon_device *rdev,
 					table->mc_reg_table_entry[k].mc_data[j] |= 0x100;
 			}
 			j++;
-			if (j > SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE)
+			if (j >= SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE)
 				return -EINVAL;
 
 			if (!pi->mem_gddr5) {
@@ -5194,7 +5223,7 @@ static int si_set_mc_special_registers(struct radeon_device *rdev,
 					table->mc_reg_table_entry[k].mc_data[j] =
 						(table->mc_reg_table_entry[k].mc_data[i] & 0xffff0000) >> 16;
 				j++;
-				if (j > SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE)
+				if (j >= SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE)
 					return -EINVAL;
 			}
 			break;
@@ -5207,7 +5236,7 @@ static int si_set_mc_special_registers(struct radeon_device *rdev,
 					(temp_reg & 0xffff0000) |
 					(table->mc_reg_table_entry[k].mc_data[i] & 0x0000ffff);
 			j++;
-			if (j > SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE)
+			if (j >= SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE)
 				return -EINVAL;
 			break;
 		default:

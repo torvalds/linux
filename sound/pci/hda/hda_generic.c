@@ -549,11 +549,15 @@ static hda_nid_t look_for_out_mute_nid(struct hda_codec *codec,
 static hda_nid_t look_for_out_vol_nid(struct hda_codec *codec,
 				      struct nid_path *path)
 {
+	struct hda_gen_spec *spec = codec->spec;
 	int i;
 
 	for (i = path->depth - 1; i >= 0; i--) {
-		if (nid_has_volume(codec, path->path[i], HDA_OUTPUT))
-			return path->path[i];
+		hda_nid_t nid = path->path[i];
+		if ((spec->out_vol_mask >> nid) & 1)
+			continue;
+		if (nid_has_volume(codec, nid, HDA_OUTPUT))
+			return nid;
 	}
 	return 0;
 }
@@ -792,10 +796,10 @@ static void set_pin_eapd(struct hda_codec *codec, hda_nid_t pin, bool enable)
 	if (spec->own_eapd_ctl ||
 	    !(snd_hda_query_pin_caps(codec, pin) & AC_PINCAP_EAPD))
 		return;
-	if (codec->inv_eapd)
-		enable = !enable;
 	if (spec->keep_eapd_on && !enable)
 		return;
+	if (codec->inv_eapd)
+		enable = !enable;
 	snd_hda_codec_update_cache(codec, pin, 0,
 				   AC_VERB_SET_EAPD_BTLENABLE,
 				   enable ? 0x02 : 0x00);
@@ -3531,7 +3535,7 @@ static int create_capture_mixers(struct hda_codec *codec)
 		if (!multi)
 			err = create_single_cap_vol_ctl(codec, n, vol, sw,
 							inv_dmic);
-		else if (!multi_cap_vol)
+		else if (!multi_cap_vol && !inv_dmic)
 			err = create_bind_cap_vol_ctl(codec, n, vol, sw);
 		else
 			err = create_multi_cap_vol_ctl(codec);
@@ -4475,9 +4479,11 @@ int snd_hda_gen_build_controls(struct hda_codec *codec)
 					    true, &spec->vmaster_mute.sw_kctl);
 		if (err < 0)
 			return err;
-		if (spec->vmaster_mute.hook)
+		if (spec->vmaster_mute.hook) {
 			snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute,
 						 spec->vmaster_mute_enum);
+			snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
+		}
 	}
 
 	free_kctls(spec); /* no longer needed */

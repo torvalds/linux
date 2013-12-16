@@ -554,7 +554,7 @@ static void ath9k_init_misc(struct ath_softc *sc)
 	sc->spec_config.fft_period = 0xF;
 }
 
-static void ath9k_init_platform(struct ath_softc *sc)
+static void ath9k_init_pcoem_platform(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
@@ -589,6 +589,9 @@ static void ath9k_init_platform(struct ath_softc *sc)
 	if (sc->driver_data & ATH9K_PCI_AR9565_2ANT)
 		ath_info(common, "WB335 2-ANT card detected\n");
 
+	if (sc->driver_data & ATH9K_PCI_KILLER)
+		ath_info(common, "Killer Wireless card detected\n");
+
 	/*
 	 * Some WB335 cards do not support antenna diversity. Since
 	 * we use a hardcoded value for AR9565 instead of using the
@@ -608,6 +611,11 @@ static void ath9k_init_platform(struct ath_softc *sc)
 	if (sc->driver_data & ATH9K_PCI_D3_L1_WAR) {
 		ah->config.pcie_waen = 0x0040473b;
 		ath_info(common, "Enable WAR for ASPM D3/L1\n");
+	}
+
+	if (sc->driver_data & ATH9K_PCI_NO_PLL_PWRSAVE) {
+		ah->config.no_pll_pwrsave = true;
+		ath_info(common, "Disable PLL PowerSave\n");
 	}
 }
 
@@ -656,6 +664,27 @@ static void ath9k_eeprom_release(struct ath_softc *sc)
 	release_firmware(sc->sc_ah->eeprom_blob);
 }
 
+static int ath9k_init_soc_platform(struct ath_softc *sc)
+{
+	struct ath9k_platform_data *pdata = sc->dev->platform_data;
+	struct ath_hw *ah = sc->sc_ah;
+	int ret = 0;
+
+	if (!pdata)
+		return 0;
+
+	if (pdata->eeprom_name) {
+		ret = ath9k_eeprom_request(sc, pdata->eeprom_name);
+		if (ret)
+			return ret;
+	}
+
+	if (pdata->tx_gain_buffalo)
+		ah->config.tx_gain_buffalo = true;
+
+	return ret;
+}
+
 static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 			    const struct ath_bus_ops *bus_ops)
 {
@@ -683,6 +712,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	common = ath9k_hw_common(ah);
 	sc->dfs_detector = dfs_pattern_detector_init(common, NL80211_DFS_UNSET);
 	sc->tx99_power = MAX_RATE_POWER + 1;
+	init_waitqueue_head(&sc->tx_wait);
 
 	if (!pdata) {
 		ah->ah_flags |= AH_USE_EEPROM;
@@ -708,7 +738,11 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	/*
 	 * Platform quirks.
 	 */
-	ath9k_init_platform(sc);
+	ath9k_init_pcoem_platform(sc);
+
+	ret = ath9k_init_soc_platform(sc);
+	if (ret)
+		return ret;
 
 	/*
 	 * Enable WLAN/BT RX Antenna diversity only when:
@@ -722,7 +756,6 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 		common->bt_ant_diversity = 1;
 
 	spin_lock_init(&common->cc_lock);
-
 	spin_lock_init(&sc->sc_serial_rw);
 	spin_lock_init(&sc->sc_pm_lock);
 	mutex_init(&sc->mutex);
@@ -730,6 +763,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	tasklet_init(&sc->bcon_tasklet, ath9k_beacon_tasklet,
 		     (unsigned long)sc);
 
+	setup_timer(&sc->sleep_timer, ath_ps_full_sleep, (unsigned long)sc);
 	INIT_WORK(&sc->hw_reset_work, ath_reset_work);
 	INIT_WORK(&sc->hw_check_work, ath_hw_check);
 	INIT_WORK(&sc->paprd_work, ath_paprd_calibrate);
@@ -742,12 +776,6 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	 */
 	ath_read_cachesize(common, &csz);
 	common->cachelsz = csz << 2; /* convert to bytes */
-
-	if (pdata && pdata->eeprom_name) {
-		ret = ath9k_eeprom_request(sc, pdata->eeprom_name);
-		if (ret)
-			return ret;
-	}
 
 	/* Initializes the hardware for all supported chipsets */
 	ret = ath9k_hw_init(ah);
@@ -845,7 +873,11 @@ static const struct ieee80211_iface_limit if_limits[] = {
 };
 
 static const struct ieee80211_iface_limit if_dfs_limits[] = {
-	{ .max = 1,	.types = BIT(NL80211_IFTYPE_AP) },
+	{ .max = 1,	.types = BIT(NL80211_IFTYPE_AP) |
+#ifdef CONFIG_MAC80211_MESH
+				 BIT(NL80211_IFTYPE_MESH_POINT) |
+#endif
+				 BIT(NL80211_IFTYPE_ADHOC) },
 };
 
 static const struct ieee80211_iface_combination if_comb[] = {
@@ -862,19 +894,10 @@ static const struct ieee80211_iface_combination if_comb[] = {
 		.max_interfaces = 1,
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
-		.radar_detect_widths =	BIT(NL80211_CHAN_NO_HT) |
-					BIT(NL80211_CHAN_HT20),
+		.radar_detect_widths =	BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+					BIT(NL80211_CHAN_WIDTH_20),
 	}
 };
-
-#ifdef CONFIG_PM
-static const struct wiphy_wowlan_support ath9k_wowlan_support = {
-	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
-	.n_patterns = MAX_NUM_USER_PATTERN,
-	.pattern_min_len = 1,
-	.pattern_max_len = MAX_PATTERN_SIZE,
-};
-#endif
 
 void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
@@ -925,16 +948,6 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_5_10_MHZ;
 	hw->wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
-#ifdef CONFIG_PM_SLEEP
-	if ((ah->caps.hw_caps & ATH9K_HW_WOW_DEVICE_CAPABLE) &&
-	    (sc->driver_data & ATH9K_PCI_WOW) &&
-	    device_can_wakeup(sc->dev))
-		hw->wiphy->wowlan = &ath9k_wowlan_support;
-
-	atomic_set(&sc->wow_sleep_proc_intr, -1);
-	atomic_set(&sc->wow_got_bmiss_intr, -1);
-#endif
-
 	hw->queues = 4;
 	hw->max_rates = 4;
 	hw->channel_change_time = 5000;
@@ -960,6 +973,7 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&sc->sbands[IEEE80211_BAND_5GHZ];
 
+	ath9k_init_wow(hw);
 	ath9k_reload_chainmask_settings(sc);
 
 	SET_IEEE80211_PERM_ADDR(hw, common->macaddr);
@@ -1058,6 +1072,7 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 
+	del_timer_sync(&sc->sleep_timer);
 	ath9k_hw_deinit(sc->sc_ah);
 	if (sc->dfs_detector != NULL)
 		sc->dfs_detector->exit(sc->dfs_detector);

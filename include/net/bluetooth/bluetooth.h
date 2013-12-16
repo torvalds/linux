@@ -115,6 +115,9 @@ struct bt_voice {
 #define BT_VOICE_TRANSPARENT			0x0003
 #define BT_VOICE_CVSD_16BIT			0x0060
 
+#define BT_SNDMTU		12
+#define BT_RCVMTU		13
+
 __printf(1, 2)
 int bt_info(const char *fmt, ...);
 __printf(1, 2)
@@ -334,16 +337,16 @@ out:
 
 int bt_to_errno(__u16 code);
 
-extern int hci_sock_init(void);
-extern void hci_sock_cleanup(void);
+int hci_sock_init(void);
+void hci_sock_cleanup(void);
 
-extern int bt_sysfs_init(void);
-extern void bt_sysfs_cleanup(void);
+int bt_sysfs_init(void);
+void bt_sysfs_cleanup(void);
 
-extern int  bt_procfs_init(struct net *net, const char *name,
-			   struct bt_sock_list* sk_list,
-			   int (* seq_show)(struct seq_file *, void *));
-extern void bt_procfs_cleanup(struct net *net, const char *name);
+int bt_procfs_init(struct net *net, const char *name,
+		   struct bt_sock_list *sk_list,
+		   int (*seq_show)(struct seq_file *, void *));
+void bt_procfs_cleanup(struct net *net, const char *name);
 
 extern struct dentry *bt_debugfs;
 

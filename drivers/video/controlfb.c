@@ -471,8 +471,8 @@ try_again:
 	/* Register with fbdev layer */
 	if (register_framebuffer(&p->info) < 0)
 		return -ENXIO;
-	
-	printk(KERN_INFO "fb%d: control display adapter\n", p->info.node);	
+
+	fb_info(&p->info, "control display adapter\n");
 
 	return 0;
 }

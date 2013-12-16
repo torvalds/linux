@@ -902,6 +902,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	if (card->model == MODEL_UNKNOWN) {
 		pr_err("unsupported manf_id 0x%04x / card_id 0x%04x\n",
 		       p_dev->manf_id, p_dev->card_id);
+		ret = -ENODEV;
 		goto out2;
 	}
 

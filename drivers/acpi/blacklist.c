@@ -274,6 +274,19 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 		},
 	},
 	{
+	.callback = dmi_disable_osi_vista,
+	.ident = "Toshiba NB100",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "NB100"),
+		},
+	},
+
+	/*
+	 * The following machines have broken backlight support when reporting
+	 * the Windows 2012 OSI, so disable it until their support is fixed.
+	 */
+	{
 	.callback = dmi_disable_osi_win8,
 	.ident = "ASUS Zenbook Prime UX31A",
 	.matches = {
@@ -291,10 +304,58 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	},
 	{
 	.callback = dmi_disable_osi_win8,
-	.ident = "Lenovo ThinkPad Edge E530",
+	.ident = "ThinkPad Edge E530",
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		     DMI_MATCH(DMI_PRODUCT_VERSION, "3259A2G"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "ThinkPad Edge E530",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "3259CTO"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "ThinkPad Edge E530",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "3259HJG"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "Acer Aspire V5-573G",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Acer Aspire"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "V5-573G/Dazzle_HW"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "Acer Aspire V5-572G",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Acer Aspire"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "V5-572G/Dazzle_CX"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "ThinkPad T431s",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "20AACTO1WW"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "ThinkPad T430",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "2349D15"),
 		},
 	},
 

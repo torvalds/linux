@@ -15,6 +15,7 @@
 
 #include <linux/linkage.h>
 #include <asm/mcpm.h>
+#include <asm/assembler.h>
 
 #include "vlock.h"
 
@@ -47,6 +48,7 @@
 
 ENTRY(mcpm_entry_point)
 
+ ARM_BE8(setend        be)
  THUMB(	adr	r12, BSYM(1f)	)
  THUMB(	bx	r12		)
  THUMB(	.thumb			)
@@ -71,11 +73,18 @@ ENTRY(mcpm_entry_point)
 	 * position independent way.
 	 */
 	adr	r5, 3f
-	ldmia	r5, {r6, r7, r8, r11}
+	ldmia	r5, {r0, r6, r7, r8, r11}
+	add	r0, r5, r0			@ r0 = mcpm_entry_early_pokes
 	add	r6, r5, r6			@ r6 = mcpm_entry_vectors
 	ldr	r7, [r5, r7]			@ r7 = mcpm_power_up_setup_phys
 	add	r8, r5, r8			@ r8 = mcpm_sync
 	add	r11, r5, r11			@ r11 = first_man_locks
+
+	@ Perform an early poke, if any
+	add	r0, r0, r4, lsl #3
+	ldmia	r0, {r0, r1}
+	teq	r0, #0
+	strne	r1, [r0]
 
 	mov	r0, #MCPM_SYNC_CLUSTER_SIZE
 	mla	r8, r0, r10, r8			@ r8 = sync cluster base
@@ -195,7 +204,8 @@ mcpm_entry_gated:
 
 	.align	2
 
-3:	.word	mcpm_entry_vectors - .
+3:	.word	mcpm_entry_early_pokes - .
+	.word	mcpm_entry_vectors - 3b
 	.word	mcpm_power_up_setup_phys - 3b
 	.word	mcpm_sync - 3b
 	.word	first_man_locks - 3b
@@ -213,6 +223,10 @@ first_man_locks:
 	.type	mcpm_entry_vectors, #object
 ENTRY(mcpm_entry_vectors)
 	.space	4 * MAX_NR_CLUSTERS * MAX_CPUS_PER_CLUSTER
+
+	.type	mcpm_entry_early_pokes, #object
+ENTRY(mcpm_entry_early_pokes)
+	.space	8 * MAX_NR_CLUSTERS * MAX_CPUS_PER_CLUSTER
 
 	.type	mcpm_power_up_setup_phys, #object
 ENTRY(mcpm_power_up_setup_phys)

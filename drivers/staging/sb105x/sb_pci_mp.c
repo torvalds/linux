@@ -543,14 +543,14 @@ static int mp_startup(struct sb_uart_state *state, int init_hw)
 		if (init_hw) {
 			mp_change_speed(state, NULL);
 
-			if (info->tty->termios.c_cflag & CBAUD)
+			if (info->tty && (info->tty->termios.c_cflag & CBAUD))
 				uart_set_mctrl(port, TIOCM_RTS | TIOCM_DTR);
 		}
 
 		info->flags |= UIF_INITIALIZED;
 
-
-		clear_bit(TTY_IO_ERROR, &info->tty->flags);
+		if (info->tty)
+			clear_bit(TTY_IO_ERROR, &info->tty->flags);
 	}
 
 	if (retval && capable(CAP_SYS_ADMIN))
@@ -1063,7 +1063,7 @@ static int mp_wait_modem_status(struct sb_uart_state *state, unsigned long arg)
 
 static int mp_get_count(struct sb_uart_state *state, struct serial_icounter_struct *icnt)
 {
-	struct serial_icounter_struct icount;
+	struct serial_icounter_struct icount = {};
 	struct sb_uart_icount cnow;
 	struct sb_uart_port *port = state->port;
 
@@ -1216,7 +1216,7 @@ static int mp_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 				return (inb(mp_devs[arg].option_reg_addr+MP_OPTR_IIR0+(state->port->line/8)));
 			}
 		case TIOCGGETPORTTYPE:
-			ret = get_device_type(arg);;
+			ret = get_device_type(arg);
 			return ret;
 		case TIOCSMULTIECHO: /* set to multi-drop mode(RS422) or echo mode(RS485)*/
 			outb( ( inb(info->interface_config_addr) & ~0x03 ) | 0x01 ,  
@@ -1808,10 +1808,7 @@ void mp_unregister_driver(struct uart_driver *drv)
     drv->tty_driver = NULL;
 
 
-    if (drv->state)
-    {
-        kfree(drv->state);
-    }
+    kfree(drv->state);
 
 }
 

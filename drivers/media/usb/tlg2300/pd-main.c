@@ -232,7 +232,7 @@ static int firmware_download(struct usb_device *udev)
 		goto out;
 	}
 
-	max_packet_size = udev->ep_out[0x1]->desc.wMaxPacketSize;
+	max_packet_size = le16_to_cpu(udev->ep_out[0x1]->desc.wMaxPacketSize);
 	log("\t\t download size : %d", (int)max_packet_size);
 
 	for (offset = 0; offset < fwlength; offset += max_packet_size) {

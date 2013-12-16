@@ -118,6 +118,9 @@ Needs to be updated if more operations are defined in future.*/
 
 #define FIRST_NFS4_OP	OP_ACCESS
 #define LAST_NFS4_OP 	OP_RECLAIM_COMPLETE
+#define LAST_NFS40_OP	OP_RELEASE_LOCKOWNER
+#define LAST_NFS41_OP	OP_RECLAIM_COMPLETE
+#define LAST_NFS42_OP	OP_RECLAIM_COMPLETE
 
 enum nfsstat4 {
 	NFS4_OK = 0,
@@ -395,7 +398,9 @@ enum lock_type4 {
 #define FATTR4_WORD1_FS_LAYOUT_TYPES    (1UL << 30)
 #define FATTR4_WORD2_LAYOUT_BLKSIZE     (1UL << 1)
 #define FATTR4_WORD2_MDSTHRESHOLD       (1UL << 4)
-#define FATTR4_WORD2_SECURITY_LABEL     (1UL << 17)
+#define FATTR4_WORD2_SECURITY_LABEL     (1UL << 16)
+#define FATTR4_WORD2_CHANGE_SECURITY_LABEL \
+					(1UL << 17)
 
 /* MDS threshold bitmap bits */
 #define THRESHOLD_RD                    (1UL << 0)
@@ -460,6 +465,7 @@ enum {
 	NFSPROC4_CLNT_FS_LOCATIONS,
 	NFSPROC4_CLNT_RELEASE_LOCKOWNER,
 	NFSPROC4_CLNT_SECINFO,
+	NFSPROC4_CLNT_FSID_PRESENT,
 
 	/* nfs41 */
 	NFSPROC4_CLNT_EXCHANGE_ID,

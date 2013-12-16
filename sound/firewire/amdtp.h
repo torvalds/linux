@@ -1,6 +1,7 @@
 #ifndef SOUND_FIREWIRE_AMDTP_H_INCLUDED
 #define SOUND_FIREWIRE_AMDTP_H_INCLUDED
 
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include "packets-buffer.h"
@@ -11,9 +12,18 @@
  *	sample_rate/8000 samples, with rounding up or down to adjust
  *	for clock skew and left-over fractional samples.  This should
  *	be used if supported by the device.
+ * @CIP_BLOCKING: In blocking mode, each packet contains either zero or
+ *	SYT_INTERVAL samples, with these two types alternating so that
+ *	the overall sample rate comes out right.
+ * @CIP_HI_DUALWIRE: At rates above 96 kHz, pretend that the stream runs
+ *	at half the actual sample rate with twice the number of channels;
+ *	two samples of a channel are stored consecutively in the packet.
+ *	Requires blocking mode and SYT_INTERVAL-aligned PCM buffer size.
  */
 enum cip_out_flags {
-	CIP_NONBLOCKING = 0,
+	CIP_NONBLOCKING	= 0x00,
+	CIP_BLOCKING	= 0x01,
+	CIP_HI_DUALWIRE	= 0x02,
 };
 
 /**
@@ -27,6 +37,7 @@ enum cip_sfc {
 	CIP_SFC_96000  = 4,
 	CIP_SFC_176400 = 5,
 	CIP_SFC_192000 = 6,
+	CIP_SFC_COUNT
 };
 
 #define AMDTP_OUT_PCM_FORMAT_BITS	(SNDRV_PCM_FMTBIT_S16 | \
@@ -43,6 +54,7 @@ struct amdtp_out_stream {
 	struct mutex mutex;
 
 	enum cip_sfc sfc;
+	bool dual_wire;
 	unsigned int data_block_quadlets;
 	unsigned int pcm_channels;
 	unsigned int midi_ports;
@@ -51,6 +63,7 @@ struct amdtp_out_stream {
 				 __be32 *buffer, unsigned int frames);
 
 	unsigned int syt_interval;
+	unsigned int transfer_delay;
 	unsigned int source_node_id_field;
 	struct iso_packets_buffer buffer;
 
@@ -74,7 +87,10 @@ int amdtp_out_stream_init(struct amdtp_out_stream *s, struct fw_unit *unit,
 			  enum cip_out_flags flags);
 void amdtp_out_stream_destroy(struct amdtp_out_stream *s);
 
-void amdtp_out_stream_set_rate(struct amdtp_out_stream *s, unsigned int rate);
+void amdtp_out_stream_set_parameters(struct amdtp_out_stream *s,
+				     unsigned int rate,
+				     unsigned int pcm_channels,
+				     unsigned int midi_ports);
 unsigned int amdtp_out_stream_get_max_payload(struct amdtp_out_stream *s);
 
 int amdtp_out_stream_start(struct amdtp_out_stream *s, int channel, int speed);
@@ -87,31 +103,11 @@ void amdtp_out_stream_pcm_prepare(struct amdtp_out_stream *s);
 unsigned long amdtp_out_stream_pcm_pointer(struct amdtp_out_stream *s);
 void amdtp_out_stream_pcm_abort(struct amdtp_out_stream *s);
 
-/**
- * amdtp_out_stream_set_pcm - configure format of PCM samples
- * @s: the AMDTP output stream to be configured
- * @pcm_channels: the number of PCM samples in each data block, to be encoded
- *                as AM824 multi-bit linear audio
- *
- * This function must not be called while the stream is running.
- */
-static inline void amdtp_out_stream_set_pcm(struct amdtp_out_stream *s,
-					    unsigned int pcm_channels)
-{
-	s->pcm_channels = pcm_channels;
-}
+extern const unsigned int amdtp_syt_intervals[CIP_SFC_COUNT];
 
-/**
- * amdtp_out_stream_set_midi - configure format of MIDI data
- * @s: the AMDTP output stream to be configured
- * @midi_ports: the number of MIDI ports (i.e., MPX-MIDI Data Channels)
- *
- * This function must not be called while the stream is running.
- */
-static inline void amdtp_out_stream_set_midi(struct amdtp_out_stream *s,
-					     unsigned int midi_ports)
+static inline bool amdtp_out_stream_running(struct amdtp_out_stream *s)
 {
-	s->midi_ports = midi_ports;
+	return !IS_ERR(s->context);
 }
 
 /**

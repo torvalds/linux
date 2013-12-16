@@ -378,18 +378,17 @@ extern rwlock_t hci_dev_list_lock;
 extern rwlock_t hci_cb_list_lock;
 
 /* ----- HCI interface to upper protocols ----- */
-extern int l2cap_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr);
-extern void l2cap_connect_cfm(struct hci_conn *hcon, u8 status);
-extern int l2cap_disconn_ind(struct hci_conn *hcon);
-extern void l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason);
-extern int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt);
-extern int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb,
-			      u16 flags);
+int l2cap_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr);
+void l2cap_connect_cfm(struct hci_conn *hcon, u8 status);
+int l2cap_disconn_ind(struct hci_conn *hcon);
+void l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason);
+int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt);
+int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags);
 
-extern int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags);
-extern void sco_connect_cfm(struct hci_conn *hcon, __u8 status);
-extern void sco_disconn_cfm(struct hci_conn *hcon, __u8 reason);
-extern int sco_recv_scodata(struct hci_conn *hcon, struct sk_buff *skb);
+int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags);
+void sco_connect_cfm(struct hci_conn *hcon, __u8 status);
+void sco_disconn_cfm(struct hci_conn *hcon, __u8 reason);
+int sco_recv_scodata(struct hci_conn *hcon, struct sk_buff *skb);
 
 /* ----- Inquiry cache ----- */
 #define INQUIRY_CACHE_AGE_MAX   (HZ*30)   /* 30 seconds */
@@ -799,6 +798,12 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_transp_capable(dev)    ((dev)->features[0][2] & LMP_TRANSPARENT)
 
 /* ----- Extended LMP capabilities ----- */
+#define lmp_csb_master_capable(dev) ((dev)->features[2][0] & LMP_CSB_MASTER)
+#define lmp_csb_slave_capable(dev)  ((dev)->features[2][0] & LMP_CSB_SLAVE)
+#define lmp_sync_train_capable(dev) ((dev)->features[2][0] & LMP_SYNC_TRAIN)
+#define lmp_sync_scan_capable(dev)  ((dev)->features[2][0] & LMP_SYNC_SCAN)
+
+/* ----- Host capabilities ----- */
 #define lmp_host_ssp_capable(dev)  ((dev)->features[1][0] & LMP_HOST_SSP)
 #define lmp_host_le_capable(dev)   (!!((dev)->features[1][0] & LMP_HOST_LE))
 #define lmp_host_le_br_capable(dev) (!!((dev)->features[1][0] & LMP_HOST_LE_BREDR))

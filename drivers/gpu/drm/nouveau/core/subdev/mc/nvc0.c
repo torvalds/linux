@@ -22,13 +22,9 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/mc.h>
+#include "nv04.h"
 
-struct nvc0_mc_priv {
-	struct nouveau_mc base;
-};
-
-static const struct nouveau_mc_intr
+const struct nouveau_mc_intr
 nvc0_mc_intr[] = {
 	{ 0x00000001, NVDEV_ENGINE_PPP },
 	{ 0x00000020, NVDEV_ENGINE_COPY0 },
@@ -41,6 +37,7 @@ nvc0_mc_intr[] = {
 	{ 0x00020000, NVDEV_ENGINE_VP },
 	{ 0x00100000, NVDEV_SUBDEV_TIMER },
 	{ 0x00200000, NVDEV_SUBDEV_GPIO },
+	{ 0x01000000, NVDEV_SUBDEV_PWR },
 	{ 0x02000000, NVDEV_SUBDEV_LTCG },
 	{ 0x04000000, NVDEV_ENGINE_DISP },
 	{ 0x10000000, NVDEV_SUBDEV_BUS },
@@ -49,29 +46,22 @@ nvc0_mc_intr[] = {
 	{},
 };
 
-static int
-nvc0_mc_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
+static void
+nvc0_mc_msi_rearm(struct nouveau_mc *pmc)
 {
-	struct nvc0_mc_priv *priv;
-	int ret;
-
-	ret = nouveau_mc_create(parent, engine, oclass, nvc0_mc_intr, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	return 0;
+	struct nv04_mc_priv *priv = (void *)pmc;
+	nv_wr32(priv, 0x088704, 0x00000000);
 }
 
-struct nouveau_oclass
-nvc0_mc_oclass = {
-	.handle = NV_SUBDEV(MC, 0xc0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_mc_ctor,
+struct nouveau_oclass *
+nvc0_mc_oclass = &(struct nouveau_mc_oclass) {
+	.base.handle = NV_SUBDEV(MC, 0xc0),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv04_mc_ctor,
 		.dtor = _nouveau_mc_dtor,
 		.init = nv50_mc_init,
 		.fini = _nouveau_mc_fini,
 	},
-};
+	.intr = nvc0_mc_intr,
+	.msi_rearm = nvc0_mc_msi_rearm,
+}.base;

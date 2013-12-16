@@ -1182,6 +1182,7 @@ struct htt_rx_info {
 		u32 info2;
 	} rate;
 	bool fcs_err;
+	bool amsdu_more;
 };
 
 struct ath10k_htt {

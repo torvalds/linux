@@ -190,3 +190,23 @@ int bcm47xx_nvram_getenv(char *name, char *val, size_t val_len)
 	return -ENOENT;
 }
 EXPORT_SYMBOL(bcm47xx_nvram_getenv);
+
+int bcm47xx_nvram_gpio_pin(const char *name)
+{
+	int i, err;
+	char nvram_var[10];
+	char buf[30];
+
+	for (i = 0; i < 16; i++) {
+		err = snprintf(nvram_var, sizeof(nvram_var), "gpio%i", i);
+		if (err <= 0)
+			continue;
+		err = bcm47xx_nvram_getenv(nvram_var, buf, sizeof(buf));
+		if (err <= 0)
+			continue;
+		if (!strcmp(name, buf))
+			return i;
+	}
+	return -ENOENT;
+}
+EXPORT_SYMBOL(bcm47xx_nvram_gpio_pin);

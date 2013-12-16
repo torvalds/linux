@@ -46,7 +46,7 @@ static int m48t86_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	unsigned char reg;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct m48t86_ops *ops = pdev->dev.platform_data;
+	struct m48t86_ops *ops = dev_get_platdata(&pdev->dev);
 
 	reg = ops->readbyte(M48T86_REG_B);
 
@@ -84,7 +84,7 @@ static int m48t86_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	unsigned char reg;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct m48t86_ops *ops = pdev->dev.platform_data;
+	struct m48t86_ops *ops = dev_get_platdata(&pdev->dev);
 
 	reg = ops->readbyte(M48T86_REG_B);
 
@@ -123,7 +123,7 @@ static int m48t86_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	unsigned char reg;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct m48t86_ops *ops = pdev->dev.platform_data;
+	struct m48t86_ops *ops = dev_get_platdata(&pdev->dev);
 
 	reg = ops->readbyte(M48T86_REG_B);
 
@@ -147,7 +147,7 @@ static const struct rtc_class_ops m48t86_rtc_ops = {
 static int m48t86_rtc_probe(struct platform_device *dev)
 {
 	unsigned char reg;
-	struct m48t86_ops *ops = dev->dev.platform_data;
+	struct m48t86_ops *ops = dev_get_platdata(&dev->dev);
 	struct rtc_device *rtc;
 
 	rtc = devm_rtc_device_register(&dev->dev, "m48t86",

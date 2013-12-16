@@ -6362,7 +6362,6 @@ out:
 				   &ipw2100_attribute_group);
 
 		free_libipw(dev, 0);
-		pci_set_drvdata(pci_dev, NULL);
 	}
 
 	pci_iounmap(pci_dev, ioaddr);

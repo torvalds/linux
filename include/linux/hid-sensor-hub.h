@@ -47,11 +47,13 @@ struct hid_sensor_hub_attribute_info {
  * @hdev:		Stores the hid instance.
  * @vendor_id:		Vendor id of hub device.
  * @product_id:		Product id of hub device.
+ * @ref_cnt:		Number of MFD clients have opened this device
  */
 struct hid_sensor_hub_device {
 	struct hid_device *hdev;
 	u32 vendor_id;
 	u32 product_id;
+	int ref_cnt;
 };
 
 /**
@@ -73,6 +75,22 @@ struct hid_sensor_hub_callbacks {
 	int (*send_event)(struct hid_sensor_hub_device *hsdev, u32 usage_id,
 			 void *priv);
 };
+
+/**
+* sensor_hub_device_open() - Open hub device
+* @hsdev:	Hub device instance.
+*
+* Used to open hid device for sensor hub.
+*/
+int sensor_hub_device_open(struct hid_sensor_hub_device *hsdev);
+
+/**
+* sensor_hub_device_clode() - Close hub device
+* @hsdev:	Hub device instance.
+*
+* Used to clode hid device for sensor hub.
+*/
+void sensor_hub_device_close(struct hid_sensor_hub_device *hsdev);
 
 /* Registration functions */
 

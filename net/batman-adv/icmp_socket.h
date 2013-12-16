@@ -24,7 +24,7 @@
 
 void batadv_socket_init(void);
 int batadv_socket_setup(struct batadv_priv *bat_priv);
-void batadv_socket_receive_packet(struct batadv_icmp_packet_rr *icmp_packet,
+void batadv_socket_receive_packet(struct batadv_icmp_header *icmph,
 				  size_t icmp_len);
 
 #endif /* _NET_BATMAN_ADV_ICMP_SOCKET_H_ */

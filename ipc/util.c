@@ -17,12 +17,27 @@
  *            Pavel Emelianov <xemul@openvz.org>
  *
  * General sysv ipc locking scheme:
- *  when doing ipc id lookups, take the ids->rwsem
- *      rcu_read_lock()
- *          obtain the ipc object (kern_ipc_perm)
- *          perform security, capabilities, auditing and permission checks, etc.
- *          acquire the ipc lock (kern_ipc_perm.lock) throught ipc_lock_object()
- *             perform data updates (ie: SET, RMID, LOCK/UNLOCK commands)
+ *	rcu_read_lock()
+ *          obtain the ipc object (kern_ipc_perm) by looking up the id in an idr
+ *	    tree.
+ *	    - perform initial checks (capabilities, auditing and permission,
+ *	      etc).
+ *	    - perform read-only operations, such as STAT, INFO commands.
+ *	      acquire the ipc lock (kern_ipc_perm.lock) through
+ *	      ipc_lock_object()
+ *		- perform data updates, such as SET, RMID commands and
+ *		  mechanism-specific operations (semop/semtimedop,
+ *		  msgsnd/msgrcv, shmat/shmdt).
+ *	    drop the ipc lock, through ipc_unlock_object().
+ *	rcu_read_unlock()
+ *
+ *  The ids->rwsem must be taken when:
+ *	- creating, removing and iterating the existing entries in ipc
+ *	  identifier sets.
+ *	- iterating through files under /proc/sysvipc/
+ *
+ *  Note that sems have a special fast path that avoids kern_ipc_perm.lock -
+ *  see sem_lock().
  */
 
 #include <linux/mm.h>
@@ -75,10 +90,8 @@ static int ipc_memory_callback(struct notifier_block *self,
 		 * In order not to keep the lock on the hotplug memory chain
 		 * for too long, queue a work item that will, when waken up,
 		 * activate the ipcns notification chain.
-		 * No need to keep several ipc work items on the queue.
 		 */
-		if (!work_pending(&ipc_memory_wq))
-			schedule_work(&ipc_memory_wq);
+		schedule_work(&ipc_memory_wq);
 		break;
 	case MEM_GOING_ONLINE:
 	case MEM_GOING_OFFLINE:
@@ -474,11 +487,6 @@ void ipc_free(void* ptr, int size)
 		kfree(ptr);
 }
 
-struct ipc_rcu {
-	struct rcu_head rcu;
-	atomic_t refcount;
-} ____cacheline_aligned_in_smp;
-
 /**
  *	ipc_rcu_alloc	-	allocate ipc and rcu space 
  *	@size: size desired
@@ -505,27 +513,24 @@ int ipc_rcu_getref(void *ptr)
 	return atomic_inc_not_zero(&p->refcount);
 }
 
-/**
- * ipc_schedule_free - free ipc + rcu space
- * @head: RCU callback structure for queued work
- */
-static void ipc_schedule_free(struct rcu_head *head)
-{
-	vfree(container_of(head, struct ipc_rcu, rcu));
-}
-
-void ipc_rcu_putref(void *ptr)
+void ipc_rcu_putref(void *ptr, void (*func)(struct rcu_head *head))
 {
 	struct ipc_rcu *p = ((struct ipc_rcu *)ptr) - 1;
 
 	if (!atomic_dec_and_test(&p->refcount))
 		return;
 
-	if (is_vmalloc_addr(ptr)) {
-		call_rcu(&p->rcu, ipc_schedule_free);
-	} else {
-		kfree_rcu(p, rcu);
-	}
+	call_rcu(&p->rcu, func);
+}
+
+void ipc_rcu_free(struct rcu_head *head)
+{
+	struct ipc_rcu *p = container_of(head, struct ipc_rcu, rcu);
+
+	if (is_vmalloc_addr(p))
+		vfree(p);
+	else
+		kfree(p);
 }
 
 /**

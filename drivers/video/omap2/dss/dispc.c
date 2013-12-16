@@ -2352,7 +2352,7 @@ int dispc_ovl_check(enum omap_plane plane, enum omap_channel channel,
 {
 	enum omap_overlay_caps caps = dss_feat_get_overlay_caps(plane);
 	bool five_taps = true;
-	bool fieldmode = 0;
+	bool fieldmode = false;
 	u16 in_height = oi->height;
 	u16 in_width = oi->width;
 	bool ilace = timings->interlace;
@@ -2365,7 +2365,7 @@ int dispc_ovl_check(enum omap_plane plane, enum omap_channel channel,
 	out_height = oi->out_height == 0 ? oi->height : oi->out_height;
 
 	if (ilace && oi->height == out_height)
-		fieldmode = 1;
+		fieldmode = true;
 
 	if (ilace) {
 		if (fieldmode)
@@ -2396,7 +2396,7 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 		bool mem_to_mem)
 {
 	bool five_taps = true;
-	bool fieldmode = 0;
+	bool fieldmode = false;
 	int r, cconv = 0;
 	unsigned offset0, offset1;
 	s32 row_inc;
@@ -2417,7 +2417,7 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 	out_height = out_height == 0 ? height : out_height;
 
 	if (ilace && height == out_height)
-		fieldmode = 1;
+		fieldmode = true;
 
 	if (ilace) {
 		if (fieldmode)
@@ -2918,7 +2918,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 		break;
 	default:
 		BUG();
-	};
+	}
 
 	l = dispc_read_reg(DISPC_POL_FREQ(channel));
 	l |= FLD_VAL(onoff, 17, 17);
@@ -3691,6 +3691,7 @@ static int __init omap_dispchw_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(&pdev->dev);
+	pm_runtime_irq_safe(&pdev->dev);
 
 	r = dispc_runtime_get();
 	if (r)

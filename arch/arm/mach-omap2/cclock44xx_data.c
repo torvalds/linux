@@ -830,7 +830,8 @@ DEFINE_CLK_GATE(dss_tv_clk, "extalt_clkin_ck", &extalt_clkin_ck, 0x0,
 		OMAP4430_CM_DSS_DSS_CLKCTRL,
 		OMAP4430_OPTFCLKEN_TV_CLK_SHIFT, 0x0, NULL);
 
-DEFINE_CLK_GATE(dss_dss_clk, "dpll_per_m5x2_ck", &dpll_per_m5x2_ck, 0x0,
+DEFINE_CLK_GATE(dss_dss_clk, "dpll_per_m5x2_ck", &dpll_per_m5x2_ck,
+		CLK_SET_RATE_PARENT,
 		OMAP4430_CM_DSS_DSS_CLKCTRL, OMAP4430_OPTFCLKEN_DSSCLK_SHIFT,
 		0x0, NULL);
 
@@ -1632,7 +1633,7 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"auxclk5_src_ck",		&auxclk5_src_ck),
 	CLK(NULL,	"auxclk5_ck",			&auxclk5_ck),
 	CLK(NULL,	"auxclkreq5_ck",		&auxclkreq5_ck),
-	CLK("omap-gpmc",	"fck",			&dummy_ck),
+	CLK("50000000.gpmc",	"fck",			&dummy_ck),
 	CLK("omap_i2c.1",	"ick",			&dummy_ck),
 	CLK("omap_i2c.2",	"ick",			&dummy_ck),
 	CLK("omap_i2c.3",	"ick",			&dummy_ck),

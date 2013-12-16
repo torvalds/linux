@@ -102,23 +102,20 @@
 #define I40E_TX_FLAGS_IPV6		(u32)(1 << 5)
 #define I40E_TX_FLAGS_FCCRC		(u32)(1 << 6)
 #define I40E_TX_FLAGS_FSO		(u32)(1 << 7)
-#define I40E_TX_FLAGS_TXSW		(u32)(1 << 8)
-#define I40E_TX_FLAGS_MAPPED_AS_PAGE	(u32)(1 << 9)
 #define I40E_TX_FLAGS_VLAN_MASK		0xffff0000
 #define I40E_TX_FLAGS_VLAN_PRIO_MASK	0xe0000000
 #define I40E_TX_FLAGS_VLAN_PRIO_SHIFT	29
 #define I40E_TX_FLAGS_VLAN_SHIFT	16
 
 struct i40e_tx_buffer {
-	struct sk_buff *skb;
-	dma_addr_t dma;
-	unsigned long time_stamp;
-	u16 length;
-	u32 tx_flags;
 	struct i40e_tx_desc *next_to_watch;
+	unsigned long time_stamp;
+	struct sk_buff *skb;
 	unsigned int bytecount;
-	u16 gso_segs;
-	u8 mapped_as_page;
+	unsigned short gso_segs;
+	DEFINE_DMA_UNMAP_ADDR(dma);
+	DEFINE_DMA_UNMAP_LEN(len);
+	u32 tx_flags;
 };
 
 struct i40e_rx_buffer {
@@ -129,18 +126,18 @@ struct i40e_rx_buffer {
 	unsigned int page_offset;
 };
 
-struct i40e_tx_queue_stats {
+struct i40e_queue_stats {
 	u64 packets;
 	u64 bytes;
+};
+
+struct i40e_tx_queue_stats {
 	u64 restart_queue;
 	u64 tx_busy;
-	u64 completed;
 	u64 tx_done_old;
 };
 
 struct i40e_rx_queue_stats {
-	u64 packets;
-	u64 bytes;
 	u64 non_eop_descs;
 	u64 alloc_rx_page_failed;
 	u64 alloc_rx_buff_failed;
@@ -183,6 +180,7 @@ enum i40e_ring_state_t {
 
 /* struct that defines a descriptor ring, associated with a VSI */
 struct i40e_ring {
+	struct i40e_ring *next;		/* pointer to next ring in q_vector */
 	void *desc;			/* Descriptor ring memory */
 	struct device *dev;		/* Used for DMA mapping */
 	struct net_device *netdev;	/* netdev ring maps to */
@@ -219,6 +217,8 @@ struct i40e_ring {
 	bool ring_active;		/* is ring online or not */
 
 	/* stats structs */
+	struct i40e_queue_stats	stats;
+	struct u64_stats_sync syncp;
 	union {
 		struct i40e_tx_queue_stats tx_stats;
 		struct i40e_rx_queue_stats rx_stats;
@@ -229,6 +229,8 @@ struct i40e_ring {
 
 	struct i40e_vsi *vsi;		/* Backreference to associated VSI */
 	struct i40e_q_vector *q_vector;	/* Backreference to associated vector */
+
+	struct rcu_head rcu;		/* to avoid race on free */
 } ____cacheline_internodealigned_in_smp;
 
 enum i40e_latency_range {
@@ -238,15 +240,18 @@ enum i40e_latency_range {
 };
 
 struct i40e_ring_container {
-#define I40E_MAX_RINGPAIR_PER_VECTOR 8
 	/* array of pointers to rings */
-	struct i40e_ring *ring[I40E_MAX_RINGPAIR_PER_VECTOR];
+	struct i40e_ring *ring;
 	unsigned int total_bytes;	/* total bytes processed this int */
 	unsigned int total_packets;	/* total packets processed this int */
 	u16 count;
 	enum i40e_latency_range latency_range;
 	u16 itr;
 };
+
+/* iterator for handling rings in ring container */
+#define i40e_for_each_ring(pos, head) \
+	for (pos = (head).ring; pos != NULL; pos = pos->next)
 
 void i40e_alloc_rx_buffers(struct i40e_ring *rxr, u16 cleaned_count);
 netdev_tx_t i40e_lan_xmit_frame(struct sk_buff *skb, struct net_device *netdev);

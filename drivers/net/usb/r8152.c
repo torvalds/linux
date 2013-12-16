@@ -24,7 +24,7 @@
 #include <linux/ipv6.h>
 
 /* Version Information */
-#define DRIVER_VERSION "v1.01.0 (2013/08/12)"
+#define DRIVER_VERSION "v1.02.0 (2013/10/28)"
 #define DRIVER_AUTHOR "Realtek linux nic maintainers <nic_swsd@realtek.com>"
 #define DRIVER_DESC "Realtek RTL8152 Based USB 2.0 Ethernet Adapters"
 #define MODULENAME "r8152"
@@ -307,22 +307,22 @@ enum rtl8152_flags {
 #define MCU_TYPE_USB			0x0000
 
 struct rx_desc {
-	u32 opts1;
+	__le32 opts1;
 #define RX_LEN_MASK			0x7fff
-	u32 opts2;
-	u32 opts3;
-	u32 opts4;
-	u32 opts5;
-	u32 opts6;
+	__le32 opts2;
+	__le32 opts3;
+	__le32 opts4;
+	__le32 opts5;
+	__le32 opts6;
 };
 
 struct tx_desc {
-	u32 opts1;
+	__le32 opts1;
 #define TX_FS			(1 << 31) /* First segment of a packet */
 #define TX_LS			(1 << 30) /* Final segment of a packet */
 #define TX_LEN_MASK		0x3ffff
 
-	u32 opts2;
+	__le32 opts2;
 #define UDP_CS			(1 << 31) /* Calculate UDP/IP checksum */
 #define TCP_CS			(1 << 30) /* Calculate TCP/IP checksum */
 #define IPV4_CS			(1 << 29) /* Calculate IPv4 checksum */
@@ -365,6 +365,7 @@ struct r8152 {
 	struct mii_if_info mii;
 	int intr_interval;
 	u32 msg_enable;
+	u32 tx_qlen;
 	u16 ocp_base;
 	u8 *intr_buff;
 	u8 version;
@@ -876,7 +877,7 @@ static void write_bulk_callback(struct urb *urb)
 static void intr_callback(struct urb *urb)
 {
 	struct r8152 *tp;
-	__u16 *d;
+	__le16 *d;
 	int status = urb->status;
 	int res;
 
@@ -1136,14 +1137,14 @@ r8152_tx_csum(struct r8152 *tp, struct tx_desc *desc, struct sk_buff *skb)
 
 static int r8152_tx_agg_fill(struct r8152 *tp, struct tx_agg *agg)
 {
-	u32 remain;
+	int remain;
 	u8 *tx_data;
 
 	tx_data = agg->head;
 	agg->skb_num = agg->skb_len = 0;
-	remain = rx_buf_sz - sizeof(struct tx_desc);
+	remain = rx_buf_sz;
 
-	while (remain >= ETH_ZLEN) {
+	while (remain >= ETH_ZLEN + sizeof(struct tx_desc)) {
 		struct tx_desc *tx_desc;
 		struct sk_buff *skb;
 		unsigned int len;
@@ -1152,12 +1153,14 @@ static int r8152_tx_agg_fill(struct r8152 *tp, struct tx_agg *agg)
 		if (!skb)
 			break;
 
+		remain -= sizeof(*tx_desc);
 		len = skb->len;
 		if (remain < len) {
 			skb_queue_head(&tp->tx_queue, skb);
 			break;
 		}
 
+		tx_data = tx_agg_align(tx_data);
 		tx_desc = (struct tx_desc *)tx_data;
 		tx_data += sizeof(*tx_desc);
 
@@ -1167,10 +1170,17 @@ static int r8152_tx_agg_fill(struct r8152 *tp, struct tx_agg *agg)
 		agg->skb_len += len;
 		dev_kfree_skb_any(skb);
 
-		tx_data = tx_agg_align(tx_data + len);
-		remain = rx_buf_sz - sizeof(*tx_desc) -
-			 (u32)((void *)tx_data - agg->head);
+		tx_data += len;
+		remain = rx_buf_sz - (int)(tx_agg_align(tx_data) - agg->head);
 	}
+
+	netif_tx_lock(tp->netdev);
+
+	if (netif_queue_stopped(tp->netdev) &&
+	    skb_queue_len(&tp->tx_queue) < tp->tx_qlen)
+		netif_wake_queue(tp->netdev);
+
+	netif_tx_unlock(tp->netdev);
 
 	usb_fill_bulk_urb(agg->urb, tp->udev, usb_sndbulkpipe(tp->udev, 2),
 			  agg->head, (int)(tx_data - (u8 *)agg->head),
@@ -1188,7 +1198,6 @@ static void rx_bottom(struct r8152 *tp)
 	list_for_each_safe(cursor, next, &tp->rx_done) {
 		struct rx_desc *rx_desc;
 		struct rx_agg *agg;
-		unsigned pkt_len;
 		int len_used = 0;
 		struct urb *urb;
 		u8 *rx_data;
@@ -1204,15 +1213,20 @@ static void rx_bottom(struct r8152 *tp)
 
 		rx_desc = agg->head;
 		rx_data = agg->head;
-		pkt_len = le32_to_cpu(rx_desc->opts1) & RX_LEN_MASK;
-		len_used += sizeof(struct rx_desc) + pkt_len;
+		len_used += sizeof(struct rx_desc);
 
-		while (urb->actual_length >= len_used) {
+		while (urb->actual_length > len_used) {
 			struct net_device *netdev = tp->netdev;
 			struct net_device_stats *stats;
+			unsigned int pkt_len;
 			struct sk_buff *skb;
 
+			pkt_len = le32_to_cpu(rx_desc->opts1) & RX_LEN_MASK;
 			if (pkt_len < ETH_ZLEN)
+				break;
+
+			len_used += pkt_len;
+			if (urb->actual_length < len_used)
 				break;
 
 			stats = rtl8152_get_stats(netdev);
@@ -1234,9 +1248,8 @@ static void rx_bottom(struct r8152 *tp)
 
 			rx_data = rx_agg_align(rx_data + pkt_len + 4);
 			rx_desc = (struct rx_desc *)rx_data;
-			pkt_len = le32_to_cpu(rx_desc->opts1) & RX_LEN_MASK;
 			len_used = (int)(rx_data - (u8 *)agg->head);
-			len_used += sizeof(struct rx_desc) + pkt_len;
+			len_used += sizeof(struct rx_desc);
 		}
 
 submit:
@@ -1384,53 +1397,17 @@ static netdev_tx_t rtl8152_start_xmit(struct sk_buff *skb,
 					    struct net_device *netdev)
 {
 	struct r8152 *tp = netdev_priv(netdev);
-	struct net_device_stats *stats = rtl8152_get_stats(netdev);
-	unsigned long flags;
-	struct tx_agg *agg = NULL;
-	struct tx_desc *tx_desc;
-	unsigned int len;
-	u8 *tx_data;
-	int res;
 
 	skb_tx_timestamp(skb);
 
-	/* If tx_queue is not empty, it means at least one previous packt */
-	/* is waiting for sending. Don't send current one before it.      */
-	if (skb_queue_empty(&tp->tx_queue))
-		agg = r8152_get_tx_agg(tp);
+	skb_queue_tail(&tp->tx_queue, skb);
 
-	if (!agg) {
-		skb_queue_tail(&tp->tx_queue, skb);
-		return NETDEV_TX_OK;
-	}
+	if (list_empty(&tp->tx_free) &&
+	    skb_queue_len(&tp->tx_queue) > tp->tx_qlen)
+		netif_stop_queue(netdev);
 
-	tx_desc = (struct tx_desc *)agg->head;
-	tx_data = agg->head + sizeof(*tx_desc);
-	agg->skb_num = agg->skb_len = 0;
-
-	len = skb->len;
-	r8152_tx_csum(tp, tx_desc, skb);
-	memcpy(tx_data, skb->data, len);
-	dev_kfree_skb_any(skb);
-	agg->skb_num++;
-	agg->skb_len += len;
-	usb_fill_bulk_urb(agg->urb, tp->udev, usb_sndbulkpipe(tp->udev, 2),
-			  agg->head, len + sizeof(*tx_desc),
-			  (usb_complete_t)write_bulk_callback, agg);
-	res = usb_submit_urb(agg->urb, GFP_ATOMIC);
-	if (res) {
-		/* Can we get/handle EPIPE here? */
-		if (res == -ENODEV) {
-			netif_device_detach(tp->netdev);
-		} else {
-			netif_warn(tp, tx_err, netdev,
-				   "failed tx_urb %d\n", res);
-			stats->tx_dropped++;
-			spin_lock_irqsave(&tp->tx_lock, flags);
-			list_add_tail(&agg->list, &tp->tx_free);
-			spin_unlock_irqrestore(&tp->tx_lock, flags);
-		}
-	}
+	if (!list_empty(&tp->tx_free))
+		tasklet_schedule(&tp->tl);
 
 	return NETDEV_TX_OK;
 }
@@ -1459,6 +1436,14 @@ static void rtl8152_nic_reset(struct r8152 *tp)
 	}
 }
 
+static void set_tx_qlen(struct r8152 *tp)
+{
+	struct net_device *netdev = tp->netdev;
+
+	tp->tx_qlen = rx_buf_sz / (netdev->mtu + VLAN_ETH_HLEN + VLAN_HLEN +
+				   sizeof(struct tx_desc));
+}
+
 static inline u8 rtl8152_get_speed(struct r8152 *tp)
 {
 	return ocp_read_byte(tp, MCU_TYPE_PLA, PLA_PHYSTATUS);
@@ -1470,6 +1455,7 @@ static int rtl8152_enable(struct r8152 *tp)
 	int i, ret;
 	u8 speed;
 
+	set_tx_qlen(tp);
 	speed = rtl8152_get_speed(tp);
 	if (speed & _10bps) {
 		ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_EEEP_CR);

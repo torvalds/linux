@@ -461,6 +461,23 @@ union uvh_event_occurred0_u {
 
 
 /* ========================================================================= */
+/*                         UVH_EXTIO_INT0_BROADCAST                          */
+/* ========================================================================= */
+#define UVH_EXTIO_INT0_BROADCAST 0x61448UL
+#define UVH_EXTIO_INT0_BROADCAST_32 0x3f0
+
+#define UVH_EXTIO_INT0_BROADCAST_ENABLE_SHFT		0
+#define UVH_EXTIO_INT0_BROADCAST_ENABLE_MASK		0x0000000000000001UL
+
+union uvh_extio_int0_broadcast_u {
+	unsigned long	v;
+	struct uvh_extio_int0_broadcast_s {
+		unsigned long	enable:1;			/* RW */
+		unsigned long	rsvd_1_63:63;
+	} s;
+};
+
+/* ========================================================================= */
 /*                         UVH_GR0_TLB_INT0_CONFIG                           */
 /* ========================================================================= */
 #define UVH_GR0_TLB_INT0_CONFIG 0x61b00UL
@@ -2604,6 +2621,20 @@ union uvh_scratch5_u {
 		unsigned long	scratch5:64;			/* RW, W1CS */
 	} s;
 };
+
+/* ========================================================================= */
+/*                            UVH_SCRATCH5_ALIAS                             */
+/* ========================================================================= */
+#define UVH_SCRATCH5_ALIAS 0x2d0208UL
+#define UVH_SCRATCH5_ALIAS_32 0x780
+
+
+/* ========================================================================= */
+/*                           UVH_SCRATCH5_ALIAS_2                            */
+/* ========================================================================= */
+#define UVH_SCRATCH5_ALIAS_2 0x2d0210UL
+#define UVH_SCRATCH5_ALIAS_2_32 0x788
+
 
 /* ========================================================================= */
 /*                          UVXH_EVENT_OCCURRED2                             */

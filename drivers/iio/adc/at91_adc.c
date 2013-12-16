@@ -11,6 +11,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
@@ -39,8 +40,34 @@
 #define at91_adc_writel(st, reg, val) \
 	(writel_relaxed(val, st->reg_base + reg))
 
+#define DRIVER_NAME		"at91_adc"
+#define MAX_POS_BITS		12
+
+#define TOUCH_SAMPLE_PERIOD_US		2000	/* 2ms */
+#define TOUCH_PEN_DETECT_DEBOUNCE_US	200
+
 struct at91_adc_caps {
+	bool	has_ts;		/* Support touch screen */
+	bool	has_tsmr;	/* only at91sam9x5, sama5d3 have TSMR reg */
+	/*
+	 * Numbers of sampling data will be averaged. Can be 0~3.
+	 * Hardware can average (2 ^ ts_filter_average) sample data.
+	 */
+	u8	ts_filter_average;
+	/* Pen Detection input pull-up resistor, can be 0~3 */
+	u8	ts_pen_detect_sensitivity;
+
+	/* startup time calculate function */
+	u32 (*calc_startup_ticks)(u8 startup_time, u32 adc_clk_khz);
+
+	u8	num_channels;
 	struct at91_adc_reg_desc registers;
+};
+
+enum atmel_adc_ts_type {
+	ATMEL_ADC_TOUCHSCREEN_NONE = 0,
+	ATMEL_ADC_TOUCHSCREEN_4WIRE = 4,
+	ATMEL_ADC_TOUCHSCREEN_5WIRE = 5,
 };
 
 struct at91_adc_state {
@@ -67,6 +94,26 @@ struct at91_adc_state {
 	bool			low_res;	/* the resolution corresponds to the lowest one */
 	wait_queue_head_t	wq_data_avail;
 	struct at91_adc_caps	*caps;
+
+	/*
+	 * Following ADC channels are shared by touchscreen:
+	 *
+	 * CH0 -- Touch screen XP/UL
+	 * CH1 -- Touch screen XM/UR
+	 * CH2 -- Touch screen YP/LL
+	 * CH3 -- Touch screen YM/Sense
+	 * CH4 -- Touch screen LR(5-wire only)
+	 *
+	 * The bitfields below represents the reserved channel in the
+	 * touchscreen mode.
+	 */
+#define CHAN_MASK_TOUCHSCREEN_4WIRE	(0xf << 0)
+#define CHAN_MASK_TOUCHSCREEN_5WIRE	(0x1f << 0)
+	enum atmel_adc_ts_type	touchscreen_type;
+	struct input_dev	*ts_input;
+
+	u16			ts_sample_period_val;
+	u32			ts_pressure_threshold;
 };
 
 static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
@@ -83,13 +130,7 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 		j++;
 	}
 
-	if (idev->scan_timestamp) {
-		s64 *timestamp = (s64 *)((u8 *)st->buffer +
-					ALIGN(j, sizeof(s64)));
-		*timestamp = pf->timestamp;
-	}
-
-	iio_push_to_buffers(idev, (u8 *)st->buffer);
+	iio_push_to_buffers_with_timestamp(idev, st->buffer, pf->timestamp);
 
 	iio_trigger_notify_done(idev->trig);
 
@@ -101,14 +142,10 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t at91_adc_eoc_trigger(int irq, void *private)
+/* Handler for classic adc channel eoc trigger */
+void handle_adc_eoc_trigger(int irq, struct iio_dev *idev)
 {
-	struct iio_dev *idev = private;
 	struct at91_adc_state *st = iio_priv(idev);
-	u32 status = at91_adc_readl(st, st->registers->status_register);
-
-	if (!(status & st->registers->drdy_mask))
-		return IRQ_HANDLED;
 
 	if (iio_buffer_enabled(idev)) {
 		disable_irq_nosync(irq);
@@ -117,6 +154,115 @@ static irqreturn_t at91_adc_eoc_trigger(int irq, void *private)
 		st->last_value = at91_adc_readl(st, AT91_ADC_LCDR);
 		st->done = true;
 		wake_up_interruptible(&st->wq_data_avail);
+	}
+}
+
+static int at91_ts_sample(struct at91_adc_state *st)
+{
+	unsigned int xscale, yscale, reg, z1, z2;
+	unsigned int x, y, pres, xpos, ypos;
+	unsigned int rxp = 1;
+	unsigned int factor = 1000;
+	struct iio_dev *idev = iio_priv_to_dev(st);
+
+	unsigned int xyz_mask_bits = st->res;
+	unsigned int xyz_mask = (1 << xyz_mask_bits) - 1;
+
+	/* calculate position */
+	/* x position = (x / xscale) * max, max = 2^MAX_POS_BITS - 1 */
+	reg = at91_adc_readl(st, AT91_ADC_TSXPOSR);
+	xpos = reg & xyz_mask;
+	x = (xpos << MAX_POS_BITS) - xpos;
+	xscale = (reg >> 16) & xyz_mask;
+	if (xscale == 0) {
+		dev_err(&idev->dev, "Error: xscale == 0!\n");
+		return -1;
+	}
+	x /= xscale;
+
+	/* y position = (y / yscale) * max, max = 2^MAX_POS_BITS - 1 */
+	reg = at91_adc_readl(st, AT91_ADC_TSYPOSR);
+	ypos = reg & xyz_mask;
+	y = (ypos << MAX_POS_BITS) - ypos;
+	yscale = (reg >> 16) & xyz_mask;
+	if (yscale == 0) {
+		dev_err(&idev->dev, "Error: yscale == 0!\n");
+		return -1;
+	}
+	y /= yscale;
+
+	/* calculate the pressure */
+	reg = at91_adc_readl(st, AT91_ADC_TSPRESSR);
+	z1 = reg & xyz_mask;
+	z2 = (reg >> 16) & xyz_mask;
+
+	if (z1 != 0)
+		pres = rxp * (x * factor / 1024) * (z2 * factor / z1 - factor)
+			/ factor;
+	else
+		pres = st->ts_pressure_threshold;	/* no pen contacted */
+
+	dev_dbg(&idev->dev, "xpos = %d, xscale = %d, ypos = %d, yscale = %d, z1 = %d, z2 = %d, press = %d\n",
+				xpos, xscale, ypos, yscale, z1, z2, pres);
+
+	if (pres < st->ts_pressure_threshold) {
+		dev_dbg(&idev->dev, "x = %d, y = %d, pressure = %d\n",
+					x, y, pres / factor);
+		input_report_abs(st->ts_input, ABS_X, x);
+		input_report_abs(st->ts_input, ABS_Y, y);
+		input_report_abs(st->ts_input, ABS_PRESSURE, pres);
+		input_report_key(st->ts_input, BTN_TOUCH, 1);
+		input_sync(st->ts_input);
+	} else {
+		dev_dbg(&idev->dev, "pressure too low: not reporting\n");
+	}
+
+	return 0;
+}
+
+static irqreturn_t at91_adc_interrupt(int irq, void *private)
+{
+	struct iio_dev *idev = private;
+	struct at91_adc_state *st = iio_priv(idev);
+	u32 status = at91_adc_readl(st, st->registers->status_register);
+	const uint32_t ts_data_irq_mask =
+		AT91_ADC_IER_XRDY |
+		AT91_ADC_IER_YRDY |
+		AT91_ADC_IER_PRDY;
+
+	if (status & st->registers->drdy_mask)
+		handle_adc_eoc_trigger(irq, idev);
+
+	if (status & AT91_ADC_IER_PEN) {
+		at91_adc_writel(st, AT91_ADC_IDR, AT91_ADC_IER_PEN);
+		at91_adc_writel(st, AT91_ADC_IER, AT91_ADC_IER_NOPEN |
+			ts_data_irq_mask);
+		/* Set up period trigger for sampling */
+		at91_adc_writel(st, st->registers->trigger_register,
+			AT91_ADC_TRGR_MOD_PERIOD_TRIG |
+			AT91_ADC_TRGR_TRGPER_(st->ts_sample_period_val));
+	} else if (status & AT91_ADC_IER_NOPEN) {
+		at91_adc_writel(st, st->registers->trigger_register, 0);
+		at91_adc_writel(st, AT91_ADC_IDR, AT91_ADC_IER_NOPEN |
+			ts_data_irq_mask);
+		at91_adc_writel(st, AT91_ADC_IER, AT91_ADC_IER_PEN);
+
+		input_report_key(st->ts_input, BTN_TOUCH, 0);
+		input_sync(st->ts_input);
+	} else if ((status & ts_data_irq_mask) == ts_data_irq_mask) {
+		/* Now all touchscreen data is ready */
+
+		if (status & AT91_ADC_ISR_PENS) {
+			/* validate data by pen contact */
+			at91_ts_sample(st);
+		} else {
+			/* triggered by event that is no pen contact, just read
+			 * them to clean the interrupt and discard all.
+			 */
+			at91_adc_readl(st, AT91_ADC_TSXPOSR);
+			at91_adc_readl(st, AT91_ADC_TSYPOSR);
+			at91_adc_readl(st, AT91_ADC_TSPRESSR);
+		}
 	}
 
 	return IRQ_HANDLED;
@@ -127,6 +273,16 @@ static int at91_adc_channel_init(struct iio_dev *idev)
 	struct at91_adc_state *st = iio_priv(idev);
 	struct iio_chan_spec *chan_array, *timestamp;
 	int bit, idx = 0;
+	unsigned long rsvd_mask = 0;
+
+	/* If touchscreen is enable, then reserve the adc channels */
+	if (st->touchscreen_type == ATMEL_ADC_TOUCHSCREEN_4WIRE)
+		rsvd_mask = CHAN_MASK_TOUCHSCREEN_4WIRE;
+	else if (st->touchscreen_type == ATMEL_ADC_TOUCHSCREEN_5WIRE)
+		rsvd_mask = CHAN_MASK_TOUCHSCREEN_5WIRE;
+
+	/* set up the channel mask to reserve touchscreen channels */
+	st->channels_mask &= ~rsvd_mask;
 
 	idev->num_channels = bitmap_weight(&st->channels_mask,
 					   st->num_channels) + 1;
@@ -279,7 +435,7 @@ static int at91_adc_trigger_init(struct iio_dev *idev)
 	int i, ret;
 
 	st->trig = devm_kzalloc(&idev->dev,
-				st->trigger_number * sizeof(st->trig),
+				st->trigger_number * sizeof(*st->trig),
 				GFP_KERNEL);
 
 	if (st->trig == NULL) {
@@ -372,9 +528,9 @@ static int at91_adc_read_raw(struct iio_dev *idev,
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
-		*val = (st->vref_mv * 1000) >> chan->scan_type.realbits;
-		*val2 = 0;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = st->vref_mv;
+		*val2 = chan->scan_type.realbits;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	default:
 		break;
 	}
@@ -434,7 +590,79 @@ ret:
 	return ret;
 }
 
+static u32 calc_startup_ticks_9260(u8 startup_time, u32 adc_clk_khz)
+{
+	/*
+	 * Number of ticks needed to cover the startup time of the ADC
+	 * as defined in the electrical characteristics of the board,
+	 * divided by 8. The formula thus is :
+	 *   Startup Time = (ticks + 1) * 8 / ADC Clock
+	 */
+	return round_up((startup_time * adc_clk_khz / 1000) - 1, 8) / 8;
+}
+
+static u32 calc_startup_ticks_9x5(u8 startup_time, u32 adc_clk_khz)
+{
+	/*
+	 * For sama5d3x and at91sam9x5, the formula changes to:
+	 * Startup Time = <lookup_table_value> / ADC Clock
+	 */
+	const int startup_lookup[] = {
+		0  , 8  , 16 , 24 ,
+		64 , 80 , 96 , 112,
+		512, 576, 640, 704,
+		768, 832, 896, 960
+		};
+	int i, size = ARRAY_SIZE(startup_lookup);
+	unsigned int ticks;
+
+	ticks = startup_time * adc_clk_khz / 1000;
+	for (i = 0; i < size; i++)
+		if (ticks < startup_lookup[i])
+			break;
+
+	ticks = i;
+	if (ticks == size)
+		/* Reach the end of lookup table */
+		ticks = size - 1;
+
+	return ticks;
+}
+
 static const struct of_device_id at91_adc_dt_ids[];
+
+static int at91_adc_probe_dt_ts(struct device_node *node,
+	struct at91_adc_state *st, struct device *dev)
+{
+	int ret;
+	u32 prop;
+
+	ret = of_property_read_u32(node, "atmel,adc-ts-wires", &prop);
+	if (ret) {
+		dev_info(dev, "ADC Touch screen is disabled.\n");
+		return 0;
+	}
+
+	switch (prop) {
+	case 4:
+	case 5:
+		st->touchscreen_type = prop;
+		break;
+	default:
+		dev_err(dev, "Unsupported number of touchscreen wires (%d). Should be 4 or 5.\n", prop);
+		return -EINVAL;
+	}
+
+	prop = 0;
+	of_property_read_u32(node, "atmel,adc-ts-pressure-threshold", &prop);
+	st->ts_pressure_threshold = prop;
+	if (st->ts_pressure_threshold) {
+		return 0;
+	} else {
+		dev_err(dev, "Invalid pressure threshold for the touchscreen\n");
+		return -EINVAL;
+	}
+}
 
 static int at91_adc_probe_dt(struct at91_adc_state *st,
 			     struct platform_device *pdev)
@@ -459,13 +687,6 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
 		goto error_ret;
 	}
 	st->channels_mask = prop;
-
-	if (of_property_read_u32(node, "atmel,adc-num-channels", &prop)) {
-		dev_err(&idev->dev, "Missing adc-num-channels property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	st->num_channels = prop;
 
 	st->sleep_mode = of_property_read_bool(node, "atmel,adc-sleep-mode");
 
@@ -492,6 +713,7 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
 		goto error_ret;
 
 	st->registers = &st->caps->registers;
+	st->num_channels = st->caps->num_channels;
 	st->trigger_number = of_get_child_count(node);
 	st->trigger_list = devm_kzalloc(&idev->dev, st->trigger_number *
 					sizeof(struct at91_adc_trigger),
@@ -522,6 +744,12 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
 		trig->is_external = of_property_read_bool(trig_node, "trigger-external");
 		i++;
 	}
+
+	/* Check if touchscreen is supported. */
+	if (st->caps->has_ts)
+		return at91_adc_probe_dt_ts(node, st, &idev->dev);
+	else
+		dev_info(&idev->dev, "not support touchscreen in the adc compatible string.\n");
 
 	return 0;
 
@@ -554,9 +782,117 @@ static const struct iio_info at91_adc_info = {
 	.read_raw = &at91_adc_read_raw,
 };
 
+/* Touchscreen related functions */
+static int atmel_ts_open(struct input_dev *dev)
+{
+	struct at91_adc_state *st = input_get_drvdata(dev);
+
+	at91_adc_writel(st, AT91_ADC_IER, AT91_ADC_IER_PEN);
+	return 0;
+}
+
+static void atmel_ts_close(struct input_dev *dev)
+{
+	struct at91_adc_state *st = input_get_drvdata(dev);
+
+	at91_adc_writel(st, AT91_ADC_IDR, AT91_ADC_IER_PEN);
+}
+
+static int at91_ts_hw_init(struct at91_adc_state *st, u32 adc_clk_khz)
+{
+	u32 reg = 0, pendbc;
+	int i = 0;
+
+	if (st->touchscreen_type == ATMEL_ADC_TOUCHSCREEN_4WIRE)
+		reg = AT91_ADC_TSMR_TSMODE_4WIRE_PRESS;
+	else
+		reg = AT91_ADC_TSMR_TSMODE_5WIRE;
+
+	/* a Pen Detect Debounce Time is necessary for the ADC Touch to avoid
+	 * pen detect noise.
+	 * The formula is : Pen Detect Debounce Time = (2 ^ pendbc) / ADCClock
+	 */
+	pendbc = round_up(TOUCH_PEN_DETECT_DEBOUNCE_US * adc_clk_khz / 1000, 1);
+
+	while (pendbc >> ++i)
+		;	/* Empty! Find the shift offset */
+	if (abs(pendbc - (1 << i)) < abs(pendbc - (1 << (i - 1))))
+		pendbc = i;
+	else
+		pendbc = i - 1;
+
+	if (st->caps->has_tsmr) {
+		reg |= AT91_ADC_TSMR_TSAV_(st->caps->ts_filter_average)
+				& AT91_ADC_TSMR_TSAV;
+		reg |= AT91_ADC_TSMR_PENDBC_(pendbc) & AT91_ADC_TSMR_PENDBC;
+		reg |= AT91_ADC_TSMR_NOTSDMA;
+		reg |= AT91_ADC_TSMR_PENDET_ENA;
+		reg |= 0x03 << 8;	/* TSFREQ, need bigger than TSAV */
+
+		at91_adc_writel(st, AT91_ADC_TSMR, reg);
+	} else {
+		/* TODO: for 9g45 which has no TSMR */
+	}
+
+	/* Change adc internal resistor value for better pen detection,
+	 * default value is 100 kOhm.
+	 * 0 = 200 kOhm, 1 = 150 kOhm, 2 = 100 kOhm, 3 = 50 kOhm
+	 * option only available on ES2 and higher
+	 */
+	at91_adc_writel(st, AT91_ADC_ACR, st->caps->ts_pen_detect_sensitivity
+			& AT91_ADC_ACR_PENDETSENS);
+
+	/* Sample Peroid Time = (TRGPER + 1) / ADCClock */
+	st->ts_sample_period_val = round_up((TOUCH_SAMPLE_PERIOD_US *
+			adc_clk_khz / 1000) - 1, 1);
+
+	return 0;
+}
+
+static int at91_ts_register(struct at91_adc_state *st,
+		struct platform_device *pdev)
+{
+	struct input_dev *input;
+	struct iio_dev *idev = iio_priv_to_dev(st);
+	int ret;
+
+	input = input_allocate_device();
+	if (!input) {
+		dev_err(&idev->dev, "Failed to allocate TS device!\n");
+		return -ENOMEM;
+	}
+
+	input->name = DRIVER_NAME;
+	input->id.bustype = BUS_HOST;
+	input->dev.parent = &pdev->dev;
+	input->open = atmel_ts_open;
+	input->close = atmel_ts_close;
+
+	__set_bit(EV_ABS, input->evbit);
+	__set_bit(EV_KEY, input->evbit);
+	__set_bit(BTN_TOUCH, input->keybit);
+	input_set_abs_params(input, ABS_X, 0, (1 << MAX_POS_BITS) - 1, 0, 0);
+	input_set_abs_params(input, ABS_Y, 0, (1 << MAX_POS_BITS) - 1, 0, 0);
+	input_set_abs_params(input, ABS_PRESSURE, 0, 0xffffff, 0, 0);
+
+	st->ts_input = input;
+	input_set_drvdata(input, st);
+
+	ret = input_register_device(input);
+	if (ret)
+		input_free_device(st->ts_input);
+
+	return ret;
+}
+
+static void at91_ts_unregister(struct at91_adc_state *st)
+{
+	input_unregister_device(st->ts_input);
+}
+
 static int at91_adc_probe(struct platform_device *pdev)
 {
-	unsigned int prsc, mstrclk, ticks, adc_clk, shtim;
+	unsigned int prsc, mstrclk, ticks, adc_clk, adc_clk_khz, shtim;
 	int ret;
 	struct iio_dev *idev;
 	struct at91_adc_state *st;
@@ -605,7 +941,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 	at91_adc_writel(st, AT91_ADC_CR, AT91_ADC_SWRST);
 	at91_adc_writel(st, AT91_ADC_IDR, 0xFFFFFFFF);
 	ret = request_irq(st->irq,
-			  at91_adc_eoc_trigger,
+			  at91_adc_interrupt,
 			  0,
 			  pdev->dev.driver->name,
 			  idev);
@@ -649,6 +985,11 @@ static int at91_adc_probe(struct platform_device *pdev)
 	 */
 	mstrclk = clk_get_rate(st->clk);
 	adc_clk = clk_get_rate(st->adc_clk);
+	adc_clk_khz = adc_clk / 1000;
+
+	dev_dbg(&pdev->dev, "Master clock is set as: %d Hz, adc_clk should set as: %d Hz\n",
+		mstrclk, adc_clk);
+
 	prsc = (mstrclk / (2 * adc_clk)) - 1;
 
 	if (!st->startup_time) {
@@ -656,21 +997,15 @@ static int at91_adc_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto error_disable_adc_clk;
 	}
+	ticks = (*st->caps->calc_startup_ticks)(st->startup_time, adc_clk_khz);
 
-	/*
-	 * Number of ticks needed to cover the startup time of the ADC as
-	 * defined in the electrical characteristics of the board, divided by 8.
-	 * The formula thus is : Startup Time = (ticks + 1) * 8 / ADC Clock
-	 */
-	ticks = round_up((st->startup_time * adc_clk /
-			  1000000) - 1, 8) / 8;
 	/*
 	 * a minimal Sample and Hold Time is necessary for the ADC to guarantee
 	 * the best converted final value between two channels selection
 	 * The formula thus is : Sample and Hold Time = (shtim + 1) / ADCClock
 	 */
-	shtim = round_up((st->sample_hold_time * adc_clk /
-			  1000000) - 1, 1);
+	shtim = round_up((st->sample_hold_time * adc_clk_khz /
+			  1000) - 1, 1);
 
 	reg = AT91_ADC_PRESCAL_(prsc) & st->registers->mr_prescal_mask;
 	reg |= AT91_ADC_STARTUP_(ticks) & st->registers->mr_startup_mask;
@@ -691,30 +1026,52 @@ static int at91_adc_probe(struct platform_device *pdev)
 	init_waitqueue_head(&st->wq_data_avail);
 	mutex_init(&st->lock);
 
-	ret = at91_adc_buffer_init(idev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Couldn't initialize the buffer.\n");
-		goto error_disable_adc_clk;
-	}
+	/*
+	 * Since touch screen will set trigger register as period trigger. So
+	 * when touch screen is enabled, then we have to disable hardware
+	 * trigger for classic adc.
+	 */
+	if (!st->touchscreen_type) {
+		ret = at91_adc_buffer_init(idev);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Couldn't initialize the buffer.\n");
+			goto error_disable_adc_clk;
+		}
 
-	ret = at91_adc_trigger_init(idev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Couldn't setup the triggers.\n");
-		goto error_unregister_buffer;
+		ret = at91_adc_trigger_init(idev);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Couldn't setup the triggers.\n");
+			at91_adc_buffer_remove(idev);
+			goto error_disable_adc_clk;
+		}
+	} else {
+		if (!st->caps->has_tsmr) {
+			dev_err(&pdev->dev, "We don't support non-TSMR adc\n");
+			goto error_disable_adc_clk;
+		}
+
+		ret = at91_ts_register(st, pdev);
+		if (ret)
+			goto error_disable_adc_clk;
+
+		at91_ts_hw_init(st, adc_clk_khz);
 	}
 
 	ret = iio_device_register(idev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Couldn't register the device.\n");
-		goto error_remove_triggers;
+		goto error_iio_device_register;
 	}
 
 	return 0;
 
-error_remove_triggers:
-	at91_adc_trigger_remove(idev);
-error_unregister_buffer:
-	at91_adc_buffer_remove(idev);
+error_iio_device_register:
+	if (!st->touchscreen_type) {
+		at91_adc_trigger_remove(idev);
+		at91_adc_buffer_remove(idev);
+	} else {
+		at91_ts_unregister(st);
+	}
 error_disable_adc_clk:
 	clk_disable_unprepare(st->adc_clk);
 error_disable_clk:
@@ -730,8 +1087,12 @@ static int at91_adc_remove(struct platform_device *pdev)
 	struct at91_adc_state *st = iio_priv(idev);
 
 	iio_device_unregister(idev);
-	at91_adc_trigger_remove(idev);
-	at91_adc_buffer_remove(idev);
+	if (!st->touchscreen_type) {
+		at91_adc_trigger_remove(idev);
+		at91_adc_buffer_remove(idev);
+	} else {
+		at91_ts_unregister(st);
+	}
 	clk_disable_unprepare(st->adc_clk);
 	clk_disable_unprepare(st->clk);
 	free_irq(st->irq, idev);
@@ -741,6 +1102,8 @@ static int at91_adc_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static struct at91_adc_caps at91sam9260_caps = {
+	.calc_startup_ticks = calc_startup_ticks_9260,
+	.num_channels = 4,
 	.registers = {
 		.channel_base = AT91_ADC_CHR(0),
 		.drdy_mask = AT91_ADC_DRDY,
@@ -752,6 +1115,9 @@ static struct at91_adc_caps at91sam9260_caps = {
 };
 
 static struct at91_adc_caps at91sam9g45_caps = {
+	.has_ts = true,
+	.calc_startup_ticks = calc_startup_ticks_9260,	/* same as 9260 */
+	.num_channels = 8,
 	.registers = {
 		.channel_base = AT91_ADC_CHR(0),
 		.drdy_mask = AT91_ADC_DRDY,
@@ -763,6 +1129,12 @@ static struct at91_adc_caps at91sam9g45_caps = {
 };
 
 static struct at91_adc_caps at91sam9x5_caps = {
+	.has_ts = true,
+	.has_tsmr = true,
+	.ts_filter_average = 3,
+	.ts_pen_detect_sensitivity = 2,
+	.calc_startup_ticks = calc_startup_ticks_9x5,
+	.num_channels = 12,
 	.registers = {
 		.channel_base = AT91_ADC_CDR0_9X5,
 		.drdy_mask = AT91_ADC_SR_DRDY_9X5,
@@ -787,7 +1159,7 @@ static struct platform_driver at91_adc_driver = {
 	.probe = at91_adc_probe,
 	.remove = at91_adc_remove,
 	.driver = {
-		   .name = "at91_adc",
+		   .name = DRIVER_NAME,
 		   .of_match_table = of_match_ptr(at91_adc_dt_ids),
 	},
 };

@@ -941,31 +941,34 @@ static void dio200_subdev_8255_set_dir(struct comedi_device *dev,
 	dio200_write8(dev, subpriv->ofs + 3, config);
 }
 
-/*
- * Handle 'insn_bits' for an '8255' DIO subdevice.
- */
 static int dio200_subdev_8255_bits(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct dio200_subdev_8255 *subpriv = s->private;
+	unsigned int mask;
+	unsigned int val;
 
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
-		if (data[0] & 0xff)
+	mask = comedi_dio_update_state(s, data);
+	if (mask) {
+		if (mask & 0xff)
 			dio200_write8(dev, subpriv->ofs, s->state & 0xff);
-		if (data[0] & 0xff00)
+		if (mask & 0xff00)
 			dio200_write8(dev, subpriv->ofs + 1,
 				      (s->state >> 8) & 0xff);
-		if (data[0] & 0xff0000)
+		if (mask & 0xff0000)
 			dio200_write8(dev, subpriv->ofs + 2,
 				      (s->state >> 16) & 0xff);
 	}
-	data[1] = dio200_read8(dev, subpriv->ofs);
-	data[1] |= dio200_read8(dev, subpriv->ofs + 1) << 8;
-	data[1] |= dio200_read8(dev, subpriv->ofs + 2) << 16;
-	return 2;
+
+	val = dio200_read8(dev, subpriv->ofs);
+	val |= dio200_read8(dev, subpriv->ofs + 1) << 8;
+	val |= dio200_read8(dev, subpriv->ofs + 2) << 16;
+
+	data[1] = val;
+
+	return insn->n;
 }
 
 /*
@@ -1022,8 +1025,6 @@ static int dio200_subdev_8255_init(struct comedi_device *dev,
 	s->maxdata = 1;
 	s->insn_bits = dio200_subdev_8255_bits;
 	s->insn_config = dio200_subdev_8255_config;
-	s->state = 0;
-	s->io_bits = 0;
 	dio200_subdev_8255_set_dir(dev, s);
 	return 0;
 }

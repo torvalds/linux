@@ -274,7 +274,6 @@ static void __init msm_dt_timer_init(struct device_node *np)
 		pr_err("Unknown frequency\n");
 		return;
 	}
-	of_node_put(np);
 
 	event_base = base + 0x4;
 	sts_base = base + 0x88;

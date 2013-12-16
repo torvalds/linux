@@ -46,10 +46,20 @@ void rtl_fw_cb(const struct firmware *firmware, void *context)
 			 "Firmware callback routine entered!\n");
 	complete(&rtlpriv->firmware_loading_complete);
 	if (!firmware) {
+		if (rtlpriv->cfg->alt_fw_name) {
+			err = request_firmware(&firmware,
+					       rtlpriv->cfg->alt_fw_name,
+					       rtlpriv->io.dev);
+			pr_info("Loading alternative firmware %s\n",
+				rtlpriv->cfg->alt_fw_name);
+			if (!err)
+				goto found_alt;
+		}
 		pr_err("Firmware %s not available\n", rtlpriv->cfg->fw_name);
 		rtlpriv->max_fw_size = 0;
 		return;
 	}
+found_alt:
 	if (firmware->size > rtlpriv->max_fw_size) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "Firmware is too big!\n");
@@ -115,7 +125,7 @@ static void rtl_op_stop(struct ieee80211_hw *hw)
 	mutex_lock(&rtlpriv->locks.conf_mutex);
 
 	mac->link_state = MAC80211_NOLINK;
-	memset(mac->bssid, 0, 6);
+	memset(mac->bssid, 0, ETH_ALEN);
 	mac->vendor = PEER_UNKNOWN;
 
 	/*reset sec info */
@@ -184,6 +194,7 @@ static int rtl_op_add_interface(struct ieee80211_hw *hw,
 					rtlpriv->cfg->maps
 					[RTL_IBSS_INT_MASKS]);
 		}
+		mac->link_state = MAC80211_LINKED;
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
@@ -280,7 +291,7 @@ static void rtl_op_remove_interface(struct ieee80211_hw *hw,
 	mac->p2p = 0;
 	mac->vif = NULL;
 	mac->link_state = MAC80211_NOLINK;
-	memset(mac->bssid, 0, 6);
+	memset(mac->bssid, 0, ETH_ALEN);
 	mac->vendor = PEER_UNKNOWN;
 	mac->opmode = NL80211_IFTYPE_UNSPECIFIED;
 	rtlpriv->cfg->ops->set_network_type(hw, mac->opmode);
@@ -721,7 +732,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			mac->link_state = MAC80211_LINKED;
 			mac->cnt_after_linked = 0;
 			mac->assoc_id = bss_conf->aid;
-			memcpy(mac->bssid, bss_conf->bssid, 6);
+			memcpy(mac->bssid, bss_conf->bssid, ETH_ALEN);
 
 			if (rtlpriv->cfg->ops->linked_set_reg)
 				rtlpriv->cfg->ops->linked_set_reg(hw);
@@ -750,7 +761,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			if (ppsc->p2p_ps_info.p2p_ps_mode > P2P_PS_NONE)
 				rtl_p2p_ps_cmd(hw, P2P_PS_DISABLE);
 			mac->link_state = MAC80211_NOLINK;
-			memset(mac->bssid, 0, 6);
+			memset(mac->bssid, 0, ETH_ALEN);
 			mac->vendor = PEER_UNKNOWN;
 
 			if (rtlpriv->dm.supp_phymode_switch) {
@@ -826,7 +837,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			 bss_conf->bssid);
 
 		mac->vendor = PEER_UNKNOWN;
-		memcpy(mac->bssid, bss_conf->bssid, 6);
+		memcpy(mac->bssid, bss_conf->bssid, ETH_ALEN);
 		rtlpriv->cfg->ops->set_network_type(hw, vif->type);
 
 		rcu_read_lock();

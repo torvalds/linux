@@ -1341,14 +1341,6 @@ static void __maybe_unused gpmc_read_timings_dt(struct device_node *np,
 
 #ifdef CONFIG_MTD_NAND
 
-static const char * const nand_ecc_opts[] = {
-	[OMAP_ECC_HAMMING_CODE_DEFAULT]		= "sw",
-	[OMAP_ECC_HAMMING_CODE_HW]		= "hw",
-	[OMAP_ECC_HAMMING_CODE_HW_ROMCODE]	= "hw-romcode",
-	[OMAP_ECC_BCH4_CODE_HW]			= "bch4",
-	[OMAP_ECC_BCH8_CODE_HW]			= "bch8",
-};
-
 static const char * const nand_xfer_types[] = {
 	[NAND_OMAP_PREFETCH_POLLED]		= "prefetch-polled",
 	[NAND_OMAP_POLLED]			= "polled",
@@ -1378,13 +1370,41 @@ static int gpmc_probe_nand_child(struct platform_device *pdev,
 	gpmc_nand_data->cs = val;
 	gpmc_nand_data->of_node = child;
 
-	if (!of_property_read_string(child, "ti,nand-ecc-opt", &s))
-		for (val = 0; val < ARRAY_SIZE(nand_ecc_opts); val++)
-			if (!strcasecmp(s, nand_ecc_opts[val])) {
-				gpmc_nand_data->ecc_opt = val;
-				break;
-			}
+	/* Detect availability of ELM module */
+	gpmc_nand_data->elm_of_node = of_parse_phandle(child, "ti,elm-id", 0);
+	if (gpmc_nand_data->elm_of_node == NULL)
+		gpmc_nand_data->elm_of_node =
+					of_parse_phandle(child, "elm_id", 0);
+	if (gpmc_nand_data->elm_of_node == NULL)
+		pr_warn("%s: ti,elm-id property not found\n", __func__);
 
+	/* select ecc-scheme for NAND */
+	if (of_property_read_string(child, "ti,nand-ecc-opt", &s)) {
+		pr_err("%s: ti,nand-ecc-opt not found\n", __func__);
+		return -ENODEV;
+	}
+	if (!strcmp(s, "ham1") || !strcmp(s, "sw") ||
+		!strcmp(s, "hw") || !strcmp(s, "hw-romcode"))
+		gpmc_nand_data->ecc_opt =
+				OMAP_ECC_HAM1_CODE_HW;
+	else if (!strcmp(s, "bch4"))
+		if (gpmc_nand_data->elm_of_node)
+			gpmc_nand_data->ecc_opt =
+				OMAP_ECC_BCH4_CODE_HW;
+		else
+			gpmc_nand_data->ecc_opt =
+				OMAP_ECC_BCH4_CODE_HW_DETECTION_SW;
+	else if (!strcmp(s, "bch8"))
+		if (gpmc_nand_data->elm_of_node)
+			gpmc_nand_data->ecc_opt =
+				OMAP_ECC_BCH8_CODE_HW;
+		else
+			gpmc_nand_data->ecc_opt =
+				OMAP_ECC_BCH8_CODE_HW_DETECTION_SW;
+	else
+		pr_err("%s: ti,nand-ecc-opt invalid value\n", __func__);
+
+	/* select data transfer mode for NAND controller */
 	if (!of_property_read_string(child, "ti,nand-xfer-type", &s))
 		for (val = 0; val < ARRAY_SIZE(nand_xfer_types); val++)
 			if (!strcasecmp(s, nand_xfer_types[val])) {
@@ -1491,8 +1511,8 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	 */
 	ret = gpmc_cs_remap(cs, res.start);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot remap GPMC CS %d to 0x%x\n",
-			cs, res.start);
+		dev_err(&pdev->dev, "cannot remap GPMC CS %d to %pa\n",
+			cs, &res.start);
 		goto err;
 	}
 
@@ -1519,6 +1539,42 @@ err:
 	gpmc_cs_free(cs);
 
 	return ret;
+}
+
+/*
+ * REVISIT: Add timing support from slls644g.pdf
+ */
+static int gpmc_probe_8250(struct platform_device *pdev,
+				struct device_node *child)
+{
+	struct resource res;
+	unsigned long base;
+	int ret, cs;
+
+	if (of_property_read_u32(child, "reg", &cs) < 0) {
+		dev_err(&pdev->dev, "%s has no 'reg' property\n",
+			child->full_name);
+		return -ENODEV;
+	}
+
+	if (of_address_to_resource(child, 0, &res) < 0) {
+		dev_err(&pdev->dev, "%s has malformed 'reg' property\n",
+			child->full_name);
+		return -ENODEV;
+	}
+
+	ret = gpmc_cs_request(cs, resource_size(&res), &base);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "cannot request GPMC CS %d\n", cs);
+		return ret;
+	}
+
+	if (of_platform_device_create(child, NULL, &pdev->dev))
+		return 0;
+
+	dev_err(&pdev->dev, "failed to create gpmc child %s\n", child->name);
+
+	return -ENODEV;
 }
 
 static int gpmc_probe_dt(struct platform_device *pdev)
@@ -1564,6 +1620,8 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 		else if (of_node_cmp(child->name, "ethernet") == 0 ||
 			 of_node_cmp(child->name, "nor") == 0)
 			ret = gpmc_probe_generic_child(pdev, child);
+		else if (of_node_cmp(child->name, "8250") == 0)
+			ret = gpmc_probe_8250(pdev, child);
 
 		if (WARN(ret < 0, "%s: probing gpmc child %s failed\n",
 			 __func__, child->full_name))

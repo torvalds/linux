@@ -234,22 +234,13 @@ static int max8649_regulator_probe(struct i2c_client *client,
 	config.driver_data = info;
 	config.regmap = info->regmap;
 
-	info->regulator = regulator_register(&dcdc_desc, &config);
+	info->regulator = devm_regulator_register(&client->dev, &dcdc_desc,
+						  &config);
 	if (IS_ERR(info->regulator)) {
 		dev_err(info->dev, "failed to register regulator %s\n",
 			dcdc_desc.name);
 		return PTR_ERR(info->regulator);
 	}
-
-	return 0;
-}
-
-static int max8649_regulator_remove(struct i2c_client *client)
-{
-	struct max8649_regulator_info *info = i2c_get_clientdata(client);
-
-	if (info)
-		regulator_unregister(info->regulator);
 
 	return 0;
 }
@@ -262,7 +253,6 @@ MODULE_DEVICE_TABLE(i2c, max8649_id);
 
 static struct i2c_driver max8649_driver = {
 	.probe		= max8649_regulator_probe,
-	.remove		= max8649_regulator_remove,
 	.driver		= {
 		.name	= "max8649",
 	},

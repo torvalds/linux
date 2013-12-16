@@ -832,7 +832,7 @@ ip22zilog_convert_to_zs(struct uart_ip22zilog_port *up, unsigned int cflag,
 		up->curregs[5] |= Tx8;
 		up->parity_mask = 0xff;
 		break;
-	};
+	}
 	up->curregs[4] &= ~0x0c;
 	if (cflag & CSTOPB)
 		up->curregs[4] |= SB2;

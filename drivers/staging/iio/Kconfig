@@ -37,7 +37,7 @@ config IIO_SIMPLE_DUMMY_EVENTS
 
 config IIO_SIMPLE_DUMMY_BUFFER
        boolean "Buffered capture support"
-       depends on IIO_KFIFO_BUF
+       select IIO_KFIFO_BUF
        help
          Add buffered data capture to the simple dummy driver.
 

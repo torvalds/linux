@@ -36,6 +36,7 @@
 #include <linux/export.h>
 #include <linux/irqchip/arm-vic.h>
 #include <linux/reboot.h>
+#include <linux/usb/ohci_pdriver.h>
 
 #include <mach/hardware.h>
 #include <linux/platform_data/video-ep93xx.h>
@@ -297,24 +298,52 @@ static struct platform_device ep93xx_rtc_device = {
 	.resource	= ep93xx_rtc_resource,
 };
 
+/*************************************************************************
+ * EP93xx OHCI USB Host
+ *************************************************************************/
+
+static struct clk *ep93xx_ohci_host_clock;
+
+static int ep93xx_ohci_power_on(struct platform_device *pdev)
+{
+	if (!ep93xx_ohci_host_clock) {
+		ep93xx_ohci_host_clock = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(ep93xx_ohci_host_clock))
+			return PTR_ERR(ep93xx_ohci_host_clock);
+	}
+
+	return clk_enable(ep93xx_ohci_host_clock);
+}
+
+static void ep93xx_ohci_power_off(struct platform_device *pdev)
+{
+	clk_disable(ep93xx_ohci_host_clock);
+}
+
+static struct usb_ohci_pdata ep93xx_ohci_pdata = {
+	.power_on	= ep93xx_ohci_power_on,
+	.power_off	= ep93xx_ohci_power_off,
+	.power_suspend	= ep93xx_ohci_power_off,
+};
 
 static struct resource ep93xx_ohci_resources[] = {
 	DEFINE_RES_MEM(EP93XX_USB_PHYS_BASE, 0x1000),
 	DEFINE_RES_IRQ(IRQ_EP93XX_USB),
 };
 
+static u64 ep93xx_ohci_dma_mask = DMA_BIT_MASK(32);
 
 static struct platform_device ep93xx_ohci_device = {
-	.name		= "ep93xx-ohci",
+	.name		= "ohci-platform",
 	.id		= -1,
-	.dev		= {
-		.dma_mask		= &ep93xx_ohci_device.dev.coherent_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
 	.num_resources	= ARRAY_SIZE(ep93xx_ohci_resources),
 	.resource	= ep93xx_ohci_resources,
+	.dev		= {
+		.dma_mask		= &ep93xx_ohci_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &ep93xx_ohci_pdata,
+	},
 };
-
 
 /*************************************************************************
  * EP93xx physmap'ed flash

@@ -26,6 +26,7 @@
 #include <linux/atomic.h>
 #include <linux/ratelimit.h>
 #include <linux/uidgid.h>
+#include <linux/gfp.h>
 #include <asm/device.h>
 
 struct device;
@@ -63,9 +64,7 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
  * @name:	The name of the bus.
  * @dev_name:	Used for subsystems to enumerate devices like ("foo%u", dev->id).
  * @dev_root:	Default device to use as the parent.
- * @bus_attrs:	Default attributes of the bus.
  * @dev_attrs:	Default attributes of the devices on the bus.
- * @drv_attrs:	Default attributes of the device drivers on the bus.
  * @bus_groups:	Default attributes of the bus.
  * @dev_groups:	Default attributes of the devices on the bus.
  * @drv_groups: Default attributes of the device drivers on the bus.
@@ -106,9 +105,7 @@ struct bus_type {
 	const char		*name;
 	const char		*dev_name;
 	struct device		*dev_root;
-	struct bus_attribute	*bus_attrs;	/* use bus_groups instead */
 	struct device_attribute	*dev_attrs;	/* use dev_groups instead */
-	struct driver_attribute	*drv_attrs;	/* use drv_groups instead */
 	const struct attribute_group **bus_groups;
 	const struct attribute_group **dev_groups;
 	const struct attribute_group **drv_groups;
@@ -329,8 +326,6 @@ int subsys_virtual_register(struct bus_type *subsys,
  * @owner:	The module owner.
  * @class_attrs: Default attributes of this class.
  * @dev_groups:	Default attributes of the devices that belong to the class.
- * @dev_attrs:	Default attributes of the devices belong to the class.
- * @dev_bin_attrs: Default binary attributes of the devices belong to the class.
  * @dev_kobj:	The kobject that represents this class and links it into the hierarchy.
  * @dev_uevent:	Called when a device is added, removed from this class, or a
  *		few other things that generate uevents to add the environment
@@ -358,9 +353,7 @@ struct class {
 	struct module		*owner;
 
 	struct class_attribute		*class_attrs;
-	struct device_attribute		*dev_attrs;	/* use dev_groups instead */
 	const struct attribute_group	**dev_groups;
-	struct bin_attribute		*dev_bin_attrs;
 	struct kobject			*dev_kobj;
 
 	int (*dev_uevent)(struct device *dev, struct kobj_uevent_env *env);
@@ -427,8 +420,6 @@ struct class_attribute {
 			char *buf);
 	ssize_t (*store)(struct class *class, struct class_attribute *attr,
 			const char *buf, size_t count);
-	const void *(*namespace)(struct class *class,
-				 const struct class_attribute *attr);
 };
 
 #define CLASS_ATTR(_name, _mode, _show, _store) \
@@ -438,10 +429,24 @@ struct class_attribute {
 #define CLASS_ATTR_RO(_name) \
 	struct class_attribute class_attr_##_name = __ATTR_RO(_name)
 
-extern int __must_check class_create_file(struct class *class,
-					  const struct class_attribute *attr);
-extern void class_remove_file(struct class *class,
-			      const struct class_attribute *attr);
+extern int __must_check class_create_file_ns(struct class *class,
+					     const struct class_attribute *attr,
+					     const void *ns);
+extern void class_remove_file_ns(struct class *class,
+				 const struct class_attribute *attr,
+				 const void *ns);
+
+static inline int __must_check class_create_file(struct class *class,
+					const struct class_attribute *attr)
+{
+	return class_create_file_ns(class, attr, NULL);
+}
+
+static inline void class_remove_file(struct class *class,
+				     const struct class_attribute *attr)
+{
+	return class_remove_file_ns(class, attr, NULL);
+}
 
 /* Simple class attribute that is just a static string */
 struct class_attribute_string {
@@ -602,8 +607,24 @@ extern void devres_close_group(struct device *dev, void *id);
 extern void devres_remove_group(struct device *dev, void *id);
 extern int devres_release_group(struct device *dev, void *id);
 
-/* managed kzalloc/kfree for device drivers, no kmalloc, always use kzalloc */
-extern void *devm_kzalloc(struct device *dev, size_t size, gfp_t gfp);
+/* managed devm_k.alloc/kfree for device drivers */
+extern void *devm_kmalloc(struct device *dev, size_t size, gfp_t gfp);
+static inline void *devm_kzalloc(struct device *dev, size_t size, gfp_t gfp)
+{
+	return devm_kmalloc(dev, size, gfp | __GFP_ZERO);
+}
+static inline void *devm_kmalloc_array(struct device *dev,
+				       size_t n, size_t size, gfp_t flags)
+{
+	if (size != 0 && n > SIZE_MAX / size)
+		return NULL;
+	return devm_kmalloc(dev, n * size, flags);
+}
+static inline void *devm_kcalloc(struct device *dev,
+				 size_t n, size_t size, gfp_t flags)
+{
+	return devm_kmalloc_array(dev, n, size, flags | __GFP_ZERO);
+}
 extern void devm_kfree(struct device *dev, void *p);
 
 void __iomem *devm_ioremap_resource(struct device *dev, struct resource *res);
@@ -1149,16 +1170,15 @@ do {									\
 #endif
 
 /*
- * dev_WARN*() acts like dev_printk(), but with the key difference
- * of using a WARN/WARN_ON to get the message out, including the
- * file/line information and a backtrace.
+ * dev_WARN*() acts like dev_printk(), but with the key difference of
+ * using WARN/WARN_ONCE to include file/line information and a backtrace.
  */
 #define dev_WARN(dev, format, arg...) \
-	WARN(1, "Device: %s\n" format, dev_driver_string(dev), ## arg);
+	WARN(1, "%s %s: " format, dev_driver_string(dev), dev_name(dev), ## arg);
 
 #define dev_WARN_ONCE(dev, condition, format, arg...) \
-	WARN_ONCE(condition, "Device %s\n" format, \
-			dev_driver_string(dev), ## arg)
+	WARN_ONCE(condition, "%s %s: " format, \
+			dev_driver_string(dev), dev_name(dev), ## arg)
 
 /* Create alias, so I can be autoloaded. */
 #define MODULE_ALIAS_CHARDEV(major,minor) \

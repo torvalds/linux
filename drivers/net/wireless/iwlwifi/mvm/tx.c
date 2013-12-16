@@ -276,6 +276,7 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 		return NULL;
 
 	memset(dev_cmd, 0, sizeof(*dev_cmd));
+	dev_cmd->hdr.cmd = TX_CMD;
 	tx_cmd = (struct iwl_tx_cmd *)dev_cmd->payload;
 
 	if (info->control.hw_key)
@@ -361,7 +362,7 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	u8 txq_id = info->hw_queue;
 	bool is_data_qos = false, is_ampdu = false;
 
-	mvmsta = (void *)sta->drv_priv;
+	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	fc = hdr->frame_control;
 
 	if (WARN_ON_ONCE(!mvmsta))
@@ -432,7 +433,7 @@ drop:
 static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
 				      struct ieee80211_sta *sta, u8 tid)
 {
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
 	struct ieee80211_vif *vif = mvmsta->vif;
 
@@ -662,7 +663,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
 
 	if (!IS_ERR_OR_NULL(sta)) {
-		mvmsta = (void *)sta->drv_priv;
+		mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 		if (tid != IWL_TID_NON_QOS) {
 			struct iwl_mvm_tid_data *tid_data =
@@ -793,7 +794,7 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 	sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
 
 	if (!WARN_ON_ONCE(IS_ERR_OR_NULL(sta))) {
-		struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 		mvmsta->tid_data[tid].rate_n_flags =
 			le32_to_cpu(tx_resp->initial_rate);
 	}
@@ -849,7 +850,7 @@ int iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		return 0;
 	}
 
-	mvmsta = (void *)sta->drv_priv;
+	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	tid_data = &mvmsta->tid_data[tid];
 
 	if (WARN_ONCE(tid_data->txq_id != scd_flow, "Q %d, tid %d, flow %d",

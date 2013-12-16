@@ -77,7 +77,7 @@ nv04_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv04_clock_priv *priv;
 	int ret;
 
-	ret = nouveau_clock_create(parent, engine, oclass, &priv);
+	ret = nouveau_clock_create(parent, engine, oclass, NULL, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;

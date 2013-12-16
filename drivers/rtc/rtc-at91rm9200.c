@@ -376,7 +376,8 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	at91_rtc_regs = ioremap(regs->start, resource_size(regs));
+	at91_rtc_regs = devm_ioremap(&pdev->dev, regs->start,
+				     resource_size(regs));
 	if (!at91_rtc_regs) {
 		dev_err(&pdev->dev, "failed to map registers, aborting.\n");
 		return -ENOMEM;
@@ -390,12 +391,12 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 					AT91_RTC_SECEV | AT91_RTC_TIMEV |
 					AT91_RTC_CALEV);
 
-	ret = request_irq(irq, at91_rtc_interrupt,
+	ret = devm_request_irq(&pdev->dev, irq, at91_rtc_interrupt,
 				IRQF_SHARED,
 				"at91_rtc", pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "IRQ %d already in use.\n", irq);
-		goto err_unmap;
+		return ret;
 	}
 
 	/* cpu init code should really have flagged this device as
@@ -404,23 +405,14 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 	if (!device_can_wakeup(&pdev->dev))
 		device_init_wakeup(&pdev->dev, 1);
 
-	rtc = rtc_device_register(pdev->name, &pdev->dev,
+	rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 				&at91_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		ret = PTR_ERR(rtc);
-		goto err_free_irq;
-	}
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
 	platform_set_drvdata(pdev, rtc);
 
 	dev_info(&pdev->dev, "AT91 Real Time Clock driver.\n");
 	return 0;
-
-err_free_irq:
-	free_irq(irq, pdev);
-err_unmap:
-	iounmap(at91_rtc_regs);
-
-	return ret;
 }
 
 /*
@@ -428,16 +420,10 @@ err_unmap:
  */
 static int __exit at91_rtc_remove(struct platform_device *pdev)
 {
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-
 	/* Disable all interrupts */
 	at91_rtc_write_idr(AT91_RTC_ACKUPD | AT91_RTC_ALARM |
 					AT91_RTC_SECEV | AT91_RTC_TIMEV |
 					AT91_RTC_CALEV);
-	free_irq(irq, pdev);
-
-	rtc_device_unregister(rtc);
-	iounmap(at91_rtc_regs);
 
 	return 0;
 }

@@ -70,6 +70,9 @@
 
 #define IWL_PLCP_QUIET_THRESH 1
 #define IWL_ACTIVE_QUIET_TIME 10
+#define LONG_OUT_TIME_PERIOD 600
+#define SHORT_OUT_TIME_PERIOD 200
+#define SUSPEND_TIME_PERIOD 100
 
 static inline __le16 iwl_mvm_scan_rx_chain(struct iwl_mvm *mvm)
 {
@@ -87,20 +90,22 @@ static inline __le16 iwl_mvm_scan_rx_chain(struct iwl_mvm *mvm)
 	return cpu_to_le16(rx_chain);
 }
 
-static inline __le32 iwl_mvm_scan_max_out_time(struct ieee80211_vif *vif)
+static inline __le32 iwl_mvm_scan_max_out_time(struct ieee80211_vif *vif,
+					       u32 flags, bool is_assoc)
 {
-	if (vif->bss_conf.assoc)
-		return cpu_to_le32(200 * 1024);
-	else
+	if (!is_assoc)
 		return 0;
+	if (flags & NL80211_SCAN_FLAG_LOW_PRIORITY)
+		return cpu_to_le32(ieee80211_tu_to_usec(SHORT_OUT_TIME_PERIOD));
+	return cpu_to_le32(ieee80211_tu_to_usec(LONG_OUT_TIME_PERIOD));
 }
 
-static inline __le32 iwl_mvm_scan_suspend_time(struct ieee80211_vif *vif)
+static inline __le32 iwl_mvm_scan_suspend_time(struct ieee80211_vif *vif,
+					       bool is_assoc)
 {
-	if (!vif->bss_conf.assoc)
+	if (!is_assoc)
 		return 0;
-
-	return cpu_to_le32(ieee80211_tu_to_usec(vif->bss_conf.beacon_int));
+	return cpu_to_le32(ieee80211_tu_to_usec(SUSPEND_TIME_PERIOD));
 }
 
 static inline __le32
@@ -262,6 +267,15 @@ static u16 iwl_mvm_fill_probe_req(struct ieee80211_mgmt *frame, const u8 *ta,
 	return (u16)len;
 }
 
+static void iwl_mvm_vif_assoc_iterator(void *data, u8 *mac,
+				       struct ieee80211_vif *vif)
+{
+	bool *is_assoc = data;
+
+	if (vif->bss_conf.assoc)
+		*is_assoc = true;
+}
+
 int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 			 struct ieee80211_vif *vif,
 			 struct cfg80211_scan_request *req)
@@ -274,6 +288,7 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
 	};
 	struct iwl_scan_cmd *cmd = mvm->scan_cmd;
+	bool is_assoc = false;
 	int ret;
 	u32 status;
 	int ssid_len = 0;
@@ -289,13 +304,17 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 	memset(cmd, 0, sizeof(struct iwl_scan_cmd) +
 	       mvm->fw->ucode_capa.max_probe_length +
 	       (MAX_NUM_SCAN_CHANNELS * sizeof(struct iwl_scan_channel)));
-
+	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+					    IEEE80211_IFACE_ITER_NORMAL,
+					    iwl_mvm_vif_assoc_iterator,
+					    &is_assoc);
 	cmd->channel_count = (u8)req->n_channels;
 	cmd->quiet_time = cpu_to_le16(IWL_ACTIVE_QUIET_TIME);
 	cmd->quiet_plcp_th = cpu_to_le16(IWL_PLCP_QUIET_THRESH);
 	cmd->rxchain_sel_flags = iwl_mvm_scan_rx_chain(mvm);
-	cmd->max_out_time = iwl_mvm_scan_max_out_time(vif);
-	cmd->suspend_time = iwl_mvm_scan_suspend_time(vif);
+	cmd->max_out_time = iwl_mvm_scan_max_out_time(vif, req->flags,
+						      is_assoc);
+	cmd->suspend_time = iwl_mvm_scan_suspend_time(vif, is_assoc);
 	cmd->rxon_flags = iwl_mvm_scan_rxon_flags(req);
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
 					MAC_FILTER_IN_BEACON);
@@ -522,6 +541,12 @@ static void iwl_build_scan_cmd(struct iwl_mvm *mvm,
 			       struct cfg80211_sched_scan_request *req,
 			       struct iwl_scan_offload_cmd *scan)
 {
+	bool is_assoc = false;
+
+	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+					    IEEE80211_IFACE_ITER_NORMAL,
+					    iwl_mvm_vif_assoc_iterator,
+					    &is_assoc);
 	scan->channel_count =
 		mvm->nvm_data->bands[IEEE80211_BAND_2GHZ].n_channels +
 		mvm->nvm_data->bands[IEEE80211_BAND_5GHZ].n_channels;
@@ -529,8 +554,9 @@ static void iwl_build_scan_cmd(struct iwl_mvm *mvm,
 	scan->quiet_plcp_th = cpu_to_le16(IWL_PLCP_QUIET_THRESH);
 	scan->good_CRC_th = IWL_GOOD_CRC_TH_DEFAULT;
 	scan->rx_chain = iwl_mvm_scan_rx_chain(mvm);
-	scan->max_out_time = cpu_to_le32(200 * 1024);
-	scan->suspend_time = iwl_mvm_scan_suspend_time(vif);
+	scan->max_out_time = iwl_mvm_scan_max_out_time(vif, req->flags,
+						       is_assoc);
+	scan->suspend_time = iwl_mvm_scan_suspend_time(vif, is_assoc);
 	scan->filter_flags |= cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
 					  MAC_FILTER_IN_BEACON);
 	scan->scan_type = cpu_to_le32(SCAN_TYPE_BACKGROUND);
@@ -817,11 +843,10 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 		IWL_DEBUG_SCAN(mvm,
 			       "Sending scheduled scan with filtering, filter len %d\n",
 			       req->n_match_sets);
-		scan_req.flags |=
-				cpu_to_le16(IWL_SCAN_OFFLOAD_FLAG_FILTER_SSID);
 	} else {
 		IWL_DEBUG_SCAN(mvm,
 			       "Sending Scheduled scan without filtering\n");
+		scan_req.flags |= cpu_to_le16(IWL_SCAN_OFFLOAD_FLAG_PASS_ALL);
 	}
 
 	return iwl_mvm_send_cmd_pdu(mvm, SCAN_OFFLOAD_REQUEST_CMD, CMD_SYNC,

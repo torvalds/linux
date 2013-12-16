@@ -30,15 +30,6 @@
 #include <linux/spinlock.h>
 #include <linux/percpu_ida.h>
 
-/*
- * Number of tags we move between the percpu freelist and the global freelist at
- * a time
- */
-#define IDA_PCPU_BATCH_MOVE	32U
-
-/* Max size of percpu freelist, */
-#define IDA_PCPU_SIZE		((IDA_PCPU_BATCH_MOVE * 3) / 2)
-
 struct percpu_ida_cpu {
 	/*
 	 * Even though this is percpu, we need a lock for tag stealing by remote
@@ -78,7 +69,7 @@ static inline void steal_tags(struct percpu_ida *pool,
 	struct percpu_ida_cpu *remote;
 
 	for (cpus_have_tags = cpumask_weight(&pool->cpus_have_tags);
-	     cpus_have_tags * IDA_PCPU_SIZE > pool->nr_tags / 2;
+	     cpus_have_tags * pool->percpu_max_size > pool->nr_tags / 2;
 	     cpus_have_tags--) {
 		cpu = cpumask_next(cpu, &pool->cpus_have_tags);
 
@@ -123,7 +114,7 @@ static inline void alloc_global_tags(struct percpu_ida *pool,
 {
 	move_tags(tags->freelist, &tags->nr_free,
 		  pool->freelist, &pool->nr_free,
-		  min(pool->nr_free, IDA_PCPU_BATCH_MOVE));
+		  min(pool->nr_free, pool->percpu_batch_size));
 }
 
 static inline unsigned alloc_local_tag(struct percpu_ida *pool,
@@ -245,17 +236,17 @@ void percpu_ida_free(struct percpu_ida *pool, unsigned tag)
 		wake_up(&pool->wait);
 	}
 
-	if (nr_free == IDA_PCPU_SIZE) {
+	if (nr_free == pool->percpu_max_size) {
 		spin_lock(&pool->lock);
 
 		/*
 		 * Global lock held and irqs disabled, don't need percpu
 		 * lock
 		 */
-		if (tags->nr_free == IDA_PCPU_SIZE) {
+		if (tags->nr_free == pool->percpu_max_size) {
 			move_tags(pool->freelist, &pool->nr_free,
 				  tags->freelist, &tags->nr_free,
-				  IDA_PCPU_BATCH_MOVE);
+				  pool->percpu_batch_size);
 
 			wake_up(&pool->wait);
 		}
@@ -292,7 +283,8 @@ EXPORT_SYMBOL_GPL(percpu_ida_destroy);
  * Allocation is percpu, but sharding is limited by nr_tags - for best
  * performance, the workload should not span more cpus than nr_tags / 128.
  */
-int percpu_ida_init(struct percpu_ida *pool, unsigned long nr_tags)
+int __percpu_ida_init(struct percpu_ida *pool, unsigned long nr_tags,
+	unsigned long max_size, unsigned long batch_size)
 {
 	unsigned i, cpu, order;
 
@@ -301,6 +293,8 @@ int percpu_ida_init(struct percpu_ida *pool, unsigned long nr_tags)
 	init_waitqueue_head(&pool->wait);
 	spin_lock_init(&pool->lock);
 	pool->nr_tags = nr_tags;
+	pool->percpu_max_size = max_size;
+	pool->percpu_batch_size = batch_size;
 
 	/* Guard against overflow */
 	if (nr_tags > (unsigned) INT_MAX + 1) {
@@ -319,7 +313,7 @@ int percpu_ida_init(struct percpu_ida *pool, unsigned long nr_tags)
 	pool->nr_free = nr_tags;
 
 	pool->tag_cpu = __alloc_percpu(sizeof(struct percpu_ida_cpu) +
-				       IDA_PCPU_SIZE * sizeof(unsigned),
+				       pool->percpu_max_size * sizeof(unsigned),
 				       sizeof(unsigned));
 	if (!pool->tag_cpu)
 		goto err;
@@ -332,4 +326,65 @@ err:
 	percpu_ida_destroy(pool);
 	return -ENOMEM;
 }
-EXPORT_SYMBOL_GPL(percpu_ida_init);
+EXPORT_SYMBOL_GPL(__percpu_ida_init);
+
+/**
+ * percpu_ida_for_each_free - iterate free ids of a pool
+ * @pool: pool to iterate
+ * @fn: interate callback function
+ * @data: parameter for @fn
+ *
+ * Note, this doesn't guarantee to iterate all free ids restrictly. Some free
+ * ids might be missed, some might be iterated duplicated, and some might
+ * be iterated and not free soon.
+ */
+int percpu_ida_for_each_free(struct percpu_ida *pool, percpu_ida_cb fn,
+	void *data)
+{
+	unsigned long flags;
+	struct percpu_ida_cpu *remote;
+	unsigned cpu, i, err = 0;
+
+	local_irq_save(flags);
+	for_each_possible_cpu(cpu) {
+		remote = per_cpu_ptr(pool->tag_cpu, cpu);
+		spin_lock(&remote->lock);
+		for (i = 0; i < remote->nr_free; i++) {
+			err = fn(remote->freelist[i], data);
+			if (err)
+				break;
+		}
+		spin_unlock(&remote->lock);
+		if (err)
+			goto out;
+	}
+
+	spin_lock(&pool->lock);
+	for (i = 0; i < pool->nr_free; i++) {
+		err = fn(pool->freelist[i], data);
+		if (err)
+			break;
+	}
+	spin_unlock(&pool->lock);
+out:
+	local_irq_restore(flags);
+	return err;
+}
+EXPORT_SYMBOL_GPL(percpu_ida_for_each_free);
+
+/**
+ * percpu_ida_free_tags - return free tags number of a specific cpu or global pool
+ * @pool: pool related
+ * @cpu: specific cpu or global pool if @cpu == nr_cpu_ids
+ *
+ * Note: this just returns a snapshot of free tags number.
+ */
+unsigned percpu_ida_free_tags(struct percpu_ida *pool, int cpu)
+{
+	struct percpu_ida_cpu *remote;
+	if (cpu == nr_cpu_ids)
+		return pool->nr_free;
+	remote = per_cpu_ptr(pool->tag_cpu, cpu);
+	return remote->nr_free;
+}
+EXPORT_SYMBOL_GPL(percpu_ida_free_tags);

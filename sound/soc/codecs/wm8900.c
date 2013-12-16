@@ -279,7 +279,8 @@ static int wm8900_hp_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
+		break;
 	}
 
 	return 0;
@@ -691,7 +692,8 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	unsigned int K, Ndiv, Nmod, target;
 	unsigned int div;
 
-	BUG_ON(!Fout);
+	if (WARN_ON(!Fout))
+		return -EINVAL;
 
 	/* The FLL must run at 90-100MHz which is then scaled down to
 	 * the output value by FLLCLK_DIV. */
@@ -742,8 +744,9 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	/* Move down to proper range now rounding is done */
 	fll_div->k = K / 10;
 
-	BUG_ON(target != Fout * (fll_div->fllclk_div << 2));
-	BUG_ON(!K && target != Fref * fll_div->fll_ratio * fll_div->n);
+	if (WARN_ON(target != Fout * (fll_div->fllclk_div << 2)) ||
+	    WARN_ON(!K && target != Fref * fll_div->fll_ratio * fll_div->n))
+		return -EINVAL;
 
 	return 0;
 }

@@ -75,6 +75,7 @@ config USB_MUSB_TUSB6010
 config USB_MUSB_OMAP2PLUS
 	tristate "OMAP2430 and onwards"
 	depends on ARCH_OMAP2PLUS
+	select GENERIC_PHY
 
 config USB_MUSB_AM35X
 	tristate "AM35x"
@@ -90,7 +91,7 @@ config USB_MUSB_BLACKFIN
 	depends on (BF54x && !BF544) || (BF52x && ! BF522 && !BF523)
 
 config USB_MUSB_UX500
-	tristate "U8500 and U5500"
+	tristate "Ux500 platforms"
 
 endchoice
 
@@ -112,7 +113,7 @@ choice
 	  allow using DMA on multiplatform kernels.
 
 config USB_UX500_DMA
-	bool 'ST Ericsson U8500 and U5500'
+	bool 'ST Ericsson Ux500'
 	depends on USB_MUSB_UX500
 	help
 	  Enable DMA transfers on UX500 platforms.

@@ -183,10 +183,11 @@ static const struct iio_info magn_3d_info = {
 };
 
 /* Function to push data to buffer */
-static void hid_sensor_push_data(struct iio_dev *indio_dev, u8 *data, int len)
+static void hid_sensor_push_data(struct iio_dev *indio_dev, const void *data,
+	int len)
 {
 	dev_dbg(&indio_dev->dev, "hid_sensor_push_data\n");
-	iio_push_to_buffers(indio_dev, (u8 *)data);
+	iio_push_to_buffers(indio_dev, data);
 }
 
 /* Callback handler to send event after all samples are received and captured */
@@ -201,7 +202,7 @@ static int magn_3d_proc_event(struct hid_sensor_hub_device *hsdev,
 				magn_state->common_attributes.data_ready);
 	if (magn_state->common_attributes.data_ready)
 		hid_sensor_push_data(indio_dev,
-				(u8 *)magn_state->magn_val,
+				magn_state->magn_val,
 				sizeof(magn_state->magn_val));
 
 	return 0;

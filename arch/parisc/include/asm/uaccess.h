@@ -4,10 +4,13 @@
 /*
  * User space memory access functions
  */
+#include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/cache.h>
 #include <asm/errno.h>
 #include <asm-generic/uaccess-unaligned.h>
+
+#include <linux/sched.h>
 
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1
@@ -33,11 +36,42 @@ extern int __get_user_bad(void);
 extern int __put_kernel_bad(void);
 extern int __put_user_bad(void);
 
-static inline long access_ok(int type, const void __user * addr,
-		unsigned long size)
+
+/*
+ * Test whether a block of memory is a valid user space address.
+ * Returns 0 if the range is valid, nonzero otherwise.
+ */
+static inline int __range_not_ok(unsigned long addr, unsigned long size,
+				 unsigned long limit)
 {
-	return 1;
+	unsigned long __newaddr = addr + size;
+	return (__newaddr < addr || __newaddr > limit || size > limit);
 }
+
+/**
+ * access_ok: - Checks if a user space pointer is valid
+ * @type: Type of access: %VERIFY_READ or %VERIFY_WRITE.  Note that
+ *        %VERIFY_WRITE is a superset of %VERIFY_READ - if it is safe
+ *        to write to a block, it is always safe to read from it.
+ * @addr: User space pointer to start of block to check
+ * @size: Size of block to check
+ *
+ * Context: User context only.  This function may sleep.
+ *
+ * Checks if a pointer to a block of memory in user space is valid.
+ *
+ * Returns true (nonzero) if the memory block may be valid, false (zero)
+ * if it is definitely invalid.
+ *
+ * Note that, depending on architecture, this function probably just
+ * checks that the pointer is in the user space range - after calling
+ * this function, memory access functions may still return -EFAULT.
+ */
+#define access_ok(type, addr, size)					\
+(	__chk_user_ptr(addr),						\
+	!__range_not_ok((unsigned long) (__force void *) (addr),	\
+			size, user_addr_max())				\
+)
 
 #define put_user __put_user
 #define get_user __get_user
@@ -59,12 +93,13 @@ static inline long access_ok(int type, const void __user * addr,
 /*
  * The exception table contains two values: the first is an address
  * for an instruction that is allowed to fault, and the second is
- * the address to the fixup routine. 
+ * the address to the fixup routine. Even on a 64bit kernel we could
+ * use a 32bit (unsigned int) address here.
  */
 
 struct exception_table_entry {
-	unsigned long insn;  /* address of insn that is allowed to fault.   */
-	long fixup;          /* fixup routine */
+	unsigned long insn;	/* address of insn that is allowed to fault. */
+	unsigned long fixup;	/* fixup routine */
 };
 
 #define ASM_EXCEPTIONTABLE_ENTRY( fault_addr, except_addr )\
@@ -218,7 +253,11 @@ extern long lstrnlen_user(const char __user *,long);
 /*
  * Complex access routines -- macros
  */
-#define user_addr_max() (~0UL)
+#ifdef CONFIG_COMPAT
+#define user_addr_max() (TASK_SIZE)
+#else
+#define user_addr_max() (DEFAULT_TASK_SIZE)
+#endif
 
 #define strnlen_user lstrnlen_user
 #define strlen_user(str) lstrnlen_user(str, 0x7fffffffL)

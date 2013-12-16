@@ -591,6 +591,13 @@ struct nfs_renameres {
 	struct nfs_fattr		*new_fattr;
 };
 
+/* parsed sec= options */
+#define NFS_AUTH_INFO_MAX_FLAVORS 12 /* see fs/nfs/super.c */
+struct nfs_auth_info {
+	unsigned int            flavor_len;
+	rpc_authflavor_t        flavors[NFS_AUTH_INFO_MAX_FLAVORS];
+};
+
 /*
  * Argument struct for decode_entry function
  */
@@ -1053,14 +1060,18 @@ struct nfs4_fs_locations {
 struct nfs4_fs_locations_arg {
 	struct nfs4_sequence_args	seq_args;
 	const struct nfs_fh *dir_fh;
+	const struct nfs_fh *fh;
 	const struct qstr *name;
 	struct page *page;
 	const u32 *bitmask;
+	clientid4 clientid;
+	unsigned char migration:1, renew:1;
 };
 
 struct nfs4_fs_locations_res {
 	struct nfs4_sequence_res	seq_res;
 	struct nfs4_fs_locations       *fs_locations;
+	unsigned char			migration:1, renew:1;
 };
 
 struct nfs4_secinfo4 {
@@ -1082,6 +1093,19 @@ struct nfs4_secinfo_arg {
 struct nfs4_secinfo_res {
 	struct nfs4_sequence_res	seq_res;
 	struct nfs4_secinfo_flavors	*flavors;
+};
+
+struct nfs4_fsid_present_arg {
+	struct nfs4_sequence_args	seq_args;
+	const struct nfs_fh		*fh;
+	clientid4			clientid;
+	unsigned char			renew:1;
+};
+
+struct nfs4_fsid_present_res {
+	struct nfs4_sequence_res	seq_res;
+	struct nfs_fh			*fh;
+	unsigned char			renew:1;
 };
 
 #endif /* CONFIG_NFS_V4 */
@@ -1455,7 +1479,8 @@ struct nfs_rpc_ops {
 	struct inode * (*open_context) (struct inode *dir,
 				struct nfs_open_context *ctx,
 				int open_flags,
-				struct iattr *iattr);
+				struct iattr *iattr,
+				int *);
 	int (*have_delegation)(struct inode *, fmode_t);
 	int (*return_delegation)(struct inode *);
 	struct nfs_client *(*alloc_client) (const struct nfs_client_initdata *);

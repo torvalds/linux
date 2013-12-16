@@ -600,9 +600,6 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 
 	/* lock down the parent dentry so we can peer at it */
 	parent = dget_parent(dentry);
-	if (!parent->d_inode)
-		goto out_bad;
-
 	dir = AFS_FS_I(parent->d_inode);
 
 	/* validate the parent directory */

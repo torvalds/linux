@@ -140,7 +140,6 @@ int main(void)
 	struct cn_msg	*incoming_cn_msg;
 	int	op;
 	struct hv_vss_msg *vss_msg;
-	char *vss_send_buffer;
 	char *vss_recv_buffer;
 	size_t vss_recv_buffer_len;
 
@@ -150,10 +149,9 @@ int main(void)
 	openlog("Hyper-V VSS", 0, LOG_USER);
 	syslog(LOG_INFO, "VSS starting; pid is:%d", getpid());
 
-	vss_recv_buffer_len = NLMSG_HDRLEN + sizeof(struct cn_msg) + sizeof(struct hv_vss_msg);
-	vss_send_buffer = calloc(1, vss_recv_buffer_len);
+	vss_recv_buffer_len = NLMSG_LENGTH(0) + sizeof(struct cn_msg) + sizeof(struct hv_vss_msg);
 	vss_recv_buffer = calloc(1, vss_recv_buffer_len);
-	if (!(vss_send_buffer && vss_recv_buffer)) {
+	if (!vss_recv_buffer) {
 		syslog(LOG_ERR, "Failed to allocate netlink buffers");
 		exit(EXIT_FAILURE);
 	}
@@ -185,7 +183,7 @@ int main(void)
 	/*
 	 * Register ourselves with the kernel.
 	 */
-	message = (struct cn_msg *)vss_send_buffer;
+	message = (struct cn_msg *)vss_recv_buffer;
 	message->id.idx = CN_VSS_IDX;
 	message->id.val = CN_VSS_VAL;
 	message->ack = 0;

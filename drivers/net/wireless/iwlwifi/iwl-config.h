@@ -129,6 +129,12 @@ enum iwl_led_mode {
 #define ANT_BC		(ANT_B | ANT_C)
 #define ANT_ABC		(ANT_A | ANT_B | ANT_C)
 
+static inline u8 num_of_ant(u8 mask)
+{
+	return  !!((mask) & ANT_A) +
+		!!((mask) & ANT_B) +
+		!!((mask) & ANT_C);
+}
 
 /*
  * @max_ll_items: max number of OTP blocks
@@ -207,6 +213,8 @@ struct iwl_eeprom_params {
  * @rx_with_siso_diversity: 1x1 device with rx antenna diversity
  * @internal_wimax_coex: internal wifi/wimax combo device
  * @high_temp: Is this NIC is designated to be in high temperature.
+ * @host_interrupt_operation_mode: device needs host interrupt operation
+ *	mode set
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -235,6 +243,7 @@ struct iwl_cfg {
 	enum iwl_led_mode led_mode;
 	const bool rx_with_siso_diversity;
 	const bool internal_wimax_coex;
+	const bool host_interrupt_operation_mode;
 	bool high_temp;
 };
 
@@ -294,6 +303,8 @@ extern const struct iwl_cfg iwl3160_2ac_cfg;
 extern const struct iwl_cfg iwl3160_2n_cfg;
 extern const struct iwl_cfg iwl3160_n_cfg;
 extern const struct iwl_cfg iwl7265_2ac_cfg;
+extern const struct iwl_cfg iwl7265_2n_cfg;
+extern const struct iwl_cfg iwl7265_n_cfg;
 #endif /* CONFIG_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */

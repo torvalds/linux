@@ -59,8 +59,8 @@
  ****************************************/
 
 
-#define PTRS_PER_PAGE   (PAGE_CACHE_SIZE / sizeof(void *))
-#define PAGES_PER_POOL  (PTRS_PER_PAGE)
+#define POINTERS_PER_PAGE	(PAGE_CACHE_SIZE / sizeof(void *))
+#define PAGES_PER_POOL		(POINTERS_PER_PAGE)
 
 #define IDLE_IDX_MAX	    (100)
 #define IDLE_IDX_WEIGHT	 (3)
@@ -207,7 +207,7 @@ static void enc_pools_release_free_pages(long npages)
 			p_idx++;
 			g_idx = 0;
 		}
-	};
+	}
 
 	/* free unused pools */
 	while (p_idx_max1 < p_idx_max2) {

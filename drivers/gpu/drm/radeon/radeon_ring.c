@@ -839,9 +839,11 @@ static int radeon_debugfs_ring_info(struct seq_file *m, void *data)
 	 * packet that is the root issue
 	 */
 	i = (ring->rptr + ring->ptr_mask + 1 - 32) & ring->ptr_mask;
-	for (j = 0; j <= (count + 32); j++) {
-		seq_printf(m, "r[%5d]=0x%08x\n", i, ring->ring[i]);
-		i = (i + 1) & ring->ptr_mask;
+	if (ring->ready) {
+		for (j = 0; j <= (count + 32); j++) {
+			seq_printf(m, "r[%5d]=0x%08x\n", i, ring->ring[i]);
+			i = (i + 1) & ring->ptr_mask;
+		}
 	}
 	return 0;
 }

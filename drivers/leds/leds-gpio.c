@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
@@ -170,11 +171,11 @@ static struct gpio_leds_priv *gpio_leds_create_of(struct platform_device *pdev)
 	int count, ret;
 
 	/* count LEDs in this device, so we know how much to allocate */
-	count = of_get_child_count(np);
+	count = of_get_available_child_count(np);
 	if (!count)
 		return ERR_PTR(-ENODEV);
 
-	for_each_child_of_node(np, child)
+	for_each_available_child_of_node(np, child)
 		if (of_get_gpio(child, 0) == -EPROBE_DEFER)
 			return ERR_PTR(-EPROBE_DEFER);
 
@@ -183,7 +184,7 @@ static struct gpio_leds_priv *gpio_leds_create_of(struct platform_device *pdev)
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 
-	for_each_child_of_node(np, child) {
+	for_each_available_child_of_node(np, child) {
 		struct gpio_led led = {};
 		enum of_gpio_flags flags;
 		const char *state;

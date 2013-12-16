@@ -103,8 +103,8 @@ void ping_seq_stop(struct seq_file *seq, void *v);
 int ping_proc_register(struct net *net, struct ping_seq_afinfo *afinfo);
 void ping_proc_unregister(struct net *net, struct ping_seq_afinfo *afinfo);
 
-extern int __init ping_proc_init(void);
-extern void ping_proc_exit(void);
+int __init ping_proc_init(void);
+void ping_proc_exit(void);
 #endif
 
 void __init ping_init(void);

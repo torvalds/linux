@@ -44,52 +44,6 @@
 
 #include "musb_core.h"
 
-/*
-* Program the HDRC to start (enable interrupts, dma, etc.).
-*/
-static void musb_start(struct musb *musb)
-{
-	void __iomem	*regs = musb->mregs;
-	u8		devctl = musb_readb(regs, MUSB_DEVCTL);
-
-	dev_dbg(musb->controller, "<== devctl %02x\n", devctl);
-
-	/*  Set INT enable registers, enable interrupts */
-	musb->intrtxe = musb->epmask;
-	musb_writew(regs, MUSB_INTRTXE, musb->intrtxe);
-	musb->intrrxe = musb->epmask & 0xfffe;
-	musb_writew(regs, MUSB_INTRRXE, musb->intrrxe);
-	musb_writeb(regs, MUSB_INTRUSBE, 0xf7);
-
-	musb_writeb(regs, MUSB_TESTMODE, 0);
-
-	/* put into basic highspeed mode and start session */
-	musb_writeb(regs, MUSB_POWER, MUSB_POWER_ISOUPDATE
-						| MUSB_POWER_HSENAB
-						/* ENSUSPEND wedges tusb */
-						/* | MUSB_POWER_ENSUSPEND */
-						);
-
-	musb->is_active = 0;
-	devctl = musb_readb(regs, MUSB_DEVCTL);
-	devctl &= ~MUSB_DEVCTL_SESSION;
-
-	/* session started after:
-	 * (a) ID-grounded irq, host mode;
-	 * (b) vbus present/connect IRQ, peripheral mode;
-	 * (c) peripheral initiates, using SRP
-	 */
-	if (musb->port_mode != MUSB_PORT_MODE_HOST &&
-	    (devctl & MUSB_DEVCTL_VBUS) == MUSB_DEVCTL_VBUS) {
-		musb->is_active = 1;
-	} else {
-		devctl |= MUSB_DEVCTL_SESSION;
-	}
-
-	musb_platform_enable(musb);
-	musb_writeb(regs, MUSB_DEVCTL, devctl);
-}
-
 static void musb_port_suspend(struct musb *musb, bool do_suspend)
 {
 	struct usb_otg	*otg = musb->xceiv->otg;
@@ -266,6 +220,23 @@ int musb_hub_status_data(struct usb_hcd *hcd, char *buf)
 	return retval;
 }
 
+static int musb_has_gadget(struct musb *musb)
+{
+	/*
+	 * In host-only mode we start a connection right away. In OTG mode
+	 * we have to wait until we loaded a gadget. We don't really need a
+	 * gadget if we operate as a host but we should not start a session
+	 * as a device without a gadget or else we explode.
+	 */
+#ifdef CONFIG_USB_MUSB_HOST
+	return 1;
+#else
+	if (musb->port_mode == MUSB_PORT_MODE_HOST)
+		return 1;
+	return musb->g.dev.driver != NULL;
+#endif
+}
+
 int musb_hub_control(
 	struct usb_hcd	*hcd,
 	u16		typeReq,
@@ -408,7 +379,7 @@ int musb_hub_control(
 			 * initialization logic, e.g. for OTG, or change any
 			 * logic relating to VBUS power-up.
 			 */
-			if (!hcd->self.is_b_host)
+			if (!hcd->self.is_b_host && musb_has_gadget(musb))
 				musb_start(musb);
 			break;
 		case USB_PORT_FEAT_RESET:

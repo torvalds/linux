@@ -47,6 +47,9 @@ static void pci_acpi_wake_dev(acpi_handle handle, u32 event, void *context)
 	if (event != ACPI_NOTIFY_DEVICE_WAKE || !pci_dev)
 		return;
 
+	if (pci_dev->pme_poll)
+		pci_dev->pme_poll = false;
+
 	if (pci_dev->current_state == PCI_D3cold) {
 		pci_wakeup_event(pci_dev);
 		pm_runtime_resume(&pci_dev->dev);
@@ -56,9 +59,6 @@ static void pci_acpi_wake_dev(acpi_handle handle, u32 event, void *context)
 	/* Clear PME Status if set. */
 	if (pci_dev->pme_support)
 		pci_check_pme_status(pci_dev);
-
-	if (pci_dev->pme_poll)
-		pci_dev->pme_poll = false;
 
 	pci_wakeup_event(pci_dev);
 	pm_runtime_resume(&pci_dev->dev);
@@ -181,7 +181,6 @@ static bool acpi_pci_power_manageable(struct pci_dev *dev)
 static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 {
 	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->dev);
-	acpi_handle tmp;
 	static const u8 state_conv[] = {
 		[PCI_D0] = ACPI_STATE_D0,
 		[PCI_D1] = ACPI_STATE_D1,
@@ -192,7 +191,7 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	int error = -EINVAL;
 
 	/* If the ACPI device has _EJ0, ignore the device */
-	if (!handle || ACPI_SUCCESS(acpi_get_handle(handle, "_EJ0", &tmp)))
+	if (!handle || acpi_has_method(handle, "_EJ0"))
 		return -ENODEV;
 
 	switch (state) {

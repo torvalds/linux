@@ -1477,21 +1477,25 @@ static void arizona_enable_fll(struct arizona_fll *fll,
 {
 	struct arizona *arizona = fll->arizona;
 	int ret;
+	bool use_sync = false;
 
 	/*
 	 * If we have both REFCLK and SYNCCLK then enable both,
 	 * otherwise apply the SYNCCLK settings to REFCLK.
 	 */
-	if (fll->ref_src >= 0 && fll->ref_src != fll->sync_src) {
+	if (fll->ref_src >= 0 && fll->ref_freq &&
+	    fll->ref_src != fll->sync_src) {
 		regmap_update_bits(arizona->regmap, fll->base + 5,
 				   ARIZONA_FLL1_OUTDIV_MASK,
 				   ref->outdiv << ARIZONA_FLL1_OUTDIV_SHIFT);
 
 		arizona_apply_fll(arizona, fll->base, ref, fll->ref_src,
 				  false);
-		if (fll->sync_src >= 0)
+		if (fll->sync_src >= 0) {
 			arizona_apply_fll(arizona, fll->base + 0x10, sync,
 					  fll->sync_src, true);
+			use_sync = true;
+		}
 	} else if (fll->sync_src >= 0) {
 		regmap_update_bits(arizona->regmap, fll->base + 5,
 				   ARIZONA_FLL1_OUTDIV_MASK,
@@ -1511,7 +1515,7 @@ static void arizona_enable_fll(struct arizona_fll *fll,
 	 * Increase the bandwidth if we're not using a low frequency
 	 * sync source.
 	 */
-	if (fll->sync_src >= 0 && fll->sync_freq > 100000)
+	if (use_sync && fll->sync_freq > 100000)
 		regmap_update_bits(arizona->regmap, fll->base + 0x17,
 				   ARIZONA_FLL1_SYNC_BW, 0);
 	else
@@ -1526,8 +1530,7 @@ static void arizona_enable_fll(struct arizona_fll *fll,
 
 	regmap_update_bits(arizona->regmap, fll->base + 1,
 			   ARIZONA_FLL1_ENA, ARIZONA_FLL1_ENA);
-	if (fll->ref_src >= 0 && fll->sync_src >= 0 &&
-	    fll->ref_src != fll->sync_src)
+	if (use_sync)
 		regmap_update_bits(arizona->regmap, fll->base + 0x11,
 				   ARIZONA_FLL1_SYNC_ENA,
 				   ARIZONA_FLL1_SYNC_ENA);
@@ -1561,10 +1564,12 @@ int arizona_set_fll_refclk(struct arizona_fll *fll, int source,
 	if (fll->ref_src == source && fll->ref_freq == Fref)
 		return 0;
 
-	if (fll->fout && Fref > 0) {
-		ret = arizona_calc_fll(fll, &ref, Fref, fll->fout);
-		if (ret != 0)
-			return ret;
+	if (fll->fout) {
+		if (Fref > 0) {
+			ret = arizona_calc_fll(fll, &ref, Fref, fll->fout);
+			if (ret != 0)
+				return ret;
+		}
 
 		if (fll->sync_src >= 0) {
 			ret = arizona_calc_fll(fll, &sync, fll->sync_freq,

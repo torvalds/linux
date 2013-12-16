@@ -88,6 +88,8 @@
  * interrupt source to the GPIO pin. Tada, we hid the interrupt. :)
  */
 
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/dma-mapping.h>
 #include <linux/miscdevice.h>

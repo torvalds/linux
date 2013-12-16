@@ -173,8 +173,9 @@ void cw1200_scan_work(struct work_struct *work)
 			cw1200_set_pm(priv, &priv->powersave_mode);
 
 		if (priv->scan.status < 0)
-			wiphy_dbg(priv->hw->wiphy, "[SCAN] Scan failed (%d).\n",
-				  priv->scan.status);
+			wiphy_warn(priv->hw->wiphy,
+				   "[SCAN] Scan failed (%d).\n",
+				   priv->scan.status);
 		else if (priv->scan.req)
 			wiphy_dbg(priv->hw->wiphy,
 				  "[SCAN] Scan completed.\n");

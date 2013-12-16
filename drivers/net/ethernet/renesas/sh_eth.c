@@ -483,7 +483,7 @@ static struct sh_eth_cpu_data sh7757_data = {
 	.register_type	= SH_ETH_REG_FAST_SH4,
 
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
-	.rmcr_value	= 0x00000001,
+	.rmcr_value	= RMCR_RNC,
 
 	.tx_check	= EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | EESR_RTO,
 	.eesr_err_check	= EESR_TWB | EESR_TABT | EESR_RABT | EESR_RFE |
@@ -561,7 +561,7 @@ static struct sh_eth_cpu_data sh7757_data_giga = {
 			  EESR_RFE | EESR_RDE | EESR_RFRMER | EESR_TFE |
 			  EESR_TDE | EESR_ECI,
 	.fdr_value	= 0x0000072f,
-	.rmcr_value	= 0x00000001,
+	.rmcr_value	= RMCR_RNC,
 
 	.irq_flags	= IRQF_SHARED,
 	.apr		= 1,
@@ -688,12 +688,16 @@ static struct sh_eth_cpu_data r8a7740_data = {
 	.eesr_err_check	= EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_RABT |
 			  EESR_RFE | EESR_RDE | EESR_RFRMER | EESR_TFE |
 			  EESR_TDE | EESR_ECI,
+	.fdr_value	= 0x0000070f,
+	.rmcr_value	= RMCR_RNC,
 
 	.apr		= 1,
 	.mpr		= 1,
 	.tpauser	= 1,
 	.bculr		= 1,
 	.hw_swap	= 1,
+	.rpadir		= 1,
+	.rpadir_value   = 2 << 16,
 	.no_trimd	= 1,
 	.no_ade		= 1,
 	.tsu		= 1,
@@ -868,7 +872,7 @@ static void update_mac_address(struct net_device *ndev)
 static void read_mac_address(struct net_device *ndev, unsigned char *mac)
 {
 	if (mac[0] || mac[1] || mac[2] || mac[3] || mac[4] || mac[5]) {
-		memcpy(ndev->dev_addr, mac, 6);
+		memcpy(ndev->dev_addr, mac, ETH_ALEN);
 	} else {
 		ndev->dev_addr[0] = (sh_eth_read(ndev, MAHR) >> 24);
 		ndev->dev_addr[1] = (sh_eth_read(ndev, MAHR) >> 16) & 0xFF;
@@ -2658,6 +2662,12 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	mdp->pdev = pdev;
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_resume(&pdev->dev);
+
+	if (!pd) {
+		dev_err(&pdev->dev, "no platform data\n");
+		ret = -EINVAL;
+		goto out_release;
+	}
 
 	/* get PHY ID */
 	mdp->phy_id = pd->phy;

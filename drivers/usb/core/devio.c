@@ -742,6 +742,22 @@ static int check_ctrlrecip(struct dev_state *ps, unsigned int requesttype,
 		if ((index & ~USB_DIR_IN) == 0)
 			return 0;
 		ret = findintfep(ps->dev, index);
+		if (ret < 0) {
+			/*
+			 * Some not fully compliant Win apps seem to get
+			 * index wrong and have the endpoint number here
+			 * rather than the endpoint address (with the
+			 * correct direction). Win does let this through,
+			 * so we'll not reject it here but leave it to
+			 * the device to not break KVM. But we warn.
+			 */
+			ret = findintfep(ps->dev, index ^ 0x80);
+			if (ret >= 0)
+				dev_info(&ps->dev->dev,
+					"%s: process %i (%s) requesting ep %02x but needs %02x\n",
+					__func__, task_pid_nr(current),
+					current->comm, index, index ^ 0x80);
+		}
 		if (ret >= 0)
 			ret = checkintf(ps, ret);
 		break;
@@ -898,10 +914,8 @@ static int proc_control(struct dev_state *ps, void __user *arg)
 	snoop(&dev->dev, "control urb: bRequestType=%02x "
 		"bRequest=%02x wValue=%04x "
 		"wIndex=%04x wLength=%04x\n",
-		ctrl.bRequestType, ctrl.bRequest,
-		__le16_to_cpup(&ctrl.wValue),
-		__le16_to_cpup(&ctrl.wIndex),
-		__le16_to_cpup(&ctrl.wLength));
+		ctrl.bRequestType, ctrl.bRequest, ctrl.wValue,
+		ctrl.wIndex, ctrl.wLength);
 	if (ctrl.bRequestType & 0x80) {
 		if (ctrl.wLength && !access_ok(VERIFY_WRITE, ctrl.data,
 					       ctrl.wLength)) {
@@ -1620,32 +1634,32 @@ static int proc_reapurbnonblock(struct dev_state *ps, void __user *arg)
 static int proc_control_compat(struct dev_state *ps,
 				struct usbdevfs_ctrltransfer32 __user *p32)
 {
-        struct usbdevfs_ctrltransfer __user *p;
-        __u32 udata;
-        p = compat_alloc_user_space(sizeof(*p));
-        if (copy_in_user(p, p32, (sizeof(*p32) - sizeof(compat_caddr_t))) ||
-            get_user(udata, &p32->data) ||
+	struct usbdevfs_ctrltransfer __user *p;
+	__u32 udata;
+	p = compat_alloc_user_space(sizeof(*p));
+	if (copy_in_user(p, p32, (sizeof(*p32) - sizeof(compat_caddr_t))) ||
+	    get_user(udata, &p32->data) ||
 	    put_user(compat_ptr(udata), &p->data))
 		return -EFAULT;
-        return proc_control(ps, p);
+	return proc_control(ps, p);
 }
 
 static int proc_bulk_compat(struct dev_state *ps,
 			struct usbdevfs_bulktransfer32 __user *p32)
 {
-        struct usbdevfs_bulktransfer __user *p;
-        compat_uint_t n;
-        compat_caddr_t addr;
+	struct usbdevfs_bulktransfer __user *p;
+	compat_uint_t n;
+	compat_caddr_t addr;
 
-        p = compat_alloc_user_space(sizeof(*p));
+	p = compat_alloc_user_space(sizeof(*p));
 
-        if (get_user(n, &p32->ep) || put_user(n, &p->ep) ||
-            get_user(n, &p32->len) || put_user(n, &p->len) ||
-            get_user(n, &p32->timeout) || put_user(n, &p->timeout) ||
-            get_user(addr, &p32->data) || put_user(compat_ptr(addr), &p->data))
-                return -EFAULT;
+	if (get_user(n, &p32->ep) || put_user(n, &p->ep) ||
+	    get_user(n, &p32->len) || put_user(n, &p->len) ||
+	    get_user(n, &p32->timeout) || put_user(n, &p->timeout) ||
+	    get_user(addr, &p32->data) || put_user(compat_ptr(addr), &p->data))
+		return -EFAULT;
 
-        return proc_bulk(ps, p);
+	return proc_bulk(ps, p);
 }
 static int proc_disconnectsignal_compat(struct dev_state *ps, void __user *arg)
 {

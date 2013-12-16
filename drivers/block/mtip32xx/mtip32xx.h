@@ -140,6 +140,7 @@ enum {
 	MTIP_PF_SVC_THD_ACTIVE_BIT  = 4,
 	MTIP_PF_ISSUE_CMDS_BIT      = 5,
 	MTIP_PF_REBUILD_BIT         = 6,
+	MTIP_PF_SR_CLEANUP_BIT      = 7,
 	MTIP_PF_SVC_THD_STOP_BIT    = 8,
 
 	/* below are bit numbers in 'dd_flag' defined in driver_data */
@@ -147,15 +148,18 @@ enum {
 	MTIP_DDF_REMOVE_PENDING_BIT = 1,
 	MTIP_DDF_OVER_TEMP_BIT      = 2,
 	MTIP_DDF_WRITE_PROTECT_BIT  = 3,
-	MTIP_DDF_STOP_IO      = ((1 << MTIP_DDF_REMOVE_PENDING_BIT) |
-				(1 << MTIP_DDF_SEC_LOCK_BIT) |
-				(1 << MTIP_DDF_OVER_TEMP_BIT) |
-				(1 << MTIP_DDF_WRITE_PROTECT_BIT)),
-
+	MTIP_DDF_REMOVE_DONE_BIT    = 4,
 	MTIP_DDF_CLEANUP_BIT        = 5,
 	MTIP_DDF_RESUME_BIT         = 6,
 	MTIP_DDF_INIT_DONE_BIT      = 7,
 	MTIP_DDF_REBUILD_FAILED_BIT = 8,
+
+	MTIP_DDF_STOP_IO      = ((1 << MTIP_DDF_REMOVE_PENDING_BIT) |
+				(1 << MTIP_DDF_SEC_LOCK_BIT) |
+				(1 << MTIP_DDF_OVER_TEMP_BIT) |
+				(1 << MTIP_DDF_WRITE_PROTECT_BIT) |
+				(1 << MTIP_DDF_REBUILD_FAILED_BIT)),
+
 };
 
 struct smart_attr {
@@ -499,6 +503,8 @@ struct driver_data {
 
 	bool trim_supp; /* flag indicating trim support */
 
+	bool sr;
+
 	int numa_node; /* NUMA support */
 
 	char workq_name[32];
@@ -510,6 +516,8 @@ struct driver_data {
 	atomic_t irq_workers_active;
 
 	int isr_binding;
+
+	struct block_device *bdev;
 
 	int unal_qdepth; /* qdepth of unaligned IO queue */
 

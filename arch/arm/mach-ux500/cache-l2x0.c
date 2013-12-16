@@ -69,6 +69,7 @@ static int __init ux500_l2x0_init(void)
 	 * some SMI service available.
 	 */
 	outer_cache.disable = NULL;
+	outer_cache.set_debug = NULL;
 
 	return 0;
 }

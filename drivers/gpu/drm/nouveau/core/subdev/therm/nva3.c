@@ -94,6 +94,6 @@ nva3_therm_oclass = {
 		.ctor = nva3_therm_ctor,
 		.dtor = _nouveau_therm_dtor,
 		.init = nva3_therm_init,
-		.fini = _nouveau_therm_fini,
+		.fini = nv84_therm_fini,
 	},
 };

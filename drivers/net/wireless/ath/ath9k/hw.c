@@ -17,6 +17,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/time.h>
 #include <asm/unaligned.h>
 
 #include "hw.h"
@@ -146,10 +147,9 @@ static void ath9k_hw_set_clockrate(struct ath_hw *ah)
 	else
 		clockrate = ATH9K_CLOCK_RATE_5GHZ_OFDM;
 
-	if (IS_CHAN_HT40(chan))
-		clockrate *= 2;
-
-	if (ah->curchan) {
+	if (chan) {
+		if (IS_CHAN_HT40(chan))
+			clockrate *= 2;
 		if (IS_CHAN_HALF_RATE(chan))
 			clockrate /= 2;
 		if (IS_CHAN_QUARTER_RATE(chan))
@@ -454,7 +454,6 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 	}
 
 	ah->config.rx_intr_mitigation = true;
-	ah->config.pcieSerDesWrite = true;
 
 	/*
 	 * We need this for PCI devices only (Cardbus, PCI, miniPCI)
@@ -549,11 +548,11 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 	 * EEPROM needs to be initialized before we do this.
 	 * This is required for regulatory compliance.
 	 */
-	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
 		u16 regdmn = ah->eep_ops->get_eeprom(ah, EEP_REG_0);
 		if ((regdmn & 0xF0) == CTL_FCC) {
-			ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9462_FCC_2GHZ;
-			ah->nf_5g.max = AR_PHY_CCA_MAX_GOOD_VAL_9462_FCC_5GHZ;
+			ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9300_FCC_2GHZ;
+			ah->nf_5g.max = AR_PHY_CCA_MAX_GOOD_VAL_9300_FCC_5GHZ;
 		}
 	}
 
@@ -1502,8 +1501,9 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	int r;
 
 	if (pCap->hw_caps & ATH9K_HW_CAP_FCC_BAND_SWITCH) {
-		band_switch = IS_CHAN_5GHZ(ah->curchan) != IS_CHAN_5GHZ(chan);
-		mode_diff = (chan->channelFlags != ah->curchan->channelFlags);
+		u32 flags_diff = chan->channelFlags ^ ah->curchan->channelFlags;
+		band_switch = !!(flags_diff & CHANNEL_5GHZ);
+		mode_diff = !!(flags_diff & ~CHANNEL_HT);
 	}
 
 	for (qnum = 0; qnum < AR_NUM_QCU; qnum++) {
@@ -1815,7 +1815,7 @@ static int ath9k_hw_do_fastcc(struct ath_hw *ah, struct ath9k_channel *chan)
 	 * If cross-band fcc is not supoprted, bail out if channelFlags differ.
 	 */
 	if (!(pCap->hw_caps & ATH9K_HW_CAP_FCC_BAND_SWITCH) &&
-	    chan->channelFlags != ah->curchan->channelFlags)
+	    ((chan->channelFlags ^ ah->curchan->channelFlags) & ~CHANNEL_HT))
 		goto fail;
 
 	if (!ath9k_hw_check_alive(ah))
@@ -1856,10 +1856,12 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		   struct ath9k_hw_cal_data *caldata, bool fastcc)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
+	struct timespec ts;
 	u32 saveLedState;
 	u32 saveDefAntenna;
 	u32 macStaId1;
 	u64 tsf = 0;
+	s64 usec = 0;
 	int r;
 	bool start_mci_reset = false;
 	bool save_fullsleep = ah->chip_fullsleep;
@@ -1902,10 +1904,10 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	macStaId1 = REG_READ(ah, AR_STA_ID1) & AR_STA_ID1_BASE_RATE_11B;
 
-	/* For chips on which RTC reset is done, save TSF before it gets cleared */
-	if (AR_SREV_9100(ah) ||
-	    (AR_SREV_9280(ah) && ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL)))
-		tsf = ath9k_hw_gettsf64(ah);
+	/* Save TSF before chip reset, a cold reset clears it */
+	tsf = ath9k_hw_gettsf64(ah);
+	getrawmonotonic(&ts);
+	usec = ts.tv_sec * 1000 + ts.tv_nsec / 1000;
 
 	saveLedState = REG_READ(ah, AR_CFG_LED) &
 		(AR_CFG_LED_ASSOC_CTL | AR_CFG_LED_MODE_SEL |
@@ -1938,8 +1940,9 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	}
 
 	/* Restore TSF */
-	if (tsf)
-		ath9k_hw_settsf64(ah, tsf);
+	getrawmonotonic(&ts);
+	usec = ts.tv_sec * 1000 + ts.tv_nsec / 1000 - usec;
+	ath9k_hw_settsf64(ah, tsf + usec);
 
 	if (AR_SREV_9280_20_OR_LATER(ah))
 		REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL, AR_GPIO_JTAG_DISABLE);

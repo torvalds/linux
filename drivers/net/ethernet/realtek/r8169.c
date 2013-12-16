@@ -6811,7 +6811,6 @@ static void rtl_remove_one(struct pci_dev *pdev)
 
 	rtl_disable_msi(pdev, tp);
 	rtl8169_release_board(pdev, dev, tp->mmio_addr);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static const struct net_device_ops rtl_netdev_ops = {

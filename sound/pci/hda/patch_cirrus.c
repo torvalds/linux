@@ -47,6 +47,10 @@ struct cs_spec {
 	unsigned int spdif_present:1;
 	unsigned int sense_b:1;
 	hda_nid_t vendor_nid;
+
+	/* for MBP SPDIF control */
+	int (*spdif_sw_put)(struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_value *ucontrol);
 };
 
 /* available models with CS420x */
@@ -110,6 +114,9 @@ enum {
 /* 0x0008 - test reg key */
 /* 0x0009 - 0x0014 -> 12 test regs */
 /* 0x0015 - visibility reg */
+
+/* Cirrus Logic CS4208 */
+#define CS4208_VENDOR_NID	0x24
 
 /*
  * Cirrus Logic CS4210
@@ -223,6 +230,16 @@ static const struct hda_verb cs_coef_init_verbs[] = {
 	{} /* terminator */
 };
 
+static const struct hda_verb cs4208_coef_init_verbs[] = {
+	{0x01, AC_VERB_SET_POWER_STATE, 0x00}, /* AFG: D0 */
+	{0x24, AC_VERB_SET_PROC_STATE, 0x01},  /* VPW: processing on */
+	{0x24, AC_VERB_SET_COEF_INDEX, 0x0033},
+	{0x24, AC_VERB_SET_PROC_COEF, 0x0001}, /* A1 ICS */
+	{0x24, AC_VERB_SET_COEF_INDEX, 0x0034},
+	{0x24, AC_VERB_SET_PROC_COEF, 0x1C01}, /* A1 Enable, A Thresh = 300mV */
+	{} /* terminator */
+};
+
 /* Errata: CS4207 rev C0/C1/C2 Silicon
  *
  * http://www.cirrus.com/en/pubs/errata/ER880C3.pdf
@@ -295,6 +312,8 @@ static int cs_init(struct hda_codec *codec)
 		/* init_verb sequence for C0/C1/C2 errata*/
 		snd_hda_sequence_write(codec, cs_errata_init_verbs);
 		snd_hda_sequence_write(codec, cs_coef_init_verbs);
+	} else if (spec->vendor_nid == CS4208_VENDOR_NID) {
+		snd_hda_sequence_write(codec, cs4208_coef_init_verbs);
 	}
 
 	snd_hda_gen_init(codec);
@@ -316,10 +335,21 @@ static int cs_init(struct hda_codec *codec)
 	return 0;
 }
 
+static int cs_build_controls(struct hda_codec *codec)
+{
+	int err;
+
+	err = snd_hda_gen_build_controls(codec);
+	if (err < 0)
+		return err;
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_BUILD);
+	return 0;
+}
+
 #define cs_free		snd_hda_gen_free
 
 static const struct hda_codec_ops cs_patch_ops = {
-	.build_controls = snd_hda_gen_build_controls,
+	.build_controls = cs_build_controls,
 	.build_pcms = snd_hda_gen_build_pcms,
 	.init = cs_init,
 	.free = cs_free,
@@ -431,6 +461,29 @@ static const struct hda_pintbl mba42_pincfgs[] = {
 	{ 0x10, 0x400000f0 },
 	{ 0x12, 0x400000f0 },
 	{ 0x15, 0x400000f0 },
+	{} /* terminator */
+};
+
+static const struct hda_pintbl mba6_pincfgs[] = {
+	{ 0x10, 0x032120f0 }, /* HP */
+	{ 0x11, 0x500000f0 },
+	{ 0x12, 0x90100010 }, /* Speaker */
+	{ 0x13, 0x500000f0 },
+	{ 0x14, 0x500000f0 },
+	{ 0x15, 0x770000f0 },
+	{ 0x16, 0x770000f0 },
+	{ 0x17, 0x430000f0 },
+	{ 0x18, 0x43ab9030 }, /* Mic */
+	{ 0x19, 0x770000f0 },
+	{ 0x1a, 0x770000f0 },
+	{ 0x1b, 0x770000f0 },
+	{ 0x1c, 0x90a00090 },
+	{ 0x1d, 0x500000f0 },
+	{ 0x1e, 0x500000f0 },
+	{ 0x1f, 0x500000f0 },
+	{ 0x20, 0x500000f0 },
+	{ 0x21, 0x430000f0 },
+	{ 0x22, 0x430000f0 },
 	{} /* terminator */
 };
 
@@ -556,22 +609,32 @@ static int patch_cs420x(struct hda_codec *codec)
 
 /*
  * CS4208 support:
- * Its layout is no longer compatible with CS4206/CS4207, and the generic
- * parser seems working fairly well, except for trivial fixups.
+ * Its layout is no longer compatible with CS4206/CS4207
  */
 enum {
+	CS4208_MAC_AUTO,
+	CS4208_MBA6,
+	CS4208_MBP11,
 	CS4208_GPIO0,
 };
 
 static const struct hda_model_fixup cs4208_models[] = {
 	{ .id = CS4208_GPIO0, .name = "gpio0" },
+	{ .id = CS4208_MBA6, .name = "mba6" },
+	{ .id = CS4208_MBP11, .name = "mbp11" },
 	{}
 };
 
 static const struct snd_pci_quirk cs4208_fixup_tbl[] = {
-	/* codec SSID */
-	SND_PCI_QUIRK(0x106b, 0x7100, "MacBookPro 6,1", CS4208_GPIO0),
-	SND_PCI_QUIRK(0x106b, 0x7200, "MacBookPro 6,2", CS4208_GPIO0),
+	SND_PCI_QUIRK_VENDOR(0x106b, "Apple", CS4208_MAC_AUTO),
+	{} /* terminator */
+};
+
+/* codec SSID matching */
+static const struct snd_pci_quirk cs4208_mac_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x106b, 0x5e00, "MacBookPro 11,2", CS4208_MBP11),
+	SND_PCI_QUIRK(0x106b, 0x7100, "MacBookAir 6,1", CS4208_MBA6),
+	SND_PCI_QUIRK(0x106b, 0x7200, "MacBookAir 6,2", CS4208_MBA6),
 	{} /* terminator */
 };
 
@@ -587,27 +650,106 @@ static void cs4208_fixup_gpio0(struct hda_codec *codec,
 	}
 }
 
+static const struct hda_fixup cs4208_fixups[];
+
+/* remap the fixup from codec SSID and apply it */
+static void cs4208_fixup_mac(struct hda_codec *codec,
+			     const struct hda_fixup *fix, int action)
+{
+	if (action != HDA_FIXUP_ACT_PRE_PROBE)
+		return;
+	snd_hda_pick_fixup(codec, NULL, cs4208_mac_fixup_tbl, cs4208_fixups);
+	if (codec->fixup_id < 0 || codec->fixup_id == CS4208_MAC_AUTO)
+		codec->fixup_id = CS4208_GPIO0; /* default fixup */
+	snd_hda_apply_fixup(codec, action);
+}
+
+static int cs4208_spdif_sw_put(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct cs_spec *spec = codec->spec;
+	hda_nid_t pin = spec->gen.autocfg.dig_out_pins[0];
+	int pinctl = ucontrol->value.integer.value[0] ? PIN_OUT : 0;
+
+	snd_hda_set_pin_ctl_cache(codec, pin, pinctl);
+	return spec->spdif_sw_put(kcontrol, ucontrol);
+}
+
+/* hook the SPDIF switch */
+static void cs4208_fixup_spdif_switch(struct hda_codec *codec,
+				      const struct hda_fixup *fix, int action)
+{
+	if (action == HDA_FIXUP_ACT_BUILD) {
+		struct cs_spec *spec = codec->spec;
+		struct snd_kcontrol *kctl;
+
+		if (!spec->gen.autocfg.dig_out_pins[0])
+			return;
+		kctl = snd_hda_find_mixer_ctl(codec, "IEC958 Playback Switch");
+		if (!kctl)
+			return;
+		spec->spdif_sw_put = kctl->put;
+		kctl->put = cs4208_spdif_sw_put;
+	}
+}
+
 static const struct hda_fixup cs4208_fixups[] = {
+	[CS4208_MBA6] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = mba6_pincfgs,
+		.chained = true,
+		.chain_id = CS4208_GPIO0,
+	},
+	[CS4208_MBP11] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cs4208_fixup_spdif_switch,
+		.chained = true,
+		.chain_id = CS4208_GPIO0,
+	},
 	[CS4208_GPIO0] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = cs4208_fixup_gpio0,
 	},
+	[CS4208_MAC_AUTO] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cs4208_fixup_mac,
+	},
 };
+
+/* correct the 0dB offset of input pins */
+static void cs4208_fix_amp_caps(struct hda_codec *codec, hda_nid_t adc)
+{
+	unsigned int caps;
+
+	caps = query_amp_caps(codec, adc, HDA_INPUT);
+	caps &= ~(AC_AMPCAP_OFFSET);
+	caps |= 0x02;
+	snd_hda_override_amp_caps(codec, adc, HDA_INPUT, caps);
+}
 
 static int patch_cs4208(struct hda_codec *codec)
 {
 	struct cs_spec *spec;
 	int err;
 
-	spec = cs_alloc_spec(codec, 0); /* no specific w/a */
+	spec = cs_alloc_spec(codec, CS4208_VENDOR_NID);
 	if (!spec)
 		return -ENOMEM;
 
 	spec->gen.automute_hook = cs_automute;
+	/* exclude NID 0x10 (HP) from output volumes due to different steps */
+	spec->gen.out_vol_mask = 1ULL << 0x10;
 
 	snd_hda_pick_fixup(codec, cs4208_models, cs4208_fixup_tbl,
 			   cs4208_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
+
+	snd_hda_override_wcaps(codec, 0x18,
+			       get_wcaps(codec, 0x18) | AC_WCAP_STEREO);
+	cs4208_fix_amp_caps(codec, 0x18);
+	cs4208_fix_amp_caps(codec, 0x1b);
+	cs4208_fix_amp_caps(codec, 0x1c);
 
 	err = cs_parse_auto_config(codec);
 	if (err < 0)

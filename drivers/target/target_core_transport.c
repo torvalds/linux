@@ -236,17 +236,24 @@ int transport_alloc_session_tags(struct se_session *se_sess,
 {
 	int rc;
 
-	se_sess->sess_cmd_map = kzalloc(tag_num * tag_size, GFP_KERNEL);
+	se_sess->sess_cmd_map = kzalloc(tag_num * tag_size,
+					GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
 	if (!se_sess->sess_cmd_map) {
-		pr_err("Unable to allocate se_sess->sess_cmd_map\n");
-		return -ENOMEM;
+		se_sess->sess_cmd_map = vzalloc(tag_num * tag_size);
+		if (!se_sess->sess_cmd_map) {
+			pr_err("Unable to allocate se_sess->sess_cmd_map\n");
+			return -ENOMEM;
+		}
 	}
 
 	rc = percpu_ida_init(&se_sess->sess_tag_pool, tag_num);
 	if (rc < 0) {
 		pr_err("Unable to init se_sess->sess_tag_pool,"
 			" tag_num: %u\n", tag_num);
-		kfree(se_sess->sess_cmd_map);
+		if (is_vmalloc_addr(se_sess->sess_cmd_map))
+			vfree(se_sess->sess_cmd_map);
+		else
+			kfree(se_sess->sess_cmd_map);
 		se_sess->sess_cmd_map = NULL;
 		return -ENOMEM;
 	}
@@ -412,7 +419,10 @@ void transport_free_session(struct se_session *se_sess)
 {
 	if (se_sess->sess_cmd_map) {
 		percpu_ida_destroy(&se_sess->sess_tag_pool);
-		kfree(se_sess->sess_cmd_map);
+		if (is_vmalloc_addr(se_sess->sess_cmd_map))
+			vfree(se_sess->sess_cmd_map);
+		else
+			kfree(se_sess->sess_cmd_map);
 	}
 	kmem_cache_free(se_sess_cache, se_sess);
 }

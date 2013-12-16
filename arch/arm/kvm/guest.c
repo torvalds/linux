@@ -190,6 +190,8 @@ int __attribute_const__ kvm_target_cpu(void)
 		return -EINVAL;
 
 	switch (part_number) {
+	case ARM_CPU_PART_CORTEX_A7:
+		return KVM_ARM_TARGET_CORTEX_A7;
 	case ARM_CPU_PART_CORTEX_A15:
 		return KVM_ARM_TARGET_CORTEX_A15;
 	default:
@@ -202,7 +204,7 @@ int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
 {
 	unsigned int i;
 
-	/* We can only do a cortex A15 for now. */
+	/* We can only cope with guest==host and only on A15/A7 (for now). */
 	if (init->target != kvm_target_cpu())
 		return -EINVAL;
 
@@ -220,6 +222,26 @@ int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
 
 	/* Now we know what it is, we can reset it. */
 	return kvm_reset_vcpu(vcpu);
+}
+
+int kvm_vcpu_preferred_target(struct kvm_vcpu_init *init)
+{
+	int target = kvm_target_cpu();
+
+	if (target < 0)
+		return -ENODEV;
+
+	memset(init, 0, sizeof(*init));
+
+	/*
+	 * For now, we don't return any features.
+	 * In future, we might use features to return target
+	 * specific features available for the preferred
+	 * target type.
+	 */
+	init->target = (__u32)target;
+
+	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)

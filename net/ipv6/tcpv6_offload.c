@@ -83,7 +83,7 @@ static int tcp6_gro_complete(struct sk_buff *skb)
 static const struct net_offload tcpv6_offload = {
 	.callbacks = {
 		.gso_send_check	=	tcp_v6_gso_send_check,
-		.gso_segment	=	tcp_tso_segment,
+		.gso_segment	=	tcp_gso_segment,
 		.gro_receive	=	tcp6_gro_receive,
 		.gro_complete	=	tcp6_gro_complete,
 	},

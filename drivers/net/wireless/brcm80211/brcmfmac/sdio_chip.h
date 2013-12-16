@@ -223,17 +223,16 @@ struct sdpcmd_regs {
 	u16 PAD[0x80];
 };
 
-extern int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
-				  struct chip_info **ci_ptr, u32 regs);
-extern void brcmf_sdio_chip_detach(struct chip_info **ci_ptr);
-extern void brcmf_sdio_chip_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
-					      struct chip_info *ci,
-					      u32 drivestrength);
-extern u8 brcmf_sdio_chip_getinfidx(struct chip_info *ci, u16 coreid);
-extern void brcmf_sdio_chip_enter_download(struct brcmf_sdio_dev *sdiodev,
-					   struct chip_info *ci);
-extern bool brcmf_sdio_chip_exit_download(struct brcmf_sdio_dev *sdiodev,
-					  struct chip_info *ci, char *nvram_dat,
-					  uint nvram_sz);
+int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
+			   struct chip_info **ci_ptr, u32 regs);
+void brcmf_sdio_chip_detach(struct chip_info **ci_ptr);
+void brcmf_sdio_chip_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
+				       struct chip_info *ci, u32 drivestrength);
+u8 brcmf_sdio_chip_getinfidx(struct chip_info *ci, u16 coreid);
+void brcmf_sdio_chip_enter_download(struct brcmf_sdio_dev *sdiodev,
+				    struct chip_info *ci);
+bool brcmf_sdio_chip_exit_download(struct brcmf_sdio_dev *sdiodev,
+				   struct chip_info *ci, char *nvram_dat,
+				   uint nvram_sz);
 
 #endif		/* _BRCMFMAC_SDIO_CHIP_H_ */

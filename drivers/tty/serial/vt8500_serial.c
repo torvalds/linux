@@ -561,12 +561,13 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	if (!mmres || !irqres)
 		return -ENODEV;
 
-	if (np)
+	if (np) {
 		port = of_alias_get_id(np, "serial");
 		if (port >= VT8500_MAX_PORTS)
 			port = -1;
-	else
+	} else {
 		port = -1;
+	}
 
 	if (port < 0) {
 		/* calculate the port id */

@@ -266,7 +266,7 @@ void videomode_to_omap_video_timings(const struct videomode *vm,
 		OMAPDSS_SIG_ACTIVE_LOW;
 	ovt->de_level = vm->flags & DISPLAY_FLAGS_DE_HIGH ?
 		OMAPDSS_SIG_ACTIVE_HIGH :
-		OMAPDSS_SIG_ACTIVE_HIGH;
+		OMAPDSS_SIG_ACTIVE_LOW;
 	ovt->data_pclk_edge = vm->flags & DISPLAY_FLAGS_PIXDATA_POSEDGE ?
 		OMAPDSS_DRIVE_SIG_RISING_EDGE :
 		OMAPDSS_DRIVE_SIG_FALLING_EDGE;

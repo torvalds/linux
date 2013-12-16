@@ -368,6 +368,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 		goto drop_unlock_priv;
 
 	memset(dev_cmd, 0, sizeof(*dev_cmd));
+	dev_cmd->hdr.cmd = REPLY_TX;
 	tx_cmd = (struct iwl_tx_cmd *) dev_cmd->payload;
 
 	/* Total # bytes to be transmitted */

@@ -64,6 +64,8 @@ void arch_restore_msi_irqs(struct pci_dev *dev, int irq);
 
 void default_teardown_msi_irqs(struct pci_dev *dev);
 void default_restore_msi_irqs(struct pci_dev *dev, int irq);
+u32 default_msi_mask_irq(struct msi_desc *desc, u32 mask, u32 flag);
+u32 default_msix_mask_irq(struct msi_desc *desc, u32 flag);
 
 struct msi_chip {
 	struct module *owner;

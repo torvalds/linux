@@ -58,6 +58,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 
+			msi-parent = <&mpic>;
 			bus-range = <0x00 0xff>;
 
 			ranges =

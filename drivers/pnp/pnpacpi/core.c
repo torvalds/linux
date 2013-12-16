@@ -239,8 +239,6 @@ static char *__init pnpacpi_get_id(struct acpi_device *device)
 
 static int __init pnpacpi_add_device(struct acpi_device *device)
 {
-	acpi_handle temp = NULL;
-	acpi_status status;
 	struct pnp_dev *dev;
 	char *pnpid;
 	struct acpi_hardware_id *id;
@@ -253,8 +251,7 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	 * If a PnPacpi device is not present , the device
 	 * driver should not be loaded.
 	 */
-	status = acpi_get_handle(device->handle, "_CRS", &temp);
-	if (ACPI_FAILURE(status))
+	if (!acpi_has_method(device->handle, "_CRS"))
 		return 0;
 
 	pnpid = pnpacpi_get_id(device);
@@ -271,16 +268,14 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	dev->data = device;
 	/* .enabled means the device can decode the resources */
 	dev->active = device->status.enabled;
-	status = acpi_get_handle(device->handle, "_SRS", &temp);
-	if (ACPI_SUCCESS(status))
+	if (acpi_has_method(device->handle, "_SRS"))
 		dev->capabilities |= PNP_CONFIGURABLE;
 	dev->capabilities |= PNP_READ;
 	if (device->flags.dynamic_status && (dev->capabilities & PNP_CONFIGURABLE))
 		dev->capabilities |= PNP_WRITE;
 	if (device->flags.removable)
 		dev->capabilities |= PNP_REMOVABLE;
-	status = acpi_get_handle(device->handle, "_DIS", &temp);
-	if (ACPI_SUCCESS(status))
+	if (acpi_has_method(device->handle, "_DIS"))
 		dev->capabilities |= PNP_DISABLE;
 
 	if (strlen(acpi_device_name(device)))

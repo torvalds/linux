@@ -702,13 +702,20 @@ static inline u64 psched_l2t_ns(const struct psched_ratecfg *r,
 }
 
 void psched_ratecfg_precompute(struct psched_ratecfg *r,
-			       const struct tc_ratespec *conf);
+			       const struct tc_ratespec *conf,
+			       u64 rate64);
 
 static inline void psched_ratecfg_getrate(struct tc_ratespec *res,
 					  const struct psched_ratecfg *r)
 {
 	memset(res, 0, sizeof(*res));
-	res->rate = r->rate_bytes_ps;
+
+	/* legacy struct tc_ratespec has a 32bit @rate field
+	 * Qdisc using 64bit rate should add new attributes
+	 * in order to maintain compatibility.
+	 */
+	res->rate = min_t(u64, r->rate_bytes_ps, ~0U);
+
 	res->overhead = r->overhead;
 	res->linklayer = (r->linklayer & TC_LINKLAYER_MASK);
 }

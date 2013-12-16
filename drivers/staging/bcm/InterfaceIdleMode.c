@@ -89,8 +89,8 @@ int InterfaceIdleModeRespond(struct bcm_mini_adapter *Adapter, unsigned int *pui
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, IDLE_MODE, DBG_LVL_ALL, "Device Up from Idle Mode");
 
 			/* Set Idle Mode Flag to False and Clear IdleMode reg. */
-			Adapter->IdleMode = FALSE;
-			Adapter->bTriedToWakeUpFromlowPowerMode = FALSE;
+			Adapter->IdleMode = false;
+			Adapter->bTriedToWakeUpFromlowPowerMode = false;
 
 			wake_up(&Adapter->lowpower_mode_wait_queue);
 

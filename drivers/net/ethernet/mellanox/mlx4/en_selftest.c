@@ -156,7 +156,7 @@ retry_tx:
 		 * since we turned the carrier off */
 		msleep(200);
 		for (i = 0; i < priv->tx_ring_num && carrier_ok; i++) {
-			tx_ring = &priv->tx_ring[i];
+			tx_ring = priv->tx_ring[i];
 			if (tx_ring->prod != (tx_ring->cons + tx_ring->last_nr_txbb))
 				goto retry_tx;
 		}

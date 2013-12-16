@@ -641,8 +641,7 @@ static void pci_set_bus_speed(struct pci_bus *bus)
 		return;
 	}
 
-	pos = pci_find_capability(bridge, PCI_CAP_ID_EXP);
-	if (pos) {
+	if (pci_is_pcie(bridge)) {
 		u32 linkcap;
 		u16 linksta;
 
@@ -984,7 +983,6 @@ void set_pcie_port_type(struct pci_dev *pdev)
 	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
 	if (!pos)
 		return;
-	pdev->is_pcie = 1;
 	pdev->pcie_cap = pos;
 	pci_read_config_word(pdev, pos + PCI_EXP_FLAGS, &reg16);
 	pdev->pcie_flags_reg = reg16;

@@ -420,7 +420,7 @@ nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 		nouveau_bo_unmap(nouveau_fb->nvbo);
 		nouveau_bo_vma_del(nouveau_fb->nvbo, &nouveau_fb->vma);
 		nouveau_bo_unpin(nouveau_fb->nvbo);
-		drm_gem_object_unreference_unlocked(nouveau_fb->nvbo->gem);
+		drm_gem_object_unreference_unlocked(&nouveau_fb->nvbo->gem);
 		nouveau_fb->nvbo = NULL;
 	}
 	drm_fb_helper_fini(&fbcon->helper);
@@ -503,34 +503,45 @@ nouveau_fbcon_fini(struct drm_device *dev)
 	drm->fbcon = NULL;
 }
 
-void nouveau_fbcon_save_disable_accel(struct drm_device *dev)
+void
+nouveau_fbcon_save_disable_accel(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-
-	drm->fbcon->saved_flags = drm->fbcon->helper.fbdev->flags;
-	drm->fbcon->helper.fbdev->flags |= FBINFO_HWACCEL_DISABLED;
+	if (drm->fbcon) {
+		drm->fbcon->saved_flags = drm->fbcon->helper.fbdev->flags;
+		drm->fbcon->helper.fbdev->flags |= FBINFO_HWACCEL_DISABLED;
+	}
 }
 
-void nouveau_fbcon_restore_accel(struct drm_device *dev)
+void
+nouveau_fbcon_restore_accel(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	drm->fbcon->helper.fbdev->flags = drm->fbcon->saved_flags;
+	if (drm->fbcon) {
+		drm->fbcon->helper.fbdev->flags = drm->fbcon->saved_flags;
+	}
 }
 
-void nouveau_fbcon_set_suspend(struct drm_device *dev, int state)
+void
+nouveau_fbcon_set_suspend(struct drm_device *dev, int state)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	console_lock();
-	if (state == 0)
-		nouveau_fbcon_save_disable_accel(dev);
-	fb_set_suspend(drm->fbcon->helper.fbdev, state);
-	if (state == 1)
-		nouveau_fbcon_restore_accel(dev);
-	console_unlock();
+	if (drm->fbcon) {
+		console_lock();
+		if (state == 0)
+			nouveau_fbcon_save_disable_accel(dev);
+		fb_set_suspend(drm->fbcon->helper.fbdev, state);
+		if (state == 1)
+			nouveau_fbcon_restore_accel(dev);
+		console_unlock();
+	}
 }
 
-void nouveau_fbcon_zfill_all(struct drm_device *dev)
+void
+nouveau_fbcon_zfill_all(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	nouveau_fbcon_zfill(dev, drm->fbcon);
+	if (drm->fbcon) {
+		nouveau_fbcon_zfill(dev, drm->fbcon);
+	}
 }

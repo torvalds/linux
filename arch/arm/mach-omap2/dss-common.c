@@ -213,3 +213,47 @@ void __init omap_4430sdp_display_init_of(void)
 	platform_device_register(&sdp4430_tpd_device);
 	platform_device_register(&sdp4430_hdmi_connector_device);
 }
+
+
+/* OMAP3 IGEPv2 data */
+
+#define IGEP2_DVI_TFP410_POWER_DOWN_GPIO	170
+
+/* DVI Connector */
+static struct connector_dvi_platform_data omap3_igep2_dvi_connector_pdata = {
+	.name                   = "dvi",
+	.source                 = "tfp410.0",
+	.i2c_bus_num            = 3,
+};
+
+static struct platform_device omap3_igep2_dvi_connector_device = {
+	.name                   = "connector-dvi",
+	.id                     = 0,
+	.dev.platform_data      = &omap3_igep2_dvi_connector_pdata,
+};
+
+/* TFP410 DPI-to-DVI chip */
+static struct encoder_tfp410_platform_data omap3_igep2_tfp410_pdata = {
+	.name                   = "tfp410.0",
+	.source                 = "dpi.0",
+	.data_lines             = 24,
+	.power_down_gpio        = IGEP2_DVI_TFP410_POWER_DOWN_GPIO,
+};
+
+static struct platform_device omap3_igep2_tfp410_device = {
+	.name                   = "tfp410",
+	.id                     = 0,
+	.dev.platform_data      = &omap3_igep2_tfp410_pdata,
+};
+
+static struct omap_dss_board_info igep2_dss_data = {
+	.default_display_name = "dvi",
+};
+
+void __init omap3_igep2_display_init_of(void)
+{
+	omap_display_init(&igep2_dss_data);
+
+	platform_device_register(&omap3_igep2_tfp410_device);
+	platform_device_register(&omap3_igep2_dvi_connector_device);
+}

@@ -982,7 +982,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	}
 
 	min_align = calculate_mem_align(aligns, max_order);
-	min_align = max(min_align, window_alignment(bus, b_res->flags & mask));
+	min_align = max(min_align, window_alignment(bus, b_res->flags));
 	size0 = calculate_memsize(size, min_size, 0, resource_size(b_res), min_align);
 	if (children_add_size > add_size)
 		add_size = children_add_size;
@@ -1136,7 +1136,7 @@ void __ref __pci_bus_size_bridges(struct pci_bus *bus,
 	}
 
 	/* The root bus? */
-	if (!bus->self)
+	if (pci_is_root_bus(bus))
 		return;
 
 	switch (bus->self->class >> 8) {

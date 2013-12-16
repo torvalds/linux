@@ -1331,7 +1331,7 @@ static unsigned int parport_ip32_fwp_wait_interrupt(struct parport *p)
 			break;
 
 		/* Initialize mutex used to take interrupts into account */
-		INIT_COMPLETION(priv->irq_complete);
+		reinit_completion(&priv->irq_complete);
 
 		/* Enable serviceIntr */
 		parport_ip32_frob_econtrol(p, ECR_SERVINTR, 0);
@@ -1446,7 +1446,7 @@ static size_t parport_ip32_fifo_write_block_dma(struct parport *p,
 	priv->irq_mode = PARPORT_IP32_IRQ_HERE;
 
 	parport_ip32_dma_start(DMA_TO_DEVICE, (void *)buf, len);
-	INIT_COMPLETION(priv->irq_complete);
+	reinit_completion(&priv->irq_complete);
 	parport_ip32_frob_econtrol(p, ECR_DMAEN | ECR_SERVINTR, ECR_DMAEN);
 
 	nfault_timeout = min((unsigned long)physport->cad->timeout,

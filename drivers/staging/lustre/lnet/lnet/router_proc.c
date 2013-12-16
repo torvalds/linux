@@ -30,7 +30,7 @@
 /* This is really lnet_proc.c. You might need to update sanity test 215
  * if any file format is changed. */
 
-static ctl_table_header_t *lnet_table_header = NULL;
+static ctl_table_header_t *lnet_table_header;
 
 #define CTL_LNET	 (0x100)
 enum {
@@ -158,7 +158,7 @@ int LL_PROC_PROTO(proc_lnet_routes)
 	off = LNET_PROC_HOFF_GET(*ppos);
 	ver = LNET_PROC_VER_GET(*ppos);
 
-	LASSERT (!write);
+	LASSERT(!write);
 
 	if (*lenp == 0)
 		return 0;
@@ -172,11 +172,11 @@ int LL_PROC_PROTO(proc_lnet_routes)
 	if (*ppos == 0) {
 		s += snprintf(s, tmpstr + tmpsiz - s, "Routing %s\n",
 			      the_lnet.ln_routing ? "enabled" : "disabled");
-		LASSERT (tmpstr + tmpsiz - s > 0);
+		LASSERT(tmpstr + tmpsiz - s > 0);
 
 		s += snprintf(s, tmpstr + tmpsiz - s, "%-8s %4s %7s %s\n",
 			      "net", "hops", "state", "router");
-		LASSERT (tmpstr + tmpsiz - s > 0);
+		LASSERT(tmpstr + tmpsiz - s > 0);
 
 		lnet_net_lock(0);
 		ver = (unsigned int)the_lnet.ln_remote_nets_version;
@@ -281,7 +281,7 @@ int LL_PROC_PROTO(proc_lnet_routers)
 	off = LNET_PROC_HOFF_GET(*ppos);
 	ver = LNET_PROC_VER_GET(*ppos);
 
-	LASSERT (!write);
+	LASSERT(!write);
 
 	if (*lenp == 0)
 		return 0;
@@ -375,7 +375,7 @@ int LL_PROC_PROTO(proc_lnet_routers)
 					      pingsent,
 					      cfs_duration_sec(cfs_time_sub(deadline, now)),
 					      down_ni, libcfs_nid2str(nid));
-			LASSERT (tmpstr + tmpsiz - s > 0);
+			LASSERT(tmpstr + tmpsiz - s > 0);
 		}
 
 		lnet_net_unlock(0);
@@ -437,7 +437,7 @@ int LL_PROC_PROTO(proc_lnet_peers)
 			      "%-24s %4s %5s %5s %5s %5s %5s %5s %5s %s\n",
 			      "nid", "refs", "state", "last", "max",
 			      "rtr", "min", "tx", "min", "queue");
-		LASSERT (tmpstr + tmpsiz - s > 0);
+		LASSERT(tmpstr + tmpsiz - s > 0);
 
 		hoff++;
 	} else {
@@ -534,7 +534,7 @@ int LL_PROC_PROTO(proc_lnet_peers)
 				      libcfs_nid2str(nid), nrefs, aliveness,
 				      lastalive, maxcr, rtrcr, minrtrcr, txcr,
 				      mintxcr, txqnob);
-			LASSERT (tmpstr + tmpsiz - s > 0);
+			LASSERT(tmpstr + tmpsiz - s > 0);
 
 		} else { /* peer is NULL */
 			lnet_net_unlock(cpt);
@@ -592,7 +592,7 @@ static int __proc_lnet_buffers(void *data, int write,
 	s += snprintf(s, tmpstr + tmpsiz - s,
 		      "%5s %5s %7s %7s\n",
 		      "pages", "count", "credits", "min");
-	LASSERT (tmpstr + tmpsiz - s > 0);
+	LASSERT(tmpstr + tmpsiz - s > 0);
 
 	if (the_lnet.ln_rtrpools == NULL)
 		goto out; /* I'm not a router */
@@ -638,7 +638,7 @@ int LL_PROC_PROTO(proc_lnet_nis)
 
 	DECLARE_LL_PROC_PPOS_DECL;
 
-	LASSERT (!write);
+	LASSERT(!write);
 
 	if (*lenp == 0)
 		return 0;
@@ -654,7 +654,7 @@ int LL_PROC_PROTO(proc_lnet_nis)
 			      "%-24s %6s %5s %4s %4s %4s %5s %5s %5s\n",
 			      "nid", "status", "alive", "refs", "peer",
 			      "rtr", "max", "tx", "min");
-		LASSERT (tmpstr + tmpsiz - s > 0);
+		LASSERT(tmpstr + tmpsiz - s > 0);
 	} else {
 		struct list_head	*n;
 		lnet_ni_t	 *ni   = NULL;

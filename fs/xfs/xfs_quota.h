@@ -150,10 +150,6 @@ static inline int xfs_trans_reserve_quota_bydquots(struct xfs_trans *tp,
 	xfs_trans_reserve_quota_bydquots(tp, mp, ud, gd, pd, nb, ni, \
 				f | XFS_QMOPT_RES_REGBLKS)
 
-extern int xfs_qm_dqcheck(struct xfs_mount *, xfs_disk_dquot_t *,
-				xfs_dqid_t, uint, uint, char *);
 extern int xfs_mount_reset_sbqflags(struct xfs_mount *);
-
-extern const struct xfs_buf_ops xfs_dquot_buf_ops;
 
 #endif	/* __XFS_QUOTA_H__ */

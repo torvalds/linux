@@ -253,18 +253,15 @@ static struct vga_switcheroo_handler nouveau_dsm_handler = {
 
 static int nouveau_dsm_pci_probe(struct pci_dev *pdev)
 {
-	acpi_handle dhandle, nvidia_handle;
-	acpi_status status;
+	acpi_handle dhandle;
 	int retval = 0;
 
 	dhandle = DEVICE_ACPI_HANDLE(&pdev->dev);
 	if (!dhandle)
 		return false;
 
-	status = acpi_get_handle(dhandle, "_DSM", &nvidia_handle);
-	if (ACPI_FAILURE(status)) {
+	if (!acpi_has_method(dhandle, "_DSM"))
 		return false;
-	}
 
 	if (nouveau_test_dsm(dhandle, nouveau_dsm, NOUVEAU_DSM_POWER))
 		retval |= NOUVEAU_DSM_HAS_MUX;
@@ -308,6 +305,16 @@ static bool nouveau_dsm_detect(void)
 
 	/* now do DSM detection */
 	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev)) != NULL) {
+		vga_count++;
+
+		retval = nouveau_dsm_pci_probe(pdev);
+		if (retval & NOUVEAU_DSM_HAS_MUX)
+			has_dsm |= 1;
+		if (retval & NOUVEAU_DSM_HAS_OPT)
+			has_optimus = 1;
+	}
+
+	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_3D << 8, pdev)) != NULL) {
 		vga_count++;
 
 		retval = nouveau_dsm_pci_probe(pdev);

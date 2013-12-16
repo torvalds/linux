@@ -6,7 +6,7 @@ int InterfaceFileDownload(PVOID arg, struct file *flp, unsigned int on_chip_loc)
 	mm_segment_t oldfs = {0};
 	int errno = 0, len = 0; /* ,is_config_file = 0 */
 	loff_t pos = 0;
-	struct bcm_interface_adapter *psIntfAdapter = (struct bcm_interface_adapter *)arg;
+	struct bcm_interface_adapter *psIntfAdapter = arg;
 	/* struct bcm_mini_adapter *Adapter = psIntfAdapter->psAdapter; */
 	char *buff = kmalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_KERNEL);
 
@@ -61,7 +61,7 @@ int InterfaceFileReadbackFromChip(PVOID arg, struct file *flp, unsigned int on_c
 	loff_t pos = 0;
 	static int fw_down;
 	INT Status = STATUS_SUCCESS;
-	struct bcm_interface_adapter *psIntfAdapter = (struct bcm_interface_adapter *)arg;
+	struct bcm_interface_adapter *psIntfAdapter = arg;
 	int bytes;
 
 	buff = kmalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_DMA);
@@ -166,7 +166,7 @@ static int bcm_download_config_file(struct bcm_mini_adapter *Adapter, struct bcm
 	}
 
 	if (Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY) {
-		Adapter->LEDInfo.bLedInitDone = FALSE;
+		Adapter->LEDInfo.bLedInitDone = false;
 		Adapter->DriverState = DRIVER_INIT;
 		wake_up(&Adapter->LEDInfo.notify_led_event);
 	}
@@ -214,7 +214,7 @@ int bcm_ioctl_fw_download(struct bcm_mini_adapter *Adapter, struct bcm_firmware_
 	 * Firmware. Check for the Config file to be first to be sent from the
 	 * Application
 	 */
-	atomic_set(&Adapter->uiMBupdate, FALSE);
+	atomic_set(&Adapter->uiMBupdate, false);
 	if (!Adapter->bCfgDownloaded && psFwInfo->u32StartingAddress != CONFIG_BEGIN_ADDR) {
 		/* Can't Download Firmware. */
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Download the config File first\n");

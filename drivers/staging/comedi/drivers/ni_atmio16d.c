@@ -558,13 +558,12 @@ static int atmio16d_ao_insn_write(struct comedi_device *dev,
 
 static int atmio16d_dio_insn_bits(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] | data[1]);
+	if (comedi_dio_update_state(s, data))
 		outw(s->state, dev->iobase + MIO_16_DIG_OUT_REG);
-	}
+
 	data[1] = inw(dev->iobase + MIO_16_DIG_IN_REG);
 
 	return insn->n;

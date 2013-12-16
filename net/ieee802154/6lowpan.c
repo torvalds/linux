@@ -440,7 +440,6 @@ lowpan_uncompress_udp_header(struct sk_buff *skb, struct udphdr *uh)
 		default:
 			pr_debug("ERROR: unknown UDP format\n");
 			goto err;
-			break;
 		}
 
 		pr_debug("uncompressed UDP ports: src = %d, dst = %d\n",
@@ -655,7 +654,9 @@ static int lowpan_header_create(struct sk_buff *skb,
 	head[1] = iphc1;
 
 	skb_pull(skb, sizeof(struct ipv6hdr));
+	skb_reset_transport_header(skb);
 	memcpy(skb_push(skb, hc06_ptr - head), head, hc06_ptr - head);
+	skb_reset_network_header(skb);
 
 	lowpan_raw_dump_table(__func__, "raw skb data dump", skb->data,
 				skb->len);
@@ -738,7 +739,6 @@ static int lowpan_skb_deliver(struct sk_buff *skb, struct ipv6hdr *hdr)
 		return -ENOMEM;
 
 	skb_push(new, sizeof(struct ipv6hdr));
-	skb_reset_network_header(new);
 	skb_copy_to_linear_data(new, hdr, sizeof(struct ipv6hdr));
 
 	new->protocol = htons(ETH_P_IPV6);
@@ -785,7 +785,6 @@ lowpan_alloc_new_frame(struct sk_buff *skb, u16 len, u16 tag)
 		goto skb_err;
 
 	frame->skb->priority = skb->priority;
-	frame->skb->dev = skb->dev;
 
 	/* reserve headroom for uncompressed ipv6 header */
 	skb_reserve(frame->skb, sizeof(struct ipv6hdr));
@@ -957,7 +956,7 @@ lowpan_process_data(struct sk_buff *skb)
 	 * Traffic class carried in-line
 	 * ECN + DSCP (1 byte), Flow Label is elided
 	 */
-	case 1: /* 10b */
+	case 2: /* 10b */
 		if (lowpan_fetch_skb_u8(skb, &tmp))
 			goto drop;
 
@@ -968,7 +967,7 @@ lowpan_process_data(struct sk_buff *skb)
 	 * Flow Label carried in-line
 	 * ECN + 2-bit Pad + Flow Label (3 bytes), DSCP is elided
 	 */
-	case 2: /* 01b */
+	case 1: /* 01b */
 		if (lowpan_fetch_skb_u8(skb, &tmp))
 			goto drop;
 
@@ -1061,7 +1060,6 @@ lowpan_process_data(struct sk_buff *skb)
 		skb = new;
 
 		skb_push(skb, sizeof(struct udphdr));
-		skb_reset_transport_header(skb);
 		skb_copy_to_linear_data(skb, &uh, sizeof(struct udphdr));
 
 		lowpan_raw_dump_table(__func__, "raw UDP header dump",
@@ -1104,50 +1102,40 @@ static int lowpan_set_address(struct net_device *dev, void *p)
 	return 0;
 }
 
-static int lowpan_get_mac_header_length(struct sk_buff *skb)
-{
-	/*
-	 * Currently long addressing mode is supported only, so the overall
-	 * header size is 21:
-	 * FC SeqNum DPAN DA  SA  Sec
-	 * 2  +  1  +  2 + 8 + 8 + 0  = 21
-	 */
-	return 21;
-}
-
 static int
 lowpan_fragment_xmit(struct sk_buff *skb, u8 *head,
 			int mlen, int plen, int offset, int type)
 {
 	struct sk_buff *frag;
-	int hlen, ret;
+	int hlen;
 
 	hlen = (type == LOWPAN_DISPATCH_FRAG1) ?
 			LOWPAN_FRAG1_HEAD_SIZE : LOWPAN_FRAGN_HEAD_SIZE;
 
 	lowpan_raw_dump_inline(__func__, "6lowpan fragment header", head, hlen);
 
-	frag = dev_alloc_skb(hlen + mlen + plen + IEEE802154_MFR_SIZE);
+	frag = netdev_alloc_skb(skb->dev,
+				hlen + mlen + plen + IEEE802154_MFR_SIZE);
 	if (!frag)
 		return -ENOMEM;
 
 	frag->priority = skb->priority;
-	frag->dev = skb->dev;
 
 	/* copy header, MFR and payload */
-	memcpy(skb_put(frag, mlen), skb->data, mlen);
-	memcpy(skb_put(frag, hlen), head, hlen);
+	skb_put(frag, mlen);
+	skb_copy_to_linear_data(frag, skb_mac_header(skb), mlen);
 
-	if (plen)
-		skb_copy_from_linear_data_offset(skb, offset + mlen,
-					skb_put(frag, plen), plen);
+	skb_put(frag, hlen);
+	skb_copy_to_linear_data_offset(frag, mlen, head, hlen);
+
+	skb_put(frag, plen);
+	skb_copy_to_linear_data_offset(frag, mlen + hlen,
+				       skb_network_header(skb) + offset, plen);
 
 	lowpan_raw_dump_table(__func__, " raw fragment dump", frag->data,
 								frag->len);
 
-	ret = dev_queue_xmit(frag);
-
-	return ret;
+	return dev_queue_xmit(frag);
 }
 
 static int
@@ -1156,7 +1144,7 @@ lowpan_skb_fragmentation(struct sk_buff *skb, struct net_device *dev)
 	int  err, header_length, payload_length, tag, offset = 0;
 	u8 head[5];
 
-	header_length = lowpan_get_mac_header_length(skb);
+	header_length = skb->mac_len;
 	payload_length = skb->len - header_length;
 	tag = lowpan_dev_info(dev)->fragment_tag++;
 
@@ -1181,7 +1169,7 @@ lowpan_skb_fragmentation(struct sk_buff *skb, struct net_device *dev)
 	head[0] &= ~LOWPAN_DISPATCH_FRAG1;
 	head[0] |= LOWPAN_DISPATCH_FRAGN;
 
-	while ((payload_length - offset > 0) && (err >= 0)) {
+	while (payload_length - offset > 0) {
 		int len = LOWPAN_FRAG_SIZE;
 
 		head[4] = offset / 8;
@@ -1327,8 +1315,6 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 
 		/* Pull off the 1-byte of 6lowpan header. */
 		skb_pull(local_skb, 1);
-		skb_reset_network_header(local_skb);
-		skb_set_transport_header(local_skb, sizeof(struct ipv6hdr));
 
 		lowpan_give_skb_to_devices(local_skb);
 
@@ -1372,6 +1358,10 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 	real_dev = dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
 	if (!real_dev)
 		return -ENODEV;
+	if (real_dev->type != ARPHRD_IEEE802154) {
+		dev_put(real_dev);
+		return -EINVAL;
+	}
 
 	lowpan_dev_info(dev)->real_dev = real_dev;
 	lowpan_dev_info(dev)->fragment_tag = 0;
@@ -1385,6 +1375,9 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 	}
 
 	entry->ldev = dev;
+
+	/* Set the lowpan harware address to the wpan hardware address. */
+	memcpy(dev->dev_addr, real_dev->dev_addr, IEEE802154_ADDR_LEN);
 
 	mutex_lock(&lowpan_dev_info(dev)->dev_list_mtx);
 	INIT_LIST_HEAD(&entry->list);

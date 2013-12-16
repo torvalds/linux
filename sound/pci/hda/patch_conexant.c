@@ -3208,11 +3208,17 @@ static int cx_auto_init(struct hda_codec *codec)
 	return 0;
 }
 
+static void cx_auto_free(struct hda_codec *codec)
+{
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_FREE);
+	snd_hda_gen_free(codec);
+}
+
 static const struct hda_codec_ops cx_auto_patch_ops = {
 	.build_controls = cx_auto_build_controls,
 	.build_pcms = snd_hda_gen_build_pcms,
 	.init = cx_auto_init,
-	.free = snd_hda_gen_free,
+	.free = cx_auto_free,
 	.unsol_event = snd_hda_jack_unsol_event,
 #ifdef CONFIG_PM
 	.check_power_status = snd_hda_gen_check_power_status,
@@ -3231,7 +3237,84 @@ enum {
 	CXT_FIXUP_INC_MIC_BOOST,
 	CXT_FIXUP_HEADPHONE_MIC_PIN,
 	CXT_FIXUP_HEADPHONE_MIC,
+	CXT_FIXUP_GPIO1,
+	CXT_FIXUP_THINKPAD_ACPI,
 };
+
+#if IS_ENABLED(CONFIG_THINKPAD_ACPI)
+
+#include <linux/thinkpad_acpi.h>
+
+static int (*led_set_func)(int, bool);
+
+static void update_tpacpi_mute_led(void *private_data, int enabled)
+{
+	struct hda_codec *codec = private_data;
+	struct conexant_spec *spec = codec->spec;
+
+	if (spec->dynamic_eapd)
+		cx_auto_vmaster_hook(private_data, enabled);
+
+	if (led_set_func)
+		led_set_func(TPACPI_LED_MUTE, !enabled);
+}
+
+static void update_tpacpi_micmute_led(struct hda_codec *codec,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	if (!ucontrol || !led_set_func)
+		return;
+	if (strcmp("Capture Switch", ucontrol->id.name) == 0 && ucontrol->id.index == 0) {
+		/* TODO: How do I verify if it's a mono or stereo here? */
+		bool val = ucontrol->value.integer.value[0] || ucontrol->value.integer.value[1];
+		led_set_func(TPACPI_LED_MICMUTE, !val);
+	}
+}
+
+static void cxt_fixup_thinkpad_acpi(struct hda_codec *codec,
+				  const struct hda_fixup *fix, int action)
+{
+	struct conexant_spec *spec = codec->spec;
+
+	bool removefunc = false;
+
+	if (action == HDA_FIXUP_ACT_PROBE) {
+		if (!led_set_func)
+			led_set_func = symbol_request(tpacpi_led_set);
+		if (!led_set_func) {
+			snd_printk(KERN_WARNING "Failed to find thinkpad-acpi symbol tpacpi_led_set\n");
+			return;
+		}
+
+		removefunc = true;
+		if (led_set_func(TPACPI_LED_MUTE, false) >= 0) {
+			spec->gen.vmaster_mute.hook = update_tpacpi_mute_led;
+			removefunc = false;
+		}
+		if (led_set_func(TPACPI_LED_MICMUTE, false) >= 0) {
+			if (spec->gen.num_adc_nids > 1)
+				snd_printdd("Skipping micmute LED control due to several ADCs");
+			else {
+				spec->gen.cap_sync_hook = update_tpacpi_micmute_led;
+				removefunc = false;
+			}
+		}
+	}
+
+	if (led_set_func && (action == HDA_FIXUP_ACT_FREE || removefunc)) {
+		symbol_put(tpacpi_led_set);
+		led_set_func = NULL;
+	}
+}
+
+#else
+
+static void cxt_fixup_thinkpad_acpi(struct hda_codec *codec,
+				  const struct hda_fixup *fix, int action)
+{
+}
+
+#endif
 
 static void cxt_fixup_stereo_dmic(struct hda_codec *codec,
 				  const struct hda_fixup *fix, int action)
@@ -3343,6 +3426,8 @@ static const struct hda_fixup cxt_fixups[] = {
 	[CXT_PINCFG_LENOVO_TP410] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = cxt_pincfg_lenovo_tp410,
+		.chained = true,
+		.chain_id = CXT_FIXUP_THINKPAD_ACPI,
 	},
 	[CXT_PINCFG_LEMOTE_A1004] = {
 		.type = HDA_FIXUP_PINS,
@@ -3375,6 +3460,19 @@ static const struct hda_fixup cxt_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = cxt_fixup_headphone_mic,
 	},
+	[CXT_FIXUP_GPIO1] = {
+		.type = HDA_FIXUP_VERBS,
+		.v.verbs = (const struct hda_verb[]) {
+			{ 0x01, AC_VERB_SET_GPIO_MASK, 0x01 },
+			{ 0x01, AC_VERB_SET_GPIO_DIRECTION, 0x01 },
+			{ 0x01, AC_VERB_SET_GPIO_DATA, 0x01 },
+			{ }
+		},
+	},
+	[CXT_FIXUP_THINKPAD_ACPI] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cxt_fixup_thinkpad_acpi,
+	},
 };
 
 static const struct snd_pci_quirk cxt5051_fixups[] = {
@@ -3384,6 +3482,7 @@ static const struct snd_pci_quirk cxt5051_fixups[] = {
 
 static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x1025, 0x0543, "Acer Aspire One 522", CXT_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x1025, 0x054c, "Acer Aspire 3830TG", CXT_FIXUP_GPIO1),
 	SND_PCI_QUIRK(0x1043, 0x138d, "Asus", CXT_FIXUP_HEADPHONE_MIC_PIN),
 	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo T400", CXT_PINCFG_LENOVO_TP410),
 	SND_PCI_QUIRK(0x17aa, 0x215e, "Lenovo T410", CXT_PINCFG_LENOVO_TP410),
@@ -3496,7 +3595,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	return 0;
 
  error:
-	snd_hda_gen_free(codec);
+	cx_auto_free(codec);
 	return err;
 }
 
@@ -3557,6 +3656,8 @@ static const struct hda_codec_preset snd_hda_preset_conexant[] = {
 	  .patch = patch_conexant_auto },
 	{ .id = 0x14f15115, .name = "CX20757",
 	  .patch = patch_conexant_auto },
+	{ .id = 0x14f151d7, .name = "CX20952",
+	  .patch = patch_conexant_auto },
 	{} /* terminator */
 };
 
@@ -3583,6 +3684,7 @@ MODULE_ALIAS("snd-hda-codec-id:14f15111");
 MODULE_ALIAS("snd-hda-codec-id:14f15113");
 MODULE_ALIAS("snd-hda-codec-id:14f15114");
 MODULE_ALIAS("snd-hda-codec-id:14f15115");
+MODULE_ALIAS("snd-hda-codec-id:14f151d7");
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Conexant HD-audio codec");

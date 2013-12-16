@@ -168,7 +168,7 @@ static int acpi_fan_add(struct acpi_device *device)
 	       acpi_device_name(device), acpi_device_bid(device),
 	       !device->power.state ? "on" : "off");
 
-      end:
+end:
 	return result;
 }
 

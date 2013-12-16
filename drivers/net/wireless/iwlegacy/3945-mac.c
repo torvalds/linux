@@ -2396,8 +2396,7 @@ __il3945_up(struct il_priv *il)
 		clear_bit(S_RFKILL, &il->status);
 	else {
 		set_bit(S_RFKILL, &il->status);
-		IL_WARN("Radio disabled by HW RF Kill switch\n");
-		return -ENODEV;
+		return -ERFKILL;
 	}
 
 	_il_wr(il, CSR_INT, 0xFFFFFFFF);

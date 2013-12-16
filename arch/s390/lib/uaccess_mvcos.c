@@ -65,13 +65,6 @@ static size_t copy_from_user_mvcos(size_t size, const void __user *ptr, void *x)
 	return size;
 }
 
-static size_t copy_from_user_mvcos_check(size_t size, const void __user *ptr, void *x)
-{
-	if (size <= 256)
-		return copy_from_user_std(size, ptr, x);
-	return copy_from_user_mvcos(size, ptr, x);
-}
-
 static size_t copy_to_user_mvcos(size_t size, void __user *ptr, const void *x)
 {
 	register unsigned long reg0 asm("0") = 0x810000UL;
@@ -99,14 +92,6 @@ static size_t copy_to_user_mvcos(size_t size, void __user *ptr, const void *x)
 		: "+a" (size), "+a" (ptr), "+a" (x), "+a" (tmp1), "=a" (tmp2)
 		: "d" (reg0) : "cc", "memory");
 	return size;
-}
-
-static size_t copy_to_user_mvcos_check(size_t size, void __user *ptr,
-				       const void *x)
-{
-	if (size <= 256)
-		return copy_to_user_std(size, ptr, x);
-	return copy_to_user_mvcos(size, ptr, x);
 }
 
 static size_t copy_in_user_mvcos(size_t size, void __user *to,
@@ -201,23 +186,8 @@ static size_t strncpy_from_user_mvcos(size_t count, const char __user *src,
 }
 
 struct uaccess_ops uaccess_mvcos = {
-	.copy_from_user = copy_from_user_mvcos_check,
-	.copy_from_user_small = copy_from_user_std,
-	.copy_to_user = copy_to_user_mvcos_check,
-	.copy_to_user_small = copy_to_user_std,
-	.copy_in_user = copy_in_user_mvcos,
-	.clear_user = clear_user_mvcos,
-	.strnlen_user = strnlen_user_std,
-	.strncpy_from_user = strncpy_from_user_std,
-	.futex_atomic_op = futex_atomic_op_std,
-	.futex_atomic_cmpxchg = futex_atomic_cmpxchg_std,
-};
-
-struct uaccess_ops uaccess_mvcos_switch = {
 	.copy_from_user = copy_from_user_mvcos,
-	.copy_from_user_small = copy_from_user_mvcos,
 	.copy_to_user = copy_to_user_mvcos,
-	.copy_to_user_small = copy_to_user_mvcos,
 	.copy_in_user = copy_in_user_mvcos,
 	.clear_user = clear_user_mvcos,
 	.strnlen_user = strnlen_user_mvcos,

@@ -57,3 +57,21 @@ Description:	This attribute is only provided if the device was detected as a
 		Calibration data is already applied by the kernel to all input
 		values but may be used by user-space to perform other
 		transformations.
+
+What:		/sys/bus/hid/drivers/wiimote/<dev>/pro_calib
+Date:		October 2013
+KernelVersion:	3.13
+Contact:	David Herrmann <dh.herrmann@gmail.com>
+Description:	This attribute is only provided if the device was detected as a
+		pro-controller. It provides a single line with 4 calibration
+		values for all 4 analog sticks. Format is: "x1:y1 x2:y2". Data
+		is prefixed with a +/-. Each value is a signed 16bit number.
+		Data is encoded as decimal numbers and specifies the offsets of
+		the analog sticks of the pro-controller.
+		Calibration data is already applied by the kernel to all input
+		values but may be used by user-space to perform other
+		transformations.
+		Calibration data is detected by the kernel during device setup.
+		You can write "scan\n" into this file to re-trigger calibration.
+		You can also write data directly in the form "x1:y1 x2:y2" to
+		set the calibration values manually.

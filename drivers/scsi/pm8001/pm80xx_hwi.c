@@ -45,6 +45,228 @@
 
 #define SMP_DIRECT 1
 #define SMP_INDIRECT 2
+
+
+int pm80xx_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shift_value)
+{
+	u32 reg_val;
+	unsigned long start;
+	pm8001_cw32(pm8001_ha, 0, MEMBASE_II_SHIFT_REGISTER, shift_value);
+	/* confirm the setting is written */
+	start = jiffies + HZ; /* 1 sec */
+	do {
+		reg_val = pm8001_cr32(pm8001_ha, 0, MEMBASE_II_SHIFT_REGISTER);
+	} while ((reg_val != shift_value) && time_before(jiffies, start));
+	if (reg_val != shift_value) {
+		PM8001_FAIL_DBG(pm8001_ha,
+			pm8001_printk("TIMEOUT:MEMBASE_II_SHIFT_REGISTER"
+			" = 0x%x\n", reg_val));
+		return -1;
+	}
+	return 0;
+}
+
+void pm80xx_pci_mem_copy(struct pm8001_hba_info  *pm8001_ha, u32 soffset,
+				const void *destination,
+				u32 dw_count, u32 bus_base_number)
+{
+	u32 index, value, offset;
+	u32 *destination1;
+	destination1 = (u32 *)destination;
+
+	for (index = 0; index < dw_count; index += 4, destination1++) {
+		offset = (soffset + index / 4);
+		if (offset < (64 * 1024)) {
+			value = pm8001_cr32(pm8001_ha, bus_base_number, offset);
+			*destination1 =  cpu_to_le32(value);
+		}
+	}
+	return;
+}
+
+ssize_t pm80xx_get_fatal_dump(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+	void __iomem *fatal_table_address = pm8001_ha->fatal_tbl_addr;
+	u32 status = 1;
+	u32 accum_len , reg_val, index, *temp;
+	unsigned long start;
+	u8 *direct_data;
+	char *fatal_error_data = buf;
+
+	pm8001_ha->forensic_info.data_buf.direct_data = buf;
+	if (pm8001_ha->chip_id == chip_8001) {
+		pm8001_ha->forensic_info.data_buf.direct_data +=
+			sprintf(pm8001_ha->forensic_info.data_buf.direct_data,
+			"Not supported for SPC controller");
+		return (char *)pm8001_ha->forensic_info.data_buf.direct_data -
+			(char *)buf;
+	}
+	if (pm8001_ha->forensic_info.data_buf.direct_offset == 0) {
+		PM8001_IO_DBG(pm8001_ha,
+		pm8001_printk("forensic_info TYPE_NON_FATAL..............\n"));
+		direct_data = (u8 *)fatal_error_data;
+		pm8001_ha->forensic_info.data_type = TYPE_NON_FATAL;
+		pm8001_ha->forensic_info.data_buf.direct_len = SYSFS_OFFSET;
+		pm8001_ha->forensic_info.data_buf.direct_offset = 0;
+		pm8001_ha->forensic_info.data_buf.read_len = 0;
+
+		pm8001_ha->forensic_info.data_buf.direct_data = direct_data;
+	}
+
+	if (pm8001_ha->forensic_info.data_buf.direct_offset == 0) {
+		/* start to get data */
+		/* Program the MEMBASE II Shifting Register with 0x00.*/
+		pm8001_cw32(pm8001_ha, 0, MEMBASE_II_SHIFT_REGISTER,
+				pm8001_ha->fatal_forensic_shift_offset);
+		pm8001_ha->forensic_last_offset = 0;
+		pm8001_ha->forensic_fatal_step = 0;
+		pm8001_ha->fatal_bar_loc = 0;
+	}
+	/* Read until accum_len is retrived */
+	accum_len = pm8001_mr32(fatal_table_address,
+				MPI_FATAL_EDUMP_TABLE_ACCUM_LEN);
+	PM8001_IO_DBG(pm8001_ha, pm8001_printk("accum_len 0x%x\n",
+						accum_len));
+	if (accum_len == 0xFFFFFFFF) {
+		PM8001_IO_DBG(pm8001_ha,
+			pm8001_printk("Possible PCI issue 0x%x not expected\n",
+				accum_len));
+		return status;
+	}
+	if (accum_len == 0 || accum_len >= 0x100000) {
+		pm8001_ha->forensic_info.data_buf.direct_data +=
+			sprintf(pm8001_ha->forensic_info.data_buf.direct_data,
+				"%08x ", 0xFFFFFFFF);
+		return (char *)pm8001_ha->forensic_info.data_buf.direct_data -
+			(char *)buf;
+	}
+	temp = (u32 *)pm8001_ha->memoryMap.region[FORENSIC_MEM].virt_ptr;
+	if (pm8001_ha->forensic_fatal_step == 0) {
+moreData:
+		if (pm8001_ha->forensic_info.data_buf.direct_data) {
+			/* Data is in bar, copy to host memory */
+			pm80xx_pci_mem_copy(pm8001_ha, pm8001_ha->fatal_bar_loc,
+			 pm8001_ha->memoryMap.region[FORENSIC_MEM].virt_ptr,
+				pm8001_ha->forensic_info.data_buf.direct_len ,
+					1);
+		}
+		pm8001_ha->fatal_bar_loc +=
+			pm8001_ha->forensic_info.data_buf.direct_len;
+		pm8001_ha->forensic_info.data_buf.direct_offset +=
+			pm8001_ha->forensic_info.data_buf.direct_len;
+		pm8001_ha->forensic_last_offset	+=
+			pm8001_ha->forensic_info.data_buf.direct_len;
+		pm8001_ha->forensic_info.data_buf.read_len =
+			pm8001_ha->forensic_info.data_buf.direct_len;
+
+		if (pm8001_ha->forensic_last_offset  >= accum_len) {
+			pm8001_ha->forensic_info.data_buf.direct_data +=
+			sprintf(pm8001_ha->forensic_info.data_buf.direct_data,
+				"%08x ", 3);
+			for (index = 0; index < (SYSFS_OFFSET / 4); index++) {
+				pm8001_ha->forensic_info.data_buf.direct_data +=
+					sprintf(pm8001_ha->
+					 forensic_info.data_buf.direct_data,
+						"%08x ", *(temp + index));
+			}
+
+			pm8001_ha->fatal_bar_loc = 0;
+			pm8001_ha->forensic_fatal_step = 1;
+			pm8001_ha->fatal_forensic_shift_offset = 0;
+			pm8001_ha->forensic_last_offset	= 0;
+			status = 0;
+			return (char *)pm8001_ha->
+				forensic_info.data_buf.direct_data -
+				(char *)buf;
+		}
+		if (pm8001_ha->fatal_bar_loc < (64 * 1024)) {
+			pm8001_ha->forensic_info.data_buf.direct_data +=
+				sprintf(pm8001_ha->
+					forensic_info.data_buf.direct_data,
+					"%08x ", 2);
+			for (index = 0; index < (SYSFS_OFFSET / 4); index++) {
+				pm8001_ha->forensic_info.data_buf.direct_data +=
+					sprintf(pm8001_ha->
+					forensic_info.data_buf.direct_data,
+					"%08x ", *(temp + index));
+			}
+			status = 0;
+			return (char *)pm8001_ha->
+				forensic_info.data_buf.direct_data -
+				(char *)buf;
+		}
+
+		/* Increment the MEMBASE II Shifting Register value by 0x100.*/
+		pm8001_ha->forensic_info.data_buf.direct_data +=
+			sprintf(pm8001_ha->forensic_info.data_buf.direct_data,
+				"%08x ", 2);
+		for (index = 0; index < 256; index++) {
+			pm8001_ha->forensic_info.data_buf.direct_data +=
+				sprintf(pm8001_ha->
+					forensic_info.data_buf.direct_data,
+						"%08x ", *(temp + index));
+		}
+		pm8001_ha->fatal_forensic_shift_offset += 0x100;
+		pm8001_cw32(pm8001_ha, 0, MEMBASE_II_SHIFT_REGISTER,
+			pm8001_ha->fatal_forensic_shift_offset);
+		pm8001_ha->fatal_bar_loc = 0;
+		status = 0;
+		return (char *)pm8001_ha->forensic_info.data_buf.direct_data -
+			(char *)buf;
+	}
+	if (pm8001_ha->forensic_fatal_step == 1) {
+		pm8001_ha->fatal_forensic_shift_offset = 0;
+		/* Read 64K of the debug data. */
+		pm8001_cw32(pm8001_ha, 0, MEMBASE_II_SHIFT_REGISTER,
+			pm8001_ha->fatal_forensic_shift_offset);
+		pm8001_mw32(fatal_table_address,
+			MPI_FATAL_EDUMP_TABLE_HANDSHAKE,
+				MPI_FATAL_EDUMP_HANDSHAKE_RDY);
+
+		/* Poll FDDHSHK  until clear  */
+		start = jiffies + (2 * HZ); /* 2 sec */
+
+		do {
+			reg_val = pm8001_mr32(fatal_table_address,
+					MPI_FATAL_EDUMP_TABLE_HANDSHAKE);
+		} while ((reg_val) && time_before(jiffies, start));
+
+		if (reg_val != 0) {
+			PM8001_FAIL_DBG(pm8001_ha,
+			pm8001_printk("TIMEOUT:MEMBASE_II_SHIFT_REGISTER"
+			" = 0x%x\n", reg_val));
+			return -1;
+		}
+
+		/* Read the next 64K of the debug data. */
+		pm8001_ha->forensic_fatal_step = 0;
+		if (pm8001_mr32(fatal_table_address,
+			MPI_FATAL_EDUMP_TABLE_STATUS) !=
+				MPI_FATAL_EDUMP_TABLE_STAT_NF_SUCCESS_DONE) {
+			pm8001_mw32(fatal_table_address,
+				MPI_FATAL_EDUMP_TABLE_HANDSHAKE, 0);
+			goto moreData;
+		} else {
+			pm8001_ha->forensic_info.data_buf.direct_data +=
+				sprintf(pm8001_ha->
+					forensic_info.data_buf.direct_data,
+						"%08x ", 4);
+			pm8001_ha->forensic_info.data_buf.read_len = 0xFFFFFFFF;
+			pm8001_ha->forensic_info.data_buf.direct_len =  0;
+			pm8001_ha->forensic_info.data_buf.direct_offset = 0;
+			pm8001_ha->forensic_info.data_buf.read_len = 0;
+			status = 0;
+		}
+	}
+
+	return (char *)pm8001_ha->forensic_info.data_buf.direct_data -
+		(char *)buf;
+}
+
 /**
  * read_main_config_table - read the configure table and save it.
  * @pm8001_ha: our hba card information
@@ -430,7 +652,11 @@ static int mpi_init_check(struct pm8001_hba_info *pm8001_ha)
 	table is updated */
 	pm8001_cw32(pm8001_ha, 0, MSGU_IBDB_SET, SPCv_MSGU_CFG_TABLE_UPDATE);
 	/* wait until Inbound DoorBell Clear Register toggled */
-	max_wait_count = 2 * 1000 * 1000;/* 2 sec for spcv/ve */
+	if (IS_SPCV_12G(pm8001_ha->pdev)) {
+		max_wait_count = 4 * 1000 * 1000;/* 4 sec */
+	} else {
+		max_wait_count = 2 * 1000 * 1000;/* 2 sec */
+	}
 	do {
 		udelay(1);
 		value = pm8001_cr32(pm8001_ha, 0, MSGU_IBDB_SET);
@@ -578,6 +804,9 @@ static void init_pci_device_addresses(struct pm8001_hba_info *pm8001_ha)
 					0xFFFFFF);
 	pm8001_ha->pspa_q_tbl_addr =
 		base_addr + (pm8001_cr32(pm8001_ha, pcibar, offset + 0x90) &
+					0xFFFFFF);
+	pm8001_ha->fatal_tbl_addr =
+		base_addr + (pm8001_cr32(pm8001_ha, pcibar, offset + 0xA0) &
 					0xFFFFFF);
 
 	PM8001_INIT_DBG(pm8001_ha,
@@ -913,7 +1142,11 @@ static int mpi_uninit_check(struct pm8001_hba_info *pm8001_ha)
 	pm8001_cw32(pm8001_ha, 0, MSGU_IBDB_SET, SPCv_MSGU_CFG_TABLE_RESET);
 
 	/* wait until Inbound DoorBell Clear Register toggled */
-	max_wait_count = 2 * 1000 * 1000;	/* 2 sec for spcv/ve */
+	if (IS_SPCV_12G(pm8001_ha->pdev)) {
+		max_wait_count = 4 * 1000 * 1000;/* 4 sec */
+	} else {
+		max_wait_count = 2 * 1000 * 1000;/* 2 sec */
+	}
 	do {
 		udelay(1);
 		value = pm8001_cr32(pm8001_ha, 0, MSGU_IBDB_SET);
@@ -959,6 +1192,7 @@ pm80xx_chip_soft_rst(struct pm8001_hba_info *pm8001_ha)
 {
 	u32 regval;
 	u32 bootloader_state;
+	u32 ibutton0, ibutton1;
 
 	/* Check if MPI is in ready state to reset */
 	if (mpi_uninit_check(pm8001_ha) != 0) {
@@ -1017,7 +1251,27 @@ pm80xx_chip_soft_rst(struct pm8001_hba_info *pm8001_ha)
 	if (-1 == check_fw_ready(pm8001_ha)) {
 		PM8001_FAIL_DBG(pm8001_ha,
 			pm8001_printk("Firmware is not ready!\n"));
-		return -EBUSY;
+		/* check iButton feature support for motherboard controller */
+		if (pm8001_ha->pdev->subsystem_vendor !=
+			PCI_VENDOR_ID_ADAPTEC2 &&
+			pm8001_ha->pdev->subsystem_vendor != 0) {
+			ibutton0 = pm8001_cr32(pm8001_ha, 0,
+					MSGU_HOST_SCRATCH_PAD_6);
+			ibutton1 = pm8001_cr32(pm8001_ha, 0,
+					MSGU_HOST_SCRATCH_PAD_7);
+			if (!ibutton0 && !ibutton1) {
+				PM8001_FAIL_DBG(pm8001_ha,
+					pm8001_printk("iButton Feature is"
+					" not Available!!!\n"));
+				return -EBUSY;
+			}
+			if (ibutton0 == 0xdeadbeef && ibutton1 == 0xdeadbeef) {
+				PM8001_FAIL_DBG(pm8001_ha,
+					pm8001_printk("CRC Check for iButton"
+					" Feature Failed!!!\n"));
+				return -EBUSY;
+			}
+		}
 	}
 	PM8001_INIT_DBG(pm8001_ha,
 		pm8001_printk("SPCv soft reset Complete\n"));
@@ -1268,6 +1522,13 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha , void *piomb)
 	if (unlikely(!t || !t->lldd_task || !t->dev))
 		return;
 	ts = &t->task_status;
+	/* Print sas address of IO failed device */
+	if ((status != IO_SUCCESS) && (status != IO_OVERFLOW) &&
+		(status != IO_UNDERFLOW))
+		PM8001_FAIL_DBG(pm8001_ha,
+			pm8001_printk("SAS Address of IO Failure Drive"
+			":%016llx", SAS_ADDR(t->dev->sas_addr)));
+
 	switch (status) {
 	case IO_SUCCESS:
 		PM8001_IO_DBG(pm8001_ha,
@@ -1691,6 +1952,10 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	u32 param;
 	u32 status;
 	u32 tag;
+	int i, j;
+	u8 sata_addr_low[4];
+	u32 temp_sata_addr_low, temp_sata_addr_hi;
+	u8 sata_addr_hi[4];
 	struct sata_completion_resp *psataPayload;
 	struct task_status_struct *ts;
 	struct ata_task_resp *resp ;
@@ -1740,7 +2005,47 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			pm8001_printk("ts null\n"));
 		return;
 	}
+	/* Print sas address of IO failed device */
+	if ((status != IO_SUCCESS) && (status != IO_OVERFLOW) &&
+		(status != IO_UNDERFLOW)) {
+		if (!((t->dev->parent) &&
+			(DEV_IS_EXPANDER(t->dev->parent->dev_type)))) {
+			for (i = 0 , j = 4; i <= 3 && j <= 7; i++ , j++)
+				sata_addr_low[i] = pm8001_ha->sas_addr[j];
+			for (i = 0 , j = 0; i <= 3 && j <= 3; i++ , j++)
+				sata_addr_hi[i] = pm8001_ha->sas_addr[j];
+			memcpy(&temp_sata_addr_low, sata_addr_low,
+				sizeof(sata_addr_low));
+			memcpy(&temp_sata_addr_hi, sata_addr_hi,
+				sizeof(sata_addr_hi));
+			temp_sata_addr_hi = (((temp_sata_addr_hi >> 24) & 0xff)
+						|((temp_sata_addr_hi << 8) &
+						0xff0000) |
+						((temp_sata_addr_hi >> 8)
+						& 0xff00) |
+						((temp_sata_addr_hi << 24) &
+						0xff000000));
+			temp_sata_addr_low = ((((temp_sata_addr_low >> 24)
+						& 0xff) |
+						((temp_sata_addr_low << 8)
+						& 0xff0000) |
+						((temp_sata_addr_low >> 8)
+						& 0xff00) |
+						((temp_sata_addr_low << 24)
+						& 0xff000000)) +
+						pm8001_dev->attached_phy +
+						0x10);
+			PM8001_FAIL_DBG(pm8001_ha,
+				pm8001_printk("SAS Address of IO Failure Drive:"
+				"%08x%08x", temp_sata_addr_hi,
+					temp_sata_addr_low));
 
+		} else {
+			PM8001_FAIL_DBG(pm8001_ha,
+				pm8001_printk("SAS Address of IO Failure Drive:"
+				"%016llx", SAS_ADDR(t->dev->sas_addr)));
+		}
+	}
 	switch (status) {
 	case IO_SUCCESS:
 		PM8001_IO_DBG(pm8001_ha, pm8001_printk("IO_SUCCESS\n"));
@@ -3103,9 +3408,27 @@ static int mpi_flash_op_ext_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 static int mpi_set_phy_profile_resp(struct pm8001_hba_info *pm8001_ha,
 			void *piomb)
 {
-	PM8001_MSG_DBG(pm8001_ha,
-			pm8001_printk(" pm80xx_addition_functionality\n"));
+	u8 page_code;
+	struct set_phy_profile_resp *pPayload =
+		(struct set_phy_profile_resp *)(piomb + 4);
+	u32 ppc_phyid = le32_to_cpu(pPayload->ppc_phyid);
+	u32 status = le32_to_cpu(pPayload->status);
 
+	page_code = (u8)((ppc_phyid & 0xFF00) >> 8);
+	if (status) {
+		/* status is FAILED */
+		PM8001_FAIL_DBG(pm8001_ha,
+			pm8001_printk("PhyProfile command failed  with status "
+			"0x%08X \n", status));
+		return -1;
+	} else {
+		if (page_code != SAS_PHY_ANALOG_SETTINGS_PAGE) {
+			PM8001_FAIL_DBG(pm8001_ha,
+				pm8001_printk("Invalid page code 0x%X\n",
+					page_code));
+			return -1;
+		}
+	}
 	return 0;
 }
 
@@ -3484,8 +3807,6 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 	else
 		pm8001_ha->smp_exp_mode = SMP_INDIRECT;
 
-	/* DIRECT MODE support only in spcv/ve */
-	pm8001_ha->smp_exp_mode = SMP_DIRECT;
 
 	tmp_addr = cpu_to_le64((u64)sg_dma_address(&task->smp_task.smp_req));
 	preq_dma_addr = (char *)phys_to_virt(tmp_addr);
@@ -3501,7 +3822,7 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 		/* exclude top 4 bytes for SMP req header */
 		smp_cmd.long_smp_req.long_req_addr =
 			cpu_to_le64((u64)sg_dma_address
-				(&task->smp_task.smp_req) - 4);
+				(&task->smp_task.smp_req) + 4);
 		/* exclude 4 bytes for SMP req header and CRC */
 		smp_cmd.long_smp_req.long_req_size =
 			cpu_to_le32((u32)sg_dma_len(&task->smp_task.smp_req)-8);
@@ -3604,10 +3925,10 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 	struct ssp_ini_io_start_req ssp_cmd;
 	u32 tag = ccb->ccb_tag;
 	int ret;
-	u64 phys_addr;
+	u64 phys_addr, start_addr, end_addr;
+	u32 end_addr_high, end_addr_low;
 	struct inbound_queue_table *circularQ;
-	static u32 inb;
-	static u32 outb;
+	u32 q_index;
 	u32 opc = OPC_INB_SSPINIIOSTART;
 	memset(&ssp_cmd, 0, sizeof(ssp_cmd));
 	memcpy(ssp_cmd.ssp_iu.lun, task->ssp_task.LUN, 8);
@@ -3626,7 +3947,8 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 	ssp_cmd.ssp_iu.efb_prio_attr |= (task->ssp_task.task_attr & 7);
 	memcpy(ssp_cmd.ssp_iu.cdb, task->ssp_task.cmd->cmnd,
 		       task->ssp_task.cmd->cmd_len);
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
+	q_index = (u32) (pm8001_dev->id & 0x00ffffff) % PM8001_MAX_INB_NUM;
+	circularQ = &pm8001_ha->inbnd_q_tbl[q_index];
 
 	/* Check if encryption is set */
 	if (pm8001_ha->chip->encrypt &&
@@ -3658,6 +3980,30 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 				cpu_to_le32(upper_32_bits(dma_addr));
 			ssp_cmd.enc_len = cpu_to_le32(task->total_xfer_len);
 			ssp_cmd.enc_esgl = 0;
+			/* Check 4G Boundary */
+			start_addr = cpu_to_le64(dma_addr);
+			end_addr = (start_addr + ssp_cmd.enc_len) - 1;
+			end_addr_low = cpu_to_le32(lower_32_bits(end_addr));
+			end_addr_high = cpu_to_le32(upper_32_bits(end_addr));
+			if (end_addr_high != ssp_cmd.enc_addr_high) {
+				PM8001_FAIL_DBG(pm8001_ha,
+					pm8001_printk("The sg list address "
+					"start_addr=0x%016llx data_len=0x%x "
+					"end_addr_high=0x%08x end_addr_low="
+					"0x%08x has crossed 4G boundary\n",
+						start_addr, ssp_cmd.enc_len,
+						end_addr_high, end_addr_low));
+				pm8001_chip_make_sg(task->scatter, 1,
+					ccb->buf_prd);
+				phys_addr = ccb->ccb_dma_handle +
+					offsetof(struct pm8001_ccb_info,
+						buf_prd[0]);
+				ssp_cmd.enc_addr_low =
+					cpu_to_le32(lower_32_bits(phys_addr));
+				ssp_cmd.enc_addr_high =
+					cpu_to_le32(upper_32_bits(phys_addr));
+				ssp_cmd.enc_esgl = cpu_to_le32(1<<31);
+			}
 		} else if (task->num_scatter == 0) {
 			ssp_cmd.enc_addr_low = 0;
 			ssp_cmd.enc_addr_high = 0;
@@ -3674,7 +4020,7 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 	} else {
 		PM8001_IO_DBG(pm8001_ha, pm8001_printk(
 			"Sending Normal SAS command 0x%x inb q %x\n",
-			task->ssp_task.cmd->cmnd[0], inb));
+			task->ssp_task.cmd->cmnd[0], q_index));
 		/* fill in PRD (scatter/gather) table, if any */
 		if (task->num_scatter > 1) {
 			pm8001_chip_make_sg(task->scatter, ccb->n_elem,
@@ -3693,6 +4039,30 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 				cpu_to_le32(upper_32_bits(dma_addr));
 			ssp_cmd.len = cpu_to_le32(task->total_xfer_len);
 			ssp_cmd.esgl = 0;
+			/* Check 4G Boundary */
+			start_addr = cpu_to_le64(dma_addr);
+			end_addr = (start_addr + ssp_cmd.len) - 1;
+			end_addr_low = cpu_to_le32(lower_32_bits(end_addr));
+			end_addr_high = cpu_to_le32(upper_32_bits(end_addr));
+			if (end_addr_high != ssp_cmd.addr_high) {
+				PM8001_FAIL_DBG(pm8001_ha,
+					pm8001_printk("The sg list address "
+					"start_addr=0x%016llx data_len=0x%x "
+					"end_addr_high=0x%08x end_addr_low="
+					"0x%08x has crossed 4G boundary\n",
+						 start_addr, ssp_cmd.len,
+						 end_addr_high, end_addr_low));
+				pm8001_chip_make_sg(task->scatter, 1,
+					ccb->buf_prd);
+				phys_addr = ccb->ccb_dma_handle +
+					offsetof(struct pm8001_ccb_info,
+						 buf_prd[0]);
+				ssp_cmd.addr_low =
+					cpu_to_le32(lower_32_bits(phys_addr));
+				ssp_cmd.addr_high =
+					cpu_to_le32(upper_32_bits(phys_addr));
+				ssp_cmd.esgl = cpu_to_le32(1<<31);
+			}
 		} else if (task->num_scatter == 0) {
 			ssp_cmd.addr_low = 0;
 			ssp_cmd.addr_high = 0;
@@ -3700,11 +4070,9 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 			ssp_cmd.esgl = 0;
 		}
 	}
-	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &ssp_cmd, outb++);
-
-	/* rotate the outb queue */
-	outb = outb%PM8001_MAX_SPCV_OUTB_NUM;
-
+	q_index = (u32) (pm8001_dev->id & 0x00ffffff) % PM8001_MAX_OUTB_NUM;
+	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc,
+						&ssp_cmd, q_index);
 	return ret;
 }
 
@@ -3716,18 +4084,19 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 	struct pm8001_device *pm8001_ha_dev = dev->lldd_dev;
 	u32 tag = ccb->ccb_tag;
 	int ret;
-	static u32 inb;
-	static u32 outb;
+	u32 q_index;
 	struct sata_start_req sata_cmd;
 	u32 hdr_tag, ncg_tag = 0;
-	u64 phys_addr;
+	u64 phys_addr, start_addr, end_addr;
+	u32 end_addr_high, end_addr_low;
 	u32 ATAP = 0x0;
 	u32 dir;
 	struct inbound_queue_table *circularQ;
 	unsigned long flags;
 	u32 opc = OPC_INB_SATA_HOST_OPSTART;
 	memset(&sata_cmd, 0, sizeof(sata_cmd));
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
+	q_index = (u32) (pm8001_ha_dev->id & 0x00ffffff) % PM8001_MAX_INB_NUM;
+	circularQ = &pm8001_ha->inbnd_q_tbl[q_index];
 
 	if (task->data_dir == PCI_DMA_NONE) {
 		ATAP = 0x04; /* no data*/
@@ -3788,6 +4157,31 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 			sata_cmd.enc_addr_high = upper_32_bits(dma_addr);
 			sata_cmd.enc_len = cpu_to_le32(task->total_xfer_len);
 			sata_cmd.enc_esgl = 0;
+			/* Check 4G Boundary */
+			start_addr = cpu_to_le64(dma_addr);
+			end_addr = (start_addr + sata_cmd.enc_len) - 1;
+			end_addr_low = cpu_to_le32(lower_32_bits(end_addr));
+			end_addr_high = cpu_to_le32(upper_32_bits(end_addr));
+			if (end_addr_high != sata_cmd.enc_addr_high) {
+				PM8001_FAIL_DBG(pm8001_ha,
+					pm8001_printk("The sg list address "
+					"start_addr=0x%016llx data_len=0x%x "
+					"end_addr_high=0x%08x end_addr_low"
+					"=0x%08x has crossed 4G boundary\n",
+						start_addr, sata_cmd.enc_len,
+						end_addr_high, end_addr_low));
+				pm8001_chip_make_sg(task->scatter, 1,
+					ccb->buf_prd);
+				phys_addr = ccb->ccb_dma_handle +
+						offsetof(struct pm8001_ccb_info,
+						buf_prd[0]);
+				sata_cmd.enc_addr_low =
+					lower_32_bits(phys_addr);
+				sata_cmd.enc_addr_high =
+					upper_32_bits(phys_addr);
+				sata_cmd.enc_esgl =
+					cpu_to_le32(1 << 31);
+			}
 		} else if (task->num_scatter == 0) {
 			sata_cmd.enc_addr_low = 0;
 			sata_cmd.enc_addr_high = 0;
@@ -3808,7 +4202,7 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 	} else {
 		PM8001_IO_DBG(pm8001_ha, pm8001_printk(
 			"Sending Normal SATA command 0x%x inb %x\n",
-			sata_cmd.sata_fis.command, inb));
+			sata_cmd.sata_fis.command, q_index));
 		/* dad (bit 0-1) is 0 */
 		sata_cmd.ncqtag_atap_dir_m_dad =
 			cpu_to_le32(((ncg_tag & 0xff)<<16) |
@@ -3829,6 +4223,30 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 			sata_cmd.addr_high = upper_32_bits(dma_addr);
 			sata_cmd.len = cpu_to_le32(task->total_xfer_len);
 			sata_cmd.esgl = 0;
+			/* Check 4G Boundary */
+			start_addr = cpu_to_le64(dma_addr);
+			end_addr = (start_addr + sata_cmd.len) - 1;
+			end_addr_low = cpu_to_le32(lower_32_bits(end_addr));
+			end_addr_high = cpu_to_le32(upper_32_bits(end_addr));
+			if (end_addr_high != sata_cmd.addr_high) {
+				PM8001_FAIL_DBG(pm8001_ha,
+					pm8001_printk("The sg list address "
+					"start_addr=0x%016llx data_len=0x%x"
+					"end_addr_high=0x%08x end_addr_low="
+					"0x%08x has crossed 4G boundary\n",
+						start_addr, sata_cmd.len,
+						end_addr_high, end_addr_low));
+				pm8001_chip_make_sg(task->scatter, 1,
+					ccb->buf_prd);
+				phys_addr = ccb->ccb_dma_handle +
+					offsetof(struct pm8001_ccb_info,
+					buf_prd[0]);
+				sata_cmd.addr_low =
+					lower_32_bits(phys_addr);
+				sata_cmd.addr_high =
+					upper_32_bits(phys_addr);
+				sata_cmd.esgl = cpu_to_le32(1 << 31);
+			}
 		} else if (task->num_scatter == 0) {
 			sata_cmd.addr_low = 0;
 			sata_cmd.addr_high = 0;
@@ -3905,12 +4323,9 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 			}
 		}
 	}
-
+	q_index = (u32) (pm8001_ha_dev->id & 0x00ffffff) % PM8001_MAX_OUTB_NUM;
 	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc,
-						&sata_cmd, outb++);
-
-	/* rotate the outb queue */
-	outb = outb%PM8001_MAX_SPCV_OUTB_NUM;
+						&sata_cmd, q_index);
 	return ret;
 }
 
@@ -3941,9 +4356,16 @@ pm80xx_chip_phy_start_req(struct pm8001_hba_info *pm8001_ha, u8 phy_id)
 	 ** [14]	0b disable spin up hold; 1b enable spin up hold
 	 ** [15] ob no change in current PHY analig setup 1b enable using SPAST
 	 */
-	payload.ase_sh_lm_slr_phyid = cpu_to_le32(SPINHOLD_DISABLE |
-			LINKMODE_AUTO | LINKRATE_15 |
-			LINKRATE_30 | LINKRATE_60 | phy_id);
+	if (!IS_SPCV_12G(pm8001_ha->pdev))
+		payload.ase_sh_lm_slr_phyid = cpu_to_le32(SPINHOLD_DISABLE |
+				LINKMODE_AUTO | LINKRATE_15 |
+				LINKRATE_30 | LINKRATE_60 | phy_id);
+	else
+		payload.ase_sh_lm_slr_phyid = cpu_to_le32(SPINHOLD_DISABLE |
+				LINKMODE_AUTO | LINKRATE_15 |
+				LINKRATE_30 | LINKRATE_60 | LINKRATE_120 |
+				phy_id);
+
 	/* SSC Disable and SAS Analog ST configuration */
 	/**
 	payload.ase_sh_lm_slr_phyid =
@@ -4102,6 +4524,45 @@ pm80xx_chip_isr(struct pm8001_hba_info *pm8001_ha, u8 vec)
 	return IRQ_HANDLED;
 }
 
+void mpi_set_phy_profile_req(struct pm8001_hba_info *pm8001_ha,
+	u32 operation, u32 phyid, u32 length, u32 *buf)
+{
+	u32 tag , i, j = 0;
+	int rc;
+	struct set_phy_profile_req payload;
+	struct inbound_queue_table *circularQ;
+	u32 opc = OPC_INB_SET_PHY_PROFILE;
+
+	memset(&payload, 0, sizeof(payload));
+	rc = pm8001_tag_alloc(pm8001_ha, &tag);
+	if (rc)
+		PM8001_FAIL_DBG(pm8001_ha, pm8001_printk("Invalid tag\n"));
+	circularQ = &pm8001_ha->inbnd_q_tbl[0];
+	payload.tag = cpu_to_le32(tag);
+	payload.ppc_phyid = (((operation & 0xF) << 8) | (phyid  & 0xFF));
+	PM8001_INIT_DBG(pm8001_ha,
+		pm8001_printk(" phy profile command for phy %x ,length is %d\n",
+			payload.ppc_phyid, length));
+	for (i = length; i < (length + PHY_DWORD_LENGTH - 1); i++) {
+		payload.reserved[j] =  cpu_to_le32(*((u32 *)buf + i));
+		j++;
+	}
+	pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload, 0);
+}
+
+void pm8001_set_phy_profile(struct pm8001_hba_info *pm8001_ha,
+	u32 length, u8 *buf)
+{
+	u32 page_code, i;
+
+	page_code = SAS_PHY_ANALOG_SETTINGS_PAGE;
+	for (i = 0; i < pm8001_ha->chip->n_phy; i++) {
+		mpi_set_phy_profile_req(pm8001_ha,
+			SAS_PHY_ANALOG_SETTINGS_PAGE, i, length, (u32 *)buf);
+		length = length + PHY_DWORD_LENGTH;
+	}
+	PM8001_INIT_DBG(pm8001_ha, pm8001_printk("phy settings completed\n"));
+}
 const struct pm8001_dispatch pm8001_80xx_dispatch = {
 	.name			= "pmc80xx",
 	.chip_init		= pm80xx_chip_init,

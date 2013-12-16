@@ -113,7 +113,6 @@ int drm_open(struct inode *inode, struct file *filp)
 	retcode = drm_open_helper(inode, filp, dev);
 	if (retcode)
 		goto err_undo;
-	atomic_inc(&dev->counts[_DRM_STAT_OPENS]);
 	if (need_setup) {
 		retcode = drm_setup(dev);
 		if (retcode)
@@ -148,7 +147,7 @@ int drm_stub_open(struct inode *inode, struct file *filp)
 	struct drm_minor *minor;
 	int minor_id = iminor(inode);
 	int err = -ENODEV;
-	const struct file_operations *old_fops;
+	const struct file_operations *new_fops;
 
 	DRM_DEBUG("\n");
 
@@ -163,18 +162,13 @@ int drm_stub_open(struct inode *inode, struct file *filp)
 	if (drm_device_is_unplugged(dev))
 		goto out;
 
-	old_fops = filp->f_op;
-	filp->f_op = fops_get(dev->driver->fops);
-	if (filp->f_op == NULL) {
-		filp->f_op = old_fops;
+	new_fops = fops_get(dev->driver->fops);
+	if (!new_fops)
 		goto out;
-	}
-	if (filp->f_op->open && (err = filp->f_op->open(inode, filp))) {
-		fops_put(filp->f_op);
-		filp->f_op = fops_get(old_fops);
-	}
-	fops_put(old_fops);
 
+	replace_fops(filp, new_fops);
+	if (filp->f_op->open)
+		err = filp->f_op->open(inode, filp);
 out:
 	mutex_unlock(&drm_global_mutex);
 	return err;
@@ -240,7 +234,8 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 
 	priv->ioctl_count = 0;
 	/* for compatibility root is always authenticated */
-	priv->authenticated = capable(CAP_SYS_ADMIN);
+	priv->always_authenticated = capable(CAP_SYS_ADMIN);
+	priv->authenticated = priv->always_authenticated;
 	priv->lock_count = 0;
 
 	INIT_LIST_HEAD(&priv->lhead);
@@ -379,10 +374,77 @@ static void drm_events_release(struct drm_file *file_priv)
 		}
 
 	/* Remove unconsumed events */
-	list_for_each_entry_safe(e, et, &file_priv->event_list, link)
+	list_for_each_entry_safe(e, et, &file_priv->event_list, link) {
+		list_del(&e->link);
 		e->destroy(e);
+	}
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
+}
+
+/**
+ * drm_legacy_dev_reinit
+ *
+ * Reinitializes a legacy/ums drm device in it's lastclose function.
+ */
+static void drm_legacy_dev_reinit(struct drm_device *dev)
+{
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
+
+	atomic_set(&dev->ioctl_count, 0);
+	atomic_set(&dev->vma_count, 0);
+
+	dev->sigdata.lock = NULL;
+
+	dev->context_flag = 0;
+	dev->last_context = 0;
+	dev->if_version = 0;
+}
+
+/**
+ * Take down the DRM device.
+ *
+ * \param dev DRM device structure.
+ *
+ * Frees every resource in \p dev.
+ *
+ * \sa drm_device
+ */
+int drm_lastclose(struct drm_device * dev)
+{
+	struct drm_vma_entry *vma, *vma_temp;
+
+	DRM_DEBUG("\n");
+
+	if (dev->driver->lastclose)
+		dev->driver->lastclose(dev);
+	DRM_DEBUG("driver lastclose completed\n");
+
+	if (dev->irq_enabled && !drm_core_check_feature(dev, DRIVER_MODESET))
+		drm_irq_uninstall(dev);
+
+	mutex_lock(&dev->struct_mutex);
+
+	drm_agp_clear(dev);
+
+	drm_legacy_sg_cleanup(dev);
+
+	/* Clear vma list (only built for debugging) */
+	list_for_each_entry_safe(vma, vma_temp, &dev->vmalist, head) {
+		list_del(&vma->head);
+		kfree(vma);
+	}
+
+	drm_legacy_dma_takedown(dev);
+
+	dev->dev_mapping = NULL;
+	mutex_unlock(&dev->struct_mutex);
+
+	drm_legacy_dev_reinit(dev);
+
+	DRM_DEBUG("lastclose completed\n");
+	return 0;
 }
 
 /**
@@ -439,7 +501,25 @@ int drm_release(struct inode *inode, struct file *filp)
 	if (dev->driver->driver_features & DRIVER_GEM)
 		drm_gem_release(dev, file_priv);
 
-	drm_legacy_ctxbitmap_release(dev, file_priv);
+	mutex_lock(&dev->ctxlist_mutex);
+	if (!list_empty(&dev->ctxlist)) {
+		struct drm_ctx_list *pos, *n;
+
+		list_for_each_entry_safe(pos, n, &dev->ctxlist, head) {
+			if (pos->tag == file_priv &&
+			    pos->handle != DRM_KERNEL_CONTEXT) {
+				if (dev->driver->context_dtor)
+					dev->driver->context_dtor(dev,
+								  pos->handle);
+
+				drm_ctxbitmap_free(dev, pos->handle);
+
+				list_del(&pos->head);
+				kfree(pos);
+			}
+		}
+	}
+	mutex_unlock(&dev->ctxlist_mutex);
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -449,7 +529,7 @@ int drm_release(struct inode *inode, struct file *filp)
 		list_for_each_entry(temp, &dev->filelist, lhead) {
 			if ((temp->master == file_priv->master) &&
 			    (temp != file_priv))
-				temp->authenticated = 0;
+				temp->authenticated = temp->always_authenticated;
 		}
 
 		/**
@@ -497,7 +577,6 @@ int drm_release(struct inode *inode, struct file *filp)
 	 * End inline drm_release
 	 */
 
-	atomic_inc(&dev->counts[_DRM_STAT_CLOSES]);
 	if (!--dev->open_count) {
 		if (atomic_read(&dev->ioctl_count)) {
 			DRM_ERROR("Device busy: %d\n",

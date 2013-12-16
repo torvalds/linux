@@ -96,7 +96,6 @@
 			};
 
 			spi0: spi@fffc8000 {
-				status = "okay";
 				cs-gpios = <0>, <&pioC 11 0>, <0>, <0>;
 				mtd_dataflash@0 {
 					compatible = "atmel,at45", "atmel,dataflash";

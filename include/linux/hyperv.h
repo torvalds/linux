@@ -30,10 +30,13 @@
 /*
  * Framework version for util services.
  */
+#define UTIL_FW_MINOR  0
+
+#define UTIL_WS2K8_FW_MAJOR  1
+#define UTIL_WS2K8_FW_VERSION     (UTIL_WS2K8_FW_MAJOR << 16 | UTIL_FW_MINOR)
 
 #define UTIL_FW_MAJOR  3
-#define UTIL_FW_MINOR  0
-#define UTIL_FW_MAJOR_MINOR     (UTIL_FW_MAJOR << 16 | UTIL_FW_MINOR)
+#define UTIL_FW_VERSION     (UTIL_FW_MAJOR << 16 | UTIL_FW_MINOR)
 
 
 /*
@@ -428,15 +431,6 @@ struct hv_ring_buffer_info {
 	u32 ring_datasize;		/* < ring_size */
 	u32 ring_data_startoffset;
 };
-
-struct hv_ring_buffer_debug_info {
-	u32 current_interrupt_mask;
-	u32 current_read_index;
-	u32 current_write_index;
-	u32 bytes_avail_toread;
-	u32 bytes_avail_towrite;
-};
-
 
 /*
  *
@@ -899,23 +893,6 @@ enum vmbus_channel_state {
 	CHANNEL_OPENED_STATE,
 };
 
-struct vmbus_channel_debug_info {
-	u32 relid;
-	enum vmbus_channel_state state;
-	uuid_le interfacetype;
-	uuid_le interface_instance;
-	u32 monitorid;
-	u32 servermonitor_pending;
-	u32 servermonitor_latency;
-	u32 servermonitor_connectionid;
-	u32 clientmonitor_pending;
-	u32 clientmonitor_latency;
-	u32 clientmonitor_connectionid;
-
-	struct hv_ring_buffer_debug_info inbound;
-	struct hv_ring_buffer_debug_info outbound;
-};
-
 /*
  * Represents each channel msg on the vmbus connection This is a
  * variable-size data structure depending on the msg type itself
@@ -1181,18 +1158,7 @@ extern int vmbus_recvpacket_raw(struct vmbus_channel *channel,
 				     u64 *requestid);
 
 
-extern void vmbus_get_debug_info(struct vmbus_channel *channel,
-				     struct vmbus_channel_debug_info *debug);
-
 extern void vmbus_ontimer(unsigned long data);
-
-struct hv_dev_port_info {
-	u32 int_mask;
-	u32 read_idx;
-	u32 write_idx;
-	u32 bytes_avail_toread;
-	u32 bytes_avail_towrite;
-};
 
 /* Base driver object */
 struct hv_driver {

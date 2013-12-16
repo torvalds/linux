@@ -12,9 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) "llcp: %s: " fmt, __func__
@@ -806,8 +804,6 @@ static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	int err = 0;
 
 	pr_debug("%p %zu\n", sk, len);
-
-	msg->msg_namelen = 0;
 
 	lock_sock(sk);
 

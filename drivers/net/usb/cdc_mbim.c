@@ -21,6 +21,8 @@
 #include <linux/usb/usbnet.h>
 #include <linux/usb/cdc-wdm.h>
 #include <linux/usb/cdc_ncm.h>
+#include <net/ipv6.h>
+#include <net/addrconf.h>
 
 /* driver specific data - must match cdc_ncm usage */
 struct cdc_mbim_state {
@@ -42,13 +44,11 @@ static int cdc_mbim_manage_power(struct usbnet *dev, int on)
 	if ((on && atomic_add_return(1, &info->pmcount) == 1) || (!on && atomic_dec_and_test(&info->pmcount))) {
 		/* need autopm_get/put here to ensure the usbcore sees the new value */
 		rv = usb_autopm_get_interface(dev->intf);
-		if (rv < 0)
-			goto err;
 		dev->intf->needs_remote_wakeup = on;
-		usb_autopm_put_interface(dev->intf);
+		if (!rv)
+			usb_autopm_put_interface(dev->intf);
 	}
-err:
-	return rv;
+	return 0;
 }
 
 static int cdc_mbim_wdm_manage_power(struct usb_interface *intf, int status)
@@ -173,7 +173,7 @@ static struct sk_buff *cdc_mbim_tx_fixup(struct usbnet *dev, struct sk_buff *skb
 	}
 
 	spin_lock_bh(&ctx->mtx);
-	skb_out = cdc_ncm_fill_tx_frame(ctx, skb, sign);
+	skb_out = cdc_ncm_fill_tx_frame(dev, skb, sign);
 	spin_unlock_bh(&ctx->mtx);
 	return skb_out;
 
@@ -183,6 +183,60 @@ error:
 
 	return NULL;
 }
+
+/* Some devices are known to send Neigbor Solicitation messages and
+ * require Neigbor Advertisement replies.  The IPv6 core will not
+ * respond since IFF_NOARP is set, so we must handle them ourselves.
+ */
+static void do_neigh_solicit(struct usbnet *dev, u8 *buf, u16 tci)
+{
+	struct ipv6hdr *iph = (void *)buf;
+	struct nd_msg *msg = (void *)(iph + 1);
+	struct net_device *netdev;
+	struct inet6_dev *in6_dev;
+	bool is_router;
+
+	/* we'll only respond to requests from unicast addresses to
+	 * our solicited node addresses.
+	 */
+	if (!ipv6_addr_is_solict_mult(&iph->daddr) ||
+	    !(ipv6_addr_type(&iph->saddr) & IPV6_ADDR_UNICAST))
+		return;
+
+	/* need to send the NA on the VLAN dev, if any */
+	if (tci)
+		netdev = __vlan_find_dev_deep(dev->net, htons(ETH_P_8021Q),
+					      tci);
+	else
+		netdev = dev->net;
+	if (!netdev)
+		return;
+
+	in6_dev = in6_dev_get(netdev);
+	if (!in6_dev)
+		return;
+	is_router = !!in6_dev->cnf.forwarding;
+	in6_dev_put(in6_dev);
+
+	/* ipv6_stub != NULL if in6_dev_get returned an inet6_dev */
+	ipv6_stub->ndisc_send_na(netdev, NULL, &iph->saddr, &msg->target,
+				 is_router /* router */,
+				 true /* solicited */,
+				 false /* override */,
+				 true /* inc_opt */);
+}
+
+static bool is_neigh_solicit(u8 *buf, size_t len)
+{
+	struct ipv6hdr *iph = (void *)buf;
+	struct nd_msg *msg = (void *)(iph + 1);
+
+	return (len >= sizeof(struct ipv6hdr) + sizeof(struct nd_msg) &&
+		iph->nexthdr == IPPROTO_ICMPV6 &&
+		msg->icmph.icmp6_code == 0 &&
+		msg->icmph.icmp6_type == NDISC_NEIGHBOUR_SOLICITATION);
+}
+
 
 static struct sk_buff *cdc_mbim_process_dgram(struct usbnet *dev, u8 *buf, size_t len, u16 tci)
 {
@@ -198,6 +252,8 @@ static struct sk_buff *cdc_mbim_process_dgram(struct usbnet *dev, u8 *buf, size_
 			proto = htons(ETH_P_IP);
 			break;
 		case 0x60:
+			if (is_neigh_solicit(buf, len))
+				do_neigh_solicit(dev, buf, tci);
 			proto = htons(ETH_P_IPV6);
 			break;
 		default:
@@ -313,15 +369,13 @@ error:
 
 static int cdc_mbim_suspend(struct usb_interface *intf, pm_message_t message)
 {
-	int ret = 0;
+	int ret = -ENODEV;
 	struct usbnet *dev = usb_get_intfdata(intf);
 	struct cdc_mbim_state *info = (void *)&dev->data;
 	struct cdc_ncm_ctx *ctx = info->ctx;
 
-	if (ctx == NULL) {
-		ret = -1;
+	if (!ctx)
 		goto error;
-	}
 
 	/*
 	 * Both usbnet_suspend() and subdriver->suspend() MUST return 0
@@ -354,7 +408,7 @@ static int cdc_mbim_resume(struct usb_interface *intf)
 	if (ret < 0)
 		goto err;
 	ret = usbnet_resume(intf);
-	if (ret < 0 && callsub && info->subdriver->suspend)
+	if (ret < 0 && callsub)
 		info->subdriver->suspend(intf, PMSG_SUSPEND);
 err:
 	return ret;
@@ -371,9 +425,18 @@ static const struct driver_info cdc_mbim_info = {
 };
 
 /* MBIM and NCM devices should not need a ZLP after NTBs with
- * dwNtbOutMaxSize length. This driver_info is for the exceptional
- * devices requiring it anyway, allowing them to be supported without
- * forcing the performance penalty on all the sane devices.
+ * dwNtbOutMaxSize length. Nevertheless, a number of devices from
+ * different vendor IDs will fail unless we send ZLPs, forcing us
+ * to make this the default.
+ *
+ * This default may cause a performance penalty for spec conforming
+ * devices wanting to take advantage of optimizations possible without
+ * ZLPs.  A whitelist is added in an attempt to avoid this for devices
+ * known to conform to the MBIM specification.
+ *
+ * All known devices supporting NCM compatibility mode are also
+ * conforming to the NCM and MBIM specifications. For this reason, the
+ * NCM subclass entry is also in the ZLP whitelist.
  */
 static const struct driver_info cdc_mbim_info_zlp = {
 	.description = "CDC MBIM",
@@ -396,16 +459,13 @@ static const struct usb_device_id mbim_devs[] = {
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_NCM, USB_CDC_PROTO_NONE),
 	  .driver_info = (unsigned long)&cdc_mbim_info,
 	},
-	/* Sierra Wireless MC7710 need ZLPs */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x68a2, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
-	  .driver_info = (unsigned long)&cdc_mbim_info_zlp,
-	},
-	/* HP hs2434 Mobile Broadband Module needs ZLPs */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x3f0, 0x4b1d, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
-	  .driver_info = (unsigned long)&cdc_mbim_info_zlp,
-	},
-	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
+	/* ZLP conformance whitelist: All Ericsson MBIM devices */
+	{ USB_VENDOR_AND_INTERFACE_INFO(0x0bdb, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
 	  .driver_info = (unsigned long)&cdc_mbim_info,
+	},
+	/* default entry */
+	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
+	  .driver_info = (unsigned long)&cdc_mbim_info_zlp,
 	},
 	{
 	},

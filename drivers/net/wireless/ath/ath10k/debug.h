@@ -33,14 +33,15 @@ enum ath10k_debug_mask {
 	ATH10K_DBG_MGMT		= 0x00000100,
 	ATH10K_DBG_DATA		= 0x00000200,
 	ATH10K_DBG_BMI		= 0x00000400,
+	ATH10K_DBG_REGULATORY	= 0x00000800,
 	ATH10K_DBG_ANY		= 0xffffffff,
 };
 
 extern unsigned int ath10k_debug_mask;
 
-extern __printf(1, 2) int ath10k_info(const char *fmt, ...);
-extern __printf(1, 2) int ath10k_err(const char *fmt, ...);
-extern __printf(1, 2) int ath10k_warn(const char *fmt, ...);
+__printf(1, 2) int ath10k_info(const char *fmt, ...);
+__printf(1, 2) int ath10k_err(const char *fmt, ...);
+__printf(1, 2) int ath10k_warn(const char *fmt, ...);
 
 #ifdef CONFIG_ATH10K_DEBUGFS
 int ath10k_debug_start(struct ath10k *ar);
@@ -52,6 +53,8 @@ void ath10k_debug_read_service_map(struct ath10k *ar,
 				   size_t map_size);
 void ath10k_debug_read_target_stats(struct ath10k *ar,
 				    struct wmi_stats_event *ev);
+
+#define ATH10K_DFS_STAT_INC(ar, c) (ar->debug.dfs_stats.c++)
 
 #else
 static inline int ath10k_debug_start(struct ath10k *ar)
@@ -82,10 +85,13 @@ static inline void ath10k_debug_read_target_stats(struct ath10k *ar,
 						  struct wmi_stats_event *ev)
 {
 }
+
+#define ATH10K_DFS_STAT_INC(ar, c) do { } while (0)
+
 #endif /* CONFIG_ATH10K_DEBUGFS */
 
 #ifdef CONFIG_ATH10K_DEBUG
-extern __printf(2, 3) void ath10k_dbg(enum ath10k_debug_mask mask,
+__printf(2, 3) void ath10k_dbg(enum ath10k_debug_mask mask,
 				      const char *fmt, ...);
 void ath10k_dbg_dump(enum ath10k_debug_mask mask,
 		     const char *msg, const char *prefix,

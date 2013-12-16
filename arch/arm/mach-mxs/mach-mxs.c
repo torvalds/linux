@@ -13,8 +13,6 @@
 #include <linux/clk.h>
 #include <linux/clk/mxs.h>
 #include <linux/clkdev.h>
-#include <linux/clocksource.h>
-#include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
@@ -332,6 +330,11 @@ static void __init crystalfontz_init(void)
 	update_fec_mac_prop(OUI_CRYSTALFONTZ);
 }
 
+static void __init m28cu3_init(void)
+{
+	update_fec_mac_prop(OUI_DENX);
+}
+
 static const char __init *mxs_get_soc_id(void)
 {
 	struct device_node *np;
@@ -459,6 +462,8 @@ static void __init mxs_machine_init(void)
 		apx4devkit_init();
 	else if (of_machine_is_compatible("crystalfontz,cfa10036"))
 		crystalfontz_init();
+	else if (of_machine_is_compatible("msr,m28cu3"))
+		m28cu3_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     NULL, parent);
@@ -490,16 +495,6 @@ static void mxs_restart(enum reboot_mode mode, const char *cmd)
 	soft_restart(0);
 }
 
-static void __init mxs_timer_init(void)
-{
-	if (of_machine_is_compatible("fsl,imx23"))
-		mx23_clocks_init();
-	else
-		mx28_clocks_init();
-	of_clk_init(NULL);
-	clocksource_of_init();
-}
-
 static const char *mxs_dt_compat[] __initdata = {
 	"fsl,imx28",
 	"fsl,imx23",
@@ -508,7 +503,6 @@ static const char *mxs_dt_compat[] __initdata = {
 
 DT_MACHINE_START(MXS, "Freescale MXS (Device Tree)")
 	.handle_irq	= icoll_handle_irq,
-	.init_time	= mxs_timer_init,
 	.init_machine	= mxs_machine_init,
 	.init_late      = mxs_pm_init,
 	.dt_compat	= mxs_dt_compat,

@@ -75,7 +75,7 @@ extern int init_r4k_clocksource(void);
 
 static inline int init_mips_clocksource(void)
 {
-#if defined(CONFIG_CSRC_R4K) && !defined(CONFIG_CSRC_GIC)
+#ifdef CONFIG_CSRC_R4K
 	return init_r4k_clocksource();
 #else
 	return 0;

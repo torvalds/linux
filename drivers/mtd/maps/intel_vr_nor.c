@@ -180,7 +180,6 @@ static void vr_nor_pci_remove(struct pci_dev *dev)
 {
 	struct vr_nor_mtd *p = pci_get_drvdata(dev);
 
-	pci_set_drvdata(dev, NULL);
 	vr_nor_destroy_partitions(p);
 	vr_nor_destroy_mtd_setup(p);
 	vr_nor_destroy_maps(p);

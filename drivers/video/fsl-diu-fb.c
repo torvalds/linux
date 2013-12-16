@@ -31,6 +31,8 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/spinlock.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <sysdev/fsl_soc.h>
 #include <linux/fsl-diu-fb.h>
@@ -1102,7 +1104,7 @@ static int fsl_diu_cursor(struct fb_info *info, struct fb_cursor *cursor)
 
 		fsl_diu_load_cursor_image(info, image, bg, fg,
 			cursor->image.width, cursor->image.height);
-	};
+	}
 
 	/*
 	 * Show or hide the cursor.  The cursor data is always stored in the

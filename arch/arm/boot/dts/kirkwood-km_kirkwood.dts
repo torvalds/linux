@@ -34,13 +34,6 @@
 		serial@12000 {
 			status = "ok";
 		};
-
-		nand@3000000 {
-			pinctrl-0 = <&pmx_nand>;
-			pinctrl-names = "default";
-			status = "ok";
-			chip-delay = <25>;
-		};
 	};
 
 	i2c@0 {
@@ -49,6 +42,13 @@
 			&gpio0 9 0 >;		/* scl */
 		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
 	};
+};
+
+&nand {
+	pinctrl-0 = <&pmx_nand>;
+	pinctrl-names = "default";
+	status = "ok";
+	chip-delay = <25>;
 };
 
 &mdio {

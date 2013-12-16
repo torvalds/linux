@@ -717,7 +717,7 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 	lli = ll_i2info(inode);
 	clob = lli->lli_clob;
 
-	memset(ria, 0, sizeof *ria);
+	memset(ria, 0, sizeof(*ria));
 
 	cl_object_attr_lock(clob);
 	ret = cl_object_attr_get(env, clob, attr);

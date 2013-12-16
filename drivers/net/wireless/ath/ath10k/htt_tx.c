@@ -85,16 +85,13 @@ void ath10k_htt_tx_free_msdu_id(struct ath10k_htt *htt, u16 msdu_id)
 
 int ath10k_htt_tx_attach(struct ath10k_htt *htt)
 {
-	u8 pipe;
-
 	spin_lock_init(&htt->tx_lock);
 	init_waitqueue_head(&htt->empty_tx_wq);
 
-	/* At the beginning free queue number should hint us the maximum
-	 * queue length */
-	pipe = htt->ar->htc.endpoint[htt->eid].ul_pipe_id;
-	htt->max_num_pending_tx = ath10k_hif_get_free_queue_number(htt->ar,
-								   pipe);
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, htt->ar->fw_features))
+		htt->max_num_pending_tx = TARGET_10X_NUM_MSDU_DESC;
+	else
+		htt->max_num_pending_tx = TARGET_NUM_MSDU_DESC;
 
 	ath10k_dbg(ATH10K_DBG_BOOT, "htt tx max num pending tx %d\n",
 		   htt->max_num_pending_tx);

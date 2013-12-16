@@ -1038,7 +1038,7 @@ leaf_item_out_of_bounce_error:
 						     disk_item_offset,
 						     sizeof(struct btrfs_item));
 			item_offset = btrfs_stack_item_offset(&disk_item);
-			item_size = btrfs_stack_item_offset(&disk_item);
+			item_size = btrfs_stack_item_size(&disk_item);
 			disk_key = &disk_item.key;
 			type = btrfs_disk_key_type(disk_key);
 
@@ -1900,7 +1900,9 @@ again:
 							       dev_state,
 							       dev_bytenr);
 			}
-			if (block->logical_bytenr != bytenr) {
+			if (block->logical_bytenr != bytenr &&
+			    !(!block->is_metadata &&
+			      block->logical_bytenr == 0))
 				printk(KERN_INFO
 				       "Written block @%llu (%s/%llu/%d)"
 				       " found in hash table, %c,"
@@ -1910,15 +1912,14 @@ again:
 				       block->mirror_num,
 				       btrfsic_get_block_type(state, block),
 				       block->logical_bytenr);
-				block->logical_bytenr = bytenr;
-			} else if (state->print_mask &
-				   BTRFSIC_PRINT_MASK_VERBOSE)
+			else if (state->print_mask & BTRFSIC_PRINT_MASK_VERBOSE)
 				printk(KERN_INFO
 				       "Written block @%llu (%s/%llu/%d)"
 				       " found in hash table, %c.\n",
 				       bytenr, dev_state->name, dev_bytenr,
 				       block->mirror_num,
 				       btrfsic_get_block_type(state, block));
+			block->logical_bytenr = bytenr;
 		} else {
 			if (num_pages * PAGE_CACHE_SIZE <
 			    state->datablock_size) {
@@ -2463,10 +2464,8 @@ static int btrfsic_process_written_superblock(
 		}
 	}
 
-	if (-1 == btrfsic_check_all_ref_blocks(state, superblock, 0)) {
-		WARN_ON(1);
+	if (WARN_ON(-1 == btrfsic_check_all_ref_blocks(state, superblock, 0)))
 		btrfsic_dump_tree(state);
-	}
 
 	return 0;
 }
@@ -2906,7 +2905,7 @@ static void btrfsic_cmp_log_and_dev_bytenr(struct btrfsic_state *state,
 		btrfsic_release_block_ctx(&block_ctx);
 	}
 
-	if (!match) {
+	if (WARN_ON(!match)) {
 		printk(KERN_INFO "btrfs: attempt to write M-block which contains logical bytenr that doesn't map to dev+physical bytenr of submit_bio,"
 		       " buffer->log_bytenr=%llu, submit_bio(bdev=%s,"
 		       " phys_bytenr=%llu)!\n",
@@ -2923,7 +2922,6 @@ static void btrfsic_cmp_log_and_dev_bytenr(struct btrfsic_state *state,
 			       bytenr, block_ctx.dev->name,
 			       block_ctx.dev_bytenr, mirror_num);
 		}
-		WARN_ON(1);
 	}
 }
 

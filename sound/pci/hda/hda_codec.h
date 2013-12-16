@@ -698,6 +698,7 @@ struct hda_bus {
 	unsigned int in_reset:1;	/* during reset operation */
 	unsigned int power_keep_link_on:1; /* don't power off HDA link */
 	unsigned int no_response_fallback:1; /* don't fallback at RIRB error */
+	unsigned int avoid_link_reset:1; /* don't reset link at runtime PM */
 
 	int primary_dig_out_type;	/* primary digital out PCM type */
 };

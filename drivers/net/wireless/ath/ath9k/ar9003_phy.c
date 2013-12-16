@@ -641,11 +641,12 @@ static void ar9003_hw_override_ini(struct ath_hw *ah)
 		else
 			ah->enabled_cals &= ~TX_IQ_CAL;
 
-		if (REG_READ(ah, AR_PHY_CL_CAL_CTL) & AR_PHY_CL_CAL_ENABLE)
-			ah->enabled_cals |= TX_CL_CAL;
-		else
-			ah->enabled_cals &= ~TX_CL_CAL;
 	}
+
+	if (REG_READ(ah, AR_PHY_CL_CAL_CTL) & AR_PHY_CL_CAL_ENABLE)
+		ah->enabled_cals |= TX_CL_CAL;
+	else
+		ah->enabled_cals &= ~TX_CL_CAL;
 }
 
 static void ar9003_hw_prog_ini(struct ath_hw *ah,
@@ -701,6 +702,54 @@ static int ar9550_hw_get_modes_txgain_index(struct ath_hw *ah,
 	return ret;
 }
 
+static void ar9003_doubler_fix(struct ath_hw *ah)
+{
+	if (AR_SREV_9300(ah) || AR_SREV_9580(ah) || AR_SREV_9550(ah)) {
+		REG_RMW(ah, AR_PHY_65NM_CH0_RXTX2,
+			1 << AR_PHY_65NM_CH0_RXTX2_SYNTHON_MASK_S |
+			1 << AR_PHY_65NM_CH0_RXTX2_SYNTHOVR_MASK_S, 0);
+		REG_RMW(ah, AR_PHY_65NM_CH1_RXTX2,
+			1 << AR_PHY_65NM_CH0_RXTX2_SYNTHON_MASK_S |
+			1 << AR_PHY_65NM_CH0_RXTX2_SYNTHOVR_MASK_S, 0);
+		REG_RMW(ah, AR_PHY_65NM_CH2_RXTX2,
+			1 << AR_PHY_65NM_CH0_RXTX2_SYNTHON_MASK_S |
+			1 << AR_PHY_65NM_CH0_RXTX2_SYNTHOVR_MASK_S, 0);
+
+		udelay(200);
+
+		REG_CLR_BIT(ah, AR_PHY_65NM_CH0_RXTX2,
+			    AR_PHY_65NM_CH0_RXTX2_SYNTHON_MASK);
+		REG_CLR_BIT(ah, AR_PHY_65NM_CH1_RXTX2,
+			    AR_PHY_65NM_CH0_RXTX2_SYNTHON_MASK);
+		REG_CLR_BIT(ah, AR_PHY_65NM_CH2_RXTX2,
+			    AR_PHY_65NM_CH0_RXTX2_SYNTHON_MASK);
+
+		udelay(1);
+
+		REG_RMW_FIELD(ah, AR_PHY_65NM_CH0_RXTX2,
+			      AR_PHY_65NM_CH0_RXTX2_SYNTHON_MASK, 1);
+		REG_RMW_FIELD(ah, AR_PHY_65NM_CH1_RXTX2,
+			      AR_PHY_65NM_CH0_RXTX2_SYNTHON_MASK, 1);
+		REG_RMW_FIELD(ah, AR_PHY_65NM_CH2_RXTX2,
+			      AR_PHY_65NM_CH0_RXTX2_SYNTHON_MASK, 1);
+
+		udelay(200);
+
+		REG_RMW_FIELD(ah, AR_PHY_65NM_CH0_SYNTH12,
+			      AR_PHY_65NM_CH0_SYNTH12_VREFMUL3, 0xf);
+
+		REG_RMW(ah, AR_PHY_65NM_CH0_RXTX2, 0,
+			1 << AR_PHY_65NM_CH0_RXTX2_SYNTHON_MASK_S |
+			1 << AR_PHY_65NM_CH0_RXTX2_SYNTHOVR_MASK_S);
+		REG_RMW(ah, AR_PHY_65NM_CH1_RXTX2, 0,
+			1 << AR_PHY_65NM_CH0_RXTX2_SYNTHON_MASK_S |
+			1 << AR_PHY_65NM_CH0_RXTX2_SYNTHOVR_MASK_S);
+		REG_RMW(ah, AR_PHY_65NM_CH2_RXTX2, 0,
+			1 << AR_PHY_65NM_CH0_RXTX2_SYNTHON_MASK_S |
+			1 << AR_PHY_65NM_CH0_RXTX2_SYNTHOVR_MASK_S);
+	}
+}
+
 static int ar9003_hw_process_ini(struct ath_hw *ah,
 				 struct ath9k_channel *chan)
 {
@@ -725,6 +774,8 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 					   &ah->ini_radio_post_sys2ant,
 					   modesIndex);
 	}
+
+	ar9003_doubler_fix(ah);
 
 	/*
 	 * RXGAIN initvals.
@@ -1281,6 +1332,7 @@ static void ar9003_hw_ani_cache_ini_regs(struct ath_hw *ah)
 static void ar9003_hw_set_radar_params(struct ath_hw *ah,
 				       struct ath_hw_radar_conf *conf)
 {
+	unsigned int regWrites = 0;
 	u32 radar_0 = 0, radar_1 = 0;
 
 	if (!conf) {
@@ -1307,6 +1359,11 @@ static void ar9003_hw_set_radar_params(struct ath_hw *ah,
 		REG_SET_BIT(ah, AR_PHY_RADAR_EXT, AR_PHY_RADAR_EXT_ENA);
 	else
 		REG_CLR_BIT(ah, AR_PHY_RADAR_EXT, AR_PHY_RADAR_EXT_ENA);
+
+	if (AR_SREV_9300(ah) || AR_SREV_9340(ah) || AR_SREV_9580(ah)) {
+		REG_WRITE_ARRAY(&ah->ini_dfs,
+				IS_CHAN_HT40(ah->curchan) ? 2 : 1, regWrites);
+	}
 }
 
 static void ar9003_hw_set_radar_conf(struct ath_hw *ah)

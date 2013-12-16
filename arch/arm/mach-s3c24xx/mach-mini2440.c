@@ -24,7 +24,7 @@
 #include <linux/io.h>
 #include <linux/serial_core.h>
 #include <linux/dm9000.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/platform_device.h>
 #include <linux/gpio_keys.h>
 #include <linux/i2c.h>

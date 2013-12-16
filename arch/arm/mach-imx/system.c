@@ -52,6 +52,15 @@ void mxc_restart(enum reboot_mode mode, const char *cmd)
 
 	/* Assert SRS signal */
 	__raw_writew(wcr_enable, wdog_base);
+	/*
+	 * Due to imx6q errata ERR004346 (WDOG: WDOG SRS bit requires to be
+	 * written twice), we add another two writes to ensure there must be at
+	 * least two writes happen in the same one 32kHz clock period.  We save
+	 * the target check here, since the writes shouldn't be a huge burden
+	 * for other platforms.
+	 */
+	__raw_writew(wcr_enable, wdog_base);
+	__raw_writew(wcr_enable, wdog_base);
 
 	/* wait for reset to assert... */
 	mdelay(500);
@@ -117,6 +126,17 @@ void __init imx_init_l2cache(void)
 	/* Configure the L2 PREFETCH and POWER registers */
 	val = readl_relaxed(l2x0_base + L2X0_PREFETCH_CTRL);
 	val |= 0x70800000;
+	/*
+	 * The L2 cache controller(PL310) version on the i.MX6D/Q is r3p1-50rel0
+	 * The L2 cache controller(PL310) version on the i.MX6DL/SOLO/SL is r3p2
+	 * But according to ARM PL310 errata: 752271
+	 * ID: 752271: Double linefill feature can cause data corruption
+	 * Fault Status: Present in: r3p0, r3p1, r3p1-50rel0. Fixed in r3p2
+	 * Workaround: The only workaround to this erratum is to disable the
+	 * double linefill feature. This is the default behavior.
+	 */
+	if (cpu_is_imx6q())
+		val &= ~(1 << 30 | 1 << 23);
 	writel_relaxed(val, l2x0_base + L2X0_PREFETCH_CTRL);
 	val = L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN;
 	writel_relaxed(val, l2x0_base + L2X0_POWER_CTRL);

@@ -544,7 +544,7 @@ static int dummy_enable(struct usb_ep *_ep,
 		 default:
 			 val = "ctrl";
 			 break;
-		 }; val; }),
+		 } val; }),
 		max, ep->stream_en ? "enabled" : "disabled");
 
 	/* at this point real hardware should be NAKing transfers
@@ -923,8 +923,9 @@ static int dummy_udc_stop(struct usb_gadget *g,
 	struct dummy_hcd	*dum_hcd = gadget_to_dummy_hcd(g);
 	struct dummy		*dum = dum_hcd->dum;
 
-	dev_dbg(udc_dev(dum), "unregister gadget driver '%s'\n",
-			driver->driver.name);
+	if (driver)
+		dev_dbg(udc_dev(dum), "unregister gadget driver '%s'\n",
+				driver->driver.name);
 
 	dum->driver = NULL;
 
@@ -1000,8 +1001,8 @@ static int dummy_udc_remove(struct platform_device *pdev)
 {
 	struct dummy	*dum = platform_get_drvdata(pdev);
 
-	usb_del_gadget_udc(&dum->gadget);
 	device_remove_file(&dum->gadget.dev, &dev_attr_function);
+	usb_del_gadget_udc(&dum->gadget);
 	return 0;
 }
 
@@ -2270,7 +2271,7 @@ static inline ssize_t show_urb(char *buf, size_t size, struct urb *urb)
 		default:
 			s = "?";
 			break;
-		 }; s; }),
+		 } s; }),
 		ep, ep ? (usb_pipein(urb->pipe) ? "in" : "out") : "",
 		({ char *s; \
 		switch (usb_pipetype(urb->pipe)) { \
@@ -2286,7 +2287,7 @@ static inline ssize_t show_urb(char *buf, size_t size, struct urb *urb)
 		default: \
 			s = "-iso"; \
 			break; \
-		}; s; }),
+		} s; }),
 		urb->actual_length, urb->transfer_buffer_length);
 }
 

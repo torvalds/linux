@@ -343,10 +343,11 @@ void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
-	save_fp_regs(&vcpu->arch.host_fpregs);
+	save_fp_ctl(&vcpu->arch.host_fpregs.fpc);
+	save_fp_regs(vcpu->arch.host_fpregs.fprs);
 	save_access_regs(vcpu->arch.host_acrs);
-	vcpu->arch.guest_fpregs.fpc &= FPC_VALID_MASK;
-	restore_fp_regs(&vcpu->arch.guest_fpregs);
+	restore_fp_ctl(&vcpu->arch.guest_fpregs.fpc);
+	restore_fp_regs(vcpu->arch.guest_fpregs.fprs);
 	restore_access_regs(vcpu->run->s.regs.acrs);
 	gmap_enable(vcpu->arch.gmap);
 	atomic_set_mask(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
@@ -356,9 +357,11 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	atomic_clear_mask(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
 	gmap_disable(vcpu->arch.gmap);
-	save_fp_regs(&vcpu->arch.guest_fpregs);
+	save_fp_ctl(&vcpu->arch.guest_fpregs.fpc);
+	save_fp_regs(vcpu->arch.guest_fpregs.fprs);
 	save_access_regs(vcpu->run->s.regs.acrs);
-	restore_fp_regs(&vcpu->arch.host_fpregs);
+	restore_fp_ctl(&vcpu->arch.host_fpregs.fpc);
+	restore_fp_regs(vcpu->arch.host_fpregs.fprs);
 	restore_access_regs(vcpu->arch.host_acrs);
 }
 
@@ -618,9 +621,12 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 
 int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
+	if (test_fp_ctl(fpu->fpc))
+		return -EINVAL;
 	memcpy(&vcpu->arch.guest_fpregs.fprs, &fpu->fprs, sizeof(fpu->fprs));
-	vcpu->arch.guest_fpregs.fpc = fpu->fpc & FPC_VALID_MASK;
-	restore_fp_regs(&vcpu->arch.guest_fpregs);
+	vcpu->arch.guest_fpregs.fpc = fpu->fpc;
+	restore_fp_ctl(&vcpu->arch.guest_fpregs.fpc);
+	restore_fp_regs(vcpu->arch.guest_fpregs.fprs);
 	return 0;
 }
 
@@ -689,9 +695,9 @@ static int kvm_s390_handle_requests(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static int __vcpu_run(struct kvm_vcpu *vcpu)
+static int vcpu_pre_run(struct kvm_vcpu *vcpu)
 {
-	int rc;
+	int rc, cpuflags;
 
 	memcpy(&vcpu->arch.sie_block->gg14, &vcpu->run->s.regs.gprs[14], 16);
 
@@ -709,28 +715,24 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 		return rc;
 
 	vcpu->arch.sie_block->icptcode = 0;
-	VCPU_EVENT(vcpu, 6, "entering sie flags %x",
-		   atomic_read(&vcpu->arch.sie_block->cpuflags));
-	trace_kvm_s390_sie_enter(vcpu,
-				 atomic_read(&vcpu->arch.sie_block->cpuflags));
+	cpuflags = atomic_read(&vcpu->arch.sie_block->cpuflags);
+	VCPU_EVENT(vcpu, 6, "entering sie flags %x", cpuflags);
+	trace_kvm_s390_sie_enter(vcpu, cpuflags);
 
-	/*
-	 * As PF_VCPU will be used in fault handler, between guest_enter
-	 * and guest_exit should be no uaccess.
-	 */
-	preempt_disable();
-	kvm_guest_enter();
-	preempt_enable();
-	rc = sie64a(vcpu->arch.sie_block, vcpu->run->s.regs.gprs);
-	kvm_guest_exit();
+	return 0;
+}
+
+static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
+{
+	int rc;
 
 	VCPU_EVENT(vcpu, 6, "exit sie icptcode %d",
 		   vcpu->arch.sie_block->icptcode);
 	trace_kvm_s390_sie_exit(vcpu, vcpu->arch.sie_block->icptcode);
 
-	if (rc > 0)
+	if (exit_reason >= 0) {
 		rc = 0;
-	if (rc < 0) {
+	} else {
 		if (kvm_is_ucontrol(vcpu->kvm)) {
 			rc = SIE_INTERCEPT_UCONTROL;
 		} else {
@@ -741,6 +743,49 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 	}
 
 	memcpy(&vcpu->run->s.regs.gprs[14], &vcpu->arch.sie_block->gg14, 16);
+
+	if (rc == 0) {
+		if (kvm_is_ucontrol(vcpu->kvm))
+			rc = -EOPNOTSUPP;
+		else
+			rc = kvm_handle_sie_intercept(vcpu);
+	}
+
+	return rc;
+}
+
+static int __vcpu_run(struct kvm_vcpu *vcpu)
+{
+	int rc, exit_reason;
+
+	/*
+	 * We try to hold kvm->srcu during most of vcpu_run (except when run-
+	 * ning the guest), so that memslots (and other stuff) are protected
+	 */
+	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+
+	do {
+		rc = vcpu_pre_run(vcpu);
+		if (rc)
+			break;
+
+		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
+		/*
+		 * As PF_VCPU will be used in fault handler, between
+		 * guest_enter and guest_exit should be no uaccess.
+		 */
+		preempt_disable();
+		kvm_guest_enter();
+		preempt_enable();
+		exit_reason = sie64a(vcpu->arch.sie_block,
+				     vcpu->run->s.regs.gprs);
+		kvm_guest_exit();
+		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+
+		rc = vcpu_post_run(vcpu, exit_reason);
+	} while (!signal_pending(current) && !rc);
+
+	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 	return rc;
 }
 
@@ -749,7 +794,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	int rc;
 	sigset_t sigsaved;
 
-rerun_vcpu:
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
 
@@ -782,19 +826,7 @@ rerun_vcpu:
 	}
 
 	might_fault();
-
-	do {
-		rc = __vcpu_run(vcpu);
-		if (rc)
-			break;
-		if (kvm_is_ucontrol(vcpu->kvm))
-			rc = -EOPNOTSUPP;
-		else
-			rc = kvm_handle_sie_intercept(vcpu);
-	} while (!signal_pending(current) && !rc);
-
-	if (rc == SIE_INTERCEPT_RERUNVCPU)
-		goto rerun_vcpu;
+	rc = __vcpu_run(vcpu);
 
 	if (signal_pending(current) && !rc) {
 		kvm_run->exit_reason = KVM_EXIT_INTR;
@@ -876,7 +908,8 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 	 * copying in vcpu load/put. Lets update our copies before we save
 	 * it into the save area
 	 */
-	save_fp_regs(&vcpu->arch.guest_fpregs);
+	save_fp_ctl(&vcpu->arch.guest_fpregs.fpc);
+	save_fp_regs(vcpu->arch.guest_fpregs.fprs);
 	save_access_regs(vcpu->run->s.regs.acrs);
 
 	if (__guestcopy(vcpu, addr + offsetof(struct save_area, fp_regs),
@@ -951,6 +984,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 {
 	struct kvm_vcpu *vcpu = filp->private_data;
 	void __user *argp = (void __user *)arg;
+	int idx;
 	long r;
 
 	switch (ioctl) {
@@ -964,7 +998,9 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 	case KVM_S390_STORE_STATUS:
+		idx = srcu_read_lock(&vcpu->kvm->srcu);
 		r = kvm_s390_vcpu_store_status(vcpu, arg);
+		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		break;
 	case KVM_S390_SET_INITIAL_PSW: {
 		psw_t psw;
@@ -1060,12 +1096,13 @@ int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
 	return VM_FAULT_SIGBUS;
 }
 
-void kvm_arch_free_memslot(struct kvm_memory_slot *free,
+void kvm_arch_free_memslot(struct kvm *kvm, struct kvm_memory_slot *free,
 			   struct kvm_memory_slot *dont)
 {
 }
 
-int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
+int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
+			    unsigned long npages)
 {
 	return 0;
 }

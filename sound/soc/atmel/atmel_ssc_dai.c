@@ -777,7 +777,7 @@ static int asoc_ssc_init(struct device *dev)
 	if (ret) {
 		dev_err(dev, "Could not register PCM: %d\n", ret);
 		goto err_unregister_dai;
-	};
+	}
 
 	return 0;
 

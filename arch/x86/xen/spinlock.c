@@ -234,7 +234,7 @@ void xen_init_lock_cpu(int cpu)
 	irq = bind_ipi_to_irqhandler(XEN_SPIN_UNLOCK_VECTOR,
 				     cpu,
 				     dummy_handler,
-				     IRQF_DISABLED|IRQF_PERCPU|IRQF_NOBALANCING,
+				     IRQF_PERCPU|IRQF_NOBALANCING,
 				     name,
 				     NULL);
 
@@ -259,6 +259,14 @@ void xen_uninit_lock_cpu(int cpu)
 }
 
 
+/*
+ * Our init of PV spinlocks is split in two init functions due to us
+ * using paravirt patching and jump labels patching and having to do
+ * all of this before SMP code is invoked.
+ *
+ * The paravirt patching needs to be done _before_ the alternative asm code
+ * is started, otherwise we would not patch the core kernel code.
+ */
 void __init xen_init_spinlocks(void)
 {
 
@@ -267,11 +275,25 @@ void __init xen_init_spinlocks(void)
 		return;
 	}
 
-	static_key_slow_inc(&paravirt_ticketlocks_enabled);
-
 	pv_lock_ops.lock_spinning = PV_CALLEE_SAVE(xen_lock_spinning);
 	pv_lock_ops.unlock_kick = xen_unlock_kick;
 }
+
+/*
+ * While the jump_label init code needs to happend _after_ the jump labels are
+ * enabled and before SMP is started. Hence we use pre-SMP initcall level
+ * init. We cannot do it in xen_init_spinlocks as that is done before
+ * jump labels are activated.
+ */
+static __init int xen_init_spinlocks_jump(void)
+{
+	if (!xen_pvspin)
+		return 0;
+
+	static_key_slow_inc(&paravirt_ticketlocks_enabled);
+	return 0;
+}
+early_initcall(xen_init_spinlocks_jump);
 
 static __init int xen_parse_nopvspin(char *arg)
 {
