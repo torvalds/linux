@@ -615,6 +615,7 @@ static int __init rapl_pmu_init(void)
 	case 42: /* Sandy Bridge */
 	case 58: /* Ivy Bridge */
 	case 60: /* Haswell */
+	case 69: /* Haswell-Celeron */
 		rapl_cntr_mask = RAPL_IDX_CLN;
 		rapl_pmu_events_group.attrs = rapl_events_cln_attr;
 		break;
