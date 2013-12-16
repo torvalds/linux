@@ -255,12 +255,12 @@ void tcf_hash_insert(struct tcf_common *p, struct tcf_hashinfo *hinfo)
 }
 EXPORT_SYMBOL(tcf_hash_insert);
 
-static struct tc_action_ops *act_base = NULL;
+static LIST_HEAD(act_base);
 static DEFINE_RWLOCK(act_mod_lock);
 
 int tcf_register_action(struct tc_action_ops *act)
 {
-	struct tc_action_ops *a, **ap;
+	struct tc_action_ops *a;
 
 	/* Must supply act, dump, cleanup and init */
 	if (!act->act || !act->dump || !act->cleanup || !act->init)
@@ -273,14 +273,13 @@ int tcf_register_action(struct tc_action_ops *act)
 		act->walk = tcf_generic_walker;
 
 	write_lock(&act_mod_lock);
-	for (ap = &act_base; (a = *ap) != NULL; ap = &a->next) {
+	list_for_each_entry(a, &act_base, head) {
 		if (act->type == a->type || (strcmp(act->kind, a->kind) == 0)) {
 			write_unlock(&act_mod_lock);
 			return -EEXIST;
 		}
 	}
-	act->next = NULL;
-	*ap = act;
+	list_add_tail(&act->head, &act_base);
 	write_unlock(&act_mod_lock);
 	return 0;
 }
@@ -288,16 +287,15 @@ EXPORT_SYMBOL(tcf_register_action);
 
 int tcf_unregister_action(struct tc_action_ops *act)
 {
-	struct tc_action_ops *a, **ap;
+	struct tc_action_ops *a;
 	int err = -ENOENT;
 
 	write_lock(&act_mod_lock);
-	for (ap = &act_base; (a = *ap) != NULL; ap = &a->next)
+	list_for_each_entry(a, &act_base, head)
 		if (a == act)
 			break;
 	if (a) {
-		*ap = a->next;
-		a->next = NULL;
+		list_del(&act->head);
 		err = 0;
 	}
 	write_unlock(&act_mod_lock);
@@ -312,7 +310,7 @@ static struct tc_action_ops *tc_lookup_action_n(char *kind)
 
 	if (kind) {
 		read_lock(&act_mod_lock);
-		for (a = act_base; a; a = a->next) {
+		list_for_each_entry(a, &act_base, head) {
 			if (strcmp(kind, a->kind) == 0) {
 				if (!try_module_get(a->owner)) {
 					read_unlock(&act_mod_lock);
@@ -333,7 +331,7 @@ static struct tc_action_ops *tc_lookup_action(struct nlattr *kind)
 
 	if (kind) {
 		read_lock(&act_mod_lock);
-		for (a = act_base; a; a = a->next) {
+		list_for_each_entry(a, &act_base, head) {
 			if (nla_strcmp(kind, a->kind) == 0) {
 				if (!try_module_get(a->owner)) {
 					read_unlock(&act_mod_lock);

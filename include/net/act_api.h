@@ -85,7 +85,7 @@ struct tc_action {
 
 #define TCA_CAP_NONE 0
 struct tc_action_ops {
-	struct tc_action_ops *next;
+	struct list_head head;
 	struct tcf_hashinfo *hinfo;
 	char    kind[IFNAMSIZ];
 	__u32   type; /* TBD to match kind */
