@@ -685,7 +685,7 @@ static void __init bockw_init(void)
 			.id             = i,
 			.data           = &rsnd_card_info[i],
 			.size_data      = sizeof(struct asoc_simple_card_info),
-			.dma_mask       = ~0,
+			.dma_mask	= DMA_BIT_MASK(32),
 		};
 
 		platform_device_register_full(&cardinfo);
