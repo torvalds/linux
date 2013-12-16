@@ -854,16 +854,14 @@ static int __get_segment_type(struct page *page, enum page_type p_type)
 	return __get_segment_type_6(page, p_type);
 }
 
-static void do_write_page(struct f2fs_sb_info *sbi, struct page *page,
-			block_t old_blkaddr, block_t *new_blkaddr,
-			struct f2fs_summary *sum, struct f2fs_io_info *fio)
+void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
+		block_t old_blkaddr, block_t *new_blkaddr,
+		struct f2fs_summary *sum, int type)
 {
 	struct sit_info *sit_i = SIT_I(sbi);
 	struct curseg_info *curseg;
 	unsigned int old_cursegno;
-	int type;
 
-	type = __get_segment_type(page, fio->type);
 	curseg = CURSEG_I(sbi, type);
 
 	mutex_lock(&curseg->curseg_mutex);
@@ -896,13 +894,22 @@ static void do_write_page(struct f2fs_sb_info *sbi, struct page *page,
 	locate_dirty_segment(sbi, GET_SEGNO(sbi, old_blkaddr));
 	mutex_unlock(&sit_i->sentry_lock);
 
-	if (fio->type == NODE)
+	if (page && IS_NODESEG(type))
 		fill_node_footer_blkaddr(page, NEXT_FREE_BLKADDR(sbi, curseg));
+
+	mutex_unlock(&curseg->curseg_mutex);
+}
+
+static void do_write_page(struct f2fs_sb_info *sbi, struct page *page,
+			block_t old_blkaddr, block_t *new_blkaddr,
+			struct f2fs_summary *sum, struct f2fs_io_info *fio)
+{
+	int type = __get_segment_type(page, fio->type);
+
+	allocate_data_block(sbi, page, old_blkaddr, new_blkaddr, sum, type);
 
 	/* writeout dirty page into bdev */
 	f2fs_submit_page_mbio(sbi, page, *new_blkaddr, fio);
-
-	mutex_unlock(&curseg->curseg_mutex);
 }
 
 void write_meta_page(struct f2fs_sb_info *sbi, struct page *page)
