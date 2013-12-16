@@ -383,7 +383,6 @@ qla4xxx_set_ifcb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
 	mbox_cmd[2] = LSDW(init_fw_cb_dma);
 	mbox_cmd[3] = MSDW(init_fw_cb_dma);
 	mbox_cmd[4] = sizeof(struct addr_ctrl_blk);
-	mbox_cmd[5] = (IFCB_VER_MAX << 8) | IFCB_VER_MIN;
 
 	if (qla4xxx_mailbox_command(ha, 6, 6, mbox_cmd, mbox_sts) !=
 	    QLA_SUCCESS) {
