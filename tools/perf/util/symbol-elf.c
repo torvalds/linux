@@ -6,6 +6,7 @@
 #include <inttypes.h>
 
 #include "symbol.h"
+#include <symbol/kallsyms.h>
 #include "debug.h"
 
 #ifndef HAVE_ELF_GETPHDRNUM_SUPPORT

@@ -177,3 +177,40 @@ int perf_record_opts__config(struct perf_record_opts *opts)
 {
 	return perf_record_opts__config_freq(opts);
 }
+
+bool perf_evlist__can_select_event(struct perf_evlist *evlist, const char *str)
+{
+	struct perf_evlist *temp_evlist;
+	struct perf_evsel *evsel;
+	int err, fd, cpu;
+	bool ret = false;
+
+	temp_evlist = perf_evlist__new();
+	if (!temp_evlist)
+		return false;
+
+	err = parse_events(temp_evlist, str);
+	if (err)
+		goto out_delete;
+
+	evsel = perf_evlist__last(temp_evlist);
+
+	if (!evlist || cpu_map__empty(evlist->cpus)) {
+		struct cpu_map *cpus = cpu_map__new(NULL);
+
+		cpu =  cpus ? cpus->map[0] : 0;
+		cpu_map__delete(cpus);
+	} else {
+		cpu = evlist->cpus->map[0];
+	}
+
+	fd = sys_perf_event_open(&evsel->attr, -1, cpu, -1, 0);
+	if (fd >= 0) {
+		close(fd);
+		ret = true;
+	}
+
+out_delete:
+	perf_evlist__delete(temp_evlist);
+	return ret;
+}
