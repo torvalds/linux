@@ -1,5 +1,5 @@
 /*
- * Davicom DM9601 USB 1.1 10/100Mbps ethernet devices
+ * Davicom DM96xx USB 10/100Mbps ethernet devices
  *
  * Peter Korsgaard <jacmet@sunsite.dk>
  *
@@ -548,7 +548,7 @@ static int dm9601_link_reset(struct usbnet *dev)
 }
 
 static const struct driver_info dm9601_info = {
-	.description	= "Davicom DM9601 USB Ethernet",
+	.description	= "Davicom DM96xx USB 10/100 Ethernet",
 	.flags		= FLAG_ETHER | FLAG_LINK_INTR,
 	.bind		= dm9601_bind,
 	.rx_fixup	= dm9601_rx_fixup,
@@ -621,5 +621,5 @@ static struct usb_driver dm9601_driver = {
 module_usb_driver(dm9601_driver);
 
 MODULE_AUTHOR("Peter Korsgaard <jacmet@sunsite.dk>");
-MODULE_DESCRIPTION("Davicom DM9601 USB 1.1 ethernet devices");
+MODULE_DESCRIPTION("Davicom DM96xx USB 10/100 ethernet devices");
 MODULE_LICENSE("GPL");
