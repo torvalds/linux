@@ -948,6 +948,7 @@ static int qlcnic_irq_test(struct net_device *netdev)
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlcnic_cmd_args cmd;
 	int ret, drv_sds_rings = adapter->drv_sds_rings;
+	int drv_tx_rings = adapter->drv_tx_rings;
 
 	if (qlcnic_83xx_check(adapter))
 		return qlcnic_83xx_interrupt_test(netdev);
@@ -980,6 +981,7 @@ free_diag_res:
 
 clear_diag_irq:
 	adapter->drv_sds_rings = drv_sds_rings;
+	adapter->drv_tx_rings = drv_tx_rings;
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 
 	return ret;

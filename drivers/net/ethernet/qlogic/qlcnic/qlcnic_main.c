@@ -1940,7 +1940,6 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int test)
 	qlcnic_detach(adapter);
 
 	adapter->drv_sds_rings = QLCNIC_SINGLE_RING;
-	adapter->drv_tx_rings = QLCNIC_SINGLE_RING;
 	adapter->ahw->diag_test = test;
 	adapter->ahw->linkup = 0;
 
