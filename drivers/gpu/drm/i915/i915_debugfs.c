@@ -2117,8 +2117,8 @@ static int i915_pipe_crc_create(struct dentry *root, struct drm_minor *minor,
 	info->dev = dev;
 	ent = debugfs_create_file(info->name, S_IRUGO, root, info,
 				  &i915_pipe_crc_fops);
-	if (IS_ERR(ent))
-		return PTR_ERR(ent);
+	if (!ent)
+		return -ENOMEM;
 
 	return drm_add_fake_info_node(minor, ent, info);
 }
@@ -3133,8 +3133,8 @@ static int i915_forcewake_create(struct dentry *root, struct drm_minor *minor)
 				  S_IRUSR,
 				  root, dev,
 				  &i915_forcewake_fops);
-	if (IS_ERR(ent))
-		return PTR_ERR(ent);
+	if (!ent)
+		return -ENOMEM;
 
 	return drm_add_fake_info_node(minor, ent, &i915_forcewake_fops);
 }
@@ -3151,8 +3151,8 @@ static int i915_debugfs_create(struct dentry *root,
 				  S_IRUGO | S_IWUSR,
 				  root, dev,
 				  fops);
-	if (IS_ERR(ent))
-		return PTR_ERR(ent);
+	if (!ent)
+		return -ENOMEM;
 
 	return drm_add_fake_info_node(minor, ent, fops);
 }
