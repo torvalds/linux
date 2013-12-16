@@ -85,3 +85,5 @@ OBJCOPYFLAGS_pie.bin.o += -B $(ARCH) -I binary -O $(OBJCOPY_OUTPUT_FORMAT)
 
 $(obj)/pie.bin.o: $(obj)/pie.bin
 	$(call if_changed,objcopy)
+
+extra-y += pie_rename.syms pie_weaken.syms pie.syms pie.elf pie.bin

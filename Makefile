@@ -752,7 +752,7 @@ vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, $(init-y) $(init-m) \
 vmlinux-alldirs	:= $(sort $(vmlinux-dirs) $(patsubst %/,%,$(filter %/, \
 		     $(init-n) $(init-) \
 		     $(core-n) $(core-) $(drivers-n) $(drivers-) \
-		     $(net-n)  $(net-)  $(libs-n)    $(libs-))))
+		     $(net-n)  $(net-)  $(libs-n)    $(libs-) $(libpie-))))
 
 pie-$(CONFIG_PIE) := pie/
 
@@ -777,7 +777,7 @@ export LDFLAGS_vmlinux
 # used by scripts/pacmage/Makefile
 export KBUILD_ALLDIRS := $(sort $(filter-out arch/%,$(vmlinux-alldirs)) arch Documentation include samples scripts tools virt)
 
-vmlinux-deps := $(KBUILD_LDS) $(KBUILD_PIE_LDS) $(KBUILD_VMLINUX_INIT) $(KBUILD_VMLINUX_MAIN) $(KBUILD_VMLINUX_PIE)
+vmlinux-deps := $(KBUILD_LDS) $(KBUILD_PIE_LDS) $(KBUILD_VMLINUX_INIT) $(KBUILD_VMLINUX_MAIN) $(KBUILD_VMLINUX_PIE) $(KBUILD_LIBPIE)
 
 # Final link of vmlinux
       cmd_link-vmlinux = $(CONFIG_SHELL) $< $(LD) $(LDFLAGS) $(LDFLAGS_vmlinux)
@@ -1046,7 +1046,7 @@ MRPROPER_FILES += .config .config.old .version .old_version $(version_h) \
 #
 clean: rm-dirs  := $(CLEAN_DIRS)
 clean: rm-files := $(CLEAN_FILES)
-clean-dirs      := $(addprefix _clean_, . $(vmlinux-alldirs) Documentation samples)
+clean-dirs      := $(addprefix _clean_, . $(vmlinux-alldirs) Documentation samples pie)
 
 PHONY += $(clean-dirs) clean archclean vmlinuxclean
 $(clean-dirs):
