@@ -16,7 +16,7 @@ joystick.
 
 By default, the device is opened in blocking mode.
 
-	int fd = open ("/dev/js0", O_RDONLY);
+	int fd = open ("/dev/input/js0", O_RDONLY);
 
 
 2. Event Reading
