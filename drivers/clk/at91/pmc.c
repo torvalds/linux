@@ -228,7 +228,7 @@ out_free_pmc:
 	return NULL;
 }
 
-static const struct of_device_id pmc_clk_ids[] __initdata = {
+static const struct of_device_id pmc_clk_ids[] __initconst = {
 	/* Main clock */
 	{
 		.compatible = "atmel,at91rm9200-clk-main",
