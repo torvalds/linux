@@ -78,7 +78,7 @@ int cxd2820r_set_frontend_c(struct dvb_frontend *fe)
 
 	num = if_freq / 1000; /* Hz => kHz */
 	num *= 0x4000;
-	if_ctl = cxd2820r_div_u64_round_closest(num, 41000);
+	if_ctl = 0x4000 - cxd2820r_div_u64_round_closest(num, 41000);
 	buf[0] = (if_ctl >> 8) & 0x3f;
 	buf[1] = (if_ctl >> 0) & 0xff;
 

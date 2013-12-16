@@ -251,15 +251,12 @@ static void fixup_read_and_payload_sizes(void)
 	/* Scan for the smallest maximum payload size. */
 	for_each_pci_dev(dev) {
 		u32 devcap;
-		int max_payload;
 
 		if (!pci_is_pcie(dev))
 			continue;
 
-		pcie_capability_read_dword(dev, PCI_EXP_DEVCAP, &devcap);
-		max_payload = devcap & PCI_EXP_DEVCAP_PAYLOAD;
-		if (max_payload < smallest_max_payload)
-			smallest_max_payload = max_payload;
+		if (dev->pcie_mpss < smallest_max_payload)
+			smallest_max_payload = dev->pcie_mpss;
 	}
 
 	/* Now, set the max_payload_size for all devices to that value. */

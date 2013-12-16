@@ -197,7 +197,7 @@ state information because the file format is subject to change. It is
 implemented to provide extra debug information to help diagnose
 problems.) Users should use the netlink API.
 
-/proc/net/pppol2tp is also provided for backwards compaibility with
+/proc/net/pppol2tp is also provided for backwards compatibility with
 the original pppol2tp driver. It lists information about L2TPv2
 tunnels and sessions only. Its use is discouraged.
 

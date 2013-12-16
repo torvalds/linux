@@ -17,35 +17,31 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_log.h"
 #include "xfs_inum.h"
-#include "xfs_trans.h"
-#include "xfs_trans_priv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
-#include "xfs_da_btree.h"
-#include "xfs_dir2_format.h"
-#include "xfs_dir2.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dinode.h"
+#include "xfs_da_format.h"
 #include "xfs_inode.h"
-#include "xfs_btree.h"
+#include "xfs_dir2.h"
 #include "xfs_ialloc.h"
 #include "xfs_alloc.h"
 #include "xfs_rtalloc.h"
 #include "xfs_bmap.h"
+#include "xfs_trans.h"
+#include "xfs_trans_priv.h"
+#include "xfs_log.h"
 #include "xfs_error.h"
 #include "xfs_quota.h"
 #include "xfs_fsops.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
-#include "xfs_cksum.h"
-#include "xfs_buf_item.h"
+#include "xfs_dinode.h"
 
 
 #ifdef HAVE_PERCPU_SB
@@ -723,8 +719,22 @@ xfs_mountfs(
 	 * Set the inode cluster size.
 	 * This may still be overridden by the file system
 	 * block size if it is larger than the chosen cluster size.
+	 *
+	 * For v5 filesystems, scale the cluster size with the inode size to
+	 * keep a constant ratio of inode per cluster buffer, but only if mkfs
+	 * has set the inode alignment value appropriately for larger cluster
+	 * sizes.
 	 */
 	mp->m_inode_cluster_size = XFS_INODE_BIG_CLUSTER_SIZE;
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		int	new_size = mp->m_inode_cluster_size;
+
+		new_size *= mp->m_sb.sb_inodesize / XFS_DINODE_MIN_SIZE;
+		if (mp->m_sb.sb_inoalignmt >= XFS_B_TO_FSBT(mp, new_size))
+			mp->m_inode_cluster_size = new_size;
+		xfs_info(mp, "Using inode cluster size of %d bytes",
+			 mp->m_inode_cluster_size);
+	}
 
 	/*
 	 * Set inode alignment fields

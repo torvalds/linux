@@ -241,6 +241,8 @@ config HID_HOLTEK
 	  - Sharkoon Drakonia / Perixx MX-2000 gaming mice
 	  - Tracer Sniper TRM-503 / NOVA Gaming Slider X200 /
 	    Zalman ZM-GM1
+	  - SHARKOON DarkGlider Gaming mouse
+	  - LEETGION Hellion Gaming Mouse
 
 config HOLTEK_FF
 	bool "Holtek On Line Grip force feedback support"
@@ -322,7 +324,7 @@ config HID_LCPOWER
 
 config HID_LENOVO_TPKBD
 	tristate "Lenovo ThinkPad USB Keyboard with TrackPoint"
-	depends on USB_HID
+	depends on HID
 	select NEW_LEDS
 	select LEDS_CLASS
 	---help---
@@ -361,19 +363,20 @@ config LOGITECH_FF
 	  - Logitech WingMan Force 3D
 	  - Logitech Formula Force EX
 	  - Logitech WingMan Formula Force GP
-	  - Logitech MOMO Force wheel
 
 	  and if you want to enable force feedback for them.
 	  Note: if you say N here, this device will still be supported, but without
 	  force feedback.
 
 config LOGIRUMBLEPAD2_FF
-	bool "Logitech RumblePad/Rumblepad 2 force feedback support"
+	bool "Logitech force feedback support (variant 2)"
 	depends on HID_LOGITECH
 	select INPUT_FF_MEMLESS
 	help
-	  Say Y here if you want to enable force feedback support for Logitech
-	  RumblePad and Rumblepad 2 devices.
+	  Say Y here if you want to enable force feedback support for:
+	  - Logitech RumblePad
+	  - Logitech Rumblepad 2
+	  - Logitech Formula Vibration Feedback Wheel
 
 config LOGIG940_FF
 	bool "Logitech Flight System G940 force feedback support"
@@ -436,6 +439,7 @@ config HID_MULTITOUCH
 	  - Chunghwa panels
 	  - CVTouch panels
 	  - Cypress TrueTouch panels
+	  - Elan Microelectronics touch panels
 	  - Elo TouchSystems IntelliTouch Plus panels
 	  - GeneralTouch 'Sensing Win7-TwoFinger' panels
 	  - GoodTouch panels
@@ -452,9 +456,11 @@ config HID_MULTITOUCH
 	  - Pixcir dual touch panels
 	  - Quanta panels
 	  - eGalax dual-touch panels, including the Joojoo and Wetab tablets
+	  - SiS multitouch panels
 	  - Stantum multitouch panels
 	  - Touch International Panels
 	  - Unitec Panels
+	  - Wistron optical touch panels
 	  - XAT optical touch panels
 	  - Xiroku optical touch panels
 	  - Zytronic touch panels
@@ -612,6 +618,14 @@ config HID_SONY
 	  * Buzz controllers
 	  * Sony PS3 Blue-ray Disk Remote Control (Bluetooth)
 	  * Logitech Harmony adapter for Sony Playstation 3 (Bluetooth)
+
+config SONY_FF
+	bool "Sony PS2/3 accessories force feedback support"
+	depends on HID_SONY
+	select INPUT_FF_MEMLESS
+	---help---
+	Say Y here if you have a Sony PS2/3 accessory and want to enable force
+	feedback support for it.
 
 config HID_SPEEDLINK
 	tristate "Speedlink VAD Cezanne mouse support"

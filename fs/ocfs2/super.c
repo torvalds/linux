@@ -1848,8 +1848,8 @@ static int ocfs2_get_sector(struct super_block *sb,
 
 	*bh = sb_getblk(sb, block);
 	if (!*bh) {
-		mlog_errno(-EIO);
-		return -EIO;
+		mlog_errno(-ENOMEM);
+		return -ENOMEM;
 	}
 	lock_buffer(*bh);
 	if (!buffer_dirty(*bh))

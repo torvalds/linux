@@ -151,6 +151,7 @@ static struct platform_pwm_backlight_data smartq_backlight_data = {
 	.max_brightness	= 1000,
 	.dft_brightness	= 600,
 	.pwm_period_ns	= 1000000000 / (1000 * 20),
+	.enable_gpio	= -1,
 	.init		= smartq_bl_init,
 };
 
@@ -337,13 +338,6 @@ err:
 	return ret;
 }
 
-static int __init smartq_usb_otg_init(void)
-{
-	clk_xusbxti.rate = 12000000;
-
-	return 0;
-}
-
 static int __init smartq_wifi_init(void)
 {
 	int ret;
@@ -377,7 +371,8 @@ static struct map_desc smartq_iodesc[] __initdata = {};
 void __init smartq_map_io(void)
 {
 	s3c64xx_init_io(smartq_iodesc, ARRAY_SIZE(smartq_iodesc));
-	s3c24xx_init_clocks(12000000);
+	s3c64xx_set_xtal_freq(12000000);
+	s3c64xx_set_xusbxti_freq(12000000);
 	s3c24xx_init_uarts(smartq_uartcfgs, ARRAY_SIZE(smartq_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
@@ -399,7 +394,6 @@ void __init smartq_machine_init(void)
 	WARN_ON(smartq_lcd_setup_gpio());
 	WARN_ON(smartq_power_off_init());
 	WARN_ON(smartq_usb_host_init());
-	WARN_ON(smartq_usb_otg_init());
 	WARN_ON(smartq_wifi_init());
 
 	platform_add_devices(smartq_devices, ARRAY_SIZE(smartq_devices));

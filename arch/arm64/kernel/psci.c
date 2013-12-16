@@ -17,12 +17,32 @@
 
 #include <linux/init.h>
 #include <linux/of.h>
+#include <linux/smp.h>
 
 #include <asm/compiler.h>
+#include <asm/cpu_ops.h>
 #include <asm/errno.h>
 #include <asm/psci.h>
+#include <asm/smp_plat.h>
 
-struct psci_operations psci_ops;
+#define PSCI_POWER_STATE_TYPE_STANDBY		0
+#define PSCI_POWER_STATE_TYPE_POWER_DOWN	1
+
+struct psci_power_state {
+	u16	id;
+	u8	type;
+	u8	affinity_level;
+};
+
+struct psci_operations {
+	int (*cpu_suspend)(struct psci_power_state state,
+			   unsigned long entry_point);
+	int (*cpu_off)(struct psci_power_state state);
+	int (*cpu_on)(unsigned long cpuid, unsigned long entry_point);
+	int (*migrate)(unsigned long cpuid);
+};
+
+static struct psci_operations psci_ops;
 
 static int (*invoke_psci_fn)(u64, u64, u64, u64);
 
@@ -209,3 +229,68 @@ out_put_node:
 	of_node_put(np);
 	return err;
 }
+
+#ifdef CONFIG_SMP
+
+static int __init cpu_psci_cpu_init(struct device_node *dn, unsigned int cpu)
+{
+	return 0;
+}
+
+static int __init cpu_psci_cpu_prepare(unsigned int cpu)
+{
+	if (!psci_ops.cpu_on) {
+		pr_err("no cpu_on method, not booting CPU%d\n", cpu);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static int cpu_psci_cpu_boot(unsigned int cpu)
+{
+	int err = psci_ops.cpu_on(cpu_logical_map(cpu), __pa(secondary_entry));
+	if (err)
+		pr_err("psci: failed to boot CPU%d (%d)\n", cpu, err);
+
+	return err;
+}
+
+#ifdef CONFIG_HOTPLUG_CPU
+static int cpu_psci_cpu_disable(unsigned int cpu)
+{
+	/* Fail early if we don't have CPU_OFF support */
+	if (!psci_ops.cpu_off)
+		return -EOPNOTSUPP;
+	return 0;
+}
+
+static void cpu_psci_cpu_die(unsigned int cpu)
+{
+	int ret;
+	/*
+	 * There are no known implementations of PSCI actually using the
+	 * power state field, pass a sensible default for now.
+	 */
+	struct psci_power_state state = {
+		.type = PSCI_POWER_STATE_TYPE_POWER_DOWN,
+	};
+
+	ret = psci_ops.cpu_off(state);
+
+	pr_crit("psci: unable to power off CPU%u (%d)\n", cpu, ret);
+}
+#endif
+
+const struct cpu_operations cpu_psci_ops = {
+	.name		= "psci",
+	.cpu_init	= cpu_psci_cpu_init,
+	.cpu_prepare	= cpu_psci_cpu_prepare,
+	.cpu_boot	= cpu_psci_cpu_boot,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_disable	= cpu_psci_cpu_disable,
+	.cpu_die	= cpu_psci_cpu_die,
+#endif
+};
+
+#endif

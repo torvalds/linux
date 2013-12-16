@@ -27,14 +27,14 @@
 #include <asm/machdep.h>
 #include <asm/mmu_context.h>
 #include <asm/hw_irq.h>
-#include "trace.h"
+#include "trace_pr.h"
 
 #define PTE_SIZE 12
 
 void kvmppc_mmu_invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
 {
 	ppc_md.hpte_invalidate(pte->slot, pte->host_vpn,
-			       MMU_PAGE_4K, MMU_PAGE_4K, MMU_SEGSIZE_256M,
+			       pte->pagesize, pte->pagesize, MMU_SEGSIZE_256M,
 			       false);
 }
 
@@ -78,7 +78,8 @@ static struct kvmppc_sid_map *find_sid_vsid(struct kvm_vcpu *vcpu, u64 gvsid)
 	return NULL;
 }
 
-int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte)
+int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
+			bool iswrite)
 {
 	unsigned long vpn;
 	pfn_t hpaddr;
@@ -90,16 +91,26 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte)
 	int attempt = 0;
 	struct kvmppc_sid_map *map;
 	int r = 0;
+	int hpsize = MMU_PAGE_4K;
+	bool writable;
+	unsigned long mmu_seq;
+	struct kvm *kvm = vcpu->kvm;
+	struct hpte_cache *cpte;
+	unsigned long gfn = orig_pte->raddr >> PAGE_SHIFT;
+	unsigned long pfn;
+
+	/* used to check for invalidations in progress */
+	mmu_seq = kvm->mmu_notifier_seq;
+	smp_rmb();
 
 	/* Get host physical address for gpa */
-	hpaddr = kvmppc_gfn_to_pfn(vcpu, orig_pte->raddr >> PAGE_SHIFT);
-	if (is_error_noslot_pfn(hpaddr)) {
-		printk(KERN_INFO "Couldn't get guest page for gfn %lx!\n", orig_pte->eaddr);
+	pfn = kvmppc_gfn_to_pfn(vcpu, gfn, iswrite, &writable);
+	if (is_error_noslot_pfn(pfn)) {
+		printk(KERN_INFO "Couldn't get guest page for gfn %lx!\n", gfn);
 		r = -EINVAL;
 		goto out;
 	}
-	hpaddr <<= PAGE_SHIFT;
-	hpaddr |= orig_pte->raddr & (~0xfffULL & ~PAGE_MASK);
+	hpaddr = pfn << PAGE_SHIFT;
 
 	/* and write the mapping ea -> hpa into the pt */
 	vcpu->arch.mmu.esid_to_vsid(vcpu, orig_pte->eaddr >> SID_SHIFT, &vsid);
@@ -117,20 +128,39 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte)
 		goto out;
 	}
 
-	vsid = map->host_vsid;
-	vpn = hpt_vpn(orig_pte->eaddr, vsid, MMU_SEGSIZE_256M);
+	vpn = hpt_vpn(orig_pte->eaddr, map->host_vsid, MMU_SEGSIZE_256M);
 
-	if (!orig_pte->may_write)
-		rflags |= HPTE_R_PP;
-	else
-		mark_page_dirty(vcpu->kvm, orig_pte->raddr >> PAGE_SHIFT);
+	kvm_set_pfn_accessed(pfn);
+	if (!orig_pte->may_write || !writable)
+		rflags |= PP_RXRX;
+	else {
+		mark_page_dirty(vcpu->kvm, gfn);
+		kvm_set_pfn_dirty(pfn);
+	}
 
 	if (!orig_pte->may_execute)
 		rflags |= HPTE_R_N;
 	else
-		kvmppc_mmu_flush_icache(hpaddr >> PAGE_SHIFT);
+		kvmppc_mmu_flush_icache(pfn);
 
-	hash = hpt_hash(vpn, PTE_SIZE, MMU_SEGSIZE_256M);
+	/*
+	 * Use 64K pages if possible; otherwise, on 64K page kernels,
+	 * we need to transfer 4 more bits from guest real to host real addr.
+	 */
+	if (vsid & VSID_64K)
+		hpsize = MMU_PAGE_64K;
+	else
+		hpaddr |= orig_pte->raddr & (~0xfffULL & ~PAGE_MASK);
+
+	hash = hpt_hash(vpn, mmu_psize_defs[hpsize].shift, MMU_SEGSIZE_256M);
+
+	cpte = kvmppc_mmu_hpte_cache_next(vcpu);
+
+	spin_lock(&kvm->mmu_lock);
+	if (!cpte || mmu_notifier_retry(kvm, mmu_seq)) {
+		r = -EAGAIN;
+		goto out_unlock;
+	}
 
 map_again:
 	hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
@@ -139,11 +169,11 @@ map_again:
 	if (attempt > 1)
 		if (ppc_md.hpte_remove(hpteg) < 0) {
 			r = -1;
-			goto out;
+			goto out_unlock;
 		}
 
 	ret = ppc_md.hpte_insert(hpteg, vpn, hpaddr, rflags, vflags,
-				 MMU_PAGE_4K, MMU_PAGE_4K, MMU_SEGSIZE_256M);
+				 hpsize, hpsize, MMU_SEGSIZE_256M);
 
 	if (ret < 0) {
 		/* If we couldn't map a primary PTE, try a secondary */
@@ -152,8 +182,6 @@ map_again:
 		attempt++;
 		goto map_again;
 	} else {
-		struct hpte_cache *pte = kvmppc_mmu_hpte_cache_next(vcpu);
-
 		trace_kvm_book3s_64_mmu_map(rflags, hpteg,
 					    vpn, hpaddr, orig_pte);
 
@@ -164,17 +192,35 @@ map_again:
 			hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 		}
 
-		pte->slot = hpteg + (ret & 7);
-		pte->host_vpn = vpn;
-		pte->pte = *orig_pte;
-		pte->pfn = hpaddr >> PAGE_SHIFT;
+		cpte->slot = hpteg + (ret & 7);
+		cpte->host_vpn = vpn;
+		cpte->pte = *orig_pte;
+		cpte->pfn = pfn;
+		cpte->pagesize = hpsize;
 
-		kvmppc_mmu_hpte_cache_map(vcpu, pte);
+		kvmppc_mmu_hpte_cache_map(vcpu, cpte);
+		cpte = NULL;
 	}
-	kvm_release_pfn_clean(hpaddr >> PAGE_SHIFT);
+
+out_unlock:
+	spin_unlock(&kvm->mmu_lock);
+	kvm_release_pfn_clean(pfn);
+	if (cpte)
+		kvmppc_mmu_hpte_cache_free(cpte);
 
 out:
 	return r;
+}
+
+void kvmppc_mmu_unmap_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte)
+{
+	u64 mask = 0xfffffffffULL;
+	u64 vsid;
+
+	vcpu->arch.mmu.esid_to_vsid(vcpu, pte->eaddr >> SID_SHIFT, &vsid);
+	if (vsid & VSID_64K)
+		mask = 0xffffffff0ULL;
+	kvmppc_mmu_pte_vflush(vcpu, pte->vpage, mask);
 }
 
 static struct kvmppc_sid_map *create_sid_map(struct kvm_vcpu *vcpu, u64 gvsid)
@@ -291,6 +337,12 @@ int kvmppc_mmu_map_segment(struct kvm_vcpu *vcpu, ulong eaddr)
 	slb_vsid &= ~SLB_VSID_KP;
 	slb_esid |= slb_index;
 
+#ifdef CONFIG_PPC_64K_PAGES
+	/* Set host segment base page size to 64K if possible */
+	if (gvsid & VSID_64K)
+		slb_vsid |= mmu_psize_defs[MMU_PAGE_64K].sllp;
+#endif
+
 	svcpu->slb[slb_index].esid = slb_esid;
 	svcpu->slb[slb_index].vsid = slb_vsid;
 
@@ -326,7 +378,7 @@ void kvmppc_mmu_flush_segments(struct kvm_vcpu *vcpu)
 	svcpu_put(svcpu);
 }
 
-void kvmppc_mmu_destroy(struct kvm_vcpu *vcpu)
+void kvmppc_mmu_destroy_pr(struct kvm_vcpu *vcpu)
 {
 	kvmppc_mmu_hpte_destroy(vcpu);
 	__destroy_context(to_book3s(vcpu)->context_id[0]);

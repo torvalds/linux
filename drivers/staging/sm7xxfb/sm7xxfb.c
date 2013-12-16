@@ -130,7 +130,8 @@ static int __init sm7xx_vga_setup(char *options)
 	for (i = 0; i < ARRAY_SIZE(vesa_mode_table); i++) {
 		if (strstr(options, vesa_mode_table[i].index)) {
 			smtc_scr_info.lfb_width  = vesa_mode_table[i].lfb_width;
-			smtc_scr_info.lfb_height = vesa_mode_table[i].lfb_height;
+			smtc_scr_info.lfb_height =
+						vesa_mode_table[i].lfb_height;
 			smtc_scr_info.lfb_depth  = vesa_mode_table[i].lfb_depth;
 			return 0;
 		}
@@ -259,8 +260,7 @@ static int smtc_setcolreg(unsigned regno, unsigned red, unsigned green,
 			if (sfb->fb.var.bits_per_pixel == 16) {
 				u32 *pal = sfb->fb.pseudo_palette;
 				val = chan_to_field(red, &sfb->fb.var.red);
-				val |= chan_to_field(green, \
-						&sfb->fb.var.green);
+				val |= chan_to_field(green, &sfb->fb.var.green);
 				val |= chan_to_field(blue, &sfb->fb.var.blue);
 #ifdef __BIG_ENDIAN
 				pal[regno] =
@@ -274,8 +274,7 @@ static int smtc_setcolreg(unsigned regno, unsigned red, unsigned green,
 			} else {
 				u32 *pal = sfb->fb.pseudo_palette;
 				val = chan_to_field(red, &sfb->fb.var.red);
-				val |= chan_to_field(green, \
-						&sfb->fb.var.green);
+				val |= chan_to_field(green, &sfb->fb.var.green);
 				val |= chan_to_field(blue, &sfb->fb.var.blue);
 #ifdef __BIG_ENDIAN
 				val =
@@ -508,9 +507,9 @@ static void sm7xx_set_timing(struct smtcfb_info *sfb)
 
 			/* init SEQ register SR30 - SR75 */
 			for (i = 0; i < SIZE_SR30_SR75; i++)
-				if (((i + 0x30) != 0x62) \
-					&& ((i + 0x30) != 0x6a) \
-					&& ((i + 0x30) != 0x6b))
+				if ((i + 0x30) != 0x62 &&
+				    (i + 0x30) != 0x6a &&
+				    (i + 0x30) != 0x6b)
 					smtc_seqw(i + 0x30,
 						VGAMode[j].Init_SR30_SR75[i]);
 
@@ -933,7 +932,6 @@ static void smtcfb_pci_remove(struct pci_dev *pdev)
 	struct smtcfb_info *sfb;
 
 	sfb = pci_get_drvdata(pdev);
-	pci_set_drvdata(pdev, NULL);
 	smtc_unmap_smem(sfb);
 	smtc_unmap_mmio(sfb);
 	unregister_framebuffer(&sfb->fb);

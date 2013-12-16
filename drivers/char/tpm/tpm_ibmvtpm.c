@@ -98,7 +98,7 @@ static int tpm_ibmvtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 
 	if (count < len) {
 		dev_err(ibmvtpm->dev,
-			"Invalid size in recv: count=%ld, crq_size=%d\n",
+			"Invalid size in recv: count=%zd, crq_size=%d\n",
 			count, len);
 		return -EIO;
 	}
@@ -136,7 +136,7 @@ static int tpm_ibmvtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 
 	if (count > ibmvtpm->rtce_size) {
 		dev_err(ibmvtpm->dev,
-			"Invalid size in send: count=%ld, rtce_size=%d\n",
+			"Invalid size in send: count=%zd, rtce_size=%d\n",
 			count, ibmvtpm->rtce_size);
 		return -EIO;
 	}
@@ -419,7 +419,7 @@ static DEVICE_ATTR(active, S_IRUGO, tpm_show_active, NULL);
 static DEVICE_ATTR(owned, S_IRUGO, tpm_show_owned, NULL);
 static DEVICE_ATTR(temp_deactivated, S_IRUGO, tpm_show_temp_deactivated,
 		   NULL);
-static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps_1_2, NULL);
+static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps, NULL);
 static DEVICE_ATTR(cancel, S_IWUSR | S_IWGRP, NULL, tpm_store_cancel);
 static DEVICE_ATTR(durations, S_IRUGO, tpm_show_durations, NULL);
 static DEVICE_ATTR(timeouts, S_IRUGO, tpm_show_timeouts, NULL);

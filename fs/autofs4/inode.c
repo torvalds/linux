@@ -56,18 +56,13 @@ void autofs4_kill_sb(struct super_block *sb)
 	 * just call kill_anon_super when we are called from
 	 * deactivate_super.
 	 */
-	if (!sbi)
-		goto out_kill_sb;
+	if (sbi) /* Free wait queues, close pipe */
+		autofs4_catatonic_mode(sbi);
 
-	/* Free wait queues, close pipe */
-	autofs4_catatonic_mode(sbi);
-
-	sb->s_fs_info = NULL;
-	kfree(sbi);
-
-out_kill_sb:
 	DPRINTK("shutting down");
 	kill_litter_super(sb);
+	if (sbi)
+		kfree_rcu(sbi, rcu);
 }
 
 static int autofs4_show_options(struct seq_file *m, struct dentry *root)

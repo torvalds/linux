@@ -28,16 +28,6 @@ config REGULATOR_DEBUG
 	help
 	  Say yes here to enable debugging support.
 
-config REGULATOR_DUMMY
-	bool "Provide a dummy regulator if regulator lookups fail"
-	help
-	  If this option is enabled then when a regulator lookup fails
-	  and the board has not specified that it has provided full
-	  constraints the regulator core will provide an always
-	  enabled dummy regulator, allowing consumer drivers to continue.
-
-	  A warning will be generated when this substitution is done.
-
 config REGULATOR_FIXED_VOLTAGE
 	tristate "Fixed voltage regulator support"
 	help
@@ -132,6 +122,14 @@ config REGULATOR_AS3711
 	help
 	  This driver provides support for the voltage regulators on the
 	  AS3711 PMIC
+
+config REGULATOR_AS3722
+	tristate "AMS AS3722 PMIC Regulators"
+	depends on MFD_AS3722
+	help
+	  This driver provides support for the voltage regulators on the
+	  AS3722 PMIC. This will enable support for all the software
+	  controllable DCDC/LDO regulators.
 
 config REGULATOR_DA903X
 	tristate "Dialog Semiconductor DA9030/DA9034 regulators"
@@ -428,6 +426,14 @@ config REGULATOR_TI_ABB
 	  enabled on required TI SoC. Certain Operating Performance Points
 	  on TI SoCs may be unstable without enabling this as it provides
 	  device specific optimized bias to allow/optimize functionality.
+
+config REGULATOR_STW481X_VMMC
+	bool "ST Microelectronics STW481X VMMC regulator"
+	depends on MFD_STW481X
+	default y if MFD_STW481X
+	help
+	  This driver supports the internal VMMC regulator in the STw481x
+	  PMIC chips.
 
 config REGULATOR_TPS51632
 	tristate "TI TPS51632 Power Regulator"

@@ -473,7 +473,7 @@ err:
 static void cuse_fc_release(struct fuse_conn *fc)
 {
 	struct cuse_conn *cc = fc_to_cc(fc);
-	kfree(cc);
+	kfree_rcu(cc, fc.rcu);
 }
 
 /**
@@ -589,10 +589,13 @@ static struct attribute *cuse_class_dev_attrs[] = {
 ATTRIBUTE_GROUPS(cuse_class_dev);
 
 static struct miscdevice cuse_miscdev = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.minor		= CUSE_MINOR,
 	.name		= "cuse",
 	.fops		= &cuse_channel_fops,
 };
+
+MODULE_ALIAS_MISCDEV(CUSE_MINOR);
+MODULE_ALIAS("devname:cuse");
 
 static int __init cuse_init(void)
 {

@@ -1090,7 +1090,7 @@ static struct platform_driver tegra_usb_phy_driver = {
 	.driver		= {
 		.name	= "tegra-phy",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(tegra_usb_phy_id_table),
+		.of_match_table = tegra_usb_phy_id_table,
 	},
 };
 module_platform_driver(tegra_usb_phy_driver);

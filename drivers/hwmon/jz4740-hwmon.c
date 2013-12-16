@@ -66,7 +66,7 @@ static ssize_t jz4740_hwmon_read_adcin(struct device *dev,
 
 	mutex_lock(&hwmon->lock);
 
-	INIT_COMPLETION(*completion);
+	reinit_completion(completion);
 
 	enable_irq(hwmon->irq);
 	hwmon->cell->enable(to_platform_device(dev));

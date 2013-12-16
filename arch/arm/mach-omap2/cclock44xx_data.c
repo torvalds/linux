@@ -830,7 +830,8 @@ DEFINE_CLK_GATE(dss_tv_clk, "extalt_clkin_ck", &extalt_clkin_ck, 0x0,
 		OMAP4430_CM_DSS_DSS_CLKCTRL,
 		OMAP4430_OPTFCLKEN_TV_CLK_SHIFT, 0x0, NULL);
 
-DEFINE_CLK_GATE(dss_dss_clk, "dpll_per_m5x2_ck", &dpll_per_m5x2_ck, 0x0,
+DEFINE_CLK_GATE(dss_dss_clk, "dpll_per_m5x2_ck", &dpll_per_m5x2_ck,
+		CLK_SET_RATE_PARENT,
 		OMAP4430_CM_DSS_DSS_CLKCTRL, OMAP4430_OPTFCLKEN_DSSCLK_SHIFT,
 		0x0, NULL);
 

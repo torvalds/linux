@@ -39,7 +39,7 @@
 #define c6_IFAR		17	/* Instruction Fault Address Register */
 #define c7_PAR		18	/* Physical Address Register */
 #define c7_PAR_high	19	/* PAR top 32 bits */
-#define c9_L2CTLR	20	/* Cortex A15 L2 Control Register */
+#define c9_L2CTLR	20	/* Cortex A15/A7 L2 Control Register */
 #define c10_PRRR	21	/* Primary Region Remap Register */
 #define c10_NMRR	22	/* Normal Memory Remap Register */
 #define c12_VBAR	23	/* Vector Base Address Register */

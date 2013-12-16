@@ -5,7 +5,7 @@
 			Rusty Russell <rusty@rustcorp.com.au>
 			Srivatsa Vaddagiri <vatsa@in.ibm.com>
 		i386:
-			Zwane Mwaikambo <zwane@arm.linux.org.uk>
+			Zwane Mwaikambo <zwanem@gmail.com>
 		ppc64:
 			Nathan Lynch <nathanl@austin.ibm.com>
 			Joel Schopp <jschopp@austin.ibm.com>

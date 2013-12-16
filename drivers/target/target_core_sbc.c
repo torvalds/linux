@@ -105,12 +105,22 @@ sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 	buf[9] = (dev->dev_attrib.block_size >> 16) & 0xff;
 	buf[10] = (dev->dev_attrib.block_size >> 8) & 0xff;
 	buf[11] = dev->dev_attrib.block_size & 0xff;
+
+	if (dev->transport->get_lbppbe)
+		buf[13] = dev->transport->get_lbppbe(dev) & 0x0f;
+
+	if (dev->transport->get_alignment_offset_lbas) {
+		u16 lalba = dev->transport->get_alignment_offset_lbas(dev);
+		buf[14] = (lalba >> 8) & 0x3f;
+		buf[15] = lalba & 0xff;
+	}
+
 	/*
 	 * Set Thin Provisioning Enable bit following sbc3r22 in section
 	 * READ CAPACITY (16) byte 14 if emulate_tpu or emulate_tpws is enabled.
 	 */
 	if (dev->dev_attrib.emulate_tpu || dev->dev_attrib.emulate_tpws)
-		buf[14] = 0x80;
+		buf[14] |= 0x80;
 
 	rbuf = transport_kmap_data_sg(cmd);
 	if (rbuf) {
@@ -261,6 +271,11 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *o
 	if (sectors > cmd->se_dev->dev_attrib.max_write_same_len) {
 		pr_warn("WRITE_SAME sectors: %u exceeds max_write_same_len: %u\n",
 			sectors, cmd->se_dev->dev_attrib.max_write_same_len);
+		return TCM_INVALID_CDB_FIELD;
+	}
+	/* We always have ANC_SUP == 0 so setting ANCHOR is always an error */
+	if (flags[0] & 0x10) {
+		pr_warn("WRITE SAME with ANCHOR not supported\n");
 		return TCM_INVALID_CDB_FIELD;
 	}
 	/*

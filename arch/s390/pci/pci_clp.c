@@ -16,6 +16,16 @@
 #include <asm/pci_debug.h>
 #include <asm/pci_clp.h>
 
+static inline void zpci_err_clp(unsigned int rsp, int rc)
+{
+	struct {
+		unsigned int rsp;
+		int rc;
+	} __packed data = {rsp, rc};
+
+	zpci_err_hex(&data, sizeof(data));
+}
+
 /*
  * Call Logical Processor
  * Retry logic is handled by the caller.
@@ -54,7 +64,6 @@ static void clp_store_query_pci_fngrp(struct zpci_dev *zdev,
 	zdev->msi_addr = response->msia;
 	zdev->fmb_update = response->mui;
 
-	pr_debug("Supported number of MSI vectors: %u\n", response->noi);
 	switch (response->version) {
 	case 1:
 		zdev->max_bus_speed = PCIE_SPEED_5_0GT;
@@ -84,8 +93,8 @@ static int clp_query_pci_fngrp(struct zpci_dev *zdev, u8 pfgid)
 	if (!rc && rrb->response.hdr.rsp == CLP_RC_OK)
 		clp_store_query_pci_fngrp(zdev, &rrb->response);
 	else {
-		pr_err("Query PCI FNGRP failed with response: %x  cc: %d\n",
-			rrb->response.hdr.rsp, rc);
+		zpci_err("Q PCI FGRP:\n");
+		zpci_err_clp(rrb->response.hdr.rsp, rc);
 		rc = -EIO;
 	}
 	clp_free_block(rrb);
@@ -131,8 +140,8 @@ static int clp_query_pci_fn(struct zpci_dev *zdev, u32 fh)
 		if (rrb->response.pfgid)
 			rc = clp_query_pci_fngrp(zdev, rrb->response.pfgid);
 	} else {
-		pr_err("Query PCI failed with response: %x  cc: %d\n",
-			 rrb->response.hdr.rsp, rc);
+		zpci_err("Q PCI FN:\n");
+		zpci_err_clp(rrb->response.hdr.rsp, rc);
 		rc = -EIO;
 	}
 out:
@@ -146,9 +155,9 @@ int clp_add_pci_device(u32 fid, u32 fh, int configured)
 	int rc;
 
 	zpci_dbg(3, "add fid:%x, fh:%x, c:%d\n", fid, fh, configured);
-	zdev = zpci_alloc_device();
-	if (IS_ERR(zdev))
-		return PTR_ERR(zdev);
+	zdev = kzalloc(sizeof(*zdev), GFP_KERNEL);
+	if (!zdev)
+		return -ENOMEM;
 
 	zdev->fh = fh;
 	zdev->fid = fid;
@@ -169,7 +178,7 @@ int clp_add_pci_device(u32 fid, u32 fh, int configured)
 	return 0;
 
 error:
-	zpci_free_device(zdev);
+	kfree(zdev);
 	return rc;
 }
 
@@ -206,8 +215,8 @@ static int clp_set_pci_fn(u32 *fh, u8 nr_dma_as, u8 command)
 	if (!rc && rrb->response.hdr.rsp == CLP_RC_OK)
 		*fh = rrb->response.fh;
 	else {
-		zpci_dbg(0, "SPF fh:%x, cc:%d, resp:%x\n", *fh, rc,
-			 rrb->response.hdr.rsp);
+		zpci_err("Set PCI FN:\n");
+		zpci_err_clp(rrb->response.hdr.rsp, rc);
 		rc = -EIO;
 	}
 	clp_free_block(rrb);
@@ -262,8 +271,8 @@ static int clp_list_pci(struct clp_req_rsp_list_pci *rrb,
 		/* Get PCI function handle list */
 		rc = clp_instr(rrb);
 		if (rc || rrb->response.hdr.rsp != CLP_RC_OK) {
-			pr_err("List PCI failed with response: 0x%x  cc: %d\n",
-				rrb->response.hdr.rsp, rc);
+			zpci_err("List PCI FN:\n");
+			zpci_err_clp(rrb->response.hdr.rsp, rc);
 			rc = -EIO;
 			goto out;
 		}
@@ -273,17 +282,11 @@ static int clp_list_pci(struct clp_req_rsp_list_pci *rrb,
 
 		entries = (rrb->response.hdr.len - LIST_PCI_HDR_LEN) /
 			rrb->response.entry_size;
-		pr_info("Detected number of PCI functions: %u\n", entries);
 
-		/* Store the returned resume token as input for the next call */
 		resume_token = rrb->response.resume_token;
-
 		for (i = 0; i < entries; i++)
 			cb(&rrb->response.fh_list[i]);
 	} while (resume_token);
-
-	pr_debug("Maximum number of supported PCI functions: %u\n",
-		rrb->response.max_fn);
 out:
 	return rc;
 }

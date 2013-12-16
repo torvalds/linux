@@ -140,7 +140,6 @@ void mlx4_en_ex_selftest(struct net_device *dev, u32 *flags, u64 *buf)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
-	struct mlx4_en_tx_ring *tx_ring;
 	int i, carrier_ok;
 
 	memset(buf, 0, sizeof(u64) * MLX4_EN_NUM_SELF_TEST);
@@ -150,16 +149,10 @@ void mlx4_en_ex_selftest(struct net_device *dev, u32 *flags, u64 *buf)
 		carrier_ok = netif_carrier_ok(dev);
 
 		netif_carrier_off(dev);
-retry_tx:
 		/* Wait until all tx queues are empty.
 		 * there should not be any additional incoming traffic
 		 * since we turned the carrier off */
 		msleep(200);
-		for (i = 0; i < priv->tx_ring_num && carrier_ok; i++) {
-			tx_ring = &priv->tx_ring[i];
-			if (tx_ring->prod != (tx_ring->cons + tx_ring->last_nr_txbb))
-				goto retry_tx;
-		}
 
 		if (priv->mdev->dev->caps.flags &
 					MLX4_DEV_CAP_FLAG_UC_LOOPBACK) {

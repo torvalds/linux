@@ -2563,9 +2563,9 @@ static int corrupt_data(const struct ubifs_info *c, const void *buf,
 	unsigned int from, to, ffs = chance(1, 2);
 	unsigned char *p = (void *)buf;
 
-	from = prandom_u32() % (len + 1);
-	/* Corruption may only span one max. write unit */
-	to = min(len, ALIGN(from, c->max_write_size));
+	from = prandom_u32() % len;
+	/* Corruption span max to end of write unit */
+	to = min(len, ALIGN(from + 1, c->max_write_size));
 
 	ubifs_warn("filled bytes %u-%u with %s", from, to - 1,
 		   ffs ? "0xFFs" : "random data");

@@ -1041,6 +1041,7 @@ static void wacom_destroy_leds(struct wacom *wacom)
 }
 
 static enum power_supply_property wacom_battery_props[] = {
+	POWER_SUPPLY_PROP_SCOPE,
 	POWER_SUPPLY_PROP_CAPACITY
 };
 
@@ -1052,6 +1053,9 @@ static int wacom_battery_get_property(struct power_supply *psy,
 	int ret = 0;
 
 	switch (psp) {
+		case POWER_SUPPLY_PROP_SCOPE:
+			val->intval = POWER_SUPPLY_SCOPE_DEVICE;
+			break;
 		case POWER_SUPPLY_PROP_CAPACITY:
 			val->intval =
 				wacom->wacom_wac.battery_capacity * 100 / 31;

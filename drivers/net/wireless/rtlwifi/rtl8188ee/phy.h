@@ -200,37 +200,35 @@ enum _ANT_DIV_TYPE {
 	CGCS_RX_SW_ANTDIV		= 0x05,
 };
 
-extern u32 rtl88e_phy_query_bb_reg(struct ieee80211_hw *hw,
-				   u32 regaddr, u32 bitmask);
-extern void rtl88e_phy_set_bb_reg(struct ieee80211_hw *hw,
-				  u32 regaddr, u32 bitmask, u32 data);
-extern u32 rtl88e_phy_query_rf_reg(struct ieee80211_hw *hw,
-				   enum radio_path rfpath, u32 regaddr,
-				   u32 bitmask);
-extern void rtl88e_phy_set_rf_reg(struct ieee80211_hw *hw,
-				  enum radio_path rfpath, u32 regaddr,
-				  u32 bitmask, u32 data);
-extern bool rtl88e_phy_mac_config(struct ieee80211_hw *hw);
-extern bool rtl88e_phy_bb_config(struct ieee80211_hw *hw);
-extern bool rtl88e_phy_rf_config(struct ieee80211_hw *hw);
-extern void rtl88e_phy_get_hw_reg_originalvalue(struct ieee80211_hw *hw);
-extern void rtl88e_phy_get_txpower_level(struct ieee80211_hw *hw,
-					 long *powerlevel);
-extern void rtl88e_phy_set_txpower_level(struct ieee80211_hw *hw, u8 channel);
-extern void rtl88e_phy_scan_operation_backup(struct ieee80211_hw *hw,
-					     u8 operation);
-extern void rtl88e_phy_set_bw_mode_callback(struct ieee80211_hw *hw);
-extern void rtl88e_phy_set_bw_mode(struct ieee80211_hw *hw,
-				   enum nl80211_channel_type ch_type);
-extern void rtl88e_phy_sw_chnl_callback(struct ieee80211_hw *hw);
-extern u8 rtl88e_phy_sw_chnl(struct ieee80211_hw *hw);
-extern void rtl88e_phy_iq_calibrate(struct ieee80211_hw *hw, bool b_recovery);
+u32 rtl88e_phy_query_bb_reg(struct ieee80211_hw *hw,
+			    u32 regaddr, u32 bitmask);
+void rtl88e_phy_set_bb_reg(struct ieee80211_hw *hw,
+			   u32 regaddr, u32 bitmask, u32 data);
+u32 rtl88e_phy_query_rf_reg(struct ieee80211_hw *hw,
+			    enum radio_path rfpath, u32 regaddr,
+			    u32 bitmask);
+void rtl88e_phy_set_rf_reg(struct ieee80211_hw *hw,
+			   enum radio_path rfpath, u32 regaddr,
+			   u32 bitmask, u32 data);
+bool rtl88e_phy_mac_config(struct ieee80211_hw *hw);
+bool rtl88e_phy_bb_config(struct ieee80211_hw *hw);
+bool rtl88e_phy_rf_config(struct ieee80211_hw *hw);
+void rtl88e_phy_get_hw_reg_originalvalue(struct ieee80211_hw *hw);
+void rtl88e_phy_get_txpower_level(struct ieee80211_hw *hw,
+				  long *powerlevel);
+void rtl88e_phy_set_txpower_level(struct ieee80211_hw *hw, u8 channel);
+void rtl88e_phy_set_bw_mode_callback(struct ieee80211_hw *hw);
+void rtl88e_phy_set_bw_mode(struct ieee80211_hw *hw,
+			    enum nl80211_channel_type ch_type);
+void rtl88e_phy_sw_chnl_callback(struct ieee80211_hw *hw);
+u8 rtl88e_phy_sw_chnl(struct ieee80211_hw *hw);
+void rtl88e_phy_iq_calibrate(struct ieee80211_hw *hw, bool b_recovery);
 void rtl88e_phy_lc_calibrate(struct ieee80211_hw *hw);
 void rtl88e_phy_set_rfpath_switch(struct ieee80211_hw *hw, bool bmain);
 bool rtl88e_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 					  enum radio_path rfpath);
 bool rtl88e_phy_set_io_cmd(struct ieee80211_hw *hw, enum io_type iotype);
-extern bool rtl88e_phy_set_rf_power_state(struct ieee80211_hw *hw,
-					  enum rf_pwrstate rfpwr_state);
+bool rtl88e_phy_set_rf_power_state(struct ieee80211_hw *hw,
+				   enum rf_pwrstate rfpwr_state);
 
 #endif

@@ -713,9 +713,8 @@ static int unifb_probe(struct platform_device *dev)
 	platform_set_drvdata(dev, info);
 	platform_device_add_data(dev, unifb_regs, sizeof(u32) * UNIFB_REGS_NUM);
 
-	printk(KERN_INFO
-	       "fb%d: Virtual frame buffer device, using %dM of video memory\n",
-	       info->node, UNIFB_MEMSIZE >> 20);
+	fb_info(info, "Virtual frame buffer device, using %dM of video memory\n",
+		UNIFB_MEMSIZE >> 20);
 	return 0;
 err2:
 	fb_dealloc_cmap(&info->cmap);

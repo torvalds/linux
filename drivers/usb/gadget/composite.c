@@ -354,7 +354,7 @@ static u8 encode_bMaxPower(enum usb_device_speed speed,
 		return DIV_ROUND_UP(val, 8);
 	default:
 		return DIV_ROUND_UP(val, 2);
-	};
+	}
 }
 
 static int config_buf(struct usb_configuration *config,
@@ -593,6 +593,7 @@ static void reset_config(struct usb_composite_dev *cdev)
 		bitmap_zero(f->endpoints, 32);
 	}
 	cdev->config = NULL;
+	cdev->delayed_status = 0;
 }
 
 static int set_config(struct usb_composite_dev *cdev,

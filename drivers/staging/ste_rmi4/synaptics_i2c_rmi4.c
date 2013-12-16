@@ -911,8 +911,6 @@ static int synaptics_rmi4_probe
 
 	rmi4_data->input_dev = input_allocate_device();
 	if (rmi4_data->input_dev == NULL) {
-		dev_err(&client->dev, "%s:input device alloc failed\n",
-						__func__);
 		retval = -ENOMEM;
 		goto err_input;
 	}

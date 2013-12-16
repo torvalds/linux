@@ -17,18 +17,19 @@
 #include <linux/clkdev.h>
 #include <linux/clocksource.h>
 #include <linux/dma-mapping.h>
+#include <linux/input.h>
 #include <linux/io.h>
 #include <linux/irqchip.h>
+#include <linux/mailbox.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
+#include <linux/reboot.h>
 #include <linux/amba/bus.h>
-#include <linux/clk-provider.h>
+#include <linux/platform_device.h>
 
-#include <asm/cacheflush.h>
-#include <asm/cputype.h>
-#include <asm/smp_plat.h>
+#include <asm/psci.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -49,17 +50,6 @@ static void __init highbank_scu_map_io(void)
 	scu_base_addr = ioremap(base, SZ_4K);
 }
 
-#define HB_JUMP_TABLE_PHYS(cpu)		(0x40 + (0x10 * (cpu)))
-#define HB_JUMP_TABLE_VIRT(cpu)		phys_to_virt(HB_JUMP_TABLE_PHYS(cpu))
-
-void highbank_set_cpu_jump(int cpu, void *jump_addr)
-{
-	cpu = MPIDR_AFFINITY_LEVEL(cpu_logical_map(cpu), 0);
-	writel(virt_to_phys(jump_addr), HB_JUMP_TABLE_VIRT(cpu));
-	__cpuc_flush_dcache_area(HB_JUMP_TABLE_VIRT(cpu), 16);
-	outer_clean_range(HB_JUMP_TABLE_PHYS(cpu),
-			  HB_JUMP_TABLE_PHYS(cpu) + 15);
-}
 
 static void highbank_l2x0_disable(void)
 {
@@ -81,20 +71,6 @@ static void __init highbank_init_irq(void)
 		l2x0_of_init(0, ~0UL);
 		outer_cache.disable = highbank_l2x0_disable;
 	}
-}
-
-static void __init highbank_timer_init(void)
-{
-	struct device_node *np;
-
-	/* Map system registers */
-	np = of_find_compatible_node(NULL, NULL, "calxeda,hb-sregs");
-	sregs_base = of_iomap(np, 0);
-	WARN_ON(!sregs_base);
-
-	of_clk_init(NULL);
-
-	clocksource_of_init();
 }
 
 static void highbank_power_off(void)
@@ -153,15 +129,49 @@ static struct notifier_block highbank_platform_nb = {
 	.notifier_call = highbank_platform_notifier,
 };
 
+static struct platform_device highbank_cpuidle_device = {
+	.name = "cpuidle-calxeda",
+};
+
+static int hb_keys_notifier(struct notifier_block *nb, unsigned long event, void *data)
+{
+	u32 key = *(u32 *)data;
+
+	if (event != 0x1000)
+		return 0;
+
+	if (key == KEY_POWER)
+		orderly_poweroff(false);
+	else if (key == 0xffff)
+		ctrl_alt_del();
+
+	return 0;
+}
+static struct notifier_block hb_keys_nb = {
+	.notifier_call = hb_keys_notifier,
+};
+
 static void __init highbank_init(void)
 {
+	struct device_node *np;
+
+	/* Map system registers */
+	np = of_find_compatible_node(NULL, NULL, "calxeda,hb-sregs");
+	sregs_base = of_iomap(np, 0);
+	WARN_ON(!sregs_base);
+
 	pm_power_off = highbank_power_off;
 	highbank_pm_init();
 
 	bus_register_notifier(&platform_bus_type, &highbank_platform_nb);
 	bus_register_notifier(&amba_bustype, &highbank_amba_nb);
 
+	pl320_ipc_register_notifier(&hb_keys_nb);
+
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+
+	if (psci_ops.cpu_suspend)
+		platform_device_register(&highbank_cpuidle_device);
 }
 
 static const char *highbank_match[] __initconst = {
@@ -174,9 +184,7 @@ DT_MACHINE_START(HIGHBANK, "Highbank")
 #if defined(CONFIG_ZONE_DMA) && defined(CONFIG_ARM_LPAE)
 	.dma_zone_size	= (4ULL * SZ_1G),
 #endif
-	.smp		= smp_ops(highbank_smp_ops),
 	.init_irq	= highbank_init_irq,
-	.init_time	= highbank_timer_init,
 	.init_machine	= highbank_init,
 	.dt_compat	= highbank_match,
 	.restart	= highbank_restart,

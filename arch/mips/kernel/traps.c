@@ -330,6 +330,7 @@ void show_regs(struct pt_regs *regs)
 void show_registers(struct pt_regs *regs)
 {
 	const int field = 2 * sizeof(unsigned long);
+	mm_segment_t old_fs = get_fs();
 
 	__show_regs(regs);
 	print_modules();
@@ -344,9 +345,13 @@ void show_registers(struct pt_regs *regs)
 			printk("*HwTLS: %0*lx\n", field, tls);
 	}
 
+	if (!user_mode(regs))
+		/* Necessary for getting the correct stack content */
+		set_fs(KERNEL_DS);
 	show_stacktrace(current, regs);
 	show_code((unsigned int __user *) regs->cp0_epc);
 	printk("\n");
+	set_fs(old_fs);
 }
 
 static int regs_to_trapnr(struct pt_regs *regs)
@@ -366,7 +371,8 @@ void __noreturn die(const char *str, struct pt_regs *regs)
 
 	oops_enter();
 
-	if (notify_die(DIE_OOPS, str, regs, 0, regs_to_trapnr(regs), SIGSEGV) == NOTIFY_STOP)
+	if (notify_die(DIE_OOPS, str, regs, 0, regs_to_trapnr(regs),
+		       SIGSEGV) == NOTIFY_STOP)
 		sig = 0;
 
 	console_verbose();
@@ -457,8 +463,8 @@ asmlinkage void do_be(struct pt_regs *regs)
 	printk(KERN_ALERT "%s bus error, epc == %0*lx, ra == %0*lx\n",
 	       data ? "Data" : "Instruction",
 	       field, regs->cp0_epc, field, regs->regs[31]);
-	if (notify_die(DIE_OOPS, "bus error", regs, 0, regs_to_trapnr(regs), SIGBUS)
-	    == NOTIFY_STOP)
+	if (notify_die(DIE_OOPS, "bus error", regs, 0, regs_to_trapnr(regs),
+		       SIGBUS) == NOTIFY_STOP)
 		goto out;
 
 	die_if_kernel("Oops", regs);
@@ -727,8 +733,8 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 	siginfo_t info = {0};
 
 	prev_state = exception_enter();
-	if (notify_die(DIE_FP, "FP exception", regs, 0, regs_to_trapnr(regs), SIGFPE)
-	    == NOTIFY_STOP)
+	if (notify_die(DIE_FP, "FP exception", regs, 0, regs_to_trapnr(regs),
+		       SIGFPE) == NOTIFY_STOP)
 		goto out;
 	die_if_kernel("FP exception in kernel code", regs);
 
@@ -798,7 +804,8 @@ static void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 		return;
 #endif /* CONFIG_KGDB_LOW_LEVEL_TRAP */
 
-	if (notify_die(DIE_TRAP, str, regs, code, regs_to_trapnr(regs), SIGTRAP) == NOTIFY_STOP)
+	if (notify_die(DIE_TRAP, str, regs, code, regs_to_trapnr(regs),
+		       SIGTRAP) == NOTIFY_STOP)
 		return;
 
 	/*
@@ -892,12 +899,14 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	 */
 	switch (bcode) {
 	case BRK_KPROBE_BP:
-		if (notify_die(DIE_BREAK, "debug", regs, bcode, regs_to_trapnr(regs), SIGTRAP) == NOTIFY_STOP)
+		if (notify_die(DIE_BREAK, "debug", regs, bcode,
+			       regs_to_trapnr(regs), SIGTRAP) == NOTIFY_STOP)
 			goto out;
 		else
 			break;
 	case BRK_KPROBE_SSTEPBP:
-		if (notify_die(DIE_SSTEPBP, "single_step", regs, bcode, regs_to_trapnr(regs), SIGTRAP) == NOTIFY_STOP)
+		if (notify_die(DIE_SSTEPBP, "single_step", regs, bcode,
+			       regs_to_trapnr(regs), SIGTRAP) == NOTIFY_STOP)
 			goto out;
 		else
 			break;
@@ -961,8 +970,8 @@ asmlinkage void do_ri(struct pt_regs *regs)
 	int status = -1;
 
 	prev_state = exception_enter();
-	if (notify_die(DIE_RI, "RI Fault", regs, 0, regs_to_trapnr(regs), SIGILL)
-	    == NOTIFY_STOP)
+	if (notify_die(DIE_RI, "RI Fault", regs, 0, regs_to_trapnr(regs),
+		       SIGILL) == NOTIFY_STOP)
 		goto out;
 
 	die_if_kernel("Reserved instruction in kernel code", regs);
@@ -1488,10 +1497,14 @@ int register_nmi_notifier(struct notifier_block *nb)
 
 void __noreturn nmi_exception_handler(struct pt_regs *regs)
 {
+	char str[100];
+
 	raw_notifier_call_chain(&nmi_chain, 0, regs);
 	bust_spinlocks(1);
-	printk("NMI taken!!!!\n");
-	die("NMI", regs);
+	snprintf(str, 100, "CPU%d NMI taken, CP0_EPC=%lx\n",
+		 smp_processor_id(), regs->cp0_epc);
+	regs->cp0_epc = read_c0_errorepc();
+	die(str, regs);
 }
 
 #define VECTORSPACING 0x100	/* for EI/VI mode */
@@ -1554,7 +1567,6 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 	unsigned char *b;
 
 	BUG_ON(!cpu_has_veic && !cpu_has_vint);
-	BUG_ON((n < 0) && (n > 9));
 
 	if (addr == NULL) {
 		handler = (unsigned long) do_default_vi;

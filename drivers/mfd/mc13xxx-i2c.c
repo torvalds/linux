@@ -78,7 +78,6 @@ static int mc13xxx_i2c_probe(struct i2c_client *client,
 		ret = PTR_ERR(mc13xxx->regmap);
 		dev_err(mc13xxx->dev, "Failed to initialize register map: %d\n",
 				ret);
-		dev_set_drvdata(&client->dev, NULL);
 		return ret;
 	}
 

@@ -180,7 +180,7 @@ void Wb35Tx_CurrentTime(struct wbsoft_priv *adapter, u32 TimeCount)
 {
 	struct hw_data *pHwData = &adapter->sHwData;
 	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
-	unsigned char Trigger = false;
+	bool Trigger = false;
 
 	if (pWb35Tx->TxTimer > TimeCount)
 		Trigger = true;

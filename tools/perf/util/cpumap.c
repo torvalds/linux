@@ -1,5 +1,5 @@
 #include "util.h"
-#include "sysfs.h"
+#include "fs.h"
 #include "../perf.h"
 #include "cpumap.h"
 #include <assert.h>
@@ -216,7 +216,7 @@ int cpu_map__get_socket(struct cpu_map *map, int idx)
 
 	cpu = map->map[idx];
 
-	mnt = sysfs_find_mountpoint();
+	mnt = sysfs__mountpoint();
 	if (!mnt)
 		return -1;
 
@@ -279,7 +279,7 @@ int cpu_map__get_core(struct cpu_map *map, int idx)
 
 	cpu = map->map[idx];
 
-	mnt = sysfs_find_mountpoint();
+	mnt = sysfs__mountpoint();
 	if (!mnt)
 		return -1;
 

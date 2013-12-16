@@ -323,6 +323,8 @@ struct qxl_device {
 	struct work_struct gc_work;
 
 	struct work_struct fb_work;
+
+	struct drm_property *hotplug_mode_update_property;
 };
 
 /* forward declaration for QXL_INFO_IO */
@@ -412,7 +414,6 @@ int qxl_gem_object_create_with_handle(struct qxl_device *qdev,
 				      struct qxl_surface *surf,
 				      struct qxl_bo **qobj,
 				      uint32_t *handle);
-int qxl_gem_object_init(struct drm_gem_object *obj);
 void qxl_gem_object_free(struct drm_gem_object *gobj);
 int qxl_gem_object_open(struct drm_gem_object *obj, struct drm_file *file_priv);
 void qxl_gem_object_close(struct drm_gem_object *obj,

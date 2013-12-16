@@ -119,16 +119,8 @@ nv04_timer_alarm_cancel(struct nouveau_timer *ptimer,
 {
 	struct nv04_timer_priv *priv = (void *)ptimer;
 	unsigned long flags;
-
-	/* avoid deleting an entry while the alarm intr is running */
 	spin_lock_irqsave(&priv->lock, flags);
-
-	/* delete the alarm from the list */
-	list_del(&alarm->head);
-
-	/* reset the head so as list_empty returns 1 */
-	INIT_LIST_HEAD(&alarm->head);
-
+	list_del_init(&alarm->head);
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 

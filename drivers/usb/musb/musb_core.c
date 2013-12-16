@@ -617,7 +617,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 				/* case 3 << MUSB_DEVCTL_VBUS_SHIFT: */
 				default:
 					s = "VALID"; break;
-				}; s; }),
+				} s; }),
 				VBUSERR_RETRY_COUNT - musb->vbuserr_retry,
 				musb->port1_status);
 
@@ -919,6 +919,52 @@ static void musb_generic_disable(struct musb *musb)
 	temp = musb_readw(mbase, MUSB_INTRTX);
 	temp = musb_readw(mbase, MUSB_INTRRX);
 
+}
+
+/*
+ * Program the HDRC to start (enable interrupts, dma, etc.).
+ */
+void musb_start(struct musb *musb)
+{
+	void __iomem    *regs = musb->mregs;
+	u8              devctl = musb_readb(regs, MUSB_DEVCTL);
+
+	dev_dbg(musb->controller, "<== devctl %02x\n", devctl);
+
+	/*  Set INT enable registers, enable interrupts */
+	musb->intrtxe = musb->epmask;
+	musb_writew(regs, MUSB_INTRTXE, musb->intrtxe);
+	musb->intrrxe = musb->epmask & 0xfffe;
+	musb_writew(regs, MUSB_INTRRXE, musb->intrrxe);
+	musb_writeb(regs, MUSB_INTRUSBE, 0xf7);
+
+	musb_writeb(regs, MUSB_TESTMODE, 0);
+
+	/* put into basic highspeed mode and start session */
+	musb_writeb(regs, MUSB_POWER, MUSB_POWER_ISOUPDATE
+			| MUSB_POWER_HSENAB
+			/* ENSUSPEND wedges tusb */
+			/* | MUSB_POWER_ENSUSPEND */
+		   );
+
+	musb->is_active = 0;
+	devctl = musb_readb(regs, MUSB_DEVCTL);
+	devctl &= ~MUSB_DEVCTL_SESSION;
+
+	/* session started after:
+	 * (a) ID-grounded irq, host mode;
+	 * (b) vbus present/connect IRQ, peripheral mode;
+	 * (c) peripheral initiates, using SRP
+	 */
+	if (musb->port_mode != MUSB_PORT_MODE_HOST &&
+			(devctl & MUSB_DEVCTL_VBUS) == MUSB_DEVCTL_VBUS) {
+		musb->is_active = 1;
+	} else {
+		devctl |= MUSB_DEVCTL_SESSION;
+	}
+
+	musb_platform_enable(musb);
+	musb_writeb(regs, MUSB_DEVCTL, devctl);
 }
 
 /*
@@ -1763,8 +1809,6 @@ static void musb_free(struct musb *musb)
 			disable_irq_wake(musb->nIrq);
 		free_irq(musb->nIrq, musb);
 	}
-	if (musb->dma_controller)
-		dma_controller_destroy(musb->dma_controller);
 
 	musb_host_free(musb);
 }
@@ -1839,12 +1883,20 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 
 	pm_runtime_get_sync(musb->controller);
 
-	if (use_dma && dev->dma_mask)
+	if (use_dma && dev->dma_mask) {
 		musb->dma_controller = dma_controller_create(musb, musb->mregs);
+		if (IS_ERR(musb->dma_controller)) {
+			status = PTR_ERR(musb->dma_controller);
+			goto fail2_5;
+		}
+	}
 
 	/* be sure interrupts are disabled before connecting ISR */
 	musb_platform_disable(musb);
 	musb_generic_disable(musb);
+
+	/* Init IRQ workqueue before request_irq */
+	INIT_WORK(&musb->irq_work, musb_irq_work);
 
 	/* setup musb parts of the core (especially endpoints) */
 	status = musb_core_init(plat->config->multipoint
@@ -1854,9 +1906,6 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		goto fail3;
 
 	setup_timer(&musb->otg_timer, musb_otg_timer_func, (unsigned long) musb);
-
-	/* Init IRQ workqueue before request_irq */
-	INIT_WORK(&musb->irq_work, musb_irq_work);
 
 	/* attach to the IRQ */
 	if (request_irq(nIrq, musb->isr, 0, dev_name(dev), musb)) {
@@ -1900,6 +1949,8 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		if (status < 0)
 			goto fail3;
 		status = musb_gadget_setup(musb);
+		if (status)
+			musb_host_cleanup(musb);
 		break;
 	default:
 		dev_err(dev, "unsupported port mode %d\n", musb->port_mode);
@@ -1926,10 +1977,13 @@ fail5:
 
 fail4:
 	musb_gadget_cleanup(musb);
+	musb_host_cleanup(musb);
 
 fail3:
+	cancel_work_sync(&musb->irq_work);
 	if (musb->dma_controller)
 		dma_controller_destroy(musb->dma_controller);
+fail2_5:
 	pm_runtime_put_sync(musb->controller);
 
 fail2:
@@ -1986,6 +2040,10 @@ static int musb_remove(struct platform_device *pdev)
 	musb_exit_debugfs(musb);
 	musb_shutdown(pdev);
 
+	if (musb->dma_controller)
+		dma_controller_destroy(musb->dma_controller);
+
+	cancel_work_sync(&musb->irq_work);
 	musb_free(musb);
 	device_init_wakeup(dev, 0);
 	return 0;

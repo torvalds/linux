@@ -22,8 +22,10 @@
 
 #ifdef CONFIG_BATMAN_ADV_NC
 
-int batadv_nc_init(struct batadv_priv *bat_priv);
-void batadv_nc_free(struct batadv_priv *bat_priv);
+void batadv_nc_status_update(struct net_device *net_dev);
+int batadv_nc_init(void);
+int batadv_nc_mesh_init(struct batadv_priv *bat_priv);
+void batadv_nc_mesh_free(struct batadv_priv *bat_priv);
 void batadv_nc_update_nc_node(struct batadv_priv *bat_priv,
 			      struct batadv_orig_node *orig_node,
 			      struct batadv_orig_node *orig_neigh_node,
@@ -46,12 +48,21 @@ int batadv_nc_init_debugfs(struct batadv_priv *bat_priv);
 
 #else /* ifdef CONFIG_BATMAN_ADV_NC */
 
-static inline int batadv_nc_init(struct batadv_priv *bat_priv)
+static inline void batadv_nc_status_update(struct net_device *net_dev)
+{
+}
+
+static inline int batadv_nc_init(void)
 {
 	return 0;
 }
 
-static inline void batadv_nc_free(struct batadv_priv *bat_priv)
+static inline int batadv_nc_mesh_init(struct batadv_priv *bat_priv)
+{
+	return 0;
+}
+
+static inline void batadv_nc_mesh_free(struct batadv_priv *bat_priv)
 {
 	return;
 }

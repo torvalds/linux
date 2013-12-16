@@ -26,6 +26,7 @@ struct xfs_mru_cache;
 struct xfs_nameops;
 struct xfs_ail;
 struct xfs_quotainfo;
+struct xfs_dir_ops;
 
 #ifdef HAVE_PERCPU_SB
 
@@ -111,7 +112,7 @@ typedef struct xfs_mount {
 	__uint8_t		m_blkbb_log;	/* blocklog - BBSHIFT */
 	__uint8_t		m_agno_log;	/* log #ag's */
 	__uint8_t		m_agino_log;	/* #bits for agino in inum */
-	__uint16_t		m_inode_cluster_size;/* min inode buf size */
+	uint			m_inode_cluster_size;/* min inode buf size */
 	uint			m_blockmask;	/* sb_blocksize-1 */
 	uint			m_blockwsize;	/* sb_blocksize in words */
 	uint			m_blockwmask;	/* blockwsize-1 */
@@ -148,6 +149,8 @@ typedef struct xfs_mount {
 	int			m_dir_magicpct;	/* 37% of the dir blocksize */
 	__uint8_t		m_sectbb_log;	/* sectlog - BBSHIFT */
 	const struct xfs_nameops *m_dirnameops;	/* vector of dir name ops */
+	const struct xfs_dir_ops *m_dir_inode_ops; /* vector of dir inode ops */
+	const struct xfs_dir_ops *m_nondir_inode_ops; /* !dir inode ops */
 	int			m_dirblksize;	/* directory block sz--bytes */
 	int			m_dirblkfsbs;	/* directory block sz--fsbs */
 	xfs_dablk_t		m_dirdatablk;	/* blockno of dir data v2 */

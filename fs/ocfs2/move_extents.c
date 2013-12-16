@@ -201,8 +201,7 @@ static int ocfs2_lock_allocators_move_extents(struct inode *inode,
 		}
 	}
 
-	*credits += ocfs2_calc_extend_credits(osb->sb, et->et_root_el,
-					      clusters_to_move + 2);
+	*credits += ocfs2_calc_extend_credits(osb->sb, et->et_root_el);
 
 	mlog(0, "reserve metadata_blocks: %d, data_clusters: %u, credits: %d\n",
 	     extra_blocks, clusters_to_move, *credits);
@@ -1067,8 +1066,10 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 	if (status)
 		return status;
 
-	if ((!S_ISREG(inode->i_mode)) || !(filp->f_mode & FMODE_WRITE))
+	if ((!S_ISREG(inode->i_mode)) || !(filp->f_mode & FMODE_WRITE)) {
+		status = -EPERM;
 		goto out_drop;
+	}
 
 	if (inode->i_flags & (S_IMMUTABLE|S_APPEND)) {
 		status = -EPERM;
@@ -1090,8 +1091,10 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 		goto out_free;
 	}
 
-	if (range.me_start > i_size_read(inode))
+	if (range.me_start > i_size_read(inode)) {
+		status = -EINVAL;
 		goto out_free;
+	}
 
 	if (range.me_start + range.me_len > i_size_read(inode))
 			range.me_len = i_size_read(inode) - range.me_start;

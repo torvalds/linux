@@ -27,7 +27,7 @@
 /*	Define the debug levels */
 /*  */
 /*	1. DBG_TRACE and DBG_LOUD are used for normal cases. */
-/*	They can help SW engineer to develope or trace states changed */
+/*	They can help SW engineer to develop or trace states changed */
 /*	and also help HW enginner to trace every operation to and from HW, */
 /*	e.g IO, Tx, Rx. */
 /*  */

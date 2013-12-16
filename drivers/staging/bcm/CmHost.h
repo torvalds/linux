@@ -55,7 +55,7 @@ unsigned long StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, vo
 int AllocAdapterDsxBuffer(struct bcm_mini_adapter *Adapter);
 int FreeAdapterDsxBuffer(struct bcm_mini_adapter *Adapter);
 unsigned long SetUpTargetDsxBuffers(struct bcm_mini_adapter *Adapter);
-BOOLEAN CmControlResponseMessage(struct bcm_mini_adapter *Adapter, void *pvBuffer);
+bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter, void *pvBuffer);
 
 #pragma pack(pop)
 

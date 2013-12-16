@@ -7,6 +7,7 @@
 
 #define MAX_PROBE_BUFFER	1024
 #define MAX_PROBES		 128
+#define MAX_PROBE_ARGS		 128
 
 static inline int is_c_varname(const char *name)
 {
@@ -14,7 +15,7 @@ static inline int is_c_varname(const char *name)
 	return isalpha(name[0]) || name[0] == '_';
 }
 
-#ifdef DWARF_SUPPORT
+#ifdef HAVE_DWARF_SUPPORT
 
 #include "dwarf-aux.h"
 
@@ -30,25 +31,25 @@ struct debuginfo {
 
 extern struct debuginfo *debuginfo__new(const char *path);
 extern struct debuginfo *debuginfo__new_online_kernel(unsigned long addr);
-extern void debuginfo__delete(struct debuginfo *self);
+extern void debuginfo__delete(struct debuginfo *dbg);
 
 /* Find probe_trace_events specified by perf_probe_event from debuginfo */
-extern int debuginfo__find_trace_events(struct debuginfo *self,
+extern int debuginfo__find_trace_events(struct debuginfo *dbg,
 					struct perf_probe_event *pev,
 					struct probe_trace_event **tevs,
 					int max_tevs);
 
 /* Find a perf_probe_point from debuginfo */
-extern int debuginfo__find_probe_point(struct debuginfo *self,
+extern int debuginfo__find_probe_point(struct debuginfo *dbg,
 				       unsigned long addr,
 				       struct perf_probe_point *ppt);
 
 /* Find a line range */
-extern int debuginfo__find_line_range(struct debuginfo *self,
+extern int debuginfo__find_line_range(struct debuginfo *dbg,
 				      struct line_range *lr);
 
 /* Find available variables */
-extern int debuginfo__find_available_vars_at(struct debuginfo *self,
+extern int debuginfo__find_available_vars_at(struct debuginfo *dbg,
 					     struct perf_probe_event *pev,
 					     struct variable_list **vls,
 					     int max_points, bool externs);
@@ -105,6 +106,6 @@ struct line_finder {
 	int			found;
 };
 
-#endif /* DWARF_SUPPORT */
+#endif /* HAVE_DWARF_SUPPORT */
 
 #endif /*_PROBE_FINDER_H */

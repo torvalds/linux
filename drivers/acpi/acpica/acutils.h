@@ -628,6 +628,17 @@ u8 acpi_ut_valid_acpi_char(char character, u32 position);
 
 void acpi_ut_repair_name(char *name);
 
+#if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION)
+u8 acpi_ut_safe_strcpy(char *dest, acpi_size dest_size, char *source);
+
+u8 acpi_ut_safe_strcat(char *dest, acpi_size dest_size, char *source);
+
+u8
+acpi_ut_safe_strncat(char *dest,
+		     acpi_size dest_size,
+		     char *source, acpi_size max_transfer_length);
+#endif
+
 /*
  * utmutex - mutex support
  */
@@ -651,12 +662,6 @@ acpi_status acpi_ut_validate_buffer(struct acpi_buffer *buffer);
 acpi_status
 acpi_ut_initialize_buffer(struct acpi_buffer *buffer,
 			  acpi_size required_length);
-
-void *acpi_ut_allocate(acpi_size size,
-		       u32 component, const char *module, u32 line);
-
-void *acpi_ut_allocate_zeroed(acpi_size size,
-			      u32 component, const char *module, u32 line);
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 void *acpi_ut_allocate_and_track(acpi_size size,

@@ -122,7 +122,7 @@ int test__perf_time_to_tsc(void)
 			if (event->header.type != PERF_RECORD_COMM ||
 			    (pid_t)event->comm.pid != getpid() ||
 			    (pid_t)event->comm.tid != getpid())
-				continue;
+				goto next_event;
 
 			if (strcmp(event->comm.comm, comm1) == 0) {
 				CHECK__(perf_evsel__parse_sample(evsel, event,
@@ -134,6 +134,8 @@ int test__perf_time_to_tsc(void)
 								 &sample));
 				comm2_time = sample.time;
 			}
+next_event:
+			perf_evlist__mmap_consume(evlist, i);
 		}
 	}
 

@@ -189,7 +189,7 @@ EXPORT_SYMBOL(ip_cmsg_recv);
 
 int ip_cmsg_send(struct net *net, struct msghdr *msg, struct ipcm_cookie *ipc)
 {
-	int err;
+	int err, val;
 	struct cmsghdr *cmsg;
 
 	for (cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
@@ -215,6 +215,24 @@ int ip_cmsg_send(struct net *net, struct msghdr *msg, struct ipcm_cookie *ipc)
 			ipc->addr = info->ipi_spec_dst.s_addr;
 			break;
 		}
+		case IP_TTL:
+			if (cmsg->cmsg_len != CMSG_LEN(sizeof(int)))
+				return -EINVAL;
+			val = *(int *)CMSG_DATA(cmsg);
+			if (val < 1 || val > 255)
+				return -EINVAL;
+			ipc->ttl = val;
+			break;
+		case IP_TOS:
+			if (cmsg->cmsg_len != CMSG_LEN(sizeof(int)))
+				return -EINVAL;
+			val = *(int *)CMSG_DATA(cmsg);
+			if (val < 0 || val > 255)
+				return -EINVAL;
+			ipc->tos = val;
+			ipc->priority = rt_tos2priority(ipc->tos);
+			break;
+
 		default:
 			return -EINVAL;
 		}
@@ -368,7 +386,7 @@ void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 port, u32 inf
 /*
  *	Handle MSG_ERRQUEUE
  */
-int ip_recv_error(struct sock *sk, struct msghdr *msg, int len)
+int ip_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 {
 	struct sock_exterr_skb *serr;
 	struct sk_buff *skb, *skb2;
@@ -405,6 +423,7 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len)
 						   serr->addr_offset);
 		sin->sin_port = serr->port;
 		memset(&sin->sin_zero, 0, sizeof(sin->sin_zero));
+		*addr_len = sizeof(*sin);
 	}
 
 	memcpy(&errhdr.ee, &serr->ee, sizeof(struct sock_extended_err));
@@ -609,7 +628,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		inet->nodefrag = val ? 1 : 0;
 		break;
 	case IP_MTU_DISCOVER:
-		if (val < IP_PMTUDISC_DONT || val > IP_PMTUDISC_PROBE)
+		if (val < IP_PMTUDISC_DONT || val > IP_PMTUDISC_INTERFACE)
 			goto e_inval;
 		inet->pmtudisc = val;
 		break;
@@ -1034,11 +1053,12 @@ e_inval:
  * destination in skb->cb[] before dst drop.
  * This way, receiver doesnt make cache line misses to read rtable.
  */
-void ipv4_pktinfo_prepare(struct sk_buff *skb)
+void ipv4_pktinfo_prepare(const struct sock *sk, struct sk_buff *skb)
 {
 	struct in_pktinfo *pktinfo = PKTINFO_SKB_CB(skb);
 
-	if (skb_rtable(skb)) {
+	if ((inet_sk(sk)->cmsg_flags & IP_CMSG_PKTINFO) &&
+	    skb_rtable(skb)) {
 		pktinfo->ipi_ifindex = inet_iif(skb);
 		pktinfo->ipi_spec_dst.s_addr = fib_compute_spec_dst(skb);
 	} else {

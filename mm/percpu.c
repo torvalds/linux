@@ -1706,8 +1706,9 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
 
 out_free_areas:
 	for (group = 0; group < ai->nr_groups; group++)
-		free_fn(areas[group],
-			ai->groups[group].nr_units * ai->unit_size);
+		if (areas[group])
+			free_fn(areas[group],
+				ai->groups[group].nr_units * ai->unit_size);
 out_free:
 	pcpu_free_alloc_info(ai);
 	if (areas)

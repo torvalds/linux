@@ -261,7 +261,7 @@ int omap_drm_irq_install(struct drm_device *dev)
 		mutex_unlock(&dev->struct_mutex);
 		return -EBUSY;
 	}
-	dev->irq_enabled = 1;
+	dev->irq_enabled = true;
 	mutex_unlock(&dev->struct_mutex);
 
 	/* Before installing handler */
@@ -272,7 +272,7 @@ int omap_drm_irq_install(struct drm_device *dev)
 
 	if (ret < 0) {
 		mutex_lock(&dev->struct_mutex);
-		dev->irq_enabled = 0;
+		dev->irq_enabled = false;
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
@@ -283,7 +283,7 @@ int omap_drm_irq_install(struct drm_device *dev)
 
 	if (ret < 0) {
 		mutex_lock(&dev->struct_mutex);
-		dev->irq_enabled = 0;
+		dev->irq_enabled = false;
 		mutex_unlock(&dev->struct_mutex);
 		dispc_free_irq(dev);
 	}
@@ -294,11 +294,12 @@ int omap_drm_irq_install(struct drm_device *dev)
 int omap_drm_irq_uninstall(struct drm_device *dev)
 {
 	unsigned long irqflags;
-	int irq_enabled, i;
+	bool irq_enabled;
+	int i;
 
 	mutex_lock(&dev->struct_mutex);
 	irq_enabled = dev->irq_enabled;
-	dev->irq_enabled = 0;
+	dev->irq_enabled = false;
 	mutex_unlock(&dev->struct_mutex);
 
 	/*
@@ -307,9 +308,9 @@ int omap_drm_irq_uninstall(struct drm_device *dev)
 	if (dev->num_crtcs) {
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
 		for (i = 0; i < dev->num_crtcs; i++) {
-			DRM_WAKEUP(&dev->vbl_queue[i]);
-			dev->vblank_enabled[i] = 0;
-			dev->last_vblank[i] =
+			DRM_WAKEUP(&dev->vblank[i].queue);
+			dev->vblank[i].enabled = false;
+			dev->vblank[i].last =
 				dev->driver->get_vblank_counter(dev, i);
 		}
 		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);

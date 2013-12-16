@@ -15,7 +15,10 @@
 #define DCACHE_ALIASING_POSSIBLE
 #endif
 
-#define HPAGE_SHIFT		22
+#define HPAGE_SHIFT		23
+#define REAL_HPAGE_SHIFT	22
+
+#define REAL_HPAGE_SIZE		(_AC(1,UL) << REAL_HPAGE_SHIFT)
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
 #define HPAGE_SIZE		(_AC(1,UL) << HPAGE_SHIFT)
@@ -53,8 +56,8 @@ extern void copy_user_page(void *to, void *from, unsigned long vaddr, struct pag
 /* These are used to make use of C type-checking.. */
 typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long iopte; } iopte_t;
-typedef struct { unsigned int pmd; } pmd_t;
-typedef struct { unsigned int pgd; } pgd_t;
+typedef struct { unsigned long pmd; } pmd_t;
+typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
 
 #define pte_val(x)	((x).pte)
@@ -73,8 +76,8 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 /* .. while these make it easier on the compiler */
 typedef unsigned long pte_t;
 typedef unsigned long iopte_t;
-typedef unsigned int pmd_t;
-typedef unsigned int pgd_t;
+typedef unsigned long pmd_t;
+typedef unsigned long pgd_t;
 typedef unsigned long pgprot_t;
 
 #define pte_val(x)	(x)
@@ -93,18 +96,44 @@ typedef unsigned long pgprot_t;
 
 typedef pte_t *pgtable_t;
 
+/* These two values define the virtual address space range in which we
+ * must forbid 64-bit user processes from making mappings.  It used to
+ * represent precisely the virtual address space hole present in most
+ * early sparc64 chips including UltraSPARC-I.  But now it also is
+ * further constrained by the limits of our page tables, which is
+ * 43-bits of virtual address.
+ */
+#define SPARC64_VA_HOLE_TOP	_AC(0xfffffc0000000000,UL)
+#define SPARC64_VA_HOLE_BOTTOM	_AC(0x0000040000000000,UL)
+
+/* The next two defines specify the actual exclusion region we
+ * enforce, wherein we use a 4GB red zone on each side of the VA hole.
+ */
+#define VA_EXCLUDE_START (SPARC64_VA_HOLE_BOTTOM - (1UL << 32UL))
+#define VA_EXCLUDE_END   (SPARC64_VA_HOLE_TOP + (1UL << 32UL))
+
 #define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_32BIT) ? \
-				 (_AC(0x0000000070000000,UL)) : \
-				 (_AC(0xfffff80000000000,UL) + (1UL << 32UL)))
+				 _AC(0x0000000070000000,UL) : \
+				 VA_EXCLUDE_END)
 
 #include <asm-generic/memory_model.h>
 
+#define PAGE_OFFSET_BY_BITS(X)	(-(_AC(1,UL) << (X)))
+extern unsigned long PAGE_OFFSET;
+
 #endif /* !(__ASSEMBLY__) */
 
-/* We used to stick this into a hard-coded global register (%g4)
- * but that does not make sense anymore.
+/* The maximum number of physical memory address bits we support, this
+ * is used to size various tables used to manage kernel TLB misses and
+ * also the sparsemem code.
  */
-#define PAGE_OFFSET		_AC(0xFFFFF80000000000,UL)
+#define MAX_PHYS_ADDRESS_BITS	47
+
+/* These two shift counts are used when indexing sparc64_valid_addr_bitmap
+ * and kpte_linear_bitmap.
+ */
+#define ILOG2_4MB		22
+#define ILOG2_256MB		28
 
 #ifndef __ASSEMBLY__
 

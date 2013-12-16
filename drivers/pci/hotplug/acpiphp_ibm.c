@@ -25,6 +25,8 @@
  *
  */
 
+#define pr_fmt(fmt) "acpiphp_ibm: " fmt
+
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -43,23 +45,11 @@
 #define DRIVER_AUTHOR	"Irene Zubarev <zubarev@us.ibm.com>, Vernon Mauery <vernux@us.ibm.com>"
 #define DRIVER_DESC	"ACPI Hot Plug PCI Controller Driver IBM extension"
 
-static bool debug;
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRIVER_VERSION);
-module_param(debug, bool, 0644);
-MODULE_PARM_DESC(debug, " Debugging mode enabled or not");
-#define MY_NAME "acpiphp_ibm"
-
-#undef dbg
-#define dbg(format, arg...)				\
-do {							\
-	if (debug)					\
-		printk(KERN_DEBUG "%s: " format,	\
-				MY_NAME , ## arg);	\
-} while (0)
 
 #define FOUND_APCI 0x61504349
 /* these are the names for the IBM ACPI pseudo-device */
@@ -126,7 +116,7 @@ static struct bin_attribute ibm_apci_table_attr = {
 	    .read = ibm_read_apci_table,
 	    .write = NULL,
 };
-static struct acpiphp_attention_info ibm_attention_info = 
+static struct acpiphp_attention_info ibm_attention_info =
 {
 	.set_attn = ibm_set_attention_status,
 	.get_attn = ibm_get_attention_status,
@@ -181,15 +171,15 @@ ibm_slot_done:
  */
 static int ibm_set_attention_status(struct hotplug_slot *slot, u8 status)
 {
-	union acpi_object args[2]; 
+	union acpi_object args[2];
 	struct acpi_object_list params = { .pointer = args, .count = 2 };
-	acpi_status stat; 
+	acpi_status stat;
 	unsigned long long rc;
 	union apci_descriptor *ibm_slot;
 
 	ibm_slot = ibm_slot_from_id(hpslot_to_sun(slot));
 
-	dbg("%s: set slot %d (%d) attention status to %d\n", __func__,
+	pr_debug("%s: set slot %d (%d) attention status to %d\n", __func__,
 			ibm_slot->slot.slot_num, ibm_slot->slot.slot_id,
 			(status ? 1 : 0));
 
@@ -202,10 +192,10 @@ static int ibm_set_attention_status(struct hotplug_slot *slot, u8 status)
 
 	stat = acpi_evaluate_integer(ibm_acpi_handle, "APLS", &params, &rc);
 	if (ACPI_FAILURE(stat)) {
-		err("APLS evaluation failed:  0x%08x\n", stat);
+		pr_err("APLS evaluation failed:  0x%08x\n", stat);
 		return -ENODEV;
 	} else if (!rc) {
-		err("APLS method failed:  0x%08llx\n", rc);
+		pr_err("APLS method failed:  0x%08llx\n", rc);
 		return -ERANGE;
 	}
 	return 0;
@@ -218,7 +208,7 @@ static int ibm_set_attention_status(struct hotplug_slot *slot, u8 status)
  *
  * Description: This method is registered with the acpiphp module as a
  * callback to do the device specific task of getting the LED status.
- * 
+ *
  * Because there is no direct method of getting the LED status directly
  * from an ACPI call, we read the aPCI table and parse out our
  * slot descriptor to read the status from that.
@@ -234,7 +224,7 @@ static int ibm_get_attention_status(struct hotplug_slot *slot, u8 *status)
 	else
 		*status = 0;
 
-	dbg("%s: get slot %d (%d) attention status is %d\n", __func__,
+	pr_debug("%s: get slot %d (%d) attention status is %d\n", __func__,
 			ibm_slot->slot.slot_num, ibm_slot->slot.slot_id,
 			*status);
 
@@ -266,10 +256,10 @@ static void ibm_handle_events(acpi_handle handle, u32 event, void *context)
 	u8 subevent = event & 0xf0;
 	struct notification *note = context;
 
-	dbg("%s: Received notification %02x\n", __func__, event);
+	pr_debug("%s: Received notification %02x\n", __func__, event);
 
 	if (subevent == 0x80) {
-		dbg("%s: generationg bus event\n", __func__);
+		pr_debug("%s: generating bus event\n", __func__);
 		acpi_bus_generate_netlink_event(note->device->pnp.device_class,
 						  dev_name(&note->device->dev),
 						  note->event, detail);
@@ -301,7 +291,7 @@ static int ibm_get_table_from_acpi(char **bufp)
 
 	status = acpi_evaluate_object(ibm_acpi_handle, "APCI", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		err("%s:  APCI evaluation failed\n", __func__);
+		pr_err("%s:  APCI evaluation failed\n", __func__);
 		return -ENODEV;
 	}
 
@@ -309,13 +299,13 @@ static int ibm_get_table_from_acpi(char **bufp)
 	if (!(package) ||
 			(package->type != ACPI_TYPE_PACKAGE) ||
 			!(package->package.elements)) {
-		err("%s:  Invalid APCI object\n", __func__);
+		pr_err("%s:  Invalid APCI object\n", __func__);
 		goto read_table_done;
 	}
 
 	for(size = 0, i = 0; i < package->package.count; i++) {
 		if (package->package.elements[i].type != ACPI_TYPE_BUFFER) {
-			err("%s:  Invalid APCI element %d\n", __func__, i);
+			pr_err("%s:  Invalid APCI element %d\n", __func__, i);
 			goto read_table_done;
 		}
 		size += package->package.elements[i].buffer.length;
@@ -325,7 +315,7 @@ static int ibm_get_table_from_acpi(char **bufp)
 		goto read_table_done;
 
 	lbuf = kzalloc(size, GFP_KERNEL);
-	dbg("%s: element count: %i, ASL table size: %i, &table = 0x%p\n",
+	pr_debug("%s: element count: %i, ASL table size: %i, &table = 0x%p\n",
 			__func__, package->package.count, size, lbuf);
 
 	if (lbuf) {
@@ -370,8 +360,8 @@ static ssize_t ibm_read_apci_table(struct file *filp, struct kobject *kobj,
 {
 	int bytes_read = -EINVAL;
 	char *table = NULL;
-	
-	dbg("%s: pos = %d, size = %zd\n", __func__, (int)pos, size);
+
+	pr_debug("%s: pos = %d, size = %zd\n", __func__, (int)pos, size);
 
 	if (pos == 0) {
 		bytes_read = ibm_get_table_from_acpi(&table);
@@ -397,13 +387,13 @@ static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
 		u32 lvl, void *context, void **rv)
 {
 	acpi_handle *phandle = (acpi_handle *)context;
-	acpi_status status; 
+	acpi_status status;
 	struct acpi_device_info *info;
 	int retval = 0;
 
 	status = acpi_get_object_info(handle, &info);
 	if (ACPI_FAILURE(status)) {
-		err("%s:  Failed to get device information status=0x%x\n",
+		pr_err("%s:  Failed to get device information status=0x%x\n",
 			__func__, status);
 		return retval;
 	}
@@ -411,11 +401,11 @@ static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
 	if (info->current_status && (info->valid & ACPI_VALID_HID) &&
 			(!strcmp(info->hardware_id.string, IBM_HARDWARE_ID1) ||
 			 !strcmp(info->hardware_id.string, IBM_HARDWARE_ID2))) {
-		dbg("found hardware: %s, handle: %p\n",
+		pr_debug("found hardware: %s, handle: %p\n",
 			info->hardware_id.string, handle);
 		*phandle = handle;
 		/* returning non-zero causes the search to stop
-		 * and returns this value to the caller of 
+		 * and returns this value to the caller of
 		 * acpi_walk_namespace, but it also causes some warnings
 		 * in the acpi debug code to print...
 		 */
@@ -432,18 +422,18 @@ static int __init ibm_acpiphp_init(void)
 	struct acpi_device *device;
 	struct kobject *sysdir = &pci_slots_kset->kobj;
 
-	dbg("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	if (acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 			ACPI_UINT32_MAX, ibm_find_acpi_device, NULL,
 			&ibm_acpi_handle, NULL) != FOUND_APCI) {
-		err("%s: acpi_walk_namespace failed\n", __func__);
+		pr_err("%s: acpi_walk_namespace failed\n", __func__);
 		retval = -ENODEV;
 		goto init_return;
 	}
-	dbg("%s: found IBM aPCI device\n", __func__);
+	pr_debug("%s: found IBM aPCI device\n", __func__);
 	if (acpi_bus_get_device(ibm_acpi_handle, &device)) {
-		err("%s: acpi_bus_get_device failed\n", __func__);
+		pr_err("%s: acpi_bus_get_device failed\n", __func__);
 		retval = -ENODEV;
 		goto init_return;
 	}
@@ -457,7 +447,7 @@ static int __init ibm_acpiphp_init(void)
 			ACPI_DEVICE_NOTIFY, ibm_handle_events,
 			&ibm_note);
 	if (ACPI_FAILURE(status)) {
-		err("%s: Failed to register notification handler\n",
+		pr_err("%s: Failed to register notification handler\n",
 				__func__);
 		retval = -EBUSY;
 		goto init_cleanup;
@@ -479,17 +469,17 @@ static void __exit ibm_acpiphp_exit(void)
 	acpi_status status;
 	struct kobject *sysdir = &pci_slots_kset->kobj;
 
-	dbg("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	if (acpiphp_unregister_attention(&ibm_attention_info))
-		err("%s: attention info deregistration failed", __func__);
+		pr_err("%s: attention info deregistration failed", __func__);
 
 	status = acpi_remove_notify_handler(
 			   ibm_acpi_handle,
 			   ACPI_DEVICE_NOTIFY,
 			   ibm_handle_events);
 	if (ACPI_FAILURE(status))
-		err("%s: Notification handler removal failed\n", __func__);
+		pr_err("%s: Notification handler removal failed\n", __func__);
 	/* remove the /sys entries */
 	sysfs_remove_bin_file(sysdir, &ibm_apci_table_attr);
 }

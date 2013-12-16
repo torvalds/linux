@@ -191,7 +191,6 @@ int cirrus_device_init(struct cirrus_device *cdev,
 		      struct pci_dev *pdev,
 		      uint32_t flags);
 void cirrus_device_fini(struct cirrus_device *cdev);
-int cirrus_gem_init_object(struct drm_gem_object *obj);
 void cirrus_gem_free_object(struct drm_gem_object *obj);
 int cirrus_dumb_mmap_offset(struct drm_file *file,
 			    struct drm_device *dev,

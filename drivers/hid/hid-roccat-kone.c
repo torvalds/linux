@@ -382,7 +382,7 @@ static ssize_t kone_sysfs_write_profilex(struct file *fp,
 }
 #define PROFILE_ATTR(number)					\
 static struct bin_attribute bin_attr_profile##number = {	\
-	.attr = { .name = "profile##number", .mode = 0660 },	\
+	.attr = { .name = "profile" #number, .mode = 0660 },	\
 	.size = sizeof(struct kone_profile),			\
 	.read = kone_sysfs_read_profilex,			\
 	.write = kone_sysfs_write_profilex,			\

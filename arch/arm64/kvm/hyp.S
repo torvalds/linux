@@ -403,6 +403,14 @@ __kvm_hyp_code_start:
 	ldr	w9, [x2, #GICH_ELRSR0]
 	ldr	w10, [x2, #GICH_ELRSR1]
 	ldr	w11, [x2, #GICH_APR]
+CPU_BE(	rev	w4,  w4  )
+CPU_BE(	rev	w5,  w5  )
+CPU_BE(	rev	w6,  w6  )
+CPU_BE(	rev	w7,  w7  )
+CPU_BE(	rev	w8,  w8  )
+CPU_BE(	rev	w9,  w9  )
+CPU_BE(	rev	w10, w10 )
+CPU_BE(	rev	w11, w11 )
 
 	str	w4, [x3, #VGIC_CPU_HCR]
 	str	w5, [x3, #VGIC_CPU_VMCR]
@@ -421,6 +429,7 @@ __kvm_hyp_code_start:
 	ldr	w4, [x3, #VGIC_CPU_NR_LR]
 	add	x3, x3, #VGIC_CPU_LR
 1:	ldr	w5, [x2], #4
+CPU_BE(	rev	w5, w5 )
 	str	w5, [x3], #4
 	sub	w4, w4, #1
 	cbnz	w4, 1b
@@ -446,6 +455,9 @@ __kvm_hyp_code_start:
 	ldr	w4, [x3, #VGIC_CPU_HCR]
 	ldr	w5, [x3, #VGIC_CPU_VMCR]
 	ldr	w6, [x3, #VGIC_CPU_APR]
+CPU_BE(	rev	w4, w4 )
+CPU_BE(	rev	w5, w5 )
+CPU_BE(	rev	w6, w6 )
 
 	str	w4, [x2, #GICH_HCR]
 	str	w5, [x2, #GICH_VMCR]
@@ -456,6 +468,7 @@ __kvm_hyp_code_start:
 	ldr	w4, [x3, #VGIC_CPU_NR_LR]
 	add	x3, x3, #VGIC_CPU_LR
 1:	ldr	w5, [x3], #4
+CPU_BE(	rev	w5, w5 )
 	str	w5, [x2], #4
 	sub	w4, w4, #1
 	cbnz	w4, 1b

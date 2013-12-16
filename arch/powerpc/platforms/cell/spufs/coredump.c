@@ -27,6 +27,8 @@
 #include <linux/gfp.h>
 #include <linux/list.h>
 #include <linux/syscalls.h>
+#include <linux/coredump.h>
+#include <linux/binfmts.h>
 
 #include <asm/uaccess.h>
 
@@ -46,44 +48,6 @@ static ssize_t do_coredump_read(int num, struct spu_context *ctx, void *buffer,
 	if (ret >= size)
 		return size;
 	return ++ret; /* count trailing NULL */
-}
-
-/*
- * These are the only things you should do on a core-file: use only these
- * functions to write out all the necessary info.
- */
-static int spufs_dump_write(struct file *file, const void *addr, int nr, loff_t *foffset)
-{
-	unsigned long limit = rlimit(RLIMIT_CORE);
-	ssize_t written;
-
-	if (*foffset + nr > limit)
-		return -EIO;
-
-	written = file->f_op->write(file, addr, nr, &file->f_pos);
-	*foffset += written;
-
-	if (written != nr)
-		return -EIO;
-
-	return 0;
-}
-
-static int spufs_dump_align(struct file *file, char *buf, loff_t new_off,
-			    loff_t *foffset)
-{
-	int rc, size;
-
-	size = min((loff_t)PAGE_SIZE, new_off - *foffset);
-	memset(buf, 0, size);
-
-	rc = 0;
-	while (rc == 0 && new_off > *foffset) {
-		size = min((loff_t)PAGE_SIZE, new_off - *foffset);
-		rc = spufs_dump_write(file, buf, size, foffset);
-	}
-
-	return rc;
 }
 
 static int spufs_ctx_note_size(struct spu_context *ctx, int dfd)
@@ -165,10 +129,10 @@ int spufs_coredump_extra_notes_size(void)
 }
 
 static int spufs_arch_write_note(struct spu_context *ctx, int i,
-				  struct file *file, int dfd, loff_t *foffset)
+				  struct coredump_params *cprm, int dfd)
 {
 	loff_t pos = 0;
-	int sz, rc, nread, total = 0;
+	int sz, rc, total = 0;
 	const int bufsz = PAGE_SIZE;
 	char *name;
 	char fullname[80], *buf;
@@ -186,42 +150,39 @@ static int spufs_arch_write_note(struct spu_context *ctx, int i,
 	en.n_descsz = sz;
 	en.n_type = NT_SPU;
 
-	rc = spufs_dump_write(file, &en, sizeof(en), foffset);
-	if (rc)
-		goto out;
+	if (!dump_emit(cprm, &en, sizeof(en)))
+		goto Eio;
 
-	rc = spufs_dump_write(file, fullname, en.n_namesz, foffset);
-	if (rc)
-		goto out;
+	if (!dump_emit(cprm, fullname, en.n_namesz))
+		goto Eio;
 
-	rc = spufs_dump_align(file, buf, roundup(*foffset, 4), foffset);
-	if (rc)
-		goto out;
+	if (!dump_align(cprm, 4))
+		goto Eio;
 
 	do {
-		nread = do_coredump_read(i, ctx, buf, bufsz, &pos);
-		if (nread > 0) {
-			rc = spufs_dump_write(file, buf, nread, foffset);
-			if (rc)
-				goto out;
-			total += nread;
+		rc = do_coredump_read(i, ctx, buf, bufsz, &pos);
+		if (rc > 0) {
+			if (!dump_emit(cprm, buf, rc))
+				goto Eio;
+			total += rc;
 		}
-	} while (nread == bufsz && total < sz);
+	} while (rc == bufsz && total < sz);
 
-	if (nread < 0) {
-		rc = nread;
+	if (rc < 0)
 		goto out;
-	}
 
-	rc = spufs_dump_align(file, buf, roundup(*foffset - total + sz, 4),
-			      foffset);
-
+	if (!dump_skip(cprm,
+		       roundup(cprm->written - total + sz, 4) - cprm->written))
+		goto Eio;
 out:
 	free_page((unsigned long)buf);
 	return rc;
+Eio:
+	free_page((unsigned long)buf);
+	return -EIO;
 }
 
-int spufs_coredump_extra_notes_write(struct file *file, loff_t *foffset)
+int spufs_coredump_extra_notes_write(struct coredump_params *cprm)
 {
 	struct spu_context *ctx;
 	int fd, j, rc;
@@ -233,7 +194,7 @@ int spufs_coredump_extra_notes_write(struct file *file, loff_t *foffset)
 			return rc;
 
 		for (j = 0; spufs_coredump_read[j].name != NULL; j++) {
-			rc = spufs_arch_write_note(ctx, j, file, fd, foffset);
+			rc = spufs_arch_write_note(ctx, j, cprm, fd);
 			if (rc) {
 				spu_release_saved(ctx);
 				return rc;

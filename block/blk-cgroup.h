@@ -402,6 +402,11 @@ struct request_list *__blk_queue_next_rl(struct request_list *rl,
 #define blk_queue_for_each_rl(rl, q)	\
 	for ((rl) = &(q)->root_rl; (rl); (rl) = __blk_queue_next_rl((rl), (q)))
 
+static inline void blkg_stat_init(struct blkg_stat *stat)
+{
+	u64_stats_init(&stat->syncp);
+}
+
 /**
  * blkg_stat_add - add a value to a blkg_stat
  * @stat: target blkg_stat
@@ -430,9 +435,9 @@ static inline uint64_t blkg_stat_read(struct blkg_stat *stat)
 	uint64_t v;
 
 	do {
-		start = u64_stats_fetch_begin(&stat->syncp);
+		start = u64_stats_fetch_begin_bh(&stat->syncp);
 		v = stat->cnt;
-	} while (u64_stats_fetch_retry(&stat->syncp, start));
+	} while (u64_stats_fetch_retry_bh(&stat->syncp, start));
 
 	return v;
 }
@@ -456,6 +461,11 @@ static inline void blkg_stat_reset(struct blkg_stat *stat)
 static inline void blkg_stat_merge(struct blkg_stat *to, struct blkg_stat *from)
 {
 	blkg_stat_add(to, blkg_stat_read(from));
+}
+
+static inline void blkg_rwstat_init(struct blkg_rwstat *rwstat)
+{
+	u64_stats_init(&rwstat->syncp);
 }
 
 /**
@@ -498,9 +508,9 @@ static inline struct blkg_rwstat blkg_rwstat_read(struct blkg_rwstat *rwstat)
 	struct blkg_rwstat tmp;
 
 	do {
-		start = u64_stats_fetch_begin(&rwstat->syncp);
+		start = u64_stats_fetch_begin_bh(&rwstat->syncp);
 		tmp = *rwstat;
-	} while (u64_stats_fetch_retry(&rwstat->syncp, start));
+	} while (u64_stats_fetch_retry_bh(&rwstat->syncp, start));
 
 	return tmp;
 }

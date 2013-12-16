@@ -728,7 +728,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 		break;
 	}
 
-      cleanup:
+cleanup:
 
 	/* Remove the Node pushed at the very beginning */
 

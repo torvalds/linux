@@ -111,7 +111,6 @@ config METAG_META21
 config SMP
 	bool "Symmetric multi-processing support"
 	depends on METAG_META21 && METAG_META21_MMU
-	select USE_GENERIC_SMP_HELPERS
 	help
 	  This enables support for systems with more than one thread running
 	  Linux. If you have a system with only one thread running Linux,

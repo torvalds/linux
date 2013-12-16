@@ -1,11 +1,11 @@
 /******************************************************************************/
 /*                                                                            */
-/* Bypass Control utility, Copyright (c) 2005-20011 Silicom                   */
+/* Bypass Control utility, Copyright (c) 2005-2011 Silicom                    */
 /*                                                                            */
 /* This program is free software; you can redistribute it and/or modify       */
 /* it under the terms of the GNU General Public License as published by       */
 /* the Free Software Foundation, located in the file LICENSE.                 */
-/*  Copyright(c) 2007 - 2009 Intel Corporation. All rights reserved.          */
+/* Copyright(c) 2007 - 2009, 2013 Intel Corporation. All rights reserved.     */
 /*                                                                            */
 /*                                                                            */
 /******************************************************************************/
@@ -124,80 +124,60 @@ int bp_proc_create(void);
 int is_bypass_fn(struct bpctl_dev *pbpctl_dev);
 int get_dev_idx_bsf(int bus, int slot, int func);
 
-static unsigned long str_to_hex(char *p);
+static int bp_get_dev_idx_bsf(struct net_device *dev, int *index)
+{
+	struct ethtool_drvinfo drvinfo = {0};
+	char *buf;
+	int bus, slot, func;
+
+	if (dev->ethtool_ops && dev->ethtool_ops->get_drvinfo)
+		dev->ethtool_ops->get_drvinfo(dev, &drvinfo);
+	else
+		return -EOPNOTSUPP;
+
+	if (!drvinfo.bus_info)
+		return -ENODATA;
+	if (!strcmp(drvinfo.bus_info, "N/A"))
+		return -ENODATA;
+
+	buf = strchr(drvinfo.bus_info, ':');
+	if (!buf)
+		return -EINVAL;
+	buf++;
+	if (sscanf(buf, "%x:%x.%x", &bus, &slot, &func) != 3)
+		return -EINVAL;
+
+	*index = get_dev_idx_bsf(bus, slot, func);
+	return 0;
+}
+
 static int bp_device_event(struct notifier_block *unused,
 			   unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	static struct bpctl_dev *pbpctl_dev, *pbpctl_dev_m;
 	int dev_num = 0, ret = 0, ret_d = 0, time_left = 0;
+
 	/* printk("BP_PROC_SUPPORT event =%d %s %d\n", event,dev->name, dev->ifindex ); */
 	/* return NOTIFY_DONE; */
 	if (!dev)
 		return NOTIFY_DONE;
+
 	if (event == NETDEV_REGISTER) {
-		{
-			struct ethtool_drvinfo drvinfo;
-			char cbuf[32];
-			char *buf = NULL;
-			char res[10];
-			int i = 0, ifindex, idx_dev = 0;
-			int bus = 0, slot = 0, func = 0;
-			ifindex = dev->ifindex;
+		int idx_dev;
 
-			memset(res, 0, 10);
-			memset(&drvinfo, 0, sizeof(struct ethtool_drvinfo));
+		if (bp_get_dev_idx_bsf(dev, &idx_dev))
+			return NOTIFY_DONE;
 
-			if (dev->ethtool_ops && dev->ethtool_ops->get_drvinfo) {
-				memset(&drvinfo, 0, sizeof(drvinfo));
-				dev->ethtool_ops->get_drvinfo(dev, &drvinfo);
-			} else
-				return NOTIFY_DONE;
-			if (!drvinfo.bus_info)
-				return NOTIFY_DONE;
-			if (!strcmp(drvinfo.bus_info, "N/A"))
-				return NOTIFY_DONE;
-			memcpy(&cbuf, drvinfo.bus_info, 32);
-			buf = &cbuf[0];
+		if (idx_dev == -1)
+			return NOTIFY_DONE;
 
-			while (*buf++ != ':')
-				;
-			for (i = 0; i < 10; i++, buf++) {
-				if (*buf == ':')
-					break;
-				res[i] = *buf;
+		bpctl_dev_arr[idx_dev].ifindex = dev->ifindex;
+		bpctl_dev_arr[idx_dev].ndev = dev;
 
-			}
-			buf++;
-			bus = str_to_hex(res);
-			memset(res, 0, 10);
-
-			for (i = 0; i < 10; i++, buf++) {
-				if (*buf == '.')
-					break;
-				res[i] = *buf;
-
-			}
-			buf++;
-			slot = str_to_hex(res);
-			func = str_to_hex(buf);
-			idx_dev = get_dev_idx_bsf(bus, slot, func);
-
-			if (idx_dev != -1) {
-
-				bpctl_dev_arr[idx_dev].ifindex = ifindex;
-				bpctl_dev_arr[idx_dev].ndev = dev;
-
-				bypass_proc_remove_dev_sd(&bpctl_dev_arr
-							  [idx_dev]);
-				bypass_proc_create_dev_sd(&bpctl_dev_arr
-							  [idx_dev]);
-
-			}
-
-		}
+		bypass_proc_remove_dev_sd(&bpctl_dev_arr[idx_dev]);
+		bypass_proc_create_dev_sd(&bpctl_dev_arr[idx_dev]);
 		return NOTIFY_DONE;
-
 	}
 	if (event == NETDEV_UNREGISTER) {
 		int idx_dev = 0;
@@ -5269,36 +5249,6 @@ int get_dev_idx_bsf(int bus, int slot, int func)
 	return -1;
 }
 
-static void str_low(char *str)
-{
-	int i;
-
-	for (i = 0; i < strlen(str); i++)
-		if ((str[i] >= 65) && (str[i] <= 90))
-			str[i] += 32;
-}
-
-static unsigned long str_to_hex(char *p)
-{
-	unsigned long hex = 0;
-	unsigned long length = strlen(p), shift = 0;
-	unsigned char dig = 0;
-
-	str_low(p);
-	length = strlen(p);
-
-	if (length == 0)
-		return 0;
-
-	do {
-		dig = p[--length];
-		dig = dig < 'a' ? (dig - '0') : (dig - 'a' + 0xa);
-		hex |= (dig << shift);
-		shift += 4;
-	} while (length);
-	return hex;
-}
-
 static int get_dev_idx(int ifindex)
 {
 	int idx_dev = 0;
@@ -5329,70 +5279,26 @@ static struct bpctl_dev *get_dev_idx_p(int ifindex)
 
 static void if_scan_init(void)
 {
-	int idx_dev = 0;
 	struct net_device *dev;
-	int ifindex;
+
 	/* rcu_read_lock(); */
 	/* rtnl_lock();     */
 	/* rcu_read_lock(); */
 
 	for_each_netdev(&init_net, dev) {
+		int idx_dev;
 
-		struct ethtool_drvinfo drvinfo;
-		char cbuf[32];
-		char *buf = NULL;
-		char res[10];
-		int i = 0;
-		int bus = 0, slot = 0, func = 0;
-		ifindex = dev->ifindex;
-
-		memset(res, 0, 10);
-		memset(&drvinfo, 0, sizeof(struct ethtool_drvinfo));
-
-		if (dev->ethtool_ops && dev->ethtool_ops->get_drvinfo) {
-			memset(&drvinfo, 0, sizeof(drvinfo));
-			dev->ethtool_ops->get_drvinfo(dev, &drvinfo);
-		} else
+		if (bp_get_dev_idx_bsf(dev, &idx_dev))
 			continue;
-		if (!strcmp(drvinfo.bus_info, "N/A"))
+
+		if (idx_dev == -1)
 			continue;
-		memcpy(&cbuf, drvinfo.bus_info, 32);
-		buf = &cbuf[0];
 
-		while (*buf++ != ':')
-			;
-		for (i = 0; i < 10; i++, buf++) {
-			if (*buf == ':')
-				break;
-			res[i] = *buf;
-
-		}
-		buf++;
-		bus = str_to_hex(res);
-		memset(res, 0, 10);
-
-		for (i = 0; i < 10; i++, buf++) {
-			if (*buf == '.')
-				break;
-			res[i] = *buf;
-
-		}
-		buf++;
-		slot = str_to_hex(res);
-		func = str_to_hex(buf);
-		idx_dev = get_dev_idx_bsf(bus, slot, func);
-
-		if (idx_dev != -1) {
-
-			bpctl_dev_arr[idx_dev].ifindex = ifindex;
-			bpctl_dev_arr[idx_dev].ndev = dev;
-
-		}
-
+		bpctl_dev_arr[idx_dev].ifindex = dev->ifindex;
+		bpctl_dev_arr[idx_dev].ndev = dev;
 	}
 	/* rtnl_unlock();     */
 	/* rcu_read_unlock(); */
-
 }
 
 static long device_ioctl(struct file *file,	/* see include/linux/fs.h */

@@ -122,14 +122,12 @@ static struct snd_soc_card mxs_sgtl5000 = {
 	.num_links	= ARRAY_SIZE(mxs_sgtl5000_dai),
 };
 
-static int mxs_sgtl5000_probe_dt(struct platform_device *pdev)
+static int mxs_sgtl5000_probe(struct platform_device *pdev)
 {
+	struct snd_soc_card *card = &mxs_sgtl5000;
+	int ret, i;
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *saif_np[2], *codec_np;
-	int i;
-
-	if (!np)
-		return 1; /* no device tree */
 
 	saif_np[0] = of_parse_phandle(np, "saif-controllers", 0);
 	saif_np[1] = of_parse_phandle(np, "saif-controllers", 1);
@@ -151,18 +149,6 @@ static int mxs_sgtl5000_probe_dt(struct platform_device *pdev)
 	of_node_put(codec_np);
 	of_node_put(saif_np[0]);
 	of_node_put(saif_np[1]);
-
-	return 0;
-}
-
-static int mxs_sgtl5000_probe(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = &mxs_sgtl5000;
-	int ret;
-
-	ret = mxs_sgtl5000_probe_dt(pdev);
-	if (ret < 0)
-		return ret;
 
 	/*
 	 * Set an init clock(11.28Mhz) for sgtl5000 initialization(i2c r/w).

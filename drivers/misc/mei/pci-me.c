@@ -76,8 +76,11 @@ static DEFINE_PCI_DEVICE_TABLE(mei_me_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_PPT_1)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_PPT_2)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_PPT_3)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT_H)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT_W)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT_LP)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT_HR)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_WPT_LP)},
 
 	/* required last entry */
 	{0, }
@@ -189,7 +192,7 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	schedule_delayed_work(&dev->timer_work, HZ);
 
-	pr_debug("initialization successful.\n");
+	dev_dbg(&pdev->dev, "initialization successful.\n");
 
 	return 0;
 
@@ -231,7 +234,7 @@ static void mei_me_remove(struct pci_dev *pdev)
 	hw = to_me_hw(dev);
 
 
-	dev_err(&pdev->dev, "stop\n");
+	dev_dbg(&pdev->dev, "stop\n");
 	mei_stop(dev);
 
 	/* disable interrupts */
@@ -239,7 +242,6 @@ static void mei_me_remove(struct pci_dev *pdev)
 
 	free_irq(pdev->irq, dev);
 	pci_disable_msi(pdev);
-	pci_set_drvdata(pdev, NULL);
 
 	if (hw->mem_addr)
 		pci_iounmap(pdev, hw->mem_addr);
@@ -262,7 +264,7 @@ static int mei_me_pci_suspend(struct device *device)
 	if (!dev)
 		return -ENODEV;
 
-	dev_err(&pdev->dev, "suspend\n");
+	dev_dbg(&pdev->dev, "suspend\n");
 
 	mei_stop(dev);
 

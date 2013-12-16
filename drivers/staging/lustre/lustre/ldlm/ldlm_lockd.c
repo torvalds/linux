@@ -937,7 +937,7 @@ EXPORT_SYMBOL(ldlm_put_ref);
  * Export handle<->lock hash operations.
  */
 static unsigned
-ldlm_export_lock_hash(cfs_hash_t *hs, const void *key, unsigned mask)
+ldlm_export_lock_hash(struct cfs_hash *hs, const void *key, unsigned mask)
 {
 	return cfs_hash_u64_hash(((struct lustre_handle *)key)->cookie, mask);
 }
@@ -973,7 +973,7 @@ ldlm_export_lock_object(struct hlist_node *hnode)
 }
 
 static void
-ldlm_export_lock_get(cfs_hash_t *hs, struct hlist_node *hnode)
+ldlm_export_lock_get(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct ldlm_lock *lock;
 
@@ -982,7 +982,7 @@ ldlm_export_lock_get(cfs_hash_t *hs, struct hlist_node *hnode)
 }
 
 static void
-ldlm_export_lock_put(cfs_hash_t *hs, struct hlist_node *hnode)
+ldlm_export_lock_put(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct ldlm_lock *lock;
 

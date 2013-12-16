@@ -39,6 +39,7 @@
 #include <linux/irq.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_data/serial-omap.h>
@@ -134,6 +135,7 @@ struct uart_omap_port {
 	struct uart_port	port;
 	struct uart_omap_dma	uart_dma;
 	struct device		*dev;
+	int			wakeirq;
 
 	unsigned char		ier;
 	unsigned char		lcr;
@@ -175,7 +177,7 @@ struct uart_omap_port {
 	bool			is_suspending;
 };
 
-#define to_uart_omap_port(p)	((container_of((p), struct uart_omap_port, port)))
+#define to_uart_omap_port(p) ((container_of((p), struct uart_omap_port, port)))
 
 static struct uart_omap_port *ui[OMAP_MAX_HSUART_PORTS];
 
@@ -214,10 +216,23 @@ static int serial_omap_get_context_loss_count(struct uart_omap_port *up)
 	return pdata->get_context_loss_count(up->dev);
 }
 
+static inline void serial_omap_enable_wakeirq(struct uart_omap_port *up,
+				       bool enable)
+{
+	if (!up->wakeirq)
+		return;
+
+	if (enable)
+		enable_irq(up->wakeirq);
+	else
+		disable_irq(up->wakeirq);
+}
+
 static void serial_omap_enable_wakeup(struct uart_omap_port *up, bool enable)
 {
 	struct omap_uart_port_info *pdata = dev_get_platdata(up->dev);
 
+	serial_omap_enable_wakeirq(up, enable);
 	if (!pdata || !pdata->enable_wakeup)
 		return;
 
@@ -242,12 +257,12 @@ serial_omap_baud_is_mode16(struct uart_port *port, unsigned int baud)
 	unsigned int n16 = port->uartclk / (16 * baud);
 	int baudAbsDiff13 = baud - (port->uartclk / (13 * n13));
 	int baudAbsDiff16 = baud - (port->uartclk / (16 * n16));
-	if(baudAbsDiff13 < 0)
+	if (baudAbsDiff13 < 0)
 		baudAbsDiff13 = -baudAbsDiff13;
-	if(baudAbsDiff16 < 0)
+	if (baudAbsDiff16 < 0)
 		baudAbsDiff16 = -baudAbsDiff16;
 
-	return (baudAbsDiff13 > baudAbsDiff16);
+	return (baudAbsDiff13 >= baudAbsDiff16);
 }
 
 /*
@@ -258,13 +273,13 @@ serial_omap_baud_is_mode16(struct uart_port *port, unsigned int baud)
 static unsigned int
 serial_omap_get_divisor(struct uart_port *port, unsigned int baud)
 {
-	unsigned int divisor;
+	unsigned int mode;
 
 	if (!serial_omap_baud_is_mode16(port, baud))
-		divisor = 13;
+		mode = 13;
 	else
-		divisor = 16;
-	return port->uartclk/(baud * divisor);
+		mode = 16;
+	return port->uartclk/(mode * baud);
 }
 
 static void serial_omap_enable_ms(struct uart_port *port)
@@ -283,28 +298,40 @@ static void serial_omap_enable_ms(struct uart_port *port)
 static void serial_omap_stop_tx(struct uart_port *port)
 {
 	struct uart_omap_port *up = to_uart_omap_port(port);
-	struct circ_buf *xmit = &up->port.state->xmit;
 	int res;
 
 	pm_runtime_get_sync(up->dev);
 
-	/* handle rs485 */
+	/* Handle RS-485 */
 	if (up->rs485.flags & SER_RS485_ENABLED) {
-		/* do nothing if current tx not yet completed */
-		res = serial_in(up, UART_LSR) & UART_LSR_TEMT;
-		if (!res)
-			return;
-
-		/* if there's no more data to send, turn off rts */
-		if (uart_circ_empty(xmit)) {
-			/* if rts not already disabled */
+		if (up->scr & OMAP_UART_SCR_TX_EMPTY) {
+			/* THR interrupt is fired when both TX FIFO and TX
+			 * shift register are empty. This means there's nothing
+			 * left to transmit now, so make sure the THR interrupt
+			 * is fired when TX FIFO is below the trigger level,
+			 * disable THR interrupts and toggle the RS-485 GPIO
+			 * data direction pin if needed.
+			 */
+			up->scr &= ~OMAP_UART_SCR_TX_EMPTY;
+			serial_out(up, UART_OMAP_SCR, up->scr);
 			res = (up->rs485.flags & SER_RS485_RTS_AFTER_SEND) ? 1 : 0;
 			if (gpio_get_value(up->rts_gpio) != res) {
-				if (up->rs485.delay_rts_after_send > 0) {
+				if (up->rs485.delay_rts_after_send > 0)
 					mdelay(up->rs485.delay_rts_after_send);
-				}
 				gpio_set_value(up->rts_gpio, res);
 			}
+		} else {
+			/* We're asked to stop, but there's still stuff in the
+			 * UART FIFO, so make sure the THR interrupt is fired
+			 * when both TX FIFO and TX shift register are empty.
+			 * The next THR interrupt (if no transmission is started
+			 * in the meantime) will indicate the end of a
+			 * transmission. Therefore we _don't_ disable THR
+			 * interrupts in this situation.
+			 */
+			up->scr |= OMAP_UART_SCR_TX_EMPTY;
+			serial_out(up, UART_OMAP_SCR, up->scr);
+			return;
 		}
 	}
 
@@ -384,15 +411,18 @@ static void serial_omap_start_tx(struct uart_port *port)
 
 	pm_runtime_get_sync(up->dev);
 
-	/* handle rs485 */
+	/* Handle RS-485 */
 	if (up->rs485.flags & SER_RS485_ENABLED) {
+		/* Fire THR interrupts when FIFO is below trigger level */
+		up->scr &= ~OMAP_UART_SCR_TX_EMPTY;
+		serial_out(up, UART_OMAP_SCR, up->scr);
+
 		/* if rts not already enabled */
 		res = (up->rs485.flags & SER_RS485_RTS_ON_SEND) ? 1 : 0;
 		if (gpio_get_value(up->rts_gpio) != res) {
 			gpio_set_value(up->rts_gpio, res);
-			if (up->rs485.delay_rts_before_send > 0) {
+			if (up->rs485.delay_rts_before_send > 0)
 				mdelay(up->rs485.delay_rts_before_send);
-			}
 		}
 	}
 
@@ -699,6 +729,20 @@ static int serial_omap_startup(struct uart_port *port)
 	if (retval)
 		return retval;
 
+	/* Optional wake-up IRQ */
+	if (up->wakeirq) {
+		retval = request_irq(up->wakeirq, serial_omap_irq,
+				     up->port.irqflags, up->name, up);
+		if (retval) {
+			free_irq(up->port.irq, up);
+			return retval;
+		}
+		disable_irq(up->wakeirq);
+	} else {
+		dev_info(up->port.dev, "no wakeirq for uart%d\n",
+			 up->port.line);
+	}
+
 	dev_dbg(up->port.dev, "serial_omap_startup+%d\n", up->port.line);
 
 	pm_runtime_get_sync(up->dev);
@@ -787,6 +831,8 @@ static void serial_omap_shutdown(struct uart_port *port)
 	pm_runtime_mark_last_busy(up->dev);
 	pm_runtime_put_autosuspend(up->dev);
 	free_irq(up->port.irq, up);
+	if (up->wakeirq)
+		free_irq(up->wakeirq, up);
 }
 
 static void serial_omap_uart_qos_work(struct work_struct *work)
@@ -938,7 +984,7 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 	 */
 
 	/* Set receive FIFO threshold to 16 characters and
-	 * transmit FIFO threshold to 16 spaces
+	 * transmit FIFO threshold to 32 spaces
 	 */
 	up->fcr &= ~OMAP_UART_FCR_RX_FIFO_TRIG_MASK;
 	up->fcr &= ~OMAP_UART_FCR_TX_FIFO_TRIG_MASK;
@@ -1058,15 +1104,6 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 	pm_runtime_mark_last_busy(up->dev);
 	pm_runtime_put_autosuspend(up->dev);
 	dev_dbg(up->port.dev, "serial_omap_set_termios+%d\n", up->port.line);
-}
-
-static int serial_omap_set_wake(struct uart_port *port, unsigned int state)
-{
-	struct uart_omap_port *up = to_uart_omap_port(port);
-
-	serial_omap_enable_wakeup(up, state);
-
-	return 0;
 }
 
 static void
@@ -1353,6 +1390,15 @@ serial_omap_config_rs485(struct uart_port *port, struct serial_rs485 *rs485conf)
 	up->ier = mode;
 	serial_out(up, UART_IER, up->ier);
 
+	/* If RS-485 is disabled, make sure the THR interrupt is fired when
+	 * TX FIFO is below the trigger level.
+	 */
+	if (!(up->rs485.flags & SER_RS485_ENABLED) &&
+	    (up->scr & OMAP_UART_SCR_TX_EMPTY)) {
+		up->scr &= ~OMAP_UART_SCR_TX_EMPTY;
+		serial_out(up, UART_OMAP_SCR, up->scr);
+	}
+
 	spin_unlock_irqrestore(&up->port.lock, flags);
 	pm_runtime_mark_last_busy(up->dev);
 	pm_runtime_put_autosuspend(up->dev);
@@ -1401,7 +1447,6 @@ static struct uart_ops serial_omap_pops = {
 	.shutdown	= serial_omap_shutdown,
 	.set_termios	= serial_omap_set_termios,
 	.pm		= serial_omap_pm,
-	.set_wake	= serial_omap_set_wake,
 	.type		= serial_omap_type,
 	.release_port	= serial_omap_release_port,
 	.request_port	= serial_omap_request_port,
@@ -1582,22 +1627,28 @@ static int serial_omap_probe(struct platform_device *pdev)
 	struct uart_omap_port	*up;
 	struct resource		*mem, *irq;
 	struct omap_uart_port_info *omap_up_info = dev_get_platdata(&pdev->dev);
-	int ret;
+	int ret, uartirq = 0, wakeirq = 0;
 
+	/* The optional wakeirq may be specified in the board dts file */
 	if (pdev->dev.of_node) {
+		uartirq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+		if (!uartirq)
+			return -EPROBE_DEFER;
+		wakeirq = irq_of_parse_and_map(pdev->dev.of_node, 1);
 		omap_up_info = of_get_uart_port_info(&pdev->dev);
 		pdev->dev.platform_data = omap_up_info;
+	} else {
+		irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+		if (!irq) {
+			dev_err(&pdev->dev, "no irq resource?\n");
+			return -ENODEV;
+		}
+		uartirq = irq->start;
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
 		dev_err(&pdev->dev, "no mem resource?\n");
-		return -ENODEV;
-	}
-
-	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!irq) {
-		dev_err(&pdev->dev, "no irq resource?\n");
 		return -ENODEV;
 	}
 
@@ -1634,7 +1685,8 @@ static int serial_omap_probe(struct platform_device *pdev)
 	up->port.dev = &pdev->dev;
 	up->port.type = PORT_OMAP;
 	up->port.iotype = UPIO_MEM;
-	up->port.irq = irq->start;
+	up->port.irq = uartirq;
+	up->wakeirq = wakeirq;
 
 	up->port.regshift = 2;
 	up->port.fifosize = 64;
@@ -1670,8 +1722,9 @@ static int serial_omap_probe(struct platform_device *pdev)
 	up->port.uartclk = omap_up_info->uartclk;
 	if (!up->port.uartclk) {
 		up->port.uartclk = DEFAULT_CLK_SPEED;
-		dev_warn(&pdev->dev, "No clock speed specified: using default:"
-						"%d\n", DEFAULT_CLK_SPEED);
+		dev_warn(&pdev->dev,
+			 "No clock speed specified: using default: %d\n",
+			 DEFAULT_CLK_SPEED);
 	}
 
 	up->latency = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE;

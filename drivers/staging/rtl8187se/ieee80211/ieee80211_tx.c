@@ -32,7 +32,6 @@
 ******************************************************************************/
 
 #include <linux/compiler.h>
-//#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
@@ -186,9 +185,12 @@ int ieee80211_encrypt_fragment(
 	struct ieee80211_crypt_data* crypt = ieee->crypt[ieee->tx_keyidx];
 	int res;
 
- /*added to care about null crypt condition, to solve that system hangs when shared keys error*/
-        if (!crypt || !crypt->ops)
-        return -1;
+	/*
+	 * added to care about null crypt condition, to solve that system hangs
+	 * when shared keys error
+	 */
+	if (!crypt || !crypt->ops)
+		return -1;
 
 #ifdef CONFIG_IEEE80211_CRYPT_TKIP
 	struct ieee80211_hdr_4addr *header;
@@ -197,19 +199,22 @@ int ieee80211_encrypt_fragment(
 	    crypt && crypt->ops && strcmp(crypt->ops->name, "TKIP") == 0) {
 		header = (struct ieee80211_hdr_4addr *)frag->data;
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
-			       "TX packet to %pM\n",
-			       ieee->dev->name, header->addr1);
+			netdev_dbg(ieee->dev, "TKIP countermeasures: dropped "
+			       "TX packet to %pM\n", header->addr1);
 		}
 		return -1;
 	}
 #endif
-	/* To encrypt, frame format is:
-	 * IV (4 bytes), clear payload (including SNAP), ICV (4 bytes) */
-
-	// PR: FIXME: Copied from hostap. Check fragmentation/MSDU/MPDU encryption.
-	/* Host-based IEEE 802.11 fragmentation for TX is not yet supported, so
-	 * call both MSDU and MPDU encryption functions from here. */
+	/*
+	 * To encrypt, frame format is:
+	 * IV (4 bytes), clear payload (including SNAP), ICV (4 bytes)
+	 *
+	 * PR: FIXME: Copied from hostap. Check fragmentation/MSDU/MPDU
+	 * encryption.
+	 *
+	 * Host-based IEEE 802.11 fragmentation for TX is not yet supported, so
+	 * call both MSDU and MPDU encryption functions from here.
+	 */
 	atomic_inc(&crypt->refcnt);
 	res = 0;
 	if (crypt->ops->encrypt_msdu)
@@ -219,8 +224,7 @@ int ieee80211_encrypt_fragment(
 
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
-		printk(KERN_INFO "%s: Encryption failed: len=%d.\n",
-		       ieee->dev->name, frag->len);
+		netdev_info(ieee->dev, "Encryption failed: len=%d.\n", frag->len);
 		ieee->ieee_stats.tx_discards++;
 		return -1;
 	}
@@ -229,7 +233,8 @@ int ieee80211_encrypt_fragment(
 }
 
 
-void ieee80211_txb_free(struct ieee80211_txb *txb) {
+void ieee80211_txb_free(struct ieee80211_txb *txb)
+{
 	int i;
 	if (unlikely(!txb))
 		return;
@@ -239,13 +244,13 @@ void ieee80211_txb_free(struct ieee80211_txb *txb) {
 	kfree(txb);
 }
 
-struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
-					  int gfp_mask)
+static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
+						 gfp_t gfp_mask)
 {
 	struct ieee80211_txb *txb;
 	int i;
 	txb = kmalloc(
-		sizeof(struct ieee80211_txb) + (sizeof(u8*) * nr_frags),
+		sizeof(struct ieee80211_txb) + (sizeof(u8 *) * nr_frags),
 		gfp_mask);
 	if (!txb)
 		return NULL;
@@ -270,42 +275,43 @@ struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
 	return txb;
 }
 
-// Classify the to-be send data packet
-// Need to acquire the sent queue index.
+/*
+ * Classify the to-be send data packet
+ * Need to acquire the sent queue index.
+ */
 static int
 ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 {
-  struct ether_header *eh = (struct ether_header*)skb->data;
-  unsigned int wme_UP = 0;
+	struct ether_header *eh = (struct ether_header *)skb->data;
+	unsigned int wme_UP = 0;
 
-  if(!network->QoS_Enable) {
-     skb->priority = 0;
-     return(wme_UP);
-  }
+	if (!network->QoS_Enable) {
+		skb->priority = 0;
+		return(wme_UP);
+	}
 
-  if(eh->ether_type == __constant_htons(ETHERTYPE_IP)) {
-    const struct iphdr *ih = (struct iphdr*)(skb->data + \
+	if (eh->ether_type == __constant_htons(ETHERTYPE_IP)) {
+		const struct iphdr *ih = (struct iphdr *)(skb->data +
 		    sizeof(struct ether_header));
-    wme_UP = (ih->tos >> 5)&0x07;
-  } else if (vlan_tx_tag_present(skb)) {//vtag packet
+		wme_UP = (ih->tos >> 5)&0x07;
+	} else if (vlan_tx_tag_present(skb)) {/* vtag packet */
 #ifndef VLAN_PRI_SHIFT
 #define VLAN_PRI_SHIFT  13              /* Shift to find VLAN user priority */
 #define VLAN_PRI_MASK   7               /* Mask for user priority bits in VLAN */
 #endif
-	u32 tag = vlan_tx_tag_get(skb);
-	wme_UP = (tag >> VLAN_PRI_SHIFT) & VLAN_PRI_MASK;
-  } else if(ETH_P_PAE ==  ntohs(((struct ethhdr *)skb->data)->h_proto)) {
-    //printk(KERN_WARNING "type = normal packet\n");
-    wme_UP = 7;
-  }
+		u32 tag = vlan_tx_tag_get(skb);
+		wme_UP = (tag >> VLAN_PRI_SHIFT) & VLAN_PRI_MASK;
+	} else if (ETH_P_PAE ==  ntohs(((struct ethhdr *)skb->data)->h_proto)) {
+		wme_UP = 7;
+	}
 
-  skb->priority = wme_UP;
-  return(wme_UP);
+	skb->priority = wme_UP;
+	return(wme_UP);
 }
 
 /* SKBs are added to the ieee->tx_queue. */
 int ieee80211_rtl_xmit(struct sk_buff *skb,
-		   struct net_device *dev)
+		       struct net_device *dev)
 {
 	struct ieee80211_device *ieee = netdev_priv(dev);
 	struct ieee80211_txb *txb = NULL;
@@ -325,24 +331,25 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 
 	struct ieee80211_crypt_data* crypt;
 
-	//printk(KERN_WARNING "upper layer packet!\n");
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	/* If there is no driver handler to take the TXB, don't bother
-	 * creating it... */
-	if ((!ieee->hard_start_xmit && !(ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE))||
-	   ((!ieee->softmac_data_hard_start_xmit && (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)))) {
-		printk(KERN_WARNING "%s: No xmit handler.\n",
-		       ieee->dev->name);
+	/*
+	 * If there is no driver handler to take the TXB, don't bother
+	 * creating it...
+	 */
+	if ((!ieee->hard_start_xmit &&
+	     !(ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)) ||
+	    ((!ieee->softmac_data_hard_start_xmit &&
+	      (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)))) {
+		netdev_warn(ieee->dev, "No xmit handler.\n");
 		goto success;
 	}
 
 	ieee80211_classify(skb,&ieee->current_network);
-	if(likely(ieee->raw_tx == 0)){
+	if (likely(ieee->raw_tx == 0)){
 
 		if (unlikely(skb->len < SNAP_SIZE + sizeof(u16))) {
-			printk(KERN_WARNING "%s: skb too small (%d).\n",
-			ieee->dev->name, skb->len);
+			netdev_warn(ieee->dev, "skb too small (%d).\n", skb->len);
 			goto success;
 		}
 
@@ -378,7 +385,7 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 		/* Determine total amount of storage required for TXB packets */
 		bytes = skb->len + SNAP_SIZE + sizeof(u16);
 
-		if(ieee->current_network.QoS_Enable) {
+		if (ieee->current_network.QoS_Enable) {
 			if (encrypt)
 				fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_QOS_DATA |
 					IEEE80211_FCTL_WEP;
@@ -395,31 +402,31 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 
 		if (ieee->iw_mode == IW_MODE_INFRA) {
 			fc |= IEEE80211_FCTL_TODS;
-			/* To DS: Addr1 = BSSID, Addr2 = SA,
-			Addr3 = DA */
+			/* To DS: Addr1 = BSSID, Addr2 = SA, Addr3 = DA */
 			memcpy(&header.addr1, ieee->current_network.bssid, ETH_ALEN);
 			memcpy(&header.addr2, &src, ETH_ALEN);
 			memcpy(&header.addr3, &dest, ETH_ALEN);
 		} else if (ieee->iw_mode == IW_MODE_ADHOC) {
-			/* not From/To DS: Addr1 = DA, Addr2 = SA,
-			Addr3 = BSSID */
+			/*
+			 * not From/To DS: Addr1 = DA, Addr2 = SA,
+			 * Addr3 = BSSID
+			 */
 			memcpy(&header.addr1, dest, ETH_ALEN);
 			memcpy(&header.addr2, src, ETH_ALEN);
 			memcpy(&header.addr3, ieee->current_network.bssid, ETH_ALEN);
 		}
-	//	printk(KERN_WARNING "essid MAC address is %pM", &header.addr1);
 		header.frame_ctl = cpu_to_le16(fc);
-		//hdr_len = IEEE80211_3ADDR_LEN;
 
-		/* Determine fragmentation size based on destination (multicast
-		* and broadcast are not fragmented) */
+		/*
+		 * Determine fragmentation size based on destination (multicast
+		 * and broadcast are not fragmented)
+		 */
 		if (is_multicast_ether_addr(header.addr1)) {
 			frag_size = MAX_FRAG_THRESHOLD;
 			qos_ctl = QOS_CTL_NOTCONTAIN_ACK;
-		}
-		else {
-			//printk(KERN_WARNING "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&frag_size = %d\n", frag_size);
-			frag_size = ieee->fts;//default:392
+		} else {
+			/* default:392 */
+			frag_size = ieee->fts;
 			qos_ctl = 0;
 		}
 
@@ -432,11 +439,12 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 			hdr_len = IEEE80211_3ADDR_LEN;
 		}
 
-		/* Determine amount of payload per fragment.  Regardless of if
-		* this stack is providing the full 802.11 header, one will
-		* eventually be affixed to this fragment -- so we must account for
-		* it when determining the amount of payload space. */
-		//bytes_per_frag = frag_size - (IEEE80211_3ADDR_LEN + (ieee->current_network->QoS_Enable ? 2:0));
+		/*
+		 * Determine amount of payload per fragment.  Regardless of if
+		 * this stack is providing the full 802.11 header, one will
+		 * eventually be affixed to this fragment -- so we must account
+		 * for it when determining the amount of payload space.
+		 */
 		bytes_per_frag = frag_size - hdr_len;
 		if (ieee->config &
 		(CFG_IEEE80211_COMPUTE_FCS | CFG_IEEE80211_RESERVE_FCS))
@@ -447,8 +455,10 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 			bytes_per_frag -= crypt->ops->extra_prefix_len +
 				crypt->ops->extra_postfix_len;
 
-		/* Number of fragments is the total bytes_per_frag /
-		* payload_per_fragment */
+		/*
+		 * Number of fragments is the total bytes_per_frag /
+		 * payload_per_fragment
+		 */
 		nr_frags = bytes / bytes_per_frag;
 		bytes_last_frag = bytes % bytes_per_frag;
 		if (bytes_last_frag)
@@ -456,13 +466,14 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 		else
 			bytes_last_frag = bytes_per_frag;
 
-		/* When we allocate the TXB we allocate enough space for the reserve
-		* and full fragment bytes (bytes_per_frag doesn't include prefix,
-		* postfix, header, FCS, etc.) */
+		/*
+		 * When we allocate the TXB we allocate enough space for the 
+		 * reserve and full fragment bytes (bytes_per_frag doesn't
+		 * include prefix, postfix, header, FCS, etc.)
+		 */
 		txb = ieee80211_alloc_txb(nr_frags, frag_size, GFP_ATOMIC);
 		if (unlikely(!txb)) {
-			printk(KERN_WARNING "%s: Could not allocate TXB\n",
-			ieee->dev->name);
+			netdev_warn(ieee->dev, "Could not allocate TXB\n");
 			goto failed;
 		}
 		txb->encrypted = encrypt;
@@ -474,11 +485,14 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 			if (encrypt)
 				skb_reserve(skb_frag, crypt->ops->extra_prefix_len);
 
-			frag_hdr = (struct ieee80211_hdr_3addrqos *)skb_put(skb_frag, hdr_len);
+			frag_hdr = (struct ieee80211_hdr_3addrqos *)skb_put(
+				skb_frag, hdr_len);
 			memcpy(frag_hdr, &header, hdr_len);
 
-			/* If this is not the last fragment, then add the MOREFRAGS
-			* bit to the frame control */
+			/*
+			 * If this is not the last fragment, then add the MOREFRAGS
+			 * bit to the frame control
+			 */
 			if (i != nr_frags - 1) {
 				frag_hdr->frame_ctl = cpu_to_le16(
 					fc | IEEE80211_FCTL_MOREFRAGS);
@@ -488,16 +502,17 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 				/* The last fragment takes the remaining length */
 				bytes = bytes_last_frag;
 			}
-			if(ieee->current_network.QoS_Enable) {
-			  // add 1 only indicate to corresponding seq number control 2006/7/12
-			  frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl[UP2AC(skb->priority)+1]<<4 | i);
-			  //printk(KERN_WARNING "skb->priority = %d,", skb->priority);
-			  //printk(KERN_WARNING "type:%d: seq = %d\n",UP2AC(skb->priority),ieee->seq_ctrl[UP2AC(skb->priority)+1]);
+			if (ieee->current_network.QoS_Enable) {
+				/*
+				 * add 1 only indicate to corresponding seq
+				 * number control 2006/7/12
+				 */
+				frag_hdr->seq_ctl = cpu_to_le16(
+					ieee->seq_ctrl[UP2AC(skb->priority)+1]<<4 | i);
 			} else {
-			  frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0]<<4 | i);
+				frag_hdr->seq_ctl = cpu_to_le16(
+					ieee->seq_ctrl[0]<<4 | i);
 			}
-			//frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl<<4 | i);
-			//
 
 			/* Put a SNAP header on the first fragment */
 			if (i == 0) {
@@ -512,54 +527,53 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 			/* Advance the SKB... */
 			skb_pull(skb, bytes);
 
-			/* Encryption routine will move the header forward in order
-			* to insert the IV between the header and the payload */
+			/*
+			 * Encryption routine will move the header forward in
+			 * order to insert the IV between the header and the
+			 * payload
+			 */
 			if (encrypt)
 				ieee80211_encrypt_fragment(ieee, skb_frag, hdr_len);
 			if (ieee->config &
 			(CFG_IEEE80211_COMPUTE_FCS | CFG_IEEE80211_RESERVE_FCS))
 				skb_put(skb_frag, 4);
 		}
-		// Advance sequence number in data frame.
-		//printk(KERN_WARNING "QoS Enalbed? %s\n", ieee->current_network.QoS_Enable?"Y":"N");
+		/* Advance sequence number in data frame. */
 		if (ieee->current_network.QoS_Enable) {
-		  if (ieee->seq_ctrl[UP2AC(skb->priority) + 1] == 0xFFF)
-			ieee->seq_ctrl[UP2AC(skb->priority) + 1] = 0;
-		  else
-			ieee->seq_ctrl[UP2AC(skb->priority) + 1]++;
+			if (ieee->seq_ctrl[UP2AC(skb->priority) + 1] == 0xFFF)
+				ieee->seq_ctrl[UP2AC(skb->priority) + 1] = 0;
+			else
+				ieee->seq_ctrl[UP2AC(skb->priority) + 1]++;
 		} else {
-  		  if (ieee->seq_ctrl[0] == 0xFFF)
-			ieee->seq_ctrl[0] = 0;
-		  else
-			ieee->seq_ctrl[0]++;
+			if (ieee->seq_ctrl[0] == 0xFFF)
+				ieee->seq_ctrl[0] = 0;
+			else
+				ieee->seq_ctrl[0]++;
 		}
-		//---
-	}else{
+	} else {
 		if (unlikely(skb->len < sizeof(struct ieee80211_hdr_3addr))) {
-			printk(KERN_WARNING "%s: skb too small (%d).\n",
-			ieee->dev->name, skb->len);
+			netdev_warn(ieee->dev, "skb too small (%d).\n", skb->len);
 			goto success;
 		}
 
 		txb = ieee80211_alloc_txb(1, skb->len, GFP_ATOMIC);
-		if(!txb){
-			printk(KERN_WARNING "%s: Could not allocate TXB\n",
-			ieee->dev->name);
+		if (!txb) {
+			netdev_warn(ieee->dev, "Could not allocate TXB\n");
 			goto failed;
 		}
 
 		txb->encrypted = 0;
 		txb->payload_size = skb->len;
-		memcpy(skb_put(txb->fragments[0],skb->len), skb->data, skb->len);
+		memcpy(skb_put(txb->fragments[0], skb->len), skb->data, skb->len);
 	}
 
  success:
 	spin_unlock_irqrestore(&ieee->lock, flags);
 		dev_kfree_skb_any(skb);
 	if (txb) {
-		if (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE){
+		if (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE) {
 			ieee80211_softmac_xmit(txb, ieee);
-		}else{
+		} else {
 			if ((*ieee->hard_start_xmit)(txb, dev) == 0) {
 				stats->tx_packets++;
 				stats->tx_bytes += txb->payload_size;

@@ -1,5 +1,5 @@
 /*
- * 	PCI searching functions.
+ *	PCI searching functions.
  *
  *	Copyright (C) 1993 -- 1997 Drew Eckhardt, Frederic Potter,
  *					David Mosberger-Tang
@@ -96,12 +96,12 @@ struct pci_bus * pci_find_bus(int domain, int busnr)
  * pci_find_next_bus - begin or continue searching for a PCI bus
  * @from: Previous PCI bus found, or %NULL for new search.
  *
- * Iterates through the list of known PCI busses.  A new search is
+ * Iterates through the list of known PCI buses.  A new search is
  * initiated by passing %NULL as the @from argument.  Otherwise if
  * @from is not %NULL, searches continue from next device on the
  * global list.
  */
-struct pci_bus * 
+struct pci_bus *
 pci_find_next_bus(const struct pci_bus *from)
 {
 	struct list_head *n;
@@ -119,11 +119,11 @@ pci_find_next_bus(const struct pci_bus *from)
 /**
  * pci_get_slot - locate PCI device for a given PCI slot
  * @bus: PCI bus on which desired PCI device resides
- * @devfn: encodes number of PCI slot in which the desired PCI 
- * device resides and the logical device number within that slot 
+ * @devfn: encodes number of PCI slot in which the desired PCI
+ * device resides and the logical device number within that slot
  * in case of multi-function devices.
  *
- * Given a PCI bus and slot/function number, the desired PCI device 
+ * Given a PCI bus and slot/function number, the desired PCI device
  * is located in the list of PCI devices.
  * If the device is found, its reference count is increased and this
  * function returns a pointer to its data structure.  The caller must

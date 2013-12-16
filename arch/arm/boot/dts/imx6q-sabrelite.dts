@@ -65,8 +65,10 @@
 	};
 };
 
-&sata {
+&audmux {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_audmux_1>;
 };
 
 &ecspi1 {
@@ -83,9 +85,27 @@
 	};
 };
 
-&ssi1 {
-	fsl,mode = "i2s-slave";
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_enet_1>;
+	phy-mode = "rgmii";
+	phy-reset-gpios = <&gpio3 23 0>;
 	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1_1>;
+
+	codec: sgtl5000@0a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+		clocks = <&clks 201>;
+		VDDA-supply = <&reg_2p5v>;
+		VDDIO-supply = <&reg_3p3v>;
+	};
 };
 
 &iomuxc {
@@ -103,9 +123,54 @@
 				MX6QDL_PAD_SD3_DAT5__GPIO7_IO00 0x80000000
 				MX6QDL_PAD_SD3_DAT4__GPIO7_IO01 0x1f0b0
 				MX6QDL_PAD_GPIO_0__CCM_CLKO1    0x80000000
+				MX6QDL_PAD_EIM_D23__GPIO3_IO23	0x80000000
 			>;
 		};
 	};
+};
+
+&ldb {
+	status = "okay";
+
+	lvds-channel@0 {
+		fsl,data-mapping = "spwg";
+		fsl,data-width = <18>;
+		status = "okay";
+
+		display-timings {
+			native-mode = <&timing0>;
+			timing0: hsd100pxn1 {
+				clock-frequency = <65000000>;
+				hactive = <1024>;
+				vactive = <768>;
+				hback-porch = <220>;
+				hfront-porch = <40>;
+				vback-porch = <21>;
+				vfront-porch = <7>;
+				hsync-len = <60>;
+				vsync-len = <10>;
+			};
+		};
+	};
+};
+
+&sata {
+	status = "okay";
+};
+
+&ssi1 {
+	fsl,mode = "i2s-slave";
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2_1>;
+};
+
+&usbh1 {
+	status = "okay";
 };
 
 &usbotg {
@@ -113,18 +178,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbotg_1>;
 	disable-over-current;
-	status = "okay";
-};
-
-&usbh1 {
-	status = "okay";
-};
-
-&fec {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_enet_1>;
-	phy-mode = "rgmii";
-	phy-reset-gpios = <&gpio3 23 0>;
 	status = "okay";
 };
 
@@ -144,31 +197,4 @@
 	wp-gpios = <&gpio2 7 0>;
 	vmmc-supply = <&reg_3p3v>;
 	status = "okay";
-};
-
-&audmux {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_audmux_1>;
-};
-
-&uart2 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart2_1>;
-};
-
-&i2c1 {
-	status = "okay";
-	clock-frequency = <100000>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c1_1>;
-
-	codec: sgtl5000@0a {
-		compatible = "fsl,sgtl5000";
-		reg = <0x0a>;
-		clocks = <&clks 201>;
-		VDDA-supply = <&reg_2p5v>;
-		VDDIO-supply = <&reg_3p3v>;
-	};
 };

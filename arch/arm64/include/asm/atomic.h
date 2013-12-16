@@ -126,20 +126,6 @@ static inline int atomic_cmpxchg(atomic_t *ptr, int old, int new)
 	return oldval;
 }
 
-static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
-{
-	unsigned long tmp, tmp2;
-
-	asm volatile("// atomic_clear_mask\n"
-"1:	ldxr	%0, %2\n"
-"	bic	%0, %0, %3\n"
-"	stxr	%w1, %0, %2\n"
-"	cbnz	%w1, 1b"
-	: "=&r" (tmp), "=&r" (tmp2), "+Q" (*addr)
-	: "Ir" (mask)
-	: "cc");
-}
-
 #define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 
 static inline int __atomic_add_unless(atomic_t *v, int a, int u)

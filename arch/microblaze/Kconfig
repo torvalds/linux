@@ -1,5 +1,6 @@
 config MICROBLAZE
 	def_bool y
+	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_FUNCTION_TRACER
@@ -81,11 +82,6 @@ source "kernel/Kconfig.hz"
 config MMU
 	bool "MMU support"
 	default n
-
-config NO_MMU
-	bool
-	depends on !MMU
-	default y
 
 comment "Boot options"
 
@@ -249,10 +245,6 @@ config MICROBLAZE_64K_PAGES
 	bool "64k page size"
 
 endchoice
-
-config KERNEL_PAD
-	hex "Kernel PAD for unpacking" if ADVANCED_OPTIONS
-	default "0x80000" if MMU
 
 endmenu
 

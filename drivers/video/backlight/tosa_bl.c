@@ -38,7 +38,7 @@ struct tosa_bl_data {
 
 static void tosa_bl_set_backlight(struct tosa_bl_data *data, int brightness)
 {
-	struct spi_device *spi = data->i2c->dev.platform_data;
+	struct spi_device *spi = dev_get_platdata(&data->i2c->dev);
 
 	i2c_smbus_write_byte_data(data->i2c, DAC_CH1, data->comadj);
 

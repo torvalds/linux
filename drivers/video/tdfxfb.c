@@ -1646,7 +1646,6 @@ static void tdfxfb_remove(struct pci_dev *pdev)
 			   pci_resource_len(pdev, 1));
 	release_mem_region(pci_resource_start(pdev, 0),
 			   pci_resource_len(pdev, 0));
-	pci_set_drvdata(pdev, NULL);
 	fb_dealloc_cmap(&info->cmap);
 	framebuffer_release(info);
 }

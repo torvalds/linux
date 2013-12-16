@@ -32,6 +32,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/sched.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/ti_ssp.h>
 
@@ -409,7 +410,6 @@ static int ti_ssp_probe(struct platform_device *pdev)
 		cells[id].id		= id;
 		cells[id].name		= data->dev_name;
 		cells[id].platform_data	= data->pdata;
-		cells[id].data_size	= data->pdata_size;
 	}
 
 	error = mfd_add_devices(dev, 0, cells, 2, NULL, 0, NULL);
@@ -445,7 +445,6 @@ static int ti_ssp_remove(struct platform_device *pdev)
 	iounmap(ssp->regs);
 	release_mem_region(ssp->res->start, resource_size(ssp->res));
 	kfree(ssp);
-	dev_set_drvdata(dev, NULL);
 	return 0;
 }
 

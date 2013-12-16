@@ -3122,7 +3122,7 @@ static void bnx2x_bsc_module_sel(struct link_params *params)
 }
 
 static int bnx2x_bsc_read(struct link_params *params,
-			  struct bnx2x_phy *phy,
+			  struct bnx2x *bp,
 			  u8 sl_devid,
 			  u16 sl_addr,
 			  u8 lc_addr,
@@ -3131,7 +3131,6 @@ static int bnx2x_bsc_read(struct link_params *params,
 {
 	u32 val, i;
 	int rc = 0;
-	struct bnx2x *bp = params->bp;
 
 	if (xfer_cnt > 16) {
 		DP(NETIF_MSG_LINK, "invalid xfer_cnt %d. Max is 16 bytes\n",
@@ -6371,9 +6370,15 @@ int bnx2x_set_led(struct link_params *params,
 			 * intended override.
 			 */
 			break;
-		} else
+		} else {
+			u32 nig_led_mode = ((params->hw_led_mode <<
+					     SHARED_HW_CFG_LED_MODE_SHIFT) ==
+					    SHARED_HW_CFG_LED_EXTPHY2) ?
+				(SHARED_HW_CFG_LED_PHY1 >>
+				 SHARED_HW_CFG_LED_MODE_SHIFT) : hw_led_mode;
 			REG_WR(bp, NIG_REG_LED_MODE_P0 + port*4,
-			       hw_led_mode);
+			       nig_led_mode);
+		}
 
 		REG_WR(bp, NIG_REG_LED_CONTROL_OVERRIDE_TRAFFIC_P0 + port*4, 0);
 		/* Set blinking rate to ~15.9Hz */
@@ -7917,7 +7922,7 @@ static int bnx2x_warpcore_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 			usleep_range(1000, 2000);
 			bnx2x_warpcore_power_module(params, 1);
 		}
-		rc = bnx2x_bsc_read(params, phy, dev_addr, addr32, 0, byte_cnt,
+		rc = bnx2x_bsc_read(params, bp, dev_addr, addr32, 0, byte_cnt,
 				    data_array);
 	} while ((rc != 0) && (++cnt < I2C_WA_RETRY_CNT));
 
@@ -10653,10 +10658,18 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 					 0x40);
 
 		} else {
+			/* EXTPHY2 LED mode indicate that the 100M/1G/10G LED
+			 * sources are all wired through LED1, rather than only
+			 * 10G in other modes.
+			 */
+			val = ((params->hw_led_mode <<
+				SHARED_HW_CFG_LED_MODE_SHIFT) ==
+			       SHARED_HW_CFG_LED_EXTPHY2) ? 0x98 : 0x80;
+
 			bnx2x_cl45_write(bp, phy,
 					 MDIO_PMA_DEVAD,
 					 MDIO_PMA_REG_8481_LED1_MASK,
-					 0x80);
+					 val);
 
 			/* Tell LED3 to blink on source */
 			bnx2x_cl45_read(bp, phy,

@@ -319,6 +319,7 @@ static int cf_init(struct arasan_cf_dev *acdev)
 	ret = clk_set_rate(acdev->clk, 166000000);
 	if (ret) {
 		dev_warn(acdev->host->dev, "clock set rate failed");
+		clk_disable_unprepare(acdev->clk);
 		return ret;
 	}
 
@@ -396,8 +397,7 @@ dma_xfer(struct arasan_cf_dev *acdev, dma_addr_t src, dma_addr_t dest, u32 len)
 	struct dma_async_tx_descriptor *tx;
 	struct dma_chan *chan = acdev->dma_chan;
 	dma_cookie_t cookie;
-	unsigned long flags = DMA_PREP_INTERRUPT | DMA_COMPL_SKIP_SRC_UNMAP |
-		DMA_COMPL_SKIP_DEST_UNMAP;
+	unsigned long flags = DMA_PREP_INTERRUPT;
 	int ret = 0;
 
 	tx = chan->device->device_prep_dma_memcpy(chan, dest, src, len, flags);

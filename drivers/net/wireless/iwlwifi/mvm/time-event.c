@@ -176,8 +176,11 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 	 * P2P Device discoveribility, while there are other higher priority
 	 * events in the system).
 	 */
-	if (WARN_ONCE(!le32_to_cpu(notif->status),
-		      "Failed to schedule time event\n")) {
+	if (!le32_to_cpu(notif->status)) {
+		bool start = le32_to_cpu(notif->action) &
+				TE_V2_NOTIF_HOST_EVENT_START;
+		IWL_WARN(mvm, "Time Event %s notification failure\n",
+			 start ? "start" : "end");
 		if (iwl_mvm_te_check_disconnect(mvm, te_data->vif, NULL)) {
 			iwl_mvm_te_clear_data(mvm, te_data);
 			return;
@@ -387,7 +390,8 @@ static int iwl_mvm_time_event_send_add(struct iwl_mvm *mvm,
 
 void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 			     struct ieee80211_vif *vif,
-			     u32 duration, u32 min_duration)
+			     u32 duration, u32 min_duration,
+			     u32 max_delay)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
@@ -426,7 +430,7 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 		cpu_to_le32(iwl_read_prph(mvm->trans, DEVICE_SYSTEM_TIME_REG));
 
 	time_cmd.max_frags = TE_V2_FRAG_NONE;
-	time_cmd.max_delay = cpu_to_le32(500);
+	time_cmd.max_delay = cpu_to_le32(max_delay);
 	/* TODO: why do we need to interval = bi if it is not periodic? */
 	time_cmd.interval = cpu_to_le32(1);
 	time_cmd.duration = cpu_to_le32(duration);

@@ -419,28 +419,10 @@ void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan)
 	u32 modesIndex;
 	int i;
 
-	switch (chan->chanmode) {
-	case CHANNEL_A:
-	case CHANNEL_A_HT20:
-		modesIndex = 1;
-		break;
-	case CHANNEL_A_HT40PLUS:
-	case CHANNEL_A_HT40MINUS:
-		modesIndex = 2;
-		break;
-	case CHANNEL_G:
-	case CHANNEL_G_HT20:
-	case CHANNEL_B:
-		modesIndex = 4;
-		break;
-	case CHANNEL_G_HT40PLUS:
-	case CHANNEL_G_HT40MINUS:
-		modesIndex = 3;
-		break;
-
-	default:
-		return;
-	}
+	if (IS_CHAN_5GHZ(chan))
+		modesIndex = IS_CHAN_HT40(chan) ? 2 : 1;
+	else
+		modesIndex = IS_CHAN_HT40(chan) ? 3 : 4;
 
 	ENABLE_REGWRITE_BUFFER(ah);
 

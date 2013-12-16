@@ -39,7 +39,7 @@ struct wmi_fw_version {
 struct wmi_event_swba {
 	__be64 tsf;
 	u8 beacon_pending;
-};
+} __packed;
 
 /*
  * 64 - HTC header - WMI header - 1 / txstatus

@@ -661,9 +661,9 @@ void ath9k_mci_update_wlan_channels(struct ath_softc *sc, bool allow_all)
 	chan_start = wlan_chan - 10;
 	chan_end = wlan_chan + 10;
 
-	if (chan->chanmode == CHANNEL_G_HT40PLUS)
+	if (IS_CHAN_HT40PLUS(chan))
 		chan_end += 20;
-	else if (chan->chanmode == CHANNEL_G_HT40MINUS)
+	else if (IS_CHAN_HT40MINUS(chan))
 		chan_start -= 20;
 
 	/* adjust side band */
@@ -707,11 +707,11 @@ void ath9k_mci_set_txpower(struct ath_softc *sc, bool setchannel,
 
 	if (setchannel) {
 		struct ath9k_hw_cal_data *caldata = &sc->caldata;
-		if ((caldata->chanmode == CHANNEL_G_HT40PLUS) &&
+		if (IS_CHAN_HT40PLUS(ah->curchan) &&
 		    (ah->curchan->channel > caldata->channel) &&
 		    (ah->curchan->channel <= caldata->channel + 20))
 			return;
-		if ((caldata->chanmode == CHANNEL_G_HT40MINUS) &&
+		if (IS_CHAN_HT40MINUS(ah->curchan) &&
 		    (ah->curchan->channel < caldata->channel) &&
 		    (ah->curchan->channel >= caldata->channel - 20))
 			return;

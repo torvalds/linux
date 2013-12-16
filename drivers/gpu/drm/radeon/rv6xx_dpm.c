@@ -407,9 +407,9 @@ static void rv6xx_enable_engine_feedback_and_reference_sync(struct radeon_device
 	WREG32_P(SPLL_CNTL_MODE, SPLL_DIV_SYNC, ~SPLL_DIV_SYNC);
 }
 
-static u64 rv6xx_clocks_per_unit(u32 unit)
+static u32 rv6xx_clocks_per_unit(u32 unit)
 {
-	u64 tmp = 1 << (2 * unit);
+	u32 tmp = 1 << (2 * unit);
 
 	return tmp;
 }
@@ -417,7 +417,7 @@ static u64 rv6xx_clocks_per_unit(u32 unit)
 static u32 rv6xx_scale_count_given_unit(struct radeon_device *rdev,
 					u32 unscaled_count, u32 unit)
 {
-	u32 count_per_unit = (u32)rv6xx_clocks_per_unit(unit);
+	u32 count_per_unit = rv6xx_clocks_per_unit(unit);
 
 	return (unscaled_count + count_per_unit - 1) / count_per_unit;
 }

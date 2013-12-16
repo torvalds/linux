@@ -27,6 +27,9 @@
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/init.h>
+#include <linux/module.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <asm/dcr.h>

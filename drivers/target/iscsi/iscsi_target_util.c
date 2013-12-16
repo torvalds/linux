@@ -242,9 +242,9 @@ static inline int iscsit_check_received_cmdsn(struct iscsi_session *sess, u32 cm
 	 */
 	if (iscsi_sna_gt(cmdsn, sess->max_cmd_sn)) {
 		pr_err("Received CmdSN: 0x%08x is greater than"
-		       " MaxCmdSN: 0x%08x, protocol error.\n", cmdsn,
+		       " MaxCmdSN: 0x%08x, ignoring.\n", cmdsn,
 		       sess->max_cmd_sn);
-		ret = CMDSN_ERROR_CANNOT_RECOVER;
+		ret = CMDSN_MAXCMDSN_OVERRUN;
 
 	} else if (cmdsn == sess->exp_cmd_sn) {
 		sess->exp_cmd_sn++;
@@ -303,14 +303,16 @@ int iscsit_sequence_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 		ret = CMDSN_HIGHER_THAN_EXP;
 		break;
 	case CMDSN_LOWER_THAN_EXP:
+	case CMDSN_MAXCMDSN_OVERRUN:
+	default:
 		cmd->i_state = ISTATE_REMOVE;
 		iscsit_add_cmd_to_immediate_queue(cmd, conn, cmd->i_state);
-		ret = cmdsn_ret;
-		break;
-	default:
-		reason = ISCSI_REASON_PROTOCOL_ERROR;
-		reject = true;
-		ret = cmdsn_ret;
+		/*
+		 * Existing callers for iscsit_sequence_cmd() will silently
+		 * ignore commands with CMDSN_LOWER_THAN_EXP, so force this
+		 * return for CMDSN_MAXCMDSN_OVERRUN as well..
+		 */
+		ret = CMDSN_LOWER_THAN_EXP;
 		break;
 	}
 	mutex_unlock(&conn->sess->cmdsn_mutex);
@@ -980,7 +982,7 @@ static void iscsit_handle_nopin_response_timeout(unsigned long data)
 		tiqn->sess_err_stats.last_sess_failure_type =
 				ISCSI_SESS_ERR_CXN_TIMEOUT;
 		tiqn->sess_err_stats.cxn_timeout_errors++;
-		conn->sess->conn_timeout_errors++;
+		atomic_long_inc(&conn->sess->conn_timeout_errors);
 		spin_unlock_bh(&tiqn->sess_err_stats.lock);
 	}
 	}

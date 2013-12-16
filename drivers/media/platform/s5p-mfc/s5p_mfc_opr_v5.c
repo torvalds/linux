@@ -1582,7 +1582,7 @@ static int s5p_mfc_get_int_reason_v5(struct s5p_mfc_dev *dev)
 		break;
 	default:
 		reason = S5P_MFC_R2H_CMD_EMPTY;
-	};
+	}
 	return reason;
 }
 

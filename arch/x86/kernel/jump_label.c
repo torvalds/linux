@@ -42,15 +42,27 @@ static void __jump_label_transform(struct jump_entry *entry,
 				   int init)
 {
 	union jump_code_union code;
+	const unsigned char default_nop[] = { STATIC_KEY_INIT_NOP };
 	const unsigned char *ideal_nop = ideal_nops[NOP_ATOMIC5];
 
 	if (type == JUMP_LABEL_ENABLE) {
-		/*
-		 * We are enabling this jump label. If it is not a nop
-		 * then something must have gone wrong.
-		 */
-		if (unlikely(memcmp((void *)entry->code, ideal_nop, 5) != 0))
-			bug_at((void *)entry->code, __LINE__);
+		if (init) {
+			/*
+			 * Jump label is enabled for the first time.
+			 * So we expect a default_nop...
+			 */
+			if (unlikely(memcmp((void *)entry->code, default_nop, 5)
+				     != 0))
+				bug_at((void *)entry->code, __LINE__);
+		} else {
+			/*
+			 * ...otherwise expect an ideal_nop. Otherwise
+			 * something went horribly wrong.
+			 */
+			if (unlikely(memcmp((void *)entry->code, ideal_nop, 5)
+				     != 0))
+				bug_at((void *)entry->code, __LINE__);
+		}
 
 		code.jump = 0xe9;
 		code.offset = entry->target -
@@ -63,7 +75,6 @@ static void __jump_label_transform(struct jump_entry *entry,
 		 * are converting the default nop to the ideal nop.
 		 */
 		if (init) {
-			const unsigned char default_nop[] = { STATIC_KEY_INIT_NOP };
 			if (unlikely(memcmp((void *)entry->code, default_nop, 5) != 0))
 				bug_at((void *)entry->code, __LINE__);
 		} else {

@@ -118,7 +118,7 @@
  *	       7	FPU/R4k timer
  *
  * We handle the IRQ according to _our_ priority (see setup.c),
- * then we just return.	 If multiple IRQs are pending then we will
+ * then we just return.  If multiple IRQs are pending then we will
  * just take another exception, big deal.
  */
 		.align	5
@@ -146,7 +146,7 @@
 		/*
 		 * Find irq with highest priority
 		 */
-		 PTR_LA t1,cpu_mask_nr_tbl
+		 PTR_LA	t1,cpu_mask_nr_tbl
 1:		lw	t2,(t1)
 		nop
 		and	t2,t0
@@ -195,7 +195,7 @@
 		/*
 		 * Find irq with highest priority
 		 */
-		 PTR_LA t1,asic_mask_nr_tbl
+		 PTR_LA	t1,asic_mask_nr_tbl
 2:		lw	t2,(t1)
 		nop
 		and	t2,t0
@@ -221,7 +221,7 @@
 		FEXPORT(cpu_all_int)		# HALT, timers, software junk
 		li	a0,DEC_CPU_IRQ_BASE
 		srl	t0,CAUSEB_IP
-		li	t1,CAUSEF_IP>>CAUSEB_IP # mask
+		li	t1,CAUSEF_IP>>CAUSEB_IP	# mask
 		b	1f
 		 li	t2,4			# nr of bits / 2
 

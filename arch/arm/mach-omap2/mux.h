@@ -28,7 +28,7 @@
 #define OMAP_PULL_UP			(1 << 4)
 #define OMAP_ALTELECTRICALSEL		(1 << 5)
 
-/* 34xx specific mux bit defines */
+/* omap3/4/5 specific mux bit defines */
 #define OMAP_INPUT_EN			(1 << 8)
 #define OMAP_OFF_EN			(1 << 9)
 #define OMAP_OFFOUT_EN			(1 << 10)
@@ -36,8 +36,6 @@
 #define OMAP_OFF_PULL_EN		(1 << 12)
 #define OMAP_OFF_PULL_UP		(1 << 13)
 #define OMAP_WAKEUP_EN			(1 << 14)
-
-/* 44xx specific mux bit defines */
 #define OMAP_WAKEUP_EVENT		(1 << 15)
 
 /* Active pin states */

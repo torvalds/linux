@@ -213,7 +213,12 @@ netlbl_import_failure:
 }
 #endif /* CONFIG_NETLABEL */
 
-int ebitmap_contains(struct ebitmap *e1, struct ebitmap *e2)
+/*
+ * Check to see if all the bits set in e2 are also set in e1. Optionally,
+ * if last_e2bit is non-zero, the highest set bit in e2 cannot exceed
+ * last_e2bit.
+ */
+int ebitmap_contains(struct ebitmap *e1, struct ebitmap *e2, u32 last_e2bit)
 {
 	struct ebitmap_node *n1, *n2;
 	int i;
@@ -223,14 +228,25 @@ int ebitmap_contains(struct ebitmap *e1, struct ebitmap *e2)
 
 	n1 = e1->node;
 	n2 = e2->node;
+
 	while (n1 && n2 && (n1->startbit <= n2->startbit)) {
 		if (n1->startbit < n2->startbit) {
 			n1 = n1->next;
 			continue;
 		}
-		for (i = 0; i < EBITMAP_UNIT_NUMS; i++) {
+		for (i = EBITMAP_UNIT_NUMS - 1; (i >= 0) && !n2->maps[i]; )
+			i--;	/* Skip trailing NULL map entries */
+		if (last_e2bit && (i >= 0)) {
+			u32 lastsetbit = n2->startbit + i * EBITMAP_UNIT_SIZE +
+					 __fls(n2->maps[i]);
+			if (lastsetbit > last_e2bit)
+				return 0;
+		}
+
+		while (i >= 0) {
 			if ((n1->maps[i] & n2->maps[i]) != n2->maps[i])
 				return 0;
+			i--;
 		}
 
 		n1 = n1->next;

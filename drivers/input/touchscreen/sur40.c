@@ -251,7 +251,7 @@ static void sur40_poll(struct input_polled_dev *polldev)
 	struct sur40_state *sur40 = polldev->private;
 	struct input_dev *input = polldev->input;
 	int result, bulk_read, need_blobs, packet_blobs, i;
-	u32 packet_id;
+	u32 uninitialized_var(packet_id);
 
 	struct sur40_header *header = &sur40->bulk_in_buffer->header;
 	struct sur40_blob *inblob = &sur40->bulk_in_buffer->blobs[0];
@@ -286,7 +286,7 @@ static void sur40_poll(struct input_polled_dev *polldev)
 		if (need_blobs == -1) {
 			need_blobs = le16_to_cpu(header->count);
 			dev_dbg(sur40->dev, "need %d blobs\n", need_blobs);
-			packet_id = header->packet_id;
+			packet_id = le32_to_cpu(header->packet_id);
 		}
 
 		/*

@@ -161,7 +161,6 @@ union acpi_generic_state *acpi_ut_create_generic_state(void)
 	if (state) {
 
 		/* Initialize */
-		memset(state, 0, sizeof(union acpi_generic_state));
 		state->common.descriptor_type = ACPI_DESC_TYPE_STATE;
 	}
 

@@ -32,6 +32,7 @@
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
+#include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/hci_core.h>
 
 #include "bnep.h"
@@ -510,20 +511,13 @@ static int bnep_session(void *arg)
 
 static struct device *bnep_get_device(struct bnep_session *session)
 {
-	bdaddr_t *src = &bt_sk(session->sock->sk)->src;
-	bdaddr_t *dst = &bt_sk(session->sock->sk)->dst;
-	struct hci_dev *hdev;
 	struct hci_conn *conn;
 
-	hdev = hci_get_route(dst, src);
-	if (!hdev)
+	conn = l2cap_pi(session->sock->sk)->chan->conn->hcon;
+	if (!conn)
 		return NULL;
 
-	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, dst);
-
-	hci_dev_put(hdev);
-
-	return conn ? &conn->dev : NULL;
+	return &conn->dev;
 }
 
 static struct device_type bnep_type = {
@@ -539,8 +533,8 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 
 	BT_DBG("");
 
-	baswap((void *) dst, &bt_sk(sock->sk)->dst);
-	baswap((void *) src, &bt_sk(sock->sk)->src);
+	baswap((void *) dst, &l2cap_pi(sock->sk)->chan->dst);
+	baswap((void *) src, &l2cap_pi(sock->sk)->chan->src);
 
 	/* session struct allocated as private part of net_device */
 	dev = alloc_netdev(sizeof(struct bnep_session),

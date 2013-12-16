@@ -38,7 +38,7 @@ enum dot11d_state {
 /**
  * struct rt_dot11d_info * @CountryIeLen: value greater than 0 if @CountryIeBuf contains
  *		  valid country information element.
- * @chanell_map: holds channel values
+ * @channel_map: holds channel values
  *		0 - invalid,
  *		1 - valid (active scan),
  *		2 - valid (passive scan)

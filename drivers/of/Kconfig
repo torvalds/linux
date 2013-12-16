@@ -17,6 +17,7 @@ config PROC_DEVICETREE
 
 config OF_SELFTEST
 	bool "Device Tree Runtime self tests"
+	depends on OF_IRQ
 	help
 	  This option builds in test cases for the device tree infrastructure
 	  that are executed one at boot time, and the results dumped to the
@@ -73,11 +74,5 @@ config OF_PCI_IRQ
 config OF_MTD
 	depends on MTD
 	def_bool y
-
-config OF_RESERVED_MEM
-	depends on OF_FLATTREE && (DMA_CMA || (HAVE_GENERIC_DMA_COHERENT && HAVE_MEMBLOCK))
-	def_bool y
-	help
-	  Initialization code for DMA reserved memory
 
 endmenu # OF

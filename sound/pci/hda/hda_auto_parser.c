@@ -638,7 +638,7 @@ static int fill_audio_out_name(struct hda_codec *codec, hda_nid_t nid,
 			/* don't add channel suffix for Headphone controls */
 			int idx = get_hp_label_index(codec, nid, cfg->hp_pins,
 						     cfg->hp_outs);
-			if (idx >= 0)
+			if (idx >= 0 && indexp)
 				*indexp = idx;
 			sfx = "";
 		}

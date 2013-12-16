@@ -6700,7 +6700,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	};
 
 	/* create the JPEG header */
-	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
+	jpeg_define(sd->jpeg_hdr, gspca_dev->pixfmt.height,
+			gspca_dev->pixfmt.width,
 			0x21);		/* JPEG 422 */
 
 	mode = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
@@ -6904,7 +6905,7 @@ static int sd_get_jcomp(struct gspca_dev *gspca_dev,
 #if IS_ENABLED(CONFIG_INPUT)
 static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,		/* interrupt packet data */
-			int len)		/* interrput packet length */
+			int len)		/* interrupt packet length */
 {
 	if (len == 8 && data[4] == 1) {
 		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 1);

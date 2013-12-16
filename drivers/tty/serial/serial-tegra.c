@@ -1018,7 +1018,7 @@ static int tegra_uart_startup(struct uart_port *u)
 		goto fail_hw_init;
 	}
 
-	ret = request_irq(u->irq, tegra_uart_isr, IRQF_DISABLED,
+	ret = request_irq(u->irq, tegra_uart_isr, 0,
 				dev_name(u->dev), tup);
 	if (ret < 0) {
 		dev_err(u->dev, "Failed to register ISR for IRQ %d\n", u->irq);

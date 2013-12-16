@@ -495,14 +495,15 @@ void __do_irq(struct pt_regs *regs)
 void do_IRQ(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	struct thread_info *curtp, *irqtp;
+	struct thread_info *curtp, *irqtp, *sirqtp;
 
 	/* Switch to the irq stack to handle this */
 	curtp = current_thread_info();
 	irqtp = hardirq_ctx[raw_smp_processor_id()];
+	sirqtp = softirq_ctx[raw_smp_processor_id()];
 
 	/* Already there ? */
-	if (unlikely(curtp == irqtp)) {
+	if (unlikely(curtp == irqtp || curtp == sirqtp)) {
 		__do_irq(regs);
 		set_irq_regs(old_regs);
 		return;
@@ -593,7 +594,7 @@ void irq_ctx_init(void)
 	}
 }
 
-static inline void do_softirq_onstack(void)
+void do_softirq_own_stack(void)
 {
 	struct thread_info *curtp, *irqtp;
 
@@ -609,21 +610,6 @@ static inline void do_softirq_onstack(void)
 	 */
 	if (irqtp->flags)
 		set_bits(irqtp->flags, &curtp->flags);
-}
-
-void do_softirq(void)
-{
-	unsigned long flags;
-
-	if (in_interrupt())
-		return;
-
-	local_irq_save(flags);
-
-	if (local_softirq_pending())
-		do_softirq_onstack();
-
-	local_irq_restore(flags);
 }
 
 irq_hw_number_t virq_to_hw(unsigned int virq)

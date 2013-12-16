@@ -562,7 +562,7 @@ fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	} else {
 		ret = fd_do_rw(cmd, sgl, sgl_nents, 1);
 		/*
-		 * Perform implict vfs_fsync_range() for fd_do_writev() ops
+		 * Perform implicit vfs_fsync_range() for fd_do_writev() ops
 		 * for SCSI WRITEs with Forced Unit Access (FUA) set.
 		 * Allow this to happen independent of WCE=0 setting.
 		 */

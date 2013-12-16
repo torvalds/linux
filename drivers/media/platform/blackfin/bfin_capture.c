@@ -422,7 +422,7 @@ static int bcap_start_streaming(struct vb2_queue *vq, unsigned int count)
 		return ret;
 	}
 
-	INIT_COMPLETION(bcap_dev->comp);
+	reinit_completion(&bcap_dev->comp);
 	bcap_dev->stop = false;
 	return 0;
 }

@@ -52,6 +52,11 @@ struct snd_dma_device {
 #else
 #define SNDRV_DMA_TYPE_DEV_SG	SNDRV_DMA_TYPE_DEV /* no SG-buf support */
 #endif
+#ifdef CONFIG_GENERIC_ALLOCATOR
+#define SNDRV_DMA_TYPE_DEV_IRAM		4	/* generic device iram-buffer */
+#else
+#define SNDRV_DMA_TYPE_DEV_IRAM	SNDRV_DMA_TYPE_DEV
+#endif
 
 /*
  * info for buffer allocation
@@ -103,7 +108,7 @@ static inline dma_addr_t snd_sgbuf_get_addr(struct snd_dma_buffer *dmab,
 {
 	struct snd_sg_buf *sgbuf = dmab->private_data;
 	dma_addr_t addr = sgbuf->table[offset >> PAGE_SHIFT].addr;
-	addr &= PAGE_MASK;
+	addr &= ~((dma_addr_t)PAGE_SIZE - 1);
 	return addr + offset % PAGE_SIZE;
 }
 

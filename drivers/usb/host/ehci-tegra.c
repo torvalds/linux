@@ -362,10 +362,9 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	 * Since shared usb code relies on it, set it here for now.
 	 * Once we have dma capability bindings this can go away.
 	 */
-	if (!pdev->dev.dma_mask)
-		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
-	if (!pdev->dev.coherent_dma_mask)
-		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	err = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (err)
+		return err;
 
 	hcd = usb_create_hcd(&tegra_ehci_hc_driver, &pdev->dev,
 					dev_name(&pdev->dev));
@@ -388,7 +387,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 
 	err = clk_prepare_enable(tegra->clk);
 	if (err)
-		goto cleanup_clk_get;
+		goto cleanup_hcd_create;
 
 	tegra_periph_reset_assert(tegra->clk);
 	udelay(1);
@@ -465,8 +464,6 @@ cleanup_phy:
 	usb_phy_shutdown(hcd->phy);
 cleanup_clk_en:
 	clk_disable_unprepare(tegra->clk);
-cleanup_clk_get:
-	clk_put(tegra->clk);
 cleanup_hcd_create:
 	usb_put_hcd(hcd);
 	return err;

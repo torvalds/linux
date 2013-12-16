@@ -159,11 +159,12 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 
 asmlinkage void kgdb_trap(unsigned long trap_level, struct pt_regs *regs)
 {
+	enum ctx_state prev_state = exception_enter();
 	unsigned long flags;
 
 	if (user_mode(regs)) {
 		bad_trap(regs, trap_level);
-		return;
+		goto out;
 	}
 
 	flushw_all();
@@ -171,6 +172,8 @@ asmlinkage void kgdb_trap(unsigned long trap_level, struct pt_regs *regs)
 	local_irq_save(flags);
 	kgdb_handle_exception(0x172, SIGTRAP, 0, regs);
 	local_irq_restore(flags);
+out:
+	exception_exit(prev_state);
 }
 
 int kgdb_arch_init(void)

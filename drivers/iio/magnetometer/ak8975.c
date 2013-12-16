@@ -263,7 +263,7 @@ static int ak8975_setup(struct i2c_client *client)
  *
  * HuT = H * 1229/4096, or roughly, 3/10.
  *
- * Since 1uT = 100 gauss, our final scale factor becomes:
+ * Since 1uT = 0.01 gauss, our final scale factor becomes:
  *
  * Hadj = H * ((ASA + 128) / 256) * 3/10 * 100
  * Hadj = H * ((ASA + 128) * 30 / 256

@@ -1427,7 +1427,7 @@ struct nrs_fifo_req {
 struct nrs_crrn_net {
 	struct ptlrpc_nrs_resource	cn_res;
 	cfs_binheap_t		       *cn_binheap;
-	cfs_hash_t		       *cn_cli_hash;
+	struct cfs_hash		       *cn_cli_hash;
 	/**
 	 * Used when a new scheduling round commences, in order to synchronize
 	 * all clients with the new round number.
@@ -1568,7 +1568,7 @@ struct nrs_orr_key {
 struct nrs_orr_data {
 	struct ptlrpc_nrs_resource	od_res;
 	cfs_binheap_t		       *od_binheap;
-	cfs_hash_t		       *od_obj_hash;
+	struct cfs_hash		       *od_obj_hash;
 	struct kmem_cache		       *od_cache;
 	/**
 	 * Used when a new scheduling round commences, in order to synchronize
@@ -2206,7 +2206,7 @@ do {									  \
 #define DEBUG_REQ(level, req, fmt, args...)				   \
 do {									  \
 	if ((level) & (D_ERROR | D_WARNING)) {				\
-		static cfs_debug_limit_state_t cdls;			  \
+		static struct cfs_debug_limit_state cdls;			  \
 		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, level, &cdls);	    \
 		debug_req(&msgdata, level, &cdls, req, "@@@ "fmt" ", ## args);\
 	} else {							      \

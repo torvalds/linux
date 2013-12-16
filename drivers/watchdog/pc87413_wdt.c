@@ -580,8 +580,6 @@ MODULE_AUTHOR("Sven Anders <anders@anduras.de>, "
 MODULE_DESCRIPTION("PC87413 WDT driver");
 MODULE_LICENSE("GPL");
 
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
-
 module_param(io, int, 0);
 MODULE_PARM_DESC(io, MODNAME " I/O port (default: "
 					__MODULE_STRING(IO_DEFAULT) ").");

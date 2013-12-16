@@ -1440,9 +1440,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		/* If this packet is marked as EOF, end the frame */
 		} else if (data[1] & UVC_STREAM_EOF) {
 			sd->last_pts = 0;
-			if (gspca_dev->pixfmt == V4L2_PIX_FMT_YUYV
+			if (gspca_dev->pixfmt.pixelformat == V4L2_PIX_FMT_YUYV
 			 && gspca_dev->image_len + len - 12 !=
-				   gspca_dev->width * gspca_dev->height * 2) {
+				   gspca_dev->pixfmt.width *
+					gspca_dev->pixfmt.height * 2) {
 				PDEBUG(D_PACK, "wrong sized frame");
 				goto discard;
 			}

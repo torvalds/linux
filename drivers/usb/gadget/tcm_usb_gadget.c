@@ -370,7 +370,7 @@ err:
 	return -ENOMEM;
 }
 
-void bot_cleanup_old_alt(struct f_uas *fu)
+static void bot_cleanup_old_alt(struct f_uas *fu)
 {
 	if (!(fu->flags & USBG_ENABLED))
 		return;
@@ -472,7 +472,7 @@ static int usbg_bot_setup(struct usb_function *f,
 		bot_enqueue_cmd_cbw(fu);
 		return 0;
 		break;
-	};
+	}
 	return -ENOTSUPP;
 }
 
@@ -617,7 +617,7 @@ static void uasp_status_data_cmpl(struct usb_ep *ep, struct usb_request *req)
 
 	default:
 		BUG();
-	};
+	}
 	return;
 
 cleanup:
@@ -1923,15 +1923,15 @@ static int usbg_register_configfs(void)
 	}
 
 	fabric->tf_ops = usbg_ops;
-	TF_CIT_TMPL(fabric)->tfc_wwn_cit.ct_attrs = usbg_wwn_attrs;
-	TF_CIT_TMPL(fabric)->tfc_tpg_base_cit.ct_attrs = usbg_base_attrs;
-	TF_CIT_TMPL(fabric)->tfc_tpg_attrib_cit.ct_attrs = NULL;
-	TF_CIT_TMPL(fabric)->tfc_tpg_param_cit.ct_attrs = NULL;
-	TF_CIT_TMPL(fabric)->tfc_tpg_np_base_cit.ct_attrs = NULL;
-	TF_CIT_TMPL(fabric)->tfc_tpg_nacl_base_cit.ct_attrs = NULL;
-	TF_CIT_TMPL(fabric)->tfc_tpg_nacl_attrib_cit.ct_attrs = NULL;
-	TF_CIT_TMPL(fabric)->tfc_tpg_nacl_auth_cit.ct_attrs = NULL;
-	TF_CIT_TMPL(fabric)->tfc_tpg_nacl_param_cit.ct_attrs = NULL;
+	fabric->tf_cit_tmpl.tfc_wwn_cit.ct_attrs = usbg_wwn_attrs;
+	fabric->tf_cit_tmpl.tfc_tpg_base_cit.ct_attrs = usbg_base_attrs;
+	fabric->tf_cit_tmpl.tfc_tpg_attrib_cit.ct_attrs = NULL;
+	fabric->tf_cit_tmpl.tfc_tpg_param_cit.ct_attrs = NULL;
+	fabric->tf_cit_tmpl.tfc_tpg_np_base_cit.ct_attrs = NULL;
+	fabric->tf_cit_tmpl.tfc_tpg_nacl_base_cit.ct_attrs = NULL;
+	fabric->tf_cit_tmpl.tfc_tpg_nacl_attrib_cit.ct_attrs = NULL;
+	fabric->tf_cit_tmpl.tfc_tpg_nacl_auth_cit.ct_attrs = NULL;
+	fabric->tf_cit_tmpl.tfc_tpg_nacl_param_cit.ct_attrs = NULL;
 	ret = target_fabric_configfs_register(fabric);
 	if (ret < 0) {
 		printk(KERN_ERR "target_fabric_configfs_register() failed"

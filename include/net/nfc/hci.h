@@ -24,12 +24,6 @@
 
 #include <net/nfc/nfc.h>
 
-struct nfc_phy_ops {
-	int (*write)(void *dev_id, struct sk_buff *skb);
-	int (*enable)(void *dev_id);
-	void (*disable)(void *dev_id);
-};
-
 struct nfc_hci_dev;
 
 struct nfc_hci_ops {

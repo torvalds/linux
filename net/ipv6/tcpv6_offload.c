@@ -37,34 +37,32 @@ static struct sk_buff **tcp6_gro_receive(struct sk_buff **head,
 {
 	const struct ipv6hdr *iph = skb_gro_network_header(skb);
 	__wsum wsum;
-	__sum16 sum;
+
+	/* Don't bother verifying checksum if we're going to flush anyway. */
+	if (NAPI_GRO_CB(skb)->flush)
+		goto skip_csum;
+
+	wsum = skb->csum;
 
 	switch (skb->ip_summed) {
+	case CHECKSUM_NONE:
+		wsum = skb_checksum(skb, skb_gro_offset(skb), skb_gro_len(skb),
+				    wsum);
+
+		/* fall through */
+
 	case CHECKSUM_COMPLETE:
 		if (!tcp_v6_check(skb_gro_len(skb), &iph->saddr, &iph->daddr,
-				  skb->csum)) {
+				  wsum)) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			break;
 		}
-flush:
+
 		NAPI_GRO_CB(skb)->flush = 1;
 		return NULL;
-
-	case CHECKSUM_NONE:
-		wsum = ~csum_unfold(csum_ipv6_magic(&iph->saddr, &iph->daddr,
-						    skb_gro_len(skb),
-						    IPPROTO_TCP, 0));
-		sum = csum_fold(skb_checksum(skb,
-					     skb_gro_offset(skb),
-					     skb_gro_len(skb),
-					     wsum));
-		if (sum)
-			goto flush;
-
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		break;
 	}
 
+skip_csum:
 	return tcp_gro_receive(head, skb);
 }
 
@@ -83,7 +81,7 @@ static int tcp6_gro_complete(struct sk_buff *skb)
 static const struct net_offload tcpv6_offload = {
 	.callbacks = {
 		.gso_send_check	=	tcp_v6_gso_send_check,
-		.gso_segment	=	tcp_tso_segment,
+		.gso_segment	=	tcp_gso_segment,
 		.gro_receive	=	tcp6_gro_receive,
 		.gro_complete	=	tcp6_gro_complete,
 	},
