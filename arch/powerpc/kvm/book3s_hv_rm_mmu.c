@@ -240,6 +240,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 			is_io = hpte_cache_bits(pte_val(pte));
 			pa = pte_pfn(pte) << PAGE_SHIFT;
 			pa |= hva & (pte_size - 1);
+			pa |= gpa & ~PAGE_MASK;
 		}
 	}
 
