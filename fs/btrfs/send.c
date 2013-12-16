@@ -4769,12 +4769,21 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	struct send_ctx *sctx = NULL;
 	u32 i;
 	u64 *clone_sources_tmp = NULL;
+	int clone_sources_to_rollback = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	send_root = BTRFS_I(file_inode(mnt_file))->root;
 	fs_info = send_root->fs_info;
+
+	/*
+	 * The subvolume must remain read-only during send, protect against
+	 * making it RW.
+	 */
+	spin_lock(&send_root->root_item_lock);
+	send_root->send_in_progress++;
+	spin_unlock(&send_root->root_item_lock);
 
 	/*
 	 * This is done when we lookup the root, it should already be complete
@@ -4809,6 +4818,15 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 		}
 	} else {
 		up_read(&send_root->fs_info->extent_commit_sem);
+	}
+
+	/*
+	 * Userspace tools do the checks and warn the user if it's
+	 * not RO.
+	 */
+	if (!btrfs_root_readonly(send_root)) {
+		ret = -EPERM;
+		goto out;
 	}
 
 	arg = memdup_user(arg_, sizeof(*arg));
@@ -4897,6 +4915,15 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 				ret = PTR_ERR(clone_root);
 				goto out;
 			}
+			clone_sources_to_rollback = i + 1;
+			spin_lock(&clone_root->root_item_lock);
+			clone_root->send_in_progress++;
+			if (!btrfs_root_readonly(clone_root)) {
+				spin_unlock(&clone_root->root_item_lock);
+				ret = -EPERM;
+				goto out;
+			}
+			spin_unlock(&clone_root->root_item_lock);
 			sctx->clone_roots[i].root = clone_root;
 		}
 		vfree(clone_sources_tmp);
@@ -4912,6 +4939,14 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 			ret = PTR_ERR(sctx->parent_root);
 			goto out;
 		}
+		spin_lock(&sctx->parent_root->root_item_lock);
+		sctx->parent_root->send_in_progress++;
+		if (!btrfs_root_readonly(sctx->parent_root)) {
+			spin_unlock(&sctx->parent_root->root_item_lock);
+			ret = -EPERM;
+			goto out;
+		}
+		spin_unlock(&sctx->parent_root->root_item_lock);
 	}
 
 	/*
@@ -4940,6 +4975,25 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	}
 
 out:
+	for (i = 0; sctx && i < clone_sources_to_rollback; i++) {
+		struct btrfs_root *r = sctx->clone_roots[i].root;
+
+		spin_lock(&r->root_item_lock);
+		r->send_in_progress--;
+		spin_unlock(&r->root_item_lock);
+	}
+	if (sctx && !IS_ERR_OR_NULL(sctx->parent_root)) {
+		struct btrfs_root *r = sctx->parent_root;
+
+		spin_lock(&r->root_item_lock);
+		r->send_in_progress--;
+		spin_unlock(&r->root_item_lock);
+	}
+
+	spin_lock(&send_root->root_item_lock);
+	send_root->send_in_progress--;
+	spin_unlock(&send_root->root_item_lock);
+
 	kfree(arg);
 	vfree(clone_sources_tmp);
 
