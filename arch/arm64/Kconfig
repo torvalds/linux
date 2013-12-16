@@ -144,11 +144,138 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
+config ARM_CPU_TOPOLOGY
+	bool "Support CPU topology definition"
+	depends on SMP
+	default y
+	help
+	  Support CPU topology definition, based on configuration
+	  provided by the firmware.
+
+config SCHED_MC
+	bool "Multi-core scheduler support"
+	depends on ARM_CPU_TOPOLOGY
+	help
+	  Multi-core scheduler support improves the CPU scheduler's decision
+	  making when dealing with multi-core CPU chips at a cost of slightly
+	  increased overhead in some places. If unsure say N here.
+
+config SCHED_SMT
+	bool "SMT scheduler support"
+	depends on ARM_CPU_TOPOLOGY
+	help
+	  Improves the CPU scheduler's decision making when dealing with
+	  MultiThreading at a cost of slightly increased overhead in some
+	  places. If unsure say N here.
+
+config DISABLE_CPU_SCHED_DOMAIN_BALANCE
+	bool "(EXPERIMENTAL) Disable CPU level scheduler load-balancing"
+	help
+	  Disables scheduler load-balancing at CPU sched domain level.
+
+config SCHED_HMP
+	bool "(EXPERIMENTAL) Heterogenous multiprocessor scheduling"
+	depends on DISABLE_CPU_SCHED_DOMAIN_BALANCE && SCHED_MC && FAIR_GROUP_SCHED && !SCHED_AUTOGROUP
+	help
+	  Experimental scheduler optimizations for heterogeneous platforms.
+	  Attempts to introspectively select task affinity to optimize power
+	  and performance. Basic support for multiple (>2) cpu types is in place,
+	  but it has only been tested with two types of cpus.
+	  There is currently no support for migration of task groups, hence
+	  !SCHED_AUTOGROUP. Furthermore, normal load-balancing must be disabled
+	  between cpus of different type (DISABLE_CPU_SCHED_DOMAIN_BALANCE).
+
+config SCHED_HMP_PRIO_FILTER
+	bool "(EXPERIMENTAL) Filter HMP migrations by task priority"
+	depends on SCHED_HMP
+	help
+	  Enables task priority based HMP migration filter. Any task with
+	  a NICE value above the threshold will always be on low-power cpus
+	  with less compute capacity.
+
+config SCHED_HMP_PRIO_FILTER_VAL
+	int "NICE priority threshold"
+	default 5
+	depends on SCHED_HMP_PRIO_FILTER
+
+config HMP_FAST_CPU_MASK
+	string "HMP scheduler fast CPU mask"
+	depends on SCHED_HMP
+	help
+          Leave empty to use device tree information.
+	  Specify the cpuids of the fast CPUs in the system as a list string,
+	  e.g. cpuid 0+1 should be specified as 0-1.
+
+config HMP_SLOW_CPU_MASK
+	string "HMP scheduler slow CPU mask"
+	depends on SCHED_HMP
+	help
+	  Leave empty to use device tree information.
+	  Specify the cpuids of the slow CPUs in the system as a list string,
+	  e.g. cpuid 0+1 should be specified as 0-1.
+
+config HMP_VARIABLE_SCALE
+	bool "Allows changing the load tracking scale through sysfs"
+	depends on SCHED_HMP
+	help
+	  When turned on, this option exports the thresholds and load average
+	  period value for the load tracking patches through sysfs.
+	  The values can be modified to change the rate of load accumulation
+	  and the thresholds used for HMP migration.
+	  The load_avg_period_ms is the time in ms to reach a load average of
+	  0.5 for an idle task of 0 load average ratio that start a busy loop.
+	  The up_threshold and down_threshold is the value to go to a faster
+	  CPU or to go back to a slower cpu.
+	  The {up,down}_threshold are devided by 1024 before being compared
+	  to the load average.
+	  For examples, with load_avg_period_ms = 128 and up_threshold = 512,
+	  a running task with a load of 0 will be migrated to a bigger CPU after
+	  128ms, because after 128ms its load_avg_ratio is 0.5 and the real
+	  up_threshold is 0.5.
+	  This patch has the same behavior as changing the Y of the load
+	  average computation to
+	        (1002/1024)^(LOAD_AVG_PERIOD/load_avg_period_ms)
+	  but it remove intermadiate overflows in computation.
+
+config HMP_FREQUENCY_INVARIANT_SCALE
+	bool "(EXPERIMENTAL) Frequency-Invariant Tracked Load for HMP"
+	depends on HMP_VARIABLE_SCALE && CPU_FREQ
+	help
+	  Scales the current load contribution in line with the frequency
+	  of the CPU that the task was executed on.
+	  In this version, we use a simple linear scale derived from the
+	  maximum frequency reported by CPUFreq.
+	  Restricting tracked load to be scaled by the CPU's frequency
+	  represents the consumption of possible compute capacity
+	  (rather than consumption of actual instantaneous capacity as
+	  normal) and allows the HMP migration's simple threshold
+	  migration strategy to interact more predictably with CPUFreq's
+	  asynchronous compute capacity changes.
+
+config SCHED_HMP_LITTLE_PACKING
+	bool "Small task packing for HMP"
+	depends on SCHED_HMP
+	default n
+	help
+	  Allows the HMP Scheduler to pack small tasks into CPUs in the
+	  smallest HMP domain.
+	  Controlled by two sysfs files in sys/kernel/hmp.
+	  packing_enable: 1 to enable, 0 to disable packing. Default 1.
+	  packing_limit: runqueue load ratio where a RQ is considered
+	    to be full. Default is NICE_0_LOAD * 9/8.
+
 config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32
 	depends on SMP
 	default "4"
+
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs"
+	depends on SMP
+	help
+	  Say Y here to experiment with turning CPUs off and on.  CPUs
+	  can be controlled through /sys/devices/system/cpu.
 
 source kernel/Kconfig.preempt
 
@@ -226,6 +353,14 @@ config COMPAT
 config SYSVIPC_COMPAT
 	def_bool y
 	depends on COMPAT && SYSVIPC
+
+endmenu
+
+menu "Power management options"
+
+source "kernel/power/Kconfig"
+
+source "drivers/cpufreq/Kconfig"
 
 endmenu
 
