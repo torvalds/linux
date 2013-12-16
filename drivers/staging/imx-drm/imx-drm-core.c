@@ -200,8 +200,8 @@ static void imx_drm_driver_preclose(struct drm_device *drm,
 	if (!file->is_master)
 		return;
 
-	for (i = 0; i < 4; i++)
-		imx_drm_disable_vblank(drm , i);
+	for (i = 0; i < MAX_CRTC; i++)
+		imx_drm_disable_vblank(drm, i);
 }
 
 static const struct file_operations imx_drm_driver_fops = {
