@@ -214,9 +214,16 @@ static void __init sw_core_reserve(void)
 	pr_info("Memory Reserved:\n");
 	reserve_sys();
 	/* 0 - 64M is used by reserve_sys */
+#ifdef CONFIG_CMA
+	/* We want CMA area to be in the first 256MB of RAM (for Cedar),
+	 * so move other reservations above
+	 */
+	reserved_start = meminfo.bank[0].start + SZ_256M;
+#else
 	reserved_start = meminfo.bank[0].start + SZ_64M;
+#endif
 	reserved_max   = meminfo.bank[0].start + meminfo.bank[0].size;
-#ifdef RESERVE_VE_MEM
+#if !defined(CONFIG_CMA) && defined(RESERVE_VE_MEM)
 	reserve_mem(&ve_start, &ve_size, "VE  ");
 #endif
 #if IS_ENABLED(CONFIG_SUNXI_G2D)

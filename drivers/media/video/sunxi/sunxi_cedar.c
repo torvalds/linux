@@ -35,6 +35,7 @@
 #include <linux/sched.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -78,6 +79,9 @@ struct clk *hosc_clk = NULL;
 
 static unsigned long pll4clk_rate = 720000000;
 
+#ifdef CONFIG_CMA
+static void *ve_start_virt;
+#endif
 extern unsigned long ve_start;
 extern unsigned long ve_size;
 extern int flush_clean_user_range(long start, long end);
@@ -924,10 +928,30 @@ static int __init cedardev_init(void)
 	unsigned int val;
 	dev_t dev = 0;
 
+#ifdef CONFIG_CMA
+	/* If having CMA enabled, just rely on CMA for memory allocation */
+	resource_size_t pa;
+	ve_size = 80 * SZ_1M;
+	ve_start_virt = dma_alloc_coherent(NULL, ve_size, &pa,
+							GFP_KERNEL | GFP_DMA);
+	if (!ve_start_virt) {
+		printk(KERN_NOTICE "cedar: failed to allocate memory buffer\n");
+		return -ENODEV;
+	}
+	ve_start = pa;
+	if (ve_start + ve_size > SW_PA_SDRAM_START + SZ_256M) {
+		printk(KERN_NOTICE "cedar: buffer is above 256MB limit\n");
+		dma_free_coherent(NULL, ve_size, ve_start_virt, ve_start);
+		ve_start_virt = 0;
+		ve_size = 0;
+		return -ENODEV;
+	}
+#else
 	if (ve_size == 0) {
 		printk("[cedar dev]: not installed! ve_mem_reserve=0\n");
 		return -ENODEV;
 	}
+#endif
 
 	printk("[cedar dev]: install start!!!\n");
 	if((platform_device_register(&sw_device_cedar))<0)
@@ -1073,6 +1097,14 @@ static void __exit cedardev_exit(void)
 	if (cedar_devp) {
 		kfree(cedar_devp);
 	}
+
+#ifdef CONFIG_CMA
+	if (ve_start_virt) {
+		dma_free_coherent(NULL, ve_size, ve_start_virt, ve_start);
+		ve_start_virt = 0;
+		ve_size = 0;
+	}
+#endif
 }
 module_exit(cedardev_exit);
 
