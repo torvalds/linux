@@ -551,3 +551,13 @@ int bond_option_fail_over_mac_set(struct bonding *bond, int fail_over_mac)
 
 	return 0;
 }
+
+int bond_option_xmit_hash_policy_set(struct bonding *bond, int xmit_hash_policy)
+{
+	bond->params.xmit_policy = xmit_hash_policy;
+	pr_info("%s: setting xmit hash policy to %s (%d).\n",
+		bond->dev->name,
+		xmit_hashtype_tbl[xmit_hash_policy].modename, xmit_hash_policy);
+
+	return 0;
+}
