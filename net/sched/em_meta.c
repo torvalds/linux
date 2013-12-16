@@ -222,7 +222,7 @@ META_COLLECTOR(int_maclen)
 
 META_COLLECTOR(int_rxhash)
 {
-	dst->value = skb_get_rxhash(skb);
+	dst->value = skb_get_hash(skb);
 }
 
 /**************************************************************************
