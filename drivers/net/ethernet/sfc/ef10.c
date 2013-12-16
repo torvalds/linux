@@ -2245,7 +2245,9 @@ static void efx_ef10_filter_push_prep(struct efx_nic *efx,
 		       MC_CMD_FILTER_OP_IN_RX_DEST_HOST);
 	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_TX_DEST,
 		       MC_CMD_FILTER_OP_IN_TX_DEST_DEFAULT);
-	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_RX_QUEUE, spec->dmaq_id);
+	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_RX_QUEUE,
+		       spec->dmaq_id == EFX_FILTER_RX_DMAQ_ID_DROP ?
+		       0 : spec->dmaq_id);
 	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_RX_MODE,
 		       (spec->flags & EFX_FILTER_FLAG_RX_RSS) ?
 		       MC_CMD_FILTER_OP_IN_RX_MODE_RSS :
