@@ -88,8 +88,6 @@ struct send_ctx {
 	u64 cmd_send_size[BTRFS_SEND_C_MAX + 1];
 	u64 flags;	/* 'flags' member of btrfs_ioctl_send_args is u64 */
 
-	struct vfsmount *mnt;
-
 	struct btrfs_root *send_root;
 	struct btrfs_root *parent_root;
 	struct clone_root *clone_roots;
@@ -4850,8 +4848,6 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 		ret = -EBADF;
 		goto out;
 	}
-
-	sctx->mnt = mnt_file->f_path.mnt;
 
 	sctx->send_root = send_root;
 	sctx->clone_roots_cnt = arg->clone_sources_count;
