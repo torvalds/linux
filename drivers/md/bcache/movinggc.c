@@ -64,11 +64,16 @@ static void write_moving_finish(struct closure *cl)
 
 static void read_moving_endio(struct bio *bio, int error)
 {
+	struct bbio *b = container_of(bio, struct bbio, bio);
 	struct moving_io *io = container_of(bio->bi_private,
 					    struct moving_io, cl);
 
 	if (error)
 		io->op.error = error;
+	else if (!KEY_DIRTY(&b->key) &&
+		 ptr_stale(io->op.c, &b->key, 0)) {
+		io->op.error = -EINTR;
+	}
 
 	bch_bbio_endio(io->op.c, bio, error, "reading data to move");
 }
@@ -139,6 +144,11 @@ static void read_moving(struct cache_set *c)
 					   &MAX_KEY, moving_pred);
 		if (!w)
 			break;
+
+		if (ptr_stale(c, &w->key, 0)) {
+			bch_keybuf_del(&c->moving_gc_keys, w);
+			continue;
+		}
 
 		io = kzalloc(sizeof(struct moving_io) + sizeof(struct bio_vec)
 			     * DIV_ROUND_UP(KEY_SIZE(&w->key), PAGE_SECTORS),
