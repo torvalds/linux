@@ -3429,9 +3429,13 @@ static int dib8000_get_frontend(struct dvb_frontend *fe)
 		fe->dtv_property_cache.layer[i].segment_count = val & 0x0F;
 		dprintk("dib8000_get_frontend : Layer %d segments = %d ", i, fe->dtv_property_cache.layer[i].segment_count);
 
-		val = dib8000_read_word(state, 499 + i);
-		fe->dtv_property_cache.layer[i].interleaving = val & 0x3;
-		dprintk("dib8000_get_frontend : Layer %d time_intlv = %d ", i, fe->dtv_property_cache.layer[i].interleaving);
+		val = dib8000_read_word(state, 499 + i) & 0x3;
+		/* Interleaving can be 0, 1, 2 or 4 */
+		if (val == 3)
+			val = 4;
+		fe->dtv_property_cache.layer[i].interleaving = val;
+		dprintk("dib8000_get_frontend : Layer %d time_intlv = %d ",
+			i, fe->dtv_property_cache.layer[i].interleaving);
 
 		val = dib8000_read_word(state, 481 + i);
 		switch (val & 0x7) {
