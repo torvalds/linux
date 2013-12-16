@@ -525,6 +525,7 @@ static const struct of_device_id of_imx_thermal_match[] = {
 	{ .compatible = "fsl,imx6q-tempmon", },
 	{ /* end */ }
 };
+MODULE_DEVICE_TABLE(of, of_imx_thermal_match);
 
 static struct platform_driver imx_thermal = {
 	.driver = {
