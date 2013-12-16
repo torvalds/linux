@@ -157,7 +157,7 @@ static int radeon_dp_aux_native_write(struct radeon_connector *radeon_connector,
 
 	msg[0] = address;
 	msg[1] = address >> 8;
-	msg[2] = AUX_NATIVE_WRITE << 4;
+	msg[2] = DP_AUX_NATIVE_WRITE << 4;
 	msg[3] = (msg_bytes << 4) | (send_bytes - 1);
 	memcpy(&msg[4], send, send_bytes);
 
@@ -168,9 +168,10 @@ static int radeon_dp_aux_native_write(struct radeon_connector *radeon_connector,
 			continue;
 		else if (ret < 0)
 			return ret;
-		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK)
+		ack >>= 4;
+		if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_ACK)
 			return send_bytes;
-		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
+		else if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_DEFER)
 			udelay(400);
 		else
 			return -EIO;
@@ -191,7 +192,7 @@ static int radeon_dp_aux_native_read(struct radeon_connector *radeon_connector,
 
 	msg[0] = address;
 	msg[1] = address >> 8;
-	msg[2] = AUX_NATIVE_READ << 4;
+	msg[2] = DP_AUX_NATIVE_READ << 4;
 	msg[3] = (msg_bytes << 4) | (recv_bytes - 1);
 
 	for (retry = 0; retry < 4; retry++) {
@@ -201,9 +202,10 @@ static int radeon_dp_aux_native_read(struct radeon_connector *radeon_connector,
 			continue;
 		else if (ret < 0)
 			return ret;
-		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK)
+		ack >>= 4;
+		if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_ACK)
 			return ret;
-		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
+		else if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_DEFER)
 			udelay(400);
 		else if (ret == 0)
 			return -EPROTO;
@@ -246,12 +248,12 @@ int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 
 	/* Set up the command byte */
 	if (mode & MODE_I2C_READ)
-		msg[2] = AUX_I2C_READ << 4;
+		msg[2] = DP_AUX_I2C_READ << 4;
 	else
-		msg[2] = AUX_I2C_WRITE << 4;
+		msg[2] = DP_AUX_I2C_WRITE << 4;
 
 	if (!(mode & MODE_I2C_STOP))
-		msg[2] |= AUX_I2C_MOT << 4;
+		msg[2] |= DP_AUX_I2C_MOT << 4;
 
 	msg[0] = address;
 	msg[1] = address >> 8;
@@ -282,16 +284,16 @@ int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 			return ret;
 		}
 
-		switch (ack & AUX_NATIVE_REPLY_MASK) {
-		case AUX_NATIVE_REPLY_ACK:
+		switch ((ack >> 4) & DP_AUX_NATIVE_REPLY_MASK) {
+		case DP_AUX_NATIVE_REPLY_ACK:
 			/* I2C-over-AUX Reply field is only valid
 			 * when paired with AUX ACK.
 			 */
 			break;
-		case AUX_NATIVE_REPLY_NACK:
+		case DP_AUX_NATIVE_REPLY_NACK:
 			DRM_DEBUG_KMS("aux_ch native nack\n");
 			return -EREMOTEIO;
-		case AUX_NATIVE_REPLY_DEFER:
+		case DP_AUX_NATIVE_REPLY_DEFER:
 			DRM_DEBUG_KMS("aux_ch native defer\n");
 			udelay(400);
 			continue;
@@ -300,15 +302,15 @@ int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 			return -EREMOTEIO;
 		}
 
-		switch (ack & AUX_I2C_REPLY_MASK) {
-		case AUX_I2C_REPLY_ACK:
+		switch ((ack >> 4) & DP_AUX_I2C_REPLY_MASK) {
+		case DP_AUX_I2C_REPLY_ACK:
 			if (mode == MODE_I2C_READ)
 				*read_byte = reply[0];
 			return ret;
-		case AUX_I2C_REPLY_NACK:
+		case DP_AUX_I2C_REPLY_NACK:
 			DRM_DEBUG_KMS("aux_i2c nack\n");
 			return -EREMOTEIO;
-		case AUX_I2C_REPLY_DEFER:
+		case DP_AUX_I2C_REPLY_DEFER:
 			DRM_DEBUG_KMS("aux_i2c defer\n");
 			udelay(400);
 			break;

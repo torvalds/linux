@@ -41,22 +41,22 @@
  * 1.2 formally includes both eDP and DPI definitions.
  */
 
-#define AUX_NATIVE_WRITE	0x8
-#define AUX_NATIVE_READ		0x9
-#define AUX_I2C_WRITE		0x0
-#define AUX_I2C_READ		0x1
-#define AUX_I2C_STATUS		0x2
-#define AUX_I2C_MOT		0x4
+#define DP_AUX_I2C_WRITE		0x0
+#define DP_AUX_I2C_READ			0x1
+#define DP_AUX_I2C_STATUS		0x2
+#define DP_AUX_I2C_MOT			0x4
+#define DP_AUX_NATIVE_WRITE		0x8
+#define DP_AUX_NATIVE_READ		0x9
 
-#define AUX_NATIVE_REPLY_ACK	(0x0 << 4)
-#define AUX_NATIVE_REPLY_NACK	(0x1 << 4)
-#define AUX_NATIVE_REPLY_DEFER	(0x2 << 4)
-#define AUX_NATIVE_REPLY_MASK	(0x3 << 4)
+#define DP_AUX_NATIVE_REPLY_ACK		(0x0 << 0)
+#define DP_AUX_NATIVE_REPLY_NACK	(0x1 << 0)
+#define DP_AUX_NATIVE_REPLY_DEFER	(0x2 << 0)
+#define DP_AUX_NATIVE_REPLY_MASK	(0x3 << 0)
 
-#define AUX_I2C_REPLY_ACK	(0x0 << 6)
-#define AUX_I2C_REPLY_NACK	(0x1 << 6)
-#define AUX_I2C_REPLY_DEFER	(0x2 << 6)
-#define AUX_I2C_REPLY_MASK	(0x3 << 6)
+#define DP_AUX_I2C_REPLY_ACK		(0x0 << 2)
+#define DP_AUX_I2C_REPLY_NACK		(0x1 << 2)
+#define DP_AUX_I2C_REPLY_DEFER		(0x2 << 2)
+#define DP_AUX_I2C_REPLY_MASK		(0x3 << 2)
 
 /* AUX CH addresses */
 /* DPCD */
