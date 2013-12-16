@@ -271,6 +271,7 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 	if (prog == NULL)
 		return -ENOBUFS;
 
+	tcf_exts_init(&prog->exts);
 	if (handle == 0)
 		prog->handle = cls_bpf_grab_new_handle(tp, head);
 	else

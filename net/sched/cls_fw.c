@@ -280,6 +280,7 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 	if (f == NULL)
 		return -ENOBUFS;
 
+	tcf_exts_init(&f->exts);
 	f->id = handle;
 
 	err = fw_change_attrs(net, tp, f, tb, tca, base);

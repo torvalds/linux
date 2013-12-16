@@ -455,6 +455,7 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 
 		f->handle = handle;
 		f->mask	  = ~0U;
+		tcf_exts_init(&f->exts);
 
 		get_random_bytes(&f->hashrnd, 4);
 		f->perturb_timer.function = flow_perturbation;

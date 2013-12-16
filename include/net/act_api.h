@@ -60,7 +60,7 @@ struct tc_action {
 	const struct tc_action_ops	*ops;
 	__u32			type; /* for backward compat(TCA_OLD_COMPAT) */
 	__u32			order;
-	struct tc_action	*next;
+	struct list_head	list;
 };
 
 #define TCA_CAP_NONE 0
@@ -99,16 +99,16 @@ void tcf_hash_insert(struct tcf_common *p, struct tcf_hashinfo *hinfo);
 
 int tcf_register_action(struct tc_action_ops *a);
 int tcf_unregister_action(struct tc_action_ops *a);
-void tcf_action_destroy(struct tc_action *a, int bind);
-int tcf_action_exec(struct sk_buff *skb, const struct tc_action *a,
+void tcf_action_destroy(struct list_head *actions, int bind);
+int tcf_action_exec(struct sk_buff *skb, const struct list_head *actions,
 		    struct tcf_result *res);
-struct tc_action *tcf_action_init(struct net *net, struct nlattr *nla,
+int tcf_action_init(struct net *net, struct nlattr *nla,
 				  struct nlattr *est, char *n, int ovr,
-				  int bind);
+				  int bind, struct list_head *);
 struct tc_action *tcf_action_init_1(struct net *net, struct nlattr *nla,
 				    struct nlattr *est, char *n, int ovr,
 				    int bind);
-int tcf_action_dump(struct sk_buff *skb, struct tc_action *a, int, int);
+int tcf_action_dump(struct sk_buff *skb, struct list_head *, int, int);
 int tcf_action_dump_old(struct sk_buff *skb, struct tc_action *a, int, int);
 int tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int, int);
 int tcf_action_copy_stats(struct sk_buff *, struct tc_action *, int);

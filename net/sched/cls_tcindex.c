@@ -215,11 +215,14 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 
 	memcpy(&cp, p, sizeof(cp));
 	memset(&new_filter_result, 0, sizeof(new_filter_result));
+	tcf_exts_init(&new_filter_result.exts);
 
 	if (old_r)
 		memcpy(&cr, r, sizeof(cr));
-	else
+	else {
 		memset(&cr, 0, sizeof(cr));
+		tcf_exts_init(&cr.exts);
+	}
 
 	if (tb[TCA_TCINDEX_HASH])
 		cp.hash = nla_get_u32(tb[TCA_TCINDEX_HASH]);

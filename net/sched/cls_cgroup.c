@@ -203,6 +203,7 @@ static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 		if (head == NULL)
 			return -ENOBUFS;
 
+		tcf_exts_init(&head->exts);
 		head->handle = handle;
 
 		tcf_tree_lock(tp);

@@ -62,7 +62,8 @@ tcf_unbind_filter(struct tcf_proto *tp, struct tcf_result *r)
 
 struct tcf_exts {
 #ifdef CONFIG_NET_CLS_ACT
-	struct tc_action *action;
+	__u32	type; /* for backward compat(TCA_OLD_COMPAT) */
+	struct list_head actions;
 #endif
 };
 
@@ -73,6 +74,13 @@ struct tcf_ext_map {
 	int action;
 	int police;
 };
+
+static inline void tcf_exts_init(struct tcf_exts *exts)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	INIT_LIST_HEAD(&exts->actions);
+#endif
+}
 
 /**
  * tcf_exts_is_predicative - check if a predicative extension is present
@@ -85,7 +93,7 @@ static inline int
 tcf_exts_is_predicative(struct tcf_exts *exts)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	return !!exts->action;
+	return !list_empty(&exts->actions);
 #else
 	return 0;
 #endif
@@ -120,8 +128,8 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 	       struct tcf_result *res)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	if (exts->action)
-		return tcf_action_exec(skb, exts->action, res);
+	if (!list_empty(&exts->actions))
+		return tcf_action_exec(skb, &exts->actions, res);
 #endif
 	return 0;
 }

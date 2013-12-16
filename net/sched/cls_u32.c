@@ -646,6 +646,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	n->ht_up = ht;
 	n->handle = handle;
 	n->fshift = s->hmask ? ffs(ntohl(s->hmask)) - 1 : 0;
+	tcf_exts_init(&n->exts);
 
 #ifdef CONFIG_CLS_U32_MARK
 	if (tb[TCA_U32_MARK]) {

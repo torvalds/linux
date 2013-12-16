@@ -191,6 +191,7 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 	if (f == NULL)
 		goto errout;
 
+	tcf_exts_init(&f->exts);
 	err = -EINVAL;
 	if (handle)
 		f->handle = handle;

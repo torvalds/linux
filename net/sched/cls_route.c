@@ -481,6 +481,7 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 	if (f == NULL)
 		goto errout;
 
+	tcf_exts_init(&f->exts);
 	err = route4_set_parms(net, tp, base, f, handle, head, tb,
 		tca[TCA_RATE], 1);
 	if (err < 0)
