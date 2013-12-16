@@ -102,6 +102,7 @@ static struct gpio_chip moxart_template_chip = {
 	.set			= moxart_gpio_set,
 	.get			= moxart_gpio_get,
 	.ngpio			= 32,
+	.owner			= THIS_MODULE,
 };
 
 static int moxart_gpio_probe(struct platform_device *pdev)
