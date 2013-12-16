@@ -2272,8 +2272,10 @@ static int mce_device_create(unsigned int cpu)
 	dev->release = &mce_device_release;
 
 	err = device_register(dev);
-	if (err)
+	if (err) {
+		put_device(dev);
 		return err;
+	}
 
 	for (i = 0; mce_device_attrs[i]; i++) {
 		err = device_create_file(dev, mce_device_attrs[i]);
