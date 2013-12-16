@@ -2109,7 +2109,8 @@ static void qla4xxx_set_ipv6(struct scsi_qla_host *ha,
 				cpu_to_le16(IPV6_TCPOPT_DELAYED_ACK_DISABLE);
 		else
 			init_fw_cb->ipv6_tcp_opts &=
-				cpu_to_le16(~IPV6_TCPOPT_DELAYED_ACK_DISABLE);
+				cpu_to_le16(~IPV6_TCPOPT_DELAYED_ACK_DISABLE &
+					    0xFFFF);
 		break;
 	case ISCSI_NET_PARAM_TCP_NAGLE_DISABLE:
 		if (iface_param->iface_num & 0x1)
@@ -2306,7 +2307,8 @@ static void qla4xxx_set_ipv4(struct scsi_qla_host *ha,
 				cpu_to_le16(TCPOPT_DELAYED_ACK_DISABLE);
 		else
 			init_fw_cb->ipv4_tcp_opts &=
-				cpu_to_le16(~TCPOPT_DELAYED_ACK_DISABLE);
+				cpu_to_le16(~TCPOPT_DELAYED_ACK_DISABLE &
+					    0xFFFF);
 		break;
 	case ISCSI_NET_PARAM_TCP_NAGLE_DISABLE:
 		if (iface_param->iface_num & 0x1)
