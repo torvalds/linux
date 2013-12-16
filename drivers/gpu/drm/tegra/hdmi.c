@@ -379,7 +379,7 @@ static void tegra_hdmi_setup_audio_fs_tables(struct tegra_hdmi *hdmi)
 
 		if (f > 96000)
 			delta = 2;
-		else if (f > 480000)
+		else if (f > 48000)
 			delta = 6;
 		else
 			delta = 9;
