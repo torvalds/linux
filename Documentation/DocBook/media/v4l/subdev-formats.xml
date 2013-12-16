@@ -1178,7 +1178,7 @@
       U, Y, V, Y order will be named <constant>V4L2_MBUS_FMT_UYVY8_2X8</constant>.
       </para>
 
-	<para><xref linkend="v4l2-mbus-pixelcode-yuv8"/> list existing packet YUV
+	<para><xref linkend="v4l2-mbus-pixelcode-yuv8"/> lists existing packet YUV
 	formats and describes the organization of each pixel data in each sample.
 	When a format pattern is split across multiple samples each of the samples
 	in the pattern is described.</para>
