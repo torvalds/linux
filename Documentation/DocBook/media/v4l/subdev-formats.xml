@@ -89,7 +89,7 @@
       <constant>V4L2_MBUS_FMT_RGB555_2X8_PADHI_BE</constant>.
       </para>
 
-      <para>The following tables list existing packet RGB formats.</para>
+      <para>The following tables list existing packed RGB formats.</para>
 
       <table pgwide="0" frame="none" id="v4l2-mbus-pixelcode-rgb">
 	<title>RGB formats</title>
@@ -615,7 +615,7 @@
 	</mediaobject>
       </figure>
 
-      <para>The following table lists existing packet Bayer formats. The data
+      <para>The following table lists existing packed Bayer formats. The data
       organization is given as an example for the first pixel only.</para>
 
       <table pgwide="0" frame="none" id="v4l2-mbus-pixelcode-bayer">
@@ -1178,7 +1178,7 @@
       U, Y, V, Y order will be named <constant>V4L2_MBUS_FMT_UYVY8_2X8</constant>.
       </para>
 
-	<para><xref linkend="v4l2-mbus-pixelcode-yuv8"/> lists existing packet YUV
+	<para><xref linkend="v4l2-mbus-pixelcode-yuv8"/> lists existing packed YUV
 	formats and describes the organization of each pixel data in each sample.
 	When a format pattern is split across multiple samples each of the samples
 	in the pattern is described.</para>
