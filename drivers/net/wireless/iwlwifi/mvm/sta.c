@@ -932,19 +932,6 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	IWL_DEBUG_HT(mvm, "Tx aggregation enabled on ra = %pM tid = %d\n",
 		     sta->addr, tid);
 
-	if (mvm->cfg->ht_params->use_rts_for_aggregation) {
-		/*
-		 * switch to RTS/CTS if it is the prefer protection
-		 * method for HT traffic
-		 * this function also sends the LQ command
-		 */
-		return iwl_mvm_tx_protection(mvm, mvmsta, true);
-		/*
-		 * TODO: remove the TLC_RTS flag when we tear down the last
-		 * AGG session (agg_tids_count in DVM)
-		 */
-	}
-
 	return iwl_mvm_send_lq_cmd(mvm, &mvmsta->lq_sta.lq, false);
 }
 
