@@ -2820,7 +2820,7 @@ void qla4_8xxx_get_minidump(struct scsi_qla_host *ha)
 int qla4_8xxx_device_bootstrap(struct scsi_qla_host *ha)
 {
 	int rval = QLA_ERROR;
-	int i, timeout;
+	int i;
 	uint32_t old_count, count;
 	int need_reset = 0, peg_stuck = 1;
 
@@ -2828,13 +2828,7 @@ int qla4_8xxx_device_bootstrap(struct scsi_qla_host *ha)
 	old_count = qla4_8xxx_rd_direct(ha, QLA8XXX_PEG_ALIVE_COUNTER);
 
 	for (i = 0; i < 10; i++) {
-		timeout = msleep_interruptible(200);
-		if (timeout) {
-			qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
-					    QLA8XXX_DEV_FAILED);
-			return rval;
-		}
-
+		msleep(200);
 		count = qla4_8xxx_rd_direct(ha, QLA8XXX_PEG_ALIVE_COUNTER);
 		if (count != old_count)
 			peg_stuck = 0;
