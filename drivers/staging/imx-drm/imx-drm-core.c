@@ -528,6 +528,7 @@ int imx_drm_add_crtc(struct drm_crtc *crtc,
 	return 0;
 
 err_register:
+	list_del(&imx_drm_crtc->list);
 	kfree(imx_drm_crtc);
 err_alloc:
 err_busy:
