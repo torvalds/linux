@@ -91,7 +91,8 @@ static int atomic_dec_return_safe(atomic_t *v)
 
 #define RBD_DRV_NAME "rbd"
 
-#define RBD_PART_SHIFT	8
+#define RBD_MINORS_PER_MAJOR		256
+#define RBD_SINGLE_MAJOR_PART_SHIFT	4
 
 #define RBD_SNAP_DEV_NAME_PREFIX	"snap_"
 #define RBD_MAX_SNAP_NAME_LEN	\
@@ -415,12 +416,12 @@ static void rbd_spec_put(struct rbd_spec *spec);
 
 static int rbd_dev_id_to_minor(int dev_id)
 {
-	return dev_id << RBD_PART_SHIFT;
+	return dev_id << RBD_SINGLE_MAJOR_PART_SHIFT;
 }
 
 static int minor_to_rbd_dev_id(int minor)
 {
-	return minor >> RBD_PART_SHIFT;
+	return minor >> RBD_SINGLE_MAJOR_PART_SHIFT;
 }
 
 static BUS_ATTR(add, S_IWUSR, NULL, rbd_add);
@@ -3434,7 +3435,9 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	u64 segment_size;
 
 	/* create gendisk info */
-	disk = alloc_disk(1 << RBD_PART_SHIFT);
+	disk = alloc_disk(single_major ?
+			  (1 << RBD_SINGLE_MAJOR_PART_SHIFT) :
+			  RBD_MINORS_PER_MAJOR);
 	if (!disk)
 		return -ENOMEM;
 
@@ -3442,6 +3445,8 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 		 rbd_dev->dev_id);
 	disk->major = rbd_dev->major;
 	disk->first_minor = rbd_dev->minor;
+	if (single_major)
+		disk->flags |= GENHD_FL_EXT_DEVT;
 	disk->fops = &rbd_bd_ops;
 	disk->private_data = rbd_dev;
 
