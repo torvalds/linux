@@ -31,8 +31,7 @@
 #include <net/pkt_cls.h>
 
 /* The list of all installed classifier types */
-
-static struct tcf_proto_ops *tcf_proto_base __read_mostly;
+static LIST_HEAD(tcf_proto_base);
 
 /* Protects list of registered TC modules. It is pure SMP lock. */
 static DEFINE_RWLOCK(cls_mod_lock);
@@ -45,7 +44,7 @@ static const struct tcf_proto_ops *tcf_proto_lookup_ops(struct nlattr *kind)
 
 	if (kind) {
 		read_lock(&cls_mod_lock);
-		for (t = tcf_proto_base; t; t = t->next) {
+		list_for_each_entry(t, &tcf_proto_base, head) {
 			if (nla_strcmp(kind, t->kind) == 0) {
 				if (!try_module_get(t->owner))
 					t = NULL;
@@ -61,16 +60,15 @@ static const struct tcf_proto_ops *tcf_proto_lookup_ops(struct nlattr *kind)
 
 int register_tcf_proto_ops(struct tcf_proto_ops *ops)
 {
-	struct tcf_proto_ops *t, **tp;
+	struct tcf_proto_ops *t;
 	int rc = -EEXIST;
 
 	write_lock(&cls_mod_lock);
-	for (tp = &tcf_proto_base; (t = *tp) != NULL; tp = &t->next)
+	list_for_each_entry(t, &tcf_proto_base, head)
 		if (!strcmp(ops->kind, t->kind))
 			goto out;
 
-	ops->next = NULL;
-	*tp = ops;
+	list_add_tail(&ops->head, &tcf_proto_base);
 	rc = 0;
 out:
 	write_unlock(&cls_mod_lock);
@@ -80,17 +78,17 @@ EXPORT_SYMBOL(register_tcf_proto_ops);
 
 int unregister_tcf_proto_ops(struct tcf_proto_ops *ops)
 {
-	struct tcf_proto_ops *t, **tp;
+	struct tcf_proto_ops *t;
 	int rc = -ENOENT;
 
 	write_lock(&cls_mod_lock);
-	for (tp = &tcf_proto_base; (t = *tp) != NULL; tp = &t->next)
+	list_for_each_entry(t, &tcf_proto_base, head)
 		if (t == ops)
 			break;
 
 	if (!t)
 		goto out;
-	*tp = t->next;
+	list_del(&t->head);
 	rc = 0;
 out:
 	write_unlock(&cls_mod_lock);
