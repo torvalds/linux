@@ -3734,6 +3734,19 @@ static void qlcnic_83xx_decode_mbx_rsp(struct qlcnic_adapter *adapter,
 	return;
 }
 
+static inline void qlcnic_dump_mailbox_registers(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	u32 offset;
+
+	offset = QLCRDX(ahw, QLCNIC_DEF_INT_MASK);
+	dev_info(&adapter->pdev->dev, "Mbx interrupt mask=0x%x, Mbx interrupt enable=0x%x, Host mbx control=0x%x, Fw mbx control=0x%x",
+		 readl(ahw->pci_base0 + offset),
+		 QLCRDX(ahw, QLCNIC_MBX_INTR_ENBL),
+		 QLCRDX(ahw, QLCNIC_HOST_MBX_CTRL),
+		 QLCRDX(ahw, QLCNIC_FW_MBX_CTRL));
+}
+
 static void qlcnic_83xx_mailbox_worker(struct work_struct *work)
 {
 	struct qlcnic_mailbox *mbx = container_of(work, struct qlcnic_mailbox,
@@ -3778,6 +3791,8 @@ static void qlcnic_83xx_mailbox_worker(struct work_struct *work)
 				__func__, cmd->cmd_op, cmd->type, ahw->pci_func,
 				ahw->op_mode);
 			clear_bit(QLC_83XX_MBX_READY, &mbx->status);
+			qlcnic_dump_mailbox_registers(adapter);
+			qlcnic_83xx_get_mbx_data(adapter, cmd);
 			qlcnic_dump_mbx(adapter, cmd);
 			qlcnic_83xx_idc_request_reset(adapter,
 						      QLCNIC_FORCE_FW_DUMP_KEY);
