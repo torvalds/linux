@@ -3190,6 +3190,10 @@ int qla4_8xxx_load_risc(struct scsi_qla_host *ha)
 
 	retval = qla4_8xxx_device_state_handler(ha);
 
+	/* Initialize request and response queues. */
+	if (retval == QLA_SUCCESS)
+		qla4xxx_init_rings(ha);
+
 	if (retval == QLA_SUCCESS && !test_bit(AF_IRQ_ATTACHED, &ha->flags))
 		retval = qla4xxx_request_irqs(ha);
 

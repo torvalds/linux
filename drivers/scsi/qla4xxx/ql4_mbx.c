@@ -648,9 +648,6 @@ int qla4xxx_initialize_fw_cb(struct scsi_qla_host * ha)
 		goto exit_init_fw_cb;
 	}
 
-	/* Initialize request and response queues. */
-	qla4xxx_init_rings(ha);
-
 	/* Fill in the request and response queue information. */
 	init_fw_cb->rqq_consumer_idx = cpu_to_le16(ha->request_out);
 	init_fw_cb->compq_producer_idx = cpu_to_le16(ha->response_in);
