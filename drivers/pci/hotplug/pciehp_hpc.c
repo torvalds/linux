@@ -418,6 +418,9 @@ void pciehp_set_attention_status(struct slot *slot, u8 value)
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
 
+	if (!ATTN_LED(ctrl))
+		return;
+
 	switch (value) {
 	case 0 :	/* turn off */
 		slot_cmd = PCI_EXP_SLTCTL_ATTN_IND_OFF;
@@ -440,6 +443,9 @@ void pciehp_green_led_on(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
 
+	if (!PWR_LED(ctrl))
+		return;
+
 	pcie_write_cmd(ctrl, PCI_EXP_SLTCTL_PWR_IND_ON, PCI_EXP_SLTCTL_PIC);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL,
@@ -450,6 +456,9 @@ void pciehp_green_led_off(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
 
+	if (!PWR_LED(ctrl))
+		return;
+
 	pcie_write_cmd(ctrl, PCI_EXP_SLTCTL_PWR_IND_OFF, PCI_EXP_SLTCTL_PIC);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL,
@@ -459,6 +468,9 @@ void pciehp_green_led_off(struct slot *slot)
 void pciehp_green_led_blink(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
+
+	if (!PWR_LED(ctrl))
+		return;
 
 	pcie_write_cmd(ctrl, PCI_EXP_SLTCTL_PWR_IND_BLINK, PCI_EXP_SLTCTL_PIC);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
