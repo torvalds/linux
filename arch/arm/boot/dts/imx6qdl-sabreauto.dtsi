@@ -14,6 +14,14 @@
 	memory {
 		reg = <0x10000000 0x80000000>;
 	};
+
+	sound-spdif {
+		compatible = "fsl,imx-audio-spdif",
+			   "fsl,imx-sabreauto-spdif";
+		model = "imx-spdif";
+		spdif-controller = <&spdif>;
+		spdif-in;
+	};
 };
 
 &ecspi1 {
@@ -111,6 +119,12 @@
 				MX6QDL_PAD_NANDF_D6__NAND_DATA06	0xb0b1
 				MX6QDL_PAD_NANDF_D7__NAND_DATA07	0xb0b1
 				MX6QDL_PAD_SD4_DAT0__NAND_DQS		0x00b1
+			>;
+		};
+
+		pinctrl_spdif: spdifgrp {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_COL3__SPDIF_IN 0x1b0b0
 			>;
 		};
 
@@ -220,6 +234,12 @@
 			>;
 		};
 	};
+};
+
+&spdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spdif>;
+	status = "okay";
 };
 
 &uart4 {
