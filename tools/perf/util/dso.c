@@ -28,8 +28,9 @@ char dso__symtab_origin(const struct dso *dso)
 	return origin[dso->symtab_type];
 }
 
-int dso__binary_type_file(const struct dso *dso, enum dso_binary_type type,
-			  char *root_dir, char *filename, size_t size)
+int dso__read_binary_type_filename(const struct dso *dso,
+				   enum dso_binary_type type,
+				   char *root_dir, char *filename, size_t size)
 {
 	char build_id_hex[BUILD_ID_SIZE * 2 + 1];
 	int ret = 0;
@@ -137,19 +138,18 @@ int dso__binary_type_file(const struct dso *dso, enum dso_binary_type type,
 
 static int open_dso(struct dso *dso, struct machine *machine)
 {
-	char *root_dir = (char *) "";
-	char *name;
 	int fd;
+	char *root_dir = (char *)"";
+	char *name = malloc(PATH_MAX);
 
-	name = malloc(PATH_MAX);
 	if (!name)
 		return -ENOMEM;
 
 	if (machine)
 		root_dir = machine->root_dir;
 
-	if (dso__binary_type_file(dso, dso->data_type,
-				  root_dir, name, PATH_MAX)) {
+	if (dso__read_binary_type_filename(dso, dso->data_type,
+					    root_dir, name, PATH_MAX)) {
 		free(name);
 		return -EINVAL;
 	}
