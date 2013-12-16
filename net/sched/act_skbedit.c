@@ -28,15 +28,8 @@
 #include <net/tc_act/tc_skbedit.h>
 
 #define SKBEDIT_TAB_MASK     15
-static struct tcf_common *tcf_skbedit_ht[SKBEDIT_TAB_MASK + 1];
 static u32 skbedit_idx_gen;
-static DEFINE_RWLOCK(skbedit_lock);
-
-static struct tcf_hashinfo skbedit_hash_info = {
-	.htab	=	tcf_skbedit_ht,
-	.hmask	=	SKBEDIT_TAB_MASK,
-	.lock	=	&skbedit_lock,
-};
+static struct tcf_hashinfo skbedit_hash_info;
 
 static int tcf_skbedit(struct sk_buff *skb, const struct tc_action *a,
 		       struct tcf_result *res)
@@ -210,11 +203,15 @@ MODULE_LICENSE("GPL");
 
 static int __init skbedit_init_module(void)
 {
+	int err = tcf_hashinfo_init(&skbedit_hash_info, SKBEDIT_TAB_MASK+1);
+	if (err)
+		return err;
 	return tcf_register_action(&act_skbedit_ops);
 }
 
 static void __exit skbedit_cleanup_module(void)
 {
+	tcf_hashinfo_destroy(&skbedit_hash_info);
 	tcf_unregister_action(&act_skbedit_ops);
 }
 

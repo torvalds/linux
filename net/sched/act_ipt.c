@@ -29,15 +29,8 @@
 
 
 #define IPT_TAB_MASK     15
-static struct tcf_common *tcf_ipt_ht[IPT_TAB_MASK + 1];
 static u32 ipt_idx_gen;
-static DEFINE_RWLOCK(ipt_lock);
-
-static struct tcf_hashinfo ipt_hash_info = {
-	.htab	=	tcf_ipt_ht,
-	.hmask	=	IPT_TAB_MASK,
-	.lock	=	&ipt_lock,
-};
+static struct tcf_hashinfo ipt_hash_info;
 
 static int ipt_init_target(struct xt_entry_target *t, char *table, unsigned int hook)
 {
@@ -320,7 +313,11 @@ MODULE_ALIAS("act_xt");
 
 static int __init ipt_init_module(void)
 {
-	int ret1, ret2;
+	int ret1, ret2, err;
+	err = tcf_hashinfo_init(&ipt_hash_info, IPT_TAB_MASK+1);
+	if (err)
+		return err;
+
 	ret1 = tcf_register_action(&act_xt_ops);
 	if (ret1 < 0)
 		printk("Failed to load xt action\n");
@@ -328,9 +325,10 @@ static int __init ipt_init_module(void)
 	if (ret2 < 0)
 		printk("Failed to load ipt action\n");
 
-	if (ret1 < 0 && ret2 < 0)
+	if (ret1 < 0 && ret2 < 0) {
+		tcf_hashinfo_destroy(&ipt_hash_info);
 		return ret1;
-	else
+	} else
 		return 0;
 }
 
@@ -338,6 +336,7 @@ static void __exit ipt_cleanup_module(void)
 {
 	tcf_unregister_action(&act_xt_ops);
 	tcf_unregister_action(&act_ipt_ops);
+	tcf_hashinfo_destroy(&ipt_hash_info);
 }
 
 module_init(ipt_init_module);

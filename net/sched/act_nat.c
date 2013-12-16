@@ -30,15 +30,9 @@
 
 
 #define NAT_TAB_MASK	15
-static struct tcf_common *tcf_nat_ht[NAT_TAB_MASK + 1];
 static u32 nat_idx_gen;
-static DEFINE_RWLOCK(nat_lock);
 
-static struct tcf_hashinfo nat_hash_info = {
-	.htab	=	tcf_nat_ht,
-	.hmask	=	NAT_TAB_MASK,
-	.lock	=	&nat_lock,
-};
+static struct tcf_hashinfo nat_hash_info;
 
 static const struct nla_policy nat_policy[TCA_NAT_MAX + 1] = {
 	[TCA_NAT_PARMS]	= { .len = sizeof(struct tc_nat) },
@@ -316,12 +310,16 @@ MODULE_LICENSE("GPL");
 
 static int __init nat_init_module(void)
 {
+	int err = tcf_hashinfo_init(&nat_hash_info, NAT_TAB_MASK+1);
+	if (err)
+		return err;
 	return tcf_register_action(&act_nat_ops);
 }
 
 static void __exit nat_cleanup_module(void)
 {
 	tcf_unregister_action(&act_nat_ops);
+	tcf_hashinfo_destroy(&nat_hash_info);
 }
 
 module_init(nat_init_module);

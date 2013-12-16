@@ -34,9 +34,9 @@ void tcf_hash_destroy(struct tcf_common *p, struct tcf_hashinfo *hinfo)
 
 	for (p1p = &hinfo->htab[h]; *p1p; p1p = &(*p1p)->tcfc_next) {
 		if (*p1p == p) {
-			write_lock_bh(hinfo->lock);
+			write_lock_bh(&hinfo->lock);
 			*p1p = p->tcfc_next;
-			write_unlock_bh(hinfo->lock);
+			write_unlock_bh(&hinfo->lock);
 			gen_kill_estimator(&p->tcfc_bstats,
 					   &p->tcfc_rate_est);
 			/*
@@ -77,7 +77,7 @@ static int tcf_dump_walker(struct sk_buff *skb, struct netlink_callback *cb,
 	int err = 0, index = -1, i = 0, s_i = 0, n_i = 0;
 	struct nlattr *nest;
 
-	read_lock_bh(hinfo->lock);
+	read_lock_bh(&hinfo->lock);
 
 	s_i = cb->args[0];
 
@@ -107,7 +107,7 @@ static int tcf_dump_walker(struct sk_buff *skb, struct netlink_callback *cb,
 		}
 	}
 done:
-	read_unlock_bh(hinfo->lock);
+	read_unlock_bh(&hinfo->lock);
 	if (n_i)
 		cb->args[0] += n_i;
 	return n_i;
@@ -170,13 +170,13 @@ struct tcf_common *tcf_hash_lookup(u32 index, struct tcf_hashinfo *hinfo)
 {
 	struct tcf_common *p;
 
-	read_lock_bh(hinfo->lock);
+	read_lock_bh(&hinfo->lock);
 	for (p = hinfo->htab[tcf_hash(index, hinfo->hmask)]; p;
 	     p = p->tcfc_next) {
 		if (p->tcfc_index == index)
 			break;
 	}
-	read_unlock_bh(hinfo->lock);
+	read_unlock_bh(&hinfo->lock);
 
 	return p;
 }
@@ -257,10 +257,10 @@ void tcf_hash_insert(struct tcf_common *p, struct tcf_hashinfo *hinfo)
 {
 	unsigned int h = tcf_hash(p->tcfc_index, hinfo->hmask);
 
-	write_lock_bh(hinfo->lock);
+	write_lock_bh(&hinfo->lock);
 	p->tcfc_next = hinfo->htab[h];
 	hinfo->htab[h] = p;
-	write_unlock_bh(hinfo->lock);
+	write_unlock_bh(&hinfo->lock);
 }
 EXPORT_SYMBOL(tcf_hash_insert);
 

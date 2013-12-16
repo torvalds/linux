@@ -24,15 +24,8 @@
 #include <net/tc_act/tc_gact.h>
 
 #define GACT_TAB_MASK	15
-static struct tcf_common *tcf_gact_ht[GACT_TAB_MASK + 1];
 static u32 gact_idx_gen;
-static DEFINE_RWLOCK(gact_lock);
-
-static struct tcf_hashinfo gact_hash_info = {
-	.htab	=	tcf_gact_ht,
-	.hmask	=	GACT_TAB_MASK,
-	.lock	=	&gact_lock,
-};
+static struct tcf_hashinfo gact_hash_info;
 
 #ifdef CONFIG_GACT_PROB
 static int gact_net_rand(struct tcf_gact *gact)
@@ -215,6 +208,9 @@ MODULE_LICENSE("GPL");
 
 static int __init gact_init_module(void)
 {
+	int err = tcf_hashinfo_init(&gact_hash_info, GACT_TAB_MASK+1);
+	if (err)
+		return err;
 #ifdef CONFIG_GACT_PROB
 	pr_info("GACT probability on\n");
 #else
@@ -226,6 +222,7 @@ static int __init gact_init_module(void)
 static void __exit gact_cleanup_module(void)
 {
 	tcf_unregister_action(&act_gact_ops);
+	tcf_hashinfo_destroy(&gact_hash_info);
 }
 
 module_init(gact_init_module);

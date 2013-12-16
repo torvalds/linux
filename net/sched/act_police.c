@@ -41,15 +41,8 @@ struct tcf_police {
 	container_of(pc, struct tcf_police, common)
 
 #define POL_TAB_MASK     15
-static struct tcf_common *tcf_police_ht[POL_TAB_MASK + 1];
 static u32 police_idx_gen;
-static DEFINE_RWLOCK(police_lock);
-
-static struct tcf_hashinfo police_hash_info = {
-	.htab	=	tcf_police_ht,
-	.hmask	=	POL_TAB_MASK,
-	.lock	=	&police_lock,
-};
+static struct tcf_hashinfo police_hash_info;
 
 /* old policer structure from before tc actions */
 struct tc_police_compat {
@@ -71,12 +64,12 @@ static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *c
 	int err = 0, index = -1, i = 0, s_i = 0, n_i = 0;
 	struct nlattr *nest;
 
-	read_lock_bh(&police_lock);
+	read_lock_bh(&police_hash_info.lock);
 
 	s_i = cb->args[0];
 
 	for (i = 0; i < (POL_TAB_MASK + 1); i++) {
-		p = tcf_police_ht[tcf_hash(i, POL_TAB_MASK)];
+		p = police_hash_info.htab[tcf_hash(i, POL_TAB_MASK)];
 
 		for (; p; p = p->tcfc_next) {
 			index++;
@@ -101,7 +94,7 @@ static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *c
 		}
 	}
 done:
-	read_unlock_bh(&police_lock);
+	read_unlock_bh(&police_hash_info.lock);
 	if (n_i)
 		cb->args[0] += n_i;
 	return n_i;
@@ -116,11 +109,11 @@ static void tcf_police_destroy(struct tcf_police *p)
 	unsigned int h = tcf_hash(p->tcf_index, POL_TAB_MASK);
 	struct tcf_common **p1p;
 
-	for (p1p = &tcf_police_ht[h]; *p1p; p1p = &(*p1p)->tcfc_next) {
+	for (p1p = &police_hash_info.htab[h]; *p1p; p1p = &(*p1p)->tcfc_next) {
 		if (*p1p == &p->common) {
-			write_lock_bh(&police_lock);
+			write_lock_bh(&police_hash_info.lock);
 			*p1p = p->tcf_next;
-			write_unlock_bh(&police_lock);
+			write_unlock_bh(&police_hash_info.lock);
 			gen_kill_estimator(&p->tcf_bstats,
 					   &p->tcf_rate_est);
 			/*
@@ -266,10 +259,10 @@ override:
 	police->tcf_index = parm->index ? parm->index :
 		tcf_hash_new_index(&police_idx_gen, &police_hash_info);
 	h = tcf_hash(police->tcf_index, POL_TAB_MASK);
-	write_lock_bh(&police_lock);
-	police->tcf_next = tcf_police_ht[h];
-	tcf_police_ht[h] = &police->common;
-	write_unlock_bh(&police_lock);
+	write_lock_bh(&police_hash_info.lock);
+	police->tcf_next = police_hash_info.htab[h];
+	police_hash_info.htab[h] = &police->common;
+	write_unlock_bh(&police_hash_info.lock);
 
 	a->priv = police;
 	return ret;
@@ -414,12 +407,19 @@ static struct tc_action_ops act_police_ops = {
 static int __init
 police_init_module(void)
 {
-	return tcf_register_action(&act_police_ops);
+	int err = tcf_hashinfo_init(&police_hash_info, POL_TAB_MASK+1);
+	if (err)
+		return err;
+	err = tcf_register_action(&act_police_ops);
+	if (err)
+		tcf_hashinfo_destroy(&police_hash_info);
+	return err;
 }
 
 static void __exit
 police_cleanup_module(void)
 {
+	tcf_hashinfo_destroy(&police_hash_info);
 	tcf_unregister_action(&act_police_ops);
 }
 

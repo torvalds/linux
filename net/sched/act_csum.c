@@ -37,15 +37,8 @@
 #include <net/tc_act/tc_csum.h>
 
 #define CSUM_TAB_MASK 15
-static struct tcf_common *tcf_csum_ht[CSUM_TAB_MASK + 1];
 static u32 csum_idx_gen;
-static DEFINE_RWLOCK(csum_lock);
-
-static struct tcf_hashinfo csum_hash_info = {
-	.htab	= tcf_csum_ht,
-	.hmask	= CSUM_TAB_MASK,
-	.lock	= &csum_lock,
-};
+static struct tcf_hashinfo csum_hash_info;
 
 static const struct nla_policy csum_policy[TCA_CSUM_MAX + 1] = {
 	[TCA_CSUM_PARMS] = { .len = sizeof(struct tc_csum), },
@@ -593,6 +586,10 @@ MODULE_LICENSE("GPL");
 
 static int __init csum_init_module(void)
 {
+	int err = tcf_hashinfo_init(&csum_hash_info, CSUM_TAB_MASK+1);
+	if (err)
+		return err;
+
 	return tcf_register_action(&act_csum_ops);
 }
 

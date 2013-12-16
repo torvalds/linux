@@ -38,12 +38,28 @@ struct tcf_common {
 struct tcf_hashinfo {
 	struct tcf_common	**htab;
 	unsigned int		hmask;
-	rwlock_t		*lock;
+	rwlock_t		lock;
 };
 
 static inline unsigned int tcf_hash(u32 index, unsigned int hmask)
 {
 	return index & hmask;
+}
+
+static inline int tcf_hashinfo_init(struct tcf_hashinfo *hf, unsigned int mask)
+{
+	rwlock_init(&hf->lock);
+	hf->hmask = mask;
+	hf->htab = kzalloc((mask + 1) * sizeof(struct tcf_common *),
+			   GFP_KERNEL);
+	if (!hf->htab)
+		return -ENOMEM;
+	return 0;
+}
+
+static inline void tcf_hashinfo_destroy(struct tcf_hashinfo *hf)
+{
+	kfree(hf->htab);
 }
 
 #ifdef CONFIG_NET_CLS_ACT
