@@ -61,11 +61,11 @@
 
 int ovs_net_id __read_mostly;
 
-static void ovs_notify(struct sk_buff *skb, struct genl_info *info,
-		       struct genl_multicast_group *grp)
+static void ovs_notify(struct genl_family *family,
+		       struct sk_buff *skb, struct genl_info *info)
 {
-	genl_notify(skb, genl_info_net(info), info->snd_portid,
-		    grp->id, info->nlhdr, GFP_KERNEL);
+	genl_notify(family, skb, genl_info_net(info), info->snd_portid,
+		    0, info->nlhdr, GFP_KERNEL);
 }
 
 /**
@@ -557,7 +557,7 @@ static const struct nla_policy packet_policy[OVS_PACKET_ATTR_MAX + 1] = {
 	[OVS_PACKET_ATTR_ACTIONS] = { .type = NLA_NESTED },
 };
 
-static struct genl_ops dp_packet_genl_ops[] = {
+static const struct genl_ops dp_packet_genl_ops[] = {
 	{ .cmd = OVS_PACKET_CMD_EXECUTE,
 	  .flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN privilege. */
 	  .policy = packet_policy,
@@ -877,10 +877,10 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 	ovs_unlock();
 
 	if (!IS_ERR(reply))
-		ovs_notify(reply, info, &ovs_dp_flow_multicast_group);
+		ovs_notify(&dp_flow_genl_family, reply, info);
 	else
-		netlink_set_err(sock_net(skb->sk)->genl_sock, 0,
-				ovs_dp_flow_multicast_group.id, PTR_ERR(reply));
+		genl_set_err(&dp_flow_genl_family, sock_net(skb->sk), 0,
+			     0, PTR_ERR(reply));
 	return 0;
 
 err_flow_free:
@@ -990,7 +990,7 @@ static int ovs_flow_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	ovs_flow_free(flow, true);
 	ovs_unlock();
 
-	ovs_notify(reply, info, &ovs_dp_flow_multicast_group);
+	ovs_notify(&dp_flow_genl_family, reply, info);
 	return 0;
 unlock:
 	ovs_unlock();
@@ -1034,7 +1034,7 @@ static int ovs_flow_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
-static struct genl_ops dp_flow_genl_ops[] = {
+static const struct genl_ops dp_flow_genl_ops[] = {
 	{ .cmd = OVS_FLOW_CMD_NEW,
 	  .flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN privilege. */
 	  .policy = flow_policy,
@@ -1243,7 +1243,7 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 
 	ovs_unlock();
 
-	ovs_notify(reply, info, &ovs_dp_datapath_multicast_group);
+	ovs_notify(&dp_datapath_genl_family, reply, info);
 	return 0;
 
 err_destroy_local_port:
@@ -1308,7 +1308,7 @@ static int ovs_dp_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	__dp_destroy(dp);
 	ovs_unlock();
 
-	ovs_notify(reply, info, &ovs_dp_datapath_multicast_group);
+	ovs_notify(&dp_datapath_genl_family, reply, info);
 
 	return 0;
 unlock:
@@ -1332,14 +1332,14 @@ static int ovs_dp_cmd_set(struct sk_buff *skb, struct genl_info *info)
 				      info->snd_seq, OVS_DP_CMD_NEW);
 	if (IS_ERR(reply)) {
 		err = PTR_ERR(reply);
-		netlink_set_err(sock_net(skb->sk)->genl_sock, 0,
-				ovs_dp_datapath_multicast_group.id, err);
+		genl_set_err(&dp_datapath_genl_family, sock_net(skb->sk), 0,
+			     0, err);
 		err = 0;
 		goto unlock;
 	}
 
 	ovs_unlock();
-	ovs_notify(reply, info, &ovs_dp_datapath_multicast_group);
+	ovs_notify(&dp_datapath_genl_family, reply, info);
 
 	return 0;
 unlock:
@@ -1398,7 +1398,7 @@ static int ovs_dp_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
-static struct genl_ops dp_datapath_genl_ops[] = {
+static const struct genl_ops dp_datapath_genl_ops[] = {
 	{ .cmd = OVS_DP_CMD_NEW,
 	  .flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN privilege. */
 	  .policy = datapath_policy,
@@ -1431,7 +1431,7 @@ static const struct nla_policy vport_policy[OVS_VPORT_ATTR_MAX + 1] = {
 	[OVS_VPORT_ATTR_OPTIONS] = { .type = NLA_NESTED },
 };
 
-static struct genl_family dp_vport_genl_family = {
+struct genl_family dp_vport_genl_family = {
 	.id = GENL_ID_GENERATE,
 	.hdrsize = sizeof(struct ovs_header),
 	.name = OVS_VPORT_FAMILY,
@@ -1601,7 +1601,7 @@ static int ovs_vport_cmd_new(struct sk_buff *skb, struct genl_info *info)
 		goto exit_unlock;
 	}
 
-	ovs_notify(reply, info, &ovs_dp_vport_multicast_group);
+	ovs_notify(&dp_vport_genl_family, reply, info);
 
 exit_unlock:
 	ovs_unlock();
@@ -1648,7 +1648,7 @@ static int ovs_vport_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	BUG_ON(err < 0);
 
 	ovs_unlock();
-	ovs_notify(reply, info, &ovs_dp_vport_multicast_group);
+	ovs_notify(&dp_vport_genl_family, reply, info);
 	return 0;
 
 exit_free:
@@ -1685,7 +1685,7 @@ static int ovs_vport_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	err = 0;
 	ovs_dp_detach_port(vport);
 
-	ovs_notify(reply, info, &ovs_dp_vport_multicast_group);
+	ovs_notify(&dp_vport_genl_family, reply, info);
 
 exit_unlock:
 	ovs_unlock();
@@ -1759,7 +1759,7 @@ out:
 	return skb->len;
 }
 
-static struct genl_ops dp_vport_genl_ops[] = {
+static const struct genl_ops dp_vport_genl_ops[] = {
 	{ .cmd = OVS_VPORT_CMD_NEW,
 	  .flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN privilege. */
 	  .policy = vport_policy,
@@ -1785,9 +1785,9 @@ static struct genl_ops dp_vport_genl_ops[] = {
 
 struct genl_family_and_ops {
 	struct genl_family *family;
-	struct genl_ops *ops;
+	const struct genl_ops *ops;
 	int n_ops;
-	struct genl_multicast_group *group;
+	const struct genl_multicast_group *group;
 };
 
 static const struct genl_family_and_ops dp_genl_families[] = {
@@ -1823,17 +1823,14 @@ static int dp_register_genl(void)
 	for (i = 0; i < ARRAY_SIZE(dp_genl_families); i++) {
 		const struct genl_family_and_ops *f = &dp_genl_families[i];
 
-		err = genl_register_family_with_ops(f->family, f->ops,
-						    f->n_ops);
+		f->family->ops = f->ops;
+		f->family->n_ops = f->n_ops;
+		f->family->mcgrps = f->group;
+		f->family->n_mcgrps = f->group ? 1 : 0;
+		err = genl_register_family(f->family);
 		if (err)
 			goto error;
 		n_registered++;
-
-		if (f->group) {
-			err = genl_register_mc_group(f->family, f->group);
-			if (err)
-				goto error;
-		}
 	}
 
 	return 0;

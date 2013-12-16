@@ -88,7 +88,7 @@ struct fq_sched_data {
 	struct fq_flow	internal;	/* for non classified or high prio packets */
 	u32		quantum;
 	u32		initial_quantum;
-	u32		flow_default_rate;/* rate per flow : bytes per second */
+	u32		flow_refill_delay;
 	u32		flow_max_rate;	/* optional max rate per flow */
 	u32		flow_plimit;	/* max packets per flow */
 	struct rb_root	*fq_root;
@@ -115,6 +115,7 @@ static struct fq_flow detached, throttled;
 static void fq_flow_set_detached(struct fq_flow *f)
 {
 	f->next = &detached;
+	f->age = jiffies;
 }
 
 static bool fq_flow_is_detached(const struct fq_flow *f)
@@ -209,21 +210,15 @@ static void fq_gc(struct fq_sched_data *q,
 	}
 }
 
-static const u8 prio2band[TC_PRIO_MAX + 1] = {
-	1, 2, 2, 2, 1, 2, 0, 0 , 1, 1, 1, 1, 1, 1, 1, 1
-};
-
 static struct fq_flow *fq_classify(struct sk_buff *skb, struct fq_sched_data *q)
 {
 	struct rb_node **p, *parent;
 	struct sock *sk = skb->sk;
 	struct rb_root *root;
 	struct fq_flow *f;
-	int band;
 
 	/* warning: no starvation prevention... */
-	band = prio2band[skb->priority & TC_PRIO_MAX];
-	if (unlikely(band == 0))
+	if (unlikely((skb->priority & TC_PRIO_MAX) == TC_PRIO_CONTROL))
 		return &q->internal;
 
 	if (unlikely(!sk)) {
@@ -373,17 +368,20 @@ static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	}
 
 	f->qlen++;
-	flow_queue_add(f, skb);
 	if (skb_is_retransmit(skb))
 		q->stat_tcp_retrans++;
 	sch->qstats.backlog += qdisc_pkt_len(skb);
 	if (fq_flow_is_detached(f)) {
 		fq_flow_add_tail(&q->new_flows, f);
-		if (q->quantum > f->credit)
-			f->credit = q->quantum;
+		if (time_after(jiffies, f->age + q->flow_refill_delay))
+			f->credit = max_t(u32, f->credit, q->quantum);
 		q->inactive_flows--;
 		qdisc_unthrottled(sch);
 	}
+
+	/* Note: this overwrites f->age */
+	flow_queue_add(f, skb);
+
 	if (unlikely(f == &q->internal)) {
 		q->stat_internal_packets++;
 		qdisc_unthrottled(sch);
@@ -461,7 +459,6 @@ begin:
 			fq_flow_add_tail(&q->old_flows, f);
 		} else {
 			fq_flow_set_detached(f);
-			f->age = jiffies;
 			q->inactive_flows++;
 		}
 		goto begin;
@@ -615,6 +612,7 @@ static const struct nla_policy fq_policy[TCA_FQ_MAX + 1] = {
 	[TCA_FQ_FLOW_DEFAULT_RATE]	= { .type = NLA_U32 },
 	[TCA_FQ_FLOW_MAX_RATE]		= { .type = NLA_U32 },
 	[TCA_FQ_BUCKETS_LOG]		= { .type = NLA_U32 },
+	[TCA_FQ_FLOW_REFILL_DELAY]	= { .type = NLA_U32 },
 };
 
 static int fq_change(struct Qdisc *sch, struct nlattr *opt)
@@ -656,7 +654,8 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt)
 		q->initial_quantum = nla_get_u32(tb[TCA_FQ_INITIAL_QUANTUM]);
 
 	if (tb[TCA_FQ_FLOW_DEFAULT_RATE])
-		q->flow_default_rate = nla_get_u32(tb[TCA_FQ_FLOW_DEFAULT_RATE]);
+		pr_warn_ratelimited("sch_fq: defrate %u ignored.\n",
+				    nla_get_u32(tb[TCA_FQ_FLOW_DEFAULT_RATE]));
 
 	if (tb[TCA_FQ_FLOW_MAX_RATE])
 		q->flow_max_rate = nla_get_u32(tb[TCA_FQ_FLOW_MAX_RATE]);
@@ -668,6 +667,12 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt)
 			q->rate_enable = enable;
 		else
 			err = -EINVAL;
+	}
+
+	if (tb[TCA_FQ_FLOW_REFILL_DELAY]) {
+		u32 usecs_delay = nla_get_u32(tb[TCA_FQ_FLOW_REFILL_DELAY]) ;
+
+		q->flow_refill_delay = usecs_to_jiffies(usecs_delay);
 	}
 
 	if (!err)
@@ -705,7 +710,7 @@ static int fq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->flow_plimit		= 100;
 	q->quantum		= 2 * psched_mtu(qdisc_dev(sch));
 	q->initial_quantum	= 10 * psched_mtu(qdisc_dev(sch));
-	q->flow_default_rate	= 0;
+	q->flow_refill_delay	= msecs_to_jiffies(40);
 	q->flow_max_rate	= ~0U;
 	q->rate_enable		= 1;
 	q->new_flows.first	= NULL;
@@ -732,15 +737,16 @@ static int fq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (opts == NULL)
 		goto nla_put_failure;
 
-	/* TCA_FQ_FLOW_DEFAULT_RATE is not used anymore,
-	 * do not bother giving its value
-	 */
+	/* TCA_FQ_FLOW_DEFAULT_RATE is not used anymore */
+
 	if (nla_put_u32(skb, TCA_FQ_PLIMIT, sch->limit) ||
 	    nla_put_u32(skb, TCA_FQ_FLOW_PLIMIT, q->flow_plimit) ||
 	    nla_put_u32(skb, TCA_FQ_QUANTUM, q->quantum) ||
 	    nla_put_u32(skb, TCA_FQ_INITIAL_QUANTUM, q->initial_quantum) ||
 	    nla_put_u32(skb, TCA_FQ_RATE_ENABLE, q->rate_enable) ||
 	    nla_put_u32(skb, TCA_FQ_FLOW_MAX_RATE, q->flow_max_rate) ||
+	    nla_put_u32(skb, TCA_FQ_FLOW_REFILL_DELAY,
+			jiffies_to_usecs(q->flow_refill_delay)) ||
 	    nla_put_u32(skb, TCA_FQ_BUCKETS_LOG, q->fq_trees_log))
 		goto nla_put_failure;
 

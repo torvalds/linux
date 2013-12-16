@@ -14,6 +14,7 @@
 #include <linux/of.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <linux/of_address.h>
 
 #include <asm/cputhreads.h>
 #include <asm/reg_a2.h>

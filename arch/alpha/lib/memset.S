@@ -19,11 +19,13 @@
 .text
 	.globl memset
 	.globl __memset
+	.globl ___memset
 	.globl __memsetw
 	.globl __constant_c_memset
-	.ent __memset
+
+	.ent ___memset
 .align 5
-__memset:
+___memset:
 	.frame $30,0,$26,0
 	.prologue 0
 
@@ -103,7 +105,7 @@ within_one_quad:
 
 end:
 	ret $31,($26),1		/* E1 */
-	.end __memset
+	.end ___memset
 
 	.align 5
 	.ent __memsetw
@@ -121,4 +123,5 @@ __memsetw:
 
 	.end __memsetw
 
-memset = __memset
+memset = ___memset
+__memset = ___memset

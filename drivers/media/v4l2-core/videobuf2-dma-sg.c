@@ -178,7 +178,7 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
 	buf->pages = kzalloc(buf->num_pages * sizeof(struct page *),
 			     GFP_KERNEL);
 	if (!buf->pages)
-		return NULL;
+		goto userptr_fail_alloc_pages;
 
 	num_pages_from_user = get_user_pages(current, current->mm,
 					     vaddr & PAGE_MASK,
@@ -204,6 +204,7 @@ userptr_fail_get_user_pages:
 	while (--num_pages_from_user >= 0)
 		put_page(buf->pages[num_pages_from_user]);
 	kfree(buf->pages);
+userptr_fail_alloc_pages:
 	kfree(buf);
 	return NULL;
 }

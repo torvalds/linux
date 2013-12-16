@@ -489,6 +489,11 @@ void drm_sysfs_hotplug_event(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_sysfs_hotplug_event);
 
+static void drm_sysfs_release(struct device *dev)
+{
+	kfree(dev);
+}
+
 /**
  * drm_sysfs_device_add - adds a class device to sysfs for a character driver
  * @dev: DRM device to be added
@@ -501,6 +506,7 @@ EXPORT_SYMBOL(drm_sysfs_hotplug_event);
 int drm_sysfs_device_add(struct drm_minor *minor)
 {
 	char *minor_str;
+	int r;
 
 	if (minor->type == DRM_MINOR_CONTROL)
 		minor_str = "controlD%d";
@@ -509,14 +515,34 @@ int drm_sysfs_device_add(struct drm_minor *minor)
         else
                 minor_str = "card%d";
 
-	minor->kdev = device_create(drm_class, minor->dev->dev,
-				    MKDEV(DRM_MAJOR, minor->index),
-				    minor, minor_str, minor->index);
-	if (IS_ERR(minor->kdev)) {
-		DRM_ERROR("device create failed %ld\n", PTR_ERR(minor->kdev));
-		return PTR_ERR(minor->kdev);
+	minor->kdev = kzalloc(sizeof(*minor->kdev), GFP_KERNEL);
+	if (!minor->kdev) {
+		r = -ENOMEM;
+		goto error;
 	}
+
+	device_initialize(minor->kdev);
+	minor->kdev->devt = MKDEV(DRM_MAJOR, minor->index);
+	minor->kdev->class = drm_class;
+	minor->kdev->type = &drm_sysfs_device_minor;
+	minor->kdev->parent = minor->dev->dev;
+	minor->kdev->release = drm_sysfs_release;
+	dev_set_drvdata(minor->kdev, minor);
+
+	r = dev_set_name(minor->kdev, minor_str, minor->index);
+	if (r < 0)
+		goto error;
+
+	r = device_add(minor->kdev);
+	if (r < 0)
+		goto error;
+
 	return 0;
+
+error:
+	DRM_ERROR("device create failed %d\n", r);
+	put_device(minor->kdev);
+	return r;
 }
 
 /**
@@ -529,7 +555,7 @@ int drm_sysfs_device_add(struct drm_minor *minor)
 void drm_sysfs_device_remove(struct drm_minor *minor)
 {
 	if (minor->kdev)
-		device_destroy(drm_class, MKDEV(DRM_MAJOR, minor->index));
+		device_unregister(minor->kdev);
 	minor->kdev = NULL;
 }
 

@@ -29,6 +29,7 @@
 #include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_reg.h"
+#include "radeon_trace.h"
 
 /*
  * GART
@@ -651,7 +652,7 @@ retry:
 	radeon_asic_vm_set_page(rdev, &ib, vm->pd_gpu_addr,
 				0, pd_entries, 0, 0);
 
-	radeon_ib_sync_to(&ib, vm->fence);
+	radeon_semaphore_sync_to(ib.semaphore, vm->fence);
 	r = radeon_ib_schedule(rdev, &ib, NULL);
 	if (r) {
 		radeon_ib_free(rdev, &ib);
@@ -737,6 +738,7 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 	for (i = 0; i < 2; ++i) {
 		if (choices[i]) {
 			vm->id = choices[i];
+			trace_radeon_vm_grab_id(vm->id, ring);
 			return rdev->vm_manager.active[choices[i]];
 		}
 	}
@@ -1116,7 +1118,7 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
 }
 
 /**
- * radeon_vm_bo_update_pte - map a bo into the vm page table
+ * radeon_vm_bo_update - map a bo into the vm page table
  *
  * @rdev: radeon_device pointer
  * @vm: requested vm
@@ -1128,10 +1130,10 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
  *
  * Object have to be reserved & global and local mutex must be locked!
  */
-int radeon_vm_bo_update_pte(struct radeon_device *rdev,
-			    struct radeon_vm *vm,
-			    struct radeon_bo *bo,
-			    struct ttm_mem_reg *mem)
+int radeon_vm_bo_update(struct radeon_device *rdev,
+			struct radeon_vm *vm,
+			struct radeon_bo *bo,
+			struct ttm_mem_reg *mem)
 {
 	struct radeon_ib ib;
 	struct radeon_bo_va *bo_va;
@@ -1176,6 +1178,8 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 		bo_va->valid = false;
 	}
 
+	trace_radeon_vm_bo_update(bo_va);
+
 	nptes = radeon_bo_ngpu_pages(bo);
 
 	/* assume two extra pdes in case the mapping overlaps the borders */
@@ -1209,6 +1213,8 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 		return -ENOMEM;
 
 	r = radeon_ib_get(rdev, R600_RING_TYPE_DMA_INDEX, &ib, NULL, ndw * 4);
+	if (r)
+		return r;
 	ib.length_dw = 0;
 
 	r = radeon_vm_update_pdes(rdev, vm, &ib, bo_va->soffset, bo_va->eoffset);
@@ -1220,7 +1226,7 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 	radeon_vm_update_ptes(rdev, vm, &ib, bo_va->soffset, bo_va->eoffset,
 			      addr, radeon_vm_page_flags(bo_va->flags));
 
-	radeon_ib_sync_to(&ib, vm->fence);
+	radeon_semaphore_sync_to(ib.semaphore, vm->fence);
 	r = radeon_ib_schedule(rdev, &ib, NULL);
 	if (r) {
 		radeon_ib_free(rdev, &ib);
@@ -1255,7 +1261,7 @@ int radeon_vm_bo_rmv(struct radeon_device *rdev,
 	mutex_lock(&rdev->vm_manager.lock);
 	mutex_lock(&bo_va->vm->mutex);
 	if (bo_va->soffset) {
-		r = radeon_vm_bo_update_pte(rdev, bo_va->vm, bo_va->bo, NULL);
+		r = radeon_vm_bo_update(rdev, bo_va->vm, bo_va->bo, NULL);
 	}
 	mutex_unlock(&rdev->vm_manager.lock);
 	list_del(&bo_va->vm_list);

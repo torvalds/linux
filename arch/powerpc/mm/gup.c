@@ -123,6 +123,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	struct mm_struct *mm = current->mm;
 	unsigned long addr, len, end;
 	unsigned long next;
+	unsigned long flags;
 	pgd_t *pgdp;
 	int nr = 0;
 
@@ -156,7 +157,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	 * So long as we atomically load page table pointers versus teardown,
 	 * we can follow the address down to the the page and take a ref on it.
 	 */
-	local_irq_disable();
+	local_irq_save(flags);
 
 	pgdp = pgd_offset(mm, addr);
 	do {
@@ -179,7 +180,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 			break;
 	} while (pgdp++, addr = next, addr != end);
 
-	local_irq_enable();
+	local_irq_restore(flags);
 
 	return nr;
 }

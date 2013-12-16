@@ -1137,6 +1137,7 @@ xfs_bmap_add_attrfork(
 	int			committed;	/* xaction was committed */
 	int			logflags;	/* logging flags */
 	int			error;		/* error return value */
+	int			cancel_flags = 0;
 
 	ASSERT(XFS_IFORK_Q(ip) == 0);
 
@@ -1147,19 +1148,20 @@ xfs_bmap_add_attrfork(
 	if (rsvd)
 		tp->t_flags |= XFS_TRANS_RESERVE;
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_addafork, blks, 0);
-	if (error)
-		goto error0;
+	if (error) {
+		xfs_trans_cancel(tp, 0);
+		return error;
+	}
+	cancel_flags = XFS_TRANS_RELEASE_LOG_RES;
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	error = xfs_trans_reserve_quota_nblks(tp, ip, blks, 0, rsvd ?
 			XFS_QMOPT_RES_REGBLKS | XFS_QMOPT_FORCE_RES :
 			XFS_QMOPT_RES_REGBLKS);
-	if (error) {
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES);
-		return error;
-	}
+	if (error)
+		goto trans_cancel;
+	cancel_flags |= XFS_TRANS_ABORT;
 	if (XFS_IFORK_Q(ip))
-		goto error1;
+		goto trans_cancel;
 	if (ip->i_d.di_aformat != XFS_DINODE_FMT_EXTENTS) {
 		/*
 		 * For inodes coming from pre-6.2 filesystems.
@@ -1169,7 +1171,7 @@ xfs_bmap_add_attrfork(
 	}
 	ASSERT(ip->i_d.di_anextents == 0);
 
-	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip, 0);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
 	switch (ip->i_d.di_format) {
@@ -1191,7 +1193,7 @@ xfs_bmap_add_attrfork(
 	default:
 		ASSERT(0);
 		error = XFS_ERROR(EINVAL);
-		goto error1;
+		goto trans_cancel;
 	}
 
 	ASSERT(ip->i_afp == NULL);
@@ -1219,7 +1221,7 @@ xfs_bmap_add_attrfork(
 	if (logflags)
 		xfs_trans_log_inode(tp, ip, logflags);
 	if (error)
-		goto error2;
+		goto bmap_cancel;
 	if (!xfs_sb_version_hasattr(&mp->m_sb) ||
 	   (!xfs_sb_version_hasattr2(&mp->m_sb) && version == 2)) {
 		__int64_t sbfields = 0;
@@ -1242,14 +1244,16 @@ xfs_bmap_add_attrfork(
 
 	error = xfs_bmap_finish(&tp, &flist, &committed);
 	if (error)
-		goto error2;
-	return xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
-error2:
-	xfs_bmap_cancel(&flist);
-error1:
+		goto bmap_cancel;
+	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-error0:
-	xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES|XFS_TRANS_ABORT);
+	return error;
+
+bmap_cancel:
+	xfs_bmap_cancel(&flist);
+trans_cancel:
+	xfs_trans_cancel(tp, cancel_flags);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 }
 

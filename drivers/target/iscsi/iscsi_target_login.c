@@ -305,7 +305,6 @@ static int iscsi_login_zero_tsih_s1(
 	}
 
 	sess->creation_time = get_jiffies_64();
-	spin_lock_init(&sess->session_stats_lock);
 	/*
 	 * The FFP CmdSN window values will be allocated from the TPG's
 	 * Initiator Node's ACL once the login has been successfully completed.
@@ -347,15 +346,15 @@ static int iscsi_login_zero_tsih_s2(
 	 * Assign a new TPG Session Handle.  Note this is protected with
 	 * struct iscsi_portal_group->np_login_sem from iscsit_access_np().
 	 */
-	sess->tsih = ++ISCSI_TPG_S(sess)->ntsih;
+	sess->tsih = ++sess->tpg->ntsih;
 	if (!sess->tsih)
-		sess->tsih = ++ISCSI_TPG_S(sess)->ntsih;
+		sess->tsih = ++sess->tpg->ntsih;
 
 	/*
 	 * Create the default params from user defined values..
 	 */
 	if (iscsi_copy_param_list(&conn->param_list,
-				ISCSI_TPG_C(conn)->param_list, 1) < 0) {
+				conn->tpg->param_list, 1) < 0) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
 		return -1;
@@ -380,7 +379,7 @@ static int iscsi_login_zero_tsih_s2(
 	 * In our case, we have already located the struct iscsi_tiqn at this point.
 	 */
 	memset(buf, 0, 32);
-	sprintf(buf, "TargetPortalGroupTag=%hu", ISCSI_TPG_S(sess)->tpgt);
+	sprintf(buf, "TargetPortalGroupTag=%hu", sess->tpg->tpgt);
 	if (iscsi_change_param_value(buf, conn->param_list, 0) < 0) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
@@ -575,7 +574,7 @@ static int iscsi_login_non_zero_tsih_s2(
 	iscsi_login_set_conn_values(sess, conn, pdu->cid);
 
 	if (iscsi_copy_param_list(&conn->param_list,
-			ISCSI_TPG_C(conn)->param_list, 0) < 0) {
+			conn->tpg->param_list, 0) < 0) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
 		return -1;
@@ -593,7 +592,7 @@ static int iscsi_login_non_zero_tsih_s2(
 	 * In our case, we have already located the struct iscsi_tiqn at this point.
 	 */
 	memset(buf, 0, 32);
-	sprintf(buf, "TargetPortalGroupTag=%hu", ISCSI_TPG_S(sess)->tpgt);
+	sprintf(buf, "TargetPortalGroupTag=%hu", sess->tpg->tpgt);
 	if (iscsi_change_param_value(buf, conn->param_list, 0) < 0) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
@@ -691,7 +690,7 @@ int iscsi_post_login_handler(
 	int stop_timer = 0;
 	struct iscsi_session *sess = conn->sess;
 	struct se_session *se_sess = sess->se_sess;
-	struct iscsi_portal_group *tpg = ISCSI_TPG_S(sess);
+	struct iscsi_portal_group *tpg = sess->tpg;
 	struct se_portal_group *se_tpg = &tpg->tpg_se_tpg;
 	struct iscsi_thread_set *ts;
 
@@ -1154,7 +1153,7 @@ old_sess_out:
 		spin_lock_bh(&conn->sess->conn_lock);
 		if (conn->sess->session_state == TARG_SESS_STATE_FAILED) {
 			struct se_portal_group *se_tpg =
-					&ISCSI_TPG_C(conn)->tpg_se_tpg;
+					&conn->tpg->tpg_se_tpg;
 
 			atomic_set(&conn->sess->session_continuation, 0);
 			spin_unlock_bh(&conn->sess->conn_lock);

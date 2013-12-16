@@ -495,6 +495,7 @@ static int __btrfs_start_workers(struct btrfs_workers *workers)
 	spin_lock_irq(&workers->lock);
 	if (workers->stopping) {
 		spin_unlock_irq(&workers->lock);
+		ret = -EINVAL;
 		goto fail_kthread;
 	}
 	list_add_tail(&worker->worker_list, &workers->idle_list);

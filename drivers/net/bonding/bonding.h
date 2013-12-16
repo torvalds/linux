@@ -35,6 +35,8 @@
 
 #define BOND_MAX_ARP_TARGETS	16
 
+#define BOND_DEFAULT_MIIMON	100
+
 #define IS_UP(dev)					   \
 	      ((((dev)->flags & IFF_UP) == IFF_UP)	&& \
 	       netif_running(dev)			&& \
@@ -55,6 +57,11 @@
 		 ((mode) == BOND_MODE_TLB)          ||	\
 		 ((mode) == BOND_MODE_ALB))
 
+#define BOND_NO_USES_ARP(mode)				\
+		(((mode) == BOND_MODE_8023AD)	||	\
+		 ((mode) == BOND_MODE_TLB)	||	\
+		 ((mode) == BOND_MODE_ALB))
+
 #define TX_QUEUE_OVERRIDE(mode)				\
 			(((mode) == BOND_MODE_ACTIVEBACKUP) ||	\
 			 ((mode) == BOND_MODE_ROUNDROBIN))
@@ -63,6 +70,9 @@
 		(((mode) == BOND_MODE_TLB) ||	\
 		 ((mode) == BOND_MODE_ALB))
 
+#define IS_IP_TARGET_UNUSABLE_ADDRESS(a)	\
+	((htonl(INADDR_BROADCAST) == a) ||	\
+	 ipv4_is_zeronet(a))
 /*
  * Less bad way to call ioctl from within the kernel; this needs to be
  * done some other way to get the call out of interrupt context.

@@ -130,7 +130,7 @@ void cik_sdma_fence_ring_emit(struct radeon_device *rdev,
  * Add a DMA semaphore packet to the ring wait on or signal
  * other rings (CIK).
  */
-void cik_sdma_semaphore_ring_emit(struct radeon_device *rdev,
+bool cik_sdma_semaphore_ring_emit(struct radeon_device *rdev,
 				  struct radeon_ring *ring,
 				  struct radeon_semaphore *semaphore,
 				  bool emit_wait)
@@ -141,6 +141,8 @@ void cik_sdma_semaphore_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SEMAPHORE, 0, extra_bits));
 	radeon_ring_write(ring, addr & 0xfffffff8);
 	radeon_ring_write(ring, upper_32_bits(addr) & 0xffffffff);
+
+	return true;
 }
 
 /**
@@ -443,13 +445,8 @@ int cik_copy_dma(struct radeon_device *rdev,
 		return r;
 	}
 
-	if (radeon_fence_need_sync(*fence, ring->idx)) {
-		radeon_semaphore_sync_rings(rdev, sem, (*fence)->ring,
-					    ring->idx);
-		radeon_fence_note_sync(*fence, ring->idx);
-	} else {
-		radeon_semaphore_free(rdev, &sem, NULL);
-	}
+	radeon_semaphore_sync_to(sem, *fence);
+	radeon_semaphore_sync_rings(rdev, sem, ring->idx);
 
 	for (i = 0; i < num_loops; i++) {
 		cur_size_in_bytes = size_in_bytes;

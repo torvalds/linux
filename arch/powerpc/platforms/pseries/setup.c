@@ -442,6 +442,32 @@ static void pSeries_machine_kexec(struct kimage *image)
 }
 #endif
 
+#ifdef __LITTLE_ENDIAN__
+long pseries_big_endian_exceptions(void)
+{
+	long rc;
+
+	while (1) {
+		rc = enable_big_endian_exceptions();
+		if (!H_IS_LONG_BUSY(rc))
+			return rc;
+		mdelay(get_longbusy_msecs(rc));
+	}
+}
+
+static long pseries_little_endian_exceptions(void)
+{
+	long rc;
+
+	while (1) {
+		rc = enable_little_endian_exceptions();
+		if (!H_IS_LONG_BUSY(rc))
+			return rc;
+		mdelay(get_longbusy_msecs(rc));
+	}
+}
+#endif
+
 static void __init pSeries_setup_arch(void)
 {
 	panic_timeout = 10;
@@ -697,6 +723,22 @@ static int __init pSeries_probe(void)
 
 	/* Now try to figure out if we are running on LPAR */
 	of_scan_flat_dt(pseries_probe_fw_features, NULL);
+
+#ifdef __LITTLE_ENDIAN__
+	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
+		long rc;
+		/*
+		 * Tell the hypervisor that we want our exceptions to
+		 * be taken in little endian mode. If this fails we don't
+		 * want to use BUG() because it will trigger an exception.
+		 */
+		rc = pseries_little_endian_exceptions();
+		if (rc) {
+			ppc_md.progress("H_SET_MODE LE exception fail", 0);
+			panic("Could not enable little endian exceptions");
+		}
+	}
+#endif
 
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		hpte_init_lpar();

@@ -173,16 +173,8 @@ retry:
 		clear_bit_unlock(USB_SERIAL_WRITE_BUSY, &port->flags);
 		return result;
 	}
-	/*
-	 * Try sending off another urb, unless called from completion handler
-	 * (in which case there will be no free urb or no data).
-	 */
-	if (mem_flags != GFP_ATOMIC)
-		goto retry;
 
-	clear_bit_unlock(USB_SERIAL_WRITE_BUSY, &port->flags);
-
-	return 0;
+	goto retry;	/* try sending off another urb */
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_write_start);
 
@@ -208,7 +200,7 @@ int usb_serial_generic_write(struct tty_struct *tty,
 		return 0;
 
 	count = kfifo_in_locked(&port->write_fifo, buf, count, &port->lock);
-	result = usb_serial_generic_write_start(port, GFP_KERNEL);
+	result = usb_serial_generic_write_start(port, GFP_ATOMIC);
 	if (result)
 		return result;
 

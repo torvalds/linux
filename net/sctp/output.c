@@ -474,10 +474,11 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 			 * for a given destination transport address.
 			 */
 
-			if (!tp->rto_pending) {
+			if (!chunk->resent && !tp->rto_pending) {
 				chunk->rtt_in_progress = 1;
 				tp->rto_pending = 1;
 			}
+
 			has_data = 1;
 		}
 
@@ -580,7 +581,8 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 		unsigned long timeout;
 
 		/* Restart the AUTOCLOSE timer when sending data. */
-		if (sctp_state(asoc, ESTABLISHED) && asoc->autoclose) {
+		if (sctp_state(asoc, ESTABLISHED) &&
+		    asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE]) {
 			timer = &asoc->timers[SCTP_EVENT_TIMEOUT_AUTOCLOSE];
 			timeout = asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE];
 

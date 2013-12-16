@@ -33,6 +33,15 @@ config TCG_TIS
 	  from within Linux.  To compile this driver as a module, choose
 	  M here; the module will be called tpm_tis.
 
+config TCG_TIS_I2C_ATMEL
+	tristate "TPM Interface Specification 1.2 Interface (I2C - Atmel)"
+	depends on I2C
+	---help---
+	  If you have an Atmel I2C TPM security chip say Yes and it will be
+	  accessible from within Linux.
+	  To compile this driver as a module, choose M here; the module will
+	  be called tpm_tis_i2c_atmel.
+
 config TCG_TIS_I2C_INFINEON
 	tristate "TPM Interface Specification 1.2 Interface (I2C - Infineon)"
 	depends on I2C
@@ -42,7 +51,17 @@ config TCG_TIS_I2C_INFINEON
 	  Specification 0.20 say Yes and it will be accessible from within
 	  Linux.
 	  To compile this driver as a module, choose M here; the module
-	  will be called tpm_tis_i2c_infineon.
+	  will be called tpm_i2c_infineon.
+
+config TCG_TIS_I2C_NUVOTON
+	tristate "TPM Interface Specification 1.2 Interface (I2C - Nuvoton)"
+	depends on I2C
+	---help---
+	  If you have a TPM security chip with an I2C interface from
+	  Nuvoton Technology Corp. say Yes and it will be accessible
+	  from within Linux.
+	  To compile this driver as a module, choose M here; the module
+	  will be called tpm_i2c_nuvoton.
 
 config TCG_NSC
 	tristate "National Semiconductor TPM Interface"
@@ -82,14 +101,14 @@ config TCG_IBMVTPM
 	  as a module, choose M here; the module will be called tpm_ibmvtpm.
 
 config TCG_ST33_I2C
-        tristate "STMicroelectronics ST33 I2C TPM"
-        depends on I2C
-        depends on GPIOLIB
-        ---help---
-        If you have a TPM security chip from STMicroelectronics working with
-        an I2C bus say Yes and it will be accessible from within Linux.
-        To compile this driver as a module, choose M here; the module will be
-        called tpm_stm_st33_i2c.
+	tristate "STMicroelectronics ST33 I2C TPM"
+	depends on I2C
+	depends on GPIOLIB
+	---help---
+	  If you have a TPM security chip from STMicroelectronics working with
+	  an I2C bus say Yes and it will be accessible from within Linux.
+	  To compile this driver as a module, choose M here; the module will be
+	  called tpm_stm_st33_i2c.
 
 config TCG_XEN
 	tristate "XEN TPM Interface"

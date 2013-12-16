@@ -2358,7 +2358,8 @@ int tipc_link_recv_fragment(struct sk_buff **head, struct sk_buff **tail,
 		*head = frag;
 		skb_frag_list_init(*head);
 		return 0;
-	} else if (skb_try_coalesce(*head, frag, &headstolen, &delta)) {
+	} else if (*head &&
+		   skb_try_coalesce(*head, frag, &headstolen, &delta)) {
 		kfree_skb_partial(frag, headstolen);
 	} else {
 		if (!*head)

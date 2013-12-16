@@ -84,8 +84,14 @@ void wimax_id_table_release(void);
 int wimax_rfkill_add(struct wimax_dev *);
 void wimax_rfkill_rm(struct wimax_dev *);
 
+/* generic netlink */
 extern struct genl_family wimax_gnl_family;
-extern struct genl_multicast_group wimax_gnl_mcg;
+
+/* ops */
+int wimax_gnl_doit_msg_from_user(struct sk_buff *skb, struct genl_info *info);
+int wimax_gnl_doit_reset(struct sk_buff *skb, struct genl_info *info);
+int wimax_gnl_doit_rfkill(struct sk_buff *skb, struct genl_info *info);
+int wimax_gnl_doit_state_get(struct sk_buff *skb, struct genl_info *info);
 
 #endif /* #ifdef __KERNEL__ */
 #endif /* #ifndef __WIMAX_INTERNAL_H__ */

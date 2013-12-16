@@ -572,9 +572,11 @@ static int imxdma_xfer_desc(struct imxdma_desc *d)
 
 		imx_dmav1_writel(imxdma, d->len, DMA_CNTR(imxdmac->channel));
 
-		dev_dbg(imxdma->dev, "%s channel: %d dest=0x%08x src=0x%08x "
-			"dma_length=%d\n", __func__, imxdmac->channel,
-			d->dest, d->src, d->len);
+		dev_dbg(imxdma->dev,
+			"%s channel: %d dest=0x%08llx src=0x%08llx dma_length=%zu\n",
+			__func__, imxdmac->channel,
+			(unsigned long long)d->dest,
+			(unsigned long long)d->src, d->len);
 
 		break;
 	/* Cyclic transfer is the same as slave_sg with special sg configuration. */
@@ -586,20 +588,22 @@ static int imxdma_xfer_desc(struct imxdma_desc *d)
 			imx_dmav1_writel(imxdma, imxdmac->ccr_from_device,
 					 DMA_CCR(imxdmac->channel));
 
-			dev_dbg(imxdma->dev, "%s channel: %d sg=%p sgcount=%d "
-				"total length=%d dev_addr=0x%08x (dev2mem)\n",
-				__func__, imxdmac->channel, d->sg, d->sgcount,
-				d->len, imxdmac->per_address);
+			dev_dbg(imxdma->dev,
+				"%s channel: %d sg=%p sgcount=%d total length=%zu dev_addr=0x%08llx (dev2mem)\n",
+				__func__, imxdmac->channel,
+				d->sg, d->sgcount, d->len,
+				(unsigned long long)imxdmac->per_address);
 		} else if (d->direction == DMA_MEM_TO_DEV) {
 			imx_dmav1_writel(imxdma, imxdmac->per_address,
 					 DMA_DAR(imxdmac->channel));
 			imx_dmav1_writel(imxdma, imxdmac->ccr_to_device,
 					 DMA_CCR(imxdmac->channel));
 
-			dev_dbg(imxdma->dev, "%s channel: %d sg=%p sgcount=%d "
-				"total length=%d dev_addr=0x%08x (mem2dev)\n",
-				__func__, imxdmac->channel, d->sg, d->sgcount,
-				d->len, imxdmac->per_address);
+			dev_dbg(imxdma->dev,
+				"%s channel: %d sg=%p sgcount=%d total length=%zu dev_addr=0x%08llx (mem2dev)\n",
+				__func__, imxdmac->channel,
+				d->sg, d->sgcount, d->len,
+				(unsigned long long)imxdmac->per_address);
 		} else {
 			dev_err(imxdma->dev, "%s channel: %d bad dma mode\n",
 				__func__, imxdmac->channel);
@@ -771,7 +775,7 @@ static int imxdma_alloc_chan_resources(struct dma_chan *chan)
 		desc->desc.tx_submit = imxdma_tx_submit;
 		/* txd.flags will be overwritten in prep funcs */
 		desc->desc.flags = DMA_CTRL_ACK;
-		desc->status = DMA_SUCCESS;
+		desc->status = DMA_COMPLETE;
 
 		list_add_tail(&desc->node, &imxdmac->ld_free);
 		imxdmac->descs_allocated++;
@@ -870,7 +874,7 @@ static struct dma_async_tx_descriptor *imxdma_prep_dma_cyclic(
 	int i;
 	unsigned int periods = buf_len / period_len;
 
-	dev_dbg(imxdma->dev, "%s channel: %d buf_len=%d period_len=%d\n",
+	dev_dbg(imxdma->dev, "%s channel: %d buf_len=%zu period_len=%zu\n",
 			__func__, imxdmac->channel, buf_len, period_len);
 
 	if (list_empty(&imxdmac->ld_free) ||
@@ -926,8 +930,9 @@ static struct dma_async_tx_descriptor *imxdma_prep_dma_memcpy(
 	struct imxdma_engine *imxdma = imxdmac->imxdma;
 	struct imxdma_desc *desc;
 
-	dev_dbg(imxdma->dev, "%s channel: %d src=0x%x dst=0x%x len=%d\n",
-			__func__, imxdmac->channel, src, dest, len);
+	dev_dbg(imxdma->dev, "%s channel: %d src=0x%llx dst=0x%llx len=%zu\n",
+		__func__, imxdmac->channel, (unsigned long long)src,
+		(unsigned long long)dest, len);
 
 	if (list_empty(&imxdmac->ld_free) ||
 	    imxdma_chan_is_doing_cyclic(imxdmac))
@@ -956,9 +961,10 @@ static struct dma_async_tx_descriptor *imxdma_prep_dma_interleaved(
 	struct imxdma_engine *imxdma = imxdmac->imxdma;
 	struct imxdma_desc *desc;
 
-	dev_dbg(imxdma->dev, "%s channel: %d src_start=0x%x dst_start=0x%x\n"
-		"   src_sgl=%s dst_sgl=%s numf=%d frame_size=%d\n", __func__,
-		imxdmac->channel, xt->src_start, xt->dst_start,
+	dev_dbg(imxdma->dev, "%s channel: %d src_start=0x%llx dst_start=0x%llx\n"
+		"   src_sgl=%s dst_sgl=%s numf=%zu frame_size=%zu\n", __func__,
+		imxdmac->channel, (unsigned long long)xt->src_start,
+		(unsigned long long) xt->dst_start,
 		xt->src_sgl ? "true" : "false", xt->dst_sgl ? "true" : "false",
 		xt->numf, xt->frame_size);
 
