@@ -192,9 +192,9 @@ static int axi_i2s_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, i2s);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!base)
-		return -EBUSY;
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	i2s->regmap = devm_regmap_init_mmio(&pdev->dev, base,
 		&axi_i2s_regmap_config);
