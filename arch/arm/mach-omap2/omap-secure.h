@@ -76,6 +76,13 @@ static inline void omap_barrier_reserve_memblock(void)
 { }
 #endif
 
+#ifdef CONFIG_SOC_HAS_REALTIME_COUNTER
 void set_cntfreq(void);
+#else
+static inline void set_cntfreq(void)
+{
+}
+#endif
+
 #endif /* __ASSEMBLER__ */
 #endif /* OMAP_ARCH_OMAP_SECURE_H */

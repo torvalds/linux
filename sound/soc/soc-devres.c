@@ -66,7 +66,7 @@ static void devm_card_release(struct device *dev, void *res)
  */
 int devm_snd_soc_register_card(struct device *dev, struct snd_soc_card *card)
 {
-	struct device **ptr;
+	struct snd_soc_card **ptr;
 	int ret;
 
 	ptr = devres_alloc(devm_card_release, sizeof(*ptr), GFP_KERNEL);
@@ -75,7 +75,7 @@ int devm_snd_soc_register_card(struct device *dev, struct snd_soc_card *card)
 
 	ret = snd_soc_register_card(card);
 	if (ret == 0) {
-		*ptr = dev;
+		*ptr = card;
 		devres_add(dev, ptr);
 	} else {
 		devres_free(ptr);

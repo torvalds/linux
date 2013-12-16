@@ -44,8 +44,8 @@
 		gpmc,wr-access-ns = <186>;
 		gpmc,cycle2cycle-samecsen;
 		gpmc,cycle2cycle-diffcsen;
-		vmmc-supply = <&vddvario>;
-		vmmc_aux-supply = <&vdd33a>;
+		vddvario-supply = <&vddvario>;
+		vdd33a-supply = <&vdd33a>;
 		reg-io-width = <4>;
 		smsc,save-mac-address;
 	};
