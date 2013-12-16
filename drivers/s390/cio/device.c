@@ -549,17 +549,12 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 	if (!dev_fsm_final_state(cdev) &&
 	    cdev->private->state != DEV_STATE_DISCONNECTED) {
 		ret = -EAGAIN;
-		goto out_onoff;
+		goto out;
 	}
 	/* Prevent conflict between pending work and on-/offline processing.*/
 	if (work_pending(&cdev->private->todo_work)) {
 		ret = -EAGAIN;
-		goto out_onoff;
-	}
-
-	if (cdev->drv && !try_module_get(cdev->drv->driver.owner)) {
-		ret = -EINVAL;
-		goto out_onoff;
+		goto out;
 	}
 	if (!strncmp(buf, "force\n", count)) {
 		force = 1;
@@ -571,6 +566,8 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 	}
 	if (ret)
 		goto out;
+
+	device_lock(dev);
 	switch (i) {
 	case 0:
 		ret = online_store_handle_offline(cdev);
@@ -581,10 +578,9 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 	default:
 		ret = -EINVAL;
 	}
+	device_unlock(dev);
+
 out:
-	if (cdev->drv)
-		module_put(cdev->drv->driver.owner);
-out_onoff:
 	atomic_set(&cdev->private->onoff, 0);
 	return (ret < 0) ? ret : count;
 }
