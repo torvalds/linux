@@ -1638,6 +1638,11 @@ static inline void skb_set_mac_header(struct sk_buff *skb, const int offset)
 	skb->mac_header += offset;
 }
 
+static inline void skb_pop_mac_header(struct sk_buff *skb)
+{
+	skb->mac_header = skb->network_header;
+}
+
 static inline void skb_probe_transport_header(struct sk_buff *skb,
 					      const int offset_hint)
 {
