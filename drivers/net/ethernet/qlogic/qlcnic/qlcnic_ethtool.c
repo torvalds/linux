@@ -680,20 +680,11 @@ static int qlcnic_validate_ring_count(struct qlcnic_adapter *adapter,
 	}
 
 	 if (tx_ring != 0) {
-		if (qlcnic_82xx_check(adapter) &&
-		    (tx_ring > adapter->max_tx_rings)) {
+		if (tx_ring > adapter->max_tx_rings) {
 			netdev_err(adapter->netdev,
 				   "Invalid ring count, Tx ring count %d should not be greater than max %d driver Tx rings.\n",
 				   tx_ring, adapter->max_tx_rings);
 			return -EINVAL;
-		}
-
-		if (qlcnic_83xx_check(adapter) &&
-		    (tx_ring > QLCNIC_SINGLE_RING)) {
-			netdev_err(adapter->netdev,
-				   "Invalid ring count, Tx ring count %d should not be greater than %d driver Tx rings.\n",
-				   tx_ring, QLCNIC_SINGLE_RING);
-			 return -EINVAL;
 		}
 	}
 
