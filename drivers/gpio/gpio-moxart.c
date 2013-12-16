@@ -121,11 +121,8 @@ static int moxart_gpio_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mgc->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(mgc->base)) {
-		dev_err(dev, "%s: devm_ioremap_resource res_gpio failed\n",
-			dev->of_node->full_name);
+	if (IS_ERR(mgc->base))
 		return PTR_ERR(mgc->base);
-	}
 
 	mgc->gpio.dev = dev;
 
