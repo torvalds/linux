@@ -580,7 +580,6 @@ struct scsi_qla_host {
 #define AF_82XX_FW_DUMPED		24 /* 0x01000000 */
 #define AF_8XXX_RST_OWNER		25 /* 0x02000000 */
 #define AF_82XX_DUMP_READING		26 /* 0x04000000 */
-#define AF_83XX_NO_FW_DUMP		27 /* 0x08000000 */
 #define AF_83XX_IOCB_INTR_ON		28 /* 0x10000000 */
 #define AF_83XX_MBOX_INTR_ON		29 /* 0x20000000 */
 

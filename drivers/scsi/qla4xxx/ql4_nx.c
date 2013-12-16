@@ -2821,7 +2821,7 @@ int qla4_8xxx_device_bootstrap(struct scsi_qla_host *ha)
 {
 	int rval = QLA_ERROR;
 	int i, timeout;
-	uint32_t old_count, count, idc_ctrl;
+	uint32_t old_count, count;
 	int need_reset = 0, peg_stuck = 1;
 
 	need_reset = ha->isp_ops->need_reset(ha);
@@ -2863,19 +2863,6 @@ dev_initialize:
 	ql4_printk(KERN_INFO, ha, "HW State: INITIALIZING\n");
 	qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
 			    QLA8XXX_DEV_INITIALIZING);
-
-	/*
-	 * For ISP8324 and ISP8042, if IDC_CTRL GRACEFUL_RESET_BIT1 is set,
-	 * reset it after device goes to INIT state.
-	 */
-	if (is_qla8032(ha) || is_qla8042(ha)) {
-		idc_ctrl = qla4_83xx_rd_reg(ha, QLA83XX_IDC_DRV_CTRL);
-		if (idc_ctrl & GRACEFUL_RESET_BIT1) {
-			qla4_83xx_wr_reg(ha, QLA83XX_IDC_DRV_CTRL,
-					 (idc_ctrl & ~GRACEFUL_RESET_BIT1));
-			set_bit(AF_83XX_NO_FW_DUMP, &ha->flags);
-		}
-	}
 
 	ha->isp_ops->idc_unlock(ha);
 
