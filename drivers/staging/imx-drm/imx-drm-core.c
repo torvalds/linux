@@ -501,6 +501,15 @@ int imx_drm_add_crtc(struct drm_crtc *crtc,
 
 	mutex_lock(&imxdrm->mutex);
 
+	/*
+	 * The vblank arrays are dimensioned by MAX_CRTC - we can't
+	 * pass IDs greater than this to those functions.
+	 */
+	if (imxdrm->pipes >= MAX_CRTC) {
+		ret = -EINVAL;
+		goto err_busy;
+	}
+
 	if (imxdrm->drm->open_count) {
 		ret = -EBUSY;
 		goto err_busy;
