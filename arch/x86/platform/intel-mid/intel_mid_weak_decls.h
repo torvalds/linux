@@ -11,5 +11,8 @@
 
 
 /* __attribute__((weak)) makes these declarations overridable */
-extern void intel_mid_power_off(void) __attribute__((weak));
-extern unsigned long __init intel_mid_calibrate_tsc(void) __attribute__((weak));
+/* For every CPU addition a new get_<cpuname>_ops interface needs
+ * to be added.
+ */
+extern void * __cpuinit get_penwell_ops(void) __attribute__((weak));
+extern void * __cpuinit get_cloverview_ops(void) __attribute__((weak));
