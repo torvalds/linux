@@ -212,6 +212,20 @@ static inline void flush_scache_line(unsigned long addr)
 	:							\
 	: "i" (op), "r" (addr))
 
+#define protected_cachee_op(op,addr)				\
+	__asm__ __volatile__(					\
+	"	.set	push			\n"		\
+	"	.set	noreorder		\n"		\
+	"	.set	mips0			\n"		\
+	"	.set	eva			\n"		\
+	"1:	cachee	%0, (%1)		\n"		\
+	"2:	.set	pop			\n"		\
+	"	.section __ex_table,\"a\"	\n"		\
+	"	"STR(PTR)" 1b, 2b		\n"		\
+	"	.previous"					\
+	:							\
+	: "i" (op), "r" (addr))
+
 /*
  * The next two are for badland addresses like signal trampolines.
  */
@@ -223,7 +237,11 @@ static inline void protected_flush_icache_line(unsigned long addr)
 		break;
 
 	default:
+#ifdef CONFIG_EVA
+		protected_cachee_op(Hit_Invalidate_I, addr);
+#else
 		protected_cache_op(Hit_Invalidate_I, addr);
+#endif
 		break;
 	}
 }
