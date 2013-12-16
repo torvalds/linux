@@ -40,8 +40,8 @@ extern void yyerror(const char *str);
 
 extern void bpf_asm_compile(FILE *fp, bool cstyle);
 static void bpf_set_curr_instr(uint16_t op, uint8_t jt, uint8_t jf, uint32_t k);
-static void bpf_set_curr_label(const char *label);
-static void bpf_set_jmp_label(const char *label, enum jmp_type type);
+static void bpf_set_curr_label(char *label);
+static void bpf_set_jmp_label(char *label, enum jmp_type type);
 
 %}
 
@@ -573,7 +573,7 @@ txa
 
 static int curr_instr = 0;
 static struct sock_filter out[BPF_MAXINSNS];
-static const char **labels, **labels_jt, **labels_jf, **labels_k;
+static char **labels, **labels_jt, **labels_jf, **labels_k;
 
 static void bpf_assert_max(void)
 {
@@ -594,13 +594,13 @@ static void bpf_set_curr_instr(uint16_t code, uint8_t jt, uint8_t jf,
 	curr_instr++;
 }
 
-static void bpf_set_curr_label(const char *label)
+static void bpf_set_curr_label(char *label)
 {
 	bpf_assert_max();
-        labels[curr_instr] = label;
+	labels[curr_instr] = label;
 }
 
-static void bpf_set_jmp_label(const char *label, enum jmp_type type)
+static void bpf_set_jmp_label(char *label, enum jmp_type type)
 {
 	bpf_assert_max();
 	switch (type) {
@@ -717,12 +717,25 @@ static void bpf_init(void)
 	assert(labels_k);
 }
 
+static void bpf_destroy_labels(void)
+{
+	int i;
+
+	for (i = 0; i < curr_instr; i++) {
+		free(labels_jf[i]);
+		free(labels_jt[i]);
+		free(labels_k[i]);
+		free(labels[i]);
+	}
+}
+
 static void bpf_destroy(void)
 {
-	free(labels);
+	bpf_destroy_labels();
 	free(labels_jt);
 	free(labels_jf);
 	free(labels_k);
+	free(labels);
 }
 
 void bpf_asm_compile(FILE *fp, bool cstyle)
