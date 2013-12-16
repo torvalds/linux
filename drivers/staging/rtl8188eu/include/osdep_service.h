@@ -71,7 +71,7 @@ static inline struct list_head *get_next(struct list_head *list)
 
 static inline struct list_head *get_list_head(struct __queue *queue)
 {
-	return (&(queue->queue));
+	return &(queue->queue);
 }
 
 
@@ -343,7 +343,7 @@ static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)
 	return del_timer_sync(ptimer);
 }
 
-static __inline void thread_enter(char *name)
+static inline void thread_enter(char *name)
 {
 #ifdef daemonize
 	daemonize("%s", name);
