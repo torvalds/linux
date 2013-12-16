@@ -80,7 +80,7 @@ static int __rpipe_get_descr(struct wahc *wa,
 		USB_REQ_GET_DESCRIPTOR,
 		USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_RPIPE,
 		USB_DT_RPIPE<<8, index, descr, sizeof(*descr),
-		1000 /* FIXME: arbitrary */);
+		USB_CTRL_GET_TIMEOUT);
 	if (result < 0) {
 		dev_err(dev, "rpipe %u: get descriptor failed: %d\n",
 			index, (int)result);
@@ -118,7 +118,7 @@ static int __rpipe_set_descr(struct wahc *wa,
 		USB_REQ_SET_DESCRIPTOR,
 		USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_RPIPE,
 		USB_DT_RPIPE<<8, index, descr, sizeof(*descr),
-		HZ / 10);
+		USB_CTRL_SET_TIMEOUT);
 	if (result < 0) {
 		dev_err(dev, "rpipe %u: set descriptor failed: %d\n",
 			index, (int)result);
@@ -237,7 +237,7 @@ static int __rpipe_reset(struct wahc *wa, unsigned index)
 		wa->usb_dev, usb_sndctrlpipe(wa->usb_dev, 0),
 		USB_REQ_RPIPE_RESET,
 		USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_RPIPE,
-		0, index, NULL, 0, 1000 /* FIXME: arbitrary */);
+		0, index, NULL, 0, USB_CTRL_SET_TIMEOUT);
 	if (result < 0)
 		dev_err(dev, "rpipe %u: reset failed: %d\n",
 			index, result);
@@ -527,7 +527,7 @@ void rpipe_ep_disable(struct wahc *wa, struct usb_host_endpoint *ep)
 			wa->usb_dev, usb_rcvctrlpipe(wa->usb_dev, 0),
 			USB_REQ_RPIPE_ABORT,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_RPIPE,
-			0, index, NULL, 0, 1000 /* FIXME: arbitrary */);
+			0, index, NULL, 0, USB_CTRL_SET_TIMEOUT);
 		rpipe_put(rpipe);
 	}
 	mutex_unlock(&wa->rpipe_mutex);
@@ -548,7 +548,7 @@ void rpipe_clear_feature_stalled(struct wahc *wa, struct usb_host_endpoint *ep)
 			wa->usb_dev, usb_rcvctrlpipe(wa->usb_dev, 0),
 			USB_REQ_CLEAR_FEATURE,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_RPIPE,
-			RPIPE_STALL, index, NULL, 0, 1000);
+			RPIPE_STALL, index, NULL, 0, USB_CTRL_SET_TIMEOUT);
 	}
 	mutex_unlock(&wa->rpipe_mutex);
 }

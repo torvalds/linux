@@ -3498,6 +3498,7 @@ static int octeon_usb_driver_probe(struct device *dev)
 		kfree(hcd);
 		return -1;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	dev_dbg(dev, "Registered HCD for port %d on irq %d\n", usb_num, irq);
 

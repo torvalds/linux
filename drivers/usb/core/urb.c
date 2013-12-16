@@ -492,9 +492,9 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 		/* too small? */
 		switch (dev->speed) {
 		case USB_SPEED_WIRELESS:
-			if (urb->interval < 6)
+			if ((urb->interval < 6)
+				&& (xfertype == USB_ENDPOINT_XFER_INT))
 				return -EINVAL;
-			break;
 		default:
 			if (urb->interval <= 0)
 				return -EINVAL;

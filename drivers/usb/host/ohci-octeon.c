@@ -171,6 +171,8 @@ static int ohci_octeon_drv_probe(struct platform_device *pdev)
 		goto err3;
 	}
 
+	device_wakeup_enable(hcd->self.controller);
+
 	platform_set_drvdata(pdev, hcd);
 
 	return 0;

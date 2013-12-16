@@ -174,9 +174,7 @@ struct fotg210_hcd {			/* one per controller */
 #endif
 
 	/* debug files */
-#ifdef DEBUG
 	struct dentry		*debug_dir;
-#endif
 };
 
 /* convert between an HCD pointer and the corresponding FOTG210_HCD */
@@ -739,12 +737,6 @@ static inline unsigned fotg210_read_frame_index(struct fotg210_hcd *fotg210)
 	(desc)->length - FOTG210_ITD_LENGTH(t) :			\
 	FOTG210_ITD_LENGTH(t);					\
 })
-/*-------------------------------------------------------------------------*/
-
-#ifndef DEBUG
-#define STUB_DEBUG_FILES
-#endif	/* DEBUG */
-
 /*-------------------------------------------------------------------------*/
 
 #endif /* __LINUX_FOTG210_H */

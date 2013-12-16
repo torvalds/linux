@@ -158,6 +158,7 @@ static int ehci_octeon_drv_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "failed to add hcd with err %d\n", ret);
 		goto err3;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	platform_set_drvdata(pdev, hcd);
 

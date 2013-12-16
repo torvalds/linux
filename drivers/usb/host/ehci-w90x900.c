@@ -94,6 +94,7 @@ static int usb_w90x900_probe(const struct hc_driver *driver,
 	if (retval != 0)
 		goto err4;
 
+	device_wakeup_enable(hcd->self.controller);
 	return retval;
 err4:
 	iounmap(hcd->regs);

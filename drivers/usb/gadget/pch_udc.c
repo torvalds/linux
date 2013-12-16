@@ -3210,7 +3210,7 @@ finished:
 	return retval;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(pch_udc_pcidev_id) = {
+static const struct pci_device_id pch_udc_pcidev_id[] = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_EG20T_UDC),
 		.class = (PCI_CLASS_SERIAL_USB << 8) | 0xfe,

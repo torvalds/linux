@@ -2657,6 +2657,7 @@ int musb_host_setup(struct musb *musb, int power_budget)
 	if (ret < 0)
 		return ret;
 
+	device_wakeup_enable(hcd->self.controller);
 	return 0;
 }
 

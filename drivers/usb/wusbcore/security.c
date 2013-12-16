@@ -165,7 +165,7 @@ static int wusb_dev_set_encryption(struct usb_device *usb_dev, int value)
 	result = usb_control_msg(usb_dev, usb_sndctrlpipe(usb_dev, 0),
 			USB_REQ_SET_ENCRYPTION,
 			USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
-			value, 0, NULL, 0, 1000 /* FIXME: arbitrary */);
+			value, 0, NULL, 0, USB_CTRL_SET_TIMEOUT);
 	if (result < 0)
 		dev_err(dev, "Can't set device's WUSB encryption to "
 			"%s (value %d): %d\n",
@@ -191,7 +191,7 @@ static int wusb_dev_set_gtk(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev)
 		USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
 		USB_DT_KEY << 8 | key_index, 0,
 		&wusbhc->gtk.descr, wusbhc->gtk.descr.bLength,
-		1000);
+		USB_CTRL_SET_TIMEOUT);
 }
 
 
@@ -301,8 +301,9 @@ int wusb_dev_update_address(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev)
 
 	/* Set address 0 */
 	result = usb_control_msg(usb_dev, usb_sndctrlpipe(usb_dev, 0),
-				 USB_REQ_SET_ADDRESS, 0,
-				 0, 0, NULL, 0, 1000 /* FIXME: arbitrary */);
+			USB_REQ_SET_ADDRESS,
+			USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
+			 0, 0, NULL, 0, USB_CTRL_SET_TIMEOUT);
 	if (result < 0) {
 		dev_err(dev, "auth failed: can't set address 0: %d\n",
 			result);
@@ -316,9 +317,10 @@ int wusb_dev_update_address(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev)
 
 	/* Set new (authenticated) address. */
 	result = usb_control_msg(usb_dev, usb_sndctrlpipe(usb_dev, 0),
-				 USB_REQ_SET_ADDRESS, 0,
-				 new_address, 0, NULL, 0,
-				 1000 /* FIXME: arbitrary */);
+			USB_REQ_SET_ADDRESS,
+			USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
+			new_address, 0, NULL, 0,
+			USB_CTRL_SET_TIMEOUT);
 	if (result < 0) {
 		dev_err(dev, "auth failed: can't set address %u: %d\n",
 			new_address, result);
@@ -381,7 +383,7 @@ int wusb_dev_4way_handshake(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev,
 		usb_dev, usb_sndctrlpipe(usb_dev, 0),
 		USB_REQ_SET_HANDSHAKE,
 		USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
-		1, 0, &hs[0], sizeof(hs[0]), 1000 /* FIXME: arbitrary */);
+		1, 0, &hs[0], sizeof(hs[0]), USB_CTRL_SET_TIMEOUT);
 	if (result < 0) {
 		dev_err(dev, "Handshake1: request failed: %d\n", result);
 		goto error_hs1;
@@ -392,7 +394,7 @@ int wusb_dev_4way_handshake(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev,
 		usb_dev, usb_rcvctrlpipe(usb_dev, 0),
 		USB_REQ_GET_HANDSHAKE,
 		USB_DIR_IN | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
-		2, 0, &hs[1], sizeof(hs[1]), 1000 /* FIXME: arbitrary */);
+		2, 0, &hs[1], sizeof(hs[1]), USB_CTRL_GET_TIMEOUT);
 	if (result < 0) {
 		dev_err(dev, "Handshake2: request failed: %d\n", result);
 		goto error_hs2;
@@ -469,7 +471,7 @@ int wusb_dev_4way_handshake(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev,
 		usb_dev, usb_sndctrlpipe(usb_dev, 0),
 		USB_REQ_SET_HANDSHAKE,
 		USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
-		3, 0, &hs[2], sizeof(hs[2]), 1000 /* FIXME: arbitrary */);
+		3, 0, &hs[2], sizeof(hs[2]), USB_CTRL_SET_TIMEOUT);
 	if (result < 0) {
 		dev_err(dev, "Handshake3: request failed: %d\n", result);
 		goto error_hs3;

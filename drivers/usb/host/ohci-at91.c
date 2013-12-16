@@ -200,8 +200,10 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 	at91_start_hc(pdev);
 
 	retval = usb_add_hcd(hcd, pdev->resource[1].start, IRQF_SHARED);
-	if (retval == 0)
+	if (retval == 0) {
+		device_wakeup_enable(hcd->self.controller);
 		return retval;
+	}
 
 	/* Error handling */
 	at91_stop_hc(pdev);
@@ -635,10 +637,17 @@ ohci_hcd_at91_drv_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
 	struct usb_hcd	*hcd = platform_get_drvdata(pdev);
 	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
+	bool		do_wakeup = device_may_wakeup(&pdev->dev);
+	int		ret;
 
-	if (device_may_wakeup(&pdev->dev))
+	if (do_wakeup)
 		enable_irq_wake(hcd->irq);
 
+	ret = ohci_suspend(hcd, do_wakeup);
+	if (ret) {
+		disable_irq_wake(hcd->irq);
+		return ret;
+	}
 	/*
 	 * The integrated transceivers seem unable to notice disconnect,
 	 * reconnect, or wakeup without the 48 MHz clock active.  so for
@@ -657,7 +666,7 @@ ohci_hcd_at91_drv_suspend(struct platform_device *pdev, pm_message_t mesg)
 		at91_stop_clock();
 	}
 
-	return 0;
+	return ret;
 }
 
 static int ohci_hcd_at91_drv_resume(struct platform_device *pdev)

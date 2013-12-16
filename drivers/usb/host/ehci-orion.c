@@ -252,6 +252,7 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 	if (err)
 		goto err4;
 
+	device_wakeup_enable(hcd->self.controller);
 	return 0;
 
 err4:

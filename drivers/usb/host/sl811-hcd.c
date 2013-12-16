@@ -1732,6 +1732,8 @@ sl811h_probe(struct platform_device *dev)
 	if (retval != 0)
 		goto err6;
 
+	device_wakeup_enable(hcd->self.controller);
+
 	create_debug_file(sl811);
 	return retval;
 

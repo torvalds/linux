@@ -138,6 +138,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval != 0)
 		goto err4;
+	device_wakeup_enable(hcd->self.controller);
 
 #ifdef CONFIG_USB_OTG
 	if (pdata->operating_mode == FSL_USB2_DR_OTG) {
@@ -413,7 +414,7 @@ static int ehci_fsl_mpc512x_drv_suspend(struct device *dev)
 	struct fsl_usb2_platform_data *pdata = dev_get_platdata(dev);
 	u32 tmp;
 
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+#ifdef CONFIG_DYNAMIC_DEBUG
 	u32 mode = ehci_readl(ehci, hcd->regs + FSL_SOC_USB_USBMODE);
 	mode &= USBMODE_CM_MASK;
 	tmp = ehci_readl(ehci, hcd->regs + 0x140);	/* usbcmd */

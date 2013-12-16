@@ -754,6 +754,8 @@ static int of_fhci_probe(struct platform_device *ofdev)
 	if (ret < 0)
 		goto err_add_hcd;
 
+	device_wakeup_enable(hcd->self.controller);
+
 	fhci_dfs_create(fhci);
 
 	return 0;

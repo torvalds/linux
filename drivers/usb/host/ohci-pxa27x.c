@@ -443,8 +443,10 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver, struct platform_device
 	ohci->num_ports = 3;
 
 	retval = usb_add_hcd(hcd, irq, 0);
-	if (retval == 0)
+	if (retval == 0) {
+		device_wakeup_enable(hcd->self.controller);
 		return retval;
+	}
 
 	pxa27x_stop_hc(pxa_ohci, &pdev->dev);
  err3:

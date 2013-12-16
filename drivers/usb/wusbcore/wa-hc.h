@@ -332,7 +332,7 @@ static inline int rpipe_avail_inc(struct wa_rpipe *rpipe)
 /* Transferring data */
 extern int wa_urb_enqueue(struct wahc *, struct usb_host_endpoint *,
 			  struct urb *, gfp_t);
-extern int wa_urb_dequeue(struct wahc *, struct urb *);
+extern int wa_urb_dequeue(struct wahc *, struct urb *, int);
 extern void wa_handle_notif_xfer(struct wahc *, struct wa_notif_hdr *);
 
 
@@ -366,7 +366,7 @@ static inline int __wa_feature(struct wahc *wa, unsigned op, u16 feature)
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 			feature,
 			wa->usb_iface->cur_altsetting->desc.bInterfaceNumber,
-			NULL, 0, 1000 /* FIXME: arbitrary */);
+			NULL, 0, USB_CTRL_SET_TIMEOUT);
 }
 
 
@@ -400,8 +400,7 @@ s32 __wa_get_status(struct wahc *wa)
 		USB_REQ_GET_STATUS,
 		USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 		0, wa->usb_iface->cur_altsetting->desc.bInterfaceNumber,
-		&wa->status, sizeof(wa->status),
-		1000 /* FIXME: arbitrary */);
+		&wa->status, sizeof(wa->status), USB_CTRL_GET_TIMEOUT);
 	if (result >= 0)
 		result = wa->status;
 	return result;
