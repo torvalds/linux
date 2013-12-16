@@ -2913,7 +2913,7 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
  * Request sync osd watch/unwatch.  The value of "start" determines
  * whether a watch request is being initiated or torn down.
  */
-static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev, bool start)
+static int __rbd_dev_header_watch_sync(struct rbd_device *rbd_dev, bool start)
 {
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
 	struct rbd_obj_request *obj_request;
@@ -2986,6 +2986,22 @@ out_cancel:
 		rbd_obj_request_put(obj_request);
 
 	return ret;
+}
+
+static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev)
+{
+	return __rbd_dev_header_watch_sync(rbd_dev, true);
+}
+
+static void rbd_dev_header_unwatch_sync(struct rbd_device *rbd_dev)
+{
+	int ret;
+
+	ret = __rbd_dev_header_watch_sync(rbd_dev, false);
+	if (ret) {
+		rbd_warn(rbd_dev, "unable to tear down watch request: %d\n",
+			 ret);
+	}
 }
 
 /*
@@ -5003,7 +5019,6 @@ static void rbd_dev_image_release(struct rbd_device *rbd_dev)
 static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 {
 	int ret;
-	int tmp;
 
 	/*
 	 * Get the id from the image id object.  Unless there's an
@@ -5022,7 +5037,7 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 		goto err_out_format;
 
 	if (mapping) {
-		ret = rbd_dev_header_watch_sync(rbd_dev, true);
+		ret = rbd_dev_header_watch_sync(rbd_dev);
 		if (ret)
 			goto out_header_name;
 	}
@@ -5049,12 +5064,8 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 err_out_probe:
 	rbd_dev_unprobe(rbd_dev);
 err_out_watch:
-	if (mapping) {
-		tmp = rbd_dev_header_watch_sync(rbd_dev, false);
-		if (tmp)
-			rbd_warn(rbd_dev, "unable to tear down "
-					"watch request (%d)\n", tmp);
-	}
+	if (mapping)
+		rbd_dev_header_unwatch_sync(rbd_dev);
 out_header_name:
 	kfree(rbd_dev->header_name);
 	rbd_dev->header_name = NULL;
@@ -5250,16 +5261,14 @@ static ssize_t do_rbd_remove(struct bus_type *bus,
 	if (ret < 0 || already)
 		return ret;
 
-	ret = rbd_dev_header_watch_sync(rbd_dev, false);
-	if (ret)
-		rbd_warn(rbd_dev, "failed to cancel watch event (%d)\n", ret);
-
+	rbd_dev_header_unwatch_sync(rbd_dev);
 	/*
 	 * flush remaining watch callbacks - these must be complete
 	 * before the osd_client is shutdown
 	 */
 	dout("%s: flushing notifies", __func__);
 	ceph_osdc_flush_notifies(&rbd_dev->rbd_client->client->osdc);
+
 	/*
 	 * Don't free anything from rbd_dev->disk until after all
 	 * notifies are completely processed. Otherwise
