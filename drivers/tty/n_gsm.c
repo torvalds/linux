@@ -2020,7 +2020,7 @@ static void gsm_error(struct gsm_mux *gsm,
  *	and then shut down each device hanging up the channels as we go.
  */
 
-void gsm_cleanup_mux(struct gsm_mux *gsm)
+static void gsm_cleanup_mux(struct gsm_mux *gsm)
 {
 	int i;
 	struct gsm_dlci *dlci = gsm->dlci[0];
@@ -2065,7 +2065,6 @@ void gsm_cleanup_mux(struct gsm_mux *gsm)
 		kfree(txq);
 	INIT_LIST_HEAD(&gsm->tx_list);
 }
-EXPORT_SYMBOL_GPL(gsm_cleanup_mux);
 
 /**
  *	gsm_activate_mux	-	generic GSM setup
@@ -2076,7 +2075,7 @@ EXPORT_SYMBOL_GPL(gsm_cleanup_mux);
  *	finally kick off connecting to DLCI 0 on the modem.
  */
 
-int gsm_activate_mux(struct gsm_mux *gsm)
+static int gsm_activate_mux(struct gsm_mux *gsm)
 {
 	struct gsm_dlci *dlci;
 	int i = 0;
@@ -2112,7 +2111,6 @@ int gsm_activate_mux(struct gsm_mux *gsm)
 	gsm->dead = 0;		/* Tty opens are now permissible */
 	return 0;
 }
-EXPORT_SYMBOL_GPL(gsm_activate_mux);
 
 /**
  *	gsm_free_mux		-	free up a mux
@@ -2120,13 +2118,12 @@ EXPORT_SYMBOL_GPL(gsm_activate_mux);
  *
  *	Dispose of allocated resources for a dead mux
  */
-void gsm_free_mux(struct gsm_mux *gsm)
+static void gsm_free_mux(struct gsm_mux *gsm)
 {
 	kfree(gsm->txframe);
 	kfree(gsm->buf);
 	kfree(gsm);
 }
-EXPORT_SYMBOL_GPL(gsm_free_mux);
 
 /**
  *	gsm_free_muxr		-	free up a mux
@@ -2156,7 +2153,7 @@ static inline void mux_put(struct gsm_mux *gsm)
  *	Creates a new mux ready for activation.
  */
 
-struct gsm_mux *gsm_alloc_mux(void)
+static struct gsm_mux *gsm_alloc_mux(void)
 {
 	struct gsm_mux *gsm = kzalloc(sizeof(struct gsm_mux), GFP_KERNEL);
 	if (gsm == NULL)
@@ -2189,7 +2186,6 @@ struct gsm_mux *gsm_alloc_mux(void)
 
 	return gsm;
 }
-EXPORT_SYMBOL_GPL(gsm_alloc_mux);
 
 /**
  *	gsmld_output		-	write to link
@@ -2716,7 +2712,7 @@ static void gsm_mux_rx_netchar(struct gsm_dlci *dlci,
 	return;
 }
 
-int gsm_change_mtu(struct net_device *net, int new_mtu)
+static int gsm_change_mtu(struct net_device *net, int new_mtu)
 {
 	struct gsm_mux_net *mux_net = (struct gsm_mux_net *)netdev_priv(net);
 	if ((new_mtu < 8) || (new_mtu > mux_net->dlci->gsm->mtu))
