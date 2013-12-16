@@ -1490,10 +1490,9 @@ tgafb_init_fix(struct fb_info *info)
 		if (tga_bus_tc)
 			tga_type_name = "Digital ZLX-E3";
 		break;
-	default:
-		tga_type_name = "Unknown";
-		break;
 	}
+	if (!tga_type_name)
+		tga_type_name = "Unknown";
 
 	strlcpy(info->fix.id, tga_type_name, sizeof(info->fix.id));
 
