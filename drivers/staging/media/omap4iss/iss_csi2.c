@@ -1247,8 +1247,7 @@ static int csi2_init_entities(struct iss_csi2_device *csi2, const char *subname)
 	v4l2_subdev_init(sd, &csi2_ops);
 	sd->internal_ops = &csi2_internal_ops;
 	sprintf(name, "CSI2%s", subname);
-	strlcpy(sd->name, "", sizeof(sd->name));
-	sprintf(sd->name, "OMAP4 ISS %s", name);
+	snprintf(sd->name, sizeof(sd->name), "OMAP4 ISS %s", name);
 
 	sd->grp_id = 1 << 16;	/* group ID for iss subdevs */
 	v4l2_set_subdevdata(sd, csi2);
