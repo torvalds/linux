@@ -211,16 +211,20 @@ struct union_mode{
 
 struct func_to_reg_offset {
 	unsigned int reg_type;
+	const char *vol_name;
 	const char *func_name;
+	const char *group_name;
 	unsigned int reg_offset;
 	unsigned int bit_offset;
 	unsigned int bit_mask;
 };
 
-#define FUNC_TO_REG_OFFSET(type, label, reg, bit, mask)	\
+#define FUNC_GROUP_TO_REG_OFFSET(type, vol, func, group, reg, bit, mask)	\
 	{						\
 		.reg_type	= type,		\
-		.func_name	= label,	\
+		.vol_name	= vol,		\
+		.func_name	= func,		\
+		.group_name	= group,	\
 		.reg_offset	= reg,		\
 		.bit_offset	= bit,		\
 		.bit_mask	= mask,		\
@@ -409,6 +413,12 @@ static void rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 	/* GPIO0_C */
 	/*GPIO0_C0 = 0x0c00, NAND_D8, */
 	/*GPIO0_C1 = 0x0c10, NAND_D9, */
+
+	if(bank->bank_num == 15)
+	{
+		printk("%s:error bank num %d is out of range\n",__func__, bank->bank_num);
+		return ;
+	}
     
         m.mode = mux;
 	
@@ -563,234 +573,65 @@ static const struct pinmux_ops rockchip_pmx_ops = {
 /*
  * Hardware access
  */
-#define TYPE_PULL_REG		0x01
-#define TYPE_VOL_REG		0x02
-#define TYPE_DRV_REG		0x03
-#define TYPE_TRI_REG		0x04
 
-#define RK3188_GRF_IO_CON0	0xf4
-#define RK3188_GRF_IO_CON1	0xf8
-#define RK3188_GRF_IO_CON2	0xfc
-#define RK3188_GRF_IO_CON3	0x100
-#define RK3188_GRF_IO_CON4	0x104
-
-static struct func_to_reg_offset rk3188_func_to_reg_offset[] = 
+static struct func_to_reg_offset rk3188_func_to_drv_reg_offset[] = 
 {
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG,  "reserve", RK3188_GRF_IO_CON0, 0 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio0_flash", RK3188_GRF_IO_CON0, 2, 3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio0_flash", RK3188_GRF_IO_CON0, 4 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio0_d", RK3188_GRF_IO_CON0, 6 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio1_uart0", RK3188_GRF_IO_CON0, 8 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio1_uart1", RK3188_GRF_IO_CON0, 10 ,3),	
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio1_spi0", RK3188_GRF_IO_CON0, 10 ,3),	
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio1_uart2", RK3188_GRF_IO_CON0, 12 ,3),	
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio1_uart3", RK3188_GRF_IO_CON0, 14 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio1_spi1", RK3188_GRF_IO_CON0, 14 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "NULL",  "reserve" ,"NULL", RK3188_GRF_IO_CON0, 0 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "flash-vcc", "gpio0_flash" ,"NULL", RK3188_GRF_IO_CON0, 2, 3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "flash-vcc", "gpio0_flash" ,"NULL", RK3188_GRF_IO_CON0, 4 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "flash-vcc", "gpio0_d" ,"NULL", RK3188_GRF_IO_CON0, 6 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "ap0-vcc", "gpio1_uart0" ,"NULL", RK3188_GRF_IO_CON0, 8 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "ap1-vcc", "gpio1_uart1" ,"NULL", RK3188_GRF_IO_CON0, 10 ,3),	
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "ap1-vcc", "gpio1_spi0" ,"NULL", RK3188_GRF_IO_CON0, 10 ,3),	
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "NULL", "gpio1_uart2" ,"NULL", RK3188_GRF_IO_CON0, 12 ,3),	
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "vccio0-vcc", "gpio1_uart3" ,"NULL", RK3188_GRF_IO_CON0, 14 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "vccio0-vcc", "gpio1_spi1" ,"NULL", RK3188_GRF_IO_CON0, 14 ,3),
 
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio1_i2s0", RK3188_GRF_IO_CON1, 0 ,3),	
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio1_i2s0", RK3188_GRF_IO_CON1, 2 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio1_c", RK3188_GRF_IO_CON1, 4 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio1_i2c0", RK3188_GRF_IO_CON1, 6 ,3),	
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio1_i2c1", RK3188_GRF_IO_CON1, 8 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio1_i2c2", RK3188_GRF_IO_CON1, 10 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio1_i2c4", RK3188_GRF_IO_CON1, 12 ,3),	
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio2_lcdc1", RK3188_GRF_IO_CON1, 14 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "ap1-vcc", "gpio1_i2s0" ,"NULL", RK3188_GRF_IO_CON1, 0 ,3),	
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "ap1-vcc", "gpio1_i2s0" ,"NULL", RK3188_GRF_IO_CON1, 2 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "ap1-vcc", "gpio1_c" ,"NULL", RK3188_GRF_IO_CON1, 4 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "vccio1-vcc", "gpio1_i2c0" ,"NULL", RK3188_GRF_IO_CON1, 6 ,3),	
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "vccio1-vcc", "gpio1_i2c1" ,"NULL", RK3188_GRF_IO_CON1, 8 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "vccio1-vcc", "gpio1_i2c2" ,"NULL", RK3188_GRF_IO_CON1, 10 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "ap1-vcc", "gpio1_i2c4" ,"NULL", RK3188_GRF_IO_CON1, 12 ,3),	
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "lcdc1-vcc", "gpio2_lcdc1" ,"NULL", RK3188_GRF_IO_CON1, 14 ,3),
 
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio2_lcdc1", RK3188_GRF_IO_CON2, 0 ,3),	
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio2_smc", RK3188_GRF_IO_CON2, 2 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "reserve", RK3188_GRF_IO_CON2, 4 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio3_sdmmc", RK3188_GRF_IO_CON2, 6 ,3),	
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio3_sdmmc", RK3188_GRF_IO_CON2, 8 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio3_b", RK3188_GRF_IO_CON2, 10 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio3_cif", RK3188_GRF_IO_CON2, 12 ,3),	
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio3_cif", RK3188_GRF_IO_CON2, 14 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "lcdc1-vcc", "gpio2_lcdc1" ,"NULL", RK3188_GRF_IO_CON2, 0 ,3),	
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "lcdc1-vcc", "gpio2_smc" ,"NULL", RK3188_GRF_IO_CON2, 2 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "NULL", "reserve" ,"NULL", RK3188_GRF_IO_CON2, 4 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "ap0-vcc", "gpio3_sdmmc" ,"NULL", RK3188_GRF_IO_CON2, 6 ,3),	
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "ap0-vcc", "gpio3_sdmmc" ,"NULL", RK3188_GRF_IO_CON2, 8 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "cif-vcc", "gpio3_b" ,"NULL", RK3188_GRF_IO_CON2, 10 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "cif-vcc", "gpio3_cif" ,"NULL", RK3188_GRF_IO_CON2, 12 ,3),	
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "cif-vcc", "gpio3_cif" ,"NULL", RK3188_GRF_IO_CON2, 14 ,3),
 
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "vccio0-vcc", "gpio3_sdio" ,"NULL", RK3188_GRF_IO_CON3, 0 ,3),	
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "vccio0-vcc", "gpio3_sdio" ,"NULL", RK3188_GRF_IO_CON3, 2 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "vccio0-vcc", "gpio3_pwm" ,"NULL", RK3188_GRF_IO_CON3, 4 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "vccio0-vcc", "gpio3_d" ,"NULL", RK3188_GRF_IO_CON3, 6 ,3),	
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "flash-vcc", "flash" ,"NULL", RK3188_GRF_IO_CON3, 8 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "flash-vcc", "flash" ,"NULL", RK3188_GRF_IO_CON3, 10 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "cif-vcc", "cif" ,"NULL", RK3188_GRF_IO_CON3, 12 ,3),	
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "lcdc0-vcc", "lcdc0" ,"NULL", RK3188_GRF_IO_CON3, 14 ,3),
 
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio3_sdio", RK3188_GRF_IO_CON3, 0 ,3),	
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio3_sdio", RK3188_GRF_IO_CON3, 2 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio3_pwm", RK3188_GRF_IO_CON3, 4 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "gpio3_d", RK3188_GRF_IO_CON3, 6 ,3),	
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "flash", RK3188_GRF_IO_CON3, 8 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "flash", RK3188_GRF_IO_CON3, 10 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "cif", RK3188_GRF_IO_CON3, 12 ,3),	
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "lcdc0", RK3188_GRF_IO_CON3, 14 ,3),
-
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "lcdc0", RK3188_GRF_IO_CON4, 0 ,3),	
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "jtag", RK3188_GRF_IO_CON4, 2 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "misc", RK3188_GRF_IO_CON4, 4 ,3),
-	FUNC_TO_REG_OFFSET(TYPE_DRV_REG, "reserve", RK3188_GRF_IO_CON4, 6 ,3),	
-	
-	FUNC_TO_REG_OFFSET(TYPE_VOL_REG, "ap0_io", RK3188_GRF_IO_CON4, 8 ,1),
-	FUNC_TO_REG_OFFSET(TYPE_VOL_REG, "ap1_io", RK3188_GRF_IO_CON4, 9 ,1),
-	FUNC_TO_REG_OFFSET(TYPE_VOL_REG, "cif_io", RK3188_GRF_IO_CON4, 10 ,1),	
-	FUNC_TO_REG_OFFSET(TYPE_VOL_REG, "flash_io", RK3188_GRF_IO_CON4, 11 ,1),	
-	FUNC_TO_REG_OFFSET(TYPE_VOL_REG, "vccio0_io", RK3188_GRF_IO_CON4, 12 ,1),
-	FUNC_TO_REG_OFFSET(TYPE_VOL_REG, "vccio1_io", RK3188_GRF_IO_CON4, 13 ,1),
-	FUNC_TO_REG_OFFSET(TYPE_VOL_REG, "lcdc0_io", RK3188_GRF_IO_CON4, 14 ,1),
-	FUNC_TO_REG_OFFSET(TYPE_VOL_REG, "lcdc1_io", RK3188_GRF_IO_CON4, 15 ,1),
-	
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "lcdc0-vcc", "lcdc0" ,"NULL", RK3188_GRF_IO_CON4, 0 ,3),	
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "vccio0-vcc", "jtag" ,"NULL", RK3188_GRF_IO_CON4, 2 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "NULL", "misc" ,"NULL", RK3188_GRF_IO_CON4, 4 ,3),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_DRV_REG, "NULL", "reserve" ,"NULL", RK3188_GRF_IO_CON4, 6 ,3),	
+		
 };
 
-
-static int rockchip_get_pin_config(struct rockchip_pin_bank *bank,
-					int pin_num, int param, int config_type)
+static struct func_to_reg_offset rk3188_func_to_vol_reg_offset[] = 
 {
-	struct rockchip_pinctrl *info = bank->drvdata;	
-	struct rockchip_pin_ctrl *ctrl = info->ctrl;
-	struct func_to_reg_offset reg_offset[4];//same name count should be less four
-	int i = 0, j = 0;	
-	int value = 0;
-	unsigned long flags;	
-	void __iomem *reg;
-	
-	for(i = 0; i < ARRAY_SIZE(rk3188_func_to_reg_offset); i++)
-	{
-		if(!strcmp(info->groups->func_name, rk3188_func_to_reg_offset[i].func_name))
-		{
-			reg_offset[j++] = rk3188_func_to_reg_offset[i];
-		}
-	}
-
-	if(j <= 0)
-	{
-		printk("%s:could find config register for PIN%d-%d\n",__func__, bank->bank_num, pin_num);
-		return -1;
-	}
-
-
-	switch(ctrl->type)
-	{
-		case RK2928:
-		break;
-		
-		case RK3188:
-
-		switch(config_type)
-		{		
-			case TYPE_PULL_REG:
-				
-			break;
-			
-			case TYPE_VOL_REG:
-
-			break;
-			
-			case TYPE_DRV_REG:
-			for(i=0; i < j; i++)
-			{
-				reg = bank->reg_base + reg_offset[i].reg_offset;
-				value |= ((param & reg_offset[i].bit_mask) << (16 + reg_offset[i].bit_offset));
-				value |= ((param & reg_offset[i].bit_mask) << reg_offset[i].bit_offset);
-				spin_lock_irqsave(&bank->slock, flags);
-				//writel_relaxed(value, reg);
-				spin_unlock_irqrestore(&bank->slock, flags);
-		
-				DBG_PINCTRL("%s:reg[%d]=0x%p,value[%d]=0x%x\n",__func__, i, reg, i, value);			
-			}
-			break;
-
-			case TYPE_TRI_REG:
-				
-			break;
-			default:
-			break;
-
-		}
-		
-		break;
-
-		default:
-		break;
-	}
-
-	
-	
-	DBG_PINCTRL("%s:GPIO%d-%d,group=%s, function=%s, gpio=%s, type=%d\n", __func__, bank->bank_num, pin_num, info->groups->name, info->groups->func_name, bank->of_node->name, config_type);
-	
-	return 0;
-}
-
-
-
-static int rockchip_set_pin_config(struct rockchip_pin_bank *bank,
-					int pin_num, int param, int config_type)
-{
-	struct rockchip_pinctrl *info = bank->drvdata;	
-	struct rockchip_pin_ctrl *ctrl = info->ctrl;
-	struct func_to_reg_offset reg_offset[4];//same name count should be less four
-	int i = 0, j = 0;	
-	int value = 0;
-	unsigned long flags;	
-	void __iomem *reg;
-	
-	for(i = 0; i < ARRAY_SIZE(rk3188_func_to_reg_offset); i++)
-	{
-		if(!strcmp(info->groups->func_name, rk3188_func_to_reg_offset[i].func_name))
-		{
-			reg_offset[j++] = rk3188_func_to_reg_offset[i];
-		}
-	}
-
-	if(j <= 0)
-	{
-		printk("%s:could find config register for PIN%d-%d\n",__func__, bank->bank_num, pin_num);
-		return -1;
-	}
-
-
-	switch(ctrl->type)
-	{
-		case RK2928:
-		break;
-		
-		case RK3188:
-
-		switch(config_type)
-		{		
-			case TYPE_PULL_REG:
-				
-			break;
-			
-			case TYPE_VOL_REG:
-
-			break;
-			
-			case TYPE_DRV_REG:
-			for(i=0; i < j; i++)
-			{
-				reg = bank->reg_base + reg_offset[i].reg_offset;
-				value |= ((param & reg_offset[i].bit_mask) << (16 + reg_offset[i].bit_offset));
-				value |= ((param & reg_offset[i].bit_mask) << reg_offset[i].bit_offset);
-				spin_lock_irqsave(&bank->slock, flags);
-				//writel_relaxed(value, reg);
-				spin_unlock_irqrestore(&bank->slock, flags);
-		
-				DBG_PINCTRL("%s:reg[%d]=0x%p,value[%d]=0x%x\n",__func__, i, reg, i, value);			
-			}
-			break;
-
-			case TYPE_TRI_REG:
-				
-			break;
-			default:
-			break;
-
-		}
-		
-		break;
-
-		default:
-		break;
-	}
-
-	
-	
-	DBG_PINCTRL("%s:GPIO%d-%d,group=%s, function=%s, gpio=%s, type=%d\n", __func__, bank->bank_num, pin_num, info->groups[0].name, info->groups[0].func_name, bank->of_node->name, config_type);
-	
-	return 0;
-}
-
-
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_VOL_REG, "ap0-vcc", "vol_domain", "ap0-vcc", RK3188_GRF_IO_CON4, 8 ,1),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_VOL_REG, "ap1-vcc", "vol_domain", "ap1-vcc", RK3188_GRF_IO_CON4, 9 ,1),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_VOL_REG, "cif-vcc", "vol_domain", "cif-vcc", RK3188_GRF_IO_CON4, 10 ,1),	
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_VOL_REG, "flash-vcc", "vol_domain", "flash-vcc", RK3188_GRF_IO_CON4, 11 ,1),	
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_VOL_REG, "vccio0-vcc", "vol_domain", "vccio0-vcc", RK3188_GRF_IO_CON4, 12 ,1),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_VOL_REG, "vccio1-vcc", "vol_domain", "vccio1-vcc", RK3188_GRF_IO_CON4, 13 ,1),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_VOL_REG, "lcdc0-vcc", "vol_domain", "lcdc0-vcc", RK3188_GRF_IO_CON4, 14 ,1),
+	FUNC_GROUP_TO_REG_OFFSET(TYPE_VOL_REG, "lcdc1-vcc", "vol_domain", "lcdc1-vcc", RK3188_GRF_IO_CON4, 15 ,1),
+};
 
 static void rk2928_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 				    int pin_num, void __iomem **reg, u8 *bit)
@@ -966,9 +807,281 @@ static bool rockchip_pinconf_pull_valid(struct rockchip_pin_ctrl *ctrl,
 	return false;
 }
 
+static int _rockchip_pinconf_get(struct rockchip_pin_bank *bank,
+					int pin_num, unsigned long *config, int config_type, unsigned group)
+{
+	struct rockchip_pinctrl *info = bank->drvdata;	
+	struct rockchip_pin_ctrl *ctrl = info->ctrl;
+	struct func_to_reg_offset reg_offset[4];//same name count should be less four
+	struct func_to_reg_offset *func_to_reg;
+	int i = 0, ii = 0, j = 0, jj = 0, num = 0;		
+	int data = 0;
+	unsigned long flags;	
+	void __iomem *reg;
+
+	
+	if(group < 0)
+		return -1;
+
+	DBG_PINCTRL("%s:GPIO%d-%d,group=%s, function=%s, type=%d\n", __func__, bank->bank_num, pin_num, info->groups[group].name, info->groups[group].func_name, config_type);
+
+	switch(ctrl->type)
+	{
+		case RK2928:
+		//to do
+		break;
+
+		case RK3066B:
+			
+		break;
+		
+		case RK3188:
+		
+		switch(config_type)
+		{		
+			case TYPE_PULL_REG:
+			//compare pin num
+			
+			break;
+			
+			case TYPE_VOL_REG:
+			//compare group_name
+			func_to_reg = rk3188_func_to_vol_reg_offset;
+			num = ARRAY_SIZE(rk3188_func_to_vol_reg_offset);
+			for(i = 0; i < num; i++)
+			{
+				if(!strcmp(info->groups[group].name, func_to_reg[i].group_name))
+				{
+					reg_offset[j++] = func_to_reg[i];
+					DBG_PINCTRL("%s:select \"%s\"\n",__func__, func_to_reg[i].group_name);
+				}
+			}
+
+			if(j == 0)
+			{
+				func_to_reg = rk3188_func_to_drv_reg_offset;	
+				num = ARRAY_SIZE(rk3188_func_to_drv_reg_offset);
+				for(i = 0; i < num; i++)
+				{
+					if(!strcmp(info->groups[group].func_name, func_to_reg[i].func_name))
+					{
+						
+						func_to_reg = rk3188_func_to_vol_reg_offset;
+						num = ARRAY_SIZE(rk3188_func_to_vol_reg_offset);
+						for(ii = 0; ii < num; ii++)
+						{
+							if(!strcmp(func_to_reg[i].vol_name, func_to_reg[ii].group_name))
+							{
+								reg_offset[jj++] = func_to_reg[ii];
+								DBG_PINCTRL("%s:select \"%s\"\n",__func__, func_to_reg[ii].group_name);
+							}
+						}
+						
+					}
+				}
+
+
+				j = jj;
+
+			}
+
+
+			break;
+				
+			case TYPE_DRV_REG:
+			//compare func_name
+			func_to_reg = rk3188_func_to_drv_reg_offset;	
+			num = ARRAY_SIZE(rk3188_func_to_drv_reg_offset);
+			for(i = 0; i < num; i++)
+			{
+				if(!strcmp(info->groups[group].func_name, func_to_reg[i].func_name))
+				{
+					reg_offset[j++] = func_to_reg[i];
+					DBG_PINCTRL("%s:select \"%s\"\n",__func__, func_to_reg[i].func_name);
+				}
+			}
+
+			break;
+			
+			case TYPE_TRI_REG:
+			break;
+
+			default:
+			break;
+
+		}
+		
+		break;
+
+		default:
+		break;
+	}
+
+	if(j <= 0)
+	{
+		printk("%s:could find config register for PIN%d-%d,type=%d,num=%d\n",__func__, bank->bank_num, pin_num, config_type, num);
+		return -1;
+	}
+	
+			
+	for(i=0; i < j; i++)
+	{
+		reg = info->reg_base + reg_offset[i].reg_offset;
+		spin_lock_irqsave(&bank->slock, flags);
+		data = readl_relaxed(reg) >> reg_offset[i].bit_offset;
+		data &= reg_offset[i].bit_mask;			
+		spin_unlock_irqrestore(&bank->slock, flags);
+		
+		*config = data;
+
+		DBG_PINCTRL("%s:reg_offset[%d]=0x%x,,bit_offset[%d]=0x%x,data[%d]=0x%x\n",__func__, i, reg_offset[i].reg_offset, i, reg_offset[i].bit_offset, i, data);			
+	}
+	
+	
+	return 0;
+}
+
+
+
+static int _rockchip_pinconf_set(struct rockchip_pin_bank *bank,
+					int pin_num, int param, int config_type, unsigned group)
+{
+	struct rockchip_pinctrl *info = bank->drvdata;	
+	struct rockchip_pin_ctrl *ctrl = info->ctrl;
+	struct func_to_reg_offset reg_offset[4];//same name count should be less four
+	struct func_to_reg_offset *func_to_reg;
+	int i = 0, ii = 0, j = 0, jj = 0, num = 0;	
+	int data = 0;
+	unsigned long flags;	
+	void __iomem *reg;
+
+	
+	if(group < 0)
+		return -1;
+
+	DBG_PINCTRL("%s:GPIO%d-%d,group=%s, function=%s, type=%d\n", __func__, bank->bank_num, pin_num, info->groups[group].name, info->groups[group].func_name, config_type);
+
+	switch(ctrl->type)
+	{
+		case RK2928:
+		//to do
+		break;
+
+		case RK3066B:
+			
+		break;
+		
+		case RK3188:
+		
+		switch(config_type)
+		{		
+			case TYPE_PULL_REG:
+			//compare pin num
+			
+			break;
+			
+			case TYPE_VOL_REG:
+			//compare group_name
+			func_to_reg = rk3188_func_to_vol_reg_offset;
+			num = ARRAY_SIZE(rk3188_func_to_vol_reg_offset);
+			for(i = 0; i < num; i++)
+			{
+				if(!strcmp(info->groups[group].name, func_to_reg[i].group_name))
+				{
+					reg_offset[j++] = func_to_reg[i];
+					DBG_PINCTRL("%s:select \"%s\"\n",__func__, func_to_reg[i].group_name);
+				}
+			}
+
+			if(j == 0)
+			{
+				func_to_reg = rk3188_func_to_drv_reg_offset;	
+				num = ARRAY_SIZE(rk3188_func_to_drv_reg_offset);
+				for(i = 0; i < num; i++)
+				{
+					if(!strcmp(info->groups[group].func_name, func_to_reg[i].func_name))
+					{
+						
+						func_to_reg = rk3188_func_to_vol_reg_offset;
+						num = ARRAY_SIZE(rk3188_func_to_vol_reg_offset);
+						for(ii = 0; ii < num; ii++)
+						{
+							if(!strcmp(rk3188_func_to_drv_reg_offset[i].vol_name, func_to_reg[ii].group_name))
+							{
+								reg_offset[jj++] = func_to_reg[ii];
+								DBG_PINCTRL("%s:select \"%s\"\n",__func__, func_to_reg[ii].group_name);
+							}
+						}
+						
+					}
+				}
+
+
+				j = jj;
+
+			}
+
+
+			break;
+				
+			case TYPE_DRV_REG:
+			//compare func_name
+			func_to_reg = rk3188_func_to_drv_reg_offset;	
+			num = ARRAY_SIZE(rk3188_func_to_drv_reg_offset);
+			for(i = 0; i < num; i++)
+			{
+				if(!strcmp(info->groups[group].func_name, func_to_reg[i].func_name))
+				{
+					reg_offset[j++] = func_to_reg[i];
+					DBG_PINCTRL("%s:select \"%s\"\n",__func__, func_to_reg[i].func_name);
+				}
+			}
+
+			break;
+			
+			case TYPE_TRI_REG:
+			break;
+
+			default:
+			break;
+
+		}
+		
+		break;
+
+		default:
+		break;
+	}
+
+	if(j <= 0)
+	{
+		printk("%s:could find config register for PIN%d-%d,type=%d,num=%d\n",__func__, bank->bank_num, pin_num, config_type, num);
+		return -1;
+	}
+			
+	for(i=0; i < j; i++)
+	{
+		reg = info->reg_base + reg_offset[i].reg_offset;
+		data |= ((param & reg_offset[i].bit_mask) << (16 + reg_offset[i].bit_offset));
+		data |= ((param & reg_offset[i].bit_mask) << reg_offset[i].bit_offset);
+		spin_lock_irqsave(&bank->slock, flags);
+		//writel_relaxed(data, reg);
+		spin_unlock_irqrestore(&bank->slock, flags);
+
+		DBG_PINCTRL("%s:reg_offset[%d]=0x%x,,bit_offset[%d]=0x%x,value[%d]=0x%x\n",__func__, i, reg_offset[i].reg_offset, i, reg_offset[i].bit_offset, i, data);			
+	}
+	
+	
+	return 0;
+}
+
+
+
+
+
 /* set the pin config settings for a specified pin */
 static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
-				unsigned long configs)
+				unsigned long configs, unsigned group)
 {
 	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	struct rockchip_pin_bank *bank = pin_to_bank(info, pin);
@@ -1004,18 +1117,18 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		break;
 		
 	case PIN_CONFIG_POWER_SOURCE:
-		rc = rockchip_set_pin_config(bank, pin - bank->pin_base, param, TYPE_VOL_REG);
+		rc = _rockchip_pinconf_set(bank, pin - bank->pin_base, param, TYPE_VOL_REG, group);
 		if (rc)
 		return rc;
 		break;
 
 	case PIN_CONFIG_DRIVE_STRENGTH:
-		rc = rockchip_set_pin_config(bank, pin - bank->pin_base, param, TYPE_DRV_REG);
+		rc = _rockchip_pinconf_set(bank, pin - bank->pin_base, param, TYPE_DRV_REG, group);
 		if (rc)
 		return rc;
 		break;
 	case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
-		rc = rockchip_set_pin_config(bank, pin - bank->pin_base, param, TYPE_TRI_REG);
+		rc = _rockchip_pinconf_set(bank, pin - bank->pin_base, param, TYPE_TRI_REG, group);
 		if (rc)
 		return rc;
 		break;
@@ -1031,7 +1144,7 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 
 /* get the pin config settings for a specified pin */
 static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
-							unsigned long *config)
+							unsigned long *config, unsigned group)
 {
 	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	struct rockchip_pin_bank *bank = pin_to_bank(info, pin);
@@ -1059,18 +1172,18 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		break;
 	
 	case PIN_CONFIG_POWER_SOURCE:
-		rc = rockchip_get_pin_config(bank, pin - bank->pin_base, param, TYPE_VOL_REG);
+		rc = _rockchip_pinconf_get(bank, pin - bank->pin_base, config, TYPE_VOL_REG, group);
 		if (rc)
 		return rc;
 		break;
 
 	case PIN_CONFIG_DRIVE_STRENGTH:
-		rc = rockchip_get_pin_config(bank, pin - bank->pin_base, param, TYPE_DRV_REG);
+		rc = _rockchip_pinconf_get(bank, pin - bank->pin_base, config, TYPE_DRV_REG, group);
 		if (rc)
 		return rc;
 		break;
 	case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
-		rc = rockchip_get_pin_config(bank, pin - bank->pin_base, param, TYPE_TRI_REG);
+		rc = _rockchip_pinconf_get(bank, pin - bank->pin_base, config, TYPE_TRI_REG, group);
 		if (rc)
 		return rc;
 		break;
@@ -1098,7 +1211,7 @@ static int rockchip_pinconf_group_set(struct pinctrl_dev *pctldev,
 	pins = info->groups[group].pins;
 
 	for (cnt = 0; cnt < info->groups[group].npins; cnt++)
-		rockchip_pinconf_set(pctldev, pins[cnt], config);
+		rockchip_pinconf_set(pctldev, pins[cnt], config, group);
 	
 	return 0;
 }
@@ -1111,7 +1224,7 @@ static int rockchip_pinconf_group_get(struct pinctrl_dev *pctldev,
 	const unsigned int *pins;
 
 	pins = info->groups[group].pins;
-	rockchip_pinconf_get(pctldev, pins[0], config);
+	rockchip_pinconf_get(pctldev, pins[0], config, group);
 
 	DBG_PINCTRL("%s:group[%d]:%s\n",__func__, group, info->groups[group].name);
 	return 0;
@@ -1131,8 +1244,6 @@ static void rockchip_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 
 
 static const struct pinconf_ops rockchip_pinconf_ops = {
-	.pin_config_get			= rockchip_pinconf_get,
-	.pin_config_set			= rockchip_pinconf_set,
 	.pin_config_group_get		= rockchip_pinconf_group_get,
 	.pin_config_group_set		= rockchip_pinconf_group_set,
 	.pin_config_dbg_show		= rockchip_pinconf_dbg_show,
@@ -1179,7 +1290,7 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
         grp->name = np->name;
 
         /*
-         * the binding format is rockchip,pins = <bank pin mux CONFIG>,
+         * the binding format is rockchip,pins = <mux>,
          * do sanity check and calculate pins number
          */
         list = of_get_property(np, "rockchip,pins", &size);
@@ -1298,7 +1409,7 @@ static int rockchip_pinctrl_parse_functions(struct device_node *np,
 		if (ret)
 			return ret;	
 		
-		DBG_PINCTRL("%s:grp->func_name(%d): %s\n", __func__, grp_index, grp->func_name);
+		//DBG_PINCTRL("%s:grp->func_name(%d): %s\n", __func__, grp_index, grp->func_name);
 	}
 
 	return 0;
@@ -1419,6 +1530,14 @@ static int rockchip_gpio_request(struct gpio_chip *chip, unsigned offset)
 {	
 	struct rockchip_pin_bank *bank = gc_to_pin_bank(chip);		
 	struct rockchip_pinctrl *info = bank->drvdata;
+	
+	if(bank->bank_num == 15)
+	{
+		printk("%s:error bank num %d is out of range\n",__func__, bank->bank_num);
+		return -1;
+	}
+
+		
 	DBG_PINCTRL("%s:GPIO%d-%d\n", __func__, bank->bank_num, offset);
 	return pinctrl_request_gpio(chip->base + offset);
 }
@@ -1427,6 +1546,11 @@ static void rockchip_gpio_free(struct gpio_chip *chip, unsigned offset)
 {		
 	struct rockchip_pin_bank *bank = gc_to_pin_bank(chip);	
 	struct rockchip_pinctrl *info = bank->drvdata;
+	if(bank->bank_num == 15)
+	{
+		printk("%s:error bank num %d is out of range\n",__func__, bank->bank_num);
+		return ;
+	}
 	DBG_PINCTRL("%s:GPIO%d-%d\n", __func__, bank->bank_num, offset);
 	pinctrl_free_gpio(chip->base + offset);
 }
@@ -1479,6 +1603,12 @@ static int rockchip_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 {
 	struct rockchip_pin_bank *bank = gc_to_pin_bank(gc);
 	struct rockchip_pinctrl *info = bank->drvdata;
+	
+	if(bank->bank_num == 15)
+	{
+		printk("%s:error bank num %d is out of range\n",__func__, bank->bank_num);
+		return -1;
+	}
 
 	DBG_PINCTRL("%s:GPIO%d-%d\n", __func__, bank->bank_num, offset);
 	return pinctrl_gpio_direction_input(gc->base + offset);
@@ -1494,6 +1624,13 @@ static int rockchip_gpio_direction_output(struct gpio_chip *gc,
 {
 	struct rockchip_pin_bank *bank = gc_to_pin_bank(gc);	
 	struct rockchip_pinctrl *info = bank->drvdata;
+
+	if(bank->bank_num == 15)
+	{
+		printk("%s:error bank num %d is out of range\n",__func__, bank->bank_num);
+		return -1;
+	}
+
 	rockchip_gpio_set(gc, offset, value);
 	
 	DBG_PINCTRL("%s:set GPIO%d-%d level %d\n", __func__, bank->bank_num, offset, value);	
@@ -1511,6 +1648,12 @@ static int rockchip_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 	
 	unsigned int virq;
 
+	if(bank->bank_num == 15)
+	{
+		printk("%s:error bank num %d is out of range\n",__func__, bank->bank_num);
+		return -1;
+	}
+	
 	if (!bank->domain)
 		return -ENXIO;
 
@@ -2137,7 +2280,6 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(
 
 				if (!rockchip_get_bank_data(bank, &pdev->dev))
 					bank->valid = true;
-
 				break;
 			}
 		}
@@ -2233,6 +2375,8 @@ static struct rockchip_pin_bank rk2928_pin_banks[] = {
 	PIN_BANK(1, 32, "gpio1"),
 	PIN_BANK(2, 32, "gpio2"),
 	PIN_BANK(3, 32, "gpio3"),
+	
+	PIN_BANK(15, 32, "gpio15"),//virtual bank
 };
 
 static struct rockchip_pin_ctrl rk2928_pin_ctrl = {
@@ -2251,6 +2395,7 @@ static struct rockchip_pin_bank rk3066a_pin_banks[] = {
 	PIN_BANK(3, 32, "gpio3"),
 	PIN_BANK(4, 32, "gpio4"),
 	PIN_BANK(6, 16, "gpio6"),
+	PIN_BANK(15, 32, "gpio15"),//virtual bank
 };
 
 static struct rockchip_pin_ctrl rk3066a_pin_ctrl = {
@@ -2267,6 +2412,8 @@ static struct rockchip_pin_bank rk3066b_pin_banks[] = {
 	PIN_BANK(1, 32, "gpio1"),
 	PIN_BANK(2, 32, "gpio2"),
 	PIN_BANK(3, 32, "gpio3"),
+	
+	PIN_BANK(15, 32, "gpio15"),//virtual bank
 };
 
 static struct rockchip_pin_ctrl rk3066b_pin_ctrl = {
@@ -2282,6 +2429,8 @@ static struct rockchip_pin_bank rk3188_pin_banks[] = {
 	PIN_BANK(1, 32, "gpio1"),
 	PIN_BANK(2, 32, "gpio2"),
 	PIN_BANK(3, 32, "gpio3"),
+	
+	PIN_BANK(15, 32, "gpio15"),//virtual bank
 };
 
 static struct rockchip_pin_ctrl rk3188_pin_ctrl = {
