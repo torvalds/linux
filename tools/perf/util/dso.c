@@ -161,7 +161,7 @@ static int open_dso(struct dso *dso, struct machine *machine)
 
 int dso__data_fd(struct dso *dso, struct machine *machine)
 {
-	static enum dso_binary_type binary_type_data[] = {
+	enum dso_binary_type binary_type_data[] = {
 		DSO_BINARY_TYPE__BUILD_ID_CACHE,
 		DSO_BINARY_TYPE__SYSTEM_PATH_DSO,
 		DSO_BINARY_TYPE__NOT_FOUND,
