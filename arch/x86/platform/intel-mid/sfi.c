@@ -443,13 +443,35 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 			 * so we have to enable them one by one here
 			 */
 			ioapic = mp_find_ioapic(irq);
-			irq_attr.ioapic = ioapic;
-			irq_attr.ioapic_pin = irq;
-			irq_attr.trigger = 1;
-			irq_attr.polarity = 1;
-			io_apic_set_pci_routing(NULL, irq, &irq_attr);
-		} else
+			if (ioapic >= 0) {
+				irq_attr.ioapic = ioapic;
+				irq_attr.ioapic_pin = irq;
+				irq_attr.trigger = 1;
+				if (intel_mid_identify_cpu() ==
+						INTEL_MID_CPU_CHIP_TANGIER) {
+					if (!strncmp(pentry->name,
+							"r69001-ts-i2c", 13))
+						/* active low */
+						irq_attr.polarity = 1;
+					else if (!strncmp(pentry->name,
+							"synaptics_3202", 14))
+						/* active low */
+						irq_attr.polarity = 1;
+					else if (irq == 41)
+						/* fast_int_1 */
+						irq_attr.polarity = 1;
+					else
+						/* active high */
+						irq_attr.polarity = 0;
+				} else {
+					/* PNW and CLV go with active low */
+					irq_attr.polarity = 1;
+				}
+				io_apic_set_pci_routing(NULL, irq, &irq_attr);
+			}
+		} else {
 			irq = 0; /* No irq */
+		}
 
 		dev = get_device_id(pentry->type, pentry->name);
 
