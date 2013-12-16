@@ -33,6 +33,7 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_ARP_VALIDATE]	= { .type = NLA_U32 },
 	[IFLA_BOND_ARP_ALL_TARGETS]	= { .type = NLA_U32 },
 	[IFLA_BOND_PRIMARY]		= { .type = NLA_U32 },
+	[IFLA_BOND_PRIMARY_RESELECT]	= { .type = NLA_U8 },
 };
 
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -168,6 +169,14 @@ static int bond_changelink(struct net_device *bond_dev,
 		if (err)
 			return err;
 	}
+	if (data[IFLA_BOND_PRIMARY_RESELECT]) {
+		int primary_reselect =
+			nla_get_u8(data[IFLA_BOND_PRIMARY_RESELECT]);
+
+		err = bond_option_primary_reselect_set(bond, primary_reselect);
+		if (err)
+			return err;
+	}
 	return 0;
 }
 
@@ -197,6 +206,7 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ARP_VALIDATE */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ARP_ALL_TARGETS */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_PRIMARY */
+		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_PRIMARY_RESELECT */
 		0;
 }
 
@@ -259,6 +269,10 @@ static int bond_fill_info(struct sk_buff *skb,
 	if (bond->primary_slave &&
 	    nla_put_u32(skb, IFLA_BOND_PRIMARY,
 			bond->primary_slave->dev->ifindex))
+		goto nla_put_failure;
+
+	if (nla_put_u8(skb, IFLA_BOND_PRIMARY_RESELECT,
+		       bond->params.primary_reselect))
 		goto nla_put_failure;
 
 	return 0;

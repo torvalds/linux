@@ -909,32 +909,24 @@ static ssize_t bonding_store_primary_reselect(struct device *d,
 					      struct device_attribute *attr,
 					      const char *buf, size_t count)
 {
-	int new_value, ret = count;
+	int new_value, ret;
 	struct bonding *bond = to_bond(d);
-
-	if (!rtnl_trylock())
-		return restart_syscall();
 
 	new_value = bond_parse_parm(buf, pri_reselect_tbl);
 	if (new_value < 0)  {
 		pr_err("%s: Ignoring invalid primary_reselect value %.*s.\n",
 		       bond->dev->name,
 		       (int) strlen(buf) - 1, buf);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
-	bond->params.primary_reselect = new_value;
-	pr_info("%s: setting primary_reselect to %s (%d).\n",
-		bond->dev->name, pri_reselect_tbl[new_value].modename,
-		new_value);
+	if (!rtnl_trylock())
+		return restart_syscall();
 
-	block_netpoll_tx();
-	write_lock_bh(&bond->curr_slave_lock);
-	bond_select_active_slave(bond);
-	write_unlock_bh(&bond->curr_slave_lock);
-	unblock_netpoll_tx();
-out:
+	ret = bond_option_primary_reselect_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
 	rtnl_unlock();
 	return ret;
 }
