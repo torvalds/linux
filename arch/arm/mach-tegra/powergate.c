@@ -34,12 +34,27 @@
 #include "fuse.h"
 #include "iomap.h"
 
+#define DPD_SAMPLE		0x020
+#define  DPD_SAMPLE_ENABLE	(1 << 0)
+#define  DPD_SAMPLE_DISABLE	(0 << 0)
+
 #define PWRGATE_TOGGLE		0x30
 #define  PWRGATE_TOGGLE_START	(1 << 8)
 
 #define REMOVE_CLAMPING		0x34
 
 #define PWRGATE_STATUS		0x38
+
+#define IO_DPD_REQ		0x1b8
+#define  IO_DPD_REQ_CODE_IDLE	(0 << 30)
+#define  IO_DPD_REQ_CODE_OFF	(1 << 30)
+#define  IO_DPD_REQ_CODE_ON	(2 << 30)
+#define  IO_DPD_REQ_CODE_MASK	(3 << 30)
+
+#define IO_DPD_STATUS		0x1bc
+#define IO_DPD2_REQ		0x1c0
+#define IO_DPD2_STATUS		0x1c4
+#define SEL_DPD_TIM		0x1c8
 
 #define GPU_RG_CNTRL		0x2d4
 
@@ -379,3 +394,120 @@ int __init tegra_powergate_debugfs_init(void)
 }
 
 #endif
+
+static int tegra_io_rail_prepare(int id, unsigned long *request,
+				 unsigned long *status, unsigned int *bit)
+{
+	unsigned long rate, value;
+	struct clk *clk;
+
+	*bit = id % 32;
+
+	/*
+	 * There are two sets of 30 bits to select IO rails, but bits 30 and
+	 * 31 are control bits rather than IO rail selection bits.
+	 */
+	if (id > 63 || *bit == 30 || *bit == 31)
+		return -EINVAL;
+
+	if (id < 32) {
+		*status = IO_DPD_STATUS;
+		*request = IO_DPD_REQ;
+	} else {
+		*status = IO_DPD2_STATUS;
+		*request = IO_DPD2_REQ;
+	}
+
+	clk = clk_get_sys(NULL, "pclk");
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+
+	rate = clk_get_rate(clk);
+	clk_put(clk);
+
+	pmc_write(DPD_SAMPLE_ENABLE, DPD_SAMPLE);
+
+	/* must be at least 200 ns, in APB (PCLK) clock cycles */
+	value = DIV_ROUND_UP(1000000000, rate);
+	value = DIV_ROUND_UP(200, value);
+	pmc_write(value, SEL_DPD_TIM);
+
+	return 0;
+}
+
+static int tegra_io_rail_poll(unsigned long offset, unsigned long mask,
+			      unsigned long val, unsigned long timeout)
+{
+	unsigned long value;
+
+	timeout = jiffies + msecs_to_jiffies(timeout);
+
+	while (time_after(timeout, jiffies)) {
+		value = pmc_read(offset);
+		if ((value & mask) == val)
+			return 0;
+
+		usleep_range(250, 1000);
+	}
+
+	return -ETIMEDOUT;
+}
+
+static void tegra_io_rail_unprepare(void)
+{
+	pmc_write(DPD_SAMPLE_DISABLE, DPD_SAMPLE);
+}
+
+int tegra_io_rail_power_on(int id)
+{
+	unsigned long request, status, value;
+	unsigned int bit, mask;
+	int err;
+
+	err = tegra_io_rail_prepare(id, &request, &status, &bit);
+	if (err < 0)
+		return err;
+
+	mask = 1 << bit;
+
+	value = pmc_read(request);
+	value |= mask;
+	value &= ~IO_DPD_REQ_CODE_MASK;
+	value |= IO_DPD_REQ_CODE_OFF;
+	pmc_write(value, request);
+
+	err = tegra_io_rail_poll(status, mask, 0, 250);
+	if (err < 0)
+		return err;
+
+	tegra_io_rail_unprepare();
+
+	return 0;
+}
+
+int tegra_io_rail_power_off(int id)
+{
+	unsigned long request, status, value;
+	unsigned int bit, mask;
+	int err;
+
+	err = tegra_io_rail_prepare(id, &request, &status, &bit);
+	if (err < 0)
+		return err;
+
+	mask = 1 << bit;
+
+	value = pmc_read(request);
+	value |= mask;
+	value &= ~IO_DPD_REQ_CODE_MASK;
+	value |= IO_DPD_REQ_CODE_ON;
+	pmc_write(value, request);
+
+	err = tegra_io_rail_poll(status, mask, mask, 250);
+	if (err < 0)
+		return err;
+
+	tegra_io_rail_unprepare();
+
+	return 0;
+}
