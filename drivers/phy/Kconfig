@@ -21,6 +21,12 @@ config PHY_EXYNOS_MIPI_VIDEO
 	  Support for MIPI CSI-2 and MIPI DSI DPHY found on Samsung S5P
 	  and EXYNOS SoCs.
 
+config PHY_MVEBU_SATA
+	def_bool y
+	depends on ARCH_KIRKWOOD || ARCH_DOVE
+	depends on OF
+	select GENERIC_PHY
+
 config OMAP_USB2
 	tristate "OMAP USB2 PHY Driver"
 	depends on ARCH_OMAP2PLUS
