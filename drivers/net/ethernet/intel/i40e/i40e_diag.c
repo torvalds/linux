@@ -119,7 +119,7 @@ i40e_status i40e_diag_eeprom_test(struct i40e_hw *hw)
 
 	/* read NVM control word and if NVM valid, validate EEPROM checksum*/
 	ret_code = i40e_read_nvm_word(hw, I40E_SR_NVM_CONTROL_WORD, &reg_val);
-	if ((!ret_code) &&
+	if (!ret_code &&
 	    ((reg_val & I40E_SR_CONTROL_WORD_1_MASK) ==
 	     (0x01 << I40E_SR_CONTROL_WORD_1_SHIFT))) {
 		ret_code = i40e_validate_nvm_checksum(hw, NULL);

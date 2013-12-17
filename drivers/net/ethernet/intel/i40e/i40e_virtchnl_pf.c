@@ -521,6 +521,7 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 		f = i40e_add_filter(vsi, vf->default_lan_addr.addr,
 				    0, true, false);
 	}
+
 	if (!f) {
 		dev_err(&pf->pdev->dev, "Unable to add ucast filter\n");
 		ret = -ENOMEM;
@@ -763,6 +764,7 @@ static void i40e_free_vf_res(struct i40e_vf *vf)
 		vf->lan_vsi_index = 0;
 		vf->lan_vsi_id = 0;
 	}
+
 	/* reset some of the state varibles keeping
 	 * track of the resources
 	 */
@@ -1777,30 +1779,6 @@ error_param:
 }
 
 /**
- * i40e_vc_fcoe_msg
- * @vf: pointer to the vf info
- * @msg: pointer to the msg buffer
- * @msglen: msg length
- *
- * called from the vf for the fcoe msgs
- **/
-static int i40e_vc_fcoe_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
-{
-	i40e_status aq_ret = 0;
-
-	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
-	    !test_bit(I40E_VF_STAT_FCOEENA, &vf->vf_states)) {
-		aq_ret = I40E_ERR_PARAM;
-		goto error_param;
-	}
-	aq_ret = I40E_ERR_NOT_IMPLEMENTED;
-
-error_param:
-	/* send the response to the vf */
-	return i40e_vc_send_resp_to_vf(vf, I40E_VIRTCHNL_OP_FCOE, aq_ret);
-}
-
-/**
  * i40e_vc_validate_vf_msg
  * @vf: pointer to the vf info
  * @msg: pointer to the msg buffer
@@ -1972,9 +1950,6 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, u16 vf_id, u32 v_opcode,
 		break;
 	case I40E_VIRTCHNL_OP_GET_STATS:
 		ret = i40e_vc_get_stats_msg(vf, msg, msglen);
-		break;
-	case I40E_VIRTCHNL_OP_FCOE:
-		ret = i40e_vc_fcoe_msg(vf, msg, msglen);
 		break;
 	case I40E_VIRTCHNL_OP_UNKNOWN:
 	default:
