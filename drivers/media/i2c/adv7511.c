@@ -965,26 +965,38 @@ static void adv7511_check_monitor_present_status(struct v4l2_subdev *sd)
 
 static bool edid_block_verify_crc(uint8_t *edid_block)
 {
-	int i;
 	uint8_t sum = 0;
+	int i;
 
 	for (i = 0; i < 128; i++)
-		sum += *(edid_block + i);
-	return (sum == 0);
+		sum += edid_block[i];
+	return sum == 0;
 }
 
-static bool edid_segment_verify_crc(struct v4l2_subdev *sd, u32 segment)
+static bool edid_verify_crc(struct v4l2_subdev *sd, u32 segment)
 {
 	struct adv7511_state *state = get_adv7511_state(sd);
 	u32 blocks = state->edid.blocks;
 	uint8_t *data = state->edid.data;
 
-	if (edid_block_verify_crc(&data[segment * 256])) {
-		if ((segment + 1) * 2 <= blocks)
-			return edid_block_verify_crc(&data[segment * 256 + 128]);
+	if (!edid_block_verify_crc(&data[segment * 256]))
+		return false;
+	if ((segment + 1) * 2 <= blocks)
+		return edid_block_verify_crc(&data[segment * 256 + 128]);
+	return true;
+}
+
+static bool edid_verify_header(struct v4l2_subdev *sd, u32 segment)
+{
+	static const u8 hdmi_header[] = {
+		0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00
+	};
+	struct adv7511_state *state = get_adv7511_state(sd);
+	u8 *data = state->edid.data;
+
+	if (segment != 0)
 		return true;
-	}
-	return false;
+	return !memcmp(data, hdmi_header, sizeof(hdmi_header));
 }
 
 static bool adv7511_check_edid_status(struct v4l2_subdev *sd)
@@ -1013,9 +1025,10 @@ static bool adv7511_check_edid_status(struct v4l2_subdev *sd)
 			state->edid.blocks = state->edid.data[0x7e] + 1;
 			v4l2_dbg(1, debug, sd, "%s: %d blocks in total\n", __func__, state->edid.blocks);
 		}
-		if (!edid_segment_verify_crc(sd, segment)) {
+		if (!edid_verify_crc(sd, segment) ||
+		    !edid_verify_header(sd, segment)) {
 			/* edid crc error, force reread of edid segment */
-			v4l2_dbg(1, debug, sd, "%s: edid crc error\n", __func__);
+			v4l2_err(sd, "%s: edid crc or header error\n", __func__);
 			state->have_monitor = false;
 			adv7511_s_power(sd, false);
 			adv7511_s_power(sd, true);
