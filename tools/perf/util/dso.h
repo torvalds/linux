@@ -83,7 +83,7 @@ struct dso {
 	enum dso_kernel_type	kernel;
 	enum dso_swap_type	needs_swap;
 	enum dso_binary_type	symtab_type;
-	enum dso_binary_type	data_type;
+	enum dso_binary_type	binary_type;
 	u8		 adjust_symbols:1;
 	u8		 has_build_id:1;
 	u8		 has_srcline:1;
@@ -159,14 +159,14 @@ size_t dso__fprintf(struct dso *dso, enum map_type type, FILE *fp);
 
 static inline bool dso__is_vmlinux(struct dso *dso)
 {
-	return dso->data_type == DSO_BINARY_TYPE__VMLINUX ||
-	       dso->data_type == DSO_BINARY_TYPE__GUEST_VMLINUX;
+	return dso->binary_type == DSO_BINARY_TYPE__VMLINUX ||
+	       dso->binary_type == DSO_BINARY_TYPE__GUEST_VMLINUX;
 }
 
 static inline bool dso__is_kcore(struct dso *dso)
 {
-	return dso->data_type == DSO_BINARY_TYPE__KCORE ||
-	       dso->data_type == DSO_BINARY_TYPE__GUEST_KCORE;
+	return dso->binary_type == DSO_BINARY_TYPE__KCORE ||
+	       dso->binary_type == DSO_BINARY_TYPE__GUEST_KCORE;
 }
 
 void dso__free_a2l(struct dso *dso);

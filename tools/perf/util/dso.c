@@ -148,7 +148,7 @@ static int open_dso(struct dso *dso, struct machine *machine)
 	if (machine)
 		root_dir = machine->root_dir;
 
-	if (dso__read_binary_type_filename(dso, dso->data_type,
+	if (dso__read_binary_type_filename(dso, dso->binary_type,
 					    root_dir, name, PATH_MAX)) {
 		free(name);
 		return -EINVAL;
@@ -168,19 +168,19 @@ int dso__data_fd(struct dso *dso, struct machine *machine)
 	};
 	int i = 0;
 
-	if (dso->data_type != DSO_BINARY_TYPE__NOT_FOUND)
+	if (dso->binary_type != DSO_BINARY_TYPE__NOT_FOUND)
 		return open_dso(dso, machine);
 
 	do {
 		int fd;
 
-		dso->data_type = binary_type_data[i++];
+		dso->binary_type = binary_type_data[i++];
 
 		fd = open_dso(dso, machine);
 		if (fd >= 0)
 			return fd;
 
-	} while (dso->data_type != DSO_BINARY_TYPE__NOT_FOUND);
+	} while (dso->binary_type != DSO_BINARY_TYPE__NOT_FOUND);
 
 	return -EINVAL;
 }
@@ -475,7 +475,7 @@ struct dso *dso__new(const char *name)
 			dso->symbols[i] = dso->symbol_names[i] = RB_ROOT;
 		dso->cache = RB_ROOT;
 		dso->symtab_type = DSO_BINARY_TYPE__NOT_FOUND;
-		dso->data_type   = DSO_BINARY_TYPE__NOT_FOUND;
+		dso->binary_type = DSO_BINARY_TYPE__NOT_FOUND;
 		dso->loaded = 0;
 		dso->rel = 0;
 		dso->sorted_by_name = 0;
