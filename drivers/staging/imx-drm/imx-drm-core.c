@@ -370,29 +370,6 @@ static void imx_drm_connector_unregister(
 }
 
 /*
- * register a crtc to the drm core
- */
-static int imx_drm_crtc_register(struct imx_drm_crtc *imx_drm_crtc)
-{
-	struct imx_drm_device *imxdrm = __imx_drm_device();
-	int ret;
-
-	ret = drm_mode_crtc_set_gamma_size(imx_drm_crtc->crtc, 256);
-	if (ret)
-		return ret;
-
-	drm_crtc_helper_add(imx_drm_crtc->crtc,
-			imx_drm_crtc->imx_drm_helper_funcs.crtc_helper_funcs);
-
-	drm_crtc_init(imxdrm->drm, imx_drm_crtc->crtc,
-			imx_drm_crtc->imx_drm_helper_funcs.crtc_funcs);
-
-	drm_mode_group_reinit(imxdrm->drm);
-
-	return 0;
-}
-
-/*
  * Called by the CRTC driver when all CRTCs are registered. This
  * puts all the pieces together and initializes the driver.
  * Once this is called no more CRTCs can be registered since
@@ -536,9 +513,17 @@ int imx_drm_add_crtc(struct drm_crtc *crtc,
 
 	*new_crtc = imx_drm_crtc;
 
-	ret = imx_drm_crtc_register(imx_drm_crtc);
+	ret = drm_mode_crtc_set_gamma_size(imx_drm_crtc->crtc, 256);
 	if (ret)
 		goto err_register;
+
+	drm_crtc_helper_add(crtc,
+			imx_drm_crtc->imx_drm_helper_funcs.crtc_helper_funcs);
+
+	drm_crtc_init(imxdrm->drm, crtc,
+			imx_drm_crtc->imx_drm_helper_funcs.crtc_funcs);
+
+	drm_mode_group_reinit(imxdrm->drm);
 
 	imx_drm_update_possible_crtcs();
 
