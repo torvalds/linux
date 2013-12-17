@@ -180,6 +180,7 @@ static int is_reserved_asid(u64 asid)
 
 static u64 new_context(struct mm_struct *mm, unsigned int cpu)
 {
+	static u32 cur_idx = 1;
 	u64 asid = atomic64_read(&mm->context.id);
 	u64 generation = atomic64_read(&asid_generation);
 
@@ -197,7 +198,7 @@ static u64 new_context(struct mm_struct *mm, unsigned int cpu)
 		 * as we reserve ASID #0 to switch via TTBR0 and indicate
 		 * rollover events.
 		 */
-		asid = find_next_zero_bit(asid_map, NUM_USER_ASIDS, 1);
+		asid = find_next_zero_bit(asid_map, NUM_USER_ASIDS, cur_idx);
 		if (asid == NUM_USER_ASIDS) {
 			generation = atomic64_add_return(ASID_FIRST_VERSION,
 							 &asid_generation);
@@ -205,6 +206,7 @@ static u64 new_context(struct mm_struct *mm, unsigned int cpu)
 			asid = find_next_zero_bit(asid_map, NUM_USER_ASIDS, 1);
 		}
 		__set_bit(asid, asid_map);
+		cur_idx = asid;
 		asid |= generation;
 		cpumask_clear(mm_cpumask(mm));
 	}
