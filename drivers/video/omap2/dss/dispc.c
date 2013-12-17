@@ -90,6 +90,8 @@ struct dispc_features {
 
 	/* revert to the OMAP4 mechanism of DISPC Smart Standby operation */
 	bool mstandby_workaround:1;
+
+	bool set_max_preload:1;
 };
 
 #define DISPC_MAX_NR_FIFOS 5
@@ -1200,6 +1202,15 @@ void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high)
 	dispc_write_reg(DISPC_OVL_FIFO_THRESHOLD(plane),
 			FLD_VAL(high, hi_start, hi_end) |
 			FLD_VAL(low, lo_start, lo_end));
+
+	/*
+	 * configure the preload to the pipeline's high threhold, if HT it's too
+	 * large for the preload field, set the threshold to the maximum value
+	 * that can be held by the preload register
+	 */
+	if (dss_has_feature(FEAT_PRELOAD) && dispc.feat->set_max_preload &&
+			plane != OMAP_DSS_WB)
+		dispc_write_reg(DISPC_OVL_PRELOAD(plane), min(high, 0xfffu));
 }
 EXPORT_SYMBOL(dispc_ovl_set_fifo_threshold);
 
@@ -3526,6 +3537,7 @@ static const struct dispc_features omap24xx_dispc_feats __initconst = {
 	.calc_core_clk		=	calc_core_clk_24xx,
 	.num_fifos		=	3,
 	.no_framedone_tv	=	true,
+	.set_max_preload	=	false,
 };
 
 static const struct dispc_features omap34xx_rev1_0_dispc_feats __initconst = {
@@ -3545,6 +3557,7 @@ static const struct dispc_features omap34xx_rev1_0_dispc_feats __initconst = {
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
 	.no_framedone_tv	=	true,
+	.set_max_preload	=	false,
 };
 
 static const struct dispc_features omap34xx_rev3_0_dispc_feats __initconst = {
@@ -3564,6 +3577,7 @@ static const struct dispc_features omap34xx_rev3_0_dispc_feats __initconst = {
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
 	.no_framedone_tv	=	true,
+	.set_max_preload	=	false,
 };
 
 static const struct dispc_features omap44xx_dispc_feats __initconst = {
@@ -3583,6 +3597,7 @@ static const struct dispc_features omap44xx_dispc_feats __initconst = {
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,
 	.gfx_fifo_workaround	=	true,
+	.set_max_preload	=	true,
 };
 
 static const struct dispc_features omap54xx_dispc_feats __initconst = {
@@ -3603,6 +3618,7 @@ static const struct dispc_features omap54xx_dispc_feats __initconst = {
 	.num_fifos		=	5,
 	.gfx_fifo_workaround	=	true,
 	.mstandby_workaround	=	true,
+	.set_max_preload	=	true,
 };
 
 static int __init dispc_init_features(struct platform_device *pdev)
