@@ -326,13 +326,8 @@ do {									\
 #define __PUT_USER_DW(insn, ptr) __put_user_asm("sd", ptr)
 #endif
 
-#define __put_user_nocheck(x, ptr, size)				\
-({									\
-	__typeof__(*(ptr)) __pu_val;					\
-	int __pu_err = 0;						\
-									\
-	__chk_user_ptr(ptr);						\
-	__pu_val = (x);							\
+#define __put_user_common(ptr, size)					\
+do {									\
 	switch (size) {							\
 	case 1: __put_user_asm("sb", ptr); break;			\
 	case 2: __put_user_asm("sh", ptr); break;			\
@@ -340,6 +335,16 @@ do {									\
 	case 8: __PUT_USER_DW("sw", ptr); break;			\
 	default: __put_user_unknown(); break;				\
 	}								\
+} while (0)
+
+#define __put_user_nocheck(x, ptr, size)				\
+({									\
+	__typeof__(*(ptr)) __pu_val;					\
+	int __pu_err = 0;						\
+									\
+	__chk_user_ptr(ptr);						\
+	__pu_val = (x);							\
+	__put_user_common(ptr, size);					\
 	__pu_err;							\
 })
 
@@ -350,15 +355,9 @@ do {									\
 	int __pu_err = -EFAULT;						\
 									\
 	might_fault();							\
-	if (likely(access_ok(VERIFY_WRITE,  __pu_addr, size))) {	\
-		switch (size) {						\
-		case 1: __put_user_asm("sb", __pu_addr); break;		\
-		case 2: __put_user_asm("sh", __pu_addr); break;		\
-		case 4: __put_user_asm("sw", __pu_addr); break;		\
-		case 8: __PUT_USER_DW("sw", __pu_addr); break;		\
-		default: __put_user_unknown(); break;			\
-		}							\
-	}								\
+	if (likely(access_ok(VERIFY_WRITE,  __pu_addr, size)))		\
+		__put_user_common(__pu_addr, size);			\
+									\
 	__pu_err;							\
 })
 
@@ -594,19 +593,23 @@ do {									\
 #define __PUT_USER_UNALIGNED_DW(ptr) __put_user_unaligned_asm("usd", ptr)
 #endif
 
-#define __put_user_unaligned_nocheck(x,ptr,size)			\
-({									\
-	__typeof__(*(ptr)) __pu_val;					\
-	int __pu_err = 0;						\
-									\
-	__pu_val = (x);							\
+#define __put_user_unaligned_common(ptr, size)				\
+do {									\
 	switch (size) {							\
 	case 1: __put_user_asm("sb", ptr); break;			\
 	case 2: __put_user_unaligned_asm("ush", ptr); break;		\
 	case 4: __put_user_unaligned_asm("usw", ptr); break;		\
 	case 8: __PUT_USER_UNALIGNED_DW(ptr); break;			\
 	default: __put_user_unaligned_unknown(); break;			\
-	}								\
+} while (0)
+
+#define __put_user_unaligned_nocheck(x,ptr,size)			\
+({									\
+	__typeof__(*(ptr)) __pu_val;					\
+	int __pu_err = 0;						\
+									\
+	__pu_val = (x);							\
+	__put_user_unaligned_common(ptr, size);				\
 	__pu_err;							\
 })
 
@@ -616,15 +619,9 @@ do {									\
 	__typeof__(*(ptr)) __pu_val = (x);				\
 	int __pu_err = -EFAULT;						\
 									\
-	if (likely(access_ok(VERIFY_WRITE,  __pu_addr, size))) {	\
-		switch (size) {						\
-		case 1: __put_user_asm("sb", __pu_addr); break;		\
-		case 2: __put_user_unaligned_asm("ush", __pu_addr); break; \
-		case 4: __put_user_unaligned_asm("usw", __pu_addr); break; \
-		case 8: __PUT_USER_UNALGINED_DW(__pu_addr); break;	\
-		default: __put_user_unaligned_unknown(); break;		\
-		}							\
-	}								\
+	if (likely(access_ok(VERIFY_WRITE,  __pu_addr, size)))		\
+		__put_user_unaligned_common(__pu_addr, size);		\
+									\
 	__pu_err;							\
 })
 
