@@ -2515,12 +2515,11 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 		I915_WRITE(DISP_ARB_CTL, val);
 	}
 
-	if (INTEL_INFO(dev)->gen <= 6) {
-		if (dirty & WM_DIRTY_LP(1) && previous->wm_lp_spr[0] != results->wm_lp_spr[0])
-			I915_WRITE(WM1S_LP_ILK, results->wm_lp_spr[0]);
-	} else {
-		if (dirty & WM_DIRTY_LP(1) && previous->wm_lp_spr[0] != results->wm_lp_spr[0])
-			I915_WRITE(WM1S_LP_ILK, results->wm_lp_spr[0]);
+	if (dirty & WM_DIRTY_LP(1) &&
+	    previous->wm_lp_spr[0] != results->wm_lp_spr[0])
+		I915_WRITE(WM1S_LP_ILK, results->wm_lp_spr[0]);
+
+	if (INTEL_INFO(dev)->gen >= 7) {
 		if (dirty & WM_DIRTY_LP(2) && previous->wm_lp_spr[1] != results->wm_lp_spr[1])
 			I915_WRITE(WM2S_LP_IVB, results->wm_lp_spr[1]);
 		if (dirty & WM_DIRTY_LP(3) && previous->wm_lp_spr[2] != results->wm_lp_spr[2])
