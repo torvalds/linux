@@ -193,7 +193,10 @@ xlog_bread_noalign(
 	bp->b_io_length = nbblks;
 	bp->b_error = 0;
 
-	xfsbdstrat(log->l_mp, bp);
+	if (XFS_FORCED_SHUTDOWN(log->l_mp))
+		return XFS_ERROR(EIO);
+
+	xfs_buf_iorequest(bp);
 	error = xfs_buf_iowait(bp);
 	if (error)
 		xfs_buf_ioerror_alert(bp, __func__);
@@ -4397,7 +4400,13 @@ xlog_do_recover(
 	XFS_BUF_READ(bp);
 	XFS_BUF_UNASYNC(bp);
 	bp->b_ops = &xfs_sb_buf_ops;
-	xfsbdstrat(log->l_mp, bp);
+
+	if (XFS_FORCED_SHUTDOWN(log->l_mp)) {
+		xfs_buf_relse(bp);
+		return XFS_ERROR(EIO);
+	}
+
+	xfs_buf_iorequest(bp);
 	error = xfs_buf_iowait(bp);
 	if (error) {
 		xfs_buf_ioerror_alert(bp, __func__);

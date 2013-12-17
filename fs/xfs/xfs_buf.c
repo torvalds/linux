@@ -698,7 +698,11 @@ xfs_buf_read_uncached(
 	bp->b_flags |= XBF_READ;
 	bp->b_ops = ops;
 
-	xfsbdstrat(target->bt_mount, bp);
+	if (XFS_FORCED_SHUTDOWN(target->bt_mount)) {
+		xfs_buf_relse(bp);
+		return NULL;
+	}
+	xfs_buf_iorequest(bp);
 	xfs_buf_iowait(bp);
 	return bp;
 }
@@ -1089,7 +1093,7 @@ xfs_bioerror(
  * This is meant for userdata errors; metadata bufs come with
  * iodone functions attached, so that we can track down errors.
  */
-STATIC int
+int
 xfs_bioerror_relse(
 	struct xfs_buf	*bp)
 {
@@ -1162,25 +1166,6 @@ xfs_bwrite(
 				   SHUTDOWN_META_IO_ERROR);
 	}
 	return error;
-}
-
-/*
- * Wrapper around bdstrat so that we can stop data from going to disk in case
- * we are shutting down the filesystem.  Typically user data goes thru this
- * path; one of the exceptions is the superblock.
- */
-void
-xfsbdstrat(
-	struct xfs_mount	*mp,
-	struct xfs_buf		*bp)
-{
-	if (XFS_FORCED_SHUTDOWN(mp)) {
-		trace_xfs_bdstrat_shut(bp, _RET_IP_);
-		xfs_bioerror_relse(bp);
-		return;
-	}
-
-	xfs_buf_iorequest(bp);
 }
 
 STATIC void
