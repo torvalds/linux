@@ -215,19 +215,7 @@ void ion_heap_unmap_kernel(struct ion_heap *, struct ion_buffer *);
 int ion_heap_map_user(struct ion_heap *, struct ion_buffer *,
 			struct vm_area_struct *);
 int ion_heap_buffer_zero(struct ion_buffer *buffer);
-
-/**
- * ion_heap_alloc_pages - allocate pages from alloc_pages
- * @buffer:		the buffer to allocate for, used to extract the flags
- * @gfp_flags:		the gfp_t for the allocation
- * @order:		the order of the allocatoin
- *
- * This funciton allocations from alloc pages and also does any other
- * necessary operations based on the buffer->flags.  For buffers which
- * will be faulted in the pages are split using split_page
- */
-struct page *ion_heap_alloc_pages(struct ion_buffer *buffer, gfp_t gfp_flags,
-				  unsigned int order);
+int ion_heap_pages_zero(struct page *page, size_t size, pgprot_t pgprot);
 
 /**
  * ion_heap_init_deferred_free -- initialize deferred free functionality
@@ -242,7 +230,7 @@ int ion_heap_init_deferred_free(struct ion_heap *heap);
 /**
  * ion_heap_freelist_add - add a buffer to the deferred free list
  * @heap:		the heap
- * @buffer: 		the buffer
+ * @buffer:		the buffer
  *
  * Adds an item to the deferred freelist.
  */

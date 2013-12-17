@@ -717,7 +717,6 @@ static int sco_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	    test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags)) {
 		sco_conn_defer_accept(pi->conn->hcon, 0);
 		sk->sk_state = BT_CONFIG;
-		msg->msg_namelen = 0;
 
 		release_sock(sk);
 		return 0;

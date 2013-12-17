@@ -905,9 +905,6 @@ static int recv_msg(struct kiocb *iocb, struct socket *sock,
 		goto exit;
 	}
 
-	/* will be updated in set_orig_addr() if needed */
-	m->msg_namelen = 0;
-
 	timeout = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 restart:
 
@@ -1016,9 +1013,6 @@ static int recv_stream(struct kiocb *iocb, struct socket *sock,
 		res = -ENOTCONN;
 		goto exit;
 	}
-
-	/* will be updated in set_orig_addr() if needed */
-	m->msg_namelen = 0;
 
 	target = sock_rcvlowat(sk, flags & MSG_WAITALL, buf_len);
 	timeout = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);

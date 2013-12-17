@@ -182,6 +182,15 @@
 				interrupts = <14>;
 				clocks = <&v2m_oscclk1>, <&v2m_clk24mhz>;
 				clock-names = "clcdclk", "apb_pclk";
+				mode = "XVGA";
+				use_dma = <0>;
+				framebuffer = <0x18000000 0x00180000>;
+			};
+
+			virtio_block@0130000 {
+				compatible = "virtio,mmio";
+				reg = <0x130000 0x200>;
+				interrupts = <42>;
 			};
 		};
 

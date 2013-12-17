@@ -135,20 +135,21 @@ static void tc2_pm_down(u64 residency)
 	if (last_man && __mcpm_outbound_enter_critical(cpu, cluster)) {
 		arch_spin_unlock(&tc2_pm_lock);
 
-		set_cr(get_cr() & ~CR_C);
-		flush_cache_all();
-		asm volatile ("clrex");
-		set_auxcr(get_auxcr() & ~(1 << 6));
+		if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A15) {
+			/*
+			 * On the Cortex-A15 we need to disable
+			 * L2 prefetching before flushing the cache.
+			 */
+			asm volatile(
+			"mcr	p15, 1, %0, c15, c0, 3 \n\t"
+			"isb	\n\t"
+			"dsb	"
+			: : "r" (0x400) );
+		}
+
+		v7_exit_coherency_flush(all);
 
 		cci_disable_port_by_cpu(mpidr);
-
-		/*
-		 * Ensure that both C & I bits are disabled in the SCTLR
-		 * before disabling ACE snoops. This ensures that no
-		 * coherency traffic will originate from this cpu after
-		 * ACE snoops are turned off.
-		 */
-		cpu_proc_fin();
 
 		__mcpm_outbound_leave_critical(cluster, CLUSTER_DOWN);
 	} else {
@@ -162,10 +163,7 @@ static void tc2_pm_down(u64 residency)
 
 		arch_spin_unlock(&tc2_pm_lock);
 
-		set_cr(get_cr() & ~CR_C);
-		flush_cache_louis();
-		asm volatile ("clrex");
-		set_auxcr(get_auxcr() & ~(1 << 6));
+		v7_exit_coherency_flush(louis);
 	}
 
 	__mcpm_cpu_down(cpu, cluster);
