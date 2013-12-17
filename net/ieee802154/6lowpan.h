@@ -231,6 +231,7 @@
 #define LOWPAN_NHC_UDP_CS_P_10	0xF2 /* source = 0xF0 + 8bit inline,
 					dest = 16 bit inline */
 #define LOWPAN_NHC_UDP_CS_P_11	0xF3 /* source & dest = 0xF0B + 4bit inline */
+#define LOWPAN_NHC_UDP_CS_C	0x04 /* checksum elided */
 
 #ifdef DEBUG
 /* print data in line */
