@@ -984,6 +984,8 @@ pci_save_state(struct pci_dev *dev)
 		return i;
 	if ((i = pci_save_pcix_state(dev)) != 0)
 		return i;
+	if ((i = pci_save_vc_state(dev)) != 0)
+		return i;
 	return 0;
 }
 
@@ -1046,6 +1048,7 @@ void pci_restore_state(struct pci_dev *dev)
 	/* PCI Express register must be restored first */
 	pci_restore_pcie_state(dev);
 	pci_restore_ats_state(dev);
+	pci_restore_vc_state(dev);
 
 	pci_restore_config_space(dev);
 
@@ -2118,6 +2121,8 @@ void pci_allocate_cap_save_buffers(struct pci_dev *dev)
 	if (error)
 		dev_err(&dev->dev,
 			"unable to preallocate PCI-X save buffer\n");
+
+	pci_allocate_vc_save_buffers(dev);
 }
 
 void pci_free_cap_save_buffers(struct pci_dev *dev)

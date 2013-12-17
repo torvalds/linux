@@ -1005,6 +1005,11 @@ static inline int pci_enable_wake(struct pci_dev *dev, pci_power_t state,
 	return __pci_enable_wake(dev, state, false, enable);
 }
 
+/* PCI Virtual Channel */
+int pci_save_vc_state(struct pci_dev *dev);
+void pci_restore_vc_state(struct pci_dev *dev);
+void pci_allocate_vc_save_buffers(struct pci_dev *dev);
+
 #define PCI_EXP_IDO_REQUEST	(1<<0)
 #define PCI_EXP_IDO_COMPLETION	(1<<1)
 void pci_enable_ido(struct pci_dev *dev, unsigned long type);
