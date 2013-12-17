@@ -193,10 +193,13 @@
 #define   MI_SCENE_COUNT	(1 << 3) /* just increment scene count */
 #define   MI_END_SCENE		(1 << 4) /* flush binner and incr scene count */
 #define   MI_INVALIDATE_ISP	(1 << 5) /* invalidate indirect state pointers */
+#define MI_REPORT_HEAD		MI_INSTR(0x07, 0)
+#define MI_ARB_ON_OFF		MI_INSTR(0x08, 0)
+#define   MI_ARB_ENABLE			(1<<0)
+#define   MI_ARB_DISABLE		(0<<0)
 #define MI_BATCH_BUFFER_END	MI_INSTR(0x0a, 0)
 #define MI_SUSPEND_FLUSH	MI_INSTR(0x0b, 0)
 #define   MI_SUSPEND_FLUSH_EN	(1<<0)
-#define MI_REPORT_HEAD		MI_INSTR(0x07, 0)
 #define MI_OVERLAY_FLIP		MI_INSTR(0x11, 0)
 #define   MI_OVERLAY_CONTINUE	(0x0<<21)
 #define   MI_OVERLAY_ON		(0x1<<21)
@@ -212,10 +215,24 @@
 #define   MI_DISPLAY_FLIP_IVB_SPRITE_B (3 << 19)
 #define   MI_DISPLAY_FLIP_IVB_PLANE_C  (4 << 19)
 #define   MI_DISPLAY_FLIP_IVB_SPRITE_C (5 << 19)
-#define MI_ARB_ON_OFF		MI_INSTR(0x08, 0)
-#define   MI_ARB_ENABLE			(1<<0)
-#define   MI_ARB_DISABLE		(0<<0)
-
+#define MI_SEMAPHORE_MBOX	MI_INSTR(0x16, 1) /* gen6+ */
+#define   MI_SEMAPHORE_GLOBAL_GTT    (1<<22)
+#define   MI_SEMAPHORE_UPDATE	    (1<<21)
+#define   MI_SEMAPHORE_COMPARE	    (1<<20)
+#define   MI_SEMAPHORE_REGISTER	    (1<<18)
+#define   MI_SEMAPHORE_SYNC_VR	    (0<<16) /* RCS  wait for VCS  (RVSYNC) */
+#define   MI_SEMAPHORE_SYNC_VER	    (1<<16) /* RCS  wait for VECS (RVESYNC) */
+#define   MI_SEMAPHORE_SYNC_BR	    (2<<16) /* RCS  wait for BCS  (RBSYNC) */
+#define   MI_SEMAPHORE_SYNC_BV	    (0<<16) /* VCS  wait for BCS  (VBSYNC) */
+#define   MI_SEMAPHORE_SYNC_VEV	    (1<<16) /* VCS  wait for VECS (VVESYNC) */
+#define   MI_SEMAPHORE_SYNC_RV	    (2<<16) /* VCS  wait for RCS  (VRSYNC) */
+#define   MI_SEMAPHORE_SYNC_RB	    (0<<16) /* BCS  wait for RCS  (BRSYNC) */
+#define   MI_SEMAPHORE_SYNC_VEB	    (1<<16) /* BCS  wait for VECS (BVESYNC) */
+#define   MI_SEMAPHORE_SYNC_VB	    (2<<16) /* BCS  wait for VCS  (BVSYNC) */
+#define   MI_SEMAPHORE_SYNC_BVE	    (0<<16) /* VECS wait for BCS  (VEBSYNC) */
+#define   MI_SEMAPHORE_SYNC_VVE	    (1<<16) /* VECS wait for VCS  (VEVSYNC) */
+#define   MI_SEMAPHORE_SYNC_RVE	    (2<<16) /* VECS wait for RCS  (VERSYNC) */
+#define   MI_SEMAPHORE_SYNC_INVALID  (3<<16)
 #define MI_SET_CONTEXT		MI_INSTR(0x18, 0)
 #define   MI_MM_SPACE_GTT		(1<<8)
 #define   MI_MM_SPACE_PHYSICAL		(0<<8)
@@ -235,7 +252,7 @@
  */
 #define MI_LOAD_REGISTER_IMM(x)	MI_INSTR(0x22, 2*x-1)
 #define MI_STORE_REGISTER_MEM(x) MI_INSTR(0x24, 2*x-1)
-#define  MI_SRM_LRM_GLOBAL_GTT		(1<<22)
+#define   MI_SRM_LRM_GLOBAL_GTT		(1<<22)
 #define MI_FLUSH_DW		MI_INSTR(0x26, 1) /* for GEN6 */
 #define   MI_FLUSH_DW_STORE_INDEX	(1<<21)
 #define   MI_INVALIDATE_TLB		(1<<18)
@@ -246,30 +263,13 @@
 #define MI_BATCH_BUFFER		MI_INSTR(0x30, 1)
 #define   MI_BATCH_NON_SECURE		(1)
 /* for snb/ivb/vlv this also means "batch in ppgtt" when ppgtt is enabled. */
-#define   MI_BATCH_NON_SECURE_I965 	(1<<8)
+#define   MI_BATCH_NON_SECURE_I965	(1<<8)
 #define   MI_BATCH_PPGTT_HSW		(1<<8)
-#define   MI_BATCH_NON_SECURE_HSW 	(1<<13)
+#define   MI_BATCH_NON_SECURE_HSW	(1<<13)
 #define MI_BATCH_BUFFER_START	MI_INSTR(0x31, 0)
 #define   MI_BATCH_GTT		    (2<<6) /* aliased with (1<<7) on gen4 */
 #define MI_BATCH_BUFFER_START_GEN8	MI_INSTR(0x31, 1)
-#define MI_SEMAPHORE_MBOX	MI_INSTR(0x16, 1) /* gen6+ */
-#define  MI_SEMAPHORE_GLOBAL_GTT    (1<<22)
-#define  MI_SEMAPHORE_UPDATE	    (1<<21)
-#define  MI_SEMAPHORE_COMPARE	    (1<<20)
-#define  MI_SEMAPHORE_REGISTER	    (1<<18)
-#define  MI_SEMAPHORE_SYNC_VR	    (0<<16) /* RCS  wait for VCS  (RVSYNC) */
-#define  MI_SEMAPHORE_SYNC_VER	    (1<<16) /* RCS  wait for VECS (RVESYNC) */
-#define  MI_SEMAPHORE_SYNC_BR	    (2<<16) /* RCS  wait for BCS  (RBSYNC) */
-#define  MI_SEMAPHORE_SYNC_BV	    (0<<16) /* VCS  wait for BCS  (VBSYNC) */
-#define  MI_SEMAPHORE_SYNC_VEV	    (1<<16) /* VCS  wait for VECS (VVESYNC) */
-#define  MI_SEMAPHORE_SYNC_RV	    (2<<16) /* VCS  wait for RCS  (VRSYNC) */
-#define  MI_SEMAPHORE_SYNC_RB	    (0<<16) /* BCS  wait for RCS  (BRSYNC) */
-#define  MI_SEMAPHORE_SYNC_VEB	    (1<<16) /* BCS  wait for VECS (BVESYNC) */
-#define  MI_SEMAPHORE_SYNC_VB	    (2<<16) /* BCS  wait for VCS  (BVSYNC) */
-#define  MI_SEMAPHORE_SYNC_BVE	    (0<<16) /* VECS wait for BCS  (VEBSYNC) */
-#define  MI_SEMAPHORE_SYNC_VVE	    (1<<16) /* VECS wait for VCS  (VEVSYNC) */
-#define  MI_SEMAPHORE_SYNC_RVE	    (2<<16) /* VECS wait for RCS  (VERSYNC) */
-#define  MI_SEMAPHORE_SYNC_INVALID  (3<<16)
+
 
 #define MI_PREDICATE_RESULT_2	(0x2214)
 #define  LOWER_SLICE_ENABLED	(1<<0)
