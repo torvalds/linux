@@ -2207,6 +2207,8 @@ static struct i2c_client *adv7604_dummy_client(struct v4l2_subdev *sd,
 static int adv7604_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
+	static const struct v4l2_dv_timings cea640x480 =
+		V4L2_DV_BT_CEA_640X480P59_94;
 	struct adv7604_state *state;
 	struct adv7604_platform_data *pdata = client->dev.platform_data;
 	struct v4l2_ctrl_handler *hdl;
@@ -2234,7 +2236,8 @@ static int adv7604_probe(struct i2c_client *client,
 		v4l_err(client, "No platform data!\n");
 		return -ENODEV;
 	}
-	memcpy(&state->pdata, pdata, sizeof(state->pdata));
+	state->pdata = *pdata;
+	state->timings = cea640x480;
 
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &adv7604_ops);
