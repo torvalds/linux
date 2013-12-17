@@ -365,16 +365,6 @@ check_lu_gp:
 		 * section 7.5.1 Table 362
 		 */
 check_scsi_name:
-		scsi_name_len = strlen(tpg->se_tpg_tfo->tpg_get_wwn(tpg));
-		/* UTF-8 ",t,0x<16-bit TPGT>" + NULL Terminator */
-		scsi_name_len += 10;
-		/* Check for 4-byte padding */
-		padding = ((-scsi_name_len) & 3);
-		if (padding != 0)
-			scsi_name_len += padding;
-		/* Header size + Designation descriptor */
-		scsi_name_len += 4;
-
 		buf[off] =
 			(tpg->se_tpg_tfo->get_fabric_proto_ident(tpg) << 4);
 		buf[off++] |= 0x3; /* CODE SET == UTF-8 */
@@ -402,8 +392,11 @@ check_scsi_name:
 		 * shall be no larger than 256 and shall be a multiple
 		 * of four.
 		 */
+		padding = ((-scsi_name_len) & 3);
 		if (padding)
 			scsi_name_len += padding;
+		if (scsi_name_len > 256)
+			scsi_name_len = 256;
 
 		buf[off-1] = scsi_name_len;
 		off += scsi_name_len;
