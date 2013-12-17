@@ -261,10 +261,8 @@ override:
 failure_unlock:
 	spin_unlock_bh(&police->tcf_lock);
 failure:
-	if (P_tab)
-		qdisc_put_rtab(P_tab);
-	if (R_tab)
-		qdisc_put_rtab(R_tab);
+	qdisc_put_rtab(P_tab);
+	qdisc_put_rtab(R_tab);
 	if (ret == ACT_P_CREATED)
 		kfree(police);
 	return err;
