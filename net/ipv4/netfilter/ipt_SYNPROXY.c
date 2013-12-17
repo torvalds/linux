@@ -423,6 +423,7 @@ static void synproxy_tg4_destroy(const struct xt_tgdtor_param *par)
 static struct xt_target synproxy_tg4_reg __read_mostly = {
 	.name		= "SYNPROXY",
 	.family		= NFPROTO_IPV4,
+	.hooks		= (1 << NF_INET_LOCAL_IN) | (1 << NF_INET_FORWARD),
 	.target		= synproxy_tg4,
 	.targetsize	= sizeof(struct xt_synproxy_info),
 	.checkentry	= synproxy_tg4_check,
