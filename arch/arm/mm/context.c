@@ -78,20 +78,21 @@ void a15_erratum_get_cpumask(int this_cpu, struct mm_struct *mm,
 #endif
 
 #ifdef CONFIG_ARM_LPAE
-static void cpu_set_reserved_ttbr0(void)
-{
-	/*
-	 * Set TTBR0 to swapper_pg_dir which contains only global entries. The
-	 * ASID is set to 0.
-	 */
-	cpu_set_ttbr(0, __pa(swapper_pg_dir));
-	isb();
-}
+/*
+ * With LPAE, the ASID and page tables are updated atomicly, so there is
+ * no need for a reserved set of tables (the active ASID tracking prevents
+ * any issues across a rollover).
+ */
+#define cpu_set_reserved_ttbr0()
 #else
 static void cpu_set_reserved_ttbr0(void)
 {
 	u32 ttb;
-	/* Copy TTBR1 into TTBR0 */
+	/*
+	 * Copy TTBR1 into TTBR0.
+	 * This points at swapper_pg_dir, which contains only global
+	 * entries so any speculative walks are perfectly safe.
+	 */
 	asm volatile(
 	"	mrc	p15, 0, %0, c2, c0, 1		@ read TTBR1\n"
 	"	mcr	p15, 0, %0, c2, c0, 0		@ set TTBR0\n"
