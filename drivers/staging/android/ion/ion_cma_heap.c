@@ -44,8 +44,8 @@ struct ion_cma_buffer_info {
  * This function could be replaced by dma_common_get_sgtable
  * as soon as it will avalaible.
  */
-int ion_cma_get_sgtable(struct device *dev, struct sg_table *sgt,
-			void *cpu_addr, dma_addr_t handle, size_t size)
+static int ion_cma_get_sgtable(struct device *dev, struct sg_table *sgt,
+			       void *cpu_addr, dma_addr_t handle, size_t size)
 {
 	struct page *page = virt_to_page(cpu_addr);
 	int ret;
@@ -69,13 +69,20 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 
 	dev_dbg(dev, "Request buffer allocation len %ld\n", len);
 
+	if (buffer->flags & ION_FLAG_CACHED)
+		return -EINVAL;
+
+	if (align > PAGE_SIZE)
+		return -EINVAL;
+
 	info = kzalloc(sizeof(struct ion_cma_buffer_info), GFP_KERNEL);
 	if (!info) {
 		dev_err(dev, "Can't allocate buffer info\n");
 		return ION_CMA_ALLOCATE_FAILED;
 	}
 
-	info->cpu_addr = dma_alloc_coherent(dev, len, &(info->handle), 0);
+	info->cpu_addr = dma_alloc_coherent(dev, len, &(info->handle),
+						GFP_HIGHUSER | __GFP_ZERO);
 
 	if (!info->cpu_addr) {
 		dev_err(dev, "Fail to allocate buffer\n");
@@ -128,8 +135,8 @@ static int ion_cma_phys(struct ion_heap *heap, struct ion_buffer *buffer,
 	struct device *dev = cma_heap->dev;
 	struct ion_cma_buffer_info *info = buffer->priv_virt;
 
-	dev_dbg(dev, "Return buffer %p physical address 0x%x\n", buffer,
-		info->handle);
+	dev_dbg(dev, "Return buffer %p physical address 0x%pa\n", buffer,
+		&info->handle);
 
 	*addr = info->handle;
 	*len = buffer->size;
@@ -137,16 +144,16 @@ static int ion_cma_phys(struct ion_heap *heap, struct ion_buffer *buffer,
 	return 0;
 }
 
-struct sg_table *ion_cma_heap_map_dma(struct ion_heap *heap,
-					 struct ion_buffer *buffer)
+static struct sg_table *ion_cma_heap_map_dma(struct ion_heap *heap,
+					     struct ion_buffer *buffer)
 {
 	struct ion_cma_buffer_info *info = buffer->priv_virt;
 
 	return info->table;
 }
 
-void ion_cma_heap_unmap_dma(struct ion_heap *heap,
-			       struct ion_buffer *buffer)
+static void ion_cma_heap_unmap_dma(struct ion_heap *heap,
+				   struct ion_buffer *buffer)
 {
 	return;
 }
@@ -162,11 +169,17 @@ static int ion_cma_mmap(struct ion_heap *mapper, struct ion_buffer *buffer,
 				 buffer->size);
 }
 
-void *ion_cma_map_kernel(struct ion_heap *heap, struct ion_buffer *buffer)
+static void *ion_cma_map_kernel(struct ion_heap *heap,
+				struct ion_buffer *buffer)
 {
 	struct ion_cma_buffer_info *info = buffer->priv_virt;
 	/* kernel memory mapping has been done at allocation time */
 	return info->cpu_addr;
+}
+
+static void ion_cma_unmap_kernel(struct ion_heap *heap,
+					struct ion_buffer *buffer)
+{
 }
 
 static struct ion_heap_ops ion_cma_ops = {
@@ -177,6 +190,7 @@ static struct ion_heap_ops ion_cma_ops = {
 	.phys = ion_cma_phys,
 	.map_user = ion_cma_mmap,
 	.map_kernel = ion_cma_map_kernel,
+	.unmap_kernel = ion_cma_unmap_kernel,
 };
 
 struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *data)
