@@ -1082,12 +1082,11 @@ static int __net_init audit_net_init(struct net *net)
 	pr_info("audit: initializing netlink socket in namespace\n");
 
 	aunet->nlsk = netlink_kernel_create(net, NETLINK_AUDIT, &cfg);
-	if (aunet->nlsk == NULL)
-		return -ENOMEM;
-	if (!aunet->nlsk)
+	if (aunet->nlsk == NULL) {
 		audit_panic("cannot initialize netlink socket in namespace");
-	else
-		aunet->nlsk->sk_sndtimeo = MAX_SCHEDULE_TIMEOUT;
+		return -ENOMEM;
+	}
+	aunet->nlsk->sk_sndtimeo = MAX_SCHEDULE_TIMEOUT;
 	return 0;
 }
 
