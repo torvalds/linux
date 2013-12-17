@@ -1215,7 +1215,7 @@ struct intel_wm_level {
 	uint32_t fbc_val;
 };
 
-struct hsw_wm_values {
+struct ilk_wm_values {
 	uint32_t wm_pipe[3];
 	uint32_t wm_lp[3];
 	uint32_t wm_lp_spr[3];
@@ -1521,7 +1521,7 @@ typedef struct drm_i915_private {
 		uint16_t cur_latency[5];
 
 		/* current hardware state */
-		struct hsw_wm_values hw;
+		struct ilk_wm_values hw;
 	} wm;
 
 	struct i915_package_c8 pc8;

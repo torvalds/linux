@@ -1716,7 +1716,7 @@ static uint32_t ilk_wm_fbc(uint32_t pri_val, uint32_t horiz_pixels,
 	return DIV_ROUND_UP(pri_val * 64, horiz_pixels * bytes_per_pixel) + 2;
 }
 
-struct hsw_pipe_wm_parameters {
+struct ilk_pipe_wm_parameters {
 	bool active;
 	uint32_t pipe_htotal;
 	uint32_t pixel_rate;
@@ -1725,7 +1725,7 @@ struct hsw_pipe_wm_parameters {
 	struct intel_plane_wm_parameters cur;
 };
 
-struct hsw_wm_maximums {
+struct ilk_wm_maximums {
 	uint16_t pri;
 	uint16_t spr;
 	uint16_t cur;
@@ -1743,7 +1743,7 @@ struct intel_wm_config {
  * For both WM_PIPE and WM_LP.
  * mem_value must be in 0.1us units.
  */
-static uint32_t ilk_compute_pri_wm(const struct hsw_pipe_wm_parameters *params,
+static uint32_t ilk_compute_pri_wm(const struct ilk_pipe_wm_parameters *params,
 				   uint32_t mem_value,
 				   bool is_lp)
 {
@@ -1772,7 +1772,7 @@ static uint32_t ilk_compute_pri_wm(const struct hsw_pipe_wm_parameters *params,
  * For both WM_PIPE and WM_LP.
  * mem_value must be in 0.1us units.
  */
-static uint32_t ilk_compute_spr_wm(const struct hsw_pipe_wm_parameters *params,
+static uint32_t ilk_compute_spr_wm(const struct ilk_pipe_wm_parameters *params,
 				   uint32_t mem_value)
 {
 	uint32_t method1, method2;
@@ -1795,7 +1795,7 @@ static uint32_t ilk_compute_spr_wm(const struct hsw_pipe_wm_parameters *params,
  * For both WM_PIPE and WM_LP.
  * mem_value must be in 0.1us units.
  */
-static uint32_t ilk_compute_cur_wm(const struct hsw_pipe_wm_parameters *params,
+static uint32_t ilk_compute_cur_wm(const struct ilk_pipe_wm_parameters *params,
 				   uint32_t mem_value)
 {
 	if (!params->active || !params->cur.enabled)
@@ -1809,7 +1809,7 @@ static uint32_t ilk_compute_cur_wm(const struct hsw_pipe_wm_parameters *params,
 }
 
 /* Only for WM_LP. */
-static uint32_t ilk_compute_fbc_wm(const struct hsw_pipe_wm_parameters *params,
+static uint32_t ilk_compute_fbc_wm(const struct ilk_pipe_wm_parameters *params,
 				   uint32_t pri_val)
 {
 	if (!params->active || !params->pri.enabled)
@@ -1914,7 +1914,7 @@ static void ilk_compute_wm_maximums(struct drm_device *dev,
 				    int level,
 				    const struct intel_wm_config *config,
 				    enum intel_ddb_partitioning ddb_partitioning,
-				    struct hsw_wm_maximums *max)
+				    struct ilk_wm_maximums *max)
 {
 	max->pri = ilk_plane_wm_max(dev, level, config, ddb_partitioning, false);
 	max->spr = ilk_plane_wm_max(dev, level, config, ddb_partitioning, true);
@@ -1923,7 +1923,7 @@ static void ilk_compute_wm_maximums(struct drm_device *dev,
 }
 
 static bool ilk_validate_wm_level(int level,
-				  const struct hsw_wm_maximums *max,
+				  const struct ilk_wm_maximums *max,
 				  struct intel_wm_level *result)
 {
 	bool ret;
@@ -1965,7 +1965,7 @@ static bool ilk_validate_wm_level(int level,
 
 static void ilk_compute_wm_level(struct drm_i915_private *dev_priv,
 				 int level,
-				 const struct hsw_pipe_wm_parameters *p,
+				 const struct ilk_pipe_wm_parameters *p,
 				 struct intel_wm_level *result)
 {
 	uint16_t pri_latency = dev_priv->wm.pri_latency[level];
@@ -2112,8 +2112,8 @@ static void intel_setup_wm_latency(struct drm_device *dev)
 	intel_print_wm_latency(dev, "Cursor", dev_priv->wm.cur_latency);
 }
 
-static void hsw_compute_wm_parameters(struct drm_crtc *crtc,
-				      struct hsw_pipe_wm_parameters *p,
+static void ilk_compute_wm_parameters(struct drm_crtc *crtc,
+				      struct ilk_pipe_wm_parameters *p,
 				      struct intel_wm_config *config)
 {
 	struct drm_device *dev = crtc->dev;
@@ -2150,7 +2150,7 @@ static void hsw_compute_wm_parameters(struct drm_crtc *crtc,
 
 /* Compute new watermarks for the pipe */
 static bool intel_compute_pipe_wm(struct drm_crtc *crtc,
-				  const struct hsw_pipe_wm_parameters *params,
+				  const struct ilk_pipe_wm_parameters *params,
 				  struct intel_pipe_wm *pipe_wm)
 {
 	struct drm_device *dev = crtc->dev;
@@ -2162,7 +2162,7 @@ static bool intel_compute_pipe_wm(struct drm_crtc *crtc,
 		.sprites_enabled = params->spr.enabled,
 		.sprites_scaled = params->spr.scaled,
 	};
-	struct hsw_wm_maximums max;
+	struct ilk_wm_maximums max;
 
 	/* LP0 watermarks always use 1/2 DDB partitioning */
 	ilk_compute_wm_maximums(dev, 0, &config, INTEL_DDB_PART_1_2, &max);
@@ -2216,7 +2216,7 @@ static void ilk_merge_wm_level(struct drm_device *dev,
  */
 static void ilk_wm_merge(struct drm_device *dev,
 			 const struct intel_wm_config *config,
-			 const struct hsw_wm_maximums *max,
+			 const struct ilk_wm_maximums *max,
 			 struct intel_pipe_wm *merged)
 {
 	int level, max_level = ilk_wm_max_level(dev);
@@ -2280,10 +2280,10 @@ static unsigned int ilk_wm_lp_latency(struct drm_device *dev, int level)
 		return dev_priv->wm.pri_latency[level];
 }
 
-static void hsw_compute_wm_results(struct drm_device *dev,
+static void ilk_compute_wm_results(struct drm_device *dev,
 				   const struct intel_pipe_wm *merged,
 				   enum intel_ddb_partitioning partitioning,
-				   struct hsw_wm_values *results)
+				   struct ilk_wm_values *results)
 {
 	struct intel_crtc *intel_crtc;
 	int level, wm_lp;
@@ -2340,7 +2340,7 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 
 /* Find the result with the highest level enabled. Check for enable_fbc_wm in
  * case both are at the same level. Prefer r1 in case they're the same. */
-static struct intel_pipe_wm *hsw_find_best_result(struct drm_device *dev,
+static struct intel_pipe_wm *ilk_find_best_result(struct drm_device *dev,
 						  struct intel_pipe_wm *r1,
 						  struct intel_pipe_wm *r2)
 {
@@ -2375,8 +2375,8 @@ static struct intel_pipe_wm *hsw_find_best_result(struct drm_device *dev,
 #define WM_DIRTY_DDB (1 << 25)
 
 static unsigned int ilk_compute_wm_dirty(struct drm_device *dev,
-					 const struct hsw_wm_values *old,
-					 const struct hsw_wm_values *new)
+					 const struct ilk_wm_values *old,
+					 const struct ilk_wm_values *new)
 {
 	unsigned int dirty = 0;
 	enum pipe pipe;
@@ -2429,7 +2429,7 @@ static unsigned int ilk_compute_wm_dirty(struct drm_device *dev,
 static bool _ilk_disable_lp_wm(struct drm_i915_private *dev_priv,
 			       unsigned int dirty)
 {
-	struct hsw_wm_values *previous = &dev_priv->wm.hw;
+	struct ilk_wm_values *previous = &dev_priv->wm.hw;
 	bool changed = false;
 
 	if (dirty & WM_DIRTY_LP(3) && previous->wm_lp[2] & WM1_LP_SR_EN) {
@@ -2460,11 +2460,11 @@ static bool _ilk_disable_lp_wm(struct drm_i915_private *dev_priv,
  * The spec says we shouldn't write when we don't need, because every write
  * causes WMs to be re-evaluated, expending some power.
  */
-static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
-				struct hsw_wm_values *results)
+static void ilk_write_wm_values(struct drm_i915_private *dev_priv,
+				struct ilk_wm_values *results)
 {
 	struct drm_device *dev = dev_priv->dev;
-	struct hsw_wm_values *previous = &dev_priv->wm.hw;
+	struct ilk_wm_values *previous = &dev_priv->wm.hw;
 	unsigned int dirty;
 	uint32_t val;
 
@@ -2543,20 +2543,20 @@ static bool ilk_disable_lp_wm(struct drm_device *dev)
 	return _ilk_disable_lp_wm(dev_priv, WM_DIRTY_LP_ALL);
 }
 
-static void haswell_update_wm(struct drm_crtc *crtc)
+static void ilk_update_wm(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct hsw_wm_maximums max;
-	struct hsw_pipe_wm_parameters params = {};
-	struct hsw_wm_values results = {};
+	struct ilk_wm_maximums max;
+	struct ilk_pipe_wm_parameters params = {};
+	struct ilk_wm_values results = {};
 	enum intel_ddb_partitioning partitioning;
 	struct intel_pipe_wm pipe_wm = {};
 	struct intel_pipe_wm lp_wm_1_2 = {}, lp_wm_5_6 = {}, *best_lp_wm;
 	struct intel_wm_config config = {};
 
-	hsw_compute_wm_parameters(crtc, &params, &config);
+	ilk_compute_wm_parameters(crtc, &params, &config);
 
 	intel_compute_pipe_wm(crtc, &params, &pipe_wm);
 
@@ -2574,7 +2574,7 @@ static void haswell_update_wm(struct drm_crtc *crtc)
 		ilk_compute_wm_maximums(dev, 1, &config, INTEL_DDB_PART_5_6, &max);
 		ilk_wm_merge(dev, &config, &max, &lp_wm_5_6);
 
-		best_lp_wm = hsw_find_best_result(dev, &lp_wm_1_2, &lp_wm_5_6);
+		best_lp_wm = ilk_find_best_result(dev, &lp_wm_1_2, &lp_wm_5_6);
 	} else {
 		best_lp_wm = &lp_wm_1_2;
 	}
@@ -2582,12 +2582,12 @@ static void haswell_update_wm(struct drm_crtc *crtc)
 	partitioning = (best_lp_wm == &lp_wm_1_2) ?
 		       INTEL_DDB_PART_1_2 : INTEL_DDB_PART_5_6;
 
-	hsw_compute_wm_results(dev, best_lp_wm, partitioning, &results);
+	ilk_compute_wm_results(dev, best_lp_wm, partitioning, &results);
 
-	hsw_write_wm_values(dev_priv, &results);
+	ilk_write_wm_values(dev_priv, &results);
 }
 
-static void haswell_update_sprite_wm(struct drm_plane *plane,
+static void ilk_update_sprite_wm(struct drm_plane *plane,
 				     struct drm_crtc *crtc,
 				     uint32_t sprite_width, int pixel_size,
 				     bool enabled, bool scaled)
@@ -2610,14 +2610,14 @@ static void haswell_update_sprite_wm(struct drm_plane *plane,
 	if (IS_IVYBRIDGE(dev) && scaled && ilk_disable_lp_wm(dev))
 		intel_wait_for_vblank(dev, intel_plane->pipe);
 
-	haswell_update_wm(crtc);
+	ilk_update_wm(crtc);
 }
 
 static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct hsw_wm_values *hw = &dev_priv->wm.hw;
+	struct ilk_wm_values *hw = &dev_priv->wm.hw;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_pipe_wm *active = &intel_crtc->wm.active;
 	enum pipe pipe = intel_crtc->pipe;
@@ -2661,7 +2661,7 @@ static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 void ilk_wm_get_hw_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct hsw_wm_values *hw = &dev_priv->wm.hw;
+	struct ilk_wm_values *hw = &dev_priv->wm.hw;
 	struct drm_crtc *crtc;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
@@ -5578,9 +5578,9 @@ void intel_init_pm(struct drm_device *dev)
 			if (dev_priv->wm.pri_latency[1] &&
 			    dev_priv->wm.spr_latency[1] &&
 			    dev_priv->wm.cur_latency[1]) {
-				dev_priv->display.update_wm = haswell_update_wm;
+				dev_priv->display.update_wm = ilk_update_wm;
 				dev_priv->display.update_sprite_wm =
-					haswell_update_sprite_wm;
+					ilk_update_sprite_wm;
 			} else {
 				DRM_DEBUG_KMS("Failed to get proper latency. "
 					      "Disable CxSR\n");
@@ -5591,9 +5591,9 @@ void intel_init_pm(struct drm_device *dev)
 			if (dev_priv->wm.pri_latency[0] &&
 			    dev_priv->wm.spr_latency[0] &&
 			    dev_priv->wm.cur_latency[0]) {
-				dev_priv->display.update_wm = haswell_update_wm;
+				dev_priv->display.update_wm = ilk_update_wm;
 				dev_priv->display.update_sprite_wm =
-					haswell_update_sprite_wm;
+					ilk_update_sprite_wm;
 			} else {
 				DRM_DEBUG_KMS("Failed to read display plane latency. "
 					      "Disable CxSR\n");
@@ -5604,9 +5604,9 @@ void intel_init_pm(struct drm_device *dev)
 			if (dev_priv->wm.pri_latency[0] &&
 			    dev_priv->wm.spr_latency[0] &&
 			    dev_priv->wm.cur_latency[0]) {
-				dev_priv->display.update_wm = haswell_update_wm;
+				dev_priv->display.update_wm = ilk_update_wm;
 				dev_priv->display.update_sprite_wm =
-					haswell_update_sprite_wm;
+					ilk_update_sprite_wm;
 			} else {
 				DRM_DEBUG_KMS("Failed to read display plane latency. "
 					      "Disable CxSR\n");
@@ -5617,9 +5617,9 @@ void intel_init_pm(struct drm_device *dev)
 			if (dev_priv->wm.pri_latency[0] &&
 			    dev_priv->wm.spr_latency[0] &&
 			    dev_priv->wm.cur_latency[0]) {
-				dev_priv->display.update_wm = haswell_update_wm;
+				dev_priv->display.update_wm = ilk_update_wm;
 				dev_priv->display.update_sprite_wm =
-					haswell_update_sprite_wm;
+					ilk_update_sprite_wm;
 			} else {
 				DRM_DEBUG_KMS("Failed to read display plane latency. "
 					      "Disable CxSR\n");
