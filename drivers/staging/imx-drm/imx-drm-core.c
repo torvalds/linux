@@ -88,9 +88,9 @@ static int imx_drm_driver_unload(struct drm_device *drm)
 
 	imx_drm_device_put();
 
-	drm_vblank_cleanup(imxdrm->drm);
-	drm_kms_helper_poll_fini(imxdrm->drm);
-	drm_mode_config_cleanup(imxdrm->drm);
+	drm_vblank_cleanup(drm);
+	drm_kms_helper_poll_fini(drm);
+	drm_mode_config_cleanup(drm);
 
 	return 0;
 }
@@ -424,15 +424,15 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 
 	mutex_lock(&imxdrm->mutex);
 
-	drm_kms_helper_poll_init(imxdrm->drm);
+	drm_kms_helper_poll_init(drm);
 
 	/* setup the grouping for the legacy output */
-	ret = drm_mode_group_init_legacy_group(imxdrm->drm,
-			&imxdrm->drm->primary->mode_group);
+	ret = drm_mode_group_init_legacy_group(drm,
+			&drm->primary->mode_group);
 	if (ret)
 		goto err_kms;
 
-	ret = drm_vblank_init(imxdrm->drm, MAX_CRTC);
+	ret = drm_vblank_init(drm, MAX_CRTC);
 	if (ret)
 		goto err_kms;
 
@@ -441,7 +441,7 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 	 * by drm timer once a current process gives up ownership of
 	 * vblank event.(after drm_vblank_put function is called)
 	 */
-	imxdrm->drm->vblank_disable_allowed = true;
+	drm->vblank_disable_allowed = true;
 
 	if (!imx_drm_device_get()) {
 		ret = -EINVAL;
