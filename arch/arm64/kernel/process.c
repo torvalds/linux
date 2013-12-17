@@ -71,8 +71,17 @@ static void setup_restart(void)
 
 void soft_restart(unsigned long addr)
 {
+	typedef void (*phys_reset_t)(unsigned long);
+	phys_reset_t phys_reset;
+
 	setup_restart();
-	cpu_reset(addr);
+
+	/* Switch to the identity mapping */
+	phys_reset = (phys_reset_t)virt_to_phys(cpu_reset);
+	phys_reset(addr);
+
+	/* Should never get here */
+	BUG();
 }
 
 /*
