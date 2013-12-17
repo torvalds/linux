@@ -518,6 +518,9 @@ enum qlc_83xx_ext_regs {
 	QLC_83XX_ASIC_TEMP,
 };
 
+/* Initialize/Stop NIC command bit definitions */
+#define QLC_REGISTER_DCB_AEN		BIT_1
+
 /* 83xx funcitons */
 int qlcnic_83xx_get_fw_version(struct qlcnic_adapter *);
 int qlcnic_83xx_issue_cmd(struct qlcnic_adapter *, struct qlcnic_cmd_args *);

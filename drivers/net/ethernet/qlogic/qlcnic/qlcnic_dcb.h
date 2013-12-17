@@ -25,7 +25,6 @@ struct qlcnic_dcb_ops {
 	int (*get_hw_capability) (struct qlcnic_dcb *);
 	int (*query_cee_param) (struct qlcnic_dcb *, char *, u8);
 	void (*init_dcbnl_ops) (struct qlcnic_dcb *);
-	int (*register_aen) (struct qlcnic_dcb *, bool);
 	void (*aen_handler) (struct qlcnic_dcb *, void *);
 	int (*get_cee_cfg) (struct qlcnic_dcb *);
 	void (*get_info) (struct qlcnic_dcb *);
@@ -101,13 +100,6 @@ static inline int qlcnic_dcb_get_cee_cfg(struct qlcnic_dcb *dcb)
 		return dcb->ops->get_cee_cfg(dcb);
 
 	return 0;
-}
-
-static inline void
-qlcnic_dcb_register_aen(struct qlcnic_dcb *dcb, u8 flag)
-{
-	if (dcb && dcb->ops->register_aen)
-		dcb->ops->register_aen(dcb, flag);
 }
 
 static inline void qlcnic_dcb_aen_handler(struct qlcnic_dcb *dcb, void *msg)
