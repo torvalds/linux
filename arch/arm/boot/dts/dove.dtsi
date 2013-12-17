@@ -336,8 +336,19 @@
 				reg = <0xa0000 0x2400>;
 				interrupts = <62>;
 				clocks = <&gate_clk 3>;
+				phys = <&sata_phy0>;
+				phy-names = "port0";
 				nr-ports = <1>;
 				status = "disabled";
+			};
+
+			sata_phy0: sata-phy@a2000 {
+				compatible = "marvell,mvebu-sata-phy";
+				reg = <0xa2000 0x0334>;
+				clocks = <&gate_clk 3>;
+				clock-names = "sata";
+				#phy-cells = <0>;
+				status = "ok";
 			};
 
 			audio0: audio-controller@b0000 {
