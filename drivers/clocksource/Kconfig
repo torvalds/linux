@@ -87,6 +87,7 @@ config ARM_ARCH_TIMER
 config ARM_ARCH_TIMER_EVTSTREAM
 	bool "Support for ARM architected timer event stream generation"
 	default y if ARM_ARCH_TIMER
+	depends on ARM_ARCH_TIMER
 	help
 	  This option enables support for event stream generation based on
 	  the ARM architected timer. It is used for waking up CPUs executing

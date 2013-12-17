@@ -2157,7 +2157,7 @@ struct fw_debug_cmd {
 
 struct fw_hdr {
 	u8 ver;
-	u8 reserved1;
+	u8 chip;			/* terminator chip type */
 	__be16	len512;			/* bin length in units of 512-bytes */
 	__be32	fw_ver;			/* firmware version */
 	__be32	tp_microcode_ver;
@@ -2174,6 +2174,11 @@ struct fw_hdr {
 	__u32   reserved4;
 	__be32  flags;
 	__be32  reserved6[23];
+};
+
+enum fw_hdr_chip {
+	FW_HDR_CHIP_T4,
+	FW_HDR_CHIP_T5
 };
 
 #define FW_HDR_FW_VER_MAJOR_GET(x) (((x) >> 24) & 0xff)

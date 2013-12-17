@@ -108,9 +108,10 @@
  * 1.31- Add support for num Z pipes from GET_PARAM
  * 1.32- fixes for rv740 setup
  * 1.33- Add r6xx/r7xx const buffer support
+ * 1.34- fix evergreen/cayman GS register
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		33
+#define DRIVER_MINOR		34
 #define DRIVER_PATCHLEVEL	0
 
 long radeon_drm_ioctl(struct file *filp,

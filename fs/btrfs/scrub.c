@@ -208,7 +208,6 @@ static void scrub_recheck_block_checksum(struct btrfs_fs_info *fs_info,
 					 int is_metadata, int have_csum,
 					 const u8 *csum, u64 generation,
 					 u16 csum_size);
-static void scrub_complete_bio_end_io(struct bio *bio, int err);
 static int scrub_repair_block_from_good_copy(struct scrub_block *sblock_bad,
 					     struct scrub_block *sblock_good,
 					     int force_write);
@@ -1294,7 +1293,6 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 	for (page_num = 0; page_num < sblock->page_count; page_num++) {
 		struct bio *bio;
 		struct scrub_page *page = sblock->pagev[page_num];
-		DECLARE_COMPLETION_ONSTACK(complete);
 
 		if (page->dev->bdev == NULL) {
 			page->io_error = 1;
@@ -1311,18 +1309,11 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 		}
 		bio->bi_bdev = page->dev->bdev;
 		bio->bi_sector = page->physical >> 9;
-		bio->bi_end_io = scrub_complete_bio_end_io;
-		bio->bi_private = &complete;
 
 		bio_add_page(bio, page->page, PAGE_SIZE, 0);
-		btrfsic_submit_bio(READ, bio);
-
-		/* this will also unplug the queue */
-		wait_for_completion(&complete);
-
-		page->io_error = !test_bit(BIO_UPTODATE, &bio->bi_flags);
-		if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
+		if (btrfsic_submit_bio_wait(READ, bio))
 			sblock->no_io_error_seen = 0;
+
 		bio_put(bio);
 	}
 
@@ -1391,11 +1382,6 @@ static void scrub_recheck_block_checksum(struct btrfs_fs_info *fs_info,
 		sblock->checksum_error = 1;
 }
 
-static void scrub_complete_bio_end_io(struct bio *bio, int err)
-{
-	complete((struct completion *)bio->bi_private);
-}
-
 static int scrub_repair_block_from_good_copy(struct scrub_block *sblock_bad,
 					     struct scrub_block *sblock_good,
 					     int force_write)
@@ -1430,7 +1416,6 @@ static int scrub_repair_page_from_good_copy(struct scrub_block *sblock_bad,
 	    sblock_bad->checksum_error || page_bad->io_error) {
 		struct bio *bio;
 		int ret;
-		DECLARE_COMPLETION_ONSTACK(complete);
 
 		if (!page_bad->dev->bdev) {
 			printk_ratelimited(KERN_WARNING
@@ -1443,19 +1428,14 @@ static int scrub_repair_page_from_good_copy(struct scrub_block *sblock_bad,
 			return -EIO;
 		bio->bi_bdev = page_bad->dev->bdev;
 		bio->bi_sector = page_bad->physical >> 9;
-		bio->bi_end_io = scrub_complete_bio_end_io;
-		bio->bi_private = &complete;
 
 		ret = bio_add_page(bio, page_good->page, PAGE_SIZE, 0);
 		if (PAGE_SIZE != ret) {
 			bio_put(bio);
 			return -EIO;
 		}
-		btrfsic_submit_bio(WRITE, bio);
 
-		/* this will also unplug the queue */
-		wait_for_completion(&complete);
-		if (!bio_flagged(bio, BIO_UPTODATE)) {
+		if (btrfsic_submit_bio_wait(WRITE, bio)) {
 			btrfs_dev_stat_inc_and_print(page_bad->dev,
 				BTRFS_DEV_STAT_WRITE_ERRS);
 			btrfs_dev_replace_stats_inc(
@@ -3375,7 +3355,6 @@ static int write_page_nocow(struct scrub_ctx *sctx,
 	struct bio *bio;
 	struct btrfs_device *dev;
 	int ret;
-	DECLARE_COMPLETION_ONSTACK(compl);
 
 	dev = sctx->wr_ctx.tgtdev;
 	if (!dev)
@@ -3392,8 +3371,6 @@ static int write_page_nocow(struct scrub_ctx *sctx,
 		spin_unlock(&sctx->stat_lock);
 		return -ENOMEM;
 	}
-	bio->bi_private = &compl;
-	bio->bi_end_io = scrub_complete_bio_end_io;
 	bio->bi_size = 0;
 	bio->bi_sector = physical_for_dev_replace >> 9;
 	bio->bi_bdev = dev->bdev;
@@ -3404,10 +3381,8 @@ leave_with_eio:
 		btrfs_dev_stat_inc_and_print(dev, BTRFS_DEV_STAT_WRITE_ERRS);
 		return -EIO;
 	}
-	btrfsic_submit_bio(WRITE_SYNC, bio);
-	wait_for_completion(&compl);
 
-	if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
+	if (btrfsic_submit_bio_wait(WRITE_SYNC, bio))
 		goto leave_with_eio;
 
 	bio_put(bio);

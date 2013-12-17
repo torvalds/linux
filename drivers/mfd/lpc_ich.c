@@ -506,7 +506,7 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 		.iTCO_version = 2,
 	},
 	[LPC_WPT_LP] = {
-		.name = "Lynx Point_LP",
+		.name = "Wildcat Point_LP",
 		.iTCO_version = 2,
 	},
 };

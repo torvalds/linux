@@ -296,6 +296,7 @@ wwn_t bfa_fcs_lport_get_rport(struct bfa_fcs_lport_s *port, wwn_t wwn,
 struct bfa_fcs_lport_s *bfa_fcs_lookup_port(struct bfa_fcs_s *fcs,
 					    u16 vf_id, wwn_t lpwwn);
 
+void bfa_fcs_lport_set_symname(struct bfa_fcs_lport_s *port, char *symname);
 void bfa_fcs_lport_get_info(struct bfa_fcs_lport_s *port,
 			    struct bfa_lport_info_s *port_info);
 void bfa_fcs_lport_get_attr(struct bfa_fcs_lport_s *port,

@@ -873,8 +873,6 @@ void __init setup_arch(char **cmdline_p)
 	machine_desc = mdesc;
 	machine_name = mdesc->name;
 
-	setup_dma_zone(mdesc);
-
 	if (mdesc->reboot_mode != REBOOT_HARD)
 		reboot_mode = mdesc->reboot_mode;
 
@@ -892,6 +890,7 @@ void __init setup_arch(char **cmdline_p)
 	sort(&meminfo.bank, meminfo.nr_banks, sizeof(meminfo.bank[0]), meminfo_cmp, NULL);
 
 	early_paging_init(mdesc, lookup_processor_type(read_cpuid_id()));
+	setup_dma_zone(mdesc);
 	sanity_check_meminfo();
 	arm_memblock_init(&meminfo, mdesc);
 
