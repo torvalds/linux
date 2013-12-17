@@ -739,7 +739,7 @@ void phy_state_machine(struct work_struct *work)
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct phy_device *phydev =
 			container_of(dwork, struct phy_device, state_queue);
-	int needs_aneg = 0;
+	int needs_aneg = 0, do_suspend = 0;
 	int err = 0;
 
 	mutex_lock(&phydev->lock);
@@ -854,6 +854,7 @@ void phy_state_machine(struct work_struct *work)
 				phydev->link = 0;
 				netif_carrier_off(phydev->attached_dev);
 				phydev->adjust_link(phydev->attached_dev);
+				do_suspend = 1;
 			}
 			break;
 		case PHY_RESUMING:
@@ -911,6 +912,9 @@ void phy_state_machine(struct work_struct *work)
 
 	if (needs_aneg)
 		err = phy_start_aneg(phydev);
+
+	if (do_suspend)
+		phy_suspend(phydev);
 
 	if (err < 0)
 		phy_error(phydev);
