@@ -557,7 +557,7 @@ static void compress_udp_header(u8 **hc06_ptr, struct sk_buff *skb)
 		lowpan_push_hc_data(hc06_ptr, &tmp, sizeof(tmp));
 		tmp = /* subtraction is faster */
 		   (u8)((ntohs(uh->dest) - LOWPAN_NHC_UDP_4BIT_PORT) +
-		       ((ntohs(uh->source) & LOWPAN_NHC_UDP_4BIT_PORT) << 4));
+		       ((ntohs(uh->source) - LOWPAN_NHC_UDP_4BIT_PORT) << 4));
 		lowpan_push_hc_data(hc06_ptr, &tmp, sizeof(tmp));
 	} else if ((ntohs(uh->dest) & LOWPAN_NHC_UDP_8BIT_MASK) ==
 			LOWPAN_NHC_UDP_8BIT_PORT) {
