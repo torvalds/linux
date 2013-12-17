@@ -593,27 +593,12 @@ static const struct of_device_id of_dwc3_match[] = {
 MODULE_DEVICE_TABLE(of, of_dwc3_match);
 
 #ifdef CONFIG_PM_SLEEP
-static int dwc3_omap_prepare(struct device *dev)
-{
-	struct dwc3_omap	*omap = dev_get_drvdata(dev);
-
-	dwc3_omap_disable_irqs(omap);
-
-	return 0;
-}
-
-static void dwc3_omap_complete(struct device *dev)
-{
-	struct dwc3_omap	*omap = dev_get_drvdata(dev);
-
-	dwc3_omap_enable_irqs(omap);
-}
-
 static int dwc3_omap_suspend(struct device *dev)
 {
 	struct dwc3_omap	*omap = dev_get_drvdata(dev);
 
 	omap->utmi_otg_status = dwc3_omap_read_utmi_status(omap);
+	dwc3_omap_disable_irqs(omap);
 
 	return 0;
 }
@@ -623,6 +608,7 @@ static int dwc3_omap_resume(struct device *dev)
 	struct dwc3_omap	*omap = dev_get_drvdata(dev);
 
 	dwc3_omap_write_utmi_status(omap, omap->utmi_otg_status);
+	dwc3_omap_enable_irqs(omap);
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_active(dev);
@@ -632,8 +618,6 @@ static int dwc3_omap_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops dwc3_omap_dev_pm_ops = {
-	.prepare	= dwc3_omap_prepare,
-	.complete	= dwc3_omap_complete,
 
 	SET_SYSTEM_SLEEP_PM_OPS(dwc3_omap_suspend, dwc3_omap_resume)
 };
