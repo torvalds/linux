@@ -2212,7 +2212,6 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct qlcnic_hardware_context *ahw;
 	int err, pci_using_dac = -1;
 	char board_name[QLCNIC_MAX_BOARD_NAME_LEN + 19]; /* MAC + ": " + name */
-	struct qlcnic_dcb *dcb;
 
 	if (pdev->is_virtfn)
 		return -ENODEV;
@@ -2335,10 +2334,6 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		adapter->flags |= QLCNIC_NEED_FLR;
 
-		dcb = adapter->dcb;
-
-		if (dcb && qlcnic_dcb_attach(dcb))
-			qlcnic_clear_dcb_ops(dcb);
 	} else if (qlcnic_83xx_check(adapter)) {
 		qlcnic_83xx_check_vf(adapter, ent);
 		adapter->portnum = adapter->ahw->pci_func;
@@ -2366,6 +2361,8 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			"%s: failed. Please Reboot\n", __func__);
 		goto err_out_free_hw;
 	}
+
+	qlcnic_dcb_enable(adapter->dcb);
 
 	if (qlcnic_read_mac_addr(adapter))
 		dev_warn(&pdev->dev, "failed to read mac addr\n");

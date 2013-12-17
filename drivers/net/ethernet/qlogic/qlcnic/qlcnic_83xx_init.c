@@ -2198,7 +2198,6 @@ static void qlcnic_83xx_init_rings(struct qlcnic_adapter *adapter)
 int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
-	struct qlcnic_dcb *dcb;
 	int err = 0;
 
 	ahw->msix_supported = !!qlcnic_use_msi_x;
@@ -2263,11 +2262,6 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 	err = adapter->nic_ops->init_driver(adapter);
 	if (err)
 		goto disable_mbx_intr;
-
-	dcb = adapter->dcb;
-
-	if (dcb && qlcnic_dcb_attach(dcb))
-		qlcnic_clear_dcb_ops(dcb);
 
 	/* Periodically monitor device status */
 	qlcnic_83xx_idc_poll_dev_state(&adapter->fw_work.work);

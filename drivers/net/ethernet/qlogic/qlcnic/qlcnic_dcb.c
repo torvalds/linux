@@ -260,6 +260,9 @@ int qlcnic_register_dcb(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_dcb *dcb;
 
+	if (qlcnic_sriov_vf_check(adapter))
+		return 0;
+
 	dcb = kzalloc(sizeof(struct qlcnic_dcb), GFP_ATOMIC);
 	if (!dcb)
 		return -ENOMEM;

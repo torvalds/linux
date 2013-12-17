@@ -500,7 +500,6 @@ static int qlcnic_sriov_vf_init_driver(struct qlcnic_adapter *adapter)
 static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
 				 int pci_using_dac)
 {
-	struct qlcnic_dcb *dcb;
 	int err;
 
 	INIT_LIST_HEAD(&adapter->vf_mc_list);
@@ -537,11 +536,6 @@ static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
 	err = qlcnic_sriov_vf_init_driver(adapter);
 	if (err)
 		goto err_out_send_channel_term;
-
-	dcb = adapter->dcb;
-
-	if (dcb && qlcnic_dcb_attach(dcb))
-		qlcnic_clear_dcb_ops(dcb);
 
 	err = qlcnic_setup_netdev(adapter, adapter->netdev, pci_using_dac);
 	if (err)
@@ -1583,8 +1577,6 @@ static int qlcnic_sriov_vf_reinit_driver(struct qlcnic_adapter *adapter)
 	err = qlcnic_sriov_vf_init_driver(adapter);
 	if (err)
 		goto err_out_term_channel;
-
-	qlcnic_dcb_get_info(adapter->dcb);
 
 	return 0;
 

@@ -121,4 +121,10 @@ static inline void qlcnic_dcb_init_dcbnl_ops(struct qlcnic_dcb *dcb)
 	if (dcb && dcb->ops->init_dcbnl_ops)
 		dcb->ops->init_dcbnl_ops(dcb);
 }
+
+static inline void qlcnic_dcb_enable(struct qlcnic_dcb *dcb)
+{
+	if (dcb && qlcnic_dcb_attach(dcb))
+		qlcnic_clear_dcb_ops(dcb);
+}
 #endif
