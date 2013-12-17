@@ -1351,6 +1351,107 @@ static int core_alua_set_tg_pt_secondary_state(
 	return 0;
 }
 
+struct t10_alua_lba_map *
+core_alua_allocate_lba_map(struct list_head *list,
+			   u64 first_lba, u64 last_lba)
+{
+	struct t10_alua_lba_map *lba_map;
+
+	lba_map = kmem_cache_zalloc(t10_alua_lba_map_cache, GFP_KERNEL);
+	if (!lba_map) {
+		pr_err("Unable to allocate struct t10_alua_lba_map\n");
+		return ERR_PTR(-ENOMEM);
+	}
+	INIT_LIST_HEAD(&lba_map->lba_map_mem_list);
+	lba_map->lba_map_first_lba = first_lba;
+	lba_map->lba_map_last_lba = last_lba;
+
+	list_add_tail(&lba_map->lba_map_list, list);
+	return lba_map;
+}
+
+int
+core_alua_allocate_lba_map_mem(struct t10_alua_lba_map *lba_map,
+			       int pg_id, int state)
+{
+	struct t10_alua_lba_map_member *lba_map_mem;
+
+	list_for_each_entry(lba_map_mem, &lba_map->lba_map_mem_list,
+			    lba_map_mem_list) {
+		if (lba_map_mem->lba_map_mem_alua_pg_id == pg_id) {
+			pr_err("Duplicate pg_id %d in lba_map\n", pg_id);
+			return -EINVAL;
+		}
+	}
+
+	lba_map_mem = kmem_cache_zalloc(t10_alua_lba_map_mem_cache, GFP_KERNEL);
+	if (!lba_map_mem) {
+		pr_err("Unable to allocate struct t10_alua_lba_map_mem\n");
+		return -ENOMEM;
+	}
+	lba_map_mem->lba_map_mem_alua_state = state;
+	lba_map_mem->lba_map_mem_alua_pg_id = pg_id;
+
+	list_add_tail(&lba_map_mem->lba_map_mem_list,
+		      &lba_map->lba_map_mem_list);
+	return 0;
+}
+
+void
+core_alua_free_lba_map(struct list_head *lba_list)
+{
+	struct t10_alua_lba_map *lba_map, *lba_map_tmp;
+	struct t10_alua_lba_map_member *lba_map_mem, *lba_map_mem_tmp;
+
+	list_for_each_entry_safe(lba_map, lba_map_tmp, lba_list,
+				 lba_map_list) {
+		list_for_each_entry_safe(lba_map_mem, lba_map_mem_tmp,
+					 &lba_map->lba_map_mem_list,
+					 lba_map_mem_list) {
+			list_del(&lba_map_mem->lba_map_mem_list);
+			kmem_cache_free(t10_alua_lba_map_mem_cache,
+					lba_map_mem);
+		}
+		list_del(&lba_map->lba_map_list);
+		kmem_cache_free(t10_alua_lba_map_cache, lba_map);
+	}
+}
+
+void
+core_alua_set_lba_map(struct se_device *dev, struct list_head *lba_map_list,
+		      int segment_size, int segment_mult)
+{
+	struct list_head old_lba_map_list;
+	struct t10_alua_tg_pt_gp *tg_pt_gp;
+	int activate = 0, supported;
+
+	INIT_LIST_HEAD(&old_lba_map_list);
+	spin_lock(&dev->t10_alua.lba_map_lock);
+	dev->t10_alua.lba_map_segment_size = segment_size;
+	dev->t10_alua.lba_map_segment_multiplier = segment_mult;
+	list_splice_init(&dev->t10_alua.lba_map_list, &old_lba_map_list);
+	if (lba_map_list) {
+		list_splice_init(lba_map_list, &dev->t10_alua.lba_map_list);
+		activate = 1;
+	}
+	spin_unlock(&dev->t10_alua.lba_map_lock);
+	spin_lock(&dev->t10_alua.tg_pt_gps_lock);
+	list_for_each_entry(tg_pt_gp, &dev->t10_alua.tg_pt_gps_list,
+			    tg_pt_gp_list) {
+
+		if (!tg_pt_gp->tg_pt_gp_valid_id)
+			continue;
+		supported = tg_pt_gp->tg_pt_gp_alua_supported_states;
+		if (activate)
+			supported |= ALUA_LBD_SUP;
+		else
+			supported &= ~ALUA_LBD_SUP;
+		tg_pt_gp->tg_pt_gp_alua_supported_states = supported;
+	}
+	spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
+	core_alua_free_lba_map(&old_lba_map_list);
+}
+
 struct t10_alua_lu_gp *
 core_alua_allocate_lu_gp(const char *name, int def_group)
 {

@@ -1585,6 +1585,7 @@ void target_free_device(struct se_device *dev)
 	}
 
 	core_alua_free_lu_gp_mem(dev);
+	core_alua_set_lba_map(dev, NULL, 0, 0);
 	core_scsi3_free_all_registrations(dev);
 	se_release_vpd_for_dev(dev);
 
