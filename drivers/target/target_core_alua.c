@@ -812,12 +812,15 @@ static int core_alua_do_transition_tg_pt(
 	struct se_lun_acl *lacl;
 	struct se_port *port;
 	struct t10_alua_tg_pt_gp_member *mem;
-	int old_state = 0;
+
 	/*
 	 * Save the old primary ALUA access state, and set the current state
 	 * to ALUA_ACCESS_STATE_TRANSITION.
 	 */
-	old_state = atomic_read(&tg_pt_gp->tg_pt_gp_alua_access_state);
+	tg_pt_gp->tg_pt_gp_alua_previous_state =
+		atomic_read(&tg_pt_gp->tg_pt_gp_alua_access_state);
+	tg_pt_gp->tg_pt_gp_alua_pending_state = new_state;
+
 	atomic_set(&tg_pt_gp->tg_pt_gp_alua_access_state,
 			ALUA_ACCESS_STATE_TRANSITION);
 	tg_pt_gp->tg_pt_gp_alua_access_status = (explicit) ?
@@ -898,13 +901,15 @@ static int core_alua_do_transition_tg_pt(
 	/*
 	 * Set the current primary ALUA access state to the requested new state
 	 */
-	atomic_set(&tg_pt_gp->tg_pt_gp_alua_access_state, new_state);
+	atomic_set(&tg_pt_gp->tg_pt_gp_alua_access_state,
+		   tg_pt_gp->tg_pt_gp_alua_pending_state);
 
 	pr_debug("Successful %s ALUA transition TG PT Group: %s ID: %hu"
 		" from primary access state %s to %s\n", (explicit) ? "explicit" :
 		"implicit", config_item_name(&tg_pt_gp->tg_pt_gp_group.cg_item),
-		tg_pt_gp->tg_pt_gp_id, core_alua_dump_state(old_state),
-		core_alua_dump_state(new_state));
+		tg_pt_gp->tg_pt_gp_id,
+		core_alua_dump_state(tg_pt_gp->tg_pt_gp_alua_previous_state),
+		core_alua_dump_state(tg_pt_gp->tg_pt_gp_alua_pending_state));
 
 	return 0;
 }
