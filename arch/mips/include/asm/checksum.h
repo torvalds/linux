@@ -54,6 +54,20 @@ __wsum csum_partial_copy_from_user(const void __user *src, void *dst, int len,
 						     len, sum, err_ptr);
 }
 
+#define _HAVE_ARCH_COPY_AND_CSUM_FROM_USER
+static inline
+__wsum csum_and_copy_from_user(const void __user *src, void *dst,
+			       int len, __wsum sum, int *err_ptr)
+{
+	if (access_ok(VERIFY_READ, src, len))
+		return csum_partial_copy_from_user(src, dst, len, sum,
+						   err_ptr);
+	if (len)
+		*err_ptr = -EFAULT;
+
+	return sum;
+}
+
 /*
  * Copy and checksum to user
  */
