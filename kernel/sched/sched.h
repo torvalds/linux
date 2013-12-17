@@ -176,7 +176,7 @@ struct dl_bandwidth {
 
 static inline int dl_bandwidth_enabled(void)
 {
-	return sysctl_sched_dl_runtime >= 0;
+	return sysctl_sched_rt_runtime >= 0;
 }
 
 extern struct dl_bw *dl_bw_of(int i);
@@ -185,9 +185,6 @@ struct dl_bw {
 	raw_spinlock_t lock;
 	u64 bw, total_bw;
 };
-
-static inline u64 global_dl_period(void);
-static inline u64 global_dl_runtime(void);
 
 extern struct mutex sched_domains_mutex;
 
@@ -951,19 +948,6 @@ static inline u64 global_rt_runtime(void)
 		return RUNTIME_INF;
 
 	return (u64)sysctl_sched_rt_runtime * NSEC_PER_USEC;
-}
-
-static inline u64 global_dl_period(void)
-{
-	return (u64)sysctl_sched_dl_period * NSEC_PER_USEC;
-}
-
-static inline u64 global_dl_runtime(void)
-{
-	if (sysctl_sched_dl_runtime < 0)
-		return RUNTIME_INF;
-
-	return (u64)sysctl_sched_dl_runtime * NSEC_PER_USEC;
 }
 
 static inline int task_current(struct rq *rq, struct task_struct *p)

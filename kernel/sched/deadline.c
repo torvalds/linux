@@ -63,10 +63,10 @@ void init_dl_bw(struct dl_bw *dl_b)
 {
 	raw_spin_lock_init(&dl_b->lock);
 	raw_spin_lock(&def_dl_bandwidth.dl_runtime_lock);
-	if (global_dl_runtime() == RUNTIME_INF)
+	if (global_rt_runtime() == RUNTIME_INF)
 		dl_b->bw = -1;
 	else
-		dl_b->bw = to_ratio(global_dl_period(), global_dl_runtime());
+		dl_b->bw = to_ratio(global_rt_period(), global_rt_runtime());
 	raw_spin_unlock(&def_dl_bandwidth.dl_runtime_lock);
 	dl_b->total_bw = 0;
 }
@@ -611,6 +611,29 @@ static void update_curr_dl(struct rq *rq)
 
 		if (!is_leftmost(curr, &rq->dl))
 			resched_task(curr);
+	}
+
+	/*
+	 * Because -- for now -- we share the rt bandwidth, we need to
+	 * account our runtime there too, otherwise actual rt tasks
+	 * would be able to exceed the shared quota.
+	 *
+	 * Account to the root rt group for now.
+	 *
+	 * The solution we're working towards is having the RT groups scheduled
+	 * using deadline servers -- however there's a few nasties to figure
+	 * out before that can happen.
+	 */
+	if (rt_bandwidth_enabled()) {
+		struct rt_rq *rt_rq = &rq->rt;
+
+		raw_spin_lock(&rt_rq->rt_runtime_lock);
+		rt_rq->rt_time += delta_exec;
+		/*
+		 * We'll let actual RT tasks worry about the overflow here, we
+		 * have our own CBS to keep us inline -- see above.
+		 */
+		raw_spin_unlock(&rt_rq->rt_runtime_lock);
 	}
 }
 
