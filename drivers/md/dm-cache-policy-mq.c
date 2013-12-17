@@ -730,15 +730,18 @@ static int pre_cache_entry_found(struct mq_policy *mq, struct entry *e,
 	int r = 0;
 	bool updated = updated_this_tick(mq, e);
 
-	requeue_and_update_tick(mq, e);
-
 	if ((!discarded_oblock && updated) ||
-	    !should_promote(mq, e, discarded_oblock, data_dir))
+	    !should_promote(mq, e, discarded_oblock, data_dir)) {
+		requeue_and_update_tick(mq, e);
 		result->op = POLICY_MISS;
-	else if (!can_migrate)
+
+	} else if (!can_migrate)
 		r = -EWOULDBLOCK;
-	else
+
+	else {
+		requeue_and_update_tick(mq, e);
 		r = pre_cache_to_cache(mq, e, result);
+	}
 
 	return r;
 }

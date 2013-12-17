@@ -1549,7 +1549,7 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 						val + (i * val_bytes),
 						val_bytes);
 			if (ret != 0)
-				return ret;
+				goto out;
 		}
 	} else {
 		ret = _regmap_raw_write(map, reg, wval, val_bytes * val_count);
@@ -1743,7 +1743,7 @@ static int _regmap_read(struct regmap *map, unsigned int reg,
 /**
  * regmap_read(): Read a value from a single register
  *
- * @map: Register map to write to
+ * @map: Register map to read from
  * @reg: Register to be read from
  * @val: Pointer to store read value
  *
@@ -1770,7 +1770,7 @@ EXPORT_SYMBOL_GPL(regmap_read);
 /**
  * regmap_raw_read(): Read raw data from the device
  *
- * @map: Register map to write to
+ * @map: Register map to read from
  * @reg: First register to be read from
  * @val: Pointer to store read value
  * @val_len: Size of data to read
@@ -1882,7 +1882,7 @@ EXPORT_SYMBOL_GPL(regmap_fields_read);
 /**
  * regmap_bulk_read(): Read multiple registers from the device
  *
- * @map: Register map to write to
+ * @map: Register map to read from
  * @reg: First register to be read from
  * @val: Pointer to store read value, in native register size for device
  * @val_count: Number of registers to read

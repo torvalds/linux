@@ -1,4 +1,4 @@
-#ifndef PINCTRL_PINCTRL_ABx5O0_H
+#ifndef PINCTRL_PINCTRL_ABx500_H
 #define PINCTRL_PINCTRL_ABx500_H
 
 /* Package definitions */

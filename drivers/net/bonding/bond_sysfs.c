@@ -523,9 +523,7 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 		ret = -EINVAL;
 		goto out;
 	}
-	if (bond->params.mode == BOND_MODE_ALB ||
-	    bond->params.mode == BOND_MODE_TLB ||
-	    bond->params.mode == BOND_MODE_8023AD) {
+	if (BOND_NO_USES_ARP(bond->params.mode)) {
 		pr_info("%s: ARP monitoring cannot be used with ALB/TLB/802.3ad. Only MII monitoring is supported on %s.\n",
 			bond->dev->name, bond->dev->name);
 		ret = -EINVAL;
@@ -1637,12 +1635,12 @@ static ssize_t bonding_show_packets_per_slave(struct device *d,
 					      char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	int packets_per_slave = bond->params.packets_per_slave;
+	unsigned int packets_per_slave = bond->params.packets_per_slave;
 
 	if (packets_per_slave > 1)
 		packets_per_slave = reciprocal_value(packets_per_slave);
 
-	return sprintf(buf, "%d\n", packets_per_slave);
+	return sprintf(buf, "%u\n", packets_per_slave);
 }
 
 static ssize_t bonding_store_packets_per_slave(struct device *d,
