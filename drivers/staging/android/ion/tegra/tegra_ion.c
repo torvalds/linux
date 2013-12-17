@@ -81,16 +81,5 @@ static struct platform_driver ion_driver = {
 	.driver = { .name = "ion-tegra" }
 };
 
-static int __init ion_init(void)
-{
-	return platform_driver_register(&ion_driver);
-}
-
-static void __exit ion_exit(void)
-{
-	platform_driver_unregister(&ion_driver);
-}
-
-module_init(ion_init);
-module_exit(ion_exit);
+module_platform_driver(ion_driver);
 
