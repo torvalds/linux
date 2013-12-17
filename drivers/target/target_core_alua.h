@@ -78,6 +78,9 @@
  */
 #define ALUA_SECONDARY_METADATA_WWN_LEN			256
 
+/* Used by core_alua_update_tpg_(primary,secondary)_metadata */
+#define ALUA_MD_BUF_LEN					1024
+
 extern struct kmem_cache *t10_alua_lu_gp_cache;
 extern struct kmem_cache *t10_alua_lu_gp_mem_cache;
 extern struct kmem_cache *t10_alua_tg_pt_gp_cache;

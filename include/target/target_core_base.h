@@ -291,9 +291,6 @@ struct t10_alua_tg_pt_gp {
 	int	tg_pt_gp_implicit_trans_secs;
 	int	tg_pt_gp_pref;
 	int	tg_pt_gp_write_metadata;
-	/* Used by struct t10_alua_tg_pt_gp->tg_pt_gp_md_buf_len */
-#define ALUA_MD_BUF_LEN				1024
-	u32	tg_pt_gp_md_buf_len;
 	u32	tg_pt_gp_members;
 	atomic_t tg_pt_gp_alua_access_state;
 	atomic_t tg_pt_gp_ref_cnt;
