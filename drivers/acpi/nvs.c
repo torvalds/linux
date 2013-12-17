@@ -13,6 +13,8 @@
 #include <linux/slab.h>
 #include <linux/acpi.h>
 
+#include "internal.h"
+
 /* ACPI NVS regions, APEI may use it */
 
 struct nvs_region {
