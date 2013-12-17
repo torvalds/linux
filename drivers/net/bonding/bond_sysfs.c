@@ -318,7 +318,7 @@ static ssize_t bonding_store_xmit_hash(struct device *d,
 				       struct device_attribute *attr,
 				       const char *buf, size_t count)
 {
-	int new_value, ret = count;
+	int new_value, ret;
 	struct bonding *bond = to_bond(d);
 
 	new_value = bond_parse_parm(buf, xmit_hashtype_tbl);
@@ -326,14 +326,17 @@ static ssize_t bonding_store_xmit_hash(struct device *d,
 		pr_err("%s: Ignoring invalid xmit hash policy value %.*s.\n",
 		       bond->dev->name,
 		       (int)strlen(buf) - 1, buf);
-		ret = -EINVAL;
-	} else {
-		bond->params.xmit_policy = new_value;
-		pr_info("%s: setting xmit hash policy to %s (%d).\n",
-			bond->dev->name,
-			xmit_hashtype_tbl[new_value].modename, new_value);
+		return -EINVAL;
 	}
 
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	ret = bond_option_xmit_hash_policy_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
+	rtnl_unlock();
 	return ret;
 }
 static DEVICE_ATTR(xmit_hash_policy, S_IRUGO | S_IWUSR,
@@ -442,33 +445,23 @@ static ssize_t bonding_store_fail_over_mac(struct device *d,
 					   struct device_attribute *attr,
 					   const char *buf, size_t count)
 {
-	int new_value, ret = count;
+	int new_value, ret;
 	struct bonding *bond = to_bond(d);
-
-	if (!rtnl_trylock())
-		return restart_syscall();
-
-	if (bond_has_slaves(bond)) {
-		pr_err("%s: Can't alter fail_over_mac with slaves in bond.\n",
-		       bond->dev->name);
-		ret = -EPERM;
-		goto out;
-	}
 
 	new_value = bond_parse_parm(buf, fail_over_mac_tbl);
 	if (new_value < 0) {
 		pr_err("%s: Ignoring invalid fail_over_mac value %s.\n",
 		       bond->dev->name, buf);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
-	bond->params.fail_over_mac = new_value;
-	pr_info("%s: Setting fail_over_mac to %s (%d).\n",
-		bond->dev->name, fail_over_mac_tbl[new_value].modename,
-		new_value);
+	if (!rtnl_trylock())
+		return restart_syscall();
 
-out:
+	ret = bond_option_fail_over_mac_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
 	rtnl_unlock();
 	return ret;
 }
@@ -871,56 +864,22 @@ static ssize_t bonding_store_primary(struct device *d,
 				     const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
-	struct list_head *iter;
 	char ifname[IFNAMSIZ];
-	struct slave *slave;
+	int ret;
+
+	sscanf(buf, "%15s", ifname); /* IFNAMSIZ */
+	if (ifname[0] == '\n')
+		ifname[0] = '\0';
 
 	if (!rtnl_trylock())
 		return restart_syscall();
-	block_netpoll_tx();
-	write_lock_bh(&bond->curr_slave_lock);
 
-	if (!USES_PRIMARY(bond->params.mode)) {
-		pr_info("%s: Unable to set primary slave; %s is in mode %d\n",
-			bond->dev->name, bond->dev->name, bond->params.mode);
-		goto out;
-	}
+	ret = bond_option_primary_set(bond, ifname);
+	if (!ret)
+		ret = count;
 
-	sscanf(buf, "%15s", ifname); /* IFNAMSIZ */
-
-	/* check to see if we are clearing primary */
-	if (!strlen(ifname) || buf[0] == '\n') {
-		pr_info("%s: Setting primary slave to None.\n",
-			bond->dev->name);
-		bond->primary_slave = NULL;
-		memset(bond->params.primary, 0, sizeof(bond->params.primary));
-		bond_select_active_slave(bond);
-		goto out;
-	}
-
-	bond_for_each_slave(bond, slave, iter) {
-		if (strncmp(slave->dev->name, ifname, IFNAMSIZ) == 0) {
-			pr_info("%s: Setting %s as primary slave.\n",
-				bond->dev->name, slave->dev->name);
-			bond->primary_slave = slave;
-			strcpy(bond->params.primary, slave->dev->name);
-			bond_select_active_slave(bond);
-			goto out;
-		}
-	}
-
-	strncpy(bond->params.primary, ifname, IFNAMSIZ);
-	bond->params.primary[IFNAMSIZ - 1] = 0;
-
-	pr_info("%s: Recording %s as primary, "
-		"but it has not been enslaved to %s yet.\n",
-		bond->dev->name, ifname, bond->dev->name);
-out:
-	write_unlock_bh(&bond->curr_slave_lock);
-	unblock_netpoll_tx();
 	rtnl_unlock();
-
-	return count;
+	return ret;
 }
 static DEVICE_ATTR(primary, S_IRUGO | S_IWUSR,
 		   bonding_show_primary, bonding_store_primary);
@@ -943,32 +902,24 @@ static ssize_t bonding_store_primary_reselect(struct device *d,
 					      struct device_attribute *attr,
 					      const char *buf, size_t count)
 {
-	int new_value, ret = count;
+	int new_value, ret;
 	struct bonding *bond = to_bond(d);
-
-	if (!rtnl_trylock())
-		return restart_syscall();
 
 	new_value = bond_parse_parm(buf, pri_reselect_tbl);
 	if (new_value < 0)  {
 		pr_err("%s: Ignoring invalid primary_reselect value %.*s.\n",
 		       bond->dev->name,
 		       (int) strlen(buf) - 1, buf);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
-	bond->params.primary_reselect = new_value;
-	pr_info("%s: setting primary_reselect to %s (%d).\n",
-		bond->dev->name, pri_reselect_tbl[new_value].modename,
-		new_value);
+	if (!rtnl_trylock())
+		return restart_syscall();
 
-	block_netpoll_tx();
-	write_lock_bh(&bond->curr_slave_lock);
-	bond_select_active_slave(bond);
-	write_unlock_bh(&bond->curr_slave_lock);
-	unblock_netpoll_tx();
-out:
+	ret = bond_option_primary_reselect_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
 	rtnl_unlock();
 	return ret;
 }
@@ -1385,21 +1336,17 @@ static ssize_t bonding_store_resend_igmp(struct device *d,
 	if (sscanf(buf, "%d", &new_value) != 1) {
 		pr_err("%s: no resend_igmp value specified.\n",
 		       bond->dev->name);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
-	if (new_value < 0 || new_value > 255) {
-		pr_err("%s: Invalid resend_igmp value %d not in range 0-255; rejected.\n",
-		       bond->dev->name, new_value);
-		ret = -EINVAL;
-		goto out;
-	}
+	if (!rtnl_trylock())
+		return restart_syscall();
 
-	pr_info("%s: Setting resend_igmp to %d.\n",
-		bond->dev->name, new_value);
-	bond->params.resend_igmp = new_value;
-out:
+	ret = bond_option_resend_igmp_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
+	rtnl_unlock();
 	return ret;
 }
 

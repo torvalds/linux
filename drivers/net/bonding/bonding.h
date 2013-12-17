@@ -454,6 +454,13 @@ int bond_option_arp_ip_target_add(struct bonding *bond, __be32 target);
 int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target);
 int bond_option_arp_validate_set(struct bonding *bond, int arp_validate);
 int bond_option_arp_all_targets_set(struct bonding *bond, int arp_all_targets);
+int bond_option_primary_set(struct bonding *bond, const char *primary);
+int bond_option_primary_reselect_set(struct bonding *bond,
+				     int primary_reselect);
+int bond_option_fail_over_mac_set(struct bonding *bond, int fail_over_mac);
+int bond_option_xmit_hash_policy_set(struct bonding *bond,
+				     int xmit_hash_policy);
+int bond_option_resend_igmp_set(struct bonding *bond, int resend_igmp);
 struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond);
 struct net_device *bond_option_active_slave_get(struct bonding *bond);
 

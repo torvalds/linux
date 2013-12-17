@@ -32,6 +32,11 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_ARP_IP_TARGET]	= { .type = NLA_NESTED },
 	[IFLA_BOND_ARP_VALIDATE]	= { .type = NLA_U32 },
 	[IFLA_BOND_ARP_ALL_TARGETS]	= { .type = NLA_U32 },
+	[IFLA_BOND_PRIMARY]		= { .type = NLA_U32 },
+	[IFLA_BOND_PRIMARY_RESELECT]	= { .type = NLA_U8 },
+	[IFLA_BOND_FAIL_OVER_MAC]	= { .type = NLA_U8 },
+	[IFLA_BOND_XMIT_HASH_POLICY]	= { .type = NLA_U8 },
+	[IFLA_BOND_RESEND_IGMP]		= { .type = NLA_U32 },
 };
 
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -154,6 +159,51 @@ static int bond_changelink(struct net_device *bond_dev,
 		if (err)
 			return err;
 	}
+	if (data[IFLA_BOND_PRIMARY]) {
+		int ifindex = nla_get_u32(data[IFLA_BOND_PRIMARY]);
+		struct net_device *dev;
+		char *primary = "";
+
+		dev = __dev_get_by_index(dev_net(bond_dev), ifindex);
+		if (dev)
+			primary = dev->name;
+
+		err = bond_option_primary_set(bond, primary);
+		if (err)
+			return err;
+	}
+	if (data[IFLA_BOND_PRIMARY_RESELECT]) {
+		int primary_reselect =
+			nla_get_u8(data[IFLA_BOND_PRIMARY_RESELECT]);
+
+		err = bond_option_primary_reselect_set(bond, primary_reselect);
+		if (err)
+			return err;
+	}
+	if (data[IFLA_BOND_FAIL_OVER_MAC]) {
+		int fail_over_mac =
+			nla_get_u8(data[IFLA_BOND_FAIL_OVER_MAC]);
+
+		err = bond_option_fail_over_mac_set(bond, fail_over_mac);
+		if (err)
+			return err;
+	}
+	if (data[IFLA_BOND_XMIT_HASH_POLICY]) {
+		int xmit_hash_policy =
+			nla_get_u8(data[IFLA_BOND_XMIT_HASH_POLICY]);
+
+		err = bond_option_xmit_hash_policy_set(bond, xmit_hash_policy);
+		if (err)
+			return err;
+	}
+	if (data[IFLA_BOND_RESEND_IGMP]) {
+		int resend_igmp =
+			nla_get_u32(data[IFLA_BOND_RESEND_IGMP]);
+
+		err = bond_option_resend_igmp_set(bond, resend_igmp);
+		if (err)
+			return err;
+	}
 	return 0;
 }
 
@@ -182,6 +232,11 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(u32)) * BOND_MAX_ARP_TARGETS +
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ARP_VALIDATE */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_ARP_ALL_TARGETS */
+		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_PRIMARY */
+		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_PRIMARY_RESELECT */
+		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_FAIL_OVER_MAC */
+		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_XMIT_HASH_POLICY */
+		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_RESEND_IGMP */
 		0;
 }
 
@@ -239,6 +294,27 @@ static int bond_fill_info(struct sk_buff *skb,
 
 	if (nla_put_u32(skb, IFLA_BOND_ARP_ALL_TARGETS,
 			bond->params.arp_all_targets))
+		goto nla_put_failure;
+
+	if (bond->primary_slave &&
+	    nla_put_u32(skb, IFLA_BOND_PRIMARY,
+			bond->primary_slave->dev->ifindex))
+		goto nla_put_failure;
+
+	if (nla_put_u8(skb, IFLA_BOND_PRIMARY_RESELECT,
+		       bond->params.primary_reselect))
+		goto nla_put_failure;
+
+	if (nla_put_u8(skb, IFLA_BOND_FAIL_OVER_MAC,
+		       bond->params.fail_over_mac))
+		goto nla_put_failure;
+
+	if (nla_put_u8(skb, IFLA_BOND_XMIT_HASH_POLICY,
+		       bond->params.xmit_policy))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, IFLA_BOND_RESEND_IGMP,
+		        bond->params.resend_igmp))
 		goto nla_put_failure;
 
 	return 0;

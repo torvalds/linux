@@ -467,3 +467,112 @@ int bond_option_arp_all_targets_set(struct bonding *bond, int arp_all_targets)
 
 	return 0;
 }
+
+int bond_option_primary_set(struct bonding *bond, const char *primary)
+{
+	struct list_head *iter;
+	struct slave *slave;
+	int err = 0;
+
+	block_netpoll_tx();
+	read_lock(&bond->lock);
+	write_lock_bh(&bond->curr_slave_lock);
+
+	if (!USES_PRIMARY(bond->params.mode)) {
+		pr_err("%s: Unable to set primary slave; %s is in mode %d\n",
+		       bond->dev->name, bond->dev->name, bond->params.mode);
+		err = -EINVAL;
+		goto out;
+	}
+
+	/* check to see if we are clearing primary */
+	if (!strlen(primary)) {
+		pr_info("%s: Setting primary slave to None.\n",
+			bond->dev->name);
+		bond->primary_slave = NULL;
+		memset(bond->params.primary, 0, sizeof(bond->params.primary));
+		bond_select_active_slave(bond);
+		goto out;
+	}
+
+	bond_for_each_slave(bond, slave, iter) {
+		if (strncmp(slave->dev->name, primary, IFNAMSIZ) == 0) {
+			pr_info("%s: Setting %s as primary slave.\n",
+				bond->dev->name, slave->dev->name);
+			bond->primary_slave = slave;
+			strcpy(bond->params.primary, slave->dev->name);
+			bond_select_active_slave(bond);
+			goto out;
+		}
+	}
+
+	strncpy(bond->params.primary, primary, IFNAMSIZ);
+	bond->params.primary[IFNAMSIZ - 1] = 0;
+
+	pr_info("%s: Recording %s as primary, but it has not been enslaved to %s yet.\n",
+		bond->dev->name, primary, bond->dev->name);
+
+out:
+	write_unlock_bh(&bond->curr_slave_lock);
+	read_unlock(&bond->lock);
+	unblock_netpoll_tx();
+
+	return err;
+}
+
+int bond_option_primary_reselect_set(struct bonding *bond, int primary_reselect)
+{
+	bond->params.primary_reselect = primary_reselect;
+	pr_info("%s: setting primary_reselect to %s (%d).\n",
+		bond->dev->name, pri_reselect_tbl[primary_reselect].modename,
+		primary_reselect);
+
+	block_netpoll_tx();
+	write_lock_bh(&bond->curr_slave_lock);
+	bond_select_active_slave(bond);
+	write_unlock_bh(&bond->curr_slave_lock);
+	unblock_netpoll_tx();
+
+	return 0;
+}
+
+int bond_option_fail_over_mac_set(struct bonding *bond, int fail_over_mac)
+{
+	if (bond_has_slaves(bond)) {
+		pr_err("%s: Can't alter fail_over_mac with slaves in bond.\n",
+		       bond->dev->name);
+		return -EPERM;
+	}
+
+	bond->params.fail_over_mac = fail_over_mac;
+	pr_info("%s: Setting fail_over_mac to %s (%d).\n",
+		bond->dev->name, fail_over_mac_tbl[fail_over_mac].modename,
+		fail_over_mac);
+
+	return 0;
+}
+
+int bond_option_xmit_hash_policy_set(struct bonding *bond, int xmit_hash_policy)
+{
+	bond->params.xmit_policy = xmit_hash_policy;
+	pr_info("%s: setting xmit hash policy to %s (%d).\n",
+		bond->dev->name,
+		xmit_hashtype_tbl[xmit_hash_policy].modename, xmit_hash_policy);
+
+	return 0;
+}
+
+int bond_option_resend_igmp_set(struct bonding *bond, int resend_igmp)
+{
+	if (resend_igmp < 0 || resend_igmp > 255) {
+		pr_err("%s: Invalid resend_igmp value %d not in range 0-255; rejected.\n",
+		       bond->dev->name, resend_igmp);
+		return -EINVAL;
+	}
+
+	bond->params.resend_igmp = resend_igmp;
+	pr_info("%s: Setting resend_igmp to %d.\n",
+		bond->dev->name, resend_igmp);
+
+	return 0;
+}
