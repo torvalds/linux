@@ -263,6 +263,9 @@ struct htype {
 	u32 maxelem;		/* max elements in the hash */
 	u32 elements;		/* current element (vs timeout) */
 	u32 initval;		/* random jhash init value */
+#ifdef IP_SET_HASH_WITH_MARKMASK
+	u32 markmask;		/* markmask value for mark mask to store */
+#endif
 	struct timer_list gc;	/* garbage collection when timeout enabled */
 	struct mtype_elem next; /* temporary storage for uadd */
 #ifdef IP_SET_HASH_WITH_MULTI
@@ -453,6 +456,9 @@ mtype_same_set(const struct ip_set *a, const struct ip_set *b)
 	       a->timeout == b->timeout &&
 #ifdef IP_SET_HASH_WITH_NETMASK
 	       x->netmask == y->netmask &&
+#endif
+#ifdef IP_SET_HASH_WITH_MARKMASK
+	       x->markmask == y->markmask &&
 #endif
 	       a->extensions == b->extensions;
 }
@@ -908,6 +914,10 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 	    nla_put_u8(skb, IPSET_ATTR_NETMASK, h->netmask))
 		goto nla_put_failure;
 #endif
+#ifdef IP_SET_HASH_WITH_MARKMASK
+	if (nla_put_u32(skb, IPSET_ATTR_MARKMASK, h->markmask))
+		goto nla_put_failure;
+#endif
 	if (nla_put_net32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref - 1)) ||
 	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE, htonl(memsize)))
 		goto nla_put_failure;
@@ -1016,6 +1026,9 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 			    struct nlattr *tb[], u32 flags)
 {
 	u32 hashsize = IPSET_DEFAULT_HASHSIZE, maxelem = IPSET_DEFAULT_MAXELEM;
+#ifdef IP_SET_HASH_WITH_MARKMASK
+	u32 markmask;
+#endif
 	u8 hbits;
 #ifdef IP_SET_HASH_WITH_NETMASK
 	u8 netmask;
@@ -1026,6 +1039,10 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 
 	if (!(set->family == NFPROTO_IPV4 || set->family == NFPROTO_IPV6))
 		return -IPSET_ERR_INVALID_FAMILY;
+
+#ifdef IP_SET_HASH_WITH_MARKMASK
+	markmask = 0xffffffff;
+#endif
 #ifdef IP_SET_HASH_WITH_NETMASK
 	netmask = set->family == NFPROTO_IPV4 ? 32 : 128;
 	pr_debug("Create set %s with family %s\n",
@@ -1034,6 +1051,9 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 
 	if (unlikely(!ip_set_optattr_netorder(tb, IPSET_ATTR_HASHSIZE) ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_MAXELEM) ||
+#ifdef IP_SET_HASH_WITH_MARKMASK
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_MARKMASK) ||
+#endif
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS)))
 		return -IPSET_ERR_PROTOCOL;
@@ -1057,6 +1077,14 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 			return -IPSET_ERR_INVALID_NETMASK;
 	}
 #endif
+#ifdef IP_SET_HASH_WITH_MARKMASK
+	if (tb[IPSET_ATTR_MARKMASK]) {
+		markmask = ntohl(nla_get_u32(tb[IPSET_ATTR_MARKMASK]));
+
+		if ((markmask > 4294967295u) || markmask == 0)
+			return -IPSET_ERR_INVALID_MARKMASK;
+	}
+#endif
 
 	hsize = sizeof(*h);
 #ifdef IP_SET_HASH_WITH_NETS
@@ -1070,6 +1098,9 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	h->maxelem = maxelem;
 #ifdef IP_SET_HASH_WITH_NETMASK
 	h->netmask = netmask;
+#endif
+#ifdef IP_SET_HASH_WITH_MARKMASK
+	h->markmask = markmask;
 #endif
 	get_random_bytes(&h->initval, sizeof(h->initval));
 	set->timeout = IPSET_NO_TIMEOUT;

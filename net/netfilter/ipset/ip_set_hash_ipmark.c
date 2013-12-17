@@ -34,6 +34,7 @@ MODULE_ALIAS("ip_set_hash:ip,mark");
 
 /* Type specific function prefix */
 #define HTYPE		hash_ipmark
+#define IP_SET_HASH_WITH_MARKMASK
 
 /* IPv4 variant */
 
@@ -85,11 +86,13 @@ hash_ipmark4_kadt(struct ip_set *set, const struct sk_buff *skb,
 		  const struct xt_action_param *par,
 		  enum ipset_adt adt, struct ip_set_adt_opt *opt)
 {
+	const struct hash_ipmark *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipmark4_elem e = { };
 	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 
 	e.mark = skb->mark;
+	e.mark &= h->markmask;
 
 	ip4addrptr(skb, opt->flags & IPSET_DIM_ONE_SRC, &e.ip);
 	return adtfn(set, &e, &ext, &opt->ext, opt->cmdflags);
@@ -122,6 +125,7 @@ hash_ipmark4_uadt(struct ip_set *set, struct nlattr *tb[],
 		return ret;
 
 	e.mark = ntohl(nla_get_u32(tb[IPSET_ATTR_MARK]));
+	e.mark &= h->markmask;
 
 	if (adt == IPSET_TEST ||
 	    !(tb[IPSET_ATTR_IP_TO] || tb[IPSET_ATTR_CIDR])) {
@@ -213,11 +217,13 @@ hash_ipmark6_kadt(struct ip_set *set, const struct sk_buff *skb,
 		  const struct xt_action_param *par,
 		  enum ipset_adt adt, struct ip_set_adt_opt *opt)
 {
+	const struct hash_ipmark *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipmark6_elem e = { };
 	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 
 	e.mark = skb->mark;
+	e.mark &= h->markmask;
 
 	ip6addrptr(skb, opt->flags & IPSET_DIM_ONE_SRC, &e.ip.in6);
 	return adtfn(set, &e, &ext, &opt->ext, opt->cmdflags);
@@ -227,6 +233,7 @@ static int
 hash_ipmark6_uadt(struct ip_set *set, struct nlattr *tb[],
 		  enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
 {
+	const struct hash_ipmark *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipmark6_elem e = { };
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
@@ -250,6 +257,7 @@ hash_ipmark6_uadt(struct ip_set *set, struct nlattr *tb[],
 		return ret;
 
 	e.mark = ntohl(nla_get_u32(tb[IPSET_ATTR_MARK]));
+	e.mark &= h->markmask;
 
 	if (adt == IPSET_TEST) {
 		ret = adtfn(set, &e, &ext, &ext, flags);
@@ -275,6 +283,7 @@ static struct ip_set_type hash_ipmark_type __read_mostly = {
 	.revision_max	= IPSET_TYPE_REV_MAX,
 	.create		= hash_ipmark_create,
 	.create_policy	= {
+		[IPSET_ATTR_MARKMASK]	= { .type = NLA_U32 },
 		[IPSET_ATTR_HASHSIZE]	= { .type = NLA_U32 },
 		[IPSET_ATTR_MAXELEM]	= { .type = NLA_U32 },
 		[IPSET_ATTR_PROBES]	= { .type = NLA_U8 },
