@@ -7,8 +7,6 @@
  * published by the Free Software Foundation.
  */
 
-#include "mux2420.h"
-#include "mux2430.h"
 #include "mux34xx.h"
 
 #define OMAP_MUX_TERMINATOR	0xffff
