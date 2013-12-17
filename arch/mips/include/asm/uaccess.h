@@ -402,6 +402,11 @@ do {									\
 extern void __put_user_unknown(void);
 
 /*
+ * ul{b,h,w} are macros and there are no equivalent macros for EVA.
+ * EVA unaligned access is handled in the ADE exception handler.
+ */
+#ifndef CONFIG_EVA
+/*
  * put_user_unaligned: - Write a simple value into user space.
  * @x:	 Value to copy to user space.
  * @ptr: Destination address, in user space.
@@ -666,6 +671,7 @@ do {									\
 }
 
 extern void __put_user_unaligned_unknown(void);
+#endif
 
 /*
  * We're generating jump to subroutines which will be outside the range of
