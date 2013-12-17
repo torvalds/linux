@@ -107,7 +107,7 @@ static int qlcnic_83xx_init_mgmt_vnic(struct qlcnic_adapter *adapter)
 
 		npar = adapter->npars;
 
-		for (i = 0; i < ahw->act_pci_func; i++, npar++) {
+		for (i = 0; i < ahw->total_nic_func; i++, npar++) {
 			dev_info(dev, "id:%d active:%d type:%d port:%d min_bw:%d max_bw:%d mac_addr:%pM\n",
 				 npar->pci_func, npar->active, npar->type,
 				 npar->phy_port, npar->min_bw, npar->max_bw,
@@ -115,7 +115,7 @@ static int qlcnic_83xx_init_mgmt_vnic(struct qlcnic_adapter *adapter)
 		}
 
 		dev_info(dev, "Max functions = %d, active functions = %d\n",
-			 ahw->max_pci_func, ahw->act_pci_func);
+			 ahw->max_pci_func, ahw->total_nic_func);
 
 		if (qlcnic_83xx_set_vnic_opmode(adapter))
 			return err;
