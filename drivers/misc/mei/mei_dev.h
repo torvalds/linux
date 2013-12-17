@@ -178,6 +178,7 @@ struct mei_cl_cb {
 	unsigned long buf_idx;
 	unsigned long read_time;
 	struct file *file_object;
+	u32 internal:1;
 };
 
 /* MEI client instance carried as file->pirvate_data*/
@@ -637,9 +638,9 @@ static inline void mei_dbgfs_deregister(struct mei_device *dev) {}
 int mei_register(struct mei_device *dev);
 void mei_deregister(struct mei_device *dev);
 
-#define MEI_HDR_FMT "hdr:host=%02d me=%02d len=%d comp=%1d"
+#define MEI_HDR_FMT "hdr:host=%02d me=%02d len=%d internal=%1d comp=%1d"
 #define MEI_HDR_PRM(hdr)                  \
 	(hdr)->host_addr, (hdr)->me_addr, \
-	(hdr)->length, (hdr)->msg_complete
+	(hdr)->length, (hdr)->internal, (hdr)->msg_complete
 
 #endif

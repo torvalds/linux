@@ -115,6 +115,7 @@ int mei_wd_send(struct mei_device *dev)
 	hdr.me_addr = dev->wd_cl.me_client_id;
 	hdr.msg_complete = 1;
 	hdr.reserved = 0;
+	hdr.internal = 0;
 
 	if (!memcmp(dev->wd_data, mei_start_wd_params, MEI_WD_HDR_SIZE))
 		hdr.length = MEI_WD_START_MSG_SIZE;
