@@ -205,13 +205,7 @@ static int bcm63xx_txrx_bufs(struct spi_device *spi, struct spi_transfer *first,
 	if (!timeout)
 		return -ETIMEDOUT;
 
-	/* read out all data */
-	rx_tail = bcm_spi_readb(bs, SPI_RX_TAIL);
-
-	if (do_rx && rx_tail != len)
-		return -EIO;
-
-	if (!rx_tail)
+	if (!do_rx)
 		return 0;
 
 	len = 0;
