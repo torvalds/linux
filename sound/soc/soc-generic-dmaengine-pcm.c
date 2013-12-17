@@ -299,7 +299,7 @@ static int dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 	    !dev->of_node)
 		return 0;
 
-	if (config->dma_dev) {
+	if (config && config->dma_dev) {
 		/*
 		 * If this warning is seen, it probably means that your Linux
 		 * device structure does not match your HW device structure.
@@ -317,7 +317,7 @@ static int dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 			name = "rx-tx";
 		else
 			name = dmaengine_pcm_dma_channel_names[i];
-		if (config->chan_names[i])
+		if (config && config->chan_names[i])
 			name = config->chan_names[i];
 		chan = dma_request_slave_channel_reason(dev, name);
 		if (IS_ERR(chan)) {
