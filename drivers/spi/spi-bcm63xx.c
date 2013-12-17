@@ -399,7 +399,10 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize hardware */
-	clk_prepare_enable(bs->clk);
+	ret = clk_prepare_enable(bs->clk);
+	if (ret)
+		goto out_err;
+
 	bcm_spi_writeb(bs, SPI_INTR_CLEAR_ALL, SPI_INT_STATUS);
 
 	/* register and we are done */
@@ -452,8 +455,11 @@ static int bcm63xx_spi_resume(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
+	int ret;
 
-	clk_prepare_enable(bs->clk);
+	ret = clk_prepare_enable(bs->clk);
+	if (ret)
+		return ret;
 
 	spi_master_resume(master);
 
