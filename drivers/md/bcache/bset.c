@@ -511,9 +511,11 @@ static unsigned bkey_to_cacheline(struct bset_tree *t, struct bkey *k)
 	return ((void *) k - (void *) t->data) / BSET_CACHELINE;
 }
 
-static unsigned bkey_to_cacheline_offset(struct bkey *k)
+static unsigned bkey_to_cacheline_offset(struct bset_tree *t,
+					 unsigned cacheline,
+					 struct bkey *k)
 {
-	return ((size_t) k & (BSET_CACHELINE - 1)) / sizeof(uint64_t);
+	return (u64 *) k - (u64 *) cacheline_to_bkey(t, cacheline, 0);
 }
 
 static struct bkey *tree_to_bkey(struct bset_tree *t, unsigned j)
@@ -608,7 +610,7 @@ static void bch_bset_build_unwritten_tree(struct btree_keys *b)
 	bset_alloc_tree(b, t);
 
 	if (t->tree != b->set->tree + btree_keys_cachelines(b)) {
-		t->prev[0] = bkey_to_cacheline_offset(t->data->start);
+		t->prev[0] = bkey_to_cacheline_offset(t, 0, t->data->start);
 		t->size = 1;
 	}
 }
@@ -632,7 +634,7 @@ EXPORT_SYMBOL(bch_bset_init_next);
 void bch_bset_build_written_tree(struct btree_keys *b)
 {
 	struct bset_tree *t = bset_tree_last(b);
-	struct bkey *k = t->data->start;
+	struct bkey *prev = NULL, *k = t->data->start;
 	unsigned j, cacheline = 1;
 
 	b->last_set_unwritten = 0;
@@ -654,13 +656,11 @@ void bch_bset_build_written_tree(struct btree_keys *b)
 	for (j = inorder_next(0, t->size);
 	     j;
 	     j = inorder_next(j, t->size)) {
-		while (bkey_to_cacheline(t, k) != cacheline)
-			k = bkey_next(k);
+		while (bkey_to_cacheline(t, k) < cacheline)
+			prev = k, k = bkey_next(k);
 
-		t->prev[j] = bkey_u64s(k);
-		k = bkey_next(k);
-		cacheline++;
-		t->tree[j].m = bkey_to_cacheline_offset(k);
+		t->prev[j] = bkey_u64s(prev);
+		t->tree[j].m = bkey_to_cacheline_offset(t, cacheline++, k);
 	}
 
 	while (bkey_next(k) != bset_bkey_last(t->data))
@@ -739,8 +739,8 @@ static void bch_bset_fix_lookup_table(struct btree_keys *b,
 	 * lookup table for the first key that is strictly greater than k:
 	 * it's either k's cacheline or the next one
 	 */
-	if (j < t->size &&
-	    table_to_bkey(t, j) <= k)
+	while (j < t->size &&
+	       table_to_bkey(t, j) <= k)
 		j++;
 
 	/* Adjust all the lookup table entries, and find a new key for any that
@@ -755,7 +755,7 @@ static void bch_bset_fix_lookup_table(struct btree_keys *b,
 			while (k < cacheline_to_bkey(t, j, 0))
 				k = bkey_next(k);
 
-			t->prev[j] = bkey_to_cacheline_offset(k);
+			t->prev[j] = bkey_to_cacheline_offset(t, j, k);
 		}
 	}
 
@@ -768,7 +768,7 @@ static void bch_bset_fix_lookup_table(struct btree_keys *b,
 	     k != bset_bkey_last(t->data);
 	     k = bkey_next(k))
 		if (t->size == bkey_to_cacheline(t, k)) {
-			t->prev[t->size] = bkey_to_cacheline_offset(k);
+			t->prev[t->size] = bkey_to_cacheline_offset(t, t->size, k);
 			t->size++;
 		}
 }
