@@ -131,10 +131,10 @@ static int xilly_drv_probe(struct platform_device *op)
 	}
 
 	endpoint->registers = of_iomap(dev->of_node, 0);
-
 	if (!endpoint->registers) {
 		dev_err(endpoint->dev,
 			"Failed to map I/O memory. Aborting.\n");
+		rc = -EIO;
 		goto failed_iomap0;
 	}
 
