@@ -110,7 +110,7 @@ do {									\
 	_r;								\
 })
 
-#define heap_peek(h)	((h)->size ? (h)->data[0] : NULL)
+#define heap_peek(h)	((h)->used ? (h)->data[0] : NULL)
 
 #define heap_full(h)	((h)->used == (h)->size)
 
