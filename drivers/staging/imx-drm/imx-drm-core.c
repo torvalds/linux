@@ -142,19 +142,19 @@ EXPORT_SYMBOL_GPL(imx_drm_crtc_panel_format);
 
 int imx_drm_crtc_vblank_get(struct imx_drm_crtc *imx_drm_crtc)
 {
-	return drm_vblank_get(imx_drm_crtc->imxdrm->drm, imx_drm_crtc->pipe);
+	return drm_vblank_get(imx_drm_crtc->crtc->dev, imx_drm_crtc->pipe);
 }
 EXPORT_SYMBOL_GPL(imx_drm_crtc_vblank_get);
 
 void imx_drm_crtc_vblank_put(struct imx_drm_crtc *imx_drm_crtc)
 {
-	drm_vblank_put(imx_drm_crtc->imxdrm->drm, imx_drm_crtc->pipe);
+	drm_vblank_put(imx_drm_crtc->crtc->dev, imx_drm_crtc->pipe);
 }
 EXPORT_SYMBOL_GPL(imx_drm_crtc_vblank_put);
 
 void imx_drm_handle_vblank(struct imx_drm_crtc *imx_drm_crtc)
 {
-	drm_handle_vblank(imx_drm_crtc->imxdrm->drm, imx_drm_crtc->pipe);
+	drm_handle_vblank(imx_drm_crtc->crtc->dev, imx_drm_crtc->pipe);
 }
 EXPORT_SYMBOL_GPL(imx_drm_handle_vblank);
 
