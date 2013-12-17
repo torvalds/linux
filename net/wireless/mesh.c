@@ -277,6 +277,7 @@ static int __cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
 	if (!err) {
 		wdev->mesh_id_len = 0;
 		wdev->channel = NULL;
+		rdev_set_qos_map(rdev, dev, NULL);
 	}
 
 	return err;

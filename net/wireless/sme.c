@@ -870,6 +870,8 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 		for (i = 0; i < 6; i++)
 			rdev_del_key(rdev, dev, i, false, NULL);
 
+	rdev_set_qos_map(rdev, dev, NULL);
+
 #ifdef CONFIG_CFG80211_WEXT
 	memset(&wrqu, 0, sizeof(wrqu));
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
