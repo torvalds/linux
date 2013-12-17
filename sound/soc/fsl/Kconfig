@@ -1,3 +1,7 @@
+config SND_SOC_FSL_SAI
+	tristate
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+
 config SND_SOC_FSL_SSI
 	tristate
 
