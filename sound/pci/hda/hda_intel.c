@@ -2994,8 +2994,7 @@ static int azx_runtime_suspend(struct device *dev)
 		  STATESTS_INT_MASK);
 
 	azx_stop_chip(chip);
-	if (!chip->bus->avoid_link_reset)
-		azx_enter_link_reset(chip);
+	azx_enter_link_reset(chip);
 	azx_clear_irq_pending(chip);
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
 		hda_display_power(false);
@@ -3877,7 +3876,8 @@ static int azx_probe(struct pci_dev *pci,
 	}
 
 	dev++;
-	complete_all(&chip->probe_wait);
+	if (chip->disabled)
+		complete_all(&chip->probe_wait);
 	return 0;
 
 out_free:
@@ -3954,10 +3954,10 @@ static int azx_probe_continue(struct azx *chip)
 	if ((chip->driver_caps & AZX_DCAPS_PM_RUNTIME) || chip->use_vga_switcheroo)
 		pm_runtime_put_noidle(&pci->dev);
 
-	return 0;
-
 out_free:
-	chip->init_failed = 1;
+	if (err < 0)
+		chip->init_failed = 1;
+	complete_all(&chip->probe_wait);
 	return err;
 }
 

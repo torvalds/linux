@@ -25,8 +25,6 @@
 #define USB_VENDOR_ID_DIOLAN		0x0abf
 #define USB_DEVICE_ID_DIOLAN_U2C	0x3370
 
-#define DIOLAN_OUT_EP		0x02
-#define DIOLAN_IN_EP		0x84
 
 /* commands via USB, must match command ids in the firmware */
 #define CMD_I2C_READ		0x01
@@ -84,6 +82,7 @@
 struct i2c_diolan_u2c {
 	u8 obuffer[DIOLAN_OUTBUF_LEN];	/* output buffer */
 	u8 ibuffer[DIOLAN_INBUF_LEN];	/* input buffer */
+	int ep_in, ep_out;              /* Endpoints    */
 	struct usb_device *usb_dev;	/* the usb device for this device */
 	struct usb_interface *interface;/* the interface for this device */
 	struct i2c_adapter adapter;	/* i2c related things */
@@ -109,7 +108,7 @@ static int diolan_usb_transfer(struct i2c_diolan_u2c *dev)
 		return -EINVAL;
 
 	ret = usb_bulk_msg(dev->usb_dev,
-			   usb_sndbulkpipe(dev->usb_dev, DIOLAN_OUT_EP),
+			   usb_sndbulkpipe(dev->usb_dev, dev->ep_out),
 			   dev->obuffer, dev->olen, &actual,
 			   DIOLAN_USB_TIMEOUT);
 	if (!ret) {
@@ -118,7 +117,7 @@ static int diolan_usb_transfer(struct i2c_diolan_u2c *dev)
 
 			tmpret = usb_bulk_msg(dev->usb_dev,
 					      usb_rcvbulkpipe(dev->usb_dev,
-							      DIOLAN_IN_EP),
+							      dev->ep_in),
 					      dev->ibuffer,
 					      sizeof(dev->ibuffer), &actual,
 					      DIOLAN_USB_TIMEOUT);
@@ -210,7 +209,7 @@ static void diolan_flush_input(struct i2c_diolan_u2c *dev)
 		int ret;
 
 		ret = usb_bulk_msg(dev->usb_dev,
-				   usb_rcvbulkpipe(dev->usb_dev, DIOLAN_IN_EP),
+				   usb_rcvbulkpipe(dev->usb_dev, dev->ep_in),
 				   dev->ibuffer, sizeof(dev->ibuffer), &actual,
 				   DIOLAN_USB_TIMEOUT);
 		if (ret < 0 || actual == 0)
@@ -445,8 +444,13 @@ static void diolan_u2c_free(struct i2c_diolan_u2c *dev)
 static int diolan_u2c_probe(struct usb_interface *interface,
 			    const struct usb_device_id *id)
 {
+	struct usb_host_interface *hostif = interface->cur_altsetting;
 	struct i2c_diolan_u2c *dev;
 	int ret;
+
+	if (hostif->desc.bInterfaceNumber != 0
+	    || hostif->desc.bNumEndpoints < 2)
+		return -ENODEV;
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
@@ -455,6 +459,8 @@ static int diolan_u2c_probe(struct usb_interface *interface,
 		ret = -ENOMEM;
 		goto error;
 	}
+	dev->ep_out = hostif->endpoint[0].desc.bEndpointAddress;
+	dev->ep_in = hostif->endpoint[1].desc.bEndpointAddress;
 
 	dev->usb_dev = usb_get_dev(interface_to_usbdev(interface));
 	dev->interface = interface;
