@@ -107,18 +107,19 @@ static int f2fs_write_meta_pages(struct address_space *mapping,
 				struct writeback_control *wbc)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(mapping->host->i_sb);
-	struct block_device *bdev = sbi->sb->s_bdev;
+	int nrpages = MAX_BIO_BLOCKS(max_hw_blocks(sbi));
 	long written;
 
 	if (wbc->for_kupdate)
 		return 0;
 
-	if (get_pages(sbi, F2FS_DIRTY_META) == 0)
+	/* collect a number of dirty meta pages and write together */
+	if (get_pages(sbi, F2FS_DIRTY_META) < nrpages)
 		return 0;
 
 	/* if mounting is failed, skip writing node pages */
 	mutex_lock(&sbi->cp_mutex);
-	written = sync_meta_pages(sbi, META, bio_get_nr_vecs(bdev));
+	written = sync_meta_pages(sbi, META, nrpages);
 	mutex_unlock(&sbi->cp_mutex);
 	wbc->nr_to_write -= written;
 	return 0;
