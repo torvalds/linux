@@ -41,6 +41,8 @@
 #include <linux/slab.h>
 #include <linux/acpi.h>
 
+#include "internal.h"
+
 #define PREFIX "ACPI: "
 
 #define _COMPONENT			ACPI_PCI_COMPONENT
