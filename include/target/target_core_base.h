@@ -302,6 +302,10 @@ struct t10_alua_tg_pt_gp {
 	struct config_group tg_pt_gp_group;
 	struct list_head tg_pt_gp_list;
 	struct list_head tg_pt_gp_mem_list;
+	struct se_port *tg_pt_gp_alua_port;
+	struct se_node_acl *tg_pt_gp_alua_nacl;
+	struct delayed_work tg_pt_gp_transition_work;
+	struct completion *tg_pt_gp_transition_complete;
 };
 
 struct t10_alua_tg_pt_gp_member {
