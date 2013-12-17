@@ -112,7 +112,8 @@ config PWM_MXS
 
 config PWM_PCA9685
 	tristate "NXP PCA9685 PWM driver"
-	depends on OF && REGMAP_I2C
+	depends on OF && I2C
+	select REGMAP_I2C
 	help
 	  Generic PWM framework driver for NXP PCA9685 LED controller.
 
