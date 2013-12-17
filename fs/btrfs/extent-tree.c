@@ -3463,8 +3463,10 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 		return ret;
 	}
 
-	for (i = 0; i < BTRFS_NR_RAID_TYPES; i++)
+	for (i = 0; i < BTRFS_NR_RAID_TYPES; i++) {
 		INIT_LIST_HEAD(&found->block_groups[i]);
+		kobject_init(&found->block_group_kobjs[i], &btrfs_raid_ktype);
+	}
 	init_rwsem(&found->groups_sem);
 	spin_lock_init(&found->lock);
 	found->flags = flags & BTRFS_BLOCK_GROUP_TYPE_MASK;
@@ -8422,9 +8424,8 @@ static void __link_block_group(struct btrfs_space_info *space_info,
 		int ret;
 
 		kobject_get(&space_info->kobj); /* put in release */
-		ret = kobject_init_and_add(kobj, &btrfs_raid_ktype,
-					   &space_info->kobj, "%s",
-					   get_raid_name(index));
+		ret = kobject_add(kobj, &space_info->kobj, "%s",
+				  get_raid_name(index));
 		if (ret) {
 			pr_warn("btrfs: failed to add kobject for block cache. ignoring.\n");
 			kobject_put(&space_info->kobj);
