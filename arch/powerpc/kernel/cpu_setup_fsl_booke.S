@@ -55,6 +55,25 @@ _GLOBAL(__e500_dcache_setup)
 
 /*
  * FIXME - we haven't yet done testing to determine a reasonable default
+ * value for PW20_WAIT_IDLE_BIT.
+ */
+#define PW20_WAIT_IDLE_BIT		50 /* 1ms, TB frequency is 41.66MHZ */
+_GLOBAL(setup_pw20_idle)
+	mfspr	r3, SPRN_PWRMGTCR0
+
+	/* Set PW20_WAIT bit, enable pw20 state*/
+	ori	r3, r3, PWRMGTCR0_PW20_WAIT
+	li	r11, PW20_WAIT_IDLE_BIT
+
+	/* Set Automatic PW20 Core Idle Count */
+	rlwimi	r3, r11, PWRMGTCR0_PW20_ENT_SHIFT, PWRMGTCR0_PW20_ENT
+
+	mtspr	SPRN_PWRMGTCR0, r3
+
+	blr
+
+/*
+ * FIXME - we haven't yet done testing to determine a reasonable default
  * value for AV_WAIT_IDLE_BIT.
  */
 #define AV_WAIT_IDLE_BIT		50 /* 1ms, TB frequency is 41.66MHZ */
@@ -83,6 +102,7 @@ _GLOBAL(__setup_cpu_e6500)
 	bl	.setup_lrat_ivor
 1:
 #endif
+	bl	setup_pw20_idle
 	bl	setup_altivec_idle
 	bl	__setup_cpu_e5500
 	mtlr	r6
@@ -151,6 +171,7 @@ _GLOBAL(__restore_cpu_e6500)
 	beq	1f
 	bl	.setup_lrat_ivor
 1:
+	bl	.setup_pw20_idle
 	bl	.setup_altivec_idle
 	bl	__restore_cpu_e5500
 	mtlr	r5
