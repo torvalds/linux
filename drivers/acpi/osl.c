@@ -540,7 +540,7 @@ static u64 acpi_tables_addr;
 static int all_tables_size;
 
 /* Copied from acpica/tbutils.c:acpi_tb_checksum() */
-u8 __init acpi_table_checksum(u8 *buffer, u32 length)
+static u8 __init acpi_table_checksum(u8 *buffer, u32 length)
 {
 	u8 sum = 0;
 	u8 *end = buffer + length;
