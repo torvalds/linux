@@ -223,10 +223,10 @@ struct __large_struct { unsigned long buf[100]; };
  * for 32 bit mode and old iron.
  */
 #ifdef CONFIG_32BIT
-#define __GET_USER_DW(val, ptr) __get_user_asm_ll32(val, ptr)
+#define __GET_USER_DW(val, insn, ptr) __get_user_asm_ll32(val, insn, ptr)
 #endif
 #ifdef CONFIG_64BIT
-#define __GET_USER_DW(val, ptr) __get_user_asm(val, "ld", ptr)
+#define __GET_USER_DW(val, insn, ptr) __get_user_asm(val, "ld", ptr)
 #endif
 
 extern void __get_user_unknown(void);
@@ -237,7 +237,7 @@ do {									\
 	case 1: __get_user_asm(val, "lb", ptr); break;			\
 	case 2: __get_user_asm(val, "lh", ptr); break;			\
 	case 4: __get_user_asm(val, "lw", ptr); break;			\
-	case 8: __GET_USER_DW(val, ptr); break;				\
+	case 8: __GET_USER_DW(val, "lw", ptr); break;			\
 	default: __get_user_unknown(); break;				\
 	}								\
 } while (0)
@@ -287,7 +287,7 @@ do {									\
 /*
  * Get a long long 64 using 32 bit registers.
  */
-#define __get_user_asm_ll32(val, addr)					\
+#define __get_user_asm_ll32(val, insn, addr)				\
 {									\
 	union {								\
 		unsigned long long	l;				\
@@ -295,8 +295,8 @@ do {									\
 	} __gu_tmp;							\
 									\
 	__asm__ __volatile__(						\
-	"1:	lw	%1, (%3)				\n"	\
-	"2:	lw	%D1, 4(%3)				\n"	\
+	"1:	" insn "	%1, (%3)			\n"	\
+	"2:	" insn "	%D1, 4(%3)			\n"	\
 	"3:							\n"	\
 	"	.insn						\n"	\
 	"	.section	.fixup,\"ax\"			\n"	\
@@ -320,10 +320,10 @@ do {									\
  * for 32 bit mode and old iron.
  */
 #ifdef CONFIG_32BIT
-#define __PUT_USER_DW(ptr) __put_user_asm_ll32(ptr)
+#define __PUT_USER_DW(insn, ptr) __put_user_asm_ll32(insn, ptr)
 #endif
 #ifdef CONFIG_64BIT
-#define __PUT_USER_DW(ptr) __put_user_asm("sd", ptr)
+#define __PUT_USER_DW(insn, ptr) __put_user_asm("sd", ptr)
 #endif
 
 #define __put_user_nocheck(x, ptr, size)				\
@@ -337,7 +337,7 @@ do {									\
 	case 1: __put_user_asm("sb", ptr); break;			\
 	case 2: __put_user_asm("sh", ptr); break;			\
 	case 4: __put_user_asm("sw", ptr); break;			\
-	case 8: __PUT_USER_DW(ptr); break;				\
+	case 8: __PUT_USER_DW("sw", ptr); break;			\
 	default: __put_user_unknown(); break;				\
 	}								\
 	__pu_err;							\
@@ -355,7 +355,7 @@ do {									\
 		case 1: __put_user_asm("sb", __pu_addr); break;		\
 		case 2: __put_user_asm("sh", __pu_addr); break;		\
 		case 4: __put_user_asm("sw", __pu_addr); break;		\
-		case 8: __PUT_USER_DW(__pu_addr); break;		\
+		case 8: __PUT_USER_DW("sw", __pu_addr); break;		\
 		default: __put_user_unknown(); break;			\
 		}							\
 	}								\
@@ -380,11 +380,11 @@ do {									\
 	  "i" (-EFAULT));						\
 }
 
-#define __put_user_asm_ll32(ptr)					\
+#define __put_user_asm_ll32(insn, ptr)					\
 {									\
 	__asm__ __volatile__(						\
-	"1:	sw	%2, (%3)	# __put_user_asm_ll32	\n"	\
-	"2:	sw	%D2, 4(%3)				\n"	\
+	"1:	" insn "	%2, (%3)# __put_user_asm_ll32	\n"	\
+	"2:	" insn "	%D2, 4(%3)			\n"	\
 	"3:							\n"	\
 	"	.insn						\n"	\
 	"	.section	.fixup,\"ax\"			\n"	\
