@@ -567,9 +567,9 @@ static void compress_udp_header(u8 **hc06_ptr, struct sk_buff *skb)
 		pr_debug("UDP header: remove 8 bits of source\n");
 		tmp = LOWPAN_NHC_UDP_CS_P_10;
 		lowpan_push_hc_data(hc06_ptr, &tmp, sizeof(tmp));
-		lowpan_push_hc_data(hc06_ptr, &uh->dest, sizeof(uh->dest));
 		tmp = (u8)(uh->source - LOWPAN_NHC_UDP_8BIT_PORT);
 		lowpan_push_hc_data(hc06_ptr, &tmp, sizeof(tmp));
+		lowpan_push_hc_data(hc06_ptr, &uh->dest, sizeof(uh->dest));
 	} else {
 		pr_debug("UDP header: can't compress\n");
 		tmp = LOWPAN_NHC_UDP_CS_P_00;
