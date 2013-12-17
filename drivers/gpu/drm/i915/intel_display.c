@@ -1372,6 +1372,15 @@ static void intel_init_dpio(struct drm_device *dev)
 		   DPLL_INTEGRATED_CRI_CLK_VLV);
 
 	DPIO_PHY_IOSF_PORT(DPIO_PHY0) = IOSF_PORT_DPIO;
+}
+
+static void intel_reset_dpio(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!IS_VALLEYVIEW(dev))
+		return;
+
 	/*
 	 * From VLV2A0_DP_eDP_DPIO_driver_vbios_notes_10.docx -
 	 *  6.	De-assert cmn_reset/side_reset. Same as VLV X0.
@@ -10809,7 +10818,7 @@ void intel_modeset_init_hw(struct drm_device *dev)
 
 	intel_init_clock_gating(dev);
 
-	intel_init_dpio(dev);
+	intel_reset_dpio(dev);
 
 	mutex_lock(&dev->struct_mutex);
 	intel_enable_gt_powersave(dev);
@@ -10872,6 +10881,7 @@ void intel_modeset_init(struct drm_device *dev)
 	}
 
 	intel_init_dpio(dev);
+	intel_reset_dpio(dev);
 
 	intel_cpu_pll_init(dev);
 	intel_shared_dpll_init(dev);
