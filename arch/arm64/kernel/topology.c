@@ -13,7 +13,6 @@
 
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
-#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/percpu.h>
 #include <linux/node.h>
@@ -22,8 +21,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
-#include <asm/cputype.h>
-#include <asm/smp_plat.h>
 #include <asm/topology.h>
 
 /*
