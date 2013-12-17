@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 #include <linux/of_device.h>
 #include <linux/of.h>
+#include <linux/of_mtd.h>
 
 #include <linux/platform_data/mtd-davinci.h>
 #include <linux/platform_data/mtd-davinci-aemif.h>
@@ -534,7 +535,6 @@ static struct davinci_nand_pdata
 		struct davinci_nand_pdata *pdata;
 		const char *mode;
 		u32 prop;
-		int len;
 
 		pdata =  devm_kzalloc(&pdev->dev,
 				sizeof(struct davinci_nand_pdata),
@@ -558,6 +558,8 @@ static struct davinci_nand_pdata
 			"ti,davinci-mask-chipsel", &prop))
 			pdata->mask_chipsel = prop;
 		if (!of_property_read_string(pdev->dev.of_node,
+			"nand-ecc-mode", &mode) ||
+		    !of_property_read_string(pdev->dev.of_node,
 			"ti,davinci-ecc-mode", &mode)) {
 			if (!strncmp("none", mode, 4))
 				pdata->ecc_mode = NAND_ECC_NONE;
@@ -569,12 +571,16 @@ static struct davinci_nand_pdata
 		if (!of_property_read_u32(pdev->dev.of_node,
 			"ti,davinci-ecc-bits", &prop))
 			pdata->ecc_bits = prop;
-		if (!of_property_read_u32(pdev->dev.of_node,
+
+		prop = of_get_nand_bus_width(pdev->dev.of_node);
+		if (0 < prop || !of_property_read_u32(pdev->dev.of_node,
 			"ti,davinci-nand-buswidth", &prop))
 			if (prop == 16)
 				pdata->options |= NAND_BUSWIDTH_16;
-		if (of_find_property(pdev->dev.of_node,
-			"ti,davinci-nand-use-bbt", &len))
+		if (of_property_read_bool(pdev->dev.of_node,
+			"nand-on-flash-bbt") ||
+		    of_property_read_bool(pdev->dev.of_node,
+			"ti,davinci-nand-use-bbt"))
 			pdata->bbt_options = NAND_BBT_USE_FLASH;
 	}
 
