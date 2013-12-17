@@ -33,6 +33,8 @@
 #include <linux/stddef.h>
 #include <linux/acpi.h>
 
+#include "internal.h"
+
 #define PREFIX "ACPI: "
 
 #define ACPI_DOCK_DRIVER_DESCRIPTION "ACPI Dock Station Driver"
