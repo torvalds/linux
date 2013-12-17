@@ -1203,10 +1203,8 @@ static int eeepc_input_init(struct eeepc_laptop *eeepc)
 	int error;
 
 	input = input_allocate_device();
-	if (!input) {
-		pr_info("Unable to allocate input device\n");
+	if (!input)
 		return -ENOMEM;
-	}
 
 	input->name = "Asus EeePC extra buttons";
 	input->phys = EEEPC_LAPTOP_FILE "/input0";

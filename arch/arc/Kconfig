@@ -8,6 +8,7 @@
 
 config ARC
 	def_bool y
+	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS
 	# ARC Busybox based initramfs absolutely relies on DEVTMPFS for /dev
 	select DEVTMPFS if !INITRAMFS_SOURCE=""

@@ -678,26 +678,23 @@ get_active_stripe(struct r5conf *conf, sector_t sector,
 			} else
 				init_stripe(sh, sector, previous);
 		} else {
+			spin_lock(&conf->device_lock);
 			if (atomic_read(&sh->count)) {
 				BUG_ON(!list_empty(&sh->lru)
 				    && !test_bit(STRIPE_EXPANDING, &sh->state)
 				    && !test_bit(STRIPE_ON_UNPLUG_LIST, &sh->state)
-				    && !test_bit(STRIPE_ON_RELEASE_LIST, &sh->state));
+					);
 			} else {
-				spin_lock(&conf->device_lock);
 				if (!test_bit(STRIPE_HANDLE, &sh->state))
 					atomic_inc(&conf->active_stripes);
-				if (list_empty(&sh->lru) &&
-				    !test_bit(STRIPE_ON_RELEASE_LIST, &sh->state) &&
-				    !test_bit(STRIPE_EXPANDING, &sh->state))
-					BUG();
+				BUG_ON(list_empty(&sh->lru));
 				list_del_init(&sh->lru);
 				if (sh->group) {
 					sh->group->stripes_cnt--;
 					sh->group = NULL;
 				}
-				spin_unlock(&conf->device_lock);
 			}
+			spin_unlock(&conf->device_lock);
 		}
 	} while (sh == NULL);
 
@@ -5471,7 +5468,7 @@ static int alloc_thread_groups(struct r5conf *conf, int cnt,
 	for (i = 0; i < *group_cnt; i++) {
 		struct r5worker_group *group;
 
-		group = worker_groups[i];
+		group = &(*worker_groups)[i];
 		INIT_LIST_HEAD(&group->handle_list);
 		group->conf = conf;
 		group->workers = workers + i * cnt;

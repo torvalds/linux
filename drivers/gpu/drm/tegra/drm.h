@@ -116,7 +116,7 @@ host1x_client_to_dc(struct host1x_client *client)
 
 static inline struct tegra_dc *to_tegra_dc(struct drm_crtc *crtc)
 {
-	return container_of(crtc, struct tegra_dc, base);
+	return crtc ? container_of(crtc, struct tegra_dc, base) : NULL;
 }
 
 static inline void tegra_dc_writel(struct tegra_dc *dc, unsigned long value,

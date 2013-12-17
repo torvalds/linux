@@ -2094,7 +2094,8 @@ static void stac92hd83xxx_fixup_hp_mic_led(struct hda_codec *codec,
 
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		spec->mic_mute_led_gpio = 0x08; /* GPIO3 */
-		codec->bus->avoid_link_reset = 1;
+		/* resetting controller clears GPIO, so we need to keep on */
+		codec->bus->power_keep_link_on = 1;
 	}
 }
 
