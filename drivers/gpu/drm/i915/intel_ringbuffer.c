@@ -663,14 +663,15 @@ gen6_add_request(struct intel_ring_buffer *ring)
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *useless;
-	int i, ret;
+	int i, ret, num_dwords = 4;
 
-	ret = intel_ring_begin(ring, ((I915_NUM_RINGS-1) *
-				      MBOX_UPDATE_DWORDS) +
-				      4);
+	if (i915_semaphore_is_enabled(dev))
+		num_dwords += ((I915_NUM_RINGS-1) * MBOX_UPDATE_DWORDS);
+#undef MBOX_UPDATE_DWORDS
+
+	ret = intel_ring_begin(ring, num_dwords);
 	if (ret)
 		return ret;
-#undef MBOX_UPDATE_DWORDS
 
 	for_each_ring(useless, dev_priv, i) {
 		u32 mbox_reg = ring->signal_mbox[i];
