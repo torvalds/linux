@@ -7,6 +7,7 @@
 #include <asm/uaccess.h>
 
 #include "sleep.h"
+#include "internal.h"
 
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
 
