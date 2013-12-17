@@ -383,12 +383,12 @@ struct cached_dev {
 	unsigned		writeback_rate_p_term_inverse;
 };
 
-enum alloc_watermarks {
-	WATERMARK_PRIO,
-	WATERMARK_METADATA,
-	WATERMARK_MOVINGGC,
-	WATERMARK_NONE,
-	WATERMARK_MAX
+enum alloc_reserve {
+	RESERVE_BTREE,
+	RESERVE_PRIO,
+	RESERVE_MOVINGGC,
+	RESERVE_NONE,
+	RESERVE_NR,
 };
 
 struct cache {
@@ -399,8 +399,6 @@ struct cache {
 
 	struct kobject		kobj;
 	struct block_device	*bdev;
-
-	unsigned		watermark[WATERMARK_MAX];
 
 	struct task_struct	*alloc_thread;
 
@@ -430,7 +428,7 @@ struct cache {
 	 * because all the data they contained was overwritten), so we only
 	 * need to discard them before they can be moved to the free list.
 	 */
-	DECLARE_FIFO(long, free);
+	DECLARE_FIFO(long, free)[RESERVE_NR];
 	DECLARE_FIFO(long, free_inc);
 	DECLARE_FIFO(long, unused);
 

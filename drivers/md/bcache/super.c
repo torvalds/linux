@@ -444,7 +444,7 @@ static int __uuid_write(struct cache_set *c)
 
 	lockdep_assert_held(&bch_register_lock);
 
-	if (bch_bucket_alloc_set(c, WATERMARK_METADATA, &k.key, 1, true))
+	if (bch_bucket_alloc_set(c, RESERVE_BTREE, &k.key, 1, true))
 		return 1;
 
 	SET_KEY_SIZE(&k.key, c->sb.bucket_size);
@@ -562,8 +562,8 @@ void bch_prio_write(struct cache *ca)
 	atomic_long_add(ca->sb.bucket_size * prio_buckets(ca),
 			&ca->meta_sectors_written);
 
-	pr_debug("free %zu, free_inc %zu, unused %zu", fifo_used(&ca->free),
-		 fifo_used(&ca->free_inc), fifo_used(&ca->unused));
+	//pr_debug("free %zu, free_inc %zu, unused %zu", fifo_used(&ca->free),
+	//	 fifo_used(&ca->free_inc), fifo_used(&ca->unused));
 
 	for (i = prio_buckets(ca) - 1; i >= 0; --i) {
 		long bucket;
@@ -582,7 +582,7 @@ void bch_prio_write(struct cache *ca)
 		p->magic	= pset_magic(&ca->sb);
 		p->csum		= bch_crc64(&p->magic, bucket_bytes(ca) - 8);
 
-		bucket = bch_bucket_alloc(ca, WATERMARK_PRIO, true);
+		bucket = bch_bucket_alloc(ca, RESERVE_PRIO, true);
 		BUG_ON(bucket == -1);
 
 		mutex_unlock(&ca->set->bucket_lock);
@@ -1767,6 +1767,7 @@ err:
 void bch_cache_release(struct kobject *kobj)
 {
 	struct cache *ca = container_of(kobj, struct cache, kobj);
+	unsigned i;
 
 	if (ca->set)
 		ca->set->cache[ca->sb.nr_this_dev] = NULL;
@@ -1780,7 +1781,9 @@ void bch_cache_release(struct kobject *kobj)
 	free_heap(&ca->heap);
 	free_fifo(&ca->unused);
 	free_fifo(&ca->free_inc);
-	free_fifo(&ca->free);
+
+	for (i = 0; i < RESERVE_NR; i++)
+		free_fifo(&ca->free[i]);
 
 	if (ca->sb_bio.bi_inline_vecs[0].bv_page)
 		put_page(ca->sb_bio.bi_io_vec[0].bv_page);
@@ -1806,10 +1809,12 @@ static int cache_alloc(struct cache_sb *sb, struct cache *ca)
 	ca->journal.bio.bi_max_vecs = 8;
 	ca->journal.bio.bi_io_vec = ca->journal.bio.bi_inline_vecs;
 
-	free = roundup_pow_of_two(ca->sb.nbuckets) >> 9;
-	free = max_t(size_t, free, (prio_buckets(ca) + 8) * 2);
+	free = roundup_pow_of_two(ca->sb.nbuckets) >> 10;
 
-	if (!init_fifo(&ca->free,	free, GFP_KERNEL) ||
+	if (!init_fifo(&ca->free[RESERVE_BTREE], 8, GFP_KERNEL) ||
+	    !init_fifo(&ca->free[RESERVE_PRIO], prio_buckets(ca), GFP_KERNEL) ||
+	    !init_fifo(&ca->free[RESERVE_MOVINGGC], free, GFP_KERNEL) ||
+	    !init_fifo(&ca->free[RESERVE_NONE], free, GFP_KERNEL) ||
 	    !init_fifo(&ca->free_inc,	free << 2, GFP_KERNEL) ||
 	    !init_fifo(&ca->unused,	free << 2, GFP_KERNEL) ||
 	    !init_heap(&ca->heap,	free << 3, GFP_KERNEL) ||

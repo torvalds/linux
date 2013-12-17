@@ -167,6 +167,8 @@ static inline bool should_split(struct btree *b)
 			_r = bch_btree_ ## fn(_b, op, ##__VA_ARGS__);	\
 		}							\
 		rw_unlock(_w, _b);					\
+		if (_r == -EINTR)					\
+			schedule();					\
 		bch_cannibalize_unlock(c);				\
 		if (_r == -ENOSPC) {					\
 			wait_event((c)->try_wait,			\
@@ -175,6 +177,7 @@ static inline bool should_split(struct btree *b)
 		}							\
 	} while (_r == -EINTR);						\
 									\
+	finish_wait(&(c)->bucket_wait, &(op)->wait);			\
 	_r;								\
 })
 
@@ -1075,7 +1078,7 @@ struct btree *bch_btree_node_alloc(struct cache_set *c, int level, bool wait)
 
 	mutex_lock(&c->bucket_lock);
 retry:
-	if (__bch_bucket_alloc_set(c, WATERMARK_METADATA, &k.key, 1, wait))
+	if (__bch_bucket_alloc_set(c, RESERVE_BTREE, &k.key, 1, wait))
 		goto err;
 
 	bkey_put(c, &k.key);
@@ -1130,6 +1133,28 @@ static void make_btree_freeing_key(struct btree *b, struct bkey *k)
 	}
 
 	atomic_inc(&b->c->prio_blocked);
+}
+
+static int btree_check_reserve(struct btree *b, struct btree_op *op)
+{
+	struct cache_set *c = b->c;
+	struct cache *ca;
+	unsigned i, reserve = c->root->level * 2 + 1;
+	int ret = 0;
+
+	mutex_lock(&c->bucket_lock);
+
+	for_each_cache(ca, c, i)
+		if (fifo_used(&ca->free[RESERVE_BTREE]) < reserve) {
+			if (op)
+				prepare_to_wait(&c->bucket_wait, &op->wait,
+						TASK_UNINTERRUPTIBLE);
+			ret = -EINTR;
+			break;
+		}
+
+	mutex_unlock(&c->bucket_lock);
+	return ret;
 }
 
 /* Garbage collection */
@@ -1428,7 +1453,8 @@ static int btree_gc_recurse(struct btree *b, struct btree_op *op,
 
 		if (!IS_ERR(last->b)) {
 			should_rewrite = btree_gc_mark_node(last->b, gc);
-			if (should_rewrite) {
+			if (should_rewrite &&
+			    !btree_check_reserve(b, NULL)) {
 				n = btree_node_alloc_replacement(last->b,
 								 false);
 
@@ -2070,6 +2096,10 @@ static int btree_split(struct btree *b, struct btree_op *op,
 
 	closure_init_stack(&cl);
 	bch_keylist_init(&parent_keys);
+
+	if (!b->level &&
+	    btree_check_reserve(b, op))
+		return -EINTR;
 
 	n1 = btree_node_alloc_replacement(b, true);
 	if (IS_ERR(n1))

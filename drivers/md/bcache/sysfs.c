@@ -102,7 +102,6 @@ rw_attribute(bypass_torture_test);
 rw_attribute(key_merging_disabled);
 rw_attribute(gc_always_rewrite);
 rw_attribute(expensive_debug_checks);
-rw_attribute(freelist_percent);
 rw_attribute(cache_replacement_policy);
 rw_attribute(btree_shrinker_disabled);
 rw_attribute(copy_gc_enabled);
@@ -711,9 +710,6 @@ SHOW(__bch_cache)
 	sysfs_print(io_errors,
 		    atomic_read(&ca->io_errors) >> IO_ERROR_SHIFT);
 
-	sysfs_print(freelist_percent, ca->free.size * 100 /
-		    ((size_t) ca->sb.nbuckets));
-
 	if (attr == &sysfs_cache_replacement_policy)
 		return bch_snprint_string_list(buf, PAGE_SIZE,
 					       cache_replacement_policies,
@@ -820,32 +816,6 @@ STORE(__bch_cache)
 		}
 	}
 
-	if (attr == &sysfs_freelist_percent) {
-		DECLARE_FIFO(long, free);
-		long i;
-		size_t p = strtoul_or_return(buf);
-
-		p = clamp_t(size_t,
-			    ((size_t) ca->sb.nbuckets * p) / 100,
-			    roundup_pow_of_two(ca->sb.nbuckets) >> 9,
-			    ca->sb.nbuckets / 2);
-
-		if (!init_fifo_exact(&free, p, GFP_KERNEL))
-			return -ENOMEM;
-
-		mutex_lock(&ca->set->bucket_lock);
-
-		fifo_move(&free, &ca->free);
-		fifo_swap(&free, &ca->free);
-
-		mutex_unlock(&ca->set->bucket_lock);
-
-		while (fifo_pop(&free, i))
-			atomic_dec(&ca->buckets[i].pin);
-
-		free_fifo(&free);
-	}
-
 	if (attr == &sysfs_clear_stats) {
 		atomic_long_set(&ca->sectors_written, 0);
 		atomic_long_set(&ca->btree_sectors_written, 0);
@@ -869,7 +839,6 @@ static struct attribute *bch_cache_files[] = {
 	&sysfs_metadata_written,
 	&sysfs_io_errors,
 	&sysfs_clear_stats,
-	&sysfs_freelist_percent,
 	&sysfs_cache_replacement_policy,
 	NULL
 };
