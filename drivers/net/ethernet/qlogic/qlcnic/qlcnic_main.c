@@ -2501,7 +2501,7 @@ static void qlcnic_remove(struct pci_dev *pdev)
 	qlcnic_sriov_cleanup(adapter);
 
 	if (qlcnic_83xx_check(adapter)) {
-		qlcnic_83xx_register_nic_idc_func(adapter, 0);
+		qlcnic_83xx_initialize_nic(adapter, 0);
 		cancel_delayed_work_sync(&adapter->idc_aen_work);
 		qlcnic_83xx_free_mbx_intr(adapter);
 		qlcnic_83xx_detach_mailbox_work(adapter);
@@ -3785,8 +3785,7 @@ int qlcnic_setup_rings(struct qlcnic_adapter *adapter, u8 rx_cnt, u8 tx_cnt)
 	}
 
 	if (qlcnic_83xx_check(adapter)) {
-		/* register for NIC IDC AEN Events */
-		qlcnic_83xx_register_nic_idc_func(adapter, 1);
+		qlcnic_83xx_initialize_nic(adapter, 1);
 		err = qlcnic_83xx_setup_mbx_intr(adapter);
 		qlcnic_83xx_disable_mbx_poll(adapter);
 		if (err) {

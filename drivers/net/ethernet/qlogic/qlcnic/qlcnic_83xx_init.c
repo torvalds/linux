@@ -614,8 +614,7 @@ int qlcnic_83xx_idc_reattach_driver(struct qlcnic_adapter *adapter)
 	qlcnic_83xx_reinit_mbx_work(adapter->ahw->mailbox);
 	qlcnic_83xx_enable_mbx_interrupt(adapter);
 
-	/* register for NIC IDC AEN Events */
-	qlcnic_83xx_register_nic_idc_func(adapter, 1);
+	qlcnic_83xx_initialize_nic(adapter, 1);
 
 	err = qlcnic_sriov_pf_reinit(adapter);
 	if (err)
@@ -2249,8 +2248,7 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 
 	INIT_DELAYED_WORK(&adapter->idc_aen_work, qlcnic_83xx_idc_aen_work);
 
-	/* register for NIC IDC AEN Events */
-	qlcnic_83xx_register_nic_idc_func(adapter, 1);
+	qlcnic_83xx_initialize_nic(adapter, 1);
 
 	/* Configure default, SR-IOV or Virtual NIC mode of operation */
 	err = qlcnic_83xx_configure_opmode(adapter);
@@ -2293,7 +2291,7 @@ void qlcnic_83xx_aer_stop_poll_work(struct qlcnic_adapter *adapter)
 		qlcnic_83xx_disable_vnic_mode(adapter, 1);
 
 	qlcnic_83xx_idc_detach_driver(adapter);
-	qlcnic_83xx_register_nic_idc_func(adapter, 0);
+	qlcnic_83xx_initialize_nic(adapter, 0);
 
 	cancel_delayed_work_sync(&adapter->idc_aen_work);
 }

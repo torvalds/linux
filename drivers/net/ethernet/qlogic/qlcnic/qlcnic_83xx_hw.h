@@ -520,6 +520,8 @@ enum qlc_83xx_ext_regs {
 
 /* Initialize/Stop NIC command bit definitions */
 #define QLC_REGISTER_DCB_AEN		BIT_1
+#define QLC_REGISTER_LB_IDC		BIT_0
+#define QLC_INIT_FW_RESOURCES		BIT_31
 
 /* 83xx funcitons */
 int qlcnic_83xx_get_fw_version(struct qlcnic_adapter *);
@@ -545,7 +547,7 @@ int qlcnic_83xx_config_intr_coalesce(struct qlcnic_adapter *);
 void qlcnic_83xx_change_l2_filter(struct qlcnic_adapter *, u64 *, u16);
 int qlcnic_83xx_get_pci_info(struct qlcnic_adapter *, struct qlcnic_pci_info *);
 int qlcnic_83xx_set_nic_info(struct qlcnic_adapter *, struct qlcnic_info *);
-void qlcnic_83xx_register_nic_idc_func(struct qlcnic_adapter *, int);
+void qlcnic_83xx_initialize_nic(struct qlcnic_adapter *, int);
 
 int qlcnic_83xx_napi_add(struct qlcnic_adapter *, struct net_device *);
 void qlcnic_83xx_napi_del(struct qlcnic_adapter *);

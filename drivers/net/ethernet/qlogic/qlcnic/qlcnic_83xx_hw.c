@@ -1518,8 +1518,7 @@ int  qlcnic_83xx_set_led(struct net_device *netdev,
 	return err;
 }
 
-void qlcnic_83xx_register_nic_idc_func(struct qlcnic_adapter *adapter,
-				       int enable)
+void qlcnic_83xx_initialize_nic(struct qlcnic_adapter *adapter, int enable)
 {
 	struct qlcnic_cmd_args cmd;
 	int status;
@@ -1527,21 +1526,17 @@ void qlcnic_83xx_register_nic_idc_func(struct qlcnic_adapter *adapter,
 	if (qlcnic_sriov_vf_check(adapter))
 		return;
 
-	if (enable) {
+	if (enable)
 		status = qlcnic_alloc_mbx_args(&cmd, adapter,
 					       QLCNIC_CMD_INIT_NIC_FUNC);
-		if (status)
-			return;
-
-		cmd.req.arg[1] = BIT_0 | BIT_31;
-	} else {
+	else
 		status = qlcnic_alloc_mbx_args(&cmd, adapter,
 					       QLCNIC_CMD_STOP_NIC_FUNC);
-		if (status)
-			return;
 
-		cmd.req.arg[1] = BIT_0 | BIT_31;
-	}
+	if (status)
+		return;
+
+	cmd.req.arg[1] = QLC_REGISTER_LB_IDC | QLC_INIT_FW_RESOURCES;
 
 	if (adapter->dcb)
 		cmd.req.arg[1] |= QLC_REGISTER_DCB_AEN;
