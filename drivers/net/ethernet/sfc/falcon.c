@@ -2614,7 +2614,7 @@ void falcon_start_nic_stats(struct efx_nic *efx)
 /* We don't acutally pull stats on falcon. Wait 10ms so that
  * they arrive when we call this just after start_stats
  */
-void falcon_pull_nic_stats(struct efx_nic *efx)
+static void falcon_pull_nic_stats(struct efx_nic *efx)
 {
 	msleep(10);
 }
