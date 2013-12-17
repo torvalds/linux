@@ -5112,6 +5112,7 @@ build_overlap_sched_groups(struct sched_domain *sd, int cpu)
 		 * die on a /0 trap.
 		 */
 		sg->sgp->power = SCHED_POWER_SCALE * cpumask_weight(sg_span);
+		sg->sgp->power_orig = sg->sgp->power;
 
 		/*
 		 * Make sure the first group of this domain contains the
