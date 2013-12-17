@@ -289,6 +289,7 @@ int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter)
 		if (qlcnic_sriov_vf_check(adapter))
 			return -EINVAL;
 		num_msix = 1;
+		adapter->drv_tx_rings = QLCNIC_SINGLE_RING;
 	}
 	/* setup interrupt mapping table for fw */
 	ahw->intr_tbl = vzalloc(num_msix *

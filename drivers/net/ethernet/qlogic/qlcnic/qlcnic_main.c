@@ -646,8 +646,7 @@ int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
 			} else {
 				adapter->ahw->num_msix = num_msix;
 				if (qlcnic_check_multi_tx(adapter) &&
-				    !adapter->ahw->diag_test &&
-				    (adapter->drv_tx_rings > 1))
+				    !adapter->ahw->diag_test)
 					drv_sds_rings = num_msix - drv_tx_rings;
 				else
 					drv_sds_rings = num_msix;
@@ -3719,12 +3718,6 @@ int qlcnic_validate_rings(struct qlcnic_adapter *adapter, __u32 ring_cnt,
 
 	if (adapter->flags & QLCNIC_MSI_ENABLED) {
 		netdev_err(netdev, "No RSS/TSS support in MSI mode\n");
-		return -EINVAL;
-	}
-
-	if (ring_cnt < 2) {
-		netdev_err(netdev,
-			   "%s rings value should not be lower than 2\n", buf);
 		return -EINVAL;
 	}
 
