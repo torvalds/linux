@@ -480,12 +480,12 @@ check_next:
 bool i915_semaphore_is_enabled(struct drm_device *dev)
 {
 	if (INTEL_INFO(dev)->gen < 6)
-		return 0;
+		return false;
 
 	/* Until we get further testing... */
 	if (IS_GEN8(dev)) {
 		WARN_ON(!i915_preliminary_hw_support);
-		return 0;
+		return false;
 	}
 
 	if (i915_semaphores >= 0)
@@ -497,7 +497,7 @@ bool i915_semaphore_is_enabled(struct drm_device *dev)
 		return false;
 #endif
 
-	return 1;
+	return true;
 }
 
 static int i915_drm_freeze(struct drm_device *dev)
