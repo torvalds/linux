@@ -622,19 +622,21 @@ static inline void tcp_mark_urg(struct tcp_sock *tp, int flags)
 }
 
 /* If a not yet filled skb is pushed, do not send it if
- * we have packets in Qdisc or NIC queues :
+ * we have data packets in Qdisc or NIC queues :
  * Because TX completion will happen shortly, it gives a chance
  * to coalesce future sendmsg() payload into this skb, without
  * need for a timer, and with no latency trade off.
  * As packets containing data payload have a bigger truesize
- * than pure acks (dataless) packets, the last check prevents
- * autocorking if we only have an ACK in Qdisc/NIC queues.
+ * than pure acks (dataless) packets, the last checks prevent
+ * autocorking if we only have an ACK in Qdisc/NIC queues,
+ * or if TX completion was delayed after we processed ACK packet.
  */
 static bool tcp_should_autocork(struct sock *sk, struct sk_buff *skb,
 				int size_goal)
 {
 	return skb->len < size_goal &&
 	       sysctl_tcp_autocorking &&
+	       skb != tcp_write_queue_head(sk) &&
 	       atomic_read(&sk->sk_wmem_alloc) > skb->truesize;
 }
 
@@ -660,7 +662,11 @@ static void tcp_push(struct sock *sk, int flags, int mss_now,
 			NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPAUTOCORKING);
 			set_bit(TSQ_THROTTLED, &tp->tsq_flags);
 		}
-		return;
+		/* It is possible TX completion already happened
+		 * before we set TSQ_THROTTLED.
+		 */
+		if (atomic_read(&sk->sk_wmem_alloc) > skb->truesize)
+			return;
 	}
 
 	if (flags & MSG_MORE)
