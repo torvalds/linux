@@ -2718,12 +2718,10 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 			lq_sta->lq.initial_rate_index[3]);
 
 	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++) {
-		u32 rate = le32_to_cpu(lq_sta->lq.rs_table[i]);
-		desc += sprintf(buff+desc,
-				" rate[%d] 0x%X ",
-				i, rate);
+		u32 r = le32_to_cpu(lq_sta->lq.rs_table[i]);
 
-		desc += rs_pretty_print_rate(buff+desc, rate);
+		desc += sprintf(buff+desc, " rate[%d] 0x%X ", i, r);
+		desc += rs_pretty_print_rate(buff+desc, r);
 	}
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buff, desc);
