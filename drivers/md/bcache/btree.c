@@ -2191,18 +2191,21 @@ static int btree_split(struct btree *b, struct btree_op *op,
 
 	return 0;
 err_free2:
+	bkey_put(b->c, &n2->key);
 	btree_node_free(n2);
 	rw_unlock(true, n2);
 err_free1:
+	bkey_put(b->c, &n1->key);
 	btree_node_free(n1);
 	rw_unlock(true, n1);
 err:
+	WARN(1, "bcache: btree split failed");
+
 	if (n3 == ERR_PTR(-EAGAIN) ||
 	    n2 == ERR_PTR(-EAGAIN) ||
 	    n1 == ERR_PTR(-EAGAIN))
 		return -EAGAIN;
 
-	pr_warn("couldn't split");
 	return -ENOMEM;
 }
 
