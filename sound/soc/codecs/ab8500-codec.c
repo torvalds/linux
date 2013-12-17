@@ -126,8 +126,6 @@ struct ab8500_codec_drvdata_dbg {
 
 /* Private data for AB8500 device-driver */
 struct ab8500_codec_drvdata {
-	struct regmap *regmap;
-
 	/* Sidetone */
 	long *sid_fir_values;
 	enum sid_state sid_status;
@@ -168,34 +166,48 @@ static inline const char *amic_type_str(enum amic_type type)
  */
 
 /* Read a register from the audio-bank of AB8500 */
-static int ab8500_codec_read_reg(void *context, unsigned int reg,
-				 unsigned int *value)
+static unsigned int ab8500_codec_read_reg(struct snd_soc_codec *codec,
+					unsigned int reg)
 {
-	struct device *dev = context;
 	int status;
+	unsigned int value = 0;
 
 	u8 value8;
-	status = abx500_get_register_interruptible(dev, AB8500_AUDIO,
-						   reg, &value8);
-	*value = (unsigned int)value8;
+	status = abx500_get_register_interruptible(codec->dev, AB8500_AUDIO,
+						reg, &value8);
+	if (status < 0) {
+		dev_err(codec->dev,
+			"%s: ERROR: Register (0x%02x:0x%02x) read failed (%d).\n",
+			__func__, (u8)AB8500_AUDIO, (u8)reg, status);
+	} else {
+		dev_dbg(codec->dev,
+			"%s: Read 0x%02x from register 0x%02x:0x%02x\n",
+			__func__, value8, (u8)AB8500_AUDIO, (u8)reg);
+		value = (unsigned int)value8;
+	}
 
-	return status;
+	return value;
 }
 
 /* Write to a register in the audio-bank of AB8500 */
-static int ab8500_codec_write_reg(void *context, unsigned int reg,
-				  unsigned int value)
+static int ab8500_codec_write_reg(struct snd_soc_codec *codec,
+				unsigned int reg, unsigned int value)
 {
-	struct device *dev = context;
+	int status;
 
-	return abx500_set_register_interruptible(dev, AB8500_AUDIO,
-						 reg, value);
+	status = abx500_set_register_interruptible(codec->dev, AB8500_AUDIO,
+						reg, value);
+	if (status < 0)
+		dev_err(codec->dev,
+			"%s: ERROR: Register (%02x:%02x) write failed (%d).\n",
+			__func__, (u8)AB8500_AUDIO, (u8)reg, status);
+	else
+		dev_dbg(codec->dev,
+			"%s: Wrote 0x%02x into register %02x:%02x\n",
+			__func__, (u8)value, (u8)AB8500_AUDIO, (u8)reg);
+
+	return status;
 }
-
-static const struct regmap_config ab8500_codec_regmap = {
-	.reg_read = ab8500_codec_read_reg,
-	.reg_write = ab8500_codec_write_reg,
-};
 
 /*
  * Controls - DAPM
@@ -2473,12 +2485,8 @@ static int ab8500_codec_probe(struct snd_soc_codec *codec)
 
 	dev_dbg(dev, "%s: Enter.\n", __func__);
 
-	snd_soc_codec_set_cache_io(codec, 0, 0, SND_SOC_REGMAP);
-
 	/* Setup AB8500 according to board-settings */
 	pdata = dev_get_platdata(dev->parent);
-
-	codec->control_data = drvdata->regmap;
 
 	if (np) {
 		if (!pdata)
@@ -2557,6 +2565,9 @@ static int ab8500_codec_probe(struct snd_soc_codec *codec)
 
 static struct snd_soc_codec_driver ab8500_codec_driver = {
 	.probe =		ab8500_codec_probe,
+	.read =			ab8500_codec_read_reg,
+	.write =		ab8500_codec_write_reg,
+	.reg_word_size =	sizeof(u8),
 	.controls =		ab8500_ctrls,
 	.num_controls =		ARRAY_SIZE(ab8500_ctrls),
 	.dapm_widgets =		ab8500_dapm_widgets,
@@ -2580,15 +2591,6 @@ static int ab8500_codec_driver_probe(struct platform_device *pdev)
 	drvdata->sid_status = SID_UNCONFIGURED;
 	drvdata->anc_status = ANC_UNCONFIGURED;
 	dev_set_drvdata(&pdev->dev, drvdata);
-
-	drvdata->regmap = devm_regmap_init(&pdev->dev, NULL, &pdev->dev,
-					   &ab8500_codec_regmap);
-	if (IS_ERR(drvdata->regmap)) {
-		status = PTR_ERR(drvdata->regmap);
-		dev_err(&pdev->dev, "%s: Failed to allocate regmap: %d\n",
-			__func__, status);
-		return status;
-	}
 
 	dev_dbg(&pdev->dev, "%s: Register codec.\n", __func__);
 	status = snd_soc_register_codec(&pdev->dev, &ab8500_codec_driver,

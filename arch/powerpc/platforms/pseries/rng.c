@@ -13,6 +13,7 @@
 #include <linux/of.h>
 #include <asm/archrandom.h>
 #include <asm/machdep.h>
+#include <asm/plpar_wrappers.h>
 
 
 static int pseries_get_random_long(unsigned long *v)

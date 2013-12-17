@@ -50,23 +50,21 @@ void aa_free_domain_entries(struct aa_domain *domain)
 
 /**
  * may_change_ptraced_domain - check if can change profile on ptraced task
- * @task: task we want to change profile of   (NOT NULL)
  * @to_profile: profile to change to  (NOT NULL)
  *
- * Check if the task is ptraced and if so if the tracing task is allowed
+ * Check if current is ptraced and if so if the tracing task is allowed
  * to trace the new domain
  *
  * Returns: %0 or error if change not allowed
  */
-static int may_change_ptraced_domain(struct task_struct *task,
-				     struct aa_profile *to_profile)
+static int may_change_ptraced_domain(struct aa_profile *to_profile)
 {
 	struct task_struct *tracer;
 	struct aa_profile *tracerp = NULL;
 	int error = 0;
 
 	rcu_read_lock();
-	tracer = ptrace_parent(task);
+	tracer = ptrace_parent(current);
 	if (tracer)
 		/* released below */
 		tracerp = aa_get_task_profile(tracer);
@@ -75,7 +73,7 @@ static int may_change_ptraced_domain(struct task_struct *task,
 	if (!tracer || unconfined(tracerp))
 		goto out;
 
-	error = aa_may_ptrace(tracer, tracerp, to_profile, PTRACE_MODE_ATTACH);
+	error = aa_may_ptrace(tracerp, to_profile, PTRACE_MODE_ATTACH);
 
 out:
 	rcu_read_unlock();
@@ -477,7 +475,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	}
 
 	if (bprm->unsafe & (LSM_UNSAFE_PTRACE | LSM_UNSAFE_PTRACE_CAP)) {
-		error = may_change_ptraced_domain(current, new_profile);
+		error = may_change_ptraced_domain(new_profile);
 		if (error) {
 			aa_put_profile(new_profile);
 			goto audit;
@@ -690,7 +688,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, bool permtest)
 			}
 		}
 
-		error = may_change_ptraced_domain(current, hat);
+		error = may_change_ptraced_domain(hat);
 		if (error) {
 			info = "ptraced";
 			error = -EPERM;
@@ -829,7 +827,7 @@ int aa_change_profile(const char *ns_name, const char *hname, bool onexec,
 	}
 
 	/* check if tracing task is allowed to trace target domain */
-	error = may_change_ptraced_domain(current, target);
+	error = may_change_ptraced_domain(target);
 	if (error) {
 		info = "ptrace prevents transition";
 		goto audit;

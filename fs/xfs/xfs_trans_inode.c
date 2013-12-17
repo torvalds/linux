@@ -111,12 +111,14 @@ xfs_trans_log_inode(
 
 	/*
 	 * First time we log the inode in a transaction, bump the inode change
-	 * counter if it is configured for this to occur.
+	 * counter if it is configured for this to occur. We don't use
+	 * inode_inc_version() because there is no need for extra locking around
+	 * i_version as we already hold the inode locked exclusively for
+	 * metadata modification.
 	 */
 	if (!(ip->i_itemp->ili_item.li_desc->lid_flags & XFS_LID_DIRTY) &&
 	    IS_I_VERSION(VFS_I(ip))) {
-		inode_inc_iversion(VFS_I(ip));
-		ip->i_d.di_changecount = VFS_I(ip)->i_version;
+		ip->i_d.di_changecount = ++VFS_I(ip)->i_version;
 		flags |= XFS_ILOG_CORE;
 	}
 

@@ -7,15 +7,15 @@
  * from spc4r17 section 6.4.2 Table 135
  */
 #define TPGS_NO_ALUA				0x00
-#define TPGS_IMPLICT_ALUA			0x10
-#define TPGS_EXPLICT_ALUA			0x20
+#define TPGS_IMPLICIT_ALUA			0x10
+#define TPGS_EXPLICIT_ALUA			0x20
 
 /*
  * ASYMMETRIC ACCESS STATE field
  *
  * from spc4r17 section 6.27 Table 245
  */
-#define ALUA_ACCESS_STATE_ACTIVE_OPTMIZED	0x0
+#define ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED	0x0
 #define ALUA_ACCESS_STATE_ACTIVE_NON_OPTIMIZED	0x1
 #define ALUA_ACCESS_STATE_STANDBY		0x2
 #define ALUA_ACCESS_STATE_UNAVAILABLE		0x3
@@ -23,13 +23,24 @@
 #define ALUA_ACCESS_STATE_TRANSITION		0xf
 
 /*
+ * from spc4r36j section 6.37 Table 306
+ */
+#define ALUA_T_SUP		0x80
+#define ALUA_O_SUP		0x40
+#define ALUA_LBD_SUP		0x10
+#define ALUA_U_SUP		0x08
+#define ALUA_S_SUP		0x04
+#define ALUA_AN_SUP		0x02
+#define ALUA_AO_SUP		0x01
+
+/*
  * REPORT_TARGET_PORT_GROUP STATUS CODE
  *
  * from spc4r17 section 6.27 Table 246
  */
 #define ALUA_STATUS_NONE				0x00
-#define ALUA_STATUS_ALTERED_BY_EXPLICT_STPG		0x01
-#define ALUA_STATUS_ALTERED_BY_IMPLICT_ALUA		0x02
+#define ALUA_STATUS_ALTERED_BY_EXPLICIT_STPG		0x01
+#define ALUA_STATUS_ALTERED_BY_IMPLICIT_ALUA		0x02
 
 /*
  * From spc4r17, Table D.1: ASC and ASCQ Assignement
@@ -46,17 +57,17 @@
 #define ALUA_DEFAULT_NONOP_DELAY_MSECS			100
 #define ALUA_MAX_NONOP_DELAY_MSECS			10000 /* 10 seconds */
 /*
- * Used for implict and explict ALUA transitional delay, that is disabled
+ * Used for implicit and explicit ALUA transitional delay, that is disabled
  * by default, and is intended to be used for debugging client side ALUA code.
  */
 #define ALUA_DEFAULT_TRANS_DELAY_MSECS			0
 #define ALUA_MAX_TRANS_DELAY_MSECS			30000 /* 30 seconds */
 /*
- * Used for the recommended application client implict transition timeout
+ * Used for the recommended application client implicit transition timeout
  * in seconds, returned by the REPORT_TARGET_PORT_GROUPS w/ extended header.
  */
-#define ALUA_DEFAULT_IMPLICT_TRANS_SECS			0
-#define ALUA_MAX_IMPLICT_TRANS_SECS			255
+#define ALUA_DEFAULT_IMPLICIT_TRANS_SECS			0
+#define ALUA_MAX_IMPLICIT_TRANS_SECS			255
 /*
  * Used by core_alua_update_tpg_primary_metadata() and
  * core_alua_update_tpg_secondary_metadata()
@@ -113,9 +124,9 @@ extern ssize_t core_alua_show_trans_delay_msecs(struct t10_alua_tg_pt_gp *,
 					char *);
 extern ssize_t core_alua_store_trans_delay_msecs(struct t10_alua_tg_pt_gp *,
 					const char *, size_t);
-extern ssize_t core_alua_show_implict_trans_secs(struct t10_alua_tg_pt_gp *,
+extern ssize_t core_alua_show_implicit_trans_secs(struct t10_alua_tg_pt_gp *,
 					char *);
-extern ssize_t core_alua_store_implict_trans_secs(struct t10_alua_tg_pt_gp *,
+extern ssize_t core_alua_store_implicit_trans_secs(struct t10_alua_tg_pt_gp *,
 					const char *, size_t);
 extern ssize_t core_alua_show_preferred_bit(struct t10_alua_tg_pt_gp *,
 					char *);

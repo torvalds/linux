@@ -128,7 +128,7 @@ static const struct nla_policy nft_rule_compat_policy[NFTA_RULE_COMPAT_MAX + 1] 
 	[NFTA_RULE_COMPAT_FLAGS]	= { .type = NLA_U32 },
 };
 
-static u8 nft_parse_compat(const struct nlattr *attr, bool *inv)
+static int nft_parse_compat(const struct nlattr *attr, u8 *proto, bool *inv)
 {
 	struct nlattr *tb[NFTA_RULE_COMPAT_MAX+1];
 	u32 flags;
@@ -148,7 +148,8 @@ static u8 nft_parse_compat(const struct nlattr *attr, bool *inv)
 	if (flags & NFT_RULE_COMPAT_F_INV)
 		*inv = true;
 
-	return ntohl(nla_get_be32(tb[NFTA_RULE_COMPAT_PROTO]));
+	*proto = ntohl(nla_get_be32(tb[NFTA_RULE_COMPAT_PROTO]));
+	return 0;
 }
 
 static int
@@ -166,8 +167,11 @@ nft_target_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 
 	target_compat_from_user(target, nla_data(tb[NFTA_TARGET_INFO]), info);
 
-	if (ctx->nla[NFTA_RULE_COMPAT])
-		proto = nft_parse_compat(ctx->nla[NFTA_RULE_COMPAT], &inv);
+	if (ctx->nla[NFTA_RULE_COMPAT]) {
+		ret = nft_parse_compat(ctx->nla[NFTA_RULE_COMPAT], &proto, &inv);
+		if (ret < 0)
+			goto err;
+	}
 
 	nft_target_set_tgchk_param(&par, ctx, target, info, &e, proto, inv);
 
@@ -356,8 +360,11 @@ nft_match_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 
 	match_compat_from_user(match, nla_data(tb[NFTA_MATCH_INFO]), info);
 
-	if (ctx->nla[NFTA_RULE_COMPAT])
-		proto = nft_parse_compat(ctx->nla[NFTA_RULE_COMPAT], &inv);
+	if (ctx->nla[NFTA_RULE_COMPAT]) {
+		ret = nft_parse_compat(ctx->nla[NFTA_RULE_COMPAT], &proto, &inv);
+		if (ret < 0)
+			goto err;
+	}
 
 	nft_match_set_mtchk_param(&par, ctx, match, info, &e, proto, inv);
 

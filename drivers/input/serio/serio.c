@@ -455,20 +455,12 @@ static DEVICE_ATTR_RO(type);
 static DEVICE_ATTR_RO(proto);
 static DEVICE_ATTR_RO(id);
 static DEVICE_ATTR_RO(extra);
-static DEVICE_ATTR_RO(modalias);
-static DEVICE_ATTR_WO(drvctl);
-static DEVICE_ATTR(description, S_IRUGO, serio_show_description, NULL);
-static DEVICE_ATTR(bind_mode, S_IWUSR | S_IRUGO, serio_show_bind_mode, serio_set_bind_mode);
 
 static struct attribute *serio_device_id_attrs[] = {
 	&dev_attr_type.attr,
 	&dev_attr_proto.attr,
 	&dev_attr_id.attr,
 	&dev_attr_extra.attr,
-	&dev_attr_modalias.attr,
-	&dev_attr_description.attr,
-	&dev_attr_drvctl.attr,
-	&dev_attr_bind_mode.attr,
 	NULL
 };
 
@@ -477,8 +469,26 @@ static struct attribute_group serio_id_attr_group = {
 	.attrs	= serio_device_id_attrs,
 };
 
+static DEVICE_ATTR_RO(modalias);
+static DEVICE_ATTR_WO(drvctl);
+static DEVICE_ATTR(description, S_IRUGO, serio_show_description, NULL);
+static DEVICE_ATTR(bind_mode, S_IWUSR | S_IRUGO, serio_show_bind_mode, serio_set_bind_mode);
+
+static struct attribute *serio_device_attrs[] = {
+	&dev_attr_modalias.attr,
+	&dev_attr_description.attr,
+	&dev_attr_drvctl.attr,
+	&dev_attr_bind_mode.attr,
+	NULL
+};
+
+static struct attribute_group serio_device_attr_group = {
+	.attrs	= serio_device_attrs,
+};
+
 static const struct attribute_group *serio_device_attr_groups[] = {
 	&serio_id_attr_group,
+	&serio_device_attr_group,
 	NULL
 };
 

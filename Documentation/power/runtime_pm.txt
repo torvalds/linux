@@ -547,13 +547,11 @@ helper functions described in Section 4.  In that case, pm_runtime_resume()
 should be used.  Of course, for this purpose the device's runtime PM has to be
 enabled earlier by calling pm_runtime_enable().
 
-If the device bus type's or driver's ->probe() callback runs
-pm_runtime_suspend() or pm_runtime_idle() or their asynchronous counterparts,
-they will fail returning -EAGAIN, because the device's usage counter is
-incremented by the driver core before executing ->probe().  Still, it may be
-desirable to suspend the device as soon as ->probe() has finished, so the driver
-core uses pm_runtime_put_sync() to invoke the subsystem-level idle callback for
-the device at that time.
+It may be desirable to suspend the device once ->probe() has finished.
+Therefore the driver core uses the asyncronous pm_request_idle() to submit a
+request to execute the subsystem-level idle callback for the device at that
+time.  A driver that makes use of the runtime autosuspend feature, may want to
+update the last busy mark before returning from ->probe().
 
 Moreover, the driver core prevents runtime PM callbacks from racing with the bus
 notifier callback in __device_release_driver(), which is necessary, because the
@@ -656,7 +654,7 @@ out the following operations:
     __pm_runtime_disable() with 'false' as the second argument for every device
     right before executing the subsystem-level .suspend_late() callback for it.
 
-  * During system resume it calls pm_runtime_enable() and pm_runtime_put_sync()
+  * During system resume it calls pm_runtime_enable() and pm_runtime_put()
     for every device right after executing the subsystem-level .resume_early()
     callback and right after executing the subsystem-level .resume() callback
     for it, respectively.

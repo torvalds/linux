@@ -975,10 +975,8 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 	u32 hci_result;
 
 	dev->hotkey_dev = input_allocate_device();
-	if (!dev->hotkey_dev) {
-		pr_info("Unable to register input device\n");
+	if (!dev->hotkey_dev)
 		return -ENOMEM;
-	}
 
 	dev->hotkey_dev->name = "Toshiba input device";
 	dev->hotkey_dev->phys = "toshiba_acpi/input0";

@@ -610,7 +610,6 @@ int __init wimax_subsys_init(void)
 	d_fnend(4, NULL, "() = 0\n");
 	return 0;
 
-	genl_unregister_family(&wimax_gnl_family);
 error_register_family:
 	d_fnend(4, NULL, "() = %d\n", result);
 	return result;

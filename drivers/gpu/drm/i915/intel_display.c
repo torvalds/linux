@@ -5815,7 +5815,7 @@ static void intel_set_pipe_csc(struct drm_crtc *crtc)
 		uint16_t postoff = 0;
 
 		if (intel_crtc->config.limited_color_range)
-			postoff = (16 * (1 << 13) / 255) & 0x1fff;
+			postoff = (16 * (1 << 12) / 255) & 0x1fff;
 
 		I915_WRITE(PIPE_CSC_POSTOFF_HI(pipe), postoff);
 		I915_WRITE(PIPE_CSC_POSTOFF_ME(pipe), postoff);
@@ -6402,7 +6402,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 
 	/* Make sure we're not on PC8 state before disabling PC8, otherwise
 	 * we'll hang the machine! */
-	dev_priv->uncore.funcs.force_wake_get(dev_priv);
+	gen6_gt_force_wake_get(dev_priv);
 
 	if (val & LCPLL_POWER_DOWN_ALLOW) {
 		val &= ~LCPLL_POWER_DOWN_ALLOW;
@@ -6436,7 +6436,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 			DRM_ERROR("Switching back to LCPLL failed\n");
 	}
 
-	dev_priv->uncore.funcs.force_wake_put(dev_priv);
+	gen6_gt_force_wake_put(dev_priv);
 }
 
 void hsw_enable_pc8_work(struct work_struct *__work)
@@ -6518,6 +6518,9 @@ static void __hsw_disable_package_c8(struct drm_i915_private *dev_priv)
 
 void hsw_enable_package_c8(struct drm_i915_private *dev_priv)
 {
+	if (!HAS_PC8(dev_priv->dev))
+		return;
+
 	mutex_lock(&dev_priv->pc8.lock);
 	__hsw_enable_package_c8(dev_priv);
 	mutex_unlock(&dev_priv->pc8.lock);
@@ -6525,6 +6528,9 @@ void hsw_enable_package_c8(struct drm_i915_private *dev_priv)
 
 void hsw_disable_package_c8(struct drm_i915_private *dev_priv)
 {
+	if (!HAS_PC8(dev_priv->dev))
+		return;
+
 	mutex_lock(&dev_priv->pc8.lock);
 	__hsw_disable_package_c8(dev_priv);
 	mutex_unlock(&dev_priv->pc8.lock);
@@ -6562,6 +6568,9 @@ static void hsw_update_package_c8(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool allow;
 
+	if (!HAS_PC8(dev_priv->dev))
+		return;
+
 	if (!i915_enable_pc8)
 		return;
 
@@ -6585,18 +6594,28 @@ done:
 
 static void hsw_package_c8_gpu_idle(struct drm_i915_private *dev_priv)
 {
+	if (!HAS_PC8(dev_priv->dev))
+		return;
+
+	mutex_lock(&dev_priv->pc8.lock);
 	if (!dev_priv->pc8.gpu_idle) {
 		dev_priv->pc8.gpu_idle = true;
-		hsw_enable_package_c8(dev_priv);
+		__hsw_enable_package_c8(dev_priv);
 	}
+	mutex_unlock(&dev_priv->pc8.lock);
 }
 
 static void hsw_package_c8_gpu_busy(struct drm_i915_private *dev_priv)
 {
+	if (!HAS_PC8(dev_priv->dev))
+		return;
+
+	mutex_lock(&dev_priv->pc8.lock);
 	if (dev_priv->pc8.gpu_idle) {
 		dev_priv->pc8.gpu_idle = false;
-		hsw_disable_package_c8(dev_priv);
+		__hsw_disable_package_c8(dev_priv);
 	}
+	mutex_unlock(&dev_priv->pc8.lock);
 }
 
 #define for_each_power_domain(domain, mask)				\
@@ -7184,7 +7203,9 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
 		intel_crtc->cursor_visible = visible;
 	}
 	/* and commit changes on next vblank */
+	POSTING_READ(CURCNTR(pipe));
 	I915_WRITE(CURBASE(pipe), base);
+	POSTING_READ(CURBASE(pipe));
 }
 
 static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
@@ -7213,7 +7234,9 @@ static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
 		intel_crtc->cursor_visible = visible;
 	}
 	/* and commit changes on next vblank */
+	POSTING_READ(CURCNTR_IVB(pipe));
 	I915_WRITE(CURBASE_IVB(pipe), base);
+	POSTING_READ(CURBASE_IVB(pipe));
 }
 
 /* If no-part of the cursor is visible on the framebuffer, then the GPU may hang... */
@@ -8331,7 +8354,8 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 		intel_ring_emit(ring, ~(DERRMR_PIPEA_PRI_FLIP_DONE |
 					DERRMR_PIPEB_PRI_FLIP_DONE |
 					DERRMR_PIPEC_PRI_FLIP_DONE));
-		intel_ring_emit(ring, MI_STORE_REGISTER_MEM(1));
+		intel_ring_emit(ring, MI_STORE_REGISTER_MEM(1) |
+				MI_SRM_LRM_GLOBAL_GTT);
 		intel_ring_emit(ring, DERRMR);
 		intel_ring_emit(ring, ring->scratch.gtt_offset + 256);
 	}
@@ -9248,8 +9272,7 @@ check_crtc_state(struct drm_device *dev)
 			enum pipe pipe;
 			if (encoder->base.crtc != &crtc->base)
 				continue;
-			if (encoder->get_config &&
-			    encoder->get_hw_state(encoder, &pipe))
+			if (encoder->get_hw_state(encoder, &pipe))
 				encoder->get_config(encoder, &pipe_config);
 		}
 
@@ -10027,7 +10050,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 			intel_ddi_init(dev, PORT_D);
 	} else if (HAS_PCH_SPLIT(dev)) {
 		int found;
-		dpd_is_edp = intel_dpd_is_edp(dev);
+		dpd_is_edp = intel_dp_is_edp(dev, PORT_D);
 
 		if (has_edp_a(dev))
 			intel_dp_init(dev, DP_A, PORT_A);
@@ -10064,8 +10087,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 			intel_hdmi_init(dev, VLV_DISPLAY_BASE + GEN4_HDMIC,
 					PORT_C);
 			if (I915_READ(VLV_DISPLAY_BASE + DP_C) & DP_DETECTED)
-				intel_dp_init(dev, VLV_DISPLAY_BASE + DP_C,
-					      PORT_C);
+				intel_dp_init(dev, VLV_DISPLAY_BASE + DP_C, PORT_C);
 		}
 
 		intel_dsi_init(dev);
@@ -10909,8 +10931,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		if (encoder->get_hw_state(encoder, &pipe)) {
 			crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 			encoder->base.crtc = &crtc->base;
-			if (encoder->get_config)
-				encoder->get_config(encoder, &crtc->config);
+			encoder->get_config(encoder, &crtc->config);
 		} else {
 			encoder->base.crtc = NULL;
 		}

@@ -43,6 +43,7 @@ config GP2AP020A00F
 	depends on I2C
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
+	select IRQ_WORK
 	help
 	  Say Y here if you have a Sharp GP2AP020A00F proximity/ALS combo-chip
 	  hooked to an I2C bus.
@@ -81,6 +82,8 @@ config SENSORS_LM3533
 config TCS3472
 	tristate "TAOS TCS3472 color light-to-digital converter"
 	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	 If you say yes here you get support for the TAOS TCS3472
 	 family of color light-to-digital converters with IR filter.

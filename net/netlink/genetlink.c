@@ -74,9 +74,12 @@ static struct list_head family_ht[GENL_FAM_TAB_SIZE];
  * Bit 17 is marked as already used since the VFS quota code
  * also abused this API and relied on family == group ID, we
  * cater to that by giving it a static family and group ID.
+ * Bit 18 is marked as already used since the PMCRAID driver
+ * did the same thing as the VFS quota code (maybe copied?)
  */
 static unsigned long mc_group_start = 0x3 | BIT(GENL_ID_CTRL) |
-				      BIT(GENL_ID_VFS_DQUOT);
+				      BIT(GENL_ID_VFS_DQUOT) |
+				      BIT(GENL_ID_PMCRAID);
 static unsigned long *mc_groups = &mc_group_start;
 static unsigned long mc_groups_longs = 1;
 
@@ -139,6 +142,7 @@ static u16 genl_generate_id(void)
 
 	for (i = 0; i <= GENL_MAX_ID - GENL_MIN_ID; i++) {
 		if (id_gen_idx != GENL_ID_VFS_DQUOT &&
+		    id_gen_idx != GENL_ID_PMCRAID &&
 		    !genl_family_find_byid(id_gen_idx))
 			return id_gen_idx;
 		if (++id_gen_idx > GENL_MAX_ID)
@@ -214,7 +218,7 @@ static int genl_validate_assign_mc_groups(struct genl_family *family)
 {
 	int first_id;
 	int n_groups = family->n_mcgrps;
-	int err, i;
+	int err = 0, i;
 	bool groups_allocated = false;
 
 	if (!n_groups)
@@ -236,8 +240,11 @@ static int genl_validate_assign_mc_groups(struct genl_family *family)
 	} else if (strcmp(family->name, "NET_DM") == 0) {
 		first_id = 1;
 		BUG_ON(n_groups != 1);
-	} else if (strcmp(family->name, "VFS_DQUOT") == 0) {
+	} else if (family->id == GENL_ID_VFS_DQUOT) {
 		first_id = GENL_ID_VFS_DQUOT;
+		BUG_ON(n_groups != 1);
+	} else if (family->id == GENL_ID_PMCRAID) {
+		first_id = GENL_ID_PMCRAID;
 		BUG_ON(n_groups != 1);
 	} else {
 		groups_allocated = true;
@@ -1045,7 +1052,7 @@ static int genlmsg_mcast(struct sk_buff *skb, u32 portid, unsigned long group,
 int genlmsg_multicast_allns(struct genl_family *family, struct sk_buff *skb,
 			    u32 portid, unsigned int group, gfp_t flags)
 {
-	if (group >= family->n_mcgrps)
+	if (WARN_ON_ONCE(group >= family->n_mcgrps))
 		return -EINVAL;
 	group = family->mcgrp_offset + group;
 	return genlmsg_mcast(skb, portid, group, flags);
@@ -1062,7 +1069,7 @@ void genl_notify(struct genl_family *family,
 	if (nlh)
 		report = nlmsg_report(nlh);
 
-	if (group >= family->n_mcgrps)
+	if (WARN_ON_ONCE(group >= family->n_mcgrps))
 		return;
 	group = family->mcgrp_offset + group;
 	nlmsg_notify(sk, skb, portid, group, report, flags);

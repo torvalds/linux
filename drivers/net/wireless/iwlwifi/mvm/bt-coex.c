@@ -391,7 +391,6 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 					    BT_VALID_LUT |
 					    BT_VALID_WIFI_RX_SW_PRIO_BOOST |
 					    BT_VALID_WIFI_TX_SW_PRIO_BOOST |
-					    BT_VALID_MULTI_PRIO_LUT |
 					    BT_VALID_CORUN_LUT_20 |
 					    BT_VALID_CORUN_LUT_40 |
 					    BT_VALID_ANT_ISOLATION |
@@ -842,6 +841,11 @@ static void iwl_mvm_bt_rssi_iterator(void *_data, u8 *mac,
 
 	sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[mvmvif->ap_sta_id],
 					lockdep_is_held(&mvm->mutex));
+
+	/* This can happen if the station has been removed right now */
+	if (IS_ERR_OR_NULL(sta))
+		return;
+
 	mvmsta = (void *)sta->drv_priv;
 
 	data->num_bss_ifaces++;

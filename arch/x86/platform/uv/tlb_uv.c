@@ -1070,11 +1070,12 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 	unsigned long status;
 
 	bcp = &per_cpu(bau_control, cpu);
-	stat = bcp->statp;
-	stat->s_enters++;
 
 	if (bcp->nobau)
 		return cpumask;
+
+	stat = bcp->statp;
+	stat->s_enters++;
 
 	if (bcp->busy) {
 		descriptor_status =
