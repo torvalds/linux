@@ -637,9 +637,17 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	if (IS_ERR(vaddr))
 		return PTR_ERR(vaddr);
 
-	base = devm_ioremap_resource(&pdev->dev, res2);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	/*
+	 * This registers range is used to setup NAND settings. In case with
+	 * TI AEMIF driver, the same memory address range is requested already
+	 * by AEMIF, so we cannot request it twice, just ioremap.
+	 * The AEMIF and NAND drivers not use the same registers in this range.
+	 */
+	base = devm_ioremap(&pdev->dev, res2->start, resource_size(res2));
+	if (!base) {
+		dev_err(&pdev->dev, "ioremap failed for resource %pR\n", res2);
+		return -EADDRNOTAVAIL;
+	}
 
 	info->dev		= &pdev->dev;
 	info->base		= base;
