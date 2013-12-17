@@ -90,10 +90,6 @@ static unsigned int ec_storm_threshold  __read_mostly = 8;
 module_param(ec_storm_threshold, uint, 0644);
 MODULE_PARM_DESC(ec_storm_threshold, "Maxim false GPE numbers not considered as GPE storm");
 
-/* If we find an EC via the ECDT, we need to keep a ptr to its context */
-/* External interfaces use first EC only, so remember */
-typedef int (*acpi_ec_query_func) (void *data);
-
 struct acpi_ec_query_handler {
 	struct list_head node;
 	acpi_ec_query_func func;
@@ -385,27 +381,6 @@ static int acpi_ec_write(struct acpi_ec *ec, u8 address, u8 data)
 
 	return acpi_ec_transaction(ec, &t);
 }
-
-/*
- * Externally callable EC access functions. For now, assume 1 EC only
- */
-int ec_burst_enable(void)
-{
-	if (!first_ec)
-		return -ENODEV;
-	return acpi_ec_burst_enable(first_ec);
-}
-
-EXPORT_SYMBOL(ec_burst_enable);
-
-int ec_burst_disable(void)
-{
-	if (!first_ec)
-		return -ENODEV;
-	return acpi_ec_burst_disable(first_ec);
-}
-
-EXPORT_SYMBOL(ec_burst_disable);
 
 int ec_read(u8 addr, u8 *val)
 {

@@ -127,12 +127,21 @@ struct acpi_ec {
 
 extern struct acpi_ec *first_ec;
 
+/* If we find an EC via the ECDT, we need to keep a ptr to its context */
+/* External interfaces use first EC only, so remember */
+typedef int (*acpi_ec_query_func) (void *data);
+
 int acpi_ec_init(void);
 int acpi_ec_ecdt_probe(void);
 int acpi_boot_ec_enable(void);
 void acpi_ec_block_transactions(void);
 void acpi_ec_unblock_transactions(void);
 void acpi_ec_unblock_transactions_early(void);
+int acpi_ec_add_query_handler(struct acpi_ec *ec, u8 query_bit,
+			      acpi_handle handle, acpi_ec_query_func func,
+			      void *data);
+void acpi_ec_remove_query_handler(struct acpi_ec *ec, u8 query_bit);
+
 
 /*--------------------------------------------------------------------------
                                   Suspend/Resume
