@@ -881,31 +881,29 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 
 	if (s5m8767->buck2_ramp || s5m8767->buck3_ramp
 		|| s5m8767->buck4_ramp) {
+		unsigned int val;
 		switch (s5m8767->ramp_delay) {
 		case 5:
-			sec_reg_update(s5m8767->iodev, S5M8767_REG_DVSRAMP,
-					0x40, 0xf0);
+			val = S5M8767_DVS_BUCK_RAMP_5;
 			break;
 		case 10:
-			sec_reg_update(s5m8767->iodev, S5M8767_REG_DVSRAMP,
-					0x90, 0xf0);
+			val = S5M8767_DVS_BUCK_RAMP_10;
 			break;
 		case 25:
-			sec_reg_update(s5m8767->iodev, S5M8767_REG_DVSRAMP,
-					0xd0, 0xf0);
+			val = S5M8767_DVS_BUCK_RAMP_25;
 			break;
 		case 50:
-			sec_reg_update(s5m8767->iodev, S5M8767_REG_DVSRAMP,
-					0xe0, 0xf0);
+			val = S5M8767_DVS_BUCK_RAMP_50;
 			break;
 		case 100:
-			sec_reg_update(s5m8767->iodev, S5M8767_REG_DVSRAMP,
-					0xf0, 0xf0);
+			val = S5M8767_DVS_BUCK_RAMP_100;
 			break;
 		default:
-			sec_reg_update(s5m8767->iodev, S5M8767_REG_DVSRAMP,
-					0x90, 0xf0);
+			val = S5M8767_DVS_BUCK_RAMP_10;
 		}
+		sec_reg_update(s5m8767->iodev, S5M8767_REG_DVSRAMP,
+					val << S5M8767_DVS_BUCK_RAMP_SHIFT,
+					S5M8767_DVS_BUCK_RAMP_MASK);
 	}
 
 	for (i = 0; i < pdata->num_regulators; i++) {
