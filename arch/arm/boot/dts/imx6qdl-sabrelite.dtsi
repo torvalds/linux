@@ -114,7 +114,8 @@
 	imx6q-sabrelite {
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
-				MX6QDL_PAD_GPIO_0__CCM_CLKO1    0x80000000
+				/* SGTL5000 sys_mclk */
+				MX6QDL_PAD_GPIO_0__CCM_CLKO1    0x030b0
 			>;
 		};
 
