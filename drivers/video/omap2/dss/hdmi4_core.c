@@ -1006,7 +1006,7 @@ int hdmi4_core_init(struct platform_device *pdev, struct hdmi_core_data *core)
 	struct resource *res;
 	struct resource temp_res;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hdmi_core");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "core");
 	if (!res) {
 		DSSDBG("can't get CORE mem resource by name\n");
 		/*

@@ -243,7 +243,7 @@ int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp)
 	struct resource *res;
 	struct resource temp_res;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hdmi_wp");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "wp");
 	if (!res) {
 		DSSDBG("can't get WP mem resource by name\n");
 		/*

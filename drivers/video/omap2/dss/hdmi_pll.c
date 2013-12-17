@@ -202,7 +202,7 @@ int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll)
 	struct resource *res;
 	struct resource temp_res;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hdmi_pllctrl");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pll");
 	if (!res) {
 		DSSDBG("can't get PLL mem resource by name\n");
 		/*
