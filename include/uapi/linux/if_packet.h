@@ -133,7 +133,7 @@ struct tpacket2_hdr {
 	__u32		tp_sec;
 	__u32		tp_nsec;
 	__u16		tp_vlan_tci;
-	__u16		tp_padding;
+	__u8		tp_padding[6];
 };
 
 struct tpacket_hdr_variant1 {
@@ -154,6 +154,7 @@ struct tpacket3_hdr {
 	union {
 		struct tpacket_hdr_variant1 hv1;
 	};
+	__u8		tp_padding[12];
 };
 
 struct tpacket_bd_ts {

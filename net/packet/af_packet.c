@@ -1929,7 +1929,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		} else {
 			h.h2->tp_vlan_tci = 0;
 		}
-		h.h2->tp_padding = 0;
+		memset(h.h2->tp_padding, 0, sizeof(h.h2->tp_padding));
 		hdrlen = sizeof(*h.h2);
 		break;
 	case TPACKET_V3:
@@ -1943,6 +1943,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		h.h3->tp_net = netoff;
 		h.h3->tp_sec  = ts.tv_sec;
 		h.h3->tp_nsec = ts.tv_nsec;
+		memset(h.h3->tp_padding, 0, sizeof(h.h3->tp_padding));
 		hdrlen = sizeof(*h.h3);
 		break;
 	default:
