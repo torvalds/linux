@@ -298,6 +298,13 @@ static inline bool lowpan_fetch_skb(struct sk_buff *skb,
 	return false;
 }
 
+static inline void lowpan_push_hc_data(u8 **hc_ptr, const void *data,
+				       const size_t len)
+{
+	memcpy(*hc_ptr, data, len);
+	*hc_ptr += len;
+}
+
 typedef int (*skb_delivery_cb)(struct sk_buff *skb, struct net_device *dev);
 
 int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
