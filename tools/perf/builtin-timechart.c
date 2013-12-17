@@ -841,7 +841,6 @@ static void draw_cpu_usage(struct timechart *tchart)
 						    sample->start_time,
 						    sample->end_time,
 						    p->pid,
-						    "sample",
 						    c->comm,
 						    sample->backtrace);
 				}
@@ -1252,6 +1251,23 @@ parse_process(const struct option *opt __maybe_unused, const char *arg,
 	return 0;
 }
 
+static int
+parse_highlight(const struct option *opt __maybe_unused, const char *arg,
+		int __maybe_unused unset)
+{
+	unsigned long duration = strtoul(arg, NULL, 0);
+
+	if (svg_highlight || svg_highlight_name)
+		return -1;
+
+	if (duration)
+		svg_highlight = duration;
+	else
+		svg_highlight_name = strdup(arg);
+
+	return 0;
+}
+
 int cmd_timechart(int argc, const char **argv,
 		  const char *prefix __maybe_unused)
 {
@@ -1270,6 +1286,9 @@ int cmd_timechart(int argc, const char **argv,
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
 	OPT_STRING('o', "output", &output_name, "file", "output file name"),
 	OPT_INTEGER('w', "width", &svg_page_width, "page width"),
+	OPT_CALLBACK(0, "highlight", NULL, "duration or task name",
+		      "highlight tasks. Pass duration in ns or process name.",
+		       parse_highlight),
 	OPT_BOOLEAN('P', "power-only", &tchart.power_only, "output power data only"),
 	OPT_BOOLEAN('T', "tasks-only", &tchart.tasks_only,
 		    "output processes data only"),
