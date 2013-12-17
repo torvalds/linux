@@ -112,7 +112,7 @@
 /* Queue Algorithm Modifier default for restricted reordering in control mode page */
 #define DA_EMULATE_REST_REORD			0
 
-#define SE_INQUIRY_BUF				512
+#define SE_INQUIRY_BUF				768
 #define SE_MODE_PAGE_BUF			512
 #define SE_SENSE_BUF				96
 
