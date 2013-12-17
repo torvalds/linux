@@ -1043,10 +1043,7 @@ static int xenvif_set_skb_gso(struct xenvif *vif,
 	}
 
 	skb_shinfo(skb)->gso_size = gso->u.gso.size;
-
-	/* Header must be checked, and gso_segs computed. */
-	skb_shinfo(skb)->gso_type |= SKB_GSO_DODGY;
-	skb_shinfo(skb)->gso_segs = 0;
+	/* gso_segs will be calculated later */
 
 	return 0;
 }
@@ -1580,6 +1577,20 @@ static int xenvif_tx_submit(struct xenvif *vif)
 		}
 
 		skb_probe_transport_header(skb, 0);
+
+		/* If the packet is GSO then we will have just set up the
+		 * transport header offset in checksum_setup so it's now
+		 * straightforward to calculate gso_segs.
+		 */
+		if (skb_is_gso(skb)) {
+			int mss = skb_shinfo(skb)->gso_size;
+			int hdrlen = skb_transport_header(skb) -
+				skb_mac_header(skb) +
+				tcp_hdrlen(skb);
+
+			skb_shinfo(skb)->gso_segs =
+				DIV_ROUND_UP(skb->len - hdrlen, mss);
+		}
 
 		vif->dev->stats.rx_bytes += skb->len;
 		vif->dev->stats.rx_packets++;
