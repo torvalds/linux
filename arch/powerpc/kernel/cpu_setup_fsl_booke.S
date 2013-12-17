@@ -53,6 +53,25 @@ _GLOBAL(__e500_dcache_setup)
 	isync
 	blr
 
+/*
+ * FIXME - we haven't yet done testing to determine a reasonable default
+ * value for AV_WAIT_IDLE_BIT.
+ */
+#define AV_WAIT_IDLE_BIT		50 /* 1ms, TB frequency is 41.66MHZ */
+_GLOBAL(setup_altivec_idle)
+	mfspr	r3, SPRN_PWRMGTCR0
+
+	/* Enable Altivec Idle */
+	oris	r3, r3, PWRMGTCR0_AV_IDLE_PD_EN@h
+	li	r11, AV_WAIT_IDLE_BIT
+
+	/* Set Automatic AltiVec Idle Count */
+	rlwimi	r3, r11, PWRMGTCR0_AV_IDLE_CNT_SHIFT, PWRMGTCR0_AV_IDLE_CNT
+
+	mtspr	SPRN_PWRMGTCR0, r3
+
+	blr
+
 _GLOBAL(__setup_cpu_e6500)
 	mflr	r6
 #ifdef CONFIG_PPC64
@@ -64,6 +83,7 @@ _GLOBAL(__setup_cpu_e6500)
 	bl	.setup_lrat_ivor
 1:
 #endif
+	bl	setup_altivec_idle
 	bl	__setup_cpu_e5500
 	mtlr	r6
 	blr
@@ -131,6 +151,7 @@ _GLOBAL(__restore_cpu_e6500)
 	beq	1f
 	bl	.setup_lrat_ivor
 1:
+	bl	.setup_altivec_idle
 	bl	__restore_cpu_e5500
 	mtlr	r5
 	blr
