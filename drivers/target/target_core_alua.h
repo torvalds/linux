@@ -13,12 +13,13 @@
 /*
  * ASYMMETRIC ACCESS STATE field
  *
- * from spc4r17 section 6.27 Table 245
+ * from spc4r36j section 6.37 Table 307
  */
 #define ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED	0x0
 #define ALUA_ACCESS_STATE_ACTIVE_NON_OPTIMIZED	0x1
 #define ALUA_ACCESS_STATE_STANDBY		0x2
 #define ALUA_ACCESS_STATE_UNAVAILABLE		0x3
+#define ALUA_ACCESS_STATE_LBA_DEPENDENT		0x4
 #define ALUA_ACCESS_STATE_OFFLINE		0xe
 #define ALUA_ACCESS_STATE_TRANSITION		0xf
 
@@ -88,6 +89,7 @@ extern struct kmem_cache *t10_alua_tg_pt_gp_mem_cache;
 
 extern sense_reason_t target_emulate_report_target_port_groups(struct se_cmd *);
 extern sense_reason_t target_emulate_set_target_port_groups(struct se_cmd *);
+extern sense_reason_t target_emulate_report_referrals(struct se_cmd *);
 extern int core_alua_check_nonop_delay(struct se_cmd *);
 extern int core_alua_do_port_transition(struct t10_alua_tg_pt_gp *,
 				struct se_device *, struct se_port *,

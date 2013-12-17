@@ -58,6 +58,75 @@ static LIST_HEAD(lu_gps_list);
 struct t10_alua_lu_gp *default_lu_gp;
 
 /*
+ * REPORT REFERRALS
+ *
+ * See sbc3r35 section 5.23
+ */
+sense_reason_t
+target_emulate_report_referrals(struct se_cmd *cmd)
+{
+	struct se_device *dev = cmd->se_dev;
+	struct t10_alua_lba_map *map;
+	struct t10_alua_lba_map_member *map_mem;
+	unsigned char *buf;
+	u32 rd_len = 0, off;
+
+	if (cmd->data_length < 4) {
+		pr_warn("REPORT REFERRALS allocation length %u too"
+			" small\n", cmd->data_length);
+		return TCM_INVALID_CDB_FIELD;
+	}
+
+	buf = transport_kmap_data_sg(cmd);
+	if (!buf)
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+
+	off = 4;
+	spin_lock(&dev->t10_alua.lba_map_lock);
+	if (list_empty(&dev->t10_alua.lba_map_list)) {
+		spin_unlock(&dev->t10_alua.lba_map_lock);
+		transport_kunmap_data_sg(cmd);
+
+		return TCM_UNSUPPORTED_SCSI_OPCODE;
+	}
+
+	list_for_each_entry(map, &dev->t10_alua.lba_map_list,
+			    lba_map_list) {
+		int desc_num = off + 3;
+		int pg_num;
+
+		off += 4;
+		put_unaligned_be64(map->lba_map_first_lba, &buf[off]);
+		off += 8;
+		put_unaligned_be64(map->lba_map_last_lba, &buf[off]);
+		off += 8;
+		rd_len += 20;
+		pg_num = 0;
+		list_for_each_entry(map_mem, &map->lba_map_mem_list,
+				    lba_map_mem_list) {
+			buf[off++] = map_mem->lba_map_mem_alua_state & 0x0f;
+			off++;
+			buf[off++] = (map_mem->lba_map_mem_alua_pg_id >> 8) & 0xff;
+			buf[off++] = (map_mem->lba_map_mem_alua_pg_id & 0xff);
+			rd_len += 4;
+			pg_num++;
+		}
+		buf[desc_num] = pg_num;
+	}
+	spin_unlock(&dev->t10_alua.lba_map_lock);
+
+	/*
+	 * Set the RETURN DATA LENGTH set in the header of the DataIN Payload
+	 */
+	put_unaligned_be16(rd_len, &buf[2]);
+
+	transport_kunmap_data_sg(cmd);
+
+	target_complete_cmd(cmd, GOOD);
+	return 0;
+}
+
+/*
  * REPORT_TARGET_PORT_GROUPS
  *
  * See spc4r17 section 6.27
@@ -391,6 +460,81 @@ static inline int core_alua_state_nonoptimized(
 	return 0;
 }
 
+static inline int core_alua_state_lba_dependent(
+	struct se_cmd *cmd,
+	struct t10_alua_tg_pt_gp *tg_pt_gp,
+	u8 *alua_ascq)
+{
+	struct se_device *dev = cmd->se_dev;
+	u64 segment_size, segment_mult, sectors, lba;
+
+	/* Only need to check for cdb actually containing LBAs */
+	if (!(cmd->se_cmd_flags & SCF_SCSI_DATA_CDB))
+		return 0;
+
+	spin_lock(&dev->t10_alua.lba_map_lock);
+	segment_size = dev->t10_alua.lba_map_segment_size;
+	segment_mult = dev->t10_alua.lba_map_segment_multiplier;
+	sectors = cmd->data_length / dev->dev_attrib.block_size;
+
+	lba = cmd->t_task_lba;
+	while (lba < cmd->t_task_lba + sectors) {
+		struct t10_alua_lba_map *cur_map = NULL, *map;
+		struct t10_alua_lba_map_member *map_mem;
+
+		list_for_each_entry(map, &dev->t10_alua.lba_map_list,
+				    lba_map_list) {
+			u64 start_lba, last_lba;
+			u64 first_lba = map->lba_map_first_lba;
+
+			if (segment_mult) {
+				u64 tmp = lba;
+				start_lba = sector_div(tmp, segment_size * segment_mult);
+
+				last_lba = first_lba + segment_size - 1;
+				if (start_lba >= first_lba &&
+				    start_lba <= last_lba) {
+					lba += segment_size;
+					cur_map = map;
+					break;
+				}
+			} else {
+				last_lba = map->lba_map_last_lba;
+				if (lba >= first_lba && lba <= last_lba) {
+					lba = last_lba + 1;
+					cur_map = map;
+					break;
+				}
+			}
+		}
+		if (!cur_map) {
+			spin_unlock(&dev->t10_alua.lba_map_lock);
+			*alua_ascq = ASCQ_04H_ALUA_TG_PT_UNAVAILABLE;
+			return 1;
+		}
+		list_for_each_entry(map_mem, &cur_map->lba_map_mem_list,
+				    lba_map_mem_list) {
+			if (map_mem->lba_map_mem_alua_pg_id !=
+			    tg_pt_gp->tg_pt_gp_id)
+				continue;
+			switch(map_mem->lba_map_mem_alua_state) {
+			case ALUA_ACCESS_STATE_STANDBY:
+				spin_unlock(&dev->t10_alua.lba_map_lock);
+				*alua_ascq = ASCQ_04H_ALUA_TG_PT_STANDBY;
+				return 1;
+			case ALUA_ACCESS_STATE_UNAVAILABLE:
+				spin_unlock(&dev->t10_alua.lba_map_lock);
+				*alua_ascq = ASCQ_04H_ALUA_TG_PT_UNAVAILABLE;
+				return 1;
+			default:
+				break;
+			}
+		}
+	}
+	spin_unlock(&dev->t10_alua.lba_map_lock);
+	return 0;
+}
+
 static inline int core_alua_state_standby(
 	struct se_cmd *cmd,
 	unsigned char *cdb,
@@ -588,6 +732,9 @@ target_alua_state_check(struct se_cmd *cmd)
 	case ALUA_ACCESS_STATE_TRANSITION:
 		ret = core_alua_state_transition(cmd, cdb, &alua_ascq);
 		break;
+	case ALUA_ACCESS_STATE_LBA_DEPENDENT:
+		ret = core_alua_state_lba_dependent(cmd, tg_pt_gp, &alua_ascq);
+		break;
 	/*
 	 * OFFLINE is a secondary ALUA target port group access state, that is
 	 * handled above with struct se_port->sep_tg_pt_secondary_offline=1
@@ -650,6 +797,11 @@ core_alua_check_transition(int state, int valid, int *primary)
 			goto not_supported;
 		*primary = 1;
 		break;
+	case ALUA_ACCESS_STATE_LBA_DEPENDENT:
+		if (!(valid & ALUA_LBD_SUP))
+			goto not_supported;
+		*primary = 1;
+		break;
 	case ALUA_ACCESS_STATE_OFFLINE:
 		/*
 		 * OFFLINE state is defined as a secondary target port
@@ -685,6 +837,8 @@ static char *core_alua_dump_state(int state)
 		return "Active/Optimized";
 	case ALUA_ACCESS_STATE_ACTIVE_NON_OPTIMIZED:
 		return "Active/NonOptimized";
+	case ALUA_ACCESS_STATE_LBA_DEPENDENT:
+		return "LBA Dependent";
 	case ALUA_ACCESS_STATE_STANDBY:
 		return "Standby";
 	case ALUA_ACCESS_STATE_UNAVAILABLE:

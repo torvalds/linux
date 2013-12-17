@@ -33,7 +33,7 @@
 
 #include "target_core_internal.h"
 #include "target_core_ua.h"
-
+#include "target_core_alua.h"
 
 static sense_reason_t
 sbc_emulate_readcapacity(struct se_cmd *cmd)
@@ -730,6 +730,9 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		switch (cmd->t_task_cdb[1] & 0x1f) {
 		case SAI_READ_CAPACITY_16:
 			cmd->execute_cmd = sbc_emulate_readcapacity_16;
+			break;
+		case SAI_REPORT_REFERRALS:
+			cmd->execute_cmd = target_emulate_report_referrals;
 			break;
 		default:
 			pr_err("Unsupported SA: 0x%02x\n",

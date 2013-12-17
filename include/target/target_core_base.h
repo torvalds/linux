@@ -247,10 +247,28 @@ typedef enum {
 
 struct se_cmd;
 
+struct t10_alua_lba_map_member {
+	struct list_head lba_map_mem_list;
+	int lba_map_mem_alua_state;
+	int lba_map_mem_alua_pg_id;
+};
+
+struct t10_alua_lba_map {
+	u64 lba_map_first_lba;
+	u64 lba_map_last_lba;
+	struct list_head lba_map_list;
+	struct list_head lba_map_mem_list;
+};
+
 struct t10_alua {
 	/* ALUA Target Port Group ID */
 	u16	alua_tg_pt_gps_counter;
 	u32	alua_tg_pt_gps_count;
+	/* Referrals support */
+	spinlock_t lba_map_lock;
+	u32     lba_map_segment_size;
+	u32     lba_map_segment_multiplier;
+	struct list_head lba_map_list;
 	spinlock_t tg_pt_gps_lock;
 	struct se_device *t10_dev;
 	/* Used for default ALUA Target Port Group */

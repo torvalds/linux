@@ -476,6 +476,11 @@ spc_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 	/* If WriteCache emulation is enabled, set V_SUP */
 	if (spc_check_dev_wce(dev))
 		buf[6] = 0x01;
+	/* If an LBA map is present set R_SUP */
+	spin_lock(&cmd->se_dev->t10_alua.lba_map_lock);
+	if (!list_empty(&dev->t10_alua.lba_map_list))
+		buf[8] = 0x10;
+	spin_unlock(&cmd->se_dev->t10_alua.lba_map_lock);
 	return 0;
 }
 
@@ -634,6 +639,20 @@ spc_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 	return 0;
 }
 
+/* Referrals VPD page */
+static sense_reason_t
+spc_emulate_evpd_b3(struct se_cmd *cmd, unsigned char *buf)
+{
+	struct se_device *dev = cmd->se_dev;
+
+	buf[0] = dev->transport->get_device_type(dev);
+	buf[3] = 0x0c;
+	put_unaligned_be32(dev->t10_alua.lba_map_segment_size, &buf[8]);
+	put_unaligned_be32(dev->t10_alua.lba_map_segment_size, &buf[12]);
+
+	return 0;
+}
+
 static sense_reason_t
 spc_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf);
 
@@ -648,6 +667,7 @@ static struct {
 	{ .page = 0xb0, .emulate = spc_emulate_evpd_b0 },
 	{ .page = 0xb1, .emulate = spc_emulate_evpd_b1 },
 	{ .page = 0xb2, .emulate = spc_emulate_evpd_b2 },
+	{ .page = 0xb3, .emulate = spc_emulate_evpd_b3 },
 };
 
 /* supported vital product data pages */

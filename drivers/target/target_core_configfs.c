@@ -2054,6 +2054,13 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_state(
 			" transition while TPGS_IMPLICIT_ALUA is disabled\n");
 		return -EINVAL;
 	}
+	if (tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_EXPLICIT_ALUA &&
+	    new_state == ALUA_ACCESS_STATE_LBA_DEPENDENT) {
+		/* LBA DEPENDENT is only allowed with implicit ALUA */
+		pr_err("Unable to process implicit configfs ALUA transition"
+		       " while explicit ALUA management is enabled\n");
+		return -EINVAL;
+	}
 
 	ret = core_alua_do_port_transition(tg_pt_gp, dev,
 					NULL, NULL, new_state, 0);
@@ -2188,7 +2195,7 @@ SE_DEV_ALUA_SUPPORT_STATE_SHOW(lba_dependent,
 			       tg_pt_gp_alua_supported_states, ALUA_LBD_SUP);
 SE_DEV_ALUA_SUPPORT_STATE_STORE(lba_dependent,
 				tg_pt_gp_alua_supported_states, ALUA_LBD_SUP);
-SE_DEV_ALUA_TG_PT_ATTR(alua_support_lba_dependent, S_IRUGO | S_IWUSR);
+SE_DEV_ALUA_TG_PT_ATTR(alua_support_lba_dependent, S_IRUGO);
 
 SE_DEV_ALUA_SUPPORT_STATE_SHOW(unavailable,
 			       tg_pt_gp_alua_supported_states, ALUA_U_SUP);
