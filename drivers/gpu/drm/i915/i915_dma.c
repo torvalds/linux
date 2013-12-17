@@ -1405,7 +1405,7 @@ void i915_master_destroy(struct drm_device *dev, struct drm_master *master)
 	master->driver_priv = NULL;
 }
 
-#ifdef CONFIG_DRM_I915_FBDEV
+#if IS_ENABLED(CONFIG_FB)
 static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 {
 	struct apertures_struct *ap;
