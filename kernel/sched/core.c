@@ -3384,23 +3384,14 @@ change:
 #ifdef CONFIG_SMP
 		if (dl_bandwidth_enabled() && dl_policy(policy)) {
 			cpumask_t *span = rq->rd->span;
-			cpumask_t act_affinity;
-
-			/*
-			 * cpus_allowed mask is statically initialized with
-			 * CPU_MASK_ALL, span is instead dynamic. Here we
-			 * compute the "dynamic" affinity of a task.
-			 */
-			cpumask_and(&act_affinity, &p->cpus_allowed,
-				    cpu_active_mask);
 
 			/*
 			 * Don't allow tasks with an affinity mask smaller than
 			 * the entire root_domain to become SCHED_DEADLINE. We
 			 * will also fail if there's no bandwidth available.
 			 */
-			if (!cpumask_equal(&act_affinity, span) ||
-					   rq->rd->dl_bw.bw == 0) {
+			if (!cpumask_subset(span, &p->cpus_allowed) ||
+			    rq->rd->dl_bw.bw == 0) {
 				task_rq_unlock(rq, p, &flags);
 				return -EPERM;
 			}
@@ -3420,8 +3411,7 @@ change:
 	 * of a SCHED_DEADLINE task) we need to check if enough bandwidth
 	 * is available.
 	 */
-	if ((dl_policy(policy) || dl_task(p)) &&
-	    dl_overflow(p, policy, attr)) {
+	if ((dl_policy(policy) || dl_task(p)) && dl_overflow(p, policy, attr)) {
 		task_rq_unlock(rq, p, &flags);
 		return -EBUSY;
 	}
@@ -3860,6 +3850,10 @@ long sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
 	if (retval)
 		goto out_unlock;
 
+
+	cpuset_cpus_allowed(p, cpus_allowed);
+	cpumask_and(new_mask, in_mask, cpus_allowed);
+
 	/*
 	 * Since bandwidth control happens on root_domain basis,
 	 * if admission test is enabled, we only admit -deadline
@@ -3870,16 +3864,12 @@ long sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
 	if (task_has_dl_policy(p)) {
 		const struct cpumask *span = task_rq(p)->rd->span;
 
-		if (dl_bandwidth_enabled() &&
-		    !cpumask_equal(in_mask, span)) {
+		if (dl_bandwidth_enabled() && !cpumask_subset(span, new_mask)) {
 			retval = -EBUSY;
 			goto out_unlock;
 		}
 	}
 #endif
-
-	cpuset_cpus_allowed(p, cpus_allowed);
-	cpumask_and(new_mask, in_mask, cpus_allowed);
 again:
 	retval = set_cpus_allowed_ptr(p, new_mask);
 
@@ -4535,7 +4525,7 @@ EXPORT_SYMBOL_GPL(set_cpus_allowed_ptr);
  * When dealing with a -deadline task, we have to check if moving it to
  * a new CPU is possible or not. In fact, this is only true iff there
  * is enough bandwidth available on such CPU, otherwise we want the
- * whole migration progedure to fail over.
+ * whole migration procedure to fail over.
  */
 static inline
 bool set_task_cpu_dl(struct task_struct *p, unsigned int cpu)
