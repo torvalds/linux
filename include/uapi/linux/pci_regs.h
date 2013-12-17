@@ -677,15 +677,15 @@
 #define PCI_ERR_ROOT_ERR_SRC	52	/* Error Source Identification */
 
 /* Virtual Channel */
-#define PCI_VC_PORT_REG1	4
-#define  PCI_VC_REG1_EVCC	0x00000007	/* extended VC count */
-#define  PCI_VC_REG1_LPEVCC	0x00000070	/* low prio extended VC count */
-#define  PCI_VC_REG1_ARB_SIZE	0x00000c00
-#define PCI_VC_PORT_REG2	8
-#define  PCI_VC_REG2_32_PHASE		0x00000002
-#define  PCI_VC_REG2_64_PHASE		0x00000004
-#define  PCI_VC_REG2_128_PHASE		0x00000008
-#define  PCI_VC_REG2_ARB_OFF		0xff000000
+#define PCI_VC_PORT_CAP1	4
+#define  PCI_VC_CAP1_EVCC	0x00000007	/* extended VC count */
+#define  PCI_VC_CAP1_LPEVCC	0x00000070	/* low prio extended VC count */
+#define  PCI_VC_CAP1_ARB_SIZE	0x00000c00
+#define PCI_VC_PORT_CAP2	8
+#define  PCI_VC_CAP2_32_PHASE		0x00000002
+#define  PCI_VC_CAP2_64_PHASE		0x00000004
+#define  PCI_VC_CAP2_128_PHASE		0x00000008
+#define  PCI_VC_CAP2_ARB_OFF		0xff000000
 #define PCI_VC_PORT_CTRL	12
 #define  PCI_VC_PORT_CTRL_LOAD_TABLE	0x00000001
 #define PCI_VC_PORT_STATUS	14

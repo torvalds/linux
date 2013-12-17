@@ -104,7 +104,7 @@ static void pci_vc_load_port_arb_table(struct pci_dev *dev, int pos, int res)
 static void pci_vc_enable(struct pci_dev *dev, int pos, int res)
 {
 	int ctrl_pos, status_pos, id, pos2, evcc, i, ctrl_pos2, status_pos2;
-	u32 ctrl, header, reg1, ctrl2;
+	u32 ctrl, header, cap1, ctrl2;
 	struct pci_dev *link = NULL;
 
 	/* Enable VCs from the downstream device */
@@ -129,8 +129,8 @@ static void pci_vc_enable(struct pci_dev *dev, int pos, int res)
 	if (!pos2)
 		goto enable;
 
-	pci_read_config_dword(dev->bus->self, pos2 + PCI_VC_PORT_REG1, &reg1);
-	evcc = reg1 & PCI_VC_REG1_EVCC;
+	pci_read_config_dword(dev->bus->self, pos2 + PCI_VC_PORT_CAP1, &cap1);
+	evcc = cap1 & PCI_VC_CAP1_EVCC;
 
 	/* VC0 is hardwired enabled, so we can start with 1 */
 	for (i = 1; i < evcc + 1; i++) {
@@ -188,7 +188,7 @@ static int pci_vc_do_save_buffer(struct pci_dev *dev, int pos,
 				 struct pci_cap_saved_state *save_state,
 				 bool save)
 {
-	u32 reg1;
+	u32 cap1;
 	char evcc, lpevcc, parb_size;
 	int i, len = 0;
 	u8 *buf = save_state ? (u8 *)save_state->cap.data : NULL;
@@ -201,13 +201,13 @@ static int pci_vc_do_save_buffer(struct pci_dev *dev, int pos,
 		return -ENOMEM;
 	}
 
-	pci_read_config_dword(dev, pos + PCI_VC_PORT_REG1, &reg1);
+	pci_read_config_dword(dev, pos + PCI_VC_PORT_CAP1, &cap1);
 	/* Extended VC Count (not counting VC0) */
-	evcc = reg1 & PCI_VC_REG1_EVCC;
+	evcc = cap1 & PCI_VC_CAP1_EVCC;
 	/* Low Priority Extended VC Count (not counting VC0) */
-	lpevcc = (reg1 & PCI_VC_REG1_LPEVCC) >> 4;
+	lpevcc = (cap1 & PCI_VC_CAP1_LPEVCC) >> 4;
 	/* Port Arbitration Table Entry Size (bits) */
-	parb_size = 1 << ((reg1 & PCI_VC_REG1_ARB_SIZE) >> 10);
+	parb_size = 1 << ((cap1 & PCI_VC_CAP1_ARB_SIZE) >> 10);
 
 	/*
 	 * Port VC Control Register contains VC Arbitration Select, which
@@ -231,20 +231,20 @@ static int pci_vc_do_save_buffer(struct pci_dev *dev, int pos,
 	 * in Port VC Capability Register 2 then save/restore it next.
 	 */
 	if (lpevcc) {
-		u32 reg2;
+		u32 cap2;
 		int vcarb_offset;
 
-		pci_read_config_dword(dev, pos + PCI_VC_PORT_REG2, &reg2);
-		vcarb_offset = ((reg2 & PCI_VC_REG2_ARB_OFF) >> 24) * 16;
+		pci_read_config_dword(dev, pos + PCI_VC_PORT_CAP2, &cap2);
+		vcarb_offset = ((cap2 & PCI_VC_CAP2_ARB_OFF) >> 24) * 16;
 
 		if (vcarb_offset) {
 			int size, vcarb_phases = 0;
 
-			if (reg2 & PCI_VC_REG2_128_PHASE)
+			if (cap2 & PCI_VC_CAP2_128_PHASE)
 				vcarb_phases = 128;
-			else if (reg2 & PCI_VC_REG2_64_PHASE)
+			else if (cap2 & PCI_VC_CAP2_64_PHASE)
 				vcarb_phases = 64;
-			else if (reg2 & PCI_VC_REG2_32_PHASE)
+			else if (cap2 & PCI_VC_CAP2_32_PHASE)
 				vcarb_phases = 32;
 
 			/* Fixed 4 bits per phase per lpevcc (plus VC0) */
