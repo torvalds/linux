@@ -2,9 +2,9 @@
  * arch/arm64/kernel/topology.c
  *
  * Copyright (C) 2011,2013 Linaro Limited.
- * Written by: Vincent Guittot
  *
- * based on arch/sh/kernel/topology.c
+ * Based on the arm32 version written by Vincent Guittot in turn based on
+ * arch/sh/kernel/topology.c
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
