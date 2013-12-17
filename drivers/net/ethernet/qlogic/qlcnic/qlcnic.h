@@ -788,9 +788,10 @@ struct qlcnic_cardrsp_tx_ctx {
 #define QLCNIC_MAC_VLAN_ADD	3
 #define QLCNIC_MAC_VLAN_DEL	4
 
-struct qlcnic_mac_list_s {
+struct qlcnic_mac_vlan_list {
 	struct list_head list;
 	uint8_t mac_addr[ETH_ALEN+2];
+	u16 vlan_id;
 };
 
 /* MAC Learn */
@@ -1637,7 +1638,6 @@ int qlcnic_setup_netdev(struct qlcnic_adapter *, struct net_device *, int);
 void qlcnic_set_netdev_features(struct qlcnic_adapter *,
 				struct qlcnic_esw_func_cfg *);
 void qlcnic_sriov_vf_schedule_multi(struct net_device *);
-void qlcnic_vf_add_mc_list(struct net_device *, u16);
 
 /*
  * QLOGIC Board information
@@ -2135,5 +2135,19 @@ static inline bool qlcnic_sriov_vf_check(struct qlcnic_adapter *adapter)
 		  (device == PCI_DEVICE_ID_QLOGIC_VF_QLE844X)) ? true : false;
 
 	return status;
+}
+
+static inline bool qlcnic_83xx_pf_check(struct qlcnic_adapter *adapter)
+{
+	unsigned short device = adapter->pdev->device;
+
+	return (device == PCI_DEVICE_ID_QLOGIC_QLE834X) ? true : false;
+}
+
+static inline bool qlcnic_83xx_vf_check(struct qlcnic_adapter *adapter)
+{
+	unsigned short device = adapter->pdev->device;
+
+	return (device == PCI_DEVICE_ID_QLOGIC_VF_QLE834X) ? true : false;
 }
 #endif				/* __QLCNIC_H_ */

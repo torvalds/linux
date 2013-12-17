@@ -324,6 +324,11 @@ struct qlc_83xx_idc {
 	char		**name;
 };
 
+enum qlcnic_vlan_operations {
+	QLC_VLAN_ADD = 0,
+	QLC_VLAN_DELETE
+};
+
 /* Device States */
 enum qlcnic_83xx_states {
 	QLC_83XX_IDC_DEV_UNKNOWN,

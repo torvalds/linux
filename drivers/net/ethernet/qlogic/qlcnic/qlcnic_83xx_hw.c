@@ -1637,7 +1637,7 @@ int qlcnic_83xx_nic_set_promisc(struct qlcnic_adapter *adapter, u32 mode)
 
 	cmd->type = QLC_83XX_MBX_CMD_NO_WAIT;
 	qlcnic_83xx_set_interface_id_promisc(adapter, &temp);
-	cmd->req.arg[1] = (mode ? 1 : 0) | temp;
+	cmd->req.arg[1] = mode | temp;
 	err = qlcnic_issue_cmd(adapter, cmd);
 	if (!err)
 		return err;
