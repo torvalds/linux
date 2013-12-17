@@ -1783,8 +1783,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 						    qdisc_root_sleeping_lock(sch),
 						    tca[TCA_RATE]);
 			if (err) {
-				if (rtab)
-					qdisc_put_rtab(rtab);
+				qdisc_put_rtab(rtab);
 				return err;
 			}
 		}
