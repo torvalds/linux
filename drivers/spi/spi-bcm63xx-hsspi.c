@@ -351,7 +351,9 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	if (!rate)
 		return -EINVAL;
 
-	clk_prepare_enable(clk);
+	ret = clk_prepare_enable(clk);
+	if (ret)
+		return ret;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*bs));
 	if (!master) {
