@@ -3430,42 +3430,6 @@
 /* the unit of memory self-refresh latency time is 0.5us */
 #define  ILK_SRLT_MASK		0x3f
 
-/* define the fifo size on Ironlake */
-#define ILK_DISPLAY_FIFO	128
-#define ILK_DISPLAY_MAXWM	64
-#define ILK_DISPLAY_DFTWM	8
-#define ILK_CURSOR_FIFO		32
-#define ILK_CURSOR_MAXWM	16
-#define ILK_CURSOR_DFTWM	8
-
-#define ILK_DISPLAY_SR_FIFO	512
-#define ILK_DISPLAY_MAX_SRWM	0x1ff
-#define ILK_DISPLAY_DFT_SRWM	0x3f
-#define ILK_CURSOR_SR_FIFO	64
-#define ILK_CURSOR_MAX_SRWM	0x3f
-#define ILK_CURSOR_DFT_SRWM	8
-
-#define ILK_FIFO_LINE_SIZE	64
-
-/* define the WM info on Sandybridge */
-#define SNB_DISPLAY_FIFO	128
-#define SNB_DISPLAY_MAXWM	0x7f	/* bit 16:22 */
-#define SNB_DISPLAY_DFTWM	8
-#define SNB_CURSOR_FIFO		32
-#define SNB_CURSOR_MAXWM	0x1f	/* bit 4:0 */
-#define SNB_CURSOR_DFTWM	8
-
-#define SNB_DISPLAY_SR_FIFO	512
-#define SNB_DISPLAY_MAX_SRWM	0x1ff	/* bit 16:8 */
-#define SNB_DISPLAY_DFT_SRWM	0x3f
-#define SNB_CURSOR_SR_FIFO	64
-#define SNB_CURSOR_MAX_SRWM	0x3f	/* bit 5:0 */
-#define SNB_CURSOR_DFT_SRWM	8
-
-#define SNB_FBC_MAX_SRWM	0xf	/* bit 23:20 */
-
-#define SNB_FIFO_LINE_SIZE	64
-
 
 /* the address where we get all kinds of latency value */
 #define SSKPD			0x5d10
