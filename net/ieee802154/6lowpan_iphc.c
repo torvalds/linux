@@ -553,33 +553,43 @@ static void compress_udp_header(u8 **hc06_ptr, struct sk_buff *skb)
 	    ((ntohs(uh->dest) & LOWPAN_NHC_UDP_4BIT_MASK) ==
 	     LOWPAN_NHC_UDP_4BIT_PORT)) {
 		pr_debug("UDP header: both ports compression to 4 bits\n");
+		/* compression value */
 		tmp = LOWPAN_NHC_UDP_CS_P_11;
 		lowpan_push_hc_data(hc06_ptr, &tmp, sizeof(tmp));
-		tmp = /* subtraction is faster */
-		   (u8)((ntohs(uh->dest) - LOWPAN_NHC_UDP_4BIT_PORT) +
-		       ((ntohs(uh->source) - LOWPAN_NHC_UDP_4BIT_PORT) << 4));
+		/* source and destination port */
+		tmp = ntohs(uh->dest) - LOWPAN_NHC_UDP_4BIT_PORT +
+		      ((ntohs(uh->source) - LOWPAN_NHC_UDP_4BIT_PORT) << 4);
 		lowpan_push_hc_data(hc06_ptr, &tmp, sizeof(tmp));
 	} else if ((ntohs(uh->dest) & LOWPAN_NHC_UDP_8BIT_MASK) ==
 			LOWPAN_NHC_UDP_8BIT_PORT) {
 		pr_debug("UDP header: remove 8 bits of dest\n");
+		/* compression value */
 		tmp = LOWPAN_NHC_UDP_CS_P_01;
 		lowpan_push_hc_data(hc06_ptr, &tmp, sizeof(tmp));
+		/* source port */
 		lowpan_push_hc_data(hc06_ptr, &uh->source, sizeof(uh->source));
-		tmp = (u8)(ntohs(uh->dest) - LOWPAN_NHC_UDP_8BIT_PORT);
+		/* destination port */
+		tmp = ntohs(uh->dest) - LOWPAN_NHC_UDP_8BIT_PORT;
 		lowpan_push_hc_data(hc06_ptr, &tmp, sizeof(tmp));
 	} else if ((ntohs(uh->source) & LOWPAN_NHC_UDP_8BIT_MASK) ==
 			LOWPAN_NHC_UDP_8BIT_PORT) {
 		pr_debug("UDP header: remove 8 bits of source\n");
+		/* compression value */
 		tmp = LOWPAN_NHC_UDP_CS_P_10;
 		lowpan_push_hc_data(hc06_ptr, &tmp, sizeof(tmp));
-		tmp = (u8)(ntohs(uh->source) - LOWPAN_NHC_UDP_8BIT_PORT);
+		/* source port */
+		tmp = ntohs(uh->source) - LOWPAN_NHC_UDP_8BIT_PORT;
 		lowpan_push_hc_data(hc06_ptr, &tmp, sizeof(tmp));
+		/* destination port */
 		lowpan_push_hc_data(hc06_ptr, &uh->dest, sizeof(uh->dest));
 	} else {
 		pr_debug("UDP header: can't compress\n");
+		/* compression value */
 		tmp = LOWPAN_NHC_UDP_CS_P_00;
 		lowpan_push_hc_data(hc06_ptr, &tmp, sizeof(tmp));
+		/* source port */
 		lowpan_push_hc_data(hc06_ptr, &uh->source, sizeof(uh->source));
+		/* destination port */
 		lowpan_push_hc_data(hc06_ptr, &uh->dest, sizeof(uh->dest));
 	}
 
