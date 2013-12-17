@@ -539,20 +539,6 @@ static int lpc32xx_write_page_lowlevel(struct mtd_info *mtd,
 	return 0;
 }
 
-static int lpc32xx_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-			uint32_t offset, int data_len, const uint8_t *buf,
-			int oob_required, int page, int cached, int raw)
-{
-	int res;
-
-	chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0x00, page);
-	res = lpc32xx_write_page_lowlevel(mtd, chip, buf, oob_required);
-	chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
-	lpc32xx_waitfunc(mtd, chip);
-
-	return res;
-}
-
 static int lpc32xx_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 			    int page)
 {
@@ -732,9 +718,9 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	nand_chip->ecc.write_oob = lpc32xx_write_oob;
 	nand_chip->ecc.read_oob = lpc32xx_read_oob;
 	nand_chip->ecc.strength = 4;
-	nand_chip->write_page = lpc32xx_write_page;
 	nand_chip->waitfunc = lpc32xx_waitfunc;
 
+	nand_chip->options = NAND_NO_SUBPAGE_WRITE;
 	nand_chip->bbt_options = NAND_BBT_USE_FLASH | NAND_BBT_NO_OOB;
 	nand_chip->bbt_td = &lpc32xx_nand_bbt;
 	nand_chip->bbt_md = &lpc32xx_nand_bbt_mirror;
