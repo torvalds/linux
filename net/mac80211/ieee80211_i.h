@@ -694,6 +694,11 @@ struct ieee80211_chanctx {
 	struct ieee80211_chanctx_conf conf;
 };
 
+struct mac80211_qos_map {
+	struct cfg80211_qos_map qos_map;
+	struct rcu_head rcu_head;
+};
+
 struct ieee80211_sub_if_data {
 	struct list_head list;
 
@@ -739,6 +744,7 @@ struct ieee80211_sub_if_data {
 	int encrypt_headroom;
 
 	struct ieee80211_tx_queue_params tx_conf[IEEE80211_NUM_ACS];
+	struct mac80211_qos_map __rcu *qos_map;
 
 	struct work_struct csa_finalize_work;
 	int csa_counter_offset_beacon;
