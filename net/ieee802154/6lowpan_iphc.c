@@ -283,20 +283,21 @@ uncompress_udp_header(struct sk_buff *skb, struct udphdr *uh)
 			break;
 		case LOWPAN_NHC_UDP_CS_P_01:
 			memcpy(&uh->source, &skb->data[0], 2);
-			uh->dest =
-			   skb->data[2] + LOWPAN_NHC_UDP_8BIT_PORT;
+			uh->dest = htons(skb->data[2] +
+					 LOWPAN_NHC_UDP_8BIT_PORT);
 			skb_pull(skb, 3);
 			break;
 		case LOWPAN_NHC_UDP_CS_P_10:
-			uh->source = skb->data[0] + LOWPAN_NHC_UDP_8BIT_PORT;
+			uh->source = htons(skb->data[0] +
+					   LOWPAN_NHC_UDP_8BIT_PORT);
 			memcpy(&uh->dest, &skb->data[1], 2);
 			skb_pull(skb, 3);
 			break;
 		case LOWPAN_NHC_UDP_CS_P_11:
-			uh->source =
-			   LOWPAN_NHC_UDP_4BIT_PORT + (skb->data[0] >> 4);
-			uh->dest =
-			   LOWPAN_NHC_UDP_4BIT_PORT + (skb->data[0] & 0x0f);
+			uh->source = htons(LOWPAN_NHC_UDP_4BIT_PORT +
+					   (skb->data[0] >> 4));
+			uh->dest = htons(LOWPAN_NHC_UDP_4BIT_PORT +
+					 (skb->data[0] & 0x0f));
 			skb_pull(skb, 1);
 			break;
 		default:
@@ -306,7 +307,7 @@ uncompress_udp_header(struct sk_buff *skb, struct udphdr *uh)
 		}
 
 		pr_debug("uncompressed UDP ports: src = %d, dst = %d\n",
-			 uh->source, uh->dest);
+			 ntohs(uh->source), ntohs(uh->dest));
 
 		/* copy checksum */
 		memcpy(&uh->check, &skb->data[0], 2);
@@ -318,7 +319,7 @@ uncompress_udp_header(struct sk_buff *skb, struct udphdr *uh)
 		 * frame
 		 */
 		uh->len = htons(skb->len + sizeof(struct udphdr));
-		pr_debug("uncompressed UDP length: src = %d", uh->len);
+		pr_debug("uncompressed UDP length: src = %d", ntohs(uh->len));
 	} else {
 		pr_debug("ERROR: unsupported NH format\n");
 		goto err;
@@ -543,31 +544,31 @@ static void compress_udp_header(u8 **hc06_ptr, struct sk_buff *skb)
 	struct udphdr *uh = udp_hdr(skb);
 	u8 tmp;
 
-	if (((uh->source & LOWPAN_NHC_UDP_4BIT_MASK) ==
-				LOWPAN_NHC_UDP_4BIT_PORT) &&
-	    ((uh->dest & LOWPAN_NHC_UDP_4BIT_MASK) ==
-				LOWPAN_NHC_UDP_4BIT_PORT)) {
+	if (((ntohs(uh->source) & LOWPAN_NHC_UDP_4BIT_MASK) ==
+	     LOWPAN_NHC_UDP_4BIT_PORT) &&
+	    ((ntohs(uh->dest) & LOWPAN_NHC_UDP_4BIT_MASK) ==
+	     LOWPAN_NHC_UDP_4BIT_PORT)) {
 		pr_debug("UDP header: both ports compression to 4 bits\n");
 		tmp = LOWPAN_NHC_UDP_CS_P_11;
 		lowpan_push_hc_data(hc06_ptr, &tmp, sizeof(tmp));
 		tmp = /* subtraction is faster */
-		   (u8)((uh->dest - LOWPAN_NHC_UDP_4BIT_PORT) +
-		       ((uh->source & LOWPAN_NHC_UDP_4BIT_PORT) << 4));
+		   (u8)((ntohs(uh->dest) - LOWPAN_NHC_UDP_4BIT_PORT) +
+		       ((ntohs(uh->source) & LOWPAN_NHC_UDP_4BIT_PORT) << 4));
 		lowpan_push_hc_data(hc06_ptr, &tmp, sizeof(tmp));
-	} else if ((uh->dest & LOWPAN_NHC_UDP_8BIT_MASK) ==
+	} else if ((ntohs(uh->dest) & LOWPAN_NHC_UDP_8BIT_MASK) ==
 			LOWPAN_NHC_UDP_8BIT_PORT) {
 		pr_debug("UDP header: remove 8 bits of dest\n");
 		tmp = LOWPAN_NHC_UDP_CS_P_01;
 		lowpan_push_hc_data(hc06_ptr, &tmp, sizeof(tmp));
 		lowpan_push_hc_data(hc06_ptr, &uh->source, sizeof(uh->source));
-		tmp = (u8)(uh->dest - LOWPAN_NHC_UDP_8BIT_PORT);
+		tmp = (u8)(ntohs(uh->dest) - LOWPAN_NHC_UDP_8BIT_PORT);
 		lowpan_push_hc_data(hc06_ptr, &tmp, sizeof(tmp));
-	} else if ((uh->source & LOWPAN_NHC_UDP_8BIT_MASK) ==
+	} else if ((ntohs(uh->source) & LOWPAN_NHC_UDP_8BIT_MASK) ==
 			LOWPAN_NHC_UDP_8BIT_PORT) {
 		pr_debug("UDP header: remove 8 bits of source\n");
 		tmp = LOWPAN_NHC_UDP_CS_P_10;
 		lowpan_push_hc_data(hc06_ptr, &tmp, sizeof(tmp));
-		tmp = (u8)(uh->source - LOWPAN_NHC_UDP_8BIT_PORT);
+		tmp = (u8)(ntohs(uh->source) - LOWPAN_NHC_UDP_8BIT_PORT);
 		lowpan_push_hc_data(hc06_ptr, &tmp, sizeof(tmp));
 		lowpan_push_hc_data(hc06_ptr, &uh->dest, sizeof(uh->dest));
 	} else {
