@@ -115,7 +115,7 @@ static void __init parse_core(struct device_node *core, int core_id)
 		if (t) {
 			leaf = false;
 			cpu = get_cpu_for_node(t);
-			if (cpu) {
+			if (cpu >= 0) {
 				pr_info("CPU%d: socket %d core %d thread %d\n",
 					cpu, cluster_id, core_id, i);
 				cpu_topology[cpu].socket_id = cluster_id;
