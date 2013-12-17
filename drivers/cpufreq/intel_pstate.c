@@ -92,8 +92,6 @@ struct cpudata {
 	struct vid_data vid;
 	struct _pid pid;
 
-	int min_pstate_count;
-
 	u64	prev_aperf;
 	u64	prev_mperf;
 	int	sample_ptr;
@@ -617,15 +615,6 @@ static void intel_pstate_timer_func(unsigned long __data)
 
 	intel_pstate_sample(cpu);
 	intel_pstate_adjust_busy_pstate(cpu);
-
-	if (cpu->pstate.current_pstate == cpu->pstate.min_pstate) {
-		cpu->min_pstate_count++;
-		if (!(cpu->min_pstate_count % 5)) {
-			intel_pstate_set_pstate(cpu, cpu->pstate.max_pstate);
-		}
-	} else
-		cpu->min_pstate_count = 0;
-
 	intel_pstate_set_sample_time(cpu);
 }
 
