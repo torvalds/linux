@@ -82,6 +82,7 @@ enum {
 	IPSET_ATTR_PROTO,	/* 7 */
 	IPSET_ATTR_CADT_FLAGS,	/* 8 */
 	IPSET_ATTR_CADT_LINENO = IPSET_ATTR_LINENO,	/* 9 */
+	IPSET_ATTR_MARK,	/* 10 */
 	/* Reserve empty slots */
 	IPSET_ATTR_CADT_MAX = 16,
 	/* Create-only specific attributes */

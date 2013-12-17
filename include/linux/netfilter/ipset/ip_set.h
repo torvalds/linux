@@ -39,11 +39,13 @@ enum ip_set_feature {
 	IPSET_TYPE_NAME = (1 << IPSET_TYPE_NAME_FLAG),
 	IPSET_TYPE_IFACE_FLAG = 5,
 	IPSET_TYPE_IFACE = (1 << IPSET_TYPE_IFACE_FLAG),
-	IPSET_TYPE_NOMATCH_FLAG = 6,
+	IPSET_TYPE_MARK_FLAG = 6,
+	IPSET_TYPE_MARK = (1 << IPSET_TYPE_MARK_FLAG),
+	IPSET_TYPE_NOMATCH_FLAG = 7,
 	IPSET_TYPE_NOMATCH = (1 << IPSET_TYPE_NOMATCH_FLAG),
 	/* Strictly speaking not a feature, but a flag for dumping:
 	 * this settype must be dumped last */
-	IPSET_DUMP_LAST_FLAG = 7,
+	IPSET_DUMP_LAST_FLAG = 8,
 	IPSET_DUMP_LAST = (1 << IPSET_DUMP_LAST_FLAG),
 };
 
@@ -171,8 +173,6 @@ struct ip_set_type {
 	char name[IPSET_MAXNAMELEN];
 	/* Protocol version */
 	u8 protocol;
-	/* Set features to control swapping */
-	u8 features;
 	/* Set type dimension */
 	u8 dimension;
 	/*
@@ -182,6 +182,8 @@ struct ip_set_type {
 	u8 family;
 	/* Type revisions */
 	u8 revision_min, revision_max;
+	/* Set features to control swapping */
+	u16 features;
 
 	/* Create set */
 	int (*create)(struct net *net, struct ip_set *set,
