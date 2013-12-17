@@ -59,7 +59,7 @@ MODULE_PARM_DESC(powersave,
 		"Enable powersavings, fbc, downclocking, etc. (default: true)");
 
 int i915_semaphores __read_mostly = -1;
-module_param_named(semaphores, i915_semaphores, int, 0600);
+module_param_named(semaphores, i915_semaphores, int, 0400);
 MODULE_PARM_DESC(semaphores,
 		"Use semaphores for inter-ring sync (default: -1 (use per-chip defaults))");
 
