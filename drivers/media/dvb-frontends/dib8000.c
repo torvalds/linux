@@ -119,6 +119,7 @@ struct dib8000_state {
 	u8 longest_intlv_layer;
 	u16 output_mode;
 
+	s64 init_ucb;
 #ifdef DIB8000_AGC_FREEZE
 	u16 agc1_max;
 	u16 agc1_min;
@@ -986,10 +987,13 @@ static u16 dib8000_identify(struct i2c_device *client)
 	return value;
 }
 
+static int dib8000_read_unc_blocks(struct dvb_frontend *fe, u32 *unc);
+
 static void dib8000_reset_stats(struct dvb_frontend *fe)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &state->fe[0]->dtv_property_cache;
+	u32 ucb;
 
 	memset(&c->strength, 0, sizeof(c->strength));
 	memset(&c->cnr, 0, sizeof(c->cnr));
@@ -1010,6 +1014,9 @@ static void dib8000_reset_stats(struct dvb_frontend *fe)
 	c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
+	dib8000_read_unc_blocks(fe, &ucb);
+	state->init_ucb = -ucb;
 }
 
 static int dib8000_reset(struct dvb_frontend *fe)
@@ -3989,14 +3996,12 @@ static int dib8000_get_stats(struct dvb_frontend *fe, fe_status_t stat)
 	c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
 	c->post_bit_count.stat[0].uvalue += 100000000;
 
-	/*
-	 * FIXME: this is refreshed on every second, but a time
-	 * drift between dib8000 and PC clock may cause troubles
-	 */
 	dib8000_read_unc_blocks(fe, &val);
+	if (val < state->init_ucb)
+		state->init_ucb += 1L << 32;
 
 	c->block_error.stat[0].scale = FE_SCALE_COUNTER;
-	c->block_error.stat[0].uvalue += val;
+	c->block_error.stat[0].uvalue = val + state->init_ucb;
 
 	if (state->revision < 0x8002)
 		return 0;
