@@ -165,7 +165,6 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 		if (of_get_property(ipar, "interrupt-controller", NULL) !=
 				NULL) {
 			pr_debug(" -> got it !\n");
-			of_node_put(old);
 			return 0;
 		}
 
@@ -250,8 +249,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 		 * Successfully parsed an interrrupt-map translation; copy new
 		 * interrupt specifier into the out_irq structure
 		 */
-		of_node_put(out_irq->np);
-		out_irq->np = of_node_get(newpar);
+		out_irq->np = newpar;
 
 		match_array = imap - newaddrsize - newintsize;
 		for (i = 0; i < newintsize; i++)
@@ -268,7 +266,6 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 	}
  fail:
 	of_node_put(ipar);
-	of_node_put(out_irq->np);
 	of_node_put(newpar);
 
 	return -EINVAL;
