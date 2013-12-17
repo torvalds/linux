@@ -115,6 +115,10 @@ enum qlcnic_queue_type {
 #define QLCNIC_VNIC_MODE	0xFF
 #define QLCNIC_DEFAULT_MODE	0x0
 
+/* Virtual NIC function count */
+#define QLC_DEFAULT_VNIC_COUNT	8
+#define QLC_84XX_VNIC_COUNT	16
+
 /*
  * Following are the states of the Phantom. Phantom will set them and
  * Host will read to check if the fields are correct.
@@ -374,7 +378,7 @@ struct qlcnic_rx_buffer {
 
 #define QLCNIC_INTR_DEFAULT			0x04
 #define QLCNIC_CONFIG_INTR_COALESCE		3
-#define QLCNIC_DEV_INFO_SIZE			1
+#define QLCNIC_DEV_INFO_SIZE			2
 
 struct qlcnic_nic_intr_coalesce {
 	u8	type;
@@ -462,8 +466,10 @@ struct qlcnic_hardware_context {
 	u16 max_rx_ques;
 	u16 max_mtu;
 	u32 msg_enable;
-	u16 act_pci_func;
+	u16 total_nic_func;
 	u16 max_pci_func;
+	u32 max_vnic_func;
+	u32 total_pci_func;
 
 	u32 capabilities;
 	u32 extra_capability[3];
@@ -857,7 +863,7 @@ struct qlcnic_mac_vlan_list {
 #define QLCNIC_FW_CAP2_HW_LRO_IPV6		BIT_3
 #define QLCNIC_FW_CAPABILITY_SET_DRV_VER	BIT_5
 #define QLCNIC_FW_CAPABILITY_2_BEACON		BIT_7
-#define QLCNIC_FW_CAPABILITY_2_PER_PORT_ESWITCH_CFG	BIT_8
+#define QLCNIC_FW_CAPABILITY_2_PER_PORT_ESWITCH_CFG	BIT_9
 
 /* module types */
 #define LINKEVENT_MODULE_NOT_PRESENT			1
@@ -1638,6 +1644,9 @@ int qlcnic_setup_netdev(struct qlcnic_adapter *, struct net_device *, int);
 void qlcnic_set_netdev_features(struct qlcnic_adapter *,
 				struct qlcnic_esw_func_cfg *);
 void qlcnic_sriov_vf_schedule_multi(struct net_device *);
+int qlcnic_is_valid_nic_func(struct qlcnic_adapter *, u8);
+int qlcnic_get_pci_func_type(struct qlcnic_adapter *, u16, u16 *, u16 *,
+			     u16 *);
 
 /*
  * QLOGIC Board information
@@ -2149,5 +2158,13 @@ static inline bool qlcnic_83xx_vf_check(struct qlcnic_adapter *adapter)
 	unsigned short device = adapter->pdev->device;
 
 	return (device == PCI_DEVICE_ID_QLOGIC_VF_QLE834X) ? true : false;
+}
+
+static inline u32 qlcnic_get_vnic_func_count(struct qlcnic_adapter *adapter)
+{
+	if (qlcnic_84xx_check(adapter))
+		return QLC_84XX_VNIC_COUNT;
+	else
+		return QLC_DEFAULT_VNIC_COUNT;
 }
 #endif				/* __QLCNIC_H_ */

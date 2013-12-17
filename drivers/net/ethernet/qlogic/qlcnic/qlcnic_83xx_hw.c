@@ -15,6 +15,7 @@
 
 #define RSS_HASHTYPE_IP_TCP		0x3
 #define QLC_83XX_FW_MBX_CMD		0
+#define QLC_SKIP_INACTIVE_PCI_REGS	7
 
 static const struct qlcnic_mailbox_metadata qlcnic_83xx_mbx_tbl[] = {
 	{QLCNIC_CMD_CONFIGURE_IP_ADDR, 6, 1},
@@ -34,7 +35,7 @@ static const struct qlcnic_mailbox_metadata qlcnic_83xx_mbx_tbl[] = {
 	{QLCNIC_CMD_READ_MAX_MTU, 4, 2},
 	{QLCNIC_CMD_READ_MAX_LRO, 4, 2},
 	{QLCNIC_CMD_MAC_ADDRESS, 4, 3},
-	{QLCNIC_CMD_GET_PCI_INFO, 1, 66},
+	{QLCNIC_CMD_GET_PCI_INFO, 1, 129},
 	{QLCNIC_CMD_GET_NIC_INFO, 2, 19},
 	{QLCNIC_CMD_SET_NIC_INFO, 32, 1},
 	{QLCNIC_CMD_GET_ESWITCH_CAPABILITY, 4, 3},
@@ -637,7 +638,7 @@ int qlcnic_83xx_get_port_info(struct qlcnic_adapter *adapter)
 void qlcnic_83xx_set_mac_filter_count(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
-	u16 act_pci_fn = ahw->act_pci_func;
+	u16 act_pci_fn = ahw->total_nic_func;
 	u16 count;
 
 	ahw->max_mc_count = QLC_83XX_MAX_MC_COUNT;
@@ -2293,11 +2294,37 @@ out:
 	return err;
 }
 
+int qlcnic_get_pci_func_type(struct qlcnic_adapter *adapter, u16 type,
+			     u16 *nic, u16 *fcoe, u16 *iscsi)
+{
+	struct device *dev = &adapter->pdev->dev;
+	int err = 0;
+
+	switch (type) {
+	case QLCNIC_TYPE_NIC:
+		(*nic)++;
+		break;
+	case QLCNIC_TYPE_FCOE:
+		(*fcoe)++;
+		break;
+	case QLCNIC_TYPE_ISCSI:
+		(*iscsi)++;
+		break;
+	default:
+		dev_err(dev, "%s: Unknown PCI type[%x]\n",
+			__func__, type);
+		err = -EIO;
+	}
+
+	return err;
+}
+
 int qlcnic_83xx_get_pci_info(struct qlcnic_adapter *adapter,
 			     struct qlcnic_pci_info *pci_info)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct device *dev = &adapter->pdev->dev;
+	u16 nic = 0, fcoe = 0, iscsi = 0;
 	struct qlcnic_cmd_args cmd;
 	int i, err = 0, j = 0;
 	u32 temp;
@@ -2308,16 +2335,20 @@ int qlcnic_83xx_get_pci_info(struct qlcnic_adapter *adapter,
 
 	err = qlcnic_issue_cmd(adapter, &cmd);
 
-	ahw->act_pci_func = 0;
+	ahw->total_nic_func = 0;
 	if (err == QLCNIC_RCODE_SUCCESS) {
 		ahw->max_pci_func = cmd.rsp.arg[1] & 0xFF;
-		for (i = 2, j = 0; j < QLCNIC_MAX_PCI_FUNC; j++, pci_info++) {
+		for (i = 2, j = 0; j < ahw->max_vnic_func; j++, pci_info++) {
 			pci_info->id = cmd.rsp.arg[i] & 0xFFFF;
 			pci_info->active = (cmd.rsp.arg[i] & 0xFFFF0000) >> 16;
 			i++;
+			if (!pci_info->active) {
+				i += QLC_SKIP_INACTIVE_PCI_REGS;
+				continue;
+			}
 			pci_info->type = cmd.rsp.arg[i] & 0xFFFF;
-			if (pci_info->type == QLCNIC_TYPE_NIC)
-				ahw->act_pci_func++;
+			err = qlcnic_get_pci_func_type(adapter, pci_info->type,
+						       &nic, &fcoe, &iscsi);
 			temp = (cmd.rsp.arg[i] & 0xFFFF0000) >> 16;
 			pci_info->default_port = temp;
 			i++;
@@ -2335,6 +2366,13 @@ int qlcnic_83xx_get_pci_info(struct qlcnic_adapter *adapter,
 		err = -EIO;
 	}
 
+	ahw->total_nic_func = nic;
+	ahw->total_pci_func = nic + fcoe + iscsi;
+	if (ahw->total_nic_func == 0 || ahw->total_pci_func == 0) {
+		dev_err(dev, "%s: Invalid function count: total nic func[%x], total pci func[%x]\n",
+			__func__, ahw->total_nic_func, ahw->total_pci_func);
+		err = -EIO;
+	}
 	qlcnic_free_mbx_args(&cmd);
 
 	return err;

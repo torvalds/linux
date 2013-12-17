@@ -799,25 +799,26 @@ static void qlcnic_cleanup_pci_map(struct qlcnic_hardware_context *ahw)
 
 static int qlcnic_get_act_pci_func(struct qlcnic_adapter *adapter)
 {
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlcnic_pci_info *pci_info;
 	int ret;
 
 	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
-		switch (adapter->ahw->port_type) {
+		switch (ahw->port_type) {
 		case QLCNIC_GBE:
-			adapter->ahw->act_pci_func = QLCNIC_NIU_MAX_GBE_PORTS;
+			ahw->total_nic_func = QLCNIC_NIU_MAX_GBE_PORTS;
 			break;
 		case QLCNIC_XGBE:
-			adapter->ahw->act_pci_func = QLCNIC_NIU_MAX_XG_PORTS;
+			ahw->total_nic_func = QLCNIC_NIU_MAX_XG_PORTS;
 			break;
 		}
 		return 0;
 	}
 
-	if (adapter->ahw->op_mode == QLCNIC_MGMT_FUNC)
+	if (ahw->op_mode == QLCNIC_MGMT_FUNC)
 		return 0;
 
-	pci_info = kcalloc(QLCNIC_MAX_PCI_FUNC, sizeof(*pci_info), GFP_KERNEL);
+	pci_info = kcalloc(ahw->max_vnic_func, sizeof(*pci_info), GFP_KERNEL);
 	if (!pci_info)
 		return -ENOMEM;
 
@@ -845,12 +846,13 @@ static bool qlcnic_port_eswitch_cfg_capability(struct qlcnic_adapter *adapter)
 
 int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 {
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlcnic_pci_info *pci_info;
 	int i, id = 0, ret = 0, j = 0;
 	u16 act_pci_func;
 	u8 pfn;
 
-	pci_info = kcalloc(QLCNIC_MAX_PCI_FUNC, sizeof(*pci_info), GFP_KERNEL);
+	pci_info = kcalloc(ahw->max_vnic_func, sizeof(*pci_info), GFP_KERNEL);
 	if (!pci_info)
 		return -ENOMEM;
 
@@ -858,7 +860,7 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 	if (ret)
 		goto err_pci_info;
 
-	act_pci_func = adapter->ahw->act_pci_func;
+	act_pci_func = ahw->total_nic_func;
 
 	adapter->npars = kzalloc(sizeof(struct qlcnic_npar_info) *
 				 act_pci_func, GFP_KERNEL);
@@ -874,10 +876,10 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 		goto err_npars;
 	}
 
-	for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++) {
+	for (i = 0; i < ahw->max_vnic_func; i++) {
 		pfn = pci_info[i].id;
 
-		if (pfn >= QLCNIC_MAX_PCI_FUNC) {
+		if (pfn >= ahw->max_vnic_func) {
 			ret = QL_STATUS_INVALID_PARAM;
 			goto err_eswitch;
 		}
@@ -1344,7 +1346,7 @@ int qlcnic_set_default_offload_settings(struct qlcnic_adapter *adapter)
 	if (adapter->need_fw_reset)
 		return 0;
 
-	for (i = 0; i < adapter->ahw->act_pci_func; i++) {
+	for (i = 0; i < adapter->ahw->total_nic_func; i++) {
 		if (!adapter->npars[i].eswitch_status)
 			continue;
 
@@ -1407,7 +1409,7 @@ int qlcnic_reset_npar_config(struct qlcnic_adapter *adapter)
 			return 0;
 
 	/* Set the NPAR config data after FW reset */
-	for (i = 0; i < adapter->ahw->act_pci_func; i++) {
+	for (i = 0; i < adapter->ahw->total_nic_func; i++) {
 		npar = &adapter->npars[i];
 		pci_func = npar->pci_func;
 		if (!adapter->npars[i].eswitch_status)
@@ -2036,7 +2038,7 @@ qlcnic_reset_context(struct qlcnic_adapter *adapter)
 void qlcnic_82xx_set_mac_filter_count(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
-	u16 act_pci_fn = ahw->act_pci_func;
+	u16 act_pci_fn = ahw->total_nic_func;
 	u16 count;
 
 	ahw->max_mc_count = QLCNIC_MAX_MC_COUNT;
@@ -2288,7 +2290,8 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_free_wq;
 
 	adapter->dev_rst_time = jiffies;
-	adapter->ahw->revision_id = pdev->revision;
+	ahw->revision_id = pdev->revision;
+	ahw->max_vnic_func = qlcnic_get_vnic_func_count(adapter);
 	if (qlcnic_mac_learn == FDB_MAC_LEARN)
 		adapter->fdb_mac_learn = true;
 	else if (qlcnic_mac_learn == DRV_MAC_LEARN)
@@ -2638,7 +2641,7 @@ void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter)
 	if (adapter->fhash.fmax && adapter->fhash.fhead)
 		return;
 
-	act_pci_func = adapter->ahw->act_pci_func;
+	act_pci_func = adapter->ahw->total_nic_func;
 	spin_lock_init(&adapter->mac_learn_lock);
 	spin_lock_init(&adapter->rx_mac_learn_lock);
 

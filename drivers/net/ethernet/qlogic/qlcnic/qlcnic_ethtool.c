@@ -221,7 +221,7 @@ static const u32 ext_diag_registers[] = {
 	-1
 };
 
-#define QLCNIC_MGMT_API_VERSION	2
+#define QLCNIC_MGMT_API_VERSION	3
 #define QLCNIC_ETHTOOL_REGS_VER	4
 
 static inline int qlcnic_get_ring_regs_len(struct qlcnic_adapter *adapter)
@@ -518,6 +518,9 @@ qlcnic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 
 	regs_buff[0] = (0xcafe0000 | (QLCNIC_DEV_INFO_SIZE & 0xffff));
 	regs_buff[1] = QLCNIC_MGMT_API_VERSION;
+
+	if (adapter->ahw->capabilities & QLC_83XX_ESWITCH_CAPABILITY)
+		regs_buff[2] = adapter->ahw->max_vnic_func;
 
 	if (qlcnic_82xx_check(adapter))
 		i = qlcnic_82xx_get_registers(adapter, regs_buff);
