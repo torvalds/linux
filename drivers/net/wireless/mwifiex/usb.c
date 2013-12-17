@@ -938,11 +938,9 @@ static int mwifiex_usb_cmd_event_complete(struct mwifiex_adapter *adapter,
 	return 0;
 }
 
-static int mwifiex_usb_data_complete(struct mwifiex_adapter *adapter,
-				     struct sk_buff *skb)
+static int mwifiex_usb_data_complete(struct mwifiex_adapter *adapter)
 {
 	atomic_dec(&adapter->rx_pending);
-	dev_kfree_skb_any(skb);
 
 	return 0;
 }

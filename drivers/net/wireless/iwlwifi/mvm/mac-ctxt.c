@@ -488,6 +488,40 @@ static void iwl_mvm_ack_rates(struct iwl_mvm *mvm,
 	*ofdm_rates = ofdm;
 }
 
+static void iwl_mvm_mac_ctxt_set_ht_flags(struct iwl_mvm *mvm,
+					 struct ieee80211_vif *vif,
+					 struct iwl_mac_ctx_cmd *cmd)
+{
+	/* for both sta and ap, ht_operation_mode hold the protection_mode */
+	u8 protection_mode = vif->bss_conf.ht_operation_mode &
+				 IEEE80211_HT_OP_MODE_PROTECTION;
+	/* The fw does not distinguish between ht and fat */
+	u32 ht_flag = MAC_PROT_FLG_HT_PROT | MAC_PROT_FLG_FAT_PROT;
+
+	IWL_DEBUG_RATE(mvm, "protection mode set to %d\n", protection_mode);
+	/*
+	 * See section 9.23.3.1 of IEEE 80211-2012.
+	 * Nongreenfield HT STAs Present is not supported.
+	 */
+	switch (protection_mode) {
+	case IEEE80211_HT_OP_MODE_PROTECTION_NONE:
+		break;
+	case IEEE80211_HT_OP_MODE_PROTECTION_NONMEMBER:
+	case IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED:
+		cmd->protection_flags |= cpu_to_le32(ht_flag);
+		break;
+	case IEEE80211_HT_OP_MODE_PROTECTION_20MHZ:
+		/* Protect when channel wider than 20MHz */
+		if (vif->bss_conf.chandef.width > NL80211_CHAN_WIDTH_20)
+			cmd->protection_flags |= cpu_to_le32(ht_flag);
+		break;
+	default:
+		IWL_ERR(mvm, "Illegal protection mode %d\n",
+			protection_mode);
+		break;
+	}
+}
+
 static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 					struct ieee80211_vif *vif,
 					struct iwl_mac_ctx_cmd *cmd,
@@ -495,6 +529,8 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct ieee80211_chanctx_conf *chanctx;
+	bool ht_enabled = !!(vif->bss_conf.ht_operation_mode &
+			     IEEE80211_HT_OP_MODE_PROTECTION);
 	u8 cck_ack_rates, ofdm_ack_rates;
 	int i;
 
@@ -573,16 +609,13 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 			cmd->protection_flags |=
 				cpu_to_le32(MAC_PROT_FLG_SELF_CTS_EN);
 	}
-
-	/*
-	 * I think that we should enable these 2 flags regardless the HT PROT
-	 * fields in the HT IE, but I am not sure. Someone knows whom to ask?...
-	 */
-	if (vif->bss_conf.chandef.width != NL80211_CHAN_WIDTH_20_NOHT) {
+	IWL_DEBUG_RATE(mvm, "use_cts_prot %d, ht_operation_mode %d\n",
+		       vif->bss_conf.use_cts_prot,
+		       vif->bss_conf.ht_operation_mode);
+	if (vif->bss_conf.chandef.width != NL80211_CHAN_WIDTH_20_NOHT)
 		cmd->qos_flags |= cpu_to_le32(MAC_QOS_FLG_TGN);
-		cmd->protection_flags |= cpu_to_le32(MAC_PROT_FLG_HT_PROT |
-						     MAC_PROT_FLG_FAT_PROT);
-	}
+	if (ht_enabled)
+		iwl_mvm_mac_ctxt_set_ht_flags(mvm, vif, cmd);
 
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP);
 }

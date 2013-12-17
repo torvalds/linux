@@ -486,20 +486,16 @@ void iwl_mvm_dump_sram(struct iwl_mvm *mvm)
  * this case to clear the state indicating that station creation is in
  * progress.
  */
-int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq,
-			u8 flags, bool init)
+int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq, bool init)
 {
 	struct iwl_host_cmd cmd = {
 		.id = LQ_CMD,
 		.len = { sizeof(struct iwl_lq_cmd), },
-		.flags = flags,
+		.flags = init ? CMD_SYNC : CMD_ASYNC,
 		.data = { lq, },
 	};
 
 	if (WARN_ON(lq->sta_id == IWL_MVM_STATION_COUNT))
-		return -EINVAL;
-
-	if (WARN_ON(init && (cmd.flags & CMD_ASYNC)))
 		return -EINVAL;
 
 	return iwl_mvm_send_cmd(mvm, &cmd);

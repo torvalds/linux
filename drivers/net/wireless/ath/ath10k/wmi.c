@@ -674,10 +674,8 @@ int ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *skb)
 
 	/* Send the management frame buffer to the target */
 	ret = ath10k_wmi_cmd_send(ar, wmi_skb, ar->wmi.cmd->mgmt_tx_cmdid);
-	if (ret) {
-		dev_kfree_skb_any(skb);
+	if (ret)
 		return ret;
-	}
 
 	/* TODO: report tx status to mac80211 - temporary just ACK */
 	info->flags |= IEEE80211_TX_STAT_ACK;
@@ -908,6 +906,11 @@ static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 
 	ath10k_dbg(ATH10K_DBG_MGMT,
 		   "event mgmt rx status %08x\n", rx_status);
+
+	if (test_bit(ATH10K_CAC_RUNNING, &ar->dev_flags)) {
+		dev_kfree_skb(skb);
+		return 0;
+	}
 
 	if (rx_status & WMI_RX_STATUS_ERR_DECRYPT) {
 		dev_kfree_skb(skb);
@@ -1383,9 +1386,259 @@ static void ath10k_wmi_event_tbttoffset_update(struct ath10k *ar,
 	ath10k_dbg(ATH10K_DBG_WMI, "WMI_TBTTOFFSET_UPDATE_EVENTID\n");
 }
 
+static void ath10k_dfs_radar_report(struct ath10k *ar,
+				    struct wmi_single_phyerr_rx_event *event,
+				    struct phyerr_radar_report *rr,
+				    u64 tsf)
+{
+	u32 reg0, reg1, tsf32l;
+	struct pulse_event pe;
+	u64 tsf64;
+	u8 rssi, width;
+
+	reg0 = __le32_to_cpu(rr->reg0);
+	reg1 = __le32_to_cpu(rr->reg1);
+
+	ath10k_dbg(ATH10K_DBG_REGULATORY,
+		   "wmi phyerr radar report chirp %d max_width %d agc_total_gain %d pulse_delta_diff %d\n",
+		   MS(reg0, RADAR_REPORT_REG0_PULSE_IS_CHIRP),
+		   MS(reg0, RADAR_REPORT_REG0_PULSE_IS_MAX_WIDTH),
+		   MS(reg0, RADAR_REPORT_REG0_AGC_TOTAL_GAIN),
+		   MS(reg0, RADAR_REPORT_REG0_PULSE_DELTA_DIFF));
+	ath10k_dbg(ATH10K_DBG_REGULATORY,
+		   "wmi phyerr radar report pulse_delta_pean %d pulse_sidx %d fft_valid %d agc_mb_gain %d subchan_mask %d\n",
+		   MS(reg0, RADAR_REPORT_REG0_PULSE_DELTA_PEAK),
+		   MS(reg0, RADAR_REPORT_REG0_PULSE_SIDX),
+		   MS(reg1, RADAR_REPORT_REG1_PULSE_SRCH_FFT_VALID),
+		   MS(reg1, RADAR_REPORT_REG1_PULSE_AGC_MB_GAIN),
+		   MS(reg1, RADAR_REPORT_REG1_PULSE_SUBCHAN_MASK));
+	ath10k_dbg(ATH10K_DBG_REGULATORY,
+		   "wmi phyerr radar report pulse_tsf_offset 0x%X pulse_dur: %d\n",
+		   MS(reg1, RADAR_REPORT_REG1_PULSE_TSF_OFFSET),
+		   MS(reg1, RADAR_REPORT_REG1_PULSE_DUR));
+
+	if (!ar->dfs_detector)
+		return;
+
+	/* report event to DFS pattern detector */
+	tsf32l = __le32_to_cpu(event->hdr.tsf_timestamp);
+	tsf64 = tsf & (~0xFFFFFFFFULL);
+	tsf64 |= tsf32l;
+
+	width = MS(reg1, RADAR_REPORT_REG1_PULSE_DUR);
+	rssi = event->hdr.rssi_combined;
+
+	/* hardware store this as 8 bit signed value,
+	 * set to zero if negative number
+	 */
+	if (rssi & 0x80)
+		rssi = 0;
+
+	pe.ts = tsf64;
+	pe.freq = ar->hw->conf.chandef.chan->center_freq;
+	pe.width = width;
+	pe.rssi = rssi;
+
+	ath10k_dbg(ATH10K_DBG_REGULATORY,
+		   "dfs add pulse freq: %d, width: %d, rssi %d, tsf: %llX\n",
+		   pe.freq, pe.width, pe.rssi, pe.ts);
+
+	ATH10K_DFS_STAT_INC(ar, pulses_detected);
+
+	if (!ar->dfs_detector->add_pulse(ar->dfs_detector, &pe)) {
+		ath10k_dbg(ATH10K_DBG_REGULATORY,
+			   "dfs no pulse pattern detected, yet\n");
+		return;
+	}
+
+	ath10k_dbg(ATH10K_DBG_REGULATORY, "dfs radar detected\n");
+	ATH10K_DFS_STAT_INC(ar, radar_detected);
+
+	/* Control radar events reporting in debugfs file
+	   dfs_block_radar_events */
+	if (ar->dfs_block_radar_events) {
+		ath10k_info("DFS Radar detected, but ignored as requested\n");
+		return;
+	}
+
+	ieee80211_radar_detected(ar->hw);
+}
+
+static int ath10k_dfs_fft_report(struct ath10k *ar,
+				 struct wmi_single_phyerr_rx_event *event,
+				 struct phyerr_fft_report *fftr,
+				 u64 tsf)
+{
+	u32 reg0, reg1;
+	u8 rssi, peak_mag;
+
+	reg0 = __le32_to_cpu(fftr->reg0);
+	reg1 = __le32_to_cpu(fftr->reg1);
+	rssi = event->hdr.rssi_combined;
+
+	ath10k_dbg(ATH10K_DBG_REGULATORY,
+		   "wmi phyerr fft report total_gain_db %d base_pwr_db %d fft_chn_idx %d peak_sidx %d\n",
+		   MS(reg0, SEARCH_FFT_REPORT_REG0_TOTAL_GAIN_DB),
+		   MS(reg0, SEARCH_FFT_REPORT_REG0_BASE_PWR_DB),
+		   MS(reg0, SEARCH_FFT_REPORT_REG0_FFT_CHN_IDX),
+		   MS(reg0, SEARCH_FFT_REPORT_REG0_PEAK_SIDX));
+	ath10k_dbg(ATH10K_DBG_REGULATORY,
+		   "wmi phyerr fft report rel_pwr_db %d avgpwr_db %d peak_mag %d num_store_bin %d\n",
+		   MS(reg1, SEARCH_FFT_REPORT_REG1_RELPWR_DB),
+		   MS(reg1, SEARCH_FFT_REPORT_REG1_AVGPWR_DB),
+		   MS(reg1, SEARCH_FFT_REPORT_REG1_PEAK_MAG),
+		   MS(reg1, SEARCH_FFT_REPORT_REG1_NUM_STR_BINS_IB));
+
+	peak_mag = MS(reg1, SEARCH_FFT_REPORT_REG1_PEAK_MAG);
+
+	/* false event detection */
+	if (rssi == DFS_RSSI_POSSIBLY_FALSE &&
+	    peak_mag < 2 * DFS_PEAK_MAG_THOLD_POSSIBLY_FALSE) {
+		ath10k_dbg(ATH10K_DBG_REGULATORY, "dfs false pulse detected\n");
+		ATH10K_DFS_STAT_INC(ar, pulses_discarded);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void ath10k_wmi_event_dfs(struct ath10k *ar,
+				 struct wmi_single_phyerr_rx_event *event,
+				 u64 tsf)
+{
+	int buf_len, tlv_len, res, i = 0;
+	struct phyerr_tlv *tlv;
+	struct phyerr_radar_report *rr;
+	struct phyerr_fft_report *fftr;
+	u8 *tlv_buf;
+
+	buf_len = __le32_to_cpu(event->hdr.buf_len);
+	ath10k_dbg(ATH10K_DBG_REGULATORY,
+		   "wmi event dfs err_code %d rssi %d tsfl 0x%X tsf64 0x%llX len %d\n",
+		   event->hdr.phy_err_code, event->hdr.rssi_combined,
+		   __le32_to_cpu(event->hdr.tsf_timestamp), tsf, buf_len);
+
+	/* Skip event if DFS disabled */
+	if (!config_enabled(CONFIG_ATH10K_DFS_CERTIFIED))
+		return;
+
+	ATH10K_DFS_STAT_INC(ar, pulses_total);
+
+	while (i < buf_len) {
+		if (i + sizeof(*tlv) > buf_len) {
+			ath10k_warn("too short buf for tlv header (%d)\n", i);
+			return;
+		}
+
+		tlv = (struct phyerr_tlv *)&event->bufp[i];
+		tlv_len = __le16_to_cpu(tlv->len);
+		tlv_buf = &event->bufp[i + sizeof(*tlv)];
+		ath10k_dbg(ATH10K_DBG_REGULATORY,
+			   "wmi event dfs tlv_len %d tlv_tag 0x%02X tlv_sig 0x%02X\n",
+			   tlv_len, tlv->tag, tlv->sig);
+
+		switch (tlv->tag) {
+		case PHYERR_TLV_TAG_RADAR_PULSE_SUMMARY:
+			if (i + sizeof(*tlv) + sizeof(*rr) > buf_len) {
+				ath10k_warn("too short radar pulse summary (%d)\n",
+					    i);
+				return;
+			}
+
+			rr = (struct phyerr_radar_report *)tlv_buf;
+			ath10k_dfs_radar_report(ar, event, rr, tsf);
+			break;
+		case PHYERR_TLV_TAG_SEARCH_FFT_REPORT:
+			if (i + sizeof(*tlv) + sizeof(*fftr) > buf_len) {
+				ath10k_warn("too short fft report (%d)\n", i);
+				return;
+			}
+
+			fftr = (struct phyerr_fft_report *)tlv_buf;
+			res = ath10k_dfs_fft_report(ar, event, fftr, tsf);
+			if (res)
+				return;
+			break;
+		}
+
+		i += sizeof(*tlv) + tlv_len;
+	}
+}
+
+static void ath10k_wmi_event_spectral_scan(struct ath10k *ar,
+				struct wmi_single_phyerr_rx_event *event,
+				u64 tsf)
+{
+	ath10k_dbg(ATH10K_DBG_WMI, "wmi event spectral scan\n");
+}
+
 static void ath10k_wmi_event_phyerr(struct ath10k *ar, struct sk_buff *skb)
 {
-	ath10k_dbg(ATH10K_DBG_WMI, "WMI_PHYERR_EVENTID\n");
+	struct wmi_comb_phyerr_rx_event *comb_event;
+	struct wmi_single_phyerr_rx_event *event;
+	u32 count, i, buf_len, phy_err_code;
+	u64 tsf;
+	int left_len = skb->len;
+
+	ATH10K_DFS_STAT_INC(ar, phy_errors);
+
+	/* Check if combined event available */
+	if (left_len < sizeof(*comb_event)) {
+		ath10k_warn("wmi phyerr combined event wrong len\n");
+		return;
+	}
+
+	left_len -= sizeof(*comb_event);
+
+	/* Check number of included events */
+	comb_event = (struct wmi_comb_phyerr_rx_event *)skb->data;
+	count = __le32_to_cpu(comb_event->hdr.num_phyerr_events);
+
+	tsf = __le32_to_cpu(comb_event->hdr.tsf_u32);
+	tsf <<= 32;
+	tsf |= __le32_to_cpu(comb_event->hdr.tsf_l32);
+
+	ath10k_dbg(ATH10K_DBG_WMI,
+		   "wmi event phyerr count %d tsf64 0x%llX\n",
+		   count, tsf);
+
+	event = (struct wmi_single_phyerr_rx_event *)comb_event->bufp;
+	for (i = 0; i < count; i++) {
+		/* Check if we can read event header */
+		if (left_len < sizeof(*event)) {
+			ath10k_warn("single event (%d) wrong head len\n", i);
+			return;
+		}
+
+		left_len -= sizeof(*event);
+
+		buf_len = __le32_to_cpu(event->hdr.buf_len);
+		phy_err_code = event->hdr.phy_err_code;
+
+		if (left_len < buf_len) {
+			ath10k_warn("single event (%d) wrong buf len\n", i);
+			return;
+		}
+
+		left_len -= buf_len;
+
+		switch (phy_err_code) {
+		case PHY_ERROR_RADAR:
+			ath10k_wmi_event_dfs(ar, event, tsf);
+			break;
+		case PHY_ERROR_SPECTRAL_SCAN:
+			ath10k_wmi_event_spectral_scan(ar, event, tsf);
+			break;
+		case PHY_ERROR_FALSE_RADAR_EXT:
+			ath10k_wmi_event_dfs(ar, event, tsf);
+			ath10k_wmi_event_spectral_scan(ar, event, tsf);
+			break;
+		default:
+			break;
+		}
+
+		event += sizeof(*event) + buf_len;
+	}
 }
 
 static void ath10k_wmi_event_roam(struct ath10k *ar, struct sk_buff *skb)
@@ -2062,6 +2315,7 @@ int ath10k_wmi_pdev_set_channel(struct ath10k *ar,
 {
 	struct wmi_set_channel_cmd *cmd;
 	struct sk_buff *skb;
+	u32 ch_flags = 0;
 
 	if (arg->passive)
 		return -EINVAL;
@@ -2070,10 +2324,14 @@ int ath10k_wmi_pdev_set_channel(struct ath10k *ar,
 	if (!skb)
 		return -ENOMEM;
 
+	if (arg->chan_radar)
+		ch_flags |= WMI_CHAN_FLAG_DFS;
+
 	cmd = (struct wmi_set_channel_cmd *)skb->data;
 	cmd->chan.mhz               = __cpu_to_le32(arg->freq);
 	cmd->chan.band_center_freq1 = __cpu_to_le32(arg->freq);
 	cmd->chan.mode              = arg->mode;
+	cmd->chan.flags		   |= __cpu_to_le32(ch_flags);
 	cmd->chan.min_power         = arg->min_power;
 	cmd->chan.max_power         = arg->max_power;
 	cmd->chan.reg_power         = arg->max_reg_power;
@@ -2211,7 +2469,7 @@ static int ath10k_wmi_main_cmd_init(struct ath10k *ar)
 	}
 
 	ath10k_dbg(ATH10K_DBG_WMI, "wmi sending %d memory chunks info.\n",
-		   __cpu_to_le32(ar->wmi.num_mem_chunks));
+		   ar->wmi.num_mem_chunks);
 
 	cmd->num_host_mem_chunks = __cpu_to_le32(ar->wmi.num_mem_chunks);
 
@@ -2224,10 +2482,10 @@ static int ath10k_wmi_main_cmd_init(struct ath10k *ar)
 			__cpu_to_le32(ar->wmi.mem_chunks[i].req_id);
 
 		ath10k_dbg(ATH10K_DBG_WMI,
-			   "wmi chunk %d len %d requested, addr 0x%x\n",
+			   "wmi chunk %d len %d requested, addr 0x%llx\n",
 			   i,
-			   cmd->host_mem_chunks[i].size,
-			   cmd->host_mem_chunks[i].ptr);
+			   ar->wmi.mem_chunks[i].len,
+			   (unsigned long long)ar->wmi.mem_chunks[i].paddr);
 	}
 out:
 	memcpy(&cmd->resource_config, &config, sizeof(config));
@@ -2302,7 +2560,7 @@ static int ath10k_wmi_10x_cmd_init(struct ath10k *ar)
 	}
 
 	ath10k_dbg(ATH10K_DBG_WMI, "wmi sending %d memory chunks info.\n",
-		   __cpu_to_le32(ar->wmi.num_mem_chunks));
+		   ar->wmi.num_mem_chunks);
 
 	cmd->num_host_mem_chunks = __cpu_to_le32(ar->wmi.num_mem_chunks);
 
@@ -2315,10 +2573,10 @@ static int ath10k_wmi_10x_cmd_init(struct ath10k *ar)
 			__cpu_to_le32(ar->wmi.mem_chunks[i].req_id);
 
 		ath10k_dbg(ATH10K_DBG_WMI,
-			   "wmi chunk %d len %d requested, addr 0x%x\n",
+			   "wmi chunk %d len %d requested, addr 0x%llx\n",
 			   i,
-			   cmd->host_mem_chunks[i].size,
-			   cmd->host_mem_chunks[i].ptr);
+			   ar->wmi.mem_chunks[i].len,
+			   (unsigned long long)ar->wmi.mem_chunks[i].paddr);
 	}
 out:
 	memcpy(&cmd->resource_config, &config, sizeof(config));
@@ -2622,6 +2880,7 @@ static int ath10k_wmi_vdev_start_restart(struct ath10k *ar,
 	struct sk_buff *skb;
 	const char *cmdname;
 	u32 flags = 0;
+	u32 ch_flags = 0;
 
 	if (cmd_id != ar->wmi.cmd->vdev_start_request_cmdid &&
 	    cmd_id != ar->wmi.cmd->vdev_restart_request_cmdid)
@@ -2648,6 +2907,8 @@ static int ath10k_wmi_vdev_start_restart(struct ath10k *ar,
 		flags |= WMI_VDEV_START_HIDDEN_SSID;
 	if (arg->pmf_enabled)
 		flags |= WMI_VDEV_START_PMF_ENABLED;
+	if (arg->channel.chan_radar)
+		ch_flags |= WMI_CHAN_FLAG_DFS;
 
 	cmd = (struct wmi_vdev_start_request_cmd *)skb->data;
 	cmd->vdev_id         = __cpu_to_le32(arg->vdev_id);
@@ -2669,6 +2930,7 @@ static int ath10k_wmi_vdev_start_restart(struct ath10k *ar,
 		__cpu_to_le32(arg->channel.band_center_freq1);
 
 	cmd->chan.mode = arg->channel.mode;
+	cmd->chan.flags |= __cpu_to_le32(ch_flags);
 	cmd->chan.min_power = arg->channel.min_power;
 	cmd->chan.max_power = arg->channel.max_power;
 	cmd->chan.reg_power = arg->channel.max_reg_power;
@@ -2676,9 +2938,10 @@ static int ath10k_wmi_vdev_start_restart(struct ath10k *ar,
 	cmd->chan.antenna_max = arg->channel.max_antenna_gain;
 
 	ath10k_dbg(ATH10K_DBG_WMI,
-		   "wmi vdev %s id 0x%x freq %d, mode %d, ch_flags: 0x%0X,"
-		   "max_power: %d\n", cmdname, arg->vdev_id, arg->channel.freq,
-		   arg->channel.mode, flags, arg->channel.max_power);
+		   "wmi vdev %s id 0x%x flags: 0x%0X, freq %d, mode %d, "
+		   "ch_flags: 0x%0X, max_power: %d\n", cmdname, arg->vdev_id,
+		   flags, arg->channel.freq, arg->channel.mode,
+		   cmd->chan.flags, arg->channel.max_power);
 
 	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
 }
@@ -3012,6 +3275,8 @@ int ath10k_wmi_scan_chan_list(struct ath10k *ar,
 			flags |= WMI_CHAN_FLAG_ALLOW_VHT;
 		if (ch->ht40plus)
 			flags |= WMI_CHAN_FLAG_HT40_PLUS;
+		if (ch->chan_radar)
+			flags |= WMI_CHAN_FLAG_DFS;
 
 		ci->mhz               = __cpu_to_le32(ch->freq);
 		ci->band_center_freq1 = __cpu_to_le32(ch->freq);
@@ -3094,6 +3359,7 @@ int ath10k_wmi_beacon_send_nowait(struct ath10k *ar,
 {
 	struct wmi_bcn_tx_cmd *cmd;
 	struct sk_buff *skb;
+	int ret;
 
 	skb = ath10k_wmi_alloc_skb(sizeof(*cmd) + arg->bcn_len);
 	if (!skb)
@@ -3106,7 +3372,11 @@ int ath10k_wmi_beacon_send_nowait(struct ath10k *ar,
 	cmd->hdr.bcn_len  = __cpu_to_le32(arg->bcn_len);
 	memcpy(cmd->bcn, arg->bcn, arg->bcn_len);
 
-	return ath10k_wmi_cmd_send_nowait(ar, skb, ar->wmi.cmd->bcn_tx_cmdid);
+	ret = ath10k_wmi_cmd_send_nowait(ar, skb, ar->wmi.cmd->bcn_tx_cmdid);
+	if (ret)
+		dev_kfree_skb(skb);
+
+	return ret;
 }
 
 static void ath10k_wmi_pdev_set_wmm_param(struct wmi_wmm_params *params,

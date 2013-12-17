@@ -256,7 +256,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	}
 
 	hw->wiphy->features |= NL80211_FEATURE_P2P_GO_CTWIN |
-			       NL80211_FEATURE_P2P_GO_OPPPS;
+			       NL80211_FEATURE_P2P_GO_OPPPS |
+			       NL80211_FEATURE_LOW_PRIORITY_SCAN;
 
 	mvm->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 
@@ -990,6 +991,17 @@ iwl_mvm_bss_info_changed_ap_ibss(struct iwl_mvm *mvm,
 				 struct ieee80211_bss_conf *bss_conf,
 				 u32 changes)
 {
+	enum ieee80211_bss_change ht_change = BSS_CHANGED_ERP_CTS_PROT |
+					      BSS_CHANGED_HT |
+					      BSS_CHANGED_BANDWIDTH;
+	int ret;
+
+	if (changes & ht_change) {
+		ret = iwl_mvm_mac_ctxt_changed(mvm, vif);
+		if (ret)
+			IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
+	}
+
 	/* Need to send a new beacon template to the FW */
 	if (changes & BSS_CHANGED_BEACON) {
 		if (iwl_mvm_mac_ctxt_beacon_changed(mvm, vif))
@@ -1080,7 +1092,7 @@ static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 				   struct ieee80211_sta *sta)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 	switch (cmd) {
 	case STA_NOTIFY_SLEEP:
@@ -1149,7 +1161,8 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		ret = iwl_mvm_update_sta(mvm, vif, sta);
 		if (ret == 0)
 			iwl_mvm_rs_rate_init(mvm, sta,
-					     mvmvif->phy_ctxt->channel->band);
+					     mvmvif->phy_ctxt->channel->band,
+					     true);
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTHORIZED) {
 		/* enable beacon filtering */

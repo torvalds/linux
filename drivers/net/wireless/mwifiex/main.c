@@ -648,6 +648,7 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_info = MWIFIEX_SKB_TXCB(skb);
 	tx_info->bss_num = priv->bss_num;
 	tx_info->bss_type = priv->bss_type;
+	tx_info->pkt_len = skb->len;
 
 	/* Record the current time the packet was queued; used to
 	 * determine the amount of time the packet was queued in
@@ -991,12 +992,8 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 		rtnl_unlock();
 	}
 
-	priv = adapter->priv[0];
-	if (!priv || !priv->wdev)
-		goto exit_remove;
-
-	wiphy_unregister(priv->wdev->wiphy);
-	wiphy_free(priv->wdev->wiphy);
+	wiphy_unregister(adapter->wiphy);
+	wiphy_free(adapter->wiphy);
 
 	mwifiex_terminate_workqueue(adapter);
 
