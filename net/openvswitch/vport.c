@@ -33,6 +33,9 @@
 #include "vport.h"
 #include "vport-internal_dev.h"
 
+static void ovs_vport_record_error(struct vport *,
+				   enum vport_err_type err_type);
+
 /* List of statically compiled vport implementations.  Don't forget to also
  * add yours to the list at the bottom of vport.h. */
 static const struct vport_ops *vport_ops_list[] = {
@@ -396,7 +399,8 @@ int ovs_vport_send(struct vport *vport, struct sk_buff *skb)
  * If using the vport generic stats layer indicate that an error of the given
  * type has occurred.
  */
-void ovs_vport_record_error(struct vport *vport, enum vport_err_type err_type)
+static void ovs_vport_record_error(struct vport *vport,
+				   enum vport_err_type err_type)
 {
 	spin_lock(&vport->stats_lock);
 

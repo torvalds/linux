@@ -192,7 +192,6 @@ static inline struct vport *vport_from_priv(const void *priv)
 
 void ovs_vport_receive(struct vport *, struct sk_buff *,
 		       struct ovs_key_ipv4_tunnel *);
-void ovs_vport_record_error(struct vport *, enum vport_err_type err_type);
 
 /* List of statically compiled vport implementations.  Don't forget to also
  * add yours to the list at the top of vport.c. */

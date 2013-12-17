@@ -132,7 +132,7 @@ static struct datapath *get_dp(struct net *net, int dp_ifindex)
 }
 
 /* Must be called with rcu_read_lock or ovs_mutex. */
-const char *ovs_dp_name(const struct datapath *dp)
+static const char *ovs_dp_name(const struct datapath *dp)
 {
 	struct vport *vport = ovs_vport_ovsl_rcu(dp, OVSP_LOCAL);
 	return vport->ops->get_name(vport);
@@ -1466,7 +1466,7 @@ struct genl_family dp_vport_genl_family = {
 	.parallel_ops = true,
 };
 
-struct genl_multicast_group ovs_dp_vport_multicast_group = {
+static struct genl_multicast_group ovs_dp_vport_multicast_group = {
 	.name = OVS_VPORT_MCGROUP
 };
 
