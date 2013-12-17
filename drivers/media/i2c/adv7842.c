@@ -2936,6 +2936,8 @@ static int adv7842_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct adv7842_state *state;
+	static const struct v4l2_dv_timings cea640x480 =
+		V4L2_DV_BT_CEA_640X480P59_94;
 	struct adv7842_platform_data *pdata = client->dev.platform_data;
 	struct v4l2_ctrl_handler *hdl;
 	struct v4l2_subdev *sd;
@@ -2962,6 +2964,7 @@ static int adv7842_probe(struct i2c_client *client,
 
 	/* platform data */
 	state->pdata = *pdata;
+	state->timings = cea640x480;
 
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &adv7842_ops);
