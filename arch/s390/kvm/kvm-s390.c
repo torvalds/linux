@@ -91,7 +91,7 @@ unsigned long *vfacilities;
 static struct gmap_notifier gmap_notifier;
 
 /* test availability of vfacility */
-static inline int test_vfacility(unsigned long nr)
+int test_vfacility(unsigned long nr)
 {
 	return __test_facility(nr, (void *) vfacilities);
 }
