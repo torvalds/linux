@@ -890,6 +890,16 @@ static void cgroup_diput(struct dentry *dentry, struct inode *inode)
 		struct cgroup *cgrp = dentry->d_fsdata;
 
 		BUG_ON(!(cgroup_is_dead(cgrp)));
+
+		/*
+		 * XXX: cgrp->id is only used to look up css's.  As cgroup
+		 * and css's lifetimes will be decoupled, it should be made
+		 * per-subsystem and moved to css->id so that lookups are
+		 * successful until the target css is released.
+		 */
+		idr_remove(&cgrp->root->cgroup_idr, cgrp->id);
+		cgrp->id = -1;
+
 		call_rcu(&cgrp->rcu_head, cgroup_free_rcu);
 	} else {
 		struct cfent *cfe = __d_cfe(dentry);
@@ -4268,6 +4278,7 @@ static void css_release(struct percpu_ref *ref)
 	struct cgroup_subsys_state *css =
 		container_of(ref, struct cgroup_subsys_state, refcnt);
 
+	rcu_assign_pointer(css->cgroup->subsys[css->ss->subsys_id], NULL);
 	call_rcu(&css->rcu_head, css_free_rcu_fn);
 }
 
@@ -4732,14 +4743,6 @@ static void cgroup_destroy_css_killed(struct cgroup *cgrp)
 
 	/* delete this cgroup from parent->children */
 	list_del_rcu(&cgrp->sibling);
-
-	/*
-	 * We should remove the cgroup object from idr before its grace
-	 * period starts, so we won't be looking up a cgroup while the
-	 * cgroup is being freed.
-	 */
-	idr_remove(&cgrp->root->cgroup_idr, cgrp->id);
-	cgrp->id = -1;
 
 	dput(d);
 
