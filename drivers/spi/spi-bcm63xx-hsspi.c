@@ -399,7 +399,7 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 		goto out_put_master;
 
 	/* register and we are done */
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(dev, master);
 	if (ret)
 		goto out_put_master;
 
@@ -417,8 +417,6 @@ static int bcm63xx_hsspi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct bcm63xx_hsspi *bs = spi_master_get_devdata(master);
-
-	spi_unregister_master(master);
 
 	/* reset the hardware and block queue progress */
 	__raw_writel(0, bs->regs + HSSPI_INT_MASK_REG);
