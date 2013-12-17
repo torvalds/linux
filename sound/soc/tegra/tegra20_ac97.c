@@ -313,7 +313,6 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 {
 	struct tegra20_ac97 *ac97;
 	struct resource *mem;
-	u32 of_dma[2];
 	void __iomem *regs;
 	int ret = 0;
 
@@ -348,14 +347,6 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 		goto err_clk_put;
 	}
 
-	if (of_property_read_u32_array(pdev->dev.of_node,
-				       "nvidia,dma-request-selector",
-				       of_dma, 2) < 0) {
-		dev_err(&pdev->dev, "No DMA resource\n");
-		ret = -ENODEV;
-		goto err_clk_put;
-	}
-
 	ac97->reset_gpio = of_get_named_gpio(pdev->dev.of_node,
 					     "nvidia,codec-reset-gpio", 0);
 	if (gpio_is_valid(ac97->reset_gpio)) {
@@ -380,12 +371,10 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 	ac97->capture_dma_data.addr = mem->start + TEGRA20_AC97_FIFO_RX1;
 	ac97->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	ac97->capture_dma_data.maxburst = 4;
-	ac97->capture_dma_data.slave_id = of_dma[1];
 
 	ac97->playback_dma_data.addr = mem->start + TEGRA20_AC97_FIFO_TX1;
 	ac97->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	ac97->playback_dma_data.maxburst = 4;
-	ac97->playback_dma_data.slave_id = of_dma[1];
 
 	ret = tegra_asoc_utils_init(&ac97->util_data, &pdev->dev);
 	if (ret)

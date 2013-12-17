@@ -238,11 +238,14 @@ struct tegra30_i2s {
 	struct clk *clk_i2s;
 	enum tegra30_ahub_txcif capture_i2s_cif;
 	enum tegra30_ahub_rxcif capture_fifo_cif;
+	char capture_dma_chan[8];
 	struct snd_dmaengine_dai_dma_data capture_dma_data;
 	enum tegra30_ahub_rxcif playback_i2s_cif;
 	enum tegra30_ahub_txcif playback_fifo_cif;
+	char playback_dma_chan[8];
 	struct snd_dmaengine_dai_dma_data playback_dma_data;
 	struct regmap *regmap;
+	struct snd_dmaengine_pcm_config dma_config;
 };
 
 #endif
