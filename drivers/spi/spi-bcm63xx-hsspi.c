@@ -425,14 +425,14 @@ static int bcm63xx_hsspi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int bcm63xx_hsspi_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct bcm63xx_hsspi *bs = spi_master_get_devdata(master);
 
 	spi_master_suspend(master);
-	clk_disable(bs->clk);
+	clk_disable_unprepare(bs->clk);
 
 	return 0;
 }
@@ -441,30 +441,27 @@ static int bcm63xx_hsspi_resume(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct bcm63xx_hsspi *bs = spi_master_get_devdata(master);
+	int ret;
 
-	clk_enable(bs->clk);
+	ret = clk_prepare_enable(bs->clk);
+	if (ret)
+		return ret;
+
 	spi_master_resume(master);
 
 	return 0;
 }
-
-static const struct dev_pm_ops bcm63xx_hsspi_pm_ops = {
-	.suspend	= bcm63xx_hsspi_suspend,
-	.resume		= bcm63xx_hsspi_resume,
-};
-
-#define BCM63XX_HSSPI_PM_OPS	(&bcm63xx_hsspi_pm_ops)
-#else
-#define BCM63XX_HSSPI_PM_OPS	NULL
 #endif
 
-
+static const struct dev_pm_ops bcm63xx_hsspi_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(bcm63xx_hsspi_suspend, bcm63xx_hsspi_resume)
+};
 
 static struct platform_driver bcm63xx_hsspi_driver = {
 	.driver = {
 		.name	= "bcm63xx-hsspi",
 		.owner	= THIS_MODULE,
-		.pm	= BCM63XX_HSSPI_PM_OPS,
+		.pm	= &bcm63xx_hsspi_pm_ops,
 	},
 	.probe		= bcm63xx_hsspi_probe,
 	.remove		= bcm63xx_hsspi_remove,
