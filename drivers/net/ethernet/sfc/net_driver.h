@@ -288,12 +288,9 @@ struct efx_rx_buffer {
  * Used to facilitate sharing dma mappings between recycled rx buffers
  * and those passed up to the kernel.
  *
- * @refcnt: Number of struct efx_rx_buffer's referencing this page.
- *	When refcnt falls to zero, the page is unmapped for dma
  * @dma_addr: The dma address of this page.
  */
 struct efx_rx_page_state {
-	unsigned refcnt;
 	dma_addr_t dma_addr;
 
 	unsigned int __pad[0] ____cacheline_aligned;
@@ -361,12 +358,6 @@ struct efx_rx_queue {
 	unsigned int recycle_count;
 	struct timer_list slow_fill;
 	unsigned int slow_fill_count;
-};
-
-enum efx_rx_alloc_method {
-	RX_ALLOC_METHOD_AUTO = 0,
-	RX_ALLOC_METHOD_SKB = 1,
-	RX_ALLOC_METHOD_PAGE = 2,
 };
 
 enum efx_sync_events_state {
@@ -1024,7 +1015,7 @@ struct efx_mtd_partition {
  * @tx_init: Initialise TX queue on the NIC
  * @tx_remove: Free resources for TX queue
  * @tx_write: Write TX descriptors and doorbell
- * @rx_push_indir_table: Write RSS indirection table to the NIC
+ * @rx_push_rss_config: Write RSS hash key and indirection table to the NIC
  * @rx_probe: Allocate resources for RX queue
  * @rx_init: Initialise RX queue on the NIC
  * @rx_remove: Free resources for RX queue
@@ -1044,7 +1035,8 @@ struct efx_mtd_partition {
  * @filter_insert: add or replace a filter
  * @filter_remove_safe: remove a filter by ID, carefully
  * @filter_get_safe: retrieve a filter by ID, carefully
- * @filter_clear_rx: remove RX filters by priority
+ * @filter_clear_rx: Remove all RX filters whose priority is less than or
+ *	equal to the given priority and is not %EFX_FILTER_PRI_AUTO
  * @filter_count_rx_used: Get the number of filters in use at a given priority
  * @filter_get_rx_id_limit: Get maximum value of a filter id, plus 1
  * @filter_get_rx_ids: Get list of RX filters at a given priority
@@ -1141,7 +1133,7 @@ struct efx_nic_type {
 	void (*tx_init)(struct efx_tx_queue *tx_queue);
 	void (*tx_remove)(struct efx_tx_queue *tx_queue);
 	void (*tx_write)(struct efx_tx_queue *tx_queue);
-	void (*rx_push_indir_table)(struct efx_nic *efx);
+	void (*rx_push_rss_config)(struct efx_nic *efx);
 	int (*rx_probe)(struct efx_rx_queue *rx_queue);
 	void (*rx_init)(struct efx_rx_queue *rx_queue);
 	void (*rx_remove)(struct efx_rx_queue *rx_queue);
@@ -1166,8 +1158,8 @@ struct efx_nic_type {
 	int (*filter_get_safe)(struct efx_nic *efx,
 			       enum efx_filter_priority priority,
 			       u32 filter_id, struct efx_filter_spec *);
-	void (*filter_clear_rx)(struct efx_nic *efx,
-				enum efx_filter_priority priority);
+	int (*filter_clear_rx)(struct efx_nic *efx,
+			       enum efx_filter_priority priority);
 	u32 (*filter_count_rx_used)(struct efx_nic *efx,
 				    enum efx_filter_priority priority);
 	u32 (*filter_get_rx_id_limit)(struct efx_nic *efx);

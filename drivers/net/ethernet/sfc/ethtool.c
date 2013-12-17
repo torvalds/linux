@@ -359,7 +359,8 @@ static int efx_ethtool_get_sset_count(struct net_device *net_dev,
 	switch (string_set) {
 	case ETH_SS_STATS:
 		return efx->type->describe_stats(efx, NULL) +
-			EFX_ETHTOOL_SW_STAT_COUNT;
+			EFX_ETHTOOL_SW_STAT_COUNT +
+			efx_ptp_describe_stats(efx, NULL);
 	case ETH_SS_TEST:
 		return efx_ethtool_fill_self_tests(efx, NULL, NULL, NULL);
 	default:
@@ -380,6 +381,8 @@ static void efx_ethtool_get_strings(struct net_device *net_dev,
 		for (i = 0; i < EFX_ETHTOOL_SW_STAT_COUNT; i++)
 			strlcpy(strings + i * ETH_GSTRING_LEN,
 				efx_sw_stat_desc[i].name, ETH_GSTRING_LEN);
+		strings += EFX_ETHTOOL_SW_STAT_COUNT * ETH_GSTRING_LEN;
+		efx_ptp_describe_stats(efx, strings);
 		break;
 	case ETH_SS_TEST:
 		efx_ethtool_fill_self_tests(efx, NULL, strings, NULL);
@@ -429,8 +432,11 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 			break;
 		}
 	}
+	data += EFX_ETHTOOL_SW_STAT_COUNT;
 
 	spin_unlock_bh(&efx->stats_lock);
+
+	efx_ptp_update_stats(efx, data);
 }
 
 static void efx_ethtool_self_test(struct net_device *net_dev,
@@ -1034,7 +1040,7 @@ static int efx_ethtool_set_rxfh_indir(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 
 	memcpy(efx->rx_indir_table, indir, sizeof(efx->rx_indir_table));
-	efx_nic_push_rx_indir_table(efx);
+	efx->type->rx_push_rss_config(efx);
 	return 0;
 }
 

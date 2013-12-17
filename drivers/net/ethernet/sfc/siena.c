@@ -321,6 +321,31 @@ fail1:
 	return rc;
 }
 
+static void siena_rx_push_rss_config(struct efx_nic *efx)
+{
+	efx_oword_t temp;
+
+	/* Set hash key for IPv4 */
+	memcpy(&temp, efx->rx_hash_key, sizeof(temp));
+	efx_writeo(efx, &temp, FR_BZ_RX_RSS_TKEY);
+
+	/* Enable IPv6 RSS */
+	BUILD_BUG_ON(sizeof(efx->rx_hash_key) <
+		     2 * sizeof(temp) + FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH / 8 ||
+		     FRF_CZ_RX_RSS_IPV6_TKEY_HI_LBN != 0);
+	memcpy(&temp, efx->rx_hash_key, sizeof(temp));
+	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG1);
+	memcpy(&temp, efx->rx_hash_key + sizeof(temp), sizeof(temp));
+	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG2);
+	EFX_POPULATE_OWORD_2(temp, FRF_CZ_RX_RSS_IPV6_THASH_ENABLE, 1,
+			     FRF_CZ_RX_RSS_IPV6_IP_THASH_ENABLE, 1);
+	memcpy(&temp, efx->rx_hash_key + 2 * sizeof(temp),
+	       FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH / 8);
+	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG3);
+
+	efx_farch_rx_push_indir_table(efx);
+}
+
 /* This call performs hardware-specific global initialisation, such as
  * defining the descriptor cache sizes and number of RSS channels.
  * It does not set up any buffers, descriptor rings or event queues.
@@ -361,23 +386,7 @@ static int siena_init_nic(struct efx_nic *efx)
 			    EFX_RX_USR_BUF_SIZE >> 5);
 	efx_writeo(efx, &temp, FR_AZ_RX_CFG);
 
-	/* Set hash key for IPv4 */
-	memcpy(&temp, efx->rx_hash_key, sizeof(temp));
-	efx_writeo(efx, &temp, FR_BZ_RX_RSS_TKEY);
-
-	/* Enable IPv6 RSS */
-	BUILD_BUG_ON(sizeof(efx->rx_hash_key) <
-		     2 * sizeof(temp) + FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH / 8 ||
-		     FRF_CZ_RX_RSS_IPV6_TKEY_HI_LBN != 0);
-	memcpy(&temp, efx->rx_hash_key, sizeof(temp));
-	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG1);
-	memcpy(&temp, efx->rx_hash_key + sizeof(temp), sizeof(temp));
-	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG2);
-	EFX_POPULATE_OWORD_2(temp, FRF_CZ_RX_RSS_IPV6_THASH_ENABLE, 1,
-			     FRF_CZ_RX_RSS_IPV6_IP_THASH_ENABLE, 1);
-	memcpy(&temp, efx->rx_hash_key + 2 * sizeof(temp),
-	       FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH / 8);
-	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG3);
+	siena_rx_push_rss_config(efx);
 
 	/* Enable event logging */
 	rc = efx_mcdi_log_ctrl(efx, true, false, 0);
@@ -940,7 +949,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.tx_init = efx_farch_tx_init,
 	.tx_remove = efx_farch_tx_remove,
 	.tx_write = efx_farch_tx_write,
-	.rx_push_indir_table = efx_farch_rx_push_indir_table,
+	.rx_push_rss_config = siena_rx_push_rss_config,
 	.rx_probe = efx_farch_rx_probe,
 	.rx_init = efx_farch_rx_init,
 	.rx_remove = efx_farch_rx_remove,
