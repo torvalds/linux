@@ -4725,6 +4725,21 @@ out:
 	return ret;
 }
 
+static void btrfs_root_dec_send_in_progress(struct btrfs_root* root)
+{
+	spin_lock(&root->root_item_lock);
+	root->send_in_progress--;
+	/*
+	 * Not much left to do, we don't know why it's unbalanced and
+	 * can't blindly reset it to 0.
+	 */
+	if (root->send_in_progress < 0)
+		btrfs_err(root->fs_info,
+			"send_in_progres unbalanced %d root %llu\n",
+			root->send_in_progress, root->root_key.objectid);
+	spin_unlock(&root->root_item_lock);
+}
+
 long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 {
 	int ret = 0;
@@ -4942,24 +4957,11 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	}
 
 out:
-	for (i = 0; sctx && i < clone_sources_to_rollback; i++) {
-		struct btrfs_root *r = sctx->clone_roots[i].root;
-
-		spin_lock(&r->root_item_lock);
-		r->send_in_progress--;
-		spin_unlock(&r->root_item_lock);
-	}
-	if (sctx && !IS_ERR_OR_NULL(sctx->parent_root)) {
-		struct btrfs_root *r = sctx->parent_root;
-
-		spin_lock(&r->root_item_lock);
-		r->send_in_progress--;
-		spin_unlock(&r->root_item_lock);
-	}
-
-	spin_lock(&send_root->root_item_lock);
-	send_root->send_in_progress--;
-	spin_unlock(&send_root->root_item_lock);
+	for (i = 0; sctx && i < clone_sources_to_rollback; i++)
+		btrfs_root_dec_send_in_progress(sctx->clone_roots[i].root);
+	if (sctx && !IS_ERR_OR_NULL(sctx->parent_root))
+		btrfs_root_dec_send_in_progress(sctx->parent_root);
+	btrfs_root_dec_send_in_progress(send_root);
 
 	kfree(arg);
 	vfree(clone_sources_tmp);
