@@ -50,9 +50,9 @@ static struct mxs_saif *mxs_saif[2];
  * This also means that both SAIFs must operate at the same sample rate.
  *
  * We abstract this as each saif has a master, the master could be
- * himself or other saifs. In the generic saif driver, saif does not need
- * to know the different clkmux. Saif only needs to know who is his master
- * and operating his master to generate the proper clock rate for him.
+ * itself or other saifs. In the generic saif driver, saif does not need
+ * to know the different clkmux. Saif only needs to know who is its master
+ * and operating its master to generate the proper clock rate for it.
  * The master id is provided in mach-specific layer according to different
  * clkmux setting.
  */
@@ -76,7 +76,7 @@ static int mxs_saif_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
  * Since SAIF may work on EXTMASTER mode, IOW, it's working BITCLK&LRCLK
  * is provided by other SAIF, we provide a interface here to get its master
  * from its master_id.
- * Note that the master could be himself.
+ * Note that the master could be itself.
  */
 static inline struct mxs_saif *mxs_saif_get_master(struct mxs_saif * saif)
 {
@@ -516,7 +516,7 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 		}
 
 		/*
-		 * If the saif's master is not himself, we also need to enable
+		 * If the saif's master is not itself, we also need to enable
 		 * itself clk for its internal basic logic to work.
 		 */
 		if (saif != master_saif) {
