@@ -1866,7 +1866,7 @@ static int cayman_startup(struct radeon_device *rdev)
 
 	evergreen_mc_program(rdev);
 
-	if (!(rdev->flags & RADEON_IS_IGP)) {
+	if (!(rdev->flags & RADEON_IS_IGP) && !rdev->pm.dpm_enabled) {
 		r = ni_mc_load_microcode(rdev);
 		if (r) {
 			DRM_ERROR("Failed to load MC firmware!\n");
@@ -2035,6 +2035,8 @@ int cayman_resume(struct radeon_device *rdev)
 	/* init golden registers */
 	ni_init_golden_registers(rdev);
 
+	radeon_pm_resume(rdev);
+
 	rdev->accel_working = true;
 	r = cayman_startup(rdev);
 	if (r) {
@@ -2047,6 +2049,7 @@ int cayman_resume(struct radeon_device *rdev)
 
 int cayman_suspend(struct radeon_device *rdev)
 {
+	radeon_pm_suspend(rdev);
 	if (ASIC_IS_DCE6(rdev))
 		dce6_audio_fini(rdev);
 	else
@@ -2135,6 +2138,9 @@ int cayman_init(struct radeon_device *rdev)
 		}
 	}
 
+	/* Initialize power management */
+	radeon_pm_init(rdev);
+
 	ring->ring_obj = NULL;
 	r600_ring_init(rdev, ring, 1024 * 1024);
 
@@ -2194,6 +2200,7 @@ int cayman_init(struct radeon_device *rdev)
 
 void cayman_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	cayman_cp_fini(rdev);
 	cayman_dma_fini(rdev);
 	r600_irq_fini(rdev);

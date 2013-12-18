@@ -1464,11 +1464,21 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	/* setup afmt */
 	radeon_afmt_init(rdev);
 
-	/* Initialize power management */
-	radeon_pm_init(rdev);
-
 	radeon_fbdev_init(rdev);
 	drm_kms_helper_poll_init(rdev->ddev);
+
+	if (rdev->pm.dpm_enabled) {
+		/* do dpm late init */
+		ret = radeon_pm_late_init(rdev);
+		if (ret) {
+			rdev->pm.dpm_enabled = false;
+			DRM_ERROR("radeon_pm_late_init failed, disabling dpm\n");
+		}
+		/* set the dpm state for PX since there won't be
+		 * a modeset to call this.
+		 */
+		radeon_pm_compute_clocks(rdev);
+	}
 
 	return 0;
 }
@@ -1477,7 +1487,6 @@ void radeon_modeset_fini(struct radeon_device *rdev)
 {
 	radeon_fbdev_fini(rdev);
 	kfree(rdev->mode_info.bios_hardcoded_edid);
-	radeon_pm_fini(rdev);
 
 	if (rdev->mode_info.mode_config_initialized) {
 		radeon_afmt_fini(rdev);

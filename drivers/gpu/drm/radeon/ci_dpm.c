@@ -171,6 +171,7 @@ extern void si_trim_voltage_table_to_fit_state_table(struct radeon_device *rdev,
 						     struct atom_voltage_table *voltage_table);
 extern void cik_enter_rlc_safe_mode(struct radeon_device *rdev);
 extern void cik_exit_rlc_safe_mode(struct radeon_device *rdev);
+extern int ci_mc_load_microcode(struct radeon_device *rdev);
 
 static int ci_get_std_voltage_value_sidd(struct radeon_device *rdev,
 					 struct atom_voltage_table_entry *voltage_table,
@@ -4547,6 +4548,11 @@ void ci_dpm_post_set_power_state(struct radeon_device *rdev)
 
 void ci_dpm_setup_asic(struct radeon_device *rdev)
 {
+	int r;
+
+	r = ci_mc_load_microcode(rdev);
+	if (r)
+		DRM_ERROR("Failed to load MC firmware!\n");
 	ci_read_clock_registers(rdev);
 	ci_get_memory_type(rdev);
 	ci_enable_acpi_power_management(rdev);

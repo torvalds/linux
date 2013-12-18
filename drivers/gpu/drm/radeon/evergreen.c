@@ -5109,7 +5109,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 
 	evergreen_mc_program(rdev);
 
-	if (ASIC_IS_DCE5(rdev)) {
+	if (ASIC_IS_DCE5(rdev) && !rdev->pm.dpm_enabled) {
 		r = ni_mc_load_microcode(rdev);
 		if (r) {
 			DRM_ERROR("Failed to load MC firmware!\n");
@@ -5252,6 +5252,8 @@ int evergreen_resume(struct radeon_device *rdev)
 	/* init golden registers */
 	evergreen_init_golden_registers(rdev);
 
+	radeon_pm_resume(rdev);
+
 	rdev->accel_working = true;
 	r = evergreen_startup(rdev);
 	if (r) {
@@ -5266,6 +5268,7 @@ int evergreen_resume(struct radeon_device *rdev)
 
 int evergreen_suspend(struct radeon_device *rdev)
 {
+	radeon_pm_suspend(rdev);
 	r600_audio_fini(rdev);
 	uvd_v1_0_fini(rdev);
 	radeon_uvd_suspend(rdev);
@@ -5360,6 +5363,9 @@ int evergreen_init(struct radeon_device *rdev)
 		}
 	}
 
+	/* Initialize power management */
+	radeon_pm_init(rdev);
+
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ring_obj = NULL;
 	r600_ring_init(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX], 1024 * 1024);
 
@@ -5412,6 +5418,7 @@ int evergreen_init(struct radeon_device *rdev)
 
 void evergreen_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r600_audio_fini(rdev);
 	r700_cp_fini(rdev);
 	r600_dma_fini(rdev);

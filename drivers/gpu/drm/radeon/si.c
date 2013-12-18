@@ -1460,7 +1460,7 @@ static const u32 hainan_io_mc_regs[TAHITI_IO_MC_REGS_SIZE][2] = {
 };
 
 /* ucode loading */
-static int si_mc_load_microcode(struct radeon_device *rdev)
+int si_mc_load_microcode(struct radeon_device *rdev)
 {
 	const __be32 *fw_data;
 	u32 running, blackout = 0;
@@ -6322,10 +6322,12 @@ static int si_startup(struct radeon_device *rdev)
 
 	si_mc_program(rdev);
 
-	r = si_mc_load_microcode(rdev);
-	if (r) {
-		DRM_ERROR("Failed to load MC firmware!\n");
-		return r;
+	if (!rdev->pm.dpm_enabled) {
+		r = si_mc_load_microcode(rdev);
+		if (r) {
+			DRM_ERROR("Failed to load MC firmware!\n");
+			return r;
+		}
 	}
 
 	r = si_pcie_gart_enable(rdev);
@@ -6502,6 +6504,8 @@ int si_resume(struct radeon_device *rdev)
 	/* init golden registers */
 	si_init_golden_registers(rdev);
 
+	radeon_pm_resume(rdev);
+
 	rdev->accel_working = true;
 	r = si_startup(rdev);
 	if (r) {
@@ -6516,6 +6520,7 @@ int si_resume(struct radeon_device *rdev)
 
 int si_suspend(struct radeon_device *rdev)
 {
+	radeon_pm_suspend(rdev);
 	dce6_audio_fini(rdev);
 	radeon_vm_manager_fini(rdev);
 	si_cp_enable(rdev, false);
@@ -6598,6 +6603,9 @@ int si_init(struct radeon_device *rdev)
 		}
 	}
 
+	/* Initialize power management */
+	radeon_pm_init(rdev);
+
 	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	ring->ring_obj = NULL;
 	r600_ring_init(rdev, ring, 1024 * 1024);
@@ -6664,6 +6672,7 @@ int si_init(struct radeon_device *rdev)
 
 void si_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	si_cp_fini(rdev);
 	cayman_dma_fini(rdev);
 	si_fini_pg(rdev);

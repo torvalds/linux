@@ -1034,10 +1034,6 @@ static void radeon_pm_resume_dpm(struct radeon_device *rdev)
 	mutex_unlock(&rdev->pm.mutex);
 	if (ret)
 		goto dpm_resume_fail;
-	ret = radeon_pm_late_init(rdev);
-	if (ret)
-		goto dpm_resume_fail;
-
 	rdev->pm.dpm_enabled = true;
 	radeon_pm_compute_clocks(rdev);
 	return;
@@ -1178,11 +1174,7 @@ static int radeon_pm_init_dpm(struct radeon_device *rdev)
 	mutex_unlock(&rdev->pm.mutex);
 	if (ret)
 		goto dpm_failed;
-	ret = radeon_pm_late_init(rdev);
-	if (ret)
-		goto dpm_failed;
 	rdev->pm.dpm_enabled = true;
-	radeon_pm_compute_clocks(rdev);
 
 	ret = device_create_file(rdev->dev, &dev_attr_power_dpm_state);
 	if (ret)
@@ -1440,6 +1432,9 @@ static void radeon_pm_compute_clocks_dpm(struct radeon_device *rdev)
 	struct drm_device *ddev = rdev->ddev;
 	struct drm_crtc *crtc;
 	struct radeon_crtc *radeon_crtc;
+
+	if (!rdev->pm.dpm_enabled)
+		return;
 
 	mutex_lock(&rdev->pm.mutex);
 

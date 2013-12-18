@@ -1784,6 +1784,8 @@ int rv770_resume(struct radeon_device *rdev)
 	/* init golden registers */
 	rv770_init_golden_registers(rdev);
 
+	radeon_pm_resume(rdev);
+
 	rdev->accel_working = true;
 	r = rv770_startup(rdev);
 	if (r) {
@@ -1798,6 +1800,7 @@ int rv770_resume(struct radeon_device *rdev)
 
 int rv770_suspend(struct radeon_device *rdev)
 {
+	radeon_pm_suspend(rdev);
 	r600_audio_fini(rdev);
 	uvd_v1_0_fini(rdev);
 	radeon_uvd_suspend(rdev);
@@ -1876,6 +1879,9 @@ int rv770_init(struct radeon_device *rdev)
 		}
 	}
 
+	/* Initialize power management */
+	radeon_pm_init(rdev);
+
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ring_obj = NULL;
 	r600_ring_init(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX], 1024 * 1024);
 
@@ -1915,6 +1921,7 @@ int rv770_init(struct radeon_device *rdev)
 
 void rv770_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r700_cp_fini(rdev);
 	r600_dma_fini(rdev);
 	r600_irq_fini(rdev);

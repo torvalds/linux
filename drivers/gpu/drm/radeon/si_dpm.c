@@ -1738,6 +1738,8 @@ struct evergreen_power_info *evergreen_get_pi(struct radeon_device *rdev);
 struct ni_power_info *ni_get_pi(struct radeon_device *rdev);
 struct ni_ps *ni_get_ps(struct radeon_ps *rps);
 
+extern int si_mc_load_microcode(struct radeon_device *rdev);
+
 static int si_populate_voltage_value(struct radeon_device *rdev,
 				     const struct atom_voltage_table *table,
 				     u16 value, SISLANDS_SMC_VOLTAGE_VALUE *voltage);
@@ -5751,6 +5753,11 @@ static void si_set_pcie_lane_width_in_smc(struct radeon_device *rdev,
 
 void si_dpm_setup_asic(struct radeon_device *rdev)
 {
+	int r;
+
+	r = si_mc_load_microcode(rdev);
+	if (r)
+		DRM_ERROR("Failed to load MC firmware!\n");
 	rv770_get_memory_type(rdev);
 	si_read_clock_registers(rdev);
 	si_enable_acpi_power_management(rdev);

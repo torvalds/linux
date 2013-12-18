@@ -49,6 +49,7 @@ struct rv7xx_ps *rv770_get_ps(struct radeon_ps *rps);
 struct rv7xx_power_info *rv770_get_pi(struct radeon_device *rdev);
 struct evergreen_power_info *evergreen_get_pi(struct radeon_device *rdev);
 
+extern int ni_mc_load_microcode(struct radeon_device *rdev);
 
 //********* BARTS **************//
 static const u32 barts_cgcg_cgls_default[] =
@@ -2561,7 +2562,11 @@ void btc_dpm_disable(struct radeon_device *rdev)
 void btc_dpm_setup_asic(struct radeon_device *rdev)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	int r;
 
+	r = ni_mc_load_microcode(rdev);
+	if (r)
+		DRM_ERROR("Failed to load MC firmware!\n");
 	rv770_get_memory_type(rdev);
 	rv740_read_clock_registers(rdev);
 	btc_read_arb_registers(rdev);
