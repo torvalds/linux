@@ -185,6 +185,26 @@ static inline unsigned bset_offset(struct btree *b, struct bset *i)
 	return (((size_t) i) - ((size_t) b->sets->data)) >> 9;
 }
 
+static inline struct bset *btree_bset_first(struct btree *b)
+{
+	return b->sets->data;
+}
+
+static inline unsigned bset_byte_offset(struct btree *b, struct bset *i)
+{
+	return ((size_t) i) - ((size_t) b->sets->data);
+}
+
+static inline unsigned bset_sector_offset(struct btree *b, struct bset *i)
+{
+	return (((void *) i) - ((void *) btree_bset_first(b))) >> 9;
+}
+
+static inline unsigned bset_block_offset(struct btree *b, struct bset *i)
+{
+	return bset_sector_offset(b, i) >> b->c->block_bits;
+}
+
 static inline struct bset *write_block(struct btree *b)
 {
 	return ((void *) b->sets[0].data) + b->written * block_bytes(b->c);

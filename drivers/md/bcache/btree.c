@@ -258,7 +258,7 @@ static void bch_btree_node_read_done(struct btree *b)
 
 	err = "corrupted btree";
 	for (i = write_block(b);
-	     index(i, b) < btree_blocks(b);
+	     bset_sector_offset(b, i) < KEY_SIZE(&b->key);
 	     i = ((void *) i) + block_bytes(b->c))
 		if (i->seq == b->sets[0].data->seq)
 			goto err;
@@ -278,9 +278,9 @@ out:
 	return;
 err:
 	set_btree_node_io_error(b);
-	bch_cache_set_error(b->c, "%s at bucket %zu, block %zu, %u keys",
+	bch_cache_set_error(b->c, "%s at bucket %zu, block %u, %u keys",
 			    err, PTR_BUCKET_NR(b->c, &b->key, 0),
-			    index(i, b), i->keys);
+			    bset_block_offset(b, i), i->keys);
 	goto out;
 }
 

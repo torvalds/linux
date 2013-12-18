@@ -88,7 +88,7 @@ static void dump_bset(struct btree *b, struct bset *i)
 		next = bkey_next(k);
 
 		bch_bkey_to_text(buf, sizeof(buf), k);
-		printk(KERN_ERR "block %zu key %zi/%u: %s", index(i, b),
+		printk(KERN_ERR "block %u key %zi/%u: %s", bset_block_offset(b, i),
 		       (uint64_t *) k - i->d, i->keys, buf);
 
 		for (j = 0; j < KEY_PTRS(k); j++) {

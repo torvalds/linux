@@ -736,10 +736,6 @@ static inline unsigned local_clock_us(void)
 #define node(i, j)		((struct bkey *) ((i)->d + (j)))
 #define end(i)			node(i, (i)->keys)
 
-#define index(i, b)							\
-	((size_t) (((void *) i - (void *) (b)->sets[0].data) /		\
-		   block_bytes(b->c)))
-
 #define btree_data_space(b)	(PAGE_SIZE << (b)->page_order)
 
 #define prios_per_bucket(c)				\
