@@ -88,8 +88,9 @@ static int imx_drm_driver_unload(struct drm_device *drm)
 
 	imx_drm_device_put();
 
-	drm_mode_config_cleanup(imxdrm->drm);
+	drm_vblank_cleanup(imxdrm->drm);
 	drm_kms_helper_poll_fini(imxdrm->drm);
+	drm_mode_config_cleanup(imxdrm->drm);
 
 	return 0;
 }
@@ -199,8 +200,8 @@ static void imx_drm_driver_preclose(struct drm_device *drm,
 	if (!file->is_master)
 		return;
 
-	for (i = 0; i < 4; i++)
-		imx_drm_disable_vblank(drm , i);
+	for (i = 0; i < MAX_CRTC; i++)
+		imx_drm_disable_vblank(drm, i);
 }
 
 static const struct file_operations imx_drm_driver_fops = {
@@ -376,14 +377,15 @@ static int imx_drm_crtc_register(struct imx_drm_crtc *imx_drm_crtc)
 	struct imx_drm_device *imxdrm = __imx_drm_device();
 	int ret;
 
-	drm_crtc_init(imxdrm->drm, imx_drm_crtc->crtc,
-			imx_drm_crtc->imx_drm_helper_funcs.crtc_funcs);
 	ret = drm_mode_crtc_set_gamma_size(imx_drm_crtc->crtc, 256);
 	if (ret)
 		return ret;
 
 	drm_crtc_helper_add(imx_drm_crtc->crtc,
 			imx_drm_crtc->imx_drm_helper_funcs.crtc_helper_funcs);
+
+	drm_crtc_init(imxdrm->drm, imx_drm_crtc->crtc,
+			imx_drm_crtc->imx_drm_helper_funcs.crtc_funcs);
 
 	drm_mode_group_reinit(imxdrm->drm);
 
@@ -428,11 +430,11 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 	ret = drm_mode_group_init_legacy_group(imxdrm->drm,
 			&imxdrm->drm->primary->mode_group);
 	if (ret)
-		goto err_init;
+		goto err_kms;
 
 	ret = drm_vblank_init(imxdrm->drm, MAX_CRTC);
 	if (ret)
-		goto err_init;
+		goto err_kms;
 
 	/*
 	 * with vblank_disable_allowed = true, vblank interrupt will be disabled
@@ -441,12 +443,19 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 	 */
 	imxdrm->drm->vblank_disable_allowed = true;
 
-	if (!imx_drm_device_get())
+	if (!imx_drm_device_get()) {
 		ret = -EINVAL;
+		goto err_vblank;
+	}
 
-	ret = 0;
+	mutex_unlock(&imxdrm->mutex);
+	return 0;
 
-err_init:
+err_vblank:
+	drm_vblank_cleanup(drm);
+err_kms:
+	drm_kms_helper_poll_fini(drm);
+	drm_mode_config_cleanup(drm);
 	mutex_unlock(&imxdrm->mutex);
 
 	return ret;
@@ -492,6 +501,15 @@ int imx_drm_add_crtc(struct drm_crtc *crtc,
 
 	mutex_lock(&imxdrm->mutex);
 
+	/*
+	 * The vblank arrays are dimensioned by MAX_CRTC - we can't
+	 * pass IDs greater than this to those functions.
+	 */
+	if (imxdrm->pipes >= MAX_CRTC) {
+		ret = -EINVAL;
+		goto err_busy;
+	}
+
 	if (imxdrm->drm->open_count) {
 		ret = -EBUSY;
 		goto err_busy;
@@ -528,6 +546,7 @@ int imx_drm_add_crtc(struct drm_crtc *crtc,
 	return 0;
 
 err_register:
+	list_del(&imx_drm_crtc->list);
 	kfree(imx_drm_crtc);
 err_alloc:
 err_busy:
