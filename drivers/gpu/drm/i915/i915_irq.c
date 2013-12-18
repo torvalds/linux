@@ -62,7 +62,7 @@ static const u32 hpd_mask_i915[] = {
 	[HPD_PORT_D] = PORTD_HOTPLUG_INT_EN
 };
 
-static const u32 hpd_status_gen4[] = {
+static const u32 hpd_status_g4x[] = {
 	[HPD_CRT] = CRT_HOTPLUG_INT_STATUS,
 	[HPD_SDVO_B] = SDVOB_HOTPLUG_INT_STATUS_G4X,
 	[HPD_SDVO_C] = SDVOC_HOTPLUG_INT_STATUS_G4X,
@@ -3658,7 +3658,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 				  hotplug_status);
 
 			intel_hpd_irq_handler(dev, hotplug_trigger,
-					      IS_G4X(dev) ? hpd_status_gen4 : hpd_status_i915);
+					      IS_G4X(dev) ? hpd_status_g4x : hpd_status_i915);
 
 			if (IS_G4X(dev) &&
 			    (hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X))
