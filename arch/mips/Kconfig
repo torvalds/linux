@@ -1479,6 +1479,7 @@ config CPU_LOONGSON1
 	select CPU_SUPPORTS_HIGHMEM
 
 config CPU_BMIPS32_3300
+	select SMP_UP if SMP
 	bool
 
 config CPU_BMIPS4350

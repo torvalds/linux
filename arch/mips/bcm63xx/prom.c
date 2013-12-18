@@ -61,7 +61,7 @@ void __init prom_init(void)
 
 	if (IS_ENABLED(CONFIG_CPU_BMIPS4350) && IS_ENABLED(CONFIG_SMP)) {
 		/* set up SMP */
-		register_smp_ops(&bmips43xx_smp_ops);
+		register_bmips_smp_ops();
 
 		/*
 		 * BCM6328 might not have its second CPU enabled, while BCM3368
