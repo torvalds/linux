@@ -890,10 +890,13 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 
 static struct i915_hw_context *
 i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
-			  const u32 ctx_id)
+			  struct intel_ring_buffer *ring, const u32 ctx_id)
 {
 	struct i915_hw_context *ctx = NULL;
 	struct i915_ctx_hang_stats *hs;
+
+	if (ring->id != RCS && ctx_id != DEFAULT_CONTEXT_ID)
+		return ERR_PTR(-EINVAL);
 
 	ctx = i915_gem_context_get(file->driver_priv, ctx_id);
 	if (IS_ERR_OR_NULL(ctx))
@@ -1103,7 +1106,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		goto pre_mutex_err;
 	}
 
-	ctx = i915_gem_validate_context(dev, file, ctx_id);
+	ctx = i915_gem_validate_context(dev, file, ring, ctx_id);
 	if (IS_ERR_OR_NULL(ctx)) {
 		mutex_unlock(&dev->struct_mutex);
 		ret = PTR_ERR(ctx);
