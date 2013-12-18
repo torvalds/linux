@@ -13,6 +13,7 @@ int		have_ignore_callees = 0;
 int		sort__need_collapse = 0;
 int		sort__has_parent = 0;
 int		sort__has_sym = 0;
+int		sort__has_dso = 0;
 enum sort_mode	sort__mode = SORT_MODE__NORMAL;
 
 enum sort_type	sort__first_dimension;
@@ -194,9 +195,11 @@ sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 	 * comparing symbol address alone is not enough since it's a
 	 * relative address within a dso.
 	 */
-	ret = sort__dso_cmp(left, right);
-	if (ret != 0)
-		return ret;
+	if (!sort__has_dso) {
+		ret = sort__dso_cmp(left, right);
+		if (ret != 0)
+			return ret;
+	}
 
 	return _sort__sym_cmp(left->ms.sym, right->ms.sym);
 }
@@ -1061,6 +1064,8 @@ int sort_dimension__add(const char *tok)
 			sort__has_parent = 1;
 		} else if (sd->entry == &sort_sym) {
 			sort__has_sym = 1;
+		} else if (sd->entry == &sort_dso) {
+			sort__has_dso = 1;
 		}
 
 		__sort_dimension__add(sd, i);
