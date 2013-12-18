@@ -451,6 +451,13 @@ static int s5p_jpeg_adjust_fourcc_to_subsampling(
 	return 0;
 }
 
+static int exynos4x12_decoded_subsampling[] = {
+	V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY,
+	V4L2_JPEG_CHROMA_SUBSAMPLING_444,
+	V4L2_JPEG_CHROMA_SUBSAMPLING_422,
+	V4L2_JPEG_CHROMA_SUBSAMPLING_420,
+};
+
 static inline struct s5p_jpeg_ctx *ctrl_to_ctx(struct v4l2_ctrl *c)
 {
 	return container_of(c->handler, struct s5p_jpeg_ctx, ctrl_handler);
@@ -459,6 +466,21 @@ static inline struct s5p_jpeg_ctx *ctrl_to_ctx(struct v4l2_ctrl *c)
 static inline struct s5p_jpeg_ctx *fh_to_ctx(struct v4l2_fh *fh)
 {
 	return container_of(fh, struct s5p_jpeg_ctx, fh);
+}
+
+static int s5p_jpeg_to_user_subsampling(struct s5p_jpeg_ctx *ctx)
+{
+	WARN_ON(ctx->subsampling > 3);
+
+	if (ctx->jpeg->variant->version == SJPEG_S5P) {
+		if (ctx->subsampling > 2)
+			return V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY;
+		return ctx->subsampling;
+	} else {
+		if (ctx->subsampling > 2)
+			return V4L2_JPEG_CHROMA_SUBSAMPLING_420;
+		return exynos4x12_decoded_subsampling[ctx->subsampling];
+	}
 }
 
 static inline void s5p_jpeg_set_qtbl(void __iomem *regs,
@@ -1200,12 +1222,7 @@ static int s5p_jpeg_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_JPEG_CHROMA_SUBSAMPLING:
 		spin_lock_irqsave(&jpeg->slock, flags);
-
-		WARN_ON(ctx->subsampling > S5P_SUBSAMPLING_MODE_GRAY);
-		if (ctx->subsampling > 2)
-			ctrl->val = V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY;
-		else
-			ctrl->val = ctx->subsampling;
+		ctrl->val = s5p_jpeg_to_user_subsampling(ctx);
 		spin_unlock_irqrestore(&jpeg->slock, flags);
 		break;
 	}
