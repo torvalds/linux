@@ -1332,13 +1332,9 @@ static int pxa3xx_nand_sensing(struct pxa3xx_nand_info *info)
 
 static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 			struct nand_ecc_ctrl *ecc,
-			int strength, int page_size)
+			int strength, int ecc_stepsize, int page_size)
 {
-	/*
-	 * We don't use strength here as the PXA variant
-	 * is used with non-ONFI compliant devices.
-	 */
-	if (page_size == 2048) {
+	if (strength == 1 && ecc_stepsize == 512 && page_size == 2048) {
 		info->chunk_size = 2048;
 		info->spare_size = 40;
 		info->ecc_size = 24;
@@ -1347,7 +1343,7 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 		ecc->strength = 1;
 		return 1;
 
-	} else if (page_size == 512) {
+	} else if (strength == 1 && ecc_stepsize == 512 && page_size == 512) {
 		info->chunk_size = 512;
 		info->spare_size = 8;
 		info->ecc_size = 8;
@@ -1355,19 +1351,12 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 		ecc->size = 512;
 		ecc->strength = 1;
 		return 1;
-	}
-	return 0;
-}
 
-static int armada370_ecc_init(struct pxa3xx_nand_info *info,
-			      struct nand_ecc_ctrl *ecc,
-			      int strength, int ecc_stepsize, int page_size)
-{
 	/*
 	 * Required ECC: 4-bit correction per 512 bytes
 	 * Select: 16-bit correction per 2048 bytes
 	 */
-	if (strength == 4 && ecc_stepsize == 512 && page_size == 4096) {
+	} else if (strength == 4 && ecc_stepsize == 512 && page_size == 4096) {
 		info->ecc_bch = 1;
 		info->chunk_size = 2048;
 		info->spare_size = 32;
@@ -1408,6 +1397,7 @@ static int pxa3xx_nand_scan(struct mtd_info *mtd)
 	uint32_t id = -1;
 	uint64_t chipsize;
 	int i, ret, num;
+	uint16_t ecc_strength, ecc_step;
 
 	if (pdata->keep_config && !pxa3xx_nand_detect_config(info))
 		goto KEEP_CONFIG;
@@ -1502,15 +1492,17 @@ KEEP_CONFIG:
 		}
 	}
 
-	if (info->variant == PXA3XX_NAND_VARIANT_ARMADA370)
-		ret = armada370_ecc_init(info, &chip->ecc,
-				   chip->ecc_strength_ds,
-				   chip->ecc_step_ds,
-				   mtd->writesize);
-	else
-		ret = pxa_ecc_init(info, &chip->ecc,
-				   chip->ecc_strength_ds,
-				   mtd->writesize);
+	ecc_strength = chip->ecc_strength_ds;
+	ecc_step = chip->ecc_step_ds;
+
+	/* Set default ECC strength requirements on non-ONFI devices */
+	if (ecc_strength < 1 && ecc_step < 1) {
+		ecc_strength = 1;
+		ecc_step = 512;
+	}
+
+	ret = pxa_ecc_init(info, &chip->ecc, ecc_strength,
+			   ecc_step, mtd->writesize);
 	if (!ret) {
 		dev_err(&info->pdev->dev,
 			"ECC strength %d at page size %d is not supported\n",
