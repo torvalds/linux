@@ -464,16 +464,11 @@ void symbol__annotate_zero_histograms(struct symbol *sym)
 	pthread_mutex_unlock(&notes->lock);
 }
 
-int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
-			     int evidx, u64 addr)
+static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
+				      struct annotation *notes, int evidx, u64 addr)
 {
 	unsigned offset;
-	struct annotation *notes;
 	struct sym_hist *h;
-
-	notes = symbol__annotation(sym);
-	if (notes->src == NULL)
-		return -ENOMEM;
 
 	pr_debug3("%s: addr=%#" PRIx64 "\n", __func__, map->unmap_ip(map, addr));
 
@@ -489,6 +484,23 @@ int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 		  ", evidx=%d] => %" PRIu64 "\n", sym->start, sym->name,
 		  addr, addr - sym->start, evidx, h->addr[offset]);
 	return 0;
+}
+
+int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
+			     int evidx, u64 addr)
+{
+	struct annotation *notes;
+
+	if (sym == NULL || use_browser != 1 || !sort__has_sym)
+		return 0;
+
+	notes = symbol__annotation(sym);
+	if (notes->src == NULL) {
+		if (symbol__alloc_hist(sym) < 0)
+			return -ENOMEM;
+	}
+
+	return __symbol__inc_addr_samples(sym, map, notes, evidx, addr);
 }
 
 static void disasm_line__init_ins(struct disasm_line *dl)

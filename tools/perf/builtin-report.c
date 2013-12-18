@@ -140,22 +140,11 @@ static int perf_report__add_mem_hist_entry(struct perf_tool *tool,
 			goto out;
 	}
 
-	if (sort__has_sym && he->mem_info->daddr.sym && use_browser > 0) {
-		struct annotation *notes;
-
-		mx = he->mem_info;
-
-		notes = symbol__annotation(mx->daddr.sym);
-		if (notes->src == NULL && symbol__alloc_hist(mx->daddr.sym) < 0)
-			goto out;
-
-		err = symbol__inc_addr_samples(mx->daddr.sym,
-					       mx->daddr.map,
-					       evsel->idx,
-					       mx->daddr.al_addr);
-		if (err)
-			goto out;
-	}
+	mx = he->mem_info;
+	err = symbol__inc_addr_samples(mx->daddr.sym, mx->daddr.map,
+				       evsel->idx, mx->daddr.al_addr);
+	if (err)
+		goto out;
 
 	evsel->hists.stats.total_period += cost;
 	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
@@ -214,35 +203,19 @@ static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 		he = __hists__add_entry(&evsel->hists, al, parent, &bi[i], NULL,
 					1, 1, 0);
 		if (he) {
-			struct annotation *notes;
 			bx = he->branch_info;
-			if (bx->from.sym && use_browser == 1 && sort__has_sym) {
-				notes = symbol__annotation(bx->from.sym);
-				if (!notes->src
-				    && symbol__alloc_hist(bx->from.sym) < 0)
-					goto out;
+			err = symbol__inc_addr_samples(bx->from.sym,
+						       bx->from.map, evsel->idx,
+						       bx->from.al_addr);
+			if (err)
+				goto out;
 
-				err = symbol__inc_addr_samples(bx->from.sym,
-							       bx->from.map,
-							       evsel->idx,
-							       bx->from.al_addr);
-				if (err)
-					goto out;
-			}
+			err = symbol__inc_addr_samples(bx->to.sym,
+						       bx->to.map, evsel->idx,
+						       bx->to.al_addr);
+			if (err)
+				goto out;
 
-			if (bx->to.sym && use_browser == 1 && sort__has_sym) {
-				notes = symbol__annotation(bx->to.sym);
-				if (!notes->src
-				    && symbol__alloc_hist(bx->to.sym) < 0)
-					goto out;
-
-				err = symbol__inc_addr_samples(bx->to.sym,
-							       bx->to.map,
-							       evsel->idx,
-							       bx->to.al_addr);
-				if (err)
-					goto out;
-			}
 			evsel->hists.stats.total_period += 1;
 			hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
 		} else
