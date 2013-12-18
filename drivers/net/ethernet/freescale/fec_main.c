@@ -98,10 +98,6 @@ static void set_multicast_list(struct net_device *ndev);
  * detected as not set during a prior frame transmission, then the
  * ENET_TDAR[TDAR] bit is cleared at a later time, even if additional TxBDs
  * were added to the ring and the ENET_TDAR[TDAR] bit is set. This results in
- * If the ready bit in the transmit buffer descriptor (TxBD[R]) is previously
- * detected as not set during a prior frame transmission, then the
- * ENET_TDAR[TDAR] bit is cleared at a later time, even if additional TxBDs
- * were added to the ring and the ENET_TDAR[TDAR] bit is set. This results in
  * frames not being transmitted until there is a 0-to-1 transition on
  * ENET_TDAR[TDAR].
  */

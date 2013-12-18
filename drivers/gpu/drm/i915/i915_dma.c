@@ -83,6 +83,14 @@ void i915_update_dri1_breadcrumb(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv;
 
+	/*
+	 * The dri breadcrumb update races against the drm master disappearing.
+	 * Instead of trying to fix this (this is by far not the only ums issue)
+	 * just don't do the update in kms mode.
+	 */
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
+
 	if (dev->primary->master) {
 		master_priv = dev->primary->master->driver_priv;
 		if (master_priv->sarea_priv)
@@ -1490,16 +1498,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	spin_lock_init(&dev_priv->uncore.lock);
 	spin_lock_init(&dev_priv->mm.object_stat_lock);
 	mutex_init(&dev_priv->dpio_lock);
-	mutex_init(&dev_priv->rps.hw_lock);
 	mutex_init(&dev_priv->modeset_restore_lock);
 
-	mutex_init(&dev_priv->pc8.lock);
-	dev_priv->pc8.requirements_met = false;
-	dev_priv->pc8.gpu_idle = false;
-	dev_priv->pc8.irqs_disabled = false;
-	dev_priv->pc8.enabled = false;
-	dev_priv->pc8.disable_count = 2; /* requirements_met + gpu_idle */
-	INIT_DELAYED_WORK(&dev_priv->pc8.enable_work, hsw_enable_pc8_work);
+	intel_pm_setup(dev);
 
 	intel_display_crc_init(dev);
 
@@ -1603,7 +1604,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	intel_irq_init(dev);
-	intel_pm_init(dev);
 	intel_uncore_sanitize(dev);
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
@@ -1848,8 +1848,10 @@ void i915_driver_lastclose(struct drm_device * dev)
 
 void i915_driver_preclose(struct drm_device * dev, struct drm_file *file_priv)
 {
+	mutex_lock(&dev->struct_mutex);
 	i915_gem_context_close(dev, file_priv);
 	i915_gem_release(dev, file_priv);
+	mutex_unlock(&dev->struct_mutex);
 }
 
 void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)

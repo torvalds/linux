@@ -163,25 +163,8 @@ static void xemaclite_enable_interrupts(struct net_local *drvdata)
 	__raw_writel(reg_data | XEL_TSR_XMIT_IE_MASK,
 		     drvdata->base_addr + XEL_TSR_OFFSET);
 
-	/* Enable the Tx interrupts for the second Buffer if
-	 * configured in HW */
-	if (drvdata->tx_ping_pong != 0) {
-		reg_data = __raw_readl(drvdata->base_addr +
-				   XEL_BUFFER_OFFSET + XEL_TSR_OFFSET);
-		__raw_writel(reg_data | XEL_TSR_XMIT_IE_MASK,
-			     drvdata->base_addr + XEL_BUFFER_OFFSET +
-			     XEL_TSR_OFFSET);
-	}
-
 	/* Enable the Rx interrupts for the first buffer */
 	__raw_writel(XEL_RSR_RECV_IE_MASK, drvdata->base_addr + XEL_RSR_OFFSET);
-
-	/* Enable the Rx interrupts for the second Buffer if
-	 * configured in HW */
-	if (drvdata->rx_ping_pong != 0) {
-		__raw_writel(XEL_RSR_RECV_IE_MASK, drvdata->base_addr +
-			     XEL_BUFFER_OFFSET + XEL_RSR_OFFSET);
-	}
 
 	/* Enable the Global Interrupt Enable */
 	__raw_writel(XEL_GIER_GIE_MASK, drvdata->base_addr + XEL_GIER_OFFSET);
@@ -206,31 +189,10 @@ static void xemaclite_disable_interrupts(struct net_local *drvdata)
 	__raw_writel(reg_data & (~XEL_TSR_XMIT_IE_MASK),
 		     drvdata->base_addr + XEL_TSR_OFFSET);
 
-	/* Disable the Tx interrupts for the second Buffer
-	 * if configured in HW */
-	if (drvdata->tx_ping_pong != 0) {
-		reg_data = __raw_readl(drvdata->base_addr + XEL_BUFFER_OFFSET +
-				   XEL_TSR_OFFSET);
-		__raw_writel(reg_data & (~XEL_TSR_XMIT_IE_MASK),
-			     drvdata->base_addr + XEL_BUFFER_OFFSET +
-			     XEL_TSR_OFFSET);
-	}
-
 	/* Disable the Rx interrupts for the first buffer */
 	reg_data = __raw_readl(drvdata->base_addr + XEL_RSR_OFFSET);
 	__raw_writel(reg_data & (~XEL_RSR_RECV_IE_MASK),
 		     drvdata->base_addr + XEL_RSR_OFFSET);
-
-	/* Disable the Rx interrupts for the second buffer
-	 * if configured in HW */
-	if (drvdata->rx_ping_pong != 0) {
-
-		reg_data = __raw_readl(drvdata->base_addr + XEL_BUFFER_OFFSET +
-				   XEL_RSR_OFFSET);
-		__raw_writel(reg_data & (~XEL_RSR_RECV_IE_MASK),
-			     drvdata->base_addr + XEL_BUFFER_OFFSET +
-			     XEL_RSR_OFFSET);
-	}
 }
 
 /**
@@ -258,6 +220,13 @@ static void xemaclite_aligned_write(void *src_ptr, u32 *dest_ptr,
 		*to_u16_ptr++ = *from_u16_ptr++;
 		*to_u16_ptr++ = *from_u16_ptr++;
 
+		/* This barrier resolves occasional issues seen around
+		 * cases where the data is not properly flushed out
+		 * from the processor store buffers to the destination
+		 * memory locations.
+		 */
+		wmb();
+
 		/* Output a word */
 		*to_u32_ptr++ = align_buffer;
 	}
@@ -273,6 +242,12 @@ static void xemaclite_aligned_write(void *src_ptr, u32 *dest_ptr,
 		for (; length > 0; length--)
 			*to_u8_ptr++ = *from_u8_ptr++;
 
+		/* This barrier resolves occasional issues seen around
+		 * cases where the data is not properly flushed out
+		 * from the processor store buffers to the destination
+		 * memory locations.
+		 */
+		wmb();
 		*to_u32_ptr = align_buffer;
 	}
 }

@@ -192,7 +192,7 @@ static inline int dentry_string_cmp(const unsigned char *cs, const unsigned char
 		if (!tcount)
 			return 0;
 	}
-	mask = ~(~0ul << tcount*8);
+	mask = bytemask_from_count(tcount);
 	return unlikely(!!((a ^ b) & mask));
 }
 

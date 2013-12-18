@@ -590,8 +590,8 @@ static int as3722_sd016_set_current_limit(struct regulator_dev *rdev,
 	default:
 		return -EINVAL;
 	}
+	ret <<= ffs(mask) - 1;
 	val = ret & mask;
-	val <<= ffs(mask) - 1;
 	return as3722_update_bits(as3722, reg, mask, val);
 }
 

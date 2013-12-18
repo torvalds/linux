@@ -784,6 +784,7 @@ static int gen6_do_reset(struct drm_device *dev)
 int intel_gpu_reset(struct drm_device *dev)
 {
 	switch (INTEL_INFO(dev)->gen) {
+	case 8:
 	case 7:
 	case 6: return gen6_do_reset(dev);
 	case 5: return ironlake_do_reset(dev);

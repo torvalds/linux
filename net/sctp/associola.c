@@ -145,8 +145,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 		= 5 * asoc->rto_max;
 
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_SACK] = asoc->sackdelay;
-	asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] =
-		min_t(unsigned long, sp->autoclose, net->sctp.max_autoclose) * HZ;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] = sp->autoclose * HZ;
 
 	/* Initializes the timers */
 	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i)
@@ -253,8 +252,6 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	if (asoc->base.sk->sk_family == PF_INET6)
 		asoc->peer.ipv6_address = 1;
 	INIT_LIST_HEAD(&asoc->asocs);
-
-	asoc->autoclose = sp->autoclose;
 
 	asoc->default_stream = sp->default_stream;
 	asoc->default_ppid = sp->default_ppid;

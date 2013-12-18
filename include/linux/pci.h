@@ -1568,65 +1568,65 @@ enum pci_fixup_pass {
 /* Anonymous variables would be nice... */
 #define DECLARE_PCI_FIXUP_SECTION(section, name, vendor, device, class,	\
 				  class_shift, hook)			\
-	static const struct pci_fixup __pci_fixup_##name __used		\
+	static const struct pci_fixup __PASTE(__pci_fixup_##name,__LINE__) __used	\
 	__attribute__((__section__(#section), aligned((sizeof(void *)))))    \
 		= { vendor, device, class, class_shift, hook };
 
 #define DECLARE_PCI_FIXUP_CLASS_EARLY(vendor, device, class,		\
 					 class_shift, hook)		\
 	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_early,			\
-		vendor##device##hook, vendor, device, class, class_shift, hook)
+		hook, vendor, device, class, class_shift, hook)
 #define DECLARE_PCI_FIXUP_CLASS_HEADER(vendor, device, class,		\
 					 class_shift, hook)		\
 	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_header,			\
-		vendor##device##hook, vendor, device, class, class_shift, hook)
+		hook, vendor, device, class, class_shift, hook)
 #define DECLARE_PCI_FIXUP_CLASS_FINAL(vendor, device, class,		\
 					 class_shift, hook)		\
 	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_final,			\
-		vendor##device##hook, vendor, device, class, class_shift, hook)
+		hook, vendor, device, class, class_shift, hook)
 #define DECLARE_PCI_FIXUP_CLASS_ENABLE(vendor, device, class,		\
 					 class_shift, hook)		\
 	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_enable,			\
-		vendor##device##hook, vendor, device, class, class_shift, hook)
+		hook, vendor, device, class, class_shift, hook)
 #define DECLARE_PCI_FIXUP_CLASS_RESUME(vendor, device, class,		\
 					 class_shift, hook)		\
 	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_resume,			\
-		resume##vendor##device##hook, vendor, device, class,	\
+		resume##hook, vendor, device, class,	\
 		class_shift, hook)
 #define DECLARE_PCI_FIXUP_CLASS_RESUME_EARLY(vendor, device, class,	\
 					 class_shift, hook)		\
 	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_resume_early,		\
-		resume_early##vendor##device##hook, vendor, device,	\
+		resume_early##hook, vendor, device,	\
 		class, class_shift, hook)
 #define DECLARE_PCI_FIXUP_CLASS_SUSPEND(vendor, device, class,		\
 					 class_shift, hook)		\
 	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_suspend,			\
-		suspend##vendor##device##hook, vendor, device, class,	\
+		suspend##hook, vendor, device, class,	\
 		class_shift, hook)
 
 #define DECLARE_PCI_FIXUP_EARLY(vendor, device, hook)			\
 	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_early,			\
-		vendor##device##hook, vendor, device, PCI_ANY_ID, 0, hook)
+		hook, vendor, device, PCI_ANY_ID, 0, hook)
 #define DECLARE_PCI_FIXUP_HEADER(vendor, device, hook)			\
 	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_header,			\
-		vendor##device##hook, vendor, device, PCI_ANY_ID, 0, hook)
+		hook, vendor, device, PCI_ANY_ID, 0, hook)
 #define DECLARE_PCI_FIXUP_FINAL(vendor, device, hook)			\
 	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_final,			\
-		vendor##device##hook, vendor, device, PCI_ANY_ID, 0, hook)
+		hook, vendor, device, PCI_ANY_ID, 0, hook)
 #define DECLARE_PCI_FIXUP_ENABLE(vendor, device, hook)			\
 	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_enable,			\
-		vendor##device##hook, vendor, device, PCI_ANY_ID, 0, hook)
+		hook, vendor, device, PCI_ANY_ID, 0, hook)
 #define DECLARE_PCI_FIXUP_RESUME(vendor, device, hook)			\
 	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_resume,			\
-		resume##vendor##device##hook, vendor, device,		\
+		resume##hook, vendor, device,		\
 		PCI_ANY_ID, 0, hook)
 #define DECLARE_PCI_FIXUP_RESUME_EARLY(vendor, device, hook)		\
 	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_resume_early,		\
-		resume_early##vendor##device##hook, vendor, device,	\
+		resume_early##hook, vendor, device,	\
 		PCI_ANY_ID, 0, hook)
 #define DECLARE_PCI_FIXUP_SUSPEND(vendor, device, hook)			\
 	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_suspend,			\
-		suspend##vendor##device##hook, vendor, device,		\
+		suspend##hook, vendor, device,		\
 		PCI_ANY_ID, 0, hook)
 
 #ifdef CONFIG_PCI_QUIRKS

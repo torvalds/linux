@@ -68,6 +68,8 @@
 #define EDID_QUIRK_DETAILED_SYNC_PP		(1 << 6)
 /* Force reduced-blanking timings for detailed modes */
 #define EDID_QUIRK_FORCE_REDUCED_BLANKING	(1 << 7)
+/* Force 8bpc */
+#define EDID_QUIRK_FORCE_8BPC			(1 << 8)
 
 struct detailed_mode_closure {
 	struct drm_connector *connector;
@@ -128,6 +130,9 @@ static struct edid_quirk {
 
 	/* Medion MD 30217 PG */
 	{ "MED", 0x7b8, EDID_QUIRK_PREFER_LARGE_75 },
+
+	/* Panel in Samsung NP700G7A-S01PL notebook reports 6bpc */
+	{ "SEC", 0xd033, EDID_QUIRK_FORCE_8BPC },
 };
 
 /*
@@ -2674,7 +2679,7 @@ static int add_3d_struct_modes(struct drm_connector *connector, u16 structure,
 	int modes = 0;
 	u8 cea_mode;
 
-	if (video_db == NULL || video_index > video_len)
+	if (video_db == NULL || video_index >= video_len)
 		return 0;
 
 	/* CEA modes are numbered 1..127 */
@@ -2701,7 +2706,7 @@ static int add_3d_struct_modes(struct drm_connector *connector, u16 structure,
 	if (structure & (1 << 8)) {
 		newmode = drm_mode_duplicate(dev, &edid_cea_modes[cea_mode]);
 		if (newmode) {
-			newmode->flags = DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF;
+			newmode->flags |= DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF;
 			drm_mode_probed_add(connector, newmode);
 			modes++;
 		}
@@ -3434,6 +3439,9 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 		edid_fixup_preferred(connector, quirks);
 
 	drm_add_display_info(edid, &connector->display_info);
+
+	if (quirks & EDID_QUIRK_FORCE_8BPC)
+		connector->display_info.bpc = 8;
 
 	return num_modes;
 }
