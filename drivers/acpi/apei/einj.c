@@ -34,6 +34,7 @@
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <acpi/acpi.h>
+#include <asm/unaligned.h>
 
 #include "apei-internal.h"
 
@@ -216,7 +217,7 @@ static void check_vendor_extension(u64 paddr,
 static void *einj_get_parameter_address(void)
 {
 	int i;
-	u64 paddrv4 = 0, paddrv5 = 0;
+	u64 pa_v4 = 0, pa_v5 = 0;
 	struct acpi_whea_header *entry;
 
 	entry = EINJ_TAB_ENTRY(einj_tab);
@@ -225,30 +226,28 @@ static void *einj_get_parameter_address(void)
 		    entry->instruction == ACPI_EINJ_WRITE_REGISTER &&
 		    entry->register_region.space_id ==
 		    ACPI_ADR_SPACE_SYSTEM_MEMORY)
-			memcpy(&paddrv4, &entry->register_region.address,
-			       sizeof(paddrv4));
+			pa_v4 = get_unaligned(&entry->register_region.address);
 		if (entry->action == ACPI_EINJ_SET_ERROR_TYPE_WITH_ADDRESS &&
 		    entry->instruction == ACPI_EINJ_WRITE_REGISTER &&
 		    entry->register_region.space_id ==
 		    ACPI_ADR_SPACE_SYSTEM_MEMORY)
-			memcpy(&paddrv5, &entry->register_region.address,
-			       sizeof(paddrv5));
+			pa_v5 = get_unaligned(&entry->register_region.address);
 		entry++;
 	}
-	if (paddrv5) {
+	if (pa_v5) {
 		struct set_error_type_with_address *v5param;
 
-		v5param = acpi_os_map_memory(paddrv5, sizeof(*v5param));
+		v5param = acpi_os_map_memory(pa_v5, sizeof(*v5param));
 		if (v5param) {
 			acpi5 = 1;
-			check_vendor_extension(paddrv5, v5param);
+			check_vendor_extension(pa_v5, v5param);
 			return v5param;
 		}
 	}
-	if (param_extension && paddrv4) {
+	if (param_extension && pa_v4) {
 		struct einj_parameter *v4param;
 
-		v4param = acpi_os_map_memory(paddrv4, sizeof(*v4param));
+		v4param = acpi_os_map_memory(pa_v4, sizeof(*v4param));
 		if (!v4param)
 			return NULL;
 		if (v4param->reserved1 || v4param->reserved2) {
