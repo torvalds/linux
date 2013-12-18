@@ -52,6 +52,7 @@ static int dwc3_pci_register_phys(struct dwc3_pci *glue)
 
 	glue->usb2_phy = pdev;
 	pdata.type = USB_PHY_TYPE_USB2;
+	pdata.gpio_reset = -1;
 
 	ret = platform_device_add_data(glue->usb2_phy, &pdata, sizeof(pdata));
 	if (ret)
