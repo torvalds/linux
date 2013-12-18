@@ -1999,8 +1999,10 @@ bnad_setup_tx(struct bnad *bnad, u32 tx_id)
 	tx = bna_tx_create(&bnad->bna, bnad, tx_config, &tx_cbfn, res_info,
 			tx_info);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
-	if (!tx)
+	if (!tx) {
+		err = -ENOMEM;
 		goto err_return;
+	}
 	tx_info->tx = tx;
 
 	INIT_DELAYED_WORK(&tx_info->tx_cleanup_work,
@@ -2011,7 +2013,7 @@ bnad_setup_tx(struct bnad *bnad, u32 tx_id)
 		err = bnad_tx_msix_register(bnad, tx_info,
 			tx_id, bnad->num_txq_per_tx);
 		if (err)
-			goto err_return;
+			goto cleanup_tx;
 	}
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
@@ -2020,6 +2022,12 @@ bnad_setup_tx(struct bnad *bnad, u32 tx_id)
 
 	return 0;
 
+cleanup_tx:
+	spin_lock_irqsave(&bnad->bna_lock, flags);
+	bna_tx_destroy(tx_info->tx);
+	spin_unlock_irqrestore(&bnad->bna_lock, flags);
+	tx_info->tx = NULL;
+	tx_info->tx_id = 0;
 err_return:
 	bnad_tx_res_free(bnad, res_info);
 	return err;
