@@ -864,7 +864,7 @@ void i40e_fill_default_direct_cmd_desc(struct i40e_aq_desc *desc,
 	/* zero out the desc */
 	memset((void *)desc, 0, sizeof(struct i40e_aq_desc));
 	desc->opcode = cpu_to_le16(opcode);
-	desc->flags = cpu_to_le16(I40E_AQ_FLAG_EI | I40E_AQ_FLAG_SI);
+	desc->flags = cpu_to_le16(I40E_AQ_FLAG_SI);
 }
 
 /**
