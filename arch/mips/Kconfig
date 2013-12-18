@@ -1393,6 +1393,7 @@ config CPU_BMIPS
 	select SWAP_IO_SPACE
 	select WEAK_ORDERING
 	select CPU_SUPPORTS_HIGHMEM
+	select CPU_HAS_PREFETCH
 	help
 	  Support for BMIPS3300/4350/4380 and BMIPS5000 processors.
 
