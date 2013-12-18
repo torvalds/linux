@@ -25,6 +25,7 @@
 #include <linux/power/charger-manager.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sysfs.h>
+#include <linux/of.h>
 #include <linux/thermal.h>
 
 /*
@@ -528,7 +529,7 @@ static int check_charging_duration(struct charger_manager *cm)
 		duration = curr - cm->charging_start_time;
 
 		if (duration > desc->charging_max_duration_ms) {
-			dev_info(cm->dev, "Charging duration exceed %lldms\n",
+			dev_info(cm->dev, "Charging duration exceed %ums\n",
 				 desc->charging_max_duration_ms);
 			uevent_notify(cm, "Discharging");
 			try_charger_enable(cm, false);
@@ -539,7 +540,7 @@ static int check_charging_duration(struct charger_manager *cm)
 
 		if (duration > desc->charging_max_duration_ms &&
 				is_ext_pwr_online(cm)) {
-			dev_info(cm->dev, "Discharging duration exceed %lldms\n",
+			dev_info(cm->dev, "Discharging duration exceed %ums\n",
 				 desc->discharging_max_duration_ms);
 			uevent_notify(cm, "Recharging");
 			try_charger_enable(cm, true);
@@ -1528,9 +1529,139 @@ static int cm_init_thermal_data(struct charger_manager *cm)
 	return ret;
 }
 
+static struct of_device_id charger_manager_match[] = {
+	{
+		.compatible = "charger-manager",
+	},
+	{},
+};
+
+struct charger_desc *of_cm_parse_desc(struct device *dev)
+{
+	struct charger_desc *desc;
+	struct device_node *np = dev->of_node;
+	u32 poll_mode = CM_POLL_DISABLE;
+	u32 battery_stat = CM_NO_BATTERY;
+	int num_chgs = 0;
+
+	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
+	if (!desc)
+		return ERR_PTR(-ENOMEM);
+
+	of_property_read_string(np, "cm-name", &desc->psy_name);
+
+	of_property_read_u32(np, "cm-poll-mode", &poll_mode);
+	desc->polling_mode = poll_mode;
+
+	of_property_read_u32(np, "cm-poll-interval",
+				&desc->polling_interval_ms);
+
+	of_property_read_u32(np, "cm-fullbatt-vchkdrop-ms",
+					&desc->fullbatt_vchkdrop_ms);
+	of_property_read_u32(np, "cm-fullbatt-vchkdrop-volt",
+					&desc->fullbatt_vchkdrop_uV);
+	of_property_read_u32(np, "cm-fullbatt-voltage", &desc->fullbatt_uV);
+	of_property_read_u32(np, "cm-fullbatt-soc", &desc->fullbatt_soc);
+	of_property_read_u32(np, "cm-fullbatt-capacity",
+					&desc->fullbatt_full_capacity);
+
+	of_property_read_u32(np, "cm-battery-stat", &battery_stat);
+	desc->battery_present = battery_stat;
+
+	/* chargers */
+	of_property_read_u32(np, "cm-num-chargers", &num_chgs);
+	if (num_chgs) {
+		/* Allocate empty bin at the tail of array */
+		desc->psy_charger_stat = devm_kzalloc(dev, sizeof(char *)
+						* (num_chgs + 1), GFP_KERNEL);
+		if (desc->psy_charger_stat) {
+			int i;
+			for (i = 0; i < num_chgs; i++)
+				of_property_read_string_index(np, "cm-chargers",
+						i, &desc->psy_charger_stat[i]);
+		} else {
+			return ERR_PTR(-ENOMEM);
+		}
+	}
+
+	of_property_read_string(np, "cm-fuel-gauge", &desc->psy_fuel_gauge);
+
+	of_property_read_string(np, "cm-thermal-zone", &desc->thermal_zone);
+
+	of_property_read_u32(np, "cm-battery-cold", &desc->temp_min);
+	if (of_get_property(np, "cm-battery-cold-in-minus", NULL))
+		desc->temp_min *= -1;
+	of_property_read_u32(np, "cm-battery-hot", &desc->temp_max);
+	of_property_read_u32(np, "cm-battery-temp-diff", &desc->temp_diff);
+
+	of_property_read_u32(np, "cm-charging-max",
+				&desc->charging_max_duration_ms);
+	of_property_read_u32(np, "cm-discharging-max",
+				&desc->discharging_max_duration_ms);
+
+	/* battery charger regualtors */
+	desc->num_charger_regulators = of_get_child_count(np);
+	if (desc->num_charger_regulators) {
+		struct charger_regulator *chg_regs;
+		struct device_node *child;
+
+		chg_regs = devm_kzalloc(dev, sizeof(*chg_regs)
+					* desc->num_charger_regulators,
+					GFP_KERNEL);
+		if (!chg_regs)
+			return ERR_PTR(-ENOMEM);
+
+		desc->charger_regulators = chg_regs;
+
+		for_each_child_of_node(np, child) {
+			struct charger_cable *cables;
+			struct device_node *_child;
+
+			of_property_read_string(child, "cm-regulator-name",
+					&chg_regs->regulator_name);
+
+			/* charger cables */
+			chg_regs->num_cables = of_get_child_count(child);
+			if (chg_regs->num_cables) {
+				cables = devm_kzalloc(dev, sizeof(*cables)
+						* chg_regs->num_cables,
+						GFP_KERNEL);
+				if (!cables)
+					return ERR_PTR(-ENOMEM);
+
+				chg_regs->cables = cables;
+
+				for_each_child_of_node(child, _child) {
+					of_property_read_string(_child,
+					"cm-cable-name", &cables->name);
+					of_property_read_string(_child,
+					"cm-cable-extcon",
+					&cables->extcon_name);
+					of_property_read_u32(_child,
+					"cm-cable-min",
+					&cables->min_uA);
+					of_property_read_u32(_child,
+					"cm-cable-max",
+					&cables->max_uA);
+					cables++;
+				}
+			}
+			chg_regs++;
+		}
+	}
+	return desc;
+}
+
+static inline struct charger_desc *cm_get_drv_data(struct platform_device *pdev)
+{
+	if (pdev->dev.of_node)
+		return of_cm_parse_desc(&pdev->dev);
+	return (struct charger_desc *)dev_get_platdata(&pdev->dev);
+}
+
 static int charger_manager_probe(struct platform_device *pdev)
 {
-	struct charger_desc *desc = dev_get_platdata(&pdev->dev);
+	struct charger_desc *desc = cm_get_drv_data(pdev);
 	struct charger_manager *cm;
 	int ret = 0, i = 0;
 	int j = 0;
@@ -1887,6 +2018,7 @@ static struct platform_driver charger_manager_driver = {
 		.name = "charger-manager",
 		.owner = THIS_MODULE,
 		.pm = &charger_manager_pm,
+		.of_match_table = charger_manager_match,
 	},
 	.probe = charger_manager_probe,
 	.remove = charger_manager_remove,
