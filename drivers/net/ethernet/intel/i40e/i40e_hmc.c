@@ -89,11 +89,9 @@ i40e_status i40e_add_sd_table_entry(struct i40e_hw *hw,
 			sd_entry->u.pd_table.pd_entry =
 				(struct i40e_hmc_pd_entry *)
 				sd_entry->u.pd_table.pd_entry_virt_mem.va;
-			memcpy(&sd_entry->u.pd_table.pd_page_addr, &mem,
-			       sizeof(struct i40e_dma_mem));
+			sd_entry->u.pd_table.pd_page_addr = mem;
 		} else {
-			memcpy(&sd_entry->u.bp.addr, &mem,
-			       sizeof(struct i40e_dma_mem));
+			sd_entry->u.bp.addr = mem;
 			sd_entry->u.bp.sd_pd_index = sd_index;
 		}
 		/* initialize the sd entry */
@@ -164,7 +162,7 @@ i40e_status i40e_add_pd_table_entry(struct i40e_hw *hw,
 		if (ret_code)
 			goto exit;
 
-		memcpy(&pd_entry->bp.addr, &mem, sizeof(struct i40e_dma_mem));
+		pd_entry->bp.addr = mem;
 		pd_entry->bp.sd_pd_index = pd_index;
 		pd_entry->bp.entry_type = I40E_SD_TYPE_PAGED;
 		/* Set page address and valid bit */

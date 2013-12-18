@@ -599,8 +599,7 @@ i40e_status i40e_aq_get_link_info(struct i40e_hw *hw,
 		goto aq_get_link_info_exit;
 
 	/* save off old link status information */
-	memcpy(&hw->phy.link_info_old, hw_link_info,
-	       sizeof(struct i40e_link_status));
+	hw->phy.link_info_old = *hw_link_info;
 
 	/* update link status */
 	hw_link_info->phy_type = (enum i40e_aq_phy_type)resp->phy_type;

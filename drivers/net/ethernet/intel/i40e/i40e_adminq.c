@@ -922,7 +922,7 @@ i40e_status i40e_clean_arq_element(struct i40e_hw *hw,
 			   "AQRX: Event received with error 0x%X.\n",
 			   hw->aq.arq_last_status);
 	} else {
-		memcpy(&e->desc, desc, sizeof(struct i40e_aq_desc));
+		e->desc = *desc;
 		datalen = le16_to_cpu(desc->datalen);
 		e->msg_size = min(datalen, e->msg_size);
 		if (e->msg_buf != NULL && (e->msg_size != 0))
