@@ -54,6 +54,7 @@ header-y += xt_ecn.h
 header-y += xt_esp.h
 header-y += xt_hashlimit.h
 header-y += xt_helper.h
+header-y += xt_ipcomp.h
 header-y += xt_iprange.h
 header-y += xt_ipvs.h
 header-y += xt_length.h
