@@ -3927,6 +3927,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 	struct lpfc_hba   *phba = vport->phba;
 	char name[64];
 	uint32_t num, i;
+	bool pport_setup = false;
 
 	if (!lpfc_debugfs_enable)
 		return;
@@ -3947,6 +3948,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 	/* Setup funcX directory for specific HBA PCI function */
 	snprintf(name, sizeof(name), "fn%d", phba->brd_no);
 	if (!phba->hba_debugfs_root) {
+		pport_setup = true;
 		phba->hba_debugfs_root =
 			debugfs_create_dir(name, lpfc_debugfs_root);
 		if (!phba->hba_debugfs_root) {
@@ -4237,6 +4239,14 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 				 "2985 Can't create debugfs nodelist\n");
 		goto debug_failed;
 	}
+
+	/*
+	 * The following section is for additional directories/files for the
+	 * physical port.
+	 */
+
+	if (!pport_setup)
+		goto debug_failed;
 
 	/*
 	 * iDiag debugfs root entry points for SLI4 device only
