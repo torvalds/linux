@@ -29,7 +29,7 @@
 #include <media/videobuf2-dma-contig.h>
 
 #include "jpeg-core.h"
-#include "jpeg-hw.h"
+#include "jpeg-hw-s5p.h"
 
 static struct s5p_jpeg_fmt formats_enc[] = {
 	{
@@ -951,34 +951,36 @@ static void s5p_jpeg_device_run(void *priv)
 	src_addr = vb2_dma_contig_plane_dma_addr(src_buf, 0);
 	dst_addr = vb2_dma_contig_plane_dma_addr(dst_buf, 0);
 
-	jpeg_reset(jpeg->regs);
-	jpeg_poweron(jpeg->regs);
-	jpeg_proc_mode(jpeg->regs, ctx->mode);
+	s5p_jpeg_reset(jpeg->regs);
+	s5p_jpeg_poweron(jpeg->regs);
+	s5p_jpeg_proc_mode(jpeg->regs, ctx->mode);
 	if (ctx->mode == S5P_JPEG_ENCODE) {
 		if (ctx->out_q.fmt->fourcc == V4L2_PIX_FMT_RGB565)
-			jpeg_input_raw_mode(jpeg->regs, S5P_JPEG_RAW_IN_565);
+			s5p_jpeg_input_raw_mode(jpeg->regs,
+							S5P_JPEG_RAW_IN_565);
 		else
-			jpeg_input_raw_mode(jpeg->regs, S5P_JPEG_RAW_IN_422);
-		jpeg_subsampling_mode(jpeg->regs, ctx->subsampling);
-		jpeg_dri(jpeg->regs, ctx->restart_interval);
-		jpeg_x(jpeg->regs, ctx->out_q.w);
-		jpeg_y(jpeg->regs, ctx->out_q.h);
-		jpeg_imgadr(jpeg->regs, src_addr);
-		jpeg_jpgadr(jpeg->regs, dst_addr);
+			s5p_jpeg_input_raw_mode(jpeg->regs,
+							S5P_JPEG_RAW_IN_422);
+		s5p_jpeg_subsampling_mode(jpeg->regs, ctx->subsampling);
+		s5p_jpeg_dri(jpeg->regs, ctx->restart_interval);
+		s5p_jpeg_x(jpeg->regs, ctx->out_q.w);
+		s5p_jpeg_y(jpeg->regs, ctx->out_q.h);
+		s5p_jpeg_imgadr(jpeg->regs, src_addr);
+		s5p_jpeg_jpgadr(jpeg->regs, dst_addr);
 
 		/* ultimately comes from sizeimage from userspace */
-		jpeg_enc_stream_int(jpeg->regs, ctx->cap_q.size);
+		s5p_jpeg_enc_stream_int(jpeg->regs, ctx->cap_q.size);
 
 		/* JPEG RGB to YCbCr conversion matrix */
-		jpeg_coef(jpeg->regs, 1, 1, S5P_JPEG_COEF11);
-		jpeg_coef(jpeg->regs, 1, 2, S5P_JPEG_COEF12);
-		jpeg_coef(jpeg->regs, 1, 3, S5P_JPEG_COEF13);
-		jpeg_coef(jpeg->regs, 2, 1, S5P_JPEG_COEF21);
-		jpeg_coef(jpeg->regs, 2, 2, S5P_JPEG_COEF22);
-		jpeg_coef(jpeg->regs, 2, 3, S5P_JPEG_COEF23);
-		jpeg_coef(jpeg->regs, 3, 1, S5P_JPEG_COEF31);
-		jpeg_coef(jpeg->regs, 3, 2, S5P_JPEG_COEF32);
-		jpeg_coef(jpeg->regs, 3, 3, S5P_JPEG_COEF33);
+		s5p_jpeg_coef(jpeg->regs, 1, 1, S5P_JPEG_COEF11);
+		s5p_jpeg_coef(jpeg->regs, 1, 2, S5P_JPEG_COEF12);
+		s5p_jpeg_coef(jpeg->regs, 1, 3, S5P_JPEG_COEF13);
+		s5p_jpeg_coef(jpeg->regs, 2, 1, S5P_JPEG_COEF21);
+		s5p_jpeg_coef(jpeg->regs, 2, 2, S5P_JPEG_COEF22);
+		s5p_jpeg_coef(jpeg->regs, 2, 3, S5P_JPEG_COEF23);
+		s5p_jpeg_coef(jpeg->regs, 3, 1, S5P_JPEG_COEF31);
+		s5p_jpeg_coef(jpeg->regs, 3, 2, S5P_JPEG_COEF32);
+		s5p_jpeg_coef(jpeg->regs, 3, 3, S5P_JPEG_COEF33);
 
 		/*
 		 * JPEG IP allows storing 4 quantization tables
@@ -987,31 +989,31 @@ static void s5p_jpeg_device_run(void *priv)
 		s5p_jpeg_set_qtbl_lum(jpeg->regs, ctx->compr_quality);
 		s5p_jpeg_set_qtbl_chr(jpeg->regs, ctx->compr_quality);
 		/* use table 0 for Y */
-		jpeg_qtbl(jpeg->regs, 1, 0);
+		s5p_jpeg_qtbl(jpeg->regs, 1, 0);
 		/* use table 1 for Cb and Cr*/
-		jpeg_qtbl(jpeg->regs, 2, 1);
-		jpeg_qtbl(jpeg->regs, 3, 1);
+		s5p_jpeg_qtbl(jpeg->regs, 2, 1);
+		s5p_jpeg_qtbl(jpeg->regs, 3, 1);
 
 		/* Y, Cb, Cr use Huffman table 0 */
-		jpeg_htbl_ac(jpeg->regs, 1);
-		jpeg_htbl_dc(jpeg->regs, 1);
-		jpeg_htbl_ac(jpeg->regs, 2);
-		jpeg_htbl_dc(jpeg->regs, 2);
-		jpeg_htbl_ac(jpeg->regs, 3);
-		jpeg_htbl_dc(jpeg->regs, 3);
+		s5p_jpeg_htbl_ac(jpeg->regs, 1);
+		s5p_jpeg_htbl_dc(jpeg->regs, 1);
+		s5p_jpeg_htbl_ac(jpeg->regs, 2);
+		s5p_jpeg_htbl_dc(jpeg->regs, 2);
+		s5p_jpeg_htbl_ac(jpeg->regs, 3);
+		s5p_jpeg_htbl_dc(jpeg->regs, 3);
 	} else { /* S5P_JPEG_DECODE */
-		jpeg_rst_int_enable(jpeg->regs, true);
-		jpeg_data_num_int_enable(jpeg->regs, true);
-		jpeg_final_mcu_num_int_enable(jpeg->regs, true);
+		s5p_jpeg_rst_int_enable(jpeg->regs, true);
+		s5p_jpeg_data_num_int_enable(jpeg->regs, true);
+		s5p_jpeg_final_mcu_num_int_enable(jpeg->regs, true);
 		if (ctx->cap_q.fmt->fourcc == V4L2_PIX_FMT_YUYV)
-			jpeg_outform_raw(jpeg->regs, S5P_JPEG_RAW_OUT_422);
+			s5p_jpeg_outform_raw(jpeg->regs, S5P_JPEG_RAW_OUT_422);
 		else
-			jpeg_outform_raw(jpeg->regs, S5P_JPEG_RAW_OUT_420);
-		jpeg_jpgadr(jpeg->regs, src_addr);
-		jpeg_imgadr(jpeg->regs, dst_addr);
+			s5p_jpeg_outform_raw(jpeg->regs, S5P_JPEG_RAW_OUT_420);
+		s5p_jpeg_jpgadr(jpeg->regs, src_addr);
+		s5p_jpeg_imgadr(jpeg->regs, dst_addr);
 	}
 
-	jpeg_start(jpeg->regs);
+	s5p_jpeg_start(jpeg->regs);
 
 	spin_unlock_irqrestore(&ctx->jpeg->slock, flags);
 }
@@ -1203,22 +1205,23 @@ static irqreturn_t s5p_jpeg_irq(int irq, void *dev_id)
 	dst_buf = v4l2_m2m_dst_buf_remove(curr_ctx->fh.m2m_ctx);
 
 	if (curr_ctx->mode == S5P_JPEG_ENCODE)
-		enc_jpeg_too_large = jpeg_enc_stream_stat(jpeg->regs);
-	timer_elapsed = jpeg_timer_stat(jpeg->regs);
-	op_completed = jpeg_result_stat_ok(jpeg->regs);
+		enc_jpeg_too_large = s5p_jpeg_enc_stream_stat(jpeg->regs);
+	timer_elapsed = s5p_jpeg_timer_stat(jpeg->regs);
+	op_completed = s5p_jpeg_result_stat_ok(jpeg->regs);
 	if (curr_ctx->mode == S5P_JPEG_DECODE)
-		op_completed = op_completed && jpeg_stream_stat_ok(jpeg->regs);
+		op_completed = op_completed &&
+					s5p_jpeg_stream_stat_ok(jpeg->regs);
 
 	if (enc_jpeg_too_large) {
 		state = VB2_BUF_STATE_ERROR;
-		jpeg_clear_enc_stream_stat(jpeg->regs);
+		s5p_jpeg_clear_enc_stream_stat(jpeg->regs);
 	} else if (timer_elapsed) {
 		state = VB2_BUF_STATE_ERROR;
-		jpeg_clear_timer_stat(jpeg->regs);
+		s5p_jpeg_clear_timer_stat(jpeg->regs);
 	} else if (!op_completed) {
 		state = VB2_BUF_STATE_ERROR;
 	} else {
-		payload_size = jpeg_compressed_size(jpeg->regs);
+		payload_size = s5p_jpeg_compressed_size(jpeg->regs);
 	}
 
 	dst_buf->v4l2_buf.timecode = src_buf->v4l2_buf.timecode;
@@ -1230,10 +1233,10 @@ static irqreturn_t s5p_jpeg_irq(int irq, void *dev_id)
 	v4l2_m2m_buf_done(dst_buf, state);
 	v4l2_m2m_job_finish(jpeg->m2m_dev, curr_ctx->fh.m2m_ctx);
 
-	curr_ctx->subsampling = jpeg_get_subsampling_mode(jpeg->regs);
+	curr_ctx->subsampling = s5p_jpeg_get_subsampling_mode(jpeg->regs);
 	spin_unlock(&jpeg->slock);
 
-	jpeg_clear_int(jpeg->regs);
+	s5p_jpeg_clear_int(jpeg->regs);
 
 	return IRQ_HANDLED;
 }

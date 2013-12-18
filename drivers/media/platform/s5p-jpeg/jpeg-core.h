@@ -42,9 +42,14 @@
 #define EOI				0xd9
 #define DHP				0xde
 
+#define S5P_JPEG_ENCODE		0
+#define S5P_JPEG_DECODE		1
+
 /* Flags that indicate a format can be used for capture/output */
 #define MEM2MEM_CAPTURE			(1 << 0)
 #define MEM2MEM_OUTPUT			(1 << 1)
+
+
 
 /**
  * struct s5p_jpeg - JPEG IP abstraction
