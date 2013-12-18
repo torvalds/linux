@@ -126,6 +126,7 @@ config SOC_IMX35
 	select HAVE_EPIT
 	select MXC_AVIC
 	select SMP_ON_UP if SMP
+	select PINCTRL
 
 config SOC_IMX5
 	bool
@@ -610,6 +611,13 @@ config MACH_IMX31_DT
 	  using the device tree for discovery.
 
 comment "MX35 platforms:"
+
+config MACH_IMX35_DT
+	bool "Support i.MX35 platforms from device tree"
+	select SOC_IMX35
+	help
+	  Include support for Freescale i.MX35 based platforms
+	  using the device tree for discovery.
 
 config MACH_PCM043
 	bool "Support Phytec pcm043 (i.MX35) platforms"
