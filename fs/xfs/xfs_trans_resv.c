@@ -229,6 +229,18 @@ xfs_calc_link_reservation(
 }
 
 /*
+ * For adding an inode to unlinked list we can modify:
+ *    the agi hash list: sector size
+ *    the unlinked inode: inode size
+ */
+STATIC uint
+xfs_calc_iunlink_add_reservation(xfs_mount_t *mp)
+{
+	return xfs_calc_buf_res(1, mp->m_sb.sb_sectsize) +
+		xfs_calc_inode_res(mp, 1);
+}
+
+/*
  * For removing a directory entry we can modify:
  *    the parent directory inode: inode size
  *    the removed inode: inode size
@@ -245,10 +257,11 @@ xfs_calc_remove_reservation(
 	struct xfs_mount	*mp)
 {
 	return XFS_DQUOT_LOGRES(mp) +
-		MAX((xfs_calc_inode_res(mp, 2) +
+		xfs_calc_iunlink_add_reservation(mp) +
+		MAX((xfs_calc_inode_res(mp, 1) +
 		     xfs_calc_buf_res(XFS_DIROP_LOG_COUNT(mp),
 				      XFS_FSB_TO_B(mp, 1))),
-		    (xfs_calc_buf_res(5, mp->m_sb.sb_sectsize) +
+		    (xfs_calc_buf_res(4, mp->m_sb.sb_sectsize) +
 		     xfs_calc_buf_res(XFS_ALLOCFREE_LOG_COUNT(mp, 2),
 				      XFS_FSB_TO_B(mp, 1))));
 }
@@ -341,6 +354,20 @@ xfs_calc_create_reservation(
 		return xfs_calc_icreate_reservation(mp);
 	return __xfs_calc_create_reservation(mp);
 
+}
+
+STATIC uint
+xfs_calc_create_tmpfile_reservation(
+	struct xfs_mount        *mp)
+{
+	uint	res = XFS_DQUOT_LOGRES(mp);
+
+	if (xfs_sb_version_hascrc(&mp->m_sb))
+		res += xfs_calc_icreate_resv_alloc(mp);
+	else
+		res += xfs_calc_create_resv_alloc(mp);
+
+	return res + xfs_calc_iunlink_add_reservation(mp);
 }
 
 /*
@@ -728,6 +755,11 @@ xfs_trans_resv_calc(
 	resp->tr_create.tr_logres = xfs_calc_create_reservation(mp);
 	resp->tr_create.tr_logcount = XFS_CREATE_LOG_COUNT;
 	resp->tr_create.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
+
+	resp->tr_create_tmpfile.tr_logres =
+			xfs_calc_create_tmpfile_reservation(mp);
+	resp->tr_create_tmpfile.tr_logcount = XFS_CREATE_TMPFILE_LOG_COUNT;
+	resp->tr_create_tmpfile.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
 
 	resp->tr_mkdir.tr_logres = xfs_calc_mkdir_reservation(mp);
 	resp->tr_mkdir.tr_logcount = XFS_MKDIR_LOG_COUNT;
