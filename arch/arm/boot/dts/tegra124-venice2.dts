@@ -603,7 +603,201 @@
 
 	i2c@7000d000 {
 		status = "okay";
-		clock-frequency = <100000>;
+		clock-frequency = <400000>;
+
+		as3722: as3722@40 {
+			compatible = "ams,as3722";
+			reg = <0x40>;
+			interrupts = <0 86 IRQ_TYPE_LEVEL_HIGH>;
+
+			#interrupt-cells = <2>;
+			interrupt-controller;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&as3722_default>;
+
+			as3722_default: pinmux {
+				gpio0 {
+					pins = "gpio0";
+					function = "gpio";
+					bias-pull-down;
+				};
+
+				gpio1_2_4_7 {
+					pins = "gpio1", "gpio2", "gpio4", "gpio7";
+					function = "gpio";
+					bias-pull-up;
+				};
+
+				gpio3_6 {
+					pins = "gpio3", "gpio6";
+					bias-high-impedance;
+				};
+
+				gpio5 {
+					pins = "gpio5";
+					function = "clk32k-out";
+				};
+			};
+
+			regulators {
+				vsup-sd2-supply = <&vdd_ac_bat_reg>;
+				vsup-sd3-supply = <&vdd_ac_bat_reg>;
+				vsup-sd4-supply = <&vdd_ac_bat_reg>;
+				vsup-sd5-supply = <&vdd_ac_bat_reg>;
+				vin-ldo0-supply = <&as3722_sd2>;
+				vin-ldo1-6-supply = <&vdd_ac_bat_reg>;
+				vin-ldo2-5-7-supply = <&as3722_sd5>;
+				vin-ldo3-4-supply = <&vdd_ac_bat_reg>;
+				vin-ldo9-10-supply = <&vdd_ac_bat_reg>;
+				vin-ldo11-supply = <&vdd_ac_bat_reg>;
+
+				sd0 {
+					regulator-name = "vdd-cpu";
+					regulator-min-microvolt = <700000>;
+					regulator-max-microvolt = <1400000>;
+					regulator-min-microamp = <3500000>;
+					regulator-max-microamp = <3500000>;
+					regulator-always-on;
+					regulator-boot-on;
+					ams,external-control = <2>;
+				};
+
+				sd1 {
+					regulator-name = "vdd-core";
+					regulator-min-microvolt = <700000>;
+					regulator-max-microvolt = <1350000>;
+					regulator-min-microamp = <2500000>;
+					regulator-max-microamp = <2500000>;
+					regulator-always-on;
+					regulator-boot-on;
+					ams,external-control = <1>;
+				};
+
+				as3722_sd2: sd2 {
+					regulator-name = "vddio-ddr";
+					regulator-min-microvolt = <1350000>;
+					regulator-max-microvolt = <1350000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				sd3 {
+					regulator-name = "vddio-ddr-2phase";
+					regulator-min-microvolt = <1350000>;
+					regulator-max-microvolt = <1350000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				sd4 {
+					regulator-name = "avdd-pex-sata";
+					regulator-min-microvolt = <1050000>;
+					regulator-max-microvolt = <1050000>;
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				as3722_sd5: sd5 {
+					regulator-name = "vddio-sys";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				sd6 {
+					regulator-name = "vdd-gpu";
+					regulator-min-microvolt = <650000>;
+					regulator-max-microvolt = <1200000>;
+					regulator-min-microamp = <3500000>;
+					regulator-max-microamp = <3500000>;
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				ldo0 {
+					regulator-name = "avdd_pll";
+					regulator-min-microvolt = <1050000>;
+					regulator-max-microvolt = <1050000>;
+					regulator-boot-on;
+					regulator-always-on;
+					ams,external-control = <1>;
+				};
+
+				ldo1 {
+					regulator-name = "run-cam-1.8";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
+				ldo2 {
+					regulator-name = "gen-avdd,vddio-hsic";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				ldo3 {
+					regulator-name = "vdd-rtc";
+					regulator-min-microvolt = <1000000>;
+					regulator-max-microvolt = <1000000>;
+					regulator-boot-on;
+					regulator-always-on;
+					ams,enable-tracking;
+				};
+
+				ldo4 {
+					regulator-name = "vdd-cam";
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				ldo5 {
+					regulator-name = "vdd-cam-front";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+				};
+
+				ldo6 {
+					regulator-name = "vddio-sdmmc3";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <3300000>;
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				ldo7 {
+					regulator-name = "vdd-cam-rear";
+					regulator-min-microvolt = <1050000>;
+					regulator-max-microvolt = <1050000>;
+				};
+
+				ldo9 {
+					regulator-name = "vdd-touch";
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+				};
+
+				ldo10 {
+					regulator-name = "vdd-cam-af";
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+				};
+
+				ldo11 {
+					regulator-name = "vpp-fuse";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+			};
+		};
 	};
 
 	pmc@7000e400 {
@@ -645,6 +839,107 @@
 			reg=<0>;
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		vdd_ac_bat_reg: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "vdd_ac_bat";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+		};
+
+		vdd_3v3_reg: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "vdd_3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			regulator-boot-on;
+			enable-active-high;
+			gpio = <&as3722 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		vdd_3v3_modem_reg: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "vdd-modem-3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			enable-active-high;
+			gpio = <&as3722 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		vdd_hdmi_5v0_reg: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "vdd-hdmi-5v0";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			gpio = <&gpio TEGRA_GPIO(K, 6) GPIO_ACTIVE_HIGH>;
+		};
+
+		vdd_bl_reg: regulator@4 {
+			compatible = "regulator-fixed";
+			reg = <4>;
+			regulator-name = "vdd-bl";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio TEGRA_GPIO(P, 2) GPIO_ACTIVE_LOW>;
+		};
+
+		vdd_ts_sw_5v0: regulator@5 {
+			compatible = "regulator-fixed";
+			reg = <5>;
+			regulator-name = "vdd_ts_sw";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-boot-on;
+			gpio = <&gpio TEGRA_GPIO(K, 1) GPIO_ACTIVE_LOW>;
+		};
+
+		usb1_vbus_reg: regulator@6 {
+			compatible = "regulator-fixed";
+			reg = <6>;
+			regulator-name = "usb1_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-boot-on;
+			enable-active-high;
+			gpio = <&gpio TEGRA_GPIO(N, 4) GPIO_ACTIVE_HIGH>;
+			gpio-open-drain;
+		};
+
+		usb3_vbus_reg: regulator@7 {
+			compatible = "regulator-fixed";
+			reg = <7>;
+			regulator-name = "usb3_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-boot-on;
+			enable-active-high;
+			gpio = <&gpio TEGRA_GPIO(N, 5) GPIO_ACTIVE_HIGH>;
+			gpio-open-drain;
+		};
+
+		panel_3v3_reg: regulator@8 {
+			compatible = "regulator-fixed";
+			reg = <8>;
+			regulator-name = "panel_3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			enable-active-high;
+			gpio = <&as3722 4 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
