@@ -131,6 +131,7 @@ static const struct ar9300_eeprom ar9300_default = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0cf0e0e0),
 		.papdRateMaskHt40 = LE32(0x6cf0e0e0),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -333,6 +334,7 @@ static const struct ar9300_eeprom ar9300_default = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0c80c080),
 		.papdRateMaskHt40 = LE32(0x0080c080),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -707,6 +709,7 @@ static const struct ar9300_eeprom ar9300_x113 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0c80c080),
 		.papdRateMaskHt40 = LE32(0x0080c080),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -909,6 +912,7 @@ static const struct ar9300_eeprom ar9300_x113 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0cf0e0e0),
 		.papdRateMaskHt40 = LE32(0x6cf0e0e0),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -1284,6 +1288,7 @@ static const struct ar9300_eeprom ar9300_h112 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0c80c080),
 		.papdRateMaskHt40 = LE32(0x0080c080),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -1486,6 +1491,7 @@ static const struct ar9300_eeprom ar9300_h112 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0cf0e0e0),
 		.papdRateMaskHt40 = LE32(0x6cf0e0e0),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -1861,6 +1867,7 @@ static const struct ar9300_eeprom ar9300_x112 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0c80c080),
 		.papdRateMaskHt40 = LE32(0x0080c080),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -2063,6 +2070,7 @@ static const struct ar9300_eeprom ar9300_x112 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0cf0e0e0),
 		.papdRateMaskHt40 = LE32(0x6cf0e0e0),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -2437,6 +2445,7 @@ static const struct ar9300_eeprom ar9300_h116 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0c80C080),
 		.papdRateMaskHt40 = LE32(0x0080C080),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -2639,6 +2648,7 @@ static const struct ar9300_eeprom ar9300_h116 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0cf0e0e0),
 		.papdRateMaskHt40 = LE32(0x6cf0e0e0),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
