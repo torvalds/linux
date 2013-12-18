@@ -89,7 +89,7 @@ typedef void (*I40E_ADMINQ_CALLBACK)(struct i40e_hw *, struct i40e_aq_desc *);
 #define I40E_QTX_CTL_VF_QUEUE	0x0
 #define I40E_QTX_CTL_PF_QUEUE	0x2
 
-/* debug masks */
+/* debug masks - set these bits in hw->debug_mask to control output */
 enum i40e_debug_mask {
 	I40E_DEBUG_INIT			= 0x00000001,
 	I40E_DEBUG_RELEASE		= 0x00000002,
@@ -103,10 +103,10 @@ enum i40e_debug_mask {
 	I40E_DEBUG_DCB			= 0x00000400,
 	I40E_DEBUG_DIAG			= 0x00000800,
 
-	I40E_DEBUG_AQ_MESSAGE		= 0x01000000, /* for i40e_debug() */
+	I40E_DEBUG_AQ_MESSAGE		= 0x01000000,
 	I40E_DEBUG_AQ_DESCRIPTOR	= 0x02000000,
 	I40E_DEBUG_AQ_DESC_BUFFER	= 0x04000000,
-	I40E_DEBUG_AQ_COMMAND		= 0x06000000, /* for i40e_debug_aq() */
+	I40E_DEBUG_AQ_COMMAND		= 0x06000000,
 	I40E_DEBUG_AQ			= 0x0F000000,
 
 	I40E_DEBUG_USER			= 0xF0000000,
@@ -520,7 +520,7 @@ enum i40e_rx_desc_status_bits {
 
 #define I40E_RXD_QW1_STATUS_TSYNVALID_SHIFT  I40E_RX_DESC_STATUS_TSYNVALID_SHIFT
 #define I40E_RXD_QW1_STATUS_TSYNVALID_MASK	(0x1UL << \
-					     I40E_RXD_QW1_STATUS_TSYNVALID_SHIFT)
+					 I40E_RXD_QW1_STATUS_TSYNVALID_SHIFT)
 
 enum i40e_rx_desc_fltstat_values {
 	I40E_RX_DESC_FLTSTAT_NO_DATA	= 0,

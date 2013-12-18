@@ -672,7 +672,7 @@ static bool i40e_asq_done(struct i40e_hw *hw)
 	/* AQ designers suggest use of head for better
 	 * timing reliability than DD bit
 	 */
-	return (rd32(hw, hw->aq.asq.head) == hw->aq.asq.next_to_use);
+	return rd32(hw, hw->aq.asq.head) == hw->aq.asq.next_to_use;
 
 }
 
@@ -682,7 +682,7 @@ static bool i40e_asq_done(struct i40e_hw *hw)
  *  @desc: prefilled descriptor describing the command (non DMA mem)
  *  @buff: buffer to use for indirect commands
  *  @buff_size: size of buffer for indirect commands
- *  @opaque: pointer to info to be used in async cleanup
+ *  @cmd_details: pointer to command details structure
  *
  *  This is the main send command driver routine for the Admin Queue send
  *  queue.  It runs the queue, cleans the queue, etc
