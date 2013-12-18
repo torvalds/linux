@@ -2911,6 +2911,8 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (unlikely(!test_bit(BNAD_TXQ_TX_STARTED, &tcb->flags)))
 		return NETDEV_TX_OK;
 
+	skb_tx_timestamp(skb);
+
 	bna_txq_prod_indx_doorbell(tcb);
 	smp_mb();
 
