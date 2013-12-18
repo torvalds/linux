@@ -84,7 +84,7 @@ struct bnad_rx_ctrl {
 #define BNAD_IOCETH_TIMEOUT	     10000
 
 #define BNAD_MIN_Q_DEPTH		512
-#define BNAD_MAX_RXQ_DEPTH		2048
+#define BNAD_MAX_RXQ_DEPTH		16384
 #define BNAD_MAX_TXQ_DEPTH		2048
 
 #define BNAD_JUMBO_MTU			9000
@@ -237,9 +237,9 @@ struct bnad_rx_vector {
 
 struct bnad_rx_unmap {
 	struct page		*page;
-	u32			page_offset;
 	struct sk_buff		*skb;
 	struct bnad_rx_vector	vector;
+	u32			page_offset;
 };
 
 enum bnad_rxbuf_type {
@@ -257,7 +257,7 @@ struct bnad_rx_unmap_q {
 	int			alloc_order;
 	u32			map_size;
 	enum bnad_rxbuf_type	type;
-	struct bnad_rx_unmap	unmap[0];
+	struct bnad_rx_unmap	unmap[0] ____cacheline_aligned;
 };
 
 #define BNAD_PCI_DEV_IS_CAT2(_bnad) \

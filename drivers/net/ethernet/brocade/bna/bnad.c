@@ -536,6 +536,11 @@ bnad_cq_setup_skb_frags(struct bna_rcb *rcb, struct sk_buff *skb,
 
 	unmap_q = rcb->unmap_q;
 	bnad = rcb->bnad;
+
+	/* prefetch header */
+	prefetch(page_address(unmap_q->unmap[sop_ci].page) +
+			unmap_q->unmap[sop_ci].page_offset);
+
 	for (vec = 1, ci = sop_ci; vec <= nvecs; vec++) {
 		unmap = &unmap_q->unmap[ci];
 		BNA_QE_INDX_INC(ci, rcb->q_depth);
