@@ -866,8 +866,9 @@ struct bna_rx_mod {
 /* CAM */
 
 struct bna_ucam_mod {
-	struct bna_mac *ucmac;		/* BFI_MAX_UCMAC entries */
+	struct bna_mac *ucmac;		/* num_ucmac * 2 entries */
 	struct list_head			free_q;
+	struct list_head			del_q;
 
 	struct bna *bna;
 };
@@ -880,9 +881,10 @@ struct bna_mcam_handle {
 };
 
 struct bna_mcam_mod {
-	struct bna_mac *mcmac;		/* BFI_MAX_MCMAC entries */
-	struct bna_mcam_handle *mchandle;	/* BFI_MAX_MCMAC entries */
+	struct bna_mac *mcmac;		/* num_mcmac * 2 entries */
+	struct bna_mcam_handle *mchandle;	/* num_mcmac entries */
 	struct list_head			free_q;
+	struct list_head			del_q;
 	struct list_head			free_handle_q;
 
 	struct bna *bna;

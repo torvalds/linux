@@ -1811,6 +1811,13 @@ bna_ucam_mod_init(struct bna_ucam_mod *ucam_mod, struct bna *bna,
 		list_add_tail(&ucam_mod->ucmac[i].qe, &ucam_mod->free_q);
 	}
 
+	/* A separate queue to allow synchronous setting of a list of MACs */
+	INIT_LIST_HEAD(&ucam_mod->del_q);
+	for (i = i; i < (bna->ioceth.attr.num_ucmac * 2); i++) {
+		bfa_q_qe_init(&ucam_mod->ucmac[i].qe);
+		list_add_tail(&ucam_mod->ucmac[i].qe, &ucam_mod->del_q);
+	}
+
 	ucam_mod->bna = bna;
 }
 
@@ -1849,6 +1856,13 @@ bna_mcam_mod_init(struct bna_mcam_mod *mcam_mod, struct bna *bna,
 		bfa_q_qe_init(&mcam_mod->mchandle[i].qe);
 		list_add_tail(&mcam_mod->mchandle[i].qe,
 				&mcam_mod->free_handle_q);
+	}
+
+	/* A separate queue to allow synchronous setting of a list of MACs */
+	INIT_LIST_HEAD(&mcam_mod->del_q);
+	for (i = i; i < (bna->ioceth.attr.num_mcmac * 2); i++) {
+		bfa_q_qe_init(&mcam_mod->mcmac[i].qe);
+		list_add_tail(&mcam_mod->mcmac[i].qe, &mcam_mod->del_q);
 	}
 
 	mcam_mod->bna = bna;
@@ -1976,7 +1990,7 @@ bna_mod_res_req(struct bna *bna, struct bna_res_info *res_info)
 		BNA_MEM_T_KVA;
 	res_info[BNA_MOD_RES_MEM_T_UCMAC_ARRAY].res_u.mem_info.num = 1;
 	res_info[BNA_MOD_RES_MEM_T_UCMAC_ARRAY].res_u.mem_info.len =
-		attr->num_ucmac * sizeof(struct bna_mac);
+		(attr->num_ucmac * 2) * sizeof(struct bna_mac);
 
 	/* Virtual memory for Multicast MAC address - stored by mcam module */
 	res_info[BNA_MOD_RES_MEM_T_MCMAC_ARRAY].res_type = BNA_RES_T_MEM;
@@ -1984,7 +1998,7 @@ bna_mod_res_req(struct bna *bna, struct bna_res_info *res_info)
 		BNA_MEM_T_KVA;
 	res_info[BNA_MOD_RES_MEM_T_MCMAC_ARRAY].res_u.mem_info.num = 1;
 	res_info[BNA_MOD_RES_MEM_T_MCMAC_ARRAY].res_u.mem_info.len =
-		attr->num_mcmac * sizeof(struct bna_mac);
+		(attr->num_mcmac * 2) * sizeof(struct bna_mac);
 
 	/* Virtual memory for Multicast handle - stored by mcam module */
 	res_info[BNA_MOD_RES_MEM_T_MCHANDLE_ARRAY].res_type = BNA_RES_T_MEM;
@@ -2080,41 +2094,21 @@ bna_num_rxp_set(struct bna *bna, int num_rxp)
 }
 
 struct bna_mac *
-bna_ucam_mod_mac_get(struct bna_ucam_mod *ucam_mod)
+bna_cam_mod_mac_get(struct list_head *head)
 {
 	struct list_head *qe;
 
-	if (list_empty(&ucam_mod->free_q))
+	if (list_empty(head))
 		return NULL;
 
-	bfa_q_deq(&ucam_mod->free_q, &qe);
-
+	bfa_q_deq(head, &qe);
 	return (struct bna_mac *)qe;
 }
 
 void
-bna_ucam_mod_mac_put(struct bna_ucam_mod *ucam_mod, struct bna_mac *mac)
+bna_cam_mod_mac_put(struct list_head *tail, struct bna_mac *mac)
 {
-	list_add_tail(&mac->qe, &ucam_mod->free_q);
-}
-
-struct bna_mac *
-bna_mcam_mod_mac_get(struct bna_mcam_mod *mcam_mod)
-{
-	struct list_head *qe;
-
-	if (list_empty(&mcam_mod->free_q))
-		return NULL;
-
-	bfa_q_deq(&mcam_mod->free_q, &qe);
-
-	return (struct bna_mac *)qe;
-}
-
-void
-bna_mcam_mod_mac_put(struct bna_mcam_mod *mcam_mod, struct bna_mac *mac)
-{
-	list_add_tail(&mac->qe, &mcam_mod->free_q);
+	list_add_tail(&mac->qe, tail);
 }
 
 struct bna_mcam_handle *

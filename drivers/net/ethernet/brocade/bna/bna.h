@@ -354,6 +354,14 @@ do {									\
 	}								\
 } while (0)
 
+#define bna_mcam_mod_free_q(_bna) (&(_bna)->mcam_mod.free_q)
+
+#define bna_mcam_mod_del_q(_bna) (&(_bna)->mcam_mod.del_q)
+
+#define bna_ucam_mod_free_q(_bna) (&(_bna)->ucam_mod.free_q)
+
+#define bna_ucam_mod_del_q(_bna) (&(_bna)->ucam_mod.del_q)
+
 /*  Inline functions  */
 
 static inline struct bna_mac *bna_mac_find(struct list_head *q, u8 *addr)
@@ -391,12 +399,8 @@ int bna_num_rxp_set(struct bna *bna, int num_rxp);
 void bna_hw_stats_get(struct bna *bna);
 
 /* APIs for RxF */
-struct bna_mac *bna_ucam_mod_mac_get(struct bna_ucam_mod *ucam_mod);
-void bna_ucam_mod_mac_put(struct bna_ucam_mod *ucam_mod,
-			  struct bna_mac *mac);
-struct bna_mac *bna_mcam_mod_mac_get(struct bna_mcam_mod *mcam_mod);
-void bna_mcam_mod_mac_put(struct bna_mcam_mod *mcam_mod,
-			  struct bna_mac *mac);
+struct bna_mac *bna_cam_mod_mac_get(struct list_head *head);
+void bna_cam_mod_mac_put(struct list_head *tail, struct bna_mac *mac);
 struct bna_mcam_handle *bna_mcam_mod_handle_get(struct bna_mcam_mod *mod);
 void bna_mcam_mod_handle_put(struct bna_mcam_mod *mcam_mod,
 			  struct bna_mcam_handle *handle);
