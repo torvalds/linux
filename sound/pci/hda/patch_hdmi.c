@@ -3217,7 +3217,7 @@ int snd_hda_parse_hdmi_codec(struct hda_codec *codec)
 {
 	return patch_generic_hdmi(codec);
 }
-EXPORT_SYMBOL_HDA(snd_hda_parse_hdmi_codec);
+EXPORT_SYMBOL_GPL(snd_hda_parse_hdmi_codec);
 
 /*
  * patch entries
