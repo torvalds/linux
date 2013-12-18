@@ -1272,6 +1272,42 @@ void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
 	*coef_exponent = coef_exp - 16;
 }
 
+/* AR9330 WAR:
+ * call external reset function to reset WMAC if:
+ * - doing a cold reset
+ * - we have pending frames in the TX queues.
+ */
+static bool ath9k_hw_ar9330_reset_war(struct ath_hw *ah, int type)
+{
+	int i, npend = 0;
+
+	for (i = 0; i < AR_NUM_QCU; i++) {
+		npend = ath9k_hw_numtxpending(ah, i);
+		if (npend)
+			break;
+	}
+
+	if (ah->external_reset &&
+	    (npend || type == ATH9K_RESET_COLD)) {
+		int reset_err = 0;
+
+		ath_dbg(ath9k_hw_common(ah), RESET,
+			"reset MAC via external reset\n");
+
+		reset_err = ah->external_reset();
+		if (reset_err) {
+			ath_err(ath9k_hw_common(ah),
+				"External reset failed, err=%d\n",
+				reset_err);
+			return false;
+		}
+
+		REG_WRITE(ah, AR_RTC_RESET, 1);
+	}
+
+	return true;
+}
+
 static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 {
 	u32 rst_flags;
@@ -1322,38 +1358,8 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 	}
 
 	if (AR_SREV_9330(ah)) {
-		int npend = 0;
-		int i;
-
-		/* AR9330 WAR:
-		 * call external reset function to reset WMAC if:
-		 * - doing a cold reset
-		 * - we have pending frames in the TX queues
-		 */
-
-		for (i = 0; i < AR_NUM_QCU; i++) {
-			npend = ath9k_hw_numtxpending(ah, i);
-			if (npend)
-				break;
-		}
-
-		if (ah->external_reset &&
-		    (npend || type == ATH9K_RESET_COLD)) {
-			int reset_err = 0;
-
-			ath_dbg(ath9k_hw_common(ah), RESET,
-				"reset MAC via external reset\n");
-
-			reset_err = ah->external_reset();
-			if (reset_err) {
-				ath_err(ath9k_hw_common(ah),
-					"External reset failed, err=%d\n",
-					reset_err);
-				return false;
-			}
-
-			REG_WRITE(ah, AR_RTC_RESET, 1);
-		}
+		if (!ath9k_hw_ar9330_reset_war(ah, type))
+			return false;
 	}
 
 	if (ath9k_hw_mci_is_enabled(ah))
