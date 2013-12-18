@@ -1352,7 +1352,6 @@ static void cache_set_free(struct closure *cl)
 			kobject_put(&ca->kobj);
 
 	free_pages((unsigned long) c->uuids, ilog2(bucket_pages(c)));
-	free_pages((unsigned long) c->sort, ilog2(bucket_pages(c)));
 
 	if (c->bio_split)
 		bioset_free(c->bio_split);
@@ -1489,7 +1488,6 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 	init_waitqueue_head(&c->try_wait);
 	init_waitqueue_head(&c->bucket_wait);
 	sema_init(&c->uuid_write_mutex, 1);
-	mutex_init(&c->sort_lock);
 
 	spin_lock_init(&c->sort_time.lock);
 	spin_lock_init(&c->btree_gc_time.lock);
@@ -1519,7 +1517,8 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 				bucket_pages(c))) ||
 	    !(c->fill_iter = mempool_create_kmalloc_pool(1, iter_size)) ||
 	    !(c->bio_split = bioset_create(4, offsetof(struct bbio, bio))) ||
-	    !(c->sort = alloc_bucket_pages(GFP_KERNEL, c)) ||
+	    !(c->sort_pool = mempool_create_page_pool(1,
+				ilog2(bucket_pages(c)))) ||
 	    !(c->uuids = alloc_bucket_pages(GFP_KERNEL, c)) ||
 	    bch_journal_alloc(c) ||
 	    bch_btree_cache_alloc(c) ||

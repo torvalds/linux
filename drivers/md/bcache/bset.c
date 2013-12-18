@@ -1047,11 +1047,12 @@ static void __btree_sort(struct btree *b, struct btree_iter *iter,
 {
 	uint64_t start_time;
 	bool remove_stale = !b->written;
+	bool used_mempool = false;
 	struct bset *out = (void *) __get_free_pages(__GFP_NOWARN|GFP_NOIO,
 						     order);
 	if (!out) {
-		mutex_lock(&b->c->sort_lock);
-		out = b->c->sort;
+		out = page_address(mempool_alloc(b->c->sort_pool, GFP_NOIO));
+		used_mempool = true;
 		order = ilog2(bucket_pages(b->c));
 	}
 
@@ -1071,17 +1072,14 @@ static void __btree_sort(struct btree *b, struct btree_iter *iter,
 		out->seq	= b->sets[0].data->seq;
 		out->version	= b->sets[0].data->version;
 		swap(out, b->sets[0].data);
-
-		if (b->c->sort == b->sets[0].data)
-			b->c->sort = out;
 	} else {
 		b->sets[start].data->keys = out->keys;
 		memcpy(b->sets[start].data->start, out->start,
 		       (void *) end(out) - (void *) out->start);
 	}
 
-	if (out == b->c->sort)
-		mutex_unlock(&b->c->sort_lock);
+	if (used_mempool)
+		mempool_free(virt_to_page(out), b->c->sort_pool);
 	else
 		free_pages((unsigned long) out, order);
 

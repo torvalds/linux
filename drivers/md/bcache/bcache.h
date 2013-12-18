@@ -645,12 +645,7 @@ struct cache_set {
 	 */
 	mempool_t		*fill_iter;
 
-	/*
-	 * btree_sort() is a merge sort and requires temporary space - single
-	 * element mempool
-	 */
-	struct mutex		sort_lock;
-	struct bset		*sort;
+	mempool_t		*sort_pool;
 	unsigned		sort_crit_factor;
 
 	/* List of buckets we're currently writing data to */
