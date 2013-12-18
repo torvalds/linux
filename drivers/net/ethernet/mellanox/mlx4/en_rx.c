@@ -747,7 +747,9 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 					}
 
 					if (dev->features & NETIF_F_RXHASH)
-						gro_skb->rxhash = be32_to_cpu(cqe->immed_rss_invalid);
+						skb_set_hash(gro_skb,
+							     be32_to_cpu(cqe->immed_rss_invalid),
+							     PKT_HASH_TYPE_L3);
 
 					skb_record_rx_queue(gro_skb, cq->ring);
 
@@ -789,7 +791,9 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		skb_record_rx_queue(skb, cq->ring);
 
 		if (dev->features & NETIF_F_RXHASH)
-			skb->rxhash = be32_to_cpu(cqe->immed_rss_invalid);
+			skb_set_hash(skb,
+				     be32_to_cpu(cqe->immed_rss_invalid),
+				     PKT_HASH_TYPE_L3);
 
 		if ((be32_to_cpu(cqe->vlan_my_qpn) &
 		    MLX4_CQE_VLAN_PRESENT_MASK) &&
