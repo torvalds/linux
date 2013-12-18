@@ -298,6 +298,7 @@ void bfa_nw_ioc_error_isr(struct bfa_ioc *ioc);
 bool bfa_nw_ioc_is_disabled(struct bfa_ioc *ioc);
 bool bfa_nw_ioc_is_operational(struct bfa_ioc *ioc);
 void bfa_nw_ioc_get_attr(struct bfa_ioc *ioc, struct bfa_ioc_attr *ioc_attr);
+enum bfa_status bfa_nw_ioc_fwsig_invalidate(struct bfa_ioc *ioc);
 void bfa_nw_ioc_notify_register(struct bfa_ioc *ioc,
 	struct bfa_ioc_notify *notify);
 bool bfa_nw_ioc_sem_get(void __iomem *sem_reg);

@@ -22,6 +22,14 @@
 
 /* IOC local definitions */
 
+#define bfa_ioc_state_disabled(__sm)			\
+	(((__sm) == BFI_IOC_UNINIT) ||			\
+	 ((__sm) == BFI_IOC_INITING) ||			\
+	 ((__sm) == BFI_IOC_HWINIT) ||			\
+	 ((__sm) == BFI_IOC_DISABLED) ||		\
+	 ((__sm) == BFI_IOC_FAIL) ||			\
+	 ((__sm) == BFI_IOC_CFG_DISABLED))
+
 /* Asic specific macros : see bfa_hw_cb.c and bfa_hw_ct.c for details. */
 
 #define bfa_ioc_firmware_lock(__ioc)			\
@@ -84,8 +92,8 @@ static void bfa_ioc_pf_disabled(struct bfa_ioc *ioc);
 static void bfa_ioc_pf_failed(struct bfa_ioc *ioc);
 static void bfa_ioc_pf_hwfailed(struct bfa_ioc *ioc);
 static void bfa_ioc_pf_fwmismatch(struct bfa_ioc *ioc);
-static void bfa_ioc_boot(struct bfa_ioc *ioc, enum bfi_fwboot_type boot_type,
-			 u32 boot_param);
+static enum bfa_status bfa_ioc_boot(struct bfa_ioc *ioc,
+			enum bfi_fwboot_type boot_type, u32 boot_param);
 static u32 bfa_ioc_smem_pgnum(struct bfa_ioc *ioc, u32 fmaddr);
 static void bfa_ioc_get_adapter_serial_num(struct bfa_ioc *ioc,
 						char *serial_num);
@@ -1139,6 +1147,25 @@ bfa_nw_ioc_sem_release(void __iomem *sem_reg)
 	writel(1, sem_reg);
 }
 
+/* Invalidate fwver signature */
+enum bfa_status
+bfa_nw_ioc_fwsig_invalidate(struct bfa_ioc *ioc)
+{
+	u32	pgnum, pgoff;
+	u32	loff = 0;
+	enum bfi_ioc_state ioc_fwstate;
+
+	ioc_fwstate = bfa_ioc_get_cur_ioc_fwstate(ioc);
+	if (!bfa_ioc_state_disabled(ioc_fwstate))
+		return BFA_STATUS_ADAPTER_ENABLED;
+
+	pgnum = bfa_ioc_smem_pgnum(ioc, loff);
+	pgoff = PSS_SMEM_PGOFF(loff);
+	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
+	writel(BFI_IOC_FW_INV_SIGN, ioc->ioc_regs.smem_page_start + loff);
+	return BFA_STATUS_OK;
+}
+
 /* Clear fwver hdr */
 static void
 bfa_ioc_fwver_clear(struct bfa_ioc *ioc)
@@ -1317,22 +1344,510 @@ bfa_nw_ioc_fwver_get(struct bfa_ioc *ioc, struct bfi_ioc_image_hdr *fwhdr)
 	}
 }
 
-/* Returns TRUE if same. */
-bool
-bfa_nw_ioc_fwver_cmp(struct bfa_ioc *ioc, struct bfi_ioc_image_hdr *fwhdr)
+static bool
+bfa_ioc_fwver_md5_check(struct bfi_ioc_image_hdr *fwhdr_1,
+			struct bfi_ioc_image_hdr *fwhdr_2)
 {
-	struct bfi_ioc_image_hdr *drv_fwhdr;
 	int i;
 
-	drv_fwhdr = (struct bfi_ioc_image_hdr *)
-		bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc), 0);
-
 	for (i = 0; i < BFI_IOC_MD5SUM_SZ; i++) {
-		if (fwhdr->md5sum[i] != drv_fwhdr->md5sum[i])
+		if (fwhdr_1->md5sum[i] != fwhdr_2->md5sum[i])
 			return false;
 	}
 
 	return true;
+}
+
+/* Returns TRUE if major minor and maintainence are same.
+ * If patch version are same, check for MD5 Checksum to be same.
+ */
+static bool
+bfa_ioc_fw_ver_compatible(struct bfi_ioc_image_hdr *drv_fwhdr,
+			  struct bfi_ioc_image_hdr *fwhdr_to_cmp)
+{
+	if (drv_fwhdr->signature != fwhdr_to_cmp->signature)
+		return false;
+	if (drv_fwhdr->fwver.major != fwhdr_to_cmp->fwver.major)
+		return false;
+	if (drv_fwhdr->fwver.minor != fwhdr_to_cmp->fwver.minor)
+		return false;
+	if (drv_fwhdr->fwver.maint != fwhdr_to_cmp->fwver.maint)
+		return false;
+	if (drv_fwhdr->fwver.patch == fwhdr_to_cmp->fwver.patch &&
+	    drv_fwhdr->fwver.phase == fwhdr_to_cmp->fwver.phase &&
+	    drv_fwhdr->fwver.build == fwhdr_to_cmp->fwver.build)
+		return bfa_ioc_fwver_md5_check(drv_fwhdr, fwhdr_to_cmp);
+
+	return true;
+}
+
+static bool
+bfa_ioc_flash_fwver_valid(struct bfi_ioc_image_hdr *flash_fwhdr)
+{
+	if (flash_fwhdr->fwver.major == 0 || flash_fwhdr->fwver.major == 0xFF)
+		return false;
+
+	return true;
+}
+
+static bool
+fwhdr_is_ga(struct bfi_ioc_image_hdr *fwhdr)
+{
+	if (fwhdr->fwver.phase == 0 &&
+	    fwhdr->fwver.build == 0)
+		return false;
+
+	return true;
+}
+
+/* Returns TRUE if both are compatible and patch of fwhdr_to_cmp is better. */
+static enum bfi_ioc_img_ver_cmp
+bfa_ioc_fw_ver_patch_cmp(struct bfi_ioc_image_hdr *base_fwhdr,
+			 struct bfi_ioc_image_hdr *fwhdr_to_cmp)
+{
+	if (bfa_ioc_fw_ver_compatible(base_fwhdr, fwhdr_to_cmp) == false)
+		return BFI_IOC_IMG_VER_INCOMP;
+
+	if (fwhdr_to_cmp->fwver.patch > base_fwhdr->fwver.patch)
+		return BFI_IOC_IMG_VER_BETTER;
+	else if (fwhdr_to_cmp->fwver.patch < base_fwhdr->fwver.patch)
+		return BFI_IOC_IMG_VER_OLD;
+
+	/* GA takes priority over internal builds of the same patch stream.
+	 * At this point major minor maint and patch numbers are same.
+	 */
+	if (fwhdr_is_ga(base_fwhdr) == true)
+		if (fwhdr_is_ga(fwhdr_to_cmp))
+			return BFI_IOC_IMG_VER_SAME;
+		else
+			return BFI_IOC_IMG_VER_OLD;
+	else
+		if (fwhdr_is_ga(fwhdr_to_cmp))
+			return BFI_IOC_IMG_VER_BETTER;
+
+	if (fwhdr_to_cmp->fwver.phase > base_fwhdr->fwver.phase)
+		return BFI_IOC_IMG_VER_BETTER;
+	else if (fwhdr_to_cmp->fwver.phase < base_fwhdr->fwver.phase)
+		return BFI_IOC_IMG_VER_OLD;
+
+	if (fwhdr_to_cmp->fwver.build > base_fwhdr->fwver.build)
+		return BFI_IOC_IMG_VER_BETTER;
+	else if (fwhdr_to_cmp->fwver.build < base_fwhdr->fwver.build)
+		return BFI_IOC_IMG_VER_OLD;
+
+	/* All Version Numbers are equal.
+	 * Md5 check to be done as a part of compatibility check.
+	 */
+	return BFI_IOC_IMG_VER_SAME;
+}
+
+/* register definitions */
+#define FLI_CMD_REG			0x0001d000
+#define FLI_WRDATA_REG			0x0001d00c
+#define FLI_RDDATA_REG			0x0001d010
+#define FLI_ADDR_REG			0x0001d004
+#define FLI_DEV_STATUS_REG		0x0001d014
+
+#define BFA_FLASH_FIFO_SIZE		128	/* fifo size */
+#define BFA_FLASH_CHECK_MAX		10000	/* max # of status check */
+#define BFA_FLASH_BLOCKING_OP_MAX	1000000	/* max # of blocking op check */
+#define BFA_FLASH_WIP_MASK		0x01	/* write in progress bit mask */
+
+#define NFC_STATE_RUNNING		0x20000001
+#define NFC_STATE_PAUSED		0x00004560
+#define NFC_VER_VALID			0x147
+
+enum bfa_flash_cmd {
+	BFA_FLASH_FAST_READ	= 0x0b,	/* fast read */
+	BFA_FLASH_WRITE_ENABLE	= 0x06,	/* write enable */
+	BFA_FLASH_SECTOR_ERASE	= 0xd8,	/* sector erase */
+	BFA_FLASH_WRITE		= 0x02,	/* write */
+	BFA_FLASH_READ_STATUS	= 0x05,	/* read status */
+};
+
+/* hardware error definition */
+enum bfa_flash_err {
+	BFA_FLASH_NOT_PRESENT	= -1,	/*!< flash not present */
+	BFA_FLASH_UNINIT	= -2,	/*!< flash not initialized */
+	BFA_FLASH_BAD		= -3,	/*!< flash bad */
+	BFA_FLASH_BUSY		= -4,	/*!< flash busy */
+	BFA_FLASH_ERR_CMD_ACT	= -5,	/*!< command active never cleared */
+	BFA_FLASH_ERR_FIFO_CNT	= -6,	/*!< fifo count never cleared */
+	BFA_FLASH_ERR_WIP	= -7,	/*!< write-in-progress never cleared */
+	BFA_FLASH_ERR_TIMEOUT	= -8,	/*!< fli timeout */
+	BFA_FLASH_ERR_LEN	= -9,	/*!< invalid length */
+};
+
+/* flash command register data structure */
+union bfa_flash_cmd_reg {
+	struct {
+#ifdef __BIG_ENDIAN
+		u32	act:1;
+		u32	rsv:1;
+		u32	write_cnt:9;
+		u32	read_cnt:9;
+		u32	addr_cnt:4;
+		u32	cmd:8;
+#else
+		u32	cmd:8;
+		u32	addr_cnt:4;
+		u32	read_cnt:9;
+		u32	write_cnt:9;
+		u32	rsv:1;
+		u32	act:1;
+#endif
+	} r;
+	u32	i;
+};
+
+/* flash device status register data structure */
+union bfa_flash_dev_status_reg {
+	struct {
+#ifdef __BIG_ENDIAN
+		u32	rsv:21;
+		u32	fifo_cnt:6;
+		u32	busy:1;
+		u32	init_status:1;
+		u32	present:1;
+		u32	bad:1;
+		u32	good:1;
+#else
+		u32	good:1;
+		u32	bad:1;
+		u32	present:1;
+		u32	init_status:1;
+		u32	busy:1;
+		u32	fifo_cnt:6;
+		u32	rsv:21;
+#endif
+	} r;
+	u32	i;
+};
+
+/* flash address register data structure */
+union bfa_flash_addr_reg {
+	struct {
+#ifdef __BIG_ENDIAN
+		u32	addr:24;
+		u32	dummy:8;
+#else
+		u32	dummy:8;
+		u32	addr:24;
+#endif
+	} r;
+	u32	i;
+};
+
+/* Flash raw private functions */
+static void
+bfa_flash_set_cmd(void __iomem *pci_bar, u8 wr_cnt,
+		  u8 rd_cnt, u8 ad_cnt, u8 op)
+{
+	union bfa_flash_cmd_reg cmd;
+
+	cmd.i = 0;
+	cmd.r.act = 1;
+	cmd.r.write_cnt = wr_cnt;
+	cmd.r.read_cnt = rd_cnt;
+	cmd.r.addr_cnt = ad_cnt;
+	cmd.r.cmd = op;
+	writel(cmd.i, (pci_bar + FLI_CMD_REG));
+}
+
+static void
+bfa_flash_set_addr(void __iomem *pci_bar, u32 address)
+{
+	union bfa_flash_addr_reg addr;
+
+	addr.r.addr = address & 0x00ffffff;
+	addr.r.dummy = 0;
+	writel(addr.i, (pci_bar + FLI_ADDR_REG));
+}
+
+static int
+bfa_flash_cmd_act_check(void __iomem *pci_bar)
+{
+	union bfa_flash_cmd_reg cmd;
+
+	cmd.i = readl(pci_bar + FLI_CMD_REG);
+
+	if (cmd.r.act)
+		return BFA_FLASH_ERR_CMD_ACT;
+
+	return 0;
+}
+
+/* Flush FLI data fifo. */
+static u32
+bfa_flash_fifo_flush(void __iomem *pci_bar)
+{
+	u32 i;
+	u32 t;
+	union bfa_flash_dev_status_reg dev_status;
+
+	dev_status.i = readl(pci_bar + FLI_DEV_STATUS_REG);
+
+	if (!dev_status.r.fifo_cnt)
+		return 0;
+
+	/* fifo counter in terms of words */
+	for (i = 0; i < dev_status.r.fifo_cnt; i++)
+		t = readl(pci_bar + FLI_RDDATA_REG);
+
+	/* Check the device status. It may take some time. */
+	for (i = 0; i < BFA_FLASH_CHECK_MAX; i++) {
+		dev_status.i = readl(pci_bar + FLI_DEV_STATUS_REG);
+		if (!dev_status.r.fifo_cnt)
+			break;
+	}
+
+	if (dev_status.r.fifo_cnt)
+		return BFA_FLASH_ERR_FIFO_CNT;
+
+	return 0;
+}
+
+/* Read flash status. */
+static u32
+bfa_flash_status_read(void __iomem *pci_bar)
+{
+	union bfa_flash_dev_status_reg	dev_status;
+	u32				status;
+	u32			ret_status;
+	int				i;
+
+	status = bfa_flash_fifo_flush(pci_bar);
+	if (status < 0)
+		return status;
+
+	bfa_flash_set_cmd(pci_bar, 0, 4, 0, BFA_FLASH_READ_STATUS);
+
+	for (i = 0; i < BFA_FLASH_CHECK_MAX; i++) {
+		status = bfa_flash_cmd_act_check(pci_bar);
+		if (!status)
+			break;
+	}
+
+	if (status)
+		return status;
+
+	dev_status.i = readl(pci_bar + FLI_DEV_STATUS_REG);
+	if (!dev_status.r.fifo_cnt)
+		return BFA_FLASH_BUSY;
+
+	ret_status = readl(pci_bar + FLI_RDDATA_REG);
+	ret_status >>= 24;
+
+	status = bfa_flash_fifo_flush(pci_bar);
+	if (status < 0)
+		return status;
+
+	return ret_status;
+}
+
+/* Start flash read operation. */
+static u32
+bfa_flash_read_start(void __iomem *pci_bar, u32 offset, u32 len,
+		     char *buf)
+{
+	u32 status;
+
+	/* len must be mutiple of 4 and not exceeding fifo size */
+	if (len == 0 || len > BFA_FLASH_FIFO_SIZE || (len & 0x03) != 0)
+		return BFA_FLASH_ERR_LEN;
+
+	/* check status */
+	status = bfa_flash_status_read(pci_bar);
+	if (status == BFA_FLASH_BUSY)
+		status = bfa_flash_status_read(pci_bar);
+
+	if (status < 0)
+		return status;
+
+	/* check if write-in-progress bit is cleared */
+	if (status & BFA_FLASH_WIP_MASK)
+		return BFA_FLASH_ERR_WIP;
+
+	bfa_flash_set_addr(pci_bar, offset);
+
+	bfa_flash_set_cmd(pci_bar, 0, (u8)len, 4, BFA_FLASH_FAST_READ);
+
+	return 0;
+}
+
+/* Check flash read operation. */
+static u32
+bfa_flash_read_check(void __iomem *pci_bar)
+{
+	if (bfa_flash_cmd_act_check(pci_bar))
+		return 1;
+
+	return 0;
+}
+
+/* End flash read operation. */
+static void
+bfa_flash_read_end(void __iomem *pci_bar, u32 len, char *buf)
+{
+	u32 i;
+
+	/* read data fifo up to 32 words */
+	for (i = 0; i < len; i += 4) {
+		u32 w = readl(pci_bar + FLI_RDDATA_REG);
+		*((u32 *)(buf + i)) = swab32(w);
+	}
+
+	bfa_flash_fifo_flush(pci_bar);
+}
+
+/* Perform flash raw read. */
+
+#define FLASH_BLOCKING_OP_MAX   500
+#define FLASH_SEM_LOCK_REG	0x18820
+
+static int
+bfa_raw_sem_get(void __iomem *bar)
+{
+	int	locked;
+
+	locked = readl((bar + FLASH_SEM_LOCK_REG));
+
+	return !locked;
+}
+
+static enum bfa_status
+bfa_flash_sem_get(void __iomem *bar)
+{
+	u32 n = FLASH_BLOCKING_OP_MAX;
+
+	while (!bfa_raw_sem_get(bar)) {
+		if (--n <= 0)
+			return BFA_STATUS_BADFLASH;
+		udelay(10000);
+	}
+	return BFA_STATUS_OK;
+}
+
+static void
+bfa_flash_sem_put(void __iomem *bar)
+{
+	writel(0, (bar + FLASH_SEM_LOCK_REG));
+}
+
+static enum bfa_status
+bfa_flash_raw_read(void __iomem *pci_bar, u32 offset, char *buf,
+		   u32 len)
+{
+	u32 n, status;
+	u32 off, l, s, residue, fifo_sz;
+
+	residue = len;
+	off = 0;
+	fifo_sz = BFA_FLASH_FIFO_SIZE;
+	status = bfa_flash_sem_get(pci_bar);
+	if (status != BFA_STATUS_OK)
+		return status;
+
+	while (residue) {
+		s = offset + off;
+		n = s / fifo_sz;
+		l = (n + 1) * fifo_sz - s;
+		if (l > residue)
+			l = residue;
+
+		status = bfa_flash_read_start(pci_bar, offset + off, l,
+								&buf[off]);
+		if (status < 0) {
+			bfa_flash_sem_put(pci_bar);
+			return BFA_STATUS_FAILED;
+		}
+
+		n = BFA_FLASH_BLOCKING_OP_MAX;
+		while (bfa_flash_read_check(pci_bar)) {
+			if (--n <= 0) {
+				bfa_flash_sem_put(pci_bar);
+				return BFA_STATUS_FAILED;
+			}
+		}
+
+		bfa_flash_read_end(pci_bar, l, &buf[off]);
+
+		residue -= l;
+		off += l;
+	}
+	bfa_flash_sem_put(pci_bar);
+
+	return BFA_STATUS_OK;
+}
+
+u32
+bfa_nw_ioc_flash_img_get_size(struct bfa_ioc *ioc)
+{
+	return BFI_FLASH_IMAGE_SZ/sizeof(u32);
+}
+
+#define BFA_FLASH_PART_FWIMG_ADDR	0x100000 /* fw image address */
+
+enum bfa_status
+bfa_nw_ioc_flash_img_get_chnk(struct bfa_ioc *ioc, u32 off,
+			      u32 *fwimg)
+{
+	return bfa_flash_raw_read(ioc->pcidev.pci_bar_kva,
+			BFA_FLASH_PART_FWIMG_ADDR + (off * sizeof(u32)),
+			(char *)fwimg, BFI_FLASH_CHUNK_SZ);
+}
+
+static enum bfi_ioc_img_ver_cmp
+bfa_ioc_flash_fwver_cmp(struct bfa_ioc *ioc,
+			struct bfi_ioc_image_hdr *base_fwhdr)
+{
+	struct bfi_ioc_image_hdr *flash_fwhdr;
+	enum bfa_status status;
+	u32 fwimg[BFI_FLASH_CHUNK_SZ_WORDS];
+
+	status = bfa_nw_ioc_flash_img_get_chnk(ioc, 0, fwimg);
+	if (status != BFA_STATUS_OK)
+		return BFI_IOC_IMG_VER_INCOMP;
+
+	flash_fwhdr = (struct bfi_ioc_image_hdr *)fwimg;
+	if (bfa_ioc_flash_fwver_valid(flash_fwhdr))
+		return bfa_ioc_fw_ver_patch_cmp(base_fwhdr, flash_fwhdr);
+	else
+		return BFI_IOC_IMG_VER_INCOMP;
+}
+
+/**
+ * Returns TRUE if driver is willing to work with current smem f/w version.
+ */
+bool
+bfa_nw_ioc_fwver_cmp(struct bfa_ioc *ioc, struct bfi_ioc_image_hdr *fwhdr)
+{
+	struct bfi_ioc_image_hdr *drv_fwhdr;
+	enum bfi_ioc_img_ver_cmp smem_flash_cmp, drv_smem_cmp;
+
+	drv_fwhdr = (struct bfi_ioc_image_hdr *)
+		bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc), 0);
+
+	/* If smem is incompatible or old, driver should not work with it. */
+	drv_smem_cmp = bfa_ioc_fw_ver_patch_cmp(drv_fwhdr, fwhdr);
+	if (drv_smem_cmp == BFI_IOC_IMG_VER_INCOMP ||
+	    drv_smem_cmp == BFI_IOC_IMG_VER_OLD) {
+		return false;
+	}
+
+	/* IF Flash has a better F/W than smem do not work with smem.
+	 * If smem f/w == flash f/w, as smem f/w not old | incmp, work with it.
+	 * If Flash is old or incomp work with smem iff smem f/w == drv f/w.
+	 */
+	smem_flash_cmp = bfa_ioc_flash_fwver_cmp(ioc, fwhdr);
+
+	if (smem_flash_cmp == BFI_IOC_IMG_VER_BETTER)
+		return false;
+	else if (smem_flash_cmp == BFI_IOC_IMG_VER_SAME)
+		return true;
+	else
+		return (drv_smem_cmp == BFI_IOC_IMG_VER_SAME) ?
+			true : false;
 }
 
 /* Return true if current running version is valid. Firmware signature and
@@ -1341,15 +1856,9 @@ bfa_nw_ioc_fwver_cmp(struct bfa_ioc *ioc, struct bfi_ioc_image_hdr *fwhdr)
 static bool
 bfa_ioc_fwver_valid(struct bfa_ioc *ioc, u32 boot_env)
 {
-	struct bfi_ioc_image_hdr fwhdr, *drv_fwhdr;
+	struct bfi_ioc_image_hdr fwhdr;
 
 	bfa_nw_ioc_fwver_get(ioc, &fwhdr);
-	drv_fwhdr = (struct bfi_ioc_image_hdr *)
-		bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc), 0);
-
-	if (fwhdr.signature != drv_fwhdr->signature)
-		return false;
-
 	if (swab32(fwhdr.bootenv) != boot_env)
 		return false;
 
@@ -1388,8 +1897,10 @@ bfa_ioc_hwinit(struct bfa_ioc *ioc, bool force)
 		false : bfa_ioc_fwver_valid(ioc, boot_env);
 
 	if (!fwvalid) {
-		bfa_ioc_boot(ioc, BFI_FWBOOT_TYPE_NORMAL, boot_env);
-		bfa_ioc_poll_fwinit(ioc);
+		if (bfa_ioc_boot(ioc, BFI_FWBOOT_TYPE_NORMAL, boot_env) ==
+								BFA_STATUS_OK)
+			bfa_ioc_poll_fwinit(ioc);
+
 		return;
 	}
 
@@ -1419,8 +1930,9 @@ bfa_ioc_hwinit(struct bfa_ioc *ioc, bool force)
 	/**
 	 * Initialize the h/w for any other states.
 	 */
-	bfa_ioc_boot(ioc, BFI_FWBOOT_TYPE_NORMAL, boot_env);
-	bfa_ioc_poll_fwinit(ioc);
+	if (bfa_ioc_boot(ioc, BFI_FWBOOT_TYPE_NORMAL, boot_env) ==
+							BFA_STATUS_OK)
+		bfa_ioc_poll_fwinit(ioc);
 }
 
 void
@@ -1525,7 +2037,7 @@ bfa_ioc_hb_stop(struct bfa_ioc *ioc)
 }
 
 /* Initiate a full firmware download. */
-static void
+static enum bfa_status
 bfa_ioc_download_fw(struct bfa_ioc *ioc, u32 boot_type,
 		    u32 boot_env)
 {
@@ -1535,18 +2047,47 @@ bfa_ioc_download_fw(struct bfa_ioc *ioc, u32 boot_type,
 	u32 chunkno = 0;
 	u32 i;
 	u32 asicmode;
+	u32 fwimg_size;
+	u32 fwimg_buf[BFI_FLASH_CHUNK_SZ_WORDS];
+	enum bfa_status status;
 
-	fwimg = bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc), chunkno);
+	if (boot_env == BFI_FWBOOT_ENV_OS &&
+	    boot_type == BFI_FWBOOT_TYPE_FLASH) {
+		fwimg_size = BFI_FLASH_IMAGE_SZ/sizeof(u32);
+
+		status = bfa_nw_ioc_flash_img_get_chnk(ioc,
+			BFA_IOC_FLASH_CHUNK_ADDR(chunkno), fwimg_buf);
+		if (status != BFA_STATUS_OK)
+			return status;
+
+		fwimg = fwimg_buf;
+	} else {
+		fwimg_size = bfa_cb_image_get_size(bfa_ioc_asic_gen(ioc));
+		fwimg = bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc),
+					BFA_IOC_FLASH_CHUNK_ADDR(chunkno));
+	}
 
 	pgnum = bfa_ioc_smem_pgnum(ioc, loff);
 
 	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 
-	for (i = 0; i < bfa_cb_image_get_size(bfa_ioc_asic_gen(ioc)); i++) {
+	for (i = 0; i < fwimg_size; i++) {
 		if (BFA_IOC_FLASH_CHUNK_NO(i) != chunkno) {
 			chunkno = BFA_IOC_FLASH_CHUNK_NO(i);
-			fwimg = bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc),
+			if (boot_env == BFI_FWBOOT_ENV_OS &&
+			    boot_type == BFI_FWBOOT_TYPE_FLASH) {
+				status = bfa_nw_ioc_flash_img_get_chnk(ioc,
+					BFA_IOC_FLASH_CHUNK_ADDR(chunkno),
+					fwimg_buf);
+				if (status != BFA_STATUS_OK)
+					return status;
+
+				fwimg = fwimg_buf;
+			} else {
+				fwimg = bfa_cb_image_get_chunk(
+					bfa_ioc_asic_gen(ioc),
 					BFA_IOC_FLASH_CHUNK_ADDR(chunkno));
+			}
 		}
 
 		/**
@@ -1574,6 +2115,10 @@ bfa_ioc_download_fw(struct bfa_ioc *ioc, u32 boot_type,
 	/*
 	 * Set boot type, env and device mode at the end.
 	*/
+	if (boot_env == BFI_FWBOOT_ENV_OS &&
+	    boot_type == BFI_FWBOOT_TYPE_FLASH) {
+		boot_type = BFI_FWBOOT_TYPE_NORMAL;
+	}
 	asicmode = BFI_FWBOOT_DEVMODE(ioc->asic_gen, ioc->asic_mode,
 					ioc->port0_mode, ioc->port1_mode);
 	writel(asicmode, ((ioc->ioc_regs.smem_page_start)
@@ -1582,6 +2127,7 @@ bfa_ioc_download_fw(struct bfa_ioc *ioc, u32 boot_type,
 			+ (BFI_FWBOOT_TYPE_OFF)));
 	writel(boot_env, ((ioc->ioc_regs.smem_page_start)
 			+ (BFI_FWBOOT_ENV_OFF)));
+	return BFA_STATUS_OK;
 }
 
 static void
@@ -1854,14 +2400,27 @@ bfa_ioc_pll_init(struct bfa_ioc *ioc)
 /* Interface used by diag module to do firmware boot with memory test
  * as the entry vector.
  */
-static void
+static enum bfa_status
 bfa_ioc_boot(struct bfa_ioc *ioc, enum bfi_fwboot_type boot_type,
 		u32 boot_env)
 {
+	struct bfi_ioc_image_hdr *drv_fwhdr;
+	enum bfa_status status;
 	bfa_ioc_stats(ioc, ioc_boots);
 
 	if (bfa_ioc_pll_init(ioc) != BFA_STATUS_OK)
-		return;
+		return BFA_STATUS_FAILED;
+	if (boot_env == BFI_FWBOOT_ENV_OS &&
+	    boot_type == BFI_FWBOOT_TYPE_NORMAL) {
+		drv_fwhdr = (struct bfi_ioc_image_hdr *)
+			bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc), 0);
+		/* Work with Flash iff flash f/w is better than driver f/w.
+		 * Otherwise push drivers firmware.
+		 */
+		if (bfa_ioc_flash_fwver_cmp(ioc, drv_fwhdr) ==
+			BFI_IOC_IMG_VER_BETTER)
+			boot_type = BFI_FWBOOT_TYPE_FLASH;
+	}
 
 	/**
 	 * Initialize IOC state of all functions on a chip reset.
@@ -1875,8 +2434,13 @@ bfa_ioc_boot(struct bfa_ioc *ioc, enum bfi_fwboot_type boot_type,
 	}
 
 	bfa_ioc_msgflush(ioc);
-	bfa_ioc_download_fw(ioc, boot_type, boot_env);
-	bfa_ioc_lpu_start(ioc);
+	status = bfa_ioc_download_fw(ioc, boot_type, boot_env);
+	if (status == BFA_STATUS_OK)
+		bfa_ioc_lpu_start(ioc);
+	else
+		bfa_nw_iocpf_timeout(ioc);
+
+	return status;
 }
 
 /* Enable/disable IOC failure auto recovery. */
