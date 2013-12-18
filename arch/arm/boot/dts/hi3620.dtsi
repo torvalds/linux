@@ -39,6 +39,27 @@
 			reg = <0x0>;
 			next-level-cache = <&L2>;
 		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <1>;
+			next-level-cache = <&L2>;
+		};
+
+		cpu@2 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <2>;
+			next-level-cache = <&L2>;
+		};
+
+		cpu@3 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <3>;
+			next-level-cache = <&L2>;
+		};
 	};
 
 	amba {
@@ -63,6 +84,17 @@
 			interrupt-controller;
 			/* gic dist base, gic cpu base */
 			reg = <0x1000 0x1000>, <0x100 0x100>;
+		};
+
+		sysctrl: system-controller@802000 {
+			compatible = "hisilicon,sysctrl";
+			reg = <0x802000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			smp-offset = <0x31c>;
+			resume-offset = <0x308>;
+			reboot-offset = <0x4>;
 		};
 
 		dual_timer0: dual_timer@800000 {
@@ -113,6 +145,12 @@
 			clocks = <&pclk>;
 			clock-names = "apb_pclk";
 			status = "disabled";
+		};
+
+		timer5: timer@600 {
+			compatible = "arm,cortex-a9-twd-timer";
+			reg = <0x600 0x20>;
+			interrupts = <1 13 0xf01>;
 		};
 
 		uart0: uart@b00000 {

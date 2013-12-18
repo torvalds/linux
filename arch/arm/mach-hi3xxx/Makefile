@@ -3,3 +3,4 @@
 #
 
 obj-y	+= hi3xxx.o
+obj-$(CONFIG_SMP)		+= platsmp.o
