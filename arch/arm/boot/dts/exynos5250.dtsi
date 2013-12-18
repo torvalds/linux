@@ -548,6 +548,15 @@
 		};
 	};
 
+	pwm: pwm@12dd0000 {
+		compatible = "samsung,exynos4210-pwm";
+		reg = <0x12dd0000 0x100>;
+		samsung,pwm-outputs = <0>, <1>, <2>, <3>;
+		#pwm-cells = <3>;
+		clocks = <&clock 311>;
+		clock-names = "timers";
+	};
+
 	amba {
 		#address-cells = <1>;
 		#size-cells = <1>;
