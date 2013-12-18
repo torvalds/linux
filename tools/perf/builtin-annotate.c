@@ -69,15 +69,7 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 	if (he == NULL)
 		return -ENOMEM;
 
-	ret = 0;
-	if (he->ms.sym != NULL) {
-		struct annotation *notes = symbol__annotation(he->ms.sym);
-		if (notes->src == NULL && symbol__alloc_hist(he->ms.sym) < 0)
-			return -ENOMEM;
-
-		ret = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
-	}
-
+	ret = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
 	evsel->hists.stats.total_period += sample->period;
 	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
 	return ret;
