@@ -209,6 +209,23 @@ static int find_valid_pos0(struct pcie_port *pp, int msgvec, int pos, int *pos0)
 	return 0;
 }
 
+static void clear_irq_range(struct pcie_port *pp, unsigned int irq_base,
+                            unsigned int nvec, unsigned int pos)
+{
+	unsigned int i, res, bit, val;
+
+	for (i = 0; i < nvec; i++) {
+		irq_set_msi_desc_off(irq_base, i, NULL);
+		clear_bit(pos + i, pp->msi_irq_in_use);
+		/* Disable corresponding interrupt on MSI interrupt controller */
+		res = ((pos + i) / 32) * 12;
+		bit = (pos + i) % 32;
+		dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, &val);
+		val &= ~(1 << bit);
+		dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, val);
+	}
+}
+
 static int assign_irq(int no_irqs, struct msi_desc *desc, int *pos)
 {
 	int res, bit, irq, pos0, pos1, i;
@@ -242,18 +259,25 @@ static int assign_irq(int no_irqs, struct msi_desc *desc, int *pos)
 	if (!irq)
 		goto no_valid_irq;
 
-	i = 0;
-	while (i < no_irqs) {
+	/*
+	 * irq_create_mapping (called from dw_pcie_host_init) pre-allocates
+	 * descs so there is no need to allocate descs here. We can therefore
+	 * assume that if irq_find_mapping above returns non-zero, then the
+	 * descs are also successfully allocated.
+	 */
+
+	for (i = 0; i < no_irqs; i++) {
+		if (irq_set_msi_desc_off(irq, i, desc) != 0) {
+			clear_irq_range(pp, irq, i, pos0);
+			goto no_valid_irq;
+		}
 		set_bit(pos0 + i, pp->msi_irq_in_use);
-		irq_alloc_descs((irq + i), (irq + i), 1, 0);
-		irq_set_msi_desc(irq + i, desc);
 		/*Enable corresponding interrupt in MSI interrupt controller */
 		res = ((pos0 + i) / 32) * 12;
 		bit = (pos0 + i) % 32;
 		dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, &val);
 		val |= 1 << bit;
 		dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, val);
-		i++;
 	}
 
 	*pos = pos0;
@@ -266,7 +290,7 @@ no_valid_irq:
 
 static void clear_irq(unsigned int irq)
 {
-	int res, bit, val, pos;
+	unsigned int pos, nvec;
 	struct irq_desc *desc;
 	struct msi_desc *msi;
 	struct pcie_port *pp;
@@ -281,18 +305,15 @@ static void clear_irq(unsigned int irq)
 		return;
 	}
 
+	/* undo what was done in assign_irq */
 	pos = data->hwirq;
+	nvec = 1 << msi->msi_attrib.multiple;
 
-	irq_free_desc(irq);
+	clear_irq_range(pp, irq, nvec, pos);
 
-	clear_bit(pos, pp->msi_irq_in_use);
-
-	/* Disable corresponding interrupt on MSI interrupt controller */
-	res = (pos / 32) * 12;
-	bit = pos % 32;
-	dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, &val);
-	val &= ~(1 << bit);
-	dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, val);
+	/* all irqs cleared; reset attributes */
+	msi->irq = 0;
+	msi->msi_attrib.multiple = 0;
 }
 
 static int dw_msi_setup_irq(struct msi_chip *chip, struct pci_dev *pdev,
@@ -320,10 +341,10 @@ static int dw_msi_setup_irq(struct msi_chip *chip, struct pci_dev *pdev,
 	if (irq < 0)
 		return irq;
 
-	msg_ctr &= ~PCI_MSI_FLAGS_QSIZE;
-	msg_ctr |= msgvec << 4;
-	pci_write_config_word(pdev, desc->msi_attrib.pos + PCI_MSI_FLAGS,
-				msg_ctr);
+	/*
+	 * write_msi_msg() will update PCI_MSI_FLAGS so there is
+	 * no need to explicitly call pci_write_config_word().
+	 */
 	desc->msi_attrib.multiple = msgvec;
 
 	msg.address_lo = virt_to_phys((void *)pp->msi_data);
