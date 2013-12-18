@@ -899,7 +899,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
 	}
 };
 
-void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
+static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
