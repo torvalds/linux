@@ -232,8 +232,10 @@ static int __init eisa_init_device(struct eisa_root_device *root,
 static int __init eisa_register_device(struct eisa_device *edev)
 {
 	int rc = device_register(&edev->dev);
-	if (rc)
+	if (rc) {
+		put_device(&edev->dev);
 		return rc;
+	}
 
 	rc = device_create_file(&edev->dev, &dev_attr_signature);
 	if (rc)
