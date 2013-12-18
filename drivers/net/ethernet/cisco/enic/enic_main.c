@@ -1036,11 +1036,12 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 		skb->protocol = eth_type_trans(skb, netdev);
 		skb_record_rx_queue(skb, q_number);
 		if (netdev->features & NETIF_F_RXHASH) {
-			skb->rxhash = rss_hash;
-			if (rss_type & (NIC_CFG_RSS_HASH_TYPE_TCP_IPV6_EX |
-					NIC_CFG_RSS_HASH_TYPE_TCP_IPV6 |
-					NIC_CFG_RSS_HASH_TYPE_TCP_IPV4))
-				skb->l4_rxhash = true;
+			skb_set_hash(skb, rss_hash,
+				     (rss_type &
+				      (NIC_CFG_RSS_HASH_TYPE_TCP_IPV6_EX |
+				       NIC_CFG_RSS_HASH_TYPE_TCP_IPV6 |
+				       NIC_CFG_RSS_HASH_TYPE_TCP_IPV4)) ?
+				     PKT_HASH_TYPE_L4 : PKT_HASH_TYPE_L3);
 		}
 
 		if ((netdev->features & NETIF_F_RXCSUM) && !csum_not_calc) {
