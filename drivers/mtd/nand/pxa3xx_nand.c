@@ -897,8 +897,8 @@ static int prepare_set_command(struct pxa3xx_nand_info *info, int command,
 	return exec_cmd;
 }
 
-static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
-				int column, int page_addr)
+static void nand_cmdfunc(struct mtd_info *mtd, unsigned command,
+			 int column, int page_addr)
 {
 	struct pxa3xx_nand_host *host = mtd->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
@@ -945,9 +945,9 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	info->state = STATE_IDLE;
 }
 
-static void armada370_nand_cmdfunc(struct mtd_info *mtd,
-				   const unsigned command,
-				   int column, int page_addr)
+static void nand_cmdfunc_extended(struct mtd_info *mtd,
+				  const unsigned command,
+				  int column, int page_addr)
 {
 	struct pxa3xx_nand_host *host = mtd->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
@@ -1487,6 +1487,21 @@ KEEP_CONFIG:
 		chip->bbt_md = &bbt_mirror_descr;
 	}
 
+	/*
+	 * If the page size is bigger than the FIFO size, let's check
+	 * we are given the right variant and then switch to the extended
+	 * (aka splitted) command handling,
+	 */
+	if (mtd->writesize > PAGE_CHUNK_SIZE) {
+		if (info->variant == PXA3XX_NAND_VARIANT_ARMADA370) {
+			chip->cmdfunc = nand_cmdfunc_extended;
+		} else {
+			dev_err(&info->pdev->dev,
+				"unsupported page size on this variant\n");
+			return -ENODEV;
+		}
+	}
+
 	if (info->variant == PXA3XX_NAND_VARIANT_ARMADA370)
 		ret = armada370_ecc_init(info, &chip->ecc,
 				   chip->ecc_strength_ds,
@@ -1566,11 +1581,7 @@ static int alloc_nand_resource(struct platform_device *pdev)
 		chip->read_buf		= pxa3xx_nand_read_buf;
 		chip->write_buf		= pxa3xx_nand_write_buf;
 		chip->options		|= NAND_NO_SUBPAGE_WRITE;
-
-		if (info->variant == PXA3XX_NAND_VARIANT_ARMADA370)
-			chip->cmdfunc = armada370_nand_cmdfunc;
-		else
-			chip->cmdfunc = pxa3xx_nand_cmdfunc;
+		chip->cmdfunc		= nand_cmdfunc;
 	}
 
 	spin_lock_init(&chip->controller->lock);
