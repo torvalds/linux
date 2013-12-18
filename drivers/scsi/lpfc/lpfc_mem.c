@@ -38,10 +38,28 @@
 #include "lpfc_scsi.h"
 #include "lpfc.h"
 #include "lpfc_crtn.h"
+#include "lpfc_logmsg.h"
 
 #define LPFC_MBUF_POOL_SIZE     64      /* max elements in MBUF safety pool */
 #define LPFC_MEM_POOL_SIZE      64      /* max elem in non-DMA safety pool */
 
+int
+lpfc_mem_alloc_active_rrq_pool_s4(struct lpfc_hba *phba) {
+	size_t bytes;
+	int max_xri = phba->sli4_hba.max_cfg_param.max_xri;
+
+	if (max_xri <= 0)
+		return -ENOMEM;
+	bytes = ((BITS_PER_LONG - 1 + max_xri) / BITS_PER_LONG) *
+		  sizeof(unsigned long);
+	phba->cfg_rrq_xri_bitmap_sz = bytes;
+	phba->active_rrq_pool = mempool_create_kmalloc_pool(LPFC_MEM_POOL_SIZE,
+							    bytes);
+	if (!phba->active_rrq_pool)
+		return -ENOMEM;
+	else
+		return 0;
+}
 
 /**
  * lpfc_mem_alloc - create and allocate all PCI and memory pools
@@ -209,6 +227,10 @@ lpfc_mem_free(struct lpfc_hba *phba)
 	/* Free NLP memory pool */
 	mempool_destroy(phba->nlp_mem_pool);
 	phba->nlp_mem_pool = NULL;
+	if (phba->sli_rev == LPFC_SLI_REV4 && phba->active_rrq_pool) {
+		mempool_destroy(phba->active_rrq_pool);
+		phba->active_rrq_pool = NULL;
+	}
 
 	/* Free mbox memory pool */
 	mempool_destroy(phba->mbox_mem_pool);
