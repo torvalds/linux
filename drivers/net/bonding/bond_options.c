@@ -620,3 +620,16 @@ int bond_option_min_links_set(struct bonding *bond, int min_links)
 
 	return 0;
 }
+
+int bond_option_lp_interval_set(struct bonding *bond, int lp_interval)
+{
+	if (lp_interval <= 0) {
+		pr_err("%s: lp_interval must be between 1 and %d\n",
+		       bond->dev->name, INT_MAX);
+		return -EINVAL;
+	}
+
+	bond->params.lp_interval = lp_interval;
+
+	return 0;
+}

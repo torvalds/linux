@@ -1369,24 +1369,22 @@ static ssize_t bonding_store_lp_interval(struct device *d,
 					 const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
-	int new_value, ret = count;
+	int new_value, ret;
 
 	if (sscanf(buf, "%d", &new_value) != 1) {
 		pr_err("%s: no lp interval value specified.\n",
 			bond->dev->name);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
-	if (new_value <= 0) {
-		pr_err ("%s: lp_interval must be between 1 and %d\n",
-			bond->dev->name, INT_MAX);
-		ret = -EINVAL;
-		goto out;
-	}
+	if (!rtnl_trylock())
+		return restart_syscall();
 
-	bond->params.lp_interval = new_value;
-out:
+	ret = bond_option_lp_interval_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
+	rtnl_unlock();
 	return ret;
 }
 
