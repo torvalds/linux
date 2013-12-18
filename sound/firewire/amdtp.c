@@ -434,17 +434,14 @@ static void queue_out_packet(struct amdtp_out_stream *s, unsigned int cycle)
 		return;
 	index = s->packet_index;
 
+	/* this module generate empty packet for 'no data' */
 	syt = calculate_syt(s, cycle);
-	if (!(s->flags & CIP_BLOCKING)) {
+	if (!(s->flags & CIP_BLOCKING))
 		data_blocks = calculate_data_blocks(s);
-	} else {
-		if (syt != 0xffff) {
-			data_blocks = s->syt_interval;
-		} else {
-			data_blocks = 0;
-			syt = 0xffffff;
-		}
-	}
+	else if (syt != 0xffff)
+		data_blocks = s->syt_interval;
+	else
+		data_blocks = 0;
 
 	buffer = s->buffer.packets[index].buffer;
 	buffer[0] = cpu_to_be32(ACCESS_ONCE(s->source_node_id_field) |

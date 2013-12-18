@@ -60,6 +60,7 @@
 #define HPB_DMAE_DSTPR_DMSTP	BIT(0)
 
 /* DMA status register (DSTSR) bits */
+#define HPB_DMAE_DSTSR_DQSTS	BIT(2)
 #define HPB_DMAE_DSTSR_DMSTS	BIT(0)
 
 /* DMA common registers */
@@ -286,6 +287,9 @@ static void hpb_dmae_halt(struct shdma_chan *schan)
 
 	ch_reg_write(chan, HPB_DMAE_DCMDR_DQEND, HPB_DMAE_DCMDR);
 	ch_reg_write(chan, HPB_DMAE_DSTPR_DMSTP, HPB_DMAE_DSTPR);
+
+	chan->plane_idx = 0;
+	chan->first_desc = true;
 }
 
 static const struct hpb_dmae_slave_config *
@@ -385,7 +389,10 @@ static bool hpb_dmae_channel_busy(struct shdma_chan *schan)
 	struct hpb_dmae_chan *chan = to_chan(schan);
 	u32 dstsr = ch_reg_read(chan, HPB_DMAE_DSTSR);
 
-	return (dstsr & HPB_DMAE_DSTSR_DMSTS) == HPB_DMAE_DSTSR_DMSTS;
+	if (chan->xfer_mode == XFER_DOUBLE)
+		return dstsr & HPB_DMAE_DSTSR_DQSTS;
+	else
+		return dstsr & HPB_DMAE_DSTSR_DMSTS;
 }
 
 static int
@@ -510,6 +517,8 @@ static int hpb_dmae_chan_probe(struct hpb_dmae_device *hpbdev, int id)
 	}
 
 	schan = &new_hpb_chan->shdma_chan;
+	schan->max_xfer_len = HPB_DMA_TCR_MAX;
+
 	shdma_chan_probe(sdev, schan, id);
 
 	if (pdev->id >= 0)

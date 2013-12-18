@@ -1610,12 +1610,14 @@ static int lm90_probe(struct i2c_client *client,
 						"lm90", client);
 		if (err < 0) {
 			dev_err(dev, "cannot request IRQ %d\n", client->irq);
-			goto exit_remove_files;
+			goto exit_unregister;
 		}
 	}
 
 	return 0;
 
+exit_unregister:
+	hwmon_device_unregister(data->hwmon_dev);
 exit_remove_files:
 	lm90_remove_files(client, data);
 exit_restore:

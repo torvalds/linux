@@ -1246,8 +1246,7 @@ static void cyttsp4_watchdog_timer(unsigned long handle)
 
 	dev_vdbg(cd->dev, "%s: Watchdog timer triggered\n", __func__);
 
-	if (!work_pending(&cd->watchdog_work))
-		schedule_work(&cd->watchdog_work);
+	schedule_work(&cd->watchdog_work);
 
 	return;
 }

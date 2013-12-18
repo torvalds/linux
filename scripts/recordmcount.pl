@@ -364,7 +364,8 @@ if ($arch eq "x86_64") {
 } elsif ($arch eq "blackfin") {
     $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\s__mcount\$";
     $mcount_adjust = -4;
-} elsif ($arch eq "tilegx") {
+} elsif ($arch eq "tilegx" || $arch eq "tile") {
+    # Default to the newer TILE-Gx architecture if only "tile" is given.
     $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\s__mcount\$";
     $type = ".quad";
     $alignment = 8;

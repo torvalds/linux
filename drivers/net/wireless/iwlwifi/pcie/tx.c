@@ -207,7 +207,7 @@ static void iwl_pcie_txq_stuck_timer(unsigned long data)
 		IWL_ERR(trans, "scratch %d = 0x%08x\n", i,
 			le32_to_cpu(txq->scratchbufs[i].scratch));
 
-	iwl_op_mode_nic_error(trans->op_mode);
+	iwl_nic_error(trans);
 }
 
 /*
@@ -1023,7 +1023,7 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 		if (nfreed++ > 0) {
 			IWL_ERR(trans, "HCMD skipped: index (%d) %d %d\n",
 				idx, q->write_ptr, q->read_ptr);
-			iwl_op_mode_nic_error(trans->op_mode);
+			iwl_nic_error(trans);
 		}
 	}
 
@@ -1562,7 +1562,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 				       get_cmd_string(trans_pcie, cmd->id));
 			ret = -ETIMEDOUT;
 
-			iwl_op_mode_nic_error(trans->op_mode);
+			iwl_nic_error(trans);
 
 			goto cancel;
 		}
