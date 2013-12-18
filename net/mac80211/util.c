@@ -76,7 +76,7 @@ u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 	}
 
 	if (ieee80211_is_ctl(fc)) {
-		if(ieee80211_is_pspoll(fc))
+		if (ieee80211_is_pspoll(fc))
 			return hdr->addr1;
 
 		if (ieee80211_is_back_req(fc)) {
