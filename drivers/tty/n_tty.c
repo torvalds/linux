@@ -93,6 +93,7 @@ struct n_tty_data {
 	size_t canon_head;
 	size_t echo_head;
 	size_t echo_commit;
+	size_t echo_mark;
 	DECLARE_BITMAP(char_map, 256);
 
 	/* private to n_tty_receive_overrun (single-threaded) */
@@ -336,6 +337,7 @@ static void reset_buffer_flags(struct n_tty_data *ldata)
 {
 	ldata->read_head = ldata->canon_head = ldata->read_tail = 0;
 	ldata->echo_head = ldata->echo_tail = ldata->echo_commit = 0;
+	ldata->echo_mark = 0;
 	ldata->line_start = 0;
 
 	ldata->erasing = 0;
@@ -787,6 +789,7 @@ static void commit_echoes(struct tty_struct *tty)
 	size_t head;
 
 	head = ldata->echo_head;
+	ldata->echo_mark = head;
 	old = ldata->echo_commit - ldata->echo_tail;
 
 	/* Process committed echoes if the accumulated # of bytes
@@ -811,10 +814,11 @@ static void process_echoes(struct tty_struct *tty)
 	size_t echoed;
 
 	if ((!L_ECHO(tty) && !L_ECHONL(tty)) ||
-	    ldata->echo_commit == ldata->echo_tail)
+	    ldata->echo_mark == ldata->echo_tail)
 		return;
 
 	mutex_lock(&ldata->output_lock);
+	ldata->echo_commit = ldata->echo_mark;
 	echoed = __process_echoes(tty);
 	mutex_unlock(&ldata->output_lock);
 
@@ -822,6 +826,7 @@ static void process_echoes(struct tty_struct *tty)
 		tty->ops->flush_chars(tty);
 }
 
+/* NB: echo_mark and echo_head should be equivalent here */
 static void flush_echoes(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
