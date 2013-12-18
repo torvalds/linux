@@ -13,7 +13,7 @@
 #include "util/parse-options.h"
 #include "util/trace-event.h"
 #include "util/debug.h"
-#include <lk/debugfs.h>
+#include <api/fs/debugfs.h>
 #include "util/tool.h"
 #include "util/stat.h"
 #include "util/top.h"

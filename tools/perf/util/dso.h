@@ -83,7 +83,7 @@ struct dso {
 	enum dso_kernel_type	kernel;
 	enum dso_swap_type	needs_swap;
 	enum dso_binary_type	symtab_type;
-	enum dso_binary_type	data_type;
+	enum dso_binary_type	binary_type;
 	u8		 adjust_symbols:1;
 	u8		 has_build_id:1;
 	u8		 has_srcline:1;
@@ -128,8 +128,8 @@ void dso__read_running_kernel_build_id(struct dso *dso,
 int dso__kernel_module_get_build_id(struct dso *dso, const char *root_dir);
 
 char dso__symtab_origin(const struct dso *dso);
-int dso__binary_type_file(const struct dso *dso, enum dso_binary_type type,
-			  char *root_dir, char *filename, size_t size);
+int dso__read_binary_type_filename(const struct dso *dso, enum dso_binary_type type,
+				   char *root_dir, char *filename, size_t size);
 
 int dso__data_fd(struct dso *dso, struct machine *machine);
 ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
@@ -159,14 +159,14 @@ size_t dso__fprintf(struct dso *dso, enum map_type type, FILE *fp);
 
 static inline bool dso__is_vmlinux(struct dso *dso)
 {
-	return dso->data_type == DSO_BINARY_TYPE__VMLINUX ||
-	       dso->data_type == DSO_BINARY_TYPE__GUEST_VMLINUX;
+	return dso->binary_type == DSO_BINARY_TYPE__VMLINUX ||
+	       dso->binary_type == DSO_BINARY_TYPE__GUEST_VMLINUX;
 }
 
 static inline bool dso__is_kcore(struct dso *dso)
 {
-	return dso->data_type == DSO_BINARY_TYPE__KCORE ||
-	       dso->data_type == DSO_BINARY_TYPE__GUEST_KCORE;
+	return dso->binary_type == DSO_BINARY_TYPE__KCORE ||
+	       dso->binary_type == DSO_BINARY_TYPE__GUEST_KCORE;
 }
 
 void dso__free_a2l(struct dso *dso);

@@ -38,7 +38,7 @@
 
 #include "../perf.h"
 #include "trace-event.h"
-#include <lk/debugfs.h>
+#include <api/fs/debugfs.h>
 #include "evsel.h"
 
 #define VERSION "0.5"

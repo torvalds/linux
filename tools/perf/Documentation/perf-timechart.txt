@@ -56,9 +56,25 @@ $ perf timechart
 
   Written 10.2 seconds of trace to output.svg.
 
+Record system-wide timechart:
+
+  $ perf timechart record
+
+  then generate timechart and highlight 'gcc' tasks:
+
+  $ perf timechart --highlight gcc
+
 -n::
 --proc-num::
         Print task info for at least given number of tasks.
+-t::
+--topology::
+        Sort CPUs according to topology.
+--highlight=<duration_nsecs|task_name>::
+	Highlight tasks (using different color) that run more than given
+	duration or tasks with given name. If number is given it's interpreted
+	as number of nanoseconds. If non-numeric string is given it's
+	interpreted as task name.
 
 RECORD OPTIONS
 --------------

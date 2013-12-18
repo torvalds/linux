@@ -71,7 +71,7 @@
 #include <linux/magic.h>
 #include "types.h"
 #include <sys/ttydefaults.h>
-#include <lk/debugfs.h>
+#include <api/fs/debugfs.h>
 #include <termios.h>
 #include <linux/bitops.h>
 

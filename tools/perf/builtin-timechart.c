@@ -58,7 +58,8 @@ struct timechart {
 				first_time, last_time;
 	bool			power_only,
 				tasks_only,
-				with_backtrace;
+				with_backtrace,
+				topology;
 };
 
 struct per_pidcomm;
@@ -531,12 +532,10 @@ static int process_sample_event(struct perf_tool *tool,
 			tchart->last_time = sample->time;
 	}
 
-	if (sample->cpu > tchart->numcpus)
-		tchart->numcpus = sample->cpu;
-
 	if (evsel->handler != NULL) {
 		tracepoint_handler f = evsel->handler;
-		return f(tchart, evsel, sample, cat_backtrace(event, sample, machine));
+		return f(tchart, evsel, sample,
+			 cat_backtrace(event, sample, machine));
 	}
 
 	return 0;
@@ -837,8 +836,14 @@ static void draw_cpu_usage(struct timechart *tchart)
 		while (c) {
 			sample = c->samples;
 			while (sample) {
-				if (sample->type == TYPE_RUNNING)
-					svg_process(sample->cpu, sample->start_time, sample->end_time, "sample", c->comm);
+				if (sample->type == TYPE_RUNNING) {
+					svg_process(sample->cpu,
+						    sample->start_time,
+						    sample->end_time,
+						    p->pid,
+						    c->comm,
+						    sample->backtrace);
+				}
 
 				sample = sample->next;
 			}
@@ -1031,8 +1036,6 @@ static void write_svg_file(struct timechart *tchart, const char *filename)
 	int count;
 	int thresh = TIME_THRESH;
 
-	tchart->numcpus++;
-
 	if (tchart->power_only)
 		tchart->proc_num = 0;
 
@@ -1062,6 +1065,37 @@ static void write_svg_file(struct timechart *tchart, const char *filename)
 	svg_close();
 }
 
+static int process_header(struct perf_file_section *section __maybe_unused,
+			  struct perf_header *ph,
+			  int feat,
+			  int fd __maybe_unused,
+			  void *data)
+{
+	struct timechart *tchart = data;
+
+	switch (feat) {
+	case HEADER_NRCPUS:
+		tchart->numcpus = ph->env.nr_cpus_avail;
+		break;
+
+	case HEADER_CPU_TOPOLOGY:
+		if (!tchart->topology)
+			break;
+
+		if (svg_build_topology_map(ph->env.sibling_cores,
+					   ph->env.nr_sibling_cores,
+					   ph->env.sibling_threads,
+					   ph->env.nr_sibling_threads))
+			fprintf(stderr, "problem building topology\n");
+		break;
+
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 {
 	const struct perf_evsel_str_handler power_tracepoints[] = {
@@ -1086,6 +1120,11 @@ static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 
 	if (session == NULL)
 		return -ENOMEM;
+
+	(void)perf_header__process_sections(&session->header,
+					    perf_data_file__fd(session->file),
+					    tchart,
+					    process_header);
 
 	if (!perf_session__has_traces(session, "timechart record"))
 		goto out_delete;
@@ -1212,6 +1251,23 @@ parse_process(const struct option *opt __maybe_unused, const char *arg,
 	return 0;
 }
 
+static int
+parse_highlight(const struct option *opt __maybe_unused, const char *arg,
+		int __maybe_unused unset)
+{
+	unsigned long duration = strtoul(arg, NULL, 0);
+
+	if (svg_highlight || svg_highlight_name)
+		return -1;
+
+	if (duration)
+		svg_highlight = duration;
+	else
+		svg_highlight_name = strdup(arg);
+
+	return 0;
+}
+
 int cmd_timechart(int argc, const char **argv,
 		  const char *prefix __maybe_unused)
 {
@@ -1230,6 +1286,9 @@ int cmd_timechart(int argc, const char **argv,
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
 	OPT_STRING('o', "output", &output_name, "file", "output file name"),
 	OPT_INTEGER('w', "width", &svg_page_width, "page width"),
+	OPT_CALLBACK(0, "highlight", NULL, "duration or task name",
+		      "highlight tasks. Pass duration in ns or process name.",
+		       parse_highlight),
 	OPT_BOOLEAN('P', "power-only", &tchart.power_only, "output power data only"),
 	OPT_BOOLEAN('T', "tasks-only", &tchart.tasks_only,
 		    "output processes data only"),
@@ -1240,6 +1299,8 @@ int cmd_timechart(int argc, const char **argv,
 		    "Look for files with symbols relative to this directory"),
 	OPT_INTEGER('n', "proc-num", &tchart.proc_num,
 		    "min. number of tasks to print"),
+	OPT_BOOLEAN('t', "topology", &tchart.topology,
+		    "sort CPUs according to topology"),
 	OPT_END()
 	};
 	const char * const timechart_usage[] = {

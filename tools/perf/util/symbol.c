@@ -1089,9 +1089,9 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 	 * dso__data_read_addr().
 	 */
 	if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
-		dso->data_type = DSO_BINARY_TYPE__GUEST_KCORE;
+		dso->binary_type = DSO_BINARY_TYPE__GUEST_KCORE;
 	else
-		dso->data_type = DSO_BINARY_TYPE__KCORE;
+		dso->binary_type = DSO_BINARY_TYPE__KCORE;
 	dso__set_long_name(dso, strdup(kcore_filename), true);
 
 	close(fd);
@@ -1258,8 +1258,8 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 
 		enum dso_binary_type symtab_type = binary_type_symtab[i];
 
-		if (dso__binary_type_file(dso, symtab_type,
-					  root_dir, name, PATH_MAX))
+		if (dso__read_binary_type_filename(dso, symtab_type,
+						   root_dir, name, PATH_MAX))
 			continue;
 
 		/* Name is now the name of the next image to try */
@@ -1368,9 +1368,9 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 
 	if (err > 0) {
 		if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
-			dso->data_type = DSO_BINARY_TYPE__GUEST_VMLINUX;
+			dso->binary_type = DSO_BINARY_TYPE__GUEST_VMLINUX;
 		else
-			dso->data_type = DSO_BINARY_TYPE__VMLINUX;
+			dso->binary_type = DSO_BINARY_TYPE__VMLINUX;
 		dso__set_long_name(dso, vmlinux, vmlinux_allocated);
 		dso__set_loaded(dso, map->type);
 		pr_debug("Using %s for symbols\n", symfs_vmlinux);
