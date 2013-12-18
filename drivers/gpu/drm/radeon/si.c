@@ -5210,8 +5210,8 @@ static void si_enable_hdp_ls(struct radeon_device *rdev,
 		WREG32(HDP_MEM_POWER_LS, data);
 }
 
-void si_update_cg(struct radeon_device *rdev,
-		  u32 block, bool enable)
+static void si_update_cg(struct radeon_device *rdev,
+			 u32 block, bool enable)
 {
 	if (block & RADEON_CG_BLOCK_GFX) {
 		si_enable_gui_idle_interrupt(rdev, false);
