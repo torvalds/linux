@@ -422,7 +422,7 @@ void i40e_vsi_reset_stats(struct i40e_vsi *vsi)
 	memset(&vsi->net_stats_offsets, 0, sizeof(vsi->net_stats_offsets));
 	memset(&vsi->eth_stats, 0, sizeof(vsi->eth_stats));
 	memset(&vsi->eth_stats_offsets, 0, sizeof(vsi->eth_stats_offsets));
-	if (vsi->rx_rings)
+	if (vsi->rx_rings && vsi->rx_rings[0]) {
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
 			memset(&vsi->rx_rings[i]->stats, 0 ,
 			       sizeof(vsi->rx_rings[i]->stats));
@@ -433,6 +433,7 @@ void i40e_vsi_reset_stats(struct i40e_vsi *vsi)
 			memset(&vsi->tx_rings[i]->tx_stats, 0,
 			       sizeof(vsi->tx_rings[i]->tx_stats));
 		}
+	}
 	vsi->stat_offsets_loaded = false;
 }
 
@@ -2067,8 +2068,11 @@ static void i40e_vsi_free_tx_resources(struct i40e_vsi *vsi)
 {
 	int i;
 
+	if (!vsi->tx_rings)
+		return;
+
 	for (i = 0; i < vsi->num_queue_pairs; i++)
-		if (vsi->tx_rings[i]->desc)
+		if (vsi->tx_rings[i] && vsi->tx_rings[i]->desc)
 			i40e_free_tx_resources(vsi->tx_rings[i]);
 }
 
@@ -2101,8 +2105,11 @@ static void i40e_vsi_free_rx_resources(struct i40e_vsi *vsi)
 {
 	int i;
 
+	if (!vsi->rx_rings)
+		return;
+
 	for (i = 0; i < vsi->num_queue_pairs; i++)
-		if (vsi->rx_rings[i]->desc)
+		if (vsi->rx_rings[i] && vsi->rx_rings[i]->desc)
 			i40e_free_rx_resources(vsi->rx_rings[i]);
 }
 
@@ -5349,7 +5356,7 @@ static void i40e_vsi_clear_rings(struct i40e_vsi *vsi)
 {
 	int i;
 
-	if (vsi->tx_rings[0]) {
+	if (vsi->tx_rings && vsi->tx_rings[0]) {
 		for (i = 0; i < vsi->alloc_queue_pairs; i++) {
 			kfree_rcu(vsi->tx_rings[i], rcu);
 			vsi->tx_rings[i] = NULL;

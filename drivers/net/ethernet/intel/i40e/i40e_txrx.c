@@ -1715,6 +1715,7 @@ dma_error:
 static inline int __i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
 {
 	netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
+	/* Memory barrier before checking head and tail */
 	smp_mb();
 
 	/* Check again in a case another CPU has just made room available. */
