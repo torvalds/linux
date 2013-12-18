@@ -171,14 +171,14 @@ static int ks8995_write(struct ks8995_switch *ks, char *buf,
 
 static inline int ks8995_read_reg(struct ks8995_switch *ks, u8 addr, u8 *buf)
 {
-	return (ks8995_read(ks, buf, addr, 1) != 1);
+	return ks8995_read(ks, buf, addr, 1) != 1;
 }
 
 static inline int ks8995_write_reg(struct ks8995_switch *ks, u8 addr, u8 val)
 {
 	char buf = val;
 
-	return (ks8995_write(ks, &buf, addr, 1) != 1);
+	return ks8995_write(ks, &buf, addr, 1) != 1;
 }
 
 /* ------------------------------------------------------------------------ */
