@@ -441,12 +441,10 @@ static const u32 rtl8411b_qfn48_ms_pull_ctl_disable_tbl[] = {
 	0,
 };
 
-void rtl8411_init_params(struct rtsx_pcr *pcr)
+void rtl8411_init_common_params(struct rtsx_pcr *pcr)
 {
 	pcr->extra_caps = EXTRA_CAPS_SD_SDR50 | EXTRA_CAPS_SD_SDR104;
 	pcr->num_slots = 2;
-	pcr->ops = &rtl8411_pcr_ops;
-
 	pcr->flags = 0;
 	pcr->card_drive_sel = RTL8411_CARD_DRIVE_DEFAULT;
 	pcr->sd30_drive_sel_1v8 = DRIVER_TYPE_B;
@@ -454,47 +452,22 @@ void rtl8411_init_params(struct rtsx_pcr *pcr)
 	pcr->aspm_en = ASPM_L1_EN;
 	pcr->tx_initial_phase = SET_CLOCK_PHASE(23, 7, 14);
 	pcr->rx_initial_phase = SET_CLOCK_PHASE(4, 3, 10);
-
 	pcr->ic_version = rtl8411_get_ic_version(pcr);
-	pcr->sd_pull_ctl_enable_tbl = rtl8411_sd_pull_ctl_enable_tbl;
-	pcr->sd_pull_ctl_disable_tbl = rtl8411_sd_pull_ctl_disable_tbl;
-	pcr->ms_pull_ctl_enable_tbl = rtl8411_ms_pull_ctl_enable_tbl;
-	pcr->ms_pull_ctl_disable_tbl = rtl8411_ms_pull_ctl_disable_tbl;
+}
+
+void rtl8411_init_params(struct rtsx_pcr *pcr)
+{
+	rtl8411_init_common_params(pcr);
+	pcr->ops = &rtl8411_pcr_ops;
+	set_pull_ctrl_tables(pcr, rtl8411);
 }
 
 void rtl8411b_init_params(struct rtsx_pcr *pcr)
 {
-	pcr->extra_caps = EXTRA_CAPS_SD_SDR50 | EXTRA_CAPS_SD_SDR104;
-	pcr->num_slots = 2;
+	rtl8411_init_common_params(pcr);
 	pcr->ops = &rtl8411b_pcr_ops;
-
-	pcr->flags = 0;
-	pcr->card_drive_sel = RTL8411_CARD_DRIVE_DEFAULT;
-	pcr->sd30_drive_sel_1v8 = DRIVER_TYPE_B;
-	pcr->sd30_drive_sel_3v3 = DRIVER_TYPE_D;
-	pcr->aspm_en = ASPM_L1_EN;
-	pcr->tx_initial_phase = SET_CLOCK_PHASE(23, 7, 14);
-	pcr->rx_initial_phase = SET_CLOCK_PHASE(4, 3, 10);
-
-	pcr->ic_version = rtl8411_get_ic_version(pcr);
-
-	if (rtl8411b_is_qfn48(pcr)) {
-		pcr->sd_pull_ctl_enable_tbl =
-			rtl8411b_qfn48_sd_pull_ctl_enable_tbl;
-		pcr->sd_pull_ctl_disable_tbl =
-			rtl8411b_qfn48_sd_pull_ctl_disable_tbl;
-		pcr->ms_pull_ctl_enable_tbl =
-			rtl8411b_qfn48_ms_pull_ctl_enable_tbl;
-		pcr->ms_pull_ctl_disable_tbl =
-			rtl8411b_qfn48_ms_pull_ctl_disable_tbl;
-	} else {
-		pcr->sd_pull_ctl_enable_tbl =
-			rtl8411b_qfn64_sd_pull_ctl_enable_tbl;
-		pcr->sd_pull_ctl_disable_tbl =
-			rtl8411b_qfn64_sd_pull_ctl_disable_tbl;
-		pcr->ms_pull_ctl_enable_tbl =
-			rtl8411b_qfn64_ms_pull_ctl_enable_tbl;
-		pcr->ms_pull_ctl_disable_tbl =
-			rtl8411b_qfn64_ms_pull_ctl_disable_tbl;
-	}
+	if (rtl8411b_is_qfn48(pcr))
+		set_pull_ctrl_tables(pcr, rtl8411b_qfn48);
+	else
+		set_pull_ctrl_tables(pcr, rtl8411b_qfn64);
 }
