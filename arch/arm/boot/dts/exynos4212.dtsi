@@ -22,7 +22,7 @@
 / {
 	compatible = "samsung,exynos4212";
 
-	gic:interrupt-controller@10490000 {
+	gic: interrupt-controller@10490000 {
 		cpu-offset = <0x8000>;
 	};
 

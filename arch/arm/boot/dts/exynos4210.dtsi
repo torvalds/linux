@@ -36,11 +36,11 @@
 		reg = <0x10023CA0 0x20>;
 	};
 
-	gic:interrupt-controller@10490000 {
+	gic: interrupt-controller@10490000 {
 		cpu-offset = <0x8000>;
 	};
 
-	combiner:interrupt-controller@10440000 {
+	combiner: interrupt-controller@10440000 {
 		samsung,combiner-nr = <16>;
 		interrupts = <0 0 0>, <0 1 0>, <0 2 0>, <0 3 0>,
 			     <0 4 0>, <0 5 0>, <0 6 0>, <0 7 0>,

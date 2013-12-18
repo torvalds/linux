@@ -23,7 +23,7 @@
 		reg = <0x10000000 0x100>;
 	};
 
-	combiner:interrupt-controller@10440000 {
+	combiner: interrupt-controller@10440000 {
 		compatible = "samsung,exynos4210-combiner";
 		#interrupt-cells = <2>;
 		interrupt-controller;
@@ -39,7 +39,7 @@
 				<0 28 0>, <0 29 0>, <0 30 0>, <0 31 0>;
 	};
 
-	gic:interrupt-controller@10481000 {
+	gic: interrupt-controller@10481000 {
 		compatible = "arm,cortex-a15-gic", "arm,cortex-a9-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;
