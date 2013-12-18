@@ -40,7 +40,8 @@ int InterfaceFileDownload(PVOID arg, struct file *flp, unsigned int on_chip_loc)
 	return errno;
 }
 
-int InterfaceFileReadbackFromChip(PVOID arg, struct file *flp, unsigned int on_chip_loc)
+int InterfaceFileReadbackFromChip(PVOID arg, struct file *flp,
+				unsigned int on_chip_loc)
 {
 	char *buff, *buff_readback;
 	unsigned int reg = 0;
@@ -68,7 +69,8 @@ int InterfaceFileReadbackFromChip(PVOID arg, struct file *flp, unsigned int on_c
 	while (1) {
 		oldfs = get_fs();
 		set_fs(get_ds());
-		len = vfs_read(flp, (void __force __user *)buff, MAX_TRANSFER_CTRL_BYTE_USB, &pos);
+		len = vfs_read(flp, (void __force __user *)buff,
+				MAX_TRANSFER_CTRL_BYTE_USB, &pos);
 		set_fs(oldfs);
 		fw_down++;
 
@@ -80,7 +82,8 @@ int InterfaceFileReadbackFromChip(PVOID arg, struct file *flp, unsigned int on_c
 			break;
 		}
 
-		bytes = InterfaceRDM(psIntfAdapter, on_chip_loc, buff_readback, len);
+		bytes = InterfaceRDM(psIntfAdapter, on_chip_loc,
+					buff_readback, len);
 		if (bytes < 0) {
 			Status = bytes;
 			goto exit;
@@ -95,7 +98,8 @@ int InterfaceFileReadbackFromChip(PVOID arg, struct file *flp, unsigned int on_c
 			len -= 4;
 
 			while (len) {
-				if (*(unsigned int *)&buff_readback[len] != *(unsigned int *)&buff[len]) {
+				if (*(unsigned int *)&buff_readback[len] !=
+						 *(unsigned int *)&buff[len]) {
 					Status = -EIO;
 					goto exit;
 				}
@@ -111,13 +115,15 @@ exit:
 	return Status;
 }
 
-static int bcm_download_config_file(struct bcm_mini_adapter *Adapter, struct bcm_firmware_info *psFwInfo)
+static int bcm_download_config_file(struct bcm_mini_adapter *Adapter,
+				struct bcm_firmware_info *psFwInfo)
 {
 	int retval = STATUS_SUCCESS;
 	B_UINT32 value = 0;
 
 	if (Adapter->pstargetparams == NULL) {
-		Adapter->pstargetparams = kmalloc(sizeof(struct bcm_target_params), GFP_KERNEL);
+		Adapter->pstargetparams =
+			kmalloc(sizeof(struct bcm_target_params), GFP_KERNEL);
 		if (Adapter->pstargetparams == NULL)
 			return -ENOMEM;
 	}
@@ -125,7 +131,9 @@ static int bcm_download_config_file(struct bcm_mini_adapter *Adapter, struct bcm
 	if (psFwInfo->u32FirmwareLength != sizeof(struct bcm_target_params))
 		return -EIO;
 
-	retval = copy_from_user(Adapter->pstargetparams, psFwInfo->pvMappedFirmwareAddress, psFwInfo->u32FirmwareLength);
+	retval = copy_from_user(Adapter->pstargetparams,
+			psFwInfo->pvMappedFirmwareAddress,
+			psFwInfo->u32FirmwareLength);
 	if (retval) {
 		kfree(Adapter->pstargetparams);
 		Adapter->pstargetparams = NULL;
@@ -142,13 +150,15 @@ static int bcm_download_config_file(struct bcm_mini_adapter *Adapter, struct bcm
 	if (retval)
 		return retval;
 
-	if (Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY) {
+	if (Adapter->LEDInfo.led_thread_running &
+			BCM_LED_THREAD_RUNNING_ACTIVELY) {
 		Adapter->LEDInfo.bLedInitDone = false;
 		Adapter->DriverState = DRIVER_INIT;
 		wake_up(&Adapter->LEDInfo.notify_led_event);
 	}
 
-	if (Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY) {
+	if (Adapter->LEDInfo.led_thread_running &
+			BCM_LED_THREAD_RUNNING_ACTIVELY) {
 		Adapter->DriverState = FW_DOWNLOAD;
 		wake_up(&Adapter->LEDInfo.notify_led_event);
 	}
@@ -159,8 +169,10 @@ static int bcm_download_config_file(struct bcm_mini_adapter *Adapter, struct bcm
 		return retval;
 
 	value = 0;
-	wrmalt(Adapter, EEPROM_CAL_DATA_INTERNAL_LOC - 4, &value, sizeof(value));
-	wrmalt(Adapter, EEPROM_CAL_DATA_INTERNAL_LOC - 8, &value, sizeof(value));
+	wrmalt(Adapter, EEPROM_CAL_DATA_INTERNAL_LOC - 4,
+				&value, sizeof(value));
+	wrmalt(Adapter, EEPROM_CAL_DATA_INTERNAL_LOC - 8,
+				&value, sizeof(value));
 
 	if (Adapter->eNVMType == NVM_FLASH) {
 		retval = PropagateCalParamsFromFlashToMemory(Adapter);
@@ -168,17 +180,21 @@ static int bcm_download_config_file(struct bcm_mini_adapter *Adapter, struct bcm
 			return retval;
 	}
 
-	retval = buffDnldVerify(Adapter, (PUCHAR)Adapter->pstargetparams, sizeof(struct bcm_target_params), CONFIG_BEGIN_ADDR);
+	retval = buffDnldVerify(Adapter, (PUCHAR)Adapter->pstargetparams,
+			sizeof(struct bcm_target_params), CONFIG_BEGIN_ADDR);
 
 	if (retval)
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "configuration file not downloaded properly");
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT,
+				MP_INIT, DBG_LVL_ALL,
+				"configuration file not downloaded properly");
 	else
 		Adapter->bCfgDownloaded = TRUE;
 
 	return retval;
 }
 
-int bcm_ioctl_fw_download(struct bcm_mini_adapter *Adapter, struct bcm_firmware_info *psFwInfo)
+int bcm_ioctl_fw_download(struct bcm_mini_adapter *Adapter,
+			struct bcm_firmware_info *psFwInfo)
 {
 	int retval = STATUS_SUCCESS;
 	PUCHAR buff = NULL;
@@ -188,7 +204,8 @@ int bcm_ioctl_fw_download(struct bcm_mini_adapter *Adapter, struct bcm_firmware_
 	 * Application
 	 */
 	atomic_set(&Adapter->uiMBupdate, false);
-	if (!Adapter->bCfgDownloaded && psFwInfo->u32StartingAddress != CONFIG_BEGIN_ADDR) {
+	if (!Adapter->bCfgDownloaded &&
+		psFwInfo->u32StartingAddress != CONFIG_BEGIN_ADDR) {
 		/* Can't Download Firmware. */
 		return -EINVAL;
 	}
@@ -201,7 +218,9 @@ int bcm_ioctl_fw_download(struct bcm_mini_adapter *Adapter, struct bcm_firmware_
 		if (buff == NULL)
 			return -ENOMEM;
 
-		retval = copy_from_user(buff, psFwInfo->pvMappedFirmwareAddress, psFwInfo->u32FirmwareLength);
+		retval = copy_from_user(buff,
+			psFwInfo->pvMappedFirmwareAddress,
+			psFwInfo->u32FirmwareLength);
 		if (retval != STATUS_SUCCESS) {
 			retval = -EFAULT;
 			goto error;
@@ -221,7 +240,9 @@ error:
 	return retval;
 }
 
-static INT buffDnld(struct bcm_mini_adapter *Adapter, PUCHAR mappedbuffer, UINT u32FirmwareLength, ULONG u32StartingAddress)
+static INT buffDnld(struct bcm_mini_adapter *Adapter,
+			PUCHAR mappedbuffer, UINT u32FirmwareLength,
+			ULONG u32StartingAddress)
 {
 	unsigned int len = 0;
 	int retval = STATUS_SUCCESS;
@@ -240,7 +261,9 @@ static INT buffDnld(struct bcm_mini_adapter *Adapter, PUCHAR mappedbuffer, UINT 
 	return retval;
 }
 
-static INT buffRdbkVerify(struct bcm_mini_adapter *Adapter, PUCHAR mappedbuffer, UINT u32FirmwareLength, ULONG u32StartingAddress)
+static INT buffRdbkVerify(struct bcm_mini_adapter *Adapter,
+			PUCHAR mappedbuffer, UINT u32FirmwareLength,
+			ULONG u32StartingAddress)
 {
 	UINT len = u32FirmwareLength;
 	INT retval = STATUS_SUCCESS;
@@ -274,15 +297,20 @@ static INT buffRdbkVerify(struct bcm_mini_adapter *Adapter, PUCHAR mappedbuffer,
 	return retval;
 }
 
-INT buffDnldVerify(struct bcm_mini_adapter *Adapter, unsigned char *mappedbuffer, unsigned int u32FirmwareLength, unsigned long u32StartingAddress)
+INT buffDnldVerify(struct bcm_mini_adapter *Adapter,
+			unsigned char *mappedbuffer,
+			unsigned int u32FirmwareLength,
+			unsigned long u32StartingAddress)
 {
 	INT status = STATUS_SUCCESS;
 
-	status = buffDnld(Adapter, mappedbuffer, u32FirmwareLength, u32StartingAddress);
+	status = buffDnld(Adapter, mappedbuffer,
+			u32FirmwareLength, u32StartingAddress);
 	if (status != STATUS_SUCCESS)
 		goto error;
 
-	status = buffRdbkVerify(Adapter, mappedbuffer, u32FirmwareLength, u32StartingAddress);
+	status = buffRdbkVerify(Adapter, mappedbuffer,
+			u32FirmwareLength, u32StartingAddress);
 	if (status != STATUS_SUCCESS)
 		goto error;
 error:
