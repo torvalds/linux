@@ -234,15 +234,18 @@ struct v4l2_subdev_audio_ops {
 
 /* Indicates the @length field specifies maximum data length. */
 #define V4L2_MBUS_FRAME_DESC_FL_LEN_MAX		(1U << 0)
-/* Indicates user defined data format, i.e. non standard frame format. */
+/*
+ * Indicates that the format does not have line offsets, i.e. the
+ * receiver should use 1D DMA.
+ */
 #define V4L2_MBUS_FRAME_DESC_FL_BLOB		(1U << 1)
 
 /**
  * struct v4l2_mbus_frame_desc_entry - media bus frame description structure
  * @flags: V4L2_MBUS_FRAME_DESC_FL_* flags
  * @pixelcode: media bus pixel code, valid if FRAME_DESC_FL_BLOB is not set
- * @length: number of octets per frame, valid for compressed or unspecified
- *          formats
+ * @length: number of octets per frame, valid if V4L2_MBUS_FRAME_DESC_FL_BLOB
+ *	    is set
  */
 struct v4l2_mbus_frame_desc_entry {
 	u16 flags;
