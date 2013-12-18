@@ -162,7 +162,7 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 
 	if (NULL == dev)
-		return (struct phy_device*) PTR_ERR((void*)-ENOMEM);
+		return (struct phy_device *)PTR_ERR((void *)-ENOMEM);
 
 	dev->dev.release = phy_device_release;
 
@@ -459,7 +459,7 @@ EXPORT_SYMBOL(phy_connect_direct);
  *   choose to call only the subset of functions which provide
  *   the desired functionality.
  */
-struct phy_device * phy_connect(struct net_device *dev, const char *bus_id,
+struct phy_device *phy_connect(struct net_device *dev, const char *bus_id,
 		void (*handler)(struct net_device *),
 		phy_interface_t interface)
 {
@@ -494,7 +494,7 @@ void phy_disconnect(struct phy_device *phydev)
 		phy_stop_interrupts(phydev);
 
 	phy_stop_machine(phydev);
-	
+
 	phydev->adjust_link = NULL;
 
 	phy_detach(phydev);
@@ -792,7 +792,7 @@ int genphy_setup_forced(struct phy_device *phydev)
 
 	if (DUPLEX_FULL == phydev->duplex)
 		ctl |= BMCR_FULLDPLX;
-	
+
 	err = phy_write(phydev, MII_BMCR, ctl);
 
 	return err;
@@ -965,14 +965,14 @@ int genphy_read_status(struct phy_device *phydev)
 				phydev->duplex = DUPLEX_FULL;
 		} else if (lpa & (LPA_100FULL | LPA_100HALF)) {
 			phydev->speed = SPEED_100;
-			
+
 			if (lpa & LPA_100FULL)
 				phydev->duplex = DUPLEX_FULL;
 		} else
 			if (lpa & LPA_10FULL)
 				phydev->duplex = DUPLEX_FULL;
 
-		if (phydev->duplex == DUPLEX_FULL){
+		if (phydev->duplex == DUPLEX_FULL) {
 			phydev->pause = lpa & LPA_PAUSE_CAP ? 1 : 0;
 			phydev->asym_pause = lpa & LPA_PAUSE_ASYM ? 1 : 0;
 		}
@@ -1213,7 +1213,7 @@ static struct phy_driver genphy_driver = {
 	.read_status	= genphy_read_status,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
-	.driver		= {.owner= THIS_MODULE, },
+	.driver		= { .owner = THIS_MODULE, },
 };
 
 static int __init phy_init(void)

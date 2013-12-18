@@ -81,14 +81,14 @@ static int ksz_config_flags(struct phy_device *phydev)
 }
 
 static int kszphy_extended_write(struct phy_device *phydev,
-                                 u32 regnum, u16 val)
+				u32 regnum, u16 val)
 {
 	phy_write(phydev, MII_KSZPHY_EXTREG, KSZPHY_EXTREG_WRITE | regnum);
 	return phy_write(phydev, MII_KSZPHY_EXTREG_WRITE, val);
 }
 
 static int kszphy_extended_read(struct phy_device *phydev,
-                                 u32 regnum)
+				u32 regnum)
 {
 	phy_write(phydev, MII_KSZPHY_EXTREG, regnum);
 	return phy_read(phydev, MII_KSZPHY_EXTREG_READ);
