@@ -507,7 +507,8 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 		 * if rss is disabled/enabled, so key off of that.
 		 */
 		if (ext_info.rth_value)
-			skb->rxhash = ext_info.rth_value;
+			skb_set_hash(skb, ext_info.rth_value,
+				     PKT_HASH_TYPE_L3);
 
 		vxge_rx_complete(ring, skb, ext_info.vlan,
 			pkt_length, &ext_info);
