@@ -590,9 +590,12 @@ static int __init null_init(void)
 	}
 #endif
 
-	if (queue_mode == NULL_Q_MQ && use_per_node_hctx)
+	if (queue_mode == NULL_Q_MQ && use_per_node_hctx) {
+		if (submit_queues > 0)
+			pr_warn("null_blk: submit_queues param is set to %u.",
+							nr_online_nodes);
 		submit_queues = nr_online_nodes;
-	else if (submit_queues > nr_cpu_ids)
+	} else if (submit_queues > nr_cpu_ids)
 		submit_queues = nr_cpu_ids;
 	else if (!submit_queues)
 		submit_queues = 1;
