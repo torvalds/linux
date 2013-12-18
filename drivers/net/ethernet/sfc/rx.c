@@ -440,7 +440,8 @@ efx_rx_packet_gro(struct efx_channel *channel, struct efx_rx_buffer *rx_buf,
 	}
 
 	if (efx->net_dev->features & NETIF_F_RXHASH)
-		skb->rxhash = efx_rx_buf_hash(efx, eh);
+		skb_set_hash(skb, efx_rx_buf_hash(efx, eh),
+			     PKT_HASH_TYPE_L3);
 	skb->ip_summed = ((rx_buf->flags & EFX_RX_PKT_CSUMMED) ?
 			  CHECKSUM_UNNECESSARY : CHECKSUM_NONE);
 
