@@ -1290,41 +1290,21 @@ static ssize_t bonding_store_slaves_active(struct device *d,
 					   const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
-	int new_value, ret = count;
-	struct list_head *iter;
-	struct slave *slave;
-
-	if (!rtnl_trylock())
-		return restart_syscall();
+	int new_value, ret;
 
 	if (sscanf(buf, "%d", &new_value) != 1) {
 		pr_err("%s: no all_slaves_active value specified.\n",
 		       bond->dev->name);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
-	if (new_value == bond->params.all_slaves_active)
-		goto out;
+	if (!rtnl_trylock())
+		return restart_syscall();
 
-	if ((new_value == 0) || (new_value == 1)) {
-		bond->params.all_slaves_active = new_value;
-	} else {
-		pr_info("%s: Ignoring invalid all_slaves_active value %d.\n",
-			bond->dev->name, new_value);
-		ret = -EINVAL;
-		goto out;
-	}
+	ret = bond_option_all_slaves_active_set(bond, new_value);
+	if (!ret)
+		ret = count;
 
-	bond_for_each_slave(bond, slave, iter) {
-		if (!bond_is_active_slave(slave)) {
-			if (new_value)
-				slave->inactive = 0;
-			else
-				slave->inactive = 1;
-		}
-	}
-out:
 	rtnl_unlock();
 	return ret;
 }

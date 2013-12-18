@@ -38,6 +38,7 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_XMIT_HASH_POLICY]	= { .type = NLA_U8 },
 	[IFLA_BOND_RESEND_IGMP]		= { .type = NLA_U32 },
 	[IFLA_BOND_NUM_PEER_NOTIF]	= { .type = NLA_U8 },
+	[IFLA_BOND_ALL_SLAVES_ACTIVE]	= { .type = NLA_U8 },
 };
 
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -213,6 +214,15 @@ static int bond_changelink(struct net_device *bond_dev,
 		if (err)
 			return err;
 	}
+	if (data[IFLA_BOND_ALL_SLAVES_ACTIVE]) {
+		int all_slaves_active =
+			nla_get_u8(data[IFLA_BOND_ALL_SLAVES_ACTIVE]);
+
+		err = bond_option_all_slaves_active_set(bond,
+							all_slaves_active);
+		if (err)
+			return err;
+	}
 	return 0;
 }
 
@@ -247,6 +257,7 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_XMIT_HASH_POLICY */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_RESEND_IGMP */
 		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_NUM_PEER_NOTIF */
+		nla_total_size(sizeof(u8)) +   /* IFLA_BOND_ALL_SLAVES_ACTIVE */
 		0;
 }
 
@@ -329,6 +340,10 @@ static int bond_fill_info(struct sk_buff *skb,
 
 	if (nla_put_u8(skb, IFLA_BOND_NUM_PEER_NOTIF,
 		       bond->params.num_peer_notif))
+		goto nla_put_failure;
+
+	if (nla_put_u8(skb, IFLA_BOND_ALL_SLAVES_ACTIVE,
+		       bond->params.all_slaves_active))
 		goto nla_put_failure;
 
 	return 0;

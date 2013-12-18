@@ -582,3 +582,32 @@ int bond_option_num_peer_notif_set(struct bonding *bond, int num_peer_notif)
 	bond->params.num_peer_notif = num_peer_notif;
 	return 0;
 }
+
+int bond_option_all_slaves_active_set(struct bonding *bond,
+				      int all_slaves_active)
+{
+	struct list_head *iter;
+	struct slave *slave;
+
+	if (all_slaves_active == bond->params.all_slaves_active)
+		return 0;
+
+	if ((all_slaves_active == 0) || (all_slaves_active == 1)) {
+		bond->params.all_slaves_active = all_slaves_active;
+	} else {
+		pr_info("%s: Ignoring invalid all_slaves_active value %d.\n",
+			bond->dev->name, all_slaves_active);
+		return -EINVAL;
+	}
+
+	bond_for_each_slave(bond, slave, iter) {
+		if (!bond_is_active_slave(slave)) {
+			if (all_slaves_active)
+				slave->inactive = 0;
+			else
+				slave->inactive = 1;
+		}
+	}
+
+	return 0;
+}
