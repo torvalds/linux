@@ -53,18 +53,18 @@ int bch_bkey_to_text(char *buf, size_t size, const struct bkey *k)
 
 #define p(...)	(out += scnprintf(out, end - out, __VA_ARGS__))
 
-	p("%llu:%llu len %llu -> [", KEY_INODE(k), KEY_OFFSET(k), KEY_SIZE(k));
+	p("%llu:%llu len %llu -> [", KEY_INODE(k), KEY_START(k), KEY_SIZE(k));
 
-	if (KEY_PTRS(k))
-		while (1) {
-			p("%llu:%llu gen %llu",
-			  PTR_DEV(k, i), PTR_OFFSET(k, i), PTR_GEN(k, i));
-
-			if (++i == KEY_PTRS(k))
-				break;
-
+	for (i = 0; i < KEY_PTRS(k); i++) {
+		if (i)
 			p(", ");
-		}
+
+		if (PTR_DEV(k, i) == PTR_CHECK_DEV)
+			p("check dev");
+		else
+			p("%llu:%llu gen %llu", PTR_DEV(k, i),
+			  PTR_OFFSET(k, i), PTR_GEN(k, i));
+	}
 
 	p("]");
 
@@ -78,7 +78,7 @@ int bch_bkey_to_text(char *buf, size_t size, const struct bkey *k)
 
 #ifdef CONFIG_BCACHE_DEBUG
 
-static void dump_bset(struct btree *b, struct bset *i)
+static void dump_bset(struct btree *b, struct bset *i, unsigned set)
 {
 	struct bkey *k, *next;
 	unsigned j;
@@ -88,7 +88,7 @@ static void dump_bset(struct btree *b, struct bset *i)
 		next = bkey_next(k);
 
 		bch_bkey_to_text(buf, sizeof(buf), k);
-		printk(KERN_ERR "block %u key %zi/%u: %s", bset_block_offset(b, i),
+		printk(KERN_ERR "b %u k %zi/%u: %s", set,
 		       (uint64_t *) k - i->d, i->keys, buf);
 
 		for (j = 0; j < KEY_PTRS(k); j++) {
@@ -114,49 +114,82 @@ static void bch_dump_bucket(struct btree *b)
 
 	console_lock();
 	for (i = 0; i <= b->nsets; i++)
-		dump_bset(b, b->sets[i].data);
+		dump_bset(b, b->sets[i].data,
+			  bset_block_offset(b, b->sets[i].data));
 	console_unlock();
 }
 
-void bch_btree_verify(struct btree *b, struct bset *new)
+#define for_each_written_bset(b, start, i)				\
+	for (i = (start);						\
+	     (void *) i < (void *) (start) + (KEY_SIZE(&b->key) << 9) &&\
+	     i->seq == (start)->seq;					\
+	     i = (void *) i + set_blocks(i, b->c) * block_bytes(b->c))
+
+void bch_btree_verify(struct btree *b)
 {
 	struct btree *v = b->c->verify_data;
-	struct closure cl;
-	closure_init_stack(&cl);
+	struct bset *ondisk, *sorted, *inmemory;
+	struct bio *bio;
 
-	if (!b->c->verify)
+	if (!b->c->verify || !b->c->verify_ondisk)
 		return;
 
 	down(&b->io_mutex);
 	mutex_lock(&b->c->verify_lock);
 
+	ondisk = b->c->verify_ondisk;
+	sorted = b->c->verify_data->sets->data;
+	inmemory = b->sets->data;
+
 	bkey_copy(&v->key, &b->key);
 	v->written = 0;
 	v->level = b->level;
 
-	bch_btree_node_read(v);
+	bio = bch_bbio_alloc(b->c);
+	bio->bi_bdev		= PTR_CACHE(b->c, &b->key, 0)->bdev;
+	bio->bi_iter.bi_sector	= PTR_OFFSET(&b->key, 0);
+	bio->bi_iter.bi_size	= KEY_SIZE(&v->key) << 9;
+	bch_bio_map(bio, sorted);
 
-	if (new->keys != v->sets[0].data->keys ||
-	    memcmp(new->start,
-		   v->sets[0].data->start,
-		   (void *) end(new) - (void *) new->start)) {
-		unsigned i, j;
+	submit_bio_wait(REQ_META|READ_SYNC, bio);
+	bch_bbio_free(bio, b->c);
+
+	memcpy(ondisk, sorted, KEY_SIZE(&v->key) << 9);
+
+	bch_btree_node_read_done(v);
+	sorted = v->sets->data;
+
+	if (inmemory->keys != sorted->keys ||
+	    memcmp(inmemory->start,
+		   sorted->start,
+		   (void *) end(inmemory) - (void *) inmemory->start)) {
+		struct bset *i;
+		unsigned j;
 
 		console_lock();
 
-		printk(KERN_ERR "*** original memory node:\n");
-		for (i = 0; i <= b->nsets; i++)
-			dump_bset(b, b->sets[i].data);
+		printk(KERN_ERR "*** in memory:\n");
+		dump_bset(b, inmemory, 0);
 
-		printk(KERN_ERR "*** sorted memory node:\n");
-		dump_bset(b, new);
+		printk(KERN_ERR "*** read back in:\n");
+		dump_bset(v, sorted, 0);
 
-		printk(KERN_ERR "*** on disk node:\n");
-		dump_bset(v, v->sets[0].data);
+		for_each_written_bset(b, ondisk, i) {
+			unsigned block = ((void *) i - (void *) ondisk) /
+				block_bytes(b->c);
 
-		for (j = 0; j < new->keys; j++)
-			if (new->d[j] != v->sets[0].data->d[j])
+			printk(KERN_ERR "*** on disk block %u:\n", block);
+			dump_bset(b, i, block);
+		}
+
+		printk(KERN_ERR "*** block %zu not written\n",
+		       ((void *) i - (void *) ondisk) / block_bytes(b->c));
+
+		for (j = 0; j < inmemory->keys; j++)
+			if (inmemory->d[j] != sorted->d[j])
 				break;
+
+		printk(KERN_ERR "b->written %u\n", b->written);
 
 		console_unlock();
 		panic("verify failed at %u\n", j);

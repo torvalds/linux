@@ -203,7 +203,7 @@ static uint64_t btree_csum_set(struct btree *b, struct bset *i)
 	return crc ^ 0xffffffffffffffffULL;
 }
 
-static void bch_btree_node_read_done(struct btree *b)
+void bch_btree_node_read_done(struct btree *b)
 {
 	const char *err = "bad btree header";
 	struct bset *i = b->sets[0].data;
@@ -290,7 +290,7 @@ static void btree_node_read_endio(struct bio *bio, int error)
 	closure_put(cl);
 }
 
-void bch_btree_node_read(struct btree *b)
+static void bch_btree_node_read(struct btree *b)
 {
 	uint64_t start_time = local_clock();
 	struct closure cl;
@@ -477,6 +477,13 @@ void bch_btree_node_write(struct btree *b, struct closure *parent)
 			&PTR_CACHE(b->c, &b->key, 0)->btree_sectors_written);
 
 	bch_btree_sort_lazy(b);
+
+	/*
+	 * do verify if there was more than one set initially (i.e. we did a
+	 * sort) and we sorted down to a single set:
+	 */
+	if (i != b->sets->data && !b->nsets)
+		bch_btree_verify(b);
 
 	if (b->written < btree_blocks(b))
 		bch_bset_init_next(b);
@@ -782,6 +789,8 @@ void bch_btree_cache_free(struct cache_set *c)
 #ifdef CONFIG_BCACHE_DEBUG
 	if (c->verify_data)
 		list_move(&c->verify_data->list, &c->btree_cache);
+
+	free_pages((unsigned long) c->verify_ondisk, ilog2(bucket_pages(c)));
 #endif
 
 	list_splice(&c->btree_cache_freeable,
@@ -821,6 +830,9 @@ int bch_btree_cache_alloc(struct cache_set *c)
 
 #ifdef CONFIG_BCACHE_DEBUG
 	mutex_init(&c->verify_lock);
+
+	c->verify_ondisk = (void *)
+		__get_free_pages(GFP_KERNEL, ilog2(bucket_pages(c)));
 
 	c->verify_data = mca_bucket_alloc(c, &ZERO_KEY, GFP_KERNEL);
 

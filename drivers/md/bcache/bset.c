@@ -1060,9 +1060,6 @@ static void __btree_sort(struct btree *b, struct btree_iter *iter,
 	btree_mergesort(b, out, iter, fixup, remove_stale);
 	b->nsets = start;
 
-	if (!fixup && !start && b->written)
-		bch_btree_verify(b, out);
-
 	if (!start && order == b->page_order) {
 		/*
 		 * Our temporary buffer is the same size as the btree node's

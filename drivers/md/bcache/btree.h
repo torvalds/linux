@@ -292,7 +292,7 @@ static inline void rw_unlock(bool w, struct btree *b)
 	(w ? up_write : up_read)(&b->lock);
 }
 
-void bch_btree_node_read(struct btree *);
+void bch_btree_node_read_done(struct btree *);
 void bch_btree_node_write(struct btree *, struct closure *);
 
 void bch_btree_set_root(struct btree *);

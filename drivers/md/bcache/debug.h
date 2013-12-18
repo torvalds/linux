@@ -7,7 +7,7 @@ int bch_bkey_to_text(char *buf, size_t size, const struct bkey *k);
 
 #ifdef CONFIG_BCACHE_DEBUG
 
-void bch_btree_verify(struct btree *, struct bset *);
+void bch_btree_verify(struct btree *);
 void bch_data_verify(struct cached_dev *, struct bio *);
 int __bch_count_data(struct btree *);
 void __bch_check_keys(struct btree *, const char *, ...);
@@ -20,7 +20,7 @@ void bch_btree_iter_next_check(struct btree_iter *);
 
 #else /* DEBUG */
 
-static inline void bch_btree_verify(struct btree *b, struct bset *i) {}
+static inline void bch_btree_verify(struct btree *b) {}
 static inline void bch_data_verify(struct cached_dev *dc, struct bio *bio) {}
 static inline int __bch_count_data(struct btree *b) { return -1; }
 static inline void __bch_check_keys(struct btree *b, const char *fmt, ...) {}
