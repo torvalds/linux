@@ -2903,10 +2903,8 @@ static int ieee80211_start_radar_detection(struct wiphy *wiphy,
 	sdata->needed_rx_chains = local->rx_chains;
 	sdata->radar_required = true;
 
-	mutex_lock(&local->iflist_mtx);
 	err = ieee80211_vif_use_channel(sdata, chandef,
 					IEEE80211_CHANCTX_SHARED);
-	mutex_unlock(&local->iflist_mtx);
 	if (err)
 		return err;
 
