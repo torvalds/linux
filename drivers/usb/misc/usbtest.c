@@ -1554,8 +1554,17 @@ static int test_halt(struct usbtest_dev *tdev, int ep, struct urb *urb)
 		return retval;
 	}
 	retval = verify_halted(tdev, ep, urb);
-	if (retval < 0)
+	if (retval < 0) {
+		int ret;
+
+		/* clear halt anyways, else further tests will fail */
+		ret = usb_clear_halt(urb->dev, urb->pipe);
+		if (ret)
+			ERROR(tdev, "ep %02x couldn't clear halt, %d\n",
+			      ep, ret);
+
 		return retval;
+	}
 
 	/* clear halt (tests API + protocol), verify it worked */
 	retval = usb_clear_halt(urb->dev, urb->pipe);
