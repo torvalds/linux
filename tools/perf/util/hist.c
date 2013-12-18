@@ -1,4 +1,3 @@
-#include "annotate.h"
 #include "util.h"
 #include "build-id.h"
 #include "hist.h"
@@ -805,16 +804,6 @@ void hists__filter_by_symbol(struct hists *hists)
 
 		hists__remove_entry_filter(hists, h, HIST_FILTER__SYMBOL);
 	}
-}
-
-int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 ip)
-{
-	return symbol__inc_addr_samples(he->ms.sym, he->ms.map, evidx, ip);
-}
-
-int hist_entry__annotate(struct hist_entry *he, size_t privsize)
-{
-	return symbol__annotate(he->ms.sym, he->ms.map, privsize);
 }
 
 void events_stats__inc(struct events_stats *stats, u32 type)

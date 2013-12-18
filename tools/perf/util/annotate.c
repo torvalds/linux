@@ -508,6 +508,11 @@ int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, int evidx)
 	return symbol__inc_addr_samples(ams->sym, ams->map, evidx, ams->al_addr);
 }
 
+int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 ip)
+{
+	return symbol__inc_addr_samples(he->ms.sym, he->ms.map, evidx, ip);
+}
+
 static void disasm_line__init_ins(struct disasm_line *dl)
 {
 	dl->ins = ins__find(dl->name);
@@ -1392,4 +1397,9 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	disasm__purge(&symbol__annotation(sym)->src->source);
 
 	return 0;
+}
+
+int hist_entry__annotate(struct hist_entry *he, size_t privsize)
+{
+	return symbol__annotate(he->ms.sym, he->ms.map, privsize);
 }

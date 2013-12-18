@@ -111,9 +111,6 @@ size_t events_stats__fprintf(struct events_stats *stats, FILE *fp);
 size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		      int max_cols, float min_pcnt, FILE *fp);
 
-int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 addr);
-int hist_entry__annotate(struct hist_entry *he, size_t privsize);
-
 void hists__filter_by_dso(struct hists *hists);
 void hists__filter_by_thread(struct hists *hists);
 void hists__filter_by_symbol(struct hists *hists);
