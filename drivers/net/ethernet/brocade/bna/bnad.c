@@ -601,7 +601,18 @@ bnad_cq_process(struct bnad *bnad, struct bna_ccb *ccb, int budget)
 	cq = ccb->sw_q;
 	cmpl = &cq[ccb->producer_index];
 
-	while (cmpl->valid && (packets < budget)) {
+	while (packets < budget) {
+		if (!cmpl->valid)
+			break;
+		/* The 'valid' field is set by the adapter, only after writing
+		 * the other fields of completion entry. Hence, do not load
+		 * other fields of completion entry *before* the 'valid' is
+		 * loaded. Adding the rmb() here prevents the compiler and/or
+		 * CPU from reordering the reads which would potentially result
+		 * in reading stale values in completion entry.
+		 */
+		rmb();
+
 		BNA_UPDATE_PKT_CNT(pkt_rt, ntohs(cmpl->length));
 
 		if (bna_is_small_rxq(cmpl->rxq_id))
@@ -641,6 +652,16 @@ bnad_cq_process(struct bnad *bnad, struct bna_ccb *ccb, int budget)
 
 				if (!next_cmpl->valid)
 					break;
+				/* The 'valid' field is set by the adapter, only
+				 * after writing the other fields of completion
+				 * entry. Hence, do not load other fields of
+				 * completion entry *before* the 'valid' is
+				 * loaded. Adding the rmb() here prevents the
+				 * compiler and/or CPU from reordering the reads
+				 * which would potentially result in reading
+				 * stale values in completion entry.
+				 */
+				rmb();
 
 				len = ntohs(next_cmpl->length);
 				flags = ntohl(next_cmpl->flags);
