@@ -254,8 +254,11 @@ i40e_status i40e_aq_mac_address_write(struct i40e_hw *hw,
 	i40e_fill_default_direct_cmd_desc(&desc,
 					  i40e_aqc_opc_mac_address_write);
 	cmd_data->command_flags = cpu_to_le16(flags);
-	memcpy(&cmd_data->mac_sal, &mac_addr[0], 4);
-	memcpy(&cmd_data->mac_sah, &mac_addr[4], 2);
+	cmd_data->mac_sah = cpu_to_le16((u16)mac_addr[0] << 8 | mac_addr[1]);
+	cmd_data->mac_sal = cpu_to_le32(((u32)mac_addr[2] << 24) |
+					((u32)mac_addr[3] << 16) |
+					((u32)mac_addr[4] << 8) |
+					mac_addr[5]);
 
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 
