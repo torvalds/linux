@@ -6223,19 +6223,17 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 	uint32_t els_command = 0;
 	uint32_t timeout;
 	uint32_t remote_ID = 0xffffffff;
-	LIST_HEAD(txcmplq_completions);
 	LIST_HEAD(abort_list);
 
 
 	timeout = (uint32_t)(phba->fc_ratov << 1);
 
 	pring = &phba->sli.ring[LPFC_ELS_RING];
-
 	spin_lock_irq(&phba->hbalock);
-	list_splice_init(&pring->txcmplq, &txcmplq_completions);
-	spin_unlock_irq(&phba->hbalock);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		spin_lock(&pring->ring_lock);
 
-	list_for_each_entry_safe(piocb, tmp_iocb, &txcmplq_completions, list) {
+	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
 		cmd = &piocb->iocb;
 
 		if ((piocb->iocb_flag & LPFC_IO_LIBDFC) != 0 ||
@@ -6274,8 +6272,8 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 		}
 		list_add_tail(&piocb->dlist, &abort_list);
 	}
-	spin_lock_irq(&phba->hbalock);
-	list_splice(&txcmplq_completions, &pring->txcmplq);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		spin_unlock(&pring->ring_lock);
 	spin_unlock_irq(&phba->hbalock);
 
 	list_for_each_entry_safe(piocb, tmp_iocb, &abort_list, dlist) {
@@ -6317,15 +6315,50 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 void
 lpfc_els_flush_cmd(struct lpfc_vport *vport)
 {
-	LIST_HEAD(completions);
+	LIST_HEAD(abort_list);
 	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
 	struct lpfc_iocbq *tmp_iocb, *piocb;
 	IOCB_t *cmd = NULL;
 
 	lpfc_fabric_abort_vport(vport);
+	/*
+	 * For SLI3, only the hbalock is required.  But SLI4 needs to coordinate
+	 * with the ring insert operation.  Because lpfc_sli_issue_abort_iotag
+	 * ultimately grabs the ring_lock, the driver must splice the list into
+	 * a working list and release the locks before calling the abort.
+	 */
+	spin_lock_irq(&phba->hbalock);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		spin_lock(&pring->ring_lock);
+
+	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
+		if (piocb->iocb_flag & LPFC_IO_LIBDFC)
+			continue;
+
+		if (piocb->vport != vport)
+			continue;
+		list_add_tail(&piocb->dlist, &abort_list);
+	}
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		spin_unlock(&pring->ring_lock);
+	spin_unlock_irq(&phba->hbalock);
+	/* Abort each iocb on the aborted list and remove the dlist links. */
+	list_for_each_entry_safe(piocb, tmp_iocb, &abort_list, dlist) {
+		spin_lock_irq(&phba->hbalock);
+		list_del_init(&piocb->dlist);
+		lpfc_sli_issue_abort_iotag(phba, pring, piocb);
+		spin_unlock_irq(&phba->hbalock);
+	}
+	if (!list_empty(&abort_list))
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "3387 abort list for txq not empty\n");
+	INIT_LIST_HEAD(&abort_list);
 
 	spin_lock_irq(&phba->hbalock);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		spin_lock(&pring->ring_lock);
+
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txq, list) {
 		cmd = &piocb->iocb;
 
@@ -6343,24 +6376,16 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 		if (piocb->vport != vport)
 			continue;
 
-		list_move_tail(&piocb->list, &completions);
+		list_del_init(&piocb->list);
+		list_add_tail(&piocb->list, &abort_list);
 	}
-
-	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
-		if (piocb->iocb_flag & LPFC_IO_LIBDFC) {
-			continue;
-		}
-
-		if (piocb->vport != vport)
-			continue;
-
-		lpfc_sli_issue_abort_iotag(phba, pring, piocb);
-	}
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		spin_unlock(&pring->ring_lock);
 	spin_unlock_irq(&phba->hbalock);
 
 	/* Cancell all the IOCBs from the completions list */
-	lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,
-			      IOERR_SLI_ABORTED);
+	lpfc_sli_cancel_iocbs(phba, &abort_list,
+			      IOSTAT_LOCAL_REJECT, IOERR_SLI_ABORTED);
 
 	return;
 }
@@ -6385,35 +6410,9 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 void
 lpfc_els_flush_all_cmd(struct lpfc_hba  *phba)
 {
-	LIST_HEAD(completions);
-	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
-	struct lpfc_iocbq *tmp_iocb, *piocb;
-	IOCB_t *cmd = NULL;
-
-	lpfc_fabric_abort_hba(phba);
-	spin_lock_irq(&phba->hbalock);
-	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txq, list) {
-		cmd = &piocb->iocb;
-		if (piocb->iocb_flag & LPFC_IO_LIBDFC)
-			continue;
-		/* Do not flush out the QUE_RING and ABORT/CLOSE iocbs */
-		if (cmd->ulpCommand == CMD_QUE_RING_BUF_CN ||
-		    cmd->ulpCommand == CMD_QUE_RING_BUF64_CN ||
-		    cmd->ulpCommand == CMD_CLOSE_XRI_CN ||
-		    cmd->ulpCommand == CMD_ABORT_XRI_CN)
-			continue;
-		list_move_tail(&piocb->list, &completions);
-	}
-	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
-		if (piocb->iocb_flag & LPFC_IO_LIBDFC)
-			continue;
-		lpfc_sli_issue_abort_iotag(phba, pring, piocb);
-	}
-	spin_unlock_irq(&phba->hbalock);
-
-	/* Cancel all the IOCBs from the completions list */
-	lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,
-			      IOERR_SLI_ABORTED);
+	struct lpfc_vport *vport;
+	list_for_each_entry(vport, &phba->port_list, listentry)
+		lpfc_els_flush_cmd(vport);
 
 	return;
 }
