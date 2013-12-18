@@ -362,7 +362,7 @@ static ssize_t i40e_dbg_command_read(struct file *filp, char __user *buffer,
 }
 
 /**
- * i40e_dbg_dump_vsi_seid - handles dump vsi seid write into pokem datum
+ * i40e_dbg_dump_vsi_seid - handles dump vsi seid write into command datum
  * @pf: the i40e_pf created in command write
  * @seid: the seid the user put in
  **/
@@ -707,7 +707,12 @@ static void i40e_dbg_dump_aq_desc(struct i40e_pf *pf)
 {
 	struct i40e_adminq_ring *ring;
 	struct i40e_hw *hw = &pf->hw;
+	char hdr[32];
 	int i;
+
+	snprintf(hdr, sizeof(hdr), "%s %s:         ",
+		 dev_driver_string(&pf->pdev->dev),
+		 dev_name(&pf->pdev->dev));
 
 	/* first the send (command) ring, then the receive (event) ring */
 	dev_info(&pf->pdev->dev, "AdminQ Tx Ring\n");
@@ -718,14 +723,8 @@ static void i40e_dbg_dump_aq_desc(struct i40e_pf *pf)
 			 "   at[%02d] flags=0x%04x op=0x%04x dlen=0x%04x ret=0x%04x cookie_h=0x%08x cookie_l=0x%08x\n",
 			 i, d->flags, d->opcode, d->datalen, d->retval,
 			 d->cookie_high, d->cookie_low);
-		dev_info(&pf->pdev->dev,
-			 "            %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-			 d->params.raw[0], d->params.raw[1], d->params.raw[2],
-			 d->params.raw[3], d->params.raw[4], d->params.raw[5],
-			 d->params.raw[6], d->params.raw[7], d->params.raw[8],
-			 d->params.raw[9], d->params.raw[10], d->params.raw[11],
-			 d->params.raw[12], d->params.raw[13],
-			 d->params.raw[14], d->params.raw[15]);
+		print_hex_dump(KERN_INFO, hdr, DUMP_PREFIX_NONE,
+			       16, 1, d->params.raw, 16, 0);
 	}
 
 	dev_info(&pf->pdev->dev, "AdminQ Rx Ring\n");
@@ -736,14 +735,8 @@ static void i40e_dbg_dump_aq_desc(struct i40e_pf *pf)
 			 "   ar[%02d] flags=0x%04x op=0x%04x dlen=0x%04x ret=0x%04x cookie_h=0x%08x cookie_l=0x%08x\n",
 			 i, d->flags, d->opcode, d->datalen, d->retval,
 			 d->cookie_high, d->cookie_low);
-		dev_info(&pf->pdev->dev,
-			 "            %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-			 d->params.raw[0], d->params.raw[1], d->params.raw[2],
-			 d->params.raw[3], d->params.raw[4], d->params.raw[5],
-			 d->params.raw[6], d->params.raw[7], d->params.raw[8],
-			 d->params.raw[9], d->params.raw[10], d->params.raw[11],
-			 d->params.raw[12], d->params.raw[13],
-			 d->params.raw[14], d->params.raw[15]);
+		print_hex_dump(KERN_INFO, hdr, DUMP_PREFIX_NONE,
+			       16, 1, d->params.raw, 16, 0);
 	}
 }
 
@@ -766,20 +759,17 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 
 	vsi = i40e_dbg_find_vsi(pf, vsi_seid);
 	if (!vsi) {
-		dev_info(&pf->pdev->dev,
-			 "vsi %d not found\n", vsi_seid);
-		if (is_rx_ring)
-			dev_info(&pf->pdev->dev, "dump desc rx <vsi_seid> <ring_id> [<desc_n>]\n");
-		else
-			dev_info(&pf->pdev->dev, "dump desc tx <vsi_seid> <ring_id> [<desc_n>]\n");
+		dev_info(&pf->pdev->dev, "vsi %d not found\n", vsi_seid);
 		return;
 	}
 	if (ring_id >= vsi->num_queue_pairs || ring_id < 0) {
 		dev_info(&pf->pdev->dev, "ring %d not found\n", ring_id);
-		if (is_rx_ring)
-			dev_info(&pf->pdev->dev, "dump desc rx <vsi_seid> <ring_id> [<desc_n>]\n");
-		else
-			dev_info(&pf->pdev->dev, "dump desc tx <vsi_seid> <ring_id> [<desc_n>]\n");
+		return;
+	}
+	if (!vsi->tx_rings) {
+		dev_info(&pf->pdev->dev,
+			 "descriptor rings have not been allocated for vsi %d\n",
+			 vsi_seid);
 		return;
 	}
 	if (is_rx_ring)
@@ -830,10 +820,7 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 				 desc_n, ds->read.pkt_addr, ds->read.hdr_addr,
 				 ds->read.rsvd1, ds->read.rsvd2);
 	} else {
-		if (is_rx_ring)
-			dev_info(&pf->pdev->dev, "dump desc rx <vsi_seid> <ring_id> [<desc_n>]\n");
-		else
-			dev_info(&pf->pdev->dev, "dump desc tx <vsi_seid> <ring_id> [<desc_n>]\n");
+		dev_info(&pf->pdev->dev, "dump desc rx/tx <vsi_seid> <ring_id> [<desc_n>]\n");
 	}
 }
 
@@ -979,8 +966,7 @@ static void i40e_dbg_dump_veb_seid(struct i40e_pf *pf, int seid)
 
 	veb = i40e_dbg_find_veb(pf, seid);
 	if (!veb) {
-		dev_info(&pf->pdev->dev,
-			 "%d: can't find veb\n", seid);
+		dev_info(&pf->pdev->dev, "can't find veb %d\n", seid);
 		return;
 	}
 	dev_info(&pf->pdev->dev,
@@ -1022,8 +1008,6 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 	char *cmd_buf, *cmd_buf_tmp;
 	int bytes_not_copied;
 	struct i40e_vsi *vsi;
-	u8 *print_buf_start;
-	u8 *print_buf;
 	int vsi_seid;
 	int veb_seid;
 	int cnt;
@@ -1047,11 +1031,6 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		*cmd_buf_tmp = '\0';
 		count = cmd_buf_tmp - cmd_buf + 1;
 	}
-
-	print_buf_start = kzalloc(I40E_MAX_DEBUG_OUT_BUFFER, GFP_KERNEL);
-	if (!print_buf_start)
-		goto command_write_done;
-	print_buf = print_buf_start;
 
 	if (strncmp(cmd_buf, "add vsi", 7) == 0) {
 		vsi_seid = -1;
@@ -1479,7 +1458,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 	} else if (strncmp(cmd_buf, "read", 4) == 0) {
 		u32 address;
 		u32 value;
-		cnt = sscanf(&cmd_buf[4], "%x", &address);
+		cnt = sscanf(&cmd_buf[4], "%i", &address);
 		if (cnt != 1) {
 			dev_info(&pf->pdev->dev, "read <reg>\n");
 			goto command_write_done;
@@ -1498,7 +1477,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 
 	} else if (strncmp(cmd_buf, "write", 5) == 0) {
 		u32 address, value;
-		cnt = sscanf(&cmd_buf[5], "%x %x", &address, &value);
+		cnt = sscanf(&cmd_buf[5], "%i %i", &address, &value);
 		if (cnt != 2) {
 			dev_info(&pf->pdev->dev, "write <reg> <value>\n");
 			goto command_write_done;
@@ -1516,7 +1495,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			 address, value);
 	} else if (strncmp(cmd_buf, "clear_stats", 11) == 0) {
 		if (strncmp(&cmd_buf[12], "vsi", 3) == 0) {
-			cnt = sscanf(&cmd_buf[15], "%d", &vsi_seid);
+			cnt = sscanf(&cmd_buf[15], "%i", &vsi_seid);
 			if (cnt == 0) {
 				int i;
 				for (i = 0; i < pf->hw.func_caps.num_vsis; i++)
@@ -1568,7 +1547,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		if (strncmp(cmd_buf, "add", 3) == 0)
 			add = true;
 		cnt = sscanf(&cmd_buf[13],
-			     "%hx %2hhx %2hhx %hx %2hhx %2hhx %hx %x %hd %512s",
+			     "%hx %2hhx %2hhx %hx %2hhx %2hhx %hx %x %hd %511s",
 			     &fd_data.q_index,
 			     &fd_data.flex_off, &fd_data.pctype,
 			     &fd_data.dest_vsi, &fd_data.dest_ctl,
@@ -1592,19 +1571,15 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		packet_len = min_t(u16,
 				   packet_len, I40E_FDIR_MAX_RAW_PACKET_LOOKUP);
 
-		dev_info(&pf->pdev->dev, "FD raw packet:\n");
 		for (i = 0; i < packet_len; i++) {
 			sscanf(&asc_packet[j], "%2hhx ",
 			       &fd_data.raw_packet[i]);
 			j += 3;
-			snprintf(print_buf, 3, "%02x ", fd_data.raw_packet[i]);
-			print_buf += 3;
-			if ((i % 16) == 15) {
-				snprintf(print_buf, 1, "\n");
-				print_buf++;
-			}
 		}
-		dev_info(&pf->pdev->dev, "%s\n", print_buf_start);
+		dev_info(&pf->pdev->dev, "FD raw packet dump\n");
+		print_hex_dump(KERN_INFO, "FD raw packet: ",
+			       DUMP_PREFIX_OFFSET, 16, 1,
+			       fd_data.raw_packet, packet_len, true);
 		ret = i40e_program_fdir_filter(&fd_data, pf, add);
 		if (!ret) {
 			dev_info(&pf->pdev->dev, "Filter command send Status : Success\n");
@@ -1638,7 +1613,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		} else if (strncmp(&cmd_buf[5],
 			   "get local", 9) == 0) {
 			u16 llen, rlen;
-			int ret, i;
+			int ret;
 			u8 *buff;
 			buff = kzalloc(I40E_LLDPDU_SIZE, GFP_KERNEL);
 			if (!buff)
@@ -1656,22 +1631,15 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				buff = NULL;
 				goto command_write_done;
 			}
-			dev_info(&pf->pdev->dev,
-				 "Get LLDP MIB (local) AQ buffer written back:\n");
-			for (i = 0; i < I40E_LLDPDU_SIZE; i++) {
-				snprintf(print_buf, 3, "%02x ", buff[i]);
-				print_buf += 3;
-				if ((i % 16) == 15) {
-					snprintf(print_buf, 1, "\n");
-					print_buf++;
-				}
-			}
-			dev_info(&pf->pdev->dev, "%s\n", print_buf_start);
+			dev_info(&pf->pdev->dev, "LLDP MIB (local)\n");
+			print_hex_dump(KERN_INFO, "LLDP MIB (local): ",
+				       DUMP_PREFIX_OFFSET, 16, 1,
+				       buff, I40E_LLDPDU_SIZE, true);
 			kfree(buff);
 			buff = NULL;
 		} else if (strncmp(&cmd_buf[5], "get remote", 10) == 0) {
 			u16 llen, rlen;
-			int ret, i;
+			int ret;
 			u8 *buff;
 			buff = kzalloc(I40E_LLDPDU_SIZE, GFP_KERNEL);
 			if (!buff)
@@ -1690,17 +1658,10 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				buff = NULL;
 				goto command_write_done;
 			}
-			dev_info(&pf->pdev->dev,
-				 "Get LLDP MIB (remote) AQ buffer written back:\n");
-			for (i = 0; i < I40E_LLDPDU_SIZE; i++) {
-				snprintf(print_buf, 3, "%02x ", buff[i]);
-				print_buf += 3;
-				if ((i % 16) == 15) {
-					snprintf(print_buf, 1, "\n");
-					print_buf++;
-				}
-			}
-			dev_info(&pf->pdev->dev, "%s\n", print_buf_start);
+			dev_info(&pf->pdev->dev, "LLDP MIB (remote)\n");
+			print_hex_dump(KERN_INFO, "LLDP MIB (remote): ",
+				       DUMP_PREFIX_OFFSET, 16, 1,
+				       buff, I40E_LLDPDU_SIZE, true);
 			kfree(buff);
 			buff = NULL;
 		} else if (strncmp(&cmd_buf[5], "event on", 8) == 0) {
@@ -1725,7 +1686,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			}
 		}
 	} else if (strncmp(cmd_buf, "nvm read", 8) == 0) {
-		u16 buffer_len, i, bytes;
+		u16 buffer_len, bytes;
 		u16 module;
 		u32 offset;
 		u16 *buff;
@@ -1779,16 +1740,10 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			dev_info(&pf->pdev->dev,
 				 "Read NVM module=0x%x offset=0x%x words=%d\n",
 				 module, offset, buffer_len);
-			for (i = 0; i < buffer_len; i++) {
-				if ((i % 16) == 0) {
-					snprintf(print_buf, 11, "\n0x%08x: ",
-						 offset + i);
-					print_buf += 11;
-				}
-				snprintf(print_buf, 5, "%04x ", buff[i]);
-				print_buf += 5;
-			}
-			dev_info(&pf->pdev->dev, "%s\n", print_buf_start);
+			if (buffer_len)
+				print_hex_dump(KERN_INFO, "NVM Dump: ",
+					DUMP_PREFIX_OFFSET, 16, 2,
+					buff, buffer_len, true);
 		}
 		kfree(buff);
 		buff = NULL;
@@ -1832,9 +1787,6 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 command_write_done:
 	kfree(cmd_buf);
 	cmd_buf = NULL;
-	kfree(print_buf_start);
-	print_buf = NULL;
-	print_buf_start = NULL;
 	return count;
 }
 

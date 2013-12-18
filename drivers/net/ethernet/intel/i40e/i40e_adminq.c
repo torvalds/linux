@@ -31,6 +31,8 @@
 #include "i40e_adminq.h"
 #include "i40e_prototype.h"
 
+static void i40e_resume_aq(struct i40e_hw *hw);
+
 /**
  *  i40e_adminq_init_regs - Initialize AdminQ registers
  *  @hw: pointer to the hardware structure
@@ -675,7 +677,7 @@ static u16 i40e_clean_asq(struct i40e_hw *hw)
  *  Returns true if the firmware has processed all descriptors on the
  *  admin send queue. Returns false if there are still requests pending.
  **/
-bool i40e_asq_done(struct i40e_hw *hw)
+static bool i40e_asq_done(struct i40e_hw *hw)
 {
 	/* AQ designers suggest use of head for better
 	 * timing reliability than DD bit
@@ -963,7 +965,7 @@ clean_arq_element_out:
 	return ret_code;
 }
 
-void i40e_resume_aq(struct i40e_hw *hw)
+static void i40e_resume_aq(struct i40e_hw *hw)
 {
 	u32 reg = 0;
 

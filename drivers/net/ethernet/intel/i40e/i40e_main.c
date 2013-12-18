@@ -36,7 +36,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 0
 #define DRV_VERSION_MINOR 3
-#define DRV_VERSION_BUILD 13
+#define DRV_VERSION_BUILD 14
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -2489,8 +2489,8 @@ static void i40e_enable_misc_int_causes(struct i40e_hw *hw)
 	wr32(hw, I40E_PFINT_ICR0_ENA, val);
 
 	/* SW_ITR_IDX = 0, but don't change INTENA */
-	wr32(hw, I40E_PFINT_DYN_CTL0, I40E_PFINT_DYN_CTLN_SW_ITR_INDX_MASK |
-					I40E_PFINT_DYN_CTLN_INTENA_MSK_MASK);
+	wr32(hw, I40E_PFINT_DYN_CTL0, I40E_PFINT_DYN_CTL0_SW_ITR_INDX_MASK |
+					I40E_PFINT_DYN_CTL0_INTENA_MSK_MASK);
 
 	/* OTHER_ITR_IDX = 0 */
 	wr32(hw, I40E_PFINT_STAT_CTL0, 0);

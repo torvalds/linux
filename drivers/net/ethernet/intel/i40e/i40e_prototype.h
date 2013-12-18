@@ -51,7 +51,6 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 				void *buff, /* can be NULL */
 				u16  buff_size,
 				struct i40e_asq_cmd_details *cmd_details);
-bool i40e_asq_done(struct i40e_hw *hw);
 
 /* debug function for adminq */
 void i40e_debug_aq(struct i40e_hw *hw,
@@ -60,7 +59,6 @@ void i40e_debug_aq(struct i40e_hw *hw,
 		   void *buffer);
 
 void i40e_idle_aq(struct i40e_hw *hw);
-void i40e_resume_aq(struct i40e_hw *hw);
 
 u32 i40e_led_get(struct i40e_hw *hw);
 void i40e_led_set(struct i40e_hw *hw, u32 mode);
@@ -120,12 +118,6 @@ i40e_status i40e_aq_add_macvlan(struct i40e_hw *hw, u16 vsi_id,
 i40e_status i40e_aq_remove_macvlan(struct i40e_hw *hw, u16 vsi_id,
 			struct i40e_aqc_remove_macvlan_element_data *mv_list,
 			u16 count, struct i40e_asq_cmd_details *cmd_details);
-i40e_status i40e_aq_add_vlan(struct i40e_hw *hw, u16 vsi_id,
-			struct i40e_aqc_add_remove_vlan_element_data *v_list,
-			u8 count, struct i40e_asq_cmd_details *cmd_details);
-i40e_status i40e_aq_remove_vlan(struct i40e_hw *hw, u16 vsi_id,
-			struct i40e_aqc_add_remove_vlan_element_data *v_list,
-			u8 count, struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_send_msg_to_vf(struct i40e_hw *hw, u16 vfid,
 				u32 v_opcode, u32 v_retval, u8 *msg, u16 msglen,
 				struct i40e_asq_cmd_details *cmd_details);

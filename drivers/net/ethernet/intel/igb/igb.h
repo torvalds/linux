@@ -41,6 +41,7 @@
 #include <linux/if_vlan.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <linux/pci.h>
 
 struct igb_adapter;
 
@@ -67,6 +68,7 @@ struct igb_adapter;
 #define IGB_MIN_ITR_USECS	10
 #define NON_Q_VECTORS		1
 #define MAX_Q_VECTORS		8
+#define MAX_MSIX_ENTRIES	10
 
 /* Transmit and receive queues */
 #define IGB_MAX_RX_QUEUES	8
@@ -127,9 +129,9 @@ struct vf_data_storage {
 #define IGB_TX_PTHRESH	((hw->mac.type == e1000_i354) ? 20 : 8)
 #define IGB_TX_HTHRESH	1
 #define IGB_RX_WTHRESH	((hw->mac.type == e1000_82576 && \
-			  adapter->msix_entries) ? 1 : 4)
+			  (adapter->flags & IGB_FLAG_HAS_MSIX)) ? 1 : 4)
 #define IGB_TX_WTHRESH	((hw->mac.type == e1000_82576 && \
-			  adapter->msix_entries) ? 1 : 16)
+			  (adapter->flags & IGB_FLAG_HAS_MSIX)) ? 1 : 16)
 
 /* this is the size past which hardware will drop packets when setting LPE=0 */
 #define MAXIMUM_ETHERNET_VLAN_SIZE 1522
@@ -357,7 +359,7 @@ struct igb_adapter {
 	unsigned int flags;
 
 	unsigned int num_q_vectors;
-	struct msix_entry *msix_entries;
+	struct msix_entry msix_entries[MAX_MSIX_ENTRIES];
 
 	/* Interrupt Throttle Rate */
 	u32 rx_itr_setting;
@@ -469,6 +471,7 @@ struct igb_adapter {
 #define IGB_FLAG_MEDIA_RESET		(1 << 10)
 #define IGB_FLAG_MAS_CAPABLE		(1 << 11)
 #define IGB_FLAG_MAS_ENABLE		(1 << 12)
+#define IGB_FLAG_HAS_MSIX		(1 << 13)
 
 /* Media Auto Sense */
 #define IGB_MAS_ENABLE_0		0X0001
