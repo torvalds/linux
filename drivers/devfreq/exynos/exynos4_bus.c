@@ -30,7 +30,7 @@
 extern unsigned int exynos_result_of_asv;
 #endif
 
-#include <plat/map-s5p.h>
+#include <mach/map.h>
 
 #include "exynos4_bus.h"
 
