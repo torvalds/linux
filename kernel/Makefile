@@ -137,9 +137,10 @@ $(obj)/timeconst.h: $(obj)/hz.bc $(src)/timeconst.bc FORCE
 ###############################################################################
 ifeq ($(CONFIG_SYSTEM_TRUSTED_KEYRING),y)
 X509_CERTIFICATES-y := $(wildcard *.x509) $(wildcard $(srctree)/*.x509)
-X509_CERTIFICATES-$(CONFIG_MODULE_SIG) += signing_key.x509
-X509_CERTIFICATES := $(sort $(foreach CERT,$(X509_CERTIFICATES-y), \
+X509_CERTIFICATES-$(CONFIG_MODULE_SIG) += $(objtree)/signing_key.x509
+X509_CERTIFICATES-raw := $(sort $(foreach CERT,$(X509_CERTIFICATES-y), \
 				$(or $(realpath $(CERT)),$(CERT))))
+X509_CERTIFICATES := $(subst $(realpath $(objtree))/,,$(X509_CERTIFICATES-raw))
 
 ifeq ($(X509_CERTIFICATES),)
 $(warning *** No X.509 certificates found ***)
@@ -164,9 +165,9 @@ $(obj)/x509_certificate_list: $(X509_CERTIFICATES) $(obj)/.x509.list
 targets += $(obj)/.x509.list
 $(obj)/.x509.list:
 	@echo $(X509_CERTIFICATES) >$@
+endif
 
 clean-files := x509_certificate_list .x509.list
-endif
 
 ifeq ($(CONFIG_MODULE_SIG),y)
 ###############################################################################
