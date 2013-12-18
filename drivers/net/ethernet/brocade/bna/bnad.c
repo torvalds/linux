@@ -2958,20 +2958,20 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	tcb = bnad->tx_info[0].tcb[txq_id];
-	q_depth = tcb->q_depth;
-	prod = tcb->producer_index;
-
-	unmap_q = tcb->unmap_q;
 
 	/*
 	 * Takes care of the Tx that is scheduled between clearing the flag
 	 * and the netif_tx_stop_all_queues() call.
 	 */
-	if (unlikely(!test_bit(BNAD_TXQ_TX_STARTED, &tcb->flags))) {
+	if (unlikely(!tcb || !test_bit(BNAD_TXQ_TX_STARTED, &tcb->flags))) {
 		dev_kfree_skb(skb);
 		BNAD_UPDATE_CTR(bnad, tx_skb_stopping);
 		return NETDEV_TX_OK;
 	}
+
+	q_depth = tcb->q_depth;
+	prod = tcb->producer_index;
+	unmap_q = tcb->unmap_q;
 
 	vectors = 1 + skb_shinfo(skb)->nr_frags;
 	wis = BNA_TXQ_WI_NEEDED(vectors);	/* 4 vectors per work item */
