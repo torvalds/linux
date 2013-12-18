@@ -988,7 +988,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = HAS_WT(dev);
 		break;
 	case I915_PARAM_HAS_ALIASING_PPGTT:
-		value = dev_priv->mm.aliasing_ppgtt ? 1 : 0;
+		value = dev_priv->mm.aliasing_ppgtt || USES_FULL_PPGTT(dev);
 		break;
 	case I915_PARAM_HAS_WAIT_TIMEOUT:
 		value = 1;
@@ -1010,9 +1010,6 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_HAS_EXEC_HANDLE_LUT:
 		value = 1;
-		break;
-	case I915_PARAM_HAS_FULL_PPGTT:
-		value = USES_FULL_PPGTT(dev);
 		break;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", param->param);
