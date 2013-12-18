@@ -478,8 +478,8 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 				musb->port1_status |=
 						(USB_PORT_STAT_C_SUSPEND << 16)
 						| MUSB_PORT_STAT_RESUME;
-				musb->rh_timer = jiffies
-						+ msecs_to_jiffies(20);
+				schedule_delayed_work(
+					&musb->finish_resume_work, 20);
 
 				musb->xceiv->state = OTG_STATE_A_HOST;
 				musb->is_active = 1;
@@ -1813,6 +1813,21 @@ static void musb_free(struct musb *musb)
 	musb_host_free(musb);
 }
 
+static void musb_deassert_reset(struct work_struct *work)
+{
+	struct musb *musb;
+	unsigned long flags;
+
+	musb = container_of(work, struct musb, deassert_reset_work.work);
+
+	spin_lock_irqsave(&musb->lock, flags);
+
+	if (musb->port1_status & USB_PORT_STAT_RESET)
+		musb_port_reset(musb, false);
+
+	spin_unlock_irqrestore(&musb->lock, flags);
+}
+
 /*
  * Perform generic per-controller initialization.
  *
@@ -1897,6 +1912,8 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 
 	/* Init IRQ workqueue before request_irq */
 	INIT_WORK(&musb->irq_work, musb_irq_work);
+	INIT_DELAYED_WORK(&musb->deassert_reset_work, musb_deassert_reset);
+	INIT_DELAYED_WORK(&musb->finish_resume_work, musb_host_finish_resume);
 
 	/* setup musb parts of the core (especially endpoints) */
 	status = musb_core_init(plat->config->multipoint
@@ -1990,6 +2007,8 @@ fail4:
 
 fail3:
 	cancel_work_sync(&musb->irq_work);
+	cancel_delayed_work_sync(&musb->finish_resume_work);
+	cancel_delayed_work_sync(&musb->deassert_reset_work);
 	if (musb->dma_controller)
 		dma_controller_destroy(musb->dma_controller);
 fail2_5:
@@ -2053,6 +2072,8 @@ static int musb_remove(struct platform_device *pdev)
 		dma_controller_destroy(musb->dma_controller);
 
 	cancel_work_sync(&musb->irq_work);
+	cancel_delayed_work_sync(&musb->finish_resume_work);
+	cancel_delayed_work_sync(&musb->deassert_reset_work);
 	musb_free(musb);
 	device_init_wakeup(dev, 0);
 	return 0;
