@@ -3134,6 +3134,7 @@ static int tid_init(struct tid_info *t)
 	size_t size;
 	unsigned int stid_bmap_size;
 	unsigned int natids = t->natids;
+	struct adapter *adap = container_of(t, struct adapter, tids);
 
 	stid_bmap_size = BITS_TO_LONGS(t->nstids + t->nsftids);
 	size = t->ntids * sizeof(*t->tid_tab) +
@@ -3167,6 +3168,11 @@ static int tid_init(struct tid_info *t)
 		t->afree = t->atid_tab;
 	}
 	bitmap_zero(t->stid_bmap, t->nstids + t->nsftids);
+	/* Reserve stid 0 for T4/T5 adapters */
+	if (!t->stid_base &&
+	    (is_t4(adap->params.chip) || is_t5(adap->params.chip)))
+		__set_bit(0, t->stid_bmap);
+
 	return 0;
 }
 
