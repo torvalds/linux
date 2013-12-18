@@ -583,6 +583,9 @@ i40e_status i40e_init_adminq(struct i40e_hw *hw)
 		goto init_adminq_free_arq;
 	}
 
+	/* pre-emptive resource lock release */
+	i40e_aq_release_resource(hw, I40E_NVM_RESOURCE_ID, 0, NULL);
+
 	ret_code = i40e_aq_set_hmc_resource_profile(hw,
 						    I40E_HMC_PROFILE_DEFAULT,
 						    0,
