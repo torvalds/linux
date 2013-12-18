@@ -2758,16 +2758,16 @@ static irqreturn_t i40e_intr(int irq, void *data)
 {
 	struct i40e_pf *pf = (struct i40e_pf *)data;
 	struct i40e_hw *hw = &pf->hw;
+	irqreturn_t ret = IRQ_NONE;
 	u32 icr0, icr0_remaining;
 	u32 val, ena_mask;
 
 	icr0 = rd32(hw, I40E_PFINT_ICR0);
+	ena_mask = rd32(hw, I40E_PFINT_ICR0_ENA);
 
 	/* if sharing a legacy IRQ, we might get called w/o an intr pending */
 	if ((icr0 & I40E_PFINT_ICR0_INTEVENT_MASK) == 0)
-		return IRQ_NONE;
-
-	ena_mask = rd32(hw, I40E_PFINT_ICR0_ENA);
+		goto enable_intr;
 
 	/* if interrupt but no bits showing, must be SWINT */
 	if (((icr0 & ~I40E_PFINT_ICR0_INTEVENT_MASK) == 0) ||
@@ -2843,7 +2843,9 @@ static irqreturn_t i40e_intr(int irq, void *data)
 		}
 		ena_mask &= ~icr0_remaining;
 	}
+	ret = IRQ_HANDLED;
 
+enable_intr:
 	/* re-enable interrupt causes */
 	wr32(hw, I40E_PFINT_ICR0_ENA, ena_mask);
 	if (!test_bit(__I40E_DOWN, &pf->state)) {
@@ -2851,7 +2853,7 @@ static irqreturn_t i40e_intr(int irq, void *data)
 		i40e_irq_dynamic_enable_icr0(pf);
 	}
 
-	return IRQ_HANDLED;
+	return ret;
 }
 
 /**
