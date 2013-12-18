@@ -68,6 +68,9 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 				  SVGA_FIFO_3D_HWVERSION));
 		break;
 	}
+	case DRM_VMW_PARAM_MAX_SURF_MEMORY:
+		param->value = dev_priv->memory_size;
+		break;
 	default:
 		DRM_ERROR("Illegal vmwgfx get param request: %d\n",
 			  param->param);
