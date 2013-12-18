@@ -59,10 +59,8 @@ void __init prom_init(void)
 	/* do low level board init */
 	board_prom_init();
 
-	if (IS_ENABLED(CONFIG_CPU_BMIPS4350) && IS_ENABLED(CONFIG_SMP)) {
-		/* set up SMP */
-		register_bmips_smp_ops();
-
+	/* set up SMP */
+	if (!register_bmips_smp_ops()) {
 		/*
 		 * BCM6328 might not have its second CPU enabled, while BCM3368
 		 * and BCM6358 need special handling for their shared TLB, so
