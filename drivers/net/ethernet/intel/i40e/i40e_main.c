@@ -5817,7 +5817,6 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	pf->flags = I40E_FLAG_RX_CSUM_ENABLED |
 		    I40E_FLAG_MSI_ENABLED     |
 		    I40E_FLAG_MSIX_ENABLED    |
-		    I40E_FLAG_RX_PS_ENABLED   |
 		    I40E_FLAG_RX_1BUF_ENABLED;
 
 	/* Depending on PF configurations, it is possible that the RSS
