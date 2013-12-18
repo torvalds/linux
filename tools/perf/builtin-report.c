@@ -75,6 +75,24 @@ static int perf_report_config(const char *var, const char *value, void *cb)
 	return perf_default_config(var, value, cb);
 }
 
+static int report__resolve_callchain(struct perf_report *rep, struct symbol **parent,
+				     struct perf_evsel *evsel, struct addr_location *al,
+				     struct perf_sample *sample, struct machine *machine)
+{
+	if ((sort__has_parent || symbol_conf.use_callchain) && sample->callchain) {
+		return machine__resolve_callchain(machine, evsel, al->thread, sample,
+						  parent, al, rep->max_stack);
+	}
+	return 0;
+}
+
+static int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *sample)
+{
+	if (!symbol_conf.use_callchain)
+		return 0;
+	return callchain_append(he->callchain, &callchain_cursor, sample->period);
+}
+
 static int perf_report__add_mem_hist_entry(struct perf_tool *tool,
 					   struct addr_location *al,
 					   struct perf_sample *sample,
@@ -85,19 +103,13 @@ static int perf_report__add_mem_hist_entry(struct perf_tool *tool,
 	struct perf_report *rep = container_of(tool, struct perf_report, tool);
 	struct symbol *parent = NULL;
 	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-	int err = 0;
 	struct hist_entry *he;
 	struct mem_info *mi, *mx;
 	uint64_t cost;
+	int err = report__resolve_callchain(rep, &parent, evsel, al, sample, machine);
 
-	if ((sort__has_parent || symbol_conf.use_callchain) &&
-	    sample->callchain) {
-		err = machine__resolve_callchain(machine, evsel, al->thread,
-						 sample, &parent, al,
-						 rep->max_stack);
-		if (err)
-			return err;
-	}
+	if (err)
+		return err;
 
 	mi = machine__resolve_mem(machine, al->thread, sample, cpumode);
 	if (!mi)
@@ -133,13 +145,7 @@ static int perf_report__add_mem_hist_entry(struct perf_tool *tool,
 
 	evsel->hists.stats.total_period += cost;
 	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
-	err = 0;
-
-	if (symbol_conf.use_callchain) {
-		err = callchain_append(he->callchain,
-				       &callchain_cursor,
-				       sample->period);
-	}
+	err = hist_entry__append_callchain(he, sample);
 out:
 	return err;
 }
@@ -152,19 +158,13 @@ static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 {
 	struct perf_report *rep = container_of(tool, struct perf_report, tool);
 	struct symbol *parent = NULL;
-	int err = 0;
 	unsigned i;
 	struct hist_entry *he;
 	struct branch_info *bi, *bx;
+	int err = report__resolve_callchain(rep, &parent, evsel, al, sample, machine);
 
-	if ((sort__has_parent || symbol_conf.use_callchain)
-	    && sample->callchain) {
-		err = machine__resolve_callchain(machine, evsel, al->thread,
-						 sample, &parent, al,
-						 rep->max_stack);
-		if (err)
-			return err;
-	}
+	if (err)
+		return err;
 
 	bi = machine__resolve_bstack(machine, al->thread,
 				     sample->branch_stack);
@@ -216,16 +216,11 @@ static int perf_evsel__add_hist_entry(struct perf_tool *tool,
 {
 	struct perf_report *rep = container_of(tool, struct perf_report, tool);
 	struct symbol *parent = NULL;
-	int err = 0;
 	struct hist_entry *he;
+	int err = report__resolve_callchain(rep, &parent, evsel, al, sample, machine);
 
-	if ((sort__has_parent || symbol_conf.use_callchain) && sample->callchain) {
-		err = machine__resolve_callchain(machine, evsel, al->thread,
-						 sample, &parent, al,
-						 rep->max_stack);
-		if (err)
-			return err;
-	}
+	if (err)
+		return err;
 
 	he = __hists__add_entry(&evsel->hists, al, parent, NULL, NULL,
 				sample->period, sample->weight,
@@ -233,17 +228,14 @@ static int perf_evsel__add_hist_entry(struct perf_tool *tool,
 	if (he == NULL)
 		return -ENOMEM;
 
-	if (symbol_conf.use_callchain) {
-		err = callchain_append(he->callchain,
-				       &callchain_cursor,
-				       sample->period);
-		if (err)
-			return err;
-	}
+	err = hist_entry__append_callchain(he, sample);
+	if (err)
+		goto out;
 
 	err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
 	evsel->hists.stats.total_period += sample->period;
 	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
+out:
 	return err;
 }
 
