@@ -128,6 +128,12 @@ eb_lookup_vmas(struct eb_vmas *eb,
 		struct i915_vma *vma;
 		struct i915_address_space *bind_vm = vm;
 
+		if (exec[i].flags & EXEC_OBJECT_NEEDS_GTT &&
+		    USES_FULL_PPGTT(vm->dev)) {
+			ret = -EINVAL;
+			goto out;
+		}
+
 		/* If we have secure dispatch, or the userspace assures us that
 		 * they know what they're doing, use the GGTT VM.
 		 */
