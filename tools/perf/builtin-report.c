@@ -127,8 +127,7 @@ static int perf_report__add_mem_hist_entry(struct perf_tool *tool,
 		goto out;
 
 	mx = he->mem_info;
-	err = symbol__inc_addr_samples(mx->daddr.sym, mx->daddr.map,
-				       evsel->idx, mx->daddr.al_addr);
+	err = addr_map_symbol__inc_samples(&mx->daddr, evsel->idx);
 	if (err)
 		goto out;
 
@@ -190,15 +189,11 @@ static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 					1, 1, 0);
 		if (he) {
 			bx = he->branch_info;
-			err = symbol__inc_addr_samples(bx->from.sym,
-						       bx->from.map, evsel->idx,
-						       bx->from.al_addr);
+			err = addr_map_symbol__inc_samples(&bx->from, evsel->idx);
 			if (err)
 				goto out;
 
-			err = symbol__inc_addr_samples(bx->to.sym,
-						       bx->to.map, evsel->idx,
-						       bx->to.al_addr);
+			err = addr_map_symbol__inc_samples(&bx->to, evsel->idx);
 			if (err)
 				goto out;
 

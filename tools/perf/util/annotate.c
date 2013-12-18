@@ -503,6 +503,11 @@ int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 	return __symbol__inc_addr_samples(sym, map, notes, evidx, addr);
 }
 
+int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, int evidx)
+{
+	return symbol__inc_addr_samples(ams->sym, ams->map, evidx, ams->al_addr);
+}
+
 static void disasm_line__init_ins(struct disasm_line *dl)
 {
 	dl->ins = ins__find(dl->name);
