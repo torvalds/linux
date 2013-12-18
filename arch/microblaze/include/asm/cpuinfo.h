@@ -91,6 +91,7 @@ extern struct cpuinfo cpuinfo;
 
 /* fwd declarations of the various CPUinfo populators */
 void setup_cpuinfo(void);
+void setup_cpuinfo_clk(void);
 
 void set_cpuinfo_static(struct cpuinfo *ci, struct device_node *cpu);
 void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_node *cpu);

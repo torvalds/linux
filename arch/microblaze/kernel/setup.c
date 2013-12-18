@@ -9,6 +9,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
@@ -195,6 +196,8 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 
 void __init time_init(void)
 {
+	of_clk_init(NULL);
+	setup_cpuinfo_clk();
 	clocksource_of_init();
 }
 

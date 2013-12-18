@@ -230,9 +230,9 @@ static int timer_initialized;
 
 static void __init xilinx_timer_init(struct device_node *timer)
 {
+	struct clk *clk;
 	u32 irq;
 	u32 timer_num = 1;
-	int ret;
 
 	timer_baseaddr = of_iomap(timer, 0);
 	if (!timer_baseaddr) {
@@ -250,10 +250,20 @@ static void __init xilinx_timer_init(struct device_node *timer)
 
 	pr_info("%s: irq=%d\n", timer->full_name, irq);
 
-	/* If there is clock-frequency property than use it */
-	ret = of_property_read_u32(timer, "clock-frequency", &timer_clock_freq);
-	if (ret < 0)
+	clk = of_clk_get(timer, 0);
+	if (IS_ERR(clk)) {
+		pr_err("ERROR: timer CCF input clock not found\n");
+		/* If there is clock-frequency property than use it */
+		of_property_read_u32(timer, "clock-frequency",
+				    &timer_clock_freq);
+	} else {
+		timer_clock_freq = clk_get_rate(clk);
+	}
+
+	if (!timer_clock_freq) {
+		pr_err("ERROR: Using CPU clock frequency\n");
 		timer_clock_freq = cpuinfo.cpu_clock_freq;
+	}
 
 	freq_div_hz = timer_clock_freq / HZ;
 
