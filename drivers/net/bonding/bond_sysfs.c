@@ -790,8 +790,25 @@ static ssize_t bonding_store_num_peer_notif(struct device *d,
 					    const char *buf, size_t count)
 {
 	struct bonding *bond = to_bond(d);
-	int err = kstrtou8(buf, 10, &bond->params.num_peer_notif);
-	return err ? err : count;
+	u8 new_value;
+	int ret;
+
+	ret = kstrtou8(buf, 10, &new_value);
+	if (!ret) {
+		pr_err("%s: invalid value %s specified.\n",
+		       bond->dev->name, buf);
+		return ret;
+	}
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	ret = bond_option_num_peer_notif_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
+	rtnl_unlock();
+	return ret;
 }
 static DEVICE_ATTR(num_grat_arp, S_IRUGO | S_IWUSR,
 		   bonding_show_num_peer_notif, bonding_store_num_peer_notif);

@@ -576,3 +576,9 @@ int bond_option_resend_igmp_set(struct bonding *bond, int resend_igmp)
 
 	return 0;
 }
+
+int bond_option_num_peer_notif_set(struct bonding *bond, int num_peer_notif)
+{
+	bond->params.num_peer_notif = num_peer_notif;
+	return 0;
+}
