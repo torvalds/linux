@@ -171,8 +171,6 @@ extern void si_trim_voltage_table_to_fit_state_table(struct radeon_device *rdev,
 						     struct atom_voltage_table *voltage_table);
 extern void cik_enter_rlc_safe_mode(struct radeon_device *rdev);
 extern void cik_exit_rlc_safe_mode(struct radeon_device *rdev);
-extern void cik_update_cg(struct radeon_device *rdev,
-			  u32 block, bool enable);
 
 static int ci_get_std_voltage_value_sidd(struct radeon_device *rdev,
 					 struct atom_voltage_table_entry *voltage_table,
@@ -4561,13 +4559,6 @@ int ci_dpm_enable(struct radeon_device *rdev)
 	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
 	int ret;
 
-	cik_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
-			     RADEON_CG_BLOCK_MC |
-			     RADEON_CG_BLOCK_SDMA |
-			     RADEON_CG_BLOCK_BIF |
-			     RADEON_CG_BLOCK_UVD |
-			     RADEON_CG_BLOCK_HDP), false);
-
 	if (ci_is_smc_running(rdev))
 		return -EINVAL;
 	if (pi->voltage_control != CISLANDS_VOLTAGE_CONTROL_NONE) {
@@ -4689,13 +4680,6 @@ int ci_dpm_enable(struct radeon_device *rdev)
 
 	ci_dpm_powergate_uvd(rdev, true);
 
-	cik_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
-			     RADEON_CG_BLOCK_MC |
-			     RADEON_CG_BLOCK_SDMA |
-			     RADEON_CG_BLOCK_BIF |
-			     RADEON_CG_BLOCK_UVD |
-			     RADEON_CG_BLOCK_HDP), true);
-
 	ci_update_current_ps(rdev, boot_ps);
 
 	return 0;
@@ -4705,12 +4689,6 @@ void ci_dpm_disable(struct radeon_device *rdev)
 {
 	struct ci_power_info *pi = ci_get_pi(rdev);
 	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
-
-	cik_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
-			     RADEON_CG_BLOCK_MC |
-			     RADEON_CG_BLOCK_SDMA |
-			     RADEON_CG_BLOCK_UVD |
-			     RADEON_CG_BLOCK_HDP), false);
 
 	ci_dpm_powergate_uvd(rdev, false);
 
@@ -4741,13 +4719,6 @@ int ci_dpm_set_power_state(struct radeon_device *rdev)
 	struct radeon_ps *new_ps = &pi->requested_rps;
 	struct radeon_ps *old_ps = &pi->current_rps;
 	int ret;
-
-	cik_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
-			     RADEON_CG_BLOCK_MC |
-			     RADEON_CG_BLOCK_SDMA |
-			     RADEON_CG_BLOCK_BIF |
-			     RADEON_CG_BLOCK_UVD |
-			     RADEON_CG_BLOCK_HDP), false);
 
 	ci_find_dpm_states_clocks_in_dpm_table(rdev, new_ps);
 	if (pi->pcie_performance_request)
@@ -4803,13 +4774,6 @@ int ci_dpm_set_power_state(struct radeon_device *rdev)
 	}
 	if (pi->pcie_performance_request)
 		ci_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
-
-	cik_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
-			     RADEON_CG_BLOCK_MC |
-			     RADEON_CG_BLOCK_SDMA |
-			     RADEON_CG_BLOCK_BIF |
-			     RADEON_CG_BLOCK_UVD |
-			     RADEON_CG_BLOCK_HDP), true);
 
 	return 0;
 }
