@@ -917,6 +917,60 @@ static const struct file_operations radeon_ttm_vram_fops = {
 	.llseek = default_llseek
 };
 
+static int radeon_ttm_gtt_open(struct inode *inode, struct file *filep)
+{
+	struct radeon_device *rdev = inode->i_private;
+	i_size_write(inode, rdev->mc.gtt_size);
+	filep->private_data = inode->i_private;
+	return 0;
+}
+
+static ssize_t radeon_ttm_gtt_read(struct file *f, char __user *buf,
+				   size_t size, loff_t *pos)
+{
+	struct radeon_device *rdev = f->private_data;
+	ssize_t result = 0;
+	int r;
+
+	while (size) {
+		loff_t p = *pos / PAGE_SIZE;
+		unsigned off = *pos & ~PAGE_MASK;
+		ssize_t cur_size = min(size, PAGE_SIZE - off);
+		struct page *page;
+		void *ptr;
+
+		if (p >= rdev->gart.num_cpu_pages)
+			return result;
+
+		page = rdev->gart.pages[p];
+		if (page) {
+			ptr = kmap(page);
+			ptr += off;
+
+			r = copy_to_user(buf, ptr, cur_size);
+			kunmap(rdev->gart.pages[p]);
+		} else
+			r = clear_user(buf, cur_size);
+
+		if (r)
+			return -EFAULT;
+
+		result += cur_size;
+		buf += cur_size;
+		*pos += cur_size;
+		size -= cur_size;
+	}
+
+	return result;
+}
+
+static const struct file_operations radeon_ttm_gtt_fops = {
+	.owner = THIS_MODULE,
+	.open = radeon_ttm_gtt_open,
+	.read = radeon_ttm_gtt_read,
+	.llseek = default_llseek
+};
+
 #endif
 
 static int radeon_ttm_debugfs_init(struct radeon_device *rdev)
@@ -932,6 +986,12 @@ static int radeon_ttm_debugfs_init(struct radeon_device *rdev)
 	if (IS_ERR(ent))
 		return PTR_ERR(ent);
 	rdev->mman.vram = ent;
+
+	ent = debugfs_create_file("radeon_gtt", S_IFREG | S_IRUGO, root,
+				  rdev, &radeon_ttm_gtt_fops);
+	if (IS_ERR(ent))
+		return PTR_ERR(ent);
+	rdev->mman.gtt = ent;
 
 	count = ARRAY_SIZE(radeon_ttm_debugfs_list);
 
@@ -953,5 +1013,8 @@ static void radeon_ttm_debugfs_fini(struct radeon_device *rdev)
 
 	debugfs_remove(rdev->mman.vram);
 	rdev->mman.vram = NULL;
+
+	debugfs_remove(rdev->mman.gtt);
+	rdev->mman.gtt = NULL;
 #endif
 }

@@ -416,6 +416,7 @@ struct radeon_mman {
 
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry			*vram;
+	struct dentry			*gtt;
 #endif
 };
 
