@@ -29,7 +29,9 @@
 #include <mach/hardware.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>
+#ifndef CONFIG_ARCH_EXYNOS
 #include <mach/regs-irq.h>
+#endif
 #include <mach/irqs.h>
 #endif
 

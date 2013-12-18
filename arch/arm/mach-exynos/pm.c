@@ -29,7 +29,6 @@
 #include <plat/pll.h>
 #include <plat/regs-srom.h>
 
-#include <mach/regs-irq.h>
 #include <mach/regs-clock.h>
 #include <mach/pm-core.h>
 
