@@ -222,6 +222,7 @@ struct bnad_rx_info {
 
 struct bnad_tx_vector {
 	DEFINE_DMA_UNMAP_ADDR(dma_addr);
+	DEFINE_DMA_UNMAP_LEN(dma_len);
 };
 
 struct bnad_tx_unmap {

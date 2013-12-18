@@ -142,7 +142,8 @@ bnad_tx_buff_unmap(struct bnad *bnad,
 
 		dma_unmap_page(&bnad->pcidev->dev,
 			dma_unmap_addr(&unmap->vectors[vector], dma_addr),
-			skb_shinfo(skb)->frags[nvecs].size, DMA_TO_DEVICE);
+			dma_unmap_len(&unmap->vectors[vector], dma_len),
+			DMA_TO_DEVICE);
 		dma_unmap_addr_set(&unmap->vectors[vector], dma_addr, 0);
 		nvecs--;
 	}
@@ -3045,7 +3046,7 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	for (i = 0, vect_id = 0; i < vectors - 1; i++) {
 		const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
-		u16		size = skb_frag_size(frag);
+		u32		size = skb_frag_size(frag);
 
 		if (unlikely(size == 0)) {
 			/* Undo the changes starting at tcb->producer_index */
@@ -3070,6 +3071,7 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 		dma_addr = skb_frag_dma_map(&bnad->pcidev->dev, frag,
 					    0, size, DMA_TO_DEVICE);
+		unmap->vectors[vect_id].dma_len = size;
 		BNA_SET_DMA_ADDR(dma_addr, &txqent->vector[vect_id].host_addr);
 		txqent->vector[vect_id].length = htons(size);
 		dma_unmap_addr_set(&unmap->vectors[vect_id], dma_addr,
