@@ -16,6 +16,7 @@
 #include <linux/netdevice.h>
 #include <linux/rwlock.h>
 #include <linux/rcupdate.h>
+#include <linux/reciprocal_div.h>
 #include "bonding.h"
 
 static bool bond_mode_is_valid(int mode)
@@ -630,6 +631,28 @@ int bond_option_lp_interval_set(struct bonding *bond, int lp_interval)
 	}
 
 	bond->params.lp_interval = lp_interval;
+
+	return 0;
+}
+
+int bond_option_packets_per_slave_set(struct bonding *bond,
+				      int packets_per_slave)
+{
+	if (packets_per_slave < 0 || packets_per_slave > USHRT_MAX) {
+		pr_err("%s: packets_per_slave must be between 0 and %u\n",
+		       bond->dev->name, USHRT_MAX);
+		return -EINVAL;
+	}
+
+	if (bond->params.mode != BOND_MODE_ROUNDROBIN)
+		pr_warn("%s: Warning: packets_per_slave has effect only in balance-rr mode\n",
+			bond->dev->name);
+
+	if (packets_per_slave > 1)
+		bond->params.packets_per_slave =
+			reciprocal_value(packets_per_slave);
+	else
+		bond->params.packets_per_slave = packets_per_slave;
 
 	return 0;
 }
