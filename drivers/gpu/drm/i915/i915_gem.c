@@ -3275,11 +3275,9 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 	}
 
 search_free:
-	/* FIXME: Some tests are failing when they receive a reloc of 0. To
-	 * prevent this, we simply don't allow the 0th offset. */
 	ret = drm_mm_insert_node_in_range_generic(&vm->mm, &vma->node,
 						  size, alignment,
-						  obj->cache_level, 1, gtt_max,
+						  obj->cache_level, 0, gtt_max,
 						  DRM_MM_SEARCH_DEFAULT);
 	if (ret) {
 		ret = i915_gem_evict_something(dev, vm, size, alignment,
