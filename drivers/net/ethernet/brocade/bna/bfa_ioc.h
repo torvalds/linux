@@ -215,6 +215,13 @@ struct bfa_ioc_hwif {
 	void		(*ioc_sync_ack)		(struct bfa_ioc *ioc);
 	bool		(*ioc_sync_complete)	(struct bfa_ioc *ioc);
 	bool		(*ioc_lpu_read_stat)	(struct bfa_ioc *ioc);
+	void		(*ioc_set_fwstate)	(struct bfa_ioc *ioc,
+					enum bfi_ioc_state fwstate);
+	enum bfi_ioc_state (*ioc_get_fwstate) (struct bfa_ioc *ioc);
+	void		(*ioc_set_alt_fwstate)	(struct bfa_ioc *ioc,
+					enum bfi_ioc_state fwstate);
+	enum bfi_ioc_state (*ioc_get_alt_fwstate) (struct bfa_ioc *ioc);
+
 };
 
 #define bfa_ioc_pcifn(__ioc)		((__ioc)->pcidev.pci_func)

@@ -42,6 +42,14 @@
 			((__ioc)->ioc_hwif->ioc_sync_ack(__ioc))
 #define bfa_ioc_sync_complete(__ioc)			\
 			((__ioc)->ioc_hwif->ioc_sync_complete(__ioc))
+#define bfa_ioc_set_cur_ioc_fwstate(__ioc, __fwstate)		\
+			((__ioc)->ioc_hwif->ioc_set_fwstate(__ioc, __fwstate))
+#define bfa_ioc_get_cur_ioc_fwstate(__ioc)		\
+			((__ioc)->ioc_hwif->ioc_get_fwstate(__ioc))
+#define bfa_ioc_set_alt_ioc_fwstate(__ioc, __fwstate)		\
+		((__ioc)->ioc_hwif->ioc_set_alt_fwstate(__ioc, __fwstate))
+#define bfa_ioc_get_alt_ioc_fwstate(__ioc)		\
+			((__ioc)->ioc_hwif->ioc_get_alt_fwstate(__ioc))
 
 #define bfa_ioc_mbox_cmd_pending(__ioc)		\
 			(!list_empty(&((__ioc)->mbox_mod.cmd_q)) || \
@@ -860,7 +868,7 @@ bfa_iocpf_sm_disabling(struct bfa_iocpf *iocpf, enum iocpf_event event)
 		 */
 
 	case IOCPF_E_TIMEOUT:
-		writel(BFI_IOC_FAIL, ioc->ioc_regs.ioc_fwstate);
+		bfa_ioc_set_cur_ioc_fwstate(ioc, BFI_IOC_FAIL);
 		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_disabling_sync);
 		break;
 
@@ -949,7 +957,7 @@ bfa_iocpf_sm_initfail_sync(struct bfa_iocpf *iocpf, enum iocpf_event event)
 	case IOCPF_E_SEMLOCKED:
 		bfa_ioc_notify_fail(ioc);
 		bfa_ioc_sync_leave(ioc);
-		writel(BFI_IOC_FAIL, ioc->ioc_regs.ioc_fwstate);
+		bfa_ioc_set_cur_ioc_fwstate(ioc, BFI_IOC_FAIL);
 		bfa_nw_ioc_hw_sem_release(ioc);
 		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_initfail);
 		break;
@@ -1031,7 +1039,7 @@ bfa_iocpf_sm_fail_sync(struct bfa_iocpf *iocpf, enum iocpf_event event)
 		bfa_ioc_notify_fail(ioc);
 		if (!iocpf->auto_recover) {
 			bfa_ioc_sync_leave(ioc);
-			writel(BFI_IOC_FAIL, ioc->ioc_regs.ioc_fwstate);
+			bfa_ioc_set_cur_ioc_fwstate(ioc, BFI_IOC_FAIL);
 			bfa_nw_ioc_hw_sem_release(ioc);
 			bfa_fsm_set_state(iocpf, bfa_iocpf_sm_fail);
 		} else {
@@ -1162,7 +1170,7 @@ bfa_ioc_hw_sem_init(struct bfa_ioc *ioc)
 		r32 = readl(ioc->ioc_regs.ioc_init_sem_reg);
 	}
 
-	fwstate = readl(ioc->ioc_regs.ioc_fwstate);
+	fwstate = bfa_ioc_get_cur_ioc_fwstate(ioc);
 	if (fwstate == BFI_IOC_UNINIT) {
 		writel(1, ioc->ioc_regs.ioc_init_sem_reg);
 		return;
@@ -1176,8 +1184,8 @@ bfa_ioc_hw_sem_init(struct bfa_ioc *ioc)
 	}
 
 	bfa_ioc_fwver_clear(ioc);
-	writel(BFI_IOC_UNINIT, ioc->ioc_regs.ioc_fwstate);
-	writel(BFI_IOC_UNINIT, ioc->ioc_regs.alt_ioc_fwstate);
+	bfa_ioc_set_cur_ioc_fwstate(ioc, BFI_IOC_UNINIT);
+	bfa_ioc_set_alt_ioc_fwstate(ioc, BFI_IOC_UNINIT);
 
 	/*
 	 * Try to lock and then unlock the semaphore.
@@ -1366,7 +1374,7 @@ bfa_ioc_hwinit(struct bfa_ioc *ioc, bool force)
 	bool fwvalid;
 	u32 boot_env;
 
-	ioc_fwstate = readl(ioc->ioc_regs.ioc_fwstate);
+	ioc_fwstate = bfa_ioc_get_cur_ioc_fwstate(ioc);
 
 	if (force)
 		ioc_fwstate = BFI_IOC_UNINIT;
@@ -1859,11 +1867,11 @@ bfa_ioc_boot(struct bfa_ioc *ioc, enum bfi_fwboot_type boot_type,
 	 * Initialize IOC state of all functions on a chip reset.
 	 */
 	if (boot_type == BFI_FWBOOT_TYPE_MEMTEST) {
-		writel(BFI_IOC_MEMTEST, ioc->ioc_regs.ioc_fwstate);
-		writel(BFI_IOC_MEMTEST, ioc->ioc_regs.alt_ioc_fwstate);
+		bfa_ioc_set_cur_ioc_fwstate(ioc, BFI_IOC_MEMTEST);
+		bfa_ioc_set_alt_ioc_fwstate(ioc, BFI_IOC_MEMTEST);
 	} else {
-		writel(BFI_IOC_INITING, ioc->ioc_regs.ioc_fwstate);
-		writel(BFI_IOC_INITING, ioc->ioc_regs.alt_ioc_fwstate);
+		bfa_ioc_set_cur_ioc_fwstate(ioc, BFI_IOC_INITING);
+		bfa_ioc_set_alt_ioc_fwstate(ioc, BFI_IOC_INITING);
 	}
 
 	bfa_ioc_msgflush(ioc);
@@ -2473,7 +2481,7 @@ bfa_nw_iocpf_sem_timeout(void *ioc_arg)
 static void
 bfa_ioc_poll_fwinit(struct bfa_ioc *ioc)
 {
-	u32 fwstate = readl(ioc->ioc_regs.ioc_fwstate);
+	u32 fwstate = bfa_ioc_get_cur_ioc_fwstate(ioc);
 
 	if (fwstate == BFI_IOC_DISABLED) {
 		bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_FWREADY);
