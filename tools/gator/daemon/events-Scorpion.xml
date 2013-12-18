@@ -1,0 +1,107 @@
+  <counter_set name="Scorpion_cnt" count="4"/>
+  <category name="Scorpion" counter_set="Scorpion_cnt" per_cpu="yes" supports_event_based_sampling="yes">
+    <event counter="Scorpion_ccnt" event="0xff" title="Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" average_cores="yes" description="The number of core clock cycles"/>
+    <event event="0x00" title="Software" name="Increment" description="Incremented only on writes to the Software Increment Register"/>
+    <event event="0x01" title="Cache" name="Instruction refill" description="Instruction fetch that causes a refill of at least the level of instruction or unified cache closest to the processor"/>
+    <event event="0x02" title="Cache" name="Inst TLB refill" description="Instruction fetch that causes a TLB refill of at least the level of TLB closest to the processor"/>
+    <event event="0x03" title="Cache" name="Data refill" description="Memory Read or Write operation that causes a refill of at least the level of data or unified cache closest to the processor"/>
+    <event event="0x04" title="Cache" name="Data access" description="Memory Read or Write operation that causes a cache access to at least the level of data or unified cache closest to the processor"/>
+    <event event="0x05" title="Cache" name="Data TLB refill" description="Memory Read or Write operation that causes a TLB refill of at least the level of TLB closest to the processor"/>
+    <event event="0x06" title="Instruction" name="Memory read" description="Memory-reading instruction architecturally executed"/>
+    <event event="0x07" title="Instruction" name="Memory write" description="Memory-writing instruction architecturally executed"/>
+    <event event="0x08" title="Instruction" name="Executed" description="Instruction architecturally executed"/>
+    <event event="0x09" title="Exception" name="Taken" description="Exceptions taken"/>
+    <event event="0x0a" title="Exception" name="Return" description="Exception return architecturally executed"/>
+    <event event="0x0b" title="Instruction" name="CONTEXTIDR" description="Instruction that writes to the CONTEXTIDR architecturally executed"/>
+    <event event="0x0c" title="Program Counter" name="SW change" description="Software change of PC, except by an exception, architecturally executed"/>
+    <event event="0x0d" title="Branch" name="Immediate" description="Immediate branch architecturally executed"/>
+    <event event="0x0e" title="Branch" name="Procedure Return" description="Procedure return architecturally executed (not by exceptions)"/>
+    <event event="0x0f" title="Memory" name="Unaligned access" description="Unaligned access architecturally executed"/>
+    <event event="0x10" title="Branch" name="Mispredicted" description="Branch mispredicted or not predicted"/>
+    <event event="0x12" title="Branch" name="Potential prediction" description="Branch or other change in program flow that could have been predicted by the branch prediction resources of the processor"/>
+    <event event="0x4c" title="Scorpion" name="ICACHE_EXPL_INV" description="I-cache explicit invalidates"/>
+    <event event="0x4d" title="Scorpion" name="ICACHE_MISS" description="I-cache misses"/>
+    <event event="0x4e" title="Scorpion" name="ICACHE_ACCESS" description="I-cache accesses"/>
+    <event event="0x4f" title="Scorpion" name="ICACHE_CACHEREQ_L2" description="I-cache cacheable requests to L2"/>
+    <event event="0x50" title="Scorpion" name="ICACHE_NOCACHE_L2" description="I-cache non-cacheable requests to L2"/>
+    <event event="0x51" title="Scorpion" name="HIQUP_NOPED" description="Conditional instructions HIQUPs NOPed"/>
+    <event event="0x52" title="Scorpion" name="DATA_ABORT" description="Interrupts and Exceptions Data Abort"/>
+    <event event="0x53" title="Scorpion" name="IRQ" description="Interrupts and Exceptions IRQ"/>
+    <event event="0x54" title="Scorpion" name="FIQ" description="Interrupts and Exceptions FIQ"/>
+    <event event="0x55" title="Scorpion" name="ALL_EXCPT" description="Interrupts and Exceptions All interrupts"/>
+    <event event="0x56" title="Scorpion" name="UNDEF" description="Interrupts and Exceptions Undefined"/>
+    <event event="0x57" title="Scorpion" name="SVC" description="Interrupts and Exceptions SVC"/>
+    <event event="0x58" title="Scorpion" name="SMC" description="Interrupts and Exceptions SMC"/>
+    <event event="0x59" title="Scorpion" name="PREFETCH_ABORT" description="Interrupts and Exceptions Prefetch Abort"/>
+    <event event="0x5a" title="Scorpion" name="INDEX_CHECK" description="Interrupts and Exceptions Index Check"/>
+    <event event="0x5b" title="Scorpion" name="NULL_CHECK" description="Interrupts and Exceptions Null Check"/>
+    <event event="0x5c" title="Scorpion" name="EXPL_ICIALLU" description="I-cache and BTAC Invalidates Explicit ICIALLU"/>
+    <event event="0x5d" title="Scorpion" name="IMPL_ICIALLU" description="I-cache and BTAC Invalidates Implicit ICIALLU"/>
+    <event event="0x5e" title="Scorpion" name="NONICIALLU_BTAC_INV" description="I-cache and BTAC Invalidates Non-ICIALLU BTAC Invalidate"/>
+    <event event="0x5f" title="Scorpion" name="ICIMVAU_IMPL_ICIALLU" description="I-cache and BTAC Invalidates ICIMVAU-implied ICIALLU"/>
+    <event event="0x60" title="Scorpion" name="SPIPE_ONLY_CYCLES" description="Issue S-pipe only issue cycles"/>
+    <event event="0x61" title="Scorpion" name="XPIPE_ONLY_CYCLES" description="Issue X-pipe only issue cycles"/>
+    <event event="0x62" title="Scorpion" name="DUAL_CYCLES" description="Issue dual issue cycles"/>
+    <event event="0x63" title="Scorpion" name="DISPATCH_ANY_CYCLES" description="Dispatch any dispatch cycles"/>
+    <event event="0x64" title="Scorpion" name="FIFO_FULLBLK_CMT" description="Commits Trace FIFO full Blk CMT"/>
+    <event event="0x65" title="Scorpion" name="FAIL_COND_INST" description="Conditional instructions failing conditional instrs (excluding branches)"/>
+    <event event="0x66" title="Scorpion" name="PASS_COND_INST" description="Conditional instructions passing conditional instrs (excluding branches)"/>
+    <event event="0x67" title="Scorpion" name="ALLOW_VU_CLK" description="Unit Clock Gating Allow VU Clks"/>
+    <event event="0x68" title="Scorpion" name="VU_IDLE" description="Unit Clock Gating VU Idle"/>
+    <event event="0x69" title="Scorpion" name="ALLOW_L2_CLK" description="Unit Clock Gating Allow L2 Clks"/>
+    <event event="0x6a" title="Scorpion" name="L2_IDLE" description="Unit Clock Gating L2 Idle"/>
+    <event event="0x6b" title="Scorpion" name="DTLB_IMPL_INV_SCTLR_DACR" description="DTLB implicit invalidates writes to SCTLR and DACR"/>
+    <event event="0x6c" title="Scorpion" name="DTLB_EXPL_INV" description="DTLB explicit invalidates"/>
+    <event event="0x6d" title="Scorpion" name="DTLB_MISS" description="DTLB misses"/>
+    <event event="0x6e" title="Scorpion" name="DTLB_ACCESS" description="DTLB accesses"/>
+    <event event="0x6f" title="Scorpion" name="ITLB_MISS" description="ITLB misses"/>
+    <event event="0x70" title="Scorpion" name="ITLB_IMPL_INV" description="ITLB implicit ITLB invalidates"/>
+    <event event="0x71" title="Scorpion" name="ITLB_EXPL_INV" description="ITLB explicit ITLB invalidates"/>
+    <event event="0x72" title="Scorpion" name="UTLB_D_MISS" description="UTLB d-side misses"/>
+    <event event="0x73" title="Scorpion" name="UTLB_D_ACCESS" description="UTLB d-side accesses"/>
+    <event event="0x74" title="Scorpion" name="UTLB_I_MISS" description="UTLB i-side misses"/>
+    <event event="0x75" title="Scorpion" name="UTLB_I_ACCESS" description="UTLB i-side accesses"/>
+    <event event="0x76" title="Scorpion" name="UTLB_INV_ASID" description="UTLB invalidate by ASID"/>
+    <event event="0x77" title="Scorpion" name="UTLB_INV_MVA" description="UTLB invalidate by MVA"/>
+    <event event="0x78" title="Scorpion" name="UTLB_INV_ALL" description="UTLB invalidate all"/>
+    <event event="0x79" title="Scorpion" name="S2_HOLD_RDQ_UNAVAIL" description="S2 hold RDQ unavail"/>
+    <event event="0x7a" title="Scorpion" name="S2_HOLD" description="S2 hold"/>
+    <event event="0x7b" title="Scorpion" name="S2_HOLD_DEV_OP" description="S2 hold device op"/>
+    <event event="0x7c" title="Scorpion" name="S2_HOLD_ORDER" description="S2 hold strongly ordered op"/>
+    <event event="0x7d" title="Scorpion" name="S2_HOLD_BARRIER" description="S2 hold barrier"/>
+    <event event="0x7e" title="Scorpion" name="VIU_DUAL_CYCLE" description="Scorpion VIU dual cycle"/>
+    <event event="0x7f" title="Scorpion" name="VIU_SINGLE_CYCLE" description="Scorpion VIU single cycle"/>
+    <event event="0x80" title="Scorpion" name="VX_PIPE_WAR_STALL_CYCLES" description="Scorpion VX pipe WAR cycles"/>
+    <event event="0x81" title="Scorpion" name="VX_PIPE_WAW_STALL_CYCLES" description="Scorpion VX pipe WAW cycles"/>
+    <event event="0x82" title="Scorpion" name="VX_PIPE_RAW_STALL_CYCLES" description="Scorpion VX pipe RAW cycles"/>
+    <event event="0x83" title="Scorpion" name="VX_PIPE_LOAD_USE_STALL" description="Scorpion VX pipe load use stall"/>
+    <event event="0x84" title="Scorpion" name="VS_PIPE_WAR_STALL_CYCLES" description="Scorpion VS pipe WAR stall cycles"/>
+    <event event="0x85" title="Scorpion" name="VS_PIPE_WAW_STALL_CYCLES" description="Scorpion VS pipe WAW stall cycles"/>
+    <event event="0x86" title="Scorpion" name="VS_PIPE_RAW_STALL_CYCLES" description="Scorpion VS pipe RAW stall cycles"/>
+    <event event="0x87" title="Scorpion" name="EXCEPTIONS_INV_OPERATION" description="Scorpion invalid operation exceptions"/>
+    <event event="0x88" title="Scorpion" name="EXCEPTIONS_DIV_BY_ZERO" description="Scorpion divide by zero exceptions"/>
+    <event event="0x89" title="Scorpion" name="COND_INST_FAIL_VX_PIPE" description="Scorpion conditional instruction fail VX pipe"/>
+    <event event="0x8a" title="Scorpion" name="COND_INST_FAIL_VS_PIPE" description="Scorpion conditional instruction fail VS pipe"/>
+    <event event="0x8b" title="Scorpion" name="EXCEPTIONS_OVERFLOW" description="Scorpion overflow exceptions"/>
+    <event event="0x8c" title="Scorpion" name="EXCEPTIONS_UNDERFLOW" description="Scorpion underflow exceptions"/>
+    <event event="0x8d" title="Scorpion" name="EXCEPTIONS_DENORM" description="Scorpion denorm exceptions"/>
+    <event event="0x8e" title="Scorpion" name="BANK_AB_HIT" description="L2 hit rates bank A/B hits"/>
+    <event event="0x8f" title="Scorpion" name="BANK_AB_ACCESS" description="L2 hit rates bank A/B accesses"/>
+    <event event="0x90" title="Scorpion" name="BANK_CD_HIT" description="L2 hit rates bank C/D hits"/>
+    <event event="0x91" title="Scorpion" name="BANK_CD_ACCESS" description="L2 hit rates bank C/D accesses"/>
+    <event event="0x92" title="Scorpion" name="BANK_AB_DSIDE_HIT" description="L2 hit rates bank A/B d-side hits"/>
+    <event event="0x93" title="Scorpion" name="BANK_AB_DSIDE_ACCESS" description="L2 hit rates bank A/B d-side accesses"/>
+    <event event="0x94" title="Scorpion" name="BANK_CD_DSIDE_HIT" description="L2 hit rates bank C/D d-side hits"/>
+    <event event="0x95" title="Scorpion" name="BANK_CD_DSIDE_ACCESS" description="L2 hit rates bank C/D d-side accesses"/>
+    <event event="0x96" title="Scorpion" name="BANK_AB_ISIDE_HIT" description="L2 hit rates bank A/B i-side hits"/>
+    <event event="0x97" title="Scorpion" name="BANK_AB_ISIDE_ACCESS" description="L2 hit rates bank A/B i-side accesses"/>
+    <event event="0x98" title="Scorpion" name="BANK_CD_ISIDE_HIT" description="L2 hit rates bank C/D i-side hits"/>
+    <event event="0x99" title="Scorpion" name="BANK_CD_ISIDE_ACCESS" description="L2 hit rates bank C/D i-side accesses"/>
+    <event event="0x9a" title="Scorpion" name="ISIDE_RD_WAIT" description="fills and castouts cycles that i-side RD requests wait on data from bus"/>
+    <event event="0x9b" title="Scorpion" name="DSIDE_RD_WAIT" description="fills and castouts cycles that d-side RD requests wait on data from bus"/>
+    <event event="0x9c" title="Scorpion" name="BANK_BYPASS_WRITE" description="fills and castouts bank bypass writes"/>
+    <event event="0x9d" title="Scorpion" name="BANK_AB_NON_CASTOUT" description="fills and castouts bank A/B non-castout writes to bus"/>
+    <event event="0x9e" title="Scorpion" name="BANK_AB_L2_CASTOUT" description="fills and castouts bank A/B L2 castouts (granules)"/>
+    <event event="0x9f" title="Scorpion" name="BANK_CD_NON_CASTOUT" description="fills and castouts bank C/D non-castout writes to bus"/>
+    <event event="0xa0" title="Scorpion" name="BANK_CD_L2_CASTOUT" description="fills and castouts bank C/D L2 castouts (granules)"/>
+  </category>
