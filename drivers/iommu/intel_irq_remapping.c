@@ -46,7 +46,7 @@ static struct irq_2_iommu *irq_2_iommu(unsigned int irq)
 	return cfg ? &cfg->irq_2_iommu : NULL;
 }
 
-int get_irte(int irq, struct irte *entry)
+static int get_irte(int irq, struct irte *entry)
 {
 	struct irq_2_iommu *irq_iommu = irq_2_iommu(irq);
 	unsigned long flags;
@@ -807,7 +807,7 @@ int __init parse_ioapics_under_ir(void)
 	return 1;
 }
 
-int __init ir_dev_scope_init(void)
+static int __init ir_dev_scope_init(void)
 {
 	if (!irq_remapping_enabled)
 		return 0;
