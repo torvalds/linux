@@ -40,6 +40,8 @@
 /* L2 ECC Management Group Defines */
 #define ALTR_MAN_GRP_L2_ECC_OFFSET	0x00
 #define ALTR_L2_ECC_EN_MASK		0x00000001
+#define ALTR_L2_ECC_INJS_MASK		0x00000002
+#define ALTR_L2_ECC_INJD_MASK		0x00000004
 
 struct ecc_mgr_of_data {
 	int (*setup)(struct platform_device *pdev, void __iomem *base);
@@ -67,6 +69,90 @@ static irqreturn_t altr_ecc_mgr_handler(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
+
+#ifdef CONFIG_EDAC_DEBUG
+static ssize_t altr_l2_ecc_trig(struct edac_device_ctl_info *edac_dci,
+				const char *buffer, size_t count)
+{
+	u32 *ptemp, i, error_mask;
+	int result = 0;
+	unsigned long flags;
+	struct altr_ecc_mgr_dev *drvdata = edac_dci->pvt_info;
+
+	ptemp = kmalloc(5000, GFP_KERNEL);
+	if (!ptemp) {
+		dev_err(edac_dci->dev,
+			"**EDAC L2 Inject: Buffer Allocation error\n");
+		return -ENOMEM;
+	}
+
+	memset(ptemp, 0, 5000);
+	wmb();
+	flush_cache_all();
+
+	if (count == 3)
+		error_mask = ALTR_L2_ECC_EN_MASK | ALTR_L2_ECC_INJD_MASK;
+	else
+		error_mask = ALTR_L2_ECC_EN_MASK | ALTR_L2_ECC_INJS_MASK;
+
+	dev_alert(edac_dci->dev, "%s: Trigger Error Mask (0x%X)\n",
+			__func__, error_mask);
+
+	local_irq_save(flags);
+	/* write data out which should be corrupted. */
+	for (i = 0; i < 16; i++) {
+		/* Read data out so we're in the correct state */
+		if (ptemp[i])
+			result = -1;
+		rmb();
+		/* Toggle Error bit (it is latched) */
+		writel(error_mask, drvdata->base);
+		writel(ALTR_L2_ECC_EN_MASK, drvdata->base);
+		ptemp[i] = i;
+	}
+	wmb();
+	local_irq_restore(flags);
+
+	if (result)
+		dev_alert(edac_dci->dev, "%s: Mem Not Cleared (%d)\n",
+				__func__, result);
+
+	result = 0;
+	/* Read out written data. ECC error caused here */
+	for (i = 0; i < 16; i++)
+		if (ptemp[i] != i)
+			result = -1;
+	rmb();
+
+	kfree(ptemp);
+
+	if (result)
+		dev_alert(edac_dci->dev, "%s: Trigger Match Error (%d)\n",
+			__func__, result);
+
+	return count;
+}
+
+static struct edac_dev_sysfs_attribute altr_l2_sysfs_attributes[] = {
+	{
+		.attr = { .name = "altr_l2_trigger",
+			  .mode = (S_IRUGO | S_IWUSR) },
+		.show = NULL,
+		.store = altr_l2_ecc_trig
+	},
+	{
+		.attr = {.name = NULL }
+	}
+};
+
+static void altr_set_sysfs_attr(struct edac_device_ctl_info *edac_dci)
+{
+	edac_dci->sysfs_attributes =  altr_l2_sysfs_attributes;
+}
+#else
+static void altr_set_sysfs_attr(struct edac_device_ctl_info *edac_dci)
+{}
+#endif
 
 /*
  * altr_l2_dependencies()
@@ -193,6 +279,8 @@ static int altr_ecc_mgr_probe(struct platform_device *pdev)
 
 	dci->mod_name = "ECC_MGR";
 	dci->dev_name = drvdata->edac_dev_name;
+
+	altr_set_sysfs_attr(dci);
 
 	if (edac_device_add_device(dci))
 		goto err;
