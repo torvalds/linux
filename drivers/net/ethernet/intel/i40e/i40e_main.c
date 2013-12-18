@@ -4658,7 +4658,7 @@ static int i40e_get_capabilities(struct i40e_pf *pf)
 		}
 	} while (err);
 
-	if (pf->hw.revision_id == 0 && pf->hw.func_caps.npar_enable) {
+	if (pf->hw.revision_id == 0 && (pf->flags & I40E_FLAG_MFP_ENABLED)) {
 		pf->hw.func_caps.num_msix_vectors += 1;
 		pf->hw.func_caps.num_tx_qp =
 			min_t(int, pf->hw.func_caps.num_tx_qp,
@@ -5827,6 +5827,12 @@ static int i40e_sw_init(struct i40e_pf *pf)
 		pf->rss_size = 1;
 	}
 
+	/* MFP mode enabled */
+	if (pf->hw.func_caps.npar_enable || pf->hw.func_caps.mfp_mode_1) {
+		pf->flags |= I40E_FLAG_MFP_ENABLED;
+		dev_info(&pf->pdev->dev, "MFP mode Enabled\n");
+	}
+
 	if (pf->hw.func_caps.dcb)
 		pf->num_tc_qps = I40E_DEFAULT_QUEUES_PER_TC;
 	else
@@ -5853,12 +5859,6 @@ static int i40e_sw_init(struct i40e_pf *pf)
 		pf->flags |= I40E_FLAG_VMDQ_ENABLED;
 		pf->num_vmdq_vsis = I40E_DEFAULT_NUM_VMDQ_VSI;
 		pf->num_vmdq_qps = I40E_DEFAULT_QUEUES_PER_VMDQ;
-	}
-
-	/* MFP mode enabled */
-	if (pf->hw.func_caps.npar_enable || pf->hw.func_caps.mfp_mode_1) {
-		pf->flags |= I40E_FLAG_MFP_ENABLED;
-		dev_info(&pf->pdev->dev, "MFP mode Enabled\n");
 	}
 
 #ifdef CONFIG_PCI_IOV
