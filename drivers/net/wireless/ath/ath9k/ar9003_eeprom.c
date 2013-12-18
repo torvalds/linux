@@ -4121,6 +4121,37 @@ static void ar9003_hw_thermo_cal_apply(struct ath_hw *ah)
 	}
 }
 
+static void ar9003_hw_apply_minccapwr_thresh(struct ath_hw *ah,
+					     bool is2ghz)
+{
+	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+	const u_int32_t cca_ctrl[AR9300_MAX_CHAINS] = {
+		AR_PHY_CCA_CTRL_0,
+		AR_PHY_CCA_CTRL_1,
+		AR_PHY_CCA_CTRL_2,
+	};
+	int chain;
+	u32 val;
+
+	if (is2ghz) {
+		if (!(eep->base_ext1.misc_enable & BIT(2)))
+			return;
+	} else {
+		if (!(eep->base_ext1.misc_enable & BIT(3)))
+			return;
+	}
+
+	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
+		if (!(ah->caps.tx_chainmask & BIT(chain)))
+			continue;
+
+		val = ar9003_modal_header(ah, is2ghz)->noiseFloorThreshCh[chain];
+		REG_RMW_FIELD(ah, cca_ctrl[chain],
+			      AR_PHY_EXT_CCA0_THRESH62_1, val);
+	}
+
+}
+
 static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 					     struct ath9k_channel *chan)
 {
@@ -4135,6 +4166,7 @@ static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 	if (!AR_SREV_9330(ah) && !AR_SREV_9340(ah))
 		ar9003_hw_internal_regulator_apply(ah);
 	ar9003_hw_apply_tuning_caps(ah);
+	ar9003_hw_apply_minccapwr_thresh(ah, chan);
 	ar9003_hw_txend_to_xpa_off_apply(ah, is2ghz);
 	ar9003_hw_thermometer_apply(ah);
 	ar9003_hw_thermo_cal_apply(ah);
