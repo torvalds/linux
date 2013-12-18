@@ -2567,7 +2567,7 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 		local->passive_scan_interval = value;
 		if (timer_pending(&local->passive_scan_timer))
 			del_timer(&local->passive_scan_timer);
-		if (value > 0) {
+		if (value > 0 && value < INT_MAX / HZ) {
 			local->passive_scan_timer.expires = jiffies +
 				local->passive_scan_interval * HZ;
 			add_timer(&local->passive_scan_timer);
