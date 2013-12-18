@@ -783,14 +783,23 @@ static int gpmi_alloc_dma_buffer(struct gpmi_nand_data *this)
 {
 	struct bch_geometry *geo = &this->bch_geometry;
 	struct device *dev = this->dev;
+	struct mtd_info *mtd = &this->mtd;
 
 	/* [1] Allocate a command buffer. PAGE_SIZE is enough. */
 	this->cmd_buffer = kzalloc(PAGE_SIZE, GFP_DMA | GFP_KERNEL);
 	if (this->cmd_buffer == NULL)
 		goto error_alloc;
 
-	/* [2] Allocate a read/write data buffer. PAGE_SIZE is enough. */
-	this->data_buffer_dma = kzalloc(PAGE_SIZE, GFP_DMA | GFP_KERNEL);
+	/*
+	 * [2] Allocate a read/write data buffer.
+	 *     The gpmi_alloc_dma_buffer can be called twice.
+	 *     We allocate a PAGE_SIZE length buffer if gpmi_alloc_dma_buffer
+	 *     is called before the nand_scan_ident; and we allocate a buffer
+	 *     of the real NAND page size when the gpmi_alloc_dma_buffer is
+	 *     called after the nand_scan_ident.
+	 */
+	this->data_buffer_dma = kzalloc(mtd->writesize ?: PAGE_SIZE,
+					GFP_DMA | GFP_KERNEL);
 	if (this->data_buffer_dma == NULL)
 		goto error_alloc;
 
