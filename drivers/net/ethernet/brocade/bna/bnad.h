@@ -105,6 +105,9 @@ struct bnad_rx_ctrl {
 #define BNAD_NUM_TXQ			(bnad->num_tx * bnad->num_txq_per_tx)
 #define BNAD_NUM_RXP			(bnad->num_rx * bnad->num_rxp_per_rx)
 
+#define BNAD_FRAME_SIZE(_mtu) \
+	(ETH_HLEN + VLAN_HLEN + (_mtu) + ETH_FCS_LEN)
+
 /*
  * DATA STRUCTURES
  */
@@ -241,12 +244,13 @@ struct bnad_rx_unmap {
 
 enum bnad_rxbuf_type {
 	BNAD_RXBUF_NONE		= 0,
-	BNAD_RXBUF_SKB		= 1,
+	BNAD_RXBUF_SK_BUFF	= 1,
 	BNAD_RXBUF_PAGE		= 2,
-	BNAD_RXBUF_MULTI	= 3
+	BNAD_RXBUF_MULTI_BUFF	= 3
 };
 
-#define BNAD_RXBUF_IS_PAGE(_type)	((_type) == BNAD_RXBUF_PAGE)
+#define BNAD_RXBUF_IS_SK_BUFF(_type)	((_type) == BNAD_RXBUF_SK_BUFF)
+#define BNAD_RXBUF_IS_MULTI_BUFF(_type)	((_type) == BNAD_RXBUF_MULTI_BUFF)
 
 struct bnad_rx_unmap_q {
 	int			reuse_pi;
@@ -255,6 +259,9 @@ struct bnad_rx_unmap_q {
 	enum bnad_rxbuf_type	type;
 	struct bnad_rx_unmap	unmap[0];
 };
+
+#define BNAD_PCI_DEV_IS_CAT2(_bnad) \
+	((_bnad)->pcidev->device == BFA_PCI_DEVICE_ID_CT2)
 
 /* Bit mask values for bnad->cfg_flags */
 #define	BNAD_CF_DIM_ENABLED		0x01	/* DIM */

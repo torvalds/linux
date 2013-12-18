@@ -1811,6 +1811,7 @@ bna_bfi_rx_enet_start(struct bna_rx *rx)
 	cfg_req->mh.num_entries = htons(
 		bfi_msgq_num_cmd_entries(sizeof(struct bfi_enet_rx_cfg_req)));
 
+	cfg_req->rx_cfg.frame_size = bna_enet_mtu_get(&rx->bna->enet);
 	cfg_req->num_queue_sets = rx->num_paths;
 	for (i = 0, rxp_qe = bfa_q_first(&rx->rxp_q);
 		i < rx->num_paths;
@@ -1832,8 +1833,17 @@ bna_bfi_rx_enet_start(struct bna_rx *rx)
 			/* Large/Single RxQ */
 			bfi_enet_datapath_q_init(&cfg_req->q_cfg[i].ql.q,
 						&q0->qpt);
-			q0->buffer_size =
-				bna_enet_mtu_get(&rx->bna->enet);
+			if (q0->multi_buffer)
+				/* multi-buffer is enabled by allocating
+				 * a new rx with new set of resources.
+				 * q0->buffer_size should be initialized to
+				 * fragment size.
+				 */
+				cfg_req->rx_cfg.multi_buffer =
+					BNA_STATUS_T_ENABLED;
+			else
+				q0->buffer_size =
+					bna_enet_mtu_get(&rx->bna->enet);
 			cfg_req->q_cfg[i].ql.rx_buffer_size =
 				htons((u16)q0->buffer_size);
 			break;
@@ -2383,8 +2393,8 @@ bna_rx_res_req(struct bna_rx_config *q_cfg, struct bna_res_info *res_info)
 	u32 hq_depth;
 	u32 dq_depth;
 
-	dq_depth = q_cfg->q_depth;
-	hq_depth = ((q_cfg->rxp_type == BNA_RXP_SINGLE) ? 0 : q_cfg->q_depth);
+	dq_depth = q_cfg->q0_depth;
+	hq_depth = ((q_cfg->rxp_type == BNA_RXP_SINGLE) ? 0 : q_cfg->q1_depth);
 	cq_depth = dq_depth + hq_depth;
 
 	BNA_TO_POWER_OF_2_HIGH(cq_depth);
@@ -2501,10 +2511,10 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 	struct bna_rxq *q0;
 	struct bna_rxq *q1;
 	struct bna_intr_info *intr_info;
-	u32 page_count;
+	struct bna_mem_descr *hqunmap_mem;
+	struct bna_mem_descr *dqunmap_mem;
 	struct bna_mem_descr *ccb_mem;
 	struct bna_mem_descr *rcb_mem;
-	struct bna_mem_descr *unmapq_mem;
 	struct bna_mem_descr *cqpt_mem;
 	struct bna_mem_descr *cswqpt_mem;
 	struct bna_mem_descr *cpage_mem;
@@ -2514,8 +2524,10 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 	struct bna_mem_descr *dsqpt_mem;
 	struct bna_mem_descr *hpage_mem;
 	struct bna_mem_descr *dpage_mem;
-	int i;
-	int dpage_count, hpage_count, rcb_idx;
+	u32 dpage_count, hpage_count;
+	u32 hq_idx, dq_idx, rcb_idx;
+	u32 cq_depth, i;
+	u32 page_count;
 
 	if (!bna_rx_res_check(rx_mod, rx_cfg))
 		return NULL;
@@ -2523,7 +2535,8 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 	intr_info = &res_info[BNA_RX_RES_T_INTR].res_u.intr_info;
 	ccb_mem = &res_info[BNA_RX_RES_MEM_T_CCB].res_u.mem_info.mdl[0];
 	rcb_mem = &res_info[BNA_RX_RES_MEM_T_RCB].res_u.mem_info.mdl[0];
-	unmapq_mem = &res_info[BNA_RX_RES_MEM_T_UNMAPQ].res_u.mem_info.mdl[0];
+	dqunmap_mem = &res_info[BNA_RX_RES_MEM_T_UNMAPDQ].res_u.mem_info.mdl[0];
+	hqunmap_mem = &res_info[BNA_RX_RES_MEM_T_UNMAPHQ].res_u.mem_info.mdl[0];
 	cqpt_mem = &res_info[BNA_RX_RES_MEM_T_CQPT].res_u.mem_info.mdl[0];
 	cswqpt_mem = &res_info[BNA_RX_RES_MEM_T_CSWQPT].res_u.mem_info.mdl[0];
 	cpage_mem = &res_info[BNA_RX_RES_MEM_T_CQPT_PAGE].res_u.mem_info.mdl[0];
@@ -2575,7 +2588,8 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 	}
 
 	rx->num_paths = rx_cfg->num_paths;
-	for (i = 0, rcb_idx = 0; i < rx->num_paths; i++) {
+	for (i = 0, hq_idx = 0, dq_idx = 0, rcb_idx = 0;
+			i < rx->num_paths; i++) {
 		rxp = bna_rxp_get(rx_mod);
 		list_add_tail(&rxp->qe, &rx->rxp_q);
 		rxp->type = rx_cfg->rxp_type;
@@ -2618,9 +2632,13 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 		q0->rxp = rxp;
 
 		q0->rcb = (struct bna_rcb *) rcb_mem[rcb_idx].kva;
-		q0->rcb->unmap_q = (void *)unmapq_mem[rcb_idx].kva;
-		rcb_idx++;
-		q0->rcb->q_depth = rx_cfg->q_depth;
+		q0->rcb->unmap_q = (void *)dqunmap_mem[dq_idx].kva;
+		rcb_idx++; dq_idx++;
+		q0->rcb->q_depth = rx_cfg->q0_depth;
+		q0->q_depth = rx_cfg->q0_depth;
+		q0->multi_buffer = rx_cfg->q0_multi_buf;
+		q0->buffer_size = rx_cfg->q0_buf_size;
+		q0->num_vecs = rx_cfg->q0_num_vecs;
 		q0->rcb->rxq = q0;
 		q0->rcb->bnad = bna->bnad;
 		q0->rcb->id = 0;
@@ -2640,15 +2658,18 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 			q1->rxp = rxp;
 
 			q1->rcb = (struct bna_rcb *) rcb_mem[rcb_idx].kva;
-			q1->rcb->unmap_q = (void *)unmapq_mem[rcb_idx].kva;
-			rcb_idx++;
-			q1->rcb->q_depth = rx_cfg->q_depth;
+			q1->rcb->unmap_q = (void *)hqunmap_mem[hq_idx].kva;
+			rcb_idx++; hq_idx++;
+			q1->rcb->q_depth = rx_cfg->q1_depth;
+			q1->q_depth = rx_cfg->q1_depth;
+			q1->multi_buffer = BNA_STATUS_T_DISABLED;
+			q1->num_vecs = 1;
 			q1->rcb->rxq = q1;
 			q1->rcb->bnad = bna->bnad;
 			q1->rcb->id = 1;
 			q1->buffer_size = (rx_cfg->rxp_type == BNA_RXP_HDS) ?
 					rx_cfg->hds_config.forced_offset
-					: rx_cfg->small_buff_size;
+					: rx_cfg->q1_buf_size;
 			q1->rx_packets = q1->rx_bytes = 0;
 			q1->rx_packets_with_error = q1->rxbuf_alloc_failed = 0;
 
@@ -2663,9 +2684,14 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 		/* Setup CQ */
 
 		rxp->cq.ccb = (struct bna_ccb *) ccb_mem[i].kva;
-		rxp->cq.ccb->q_depth =	rx_cfg->q_depth +
-					((rx_cfg->rxp_type == BNA_RXP_SINGLE) ?
-					0 : rx_cfg->q_depth);
+		cq_depth = rx_cfg->q0_depth +
+			((rx_cfg->rxp_type == BNA_RXP_SINGLE) ?
+			 0 : rx_cfg->q1_depth);
+		/* if multi-buffer is enabled sum of q0_depth
+		 * and q1_depth need not be a power of 2
+		 */
+		BNA_TO_POWER_OF_2_HIGH(cq_depth);
+		rxp->cq.ccb->q_depth = cq_depth;
 		rxp->cq.ccb->cq = &rxp->cq;
 		rxp->cq.ccb->rcb[0] = q0->rcb;
 		q0->rcb->ccb = rxp->cq.ccb;
