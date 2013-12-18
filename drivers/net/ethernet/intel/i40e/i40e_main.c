@@ -4522,10 +4522,13 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 			dev_info(&pf->pdev->dev, "ARQ LAN queue overflow event received\n");
 			i40e_handle_lan_overflow_event(pf, &event);
 			break;
+		case i40e_aqc_opc_send_msg_to_peer:
+			dev_info(&pf->pdev->dev, "ARQ: Msg from other pf\n");
+			break;
 		default:
 			dev_info(&pf->pdev->dev,
-				 "ARQ Error: Unknown event %d received\n",
-				 event.desc.opcode);
+				 "ARQ Error: Unknown event 0x%04x received\n",
+				 opcode);
 			break;
 		}
 	} while (pending && (i++ < pf->adminq_work_limit));
