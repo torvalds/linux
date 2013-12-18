@@ -413,6 +413,10 @@ struct radeon_mman {
 	struct ttm_bo_device		bdev;
 	bool				mem_global_referenced;
 	bool				initialized;
+
+#if defined(CONFIG_DEBUG_FS)
+	struct dentry			*vram;
+#endif
 };
 
 /* bo virtual address in a specific vm */

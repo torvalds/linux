@@ -39,12 +39,14 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/swiotlb.h>
+#include <linux/debugfs.h>
 #include "radeon_reg.h"
 #include "radeon.h"
 
 #define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 
 static int radeon_ttm_debugfs_init(struct radeon_device *rdev);
+static void radeon_ttm_debugfs_fini(struct radeon_device *rdev);
 
 static struct radeon_device *radeon_get_rdev(struct ttm_bo_device *bdev)
 {
@@ -753,6 +755,7 @@ void radeon_ttm_fini(struct radeon_device *rdev)
 
 	if (!rdev->mman.initialized)
 		return;
+	radeon_ttm_debugfs_fini(rdev);
 	if (rdev->stollen_vga_memory) {
 		r = radeon_bo_reserve(rdev->stollen_vga_memory, false);
 		if (r == 0) {
@@ -862,12 +865,75 @@ static struct drm_info_list radeon_ttm_debugfs_list[] = {
 #endif
 };
 
+static int radeon_ttm_vram_open(struct inode *inode, struct file *filep)
+{
+	struct radeon_device *rdev = inode->i_private;
+	i_size_write(inode, rdev->mc.mc_vram_size);
+	filep->private_data = inode->i_private;
+	return 0;
+}
+
+static ssize_t radeon_ttm_vram_read(struct file *f, char __user *buf,
+				    size_t size, loff_t *pos)
+{
+	struct radeon_device *rdev = f->private_data;
+	ssize_t result = 0;
+	int r;
+
+	if (size & 0x3 || *pos & 0x3)
+		return -EINVAL;
+
+	while (size) {
+		unsigned long flags;
+		uint32_t value;
+
+		if (*pos >= rdev->mc.mc_vram_size)
+			return result;
+
+		spin_lock_irqsave(&rdev->mmio_idx_lock, flags);
+		WREG32(RADEON_MM_INDEX, ((uint32_t)*pos) | 0x80000000);
+		if (rdev->family >= CHIP_CEDAR)
+			WREG32(EVERGREEN_MM_INDEX_HI, *pos >> 31);
+		value = RREG32(RADEON_MM_DATA);
+		spin_unlock_irqrestore(&rdev->mmio_idx_lock, flags);
+
+		r = put_user(value, (uint32_t *)buf);
+		if (r)
+			return r;
+
+		result += 4;
+		buf += 4;
+		*pos += 4;
+		size -= 4;
+	}
+
+	return result;
+}
+
+static const struct file_operations radeon_ttm_vram_fops = {
+	.owner = THIS_MODULE,
+	.open = radeon_ttm_vram_open,
+	.read = radeon_ttm_vram_read,
+	.llseek = default_llseek
+};
+
 #endif
 
 static int radeon_ttm_debugfs_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	unsigned count = ARRAY_SIZE(radeon_ttm_debugfs_list);
+	unsigned count;
+
+	struct drm_minor *minor = rdev->ddev->primary;
+	struct dentry *ent, *root = minor->debugfs_root;
+
+	ent = debugfs_create_file("radeon_vram", S_IFREG | S_IRUGO, root,
+				  rdev, &radeon_ttm_vram_fops);
+	if (IS_ERR(ent))
+		return PTR_ERR(ent);
+	rdev->mman.vram = ent;
+
+	count = ARRAY_SIZE(radeon_ttm_debugfs_list);
 
 #ifdef CONFIG_SWIOTLB
 	if (!swiotlb_nr_tbl())
@@ -878,5 +944,14 @@ static int radeon_ttm_debugfs_init(struct radeon_device *rdev)
 #else
 
 	return 0;
+#endif
+}
+
+static void radeon_ttm_debugfs_fini(struct radeon_device *rdev)
+{
+#if defined(CONFIG_DEBUG_FS)
+
+	debugfs_remove(rdev->mman.vram);
+	rdev->mman.vram = NULL;
 #endif
 }
