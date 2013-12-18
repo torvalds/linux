@@ -38,13 +38,14 @@
 #include <asm/cacheflush.h>
 
 #include <mach/regs-irq.h>
-#include <mach/regs-pmu.h>
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
 #include <plat/regs-serial.h>
 
 #include "common.h"
+#include "regs-pmu.h"
+
 #define L2_AUX_VAL 0x7C470001
 #define L2_AUX_MASK 0xC200ffff
 
