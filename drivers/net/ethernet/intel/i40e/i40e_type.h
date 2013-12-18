@@ -77,8 +77,6 @@
 struct i40e_hw;
 typedef void (*I40E_ADMINQ_CALLBACK)(struct i40e_hw *, struct i40e_aq_desc *);
 
-#define I40E_ETH_LENGTH_OF_ADDRESS	6
-
 /* Data type manipulation macros. */
 
 #define I40E_DESC_UNUSED(R)	\
@@ -240,9 +238,9 @@ struct i40e_hw_capabilities {
 
 struct i40e_mac_info {
 	enum i40e_mac_type type;
-	u8 addr[I40E_ETH_LENGTH_OF_ADDRESS];
-	u8 perm_addr[I40E_ETH_LENGTH_OF_ADDRESS];
-	u8 san_addr[I40E_ETH_LENGTH_OF_ADDRESS];
+	u8 addr[ETH_ALEN];
+	u8 perm_addr[ETH_ALEN];
+	u8 san_addr[ETH_ALEN];
 	u16 max_fcoeq;
 };
 

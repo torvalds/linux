@@ -142,7 +142,7 @@ struct i40e_virtchnl_vsi_resource {
 	u16 num_queue_pairs;
 	enum i40e_vsi_type vsi_type;
 	u16 qset_handle;
-	u8 default_mac_addr[I40E_ETH_LENGTH_OF_ADDRESS];
+	u8 default_mac_addr[ETH_ALEN];
 };
 /* VF offload flags */
 #define I40E_VIRTCHNL_VF_OFFLOAD_L2	0x00000001
@@ -265,7 +265,7 @@ struct i40e_virtchnl_queue_select {
  */
 
 struct i40e_virtchnl_ether_addr {
-	u8 addr[I40E_ETH_LENGTH_OF_ADDRESS];
+	u8 addr[ETH_ALEN];
 	u8 pad[2];
 };
 
