@@ -3916,6 +3916,9 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj;
 	int ret;
 
+	if (INTEL_INFO(dev)->gen >= 6)
+		return -ENODEV;
+
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
