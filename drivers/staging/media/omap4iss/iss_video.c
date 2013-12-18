@@ -476,9 +476,9 @@ struct iss_buffer *omap4iss_video_buffer_next(struct iss_video *video)
 	}
 
 	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && pipe->input != NULL) {
-		spin_lock_irqsave(&pipe->lock, flags);
+		spin_lock(&pipe->lock);
 		pipe->state &= ~ISS_PIPELINE_STREAM;
-		spin_unlock_irqrestore(&pipe->lock, flags);
+		spin_unlock(&pipe->lock);
 	}
 
 	buf = list_first_entry(&video->dmaqueue, struct iss_buffer,
