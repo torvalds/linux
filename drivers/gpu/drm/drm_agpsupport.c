@@ -204,10 +204,8 @@ int drm_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request)
 
 	if (!dev->agp || !dev->agp->acquired)
 		return -EINVAL;
-	if (!(entry = kmalloc(sizeof(*entry), GFP_KERNEL)))
+	if (!(entry = kzalloc(sizeof(*entry), GFP_KERNEL)))
 		return -ENOMEM;
-
-	memset(entry, 0, sizeof(*entry));
 
 	pages = (request->size + PAGE_SIZE - 1) / PAGE_SIZE;
 	type = (u32) request->type;
@@ -401,9 +399,8 @@ struct drm_agp_head *drm_agp_init(struct drm_device *dev)
 {
 	struct drm_agp_head *head = NULL;
 
-	if (!(head = kmalloc(sizeof(*head), GFP_KERNEL)))
+	if (!(head = kzalloc(sizeof(*head), GFP_KERNEL)))
 		return NULL;
-	memset((void *)head, 0, sizeof(*head));
 	head->bridge = agp_find_bridge(dev->pdev);
 	if (!head->bridge) {
 		if (!(head->bridge = agp_backend_acquire(dev->pdev))) {
