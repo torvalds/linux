@@ -246,10 +246,6 @@
 		};
 	};
 
-	mmc@12210000 {
-		status = "disabled";
-	};
-
 	mmc@12220000 {
 		num-slots = <1>;
 		supports-highspeed;
