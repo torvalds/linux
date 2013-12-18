@@ -4217,6 +4217,11 @@ int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 		}
 	}
 
+	if (adap->filter_mode & F_PROTOCOL) {
+		f->fs.val.proto = IPPROTO_TCP;
+		f->fs.mask.proto = ~0;
+	}
+
 	f->fs.dirsteer = 1;
 	f->fs.iq = queue;
 	/* Mark filter as locked */
