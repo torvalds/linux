@@ -27,43 +27,19 @@ snd-hda-codec-hdmi-objs :=	patch_hdmi.o hda_eld.o
 # common driver
 obj-$(CONFIG_SND_HDA_INTEL) := snd-hda-codec.o
 
-# codec drivers (note: CONFIG_SND_HDA_CODEC_XXX are booleans)
-ifdef CONFIG_SND_HDA_GENERIC
-obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-codec-generic.o
-endif
-ifdef CONFIG_SND_HDA_CODEC_REALTEK
-obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-codec-realtek.o
-endif
-ifdef CONFIG_SND_HDA_CODEC_CMEDIA
-obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-codec-cmedia.o
-endif
-ifdef CONFIG_SND_HDA_CODEC_ANALOG
-obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-codec-analog.o
-endif
-ifdef CONFIG_SND_HDA_CODEC_SIGMATEL
-obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-codec-idt.o
-endif
-ifdef CONFIG_SND_HDA_CODEC_SI3054
-obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-codec-si3054.o
-endif
-ifdef CONFIG_SND_HDA_CODEC_CIRRUS
-obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-codec-cirrus.o
-endif
-ifdef CONFIG_SND_HDA_CODEC_CA0110
-obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-codec-ca0110.o
-endif
-ifdef CONFIG_SND_HDA_CODEC_CA0132
-obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-codec-ca0132.o
-endif
-ifdef CONFIG_SND_HDA_CODEC_CONEXANT
-obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-codec-conexant.o
-endif
-ifdef CONFIG_SND_HDA_CODEC_VIA
-obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-codec-via.o
-endif
-ifdef CONFIG_SND_HDA_CODEC_HDMI
-obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-codec-hdmi.o
-endif
+# codec drivers
+obj-$(CONFIG_SND_HDA_GENERIC) += snd-hda-codec-generic.o
+obj-$(CONFIG_SND_HDA_CODEC_REALTEK) += snd-hda-codec-realtek.o
+obj-$(CONFIG_SND_HDA_CODEC_CMEDIA) += snd-hda-codec-cmedia.o
+obj-$(CONFIG_SND_HDA_CODEC_ANALOG) += snd-hda-codec-analog.o
+obj-$(CONFIG_SND_HDA_CODEC_SIGMATEL) += snd-hda-codec-idt.o
+obj-$(CONFIG_SND_HDA_CODEC_SI3054) += snd-hda-codec-si3054.o
+obj-$(CONFIG_SND_HDA_CODEC_CIRRUS) += snd-hda-codec-cirrus.o
+obj-$(CONFIG_SND_HDA_CODEC_CA0110) += snd-hda-codec-ca0110.o
+obj-$(CONFIG_SND_HDA_CODEC_CA0132) += snd-hda-codec-ca0132.o
+obj-$(CONFIG_SND_HDA_CODEC_CONEXANT) += snd-hda-codec-conexant.o
+obj-$(CONFIG_SND_HDA_CODEC_VIA) += snd-hda-codec-via.o
+obj-$(CONFIG_SND_HDA_CODEC_HDMI) += snd-hda-codec-hdmi.o
 
 # this must be the last entry after codec drivers;
 # otherwise the codec patches won't be hooked before the PCI probe

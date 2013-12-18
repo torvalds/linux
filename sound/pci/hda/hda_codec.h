@@ -681,19 +681,6 @@ snd_hda_codec_load_dsp_cleanup(struct hda_codec *codec,
 				struct snd_dma_buffer *dmab) {}
 #endif
 
-/*
- * Codec modularization
- */
-
-/* Export symbols only for communication with codec drivers;
- * When built in kernel, all HD-audio drivers are supposed to be statically
- * linked to the kernel.  Thus, the symbols don't have to (or shouldn't) be
- * exported unless it's built as a module.
- */
-#ifdef MODULE
 #define EXPORT_SYMBOL_HDA(sym) EXPORT_SYMBOL_GPL(sym)
-#else
-#define EXPORT_SYMBOL_HDA(sym)
-#endif
 
 #endif /* __SOUND_HDA_CODEC_H */
