@@ -60,15 +60,6 @@
 /* Max default timeout in ms, */
 #define I40E_MAX_NVM_TIMEOUT		18000
 
-/* Check whether address is multicast.  This is little-endian specific check.*/
-#define I40E_IS_MULTICAST(address)	\
-	(bool)(((u8 *)(address))[0] & ((u8)0x01))
-
-/* Check whether an address is broadcast. */
-#define I40E_IS_BROADCAST(address)	\
-	((((u8 *)(address))[0] == ((u8)0xff)) && \
-	(((u8 *)(address))[1] == ((u8)0xff)))
-
 /* Switch from mc to the 2usec global time (this is the GTIME resolution) */
 #define I40E_MS_TO_GTIME(time)		(((time) * 1000) / 2)
 
