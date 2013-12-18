@@ -367,25 +367,28 @@ void prepare_data_dma(struct gpmi_nand_data *this, enum dma_data_direction dr)
 	struct scatterlist *sgl = &this->data_sgl;
 	int ret;
 
-	this->direct_dma_map_ok = true;
-
 	/* first try to map the upper buffer directly */
-	sg_init_one(sgl, this->upper_buf, this->upper_len);
-	ret = dma_map_sg(this->dev, sgl, 1, dr);
-	if (ret == 0) {
-		/* We have to use our own DMA buffer. */
-		sg_init_one(sgl, this->data_buffer_dma, PAGE_SIZE);
-
-		if (dr == DMA_TO_DEVICE)
-			memcpy(this->data_buffer_dma, this->upper_buf,
-				this->upper_len);
-
+	if (virt_addr_valid(this->upper_buf) &&
+		!object_is_on_stack(this->upper_buf)) {
+		sg_init_one(sgl, this->upper_buf, this->upper_len);
 		ret = dma_map_sg(this->dev, sgl, 1, dr);
 		if (ret == 0)
-			dev_err(this->dev, "DMA mapping failed.\n");
+			goto map_fail;
 
-		this->direct_dma_map_ok = false;
+		this->direct_dma_map_ok = true;
+		return;
 	}
+
+map_fail:
+	/* We have to use our own DMA buffer. */
+	sg_init_one(sgl, this->data_buffer_dma, this->upper_len);
+
+	if (dr == DMA_TO_DEVICE)
+		memcpy(this->data_buffer_dma, this->upper_buf, this->upper_len);
+
+	dma_map_sg(this->dev, sgl, 1, dr);
+
+	this->direct_dma_map_ok = false;
 }
 
 /* This will be called after the DMA operation is finished. */
