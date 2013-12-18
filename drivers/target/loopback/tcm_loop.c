@@ -1228,7 +1228,7 @@ static struct configfs_attribute *tcm_loop_tpg_attrs[] = {
 
 /* Start items for tcm_loop_naa_cit */
 
-struct se_portal_group *tcm_loop_make_naa_tpg(
+static struct se_portal_group *tcm_loop_make_naa_tpg(
 	struct se_wwn *wwn,
 	struct config_group *group,
 	const char *name)
@@ -1273,7 +1273,7 @@ struct se_portal_group *tcm_loop_make_naa_tpg(
 	return &tl_tpg->tl_se_tpg;
 }
 
-void tcm_loop_drop_naa_tpg(
+static void tcm_loop_drop_naa_tpg(
 	struct se_portal_group *se_tpg)
 {
 	struct se_wwn *wwn = se_tpg->se_tpg_wwn;
@@ -1305,7 +1305,7 @@ void tcm_loop_drop_naa_tpg(
 
 /* Start items for tcm_loop_cit */
 
-struct se_wwn *tcm_loop_make_scsi_hba(
+static struct se_wwn *tcm_loop_make_scsi_hba(
 	struct target_fabric_configfs *tf,
 	struct config_group *group,
 	const char *name)
@@ -1375,7 +1375,7 @@ out:
 	return ERR_PTR(ret);
 }
 
-void tcm_loop_drop_scsi_hba(
+static void tcm_loop_drop_scsi_hba(
 	struct se_wwn *wwn)
 {
 	struct tcm_loop_hba *tl_hba = container_of(wwn,
