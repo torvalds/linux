@@ -342,15 +342,15 @@ static u8 symbol__parent_filter(const struct symbol *parent)
 }
 
 static struct hist_entry *add_hist_entry(struct hists *hists,
-				      struct hist_entry *entry,
-				      struct addr_location *al,
-				      u64 period,
-				      u64 weight)
+					 struct hist_entry *entry,
+					 struct addr_location *al)
 {
 	struct rb_node **p;
 	struct rb_node *parent = NULL;
 	struct hist_entry *he;
 	int64_t cmp;
+	u64 period = entry->stat.period;
+	u64 weight = entry->stat.weight;
 
 	p = &hists->entries_in->rb_node;
 
@@ -437,7 +437,7 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 		.transaction = transaction,
 	};
 
-	return add_hist_entry(hists, &entry, al, period, weight);
+	return add_hist_entry(hists, &entry, al);
 }
 
 int64_t
