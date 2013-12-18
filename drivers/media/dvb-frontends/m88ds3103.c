@@ -12,10 +12,6 @@
  *    but WITHOUT ANY WARRANTY; without even the implied warranty of
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License along
- *    with this program; if not, write to the Free Software Foundation, Inc.,
- *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "m88ds3103_priv.h"
@@ -927,8 +923,9 @@ static int m88ds3103_read_snr(struct dvb_frontend *fe, u16 *snr)
 		if (signal > noise) {
 			tmp = signal / noise;
 			*snr = 100ul * intlog10(tmp) / (1 << 24);
-		} else
+		} else {
 			*snr = 0;
+		}
 		break;
 	default:
 		dev_dbg(&priv->i2c->dev, "%s: invalid delivery_system\n",
@@ -1190,7 +1187,7 @@ struct dvb_frontend *m88ds3103_attach(const struct m88ds3103_config *cfg,
 	u8 chip_id, u8tmp;
 
 	/* allocate memory for the internal priv */
-	priv = kzalloc(sizeof(struct m88ds3103_priv), GFP_KERNEL);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		ret = -ENOMEM;
 		dev_err(&i2c->dev, "%s: kzalloc() failed\n", KBUILD_MODNAME);
