@@ -717,14 +717,6 @@ struct bbio {
 #define bucket_bytes(c)		((c)->sb.bucket_size << 9)
 #define block_bytes(c)		((c)->sb.block_size << 9)
 
-#define __set_bytes(i, k)	(sizeof(*(i)) + (k) * sizeof(uint64_t))
-#define set_bytes(i)		__set_bytes(i, i->keys)
-
-#define __set_blocks(i, k, c)	DIV_ROUND_UP(__set_bytes(i, k), block_bytes(c))
-#define set_blocks(i, c)	__set_blocks(i, (i)->keys, c)
-
-#define btree_data_space(b)	(PAGE_SIZE << (b)->page_order)
-
 #define prios_per_bucket(c)				\
 	((bucket_bytes(c) - sizeof(struct prio_set)) /	\
 	 sizeof(struct bucket_disk))

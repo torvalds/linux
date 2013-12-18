@@ -123,7 +123,8 @@ static void bch_dump_bucket(struct btree *b)
 	for (i = (start);						\
 	     (void *) i < (void *) (start) + (KEY_SIZE(&b->key) << 9) &&\
 	     i->seq == (start)->seq;					\
-	     i = (void *) i + set_blocks(i, b->c) * block_bytes(b->c))
+	     i = (void *) i + set_blocks(i, block_bytes(b->c)) *	\
+		 block_bytes(b->c))
 
 void bch_btree_verify(struct btree *b)
 {

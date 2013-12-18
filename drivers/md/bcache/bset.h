@@ -144,11 +144,59 @@
  * first key in that range of bytes again.
  */
 
-struct cache_set;
-
-/* Btree key comparison/iteration */
+struct btree;
+struct bkey_float;
 
 #define MAX_BSETS		4U
+
+struct bset_tree {
+	/*
+	 * We construct a binary tree in an array as if the array
+	 * started at 1, so that things line up on the same cachelines
+	 * better: see comments in bset.c at cacheline_to_bkey() for
+	 * details
+	 */
+
+	/* size of the binary tree and prev array */
+	unsigned		size;
+
+	/* function of size - precalculated for to_inorder() */
+	unsigned		extra;
+
+	/* copy of the last key in the set */
+	struct bkey		end;
+	struct bkey_float	*tree;
+
+	/*
+	 * The nodes in the bset tree point to specific keys - this
+	 * array holds the sizes of the previous key.
+	 *
+	 * Conceptually it's a member of struct bkey_float, but we want
+	 * to keep bkey_float to 4 bytes and prev isn't used in the fast
+	 * path.
+	 */
+	uint8_t			*prev;
+
+	/* The actual btree node, with pointers to each sorted set */
+	struct bset		*data;
+};
+
+#define __set_bytes(i, k)	(sizeof(*(i)) + (k) * sizeof(uint64_t))
+#define set_bytes(i)		__set_bytes(i, i->keys)
+
+#define __set_blocks(i, k, block_bytes)				\
+	DIV_ROUND_UP(__set_bytes(i, k), block_bytes)
+#define set_blocks(i, block_bytes)				\
+	__set_blocks(i, (i)->keys, block_bytes)
+
+void bch_btree_keys_free(struct btree *);
+int bch_btree_keys_alloc(struct btree *, unsigned, gfp_t);
+
+void bch_bset_fix_invalidated_key(struct btree *, struct bkey *);
+void bch_bset_init_next(struct btree *, struct bset *, uint64_t);
+void bch_bset_insert(struct btree *, struct bkey *, struct bkey *);
+
+/* Btree key iteration */
 
 struct btree_iter {
 	size_t size, used;
@@ -160,37 +208,27 @@ struct btree_iter {
 	} data[MAX_BSETS];
 };
 
-struct bset_tree {
-	/*
-	 * We construct a binary tree in an array as if the array
-	 * started at 1, so that things line up on the same cachelines
-	 * better: see comments in bset.c at cacheline_to_bkey() for
-	 * details
-	 */
+typedef bool (*ptr_filter_fn)(struct btree *, const struct bkey *);
 
-	/* size of the binary tree and prev array */
-	unsigned	size;
+struct bkey *bch_btree_iter_next(struct btree_iter *);
+struct bkey *bch_btree_iter_next_filter(struct btree_iter *,
+					struct btree *, ptr_filter_fn);
 
-	/* function of size - precalculated for to_inorder() */
-	unsigned	extra;
+void bch_btree_iter_push(struct btree_iter *, struct bkey *, struct bkey *);
+struct bkey *bch_btree_iter_init(struct btree *, struct btree_iter *,
+				 struct bkey *);
 
-	/* copy of the last key in the set */
-	struct bkey	end;
-	struct bkey_float *tree;
+struct bkey *__bch_bset_search(struct btree *, struct bset_tree *,
+			   const struct bkey *);
 
-	/*
-	 * The nodes in the bset tree point to specific keys - this
-	 * array holds the sizes of the previous key.
-	 *
-	 * Conceptually it's a member of struct bkey_float, but we want
-	 * to keep bkey_float to 4 bytes and prev isn't used in the fast
-	 * path.
-	 */
-	uint8_t		*prev;
-
-	/* The actual btree node, with pointers to each sorted set */
-	struct bset	*data;
-};
+/*
+ * Returns the first key that is strictly greater than search
+ */
+static inline struct bkey *bch_bset_search(struct btree *b, struct bset_tree *t,
+					   const struct bkey *search)
+{
+	return search ? __bch_bset_search(b, t, search) : t->data->start;
+}
 
 /* Sorting */
 
@@ -218,6 +256,60 @@ static inline void bch_btree_sort(struct btree *b,
 {
 	bch_btree_sort_partial(b, 0, state);
 }
+
+/* Bkey utility code */
+
+#define bset_bkey_last(i)	bkey_idx((struct bkey *) (i)->d, (i)->keys)
+
+static inline struct bkey *bset_bkey_idx(struct bset *i, unsigned idx)
+{
+	return bkey_idx(i->start, idx);
+}
+
+static inline void bkey_init(struct bkey *k)
+{
+	*k = ZERO_KEY;
+}
+
+static __always_inline int64_t bkey_cmp(const struct bkey *l,
+					const struct bkey *r)
+{
+	return unlikely(KEY_INODE(l) != KEY_INODE(r))
+		? (int64_t) KEY_INODE(l) - (int64_t) KEY_INODE(r)
+		: (int64_t) KEY_OFFSET(l) - (int64_t) KEY_OFFSET(r);
+}
+
+void bch_bkey_copy_single_ptr(struct bkey *, const struct bkey *,
+			      unsigned);
+bool __bch_cut_front(const struct bkey *, struct bkey *);
+bool __bch_cut_back(const struct bkey *, struct bkey *);
+
+static inline bool bch_cut_front(const struct bkey *where, struct bkey *k)
+{
+	BUG_ON(bkey_cmp(where, k) > 0);
+	return __bch_cut_front(where, k);
+}
+
+static inline bool bch_cut_back(const struct bkey *where, struct bkey *k)
+{
+	BUG_ON(bkey_cmp(where, &START_KEY(k)) < 0);
+	return __bch_cut_back(where, k);
+}
+
+#define PRECEDING_KEY(_k)					\
+({								\
+	struct bkey *_ret = NULL;				\
+								\
+	if (KEY_INODE(_k) || KEY_OFFSET(_k)) {			\
+		_ret = &KEY(KEY_INODE(_k), KEY_OFFSET(_k), 0);	\
+								\
+		if (!_ret->low)					\
+			_ret->high--;				\
+		_ret->low--;					\
+	}							\
+								\
+	_ret;							\
+})
 
 /* Keylists */
 
@@ -282,125 +374,14 @@ struct bkey *bch_keylist_pop(struct keylist *);
 void bch_keylist_pop_front(struct keylist *);
 int __bch_keylist_realloc(struct keylist *, unsigned);
 
-/* Bkey utility code */
-
-#define bset_bkey_last(i)	bkey_idx((struct bkey *) (i)->d, (i)->keys)
-
-static inline struct bkey *bset_bkey_idx(struct bset *i, unsigned idx)
-{
-	return bkey_idx(i->start, idx);
-}
-
-static inline void bkey_init(struct bkey *k)
-{
-	*k = ZERO_KEY;
-}
-
-static __always_inline int64_t bkey_cmp(const struct bkey *l,
-					const struct bkey *r)
-{
-	return unlikely(KEY_INODE(l) != KEY_INODE(r))
-		? (int64_t) KEY_INODE(l) - (int64_t) KEY_INODE(r)
-		: (int64_t) KEY_OFFSET(l) - (int64_t) KEY_OFFSET(r);
-}
-
-void bch_bkey_copy_single_ptr(struct bkey *, const struct bkey *,
-			      unsigned);
-bool __bch_cut_front(const struct bkey *, struct bkey *);
-bool __bch_cut_back(const struct bkey *, struct bkey *);
-
-static inline bool bch_cut_front(const struct bkey *where, struct bkey *k)
-{
-	BUG_ON(bkey_cmp(where, k) > 0);
-	return __bch_cut_front(where, k);
-}
-
-static inline bool bch_cut_back(const struct bkey *where, struct bkey *k)
-{
-	BUG_ON(bkey_cmp(where, &START_KEY(k)) < 0);
-	return __bch_cut_back(where, k);
-}
-
+struct cache_set;
 const char *bch_ptr_status(struct cache_set *, const struct bkey *);
 bool bch_btree_ptr_invalid(struct cache_set *, const struct bkey *);
 bool bch_extent_ptr_invalid(struct cache_set *, const struct bkey *);
+bool bch_btree_ptr_bad(struct btree *, const struct bkey *);
+bool bch_extent_ptr_bad(struct btree *, const struct bkey *);
 
 bool bch_ptr_bad(struct btree *, const struct bkey *);
-
-typedef bool (*ptr_filter_fn)(struct btree *, const struct bkey *);
-
-struct bkey *bch_btree_iter_next(struct btree_iter *);
-struct bkey *bch_btree_iter_next_filter(struct btree_iter *,
-					struct btree *, ptr_filter_fn);
-
-void bch_btree_iter_push(struct btree_iter *, struct bkey *, struct bkey *);
-struct bkey *bch_btree_iter_init(struct btree *, struct btree_iter *,
-				 struct bkey *);
-
-/* 32 bits total: */
-#define BKEY_MID_BITS		3
-#define BKEY_EXPONENT_BITS	7
-#define BKEY_MANTISSA_BITS	22
-#define BKEY_MANTISSA_MASK	((1 << BKEY_MANTISSA_BITS) - 1)
-
-struct bkey_float {
-	unsigned	exponent:BKEY_EXPONENT_BITS;
-	unsigned	m:BKEY_MID_BITS;
-	unsigned	mantissa:BKEY_MANTISSA_BITS;
-} __packed;
-
-/*
- * BSET_CACHELINE was originally intended to match the hardware cacheline size -
- * it used to be 64, but I realized the lookup code would touch slightly less
- * memory if it was 128.
- *
- * It definites the number of bytes (in struct bset) per struct bkey_float in
- * the auxiliar search tree - when we're done searching the bset_float tree we
- * have this many bytes left that we do a linear search over.
- *
- * Since (after level 5) every level of the bset_tree is on a new cacheline,
- * we're touching one fewer cacheline in the bset tree in exchange for one more
- * cacheline in the linear search - but the linear search might stop before it
- * gets to the second cacheline.
- */
-
-#define BSET_CACHELINE		128
-#define bset_tree_space(b)	(btree_data_space(b) / BSET_CACHELINE)
-
-#define bset_tree_bytes(b)	(bset_tree_space(b) * sizeof(struct bkey_float))
-#define bset_prev_bytes(b)	(bset_tree_space(b) * sizeof(uint8_t))
-
-void bch_bset_init_next(struct btree *);
-
-void bch_bset_fix_invalidated_key(struct btree *, struct bkey *);
-void bch_bset_fix_lookup_table(struct btree *, struct bkey *);
-
-struct bkey *__bch_bset_search(struct btree *, struct bset_tree *,
-			   const struct bkey *);
-
-/*
- * Returns the first key that is strictly greater than search
- */
-static inline struct bkey *bch_bset_search(struct btree *b, struct bset_tree *t,
-					   const struct bkey *search)
-{
-	return search ? __bch_bset_search(b, t, search) : t->data->start;
-}
-
-#define PRECEDING_KEY(_k)					\
-({								\
-	struct bkey *_ret = NULL;				\
-								\
-	if (KEY_INODE(_k) || KEY_OFFSET(_k)) {			\
-		_ret = &KEY(KEY_INODE(_k), KEY_OFFSET(_k), 0);	\
-								\
-		if (!_ret->low)					\
-			_ret->high--;				\
-		_ret->low--;					\
-	}							\
-								\
-	_ret;							\
-})
 
 bool bch_bkey_try_merge(struct btree *, struct bkey *, struct bkey *);
 
