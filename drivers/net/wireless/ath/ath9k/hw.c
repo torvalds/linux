@@ -1363,7 +1363,12 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 
 	REGWRITE_BUFFER_FLUSH(ah);
 
-	udelay(50);
+	if (AR_SREV_9300_20_OR_LATER(ah))
+		udelay(50);
+	else if (AR_SREV_9100(ah))
+		udelay(10000);
+	else
+		udelay(100);
 
 	REG_WRITE(ah, AR_RTC_RC, 0);
 	if (!ath9k_hw_wait(ah, AR_RTC_RC, AR_RTC_RC_M, 0, AH_WAIT_TIMEOUT)) {
