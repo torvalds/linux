@@ -27,7 +27,6 @@
 #include <asm/firmware.h>
 
 #include <mach/hardware.h>
-#include <mach/regs-clock.h>
 
 #include <plat/cpu.h>
 
