@@ -300,6 +300,7 @@ config GPIO_XILINX
 config GPIO_XTENSA
 	bool "Xtensa GPIO32 support"
 	depends on XTENSA
+	depends on HAVE_XTENSA_GPIO32
 	depends on !SMP
 	help
 	  Say yes here to support the Xtensa internal GPIO32 IMPWIRE (input)
