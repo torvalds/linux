@@ -3755,7 +3755,7 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.ucq_density = 1 << QUEUESPERPAGEPF0_GET(
 			t4_read_reg(adap, SGE_INGRESS_QUEUES_PER_PAGE_PF) >>
 			(adap->fn * 4));
-	lli.filt_mode = adap->filter_mode;
+	lli.filt_mode = adap->params.tp.vlan_pri_map;
 	/* MODQ_REQ_MAP sets queues 0-3 to chan 0-3 */
 	for (i = 0; i < NCHAN; i++)
 		lli.tx_modq[i] = i;
@@ -4229,13 +4229,13 @@ int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 			f->fs.val.lip[i] = val[i];
 			f->fs.mask.lip[i] = ~0;
 		}
-		if (adap->filter_mode & F_PORT) {
+		if (adap->params.tp.vlan_pri_map & F_PORT) {
 			f->fs.val.iport = port;
 			f->fs.mask.iport = mask;
 		}
 	}
 
-	if (adap->filter_mode & F_PROTOCOL) {
+	if (adap->params.tp.vlan_pri_map & F_PROTOCOL) {
 		f->fs.val.proto = IPPROTO_TCP;
 		f->fs.mask.proto = ~0;
 	}
@@ -5121,7 +5121,7 @@ static int adap_init0(struct adapter *adap)
 	enum dev_state state;
 	u32 params[7], val[7];
 	struct fw_caps_config_cmd caps_cmd;
-	int reset = 1, j;
+	int reset = 1;
 
 	/*
 	 * Contact FW, advertising Master capability (and potentially forcing
@@ -5463,21 +5463,11 @@ static int adap_init0(struct adapter *adap)
 	/*
 	 * These are finalized by FW initialization, load their values now.
 	 */
-	v = t4_read_reg(adap, TP_TIMER_RESOLUTION);
-	adap->params.tp.tre = TIMERRESOLUTION_GET(v);
-	adap->params.tp.dack_re = DELAYEDACKRESOLUTION_GET(v);
 	t4_read_mtu_tbl(adap, adap->params.mtus, NULL);
 	t4_load_mtus(adap, adap->params.mtus, adap->params.a_wnd,
 		     adap->params.b_wnd);
 
-	/* MODQ_REQ_MAP defaults to setting queues 0-3 to chan 0-3 */
-	for (j = 0; j < NCHAN; j++)
-		adap->params.tp.tx_modq[j] = j;
-
-	t4_read_indirect(adap, TP_PIO_ADDR, TP_PIO_DATA,
-			 &adap->filter_mode, 1,
-			 TP_VLAN_PRI_MAP);
-
+	t4_init_tp_params(adap);
 	adap->flags |= FW_OK;
 	return 0;
 

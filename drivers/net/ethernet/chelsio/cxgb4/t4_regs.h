@@ -1171,13 +1171,49 @@
 
 #define A_TP_TX_SCHED_PCMD 0x25
 
+#define S_VNIC    11
+#define V_VNIC(x) ((x) << S_VNIC)
+#define F_VNIC    V_VNIC(1U)
+
+#define S_FRAGMENTATION    9
+#define V_FRAGMENTATION(x) ((x) << S_FRAGMENTATION)
+#define F_FRAGMENTATION    V_FRAGMENTATION(1U)
+
+#define S_MPSHITTYPE    8
+#define V_MPSHITTYPE(x) ((x) << S_MPSHITTYPE)
+#define F_MPSHITTYPE    V_MPSHITTYPE(1U)
+
+#define S_MACMATCH    7
+#define V_MACMATCH(x) ((x) << S_MACMATCH)
+#define F_MACMATCH    V_MACMATCH(1U)
+
+#define S_ETHERTYPE    6
+#define V_ETHERTYPE(x) ((x) << S_ETHERTYPE)
+#define F_ETHERTYPE    V_ETHERTYPE(1U)
+
 #define S_PROTOCOL    5
 #define V_PROTOCOL(x) ((x) << S_PROTOCOL)
 #define F_PROTOCOL    V_PROTOCOL(1U)
 
+#define S_TOS    4
+#define V_TOS(x) ((x) << S_TOS)
+#define F_TOS    V_TOS(1U)
+
+#define S_VLAN    3
+#define V_VLAN(x) ((x) << S_VLAN)
+#define F_VLAN    V_VLAN(1U)
+
+#define S_VNIC_ID    2
+#define V_VNIC_ID(x) ((x) << S_VNIC_ID)
+#define F_VNIC_ID    V_VNIC_ID(1U)
+
 #define S_PORT    1
 #define V_PORT(x) ((x) << S_PORT)
 #define F_PORT    V_PORT(1U)
+
+#define S_FCOE    0
+#define V_FCOE(x) ((x) << S_FCOE)
+#define F_FCOE    V_FCOE(1U)
 
 #define NUM_MPS_CLS_SRAM_L_INSTANCES 336
 #define NUM_MPS_T5_CLS_SRAM_L_INSTANCES 512
@@ -1216,5 +1252,38 @@
 #define M_CHIPID    0xfU
 #define V_CHIPID(x) ((x) << S_CHIPID)
 #define G_CHIPID(x) (((x) >> S_CHIPID) & M_CHIPID)
+
+/* TP_VLAN_PRI_MAP controls which subset of fields will be present in the
+ * Compressed Filter Tuple for LE filters.  Each bit set in TP_VLAN_PRI_MAP
+ * selects for a particular field being present.  These fields, when present
+ * in the Compressed Filter Tuple, have the following widths in bits.
+ */
+#define W_FT_FCOE                       1
+#define W_FT_PORT                       3
+#define W_FT_VNIC_ID                    17
+#define W_FT_VLAN                       17
+#define W_FT_TOS                        8
+#define W_FT_PROTOCOL                   8
+#define W_FT_ETHERTYPE                  16
+#define W_FT_MACMATCH                   9
+#define W_FT_MPSHITTYPE                 3
+#define W_FT_FRAGMENTATION              1
+
+/* Some of the Compressed Filter Tuple fields have internal structure.  These
+ * bit shifts/masks describe those structures.  All shifts are relative to the
+ * base position of the fields within the Compressed Filter Tuple
+ */
+#define S_FT_VLAN_VLD                   16
+#define V_FT_VLAN_VLD(x)                ((x) << S_FT_VLAN_VLD)
+#define F_FT_VLAN_VLD                   V_FT_VLAN_VLD(1U)
+
+#define S_FT_VNID_ID_VF                 0
+#define V_FT_VNID_ID_VF(x)              ((x) << S_FT_VNID_ID_VF)
+
+#define S_FT_VNID_ID_PF                 7
+#define V_FT_VNID_ID_PF(x)              ((x) << S_FT_VNID_ID_PF)
+
+#define S_FT_VNID_ID_VLD                16
+#define V_FT_VNID_ID_VLD(x)             ((x) << S_FT_VNID_ID_VLD)
 
 #endif /* __T4_REGS_H */
