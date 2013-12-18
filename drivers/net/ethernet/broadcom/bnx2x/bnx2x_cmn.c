@@ -728,8 +728,9 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 
 		skb_reserve(skb, pad + NET_SKB_PAD);
 		skb_put(skb, len);
-		skb->rxhash = tpa_info->rxhash;
-		skb->l4_rxhash = tpa_info->l4_rxhash;
+		skb_set_hash(skb, tpa_info->rxhash,
+			     tpa_info->l4_rxhash ?
+			     PKT_HASH_TYPE_L4 : PKT_HASH_TYPE_L3);
 
 		skb->protocol = eth_type_trans(skb, bp->dev);
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -846,6 +847,7 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 		enum eth_rx_cqe_type cqe_fp_type;
 		u16 len, pad, queue;
 		u8 *data;
+		u32 rxhash;
 		bool l4_rxhash;
 
 #ifdef BNX2X_STOP_ON_ERROR
@@ -987,8 +989,9 @@ reuse_rx:
 		skb->protocol = eth_type_trans(skb, bp->dev);
 
 		/* Set Toeplitz hash for a none-LRO skb */
-		skb->rxhash = bnx2x_get_rxhash(bp, cqe_fp, &l4_rxhash);
-		skb->l4_rxhash = l4_rxhash;
+		rxhash = bnx2x_get_rxhash(bp, cqe_fp, &l4_rxhash);
+		skb_set_hash(skb, rxhash,
+			     l4_rxhash ? PKT_HASH_TYPE_L4 : PKT_HASH_TYPE_L3);
 
 		skb_checksum_none_assert(skb);
 
