@@ -147,11 +147,18 @@ pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 		    !(res->flags & IORESOURCE_PREFETCH))
 			continue;
 
+		/*
+		 * "min" is typically PCIBIOS_MIN_IO or PCIBIOS_MIN_MEM to
+		 * protect badly documented motherboard resources, but if
+		 * this is an already-configured bridge window, its start
+		 * overrides "min".
+		 */
+		if (r->start)
+			min = r->start;
+
 		/* Ok, try it out.. */
-		ret = allocate_resource(r, res, size,
-					r->start ? : min,
-					max, align,
-					alignf, alignf_data);
+		ret = allocate_resource(r, res, size, min, max,
+					align, alignf, alignf_data);
 		if (ret == 0)
 			break;
 	}
