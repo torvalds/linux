@@ -7,12 +7,12 @@
  * VMEbus Master Window Configuration Structure
  */
 struct vme_master {
-	u32 enable;		/* State of Window */
-	u64 vme_addr;		/* Starting Address on the VMEbus */
-	u64 size;		/* Window Size */
-	u32 aspace;		/* Address Space */
-	u32 cycle;		/* Cycle properties */
-	u32 dwidth;		/* Maximum Data Width */
+	__u32 enable;		/* State of Window */
+	__u64 vme_addr;		/* Starting Address on the VMEbus */
+	__u64 size;		/* Window Size */
+	__u32 aspace;		/* Address Space */
+	__u32 cycle;		/* Cycle properties */
+	__u32 dwidth;		/* Maximum Data Width */
 #if 0
 	char prefetchenable;		/* Prefetch Read Enable State */
 	int prefetchsize;		/* Prefetch Read Size (Cache Lines) */
@@ -31,11 +31,11 @@ struct vme_master {
 
 /* VMEbus Slave Window Configuration Structure */
 struct vme_slave {
-	u32 enable;		/* State of Window */
-	u64 vme_addr;		/* Starting Address on the VMEbus */
-	u64 size;		/* Window Size */
-	u32 aspace;		/* Address Space */
-	u32 cycle;		/* Cycle properties */
+	__u32 enable;		/* State of Window */
+	__u64 vme_addr;		/* Starting Address on the VMEbus */
+	__u64 size;		/* Window Size */
+	__u32 aspace;		/* Address Space */
+	__u32 cycle;		/* Cycle properties */
 #if 0
 	char wrpostenable;		/* Write Post State */
 	char rmwlock;			/* Lock PCI during RMW Cycles */
