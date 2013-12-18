@@ -20,6 +20,7 @@
  * OF THIS SOFTWARE.
  */
 
+#include <linux/errno.h>
 #include <linux/kernel.h>
 
 #include "mipi-phy.h"
