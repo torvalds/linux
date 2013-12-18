@@ -558,7 +558,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	 * Note: The works for IPv6 layer checks this bit too later
 	 * in transmission.  See IP6_ECN_flow_xmit().
 	 */
-	(*tp->af_specific->ecn_capable)(nskb->sk);
+	tp->af_specific->ecn_capable(nskb->sk);
 
 	/* Set up the IP options.  */
 	/* BUG: not implemented
@@ -593,7 +593,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	pr_debug("***sctp_transmit_packet*** skb->len:%d\n", nskb->len);
 
 	nskb->local_df = packet->ipfragok;
-	(*tp->af_specific->sctp_xmit)(nskb, tp);
+	tp->af_specific->sctp_xmit(nskb, tp);
 
 out:
 	sctp_packet_reset(packet);

@@ -1115,7 +1115,7 @@ int sctp_do_sm(struct net *net, sctp_event_t event_type, sctp_subtype_t subtype,
 	sctp_init_cmd_seq(&commands);
 
 	debug_pre_sfn();
-	status = (*state_fn->fn)(net, ep, asoc, subtype, event_arg, &commands);
+	status = state_fn->fn(net, ep, asoc, subtype, event_arg, &commands);
 	debug_post_sfn();
 
 	error = sctp_side_effects(event_type, subtype, state,
