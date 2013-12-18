@@ -88,7 +88,7 @@
 
 /* The values in here are decimal coded as hex as is the case in the NVM map*/
 #define I40E_CURRENT_NVM_VERSION_HI 0x2
-#define I40E_CURRENT_NVM_VERSION_LO 0x1
+#define I40E_CURRENT_NVM_VERSION_LO 0x30
 
 
 /* magic for getting defines into strings */
