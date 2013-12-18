@@ -1192,27 +1192,25 @@ static int radeon_pm_init_dpm(struct radeon_device *rdev)
 	rdev->pm.dpm_enabled = true;
 	radeon_pm_compute_clocks(rdev);
 
-	if (rdev->pm.num_power_states > 1) {
-		ret = device_create_file(rdev->dev, &dev_attr_power_dpm_state);
-		if (ret)
-			DRM_ERROR("failed to create device file for dpm state\n");
-		ret = device_create_file(rdev->dev, &dev_attr_power_dpm_force_performance_level);
-		if (ret)
-			DRM_ERROR("failed to create device file for dpm state\n");
-		/* XXX: these are noops for dpm but are here for backwards compat */
-		ret = device_create_file(rdev->dev, &dev_attr_power_profile);
-		if (ret)
-			DRM_ERROR("failed to create device file for power profile\n");
-		ret = device_create_file(rdev->dev, &dev_attr_power_method);
-		if (ret)
-			DRM_ERROR("failed to create device file for power method\n");
+	ret = device_create_file(rdev->dev, &dev_attr_power_dpm_state);
+	if (ret)
+		DRM_ERROR("failed to create device file for dpm state\n");
+	ret = device_create_file(rdev->dev, &dev_attr_power_dpm_force_performance_level);
+	if (ret)
+		DRM_ERROR("failed to create device file for dpm state\n");
+	/* XXX: these are noops for dpm but are here for backwards compat */
+	ret = device_create_file(rdev->dev, &dev_attr_power_profile);
+	if (ret)
+		DRM_ERROR("failed to create device file for power profile\n");
+	ret = device_create_file(rdev->dev, &dev_attr_power_method);
+	if (ret)
+		DRM_ERROR("failed to create device file for power method\n");
 
-		if (radeon_debugfs_pm_init(rdev)) {
-			DRM_ERROR("Failed to register debugfs file for dpm!\n");
-		}
-
-		DRM_INFO("radeon: dpm initialized\n");
+	if (radeon_debugfs_pm_init(rdev)) {
+		DRM_ERROR("Failed to register debugfs file for dpm!\n");
 	}
+
+	DRM_INFO("radeon: dpm initialized\n");
 
 	return 0;
 }
