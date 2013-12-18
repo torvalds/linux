@@ -260,7 +260,8 @@ struct bnad_rx_unmap_q {
 #define	BNAD_CF_DIM_ENABLED		0x01	/* DIM */
 #define	BNAD_CF_PROMISC			0x02
 #define BNAD_CF_ALLMULTI		0x04
-#define	BNAD_CF_MSIX			0x08	/* If in MSIx mode */
+#define	BNAD_CF_DEFAULT			0x08
+#define	BNAD_CF_MSIX			0x10	/* If in MSIx mode */
 
 /* Defines for run_flags bit-mask */
 /* Set, tested & cleared using xxx_bit() functions */

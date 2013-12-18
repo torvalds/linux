@@ -916,6 +916,75 @@ bna_rx_mcast_add(struct bna_rx *rx, u8 *addr,
 }
 
 enum bna_cb_status
+bna_rx_ucast_listset(struct bna_rx *rx, int count, u8 *uclist,
+		     void (*cbfn)(struct bnad *, struct bna_rx *))
+{
+	struct bna_ucam_mod *ucam_mod = &rx->bna->ucam_mod;
+	struct bna_rxf *rxf = &rx->rxf;
+	struct list_head list_head;
+	struct list_head *qe;
+	u8 *mcaddr;
+	struct bna_mac *mac, *del_mac;
+	int i;
+
+	/* Purge the pending_add_q */
+	while (!list_empty(&rxf->ucast_pending_add_q)) {
+		bfa_q_deq(&rxf->ucast_pending_add_q, &qe);
+		bfa_q_qe_init(qe);
+		mac = (struct bna_mac *)qe;
+		bna_cam_mod_mac_put(&ucam_mod->free_q, mac);
+	}
+
+	/* Schedule active_q entries for deletion */
+	while (!list_empty(&rxf->ucast_active_q)) {
+		bfa_q_deq(&rxf->ucast_active_q, &qe);
+		mac = (struct bna_mac *)qe;
+		bfa_q_qe_init(&mac->qe);
+
+		del_mac = bna_cam_mod_mac_get(&ucam_mod->del_q);
+		memcpy(del_mac, mac, sizeof(*del_mac));
+		list_add_tail(&del_mac->qe, &rxf->ucast_pending_del_q);
+		bna_cam_mod_mac_put(&ucam_mod->free_q, mac);
+	}
+
+	/* Allocate nodes */
+	INIT_LIST_HEAD(&list_head);
+	for (i = 0, mcaddr = uclist; i < count; i++) {
+		mac = bna_cam_mod_mac_get(&ucam_mod->free_q);
+		if (mac == NULL)
+			goto err_return;
+		bfa_q_qe_init(&mac->qe);
+		memcpy(mac->addr, mcaddr, ETH_ALEN);
+		list_add_tail(&mac->qe, &list_head);
+		mcaddr += ETH_ALEN;
+	}
+
+	/* Add the new entries */
+	while (!list_empty(&list_head)) {
+		bfa_q_deq(&list_head, &qe);
+		mac = (struct bna_mac *)qe;
+		bfa_q_qe_init(&mac->qe);
+		list_add_tail(&mac->qe, &rxf->ucast_pending_add_q);
+	}
+
+	rxf->cam_fltr_cbfn = cbfn;
+	rxf->cam_fltr_cbarg = rx->bna->bnad;
+	bfa_fsm_send_event(rxf, RXF_E_CONFIG);
+
+	return BNA_CB_SUCCESS;
+
+err_return:
+	while (!list_empty(&list_head)) {
+		bfa_q_deq(&list_head, &qe);
+		mac = (struct bna_mac *)qe;
+		bfa_q_qe_init(&mac->qe);
+		bna_cam_mod_mac_put(&ucam_mod->free_q, mac);
+	}
+
+	return BNA_CB_UCAST_CAM_FULL;
+}
+
+enum bna_cb_status
 bna_rx_mcast_listset(struct bna_rx *rx, int count, u8 *mclist,
 		     void (*cbfn)(struct bnad *, struct bna_rx *))
 {
@@ -943,7 +1012,7 @@ bna_rx_mcast_listset(struct bna_rx *rx, int count, u8 *mclist,
 
 		del_mac = bna_cam_mod_mac_get(&mcam_mod->del_q);
 
-		memcpy(del_mac, mac, sizeof(*mac));
+		memcpy(del_mac, mac, sizeof(*del_mac));
 		list_add_tail(&del_mac->qe, &rxf->mcast_pending_del_q);
 		mac->handle = NULL;
 		bna_cam_mod_mac_put(&mcam_mod->free_q, mac);
@@ -985,6 +1054,49 @@ err_return:
 	}
 
 	return BNA_CB_MCAST_LIST_FULL;
+}
+
+void
+bna_rx_mcast_delall(struct bna_rx *rx,
+		    void (*cbfn)(struct bnad *, struct bna_rx *))
+{
+	struct bna_rxf *rxf = &rx->rxf;
+	struct list_head *qe;
+	struct bna_mac *mac, *del_mac;
+	int need_hw_config = 0;
+
+	/* Purge all entries from pending_add_q */
+	while (!list_empty(&rxf->mcast_pending_add_q)) {
+		bfa_q_deq(&rxf->mcast_pending_add_q, &qe);
+		mac = (struct bna_mac *)qe;
+		bfa_q_qe_init(&mac->qe);
+		bna_cam_mod_mac_put(bna_mcam_mod_free_q(rxf->rx->bna), mac);
+	}
+
+	/* Schedule all entries in active_q for deletion */
+	while (!list_empty(&rxf->mcast_active_q)) {
+		bfa_q_deq(&rxf->mcast_active_q, &qe);
+		mac = (struct bna_mac *)qe;
+		bfa_q_qe_init(&mac->qe);
+
+		del_mac = bna_cam_mod_mac_get(bna_mcam_mod_del_q(rxf->rx->bna));
+
+		memcpy(del_mac, mac, sizeof(*del_mac));
+		list_add_tail(&del_mac->qe, &rxf->mcast_pending_del_q);
+		mac->handle = NULL;
+		bna_cam_mod_mac_put(bna_mcam_mod_free_q(rxf->rx->bna), mac);
+		need_hw_config = 1;
+	}
+
+	if (need_hw_config) {
+		rxf->cam_fltr_cbfn = cbfn;
+		rxf->cam_fltr_cbarg = rx->bna->bnad;
+		bfa_fsm_send_event(rxf, RXF_E_CONFIG);
+		return;
+	}
+
+	if (cbfn)
+		(*cbfn)(rx->bna->bnad, rx);
 }
 
 void
@@ -2677,6 +2789,30 @@ void
 bna_rx_cleanup_complete(struct bna_rx *rx)
 {
 	bfa_fsm_send_event(rx, RX_E_CLEANUP_DONE);
+}
+
+void
+bna_rx_vlan_strip_enable(struct bna_rx *rx)
+{
+	struct bna_rxf *rxf = &rx->rxf;
+
+	if (rxf->vlan_strip_status == BNA_STATUS_T_DISABLED) {
+		rxf->vlan_strip_status = BNA_STATUS_T_ENABLED;
+		rxf->vlan_strip_pending = true;
+		bfa_fsm_send_event(rxf, RXF_E_CONFIG);
+	}
+}
+
+void
+bna_rx_vlan_strip_disable(struct bna_rx *rx)
+{
+	struct bna_rxf *rxf = &rx->rxf;
+
+	if (rxf->vlan_strip_status != BNA_STATUS_T_DISABLED) {
+		rxf->vlan_strip_status = BNA_STATUS_T_DISABLED;
+		rxf->vlan_strip_pending = true;
+		bfa_fsm_send_event(rxf, RXF_E_CONFIG);
+	}
 }
 
 enum bna_cb_status

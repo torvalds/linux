@@ -497,11 +497,17 @@ enum bna_cb_status
 bna_rx_ucast_del(struct bna_rx *rx, u8 *ucmac,
 		 void (*cbfn)(struct bnad *, struct bna_rx *));
 enum bna_cb_status
+bna_rx_ucast_listset(struct bna_rx *rx, int count, u8 *uclist,
+		     void (*cbfn)(struct bnad *, struct bna_rx *));
+enum bna_cb_status
 bna_rx_mcast_add(struct bna_rx *rx, u8 *mcmac,
 		 void (*cbfn)(struct bnad *, struct bna_rx *));
 enum bna_cb_status
 bna_rx_mcast_listset(struct bna_rx *rx, int count, u8 *mcmac,
 		     void (*cbfn)(struct bnad *, struct bna_rx *));
+void
+bna_rx_mcast_delall(struct bna_rx *rx,
+		    void (*cbfn)(struct bnad *, struct bna_rx *));
 enum bna_cb_status
 bna_rx_mode_set(struct bna_rx *rx, enum bna_rxmode rxmode,
 		enum bna_rxmode bitmask,
@@ -509,6 +515,8 @@ bna_rx_mode_set(struct bna_rx *rx, enum bna_rxmode rxmode,
 void bna_rx_vlan_add(struct bna_rx *rx, int vlan_id);
 void bna_rx_vlan_del(struct bna_rx *rx, int vlan_id);
 void bna_rx_vlanfilter_enable(struct bna_rx *rx);
+void bna_rx_vlan_strip_enable(struct bna_rx *rx);
+void bna_rx_vlan_strip_disable(struct bna_rx *rx);
 /* ENET */
 
 /* API for RX */

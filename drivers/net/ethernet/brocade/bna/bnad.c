@@ -2624,9 +2624,6 @@ bnad_stop(struct net_device *netdev)
 	bnad_destroy_tx(bnad, 0);
 	bnad_destroy_rx(bnad, 0);
 
-	/* These config flags are cleared in the hardware */
-	bnad->cfg_flags &= ~(BNAD_CF_ALLMULTI | BNAD_CF_PROMISC);
-
 	/* Synchronize mailbox IRQ */
 	bnad_mbox_irq_sync(bnad);
 
@@ -2939,73 +2936,133 @@ bnad_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 	return stats;
 }
 
+static void
+bnad_set_rx_ucast_fltr(struct bnad *bnad)
+{
+	struct net_device *netdev = bnad->netdev;
+	int uc_count = netdev_uc_count(netdev);
+	enum bna_cb_status ret;
+	u8 *mac_list;
+	struct netdev_hw_addr *ha;
+	int entry;
+
+	if (netdev_uc_empty(bnad->netdev)) {
+		bna_rx_ucast_listset(bnad->rx_info[0].rx, 0, NULL, NULL);
+		return;
+	}
+
+	if (uc_count > bna_attr(&bnad->bna)->num_ucmac)
+		goto mode_default;
+
+	mac_list = kzalloc(uc_count * ETH_ALEN, GFP_ATOMIC);
+	if (mac_list == NULL)
+		goto mode_default;
+
+	entry = 0;
+	netdev_for_each_uc_addr(ha, netdev) {
+		memcpy(&mac_list[entry * ETH_ALEN],
+		       &ha->addr[0], ETH_ALEN);
+		entry++;
+	}
+
+	ret = bna_rx_ucast_listset(bnad->rx_info[0].rx, entry,
+			mac_list, NULL);
+	kfree(mac_list);
+
+	if (ret != BNA_CB_SUCCESS)
+		goto mode_default;
+
+	return;
+
+	/* ucast packets not in UCAM are routed to default function */
+mode_default:
+	bnad->cfg_flags |= BNAD_CF_DEFAULT;
+	bna_rx_ucast_listset(bnad->rx_info[0].rx, 0, NULL, NULL);
+}
+
+static void
+bnad_set_rx_mcast_fltr(struct bnad *bnad)
+{
+	struct net_device *netdev = bnad->netdev;
+	int mc_count = netdev_mc_count(netdev);
+	enum bna_cb_status ret;
+	u8 *mac_list;
+
+	if (netdev->flags & IFF_ALLMULTI)
+		goto mode_allmulti;
+
+	if (netdev_mc_empty(netdev))
+		return;
+
+	if (mc_count > bna_attr(&bnad->bna)->num_mcmac)
+		goto mode_allmulti;
+
+	mac_list = kzalloc((mc_count + 1) * ETH_ALEN, GFP_ATOMIC);
+
+	if (mac_list == NULL)
+		goto mode_allmulti;
+
+	memcpy(&mac_list[0], &bnad_bcast_addr[0], ETH_ALEN);
+
+	/* copy rest of the MCAST addresses */
+	bnad_netdev_mc_list_get(netdev, mac_list);
+	ret = bna_rx_mcast_listset(bnad->rx_info[0].rx, mc_count + 1,
+			mac_list, NULL);
+	kfree(mac_list);
+
+	if (ret != BNA_CB_SUCCESS)
+		goto mode_allmulti;
+
+	return;
+
+mode_allmulti:
+	bnad->cfg_flags |= BNAD_CF_ALLMULTI;
+	bna_rx_mcast_delall(bnad->rx_info[0].rx, NULL);
+}
+
 void
 bnad_set_rx_mode(struct net_device *netdev)
 {
 	struct bnad *bnad = netdev_priv(netdev);
-	u32	new_mask, valid_mask;
+	enum bna_rxmode new_mode, mode_mask;
 	unsigned long flags;
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 
-	new_mask = valid_mask = 0;
+	if (bnad->rx_info[0].rx == NULL) {
+		spin_unlock_irqrestore(&bnad->bna_lock, flags);
+		return;
+	}
 
+	/* clear bnad flags to update it with new settings */
+	bnad->cfg_flags &= ~(BNAD_CF_PROMISC | BNAD_CF_DEFAULT |
+			BNAD_CF_ALLMULTI);
+
+	new_mode = 0;
 	if (netdev->flags & IFF_PROMISC) {
-		if (!(bnad->cfg_flags & BNAD_CF_PROMISC)) {
-			new_mask = BNAD_RXMODE_PROMISC_DEFAULT;
-			valid_mask = BNAD_RXMODE_PROMISC_DEFAULT;
-			bnad->cfg_flags |= BNAD_CF_PROMISC;
-		}
+		new_mode |= BNAD_RXMODE_PROMISC_DEFAULT;
+		bnad->cfg_flags |= BNAD_CF_PROMISC;
 	} else {
-		if (bnad->cfg_flags & BNAD_CF_PROMISC) {
-			new_mask = ~BNAD_RXMODE_PROMISC_DEFAULT;
-			valid_mask = BNAD_RXMODE_PROMISC_DEFAULT;
-			bnad->cfg_flags &= ~BNAD_CF_PROMISC;
-		}
+		bnad_set_rx_mcast_fltr(bnad);
+
+		if (bnad->cfg_flags & BNAD_CF_ALLMULTI)
+			new_mode |= BNA_RXMODE_ALLMULTI;
+
+		bnad_set_rx_ucast_fltr(bnad);
+
+		if (bnad->cfg_flags & BNAD_CF_DEFAULT)
+			new_mode |= BNA_RXMODE_DEFAULT;
 	}
 
-	if (netdev->flags & IFF_ALLMULTI) {
-		if (!(bnad->cfg_flags & BNAD_CF_ALLMULTI)) {
-			new_mask |= BNA_RXMODE_ALLMULTI;
-			valid_mask |= BNA_RXMODE_ALLMULTI;
-			bnad->cfg_flags |= BNAD_CF_ALLMULTI;
-		}
-	} else {
-		if (bnad->cfg_flags & BNAD_CF_ALLMULTI) {
-			new_mask &= ~BNA_RXMODE_ALLMULTI;
-			valid_mask |= BNA_RXMODE_ALLMULTI;
-			bnad->cfg_flags &= ~BNAD_CF_ALLMULTI;
-		}
-	}
+	mode_mask = BNA_RXMODE_PROMISC | BNA_RXMODE_DEFAULT |
+			BNA_RXMODE_ALLMULTI;
+	bna_rx_mode_set(bnad->rx_info[0].rx, new_mode, mode_mask, NULL);
 
-	if (bnad->rx_info[0].rx == NULL)
-		goto unlock;
+	if (bnad->cfg_flags & BNAD_CF_PROMISC)
+		bna_rx_vlan_strip_disable(bnad->rx_info[0].rx);
+	else
+		bna_rx_vlan_strip_enable(bnad->rx_info[0].rx);
 
-	bna_rx_mode_set(bnad->rx_info[0].rx, new_mask, valid_mask, NULL);
-
-	if (!netdev_mc_empty(netdev)) {
-		u8 *mcaddr_list;
-		int mc_count = netdev_mc_count(netdev);
-
-		/* Index 0 holds the broadcast address */
-		mcaddr_list =
-			kzalloc((mc_count + 1) * ETH_ALEN,
-				GFP_ATOMIC);
-		if (!mcaddr_list)
-			goto unlock;
-
-		memcpy(&mcaddr_list[0], &bnad_bcast_addr[0], ETH_ALEN);
-
-		/* Copy rest of the MC addresses */
-		bnad_netdev_mc_list_get(netdev, mcaddr_list);
-
-		bna_rx_mcast_listset(bnad->rx_info[0].rx, mc_count + 1,
-					mcaddr_list, NULL);
-
-		/* Should we enable BNAD_CF_ALLMULTI for err != 0 ? */
-		kfree(mcaddr_list);
-	}
-unlock:
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 }
 

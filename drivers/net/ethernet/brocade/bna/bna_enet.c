@@ -1825,9 +1825,14 @@ static void
 bna_ucam_mod_uninit(struct bna_ucam_mod *ucam_mod)
 {
 	struct list_head *qe;
-	int i = 0;
+	int i;
 
+	i = 0;
 	list_for_each(qe, &ucam_mod->free_q)
+		i++;
+
+	i = 0;
+	list_for_each(qe, &ucam_mod->del_q)
 		i++;
 
 	ucam_mod->bna = NULL;
@@ -1876,6 +1881,9 @@ bna_mcam_mod_uninit(struct bna_mcam_mod *mcam_mod)
 
 	i = 0;
 	list_for_each(qe, &mcam_mod->free_q) i++;
+
+	i = 0;
+	list_for_each(qe, &mcam_mod->del_q) i++;
 
 	i = 0;
 	list_for_each(qe, &mcam_mod->free_handle_q) i++;
