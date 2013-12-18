@@ -1243,6 +1243,7 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 }
 
 #define IP_HEADER_OFFSET 14
+#define I40E_UDPIP_DUMMY_PACKET_LEN 42
 /**
  * i40e_add_del_fdir_udpv4 - Add/Remove UDPv4 Flow Director filters for
  * a specific flow spec
@@ -1263,6 +1264,12 @@ static int i40e_add_del_fdir_udpv4(struct i40e_vsi *vsi,
 	bool err = false;
 	int ret;
 	int i;
+	char packet[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0,
+			 0x45, 0, 0, 0x1c, 0, 0, 0x40, 0, 0x40, 0x11,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 0, 0};
+
+	memcpy(fd_data->raw_packet, packet, I40E_UDPIP_DUMMY_PACKET_LEN);
 
 	ip = (struct iphdr *)(fd_data->raw_packet + IP_HEADER_OFFSET);
 	udp = (struct udphdr *)(fd_data->raw_packet + IP_HEADER_OFFSET
@@ -1293,6 +1300,7 @@ static int i40e_add_del_fdir_udpv4(struct i40e_vsi *vsi,
 	return err ? -EOPNOTSUPP : 0;
 }
 
+#define I40E_TCPIP_DUMMY_PACKET_LEN 54
 /**
  * i40e_add_del_fdir_tcpv4 - Add/Remove TCPv4 Flow Director filters for
  * a specific flow spec
@@ -1312,6 +1320,14 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 	struct iphdr *ip;
 	bool err = false;
 	int ret;
+	/* Dummy packet */
+	char packet[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0,
+			 0x45, 0, 0, 0x28, 0, 0, 0x40, 0, 0x40, 0x6,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 0x80, 0x11, 0x0, 0x72, 0, 0, 0, 0};
+
+	memcpy(fd_data->raw_packet, packet, I40E_TCPIP_DUMMY_PACKET_LEN);
 
 	ip = (struct iphdr *)(fd_data->raw_packet + IP_HEADER_OFFSET);
 	tcp = (struct tcphdr *)(fd_data->raw_packet + IP_HEADER_OFFSET
@@ -1319,6 +1335,8 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 
 	ip->daddr = fsp->h_u.tcp_ip4_spec.ip4dst;
 	tcp->dest = fsp->h_u.tcp_ip4_spec.pdst;
+	ip->saddr = fsp->h_u.tcp_ip4_spec.ip4src;
+	tcp->source = fsp->h_u.tcp_ip4_spec.psrc;
 
 	fd_data->pctype = I40E_FILTER_PCTYPE_NONF_IPV4_TCP_SYN;
 	ret = i40e_program_fdir_filter(fd_data, pf, add);
@@ -1332,9 +1350,6 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 		dev_info(&pf->pdev->dev, "Filter OK for PCTYPE %d (ret = %d)\n",
 			 fd_data->pctype, ret);
 	}
-
-	ip->saddr = fsp->h_u.tcp_ip4_spec.ip4src;
-	tcp->source = fsp->h_u.tcp_ip4_spec.psrc;
 
 	fd_data->pctype = I40E_FILTER_PCTYPE_NONF_IPV4_TCP;
 
@@ -1369,6 +1384,7 @@ static int i40e_add_del_fdir_sctpv4(struct i40e_vsi *vsi,
 	return -EOPNOTSUPP;
 }
 
+#define I40E_IP_DUMMY_PACKET_LEN 34
 /**
  * i40e_add_del_fdir_ipv4 - Add/Remove IPv4 Flow Director filters for
  * a specific flow spec
@@ -1388,7 +1404,11 @@ static int i40e_add_del_fdir_ipv4(struct i40e_vsi *vsi,
 	bool err = false;
 	int ret;
 	int i;
+	char packet[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0,
+			 0x45, 0, 0, 0x14, 0, 0, 0x40, 0, 0x40, 0x10,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
+	memcpy(fd_data->raw_packet, packet, I40E_IP_DUMMY_PACKET_LEN);
 	ip = (struct iphdr *)(fd_data->raw_packet + IP_HEADER_OFFSET);
 
 	ip->saddr = fsp->h_u.usr_ip4_spec.ip4src;
