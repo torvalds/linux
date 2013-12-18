@@ -611,3 +611,12 @@ int bond_option_all_slaves_active_set(struct bonding *bond,
 
 	return 0;
 }
+
+int bond_option_min_links_set(struct bonding *bond, int min_links)
+{
+	pr_info("%s: Setting min links value to %u\n",
+		bond->dev->name, min_links);
+	bond->params.min_links = min_links;
+
+	return 0;
+}

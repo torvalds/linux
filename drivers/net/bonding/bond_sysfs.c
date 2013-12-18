@@ -722,10 +722,15 @@ static ssize_t bonding_store_min_links(struct device *d,
 		return ret;
 	}
 
-	pr_info("%s: Setting min links value to %u\n",
-		bond->dev->name, new_value);
-	bond->params.min_links = new_value;
-	return count;
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	ret = bond_option_min_links_set(bond, new_value);
+	if (!ret)
+		ret = count;
+
+	rtnl_unlock();
+	return ret;
 }
 static DEVICE_ATTR(min_links, S_IRUGO | S_IWUSR,
 		   bonding_show_min_links, bonding_store_min_links);
