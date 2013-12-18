@@ -957,20 +957,14 @@ clean_arq_element_out:
 
 static void i40e_resume_aq(struct i40e_hw *hw)
 {
-	u32 reg = 0;
-
 	/* Registers are reset after PF reset */
 	hw->aq.asq.next_to_use = 0;
 	hw->aq.asq.next_to_clean = 0;
 
 	i40e_config_asq_regs(hw);
-	reg = hw->aq.num_asq_entries | I40E_PF_ATQLEN_ATQENABLE_MASK;
-	wr32(hw, hw->aq.asq.len, reg);
 
 	hw->aq.arq.next_to_use = 0;
 	hw->aq.arq.next_to_clean = 0;
 
 	i40e_config_arq_regs(hw);
-	reg = hw->aq.num_arq_entries | I40E_PF_ATQLEN_ATQENABLE_MASK;
-	wr32(hw, hw->aq.arq.len, reg);
 }
