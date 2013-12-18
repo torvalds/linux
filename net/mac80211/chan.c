@@ -358,6 +358,29 @@ static void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 	ieee80211_change_chanctx(local, ctx, compat);
 }
 
+static void ieee80211_recalc_radar_chanctx(struct ieee80211_local *local,
+					   struct ieee80211_chanctx *chanctx)
+{
+	bool radar_enabled;
+
+	lockdep_assert_held(&local->chanctx_mtx);
+
+	radar_enabled = ieee80211_is_radar_required(local);
+
+	if (radar_enabled == chanctx->conf.radar_enabled)
+		return;
+
+	chanctx->conf.radar_enabled = radar_enabled;
+	local->radar_detect_enabled = chanctx->conf.radar_enabled;
+
+	if (!local->use_chanctx) {
+		local->hw.conf.radar_enabled = chanctx->conf.radar_enabled;
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+	}
+
+	drv_change_chanctx(local, chanctx, IEEE80211_CHANCTX_CHANGE_RADAR);
+}
+
 static void ieee80211_unassign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 					   struct ieee80211_chanctx *ctx)
 {
@@ -402,29 +425,6 @@ static void __ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
 	ieee80211_unassign_vif_chanctx(sdata, ctx);
 	if (ctx->refcount == 0)
 		ieee80211_free_chanctx(local, ctx);
-}
-
-void ieee80211_recalc_radar_chanctx(struct ieee80211_local *local,
-				    struct ieee80211_chanctx *chanctx)
-{
-	bool radar_enabled;
-
-	lockdep_assert_held(&local->chanctx_mtx);
-
-	radar_enabled = ieee80211_is_radar_required(local);
-
-	if (radar_enabled == chanctx->conf.radar_enabled)
-		return;
-
-	chanctx->conf.radar_enabled = radar_enabled;
-	local->radar_detect_enabled = chanctx->conf.radar_enabled;
-
-	if (!local->use_chanctx) {
-		local->hw.conf.radar_enabled = chanctx->conf.radar_enabled;
-		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
-	}
-
-	drv_change_chanctx(local, chanctx, IEEE80211_CHANCTX_CHANGE_RADAR);
 }
 
 void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
