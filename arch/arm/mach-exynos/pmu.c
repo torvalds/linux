@@ -14,6 +14,7 @@
 #include <linux/bug.h>
 
 #include <mach/regs-clock.h>
+#include <mach/regs-pmu.h>
 
 #include "common.h"
 

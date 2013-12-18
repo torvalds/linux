@@ -365,8 +365,6 @@
 
 /* Compatibility defines and inclusion */
 
-#include <mach/regs-pmu.h>
-
 #define S5P_EPLL_CON				EXYNOS4_EPLL_CON0
 
 #endif /* __ASM_ARCH_REGS_CLOCK_H */
