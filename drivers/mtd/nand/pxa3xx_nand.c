@@ -690,6 +690,7 @@ static void prepare_start_command(struct pxa3xx_nand_info *info, int command)
 	info->retcode		= ERR_NONE;
 	info->ecc_err_cnt	= 0;
 	info->ndcb3		= 0;
+	info->need_wait		= 0;
 
 	switch (command) {
 	case NAND_CMD_READ0:
