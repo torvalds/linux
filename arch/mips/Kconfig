@@ -1379,41 +1379,21 @@ config CPU_CAVIUM_OCTEON
 	  can have up to 16 Mips64v2 cores and 8 integrated gigabit ethernets.
 	  Full details can be found at http://www.caviumnetworks.com.
 
-config CPU_BMIPS3300
-	bool "BMIPS3300"
-	depends on SYS_HAS_CPU_BMIPS3300
-	select CPU_BMIPS
+config CPU_BMIPS
+	bool "Broadcom BMIPS"
+	depends on SYS_HAS_CPU_BMIPS
+	select CPU_MIPS32
+	select CPU_BMIPS3300 if SYS_HAS_CPU_BMIPS3300
+	select CPU_BMIPS4350 if SYS_HAS_CPU_BMIPS4350
+	select CPU_BMIPS4380 if SYS_HAS_CPU_BMIPS4380
+	select CPU_BMIPS5000 if SYS_HAS_CPU_BMIPS5000
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select WEAK_ORDERING
 	help
-	  Broadcom BMIPS3300 processors.
-
-config CPU_BMIPS4350
-	bool "BMIPS4350"
-	depends on SYS_HAS_CPU_BMIPS4350
-	select CPU_BMIPS
-	select SYS_SUPPORTS_SMP
-	select SYS_SUPPORTS_HOTPLUG_CPU
-	help
-	  Broadcom BMIPS4350 ("VIPER") processors.
-
-config CPU_BMIPS4380
-	bool "BMIPS4380"
-	depends on SYS_HAS_CPU_BMIPS4380
-	select CPU_BMIPS
-	select SYS_SUPPORTS_SMP
-	select SYS_SUPPORTS_HOTPLUG_CPU
-	help
-	  Broadcom BMIPS4380 processors.
-
-config CPU_BMIPS5000
-	bool "BMIPS5000"
-	depends on SYS_HAS_CPU_BMIPS5000
-	select CPU_BMIPS
-	select CPU_SUPPORTS_HIGHMEM
-	select MIPS_CPU_SCACHE
-	select SYS_SUPPORTS_SMP
-	select SYS_SUPPORTS_HOTPLUG_CPU
-	help
-	  Broadcom BMIPS5000 processors.
+	  Support for BMIPS3300/4350/4380 and BMIPS5000 processors.
 
 config CPU_XLR
 	bool "Netlogic XLR SoC"
@@ -1496,14 +1476,25 @@ config CPU_LOONGSON1
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 
-config CPU_BMIPS
+config CPU_BMIPS3300
 	bool
-	select CPU_MIPS32
-	select CPU_SUPPORTS_32BIT_KERNEL
-	select DMA_NONCOHERENT
-	select IRQ_CPU
-	select SWAP_IO_SPACE
-	select WEAK_ORDERING
+
+config CPU_BMIPS4350
+	bool
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_HOTPLUG_CPU
+
+config CPU_BMIPS4380
+	bool
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_HOTPLUG_CPU
+
+config CPU_BMIPS5000
+	bool
+	select CPU_SUPPORTS_HIGHMEM
+	select MIPS_CPU_SCACHE
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_HOTPLUG_CPU
 
 config SYS_HAS_CPU_LOONGSON2E
 	bool
@@ -1577,17 +1568,24 @@ config SYS_HAS_CPU_SB1
 config SYS_HAS_CPU_CAVIUM_OCTEON
 	bool
 
+config SYS_HAS_CPU_BMIPS
+	bool
+
 config SYS_HAS_CPU_BMIPS3300
 	bool
+	select SYS_HAS_CPU_BMIPS
 
 config SYS_HAS_CPU_BMIPS4350
 	bool
+	select SYS_HAS_CPU_BMIPS
 
 config SYS_HAS_CPU_BMIPS4380
 	bool
+	select SYS_HAS_CPU_BMIPS
 
 config SYS_HAS_CPU_BMIPS5000
 	bool
+	select SYS_HAS_CPU_BMIPS
 
 config SYS_HAS_CPU_XLR
 	bool
