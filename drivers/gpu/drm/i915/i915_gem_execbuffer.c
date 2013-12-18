@@ -137,8 +137,7 @@ eb_lookup_vmas(struct eb_vmas *eb,
 		/* If we have secure dispatch, or the userspace assures us that
 		 * they know what they're doing, use the GGTT VM.
 		 */
-		if (exec[i].flags & EXEC_OBJECT_NEEDS_GTT ||
-		    ((args->flags & I915_EXEC_SECURE) &&
+		if (((args->flags & I915_EXEC_SECURE) &&
 		    (i == (args->buffer_count - 1))))
 			bind_vm = &dev_priv->gtt.base;
 
