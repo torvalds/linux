@@ -5,9 +5,9 @@
 #define DDR_DUMP_INTERNAL_DEVICE_MEMORY 0xBFC02B00
 #define MIPS_CLOCK_REG 	0x0f000820
 
-    /* DDR INIT-133Mhz */
+/* DDR INIT-133Mhz */
 #define T3_SKIP_CLOCK_PROGRAM_DUMP_133MHZ 12  /* index for 0x0F007000 */
-static struct bcm_ddr_setting asT3_DDRSetting133MHz[] = {/* DPLL Clock Setting */
+static struct bcm_ddr_setting asT3_DDRSetting133MHz[] = {  /* DPLL Clock Setting */
 	{0x0F000800, 0x00007212},
 	{0x0f000820, 0x07F13FFF},
 	{0x0f000810, 0x00000F95},
@@ -29,17 +29,17 @@ static struct bcm_ddr_setting asT3_DDRSetting133MHz[] = {/* DPLL Clock Setting *
 	{0x0F007010, 0x01000000},
 	{0x0F007014, 0x01000100},
 	{0x0F007018, 0x01000000},
-	{0x0F00701c, 0x01020001},/* POP - 0x00020001 Normal 0x01020001 */
-	{0x0F007020, 0x04030107}, /* Normal - 0x04030107 POP - 0x05030107 */
+	{0x0F00701c, 0x01020001},
+	{0x0F007020, 0x04030107},
 	{0x0F007024, 0x02000007},
 	{0x0F007028, 0x02020202},
-	{0x0F00702c, 0x0206060a},/* ROB- 0x0205050a,//0x0206060a */
+	{0x0F00702c, 0x0206060a},
 	{0x0F007030, 0x05000000},
 	{0x0F007034, 0x00000003},
-	{0x0F007038, 0x110a0200},/* ROB - 0x110a0200,//0x180a0200,// 0x1f0a0200 */
-	{0x0F00703C, 0x02101010},/* ROB - 0x02101010,//0x02101018}, */
-	{0x0F007040, 0x45751200},/* ROB - 0x45751200,//0x450f1200}, */
-	{0x0F007044, 0x110a0d00},/* ROB - 0x110a0d00//0x111f0d00 */
+	{0x0F007038, 0x110a0200},
+	{0x0F00703C, 0x02101010},
+	{0x0F007040, 0x45751200},
+	{0x0F007044, 0x110a0d00},
 	{0x0F007048, 0x081b0306},
 	{0x0F00704c, 0x00000000},
 	{0x0F007050, 0x0000001c},
@@ -65,7 +65,7 @@ static struct bcm_ddr_setting asT3_DDRSetting133MHz[] = {/* DPLL Clock Setting *
 };
 /* 80Mhz */
 #define T3_SKIP_CLOCK_PROGRAM_DUMP_80MHZ 10  /* index for 0x0F007000 */
-static struct bcm_ddr_setting asT3_DDRSetting80MHz[] = {/* DPLL Clock Setting */
+static struct bcm_ddr_setting asT3_DDRSetting80MHz[] = {  /* DPLL Clock Setting */
 	{0x0f000810, 0x00000F95},
 	{0x0f000820, 0x07f1ffff},
 	{0x0f000860, 0x00000000},
@@ -117,14 +117,13 @@ static struct bcm_ddr_setting asT3_DDRSetting80MHz[] = {/* DPLL Clock Setting */
 };
 /* 100Mhz */
 #define T3_SKIP_CLOCK_PROGRAM_DUMP_100MHZ 13  /* index for 0x0F007000 */
-static struct bcm_ddr_setting asT3_DDRSetting100MHz[] = {/* DPLL Clock Setting */
+static struct bcm_ddr_setting asT3_DDRSetting100MHz[] = {  /* DPLL Clock Setting */
 	{0x0F000800, 0x00007008},
 	{0x0f000810, 0x00000F95},
 	{0x0f000820, 0x07F13E3F},
 	{0x0f000860, 0x00000000},
 	{0x0f000880, 0x000003DD},
 	/* Changed source for X-bar and MIPS clock to APLL */
-	/* 0x0f000840,0x0FFF1800, */
 	{0x0f000840, 0x0FFF1B00},
 	{0x0f000870, 0x00000002},
 	{0x0F00a044, 0x1fffffff},
@@ -142,8 +141,8 @@ static struct bcm_ddr_setting asT3_DDRSetting100MHz[] = {/* DPLL Clock Setting *
 	{0x0F007010, 0x01000000},
 	{0x0F007014, 0x01000100},
 	{0x0F007018, 0x01000000},
-	{0x0F00701c, 0x01020001}, /* POP - 0x00020000 Normal 0x01020000 */
-	{0x0F007020, 0x04020107},/* Normal - 0x04030107 POP - 0x05030107 */
+	{0x0F00701c, 0x01020001},
+	{0x0F007020, 0x04020107},
 	{0x0F007024, 0x00000007},
 	{0x0F007028, 0x01020201},
 	{0x0F00702c, 0x0204040A},
@@ -153,7 +152,7 @@ static struct bcm_ddr_setting asT3_DDRSetting100MHz[] = {/* DPLL Clock Setting *
 	{0x0F00703C, 0x02030320},
 	{0x0F007040, 0x6E7F1200},
 	{0x0F007044, 0x01190A00},
-	{0x0F007048, 0x06120305},/* 0x02690204 // 0x06120305 */
+	{0x0F007048, 0x06120305},
 	{0x0F00704c, 0x00000000},
 	{0x0F007050, 0x0000001C},
 	{0x0F007054, 0x00000000},
@@ -190,7 +189,7 @@ static struct bcm_ddr_setting asDPLL_266MHZ[] = {
 };
 
 #define T3B_SKIP_CLOCK_PROGRAM_DUMP_133MHZ 11  /* index for 0x0F007000 */
-static struct bcm_ddr_setting asT3B_DDRSetting133MHz[] = {/* DPLL Clock Setting */
+static struct bcm_ddr_setting asT3B_DDRSetting133MHz[] = {  /* DPLL Clock Setting */
 	{0x0f000810, 0x00000F95},
 	{0x0f000810, 0x00000F95},
 	{0x0f000810, 0x00000F95},
@@ -214,17 +213,17 @@ static struct bcm_ddr_setting asT3B_DDRSetting133MHz[] = {/* DPLL Clock Setting 
 	{0x0F007010, 0x01000000},
 	{0x0F007014, 0x01000100},
 	{0x0F007018, 0x01000000},
-	{0x0F00701c, 0x01020001},/* POP - 0x00020001 Normal 0x01020001 */
-	{0x0F007020, 0x04030107}, /* Normal - 0x04030107 POP - 0x05030107 */
+	{0x0F00701c, 0x01020001},
+	{0x0F007020, 0x04030107},
 	{0x0F007024, 0x02000007},
 	{0x0F007028, 0x02020202},
-	{0x0F00702c, 0x0206060a},/* ROB- 0x0205050a,//0x0206060a */
+	{0x0F00702c, 0x0206060a},
 	{0x0F007030, 0x05000000},
 	{0x0F007034, 0x00000003},
-	{0x0F007038, 0x130a0200},/* ROB - 0x110a0200,//0x180a0200,// 0x1f0a0200 */
-	{0x0F00703C, 0x02101012},/* ROB - 0x02101010,//0x02101018}, */
-	{0x0F007040, 0x457D1200},/* ROB - 0x45751200,//0x450f1200}, */
-	{0x0F007044, 0x11130d00},/*ROB - 0x110a0d00//0x111f0d00 */
+	{0x0F007038, 0x130a0200},
+	{0x0F00703C, 0x02101012},
+	{0x0F007040, 0x457D1200},
+	{0x0F007044, 0x11130d00},
 	{0x0F007048, 0x040D0306},
 	{0x0F00704c, 0x00000000},
 	{0x0F007050, 0x0000001c},
@@ -248,7 +247,7 @@ static struct bcm_ddr_setting asT3B_DDRSetting133MHz[] = {/* DPLL Clock Setting 
 	};
 
 #define T3B_SKIP_CLOCK_PROGRAM_DUMP_80MHZ 9  /* index for 0x0F007000 */
-static struct bcm_ddr_setting asT3B_DDRSetting80MHz[] = {/* DPLL Clock Setting */
+static struct bcm_ddr_setting asT3B_DDRSetting80MHz[] = {  /* DPLL Clock Setting */
 	{0x0f000810, 0x00000F95},
 	{0x0f000820, 0x07F13FFF},
 	{0x0f000840, 0x0FFF1F00},
@@ -302,7 +301,7 @@ static struct bcm_ddr_setting asT3B_DDRSetting80MHz[] = {/* DPLL Clock Setting *
 
 /* 100Mhz */
 #define T3B_SKIP_CLOCK_PROGRAM_DUMP_100MHZ 9  /* index for 0x0F007000 */
-static struct bcm_ddr_setting asT3B_DDRSetting100MHz[] = {/* DPLL Clock Setting */
+static struct bcm_ddr_setting asT3B_DDRSetting100MHz[] = {  /* DPLL Clock Setting */
 	{0x0f000810, 0x00000F95},
 	{0x0f000820, 0x07F1369B},
 	{0x0f000840, 0x0FFF0800},
@@ -322,8 +321,8 @@ static struct bcm_ddr_setting asT3B_DDRSetting100MHz[] = {/* DPLL Clock Setting 
 	{0x0F007010, 0x01000000},
 	{0x0F007014, 0x01000100},
 	{0x0F007018, 0x01000000},
-	{0x0F00701c, 0x01020000}, /* POP - 0x00020000 Normal 0x01020000 */
-	{0x0F007020, 0x04020107},/* Normal - 0x04030107 POP - 0x05030107 */
+	{0x0F00701c, 0x01020000},
+	{0x0F007020, 0x04020107},
 	{0x0F007024, 0x00000007},
 	{0x0F007028, 0x01020201},
 	{0x0F00702c, 0x0204040A},
@@ -333,7 +332,7 @@ static struct bcm_ddr_setting asT3B_DDRSetting100MHz[] = {/* DPLL Clock Setting 
 	{0x0F00703C, 0x02030320},
 	{0x0F007040, 0x6E7F1200},
 	{0x0F007044, 0x01190A00},
-	{0x0F007048, 0x06120305},/* 0x02690204 // 0x06120305 */
+	{0x0F007048, 0x06120305},
 	{0x0F00704c, 0x00000000},
 	{0x0F007050, 0x0100001C},
 	{0x0F007054, 0x00000000},
@@ -357,7 +356,7 @@ static struct bcm_ddr_setting asT3B_DDRSetting100MHz[] = {/* DPLL Clock Setting 
 
 
 #define T3LP_SKIP_CLOCK_PROGRAM_DUMP_133MHZ 9  /* index for 0x0F007000 */
-static struct bcm_ddr_setting asT3LP_DDRSetting133MHz[] = {/* DPLL Clock Setting */
+static struct bcm_ddr_setting asT3LP_DDRSetting133MHz[] = {  /* DPLL Clock Setting */
 	{0x0f000820, 0x03F1365B},
 	{0x0f000810, 0x00002F95},
 	{0x0f000880, 0x000003DD},
@@ -377,17 +376,17 @@ static struct bcm_ddr_setting asT3LP_DDRSetting133MHz[] = {/* DPLL Clock Setting
 	{0x0F007010, 0x01000000},
 	{0x0F007014, 0x01000100},
 	{0x0F007018, 0x01000000},
-	{0x0F00701c, 0x01020001},/* POP - 0x00020001 Normal 0x01020001 */
-	{0x0F007020, 0x04030107}, /* Normal - 0x04030107 POP - 0x05030107 */
+	{0x0F00701c, 0x01020001},
+	{0x0F007020, 0x04030107},
 	{0x0F007024, 0x02000007},
 	{0x0F007028, 0x02020200},
-	{0x0F00702c, 0x0206060a},/* ROB- 0x0205050a,//0x0206060a */
+	{0x0F00702c, 0x0206060a},
 	{0x0F007030, 0x05000000},
 	{0x0F007034, 0x00000003},
-	{0x0F007038, 0x200a0200},/* ROB - 0x110a0200,//0x180a0200,// 0x1f0a0200 */
-	{0x0F00703C, 0x02101020},/* ROB - 0x02101010,//0x02101018, */
-	{0x0F007040, 0x45711200},/* ROB - 0x45751200,//0x450f1200, */
-	{0x0F007044, 0x110D0D00},/* ROB - 0x110a0d00//0x111f0d00 */
+	{0x0F007038, 0x200a0200},
+	{0x0F00703C, 0x02101020},
+	{0x0F007040, 0x45711200},
+	{0x0F007044, 0x110D0D00},
 	{0x0F007048, 0x04080306},
 	{0x0F00704c, 0x00000000},
 	{0x0F007050, 0x0100001c},
@@ -417,7 +416,7 @@ static struct bcm_ddr_setting asT3LP_DDRSetting133MHz[] = {/* DPLL Clock Setting
 };
 
 #define T3LP_SKIP_CLOCK_PROGRAM_DUMP_100MHZ 11  /* index for 0x0F007000 */
-static struct bcm_ddr_setting asT3LP_DDRSetting100MHz[] = {/* DPLL Clock Setting */
+static struct bcm_ddr_setting asT3LP_DDRSetting100MHz[] = {  /* DPLL Clock Setting */
 	{0x0f000810, 0x00002F95},
 	{0x0f000820, 0x03F1369B},
 	{0x0f000840, 0x0fff0000},
@@ -437,17 +436,17 @@ static struct bcm_ddr_setting asT3LP_DDRSetting100MHz[] = {/* DPLL Clock Setting
 	{0x0F007010, 0x01000000},
 	{0x0F007014, 0x01000100},
 	{0x0F007018, 0x01000000},
-	{0x0F00701c, 0x01020000},/* POP - 0x00020001 Normal 0x01020001 */
-	{0x0F007020, 0x04020107}, /* Normal - 0x04030107 POP - 0x05030107 */
+	{0x0F00701c, 0x01020000},
+	{0x0F007020, 0x04020107},
 	{0x0F007024, 0x00000007},
 	{0x0F007028, 0x01020200},
-	{0x0F00702c, 0x0204040a},/* ROB- 0x0205050a,//0x0206060a */
+	{0x0F00702c, 0x0204040a},
 	{0x0F007030, 0x06000000},
 	{0x0F007034, 0x00000004},
-	{0x0F007038, 0x1F080200},/* ROB - 0x110a0200,//0x180a0200,// 0x1f0a0200 */
-	{0x0F00703C, 0x0203031F},/* ROB - 0x02101010,//0x02101018, */
-	{0x0F007040, 0x6e001200},/* ROB - 0x45751200,//0x450f1200, */
-	{0x0F007044, 0x011a0a00},/* ROB - 0x110a0d00//0x111f0d00 */
+	{0x0F007038, 0x1F080200},
+	{0x0F00703C, 0x0203031F},
+	{0x0F007040, 0x6e001200},
+	{0x0F007044, 0x011a0a00},
 	{0x0F007048, 0x03000305},
 	{0x0F00704c, 0x00000000},
 	{0x0F007050, 0x0100001c},
@@ -477,7 +476,7 @@ static struct bcm_ddr_setting asT3LP_DDRSetting100MHz[] = {/* DPLL Clock Setting
 };
 
 #define T3LP_SKIP_CLOCK_PROGRAM_DUMP_80MHZ 9  /* index for 0x0F007000 */
-static struct bcm_ddr_setting asT3LP_DDRSetting80MHz[] = {/* DPLL Clock Setting */
+static struct bcm_ddr_setting asT3LP_DDRSetting80MHz[] = {  /* DPLL Clock Setting */
 	{0x0f000820, 0x07F13FFF},
 	{0x0f000810, 0x00002F95},
 	{0x0f000860, 0x00000000},
@@ -537,7 +536,7 @@ static struct bcm_ddr_setting asT3LP_DDRSetting80MHz[] = {/* DPLL Clock Setting 
 /* T3 LP-B (UMA-B) */
 
 #define T3LPB_SKIP_CLOCK_PROGRAM_DUMP_160MHZ 7  /* index for 0x0F007000 */
-static struct bcm_ddr_setting asT3LPB_DDRSetting160MHz[] = {/* DPLL Clock Setting */
+static struct bcm_ddr_setting asT3LPB_DDRSetting160MHz[] = {  /* DPLL Clock Setting */
 	{0x0f000820, 0x03F137DB},
 	{0x0f000810, 0x01842795},
 	{0x0f000860, 0x00000000},
@@ -545,8 +544,8 @@ static struct bcm_ddr_setting asT3LPB_DDRSetting160MHz[] = {/* DPLL Clock Settin
 	{0x0f000840, 0x0FFF0400},
 	{0x0F00a044, 0x1fffffff},
 	{0x0F00a040, 0x1f000000},
-	{0x0f003050, 0x00000021},/* this is flash/eeprom clock divisor which set the flash clock to 20 MHz */
-	{0x0F00a084, 0x1Cffffff},/* Now dump from her in internal memory */
+	{0x0f003050, 0x00000021},  /* this is flash/eeprom clock divisor which set the flash clock to 20 MHz */
+	{0x0F00a084, 0x1Cffffff},  /* Now dump from her in internal memory */
 	{0x0F00a080, 0x1C000000},
 	{0x0F00A000, 0x00000016},
 	{0x0f007000, 0x00010001},
@@ -594,7 +593,7 @@ static struct bcm_ddr_setting asT3LPB_DDRSetting160MHz[] = {/* DPLL Clock Settin
 
 
 #define T3LPB_SKIP_CLOCK_PROGRAM_DUMP_133MHZ 7  /* index for 0x0F007000 */
-static struct bcm_ddr_setting asT3LPB_DDRSetting133MHz[] = {/* DPLL Clock Setting */
+static struct bcm_ddr_setting asT3LPB_DDRSetting133MHz[] = {  /* DPLL Clock Setting */
 	{0x0f000820, 0x03F1365B},
 	{0x0f000810, 0x00002F95},
 	{0x0f000880, 0x000003DD},
@@ -603,8 +602,8 @@ static struct bcm_ddr_setting asT3LPB_DDRSetting133MHz[] = {/* DPLL Clock Settin
 	{0x0f000860, 0x00000000},
 	{0x0F00a044, 0x1fffffff},
 	{0x0F00a040, 0x1f000000},
-	{0x0f003050, 0x00000021},/* flash/eeprom clock divisor which set the flash clock to 20 MHz */
-	{0x0F00a084, 0x1Cffffff},/* dump from here in internal memory */
+	{0x0f003050, 0x00000021},  /* flash/eeprom clock divisor which set the flash clock to 20 MHz */
+	{0x0F00a084, 0x1Cffffff},  /* dump from here in internal memory */
 	{0x0F00a080, 0x1C000000},
 	{0x0F00A000, 0x00000016},
 	/* Memcontroller Default values */
@@ -615,17 +614,17 @@ static struct bcm_ddr_setting asT3LPB_DDRSetting133MHz[] = {/* DPLL Clock Settin
 	{0x0F007010, 0x01000000},
 	{0x0F007014, 0x01000100},
 	{0x0F007018, 0x01000000},
-	{0x0F00701c, 0x01020001},/* POP - 0x00020001 Normal 0x01020001 */
-	{0x0F007020, 0x04030107}, /* Normal - 0x04030107 POP - 0x05030107 */
+	{0x0F00701c, 0x01020001},
+	{0x0F007020, 0x04030107},
 	{0x0F007024, 0x02000007},
 	{0x0F007028, 0x02020200},
-	{0x0F00702c, 0x0206060a},/* ROB- 0x0205050a,//0x0206060a */
+	{0x0F00702c, 0x0206060a},
 	{0x0F007030, 0x05000000},
 	{0x0F007034, 0x00000003},
-	{0x0F007038, 0x190a0200},/* ROB - 0x110a0200,//0x180a0200,// 0x1f0a0200 */
-	{0x0F00703C, 0x02101017},/* ROB - 0x02101010,//0x02101018, */
-	{0x0F007040, 0x45171200},/* ROB - 0x45751200,//0x450f1200, */
-	{0x0F007044, 0x11290D00},/* ROB - 0x110a0d00//0x111f0d00 */
+	{0x0F007038, 0x190a0200},
+	{0x0F00703C, 0x02101017},
+	{0x0F007040, 0x45171200},
+	{0x0F007044, 0x11290D00},
 	{0x0F007048, 0x04080306},
 	{0x0F00704c, 0x00000000},
 	{0x0F007050, 0x0100001c},
@@ -655,7 +654,7 @@ static struct bcm_ddr_setting asT3LPB_DDRSetting133MHz[] = {/* DPLL Clock Settin
 };
 
 #define T3LPB_SKIP_CLOCK_PROGRAM_DUMP_100MHZ 8  /* index for 0x0F007000 */
-static struct bcm_ddr_setting asT3LPB_DDRSetting100MHz[] = {/* DPLL Clock Setting */
+static struct bcm_ddr_setting asT3LPB_DDRSetting100MHz[] = {  /* DPLL Clock Setting */
 	{0x0f000810, 0x00002F95},
 	{0x0f000820, 0x03F1369B},
 	{0x0f000840, 0x0fff0000},
@@ -665,8 +664,8 @@ static struct bcm_ddr_setting asT3LPB_DDRSetting100MHz[] = {/* DPLL Clock Settin
 	{0x0f000840, 0x0FFF0000},
 	{0x0F00a044, 0x1fffffff},
 	{0x0F00a040, 0x1f000000},
-	{0x0f003050, 0x00000021},/* flash/eeprom clock divisor which set the flash clock to 20 MHz */
-	{0x0F00a084, 0x1Cffffff}, /* dump from here in internal memory */
+	{0x0f003050, 0x00000021},  /* flash/eeprom clock divisor which set the flash clock to 20 MHz */
+	{0x0F00a084, 0x1Cffffff},  /* dump from here in internal memory */
 	{0x0F00a080, 0x1C000000},
 	/* Memcontroller Default values */
 	{0x0F007000, 0x00010001},
@@ -676,17 +675,17 @@ static struct bcm_ddr_setting asT3LPB_DDRSetting100MHz[] = {/* DPLL Clock Settin
 	{0x0F007010, 0x01000000},
 	{0x0F007014, 0x01000100},
 	{0x0F007018, 0x01000000},
-	{0x0F00701c, 0x01020000},/* POP - 0x00020001 Normal 0x01020001 */
-	{0x0F007020, 0x04020107}, /* Normal - 0x04030107 POP - 0x05030107 */
+	{0x0F00701c, 0x01020000},
+	{0x0F007020, 0x04020107},
 	{0x0F007024, 0x00000007},
 	{0x0F007028, 0x01020200},
-	{0x0F00702c, 0x0204040a},/* ROB- 0x0205050a,//0x0206060a */
+	{0x0F00702c, 0x0204040a},
 	{0x0F007030, 0x06000000},
 	{0x0F007034, 0x00000004},
-	{0x0F007038, 0x1F080200},/* ROB - 0x110a0200,//0x180a0200,// 0x1f0a0200 */
-	{0x0F00703C, 0x0203031F},/* ROB - 0x02101010,//0x02101018, */
-	{0x0F007040, 0x6e001200},/* ROB - 0x45751200,//0x450f1200, */
-	{0x0F007044, 0x011a0a00},/* ROB - 0x110a0d00//0x111f0d00 */
+	{0x0F007038, 0x1F080200},
+	{0x0F00703C, 0x0203031F},
+	{0x0F007040, 0x6e001200},
+	{0x0F007044, 0x011a0a00},
 	{0x0F007048, 0x03000305},
 	{0x0F00704c, 0x00000000},
 	{0x0F007050, 0x0100001c},
@@ -716,7 +715,7 @@ static struct bcm_ddr_setting asT3LPB_DDRSetting100MHz[] = {/* DPLL Clock Settin
 };
 
 #define T3LPB_SKIP_CLOCK_PROGRAM_DUMP_80MHZ 7  /* index for 0x0F007000 */
-static struct bcm_ddr_setting asT3LPB_DDRSetting80MHz[] = {/* DPLL Clock Setting */
+static struct bcm_ddr_setting asT3LPB_DDRSetting80MHz[] = {  /* DPLL Clock Setting */
 	{0x0f000820, 0x07F13FFF},
 	{0x0f000810, 0x00002F95},
 	{0x0f000860, 0x00000000},
@@ -724,8 +723,8 @@ static struct bcm_ddr_setting asT3LPB_DDRSetting80MHz[] = {/* DPLL Clock Setting
 	{0x0f000840, 0x0FFF1F00},
 	{0x0F00a044, 0x1fffffff},
 	{0x0F00a040, 0x1f000000},
-	{0x0f003050, 0x00000021},/* flash/eeprom clock divisor which set the flash clock to 20 MHz */
-	{0x0F00a084, 0x1Cffffff},/* dump from here in internal memory */
+	{0x0f003050, 0x00000021},  /* flash/eeprom clock divisor which set the flash clock to 20 MHz */
+	{0x0F00a084, 0x1Cffffff},  /* dump from here in internal memory */
 	{0x0F00a080, 0x1C000000},
 	{0x0F00A000, 0x00000016},
 	{0x0f007000, 0x00010001},
@@ -925,7 +924,7 @@ int ddr_init(struct bcm_mini_adapter *Adapter)
 			break;
 		case DDR_133_MHZ:
 
-			if (Adapter->bDPLLConfig == PLL_266_MHZ)/* 266Mhz PLL selected. */
+			if (Adapter->bDPLLConfig == PLL_266_MHZ)  /* 266Mhz PLL selected. */
 				{
 				memcpy(asT3B_DDRSetting133MHz, asDPLL_266MHZ,
 				sizeof(asDPLL_266MHZ));
@@ -1020,8 +1019,8 @@ int ddr_init(struct bcm_mini_adapter *Adapter)
 		 * This is to be done only for Hybrid PMU mode.
 		 * with the current h/w there is no way to detect this.
 		 * and since we dont have internal PMU lets do it under UMA-B chip id.
-	     * we will change this when we will have internal PMU.
-	     */
+		 * we will change this when we will have internal PMU.
+		 */
 		if (Adapter->PmuMode == HYBRID_MODE_7C)
 		{
 			retval = rdmalt(Adapter,(UINT)0x0f000c00, &uiResetValue, sizeof(uiResetValue));
@@ -1240,7 +1239,7 @@ int download_ddr_settings(struct bcm_mini_adapter *Adapter)
 		return retval;
 	}
 	ul_ddr_setting_load_addr += sizeof(ULONG);
-	/*signature */
+	/* signature */
 	value = (0x1d1e0dd0);
 	retval = wrmalt(Adapter, ul_ddr_setting_load_addr, &value, sizeof(value));
 	if (retval)
