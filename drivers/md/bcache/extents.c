@@ -62,6 +62,87 @@ static bool __ptr_invalid(struct cache_set *c, const struct bkey *k)
 	return false;
 }
 
+/* Common among btree and extent ptrs */
+
+static const char *bch_ptr_status(struct cache_set *c, const struct bkey *k)
+{
+	unsigned i;
+
+	for (i = 0; i < KEY_PTRS(k); i++)
+		if (ptr_available(c, k, i)) {
+			struct cache *ca = PTR_CACHE(c, k, i);
+			size_t bucket = PTR_BUCKET_NR(c, k, i);
+			size_t r = bucket_remainder(c, PTR_OFFSET(k, i));
+
+			if (KEY_SIZE(k) + r > c->sb.bucket_size)
+				return "bad, length too big";
+			if (bucket <  ca->sb.first_bucket)
+				return "bad, short offset";
+			if (bucket >= ca->sb.nbuckets)
+				return "bad, offset past end of device";
+			if (ptr_stale(c, k, i))
+				return "stale";
+		}
+
+	if (!bkey_cmp(k, &ZERO_KEY))
+		return "bad, null key";
+	if (!KEY_PTRS(k))
+		return "bad, no pointers";
+	if (!KEY_SIZE(k))
+		return "zeroed key";
+	return "";
+}
+
+void bch_extent_to_text(char *buf, size_t size, const struct bkey *k)
+{
+	unsigned i = 0;
+	char *out = buf, *end = buf + size;
+
+#define p(...)	(out += scnprintf(out, end - out, __VA_ARGS__))
+
+	p("%llu:%llu len %llu -> [", KEY_INODE(k), KEY_START(k), KEY_SIZE(k));
+
+	for (i = 0; i < KEY_PTRS(k); i++) {
+		if (i)
+			p(", ");
+
+		if (PTR_DEV(k, i) == PTR_CHECK_DEV)
+			p("check dev");
+		else
+			p("%llu:%llu gen %llu", PTR_DEV(k, i),
+			  PTR_OFFSET(k, i), PTR_GEN(k, i));
+	}
+
+	p("]");
+
+	if (KEY_DIRTY(k))
+		p(" dirty");
+	if (KEY_CSUM(k))
+		p(" cs%llu %llx", KEY_CSUM(k), k->ptr[1]);
+#undef p
+}
+
+static void bch_bkey_dump(struct btree_keys *keys, const struct bkey *k)
+{
+	struct btree *b = container_of(keys, struct btree, keys);
+	unsigned j;
+	char buf[80];
+
+	bch_extent_to_text(buf, sizeof(buf), k);
+	printk(" %s", buf);
+
+	for (j = 0; j < KEY_PTRS(k); j++) {
+		size_t n = PTR_BUCKET_NR(b->c, k, j);
+		printk(" bucket %zu", n);
+
+		if (n >= b->c->sb.first_bucket && n < b->c->sb.nbuckets)
+			printk(" prio %i",
+			       PTR_BUCKET(b->c, k, j)->prio);
+	}
+
+	printk(" %s\n", bch_ptr_status(b->c, k));
+}
+
 /* Btree ptrs */
 
 bool __bch_btree_ptr_invalid(struct cache_set *c, const struct bkey *k)
@@ -76,7 +157,7 @@ bool __bch_btree_ptr_invalid(struct cache_set *c, const struct bkey *k)
 
 	return false;
 bad:
-	bch_bkey_to_text(buf, sizeof(buf), k);
+	bch_extent_to_text(buf, sizeof(buf), k);
 	cache_bug(c, "spotted btree ptr %s: %s", buf, bch_ptr_status(c, k));
 	return true;
 }
@@ -111,7 +192,7 @@ static bool btree_ptr_bad_expensive(struct btree *b, const struct bkey *k)
 	return false;
 err:
 	mutex_unlock(&b->c->bucket_lock);
-	bch_bkey_to_text(buf, sizeof(buf), k);
+	bch_extent_to_text(buf, sizeof(buf), k);
 	btree_bug(b,
 "inconsistent btree pointer %s: bucket %li pin %i prio %i gen %i last_gc %i mark %llu gc_gen %i",
 		  buf, PTR_BUCKET_NR(b->c, k, i), atomic_read(&g->pin),
@@ -145,6 +226,8 @@ const struct btree_keys_ops bch_btree_keys_ops = {
 	.sort_cmp	= bch_key_sort_cmp,
 	.key_invalid	= bch_btree_ptr_invalid,
 	.key_bad	= bch_btree_ptr_bad,
+	.key_to_text	= bch_extent_to_text,
+	.key_dump	= bch_bkey_dump,
 };
 
 /* Extents */
@@ -227,7 +310,7 @@ static bool bch_extent_invalid(struct btree_keys *bk, const struct bkey *k)
 
 	return false;
 bad:
-	bch_bkey_to_text(buf, sizeof(buf), k);
+	bch_extent_to_text(buf, sizeof(buf), k);
 	cache_bug(b->c, "spotted extent %s: %s", buf, bch_ptr_status(b->c, k));
 	return true;
 }
@@ -254,7 +337,7 @@ static bool bch_extent_bad_expensive(struct btree *b, const struct bkey *k,
 	return false;
 err:
 	mutex_unlock(&b->c->bucket_lock);
-	bch_bkey_to_text(buf, sizeof(buf), k);
+	bch_extent_to_text(buf, sizeof(buf), k);
 	btree_bug(b,
 "inconsistent extent pointer %s:\nbucket %zu pin %i prio %i gen %i last_gc %i mark %llu gc_gen %i",
 		  buf, PTR_BUCKET_NR(b->c, k, ptr), atomic_read(&g->pin),
@@ -355,5 +438,7 @@ const struct btree_keys_ops bch_extent_keys_ops = {
 	.key_invalid	= bch_extent_invalid,
 	.key_bad	= bch_extent_bad,
 	.key_merge	= bch_extent_merge,
+	.key_to_text	= bch_extent_to_text,
+	.key_dump	= bch_bkey_dump,
 	.is_extents	= true,
 };

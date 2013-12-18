@@ -18,11 +18,13 @@ struct closure;
 
 #ifdef CONFIG_BCACHE_DEBUG
 
+#define EBUG_ON(cond)			BUG_ON(cond)
 #define atomic_dec_bug(v)	BUG_ON(atomic_dec_return(v) < 0)
 #define atomic_inc_bug(v, i)	BUG_ON(atomic_inc_return(v) <= i)
 
 #else /* DEBUG */
 
+#define EBUG_ON(cond)			do { if (cond); } while (0)
 #define atomic_dec_bug(v)	atomic_dec(v)
 #define atomic_inc_bug(v, i)	atomic_inc(v)
 

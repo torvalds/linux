@@ -384,7 +384,7 @@ static void uuid_io(struct cache_set *c, unsigned long rw,
 			break;
 	}
 
-	bch_bkey_to_text(buf, sizeof(buf), k);
+	bch_extent_to_text(buf, sizeof(buf), k);
 	pr_debug("%s UUIDs at %s", rw & REQ_WRITE ? "wrote" : "read", buf);
 
 	for (u = c->uuids; u < c->uuids + c->nr_uuids; u++)

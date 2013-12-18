@@ -7,10 +7,120 @@
 
 #include "bcache.h"
 #include "btree.h"
-#include "debug.h"
 
+#include <linux/console.h>
 #include <linux/random.h>
 #include <linux/prefetch.h>
+
+#ifdef CONFIG_BCACHE_DEBUG
+
+void bch_dump_bset(struct btree_keys *b, struct bset *i, unsigned set)
+{
+	struct bkey *k, *next;
+
+	for (k = i->start; k < bset_bkey_last(i); k = next) {
+		next = bkey_next(k);
+
+		printk(KERN_ERR "block %u key %zi/%u: ", set,
+		       (uint64_t *) k - i->d, i->keys);
+
+		if (b->ops->key_dump)
+			b->ops->key_dump(b, k);
+		else
+			printk("%llu:%llu\n", KEY_INODE(k), KEY_OFFSET(k));
+
+		if (next < bset_bkey_last(i) &&
+		    bkey_cmp(k, b->ops->is_extents ?
+			     &START_KEY(next) : next) > 0)
+			printk(KERN_ERR "Key skipped backwards\n");
+	}
+}
+
+void bch_dump_bucket(struct btree_keys *b)
+{
+	unsigned i;
+
+	console_lock();
+	for (i = 0; i <= b->nsets; i++)
+		bch_dump_bset(b, b->set[i].data,
+			      bset_sector_offset(b, b->set[i].data));
+	console_unlock();
+}
+
+int __bch_count_data(struct btree_keys *b)
+{
+	unsigned ret = 0;
+	struct btree_iter iter;
+	struct bkey *k;
+
+	if (b->ops->is_extents)
+		for_each_key(b, k, &iter)
+			ret += KEY_SIZE(k);
+	return ret;
+}
+
+void __bch_check_keys(struct btree_keys *b, const char *fmt, ...)
+{
+	va_list args;
+	struct bkey *k, *p = NULL;
+	struct btree_iter iter;
+	const char *err;
+
+	for_each_key(b, k, &iter) {
+		if (b->ops->is_extents) {
+			err = "Keys out of order";
+			if (p && bkey_cmp(&START_KEY(p), &START_KEY(k)) > 0)
+				goto bug;
+
+			if (bch_ptr_invalid(b, k))
+				continue;
+
+			err =  "Overlapping keys";
+			if (p && bkey_cmp(p, &START_KEY(k)) > 0)
+				goto bug;
+		} else {
+			if (bch_ptr_bad(b, k))
+				continue;
+
+			err = "Duplicate keys";
+			if (p && !bkey_cmp(p, k))
+				goto bug;
+		}
+		p = k;
+	}
+#if 0
+	err = "Key larger than btree node key";
+	if (p && bkey_cmp(p, &b->key) > 0)
+		goto bug;
+#endif
+	return;
+bug:
+	bch_dump_bucket(b);
+
+	va_start(args, fmt);
+	vprintk(fmt, args);
+	va_end(args);
+
+	panic("bch_check_keys error:  %s:\n", err);
+}
+
+static void bch_btree_iter_next_check(struct btree_iter *iter)
+{
+	struct bkey *k = iter->data->k, *next = bkey_next(k);
+
+	if (next < iter->data->end &&
+	    bkey_cmp(k, iter->b->ops->is_extents ?
+		     &START_KEY(next) : next) > 0) {
+		bch_dump_bucket(iter->b);
+		panic("Key skipped backwards\n");
+	}
+}
+
+#else
+
+static inline void bch_btree_iter_next_check(struct btree_iter *iter) {}
+
+#endif
 
 /* Keylists */
 
@@ -1045,7 +1155,7 @@ void bch_btree_sort_partial(struct btree *b, unsigned start,
 {
 	size_t order = b->keys.page_order, keys = 0;
 	struct btree_iter iter;
-	int oldsize = bch_count_data(b);
+	int oldsize = bch_count_data(&b->keys);
 
 	__bch_btree_iter_init(&b->keys, &iter, NULL, &b->keys.set[start]);
 
@@ -1063,7 +1173,8 @@ void bch_btree_sort_partial(struct btree *b, unsigned start,
 
 	__btree_sort(&b->keys, &iter, start, order, false, state);
 
-	EBUG_ON(b->written && oldsize >= 0 && bch_count_data(b) != oldsize);
+	EBUG_ON(b->written && oldsize >= 0 &&
+		bch_count_data(&b->keys) != oldsize);
 }
 EXPORT_SYMBOL(bch_btree_sort_partial);
 

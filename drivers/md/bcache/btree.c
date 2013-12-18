@@ -460,7 +460,7 @@ void bch_btree_node_write(struct btree *b, struct closure *parent)
 	BUG_ON(b->written >= btree_blocks(b));
 	BUG_ON(b->written && !i->keys);
 	BUG_ON(btree_bset_first(b)->seq != i->seq);
-	bch_check_keys(b, "writing");
+	bch_check_keys(&b->keys, "writing");
 
 	cancel_delayed_work(&b->work);
 
@@ -2007,7 +2007,7 @@ static bool btree_insert_key(struct btree *b, struct btree_op *op,
 insert:	bch_bset_insert(&b->keys, m, k);
 copy:	bkey_copy(m, k);
 merged:
-	bch_check_keys(b, "%u for %s", status,
+	bch_check_keys(&b->keys, "%u for %s", status,
 		       replace_key ? "replace" : "insert");
 
 	if (b->level && !KEY_OFFSET(k))
@@ -2036,7 +2036,7 @@ static bool bch_btree_insert_keys(struct btree *b, struct btree_op *op,
 				  struct bkey *replace_key)
 {
 	bool ret = false;
-	int oldsize = bch_count_data(b);
+	int oldsize = bch_count_data(&b->keys);
 
 	while (!bch_keylist_empty(insert_keys)) {
 		struct bkey *k = insert_keys->keys;
@@ -2066,7 +2066,7 @@ static bool bch_btree_insert_keys(struct btree *b, struct btree_op *op,
 
 	BUG_ON(!bch_keylist_empty(insert_keys) && b->level);
 
-	BUG_ON(bch_count_data(b) < oldsize);
+	BUG_ON(bch_count_data(&b->keys) < oldsize);
 	return ret;
 }
 

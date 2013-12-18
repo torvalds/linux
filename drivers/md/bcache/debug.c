@@ -8,6 +8,7 @@
 #include "bcache.h"
 #include "btree.h"
 #include "debug.h"
+#include "extents.h"
 
 #include <linux/console.h>
 #include <linux/debugfs.h>
@@ -17,107 +18,7 @@
 
 static struct dentry *debug;
 
-const char *bch_ptr_status(struct cache_set *c, const struct bkey *k)
-{
-	unsigned i;
-
-	for (i = 0; i < KEY_PTRS(k); i++)
-		if (ptr_available(c, k, i)) {
-			struct cache *ca = PTR_CACHE(c, k, i);
-			size_t bucket = PTR_BUCKET_NR(c, k, i);
-			size_t r = bucket_remainder(c, PTR_OFFSET(k, i));
-
-			if (KEY_SIZE(k) + r > c->sb.bucket_size)
-				return "bad, length too big";
-			if (bucket <  ca->sb.first_bucket)
-				return "bad, short offset";
-			if (bucket >= ca->sb.nbuckets)
-				return "bad, offset past end of device";
-			if (ptr_stale(c, k, i))
-				return "stale";
-		}
-
-	if (!bkey_cmp(k, &ZERO_KEY))
-		return "bad, null key";
-	if (!KEY_PTRS(k))
-		return "bad, no pointers";
-	if (!KEY_SIZE(k))
-		return "zeroed key";
-	return "";
-}
-
-int bch_bkey_to_text(char *buf, size_t size, const struct bkey *k)
-{
-	unsigned i = 0;
-	char *out = buf, *end = buf + size;
-
-#define p(...)	(out += scnprintf(out, end - out, __VA_ARGS__))
-
-	p("%llu:%llu len %llu -> [", KEY_INODE(k), KEY_START(k), KEY_SIZE(k));
-
-	for (i = 0; i < KEY_PTRS(k); i++) {
-		if (i)
-			p(", ");
-
-		if (PTR_DEV(k, i) == PTR_CHECK_DEV)
-			p("check dev");
-		else
-			p("%llu:%llu gen %llu", PTR_DEV(k, i),
-			  PTR_OFFSET(k, i), PTR_GEN(k, i));
-	}
-
-	p("]");
-
-	if (KEY_DIRTY(k))
-		p(" dirty");
-	if (KEY_CSUM(k))
-		p(" cs%llu %llx", KEY_CSUM(k), k->ptr[1]);
-#undef p
-	return out - buf;
-}
-
 #ifdef CONFIG_BCACHE_DEBUG
-
-static void dump_bset(struct btree *b, struct bset *i, unsigned set)
-{
-	struct bkey *k, *next;
-	unsigned j;
-	char buf[80];
-
-	for (k = i->start; k < bset_bkey_last(i); k = next) {
-		next = bkey_next(k);
-
-		bch_bkey_to_text(buf, sizeof(buf), k);
-		printk(KERN_ERR "b %u k %zi/%u: %s", set,
-		       (uint64_t *) k - i->d, i->keys, buf);
-
-		for (j = 0; j < KEY_PTRS(k); j++) {
-			size_t n = PTR_BUCKET_NR(b->c, k, j);
-			printk(" bucket %zu", n);
-
-			if (n >= b->c->sb.first_bucket && n < b->c->sb.nbuckets)
-				printk(" prio %i",
-				       PTR_BUCKET(b->c, k, j)->prio);
-		}
-
-		printk(" %s\n", bch_ptr_status(b->c, k));
-
-		if (next < bset_bkey_last(i) &&
-		    bkey_cmp(k, !b->level ? &START_KEY(next) : next) > 0)
-			printk(KERN_ERR "Key skipped backwards\n");
-	}
-}
-
-static void bch_dump_bucket(struct btree *b)
-{
-	unsigned i;
-
-	console_lock();
-	for (i = 0; i <= b->keys.nsets; i++)
-		dump_bset(b, b->keys.set[i].data,
-			  bset_block_offset(b, b->keys.set[i].data));
-	console_unlock();
-}
 
 #define for_each_written_bset(b, start, i)				\
 	for (i = (start);						\
@@ -171,17 +72,17 @@ void bch_btree_verify(struct btree *b)
 		console_lock();
 
 		printk(KERN_ERR "*** in memory:\n");
-		dump_bset(b, inmemory, 0);
+		bch_dump_bset(&b->keys, inmemory, 0);
 
 		printk(KERN_ERR "*** read back in:\n");
-		dump_bset(v, sorted, 0);
+		bch_dump_bset(&v->keys, sorted, 0);
 
 		for_each_written_bset(b, ondisk, i) {
 			unsigned block = ((void *) i - (void *) ondisk) /
 				block_bytes(b->c);
 
 			printk(KERN_ERR "*** on disk block %u:\n", block);
-			dump_bset(b, i, block);
+			bch_dump_bset(&b->keys, i, block);
 		}
 
 		printk(KERN_ERR "*** block %zu not written\n",
@@ -239,76 +140,6 @@ out_put:
 	bio_put(check);
 }
 
-int __bch_count_data(struct btree *b)
-{
-	unsigned ret = 0;
-	struct btree_iter iter;
-	struct bkey *k;
-
-	if (!b->level)
-		for_each_key(&b->keys, k, &iter)
-			ret += KEY_SIZE(k);
-	return ret;
-}
-
-void __bch_check_keys(struct btree *b, const char *fmt, ...)
-{
-	va_list args;
-	struct bkey *k, *p = NULL;
-	struct btree_iter iter;
-	const char *err;
-
-	for_each_key(&b->keys, k, &iter) {
-		if (!b->level) {
-			err = "Keys out of order";
-			if (p && bkey_cmp(&START_KEY(p), &START_KEY(k)) > 0)
-				goto bug;
-
-			if (bch_ptr_invalid(&b->keys, k))
-				continue;
-
-			err =  "Overlapping keys";
-			if (p && bkey_cmp(p, &START_KEY(k)) > 0)
-				goto bug;
-		} else {
-			if (bch_ptr_bad(&b->keys, k))
-				continue;
-
-			err = "Duplicate keys";
-			if (p && !bkey_cmp(p, k))
-				goto bug;
-		}
-		p = k;
-	}
-
-	err = "Key larger than btree node key";
-	if (p && bkey_cmp(p, &b->key) > 0)
-		goto bug;
-
-	return;
-bug:
-	bch_dump_bucket(b);
-
-	va_start(args, fmt);
-	vprintk(fmt, args);
-	va_end(args);
-
-	panic("bcache error: %s:\n", err);
-}
-
-void bch_btree_iter_next_check(struct btree_iter *iter)
-{
-#if 0
-	struct bkey *k = iter->data->k, *next = bkey_next(k);
-
-	if (next < iter->data->end &&
-	    bkey_cmp(k, iter->b->level ? next : &START_KEY(next)) > 0) {
-		bch_dump_bucket(iter->b);
-		panic("Key skipped backwards\n");
-	}
-#endif
-}
-
 #endif
 
 #ifdef CONFIG_DEBUG_FS
@@ -355,7 +186,7 @@ static ssize_t bch_dump_read(struct file *file, char __user *buf,
 		if (!w)
 			break;
 
-		bch_bkey_to_text(kbuf, sizeof(kbuf), &w->key);
+		bch_extent_to_text(kbuf, sizeof(kbuf), &w->key);
 		i->bytes = snprintf(i->buf, PAGE_SIZE, "%s\n", kbuf);
 		bch_keybuf_del(&i->keys, w);
 	}

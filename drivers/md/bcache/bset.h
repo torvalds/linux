@@ -193,6 +193,8 @@ struct btree_keys_ops {
 	bool		(*key_bad)(struct btree_keys *, const struct bkey *);
 	bool		(*key_merge)(struct btree_keys *,
 				     struct bkey *, struct bkey *);
+	void		(*key_to_text)(char *, size_t, const struct bkey *);
+	void		(*key_dump)(struct btree_keys *, const struct bkey *);
 
 	/*
 	 * Only used for deciding whether to use START_KEY(k) or just the key
@@ -241,15 +243,6 @@ static inline unsigned bset_byte_offset(struct btree_keys *b, struct bset *i)
 static inline unsigned bset_sector_offset(struct btree_keys *b, struct bset *i)
 {
 	return bset_byte_offset(b, i) >> 9;
-}
-
-static inline bool btree_keys_expensive_checks(struct btree_keys *b)
-{
-#ifdef CONFIG_BCACHE_DEBUG
-	return *b->expensive_debug_checks;
-#else
-	return false;
-#endif
 }
 
 #define __set_bytes(i, k)	(sizeof(*(i)) + (k) * sizeof(uint64_t))
@@ -446,6 +439,12 @@ static inline bool bch_ptr_bad(struct btree_keys *b, const struct bkey *k)
 	return b->ops->key_bad(b, k);
 }
 
+static inline void bch_bkey_to_text(struct btree_keys *b, char *buf,
+				    size_t size, const struct bkey *k)
+{
+	return b->ops->key_to_text(buf, size, k);
+}
+
 /* Keylists */
 
 struct keylist {
@@ -509,7 +508,42 @@ struct bkey *bch_keylist_pop(struct keylist *);
 void bch_keylist_pop_front(struct keylist *);
 int __bch_keylist_realloc(struct keylist *, unsigned);
 
-struct cache_set;
-const char *bch_ptr_status(struct cache_set *, const struct bkey *);
+/* Debug stuff */
+
+#ifdef CONFIG_BCACHE_DEBUG
+
+int __bch_count_data(struct btree_keys *);
+void __bch_check_keys(struct btree_keys *, const char *, ...);
+void bch_dump_bset(struct btree_keys *, struct bset *, unsigned);
+void bch_dump_bucket(struct btree_keys *);
+
+#else
+
+static inline int __bch_count_data(struct btree_keys *b) { return -1; }
+static inline void __bch_check_keys(struct btree_keys *b, const char *fmt, ...) {}
+static inline void bch_dump_bucket(struct btree_keys *b) {}
+void bch_dump_bset(struct btree_keys *, struct bset *, unsigned);
+
+#endif
+
+static inline bool btree_keys_expensive_checks(struct btree_keys *b)
+{
+#ifdef CONFIG_BCACHE_DEBUG
+	return *b->expensive_debug_checks;
+#else
+	return false;
+#endif
+}
+
+static inline int bch_count_data(struct btree_keys *b)
+{
+	return btree_keys_expensive_checks(b) ? __bch_count_data(b) : -1;
+}
+
+#define bch_check_keys(b, ...)						\
+do {									\
+	if (btree_keys_expensive_checks(b))				\
+		__bch_check_keys(b, __VA_ARGS__);			\
+} while (0)
 
 #endif
