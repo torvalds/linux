@@ -224,7 +224,8 @@ enum pci_bus_speed {
 };
 
 struct pci_cap_saved_data {
-	char cap_nr;
+	u16 cap_nr;
+	bool cap_extended;
 	unsigned int size;
 	u32 data[0];
 };
@@ -938,6 +939,7 @@ bool pci_check_and_unmask_intx(struct pci_dev *dev);
 void pci_msi_off(struct pci_dev *dev);
 int pci_set_dma_max_seg_size(struct pci_dev *dev, unsigned int size);
 int pci_set_dma_seg_boundary(struct pci_dev *dev, unsigned long mask);
+int pci_wait_for_pending(struct pci_dev *dev, int pos, u16 mask);
 int pci_wait_for_pending_transaction(struct pci_dev *dev);
 int pcix_get_max_mmrbc(struct pci_dev *dev);
 int pcix_get_mmrbc(struct pci_dev *dev);
@@ -976,6 +978,12 @@ struct pci_saved_state *pci_store_saved_state(struct pci_dev *dev);
 int pci_load_saved_state(struct pci_dev *dev, struct pci_saved_state *state);
 int pci_load_and_free_saved_state(struct pci_dev *dev,
 				  struct pci_saved_state **state);
+struct pci_cap_saved_state *pci_find_saved_cap(struct pci_dev *dev, char cap);
+struct pci_cap_saved_state *pci_find_saved_ext_cap(struct pci_dev *dev,
+						   u16 cap);
+int pci_add_cap_save_buffer(struct pci_dev *dev, char cap, unsigned int size);
+int pci_add_ext_cap_save_buffer(struct pci_dev *dev,
+				u16 cap, unsigned int size);
 int __pci_complete_power_transition(struct pci_dev *dev, pci_power_t state);
 int pci_set_power_state(struct pci_dev *dev, pci_power_t state);
 pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state);
@@ -996,6 +1004,11 @@ static inline int pci_enable_wake(struct pci_dev *dev, pci_power_t state,
 {
 	return __pci_enable_wake(dev, state, false, enable);
 }
+
+/* PCI Virtual Channel */
+int pci_save_vc_state(struct pci_dev *dev);
+void pci_restore_vc_state(struct pci_dev *dev);
+void pci_allocate_vc_save_buffers(struct pci_dev *dev);
 
 #define PCI_EXP_IDO_REQUEST	(1<<0)
 #define PCI_EXP_IDO_COMPLETION	(1<<1)
