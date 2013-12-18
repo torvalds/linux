@@ -256,8 +256,9 @@ static void intel_disable_lvds(struct intel_encoder *encoder)
 	POSTING_READ(lvds_encoder->reg);
 }
 
-static int intel_lvds_mode_valid(struct drm_connector *connector,
-				 struct drm_display_mode *mode)
+static enum drm_mode_status
+intel_lvds_mode_valid(struct drm_connector *connector,
+		      struct drm_display_mode *mode)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;

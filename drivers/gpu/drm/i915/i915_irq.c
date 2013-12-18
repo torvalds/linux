@@ -600,7 +600,7 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	 * Cook up a vblank counter by also checking the pixel
 	 * counter against vblank start.
 	 */
-	return ((high1 << 8) | low) + (pixel >= vbl_start);
+	return (((high1 << 8) | low) + (pixel >= vbl_start)) & 0xffffff;
 }
 
 static u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
@@ -1015,10 +1015,8 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	/* sysfs frequency interfaces may have snuck in while servicing the
 	 * interrupt
 	 */
-	if (new_delay < (int)dev_priv->rps.min_delay)
-		new_delay = dev_priv->rps.min_delay;
-	if (new_delay > (int)dev_priv->rps.max_delay)
-		new_delay = dev_priv->rps.max_delay;
+	new_delay = clamp_t(int, new_delay,
+			    dev_priv->rps.min_delay, dev_priv->rps.max_delay);
 	dev_priv->rps.last_adj = new_delay - dev_priv->rps.cur_delay;
 
 	if (IS_VALLEYVIEW(dev_priv->dev))
@@ -1473,6 +1471,9 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 					 hotplug_status);
 
 			intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_i915);
+
+			if (hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X)
+				dp_aux_irq_handler(dev);
 
 			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
 			I915_READ(PORT_HOTPLUG_STAT);
@@ -1993,7 +1994,7 @@ static void i915_error_work_func(struct work_struct *work)
 			kobject_uevent_env(&dev->primary->kdev->kobj,
 					   KOBJ_CHANGE, reset_done_event);
 		} else {
-			atomic_set(&error->reset_counter, I915_WEDGED);
+			atomic_set_mask(I915_WEDGED, &error->reset_counter);
 		}
 
 		/*
@@ -3654,6 +3655,10 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 
 			intel_hpd_irq_handler(dev, hotplug_trigger,
 					      IS_G4X(dev) ? hpd_status_gen4 : hpd_status_i915);
+
+			if (IS_G4X(dev) &&
+			    (hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X))
+				dp_aux_irq_handler(dev);
 
 			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
 			I915_READ(PORT_HOTPLUG_STAT);

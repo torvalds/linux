@@ -4465,7 +4465,13 @@ i915_gem_init_hw(struct drm_device *dev)
 	 * XXX: There was some w/a described somewhere suggesting loading
 	 * contexts before PPGTT.
 	 */
-	i915_gem_context_init(dev);
+	ret = i915_gem_context_init(dev);
+	if (ret) {
+		i915_gem_cleanup_ringbuffer(dev);
+		DRM_ERROR("Context initialization failed %d\n", ret);
+		return ret;
+	}
+
 	if (dev_priv->mm.aliasing_ppgtt) {
 		ret = dev_priv->mm.aliasing_ppgtt->enable(dev);
 		if (ret) {

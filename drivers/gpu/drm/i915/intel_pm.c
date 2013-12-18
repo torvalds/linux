@@ -191,7 +191,11 @@ static void sandybridge_blit_fbc_update(struct drm_device *dev)
 	u32 blt_ecoskpd;
 
 	/* Make sure blitter notifies FBC of writes */
-	gen6_gt_force_wake_get(dev_priv);
+
+	/* Blitter is part of Media powerwell on VLV. No impact of
+	 * his param in other platforms for now */
+	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_MEDIA);
+
 	blt_ecoskpd = I915_READ(GEN6_BLITTER_ECOSKPD);
 	blt_ecoskpd |= GEN6_BLITTER_FBC_NOTIFY <<
 		GEN6_BLITTER_LOCK_SHIFT;
@@ -202,7 +206,8 @@ static void sandybridge_blit_fbc_update(struct drm_device *dev)
 			 GEN6_BLITTER_LOCK_SHIFT);
 	I915_WRITE(GEN6_BLITTER_ECOSKPD, blt_ecoskpd);
 	POSTING_READ(GEN6_BLITTER_ECOSKPD);
-	gen6_gt_force_wake_put(dev_priv);
+
+	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_MEDIA);
 }
 
 static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
@@ -222,7 +227,9 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	dpfc_ctl |= (plane | DPFC_CTL_LIMIT_1X);
 	/* Set persistent mode for front-buffer rendering, ala X. */
 	dpfc_ctl |= DPFC_CTL_PERSISTENT_MODE;
-	dpfc_ctl |= (DPFC_CTL_FENCE_EN | obj->fence_reg);
+	dpfc_ctl |= DPFC_CTL_FENCE_EN;
+	if (IS_GEN5(dev))
+		dpfc_ctl |= obj->fence_reg;
 	I915_WRITE(ILK_DPFC_CHICKEN, DPFC_HT_MODIFY);
 
 	I915_WRITE(ILK_DPFC_RECOMP_CTL, DPFC_RECOMP_STALL_EN |
@@ -295,7 +302,7 @@ static void gen7_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 
 	sandybridge_blit_fbc_update(dev);
 
-	DRM_DEBUG_KMS("enabled fbc on plane %d\n", intel_crtc->plane);
+	DRM_DEBUG_KMS("enabled fbc on plane %c\n", plane_name(intel_crtc->plane));
 }
 
 bool intel_fbc_enabled(struct drm_device *dev)
@@ -3430,15 +3437,9 @@ static void ironlake_disable_drps(struct drm_device *dev)
  * ourselves, instead of doing a rmw cycle (which might result in us clearing
  * all limits and the gpu stuck at whatever frequency it is at atm).
  */
-static u32 gen6_rps_limits(struct drm_i915_private *dev_priv, u8 *val)
+static u32 gen6_rps_limits(struct drm_i915_private *dev_priv, u8 val)
 {
 	u32 limits;
-
-	limits = 0;
-
-	if (*val >= dev_priv->rps.max_delay)
-		*val = dev_priv->rps.max_delay;
-	limits |= dev_priv->rps.max_delay << 24;
 
 	/* Only set the down limit when we've reached the lowest level to avoid
 	 * getting more interrupts, otherwise leave this clear. This prevents a
@@ -3446,10 +3447,9 @@ static u32 gen6_rps_limits(struct drm_i915_private *dev_priv, u8 *val)
 	 * the hw runs at the minimal clock before selecting the desired
 	 * frequency, if the down threshold expires in that window we will not
 	 * receive a down interrupt. */
-	if (*val <= dev_priv->rps.min_delay) {
-		*val = dev_priv->rps.min_delay;
+	limits = dev_priv->rps.max_delay << 24;
+	if (val <= dev_priv->rps.min_delay)
 		limits |= dev_priv->rps.min_delay << 16;
-	}
 
 	return limits;
 }
@@ -3549,7 +3549,6 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 void gen6_set_rps(struct drm_device *dev, u8 val)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 limits = gen6_rps_limits(dev_priv, &val);
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 	WARN_ON(val > dev_priv->rps.max_delay);
@@ -3572,7 +3571,8 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 	/* Make sure we continue to get interrupts
 	 * until we hit the minimum or maximum frequencies.
 	 */
-	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, limits);
+	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS,
+		   gen6_rps_limits(dev_priv, val));
 
 	POSTING_READ(GEN6_RPNSWREQ);
 
@@ -3607,48 +3607,18 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
-/*
- * Wait until the previous freq change has completed,
- * or the timeout elapsed, and then update our notion
- * of the current GPU frequency.
- */
-static void vlv_update_rps_cur_delay(struct drm_i915_private *dev_priv)
-{
-	u32 pval;
-
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
-
-	if (wait_for(((pval = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS)) & GENFREQSTATUS) == 0, 10))
-		DRM_DEBUG_DRIVER("timed out waiting for Punit\n");
-
-	pval >>= 8;
-
-	if (pval != dev_priv->rps.cur_delay)
-		DRM_DEBUG_DRIVER("Punit overrode GPU freq: %d MHz (%u) requested, but got %d Mhz (%u)\n",
-				 vlv_gpu_freq(dev_priv->mem_freq, dev_priv->rps.cur_delay),
-				 dev_priv->rps.cur_delay,
-				 vlv_gpu_freq(dev_priv->mem_freq, pval), pval);
-
-	dev_priv->rps.cur_delay = pval;
-}
-
 void valleyview_set_rps(struct drm_device *dev, u8 val)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	gen6_rps_limits(dev_priv, &val);
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 	WARN_ON(val > dev_priv->rps.max_delay);
 	WARN_ON(val < dev_priv->rps.min_delay);
 
-	vlv_update_rps_cur_delay(dev_priv);
-
 	DRM_DEBUG_DRIVER("GPU freq request from %d MHz (%u) to %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv->mem_freq,
-				      dev_priv->rps.cur_delay),
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.cur_delay),
 			 dev_priv->rps.cur_delay,
-			 vlv_gpu_freq(dev_priv->mem_freq, val), val);
+			 vlv_gpu_freq(dev_priv, val), val);
 
 	if (val == dev_priv->rps.cur_delay)
 		return;
@@ -3657,7 +3627,7 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 
 	dev_priv->rps.cur_delay = val;
 
-	trace_intel_gpu_freq_change(vlv_gpu_freq(dev_priv->mem_freq, val));
+	trace_intel_gpu_freq_change(vlv_gpu_freq(dev_priv, val));
 }
 
 static void gen6_disable_rps_interrupts(struct drm_device *dev)
@@ -3775,7 +3745,7 @@ static void gen8_enable_rps(struct drm_device *dev)
 
 	/* 1c & 1d: Get forcewake during program sequence. Although the driver
 	 * hasn't enabled a state yet where we need forcewake, BIOS may have.*/
-	gen6_gt_force_wake_get(dev_priv);
+	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
 
 	/* 2a: Disable RC states. */
 	I915_WRITE(GEN6_RC_CONTROL, 0);
@@ -3832,7 +3802,7 @@ static void gen8_enable_rps(struct drm_device *dev)
 
 	gen6_enable_rps_interrupts(dev);
 
-	gen6_gt_force_wake_put(dev_priv);
+	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
 }
 
 static void gen6_enable_rps(struct drm_device *dev)
@@ -3862,7 +3832,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 		I915_WRITE(GTFIFODBG, gtfifodbg);
 	}
 
-	gen6_gt_force_wake_get(dev_priv);
+	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
 
 	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
 	gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
@@ -3954,7 +3924,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 			DRM_ERROR("Couldn't fix incorrect rc6 voltage\n");
 	}
 
-	gen6_gt_force_wake_put(dev_priv);
+	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
 }
 
 void gen6_update_ring_freq(struct drm_device *dev)
@@ -4116,7 +4086,8 @@ static void valleyview_enable_rps(struct drm_device *dev)
 
 	valleyview_setup_pctx(dev);
 
-	gen6_gt_force_wake_get(dev_priv);
+	/* If VLV, Forcewake all wells, else re-direct to regular path */
+	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
 
 	I915_WRITE(GEN6_RP_UP_THRESHOLD, 59400);
 	I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 245000);
@@ -4140,7 +4111,7 @@ static void valleyview_enable_rps(struct drm_device *dev)
 	for_each_ring(ring, dev_priv, i)
 		I915_WRITE(RING_MAX_IDLE(ring->mmio_base), 10);
 
-	I915_WRITE(GEN6_RC6_THRESHOLD, 0xc350);
+	I915_WRITE(GEN6_RC6_THRESHOLD, 0x557);
 
 	/* allows RC6 residency counter to work */
 	I915_WRITE(VLV_COUNTER_CONTROL,
@@ -4148,65 +4119,47 @@ static void valleyview_enable_rps(struct drm_device *dev)
 				      VLV_MEDIA_RC6_COUNT_EN |
 				      VLV_RENDER_RC6_COUNT_EN));
 	if (intel_enable_rc6(dev) & INTEL_RC6_ENABLE)
-		rc6_mode = GEN7_RC_CTL_TO_MODE;
+		rc6_mode = GEN7_RC_CTL_TO_MODE | VLV_RC_CTL_CTX_RST_PARALLEL;
 
 	intel_print_rc6_info(dev, rc6_mode);
 
 	I915_WRITE(GEN6_RC_CONTROL, rc6_mode);
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
-	switch ((val >> 6) & 3) {
-	case 0:
-	case 1:
-		dev_priv->mem_freq = 800;
-		break;
-	case 2:
-		dev_priv->mem_freq = 1066;
-		break;
-	case 3:
-		dev_priv->mem_freq = 1333;
-		break;
-	}
-	DRM_DEBUG_DRIVER("DDR speed: %d MHz", dev_priv->mem_freq);
 
 	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", val & 0x10 ? "yes" : "no");
 	DRM_DEBUG_DRIVER("GPU status: 0x%08x\n", val);
 
 	dev_priv->rps.cur_delay = (val >> 8) & 0xff;
 	DRM_DEBUG_DRIVER("current GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv->mem_freq,
-				      dev_priv->rps.cur_delay),
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.cur_delay),
 			 dev_priv->rps.cur_delay);
 
 	dev_priv->rps.max_delay = valleyview_rps_max_freq(dev_priv);
 	dev_priv->rps.hw_max = dev_priv->rps.max_delay;
 	DRM_DEBUG_DRIVER("max GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv->mem_freq,
-				      dev_priv->rps.max_delay),
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.max_delay),
 			 dev_priv->rps.max_delay);
 
 	dev_priv->rps.rpe_delay = valleyview_rps_rpe_freq(dev_priv);
 	DRM_DEBUG_DRIVER("RPe GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv->mem_freq,
-				      dev_priv->rps.rpe_delay),
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.rpe_delay),
 			 dev_priv->rps.rpe_delay);
 
 	dev_priv->rps.min_delay = valleyview_rps_min_freq(dev_priv);
 	DRM_DEBUG_DRIVER("min GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv->mem_freq,
-				      dev_priv->rps.min_delay),
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.min_delay),
 			 dev_priv->rps.min_delay);
 
 	DRM_DEBUG_DRIVER("setting GPU freq to %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv->mem_freq,
-				      dev_priv->rps.rpe_delay),
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.rpe_delay),
 			 dev_priv->rps.rpe_delay);
 
 	valleyview_set_rps(dev_priv->dev, dev_priv->rps.rpe_delay);
 
 	gen6_enable_rps_interrupts(dev);
 
-	gen6_gt_force_wake_put(dev_priv);
+	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
 }
 
 void ironlake_teardown_rc6(struct drm_device *dev)
@@ -5463,6 +5416,26 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 static void valleyview_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 val;
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
+	mutex_unlock(&dev_priv->rps.hw_lock);
+	switch ((val >> 6) & 3) {
+	case 0:
+		dev_priv->mem_freq = 800;
+		break;
+	case 1:
+		dev_priv->mem_freq = 1066;
+		break;
+	case 2:
+		dev_priv->mem_freq = 1333;
+		break;
+	case 3:
+		dev_priv->mem_freq = 1333;
+		break;
+	}
+	DRM_DEBUG_DRIVER("DDR speed: %d MHz", dev_priv->mem_freq);
 
 	I915_WRITE(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE);
 
@@ -5642,49 +5615,78 @@ void intel_suspend_hw(struct drm_device *dev)
 		lpt_suspend_hw(dev);
 }
 
-static bool is_always_on_power_domain(struct drm_device *dev,
-				      enum intel_display_power_domain domain)
-{
-	unsigned long always_on_domains;
+#define for_each_power_well(i, power_well, domain_mask, power_domains)	\
+	for (i = 0;							\
+	     i < (power_domains)->power_well_count &&			\
+		 ((power_well) = &(power_domains)->power_wells[i]);	\
+	     i++)							\
+		if ((power_well)->domains & (domain_mask))
 
-	BUG_ON(BIT(domain) & ~POWER_DOMAIN_MASK);
-
-	if (IS_BROADWELL(dev)) {
-		always_on_domains = BDW_ALWAYS_ON_POWER_DOMAINS;
-	} else if (IS_HASWELL(dev)) {
-		always_on_domains = HSW_ALWAYS_ON_POWER_DOMAINS;
-	} else {
-		WARN_ON(1);
-		return true;
-	}
-
-	return BIT(domain) & always_on_domains;
-}
+#define for_each_power_well_rev(i, power_well, domain_mask, power_domains) \
+	for (i = (power_domains)->power_well_count - 1;			 \
+	     i >= 0 && ((power_well) = &(power_domains)->power_wells[i]);\
+	     i--)							 \
+		if ((power_well)->domains & (domain_mask))
 
 /**
  * We should only use the power well if we explicitly asked the hardware to
  * enable it, so check if it's enabled and also check if we've requested it to
  * be enabled.
  */
-bool intel_display_power_enabled(struct drm_device *dev,
-				 enum intel_display_power_domain domain)
+static bool hsw_power_well_enabled(struct drm_device *dev,
+				   struct i915_power_well *power_well)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (!HAS_POWER_WELL(dev))
-		return true;
-
-	if (is_always_on_power_domain(dev, domain))
-		return true;
 
 	return I915_READ(HSW_PWR_WELL_DRIVER) ==
 		     (HSW_PWR_WELL_ENABLE_REQUEST | HSW_PWR_WELL_STATE_ENABLED);
 }
 
-static void __intel_set_power_well(struct drm_device *dev, bool enable)
+bool intel_display_power_enabled_sw(struct drm_device *dev,
+				    enum intel_display_power_domain domain)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_power_domains *power_domains;
+
+	power_domains = &dev_priv->power_domains;
+
+	return power_domains->domain_use_count[domain];
+}
+
+bool intel_display_power_enabled(struct drm_device *dev,
+				 enum intel_display_power_domain domain)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_power_domains *power_domains;
+	struct i915_power_well *power_well;
+	bool is_enabled;
+	int i;
+
+	power_domains = &dev_priv->power_domains;
+
+	is_enabled = true;
+
+	mutex_lock(&power_domains->lock);
+	for_each_power_well_rev(i, power_well, BIT(domain), power_domains) {
+		if (power_well->always_on)
+			continue;
+
+		if (!power_well->is_enabled(dev, power_well)) {
+			is_enabled = false;
+			break;
+		}
+	}
+	mutex_unlock(&power_domains->lock);
+
+	return is_enabled;
+}
+
+static void hsw_set_power_well(struct drm_device *dev,
+			       struct i915_power_well *power_well, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool is_enabled, enable_requested;
+	unsigned long irqflags;
 	uint32_t tmp;
 
 	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
@@ -5702,9 +5704,24 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 				      HSW_PWR_WELL_STATE_ENABLED), 20))
 				DRM_ERROR("Timeout enabling power well\n");
 		}
+
+		if (IS_BROADWELL(dev)) {
+			spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+			I915_WRITE(GEN8_DE_PIPE_IMR(PIPE_B),
+				   dev_priv->de_irq_mask[PIPE_B]);
+			I915_WRITE(GEN8_DE_PIPE_IER(PIPE_B),
+				   ~dev_priv->de_irq_mask[PIPE_B] |
+				   GEN8_PIPE_VBLANK);
+			I915_WRITE(GEN8_DE_PIPE_IMR(PIPE_C),
+				   dev_priv->de_irq_mask[PIPE_C]);
+			I915_WRITE(GEN8_DE_PIPE_IER(PIPE_C),
+				   ~dev_priv->de_irq_mask[PIPE_C] |
+				   GEN8_PIPE_VBLANK);
+			POSTING_READ(GEN8_DE_PIPE_IER(PIPE_C));
+			spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+		}
 	} else {
 		if (enable_requested) {
-			unsigned long irqflags;
 			enum pipe p;
 
 			I915_WRITE(HSW_PWR_WELL_DRIVER, 0);
@@ -5731,16 +5748,17 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 static void __intel_power_well_get(struct drm_device *dev,
 				   struct i915_power_well *power_well)
 {
-	if (!power_well->count++)
-		__intel_set_power_well(dev, true);
+	if (!power_well->count++ && power_well->set)
+		power_well->set(dev, power_well, true);
 }
 
 static void __intel_power_well_put(struct drm_device *dev,
 				   struct i915_power_well *power_well)
 {
 	WARN_ON(!power_well->count);
-	if (!--power_well->count && i915_disable_power_well)
-		__intel_set_power_well(dev, false);
+
+	if (!--power_well->count && power_well->set && i915_disable_power_well)
+		power_well->set(dev, power_well, false);
 }
 
 void intel_display_power_get(struct drm_device *dev,
@@ -5748,17 +5766,18 @@ void intel_display_power_get(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_power_domains *power_domains;
-
-	if (!HAS_POWER_WELL(dev))
-		return;
-
-	if (is_always_on_power_domain(dev, domain))
-		return;
+	struct i915_power_well *power_well;
+	int i;
 
 	power_domains = &dev_priv->power_domains;
 
 	mutex_lock(&power_domains->lock);
-	__intel_power_well_get(dev, &power_domains->power_wells[0]);
+
+	for_each_power_well(i, power_well, BIT(domain), power_domains)
+		__intel_power_well_get(dev, power_well);
+
+	power_domains->domain_use_count[domain]++;
+
 	mutex_unlock(&power_domains->lock);
 }
 
@@ -5767,17 +5786,19 @@ void intel_display_power_put(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_power_domains *power_domains;
-
-	if (!HAS_POWER_WELL(dev))
-		return;
-
-	if (is_always_on_power_domain(dev, domain))
-		return;
+	struct i915_power_well *power_well;
+	int i;
 
 	power_domains = &dev_priv->power_domains;
 
 	mutex_lock(&power_domains->lock);
-	__intel_power_well_put(dev, &power_domains->power_wells[0]);
+
+	WARN_ON(!power_domains->domain_use_count[domain]);
+	power_domains->domain_use_count[domain]--;
+
+	for_each_power_well_rev(i, power_well, BIT(domain), power_domains)
+		__intel_power_well_put(dev, power_well);
+
 	mutex_unlock(&power_domains->lock);
 }
 
@@ -5793,10 +5814,7 @@ void i915_request_power_well(void)
 
 	dev_priv = container_of(hsw_pwr, struct drm_i915_private,
 				power_domains);
-
-	mutex_lock(&hsw_pwr->lock);
-	__intel_power_well_get(dev_priv->dev, &hsw_pwr->power_wells[0]);
-	mutex_unlock(&hsw_pwr->lock);
+	intel_display_power_get(dev_priv->dev, POWER_DOMAIN_AUDIO);
 }
 EXPORT_SYMBOL_GPL(i915_request_power_well);
 
@@ -5810,24 +5828,71 @@ void i915_release_power_well(void)
 
 	dev_priv = container_of(hsw_pwr, struct drm_i915_private,
 				power_domains);
-
-	mutex_lock(&hsw_pwr->lock);
-	__intel_power_well_put(dev_priv->dev, &hsw_pwr->power_wells[0]);
-	mutex_unlock(&hsw_pwr->lock);
+	intel_display_power_put(dev_priv->dev, POWER_DOMAIN_AUDIO);
 }
 EXPORT_SYMBOL_GPL(i915_release_power_well);
+
+static struct i915_power_well i9xx_always_on_power_well[] = {
+	{
+		.name = "always-on",
+		.always_on = 1,
+		.domains = POWER_DOMAIN_MASK,
+	},
+};
+
+static struct i915_power_well hsw_power_wells[] = {
+	{
+		.name = "always-on",
+		.always_on = 1,
+		.domains = HSW_ALWAYS_ON_POWER_DOMAINS,
+	},
+	{
+		.name = "display",
+		.domains = POWER_DOMAIN_MASK & ~HSW_ALWAYS_ON_POWER_DOMAINS,
+		.is_enabled = hsw_power_well_enabled,
+		.set = hsw_set_power_well,
+	},
+};
+
+static struct i915_power_well bdw_power_wells[] = {
+	{
+		.name = "always-on",
+		.always_on = 1,
+		.domains = BDW_ALWAYS_ON_POWER_DOMAINS,
+	},
+	{
+		.name = "display",
+		.domains = POWER_DOMAIN_MASK & ~BDW_ALWAYS_ON_POWER_DOMAINS,
+		.is_enabled = hsw_power_well_enabled,
+		.set = hsw_set_power_well,
+	},
+};
+
+#define set_power_wells(power_domains, __power_wells) ({		\
+	(power_domains)->power_wells = (__power_wells);			\
+	(power_domains)->power_well_count = ARRAY_SIZE(__power_wells);	\
+})
 
 int intel_power_domains_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
-	struct i915_power_well *power_well;
 
 	mutex_init(&power_domains->lock);
-	hsw_pwr = power_domains;
 
-	power_well = &power_domains->power_wells[0];
-	power_well->count = 0;
+	/*
+	 * The enabling order will be from lower to higher indexed wells,
+	 * the disabling order is reversed.
+	 */
+	if (IS_HASWELL(dev)) {
+		set_power_wells(power_domains, hsw_power_wells);
+		hsw_pwr = power_domains;
+	} else if (IS_BROADWELL(dev)) {
+		set_power_wells(power_domains, bdw_power_wells);
+		hsw_pwr = power_domains;
+	} else {
+		set_power_wells(power_domains, i9xx_always_on_power_well);
+	}
 
 	return 0;
 }
@@ -5842,15 +5907,13 @@ static void intel_power_domains_resume(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *power_well;
-
-	if (!HAS_POWER_WELL(dev))
-		return;
+	int i;
 
 	mutex_lock(&power_domains->lock);
-
-	power_well = &power_domains->power_wells[0];
-	__intel_set_power_well(dev, power_well->count > 0);
-
+	for_each_power_well(i, power_well, POWER_DOMAIN_MASK, power_domains) {
+		if (power_well->set)
+			power_well->set(dev, power_well, power_well->count > 0);
+	}
 	mutex_unlock(&power_domains->lock);
 }
 
@@ -5864,12 +5927,12 @@ void intel_power_domains_init_hw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!HAS_POWER_WELL(dev))
-		return;
-
 	/* For now, we need the power well to be always enabled. */
 	intel_display_set_init_power(dev, true);
 	intel_power_domains_resume(dev);
+
+	if (!(IS_HASWELL(dev) || IS_BROADWELL(dev)))
+		return;
 
 	/* We're taking over the BIOS, so clear any requests made by it since
 	 * the driver is in charge now. */
@@ -6075,59 +6138,48 @@ int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val)
 	return 0;
 }
 
-int vlv_gpu_freq(int ddr_freq, int val)
+int vlv_gpu_freq(struct drm_i915_private *dev_priv, int val)
 {
-	int mult, base;
+	int div;
 
-	switch (ddr_freq) {
+	/* 4 x czclk */
+	switch (dev_priv->mem_freq) {
 	case 800:
-		mult = 20;
-		base = 120;
+		div = 10;
 		break;
 	case 1066:
-		mult = 22;
-		base = 133;
+		div = 12;
 		break;
 	case 1333:
-		mult = 21;
-		base = 125;
+		div = 16;
 		break;
 	default:
 		return -1;
 	}
 
-	return ((val - 0xbd) * mult) + base;
+	return DIV_ROUND_CLOSEST(dev_priv->mem_freq * (val + 6 - 0xbd), 4 * div);
 }
 
-int vlv_freq_opcode(int ddr_freq, int val)
+int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
-	int mult, base;
+	int mul;
 
-	switch (ddr_freq) {
+	/* 4 x czclk */
+	switch (dev_priv->mem_freq) {
 	case 800:
-		mult = 20;
-		base = 120;
+		mul = 10;
 		break;
 	case 1066:
-		mult = 22;
-		base = 133;
+		mul = 12;
 		break;
 	case 1333:
-		mult = 21;
-		base = 125;
+		mul = 16;
 		break;
 	default:
 		return -1;
 	}
 
-	val /= mult;
-	val -= base / mult;
-	val += 0xbd;
-
-	if (val > 0xea)
-		val = 0xea;
-
-	return val;
+	return DIV_ROUND_CLOSEST(4 * mul * val, dev_priv->mem_freq) + 0xbd - 6;
 }
 
 void intel_pm_init(struct drm_device *dev)

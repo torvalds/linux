@@ -396,13 +396,10 @@ int intel_opregion_notify_adapter(struct drm_device *dev, pci_power_t state)
 static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_encoder *encoder;
 	struct drm_connector *connector;
-	struct intel_connector *intel_connector = NULL;
-	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[0];
+	struct intel_connector *intel_connector;
+	struct intel_panel *panel;
 	struct opregion_asle __iomem *asle = dev_priv->opregion.asle;
-	u32 ret = 0;
-	bool found = false;
 
 	DRM_DEBUG_DRIVER("bclp = 0x%08x\n", bclp);
 
@@ -414,38 +411,24 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 		return ASLC_BACKLIGHT_FAILED;
 
 	mutex_lock(&dev->mode_config.mutex);
+
 	/*
-	 * Could match the OpRegion connector here instead, but we'd also need
-	 * to verify the connector could handle a backlight call.
+	 * Update backlight on all connectors that support backlight (usually
+	 * only one).
 	 */
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
-		if (encoder->crtc == crtc) {
-			found = true;
-			break;
-		}
-
-	if (!found) {
-		ret = ASLC_BACKLIGHT_FAILED;
-		goto out;
-	}
-
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		if (connector->encoder == encoder)
-			intel_connector = to_intel_connector(connector);
-
-	if (!intel_connector) {
-		ret = ASLC_BACKLIGHT_FAILED;
-		goto out;
-	}
-
 	DRM_DEBUG_KMS("updating opregion backlight %d/255\n", bclp);
-	intel_panel_set_backlight(intel_connector, bclp, 255);
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		intel_connector = to_intel_connector(connector);
+		panel = &intel_connector->panel;
+		if (panel->backlight.present)
+			intel_panel_set_backlight(intel_connector, bclp, 255);
+	}
 	iowrite32(DIV_ROUND_UP(bclp * 100, 255) | ASLE_CBLV_VALID, &asle->cblv);
 
-out:
 	mutex_unlock(&dev->mode_config.mutex);
 
-	return ret;
+
+	return 0;
 }
 
 static u32 asle_set_als_illum(struct drm_device *dev, u32 alsi)

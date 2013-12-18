@@ -156,6 +156,17 @@ struct intel_encoder {
 struct intel_panel {
 	struct drm_display_mode *fixed_mode;
 	int fitting_mode;
+
+	/* backlight */
+	struct {
+		bool present;
+		u32 level;
+		u32 max;
+		bool enabled;
+		bool combination_mode;	/* gen 2/4 only */
+		bool active_low_pwm;
+		struct backlight_device *device;
+	} backlight;
 };
 
 struct intel_connector {
@@ -490,9 +501,9 @@ vlv_dport_to_channel(struct intel_digital_port *dport)
 {
 	switch (dport->port) {
 	case PORT_B:
-		return 0;
+		return DPIO_CH0;
 	case PORT_C:
-		return 1;
+		return DPIO_CH1;
 	default:
 		BUG();
 	}
@@ -638,7 +649,8 @@ enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
 void intel_wait_for_vblank(struct drm_device *dev, int pipe);
 void intel_wait_for_pipe_off(struct drm_device *dev, int pipe);
 int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp);
-void vlv_wait_port_ready(struct drm_i915_private *dev_priv, int port);
+void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
+			 struct intel_digital_port *dport);
 bool intel_get_load_detect_pipe(struct drm_connector *connector,
 				struct drm_display_mode *mode,
 				struct intel_load_detect_pipe *old);
@@ -694,7 +706,7 @@ void i915_disable_vga_mem(struct drm_device *dev);
 void hsw_enable_ips(struct intel_crtc *crtc);
 void hsw_disable_ips(struct intel_crtc *crtc);
 void intel_display_set_init_power(struct drm_device *dev, bool enable);
-
+int valleyview_get_vco(struct drm_i915_private *dev_priv);
 
 /* intel_dp.c */
 void intel_dp_init(struct drm_device *dev, int output_reg, enum port port);
@@ -808,7 +820,8 @@ void intel_panel_set_backlight(struct intel_connector *connector, u32 level,
 int intel_panel_setup_backlight(struct drm_connector *connector);
 void intel_panel_enable_backlight(struct intel_connector *connector);
 void intel_panel_disable_backlight(struct intel_connector *connector);
-void intel_panel_destroy_backlight(struct drm_device *dev);
+void intel_panel_destroy_backlight(struct drm_connector *connector);
+void intel_panel_init_backlight_funcs(struct drm_device *dev);
 enum drm_connector_status intel_panel_detect(struct drm_device *dev);
 
 
@@ -829,6 +842,8 @@ int intel_power_domains_init(struct drm_device *dev);
 void intel_power_domains_remove(struct drm_device *dev);
 bool intel_display_power_enabled(struct drm_device *dev,
 				 enum intel_display_power_domain domain);
+bool intel_display_power_enabled_sw(struct drm_device *dev,
+				    enum intel_display_power_domain domain);
 void intel_display_power_get(struct drm_device *dev,
 			     enum intel_display_power_domain domain);
 void intel_display_power_put(struct drm_device *dev,
