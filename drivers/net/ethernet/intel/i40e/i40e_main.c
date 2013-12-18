@@ -5771,16 +5771,8 @@ int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count)
 	queue_count = rounddown_pow_of_two(queue_count);
 
 	if (queue_count != pf->rss_size) {
-		if (pf->queues_left < (queue_count - pf->rss_size)) {
-			dev_info(&pf->pdev->dev,
-				"Not enough queues to do RSS on %d queues: remaining queues %d\n",
-				queue_count, pf->queues_left);
-			return pf->rss_size;
-		}
 		i40e_prep_for_reset(pf);
 
-		pf->num_lan_qps += (queue_count - pf->rss_size);
-		pf->queues_left -= (queue_count - pf->rss_size);
 		pf->rss_size = queue_count;
 
 		i40e_reset_and_rebuild(pf, true);
