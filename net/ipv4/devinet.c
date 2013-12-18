@@ -1696,7 +1696,7 @@ static int inet_netconf_msgsize_devconf(int type)
 		size += nla_total_size(4);
 	if (type == -1 || type == NETCONFA_MC_FORWARDING)
 		size += nla_total_size(4);
-	if (type == -1 || type == NETCONFA_PROXY_ARP)
+	if (type == -1 || type == NETCONFA_PROXY_NEIGH)
 		size += nla_total_size(4);
 
 	return size;
@@ -1734,8 +1734,8 @@ static int inet_netconf_fill_devconf(struct sk_buff *skb, int ifindex,
 	    nla_put_s32(skb, NETCONFA_MC_FORWARDING,
 			IPV4_DEVCONF(*devconf, MC_FORWARDING)) < 0)
 		goto nla_put_failure;
-	if ((type == -1 || type == NETCONFA_PROXY_ARP) &&
-	    nla_put_s32(skb, NETCONFA_PROXY_ARP,
+	if ((type == -1 || type == NETCONFA_PROXY_NEIGH) &&
+	    nla_put_s32(skb, NETCONFA_PROXY_NEIGH,
 			IPV4_DEVCONF(*devconf, PROXY_ARP)) < 0)
 		goto nla_put_failure;
 
@@ -1775,7 +1775,7 @@ static const struct nla_policy devconf_ipv4_policy[NETCONFA_MAX+1] = {
 	[NETCONFA_IFINDEX]	= { .len = sizeof(int) },
 	[NETCONFA_FORWARDING]	= { .len = sizeof(int) },
 	[NETCONFA_RP_FILTER]	= { .len = sizeof(int) },
-	[NETCONFA_PROXY_ARP]	= { .len = sizeof(int) },
+	[NETCONFA_PROXY_NEIGH]	= { .len = sizeof(int) },
 };
 
 static int inet_netconf_get_devconf(struct sk_buff *in_skb,
@@ -2002,7 +2002,7 @@ static int devinet_conf_proc(struct ctl_table *ctl, int write,
 		if (i == IPV4_DEVCONF_PROXY_ARP - 1 &&
 		    new_value != old_value) {
 			ifindex = devinet_conf_ifindex(net, cnf);
-			inet_netconf_notify_devconf(net, NETCONFA_PROXY_ARP,
+			inet_netconf_notify_devconf(net, NETCONFA_PROXY_NEIGH,
 						    ifindex, cnf);
 		}
 	}
