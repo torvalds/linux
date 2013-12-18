@@ -64,9 +64,9 @@ void __init prom_init(void)
 		register_smp_ops(&bmips_smp_ops);
 
 		/*
-		 * BCM6328 might not have its second CPU enabled, while BCM6358
-		 * needs special handling for its shared TLB, so disable SMP
-		 * for now.
+		 * BCM6328 might not have its second CPU enabled, while BCM3368
+		 * and BCM6358 need special handling for their shared TLB, so
+		 * disable SMP for now.
 		 */
 		if (BCMCPU_IS_6328()) {
 			reg = bcm_readl(BCM_6328_OTP_BASE +
@@ -74,7 +74,7 @@ void __init prom_init(void)
 
 			if (reg & OTP_6328_REG3_TP1_DISABLED)
 				bmips_smp_enabled = 0;
-		} else if (BCMCPU_IS_6358()) {
+		} else if (BCMCPU_IS_3368() || BCMCPU_IS_6358()) {
 			bmips_smp_enabled = 0;
 		}
 
