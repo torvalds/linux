@@ -293,14 +293,17 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		radar_required = true;
 	}
 
+	mutex_lock(&local->mtx);
 	ieee80211_vif_release_channel(sdata);
 	if (ieee80211_vif_use_channel(sdata, &chandef,
 				      ifibss->fixed_channel ?
 					IEEE80211_CHANCTX_SHARED :
 					IEEE80211_CHANCTX_EXCLUSIVE)) {
 		sdata_info(sdata, "Failed to join IBSS, no channel context\n");
+		mutex_unlock(&local->mtx);
 		return;
 	}
+	mutex_unlock(&local->mtx);
 
 	memcpy(ifibss->bssid, bssid, ETH_ALEN);
 
@@ -363,7 +366,9 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.bss_conf.ssid_len = 0;
 		RCU_INIT_POINTER(ifibss->presp, NULL);
 		kfree_rcu(presp, rcu_head);
+		mutex_lock(&local->mtx);
 		ieee80211_vif_release_channel(sdata);
+		mutex_unlock(&local->mtx);
 		sdata_info(sdata, "Failed to join IBSS, driver failure: %d\n",
 			   err);
 		return;
@@ -747,7 +752,9 @@ static void ieee80211_ibss_disconnect(struct ieee80211_sub_if_data *sdata)
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED |
 						BSS_CHANGED_IBSS);
 	drv_leave_ibss(local, sdata);
+	mutex_lock(&local->mtx);
 	ieee80211_vif_release_channel(sdata);
+	mutex_unlock(&local->mtx);
 }
 
 static void ieee80211_csa_connection_drop_work(struct work_struct *work)

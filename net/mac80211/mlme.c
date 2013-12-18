@@ -888,7 +888,9 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 	if (!ifmgd->associated)
 		goto out;
 
+	mutex_lock(&local->mtx);
 	ret = ieee80211_vif_change_channel(sdata, &changed);
+	mutex_unlock(&local->mtx);
 	if (ret) {
 		sdata_info(sdata,
 			   "vif channel switch failed, disconnecting\n");
@@ -1401,10 +1403,14 @@ void ieee80211_dfs_cac_timer_work(struct work_struct *work)
 			     dfs_cac_timer_work);
 	struct cfg80211_chan_def chandef = sdata->vif.bss_conf.chandef;
 
-	ieee80211_vif_release_channel(sdata);
-	cfg80211_cac_event(sdata->dev, &chandef,
-			   NL80211_RADAR_CAC_FINISHED,
-			   GFP_KERNEL);
+	mutex_lock(&sdata->local->mtx);
+	if (sdata->wdev.cac_started) {
+		ieee80211_vif_release_channel(sdata);
+		cfg80211_cac_event(sdata->dev, &chandef,
+				   NL80211_RADAR_CAC_FINISHED,
+				   GFP_KERNEL);
+	}
+	mutex_unlock(&sdata->local->mtx);
 }
 
 /* MLME */
@@ -1747,7 +1753,9 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	ifmgd->have_beacon = false;
 
 	ifmgd->flags = 0;
+	mutex_lock(&local->mtx);
 	ieee80211_vif_release_channel(sdata);
+	mutex_unlock(&local->mtx);
 
 	sdata->encrypt_headroom = IEEE80211_ENCRYPT_HEADROOM;
 }
@@ -2070,7 +2078,9 @@ static void ieee80211_destroy_auth_data(struct ieee80211_sub_if_data *sdata,
 		memset(sdata->u.mgd.bssid, 0, ETH_ALEN);
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BSSID);
 		sdata->u.mgd.flags = 0;
+		mutex_lock(&sdata->local->mtx);
 		ieee80211_vif_release_channel(sdata);
+		mutex_unlock(&sdata->local->mtx);
 	}
 
 	cfg80211_put_bss(sdata->local->hw.wiphy, auth_data->bss);
@@ -2319,7 +2329,9 @@ static void ieee80211_destroy_assoc_data(struct ieee80211_sub_if_data *sdata,
 		memset(sdata->u.mgd.bssid, 0, ETH_ALEN);
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BSSID);
 		sdata->u.mgd.flags = 0;
+		mutex_lock(&sdata->local->mtx);
 		ieee80211_vif_release_channel(sdata);
+		mutex_unlock(&sdata->local->mtx);
 	}
 
 	kfree(assoc_data);
@@ -3670,6 +3682,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	/* will change later if needed */
 	sdata->smps_mode = IEEE80211_SMPS_OFF;
 
+	mutex_lock(&local->mtx);
 	/*
 	 * If this fails (possibly due to channel context sharing
 	 * on incompatible channels, e.g. 80+80 and 160 sharing the
@@ -3681,13 +3694,15 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	/* don't downgrade for 5 and 10 MHz channels, though. */
 	if (chandef.width == NL80211_CHAN_WIDTH_5 ||
 	    chandef.width == NL80211_CHAN_WIDTH_10)
-		return ret;
+		goto out;
 
 	while (ret && chandef.width != NL80211_CHAN_WIDTH_20_NOHT) {
 		ifmgd->flags |= ieee80211_chandef_downgrade(&chandef);
 		ret = ieee80211_vif_use_channel(sdata, &chandef,
 						IEEE80211_CHANCTX_SHARED);
 	}
+ out:
+	mutex_unlock(&local->mtx);
 	return ret;
 }
 
