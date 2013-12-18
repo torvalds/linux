@@ -1012,22 +1012,22 @@ static void extract_buf(struct entropy_store *r, __u8 *out)
 	__u8 extract[64];
 	unsigned long flags;
 
-	/* Generate a hash across the pool, 16 words (512 bits) at a time */
-	sha_init(hash.w);
-	spin_lock_irqsave(&r->lock, flags);
-	for (i = 0; i < r->poolinfo->poolwords; i += 16)
-		sha_transform(hash.w, (__u8 *)(r->pool + i), workspace);
-
 	/*
 	 * If we have an architectural hardware random number
-	 * generator, mix that in, too.
+	 * generator, use it for SHA's initial vector
 	 */
+	sha_init(hash.w);
 	for (i = 0; i < LONGS(20); i++) {
 		unsigned long v;
 		if (!arch_get_random_long(&v))
 			break;
-		hash.l[i] ^= v;
+		hash.l[i] = v;
 	}
+
+	/* Generate a hash across the pool, 16 words (512 bits) at a time */
+	spin_lock_irqsave(&r->lock, flags);
+	for (i = 0; i < r->poolinfo->poolwords; i += 16)
+		sha_transform(hash.w, (__u8 *)(r->pool + i), workspace);
 
 	/*
 	 * We mix the hash back into the pool to prevent backtracking
