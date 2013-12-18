@@ -33,6 +33,9 @@
 #include "intel_drv.h"
 #include <linux/dma_remapping.h>
 
+#define  __EXEC_OBJECT_HAS_PIN (1<<31)
+#define  __EXEC_OBJECT_HAS_FENCE (1<<30)
+
 struct eb_vmas {
 	struct list_head vmas;
 	int and;
@@ -197,7 +200,28 @@ static struct i915_vma *eb_get_vma(struct eb_vmas *eb, unsigned long handle)
 	}
 }
 
-static void eb_destroy(struct eb_vmas *eb) {
+static void
+i915_gem_execbuffer_unreserve_vma(struct i915_vma *vma)
+{
+	struct drm_i915_gem_exec_object2 *entry;
+	struct drm_i915_gem_object *obj = vma->obj;
+
+	if (!drm_mm_node_allocated(&vma->node))
+		return;
+
+	entry = vma->exec_entry;
+
+	if (entry->flags & __EXEC_OBJECT_HAS_FENCE)
+		i915_gem_object_unpin_fence(obj);
+
+	if (entry->flags & __EXEC_OBJECT_HAS_PIN)
+		vma->pin_count--;
+
+	entry->flags &= ~(__EXEC_OBJECT_HAS_FENCE | __EXEC_OBJECT_HAS_PIN);
+}
+
+static void eb_destroy(struct eb_vmas *eb)
+{
 	while (!list_empty(&eb->vmas)) {
 		struct i915_vma *vma;
 
@@ -205,6 +229,7 @@ static void eb_destroy(struct eb_vmas *eb) {
 				       struct i915_vma,
 				       exec_list);
 		list_del_init(&vma->exec_list);
+		i915_gem_execbuffer_unreserve_vma(vma);
 		drm_gem_object_unreference(&vma->obj->base);
 	}
 	kfree(eb);
@@ -486,9 +511,6 @@ i915_gem_execbuffer_relocate(struct eb_vmas *eb)
 	return ret;
 }
 
-#define  __EXEC_OBJECT_HAS_PIN (1<<31)
-#define  __EXEC_OBJECT_HAS_FENCE (1<<30)
-
 static int
 need_reloc_mappable(struct i915_vma *vma)
 {
@@ -549,26 +571,6 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 	vma->bind_vma(vma, obj->cache_level, flags);
 
 	return 0;
-}
-
-static void
-i915_gem_execbuffer_unreserve_vma(struct i915_vma *vma)
-{
-	struct drm_i915_gem_exec_object2 *entry;
-	struct drm_i915_gem_object *obj = vma->obj;
-
-	if (!drm_mm_node_allocated(&vma->node))
-		return;
-
-	entry = vma->exec_entry;
-
-	if (entry->flags & __EXEC_OBJECT_HAS_FENCE)
-		i915_gem_object_unpin_fence(obj);
-
-	if (entry->flags & __EXEC_OBJECT_HAS_PIN)
-		vma->pin_count--;
-
-	entry->flags &= ~(__EXEC_OBJECT_HAS_FENCE | __EXEC_OBJECT_HAS_PIN);
 }
 
 static int
@@ -669,12 +671,13 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 				goto err;
 		}
 
-err:		/* Decrement pin count for bound objects */
-		list_for_each_entry(vma, vmas, exec_list)
-			i915_gem_execbuffer_unreserve_vma(vma);
-
+err:
 		if (ret != -ENOSPC || retry++)
 			return ret;
+
+		/* Decrement pin count for bound objects */
+		list_for_each_entry(vma, vmas, exec_list)
+			i915_gem_execbuffer_unreserve_vma(vma);
 
 		ret = i915_gem_evict_vm(vm, true);
 		if (ret)
@@ -707,6 +710,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 	while (!list_empty(&eb->vmas)) {
 		vma = list_first_entry(&eb->vmas, struct i915_vma, exec_list);
 		list_del_init(&vma->exec_list);
+		i915_gem_execbuffer_unreserve_vma(vma);
 		drm_gem_object_unreference(&vma->obj->base);
 	}
 
