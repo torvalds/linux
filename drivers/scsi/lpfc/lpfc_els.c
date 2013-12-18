@@ -6307,6 +6307,7 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 	spin_unlock_irq(&phba->hbalock);
 
 	list_for_each_entry_safe(piocb, tmp_iocb, &abort_list, dlist) {
+		cmd = &piocb->iocb;
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
 			 "0127 ELS timeout Data: x%x x%x x%x "
 			 "x%x\n", els_command,
