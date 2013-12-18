@@ -1080,7 +1080,8 @@ int vmw_fence_event_ioctl(struct drm_device *dev, void *data,
 	 */
 	if (arg->handle) {
 		struct ttm_base_object *base =
-			ttm_base_object_lookup(vmw_fp->tfile, arg->handle);
+			ttm_base_object_lookup_for_ref(dev_priv->tdev,
+						       arg->handle);
 
 		if (unlikely(base == NULL)) {
 			DRM_ERROR("Fence event invalid fence object handle "
