@@ -27,10 +27,7 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 #ifdef CONFIG_SYS_HAS_CPU_MIPS32_R1
 	case CPU_4KC:
 	case CPU_ALCHEMY:
-	case CPU_BMIPS3300:
-	case CPU_BMIPS4350:
 	case CPU_PR4450:
-	case CPU_BMIPS32:
 	case CPU_JZRISC:
 #endif
 
@@ -161,6 +158,16 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 	case CPU_CAVIUM_OCTEON:
 	case CPU_CAVIUM_OCTEON_PLUS:
 	case CPU_CAVIUM_OCTEON2:
+#endif
+
+#if defined(CONFIG_SYS_HAS_CPU_BMIPS32_3300) || \
+	defined (CONFIG_SYS_HAS_CPU_MIPS32_R1)
+	case CPU_BMIPS32:
+	case CPU_BMIPS3300:
+#endif
+
+#ifdef CONFIG_SYS_HAS_CPU_BMIPS4350
+	case CPU_BMIPS4350:
 #endif
 
 #ifdef CONFIG_SYS_HAS_CPU_BMIPS4380
