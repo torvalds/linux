@@ -1399,8 +1399,7 @@ static bool ath9k_hw_set_reset_power_on(struct ath_hw *ah)
 
 	REGWRITE_BUFFER_FLUSH(ah);
 
-	if (!AR_SREV_9300_20_OR_LATER(ah))
-		udelay(2);
+	udelay(2);
 
 	if (!AR_SREV_9100(ah) && !AR_SREV_9300_20_OR_LATER(ah))
 		REG_WRITE(ah, AR_RC, 0);
