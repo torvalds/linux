@@ -774,7 +774,7 @@ void i40e_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 			skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
 							rx_ring->rx_buf_len);
 			if (!skb) {
-				rx_ring->rx_stats.alloc_rx_buff_failed++;
+				rx_ring->rx_stats.alloc_buff_failed++;
 				goto no_buffers;
 			}
 			/* initialize queue mapping */
@@ -788,7 +788,7 @@ void i40e_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 						 rx_ring->rx_buf_len,
 						 DMA_FROM_DEVICE);
 			if (dma_mapping_error(rx_ring->dev, bi->dma)) {
-				rx_ring->rx_stats.alloc_rx_buff_failed++;
+				rx_ring->rx_stats.alloc_buff_failed++;
 				bi->dma = 0;
 				goto no_buffers;
 			}
@@ -798,7 +798,7 @@ void i40e_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 			if (!bi->page) {
 				bi->page = alloc_page(GFP_ATOMIC);
 				if (!bi->page) {
-					rx_ring->rx_stats.alloc_rx_page_failed++;
+					rx_ring->rx_stats.alloc_page_failed++;
 					goto no_buffers;
 				}
 			}
@@ -813,7 +813,7 @@ void i40e_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 							    DMA_FROM_DEVICE);
 				if (dma_mapping_error(rx_ring->dev,
 						      bi->page_dma)) {
-					rx_ring->rx_stats.alloc_rx_page_failed++;
+					rx_ring->rx_stats.alloc_page_failed++;
 					bi->page_dma = 0;
 					goto no_buffers;
 				}

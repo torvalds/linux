@@ -786,8 +786,8 @@ void i40e_update_stats(struct i40e_vsi *vsi)
 		} while (u64_stats_fetch_retry_bh(&p->syncp, start));
 		rx_b += bytes;
 		rx_p += packets;
-		rx_buf += p->rx_stats.alloc_rx_buff_failed;
-		rx_page += p->rx_stats.alloc_rx_page_failed;
+		rx_buf += p->rx_stats.alloc_buff_failed;
+		rx_page += p->rx_stats.alloc_page_failed;
 	}
 	rcu_read_unlock();
 	vsi->tx_restart = tx_restart;

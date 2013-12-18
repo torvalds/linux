@@ -515,10 +515,10 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 			 rx_ring->stats.bytes,
 			 rx_ring->rx_stats.non_eop_descs);
 		dev_info(&pf->pdev->dev,
-			 "    rx_rings[%i]: rx_stats: alloc_rx_page_failed = %lld, alloc_rx_buff_failed = %lld\n",
+			 "    rx_rings[%i]: rx_stats: alloc_page_failed = %lld, alloc_buff_failed = %lld\n",
 			 i,
-			 rx_ring->rx_stats.alloc_rx_page_failed,
-			rx_ring->rx_stats.alloc_rx_buff_failed);
+			 rx_ring->rx_stats.alloc_page_failed,
+			 rx_ring->rx_stats.alloc_buff_failed);
 		dev_info(&pf->pdev->dev,
 			 "    rx_rings[%i]: size = %i, dma = 0x%08lx\n",
 			 i, rx_ring->size,
