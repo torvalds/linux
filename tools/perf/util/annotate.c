@@ -486,8 +486,8 @@ static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 	return 0;
 }
 
-int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
-			     int evidx, u64 addr)
+static int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
+				    int evidx, u64 addr)
 {
 	struct annotation *notes;
 
