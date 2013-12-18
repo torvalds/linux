@@ -191,29 +191,42 @@ static int rtl8411_card_power_off(struct rtsx_pcr *pcr, int card)
 			BPP_LDO_POWB, BPP_LDO_SUSPEND);
 }
 
-static int rtl8411_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
+static int rtl8411_do_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage,
+		int bpp_tuned18_shift, int bpp_asic_1v8)
 {
 	u8 mask, val;
 	int err;
 
-	mask = (BPP_REG_TUNED18 << BPP_TUNED18_SHIFT_8411) | BPP_PAD_MASK;
+	mask = (BPP_REG_TUNED18 << bpp_tuned18_shift) | BPP_PAD_MASK;
 	if (voltage == OUTPUT_3V3) {
 		err = rtsx_pci_write_register(pcr,
 				SD30_DRIVE_SEL, 0x07, pcr->sd30_drive_sel_3v3);
 		if (err < 0)
 			return err;
-		val = (BPP_ASIC_3V3 << BPP_TUNED18_SHIFT_8411) | BPP_PAD_3V3;
+		val = (BPP_ASIC_3V3 << bpp_tuned18_shift) | BPP_PAD_3V3;
 	} else if (voltage == OUTPUT_1V8) {
 		err = rtsx_pci_write_register(pcr,
 				SD30_DRIVE_SEL, 0x07, pcr->sd30_drive_sel_1v8);
 		if (err < 0)
 			return err;
-		val = (BPP_ASIC_1V8 << BPP_TUNED18_SHIFT_8411) | BPP_PAD_1V8;
+		val = (bpp_asic_1v8 << bpp_tuned18_shift) | BPP_PAD_1V8;
 	} else {
 		return -EINVAL;
 	}
 
 	return rtsx_pci_write_register(pcr, LDO_CTL, mask, val);
+}
+
+static int rtl8411_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
+{
+	return rtl8411_do_switch_output_voltage(pcr, voltage,
+			BPP_TUNED18_SHIFT_8411, BPP_ASIC_1V8);
+}
+
+static int rtl8402_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
+{
+	return rtl8411_do_switch_output_voltage(pcr, voltage,
+			BPP_TUNED18_SHIFT_8402, BPP_ASIC_2V0);
 }
 
 static unsigned int rtl8411_cd_deglitch(struct rtsx_pcr *pcr)
@@ -290,6 +303,22 @@ static const struct pcr_ops rtl8411_pcr_ops = {
 	.card_power_on = rtl8411_card_power_on,
 	.card_power_off = rtl8411_card_power_off,
 	.switch_output_voltage = rtl8411_switch_output_voltage,
+	.cd_deglitch = rtl8411_cd_deglitch,
+	.conv_clk_and_div_n = rtl8411_conv_clk_and_div_n,
+	.force_power_down = rtl8411_force_power_down,
+};
+
+static const struct pcr_ops rtl8402_pcr_ops = {
+	.fetch_vendor_settings = rtl8411_fetch_vendor_settings,
+	.extra_init_hw = rtl8411_extra_init_hw,
+	.optimize_phy = NULL,
+	.turn_on_led = rtl8411_turn_on_led,
+	.turn_off_led = rtl8411_turn_off_led,
+	.enable_auto_blink = rtl8411_enable_auto_blink,
+	.disable_auto_blink = rtl8411_disable_auto_blink,
+	.card_power_on = rtl8411_card_power_on,
+	.card_power_off = rtl8411_card_power_off,
+	.switch_output_voltage = rtl8402_switch_output_voltage,
 	.cd_deglitch = rtl8411_cd_deglitch,
 	.conv_clk_and_div_n = rtl8411_conv_clk_and_div_n,
 	.force_power_down = rtl8411_force_power_down,
@@ -470,4 +499,11 @@ void rtl8411b_init_params(struct rtsx_pcr *pcr)
 		set_pull_ctrl_tables(pcr, rtl8411b_qfn48);
 	else
 		set_pull_ctrl_tables(pcr, rtl8411b_qfn64);
+}
+
+void rtl8402_init_params(struct rtsx_pcr *pcr)
+{
+	rtl8411_init_common_params(pcr);
+	pcr->ops = &rtl8402_pcr_ops;
+	set_pull_ctrl_tables(pcr, rtl8411);
 }
