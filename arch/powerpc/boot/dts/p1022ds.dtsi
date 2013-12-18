@@ -146,7 +146,7 @@
 			 */
 		};
 		rtc@68 {
-			compatible = "dallas,ds1339";
+			compatible = "dallas,ds3232";
 			reg = <0x68>;
 		};
 		adt7461@4c {
