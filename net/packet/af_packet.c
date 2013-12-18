@@ -977,9 +977,11 @@ static void prb_fill_vlan_info(struct tpacket_kbdq_core *pkc,
 {
 	if (vlan_tx_tag_present(pkc->skb)) {
 		ppd->hv1.tp_vlan_tci = vlan_tx_tag_get(pkc->skb);
-		ppd->tp_status = TP_STATUS_VLAN_VALID;
+		ppd->hv1.tp_vlan_tpid = ntohs(pkc->skb->vlan_proto);
+		ppd->tp_status = TP_STATUS_VLAN_VALID | TP_STATUS_VLAN_TPID_VALID;
 	} else {
 		ppd->hv1.tp_vlan_tci = 0;
+		ppd->hv1.tp_vlan_tpid = 0;
 		ppd->tp_status = TP_STATUS_AVAILABLE;
 	}
 }
@@ -987,6 +989,7 @@ static void prb_fill_vlan_info(struct tpacket_kbdq_core *pkc,
 static void prb_run_all_ft_ops(struct tpacket_kbdq_core *pkc,
 			struct tpacket3_hdr *ppd)
 {
+	ppd->hv1.tp_padding = 0;
 	prb_fill_vlan_info(pkc, ppd);
 
 	if (pkc->feature_req_word & TP_FT_REQ_FILL_RXHASH)
@@ -1812,6 +1815,13 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct timespec ts;
 	__u32 ts_status;
 
+	/* struct tpacket{2,3}_hdr is aligned to a multiple of TPACKET_ALIGNMENT.
+	 * We may add members to them until current aligned size without forcing
+	 * userspace to call getsockopt(..., PACKET_HDRLEN, ...).
+	 */
+	BUILD_BUG_ON(TPACKET_ALIGN(sizeof(*h.h2)) != 32);
+	BUILD_BUG_ON(TPACKET_ALIGN(sizeof(*h.h3)) != 48);
+
 	if (skb->pkt_type == PACKET_LOOPBACK)
 		goto drop;
 
@@ -1918,11 +1928,13 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		h.h2->tp_nsec = ts.tv_nsec;
 		if (vlan_tx_tag_present(skb)) {
 			h.h2->tp_vlan_tci = vlan_tx_tag_get(skb);
-			status |= TP_STATUS_VLAN_VALID;
+			h.h2->tp_vlan_tpid = ntohs(skb->vlan_proto);
+			status |= TP_STATUS_VLAN_VALID | TP_STATUS_VLAN_TPID_VALID;
 		} else {
 			h.h2->tp_vlan_tci = 0;
+			h.h2->tp_vlan_tpid = 0;
 		}
-		h.h2->tp_padding = 0;
+		memset(h.h2->tp_padding, 0, sizeof(h.h2->tp_padding));
 		hdrlen = sizeof(*h.h2);
 		break;
 	case TPACKET_V3:
@@ -1936,6 +1948,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		h.h3->tp_net = netoff;
 		h.h3->tp_sec  = ts.tv_sec;
 		h.h3->tp_nsec = ts.tv_nsec;
+		memset(h.h3->tp_padding, 0, sizeof(h.h3->tp_padding));
 		hdrlen = sizeof(*h.h3);
 		break;
 	default:
@@ -2867,11 +2880,12 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 		aux.tp_net = skb_network_offset(skb);
 		if (vlan_tx_tag_present(skb)) {
 			aux.tp_vlan_tci = vlan_tx_tag_get(skb);
-			aux.tp_status |= TP_STATUS_VLAN_VALID;
+			aux.tp_vlan_tpid = ntohs(skb->vlan_proto);
+			aux.tp_status |= TP_STATUS_VLAN_VALID | TP_STATUS_VLAN_TPID_VALID;
 		} else {
 			aux.tp_vlan_tci = 0;
+			aux.tp_vlan_tpid = 0;
 		}
-		aux.tp_padding = 0;
 		put_cmsg(msg, SOL_PACKET, PACKET_AUXDATA, sizeof(aux), &aux);
 	}
 
