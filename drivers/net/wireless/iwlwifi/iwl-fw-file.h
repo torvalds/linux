@@ -125,6 +125,7 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_SECURE_SEC_INIT	= 25,
 	IWL_UCODE_TLV_SECURE_SEC_WOWLAN	= 26,
 	IWL_UCODE_TLV_NUM_OF_CPU	= 27,
+	IWL_UCODE_TLV_CSCHEME		= 28,
 };
 
 struct iwl_ucode_tlv {

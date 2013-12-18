@@ -70,6 +70,7 @@
 #include "iwl-debug.h"
 #include "iwl-config.h"
 #include "iwl-fw.h"
+#include "iwl-op-mode.h"
 
 /**
  * DOC: Transport layer - what is it ?
@@ -100,8 +101,7 @@
  *	   start_fw
  *
  *	5) Then when finished (or reset):
- *	   stop_fw (a.k.a. stop device for the moment)
- *	   stop_hw
+ *	   stop_device
  *
  *	6) Eventually, the free function will be called.
  */
@@ -318,6 +318,24 @@ enum iwl_d3_status {
 };
 
 /**
+ * enum iwl_trans_status: transport status flags
+ * @STATUS_SYNC_HCMD_ACTIVE: a SYNC command is being processed
+ * @STATUS_DEVICE_ENABLED: APM is enabled
+ * @STATUS_TPOWER_PMI: the device might be asleep (need to wake it up)
+ * @STATUS_INT_ENABLED: interrupts are enabled
+ * @STATUS_RFKILL: the HW RFkill switch is in KILL position
+ * @STATUS_FW_ERROR: the fw is in error state
+ */
+enum iwl_trans_status {
+	STATUS_SYNC_HCMD_ACTIVE,
+	STATUS_DEVICE_ENABLED,
+	STATUS_TPOWER_PMI,
+	STATUS_INT_ENABLED,
+	STATUS_RFKILL,
+	STATUS_FW_ERROR,
+};
+
+/**
  * struct iwl_trans_config - transport configuration
  *
  * @op_mode: pointer to the upper layer.
@@ -361,9 +379,7 @@ struct iwl_trans;
  *
  * @start_hw: starts the HW- from that point on, the HW can send interrupts
  *	May sleep
- * @stop_hw: stops the HW- from that point on, the HW will be in low power but
- *	will still issue interrupt if the HW RF kill is triggered unless
- *	op_mode_leaving is true.
+ * @op_mode_leave: Turn off the HW RF kill indication if on
  *	May sleep
  * @start_fw: allocates and inits all the resources for the transport
  *	layer. Also kick a fw image.
@@ -371,8 +387,11 @@ struct iwl_trans;
  * @fw_alive: called when the fw sends alive notification. If the fw provides
  *	the SCD base address in SRAM, then provide it here, or 0 otherwise.
  *	May sleep
- * @stop_device:stops the whole device (embedded CPU put to reset)
- *	May sleep
+ * @stop_device: stops the whole device (embedded CPU put to reset) and stops
+ *	the HW. From that point on, the HW will be in low power but will still
+ *	issue interrupt if the HW RF kill is triggered. This callback must do
+ *	the right thing and not crash even if start_hw() was called but not
+ *	start_fw(). May sleep
  * @d3_suspend: put the device into the correct mode for WoWLAN during
  *	suspend. This is optional, if not implemented WoWLAN will not be
  *	supported. This callback may sleep.
@@ -418,7 +437,7 @@ struct iwl_trans;
 struct iwl_trans_ops {
 
 	int (*start_hw)(struct iwl_trans *iwl_trans);
-	void (*stop_hw)(struct iwl_trans *iwl_trans, bool op_mode_leaving);
+	void (*op_mode_leave)(struct iwl_trans *iwl_trans);
 	int (*start_fw)(struct iwl_trans *trans, const struct fw_img *fw,
 			bool run_in_rfkill);
 	void (*fw_alive)(struct iwl_trans *trans, u32 scd_addr);
@@ -479,6 +498,7 @@ enum iwl_trans_state {
  * @ops - pointer to iwl_trans_ops
  * @op_mode - pointer to the op_mode
  * @cfg - pointer to the configuration
+ * @status: a bit-mask of transport status flags
  * @dev - pointer to struct device * that represents the device
  * @hw_id: a u32 with the ID of the device / subdevice.
  *	Set during transport allocation.
@@ -499,6 +519,7 @@ struct iwl_trans {
 	struct iwl_op_mode *op_mode;
 	const struct iwl_cfg *cfg;
 	enum iwl_trans_state state;
+	unsigned long status;
 
 	struct device *dev;
 	u32 hw_rev;
@@ -540,15 +561,14 @@ static inline int iwl_trans_start_hw(struct iwl_trans *trans)
 	return trans->ops->start_hw(trans);
 }
 
-static inline void iwl_trans_stop_hw(struct iwl_trans *trans,
-				     bool op_mode_leaving)
+static inline void iwl_trans_op_mode_leave(struct iwl_trans *trans)
 {
 	might_sleep();
 
-	trans->ops->stop_hw(trans, op_mode_leaving);
+	if (trans->ops->op_mode_leave)
+		trans->ops->op_mode_leave(trans);
 
-	if (op_mode_leaving)
-		trans->op_mode = NULL;
+	trans->op_mode = NULL;
 
 	trans->state = IWL_TRANS_NO_FW;
 }
@@ -570,6 +590,7 @@ static inline int iwl_trans_start_fw(struct iwl_trans *trans,
 
 	WARN_ON_ONCE(!trans->rx_mpdu_cmd);
 
+	clear_bit(STATUS_FW_ERROR, &trans->status);
 	return trans->ops->start_fw(trans, fw, run_in_rfkill);
 }
 
@@ -600,6 +621,9 @@ static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
 				     struct iwl_host_cmd *cmd)
 {
 	int ret;
+
+	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
+		return -EIO;
 
 	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE)) {
 		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
@@ -640,6 +664,9 @@ static inline void iwl_trans_free_tx_cmd(struct iwl_trans *trans,
 static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			       struct iwl_device_cmd *dev_cmd, int queue)
 {
+	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
+		return -EIO;
+
 	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE))
 		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
 
@@ -760,7 +787,8 @@ static inline u32 iwl_trans_write_mem32(struct iwl_trans *trans, u32 addr,
 
 static inline void iwl_trans_set_pmi(struct iwl_trans *trans, bool state)
 {
-	trans->ops->set_pmi(trans, state);
+	if (trans->ops->set_pmi)
+		trans->ops->set_pmi(trans, state);
 }
 
 static inline void
@@ -778,6 +806,16 @@ iwl_trans_release_nic_access(struct iwl_trans *trans, unsigned long *flags)
 {
 	trans->ops->release_nic_access(trans, flags);
 	__release(nic_access);
+}
+
+static inline void iwl_trans_fw_error(struct iwl_trans *trans)
+{
+	if (WARN_ON_ONCE(!trans->op_mode))
+		return;
+
+	/* prevent double restarts due to the same erroneous FW */
+	if (!test_and_set_bit(STATUS_FW_ERROR, &trans->status))
+		iwl_op_mode_nic_error(trans->op_mode);
 }
 
 /*****************************************************

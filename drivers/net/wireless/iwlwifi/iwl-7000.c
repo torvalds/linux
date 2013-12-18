@@ -108,7 +108,7 @@ static const struct iwl_base_params iwl7000_base_params = {
 };
 
 static const struct iwl_ht_params iwl7000_ht_params = {
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
+	.stbc = true,
 	.ht40_bands = BIT(IEEE80211_BAND_2GHZ) | BIT(IEEE80211_BAND_5GHZ),
 };
 

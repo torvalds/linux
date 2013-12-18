@@ -138,7 +138,14 @@ enum iwl_sta_flags {
 
 /**
  * enum iwl_sta_key_flag - key flags for the ADD_STA host command
- * @STA_KEY_FLG_EN_MSK: mask for encryption algorithm
+ * @STA_KEY_FLG_NO_ENC: no encryption
+ * @STA_KEY_FLG_WEP: WEP encryption algorithm
+ * @STA_KEY_FLG_CCM: CCMP encryption algorithm
+ * @STA_KEY_FLG_TKIP: TKIP encryption algorithm
+ * @STA_KEY_FLG_EXT: extended cipher algorithm (depends on the FW support)
+ * @STA_KEY_FLG_CMAC: CMAC encryption algorithm
+ * @STA_KEY_FLG_ENC_UNKNOWN: unknown encryption algorithm
+ * @STA_KEY_FLG_EN_MSK: mask for encryption algorithmi value
  * @STA_KEY_FLG_WEP_KEY_MAP: wep is either a group key (0 - legacy WEP) or from
  *	station info array (1 - n 1X mode)
  * @STA_KEY_FLG_KEYID_MSK: the index of the key
@@ -152,6 +159,7 @@ enum iwl_sta_key_flag {
 	STA_KEY_FLG_WEP			= (1 << 0),
 	STA_KEY_FLG_CCM			= (2 << 0),
 	STA_KEY_FLG_TKIP		= (3 << 0),
+	STA_KEY_FLG_EXT			= (4 << 0),
 	STA_KEY_FLG_CMAC		= (6 << 0),
 	STA_KEY_FLG_ENC_UNKNOWN		= (7 << 0),
 	STA_KEY_FLG_EN_MSK		= (7 << 0),
