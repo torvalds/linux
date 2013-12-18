@@ -47,7 +47,8 @@
 #include <linux/cpumask.h>
 #include <asm/r4kcache.h>
 
-extern struct plat_smp_ops bmips_smp_ops;
+extern struct plat_smp_ops bmips43xx_smp_ops;
+extern struct plat_smp_ops bmips5000_smp_ops;
 extern char bmips_reset_nmi_vec;
 extern char bmips_reset_nmi_vec_end;
 extern char bmips_smp_movevec;
