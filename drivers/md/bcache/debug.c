@@ -84,7 +84,7 @@ static void dump_bset(struct btree *b, struct bset *i, unsigned set)
 	unsigned j;
 	char buf[80];
 
-	for (k = i->start; k < end(i); k = next) {
+	for (k = i->start; k < bset_bkey_last(i); k = next) {
 		next = bkey_next(k);
 
 		bch_bkey_to_text(buf, sizeof(buf), k);
@@ -102,7 +102,7 @@ static void dump_bset(struct btree *b, struct bset *i, unsigned set)
 
 		printk(" %s\n", bch_ptr_status(b->c, k));
 
-		if (next < end(i) &&
+		if (next < bset_bkey_last(i) &&
 		    bkey_cmp(k, !b->level ? &START_KEY(next) : next) > 0)
 			printk(KERN_ERR "Key skipped backwards\n");
 	}
@@ -162,7 +162,7 @@ void bch_btree_verify(struct btree *b)
 	if (inmemory->keys != sorted->keys ||
 	    memcmp(inmemory->start,
 		   sorted->start,
-		   (void *) end(inmemory) - (void *) inmemory->start)) {
+		   (void *) bset_bkey_last(inmemory) - (void *) inmemory->start)) {
 		struct bset *i;
 		unsigned j;
 

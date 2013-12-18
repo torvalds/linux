@@ -284,7 +284,7 @@ void bch_journal_mark(struct cache_set *c, struct list_head *list)
 		}
 
 		for (k = i->j.start;
-		     k < end(&i->j);
+		     k < bset_bkey_last(&i->j);
 		     k = bkey_next(k)) {
 			unsigned j;
 
@@ -322,7 +322,7 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list)
 				 n, i->j.seq - 1, start, end);
 
 		for (k = i->j.start;
-		     k < end(&i->j);
+		     k < bset_bkey_last(&i->j);
 		     k = bkey_next(k)) {
 			trace_bcache_journal_replay_key(k);
 
@@ -751,7 +751,7 @@ atomic_t *bch_journal(struct cache_set *c,
 
 	w = journal_wait_for_write(c, bch_keylist_nkeys(keys));
 
-	memcpy(end(w->data), keys->keys, bch_keylist_bytes(keys));
+	memcpy(bset_bkey_last(w->data), keys->keys, bch_keylist_bytes(keys));
 	w->data->keys += bch_keylist_nkeys(keys);
 
 	ret = &fifo_back(&c->journal.pin);

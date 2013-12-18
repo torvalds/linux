@@ -190,14 +190,6 @@ struct bset_tree {
 	struct bset	*data;
 };
 
-static __always_inline int64_t bkey_cmp(const struct bkey *l,
-					const struct bkey *r)
-{
-	return unlikely(KEY_INODE(l) != KEY_INODE(r))
-		? (int64_t) KEY_INODE(l) - (int64_t) KEY_INODE(r)
-		: (int64_t) KEY_OFFSET(l) - (int64_t) KEY_OFFSET(r);
-}
-
 /* Keylists */
 
 struct keylist {
@@ -260,6 +252,28 @@ static inline size_t bch_keylist_bytes(struct keylist *l)
 struct bkey *bch_keylist_pop(struct keylist *);
 void bch_keylist_pop_front(struct keylist *);
 int __bch_keylist_realloc(struct keylist *, unsigned);
+
+/* Bkey utility code */
+
+#define bset_bkey_last(i)	bkey_idx((struct bkey *) (i)->d, (i)->keys)
+
+static inline struct bkey *bset_bkey_idx(struct bset *i, unsigned idx)
+{
+	return bkey_idx(i->start, idx);
+}
+
+static inline void bkey_init(struct bkey *k)
+{
+	*k = ZERO_KEY;
+}
+
+static __always_inline int64_t bkey_cmp(const struct bkey *l,
+					const struct bkey *r)
+{
+	return unlikely(KEY_INODE(l) != KEY_INODE(r))
+		? (int64_t) KEY_INODE(l) - (int64_t) KEY_INODE(r)
+		: (int64_t) KEY_OFFSET(l) - (int64_t) KEY_OFFSET(r);
+}
 
 void bch_bkey_copy_single_ptr(struct bkey *, const struct bkey *,
 			      unsigned);

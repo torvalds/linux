@@ -118,7 +118,7 @@ static inline struct bkey *bkey_next(const struct bkey *k)
 	return (struct bkey *) (d + bkey_u64s(k));
 }
 
-static inline struct bkey *bkey_last(const struct bkey *k, unsigned nr_keys)
+static inline struct bkey *bkey_idx(const struct bkey *k, unsigned nr_keys)
 {
 	__u64 *d = (void *) k;
 	return (struct bkey *) (d + nr_keys);

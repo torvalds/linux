@@ -197,7 +197,7 @@ void bkey_put(struct cache_set *c, struct bkey *k)
 static uint64_t btree_csum_set(struct btree *b, struct bset *i)
 {
 	uint64_t crc = b->key.ptr[0];
-	void *data = (void *) i + 8, *end = end(i);
+	void *data = (void *) i + 8, *end = bset_bkey_last(i);
 
 	crc = bch_crc64_update(crc, data, end - data);
 	return crc ^ 0xffffffffffffffffULL;
@@ -251,7 +251,7 @@ void bch_btree_node_read_done(struct btree *b)
 		if (i != b->sets[0].data && !i->keys)
 			goto err;
 
-		bch_btree_iter_push(iter, i->start, end(i));
+		bch_btree_iter_push(iter, i->start, bset_bkey_last(i));
 
 		b->written += set_blocks(i, b->c);
 	}
@@ -1310,7 +1310,7 @@ static int btree_gc_coalesce(struct btree *b, struct btree_op *op,
 
 		if (i > 1) {
 			for (k = n2->start;
-			     k < end(n2);
+			     k < bset_bkey_last(n2);
 			     k = bkey_next(k)) {
 				if (__set_blocks(n1, n1->keys + keys +
 						 bkey_u64s(k), b->c) > blocks)
@@ -1343,16 +1343,17 @@ static int btree_gc_coalesce(struct btree *b, struct btree_op *op,
 		if (last)
 			bkey_copy_key(&new_nodes[i]->key, last);
 
-		memcpy(end(n1),
+		memcpy(bset_bkey_last(n1),
 		       n2->start,
-		       (void *) node(n2, keys) - (void *) n2->start);
+		       (void *) bset_bkey_idx(n2, keys) - (void *) n2->start);
 
 		n1->keys += keys;
 		r[i].keys = n1->keys;
 
 		memmove(n2->start,
-			node(n2, keys),
-			(void *) end(n2) - (void *) node(n2, keys));
+			bset_bkey_idx(n2, keys),
+			(void *) bset_bkey_last(n2) -
+			(void *) bset_bkey_idx(n2, keys));
 
 		n2->keys -= keys;
 
@@ -1830,7 +1831,7 @@ static void shift_keys(struct btree *b, struct bkey *where, struct bkey *insert)
 
 	memmove((uint64_t *) where + bkey_u64s(insert),
 		where,
-		(void *) end(i) - (void *) where);
+		(void *) bset_bkey_last(i) - (void *) where);
 
 	i->keys += bkey_u64s(insert);
 	bkey_copy(where, insert);
@@ -2014,7 +2015,7 @@ static bool btree_insert_key(struct btree *b, struct btree_op *op,
 			bcache_dev_sectors_dirty_add(b->c, KEY_INODE(k),
 						     KEY_START(k), KEY_SIZE(k));
 
-		while (m != end(i) &&
+		while (m != bset_bkey_last(i) &&
 		       bkey_cmp(k, &START_KEY(m)) > 0)
 			prev = m, m = bkey_next(m);
 
@@ -2028,12 +2029,12 @@ static bool btree_insert_key(struct btree *b, struct btree_op *op,
 			goto merged;
 
 		status = BTREE_INSERT_STATUS_OVERWROTE;
-		if (m != end(i) &&
+		if (m != bset_bkey_last(i) &&
 		    KEY_PTRS(m) == KEY_PTRS(k) && !KEY_SIZE(m))
 			goto copy;
 
 		status = BTREE_INSERT_STATUS_FRONT_MERGE;
-		if (m != end(i) &&
+		if (m != bset_bkey_last(i) &&
 		    bch_bkey_try_merge(b, k, m))
 			goto copy;
 	} else {
@@ -2142,16 +2143,18 @@ static int btree_split(struct btree *b, struct btree_op *op,
 		 */
 
 		while (keys < (n1->sets[0].data->keys * 3) / 5)
-			keys += bkey_u64s(node(n1->sets[0].data, keys));
+			keys += bkey_u64s(bset_bkey_idx(n1->sets[0].data,
+							keys));
 
-		bkey_copy_key(&n1->key, node(n1->sets[0].data, keys));
-		keys += bkey_u64s(node(n1->sets[0].data, keys));
+		bkey_copy_key(&n1->key,
+			      bset_bkey_idx(n1->sets[0].data, keys));
+		keys += bkey_u64s(bset_bkey_idx(n1->sets[0].data, keys));
 
 		n2->sets[0].data->keys = n1->sets[0].data->keys - keys;
 		n1->sets[0].data->keys = keys;
 
 		memcpy(n2->sets[0].data->start,
-		       end(n1->sets[0].data),
+		       bset_bkey_last(n1->sets[0].data),
 		       n2->sets[0].data->keys * sizeof(uint64_t));
 
 		bkey_copy_key(&n2->key, &b->key);
