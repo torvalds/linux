@@ -933,6 +933,11 @@ i40e_status i40e_clean_arq_element(struct i40e_hw *hw,
 	 * size
 	 */
 	bi = &hw->aq.arq.r.arq_bi[ntc];
+	memset((void *)desc, 0, sizeof(struct i40e_aq_desc));
+
+	desc->flags = cpu_to_le16(I40E_AQ_FLAG_BUF);
+	if (hw->aq.arq_buf_size > I40E_AQ_LARGE_BUF)
+		desc->flags |= cpu_to_le16(I40E_AQ_FLAG_LB);
 	desc->datalen = cpu_to_le16((u16)bi->size);
 	desc->params.external.addr_high = cpu_to_le32(upper_32_bits(bi->pa));
 	desc->params.external.addr_low = cpu_to_le32(lower_32_bits(bi->pa));
