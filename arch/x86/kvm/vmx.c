@@ -5137,10 +5137,14 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 	reg = DEBUG_REG_ACCESS_REG(exit_qualification);
 	if (exit_qualification & TYPE_MOV_FROM_DR) {
 		unsigned long val;
-		if (!kvm_get_dr(vcpu, dr, &val))
-			kvm_register_write(vcpu, reg, val);
+
+		if (kvm_get_dr(vcpu, dr, &val))
+			return 1;
+		kvm_register_write(vcpu, reg, val);
 	} else
-		kvm_set_dr(vcpu, dr, vcpu->arch.regs[reg]);
+		if (kvm_set_dr(vcpu, dr, vcpu->arch.regs[reg]))
+			return 1;
+
 	skip_emulated_instruction(vcpu);
 	return 1;
 }
