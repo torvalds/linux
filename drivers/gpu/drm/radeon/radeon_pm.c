@@ -1032,25 +1032,31 @@ static void radeon_pm_resume_dpm(struct radeon_device *rdev)
 	radeon_dpm_setup_asic(rdev);
 	ret = radeon_dpm_enable(rdev);
 	mutex_unlock(&rdev->pm.mutex);
-	if (ret) {
-		DRM_ERROR("radeon: dpm resume failed\n");
-		if ((rdev->family >= CHIP_BARTS) &&
-		    (rdev->family <= CHIP_CAYMAN) &&
-		    rdev->mc_fw) {
-			if (rdev->pm.default_vddc)
-				radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
-							SET_VOLTAGE_TYPE_ASIC_VDDC);
-			if (rdev->pm.default_vddci)
-				radeon_atom_set_voltage(rdev, rdev->pm.default_vddci,
-							SET_VOLTAGE_TYPE_ASIC_VDDCI);
-			if (rdev->pm.default_sclk)
-				radeon_set_engine_clock(rdev, rdev->pm.default_sclk);
-			if (rdev->pm.default_mclk)
-				radeon_set_memory_clock(rdev, rdev->pm.default_mclk);
-		}
-	} else {
-		rdev->pm.dpm_enabled = true;
-		radeon_pm_compute_clocks(rdev);
+	if (ret)
+		goto dpm_resume_fail;
+	ret = radeon_pm_late_init(rdev);
+	if (ret)
+		goto dpm_resume_fail;
+
+	rdev->pm.dpm_enabled = true;
+	radeon_pm_compute_clocks(rdev);
+	return;
+
+dpm_resume_fail:
+	DRM_ERROR("radeon: dpm resume failed\n");
+	if ((rdev->family >= CHIP_BARTS) &&
+	    (rdev->family <= CHIP_CAYMAN) &&
+	    rdev->mc_fw) {
+		if (rdev->pm.default_vddc)
+			radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
+						SET_VOLTAGE_TYPE_ASIC_VDDC);
+		if (rdev->pm.default_vddci)
+			radeon_atom_set_voltage(rdev, rdev->pm.default_vddci,
+						SET_VOLTAGE_TYPE_ASIC_VDDCI);
+		if (rdev->pm.default_sclk)
+			radeon_set_engine_clock(rdev, rdev->pm.default_sclk);
+		if (rdev->pm.default_mclk)
+			radeon_set_memory_clock(rdev, rdev->pm.default_mclk);
 	}
 }
 
@@ -1170,25 +1176,11 @@ static int radeon_pm_init_dpm(struct radeon_device *rdev)
 	radeon_dpm_setup_asic(rdev);
 	ret = radeon_dpm_enable(rdev);
 	mutex_unlock(&rdev->pm.mutex);
-	if (ret) {
-		rdev->pm.dpm_enabled = false;
-		if ((rdev->family >= CHIP_BARTS) &&
-		    (rdev->family <= CHIP_CAYMAN) &&
-		    rdev->mc_fw) {
-			if (rdev->pm.default_vddc)
-				radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
-							SET_VOLTAGE_TYPE_ASIC_VDDC);
-			if (rdev->pm.default_vddci)
-				radeon_atom_set_voltage(rdev, rdev->pm.default_vddci,
-							SET_VOLTAGE_TYPE_ASIC_VDDCI);
-			if (rdev->pm.default_sclk)
-				radeon_set_engine_clock(rdev, rdev->pm.default_sclk);
-			if (rdev->pm.default_mclk)
-				radeon_set_memory_clock(rdev, rdev->pm.default_mclk);
-		}
-		DRM_ERROR("radeon: dpm initialization failed\n");
-		return ret;
-	}
+	if (ret)
+		goto dpm_failed;
+	ret = radeon_pm_late_init(rdev);
+	if (ret)
+		goto dpm_failed;
 	rdev->pm.dpm_enabled = true;
 	radeon_pm_compute_clocks(rdev);
 
@@ -1213,6 +1205,25 @@ static int radeon_pm_init_dpm(struct radeon_device *rdev)
 	DRM_INFO("radeon: dpm initialized\n");
 
 	return 0;
+
+dpm_failed:
+	rdev->pm.dpm_enabled = false;
+	if ((rdev->family >= CHIP_BARTS) &&
+	    (rdev->family <= CHIP_CAYMAN) &&
+	    rdev->mc_fw) {
+		if (rdev->pm.default_vddc)
+			radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
+						SET_VOLTAGE_TYPE_ASIC_VDDC);
+		if (rdev->pm.default_vddci)
+			radeon_atom_set_voltage(rdev, rdev->pm.default_vddci,
+						SET_VOLTAGE_TYPE_ASIC_VDDCI);
+		if (rdev->pm.default_sclk)
+			radeon_set_engine_clock(rdev, rdev->pm.default_sclk);
+		if (rdev->pm.default_mclk)
+			radeon_set_memory_clock(rdev, rdev->pm.default_mclk);
+	}
+	DRM_ERROR("radeon: dpm initialization failed\n");
+	return ret;
 }
 
 int radeon_pm_init(struct radeon_device *rdev)

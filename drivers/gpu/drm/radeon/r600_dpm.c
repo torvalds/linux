@@ -729,8 +729,8 @@ bool r600_is_uvd_state(u32 class, u32 class2)
 	return false;
 }
 
-int r600_set_thermal_temperature_range(struct radeon_device *rdev,
-				       int min_temp, int max_temp)
+static int r600_set_thermal_temperature_range(struct radeon_device *rdev,
+					      int min_temp, int max_temp)
 {
 	int low_temp = 0 * 1000;
 	int high_temp = 255 * 1000;

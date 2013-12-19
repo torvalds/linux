@@ -4656,29 +4656,8 @@ int ci_dpm_enable(struct radeon_device *rdev)
 		DRM_ERROR("ci_enable_power_containment failed\n");
 		return ret;
 	}
-	if (rdev->irq.installed &&
-	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
-#if 0
-		PPSMC_Result result;
-#endif
-		ret = ci_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
-		if (ret) {
-			DRM_ERROR("ci_set_thermal_temperature_range failed\n");
-			return ret;
-		}
-		rdev->irq.dpm_thermal = true;
-		radeon_irq_set(rdev);
-#if 0
-		result = ci_send_msg_to_smc(rdev, PPSMC_MSG_EnableThermalInterrupt);
-
-		if (result != PPSMC_Result_OK)
-			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
-#endif
-	}
 
 	ci_enable_auto_throttle_source(rdev, RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
-
-	ci_dpm_powergate_uvd(rdev, true);
 
 	ci_update_current_ps(rdev, boot_ps);
 
