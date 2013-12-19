@@ -1485,6 +1485,8 @@ void ieee80211_sta_set_buffered(struct ieee80211_sta *pubsta,
 	if (WARN_ON(tid >= IEEE80211_NUM_TIDS))
 		return;
 
+	trace_api_sta_set_buffered(sta->local, pubsta, tid, buffered);
+
 	if (buffered)
 		set_bit(tid, &sta->driver_buffered_tids);
 	else
