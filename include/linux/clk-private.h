@@ -45,7 +45,7 @@ struct clk {
 	struct hlist_head	children;
 	struct hlist_node	child_node;
 	unsigned int		notifier_count;
-#ifdef CONFIG_COMMON_CLK_DEBUG
+#ifdef CONFIG_DEBUG_FS
 	struct dentry		*dentry;
 #endif
 };
