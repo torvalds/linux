@@ -408,7 +408,7 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
 				*stale_data = 1;
 		}
 		if (read_register(counter,
-				  NITIO_Gxx_Joint_Status2_Reg
+				  NITIO_STATUS2_REG
 				  (counter->counter_index)) &
 		    Gi_Permanent_Stale_Bit(counter->counter_index)) {
 			dev_info(counter->counter_dev->dev->class_dev,

@@ -33,19 +33,7 @@
 #define NITIO_STATUS_REG(x)		(NITIO_G01_STATUS + ((x) / 2))
 #define NITIO_RESET_REG(x)		(NITIO_G01_RESET + ((x) / 2))
 #define NITIO_STATUS1_REG(x)		(NITIO_G01_STATUS1 + ((x) / 2))
-
-static inline enum ni_gpct_register NITIO_Gxx_Joint_Status2_Reg(unsigned idx)
-{
-	switch (idx) {
-	case 0:
-	case 1:
-		return NITIO_G01_STATUS2;
-	case 2:
-	case 3:
-		return NITIO_G23_STATUS2;
-	}
-	return 0;
-}
+#define NITIO_STATUS2_REG(x)		(NITIO_G01_STATUS2 + ((x) / 2))
 
 static inline enum ni_gpct_register NITIO_Gi_DMA_Config_Reg(unsigned idx)
 {
