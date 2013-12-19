@@ -421,9 +421,9 @@ static void sci_port_enable(struct sci_port *sci_port)
 
 	pm_runtime_get_sync(sci_port->port.dev);
 
-	clk_enable(sci_port->iclk);
+	clk_prepare_enable(sci_port->iclk);
 	sci_port->port.uartclk = clk_get_rate(sci_port->iclk);
-	clk_enable(sci_port->fclk);
+	clk_prepare_enable(sci_port->fclk);
 }
 
 static void sci_port_disable(struct sci_port *sci_port)
@@ -431,8 +431,16 @@ static void sci_port_disable(struct sci_port *sci_port)
 	if (!sci_port->port.dev)
 		return;
 
-	clk_disable(sci_port->fclk);
-	clk_disable(sci_port->iclk);
+	/* Cancel the break timer to ensure that the timer handler will not try
+	 * to access the hardware with clocks and power disabled. Reset the
+	 * break flag to make the break debouncing state machine ready for the
+	 * next break.
+	 */
+	del_timer_sync(&sci_port->break_timer);
+	sci_port->break_flag = 0;
+
+	clk_disable_unprepare(sci_port->fclk);
+	clk_disable_unprepare(sci_port->iclk);
 
 	pm_runtime_put_sync(sci_port->port.dev);
 }
@@ -557,7 +565,7 @@ static inline int sci_rxd_in(struct uart_port *port)
 		return 1;
 
 	/* Cast for ARM damage */
-	return !!__raw_readb((void __iomem *)s->cfg->port_reg);
+	return !!__raw_readb((void __iomem *)(uintptr_t)s->cfg->port_reg);
 }
 
 /* ********************************************************************** *
@@ -733,8 +741,6 @@ static void sci_break_timer(unsigned long data)
 {
 	struct sci_port *port = (struct sci_port *)data;
 
-	sci_port_enable(port);
-
 	if (sci_rxd_in(&port->port) == 0) {
 		port->break_flag = 1;
 		sci_schedule_break_timer(port);
@@ -744,8 +750,6 @@ static void sci_break_timer(unsigned long data)
 		sci_schedule_break_timer(port);
 	} else
 		port->break_flag = 0;
-
-	sci_port_disable(port);
 }
 
 static int sci_handle_errors(struct uart_port *port)
@@ -1309,7 +1313,7 @@ static int sci_dma_rx_push(struct sci_port *s, size_t count)
 	}
 
 	if (room < count)
-		dev_warn(port->dev, "Rx overrun: dropping %u bytes\n",
+		dev_warn(port->dev, "Rx overrun: dropping %zu bytes\n",
 			 count - room);
 	if (!room)
 		return room;
@@ -1442,7 +1446,7 @@ static void work_fn_rx(struct work_struct *work)
 		int count;
 
 		chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
-		dev_dbg(port->dev, "Read %u bytes with cookie %d\n",
+		dev_dbg(port->dev, "Read %zu bytes with cookie %d\n",
 			sh_desc->partial, sh_desc->cookie);
 
 		spin_lock_irqsave(&port->lock, flags);
@@ -1691,16 +1695,17 @@ static void sci_request_dma(struct uart_port *port)
 		s->chan_tx = chan;
 		sg_init_table(&s->sg_tx, 1);
 		/* UART circular tx buffer is an aligned page. */
-		BUG_ON((int)port->state->xmit.buf & ~PAGE_MASK);
+		BUG_ON((uintptr_t)port->state->xmit.buf & ~PAGE_MASK);
 		sg_set_page(&s->sg_tx, virt_to_page(port->state->xmit.buf),
-			    UART_XMIT_SIZE, (int)port->state->xmit.buf & ~PAGE_MASK);
+			    UART_XMIT_SIZE,
+			    (uintptr_t)port->state->xmit.buf & ~PAGE_MASK);
 		nent = dma_map_sg(port->dev, &s->sg_tx, 1, DMA_TO_DEVICE);
 		if (!nent)
 			sci_tx_dma_release(s, false);
 		else
-			dev_dbg(port->dev, "%s: mapped %d@%p to %x\n", __func__,
-				sg_dma_len(&s->sg_tx),
-				port->state->xmit.buf, sg_dma_address(&s->sg_tx));
+			dev_dbg(port->dev, "%s: mapped %d@%p to %pad\n", __func__,
+				sg_dma_len(&s->sg_tx), port->state->xmit.buf,
+				&sg_dma_address(&s->sg_tx));
 
 		s->sg_len_tx = nent;
 
@@ -1740,7 +1745,7 @@ static void sci_request_dma(struct uart_port *port)
 
 			sg_init_table(sg, 1);
 			sg_set_page(sg, virt_to_page(buf[i]), s->buf_len_rx,
-				    (int)buf[i] & ~PAGE_MASK);
+				    (uintptr_t)buf[i] & ~PAGE_MASK);
 			sg_dma_address(sg) = dma[i];
 		}
 
