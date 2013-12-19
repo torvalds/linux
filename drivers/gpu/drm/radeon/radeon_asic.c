@@ -2067,6 +2067,7 @@ static struct radeon_asic ci_asic = {
 		.init = &ci_dpm_init,
 		.setup_asic = &ci_dpm_setup_asic,
 		.enable = &ci_dpm_enable,
+		.late_enable = &ci_dpm_late_enable,
 		.disable = &ci_dpm_disable,
 		.pre_set_power_state = &ci_dpm_pre_set_power_state,
 		.set_power_state = &ci_dpm_set_power_state,

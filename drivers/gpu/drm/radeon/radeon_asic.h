@@ -755,6 +755,7 @@ int kv_get_temp(struct radeon_device *rdev);
 
 int ci_dpm_init(struct radeon_device *rdev);
 int ci_dpm_enable(struct radeon_device *rdev);
+int ci_dpm_late_enable(struct radeon_device *rdev);
 void ci_dpm_disable(struct radeon_device *rdev);
 int ci_dpm_pre_set_power_state(struct radeon_device *rdev);
 int ci_dpm_set_power_state(struct radeon_device *rdev);
