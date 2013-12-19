@@ -1453,6 +1453,7 @@ static struct radeon_asic sumo_asic = {
 		.init = &sumo_dpm_init,
 		.setup_asic = &sumo_dpm_setup_asic,
 		.enable = &sumo_dpm_enable,
+		.late_enable = &sumo_dpm_late_enable,
 		.disable = &sumo_dpm_disable,
 		.pre_set_power_state = &sumo_dpm_pre_set_power_state,
 		.set_power_state = &sumo_dpm_set_power_state,

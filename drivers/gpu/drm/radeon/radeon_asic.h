@@ -547,6 +547,7 @@ u32 btc_dpm_get_mclk(struct radeon_device *rdev, bool low);
 bool btc_dpm_vblank_too_short(struct radeon_device *rdev);
 int sumo_dpm_init(struct radeon_device *rdev);
 int sumo_dpm_enable(struct radeon_device *rdev);
+int sumo_dpm_late_enable(struct radeon_device *rdev);
 void sumo_dpm_disable(struct radeon_device *rdev);
 int sumo_dpm_pre_set_power_state(struct radeon_device *rdev);
 int sumo_dpm_set_power_state(struct radeon_device *rdev);
