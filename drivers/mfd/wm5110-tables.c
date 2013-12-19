@@ -601,6 +601,7 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x0000043D, 0x0180 },    /* R1085  - DAC Digital Volume 6R */
 	{ 0x0000043E, 0x0080 },    /* R1086  - DAC Volume Limit 6R */
 	{ 0x0000043F, 0x0800 },    /* R1087  - Noise Gate Select 6R */
+	{ 0x00000440, 0x8FFF },    /* R1088  - DRE Enable */
 	{ 0x00000450, 0x0000 },    /* R1104  - DAC AEC Control 1 */
 	{ 0x00000458, 0x0000 },    /* R1112  - Noise Gate Control */
 	{ 0x00000480, 0x0040 },    /* R1152  - Class W ANC Threshold 1 */
@@ -1631,6 +1632,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_DAC_DIGITAL_VOLUME_6R:
 	case ARIZONA_DAC_VOLUME_LIMIT_6R:
 	case ARIZONA_NOISE_GATE_SELECT_6R:
+	case ARIZONA_DRE_ENABLE:
 	case ARIZONA_DAC_AEC_CONTROL_1:
 	case ARIZONA_NOISE_GATE_CONTROL:
 	case ARIZONA_PDM_SPK1_CTRL_1:
