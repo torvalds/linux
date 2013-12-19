@@ -403,13 +403,13 @@ void ni_tio_init_counter(struct ni_gpct *counter)
 	}
 	if (ni_tio_second_gate_registers_present(counter_dev)) {
 		counter_dev->
-		    regs[NITIO_Gi_Second_Gate_Reg(counter->counter_index)] =
+		    regs[NITIO_GATE2_REG(counter->counter_index)] =
 		    0x0;
 		write_register(counter,
 			       counter_dev->
-			       regs[NITIO_Gi_Second_Gate_Reg
+			       regs[NITIO_GATE2_REG
 				    (counter->counter_index)],
-			       NITIO_Gi_Second_Gate_Reg(counter->
+			       NITIO_GATE2_REG(counter->
 							counter_index));
 	}
 	ni_tio_set_bits(counter,
@@ -718,7 +718,7 @@ static void ni_tio_set_source_subselect(struct ni_gpct *counter,
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	const unsigned second_gate_reg =
-	    NITIO_Gi_Second_Gate_Reg(counter->counter_index);
+	    NITIO_GATE2_REG(counter->counter_index);
 
 	if (counter_dev->variant != ni_gpct_variant_m_series)
 		return;
@@ -828,7 +828,7 @@ static unsigned ni_m_series_clock_src_select(const struct ni_gpct *counter)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	const unsigned second_gate_reg =
-	    NITIO_Gi_Second_Gate_Reg(counter->counter_index);
+	    NITIO_GATE2_REG(counter->counter_index);
 	unsigned clock_source = 0;
 	unsigned i;
 	const unsigned input_select = (ni_tio_get_soft_copy(counter,
@@ -1136,7 +1136,7 @@ static int ni_660x_set_second_gate(struct ni_gpct *counter,
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	const unsigned second_gate_reg =
-	    NITIO_Gi_Second_Gate_Reg(counter->counter_index);
+	    NITIO_GATE2_REG(counter->counter_index);
 	const unsigned selected_second_gate = CR_CHAN(gate_source);
 	/* bits of second_gate that may be meaningful to second gate register */
 	static const unsigned selected_second_gate_mask = 0x1f;
@@ -1195,7 +1195,7 @@ static int ni_m_series_set_second_gate(struct ni_gpct *counter,
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	const unsigned second_gate_reg =
-	    NITIO_Gi_Second_Gate_Reg(counter->counter_index);
+	    NITIO_GATE2_REG(counter->counter_index);
 	const unsigned selected_second_gate = CR_CHAN(gate_source);
 	/* bits of second_gate that may be meaningful to second gate register */
 	static const unsigned selected_second_gate_mask = 0x1f;
@@ -1223,7 +1223,7 @@ int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned gate_index,
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	const unsigned second_gate_reg =
-	    NITIO_Gi_Second_Gate_Reg(counter->counter_index);
+	    NITIO_GATE2_REG(counter->counter_index);
 
 	switch (gate_index) {
 	case 0:
@@ -1495,7 +1495,7 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
 							(counter->
 							 counter_index));
 	const unsigned second_gate_reg =
-	    NITIO_Gi_Second_Gate_Reg(counter->counter_index);
+	    NITIO_GATE2_REG(counter->counter_index);
 	unsigned gate_select_bits;
 
 	switch (gate_index) {

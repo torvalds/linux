@@ -29,6 +29,7 @@
 #define NITIO_LOADB_REG(x)		(NITIO_G0_LOADB + (x))
 #define NITIO_INPUT_SEL_REG(x)		(NITIO_G0_INPUT_SEL + (x))
 #define NITIO_CNT_MODE_REG(x)		(NITIO_G0_CNT_MODE + (x))
+#define NITIO_GATE2_REG(x)		(NITIO_G0_GATE2 + (x))
 
 static inline enum ni_gpct_register NITIO_Gxx_Joint_Reset_Reg(unsigned idx)
 {
@@ -78,21 +79,6 @@ static inline enum ni_gpct_register NITIO_Gxx_Status_Reg(unsigned idx)
 	case 2:
 	case 3:
 		return NITIO_G23_STATUS;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gi_Second_Gate_Reg(unsigned idx)
-{
-	switch (idx) {
-	case 0:
-		return NITIO_G0_GATE2;
-	case 1:
-		return NITIO_G1_GATE2;
-	case 2:
-		return NITIO_G2_GATE2;
-	case 3:
-		return NITIO_G3_GATE2;
 	}
 	return 0;
 }
