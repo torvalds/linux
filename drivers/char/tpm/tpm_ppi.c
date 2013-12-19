@@ -23,39 +23,31 @@ static const u8 tpm_ppi_uuid[] = {
 	0x8D, 0x10, 0x08, 0x9D, 0x16, 0x53
 };
 
-static char *tpm_device_name = "TPM";
 static char tpm_ppi_version[PPI_VERSION_LEN + 1];
 static acpi_handle tpm_ppi_handle;
 
 static acpi_status ppi_callback(acpi_handle handle, u32 level, void *context,
 				void **return_value)
 {
-	acpi_status status = AE_OK;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
 
-	status = acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer);
-	if (ACPI_FAILURE(status))
+	if (!acpi_check_dsm(handle, tpm_ppi_uuid, TPM_PPI_REVISION_ID,
+			    1 << TPM_PPI_FN_VERSION))
 		return AE_OK;
 
-	if (strstr(buffer.pointer, context) != NULL) {
-		union acpi_object *obj;
-
-		/* Cache version string */
-		obj = acpi_evaluate_dsm_typed(handle, tpm_ppi_uuid,
-				TPM_PPI_REVISION_ID, TPM_PPI_FN_VERSION,
-				NULL, ACPI_TYPE_STRING);
-		if (obj) {
-			strlcpy(tpm_ppi_version, obj->string.pointer,
-				PPI_VERSION_LEN + 1);
-			ACPI_FREE(obj);
-		}
-
-		*return_value = handle;
-		status = AE_CTRL_TERMINATE;
+	/* Cache version string */
+	obj = acpi_evaluate_dsm_typed(handle, tpm_ppi_uuid,
+				      TPM_PPI_REVISION_ID, TPM_PPI_FN_VERSION,
+				      NULL, ACPI_TYPE_STRING);
+	if (obj) {
+		strlcpy(tpm_ppi_version, obj->string.pointer,
+			PPI_VERSION_LEN + 1);
+		ACPI_FREE(obj);
 	}
-	kfree(buffer.pointer);
 
-	return status;
+	*return_value = handle;
+
+	return AE_CTRL_TERMINATE;
 }
 
 static inline union acpi_object *
@@ -118,7 +110,8 @@ static ssize_t tpm_store_ppi_request(struct device *dev,
 	 * is updated with function index from SUBREQ to SUBREQ2 since PPI
 	 * version 1.1
 	 */
-	if (strcmp(tpm_ppi_version, "1.1") >= 0)
+	if (acpi_check_dsm(tpm_ppi_handle, tpm_ppi_uuid, TPM_PPI_REVISION_ID,
+			   1 << TPM_PPI_FN_SUBREQ2))
 		func = TPM_PPI_FN_SUBREQ2;
 
 	/*
@@ -272,7 +265,8 @@ static ssize_t show_ppi_operations(char *buf, u32 start, u32 end)
 		"User not required",
 	};
 
-	if (strcmp(tpm_ppi_version, "1.2") < 0)
+	if (!acpi_check_dsm(tpm_ppi_handle, tpm_ppi_uuid, TPM_PPI_REVISION_ID,
+			    1 << TPM_PPI_FN_GETOPR))
 		return -EPERM;
 
 	tmp.integer.type = ACPI_TYPE_INTEGER;
@@ -334,8 +328,7 @@ int tpm_add_ppi(struct kobject *parent)
 {
 	/* Cache TPM ACPI handle and version string */
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
-			    ppi_callback, NULL,
-			    tpm_device_name, &tpm_ppi_handle);
+			    ppi_callback, NULL, NULL, &tpm_ppi_handle);
 	if (tpm_ppi_handle == NULL)
 		return -ENODEV;
 
