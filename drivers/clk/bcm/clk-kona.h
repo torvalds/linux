@@ -60,6 +60,8 @@
 
 #define gate_flip_enabled(gate)		FLAG_FLIP(gate, GATE, ENABLED)
 
+#define hyst_exists(hyst)		((hyst)->offset != 0)
+
 #define divider_exists(div)		FLAG_TEST(div, DIV, EXISTS)
 #define divider_is_fixed(div)		FLAG_TEST(div, DIV, FIXED)
 #define divider_has_fraction(div)	(!divider_is_fixed(div) && \
@@ -203,6 +205,22 @@ struct bcm_clk_gate {
 		.offset = (_offset),					\
 		.status_bit = (_status_bit),				\
 		.flags = FLAG(GATE, HW)|FLAG(GATE, EXISTS),		\
+	}
+
+/* Gate hysteresis for clocks */
+struct bcm_clk_hyst {
+	u32 offset;		/* hyst register offset (normally CLKGATE) */
+	u32 en_bit;		/* bit used to enable hysteresis */
+	u32 val_bit;		/* if enabled: 0 = low delay; 1 = high delay */
+};
+
+/* Hysteresis initialization macro */
+
+#define HYST(_offset, _en_bit, _val_bit)				\
+	{								\
+		.offset = (_offset),					\
+		.en_bit = (_en_bit),					\
+		.val_bit = (_val_bit),					\
 	}
 
 /*
@@ -372,6 +390,7 @@ struct bcm_clk_trig {
 struct peri_clk_data {
 	struct bcm_clk_policy policy;
 	struct bcm_clk_gate gate;
+	struct bcm_clk_hyst hyst;
 	struct bcm_clk_trig pre_trig;
 	struct bcm_clk_div pre_div;
 	struct bcm_clk_trig trig;
