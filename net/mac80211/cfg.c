@@ -1035,6 +1035,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		return err;
 	}
 
+	ieee80211_recalc_dtim(local, sdata);
 	ieee80211_bss_info_change_notify(sdata, changed);
 
 	netif_carrier_on(dev);
