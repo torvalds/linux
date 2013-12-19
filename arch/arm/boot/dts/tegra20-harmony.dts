@@ -17,6 +17,14 @@
 	};
 
 	host1x@50000000 {
+		dc@54200000 {
+			rgb {
+				status = "okay";
+
+				nvidia,panel = <&panel>;
+			};
+		};
+
 		hdmi@54280000 {
 			status = "okay";
 
@@ -258,6 +266,10 @@
 	};
 
 	serial@70006300 {
+		status = "okay";
+	};
+
+	pwm: pwm@7000a000 {
 		status = "okay";
 	};
 
@@ -606,6 +618,17 @@
 		bus-width = <8>;
 	};
 
+	backlight: backlight {
+		compatible = "pwm-backlight";
+
+		enable-gpios = <&gpio TEGRA_GPIO(B, 5) GPIO_ACTIVE_HIGH>;
+		power-supply = <&vdd_bl_reg>;
+		pwms = <&pwm 0 5000000>;
+
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+	};
+
 	clocks {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -628,6 +651,15 @@
 			linux,code = <KEY_POWER>;
 			gpio-key,wakeup;
 		};
+	};
+
+	panel: panel {
+		compatible = "auo,b101aw03", "simple-panel";
+
+		power-supply = <&vdd_pnl_reg>;
+		enable-gpios = <&gpio TEGRA_GPIO(B, 2) GPIO_ACTIVE_HIGH>;
+
+		backlight = <&backlight>;
 	};
 
 	regulators {
@@ -673,7 +705,7 @@
 			enable-active-high;
 		};
 
-		regulator@4 {
+		vdd_pnl_reg: regulator@4 {
 			compatible = "regulator-fixed";
 			reg = <4>;
 			regulator-name = "vdd_pnl";
@@ -683,7 +715,7 @@
 			enable-active-high;
 		};
 
-		regulator@5 {
+		vdd_bl_reg: regulator@5 {
 			compatible = "regulator-fixed";
 			reg = <5>;
 			regulator-name = "vdd_bl";
