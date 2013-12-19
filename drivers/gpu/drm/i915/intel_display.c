@@ -2382,6 +2382,8 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 			I915_WRITE(PF_WIN_POS(intel_crtc->pipe), 0);
 			I915_WRITE(PF_WIN_SZ(intel_crtc->pipe), 0);
 		}
+		intel_crtc->config.pipe_src_w = adjusted_mode->crtc_hdisplay;
+		intel_crtc->config.pipe_src_h = adjusted_mode->crtc_vdisplay;
 	}
 
 	ret = dev_priv->display.update_plane(crtc, fb, x, y);
