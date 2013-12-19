@@ -22,21 +22,7 @@
 #include "ni_tio.h"
 
 #define NITIO_AUTO_INC_REG(x)		(NITIO_G0_AUTO_INC + (x))
-
-static inline enum ni_gpct_register NITIO_Gi_Command_Reg(unsigned idx)
-{
-	switch (idx) {
-	case 0:
-		return NITIO_G0_CMD;
-	case 1:
-		return NITIO_G1_CMD;
-	case 2:
-		return NITIO_G2_CMD;
-	case 3:
-		return NITIO_G3_CMD;
-	}
-	return 0;
-}
+#define NITIO_CMD_REG(x)		(NITIO_G0_CMD + (x))
 
 static inline enum ni_gpct_register NITIO_Gi_Counting_Mode_Reg(unsigned idx)
 {

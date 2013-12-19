@@ -140,7 +140,7 @@ static int ni_tio_input_cmd(struct ni_gpct *counter, struct comedi_async *async)
 		BUG();
 		break;
 	}
-	ni_tio_set_bits(counter, NITIO_Gi_Command_Reg(counter->counter_index),
+	ni_tio_set_bits(counter, NITIO_CMD_REG(counter->counter_index),
 			Gi_Save_Trace_Bit, 0);
 	ni_tio_configure_dma(counter, 1, 1);
 	switch (cmd->start_src) {

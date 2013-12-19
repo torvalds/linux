@@ -378,7 +378,7 @@ void ni_tio_init_counter(struct ni_gpct *counter)
 		       counter_dev->
 		       regs[NITIO_AUTO_INC_REG(counter->counter_index)],
 		       NITIO_AUTO_INC_REG(counter->counter_index));
-	ni_tio_set_bits(counter, NITIO_Gi_Command_Reg(counter->counter_index),
+	ni_tio_set_bits(counter, NITIO_CMD_REG(counter->counter_index),
 			~0, Gi_Synchronize_Gate_Bit);
 	ni_tio_set_bits(counter, NITIO_Gi_Mode_Reg(counter->counter_index), ~0,
 			0);
@@ -523,7 +523,7 @@ static int ni_tio_set_counter_mode(struct ni_gpct *counter, unsigned mode)
 		ni_tio_set_sync_mode(counter, 0);
 	}
 
-	ni_tio_set_bits(counter, NITIO_Gi_Command_Reg(counter->counter_index),
+	ni_tio_set_bits(counter, NITIO_CMD_REG(counter->counter_index),
 			Gi_Up_Down_Mask,
 			(mode >> NI_GPCT_COUNTING_DIRECTION_SHIFT) <<
 			Gi_Up_Down_Shift);
@@ -593,7 +593,7 @@ int ni_tio_arm(struct ni_gpct *counter, int arm, unsigned start_trigger)
 		command_transient_bits |= Gi_Disarm_Bit;
 	}
 	ni_tio_set_bits_transient(counter,
-				  NITIO_Gi_Command_Reg(counter->counter_index),
+				  NITIO_CMD_REG(counter->counter_index),
 				  0, 0, command_transient_bits);
 	return 0;
 }
@@ -1636,10 +1636,10 @@ int ni_tio_rinsn(struct ni_gpct *counter, struct comedi_insn *insn,
 	switch (channel) {
 	case 0:
 		ni_tio_set_bits(counter,
-				NITIO_Gi_Command_Reg(counter->counter_index),
+				NITIO_CMD_REG(counter->counter_index),
 				Gi_Save_Trace_Bit, 0);
 		ni_tio_set_bits(counter,
-				NITIO_Gi_Command_Reg(counter->counter_index),
+				NITIO_CMD_REG(counter->counter_index),
 				Gi_Save_Trace_Bit, Gi_Save_Trace_Bit);
 		/* The count doesn't get latched until the next clock edge, so it is possible the count
 		   may change (once) while we are reading.  Since the read of the SW_Save_Reg isn't
@@ -1705,8 +1705,7 @@ int ni_tio_winsn(struct ni_gpct *counter, struct comedi_insn *insn,
 		load_reg = ni_tio_next_load_register(counter);
 		write_register(counter, data[0], load_reg);
 		ni_tio_set_bits_transient(counter,
-					  NITIO_Gi_Command_Reg(counter->
-							       counter_index),
+					  NITIO_CMD_REG(counter->counter_index),
 					  0, 0, Gi_Load_Bit);
 		/* restore state of load reg to whatever the user set last set it to */
 		write_register(counter, counter_dev->regs[load_reg], load_reg);
