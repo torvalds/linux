@@ -443,7 +443,7 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter,
 	case ni_gpct_variant_m_series:
 	case ni_gpct_variant_660x:
 		if (read_register(counter,
-				NITIO_Gi_DMA_Status_Reg
+				NITIO_DMA_STATUS_REG
 				(counter->counter_index)) & Gi_DRQ_Error_Bit) {
 			dev_notice(counter->counter_dev->dev->class_dev,
 				   "%s: Gi_DRQ_Error detected.\n", __func__);
