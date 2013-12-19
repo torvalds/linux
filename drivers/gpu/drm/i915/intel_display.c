@@ -3747,7 +3747,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 
 	intel_update_watermarks(crtc);
 	intel_enable_pipe(dev_priv, pipe,
-			  intel_crtc->config.has_pch_encoder, false, true);
+			  intel_crtc->config.has_pch_encoder, false, false);
 
 	if (intel_crtc->config.has_pch_encoder)
 		lpt_pch_enable(crtc);
