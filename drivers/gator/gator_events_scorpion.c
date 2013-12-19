@@ -666,11 +666,4 @@ int gator_events_scorpion_init(void)
 	return gator_events_install(&gator_events_scorpion_interface);
 }
 
-gator_events_init(gator_events_scorpion_init);
-
-#else
-int gator_events_scorpion_init(void)
-{
-	return -1;
-}
 #endif

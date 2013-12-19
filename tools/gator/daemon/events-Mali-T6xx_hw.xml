@@ -60,11 +60,14 @@
 
     <event counter="ARM_Mali-T6xx_FRAG_THREADS" title="Mali Core Threads" name="Fragment threads" description="Number of fragment threads started"/>
     <event counter="ARM_Mali-T6xx_FRAG_DUMMY_THREADS" title="Mali Core Threads" name="Dummy fragment threads" description="Number of dummy fragment threads started"/>
-    <event counter="ARM_Mali-T6xx_COMPUTE_THREADS" title="Mali Core Threads" name="Compute threads" description="Number of vertex\compute threads started"/>
     <event counter="ARM_Mali-T6xx_FRAG_QUADS_LZS_TEST" title="Mali Core Threads" name="Frag threads doing late ZS" description="Number of threads doing late ZS test"/>
     <event counter="ARM_Mali-T6xx_FRAG_QUADS_LZS_KILLED" title="Mali Core Threads" name="Frag threads killed late ZS" description="Number of threads killed by late ZS test"/>
     <event counter="ARM_Mali-T6xx_FRAG_THREADS_LZS_TEST" title="Mali Core Threads" name="Frag threads doing late ZS" description="Number of threads doing late ZS test"/>
     <event counter="ARM_Mali-T6xx_FRAG_THREADS_LZS_KILLED" title="Mali Core Threads" name="Frag threads killed late ZS" description="Number of threads killed by late ZS test"/>
+
+    <event counter="ARM_Mali-T6xx_COMPUTE_TASKS" title="Mali Compute Threads" name="Compute tasks" description="Number of compute tasks"/>
+    <event counter="ARM_Mali-T6xx_COMPUTE_THREADS" title="Mali Compute Threads" name="Compute threads started" description="Number of compute threads started"/>
+    <event counter="ARM_Mali-T6xx_COMPUTE_CYCLES_DESC" title="Mali Compute Threads" name="Compute cycles awaiting descriptors" description="Number of compute cycles spent waiting for descriptors"/>
 
     <event counter="ARM_Mali-T6xx_FRAG_PRIMATIVES" title="Mali Fragment Primitives" name="Primitives loaded" description="Number of primitives loaded from tiler"/>
     <event counter="ARM_Mali-T6xx_FRAG_PRIMATIVES_DROPPED" title="Mali Fragment Primitives" name="Primitives dropped" description="Number of primitives dropped because out of tile"/>

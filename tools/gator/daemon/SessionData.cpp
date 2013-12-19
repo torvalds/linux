@@ -44,13 +44,13 @@ void SessionData::parseSessionXML(char* xmlString) {
 	SessionXML session(xmlString);
 	session.parse();
 
-	// Set session data values
+	// Set session data values - use prime numbers just below the desired value to reduce the chance of events firing at the same time
 	if (strcmp(session.parameters.sample_rate, "high") == 0) {
-		mSampleRate = 10000;
+		mSampleRate = 9973; // 10000
 	} else if (strcmp(session.parameters.sample_rate, "normal") == 0) {
-		mSampleRate = 1000;
+		mSampleRate = 997; // 1000
 	} else if (strcmp(session.parameters.sample_rate, "low") == 0) {
-		mSampleRate = 100;
+		mSampleRate = 97; // 100
 	} else if (strcmp(session.parameters.sample_rate, "none") == 0) {
 		mSampleRate = 0;
 	} else {
@@ -139,7 +139,9 @@ void SessionData::readCpuInfo() {
  }
 
 int getEventKey() {
-	// Start one after the gator.ko's value of 1
+	// key 0 is reserved as a timestamp
+	// key 1 is reserved as the marker for thread specific counters
+	// Odd keys are assigned by the driver, even keys by the daemon
 	static int key = 2;
 
 	const int ret = key;

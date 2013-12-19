@@ -29,7 +29,7 @@ public:
 	// Emits available counters
 	virtual void writeCounters(mxml_node_t *root) const = 0;
 	// Emits possible dynamically generated events/counters
-	virtual void writeEvents(mxml_node_t *root) const {}
+	virtual void writeEvents(mxml_node_t *) const {}
 
 	Driver *getNext() const { return next; }
 
@@ -39,6 +39,10 @@ protected:
 private:
 	static Driver *head;
 	Driver *next;
+
+	// Intentionally unimplemented
+	Driver(const Driver &);
+	Driver &operator=(const Driver &);
 };
 
 #endif // DRIVER_H

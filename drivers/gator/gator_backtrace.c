@@ -132,13 +132,21 @@ static int report_trace(struct stackframe *frame, void *d)
 
 // Uncomment the following line to enable kernel stack unwinding within gator, note it can also be defined from the Makefile
 // #define GATOR_KERNEL_STACK_UNWINDING
+
+#if (defined(__arm__) || defined(__aarch64__)) && !defined(GATOR_KERNEL_STACK_UNWINDING)
+// Disabled by default
+MODULE_PARM_DESC(kernel_stack_unwinding, "Allow kernel stack unwinding.");
+bool kernel_stack_unwinding = 0;
+module_param(kernel_stack_unwinding, bool, 0644);
+#endif
+
 static void kernel_backtrace(int cpu, struct pt_regs *const regs)
 {
 #if defined(__arm__) || defined(__aarch64__)
 #ifdef GATOR_KERNEL_STACK_UNWINDING
 	int depth = gator_backtrace_depth;
 #else
-	int depth = 1;
+	int depth = (kernel_stack_unwinding ? gator_backtrace_depth : 1);
 #endif
 	struct stackframe frame;
 	if (depth == 0)
