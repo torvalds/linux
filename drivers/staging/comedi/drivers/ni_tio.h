@@ -143,7 +143,7 @@ int ni_tio_insn_config(struct comedi_device *, struct comedi_subdevice *,
 		       struct comedi_insn *, unsigned int *data);
 int ni_tio_insn_write(struct comedi_device *, struct comedi_subdevice *,
 		      struct comedi_insn *, unsigned int *data);
-int ni_tio_cmd(struct ni_gpct *, struct comedi_async *);
+int ni_tio_cmd(struct comedi_device *, struct comedi_subdevice *);
 int ni_tio_cmdtest(struct comedi_device *, struct comedi_subdevice *,
 		   struct comedi_cmd *);
 int ni_tio_cancel(struct ni_gpct *);

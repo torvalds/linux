@@ -825,9 +825,8 @@ static int ni_660x_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		return retval;
 	}
 	ni_tio_acknowledge_and_confirm(counter, NULL, NULL, NULL, NULL);
-	retval = ni_tio_cmd(counter, s->async);
 
-	return retval;
+	return ni_tio_cmd(dev, s);
 }
 
 static int ni_660x_cancel(struct comedi_device *dev, struct comedi_subdevice *s)

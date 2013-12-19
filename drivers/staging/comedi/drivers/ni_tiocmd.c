@@ -201,8 +201,10 @@ static int ni_tio_cmd_setup(struct ni_gpct *counter, struct comedi_async *async)
 	return retval;
 }
 
-int ni_tio_cmd(struct ni_gpct *counter, struct comedi_async *async)
+int ni_tio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct ni_gpct *counter = s->private;
+	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	int retval = 0;
 	unsigned long flags;

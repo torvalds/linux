@@ -5007,9 +5007,8 @@ static void GPCT_Reset(struct comedi_device *dev, int chan)
 #ifdef PCIDMA
 static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	int retval;
 	struct ni_gpct *counter = s->private;
-/* const struct comedi_cmd *cmd = &s->async->cmd; */
+	int retval;
 
 	retval = ni_request_gpct_mite_channel(dev, counter->counter_index,
 					      COMEDI_INPUT);
@@ -5020,8 +5019,8 @@ static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	ni_tio_acknowledge_and_confirm(counter, NULL, NULL, NULL, NULL);
 	ni_e_series_enable_second_irq(dev, counter->counter_index, 1);
-	retval = ni_tio_cmd(counter, s->async);
-	return retval;
+
+	return ni_tio_cmd(dev, s);
 }
 #endif
 
