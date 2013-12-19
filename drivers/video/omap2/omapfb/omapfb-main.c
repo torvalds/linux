@@ -2557,6 +2557,15 @@ static int omapfb_probe(struct platform_device *pdev)
 		goto cleanup;
 	}
 
+	if (def_display) {
+		u16 w, h;
+
+		def_display->driver->get_resolution(def_display, &w, &h);
+
+		dev_info(fbdev->dev, "using display '%s' mode %dx%d\n",
+			def_display->name, w, h);
+	}
+
 	return 0;
 
 cleanup:
