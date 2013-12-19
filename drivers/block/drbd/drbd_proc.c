@@ -46,7 +46,7 @@ const struct file_operations drbd_proc_fops = {
 	.release	= drbd_proc_release,
 };
 
-void seq_printf_with_thousands_grouping(struct seq_file *seq, long v)
+static void seq_printf_with_thousands_grouping(struct seq_file *seq, long v)
 {
 	/* v is in kB/sec. We don't expect TiByte/sec yet. */
 	if (unlikely(v >= 1000000)) {
