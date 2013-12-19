@@ -31,6 +31,60 @@
 		#size-cells = <1>;
 	};
 
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		key-a {
+			gpios = <&gpio7 0 GPIO_ACTIVE_LOW>;
+			linux,code = <30>;
+			label = "SW30";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-b {
+			gpios = <&gpio7 1 GPIO_ACTIVE_LOW>;
+			linux,code = <48>;
+			label = "SW31";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-c {
+			gpios = <&gpio7 2 GPIO_ACTIVE_LOW>;
+			linux,code = <46>;
+			label = "SW32";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-d {
+			gpios = <&gpio7 3 GPIO_ACTIVE_LOW>;
+			linux,code = <32>;
+			label = "SW33";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-e {
+			gpios = <&gpio7 4 GPIO_ACTIVE_LOW>;
+			linux,code = <18>;
+			label = "SW34";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-f {
+			gpios = <&gpio7 5 GPIO_ACTIVE_LOW>;
+			linux,code = <33>;
+			label = "SW35";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-g {
+			gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
+			linux,code = <34>;
+			label = "SW36";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		led6 {
