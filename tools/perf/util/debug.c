@@ -25,7 +25,6 @@ static int _eprintf(int level, const char *fmt, va_list args)
 			ui_helpline__vshow(fmt, args);
 		else
 			ret = vfprintf(stderr, fmt, args);
-		va_end(args);
 	}
 
 	return ret;
