@@ -4,6 +4,7 @@
 #include <linux/device.h>
 #include <linux/usb/composite.h>
 #include <linux/usb/gadget_configfs.h>
+#include "configfs.h"
 
 int check_user_usb_string(const char *name,
 		struct usb_gadget_strings *stringtab_dev)
