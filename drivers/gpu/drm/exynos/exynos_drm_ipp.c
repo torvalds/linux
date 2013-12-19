@@ -12,7 +12,6 @@
  *
  */
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
 #include <linux/clk.h>
@@ -27,7 +26,7 @@
 #include "exynos_drm_iommu.h"
 
 /*
- * IPP is stand for Image Post Processing and
+ * IPP stands for Image Post Processing and
  * supports image scaler/rotator and input/output DMA operations.
  * using FIMC, GSC, Rotator, so on.
  * IPP is integration device driver of same attribute h/w
@@ -46,6 +45,9 @@
 
 #define get_ipp_context(dev)	platform_get_drvdata(to_platform_device(dev))
 #define ipp_is_m2m_cmd(c)	(c == IPP_CMD_M2M)
+
+/* platform device pointer for ipp device. */
+static struct platform_device *exynos_drm_ipp_pdev;
 
 /*
  * A structure of event.
@@ -102,10 +104,32 @@ static LIST_HEAD(exynos_drm_ippdrv_list);
 static DEFINE_MUTEX(exynos_drm_ippdrv_lock);
 static BLOCKING_NOTIFIER_HEAD(exynos_drm_ippnb_list);
 
+int exynos_platform_device_ipp_register(void)
+{
+	struct platform_device *pdev;
+
+	if (exynos_drm_ipp_pdev)
+		return -EEXIST;
+
+	pdev = platform_device_register_simple("exynos-drm-ipp", -1, NULL, 0);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	exynos_drm_ipp_pdev = pdev;
+
+	return 0;
+}
+
+void exynos_platform_device_ipp_unregister(void)
+{
+	if (exynos_drm_ipp_pdev) {
+		platform_device_unregister(exynos_drm_ipp_pdev);
+		exynos_drm_ipp_pdev = NULL;
+	}
+}
+
 int exynos_drm_ippdrv_register(struct exynos_drm_ippdrv *ippdrv)
 {
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	if (!ippdrv)
 		return -EINVAL;
 
@@ -118,8 +142,6 @@ int exynos_drm_ippdrv_register(struct exynos_drm_ippdrv *ippdrv)
 
 int exynos_drm_ippdrv_unregister(struct exynos_drm_ippdrv *ippdrv)
 {
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	if (!ippdrv)
 		return -EINVAL;
 
@@ -135,30 +157,22 @@ static int ipp_create_id(struct idr *id_idr, struct mutex *lock, void *obj,
 {
 	int ret;
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
-again:
-	/* ensure there is space available to allocate a handle */
-	if (idr_pre_get(id_idr, GFP_KERNEL) == 0) {
-		DRM_ERROR("failed to get idr.\n");
-		return -ENOMEM;
-	}
-
 	/* do the allocation under our mutexlock */
 	mutex_lock(lock);
-	ret = idr_get_new_above(id_idr, obj, 1, (int *)idp);
+	ret = idr_alloc(id_idr, obj, 1, 0, GFP_KERNEL);
 	mutex_unlock(lock);
-	if (ret == -EAGAIN)
-		goto again;
+	if (ret < 0)
+		return ret;
 
-	return ret;
+	*idp = ret;
+	return 0;
 }
 
 static void *ipp_find_obj(struct idr *id_idr, struct mutex *lock, u32 id)
 {
 	void *obj;
 
-	DRM_DEBUG_KMS("%s:id[%d]\n", __func__, id);
+	DRM_DEBUG_KMS("id[%d]\n", id);
 
 	mutex_lock(lock);
 
@@ -195,13 +209,13 @@ static struct exynos_drm_ippdrv *ipp_find_driver(struct ipp_context *ctx,
 	struct exynos_drm_ippdrv *ippdrv;
 	u32 ipp_id = property->ipp_id;
 
-	DRM_DEBUG_KMS("%s:ipp_id[%d]\n", __func__, ipp_id);
+	DRM_DEBUG_KMS("ipp_id[%d]\n", ipp_id);
 
 	if (ipp_id) {
 		/* find ipp driver using idr */
 		ippdrv = ipp_find_obj(&ctx->ipp_idr, &ctx->ipp_lock,
 			ipp_id);
-		if (IS_ERR_OR_NULL(ippdrv)) {
+		if (IS_ERR(ippdrv)) {
 			DRM_ERROR("not found ipp%d driver.\n", ipp_id);
 			return ippdrv;
 		}
@@ -236,14 +250,13 @@ static struct exynos_drm_ippdrv *ipp_find_driver(struct ipp_context *ctx,
 		 */
 		list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list) {
 			if (ipp_check_dedicated(ippdrv, property->cmd)) {
-				DRM_DEBUG_KMS("%s:used device.\n", __func__);
+				DRM_DEBUG_KMS("used device.\n");
 				continue;
 			}
 
 			if (ippdrv->check_property &&
 			    ippdrv->check_property(ippdrv->dev, property)) {
-				DRM_DEBUG_KMS("%s:not support property.\n",
-					__func__);
+				DRM_DEBUG_KMS("not support property.\n");
 				continue;
 			}
 
@@ -262,10 +275,10 @@ static struct exynos_drm_ippdrv *ipp_find_drv_by_handle(u32 prop_id)
 	struct drm_exynos_ipp_cmd_node *c_node;
 	int count = 0;
 
-	DRM_DEBUG_KMS("%s:prop_id[%d]\n", __func__, prop_id);
+	DRM_DEBUG_KMS("prop_id[%d]\n", prop_id);
 
 	if (list_empty(&exynos_drm_ippdrv_list)) {
-		DRM_DEBUG_KMS("%s:ippdrv_list is empty.\n", __func__);
+		DRM_DEBUG_KMS("ippdrv_list is empty.\n");
 		return ERR_PTR(-ENODEV);
 	}
 
@@ -275,8 +288,7 @@ static struct exynos_drm_ippdrv *ipp_find_drv_by_handle(u32 prop_id)
 	 * e.g PAUSE state, queue buf, command contro.
 	 */
 	list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list) {
-		DRM_DEBUG_KMS("%s:count[%d]ippdrv[0x%x]\n", __func__,
-			count++, (int)ippdrv);
+		DRM_DEBUG_KMS("count[%d]ippdrv[0x%x]\n", count++, (int)ippdrv);
 
 		if (!list_empty(&ippdrv->cmd_list)) {
 			list_for_each_entry(c_node, &ippdrv->cmd_list, list)
@@ -299,8 +311,6 @@ int exynos_drm_ipp_get_property(struct drm_device *drm_dev, void *data,
 	struct exynos_drm_ippdrv *ippdrv;
 	int count = 0;
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	if (!ctx) {
 		DRM_ERROR("invalid context.\n");
 		return -EINVAL;
@@ -311,7 +321,7 @@ int exynos_drm_ipp_get_property(struct drm_device *drm_dev, void *data,
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_KMS("%s:ipp_id[%d]\n", __func__, prop_list->ipp_id);
+	DRM_DEBUG_KMS("ipp_id[%d]\n", prop_list->ipp_id);
 
 	if (!prop_list->ipp_id) {
 		list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list)
@@ -331,10 +341,10 @@ int exynos_drm_ipp_get_property(struct drm_device *drm_dev, void *data,
 		 */
 		ippdrv = ipp_find_obj(&ctx->ipp_idr, &ctx->ipp_lock,
 						prop_list->ipp_id);
-		if (!ippdrv) {
+		if (IS_ERR(ippdrv)) {
 			DRM_ERROR("not found ipp%d driver.\n",
 					prop_list->ipp_id);
-			return -EINVAL;
+			return PTR_ERR(ippdrv);
 		}
 
 		prop_list = ippdrv->prop_list;
@@ -350,11 +360,11 @@ static void ipp_print_property(struct drm_exynos_ipp_property *property,
 	struct drm_exynos_pos *pos = &config->pos;
 	struct drm_exynos_sz *sz = &config->sz;
 
-	DRM_DEBUG_KMS("%s:prop_id[%d]ops[%s]fmt[0x%x]\n",
-		__func__, property->prop_id, idx ? "dst" : "src", config->fmt);
+	DRM_DEBUG_KMS("prop_id[%d]ops[%s]fmt[0x%x]\n",
+		property->prop_id, idx ? "dst" : "src", config->fmt);
 
-	DRM_DEBUG_KMS("%s:pos[%d %d %d %d]sz[%d %d]f[%d]r[%d]\n",
-		__func__, pos->x, pos->y, pos->w, pos->h,
+	DRM_DEBUG_KMS("pos[%d %d %d %d]sz[%d %d]f[%d]r[%d]\n",
+		pos->x, pos->y, pos->w, pos->h,
 		sz->hsize, sz->vsize, config->flip, config->degree);
 }
 
@@ -364,10 +374,10 @@ static int ipp_find_and_set_property(struct drm_exynos_ipp_property *property)
 	struct drm_exynos_ipp_cmd_node *c_node;
 	u32 prop_id = property->prop_id;
 
-	DRM_DEBUG_KMS("%s:prop_id[%d]\n", __func__, prop_id);
+	DRM_DEBUG_KMS("prop_id[%d]\n", prop_id);
 
 	ippdrv = ipp_find_drv_by_handle(prop_id);
-	if (IS_ERR_OR_NULL(ippdrv)) {
+	if (IS_ERR(ippdrv)) {
 		DRM_ERROR("failed to get ipp driver.\n");
 		return -EINVAL;
 	}
@@ -380,8 +390,8 @@ static int ipp_find_and_set_property(struct drm_exynos_ipp_property *property)
 	list_for_each_entry(c_node, &ippdrv->cmd_list, list) {
 		if ((c_node->property.prop_id == prop_id) &&
 		    (c_node->state == IPP_STATE_STOP)) {
-			DRM_DEBUG_KMS("%s:found cmd[%d]ippdrv[0x%x]\n",
-				__func__, property->cmd, (int)ippdrv);
+			DRM_DEBUG_KMS("found cmd[%d]ippdrv[0x%x]\n",
+				property->cmd, (int)ippdrv);
 
 			c_node->property = *property;
 			return 0;
@@ -397,13 +407,9 @@ static struct drm_exynos_ipp_cmd_work *ipp_create_cmd_work(void)
 {
 	struct drm_exynos_ipp_cmd_work *cmd_work;
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	cmd_work = kzalloc(sizeof(*cmd_work), GFP_KERNEL);
-	if (!cmd_work) {
-		DRM_ERROR("failed to alloc cmd_work.\n");
+	if (!cmd_work)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	INIT_WORK((struct work_struct *)cmd_work, ipp_sched_cmd);
 
@@ -414,13 +420,9 @@ static struct drm_exynos_ipp_event_work *ipp_create_event_work(void)
 {
 	struct drm_exynos_ipp_event_work *event_work;
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	event_work = kzalloc(sizeof(*event_work), GFP_KERNEL);
-	if (!event_work) {
-		DRM_ERROR("failed to alloc event_work.\n");
+	if (!event_work)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	INIT_WORK((struct work_struct *)event_work, ipp_sched_event);
 
@@ -438,8 +440,6 @@ int exynos_drm_ipp_set_property(struct drm_device *drm_dev, void *data,
 	struct exynos_drm_ippdrv *ippdrv;
 	struct drm_exynos_ipp_cmd_node *c_node;
 	int ret, i;
-
-	DRM_DEBUG_KMS("%s\n", __func__);
 
 	if (!ctx) {
 		DRM_ERROR("invalid context.\n");
@@ -465,23 +465,21 @@ int exynos_drm_ipp_set_property(struct drm_device *drm_dev, void *data,
 	 * instead of allocation.
 	 */
 	if (property->prop_id) {
-		DRM_DEBUG_KMS("%s:prop_id[%d]\n", __func__, property->prop_id);
+		DRM_DEBUG_KMS("prop_id[%d]\n", property->prop_id);
 		return ipp_find_and_set_property(property);
 	}
 
 	/* find ipp driver using ipp id */
 	ippdrv = ipp_find_driver(ctx, property);
-	if (IS_ERR_OR_NULL(ippdrv)) {
+	if (IS_ERR(ippdrv)) {
 		DRM_ERROR("failed to get ipp driver.\n");
 		return -EINVAL;
 	}
 
 	/* allocate command node */
 	c_node = kzalloc(sizeof(*c_node), GFP_KERNEL);
-	if (!c_node) {
-		DRM_ERROR("failed to allocate map node.\n");
+	if (!c_node)
 		return -ENOMEM;
-	}
 
 	/* create property id */
 	ret = ipp_create_id(&ctx->prop_idr, &ctx->prop_lock, c_node,
@@ -491,8 +489,8 @@ int exynos_drm_ipp_set_property(struct drm_device *drm_dev, void *data,
 		goto err_clear;
 	}
 
-	DRM_DEBUG_KMS("%s:created prop_id[%d]cmd[%d]ippdrv[0x%x]\n",
-		__func__, property->prop_id, property->cmd, (int)ippdrv);
+	DRM_DEBUG_KMS("created prop_id[%d]cmd[%d]ippdrv[0x%x]\n",
+		property->prop_id, property->cmd, (int)ippdrv);
 
 	/* stored property information and ippdrv in private data */
 	c_node->priv = priv;
@@ -500,19 +498,19 @@ int exynos_drm_ipp_set_property(struct drm_device *drm_dev, void *data,
 	c_node->state = IPP_STATE_IDLE;
 
 	c_node->start_work = ipp_create_cmd_work();
-	if (IS_ERR_OR_NULL(c_node->start_work)) {
+	if (IS_ERR(c_node->start_work)) {
 		DRM_ERROR("failed to create start work.\n");
 		goto err_clear;
 	}
 
 	c_node->stop_work = ipp_create_cmd_work();
-	if (IS_ERR_OR_NULL(c_node->stop_work)) {
+	if (IS_ERR(c_node->stop_work)) {
 		DRM_ERROR("failed to create stop work.\n");
 		goto err_free_start;
 	}
 
 	c_node->event_work = ipp_create_event_work();
-	if (IS_ERR_OR_NULL(c_node->event_work)) {
+	if (IS_ERR(c_node->event_work)) {
 		DRM_ERROR("failed to create event work.\n");
 		goto err_free_stop;
 	}
@@ -548,8 +546,6 @@ err_clear:
 
 static void ipp_clean_cmd_node(struct drm_exynos_ipp_cmd_node *c_node)
 {
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	/* delete list */
 	list_del(&c_node->list);
 
@@ -572,8 +568,6 @@ static int ipp_check_mem_list(struct drm_exynos_ipp_cmd_node *c_node)
 	struct list_head *head;
 	int ret, i, count[EXYNOS_DRM_OPS_MAX] = { 0, };
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	mutex_lock(&c_node->mem_lock);
 
 	for_each_ipp_ops(i) {
@@ -581,20 +575,19 @@ static int ipp_check_mem_list(struct drm_exynos_ipp_cmd_node *c_node)
 		head = &c_node->mem_list[i];
 
 		if (list_empty(head)) {
-			DRM_DEBUG_KMS("%s:%s memory empty.\n", __func__,
-				i ? "dst" : "src");
+			DRM_DEBUG_KMS("%s memory empty.\n", i ? "dst" : "src");
 			continue;
 		}
 
 		/* find memory node entry */
 		list_for_each_entry(m_node, head, list) {
-			DRM_DEBUG_KMS("%s:%s,count[%d]m_node[0x%x]\n", __func__,
+			DRM_DEBUG_KMS("%s,count[%d]m_node[0x%x]\n",
 				i ? "dst" : "src", count[i], (int)m_node);
 			count[i]++;
 		}
 	}
 
-	DRM_DEBUG_KMS("%s:min[%d]max[%d]\n", __func__,
+	DRM_DEBUG_KMS("min[%d]max[%d]\n",
 		min(count[EXYNOS_DRM_OPS_SRC], count[EXYNOS_DRM_OPS_DST]),
 		max(count[EXYNOS_DRM_OPS_SRC], count[EXYNOS_DRM_OPS_DST]));
 
@@ -623,15 +616,14 @@ static struct drm_exynos_ipp_mem_node
 	struct list_head *head;
 	int count = 0;
 
-	DRM_DEBUG_KMS("%s:buf_id[%d]\n", __func__, qbuf->buf_id);
+	DRM_DEBUG_KMS("buf_id[%d]\n", qbuf->buf_id);
 
 	/* source/destination memory list */
 	head = &c_node->mem_list[qbuf->ops_id];
 
 	/* find memory node from memory list */
 	list_for_each_entry(m_node, head, list) {
-		DRM_DEBUG_KMS("%s:count[%d]m_node[0x%x]\n",
-			__func__, count++, (int)m_node);
+		DRM_DEBUG_KMS("count[%d]m_node[0x%x]\n", count++, (int)m_node);
 
 		/* compare buffer id */
 		if (m_node->buf_id == qbuf->buf_id)
@@ -648,7 +640,7 @@ static int ipp_set_mem_node(struct exynos_drm_ippdrv *ippdrv,
 	struct exynos_drm_ipp_ops *ops = NULL;
 	int ret = 0;
 
-	DRM_DEBUG_KMS("%s:node[0x%x]\n", __func__, (int)m_node);
+	DRM_DEBUG_KMS("node[0x%x]\n", (int)m_node);
 
 	if (!m_node) {
 		DRM_ERROR("invalid queue node.\n");
@@ -657,7 +649,7 @@ static int ipp_set_mem_node(struct exynos_drm_ippdrv *ippdrv,
 
 	mutex_lock(&c_node->mem_lock);
 
-	DRM_DEBUG_KMS("%s:ops_id[%d]\n", __func__, m_node->ops_id);
+	DRM_DEBUG_KMS("ops_id[%d]\n", m_node->ops_id);
 
 	/* get operations callback */
 	ops = ippdrv->ops[m_node->ops_id];
@@ -693,15 +685,11 @@ static struct drm_exynos_ipp_mem_node
 	void *addr;
 	int i;
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	mutex_lock(&c_node->mem_lock);
 
 	m_node = kzalloc(sizeof(*m_node), GFP_KERNEL);
-	if (!m_node) {
-		DRM_ERROR("failed to allocate queue node.\n");
+	if (!m_node)
 		goto err_unlock;
-	}
 
 	/* clear base address for error handling */
 	memset(&buf_info, 0x0, sizeof(buf_info));
@@ -711,14 +699,11 @@ static struct drm_exynos_ipp_mem_node
 	m_node->prop_id = qbuf->prop_id;
 	m_node->buf_id = qbuf->buf_id;
 
-	DRM_DEBUG_KMS("%s:m_node[0x%x]ops_id[%d]\n", __func__,
-		(int)m_node, qbuf->ops_id);
-	DRM_DEBUG_KMS("%s:prop_id[%d]buf_id[%d]\n", __func__,
-		qbuf->prop_id, m_node->buf_id);
+	DRM_DEBUG_KMS("m_node[0x%x]ops_id[%d]\n", (int)m_node, qbuf->ops_id);
+	DRM_DEBUG_KMS("prop_id[%d]buf_id[%d]\n", qbuf->prop_id, m_node->buf_id);
 
 	for_each_ipp_planar(i) {
-		DRM_DEBUG_KMS("%s:i[%d]handle[0x%x]\n", __func__,
-			i, qbuf->handle[i]);
+		DRM_DEBUG_KMS("i[%d]handle[0x%x]\n", i, qbuf->handle[i]);
 
 		/* get dma address by handle */
 		if (qbuf->handle[i]) {
@@ -731,9 +716,8 @@ static struct drm_exynos_ipp_mem_node
 
 			buf_info.handles[i] = qbuf->handle[i];
 			buf_info.base[i] = *(dma_addr_t *) addr;
-			DRM_DEBUG_KMS("%s:i[%d]base[0x%x]hd[0x%x]\n",
-				__func__, i, buf_info.base[i],
-				(int)buf_info.handles[i]);
+			DRM_DEBUG_KMS("i[%d]base[0x%x]hd[0x%x]\n",
+				i, buf_info.base[i], (int)buf_info.handles[i]);
 		}
 	}
 
@@ -757,7 +741,7 @@ static int ipp_put_mem_node(struct drm_device *drm_dev,
 {
 	int i;
 
-	DRM_DEBUG_KMS("%s:node[0x%x]\n", __func__, (int)m_node);
+	DRM_DEBUG_KMS("node[0x%x]\n", (int)m_node);
 
 	if (!m_node) {
 		DRM_ERROR("invalid dequeue node.\n");
@@ -771,7 +755,7 @@ static int ipp_put_mem_node(struct drm_device *drm_dev,
 
 	mutex_lock(&c_node->mem_lock);
 
-	DRM_DEBUG_KMS("%s:ops_id[%d]\n", __func__, m_node->ops_id);
+	DRM_DEBUG_KMS("ops_id[%d]\n", m_node->ops_id);
 
 	/* put gem buffer */
 	for_each_ipp_planar(i) {
@@ -803,13 +787,10 @@ static int ipp_get_event(struct drm_device *drm_dev,
 	struct drm_exynos_ipp_send_event *e;
 	unsigned long flags;
 
-	DRM_DEBUG_KMS("%s:ops_id[%d]buf_id[%d]\n", __func__,
-		qbuf->ops_id, qbuf->buf_id);
+	DRM_DEBUG_KMS("ops_id[%d]buf_id[%d]\n", qbuf->ops_id, qbuf->buf_id);
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
-
 	if (!e) {
-		DRM_ERROR("failed to allocate event.\n");
 		spin_lock_irqsave(&drm_dev->event_lock, flags);
 		file->event_space += sizeof(e->event);
 		spin_unlock_irqrestore(&drm_dev->event_lock, flags);
@@ -836,16 +817,13 @@ static void ipp_put_event(struct drm_exynos_ipp_cmd_node *c_node,
 	struct drm_exynos_ipp_send_event *e, *te;
 	int count = 0;
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	if (list_empty(&c_node->event_list)) {
-		DRM_DEBUG_KMS("%s:event_list is empty.\n", __func__);
+		DRM_DEBUG_KMS("event_list is empty.\n");
 		return;
 	}
 
 	list_for_each_entry_safe(e, te, &c_node->event_list, base.link) {
-		DRM_DEBUG_KMS("%s:count[%d]e[0x%x]\n",
-			__func__, count++, (int)e);
+		DRM_DEBUG_KMS("count[%d]e[0x%x]\n", count++, (int)e);
 
 		/*
 		 * quf == NULL condition means all event deletion.
@@ -869,7 +847,7 @@ static void ipp_put_event(struct drm_exynos_ipp_cmd_node *c_node,
 	}
 }
 
-void ipp_handle_cmd_work(struct device *dev,
+static void ipp_handle_cmd_work(struct device *dev,
 		struct exynos_drm_ippdrv *ippdrv,
 		struct drm_exynos_ipp_cmd_work *cmd_work,
 		struct drm_exynos_ipp_cmd_node *c_node)
@@ -891,10 +869,8 @@ static int ipp_queue_buf_with_run(struct device *dev,
 	struct exynos_drm_ipp_ops *ops;
 	int ret;
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	ippdrv = ipp_find_drv_by_handle(qbuf->prop_id);
-	if (IS_ERR_OR_NULL(ippdrv)) {
+	if (IS_ERR(ippdrv)) {
 		DRM_ERROR("failed to get ipp driver.\n");
 		return -EFAULT;
 	}
@@ -908,12 +884,12 @@ static int ipp_queue_buf_with_run(struct device *dev,
 	property = &c_node->property;
 
 	if (c_node->state != IPP_STATE_START) {
-		DRM_DEBUG_KMS("%s:bypass for invalid state.\n" , __func__);
+		DRM_DEBUG_KMS("bypass for invalid state.\n");
 		return 0;
 	}
 
 	if (!ipp_check_mem_list(c_node)) {
-		DRM_DEBUG_KMS("%s:empty memory.\n", __func__);
+		DRM_DEBUG_KMS("empty memory.\n");
 		return 0;
 	}
 
@@ -943,8 +919,6 @@ static void ipp_clean_queue_buf(struct drm_device *drm_dev,
 {
 	struct drm_exynos_ipp_mem_node *m_node, *tm_node;
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	if (!list_empty(&c_node->mem_list[qbuf->ops_id])) {
 		/* delete list */
 		list_for_each_entry_safe(m_node, tm_node,
@@ -968,8 +942,6 @@ int exynos_drm_ipp_queue_buf(struct drm_device *drm_dev, void *data,
 	struct drm_exynos_ipp_mem_node *m_node;
 	int ret;
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	if (!qbuf) {
 		DRM_ERROR("invalid buf parameter.\n");
 		return -EINVAL;
@@ -980,16 +952,16 @@ int exynos_drm_ipp_queue_buf(struct drm_device *drm_dev, void *data,
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_KMS("%s:prop_id[%d]ops_id[%s]buf_id[%d]buf_type[%d]\n",
-		__func__, qbuf->prop_id, qbuf->ops_id ? "dst" : "src",
+	DRM_DEBUG_KMS("prop_id[%d]ops_id[%s]buf_id[%d]buf_type[%d]\n",
+		qbuf->prop_id, qbuf->ops_id ? "dst" : "src",
 		qbuf->buf_id, qbuf->buf_type);
 
 	/* find command node */
 	c_node = ipp_find_obj(&ctx->prop_idr, &ctx->prop_lock,
 		qbuf->prop_id);
-	if (!c_node) {
+	if (IS_ERR(c_node)) {
 		DRM_ERROR("failed to get command node.\n");
-		return -EFAULT;
+		return PTR_ERR(c_node);
 	}
 
 	/* buffer control */
@@ -1054,8 +1026,6 @@ err_clean_node:
 static bool exynos_drm_ipp_check_valid(struct device *dev,
 		enum drm_exynos_ipp_ctrl ctrl, enum drm_exynos_ipp_state state)
 {
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	if (ctrl != IPP_CTRL_PLAY) {
 		if (pm_runtime_suspended(dev)) {
 			DRM_ERROR("pm:runtime_suspended.\n");
@@ -1083,7 +1053,6 @@ static bool exynos_drm_ipp_check_valid(struct device *dev,
 	default:
 		DRM_ERROR("invalid state.\n");
 		goto err_status;
-		break;
 	}
 
 	return true;
@@ -1105,8 +1074,6 @@ int exynos_drm_ipp_cmd_ctrl(struct drm_device *drm_dev, void *data,
 	struct drm_exynos_ipp_cmd_work *cmd_work;
 	struct drm_exynos_ipp_cmd_node *c_node;
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	if (!ctx) {
 		DRM_ERROR("invalid context.\n");
 		return -EINVAL;
@@ -1117,7 +1084,7 @@ int exynos_drm_ipp_cmd_ctrl(struct drm_device *drm_dev, void *data,
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_KMS("%s:ctrl[%d]prop_id[%d]\n", __func__,
+	DRM_DEBUG_KMS("ctrl[%d]prop_id[%d]\n",
 		cmd_ctrl->ctrl, cmd_ctrl->prop_id);
 
 	ippdrv = ipp_find_drv_by_handle(cmd_ctrl->prop_id);
@@ -1128,9 +1095,9 @@ int exynos_drm_ipp_cmd_ctrl(struct drm_device *drm_dev, void *data,
 
 	c_node = ipp_find_obj(&ctx->prop_idr, &ctx->prop_lock,
 		cmd_ctrl->prop_id);
-	if (!c_node) {
+	if (IS_ERR(c_node)) {
 		DRM_ERROR("invalid command node list.\n");
-		return -EINVAL;
+		return PTR_ERR(c_node);
 	}
 
 	if (!exynos_drm_ipp_check_valid(ippdrv->dev, cmd_ctrl->ctrl,
@@ -1192,7 +1159,7 @@ int exynos_drm_ipp_cmd_ctrl(struct drm_device *drm_dev, void *data,
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_KMS("%s:done ctrl[%d]prop_id[%d]\n", __func__,
+	DRM_DEBUG_KMS("done ctrl[%d]prop_id[%d]\n",
 		cmd_ctrl->ctrl, cmd_ctrl->prop_id);
 
 	return 0;
@@ -1228,7 +1195,7 @@ static int ipp_set_property(struct exynos_drm_ippdrv *ippdrv,
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_KMS("%s:prop_id[%d]\n", __func__, property->prop_id);
+	DRM_DEBUG_KMS("prop_id[%d]\n", property->prop_id);
 
 	/* reset h/w block */
 	if (ippdrv->reset &&
@@ -1289,13 +1256,13 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 	struct list_head *head;
 	int ret, i;
 
-	DRM_DEBUG_KMS("%s:prop_id[%d]\n", __func__, property->prop_id);
+	DRM_DEBUG_KMS("prop_id[%d]\n", property->prop_id);
 
 	/* store command info in ippdrv */
-	ippdrv->cmd = c_node;
+	ippdrv->c_node = c_node;
 
 	if (!ipp_check_mem_list(c_node)) {
-		DRM_DEBUG_KMS("%s:empty memory.\n", __func__);
+		DRM_DEBUG_KMS("empty memory.\n");
 		return -ENOMEM;
 	}
 
@@ -1303,7 +1270,7 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 	ret = ipp_set_property(ippdrv, property);
 	if (ret) {
 		DRM_ERROR("failed to set property.\n");
-		ippdrv->cmd = NULL;
+		ippdrv->c_node = NULL;
 		return ret;
 	}
 
@@ -1322,8 +1289,7 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 				return ret;
 			}
 
-			DRM_DEBUG_KMS("%s:m_node[0x%x]\n",
-				__func__, (int)m_node);
+			DRM_DEBUG_KMS("m_node[0x%x]\n", (int)m_node);
 
 			ret = ipp_set_mem_node(ippdrv, c_node, m_node);
 			if (ret) {
@@ -1361,7 +1327,7 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_KMS("%s:cmd[%d]\n", __func__, property->cmd);
+	DRM_DEBUG_KMS("cmd[%d]\n", property->cmd);
 
 	/* start operations */
 	if (ippdrv->start) {
@@ -1384,7 +1350,7 @@ static int ipp_stop_property(struct drm_device *drm_dev,
 	struct list_head *head;
 	int ret = 0, i;
 
-	DRM_DEBUG_KMS("%s:prop_id[%d]\n", __func__, property->prop_id);
+	DRM_DEBUG_KMS("prop_id[%d]\n", property->prop_id);
 
 	/* put event */
 	ipp_put_event(c_node, NULL);
@@ -1397,8 +1363,7 @@ static int ipp_stop_property(struct drm_device *drm_dev,
 			head = &c_node->mem_list[i];
 
 			if (list_empty(head)) {
-				DRM_DEBUG_KMS("%s:mem_list is empty.\n",
-					__func__);
+				DRM_DEBUG_KMS("mem_list is empty.\n");
 				break;
 			}
 
@@ -1418,7 +1383,7 @@ static int ipp_stop_property(struct drm_device *drm_dev,
 		head = &c_node->mem_list[EXYNOS_DRM_OPS_DST];
 
 		if (list_empty(head)) {
-			DRM_DEBUG_KMS("%s:mem_list is empty.\n", __func__);
+			DRM_DEBUG_KMS("mem_list is empty.\n");
 			break;
 		}
 
@@ -1435,7 +1400,7 @@ static int ipp_stop_property(struct drm_device *drm_dev,
 		head = &c_node->mem_list[EXYNOS_DRM_OPS_SRC];
 
 		if (list_empty(head)) {
-			DRM_DEBUG_KMS("%s:mem_list is empty.\n", __func__);
+			DRM_DEBUG_KMS("mem_list is empty.\n");
 			break;
 		}
 
@@ -1470,8 +1435,6 @@ void ipp_sched_cmd(struct work_struct *work)
 	struct drm_exynos_ipp_property *property;
 	int ret;
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	ippdrv = cmd_work->ippdrv;
 	if (!ippdrv) {
 		DRM_ERROR("invalid ippdrv list.\n");
@@ -1487,11 +1450,6 @@ void ipp_sched_cmd(struct work_struct *work)
 	mutex_lock(&c_node->cmd_lock);
 
 	property = &c_node->property;
-	if (!property) {
-		DRM_ERROR("failed to get property:prop_id[%d]\n",
-			c_node->property.prop_id);
-		goto err_unlock;
-	}
 
 	switch (cmd_work->ctrl) {
 	case IPP_CTRL_PLAY:
@@ -1534,7 +1492,7 @@ void ipp_sched_cmd(struct work_struct *work)
 		break;
 	}
 
-	DRM_DEBUG_KMS("%s:ctrl[%d] done.\n", __func__, cmd_work->ctrl);
+	DRM_DEBUG_KMS("ctrl[%d] done.\n", cmd_work->ctrl);
 
 err_unlock:
 	mutex_unlock(&c_node->cmd_lock);
@@ -1555,8 +1513,7 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 	int ret, i;
 
 	for_each_ipp_ops(i)
-		DRM_DEBUG_KMS("%s:%s buf_id[%d]\n", __func__,
-			i ? "dst" : "src", buf_id[i]);
+		DRM_DEBUG_KMS("%s buf_id[%d]\n", i ? "dst" : "src", buf_id[i]);
 
 	if (!drm_dev) {
 		DRM_ERROR("failed to get drm_dev.\n");
@@ -1569,12 +1526,12 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 	}
 
 	if (list_empty(&c_node->event_list)) {
-		DRM_DEBUG_KMS("%s:event list is empty.\n", __func__);
+		DRM_DEBUG_KMS("event list is empty.\n");
 		return 0;
 	}
 
 	if (!ipp_check_mem_list(c_node)) {
-		DRM_DEBUG_KMS("%s:empty memory.\n", __func__);
+		DRM_DEBUG_KMS("empty memory.\n");
 		return 0;
 	}
 
@@ -1593,7 +1550,7 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 			}
 
 			tbuf_id[i] = m_node->buf_id;
-			DRM_DEBUG_KMS("%s:%s buf_id[%d]\n", __func__,
+			DRM_DEBUG_KMS("%s buf_id[%d]\n",
 				i ? "dst" : "src", tbuf_id[i]);
 
 			ret = ipp_put_mem_node(drm_dev, c_node, m_node);
@@ -1661,8 +1618,7 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 	}
 
 	do_gettimeofday(&now);
-	DRM_DEBUG_KMS("%s:tv_sec[%ld]tv_usec[%ld]\n"
-		, __func__, now.tv_sec, now.tv_usec);
+	DRM_DEBUG_KMS("tv_sec[%ld]tv_usec[%ld]\n", now.tv_sec, now.tv_usec);
 	e->event.tv_sec = now.tv_sec;
 	e->event.tv_usec = now.tv_usec;
 	e->event.prop_id = property->prop_id;
@@ -1676,7 +1632,7 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 	wake_up_interruptible(&e->base.file_priv->event_wait);
 	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
 
-	DRM_DEBUG_KMS("%s:done cmd[%d]prop_id[%d]buf_id[%d]\n", __func__,
+	DRM_DEBUG_KMS("done cmd[%d]prop_id[%d]buf_id[%d]\n",
 		property->cmd, property->prop_id, tbuf_id[EXYNOS_DRM_OPS_DST]);
 
 	return 0;
@@ -1695,8 +1651,7 @@ void ipp_sched_event(struct work_struct *work)
 		return;
 	}
 
-	DRM_DEBUG_KMS("%s:buf_id[%d]\n", __func__,
-		event_work->buf_id[EXYNOS_DRM_OPS_DST]);
+	DRM_DEBUG_KMS("buf_id[%d]\n", event_work->buf_id[EXYNOS_DRM_OPS_DST]);
 
 	ippdrv = event_work->ippdrv;
 	if (!ippdrv) {
@@ -1704,7 +1659,7 @@ void ipp_sched_event(struct work_struct *work)
 		return;
 	}
 
-	c_node = ippdrv->cmd;
+	c_node = ippdrv->c_node;
 	if (!c_node) {
 		DRM_ERROR("failed to get command node.\n");
 		return;
@@ -1717,8 +1672,8 @@ void ipp_sched_event(struct work_struct *work)
 	 * or going out operations.
 	 */
 	if (c_node->state != IPP_STATE_START) {
-		DRM_DEBUG_KMS("%s:bypass state[%d]prop_id[%d]\n",
-			__func__, c_node->state, c_node->property.prop_id);
+		DRM_DEBUG_KMS("bypass state[%d]prop_id[%d]\n",
+			c_node->state, c_node->property.prop_id);
 		goto err_completion;
 	}
 
@@ -1743,8 +1698,6 @@ static int ipp_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 	struct exynos_drm_ippdrv *ippdrv;
 	int ret, count = 0;
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	/* get ipp driver entry */
 	list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list) {
 		ippdrv->drm_dev = drm_dev;
@@ -1756,7 +1709,7 @@ static int ipp_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 			goto err_idr;
 		}
 
-		DRM_DEBUG_KMS("%s:count[%d]ippdrv[0x%x]ipp_id[%d]\n", __func__,
+		DRM_DEBUG_KMS("count[%d]ippdrv[0x%x]ipp_id[%d]\n",
 			count++, (int)ippdrv, ippdrv->ipp_id);
 
 		if (ippdrv->ipp_id == 0) {
@@ -1791,8 +1744,6 @@ err_iommu:
 			drm_iommu_detach_device(drm_dev, ippdrv->dev);
 
 err_idr:
-	idr_remove_all(&ctx->ipp_idr);
-	idr_remove_all(&ctx->prop_idr);
 	idr_destroy(&ctx->ipp_idr);
 	idr_destroy(&ctx->prop_idr);
 	return ret;
@@ -1801,8 +1752,6 @@ err_idr:
 static void ipp_subdrv_remove(struct drm_device *drm_dev, struct device *dev)
 {
 	struct exynos_drm_ippdrv *ippdrv;
-
-	DRM_DEBUG_KMS("%s\n", __func__);
 
 	/* get ipp driver entry */
 	list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list) {
@@ -1820,19 +1769,15 @@ static int ipp_subdrv_open(struct drm_device *drm_dev, struct device *dev,
 	struct drm_exynos_file_private *file_priv = file->driver_priv;
 	struct exynos_drm_ipp_private *priv;
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		DRM_ERROR("failed to allocate priv.\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 	priv->dev = dev;
 	file_priv->ipp_priv = priv;
 
 	INIT_LIST_HEAD(&priv->event_list);
 
-	DRM_DEBUG_KMS("%s:done priv[0x%x]\n", __func__, (int)priv);
+	DRM_DEBUG_KMS("done priv[0x%x]\n", (int)priv);
 
 	return 0;
 }
@@ -1846,10 +1791,10 @@ static void ipp_subdrv_close(struct drm_device *drm_dev, struct device *dev,
 	struct drm_exynos_ipp_cmd_node *c_node, *tc_node;
 	int count = 0;
 
-	DRM_DEBUG_KMS("%s:for priv[0x%x]\n", __func__, (int)priv);
+	DRM_DEBUG_KMS("for priv[0x%x]\n", (int)priv);
 
 	if (list_empty(&exynos_drm_ippdrv_list)) {
-		DRM_DEBUG_KMS("%s:ippdrv_list is empty.\n", __func__);
+		DRM_DEBUG_KMS("ippdrv_list is empty.\n");
 		goto err_clear;
 	}
 
@@ -1859,8 +1804,8 @@ static void ipp_subdrv_close(struct drm_device *drm_dev, struct device *dev,
 
 		list_for_each_entry_safe(c_node, tc_node,
 			&ippdrv->cmd_list, list) {
-			DRM_DEBUG_KMS("%s:count[%d]ippdrv[0x%x]\n",
-				__func__, count++, (int)ippdrv);
+			DRM_DEBUG_KMS("count[%d]ippdrv[0x%x]\n",
+				count++, (int)ippdrv);
 
 			if (c_node->priv == priv) {
 				/*
@@ -1888,18 +1833,16 @@ err_clear:
 	return;
 }
 
-static int __devinit ipp_probe(struct platform_device *pdev)
+static int ipp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ipp_context *ctx;
 	struct exynos_drm_subdrv *subdrv;
 	int ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
-
-	DRM_DEBUG_KMS("%s\n", __func__);
 
 	mutex_init(&ctx->ipp_lock);
 	mutex_init(&ctx->prop_lock);
@@ -1916,8 +1859,7 @@ static int __devinit ipp_probe(struct platform_device *pdev)
 	ctx->event_workq = create_singlethread_workqueue("ipp_event");
 	if (!ctx->event_workq) {
 		dev_err(dev, "failed to create event workqueue\n");
-		ret = -EINVAL;
-		goto err_clear;
+		return -EINVAL;
 	}
 
 	/*
@@ -1950,7 +1892,7 @@ static int __devinit ipp_probe(struct platform_device *pdev)
 		goto err_cmd_workq;
 	}
 
-	dev_info(&pdev->dev, "drm ipp registered successfully.\n");
+	dev_info(dev, "drm ipp registered successfully.\n");
 
 	return 0;
 
@@ -1958,23 +1900,17 @@ err_cmd_workq:
 	destroy_workqueue(ctx->cmd_workq);
 err_event_workq:
 	destroy_workqueue(ctx->event_workq);
-err_clear:
-	kfree(ctx);
 	return ret;
 }
 
-static int __devexit ipp_remove(struct platform_device *pdev)
+static int ipp_remove(struct platform_device *pdev)
 {
 	struct ipp_context *ctx = platform_get_drvdata(pdev);
-
-	DRM_DEBUG_KMS("%s\n", __func__);
 
 	/* unregister sub driver */
 	exynos_drm_subdrv_unregister(&ctx->subdrv);
 
 	/* remove,destroy ipp idr */
-	idr_remove_all(&ctx->ipp_idr);
-	idr_remove_all(&ctx->prop_idr);
 	idr_destroy(&ctx->ipp_idr);
 	idr_destroy(&ctx->prop_idr);
 
@@ -1985,14 +1921,12 @@ static int __devexit ipp_remove(struct platform_device *pdev)
 	destroy_workqueue(ctx->cmd_workq);
 	destroy_workqueue(ctx->event_workq);
 
-	kfree(ctx);
-
 	return 0;
 }
 
 static int ipp_power_ctrl(struct ipp_context *ctx, bool enable)
 {
-	DRM_DEBUG_KMS("%s:enable[%d]\n", __func__, enable);
+	DRM_DEBUG_KMS("enable[%d]\n", enable);
 
 	return 0;
 }
@@ -2001,8 +1935,6 @@ static int ipp_power_ctrl(struct ipp_context *ctx, bool enable)
 static int ipp_suspend(struct device *dev)
 {
 	struct ipp_context *ctx = get_ipp_context(dev);
-
-	DRM_DEBUG_KMS("%s\n", __func__);
 
 	if (pm_runtime_suspended(dev))
 		return 0;
@@ -2013,8 +1945,6 @@ static int ipp_suspend(struct device *dev)
 static int ipp_resume(struct device *dev)
 {
 	struct ipp_context *ctx = get_ipp_context(dev);
-
-	DRM_DEBUG_KMS("%s\n", __func__);
 
 	if (!pm_runtime_suspended(dev))
 		return ipp_power_ctrl(ctx, true);
@@ -2028,16 +1958,12 @@ static int ipp_runtime_suspend(struct device *dev)
 {
 	struct ipp_context *ctx = get_ipp_context(dev);
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	return ipp_power_ctrl(ctx, false);
 }
 
 static int ipp_runtime_resume(struct device *dev)
 {
 	struct ipp_context *ctx = get_ipp_context(dev);
-
-	DRM_DEBUG_KMS("%s\n", __func__);
 
 	return ipp_power_ctrl(ctx, true);
 }
@@ -2050,7 +1976,7 @@ static const struct dev_pm_ops ipp_pm_ops = {
 
 struct platform_driver ipp_driver = {
 	.probe		= ipp_probe,
-	.remove		= __devexit_p(ipp_remove),
+	.remove		= ipp_remove,
 	.driver		= {
 		.name	= "exynos-drm-ipp",
 		.owner	= THIS_MODULE,

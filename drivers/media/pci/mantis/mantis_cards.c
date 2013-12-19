@@ -159,7 +159,8 @@ static irqreturn_t mantis_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit mantis_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
+static int mantis_pci_probe(struct pci_dev *pdev,
+			    const struct pci_device_id *pci_id)
 {
 	struct mantis_pci *mantis;
 	struct mantis_hwconfig *config;
@@ -249,7 +250,7 @@ fail0:
 	return err;
 }
 
-static void __devexit mantis_pci_remove(struct pci_dev *pdev)
+static void mantis_pci_remove(struct pci_dev *pdev)
 {
 	struct mantis_pci *mantis = pci_get_drvdata(pdev);
 
@@ -289,18 +290,7 @@ static struct pci_driver mantis_pci_driver = {
 	.remove		= mantis_pci_remove,
 };
 
-static int __devinit mantis_init(void)
-{
-	return pci_register_driver(&mantis_pci_driver);
-}
-
-static void __devexit mantis_exit(void)
-{
-	return pci_unregister_driver(&mantis_pci_driver);
-}
-
-module_init(mantis_init);
-module_exit(mantis_exit);
+module_pci_driver(mantis_pci_driver);
 
 MODULE_DESCRIPTION("MANTIS driver");
 MODULE_AUTHOR("Manu Abraham");

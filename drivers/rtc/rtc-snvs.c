@@ -241,7 +241,7 @@ static irqreturn_t snvs_rtc_irq_handler(int irq, void *dev_id)
 	return events ? IRQ_HANDLED : IRQ_NONE;
 }
 
-static int __devinit snvs_rtc_probe(struct platform_device *pdev)
+static int snvs_rtc_probe(struct platform_device *pdev)
 {
 	struct snvs_rtc_data *data;
 	struct resource *res;
@@ -252,9 +252,9 @@ static int __devinit snvs_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->ioaddr = devm_request_and_ioremap(&pdev->dev, res);
-	if (!data->ioaddr)
-		return -EADDRNOTAVAIL;
+	data->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(data->ioaddr))
+		return PTR_ERR(data->ioaddr);
 
 	data->irq = platform_get_irq(pdev, 0);
 	if (data->irq < 0)
@@ -283,22 +283,13 @@ static int __devinit snvs_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	data->rtc = rtc_device_register(pdev->name, &pdev->dev,
+	data->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 					&snvs_rtc_ops, THIS_MODULE);
 	if (IS_ERR(data->rtc)) {
 		ret = PTR_ERR(data->rtc);
 		dev_err(&pdev->dev, "failed to register rtc: %d\n", ret);
 		return ret;
 	}
-
-	return 0;
-}
-
-static int __devexit snvs_rtc_remove(struct platform_device *pdev)
-{
-	struct snvs_rtc_data *data = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(data->rtc);
 
 	return 0;
 }
@@ -327,7 +318,7 @@ static int snvs_rtc_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(snvs_rtc_pm_ops, snvs_rtc_suspend, snvs_rtc_resume);
 
-static const struct of_device_id __devinitconst snvs_dt_ids[] = {
+static const struct of_device_id snvs_dt_ids[] = {
 	{ .compatible = "fsl,sec-v4.0-mon-rtc-lp", },
 	{ /* sentinel */ }
 };
@@ -341,7 +332,6 @@ static struct platform_driver snvs_rtc_driver = {
 		.of_match_table = snvs_dt_ids,
 	},
 	.probe		= snvs_rtc_probe,
-	.remove		= __devexit_p(snvs_rtc_remove),
 };
 module_platform_driver(snvs_rtc_driver);
 

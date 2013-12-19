@@ -91,6 +91,7 @@
 struct wusbhc;
 struct wahc;
 extern void wa_urb_enqueue_run(struct work_struct *ws);
+extern void wa_process_errored_transfers_run(struct work_struct *ws);
 
 /**
  * RPipe instance
@@ -116,10 +117,24 @@ struct wa_rpipe {
 	struct wahc *wa;
 	spinlock_t seg_lock;
 	struct list_head seg_list;
+	struct list_head list_node;
 	atomic_t segs_available;
 	u8 buffer[1];	/* For reads/writes on USB */
 };
 
+
+enum wa_dti_state {
+	WA_DTI_TRANSFER_RESULT_PENDING,
+	WA_DTI_ISOC_PACKET_STATUS_PENDING
+};
+
+enum wa_quirks {
+	/*
+	 * The Alereon HWA expects the data frames in isochronous transfer
+	 * requests to be concatenated and not sent as separate packets.
+	 */
+	WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC	= 0x01,
+};
 
 /**
  * Instance of a HWA Host Controller
@@ -177,26 +192,47 @@ struct wahc {
 
 	u16 rpipes;
 	unsigned long *rpipe_bm;	/* rpipe usage bitmap */
-	spinlock_t rpipe_bm_lock;	/* protect rpipe_bm */
+	struct list_head rpipe_delayed_list;	/* delayed RPIPES. */
+	spinlock_t rpipe_lock;	/* protect rpipe_bm and delayed list */
 	struct mutex rpipe_mutex;	/* assigning resources to endpoints */
 
+	/*
+	 * dti_state is used to track the state of the dti_urb.  When dti_state
+	 * is WA_DTI_ISOC_PACKET_STATUS_PENDING, dti_isoc_xfer_in_progress and
+	 * dti_isoc_xfer_seg identify which xfer the incoming isoc packet status
+	 * refers to.
+	 */
+	enum wa_dti_state dti_state;
+	u32 dti_isoc_xfer_in_progress;
+	u8  dti_isoc_xfer_seg;
 	struct urb *dti_urb;		/* URB for reading xfer results */
 	struct urb *buf_in_urb;		/* URB for reading data in */
 	struct edc dti_edc;		/* DTI error density counter */
-	struct wa_xfer_result *xfer_result; /* real size = dti_ep maxpktsize */
-	size_t xfer_result_size;
+	void *dti_buf;
+	size_t dti_buf_size;
+
+	unsigned long dto_in_use;	/* protect dto endoint serialization. */
 
 	s32 status;			/* For reading status */
 
 	struct list_head xfer_list;
 	struct list_head xfer_delayed_list;
+	struct list_head xfer_errored_list;
+	/*
+	 * lock for the above xfer lists.  Can be taken while a xfer->lock is
+	 * held but not in the reverse order.
+	 */
 	spinlock_t xfer_list_lock;
-	struct work_struct xfer_work;
+	struct work_struct xfer_enqueue_work;
+	struct work_struct xfer_error_work;
 	atomic_t xfer_id_count;
+
+	kernel_ulong_t	quirks;
 };
 
 
-extern int wa_create(struct wahc *wa, struct usb_interface *iface);
+extern int wa_create(struct wahc *wa, struct usb_interface *iface,
+	kernel_ulong_t);
 extern void __wa_destroy(struct wahc *wa);
 void wa_reset_all(struct wahc *wa);
 
@@ -232,7 +268,8 @@ static inline void wa_nep_disarm(struct wahc *wa)
 /* RPipes */
 static inline void wa_rpipe_init(struct wahc *wa)
 {
-	spin_lock_init(&wa->rpipe_bm_lock);
+	INIT_LIST_HEAD(&wa->rpipe_delayed_list);
+	spin_lock_init(&wa->rpipe_lock);
 	mutex_init(&wa->rpipe_mutex);
 }
 
@@ -240,12 +277,16 @@ static inline void wa_init(struct wahc *wa)
 {
 	edc_init(&wa->nep_edc);
 	atomic_set(&wa->notifs_queued, 0);
+	wa->dti_state = WA_DTI_TRANSFER_RESULT_PENDING;
 	wa_rpipe_init(wa);
 	edc_init(&wa->dti_edc);
 	INIT_LIST_HEAD(&wa->xfer_list);
 	INIT_LIST_HEAD(&wa->xfer_delayed_list);
+	INIT_LIST_HEAD(&wa->xfer_errored_list);
 	spin_lock_init(&wa->xfer_list_lock);
-	INIT_WORK(&wa->xfer_work, wa_urb_enqueue_run);
+	INIT_WORK(&wa->xfer_enqueue_work, wa_urb_enqueue_run);
+	INIT_WORK(&wa->xfer_error_work, wa_process_errored_transfers_run);
+	wa->dto_in_use = 0;
 	atomic_set(&wa->xfer_id_count, 1);
 }
 
@@ -269,6 +310,8 @@ static inline void rpipe_put(struct wa_rpipe *rpipe)
 
 }
 extern void rpipe_ep_disable(struct wahc *, struct usb_host_endpoint *);
+extern void rpipe_clear_feature_stalled(struct wahc *,
+			struct usb_host_endpoint *);
 extern int wa_rpipes_create(struct wahc *);
 extern void wa_rpipes_destroy(struct wahc *);
 static inline void rpipe_avail_dec(struct wa_rpipe *rpipe)

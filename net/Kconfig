@@ -5,6 +5,7 @@
 menuconfig NET
 	bool "Networking support"
 	select NLATTR
+	select GENERIC_NET_UTILS
 	---help---
 	  Unless you really know what you are doing, you should say Y here.
 	  The reason is that some programs need kernel networking support even
@@ -90,7 +91,6 @@ config NETWORK_SECMARK
 
 config NETWORK_PHY_TIMESTAMPING
 	bool "Timestamping in PHY devices"
-	depends on EXPERIMENTAL
 	help
 	  This allows timestamping of network packets by PHYs with
 	  hardware timestamping capabilities. This option adds some
@@ -209,7 +209,6 @@ source "net/ipx/Kconfig"
 source "drivers/net/appletalk/Kconfig"
 source "net/x25/Kconfig"
 source "net/lapb/Kconfig"
-source "net/wanrouter/Kconfig"
 source "net/phonet/Kconfig"
 source "net/ieee802154/Kconfig"
 source "net/mac802154/Kconfig"
@@ -218,21 +217,25 @@ source "net/dcb/Kconfig"
 source "net/dns_resolver/Kconfig"
 source "net/batman-adv/Kconfig"
 source "net/openvswitch/Kconfig"
+source "net/vmw_vsock/Kconfig"
+source "net/netlink/Kconfig"
+source "net/mpls/Kconfig"
+source "net/hsr/Kconfig"
 
 config RPS
 	boolean
-	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
+	depends on SMP && SYSFS
 	default y
 
 config RFS_ACCEL
 	boolean
-	depends on RPS && GENERIC_HARDIRQS
+	depends on RPS
 	select CPU_RMAP
 	default y
 
 config XPS
 	boolean
-	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
+	depends on SMP
 	default y
 
 config NETPRIO_CGROUP
@@ -241,6 +244,10 @@ config NETPRIO_CGROUP
 	---help---
 	  Cgroup subsystem for use in assigning processes to network priorities on
 	  a per-interface basis
+
+config NET_RX_BUSY_POLL
+	boolean
+	default y
 
 config BQL
 	boolean
@@ -259,11 +266,23 @@ config BPF_JIT
 	  packet sniffing (libpcap/tcpdump). Note : Admin should enable
 	  this feature changing /proc/sys/net/core/bpf_jit_enable
 
+config NET_FLOW_LIMIT
+	boolean
+	depends on RPS
+	default y
+	---help---
+	  The network stack has to drop packets when a receive processing CPU's
+	  backlog reaches netdev_max_backlog. If a few out of many active flows
+	  generate the vast majority of load, drop their traffic earlier to
+	  maintain capacity for the other flows. This feature provides servers
+	  with many clients some protection against DoS by a single (spoofed)
+	  flow that greatly exceeds average workload.
+
 menu "Network testing"
 
 config NET_PKTGEN
 	tristate "Packet Generator (USE WITH CAUTION)"
-	depends on PROC_FS
+	depends on INET && PROC_FS
 	---help---
 	  This module will inject preconfigured packets, at a configurable
 	  rate, out of a given interface.  It is used for network interface
@@ -278,7 +297,7 @@ config NET_PKTGEN
 
 config NET_TCPPROBE
 	tristate "TCP connection probing"
-	depends on INET && EXPERIMENTAL && PROC_FS && KPROBES
+	depends on INET && PROC_FS && KPROBES
 	---help---
 	This module allows for capturing the changes to TCP connection
 	state in response to incoming packets. It is used for debugging
@@ -295,7 +314,7 @@ config NET_TCPPROBE
 
 config NET_DROP_MONITOR
 	tristate "Network packet drop alerting service"
-	depends on INET && EXPERIMENTAL && TRACEPOINTS
+	depends on INET && TRACEPOINTS
 	---help---
 	This feature provides an alerting service to userspace in the
 	event that packets are discarded in the network stack.  Alerts

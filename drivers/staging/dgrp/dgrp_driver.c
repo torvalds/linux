@@ -52,20 +52,15 @@ MODULE_PARM_DESC(register_prdevices, "Turn on/off registering transparent print 
 module_param_named(pollrate, dgrp_poll_tick, int, 0644);
 MODULE_PARM_DESC(pollrate, "Poll interval in ms");
 
-/* Driver load/unload functions */
-static int dgrp_init_module(void);
-static void dgrp_cleanup_module(void);
-
-module_init(dgrp_init_module);
-module_exit(dgrp_cleanup_module);
-
 /*
  * init_module()
  *
  * Module load.  This is where it all starts.
  */
-static int dgrp_init_module(void)
+static int __init dgrp_init_module(void)
 {
+	int ret;
+
 	INIT_LIST_HEAD(&nd_struct_list);
 
 	spin_lock_init(&dgrp_poll_data.poll_lock);
@@ -74,7 +69,9 @@ static int dgrp_init_module(void)
 	dgrp_poll_data.timer.function = dgrp_poll_handler;
 	dgrp_poll_data.timer.data = (unsigned long) &dgrp_poll_data;
 
-	dgrp_create_class_sysfs_files();
+	ret = dgrp_create_class_sysfs_files();
+	if (ret)
+		return ret;
 
 	dgrp_register_proc();
 
@@ -85,7 +82,7 @@ static int dgrp_init_module(void)
 /*
  *	Module unload.  This is where it all ends.
  */
-static void dgrp_cleanup_module(void)
+static void __exit dgrp_cleanup_module(void)
 {
 	struct nd_struct *nd, *next;
 
@@ -104,3 +101,6 @@ static void dgrp_cleanup_module(void)
 		kfree(nd);
 	}
 }
+
+module_init(dgrp_init_module);
+module_exit(dgrp_cleanup_module);

@@ -6,6 +6,8 @@
 
 #define COMMAND_LINE_SIZE 2048
 
+#include <linux/linkage.h>
+
 #ifdef __i386__
 
 #include <linux/pfn.h>
@@ -49,9 +51,9 @@ extern void i386_reserve_resources(void);
 extern void setup_default_timer_irq(void);
 
 #ifdef CONFIG_X86_INTEL_MID
-extern void x86_mrst_early_setup(void);
+extern void x86_intel_mid_early_setup(void);
 #else
-static inline void x86_mrst_early_setup(void) { }
+static inline void x86_intel_mid_early_setup(void) { }
 #endif
 
 #ifdef CONFIG_X86_INTEL_CE
@@ -108,11 +110,11 @@ void *extend_brk(size_t size, size_t align);
 extern void probe_roms(void);
 #ifdef __i386__
 
-void __init i386_start_kernel(void);
+asmlinkage void __init i386_start_kernel(void);
 
 #else
-void __init x86_64_start_kernel(char *real_mode);
-void __init x86_64_start_reservations(char *real_mode_data);
+asmlinkage void __init x86_64_start_kernel(char *real_mode);
+asmlinkage void __init x86_64_start_reservations(char *real_mode_data);
 
 #endif /* __i386__ */
 #endif /* _SETUP */

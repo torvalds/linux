@@ -1,5 +1,5 @@
 #ifndef DECTYPES
-#define	DECTYPES
+#define DECTYPES
 
 #define DS2100_3100	1	/* DS2100/3100	Pmax		*/
 #define DS5000_200	2	/* DS5000/200	3max		*/

@@ -20,7 +20,7 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/i2c.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/input.h>
 #include <linux/err.h>
 #include <linux/clk.h>
@@ -34,7 +34,7 @@
 #include <asm/mach/map.h>
 
 #include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
+#include <video/omap-panel-data.h>
 
 #include "common.h"
 #include "mux.h"
@@ -194,30 +194,48 @@ static struct platform_device h4_flash_device = {
 	.resource	= &h4_flash_resource,
 };
 
+static const struct display_timing cm_t35_lcd_videomode = {
+	.pixelclock	= { 0, 6250000, 0 },
+
+	.hactive = { 0, 240, 0 },
+	.hfront_porch = { 0, 15, 0 },
+	.hback_porch = { 0, 60, 0 },
+	.hsync_len = { 0, 15, 0 },
+
+	.vactive = { 0, 320, 0 },
+	.vfront_porch = { 0, 1, 0 },
+	.vback_porch = { 0, 1, 0 },
+	.vsync_len = { 0, 1, 0 },
+
+	.flags = DISPLAY_FLAGS_HSYNC_HIGH | DISPLAY_FLAGS_VSYNC_HIGH |
+		DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_POSEDGE,
+};
+
+static struct panel_dpi_platform_data cm_t35_lcd_pdata = {
+	.name                   = "lcd",
+	.source                 = "dpi.0",
+
+	.data_lines		= 16,
+
+	.display_timing		= &cm_t35_lcd_videomode,
+
+	.enable_gpio		= -1,
+	.backlight_gpio		= -1,
+};
+
+static struct platform_device cm_t35_lcd_device = {
+	.name                   = "panel-dpi",
+	.id                     = 0,
+	.dev.platform_data      = &cm_t35_lcd_pdata,
+};
+
 static struct platform_device *h4_devices[] __initdata = {
 	&h4_flash_device,
-};
-
-static struct panel_generic_dpi_data h4_panel_data = {
-	.name			= "h4",
-};
-
-static struct omap_dss_device h4_lcd_device = {
-	.name			= "lcd",
-	.driver_name		= "generic_dpi_panel",
-	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.phy.dpi.data_lines	= 16,
-	.data			= &h4_panel_data,
-};
-
-static struct omap_dss_device *h4_dss_devices[] = {
-	&h4_lcd_device,
+	&cm_t35_lcd_device,
 };
 
 static struct omap_dss_board_info h4_dss_data = {
-	.num_devices	= ARRAY_SIZE(h4_dss_devices),
-	.devices	= h4_dss_devices,
-	.default_device	= &h4_lcd_device,
+	.default_display_name = "lcd",
 };
 
 /* 2420 Sysboot setup (2430 is different) */
@@ -246,7 +264,7 @@ static u32 is_gpmc_muxed(void)
 		return 0;
 }
 
-#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91x_MODULE)
+#if IS_ENABLED(CONFIG_SMC91X)
 
 static struct omap_smc91x_platform_data board_smc91x_data = {
 	.cs		= 1,
@@ -342,6 +360,6 @@ MACHINE_START(OMAP_H4, "OMAP2420 H4 board")
 	.handle_irq	= omap2_intc_handle_irq,
 	.init_machine	= omap_h4_init,
 	.init_late	= omap2420_init_late,
-	.timer		= &omap2_timer,
+	.init_time	= omap2_sync32k_timer_init,
 	.restart	= omap2xxx_restart,
 MACHINE_END

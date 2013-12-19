@@ -79,7 +79,7 @@ Description:
 		correspond to externally available input one of the named
 		versions may be used. The number must always be specified and
 		unique to allow association with event codes. Units after
-		application of scale and offset are microvolts.
+		application of scale and offset are millivolts.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY-voltageZ_raw
 KernelVersion:	2.6.35
@@ -90,7 +90,7 @@ Description:
 		physically equivalent inputs when non differential readings are
 		separately available. In differential only parts, then all that
 		is required is a consistent labeling.  Units after application
-		of scale and offset are microvolts.
+		of scale and offset are millivolts.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_capacitanceY_raw
 KernelVersion:	3.2
@@ -351,6 +351,7 @@ Description:
 		6kohm_to_gnd: connected to ground via a 6kOhm resistor,
 		20kohm_to_gnd: connected to ground via a 20kOhm resistor,
 		100kohm_to_gnd: connected to ground via an 100kOhm resistor,
+		500kohm_to_gnd: connected to ground via a 500kOhm resistor,
 		three_state: left floating.
 		For a list of available output power down options read
 		outX_powerdown_mode_available. If Y is not present the
@@ -536,6 +537,62 @@ Description:
 		value is in raw device units or in processed units (as _raw
 		and _input do on sysfs direct channel read attributes).
 
+What:		/sys/.../events/in_accel_x_thresh_rising_hysteresis
+What:		/sys/.../events/in_accel_x_thresh_falling_hysteresis
+What:		/sys/.../events/in_accel_x_thresh_either_hysteresis
+What:		/sys/.../events/in_accel_y_thresh_rising_hysteresis
+What:		/sys/.../events/in_accel_y_thresh_falling_hysteresis
+What:		/sys/.../events/in_accel_y_thresh_either_hysteresis
+What:		/sys/.../events/in_accel_z_thresh_rising_hysteresis
+What:		/sys/.../events/in_accel_z_thresh_falling_hysteresis
+What:		/sys/.../events/in_accel_z_thresh_either_hysteresis
+What:		/sys/.../events/in_anglvel_x_thresh_rising_hysteresis
+What:		/sys/.../events/in_anglvel_x_thresh_falling_hysteresis
+What:		/sys/.../events/in_anglvel_x_thresh_either_hysteresis
+What:		/sys/.../events/in_anglvel_y_thresh_rising_hysteresis
+What:		/sys/.../events/in_anglvel_y_thresh_falling_hysteresis
+What:		/sys/.../events/in_anglvel_y_thresh_either_hysteresis
+What:		/sys/.../events/in_anglvel_z_thresh_rising_hysteresis
+What:		/sys/.../events/in_anglvel_z_thresh_falling_hysteresis
+What:		/sys/.../events/in_anglvel_z_thresh_either_hysteresis
+What:		/sys/.../events/in_magn_x_thresh_rising_hysteresis
+What:		/sys/.../events/in_magn_x_thresh_falling_hysteresis
+What:		/sys/.../events/in_magn_x_thresh_either_hysteresis
+What:		/sys/.../events/in_magn_y_thresh_rising_hysteresis
+What:		/sys/.../events/in_magn_y_thresh_falling_hysteresis
+What:		/sys/.../events/in_magn_y_thresh_either_hysteresis
+What:		/sys/.../events/in_magn_z_thresh_rising_hysteresis
+What:		/sys/.../events/in_magn_z_thresh_falling_hysteresis
+What:		/sys/.../events/in_magn_z_thresh_either_hysteresis
+What:		/sys/.../events/in_voltageY_thresh_rising_hysteresis
+What:		/sys/.../events/in_voltageY_thresh_falling_hysteresis
+What:		/sys/.../events/in_voltageY_thresh_either_hysteresis
+What:		/sys/.../events/in_tempY_thresh_rising_hysteresis
+What:		/sys/.../events/in_tempY_thresh_falling_hysteresis
+What:		/sys/.../events/in_tempY_thresh_either_hysteresis
+What:		/sys/.../events/in_illuminance0_thresh_falling_hysteresis
+what:		/sys/.../events/in_illuminance0_thresh_rising_hysteresis
+what:		/sys/.../events/in_illuminance0_thresh_either_hysteresis
+what:		/sys/.../events/in_proximity0_thresh_falling_hysteresis
+what:		/sys/.../events/in_proximity0_thresh_rising_hysteresis
+what:		/sys/.../events/in_proximity0_thresh_either_hysteresis
+KernelVersion:	3.13
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the hysteresis of threshold that the device is comparing
+		against for the events enabled by
+		<type>Y[_name]_thresh[_(rising|falling)]_hysteresis.
+		If separate attributes exist for the two directions, but
+		direction is not specified for this attribute, then a single
+		hysteresis value applies to both directions.
+		For falling events the hysteresis is added to the _value attribute for
+		this event to get the upper threshold for when the event goes back to
+		normal, for rising events the hysteresis is subtracted from the _value
+		attribute. E.g. if in_voltage0_raw_thresh_rising_value is set to 1200
+		and in_voltage0_raw_thresh_rising_hysteresis is set to 50. The event
+		will get activated once in_voltage0_raw goes above 1200 and will become
+		deactived again once the value falls below 1150.
+
 What:		/sys/.../events/in_accel_x_raw_roc_rising_value
 What:		/sys/.../events/in_accel_x_raw_roc_falling_value
 What:		/sys/.../events/in_accel_y_raw_roc_rising_value
@@ -690,45 +747,45 @@ Description:
 		Actually start the buffer capture up.  Will start trigger
 		if first device and appropriate.
 
-What:		/sys/bus/iio/devices/iio:deviceX/buffer/scan_elements
+What:		/sys/bus/iio/devices/iio:deviceX/scan_elements
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Directory containing interfaces for elements that will be
 		captured for a single triggered sample set in the buffer.
 
-What:		/sys/.../buffer/scan_elements/in_accel_x_en
-What:		/sys/.../buffer/scan_elements/in_accel_y_en
-What:		/sys/.../buffer/scan_elements/in_accel_z_en
-What:		/sys/.../buffer/scan_elements/in_anglvel_x_en
-What:		/sys/.../buffer/scan_elements/in_anglvel_y_en
-What:		/sys/.../buffer/scan_elements/in_anglvel_z_en
-What:		/sys/.../buffer/scan_elements/in_magn_x_en
-What:		/sys/.../buffer/scan_elements/in_magn_y_en
-What:		/sys/.../buffer/scan_elements/in_magn_z_en
-What:		/sys/.../buffer/scan_elements/in_timestamp_en
-What:		/sys/.../buffer/scan_elements/in_voltageY_supply_en
-What:		/sys/.../buffer/scan_elements/in_voltageY_en
-What:		/sys/.../buffer/scan_elements/in_voltageY-voltageZ_en
-What:		/sys/.../buffer/scan_elements/in_incli_x_en
-What:		/sys/.../buffer/scan_elements/in_incli_y_en
-What:		/sys/.../buffer/scan_elements/in_pressureY_en
-What:		/sys/.../buffer/scan_elements/in_pressure_en
+What:		/sys/.../iio:deviceX/scan_elements/in_accel_x_en
+What:		/sys/.../iio:deviceX/scan_elements/in_accel_y_en
+What:		/sys/.../iio:deviceX/scan_elements/in_accel_z_en
+What:		/sys/.../iio:deviceX/scan_elements/in_anglvel_x_en
+What:		/sys/.../iio:deviceX/scan_elements/in_anglvel_y_en
+What:		/sys/.../iio:deviceX/scan_elements/in_anglvel_z_en
+What:		/sys/.../iio:deviceX/scan_elements/in_magn_x_en
+What:		/sys/.../iio:deviceX/scan_elements/in_magn_y_en
+What:		/sys/.../iio:deviceX/scan_elements/in_magn_z_en
+What:		/sys/.../iio:deviceX/scan_elements/in_timestamp_en
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_supply_en
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_en
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY-voltageZ_en
+What:		/sys/.../iio:deviceX/scan_elements/in_incli_x_en
+What:		/sys/.../iio:deviceX/scan_elements/in_incli_y_en
+What:		/sys/.../iio:deviceX/scan_elements/in_pressureY_en
+What:		/sys/.../iio:deviceX/scan_elements/in_pressure_en
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Scan element control for triggered data capture.
 
-What:		/sys/.../buffer/scan_elements/in_accel_type
-What:		/sys/.../buffer/scan_elements/in_anglvel_type
-What:		/sys/.../buffer/scan_elements/in_magn_type
-What:		/sys/.../buffer/scan_elements/in_incli_type
-What:		/sys/.../buffer/scan_elements/in_voltageY_type
-What:		/sys/.../buffer/scan_elements/in_voltage_type
-What:		/sys/.../buffer/scan_elements/in_voltageY_supply_type
-What:		/sys/.../buffer/scan_elements/in_timestamp_type
-What:		/sys/.../buffer/scan_elements/in_pressureY_type
-What:		/sys/.../buffer/scan_elements/in_pressure_type
+What:		/sys/.../iio:deviceX/scan_elements/in_accel_type
+What:		/sys/.../iio:deviceX/scan_elements/in_anglvel_type
+What:		/sys/.../iio:deviceX/scan_elements/in_magn_type
+What:		/sys/.../iio:deviceX/scan_elements/in_incli_type
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_type
+What:		/sys/.../iio:deviceX/scan_elements/in_voltage_type
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_supply_type
+What:		/sys/.../iio:deviceX/scan_elements/in_timestamp_type
+What:		/sys/.../iio:deviceX/scan_elements/in_pressureY_type
+What:		/sys/.../iio:deviceX/scan_elements/in_pressure_type
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -752,29 +809,29 @@ Description:
 		For other storage combinations this attribute will be extended
 		appropriately.
 
-What:		/sys/.../buffer/scan_elements/in_accel_type_available
+What:		/sys/.../iio:deviceX/scan_elements/in_accel_type_available
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
 		If the type parameter can take one of a small set of values,
 		this attribute lists them.
 
-What:		/sys/.../buffer/scan_elements/in_voltageY_index
-What:		/sys/.../buffer/scan_elements/in_voltageY_supply_index
-What:		/sys/.../buffer/scan_elements/in_accel_x_index
-What:		/sys/.../buffer/scan_elements/in_accel_y_index
-What:		/sys/.../buffer/scan_elements/in_accel_z_index
-What:		/sys/.../buffer/scan_elements/in_anglvel_x_index
-What:		/sys/.../buffer/scan_elements/in_anglvel_y_index
-What:		/sys/.../buffer/scan_elements/in_anglvel_z_index
-What:		/sys/.../buffer/scan_elements/in_magn_x_index
-What:		/sys/.../buffer/scan_elements/in_magn_y_index
-What:		/sys/.../buffer/scan_elements/in_magn_z_index
-What:		/sys/.../buffer/scan_elements/in_incli_x_index
-What:		/sys/.../buffer/scan_elements/in_incli_y_index
-What:		/sys/.../buffer/scan_elements/in_timestamp_index
-What:		/sys/.../buffer/scan_elements/in_pressureY_index
-What:		/sys/.../buffer/scan_elements/in_pressure_index
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_index
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_supply_index
+What:		/sys/.../iio:deviceX/scan_elements/in_accel_x_index
+What:		/sys/.../iio:deviceX/scan_elements/in_accel_y_index
+What:		/sys/.../iio:deviceX/scan_elements/in_accel_z_index
+What:		/sys/.../iio:deviceX/scan_elements/in_anglvel_x_index
+What:		/sys/.../iio:deviceX/scan_elements/in_anglvel_y_index
+What:		/sys/.../iio:deviceX/scan_elements/in_anglvel_z_index
+What:		/sys/.../iio:deviceX/scan_elements/in_magn_x_index
+What:		/sys/.../iio:deviceX/scan_elements/in_magn_y_index
+What:		/sys/.../iio:deviceX/scan_elements/in_magn_z_index
+What:		/sys/.../iio:deviceX/scan_elements/in_incli_x_index
+What:		/sys/.../iio:deviceX/scan_elements/in_incli_y_index
+What:		/sys/.../iio:deviceX/scan_elements/in_timestamp_index
+What:		/sys/.../iio:deviceX/scan_elements/in_pressureY_index
+What:		/sys/.../iio:deviceX/scan_elements/in_pressure_index
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -792,3 +849,32 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		This attribute is used to read the amount of quadrature error
 		present in the device at a given time.
+
+What:		/sys/.../iio:deviceX/in_accelX_power_mode
+KernelVersion:	3.11
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the chip power mode.
+		low_noise: reduce noise level from ADC,
+		low_power: enable low current consumption.
+		For a list of available output power modes read
+		in_accel_power_mode_available.
+
+What:		/sys/bus/iio/devices/iio:deviceX/store_eeprom
+KernelVersion:	3.4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Writing '1' stores the current device configuration into
+		on-chip EEPROM. After power-up or chip reset the device will
+		automatically load the saved configuration.
+
+What:		/sys/.../iio:deviceX/in_intensity_red_integration_time
+What:		/sys/.../iio:deviceX/in_intensity_green_integration_time
+What:		/sys/.../iio:deviceX/in_intensity_blue_integration_time
+What:		/sys/.../iio:deviceX/in_intensity_clear_integration_time
+What:		/sys/.../iio:deviceX/in_illuminance_integration_time
+KernelVersion:	3.12
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute is used to get/set the integration time in
+		seconds.

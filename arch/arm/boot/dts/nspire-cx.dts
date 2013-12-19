@@ -1,0 +1,112 @@
+/*
+ *  linux/arch/arm/boot/nspire-cx.dts
+ *
+ *  Copyright (C) 2013 Daniel Tang <tangrs@tangrs.id.au>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2, as
+ * published by the Free Software Foundation.
+ *
+ */
+/dts-v1/;
+
+/include/ "nspire.dtsi"
+
+&lcd {
+	lcd-type = "cx";
+};
+
+&fast_timer {
+	/* compatible = "arm,sp804", "arm,primecell"; */
+};
+
+&uart {
+	compatible = "arm,pl011", "arm,primecell";
+
+	clocks = <&uart_clk>, <&apb_pclk>;
+	clock-names = "uart_clk", "apb_pclk";
+};
+
+&timer0 {
+	compatible = "arm,sp804", "arm,primecell";
+};
+
+&timer1 {
+	compatible = "arm,sp804", "arm,primecell";
+};
+
+&base_clk {
+	compatible = "lsi,nspire-cx-clock";
+};
+
+&ahb_clk {
+	compatible = "lsi,nspire-cx-ahb-divider";
+};
+
+&keypad {
+	linux,keymap = <
+	0x0000001c 	0x0001001c 	0x00040039
+	0x0005002c 	0x00060015 	0x0007000b
+	0x0008000f 	0x0100002d 	0x01010011
+	0x0102002f 	0x01030004 	0x01040016
+	0x01050014 	0x0106001f 	0x01070002
+	0x010a006a 	0x02000013 	0x02010010
+	0x02020019 	0x02030007 	0x02040018
+	0x02050031 	0x02060032 	0x02070005
+	0x02080028 	0x0209006c 	0x03000026
+	0x03010025 	0x03020024 	0x0303000a
+	0x03040017 	0x03050023 	0x03060022
+	0x03070008 	0x03080035 	0x03090069
+	0x04000021 	0x04010012 	0x04020020
+	0x0404002e 	0x04050030 	0x0406001e
+	0x0407000d 	0x04080037 	0x04090067
+	0x05010038 	0x0502000c 	0x0503001b
+	0x05040034 	0x0505001a 	0x05060006
+	0x05080027 	0x0509000e 	0x050a006f
+	0x0600002b 	0x0602004e 	0x06030068
+	0x06040003 	0x0605006d 	0x06060009
+	0x06070001 	0x0609000f 	0x0708002a
+	0x0709001d 	0x070a0033 	>;
+};
+
+/ {
+	model = "TI-NSPIRE CX";
+	compatible = "ti,nspire-cx";
+
+	memory {
+		device_type = "memory";
+		reg = <0x10000000 0x4000000>; /* 64 MB */
+	};
+
+	uart_clk: uart_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <12000000>;
+	};
+
+	ahb {
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		intc: interrupt-controller@DC000000 {
+			compatible = "arm,pl190-vic";
+			interrupt-controller;
+			reg = <0xDC000000 0x1000>;
+			#interrupt-cells = <1>;
+		};
+
+		apb@90000000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			i2c@90050000 {
+				compatible = "snps,designware-i2c";
+				reg = <0x90050000 0x1000>;
+				interrupts = <20>;
+			};
+		};
+	};
+	chosen {
+		bootargs = "debug earlyprintk console=tty0 console=ttyAMA0,115200n8 root=/dev/ram0";
+	};
+};

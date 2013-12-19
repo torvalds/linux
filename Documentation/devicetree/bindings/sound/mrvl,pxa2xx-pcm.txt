@@ -1,0 +1,15 @@
+DT bindings for ARM PXA2xx PCM platform driver
+
+This is just a dummy driver that registers the PXA ASoC platform driver.
+It does not have any resources assigned.
+
+Required properties:
+
+	- compatible		'mrvl,pxa-pcm-audio'
+
+Example:
+
+	pxa_pcm_audio: snd_soc_pxa_audio {
+		compatible = "mrvl,pxa-pcm-audio";
+	};
+

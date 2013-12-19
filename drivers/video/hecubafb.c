@@ -47,7 +47,7 @@
 #define DPY_W 600
 #define DPY_H 800
 
-static struct fb_fix_screeninfo hecubafb_fix __devinitdata = {
+static struct fb_fix_screeninfo hecubafb_fix = {
 	.id =		"hecubafb",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_MONO01,
@@ -58,7 +58,7 @@ static struct fb_fix_screeninfo hecubafb_fix __devinitdata = {
 	.accel =	FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo hecubafb_var __devinitdata = {
+static struct fb_var_screeninfo hecubafb_var = {
 	.xres		= DPY_W,
 	.yres		= DPY_H,
 	.xres_virtual	= DPY_W,
@@ -211,7 +211,7 @@ static struct fb_deferred_io hecubafb_defio = {
 	.deferred_io	= hecubafb_dpy_deferred_io,
 };
 
-static int __devinit hecubafb_probe(struct platform_device *dev)
+static int hecubafb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 	struct hecuba_board *board;
@@ -261,9 +261,8 @@ static int __devinit hecubafb_probe(struct platform_device *dev)
 		goto err_fbreg;
 	platform_set_drvdata(dev, info);
 
-	printk(KERN_INFO
-	       "fb%d: Hecuba frame buffer device, using %dK of video memory\n",
-	       info->node, videomemorysize >> 10);
+	fb_info(info, "Hecuba frame buffer device, using %dK of video memory\n",
+		videomemorysize >> 10);
 
 	/* this inits the dpy */
 	retval = par->board->init(par);
@@ -280,7 +279,7 @@ err_videomem_alloc:
 	return retval;
 }
 
-static int __devexit hecubafb_remove(struct platform_device *dev)
+static int hecubafb_remove(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 
@@ -299,25 +298,13 @@ static int __devexit hecubafb_remove(struct platform_device *dev)
 
 static struct platform_driver hecubafb_driver = {
 	.probe	= hecubafb_probe,
-	.remove = __devexit_p(hecubafb_remove),
+	.remove = hecubafb_remove,
 	.driver	= {
 		.owner	= THIS_MODULE,
 		.name	= "hecubafb",
 	},
 };
-
-static int __init hecubafb_init(void)
-{
-	return platform_driver_register(&hecubafb_driver);
-}
-
-static void __exit hecubafb_exit(void)
-{
-	platform_driver_unregister(&hecubafb_driver);
-}
-
-module_init(hecubafb_init);
-module_exit(hecubafb_exit);
+module_platform_driver(hecubafb_driver);
 
 MODULE_DESCRIPTION("fbdev driver for Hecuba/Apollo controller");
 MODULE_AUTHOR("Jaya Kumar");

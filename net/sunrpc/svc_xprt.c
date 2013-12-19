@@ -499,7 +499,8 @@ void svc_wake_up(struct svc_serv *serv)
 			rqstp->rq_xprt = NULL;
 			 */
 			wake_up(&rqstp->rq_wait);
-		}
+		} else
+			pool->sp_task_pending = 1;
 		spin_unlock_bh(&pool->sp_lock);
 	}
 }
@@ -634,7 +635,13 @@ struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
 		 * long for cache updates.
 		 */
 		rqstp->rq_chandle.thread_wait = 1*HZ;
+		pool->sp_task_pending = 0;
 	} else {
+		if (pool->sp_task_pending) {
+			pool->sp_task_pending = 0;
+			spin_unlock_bh(&pool->sp_lock);
+			return ERR_PTR(-EAGAIN);
+		}
 		/* No data pending. Go to sleep */
 		svc_thread_enqueue(pool, rqstp);
 
@@ -856,7 +863,6 @@ static void svc_age_temp_xprts(unsigned long closure)
 	struct svc_serv *serv = (struct svc_serv *)closure;
 	struct svc_xprt *xprt;
 	struct list_head *le, *next;
-	LIST_HEAD(to_be_aged);
 
 	dprintk("svc_age_temp_xprts\n");
 
@@ -877,25 +883,15 @@ static void svc_age_temp_xprts(unsigned long closure)
 		if (atomic_read(&xprt->xpt_ref.refcount) > 1 ||
 		    test_bit(XPT_BUSY, &xprt->xpt_flags))
 			continue;
-		svc_xprt_get(xprt);
-		list_move(le, &to_be_aged);
+		list_del_init(le);
 		set_bit(XPT_CLOSE, &xprt->xpt_flags);
 		set_bit(XPT_DETACHED, &xprt->xpt_flags);
-	}
-	spin_unlock_bh(&serv->sv_lock);
-
-	while (!list_empty(&to_be_aged)) {
-		le = to_be_aged.next;
-		/* fiddling the xpt_list node is safe 'cos we're XPT_DETACHED */
-		list_del_init(le);
-		xprt = list_entry(le, struct svc_xprt, xpt_list);
-
 		dprintk("queuing xprt %p for closing\n", xprt);
 
 		/* a thread will dequeue and close it soon */
 		svc_xprt_enqueue(xprt);
-		svc_xprt_put(xprt);
 	}
+	spin_unlock_bh(&serv->sv_lock);
 
 	mod_timer(&serv->sv_temptimer, jiffies + svc_conn_age_period * HZ);
 }
@@ -959,21 +955,24 @@ void svc_close_xprt(struct svc_xprt *xprt)
 }
 EXPORT_SYMBOL_GPL(svc_close_xprt);
 
-static void svc_close_list(struct svc_serv *serv, struct list_head *xprt_list, struct net *net)
+static int svc_close_list(struct svc_serv *serv, struct list_head *xprt_list, struct net *net)
 {
 	struct svc_xprt *xprt;
+	int ret = 0;
 
 	spin_lock(&serv->sv_lock);
 	list_for_each_entry(xprt, xprt_list, xpt_list) {
 		if (xprt->xpt_net != net)
 			continue;
+		ret++;
 		set_bit(XPT_CLOSE, &xprt->xpt_flags);
-		set_bit(XPT_BUSY, &xprt->xpt_flags);
+		svc_xprt_enqueue(xprt);
 	}
 	spin_unlock(&serv->sv_lock);
+	return ret;
 }
 
-static void svc_clear_pools(struct svc_serv *serv, struct net *net)
+static struct svc_xprt *svc_dequeue_net(struct svc_serv *serv, struct net *net)
 {
 	struct svc_pool *pool;
 	struct svc_xprt *xprt;
@@ -988,42 +987,46 @@ static void svc_clear_pools(struct svc_serv *serv, struct net *net)
 			if (xprt->xpt_net != net)
 				continue;
 			list_del_init(&xprt->xpt_ready);
+			spin_unlock_bh(&pool->sp_lock);
+			return xprt;
 		}
 		spin_unlock_bh(&pool->sp_lock);
 	}
+	return NULL;
 }
 
-static void svc_clear_list(struct svc_serv *serv, struct list_head *xprt_list, struct net *net)
+static void svc_clean_up_xprts(struct svc_serv *serv, struct net *net)
 {
 	struct svc_xprt *xprt;
-	struct svc_xprt *tmp;
-	LIST_HEAD(victims);
 
-	spin_lock(&serv->sv_lock);
-	list_for_each_entry_safe(xprt, tmp, xprt_list, xpt_list) {
-		if (xprt->xpt_net != net)
-			continue;
-		list_move(&xprt->xpt_list, &victims);
-	}
-	spin_unlock(&serv->sv_lock);
-
-	list_for_each_entry_safe(xprt, tmp, &victims, xpt_list)
+	while ((xprt = svc_dequeue_net(serv, net))) {
+		set_bit(XPT_CLOSE, &xprt->xpt_flags);
 		svc_delete_xprt(xprt);
+	}
 }
 
+/*
+ * Server threads may still be running (especially in the case where the
+ * service is still running in other network namespaces).
+ *
+ * So we shut down sockets the same way we would on a running server, by
+ * setting XPT_CLOSE, enqueuing, and letting a thread pick it up to do
+ * the close.  In the case there are no such other threads,
+ * threads running, svc_clean_up_xprts() does a simple version of a
+ * server's main event loop, and in the case where there are other
+ * threads, we may need to wait a little while and then check again to
+ * see if they're done.
+ */
 void svc_close_net(struct svc_serv *serv, struct net *net)
 {
-	svc_close_list(serv, &serv->sv_tempsocks, net);
-	svc_close_list(serv, &serv->sv_permsocks, net);
+	int delay = 0;
 
-	svc_clear_pools(serv, net);
-	/*
-	 * At this point the sp_sockets lists will stay empty, since
-	 * svc_xprt_enqueue will not add new entries without taking the
-	 * sp_lock and checking XPT_BUSY.
-	 */
-	svc_clear_list(serv, &serv->sv_tempsocks, net);
-	svc_clear_list(serv, &serv->sv_permsocks, net);
+	while (svc_close_list(serv, &serv->sv_permsocks, net) +
+	       svc_close_list(serv, &serv->sv_tempsocks, net)) {
+
+		svc_clean_up_xprts(serv, net);
+		msleep(delay++);
+	}
 }
 
 /*

@@ -1,0 +1,244 @@
+/*
+ * Device Tree Source for the SH73A0 SoC
+ *
+ * Copyright (C) 2012 Renesas Solutions Corp.
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	compatible = "renesas,sh73a0";
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <0>;
+		};
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <1>;
+		};
+	};
+
+	gic: interrupt-controller@f0001000 {
+		compatible = "arm,cortex-a9-gic";
+		#interrupt-cells = <3>;
+		#address-cells = <1>;
+		interrupt-controller;
+		reg = <0xf0001000 0x1000>,
+		      <0xf0000100 0x100>;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <0 55 4>,
+			     <0 56 4>;
+	};
+
+	irqpin0: irqpin@e6900000 {
+		compatible = "renesas,intc-irqpin";
+		#interrupt-cells = <2>;
+		interrupt-controller;
+		reg = <0xe6900000 4>,
+			<0xe6900010 4>,
+			<0xe6900020 1>,
+			<0xe6900040 1>,
+			<0xe6900060 1>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 1 0x4
+			      0 2 0x4
+			      0 3 0x4
+			      0 4 0x4
+			      0 5 0x4
+			      0 6 0x4
+			      0 7 0x4
+			      0 8 0x4>;
+	};
+
+	irqpin1: irqpin@e6900004 {
+		compatible = "renesas,intc-irqpin";
+		#interrupt-cells = <2>;
+		interrupt-controller;
+		reg = <0xe6900004 4>,
+			<0xe6900014 4>,
+			<0xe6900024 1>,
+			<0xe6900044 1>,
+			<0xe6900064 1>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 9 0x4
+			      0 10 0x4
+			      0 11 0x4
+			      0 12 0x4
+			      0 13 0x4
+			      0 14 0x4
+			      0 15 0x4
+			      0 16 0x4>;
+		control-parent;
+	};
+
+	irqpin2: irqpin@e6900008 {
+		compatible = "renesas,intc-irqpin";
+		#interrupt-cells = <2>;
+		interrupt-controller;
+		reg = <0xe6900008 4>,
+			<0xe6900018 4>,
+			<0xe6900028 1>,
+			<0xe6900048 1>,
+			<0xe6900068 1>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 17 0x4
+			      0 18 0x4
+			      0 19 0x4
+			      0 20 0x4
+			      0 21 0x4
+			      0 22 0x4
+			      0 23 0x4
+			      0 24 0x4>;
+	};
+
+	irqpin3: irqpin@e690000c {
+		compatible = "renesas,intc-irqpin";
+		#interrupt-cells = <2>;
+		interrupt-controller;
+		reg = <0xe690000c 4>,
+			<0xe690001c 4>,
+			<0xe690002c 1>,
+			<0xe690004c 1>,
+			<0xe690006c 1>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 25 0x4
+			      0 26 0x4
+			      0 27 0x4
+			      0 28 0x4
+			      0 29 0x4
+			      0 30 0x4
+			      0 31 0x4
+			      0 32 0x4>;
+	};
+
+	i2c0: i2c@e6820000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "renesas,rmobile-iic";
+		reg = <0xe6820000 0x425>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 167 0x4
+			      0 168 0x4
+			      0 169 0x4
+			      0 170 0x4>;
+		status = "disabled";
+	};
+
+	i2c1: i2c@e6822000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "renesas,rmobile-iic";
+		reg = <0xe6822000 0x425>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 51 0x4
+			      0 52 0x4
+			      0 53 0x4
+			      0 54 0x4>;
+		status = "disabled";
+	};
+
+	i2c2: i2c@e6824000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "renesas,rmobile-iic";
+		reg = <0xe6824000 0x425>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 171 0x4
+			      0 172 0x4
+			      0 173 0x4
+			      0 174 0x4>;
+		status = "disabled";
+	};
+
+	i2c3: i2c@e6826000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "renesas,rmobile-iic";
+		reg = <0xe6826000 0x425>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 183 0x4
+			      0 184 0x4
+			      0 185 0x4
+			      0 186 0x4>;
+		status = "disabled";
+	};
+
+	i2c4: i2c@e6828000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "renesas,rmobile-iic";
+		reg = <0xe6828000 0x425>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 187 0x4
+			      0 188 0x4
+			      0 189 0x4
+			      0 190 0x4>;
+		status = "disabled";
+	};
+
+	mmcif: mmcif@e6bd0000 {
+		compatible = "renesas,sh-mmcif";
+		reg = <0xe6bd0000 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 140 0x4
+			      0 141 0x4>;
+		reg-io-width = <4>;
+		status = "disabled";
+	};
+
+	sdhi0: sdhi@ee100000 {
+		compatible = "renesas,sdhi-r8a7740";
+		reg = <0xee100000 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 83 4
+				0 84 4
+				0 85 4>;
+		cap-sd-highspeed;
+		status = "disabled";
+	};
+
+	/* SDHI1 and SDHI2 have no CD pins, no need for CD IRQ */
+	sdhi1: sdhi@ee120000 {
+		compatible = "renesas,sdhi-r8a7740";
+		reg = <0xee120000 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 88 4
+				0 89 4>;
+		toshiba,mmc-wrprotect-disable;
+		cap-sd-highspeed;
+		status = "disabled";
+	};
+
+	sdhi2: sdhi@ee140000 {
+		compatible = "renesas,sdhi-r8a7740";
+		reg = <0xee140000 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 104 4
+				0 105 4>;
+		toshiba,mmc-wrprotect-disable;
+		cap-sd-highspeed;
+		status = "disabled";
+	};
+
+	pfc: pfc@e6050000 {
+		compatible = "renesas,pfc-sh73a0";
+		reg = <0xe6050000 0x8000>,
+		      <0xe605801c 0x1c>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};

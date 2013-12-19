@@ -120,8 +120,8 @@ static int pandora_backlight_probe(struct platform_device *pdev)
 	memset(&props, 0, sizeof(props));
 	props.max_brightness = MAX_USER_VALUE;
 	props.type = BACKLIGHT_RAW;
-	bl = backlight_device_register(pdev->name, &pdev->dev,
-			NULL, &pandora_backlight_ops, &props);
+	bl = devm_backlight_device_register(&pdev->dev, pdev->name, &pdev->dev,
+					NULL, &pandora_backlight_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
 		return PTR_ERR(bl);
@@ -145,20 +145,12 @@ static int pandora_backlight_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pandora_backlight_remove(struct platform_device *pdev)
-{
-	struct backlight_device *bl = platform_get_drvdata(pdev);
-	backlight_device_unregister(bl);
-	return 0;
-}
-
 static struct platform_driver pandora_backlight_driver = {
 	.driver		= {
 		.name	= "pandora-backlight",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pandora_backlight_probe,
-	.remove		= pandora_backlight_remove,
 };
 
 module_platform_driver(pandora_backlight_driver);

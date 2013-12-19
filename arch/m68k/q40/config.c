@@ -40,7 +40,7 @@ extern void q40_init_IRQ(void);
 static void q40_get_model(char *model);
 extern void q40_sched_init(irq_handler_t handler);
 
-static unsigned long q40_gettimeoffset(void);
+static u32 q40_gettimeoffset(void);
 static int q40_hwclk(int, struct rtc_time *);
 static unsigned int q40_get_ss(void);
 static int q40_set_clock_mmss(unsigned long);
@@ -170,7 +170,7 @@ void __init config_q40(void)
 	mach_sched_init = q40_sched_init;
 
 	mach_init_IRQ = q40_init_IRQ;
-	mach_gettimeoffset = q40_gettimeoffset;
+	arch_gettimeoffset = q40_gettimeoffset;
 	mach_hwclk = q40_hwclk;
 	mach_get_ss = q40_get_ss;
 	mach_get_rtc_pll = q40_get_rtc_pll;
@@ -204,9 +204,9 @@ int q40_parse_bootinfo(const struct bi_record *rec)
 }
 
 
-static unsigned long q40_gettimeoffset(void)
+static u32 q40_gettimeoffset(void)
 {
-	return 5000 * (ql_ticks != 0);
+	return 5000 * (ql_ticks != 0) * 1000;
 }
 
 
@@ -338,6 +338,6 @@ static __init int q40_add_kbd_device(void)
 		return -ENODEV;
 
 	pdev = platform_device_register_simple("q40kbd", -1, NULL, 0);
-	return PTR_RET(pdev);
+	return PTR_ERR_OR_ZERO(pdev);
 }
 arch_initcall(q40_add_kbd_device);

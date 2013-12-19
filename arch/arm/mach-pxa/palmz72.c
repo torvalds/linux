@@ -140,7 +140,7 @@ static unsigned long palmz72_pin_config[] __initdata = {
  * GPIO keyboard
  ******************************************************************************/
 #if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULE)
-static unsigned int palmz72_matrix_keys[] = {
+static const unsigned int palmz72_matrix_keys[] = {
 	KEY(0, 0, KEY_POWER),
 	KEY(0, 1, KEY_F1),
 	KEY(0, 2, KEY_ENTER),
@@ -156,11 +156,15 @@ static unsigned int palmz72_matrix_keys[] = {
 	KEY(3, 2, KEY_LEFT),
 };
 
+static struct matrix_keymap_data almz72_matrix_keymap_data = {
+	.keymap			= palmz72_matrix_keys,
+	.keymap_size		= ARRAY_SIZE(palmz72_matrix_keys),
+};
+
 static struct pxa27x_keypad_platform_data palmz72_keypad_platform_data = {
 	.matrix_key_rows	= 4,
 	.matrix_key_cols	= 3,
-	.matrix_key_map		= palmz72_matrix_keys,
-	.matrix_key_map_size	= ARRAY_SIZE(palmz72_matrix_keys),
+	.matrix_keymap_data	= &almz72_matrix_keymap_data,
 
 	.debounce_interval	= 30,
 };
@@ -404,7 +408,7 @@ MACHINE_START(PALMZ72, "Palm Zire72")
 	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa27x_init_irq,
 	.handle_irq	= pxa27x_handle_irq,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine	= palmz72_init,
 	.restart	= pxa_restart,
 MACHINE_END

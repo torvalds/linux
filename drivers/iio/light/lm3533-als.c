@@ -231,7 +231,7 @@ static int lm3533_als_read_raw(struct iio_dev *indio_dev,
 		.channel	= _channel,				\
 		.indexed	= true,					\
 		.output		= true,					\
-		.info_mask	= IIO_CHAN_INFO_RAW_SEPARATE_BIT,	\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
 	}
 
 static const struct iio_chan_spec lm3533_als_channels[] = {
@@ -239,8 +239,8 @@ static const struct iio_chan_spec lm3533_als_channels[] = {
 		.type		= IIO_LIGHT,
 		.channel	= 0,
 		.indexed	= true,
-		.info_mask	= (IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE_BIT |
-				   IIO_CHAN_INFO_RAW_SEPARATE_BIT),
+		.info_mask_separate = BIT(IIO_CHAN_INFO_AVERAGE_RAW) |
+				   BIT(IIO_CHAN_INFO_RAW),
 	},
 	CHANNEL_CURRENT(0),
 	CHANNEL_CURRENT(1),
@@ -718,8 +718,7 @@ static struct attribute_group lm3533_als_attribute_group = {
 	.attrs = lm3533_als_attributes
 };
 
-static int __devinit lm3533_als_set_input_mode(struct lm3533_als *als,
-								bool pwm_mode)
+static int lm3533_als_set_input_mode(struct lm3533_als *als, bool pwm_mode)
 {
 	u8 mask = LM3533_ALS_INPUT_MODE_MASK;
 	u8 val;
@@ -740,7 +739,7 @@ static int __devinit lm3533_als_set_input_mode(struct lm3533_als *als,
 	return 0;
 }
 
-static int __devinit lm3533_als_set_resistor(struct lm3533_als *als, u8 val)
+static int lm3533_als_set_resistor(struct lm3533_als *als, u8 val)
 {
 	int ret;
 
@@ -756,8 +755,8 @@ static int __devinit lm3533_als_set_resistor(struct lm3533_als *als, u8 val)
 	return 0;
 }
 
-static int __devinit lm3533_als_setup(struct lm3533_als *als,
-					struct lm3533_als_platform_data *pdata)
+static int lm3533_als_setup(struct lm3533_als *als,
+			    struct lm3533_als_platform_data *pdata)
 {
 	int ret;
 
@@ -775,7 +774,7 @@ static int __devinit lm3533_als_setup(struct lm3533_als *als,
 	return 0;
 }
 
-static int __devinit lm3533_als_setup_irq(struct lm3533_als *als, void *dev)
+static int lm3533_als_setup_irq(struct lm3533_als *als, void *dev)
 {
 	u8 mask = LM3533_ALS_INT_ENABLE_MASK;
 	int ret;
@@ -799,7 +798,7 @@ static int __devinit lm3533_als_setup_irq(struct lm3533_als *als, void *dev)
 	return 0;
 }
 
-static int __devinit lm3533_als_enable(struct lm3533_als *als)
+static int lm3533_als_enable(struct lm3533_als *als)
 {
 	u8 mask = LM3533_ALS_ENABLE_MASK;
 	int ret;
@@ -830,7 +829,7 @@ static const struct iio_info lm3533_als_info = {
 	.read_raw	= &lm3533_als_read_raw,
 };
 
-static int __devinit lm3533_als_probe(struct platform_device *pdev)
+static int lm3533_als_probe(struct platform_device *pdev)
 {
 	struct lm3533 *lm3533;
 	struct lm3533_als_platform_data *pdata;
@@ -848,7 +847,7 @@ static int __devinit lm3533_als_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	indio_dev = iio_device_alloc(sizeof(*als));
+	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*als));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -871,7 +870,7 @@ static int __devinit lm3533_als_probe(struct platform_device *pdev)
 	if (als->irq) {
 		ret = lm3533_als_setup_irq(als, indio_dev);
 		if (ret)
-			goto err_free_dev;
+			return ret;
 	}
 
 	ret = lm3533_als_setup(als, pdata);
@@ -895,13 +894,11 @@ err_disable:
 err_free_irq:
 	if (als->irq)
 		free_irq(als->irq, indio_dev);
-err_free_dev:
-	iio_device_free(indio_dev);
 
 	return ret;
 }
 
-static int __devexit lm3533_als_remove(struct platform_device *pdev)
+static int lm3533_als_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct lm3533_als *als = iio_priv(indio_dev);
@@ -911,7 +908,6 @@ static int __devexit lm3533_als_remove(struct platform_device *pdev)
 	lm3533_als_disable(als);
 	if (als->irq)
 		free_irq(als->irq, indio_dev);
-	iio_device_free(indio_dev);
 
 	return 0;
 }
@@ -922,7 +918,7 @@ static struct platform_driver lm3533_als_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= lm3533_als_probe,
-	.remove		= __devexit_p(lm3533_als_remove),
+	.remove		= lm3533_als_remove,
 };
 module_platform_driver(lm3533_als_driver);
 

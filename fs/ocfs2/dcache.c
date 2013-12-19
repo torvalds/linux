@@ -70,9 +70,10 @@ static int ocfs2_dentry_revalidate(struct dentry *dentry, unsigned int flags)
 	 */
 	if (inode == NULL) {
 		unsigned long gen = (unsigned long) dentry->d_fsdata;
-		unsigned long pgen =
-			OCFS2_I(dentry->d_parent->d_inode)->ip_dir_lock_gen;
-
+		unsigned long pgen;
+		spin_lock(&dentry->d_lock);
+		pgen = OCFS2_I(dentry->d_parent->d_inode)->ip_dir_lock_gen;
+		spin_unlock(&dentry->d_lock);
 		trace_ocfs2_dentry_revalidate_negative(dentry->d_name.len,
 						       dentry->d_name.name,
 						       pgen, gen);
@@ -169,11 +170,10 @@ struct dentry *ocfs2_find_local_alias(struct inode *inode,
 				      u64 parent_blkno,
 				      int skip_unhashed)
 {
-	struct hlist_node *p;
 	struct dentry *dentry;
 
 	spin_lock(&inode->i_lock);
-	hlist_for_each_entry(dentry, p, &inode->i_dentry, d_alias) {
+	hlist_for_each_entry(dentry, &inode->i_dentry, d_alias) {
 		spin_lock(&dentry->d_lock);
 		if (ocfs2_match_dentry(dentry, parent_blkno, skip_unhashed)) {
 			trace_ocfs2_find_local_alias(dentry->d_name.len,

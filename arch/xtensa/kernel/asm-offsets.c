@@ -42,6 +42,7 @@ int main(void)
 	DEFINE(PT_ICOUNTLEVEL, offsetof (struct pt_regs, icountlevel));
 	DEFINE(PT_SYSCALL, offsetof (struct pt_regs, syscall));
 	DEFINE(PT_SCOMPARE1, offsetof(struct pt_regs, scompare1));
+	DEFINE(PT_THREADPTR, offsetof(struct pt_regs, threadptr));
 	DEFINE(PT_AREG, offsetof (struct pt_regs, areg[0]));
 	DEFINE(PT_AREG0, offsetof (struct pt_regs, areg[0]));
 	DEFINE(PT_AREG1, offsetof (struct pt_regs, areg[1]));

@@ -1626,7 +1626,7 @@ static int isp116x_probe(struct platform_device *pdev)
 	isp116x->addr_reg = addr_reg;
 	spin_lock_init(&isp116x->lock);
 	INIT_LIST_HEAD(&isp116x->async);
-	isp116x->board = pdev->dev.platform_data;
+	isp116x->board = dev_get_platdata(&pdev->dev);
 
 	if (!isp116x->board) {
 		ERR("Platform data structure not initialized\n");

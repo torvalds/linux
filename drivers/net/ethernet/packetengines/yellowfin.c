@@ -513,7 +513,6 @@ err_out_unmap_rx:
 err_out_unmap_tx:
         pci_free_consistent(pdev, TX_TOTAL_SIZE, np->tx_ring, np->tx_ring_dma);
 err_out_cleardev:
-	pci_set_drvdata(pdev, NULL);
 	pci_iounmap(pdev, ioaddr);
 err_out_free_res:
 	pci_release_regions(pdev);
@@ -1326,9 +1325,10 @@ static void set_rx_mode(struct net_device *dev)
 static void yellowfin_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct yellowfin_private *np = netdev_priv(dev);
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, pci_name(np->pci_dev));
+
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
 static const struct ethtool_ops ethtool_ops = {
@@ -1391,7 +1391,6 @@ static void yellowfin_remove_one(struct pci_dev *pdev)
 	pci_release_regions (pdev);
 
 	free_netdev (dev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 

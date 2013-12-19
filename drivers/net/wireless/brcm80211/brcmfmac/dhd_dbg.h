@@ -18,26 +18,33 @@
 #define _BRCMF_DBG_H_
 
 /* message levels */
-#define BRCMF_TRACE_VAL	0x0002
-#define BRCMF_INFO_VAL	0x0004
-#define BRCMF_DATA_VAL	0x0008
-#define BRCMF_CTL_VAL	0x0010
-#define BRCMF_TIMER_VAL	0x0020
-#define BRCMF_HDRS_VAL	0x0040
-#define BRCMF_BYTES_VAL	0x0080
-#define BRCMF_INTR_VAL	0x0100
-#define BRCMF_GLOM_VAL	0x0200
-#define BRCMF_EVENT_VAL	0x0400
-#define BRCMF_BTA_VAL	0x0800
-#define BRCMF_FIL_VAL	0x1000
-#define BRCMF_USB_VAL	0x2000
-#define BRCMF_SCAN_VAL	0x4000
-#define BRCMF_CONN_VAL	0x8000
+#define BRCMF_TRACE_VAL	0x00000002
+#define BRCMF_INFO_VAL	0x00000004
+#define BRCMF_DATA_VAL	0x00000008
+#define BRCMF_CTL_VAL	0x00000010
+#define BRCMF_TIMER_VAL	0x00000020
+#define BRCMF_HDRS_VAL	0x00000040
+#define BRCMF_BYTES_VAL	0x00000080
+#define BRCMF_INTR_VAL	0x00000100
+#define BRCMF_GLOM_VAL	0x00000200
+#define BRCMF_EVENT_VAL	0x00000400
+#define BRCMF_BTA_VAL	0x00000800
+#define BRCMF_FIL_VAL	0x00001000
+#define BRCMF_USB_VAL	0x00002000
+#define BRCMF_SCAN_VAL	0x00004000
+#define BRCMF_CONN_VAL	0x00008000
+#define BRCMF_CDC_VAL	0x00010000
+#define BRCMF_SDIO_VAL	0x00020000
+
+/* set default print format */
+#undef pr_fmt
+#define pr_fmt(fmt)		KBUILD_MODNAME ": " fmt
 
 /* Macro for error messages. net_ratelimit() is used when driver
  * debugging is not selected. When debugging the driver error
  * messages are as important as other tracing or even more so.
  */
+#ifndef CONFIG_BRCM_TRACING
 #ifdef CONFIG_BRCMDBG
 #define brcmf_err(fmt, ...)	pr_err("%s: " fmt, __func__, ##__VA_ARGS__)
 #else
@@ -47,15 +54,21 @@
 			pr_err("%s: " fmt, __func__, ##__VA_ARGS__);	\
 	} while (0)
 #endif
+#else
+__printf(2, 3)
+void __brcmf_err(const char *func, const char *fmt, ...);
+#define brcmf_err(fmt, ...) \
+	__brcmf_err(__func__, fmt, ##__VA_ARGS__)
+#endif
 
-#if defined(DEBUG)
-
+#if defined(DEBUG) || defined(CONFIG_BRCM_TRACING)
+__printf(3, 4)
+void __brcmf_dbg(u32 level, const char *func, const char *fmt, ...);
 #define brcmf_dbg(level, fmt, ...)				\
 do {								\
-	if (brcmf_msg_level & BRCMF_##level##_VAL)		\
-		pr_debug("%s: " fmt, __func__, ##__VA_ARGS__);	\
+	__brcmf_dbg(BRCMF_##level##_VAL, __func__,		\
+		    fmt, ##__VA_ARGS__);			\
 } while (0)
-
 #define BRCMF_DATA_ON()		(brcmf_msg_level & BRCMF_DATA_VAL)
 #define BRCMF_CTL_ON()		(brcmf_msg_level & BRCMF_CTL_VAL)
 #define BRCMF_HDRS_ON()		(brcmf_msg_level & BRCMF_HDRS_VAL)
@@ -64,7 +77,7 @@ do {								\
 #define BRCMF_EVENT_ON()	(brcmf_msg_level & BRCMF_EVENT_VAL)
 #define BRCMF_FIL_ON()		(brcmf_msg_level & BRCMF_FIL_VAL)
 
-#else	/* (defined DEBUG) || (defined DEBUG) */
+#else /* defined(DEBUG) || defined(CONFIG_BRCM_TRACING) */
 
 #define brcmf_dbg(level, fmt, ...) no_printk(fmt, ##__VA_ARGS__)
 
@@ -76,10 +89,11 @@ do {								\
 #define BRCMF_EVENT_ON()	0
 #define BRCMF_FIL_ON()		0
 
-#endif				/* defined(DEBUG) */
+#endif /* defined(DEBUG) || defined(CONFIG_BRCM_TRACING) */
 
 #define brcmf_dbg_hex_dump(test, data, len, fmt, ...)			\
 do {									\
+	trace_brcmf_hexdump((void *)data, len);				\
 	if (test)							\
 		brcmu_dbg_hex_dump(data, len, fmt, ##__VA_ARGS__);	\
 } while (0)
@@ -120,6 +134,34 @@ struct brcmf_sdio_count {
 	ulong rx_readahead_cnt;	/* packets where header read-ahead was used */
 };
 
+struct brcmf_fws_stats {
+	u32 tlv_parse_failed;
+	u32 tlv_invalid_type;
+	u32 header_only_pkt;
+	u32 header_pulls;
+	u32 pkt2bus;
+	u32 send_pkts[5];
+	u32 requested_sent[5];
+	u32 generic_error;
+	u32 mac_update_failed;
+	u32 mac_ps_update_failed;
+	u32 if_update_failed;
+	u32 packet_request_failed;
+	u32 credit_request_failed;
+	u32 rollback_success;
+	u32 rollback_failed;
+	u32 delayq_full_error;
+	u32 supprq_full_error;
+	u32 txs_indicate;
+	u32 txs_discard;
+	u32 txs_supp_core;
+	u32 txs_supp_ps;
+	u32 txs_tossed;
+	u32 txs_host_tossed;
+	u32 bus_flow_block;
+	u32 fws_flow_block;
+};
+
 struct brcmf_pub;
 #ifdef DEBUG
 void brcmf_debugfs_init(void);
@@ -129,6 +171,8 @@ void brcmf_debugfs_detach(struct brcmf_pub *drvr);
 struct dentry *brcmf_debugfs_get_devdir(struct brcmf_pub *drvr);
 void brcmf_debugfs_create_sdio_count(struct brcmf_pub *drvr,
 				     struct brcmf_sdio_count *sdcnt);
+void brcmf_debugfs_create_fws_stats(struct brcmf_pub *drvr,
+				    struct brcmf_fws_stats *stats);
 #else
 static inline void brcmf_debugfs_init(void)
 {
@@ -141,6 +185,10 @@ static inline int brcmf_debugfs_attach(struct brcmf_pub *drvr)
 	return 0;
 }
 static inline void brcmf_debugfs_detach(struct brcmf_pub *drvr)
+{
+}
+static inline void brcmf_debugfs_create_fws_stats(struct brcmf_pub *drvr,
+						  struct brcmf_fws_stats *stats)
 {
 }
 #endif

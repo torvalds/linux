@@ -1,0 +1,127 @@
+ImgTec TZ1090 PDC pin controller
+
+Required properties:
+- compatible: "img,tz1090-pdc-pinctrl"
+- reg: Should contain the register physical address and length of the
+  SOC_GPIO_CONTROL registers in the PDC register region.
+
+Please refer to pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices, including the meaning of the
+phrase "pin configuration node".
+
+TZ1090-PDC's pin configuration nodes act as a container for an abitrary number
+of subnodes. Each of these subnodes represents some desired configuration for a
+pin, a group, or a list of pins or groups. This configuration can include the
+mux function to select on those pin(s)/group(s), and various pin configuration
+parameters, such as pull-up, drive strength, etc.
+
+The name of each subnode is not important; all subnodes should be enumerated
+and processed purely based on their content.
+
+Each subnode only affects those parameters that are explicitly listed. In
+other words, a subnode that lists a mux function but no pin configuration
+parameters implies no information about any pin configuration parameters.
+Similarly, a pin subnode that describes a pullup parameter implies no
+information about e.g. the mux function. For this reason, even seemingly boolean
+values are actually tristates in this binding: unspecified, off, or on.
+Unspecified is represented as an absent property, and off/on are represented as
+integer values 0 and 1.
+
+Required subnode-properties:
+- tz1090,pins : An array of strings. Each string contains the name of a pin or
+  group. Valid values for these names are listed below.
+
+Optional subnode-properties:
+- tz1090,function: A string containing the name of the function to mux to the
+  pin or group. Valid values for function names are listed below, including
+  which pingroups can be muxed to them.
+- supported generic pinconfig properties (for further details see
+  Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt):
+  - bias-disable
+  - bias-high-impedance
+  - bias-bus-hold
+  - bias-pull-up
+  - bias-pull-down
+  - input-schmitt-enable
+  - input-schmitt-disable
+  - drive-strength: Integer, control drive strength of pins in mA.
+      2: 2mA
+      4: 4mA
+      8: 8mA
+      12: 12mA
+  - low-power-enable: Flag, power-on-start weak pull-down for invalid power.
+  - low-power-disable: Flag, power-on-start weak pull-down disabled.
+
+Note that many of these properties are only valid for certain specific pins
+or groups. See the TZ1090 TRM for complete details regarding which groups
+support which functionality. The Linux pinctrl driver may also be a useful
+reference.
+
+Valid values for pin and group names are:
+
+  pins:
+
+    These all support bias-high-impediance, bias-pull-up, bias-pull-down, and
+    bias-bus-hold (which can also be provided to any of the groups below to set
+    it for all gpio pins in that group).
+
+    gpio0, gpio1, sys_wake0, sys_wake1, sys_wake2, ir_data, ext_power.
+
+  mux groups:
+
+    These all support function.
+
+    gpio0
+        pins:       gpio0.
+        function:   ir_mod_stable_out.
+    gpio1
+        pins:       gpio1.
+        function:   ir_mod_power_out.
+
+  drive groups:
+
+    These support input-schmitt-enable, input-schmitt-disable,
+    drive-strength, low-power-enable, and low-power-disable.
+
+    pdc
+        pins:   gpio0, gpio1, sys_wake0, sys_wake1, sys_wake2, ir_data,
+                ext_power.
+
+Example:
+
+	pinctrl_pdc: pinctrl@02006500 {
+		#gpio-range-cells = <3>;
+		compatible = "img,tz1090-pdc-pinctrl";
+		reg = <0x02006500 0x100>;
+	};
+
+Example board file extracts:
+
+	&pinctrl_pdc {
+		pinctrl-names = "default";
+		pinctrl-0 = <&syswake_default>;
+
+		syswake_default: syswakes {
+			syswake_cfg {
+				tz1090,pins =	"sys_wake0",
+						"sys_wake1",
+						"sys_wake2";
+				pull-up;
+			};
+		};
+		irmod_default: irmod {
+			gpio0_cfg {
+				tz1090,pins =	"gpio0";
+				tz1090,function = "ir_mod_stable_out";
+			};
+			gpio1_cfg {
+				tz1090,pins =	"gpio1";
+				tz1090,function = "ir_mod_power_out";
+			};
+		};
+	};
+
+	ir: ir@02006200 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&irmod_default>;
+	};

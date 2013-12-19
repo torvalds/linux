@@ -14,11 +14,6 @@
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
  */
 /*
 Driver: daqboard2000
@@ -107,11 +102,12 @@ Configuration options: not applicable, uses PCI auto config
 
  */
 
-#include "../comedidev.h"
-
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/firmware.h>
+
+#include "../comedidev.h"
 
 #include "8255.h"
 
@@ -461,9 +457,9 @@ static void daqboard2000_resetLocalBus(struct comedi_device *dev)
 	struct daqboard2000_private *devpriv = dev->private;
 
 	writel(DAQBOARD2000_SECRLocalBusHi, devpriv->plx + 0x6c);
-	udelay(10000);
+	mdelay(10);
 	writel(DAQBOARD2000_SECRLocalBusLo, devpriv->plx + 0x6c);
-	udelay(10000);
+	mdelay(10);
 }
 
 static void daqboard2000_reloadPLX(struct comedi_device *dev)
@@ -471,11 +467,11 @@ static void daqboard2000_reloadPLX(struct comedi_device *dev)
 	struct daqboard2000_private *devpriv = dev->private;
 
 	writel(DAQBOARD2000_SECRReloadLo, devpriv->plx + 0x6c);
-	udelay(10000);
+	mdelay(10);
 	writel(DAQBOARD2000_SECRReloadHi, devpriv->plx + 0x6c);
-	udelay(10000);
+	mdelay(10);
 	writel(DAQBOARD2000_SECRReloadLo, devpriv->plx + 0x6c);
-	udelay(10000);
+	mdelay(10);
 }
 
 static void daqboard2000_pulseProgPin(struct comedi_device *dev)
@@ -483,9 +479,9 @@ static void daqboard2000_pulseProgPin(struct comedi_device *dev)
 	struct daqboard2000_private *devpriv = dev->private;
 
 	writel(DAQBOARD2000_SECRProgPinHi, devpriv->plx + 0x6c);
-	udelay(10000);
+	mdelay(10);
 	writel(DAQBOARD2000_SECRProgPinLo, devpriv->plx + 0x6c);
-	udelay(10000);		/* Not in the original code, but I like symmetry... */
+	mdelay(10);	/* Not in the original code, but I like symmetry... */
 }
 
 static int daqboard2000_pollCPLD(struct comedi_device *dev, int mask)
@@ -523,7 +519,8 @@ static int daqboard2000_writeCPLD(struct comedi_device *dev, int data)
 }
 
 static int initialize_daqboard2000(struct comedi_device *dev,
-				   const u8 *cpld_array, size_t len)
+				   const u8 *cpld_array, size_t len,
+				   unsigned long context)
 {
 	struct daqboard2000_private *devpriv = dev->private;
 	int result = -EIO;
@@ -562,22 +559,6 @@ static int initialize_daqboard2000(struct comedi_device *dev,
 		}
 	}
 	return result;
-}
-
-static int daqboard2000_upload_firmware(struct comedi_device *dev)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct firmware *fw;
-	int ret;
-
-	ret = request_firmware(&fw, DAQBOARD2000_FIRMWARE, &pcidev->dev);
-	if (ret)
-		return ret;
-
-	ret = initialize_daqboard2000(dev, fw->data, fw->size);
-	release_firmware(fw);
-
-	return ret;
 }
 
 static void daqboard2000_adcStopDmaTransfer(struct comedi_device *dev)
@@ -703,20 +684,16 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
-	result = comedi_pci_enable(pcidev, dev->driver->driver_name);
-	if (result < 0)
+	result = comedi_pci_enable(dev);
+	if (result)
 		return result;
-	dev->iobase = 1;	/* the "detach" needs this */
 
-	devpriv->plx = ioremap(pci_resource_start(pcidev, 0),
-			       pci_resource_len(pcidev, 0));
-	devpriv->daq = ioremap(pci_resource_start(pcidev, 2),
-			       pci_resource_len(pcidev, 2));
+	devpriv->plx = pci_ioremap_bar(pcidev, 0);
+	devpriv->daq = pci_ioremap_bar(pcidev, 2);
 	if (!devpriv->plx || !devpriv->daq)
 		return -ENOMEM;
 
@@ -726,7 +703,9 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 
 	readl(devpriv->plx + 0x6c);
 
-	result = daqboard2000_upload_firmware(dev);
+	result = comedi_load_firmware(dev, &comedi_to_pci_dev(dev)->dev,
+				      DAQBOARD2000_FIRMWARE,
+				      initialize_daqboard2000, 0);
 	if (result < 0)
 		return result;
 
@@ -766,11 +745,8 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 
 static void daqboard2000_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct daqboard2000_private *devpriv = dev->private;
 
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, &dev->subdevices[2]);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (devpriv) {
@@ -779,11 +755,7 @@ static void daqboard2000_detach(struct comedi_device *dev)
 		if (devpriv->plx)
 			iounmap(devpriv->plx);
 	}
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-		pci_dev_put(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver daqboard2000_driver = {
@@ -794,14 +766,10 @@ static struct comedi_driver daqboard2000_driver = {
 };
 
 static int daqboard2000_pci_probe(struct pci_dev *dev,
-					    const struct pci_device_id *ent)
+				  const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &daqboard2000_driver);
-}
-
-static void daqboard2000_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
+	return comedi_pci_auto_config(dev, &daqboard2000_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(daqboard2000_pci_table) = {
@@ -814,7 +782,7 @@ static struct pci_driver daqboard2000_pci_driver = {
 	.name		= "daqboard2000",
 	.id_table	= daqboard2000_pci_table,
 	.probe		= daqboard2000_pci_probe,
-	.remove		= daqboard2000_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(daqboard2000_driver, daqboard2000_pci_driver);
 

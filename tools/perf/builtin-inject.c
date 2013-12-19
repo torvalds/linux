@@ -15,6 +15,7 @@
 #include "util/tool.h"
 #include "util/debug.h"
 #include "util/build-id.h"
+#include "util/data.h"
 
 #include "util/parse-options.h"
 
@@ -38,8 +39,7 @@ struct event_entry {
 };
 
 static int perf_event__repipe_synth(struct perf_tool *tool,
-				    union perf_event *event,
-				    struct machine *machine __maybe_unused)
+				    union perf_event *event)
 {
 	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
 	uint32_t size;
@@ -65,39 +65,33 @@ static int perf_event__repipe_op2_synth(struct perf_tool *tool,
 					struct perf_session *session
 					__maybe_unused)
 {
-	return perf_event__repipe_synth(tool, event, NULL);
+	return perf_event__repipe_synth(tool, event);
 }
 
-static int perf_event__repipe_event_type_synth(struct perf_tool *tool,
-					       union perf_event *event)
+static int perf_event__repipe_attr(struct perf_tool *tool,
+				   union perf_event *event,
+				   struct perf_evlist **pevlist)
 {
-	return perf_event__repipe_synth(tool, event, NULL);
-}
-
-static int perf_event__repipe_tracing_data_synth(union perf_event *event,
-						 struct perf_session *session
-						 __maybe_unused)
-{
-	return perf_event__repipe_synth(NULL, event, NULL);
-}
-
-static int perf_event__repipe_attr(union perf_event *event,
-				   struct perf_evlist **pevlist __maybe_unused)
-{
+	struct perf_inject *inject = container_of(tool, struct perf_inject,
+						  tool);
 	int ret;
-	ret = perf_event__process_attr(event, pevlist);
+
+	ret = perf_event__process_attr(tool, event, pevlist);
 	if (ret)
 		return ret;
 
-	return perf_event__repipe_synth(NULL, event, NULL);
+	if (!inject->pipe_output)
+		return 0;
+
+	return perf_event__repipe_synth(tool, event);
 }
 
 static int perf_event__repipe(struct perf_tool *tool,
 			      union perf_event *event,
 			      struct perf_sample *sample __maybe_unused,
-			      struct machine *machine)
+			      struct machine *machine __maybe_unused)
 {
-	return perf_event__repipe_synth(tool, event, machine);
+	return perf_event__repipe_synth(tool, event);
 }
 
 typedef int (*inject_handler)(struct perf_tool *tool,
@@ -112,14 +106,14 @@ static int perf_event__repipe_sample(struct perf_tool *tool,
 				     struct perf_evsel *evsel,
 				     struct machine *machine)
 {
-	if (evsel->handler.func) {
-		inject_handler f = evsel->handler.func;
+	if (evsel->handler) {
+		inject_handler f = evsel->handler;
 		return f(tool, event, sample, evsel, machine);
 	}
 
 	build_id__mark_dso_hit(tool, event, sample, evsel, machine);
 
-	return perf_event__repipe_synth(tool, event, machine);
+	return perf_event__repipe_synth(tool, event);
 }
 
 static int perf_event__repipe_mmap(struct perf_tool *tool,
@@ -130,6 +124,19 @@ static int perf_event__repipe_mmap(struct perf_tool *tool,
 	int err;
 
 	err = perf_event__process_mmap(tool, event, sample, machine);
+	perf_event__repipe(tool, event, sample, machine);
+
+	return err;
+}
+
+static int perf_event__repipe_mmap2(struct perf_tool *tool,
+				   union perf_event *event,
+				   struct perf_sample *sample,
+				   struct machine *machine)
+{
+	int err;
+
+	err = perf_event__process_mmap2(tool, event, sample, machine);
 	perf_event__repipe(tool, event, sample, machine);
 
 	return err;
@@ -148,49 +155,50 @@ static int perf_event__repipe_fork(struct perf_tool *tool,
 	return err;
 }
 
-static int perf_event__repipe_tracing_data(union perf_event *event,
+static int perf_event__repipe_tracing_data(struct perf_tool *tool,
+					   union perf_event *event,
 					   struct perf_session *session)
 {
 	int err;
 
-	perf_event__repipe_synth(NULL, event, NULL);
-	err = perf_event__process_tracing_data(event, session);
+	perf_event__repipe_synth(tool, event);
+	err = perf_event__process_tracing_data(tool, event, session);
 
 	return err;
 }
 
-static int dso__read_build_id(struct dso *self)
+static int dso__read_build_id(struct dso *dso)
 {
-	if (self->has_build_id)
+	if (dso->has_build_id)
 		return 0;
 
-	if (filename__read_build_id(self->long_name, self->build_id,
-				    sizeof(self->build_id)) > 0) {
-		self->has_build_id = true;
+	if (filename__read_build_id(dso->long_name, dso->build_id,
+				    sizeof(dso->build_id)) > 0) {
+		dso->has_build_id = true;
 		return 0;
 	}
 
 	return -1;
 }
 
-static int dso__inject_build_id(struct dso *self, struct perf_tool *tool,
+static int dso__inject_build_id(struct dso *dso, struct perf_tool *tool,
 				struct machine *machine)
 {
 	u16 misc = PERF_RECORD_MISC_USER;
 	int err;
 
-	if (dso__read_build_id(self) < 0) {
-		pr_debug("no build_id found for %s\n", self->long_name);
+	if (dso__read_build_id(dso) < 0) {
+		pr_debug("no build_id found for %s\n", dso->long_name);
 		return -1;
 	}
 
-	if (self->kernel)
+	if (dso->kernel)
 		misc = PERF_RECORD_MISC_KERNEL;
 
-	err = perf_event__synthesize_build_id(tool, self, misc, perf_event__repipe,
+	err = perf_event__synthesize_build_id(tool, dso, misc, perf_event__repipe,
 					      machine);
 	if (err) {
-		pr_err("Can't synthesize build_id event for %s\n", self->long_name);
+		pr_err("Can't synthesize build_id event for %s\n", dso->long_name);
 		return -1;
 	}
 
@@ -209,7 +217,7 @@ static int perf_event__inject_buildid(struct perf_tool *tool,
 
 	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
-	thread = machine__findnew_thread(machine, event->ip.pid);
+	thread = machine__findnew_thread(machine, sample->pid, sample->pid);
 	if (thread == NULL) {
 		pr_err("problem processing %d event, skipping it.\n",
 		       event->header.type);
@@ -217,7 +225,7 @@ static int perf_event__inject_buildid(struct perf_tool *tool,
 	}
 
 	thread__find_addr_map(thread, machine, cpumode, MAP__FUNCTION,
-			      event->ip.ip, &al);
+			      sample->ip, &al);
 
 	if (al.map != NULL) {
 		if (!al.map->dso->hit) {
@@ -229,7 +237,7 @@ static int perf_event__inject_buildid(struct perf_tool *tool,
 				 * account this as unresolved.
 				 */
 			} else {
-#ifdef LIBELF_SUPPORT
+#ifdef HAVE_LIBELF_SUPPORT
 				pr_warning("no symbols found in %s, maybe "
 					   "install a debug package?\n",
 					   al.map->dso->long_name);
@@ -312,12 +320,12 @@ found:
 	sample_sw.period = sample->period;
 	sample_sw.time	 = sample->time;
 	perf_event__synthesize_sample(event_sw, evsel->attr.sample_type,
-				      &sample_sw, false);
+				      evsel->attr.sample_regs_user,
+				      evsel->attr.read_format, &sample_sw,
+				      false);
 	build_id__mark_dso_hit(tool, event_sw, &sample_sw, evsel, machine);
 	return perf_event__repipe(tool, event_sw, &sample_sw, machine);
 }
-
-extern volatile int session_done;
 
 static void sig_handler(int sig __maybe_unused)
 {
@@ -343,16 +351,21 @@ static int __cmd_inject(struct perf_inject *inject)
 {
 	struct perf_session *session;
 	int ret = -EINVAL;
+	struct perf_data_file file = {
+		.path = inject->input_name,
+		.mode = PERF_DATA_MODE_READ,
+	};
 
 	signal(SIGINT, sig_handler);
 
 	if (inject->build_ids || inject->sched_stat) {
 		inject->tool.mmap	  = perf_event__repipe_mmap;
+		inject->tool.mmap2	  = perf_event__repipe_mmap2;
 		inject->tool.fork	  = perf_event__repipe_fork;
 		inject->tool.tracing_data = perf_event__repipe_tracing_data;
 	}
 
-	session = perf_session__new(inject->input_name, O_RDONLY, false, true, &inject->tool);
+	session = perf_session__new(&file, true, &inject->tool);
 	if (session == NULL)
 		return -ENOMEM;
 
@@ -370,11 +383,11 @@ static int __cmd_inject(struct perf_inject *inject)
 				if (perf_evsel__check_stype(evsel, PERF_SAMPLE_TID, "TID"))
 					return -EINVAL;
 
-				evsel->handler.func = perf_inject__sched_switch;
+				evsel->handler = perf_inject__sched_switch;
 			} else if (!strcmp(name, "sched:sched_process_exit"))
-				evsel->handler.func = perf_inject__sched_process_exit;
+				evsel->handler = perf_inject__sched_process_exit;
 			else if (!strncmp(name, "sched:sched_stat_", 17))
-				evsel->handler.func = perf_inject__sched_stat;
+				evsel->handler = perf_inject__sched_stat;
 		}
 	}
 
@@ -399,6 +412,7 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 		.tool = {
 			.sample		= perf_event__repipe_sample,
 			.mmap		= perf_event__repipe,
+			.mmap2		= perf_event__repipe,
 			.comm		= perf_event__repipe,
 			.fork		= perf_event__repipe,
 			.exit		= perf_event__repipe,
@@ -407,8 +421,8 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 			.throttle	= perf_event__repipe,
 			.unthrottle	= perf_event__repipe,
 			.attr		= perf_event__repipe_attr,
-			.event_type	= perf_event__repipe_event_type_synth,
-			.tracing_data	= perf_event__repipe_tracing_data_synth,
+			.tracing_data	= perf_event__repipe_op2_synth,
+			.finished_round	= perf_event__repipe_op2_synth,
 			.build_id	= perf_event__repipe_op2_synth,
 		},
 		.input_name  = "-",

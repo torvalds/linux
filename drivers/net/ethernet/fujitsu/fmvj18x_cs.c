@@ -705,19 +705,7 @@ static struct pcmcia_driver fmvj18x_cs_driver = {
 	.suspend	= fmvj18x_suspend,
 	.resume		= fmvj18x_resume,
 };
-
-static int __init init_fmvj18x_cs(void)
-{
-	return pcmcia_register_driver(&fmvj18x_cs_driver);
-}
-
-static void __exit exit_fmvj18x_cs(void)
-{
-	pcmcia_unregister_driver(&fmvj18x_cs_driver);
-}
-
-module_init(init_fmvj18x_cs);
-module_exit(exit_fmvj18x_cs);
+module_pcmcia_driver(fmvj18x_cs_driver);
 
 /*====================================================================*/
 
@@ -1003,8 +991,6 @@ static void fjn_rx(struct net_device *dev)
 	    }
 	    skb = netdev_alloc_skb(dev, pkt_len + 2);
 	    if (skb == NULL) {
-		netdev_notice(dev, "Memory squeeze, dropping packet (len %d)\n",
-			      pkt_len);
 		outb(F_SKP_PKT, ioaddr + RX_SKIP);
 		dev->stats.rx_dropped++;
 		break;

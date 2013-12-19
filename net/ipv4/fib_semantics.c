@@ -169,7 +169,8 @@ static void free_nh_exceptions(struct fib_nh *nh)
 			
 			next = rcu_dereference_protected(fnhe->fnhe_next, 1);
 
-			rt_fibinfo_free(&fnhe->fnhe_rth);
+			rt_fibinfo_free(&fnhe->fnhe_rth_input);
+			rt_fibinfo_free(&fnhe->fnhe_rth_output);
 
 			kfree(fnhe);
 
@@ -298,14 +299,13 @@ static inline unsigned int fib_info_hashfn(const struct fib_info *fi)
 static struct fib_info *fib_find_info(const struct fib_info *nfi)
 {
 	struct hlist_head *head;
-	struct hlist_node *node;
 	struct fib_info *fi;
 	unsigned int hash;
 
 	hash = fib_info_hashfn(nfi);
 	head = &fib_info_hash[hash];
 
-	hlist_for_each_entry(fi, node, head, fib_hash) {
+	hlist_for_each_entry(fi, head, fib_hash) {
 		if (!net_eq(fi->fib_net, nfi->fib_net))
 			continue;
 		if (fi->fib_nhs != nfi->fib_nhs)
@@ -331,7 +331,6 @@ static struct fib_info *fib_find_info(const struct fib_info *nfi)
 int ip_fib_check_default(__be32 gw, struct net_device *dev)
 {
 	struct hlist_head *head;
-	struct hlist_node *node;
 	struct fib_nh *nh;
 	unsigned int hash;
 
@@ -339,7 +338,7 @@ int ip_fib_check_default(__be32 gw, struct net_device *dev)
 
 	hash = fib_devindex_hashfn(dev->ifindex);
 	head = &fib_info_devhash[hash];
-	hlist_for_each_entry(nh, node, head, nh_hash) {
+	hlist_for_each_entry(nh, head, nh_hash) {
 		if (nh->nh_dev == dev &&
 		    nh->nh_gw == gw &&
 		    !(nh->nh_flags & RTNH_F_DEAD)) {
@@ -381,7 +380,7 @@ static inline size_t fib_nlmsg_size(struct fib_info *fi)
 }
 
 void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
-	       int dst_len, u32 tb_id, struct nl_info *info,
+	       int dst_len, u32 tb_id, const struct nl_info *info,
 	       unsigned int nlm_flags)
 {
 	struct sk_buff *skb;
@@ -721,10 +720,10 @@ static void fib_info_hash_move(struct hlist_head *new_info_hash,
 
 	for (i = 0; i < old_size; i++) {
 		struct hlist_head *head = &fib_info_hash[i];
-		struct hlist_node *node, *n;
+		struct hlist_node *n;
 		struct fib_info *fi;
 
-		hlist_for_each_entry_safe(fi, node, n, head, fib_hash) {
+		hlist_for_each_entry_safe(fi, n, head, fib_hash) {
 			struct hlist_head *dest;
 			unsigned int new_hash;
 
@@ -739,10 +738,10 @@ static void fib_info_hash_move(struct hlist_head *new_info_hash,
 
 	for (i = 0; i < old_size; i++) {
 		struct hlist_head *lhead = &fib_info_laddrhash[i];
-		struct hlist_node *node, *n;
+		struct hlist_node *n;
 		struct fib_info *fi;
 
-		hlist_for_each_entry_safe(fi, node, n, lhead, fib_lhash) {
+		hlist_for_each_entry_safe(fi, n, lhead, fib_lhash) {
 			struct hlist_head *ldest;
 			unsigned int new_hash;
 
@@ -1096,13 +1095,12 @@ int fib_sync_down_addr(struct net *net, __be32 local)
 	int ret = 0;
 	unsigned int hash = fib_laddr_hashfn(local);
 	struct hlist_head *head = &fib_info_laddrhash[hash];
-	struct hlist_node *node;
 	struct fib_info *fi;
 
 	if (fib_info_laddrhash == NULL || local == 0)
 		return 0;
 
-	hlist_for_each_entry(fi, node, head, fib_lhash) {
+	hlist_for_each_entry(fi, head, fib_lhash) {
 		if (!net_eq(fi->fib_net, net))
 			continue;
 		if (fi->fib_prefsrc == local) {
@@ -1120,13 +1118,12 @@ int fib_sync_down_dev(struct net_device *dev, int force)
 	struct fib_info *prev_fi = NULL;
 	unsigned int hash = fib_devindex_hashfn(dev->ifindex);
 	struct hlist_head *head = &fib_info_devhash[hash];
-	struct hlist_node *node;
 	struct fib_nh *nh;
 
 	if (force)
 		scope = -1;
 
-	hlist_for_each_entry(nh, node, head, nh_hash) {
+	hlist_for_each_entry(nh, head, nh_hash) {
 		struct fib_info *fi = nh->nh_parent;
 		int dead;
 
@@ -1232,7 +1229,6 @@ int fib_sync_up(struct net_device *dev)
 	struct fib_info *prev_fi;
 	unsigned int hash;
 	struct hlist_head *head;
-	struct hlist_node *node;
 	struct fib_nh *nh;
 	int ret;
 
@@ -1244,7 +1240,7 @@ int fib_sync_up(struct net_device *dev)
 	head = &fib_info_devhash[hash];
 	ret = 0;
 
-	hlist_for_each_entry(nh, node, head, nh_hash) {
+	hlist_for_each_entry(nh, head, nh_hash) {
 		struct fib_info *fi = nh->nh_parent;
 		int alive;
 

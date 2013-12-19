@@ -27,11 +27,15 @@ struct nouveau_bo {
 	u32 tile_flags;
 	struct nouveau_drm_tile *tile;
 
-	struct drm_gem_object *gem;
+	/* Only valid if allocated via nouveau_gem_new() and iff you hold a
+	 * gem reference to it! For debugging, use gem.filp != NULL to test
+	 * whether it is valid. */
+	struct drm_gem_object gem;
+
+	/* protect by the ttm reservation lock */
 	int pin_refcnt;
 
 	struct ttm_bo_kmap_obj dma_buf_vmap;
-	int vmapping_count;
 };
 
 static inline struct nouveau_bo *

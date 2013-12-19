@@ -13,28 +13,27 @@
 #include <linux/clkdev.h>
 #include <linux/io.h>
 #include <linux/spinlock_types.h>
-#include <mach/misc_regs.h>
 #include "clk.h"
 
 static DEFINE_SPINLOCK(_lock);
 
-#define PLL1_CTR			(MISC_BASE + 0x008)
-#define PLL1_FRQ			(MISC_BASE + 0x00C)
-#define PLL2_CTR			(MISC_BASE + 0x014)
-#define PLL2_FRQ			(MISC_BASE + 0x018)
-#define PLL_CLK_CFG			(MISC_BASE + 0x020)
+#define PLL1_CTR			(misc_base + 0x008)
+#define PLL1_FRQ			(misc_base + 0x00C)
+#define PLL2_CTR			(misc_base + 0x014)
+#define PLL2_FRQ			(misc_base + 0x018)
+#define PLL_CLK_CFG			(misc_base + 0x020)
 	/* PLL_CLK_CFG register masks */
 	#define MCTR_CLK_SHIFT		28
 	#define MCTR_CLK_MASK		3
 
-#define CORE_CLK_CFG			(MISC_BASE + 0x024)
+#define CORE_CLK_CFG			(misc_base + 0x024)
 	/* CORE CLK CFG register masks */
 	#define HCLK_RATIO_SHIFT	10
 	#define HCLK_RATIO_MASK		2
 	#define PCLK_RATIO_SHIFT	8
 	#define PCLK_RATIO_MASK		2
 
-#define PERIP_CLK_CFG			(MISC_BASE + 0x028)
+#define PERIP_CLK_CFG			(misc_base + 0x028)
 	/* PERIP_CLK_CFG register masks */
 	#define CLCD_CLK_SHIFT		2
 	#define CLCD_CLK_MASK		2
@@ -48,7 +47,7 @@ static DEFINE_SPINLOCK(_lock);
 	#define GPT3_CLK_SHIFT		12
 	#define GPT_CLK_MASK		1
 
-#define PERIP1_CLK_ENB			(MISC_BASE + 0x02C)
+#define PERIP1_CLK_ENB			(misc_base + 0x02C)
 	/* PERIP1_CLK_ENB register masks */
 	#define UART0_CLK_ENB		3
 	#define UART1_CLK_ENB		4
@@ -74,13 +73,13 @@ static DEFINE_SPINLOCK(_lock);
 	#define USBH0_CLK_ENB		25
 	#define USBH1_CLK_ENB		26
 
-#define PRSC0_CLK_CFG			(MISC_BASE + 0x044)
-#define PRSC1_CLK_CFG			(MISC_BASE + 0x048)
-#define PRSC2_CLK_CFG			(MISC_BASE + 0x04C)
+#define PRSC0_CLK_CFG			(misc_base + 0x044)
+#define PRSC1_CLK_CFG			(misc_base + 0x048)
+#define PRSC2_CLK_CFG			(misc_base + 0x04C)
 
-#define CLCD_CLK_SYNT			(MISC_BASE + 0x05C)
-#define FIRDA_CLK_SYNT			(MISC_BASE + 0x060)
-#define UART_CLK_SYNT			(MISC_BASE + 0x064)
+#define CLCD_CLK_SYNT			(misc_base + 0x05C)
+#define FIRDA_CLK_SYNT			(misc_base + 0x060)
+#define UART_CLK_SYNT			(misc_base + 0x064)
 
 /* vco rate configuration table, in ascending order of rates */
 static struct pll_rate_tbl pll_rtbl[] = {
@@ -115,7 +114,7 @@ static struct gpt_rate_tbl gpt_rtbl[] = {
 	{.mscale = 1, .nscale = 0}, /* 83 MHz */
 };
 
-void __init spear6xx_clk_init(void)
+void __init spear6xx_clk_init(void __iomem *misc_base)
 {
 	struct clk *clk, *clk1;
 
@@ -170,8 +169,9 @@ void __init spear6xx_clk_init(void)
 	clk_register_clkdev(clk1, "uart_syn_gclk", NULL);
 
 	clk = clk_register_mux(NULL, "uart_mclk", uart_parents,
-			ARRAY_SIZE(uart_parents), 0, PERIP_CLK_CFG,
-			UART_CLK_SHIFT, UART_CLK_MASK, 0, &_lock);
+			ARRAY_SIZE(uart_parents), CLK_SET_RATE_NO_REPARENT,
+			PERIP_CLK_CFG, UART_CLK_SHIFT, UART_CLK_MASK, 0,
+			&_lock);
 	clk_register_clkdev(clk, "uart_mclk", NULL);
 
 	clk = clk_register_gate(NULL, "uart0", "uart_mclk", 0, PERIP1_CLK_ENB,
@@ -189,8 +189,9 @@ void __init spear6xx_clk_init(void)
 	clk_register_clkdev(clk1, "firda_syn_gclk", NULL);
 
 	clk = clk_register_mux(NULL, "firda_mclk", firda_parents,
-			ARRAY_SIZE(firda_parents), 0, PERIP_CLK_CFG,
-			FIRDA_CLK_SHIFT, FIRDA_CLK_MASK, 0, &_lock);
+			ARRAY_SIZE(firda_parents), CLK_SET_RATE_NO_REPARENT,
+			PERIP_CLK_CFG, FIRDA_CLK_SHIFT, FIRDA_CLK_MASK, 0,
+			&_lock);
 	clk_register_clkdev(clk, "firda_mclk", NULL);
 
 	clk = clk_register_gate(NULL, "firda_clk", "firda_mclk", 0,
@@ -204,8 +205,9 @@ void __init spear6xx_clk_init(void)
 	clk_register_clkdev(clk1, "clcd_syn_gclk", NULL);
 
 	clk = clk_register_mux(NULL, "clcd_mclk", clcd_parents,
-			ARRAY_SIZE(clcd_parents), 0, PERIP_CLK_CFG,
-			CLCD_CLK_SHIFT, CLCD_CLK_MASK, 0, &_lock);
+			ARRAY_SIZE(clcd_parents), CLK_SET_RATE_NO_REPARENT,
+			PERIP_CLK_CFG, CLCD_CLK_SHIFT, CLCD_CLK_MASK, 0,
+			&_lock);
 	clk_register_clkdev(clk, "clcd_mclk", NULL);
 
 	clk = clk_register_gate(NULL, "clcd_clk", "clcd_mclk", 0,
@@ -218,13 +220,13 @@ void __init spear6xx_clk_init(void)
 	clk_register_clkdev(clk, "gpt0_1_syn_clk", NULL);
 
 	clk = clk_register_mux(NULL, "gpt0_mclk", gpt0_1_parents,
-			ARRAY_SIZE(gpt0_1_parents), 0, PERIP_CLK_CFG,
-			GPT0_CLK_SHIFT, GPT_CLK_MASK, 0, &_lock);
+			ARRAY_SIZE(gpt0_1_parents), CLK_SET_RATE_NO_REPARENT,
+			PERIP_CLK_CFG, GPT0_CLK_SHIFT, GPT_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, NULL, "gpt0");
 
 	clk = clk_register_mux(NULL, "gpt1_mclk", gpt0_1_parents,
-			ARRAY_SIZE(gpt0_1_parents), 0, PERIP_CLK_CFG,
-			GPT1_CLK_SHIFT, GPT_CLK_MASK, 0, &_lock);
+			ARRAY_SIZE(gpt0_1_parents), CLK_SET_RATE_NO_REPARENT,
+			PERIP_CLK_CFG, GPT1_CLK_SHIFT, GPT_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "gpt1_mclk", NULL);
 
 	clk = clk_register_gate(NULL, "gpt1_clk", "gpt1_mclk", 0,
@@ -236,8 +238,8 @@ void __init spear6xx_clk_init(void)
 	clk_register_clkdev(clk, "gpt2_syn_clk", NULL);
 
 	clk = clk_register_mux(NULL, "gpt2_mclk", gpt2_parents,
-			ARRAY_SIZE(gpt2_parents), 0, PERIP_CLK_CFG,
-			GPT2_CLK_SHIFT, GPT_CLK_MASK, 0, &_lock);
+			ARRAY_SIZE(gpt2_parents), CLK_SET_RATE_NO_REPARENT,
+			PERIP_CLK_CFG, GPT2_CLK_SHIFT, GPT_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "gpt2_mclk", NULL);
 
 	clk = clk_register_gate(NULL, "gpt2_clk", "gpt2_mclk", 0,
@@ -249,8 +251,8 @@ void __init spear6xx_clk_init(void)
 	clk_register_clkdev(clk, "gpt3_syn_clk", NULL);
 
 	clk = clk_register_mux(NULL, "gpt3_mclk", gpt3_parents,
-			ARRAY_SIZE(gpt3_parents), 0, PERIP_CLK_CFG,
-			GPT3_CLK_SHIFT, GPT_CLK_MASK, 0, &_lock);
+			ARRAY_SIZE(gpt3_parents), CLK_SET_RATE_NO_REPARENT,
+			PERIP_CLK_CFG, GPT3_CLK_SHIFT, GPT_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "gpt3_mclk", NULL);
 
 	clk = clk_register_gate(NULL, "gpt3_clk", "gpt3_mclk", 0,
@@ -278,8 +280,8 @@ void __init spear6xx_clk_init(void)
 	clk_register_clkdev(clk, "ahbmult2_clk", NULL);
 
 	clk = clk_register_mux(NULL, "ddr_clk", ddr_parents,
-			ARRAY_SIZE(ddr_parents), 0, PLL_CLK_CFG, MCTR_CLK_SHIFT,
-			MCTR_CLK_MASK, 0, &_lock);
+			ARRAY_SIZE(ddr_parents), CLK_SET_RATE_NO_REPARENT,
+			PLL_CLK_CFG, MCTR_CLK_SHIFT, MCTR_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "ddr_clk", NULL);
 
 	clk = clk_register_divider(NULL, "apb_clk", "ahb_clk",

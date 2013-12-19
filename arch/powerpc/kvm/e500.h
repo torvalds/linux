@@ -23,19 +23,27 @@
 #include <asm/mmu-book3e.h>
 #include <asm/tlb.h>
 
+enum vcpu_ftr {
+	VCPU_FTR_MMU_V2
+};
+
 #define E500_PID_NUM   3
 #define E500_TLB_NUM   2
 
-#define E500_TLB_VALID 1
-#define E500_TLB_BITMAP 2
+/* entry is mapped somewhere in host TLB */
+#define E500_TLB_VALID		(1 << 0)
+/* TLB1 entry is mapped by host TLB1, tracked by bitmaps */
+#define E500_TLB_BITMAP		(1 << 1)
+/* TLB1 entry is mapped by host TLB0 */
+#define E500_TLB_TLB0		(1 << 2)
 
 struct tlbe_ref {
-	pfn_t pfn;
-	unsigned int flags; /* E500_TLB_* */
+	pfn_t pfn;		/* valid only for TLB0, except briefly */
+	unsigned int flags;	/* E500_TLB_* */
 };
 
 struct tlbe_priv {
-	struct tlbe_ref ref; /* TLB0 only -- TLB1 uses tlb_refs */
+	struct tlbe_ref ref;
 };
 
 #ifdef CONFIG_KVM_E500V2
@@ -62,17 +70,6 @@ struct kvmppc_vcpu_e500 {
 
 	unsigned int gtlb_nv[E500_TLB_NUM];
 
-	/*
-	 * information associated with each host TLB entry --
-	 * TLB1 only for now.  If/when guest TLB1 entries can be
-	 * mapped with host TLB0, this will be used for that too.
-	 *
-	 * We don't want to use this for guest TLB0 because then we'd
-	 * have the overhead of doing the translation again even if
-	 * the entry is still in the guest TLB (e.g. we swapped out
-	 * and back, and our host TLB entries got evicted).
-	 */
-	struct tlbe_ref *tlb_refs[E500_TLB_NUM];
 	unsigned int host_tlb1_nv;
 
 	u32 svr;
@@ -120,7 +117,7 @@ static inline struct kvmppc_vcpu_e500 *to_e500(struct kvm_vcpu *vcpu)
 #define E500_TLB_USER_PERM_MASK (MAS3_UX|MAS3_UR|MAS3_UW)
 #define E500_TLB_SUPER_PERM_MASK (MAS3_SX|MAS3_SR|MAS3_SW)
 #define MAS2_ATTRIB_MASK \
-	  (MAS2_X0 | MAS2_X1)
+	  (MAS2_X0 | MAS2_X1 | MAS2_E | MAS2_G)
 #define MAS3_ATTRIB_MASK \
 	  (MAS3_U0 | MAS3_U1 | MAS3_U2 | MAS3_U3 \
 	   | E500_TLB_USER_PERM_MASK | E500_TLB_SUPER_PERM_MASK)
@@ -138,6 +135,10 @@ void kvmppc_e500_tlb_uninit(struct kvmppc_vcpu_e500 *vcpu_e500);
 void kvmppc_get_sregs_e500_tlb(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
 int kvmppc_set_sregs_e500_tlb(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
 
+int kvmppc_get_one_reg_e500_tlb(struct kvm_vcpu *vcpu, u64 id,
+				union kvmppc_one_reg *val);
+int kvmppc_set_one_reg_e500_tlb(struct kvm_vcpu *vcpu, u64 id,
+			       union kvmppc_one_reg *val);
 
 #ifdef CONFIG_KVM_E500V2
 unsigned int kvmppc_e500_get_sid(struct kvmppc_vcpu_e500 *vcpu_e500,
@@ -301,5 +302,19 @@ static inline unsigned int get_tlbmiss_tid(struct kvm_vcpu *vcpu)
 /* Force TS=1 for all guest mappings. */
 #define get_tlb_sts(gtlbe)              (MAS1_TS)
 #endif /* !BOOKE_HV */
+
+static inline bool has_feature(const struct kvm_vcpu *vcpu,
+			       enum vcpu_ftr ftr)
+{
+	bool has_ftr;
+	switch (ftr) {
+	case VCPU_FTR_MMU_V2:
+		has_ftr = ((vcpu->arch.mmucfg & MMUCFG_MAVN) == MMUCFG_MAVN_V2);
+		break;
+	default:
+		return false;
+	}
+	return has_ftr;
+}
 
 #endif /* KVM_E500_H */

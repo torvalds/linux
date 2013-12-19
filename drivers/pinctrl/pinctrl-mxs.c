@@ -146,7 +146,7 @@ free:
 static void mxs_dt_free_map(struct pinctrl_dev *pctldev,
 			    struct pinctrl_map *map, unsigned num_maps)
 {
-	int i;
+	u32 i;
 
 	for (i = 0; i < num_maps; i++) {
 		if (map[i].type == PIN_MAP_TYPE_MUX_GROUP)
@@ -158,7 +158,7 @@ static void mxs_dt_free_map(struct pinctrl_dev *pctldev,
 	kfree(map);
 }
 
-static struct pinctrl_ops mxs_pinctrl_ops = {
+static const struct pinctrl_ops mxs_pinctrl_ops = {
 	.get_groups_count = mxs_get_groups_count,
 	.get_group_name = mxs_get_group_name,
 	.get_group_pins = mxs_get_group_pins,
@@ -203,7 +203,7 @@ static int mxs_pinctrl_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	void __iomem *reg;
 	u8 bank, shift;
 	u16 pin;
-	int i;
+	u32 i;
 
 	for (i = 0; i < g->npins; i++) {
 		bank = PINID_TO_BANK(g->pins[i]);
@@ -219,7 +219,7 @@ static int mxs_pinctrl_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-static struct pinmux_ops mxs_pinmux_ops = {
+static const struct pinmux_ops mxs_pinmux_ops = {
 	.get_functions_count = mxs_pinctrl_get_funcs_count,
 	.get_function_name = mxs_pinctrl_get_func_name,
 	.get_function_groups = mxs_pinctrl_get_func_groups,
@@ -233,7 +233,8 @@ static int mxs_pinconf_get(struct pinctrl_dev *pctldev,
 }
 
 static int mxs_pinconf_set(struct pinctrl_dev *pctldev,
-			   unsigned pin, unsigned long config)
+			   unsigned pin, unsigned long *configs,
+			   unsigned num_configs)
 {
 	return -ENOTSUPP;
 }
@@ -249,57 +250,65 @@ static int mxs_pinconf_group_get(struct pinctrl_dev *pctldev,
 }
 
 static int mxs_pinconf_group_set(struct pinctrl_dev *pctldev,
-				 unsigned group, unsigned long config)
+				 unsigned group, unsigned long *configs,
+				 unsigned num_configs)
 {
 	struct mxs_pinctrl_data *d = pinctrl_dev_get_drvdata(pctldev);
 	struct mxs_group *g = &d->soc->groups[group];
 	void __iomem *reg;
 	u8 ma, vol, pull, bank, shift;
 	u16 pin;
-	int i;
+	u32 i;
+	int n;
+	unsigned long config;
 
-	ma = CONFIG_TO_MA(config);
-	vol = CONFIG_TO_VOL(config);
-	pull = CONFIG_TO_PULL(config);
+	for (n = 0; n < num_configs; n++) {
+		config = configs[n];
 
-	for (i = 0; i < g->npins; i++) {
-		bank = PINID_TO_BANK(g->pins[i]);
-		pin = PINID_TO_PIN(g->pins[i]);
+		ma = CONFIG_TO_MA(config);
+		vol = CONFIG_TO_VOL(config);
+		pull = CONFIG_TO_PULL(config);
 
-		/* drive */
-		reg = d->base + d->soc->regs->drive;
-		reg += bank * 0x40 + pin / 8 * 0x10;
+		for (i = 0; i < g->npins; i++) {
+			bank = PINID_TO_BANK(g->pins[i]);
+			pin = PINID_TO_PIN(g->pins[i]);
 
-		/* mA */
-		if (config & MA_PRESENT) {
-			shift = pin % 8 * 4;
-			writel(0x3 << shift, reg + CLR);
-			writel(ma << shift, reg + SET);
+			/* drive */
+			reg = d->base + d->soc->regs->drive;
+			reg += bank * 0x40 + pin / 8 * 0x10;
+
+			/* mA */
+			if (config & MA_PRESENT) {
+				shift = pin % 8 * 4;
+				writel(0x3 << shift, reg + CLR);
+				writel(ma << shift, reg + SET);
+			}
+
+			/* vol */
+			if (config & VOL_PRESENT) {
+				shift = pin % 8 * 4 + 2;
+				if (vol)
+					writel(1 << shift, reg + SET);
+				else
+					writel(1 << shift, reg + CLR);
+			}
+
+			/* pull */
+			if (config & PULL_PRESENT) {
+				reg = d->base + d->soc->regs->pull;
+				reg += bank * 0x10;
+				shift = pin;
+				if (pull)
+					writel(1 << shift, reg + SET);
+				else
+					writel(1 << shift, reg + CLR);
+			}
 		}
 
-		/* vol */
-		if (config & VOL_PRESENT) {
-			shift = pin % 8 * 4 + 2;
-			if (vol)
-				writel(1 << shift, reg + SET);
-			else
-				writel(1 << shift, reg + CLR);
-		}
+		/* cache the config value for mxs_pinconf_group_get() */
+		g->config = config;
 
-		/* pull */
-		if (config & PULL_PRESENT) {
-			reg = d->base + d->soc->regs->pull;
-			reg += bank * 0x10;
-			shift = pin;
-			if (pull)
-				writel(1 << shift, reg + SET);
-			else
-				writel(1 << shift, reg + CLR);
-		}
-	}
-
-	/* cache the config value for mxs_pinconf_group_get() */
-	g->config = config;
+	} /* for each config */
 
 	return 0;
 }
@@ -319,7 +328,7 @@ static void mxs_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 		seq_printf(s, "0x%lx", config);
 }
 
-static struct pinconf_ops mxs_pinconf_ops = {
+static const struct pinconf_ops mxs_pinconf_ops = {
 	.pin_config_get = mxs_pinconf_get,
 	.pin_config_set = mxs_pinconf_set,
 	.pin_config_group_get = mxs_pinconf_group_get,
@@ -335,9 +344,9 @@ static struct pinctrl_desc mxs_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
-static int __devinit mxs_pinctrl_parse_group(struct platform_device *pdev,
-					     struct device_node *np, int idx,
-					     const char **out_name)
+static int mxs_pinctrl_parse_group(struct platform_device *pdev,
+				   struct device_node *np, int idx,
+				   const char **out_name)
 {
 	struct mxs_pinctrl_data *d = platform_get_drvdata(pdev);
 	struct mxs_group *g = &d->soc->groups[idx];
@@ -345,8 +354,7 @@ static int __devinit mxs_pinctrl_parse_group(struct platform_device *pdev,
 	const char *propname = "fsl,pinmux-ids";
 	char *group;
 	int length = strlen(np->name) + SUFFIX_LEN;
-	int i;
-	u32 val;
+	u32 val, i;
 
 	group = devm_kzalloc(&pdev->dev, length, GFP_KERNEL);
 	if (!group)
@@ -384,8 +392,8 @@ static int __devinit mxs_pinctrl_parse_group(struct platform_device *pdev,
 	return 0;
 }
 
-static int __devinit mxs_pinctrl_probe_dt(struct platform_device *pdev,
-					  struct mxs_pinctrl_data *d)
+static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
+				struct mxs_pinctrl_data *d)
 {
 	struct mxs_pinctrl_soc_data *soc = d->soc;
 	struct device_node *np = pdev->dev.of_node;
@@ -476,8 +484,8 @@ static int __devinit mxs_pinctrl_probe_dt(struct platform_device *pdev,
 	return 0;
 }
 
-int __devinit mxs_pinctrl_probe(struct platform_device *pdev,
-				struct mxs_pinctrl_soc_data *soc)
+int mxs_pinctrl_probe(struct platform_device *pdev,
+		      struct mxs_pinctrl_soc_data *soc)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct mxs_pinctrl_data *d;
@@ -516,7 +524,6 @@ int __devinit mxs_pinctrl_probe(struct platform_device *pdev,
 	return 0;
 
 err:
-	platform_set_drvdata(pdev, NULL);
 	iounmap(d->base);
 	return ret;
 }
@@ -526,7 +533,6 @@ int mxs_pinctrl_remove(struct platform_device *pdev)
 {
 	struct mxs_pinctrl_data *d = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	pinctrl_unregister(d->pctl);
 	iounmap(d->base);
 

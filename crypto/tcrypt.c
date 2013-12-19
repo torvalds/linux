@@ -493,7 +493,7 @@ static inline int do_one_ahash_op(struct ahash_request *req, int ret)
 		ret = wait_for_completion_interruptible(&tr->completion);
 		if (!ret)
 			ret = tr->err;
-		INIT_COMPLETION(tr->completion);
+		reinit_completion(&tr->completion);
 	}
 	return ret;
 }
@@ -721,7 +721,7 @@ static inline int do_one_acipher_op(struct ablkcipher_request *req, int ret)
 		ret = wait_for_completion_interruptible(&tr->completion);
 		if (!ret)
 			ret = tr->err;
-		INIT_COMPLETION(tr->completion);
+		reinit_completion(&tr->completion);
 	}
 
 	return ret;
@@ -1095,7 +1095,6 @@ static int do_test(int m)
 		break;
 
 	case 28:
-
 		ret += tcrypt_test("tgr160");
 		break;
 
@@ -1118,6 +1117,7 @@ static int do_test(int m)
 		ret += tcrypt_test("lrw(camellia)");
 		ret += tcrypt_test("xts(camellia)");
 		break;
+
 	case 33:
 		ret += tcrypt_test("sha224");
 		break;
@@ -1174,6 +1174,10 @@ static int do_test(int m)
 		ret += tcrypt_test("ghash");
 		break;
 
+	case 47:
+		ret += tcrypt_test("crct10dif");
+		break;
+
 	case 100:
 		ret += tcrypt_test("hmac(md5)");
 		break;
@@ -1213,6 +1217,7 @@ static int do_test(int m)
 	case 109:
 		ret += tcrypt_test("vmac(aes)");
 		break;
+
 	case 110:
 		ret += tcrypt_test("hmac(crc32)");
 		break;
@@ -1223,6 +1228,22 @@ static int do_test(int m)
 
 	case 151:
 		ret += tcrypt_test("rfc4106(gcm(aes))");
+		break;
+
+	case 152:
+		ret += tcrypt_test("rfc4543(gcm(aes))");
+		break;
+
+	case 153:
+		ret += tcrypt_test("cmac(aes)");
+		break;
+
+	case 154:
+		ret += tcrypt_test("cmac(des3_ede)");
+		break;
+
+	case 155:
+		ret += tcrypt_test("authenc(hmac(sha1),cbc(aes))");
 		break;
 
 	case 200:
@@ -1485,6 +1506,10 @@ static int do_test(int m)
 		test_hash_speed("crc32c", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
 
+	case 320:
+		test_hash_speed("crct10dif", sec, generic_hash_speed_template);
+		if (mode > 300 && mode < 400) break;
+
 	case 399:
 		break;
 
@@ -1591,6 +1616,10 @@ static int do_test(int m)
 				   speed_template_16_24_32);
 		test_acipher_speed("ofb(aes)", DECRYPT, sec, NULL, 0,
 				   speed_template_16_24_32);
+		test_acipher_speed("rfc3686(ctr(aes))", ENCRYPT, sec, NULL, 0,
+				   speed_template_20_28_36);
+		test_acipher_speed("rfc3686(ctr(aes))", DECRYPT, sec, NULL, 0,
+				   speed_template_20_28_36);
 		break;
 
 	case 501:
@@ -1749,6 +1778,21 @@ static int do_test(int m)
 				   speed_template_32_64);
 		test_acipher_speed("xts(camellia)", DECRYPT, sec, NULL, 0,
 				   speed_template_32_64);
+		break;
+
+	case 509:
+		test_acipher_speed("ecb(blowfish)", ENCRYPT, sec, NULL, 0,
+				   speed_template_8_32);
+		test_acipher_speed("ecb(blowfish)", DECRYPT, sec, NULL, 0,
+				   speed_template_8_32);
+		test_acipher_speed("cbc(blowfish)", ENCRYPT, sec, NULL, 0,
+				   speed_template_8_32);
+		test_acipher_speed("cbc(blowfish)", DECRYPT, sec, NULL, 0,
+				   speed_template_8_32);
+		test_acipher_speed("ctr(blowfish)", ENCRYPT, sec, NULL, 0,
+				   speed_template_8_32);
+		test_acipher_speed("ctr(blowfish)", DECRYPT, sec, NULL, 0,
+				   speed_template_8_32);
 		break;
 
 	case 1000:

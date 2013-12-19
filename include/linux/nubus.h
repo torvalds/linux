@@ -80,10 +80,13 @@ extern struct nubus_board* nubus_boards;
 
 /* Generic NuBus interface functions, modelled after the PCI interface */
 void nubus_scan_bus(void);
+#ifdef CONFIG_PROC_FS
 extern void nubus_proc_init(void);
+#else
+static inline void nubus_proc_init(void) {}
+#endif
 int get_nubus_list(char *buf);
 int nubus_proc_attach_device(struct nubus_dev *dev);
-int nubus_proc_detach_device(struct nubus_dev *dev);
 /* If we need more precision we can add some more of these */
 struct nubus_dev* nubus_find_device(unsigned short category,
 				    unsigned short type,

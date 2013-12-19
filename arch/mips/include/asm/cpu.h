@@ -1,27 +1,34 @@
 /*
  * cpu.h: Values of the PRId register used to match up
- *        various MIPS cpu types.
+ *	  various MIPS cpu types.
  *
  * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
- * Copyright (C) 2004  Maciej W. Rozycki
+ * Copyright (C) 2004, 2013  Maciej W. Rozycki
  */
 #ifndef _ASM_CPU_H
 #define _ASM_CPU_H
 
-/* Assigned Company values for bits 23:16 of the PRId Register
-   (CP0 register 15, select 0).  As of the MIPS32 and MIPS64 specs from
-   MTI, the PRId register is defined in this (backwards compatible)
-   way:
+/*
+   As of the MIPS32 and MIPS64 specs from MTI, the PRId register (CP0
+   register 15, select 0) is defined in this (backwards compatible) way:
 
   +----------------+----------------+----------------+----------------+
-  | Company Options| Company ID     | Processor ID   | Revision       |
+  | Company Options| Company ID	    | Processor ID   | Revision	      |
   +----------------+----------------+----------------+----------------+
-   31            24 23            16 15             8 7
+   31		 24 23		  16 15		    8 7
 
    I don't have docs for all the previous processors, but my impression is
    that bits 16-23 have been 0 for all MIPS processors before the MIPS32/64
    spec.
 */
+
+#define PRID_OPT_MASK		0xff000000
+
+/*
+ * Assigned Company values for bits 23:16 of the PRId register.
+ */
+
+#define PRID_COMP_MASK		0xff0000
 
 #define PRID_COMP_LEGACY	0x000000
 #define PRID_COMP_MIPS		0x010000
@@ -29,7 +36,7 @@
 #define PRID_COMP_ALCHEMY	0x030000
 #define PRID_COMP_SIBYTE	0x040000
 #define PRID_COMP_SANDCRAFT	0x050000
-#define PRID_COMP_NXP   	0x060000
+#define PRID_COMP_NXP		0x060000
 #define PRID_COMP_TOSHIBA	0x070000
 #define PRID_COMP_LSI		0x080000
 #define PRID_COMP_LEXRA		0x0b0000
@@ -38,10 +45,17 @@
 #define PRID_COMP_INGENIC	0xd00000
 
 /*
- * Assigned values for the product ID register.  In order to detect a
- * certain CPU type exactly eventually additional registers may need to
- * be examined.  These are valid when 23:16 == PRID_COMP_LEGACY
+ * Assigned Processor ID (implementation) values for bits 15:8 of the PRId
+ * register.  In order to detect a certain CPU type exactly eventually
+ * additional registers may need to be examined.
  */
+
+#define PRID_IMP_MASK		0xff00
+
+/*
+ * These are valid when 23:16 == PRID_COMP_LEGACY
+ */
+
 #define PRID_IMP_R2000		0x0100
 #define PRID_IMP_AU1_REV1	0x0100
 #define PRID_IMP_AU1_REV2	0x0200
@@ -96,19 +110,20 @@
 #define PRID_IMP_1004K		0x9900
 #define PRID_IMP_1074K		0x9a00
 #define PRID_IMP_M14KC		0x9c00
+#define PRID_IMP_M14KEC		0x9e00
 
 /*
  * These are the PRID's for when 23:16 == PRID_COMP_SIBYTE
  */
 
-#define PRID_IMP_SB1            0x0100
-#define PRID_IMP_SB1A           0x1100
+#define PRID_IMP_SB1		0x0100
+#define PRID_IMP_SB1A		0x1100
 
 /*
  * These are the PRID's for when 23:16 == PRID_COMP_SANDCRAFT
  */
 
-#define PRID_IMP_SR71000        0x0400
+#define PRID_IMP_SR71000	0x0400
 
 /*
  * These are the PRID's for when 23:16 == PRID_COMP_BROADCOM
@@ -140,12 +155,15 @@
 #define PRID_IMP_CAVIUM_CN68XX 0x9100
 #define PRID_IMP_CAVIUM_CN66XX 0x9200
 #define PRID_IMP_CAVIUM_CN61XX 0x9300
+#define PRID_IMP_CAVIUM_CNF71XX 0x9400
+#define PRID_IMP_CAVIUM_CN78XX 0x9500
+#define PRID_IMP_CAVIUM_CN70XX 0x9600
 
 /*
  * These are the PRID's for when 23:16 == PRID_COMP_INGENIC
  */
 
-#define PRID_IMP_JZRISC        0x0200
+#define PRID_IMP_JZRISC	       0x0200
 
 /*
  * These are the PRID's for when 23:16 == PRID_COMP_NETLOGIC
@@ -175,12 +193,17 @@
 
 #define PRID_IMP_NETLOGIC_XLP8XX	0x1000
 #define PRID_IMP_NETLOGIC_XLP3XX	0x1100
+#define PRID_IMP_NETLOGIC_XLP2XX	0x1200
+
+/*
+ * Particular Revision values for bits 7:0 of the PRId register.
+ */
+
+#define PRID_REV_MASK		0x00ff
 
 /*
  * Definitions for 7:0 on legacy processors
  */
-
-#define PRID_REV_MASK		0x00ff
 
 #define PRID_REV_TX4927		0x0022
 #define PRID_REV_TX4937		0x0030
@@ -188,9 +211,9 @@
 #define PRID_REV_R3000A		0x0030
 #define PRID_REV_R3000		0x0020
 #define PRID_REV_R2000A		0x0010
-#define PRID_REV_TX3912 	0x0010
-#define PRID_REV_TX3922 	0x0030
-#define PRID_REV_TX3927 	0x0040
+#define PRID_REV_TX3912		0x0010
+#define PRID_REV_TX3922		0x0030
+#define PRID_REV_TX3927		0x0040
 #define PRID_REV_VR4111		0x0050
 #define PRID_REV_VR4181		0x0050	/* Same as VR4111 */
 #define PRID_REV_VR4121		0x0060
@@ -217,10 +240,12 @@
  * FPU implementation/revision register (CP1 control register 0).
  *
  * +---------------------------------+----------------+----------------+
- * | 0                               | Implementation | Revision       |
+ * | 0				     | Implementation | Revision       |
  * +---------------------------------+----------------+----------------+
- *  31                             16 15             8 7              0
+ *  31				   16 15	     8 7	      0
  */
+
+#define FPIR_IMP_MASK		0xff00
 
 #define FPIR_IMP_NONE		0x0000
 
@@ -264,13 +289,14 @@ enum cpu_type_enum {
 	CPU_4KC, CPU_4KEC, CPU_4KSC, CPU_24K, CPU_34K, CPU_1004K, CPU_74K,
 	CPU_ALCHEMY, CPU_PR4450, CPU_BMIPS32, CPU_BMIPS3300, CPU_BMIPS4350,
 	CPU_BMIPS4380, CPU_BMIPS5000, CPU_JZRISC, CPU_LOONGSON1, CPU_M14KC,
+	CPU_M14KEC,
 
 	/*
 	 * MIPS64 class processors
 	 */
 	CPU_5KC, CPU_5KE, CPU_20KC, CPU_25KF, CPU_SB1, CPU_SB1A, CPU_LOONGSON2,
 	CPU_CAVIUM_OCTEON, CPU_CAVIUM_OCTEON_PLUS, CPU_CAVIUM_OCTEON2,
-	CPU_XLR, CPU_XLP,
+	CPU_CAVIUM_OCTEON3, CPU_XLR, CPU_XLP,
 
 	CPU_LAST
 };
@@ -280,18 +306,17 @@ enum cpu_type_enum {
  * ISA Level encodings
  *
  */
-#define MIPS_CPU_ISA_I		0x00000001
-#define MIPS_CPU_ISA_II		0x00000002
-#define MIPS_CPU_ISA_III	0x00000004
-#define MIPS_CPU_ISA_IV		0x00000008
-#define MIPS_CPU_ISA_V		0x00000010
-#define MIPS_CPU_ISA_M32R1	0x00000020
-#define MIPS_CPU_ISA_M32R2	0x00000040
-#define MIPS_CPU_ISA_M64R1	0x00000080
-#define MIPS_CPU_ISA_M64R2	0x00000100
+#define MIPS_CPU_ISA_II		0x00000001
+#define MIPS_CPU_ISA_III	0x00000002
+#define MIPS_CPU_ISA_IV		0x00000004
+#define MIPS_CPU_ISA_V		0x00000008
+#define MIPS_CPU_ISA_M32R1	0x00000010
+#define MIPS_CPU_ISA_M32R2	0x00000020
+#define MIPS_CPU_ISA_M64R1	0x00000040
+#define MIPS_CPU_ISA_M64R2	0x00000080
 
-#define MIPS_CPU_ISA_32BIT (MIPS_CPU_ISA_I | MIPS_CPU_ISA_II | \
-	MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M32R2)
+#define MIPS_CPU_ISA_32BIT (MIPS_CPU_ISA_II | MIPS_CPU_ISA_M32R1 | \
+	MIPS_CPU_ISA_M32R2)
 #define MIPS_CPU_ISA_64BIT (MIPS_CPU_ISA_III | MIPS_CPU_ISA_IV | \
 	MIPS_CPU_ISA_V | MIPS_CPU_ISA_M64R1 | MIPS_CPU_ISA_M64R2)
 
@@ -322,6 +347,7 @@ enum cpu_type_enum {
 #define MIPS_CPU_ULRI		0x00200000 /* CPU has ULRI feature */
 #define MIPS_CPU_PCI		0x00400000 /* CPU has Perf Ctr Int indicator */
 #define MIPS_CPU_RIXI		0x00800000 /* CPU has TLB Read/eXec Inhibit */
+#define MIPS_CPU_MICROMIPS	0x01000000 /* CPU has microMIPS capability */
 
 /*
  * CPU ASE encodings
@@ -333,6 +359,6 @@ enum cpu_type_enum {
 #define MIPS_ASE_DSP		0x00000010 /* Signal Processing ASE */
 #define MIPS_ASE_MIPSMT		0x00000020 /* CPU supports MIPS MT */
 #define MIPS_ASE_DSP2P		0x00000040 /* Signal Processing ASE Rev 2 */
-
+#define MIPS_ASE_VZ		0x00000080 /* Virtualization ASE */
 
 #endif /* _ASM_CPU_H */

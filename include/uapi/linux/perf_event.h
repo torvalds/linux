@@ -109,6 +109,7 @@ enum perf_sw_ids {
 	PERF_COUNT_SW_PAGE_FAULTS_MAJ		= 6,
 	PERF_COUNT_SW_ALIGNMENT_FAULTS		= 7,
 	PERF_COUNT_SW_EMULATION_FAULTS		= 8,
+	PERF_COUNT_SW_DUMMY			= 9,
 
 	PERF_COUNT_SW_MAX,			/* non-ABI */
 };
@@ -132,8 +133,12 @@ enum perf_event_sample_format {
 	PERF_SAMPLE_BRANCH_STACK		= 1U << 11,
 	PERF_SAMPLE_REGS_USER			= 1U << 12,
 	PERF_SAMPLE_STACK_USER			= 1U << 13,
+	PERF_SAMPLE_WEIGHT			= 1U << 14,
+	PERF_SAMPLE_DATA_SRC			= 1U << 15,
+	PERF_SAMPLE_IDENTIFIER			= 1U << 16,
+	PERF_SAMPLE_TRANSACTION			= 1U << 17,
 
-	PERF_SAMPLE_MAX = 1U << 14,		/* non-ABI */
+	PERF_SAMPLE_MAX = 1U << 18,		/* non-ABI */
 };
 
 /*
@@ -155,8 +160,11 @@ enum perf_branch_sample_type {
 	PERF_SAMPLE_BRANCH_ANY_CALL	= 1U << 4, /* any call branch */
 	PERF_SAMPLE_BRANCH_ANY_RETURN	= 1U << 5, /* any return branch */
 	PERF_SAMPLE_BRANCH_IND_CALL	= 1U << 6, /* indirect calls */
+	PERF_SAMPLE_BRANCH_ABORT_TX	= 1U << 7, /* transaction aborts */
+	PERF_SAMPLE_BRANCH_IN_TX	= 1U << 8, /* in transaction */
+	PERF_SAMPLE_BRANCH_NO_TX	= 1U << 9, /* not in transaction */
 
-	PERF_SAMPLE_BRANCH_MAX		= 1U << 7, /* non-ABI */
+	PERF_SAMPLE_BRANCH_MAX		= 1U << 10, /* non-ABI */
 };
 
 #define PERF_SAMPLE_BRANCH_PLM_ALL \
@@ -171,6 +179,28 @@ enum perf_sample_regs_abi {
 	PERF_SAMPLE_REGS_ABI_NONE	= 0,
 	PERF_SAMPLE_REGS_ABI_32		= 1,
 	PERF_SAMPLE_REGS_ABI_64		= 2,
+};
+
+/*
+ * Values for the memory transaction event qualifier, mostly for
+ * abort events. Multiple bits can be set.
+ */
+enum {
+	PERF_TXN_ELISION        = (1 << 0), /* From elision */
+	PERF_TXN_TRANSACTION    = (1 << 1), /* From transaction */
+	PERF_TXN_SYNC           = (1 << 2), /* Instruction is related */
+	PERF_TXN_ASYNC          = (1 << 3), /* Instruction not related */
+	PERF_TXN_RETRY          = (1 << 4), /* Retry possible */
+	PERF_TXN_CONFLICT       = (1 << 5), /* Conflict abort */
+	PERF_TXN_CAPACITY_WRITE = (1 << 6), /* Capacity write abort */
+	PERF_TXN_CAPACITY_READ  = (1 << 7), /* Capacity read abort */
+
+	PERF_TXN_MAX	        = (1 << 8), /* non-ABI */
+
+	/* bits 32..63 are reserved for the abort code */
+
+	PERF_TXN_ABORT_MASK  = (0xffffffffULL << 32),
+	PERF_TXN_ABORT_SHIFT = 32,
 };
 
 /*
@@ -270,8 +300,9 @@ struct perf_event_attr {
 
 				exclude_callchain_kernel : 1, /* exclude kernel callchains */
 				exclude_callchain_user   : 1, /* exclude user callchains */
+				mmap2          :  1, /* include mmap with inode data     */
 
-				__reserved_1   : 41;
+				__reserved_1   : 40;
 
 	union {
 		__u32		wakeup_events;	  /* wakeup every n events */
@@ -316,6 +347,7 @@ struct perf_event_attr {
 #define PERF_EVENT_IOC_PERIOD		_IOW('$', 4, __u64)
 #define PERF_EVENT_IOC_SET_OUTPUT	_IO ('$', 5)
 #define PERF_EVENT_IOC_SET_FILTER	_IOW('$', 6, char *)
+#define PERF_EVENT_IOC_ID		_IOR('$', 7, __u64 *)
 
 enum perf_event_ioc_flags {
 	PERF_IOC_FLAG_GROUP		= 1U << 0,
@@ -370,9 +402,15 @@ struct perf_event_mmap_page {
 	__u64	time_running;		/* time event on cpu */
 	union {
 		__u64	capabilities;
-		__u64	cap_usr_time  : 1,
-			cap_usr_rdpmc : 1,
-			cap_____res   : 62;
+		struct {
+			__u64	cap_bit0		: 1, /* Always 0, deprecated, see commit 860f085b74e9 */
+				cap_bit0_is_deprecated	: 1, /* Always 1, signals that bit 0 is zero */
+
+				cap_user_rdpmc		: 1, /* The RDPMC instruction can be used to read counts */
+				cap_user_time		: 1, /* The time_* fields are used */
+				cap_user_time_zero	: 1, /* The time_zero field is used */
+				cap_____res		: 59;
+		};
 	};
 
 	/*
@@ -413,23 +451,43 @@ struct perf_event_mmap_page {
 	__u16	time_shift;
 	__u32	time_mult;
 	__u64	time_offset;
+	/*
+	 * If cap_usr_time_zero, the hardware clock (e.g. TSC) can be calculated
+	 * from sample timestamps.
+	 *
+	 *   time = timestamp - time_zero;
+	 *   quot = time / time_mult;
+	 *   rem  = time % time_mult;
+	 *   cyc = (quot << time_shift) + (rem << time_shift) / time_mult;
+	 *
+	 * And vice versa:
+	 *
+	 *   quot = cyc >> time_shift;
+	 *   rem  = cyc & ((1 << time_shift) - 1);
+	 *   timestamp = time_zero + quot * time_mult +
+	 *               ((rem * time_mult) >> time_shift);
+	 */
+	__u64	time_zero;
+	__u32	size;			/* Header size up to __reserved[] fields. */
 
 		/*
 		 * Hole for extension of the self monitor capabilities
 		 */
 
-	__u64	__reserved[120];	/* align to 1k */
+	__u8	__reserved[118*8+4];	/* align to 1k. */
 
 	/*
 	 * Control data for the mmap() data buffer.
 	 *
-	 * User-space reading the @data_head value should issue an rmb(), on
-	 * SMP capable platforms, after reading this value -- see
-	 * perf_event_wakeup().
+	 * User-space reading the @data_head value should issue an smp_rmb(),
+	 * after reading this value.
 	 *
 	 * When the mapping is PROT_WRITE the @data_tail value should be
-	 * written by userspace to reflect the last read data. In this case
-	 * the kernel will not over-write unread data.
+	 * written by userspace to reflect the last read data, after issueing
+	 * an smp_mb() to separate the data read from the ->data_tail store.
+	 * In this case the kernel will not over-write unread data.
+	 *
+	 * See perf_output_put_handle() for the data ordering.
 	 */
 	__u64   data_head;		/* head in the data section */
 	__u64	data_tail;		/* user-space written tail */
@@ -443,6 +501,7 @@ struct perf_event_mmap_page {
 #define PERF_RECORD_MISC_GUEST_KERNEL		(4 << 0)
 #define PERF_RECORD_MISC_GUEST_USER		(5 << 0)
 
+#define PERF_RECORD_MISC_MMAP_DATA		(1 << 13)
 /*
  * Indicates that the content of PERF_SAMPLE_IP points to
  * the actual instruction that triggered the event. See also
@@ -465,13 +524,28 @@ enum perf_event_type {
 	/*
 	 * If perf_event_attr.sample_id_all is set then all event types will
 	 * have the sample_type selected fields related to where/when
-	 * (identity) an event took place (TID, TIME, ID, CPU, STREAM_ID)
-	 * described in PERF_RECORD_SAMPLE below, it will be stashed just after
-	 * the perf_event_header and the fields already present for the existing
-	 * fields, i.e. at the end of the payload. That way a newer perf.data
-	 * file will be supported by older perf tools, with these new optional
-	 * fields being ignored.
+	 * (identity) an event took place (TID, TIME, ID, STREAM_ID, CPU,
+	 * IDENTIFIER) described in PERF_RECORD_SAMPLE below, it will be stashed
+	 * just after the perf_event_header and the fields already present for
+	 * the existing fields, i.e. at the end of the payload. That way a newer
+	 * perf.data file will be supported by older perf tools, with these new
+	 * optional fields being ignored.
 	 *
+	 * struct sample_id {
+	 * 	{ u32			pid, tid; } && PERF_SAMPLE_TID
+	 * 	{ u64			time;     } && PERF_SAMPLE_TIME
+	 * 	{ u64			id;       } && PERF_SAMPLE_ID
+	 * 	{ u64			stream_id;} && PERF_SAMPLE_STREAM_ID
+	 * 	{ u32			cpu, res; } && PERF_SAMPLE_CPU
+	 *	{ u64			id;	  } && PERF_SAMPLE_IDENTIFIER
+	 * } && perf_event_attr::sample_id_all
+	 *
+	 * Note that PERF_SAMPLE_IDENTIFIER duplicates PERF_SAMPLE_ID.  The
+	 * advantage of PERF_SAMPLE_IDENTIFIER is that its position is fixed
+	 * relative to header.size.
+	 */
+
+	/*
 	 * The MMAP events record the PROT_EXEC mappings so that we can
 	 * correlate userspace IPs to code. They have the following structure:
 	 *
@@ -483,6 +557,7 @@ enum perf_event_type {
 	 *	u64				len;
 	 *	u64				pgoff;
 	 *	char				filename[];
+	 * 	struct sample_id		sample_id;
 	 * };
 	 */
 	PERF_RECORD_MMAP			= 1,
@@ -492,6 +567,7 @@ enum perf_event_type {
 	 *	struct perf_event_header	header;
 	 *	u64				id;
 	 *	u64				lost;
+	 * 	struct sample_id		sample_id;
 	 * };
 	 */
 	PERF_RECORD_LOST			= 2,
@@ -502,6 +578,7 @@ enum perf_event_type {
 	 *
 	 *	u32				pid, tid;
 	 *	char				comm[];
+	 * 	struct sample_id		sample_id;
 	 * };
 	 */
 	PERF_RECORD_COMM			= 3,
@@ -512,6 +589,7 @@ enum perf_event_type {
 	 *	u32				pid, ppid;
 	 *	u32				tid, ptid;
 	 *	u64				time;
+	 * 	struct sample_id		sample_id;
 	 * };
 	 */
 	PERF_RECORD_EXIT			= 4,
@@ -522,6 +600,7 @@ enum perf_event_type {
 	 *	u64				time;
 	 *	u64				id;
 	 *	u64				stream_id;
+	 * 	struct sample_id		sample_id;
 	 * };
 	 */
 	PERF_RECORD_THROTTLE			= 5,
@@ -533,6 +612,7 @@ enum perf_event_type {
 	 *	u32				pid, ppid;
 	 *	u32				tid, ptid;
 	 *	u64				time;
+	 * 	struct sample_id		sample_id;
 	 * };
 	 */
 	PERF_RECORD_FORK			= 7,
@@ -543,6 +623,7 @@ enum perf_event_type {
 	 *	u32				pid, tid;
 	 *
 	 *	struct read_format		values;
+	 * 	struct sample_id		sample_id;
 	 * };
 	 */
 	PERF_RECORD_READ			= 8,
@@ -551,6 +632,13 @@ enum perf_event_type {
 	 * struct {
 	 *	struct perf_event_header	header;
 	 *
+	 *	#
+	 *	# Note that PERF_SAMPLE_IDENTIFIER duplicates PERF_SAMPLE_ID.
+	 *	# The advantage of PERF_SAMPLE_IDENTIFIER is that its position
+	 *	# is fixed relative to header.
+	 *	#
+	 *
+	 *	{ u64			id;	  } && PERF_SAMPLE_IDENTIFIER
 	 *	{ u64			ip;	  } && PERF_SAMPLE_IP
 	 *	{ u32			pid, tid; } && PERF_SAMPLE_TID
 	 *	{ u64			time;     } && PERF_SAMPLE_TIME
@@ -579,7 +667,8 @@ enum perf_event_type {
 	 *	{ u32			size;
 	 *	  char                  data[size];}&& PERF_SAMPLE_RAW
 	 *
-	 *	{ u64 from, to, flags } lbr[nr];} && PERF_SAMPLE_BRANCH_STACK
+	 *	{ u64                   nr;
+	 *        { u64 from, to, flags } lbr[nr];} && PERF_SAMPLE_BRANCH_STACK
 	 *
 	 * 	{ u64			abi; # enum perf_sample_regs_abi
 	 * 	  u64			regs[weight(mask)]; } && PERF_SAMPLE_REGS_USER
@@ -587,9 +676,33 @@ enum perf_event_type {
 	 * 	{ u64			size;
 	 * 	  char			data[size];
 	 * 	  u64			dyn_size; } && PERF_SAMPLE_STACK_USER
+	 *
+	 *	{ u64			weight;   } && PERF_SAMPLE_WEIGHT
+	 *	{ u64			data_src; } && PERF_SAMPLE_DATA_SRC
 	 * };
 	 */
 	PERF_RECORD_SAMPLE			= 9,
+
+	/*
+	 * The MMAP2 records are an augmented version of MMAP, they add
+	 * maj, min, ino numbers to be used to uniquely identify each mapping
+	 *
+	 * struct {
+	 *	struct perf_event_header	header;
+	 *
+	 *	u32				pid, tid;
+	 *	u64				addr;
+	 *	u64				len;
+	 *	u64				pgoff;
+	 *	u32				maj;
+	 *	u32				min;
+	 *	u64				ino;
+	 *	u64				ino_generation;
+	 *	char				filename[];
+	 * 	struct sample_id		sample_id;
+	 * };
+	 */
+	PERF_RECORD_MMAP2			= 10,
 
 	PERF_RECORD_MAX,			/* non-ABI */
 };
@@ -611,5 +724,92 @@ enum perf_callchain_context {
 #define PERF_FLAG_FD_NO_GROUP		(1U << 0)
 #define PERF_FLAG_FD_OUTPUT		(1U << 1)
 #define PERF_FLAG_PID_CGROUP		(1U << 2) /* pid=cgroup id, per-cpu mode only */
+
+union perf_mem_data_src {
+	__u64 val;
+	struct {
+		__u64   mem_op:5,	/* type of opcode */
+			mem_lvl:14,	/* memory hierarchy level */
+			mem_snoop:5,	/* snoop mode */
+			mem_lock:2,	/* lock instr */
+			mem_dtlb:7,	/* tlb access */
+			mem_rsvd:31;
+	};
+};
+
+/* type of opcode (load/store/prefetch,code) */
+#define PERF_MEM_OP_NA		0x01 /* not available */
+#define PERF_MEM_OP_LOAD	0x02 /* load instruction */
+#define PERF_MEM_OP_STORE	0x04 /* store instruction */
+#define PERF_MEM_OP_PFETCH	0x08 /* prefetch */
+#define PERF_MEM_OP_EXEC	0x10 /* code (execution) */
+#define PERF_MEM_OP_SHIFT	0
+
+/* memory hierarchy (memory level, hit or miss) */
+#define PERF_MEM_LVL_NA		0x01  /* not available */
+#define PERF_MEM_LVL_HIT	0x02  /* hit level */
+#define PERF_MEM_LVL_MISS	0x04  /* miss level  */
+#define PERF_MEM_LVL_L1		0x08  /* L1 */
+#define PERF_MEM_LVL_LFB	0x10  /* Line Fill Buffer */
+#define PERF_MEM_LVL_L2		0x20  /* L2 */
+#define PERF_MEM_LVL_L3		0x40  /* L3 */
+#define PERF_MEM_LVL_LOC_RAM	0x80  /* Local DRAM */
+#define PERF_MEM_LVL_REM_RAM1	0x100 /* Remote DRAM (1 hop) */
+#define PERF_MEM_LVL_REM_RAM2	0x200 /* Remote DRAM (2 hops) */
+#define PERF_MEM_LVL_REM_CCE1	0x400 /* Remote Cache (1 hop) */
+#define PERF_MEM_LVL_REM_CCE2	0x800 /* Remote Cache (2 hops) */
+#define PERF_MEM_LVL_IO		0x1000 /* I/O memory */
+#define PERF_MEM_LVL_UNC	0x2000 /* Uncached memory */
+#define PERF_MEM_LVL_SHIFT	5
+
+/* snoop mode */
+#define PERF_MEM_SNOOP_NA	0x01 /* not available */
+#define PERF_MEM_SNOOP_NONE	0x02 /* no snoop */
+#define PERF_MEM_SNOOP_HIT	0x04 /* snoop hit */
+#define PERF_MEM_SNOOP_MISS	0x08 /* snoop miss */
+#define PERF_MEM_SNOOP_HITM	0x10 /* snoop hit modified */
+#define PERF_MEM_SNOOP_SHIFT	19
+
+/* locked instruction */
+#define PERF_MEM_LOCK_NA	0x01 /* not available */
+#define PERF_MEM_LOCK_LOCKED	0x02 /* locked transaction */
+#define PERF_MEM_LOCK_SHIFT	24
+
+/* TLB access */
+#define PERF_MEM_TLB_NA		0x01 /* not available */
+#define PERF_MEM_TLB_HIT	0x02 /* hit level */
+#define PERF_MEM_TLB_MISS	0x04 /* miss level */
+#define PERF_MEM_TLB_L1		0x08 /* L1 */
+#define PERF_MEM_TLB_L2		0x10 /* L2 */
+#define PERF_MEM_TLB_WK		0x20 /* Hardware Walker*/
+#define PERF_MEM_TLB_OS		0x40 /* OS fault handler */
+#define PERF_MEM_TLB_SHIFT	26
+
+#define PERF_MEM_S(a, s) \
+	(((u64)PERF_MEM_##a##_##s) << PERF_MEM_##a##_SHIFT)
+
+/*
+ * single taken branch record layout:
+ *
+ *      from: source instruction (may not always be a branch insn)
+ *        to: branch target
+ *   mispred: branch target was mispredicted
+ * predicted: branch target was predicted
+ *
+ * support for mispred, predicted is optional. In case it
+ * is not supported mispred = predicted = 0.
+ *
+ *     in_tx: running in a hardware transaction
+ *     abort: aborting a hardware transaction
+ */
+struct perf_branch_entry {
+	__u64	from;
+	__u64	to;
+	__u64	mispred:1,  /* target mispredicted */
+		predicted:1,/* target predicted */
+		in_tx:1,    /* in transaction */
+		abort:1,    /* transaction abort */
+		reserved:60;
+};
 
 #endif /* _UAPI_LINUX_PERF_EVENT_H */

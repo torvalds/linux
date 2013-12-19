@@ -228,9 +228,8 @@ static struct sock *__ipxitf_find_socket(struct ipx_interface *intrfc,
 					 __be16 port)
 {
 	struct sock *s;
-	struct hlist_node *node;
 
-	sk_for_each(s, node, &intrfc->if_sklist)
+	sk_for_each(s, &intrfc->if_sklist)
 		if (ipx_sk(s)->port == port)
 			goto found;
 	s = NULL;
@@ -259,12 +258,11 @@ static struct sock *ipxitf_find_internal_socket(struct ipx_interface *intrfc,
 						__be16 port)
 {
 	struct sock *s;
-	struct hlist_node *node;
 
 	ipxitf_hold(intrfc);
 	spin_lock_bh(&intrfc->if_sklist_lock);
 
-	sk_for_each(s, node, &intrfc->if_sklist) {
+	sk_for_each(s, &intrfc->if_sklist) {
 		struct ipx_sock *ipxs = ipx_sk(s);
 
 		if (ipxs->port == port &&
@@ -282,14 +280,14 @@ found:
 static void __ipxitf_down(struct ipx_interface *intrfc)
 {
 	struct sock *s;
-	struct hlist_node *node, *t;
+	struct hlist_node *t;
 
 	/* Delete all routes associated with this interface */
 	ipxrtr_del_routes(intrfc);
 
 	spin_lock_bh(&intrfc->if_sklist_lock);
 	/* error sockets */
-	sk_for_each_safe(s, node, t, &intrfc->if_sklist) {
+	sk_for_each_safe(s, t, &intrfc->if_sklist) {
 		struct ipx_sock *ipxs = ipx_sk(s);
 
 		s->sk_err = ENOLINK;
@@ -332,7 +330,7 @@ static __inline__ void __ipxitf_put(struct ipx_interface *intrfc)
 static int ipxitf_device_event(struct notifier_block *notifier,
 				unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct ipx_interface *i, *tmp;
 
 	if (!net_eq(dev_net(dev), &init_net))
@@ -385,12 +383,11 @@ static int ipxitf_demux_socket(struct ipx_interface *intrfc,
 	int is_broadcast = !memcmp(ipx->ipx_dest.node, ipx_broadcast_node,
 				   IPX_NODE_LEN);
 	struct sock *s;
-	struct hlist_node *node;
 	int rc;
 
 	spin_lock_bh(&intrfc->if_sklist_lock);
 
-	sk_for_each(s, node, &intrfc->if_sklist) {
+	sk_for_each(s, &intrfc->if_sklist) {
 		struct ipx_sock *ipxs = ipx_sk(s);
 
 		if (ipxs->port == ipx->ipx_dest.sock &&
@@ -446,12 +443,11 @@ static struct sock *ncp_connection_hack(struct ipx_interface *intrfc,
 		connection = (((int) *(ncphdr + 9)) << 8) | (int) *(ncphdr + 8);
 
 	if (connection) {
-		struct hlist_node *node;
 		/* Now we have to look for a special NCP connection handling
 		 * socket. Only these sockets have ipx_ncp_conn != 0, set by
 		 * SIOCIPXNCPCONN. */
 		spin_lock_bh(&intrfc->if_sklist_lock);
-		sk_for_each(sk, node, &intrfc->if_sklist)
+		sk_for_each(sk, &intrfc->if_sklist)
 			if (ipx_sk(sk)->ipx_ncp_conn == connection) {
 				sock_hold(sk);
 				goto found;
@@ -1827,8 +1823,6 @@ static int ipx_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (skb->tstamp.tv64)
 		sk->sk_stamp = skb->tstamp;
 
-	msg->msg_namelen = sizeof(*sipx);
-
 	if (sipx) {
 		sipx->sipx_family	= AF_IPX;
 		sipx->sipx_port		= ipx->ipx_source.sock;
@@ -1836,6 +1830,7 @@ static int ipx_recvmsg(struct kiocb *iocb, struct socket *sock,
 		sipx->sipx_network	= IPX_SKB_CB(skb)->ipx_source_net;
 		sipx->sipx_type 	= ipx->ipx_type;
 		sipx->sipx_zero		= 0;
+		msg->msg_namelen	= sizeof(*sipx);
 	}
 	rc = copied;
 

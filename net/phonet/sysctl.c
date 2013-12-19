@@ -61,13 +61,13 @@ void phonet_get_local_port_range(int *min, int *max)
 	} while (read_seqretry(&local_port_range_lock, seq));
 }
 
-static int proc_local_port_range(ctl_table *table, int write,
+static int proc_local_port_range(struct ctl_table *table, int write,
 				void __user *buffer,
 				size_t *lenp, loff_t *ppos)
 {
 	int ret;
 	int range[2] = {local_port_range[0], local_port_range[1]};
-	ctl_table tmp = {
+	struct ctl_table tmp = {
 		.data = &range,
 		.maxlen = sizeof(range),
 		.mode = table->mode,

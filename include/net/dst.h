@@ -36,13 +36,9 @@ struct dst_entry {
 	struct net_device       *dev;
 	struct  dst_ops	        *ops;
 	unsigned long		_metrics;
-	union {
-		unsigned long           expires;
-		/* point to where the dst_entry copied from */
-		struct dst_entry        *from;
-	};
+	unsigned long           expires;
 	struct dst_entry	*path;
-	void			*__pad0;
+	struct dst_entry	*from;
 #ifdef CONFIG_XFRM
 	struct xfrm_state	*xfrm;
 #else
@@ -61,6 +57,7 @@ struct dst_entry {
 #define DST_NOPEER		0x0040
 #define DST_FAKE_RTABLE		0x0080
 #define DST_XFRM_TUNNEL		0x0100
+#define DST_XFRM_QUEUE		0x0200
 
 	unsigned short		pending_confirm;
 
@@ -109,7 +106,7 @@ struct dst_entry {
 	};
 };
 
-extern u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old);
+u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old);
 extern const u32 dst_default_metrics[];
 
 #define DST_METRICS_READ_ONLY	0x1UL
@@ -122,7 +119,7 @@ static inline bool dst_metrics_read_only(const struct dst_entry *dst)
 	return dst->_metrics & DST_METRICS_READ_ONLY;
 }
 
-extern void __dst_destroy_metrics_generic(struct dst_entry *dst, unsigned long old);
+void __dst_destroy_metrics_generic(struct dst_entry *dst, unsigned long old);
 
 static inline void dst_destroy_metrics_generic(struct dst_entry *dst)
 {
@@ -265,7 +262,7 @@ static inline struct dst_entry *dst_clone(struct dst_entry *dst)
 	return dst;
 }
 
-extern void dst_release(struct dst_entry *dst);
+void dst_release(struct dst_entry *dst);
 
 static inline void refdst_drop(unsigned long refdst)
 {
@@ -314,11 +311,13 @@ static inline void skb_dst_force(struct sk_buff *skb)
  *	__skb_tunnel_rx - prepare skb for rx reinsert
  *	@skb: buffer
  *	@dev: tunnel device
+ *	@net: netns for packet i/o
  *
  *	After decapsulation, packet is going to re-enter (netif_rx()) our stack,
  *	so make some cleanups. (no accounting done)
  */
-static inline void __skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev)
+static inline void __skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev,
+				   struct net *net)
 {
 	skb->dev = dev;
 
@@ -330,8 +329,7 @@ static inline void __skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev)
 	if (!skb->l4_rxhash)
 		skb->rxhash = 0;
 	skb_set_queue_mapping(skb, 0);
-	skb_dst_drop(skb);
-	nf_reset(skb);
+	skb_scrub_packet(skb, !net_eq(net, dev_net(dev)));
 }
 
 /**
@@ -343,12 +341,13 @@ static inline void __skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev)
  *	so make some cleanups, and perform accounting.
  *	Note: this accounting is not SMP safe.
  */
-static inline void skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev)
+static inline void skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev,
+				 struct net *net)
 {
 	/* TODO : stats should be SMP safe */
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += skb->len;
-	__skb_tunnel_rx(skb, dev);
+	__skb_tunnel_rx(skb, dev, net);
 }
 
 /* Children define the path of the packet through the
@@ -363,12 +362,11 @@ static inline struct dst_entry *skb_dst_pop(struct sk_buff *skb)
 	return child;
 }
 
-extern int dst_discard(struct sk_buff *skb);
-extern void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
-		       int initial_ref, int initial_obsolete,
-		       unsigned short flags);
-extern void __dst_free(struct dst_entry *dst);
-extern struct dst_entry *dst_destroy(struct dst_entry *dst);
+int dst_discard(struct sk_buff *skb);
+void *dst_alloc(struct dst_ops *ops, struct net_device *dev, int initial_ref,
+		int initial_obsolete, unsigned short flags);
+void __dst_free(struct dst_entry *dst);
+struct dst_entry *dst_destroy(struct dst_entry *dst);
 
 static inline void dst_free(struct dst_entry *dst)
 {
@@ -416,13 +414,15 @@ static inline int dst_neigh_output(struct dst_entry *dst, struct neighbour *n,
 
 static inline struct neighbour *dst_neigh_lookup(const struct dst_entry *dst, const void *daddr)
 {
-	return dst->ops->neigh_lookup(dst, NULL, daddr);
+	struct neighbour *n = dst->ops->neigh_lookup(dst, NULL, daddr);
+	return IS_ERR(n) ? NULL : n;
 }
 
 static inline struct neighbour *dst_neigh_lookup_skb(const struct dst_entry *dst,
 						     struct sk_buff *skb)
 {
-	return dst->ops->neigh_lookup(dst, skb, NULL);
+	struct neighbour *n =  dst->ops->neigh_lookup(dst, skb, NULL);
+	return IS_ERR(n) ? NULL : n;
 }
 
 static inline void dst_link_failure(struct sk_buff *skb)
@@ -462,7 +462,7 @@ static inline struct dst_entry *dst_check(struct dst_entry *dst, u32 cookie)
 	return dst;
 }
 
-extern void		dst_init(void);
+void dst_init(void);
 
 /* Flags for xfrm_lookup flags argument. */
 enum {
@@ -478,10 +478,22 @@ static inline struct dst_entry *xfrm_lookup(struct net *net,
 {
 	return dst_orig;
 } 
+
+static inline struct xfrm_state *dst_xfrm(const struct dst_entry *dst)
+{
+	return NULL;
+}
+
 #else
-extern struct dst_entry *xfrm_lookup(struct net *net, struct dst_entry *dst_orig,
-				     const struct flowi *fl, struct sock *sk,
-				     int flags);
+struct dst_entry *xfrm_lookup(struct net *net, struct dst_entry *dst_orig,
+			      const struct flowi *fl, struct sock *sk,
+			      int flags);
+
+/* skb attached with this dst needs transformation if dst->xfrm is valid */
+static inline struct xfrm_state *dst_xfrm(const struct dst_entry *dst)
+{
+	return dst->xfrm;
+}
 #endif
 
 #endif /* _NET_DST_H */

@@ -140,7 +140,8 @@ static int ipoib_cm_post_receive_nonsrq(struct net_device *dev,
 static struct sk_buff *ipoib_cm_alloc_rx_skb(struct net_device *dev,
 					     struct ipoib_cm_rx_buf *rx_ring,
 					     int id, int frags,
-					     u64 mapping[IPOIB_CM_RX_SG])
+					     u64 mapping[IPOIB_CM_RX_SG],
+					     gfp_t gfp)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct sk_buff *skb;
@@ -164,7 +165,7 @@ static struct sk_buff *ipoib_cm_alloc_rx_skb(struct net_device *dev,
 	}
 
 	for (i = 0; i < frags; i++) {
-		struct page *page = alloc_page(GFP_ATOMIC);
+		struct page *page = alloc_page(gfp);
 
 		if (!page)
 			goto partial_error;
@@ -382,7 +383,8 @@ static int ipoib_cm_nonsrq_init_rx(struct net_device *dev, struct ib_cm_id *cm_i
 
 	for (i = 0; i < ipoib_recvq_size; ++i) {
 		if (!ipoib_cm_alloc_rx_skb(dev, rx->rx_ring, i, IPOIB_CM_RX_SG - 1,
-					   rx->rx_ring[i].mapping)) {
+					   rx->rx_ring[i].mapping,
+					   GFP_KERNEL)) {
 			ipoib_warn(priv, "failed to allocate receive buffer %d\n", i);
 				ret = -ENOMEM;
 				goto err_count;
@@ -460,7 +462,7 @@ static int ipoib_cm_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *even
 		goto err_qp;
 	}
 
-	psn = random32() & 0xffffff;
+	psn = prandom_u32() & 0xffffff;
 	ret = ipoib_cm_modify_rx_qp(dev, cm_id, p->qp, psn);
 	if (ret)
 		goto err_modify;
@@ -639,7 +641,8 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	frags = PAGE_ALIGN(wc->byte_len - min(wc->byte_len,
 					      (unsigned)IPOIB_CM_HEAD_SIZE)) / PAGE_SIZE;
 
-	newskb = ipoib_cm_alloc_rx_skb(dev, rx_ring, wr_id, frags, mapping);
+	newskb = ipoib_cm_alloc_rx_skb(dev, rx_ring, wr_id, frags,
+				       mapping, GFP_ATOMIC);
 	if (unlikely(!newskb)) {
 		/*
 		 * If we can't allocate a new RX buffer, dump
@@ -741,6 +744,9 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 
 	tx_req->mapping = addr;
 
+	skb_orphan(skb);
+	skb_dst_drop(skb);
+
 	rc = post_send(priv, tx, tx->tx_head & (ipoib_sendq_size - 1),
 		       addr, skb->len);
 	if (unlikely(rc)) {
@@ -752,15 +758,16 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 		dev->trans_start = jiffies;
 		++tx->tx_head;
 
-		skb_orphan(skb);
-		skb_dst_drop(skb);
-
 		if (++priv->tx_outstanding == ipoib_sendq_size) {
 			ipoib_dbg(priv, "TX ring 0x%x full, stopping kernel net queue\n",
 				  tx->qp->qp_num);
-			if (ib_req_notify_cq(priv->send_cq, IB_CQ_NEXT_COMP))
-				ipoib_warn(priv, "request notify on send CQ failed\n");
 			netif_stop_queue(dev);
+			rc = ib_req_notify_cq(priv->send_cq,
+				IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS);
+			if (rc < 0)
+				ipoib_warn(priv, "request notify on send CQ failed\n");
+			else if (rc)
+				ipoib_send_comp_handler(priv->send_cq, dev);
 		}
 	}
 }
@@ -813,7 +820,6 @@ void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 
 		if (neigh) {
 			neigh->cm = NULL;
-			list_del(&neigh->list);
 			ipoib_neigh_free(neigh);
 
 			tx->neigh = NULL;
@@ -1230,7 +1236,6 @@ static int ipoib_cm_tx_handler(struct ib_cm_id *cm_id,
 
 		if (neigh) {
 			neigh->cm = NULL;
-			list_del(&neigh->list);
 			ipoib_neigh_free(neigh);
 
 			tx->neigh = NULL;
@@ -1321,7 +1326,6 @@ static void ipoib_cm_tx_start(struct work_struct *work)
 			neigh = p->neigh;
 			if (neigh) {
 				neigh->cm = NULL;
-				list_del(&neigh->list);
 				ipoib_neigh_free(neigh);
 			}
 			list_del(&p->list);
@@ -1555,7 +1559,8 @@ int ipoib_cm_dev_init(struct net_device *dev)
 		for (i = 0; i < ipoib_recvq_size; ++i) {
 			if (!ipoib_cm_alloc_rx_skb(dev, priv->cm.srq_ring, i,
 						   priv->cm.num_frags - 1,
-						   priv->cm.srq_ring[i].mapping)) {
+						   priv->cm.srq_ring[i].mapping,
+						   GFP_KERNEL)) {
 				ipoib_warn(priv, "failed to allocate "
 					   "receive buffer %d\n", i);
 				ipoib_cm_dev_cleanup(dev);

@@ -14,7 +14,7 @@
  */
 
 /dts-v1/;
-/include/ "armada-xp-mv78460.dtsi"
+#include "armada-xp-mv78460.dtsi"
 
 / {
 	model = "Marvell Armada XP Evaluation Board";
@@ -26,69 +26,168 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x00000000 0x80000000>; /* 2 GB */
+		reg = <0 0x00000000 0 0x80000000>; /* 2 GB */
 	};
 
 	soc {
-		serial@d0012000 {
-			clock-frequency = <250000000>;
-			status = "okay";
-		};
-		serial@d0012100 {
-			clock-frequency = <250000000>;
-			status = "okay";
-		};
-		serial@d0012200 {
-			clock-frequency = <250000000>;
-			status = "okay";
-		};
-		serial@d0012300 {
-			clock-frequency = <250000000>;
-			status = "okay";
-		};
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0 0xd0000000 0x100000
+			  MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000
+			  MBUS_ID(0x01, 0x2f) 0 0 0xf0000000 0x1000000>;
 
-		sata@d00a0000 {
-			nr-ports = <2>;
+		devbus-bootcs {
 			status = "okay";
-		};
 
-		mdio {
-			phy0: ethernet-phy@0 {
-				reg = <0>;
-			};
+			/* Device Bus parameters are required */
 
-			phy1: ethernet-phy@1 {
-				reg = <1>;
-			};
+			/* Read parameters */
+			devbus,bus-width    = <8>;
+			devbus,turn-off-ps  = <60000>;
+			devbus,badr-skew-ps = <0>;
+			devbus,acc-first-ps = <124000>;
+			devbus,acc-next-ps  = <248000>;
+			devbus,rd-setup-ps  = <0>;
+			devbus,rd-hold-ps   = <0>;
 
-			phy2: ethernet-phy@2 {
-				reg = <25>;
-			};
+			/* Write parameters */
+			devbus,sync-enable = <0>;
+			devbus,wr-high-ps  = <60000>;
+			devbus,wr-low-ps   = <60000>;
+			devbus,ale-wr-ps   = <60000>;
 
-			phy3: ethernet-phy@3 {
-				reg = <27>;
+			/* NOR 16 MiB */
+			nor@0 {
+				compatible = "cfi-flash";
+				reg = <0 0x1000000>;
+				bank-width = <2>;
 			};
 		};
 
-		ethernet@d0070000 {
+		pcie-controller {
 			status = "okay";
-			phy = <&phy0>;
-			phy-mode = "rgmii-id";
+
+			/*
+			 * All 6 slots are physically present as
+			 * standard PCIe slots on the board.
+			 */
+			pcie@1,0 {
+				/* Port 0, Lane 0 */
+				status = "okay";
+			};
+			pcie@2,0 {
+				/* Port 0, Lane 1 */
+				status = "okay";
+			};
+			pcie@3,0 {
+				/* Port 0, Lane 2 */
+				status = "okay";
+			};
+			pcie@4,0 {
+				/* Port 0, Lane 3 */
+				status = "okay";
+			};
+			pcie@9,0 {
+				/* Port 2, Lane 0 */
+				status = "okay";
+			};
+			pcie@10,0 {
+				/* Port 3, Lane 0 */
+				status = "okay";
+			};
 		};
-		ethernet@d0074000 {
-			status = "okay";
-			phy = <&phy1>;
-			phy-mode = "rgmii-id";
-		};
-		ethernet@d0030000 {
-			status = "okay";
-			phy = <&phy2>;
-			phy-mode = "sgmii";
-		};
-		ethernet@d0034000 {
-			status = "okay";
-			phy = <&phy3>;
-			phy-mode = "sgmii";
+
+		internal-regs {
+			serial@12000 {
+				clock-frequency = <250000000>;
+				status = "okay";
+			};
+			serial@12100 {
+				clock-frequency = <250000000>;
+				status = "okay";
+			};
+			serial@12200 {
+				clock-frequency = <250000000>;
+				status = "okay";
+			};
+			serial@12300 {
+				clock-frequency = <250000000>;
+				status = "okay";
+			};
+
+			sata@a0000 {
+				nr-ports = <2>;
+				status = "okay";
+			};
+
+			mdio {
+				phy0: ethernet-phy@0 {
+					reg = <0>;
+				};
+
+				phy1: ethernet-phy@1 {
+					reg = <1>;
+				};
+
+				phy2: ethernet-phy@2 {
+					reg = <25>;
+				};
+
+				phy3: ethernet-phy@3 {
+					reg = <27>;
+				};
+			};
+
+			ethernet@70000 {
+				status = "okay";
+				phy = <&phy0>;
+				phy-mode = "rgmii-id";
+			};
+			ethernet@74000 {
+				status = "okay";
+				phy = <&phy1>;
+				phy-mode = "rgmii-id";
+			};
+			ethernet@30000 {
+				status = "okay";
+				phy = <&phy2>;
+				phy-mode = "sgmii";
+			};
+			ethernet@34000 {
+				status = "okay";
+				phy = <&phy3>;
+				phy-mode = "sgmii";
+			};
+
+			mvsdio@d4000 {
+				pinctrl-0 = <&sdio_pins>;
+				pinctrl-names = "default";
+				status = "okay";
+				/* No CD or WP GPIOs */
+				broken-cd;
+			};
+
+			usb@50000 {
+				status = "okay";
+			};
+
+			usb@51000 {
+				status = "okay";
+			};
+
+			usb@52000 {
+				status = "okay";
+			};
+
+			spi0: spi@10600 {
+				status = "okay";
+
+				spi-flash@0 {
+					#address-cells = <1>;
+					#size-cells = <1>;
+					compatible = "m25p64";
+					reg = <0>; /* Chip select 0 */
+					spi-max-frequency = <20000000>;
+				};
+			};
 		};
 	};
 };

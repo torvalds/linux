@@ -18,7 +18,6 @@
  * this warranty disclaimer.
  **/
 
-#include <linux/firmware.h>
 #include <linux/slab.h>
 
 #include <linux/mmc/sdio_ids.h>
@@ -82,9 +81,27 @@ static const struct btmrvl_sdio_card_reg btmrvl_reg_87xx = {
 	.io_port_2 = 0x7a,
 };
 
+static const struct btmrvl_sdio_card_reg btmrvl_reg_88xx = {
+	.cfg = 0x00,
+	.host_int_mask = 0x02,
+	.host_intstatus = 0x03,
+	.card_status = 0x50,
+	.sq_read_base_addr_a0 = 0x60,
+	.sq_read_base_addr_a1 = 0x61,
+	.card_revision = 0xbc,
+	.card_fw_status0 = 0xc0,
+	.card_fw_status1 = 0xc1,
+	.card_rx_len = 0xc2,
+	.card_rx_unit = 0xc3,
+	.io_port_0 = 0xd8,
+	.io_port_1 = 0xd9,
+	.io_port_2 = 0xda,
+};
+
 static const struct btmrvl_sdio_device btmrvl_sdio_sd8688 = {
-	.helper		= "sd8688_helper.bin",
-	.firmware	= "sd8688.bin",
+	.helper		= "mrvl/sd8688_helper.bin",
+	.firmware	= "mrvl/sd8688.bin",
+	.cal_data	= NULL,
 	.reg		= &btmrvl_reg_8688,
 	.sd_blksz_fw_dl	= 64,
 };
@@ -92,6 +109,7 @@ static const struct btmrvl_sdio_device btmrvl_sdio_sd8688 = {
 static const struct btmrvl_sdio_device btmrvl_sdio_sd8787 = {
 	.helper		= NULL,
 	.firmware	= "mrvl/sd8787_uapsta.bin",
+	.cal_data	= NULL,
 	.reg		= &btmrvl_reg_87xx,
 	.sd_blksz_fw_dl	= 256,
 };
@@ -99,7 +117,16 @@ static const struct btmrvl_sdio_device btmrvl_sdio_sd8787 = {
 static const struct btmrvl_sdio_device btmrvl_sdio_sd8797 = {
 	.helper		= NULL,
 	.firmware	= "mrvl/sd8797_uapsta.bin",
+	.cal_data	= "mrvl/sd8797_caldata.conf",
 	.reg		= &btmrvl_reg_87xx,
+	.sd_blksz_fw_dl	= 256,
+};
+
+static const struct btmrvl_sdio_device btmrvl_sdio_sd8897 = {
+	.helper		= NULL,
+	.firmware	= "mrvl/sd8897_uapsta.bin",
+	.cal_data	= NULL,
+	.reg		= &btmrvl_reg_88xx,
 	.sd_blksz_fw_dl	= 256,
 };
 
@@ -116,6 +143,9 @@ static const struct sdio_device_id btmrvl_sdio_ids[] = {
 	/* Marvell SD8797 Bluetooth device */
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x912A),
 			.driver_data = (unsigned long) &btmrvl_sdio_sd8797 },
+	/* Marvell SD8897 Bluetooth device */
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x912E),
+			.driver_data = (unsigned long) &btmrvl_sdio_sd8897 },
 
 	{ }	/* Terminating entry */
 };
@@ -228,24 +258,24 @@ failed:
 static int btmrvl_sdio_verify_fw_download(struct btmrvl_sdio_card *card,
 								int pollnum)
 {
-	int ret = -ETIMEDOUT;
 	u16 firmwarestat;
-	unsigned int tries;
+	int tries, ret;
 
 	 /* Wait for firmware to become ready */
 	for (tries = 0; tries < pollnum; tries++) {
-		if (btmrvl_sdio_read_fw_status(card, &firmwarestat) < 0)
+		sdio_claim_host(card->func);
+		ret = btmrvl_sdio_read_fw_status(card, &firmwarestat);
+		sdio_release_host(card->func);
+		if (ret < 0)
 			continue;
 
-		if (firmwarestat == FIRMWARE_READY) {
-			ret = 0;
-			break;
-		} else {
-			msleep(10);
-		}
+		if (firmwarestat == FIRMWARE_READY)
+			return 0;
+
+		msleep(10);
 	}
 
-	return ret;
+	return -ETIMEDOUT;
 }
 
 static int btmrvl_sdio_download_helper(struct btmrvl_sdio_card *card)
@@ -459,7 +489,7 @@ static int btmrvl_sdio_download_fw_w_helper(struct btmrvl_sdio_card *card)
 			if (firmwarelen - offset < txlen)
 				txlen = firmwarelen - offset;
 
-			tx_blocks = (txlen + blksz_dl - 1) / blksz_dl;
+			tx_blocks = DIV_ROUND_UP(txlen, blksz_dl);
 
 			memcpy(fwbuf, &firmware[offset], txlen);
 		}
@@ -527,6 +557,7 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 	skb = bt_skb_alloc(num_blocks * blksz + BTSDIO_DMA_ALIGN, GFP_ATOMIC);
 	if (skb == NULL) {
 		BT_ERR("No free skb");
+		ret = -ENOMEM;
 		goto exit;
 	}
 
@@ -569,15 +600,14 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 	case HCI_SCODATA_PKT:
 	case HCI_EVENT_PKT:
 		bt_cb(skb)->pkt_type = type;
-		skb->dev = (void *)hdev;
 		skb_put(skb, buf_len);
 		skb_pull(skb, SDIO_HEADER_LEN);
 
 		if (type == HCI_EVENT_PKT) {
 			if (btmrvl_check_evtpkt(priv, skb))
-				hci_recv_frame(skb);
+				hci_recv_frame(hdev, skb);
 		} else {
-			hci_recv_frame(skb);
+			hci_recv_frame(hdev, skb);
 		}
 
 		hdev->stat.byte_rx += buf_len;
@@ -585,12 +615,11 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 
 	case MRVL_VENDOR_PKT:
 		bt_cb(skb)->pkt_type = HCI_VENDOR_PKT;
-		skb->dev = (void *)hdev;
 		skb_put(skb, buf_len);
 		skb_pull(skb, SDIO_HEADER_LEN);
 
 		if (btmrvl_process_event(priv, skb))
-			hci_recv_frame(skb);
+			hci_recv_frame(hdev, skb);
 
 		hdev->stat.byte_rx += buf_len;
 		break;
@@ -845,7 +874,7 @@ static int btmrvl_sdio_host_to_card(struct btmrvl_private *priv,
 	}
 
 	blksz = SDIO_BLOCK_SIZE;
-	buf_block_len = (nb + blksz - 1) / blksz;
+	buf_block_len = DIV_ROUND_UP(nb, blksz);
 
 	sdio_claim_host(card->func);
 
@@ -874,7 +903,7 @@ exit:
 
 static int btmrvl_sdio_download_fw(struct btmrvl_sdio_card *card)
 {
-	int ret = 0;
+	int ret;
 	u8 fws0;
 	int pollnum = MAX_POLL_TRIES;
 
@@ -882,12 +911,13 @@ static int btmrvl_sdio_download_fw(struct btmrvl_sdio_card *card)
 		BT_ERR("card or function is NULL!");
 		return -EINVAL;
 	}
-	sdio_claim_host(card->func);
 
 	if (!btmrvl_sdio_verify_fw_download(card, 1)) {
 		BT_DBG("Firmware already downloaded!");
-		goto done;
+		return 0;
 	}
+
+	sdio_claim_host(card->func);
 
 	/* Check if other function driver is downloading the firmware */
 	fws0 = sdio_readb(card->func, card->reg->card_fw_status0, &ret);
@@ -918,15 +948,21 @@ static int btmrvl_sdio_download_fw(struct btmrvl_sdio_card *card)
 		}
 	}
 
+	sdio_release_host(card->func);
+
+	/*
+	 * winner or not, with this test the FW synchronizes when the
+	 * module can continue its initialization
+	 */
 	if (btmrvl_sdio_verify_fw_download(card, pollnum)) {
 		BT_ERR("FW failed to be active in time!");
-		ret = -ETIMEDOUT;
-		goto done;
+		return -ETIMEDOUT;
 	}
+
+	return 0;
 
 done:
 	sdio_release_host(card->func);
-
 	return ret;
 }
 
@@ -971,6 +1007,7 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 		struct btmrvl_sdio_device *data = (void *) id->driver_data;
 		card->helper = data->helper;
 		card->firmware = data->firmware;
+		card->cal_data = data->cal_data;
 		card->reg = data->reg;
 		card->sd_blksz_fw_dl = data->sd_blksz_fw_dl;
 	}
@@ -989,8 +1026,6 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 		goto unreg_dev;
 	}
 
-	msleep(100);
-
 	btmrvl_sdio_enable_host_int(card);
 
 	priv = btmrvl_add_card(card);
@@ -1001,6 +1036,8 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 	}
 
 	card->priv = priv;
+	priv->btmrvl_dev.dev = &card->func->dev;
+	priv->btmrvl_dev.cal_data = card->cal_data;
 
 	/* Initialize the interface specific function pointers */
 	priv->hw_host_to_card = btmrvl_sdio_host_to_card;
@@ -1012,12 +1049,6 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 		ret = -ENODEV;
 		goto disable_host_int;
 	}
-
-	priv->btmrvl_dev.psmode = 1;
-	btmrvl_enable_ps(priv);
-
-	priv->btmrvl_dev.gpio_gap = 0xffff;
-	btmrvl_send_hscfg_cmd(priv);
 
 	return 0;
 
@@ -1185,7 +1216,9 @@ MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell BT-over-SDIO driver ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL v2");
-MODULE_FIRMWARE("sd8688_helper.bin");
-MODULE_FIRMWARE("sd8688.bin");
+MODULE_FIRMWARE("mrvl/sd8688_helper.bin");
+MODULE_FIRMWARE("mrvl/sd8688.bin");
 MODULE_FIRMWARE("mrvl/sd8787_uapsta.bin");
 MODULE_FIRMWARE("mrvl/sd8797_uapsta.bin");
+MODULE_FIRMWARE("mrvl/sd8797_caldata.conf");
+MODULE_FIRMWARE("mrvl/sd8897_uapsta.bin");

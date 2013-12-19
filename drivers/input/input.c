@@ -1734,6 +1734,7 @@ EXPORT_SYMBOL_GPL(input_class);
  */
 struct input_dev *input_allocate_device(void)
 {
+	static atomic_t input_no = ATOMIC_INIT(0);
 	struct input_dev *dev;
 
 	dev = kzalloc(sizeof(struct input_dev), GFP_KERNEL);
@@ -1743,8 +1744,12 @@ struct input_dev *input_allocate_device(void)
 		device_initialize(&dev->dev);
 		mutex_init(&dev->mutex);
 		spin_lock_init(&dev->event_lock);
+		init_timer(&dev->timer);
 		INIT_LIST_HEAD(&dev->h_list);
 		INIT_LIST_HEAD(&dev->node);
+
+		dev_set_name(&dev->dev, "input%ld",
+			     (unsigned long) atomic_inc_return(&input_no) - 1);
 
 		__module_get(THIS_MODULE);
 	}
@@ -1785,12 +1790,13 @@ static void devm_input_device_release(struct device *dev, void *res)
  * its driver (or binding fails). Once managed input device is allocated,
  * it is ready to be set up and registered in the same fashion as regular
  * input device. There are no special devm_input_device_[un]register()
- * variants, regular ones work with both managed and unmanaged devices.
+ * variants, regular ones work with both managed and unmanaged devices,
+ * should you need them. In most cases however, managed input device need
+ * not be explicitly unregistered or freed.
  *
  * NOTE: the owner device is set up as parent of input device and users
  * should not override it.
  */
-
 struct input_dev *devm_input_allocate_device(struct device *dev)
 {
 	struct input_dev *input;
@@ -2004,10 +2010,20 @@ static void devm_input_device_unregister(struct device *dev, void *res)
  * Once device has been successfully registered it can be unregistered
  * with input_unregister_device(); input_free_device() should not be
  * called in this case.
+ *
+ * Note that this function is also used to register managed input devices
+ * (ones allocated with devm_input_allocate_device()). Such managed input
+ * devices need not be explicitly unregistered or freed, their tear down
+ * is controlled by the devres infrastructure. It is also worth noting
+ * that tear down of managed input devices is internally a 2-step process:
+ * registered managed input device is first unregistered, but stays in
+ * memory and can still handle input_event() calls (although events will
+ * not be delivered anywhere). The freeing of managed input device will
+ * happen later, when devres stack is unwound to the point where device
+ * allocation was made.
  */
 int input_register_device(struct input_dev *dev)
 {
-	static atomic_t input_no = ATOMIC_INIT(0);
 	struct input_devres *devres = NULL;
 	struct input_handler *handler;
 	unsigned int packet_size;
@@ -2036,7 +2052,7 @@ int input_register_device(struct input_dev *dev)
 	if (dev->hint_events_per_packet < packet_size)
 		dev->hint_events_per_packet = packet_size;
 
-	dev->max_vals = max(dev->hint_events_per_packet, packet_size) + 2;
+	dev->max_vals = dev->hint_events_per_packet + 2;
 	dev->vals = kcalloc(dev->max_vals, sizeof(*dev->vals), GFP_KERNEL);
 	if (!dev->vals) {
 		error = -ENOMEM;
@@ -2047,7 +2063,6 @@ int input_register_device(struct input_dev *dev)
 	 * If delay and period are pre-set by the driver, then autorepeating
 	 * is handled by the driver itself and we don't do it in input.c.
 	 */
-	init_timer(&dev->timer);
 	if (!dev->rep[REP_DELAY] && !dev->rep[REP_PERIOD]) {
 		dev->timer.data = (long) dev;
 		dev->timer.function = input_repeat_key;
@@ -2060,9 +2075,6 @@ int input_register_device(struct input_dev *dev)
 
 	if (!dev->setkeycode)
 		dev->setkeycode = input_default_setkeycode;
-
-	dev_set_name(&dev->dev, "input%ld",
-		     (unsigned long) atomic_inc_return(&input_no) - 1);
 
 	error = device_add(&dev->dev);
 	if (error)

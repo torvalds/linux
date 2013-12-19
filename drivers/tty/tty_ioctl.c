@@ -94,19 +94,20 @@ EXPORT_SYMBOL(tty_driver_flush_buffer);
  *	@tty: terminal
  *
  *	Indicate that a tty should stop transmitting data down the stack.
- *	Takes the termios mutex to protect against parallel throttle/unthrottle
+ *	Takes the termios rwsem to protect against parallel throttle/unthrottle
  *	and also to ensure the driver can consistently reference its own
  *	termios data at this point when implementing software flow control.
  */
 
 void tty_throttle(struct tty_struct *tty)
 {
-	mutex_lock(&tty->termios_mutex);
+	down_write(&tty->termios_rwsem);
 	/* check TTY_THROTTLED first so it indicates our state */
 	if (!test_and_set_bit(TTY_THROTTLED, &tty->flags) &&
 	    tty->ops->throttle)
 		tty->ops->throttle(tty);
-	mutex_unlock(&tty->termios_mutex);
+	tty->flow_change = 0;
+	up_write(&tty->termios_rwsem);
 }
 EXPORT_SYMBOL(tty_throttle);
 
@@ -115,7 +116,7 @@ EXPORT_SYMBOL(tty_throttle);
  *	@tty: terminal
  *
  *	Indicate that a tty may continue transmitting data down the stack.
- *	Takes the termios mutex to protect against parallel throttle/unthrottle
+ *	Takes the termios rwsem to protect against parallel throttle/unthrottle
  *	and also to ensure the driver can consistently reference its own
  *	termios data at this point when implementing software flow control.
  *
@@ -125,13 +126,76 @@ EXPORT_SYMBOL(tty_throttle);
 
 void tty_unthrottle(struct tty_struct *tty)
 {
-	mutex_lock(&tty->termios_mutex);
+	down_write(&tty->termios_rwsem);
 	if (test_and_clear_bit(TTY_THROTTLED, &tty->flags) &&
 	    tty->ops->unthrottle)
 		tty->ops->unthrottle(tty);
-	mutex_unlock(&tty->termios_mutex);
+	tty->flow_change = 0;
+	up_write(&tty->termios_rwsem);
 }
 EXPORT_SYMBOL(tty_unthrottle);
+
+/**
+ *	tty_throttle_safe	-	flow control
+ *	@tty: terminal
+ *
+ *	Similar to tty_throttle() but will only attempt throttle
+ *	if tty->flow_change is TTY_THROTTLE_SAFE. Prevents an accidental
+ *	throttle due to race conditions when throttling is conditional
+ *	on factors evaluated prior to throttling.
+ *
+ *	Returns 0 if tty is throttled (or was already throttled)
+ */
+
+int tty_throttle_safe(struct tty_struct *tty)
+{
+	int ret = 0;
+
+	mutex_lock(&tty->throttle_mutex);
+	if (!test_bit(TTY_THROTTLED, &tty->flags)) {
+		if (tty->flow_change != TTY_THROTTLE_SAFE)
+			ret = 1;
+		else {
+			set_bit(TTY_THROTTLED, &tty->flags);
+			if (tty->ops->throttle)
+				tty->ops->throttle(tty);
+		}
+	}
+	mutex_unlock(&tty->throttle_mutex);
+
+	return ret;
+}
+
+/**
+ *	tty_unthrottle_safe	-	flow control
+ *	@tty: terminal
+ *
+ *	Similar to tty_unthrottle() but will only attempt unthrottle
+ *	if tty->flow_change is TTY_UNTHROTTLE_SAFE. Prevents an accidental
+ *	unthrottle due to race conditions when unthrottling is conditional
+ *	on factors evaluated prior to unthrottling.
+ *
+ *	Returns 0 if tty is unthrottled (or was already unthrottled)
+ */
+
+int tty_unthrottle_safe(struct tty_struct *tty)
+{
+	int ret = 0;
+
+	mutex_lock(&tty->throttle_mutex);
+	if (test_bit(TTY_THROTTLED, &tty->flags)) {
+		if (tty->flow_change != TTY_UNTHROTTLE_SAFE)
+			ret = 1;
+		else {
+			clear_bit(TTY_THROTTLED, &tty->flags);
+			if (tty->ops->unthrottle)
+				tty->ops->unthrottle(tty);
+		}
+	}
+	mutex_unlock(&tty->throttle_mutex);
+
+	return ret;
+}
 
 /**
  *	tty_wait_until_sent	-	wait for I/O to finish
@@ -404,7 +468,7 @@ EXPORT_SYMBOL_GPL(tty_termios_encode_baud_rate);
  *	@obad: output baud rate
  *
  *	Update the current termios data for the tty with the new speed
- *	settings. The caller must hold the termios_mutex for the tty in
+ *	settings. The caller must hold the termios_rwsem for the tty in
  *	question.
  */
 
@@ -413,34 +477,6 @@ void tty_encode_baud_rate(struct tty_struct *tty, speed_t ibaud, speed_t obaud)
 	tty_termios_encode_baud_rate(&tty->termios, ibaud, obaud);
 }
 EXPORT_SYMBOL_GPL(tty_encode_baud_rate);
-
-/**
- *	tty_get_baud_rate	-	get tty bit rates
- *	@tty: tty to query
- *
- *	Returns the baud rate as an integer for this terminal. The
- *	termios lock must be held by the caller and the terminal bit
- *	flags may be updated.
- *
- *	Locking: none
- */
-
-speed_t tty_get_baud_rate(struct tty_struct *tty)
-{
-	speed_t baud = tty_termios_baud_rate(&tty->termios);
-
-	if (baud == 38400 && tty->alt_speed) {
-		if (!tty->warned) {
-			printk(KERN_WARNING "Use of setserial/setrocket to "
-					    "set SPD_* flags is deprecated\n");
-			tty->warned = 1;
-		}
-		baud = tty->alt_speed;
-	}
-
-	return baud;
-}
-EXPORT_SYMBOL(tty_get_baud_rate);
 
 /**
  *	tty_termios_copy_hw	-	copy hardware settings
@@ -492,7 +528,7 @@ EXPORT_SYMBOL(tty_termios_hw_change);
  *	is a bit of layering violation here with n_tty in terms of the
  *	internal knowledge of this function.
  *
- *	Locking: termios_mutex
+ *	Locking: termios_rwsem
  */
 
 int tty_set_termios(struct tty_struct *tty, struct ktermios *new_termios)
@@ -508,7 +544,7 @@ int tty_set_termios(struct tty_struct *tty, struct ktermios *new_termios)
 
 	/* FIXME: we need to decide on some locking/ordering semantics
 	   for the set_termios notification eventually */
-	mutex_lock(&tty->termios_mutex);
+	down_write(&tty->termios_rwsem);
 	old_termios = tty->termios;
 	tty->termios = *new_termios;
 	unset_locked_termios(&tty->termios, &old_termios, &tty->termios_locked);
@@ -550,7 +586,7 @@ int tty_set_termios(struct tty_struct *tty, struct ktermios *new_termios)
 			(ld->ops->set_termios)(tty, &old_termios);
 		tty_ldisc_deref(ld);
 	}
-	mutex_unlock(&tty->termios_mutex);
+	up_write(&tty->termios_rwsem);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tty_set_termios);
@@ -565,7 +601,7 @@ EXPORT_SYMBOL_GPL(tty_set_termios);
  *	functions before using tty_set_termios to do the actual changes.
  *
  *	Locking:
- *		Called functions take ldisc and termios_mutex locks
+ *		Called functions take ldisc and termios_rwsem locks
  */
 
 static int set_termios(struct tty_struct *tty, void __user *arg, int opt)
@@ -577,9 +613,9 @@ static int set_termios(struct tty_struct *tty, void __user *arg, int opt)
 	if (retval)
 		return retval;
 
-	mutex_lock(&tty->termios_mutex);
+	down_read(&tty->termios_rwsem);
 	tmp_termios = tty->termios;
-	mutex_unlock(&tty->termios_mutex);
+	up_read(&tty->termios_rwsem);
 
 	if (opt & TERMIOS_TERMIO) {
 		if (user_termio_to_kernel_termios(&tmp_termios,
@@ -617,7 +653,7 @@ static int set_termios(struct tty_struct *tty, void __user *arg, int opt)
 	if (opt & TERMIOS_WAIT) {
 		tty_wait_until_sent(tty, 0);
 		if (signal_pending(current))
-			return -EINTR;
+			return -ERESTARTSYS;
 	}
 
 	tty_set_termios(tty, &tmp_termios);
@@ -631,16 +667,16 @@ static int set_termios(struct tty_struct *tty, void __user *arg, int opt)
 
 static void copy_termios(struct tty_struct *tty, struct ktermios *kterm)
 {
-	mutex_lock(&tty->termios_mutex);
+	down_read(&tty->termios_rwsem);
 	*kterm = tty->termios;
-	mutex_unlock(&tty->termios_mutex);
+	up_read(&tty->termios_rwsem);
 }
 
 static void copy_termios_locked(struct tty_struct *tty, struct ktermios *kterm)
 {
-	mutex_lock(&tty->termios_mutex);
+	down_read(&tty->termios_rwsem);
 	*kterm = tty->termios_locked;
-	mutex_unlock(&tty->termios_mutex);
+	up_read(&tty->termios_rwsem);
 }
 
 static int get_termio(struct tty_struct *tty, struct termio __user *termio)
@@ -684,13 +720,13 @@ static int set_termiox(struct tty_struct *tty, void __user *arg, int opt)
 	if (opt & TERMIOS_WAIT) {
 		tty_wait_until_sent(tty, 0);
 		if (signal_pending(current))
-			return -EINTR;
+			return -ERESTARTSYS;
 	}
 
-	mutex_lock(&tty->termios_mutex);
+	down_write(&tty->termios_rwsem);
 	if (tty->ops->set_termiox)
 		tty->ops->set_termiox(tty, &tnew);
-	mutex_unlock(&tty->termios_mutex);
+	up_write(&tty->termios_rwsem);
 	return 0;
 }
 
@@ -725,13 +761,13 @@ static int get_sgttyb(struct tty_struct *tty, struct sgttyb __user *sgttyb)
 {
 	struct sgttyb tmp;
 
-	mutex_lock(&tty->termios_mutex);
+	down_read(&tty->termios_rwsem);
 	tmp.sg_ispeed = tty->termios.c_ispeed;
 	tmp.sg_ospeed = tty->termios.c_ospeed;
 	tmp.sg_erase = tty->termios.c_cc[VERASE];
 	tmp.sg_kill = tty->termios.c_cc[VKILL];
 	tmp.sg_flags = get_sgflags(tty);
-	mutex_unlock(&tty->termios_mutex);
+	up_read(&tty->termios_rwsem);
 
 	return copy_to_user(sgttyb, &tmp, sizeof(tmp)) ? -EFAULT : 0;
 }
@@ -770,7 +806,7 @@ static void set_sgflags(struct ktermios *termios, int flags)
  *	Updates a terminal from the legacy BSD style terminal information
  *	structure.
  *
- *	Locking: termios_mutex
+ *	Locking: termios_rwsem
  */
 
 static int set_sgttyb(struct tty_struct *tty, struct sgttyb __user *sgttyb)
@@ -786,7 +822,7 @@ static int set_sgttyb(struct tty_struct *tty, struct sgttyb __user *sgttyb)
 	if (copy_from_user(&tmp, sgttyb, sizeof(tmp)))
 		return -EFAULT;
 
-	mutex_lock(&tty->termios_mutex);
+	down_write(&tty->termios_rwsem);
 	termios = tty->termios;
 	termios.c_cc[VERASE] = tmp.sg_erase;
 	termios.c_cc[VKILL] = tmp.sg_kill;
@@ -796,7 +832,7 @@ static int set_sgttyb(struct tty_struct *tty, struct sgttyb __user *sgttyb)
 	tty_termios_encode_baud_rate(&termios, termios.c_ispeed,
 						termios.c_ospeed);
 #endif
-	mutex_unlock(&tty->termios_mutex);
+	up_write(&tty->termios_rwsem);
 	tty_set_termios(tty, &termios);
 	return 0;
 }
@@ -807,14 +843,14 @@ static int get_tchars(struct tty_struct *tty, struct tchars __user *tchars)
 {
 	struct tchars tmp;
 
-	mutex_lock(&tty->termios_mutex);
+	down_read(&tty->termios_rwsem);
 	tmp.t_intrc = tty->termios.c_cc[VINTR];
 	tmp.t_quitc = tty->termios.c_cc[VQUIT];
 	tmp.t_startc = tty->termios.c_cc[VSTART];
 	tmp.t_stopc = tty->termios.c_cc[VSTOP];
 	tmp.t_eofc = tty->termios.c_cc[VEOF];
 	tmp.t_brkc = tty->termios.c_cc[VEOL2];	/* what is brkc anyway? */
-	mutex_unlock(&tty->termios_mutex);
+	up_read(&tty->termios_rwsem);
 	return copy_to_user(tchars, &tmp, sizeof(tmp)) ? -EFAULT : 0;
 }
 
@@ -824,14 +860,14 @@ static int set_tchars(struct tty_struct *tty, struct tchars __user *tchars)
 
 	if (copy_from_user(&tmp, tchars, sizeof(tmp)))
 		return -EFAULT;
-	mutex_lock(&tty->termios_mutex);
+	down_write(&tty->termios_rwsem);
 	tty->termios.c_cc[VINTR] = tmp.t_intrc;
 	tty->termios.c_cc[VQUIT] = tmp.t_quitc;
 	tty->termios.c_cc[VSTART] = tmp.t_startc;
 	tty->termios.c_cc[VSTOP] = tmp.t_stopc;
 	tty->termios.c_cc[VEOF] = tmp.t_eofc;
 	tty->termios.c_cc[VEOL2] = tmp.t_brkc;	/* what is brkc anyway? */
-	mutex_unlock(&tty->termios_mutex);
+	up_write(&tty->termios_rwsem);
 	return 0;
 }
 #endif
@@ -841,7 +877,7 @@ static int get_ltchars(struct tty_struct *tty, struct ltchars __user *ltchars)
 {
 	struct ltchars tmp;
 
-	mutex_lock(&tty->termios_mutex);
+	down_read(&tty->termios_rwsem);
 	tmp.t_suspc = tty->termios.c_cc[VSUSP];
 	/* what is dsuspc anyway? */
 	tmp.t_dsuspc = tty->termios.c_cc[VSUSP];
@@ -850,7 +886,7 @@ static int get_ltchars(struct tty_struct *tty, struct ltchars __user *ltchars)
 	tmp.t_flushc = tty->termios.c_cc[VEOL2];
 	tmp.t_werasc = tty->termios.c_cc[VWERASE];
 	tmp.t_lnextc = tty->termios.c_cc[VLNEXT];
-	mutex_unlock(&tty->termios_mutex);
+	up_read(&tty->termios_rwsem);
 	return copy_to_user(ltchars, &tmp, sizeof(tmp)) ? -EFAULT : 0;
 }
 
@@ -861,7 +897,7 @@ static int set_ltchars(struct tty_struct *tty, struct ltchars __user *ltchars)
 	if (copy_from_user(&tmp, ltchars, sizeof(tmp)))
 		return -EFAULT;
 
-	mutex_lock(&tty->termios_mutex);
+	down_write(&tty->termios_rwsem);
 	tty->termios.c_cc[VSUSP] = tmp.t_suspc;
 	/* what is dsuspc anyway? */
 	tty->termios.c_cc[VEOL2] = tmp.t_dsuspc;
@@ -870,7 +906,7 @@ static int set_ltchars(struct tty_struct *tty, struct ltchars __user *ltchars)
 	tty->termios.c_cc[VEOL2] = tmp.t_flushc;
 	tty->termios.c_cc[VWERASE] = tmp.t_werasc;
 	tty->termios.c_cc[VLNEXT] = tmp.t_lnextc;
-	mutex_unlock(&tty->termios_mutex);
+	up_write(&tty->termios_rwsem);
 	return 0;
 }
 #endif
@@ -910,7 +946,7 @@ static int send_prio_char(struct tty_struct *tty, char ch)
  *	@arg: enable/disable CLOCAL
  *
  *	Perform a change to the CLOCAL state and call into the driver
- *	layer to make it visible. All done with the termios mutex
+ *	layer to make it visible. All done with the termios rwsem
  */
 
 static int tty_change_softcar(struct tty_struct *tty, int arg)
@@ -919,7 +955,7 @@ static int tty_change_softcar(struct tty_struct *tty, int arg)
 	int bit = arg ? CLOCAL : 0;
 	struct ktermios old;
 
-	mutex_lock(&tty->termios_mutex);
+	down_write(&tty->termios_rwsem);
 	old = tty->termios;
 	tty->termios.c_cflag &= ~CLOCAL;
 	tty->termios.c_cflag |= bit;
@@ -927,7 +963,7 @@ static int tty_change_softcar(struct tty_struct *tty, int arg)
 		tty->ops->set_termios(tty, &old);
 	if ((tty->termios.c_cflag & CLOCAL) != bit)
 		ret = -EINVAL;
-	mutex_unlock(&tty->termios_mutex);
+	up_write(&tty->termios_rwsem);
 	return ret;
 }
 
@@ -1030,9 +1066,9 @@ int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 		if (user_termios_to_kernel_termios(&kterm,
 					       (struct termios __user *) arg))
 			return -EFAULT;
-		mutex_lock(&real_tty->termios_mutex);
+		down_write(&real_tty->termios_rwsem);
 		real_tty->termios_locked = kterm;
-		mutex_unlock(&real_tty->termios_mutex);
+		up_write(&real_tty->termios_rwsem);
 		return 0;
 #else
 	case TIOCGLCKTRMIOS:
@@ -1047,9 +1083,9 @@ int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 		if (user_termios_to_kernel_termios_1(&kterm,
 					       (struct termios __user *) arg))
 			return -EFAULT;
-		mutex_lock(&real_tty->termios_mutex);
+		down_write(&real_tty->termios_rwsem);
 		real_tty->termios_locked = kterm;
-		mutex_unlock(&real_tty->termios_mutex);
+		up_write(&real_tty->termios_rwsem);
 		return ret;
 #endif
 #ifdef TCGETX
@@ -1057,9 +1093,9 @@ int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 		struct termiox ktermx;
 		if (real_tty->termiox == NULL)
 			return -EINVAL;
-		mutex_lock(&real_tty->termios_mutex);
+		down_read(&real_tty->termios_rwsem);
 		memcpy(&ktermx, real_tty->termiox, sizeof(struct termiox));
-		mutex_unlock(&real_tty->termios_mutex);
+		up_read(&real_tty->termios_rwsem);
 		if (copy_to_user(p, &ktermx, sizeof(struct termiox)))
 			ret = -EFAULT;
 		return ret;
@@ -1086,6 +1122,34 @@ int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 }
 EXPORT_SYMBOL_GPL(tty_mode_ioctl);
 
+
+/* Caller guarantees ldisc reference is held */
+static int __tty_perform_flush(struct tty_struct *tty, unsigned long arg)
+{
+	struct tty_ldisc *ld = tty->ldisc;
+
+	switch (arg) {
+	case TCIFLUSH:
+		if (ld && ld->ops->flush_buffer) {
+			ld->ops->flush_buffer(tty);
+			tty_unthrottle(tty);
+		}
+		break;
+	case TCIOFLUSH:
+		if (ld && ld->ops->flush_buffer) {
+			ld->ops->flush_buffer(tty);
+			tty_unthrottle(tty);
+		}
+		/* fall through */
+	case TCOFLUSH:
+		tty_driver_flush_buffer(tty);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 int tty_perform_flush(struct tty_struct *tty, unsigned long arg)
 {
 	struct tty_ldisc *ld;
@@ -1094,24 +1158,10 @@ int tty_perform_flush(struct tty_struct *tty, unsigned long arg)
 		return retval;
 
 	ld = tty_ldisc_ref_wait(tty);
-	switch (arg) {
-	case TCIFLUSH:
-		if (ld && ld->ops->flush_buffer)
-			ld->ops->flush_buffer(tty);
-		break;
-	case TCIOFLUSH:
-		if (ld && ld->ops->flush_buffer)
-			ld->ops->flush_buffer(tty);
-		/* fall through */
-	case TCOFLUSH:
-		tty_driver_flush_buffer(tty);
-		break;
-	default:
+	retval = __tty_perform_flush(tty, arg);
+	if (ld)
 		tty_ldisc_deref(ld);
-		return -EINVAL;
-	}
-	tty_ldisc_deref(ld);
-	return 0;
+	return retval;
 }
 EXPORT_SYMBOL_GPL(tty_perform_flush);
 
@@ -1151,7 +1201,10 @@ int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
 		}
 		return 0;
 	case TCFLSH:
-		return tty_perform_flush(tty, arg);
+		retval = tty_check_change(tty);
+		if (retval)
+			return retval;
+		return __tty_perform_flush(tty, arg);
 	default:
 		/* Try the mode commands */
 		return tty_mode_ioctl(tty, file, cmd, arg);

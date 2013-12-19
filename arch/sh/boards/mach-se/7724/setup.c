@@ -279,12 +279,6 @@ static struct platform_device ceu1_device = {
 
 /* FSI */
 /* change J20, J21, J22 pin to 1-2 connection to use slave mode */
-static struct sh_fsi_platform_info fsi_info = {
-	.port_a = {
-		.flags = SH_FSI_BRS_INV,
-	},
-};
-
 static struct resource fsi_resources[] = {
 	[0] = {
 		.name	= "FSI",
@@ -303,26 +297,23 @@ static struct platform_device fsi_device = {
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(fsi_resources),
 	.resource	= fsi_resources,
-	.dev	= {
-		.platform_data	= &fsi_info,
-	},
-};
-
-static struct asoc_simple_dai_init_info fsi2_ak4642_init_info = {
-	.fmt		= SND_SOC_DAIFMT_LEFT_J,
-	.codec_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
-	.cpu_daifmt	= SND_SOC_DAIFMT_CBS_CFS,
-	.sysclk		= 11289600,
 };
 
 static struct asoc_simple_card_info fsi_ak4642_info = {
 	.name		= "AK4642",
 	.card		= "FSIA-AK4642",
-	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0012",
 	.platform	= "sh_fsi.0",
-	.codec_dai	= "ak4642-hifi",
-	.init		= &fsi2_ak4642_init_info,
+	.daifmt		= SND_SOC_DAIFMT_LEFT_J,
+	.cpu_dai = {
+		.name	= "fsia-dai",
+		.fmt	= SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_IB_NF,
+	},
+	.codec_dai = {
+		.name	= "ak4642-hifi",
+		.fmt	= SND_SOC_DAIFMT_CBM_CFM,
+		.sysclk	= 11289600,
+	},
 };
 
 static struct platform_device fsi_ak4642_device = {
@@ -374,7 +365,7 @@ static struct platform_device keysc_device = {
 static struct resource sh_eth_resources[] = {
 	[0] = {
 		.start = SH_ETH_ADDR,
-		.end   = SH_ETH_ADDR + 0x1FC,
+		.end   = SH_ETH_ADDR + 0x1FC - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -386,11 +377,12 @@ static struct resource sh_eth_resources[] = {
 static struct sh_eth_plat_data sh_eth_plat = {
 	.phy = 0x1f, /* SMSC LAN8187 */
 	.edmac_endian = EDMAC_LITTLE_ENDIAN,
+	.phy_interface = PHY_INTERFACE_MODE_MII,
 };
 
 static struct platform_device sh_eth_device = {
-	.name = "sh-eth",
-	.id	= 0,
+	.name = "sh7724-ether",
+	.id = 0,
 	.dev = {
 		.platform_data = &sh_eth_plat,
 	},

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -78,8 +78,9 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv,
 		ctx->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 #endif
 
-	ctx->staging.channel = cpu_to_le16(priv->hw->conf.channel->hw_value);
-	priv->band = priv->hw->conf.channel->band;
+	ctx->staging.channel =
+		cpu_to_le16(priv->hw->conf.chandef.chan->hw_value);
+	priv->band = priv->hw->conf.chandef.chan->band;
 
 	iwl_set_flags_for_band(priv, ctx, priv->band, ctx->vif);
 
@@ -563,11 +564,7 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 	cmd.slots[0].type = 0; /* BSS */
 	cmd.slots[1].type = 1; /* PAN */
 
-	if (priv->hw_roc_setup) {
-		/* both contexts must be used for this to happen */
-		slot1 = IWL_MIN_SLOT_TIME;
-		slot0 = 3000;
-	} else if (ctx_bss->vif && ctx_pan->vif) {
+	if (ctx_bss->vif && ctx_pan->vif) {
 		int bcnint = ctx_pan->beacon_int;
 		int dtim = ctx_pan->vif->bss_conf.dtim_period ?: 1;
 
@@ -951,7 +948,7 @@ static void iwl_calc_basic_rates(struct iwl_priv *priv,
 		unsigned long basic = ctx->vif->bss_conf.basic_rates;
 		int i;
 
-		sband = priv->hw->wiphy->bands[priv->hw->conf.channel->band];
+		sband = priv->hw->wiphy->bands[priv->hw->conf.chandef.chan->band];
 
 		for_each_set_bit(i, &basic, BITS_PER_LONG) {
 			int hw = sband->bitrates[i].hw_value;
@@ -1159,7 +1156,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 }
 
 void iwlagn_config_ht40(struct ieee80211_conf *conf,
-	struct iwl_rxon_context *ctx)
+			struct iwl_rxon_context *ctx)
 {
 	if (conf_is_ht40_minus(conf)) {
 		ctx->ht.extension_chan_offset =
@@ -1181,7 +1178,7 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct iwl_rxon_context *ctx;
 	struct ieee80211_conf *conf = &hw->conf;
-	struct ieee80211_channel *channel = conf->channel;
+	struct ieee80211_channel *channel = conf->chandef.chan;
 	int ret = 0;
 
 	IWL_DEBUG_MAC80211(priv, "enter: changed %#x\n", changed);
@@ -1377,7 +1374,7 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
 	int ret;
 
-	if (!(priv->calib_disabled & IWL_CHAIN_NOISE_CALIB_DISABLED))
+	if (priv->calib_disabled & IWL_CHAIN_NOISE_CALIB_DISABLED)
 		return;
 
 	if ((data->state == IWL_CHAIN_NOISE_ALIVE) &&
@@ -1419,6 +1416,14 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
+	if (changes & BSS_CHANGED_IDLE && bss_conf->idle) {
+		/*
+		 * If we go idle, then clearly no "passive-no-rx"
+		 * workaround is needed any more, this is a reset.
+		 */
+		iwlagn_lift_passive_no_rx(priv);
+	}
+
 	if (unlikely(!iwl_is_ready(priv))) {
 		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
 		mutex_unlock(&priv->mutex);
@@ -1450,16 +1455,6 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			priv->timestamp = bss_conf->sync_tsf;
 			ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		} else {
-			/*
-			 * If we disassociate while there are pending
-			 * frames, just wake up the queues and let the
-			 * frames "escape" ... This shouldn't really
-			 * be happening to start with, but we should
-			 * not get stuck in this case either since it
-			 * can happen if userspace gets confused.
-			 */
-			iwlagn_lift_passive_no_rx(priv);
-
 			ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 
 			if (ctx->ctxid == IWL_RXON_CTX_BSS)
@@ -1545,10 +1540,9 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 				bss_conf->bssid);
 	}
 
-	if (changes & BSS_CHANGED_BEACON && vif->type == NL80211_IFTYPE_ADHOC &&
-	    priv->beacon_ctx) {
+	if (changes & BSS_CHANGED_BEACON && priv->beacon_ctx == ctx) {
 		if (iwlagn_update_beacon(priv, vif))
-			IWL_ERR(priv, "Error sending IBSS beacon\n");
+			IWL_ERR(priv, "Error updating beacon\n");
 	}
 
 	mutex_unlock(&priv->mutex);

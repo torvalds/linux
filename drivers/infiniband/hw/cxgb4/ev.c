@@ -44,14 +44,6 @@ static void post_qp_event(struct c4iw_dev *dev, struct c4iw_cq *chp,
 	struct c4iw_qp_attributes attrs;
 	unsigned long flag;
 
-	if ((qhp->attr.state == C4IW_QP_STATE_ERROR) ||
-	    (qhp->attr.state == C4IW_QP_STATE_TERMINATE)) {
-		PDBG("%s AE received after RTS - "
-		     "qp state %d qpid 0x%x status 0x%x\n", __func__,
-		     qhp->attr.state, qhp->wq.sq.qid, CQE_STATUS(err_cqe));
-		return;
-	}
-
 	printk(KERN_ERR MOD "AE qpid 0x%x opcode %d status 0x%x "
 	       "type %d wrid.hi 0x%x wrid.lo 0x%x\n",
 	       CQE_QPID(err_cqe), CQE_OPCODE(err_cqe),

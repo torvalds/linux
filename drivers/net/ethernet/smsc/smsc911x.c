@@ -33,6 +33,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/crc32.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
@@ -144,6 +145,9 @@ struct smsc911x_data {
 
 	/* regulators */
 	struct regulator_bulk_data supplies[SMSC911X_NUM_SUPPLIES];
+
+	/* clock */
+	struct clk *clk;
 };
 
 /* Easy access to information */
@@ -369,7 +373,7 @@ out:
 }
 
 /*
- * enable resources, currently just regulators.
+ * enable regulator and clock resources.
  */
 static int smsc911x_enable_resources(struct platform_device *pdev)
 {
@@ -382,6 +386,13 @@ static int smsc911x_enable_resources(struct platform_device *pdev)
 	if (ret)
 		netdev_err(ndev, "failed to enable regulators %d\n",
 				ret);
+
+	if (!IS_ERR(pdata->clk)) {
+		ret = clk_prepare_enable(pdata->clk);
+		if (ret < 0)
+			netdev_err(ndev, "failed to enable clock %d\n", ret);
+	}
+
 	return ret;
 }
 
@@ -396,6 +407,10 @@ static int smsc911x_disable_resources(struct platform_device *pdev)
 
 	ret = regulator_bulk_disable(ARRAY_SIZE(pdata->supplies),
 			pdata->supplies);
+
+	if (!IS_ERR(pdata->clk))
+		clk_disable_unprepare(pdata->clk);
+
 	return ret;
 }
 
@@ -421,6 +436,12 @@ static int smsc911x_request_resources(struct platform_device *pdev)
 	if (ret)
 		netdev_err(ndev, "couldn't get regulators %d\n",
 				ret);
+
+	/* Request clock */
+	pdata->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(pdata->clk))
+		netdev_warn(ndev, "couldn't get clock %li\n", PTR_ERR(pdata->clk));
+
 	return ret;
 }
 
@@ -436,6 +457,12 @@ static void smsc911x_free_resources(struct platform_device *pdev)
 	/* Free regulators */
 	regulator_bulk_free(ARRAY_SIZE(pdata->supplies),
 			pdata->supplies);
+
+	/* Free clock */
+	if (!IS_ERR(pdata->clk)) {
+		clk_put(pdata->clk);
+		pdata->clk = NULL;
+	}
 }
 
 /* waits for MAC not busy, with timeout.  Only called by smsc911x_mac_read
@@ -997,9 +1024,8 @@ static int smsc911x_mii_probe(struct net_device *dev)
 	SMSC_TRACE(pdata, probe, "PHY: addr %d, phy_id 0x%08X",
 		   phydev->addr, phydev->phy_id);
 
-	ret = phy_connect_direct(dev, phydev,
-			&smsc911x_phy_adjust_link, 0,
-			pdata->config.phy_interface);
+	ret = phy_connect_direct(dev, phydev, &smsc911x_phy_adjust_link,
+				 pdata->config.phy_interface);
 
 	if (ret) {
 		netdev_err(dev, "Could not attach to PHY\n");
@@ -1831,7 +1857,6 @@ static int smsc911x_set_mac_address(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
 
 	spin_lock_irq(&pdata->mac_lock);
@@ -2117,7 +2142,7 @@ static int smsc911x_init(struct net_device *dev)
 	spin_lock_init(&pdata->dev_lock);
 	spin_lock_init(&pdata->mac_lock);
 
-	if (pdata->ioaddr == 0) {
+	if (pdata->ioaddr == NULL) {
 		SMSC_WARN(pdata, probe, "pdata->ioaddr: 0x00000000");
 		return -ENODEV;
 	}
@@ -2142,7 +2167,7 @@ static int smsc911x_init(struct net_device *dev)
 		udelay(1000);
 
 	if (to == 0) {
-		pr_err("Device not READY in 100ms aborting\n");
+		netdev_err(dev, "Device not READY in 100ms aborting\n");
 		return -ENODEV;
 	}
 
@@ -2259,7 +2284,6 @@ static int smsc911x_drv_remove(struct platform_device *pdev)
 	mdiobus_unregister(pdata->mii_bus);
 	mdiobus_free(pdata->mii_bus);
 
-	platform_set_drvdata(pdev, NULL);
 	unregister_netdev(dev);
 	free_irq(dev->irq, dev);
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
@@ -2350,7 +2374,7 @@ static int smsc911x_drv_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct net_device *dev;
 	struct smsc911x_data *pdata;
-	struct smsc911x_platform_config *config = pdev->dev.platform_data;
+	struct smsc911x_platform_config *config = dev_get_platdata(&pdev->dev);
 	struct resource *res, *irq_res;
 	unsigned int intcfg = 0;
 	int res_size, irq_flags;
@@ -2478,7 +2502,7 @@ static int smsc911x_drv_probe(struct platform_device *pdev)
 		SMSC_TRACE(pdata, probe,
 			   "MAC Address is specified by configuration");
 	} else if (is_valid_ether_addr(pdata->config.mac)) {
-		memcpy(dev->dev_addr, pdata->config.mac, 6);
+		memcpy(dev->dev_addr, pdata->config.mac, ETH_ALEN);
 		SMSC_TRACE(pdata, probe,
 			   "MAC Address specified by platform data");
 	} else {
@@ -2514,7 +2538,6 @@ out_disable_resources:
 out_enable_resources_fail:
 	smsc911x_free_resources(pdev);
 out_request_resources_fail:
-	platform_set_drvdata(pdev, NULL);
 	iounmap(pdata->ioaddr);
 	free_netdev(dev);
 out_release_io_1:

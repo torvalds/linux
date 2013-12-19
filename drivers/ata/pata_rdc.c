@@ -321,8 +321,7 @@ static struct scsi_host_template rdc_sht = {
  *	Zero on success, or -ERRNO value.
  */
 
-static int __devinit rdc_init_one(struct pci_dev *pdev,
-				   const struct pci_device_id *ent)
+static int rdc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct device *dev = &pdev->dev;
 	struct ata_port_info port_info[2];
@@ -365,7 +364,7 @@ static int __devinit rdc_init_one(struct pci_dev *pdev,
 
 static void rdc_remove_one(struct pci_dev *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
 	struct rdc_host_priv *hpriv = host->private_data;
 
 	pci_write_config_dword(pdev, 0x54, hpriv->saved_iocfg);

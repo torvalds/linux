@@ -212,7 +212,7 @@ static irqreturn_t mpc85xx_pci_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int __devinit mpc85xx_pci_err_probe(struct platform_device *op)
+int mpc85xx_pci_err_probe(struct platform_device *op)
 {
 	struct edac_pci_ctl_info *pci;
 	struct mpc85xx_pci_pdata *pdata;
@@ -301,7 +301,7 @@ int __devinit mpc85xx_pci_err_probe(struct platform_device *op)
 				       "[EDAC] PCI err", pci);
 		if (res < 0) {
 			printk(KERN_ERR
-			       "%s: Unable to requiest irq %d for "
+			       "%s: Unable to request irq %d for "
 			       "MPC85xx PCI err\n", __func__, pdata->irq);
 			irq_dispose_mapping(pdata->irq);
 			res = -ENODEV;
@@ -326,28 +326,6 @@ err:
 	return res;
 }
 EXPORT_SYMBOL(mpc85xx_pci_err_probe);
-
-static int mpc85xx_pci_err_remove(struct platform_device *op)
-{
-	struct edac_pci_ctl_info *pci = dev_get_drvdata(&op->dev);
-	struct mpc85xx_pci_pdata *pdata = pci->pvt_info;
-
-	edac_dbg(0, "\n");
-
-	out_be32(pdata->pci_vbase + MPC85XX_PCI_ERR_CAP_DR,
-		 orig_pci_err_cap_dr);
-
-	out_be32(pdata->pci_vbase + MPC85XX_PCI_ERR_EN, orig_pci_err_en);
-
-	edac_pci_del_device(pci->dev);
-
-	if (edac_op_state == EDAC_OPSTATE_INT)
-		irq_dispose_mapping(pdata->irq);
-
-	edac_pci_free_ctl_info(pci);
-
-	return 0;
-}
 
 #endif				/* CONFIG_PCI */
 
@@ -504,7 +482,7 @@ static irqreturn_t mpc85xx_l2_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit mpc85xx_l2_err_probe(struct platform_device *op)
+static int mpc85xx_l2_err_probe(struct platform_device *op)
 {
 	struct edac_device_ctl_info *edac_dev;
 	struct mpc85xx_l2_pdata *pdata;
@@ -583,7 +561,7 @@ static int __devinit mpc85xx_l2_err_probe(struct platform_device *op)
 				       "[EDAC] L2 err", edac_dev);
 		if (res < 0) {
 			printk(KERN_ERR
-			       "%s: Unable to requiest irq %d for "
+			       "%s: Unable to request irq %d for "
 			       "MPC85xx L2 err\n", __func__, pdata->irq);
 			irq_dispose_mapping(pdata->irq);
 			res = -ENODEV;
@@ -885,7 +863,7 @@ static irqreturn_t mpc85xx_mc_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void __devinit mpc85xx_init_csrows(struct mem_ctl_info *mci)
+static void mpc85xx_init_csrows(struct mem_ctl_info *mci)
 {
 	struct mpc85xx_mc_pdata *pdata = mci->pvt_info;
 	struct csrow_info *csrow;
@@ -964,7 +942,7 @@ static void __devinit mpc85xx_init_csrows(struct mem_ctl_info *mci)
 	}
 }
 
-static int __devinit mpc85xx_mc_err_probe(struct platform_device *op)
+static int mpc85xx_mc_err_probe(struct platform_device *op)
 {
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer layers[2];

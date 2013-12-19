@@ -224,11 +224,11 @@ static struct of_regulator_match max8907_matches[] = {
 
 static int max8907_regulator_parse_dt(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.parent->of_node;
-	struct device_node *regulators;
+	struct device_node *np, *regulators;
 	int ret;
 
-	if (!pdev->dev.parent->of_node)
+	np = of_node_get(pdev->dev.parent->of_node);
+	if (!np)
 		return 0;
 
 	regulators = of_find_node_by_name(np, "regulators");
@@ -237,9 +237,9 @@ static int max8907_regulator_parse_dt(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ret = of_regulator_match(pdev->dev.parent, regulators,
-				 max8907_matches,
+	ret = of_regulator_match(&pdev->dev, regulators, max8907_matches,
 				 ARRAY_SIZE(max8907_matches));
+	of_node_put(regulators);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Error parsing regulator init data: %d\n",
 			ret);
@@ -350,31 +350,15 @@ static int max8907_regulator_probe(struct platform_device *pdev)
 				pmic->desc[i].ops = &max8907_out5v_hwctl_ops;
 		}
 
-		pmic->rdev[i] = regulator_register(&pmic->desc[i], &config);
+		pmic->rdev[i] = devm_regulator_register(&pdev->dev,
+						&pmic->desc[i], &config);
 		if (IS_ERR(pmic->rdev[i])) {
 			dev_err(&pdev->dev,
 				"failed to register %s regulator\n",
 				pmic->desc[i].name);
-			ret = PTR_ERR(pmic->rdev[i]);
-			goto err_unregister_regulator;
+			return PTR_ERR(pmic->rdev[i]);
 		}
 	}
-
-	return 0;
-
-err_unregister_regulator:
-	while (--i >= 0)
-		regulator_unregister(pmic->rdev[i]);
-	return ret;
-}
-
-static int max8907_regulator_remove(struct platform_device *pdev)
-{
-	struct max8907_regulator *pmic = platform_get_drvdata(pdev);
-	int i;
-
-	for (i = 0; i < MAX8907_NUM_REGULATORS; i++)
-		regulator_unregister(pmic->rdev[i]);
 
 	return 0;
 }
@@ -385,7 +369,6 @@ static struct platform_driver max8907_regulator_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = max8907_regulator_probe,
-	.remove = max8907_regulator_remove,
 };
 
 static int __init max8907_regulator_init(void)

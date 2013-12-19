@@ -14,13 +14,8 @@
 #define THREAD_ORDER 1
 #define ASYNC_ORDER  1
 #else /* CONFIG_64BIT */
-#ifndef __SMALL_STACK
 #define THREAD_ORDER 2
 #define ASYNC_ORDER  2
-#else
-#define THREAD_ORDER 1
-#define ASYNC_ORDER  1
-#endif
 #endif /* CONFIG_64BIT */
 
 #define THREAD_SIZE (PAGE_SIZE << THREAD_ORDER)
@@ -41,6 +36,7 @@ struct thread_info {
 	struct task_struct	*task;		/* main task structure */
 	struct exec_domain	*exec_domain;	/* execution domain */
 	unsigned long		flags;		/* low level flags */
+	unsigned long		sys_call_table;	/* System call table address */
 	unsigned int		cpu;		/* current CPU */
 	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
 	struct restart_block	restart_block;
@@ -114,7 +110,5 @@ static inline struct thread_info *current_thread_info(void)
 #else
 #define is_32bit_task()		(1)
 #endif
-
-#define PREEMPT_ACTIVE		0x4000000
 
 #endif /* _ASM_THREAD_INFO_H */

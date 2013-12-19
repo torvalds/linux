@@ -1,54 +1,38 @@
 /*
-    comedi/drivers/adl_pci6208.c
+ * adl_pci6208.c
+ * Comedi driver for ADLink 6208 series cards
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    Hardware driver for ADLink 6208 series cards:
-	card	     | voltage output    | current output
-	-------------+-------------------+---------------
-	PCI-6208V    |  8 channels       | -
-	PCI-6216V    | 16 channels       | -
-	PCI-6208A    |  8 channels       | 8 channels
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
 /*
-Driver: adl_pci6208
-Description: ADLink PCI-6208/6216 Series Multi-channel Analog Output Cards
-Devices: (ADLink) PCI-6208 [adl_pci6208]
-	 (ADLink) PCI-6216 [adl_pci6216]
-Author: nsyeow <nsyeow@pd.jaring.my>
-Updated: Fri, 30 Jan 2004 14:44:27 +0800
-Status: untested
+ * Driver: adl_pci6208
+ * Description: ADLink PCI-6208/6216 Series Multi-channel Analog Output Cards
+ * Devices: (ADLink) PCI-6208 [adl_pci6208]
+ *	    (ADLink) PCI-6216 [adl_pci6216]
+ * Author: nsyeow <nsyeow@pd.jaring.my>
+ * Updated: Fri, 30 Jan 2004 14:44:27 +0800
+ * Status: untested
+ *
+ * Configuration Options: not applicable, uses PCI auto config
+ */
 
-Configuration Options: not applicable, uses PCI auto config
-
-References:
-	- ni_660x.c
-	- adl_pci9111.c		copied the entire pci setup section
-	- adl_pci9118.c
-*/
+#include <linux/module.h>
+#include <linux/delay.h>
+#include <linux/pci.h>
 
 #include "../comedidev.h"
-
-/*
- * ADLINK PCI Device ID's supported by this driver
- */
-#define PCI_DEVICE_ID_PCI6208		0x6208
-#define PCI_DEVICE_ID_PCI6216		0x6216
 
 /*
  * PCI-6208/6216-GL register map
@@ -64,20 +48,23 @@ References:
 
 #define PCI6208_MAX_AO_CHANNELS		16
 
+enum pci6208_boardid {
+	BOARD_PCI6208,
+	BOARD_PCI6216,
+};
+
 struct pci6208_board {
 	const char *name;
-	unsigned short dev_id;
 	int ao_chans;
 };
 
 static const struct pci6208_board pci6208_boards[] = {
-	{
+	[BOARD_PCI6208] = {
 		.name		= "adl_pci6208",
-		.dev_id		= PCI_DEVICE_ID_PCI6208,
 		.ao_chans	= 8,
-	}, {
+	},
+	[BOARD_PCI6216] = {
 		.name		= "adl_pci6216",
-		.dev_id		= PCI_DEVICE_ID_PCI6216,
 		.ao_chans	= 16,
 	},
 };
@@ -86,37 +73,56 @@ struct pci6208_private {
 	unsigned int ao_readback[PCI6208_MAX_AO_CHANNELS];
 };
 
-static int pci6208_ao_winsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int pci6208_ao_wait_for_data_send(struct comedi_device *dev,
+					 unsigned int timeout)
+{
+	unsigned int status;
+
+	while (timeout--) {
+		status = inw(dev->iobase + PCI6208_AO_STATUS);
+		if ((status & PCI6208_AO_STATUS_DATA_SEND) == 0)
+			return 0;
+		udelay(1);
+	}
+
+	return -ETIME;
+}
+
+static int pci6208_ao_insn_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct pci6208_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
-	unsigned long invert = 1 << (16 - 1);
-	unsigned long value = 0;
-	unsigned short status;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = devpriv->ao_readback[chan];
+	int ret;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		value = data[i] ^ invert;
+		val = data[i];
 
-		do {
-			status = inw(dev->iobase + PCI6208_AO_STATUS);
-		} while (status & PCI6208_AO_STATUS_DATA_SEND);
+		/* D/A transfer rate is 2.2us, wait up to 10us */
+		ret = pci6208_ao_wait_for_data_send(dev, 10);
+		if (ret)
+			return ret;
 
-		outw(value, dev->iobase + PCI6208_AO_CONTROL(chan));
+		/* the hardware expects two's complement values */
+		outw(comedi_offset_munge(s, val),
+		     dev->iobase + PCI6208_AO_CONTROL(chan));
 	}
-	devpriv->ao_readback[chan] = value;
+	devpriv->ao_readback[chan] = val;
 
 	return insn->n;
 }
 
-static int pci6208_ao_rinsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int pci6208_ao_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct pci6208_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int i;
 
 	for (i = 0; i < insn->n; i++)
@@ -145,57 +151,36 @@ static int pci6208_do_insn_bits(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
+	if (comedi_dio_update_state(s, data))
 		outw(s->state, dev->iobase + PCI6208_DIO);
-	}
 
 	data[1] = s->state;
 
 	return insn->n;
 }
 
-static const void *pci6208_find_boardinfo(struct comedi_device *dev,
-					  struct pci_dev *pcidev)
-{
-	const struct pci6208_board *boardinfo;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(pci6208_boards); i++) {
-		boardinfo = &pci6208_boards[i];
-		if (boardinfo->dev_id == pcidev->device)
-			return boardinfo;
-	}
-	return NULL;
-}
-
 static int pci6208_auto_attach(struct comedi_device *dev,
-					 unsigned long context_unused)
+			       unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct pci6208_board *boardinfo;
+	const struct pci6208_board *boardinfo = NULL;
 	struct pci6208_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned int val;
 	int ret;
 
-	boardinfo = pci6208_find_boardinfo(dev, pcidev);
+	if (context < ARRAY_SIZE(pci6208_boards))
+		boardinfo = &pci6208_boards[context];
 	if (!boardinfo)
 		return -ENODEV;
 	dev->board_ptr = boardinfo;
 	dev->board_name = boardinfo->name;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 	dev->iobase = pci_resource_start(pcidev, 2);
@@ -211,8 +196,8 @@ static int pci6208_auto_attach(struct comedi_device *dev,
 	s->n_chan	= boardinfo->ao_chans;
 	s->maxdata	= 0xffff;
 	s->range_table	= &range_bipolar10;
-	s->insn_write	= pci6208_ao_winsn;
-	s->insn_read	= pci6208_ao_rinsn;
+	s->insn_write	= pci6208_ao_insn_write;
+	s->insn_read	= pci6208_ao_insn_read;
 
 	s = &dev->subdevices[1];
 	/* digital input subdevice */
@@ -239,45 +224,27 @@ static int pci6208_auto_attach(struct comedi_device *dev,
 	val = inw(dev->iobase + PCI6208_DIO);
 	val = (val & PCI6208_DIO_DO_MASK) >> PCI6208_DIO_DO_SHIFT;
 	s->state	= val;
-	s->io_bits	= 0x0f;
-
-	dev_info(dev->class_dev, "%s: %s, I/O base=0x%04lx\n",
-		dev->driver->driver_name, dev->board_name, dev->iobase);
 
 	return 0;
-}
-
-static void pci6208_detach(struct comedi_device *dev)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
 }
 
 static struct comedi_driver adl_pci6208_driver = {
 	.driver_name	= "adl_pci6208",
 	.module		= THIS_MODULE,
 	.auto_attach	= pci6208_auto_attach,
-	.detach		= pci6208_detach,
+	.detach		= comedi_pci_disable,
 };
 
 static int adl_pci6208_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
+				 const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &adl_pci6208_driver);
-}
-
-static void adl_pci6208_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
+	return comedi_pci_auto_config(dev, &adl_pci6208_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(adl_pci6208_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI6208) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI6216) },
+	{ PCI_VDEVICE(ADLINK, 0x6208), BOARD_PCI6208 },
+	{ PCI_VDEVICE(ADLINK, 0x6216), BOARD_PCI6216 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, adl_pci6208_pci_table);
@@ -286,10 +253,10 @@ static struct pci_driver adl_pci6208_pci_driver = {
 	.name		= "adl_pci6208",
 	.id_table	= adl_pci6208_pci_table,
 	.probe		= adl_pci6208_pci_probe,
-	.remove		= adl_pci6208_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(adl_pci6208_driver, adl_pci6208_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for ADLink 6208 series cards");
 MODULE_LICENSE("GPL");

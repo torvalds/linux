@@ -37,11 +37,11 @@
 /*
  */
 #ifdef CONFIG_EXT4_DEBUG
-extern u8 mb_enable_debug;
+extern ushort ext4_mballoc_debug;
 
 #define mb_debug(n, fmt, a...)	                                        \
 	do {								\
-		if ((n) <= mb_enable_debug) {		        	\
+		if ((n) <= ext4_mballoc_debug) {		        \
 			printk(KERN_DEBUG "(%s, %d): %s: ",		\
 			       __FILE__, __LINE__, __func__);		\
 			printk(fmt, ## a);				\

@@ -25,7 +25,6 @@ struct gen_pool *sram_get_gen_pool(void)
 
 void *sram_alloc(size_t len, dma_addr_t *dma)
 {
-	unsigned long vaddr;
 	dma_addr_t dma_base = davinci_soc_info.sram_dma;
 
 	if (dma)
@@ -33,13 +32,7 @@ void *sram_alloc(size_t len, dma_addr_t *dma)
 	if (!sram_pool || (dma && !dma_base))
 		return NULL;
 
-	vaddr = gen_pool_alloc(sram_pool, len);
-	if (!vaddr)
-		return NULL;
-
-	if (dma)
-		*dma = gen_pool_virt_to_phys(sram_pool, vaddr);
-	return (void *)vaddr;
+	return gen_pool_dma_alloc(sram_pool, len, dma);
 
 }
 EXPORT_SYMBOL(sram_alloc);
@@ -62,7 +55,7 @@ static int __init sram_init(void)
 	phys_addr_t phys = davinci_soc_info.sram_dma;
 	unsigned len = davinci_soc_info.sram_len;
 	int status = 0;
-	void *addr;
+	void __iomem *addr;
 
 	if (len) {
 		len = min_t(unsigned, len, SRAM_SIZE);
@@ -75,7 +68,7 @@ static int __init sram_init(void)
 		addr = ioremap(phys, len);
 		if (!addr)
 			return -ENOMEM;
-		status = gen_pool_add_virt(sram_pool, (unsigned)addr,
+		status = gen_pool_add_virt(sram_pool, (unsigned long) addr,
 					   phys, len, -1);
 		if (status < 0)
 			iounmap(addr);

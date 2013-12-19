@@ -30,6 +30,8 @@
 #include <linux/platform_device.h>
 
 #define ASUS_WMI_KEY_IGNORE (-1)
+#define ASUS_WMI_BRN_DOWN	0x20
+#define ASUS_WMI_BRN_UP		0x2f
 
 struct module;
 struct key_entry;
@@ -41,6 +43,13 @@ struct quirk_entry {
 	bool store_backlight_power;
 	bool wmi_backlight_power;
 	int wapf;
+	/*
+	 * For machines with AMD graphic chips, it will send out WMI event
+	 * and ACPI interrupt at the same time while hitting the hotkey.
+	 * To simplify the problem, we just have to ignore the WMI event,
+	 * and let the ACPI interrupt to send out the key event.
+	 */
+	int no_display_toggle;
 };
 
 struct asus_wmi_driver {

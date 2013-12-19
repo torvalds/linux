@@ -226,6 +226,7 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries, int ve
 			mm->len = PAGE_ALIGN(((1UL << uresp.size_log2) + 1) *
 					     sizeof(struct t3_cqe));
 			uresp.memsize = mm->len;
+			uresp.reserved = 0;
 			resplen = sizeof uresp;
 		}
 		if (ib_copy_to_udata(udata, &uresp, resplen)) {
@@ -559,7 +560,7 @@ static int iwch_reregister_phys_mem(struct ib_mr *mr,
 	__be64 *page_list = NULL;
 	int shift = 0;
 	u64 total_size;
-	int npages;
+	int npages = 0;
 	int ret;
 
 	PDBG("%s ib_mr %p ib_pd %p\n", __func__, mr, pd);
@@ -738,7 +739,7 @@ static struct ib_mr *iwch_get_dma_mr(struct ib_pd *pd, int acc)
 	return ibmr;
 }
 
-static struct ib_mw *iwch_alloc_mw(struct ib_pd *pd)
+static struct ib_mw *iwch_alloc_mw(struct ib_pd *pd, enum ib_mw_type type)
 {
 	struct iwch_dev *rhp;
 	struct iwch_pd *php;
@@ -746,6 +747,9 @@ static struct ib_mw *iwch_alloc_mw(struct ib_pd *pd)
 	u32 mmid;
 	u32 stag = 0;
 	int ret;
+
+	if (type != IB_MW_TYPE_1)
+		return ERR_PTR(-EINVAL);
 
 	php = to_iwch_pd(pd);
 	rhp = php->rhp;
@@ -783,8 +787,8 @@ static int iwch_dealloc_mw(struct ib_mw *mw)
 	mmid = (mw->rkey) >> 8;
 	cxio_deallocate_window(&rhp->rdev, mhp->attr.stag);
 	remove_handle(rhp, &rhp->mmidr, mmid);
-	kfree(mhp);
 	PDBG("%s ib_mw %p mmid 0x%x ptr %p\n", __func__, mw, mmid, mhp);
+	kfree(mhp);
 	return 0;
 }
 

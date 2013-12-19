@@ -24,7 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 
@@ -385,7 +385,7 @@ static void __init pcm043_init(void)
 	if (!otg_mode_host)
 		imx35_add_fsl_usb2_udc(&otg_device_pdata);
 
-	imx35_add_flexcan1(NULL);
+	imx35_add_flexcan1();
 	imx35_add_sdhci_esdhc_imx(0, &sd1_pdata);
 }
 
@@ -394,10 +394,6 @@ static void __init pcm043_timer_init(void)
 	mx35_clocks_init();
 }
 
-static struct sys_timer pcm043_timer = {
-	.init	= pcm043_timer_init,
-};
-
 MACHINE_START(PCM043, "Phytec Phycore pcm043")
 	/* Maintainer: Pengutronix */
 	.atag_offset = 0x100,
@@ -405,7 +401,7 @@ MACHINE_START(PCM043, "Phytec Phycore pcm043")
 	.init_early = imx35_init_early,
 	.init_irq = mx35_init_irq,
 	.handle_irq = imx35_handle_irq,
-	.timer = &pcm043_timer,
+	.init_time = pcm043_timer_init,
 	.init_machine = pcm043_init,
 	.restart	= mxc_restart,
 MACHINE_END

@@ -45,7 +45,7 @@
 
 static struct super_block *qib_super;
 
-#define private2dd(file) ((file)->f_dentry->d_inode->i_private)
+#define private2dd(file) (file_inode(file)->i_private)
 
 static int qibfs_mknod(struct inode *dir, struct dentry *dentry,
 		       umode_t mode, const struct file_operations *fops,
@@ -171,7 +171,7 @@ static const struct file_operations cntr_ops[] = {
 };
 
 /*
- * Could use file->f_dentry->d_inode->i_ino to figure out which file,
+ * Could use file_inode(file)->i_ino to figure out which file,
  * instead of separate routine for each, but for now, this works...
  */
 
@@ -456,13 +456,13 @@ static int remove_file(struct dentry *parent, char *name)
 
 	spin_lock(&tmp->d_lock);
 	if (!(d_unhashed(tmp) && tmp->d_inode)) {
-		dget_dlock(tmp);
 		__d_drop(tmp);
 		spin_unlock(&tmp->d_lock);
 		simple_unlink(parent->d_inode, tmp);
 	} else {
 		spin_unlock(&tmp->d_lock);
 	}
+	dput(tmp);
 
 	ret = 0;
 bail:
@@ -491,6 +491,7 @@ static int remove_device_files(struct super_block *sb,
 		goto bail;
 	}
 
+	mutex_lock(&dir->d_inode->i_mutex);
 	remove_file(dir, "counters");
 	remove_file(dir, "counter_names");
 	remove_file(dir, "portcounter_names");
@@ -505,8 +506,10 @@ static int remove_device_files(struct super_block *sb,
 		}
 	}
 	remove_file(dir, "flash");
-	d_delete(dir);
+	mutex_unlock(&dir->d_inode->i_mutex);
 	ret = simple_rmdir(root->d_inode, dir);
+	d_delete(dir);
+	dput(dir);
 
 bail:
 	mutex_unlock(&root->d_inode->i_mutex);
@@ -604,6 +607,7 @@ static struct file_system_type qibfs_fs_type = {
 	.mount =        qibfs_mount,
 	.kill_sb =      qibfs_kill_super,
 };
+MODULE_ALIAS_FS("ipathfs");
 
 int __init qib_init_qibfs(void)
 {

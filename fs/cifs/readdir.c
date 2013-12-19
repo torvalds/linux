@@ -48,15 +48,15 @@ static void dump_cifs_file_struct(struct file *file, char *label)
 	if (file) {
 		cf = file->private_data;
 		if (cf == NULL) {
-			cFYI(1, "empty cifs private file data");
+			cifs_dbg(FYI, "empty cifs private file data\n");
 			return;
 		}
 		if (cf->invalidHandle)
-			cFYI(1, "invalid handle");
+			cifs_dbg(FYI, "invalid handle\n");
 		if (cf->srch_inf.endOfSearch)
-			cFYI(1, "end of search");
+			cifs_dbg(FYI, "end of search\n");
 		if (cf->srch_inf.emptyDir)
-			cFYI(1, "empty dir");
+			cifs_dbg(FYI, "empty dir\n");
 	}
 }
 #else
@@ -80,14 +80,12 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 	struct super_block *sb = parent->d_inode->i_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 
-	cFYI(1, "%s: for %s", __func__, name->name);
+	cifs_dbg(FYI, "%s: for %s\n", __func__, name->name);
 
-	if (parent->d_op && parent->d_op->d_hash)
-		parent->d_op->d_hash(parent, parent->d_inode, name);
-	else
-		name->hash = full_name_hash(name->name, name->len);
+	dentry = d_hash_and_lookup(parent, name);
+	if (unlikely(IS_ERR(dentry)))
+		return;
 
-	dentry = d_lookup(parent, name);
 	if (dentry) {
 		int err;
 
@@ -112,6 +110,14 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 		if (err)
 			return;
 	}
+
+	/*
+	 * If we know that the inode will need to be revalidated immediately,
+	 * then don't create a new dentry for it. We'll end up doing an on
+	 * the wire call either way and this spares us an invalidation.
+	 */
+	if (fattr->cf_flags & CIFS_FATTR_NEED_REVAL)
+		return;
 
 	dentry = d_alloc(parent, name);
 	if (!dentry)
@@ -141,6 +147,17 @@ cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 		fattr->cf_mode = S_IFREG | cifs_sb->mnt_file_mode;
 		fattr->cf_dtype = DT_REG;
 	}
+
+	/*
+	 * We need to revalidate it further to make a decision about whether it
+	 * is a symbolic link, DFS referral or a reparse point with a direct
+	 * access like junctions, deduplicated files, NFS symlinks.
+	 */
+	if (fattr->cf_cifsattrs & ATTR_REPARSE)
+		fattr->cf_flags |= CIFS_FATTR_NEED_REVAL;
+
+	/* non-unix readdir doesn't provide nlink */
+	fattr->cf_flags |= CIFS_FATTR_UNKNOWN_NLINK;
 
 	if (fattr->cf_cifsattrs & ATTR_READONLY)
 		fattr->cf_mode &= ~S_IWUGO;
@@ -235,7 +252,7 @@ int get_symlink_reparse_path(char *full_path, struct cifs_sb_info *cifs_sb,
 				fid,
 				cifs_sb->local_nls);
 		if (CIFSSMBClose(xid, ptcon, fid)) {
-			cFYI(1, "Error closing temporary reparsepoint open");
+			cifs_dbg(FYI, "Error closing temporary reparsepoint open\n");
 		}
 	}
 }
@@ -287,7 +304,7 @@ initiate_cifs_search(const unsigned int xid, struct file *file)
 		goto error_exit;
 	}
 
-	cFYI(1, "Full path: %s start at: %lld", full_path, file->f_pos);
+	cifs_dbg(FYI, "Full path: %s start at: %lld\n", full_path, file->f_pos);
 
 ffirst_retry:
 	/* test for Unix extensions */
@@ -338,7 +355,7 @@ static int cifs_unicode_bytelen(const char *str)
 		if (ustr[len] == 0)
 			return len << 1;
 	}
-	cFYI(1, "Unicode string longer than PATH_MAX found");
+	cifs_dbg(FYI, "Unicode string longer than PATH_MAX found\n");
 	return len << 1;
 }
 
@@ -355,18 +372,18 @@ static char *nxt_dir_entry(char *old_entry, char *end_of_smb, int level)
 				pfData->FileNameLength;
 	} else
 		new_entry = old_entry + le32_to_cpu(pDirInfo->NextEntryOffset);
-	cFYI(1, "new entry %p old entry %p", new_entry, old_entry);
+	cifs_dbg(FYI, "new entry %p old entry %p\n", new_entry, old_entry);
 	/* validate that new_entry is not past end of SMB */
 	if (new_entry >= end_of_smb) {
-		cERROR(1, "search entry %p began after end of SMB %p old entry %p",
-			new_entry, end_of_smb, old_entry);
+		cifs_dbg(VFS, "search entry %p began after end of SMB %p old entry %p\n",
+			 new_entry, end_of_smb, old_entry);
 		return NULL;
 	} else if (((level == SMB_FIND_FILE_INFO_STANDARD) &&
 		    (new_entry + sizeof(FIND_FILE_STANDARD_INFO) > end_of_smb))
 		  || ((level != SMB_FIND_FILE_INFO_STANDARD) &&
 		   (new_entry + sizeof(FILE_DIRECTORY_INFO) > end_of_smb)))  {
-		cERROR(1, "search entry %p extends after end of SMB %p",
-			new_entry, end_of_smb);
+		cifs_dbg(VFS, "search entry %p extends after end of SMB %p\n",
+			 new_entry, end_of_smb);
 		return NULL;
 	} else
 		return new_entry;
@@ -459,7 +476,7 @@ static int cifs_fill_dirent(struct cifs_dirent *de, const void *info,
 		cifs_fill_dirent_std(de, info);
 		break;
 	default:
-		cFYI(1, "Unknown findfirst level %d", level);
+		cifs_dbg(FYI, "Unknown findfirst level %d\n", level);
 		return -EINVAL;
 	}
 
@@ -505,7 +522,7 @@ static int cifs_entry_is_dot(struct cifs_dirent *de, bool is_unicode)
    whether we can use the cached search results from the previous search */
 static int is_dir_changed(struct file *file)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct cifsInodeInfo *cifsInfo = CIFS_I(inode);
 
 	if (cifsInfo->time == 0)
@@ -539,14 +556,14 @@ static int cifs_save_resume_key(const char *current_entry,
  * every entry (do not increment for . or .. entry).
  */
 static int
-find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon,
+find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon, loff_t pos,
 		struct file *file, char **current_entry, int *num_to_ret)
 {
 	__u16 search_flags;
 	int rc = 0;
 	int pos_in_buf = 0;
 	loff_t first_entry_in_buffer;
-	loff_t index_to_find = file->f_pos;
+	loff_t index_to_find = pos;
 	struct cifsFileInfo *cfile = file->private_data;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	struct TCP_Server_Info *server = tcon->ses->server;
@@ -574,7 +591,7 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon,
 	if (((index_to_find < cfile->srch_inf.index_of_last_entry) &&
 	     is_dir_changed(file)) || (index_to_find < first_entry_in_buffer)) {
 		/* close and restart search */
-		cFYI(1, "search backing up - close and restart search");
+		cifs_dbg(FYI, "search backing up - close and restart search\n");
 		spin_lock(&cifs_file_list_lock);
 		if (!cfile->srch_inf.endOfSearch && !cfile->invalidHandle) {
 			cfile->invalidHandle = true;
@@ -584,7 +601,7 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon,
 		} else
 			spin_unlock(&cifs_file_list_lock);
 		if (cfile->srch_inf.ntwrk_buf_start) {
-			cFYI(1, "freeing SMB ff cache buf on search rewind");
+			cifs_dbg(FYI, "freeing SMB ff cache buf on search rewind\n");
 			if (cfile->srch_inf.smallBuf)
 				cifs_small_buf_release(cfile->srch_inf.
 						ntwrk_buf_start);
@@ -595,7 +612,7 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon,
 		}
 		rc = initiate_cifs_search(xid, file);
 		if (rc) {
-			cFYI(1, "error %d reinitiating a search on rewind",
+			cifs_dbg(FYI, "error %d reinitiating a search on rewind\n",
 				 rc);
 			return rc;
 		}
@@ -610,7 +627,7 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon,
 
 	while ((index_to_find >= cfile->srch_inf.index_of_last_entry) &&
 	       (rc == 0) && !cfile->srch_inf.endOfSearch) {
-		cFYI(1, "calling findnext2");
+		cifs_dbg(FYI, "calling findnext2\n");
 		rc = server->ops->query_dir_next(xid, tcon, &cfile->fid,
 						 search_flags,
 						 &cfile->srch_inf);
@@ -633,7 +650,7 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon,
 		first_entry_in_buffer = cfile->srch_inf.index_of_last_entry
 					- cfile->srch_inf.entries_in_buffer;
 		pos_in_buf = index_to_find - first_entry_in_buffer;
-		cFYI(1, "found entry - pos_in_buf %d", pos_in_buf);
+		cifs_dbg(FYI, "found entry - pos_in_buf %d\n", pos_in_buf);
 
 		for (i = 0; (i < (pos_in_buf)) && (cur_ent != NULL); i++) {
 			/* go entry by entry figuring out which is first */
@@ -642,19 +659,18 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon,
 		}
 		if ((cur_ent == NULL) && (i < pos_in_buf)) {
 			/* BB fixme - check if we should flag this error */
-			cERROR(1, "reached end of buf searching for pos in buf"
-				  " %d index to find %lld rc %d", pos_in_buf,
-				  index_to_find, rc);
+			cifs_dbg(VFS, "reached end of buf searching for pos in buf %d index to find %lld rc %d\n",
+				 pos_in_buf, index_to_find, rc);
 		}
 		rc = 0;
 		*current_entry = cur_ent;
 	} else {
-		cFYI(1, "index not in buffer - could not findnext into it");
+		cifs_dbg(FYI, "index not in buffer - could not findnext into it\n");
 		return 0;
 	}
 
 	if (pos_in_buf >= cfile->srch_inf.entries_in_buffer) {
-		cFYI(1, "can not return entries pos_in_buf beyond last");
+		cifs_dbg(FYI, "can not return entries pos_in_buf beyond last\n");
 		*num_to_ret = 0;
 	} else
 		*num_to_ret = cfile->srch_inf.entries_in_buffer - pos_in_buf;
@@ -662,8 +678,9 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
-static int cifs_filldir(char *find_entry, struct file *file, filldir_t filldir,
-		void *dirent, char *scratch_buf, unsigned int max_len)
+static int cifs_filldir(char *find_entry, struct file *file,
+		struct dir_context *ctx,
+		char *scratch_buf, unsigned int max_len)
 {
 	struct cifsFileInfo *file_info = file->private_data;
 	struct super_block *sb = file->f_path.dentry->d_sb;
@@ -680,8 +697,8 @@ static int cifs_filldir(char *find_entry, struct file *file, filldir_t filldir,
 		return rc;
 
 	if (de.namelen > max_len) {
-		cERROR(1, "bad search response length %zd past smb end",
-			  de.namelen);
+		cifs_dbg(VFS, "bad search response length %zd past smb end\n",
+			 de.namelen);
 		return -EINVAL;
 	}
 
@@ -743,13 +760,11 @@ static int cifs_filldir(char *find_entry, struct file *file, filldir_t filldir,
 	cifs_prime_dcache(file->f_dentry, &name, &fattr);
 
 	ino = cifs_uniqueid_to_ino_t(fattr.cf_uniqueid);
-	rc = filldir(dirent, name.name, name.len, file->f_pos, ino,
-		     fattr.cf_dtype);
-	return rc;
+	return !dir_emit(ctx, name.name, name.len, ino, fattr.cf_dtype);
 }
 
 
-int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
+int cifs_readdir(struct file *file, struct dir_context *ctx)
 {
 	int rc = 0;
 	unsigned int xid;
@@ -770,108 +785,91 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	 */
 	if (file->private_data == NULL) {
 		rc = initiate_cifs_search(xid, file);
-		cFYI(1, "initiate cifs search rc %d", rc);
+		cifs_dbg(FYI, "initiate cifs search rc %d\n", rc);
 		if (rc)
 			goto rddir2_exit;
 	}
 
-	switch ((int) file->f_pos) {
-	case 0:
-		if (filldir(direntry, ".", 1, file->f_pos,
-		     file->f_path.dentry->d_inode->i_ino, DT_DIR) < 0) {
-			cERROR(1, "Filldir for current dir failed");
-			rc = -ENOMEM;
+	if (!dir_emit_dots(file, ctx))
+		goto rddir2_exit;
+
+	/* 1) If search is active,
+		is in current search buffer?
+		if it before then restart search
+		if after then keep searching till find it */
+
+	if (file->private_data == NULL) {
+		rc = -EINVAL;
+		goto rddir2_exit;
+	}
+	cifsFile = file->private_data;
+	if (cifsFile->srch_inf.endOfSearch) {
+		if (cifsFile->srch_inf.emptyDir) {
+			cifs_dbg(FYI, "End of search, empty dir\n");
+			rc = 0;
+			goto rddir2_exit;
+		}
+	} /* else {
+		cifsFile->invalidHandle = true;
+		tcon->ses->server->close(xid, tcon, &cifsFile->fid);
+	} */
+
+	tcon = tlink_tcon(cifsFile->tlink);
+	rc = find_cifs_entry(xid, tcon, ctx->pos, file, &current_entry,
+			     &num_to_fill);
+	if (rc) {
+		cifs_dbg(FYI, "fce error %d\n", rc);
+		goto rddir2_exit;
+	} else if (current_entry != NULL) {
+		cifs_dbg(FYI, "entry %lld found\n", ctx->pos);
+	} else {
+		cifs_dbg(FYI, "could not find entry\n");
+		goto rddir2_exit;
+	}
+	cifs_dbg(FYI, "loop through %d times filling dir for net buf %p\n",
+		 num_to_fill, cifsFile->srch_inf.ntwrk_buf_start);
+	max_len = tcon->ses->server->ops->calc_smb_size(
+			cifsFile->srch_inf.ntwrk_buf_start);
+	end_of_smb = cifsFile->srch_inf.ntwrk_buf_start + max_len;
+
+	tmp_buf = kmalloc(UNICODE_NAME_MAX, GFP_KERNEL);
+	if (tmp_buf == NULL) {
+		rc = -ENOMEM;
+		goto rddir2_exit;
+	}
+
+	for (i = 0; i < num_to_fill; i++) {
+		if (current_entry == NULL) {
+			/* evaluate whether this case is an error */
+			cifs_dbg(VFS, "past SMB end,  num to fill %d i %d\n",
+				 num_to_fill, i);
 			break;
 		}
-		file->f_pos++;
-	case 1:
-		if (filldir(direntry, "..", 2, file->f_pos,
-		     parent_ino(file->f_path.dentry), DT_DIR) < 0) {
-			cERROR(1, "Filldir for parent dir failed");
-			rc = -ENOMEM;
-			break;
-		}
-		file->f_pos++;
-	default:
-		/* 1) If search is active,
-			is in current search buffer?
-			if it before then restart search
-			if after then keep searching till find it */
-
-		if (file->private_data == NULL) {
-			rc = -EINVAL;
-			free_xid(xid);
-			return rc;
-		}
-		cifsFile = file->private_data;
-		if (cifsFile->srch_inf.endOfSearch) {
-			if (cifsFile->srch_inf.emptyDir) {
-				cFYI(1, "End of search, empty dir");
-				rc = 0;
-				break;
-			}
-		} /* else {
-			cifsFile->invalidHandle = true;
-			tcon->ses->server->close(xid, tcon, &cifsFile->fid);
-		} */
-
-		tcon = tlink_tcon(cifsFile->tlink);
-		rc = find_cifs_entry(xid, tcon, file, &current_entry,
-				     &num_to_fill);
+		/*
+		 * if buggy server returns . and .. late do we want to
+		 * check for that here?
+		 */
+		rc = cifs_filldir(current_entry, file, ctx,
+				  tmp_buf, max_len);
 		if (rc) {
-			cFYI(1, "fce error %d", rc);
-			goto rddir2_exit;
-		} else if (current_entry != NULL) {
-			cFYI(1, "entry %lld found", file->f_pos);
-		} else {
-			cFYI(1, "could not find entry");
-			goto rddir2_exit;
-		}
-		cFYI(1, "loop through %d times filling dir for net buf %p",
-			num_to_fill, cifsFile->srch_inf.ntwrk_buf_start);
-		max_len = tcon->ses->server->ops->calc_smb_size(
-				cifsFile->srch_inf.ntwrk_buf_start);
-		end_of_smb = cifsFile->srch_inf.ntwrk_buf_start + max_len;
-
-		tmp_buf = kmalloc(UNICODE_NAME_MAX, GFP_KERNEL);
-		if (tmp_buf == NULL) {
-			rc = -ENOMEM;
+			if (rc > 0)
+				rc = 0;
 			break;
 		}
 
-		for (i = 0; (i < num_to_fill) && (rc == 0); i++) {
-			if (current_entry == NULL) {
-				/* evaluate whether this case is an error */
-				cERROR(1, "past SMB end,  num to fill %d i %d",
-					  num_to_fill, i);
-				break;
-			}
-			/*
-			 * if buggy server returns . and .. late do we want to
-			 * check for that here?
-			 */
-			rc = cifs_filldir(current_entry, file, filldir,
-					  direntry, tmp_buf, max_len);
-			if (rc == -EOVERFLOW) {
-				rc = 0;
-				break;
-			}
-
-			file->f_pos++;
-			if (file->f_pos ==
-				cifsFile->srch_inf.index_of_last_entry) {
-				cFYI(1, "last entry in buf at pos %lld %s",
-					file->f_pos, tmp_buf);
-				cifs_save_resume_key(current_entry, cifsFile);
-				break;
-			} else
-				current_entry =
-					nxt_dir_entry(current_entry, end_of_smb,
-						cifsFile->srch_inf.info_level);
-		}
-		kfree(tmp_buf);
-		break;
-	} /* end switch */
+		ctx->pos++;
+		if (ctx->pos ==
+			cifsFile->srch_inf.index_of_last_entry) {
+			cifs_dbg(FYI, "last entry in buf at pos %lld %s\n",
+				 ctx->pos, tmp_buf);
+			cifs_save_resume_key(current_entry, cifsFile);
+			break;
+		} else
+			current_entry =
+				nxt_dir_entry(current_entry, end_of_smb,
+					cifsFile->srch_inf.info_level);
+	}
+	kfree(tmp_buf);
 
 rddir2_exit:
 	free_xid(xid);

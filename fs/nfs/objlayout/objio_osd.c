@@ -234,7 +234,7 @@ static int __alloc_objio_seg(unsigned numdevs, gfp_t gfp_flags,
 
 	lseg = kzalloc(lseg_size, gfp_flags);
 	if (unlikely(!lseg)) {
-		dprintk("%s: Faild allocation numdevs=%d size=%zd\n", __func__,
+		dprintk("%s: Failed allocation numdevs=%d size=%zd\n", __func__,
 			numdevs, lseg_size);
 		return -ENOMEM;
 	}
@@ -647,6 +647,7 @@ static struct pnfs_layoutdriver_type objlayout_type = {
 	.flags                   = PNFS_LAYOUTRET_ON_SETATTR |
 				   PNFS_LAYOUTRET_ON_ERROR,
 
+	.owner		       	 = THIS_MODULE,
 	.alloc_layout_hdr        = objlayout_alloc_layout_hdr,
 	.free_layout_hdr         = objlayout_free_layout_hdr,
 

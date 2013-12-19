@@ -2,7 +2,7 @@
 #define _BNX2FC_H_
 /* bnx2fc.h: Broadcom NetXtreme II Linux FCoE offload driver.
  *
- * Copyright (c) 2008 - 2011 Broadcom Corporation
+ * Copyright (c) 2008 - 2013 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,9 +64,11 @@
 #include "bnx2fc_constants.h"
 
 #define BNX2FC_NAME		"bnx2fc"
-#define BNX2FC_VERSION		"1.0.12"
+#define BNX2FC_VERSION		"2.4.1"
 
 #define PFX			"bnx2fc: "
+
+#define BCM_CHIP_LEN		16
 
 #define BNX2X_DOORBELL_PCI_BAR		2
 
@@ -88,9 +90,6 @@
 
 #define BNX2FC_MAX_NPIV		256
 
-#define BNX2FC_MAX_OUTSTANDING_CMNDS	2048
-#define BNX2FC_CAN_QUEUE		BNX2FC_MAX_OUTSTANDING_CMNDS
-#define BNX2FC_ELSTM_XIDS		BNX2FC_CAN_QUEUE
 #define BNX2FC_MIN_PAYLOAD		256
 #define BNX2FC_MAX_PAYLOAD		2048
 #define BNX2FC_MFS			\
@@ -106,13 +105,10 @@
 #define BNX2FC_RQ_WQE_SIZE		(BNX2FC_RQ_BUF_SZ)
 #define BNX2FC_XFERQ_WQE_SIZE		(sizeof(struct fcoe_xfrqe))
 #define BNX2FC_CONFQ_WQE_SIZE		(sizeof(struct fcoe_confqe))
-#define BNX2FC_5771X_DB_PAGE_SIZE	128
+#define BNX2X_DB_SHIFT			3
 
-#define BNX2FC_MAX_TASKS		\
-			     (BNX2FC_MAX_OUTSTANDING_CMNDS + BNX2FC_ELSTM_XIDS)
 #define BNX2FC_TASK_SIZE		128
 #define	BNX2FC_TASKS_PER_PAGE		(PAGE_SIZE/BNX2FC_TASK_SIZE)
-#define BNX2FC_TASK_CTX_ARR_SZ		(BNX2FC_MAX_TASKS/BNX2FC_TASKS_PER_PAGE)
 
 #define BNX2FC_MAX_ROWS_IN_HASH_TBL	8
 #define BNX2FC_HASH_TBL_CHUNK_SIZE	(16 * 1024)
@@ -125,12 +121,9 @@
 #define BNX2FC_WRITE			(1 << 0)
 
 #define BNX2FC_MIN_XID			0
-#define BNX2FC_MAX_XID			\
-			(BNX2FC_MAX_OUTSTANDING_CMNDS + BNX2FC_ELSTM_XIDS - 1)
 #define FCOE_MAX_NUM_XIDS		0x2000
-#define FCOE_MIN_XID			(BNX2FC_MAX_XID + 1)
-#define FCOE_MAX_XID			(FCOE_MIN_XID + FCOE_MAX_NUM_XIDS - 1)
-#define FCOE_XIDS_PER_CPU		(FCOE_MIN_XID + (512 * nr_cpu_ids) - 1)
+#define FCOE_MAX_XID_OFFSET		(FCOE_MAX_NUM_XIDS - 1)
+#define FCOE_XIDS_PER_CPU_OFFSET	((512 * nr_cpu_ids) - 1)
 #define BNX2FC_MAX_LUN			0xFFFF
 #define BNX2FC_MAX_FCP_TGT		256
 #define BNX2FC_MAX_CMD_LEN		16
@@ -156,6 +149,18 @@
 #define BNX2FC_RELOGIN_WAIT_TIME	200
 #define BNX2FC_RELOGIN_WAIT_CNT		10
 
+#define BNX2FC_STATS(hba, stat, cnt)					\
+	do {								\
+		u32 val;						\
+									\
+		val = fw_stats->stat.cnt;				\
+		if (hba->prev_stats.stat.cnt <= val)			\
+			val -= hba->prev_stats.stat.cnt;		\
+		else							\
+			val += (0xfffffff - hba->prev_stats.stat.cnt);	\
+		hba->bfw_stats.cnt += val;				\
+	} while (0)
+
 /* bnx2fc driver uses only one instance of fcoe_percpu_s */
 extern struct fcoe_percpu_s bnx2fc_global;
 
@@ -165,6 +170,14 @@ struct bnx2fc_percpu_s {
 	struct task_struct *iothread;
 	struct list_head work_list;
 	spinlock_t fp_work_lock;
+};
+
+struct bnx2fc_fw_stats {
+	u64	fc_crc_cnt;
+	u64	fcoe_tx_pkt_cnt;
+	u64	fcoe_rx_pkt_cnt;
+	u64	fcoe_tx_byte_cnt;
+	u64	fcoe_rx_byte_cnt;
 };
 
 struct bnx2fc_hba {
@@ -186,6 +199,13 @@ struct bnx2fc_hba {
 		#define BNX2FC_FLAG_FW_INIT_DONE	0
 		#define BNX2FC_FLAG_DESTROY_CMPL	1
 	u32 next_conn_id;
+
+	/* xid resources */
+	u16 max_xid;
+	u32 max_tasks;
+	u32 max_outstanding_cmds;
+	u32 elstm_xids;
+
 	struct fcoe_task_ctx_entry **task_ctx;
 	dma_addr_t *task_ctx_dma;
 	struct regpair *task_ctx_bd_tbl;
@@ -207,6 +227,8 @@ struct bnx2fc_hba {
 	struct bnx2fc_rport **tgt_ofld_list;
 
 	/* statistics */
+	struct bnx2fc_fw_stats bfw_stats;
+	struct fcoe_statistics_params prev_stats;
 	struct fcoe_statistics_params *stats_buffer;
 	dma_addr_t stats_buf_dma;
 	struct completion stat_req_done;
@@ -221,6 +243,8 @@ struct bnx2fc_hba {
 	int wait_for_link_down;
 	int num_ofld_sess;
 	struct list_head vports;
+
+	char chip_num[BCM_CHIP_LEN];
 };
 
 struct bnx2fc_interface {
@@ -280,6 +304,7 @@ struct bnx2fc_rport {
 #define BNX2FC_FLAG_UPLD_REQ_COMPL	0x7
 #define BNX2FC_FLAG_EXPL_LOGO		0x8
 #define BNX2FC_FLAG_DISABLE_FAILED	0x9
+#define BNX2FC_FLAG_ENABLED		0xa
 
 	u8 src_addr[ETH_ALEN];
 	u32 max_sqes;
@@ -468,6 +493,8 @@ int bnx2fc_send_fw_fcoe_init_msg(struct bnx2fc_hba *hba);
 int bnx2fc_send_fw_fcoe_destroy_msg(struct bnx2fc_hba *hba);
 int bnx2fc_send_session_ofld_req(struct fcoe_port *port,
 					struct bnx2fc_rport *tgt);
+int bnx2fc_send_session_enable_req(struct fcoe_port *port,
+					struct bnx2fc_rport *tgt);
 int bnx2fc_send_session_disable_req(struct fcoe_port *port,
 				    struct bnx2fc_rport *tgt);
 int bnx2fc_send_session_destroy_req(struct bnx2fc_hba *hba,
@@ -479,8 +506,7 @@ int bnx2fc_setup_task_ctx(struct bnx2fc_hba *hba);
 void bnx2fc_free_task_ctx(struct bnx2fc_hba *hba);
 int bnx2fc_setup_fw_resc(struct bnx2fc_hba *hba);
 void bnx2fc_free_fw_resc(struct bnx2fc_hba *hba);
-struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba,
-						u16 min_xid, u16 max_xid);
+struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba);
 void bnx2fc_cmd_mgr_free(struct bnx2fc_cmd_mgr *cmgr);
 void bnx2fc_get_link_state(struct bnx2fc_hba *hba);
 char *bnx2fc_get_next_rqe(struct bnx2fc_rport *tgt, u8 num_items);

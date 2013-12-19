@@ -22,22 +22,22 @@
 #include <linux/pid_namespace.h>
 #include <net/net_namespace.h>
 #include <linux/ipc_namespace.h>
-#include <linux/proc_fs.h>
+#include <linux/proc_ns.h>
 #include <linux/file.h>
 #include <linux/syscalls.h>
 
 static struct kmem_cache *nsproxy_cachep;
 
 struct nsproxy init_nsproxy = {
-	.count	= ATOMIC_INIT(1),
-	.uts_ns	= &init_uts_ns,
+	.count			= ATOMIC_INIT(1),
+	.uts_ns			= &init_uts_ns,
 #if defined(CONFIG_POSIX_MQUEUE) || defined(CONFIG_SYSVIPC)
-	.ipc_ns	= &init_ipc_ns,
+	.ipc_ns			= &init_ipc_ns,
 #endif
-	.mnt_ns	= NULL,
-	.pid_ns	= &init_pid_ns,
+	.mnt_ns			= NULL,
+	.pid_ns_for_children	= &init_pid_ns,
 #ifdef CONFIG_NET
-	.net_ns	= &init_net,
+	.net_ns			= &init_net,
 #endif
 };
 
@@ -85,9 +85,10 @@ static struct nsproxy *create_new_namespaces(unsigned long flags,
 		goto out_ipc;
 	}
 
-	new_nsp->pid_ns = copy_pid_ns(flags, user_ns, tsk->nsproxy->pid_ns);
-	if (IS_ERR(new_nsp->pid_ns)) {
-		err = PTR_ERR(new_nsp->pid_ns);
+	new_nsp->pid_ns_for_children =
+		copy_pid_ns(flags, user_ns, tsk->nsproxy->pid_ns_for_children);
+	if (IS_ERR(new_nsp->pid_ns_for_children)) {
+		err = PTR_ERR(new_nsp->pid_ns_for_children);
 		goto out_pid;
 	}
 
@@ -100,8 +101,8 @@ static struct nsproxy *create_new_namespaces(unsigned long flags,
 	return new_nsp;
 
 out_net:
-	if (new_nsp->pid_ns)
-		put_pid_ns(new_nsp->pid_ns);
+	if (new_nsp->pid_ns_for_children)
+		put_pid_ns(new_nsp->pid_ns_for_children);
 out_pid:
 	if (new_nsp->ipc_ns)
 		put_ipc_ns(new_nsp->ipc_ns);
@@ -125,21 +126,15 @@ int copy_namespaces(unsigned long flags, struct task_struct *tsk)
 	struct nsproxy *old_ns = tsk->nsproxy;
 	struct user_namespace *user_ns = task_cred_xxx(tsk, user_ns);
 	struct nsproxy *new_ns;
-	int err = 0;
 
-	if (!old_ns)
+	if (likely(!(flags & (CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC |
+			      CLONE_NEWPID | CLONE_NEWNET)))) {
+		get_nsproxy(old_ns);
 		return 0;
-
-	get_nsproxy(old_ns);
-
-	if (!(flags & (CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC |
-				CLONE_NEWPID | CLONE_NEWNET)))
-		return 0;
-
-	if (!ns_capable(user_ns, CAP_SYS_ADMIN)) {
-		err = -EPERM;
-		goto out;
 	}
+
+	if (!ns_capable(user_ns, CAP_SYS_ADMIN))
+		return -EPERM;
 
 	/*
 	 * CLONE_NEWIPC must detach from the undolist: after switching
@@ -148,23 +143,16 @@ int copy_namespaces(unsigned long flags, struct task_struct *tsk)
 	 * means share undolist with parent, so we must forbid using
 	 * it along with CLONE_NEWIPC.
 	 */
-	if ((flags & CLONE_NEWIPC) && (flags & CLONE_SYSVSEM)) {
-		err = -EINVAL;
-		goto out;
-	}
+	if ((flags & (CLONE_NEWIPC | CLONE_SYSVSEM)) ==
+		(CLONE_NEWIPC | CLONE_SYSVSEM)) 
+		return -EINVAL;
 
-	new_ns = create_new_namespaces(flags, tsk,
-				       task_cred_xxx(tsk, user_ns), tsk->fs);
-	if (IS_ERR(new_ns)) {
-		err = PTR_ERR(new_ns);
-		goto out;
-	}
+	new_ns = create_new_namespaces(flags, tsk, user_ns, tsk->fs);
+	if (IS_ERR(new_ns))
+		return  PTR_ERR(new_ns);
 
 	tsk->nsproxy = new_ns;
-
-out:
-	put_nsproxy(old_ns);
-	return err;
+	return 0;
 }
 
 void free_nsproxy(struct nsproxy *ns)
@@ -175,8 +163,8 @@ void free_nsproxy(struct nsproxy *ns)
 		put_uts_ns(ns->uts_ns);
 	if (ns->ipc_ns)
 		put_ipc_ns(ns->ipc_ns);
-	if (ns->pid_ns)
-		put_pid_ns(ns->pid_ns);
+	if (ns->pid_ns_for_children)
+		put_pid_ns(ns->pid_ns_for_children);
 	put_net(ns->net_ns);
 	kmem_cache_free(nsproxy_cachep, ns);
 }
@@ -242,7 +230,7 @@ SYSCALL_DEFINE2(setns, int, fd, int, nstype)
 	const struct proc_ns_operations *ops;
 	struct task_struct *tsk = current;
 	struct nsproxy *new_nsproxy;
-	struct proc_inode *ei;
+	struct proc_ns *ei;
 	struct file *file;
 	int err;
 
@@ -251,7 +239,7 @@ SYSCALL_DEFINE2(setns, int, fd, int, nstype)
 		return PTR_ERR(file);
 
 	err = -EINVAL;
-	ei = PROC_I(file->f_dentry->d_inode);
+	ei = get_proc_ns(file_inode(file));
 	ops = ei->ns_ops;
 	if (nstype && (ops->type != nstype))
 		goto out;

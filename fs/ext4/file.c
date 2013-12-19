@@ -23,6 +23,7 @@
 #include <linux/jbd2.h>
 #include <linux/mount.h>
 #include <linux/path.h>
+#include <linux/aio.h>
 #include <linux/quotaops.h>
 #include <linux/pagevec.h>
 #include "ext4.h"
@@ -108,14 +109,6 @@ ext4_file_dio_write(struct kiocb *iocb, const struct iovec *iov,
 
 	/* Unaligned direct AIO must be serialized; see comment above */
 	if (unaligned_aio) {
-		static unsigned long unaligned_warn_time;
-
-		/* Warn about this once per day */
-		if (printk_timed_ratelimit(&unaligned_warn_time, 60*60*24*HZ))
-			ext4_msg(inode->i_sb, KERN_WARNING,
-				 "Unaligned AIO/DIO on inode %ld by %s; "
-				 "performance will be poor.",
-				 inode->i_ino, current->comm);
 		mutex_lock(ext4_aio_mutex(inode));
 		ext4_unwritten_wait(inode);
 	}
@@ -156,7 +149,7 @@ ext4_file_dio_write(struct kiocb *iocb, const struct iovec *iov,
 	ret = __generic_file_aio_write(iocb, iov, nr_segs, &iocb->ki_pos);
 	mutex_unlock(&inode->i_mutex);
 
-	if (ret > 0 || ret == -EIOCBQUEUED) {
+	if (ret > 0) {
 		ssize_t err;
 
 		err = generic_write_sync(file, pos, ret);
@@ -175,7 +168,7 @@ static ssize_t
 ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 		unsigned long nr_segs, loff_t pos)
 {
-	struct inode *inode = iocb->ki_filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(iocb->ki_filp);
 	ssize_t ret;
 
 	/*
@@ -226,7 +219,6 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 {
 	struct super_block *sb = inode->i_sb;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
-	struct ext4_inode_info *ei = EXT4_I(inode);
 	struct vfsmount *mnt = filp->f_path.mnt;
 	struct path path;
 	char buf[64], *cp;
@@ -248,7 +240,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 			handle_t *handle;
 			int err;
 
-			handle = ext4_journal_start_sb(sb, 1);
+			handle = ext4_journal_start_sb(sb, EXT4_HT_MISC, 1);
 			if (IS_ERR(handle))
 				return PTR_ERR(handle);
 			err = ext4_journal_get_write_access(handle, sbi->s_sbh);
@@ -266,22 +258,10 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 	 * Set up the jbd2_inode if we are opening the inode for
 	 * writing and the journal is present
 	 */
-	if (sbi->s_journal && !ei->jinode && (filp->f_mode & FMODE_WRITE)) {
-		struct jbd2_inode *jinode = jbd2_alloc_inode(GFP_KERNEL);
-
-		spin_lock(&inode->i_lock);
-		if (!ei->jinode) {
-			if (!jinode) {
-				spin_unlock(&inode->i_lock);
-				return -ENOMEM;
-			}
-			ei->jinode = jinode;
-			jbd2_journal_init_jbd_inode(ei->jinode, inode);
-			jinode = NULL;
-		}
-		spin_unlock(&inode->i_lock);
-		if (unlikely(jinode != NULL))
-			jbd2_free_inode(jinode);
+	if (filp->f_mode & FMODE_WRITE) {
+		int ret = ext4_inode_attach_jinode(inode);
+		if (ret < 0)
+			return ret;
 	}
 	return dquot_file_open(inode, filp);
 }
@@ -319,7 +299,7 @@ static int ext4_find_unwritten_pgoff(struct inode *inode,
 	blkbits = inode->i_sb->s_blocksize_bits;
 	startoff = *offset;
 	lastoff = startoff;
-	endoff = (map->m_lblk + map->m_len) << blkbits;
+	endoff = (loff_t)(map->m_lblk + map->m_len) << blkbits;
 
 	index = startoff >> PAGE_CACHE_SHIFT;
 	end = endoff >> PAGE_CACHE_SHIFT;
@@ -464,7 +444,7 @@ static loff_t ext4_seek_data(struct file *file, loff_t offset, loff_t maxsize)
 		ret = ext4_map_blocks(NULL, inode, &map, 0);
 		if (ret > 0 && !(map.m_flags & EXT4_MAP_UNWRITTEN)) {
 			if (last != start)
-				dataoff = last << blkbits;
+				dataoff = (loff_t)last << blkbits;
 			break;
 		}
 
@@ -472,12 +452,10 @@ static loff_t ext4_seek_data(struct file *file, loff_t offset, loff_t maxsize)
 		 * If there is a delay extent at this offset,
 		 * it will be as a data.
 		 */
-		es.start = last;
-		(void)ext4_es_find_extent(inode, &es);
-		if (last >= es.start &&
-		    last < es.start + es.len) {
+		ext4_es_find_delayed_extent_range(inode, last, last, &es);
+		if (es.es_len != 0 && in_range(last, es.es_lblk, es.es_len)) {
 			if (last != start)
-				dataoff = last << blkbits;
+				dataoff = (loff_t)last << blkbits;
 			break;
 		}
 
@@ -495,7 +473,7 @@ static loff_t ext4_seek_data(struct file *file, loff_t offset, loff_t maxsize)
 		}
 
 		last++;
-		dataoff = last << blkbits;
+		dataoff = (loff_t)last << blkbits;
 	} while (last <= end);
 
 	mutex_unlock(&inode->i_mutex);
@@ -503,17 +481,7 @@ static loff_t ext4_seek_data(struct file *file, loff_t offset, loff_t maxsize)
 	if (dataoff > isize)
 		return -ENXIO;
 
-	if (dataoff < 0 && !(file->f_mode & FMODE_UNSIGNED_OFFSET))
-		return -EINVAL;
-	if (dataoff > maxsize)
-		return -EINVAL;
-
-	if (dataoff != file->f_pos) {
-		file->f_pos = dataoff;
-		file->f_version = 0;
-	}
-
-	return dataoff;
+	return vfs_setpos(file, dataoff, maxsize);
 }
 
 /*
@@ -549,7 +517,7 @@ static loff_t ext4_seek_hole(struct file *file, loff_t offset, loff_t maxsize)
 		ret = ext4_map_blocks(NULL, inode, &map, 0);
 		if (ret > 0 && !(map.m_flags & EXT4_MAP_UNWRITTEN)) {
 			last += ret;
-			holeoff = last << blkbits;
+			holeoff = (loff_t)last << blkbits;
 			continue;
 		}
 
@@ -557,12 +525,10 @@ static loff_t ext4_seek_hole(struct file *file, loff_t offset, loff_t maxsize)
 		 * If there is a delay extent at this offset,
 		 * we will skip this extent.
 		 */
-		es.start = last;
-		(void)ext4_es_find_extent(inode, &es);
-		if (last >= es.start &&
-		    last < es.start + es.len) {
-			last = es.start + es.len;
-			holeoff = last << blkbits;
+		ext4_es_find_delayed_extent_range(inode, last, last, &es);
+		if (es.es_len != 0 && in_range(last, es.es_lblk, es.es_len)) {
+			last = es.es_lblk + es.es_len;
+			holeoff = (loff_t)last << blkbits;
 			continue;
 		}
 
@@ -577,7 +543,7 @@ static loff_t ext4_seek_hole(struct file *file, loff_t offset, loff_t maxsize)
 							      &map, &holeoff);
 			if (!unwritten) {
 				last += ret;
-				holeoff = last << blkbits;
+				holeoff = (loff_t)last << blkbits;
 				continue;
 			}
 		}
@@ -591,17 +557,7 @@ static loff_t ext4_seek_hole(struct file *file, loff_t offset, loff_t maxsize)
 	if (holeoff > isize)
 		holeoff = isize;
 
-	if (holeoff < 0 && !(file->f_mode & FMODE_UNSIGNED_OFFSET))
-		return -EINVAL;
-	if (holeoff > maxsize)
-		return -EINVAL;
-
-	if (holeoff != file->f_pos) {
-		file->f_pos = holeoff;
-		file->f_version = 0;
-	}
-
-	return holeoff;
+	return vfs_setpos(file, holeoff, maxsize);
 }
 
 /*

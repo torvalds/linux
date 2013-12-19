@@ -16,7 +16,7 @@
 #include <linux/ata_platform.h>
 #include <linux/libata.h>
 
-static int __devinit pata_of_platform_probe(struct platform_device *ofdev)
+static int pata_of_platform_probe(struct platform_device *ofdev)
 {
 	int ret;
 	struct device_node *dn = ofdev->dev.of_node;

@@ -29,6 +29,8 @@
 #include <linux/io.h>
 #include <linux/export.h>
 #include <linux/gpio.h>
+#include <linux/cpu.h>
+#include <linux/sched_clock.h>
 
 #include <mach/udc.h>
 #include <mach/hardware.h>
@@ -37,7 +39,6 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/irq.h>
-#include <asm/sched_clock.h>
 #include <asm/system_misc.h>
 
 #include <asm/mach/map.h>
@@ -80,6 +81,44 @@ void __init ixp4xx_map_io(void)
   	iotable_init(ixp4xx_io_desc, ARRAY_SIZE(ixp4xx_io_desc));
 }
 
+/*
+ * GPIO-functions
+ */
+/*
+ * The following converted to the real HW bits the gpio_line_config
+ */
+/* GPIO pin types */
+#define IXP4XX_GPIO_OUT 		0x1
+#define IXP4XX_GPIO_IN  		0x2
+
+/* GPIO signal types */
+#define IXP4XX_GPIO_LOW			0
+#define IXP4XX_GPIO_HIGH		1
+
+/* GPIO Clocks */
+#define IXP4XX_GPIO_CLK_0		14
+#define IXP4XX_GPIO_CLK_1		15
+
+static void gpio_line_config(u8 line, u32 direction)
+{
+	if (direction == IXP4XX_GPIO_IN)
+		*IXP4XX_GPIO_GPOER |= (1 << line);
+	else
+		*IXP4XX_GPIO_GPOER &= ~(1 << line);
+}
+
+static void gpio_line_get(u8 line, int *value)
+{
+	*value = (*IXP4XX_GPIO_GPINR >> line) & 0x1;
+}
+
+static void gpio_line_set(u8 line, int value)
+{
+	if (value == IXP4XX_GPIO_HIGH)
+	    *IXP4XX_GPIO_GPOUTR |= (1 << line);
+	else if (value == IXP4XX_GPIO_LOW)
+	    *IXP4XX_GPIO_GPOUTR &= ~(1 << line);
+}
 
 /*************************************************************************
  * IXP4xx chipset IRQ handling
@@ -115,17 +154,6 @@ static int ixp4xx_gpio_to_irq(struct gpio_chip *chip, unsigned gpio)
 	}
 	return -EINVAL;
 }
-
-int irq_to_gpio(unsigned int irq)
-{
-	int gpio = (irq < 32) ? irq2gpio[irq] : -EINVAL;
-
-	if (gpio == -1)
-		return -EINVAL;
-
-	return gpio;
-}
-EXPORT_SYMBOL(irq_to_gpio);
 
 static int ixp4xx_set_irq_type(struct irq_data *d, unsigned int type)
 {
@@ -239,7 +267,7 @@ void __init ixp4xx_init_irq(void)
 	 * ixp4xx does not implement the XScale PWRMODE register
 	 * so it must not call cpu_do_idle().
 	 */
-	disable_hlt();
+	cpu_idle_poll_ctrl(true);
 
 	/* Route all sources to IRQ instead of FIQ */
 	*IXP4XX_ICLR = 0x0;
@@ -306,10 +334,6 @@ void __init ixp4xx_timer_init(void)
 	ixp4xx_clocksource_init();
 	ixp4xx_clockevent_init();
 }
-
-struct sys_timer ixp4xx_timer = {
-	.init		= ixp4xx_timer_init,
-};
 
 static struct pxa2xx_udc_mach_info ixp4xx_udc_info;
 
@@ -523,27 +547,20 @@ static struct clock_event_device clockevent_ixp4xx = {
 	.name		= "ixp4xx timer1",
 	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.rating         = 200,
-	.shift		= 24,
 	.set_mode	= ixp4xx_set_mode,
 	.set_next_event	= ixp4xx_set_next_event,
 };
 
 static void __init ixp4xx_clockevent_init(void)
 {
-	clockevent_ixp4xx.mult = div_sc(IXP4XX_TIMER_FREQ, NSEC_PER_SEC,
-					clockevent_ixp4xx.shift);
-	clockevent_ixp4xx.max_delta_ns =
-		clockevent_delta2ns(0xfffffffe, &clockevent_ixp4xx);
-	clockevent_ixp4xx.min_delta_ns =
-		clockevent_delta2ns(0xf, &clockevent_ixp4xx);
 	clockevent_ixp4xx.cpumask = cpumask_of(0);
-
-	clockevents_register_device(&clockevent_ixp4xx);
+	clockevents_config_and_register(&clockevent_ixp4xx, IXP4XX_TIMER_FREQ,
+					0xf, 0xfffffffe);
 }
 
-void ixp4xx_restart(char mode, const char *cmd)
+void ixp4xx_restart(enum reboot_mode mode, const char *cmd)
 {
-	if ( 1 && mode == 's') {
+	if ( 1 && mode == REBOOT_SOFT) {
 		/* Jump into ROM at address 0 */
 		soft_restart(0);
 	} else {
@@ -569,7 +586,7 @@ void ixp4xx_restart(char mode, const char *cmd)
  * fallback to the default.
  */
 
-static void __iomem *ixp4xx_ioremap_caller(unsigned long addr, size_t size,
+static void __iomem *ixp4xx_ioremap_caller(phys_addr_t addr, size_t size,
 					   unsigned int mtype, void *caller)
 {
 	if (!is_pci_memory(addr))

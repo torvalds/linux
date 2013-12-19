@@ -262,11 +262,21 @@ static int sdo_runtime_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct sdo_device *sdev = sd_to_sdev(sd);
+	int ret;
 
 	dev_info(dev, "resume\n");
-	clk_enable(sdev->sclk_dac);
-	regulator_enable(sdev->vdac);
-	regulator_enable(sdev->vdet);
+
+	ret = clk_enable(sdev->sclk_dac);
+	if (ret < 0)
+		return ret;
+
+	ret = regulator_enable(sdev->vdac);
+	if (ret < 0)
+		goto dac_clk_dis;
+
+	ret = regulator_enable(sdev->vdet);
+	if (ret < 0)
+		goto vdac_r_dis;
 
 	/* software reset */
 	sdo_write_mask(sdev, SDO_CLKCON, ~0, SDO_TVOUT_SW_RESET);
@@ -285,6 +295,12 @@ static int sdo_runtime_resume(struct device *dev)
 		SDO_COMPENSATION_CVBS_COMP_OFF);
 	sdo_reg_debug(sdev);
 	return 0;
+
+vdac_r_dis:
+	regulator_disable(sdev->vdac);
+dac_clk_dis:
+	clk_disable(sdev->sclk_dac);
+	return ret;
 }
 
 static const struct dev_pm_ops sdo_pm_ops = {
@@ -292,7 +308,7 @@ static const struct dev_pm_ops sdo_pm_ops = {
 	.runtime_resume	 = sdo_runtime_resume,
 };
 
-static int __devinit sdo_probe(struct platform_device *pdev)
+static int sdo_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct sdo_device *sdev;
@@ -301,7 +317,7 @@ static int __devinit sdo_probe(struct platform_device *pdev)
 	struct clk *sclk_vpll;
 
 	dev_info(dev, "probe start\n");
-	sdev = devm_kzalloc(&pdev->dev, sizeof *sdev, GFP_KERNEL);
+	sdev = devm_kzalloc(&pdev->dev, sizeof(*sdev), GFP_KERNEL);
 	if (!sdev) {
 		dev_err(dev, "not enough memory.\n");
 		ret = -ENOMEM;
@@ -341,47 +357,50 @@ static int __devinit sdo_probe(struct platform_device *pdev)
 
 	/* acquire clocks */
 	sdev->sclk_dac = clk_get(dev, "sclk_dac");
-	if (IS_ERR_OR_NULL(sdev->sclk_dac)) {
+	if (IS_ERR(sdev->sclk_dac)) {
 		dev_err(dev, "failed to get clock 'sclk_dac'\n");
-		ret = -ENXIO;
+		ret = PTR_ERR(sdev->sclk_dac);
 		goto fail;
 	}
 	sdev->dac = clk_get(dev, "dac");
-	if (IS_ERR_OR_NULL(sdev->dac)) {
+	if (IS_ERR(sdev->dac)) {
 		dev_err(dev, "failed to get clock 'dac'\n");
-		ret = -ENXIO;
+		ret = PTR_ERR(sdev->dac);
 		goto fail_sclk_dac;
 	}
 	sdev->dacphy = clk_get(dev, "dacphy");
-	if (IS_ERR_OR_NULL(sdev->dacphy)) {
+	if (IS_ERR(sdev->dacphy)) {
 		dev_err(dev, "failed to get clock 'dacphy'\n");
-		ret = -ENXIO;
+		ret = PTR_ERR(sdev->dacphy);
 		goto fail_dac;
 	}
 	sclk_vpll = clk_get(dev, "sclk_vpll");
-	if (IS_ERR_OR_NULL(sclk_vpll)) {
+	if (IS_ERR(sclk_vpll)) {
 		dev_err(dev, "failed to get clock 'sclk_vpll'\n");
-		ret = -ENXIO;
+		ret = PTR_ERR(sclk_vpll);
 		goto fail_dacphy;
 	}
 	clk_set_parent(sdev->sclk_dac, sclk_vpll);
 	clk_put(sclk_vpll);
 	sdev->fout_vpll = clk_get(dev, "fout_vpll");
-	if (IS_ERR_OR_NULL(sdev->fout_vpll)) {
+	if (IS_ERR(sdev->fout_vpll)) {
 		dev_err(dev, "failed to get clock 'fout_vpll'\n");
+		ret = PTR_ERR(sdev->fout_vpll);
 		goto fail_dacphy;
 	}
 	dev_info(dev, "fout_vpll.rate = %lu\n", clk_get_rate(sclk_vpll));
 
 	/* acquire regulator */
 	sdev->vdac = devm_regulator_get(dev, "vdd33a_dac");
-	if (IS_ERR_OR_NULL(sdev->vdac)) {
+	if (IS_ERR(sdev->vdac)) {
 		dev_err(dev, "failed to get regulator 'vdac'\n");
+		ret = PTR_ERR(sdev->vdac);
 		goto fail_fout_vpll;
 	}
 	sdev->vdet = devm_regulator_get(dev, "vdet");
-	if (IS_ERR_OR_NULL(sdev->vdet)) {
+	if (IS_ERR(sdev->vdet)) {
 		dev_err(dev, "failed to get regulator 'vdet'\n");
+		ret = PTR_ERR(sdev->vdet);
 		goto fail_fout_vpll;
 	}
 
@@ -394,7 +413,7 @@ static int __devinit sdo_probe(struct platform_device *pdev)
 	/* configuration of interface subdevice */
 	v4l2_subdev_init(&sdev->sd, &sdo_sd_ops);
 	sdev->sd.owner = THIS_MODULE;
-	strlcpy(sdev->sd.name, "s5p-sdo", sizeof sdev->sd.name);
+	strlcpy(sdev->sd.name, "s5p-sdo", sizeof(sdev->sd.name));
 
 	/* set default format */
 	sdev->fmt = sdo_find_format(SDO_DEFAULT_STD);
@@ -419,7 +438,7 @@ fail:
 	return ret;
 }
 
-static int __devexit sdo_remove(struct platform_device *pdev)
+static int sdo_remove(struct platform_device *pdev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(&pdev->dev);
 	struct sdo_device *sdev = sd_to_sdev(sd);
@@ -437,7 +456,7 @@ static int __devexit sdo_remove(struct platform_device *pdev)
 
 static struct platform_driver sdo_driver __refdata = {
 	.probe = sdo_probe,
-	.remove = __devexit_p(sdo_remove),
+	.remove = sdo_remove,
 	.driver = {
 		.name = "s5p-sdo",
 		.owner = THIS_MODULE,

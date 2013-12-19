@@ -300,7 +300,7 @@ static struct omap_lcd_config osk_lcd_config __initdata = {
 #ifdef	CONFIG_OMAP_OSK_MISTRAL
 
 #include <linux/input.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
@@ -609,6 +609,6 @@ MACHINE_START(OMAP_OSK, "TI-OSK")
 	.init_irq	= omap1_init_irq,
 	.init_machine	= osk_init,
 	.init_late	= omap1_init_late,
-	.timer		= &omap1_timer,
+	.init_time	= omap1_timer_init,
 	.restart	= omap1_restart,
 MACHINE_END

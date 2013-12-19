@@ -70,8 +70,6 @@
 #define TC3589x_EVT_INT_CLR	0x2
 #define TC3589x_KBD_INT_CLR	0x1
 
-#define TC3589x_KBD_KEYMAP_SIZE     64
-
 /**
  * struct tc_keypad - data structure used by keypad driver
  * @tc3589x:    pointer to tc35893
@@ -88,7 +86,7 @@ struct tc_keypad {
 	const struct tc3589x_keypad_platform_data *board;
 	unsigned int krow;
 	unsigned int kcol;
-	unsigned short keymap[TC3589x_KBD_KEYMAP_SIZE];
+	unsigned short *keymap;
 	bool keypad_stopped;
 };
 
@@ -338,11 +336,13 @@ static int tc3589x_keypad_probe(struct platform_device *pdev)
 
 	error = matrix_keypad_build_keymap(plat->keymap_data, NULL,
 					   TC3589x_MAX_KPROW, TC3589x_MAX_KPCOL,
-					   keypad->keymap, input);
+					   NULL, input);
 	if (error) {
 		dev_err(&pdev->dev, "Failed to build keymap\n");
 		goto err_free_mem;
 	}
+
+	keypad->keymap = input->keycode;
 
 	input_set_capability(input, EV_MSC, MSC_SCAN);
 	if (!plat->no_autorepeat)

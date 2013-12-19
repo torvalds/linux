@@ -49,6 +49,8 @@ static struct snd_pcm *snd_pcm_get(struct snd_card *card, int device)
 	struct snd_pcm *pcm;
 
 	list_for_each_entry(pcm, &snd_pcm_devices, list) {
+		if (pcm->internal)
+			continue;
 		if (pcm->card == card && pcm->device == device)
 			return pcm;
 	}
@@ -60,6 +62,8 @@ static int snd_pcm_next(struct snd_card *card, int device)
 	struct snd_pcm *pcm;
 
 	list_for_each_entry(pcm, &snd_pcm_devices, list) {
+		if (pcm->internal)
+			continue;
 		if (pcm->card == card && pcm->device > device)
 			return pcm->device;
 		else if (pcm->card->number > card->number)
@@ -209,6 +213,8 @@ static char *snd_pcm_format_names[] = {
 	FORMAT(G723_24_1B),
 	FORMAT(G723_40),
 	FORMAT(G723_40_1B),
+	FORMAT(DSD_U8),
+	FORMAT(DSD_U16_LE),
 };
 
 const char *snd_pcm_format_name(snd_pcm_format_t format)
@@ -637,7 +643,7 @@ static inline int snd_pcm_substream_proc_done(struct snd_pcm_substream *substrea
  * calling this, i.e. zero must be given to the argument of
  * snd_pcm_new().
  *
- * Returns zero if successful, or a negative error code on failure.
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 {
@@ -759,7 +765,7 @@ static int _snd_pcm_new(struct snd_card *card, const char *id, int device,
  * The pcm operators have to be set afterwards to the new instance
  * via snd_pcm_set_ops().
  *
- * Returns zero if successful, or a negative error code on failure.
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_pcm_new(struct snd_card *card, const char *id, int device,
 		int playback_count, int capture_count, struct snd_pcm **rpcm)
@@ -787,7 +793,7 @@ EXPORT_SYMBOL(snd_pcm_new);
  * The pcm operators have to be set afterwards to the new instance
  * via snd_pcm_set_ops().
  *
- * Returns zero if successful, or a negative error code on failure.
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_pcm_new_internal(struct snd_card *card, const char *id, int device,
 	int playback_count, int capture_count,

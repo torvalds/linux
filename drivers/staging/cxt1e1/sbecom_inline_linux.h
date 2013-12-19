@@ -73,7 +73,7 @@ OS_mem_token_alloc (size_t size)
     if (!skb)
     {
         //pr_warning("no mem in OS_mem_token_alloc !\n");
-        return 0;
+        return NULL;
     }
     return skb;
 }
@@ -103,7 +103,7 @@ OS_mem_token_data (void *token)
 static inline void *
 OS_mem_token_next (void *token)
 {
-    return 0;
+    return NULL;
 }
 
 
@@ -177,7 +177,7 @@ struct watchdog
 
 
 static inline int
-OS_start_watchdog (struct watchdog * wd)
+OS_start_watchdog (struct watchdog *wd)
 {
     wd->h.expires = jiffies + wd->ticks;
     add_timer (&wd->h);
@@ -186,7 +186,7 @@ OS_start_watchdog (struct watchdog * wd)
 
 
 static inline int
-OS_stop_watchdog (struct watchdog * wd)
+OS_stop_watchdog (struct watchdog *wd)
 {
     del_timer_sync (&wd->h);
     return 0;
@@ -194,7 +194,7 @@ OS_stop_watchdog (struct watchdog * wd)
 
 
 static inline int
-OS_free_watchdog (struct watchdog * wd)
+OS_free_watchdog (struct watchdog *wd)
 {
     OS_stop_watchdog (wd);
     OS_kfree (wd);

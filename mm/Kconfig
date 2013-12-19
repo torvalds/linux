@@ -1,6 +1,6 @@
 config SELECT_MEMORY_MODEL
 	def_bool y
-	depends on EXPERIMENTAL || ARCH_SELECT_MEMORY_MODEL
+	depends on ARCH_SELECT_MEMORY_MODEL
 
 choice
 	prompt "Memory model"
@@ -20,7 +20,7 @@ config FLATMEM_MANUAL
 
 	  Some users of more advanced features like NUMA and
 	  memory hotplug may have different options here.
-	  DISCONTIGMEM is an more mature, better tested system,
+	  DISCONTIGMEM is a more mature, better tested system,
 	  but is incompatible with memory hotplug and may suffer
 	  decreased performance over SPARSEMEM.  If unsure between
 	  "Sparse Memory" and "Discontiguous Memory", choose
@@ -153,21 +153,34 @@ config MOVABLE_NODE
 	help
 	  Allow a node to have only movable memory.  Pages used by the kernel,
 	  such as direct mapping pages cannot be migrated.  So the corresponding
-	  memory device cannot be hotplugged.  This option allows users to
-	  online all the memory of a node as movable memory so that the whole
-	  node can be hotplugged.  Users who don't use the memory hotplug
-	  feature are fine with this option on since they don't online memory
-	  as movable.
+	  memory device cannot be hotplugged.  This option allows the following
+	  two things:
+	  - When the system is booting, node full of hotpluggable memory can
+	  be arranged to have only movable memory so that the whole node can
+	  be hot-removed. (need movable_node boot option specified).
+	  - After the system is up, the option allows users to online all the
+	  memory of a node as movable memory so that the whole node can be
+	  hot-removed.
+
+	  Users who don't use the memory hotplug feature are fine with this
+	  option on since they don't specify movable_node boot option or they
+	  don't online memory as movable.
 
 	  Say Y here if you want to hotplug a whole node.
 	  Say N here if you want kernel to use memory on all nodes evenly.
 
+#
+# Only be set on architectures that have completely implemented memory hotplug
+# feature. If you are not sure, don't touch it.
+#
+config HAVE_BOOTMEM_INFO_NODE
+	def_bool n
+
 # eventually, we can have this option just 'select SPARSEMEM'
 config MEMORY_HOTPLUG
 	bool "Allow for memory hot-add"
-	select MEMORY_ISOLATION
 	depends on SPARSEMEM || X86_64_ACPI_NUMA
-	depends on HOTPLUG && ARCH_ENABLE_MEMORY_HOTPLUG
+	depends on ARCH_ENABLE_MEMORY_HOTPLUG
 	depends on (IA64 || X86 || PPC_BOOK3S_64 || SUPERH || S390)
 
 config MEMORY_HOTPLUG_SPARSE
@@ -176,6 +189,8 @@ config MEMORY_HOTPLUG_SPARSE
 
 config MEMORY_HOTREMOVE
 	bool "Allow for memory hot remove"
+	select MEMORY_ISOLATION
+	select HAVE_BOOTMEM_INFO_NODE if (X86_64 || PPC64)
 	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
 	depends on MIGRATION
 
@@ -203,8 +218,10 @@ config SPLIT_PTLOCK_CPUS
 	int
 	default "999999" if ARM && !CPU_CACHE_VIPT
 	default "999999" if PARISC && !PA20
-	default "999999" if DEBUG_SPINLOCK || DEBUG_LOCK_ALLOC
 	default "4"
+
+config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+	boolean
 
 #
 # support for memory balloon compaction
@@ -237,7 +254,7 @@ config COMPACTION
 config MIGRATION
 	bool "Page migration"
 	def_bool y
-	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA
+	depends on (NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA) && MMU
 	help
 	  Allows the migration of the physical location of pages of processes
 	  while the virtual addresses are not changed. This is useful in
@@ -255,8 +272,27 @@ config ZONE_DMA_FLAG
 	default "1"
 
 config BOUNCE
-	def_bool y
+	bool "Enable bounce buffers"
+	default y
 	depends on BLOCK && MMU && (ZONE_DMA || HIGHMEM)
+	help
+	  Enable bounce buffers for devices that cannot access
+	  the full range of memory available to the CPU. Enabled
+	  by default when ZONE_DMA or HIGHMEM is selected, but you
+	  may say n to override this.
+
+# On the 'tile' arch, USB OHCI needs the bounce pool since tilegx will often
+# have more than 4GB of memory, but we don't currently use the IOTLB to present
+# a 32-bit address to OHCI.  So we need to use a bounce pool instead.
+#
+# We also use the bounce pool to provide stable page writes for jbd.  jbd
+# initiates buffer writeback without locking the page or setting PG_writeback,
+# and fixing that behavior (a second time; jbd2 doesn't have this problem) is
+# a major rework effort.  Instead, use the bounce buffer to snapshot pages
+# (until jbd goes away).  The only jbd user is ext3.
+config NEED_BOUNCE_POOL
+	bool
+	default y if (TILE && USB_OHCI_HCD) || (BLK_DEV_INTEGRITY && JBD)
 
 config NR_QUICK
 	int
@@ -265,8 +301,12 @@ config NR_QUICK
 	default "1"
 
 config VIRT_TO_BUS
-	def_bool y
-	depends on !ARCH_NO_VIRT_TO_BUS
+	bool
+	help
+	  An architecture should select this if it implements the
+	  deprecated interface virt_to_bus().  All new architectures
+	  should probably not select this.
+
 
 config MMU_NOTIFIER
 	bool
@@ -446,3 +486,69 @@ config FRONTSWAP
 	  and swap data is stored as normal on the matching swap device.
 
 	  If unsure, say Y to enable frontswap.
+
+config CMA
+	bool "Contiguous Memory Allocator"
+	depends on HAVE_MEMBLOCK && MMU
+	select MIGRATION
+	select MEMORY_ISOLATION
+	help
+	  This enables the Contiguous Memory Allocator which allows other
+	  subsystems to allocate big physically-contiguous blocks of memory.
+	  CMA reserves a region of memory and allows only movable pages to
+	  be allocated from it. This way, the kernel can use the memory for
+	  pagecache and when a subsystem requests for contiguous area, the
+	  allocated pages are migrated away to serve the contiguous request.
+
+	  If unsure, say "n".
+
+config CMA_DEBUG
+	bool "CMA debug messages (DEVELOPMENT)"
+	depends on DEBUG_KERNEL && CMA
+	help
+	  Turns on debug messages in CMA.  This produces KERN_DEBUG
+	  messages for every CMA call as well as various messages while
+	  processing calls such as dma_alloc_from_contiguous().
+	  This option does not affect warning and error messages.
+
+config ZBUD
+	tristate
+	default n
+	help
+	  A special purpose allocator for storing compressed pages.
+	  It is designed to store up to two compressed pages per physical
+	  page.  While this design limits storage density, it has simple and
+	  deterministic reclaim properties that make it preferable to a higher
+	  density approach when reclaim will be used.
+
+config ZSWAP
+	bool "Compressed cache for swap pages (EXPERIMENTAL)"
+	depends on FRONTSWAP && CRYPTO=y
+	select CRYPTO_LZO
+	select ZBUD
+	default n
+	help
+	  A lightweight compressed cache for swap pages.  It takes
+	  pages that are in the process of being swapped out and attempts to
+	  compress them into a dynamically allocated RAM-based memory pool.
+	  This can result in a significant I/O reduction on swap device and,
+	  in the case where decompressing from RAM is faster that swap device
+	  reads, can also improve workload performance.
+
+	  This is marked experimental because it is a new feature (as of
+	  v3.11) that interacts heavily with memory reclaim.  While these
+	  interactions don't cause any known issues on simple memory setups,
+	  they have not be fully explored on the large set of potential
+	  configurations and workloads that exist.
+
+config MEM_SOFT_DIRTY
+	bool "Track memory changes"
+	depends on CHECKPOINT_RESTORE && HAVE_ARCH_SOFT_DIRTY
+	select PROC_PAGE_MONITOR
+	help
+	  This option enables memory changes tracking by introducing a
+	  soft-dirty bit on pte-s. This bit it set when someone writes
+	  into a page just as regular dirty bit, but unlike the latter
+	  it can be cleared by hands.
+
+	  See Documentation/vm/soft-dirty.txt for more details.

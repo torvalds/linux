@@ -233,7 +233,7 @@ static void hws_ext_handler(struct ext_code ext_code,
 	if (!(param32 & CPU_MF_INT_SF_MASK))
 		return;
 
-	kstat_cpu(smp_processor_id()).irqs[EXTINT_CMS]++;
+	inc_irq_stat(IRQEXT_CMS);
 	atomic_xchg(&cb->ext_params, atomic_read(&cb->ext_params) | param32);
 
 	if (hws_wq)
@@ -1001,7 +1001,7 @@ int hwsampler_deallocate(void)
 	if (hws_state != HWS_STOPPED)
 		goto deallocate_exit;
 
-	measurement_alert_subclass_unregister();
+	irq_subclass_unregister(IRQ_SUBCLASS_MEASUREMENT_ALERT);
 	deallocate_sdbt();
 
 	hws_state = HWS_DEALLOCATED;
@@ -1115,7 +1115,7 @@ int hwsampler_shutdown(void)
 		mutex_lock(&hws_sem);
 
 		if (hws_state == HWS_STOPPED) {
-			measurement_alert_subclass_unregister();
+			irq_subclass_unregister(IRQ_SUBCLASS_MEASUREMENT_ALERT);
 			deallocate_sdbt();
 		}
 		if (hws_wq) {
@@ -1190,7 +1190,7 @@ start_all_exit:
 	hws_oom = 1;
 	hws_flush_all = 0;
 	/* now let them in, 1407 CPUMF external interrupts */
-	measurement_alert_subclass_register();
+	irq_subclass_register(IRQ_SUBCLASS_MEASUREMENT_ALERT);
 
 	return 0;
 }

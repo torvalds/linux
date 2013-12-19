@@ -25,7 +25,6 @@
 
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-modem.h>
 
 #include <plat/clock.h>
 #include <plat/cpu.h>
@@ -39,8 +38,10 @@
 #include <linux/platform_data/touchscreen-s3c2410.h>
 
 #include <video/platform_lcd.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
+#include "regs-modem.h"
 
 #define UCON S3C2410_UCON_DEFAULT
 #define ULCON (S3C2410_LCON_CS8 | S3C2410_LCON_PNONE)
@@ -150,13 +151,14 @@ static struct platform_pwm_backlight_data smartq_backlight_data = {
 	.max_brightness	= 1000,
 	.dft_brightness	= 600,
 	.pwm_period_ns	= 1000000000 / (1000 * 20),
+	.enable_gpio	= -1,
 	.init		= smartq_bl_init,
 };
 
 static struct platform_device smartq_backlight_device = {
 	.name		= "pwm-backlight",
 	.dev		= {
-		.parent	= &s3c_device_timer[1].dev,
+		.parent	= &samsung_device_pwm.dev,
 		.platform_data = &smartq_backlight_data,
 	},
 };
@@ -245,7 +247,7 @@ static struct platform_device *smartq_devices[] __initdata = {
 	&s3c_device_i2c0,
 	&s3c_device_ohci,
 	&s3c_device_rtc,
-	&s3c_device_timer[1],
+	&samsung_device_pwm,
 	&s3c_device_ts,
 	&s3c_device_usb_hsotg,
 	&s3c64xx_device_iis0,
@@ -336,13 +338,6 @@ err:
 	return ret;
 }
 
-static int __init smartq_usb_otg_init(void)
-{
-	clk_xusbxti.rate = 12000000;
-
-	return 0;
-}
-
 static int __init smartq_wifi_init(void)
 {
 	int ret;
@@ -376,8 +371,10 @@ static struct map_desc smartq_iodesc[] __initdata = {};
 void __init smartq_map_io(void)
 {
 	s3c64xx_init_io(smartq_iodesc, ARRAY_SIZE(smartq_iodesc));
-	s3c24xx_init_clocks(12000000);
+	s3c64xx_set_xtal_freq(12000000);
+	s3c64xx_set_xusbxti_freq(12000000);
 	s3c24xx_init_uarts(smartq_uartcfgs, ARRAY_SIZE(smartq_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
 	smartq_lcd_mode_set();
 }
@@ -397,7 +394,6 @@ void __init smartq_machine_init(void)
 	WARN_ON(smartq_lcd_setup_gpio());
 	WARN_ON(smartq_power_off_init());
 	WARN_ON(smartq_usb_host_init());
-	WARN_ON(smartq_usb_otg_init());
 	WARN_ON(smartq_wifi_init());
 
 	platform_add_devices(smartq_devices, ARRAY_SIZE(smartq_devices));

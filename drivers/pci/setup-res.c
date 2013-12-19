@@ -159,7 +159,7 @@ resource_size_t __weak pcibios_retrieve_fw_addr(struct pci_dev *dev, int idx)
 	return 0;
 }
 
-static int pci_revert_fw_address(struct resource *res, struct pci_dev *dev, 
+static int pci_revert_fw_address(struct resource *res, struct pci_dev *dev,
 		int resno, resource_size_t size)
 {
 	struct resource *root, *conflict;
@@ -261,7 +261,6 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 {
 	struct resource *res = dev->resource + resno;
 	resource_size_t align, size;
-	struct pci_bus *bus;
 	int ret;
 
 	align = pci_resource_alignment(dev, res);
@@ -271,7 +270,6 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 		return -EINVAL;
 	}
 
-	bus = dev->bus;
 	size = resource_size(res);
 	ret = _pci_assign_resource(dev, resno, size, align);
 

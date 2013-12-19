@@ -49,7 +49,6 @@
 
 struct ocfs2_cow_context {
 	struct inode *inode;
-	struct file *file;
 	u32 cow_start;
 	u32 cow_len;
 	struct ocfs2_extent_tree data_et;
@@ -66,7 +65,7 @@ struct ocfs2_cow_context {
 			    u32 *num_clusters,
 			    unsigned int *extent_flags);
 	int (*cow_duplicate_clusters)(handle_t *handle,
-				      struct file *file,
+				      struct inode *inode,
 				      u32 cpos, u32 old_cluster,
 				      u32 new_cluster, u32 new_len);
 };
@@ -613,6 +612,11 @@ static int ocfs2_create_refcount_tree(struct inode *inode,
 	}
 
 	new_bh = sb_getblk(inode->i_sb, first_blkno);
+	if (!new_bh) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out_commit;
+	}
 	ocfs2_set_new_buffer_uptodate(&new_tree->rf_ci, new_bh);
 
 	ret = ocfs2_journal_access_rb(handle, &new_tree->rf_ci, new_bh,
@@ -1311,7 +1315,7 @@ static int ocfs2_expand_inline_ref_root(handle_t *handle,
 
 	new_bh = sb_getblk(sb, blkno);
 	if (new_bh == NULL) {
-		ret = -EIO;
+		ret = -ENOMEM;
 		mlog_errno(ret);
 		goto out;
 	}
@@ -1562,7 +1566,7 @@ static int ocfs2_new_leaf_refcount_block(handle_t *handle,
 
 	new_bh = sb_getblk(sb, blkno);
 	if (new_bh == NULL) {
-		ret = -EIO;
+		ret = -ENOMEM;
 		mlog_errno(ret);
 		goto out;
 	}
@@ -2503,8 +2507,7 @@ static int ocfs2_calc_refcount_meta_credits(struct super_block *sb,
 		ocfs2_init_refcount_extent_tree(&et, ci, ref_root_bh);
 		*meta_add += ocfs2_extend_meta_needed(et.et_root_el);
 		*credits += ocfs2_calc_extend_credits(sb,
-						      et.et_root_el,
-						      ref_blocks);
+						      et.et_root_el);
 	} else {
 		*credits += OCFS2_EXPAND_REFCOUNT_TREE_CREDITS;
 		*meta_add += 1;
@@ -2875,8 +2878,7 @@ static int ocfs2_lock_refcount_allocators(struct super_block *sb,
 		meta_add =
 			ocfs2_extend_meta_needed(et->et_root_el);
 
-	*credits += ocfs2_calc_extend_credits(sb, et->et_root_el,
-					      num_clusters + 2);
+	*credits += ocfs2_calc_extend_credits(sb, et->et_root_el);
 
 	ret = ocfs2_calc_refcount_meta_credits(sb, ref_ci, ref_root_bh,
 					       p_cluster, num_clusters,
@@ -2922,14 +2924,12 @@ static int ocfs2_clear_cow_buffer(handle_t *handle, struct buffer_head *bh)
 }
 
 int ocfs2_duplicate_clusters_by_page(handle_t *handle,
-				     struct file *file,
+				     struct inode *inode,
 				     u32 cpos, u32 old_cluster,
 				     u32 new_cluster, u32 new_len)
 {
 	int ret = 0, partial;
-	struct inode *inode = file->f_path.dentry->d_inode;
-	struct ocfs2_caching_info *ci = INODE_CACHE(inode);
-	struct super_block *sb = ocfs2_metadata_cache_get_super(ci);
+	struct super_block *sb = inode->i_sb;
 	u64 new_block = ocfs2_clusters_to_blocks(sb, new_cluster);
 	struct page *page;
 	pgoff_t page_index;
@@ -2965,6 +2965,11 @@ int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 			to = map_end & (PAGE_CACHE_SIZE - 1);
 
 		page = find_or_create_page(mapping, page_index, GFP_NOFS);
+		if (!page) {
+			ret = -ENOMEM;
+			mlog_errno(ret);
+			break;
+		}
 
 		/*
 		 * In case PAGE_CACHE_SIZE <= CLUSTER_SIZE, This page
@@ -2972,13 +2977,6 @@ int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 		 */
 		if (PAGE_CACHE_SIZE <= OCFS2_SB(sb)->s_clustersize)
 			BUG_ON(PageDirty(page));
-
-		if (PageReadahead(page)) {
-			page_cache_async_readahead(mapping,
-						   &file->f_ra, file,
-						   page, page_index,
-						   readahead_pages);
-		}
 
 		if (!PageUptodate(page)) {
 			ret = block_read_full_page(page, ocfs2_get_block);
@@ -2999,7 +2997,8 @@ int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 			}
 		}
 
-		ocfs2_map_and_dirty_page(inode, handle, from, to,
+		ocfs2_map_and_dirty_page(inode,
+					 handle, from, to,
 					 page, 0, &new_block);
 		mark_page_accessed(page);
 unlock:
@@ -3015,12 +3014,11 @@ unlock:
 }
 
 int ocfs2_duplicate_clusters_by_jbd(handle_t *handle,
-				    struct file *file,
+				    struct inode *inode,
 				    u32 cpos, u32 old_cluster,
 				    u32 new_cluster, u32 new_len)
 {
 	int ret = 0;
-	struct inode *inode = file->f_path.dentry->d_inode;
 	struct super_block *sb = inode->i_sb;
 	struct ocfs2_caching_info *ci = INODE_CACHE(inode);
 	int i, blocks = ocfs2_clusters_to_blocks(sb, new_len);
@@ -3036,7 +3034,7 @@ int ocfs2_duplicate_clusters_by_jbd(handle_t *handle,
 	for (i = 0; i < blocks; i++, old_block++, new_block++) {
 		new_bh = sb_getblk(osb->sb, new_block);
 		if (new_bh == NULL) {
-			ret = -EIO;
+			ret = -ENOMEM;
 			mlog_errno(ret);
 			break;
 		}
@@ -3145,7 +3143,7 @@ static int ocfs2_replace_clusters(handle_t *handle,
 
 	/*If the old clusters is unwritten, no need to duplicate. */
 	if (!(ext_flags & OCFS2_EXT_UNWRITTEN)) {
-		ret = context->cow_duplicate_clusters(handle, context->file,
+		ret = context->cow_duplicate_clusters(handle, context->inode,
 						      cpos, old, new, len);
 		if (ret) {
 			mlog_errno(ret);
@@ -3423,35 +3421,12 @@ static int ocfs2_replace_cow(struct ocfs2_cow_context *context)
 	return ret;
 }
 
-static void ocfs2_readahead_for_cow(struct inode *inode,
-				    struct file *file,
-				    u32 start, u32 len)
-{
-	struct address_space *mapping;
-	pgoff_t index;
-	unsigned long num_pages;
-	int cs_bits = OCFS2_SB(inode->i_sb)->s_clustersize_bits;
-
-	if (!file)
-		return;
-
-	mapping = file->f_mapping;
-	num_pages = (len << cs_bits) >> PAGE_CACHE_SHIFT;
-	if (!num_pages)
-		num_pages = 1;
-
-	index = ((loff_t)start << cs_bits) >> PAGE_CACHE_SHIFT;
-	page_cache_sync_readahead(mapping, &file->f_ra, file,
-				  index, num_pages);
-}
-
 /*
  * Starting at cpos, try to CoW write_len clusters.  Don't CoW
  * past max_cpos.  This will stop when it runs into a hole or an
  * unrefcounted extent.
  */
 static int ocfs2_refcount_cow_hunk(struct inode *inode,
-				   struct file *file,
 				   struct buffer_head *di_bh,
 				   u32 cpos, u32 write_len, u32 max_cpos)
 {
@@ -3480,8 +3455,6 @@ static int ocfs2_refcount_cow_hunk(struct inode *inode,
 
 	BUG_ON(cow_len == 0);
 
-	ocfs2_readahead_for_cow(inode, file, cow_start, cow_len);
-
 	context = kzalloc(sizeof(struct ocfs2_cow_context), GFP_NOFS);
 	if (!context) {
 		ret = -ENOMEM;
@@ -3503,7 +3476,6 @@ static int ocfs2_refcount_cow_hunk(struct inode *inode,
 	context->ref_root_bh = ref_root_bh;
 	context->cow_duplicate_clusters = ocfs2_duplicate_clusters_by_page;
 	context->get_clusters = ocfs2_di_get_clusters;
-	context->file = file;
 
 	ocfs2_init_dinode_extent_tree(&context->data_et,
 				      INODE_CACHE(inode), di_bh);
@@ -3532,7 +3504,6 @@ out:
  * clusters between cpos and cpos+write_len are safe to modify.
  */
 int ocfs2_refcount_cow(struct inode *inode,
-		       struct file *file,
 		       struct buffer_head *di_bh,
 		       u32 cpos, u32 write_len, u32 max_cpos)
 {
@@ -3552,7 +3523,7 @@ int ocfs2_refcount_cow(struct inode *inode,
 			num_clusters = write_len;
 
 		if (ext_flags & OCFS2_EXT_REFCOUNTED) {
-			ret = ocfs2_refcount_cow_hunk(inode, file, di_bh, cpos,
+			ret = ocfs2_refcount_cow_hunk(inode, di_bh, cpos,
 						      num_clusters, max_cpos);
 			if (ret) {
 				mlog_errno(ret);
@@ -3657,8 +3628,7 @@ int ocfs2_refcounted_xattr_delete_need(struct inode *inode,
 
 		ocfs2_init_refcount_extent_tree(&et, ref_ci, ref_root_bh);
 		*credits += ocfs2_calc_extend_credits(inode->i_sb,
-						      et.et_root_el,
-						      ref_blocks);
+						      et.et_root_el);
 	}
 
 out:
@@ -3886,7 +3856,10 @@ static int ocfs2_attach_refcount_tree(struct inode *inode,
 	while (cpos < clusters) {
 		ret = ocfs2_get_clusters(inode, cpos, &p_cluster,
 					 &num_clusters, &ext_flags);
-
+		if (ret) {
+			mlog_errno(ret);
+			goto unlock;
+		}
 		if (p_cluster && !(ext_flags & OCFS2_EXT_REFCOUNTED)) {
 			ret = ocfs2_add_refcount_flag(inode, &di_et,
 						      &ref_tree->rf_ci,
@@ -4057,7 +4030,10 @@ static int ocfs2_duplicate_extent_list(struct inode *s_inode,
 	while (cpos < clusters) {
 		ret = ocfs2_get_clusters(s_inode, cpos, &p_cluster,
 					 &num_clusters, &ext_flags);
-
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
 		if (p_cluster) {
 			ret = ocfs2_add_refcounted_extent(t_inode, &et,
 							  ref_ci, ref_root_bh,
@@ -4407,7 +4383,7 @@ static int ocfs2_vfs_reflink(struct dentry *old_dentry, struct inode *dir,
 	 * rights to do so.
 	 */
 	if (preserve) {
-		if ((current_fsuid() != inode->i_uid) && !capable(CAP_CHOWN))
+		if (!uid_eq(current_fsuid(), inode->i_uid) && !capable(CAP_CHOWN))
 			return -EPERM;
 		if (!in_group_p(inode->i_gid) && !capable(CAP_CHOWN))
 			return -EPERM;

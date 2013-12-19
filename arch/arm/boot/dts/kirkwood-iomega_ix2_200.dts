@@ -1,7 +1,7 @@
 /dts-v1/;
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-6281.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
 
 / {
 	model = "Iomega StorCenter ix2-200";
@@ -18,12 +18,7 @@
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
-
-			pinctrl-0 = < &pmx_button_reset &pmx_button_power
-				      &pmx_led_backup &pmx_led_power
-				      &pmx_button_otb &pmx_led_rebuild
-				      &pmx_led_health
-				      &pmx_led_sata_brt_ctrl_1
+			pinctrl-0 = < &pmx_led_sata_brt_ctrl_1
 				      &pmx_led_sata_brt_ctrl_2
 				      &pmx_led_backup_brt_ctrl_1
 				      &pmx_led_backup_brt_ctrl_2
@@ -96,11 +91,11 @@
 				marvell,function = "gpio";
 			};
 			pmx_led_rebuild_brt_ctrl_1: pmx-led-rebuild-brt-ctrl-1 {
-				marvell,pins = "mpp44";
+				marvell,pins = "mpp46";
 				marvell,function = "gpio";
 			};
 			pmx_led_rebuild_brt_ctrl_2: pmx-led-rebuild-brt-ctrl-2 {
-				marvell,pins = "mpp45";
+				marvell,pins = "mpp47";
 				marvell,function = "gpio";
 			};
 
@@ -115,35 +110,9 @@
 		};
 
 		serial@12000 {
-			clock-frequency = <200000000>;
 			status = "ok";
 		};
 
-		nand@3000000 {
-			status = "okay";
-
-			partition@0 {
-				label = "u-boot";
-				reg = <0x0000000 0x100000>;
-				read-only;
-			};
-
-			partition@a0000 {
-				label = "env";
-				reg = <0xa0000 0x20000>;
-				read-only;
-			};
-
-			partition@100000 {
-				label = "uImage";
-				reg = <0x100000 0x300000>;
-			};
-
-			partition@400000 {
-				label = "uInitrd";
-				reg = <0x540000 0x1000000>;
-			};
-		};
 		sata@80000 {
 			status = "okay";
 			nr-ports = <2>;
@@ -152,19 +121,22 @@
 	};
 	gpio-leds {
 		compatible = "gpio-leds";
+		pinctrl-0 = < &pmx_led_backup &pmx_led_power
+			      &pmx_led_rebuild &pmx_led_health >;
+		pinctrl-names = "default";
 
 		power_led {
 			label = "status:white:power_led";
 			gpios = <&gpio0 16 0>;
 			linux,default-trigger = "default-on";
 		};
-		health_led1 {
+		rebuild_led {
+			label = "status:white:rebuild_led";
+			gpios = <&gpio1 4 0>;
+		};
+		health_led {
 			label = "status:red:health_led";
 			gpios = <&gpio1 5 0>;
-		};
-		health_led2 {
-			label = "status:white:health_led";
-			gpios = <&gpio1 4 0>;
 		};
 		backup_led {
 			label = "status:blue:backup_led";
@@ -175,6 +147,11 @@
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-0 = <&pmx_button_reset &pmx_button_power
+			     &pmx_button_otb>;
+		pinctrl-names = "default";
+
+
 		Power {
 			label = "Power Button";
 			linux,code = <116>;
@@ -190,5 +167,55 @@
 			linux,code = <133>;
 			gpios = <&gpio1 3 1>;
 		};
+	};
+};
+
+&nand {
+	status = "okay";
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0x100000>;
+		read-only;
+	};
+
+	partition@a0000 {
+		label = "env";
+		reg = <0xa0000 0x20000>;
+		read-only;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x100000 0x300000>;
+	};
+
+	partition@400000 {
+		label = "uInitrd";
+		reg = <0x540000 0x1000000>;
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy1: ethernet-phy@11 {
+		device_type = "ethernet-phy";
+		reg = <11>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		speed = <1000>;
+		duplex = <1>;
+	};
+};
+
+&eth1 {
+	status = "okay";
+	ethernet1-port@0 {
+		phy-handle = <&ethphy1>;
 	};
 };

@@ -3384,7 +3384,9 @@ static const struct tegra_function tegra30_functions[] = {
 		.ioreset_reg = PINGROUP_REG_##ior(r),		\
 		.ioreset_bank = 1,				\
 		.ioreset_bit = 8,				\
+		.rcv_sel_reg = -1,				\
 		.drv_reg = -1,					\
+		.drvtype_reg = -1,				\
 	}
 
 #define DRV_PINGROUP(pg_name, r, hsm_b, schmitt_b, lpmd_b,	\
@@ -3401,6 +3403,7 @@ static const struct tegra_function tegra30_functions[] = {
 		.odrain_reg = -1,				\
 		.lock_reg = -1,					\
 		.ioreset_reg = -1,				\
+		.rcv_sel_reg = -1,				\
 		.drv_reg = ((r) - DRV_PINGROUP_REG_A),		\
 		.drv_bank = 0,					\
 		.hsm_bit = hsm_b,				\
@@ -3414,6 +3417,7 @@ static const struct tegra_function tegra30_functions[] = {
 		.slwr_width = slwr_w,				\
 		.slwf_bit = slwf_b,				\
 		.slwf_width = slwf_w,				\
+		.drvtype_reg = -1,				\
 	}
 
 static const struct tegra_pingroup tegra30_groups[] = {
@@ -3722,7 +3726,7 @@ static const struct tegra_pinctrl_soc_data tegra30_pinctrl = {
 	.ngroups = ARRAY_SIZE(tegra30_groups),
 };
 
-static int __devinit tegra30_pinctrl_probe(struct platform_device *pdev)
+static int tegra30_pinctrl_probe(struct platform_device *pdev)
 {
 	return tegra_pinctrl_probe(pdev, &tegra30_pinctrl);
 }

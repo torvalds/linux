@@ -27,10 +27,7 @@
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    La Monte H.P. Yarroll <piggy@acm.org>
@@ -41,9 +38,6 @@
  *    Ardelle Fan           <ardelle.fan@intel.com>
  *    Ryan Layer            <rmlayer@us.ibm.com>
  *    Kevin Gao             <kevin.gao@intel.com> 
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #ifndef __net_sctp_h__
@@ -83,28 +77,10 @@
 #include <net/sctp/structs.h>
 #include <net/sctp/constants.h>
 
-
-/* Set SCTP_DEBUG flag via config if not already set. */
-#ifndef SCTP_DEBUG
-#ifdef CONFIG_SCTP_DBG_MSG
-#define SCTP_DEBUG	1
-#else
-#define SCTP_DEBUG      0
-#endif /* CONFIG_SCTP_DBG */
-#endif /* SCTP_DEBUG */
-
 #ifdef CONFIG_IP_SCTP_MODULE
 #define SCTP_PROTOSW_FLAG 0
 #else /* static! */
 #define SCTP_PROTOSW_FLAG INET_PROTOSW_PERMANENT
-#endif
-
-
-/* Certain internal static functions need to be exported when
- * compiled into the test frame.
- */
-#ifndef SCTP_STATIC
-#define SCTP_STATIC static
 #endif
 
 /*
@@ -114,12 +90,11 @@
 /*
  * sctp/protocol.c
  */
-extern int sctp_copy_local_addr_list(struct net *, struct sctp_bind_addr *,
-				     sctp_scope_t, gfp_t gfp,
-				     int flags);
-extern struct sctp_pf *sctp_get_pf_specific(sa_family_t family);
-extern int sctp_register_pf(struct sctp_pf *, sa_family_t);
-extern void sctp_addr_wq_mgmt(struct net *, struct sctp_sockaddr_entry *, int);
+int sctp_copy_local_addr_list(struct net *, struct sctp_bind_addr *,
+			      sctp_scope_t, gfp_t gfp, int flags);
+struct sctp_pf *sctp_get_pf_specific(sa_family_t family);
+int sctp_register_pf(struct sctp_pf *, sa_family_t);
+void sctp_addr_wq_mgmt(struct net *, struct sctp_sockaddr_entry *, int);
 
 /*
  * sctp/socket.c
@@ -134,7 +109,7 @@ void sctp_sock_rfree(struct sk_buff *skb);
 void sctp_copy_sock(struct sock *newsk, struct sock *sk,
 		    struct sctp_association *asoc);
 extern struct percpu_counter sctp_sockets_allocated;
-extern int sctp_asconf_mgmt(struct sctp_sock *, struct sctp_sockaddr_entry *);
+int sctp_asconf_mgmt(struct sctp_sock *, struct sctp_sockaddr_entry *);
 
 /*
  * sctp/primitive.c
@@ -196,11 +171,6 @@ extern struct kmem_cache *sctp_bucket_cachep __read_mostly;
  *  Section:  Macros, externs, and inlines
  */
 
-
-#ifdef TEST_FRAME
-#include <test_frame.h>
-#else
-
 /* spin lock wrappers. */
 #define sctp_spin_lock_irqsave(lock, flags) spin_lock_irqsave(lock, flags)
 #define sctp_spin_unlock_irqrestore(lock, flags)  \
@@ -225,8 +195,6 @@ extern struct kmem_cache *sctp_bucket_cachep __read_mostly;
 #define SCTP_INC_STATS_BH(net, field)   SNMP_INC_STATS_BH((net)->sctp.sctp_statistics, field)
 #define SCTP_INC_STATS_USER(net, field) SNMP_INC_STATS_USER((net)->sctp.sctp_statistics, field)
 #define SCTP_DEC_STATS(net, field)      SNMP_DEC_STATS((net)->sctp.sctp_statistics, field)
-
-#endif /* !TEST_FRAME */
 
 /* sctp mib definitions */
 enum {
@@ -284,61 +252,6 @@ static inline void sctp_max_rto(struct sctp_association *asoc,
 			trans->af_specific->sockaddr_len);
 	}
 }
-
-/* Print debugging messages.  */
-#if SCTP_DEBUG
-extern int sctp_debug_flag;
-#define SCTP_DEBUG_PRINTK(fmt, args...)			\
-do {							\
-	if (sctp_debug_flag)				\
-		printk(KERN_DEBUG pr_fmt(fmt), ##args);	\
-} while (0)
-#define SCTP_DEBUG_PRINTK_CONT(fmt, args...)		\
-do {							\
-	if (sctp_debug_flag)				\
-		pr_cont(fmt, ##args);			\
-} while (0)
-#define SCTP_DEBUG_PRINTK_IPADDR(fmt_lead, fmt_trail,			\
-				 args_lead, addr, args_trail...)	\
-do {									\
-	const union sctp_addr *_addr = (addr);				\
-	if (sctp_debug_flag) {						\
-		if (_addr->sa.sa_family == AF_INET6) {			\
-			printk(KERN_DEBUG				\
-			       pr_fmt(fmt_lead "%pI6" fmt_trail),	\
-			       args_lead,				\
-			       &_addr->v6.sin6_addr,			\
-			       args_trail);				\
-		} else {						\
-			printk(KERN_DEBUG				\
-			       pr_fmt(fmt_lead "%pI4" fmt_trail),	\
-			       args_lead,				\
-			       &_addr->v4.sin_addr.s_addr,		\
-			       args_trail);				\
-		}							\
-	}								\
-} while (0)
-#define SCTP_ENABLE_DEBUG { sctp_debug_flag = 1; }
-#define SCTP_DISABLE_DEBUG { sctp_debug_flag = 0; }
-
-#define SCTP_ASSERT(expr, str, func) \
-	if (!(expr)) { \
-		SCTP_DEBUG_PRINTK("Assertion Failed: %s(%s) at %s:%s:%d\n", \
-			str, (#expr), __FILE__, __func__, __LINE__); \
-		func; \
-	}
-
-#else	/* SCTP_DEBUG */
-
-#define SCTP_DEBUG_PRINTK(whatever...)
-#define SCTP_DEBUG_PRINTK_CONT(fmt, args...)
-#define SCTP_DEBUG_PRINTK_IPADDR(whatever...)
-#define SCTP_ENABLE_DEBUG
-#define SCTP_DISABLE_DEBUG
-#define SCTP_ASSERT(expr, str, func)
-
-#endif /* SCTP_DEBUG */
-
 
 /*
  * Macros for keeping a global reference of object allocations.
@@ -575,27 +488,6 @@ for (pos = chunk->subh.fwdtsn_hdr->skip;\
 /* Round an int up to the next multiple of 4.  */
 #define WORD_ROUND(s) (((s)+3)&~3)
 
-/* Make a new instance of type.  */
-#define t_new(type, flags)	(type *)kzalloc(sizeof(type), flags)
-
-/* Compare two timevals.  */
-#define tv_lt(s, t) \
-   (s.tv_sec < t.tv_sec || (s.tv_sec == t.tv_sec && s.tv_usec < t.tv_usec))
-
-/* Add tv1 to tv2. */
-#define TIMEVAL_ADD(tv1, tv2) \
-({ \
-        suseconds_t usecs = (tv2).tv_usec + (tv1).tv_usec; \
-        time_t secs = (tv2).tv_sec + (tv1).tv_sec; \
-\
-        if (usecs >= 1000000) { \
-                usecs -= 1000000; \
-                secs++; \
-        } \
-        (tv2).tv_sec = secs; \
-        (tv2).tv_usec = usecs; \
-})
-
 /* External references. */
 
 extern struct proto sctp_prot;
@@ -633,16 +525,6 @@ static inline int param_type2af(__be16 type)
 	}
 }
 
-/* Perform some sanity checks. */
-static inline int sctp_sanity_check(void)
-{
-	SCTP_ASSERT(sizeof(struct sctp_ulpevent) <=
-		    sizeof(((struct sk_buff *)0)->cb),
-		    "SCTP: ulpevent does not fit in skb!\n", return 0);
-
-	return 1;
-}
-
 /* Warning: The following hash functions assume a power of two 'size'. */
 /* This is the hash function for the SCTP port hash table. */
 static inline int sctp_phashfn(struct net *net, __u16 lport)
@@ -675,8 +557,8 @@ static inline int sctp_vtag_hashfn(__u16 lport, __u16 rport, __u32 vtag)
 	return h & (sctp_assoc_hashsize - 1);
 }
 
-#define sctp_for_each_hentry(epb, node, head) \
-	hlist_for_each_entry(epb, node, head, node)
+#define sctp_for_each_hentry(epb, head) \
+	hlist_for_each_entry(epb, head, node)
 
 /* Is a socket of this style? */
 #define sctp_style(sk, style) __sctp_style((sk), (SCTP_SOCKET_##style))
@@ -724,7 +606,7 @@ static inline void sctp_v4_map_v6(union sctp_addr *addr)
  */
 static inline struct dst_entry *sctp_transport_dst_check(struct sctp_transport *t)
 {
-	if (t->dst && !dst_check(t->dst, 0)) {
+	if (t->dst && !dst_check(t->dst, t->dst_cookie)) {
 		dst_release(t->dst);
 		t->dst = NULL;
 	}

@@ -127,8 +127,10 @@ extern int fixup_exception(struct pt_regs *regs);
 
 #ifdef __LP64__
 #define _ASM_PTR	".quad"
+#define _ASM_ALIGN	".align 8"
 #else
 #define _ASM_PTR	".long"
+#define _ASM_ALIGN	".align 4"
 #endif
 
 #define __get_user_asm(OP, x, ptr, ret)					\
@@ -137,6 +139,7 @@ extern int fixup_exception(struct pt_regs *regs);
 		     "0: { movei %1, 0; movei %0, %3 }\n"		\
 		     "j 9f\n"						\
 		     ".section __ex_table,\"a\"\n"			\
+		     _ASM_ALIGN "\n"					\
 		     _ASM_PTR " 1b, 0b\n"				\
 		     ".popsection\n"					\
 		     "9:"						\
@@ -168,6 +171,7 @@ extern int fixup_exception(struct pt_regs *regs);
 			     "0: { movei %1, 0; movei %2, 0 }\n"	\
 			     "{ movei %0, %4; j 9f }\n"			\
 			     ".section __ex_table,\"a\"\n"		\
+			     ".align 4\n"				\
 			     ".word 1b, 0b\n"				\
 			     ".word 2b, 0b\n"				\
 			     ".popsection\n"				\
@@ -224,6 +228,7 @@ extern int __get_user_bad(void)
 		     ".pushsection .fixup,\"ax\"\n"			\
 		     "0: { movei %0, %3; j 9f }\n"			\
 		     ".section __ex_table,\"a\"\n"			\
+		     _ASM_ALIGN "\n"					\
 		     _ASM_PTR " 1b, 0b\n"				\
 		     ".popsection\n"					\
 		     "9:"						\
@@ -248,6 +253,7 @@ extern int __get_user_bad(void)
 			     ".pushsection .fixup,\"ax\"\n"		\
 			     "0: { movei %0, %4; j 9f }\n"		\
 			     ".section __ex_table,\"a\"\n"		\
+			     ".align 4\n"				\
 			     ".word 1b, 0b\n"				\
 			     ".word 2b, 0b\n"				\
 			     ".popsection\n"				\
@@ -395,7 +401,12 @@ _copy_from_user(void *to, const void __user *from, unsigned long n)
 	return n;
 }
 
-#ifdef CONFIG_DEBUG_COPY_FROM_USER
+#ifdef CONFIG_DEBUG_STRICT_USER_COPY_CHECKS
+/*
+ * There are still unprovable places in the generic code as of 2.6.34, so this
+ * option is not really compatible with -Werror, which is more useful in
+ * general.
+ */
 extern void copy_from_user_overflow(void)
 	__compiletime_warning("copy_from_user() size is not provably correct");
 
@@ -437,7 +448,7 @@ extern unsigned long __copy_in_user_inatomic(
 static inline unsigned long __must_check
 __copy_in_user(void __user *to, const void __user *from, unsigned long n)
 {
-	might_sleep();
+	might_fault();
 	return __copy_in_user_inatomic(to, from, n);
 }
 
@@ -558,37 +569,6 @@ static inline unsigned long __must_check flush_user(
 {
 	if (access_ok(VERIFY_WRITE, mem, len))
 		return __flush_user(mem, len);
-	return len;
-}
-
-/**
- * inv_user: - Invalidate a block of memory in user space from cache.
- * @mem:   Destination address, in user space.
- * @len:   Number of bytes to invalidate.
- *
- * Returns number of bytes that could not be invalidated.
- * On success, this will be zero.
- *
- * Note that on Tile64, the "inv" operation is in fact a
- * "flush and invalidate", so cache write-backs will occur prior
- * to the cache being marked invalid.
- */
-extern unsigned long inv_user_asm(void __user *mem, unsigned long len);
-static inline unsigned long __must_check __inv_user(
-	void __user *mem, unsigned long len)
-{
-	int retval;
-
-	might_fault();
-	retval = inv_user_asm(mem, len);
-	mb_incoherent();
-	return retval;
-}
-static inline unsigned long __must_check inv_user(
-	void __user *mem, unsigned long len)
-{
-	if (access_ok(VERIFY_WRITE, mem, len))
-		return __inv_user(mem, len);
 	return len;
 }
 

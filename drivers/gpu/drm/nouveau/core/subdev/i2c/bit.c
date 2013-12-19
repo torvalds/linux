@@ -32,25 +32,25 @@
 static inline void
 i2c_drive_scl(struct nouveau_i2c_port *port, int state)
 {
-	nouveau_i2c_drive_scl(port, state);
+	port->func->drive_scl(port, state);
 }
 
 static inline void
 i2c_drive_sda(struct nouveau_i2c_port *port, int state)
 {
-	nouveau_i2c_drive_sda(port, state);
+	port->func->drive_sda(port, state);
 }
 
 static inline int
 i2c_sense_scl(struct nouveau_i2c_port *port)
 {
-	return nouveau_i2c_sense_scl(port);
+	return port->func->sense_scl(port);
 }
 
 static inline int
 i2c_sense_sda(struct nouveau_i2c_port *port)
 {
-	return nouveau_i2c_sense_sda(port);
+	return port->func->sense_sda(port);
 }
 
 static void
@@ -77,9 +77,8 @@ i2c_start(struct nouveau_i2c_port *port)
 {
 	int ret = 0;
 
-	port->state  = i2c_sense_scl(port);
-	port->state |= i2c_sense_sda(port) << 1;
-	if (port->state != 3) {
+	if (!i2c_sense_scl(port) ||
+	    !i2c_sense_sda(port)) {
 		i2c_drive_scl(port, 0);
 		i2c_drive_sda(port, 1);
 		if (!i2c_raise_scl(port))
@@ -184,9 +183,12 @@ i2c_addr(struct nouveau_i2c_port *port, struct i2c_msg *msg)
 static int
 i2c_bit_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
-	struct nouveau_i2c_port *port = (struct nouveau_i2c_port *)adap;
+	struct nouveau_i2c_port *port = adap->algo_data;
 	struct i2c_msg *msg = msgs;
 	int ret = 0, mcnt = num;
+
+	if (port->func->acquire)
+		port->func->acquire(port);
 
 	while (!ret && mcnt--) {
 		u8 remaining = msg->len;

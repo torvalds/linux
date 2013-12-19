@@ -469,8 +469,7 @@ static int capidrv_add_ack(struct capidrv_ncci *nccip,
 {
 	struct ncci_datahandle_queue *n, **pp;
 
-	n = (struct ncci_datahandle_queue *)
-		kmalloc(sizeof(struct ncci_datahandle_queue), GFP_ATOMIC);
+	n = kmalloc(sizeof(struct ncci_datahandle_queue), GFP_ATOMIC);
 	if (!n) {
 		printk(KERN_ERR "capidrv: kmalloc ncci_datahandle failed\n");
 		return -1;

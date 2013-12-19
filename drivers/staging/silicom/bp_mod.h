@@ -15,8 +15,6 @@
 #define BP_MOD_H
 #include "bits.h"
 
-#define EXPORT_SYMBOL_NOVERS EXPORT_SYMBOL
-
 #define usec_delay(x) udelay(x)
 #ifndef msec_delay_bp
 #define msec_delay_bp(x)			\
@@ -24,7 +22,7 @@ do {						\
 	int  i;					\
 	if (1) {				\
 		for (i = 0; i < 1000; i++) {	\
-			udelay(x) ;		\
+			udelay(x);		\
 		}				\
 	} else {				\
 		msleep(x);			\

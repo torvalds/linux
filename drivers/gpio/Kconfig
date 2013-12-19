@@ -31,11 +31,9 @@ config ARCH_REQUIRE_GPIOLIB
 	  code to always get built in.
 
 
-
 menuconfig GPIOLIB
 	bool "GPIO Support"
 	depends on ARCH_WANT_OPTIONAL_GPIOLIB || ARCH_REQUIRE_GPIOLIB
-	select GENERIC_GPIO
 	help
 	  This enables GPIO support through the generic GPIO library.
 	  You only need to enable this, if you also want to enable
@@ -44,6 +42,10 @@ menuconfig GPIOLIB
 	  If unsure, say N.
 
 if GPIOLIB
+
+config GPIO_DEVRES
+	def_bool y
+	depends on HAS_IOMEM
 
 config OF_GPIO
 	def_bool y
@@ -66,7 +68,7 @@ config DEBUG_GPIO
 
 config GPIO_SYSFS
 	bool "/sys/class/gpio/... (sysfs interface)"
-	depends on SYSFS && EXPERIMENTAL
+	depends on SYSFS
 	help
 	  Say Y here to add a sysfs interface for GPIOs.
 
@@ -107,8 +109,11 @@ config GPIO_MAX730X
 comment "Memory mapped GPIO drivers:"
 
 config GPIO_CLPS711X
-	def_bool y
+	tristate "CLPS711X GPIO support"
 	depends on ARCH_CLPS711X
+	select GPIO_GENERIC
+	help
+	  Say yes here to support GPIO on CLPS711X SoCs.
 
 config GPIO_GENERIC_PLATFORM
 	tristate "Generic memory-mapped GPIO controller support (MMIO platform device)"
@@ -124,7 +129,7 @@ config GPIO_IT8761E
 
 config GPIO_EM
 	tristate "Emma Mobile GPIO"
-	depends on ARM
+	depends on ARM && OF_GPIO
 	help
 	  Say yes here to support GPIO on Renesas Emma Mobile SoCs.
 
@@ -140,6 +145,16 @@ config GPIO_MM_LANTIQ
 	  This enables support for memory mapped GPIOs on the External Bus Unit
 	  (EBU) found on Lantiq SoCs. The gpios are output only as they are
 	  created by attaching a 16bit latch to the bus.
+
+config GPIO_F7188X
+	tristate "F71882FG and F71889F GPIO support"
+	depends on X86
+	help
+	  This option enables support for GPIOs found on Fintek Super-I/O
+	  chips F71882FG and F71889F.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called f7188x-gpio.
 
 config GPIO_MPC5200
 	def_bool y
@@ -163,7 +178,7 @@ config GPIO_MSM_V1
 
 config GPIO_MSM_V2
 	tristate "Qualcomm MSM GPIO v2"
-	depends on GPIOLIB && ARCH_MSM
+	depends on GPIOLIB && OF && ARCH_MSM
 	help
 	  Say yes here to support the GPIO interface on ARM v7 based
 	  Qualcomm MSM chips.  Most of the pins on the MSM can be
@@ -188,9 +203,17 @@ config GPIO_MXS
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 
+config GPIO_OCTEON
+	tristate "Cavium OCTEON GPIO"
+	depends on GPIOLIB && CAVIUM_OCTEON_SOC
+	default y
+	help
+	  Say yes here to support the on-chip GPIO lines on the OCTEON
+	  family of SOCs.
+
 config GPIO_PL061
 	bool "PrimeCell PL061 GPIO support"
-	depends on ARM && ARM_AMBA
+	depends on ARM_AMBA
 	select GENERIC_IRQ_CHIP
 	help
 	  Say yes here to support the PrimeCell PL061 GPIO device
@@ -200,6 +223,19 @@ config GPIO_PXA
 	depends on ARCH_PXA || ARCH_MMP
 	help
 	  Say yes here to support the PXA GPIO device
+
+config GPIO_RCAR
+	tristate "Renesas R-Car GPIO"
+	depends on ARM
+	help
+	  Say yes here to support GPIO on Renesas R-Car SoCs.
+
+config GPIO_SAMSUNG
+	bool
+	depends on PLAT_SAMSUNG
+	help
+	  Legacy GPIO support. Use only for platforms without support for
+	  pinctrl.
 
 config GPIO_SPEAR_SPICS
 	bool "ST SPEAr13xx SPI Chip Select as GPIO support"
@@ -224,15 +260,24 @@ config GPIO_TS5500
 	  blocks of the TS-5500: DIO1, DIO2 and the LCD port, and the TS-5600
 	  LCD port.
 
-config GPIO_VT8500
-	bool "VIA/Wondermedia SoC GPIO Support"
-	depends on ARCH_VT8500
+config GPIO_TZ1090
+	bool "Toumaz Xenif TZ1090 GPIO support"
+	depends on SOC_TZ1090
+	select GENERIC_IRQ_CHIP
+	default y
 	help
-	  Say yes here to support the VT8500/WM8505/WM8650 GPIO controller.
+	  Say yes here to support Toumaz Xenif TZ1090 GPIOs.
+
+config GPIO_TZ1090_PDC
+	bool "Toumaz Xenif TZ1090 PDC GPIO support"
+	depends on SOC_TZ1090
+	default y
+	help
+	  Say yes here to support Toumaz Xenif TZ1090 PDC GPIOs.
 
 config GPIO_XILINX
 	bool "Xilinx GPIO support"
-	depends on PPC_OF || MICROBLAZE
+	depends on PPC_OF || MICROBLAZE || ARCH_ZYNQ
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
@@ -275,6 +320,15 @@ config GPIO_ICH
 
 	  If unsure, say N.
 
+config GPIO_IOP
+	tristate "Intel IOP GPIO"
+	depends on ARM && (ARCH_IOP32X || ARCH_IOP33X)
+	help
+	  Say yes here to support the GPIO functionality of a number of Intel
+	  IOP32X or IOP33X.
+
+	  If unsure, say N.
+
 config GPIO_VX855
 	tristate "VIA VX855/VX875 GPIO"
 	depends on PCI
@@ -298,6 +352,27 @@ config GPIO_GE_FPGA
 	  and write pin state) for GPIO implemented in a number of GE single
 	  board computers.
 
+config GPIO_LYNXPOINT
+	bool "Intel Lynxpoint GPIO support"
+	depends on ACPI && X86
+	select IRQ_DOMAIN
+	help
+	  driver for GPIO functionality on Intel Lynxpoint PCH chipset
+	  Requires ACPI device enumeration code to set up a platform device.
+
+config GPIO_GRGPIO
+	tristate "Aeroflex Gaisler GRGPIO support"
+	depends on OF
+	select GPIO_GENERIC
+	select IRQ_DOMAIN
+	help
+	  Select this to support Aeroflex Gaisler GRGPIO cores from the GRLIB
+	  VHDL IP core library.
+
+config GPIO_TB10X
+	bool
+	select OF_GPIO
+
 comment "I2C GPIO expanders:"
 
 config GPIO_ARIZONA
@@ -311,7 +386,7 @@ config GPIO_MAX7300
 	depends on I2C
 	select GPIO_MAX730X
 	help
-	  GPIO driver for Maxim MAX7301 I2C-based GPIO expander.
+	  GPIO driver for Maxim MAX7300 I2C-based GPIO expander.
 
 config GPIO_MAX732X
 	tristate "MAX7319, MAX7320-7327 I2C Port Expanders"
@@ -334,7 +409,7 @@ config GPIO_MAX732X
 
 config GPIO_MAX732X_IRQ
 	bool "Interrupt controller support for MAX732x"
-	depends on GPIO_MAX732X=y && GENERIC_HARDIRQS
+	depends on GPIO_MAX732X=y
 	help
 	  Say yes here to enable the max732x to be used as an interrupt
 	  controller. It requires the driver to be built in the kernel.
@@ -550,12 +625,12 @@ config GPIO_AMD8111
 
 	  If unsure, say N
 
-config GPIO_LANGWELL
-	bool "Intel Langwell/Penwell GPIO support"
+config GPIO_INTEL_MID
+	bool "Intel Mid GPIO support"
 	depends on PCI && X86
 	select IRQ_DOMAIN
 	help
-	  Say Y here to support Intel Langwell/Penwell GPIO.
+	  Say Y here to support Intel Mid GPIO.
 
 config GPIO_PCH
 	tristate "Intel EG20T PCH/LAPIS Semiconductor IOH(ML7223/ML7831) GPIO"
@@ -617,7 +692,7 @@ config GPIO_MAX7301
 
 config GPIO_MCP23S08
 	tristate "Microchip MCP23xxx I/O expander"
-	depends on SPI_MASTER || I2C
+	depends on (SPI_MASTER && !I2C) || I2C
 	help
 	  SPI/I2C driver for Microchip MCP23S08/MCP23S17/MCP23008/MCP23017
 	  I/O expanders.
@@ -641,11 +716,23 @@ config GPIO_74X164
 comment "AC97 GPIO expanders:"
 
 config GPIO_UCB1400
-	bool "Philips UCB1400 GPIO"
+	tristate "Philips UCB1400 GPIO"
 	depends on UCB1400_CORE
 	help
 	  This enables support for the Philips UCB1400 GPIO pins.
 	  The UCB1400 is an AC97 audio codec.
+
+comment "LPC GPIO expanders:"
+
+config GPIO_KEMPLD
+	tristate "Kontron ETX / COMexpress GPIO"
+	depends on MFD_KEMPLD
+	help
+	  This enables support for the PLD GPIO interface on some Kontron ETX
+	  and COMexpress (ETXexpress) modules.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called gpio-kempld.
 
 comment "MODULbus GPIO expanders:"
 
@@ -657,11 +744,12 @@ config GPIO_JANZ_TTL
 	  This driver provides support for driving the pins in output
 	  mode only. Input mode is not supported.
 
-config GPIO_AB8500
-	bool "ST-Ericsson AB8500 Mixed Signal Circuit gpio functions"
-	depends on AB8500_CORE && BROKEN
+config GPIO_PALMAS
+	bool "TI PALMAS series PMICs GPIO"
+	depends on MFD_PALMAS
 	help
-	  Select this to enable the AB8500 IC GPIO driver
+	  Select this option to enable GPIO driver for the TI PALMAS
+	  series chip family.
 
 config GPIO_TPS6586X
 	bool "TPS6586X GPIO"
@@ -683,6 +771,12 @@ config GPIO_MSIC
 	help
 	  Enable support for GPIO on intel MSIC controllers found in
 	  intel MID devices
+
+config GPIO_BCM_KONA
+	bool "Broadcom Kona GPIO"
+	depends on OF_GPIO
+	help
+	  Turn on GPIO support for Broadcom "Kona" chips.
 
 comment "USB GPIO expanders:"
 

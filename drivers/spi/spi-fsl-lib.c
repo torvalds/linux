@@ -23,7 +23,9 @@
 #include <linux/mm.h>
 #include <linux/of_platform.h>
 #include <linux/spi/spi.h>
+#ifdef CONFIG_FSL_SOC
 #include <sysdev/fsl_soc.h>
+#endif
 
 #include "spi-fsl-lib.h"
 
@@ -59,7 +61,7 @@ struct mpc8xxx_spi_probe_info *to_of_pinfo(struct fsl_spi_platform_data *pdata)
 	return container_of(pdata, struct mpc8xxx_spi_probe_info, pdata);
 }
 
-void mpc8xxx_spi_work(struct work_struct *work)
+static void mpc8xxx_spi_work(struct work_struct *work)
 {
 	struct mpc8xxx_spi *mpc8xxx_spi = container_of(work, struct mpc8xxx_spi,
 						       work);
@@ -120,7 +122,7 @@ const char *mpc8xxx_spi_strmode(unsigned int flags)
 int mpc8xxx_spi_probe(struct device *dev, struct resource *mem,
 			unsigned int irq)
 {
-	struct fsl_spi_platform_data *pdata = dev->platform_data;
+	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
 	struct spi_master *master;
 	struct mpc8xxx_spi *mpc8xxx_spi;
 	int ret = 0;
@@ -208,6 +210,7 @@ int of_mpc8xxx_spi_probe(struct platform_device *ofdev)
 	/* Allocate bus num dynamically. */
 	pdata->bus_num = -1;
 
+#ifdef CONFIG_FSL_SOC
 	/* SPI controller is either clocked from QE or SoC clock. */
 	pdata->sysclk = get_brgfreq();
 	if (pdata->sysclk == -1) {
@@ -217,6 +220,11 @@ int of_mpc8xxx_spi_probe(struct platform_device *ofdev)
 			goto err;
 		}
 	}
+#else
+	ret = of_property_read_u32(np, "clock-frequency", &pdata->sysclk);
+	if (ret)
+		goto err;
+#endif
 
 	prop = of_get_property(np, "mode", NULL);
 	if (prop && !strcmp(prop, "cpu-qe"))

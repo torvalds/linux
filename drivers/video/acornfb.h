@@ -13,10 +13,6 @@
 #include <asm/hardware/iomd.h>
 #define VIDC_PALETTE_SIZE	256
 #define VIDC_NAME		"VIDC20"
-#elif defined(HAS_VIDC)
-#include <asm/hardware/memc.h>
-#define VIDC_PALETTE_SIZE	16
-#define VIDC_NAME		"VIDC"
 #endif
 
 #define EXTEND8(x) ((x)|(x)<<8)
@@ -100,31 +96,6 @@ struct modex_params {
 	u_int	hf;
 	const struct modey_params *modey;
 };
-
-#ifdef HAS_VIDC
-
-#define VID_CTL_VS_NVSYNC	(1 << 3)
-#define VID_CTL_HS_NHSYNC	(1 << 2)
-#define VID_CTL_24MHz		(0)
-#define VID_CTL_25MHz		(1)
-#define VID_CTL_36MHz		(2)
-
-#define VIDC_CTRL_CSYNC		(1 << 7)
-#define VIDC_CTRL_INTERLACE	(1 << 6)
-#define VIDC_CTRL_FIFO_0_4	(0 << 4)
-#define VIDC_CTRL_FIFO_1_5	(1 << 4)
-#define VIDC_CTRL_FIFO_2_6	(2 << 4)
-#define VIDC_CTRL_FIFO_3_7	(3 << 4)
-#define VIDC_CTRL_1BPP		(0 << 2)
-#define VIDC_CTRL_2BPP		(1 << 2)
-#define VIDC_CTRL_4BPP		(2 << 2)
-#define VIDC_CTRL_8BPP		(3 << 2)
-#define VIDC_CTRL_DIV3		(0 << 0)
-#define VIDC_CTRL_DIV2		(1 << 0)
-#define VIDC_CTRL_DIV1_5	(2 << 0)
-#define VIDC_CTRL_DIV1		(3 << 0)
-
-#endif
 
 #ifdef HAS_VIDC20
 /*

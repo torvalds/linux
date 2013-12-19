@@ -1,16 +1,4 @@
 #
-# Generic video config states
-#
-
-config VIDEO_BTCX
-	depends on PCI
-	tristate
-
-config VIDEO_TVEEPROM
-	tristate
-	depends on I2C
-
-#
 # Multimedia Video device configuration
 #
 
@@ -124,6 +112,15 @@ config VIDEO_TLV320AIC23B
 	  To compile this driver as a module, choose M here: the
 	  module will be called tlv320aic23b.
 
+config VIDEO_UDA1342
+	tristate "Philips UDA1342 audio codec"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Philips UDA1342 audio codec.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called uda1342.
+
 config VIDEO_WM8775
 	tristate "Wolfson Microelectronics WM8775 audio ADC with input mixer"
 	depends on VIDEO_V4L2 && I2C
@@ -145,13 +142,22 @@ config VIDEO_WM8739
 	  module will be called wm8739.
 
 config VIDEO_VP27SMPX
-	tristate "Panasonic VP27s internal MPX"
+	tristate "Panasonic VP27's internal MPX"
 	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the internal MPX of the Panasonic VP27s tuner.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vp27smpx.
+
+config VIDEO_SONY_BTF_MPX
+	tristate "Sony BTF's internal MPX"
+	depends on VIDEO_V4L2 && I2C
+	help
+	  Support for the internal MPX of the Sony BTF-PG472Z tuner.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sony-btf-mpx.
 
 comment "RDS decoders"
 
@@ -200,6 +206,18 @@ config VIDEO_ADV7604
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7604.
 
+config VIDEO_ADV7842
+	tristate "Analog Devices ADV7842 decoder"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  Support for the Analog Devices ADV7842 video decoder.
+
+	  This is a Analog Devices Component/Graphics/SD Digitizer
+	  with 2:1 Multiplexed HDMI Receiver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adv7842.
+
 config VIDEO_BT819
 	tristate "BT819A VideoStream decoder"
 	depends on VIDEO_V4L2 && I2C
@@ -238,6 +256,15 @@ config VIDEO_KS0127
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ks0127.
+
+config VIDEO_ML86V7667
+	tristate "OKI ML86V7667 video decoder"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the OKI Semiconductor ML86V7667 video decoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ml86v7667.
 
 config VIDEO_SAA7110
 	tristate "Philips SAA7110 video decoder"
@@ -295,6 +322,35 @@ config VIDEO_TVP7002
 	  To compile this driver as a module, choose M here: the
 	  module will be called tvp7002.
 
+config VIDEO_TW2804
+	tristate "Techwell TW2804 multiple video decoder"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Techwell tw2804 multiple video decoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tw2804.
+
+config VIDEO_TW9903
+	tristate "Techwell TW9903 video decoder"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Techwell tw9903 multi-standard video decoder
+	  with high quality down scaler.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tw9903.
+
+config VIDEO_TW9906
+	tristate "Techwell TW9906 video decoder"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Techwell tw9906 enhanced multi-standard comb filter
+	  video decoder with YCbCr input support.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tw9906.
+
 config VIDEO_VPX3220
 	tristate "vpx3220a, vpx3216b & vpx3214c video decoders"
 	depends on VIDEO_V4L2 && I2C
@@ -316,20 +372,6 @@ config VIDEO_SAA717X
 	  module will be called saa717x.
 
 source "drivers/media/i2c/cx25840/Kconfig"
-
-comment "MPEG video encoders"
-
-config VIDEO_CX2341X
-	tristate "Conexant CX2341x MPEG encoders"
-	depends on VIDEO_V4L2
-	---help---
-	  Support for the Conexant CX23416 MPEG encoders
-	  and CX23415 MPEG encoder/decoders.
-
-	  This module currently supports the encoding functions only.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called cx2341x.
 
 comment "Video encoders"
 
@@ -387,6 +429,17 @@ config VIDEO_ADV7393
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7393.
 
+config VIDEO_ADV7511
+	tristate "Analog Devices ADV7511 encoder"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  Support for the Analog Devices ADV7511 video encoder.
+
+	  This is a Analog Devices HDMI transmitter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adv7511.
+
 config VIDEO_AD9389B
 	tristate "Analog Devices AD9389B encoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
@@ -404,6 +457,15 @@ config VIDEO_AK881X
 	help
 	  Video output driver for AKM AK8813 and AK8814 TV encoders
 
+config VIDEO_THS8200
+	tristate "Texas Instruments THS8200 video encoder"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Texas Instruments THS8200 video encoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ths8200.
+
 comment "Camera sensor devices"
 
 config VIDEO_APTINA_PLL
@@ -411,6 +473,17 @@ config VIDEO_APTINA_PLL
 
 config VIDEO_SMIAPP_PLL
 	tristate
+
+config VIDEO_OV7640
+	tristate "OmniVision OV7640 sensor support"
+	depends on I2C && VIDEO_V4L2
+	depends on MEDIA_CAMERA_SUPPORT
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV7640 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov7640.
 
 config VIDEO_OV7670
 	tristate "OmniVision OV7670 sensor support"
@@ -420,6 +493,13 @@ config VIDEO_OV7670
 	  This is a Video4Linux2 sensor-level driver for the OmniVision
 	  OV7670 VGA camera.  It currently only works with the M88ALP01
 	  controller.
+
+config VIDEO_OV9650
+	tristate "OmniVision OV9650/OV9652 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  This is a V4L2 sensor-level driver for the Omnivision
+	  OV9650 and OV9652 camera sensors.
 
 config VIDEO_VS6624
 	tristate "ST VS6624 sensor support"
@@ -477,7 +557,7 @@ config VIDEO_MT9V032
 
 config VIDEO_TCM825X
 	tristate "TCM825x camera sensor support"
-	depends on I2C && VIDEO_V4L2
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_INT_DEVICE
 	depends on MEDIA_CAMERA_SUPPORT
 	---help---
 	  This is a driver for the Toshiba TCM825x VGA camera sensor.
@@ -516,6 +596,13 @@ config VIDEO_S5K4ECGX
 
 source "drivers/media/i2c/smiapp/Kconfig"
 
+config VIDEO_S5C73M3
+	tristate "Samsung S5C73M3 sensor support"
+	depends on I2C && SPI && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  This is a V4L2 sensor-level driver for Samsung S5C73M3
+	  8 Mpixel camera.
+
 comment "Flash devices"
 
 config VIDEO_ADP1653
@@ -533,6 +620,15 @@ config VIDEO_AS3645A
 	---help---
 	  This is a driver for the AS3645A and LM3555 flash controllers. It has
 	  build in control for flash, torch and indicator LEDs.
+
+config VIDEO_LM3560
+	tristate "LM3560 dual flash driver support"
+	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
+	depends on MEDIA_CAMERA_SUPPORT
+	select REGMAP_I2C
+	---help---
+	  This is a driver for the lm3560 dual flash controllers. It controls
+	  flash, torch LEDs.
 
 comment "Video improvement chips"
 
@@ -559,13 +655,13 @@ config VIDEO_UPD64083
 	  To compile this driver as a module, choose M here: the
 	  module will be called upd64083.
 
-comment "Miscelaneous helper chips"
+comment "Miscellaneous helper chips"
 
 config VIDEO_THS7303
-	tristate "THS7303 Video Amplifier"
-	depends on I2C
+	tristate "THS7303/53 Video Amplifier"
+	depends on VIDEO_V4L2 && I2C
 	help
-	  Support for TI THS7303 video amplifier
+	  Support for TI THS7303/53 video amplifier
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ths7303.

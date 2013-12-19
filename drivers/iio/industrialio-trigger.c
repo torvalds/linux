@@ -104,7 +104,7 @@ void iio_trigger_unregister(struct iio_trigger *trig_info)
 
 	ida_simple_remove(&iio_trigger_ida, trig_info->id);
 	/* Possible issue in here */
-	device_unregister(&trig_info->dev);
+	device_del(&trig_info->dev);
 }
 EXPORT_SYMBOL(iio_trigger_unregister);
 
@@ -127,12 +127,17 @@ static struct iio_trigger *iio_trigger_find_by_name(const char *name,
 void iio_trigger_poll(struct iio_trigger *trig, s64 time)
 {
 	int i;
-	if (!trig->use_count)
-		for (i = 0; i < CONFIG_IIO_CONSUMERS_PER_TRIGGER; i++)
-			if (trig->subirqs[i].enabled) {
-				trig->use_count++;
+
+	if (!atomic_read(&trig->use_count)) {
+		atomic_set(&trig->use_count, CONFIG_IIO_CONSUMERS_PER_TRIGGER);
+
+		for (i = 0; i < CONFIG_IIO_CONSUMERS_PER_TRIGGER; i++) {
+			if (trig->subirqs[i].enabled)
 				generic_handle_irq(trig->subirq_base + i);
-			}
+			else
+				iio_trigger_notify_done(trig);
+		}
+	}
 }
 EXPORT_SYMBOL(iio_trigger_poll);
 
@@ -146,21 +151,26 @@ EXPORT_SYMBOL(iio_trigger_generic_data_rdy_poll);
 void iio_trigger_poll_chained(struct iio_trigger *trig, s64 time)
 {
 	int i;
-	if (!trig->use_count)
-		for (i = 0; i < CONFIG_IIO_CONSUMERS_PER_TRIGGER; i++)
-			if (trig->subirqs[i].enabled) {
-				trig->use_count++;
+
+	if (!atomic_read(&trig->use_count)) {
+		atomic_set(&trig->use_count, CONFIG_IIO_CONSUMERS_PER_TRIGGER);
+
+		for (i = 0; i < CONFIG_IIO_CONSUMERS_PER_TRIGGER; i++) {
+			if (trig->subirqs[i].enabled)
 				handle_nested_irq(trig->subirq_base + i);
-			}
+			else
+				iio_trigger_notify_done(trig);
+		}
+	}
 }
 EXPORT_SYMBOL(iio_trigger_poll_chained);
 
 void iio_trigger_notify_done(struct iio_trigger *trig)
 {
-	trig->use_count--;
-	if (trig->use_count == 0 && trig->ops && trig->ops->try_reenable)
+	if (atomic_dec_and_test(&trig->use_count) && trig->ops &&
+		trig->ops->try_reenable)
 		if (trig->ops->try_reenable(trig))
-			/* Missed and interrupt so launch new poll now */
+			/* Missed an interrupt so launch new poll now */
 			iio_trigger_poll(trig, 0);
 }
 EXPORT_SYMBOL(iio_trigger_notify_done);
@@ -193,7 +203,7 @@ static void iio_trigger_put_irq(struct iio_trigger *trig, int irq)
  * This is not currently handled.  Alternative of not enabling trigger unless
  * the relevant function is in there may be the best option.
  */
-/* Worth protecting against double additions?*/
+/* Worth protecting against double additions? */
 static int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 					struct iio_poll_func *pf)
 {
@@ -201,7 +211,7 @@ static int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 	bool notinuse
 		= bitmap_empty(trig->pool, CONFIG_IIO_CONSUMERS_PER_TRIGGER);
 
-	/* Prevent the module being removed whilst attached to a trigger */
+	/* Prevent the module from being removed whilst attached to a trigger */
 	__module_get(pf->indio_dev->info->driver_module);
 	pf->irq = iio_trigger_get_irq(trig);
 	ret = request_threaded_irq(pf->irq, pf->h, pf->thread,
@@ -288,7 +298,7 @@ void iio_dealloc_pollfunc(struct iio_poll_func *pf)
 EXPORT_SYMBOL_GPL(iio_dealloc_pollfunc);
 
 /**
- * iio_trigger_read_current() - trigger consumer sysfs query which trigger
+ * iio_trigger_read_current() - trigger consumer sysfs query current trigger
  *
  * For trigger consumers the current_trigger interface allows the trigger
  * used by the device to be queried.
@@ -305,7 +315,7 @@ static ssize_t iio_trigger_read_current(struct device *dev,
 }
 
 /**
- * iio_trigger_write_current() trigger consumer sysfs set current trigger
+ * iio_trigger_write_current() - trigger consumer sysfs set current trigger
  *
  * For trigger consumers the current_trigger interface allows the trigger
  * used for this device to be specified at run time based on the triggers
@@ -414,9 +424,8 @@ static void iio_trig_subirqunmask(struct irq_data *d)
 	trig->subirqs[d->irq - trig->subirq_base].enabled = true;
 }
 
-struct iio_trigger *iio_trigger_alloc(const char *fmt, ...)
+static struct iio_trigger *viio_trigger_alloc(const char *fmt, va_list vargs)
 {
-	va_list vargs;
 	struct iio_trigger *trig;
 	trig = kzalloc(sizeof *trig, GFP_KERNEL);
 	if (trig) {
@@ -434,9 +443,8 @@ struct iio_trigger *iio_trigger_alloc(const char *fmt, ...)
 			kfree(trig);
 			return NULL;
 		}
-		va_start(vargs, fmt);
+
 		trig->name = kvasprintf(GFP_KERNEL, fmt, vargs);
-		va_end(vargs);
 		if (trig->name == NULL) {
 			irq_free_descs(trig->subirq_base,
 				       CONFIG_IIO_CONSUMERS_PER_TRIGGER);
@@ -457,6 +465,19 @@ struct iio_trigger *iio_trigger_alloc(const char *fmt, ...)
 		}
 		get_device(&trig->dev);
 	}
+
+	return trig;
+}
+
+struct iio_trigger *iio_trigger_alloc(const char *fmt, ...)
+{
+	struct iio_trigger *trig;
+	va_list vargs;
+
+	va_start(vargs, fmt);
+	trig = viio_trigger_alloc(fmt, vargs);
+	va_end(vargs);
+
 	return trig;
 }
 EXPORT_SYMBOL(iio_trigger_alloc);
@@ -468,6 +489,59 @@ void iio_trigger_free(struct iio_trigger *trig)
 }
 EXPORT_SYMBOL(iio_trigger_free);
 
+static void devm_iio_trigger_release(struct device *dev, void *res)
+{
+	iio_trigger_free(*(struct iio_trigger **)res);
+}
+
+static int devm_iio_trigger_match(struct device *dev, void *res, void *data)
+{
+	struct iio_trigger **r = res;
+
+	if (!r || !*r) {
+		WARN_ON(!r || !*r);
+		return 0;
+	}
+
+	return *r == data;
+}
+
+struct iio_trigger *devm_iio_trigger_alloc(struct device *dev,
+						const char *fmt, ...)
+{
+	struct iio_trigger **ptr, *trig;
+	va_list vargs;
+
+	ptr = devres_alloc(devm_iio_trigger_release, sizeof(*ptr),
+			   GFP_KERNEL);
+	if (!ptr)
+		return NULL;
+
+	/* use raw alloc_dr for kmalloc caller tracing */
+	va_start(vargs, fmt);
+	trig = viio_trigger_alloc(fmt, vargs);
+	va_end(vargs);
+	if (trig) {
+		*ptr = trig;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return trig;
+}
+EXPORT_SYMBOL_GPL(devm_iio_trigger_alloc);
+
+void devm_iio_trigger_free(struct device *dev, struct iio_trigger *iio_trig)
+{
+	int rc;
+
+	rc = devres_release(dev, devm_iio_trigger_release,
+			    devm_iio_trigger_match, iio_trig);
+	WARN_ON(rc);
+}
+EXPORT_SYMBOL_GPL(devm_iio_trigger_free);
+
 void iio_device_register_trigger_consumer(struct iio_dev *indio_dev)
 {
 	indio_dev->groups[indio_dev->groupcounter++] =
@@ -476,7 +550,7 @@ void iio_device_register_trigger_consumer(struct iio_dev *indio_dev)
 
 void iio_device_unregister_trigger_consumer(struct iio_dev *indio_dev)
 {
-	/* Clean up and associated but not attached triggers references */
+	/* Clean up an associated but not attached trigger reference */
 	if (indio_dev->trig)
 		iio_trigger_put(indio_dev->trig);
 }

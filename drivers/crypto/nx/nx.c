@@ -61,8 +61,7 @@ int nx_hcall_sync(struct nx_crypto_ctx *nx_ctx,
 
 	do {
 		rc = vio_h_cop_sync(viodev, op);
-	} while ((rc == -EBUSY && !may_sleep && retries--) ||
-	         (rc == -EBUSY && may_sleep && cond_resched()));
+	} while (rc == -EBUSY && !may_sleep && retries--);
 
 	if (rc) {
 		dev_dbg(&viodev->dev, "vio_h_cop_sync failed: rc: %d "
@@ -114,12 +113,28 @@ struct nx_sg *nx_build_sg_list(struct nx_sg *sg_head,
 	 * have been described (or @sgmax elements have been written), the
 	 * loop ends. min_t is used to ensure @end_addr falls on the same page
 	 * as sg_addr, if not, we need to create another nx_sg element for the
-	 * data on the next page */
+	 * data on the next page.
+	 *
+	 * Also when using vmalloc'ed data, every time that a system page
+	 * boundary is crossed the physical address needs to be re-calculated.
+	 */
 	for (sg = sg_head; sg_len < len; sg++) {
+		u64 next_page;
+
 		sg->addr = sg_addr;
-		sg_addr = min_t(u64, NX_PAGE_NUM(sg_addr + NX_PAGE_SIZE), end_addr);
-		sg->len = sg_addr - sg->addr;
+		sg_addr = min_t(u64, NX_PAGE_NUM(sg_addr + NX_PAGE_SIZE),
+				end_addr);
+
+		next_page = (sg->addr & PAGE_MASK) + PAGE_SIZE;
+		sg->len = min_t(u64, sg_addr, next_page) - sg->addr;
 		sg_len += sg->len;
+
+		if (sg_addr >= next_page &&
+				is_vmalloc_addr(start_addr + sg_len)) {
+			sg_addr = page_to_phys(vmalloc_to_page(
+						start_addr + sg_len));
+			end_addr = sg_addr + len - sg_len;
+		}
 
 		if ((sg - sg_head) == sgmax) {
 			pr_err("nx: scatter/gather list overflow, pid: %d\n",
@@ -196,6 +211,8 @@ struct nx_sg *nx_walk_and_build(struct nx_sg       *nx_dst,
  * @dst: destination scatterlist
  * @src: source scatterlist
  * @nbytes: length of data described in the scatterlists
+ * @offset: number of bytes to fast-forward past at the beginning of
+ *          scatterlists.
  * @iv: destination for the iv data, if the algorithm requires it
  *
  * This is common code shared by all the AES algorithms. It uses the block
@@ -207,48 +224,27 @@ int nx_build_sg_lists(struct nx_crypto_ctx  *nx_ctx,
 		      struct scatterlist    *dst,
 		      struct scatterlist    *src,
 		      unsigned int           nbytes,
+		      unsigned int           offset,
 		      u8                    *iv)
 {
 	struct nx_sg *nx_insg = nx_ctx->in_sg;
 	struct nx_sg *nx_outsg = nx_ctx->out_sg;
-	struct blkcipher_walk walk;
-	int rc;
-
-	blkcipher_walk_init(&walk, dst, src, nbytes);
-	rc = blkcipher_walk_virt_block(desc, &walk, AES_BLOCK_SIZE);
-	if (rc)
-		goto out;
 
 	if (iv)
-		memcpy(iv, walk.iv, AES_BLOCK_SIZE);
+		memcpy(iv, desc->info, AES_BLOCK_SIZE);
 
-	while (walk.nbytes) {
-		nx_insg = nx_build_sg_list(nx_insg, walk.src.virt.addr,
-					   walk.nbytes, nx_ctx->ap->sglen);
-		nx_outsg = nx_build_sg_list(nx_outsg, walk.dst.virt.addr,
-					    walk.nbytes, nx_ctx->ap->sglen);
-
-		rc = blkcipher_walk_done(desc, &walk, 0);
-		if (rc)
-			break;
-	}
-
-	if (walk.nbytes) {
-		nx_insg = nx_build_sg_list(nx_insg, walk.src.virt.addr,
-					   walk.nbytes, nx_ctx->ap->sglen);
-		nx_outsg = nx_build_sg_list(nx_outsg, walk.dst.virt.addr,
-					    walk.nbytes, nx_ctx->ap->sglen);
-
-		rc = 0;
-	}
+	nx_insg = nx_walk_and_build(nx_insg, nx_ctx->ap->sglen, src,
+				    offset, nbytes);
+	nx_outsg = nx_walk_and_build(nx_outsg, nx_ctx->ap->sglen, dst,
+				    offset, nbytes);
 
 	/* these lengths should be negative, which will indicate to phyp that
 	 * the input and output parameters are scatterlists, not linear
 	 * buffers */
 	nx_ctx->op.inlen = (nx_ctx->in_sg - nx_insg) * sizeof(struct nx_sg);
 	nx_ctx->op.outlen = (nx_ctx->out_sg - nx_outsg) * sizeof(struct nx_sg);
-out:
-	return rc;
+
+	return 0;
 }
 
 /**
@@ -259,6 +255,7 @@ out:
  */
 void nx_ctx_init(struct nx_crypto_ctx *nx_ctx, unsigned int function)
 {
+	spin_lock_init(&nx_ctx->lock);
 	memset(nx_ctx->kmem, 0, nx_ctx->kmem_len);
 	nx_ctx->csbcpb->csb.valid |= NX_CSB_VALID_BIT;
 
@@ -454,6 +451,8 @@ static int nx_register_algs(void)
 	if (rc)
 		goto out;
 
+	nx_driver.of.status = NX_OKAY;
+
 	rc = crypto_register_alg(&nx_ecb_aes_alg);
 	if (rc)
 		goto out;
@@ -497,8 +496,6 @@ static int nx_register_algs(void)
 	rc = crypto_register_shash(&nx_shash_aes_xcbc_alg);
 	if (rc)
 		goto out_unreg_s512;
-
-	nx_driver.of.status = NX_OKAY;
 
 	goto out;
 
@@ -634,8 +631,7 @@ void nx_crypto_ctx_exit(struct crypto_tfm *tfm)
 	nx_ctx->out_sg = NULL;
 }
 
-static int __devinit nx_probe(struct vio_dev *viodev,
-			      const struct vio_device_id *id)
+static int nx_probe(struct vio_dev *viodev, const struct vio_device_id *id)
 {
 	dev_dbg(&viodev->dev, "driver probed: %s resource id: 0x%x\n",
 		viodev->name, viodev->resource_id);
@@ -653,7 +649,7 @@ static int __devinit nx_probe(struct vio_dev *viodev,
 	return nx_register_algs();
 }
 
-static int __devexit nx_remove(struct vio_dev *viodev)
+static int nx_remove(struct vio_dev *viodev)
 {
 	dev_dbg(&viodev->dev, "entering nx_remove for UA 0x%x\n",
 		viodev->unit_address);
@@ -689,7 +685,7 @@ static void __exit nx_fini(void)
 	vio_unregister_driver(&nx_driver.viodriver);
 }
 
-static struct vio_device_id nx_crypto_driver_ids[] __devinitdata = {
+static struct vio_device_id nx_crypto_driver_ids[] = {
 	{ "ibm,sym-encryption-v1", "ibm,sym-encryption" },
 	{ "", "" }
 };

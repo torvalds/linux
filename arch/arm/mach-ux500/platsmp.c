@@ -18,11 +18,13 @@
 #include <linux/io.h>
 
 #include <asm/cacheflush.h>
-#include <asm/hardware/gic.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
-#include <mach/hardware.h>
-#include <mach/setup.h>
+
+#include "setup.h"
+
+#include "db8500-regs.h"
+#include "id.h"
 
 /* This is called from headsmp.S to wakeup the secondary core */
 extern void u8500_secondary_startup(void);
@@ -52,15 +54,8 @@ static void __iomem *scu_base_addr(void)
 
 static DEFINE_SPINLOCK(boot_lock);
 
-static void __cpuinit ux500_secondary_init(unsigned int cpu)
+static void ux500_secondary_init(unsigned int cpu)
 {
-	/*
-	 * if any interrupts are already enabled for the primary
-	 * core (e.g. timer irq), then they will not have been enabled
-	 * for us: do so
-	 */
-	gic_secondary_init(0);
-
 	/*
 	 * let the primary processor know we're out of the
 	 * pen, then head off into the C entry point
@@ -74,7 +69,7 @@ static void __cpuinit ux500_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
-static int __cpuinit ux500_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int ux500_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 
@@ -91,7 +86,7 @@ static int __cpuinit ux500_boot_secondary(unsigned int cpu, struct task_struct *
 	 */
 	write_pen_release(cpu_logical_map(cpu));
 
-	smp_send_reschedule(cpu);
+	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
 
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
@@ -155,8 +150,6 @@ static void __init ux500_smp_init_cpus(void)
 
 	for (i = 0; i < ncores; i++)
 		set_cpu_possible(i, true);
-
-	set_smp_cross_call(gic_raise_softirq);
 }
 
 static void __init ux500_smp_prepare_cpus(unsigned int max_cpus)

@@ -1,6 +1,19 @@
 #ifndef _UDF_I_H
 #define _UDF_I_H
 
+struct extent_position {
+	struct buffer_head *bh;
+	uint32_t offset;
+	struct kernel_lb_addr block;
+};
+
+struct udf_ext_cache {
+	/* Extent position */
+	struct extent_position epos;
+	/* Start logical offset in bytes */
+	loff_t lstart;
+};
+
 /*
  * The i_data_sem and i_mutex serve for protection of allocation information
  * of a regular files and symlinks. This includes all extents belonging to
@@ -35,6 +48,9 @@ struct udf_inode_info {
 		__u8		*i_data;
 	} i_ext;
 	struct rw_semaphore	i_data_sem;
+	struct udf_ext_cache cached_extent;
+	/* Spinlock for protecting extent cache */
+	spinlock_t i_extent_cache_lock;
 	struct inode vfs_inode;
 };
 

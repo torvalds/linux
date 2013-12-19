@@ -92,14 +92,17 @@ void mdfld_dsi_brightness_init(struct mdfld_dsi_config *dsi_config, int pipe)
 {
 	struct mdfld_dsi_pkg_sender *sender =
 				mdfld_dsi_get_pkg_sender(dsi_config);
-	struct drm_device *dev = sender->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_device *dev;
+	struct drm_psb_private *dev_priv;
 	u32 gen_ctrl_val;
 
 	if (!sender) {
 		DRM_ERROR("No sender found\n");
 		return;
 	}
+
+	dev = sender->dev;
+	dev_priv = dev->dev_private;
 
 	/* Set default display backlight value to 85% (0xd8)*/
 	mdfld_dsi_send_mcs_short(sender, write_display_brightness, 0xd8, 1,
@@ -246,12 +249,11 @@ static int mdfld_dsi_connector_set_property(struct drm_connector *connector,
 	struct drm_encoder *encoder = connector->encoder;
 
 	if (!strcmp(property->name, "scaling mode") && encoder) {
-		struct psb_intel_crtc *psb_crtc =
-					to_psb_intel_crtc(encoder->crtc);
+		struct gma_crtc *gma_crtc = to_gma_crtc(encoder->crtc);
 		bool centerechange;
 		uint64_t val;
 
-		if (!psb_crtc)
+		if (!gma_crtc)
 			goto set_prop_error;
 
 		switch (value) {
@@ -278,11 +280,11 @@ static int mdfld_dsi_connector_set_property(struct drm_connector *connector,
 		centerechange = (val == DRM_MODE_SCALE_NO_SCALE) ||
 			(value == DRM_MODE_SCALE_NO_SCALE);
 
-		if (psb_crtc->saved_mode.hdisplay != 0 &&
-		    psb_crtc->saved_mode.vdisplay != 0) {
+		if (gma_crtc->saved_mode.hdisplay != 0 &&
+		    gma_crtc->saved_mode.vdisplay != 0) {
 			if (centerechange) {
 				if (!drm_crtc_helper_set_mode(encoder->crtc,
-						&psb_crtc->saved_mode,
+						&gma_crtc->saved_mode,
 						encoder->crtc->x,
 						encoder->crtc->y,
 						encoder->crtc->fb))
@@ -291,8 +293,8 @@ static int mdfld_dsi_connector_set_property(struct drm_connector *connector,
 				struct drm_encoder_helper_funcs *funcs =
 						encoder->helper_private;
 				funcs->mode_set(encoder,
-					&psb_crtc->saved_mode,
-					&psb_crtc->saved_adjusted_mode);
+					&gma_crtc->saved_mode,
+					&gma_crtc->saved_adjusted_mode);
 			}
 		}
 	} else if (!strcmp(property->name, "backlight") && encoder) {

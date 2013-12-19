@@ -900,7 +900,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 		if (supr_status) {
 			update_rate = false;
 			if (supr_status == TX_STATUS_SUPR_BADCH) {
-				brcms_err(wlc->hw->d11core,
+				brcms_dbg_ht(wlc->hw->d11core,
 					  "%s: Pkt tx suppressed, illegal channel possibly %d\n",
 					  __func__, CHSPEC_CHANNEL(
 					  wlc->default_bss->chanspec));
@@ -928,9 +928,9 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			}
 		} else if (txs->phyerr) {
 			update_rate = false;
-			brcms_err(wlc->hw->d11core,
-				  "%s: ampdu tx phy error (0x%x)\n",
-				  __func__, txs->phyerr);
+			brcms_dbg_ht(wlc->hw->d11core,
+				     "%s: ampdu tx phy error (0x%x)\n",
+				     __func__, txs->phyerr);
 		}
 	}
 
@@ -961,7 +961,6 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			/* if acked then clear bit and free packet */
 			if ((bindex < AMPDU_TX_BA_MAX_WSIZE)
 			    && isset(bitmap, bindex)) {
-				ini->tx_in_transit--;
 				ini->txretry[index] = 0;
 
 				/*
@@ -990,7 +989,6 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			if (retry && (ini->txretry[index] < (int)retry_limit)) {
 				int ret;
 				ini->txretry[index]++;
-				ini->tx_in_transit--;
 				ret = brcms_c_txfifo(wlc, queue, p);
 				/*
 				 * We shouldn't be out of space in the DMA
@@ -1000,7 +998,6 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				WARN_ONCE(ret, "queue %d out of txds\n", queue);
 			} else {
 				/* Retry timeout */
-				ini->tx_in_transit--;
 				ieee80211_tx_info_clear_status(tx_info);
 				tx_info->status.ampdu_ack_len = 0;
 				tx_info->status.ampdu_len = 1;
@@ -1009,8 +1006,8 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				skb_pull(p, D11_PHY_HDR_LEN);
 				skb_pull(p, D11_TXH_LEN);
 				brcms_dbg_ht(wlc->hw->d11core,
-					     "BA Timeout, seq %d, in_transit %d\n",
-					     seq, ini->tx_in_transit);
+					     "BA Timeout, seq %d\n",
+					     seq);
 				ieee80211_tx_status_irqsafe(wlc->pub->ieee_hw,
 							    p);
 			}

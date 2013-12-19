@@ -37,7 +37,6 @@
 #include <asm/irq_regs.h>
 #include <asm/mips-boards/malta.h>
 #include <asm/mips-boards/maltaint.h>
-#include <asm/mips-boards/piix4.h>
 #include <asm/gt64120.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/msc01_pci.h>
@@ -47,7 +46,6 @@
 #include <asm/setup.h>
 
 int gcmp_present = -1;
-int gic_present;
 static unsigned long _msc01_biu_base;
 static unsigned long _gcmp_base;
 static unsigned int ipi_map[NR_CPUS];
@@ -84,10 +82,10 @@ static inline int mips_pcibios_iack(void)
 
 		/* Flush Bonito register block */
 		(void) BONITO_PCIMAP_CFG;
-		iob();    /* sync */
+		iob();	  /* sync */
 
 		irq = __raw_readl((u32 *)_pcictrl_bonito_pcicfg);
-		iob();    /* sync */
+		iob();	  /* sync */
 		irq &= 0xff;
 		BONITO_PCIMAP_CFG = 0;
 		break;
@@ -134,9 +132,12 @@ static void malta_ipi_irqdispatch(void)
 {
 	int irq;
 
+	if (gic_compare_int())
+		do_IRQ(MIPS_GIC_IRQ_BASE);
+
 	irq = gic_get_int();
 	if (irq < 0)
-		return;  /* interrupt has already been cleared */
+		return;	 /* interrupt has already been cleared */
 
 	do_IRQ(MIPS_GIC_IRQ_BASE + irq);
 }
@@ -149,7 +150,7 @@ static void corehi_irqdispatch(void)
 	struct pt_regs *regs = get_irq_regs();
 
 	printk(KERN_EMERG "CoreHI interrupt, shouldn't happen, we die here!\n");
-	printk(KERN_EMERG "epc   : %08lx\nStatus: %08lx\n"
+	printk(KERN_EMERG "epc	 : %08lx\nStatus: %08lx\n"
 			"Cause : %08lx\nbadVaddr : %08lx\n",
 			regs->cp0_epc, regs->cp0_status,
 			regs->cp0_cause, regs->cp0_badvaddr);
@@ -249,20 +250,20 @@ static inline unsigned int irq_ffs(unsigned int pending)
  * on hardware interrupt 0 (MIPS IRQ 2)) like:
  *
  *	MIPS IRQ	Source
- *      --------        ------
- *             0	Software (ignored)
- *             1        Software (ignored)
- *             2        Combined hardware interrupt (hw0)
- *             3        Hardware (ignored)
- *             4        Hardware (ignored)
- *             5        Hardware (ignored)
- *             6        Hardware (ignored)
- *             7        R4k timer (what we use)
+ *	--------	------
+ *	       0	Software (ignored)
+ *	       1	Software (ignored)
+ *	       2	Combined hardware interrupt (hw0)
+ *	       3	Hardware (ignored)
+ *	       4	Hardware (ignored)
+ *	       5	Hardware (ignored)
+ *	       6	Hardware (ignored)
+ *	       7	R4k timer (what we use)
  *
  * We handle the IRQ according to _our_ priority which is:
  *
- * Highest ----     R4k Timer
- * Lowest  ----     Combined hardware interrupt
+ * Highest ----	    R4k Timer
+ * Lowest  ----	    Combined hardware interrupt
  *
  * then we just return, if multiple IRQs are pending then we will just take
  * another exception, big deal.
@@ -396,7 +397,7 @@ static int __initdata msc_nr_eicirqs = ARRAY_SIZE(msc_eicirqmap);
 
 static struct gic_intr_map gic_intr_map[GIC_NUM_INTRS] = {
 	{ X, X,		   X,		X,		0 },
-	{ X, X,		   X,	 	X,		0 },
+	{ X, X,		   X,		X,		0 },
 	{ X, X,		   X,		X,		0 },
 	{ 0, GIC_CPU_INT0, GIC_POL_POS, GIC_TRIG_LEVEL, GIC_FLAG_TRANSPARENT },
 	{ 0, GIC_CPU_INT1, GIC_POL_POS, GIC_TRIG_LEVEL, GIC_FLAG_TRANSPARENT },
@@ -410,7 +411,7 @@ static struct gic_intr_map gic_intr_map[GIC_NUM_INTRS] = {
 	{ 0, GIC_CPU_INT3, GIC_POL_POS, GIC_TRIG_LEVEL, GIC_FLAG_TRANSPARENT },
 	{ 0, GIC_CPU_NMI,  GIC_POL_POS, GIC_TRIG_LEVEL, GIC_FLAG_TRANSPARENT },
 	{ 0, GIC_CPU_NMI,  GIC_POL_POS, GIC_TRIG_LEVEL, GIC_FLAG_TRANSPARENT },
-	{ X, X,		   X,		X,	        0 },
+	{ X, X,		   X,		X,		0 },
 	/* The remainder of this table is initialised by fill_ipi_map */
 };
 #undef X
@@ -420,8 +421,10 @@ static struct gic_intr_map gic_intr_map[GIC_NUM_INTRS] = {
  */
 int __init gcmp_probe(unsigned long addr, unsigned long size)
 {
-	if (mips_revision_sconid != MIPS_REVISION_SCON_ROCIT) {
+	if ((mips_revision_sconid != MIPS_REVISION_SCON_ROCIT)  &&
+	    (mips_revision_sconid != MIPS_REVISION_SCON_GT64120)) {
 		gcmp_present = 0;
+		pr_debug("GCMP NOT present\n");
 		return gcmp_present;
 	}
 
@@ -469,7 +472,7 @@ static void __init fill_ipi_map(void)
 {
 	int cpu;
 
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+	for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
 		fill_ipi_map1(gic_resched_int_base, cpu, GIC_CPU_INT1);
 		fill_ipi_map1(gic_call_int_base, cpu, GIC_CPU_INT2);
 	}
@@ -570,8 +573,9 @@ void __init arch_init_irq(void)
 		/* FIXME */
 		int i;
 #if defined(CONFIG_MIPS_MT_SMP)
-		gic_call_int_base = GIC_NUM_INTRS - NR_CPUS;
-		gic_resched_int_base = gic_call_int_base - NR_CPUS;
+		gic_call_int_base = GIC_NUM_INTRS -
+			(NR_CPUS - nr_cpu_ids) * 2 - nr_cpu_ids;
+		gic_resched_int_base = gic_call_int_base - nr_cpu_ids;
 		fill_ipi_map();
 #endif
 		gic_init(GIC_BASE_ADDR, GIC_ADDRSPACE_SZ, gic_intr_map,
@@ -595,7 +599,7 @@ void __init arch_init_irq(void)
 		printk("CPU%d: status register now %08x\n", smp_processor_id(), read_c0_status());
 		write_c0_status(0x1100dc00);
 		printk("CPU%d: status register frc %08x\n", smp_processor_id(), read_c0_status());
-		for (i = 0; i < NR_CPUS; i++) {
+		for (i = 0; i < nr_cpu_ids; i++) {
 			arch_init_ipiirq(MIPS_GIC_IRQ_BASE +
 					 GIC_RESCHED_INT(i), &irq_resched);
 			arch_init_ipiirq(MIPS_GIC_IRQ_BASE +
@@ -634,7 +638,7 @@ void malta_be_init(void)
 
 static char *tr[8] = {
 	"mem",	"gcr",	"gic",	"mmio",
-	"0x04",	"0x05",	"0x06",	"0x07"
+	"0x04", "0x05", "0x06", "0x07"
 };
 
 static char *mcmd[32] = {
@@ -673,10 +677,10 @@ static char *mcmd[32] = {
 };
 
 static char *core[8] = {
-	"Invalid/OK", 	"Invalid/Data",
+	"Invalid/OK",	"Invalid/Data",
 	"Shared/OK",	"Shared/Data",
 	"Modified/OK",	"Modified/Data",
-	"Exclusive/OK",	"Exclusive/Data"
+	"Exclusive/OK", "Exclusive/Data"
 };
 
 static char *causes[32] = {

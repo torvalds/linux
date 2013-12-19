@@ -34,8 +34,8 @@ static const char *csi_sel[] = { "upll", "spll", };
 static const char *fir_sel[] = { "mcu_main", "upll", "spll" };
 
 enum mx31_clks {
-	ckih, ckil, mpll, spll, upll, mcu_main, hsp, ahb, nfc, ipg, per_div,
-	per, csi, fir, csi_div, usb_div_pre, usb_div_post, fir_div_pre,
+	dummy, ckih, ckil, mpll, spll, upll, mcu_main, hsp, ahb, nfc, ipg,
+	per_div, per, csi, fir, csi_div, usb_div_pre, usb_div_post, fir_div_pre,
 	fir_div_post, sdhc1_gate, sdhc2_gate, gpt_gate, epit1_gate, epit2_gate,
 	iim_gate, ata_gate, sdma_gate, cspi3_gate, rng_gate, uart1_gate,
 	uart2_gate, ssi1_gate, i2c1_gate, i2c2_gate, i2c3_gate, hantro_gate,
@@ -46,12 +46,15 @@ enum mx31_clks {
 };
 
 static struct clk *clk[clk_max];
+static struct clk_onecell_data clk_data;
 
 int __init mx31_clocks_init(unsigned long fref)
 {
 	void __iomem *base = MX31_IO_ADDRESS(MX31_CCM_BASE_ADDR);
 	int i;
+	struct device_node *np;
 
+	clk[dummy] = imx_clk_fixed("dummy", 0);
 	clk[ckih] = imx_clk_fixed("ckih", fref);
 	clk[ckil] = imx_clk_fixed("ckil", 32768);
 	clk[mpll] = imx_clk_pllv1("mpll", "ckih", base + MXC_CCM_MPCTL);
@@ -116,6 +119,14 @@ int __init mx31_clocks_init(unsigned long fref)
 			pr_err("imx31 clk %d: register failed with %ld\n",
 				i, PTR_ERR(clk[i]));
 
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx31-ccm");
+
+	if (np) {
+		clk_data.clks = clk;
+		clk_data.clk_num = ARRAY_SIZE(clk);
+		of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
+	}
+
 	clk_register_clkdev(clk[gpt_gate], "per", "imx-gpt.0");
 	clk_register_clkdev(clk[ipg], "ipg", "imx-gpt.0");
 	clk_register_clkdev(clk[cspi1_gate], NULL, "imx31-cspi.0");
@@ -139,9 +150,9 @@ int __init mx31_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[usb_div_post], "per", "mxc-ehci.2");
 	clk_register_clkdev(clk[usb_gate], "ahb", "mxc-ehci.2");
 	clk_register_clkdev(clk[ipg], "ipg", "mxc-ehci.2");
-	clk_register_clkdev(clk[usb_div_post], "per", "fsl-usb2-udc");
-	clk_register_clkdev(clk[usb_gate], "ahb", "fsl-usb2-udc");
-	clk_register_clkdev(clk[ipg], "ipg", "fsl-usb2-udc");
+	clk_register_clkdev(clk[usb_div_post], "per", "imx-udc-mx27");
+	clk_register_clkdev(clk[usb_gate], "ahb", "imx-udc-mx27");
+	clk_register_clkdev(clk[ipg], "ipg", "imx-udc-mx27");
 	clk_register_clkdev(clk[csi_gate], NULL, "mx3-camera.0");
 	/* i.mx31 has the i.mx21 type uart */
 	clk_register_clkdev(clk[uart1_gate], "per", "imx21-uart.0");

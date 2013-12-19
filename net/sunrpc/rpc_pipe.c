@@ -216,11 +216,14 @@ rpc_destroy_inode(struct inode *inode)
 static int
 rpc_pipe_open(struct inode *inode, struct file *filp)
 {
+	struct net *net = inode->i_sb->s_fs_info;
+	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 	struct rpc_pipe *pipe;
 	int first_open;
 	int res = -ENXIO;
 
 	mutex_lock(&inode->i_mutex);
+	sn->gssd_running = 1;
 	pipe = RPC_I(inode)->pipe;
 	if (pipe == NULL)
 		goto out;
@@ -284,7 +287,7 @@ out:
 static ssize_t
 rpc_pipe_read(struct file *filp, char __user *buf, size_t len, loff_t *offset)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct rpc_pipe *pipe;
 	struct rpc_pipe_msg *msg;
 	int res = 0;
@@ -328,7 +331,7 @@ out_unlock:
 static ssize_t
 rpc_pipe_write(struct file *filp, const char __user *buf, size_t len, loff_t *offset)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	int res;
 
 	mutex_lock(&inode->i_mutex);
@@ -342,7 +345,7 @@ rpc_pipe_write(struct file *filp, const char __user *buf, size_t len, loff_t *of
 static unsigned int
 rpc_pipe_poll(struct file *filp, struct poll_table_struct *wait)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct rpc_inode *rpci = RPC_I(inode);
 	unsigned int mask = POLLOUT | POLLWRNORM;
 
@@ -360,7 +363,7 @@ rpc_pipe_poll(struct file *filp, struct poll_table_struct *wait)
 static long
 rpc_pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct rpc_pipe *pipe;
 	int len;
 
@@ -406,7 +409,7 @@ rpc_show_info(struct seq_file *m, void *v)
 	rcu_read_lock();
 	seq_printf(m, "RPC server: %s\n",
 			rcu_dereference(clnt->cl_xprt)->servername);
-	seq_printf(m, "service: %s (%d) version %d\n", clnt->cl_protname,
+	seq_printf(m, "service: %s (%d) version %d\n", clnt->cl_program->name,
 			clnt->cl_prog, clnt->cl_vers);
 	seq_printf(m, "address: %s\n", rpc_peeraddr2str(clnt, RPC_DISPLAY_ADDR));
 	seq_printf(m, "protocol: %s\n", rpc_peeraddr2str(clnt, RPC_DISPLAY_PROTO));
@@ -468,15 +471,6 @@ struct rpc_filelist {
 	umode_t mode;
 };
 
-static int rpc_delete_dentry(const struct dentry *dentry)
-{
-	return 1;
-}
-
-static const struct dentry_operations rpc_dentry_operations = {
-	.d_delete = rpc_delete_dentry,
-};
-
 static struct inode *
 rpc_get_inode(struct super_block *sb, umode_t mode)
 {
@@ -516,8 +510,8 @@ static int __rpc_create_common(struct inode *dir, struct dentry *dentry,
 	d_add(dentry, inode);
 	return 0;
 out_err:
-	printk(KERN_WARNING "%s: %s failed to allocate inode for dentry %s\n",
-			__FILE__, __func__, dentry->d_name.name);
+	printk(KERN_WARNING "%s: %s failed to allocate inode for dentry %pd\n",
+			__FILE__, __func__, dentry);
 	dput(dentry);
 	return -ENOMEM;
 }
@@ -653,20 +647,17 @@ static int __rpc_rmpipe(struct inode *dir, struct dentry *dentry)
 }
 
 static struct dentry *__rpc_lookup_create_exclusive(struct dentry *parent,
-					  struct qstr *name)
+					  const char *name)
 {
-	struct dentry *dentry;
-
-	dentry = d_lookup(parent, name);
+	struct qstr q = QSTR_INIT(name, strlen(name));
+	struct dentry *dentry = d_hash_and_lookup(parent, &q);
 	if (!dentry) {
-		dentry = d_alloc(parent, name);
+		dentry = d_alloc(parent, &q);
 		if (!dentry)
 			return ERR_PTR(-ENOMEM);
 	}
-	if (dentry->d_inode == NULL) {
-		d_set_d_op(dentry, &rpc_dentry_operations);
+	if (dentry->d_inode == NULL)
 		return dentry;
-	}
 	dput(dentry);
 	return ERR_PTR(-EEXIST);
 }
@@ -686,8 +677,7 @@ static void __rpc_depopulate(struct dentry *parent,
 	for (i = start; i < eof; i++) {
 		name.name = files[i].name;
 		name.len = strlen(files[i].name);
-		name.hash = full_name_hash(name.name, name.len);
-		dentry = d_lookup(parent, &name);
+		dentry = d_hash_and_lookup(parent, &name);
 
 		if (dentry == NULL)
 			continue;
@@ -729,12 +719,7 @@ static int rpc_populate(struct dentry *parent,
 
 	mutex_lock(&dir->i_mutex);
 	for (i = start; i < eof; i++) {
-		struct qstr q;
-
-		q.name = files[i].name;
-		q.len = strlen(files[i].name);
-		q.hash = full_name_hash(q.name, q.len);
-		dentry = __rpc_lookup_create_exclusive(parent, &q);
+		dentry = __rpc_lookup_create_exclusive(parent, files[i].name);
 		err = PTR_ERR(dentry);
 		if (IS_ERR(dentry))
 			goto out_bad;
@@ -761,13 +746,13 @@ static int rpc_populate(struct dentry *parent,
 out_bad:
 	__rpc_depopulate(parent, files, start, eof);
 	mutex_unlock(&dir->i_mutex);
-	printk(KERN_WARNING "%s: %s failed to populate directory %s\n",
-			__FILE__, __func__, parent->d_name.name);
+	printk(KERN_WARNING "%s: %s failed to populate directory %pd\n",
+			__FILE__, __func__, parent);
 	return err;
 }
 
 static struct dentry *rpc_mkdir_populate(struct dentry *parent,
-		struct qstr *name, umode_t mode, void *private,
+		const char *name, umode_t mode, void *private,
 		int (*populate)(struct dentry *, void *), void *args_populate)
 {
 	struct dentry *dentry;
@@ -830,7 +815,7 @@ static int rpc_rmdir_depopulate(struct dentry *dentry,
  * responses to upcalls.  They will result in calls to @msg->downcall.
  *
  * The @private argument passed here will be available to all these methods
- * from the file pointer, via RPC_I(file->f_dentry->d_inode)->private.
+ * from the file pointer, via RPC_I(file_inode(file))->private.
  */
 struct dentry *rpc_mkpipe_dentry(struct dentry *parent, const char *name,
 				 void *private, struct rpc_pipe *pipe)
@@ -838,7 +823,6 @@ struct dentry *rpc_mkpipe_dentry(struct dentry *parent, const char *name,
 	struct dentry *dentry;
 	struct inode *dir = parent->d_inode;
 	umode_t umode = S_IFIFO | S_IRUSR | S_IWUSR;
-	struct qstr q;
 	int err;
 
 	if (pipe->ops->upcall == NULL)
@@ -846,12 +830,8 @@ struct dentry *rpc_mkpipe_dentry(struct dentry *parent, const char *name,
 	if (pipe->ops->downcall == NULL)
 		umode &= ~S_IWUGO;
 
-	q.name = name;
-	q.len = strlen(name);
-	q.hash = full_name_hash(q.name, q.len),
-
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
-	dentry = __rpc_lookup_create_exclusive(parent, &q);
+	dentry = __rpc_lookup_create_exclusive(parent, name);
 	if (IS_ERR(dentry))
 		goto out;
 	err = __rpc_mkpipe_dentry(dir, dentry, umode, &rpc_pipe_fops,
@@ -863,8 +843,8 @@ out:
 	return dentry;
 out_err:
 	dentry = ERR_PTR(err);
-	printk(KERN_WARNING "%s: %s() failed to create pipe %s/%s (errno = %d)\n",
-			__FILE__, __func__, parent->d_name.name, name,
+	printk(KERN_WARNING "%s: %s() failed to create pipe %pd/%s (errno = %d)\n",
+			__FILE__, __func__, parent, name,
 			err);
 	goto out;
 }
@@ -895,6 +875,159 @@ rpc_unlink(struct dentry *dentry)
 }
 EXPORT_SYMBOL_GPL(rpc_unlink);
 
+/**
+ * rpc_init_pipe_dir_head - initialise a struct rpc_pipe_dir_head
+ * @pdh: pointer to struct rpc_pipe_dir_head
+ */
+void rpc_init_pipe_dir_head(struct rpc_pipe_dir_head *pdh)
+{
+	INIT_LIST_HEAD(&pdh->pdh_entries);
+	pdh->pdh_dentry = NULL;
+}
+EXPORT_SYMBOL_GPL(rpc_init_pipe_dir_head);
+
+/**
+ * rpc_init_pipe_dir_object - initialise a struct rpc_pipe_dir_object
+ * @pdo: pointer to struct rpc_pipe_dir_object
+ * @pdo_ops: pointer to const struct rpc_pipe_dir_object_ops
+ * @pdo_data: pointer to caller-defined data
+ */
+void rpc_init_pipe_dir_object(struct rpc_pipe_dir_object *pdo,
+		const struct rpc_pipe_dir_object_ops *pdo_ops,
+		void *pdo_data)
+{
+	INIT_LIST_HEAD(&pdo->pdo_head);
+	pdo->pdo_ops = pdo_ops;
+	pdo->pdo_data = pdo_data;
+}
+EXPORT_SYMBOL_GPL(rpc_init_pipe_dir_object);
+
+static int
+rpc_add_pipe_dir_object_locked(struct net *net,
+		struct rpc_pipe_dir_head *pdh,
+		struct rpc_pipe_dir_object *pdo)
+{
+	int ret = 0;
+
+	if (pdh->pdh_dentry)
+		ret = pdo->pdo_ops->create(pdh->pdh_dentry, pdo);
+	if (ret == 0)
+		list_add_tail(&pdo->pdo_head, &pdh->pdh_entries);
+	return ret;
+}
+
+static void
+rpc_remove_pipe_dir_object_locked(struct net *net,
+		struct rpc_pipe_dir_head *pdh,
+		struct rpc_pipe_dir_object *pdo)
+{
+	if (pdh->pdh_dentry)
+		pdo->pdo_ops->destroy(pdh->pdh_dentry, pdo);
+	list_del_init(&pdo->pdo_head);
+}
+
+/**
+ * rpc_add_pipe_dir_object - associate a rpc_pipe_dir_object to a directory
+ * @net: pointer to struct net
+ * @pdh: pointer to struct rpc_pipe_dir_head
+ * @pdo: pointer to struct rpc_pipe_dir_object
+ *
+ */
+int
+rpc_add_pipe_dir_object(struct net *net,
+		struct rpc_pipe_dir_head *pdh,
+		struct rpc_pipe_dir_object *pdo)
+{
+	int ret = 0;
+
+	if (list_empty(&pdo->pdo_head)) {
+		struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
+
+		mutex_lock(&sn->pipefs_sb_lock);
+		ret = rpc_add_pipe_dir_object_locked(net, pdh, pdo);
+		mutex_unlock(&sn->pipefs_sb_lock);
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rpc_add_pipe_dir_object);
+
+/**
+ * rpc_remove_pipe_dir_object - remove a rpc_pipe_dir_object from a directory
+ * @net: pointer to struct net
+ * @pdh: pointer to struct rpc_pipe_dir_head
+ * @pdo: pointer to struct rpc_pipe_dir_object
+ *
+ */
+void
+rpc_remove_pipe_dir_object(struct net *net,
+		struct rpc_pipe_dir_head *pdh,
+		struct rpc_pipe_dir_object *pdo)
+{
+	if (!list_empty(&pdo->pdo_head)) {
+		struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
+
+		mutex_lock(&sn->pipefs_sb_lock);
+		rpc_remove_pipe_dir_object_locked(net, pdh, pdo);
+		mutex_unlock(&sn->pipefs_sb_lock);
+	}
+}
+EXPORT_SYMBOL_GPL(rpc_remove_pipe_dir_object);
+
+/**
+ * rpc_find_or_alloc_pipe_dir_object
+ * @net: pointer to struct net
+ * @pdh: pointer to struct rpc_pipe_dir_head
+ * @match: match struct rpc_pipe_dir_object to data
+ * @alloc: allocate a new struct rpc_pipe_dir_object
+ * @data: user defined data for match() and alloc()
+ *
+ */
+struct rpc_pipe_dir_object *
+rpc_find_or_alloc_pipe_dir_object(struct net *net,
+		struct rpc_pipe_dir_head *pdh,
+		int (*match)(struct rpc_pipe_dir_object *, void *),
+		struct rpc_pipe_dir_object *(*alloc)(void *),
+		void *data)
+{
+	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
+	struct rpc_pipe_dir_object *pdo;
+
+	mutex_lock(&sn->pipefs_sb_lock);
+	list_for_each_entry(pdo, &pdh->pdh_entries, pdo_head) {
+		if (!match(pdo, data))
+			continue;
+		goto out;
+	}
+	pdo = alloc(data);
+	if (!pdo)
+		goto out;
+	rpc_add_pipe_dir_object_locked(net, pdh, pdo);
+out:
+	mutex_unlock(&sn->pipefs_sb_lock);
+	return pdo;
+}
+EXPORT_SYMBOL_GPL(rpc_find_or_alloc_pipe_dir_object);
+
+static void
+rpc_create_pipe_dir_objects(struct rpc_pipe_dir_head *pdh)
+{
+	struct rpc_pipe_dir_object *pdo;
+	struct dentry *dir = pdh->pdh_dentry;
+
+	list_for_each_entry(pdo, &pdh->pdh_entries, pdo_head)
+		pdo->pdo_ops->create(dir, pdo);
+}
+
+static void
+rpc_destroy_pipe_dir_objects(struct rpc_pipe_dir_head *pdh)
+{
+	struct rpc_pipe_dir_object *pdo;
+	struct dentry *dir = pdh->pdh_dentry;
+
+	list_for_each_entry(pdo, &pdh->pdh_entries, pdo_head)
+		pdo->pdo_ops->destroy(dir, pdo);
+}
+
 enum {
 	RPCAUTH_info,
 	RPCAUTH_EOF
@@ -922,8 +1055,8 @@ static void rpc_clntdir_depopulate(struct dentry *dentry)
 
 /**
  * rpc_create_client_dir - Create a new rpc_client directory in rpc_pipefs
- * @dentry: dentry from the rpc_pipefs root to the new directory
- * @name: &struct qstr for the name
+ * @dentry: the parent of new directory
+ * @name: the name of new directory
  * @rpc_client: rpc client to associate with this directory
  *
  * This creates a directory at the given @path associated with
@@ -932,19 +1065,32 @@ static void rpc_clntdir_depopulate(struct dentry *dentry)
  * later be created using rpc_mkpipe().
  */
 struct dentry *rpc_create_client_dir(struct dentry *dentry,
-				   struct qstr *name,
+				   const char *name,
 				   struct rpc_clnt *rpc_client)
 {
-	return rpc_mkdir_populate(dentry, name, S_IRUGO | S_IXUGO, NULL,
+	struct dentry *ret;
+
+	ret = rpc_mkdir_populate(dentry, name, S_IRUGO | S_IXUGO, NULL,
 			rpc_clntdir_populate, rpc_client);
+	if (!IS_ERR(ret)) {
+		rpc_client->cl_pipedir_objects.pdh_dentry = ret;
+		rpc_create_pipe_dir_objects(&rpc_client->cl_pipedir_objects);
+	}
+	return ret;
 }
 
 /**
  * rpc_remove_client_dir - Remove a directory created with rpc_create_client_dir()
- * @dentry: dentry for the pipe
+ * @rpc_client: rpc_client for the pipe
  */
-int rpc_remove_client_dir(struct dentry *dentry)
+int rpc_remove_client_dir(struct rpc_clnt *rpc_client)
 {
+	struct dentry *dentry = rpc_client->cl_pipedir_objects.pdh_dentry;
+
+	if (dentry == NULL)
+		return 0;
+	rpc_destroy_pipe_dir_objects(&rpc_client->cl_pipedir_objects);
+	rpc_client->cl_pipedir_objects.pdh_dentry = NULL;
 	return rpc_rmdir_depopulate(dentry, rpc_clntdir_depopulate);
 }
 
@@ -978,7 +1124,7 @@ static void rpc_cachedir_depopulate(struct dentry *dentry)
 	rpc_depopulate(dentry, cache_pipefs_files, 0, 3);
 }
 
-struct dentry *rpc_create_cache_dir(struct dentry *parent, struct qstr *name,
+struct dentry *rpc_create_cache_dir(struct dentry *parent, const char *name,
 				    umode_t umode, struct cache_detail *cd)
 {
 	return rpc_mkdir_populate(parent, name, umode, NULL,
@@ -1058,9 +1204,7 @@ struct dentry *rpc_d_lookup_sb(const struct super_block *sb,
 			       const unsigned char *dir_name)
 {
 	struct qstr dir = QSTR_INIT(dir_name, strlen(dir_name));
-
-	dir.hash = full_name_hash(dir.name, dir.len);
-	return d_lookup(sb->s_root, &dir);
+	return d_hash_and_lookup(sb->s_root, &dir);
 }
 EXPORT_SYMBOL_GPL(rpc_d_lookup_sb);
 
@@ -1069,6 +1213,8 @@ void rpc_pipefs_init_net(struct net *net)
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 
 	mutex_init(&sn->pipefs_sb_lock);
+	sn->gssd_running = 1;
+	sn->pipe_version = -1;
 }
 
 /*
@@ -1111,6 +1257,7 @@ rpc_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 	sb->s_magic = RPCAUTH_GSSMAGIC;
 	sb->s_op = &s_ops;
+	sb->s_d_op = &simple_dentry_operations;
 	sb->s_time_gran = 1;
 
 	inode = rpc_get_inode(sb, S_IFDIR | S_IRUGO | S_IXUGO);
@@ -1121,6 +1268,7 @@ rpc_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 	dprintk("RPC:       sending pipefs MOUNT notification for net %p%s\n",
 		net, NET_NAME(net));
+	mutex_lock(&sn->pipefs_sb_lock);
 	sn->pipefs_sb = sb;
 	err = blocking_notifier_call_chain(&rpc_pipefs_notifier_list,
 					   RPC_PIPEFS_MOUNT,
@@ -1128,6 +1276,7 @@ rpc_fill_super(struct super_block *sb, void *data, int silent)
 	if (err)
 		goto err_depopulate;
 	sb->s_fs_info = get_net(net);
+	mutex_unlock(&sn->pipefs_sb_lock);
 	return 0;
 
 err_depopulate:
@@ -1136,6 +1285,7 @@ err_depopulate:
 					   sb);
 	sn->pipefs_sb = NULL;
 	__rpc_depopulate(root, files, RPCAUTH_lockd, RPCAUTH_RootEOF);
+	mutex_unlock(&sn->pipefs_sb_lock);
 	return err;
 }
 
@@ -1157,12 +1307,12 @@ static void rpc_kill_sb(struct super_block *sb)
 		goto out;
 	}
 	sn->pipefs_sb = NULL;
-	mutex_unlock(&sn->pipefs_sb_lock);
 	dprintk("RPC:       sending pipefs UMOUNT notification for net %p%s\n",
 		net, NET_NAME(net));
 	blocking_notifier_call_chain(&rpc_pipefs_notifier_list,
 					   RPC_PIPEFS_UMOUNT,
 					   sb);
+	mutex_unlock(&sn->pipefs_sb_lock);
 	put_net(net);
 out:
 	kill_litter_super(sb);
@@ -1174,6 +1324,8 @@ static struct file_system_type rpc_pipe_fs_type = {
 	.mount		= rpc_mount,
 	.kill_sb	= rpc_kill_sb,
 };
+MODULE_ALIAS_FS("rpc_pipefs");
+MODULE_ALIAS("rpc_pipefs");
 
 static void
 init_once(void *foo)
@@ -1218,6 +1370,3 @@ void unregister_rpc_pipefs(void)
 	kmem_cache_destroy(rpc_inode_cachep);
 	unregister_filesystem(&rpc_pipe_fs_type);
 }
-
-/* Make 'mount -t rpc_pipefs ...' autoload this module. */
-MODULE_ALIAS("rpc_pipefs");

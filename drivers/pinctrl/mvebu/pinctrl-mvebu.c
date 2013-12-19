@@ -191,18 +191,27 @@ static int mvebu_pinconf_group_get(struct pinctrl_dev *pctldev,
 }
 
 static int mvebu_pinconf_group_set(struct pinctrl_dev *pctldev,
-				unsigned gid, unsigned long config)
+				unsigned gid, unsigned long *configs,
+				unsigned num_configs)
 {
 	struct mvebu_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct mvebu_pinctrl_group *grp = &pctl->groups[gid];
+	int i, ret;
 
 	if (!grp->ctrl)
 		return -EINVAL;
 
-	if (grp->ctrl->mpp_set)
-		return grp->ctrl->mpp_set(grp->ctrl, config);
+	for (i = 0; i < num_configs; i++) {
+		if (grp->ctrl->mpp_set)
+			ret = grp->ctrl->mpp_set(grp->ctrl, configs[i]);
+		else
+			ret = mvebu_common_mpp_set(pctl, grp, configs[i]);
 
-	return mvebu_common_mpp_set(pctl, grp, config);
+		if (ret)
+			return ret;
+	} /* for each config */
+
+	return 0;
 }
 
 static void mvebu_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
@@ -263,7 +272,7 @@ static void mvebu_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 	return;
 }
 
-static struct pinconf_ops mvebu_pinconf_ops = {
+static const struct pinconf_ops mvebu_pinconf_ops = {
 	.pin_config_group_get = mvebu_pinconf_group_get,
 	.pin_config_group_set = mvebu_pinconf_group_set,
 	.pin_config_group_dbg_show = mvebu_pinconf_group_dbg_show,
@@ -303,6 +312,7 @@ static int mvebu_pinmux_enable(struct pinctrl_dev *pctldev, unsigned fid,
 	struct mvebu_pinctrl_group *grp = &pctl->groups[gid];
 	struct mvebu_mpp_ctrl_setting *setting;
 	int ret;
+	unsigned long config;
 
 	setting = mvebu_pinctrl_find_setting_by_name(pctl, grp,
 						     func->name);
@@ -313,7 +323,8 @@ static int mvebu_pinmux_enable(struct pinctrl_dev *pctldev, unsigned fid,
 		return -EINVAL;
 	}
 
-	ret = mvebu_pinconf_group_set(pctldev, grp->gid, setting->val);
+	config = setting->val;
+	ret = mvebu_pinconf_group_set(pctldev, grp->gid, &config, 1);
 	if (ret) {
 		dev_err(pctl->dev, "cannot set group %s to %s\n",
 			func->groups[gid], func->name);
@@ -329,6 +340,7 @@ static int mvebu_pinmux_gpio_request_enable(struct pinctrl_dev *pctldev,
 	struct mvebu_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct mvebu_pinctrl_group *grp;
 	struct mvebu_mpp_ctrl_setting *setting;
+	unsigned long config;
 
 	grp = mvebu_pinctrl_find_group_by_pid(pctl, offset);
 	if (!grp)
@@ -341,7 +353,9 @@ static int mvebu_pinmux_gpio_request_enable(struct pinctrl_dev *pctldev,
 	if (!setting)
 		return -ENOTSUPP;
 
-	return mvebu_pinconf_group_set(pctldev, grp->gid, setting->val);
+	config = setting->val;
+
+	return mvebu_pinconf_group_set(pctldev, grp->gid, &config, 1);
 }
 
 static int mvebu_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
@@ -369,7 +383,7 @@ static int mvebu_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
 	return -ENOTSUPP;
 }
 
-static struct pinmux_ops mvebu_pinmux_ops = {
+static const struct pinmux_ops mvebu_pinmux_ops = {
 	.get_functions_count = mvebu_pinmux_get_funcs_count,
 	.get_function_name = mvebu_pinmux_get_func_name,
 	.get_function_groups = mvebu_pinmux_get_groups,
@@ -430,7 +444,7 @@ static int mvebu_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	}
 
 	*map = kmalloc(nmaps * sizeof(struct pinctrl_map), GFP_KERNEL);
-	if (map == NULL) {
+	if (*map == NULL) {
 		dev_err(pctl->dev,
 			"cannot allocate pinctrl_map memory for %s\n",
 			np->name);
@@ -470,7 +484,7 @@ static void mvebu_pinctrl_dt_free_map(struct pinctrl_dev *pctldev,
 	kfree(map);
 }
 
-static struct pinctrl_ops mvebu_pinctrl_ops = {
+static const struct pinctrl_ops mvebu_pinctrl_ops = {
 	.get_groups_count = mvebu_pinctrl_get_groups_count,
 	.get_group_name = mvebu_pinctrl_get_group_name,
 	.get_group_pins = mvebu_pinctrl_get_group_pins,
@@ -478,9 +492,12 @@ static struct pinctrl_ops mvebu_pinctrl_ops = {
 	.dt_free_map = mvebu_pinctrl_dt_free_map,
 };
 
-static int __devinit _add_function(struct mvebu_pinctrl_function *funcs,
-				   const char *name)
+static int _add_function(struct mvebu_pinctrl_function *funcs, int *funcsize,
+			const char *name)
 {
+	if (*funcsize <= 0)
+		return -EOVERFLOW;
+
 	while (funcs->num_groups) {
 		/* function already there */
 		if (strcmp(funcs->name, name) == 0) {
@@ -489,21 +506,25 @@ static int __devinit _add_function(struct mvebu_pinctrl_function *funcs,
 		}
 		funcs++;
 	}
+
+	/* append new unique function */
 	funcs->name = name;
 	funcs->num_groups = 1;
+	(*funcsize)--;
+
 	return 0;
 }
 
-static int __devinit mvebu_pinctrl_build_functions(struct platform_device *pdev,
-						   struct mvebu_pinctrl *pctl)
+static int mvebu_pinctrl_build_functions(struct platform_device *pdev,
+					 struct mvebu_pinctrl *pctl)
 {
 	struct mvebu_pinctrl_function *funcs;
-	int num = 0;
+	int num = 0, funcsize = pctl->desc.npins;
 	int n, s;
 
 	/* we allocate functions for number of pins and hope
-	 * there are less unique functions than pins available */
-	funcs = devm_kzalloc(&pdev->dev, pctl->desc.npins *
+	 * there are fewer unique functions than pins available */
+	funcs = devm_kzalloc(&pdev->dev, funcsize *
 			     sizeof(struct mvebu_pinctrl_function), GFP_KERNEL);
 	if (!funcs)
 		return -ENOMEM;
@@ -511,25 +532,26 @@ static int __devinit mvebu_pinctrl_build_functions(struct platform_device *pdev,
 	for (n = 0; n < pctl->num_groups; n++) {
 		struct mvebu_pinctrl_group *grp = &pctl->groups[n];
 		for (s = 0; s < grp->num_settings; s++) {
+			int ret;
+
 			/* skip unsupported settings on this variant */
 			if (pctl->variant &&
 			    !(pctl->variant & grp->settings[s].variant))
 				continue;
 
 			/* check for unique functions and count groups */
-			if (_add_function(funcs, grp->settings[s].name))
+			ret = _add_function(funcs, &funcsize,
+					    grp->settings[s].name);
+			if (ret == -EOVERFLOW)
+				dev_err(&pdev->dev,
+					"More functions than pins(%d)\n",
+					pctl->desc.npins);
+			if (ret < 0)
 				continue;
 
 			num++;
 		}
 	}
-
-	/* with the number of unique functions and it's groups known,
-	   reallocate functions and assign group names */
-	funcs = krealloc(funcs, num * sizeof(struct mvebu_pinctrl_function),
-			 GFP_KERNEL);
-	if (!funcs)
-		return -ENOMEM;
 
 	pctl->num_functions = num;
 	pctl->functions = funcs;
@@ -568,10 +590,10 @@ static int __devinit mvebu_pinctrl_build_functions(struct platform_device *pdev,
 	return 0;
 }
 
-int __devinit mvebu_pinctrl_probe(struct platform_device *pdev)
+int mvebu_pinctrl_probe(struct platform_device *pdev)
 {
 	struct mvebu_pinctrl_soc_info *soc = dev_get_platdata(&pdev->dev);
-	struct device_node *np = pdev->dev.of_node;
+	struct resource *res;
 	struct mvebu_pinctrl *pctl;
 	void __iomem *base;
 	struct pinctrl_pin_desc *pdesc;
@@ -583,11 +605,10 @@ int __devinit mvebu_pinctrl_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	base = of_iomap(np, 0);
-	if (!base) {
-		dev_err(&pdev->dev, "unable to get base address\n");
-		return -ENODEV;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_pinctrl),
 			GFP_KERNEL);
@@ -621,7 +642,7 @@ int __devinit mvebu_pinctrl_probe(struct platform_device *pdev)
 
 		/* special soc specific control */
 		if (ctrl->mpp_get || ctrl->mpp_set) {
-			if (!ctrl->name || !ctrl->mpp_set || !ctrl->mpp_set) {
+			if (!ctrl->name || !ctrl->mpp_get || !ctrl->mpp_set) {
 				dev_err(&pdev->dev, "wrong soc control info\n");
 				return -EINVAL;
 			}
@@ -745,7 +766,7 @@ int __devinit mvebu_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-int __devexit mvebu_pinctrl_remove(struct platform_device *pdev)
+int mvebu_pinctrl_remove(struct platform_device *pdev)
 {
 	struct mvebu_pinctrl *pctl = platform_get_drvdata(pdev);
 	pinctrl_unregister(pctl->pctldev);

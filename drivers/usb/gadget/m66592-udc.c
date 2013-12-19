@@ -1463,41 +1463,14 @@ static struct usb_ep_ops m66592_ep_ops = {
 };
 
 /*-------------------------------------------------------------------------*/
-static struct m66592 *the_controller;
-
-static int m66592_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
+static int m66592_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct m66592 *m66592 = the_controller;
-	int retval;
-
-	if (!driver
-			|| driver->max_speed < USB_SPEED_HIGH
-			|| !bind
-			|| !driver->setup)
-		return -EINVAL;
-	if (!m66592)
-		return -ENODEV;
-	if (m66592->driver)
-		return -EBUSY;
+	struct m66592 *m66592 = to_m66592(g);
 
 	/* hook up the driver */
 	driver->driver.bus = NULL;
 	m66592->driver = driver;
-	m66592->gadget.dev.driver = &driver->driver;
-
-	retval = device_add(&m66592->gadget.dev);
-	if (retval) {
-		pr_err("device_add error (%d)\n", retval);
-		goto error;
-	}
-
-	retval = bind(&m66592->gadget, driver);
-	if (retval) {
-		pr_err("bind to driver error (%d)\n", retval);
-		device_del(&m66592->gadget.dev);
-		goto error;
-	}
 
 	m66592_bset(m66592, M66592_VBSE | M66592_URST, M66592_INTENB0);
 	if (m66592_read(m66592, M66592_INTSTS0) & M66592_VBSTS) {
@@ -1510,37 +1483,22 @@ static int m66592_start(struct usb_gadget_driver *driver,
 	}
 
 	return 0;
-
-error:
-	m66592->driver = NULL;
-	m66592->gadget.dev.driver = NULL;
-
-	return retval;
 }
 
-static int m66592_stop(struct usb_gadget_driver *driver)
+static int m66592_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct m66592 *m66592 = the_controller;
-	unsigned long flags;
-
-	if (driver != m66592->driver || !driver->unbind)
-		return -EINVAL;
-
-	spin_lock_irqsave(&m66592->lock, flags);
-	if (m66592->gadget.speed != USB_SPEED_UNKNOWN)
-		m66592_usb_disconnect(m66592);
-	spin_unlock_irqrestore(&m66592->lock, flags);
+	struct m66592 *m66592 = to_m66592(g);
 
 	m66592_bclr(m66592, M66592_VBSE | M66592_URST, M66592_INTENB0);
 
 	driver->unbind(&m66592->gadget);
-	m66592->gadget.dev.driver = NULL;
 
 	init_controller(m66592);
 	disable_controller(m66592);
 
-	device_del(&m66592->gadget.dev);
 	m66592->driver = NULL;
+
 	return 0;
 }
 
@@ -1566,16 +1524,16 @@ static int m66592_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
-static struct usb_gadget_ops m66592_gadget_ops = {
+static const struct usb_gadget_ops m66592_gadget_ops = {
 	.get_frame		= m66592_get_frame,
-	.start			= m66592_start,
-	.stop			= m66592_stop,
+	.udc_start		= m66592_udc_start,
+	.udc_stop		= m66592_udc_stop,
 	.pullup			= m66592_pullup,
 };
 
 static int __exit m66592_remove(struct platform_device *pdev)
 {
-	struct m66592		*m66592 = dev_get_drvdata(&pdev->dev);
+	struct m66592		*m66592 = platform_get_drvdata(pdev);
 
 	usb_del_gadget_udc(&m66592->gadget);
 
@@ -1626,7 +1584,7 @@ static int __init m66592_probe(struct platform_device *pdev)
 		goto clean_up;
 	}
 
-	if (pdev->dev.platform_data == NULL) {
+	if (dev_get_platdata(&pdev->dev) == NULL) {
 		dev_err(&pdev->dev, "no platform data\n");
 		ret = -ENODEV;
 		goto clean_up;
@@ -1640,19 +1598,14 @@ static int __init m66592_probe(struct platform_device *pdev)
 		goto clean_up;
 	}
 
-	m66592->pdata = pdev->dev.platform_data;
+	m66592->pdata = dev_get_platdata(&pdev->dev);
 	m66592->irq_trigger = ires->flags & IRQF_TRIGGER_MASK;
 
 	spin_lock_init(&m66592->lock);
-	dev_set_drvdata(&pdev->dev, m66592);
+	platform_set_drvdata(pdev, m66592);
 
 	m66592->gadget.ops = &m66592_gadget_ops;
-	device_initialize(&m66592->gadget.dev);
-	dev_set_name(&m66592->gadget.dev, "gadget");
 	m66592->gadget.max_speed = USB_SPEED_HIGH;
-	m66592->gadget.dev.parent = &pdev->dev;
-	m66592->gadget.dev.dma_mask = pdev->dev.dma_mask;
-	m66592->gadget.dev.release = pdev->dev.release;
 	m66592->gadget.name = udc_name;
 
 	init_timer(&m66592->timer);
@@ -1706,11 +1659,11 @@ static int __init m66592_probe(struct platform_device *pdev)
 	m66592->pipenum2ep[0] = &m66592->ep[0];
 	m66592->epaddr2ep[0] = &m66592->ep[0];
 
-	the_controller = m66592;
-
 	m66592->ep0_req = m66592_alloc_request(&m66592->ep[0].ep, GFP_KERNEL);
-	if (m66592->ep0_req == NULL)
+	if (m66592->ep0_req == NULL) {
+		ret = -ENOMEM;
 		goto clean_up3;
+	}
 	m66592->ep0_req->complete = nop_completion;
 
 	init_controller(m66592);
@@ -1753,14 +1706,4 @@ static struct platform_driver m66592_driver = {
 	},
 };
 
-static int __init m66592_udc_init(void)
-{
-	return platform_driver_probe(&m66592_driver, m66592_probe);
-}
-module_init(m66592_udc_init);
-
-static void __exit m66592_udc_cleanup(void)
-{
-	platform_driver_unregister(&m66592_driver);
-}
-module_exit(m66592_udc_cleanup);
+module_platform_driver_probe(m66592_driver, m66592_probe);

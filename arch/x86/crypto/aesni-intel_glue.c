@@ -34,14 +34,13 @@
 #include <asm/cpu_device_id.h>
 #include <asm/i387.h>
 #include <asm/crypto/aes.h>
-#include <asm/crypto/ablk_helper.h>
+#include <crypto/ablk_helper.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/internal/aead.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
-
-#if defined(CONFIG_CRYPTO_CTR) || defined(CONFIG_CRYPTO_CTR_MODULE)
-#define HAS_CTR
+#ifdef CONFIG_X86_64
+#include <asm/crypto/glue_helper.h>
 #endif
 
 #if defined(CONFIG_CRYPTO_PCBC) || defined(CONFIG_CRYPTO_PCBC_MODULE)
@@ -105,6 +104,9 @@ void crypto_fpu_exit(void);
 #ifdef CONFIG_X86_64
 asmlinkage void aesni_ctr_enc(struct crypto_aes_ctx *ctx, u8 *out,
 			      const u8 *in, unsigned int len, u8 *iv);
+
+asmlinkage void aesni_xts_crypt8(struct crypto_aes_ctx *ctx, u8 *out,
+				 const u8 *in, bool enc, u8 *iv);
 
 /* asmlinkage void aesni_gcm_enc()
  * void *ctx,  AES Key schedule. Starts on a 16 byte boundary.
@@ -395,12 +397,6 @@ static int ablk_ctr_init(struct crypto_tfm *tfm)
 	return ablk_init_common(tfm, "__driver-ctr-aes-aesni");
 }
 
-#ifdef HAS_CTR
-static int ablk_rfc3686_ctr_init(struct crypto_tfm *tfm)
-{
-	return ablk_init_common(tfm, "rfc3686(__driver-ctr-aes-aesni)");
-}
-#endif
 #endif
 
 #ifdef HAS_PCBC
@@ -520,6 +516,78 @@ static void aesni_xts_tweak(void *ctx, u8 *out, const u8 *in)
 	aesni_enc(ctx, out, in);
 }
 
+#ifdef CONFIG_X86_64
+
+static void aesni_xts_enc(void *ctx, u128 *dst, const u128 *src, le128 *iv)
+{
+	glue_xts_crypt_128bit_one(ctx, dst, src, iv, GLUE_FUNC_CAST(aesni_enc));
+}
+
+static void aesni_xts_dec(void *ctx, u128 *dst, const u128 *src, le128 *iv)
+{
+	glue_xts_crypt_128bit_one(ctx, dst, src, iv, GLUE_FUNC_CAST(aesni_dec));
+}
+
+static void aesni_xts_enc8(void *ctx, u128 *dst, const u128 *src, le128 *iv)
+{
+	aesni_xts_crypt8(ctx, (u8 *)dst, (const u8 *)src, true, (u8 *)iv);
+}
+
+static void aesni_xts_dec8(void *ctx, u128 *dst, const u128 *src, le128 *iv)
+{
+	aesni_xts_crypt8(ctx, (u8 *)dst, (const u8 *)src, false, (u8 *)iv);
+}
+
+static const struct common_glue_ctx aesni_enc_xts = {
+	.num_funcs = 2,
+	.fpu_blocks_limit = 1,
+
+	.funcs = { {
+		.num_blocks = 8,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(aesni_xts_enc8) }
+	}, {
+		.num_blocks = 1,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(aesni_xts_enc) }
+	} }
+};
+
+static const struct common_glue_ctx aesni_dec_xts = {
+	.num_funcs = 2,
+	.fpu_blocks_limit = 1,
+
+	.funcs = { {
+		.num_blocks = 8,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(aesni_xts_dec8) }
+	}, {
+		.num_blocks = 1,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(aesni_xts_dec) }
+	} }
+};
+
+static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
+		       struct scatterlist *src, unsigned int nbytes)
+{
+	struct aesni_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+
+	return glue_xts_crypt_128bit(&aesni_enc_xts, desc, dst, src, nbytes,
+				     XTS_TWEAK_CAST(aesni_xts_tweak),
+				     aes_ctx(ctx->raw_tweak_ctx),
+				     aes_ctx(ctx->raw_crypt_ctx));
+}
+
+static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
+		       struct scatterlist *src, unsigned int nbytes)
+{
+	struct aesni_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+
+	return glue_xts_crypt_128bit(&aesni_dec_xts, desc, dst, src, nbytes,
+				     XTS_TWEAK_CAST(aesni_xts_tweak),
+				     aes_ctx(ctx->raw_tweak_ctx),
+				     aes_ctx(ctx->raw_crypt_ctx));
+}
+
+#else
+
 static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
@@ -569,6 +637,8 @@ static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 
 	return ret;
 }
+
+#endif
 
 #ifdef CONFIG_X86_64
 static int rfc4106_init(struct crypto_tfm *tfm)
@@ -1158,33 +1228,6 @@ static struct crypto_alg aesni_algs[] = { {
 			.maxauthsize	= 16,
 		},
 	},
-#ifdef HAS_CTR
-}, {
-	.cra_name		= "rfc3686(ctr(aes))",
-	.cra_driver_name	= "rfc3686-ctr-aes-aesni",
-	.cra_priority		= 400,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= 1,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_rfc3686_ctr_init,
-	.cra_exit		= ablk_exit,
-	.cra_u = {
-		.ablkcipher = {
-			.min_keysize = AES_MIN_KEY_SIZE +
-				       CTR_RFC3686_NONCE_SIZE,
-			.max_keysize = AES_MAX_KEY_SIZE +
-				       CTR_RFC3686_NONCE_SIZE,
-			.ivsize	     = CTR_RFC3686_IV_SIZE,
-			.setkey	     = ablk_set_key,
-			.encrypt     = ablk_encrypt,
-			.decrypt     = ablk_decrypt,
-			.geniv	     = "seqiv",
-		},
-	},
-#endif
 #endif
 #ifdef HAS_PCBC
 }, {

@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/syscore_ops.h>
+#include <asm/cpu.h>
 #include <asm/mach-au1x00/au1000.h>
 
 /* control register offsets */
@@ -122,7 +123,7 @@ static inline void __au1300_ohci_control(void __iomem *base, int enable, int id)
 	unsigned long r;
 
 	if (enable) {
-		__raw_writel(1, base + USB_DWC_CTRL7);  /* start OHCI clock */
+		__raw_writel(1, base + USB_DWC_CTRL7);	/* start OHCI clock */
 		wmb();
 
 		r = __raw_readl(base + USB_DWC_CTRL3);	/* enable OHCI block */
@@ -358,7 +359,7 @@ static inline int au1200_coherency_bug(void)
 {
 #if defined(CONFIG_DMA_COHERENT)
 	/* Au1200 AB USB does not support coherent memory */
-	if (!(read_c0_prid() & 0xff)) {
+	if (!(read_c0_prid() & PRID_REV_MASK)) {
 		printk(KERN_INFO "Au1200 USB: this is chip revision AB !!\n");
 		printk(KERN_INFO "Au1200 USB: update your board or re-configure"
 				 " the kernel\n");

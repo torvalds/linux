@@ -115,7 +115,7 @@ sys_call_table:
 	.long	sys_statfs
 	.long	sys_fstatfs		/* 100 */
 	.long	sys_vhangup
-	.long	__sys_sigaltstack
+	.long	sys_sigaltstack
 	.long	sys_syslog
 	.long	sys_setitimer
 	.long	sys_getitimer		/* 105 */

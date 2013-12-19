@@ -1012,13 +1012,12 @@ static int pcxhr_handle_async_err(struct pcxhr_mgr *mgr, u32 err,
 				  enum pcxhr_async_err_src err_src, int pipe,
 				  int is_capture)
 {
-#ifdef CONFIG_SND_DEBUG_VERBOSE
 	static char* err_src_name[] = {
 		[PCXHR_ERR_PIPE]	= "Pipe",
 		[PCXHR_ERR_STREAM]	= "Stream",
 		[PCXHR_ERR_AUDIO]	= "Audio"
 	};
-#endif
+
 	if (err & 0xfff)
 		err &= 0xfff;
 	else

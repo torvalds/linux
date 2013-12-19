@@ -7,15 +7,18 @@
 #include <linux/io.h>
 #include <linux/errno.h>
 #include <linux/clksrc-dbx500-prcmu.h>
+#include <linux/clocksource.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_data/clocksource-nomadik-mtu.h>
 
 #include <asm/smp_twd.h>
 
-#include <mach/setup.h>
-#include <mach/hardware.h>
-#include <mach/irqs.h>
+#include "setup.h"
+#include "irqs.h"
+
+#include "db8500-regs.h"
+#include "id.h"
 
 #ifdef CONFIG_HAVE_ARM_TWD
 static DEFINE_TWD_LOCAL_TIMER(u8500_twd_local_timer,
@@ -30,7 +33,7 @@ static void __init ux500_twd_init(void)
 	twd_local_timer = &u8500_twd_local_timer;
 
 	if (of_have_populated_dt())
-		twd_local_timer_of_register();
+		clocksource_of_init();
 	else {
 		err = twd_local_timer_register(twd_local_timer);
 		if (err)
@@ -46,7 +49,7 @@ const static struct of_device_id prcmu_timer_of_match[] __initconst = {
 	{ },
 };
 
-static void __init ux500_timer_init(void)
+void __init ux500_timer_init(void)
 {
 	void __iomem *mtu_timer_base;
 	void __iomem *prcmu_timer_base;
@@ -94,19 +97,8 @@ dt_fail:
 	 * sched_clock with higher rating then MTU since is always-on.
 	 *
 	 */
-
-	nmdk_timer_init(mtu_timer_base, IRQ_MTU0);
+	if (!of_have_populated_dt())
+		nmdk_timer_init(mtu_timer_base, IRQ_MTU0);
 	clksrc_dbx500_prcmu_init(prcmu_timer_base);
 	ux500_twd_init();
 }
-
-static void ux500_timer_reset(void)
-{
-	nmdk_clkevt_reset();
-	nmdk_clksrc_reset();
-}
-
-struct sys_timer ux500_timer = {
-	.init		= ux500_timer_init,
-	.resume		= ux500_timer_reset,
-};

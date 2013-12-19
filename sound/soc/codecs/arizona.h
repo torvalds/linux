@@ -32,23 +32,32 @@
 #define ARIZONA_CLK_SRC_AIF2BCLK 0x9
 #define ARIZONA_CLK_SRC_AIF3BCLK 0xa
 
+#define ARIZONA_FLL_SRC_NONE      -1
 #define ARIZONA_FLL_SRC_MCLK1      0
 #define ARIZONA_FLL_SRC_MCLK2      1
-#define ARIZONA_FLL_SRC_SLIMCLK    2
-#define ARIZONA_FLL_SRC_FLL1       3
-#define ARIZONA_FLL_SRC_FLL2       4
-#define ARIZONA_FLL_SRC_AIF1BCLK   5
-#define ARIZONA_FLL_SRC_AIF2BCLK   6
-#define ARIZONA_FLL_SRC_AIF3BCLK   7
-#define ARIZONA_FLL_SRC_AIF1LRCLK  8
-#define ARIZONA_FLL_SRC_AIF2LRCLK  9
-#define ARIZONA_FLL_SRC_AIF3LRCLK 10
+#define ARIZONA_FLL_SRC_SLIMCLK    3
+#define ARIZONA_FLL_SRC_FLL1       4
+#define ARIZONA_FLL_SRC_FLL2       5
+#define ARIZONA_FLL_SRC_AIF1BCLK   8
+#define ARIZONA_FLL_SRC_AIF2BCLK   9
+#define ARIZONA_FLL_SRC_AIF3BCLK  10
+#define ARIZONA_FLL_SRC_AIF1LRCLK 12
+#define ARIZONA_FLL_SRC_AIF2LRCLK 13
+#define ARIZONA_FLL_SRC_AIF3LRCLK 14
 
 #define ARIZONA_MIXER_VOL_MASK             0x00FE
 #define ARIZONA_MIXER_VOL_SHIFT                 1
 #define ARIZONA_MIXER_VOL_WIDTH                 7
 
-#define ARIZONA_MAX_DAI  4
+#define ARIZONA_CLK_6MHZ   0
+#define ARIZONA_CLK_12MHZ  1
+#define ARIZONA_CLK_24MHZ  2
+#define ARIZONA_CLK_49MHZ  3
+#define ARIZONA_CLK_73MHZ  4
+#define ARIZONA_CLK_98MHZ  5
+#define ARIZONA_CLK_147MHZ 6
+
+#define ARIZONA_MAX_DAI  6
 #define ARIZONA_MAX_ADSP 4
 
 struct arizona;
@@ -64,9 +73,15 @@ struct arizona_priv {
 	int sysclk;
 	int asyncclk;
 	struct arizona_dai_priv dai[ARIZONA_MAX_DAI];
+
+	int num_inputs;
+	unsigned int in_pending;
+
+	unsigned int spk_ena:2;
+	unsigned int spk_ena_pending:1;
 };
 
-#define ARIZONA_NUM_MIXER_INPUTS 75
+#define ARIZONA_NUM_MIXER_INPUTS 99
 
 extern const unsigned int arizona_mixer_tlv[];
 extern const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS];
@@ -135,7 +150,8 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	ARIZONA_MUX(name_str " Aux 5", &name##_aux5_mux), \
 	ARIZONA_MUX(name_str " Aux 6", &name##_aux6_mux)
 
-#define ARIZONA_MUX_ROUTES(name) \
+#define ARIZONA_MUX_ROUTES(widget, name) \
+	{ widget, NULL, name " Input" }, \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Input")
 
 #define ARIZONA_MIXER_ROUTES(widget, name) \
@@ -165,6 +181,12 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	ARIZONA_MIXER_ROUTES(name, name "L"), \
 	ARIZONA_MIXER_ROUTES(name, name "R")
 
+#define ARIZONA_RATE_ENUM_SIZE 4
+extern const char *arizona_rate_text[ARIZONA_RATE_ENUM_SIZE];
+extern const int arizona_rate_val[ARIZONA_RATE_ENUM_SIZE];
+
+extern const struct soc_enum arizona_isrc_fsl[];
+
 extern const struct soc_enum arizona_in_vi_ramp;
 extern const struct soc_enum arizona_in_vd_ramp;
 
@@ -176,17 +198,24 @@ extern const struct soc_enum arizona_lhpf2_mode;
 extern const struct soc_enum arizona_lhpf3_mode;
 extern const struct soc_enum arizona_lhpf4_mode;
 
+extern const struct soc_enum arizona_ng_hold;
+extern const struct soc_enum arizona_in_dmic_osr[];
+
 extern int arizona_in_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
 			 int event);
 extern int arizona_out_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol,
 			  int event);
+extern int arizona_hp_ev(struct snd_soc_dapm_widget *w,
+			 struct snd_kcontrol *kcontrol,
+			 int event);
 
 extern int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 			      int source, unsigned int freq, int dir);
 
 extern const struct snd_soc_dai_ops arizona_dai_ops;
+extern const struct snd_soc_dai_ops arizona_simple_dai_ops;
 
 #define ARIZONA_FLL_NAME_LEN 20
 
@@ -195,10 +224,13 @@ struct arizona_fll {
 	int id;
 	unsigned int base;
 	unsigned int vco_mult;
-	struct completion lock;
 	struct completion ok;
-	unsigned int fref;
+
 	unsigned int fout;
+	int sync_src;
+	unsigned int sync_freq;
+	int ref_src;
+	unsigned int ref_freq;
 
 	char lock_name[ARIZONA_FLL_NAME_LEN];
 	char clock_ok_name[ARIZONA_FLL_NAME_LEN];
@@ -206,9 +238,17 @@ struct arizona_fll {
 
 extern int arizona_init_fll(struct arizona *arizona, int id, int base,
 			    int lock_irq, int ok_irq, struct arizona_fll *fll);
+extern int arizona_set_fll_refclk(struct arizona_fll *fll, int source,
+				  unsigned int Fref, unsigned int Fout);
 extern int arizona_set_fll(struct arizona_fll *fll, int source,
 			   unsigned int Fref, unsigned int Fout);
 
+extern int arizona_init_spk(struct snd_soc_codec *codec);
+extern int arizona_init_gpio(struct snd_soc_codec *codec);
+
 extern int arizona_init_dai(struct arizona_priv *priv, int dai);
+
+int arizona_set_output_mode(struct snd_soc_codec *codec, int output,
+			    bool diff);
 
 #endif

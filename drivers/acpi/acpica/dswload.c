@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@
 #include "acnamesp.h"
 
 #ifdef ACPI_ASL_COMPILER
-#include <acpi/acdisasm.h>
+#include "acdisasm.h"
 #endif
 
 #define _COMPONENT          ACPI_DISPATCHER
@@ -74,6 +74,7 @@ acpi_ds_init_callbacks(struct acpi_walk_state *walk_state, u32 pass_number)
 
 	switch (pass_number) {
 	case 1:
+
 		walk_state->parse_flags = ACPI_PARSE_LOAD_PASS1 |
 		    ACPI_PARSE_DELETE_TREE;
 		walk_state->descending_callback = acpi_ds_load1_begin_op;
@@ -81,6 +82,7 @@ acpi_ds_init_callbacks(struct acpi_walk_state *walk_state, u32 pass_number)
 		break;
 
 	case 2:
+
 		walk_state->parse_flags = ACPI_PARSE_LOAD_PASS1 |
 		    ACPI_PARSE_DELETE_TREE;
 		walk_state->descending_callback = acpi_ds_load2_begin_op;
@@ -88,6 +90,7 @@ acpi_ds_init_callbacks(struct acpi_walk_state *walk_state, u32 pass_number)
 		break;
 
 	case 3:
+
 #ifndef ACPI_NO_METHOD_EXECUTION
 		walk_state->parse_flags |= ACPI_PARSE_EXECUTE |
 		    ACPI_PARSE_DELETE_TREE;
@@ -97,6 +100,7 @@ acpi_ds_init_callbacks(struct acpi_walk_state *walk_state, u32 pass_number)
 		break;
 
 	default:
+
 		return (AE_BAD_PARAMETER);
 	}
 
@@ -161,7 +165,6 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 
 	switch (walk_state->opcode) {
 	case AML_SCOPE_OP:
-
 		/*
 		 * The target name of the Scope() operator must exist at this point so
 		 * that we can actually open the scope to enter new names underneath it.
@@ -178,7 +181,8 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 			 * Target of Scope() not found. Generate an External for it, and
 			 * insert the name into the namespace.
 			 */
-			acpi_dm_add_to_external_list(path, ACPI_TYPE_DEVICE, 0);
+			acpi_dm_add_to_external_list(op, path, ACPI_TYPE_DEVICE,
+						     0);
 			status =
 			    acpi_ns_lookup(walk_state->scope_info, path,
 					   object_type, ACPI_IMODE_LOAD_PASS1,
@@ -209,7 +213,6 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 		case ACPI_TYPE_INTEGER:
 		case ACPI_TYPE_STRING:
 		case ACPI_TYPE_BUFFER:
-
 			/*
 			 * These types we will allow, but we will change the type.
 			 * This enables some existing code of the form:
@@ -231,7 +234,6 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 			break;
 
 		case ACPI_TYPE_METHOD:
-
 			/*
 			 * Allow scope change to root during execution of module-level
 			 * code. Root is typed METHOD during this time.

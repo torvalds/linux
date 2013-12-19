@@ -1,6 +1,10 @@
 menu "CPU support"
 	depends on BCM63XX
 
+config BCM63XX_CPU_3368
+	bool "support 3368 CPU"
+	select HW_HAS_PCI
+
 config BCM63XX_CPU_6328
 	bool "support 6328 CPU"
 	select HW_HAS_PCI
@@ -8,14 +12,9 @@ config BCM63XX_CPU_6328
 config BCM63XX_CPU_6338
 	bool "support 6338 CPU"
 	select HW_HAS_PCI
-	select USB_ARCH_HAS_OHCI
-	select USB_OHCI_BIG_ENDIAN_DESC
-	select USB_OHCI_BIG_ENDIAN_MMIO
 
 config BCM63XX_CPU_6345
 	bool "support 6345 CPU"
-	select USB_OHCI_BIG_ENDIAN_DESC
-	select USB_OHCI_BIG_ENDIAN_MMIO
 
 config BCM63XX_CPU_6348
 	bool "support 6348 CPU"
@@ -23,6 +22,10 @@ config BCM63XX_CPU_6348
 
 config BCM63XX_CPU_6358
 	bool "support 6358 CPU"
+	select HW_HAS_PCI
+
+config BCM63XX_CPU_6362
+	bool "support 6362 CPU"
 	select HW_HAS_PCI
 
 config BCM63XX_CPU_6368

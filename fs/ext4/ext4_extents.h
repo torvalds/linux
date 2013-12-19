@@ -134,12 +134,6 @@ struct ext4_ext_path {
  */
 
 /*
- * Maximum number of logical blocks in a file; ext4_extent's ee_block is
- * __le32.
- */
-#define EXT_MAX_BLOCKS	0xffffffff
-
-/*
  * EXT_INIT_MAX_LEN is the maximum number of blocks we can have in an
  * initialized extent. This is 2^15 and not (2^16 - 1), since we use the
  * MSB of ee_len field in the extent datastructure to signify if this
@@ -191,12 +185,6 @@ static inline struct ext4_extent_header *ext_block_hdr(struct buffer_head *bh)
 static inline unsigned short ext_depth(struct inode *inode)
 {
 	return le16_to_cpu(ext_inode_hdr(inode)->eh_depth);
-}
-
-static inline void
-ext4_ext_invalidate_cache(struct inode *inode)
-{
-	EXT4_I(inode)->i_cached_extent.ec_len = 0;
 }
 
 static inline void ext4_ext_mark_uninitialized(struct ext4_extent *ext)
@@ -275,6 +263,11 @@ static inline void ext4_idx_store_pblock(struct ext4_extent_idx *ix,
 	ix->ei_leaf_hi = cpu_to_le16((unsigned long) ((pb >> 31) >> 1) &
 				     0xffff);
 }
+
+#define ext4_ext_dirty(handle, inode, path) \
+		__ext4_ext_dirty(__func__, __LINE__, (handle), (inode), (path))
+int __ext4_ext_dirty(const char *where, unsigned int line, handle_t *handle,
+		     struct inode *inode, struct ext4_ext_path *path);
 
 #endif /* _EXT4_EXTENTS */
 

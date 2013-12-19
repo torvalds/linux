@@ -245,7 +245,7 @@ static ssize_t set_target(struct device *dev, struct device_attribute *devattr,
 	if (err)
 		return err;
 
-	rpm = SENSORS_LIMIT(rpm, FAN_RPM_MIN, FAN_RPM_MAX);
+	rpm = clamp_val(rpm, FAN_RPM_MIN, FAN_RPM_MAX);
 
 	/*
 	 * Divide the required speed by 60 to get from rpm to rps, then
@@ -313,7 +313,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *devattr,
 	if (err)
 		return err;
 
-	pwm = SENSORS_LIMIT(pwm, 0, 255);
+	pwm = clamp_val(pwm, 0, 255);
 
 	mutex_lock(&data->update_lock);
 
@@ -660,7 +660,7 @@ static int max6650_init_client(struct i2c_client *client)
 	/*
 	 * If mode is set to "full off", we change it to "open loop" and
 	 * set DAC to 255, which has the same effect. We do this because
-	 * there's no "full off" mode defined in hwmon specifcations.
+	 * there's no "full off" mode defined in hwmon specifications.
 	 */
 
 	if ((config & MAX6650_CFG_MODE_MASK) == MAX6650_CFG_MODE_OFF) {

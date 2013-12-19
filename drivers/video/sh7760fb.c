@@ -431,7 +431,7 @@ static int sh7760fb_alloc_mem(struct fb_info *info)
 	return 0;
 }
 
-static int __devinit sh7760fb_probe(struct platform_device *pdev)
+static int sh7760fb_probe(struct platform_device *pdev)
 {
 	struct fb_info *info;
 	struct resource *res;
@@ -557,7 +557,7 @@ out_fb:
 	return ret;
 }
 
-static int __devexit sh7760fb_remove(struct platform_device *dev)
+static int sh7760fb_remove(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 	struct sh7760fb_par *par = info->par;
@@ -567,11 +567,10 @@ static int __devexit sh7760fb_remove(struct platform_device *dev)
 	fb_dealloc_cmap(&info->cmap);
 	sh7760fb_free_mem(info);
 	if (par->irq >= 0)
-		free_irq(par->irq, par);
+		free_irq(par->irq, &par->vsync);
 	iounmap(par->base);
 	release_mem_region(par->ioarea->start, resource_size(par->ioarea));
 	framebuffer_release(info);
-	platform_set_drvdata(dev, NULL);
 
 	return 0;
 }
@@ -582,7 +581,7 @@ static struct platform_driver sh7760_lcdc_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = sh7760fb_probe,
-	.remove = __devexit_p(sh7760fb_remove),
+	.remove = sh7760fb_remove,
 };
 
 module_platform_driver(sh7760_lcdc_driver);

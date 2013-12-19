@@ -242,8 +242,7 @@ static struct dca_ops ioat_dca_ops = {
 };
 
 
-struct dca_provider * __devinit
-ioat_dca_init(struct pci_dev *pdev, void __iomem *iobase)
+struct dca_provider *ioat_dca_init(struct pci_dev *pdev, void __iomem *iobase)
 {
 	struct dca_provider *dca;
 	struct ioat_dca_priv *ioatdca;
@@ -408,8 +407,7 @@ static int ioat2_dca_count_dca_slots(void __iomem *iobase, u16 dca_offset)
 	return slots;
 }
 
-struct dca_provider * __devinit
-ioat2_dca_init(struct pci_dev *pdev, void __iomem *iobase)
+struct dca_provider *ioat2_dca_init(struct pci_dev *pdev, void __iomem *iobase)
 {
 	struct dca_provider *dca;
 	struct ioat_dca_priv *ioatdca;
@@ -472,8 +470,10 @@ ioat2_dca_init(struct pci_dev *pdev, void __iomem *iobase)
 	}
 
 	if (!dca2_tag_map_valid(ioatdca->tag_map)) {
-		dev_err(&pdev->dev, "APICID_TAG_MAP set incorrectly by BIOS, "
-			"disabling DCA\n");
+		WARN_TAINT_ONCE(1, TAINT_FIRMWARE_WORKAROUND,
+				"%s %s: APICID_TAG_MAP set incorrectly by BIOS, disabling DCA\n",
+				dev_driver_string(&pdev->dev),
+				dev_name(&pdev->dev));
 		free_dca_provider(dca);
 		return NULL;
 	}
@@ -621,8 +621,7 @@ static inline int dca3_tag_map_invalid(u8 *tag_map)
 		(tag_map[4] == DCA_TAG_MAP_VALID));
 }
 
-struct dca_provider * __devinit
-ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase)
+struct dca_provider *ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase)
 {
 	struct dca_provider *dca;
 	struct ioat_dca_priv *ioatdca;
@@ -692,7 +691,10 @@ ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase)
 	}
 
 	if (dca3_tag_map_invalid(ioatdca->tag_map)) {
-		dev_err(&pdev->dev, "APICID_TAG_MAP set incorrectly by BIOS, disabling DCA\n");
+		WARN_TAINT_ONCE(1, TAINT_FIRMWARE_WORKAROUND,
+				"%s %s: APICID_TAG_MAP set incorrectly by BIOS, disabling DCA\n",
+				dev_driver_string(&pdev->dev),
+				dev_name(&pdev->dev));
 		free_dca_provider(dca);
 		return NULL;
 	}

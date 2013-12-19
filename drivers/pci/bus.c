@@ -158,69 +158,39 @@ pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 	return ret;
 }
 
+void __weak pcibios_resource_survey_bus(struct pci_bus *bus) { }
+
 /**
- * pci_bus_add_device - add a single device
+ * pci_bus_add_device - start driver for a single device
  * @dev: device to add
  *
- * This adds a single pci device to the global
- * device list and adds sysfs and procfs entries
+ * This adds add sysfs entries and start device drivers
  */
 int pci_bus_add_device(struct pci_dev *dev)
 {
 	int retval;
 
+	/*
+	 * Can not put in pci_device_add yet because resources
+	 * are not assigned yet for some devices.
+	 */
 	pci_fixup_device(pci_fixup_final, dev);
+	pci_create_sysfs_dev_files(dev);
 
-	retval = pcibios_add_device(dev);
-	if (retval)
-		return retval;
-
-	retval = device_add(&dev->dev);
-	if (retval)
-		return retval;
+	dev->match_driver = true;
+	retval = device_attach(&dev->dev);
+	WARN_ON(retval < 0);
 
 	dev->is_added = 1;
-	pci_proc_attach_device(dev);
-	pci_create_sysfs_dev_files(dev);
+
 	return 0;
 }
 
 /**
- * pci_bus_add_child - add a child bus
- * @bus: bus to add
- *
- * This adds sysfs entries for a single bus
- */
-int pci_bus_add_child(struct pci_bus *bus)
-{
-	int retval;
-
-	if (bus->bridge)
-		bus->dev.parent = bus->bridge;
-
-	retval = device_register(&bus->dev);
-	if (retval)
-		return retval;
-
-	bus->is_added = 1;
-
-	/* Create legacy_io and legacy_mem files for this bus */
-	pci_create_legacy_files(bus);
-
-	return retval;
-}
-
-/**
- * pci_bus_add_devices - insert newly discovered PCI devices
+ * pci_bus_add_devices - start driver for PCI devices
  * @bus: bus to check for new devices
  *
- * Add newly discovered PCI devices (which are on the bus->devices
- * list) to the global PCI device list, add the sysfs and procfs
- * entries.  Where a bridge is found, add the discovered bus to
- * the parents list of child buses, and recurse (breadth-first
- * to be compatible with 2.4)
- *
- * Call hotplug for each new devices.
+ * Start driver for PCI devices and add some sysfs entries.
  */
 void pci_bus_add_devices(const struct pci_bus *bus)
 {
@@ -234,53 +204,15 @@ void pci_bus_add_devices(const struct pci_bus *bus)
 			continue;
 		retval = pci_bus_add_device(dev);
 		if (retval)
-			dev_err(&dev->dev, "Error adding device, continuing\n");
+			dev_err(&dev->dev, "Error adding device (%d)\n",
+				retval);
 	}
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		BUG_ON(!dev->is_added);
-
 		child = dev->subordinate;
-		/*
-		 * If there is an unattached subordinate bus, attach
-		 * it and then scan for unattached PCI devices.
-		 */
-		if (!child)
-			continue;
-		if (list_empty(&child->node)) {
-			down_write(&pci_bus_sem);
-			list_add_tail(&child->node, &dev->bus->children);
-			up_write(&pci_bus_sem);
-		}
-		pci_bus_add_devices(child);
-
-		/*
-		 * register the bus with sysfs as the parent is now
-		 * properly registered.
-		 */
-		if (child->is_added)
-			continue;
-		retval = pci_bus_add_child(child);
-		if (retval)
-			dev_err(&dev->dev, "Error adding bus, continuing\n");
-	}
-}
-
-void pci_enable_bridges(struct pci_bus *bus)
-{
-	struct pci_dev *dev;
-	int retval;
-
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		if (dev->subordinate) {
-			if (!pci_is_enabled(dev)) {
-				retval = pci_enable_device(dev);
-				if (retval)
-					dev_err(&dev->dev, "Error enabling bridge (%d), continuing\n", retval);
-				pci_set_master(dev);
-			}
-			pci_enable_bridges(dev->subordinate);
-		}
+		if (child)
+			pci_bus_add_devices(child);
 	}
 }
 
@@ -333,7 +265,21 @@ void pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void *),
 }
 EXPORT_SYMBOL_GPL(pci_walk_bus);
 
+struct pci_bus *pci_bus_get(struct pci_bus *bus)
+{
+	if (bus)
+		get_device(&bus->dev);
+	return bus;
+}
+EXPORT_SYMBOL(pci_bus_get);
+
+void pci_bus_put(struct pci_bus *bus)
+{
+	if (bus)
+		put_device(&bus->dev);
+}
+EXPORT_SYMBOL(pci_bus_put);
+
 EXPORT_SYMBOL(pci_bus_alloc_resource);
 EXPORT_SYMBOL_GPL(pci_bus_add_device);
 EXPORT_SYMBOL(pci_bus_add_devices);
-EXPORT_SYMBOL(pci_enable_bridges);

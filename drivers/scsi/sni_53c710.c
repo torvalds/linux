@@ -65,7 +65,7 @@ static struct scsi_host_template snirm710_template = {
 	.module		= THIS_MODULE,
 };
 
-static int __devinit snirm710_probe(struct platform_device *dev)
+static int snirm710_probe(struct platform_device *dev)
 {
 	unsigned long base;
 	struct NCR_700_Host_Parameters *hostdata;
@@ -134,7 +134,7 @@ static int __exit snirm710_driver_remove(struct platform_device *dev)
 
 static struct platform_driver snirm710_driver = {
 	.probe	= snirm710_probe,
-	.remove	= __devexit_p(snirm710_driver_remove),
+	.remove	= snirm710_driver_remove,
 	.driver	= {
 		.name	= "snirm_53c710",
 		.owner	= THIS_MODULE,

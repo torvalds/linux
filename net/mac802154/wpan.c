@@ -41,7 +41,7 @@ static inline int mac802154_fetch_skb_u8(struct sk_buff *skb, u8 *val)
 		return -EINVAL;
 
 	*val = skb->data[0];
-	 skb_pull(skb, 1);
+	skb_pull(skb, 1);
 
 	return 0;
 }
@@ -137,18 +137,16 @@ static int mac802154_header_create(struct sk_buff *skb,
 	struct ieee802154_addr dev_addr;
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
 	int pos = 2;
-	u8 *head;
+	u8 head[MAC802154_FRAME_HARD_HEADER_LEN];
 	u16 fc;
 
 	if (!daddr)
 		return -EINVAL;
 
-	head = kzalloc(MAC802154_FRAME_HARD_HEADER_LEN, GFP_KERNEL);
-	if (head == NULL)
-		return -ENOMEM;
-
 	head[pos++] = mac_cb(skb)->seq; /* DSN/BSN */
 	fc = mac_cb_type(skb);
+	if (mac_cb_is_ackreq(skb))
+		fc |= IEEE802154_FC_ACK_REQ;
 
 	if (!saddr) {
 		spin_lock_bh(&priv->mib_lock);
@@ -210,7 +208,8 @@ static int mac802154_header_create(struct sk_buff *skb,
 	head[1] = fc >> 8;
 
 	memcpy(skb_push(skb, pos), head, pos);
-	kfree(head);
+	skb_reset_mac_header(skb);
+	skb->mac_len = pos;
 
 	return pos;
 }
@@ -363,7 +362,7 @@ void mac802154_wpan_setup(struct net_device *dev)
 	dev->header_ops		= &mac802154_header_ops;
 	dev->needed_tailroom	= 2; /* FCS */
 	dev->mtu		= IEEE802154_MTU;
-	dev->tx_queue_len	= 10;
+	dev->tx_queue_len	= 300;
 	dev->type		= ARPHRD_IEEE802154;
 	dev->flags		= IFF_NOARP | IFF_BROADCAST;
 	dev->watchdog_timeo	= 0;
@@ -389,7 +388,7 @@ void mac802154_wpan_setup(struct net_device *dev)
 
 static int mac802154_process_data(struct net_device *dev, struct sk_buff *skb)
 {
-	return netif_rx(skb);
+	return netif_rx_ni(skb);
 }
 
 static int

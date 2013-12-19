@@ -8,10 +8,15 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/blkdev.h>
+
 /* constant macro */
 #define NULL_SEGNO			((unsigned int)(~0))
+#define NULL_SECNO			((unsigned int)(~0))
 
-/* V: Logical segment # in volume, R: Relative segment # in main area */
+#define DEF_RECLAIM_PREFREE_SEGMENTS	100	/* 200MB of prefree segments */
+
+/* L: Logical segment # in volume, R: Relative segment # in main area */
 #define GET_L2R_SEGNO(free_i, segno)	(segno - free_i->start_segno)
 #define GET_R2L_SEGNO(free_i, segno)	(segno + free_i->start_segno)
 
@@ -23,13 +28,13 @@
 	((t == CURSEG_HOT_NODE) || (t == CURSEG_COLD_NODE) ||		\
 	(t == CURSEG_WARM_NODE))
 
-#define IS_CURSEG(sbi, segno)						\
-	((segno == CURSEG_I(sbi, CURSEG_HOT_DATA)->segno) ||	\
-	 (segno == CURSEG_I(sbi, CURSEG_WARM_DATA)->segno) ||	\
-	 (segno == CURSEG_I(sbi, CURSEG_COLD_DATA)->segno) ||	\
-	 (segno == CURSEG_I(sbi, CURSEG_HOT_NODE)->segno) ||	\
-	 (segno == CURSEG_I(sbi, CURSEG_WARM_NODE)->segno) ||	\
-	 (segno == CURSEG_I(sbi, CURSEG_COLD_NODE)->segno))
+#define IS_CURSEG(sbi, seg)						\
+	((seg == CURSEG_I(sbi, CURSEG_HOT_DATA)->segno) ||	\
+	 (seg == CURSEG_I(sbi, CURSEG_WARM_DATA)->segno) ||	\
+	 (seg == CURSEG_I(sbi, CURSEG_COLD_DATA)->segno) ||	\
+	 (seg == CURSEG_I(sbi, CURSEG_HOT_NODE)->segno) ||	\
+	 (seg == CURSEG_I(sbi, CURSEG_WARM_NODE)->segno) ||	\
+	 (seg == CURSEG_I(sbi, CURSEG_COLD_NODE)->segno))
 
 #define IS_CURSEC(sbi, secno)						\
 	((secno == CURSEG_I(sbi, CURSEG_HOT_DATA)->segno /		\
@@ -81,9 +86,14 @@
 #define f2fs_bitmap_size(nr)			\
 	(BITS_TO_LONGS(nr) * sizeof(unsigned long))
 #define TOTAL_SEGS(sbi)	(SM_I(sbi)->main_segments)
+#define TOTAL_SECS(sbi)	(sbi->total_sections)
 
 #define SECTOR_FROM_BLOCK(sbi, blk_addr)				\
 	(blk_addr << ((sbi)->log_blocksize - F2FS_LOG_SECTOR_SIZE))
+#define SECTOR_TO_BLOCK(sbi, sectors)					\
+	(sectors >> ((sbi)->log_blocksize - F2FS_LOG_SECTOR_SIZE))
+#define MAX_BIO_BLOCKS(max_hw_blocks)					\
+	(min((int)max_hw_blocks, BIO_MAX_PAGES))
 
 /* during checkpoint, bio_private is used to synchronize the last bio */
 struct bio_private {
@@ -136,6 +146,7 @@ struct victim_sel_policy {
 	int alloc_mode;			/* LFS or SSR */
 	int gc_mode;			/* GC_CB or GC_GREEDY */
 	unsigned long *dirty_segmap;	/* dirty segment bitmap */
+	unsigned int max_search;	/* maximum # of segments to search */
 	unsigned int offset;		/* last scanned bitmap offset */
 	unsigned int ofs_unit;		/* bitmap search unit */
 	unsigned int min_cost;		/* minimum cost */
@@ -213,7 +224,7 @@ struct dirty_seglist_info {
 	unsigned long *dirty_segmap[NR_DIRTY_TYPE];
 	struct mutex seglist_lock;		/* lock for segment bitmaps */
 	int nr_dirty[NR_DIRTY_TYPE];		/* # of dirty segments */
-	unsigned long *victim_segmap[2];	/* BG_GC, FG_GC */
+	unsigned long *victim_secmap;		/* background GC victims */
 };
 
 /* victim selection function for cleaning and SSR */
@@ -447,25 +458,30 @@ static inline int reserved_sections(struct f2fs_sb_info *sbi)
 
 static inline bool need_SSR(struct f2fs_sb_info *sbi)
 {
-	return (free_sections(sbi) < overprovision_sections(sbi));
+	return ((prefree_segments(sbi) / sbi->segs_per_sec)
+			+ free_sections(sbi) < overprovision_sections(sbi));
 }
 
-static inline int get_ssr_segment(struct f2fs_sb_info *sbi, int type)
+static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi, int freed)
 {
-	struct curseg_info *curseg = CURSEG_I(sbi, type);
-	return DIRTY_I(sbi)->v_ops->get_victim(sbi,
-				&(curseg)->next_segno, BG_GC, type, SSR);
+	int node_secs = get_blocktype_secs(sbi, F2FS_DIRTY_NODES);
+	int dent_secs = get_blocktype_secs(sbi, F2FS_DIRTY_DENTS);
+
+	if (sbi->por_doing)
+		return false;
+
+	return ((free_sections(sbi) + freed) <= (node_secs + 2 * dent_secs +
+						reserved_sections(sbi)));
 }
 
-static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi)
+static inline bool excess_prefree_segs(struct f2fs_sb_info *sbi)
 {
-	return free_sections(sbi) <= reserved_sections(sbi);
+	return (prefree_segments(sbi) > SM_I(sbi)->rec_prefree_segments);
 }
 
 static inline int utilization(struct f2fs_sb_info *sbi)
 {
-	return (long int)valid_user_blocks(sbi) * 100 /
-			(long int)sbi->user_block_count;
+	return div_u64((u64)valid_user_blocks(sbi) * 100, sbi->user_block_count);
 }
 
 /*
@@ -506,16 +522,13 @@ static inline unsigned short curseg_blkoff(struct f2fs_sb_info *sbi, int type)
 	return curseg->next_blkoff;
 }
 
+#ifdef CONFIG_F2FS_CHECK_FS
 static inline void check_seg_range(struct f2fs_sb_info *sbi, unsigned int segno)
 {
 	unsigned int end_segno = SM_I(sbi)->segment_count - 1;
 	BUG_ON(segno > end_segno);
 }
 
-/*
- * This function is used for only debugging.
- * NOTE: In future, we have to remove this function.
- */
 static inline void verify_block_addr(struct f2fs_sb_info *sbi, block_t blk_addr)
 {
 	struct f2fs_sm_info *sm_info = SM_I(sbi);
@@ -534,8 +547,9 @@ static inline void check_block_count(struct f2fs_sb_info *sbi,
 {
 	struct f2fs_sm_info *sm_info = SM_I(sbi);
 	unsigned int end_segno = sm_info->segment_count - 1;
+	bool is_valid  = test_bit_le(0, raw_sit->valid_map) ? true : false;
 	int valid_blocks = 0;
-	int i;
+	int cur_pos = 0, next_pos;
 
 	/* check segment usage */
 	BUG_ON(GET_SIT_VBLOCKS(raw_sit) > sbi->blocks_per_seg);
@@ -544,11 +558,26 @@ static inline void check_block_count(struct f2fs_sb_info *sbi,
 	BUG_ON(segno > end_segno);
 
 	/* check bitmap with valid block count */
-	for (i = 0; i < sbi->blocks_per_seg; i++)
-		if (f2fs_test_bit(i, raw_sit->valid_map))
-			valid_blocks++;
+	do {
+		if (is_valid) {
+			next_pos = find_next_zero_bit_le(&raw_sit->valid_map,
+					sbi->blocks_per_seg,
+					cur_pos);
+			valid_blocks += next_pos - cur_pos;
+		} else
+			next_pos = find_next_bit_le(&raw_sit->valid_map,
+					sbi->blocks_per_seg,
+					cur_pos);
+		cur_pos = next_pos;
+		is_valid = !is_valid;
+	} while (cur_pos < sbi->blocks_per_seg);
 	BUG_ON(GET_SIT_VBLOCKS(raw_sit) != valid_blocks);
 }
+#else
+#define check_seg_range(sbi, segno)
+#define verify_block_addr(sbi, blk_addr)
+#define check_block_count(sbi, segno, raw_sit)
+#endif
 
 static inline pgoff_t current_sit_addr(struct f2fs_sb_info *sbi,
 						unsigned int start)
@@ -615,4 +644,18 @@ static inline block_t sum_blk_addr(struct f2fs_sb_info *sbi, int base, int type)
 	return __start_cp_addr(sbi) +
 		le32_to_cpu(F2FS_CKPT(sbi)->cp_pack_total_block_count)
 				- (base + 1) + type;
+}
+
+static inline bool sec_usage_check(struct f2fs_sb_info *sbi, unsigned int secno)
+{
+	if (IS_CURSEC(sbi, secno) || (sbi->cur_victim_sec == secno))
+		return true;
+	return false;
+}
+
+static inline unsigned int max_hw_blocks(struct f2fs_sb_info *sbi)
+{
+	struct block_device *bdev = sbi->sb->s_bdev;
+	struct request_queue *q = bdev_get_queue(bdev);
+	return SECTOR_TO_BLOCK(sbi, queue_max_sectors(q));
 }

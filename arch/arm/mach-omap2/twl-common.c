@@ -23,6 +23,8 @@
 #include <linux/i2c.h>
 #include <linux/i2c/twl.h>
 #include <linux/gpio.h>
+#include <linux/string.h>
+#include <linux/phy/phy.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
 
@@ -56,7 +58,7 @@ void __init omap_pmic_init(int bus, u32 clkrate,
 			   struct twl4030_platform_data *pmic_data)
 {
 	omap_mux_init_signal("sys_nirq", OMAP_PIN_INPUT_PULLUP | OMAP_PIN_OFF_WAKEUPENABLE);
-	strncpy(pmic_i2c_board_info.type, pmic_type,
+	strlcpy(pmic_i2c_board_info.type, pmic_type,
 		sizeof(pmic_i2c_board_info.type));
 	pmic_i2c_board_info.irq = pmic_irq;
 	pmic_i2c_board_info.platform_data = pmic_data;
@@ -89,8 +91,18 @@ void __init omap_pmic_late_init(void)
 }
 
 #if defined(CONFIG_ARCH_OMAP3)
+struct phy_consumer consumers[] = {
+	PHY_CONSUMER("musb-hdrc.0", "usb"),
+};
+
+struct phy_init_data init_data = {
+	.consumers = consumers,
+	.num_consumers = ARRAY_SIZE(consumers),
+};
+
 static struct twl4030_usb_data omap3_usb_pdata = {
 	.usb_mode	= T2_USB_MODE_ULPI,
+	.init_data	= &init_data,
 };
 
 static int omap3_batt_table[] = {
@@ -139,6 +151,7 @@ static struct regulator_init_data omap3_vdac_idata = {
 
 static struct regulator_consumer_supply omap3_vpll2_supplies[] = {
 	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dpi.0"),
 	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi.0"),
 };
 
@@ -528,24 +541,29 @@ void __init omap4_pmic_get_config(struct twl4030_platform_data *pmic_data,
 	defined(CONFIG_SND_OMAP_SOC_OMAP_TWL4030_MODULE)
 #include <linux/platform_data/omap-twl4030.h>
 
+/* Commonly used configuration */
 static struct omap_tw4030_pdata omap_twl4030_audio_data;
 
 static struct platform_device audio_device = {
 	.name		= "omap-twl4030",
 	.id		= -1,
-	.dev = {
-		.platform_data = &omap_twl4030_audio_data,
-	},
 };
 
-void __init omap_twl4030_audio_init(char *card_name)
+void omap_twl4030_audio_init(char *card_name,
+				    struct omap_tw4030_pdata *pdata)
 {
-	omap_twl4030_audio_data.card_name = card_name;
+	if (!pdata)
+		pdata = &omap_twl4030_audio_data;
+
+	pdata->card_name = card_name;
+
+	audio_device.dev.platform_data = pdata;
 	platform_device_register(&audio_device);
 }
 
 #else /* SOC_OMAP_TWL4030 */
-void __init omap_twl4030_audio_init(char *card_name)
+void omap_twl4030_audio_init(char *card_name,
+				    struct omap_tw4030_pdata *pdata)
 {
 	return;
 }

@@ -125,7 +125,7 @@ static const struct iio_info ad8366_info = {
 	.output = 1,					\
 	.indexed = 1,					\
 	.channel = _channel,				\
-	.info_mask = IIO_CHAN_INFO_HARDWAREGAIN_SEPARATE_BIT,\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_HARDWAREGAIN),\
 }
 
 static const struct iio_chan_spec ad8366_channels[] = {
@@ -133,23 +133,23 @@ static const struct iio_chan_spec ad8366_channels[] = {
 	AD8366_CHAN(1),
 };
 
-static int __devinit ad8366_probe(struct spi_device *spi)
+static int ad8366_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
 	struct ad8366_state *st;
 	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
 
-	st->reg = regulator_get(&spi->dev, "vcc");
+	st->reg = devm_regulator_get(&spi->dev, "vcc");
 	if (!IS_ERR(st->reg)) {
 		ret = regulator_enable(st->reg);
 		if (ret)
-			goto error_put_reg;
+			return ret;
 	}
 
 	spi_set_drvdata(spi, indio_dev);
@@ -173,16 +173,11 @@ static int __devinit ad8366_probe(struct spi_device *spi)
 error_disable_reg:
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
-error_put_reg:
-	if (!IS_ERR(st->reg))
-		regulator_put(st->reg);
-
-	iio_device_free(indio_dev);
 
 	return ret;
 }
 
-static int __devexit ad8366_remove(struct spi_device *spi)
+static int ad8366_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad8366_state *st = iio_priv(indio_dev);
@@ -190,12 +185,8 @@ static int __devexit ad8366_remove(struct spi_device *spi)
 
 	iio_device_unregister(indio_dev);
 
-	if (!IS_ERR(reg)) {
+	if (!IS_ERR(reg))
 		regulator_disable(reg);
-		regulator_put(reg);
-	}
-
-	iio_device_free(indio_dev);
 
 	return 0;
 }
@@ -211,7 +202,7 @@ static struct spi_driver ad8366_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad8366_probe,
-	.remove		= __devexit_p(ad8366_remove),
+	.remove		= ad8366_remove,
 	.id_table	= ad8366_id,
 };
 

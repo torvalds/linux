@@ -88,8 +88,8 @@ simscsi_setup (char *s)
 	if (strlen(s) > MAX_ROOT_LEN) {
 		printk(KERN_ERR "simscsi_setup: prefix too long---using default %s\n",
 		       simscsi_root);
-	}
-	simscsi_root = s;
+	} else
+		simscsi_root = s;
 	return 1;
 }
 

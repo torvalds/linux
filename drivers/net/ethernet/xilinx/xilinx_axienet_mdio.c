@@ -175,6 +175,7 @@ int axienet_mdio_setup(struct axienet_local *lp, struct device_node *np)
 		printk(KERN_WARNING "Setting MDIO clock divisor to "
 		       "default %d\n", DEFAULT_CLOCK_DIVISOR);
 		clk_div = DEFAULT_CLOCK_DIVISOR;
+		of_node_put(np1);
 		goto issue;
 	}
 

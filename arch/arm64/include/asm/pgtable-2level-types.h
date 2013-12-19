@@ -16,6 +16,8 @@
 #ifndef __ASM_PGTABLE_2LEVEL_TYPES_H
 #define __ASM_PGTABLE_2LEVEL_TYPES_H
 
+#include <asm/types.h>
+
 typedef u64 pteval_t;
 typedef u64 pgdval_t;
 typedef pgdval_t pmdval_t;

@@ -207,7 +207,7 @@ static int max17040_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
 		return -EIO;
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
@@ -225,7 +225,6 @@ static int max17040_probe(struct i2c_client *client,
 	ret = power_supply_register(&client->dev, &chip->battery);
 	if (ret) {
 		dev_err(&client->dev, "failed: power supply register\n");
-		kfree(chip);
 		return ret;
 	}
 
@@ -244,35 +243,37 @@ static int max17040_remove(struct i2c_client *client)
 
 	power_supply_unregister(&chip->battery);
 	cancel_delayed_work(&chip->work);
-	kfree(chip);
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
-static int max17040_suspend(struct i2c_client *client,
-		pm_message_t state)
+static int max17040_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct max17040_chip *chip = i2c_get_clientdata(client);
 
 	cancel_delayed_work(&chip->work);
 	return 0;
 }
 
-static int max17040_resume(struct i2c_client *client)
+static int max17040_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct max17040_chip *chip = i2c_get_clientdata(client);
 
 	schedule_delayed_work(&chip->work, MAX17040_DELAY);
 	return 0;
 }
 
+static SIMPLE_DEV_PM_OPS(max17040_pm_ops, max17040_suspend, max17040_resume);
+#define MAX17040_PM_OPS (&max17040_pm_ops)
+
 #else
 
-#define max17040_suspend NULL
-#define max17040_resume NULL
+#define MAX17040_PM_OPS NULL
 
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct i2c_device_id max17040_id[] = {
 	{ "max17040", 0 },
@@ -283,11 +284,10 @@ MODULE_DEVICE_TABLE(i2c, max17040_id);
 static struct i2c_driver max17040_i2c_driver = {
 	.driver	= {
 		.name	= "max17040",
+		.pm	= MAX17040_PM_OPS,
 	},
 	.probe		= max17040_probe,
 	.remove		= max17040_remove,
-	.suspend	= max17040_suspend,
-	.resume		= max17040_resume,
 	.id_table	= max17040_id,
 };
 module_i2c_driver(max17040_i2c_driver);

@@ -98,7 +98,7 @@ static struct sisfb_chip_info {
 	int		hwcursor_size;
 	int		CRT2_write_enable;
 	const char	*chip_name;
-} sisfb_chip_info[] __devinitdata = {
+} sisfb_chip_info[] = {
 	{ SIS_300,    SIS_300_VGA, 0, HW_CURSOR_AREA_SIZE_300 * 2, SIS_CRT2_WENABLE_300, "SiS 300/305" },
 	{ SIS_540,    SIS_300_VGA, 0, HW_CURSOR_AREA_SIZE_300 * 2, SIS_CRT2_WENABLE_300, "SiS 540" },
 	{ SIS_630,    SIS_300_VGA, 0, HW_CURSOR_AREA_SIZE_300 * 2, SIS_CRT2_WENABLE_300, "SiS 630" },
@@ -113,7 +113,7 @@ static struct sisfb_chip_info {
 	{ XGI_40,     SIS_315_VGA, 1, HW_CURSOR_AREA_SIZE_315 * 4, SIS_CRT2_WENABLE_315, "XGI V3XT/V5/V8" },
 };
 
-static struct pci_device_id __devinitdata sisfb_pci_table[] = {
+static struct pci_device_id sisfb_pci_table[] = {
 #ifdef CONFIG_FB_SIS_300
 	{ PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_300,     PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_540_VGA, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
@@ -317,7 +317,7 @@ static struct _sis_lcd_data {
 	u16 xres;
 	u16 yres;
 	u8  default_mode_idx;
-} sis_lcd_data[] __devinitdata = {
+} sis_lcd_data[] = {
 	{ LCD_640x480,    640,  480,  23 },
 	{ LCD_800x600,    800,  600,  43 },
 	{ LCD_1024x600,  1024,  600,  67 },
@@ -339,21 +339,21 @@ static struct _sis_lcd_data {
 };
 
 /* CR36 evaluation */
-static unsigned short sis300paneltype[] __devinitdata = {
+static unsigned short sis300paneltype[] = {
 	LCD_UNKNOWN,   LCD_800x600,   LCD_1024x768,  LCD_1280x1024,
 	LCD_1280x960,  LCD_640x480,   LCD_1024x600,  LCD_1152x768,
 	LCD_UNKNOWN,   LCD_UNKNOWN,   LCD_UNKNOWN,   LCD_UNKNOWN,
 	LCD_UNKNOWN,   LCD_UNKNOWN,   LCD_UNKNOWN,   LCD_UNKNOWN
 };
 
-static unsigned short sis310paneltype[] __devinitdata = {
+static unsigned short sis310paneltype[] = {
 	LCD_UNKNOWN,   LCD_800x600,   LCD_1024x768,  LCD_1280x1024,
 	LCD_640x480,   LCD_1024x600,  LCD_1152x864,  LCD_1280x960,
 	LCD_1152x768,  LCD_1400x1050, LCD_1280x768,  LCD_1600x1200,
 	LCD_320x240_2, LCD_320x240_3, LCD_UNKNOWN,   LCD_UNKNOWN
 };
 
-static unsigned short sis661paneltype[] __devinitdata = {
+static unsigned short sis661paneltype[] = {
 	LCD_UNKNOWN,   LCD_800x600,   LCD_1024x768,  LCD_1280x1024,
 	LCD_640x480,   LCD_1024x600,  LCD_1152x864,  LCD_1280x960,
 	LCD_1280x854,  LCD_1400x1050, LCD_1280x768,  LCD_1600x1200,
@@ -466,7 +466,7 @@ static struct _sisfbddcsmodes {
 	u16 h;
 	u16 v;
 	u32 d;
-} sisfb_ddcsmodes[] __devinitdata = {
+} sisfb_ddcsmodes[] = {
 	{ 0x10000, 67, 75, 108000},
 	{ 0x08000, 48, 72,  50000},
 	{ 0x04000, 46, 75,  49500},
@@ -488,7 +488,7 @@ static struct _sisfbddcfmodes {
 	u16 v;
 	u16 h;
 	u32 d;
-} sisfb_ddcfmodes[] __devinitdata = {
+} sisfb_ddcfmodes[] = {
 	{ 1280, 1024, 85, 92, 157500},
 	{ 1600, 1200, 60, 75, 162000},
 	{ 1600, 1200, 65, 82, 175500},
@@ -505,7 +505,7 @@ static struct _chswtable {
 	u16  subsysCard;
 	char *vendorName;
 	char *cardName;
-} mychswtable[] __devinitdata = {
+} mychswtable[] = {
 	{ 0x1631, 0x1002, "Mitachi", "0x1002" },
 	{ 0x1071, 0x7521, "Mitac"  , "7521P"  },
 	{ 0,      0,      ""       , ""       }
@@ -525,7 +525,7 @@ static struct _customttable {
 	char  *cardName;
 	u32   SpecialID;
 	char  *optionName;
-} mycustomttable[] __devinitdata = {
+} mycustomttable[] = {
 	{ SIS_630, "2.00.07", "09/27/2002-13:38:25",
 	  0x3240A8,
 	  { 0x220, 0x227, 0x228, 0x229, 0x0ee },

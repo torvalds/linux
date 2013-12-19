@@ -184,8 +184,8 @@ static void sci_io_request_build_ssp_command_iu(struct isci_request *ireq)
 	cmd_iu->task_attr = task->ssp_task.task_attr;
 	cmd_iu->_r_c = 0;
 
-	sci_swab32_cpy(&cmd_iu->cdb, task->ssp_task.cdb,
-		       sizeof(task->ssp_task.cdb) / sizeof(u32));
+	sci_swab32_cpy(&cmd_iu->cdb, task->ssp_task.cmd->cmnd,
+		       (task->ssp_task.cmd->cmd_len+3) / sizeof(u32));
 }
 
 static void sci_task_request_build_ssp_task_iu(struct isci_request *ireq)
@@ -2978,7 +2978,7 @@ static void sci_request_started_state_enter(struct sci_base_state_machine *sm)
 	/* all unaccelerated request types (non ssp or ncq) handled with
 	 * substates
 	 */
-	if (!task && dev->dev_type == SAS_END_DEV) {
+	if (!task && dev->dev_type == SAS_END_DEVICE) {
 		state = SCI_REQ_TASK_WAIT_TC_COMP;
 	} else if (task && task->task_proto == SAS_PROTOCOL_SMP) {
 		state = SCI_REQ_SMP_WAIT_RESP;
@@ -3101,7 +3101,7 @@ sci_io_request_construct(struct isci_host *ihost,
 	if (idev->rnc.remote_node_index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX)
 		return SCI_FAILURE_INVALID_REMOTE_DEVICE;
 
-	if (dev->dev_type == SAS_END_DEV)
+	if (dev->dev_type == SAS_END_DEVICE)
 		/* pass */;
 	else if (dev_is_sata(dev))
 		memset(&ireq->stp.cmd, 0, sizeof(ireq->stp.cmd));
@@ -3125,7 +3125,7 @@ enum sci_status sci_task_request_construct(struct isci_host *ihost,
 	/* Build the common part of the request */
 	sci_general_request_construct(ihost, idev, ireq);
 
-	if (dev->dev_type == SAS_END_DEV || dev_is_sata(dev)) {
+	if (dev->dev_type == SAS_END_DEVICE || dev_is_sata(dev)) {
 		set_bit(IREQ_TMF, &ireq->flags);
 		memset(ireq->tc, 0, sizeof(struct scu_task_context));
 

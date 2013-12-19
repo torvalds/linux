@@ -46,6 +46,13 @@ enum {
 	AIC3X_GPIO2_FUNC_BUTTON_PRESS_IRQ	= 15
 };
 
+enum aic3x_micbias_voltage {
+	AIC3X_MICBIAS_OFF = 0,
+	AIC3X_MICBIAS_2_0V = 1,
+	AIC3X_MICBIAS_2_5V = 2,
+	AIC3X_MICBIAS_AVDDV = 3,
+};
+
 struct aic3x_setup_data {
 	unsigned int gpio_func[2];
 };
@@ -53,6 +60,9 @@ struct aic3x_setup_data {
 struct aic3x_pdata {
 	int gpio_reset; /* < 0 if not used */
 	struct aic3x_setup_data *setup;
+
+	/* Selects the micbias voltage */
+	enum aic3x_micbias_voltage micbias_vg;
 };
 
 #endif

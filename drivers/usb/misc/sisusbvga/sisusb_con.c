@@ -208,7 +208,7 @@ sisusbcon_init(struct vc_data *c, int init)
 	struct sisusb_usb_data *sisusb;
 	int cols, rows;
 
-	/* This is called by take_over_console(),
+	/* This is called by do_take_over_console(),
 	 * ie by us/under our control. It is
 	 * only called after text mode and fonts
 	 * are set up/restored.
@@ -273,7 +273,7 @@ sisusbcon_deinit(struct vc_data *c)
 	struct sisusb_usb_data *sisusb;
 	int i;
 
-	/* This is called by take_over_console()
+	/* This is called by do_take_over_console()
 	 * and others, ie not under our control.
 	 */
 
@@ -1490,8 +1490,9 @@ sisusb_console_init(struct sisusb_usb_data *sisusb, int first, int last)
 	mutex_unlock(&sisusb->lock);
 
 	/* Now grab the desired console(s) */
-	ret = take_over_console(&sisusb_con, first - 1, last - 1, 0);
-
+	console_lock();
+	ret = do_take_over_console(&sisusb_con, first - 1, last - 1, 0);
+	console_unlock();
 	if (!ret)
 		sisusb->haveconsole = 1;
 	else {
@@ -1535,11 +1536,14 @@ sisusb_console_exit(struct sisusb_usb_data *sisusb)
 
 	if (sisusb->haveconsole) {
 		for (i = 0; i < MAX_NR_CONSOLES; i++)
-			if (sisusb->havethisconsole[i])
-				take_over_console(&sisusb_dummy_con, i, i, 0);
+			if (sisusb->havethisconsole[i]) {
+				console_lock();
+				do_take_over_console(&sisusb_dummy_con, i, i, 0);
+				console_unlock();
 				/* At this point, con_deinit for all our
-				 * consoles is executed by take_over_console().
+				 * consoles is executed by do_take_over_console().
 				 */
+			}
 		sisusb->haveconsole = 0;
 	}
 

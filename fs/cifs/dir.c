@@ -32,6 +32,7 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
+#include "cifs_unicode.h"
 
 static void
 renew_parental_timestamps(struct dentry *direntry)
@@ -102,7 +103,7 @@ cifs_bp_rename_retry:
 		namelen += (1 + temp->d_name.len);
 		temp = temp->d_parent;
 		if (temp == NULL) {
-			cERROR(1, "corrupt dentry");
+			cifs_dbg(VFS, "corrupt dentry\n");
 			rcu_read_unlock();
 			return NULL;
 		}
@@ -124,12 +125,12 @@ cifs_bp_rename_retry:
 			full_path[namelen] = dirsep;
 			strncpy(full_path + namelen + 1, temp->d_name.name,
 				temp->d_name.len);
-			cFYI(0, "name: %s", full_path + namelen);
+			cifs_dbg(FYI, "name: %s\n", full_path + namelen);
 		}
 		spin_unlock(&temp->d_lock);
 		temp = temp->d_parent;
 		if (temp == NULL) {
-			cERROR(1, "corrupt dentry");
+			cifs_dbg(VFS, "corrupt dentry\n");
 			rcu_read_unlock();
 			kfree(full_path);
 			return NULL;
@@ -137,8 +138,8 @@ cifs_bp_rename_retry:
 	}
 	rcu_read_unlock();
 	if (namelen != dfsplen || read_seqretry(&rename_lock, seq)) {
-		cFYI(1, "did not end path lookup where expected. namelen=%d "
-			"dfsplen=%d", namelen, dfsplen);
+		cifs_dbg(FYI, "did not end path lookup where expected. namelen=%ddfsplen=%d\n",
+			 namelen, dfsplen);
 		/* presumably this is only possible if racing with a rename
 		of one of the parent directories  (we can not lock the dentries
 		above us to prevent this, but retrying should be harmless) */
@@ -178,7 +179,7 @@ check_name(struct dentry *direntry)
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)) {
 		for (i = 0; i < direntry->d_name.len; i++) {
 			if (direntry->d_name.name[i] == '\\') {
-				cFYI(1, "Invalid file name");
+				cifs_dbg(FYI, "Invalid file name\n");
 				return -EINVAL;
 			}
 		}
@@ -204,6 +205,7 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 	struct inode *newinode = NULL;
 	int disposition;
 	struct TCP_Server_Info *server = tcon->ses->server;
+	struct cifs_open_parms oparms;
 
 	*oplock = 0;
 	if (tcon->ses->server->oplocks)
@@ -291,7 +293,7 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 	else if ((oflags & O_CREAT) == O_CREAT)
 		disposition = FILE_OPEN_IF;
 	else
-		cFYI(1, "Create flag not set in create function");
+		cifs_dbg(FYI, "Create flag not set in create function\n");
 
 	/*
 	 * BB add processing to set equivalent of mode - e.g. via CreateX with
@@ -319,11 +321,18 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 	if (backup_cred(cifs_sb))
 		create_options |= CREATE_OPEN_BACKUP_INTENT;
 
-	rc = server->ops->open(xid, tcon, full_path, disposition,
-			       desired_access, create_options, fid, oplock,
-			       buf, cifs_sb);
+	oparms.tcon = tcon;
+	oparms.cifs_sb = cifs_sb;
+	oparms.desired_access = desired_access;
+	oparms.create_options = create_options;
+	oparms.disposition = disposition;
+	oparms.path = full_path;
+	oparms.fid = fid;
+	oparms.reconnect = false;
+
+	rc = server->ops->open(xid, &oparms, oplock, buf);
 	if (rc) {
-		cFYI(1, "cifs_create returned 0x%x", rc);
+		cifs_dbg(FYI, "cifs_create returned 0x%x\n", rc);
 		goto out;
 	}
 
@@ -342,14 +351,14 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 
 		*created |= FILE_CREATED;
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
-			args.uid = (__u64) current_fsuid();
+			args.uid = current_fsuid();
 			if (inode->i_mode & S_ISGID)
-				args.gid = (__u64) inode->i_gid;
+				args.gid = inode->i_gid;
 			else
-				args.gid = (__u64) current_fsgid();
+				args.gid = current_fsgid();
 		} else {
-			args.uid = NO_CHANGE_64;
-			args.gid = NO_CHANGE_64;
+			args.uid = INVALID_UID; /* no change */
+			args.gid = INVALID_GID; /* no change */
 		}
 		CIFSSMBUnixSetFileInfo(xid, tcon, &args, fid->netfid,
 				       current->tgid);
@@ -389,7 +398,8 @@ cifs_create_get_file_info:
 
 cifs_create_set_dentry:
 	if (rc != 0) {
-		cFYI(1, "Create worked, get_inode_info failed rc = %d", rc);
+		cifs_dbg(FYI, "Create worked, get_inode_info failed rc = %d\n",
+			 rc);
 		if (server->ops->close)
 			server->ops->close(xid, tcon, fid);
 		goto out;
@@ -452,12 +462,14 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 
 	xid = get_xid();
 
-	cFYI(1, "parent inode = 0x%p name is: %s and dentry = 0x%p",
-	     inode, direntry->d_name.name, direntry);
+	cifs_dbg(FYI, "parent inode = 0x%p name is: %s and dentry = 0x%p\n",
+		 inode, direntry->d_name.name, direntry);
 
 	tlink = cifs_sb_tlink(CIFS_SB(inode->i_sb));
-	if (IS_ERR(tlink))
+	if (IS_ERR(tlink)) {
+		rc = PTR_ERR(tlink);
 		goto out_free_xid;
+	}
 
 	tcon = tlink_tcon(tlink);
 	server = tcon->ses->server;
@@ -488,6 +500,7 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 		if (server->ops->close)
 			server->ops->close(xid, tcon, &fid);
 		cifs_del_pending_open(&open);
+		fput(file);
 		rc = -ENOMEM;
 	}
 
@@ -518,8 +531,8 @@ int cifs_create(struct inode *inode, struct dentry *direntry, umode_t mode,
 	__u32 oplock;
 	int created = FILE_CREATED;
 
-	cFYI(1, "cifs_create parent inode = 0x%p name is: %s and dentry = 0x%p",
-	     inode, direntry->d_name.name, direntry);
+	cifs_dbg(FYI, "cifs_create parent inode = 0x%p name is: %s and dentry = 0x%p\n",
+		 inode, direntry->d_name.name, direntry);
 
 	tlink = cifs_sb_tlink(CIFS_SB(inode->i_sb));
 	rc = PTR_ERR(tlink);
@@ -588,11 +601,11 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 			.device	= device_number,
 		};
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
-			args.uid = (__u64) current_fsuid();
-			args.gid = (__u64) current_fsgid();
+			args.uid = current_fsuid();
+			args.gid = current_fsgid();
 		} else {
-			args.uid = NO_CHANGE_64;
-			args.gid = NO_CHANGE_64;
+			args.uid = INVALID_UID; /* no change */
+			args.gid = INVALID_GID; /* no change */
 		}
 		rc = CIFSSMBUnixSetPathInfo(xid, pTcon, full_path, &args,
 					    cifs_sb->local_nls,
@@ -613,7 +626,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 		goto mknod_out;
 
 
-	cFYI(1, "sfu compat create special file");
+	cifs_dbg(FYI, "sfu compat create special file\n");
 
 	buf = kmalloc(sizeof(FILE_ALL_INFO), GFP_KERNEL);
 	if (buf == NULL) {
@@ -688,8 +701,8 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 
 	xid = get_xid();
 
-	cFYI(1, "parent inode = 0x%p name is: %s and dentry = 0x%p",
-	      parent_dir_inode, direntry->d_name.name, direntry);
+	cifs_dbg(FYI, "parent inode = 0x%p name is: %s and dentry = 0x%p\n",
+		 parent_dir_inode, direntry->d_name.name, direntry);
 
 	/* check whether path exists */
 
@@ -715,11 +728,12 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	}
 
 	if (direntry->d_inode != NULL) {
-		cFYI(1, "non-NULL inode in lookup");
+		cifs_dbg(FYI, "non-NULL inode in lookup\n");
 	} else {
-		cFYI(1, "NULL inode in lookup");
+		cifs_dbg(FYI, "NULL inode in lookup\n");
 	}
-	cFYI(1, "Full path: %s inode = 0x%p", full_path, direntry->d_inode);
+	cifs_dbg(FYI, "Full path: %s inode = 0x%p\n",
+		 full_path, direntry->d_inode);
 
 	if (pTcon->unix_ext) {
 		rc = cifs_get_inode_info_unix(&newInode, full_path,
@@ -742,7 +756,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	/*	if it was once a directory (but how can we tell?) we could do
 		shrink_dcache_parent(direntry); */
 	} else if (rc != -EACCES) {
-		cERROR(1, "Unexpected lookup error %d", rc);
+		cifs_dbg(FYI, "Unexpected lookup error %d\n", rc);
 		/* We special case check for Access Denied - since that
 		is a common return code */
 	}
@@ -807,7 +821,7 @@ cifs_d_revalidate(struct dentry *direntry, unsigned int flags)
 {
 	int rc = 0;
 
-	cFYI(1, "In cifs d_delete, name = %s", direntry->d_name.name);
+	cifs_dbg(FYI, "In cifs d_delete, name = %s\n", direntry->d_name.name);
 
 	return rc;
 }     */
@@ -818,33 +832,71 @@ const struct dentry_operations cifs_dentry_ops = {
 /* d_delete:       cifs_d_delete,      */ /* not needed except for debugging */
 };
 
-static int cifs_ci_hash(const struct dentry *dentry, const struct inode *inode,
-		struct qstr *q)
+static int cifs_ci_hash(const struct dentry *dentry, struct qstr *q)
 {
 	struct nls_table *codepage = CIFS_SB(dentry->d_sb)->local_nls;
 	unsigned long hash;
-	int i;
+	wchar_t c;
+	int i, charlen;
 
 	hash = init_name_hash();
-	for (i = 0; i < q->len; i++)
-		hash = partial_name_hash(nls_tolower(codepage, q->name[i]),
-					 hash);
+	for (i = 0; i < q->len; i += charlen) {
+		charlen = codepage->char2uni(&q->name[i], q->len - i, &c);
+		/* error out if we can't convert the character */
+		if (unlikely(charlen < 0))
+			return charlen;
+		hash = partial_name_hash(cifs_toupper(c), hash);
+	}
 	q->hash = end_name_hash(hash);
 
 	return 0;
 }
 
-static int cifs_ci_compare(const struct dentry *parent,
-		const struct inode *pinode,
-		const struct dentry *dentry, const struct inode *inode,
+static int cifs_ci_compare(const struct dentry *parent, const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
-	struct nls_table *codepage = CIFS_SB(pinode->i_sb)->local_nls;
+	struct nls_table *codepage = CIFS_SB(parent->d_sb)->local_nls;
+	wchar_t c1, c2;
+	int i, l1, l2;
 
-	if ((name->len == len) &&
-	    (nls_strnicmp(codepage, name->name, str, len) == 0))
-		return 0;
-	return 1;
+	/*
+	 * We make the assumption here that uppercase characters in the local
+	 * codepage are always the same length as their lowercase counterparts.
+	 *
+	 * If that's ever not the case, then this will fail to match it.
+	 */
+	if (name->len != len)
+		return 1;
+
+	for (i = 0; i < len; i += l1) {
+		/* Convert characters in both strings to UTF-16. */
+		l1 = codepage->char2uni(&str[i], len - i, &c1);
+		l2 = codepage->char2uni(&name->name[i], name->len - i, &c2);
+
+		/*
+		 * If we can't convert either character, just declare it to
+		 * be 1 byte long and compare the original byte.
+		 */
+		if (unlikely(l1 < 0 && l2 < 0)) {
+			if (str[i] != name->name[i])
+				return 1;
+			l1 = 1;
+			continue;
+		}
+
+		/*
+		 * Here, we again ass|u|me that upper/lowercase versions of
+		 * a character are the same length in the local NLS.
+		 */
+		if (l1 != l2)
+			return 1;
+
+		/* Now compare uppercase versions of these characters */
+		if (cifs_toupper(c1) != cifs_toupper(c2))
+			return 1;
+	}
+
+	return 0;
 }
 
 const struct dentry_operations cifs_ci_dentry_ops = {

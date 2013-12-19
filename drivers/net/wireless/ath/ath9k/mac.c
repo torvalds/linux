@@ -374,7 +374,6 @@ EXPORT_SYMBOL(ath9k_hw_releasetxqueue);
 bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_channel *chan = ah->curchan;
 	struct ath9k_tx_queue_info *qi;
 	u32 cwMin, chanCwMin, value;
 
@@ -387,10 +386,7 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 	ath_dbg(common, QUEUE, "Reset TX queue: %u\n", q);
 
 	if (qi->tqi_cwmin == ATH9K_TXQ_USEDEFAULT) {
-		if (chan && IS_CHAN_B(chan))
-			chanCwMin = INIT_CWMIN_11B;
-		else
-			chanCwMin = INIT_CWMIN;
+		chanCwMin = INIT_CWMIN;
 
 		for (cwMin = 1; cwMin < chanCwMin; cwMin = (cwMin << 1) | 1);
 	} else
@@ -410,7 +406,7 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 
 	REG_WRITE(ah, AR_QMISC(q), AR_Q_MISC_DCU_EARLY_TERM_REQ);
 
-	if (AR_SREV_9340(ah))
+	if (AR_SREV_9340(ah) && !AR_SREV_9340_13_OR_LATER(ah))
 		REG_WRITE(ah, AR_DMISC(q),
 			  AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x1);
 	else
@@ -547,6 +543,7 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 
 	rs->rs_status = 0;
 	rs->rs_flags = 0;
+	rs->flag = 0;
 
 	rs->rs_datalen = ads.ds_rxstatus1 & AR_DataLen;
 	rs->rs_tstamp = ads.AR_RcvTimestamp;
@@ -582,14 +579,21 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 	rs->rs_rate = MS(ads.ds_rxstatus0, AR_RxRate);
 	rs->rs_more = (ads.ds_rxstatus1 & AR_RxMore) ? 1 : 0;
 
+	rs->rs_firstaggr = (ads.ds_rxstatus8 & AR_RxFirstAggr) ? 1 : 0;
 	rs->rs_isaggr = (ads.ds_rxstatus8 & AR_RxAggr) ? 1 : 0;
-	rs->rs_moreaggr =
-		(ads.ds_rxstatus8 & AR_RxMoreAggr) ? 1 : 0;
+	rs->rs_moreaggr = (ads.ds_rxstatus8 & AR_RxMoreAggr) ? 1 : 0;
 	rs->rs_antenna = MS(ads.ds_rxstatus3, AR_RxAntenna);
-	rs->rs_flags =
-		(ads.ds_rxstatus3 & AR_GI) ? ATH9K_RX_GI : 0;
-	rs->rs_flags |=
-		(ads.ds_rxstatus3 & AR_2040) ? ATH9K_RX_2040 : 0;
+
+	/* directly mapped flags for ieee80211_rx_status */
+	rs->flag |=
+		(ads.ds_rxstatus3 & AR_GI) ? RX_FLAG_SHORT_GI : 0;
+	rs->flag |=
+		(ads.ds_rxstatus3 & AR_2040) ? RX_FLAG_40MHZ : 0;
+	if (AR_SREV_9280_20_OR_LATER(ah))
+		rs->flag |=
+			(ads.ds_rxstatus3 & AR_STBC) ?
+				/* we can only Nss=1 STBC */
+				(1 << RX_FLAG_STBC_SHIFT) : 0;
 
 	if (ads.ds_rxstatus8 & AR_PreDelimCRCErr)
 		rs->rs_flags |= ATH9K_RX_DELIM_CRC_PRE;
@@ -605,16 +609,24 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 		 * reported, then decryption and MIC errors are irrelevant,
 		 * the frame is going to be dropped either way
 		 */
-		if (ads.ds_rxstatus8 & AR_CRCErr)
-			rs->rs_status |= ATH9K_RXERR_CRC;
-		else if (ads.ds_rxstatus8 & AR_PHYErr) {
+		if (ads.ds_rxstatus8 & AR_PHYErr) {
 			rs->rs_status |= ATH9K_RXERR_PHY;
 			phyerr = MS(ads.ds_rxstatus8, AR_PHYErrCode);
 			rs->rs_phyerr = phyerr;
-		} else if (ads.ds_rxstatus8 & AR_DecryptCRCErr)
+		} else if (ads.ds_rxstatus8 & AR_CRCErr)
+			rs->rs_status |= ATH9K_RXERR_CRC;
+		else if (ads.ds_rxstatus8 & AR_DecryptCRCErr)
 			rs->rs_status |= ATH9K_RXERR_DECRYPT;
 		else if (ads.ds_rxstatus8 & AR_MichaelErr)
 			rs->rs_status |= ATH9K_RXERR_MIC;
+	} else {
+		if (ads.ds_rxstatus8 &
+		    (AR_CRCErr | AR_PHYErr | AR_DecryptCRCErr | AR_MichaelErr))
+			rs->rs_status |= ATH9K_RXERR_CORRUPT_DESC;
+
+		/* Only up to MCS16 supported, everything above is invalid */
+		if (rs->rs_rate >= 0x90)
+			rs->rs_status |= ATH9K_RXERR_CORRUPT_DESC;
 	}
 
 	if (ads.ds_rxstatus8 & AR_KeyMiss)

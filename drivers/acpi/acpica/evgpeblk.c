@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -111,7 +111,7 @@ acpi_ev_install_gpe_block(struct acpi_gpe_block_info *gpe_block,
 	gpe_block->xrupt_block = gpe_xrupt_block;
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 
-      unlock_and_exit:
+unlock_and_exit:
 	status = acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
 }
@@ -178,7 +178,7 @@ acpi_status acpi_ev_delete_gpe_block(struct acpi_gpe_block_info *gpe_block)
 	ACPI_FREE(gpe_block->event_info);
 	ACPI_FREE(gpe_block);
 
-      unlock_and_exit:
+unlock_and_exit:
 	status = acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
 }
@@ -302,7 +302,7 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 
 	return_ACPI_STATUS(AE_OK);
 
-      error_exit:
+error_exit:
 	if (gpe_register_info) {
 		ACPI_FREE(gpe_register_info);
 	}
@@ -382,6 +382,8 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 
 	status = acpi_ev_install_gpe_block(gpe_block, interrupt_number);
 	if (ACPI_FAILURE(status)) {
+		ACPI_FREE(gpe_block->register_info);
+		ACPI_FREE(gpe_block->event_info);
 		ACPI_FREE(gpe_block);
 		return_ACPI_STATUS(status);
 	}
@@ -405,13 +407,13 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 		(*return_gpe_block) = gpe_block;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INIT,
-			  "GPE %02X to %02X [%4.4s] %u regs on int 0x%X\n",
-			  (u32) gpe_block->block_base_number,
-			  (u32) (gpe_block->block_base_number +
-				(gpe_block->gpe_count - 1)),
-			  gpe_device->name.ascii, gpe_block->register_count,
-			  interrupt_number));
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+			      "    Initialized GPE %02X to %02X [%4.4s] %u regs on interrupt 0x%X\n",
+			      (u32)gpe_block->block_base_number,
+			      (u32)(gpe_block->block_base_number +
+				    (gpe_block->gpe_count - 1)),
+			      gpe_device->name.ascii, gpe_block->register_count,
+			      interrupt_number));
 
 	/* Update global count of currently available GPEs */
 
@@ -496,9 +498,11 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 	}
 
 	if (gpe_enabled_count) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
-				  "Enabled %u GPEs in this block\n",
-				  gpe_enabled_count));
+		ACPI_INFO((AE_INFO,
+			   "Enabled %u GPEs in block %02X to %02X",
+			   gpe_enabled_count, (u32)gpe_block->block_base_number,
+			   (u32)(gpe_block->block_base_number +
+				 (gpe_block->gpe_count - 1))));
 	}
 
 	gpe_block->initialized = TRUE;

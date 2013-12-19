@@ -41,9 +41,19 @@
 #define DRV_VERSION "0.1"
 
 MODULE_AUTHOR("Steve Wise");
-MODULE_DESCRIPTION("Chelsio T4 RDMA Driver");
+MODULE_DESCRIPTION("Chelsio T4/T5 RDMA Driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
+
+static int allow_db_fc_on_t5;
+module_param(allow_db_fc_on_t5, int, 0644);
+MODULE_PARM_DESC(allow_db_fc_on_t5,
+		 "Allow DB Flow Control on T5 (default = 0)");
+
+static int allow_db_coalescing_on_t5;
+module_param(allow_db_coalescing_on_t5, int, 0644);
+MODULE_PARM_DESC(allow_db_coalescing_on_t5,
+		 "Allow DB Coalescing on T5 (default = 0)");
 
 struct uld_ctx {
 	struct list_head entry;
@@ -93,18 +103,43 @@ static int dump_qp(int id, void *p, void *data)
 	if (space == 0)
 		return 1;
 
-	if (qp->ep)
-		cc = snprintf(qpd->buf + qpd->pos, space,
-			     "qp sq id %u rq id %u state %u onchip %u "
-			     "ep tid %u state %u %pI4:%u->%pI4:%u\n",
-			     qp->wq.sq.qid, qp->wq.rq.qid, (int)qp->attr.state,
-			     qp->wq.sq.flags & T4_SQ_ONCHIP,
-			     qp->ep->hwtid, (int)qp->ep->com.state,
-			     &qp->ep->com.local_addr.sin_addr.s_addr,
-			     ntohs(qp->ep->com.local_addr.sin_port),
-			     &qp->ep->com.remote_addr.sin_addr.s_addr,
-			     ntohs(qp->ep->com.remote_addr.sin_port));
-	else
+	if (qp->ep) {
+		if (qp->ep->com.local_addr.ss_family == AF_INET) {
+			struct sockaddr_in *lsin = (struct sockaddr_in *)
+				&qp->ep->com.local_addr;
+			struct sockaddr_in *rsin = (struct sockaddr_in *)
+				&qp->ep->com.remote_addr;
+
+			cc = snprintf(qpd->buf + qpd->pos, space,
+				      "rc qp sq id %u rq id %u state %u "
+				      "onchip %u ep tid %u state %u "
+				      "%pI4:%u->%pI4:%u\n",
+				      qp->wq.sq.qid, qp->wq.rq.qid,
+				      (int)qp->attr.state,
+				      qp->wq.sq.flags & T4_SQ_ONCHIP,
+				      qp->ep->hwtid, (int)qp->ep->com.state,
+				      &lsin->sin_addr, ntohs(lsin->sin_port),
+				      &rsin->sin_addr, ntohs(rsin->sin_port));
+		} else {
+			struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)
+				&qp->ep->com.local_addr;
+			struct sockaddr_in6 *rsin6 = (struct sockaddr_in6 *)
+				&qp->ep->com.remote_addr;
+
+			cc = snprintf(qpd->buf + qpd->pos, space,
+				      "rc qp sq id %u rq id %u state %u "
+				      "onchip %u ep tid %u state %u "
+				      "%pI6:%u->%pI6:%u\n",
+				      qp->wq.sq.qid, qp->wq.rq.qid,
+				      (int)qp->attr.state,
+				      qp->wq.sq.flags & T4_SQ_ONCHIP,
+				      qp->ep->hwtid, (int)qp->ep->com.state,
+				      &lsin6->sin6_addr,
+				      ntohs(lsin6->sin6_port),
+				      &rsin6->sin6_addr,
+				      ntohs(rsin6->sin6_port));
+		}
+	} else
 		cc = snprintf(qpd->buf + qpd->pos, space,
 			     "qp sq id %u rq id %u state %u onchip %u\n",
 			      qp->wq.sq.qid, qp->wq.rq.qid,
@@ -341,15 +376,37 @@ static int dump_ep(int id, void *p, void *data)
 	if (space == 0)
 		return 1;
 
-	cc = snprintf(epd->buf + epd->pos, space,
-			"ep %p cm_id %p qp %p state %d flags 0x%lx history 0x%lx "
-			"hwtid %d atid %d %pI4:%d <-> %pI4:%d\n",
-			ep, ep->com.cm_id, ep->com.qp, (int)ep->com.state,
-			ep->com.flags, ep->com.history, ep->hwtid, ep->atid,
-			&ep->com.local_addr.sin_addr.s_addr,
-			ntohs(ep->com.local_addr.sin_port),
-			&ep->com.remote_addr.sin_addr.s_addr,
-			ntohs(ep->com.remote_addr.sin_port));
+	if (ep->com.local_addr.ss_family == AF_INET) {
+		struct sockaddr_in *lsin = (struct sockaddr_in *)
+			&ep->com.local_addr;
+		struct sockaddr_in *rsin = (struct sockaddr_in *)
+			&ep->com.remote_addr;
+
+		cc = snprintf(epd->buf + epd->pos, space,
+			      "ep %p cm_id %p qp %p state %d flags 0x%lx "
+			      "history 0x%lx hwtid %d atid %d "
+			      "%pI4:%d <-> %pI4:%d\n",
+			      ep, ep->com.cm_id, ep->com.qp,
+			      (int)ep->com.state, ep->com.flags,
+			      ep->com.history, ep->hwtid, ep->atid,
+			      &lsin->sin_addr, ntohs(lsin->sin_port),
+			      &rsin->sin_addr, ntohs(rsin->sin_port));
+	} else {
+		struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)
+			&ep->com.local_addr;
+		struct sockaddr_in6 *rsin6 = (struct sockaddr_in6 *)
+			&ep->com.remote_addr;
+
+		cc = snprintf(epd->buf + epd->pos, space,
+			      "ep %p cm_id %p qp %p state %d flags 0x%lx "
+			      "history 0x%lx hwtid %d atid %d "
+			      "%pI6:%d <-> %pI6:%d\n",
+			      ep, ep->com.cm_id, ep->com.qp,
+			      (int)ep->com.state, ep->com.flags,
+			      ep->com.history, ep->hwtid, ep->atid,
+			      &lsin6->sin6_addr, ntohs(lsin6->sin6_port),
+			      &rsin6->sin6_addr, ntohs(rsin6->sin6_port));
+	}
 	if (cc < space)
 		epd->pos += cc;
 	return 0;
@@ -366,12 +423,27 @@ static int dump_listen_ep(int id, void *p, void *data)
 	if (space == 0)
 		return 1;
 
-	cc = snprintf(epd->buf + epd->pos, space,
-			"ep %p cm_id %p state %d flags 0x%lx stid %d backlog %d "
-			"%pI4:%d\n", ep, ep->com.cm_id, (int)ep->com.state,
-			ep->com.flags, ep->stid, ep->backlog,
-			&ep->com.local_addr.sin_addr.s_addr,
-			ntohs(ep->com.local_addr.sin_port));
+	if (ep->com.local_addr.ss_family == AF_INET) {
+		struct sockaddr_in *lsin = (struct sockaddr_in *)
+			&ep->com.local_addr;
+
+		cc = snprintf(epd->buf + epd->pos, space,
+			      "ep %p cm_id %p state %d flags 0x%lx stid %d "
+			      "backlog %d %pI4:%d\n",
+			      ep, ep->com.cm_id, (int)ep->com.state,
+			      ep->com.flags, ep->stid, ep->backlog,
+			      &lsin->sin_addr, ntohs(lsin->sin_port));
+	} else {
+		struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)
+			&ep->com.local_addr;
+
+		cc = snprintf(epd->buf + epd->pos, space,
+			      "ep %p cm_id %p state %d flags 0x%lx stid %d "
+			      "backlog %d %pI6:%d\n",
+			      ep, ep->com.cm_id, (int)ep->com.state,
+			      ep->com.flags, ep->stid, ep->backlog,
+			      &lsin6->sin6_addr, ntohs(lsin6->sin6_port));
+	}
 	if (cc < space)
 		epd->pos += cc;
 	return 0;
@@ -530,10 +602,10 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	     rdev->lldi.vr->qp.size,
 	     rdev->lldi.vr->cq.start,
 	     rdev->lldi.vr->cq.size);
-	PDBG("udb len 0x%x udb base %p db_reg %p gts_reg %p qpshift %lu "
+	PDBG("udb len 0x%x udb base %llx db_reg %p gts_reg %p qpshift %lu "
 	     "qpmask 0x%x cqshift %lu cqmask 0x%x\n",
 	     (unsigned)pci_resource_len(rdev->lldi.pdev, 2),
-	     (void *)pci_resource_start(rdev->lldi.pdev, 2),
+	     (u64)pci_resource_start(rdev->lldi.pdev, 2),
 	     rdev->lldi.db_reg,
 	     rdev->lldi.gts_reg,
 	     rdev->qpshift, rdev->qpmask,
@@ -614,7 +686,7 @@ static int rdma_supported(const struct cxgb4_lld_info *infop)
 {
 	return infop->vr->stag.size > 0 && infop->vr->pbl.size > 0 &&
 	       infop->vr->rq.size > 0 && infop->vr->qp.size > 0 &&
-	       infop->vr->cq.size > 0 && infop->vr->ocq.size > 0;
+	       infop->vr->cq.size > 0;
 }
 
 static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
@@ -627,6 +699,22 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 		       pci_name(infop->pdev));
 		return ERR_PTR(-ENOSYS);
 	}
+	if (!ocqp_supported(infop))
+		pr_info("%s: On-Chip Queues not supported on this device.\n",
+			pci_name(infop->pdev));
+
+	if (!is_t4(infop->adapter_type)) {
+		if (!allow_db_fc_on_t5) {
+			db_fc_threshold = 100000;
+			pr_info("DB Flow Control Disabled.\n");
+		}
+
+		if (!allow_db_coalescing_on_t5) {
+			db_coalescing_threshold = -1;
+			pr_info("DB Coalescing Disabled.\n");
+		}
+	}
+
 	devp = (struct c4iw_dev *)ib_alloc_device(sizeof(*devp));
 	if (!devp) {
 		printk(KERN_ERR MOD "Cannot allocate ib device\n");
@@ -678,8 +766,8 @@ static void *c4iw_uld_add(const struct cxgb4_lld_info *infop)
 	int i;
 
 	if (!vers_printed++)
-		printk(KERN_INFO MOD "Chelsio T4 RDMA Driver - version %s\n",
-		       DRV_VERSION);
+		pr_info("Chelsio T4/T5 RDMA Driver - version %s\n",
+			DRV_VERSION);
 
 	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
 	if (!ctx) {
@@ -797,7 +885,8 @@ static int c4iw_uld_rx_handler(void *handle, const __be64 *rsp,
 		       "RSS %#llx, FL %#llx, len %u\n",
 		       pci_name(ctx->lldi.pdev), gl->va,
 		       (unsigned long long)be64_to_cpu(*rsp),
-		       (unsigned long long)be64_to_cpu(*(u64 *)gl->va),
+		       (unsigned long long)be64_to_cpu(
+		       *(__force __be64 *)gl->va),
 		       gl->tot_len);
 
 		return 0;

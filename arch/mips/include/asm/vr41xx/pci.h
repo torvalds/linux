@@ -20,7 +20,7 @@
 #ifndef __NEC_VR41XX_PCI_H
 #define __NEC_VR41XX_PCI_H
 
-#define PCI_MASTER_ADDRESS_MASK	0x7fffffffU
+#define PCI_MASTER_ADDRESS_MASK 0x7fffffffU
 
 struct pci_master_address_conversion {
 	uint32_t bus_base_address;

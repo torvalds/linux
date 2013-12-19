@@ -25,7 +25,7 @@
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-
+#include <linux/err.h>
 #include <linux/signal.h>
 
 #include <linux/of_irq.h>
@@ -43,7 +43,7 @@ static const struct hc_driver ehci_grlib_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq			= ehci_irq,
-	.flags			= HCD_MEMORY | HCD_USB2,
+	.flags			= HCD_MEMORY | HCD_USB2 | HCD_BH,
 
 	/*
 	 * basic lifecycle operations
@@ -118,10 +118,9 @@ static int ehci_hcd_grlib_probe(struct platform_device *op)
 		goto err_irq;
 	}
 
-	hcd->regs = devm_request_and_ioremap(&op->dev, &res);
-	if (!hcd->regs) {
-		pr_err("%s: devm_request_and_ioremap failed\n", __FILE__);
-		rv = -ENOMEM;
+	hcd->regs = devm_ioremap_resource(&op->dev, &res);
+	if (IS_ERR(hcd->regs)) {
+		rv = PTR_ERR(hcd->regs);
 		goto err_ioremap;
 	}
 
@@ -154,9 +153,7 @@ err_irq:
 
 static int ehci_hcd_grlib_remove(struct platform_device *op)
 {
-	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
-
-	dev_set_drvdata(&op->dev, NULL);
+	struct usb_hcd *hcd = platform_get_drvdata(op);
 
 	dev_dbg(&op->dev, "stopping GRLIB GRUSBHC EHCI USB Controller\n");
 
@@ -167,15 +164,6 @@ static int ehci_hcd_grlib_remove(struct platform_device *op)
 	usb_put_hcd(hcd);
 
 	return 0;
-}
-
-
-static void ehci_hcd_grlib_shutdown(struct platform_device *op)
-{
-	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
-
-	if (hcd->driver->shutdown)
-		hcd->driver->shutdown(hcd);
 }
 
 
@@ -194,7 +182,7 @@ MODULE_DEVICE_TABLE(of, ehci_hcd_grlib_of_match);
 static struct platform_driver ehci_grlib_driver = {
 	.probe		= ehci_hcd_grlib_probe,
 	.remove		= ehci_hcd_grlib_remove,
-	.shutdown	= ehci_hcd_grlib_shutdown,
+	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
 		.name = "grlib-ehci",
 		.owner = THIS_MODULE,

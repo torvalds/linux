@@ -16,9 +16,8 @@ struct neighbour;
 
 struct netevent_redirect {
 	struct dst_entry *old;
-	struct neighbour *old_neigh;
 	struct dst_entry *new;
-	struct neighbour *new_neigh;
+	struct neighbour *neigh;
 	const void *daddr;
 };
 
@@ -27,8 +26,8 @@ enum netevent_notif_type {
 	NETEVENT_REDIRECT,	   /* arg is struct netevent_redirect ptr */
 };
 
-extern int register_netevent_notifier(struct notifier_block *nb);
-extern int unregister_netevent_notifier(struct notifier_block *nb);
-extern int call_netevent_notifiers(unsigned long val, void *v);
+int register_netevent_notifier(struct notifier_block *nb);
+int unregister_netevent_notifier(struct notifier_block *nb);
+int call_netevent_notifiers(unsigned long val, void *v);
 
 #endif

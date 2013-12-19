@@ -12,7 +12,7 @@
 #ifndef _XTENSA_DELAY_H
 #define _XTENSA_DELAY_H
 
-#include <asm/processor.h>
+#include <asm/timex.h>
 #include <asm/param.h>
 
 extern unsigned long loops_per_jiffy;
@@ -24,24 +24,17 @@ static inline void __delay(unsigned long loops)
 			      : "=r" (loops) : "0" (loops));
 }
 
-static __inline__ u32 xtensa_get_ccount(void)
-{
-	u32 ccount;
-	asm volatile ("rsr %0, ccount\n" : "=r" (ccount));
-	return ccount;
-}
-
 /* For SMP/NUMA systems, change boot_cpu_data to something like
  * local_cpu_data->... where local_cpu_data points to the current
  * cpu. */
 
 static __inline__ void udelay (unsigned long usecs)
 {
-	unsigned long start = xtensa_get_ccount();
+	unsigned long start = get_ccount();
 	unsigned long cycles = usecs * (loops_per_jiffy / (1000000UL / HZ));
 
 	/* Note: all variables are unsigned (can wrap around)! */
-	while (((unsigned long)xtensa_get_ccount()) - start < cycles)
+	while (((unsigned long)get_ccount()) - start < cycles)
 		;
 }
 

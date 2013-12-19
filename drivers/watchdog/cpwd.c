@@ -411,7 +411,7 @@ static long cpwd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		.identity		= DRIVER_NAME,
 	};
 	void __user *argp = (void __user *)arg;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	int index = iminor(inode) - WD0_MINOR;
 	struct cpwd *p = cpwd_device;
 	int setopt = 0;
@@ -499,7 +499,7 @@ static long cpwd_compat_ioctl(struct file *file, unsigned int cmd,
 static ssize_t cpwd_write(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct cpwd *p = cpwd_device;
 	int index = iminor(inode);
 
@@ -621,7 +621,7 @@ static int cpwd_probe(struct platform_device *op)
 			WD_BADMODEL);
 	}
 
-	dev_set_drvdata(&op->dev, p);
+	platform_set_drvdata(op, p);
 	cpwd_device = p;
 	err = 0;
 
@@ -642,7 +642,7 @@ out_free:
 
 static int cpwd_remove(struct platform_device *op)
 {
-	struct cpwd *p = dev_get_drvdata(&op->dev);
+	struct cpwd *p = platform_get_drvdata(op);
 	int i;
 
 	for (i = 0; i < WD_NUMDEVS; i++) {

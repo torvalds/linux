@@ -112,7 +112,6 @@ struct fib_table *fib_new_table(struct net *net, u32 id)
 struct fib_table *fib_get_table(struct net *net, u32 id)
 {
 	struct fib_table *tb;
-	struct hlist_node *node;
 	struct hlist_head *head;
 	unsigned int h;
 
@@ -122,7 +121,7 @@ struct fib_table *fib_get_table(struct net *net, u32 id)
 
 	rcu_read_lock();
 	head = &net->ipv4.fib_table_hash[h];
-	hlist_for_each_entry_rcu(tb, node, head, tb_hlist) {
+	hlist_for_each_entry_rcu(tb, head, tb_hlist) {
 		if (tb->tb_id == id) {
 			rcu_read_unlock();
 			return tb;
@@ -137,13 +136,12 @@ static void fib_flush(struct net *net)
 {
 	int flushed = 0;
 	struct fib_table *tb;
-	struct hlist_node *node;
 	struct hlist_head *head;
 	unsigned int h;
 
 	for (h = 0; h < FIB_TABLE_HASHSZ; h++) {
 		head = &net->ipv4.fib_table_hash[h];
-		hlist_for_each_entry(tb, node, head, tb_hlist)
+		hlist_for_each_entry(tb, head, tb_hlist)
 			flushed += fib_table_flush(tb);
 	}
 
@@ -606,7 +604,7 @@ errout:
 	return err;
 }
 
-static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	struct fib_config cfg;
@@ -628,7 +626,7 @@ errout:
 	return err;
 }
 
-static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	struct fib_config cfg;
@@ -656,7 +654,6 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
 	struct fib_table *tb;
-	struct hlist_node *node;
 	struct hlist_head *head;
 	int dumped = 0;
 
@@ -670,7 +667,7 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	for (h = s_h; h < FIB_TABLE_HASHSZ; h++, s_e = 0) {
 		e = 0;
 		head = &net->ipv4.fib_table_hash[h];
-		hlist_for_each_entry(tb, node, head, tb_hlist) {
+		hlist_for_each_entry(tb, head, tb_hlist) {
 			if (e < s_e)
 				goto next;
 			if (dumped)
@@ -936,7 +933,6 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb)
 		local_bh_disable();
 
 		frn->tb_id = tb->tb_id;
-		rcu_read_lock();
 		frn->err = fib_table_lookup(tb, &fl4, &res, FIB_LOOKUP_NOREF);
 
 		if (!frn->err) {
@@ -945,7 +941,6 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb)
 			frn->type = res.type;
 			frn->scope = res.scope;
 		}
-		rcu_read_unlock();
 		local_bh_enable();
 	}
 }
@@ -960,21 +955,21 @@ static void nl_fib_input(struct sk_buff *skb)
 
 	net = sock_net(skb->sk);
 	nlh = nlmsg_hdr(skb);
-	if (skb->len < NLMSG_SPACE(0) || skb->len < nlh->nlmsg_len ||
-	    nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*frn)))
+	if (skb->len < NLMSG_HDRLEN || skb->len < nlh->nlmsg_len ||
+	    nlmsg_len(nlh) < sizeof(*frn))
 		return;
 
-	skb = skb_clone(skb, GFP_KERNEL);
+	skb = netlink_skb_clone(skb, GFP_KERNEL);
 	if (skb == NULL)
 		return;
 	nlh = nlmsg_hdr(skb);
 
-	frn = (struct fib_result_nl *) NLMSG_DATA(nlh);
+	frn = (struct fib_result_nl *) nlmsg_data(nlh);
 	tb = fib_get_table(net, frn->tb_id_in);
 
 	nl_fib_lookup(frn, tb);
 
-	portid = NETLINK_CB(skb).portid;      /* pid of sending process */
+	portid = NETLINK_CB(skb).portid;      /* netlink portid */
 	NETLINK_CB(skb).portid = 0;        /* from kernel */
 	NETLINK_CB(skb).dst_group = 0;  /* unicast */
 	netlink_unicast(net->ipv4.fibnl, skb, portid, MSG_DONTWAIT);
@@ -1041,7 +1036,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 
 static int fib_netdev_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct in_device *in_dev;
 	struct net *net = dev_net(dev);
 
@@ -1117,11 +1112,11 @@ static void ip_fib_net_exit(struct net *net)
 	for (i = 0; i < FIB_TABLE_HASHSZ; i++) {
 		struct fib_table *tb;
 		struct hlist_head *head;
-		struct hlist_node *node, *tmp;
+		struct hlist_node *tmp;
 
 		head = &net->ipv4.fib_table_hash[i];
-		hlist_for_each_entry_safe(tb, node, tmp, head, tb_hlist) {
-			hlist_del(node);
+		hlist_for_each_entry_safe(tb, tmp, head, tb_hlist) {
+			hlist_del(&tb->tb_hlist);
 			fib_table_flush(tb);
 			fib_free_table(tb);
 		}

@@ -339,8 +339,7 @@ static void peak_pciec_set_leds(struct peak_pciec_card *card, u8 led_mask, u8 s)
  */
 static void peak_pciec_start_led_work(struct peak_pciec_card *card)
 {
-	if (!delayed_work_pending(&card->led_work))
-		schedule_delayed_work(&card->led_work, HZ);
+	schedule_delayed_work(&card->led_work, HZ);
 }
 
 /*
@@ -403,7 +402,7 @@ static void peak_pciec_write_reg(const struct sja1000_priv *priv,
 	int c = (priv->reg_base - card->reg_base) / PEAK_PCI_CHAN_SIZE;
 
 	/* sja1000 register changes control the leds state */
-	if (port == REG_MOD)
+	if (port == SJA1000_MOD)
 		switch (val) {
 		case MOD_RM:
 			/* Reset Mode: set led on */
@@ -451,11 +450,8 @@ static int peak_pciec_probe(struct pci_dev *pdev, struct net_device *dev)
 	} else {
 		/* create the bit banging I2C adapter structure */
 		card = kzalloc(sizeof(struct peak_pciec_card), GFP_KERNEL);
-		if (!card) {
-			dev_err(&pdev->dev,
-				 "failed allocating memory for i2c chip\n");
+		if (!card)
 			return -ENOMEM;
-		}
 
 		card->cfg_base = chan->cfg_base;
 		card->reg_base = priv->reg_base;
@@ -748,8 +744,6 @@ static void peak_pci_remove(struct pci_dev *pdev)
 	pci_iounmap(pdev, cfg_base);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-
-	pci_set_drvdata(pdev, NULL);
 }
 
 static struct pci_driver peak_pci_driver = {

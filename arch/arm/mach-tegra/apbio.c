@@ -38,7 +38,7 @@ static void tegra_apb_writel_direct(u32 value, unsigned long offset);
 static struct dma_chan *tegra_apb_dma_chan;
 static struct dma_slave_config dma_sconfig;
 
-bool tegra_apb_dma_init(void)
+static bool tegra_apb_dma_init(void)
 {
 	dma_cap_mask_t mask;
 
@@ -114,7 +114,7 @@ static int do_dma_transfer(unsigned long apb_add,
 	dma_desc->callback = apb_dma_complete;
 	dma_desc->callback_param = NULL;
 
-	INIT_COMPLETION(tegra_apb_wait);
+	reinit_completion(&tegra_apb_wait);
 
 	dmaengine_submit(dma_desc);
 	dma_async_issue_pending(tegra_apb_dma_chan);

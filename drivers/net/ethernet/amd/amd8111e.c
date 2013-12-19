@@ -793,7 +793,7 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 #if AMD8111E_VLAN_TAG_USED
 			if (vtag == TT_VLAN_TAGGED){
 				u16 vlan_tag = le16_to_cpu(lp->rx_ring[rx_index].tag_ctrl_info);
-				__vlan_hwaccel_put_tag(skb, vlan_tag);
+				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 			}
 #endif
 			netif_receive_skb(skb);
@@ -1711,7 +1711,6 @@ static void amd8111e_remove_one(struct pci_dev *pdev)
 		free_netdev(dev);
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
-		pci_set_drvdata(pdev, NULL);
 	}
 }
 static void amd8111e_config_ipg(struct net_device* dev)
@@ -1813,7 +1812,7 @@ static const struct net_device_ops amd8111e_netdev_ops = {
 static int amd8111e_probe_one(struct pci_dev *pdev,
 				  const struct pci_device_id *ent)
 {
-	int err,i,pm_cap;
+	int err, i;
 	unsigned long reg_addr,reg_len;
 	struct amd8111e_priv* lp;
 	struct net_device* dev;
@@ -1842,7 +1841,7 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	/* Find power-management capability. */
-	if((pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM))==0){
+	if (!pdev->pm_cap) {
 		printk(KERN_ERR "amd8111e: No Power Management capability, "
 		       "exiting.\n");
 		err = -ENODEV;
@@ -1869,13 +1868,13 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 #if AMD8111E_VLAN_TAG_USED
-	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX ;
+	dev->features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX ;
 #endif
 
 	lp = netdev_priv(dev);
 	lp->pci_dev = pdev;
 	lp->amd8111e_net_dev = dev;
-	lp->pm_cap = pm_cap;
+	lp->pm_cap = pdev->pm_cap;
 
 	spin_lock_init(&lp->lock);
 
@@ -1907,7 +1906,7 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 	netif_napi_add(dev, &lp->napi, amd8111e_rx_poll, 32);
 
 #if AMD8111E_VLAN_TAG_USED
-	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+	dev->features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 #endif
 	/* Probe the external PHY */
 	amd8111e_probe_ext_phy(dev);
@@ -1967,7 +1966,6 @@ err_free_reg:
 
 err_disable_pdev:
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	return err;
 
 }
@@ -1981,15 +1979,4 @@ static struct pci_driver amd8111e_driver = {
 	.resume		= amd8111e_resume
 };
 
-static int __init amd8111e_init(void)
-{
-	return pci_register_driver(&amd8111e_driver);
-}
-
-static void __exit amd8111e_cleanup(void)
-{
-	pci_unregister_driver(&amd8111e_driver);
-}
-
-module_init(amd8111e_init);
-module_exit(amd8111e_cleanup);
+module_pci_driver(amd8111e_driver);

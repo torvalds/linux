@@ -228,7 +228,6 @@ static int bt8xxgpio_probe(struct pci_dev *dev,
 err_release_mem:
 	release_mem_region(pci_resource_start(dev, 0),
 			   pci_resource_len(dev, 0));
-	pci_set_drvdata(dev, NULL);
 err_disable:
 	pci_disable_device(dev);
 err_freebg:
@@ -252,7 +251,6 @@ static void bt8xxgpio_remove(struct pci_dev *pdev)
 			   pci_resource_len(pdev, 0));
 	pci_disable_device(pdev);
 
-	pci_set_drvdata(pdev, NULL);
 	kfree(bg);
 }
 
@@ -286,7 +284,7 @@ static int bt8xxgpio_resume(struct pci_dev *pdev)
 	unsigned long flags;
 	int err;
 
-	pci_set_power_state(pdev, 0);
+	pci_set_power_state(pdev, PCI_D0);
 	err = pci_enable_device(pdev);
 	if (err)
 		return err;

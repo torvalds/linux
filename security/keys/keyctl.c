@@ -22,6 +22,7 @@
 #include <linux/err.h>
 #include <linux/vmalloc.h>
 #include <linux/security.h>
+#include <linux/uio.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 
@@ -1665,6 +1666,9 @@ SYSCALL_DEFINE5(keyctl, int, option, unsigned long, arg2, unsigned long, arg3,
 
 	case KEYCTL_INVALIDATE:
 		return keyctl_invalidate_key((key_serial_t) arg2);
+
+	case KEYCTL_GET_PERSISTENT:
+		return keyctl_get_persistent((uid_t)arg2, (key_serial_t)arg3);
 
 	default:
 		return -EOPNOTSUPP;

@@ -35,10 +35,6 @@
 
 #include <uapi/linux/ipmi.h>
 
-
-/*
- * The in-kernel interface.
- */
 #include <linux/list.h>
 #include <linux/proc_fs.h>
 

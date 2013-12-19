@@ -35,7 +35,7 @@ struct sp8870_config
 	int (*request_firmware)(struct dvb_frontend* fe, const struct firmware **fw, char* name);
 };
 
-#if defined(CONFIG_DVB_SP8870) || (defined(CONFIG_DVB_SP8870_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_SP8870)
 extern struct dvb_frontend* sp8870_attach(const struct sp8870_config* config,
 					  struct i2c_adapter* i2c);
 #else

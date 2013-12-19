@@ -28,6 +28,74 @@
 #include <linux/types.h>
 
 /*
+ * Framework version for util services.
+ */
+#define UTIL_FW_MINOR  0
+
+#define UTIL_WS2K8_FW_MAJOR  1
+#define UTIL_WS2K8_FW_VERSION     (UTIL_WS2K8_FW_MAJOR << 16 | UTIL_FW_MINOR)
+
+#define UTIL_FW_MAJOR  3
+#define UTIL_FW_VERSION     (UTIL_FW_MAJOR << 16 | UTIL_FW_MINOR)
+
+
+/*
+ * Implementation of host controlled snapshot of the guest.
+ */
+
+#define VSS_OP_REGISTER 128
+
+enum hv_vss_op {
+	VSS_OP_CREATE = 0,
+	VSS_OP_DELETE,
+	VSS_OP_HOT_BACKUP,
+	VSS_OP_GET_DM_INFO,
+	VSS_OP_BU_COMPLETE,
+	/*
+	 * Following operations are only supported with IC version >= 5.0
+	 */
+	VSS_OP_FREEZE, /* Freeze the file systems in the VM */
+	VSS_OP_THAW, /* Unfreeze the file systems */
+	VSS_OP_AUTO_RECOVER,
+	VSS_OP_COUNT /* Number of operations, must be last */
+};
+
+
+/*
+ * Header for all VSS messages.
+ */
+struct hv_vss_hdr {
+	__u8 operation;
+	__u8 reserved[7];
+} __attribute__((packed));
+
+
+/*
+ * Flag values for the hv_vss_check_feature. Linux supports only
+ * one value.
+ */
+#define VSS_HBU_NO_AUTO_RECOVERY	0x00000005
+
+struct hv_vss_check_feature {
+	__u32 flags;
+} __attribute__((packed));
+
+struct hv_vss_check_dm_info {
+	__u32 flags;
+} __attribute__((packed));
+
+struct hv_vss_msg {
+	union {
+		struct hv_vss_hdr vss_hdr;
+		int error;
+	};
+	union {
+		struct hv_vss_check_feature vss_cf;
+		struct hv_vss_check_dm_info dm_info;
+	};
+} __attribute__((packed));
+
+/*
  * An implementation of HyperV key value pair (KVP) functionality for Linux.
  *
  *
@@ -325,14 +393,28 @@ struct hv_ring_buffer {
 
 	u32 interrupt_mask;
 
-	/* Pad it to PAGE_SIZE so that data starts on page boundary */
-	u8	reserved[4084];
-
-	/* NOTE:
-	 * The interrupt_mask field is used only for channels but since our
-	 * vmbus connection also uses this data structure and its data starts
-	 * here, we commented out this field.
+	/*
+	 * Win8 uses some of the reserved bits to implement
+	 * interrupt driven flow management. On the send side
+	 * we can request that the receiver interrupt the sender
+	 * when the ring transitions from being full to being able
+	 * to handle a message of size "pending_send_sz".
+	 *
+	 * Add necessary state for this enhancement.
 	 */
+	u32 pending_send_sz;
+
+	u32 reserved1[12];
+
+	union {
+		struct {
+			u32 feat_pending_send_sz:1;
+		};
+		u32 value;
+	} feature_bits;
+
+	/* Pad it to PAGE_SIZE so that data starts on page boundary */
+	u8	reserved2[4028];
 
 	/*
 	 * Ring data starts here + RingDataStartOffset
@@ -349,15 +431,6 @@ struct hv_ring_buffer_info {
 	u32 ring_datasize;		/* < ring_size */
 	u32 ring_data_startoffset;
 };
-
-struct hv_ring_buffer_debug_info {
-	u32 current_interrupt_mask;
-	u32 current_read_index;
-	u32 current_write_index;
-	u32 bytes_avail_toread;
-	u32 bytes_avail_towrite;
-};
-
 
 /*
  *
@@ -384,33 +457,22 @@ hv_get_ringbuffer_availbytes(struct hv_ring_buffer_info *rbi,
 	*read = dsize - *write;
 }
 
-
 /*
- * We use the same version numbering for all Hyper-V modules.
+ * VMBUS version is 32 bit entity broken up into
+ * two 16 bit quantities: major_number. minor_number.
  *
- * Definition of versioning is as follows;
- *
- *	Major Number	Changes for these scenarios;
- *			1.	When a new version of Windows Hyper-V
- *				is released.
- *			2.	A Major change has occurred in the
- *				Linux IC's.
- *			(For example the merge for the first time
- *			into the kernel) Every time the Major Number
- *			changes, the Revision number is reset to 0.
- *	Minor Number	Changes when new functionality is added
- *			to the Linux IC's that is not a bug fix.
- *
- * 3.1 - Added completed hv_utils driver. Shutdown/Heartbeat/Timesync
+ * 0 . 13 (Windows Server 2008)
+ * 1 . 1  (Windows 7)
+ * 2 . 4  (Windows 8)
  */
-#define HV_DRV_VERSION           "3.1"
 
+#define VERSION_WS2008  ((0 << 16) | (13))
+#define VERSION_WIN7    ((1 << 16) | (1))
+#define VERSION_WIN8    ((2 << 16) | (4))
 
-/*
- * A revision number of vmbus that is used for ensuring both ends on a
- * partition are using compatible versions.
- */
-#define VMBUS_REVISION_NUMBER		13
+#define VERSION_INVAL -1
+
+#define VERSION_CURRENT VERSION_WIN8
 
 /* Make maximum size of pipe payload of 16K */
 #define MAX_PIPE_DATA_PAYLOAD		(sizeof(u8) * 16384)
@@ -432,9 +494,13 @@ hv_get_ringbuffer_availbytes(struct hv_ring_buffer_info *rbi,
 struct vmbus_channel_offer {
 	uuid_le if_type;
 	uuid_le if_instance;
-	u64 int_latency; /* in 100ns units */
-	u32 if_revision;
-	u32 server_ctx_size;	/* in bytes */
+
+	/*
+	 * These two fields are not currently used.
+	 */
+	u64 reserved1;
+	u64 reserved2;
+
 	u16 chn_flags;
 	u16 mmio_megabytes;		/* in bytes * 1024 * 1024 */
 
@@ -456,7 +522,11 @@ struct vmbus_channel_offer {
 			unsigned char user_def[MAX_PIPE_USER_DEFINED_BYTES];
 		} pipe;
 	} u;
-	u32 padding;
+	/*
+	 * The sub_channel_index is defined in win8.
+	 */
+	u16 sub_channel_index;
+	u16 reserved3;
 } __packed;
 
 /* Server Flags */
@@ -652,7 +722,25 @@ struct vmbus_channel_offer_channel {
 	struct vmbus_channel_offer offer;
 	u32 child_relid;
 	u8 monitorid;
-	u8 monitor_allocated;
+	/*
+	 * win7 and beyond splits this field into a bit field.
+	 */
+	u8 monitor_allocated:1;
+	u8 reserved:7;
+	/*
+	 * These are new fields added in win7 and later.
+	 * Do not access these fields without checking the
+	 * negotiated protocol.
+	 *
+	 * If "is_dedicated_interrupt" is set, we must not set the
+	 * associated bit in the channel bitmap while sending the
+	 * interrupt to the host.
+	 *
+	 * connection_id is to be used in signaling the host.
+	 */
+	u16 is_dedicated_interrupt:1;
+	u16 reserved1:15;
+	u32 connection_id;
 } __packed;
 
 /* Rescind Offer parameters */
@@ -683,8 +771,15 @@ struct vmbus_channel_open_channel {
 	/* GPADL for the channel's ring buffer. */
 	u32 ringbuffer_gpadlhandle;
 
-	/* GPADL for the channel's server context save area. */
-	u32 server_contextarea_gpadlhandle;
+	/*
+	 * Starting with win8, this field will be used to specify
+	 * the target virtual processor on which to deliver the interrupt for
+	 * the host to guest communication.
+	 * Prior to win8, incoming channel interrupts would only
+	 * be delivered on cpu 0. Setting this value to 0 would
+	 * preserve the earlier behavior.
+	 */
+	u32 target_vp;
 
 	/*
 	* The upstream ring buffer begins at offset zero in the memory
@@ -795,23 +890,7 @@ enum vmbus_channel_state {
 	CHANNEL_OFFER_STATE,
 	CHANNEL_OPENING_STATE,
 	CHANNEL_OPEN_STATE,
-};
-
-struct vmbus_channel_debug_info {
-	u32 relid;
-	enum vmbus_channel_state state;
-	uuid_le interfacetype;
-	uuid_le interface_instance;
-	u32 monitorid;
-	u32 servermonitor_pending;
-	u32 servermonitor_latency;
-	u32 servermonitor_connectionid;
-	u32 clientmonitor_pending;
-	u32 clientmonitor_latency;
-	u32 clientmonitor_connectionid;
-
-	struct hv_ring_buffer_debug_info inbound;
-	struct hv_ring_buffer_debug_info outbound;
+	CHANNEL_OPENED_STATE,
 };
 
 /*
@@ -848,6 +927,27 @@ struct vmbus_close_msg {
 	struct vmbus_channel_close_channel msg;
 };
 
+/* Define connection identifier type. */
+union hv_connection_id {
+	u32 asu32;
+	struct {
+		u32 id:24;
+		u32 reserved:8;
+	} u;
+};
+
+/* Definition of the hv_signal_event hypercall input structure. */
+struct hv_input_signal_event {
+	union hv_connection_id connectionid;
+	u16 flag_number;
+	u16 rsvdz;
+};
+
+struct hv_input_signal_event_buffer {
+	u64 align8;
+	struct hv_input_signal_event event;
+};
+
 struct vmbus_channel {
 	struct list_head listentry;
 
@@ -882,11 +982,105 @@ struct vmbus_channel {
 
 	void (*onchannel_callback)(void *context);
 	void *channel_callback_context;
+
+	/*
+	 * A channel can be marked for efficient (batched)
+	 * reading:
+	 * If batched_reading is set to "true", we read until the
+	 * channel is empty and hold off interrupts from the host
+	 * during the entire read process.
+	 * If batched_reading is set to "false", the client is not
+	 * going to perform batched reading.
+	 *
+	 * By default we will enable batched reading; specific
+	 * drivers that don't want this behavior can turn it off.
+	 */
+
+	bool batched_reading;
+
+	bool is_dedicated_interrupt;
+	struct hv_input_signal_event_buffer sig_buf;
+	struct hv_input_signal_event *sig_event;
+
+	/*
+	 * Starting with win8, this field will be used to specify
+	 * the target virtual processor on which to deliver the interrupt for
+	 * the host to guest communication.
+	 * Prior to win8, incoming channel interrupts would only
+	 * be delivered on cpu 0. Setting this value to 0 would
+	 * preserve the earlier behavior.
+	 */
+	u32 target_vp;
+	/*
+	 * Support for sub-channels. For high performance devices,
+	 * it will be useful to have multiple sub-channels to support
+	 * a scalable communication infrastructure with the host.
+	 * The support for sub-channels is implemented as an extention
+	 * to the current infrastructure.
+	 * The initial offer is considered the primary channel and this
+	 * offer message will indicate if the host supports sub-channels.
+	 * The guest is free to ask for sub-channels to be offerred and can
+	 * open these sub-channels as a normal "primary" channel. However,
+	 * all sub-channels will have the same type and instance guids as the
+	 * primary channel. Requests sent on a given channel will result in a
+	 * response on the same channel.
+	 */
+
+	/*
+	 * Sub-channel creation callback. This callback will be called in
+	 * process context when a sub-channel offer is received from the host.
+	 * The guest can open the sub-channel in the context of this callback.
+	 */
+	void (*sc_creation_callback)(struct vmbus_channel *new_sc);
+
+	spinlock_t sc_lock;
+	/*
+	 * All Sub-channels of a primary channel are linked here.
+	 */
+	struct list_head sc_list;
+	/*
+	 * The primary channel this sub-channel belongs to.
+	 * This will be NULL for the primary channel.
+	 */
+	struct vmbus_channel *primary_channel;
 };
+
+static inline void set_channel_read_state(struct vmbus_channel *c, bool state)
+{
+	c->batched_reading = state;
+}
 
 void vmbus_onmessage(void *context);
 
 int vmbus_request_offers(void);
+
+/*
+ * APIs for managing sub-channels.
+ */
+
+void vmbus_set_sc_create_callback(struct vmbus_channel *primary_channel,
+			void (*sc_cr_cb)(struct vmbus_channel *new_sc));
+
+/*
+ * Retrieve the (sub) channel on which to send an outgoing request.
+ * When a primary channel has multiple sub-channels, we choose a
+ * channel whose VCPU binding is closest to the VCPU on which
+ * this call is being made.
+ */
+struct vmbus_channel *vmbus_get_outgoing_channel(struct vmbus_channel *primary);
+
+/*
+ * Check if sub-channels have already been offerred. This API will be useful
+ * when the driver is unloaded after establishing sub-channels. In this case,
+ * when the driver is re-loaded, the driver would have to check if the
+ * subchannels have already been established before attempting to request
+ * the creation of sub-channels.
+ * This function returns TRUE to indicate that subchannels have already been
+ * created.
+ * This function should be invoked after setting the callback function for
+ * sub-channel creation.
+ */
+bool vmbus_are_subchannels_present(struct vmbus_channel *primary);
 
 /* The format must be the same as struct vmdata_gpa_direct */
 struct vmbus_channel_packet_page_buffer {
@@ -964,18 +1158,7 @@ extern int vmbus_recvpacket_raw(struct vmbus_channel *channel,
 				     u64 *requestid);
 
 
-extern void vmbus_get_debug_info(struct vmbus_channel *channel,
-				     struct vmbus_channel_debug_info *debug);
-
 extern void vmbus_ontimer(unsigned long data);
-
-struct hv_dev_port_info {
-	u32 int_mask;
-	u32 read_idx;
-	u32 write_idx;
-	u32 bytes_avail_toread;
-	u32 bytes_avail_towrite;
-};
 
 /* Base driver object */
 struct hv_driver {
@@ -1045,6 +1228,128 @@ void vmbus_driver_unregister(struct hv_driver *hv_driver);
 		     g8, g9, ga, gb, gc, gd, ge, gf)	\
 	.guid = { g0, g1, g2, g3, g4, g5, g6, g7,	\
 		  g8, g9, ga, gb, gc, gd, ge, gf },
+
+/*
+ * GUID definitions of various offer types - services offered to the guest.
+ */
+
+/*
+ * Network GUID
+ * {f8615163-df3e-46c5-913f-f2d2f965ed0e}
+ */
+#define HV_NIC_GUID \
+	.guid = { \
+			0x63, 0x51, 0x61, 0xf8, 0x3e, 0xdf, 0xc5, 0x46, \
+			0x91, 0x3f, 0xf2, 0xd2, 0xf9, 0x65, 0xed, 0x0e \
+		}
+
+/*
+ * IDE GUID
+ * {32412632-86cb-44a2-9b5c-50d1417354f5}
+ */
+#define HV_IDE_GUID \
+	.guid = { \
+			0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44, \
+			0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5 \
+		}
+
+/*
+ * SCSI GUID
+ * {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f}
+ */
+#define HV_SCSI_GUID \
+	.guid = { \
+			0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d, \
+			0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f \
+		}
+
+/*
+ * Shutdown GUID
+ * {0e0b6031-5213-4934-818b-38d90ced39db}
+ */
+#define HV_SHUTDOWN_GUID \
+	.guid = { \
+			0x31, 0x60, 0x0b, 0x0e, 0x13, 0x52, 0x34, 0x49, \
+			0x81, 0x8b, 0x38, 0xd9, 0x0c, 0xed, 0x39, 0xdb \
+		}
+
+/*
+ * Time Synch GUID
+ * {9527E630-D0AE-497b-ADCE-E80AB0175CAF}
+ */
+#define HV_TS_GUID \
+	.guid = { \
+			0x30, 0xe6, 0x27, 0x95, 0xae, 0xd0, 0x7b, 0x49, \
+			0xad, 0xce, 0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf \
+		}
+
+/*
+ * Heartbeat GUID
+ * {57164f39-9115-4e78-ab55-382f3bd5422d}
+ */
+#define HV_HEART_BEAT_GUID \
+	.guid = { \
+			0x39, 0x4f, 0x16, 0x57, 0x15, 0x91, 0x78, 0x4e, \
+			0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d \
+		}
+
+/*
+ * KVP GUID
+ * {a9a0f4e7-5a45-4d96-b827-8a841e8c03e6}
+ */
+#define HV_KVP_GUID \
+	.guid = { \
+			0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d, \
+			0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6 \
+		}
+
+/*
+ * Dynamic memory GUID
+ * {525074dc-8985-46e2-8057-a307dc18a502}
+ */
+#define HV_DM_GUID \
+	.guid = { \
+			0xdc, 0x74, 0x50, 0X52, 0x85, 0x89, 0xe2, 0x46, \
+			0x80, 0x57, 0xa3, 0x07, 0xdc, 0x18, 0xa5, 0x02 \
+		}
+
+/*
+ * Mouse GUID
+ * {cfa8b69e-5b4a-4cc0-b98b-8ba1a1f3f95a}
+ */
+#define HV_MOUSE_GUID \
+	.guid = { \
+			0x9e, 0xb6, 0xa8, 0xcf, 0x4a, 0x5b, 0xc0, 0x4c, \
+			0xb9, 0x8b, 0x8b, 0xa1, 0xa1, 0xf3, 0xf9, 0x5a \
+		}
+
+/*
+ * VSS (Backup/Restore) GUID
+ */
+#define HV_VSS_GUID \
+	.guid = { \
+			0x29, 0x2e, 0xfa, 0x35, 0x23, 0xea, 0x36, 0x42, \
+			0x96, 0xae, 0x3a, 0x6e, 0xba, 0xcb, 0xa4,  0x40 \
+		}
+/*
+ * Synthetic Video GUID
+ * {DA0A7802-E377-4aac-8E77-0558EB1073F8}
+ */
+#define HV_SYNTHVID_GUID \
+	.guid = { \
+			0x02, 0x78, 0x0a, 0xda, 0x77, 0xe3, 0xac, 0x4a, \
+			0x8e, 0x77, 0x05, 0x58, 0xeb, 0x10, 0x73, 0xf8 \
+		}
+
+/*
+ * Synthetic FC GUID
+ * {2f9bcc4a-0069-4af3-b76b-6fd0be528cda}
+ */
+#define HV_SYNTHFC_GUID \
+	.guid = { \
+			0x4A, 0xCC, 0x9B, 0x2F, 0x69, 0x00, 0xF3, 0x4A, \
+			0xB7, 0x6B, 0x6F, 0xD0, 0xBE, 0x52, 0x8C, 0xDA \
+		}
 
 /*
  * Common header for Hyper-V ICs
@@ -1142,13 +1447,23 @@ struct hyperv_service_callback {
 };
 
 #define MAX_SRV_VER	0x7ffffff
-extern void vmbus_prep_negotiate_resp(struct icmsg_hdr *,
+extern bool vmbus_prep_negotiate_resp(struct icmsg_hdr *,
 					struct icmsg_negotiate *, u8 *, int,
 					int);
 
 int hv_kvp_init(struct hv_util_service *);
 void hv_kvp_deinit(void);
 void hv_kvp_onchannelcallback(void *);
+
+int hv_vss_init(struct hv_util_service *);
+void hv_vss_deinit(void);
+void hv_vss_onchannelcallback(void *);
+
+/*
+ * Negotiated version with the Host.
+ */
+
+extern __u32 vmbus_proto_version;
 
 #endif /* __KERNEL__ */
 #endif /* _HYPERV_H */

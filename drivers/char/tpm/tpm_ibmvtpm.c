@@ -64,7 +64,7 @@ static struct ibmvtpm_dev *ibmvtpm_get_data(const struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 	if (chip)
-		return (struct ibmvtpm_dev *)chip->vendor.data;
+		return (struct ibmvtpm_dev *)TPM_VPRIV(chip);
 	return NULL;
 }
 
@@ -83,7 +83,7 @@ static int tpm_ibmvtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	u16 len;
 	int sig;
 
-	ibmvtpm = (struct ibmvtpm_dev *)chip->vendor.data;
+	ibmvtpm = (struct ibmvtpm_dev *)TPM_VPRIV(chip);
 
 	if (!ibmvtpm->rtce_buf) {
 		dev_err(ibmvtpm->dev, "ibmvtpm device is not ready\n");
@@ -98,7 +98,7 @@ static int tpm_ibmvtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 
 	if (count < len) {
 		dev_err(ibmvtpm->dev,
-			"Invalid size in recv: count=%ld, crq_size=%d\n",
+			"Invalid size in recv: count=%zd, crq_size=%d\n",
 			count, len);
 		return -EIO;
 	}
@@ -127,7 +127,7 @@ static int tpm_ibmvtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 	u64 *word = (u64 *) &crq;
 	int rc;
 
-	ibmvtpm = (struct ibmvtpm_dev *)chip->vendor.data;
+	ibmvtpm = (struct ibmvtpm_dev *)TPM_VPRIV(chip);
 
 	if (!ibmvtpm->rtce_buf) {
 		dev_err(ibmvtpm->dev, "ibmvtpm device is not ready\n");
@@ -136,7 +136,7 @@ static int tpm_ibmvtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 
 	if (count > ibmvtpm->rtce_size) {
 		dev_err(ibmvtpm->dev,
-			"Invalid size in send: count=%ld, rtce_size=%d\n",
+			"Invalid size in send: count=%zd, rtce_size=%d\n",
 			count, ibmvtpm->rtce_size);
 		return -EIO;
 	}
@@ -398,6 +398,11 @@ static int tpm_ibmvtpm_resume(struct device *dev)
 	return rc;
 }
 
+static bool tpm_ibmvtpm_req_canceled(struct tpm_chip *chip, u8 status)
+{
+	return (status == 0);
+}
+
 static const struct file_operations ibmvtpm_ops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
@@ -414,7 +419,7 @@ static DEVICE_ATTR(active, S_IRUGO, tpm_show_active, NULL);
 static DEVICE_ATTR(owned, S_IRUGO, tpm_show_owned, NULL);
 static DEVICE_ATTR(temp_deactivated, S_IRUGO, tpm_show_temp_deactivated,
 		   NULL);
-static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps_1_2, NULL);
+static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps, NULL);
 static DEVICE_ATTR(cancel, S_IWUSR | S_IWGRP, NULL, tpm_store_cancel);
 static DEVICE_ATTR(durations, S_IRUGO, tpm_show_durations, NULL);
 static DEVICE_ATTR(timeouts, S_IRUGO, tpm_show_timeouts, NULL);
@@ -441,7 +446,7 @@ static const struct tpm_vendor_specific tpm_ibmvtpm = {
 	.status = tpm_ibmvtpm_status,
 	.req_complete_mask = 0,
 	.req_complete_val = 0,
-	.req_canceled = 0,
+	.req_canceled = tpm_ibmvtpm_req_canceled,
 	.attr_group = &ibmvtpm_attr_grp,
 	.miscdev = { .fops = &ibmvtpm_ops, },
 };
@@ -647,7 +652,7 @@ static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 
 	ibmvtpm->dev = dev;
 	ibmvtpm->vdev = vio_dev;
-	chip->vendor.data = (void *)ibmvtpm;
+	TPM_VPRIV(chip) = (void *)ibmvtpm;
 
 	spin_lock_init(&ibmvtpm->rtce_lock);
 

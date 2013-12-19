@@ -69,7 +69,7 @@ config MMC_SDHCI_PCI
 	  If unsure, say N.
 
 config MMC_RICOH_MMC
-	bool "Ricoh MMC Controller Disabler  (EXPERIMENTAL)"
+	bool "Ricoh MMC Controller Disabler"
 	depends on MMC_SDHCI_PCI
 	help
 	  This adds a pci quirk to disable Ricoh MMC Controller. This
@@ -186,8 +186,16 @@ config MMC_SDHCI_S3C
 	  often referrered to as the HSMMC block in some of the Samsung S3C
 	  range of SoC.
 
-	  Note, due to the problems with DMA, the DMA support is only
-	  available with CONFIG_EXPERIMENTAL is selected.
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_SIRF
+	tristate "SDHCI support on CSR SiRFprimaII and SiRFmarco SoCs"
+	depends on ARCH_SIRF
+	depends on MMC_SDHCI_PLTFM
+	help
+	  This selects the SDHCI support for SiRF System-on-Chip devices.
 
 	  If you have a controller with this interface, say Y or M here.
 
@@ -233,13 +241,35 @@ config MMC_SDHCI_SPEAR
 
 config MMC_SDHCI_S3C_DMA
 	bool "DMA support on S3C SDHCI"
-	depends on MMC_SDHCI_S3C && EXPERIMENTAL
+	depends on MMC_SDHCI_S3C
 	help
 	  Enable DMA support on the Samsung S3C SDHCI glue. The DMA
 	  has proved to be problematic if the controller encounters
 	  certain errors, and thus should be treated with care.
 
 	  YMMV.
+
+config MMC_SDHCI_BCM_KONA
+	tristate "SDHCI support on Broadcom KONA platform"
+	depends on ARCH_BCM
+	select MMC_SDHCI_PLTFM
+	help
+	  This selects the Broadcom Kona Secure Digital Host Controller
+	  Interface(SDHCI) support.
+	  This is used in Broadcom mobile SoCs.
+
+	  If you have a controller with this interface, say Y or M here.
+
+config MMC_SDHCI_BCM2835
+	tristate "SDHCI platform support for the BCM2835 SD/MMC Controller"
+	depends on ARCH_BCM2835
+	depends on MMC_SDHCI_PLTFM
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the BCM2835 SD/MMC controller. If you have a BCM2835
+	  platform with SD or MMC devices, say Y or M here.
+
+	  If unsure, say N.
 
 config MMC_OMAP
 	tristate "TI OMAP Multimedia Card Interface support"
@@ -254,11 +284,11 @@ config MMC_OMAP
 
 config MMC_OMAP_HS
 	tristate "TI OMAP High Speed Multimedia Card Interface support"
-	depends on SOC_OMAP2430 || ARCH_OMAP3 || ARCH_OMAP4
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	help
 	  This selects the TI OMAP High Speed Multimedia card Interface.
-	  If you have an OMAP2430 or OMAP3 board or OMAP4 board with a
-	  Multimedia Card slot, say Y or M here.
+	  If you have an omap2plus board with a Multimedia Card slot,
+	  say Y or M here.
 
 	  If unsure, say N.
 
@@ -292,16 +322,6 @@ config MMC_ATMELMCI
 
 	  If unsure, say N.
 
-config MMC_ATMELMCI_DMA
-	bool "Atmel MCI DMA support"
-	depends on MMC_ATMELMCI && (AVR32 || ARCH_AT91SAM9G45) && DMA_ENGINE
-	help
-	  Say Y here to have the Atmel MCI driver use a DMA engine to
-	  do data transfers and thus increase the throughput and
-	  reduce the CPU utilization.
-
-	  If unsure, say N.
-
 config MMC_MSM
 	tristate "Qualcomm SDCC Controller Support"
 	depends on MMC && ARCH_MSM
@@ -311,12 +331,12 @@ config MMC_MSM
 	  support for SDIO devices.
 
 config MMC_MXC
-	tristate "Freescale i.MX21/27/31 Multimedia Card Interface support"
-	depends on ARCH_MXC
+	tristate "Freescale i.MX21/27/31 or MPC512x Multimedia Card support"
+	depends on ARCH_MXC || PPC_MPC512x
 	help
-	  This selects the Freescale i.MX21, i.MX27 and i.MX31 Multimedia card
-	  Interface. If you have a i.MX platform with a Multimedia Card slot,
-	  say Y or M here.
+	  This selects the Freescale i.MX21, i.MX27, i.MX31 or MPC512x
+	  Multimedia Card Interface. If you have an i.MX or MPC512x platform
+	  with a Multimedia Card slot, say Y or M here.
 
 	  If unsure, say N.
 
@@ -330,8 +350,8 @@ config MMC_MXS
 	  If unsure, say N.
 
 config MMC_TIFM_SD
-	tristate "TI Flash Media MMC/SD Interface support  (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PCI
+	tristate "TI Flash Media MMC/SD Interface support"
+	depends on PCI
 	select TIFM_CORE
 	help
 	  Say Y here if you want to be able to access MMC/SD cards with
@@ -363,6 +383,13 @@ config MMC_DAVINCI
           This selects the TI DAVINCI Multimedia card Interface.
           If you have an DAVINCI board with a Multimedia Card slot,
           say Y or M here.  If unsure, say N.
+
+config MMC_GOLDFISH
+	tristate "goldfish qemu Multimedia Card Interface support"
+	depends on GOLDFISH
+	help
+	  This selects the Goldfish Multimedia card Interface emulation
+	  found on the Goldfish Android virtual device emulation.
 
 config MMC_SPI
 	tristate "MMC/SD/SDIO over SPI"
@@ -410,8 +437,7 @@ config MMC_S3C_PIO
 	  the S3C MCI driver.
 
 config MMC_S3C_DMA
-	bool "Use DMA transfers only (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "Use DMA transfers only"
 	help
 	  Use DMA to transfer data between memory and the hardare.
 
@@ -420,7 +446,7 @@ config MMC_S3C_DMA
 	  option is useful.
 
 config MMC_S3C_PIODMA
-	bool "Support for both PIO and DMA (EXPERIMENTAL)"
+	bool "Support for both PIO and DMA"
 	help
 	  Compile both the PIO and DMA transfer routines into the
 	  driver and let the platform select at run-time which one
@@ -431,8 +457,8 @@ config MMC_S3C_PIODMA
 endchoice
 
 config MMC_SDRICOH_CS
-	tristate "MMC/SD driver for Ricoh Bay1Controllers (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PCI && PCMCIA
+	tristate "MMC/SD driver for Ricoh Bay1Controllers"
+	depends on PCI && PCMCIA
 	help
 	  Say Y here if your Notebook reports a Ricoh Bay1Controller PCMCIA
 	  card whenever you insert a MMC or SD card into the card slot.
@@ -504,7 +530,7 @@ config SDH_BFIN_MISSING_CMD_PULLUP_WORKAROUND
 
 config MMC_DW
 	tristate "Synopsys DesignWare Memory Card Interface"
-	depends on ARM
+	depends on ARC || ARM
 	help
 	  This selects support for the Synopsys DesignWare Mobile Storage IP
 	  block, this provides host support for SD and MMC interfaces, in both
@@ -540,6 +566,14 @@ config MMC_DW_EXYNOS
 	  This selects support for Samsung Exynos SoC specific extensions to the
 	  Synopsys DesignWare Memory Card Interface driver. Select this option
 	  for platforms based on Exynos4 and Exynos5 SoC's.
+
+config MMC_DW_SOCFPGA
+	tristate "SOCFPGA specific extensions for Synopsys DW Memory Card Interface"
+	depends on MMC_DW && MFD_SYSCON
+	select MMC_DW_PLTFM
+	help
+	  This selects support for Altera SoCFPGA specific extensions to the
+	  Synopsys DesignWare Memory Card Interface driver.
 
 config MMC_DW_PCI
 	tristate "Synopsys Designware MCI support on PCI bus"

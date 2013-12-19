@@ -175,7 +175,7 @@ static int sparcspkr_probe(struct device *dev)
 
 static void sparcspkr_shutdown(struct platform_device *dev)
 {
-	struct sparcspkr_state *state = dev_get_drvdata(&dev->dev);
+	struct sparcspkr_state *state = platform_get_drvdata(dev);
 	struct input_dev *input_dev = state->input_dev;
 
 	/* turn off the speaker */
@@ -211,7 +211,7 @@ static int bbc_beep_probe(struct platform_device *op)
 	if (!info->regs)
 		goto out_free;
 
-	dev_set_drvdata(&op->dev, state);
+	platform_set_drvdata(op, state);
 
 	err = sparcspkr_probe(&op->dev);
 	if (err)
@@ -220,7 +220,6 @@ static int bbc_beep_probe(struct platform_device *op)
 	return 0;
 
 out_clear_drvdata:
-	dev_set_drvdata(&op->dev, NULL);
 	of_iounmap(&op->resource[0], info->regs, 6);
 
 out_free:
@@ -231,7 +230,7 @@ out_err:
 
 static int bbc_remove(struct platform_device *op)
 {
-	struct sparcspkr_state *state = dev_get_drvdata(&op->dev);
+	struct sparcspkr_state *state = platform_get_drvdata(op);
 	struct input_dev *input_dev = state->input_dev;
 	struct bbc_beep_info *info = &state->u.bbc;
 
@@ -242,7 +241,6 @@ static int bbc_remove(struct platform_device *op)
 
 	of_iounmap(&op->resource[0], info->regs, 6);
 
-	dev_set_drvdata(&op->dev, NULL);
 	kfree(state);
 
 	return 0;
@@ -290,7 +288,7 @@ static int grover_beep_probe(struct platform_device *op)
 	if (!info->enable_reg)
 		goto out_unmap_freq_regs;
 
-	dev_set_drvdata(&op->dev, state);
+	platform_set_drvdata(op, state);
 
 	err = sparcspkr_probe(&op->dev);
 	if (err)
@@ -299,7 +297,6 @@ static int grover_beep_probe(struct platform_device *op)
 	return 0;
 
 out_clear_drvdata:
-	dev_set_drvdata(&op->dev, NULL);
 	of_iounmap(&op->resource[3], info->enable_reg, 1);
 
 out_unmap_freq_regs:
@@ -312,7 +309,7 @@ out_err:
 
 static int grover_remove(struct platform_device *op)
 {
-	struct sparcspkr_state *state = dev_get_drvdata(&op->dev);
+	struct sparcspkr_state *state = platform_get_drvdata(op);
 	struct grover_beep_info *info = &state->u.grover;
 	struct input_dev *input_dev = state->input_dev;
 
@@ -324,7 +321,6 @@ static int grover_remove(struct platform_device *op)
 	of_iounmap(&op->resource[3], info->enable_reg, 1);
 	of_iounmap(&op->resource[2], info->freq_regs, 2);
 
-	dev_set_drvdata(&op->dev, NULL);
 	kfree(state);
 
 	return 0;

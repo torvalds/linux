@@ -1,7 +1,3 @@
-config SYMBOL_PREFIX
-	string
-	default "_"
-
 config MMU
 	def_bool n
 
@@ -24,7 +20,6 @@ config BLACKFIN
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_IDE
-	select HAVE_IRQ_WORK
 	select HAVE_KERNEL_GZIP if RAMKERNEL
 	select HAVE_KERNEL_BZIP2 if RAMKERNEL
 	select HAVE_KERNEL_LZMA if RAMKERNEL
@@ -32,19 +27,19 @@ config BLACKFIN
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
 	select ARCH_HAVE_CUSTOM_GPIO_H
-	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_UID16
+	select HAVE_UNDERSCORE_SYMBOL_PREFIX
+	select VIRT_TO_BUS
 	select ARCH_WANT_IPC_PARSE_VERSION
-	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_ATOMIC64
 	select GENERIC_IRQ_PROBE
-	select IRQ_PER_CPU if SMP
-	select USE_GENERIC_SMP_HELPERS if SMP
 	select HAVE_NMI_WATCHDOG if NMI_WATCHDOG
 	select GENERIC_SMP_IDLE_THREAD
 	select ARCH_USES_GETTIMEOFFSET if !GENERIC_CLOCKEVENTS
 	select HAVE_MOD_ARCH_SPECIFIC
 	select MODULES_USE_ELF_RELA
+	select HAVE_DEBUG_STACKOVERFLOW
 
 config GENERIC_CSUM
 	def_bool y
@@ -260,7 +255,7 @@ config NR_CPUS
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
-	depends on SMP && HOTPLUG
+	depends on SMP
 	default y
 
 config BF_REV_MIN
@@ -289,7 +284,7 @@ config BF_REV_0_0
 
 config BF_REV_0_1
 	bool "0.1"
-	depends on (BF51x || BF52x || (BF54x && !BF54xM))
+	depends on (BF51x || BF52x || (BF54x && !BF54xM) || BF60x)
 
 config BF_REV_0_2
 	bool "0.2"
@@ -323,6 +318,14 @@ config BF53x
 	bool
 	depends on (BF531 || BF532 || BF533 || BF534 || BF536 || BF537)
 	default y
+
+config GPIO_ADI
+	def_bool y
+	depends on (BF51x || BF52x || BF53x || BF538 || BF539 || BF561)
+
+config PINCTRL
+	def_bool y
+	depends on BF54x || BF60x
 
 config MEM_MT48LC64M4A2FB_7E
 	bool
@@ -562,8 +565,7 @@ choice
 	  accurate - This option is therefore marked experimental.
 
 config BFIN_KERNEL_CLOCK_MEMINIT_CALC
-	bool "Calculate Timings (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "Calculate Timings"
 
 config BFIN_KERNEL_CLOCK_MEMINIT_SPEC
 	bool "Provide accurate Timings based on target SCLK"
@@ -1120,7 +1122,7 @@ endchoice
 
 comment "Memory Protection Unit"
 config MPU
-	bool "Enable the memory protection unit (EXPERIMENTAL)"
+	bool "Enable the memory protection unit"
 	default n
 	help
 	  Use the processor's MPU to protect applications from accessing
@@ -1437,12 +1439,10 @@ source "drivers/cpufreq/Kconfig"
 config BFIN_CPU_FREQ
 	bool
 	depends on CPU_FREQ
-	select CPU_FREQ_TABLE
 	default y
 
 config CPU_VOLTAGE
 	bool "CPU Voltage scaling"
-	depends on EXPERIMENTAL
 	depends on CPU_FREQ
 	default n
 	help

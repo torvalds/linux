@@ -29,9 +29,6 @@
 
 #include <asm/div64.h>
 
-#define MTD_CHAR_MAJOR 90
-#define MTD_BLOCK_MAJOR 31
-
 #define MTD_ERASE_PENDING	0x01
 #define MTD_ERASING		0x02
 #define MTD_ERASE_SUSPEND	0x04
@@ -172,6 +169,9 @@ struct mtd_info {
 
 	/* ECC layout structure pointer - read only! */
 	struct nand_ecclayout *ecclayout;
+
+	/* the ecc step size. */
+	unsigned int ecc_step_size;
 
 	/* max number of correctible bit errors per ecc step */
 	unsigned int ecc_strength;
@@ -351,6 +351,11 @@ static inline int mtd_has_oob(const struct mtd_info *mtd)
 	return mtd->_read_oob && mtd->_write_oob;
 }
 
+static inline int mtd_type_is_nand(const struct mtd_info *mtd)
+{
+	return mtd->type == MTD_NANDFLASH || mtd->type == MTD_MLCNANDFLASH;
+}
+
 static inline int mtd_can_have_bb(const struct mtd_info *mtd)
 {
 	return !!mtd->_block_isbad;
@@ -362,10 +367,10 @@ struct mtd_partition;
 struct mtd_part_parser_data;
 
 extern int mtd_device_parse_register(struct mtd_info *mtd,
-			      const char **part_probe_types,
-			      struct mtd_part_parser_data *parser_data,
-			      const struct mtd_partition *defparts,
-			      int defnr_parts);
+				     const char * const *part_probe_types,
+				     struct mtd_part_parser_data *parser_data,
+				     const struct mtd_partition *defparts,
+				     int defnr_parts);
 #define mtd_device_register(master, parts, nr_parts)	\
 	mtd_device_parse_register(master, NULL, NULL, parts, nr_parts)
 extern int mtd_device_unregister(struct mtd_info *master);

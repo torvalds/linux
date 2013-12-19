@@ -201,44 +201,32 @@ static int axienet_dma_bd_init(struct net_device *ndev)
 	/*
 	 * Allocate the Tx and Rx buffer descriptors.
 	 */
-	lp->tx_bd_v = dma_alloc_coherent(ndev->dev.parent,
-					 sizeof(*lp->tx_bd_v) * TX_BD_NUM,
-					 &lp->tx_bd_p,
-					 GFP_KERNEL);
-	if (!lp->tx_bd_v) {
-		dev_err(&ndev->dev, "unable to allocate DMA Tx buffer "
-			"descriptors");
+	lp->tx_bd_v = dma_zalloc_coherent(ndev->dev.parent,
+					  sizeof(*lp->tx_bd_v) * TX_BD_NUM,
+					  &lp->tx_bd_p, GFP_KERNEL);
+	if (!lp->tx_bd_v)
 		goto out;
-	}
 
-	lp->rx_bd_v = dma_alloc_coherent(ndev->dev.parent,
-					 sizeof(*lp->rx_bd_v) * RX_BD_NUM,
-					 &lp->rx_bd_p,
-					 GFP_KERNEL);
-	if (!lp->rx_bd_v) {
-		dev_err(&ndev->dev, "unable to allocate DMA Rx buffer "
-			"descriptors");
+	lp->rx_bd_v = dma_zalloc_coherent(ndev->dev.parent,
+					  sizeof(*lp->rx_bd_v) * RX_BD_NUM,
+					  &lp->rx_bd_p, GFP_KERNEL);
+	if (!lp->rx_bd_v)
 		goto out;
-	}
 
-	memset(lp->tx_bd_v, 0, sizeof(*lp->tx_bd_v) * TX_BD_NUM);
 	for (i = 0; i < TX_BD_NUM; i++) {
 		lp->tx_bd_v[i].next = lp->tx_bd_p +
 				      sizeof(*lp->tx_bd_v) *
 				      ((i + 1) % TX_BD_NUM);
 	}
 
-	memset(lp->rx_bd_v, 0, sizeof(*lp->rx_bd_v) * RX_BD_NUM);
 	for (i = 0; i < RX_BD_NUM; i++) {
 		lp->rx_bd_v[i].next = lp->rx_bd_p +
 				      sizeof(*lp->rx_bd_v) *
 				      ((i + 1) % RX_BD_NUM);
 
 		skb = netdev_alloc_skb_ip_align(ndev, lp->max_frm_size);
-		if (!skb) {
-			dev_err(&ndev->dev, "alloc_skb error %d\n", i);
+		if (!skb)
 			goto out;
-		}
 
 		lp->rx_bd_v[i].sw_id_offset = (u32) skb;
 		lp->rx_bd_v[i].phys = dma_map_single(ndev->dev.parent,
@@ -777,10 +765,9 @@ static void axienet_recv(struct net_device *ndev)
 		packets++;
 
 		new_skb = netdev_alloc_skb_ip_align(ndev, lp->max_frm_size);
-		if (!new_skb) {
-			dev_err(&ndev->dev, "no memory for new sk_buff\n");
+		if (!new_skb)
 			return;
-		}
+
 		cur_p->phys = dma_map_single(ndev->dev.parent, new_skb->data,
 					     lp->max_frm_size,
 					     DMA_FROM_DEVICE);
@@ -1124,9 +1111,8 @@ static int axienet_ethtools_set_settings(struct net_device *ndev,
 static void axienet_ethtools_get_drvinfo(struct net_device *ndev,
 					 struct ethtool_drvinfo *ed)
 {
-	memset(ed, 0, sizeof(struct ethtool_drvinfo));
-	strcpy(ed->driver, DRIVER_NAME);
-	strcpy(ed->version, DRIVER_VERSION);
+	strlcpy(ed->driver, DRIVER_NAME, sizeof(ed->driver));
+	strlcpy(ed->version, DRIVER_VERSION, sizeof(ed->version));
 	ed->regdump_len = sizeof(u32) * AXIENET_REGS_N;
 }
 
@@ -1496,11 +1482,11 @@ static int axienet_of_probe(struct platform_device *op)
 		return -ENOMEM;
 
 	ether_setup(ndev);
-	dev_set_drvdata(&op->dev, ndev);
+	platform_set_drvdata(op, ndev);
 
 	SET_NETDEV_DEV(ndev, &op->dev);
 	ndev->flags &= ~IFF_MULTICAST;  /* clear multicast */
-	ndev->features = NETIF_F_SG | NETIF_F_FRAGLIST;
+	ndev->features = NETIF_F_SG;
 	ndev->netdev_ops = &axienet_netdev_ops;
 	ndev->ethtool_ops = &axienet_ethtool_ops;
 
@@ -1590,7 +1576,7 @@ static int axienet_of_probe(struct platform_device *op)
 	lp->rx_irq = irq_of_parse_and_map(np, 1);
 	lp->tx_irq = irq_of_parse_and_map(np, 0);
 	of_node_put(np);
-	if ((lp->rx_irq == NO_IRQ) || (lp->tx_irq == NO_IRQ)) {
+	if ((lp->rx_irq <= 0) || (lp->tx_irq <= 0)) {
 		dev_err(&op->dev, "could not determine irqs\n");
 		ret = -ENOMEM;
 		goto err_iounmap_2;
@@ -1634,7 +1620,7 @@ nodev:
 
 static int axienet_of_remove(struct platform_device *op)
 {
-	struct net_device *ndev = dev_get_drvdata(&op->dev);
+	struct net_device *ndev = platform_get_drvdata(op);
 	struct axienet_local *lp = netdev_priv(ndev);
 
 	axienet_mdio_teardown(lp);
@@ -1643,8 +1629,6 @@ static int axienet_of_remove(struct platform_device *op)
 	if (lp->phy_node)
 		of_node_put(lp->phy_node);
 	lp->phy_node = NULL;
-
-	dev_set_drvdata(&op->dev, NULL);
 
 	iounmap(lp->regs);
 	if (lp->dma_regs)

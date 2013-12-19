@@ -58,7 +58,7 @@ static void octeon_pci_poll(struct edac_pci_ctl_info *pci)
 	}
 }
 
-static int __devinit octeon_pci_probe(struct platform_device *pdev)
+static int octeon_pci_probe(struct platform_device *pdev)
 {
 	struct edac_pci_ctl_info *pci;
 	int res = 0;

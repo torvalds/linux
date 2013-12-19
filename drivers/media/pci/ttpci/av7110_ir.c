@@ -324,7 +324,7 @@ static void ir_handler(struct av7110 *av7110, u32 ircom)
 }
 
 
-int __devinit av7110_ir_init(struct av7110 *av7110)
+int av7110_ir_init(struct av7110 *av7110)
 {
 	struct input_dev *input_dev;
 	static struct proc_dir_entry *e;
@@ -375,7 +375,7 @@ int __devinit av7110_ir_init(struct av7110 *av7110)
 	if (av_cnt == 1) {
 		e = proc_create("av7110_ir", S_IWUSR, NULL, &av7110_ir_proc_fops);
 		if (e)
-			e->size = 4 + 256 * sizeof(u16);
+			proc_set_size(e, 4 + 256 * sizeof(u16));
 	}
 
 	tasklet_init(&av7110->ir.ir_tasklet, av7110_emit_key, (unsigned long) &av7110->ir);
@@ -385,7 +385,7 @@ int __devinit av7110_ir_init(struct av7110 *av7110)
 }
 
 
-void __devexit av7110_ir_exit(struct av7110 *av7110)
+void av7110_ir_exit(struct av7110 *av7110)
 {
 	int i;
 

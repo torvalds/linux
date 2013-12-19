@@ -85,7 +85,7 @@ struct cvmx_sysinfo {
 	char board_serial_number[OCTEON_SERIAL_LEN];
 	/*
 	 * Several boards support compact flash on the Octeon boot
-	 * bus.  The CF memory spaces may be mapped to different
+	 * bus.	 The CF memory spaces may be mapped to different
 	 * addresses on different boards.  These values will be 0 if
 	 * CF is not present.  Note that these addresses are physical
 	 * addresses, and it is up to the application to use the
@@ -123,25 +123,25 @@ extern struct cvmx_sysinfo *cvmx_sysinfo_get(void);
 
 /**
  * This function is used in non-simple executive environments (such as
- * Linux kernel, u-boot, etc.)  to configure the minimal fields that
+ * Linux kernel, u-boot, etc.)	to configure the minimal fields that
  * are required to use simple executive files directly.
  *
  * Locking (if required) must be handled outside of this
  * function
  *
  * @phy_mem_desc_ptr: Pointer to global physical memory descriptor
- *                   (bootmem descriptor) @board_type: Octeon board
- *                   type enumeration
+ *		     (bootmem descriptor) @board_type: Octeon board
+ *		     type enumeration
  *
  * @board_rev_major:
- *                   Board major revision
+ *		     Board major revision
  * @board_rev_minor:
- *                   Board minor revision
+ *		     Board minor revision
  * @cpu_clock_hz:
- *                   CPU clock freqency in hertz
+ *		     CPU clock freqency in hertz
  *
  * Returns 0: Failure
- *         1: success
+ *	   1: success
  */
 extern int cvmx_sysinfo_minimal_initialize(void *phy_mem_desc_ptr,
 					   uint16_t board_type,

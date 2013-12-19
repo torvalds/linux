@@ -260,7 +260,7 @@ dch_empty_fifo(struct IsdnCardState *cs, int count)
 
 		t += sprintf(t, "dch_empty_fifo() cnt %d", count);
 		QuickHex(t, ptr, count);
-		debugl1(cs, cs->dlog);
+		debugl1(cs, "%s", cs->dlog);
 	}
 }
 
@@ -307,7 +307,7 @@ dch_fill_fifo(struct IsdnCardState *cs)
 
 		t += sprintf(t, "dch_fill_fifo() cnt %d", count);
 		QuickHex(t, ptr, count);
-		debugl1(cs, cs->dlog);
+		debugl1(cs, "%s", cs->dlog);
 	}
 }
 
@@ -539,7 +539,7 @@ bch_empty_fifo(struct BCState *bcs, int count)
 
 		t += sprintf(t, "bch_empty_fifo() B-%d cnt %d", hscx, count);
 		QuickHex(t, ptr, count);
-		debugl1(cs, bcs->blog);
+		debugl1(cs, "%s", bcs->blog);
 	}
 }
 
@@ -582,7 +582,7 @@ bch_fill_fifo(struct BCState *bcs)
 
 		t += sprintf(t, "chb_fill_fifo() B-%d cnt %d", hscx, count);
 		QuickHex(t, ptr, count);
-		debugl1(cs, bcs->blog);
+		debugl1(cs, "%s", bcs->blog);
 	}
 }
 

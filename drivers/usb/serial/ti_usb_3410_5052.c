@@ -45,8 +45,6 @@
 
 #define TI_FIRMWARE_BUF_SIZE	16284
 
-#define TI_WRITE_BUF_SIZE	1024
-
 #define TI_TRANSFER_TIMEOUT	2
 
 #define TI_DEFAULT_CLOSING_WAIT	4000		/* in .01 secs */
@@ -67,21 +65,15 @@
 struct ti_port {
 	int			tp_is_open;
 	__u8			tp_msr;
-	__u8			tp_lsr;
 	__u8			tp_shadow_mcr;
 	__u8			tp_uart_mode;	/* 232 or 485 modes */
 	unsigned int		tp_uart_base_addr;
 	int			tp_flags;
-	int			tp_closing_wait;/* in .01 secs */
-	struct async_icount	tp_icount;
-	wait_queue_head_t	tp_msr_wait;	/* wait for msr change */
-	wait_queue_head_t	tp_write_wait;
 	struct ti_device	*tp_tdev;
 	struct usb_serial_port	*tp_port;
 	spinlock_t		tp_lock;
 	int			tp_read_urb_state;
 	int			tp_write_urb_in_use;
-	struct kfifo		write_fifo;
 };
 
 struct ti_device {
@@ -105,12 +97,11 @@ static int ti_write(struct tty_struct *tty, struct usb_serial_port *port,
 		const unsigned char *data, int count);
 static int ti_write_room(struct tty_struct *tty);
 static int ti_chars_in_buffer(struct tty_struct *tty);
+static bool ti_tx_empty(struct usb_serial_port *port);
 static void ti_throttle(struct tty_struct *tty);
 static void ti_unthrottle(struct tty_struct *tty);
 static int ti_ioctl(struct tty_struct *tty,
 		unsigned int cmd, unsigned long arg);
-static int ti_get_icount(struct tty_struct *tty,
-		struct serial_icounter_struct *icount);
 static void ti_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios);
 static int ti_tiocmget(struct tty_struct *tty);
@@ -121,18 +112,16 @@ static void ti_interrupt_callback(struct urb *urb);
 static void ti_bulk_in_callback(struct urb *urb);
 static void ti_bulk_out_callback(struct urb *urb);
 
-static void ti_recv(struct device *dev, struct tty_struct *tty,
-	unsigned char *data, int length);
+static void ti_recv(struct usb_serial_port *port, unsigned char *data,
+		int length);
 static void ti_send(struct ti_port *tport);
 static int ti_set_mcr(struct ti_port *tport, unsigned int mcr);
-static int ti_get_lsr(struct ti_port *tport);
+static int ti_get_lsr(struct ti_port *tport, u8 *lsr);
 static int ti_get_serial_info(struct ti_port *tport,
 	struct serial_struct __user *ret_arg);
 static int ti_set_serial_info(struct tty_struct *tty, struct ti_port *tport,
 	struct serial_struct __user *new_arg);
 static void ti_handle_new_msr(struct ti_port *tport, __u8 msr);
-
-static void ti_drain(struct ti_port *tport, unsigned long timeout, int flush);
 
 static void ti_stop_read(struct ti_port *tport, struct tty_struct *tty);
 static int ti_restart_read(struct ti_port *tport, struct tty_struct *tty);
@@ -152,20 +141,9 @@ static int ti_download_firmware(struct ti_device *tdev);
 
 /* module parameters */
 static int closing_wait = TI_DEFAULT_CLOSING_WAIT;
-static ushort vendor_3410[TI_EXTRA_VID_PID_COUNT];
-static unsigned int vendor_3410_count;
-static ushort product_3410[TI_EXTRA_VID_PID_COUNT];
-static unsigned int product_3410_count;
-static ushort vendor_5052[TI_EXTRA_VID_PID_COUNT];
-static unsigned int vendor_5052_count;
-static ushort product_5052[TI_EXTRA_VID_PID_COUNT];
-static unsigned int product_5052_count;
 
 /* supported devices */
-/* the array dimension is the number of default entries plus */
-/* TI_EXTRA_VID_PID_COUNT user defined entries plus 1 terminating */
-/* null entry */
-static struct usb_device_id ti_id_table_3410[15+TI_EXTRA_VID_PID_COUNT+1] = {
+static struct usb_device_id ti_id_table_3410[] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_EZ430_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_NO_FW_PRODUCT_ID) },
@@ -179,18 +157,21 @@ static struct usb_device_id ti_id_table_3410[15+TI_EXTRA_VID_PID_COUNT+1] = {
 	{ USB_DEVICE(IBM_VENDOR_ID, IBM_4543_PRODUCT_ID) },
 	{ USB_DEVICE(IBM_VENDOR_ID, IBM_454B_PRODUCT_ID) },
 	{ USB_DEVICE(IBM_VENDOR_ID, IBM_454C_PRODUCT_ID) },
-	{ USB_DEVICE(ABBOTT_VENDOR_ID, ABBOTT_PRODUCT_ID) },
+	{ USB_DEVICE(ABBOTT_VENDOR_ID, ABBOTT_STEREO_PLUG_ID) },
+	{ USB_DEVICE(ABBOTT_VENDOR_ID, ABBOTT_STRIP_PORT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, FRI2_PRODUCT_ID) },
+	{ }	/* terminator */
 };
 
-static struct usb_device_id ti_id_table_5052[5+TI_EXTRA_VID_PID_COUNT+1] = {
+static struct usb_device_id ti_id_table_5052[] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5052_BOOT_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5152_BOOT_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5052_EEPROM_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5052_FIRMWARE_PRODUCT_ID) },
+	{ }	/* terminator */
 };
 
-static struct usb_device_id ti_id_table_combined[19+2*TI_EXTRA_VID_PID_COUNT+1] = {
+static struct usb_device_id ti_id_table_combined[] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_EZ430_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_NO_FW_PRODUCT_ID) },
@@ -209,8 +190,9 @@ static struct usb_device_id ti_id_table_combined[19+2*TI_EXTRA_VID_PID_COUNT+1] 
 	{ USB_DEVICE(IBM_VENDOR_ID, IBM_454B_PRODUCT_ID) },
 	{ USB_DEVICE(IBM_VENDOR_ID, IBM_454C_PRODUCT_ID) },
 	{ USB_DEVICE(ABBOTT_VENDOR_ID, ABBOTT_PRODUCT_ID) },
+	{ USB_DEVICE(ABBOTT_VENDOR_ID, ABBOTT_STRIP_PORT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, FRI2_PRODUCT_ID) },
-	{ }
+	{ }	/* terminator */
 };
 
 static struct usb_serial_driver ti_1port_device = {
@@ -230,13 +212,15 @@ static struct usb_serial_driver ti_1port_device = {
 	.write			= ti_write,
 	.write_room		= ti_write_room,
 	.chars_in_buffer	= ti_chars_in_buffer,
+	.tx_empty		= ti_tx_empty,
 	.throttle		= ti_throttle,
 	.unthrottle		= ti_unthrottle,
 	.ioctl			= ti_ioctl,
 	.set_termios		= ti_set_termios,
 	.tiocmget		= ti_tiocmget,
 	.tiocmset		= ti_tiocmset,
-	.get_icount		= ti_get_icount,
+	.tiocmiwait		= usb_serial_generic_tiocmiwait,
+	.get_icount		= usb_serial_generic_get_icount,
 	.break_ctl		= ti_break,
 	.read_int_callback	= ti_interrupt_callback,
 	.read_bulk_callback	= ti_bulk_in_callback,
@@ -260,13 +244,15 @@ static struct usb_serial_driver ti_2port_device = {
 	.write			= ti_write,
 	.write_room		= ti_write_room,
 	.chars_in_buffer	= ti_chars_in_buffer,
+	.tx_empty		= ti_tx_empty,
 	.throttle		= ti_throttle,
 	.unthrottle		= ti_unthrottle,
 	.ioctl			= ti_ioctl,
 	.set_termios		= ti_set_termios,
 	.tiocmget		= ti_tiocmget,
 	.tiocmset		= ti_tiocmset,
-	.get_icount		= ti_get_icount,
+	.tiocmiwait		= usb_serial_generic_tiocmiwait,
+	.get_icount		= usb_serial_generic_get_icount,
 	.break_ctl		= ti_break,
 	.read_int_callback	= ti_interrupt_callback,
 	.read_bulk_callback	= ti_bulk_in_callback,
@@ -295,60 +281,11 @@ module_param(closing_wait, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(closing_wait,
     "Maximum wait for data to drain in close, in .01 secs, default is 4000");
 
-module_param_array(vendor_3410, ushort, &vendor_3410_count, S_IRUGO);
-MODULE_PARM_DESC(vendor_3410,
-		"Vendor ids for 3410 based devices, 1-5 short integers");
-module_param_array(product_3410, ushort, &product_3410_count, S_IRUGO);
-MODULE_PARM_DESC(product_3410,
-		"Product ids for 3410 based devices, 1-5 short integers");
-module_param_array(vendor_5052, ushort, &vendor_5052_count, S_IRUGO);
-MODULE_PARM_DESC(vendor_5052,
-		"Vendor ids for 5052 based devices, 1-5 short integers");
-module_param_array(product_5052, ushort, &product_5052_count, S_IRUGO);
-MODULE_PARM_DESC(product_5052,
-		"Product ids for 5052 based devices, 1-5 short integers");
-
 MODULE_DEVICE_TABLE(usb, ti_id_table_combined);
 
+module_usb_serial_driver(serial_drivers, ti_id_table_combined);
 
 /* Functions */
-
-static int __init ti_init(void)
-{
-	int i, j, c;
-
-	/* insert extra vendor and product ids */
-	c = ARRAY_SIZE(ti_id_table_combined) - 2 * TI_EXTRA_VID_PID_COUNT - 1;
-	j = ARRAY_SIZE(ti_id_table_3410) - TI_EXTRA_VID_PID_COUNT - 1;
-	for (i = 0; i < min(vendor_3410_count, product_3410_count); i++, j++, c++) {
-		ti_id_table_3410[j].idVendor = vendor_3410[i];
-		ti_id_table_3410[j].idProduct = product_3410[i];
-		ti_id_table_3410[j].match_flags = USB_DEVICE_ID_MATCH_DEVICE;
-		ti_id_table_combined[c].idVendor = vendor_3410[i];
-		ti_id_table_combined[c].idProduct = product_3410[i];
-		ti_id_table_combined[c].match_flags = USB_DEVICE_ID_MATCH_DEVICE;
-	}
-	j = ARRAY_SIZE(ti_id_table_5052) - TI_EXTRA_VID_PID_COUNT - 1;
-	for (i = 0; i < min(vendor_5052_count, product_5052_count); i++, j++, c++) {
-		ti_id_table_5052[j].idVendor = vendor_5052[i];
-		ti_id_table_5052[j].idProduct = product_5052[i];
-		ti_id_table_5052[j].match_flags = USB_DEVICE_ID_MATCH_DEVICE;
-		ti_id_table_combined[c].idVendor = vendor_5052[i];
-		ti_id_table_combined[c].idProduct = product_5052[i];
-		ti_id_table_combined[c].match_flags = USB_DEVICE_ID_MATCH_DEVICE;
-	}
-
-	return usb_serial_register_drivers(serial_drivers, KBUILD_MODNAME, ti_id_table_combined);
-}
-
-static void __exit ti_exit(void)
-{
-	usb_serial_deregister_drivers(serial_drivers);
-}
-
-module_init(ti_init);
-module_exit(ti_exit);
-
 
 static int ti_startup(struct usb_serial *serial)
 {
@@ -373,7 +310,7 @@ static int ti_startup(struct usb_serial *serial)
 	usb_set_serial_data(serial, tdev);
 
 	/* determine device type */
-	if (usb_match_id(serial->interface, ti_id_table_3410))
+	if (serial->type == &ti_1port_device)
 		tdev->td_is_3410 = 1;
 	dev_dbg(&dev->dev, "%s - device type is %s\n", __func__,
 		tdev->td_is_3410 ? "3410" : "5052");
@@ -431,18 +368,14 @@ static int ti_port_probe(struct usb_serial_port *port)
 		tport->tp_uart_base_addr = TI_UART1_BASE_ADDR;
 	else
 		tport->tp_uart_base_addr = TI_UART2_BASE_ADDR;
-	tport->tp_closing_wait = closing_wait;
-	init_waitqueue_head(&tport->tp_msr_wait);
-	init_waitqueue_head(&tport->tp_write_wait);
-	if (kfifo_alloc(&tport->write_fifo, TI_WRITE_BUF_SIZE, GFP_KERNEL)) {
-		kfree(tport);
-		return -ENOMEM;
-	}
+	port->port.closing_wait = msecs_to_jiffies(10 * closing_wait);
 	tport->tp_port = port;
 	tport->tp_tdev = usb_get_serial_data(port->serial);
 	tport->tp_uart_mode = 0;	/* default is RS232 */
 
 	usb_set_serial_port_data(port, tport);
+
+	port->port.drain_delay = 3;
 
 	return 0;
 }
@@ -452,7 +385,6 @@ static int ti_port_remove(struct usb_serial_port *port)
 	struct ti_port *tport;
 
 	tport = usb_get_serial_port_data(port);
-	kfifo_free(&tport->write_fifo);
 	kfree(tport);
 
 	return 0;
@@ -480,9 +412,7 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (mutex_lock_interruptible(&tdev->td_open_close_lock))
 		return -ERESTARTSYS;
 
-	port_number = port->number - port->serial->minor;
-
-	memset(&(tport->tp_icount), 0x00, sizeof(tport->tp_icount));
+	port_number = port->port_number;
 
 	tport->tp_msr = 0;
 	tport->tp_shadow_mcr |= (TI_MCR_RTS | TI_MCR_DTR);
@@ -606,6 +536,7 @@ static void ti_close(struct usb_serial_port *port)
 	int port_number;
 	int status;
 	int do_unlock;
+	unsigned long flags;
 
 	tdev = usb_get_serial_data(port->serial);
 	tport = usb_get_serial_port_data(port);
@@ -614,13 +545,14 @@ static void ti_close(struct usb_serial_port *port)
 
 	tport->tp_is_open = 0;
 
-	ti_drain(tport, (tport->tp_closing_wait*HZ)/100, 1);
-
 	usb_kill_urb(port->read_urb);
 	usb_kill_urb(port->write_urb);
 	tport->tp_write_urb_in_use = 0;
+	spin_lock_irqsave(&tport->tp_lock, flags);
+	kfifo_reset_out(&port->write_fifo);
+	spin_unlock_irqrestore(&tport->tp_lock, flags);
 
-	port_number = port->number - port->serial->minor;
+	port_number = port->port_number;
 
 	dev_dbg(&port->dev, "%s - sending TI_CLOSE_PORT\n", __func__);
 	status = ti_command_out_sync(tdev, TI_CLOSE_PORT,
@@ -656,7 +588,7 @@ static int ti_write(struct tty_struct *tty, struct usb_serial_port *port,
 	if (tport == NULL || !tport->tp_is_open)
 		return -ENODEV;
 
-	count = kfifo_in_locked(&tport->write_fifo, data, count,
+	count = kfifo_in_locked(&port->write_fifo, data, count,
 							&tport->tp_lock);
 	ti_send(tport);
 
@@ -675,7 +607,7 @@ static int ti_write_room(struct tty_struct *tty)
 		return 0;
 
 	spin_lock_irqsave(&tport->tp_lock, flags);
-	room = kfifo_avail(&tport->write_fifo);
+	room = kfifo_avail(&port->write_fifo);
 	spin_unlock_irqrestore(&tport->tp_lock, flags);
 
 	dev_dbg(&port->dev, "%s - returns %d\n", __func__, room);
@@ -694,13 +626,25 @@ static int ti_chars_in_buffer(struct tty_struct *tty)
 		return 0;
 
 	spin_lock_irqsave(&tport->tp_lock, flags);
-	chars = kfifo_len(&tport->write_fifo);
+	chars = kfifo_len(&port->write_fifo);
 	spin_unlock_irqrestore(&tport->tp_lock, flags);
 
 	dev_dbg(&port->dev, "%s - returns %d\n", __func__, chars);
 	return chars;
 }
 
+static bool ti_tx_empty(struct usb_serial_port *port)
+{
+	struct ti_port *tport = usb_get_serial_port_data(port);
+	int ret;
+	u8 lsr;
+
+	ret = ti_get_lsr(tport, &lsr);
+	if (!ret && !(lsr & TI_LSR_TX_EMPTY))
+		return false;
+
+	return true;
+}
 
 static void ti_throttle(struct tty_struct *tty)
 {
@@ -733,38 +677,11 @@ static void ti_unthrottle(struct tty_struct *tty)
 	}
 }
 
-static int ti_get_icount(struct tty_struct *tty,
-		struct serial_icounter_struct *icount)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct ti_port *tport = usb_get_serial_port_data(port);
-	struct async_icount cnow = tport->tp_icount;
-
-	dev_dbg(&port->dev, "%s - TIOCGICOUNT RX=%d, TX=%d\n", __func__,
-		cnow.rx, cnow.tx);
-
-	icount->cts = cnow.cts;
-	icount->dsr = cnow.dsr;
-	icount->rng = cnow.rng;
-	icount->dcd = cnow.dcd;
-	icount->rx = cnow.rx;
-	icount->tx = cnow.tx;
-	icount->frame = cnow.frame;
-	icount->overrun = cnow.overrun;
-	icount->parity = cnow.parity;
-	icount->brk = cnow.brk;
-	icount->buf_overrun = cnow.buf_overrun;
-
-	return 0;
-}
-
 static int ti_ioctl(struct tty_struct *tty,
 	unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ti_port *tport = usb_get_serial_port_data(port);
-	struct async_icount cnow;
-	struct async_icount cprev;
 
 	dev_dbg(&port->dev, "%s - cmd = 0x%04X\n", __func__, cmd);
 
@@ -780,25 +697,6 @@ static int ti_ioctl(struct tty_struct *tty,
 		dev_dbg(&port->dev, "%s - TIOCSSERIAL\n", __func__);
 		return ti_set_serial_info(tty, tport,
 				(struct serial_struct __user *)arg);
-	case TIOCMIWAIT:
-		dev_dbg(&port->dev, "%s - TIOCMIWAIT\n", __func__);
-		cprev = tport->tp_icount;
-		while (1) {
-			interruptible_sleep_on(&tport->tp_msr_wait);
-			if (signal_pending(current))
-				return -ERESTARTSYS;
-			cnow = tport->tp_icount;
-			if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr &&
-			    cnow.dcd == cprev.dcd && cnow.cts == cprev.cts)
-				return -EIO; /* no change => error */
-			if (((arg & TIOCM_RNG) && (cnow.rng != cprev.rng)) ||
-			    ((arg & TIOCM_DSR) && (cnow.dsr != cprev.dsr)) ||
-			    ((arg & TIOCM_CD)  && (cnow.dcd != cprev.dcd)) ||
-			    ((arg & TIOCM_CTS) && (cnow.cts != cprev.cts)))
-				return 0;
-			cprev = cnow;
-		}
-		break;
 	}
 	return -ENOIOCTLCMD;
 }
@@ -812,7 +710,7 @@ static void ti_set_termios(struct tty_struct *tty,
 	tcflag_t cflag, iflag;
 	int baud;
 	int status;
-	int port_number = port->number - port->serial->minor;
+	int port_number = port->port_number;
 	unsigned int mcr;
 
 	cflag = tty->termios.c_cflag;
@@ -1016,8 +914,6 @@ static void ti_break(struct tty_struct *tty, int break_state)
 	if (tport == NULL)
 		return;
 
-	ti_drain(tport, (tport->tp_closing_wait*HZ)/100, 0);
-
 	status = ti_write_byte(port, tport->tp_tdev,
 		tport->tp_uart_base_addr + TI_UART_OFFSET_LCR,
 		TI_LCR_BREAK, break_state == -1 ? TI_LCR_BREAK : 0);
@@ -1118,7 +1014,6 @@ static void ti_bulk_in_callback(struct urb *urb)
 	struct device *dev = &urb->dev->dev;
 	int status = urb->status;
 	int retval = 0;
-	struct tty_struct *tty;
 
 	switch (status) {
 	case 0:
@@ -1128,13 +1023,11 @@ static void ti_bulk_in_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		dev_dbg(dev, "%s - urb shutting down, %d\n", __func__, status);
 		tport->tp_tdev->td_urb_error = 1;
-		wake_up_interruptible(&tport->tp_write_wait);
 		return;
 	default:
 		dev_err(dev, "%s - nonzero urb status, %d\n",
 			__func__, status);
 		tport->tp_tdev->td_urb_error = 1;
-		wake_up_interruptible(&tport->tp_write_wait);
 	}
 
 	if (status == -EPIPE)
@@ -1145,24 +1038,18 @@ static void ti_bulk_in_callback(struct urb *urb)
 		return;
 	}
 
-	tty = tty_port_tty_get(&port->port);
-	if (tty) {
-		if (urb->actual_length) {
-			usb_serial_debug_data(dev, __func__, urb->actual_length,
-					      urb->transfer_buffer);
+	if (urb->actual_length) {
+		usb_serial_debug_data(dev, __func__, urb->actual_length,
+				      urb->transfer_buffer);
 
-			if (!tport->tp_is_open)
-				dev_dbg(dev, "%s - port closed, dropping data\n",
-					__func__);
-			else
-				ti_recv(&urb->dev->dev, tty,
-						urb->transfer_buffer,
-						urb->actual_length);
-			spin_lock(&tport->tp_lock);
-			tport->tp_icount.rx += urb->actual_length;
-			spin_unlock(&tport->tp_lock);
-		}
-		tty_kref_put(tty);
+		if (!tport->tp_is_open)
+			dev_dbg(dev, "%s - port closed, dropping data\n",
+				__func__);
+		else
+			ti_recv(port, urb->transfer_buffer, urb->actual_length);
+		spin_lock(&tport->tp_lock);
+		port->icount.rx += urb->actual_length;
+		spin_unlock(&tport->tp_lock);
 	}
 
 exit:
@@ -1196,13 +1083,11 @@ static void ti_bulk_out_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		dev_dbg(&port->dev, "%s - urb shutting down, %d\n", __func__, status);
 		tport->tp_tdev->td_urb_error = 1;
-		wake_up_interruptible(&tport->tp_write_wait);
 		return;
 	default:
 		dev_err_console(port, "%s - nonzero urb status, %d\n",
 			__func__, status);
 		tport->tp_tdev->td_urb_error = 1;
-		wake_up_interruptible(&tport->tp_write_wait);
 	}
 
 	/* send any buffered data */
@@ -1210,24 +1095,23 @@ static void ti_bulk_out_callback(struct urb *urb)
 }
 
 
-static void ti_recv(struct device *dev, struct tty_struct *tty,
-	unsigned char *data, int length)
+static void ti_recv(struct usb_serial_port *port, unsigned char *data,
+		int length)
 {
 	int cnt;
 
 	do {
-		cnt = tty_insert_flip_string(tty, data, length);
+		cnt = tty_insert_flip_string(&port->port, data, length);
 		if (cnt < length) {
-			dev_err(dev, "%s - dropping data, %d bytes lost\n",
+			dev_err(&port->dev, "%s - dropping data, %d bytes lost\n",
 						__func__, length - cnt);
 			if (cnt == 0)
 				break;
 		}
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&port->port);
 		data += cnt;
 		length -= cnt;
 	} while (length > 0);
-
 }
 
 
@@ -1235,7 +1119,6 @@ static void ti_send(struct ti_port *tport)
 {
 	int count, result;
 	struct usb_serial_port *port = tport->tp_port;
-	struct tty_struct *tty = tty_port_tty_get(&port->port);	/* FIXME */
 	unsigned long flags;
 
 	spin_lock_irqsave(&tport->tp_lock, flags);
@@ -1243,7 +1126,7 @@ static void ti_send(struct ti_port *tport)
 	if (tport->tp_write_urb_in_use)
 		goto unlock;
 
-	count = kfifo_out(&tport->write_fifo,
+	count = kfifo_out(&port->write_fifo,
 				port->write_urb->transfer_buffer,
 				port->bulk_out_size);
 
@@ -1271,19 +1154,16 @@ static void ti_send(struct ti_port *tport)
 		/* TODO: reschedule ti_send */
 	} else {
 		spin_lock_irqsave(&tport->tp_lock, flags);
-		tport->tp_icount.tx += count;
+		port->icount.tx += count;
 		spin_unlock_irqrestore(&tport->tp_lock, flags);
 	}
 
 	/* more room in the buffer for new writes, wakeup */
-	if (tty)
-		tty_wakeup(tty);
-	tty_kref_put(tty);
-	wake_up_interruptible(&tport->tp_write_wait);
+	tty_port_tty_wakeup(&port->port);
+
 	return;
 unlock:
 	spin_unlock_irqrestore(&tport->tp_lock, flags);
-	tty_kref_put(tty);
 	return;
 }
 
@@ -1306,12 +1186,12 @@ static int ti_set_mcr(struct ti_port *tport, unsigned int mcr)
 }
 
 
-static int ti_get_lsr(struct ti_port *tport)
+static int ti_get_lsr(struct ti_port *tport, u8 *lsr)
 {
 	int size, status;
 	struct ti_device *tdev = tport->tp_tdev;
 	struct usb_serial_port *port = tport->tp_port;
-	int port_number = port->number - port->serial->minor;
+	int port_number = port->port_number;
 	struct ti_port_status *data;
 
 	size = sizeof(struct ti_port_status);
@@ -1332,7 +1212,7 @@ static int ti_get_lsr(struct ti_port *tport)
 
 	dev_dbg(&port->dev, "%s - lsr 0x%02X\n", __func__, data->bLSR);
 
-	tport->tp_lsr = data->bLSR;
+	*lsr = data->bLSR;
 
 free_data:
 	kfree(data);
@@ -1345,19 +1225,24 @@ static int ti_get_serial_info(struct ti_port *tport,
 {
 	struct usb_serial_port *port = tport->tp_port;
 	struct serial_struct ret_serial;
+	unsigned cwait;
 
 	if (!ret_arg)
 		return -EFAULT;
 
+	cwait = port->port.closing_wait;
+	if (cwait != ASYNC_CLOSING_WAIT_NONE)
+		cwait = jiffies_to_msecs(cwait) / 10;
+
 	memset(&ret_serial, 0, sizeof(ret_serial));
 
 	ret_serial.type = PORT_16550A;
-	ret_serial.line = port->serial->minor;
-	ret_serial.port = port->number - port->serial->minor;
+	ret_serial.line = port->minor;
+	ret_serial.port = port->port_number;
 	ret_serial.flags = tport->tp_flags;
-	ret_serial.xmit_fifo_size = TI_WRITE_BUF_SIZE;
+	ret_serial.xmit_fifo_size = kfifo_size(&port->write_fifo);
 	ret_serial.baud_base = tport->tp_tdev->td_is_3410 ? 921600 : 460800;
-	ret_serial.closing_wait = tport->tp_closing_wait;
+	ret_serial.closing_wait = cwait;
 
 	if (copy_to_user(ret_arg, &ret_serial, sizeof(*ret_arg)))
 		return -EFAULT;
@@ -1370,12 +1255,17 @@ static int ti_set_serial_info(struct tty_struct *tty, struct ti_port *tport,
 	struct serial_struct __user *new_arg)
 {
 	struct serial_struct new_serial;
+	unsigned cwait;
 
 	if (copy_from_user(&new_serial, new_arg, sizeof(new_serial)))
 		return -EFAULT;
 
+	cwait = new_serial.closing_wait;
+	if (cwait != ASYNC_CLOSING_WAIT_NONE)
+		cwait = msecs_to_jiffies(10 * new_serial.closing_wait);
+
 	tport->tp_flags = new_serial.flags & TI_SET_SERIAL_FLAGS;
-	tport->tp_closing_wait = new_serial.closing_wait;
+	tport->tp_port->port.closing_wait = cwait;
 
 	return 0;
 }
@@ -1391,7 +1281,7 @@ static void ti_handle_new_msr(struct ti_port *tport, __u8 msr)
 
 	if (msr & TI_MSR_DELTA_MASK) {
 		spin_lock_irqsave(&tport->tp_lock, flags);
-		icount = &tport->tp_icount;
+		icount = &tport->tp_port->icount;
 		if (msr & TI_MSR_DELTA_CTS)
 			icount->cts++;
 		if (msr & TI_MSR_DELTA_DSR)
@@ -1400,7 +1290,7 @@ static void ti_handle_new_msr(struct ti_port *tport, __u8 msr)
 			icount->dcd++;
 		if (msr & TI_MSR_DELTA_RI)
 			icount->rng++;
-		wake_up_interruptible(&tport->tp_msr_wait);
+		wake_up_interruptible(&tport->tp_port->port.delta_msr_wait);
 		spin_unlock_irqrestore(&tport->tp_lock, flags);
 	}
 
@@ -1417,56 +1307,6 @@ static void ti_handle_new_msr(struct ti_port *tport, __u8 msr)
 		}
 	}
 	tty_kref_put(tty);
-}
-
-
-static void ti_drain(struct ti_port *tport, unsigned long timeout, int flush)
-{
-	struct ti_device *tdev = tport->tp_tdev;
-	struct usb_serial_port *port = tport->tp_port;
-	wait_queue_t wait;
-
-	spin_lock_irq(&tport->tp_lock);
-
-	/* wait for data to drain from the buffer */
-	tdev->td_urb_error = 0;
-	init_waitqueue_entry(&wait, current);
-	add_wait_queue(&tport->tp_write_wait, &wait);
-	for (;;) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (kfifo_len(&tport->write_fifo) == 0
-		|| timeout == 0 || signal_pending(current)
-		|| tdev->td_urb_error
-		|| port->serial->disconnected)  /* disconnect */
-			break;
-		spin_unlock_irq(&tport->tp_lock);
-		timeout = schedule_timeout(timeout);
-		spin_lock_irq(&tport->tp_lock);
-	}
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&tport->tp_write_wait, &wait);
-
-	/* flush any remaining data in the buffer */
-	if (flush)
-		kfifo_reset_out(&tport->write_fifo);
-
-	spin_unlock_irq(&tport->tp_lock);
-
-	mutex_lock(&port->serial->disc_mutex);
-	/* wait for data to drain from the device */
-	/* wait for empty tx register, plus 20 ms */
-	timeout += jiffies;
-	tport->tp_lsr &= ~TI_LSR_TX_EMPTY;
-	while ((long)(jiffies - timeout) < 0 && !signal_pending(current)
-	&& !(tport->tp_lsr&TI_LSR_TX_EMPTY) && !tdev->td_urb_error
-	&& !port->serial->disconnected) {
-		if (ti_get_lsr(tport))
-			break;
-		mutex_unlock(&port->serial->disc_mutex);
-		msleep_interruptible(20);
-		mutex_lock(&port->serial->disc_mutex);
-	}
-	mutex_unlock(&port->serial->disc_mutex);
 }
 
 
@@ -1624,14 +1464,15 @@ static int ti_download_firmware(struct ti_device *tdev)
 	char buf[32];
 
 	/* try ID specific firmware first, then try generic firmware */
-	sprintf(buf, "ti_usb-v%04x-p%04x.fw", dev->descriptor.idVendor,
-	    dev->descriptor.idProduct);
+	sprintf(buf, "ti_usb-v%04x-p%04x.fw",
+			le16_to_cpu(dev->descriptor.idVendor),
+			le16_to_cpu(dev->descriptor.idProduct));
 	status = request_firmware(&fw_p, buf, &dev->dev);
 
 	if (status != 0) {
 		buf[0] = '\0';
-		if (dev->descriptor.idVendor == MTS_VENDOR_ID) {
-			switch (dev->descriptor.idProduct) {
+		if (le16_to_cpu(dev->descriptor.idVendor) == MTS_VENDOR_ID) {
+			switch (le16_to_cpu(dev->descriptor.idProduct)) {
 			case MTS_CDMA_PRODUCT_ID:
 				strcpy(buf, "mts_cdma.fw");
 				break;

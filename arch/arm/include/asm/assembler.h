@@ -53,6 +53,13 @@
 #define put_byte_3      lsl #0
 #endif
 
+/* Select code for any configuration running in BE8 mode */
+#ifdef CONFIG_CPU_ENDIAN_BE8
+#define ARM_BE8(code...) code
+#else
+#define ARM_BE8(code...)
+#endif
+
 /*
  * Data preload for architectures that support it
  */
@@ -136,7 +143,11 @@
  * assumes FIQs are enabled, and that the processor is in SVC mode.
  */
 	.macro	save_and_disable_irqs, oldcpsr
+#ifdef CONFIG_CPU_V7M
+	mrs	\oldcpsr, primask
+#else
 	mrs	\oldcpsr, cpsr
+#endif
 	disable_irq
 	.endm
 
@@ -150,7 +161,11 @@
  * guarantee that this will preserve the flags.
  */
 	.macro	restore_irqs_notrace, oldcpsr
+#ifdef CONFIG_CPU_V7M
+	msr	primask, \oldcpsr
+#else
 	msr	cpsr_c, \oldcpsr
+#endif
 	.endm
 
 	.macro restore_irqs, oldcpsr
@@ -212,9 +227,9 @@
 #ifdef CONFIG_SMP
 #if __LINUX_ARM_ARCH__ >= 7
 	.ifeqs "\mode","arm"
-	ALT_SMP(dmb)
+	ALT_SMP(dmb	ish)
 	.else
-	ALT_SMP(W(dmb))
+	ALT_SMP(W(dmb)	ish)
 	.endif
 #elif __LINUX_ARM_ARCH__ == 6
 	ALT_SMP(mcr	p15, 0, r0, c7, c10, 5)	@ dmb
@@ -229,7 +244,14 @@
 #endif
 	.endm
 
-#ifdef CONFIG_THUMB2_KERNEL
+#if defined(CONFIG_CPU_V7M)
+	/*
+	 * setmode is used to assert to be in svc mode during boot. For v7-M
+	 * this is done in __v7m_setup, so setmode can be empty here.
+	 */
+	.macro	setmode, mode, reg
+	.endm
+#elif defined(CONFIG_THUMB2_KERNEL)
 	.macro	setmode, mode, reg
 	mov	\reg, #\mode
 	msr	cpsr_c, \reg
@@ -246,18 +268,14 @@
  *
  * This macro is intended for forcing the CPU into SVC mode at boot time.
  * you cannot return to the original mode.
- *
- * Beware, it also clobers LR.
  */
 .macro safe_svcmode_maskall reg:req
 #if __LINUX_ARM_ARCH__ >= 6
 	mrs	\reg , cpsr
-	mov	lr , \reg
-	and	lr , lr , #MODE_MASK
-	cmp	lr , #HYP_MODE
-	orr	\reg , \reg , #PSR_I_BIT | PSR_F_BIT
+	eor	\reg, \reg, #HYP_MODE
+	tst	\reg, #MODE_MASK
 	bic	\reg , \reg , #MODE_MASK
-	orr	\reg , \reg , #SVC_MODE
+	orr	\reg , \reg , #PSR_I_BIT | PSR_F_BIT | SVC_MODE
 THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	bne	1f
 	orr	\reg, \reg, #PSR_A_BIT

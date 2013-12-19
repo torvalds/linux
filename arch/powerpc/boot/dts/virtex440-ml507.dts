@@ -272,6 +272,12 @@
 				xlnx,temac-type = <0>;
 				xlnx,txcsum = <1>;
 				xlnx,txfifo = <0x1000>;
+                                phy-handle = <&phy7>;
+                                clock-frequency = <100000000>;
+                                phy7: phy@7 {
+                                          compatible = "marvell,88e1111";
+                                          reg = <7>;
+                                } ;
 			} ;
 		} ;
 		IIC_EEPROM: i2c@81600000 {

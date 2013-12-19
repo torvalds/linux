@@ -6,12 +6,7 @@
 # (M)HDRC = (Multipoint) Highspeed Dual-Role Controller
 config USB_MUSB_HDRC
 	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, ...)'
-	depends on USB && USB_GADGET
-	select NOP_USB_XCEIV if (ARCH_DAVINCI || MACH_OMAP3EVM || BLACKFIN)
-	select NOP_USB_XCEIV if (SOC_TI81XX || SOC_AM33XX)
-	select TWL4030_USB if MACH_OMAP_3430SDP
-	select TWL6030_USB if MACH_OMAP_4430SDP || MACH_OMAP4_PANDA
-	select USB_OTG_UTILS
+	depends on USB_GADGET
 	help
 	  Say Y here if your system has a dual role high speed USB
 	  controller based on the Mentor Graphics silicon IP.  Then
@@ -33,15 +28,46 @@ config USB_MUSB_HDRC
 if USB_MUSB_HDRC
 
 choice
+	bool "MUSB Mode Selection"
+	default USB_MUSB_DUAL_ROLE if (USB && USB_GADGET)
+	default USB_MUSB_HOST if (USB && !USB_GADGET)
+	default USB_MUSB_GADGET if (!USB && USB_GADGET)
+
+config USB_MUSB_HOST
+	bool "Host only mode"
+	depends on USB
+	help
+	  Select this when you want to use MUSB in host mode only,
+	  thereby the gadget feature will be regressed.
+
+config USB_MUSB_GADGET
+	bool "Gadget only mode"
+	depends on USB_GADGET
+	help
+	  Select this when you want to use MUSB in gadget mode only,
+	  thereby the host feature will be regressed.
+
+config USB_MUSB_DUAL_ROLE
+	bool "Dual Role mode"
+	depends on (USB && USB_GADGET)
+	help
+	  This is the default mode of working of MUSB controller where
+	  both host and gadget features are enabled.
+
+endchoice
+
+choice
 	prompt "Platform Glue Layer"
 
 config USB_MUSB_DAVINCI
 	tristate "DaVinci"
 	depends on ARCH_DAVINCI_DMx
+	depends on BROKEN
 
 config USB_MUSB_DA8XX
 	tristate "DA8xx/OMAP-L1x"
 	depends on ARCH_DAVINCI_DA8XX
+	depends on BROKEN
 
 config USB_MUSB_TUSB6010
 	tristate "TUSB6010"
@@ -49,6 +75,7 @@ config USB_MUSB_TUSB6010
 config USB_MUSB_OMAP2PLUS
 	tristate "OMAP2430 and onwards"
 	depends on ARCH_OMAP2PLUS
+	select GENERIC_PHY
 
 config USB_MUSB_AM35X
 	tristate "AM35x"
@@ -56,20 +83,24 @@ config USB_MUSB_AM35X
 
 config USB_MUSB_DSPS
 	tristate "TI DSPS platforms"
-	depends on SOC_TI81XX || SOC_AM33XX
+	select USB_MUSB_AM335X_CHILD
+	depends on OF_IRQ
 
 config USB_MUSB_BLACKFIN
 	tristate "Blackfin"
 	depends on (BF54x && !BF544) || (BF52x && ! BF522 && !BF523)
 
 config USB_MUSB_UX500
-	tristate "U8500 and U5500"
-	depends on (ARCH_U8500 && AB8500_USB)
+	tristate "Ux500 platforms"
 
 endchoice
 
+config USB_MUSB_AM335X_CHILD
+	tristate
+
 choice
 	prompt 'MUSB DMA mode'
+	default MUSB_PIO_ONLY if ARCH_MULTIPLATFORM
 	default USB_UX500_DMA if USB_MUSB_UX500
 	default USB_INVENTRA_DMA if USB_MUSB_OMAP2PLUS || USB_MUSB_BLACKFIN
 	default USB_TI_CPPI_DMA if USB_MUSB_DAVINCI
@@ -82,7 +113,7 @@ choice
 	  allow using DMA on multiplatform kernels.
 
 config USB_UX500_DMA
-	bool 'ST Ericsson U8500 and U5500'
+	bool 'ST Ericsson Ux500'
 	depends on USB_MUSB_UX500
 	help
 	  Enable DMA transfers on UX500 platforms.
@@ -98,6 +129,10 @@ config USB_TI_CPPI_DMA
 	depends on USB_MUSB_DAVINCI
 	help
 	  Enable DMA transfers when TI CPPI DMA is available.
+
+config USB_TI_CPPI41_DMA
+	bool 'TI CPPI 4.1 (AM335x)'
+	depends on ARCH_OMAP
 
 config USB_TUSB_OMAP_DMA
 	bool 'TUSB 6010'

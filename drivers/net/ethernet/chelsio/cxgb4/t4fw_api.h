@@ -574,7 +574,7 @@ struct fw_eth_tx_pkt_vm_wr {
 	__be16 vlantci;
 };
 
-#define FW_CMD_MAX_TIMEOUT 3000
+#define FW_CMD_MAX_TIMEOUT 10000
 
 /*
  * If a host driver does a HELLO and discovers that there's already a MASTER
@@ -616,6 +616,7 @@ enum fw_cmd_opcodes {
 	FW_RSS_IND_TBL_CMD             = 0x20,
 	FW_RSS_GLB_CONFIG_CMD          = 0x22,
 	FW_RSS_VI_CONFIG_CMD           = 0x23,
+	FW_CLIP_CMD                    = 0x28,
 	FW_LASTC2E_CMD                 = 0x40,
 	FW_ERROR_CMD                   = 0x80,
 	FW_DEBUG_CMD                   = 0x81,
@@ -973,7 +974,9 @@ enum fw_params_param_pfvf {
 	FW_PARAMS_PARAM_PFVF_EQ_START	= 0x2B,
 	FW_PARAMS_PARAM_PFVF_EQ_END	= 0x2C,
 	FW_PARAMS_PARAM_PFVF_ACTIVE_FILTER_START = 0x2D,
-	FW_PARAMS_PARAM_PFVF_ACTIVE_FILTER_END = 0x2E
+	FW_PARAMS_PARAM_PFVF_ACTIVE_FILTER_END = 0x2E,
+	FW_PARAMS_PARAM_PFVF_ETHOFLD_END = 0x30,
+	FW_PARAMS_PARAM_PFVF_CPLFW4MSG_ENCAP = 0x31
 };
 
 /*
@@ -1758,6 +1761,25 @@ enum fw_port_module_type {
 	FW_PORT_MOD_TYPE_NONE = FW_PORT_CMD_MODTYPE_MASK
 };
 
+enum fw_port_mod_sub_type {
+	FW_PORT_MOD_SUB_TYPE_NA,
+	FW_PORT_MOD_SUB_TYPE_MV88E114X = 0x1,
+	FW_PORT_MOD_SUB_TYPE_TN8022 = 0x2,
+	FW_PORT_MOD_SUB_TYPE_AQ1202 = 0x3,
+	FW_PORT_MOD_SUB_TYPE_88x3120 = 0x4,
+	FW_PORT_MOD_SUB_TYPE_BCM84834 = 0x5,
+	FW_PORT_MOD_SUB_TYPE_BT_VSC8634 = 0x8,
+
+	/* The following will never been in the VPD.  They are TWINAX cable
+	 * lengths decoded from SFP+ module i2c PROMs.  These should
+	 * almost certainly go somewhere else ...
+	 */
+	FW_PORT_MOD_SUB_TYPE_TWINAX_1 = 0x9,
+	FW_PORT_MOD_SUB_TYPE_TWINAX_3 = 0xA,
+	FW_PORT_MOD_SUB_TYPE_TWINAX_5 = 0xB,
+	FW_PORT_MOD_SUB_TYPE_TWINAX_7 = 0xC,
+};
+
 /* port stats */
 #define FW_NUM_PORT_STATS 50
 #define FW_NUM_PORT_TX_STATS 23
@@ -2041,6 +2063,28 @@ struct fw_rss_vi_config_cmd {
 	} u;
 };
 
+struct fw_clip_cmd {
+	__be32 op_to_write;
+	__be32 alloc_to_len16;
+	__be64 ip_hi;
+	__be64 ip_lo;
+	__be32 r4[2];
+};
+
+#define S_FW_CLIP_CMD_ALLOC     31
+#define M_FW_CLIP_CMD_ALLOC     0x1
+#define V_FW_CLIP_CMD_ALLOC(x)  ((x) << S_FW_CLIP_CMD_ALLOC)
+#define G_FW_CLIP_CMD_ALLOC(x)  \
+	(((x) >> S_FW_CLIP_CMD_ALLOC) & M_FW_CLIP_CMD_ALLOC)
+#define F_FW_CLIP_CMD_ALLOC     V_FW_CLIP_CMD_ALLOC(1U)
+
+#define S_FW_CLIP_CMD_FREE      30
+#define M_FW_CLIP_CMD_FREE      0x1
+#define V_FW_CLIP_CMD_FREE(x)   ((x) << S_FW_CLIP_CMD_FREE)
+#define G_FW_CLIP_CMD_FREE(x)   \
+	(((x) >> S_FW_CLIP_CMD_FREE) & M_FW_CLIP_CMD_FREE)
+#define F_FW_CLIP_CMD_FREE      V_FW_CLIP_CMD_FREE(1U)
+
 enum fw_error_type {
 	FW_ERROR_TYPE_EXCEPTION		= 0x0,
 	FW_ERROR_TYPE_HWMODULE		= 0x1,
@@ -2113,7 +2157,7 @@ struct fw_debug_cmd {
 
 struct fw_hdr {
 	u8 ver;
-	u8 reserved1;
+	u8 chip;			/* terminator chip type */
 	__be16	len512;			/* bin length in units of 512-bytes */
 	__be32	fw_ver;			/* firmware version */
 	__be32	tp_microcode_ver;
@@ -2123,19 +2167,35 @@ struct fw_hdr {
 	u8 intfver_ri;
 	u8 intfver_iscsipdu;
 	u8 intfver_iscsi;
+	u8 intfver_fcoepdu;
 	u8 intfver_fcoe;
-	u8 reserved2;
+	__u32   reserved2;
 	__u32   reserved3;
 	__u32   reserved4;
-	__u32   reserved5;
 	__be32  flags;
 	__be32  reserved6[23];
+};
+
+enum fw_hdr_chip {
+	FW_HDR_CHIP_T4,
+	FW_HDR_CHIP_T5
 };
 
 #define FW_HDR_FW_VER_MAJOR_GET(x) (((x) >> 24) & 0xff)
 #define FW_HDR_FW_VER_MINOR_GET(x) (((x) >> 16) & 0xff)
 #define FW_HDR_FW_VER_MICRO_GET(x) (((x) >> 8) & 0xff)
 #define FW_HDR_FW_VER_BUILD_GET(x) (((x) >> 0) & 0xff)
+
+enum fw_hdr_intfver {
+	FW_HDR_INTFVER_NIC      = 0x00,
+	FW_HDR_INTFVER_VNIC     = 0x00,
+	FW_HDR_INTFVER_OFLD     = 0x00,
+	FW_HDR_INTFVER_RI       = 0x00,
+	FW_HDR_INTFVER_ISCSIPDU = 0x00,
+	FW_HDR_INTFVER_ISCSI    = 0x00,
+	FW_HDR_INTFVER_FCOEPDU  = 0x00,
+	FW_HDR_INTFVER_FCOE     = 0x00,
+};
 
 enum fw_hdr_flags {
 	FW_HDR_FLAGS_RESET_HALT = 0x00000001,

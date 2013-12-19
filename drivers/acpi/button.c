@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
+#include <acpi/button.h>
 
 #define PREFIX "ACPI: "
 
@@ -75,7 +76,7 @@ static const struct acpi_device_id button_device_ids[] = {
 MODULE_DEVICE_TABLE(acpi, button_device_ids);
 
 static int acpi_button_add(struct acpi_device *device);
-static int acpi_button_remove(struct acpi_device *device, int type);
+static int acpi_button_remove(struct acpi_device *device);
 static void acpi_button_notify(struct acpi_device *device, u32 event);
 
 #ifdef CONFIG_PM_SLEEP
@@ -128,7 +129,7 @@ static int acpi_button_state_seq_show(struct seq_file *seq, void *offset)
 
 static int acpi_button_state_open_fs(struct inode *inode, struct file *file)
 {
-	return single_open(file, acpi_button_state_seq_show, PDE(inode)->data);
+	return single_open(file, acpi_button_state_seq_show, PDE_DATA(inode));
 }
 
 static const struct file_operations acpi_button_state_fops = {
@@ -302,8 +303,6 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 
 			pm_wakeup_event(&device->dev, 0);
 		}
-
-		acpi_bus_generate_proc_event(device, event, ++button->pushed);
 		break;
 	default:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
@@ -384,18 +383,15 @@ static int acpi_button_add(struct acpi_device *device)
 
 	switch (button->type) {
 	case ACPI_BUTTON_TYPE_POWER:
-		input->evbit[0] = BIT_MASK(EV_KEY);
-		set_bit(KEY_POWER, input->keybit);
+		input_set_capability(input, EV_KEY, KEY_POWER);
 		break;
 
 	case ACPI_BUTTON_TYPE_SLEEP:
-		input->evbit[0] = BIT_MASK(EV_KEY);
-		set_bit(KEY_SLEEP, input->keybit);
+		input_set_capability(input, EV_KEY, KEY_SLEEP);
 		break;
 
 	case ACPI_BUTTON_TYPE_LID:
-		input->evbit[0] = BIT_MASK(EV_SW);
-		set_bit(SW_LID, input->swbit);
+		input_set_capability(input, EV_SW, SW_LID);
 		break;
 	}
 
@@ -433,7 +429,7 @@ static int acpi_button_add(struct acpi_device *device)
 	return error;
 }
 
-static int acpi_button_remove(struct acpi_device *device, int type)
+static int acpi_button_remove(struct acpi_device *device)
 {
 	struct acpi_button *button = acpi_driver_data(device);
 

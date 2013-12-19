@@ -34,7 +34,6 @@
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 
 #include "omap-mcbsp.h"
-#include "omap-pcm.h"
 
 #define OMAP3_PANDORA_DAC_POWER_GPIO	118
 #define OMAP3_PANDORA_AMP_POWER_GPIO	14
@@ -80,12 +79,18 @@ static int omap3pandora_hw_params(struct snd_pcm_substream *substream,
 static int omap3pandora_dac_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *k, int event)
 {
+	int ret;
+
 	/*
 	 * The PCM1773 DAC datasheet requires 1ms delay between switching
 	 * VCC power on/off and /PD pin high/low
 	 */
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
-		regulator_enable(omap3pandora_dac_reg);
+		ret = regulator_enable(omap3pandora_dac_reg);
+		if (ret) {
+			dev_err(w->dapm->dev, "Failed to power DAC: %d\n", ret);
+			return ret;
+		}
 		mdelay(1);
 		gpio_set_value(OMAP3_PANDORA_DAC_POWER_GPIO, 1);
 	} else {
@@ -144,11 +149,11 @@ static const struct snd_soc_dapm_route omap3pandora_in_map[] = {
 	{"AUXL", NULL, "Line In"},
 	{"AUXR", NULL, "Line In"},
 
-	{"MAINMIC", NULL, "Mic Bias 1"},
-	{"Mic Bias 1", NULL, "Mic (internal)"},
+	{"MAINMIC", NULL, "Mic (internal)"},
+	{"Mic (internal)", NULL, "Mic Bias 1"},
 
-	{"SUBMIC", NULL, "Mic Bias 2"},
-	{"Mic Bias 2", NULL, "Mic (external)"},
+	{"SUBMIC", NULL, "Mic (external)"},
+	{"Mic (external)", NULL, "Mic Bias 2"},
 };
 
 static int omap3pandora_out_init(struct snd_soc_pcm_runtime *rtd)

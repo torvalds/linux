@@ -33,11 +33,13 @@ static ssize_t modalias_show(struct device *dev,
 {
 	return sprintf(buf, "hsi:%s\n", dev_name(dev));
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute hsi_bus_dev_attrs[] = {
-	__ATTR_RO(modalias),
-	__ATTR_NULL,
+static struct attribute *hsi_bus_dev_attrs[] = {
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(hsi_bus_dev);
 
 static int hsi_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
@@ -53,7 +55,7 @@ static int hsi_bus_match(struct device *dev, struct device_driver *driver)
 
 static struct bus_type hsi_bus_type = {
 	.name		= "hsi",
-	.dev_attrs	= hsi_bus_dev_attrs,
+	.dev_groups	= hsi_bus_dev_groups,
 	.match		= hsi_bus_match,
 	.uevent		= hsi_bus_uevent,
 };
@@ -75,7 +77,7 @@ static void hsi_new_client(struct hsi_port *port, struct hsi_board_info *info)
 	cl->device.bus = &hsi_bus_type;
 	cl->device.parent = &port->device;
 	cl->device.release = hsi_client_release;
-	dev_set_name(&cl->device, info->name);
+	dev_set_name(&cl->device, "%s", info->name);
 	cl->device.platform_data = info->platform_data;
 	if (info->archdata)
 		cl->device.archdata = *info->archdata;
@@ -420,7 +422,7 @@ static int hsi_event_notifier_call(struct notifier_block *nb,
 /**
  * hsi_register_port_event - Register a client to receive port events
  * @cl: HSI client that wants to receive port events
- * @cb: Event handler callback
+ * @handler: Event handler callback
  *
  * Clients should register a callback to be able to receive
  * events from the ports. Registration should happen after

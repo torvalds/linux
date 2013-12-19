@@ -7,6 +7,7 @@
  *  Copyright (C) 2010 John Crispin <blogic@openwrt.org>
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -45,8 +46,7 @@ struct ltq_mtd {
 };
 
 static const char ltq_map_name[] = "ltq_nor";
-static const char *ltq_probe_types[] = {
-					"cmdlinepart", "ofpart", NULL };
+static const char * const ltq_probe_types[] = { "cmdlinepart", "ofpart", NULL };
 
 static map_word
 ltq_read16(struct map_info *map, unsigned long adr)
@@ -136,10 +136,9 @@ ltq_mtd_probe(struct platform_device *pdev)
 	ltq_mtd->map = kzalloc(sizeof(struct map_info), GFP_KERNEL);
 	ltq_mtd->map->phys = ltq_mtd->res->start;
 	ltq_mtd->map->size = resource_size(ltq_mtd->res);
-	ltq_mtd->map->virt = devm_request_and_ioremap(&pdev->dev, ltq_mtd->res);
-	if (!ltq_mtd->map->virt) {
-		dev_err(&pdev->dev, "failed to remap mem resource\n");
-		err = -EBUSY;
+	ltq_mtd->map->virt = devm_ioremap_resource(&pdev->dev, ltq_mtd->res);
+	if (IS_ERR(ltq_mtd->map->virt)) {
+		err = PTR_ERR(ltq_mtd->map->virt);
 		goto err_out;
 	}
 

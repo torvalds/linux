@@ -173,7 +173,7 @@ sn9c102_request_buffers(struct sn9c102_device* cam, u32 count,
 		cam->frame[i].buf.sequence = 0;
 		cam->frame[i].buf.field = V4L2_FIELD_NONE;
 		cam->frame[i].buf.memory = V4L2_MEMORY_MMAP;
-		cam->frame[i].buf.flags = 0;
+		cam->frame[i].buf.flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	}
 
 	return cam->nbuffers;
@@ -773,7 +773,8 @@ end_of_frame:
 				       img);
 
 				if ((*f)->buf.bytesused == 0)
-					do_gettimeofday(&(*f)->buf.timestamp);
+					v4l2_get_timestamp(
+						&(*f)->buf.timestamp);
 
 				(*f)->buf.bytesused += img;
 
@@ -1736,6 +1737,7 @@ static void sn9c102_release_resources(struct kref *kref)
 	    video_device_node_name(cam->v4ldev));
 	video_set_drvdata(cam->v4ldev, NULL);
 	video_unregister_device(cam->v4ldev);
+	v4l2_device_unregister(&cam->v4l2_dev);
 	usb_put_dev(cam->usbdev);
 	kfree(cam->control_buffer);
 	kfree(cam);
@@ -2826,7 +2828,7 @@ sn9c102_vidioc_querybuf(struct sn9c102_device* cam, void __user * arg)
 	    b.index >= cam->nbuffers || cam->io != IO_MMAP)
 		return -EINVAL;
 
-	memcpy(&b, &cam->frame[b.index].buf, sizeof(b));
+	b = cam->frame[b.index].buf;
 
 	if (cam->frame[b.index].vma_use_count)
 		b.flags |= V4L2_BUF_FLAG_MAPPED;
@@ -2929,7 +2931,7 @@ sn9c102_vidioc_dqbuf(struct sn9c102_device* cam, struct file* filp,
 
 	f->state = F_UNUSED;
 
-	memcpy(&b, &f->buf, sizeof(b));
+	b = f->buf;
 	if (f->vma_use_count)
 		b.flags |= V4L2_BUF_FLAG_MAPPED;
 
@@ -3253,6 +3255,13 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 
 	cam->usbdev = udev;
 
+	/* register v4l2_device early so it can be used for printks */
+	if (v4l2_device_register(&intf->dev, &cam->v4l2_dev)) {
+		dev_err(&intf->dev, "v4l2_device_register failed\n");
+		err = -ENOMEM;
+		goto fail;
+	}
+
 	if (!(cam->control_buffer = kzalloc(8, GFP_KERNEL))) {
 		DBG(1, "kzalloc() failed");
 		err = -ENOMEM;
@@ -3324,7 +3333,7 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	strcpy(cam->v4ldev->name, "SN9C1xx PC Camera");
 	cam->v4ldev->fops = &sn9c102_fops;
 	cam->v4ldev->release = video_device_release;
-	cam->v4ldev->parent = &udev->dev;
+	cam->v4ldev->v4l2_dev = &cam->v4l2_dev;
 
 	init_completion(&cam->probe);
 
@@ -3376,6 +3385,7 @@ fail:
 		kfree(cam->control_buffer);
 		if (cam->v4ldev)
 			video_device_release(cam->v4ldev);
+		v4l2_device_unregister(&cam->v4l2_dev);
 		kfree(cam);
 	}
 	return err;
@@ -3405,6 +3415,8 @@ static void sn9c102_usb_disconnect(struct usb_interface* intf)
 		cam->state |= DEV_DISCONNECTED;
 
 	wake_up_interruptible_all(&cam->wait_open);
+
+	v4l2_device_disconnect(&cam->v4l2_dev);
 
 	kref_put(&cam->kref, sn9c102_release_resources);
 

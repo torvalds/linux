@@ -25,6 +25,19 @@ config NF_CONNTRACK_IPV6
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NF_TABLES_IPV6
+	depends on NF_TABLES
+	tristate "IPv6 nf_tables support"
+
+config NFT_CHAIN_ROUTE_IPV6
+	depends on NF_TABLES_IPV6
+	tristate "IPv6 nf_tables route chain support"
+
+config NFT_CHAIN_NAT_IPV6
+	depends on NF_TABLES_IPV6
+	depends on NF_NAT_IPV6 && NFT_NAT
+	tristate "IPv6 nf_tables nat chain support"
+
 config IP6_NF_IPTABLES
 	tristate "IP6 tables support (required for filtering)"
 	depends on INET && IPV6
@@ -105,7 +118,7 @@ config IP6_NF_MATCH_MH
 
 config IP6_NF_MATCH_RPFILTER
 	tristate '"rpfilter" reverse path filter match support'
-	depends on NETFILTER_ADVANCED
+	depends on NETFILTER_ADVANCED && (IP6_NF_MANGLE || IP6_NF_RAW)
 	---help---
 	  This option allows you to match packets whose replies would
 	  go out via the interface the packet came in.
@@ -152,6 +165,19 @@ config IP6_NF_TARGET_REJECT
 	  than silently being dropped.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
+
+config IP6_NF_TARGET_SYNPROXY
+	tristate "SYNPROXY target support"
+	depends on NF_CONNTRACK && NETFILTER_ADVANCED
+	select NETFILTER_SYNPROXY
+	select SYN_COOKIES
+	help
+	  The SYNPROXY target allows you to intercept TCP connections and
+	  establish them using syncookies before they are passed on to the
+	  server. This allows to avoid conntrack and server resource usage
+	  during SYN-flood attacks.
+
+	  To compile it as a module, choose M here. If unsure, say N.
 
 config IP6_NF_MANGLE
 	tristate "Packet mangling"

@@ -199,6 +199,7 @@ typedef union
 typedef struct
 {
 	__u32   fpc;
+	__u32	pad;
 	freg_t  fprs[NUM_FPRS];              
 } s390_fp_regs;
 
@@ -206,7 +207,6 @@ typedef struct
 #define FPC_FLAGS_MASK          0x00F80000
 #define FPC_DXC_MASK            0x0000FF00
 #define FPC_RM_MASK             0x00000003
-#define FPC_VALID_MASK          0xF8F8FF03
 
 /* this typedef defines how a Program Status Word looks like */
 typedef struct 
@@ -214,12 +214,6 @@ typedef struct
         unsigned long mask;
         unsigned long addr;
 } __attribute__ ((aligned(8))) psw_t;
-
-typedef struct
-{
-	__u32	mask;
-	__u32	addr;
-} __attribute__ ((aligned(8))) psw_compat_t;
 
 #ifndef __s390x__
 
@@ -269,7 +263,7 @@ typedef struct
 #define PSW_MASK_EA		0x0000000100000000UL
 #define PSW_MASK_BA		0x0000000080000000UL
 
-#define PSW_MASK_USER		0x0000FF8180000000UL
+#define PSW_MASK_USER		0x0000FF0180000000UL
 
 #define PSW_ADDR_AMODE		0x0000000000000000UL
 #define PSW_ADDR_INSN		0xFFFFFFFFFFFFFFFFUL
@@ -294,20 +288,6 @@ typedef struct
 	unsigned int  acrs[NUM_ACRS];
 	unsigned long orig_gpr2;
 } s390_regs;
-
-typedef struct
-{
-	psw_compat_t	psw;
-	__u32		gprs[NUM_GPRS];
-	__u32		acrs[NUM_ACRS];
-	__u32		orig_gpr2;
-} s390_compat_regs;
-
-typedef struct
-{
-	__u32		gprs_high[NUM_GPRS];
-} s390_compat_regs_high;
-
 
 /*
  * Now for the user space program event recording (trace) definitions.
@@ -420,6 +400,7 @@ typedef struct
 #define PTRACE_POKE_SYSTEM_CALL	      0x5008
 #define PTRACE_ENABLE_TE	      0x5009
 #define PTRACE_DISABLE_TE	      0x5010
+#define PTRACE_TE_ABORT_RAND	      0x5011
 
 /*
  * PT_PROT definition is loosely based on hppa bsd definition in

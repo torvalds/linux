@@ -358,7 +358,7 @@ static int ax_mii_probe(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	ret = phy_connect_direct(dev, phy_dev, ax_handle_link_change, 0,
+	ret = phy_connect_direct(dev, phy_dev, ax_handle_link_change,
 				 PHY_INTERFACE_MODE_MII);
 	if (ret) {
 		netdev_err(dev, "Could not attach to PHY\n");
@@ -469,9 +469,9 @@ static void ax_get_drvinfo(struct net_device *dev,
 {
 	struct platform_device *pdev = to_platform_device(dev->dev.parent);
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, pdev->name);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pdev->name, sizeof(info->bus_info));
 }
 
 static int ax_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -702,12 +702,12 @@ static int ax_init_dev(struct net_device *dev)
 			for (i = 0; i < 16; i++)
 				SA_prom[i] = SA_prom[i+i];
 
-		memcpy(dev->dev_addr, SA_prom, 6);
+		memcpy(dev->dev_addr, SA_prom, ETH_ALEN);
 	}
 
 #ifdef CONFIG_AX88796_93CX6
 	if (ax->plat->flags & AXFLG_HAS_93CX6) {
-		unsigned char mac_addr[6];
+		unsigned char mac_addr[ETH_ALEN];
 		struct eeprom_93cx6 eeprom;
 
 		eeprom.data = ei_local;
@@ -719,7 +719,7 @@ static int ax_init_dev(struct net_device *dev)
 				       (__le16 __force *)mac_addr,
 				       sizeof(mac_addr) >> 1);
 
-		memcpy(dev->dev_addr, mac_addr, 6);
+		memcpy(dev->dev_addr, mac_addr, ETH_ALEN);
 	}
 #endif
 	if (ax->plat->wordlength == 2) {
@@ -828,7 +828,7 @@ static int ax_probe(struct platform_device *pdev)
 	struct ei_device *ei_local;
 	struct ax_device *ax;
 	struct resource *irq, *mem, *mem2;
-	resource_size_t mem_size, mem2_size = 0;
+	unsigned long mem_size, mem2_size = 0;
 	int ret = 0;
 
 	dev = ax__alloc_ei_netdev(sizeof(struct ax_device));
@@ -840,7 +840,7 @@ static int ax_probe(struct platform_device *pdev)
 	ei_local = netdev_priv(dev);
 	ax = to_ax_dev(dev);
 
-	ax->plat = pdev->dev.platform_data;
+	ax->plat = dev_get_platdata(&pdev->dev);
 	platform_set_drvdata(pdev, dev);
 
 	ei_local->rxcr_base = ax->plat->rcr_val;

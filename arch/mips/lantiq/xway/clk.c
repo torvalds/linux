@@ -53,6 +53,29 @@ unsigned long ltq_danube_cpu_hz(void)
 	}
 }
 
+unsigned long ltq_danube_pp32_hz(void)
+{
+	unsigned int clksys = (ltq_cgu_r32(CGU_SYS) >> 7) & 3;
+	unsigned long clk;
+
+	switch (clksys) {
+	case 1:
+		clk = CLOCK_240M;
+		break;
+	case 2:
+		clk = CLOCK_222M;
+		break;
+	case 3:
+		clk = CLOCK_133M;
+		break;
+	default:
+		clk = CLOCK_266M;
+		break;
+	}
+
+	return clk;
+}
+
 unsigned long ltq_ar9_sys_hz(void)
 {
 	if (((ltq_cgu_r32(CGU_SYS) >> 3) & 0x3) == 0x2)
@@ -144,6 +167,26 @@ unsigned long ltq_vr9_fpi_hz(void)
 		break;
 	default:
 		clk = 0;
+		break;
+	}
+
+	return clk;
+}
+
+unsigned long ltq_vr9_pp32_hz(void)
+{
+	unsigned int clksys = (ltq_cgu_r32(CGU_SYS) >> 16) & 3;
+	unsigned long clk;
+
+	switch (clksys) {
+	case 1:
+		clk = CLOCK_450M;
+		break;
+	case 2:
+		clk = CLOCK_300M;
+		break;
+	default:
+		clk = CLOCK_500M;
 		break;
 	}
 

@@ -50,6 +50,7 @@
 
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
+#include <linux/can/led.h>
 #include <linux/can/platform/ti_hecc.h>
 
 #define DRV_NAME "ti_hecc"
@@ -283,15 +284,6 @@ static inline void hecc_clear_bit(struct ti_hecc_priv *priv, int reg,
 static inline u32 hecc_get_bit(struct ti_hecc_priv *priv, int reg, u32 bit_mask)
 {
 	return (hecc_read(priv, reg) & bit_mask) ? 1 : 0;
-}
-
-static int ti_hecc_get_state(const struct net_device *ndev,
-	enum can_state *state)
-{
-	struct ti_hecc_priv *priv = netdev_priv(ndev);
-
-	*state = priv->can.state;
-	return 0;
 }
 
 static int ti_hecc_set_btc(struct ti_hecc_priv *priv)
@@ -593,6 +585,7 @@ static int ti_hecc_rx_pkt(struct ti_hecc_priv *priv, int mbxno)
 	spin_unlock_irqrestore(&priv->mbx_lock, flags);
 
 	stats->rx_bytes += cf->can_dlc;
+	can_led_event(priv->ndev, CAN_LED_EVENT_RX);
 	netif_receive_skb(skb);
 	stats->rx_packets++;
 
@@ -746,12 +739,12 @@ static int ti_hecc_error(struct net_device *ndev, int int_status,
 		}
 		if (err_status & HECC_CANES_CRCE) {
 			hecc_set_bit(priv, HECC_CANES, HECC_CANES_CRCE);
-			cf->data[2] |= CAN_ERR_PROT_LOC_CRC_SEQ |
+			cf->data[3] |= CAN_ERR_PROT_LOC_CRC_SEQ |
 					CAN_ERR_PROT_LOC_CRC_DEL;
 		}
 		if (err_status & HECC_CANES_ACKE) {
 			hecc_set_bit(priv, HECC_CANES, HECC_CANES_ACKE);
-			cf->data[2] |= CAN_ERR_PROT_LOC_ACK |
+			cf->data[3] |= CAN_ERR_PROT_LOC_ACK |
 					CAN_ERR_PROT_LOC_ACK_DEL;
 		}
 	}
@@ -796,6 +789,7 @@ static irqreturn_t ti_hecc_interrupt(int irq, void *dev_id)
 			stats->tx_bytes += hecc_read_mbx(priv, mbxno,
 						HECC_CANMCF) & 0xF;
 			stats->tx_packets++;
+			can_led_event(ndev, CAN_LED_EVENT_TX);
 			can_get_echo_skb(ndev, mbxno);
 			--priv->tx_tail;
 		}
@@ -851,6 +845,8 @@ static int ti_hecc_open(struct net_device *ndev)
 		return err;
 	}
 
+	can_led_event(ndev, CAN_LED_EVENT_OPEN);
+
 	ti_hecc_start(ndev);
 	napi_enable(&priv->napi);
 	netif_start_queue(ndev);
@@ -868,6 +864,8 @@ static int ti_hecc_close(struct net_device *ndev)
 	free_irq(ndev->irq, ndev);
 	close_candev(ndev);
 	ti_hecc_transceiver_switch(priv, 0);
+
+	can_led_event(ndev, CAN_LED_EVENT_STOP);
 
 	return 0;
 }
@@ -887,7 +885,7 @@ static int ti_hecc_probe(struct platform_device *pdev)
 	void __iomem *addr;
 	int err = -ENODEV;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_err(&pdev->dev, "No platform data\n");
 		goto probe_exit;
@@ -933,7 +931,6 @@ static int ti_hecc_probe(struct platform_device *pdev)
 
 	priv->can.bittiming_const = &ti_hecc_bittiming_const;
 	priv->can.do_set_mode = ti_hecc_do_set_mode;
-	priv->can.do_get_state = ti_hecc_get_state;
 	priv->can.do_get_berr_counter = ti_hecc_get_berr_counter;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
 
@@ -961,6 +958,9 @@ static int ti_hecc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "register_candev() failed\n");
 		goto probe_exit_clk;
 	}
+
+	devm_can_led_init(ndev);
+
 	dev_info(&pdev->dev, "device registered (reg_base=%p, irq=%u)\n",
 		priv->base, (u32) ndev->irq);
 
@@ -991,7 +991,6 @@ static int ti_hecc_remove(struct platform_device *pdev)
 	iounmap(priv->base);
 	release_mem_region(res->start, resource_size(res));
 	free_candev(ndev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

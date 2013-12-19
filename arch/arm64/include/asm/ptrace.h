@@ -42,6 +42,17 @@
 #define COMPAT_PSR_MODE_UND	0x0000001b
 #define COMPAT_PSR_MODE_SYS	0x0000001f
 #define COMPAT_PSR_T_BIT	0x00000020
+#define COMPAT_PSR_E_BIT	0x00000200
+#define COMPAT_PSR_F_BIT	0x00000040
+#define COMPAT_PSR_I_BIT	0x00000080
+#define COMPAT_PSR_A_BIT	0x00000100
+#define COMPAT_PSR_E_BIT	0x00000200
+#define COMPAT_PSR_J_BIT	0x01000000
+#define COMPAT_PSR_Q_BIT	0x08000000
+#define COMPAT_PSR_V_BIT	0x10000000
+#define COMPAT_PSR_C_BIT	0x20000000
+#define COMPAT_PSR_Z_BIT	0x40000000
+#define COMPAT_PSR_N_BIT	0x80000000
 #define COMPAT_PSR_IT_MASK	0x0600fc00	/* If-Then execution state mask */
 /*
  * These are 'magic' values for PTRACE_PEEKUSR that return info about where a
@@ -160,8 +171,6 @@ extern unsigned long profile_pc(struct pt_regs *regs);
 #else
 #define profile_pc(regs) instruction_pointer(regs)
 #endif
-
-extern int aarch32_break_trap(struct pt_regs *regs);
 
 #endif /* __ASSEMBLY__ */
 #endif

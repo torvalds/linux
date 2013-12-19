@@ -193,8 +193,9 @@ static int __init parse_options(struct early_serial8250_device *device,
 	if (options) {
 		options++;
 		device->baud = simple_strtoul(options, NULL, 0);
-		length = min(strcspn(options, " "), sizeof(device->options));
-		strncpy(device->options, options, length);
+		length = min(strcspn(options, " ") + 1,
+			     (size_t)(sizeof(device->options)));
+		strlcpy(device->options, options, length);
 	} else {
 		device->baud = probe_baud(port);
 		snprintf(device->options, sizeof(device->options), "%u",

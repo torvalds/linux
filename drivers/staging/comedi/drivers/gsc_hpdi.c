@@ -18,12 +18,7 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-************************************************************************/
+*/
 
 /*
  * Driver: gsc_hpdi
@@ -47,9 +42,12 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/interrupt.h>
-#include "../comedidev.h"
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #include "plx9080.h"
 #include "comedi_fc.h"
@@ -75,12 +73,6 @@ static int dio_config_block_size(struct comedi_device *dev, unsigned int *data);
 #define DMA_BUFFER_SIZE 0x10000
 #define NUM_DMA_BUFFERS 4
 #define NUM_DMA_DESCRIPTORS 256
-
-/* indices of base address regions */
-enum base_address_regions {
-	PLX9080_BADDRINDEX = 0,
-	HPDI_BADDRINDEX = 2,
-};
 
 enum hpdi_registers {
 	FIRMWARE_REV_REG = 0x0,
@@ -232,37 +224,26 @@ struct hpdi_private {
 	volatile uint32_t bits[24];
 	/* number of bytes at which to generate COMEDI_CB_BLOCK events */
 	volatile unsigned int block_size;
-	unsigned dio_config_output:1;
 };
 
 static int dio_config_insn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
 			   unsigned int *data)
 {
-	struct hpdi_private *devpriv = dev->private;
+	int ret;
 
 	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		devpriv->dio_config_output = 1;
-		return insn->n;
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		devpriv->dio_config_output = 0;
-		return insn->n;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    devpriv->dio_config_output ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
 	case INSN_CONFIG_BLOCK_SIZE:
 		return dio_config_block_size(dev, data);
-		break;
 	default:
+		ret = comedi_dio_insn_config(dev, s, insn, data, 0xffffffff);
+		if (ret)
+			return ret;
 		break;
 	}
 
-	return -EINVAL;
+	return insn->n;
 }
 
 static void disable_plx_interrupts(struct comedi_device *dev)
@@ -492,25 +473,17 @@ static int hpdi_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = thisboard;
 	dev->board_name = thisboard->name;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
-	if (comedi_pci_enable(pcidev, dev->board_name)) {
-		dev_warn(dev->class_dev,
-			 "failed enable PCI device and request regions\n");
-		return -EIO;
-	}
-	dev->iobase = 1;	/* the "detach" needs this */
+	retval = comedi_pci_enable(dev);
+	if (retval)
+		return retval;
 	pci_set_master(pcidev);
 
-	devpriv->plx9080_iobase =
-		ioremap(pci_resource_start(pcidev, PLX9080_BADDRINDEX),
-			pci_resource_len(pcidev, PLX9080_BADDRINDEX));
-	devpriv->hpdi_iobase =
-		ioremap(pci_resource_start(pcidev, HPDI_BADDRINDEX),
-			pci_resource_len(pcidev, HPDI_BADDRINDEX));
+	devpriv->plx9080_iobase = pci_ioremap_bar(pcidev, 0);
+	devpriv->hpdi_iobase = pci_ioremap_bar(pcidev, 2);
 	if (!devpriv->plx9080_iobase || !devpriv->hpdi_iobase) {
 		dev_warn(dev->class_dev, "failed to remap io memory\n");
 		return -ENOMEM;
@@ -594,9 +567,8 @@ static void hpdi_detach(struct comedi_device *dev)
 					    NUM_DMA_DESCRIPTORS,
 					    devpriv->dma_desc,
 					    devpriv->dma_desc_phys_addr);
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
 	}
+	comedi_pci_disable(dev);
 }
 
 static int dio_config_block_size(struct comedi_device *dev, unsigned int *data)
@@ -690,9 +662,7 @@ static int di_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 static int hpdi_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_cmd *cmd)
 {
-	struct hpdi_private *devpriv = dev->private;
-
-	if (devpriv->dio_config_output)
+	if (s->io_bits)
 		return -EINVAL;
 	else
 		return di_cmd_test(dev, s, cmd);
@@ -763,9 +733,7 @@ static int di_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static int hpdi_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct hpdi_private *devpriv = dev->private;
-
-	if (devpriv->dio_config_output)
+	if (s->io_bits)
 		return -EINVAL;
 	else
 		return di_cmd(dev, s);
@@ -941,14 +909,9 @@ static struct comedi_driver gsc_hpdi_driver = {
 };
 
 static int gsc_hpdi_pci_probe(struct pci_dev *dev,
-					const struct pci_device_id *ent)
+			      const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &gsc_hpdi_driver);
-}
-
-static void gsc_hpdi_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
+	return comedi_pci_auto_config(dev, &gsc_hpdi_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(gsc_hpdi_pci_table) = {
@@ -962,7 +925,7 @@ static struct pci_driver gsc_hpdi_pci_driver = {
 	.name		= "gsc_hpdi",
 	.id_table	= gsc_hpdi_pci_table,
 	.probe		= gsc_hpdi_pci_probe,
-	.remove		= gsc_hpdi_pci_remove
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(gsc_hpdi_driver, gsc_hpdi_pci_driver);
 

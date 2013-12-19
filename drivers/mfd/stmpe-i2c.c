@@ -75,6 +75,7 @@ static const struct i2c_device_id stmpe_i2c_id[] = {
 	{ "stmpe801", STMPE801 },
 	{ "stmpe811", STMPE811 },
 	{ "stmpe1601", STMPE1601 },
+	{ "stmpe1801", STMPE1801 },
 	{ "stmpe2401", STMPE2401 },
 	{ "stmpe2403", STMPE2403 },
 	{ }

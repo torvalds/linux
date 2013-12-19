@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/amba/bus.h>
-#include <linux/atomic.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
@@ -25,7 +24,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/platform_data/i2c-nomadik.h>
 #include <linux/of.h>
-#include <linux/of_i2c.h>
+#include <linux/pinctrl/consumer.h>
 
 #define DRIVER_NAME "nmk-i2c"
 
@@ -105,6 +104,16 @@
 /* maximum threshold value */
 #define MAX_I2C_FIFO_THRESHOLD	15
 
+/**
+ * struct i2c_vendor_data - per-vendor variations
+ * @has_mtdws: variant has the MTDWS bit
+ * @fifodepth: variant FIFO depth
+ */
+struct i2c_vendor_data {
+	bool has_mtdws;
+	u32 fifodepth;
+};
+
 enum i2c_status {
 	I2C_NOP,
 	I2C_ON_GOING,
@@ -137,6 +146,7 @@ struct i2c_nmk_client {
 
 /**
  * struct nmk_i2c_dev - private data structure of the controller.
+ * @vendor: vendor data for this variant.
  * @adev: parent amba device.
  * @adap: corresponding I2C adapter.
  * @irq: interrupt line for the controller.
@@ -150,6 +160,7 @@ struct i2c_nmk_client {
  * @busy: Busy doing transfer.
  */
 struct nmk_i2c_dev {
+	struct i2c_vendor_data		*vendor;
 	struct amba_device		*adev;
 	struct i2c_adapter		adap;
 	int				irq;
@@ -402,8 +413,7 @@ static void setup_i2c_controller(struct nmk_i2c_dev *dev)
 static int read_i2c(struct nmk_i2c_dev *dev, u16 flags)
 {
 	u32 status = 0;
-	u32 mcr;
-	u32 irq_mask = 0;
+	u32 mcr, irq_mask;
 	int timeout;
 
 	mcr = load_i2c_mcr_reg(dev, flags);
@@ -422,7 +432,7 @@ static int read_i2c(struct nmk_i2c_dev *dev, u16 flags)
 	irq_mask = (I2C_IT_RXFNF | I2C_IT_RXFF |
 			I2C_IT_MAL | I2C_IT_BERR);
 
-	if (dev->stop)
+	if (dev->stop || !dev->vendor->has_mtdws)
 		irq_mask |= I2C_IT_MTD;
 	else
 		irq_mask |= I2C_IT_MTDWS;
@@ -472,8 +482,7 @@ static void fill_tx_fifo(struct nmk_i2c_dev *dev, int no_bytes)
 static int write_i2c(struct nmk_i2c_dev *dev, u16 flags)
 {
 	u32 status = 0;
-	u32 mcr;
-	u32 irq_mask = 0;
+	u32 mcr, irq_mask;
 	int timeout;
 
 	mcr = load_i2c_mcr_reg(dev, flags);
@@ -503,7 +512,7 @@ static int write_i2c(struct nmk_i2c_dev *dev, u16 flags)
 	 * set the MTDWS bit (Master Transaction Done Without Stop)
 	 * to start repeated start operation
 	 */
-	if (dev->stop)
+	if (dev->stop || !dev->vendor->has_mtdws)
 		irq_mask |= I2C_IT_MTD;
 	else
 		irq_mask |= I2C_IT_MTDWS;
@@ -636,6 +645,9 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 		goto out_clk;
 	}
 
+	/* Optionaly enable pins to be muxed in and configured */
+	pinctrl_pm_select_default_state(&dev->adev->dev);
+
 	status = init_hw(dev);
 	if (status)
 		goto out;
@@ -663,6 +675,9 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 out:
 	clk_disable_unprepare(dev->clk);
 out_clk:
+	/* Optionally let pins go into idle state */
+	pinctrl_pm_select_idle_state(&dev->adev->dev);
+
 	pm_runtime_put_sync(&dev->adev->dev);
 
 	dev->busy = false;
@@ -703,8 +718,7 @@ static irqreturn_t i2c_irq_handler(int irq, void *arg)
 	struct nmk_i2c_dev *dev = arg;
 	u32 tft, rft;
 	u32 count;
-	u32 misr;
-	u32 src = 0;
+	u32 misr, src;
 
 	/* load Tx FIFO and Rx FIFO threshold values */
 	tft = readl(dev->virtbase + I2C_TFTR);
@@ -861,11 +875,18 @@ static int nmk_i2c_suspend(struct device *dev)
 	if (nmk_i2c->busy)
 		return -EBUSY;
 
+	pinctrl_pm_select_sleep_state(dev);
+
 	return 0;
 }
 
 static int nmk_i2c_resume(struct device *dev)
 {
+	/* First go to the default state */
+	pinctrl_pm_select_default_state(dev);
+	/* Then let's idle the pins until the next transfer happens */
+	pinctrl_pm_select_idle_state(dev);
+
 	return 0;
 }
 #else
@@ -918,15 +939,15 @@ static void nmk_i2c_of_probe(struct device_node *np,
 		pdata->sm = I2C_FREQ_MODE_FAST;
 }
 
-static atomic_t adapter_id = ATOMIC_INIT(0);
-
 static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret = 0;
-	struct nmk_i2c_controller *pdata = adev->dev.platform_data;
+	struct nmk_i2c_controller *pdata = dev_get_platdata(&adev->dev);
 	struct device_node *np = adev->dev.of_node;
 	struct nmk_i2c_dev	*dev;
 	struct i2c_adapter *adap;
+	struct i2c_vendor_data *vendor = id->data;
+	u32 max_fifo_threshold = (vendor->fifodepth / 2) - 1;
 
 	if (!pdata) {
 		if (np) {
@@ -943,15 +964,33 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 			pdata = &u8500_i2c;
 	}
 
+	if (pdata->tft > max_fifo_threshold) {
+		dev_warn(&adev->dev, "requested TX FIFO threshold %u, adjusted down to %u\n",
+			pdata->tft, max_fifo_threshold);
+		pdata->tft = max_fifo_threshold;
+	}
+
+	if (pdata->rft > max_fifo_threshold) {
+		dev_warn(&adev->dev, "requested RX FIFO threshold %u, adjusted down to %u\n",
+			pdata->rft, max_fifo_threshold);
+		pdata->rft = max_fifo_threshold;
+	}
+
 	dev = kzalloc(sizeof(struct nmk_i2c_dev), GFP_KERNEL);
 	if (!dev) {
 		dev_err(&adev->dev, "cannot allocate memory\n");
 		ret = -ENOMEM;
 		goto err_no_mem;
 	}
+	dev->vendor = vendor;
 	dev->busy = false;
 	dev->adev = adev;
 	amba_set_drvdata(adev, dev);
+
+	/* Select default pin state */
+	pinctrl_pm_select_default_state(&adev->dev);
+	/* If possible, let's go to idle until the first transfer */
+	pinctrl_pm_select_idle_state(&adev->dev);
 
 	dev->virtbase = ioremap(adev->res.start, resource_size(&adev->res));
 	if (!dev->virtbase) {
@@ -983,10 +1022,8 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 	adap->class	= I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adap->algo	= &nmk_i2c_algo;
 	adap->timeout	= msecs_to_jiffies(pdata->timeout);
-	adap->nr = atomic_read(&adapter_id);
 	snprintf(adap->name, sizeof(adap->name),
-		 "Nomadik I2C%d at %pR", adap->nr, &adev->res);
-	atomic_inc(&adapter_id);
+		 "Nomadik I2C at %pR", &adev->res);
 
 	/* fetch the controller configuration from machine */
 	dev->cfg.clk_freq = pdata->clk_freq;
@@ -1001,13 +1038,11 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 		 "initialize %s on virtual base %p\n",
 		 adap->name, dev->virtbase);
 
-	ret = i2c_add_numbered_adapter(adap);
+	ret = i2c_add_adapter(adap);
 	if (ret) {
 		dev_err(&adev->dev, "failed to add adapter\n");
 		goto err_add_adap;
 	}
-
-	of_i2c_register_devices(adap);
 
 	pm_runtime_put(&adev->dev);
 
@@ -1020,7 +1055,6 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
  err_irq:
 	iounmap(dev->virtbase);
  err_no_ioremap:
-	amba_set_drvdata(adev, NULL);
 	kfree(dev);
  err_no_mem:
 
@@ -1044,20 +1078,31 @@ static int nmk_i2c_remove(struct amba_device *adev)
 		release_mem_region(res->start, resource_size(res));
 	clk_put(dev->clk);
 	pm_runtime_disable(&adev->dev);
-	amba_set_drvdata(adev, NULL);
 	kfree(dev);
 
 	return 0;
 }
 
+static struct i2c_vendor_data vendor_stn8815 = {
+	.has_mtdws = false,
+	.fifodepth = 16, /* Guessed from TFTR/RFTR = 7 */
+};
+
+static struct i2c_vendor_data vendor_db8500 = {
+	.has_mtdws = true,
+	.fifodepth = 32, /* Guessed from TFTR/RFTR = 15 */
+};
+
 static struct amba_id nmk_i2c_ids[] = {
 	{
 		.id	= 0x00180024,
 		.mask	= 0x00ffffff,
+		.data	= &vendor_stn8815,
 	},
 	{
 		.id	= 0x00380024,
 		.mask	= 0x00ffffff,
+		.data	= &vendor_db8500,
 	},
 	{},
 };

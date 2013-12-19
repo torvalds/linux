@@ -60,7 +60,9 @@ void platform_restart(void)
 			      "wsr	a2, icountlevel\n\t"
 			      "movi	a2, 0\n\t"
 			      "wsr	a2, icount\n\t"
+#if XCHAL_NUM_IBREAK > 0
 			      "wsr	a2, ibreakenable\n\t"
+#endif
 			      "wsr	a2, lcount\n\t"
 			      "movi	a2, 0x1f\n\t"
 			      "wsr	a2, ps\n\t"
@@ -100,7 +102,7 @@ static void __init update_clock_frequency(struct device_node *node)
 	}
 
 	*(u32 *)newfreq->value = cpu_to_be32(*(u32 *)XTFPGA_CLKFRQ_VADDR);
-	prom_update_property(node, newfreq);
+	of_update_property(node, newfreq);
 }
 
 #define MAC_LEN 6
@@ -128,7 +130,7 @@ static void __init update_local_mac(struct device_node *node)
 
 	memcpy(newmac->value, macaddr, MAC_LEN);
 	((u8*)newmac->value)[5] = (*(u32*)DIP_SWITCHES_VADDR) & 0x3f;
-	prom_update_property(node, newmac);
+	of_update_property(node, newmac);
 }
 
 static int __init machine_setup(void)
@@ -161,7 +163,7 @@ void platform_heartbeat(void)
 
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 
-void platform_calibrate_ccount(void)
+void __init platform_calibrate_ccount(void)
 {
 	long clk_freq = 0;
 #ifdef CONFIG_OF
@@ -177,8 +179,7 @@ void platform_calibrate_ccount(void)
 	if (!clk_freq)
 		clk_freq = *(long *)XTFPGA_CLKFRQ_VADDR;
 
-	ccount_per_jiffy = clk_freq / HZ;
-	nsec_per_ccount = 1000000000UL / clk_freq;
+	ccount_freq = clk_freq;
 }
 
 #endif

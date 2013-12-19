@@ -2,7 +2,7 @@
  * turbostat -- show CPU frequency and C-state residency
  * on modern Intel turbo-capable processors.
  *
- * Copyright (c) 2012 Intel Corporation.
+ * Copyright (c) 2013 Intel Corporation.
  * Len Brown <len.brown@intel.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -46,6 +46,9 @@ unsigned int skip_c0;
 unsigned int skip_c1;
 unsigned int do_nhm_cstates;
 unsigned int do_snb_cstates;
+unsigned int do_c8_c9_c10;
+unsigned int do_slm_cstates;
+unsigned int use_c1_residency_msr;
 unsigned int has_aperf;
 unsigned int has_epb;
 unsigned int units = 1000000000;	/* Ghz etc */
@@ -58,6 +61,7 @@ unsigned int extra_msr_offset32;
 unsigned int extra_msr_offset64;
 unsigned int extra_delta_offset32;
 unsigned int extra_delta_offset64;
+int do_smi;
 double bclk;
 unsigned int show_pkg;
 unsigned int show_core;
@@ -79,6 +83,8 @@ double rapl_joule_counter_range;
 #define RAPL_DRAM	(1 << 3)
 #define RAPL_PKG_PERF_STATUS	(1 << 4)
 #define RAPL_DRAM_PERF_STATUS	(1 << 5)
+#define RAPL_PKG_POWER_INFO	(1 << 6)
+#define RAPL_CORE_POLICY	(1 << 7)
 #define	TJMAX_DEFAULT	100
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -94,11 +100,12 @@ struct thread_data {
 	unsigned long long tsc;
 	unsigned long long aperf;
 	unsigned long long mperf;
-	unsigned long long c1;	/* derived */
+	unsigned long long c1;
 	unsigned long long extra_msr64;
 	unsigned long long extra_delta64;
 	unsigned long long extra_msr32;
 	unsigned long long extra_delta32;
+	unsigned int smi_count;
 	unsigned int cpu_id;
 	unsigned int flags;
 #define CPU_IS_FIRST_THREAD_IN_CORE	0x2
@@ -118,6 +125,9 @@ struct pkg_data {
 	unsigned long long pc3;
 	unsigned long long pc6;
 	unsigned long long pc7;
+	unsigned long long pc8;
+	unsigned long long pc9;
+	unsigned long long pc10;
 	unsigned int package_id;
 	unsigned int energy_pkg;	/* MSR_PKG_ENERGY_STATUS */
 	unsigned int energy_dram;	/* MSR_DRAM_ENERGY_STATUS */
@@ -248,6 +258,8 @@ void print_header(void)
 	if (has_aperf)
 		outp += sprintf(outp, "  GHz");
 	outp += sprintf(outp, "  TSC");
+	if (do_smi)
+		outp += sprintf(outp, " SMI");
 	if (extra_delta_offset32)
 		outp += sprintf(outp, "  count 0x%03X", extra_delta_offset32);
 	if (extra_delta_offset64)
@@ -258,7 +270,7 @@ void print_header(void)
 		outp += sprintf(outp, "           MSR 0x%03X", extra_msr_offset64);
 	if (do_nhm_cstates)
 		outp += sprintf(outp, "    %%c1");
-	if (do_nhm_cstates)
+	if (do_nhm_cstates && !do_slm_cstates)
 		outp += sprintf(outp, "    %%c3");
 	if (do_nhm_cstates)
 		outp += sprintf(outp, "    %%c6");
@@ -272,12 +284,17 @@ void print_header(void)
 
 	if (do_snb_cstates)
 		outp += sprintf(outp, "   %%pc2");
-	if (do_nhm_cstates)
+	if (do_nhm_cstates && !do_slm_cstates)
 		outp += sprintf(outp, "   %%pc3");
-	if (do_nhm_cstates)
+	if (do_nhm_cstates && !do_slm_cstates)
 		outp += sprintf(outp, "   %%pc6");
 	if (do_snb_cstates)
 		outp += sprintf(outp, "   %%pc7");
+	if (do_c8_c9_c10) {
+		outp += sprintf(outp, "   %%pc8");
+		outp += sprintf(outp, "   %%pc9");
+		outp += sprintf(outp, "  %%pc10");
+	}
 
 	if (do_rapl & RAPL_PKG)
 		outp += sprintf(outp, "  Pkg_W");
@@ -314,6 +331,8 @@ int dump_counters(struct thread_data *t, struct core_data *c,
 			extra_msr_offset32, t->extra_msr32);
 		fprintf(stderr, "msr0x%x: %016llX\n",
 			extra_msr_offset64, t->extra_msr64);
+		if (do_smi)
+			fprintf(stderr, "SMI: %08X\n", t->smi_count);
 	}
 
 	if (c) {
@@ -330,6 +349,9 @@ int dump_counters(struct thread_data *t, struct core_data *c,
 		fprintf(stderr, "pc3: %016llX\n", p->pc3);
 		fprintf(stderr, "pc6: %016llX\n", p->pc6);
 		fprintf(stderr, "pc7: %016llX\n", p->pc7);
+		fprintf(stderr, "pc8: %016llX\n", p->pc8);
+		fprintf(stderr, "pc9: %016llX\n", p->pc9);
+		fprintf(stderr, "pc10: %016llX\n", p->pc10);
 		fprintf(stderr, "Joules PKG: %0X\n", p->energy_pkg);
 		fprintf(stderr, "Joules COR: %0X\n", p->energy_cores);
 		fprintf(stderr, "Joules GFX: %0X\n", p->energy_gfx);
@@ -352,6 +374,7 @@ int dump_counters(struct thread_data *t, struct core_data *c,
  * RAM_W: %5.2
  * GHz: "GHz" 3 columns %3.2
  * TSC: "TSC" 3 columns %3.2
+ * SMI: "SMI" 4 columns %4d
  * percentage " %pc3" %6.2
  * Perf Status percentage: %5.2
  * "CTMP" 4 columns %4d
@@ -431,6 +454,10 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	/* TSC */
 	outp += sprintf(outp, "%5.2f", 1.0 * t->tsc/units/interval_float);
 
+	/* SMI */
+	if (do_smi)
+		outp += sprintf(outp, "%4d", t->smi_count);
+
 	/* delta */
 	if (extra_delta_offset32)
 		outp += sprintf(outp, "  %11llu", t->extra_delta32);
@@ -457,7 +484,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
 		goto done;
 
-	if (do_nhm_cstates)
+	if (do_nhm_cstates && !do_slm_cstates)
 		outp += sprintf(outp, " %6.2f", 100.0 * c->c3/t->tsc);
 	if (do_nhm_cstates)
 		outp += sprintf(outp, " %6.2f", 100.0 * c->c6/t->tsc);
@@ -476,12 +503,17 @@ int format_counters(struct thread_data *t, struct core_data *c,
 
 	if (do_snb_cstates)
 		outp += sprintf(outp, " %6.2f", 100.0 * p->pc2/t->tsc);
-	if (do_nhm_cstates)
+	if (do_nhm_cstates && !do_slm_cstates)
 		outp += sprintf(outp, " %6.2f", 100.0 * p->pc3/t->tsc);
-	if (do_nhm_cstates)
+	if (do_nhm_cstates && !do_slm_cstates)
 		outp += sprintf(outp, " %6.2f", 100.0 * p->pc6/t->tsc);
 	if (do_snb_cstates)
 		outp += sprintf(outp, " %6.2f", 100.0 * p->pc7/t->tsc);
+	if (do_c8_c9_c10) {
+		outp += sprintf(outp, " %6.2f", 100.0 * p->pc8/t->tsc);
+		outp += sprintf(outp, " %6.2f", 100.0 * p->pc9/t->tsc);
+		outp += sprintf(outp, " %6.2f", 100.0 * p->pc10/t->tsc);
+	}
 
 	/*
  	 * If measurement interval exceeds minimum RAPL Joule Counter range,
@@ -558,6 +590,9 @@ delta_package(struct pkg_data *new, struct pkg_data *old)
 	old->pc3 = new->pc3 - old->pc3;
 	old->pc6 = new->pc6 - old->pc6;
 	old->pc7 = new->pc7 - old->pc7;
+	old->pc8 = new->pc8 - old->pc8;
+	old->pc9 = new->pc9 - old->pc9;
+	old->pc10 = new->pc10 - old->pc10;
 	old->pkg_temp_c = new->pkg_temp_c;
 
 	DELTA_WRAP32(new->energy_pkg, old->energy_pkg);
@@ -617,17 +652,24 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 	}
 
 
-	/*
-	 * As counter collection is not atomic,
-	 * it is possible for mperf's non-halted cycles + idle states
-	 * to exceed TSC's all cycles: show c1 = 0% in that case.
-	 */
-	if ((old->mperf + core_delta->c3 + core_delta->c6 + core_delta->c7) > old->tsc)
-		old->c1 = 0;
-	else {
-		/* normal case, derive c1 */
-		old->c1 = old->tsc - old->mperf - core_delta->c3
+	if (use_c1_residency_msr) {
+		/*
+		 * Some models have a dedicated C1 residency MSR,
+		 * which should be more accurate than the derivation below.
+		 */
+	} else {
+		/*
+		 * As counter collection is not atomic,
+		 * it is possible for mperf's non-halted cycles + idle states
+		 * to exceed TSC's all cycles: show c1 = 0% in that case.
+		 */
+		if ((old->mperf + core_delta->c3 + core_delta->c6 + core_delta->c7) > old->tsc)
+			old->c1 = 0;
+		else {
+			/* normal case, derive c1 */
+			old->c1 = old->tsc - old->mperf - core_delta->c3
 				- core_delta->c6 - core_delta->c7;
+		}
 	}
 
 	if (old->mperf == 0) {
@@ -645,6 +687,9 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 	 */
 	old->extra_msr32 = new->extra_msr32;
 	old->extra_msr64 = new->extra_msr64;
+
+	if (do_smi)
+		old->smi_count = new->smi_count - old->smi_count;
 }
 
 int delta_cpu(struct thread_data *t, struct core_data *c,
@@ -672,6 +717,7 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	t->mperf = 0;
 	t->c1 = 0;
 
+	t->smi_count = 0;
 	t->extra_delta32 = 0;
 	t->extra_delta64 = 0;
 
@@ -687,6 +733,9 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	p->pc3 = 0;
 	p->pc6 = 0;
 	p->pc7 = 0;
+	p->pc8 = 0;
+	p->pc9 = 0;
+	p->pc10 = 0;
 
 	p->energy_pkg = 0;
 	p->energy_dram = 0;
@@ -725,6 +774,9 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 	average.packages.pc3 += p->pc3;
 	average.packages.pc6 += p->pc6;
 	average.packages.pc7 += p->pc7;
+	average.packages.pc8 += p->pc8;
+	average.packages.pc9 += p->pc9;
+	average.packages.pc10 += p->pc10;
 
 	average.packages.energy_pkg += p->energy_pkg;
 	average.packages.energy_dram += p->energy_dram;
@@ -766,6 +818,10 @@ void compute_average(struct thread_data *t, struct core_data *c,
 	average.packages.pc3 /= topo.num_packages;
 	average.packages.pc6 /= topo.num_packages;
 	average.packages.pc7 /= topo.num_packages;
+
+	average.packages.pc8 /= topo.num_packages;
+	average.packages.pc9 /= topo.num_packages;
+	average.packages.pc10 /= topo.num_packages;
 }
 
 static unsigned long long rdtsc(void)
@@ -802,6 +858,11 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 			return -4;
 	}
 
+	if (do_smi) {
+		if (get_msr(cpu, MSR_SMI_COUNT, &msr))
+			return -5;
+		t->smi_count = msr & 0xFFFFFFFF;
+	}
 	if (extra_delta_offset32) {
 		if (get_msr(cpu, extra_delta_offset32, &msr))
 			return -5;
@@ -822,13 +883,21 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		if (get_msr(cpu, extra_msr_offset64, &t->extra_msr64))
 			return -5;
 
+	if (use_c1_residency_msr) {
+		if (get_msr(cpu, MSR_CORE_C1_RES, &t->c1))
+			return -6;
+	}
+
 	/* collect core counters only for 1st thread in core */
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
 		return 0;
 
-	if (do_nhm_cstates) {
+	if (do_nhm_cstates && !do_slm_cstates) {
 		if (get_msr(cpu, MSR_CORE_C3_RESIDENCY, &c->c3))
 			return -6;
+	}
+
+	if (do_nhm_cstates) {
 		if (get_msr(cpu, MSR_CORE_C6_RESIDENCY, &c->c6))
 			return -7;
 	}
@@ -848,7 +917,7 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
 		return 0;
 
-	if (do_nhm_cstates) {
+	if (do_nhm_cstates && !do_slm_cstates) {
 		if (get_msr(cpu, MSR_PKG_C3_RESIDENCY, &p->pc3))
 			return -9;
 		if (get_msr(cpu, MSR_PKG_C6_RESIDENCY, &p->pc6))
@@ -859,6 +928,14 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 			return -11;
 		if (get_msr(cpu, MSR_PKG_C7_RESIDENCY, &p->pc7))
 			return -12;
+	}
+	if (do_c8_c9_c10) {
+		if (get_msr(cpu, MSR_PKG_C8_RESIDENCY, &p->pc8))
+			return -13;
+		if (get_msr(cpu, MSR_PKG_C9_RESIDENCY, &p->pc9))
+			return -13;
+		if (get_msr(cpu, MSR_PKG_C10_RESIDENCY, &p->pc10))
+			return -13;
 	}
 	if (do_rapl & RAPL_PKG) {
 		if (get_msr(cpu, MSR_PKG_ENERGY_STATUS, &msr))
@@ -908,8 +985,7 @@ void print_verbose_header(void)
 
 	get_msr(0, MSR_NHM_PLATFORM_INFO, &msr);
 
-	if (verbose)
-		fprintf(stderr, "cpu0: MSR_NHM_PLATFORM_INFO: 0x%08llx\n", msr);
+	fprintf(stderr, "cpu0: MSR_NHM_PLATFORM_INFO: 0x%08llx\n", msr);
 
 	ratio = (msr >> 40) & 0xFF;
 	fprintf(stderr, "%d * %.0f = %.0f MHz max efficiency\n",
@@ -919,13 +995,16 @@ void print_verbose_header(void)
 	fprintf(stderr, "%d * %.0f = %.0f MHz TSC frequency\n",
 		ratio, bclk, ratio * bclk);
 
+	get_msr(0, MSR_IA32_POWER_CTL, &msr);
+	fprintf(stderr, "cpu0: MSR_IA32_POWER_CTL: 0x%08llx (C1E auto-promotion: %sabled)\n",
+		msr, msr & 0x2 ? "EN" : "DIS");
+
 	if (!do_ivt_turbo_ratio_limit)
 		goto print_nhm_turbo_ratio_limits;
 
 	get_msr(0, MSR_IVT_TURBO_RATIO_LIMIT, &msr);
 
-	if (verbose)
-		fprintf(stderr, "cpu0: MSR_IVT_TURBO_RATIO_LIMIT: 0x%08llx\n", msr);
+	fprintf(stderr, "cpu0: MSR_IVT_TURBO_RATIO_LIMIT: 0x%08llx\n", msr);
 
 	ratio = (msr >> 56) & 0xFF;
 	if (ratio)
@@ -986,25 +1065,28 @@ print_nhm_turbo_ratio_limits:
 
 	switch(msr & 0x7) {
 	case 0:
-		fprintf(stderr, "pc0");
+		fprintf(stderr, do_slm_cstates ? "no pkg states" : "pc0");
 		break;
 	case 1:
-		fprintf(stderr, do_snb_cstates ? "pc2" : "pc0");
+		fprintf(stderr, do_slm_cstates ? "no pkg states" : do_snb_cstates ? "pc2" : "pc0");
 		break;
 	case 2:
-		fprintf(stderr, do_snb_cstates ? "pc6-noret" : "pc3");
+		fprintf(stderr, do_slm_cstates ? "invalid" : do_snb_cstates ? "pc6-noret" : "pc3");
 		break;
 	case 3:
-		fprintf(stderr, "pc6");
+		fprintf(stderr, do_slm_cstates ? "invalid" : "pc6");
 		break;
 	case 4:
-		fprintf(stderr, "pc7");
+		fprintf(stderr, do_slm_cstates ? "pc4" : "pc7");
 		break;
 	case 5:
-		fprintf(stderr, do_snb_cstates ? "pc7s" : "invalid");
+		fprintf(stderr, do_slm_cstates ? "invalid" : do_snb_cstates ? "pc7s" : "invalid");
+		break;
+	case 6:
+		fprintf(stderr, do_slm_cstates ? "pc6" : "invalid");
 		break;
 	case 7:
-		fprintf(stderr, "unlimited");
+		fprintf(stderr, do_slm_cstates ? "pc7" : "unlimited");
 		break;
 	default:
 		fprintf(stderr, "invalid");
@@ -1016,8 +1098,7 @@ print_nhm_turbo_ratio_limits:
 
 	get_msr(0, MSR_NHM_TURBO_RATIO_LIMIT, &msr);
 
-	if (verbose)
-		fprintf(stderr, "cpu0: MSR_NHM_TURBO_RATIO_LIMIT: 0x%08llx\n", msr);
+	fprintf(stderr, "cpu0: MSR_NHM_TURBO_RATIO_LIMIT: 0x%08llx\n", msr);
 
 	ratio = (msr >> 56) & 0xFF;
 	if (ratio)
@@ -1397,6 +1478,12 @@ int has_nehalem_turbo_ratio_limit(unsigned int family, unsigned int model)
 	case 0x2D:	/* SNB Xeon */
 	case 0x3A:	/* IVB */
 	case 0x3E:	/* IVB Xeon */
+	case 0x3C:	/* HSW */
+	case 0x3F:	/* HSW */
+	case 0x45:	/* HSW */
+	case 0x46:	/* HSW */
+	case 0x37:	/* BYT */
+	case 0x4D:	/* AVN */
 		return 1;
 	case 0x2E:	/* Nehalem-EX Xeon - Beckton */
 	case 0x2F:	/* Westmere-EX Xeon - Eagleton */
@@ -1469,14 +1556,33 @@ int print_epb(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 #define	RAPL_POWER_GRANULARITY	0x7FFF	/* 15 bit power granularity */
 #define	RAPL_TIME_GRANULARITY	0x3F /* 6 bit time granularity */
 
+double get_tdp(model)
+{
+	unsigned long long msr;
+
+	if (do_rapl & RAPL_PKG_POWER_INFO)
+		if (!get_msr(0, MSR_PKG_POWER_INFO, &msr))
+			return ((msr >> 0) & RAPL_POWER_GRANULARITY) * rapl_power_units;
+
+	switch (model) {
+	case 0x37:
+	case 0x4D:
+		return 30.0;
+	default:
+		return 135.0;
+	}
+}
+
+
 /*
  * rapl_probe()
  *
- * sets do_rapl
+ * sets do_rapl, rapl_power_units, rapl_energy_units, rapl_time_units
  */
 void rapl_probe(unsigned int family, unsigned int model)
 {
 	unsigned long long msr;
+	unsigned int time_unit;
 	double tdp;
 
 	if (!genuine_intel)
@@ -1488,11 +1594,19 @@ void rapl_probe(unsigned int family, unsigned int model)
 	switch (model) {
 	case 0x2A:
 	case 0x3A:
-		do_rapl = RAPL_PKG | RAPL_CORES | RAPL_GFX;
+	case 0x3C:	/* HSW */
+	case 0x3F:	/* HSW */
+	case 0x45:	/* HSW */
+	case 0x46:	/* HSW */
+		do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_GFX | RAPL_PKG_POWER_INFO;
 		break;
 	case 0x2D:
 	case 0x3E:
-		do_rapl = RAPL_PKG | RAPL_CORES | RAPL_DRAM | RAPL_PKG_PERF_STATUS | RAPL_DRAM_PERF_STATUS;
+		do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_DRAM | RAPL_PKG_PERF_STATUS | RAPL_DRAM_PERF_STATUS | RAPL_PKG_POWER_INFO;
+		break;
+	case 0x37:	/* BYT */
+	case 0x4D:	/* AVN */
+		do_rapl = RAPL_PKG | RAPL_CORES ;
 		break;
 	default:
 		return;
@@ -1503,19 +1617,22 @@ void rapl_probe(unsigned int family, unsigned int model)
 		return;
 
 	rapl_power_units = 1.0 / (1 << (msr & 0xF));
-	rapl_energy_units = 1.0 / (1 << (msr >> 8 & 0x1F));
-	rapl_time_units = 1.0 / (1 << (msr >> 16 & 0xF));
+	if (model == 0x37)
+		rapl_energy_units = 1.0 * (1 << (msr >> 8 & 0x1F)) / 1000000;
+	else
+		rapl_energy_units = 1.0 / (1 << (msr >> 8 & 0x1F));
 
-	/* get TDP to determine energy counter range */
-	if (get_msr(0, MSR_PKG_POWER_INFO, &msr))
-		return;
+	time_unit = msr >> 16 & 0xF;
+	if (time_unit == 0)
+		time_unit = 0xA;
 
-	tdp = ((msr >> 0) & RAPL_POWER_GRANULARITY) * rapl_power_units;
+	rapl_time_units = 1.0 / (1 << (time_unit));
+
+	tdp = get_tdp(model);
 
 	rapl_joule_counter_range = 0xFFFFFFFF * rapl_energy_units / tdp;
-
 	if (verbose)
-		fprintf(stderr, "RAPL: %.0f sec. Joule Counter Range\n", rapl_joule_counter_range);
+		fprintf(stderr, "RAPL: %.0f sec. Joule Counter Range, at %.0f Watts\n", rapl_joule_counter_range, tdp);
 
 	return;
 }
@@ -1601,7 +1718,6 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	unsigned long long msr;
 	int cpu;
-	double local_rapl_power_units, local_rapl_energy_units, local_rapl_time_units;
 
 	if (!do_rapl)
 		return 0;
@@ -1619,23 +1735,13 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	if (get_msr(cpu, MSR_RAPL_POWER_UNIT, &msr))
 		return -1;
 
-	local_rapl_power_units = 1.0 / (1 << (msr & 0xF));
-	local_rapl_energy_units = 1.0 / (1 << (msr >> 8 & 0x1F));
-	local_rapl_time_units = 1.0 / (1 << (msr >> 16 & 0xF));
-
-	if (local_rapl_power_units != rapl_power_units)
-		fprintf(stderr, "cpu%d, ERROR: Power units mis-match\n", cpu);
-	if (local_rapl_energy_units != rapl_energy_units)
-		fprintf(stderr, "cpu%d, ERROR: Energy units mis-match\n", cpu);
-	if (local_rapl_time_units != rapl_time_units)
-		fprintf(stderr, "cpu%d, ERROR: Time units mis-match\n", cpu);
-
 	if (verbose) {
 		fprintf(stderr, "cpu%d: MSR_RAPL_POWER_UNIT: 0x%08llx "
 			"(%f Watts, %f Joules, %f sec.)\n", cpu, msr,
-			local_rapl_power_units, local_rapl_energy_units, local_rapl_time_units);
+			rapl_power_units, rapl_energy_units, rapl_time_units);
 	}
-	if (do_rapl & RAPL_PKG) {
+	if (do_rapl & RAPL_PKG_POWER_INFO) {
+
 		if (get_msr(cpu, MSR_PKG_POWER_INFO, &msr))
                 	return -5;
 
@@ -1646,6 +1752,9 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 			((msr >> 16) & RAPL_POWER_GRANULARITY) * rapl_power_units,
 			((msr >> 32) & RAPL_POWER_GRANULARITY) * rapl_power_units,
 			((msr >> 48) & RAPL_TIME_GRANULARITY) * rapl_time_units);
+
+	}
+	if (do_rapl & RAPL_PKG) {
 
 		if (get_msr(cpu, MSR_PKG_POWER_LIMIT, &msr))
 			return -9;
@@ -1682,12 +1791,16 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 
 		print_power_limit_msr(cpu, msr, "DRAM Limit");
 	}
-	if (do_rapl & RAPL_CORES) {
+	if (do_rapl & RAPL_CORE_POLICY) {
 		if (verbose) {
 			if (get_msr(cpu, MSR_PP0_POLICY, &msr))
 				return -7;
 
 			fprintf(stderr, "cpu%d: MSR_PP0_POLICY: %lld\n", cpu, msr & 0xF);
+		}
+	}
+	if (do_rapl & RAPL_CORES) {
+		if (verbose) {
 
 			if (get_msr(cpu, MSR_PP0_POWER_LIMIT, &msr))
 				return -9;
@@ -1724,15 +1837,70 @@ int is_snb(unsigned int family, unsigned int model)
 	case 0x2D:
 	case 0x3A:	/* IVB */
 	case 0x3E:	/* IVB Xeon */
+	case 0x3C:	/* HSW */
+	case 0x3F:	/* HSW */
+	case 0x45:	/* HSW */
+	case 0x46:	/* HSW */
 		return 1;
 	}
 	return 0;
+}
+
+int has_c8_c9_c10(unsigned int family, unsigned int model)
+{
+	if (!genuine_intel)
+		return 0;
+
+	switch (model) {
+	case 0x45:
+		return 1;
+	}
+	return 0;
+}
+
+
+int is_slm(unsigned int family, unsigned int model)
+{
+	if (!genuine_intel)
+		return 0;
+	switch (model) {
+	case 0x37:	/* BYT */
+	case 0x4D:	/* AVN */
+		return 1;
+	}
+	return 0;
+}
+
+#define SLM_BCLK_FREQS 5
+double slm_freq_table[SLM_BCLK_FREQS] = { 83.3, 100.0, 133.3, 116.7, 80.0};
+
+double slm_bclk(void)
+{
+	unsigned long long msr = 3;
+	unsigned int i;
+	double freq;
+
+	if (get_msr(0, MSR_FSB_FREQ, &msr))
+		fprintf(stderr, "SLM BCLK: unknown\n");
+
+	i = msr & 0xf;
+	if (i >= SLM_BCLK_FREQS) {
+		fprintf(stderr, "SLM BCLK[%d] invalid\n", i);
+		msr = 3;
+	}
+	freq = slm_freq_table[i];
+
+	fprintf(stderr, "SLM BCLK: %.1f Mhz\n", freq);
+
+	return freq;
 }
 
 double discover_bclk(unsigned int family, unsigned int model)
 {
 	if (is_snb(family, model))
 		return 100.00;
+	else if (is_slm(family, model))
+		return slm_bclk();
 	else
 		return 133.33;
 }
@@ -1789,7 +1957,7 @@ int set_temperature_target(struct thread_data *t, struct core_data *c, struct pk
 		fprintf(stderr, "cpu%d: MSR_IA32_TEMPERATURE_TARGET: 0x%08llx (%d C)\n",
 			cpu, msr, target_c_local);
 
-	if (target_c_local < 85 || target_c_local > 120)
+	if (target_c_local < 85 || target_c_local > 127)
 		goto guess;
 
 	tcc_activation_temp = target_c_local;
@@ -1883,7 +2051,10 @@ void check_cpuid()
 
 	do_nehalem_platform_info = genuine_intel && has_invariant_tsc;
 	do_nhm_cstates = genuine_intel;	/* all Intel w/ non-stop TSC have NHM counters */
+	do_smi = do_nhm_cstates;
 	do_snb_cstates = is_snb(family, model);
+	do_c8_c9_c10 = has_c8_c9_c10(family, model);
+	do_slm_cstates = is_slm(family, model);
 	bclk = discover_bclk(family, model);
 
 	do_nehalem_turbo_ratio_limit = has_nehalem_turbo_ratio_limit(family, model);
@@ -2105,7 +2276,7 @@ int initialize_counters(int cpu_id)
 
 void allocate_output_buffer()
 {
-	output_buffer = calloc(1, (1 + topo.num_cpus) * 128);
+	output_buffer = calloc(1, (1 + topo.num_cpus) * 256);
 	outp = output_buffer;
 	if (outp == NULL) {
 		perror("calloc");
@@ -2219,9 +2390,6 @@ void cmdline(int argc, char **argv)
 		case 'c':
 			sscanf(optarg, "%x", &extra_delta_offset32);
 			break;
-		case 's':
-			extra_delta_offset32 = 0x34;	/* SMI counter */
-			break;
 		case 'C':
 			sscanf(optarg, "%x", &extra_delta_offset64);
 			break;
@@ -2248,7 +2416,7 @@ int main(int argc, char **argv)
 	cmdline(argc, argv);
 
 	if (verbose)
-		fprintf(stderr, "turbostat v3.0 November 23, 2012"
+		fprintf(stderr, "turbostat v3.5 April 26, 2013"
 			" - Len Brown <lenb@kernel.org>\n");
 
 	turbostat_init();

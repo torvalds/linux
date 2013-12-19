@@ -528,7 +528,7 @@ static int perf_ibs_handle_irq(struct perf_ibs *perf_ibs, struct pt_regs *iregs)
 	if (!test_bit(IBS_STARTED, pcpu->state)) {
 		/*
 		 * Catch spurious interrupts after stopping IBS: After
-		 * disabling IBS there could be still incomming NMIs
+		 * disabling IBS there could be still incoming NMIs
 		 * with samples that even have the valid bit cleared.
 		 * Mark all this NMIs as handled.
 		 */
@@ -851,7 +851,7 @@ static void clear_APIC_ibs(void *dummy)
 		setup_APIC_eilvt(offset, 0, APIC_EILVT_MSG_FIX, 1);
 }
 
-static int __cpuinit
+static int
 perf_ibs_cpu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
 {
 	switch (action & ~CPU_TASKS_FROZEN) {

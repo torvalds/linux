@@ -1,8 +1,3 @@
-config TTPCI_EEPROM
-	tristate
-	depends on I2C
-	default n
-
 config DVB_AV7110
 	tristate "AV7110 cards"
 	depends on DVB_CORE && PCI && I2C

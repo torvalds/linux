@@ -5,6 +5,8 @@
 #include <linux/module.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
+#include <linux/blk-mq.h>
+#include <linux/sched/sysctl.h>
 
 #include "blk.h"
 
@@ -23,7 +25,6 @@ static void blk_end_sync_rq(struct request *rq, int error)
 	struct completion *waiting = rq->end_io_data;
 
 	rq->end_io_data = NULL;
-	__blk_put_request(rq->q, rq);
 
 	/*
 	 * complete last, if this is a stack request the process (and thus
@@ -58,6 +59,12 @@ void blk_execute_rq_nowait(struct request_queue *q, struct gendisk *bd_disk,
 
 	rq->rq_disk = bd_disk;
 	rq->end_io = done;
+
+	if (q->mq_ops) {
+		blk_mq_insert_request(q, rq, true);
+		return;
+	}
+
 	/*
 	 * need to check this before __blk_run_queue(), because rq can
 	 * be freed before that returns.
@@ -67,9 +74,9 @@ void blk_execute_rq_nowait(struct request_queue *q, struct gendisk *bd_disk,
 	spin_lock_irq(q->queue_lock);
 
 	if (unlikely(blk_queue_dying(q))) {
+		rq->cmd_flags |= REQ_QUIET; 
 		rq->errors = -ENXIO;
-		if (rq->end_io)
-			rq->end_io(rq, rq->errors);
+		__blk_end_request_all(rq, rq->errors);
 		spin_unlock_irq(q->queue_lock);
 		return;
 	}
@@ -102,12 +109,6 @@ int blk_execute_rq(struct request_queue *q, struct gendisk *bd_disk,
 	int err = 0;
 	unsigned long hang_check;
 
-	/*
-	 * we need an extra reference to the request, so we can look at
-	 * it after io completion
-	 */
-	rq->ref_count++;
-
 	if (!rq->sense) {
 		memset(sense, 0, sizeof(sense));
 		rq->sense = sense;
@@ -120,9 +121,9 @@ int blk_execute_rq(struct request_queue *q, struct gendisk *bd_disk,
 	/* Prevent hang_check timer from firing at us during very long I/O */
 	hang_check = sysctl_hung_task_timeout_secs;
 	if (hang_check)
-		while (!wait_for_completion_timeout(&wait, hang_check * (HZ/2)));
+		while (!wait_for_completion_io_timeout(&wait, hang_check * (HZ/2)));
 	else
-		wait_for_completion(&wait);
+		wait_for_completion_io(&wait);
 
 	if (rq->errors)
 		err = -EIO;

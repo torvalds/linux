@@ -1,6 +1,6 @@
 config WLCORE
 	tristate "TI wlcore support"
-	depends on WL_TI && GENERIC_HARDIRQS && MAC80211
+	depends on WL_TI && MAC80211
 	select FW_LOADER
 	---help---
 	  This module contains the main code for TI WLAN chips.  It abstracts
@@ -33,8 +33,3 @@ config WLCORE_SDIO
 
 	  If you choose to build a module, it'll be called wlcore_sdio.
 	  Say N if unsure.
-
-config WL12XX_PLATFORM_DATA
-	bool
-	depends on WLCORE_SDIO != n || WL1251_SDIO != n
-	default y

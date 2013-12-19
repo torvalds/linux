@@ -267,7 +267,7 @@ mspec_mmap(struct file *file, struct vm_area_struct *vma,
 	if ((vma->vm_flags & VM_WRITE) == 0)
 		return -EPERM;
 
-	pages = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	pages = vma_pages(vma);
 	vdata_size = sizeof(struct vma_data) + pages * sizeof(long);
 	if (vdata_size <= PAGE_SIZE)
 		vdata = kzalloc(vdata_size, GFP_KERNEL);

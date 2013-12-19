@@ -248,11 +248,6 @@ static int au1550_spi_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 			hz = t->speed_hz;
 	}
 
-	if (bpw < 4 || bpw > 24) {
-		dev_err(&spi->dev, "setupxfer: invalid bits_per_word=%d\n",
-			bpw);
-		return -EINVAL;
-	}
 	if (hz > spi->max_speed_hz || hz > hw->freq_max || hz < hw->freq_min) {
 		dev_err(&spi->dev, "setupxfer: clock rate=%d out of range\n",
 			hz);
@@ -295,12 +290,6 @@ static int au1550_spi_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 static int au1550_spi_setup(struct spi_device *spi)
 {
 	struct au1550_spi *hw = spi_master_get_devdata(spi->master);
-
-	if (spi->bits_per_word < 4 || spi->bits_per_word > 24) {
-		dev_err(&spi->dev, "setup: invalid bits_per_word=%d\n",
-			spi->bits_per_word);
-		return -EINVAL;
-	}
 
 	if (spi->max_speed_hz == 0)
 		spi->max_speed_hz = hw->freq_max;
@@ -717,7 +706,7 @@ static void au1550_spi_bits_handlers_set(struct au1550_spi *hw, int bpw)
 	}
 }
 
-static void __init au1550_spi_setup_psc_as_spi(struct au1550_spi *hw)
+static void au1550_spi_setup_psc_as_spi(struct au1550_spi *hw)
 {
 	u32 stat, cfg;
 
@@ -766,7 +755,7 @@ static void __init au1550_spi_setup_psc_as_spi(struct au1550_spi *hw)
 }
 
 
-static int __init au1550_spi_probe(struct platform_device *pdev)
+static int au1550_spi_probe(struct platform_device *pdev)
 {
 	struct au1550_spi *hw;
 	struct spi_master *master;
@@ -782,11 +771,12 @@ static int __init au1550_spi_probe(struct platform_device *pdev)
 
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 24);
 
 	hw = spi_master_get_devdata(master);
 
-	hw->master = spi_master_get(master);
-	hw->pdata = pdev->dev.platform_data;
+	hw->master = master;
+	hw->pdata = dev_get_platdata(&pdev->dev);
 	hw->dev = &pdev->dev;
 
 	if (hw->pdata == NULL) {
@@ -968,7 +958,7 @@ err_nomem:
 	return err;
 }
 
-static int __exit au1550_spi_remove(struct platform_device *pdev)
+static int au1550_spi_remove(struct platform_device *pdev)
 {
 	struct au1550_spi *hw = platform_get_drvdata(pdev);
 
@@ -987,8 +977,6 @@ static int __exit au1550_spi_remove(struct platform_device *pdev)
 		au1xxx_dbdma_chan_free(hw->dma_tx_ch);
 	}
 
-	platform_set_drvdata(pdev, NULL);
-
 	spi_master_put(hw->master);
 	return 0;
 }
@@ -997,7 +985,8 @@ static int __exit au1550_spi_remove(struct platform_device *pdev)
 MODULE_ALIAS("platform:au1550-spi");
 
 static struct platform_driver au1550_spi_drv = {
-	.remove = __exit_p(au1550_spi_remove),
+	.probe = au1550_spi_probe,
+	.remove = au1550_spi_remove,
 	.driver = {
 		.name = "au1550-spi",
 		.owner = THIS_MODULE,
@@ -1016,7 +1005,7 @@ static int __init au1550_spi_init(void)
 			printk(KERN_ERR "au1550-spi: cannot add memory"
 					"dbdma device\n");
 	}
-	return platform_driver_probe(&au1550_spi_drv, au1550_spi_probe);
+	return platform_driver_register(&au1550_spi_drv);
 }
 module_init(au1550_spi_init);
 

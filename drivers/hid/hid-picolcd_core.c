@@ -21,8 +21,6 @@
 #include <linux/hid-debug.h>
 #include <linux/input.h>
 #include "hid-ids.h"
-#include "usbhid/usbhid.h"
-#include <linux/usb.h>
 
 #include <linux/fb.h>
 #include <linux/vmalloc.h>
@@ -110,7 +108,7 @@ struct picolcd_pending *picolcd_send_and_wait(struct hid_device *hdev,
 		work = NULL;
 	} else {
 		data->pending = work;
-		usbhid_submit_report(data->hdev, report, USB_DIR_OUT);
+		hid_hw_request(data->hdev, report, HID_REQ_SET_REPORT);
 		spin_unlock_irqrestore(&data->lock, flags);
 		wait_for_completion_interruptible_timeout(&work->ready, HZ*2);
 		spin_lock_irqsave(&data->lock, flags);
@@ -244,7 +242,7 @@ int picolcd_reset(struct hid_device *hdev)
 		spin_unlock_irqrestore(&data->lock, flags);
 		return -ENODEV;
 	}
-	usbhid_submit_report(hdev, report, USB_DIR_OUT);
+	hid_hw_request(hdev, report, HID_REQ_SET_REPORT);
 	spin_unlock_irqrestore(&data->lock, flags);
 
 	error = picolcd_check_version(hdev);
@@ -292,7 +290,7 @@ static ssize_t picolcd_operation_mode_store(struct device *dev,
 		buf += 10;
 		cnt -= 10;
 	}
-	if (!report)
+	if (!report || report->maxfield != 1)
 		return -EINVAL;
 
 	while (cnt > 0 && (buf[cnt-1] == '\n' || buf[cnt-1] == '\r'))
@@ -303,7 +301,7 @@ static ssize_t picolcd_operation_mode_store(struct device *dev,
 	spin_lock_irqsave(&data->lock, flags);
 	hid_set_field(report->field[0], 0, timeout & 0xff);
 	hid_set_field(report->field[0], 1, (timeout >> 8) & 0xff);
-	usbhid_submit_report(data->hdev, report, USB_DIR_OUT);
+	hid_hw_request(data->hdev, report, HID_REQ_SET_REPORT);
 	spin_unlock_irqrestore(&data->lock, flags);
 	return count;
 }
@@ -672,18 +670,7 @@ static struct hid_driver picolcd_driver = {
 	.reset_resume =  picolcd_reset_resume,
 #endif
 };
+module_hid_driver(picolcd_driver);
 
-static int __init picolcd_init(void)
-{
-	return hid_register_driver(&picolcd_driver);
-}
-
-static void __exit picolcd_exit(void)
-{
-	hid_unregister_driver(&picolcd_driver);
-}
-
-module_init(picolcd_init);
-module_exit(picolcd_exit);
 MODULE_DESCRIPTION("Minibox graphics PicoLCD Driver");
 MODULE_LICENSE("GPL v2");

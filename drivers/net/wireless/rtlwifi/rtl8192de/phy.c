@@ -1022,34 +1022,6 @@ void rtl92d_phy_set_txpower_level(struct ieee80211_hw *hw, u8 channel)
 	rtl92d_phy_rf6052_set_ofdm_txpower(hw, &ofdmpowerlevel[0], channel);
 }
 
-void rtl92d_phy_scan_operation_backup(struct ieee80211_hw *hw, u8 operation)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	enum io_type iotype;
-
-	if (!is_hal_stop(rtlhal)) {
-		switch (operation) {
-		case SCAN_OPT_BACKUP:
-			rtlhal->current_bandtypebackup =
-						 rtlhal->current_bandtype;
-			iotype = IO_CMD_PAUSE_DM_BY_SCAN;
-			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_IO_CMD,
-						      (u8 *)&iotype);
-			break;
-		case SCAN_OPT_RESTORE:
-			iotype = IO_CMD_RESUME_DM_BY_SCAN;
-			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_IO_CMD,
-						      (u8 *)&iotype);
-			break;
-		default:
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "Unknown Scan Backup operation\n");
-			break;
-		}
-	}
-}
-
 void rtl92d_phy_set_bw_mode(struct ieee80211_hw *hw,
 			    enum nl80211_channel_type ch_type)
 {
@@ -2479,9 +2451,9 @@ void rtl92d_phy_iq_calibrate(struct ieee80211_hw *hw)
 				  rtlphy->current_channel);
 
 		for (i = 0; i < IQK_MATRIX_REG_NUM; i++)
-			rtlphy->iqk_matrix_regsetting[indexforchannel].
+			rtlphy->iqk_matrix[indexforchannel].
 				value[0][i] = result[final_candidate][i];
-		rtlphy->iqk_matrix_regsetting[indexforchannel].iqk_done =
+		rtlphy->iqk_matrix[indexforchannel].iqk_done =
 			true;
 
 		RT_TRACE(rtlpriv, COMP_SCAN | COMP_MLME, DBG_LOUD,
@@ -2501,8 +2473,8 @@ void rtl92d_phy_reload_iqk_setting(struct ieee80211_hw *hw, u8 channel)
 	indexforchannel = rtl92d_get_rightchnlplace_for_iqk(channel);
 	RT_TRACE(rtlpriv, COMP_CMD, DBG_LOUD, "indexforchannel %d done %d\n",
 		 indexforchannel,
-		 rtlphy->iqk_matrix_regsetting[indexforchannel].iqk_done);
-	if (0 && !rtlphy->iqk_matrix_regsetting[indexforchannel].iqk_done &&
+		 rtlphy->iqk_matrix[indexforchannel].iqk_done);
+	if (0 && !rtlphy->iqk_matrix[indexforchannel].iqk_done &&
 		rtlphy->need_iqk) {
 		/* Re Do IQK. */
 		RT_TRACE(rtlpriv, COMP_SCAN | COMP_INIT, DBG_LOUD,
@@ -2516,23 +2488,23 @@ void rtl92d_phy_reload_iqk_setting(struct ieee80211_hw *hw, u8 channel)
 			RT_TRACE(rtlpriv, COMP_SCAN, DBG_LOUD,
 				 "Just Read IQK Matrix reg for channel:%d....\n",
 				 channel);
-			if ((rtlphy->iqk_matrix_regsetting[indexforchannel].
+			if ((rtlphy->iqk_matrix[indexforchannel].
 			     value[0] != NULL)
 				/*&&(regea4 != 0) */)
 				_rtl92d_phy_patha_fill_iqk_matrix(hw, true,
-					rtlphy->iqk_matrix_regsetting[
+					rtlphy->iqk_matrix[
 					indexforchannel].value,	0,
-					(rtlphy->iqk_matrix_regsetting[
+					(rtlphy->iqk_matrix[
 					indexforchannel].value[0][2] == 0));
 			if (IS_92D_SINGLEPHY(rtlhal->version)) {
-				if ((rtlphy->iqk_matrix_regsetting[
+				if ((rtlphy->iqk_matrix[
 					indexforchannel].value[0][4] != 0)
 					/*&&(regec4 != 0) */)
 					_rtl92d_phy_pathb_fill_iqk_matrix(hw,
 						true,
-						rtlphy->iqk_matrix_regsetting[
+						rtlphy->iqk_matrix[
 						indexforchannel].value, 0,
-						(rtlphy->iqk_matrix_regsetting[
+						(rtlphy->iqk_matrix[
 						indexforchannel].value[0][6]
 						== 0));
 			}
@@ -2830,20 +2802,20 @@ void rtl92d_phy_reset_iqk_result(struct ieee80211_hw *hw)
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 		 "settings regs %d default regs %d\n",
-		 (int)(sizeof(rtlphy->iqk_matrix_regsetting) /
+		 (int)(sizeof(rtlphy->iqk_matrix) /
 		       sizeof(struct iqk_matrix_regs)),
 		 IQK_MATRIX_REG_NUM);
 	/* 0xe94, 0xe9c, 0xea4, 0xeac, 0xeb4, 0xebc, 0xec4, 0xecc */
 	for (i = 0; i < IQK_MATRIX_SETTINGS_NUM; i++) {
-		rtlphy->iqk_matrix_regsetting[i].value[0][0] = 0x100;
-		rtlphy->iqk_matrix_regsetting[i].value[0][2] = 0x100;
-		rtlphy->iqk_matrix_regsetting[i].value[0][4] = 0x100;
-		rtlphy->iqk_matrix_regsetting[i].value[0][6] = 0x100;
-		rtlphy->iqk_matrix_regsetting[i].value[0][1] = 0x0;
-		rtlphy->iqk_matrix_regsetting[i].value[0][3] = 0x0;
-		rtlphy->iqk_matrix_regsetting[i].value[0][5] = 0x0;
-		rtlphy->iqk_matrix_regsetting[i].value[0][7] = 0x0;
-		rtlphy->iqk_matrix_regsetting[i].iqk_done = false;
+		rtlphy->iqk_matrix[i].value[0][0] = 0x100;
+		rtlphy->iqk_matrix[i].value[0][2] = 0x100;
+		rtlphy->iqk_matrix[i].value[0][4] = 0x100;
+		rtlphy->iqk_matrix[i].value[0][6] = 0x100;
+		rtlphy->iqk_matrix[i].value[0][1] = 0x0;
+		rtlphy->iqk_matrix[i].value[0][3] = 0x0;
+		rtlphy->iqk_matrix[i].value[0][5] = 0x0;
+		rtlphy->iqk_matrix[i].value[0][7] = 0x0;
+		rtlphy->iqk_matrix[i].iqk_done = false;
 	}
 }
 

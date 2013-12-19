@@ -1,6 +1,4 @@
 /*
- * linux/arch/arm/mach-s3c2442/mach-gta02.c
- *
  * S3C2442 Machine Support for Openmoko GTA02 / FreeRunner.
  *
  * Copyright (C) 2006-2009 by Openmoko, Inc.
@@ -23,7 +21,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
- *
  */
 
 #include <linux/kernel.h>
@@ -34,62 +31,60 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/gpio_keys.h>
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
-#include <linux/spi/spi.h>
-#include <linux/spi/s3c24xx.h>
+#include <linux/input.h>
+#include <linux/io.h>
+#include <linux/i2c.h>
 
 #include <linux/mmc/host.h>
+
+#include <linux/mfd/pcf50633/adc.h>
+#include <linux/mfd/pcf50633/backlight.h>
+#include <linux/mfd/pcf50633/core.h>
+#include <linux/mfd/pcf50633/gpio.h>
+#include <linux/mfd/pcf50633/mbc.h>
+#include <linux/mfd/pcf50633/pmic.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
-#include <linux/io.h>
 
-#include <linux/i2c.h>
 #include <linux/regulator/machine.h>
 
-#include <linux/mfd/pcf50633/core.h>
-#include <linux/mfd/pcf50633/mbc.h>
-#include <linux/mfd/pcf50633/adc.h>
-#include <linux/mfd/pcf50633/gpio.h>
-#include <linux/mfd/pcf50633/pmic.h>
-#include <linux/mfd/pcf50633/backlight.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/s3c24xx.h>
 
-#include <linux/input.h>
-#include <linux/gpio_keys.h>
-
+#include <asm/irq.h>
+#include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/irq.h>
-#include <asm/mach-types.h>
-
-#include <mach/regs-irq.h>
-#include <mach/regs-gpio.h>
-#include <mach/fb.h>
-
-#include <linux/platform_data/usb-ohci-s3c2410.h>
-#include <mach/regs-mem.h>
-#include <mach/hardware.h>
-
-#include <mach/gta02.h>
-
-#include <plat/regs-serial.h>
-#include <linux/platform_data/mtd-nand-s3c2410.h>
-#include <plat/devs.h>
-#include <plat/cpu.h>
-#include <plat/pm.h>
-#include <linux/platform_data/usb-s3c2410_udc.h>
-#include <plat/gpio-cfg.h>
 #include <linux/platform_data/i2c-s3c2410.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
 #include <linux/platform_data/touchscreen-s3c2410.h>
+#include <linux/platform_data/usb-ohci-s3c2410.h>
+#include <linux/platform_data/usb-s3c2410_udc.h>
+
+#include <mach/fb.h>
+#include <mach/hardware.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-irq.h>
+
+#include <plat/cpu.h>
+#include <plat/devs.h>
+#include <plat/gpio-cfg.h>
+#include <plat/pm.h>
+#include <plat/regs-serial.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
+#include "gta02.h"
 
 static struct pcf50633 *gta02_pcf;
 
@@ -507,6 +502,7 @@ static void __init gta02_map_io(void)
 	s3c24xx_init_io(gta02_iodesc, ARRAY_SIZE(gta02_iodesc));
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(gta02_uartcfgs, ARRAY_SIZE(gta02_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
 
 
@@ -593,8 +589,8 @@ MACHINE_START(NEO1973_GTA02, "GTA02")
 	/* Maintainer: Nelson Castillo <arhuaco@freaks-unidos.net> */
 	.atag_offset	= 0x100,
 	.map_io		= gta02_map_io,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2442_init_irq,
 	.init_machine	= gta02_machine_init,
-	.timer		= &s3c24xx_timer,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c244x_restart,
 MACHINE_END

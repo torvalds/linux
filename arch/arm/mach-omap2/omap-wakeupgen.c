@@ -24,8 +24,7 @@
 #include <linux/cpu.h>
 #include <linux/notifier.h>
 #include <linux/cpu_pm.h>
-
-#include <asm/hardware/gic.h>
+#include <linux/irqchip/arm-gic.h>
 
 #include "omap-wakeupgen.h"
 #include "omap-secure.h"
@@ -34,8 +33,12 @@
 #include "omap4-sar-layout.h"
 #include "common.h"
 
-#define MAX_NR_REG_BANKS	5
-#define MAX_IRQS		160
+#define AM43XX_NR_REG_BANKS	7
+#define AM43XX_IRQS		224
+#define MAX_NR_REG_BANKS	AM43XX_NR_REG_BANKS
+#define MAX_IRQS		AM43XX_IRQS
+#define DEFAULT_NR_REG_BANKS	5
+#define DEFAULT_IRQS		160
 #define WKG_MASK_ALL		0x00000000
 #define WKG_UNMASK_ALL		0xffffffff
 #define CPU_ENA_OFFSET		0x400
@@ -46,10 +49,10 @@
 
 static void __iomem *wakeupgen_base;
 static void __iomem *sar_base;
-static DEFINE_SPINLOCK(wakeupgen_lock);
+static DEFINE_RAW_SPINLOCK(wakeupgen_lock);
 static unsigned int irq_target_cpu[MAX_IRQS];
-static unsigned int irq_banks = MAX_NR_REG_BANKS;
-static unsigned int max_irqs = MAX_IRQS;
+static unsigned int irq_banks = DEFAULT_NR_REG_BANKS;
+static unsigned int max_irqs = DEFAULT_IRQS;
 static unsigned int omap_secure_apis;
 
 /*
@@ -134,9 +137,9 @@ static void wakeupgen_mask(struct irq_data *d)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&wakeupgen_lock, flags);
+	raw_spin_lock_irqsave(&wakeupgen_lock, flags);
 	_wakeupgen_clear(d->irq, irq_target_cpu[d->irq]);
-	spin_unlock_irqrestore(&wakeupgen_lock, flags);
+	raw_spin_unlock_irqrestore(&wakeupgen_lock, flags);
 }
 
 /*
@@ -146,9 +149,9 @@ static void wakeupgen_unmask(struct irq_data *d)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&wakeupgen_lock, flags);
+	raw_spin_lock_irqsave(&wakeupgen_lock, flags);
 	_wakeupgen_set(d->irq, irq_target_cpu[d->irq]);
-	spin_unlock_irqrestore(&wakeupgen_lock, flags);
+	raw_spin_unlock_irqrestore(&wakeupgen_lock, flags);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -189,7 +192,7 @@ static void wakeupgen_irqmask_all(unsigned int cpu, unsigned int set)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&wakeupgen_lock, flags);
+	raw_spin_lock_irqsave(&wakeupgen_lock, flags);
 	if (set) {
 		_wakeupgen_save_masks(cpu);
 		_wakeupgen_set_all(cpu, WKG_MASK_ALL);
@@ -197,7 +200,7 @@ static void wakeupgen_irqmask_all(unsigned int cpu, unsigned int set)
 		_wakeupgen_set_all(cpu, WKG_UNMASK_ALL);
 		_wakeupgen_restore_masks(cpu);
 	}
-	spin_unlock_irqrestore(&wakeupgen_lock, flags);
+	raw_spin_unlock_irqrestore(&wakeupgen_lock, flags);
 }
 #endif
 
@@ -324,8 +327,8 @@ static void irq_save_secure_context(void)
 #endif
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int __cpuinit irq_cpu_hotplug_notify(struct notifier_block *self,
-					 unsigned long action, void *hcpu)
+static int irq_cpu_hotplug_notify(struct notifier_block *self,
+				  unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned int)hcpu;
 
@@ -419,12 +422,16 @@ int __init omap_wakeupgen_init(void)
 		irq_banks = OMAP4_NR_BANKS;
 		max_irqs = OMAP4_NR_IRQS;
 		omap_secure_apis = 1;
+	} else if (soc_is_am43xx()) {
+		irq_banks = AM43XX_NR_REG_BANKS;
+		max_irqs = AM43XX_IRQS;
 	}
 
 	/* Clear all IRQ bitmasks at wakeupGen level */
 	for (i = 0; i < irq_banks; i++) {
 		wakeupgen_writel(0, i, CPU0_ID);
-		wakeupgen_writel(0, i, CPU1_ID);
+		if (!soc_is_am43xx())
+			wakeupgen_writel(0, i, CPU1_ID);
 	}
 
 	/*

@@ -1,0 +1,142 @@
+/*
+ * B4860 Silicon/SoC Device Tree Source (post include)
+ *
+ * Copyright 2012 Freescale Semiconductor Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of Freescale Semiconductor nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ *
+ * ALTERNATIVELY, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") as published by the Free Software
+ * Foundation, either version 2 of that License or (at your option) any
+ * later version.
+ *
+ * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/include/ "b4si-post.dtsi"
+
+/* controller at 0x200000 */
+&pci0 {
+	compatible = "fsl,b4860-pcie", "fsl,qoriq-pcie-v2.4";
+};
+
+&rio {
+	compatible = "fsl,srio";
+	interrupts = <16 2 1 20>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+	fsl,iommu-parent = <&pamu0>;
+	ranges;
+
+	port1 {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		cell-index = <1>;
+		fsl,liodn-reg = <&guts 0x510>; /* RIO1LIODNR */
+	};
+
+	port2 {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		cell-index = <2>;
+		fsl,liodn-reg = <&guts 0x514>; /* RIO2LIODNR */
+	};
+};
+
+&dcsr {
+	dcsr-epu@0 {
+		compatible = "fsl,b4860-dcsr-epu", "fsl,dcsr-epu";
+	};
+	dcsr-npc {
+		compatible = "fsl,b4860-dcsr-cnpc", "fsl,dcsr-cnpc";
+	};
+	dcsr-dpaa@9000 {
+		compatible = "fsl,b4860-dcsr-dpaa", "fsl,dcsr-dpaa";
+	};
+	dcsr-ocn@11000 {
+		compatible = "fsl,b4860-dcsr-ocn", "fsl,dcsr-ocn";
+	};
+	dcsr-ddr@13000 {
+		compatible = "fsl,dcsr-ddr";
+		dev-handle = <&ddr2>;
+		reg = <0x13000 0x1000>;
+	};
+	dcsr-nal@18000 {
+		compatible = "fsl,b4860-dcsr-nal", "fsl,dcsr-nal";
+	};
+	dcsr-rcpm@22000 {
+		compatible = "fsl,b4860-dcsr-rcpm", "fsl,dcsr-rcpm";
+	};
+	dcsr-snpc@30000 {
+		compatible = "fsl,b4860-dcsr-snpc", "fsl,dcsr-snpc";
+	};
+	dcsr-snpc@31000 {
+		compatible = "fsl,b4860-dcsr-snpc", "fsl,dcsr-snpc";
+	};
+	dcsr-cpu-sb-proxy@108000 {
+		compatible = "fsl,dcsr-e6500-sb-proxy", "fsl,dcsr-cpu-sb-proxy";
+		cpu-handle = <&cpu1>;
+		reg = <0x108000 0x1000 0x109000 0x1000>;
+	};
+	dcsr-cpu-sb-proxy@110000 {
+		compatible = "fsl,dcsr-e6500-sb-proxy", "fsl,dcsr-cpu-sb-proxy";
+		cpu-handle = <&cpu2>;
+		reg = <0x110000 0x1000 0x111000 0x1000>;
+	};
+	dcsr-cpu-sb-proxy@118000 {
+		compatible = "fsl,dcsr-e6500-sb-proxy", "fsl,dcsr-cpu-sb-proxy";
+		cpu-handle = <&cpu3>;
+		reg = <0x118000 0x1000 0x119000 0x1000>;
+	};
+};
+
+&soc {
+	ddr2: memory-controller@9000 {
+		compatible = "fsl,qoriq-memory-controller-v4.5", "fsl,qoriq-memory-controller";
+		reg = <0x9000 0x1000>;
+		interrupts = <16 2 1 9>;
+	};
+
+	cpc: l3-cache-controller@10000 {
+		compatible = "fsl,b4860-l3-cache-controller", "cache";
+	};
+
+	corenet-cf@18000 {
+		compatible = "fsl,b4860-corenet-cf";
+	};
+
+	guts: global-utilities@e0000 {
+		compatible = "fsl,b4860-device-config", "fsl,qoriq-device-config-2.0";
+	};
+
+	clockgen: global-utilities@e1000 {
+		compatible = "fsl,b4860-clockgen", "fsl,qoriq-clockgen-2.0";
+	};
+
+	rcpm: global-utilities@e2000 {
+		compatible = "fsl,b4860-rcpm", "fsl,qoriq-rcpm-2.0";
+	};
+
+	L2: l2-cache-controller@c20000 {
+		compatible = "fsl,b4860-l2-cache-controller";
+	};
+};

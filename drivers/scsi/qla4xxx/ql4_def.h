@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -62,6 +62,10 @@
 
 #ifndef PCI_DEVICE_ID_QLOGIC_ISP8324
 #define PCI_DEVICE_ID_QLOGIC_ISP8324	0x8032
+#endif
+
+#ifndef PCI_DEVICE_ID_QLOGIC_ISP8042
+#define PCI_DEVICE_ID_QLOGIC_ISP8042	0x8042
 #endif
 
 #define ISP4XXX_PCI_FN_1	0x1
@@ -136,6 +140,7 @@
 #define RESPONSE_QUEUE_DEPTH		64
 #define QUEUE_SIZE			64
 #define DMA_BUFFER_SIZE			512
+#define IOCB_HIWAT_CUSHION		4
 
 /*
  * Misc
@@ -157,6 +162,22 @@
 
 #define LSDW(x) ((u32)((u64)(x)))
 #define MSDW(x) ((u32)((((u64)(x)) >> 16) >> 16))
+
+#define DEV_DB_NON_PERSISTENT	0
+#define DEV_DB_PERSISTENT	1
+
+#define COPY_ISID(dst_isid, src_isid) {			\
+	int i, j;					\
+	for (i = 0, j = ISID_SIZE - 1; i < ISID_SIZE;)	\
+		dst_isid[i++] = src_isid[j--];		\
+}
+
+#define SET_BITVAL(o, n, v) {	\
+	if (o)			\
+		n |= v;		\
+	else			\
+		n &= ~v;	\
+}
 
 /*
  * Retry & Timeout Values
@@ -180,9 +201,11 @@
 #define DISABLE_ACB_TOV			30
 #define IP_CONFIG_TOV			30
 #define LOGIN_TOV			12
+#define BOOT_LOGIN_RESP_TOV		60
 
 #define MAX_RESET_HA_RETRIES		2
 #define FW_ALIVE_WAIT_TOV		3
+#define IDC_EXTEND_TOV			8
 
 #define CMD_SP(Cmnd)			((Cmnd)->SCp.ptr)
 
@@ -283,6 +306,7 @@ struct ddb_entry {
 struct qla_ddb_index {
 	struct list_head list;
 	uint16_t fw_ddb_idx;
+	uint16_t flash_ddb_idx;
 	struct dev_db_entry fw_ddb;
 	uint8_t flash_isid[6];
 };
@@ -314,8 +338,10 @@ struct ql4_tuple_ddb {
  * DDB flags.
  */
 #define DF_RELOGIN		0	/* Relogin to device */
+#define DF_BOOT_TGT		1	/* Boot target entry */
 #define DF_ISNS_DISCOVERED	2	/* Device was discovered via iSNS */
 #define DF_FO_MASKED		3
+#define DF_DISABLE_RELOGIN		4	/* Disable relogin to device */
 
 enum qla4_work_type {
 	QLA4_EVENT_AEN,
@@ -360,6 +386,8 @@ struct ql82xx_hw_data {
 	uint32_t flt_iscsi_param;
 	uint32_t flt_region_chap;
 	uint32_t flt_chap_size;
+	uint32_t flt_region_ddb;
+	uint32_t flt_ddb_size;
 };
 
 struct qla4_8xxx_legacy_intr_set {
@@ -498,9 +526,11 @@ struct scsi_qla_host {
 #define AF_INIT_DONE			1 /* 0x00000002 */
 #define AF_MBOX_COMMAND			2 /* 0x00000004 */
 #define AF_MBOX_COMMAND_DONE		3 /* 0x00000008 */
+#define AF_ST_DISCOVERY_IN_PROGRESS	4 /* 0x00000010 */
 #define AF_INTERRUPTS_ON		6 /* 0x00000040 */
 #define AF_GET_CRASH_RECORD		7 /* 0x00000080 */
 #define AF_LINK_UP			8 /* 0x00000100 */
+#define AF_LOOPBACK			9 /* 0x00000200 */
 #define AF_IRQ_ATTACHED			10 /* 0x00000400 */
 #define AF_DISABLE_ACB_COMPLETE		11 /* 0x00000800 */
 #define AF_HA_REMOVAL			12 /* 0x00001000 */
@@ -516,6 +546,8 @@ struct scsi_qla_host {
 #define AF_8XXX_RST_OWNER		25 /* 0x02000000 */
 #define AF_82XX_DUMP_READING		26 /* 0x04000000 */
 #define AF_83XX_NO_FW_DUMP		27 /* 0x08000000 */
+#define AF_83XX_IOCB_INTR_ON		28 /* 0x10000000 */
+#define AF_83XX_MBOX_INTR_ON		29 /* 0x20000000 */
 
 	unsigned long dpc_flags;
 
@@ -532,11 +564,13 @@ struct scsi_qla_host {
 #define DPC_HA_UNRECOVERABLE		21 /* 0x00080000 ISP-82xx only*/
 #define DPC_HA_NEED_QUIESCENT		22 /* 0x00100000 ISP-82xx only*/
 #define DPC_POST_IDC_ACK		23 /* 0x00200000 */
+#define DPC_RESTORE_ACB			24 /* 0x01000000 */
 
 	struct Scsi_Host *host; /* pointer to host data */
 	uint32_t tot_ddbs;
 
 	uint16_t iocb_cnt;
+	uint16_t iocb_hiwat;
 
 	/* SRB cache. */
 #define SRB_MIN_REQ	128
@@ -708,12 +742,9 @@ struct scsi_qla_host {
 	struct iscsi_iface *iface_ipv6_1;
 
 	/* --- From About Firmware --- */
-	uint16_t iscsi_major;
-	uint16_t iscsi_minor;
-	uint16_t bootload_major;
-	uint16_t bootload_minor;
-	uint16_t bootload_patch;
-	uint16_t bootload_build;
+	struct about_fw_info fw_info;
+	uint32_t fw_uptime_secs;  /* seconds elapsed since fw bootup */
+	uint32_t fw_uptime_msecs; /* milliseconds beyond elapsed seconds */
 	uint16_t def_timeout; /* Default login timeout */
 
 	uint32_t flash_state;
@@ -754,9 +785,11 @@ struct scsi_qla_host {
 	uint32_t *reg_tbl;
 	struct qla4_83xx_reset_template reset_tmplt;
 	struct device_reg_83xx  __iomem *qla4_83xx_reg; /* Base I/O address
-							   for ISP8324 */
+							   for ISP8324 and
+							   and ISP8042 */
 	uint32_t pf_bit;
 	struct qla4_83xx_idc_information idc_info;
+	struct addr_ctrl_blk *saved_acb;
 };
 
 struct ql4_task_data {
@@ -824,9 +857,14 @@ static inline int is_qla8032(struct scsi_qla_host *ha)
 	return ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8324;
 }
 
+static inline int is_qla8042(struct scsi_qla_host *ha)
+{
+	return ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8042;
+}
+
 static inline int is_qla80XX(struct scsi_qla_host *ha)
 {
-	return is_qla8022(ha) || is_qla8032(ha);
+	return is_qla8022(ha) || is_qla8032(ha) || is_qla8042(ha);
 }
 
 static inline int is_aer_supported(struct scsi_qla_host *ha)
@@ -838,7 +876,8 @@ static inline int is_aer_supported(struct scsi_qla_host *ha)
 static inline int adapter_up(struct scsi_qla_host *ha)
 {
 	return (test_bit(AF_ONLINE, &ha->flags) != 0) &&
-		(test_bit(AF_LINK_UP, &ha->flags) != 0);
+	       (test_bit(AF_LINK_UP, &ha->flags) != 0) &&
+	       (!test_bit(AF_LOOPBACK, &ha->flags));
 }
 
 static inline struct scsi_qla_host* to_qla_host(struct Scsi_Host *shost)

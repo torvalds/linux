@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
 
 #include <linux/platform_device.h>
 #include <media/v4l2-mem2mem.h>
@@ -157,6 +158,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->ops = &g2d_qops;
 	src_vq->mem_ops = &vb2_dma_contig_memops;
 	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
+	src_vq->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -168,6 +170,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->ops = &g2d_qops;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
 	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
+	dst_vq->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -604,8 +607,13 @@ static void device_run(void *prv)
 	g2d_set_flip(dev, ctx->flip);
 
 	if (ctx->in.c_width != ctx->out.c_width ||
-		ctx->in.c_height != ctx->out.c_height)
-		cmd |= g2d_cmd_stretch(1);
+		ctx->in.c_height != ctx->out.c_height) {
+		if (dev->variant->hw_rev == TYPE_G2D_3X)
+			cmd |= CMD_V3_ENABLE_STRETCH;
+		else
+			g2d_set_v41_stretch(dev, &ctx->in, &ctx->out);
+	}
+
 	g2d_set_cmd(dev, cmd);
 	g2d_start(dev);
 
@@ -628,6 +636,9 @@ static irqreturn_t g2d_isr(int irq, void *prv)
 
 	BUG_ON(src == NULL);
 	BUG_ON(dst == NULL);
+
+	dst->v4l2_buf.timecode = src->v4l2_buf.timecode;
+	dst->v4l2_buf.timestamp = src->v4l2_buf.timestamp;
 
 	v4l2_m2m_buf_done(src, VB2_BUF_STATE_DONE);
 	v4l2_m2m_buf_done(dst, VB2_BUF_STATE_DONE);
@@ -690,11 +701,14 @@ static struct v4l2_m2m_ops g2d_m2m_ops = {
 	.unlock		= g2d_unlock,
 };
 
+static const struct of_device_id exynos_g2d_match[];
+
 static int g2d_probe(struct platform_device *pdev)
 {
 	struct g2d_dev *dev;
 	struct video_device *vfd;
 	struct resource *res;
+	const struct of_device_id *of_id;
 	int ret = 0;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
@@ -708,14 +722,12 @@ static int g2d_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	dev->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (dev->regs == NULL) {
-			dev_err(&pdev->dev, "Failed to obtain io memory\n");
-			return -ENOENT;
-	}
+	dev->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(dev->regs))
+		return PTR_ERR(dev->regs);
 
 	dev->clk = clk_get(&pdev->dev, "sclk_fimg2d");
-	if (IS_ERR_OR_NULL(dev->clk)) {
+	if (IS_ERR(dev->clk)) {
 		dev_err(&pdev->dev, "failed to get g2d clock\n");
 		return -ENXIO;
 	}
@@ -727,7 +739,7 @@ static int g2d_probe(struct platform_device *pdev)
 	}
 
 	dev->gate = clk_get(&pdev->dev, "fimg2d");
-	if (IS_ERR_OR_NULL(dev->gate)) {
+	if (IS_ERR(dev->gate)) {
 		dev_err(&pdev->dev, "failed to get g2d clock gate\n");
 		ret = -ENXIO;
 		goto unprep_clk;
@@ -772,6 +784,7 @@ static int g2d_probe(struct platform_device *pdev)
 	}
 	*vfd = g2d_videodev;
 	vfd->lock = &dev->mutex;
+	vfd->v4l2_dev = &dev->v4l2_dev;
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
@@ -791,6 +804,17 @@ static int g2d_probe(struct platform_device *pdev)
 	}
 
 	def_frame.stride = (def_frame.width * def_frame.fmt->depth) >> 3;
+
+	if (!pdev->dev.of_node) {
+		dev->variant = g2d_get_drv_data(pdev);
+	} else {
+		of_id = of_match_node(exynos_g2d_match, pdev->dev.of_node);
+		if (!of_id) {
+			ret = -ENODEV;
+			goto unreg_video_dev;
+		}
+		dev->variant = (struct g2d_variant *)of_id->data;
+	}
 
 	return 0;
 
@@ -816,7 +840,7 @@ put_clk:
 
 static int g2d_remove(struct platform_device *pdev)
 {
-	struct g2d_dev *dev = (struct g2d_dev *)platform_get_drvdata(pdev);
+	struct g2d_dev *dev = platform_get_drvdata(pdev);
 
 	v4l2_info(&dev->v4l2_dev, "Removing " G2D_NAME);
 	v4l2_m2m_release(dev->m2m_dev);
@@ -830,12 +854,46 @@ static int g2d_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct g2d_variant g2d_drvdata_v3x = {
+	.hw_rev = TYPE_G2D_3X, /* Revision 3.0 for S5PV210 and Exynos4210 */
+};
+
+static struct g2d_variant g2d_drvdata_v4x = {
+	.hw_rev = TYPE_G2D_4X, /* Revision 4.1 for Exynos4X12 and Exynos5 */
+};
+
+static const struct of_device_id exynos_g2d_match[] = {
+	{
+		.compatible = "samsung,s5pv210-g2d",
+		.data = &g2d_drvdata_v3x,
+	}, {
+		.compatible = "samsung,exynos4212-g2d",
+		.data = &g2d_drvdata_v4x,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, exynos_g2d_match);
+
+static struct platform_device_id g2d_driver_ids[] = {
+	{
+		.name = "s5p-g2d",
+		.driver_data = (unsigned long)&g2d_drvdata_v3x,
+	}, {
+		.name = "s5p-g2d-v4x",
+		.driver_data = (unsigned long)&g2d_drvdata_v4x,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(platform, g2d_driver_ids);
+
 static struct platform_driver g2d_pdrv = {
 	.probe		= g2d_probe,
 	.remove		= g2d_remove,
+	.id_table	= g2d_driver_ids,
 	.driver		= {
 		.name = G2D_NAME,
 		.owner = THIS_MODULE,
+		.of_match_table = exynos_g2d_match,
 	},
 };
 

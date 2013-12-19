@@ -472,7 +472,10 @@ static void ah6_input_done(struct crypto_async_request *base, int err)
 	skb->network_header += ah_hlen;
 	memcpy(skb_network_header(skb), work_iph, hdr_len);
 	__skb_pull(skb, ah_hlen + hdr_len);
-	skb_set_transport_header(skb, -hdr_len);
+	if (x->props.mode == XFRM_MODE_TUNNEL)
+		skb_reset_transport_header(skb);
+	else
+		skb_set_transport_header(skb, -hdr_len);
 out:
 	kfree(AH_SKB_CB(skb)->tmp);
 	xfrm_input_resume(skb, err);
@@ -518,8 +521,7 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	/* We are going to _remove_ AH header to keep sockets happy,
 	 * so... Later this can change. */
-	if (skb_cloned(skb) &&
-	    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
+	if (skb_unclone(skb, GFP_ATOMIC))
 		goto out;
 
 	skb->ip_summed = CHECKSUM_NONE;
@@ -593,8 +595,12 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb->network_header += ah_hlen;
 	memcpy(skb_network_header(skb), work_iph, hdr_len);
-	skb->transport_header = skb->network_header;
 	__skb_pull(skb, ah_hlen + hdr_len);
+
+	if (x->props.mode == XFRM_MODE_TUNNEL)
+		skb_reset_transport_header(skb);
+	else
+		skb_set_transport_header(skb, -hdr_len);
 
 	err = nexthdr;
 
@@ -612,8 +618,7 @@ static void ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	struct ip_auth_hdr *ah = (struct ip_auth_hdr*)(skb->data+offset);
 	struct xfrm_state *x;
 
-	if (type != ICMPV6_DEST_UNREACH &&
-	    type != ICMPV6_PKT_TOOBIG &&
+	if (type != ICMPV6_PKT_TOOBIG &&
 	    type != NDISC_REDIRECT)
 		return;
 
@@ -622,7 +627,7 @@ static void ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		return;
 
 	if (type == NDISC_REDIRECT)
-		ip6_redirect(skb, net, 0, 0);
+		ip6_redirect(skb, net, skb->dev->ifindex, 0);
 	else
 		ip6_update_pmtu(skb, net, info, 0, 0);
 	xfrm_state_put(x);

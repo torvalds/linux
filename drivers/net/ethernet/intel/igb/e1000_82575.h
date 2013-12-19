@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2012 Intel Corporation.
+  Copyright(c) 2007-2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -28,10 +28,14 @@
 #ifndef _E1000_82575_H_
 #define _E1000_82575_H_
 
-extern void igb_shutdown_serdes_link_82575(struct e1000_hw *hw);
-extern void igb_power_up_serdes_link_82575(struct e1000_hw *hw);
-extern void igb_power_down_phy_copper_82575(struct e1000_hw *hw);
-extern void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
+void igb_shutdown_serdes_link_82575(struct e1000_hw *hw);
+void igb_power_up_serdes_link_82575(struct e1000_hw *hw);
+void igb_power_down_phy_copper_82575(struct e1000_hw *hw);
+void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
+s32 igb_read_i2c_byte(struct e1000_hw *hw, u8 byte_offset, u8 dev_addr,
+		      u8 *data);
+s32 igb_write_i2c_byte(struct e1000_hw *hw, u8 byte_offset, u8 dev_addr,
+		       u8 data);
 
 #define ID_LED_DEFAULT_82575_SERDES ((ID_LED_DEF1_DEF2 << 12) | \
                                      (ID_LED_DEF1_DEF2 <<  8) | \
@@ -259,6 +263,19 @@ void igb_vmdq_set_anti_spoofing_pf(struct e1000_hw *, bool, int);
 void igb_vmdq_set_loopback_pf(struct e1000_hw *, bool);
 void igb_vmdq_set_replication_pf(struct e1000_hw *, bool);
 u16 igb_rxpbs_adjust_82580(u32 data);
+s32 igb_read_emi_reg(struct e1000_hw *, u16 addr, u16 *data);
 s32 igb_set_eee_i350(struct e1000_hw *);
+s32 igb_set_eee_i354(struct e1000_hw *);
+s32 igb_init_thermal_sensor_thresh_generic(struct e1000_hw *);
+s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw);
 
+#define E1000_I2C_THERMAL_SENSOR_ADDR	0xF8
+#define E1000_EMC_INTERNAL_DATA		0x00
+#define E1000_EMC_INTERNAL_THERM_LIMIT	0x20
+#define E1000_EMC_DIODE1_DATA		0x01
+#define E1000_EMC_DIODE1_THERM_LIMIT	0x19
+#define E1000_EMC_DIODE2_DATA		0x23
+#define E1000_EMC_DIODE2_THERM_LIMIT	0x1A
+#define E1000_EMC_DIODE3_DATA		0x2A
+#define E1000_EMC_DIODE3_THERM_LIMIT	0x30
 #endif

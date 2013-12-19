@@ -128,8 +128,10 @@ static void pm860x_led_set(struct led_classdev *cdev,
 static int pm860x_led_dt_init(struct platform_device *pdev,
 			      struct pm860x_led *data)
 {
-	struct device_node *nproot = pdev->dev.parent->of_node, *np;
+	struct device_node *nproot, *np;
 	int iset = 0;
+
+	nproot = of_node_get(pdev->dev.parent->of_node);
 	if (!nproot)
 		return -ENODEV;
 	nproot = of_find_node_by_name(nproot, "leds");
@@ -145,6 +147,7 @@ static int pm860x_led_dt_init(struct platform_device *pdev,
 			break;
 		}
 	}
+	of_node_put(nproot);
 	return 0;
 }
 #else
@@ -154,7 +157,7 @@ static int pm860x_led_dt_init(struct platform_device *pdev,
 static int pm860x_led_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
-	struct pm860x_led_pdata *pdata = pdev->dev.platform_data;
+	struct pm860x_led_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct pm860x_led *data;
 	struct resource *res;
 	int ret = 0;
@@ -201,7 +204,7 @@ static int pm860x_led_probe(struct platform_device *pdev)
 		sprintf(data->name, "led1-blue");
 		break;
 	}
-	dev_set_drvdata(&pdev->dev, data);
+	platform_set_drvdata(pdev, data);
 	data->chip = chip;
 	data->i2c = (chip->id == CHIP_PM8606) ? chip->client : chip->companion;
 	data->port = pdev->id;

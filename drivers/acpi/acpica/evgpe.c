@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -458,7 +458,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 		gpe_block = gpe_block->next;
 	}
 
-      unlock_and_exit:
+unlock_and_exit:
 
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 	return (int_status);
@@ -522,6 +522,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 
 	status = acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	if (ACPI_FAILURE(status)) {
+		ACPI_FREE(local_gpe_event_info);
 		return_VOID;
 	}
 
@@ -529,7 +530,6 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 
 	switch (local_gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) {
 	case ACPI_GPE_DISPATCH_NOTIFY:
-
 		/*
 		 * Implicit notify.
 		 * Dispatch a DEVICE_WAKE notify to the appropriate handler.
@@ -561,8 +561,8 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 			status = AE_NO_MEMORY;
 		} else {
 			/*
-			 * Invoke the GPE Method (_Lxx, _Exx) i.e., evaluate the _Lxx/_Exx
-			 * control method that corresponds to this GPE
+			 * Invoke the GPE Method (_Lxx, _Exx) i.e., evaluate the
+			 * _Lxx/_Exx control method that corresponds to this GPE
 			 */
 			info->prefix_node =
 			    local_gpe_event_info->dispatch.method_node;
@@ -579,11 +579,11 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 					(local_gpe_event_info->dispatch.
 					 method_node)));
 		}
-
 		break;
 
 	default:
-		return_VOID;    /* Should never happen */
+
+		return_VOID;	/* Should never happen */
 	}
 
 	/* Defer enabling of GPE until all notify handlers are done */
@@ -755,7 +755,6 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 
 	case ACPI_GPE_DISPATCH_METHOD:
 	case ACPI_GPE_DISPATCH_NOTIFY:
-
 		/*
 		 * Execute the method associated with the GPE
 		 * NOTE: Level-triggered GPEs are cleared after the method completes.
@@ -765,13 +764,12 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 					 gpe_event_info);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
-					"Unable to queue handler for GPE%2X - event disabled",
+					"Unable to queue handler for GPE%02X - event disabled",
 					gpe_number));
 		}
 		break;
 
 	default:
-
 		/*
 		 * No handler or method to run!
 		 * 03/2010: This case should no longer be possible. We will not allow

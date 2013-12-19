@@ -56,13 +56,6 @@
 #define A(__x)	((unsigned long)(__x))
 
 /*
- * Atomically swap in the new signal mask, and wait for a signal.
- */
-#ifdef CONFIG_64BIT
-#include "sys32.h"
-#endif
-
-/*
  * Do a signal return - restore sigcontext.
  */
 
@@ -85,7 +78,7 @@ restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs)
 	err |= __copy_from_user(regs->iaoq, sc->sc_iaoq, sizeof(regs->iaoq));
 	err |= __copy_from_user(regs->iasq, sc->sc_iasq, sizeof(regs->iasq));
 	err |= __get_user(regs->sar, &sc->sc_sar);
-	DBG(2,"restore_sigcontext: iaoq is 0x%#lx / 0x%#lx\n", 
+	DBG(2,"restore_sigcontext: iaoq is %#lx / %#lx\n",
 			regs->iaoq[0],regs->iaoq[1]);
 	DBG(2,"restore_sigcontext: r28 is %ld\n", regs->gr[28]);
 	return err;
@@ -143,7 +136,7 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 			goto give_sigsegv;
 		DBG(1,"sys_rt_sigreturn: usp %#08lx stack 0x%p\n", 
 				usp, &compat_frame->uc.uc_stack);
-		if (do_sigaltstack32(&compat_frame->uc.uc_stack, NULL, usp) == -EFAULT)
+		if (compat_restore_altstack(&compat_frame->uc.uc_stack))
 			goto give_sigsegv;
 	} else
 #endif
@@ -154,7 +147,7 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 			goto give_sigsegv;
 		DBG(1,"sys_rt_sigreturn: usp %#08lx stack 0x%p\n", 
 				usp, &frame->uc.uc_stack);
-		if (do_sigaltstack(&frame->uc.uc_stack, NULL, usp) == -EFAULT)
+		if (restore_altstack(&frame->uc.uc_stack))
 			goto give_sigsegv;
 	}
 		
@@ -190,8 +183,10 @@ get_sigframe(struct k_sigaction *ka, unsigned long sp, size_t frame_size)
 	DBG(1,"get_sigframe: ka = %#lx, sp = %#lx, frame_size = %#lx\n",
 			(unsigned long)ka, sp, frame_size);
 	
+	/* Align alternate stack and reserve 64 bytes for the signal
+	   handler's frame marker.  */
 	if ((ka->sa.sa_flags & SA_ONSTACK) != 0 && ! sas_ss_flags(sp))
-		sp = current->sas_ss_sp; /* Stacks grow up! */
+		sp = (current->sas_ss_sp + 0x7f) & ~0x3f; /* Stacks grow up! */
 
 	DBG(1,"get_sigframe: Returning sp = %#lx\n", (unsigned long)sp);
 	return (void __user *) sp; /* Stacks grow up.  Fun. */
@@ -240,7 +235,6 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	unsigned long haddr, sigframe_size;
 	int err = 0;
 #ifdef CONFIG_64BIT
-	compat_int_t compat_val;
 	struct compat_rt_sigframe __user * compat_frame;
 	compat_sigset_t compat_set;
 #endif
@@ -260,15 +254,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	if (is_compat_task()) {
 		DBG(1,"setup_rt_frame: frame->info = 0x%p\n", &compat_frame->info);
 		err |= copy_siginfo_to_user32(&compat_frame->info, info);
-		DBG(1,"SETUP_RT_FRAME: 1\n");
-		compat_val = (compat_int_t)current->sas_ss_sp;
-		err |= __put_user(compat_val, &compat_frame->uc.uc_stack.ss_sp);
-		DBG(1,"SETUP_RT_FRAME: 2\n");
-		compat_val = (compat_int_t)current->sas_ss_size;
-		err |= __put_user(compat_val, &compat_frame->uc.uc_stack.ss_size);
-		DBG(1,"SETUP_RT_FRAME: 3\n");
-		compat_val = sas_ss_flags(regs->gr[30]);		
-		err |= __put_user(compat_val, &compat_frame->uc.uc_stack.ss_flags);		
+		err |= __compat_save_altstack( &compat_frame->uc.uc_stack, regs->gr[30]);
 		DBG(1,"setup_rt_frame: frame->uc = 0x%p\n", &compat_frame->uc);
 		DBG(1,"setup_rt_frame: frame->uc.uc_mcontext = 0x%p\n", &compat_frame->uc.uc_mcontext);
 		err |= setup_sigcontext32(&compat_frame->uc.uc_mcontext, 
@@ -280,10 +266,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	{	
 		DBG(1,"setup_rt_frame: frame->info = 0x%p\n", &frame->info);
 		err |= copy_siginfo_to_user(&frame->info, info);
-		err |= __put_user(current->sas_ss_sp, &frame->uc.uc_stack.ss_sp);
-		err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
-		err |= __put_user(sas_ss_flags(regs->gr[30]),
-				  &frame->uc.uc_stack.ss_flags);
+		err |= __save_altstack(&frame->uc.uc_stack, regs->gr[30]);
 		DBG(1,"setup_rt_frame: frame->uc = 0x%p\n", &frame->uc);
 		DBG(1,"setup_rt_frame: frame->uc.uc_mcontext = 0x%p\n", &frame->uc.uc_mcontext);
 		err |= setup_sigcontext(&frame->uc.uc_mcontext, regs, in_syscall);
@@ -310,7 +293,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 #if DEBUG_SIG
 	/* Assert that we're flushing in the correct space... */
 	{
-		int sid;
+		unsigned long sid;
 		asm ("mfsp %%sr3,%0" : "=r" (sid));
 		DBG(1,"setup_rt_frame: Flushing 64 bytes at space %#x offset %p\n",
 		       sid, frame->tramp);

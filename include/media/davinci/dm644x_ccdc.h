@@ -38,16 +38,22 @@ enum ccdc_sample_line {
 	CCDC_SAMPLE_16LINES
 };
 
-/* enum for Alaw gama width */
-enum ccdc_gama_width {
-	CCDC_GAMMA_BITS_15_6,
+/* enum for Alaw gamma width */
+enum ccdc_gamma_width {
+	CCDC_GAMMA_BITS_15_6,	/* use bits 15-6 for gamma */
 	CCDC_GAMMA_BITS_14_5,
 	CCDC_GAMMA_BITS_13_4,
 	CCDC_GAMMA_BITS_12_3,
 	CCDC_GAMMA_BITS_11_2,
 	CCDC_GAMMA_BITS_10_1,
-	CCDC_GAMMA_BITS_09_0
+	CCDC_GAMMA_BITS_09_0	/* use bits 9-0 for gamma */
 };
+
+/* returns the highest bit used for the gamma */
+static inline u8 ccdc_gamma_width_max_bit(enum ccdc_gamma_width width)
+{
+	return 15 - width;
+}
 
 enum ccdc_data_size {
 	CCDC_DATA_16BITS,
@@ -60,12 +66,18 @@ enum ccdc_data_size {
 	CCDC_DATA_8BITS
 };
 
+/* returns the highest bit used for this data size */
+static inline u8 ccdc_data_size_max_bit(enum ccdc_data_size sz)
+{
+	return sz == CCDC_DATA_8BITS ? 7 : 15 - sz;
+}
+
 /* structure for ALaw */
 struct ccdc_a_law {
 	/* Enable/disable A-Law */
 	unsigned char enable;
-	/* Gama Width Input */
-	enum ccdc_gama_width gama_wd;
+	/* Gamma Width Input */
+	enum ccdc_gamma_width gamma_wd;
 };
 
 /* structure for Black Clamping */

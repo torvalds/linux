@@ -1,0 +1,20 @@
+Broadcom Kona Family timer
+-----------------------------------------------------
+This timer is used in the following Broadcom SoCs:
+ BCM11130, BCM11140, BCM11351, BCM28145, BCM28155
+
+Required properties:
+- compatible : "brcm,kona-timer"
+- DEPRECATED: compatible : "bcm,kona-timer"
+- reg : Register range for the timer
+- interrupts : interrupt for the timer
+- clock-frequency: frequency that the clock operates
+
+Example:
+	timer@35006000 {
+		compatible = "brcm,kona-timer";
+		reg = <0x35006000 0x1000>;
+		interrupts = <0x0 7 0x4>;
+		clock-frequency = <32768>;
+	};
+

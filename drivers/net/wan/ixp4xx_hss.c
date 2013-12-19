@@ -1384,7 +1384,6 @@ static int hss_remove_one(struct platform_device *pdev)
 	unregister_hdlc_device(port->netdev);
 	free_netdev(port->netdev);
 	npe_release(port->npe);
-	platform_set_drvdata(pdev, NULL);
 	kfree(port);
 	return 0;
 }

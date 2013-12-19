@@ -52,12 +52,6 @@
 
 /*****************************************************************************************/
 
-#ifdef SBE_INCLUDE_SYMBOLS
-#define STATIC
-#else
-#define STATIC  static
-#endif
-
 #define CHANNAME "hdlc"
 
 /*******************************************************************/
@@ -139,12 +133,12 @@ getuserbychan (int channum)
     mch_t      *ch;
 
     ch = c4_find_chan (channum);
-    return ch ? ch->user : 0;
+    return ch ? ch->user : NULL;
 }
 
 
 char       *
-get_hdlc_name (hdlc_device * hdlc)
+get_hdlc_name (hdlc_device *hdlc)
 {
     struct c4_priv *priv = hdlc->priv;
     struct net_device *dev = getuserbychan (priv->channum);
@@ -185,7 +179,7 @@ mkret (int bsd)
  * within a port's group.
  */
 void
-c4_wk_chan_restart (mch_t * ch)
+c4_wk_chan_restart (mch_t *ch)
 {
     mpi_t      *pi = ch->up;
 
@@ -203,7 +197,7 @@ c4_wk_chan_restart (mch_t * ch)
 }
 
 status_t
-c4_wk_chan_init (mpi_t * pi, mch_t * ch)
+c4_wk_chan_init (mpi_t *pi, mch_t *ch)
 {
     /*
      * this will be used to restart a stopped channel
@@ -218,7 +212,7 @@ c4_wk_chan_init (mpi_t * pi, mch_t * ch)
 }
 
 status_t
-c4_wq_port_init (mpi_t * pi)
+c4_wq_port_init (mpi_t *pi)
 {
 
     char        name[16], *np;  /* NOTE: name of the queue limited by system
@@ -236,12 +230,12 @@ c4_wq_port_init (mpi_t * pi)
             __func__, name, pi->portnum); /* RLD DEBUG */
 #endif
     if (!(pi->wq_port = create_singlethread_workqueue (name)))
-        return ENOMEM;
+        return -ENOMEM;
     return 0;                       /* success */
 }
 
 void
-c4_wq_port_cleanup (mpi_t * pi)
+c4_wq_port_cleanup (mpi_t *pi)
 {
     /*
      * PORT POINT: cannot call this if WQ is statically allocated w/in
@@ -251,7 +245,7 @@ c4_wq_port_cleanup (mpi_t * pi)
     {
         destroy_workqueue (pi->wq_port);        /* this also calls
                                                  * flush_workqueue() */
-        pi->wq_port = 0;
+        pi->wq_port = NULL;
     }
 }
 
@@ -278,15 +272,15 @@ c4_ebus_interrupt (int irq, void *dev_instance)
 
 
 static int
-void_open (struct net_device * ndev)
+void_open (struct net_device *ndev)
 {
     pr_info("%s: trying to open master device !\n", ndev->name);
     return -1;
 }
 
 
-STATIC int
-chan_open (struct net_device * ndev)
+static int
+chan_open (struct net_device *ndev)
 {
     hdlc_device *hdlc = dev_to_hdlc (ndev);
     const struct c4_priv *priv = hdlc->priv;
@@ -305,8 +299,8 @@ chan_open (struct net_device * ndev)
 }
 
 
-STATIC int
-chan_close (struct net_device * ndev)
+static int
+chan_close (struct net_device *ndev)
 {
     hdlc_device *hdlc = dev_to_hdlc (ndev);
     const struct c4_priv *priv = hdlc->priv;
@@ -319,23 +313,23 @@ chan_close (struct net_device * ndev)
 }
 
 
-STATIC int
-chan_dev_ioctl (struct net_device * dev, struct ifreq * ifr, int cmd)
+static int
+chan_dev_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 {
     return hdlc_ioctl (dev, ifr, cmd);
 }
 
 
-STATIC int
-chan_attach_noop (struct net_device * ndev, unsigned short foo_1, unsigned short foo_2)
+static int
+chan_attach_noop (struct net_device *ndev, unsigned short foo_1, unsigned short foo_2)
 {
     return 0;                   /* our driver has nothing to do here, show's
                                  * over, go home */
 }
 
 
-STATIC struct net_device_stats *
-chan_get_stats (struct net_device * ndev)
+static struct net_device_stats *
+chan_get_stats (struct net_device *ndev)
 {
     mch_t      *ch;
     struct net_device_stats *nstats;
@@ -388,14 +382,14 @@ chan_get_stats (struct net_device * ndev)
 
 
 static ci_t *
-get_ci_by_dev (struct net_device * ndev)
+get_ci_by_dev (struct net_device *ndev)
 {
     return (ci_t *)(netdev_priv(ndev));
 }
 
 
-STATIC int
-c4_linux_xmit (struct sk_buff * skb, struct net_device * ndev)
+static int
+c4_linux_xmit (struct sk_buff *skb, struct net_device *ndev)
 {
     const struct c4_priv *priv;
     int         rval;
@@ -416,9 +410,9 @@ static const struct net_device_ops chan_ops = {
        .ndo_get_stats  = chan_get_stats,
 };
 
-STATIC struct net_device *
-create_chan (struct net_device * ndev, ci_t * ci,
-             struct sbecom_chan_param * cp)
+static struct net_device *
+create_chan (struct net_device *ndev, ci_t *ci,
+             struct sbecom_chan_param *cp)
 {
     hdlc_device *hdlc;
     struct net_device *dev;
@@ -426,7 +420,7 @@ create_chan (struct net_device * ndev, ci_t * ci,
     int         ret;
 
     if (c4_find_chan (cp->channum))
-        return 0;                   /* channel already exists */
+        return NULL;                   /* channel already exists */
 
     {
         struct c4_priv *priv;
@@ -436,14 +430,14 @@ create_chan (struct net_device * ndev, ci_t * ci,
         if (!priv)
         {
             pr_warning("%s: no memory for net_device !\n", ci->devname);
-            return 0;
+	    return NULL;
         }
         dev = alloc_hdlcdev (priv);
         if (!dev)
         {
             pr_warning("%s: no memory for hdlc_device !\n", ci->devname);
             OS_kfree (priv);
-            return 0;
+	    return NULL;
         }
         priv->ci = ci;
         priv->channum = cp->channum;
@@ -502,15 +496,15 @@ create_chan (struct net_device * ndev, ci_t * ci,
             pr_info("%s: create_chan[%d] registration error = %d.\n",
                     ci->devname, cp->channum, ret);
         free_netdev (dev);          /* cleanup */
-        return 0;                   /* failed to register */
+	return NULL;		/* failed to register */
     }
     return dev;
 }
 
 
 /* the idea here is to get port information and pass it back (using pointer) */
-STATIC      status_t
-do_get_port (struct net_device * ndev, void *data)
+static      status_t
+do_get_port (struct net_device *ndev, void *data)
 {
     int         ret;
     ci_t       *ci;             /* ci stands for card information */
@@ -534,8 +528,8 @@ do_get_port (struct net_device * ndev, void *data)
 }
 
 /* this function copys the user data and then calls the real action function */
-STATIC      status_t
-do_set_port (struct net_device * ndev, void *data)
+static      status_t
+do_set_port (struct net_device *ndev, void *data)
 {
     ci_t       *ci;             /* ci stands for card information */
     struct sbecom_port_param pp;/* copy data to kernel land */
@@ -556,8 +550,8 @@ do_set_port (struct net_device * ndev, void *data)
 }
 
 /* work the port loopback mode as per directed */
-STATIC      status_t
-do_port_loop (struct net_device * ndev, void *data)
+static      status_t
+do_port_loop (struct net_device *ndev, void *data)
 {
     struct sbecom_port_param pp;
     ci_t       *ci;
@@ -571,8 +565,8 @@ do_port_loop (struct net_device * ndev, void *data)
 }
 
 /* set the specified register with the given value / or just read it */
-STATIC      status_t
-do_framer_rw (struct net_device * ndev, void *data)
+static      status_t
+do_framer_rw (struct net_device *ndev, void *data)
 {
     struct sbecom_port_param pp;
     ci_t       *ci;
@@ -592,8 +586,8 @@ do_framer_rw (struct net_device * ndev, void *data)
 }
 
 /* set the specified register with the given value / or just read it */
-STATIC      status_t
-do_pld_rw (struct net_device * ndev, void *data)
+static      status_t
+do_pld_rw (struct net_device *ndev, void *data)
 {
     struct sbecom_port_param pp;
     ci_t       *ci;
@@ -613,8 +607,8 @@ do_pld_rw (struct net_device * ndev, void *data)
 }
 
 /* set the specified register with the given value / or just read it */
-STATIC      status_t
-do_musycc_rw (struct net_device * ndev, void *data)
+static      status_t
+do_musycc_rw (struct net_device *ndev, void *data)
 {
     struct c4_musycc_param mp;
     ci_t       *ci;
@@ -633,8 +627,8 @@ do_musycc_rw (struct net_device * ndev, void *data)
     return 0;
 }
 
-STATIC      status_t
-do_get_chan (struct net_device * ndev, void *data)
+static      status_t
+do_get_chan (struct net_device *ndev, void *data)
 {
     struct sbecom_chan_param cp;
     int         ret;
@@ -651,8 +645,8 @@ do_get_chan (struct net_device * ndev, void *data)
     return 0;
 }
 
-STATIC      status_t
-do_set_chan (struct net_device * ndev, void *data)
+static      status_t
+do_set_chan (struct net_device *ndev, void *data)
 {
     struct sbecom_chan_param cp;
     int         ret;
@@ -672,8 +666,8 @@ do_set_chan (struct net_device * ndev, void *data)
     }
 }
 
-STATIC      status_t
-do_create_chan (struct net_device * ndev, void *data)
+static      status_t
+do_create_chan (struct net_device *ndev, void *data)
 {
     ci_t       *ci;
     struct net_device *dev;
@@ -699,8 +693,8 @@ do_create_chan (struct net_device * ndev, void *data)
     return ret;
 }
 
-STATIC      status_t
-do_get_chan_stats (struct net_device * ndev, void *data)
+static      status_t
+do_get_chan_stats (struct net_device *ndev, void *data)
 {
     struct c4_chan_stats_wrap ccs;
     int         ret;
@@ -720,8 +714,8 @@ do_get_chan_stats (struct net_device * ndev, void *data)
         return -EFAULT;
     return 0;
 }
-STATIC      status_t
-do_set_loglevel (struct net_device * ndev, void *data)
+static      status_t
+do_set_loglevel (struct net_device *ndev, void *data)
 {
     unsigned int cxt1e1_log_level;
 
@@ -731,8 +725,8 @@ do_set_loglevel (struct net_device * ndev, void *data)
     return 0;
 }
 
-STATIC      status_t
-do_deluser (struct net_device * ndev, int lockit)
+static      status_t
+do_deluser (struct net_device *ndev, int lockit)
 {
     if (ndev->flags & IFF_UP)
         return -EBUSY;
@@ -750,7 +744,7 @@ do_deluser (struct net_device * ndev, int lockit)
         ch = c4_find_chan (channum);
         if (ch == NULL)
             return -ENOENT;
-        ch->user = 0;               /* will be freed, below */
+	ch->user = NULL;	/* will be freed, below */
     }
 
     if (lockit)
@@ -763,7 +757,7 @@ do_deluser (struct net_device * ndev, int lockit)
 }
 
 int
-do_del_chan (struct net_device * musycc_dev, void *data)
+do_del_chan (struct net_device *musycc_dev, void *data)
 {
     struct sbecom_chan_param cp;
     char        buf[sizeof (CHANNAME) + 3];
@@ -773,7 +767,9 @@ do_del_chan (struct net_device * musycc_dev, void *data)
     if (copy_from_user (&cp, data,
                         sizeof (struct sbecom_chan_param)))
         return -EFAULT;
-    sprintf (buf, CHANNAME "%d", cp.channum);
+    if (cp.channum > 999)
+        return -EINVAL;
+    snprintf (buf, sizeof(buf), CHANNAME "%d", cp.channum);
     if (!(dev = dev_get_by_name (&init_net, buf)))
         return -ENOENT;
     dev_put (dev);
@@ -785,7 +781,7 @@ do_del_chan (struct net_device * musycc_dev, void *data)
 int         c4_reset_board (void *);
 
 int
-do_reset (struct net_device * musycc_dev, void *data)
+do_reset (struct net_device *musycc_dev, void *data)
 {
     const struct c4_priv *priv;
     int         i;
@@ -814,7 +810,7 @@ do_reset (struct net_device * musycc_dev, void *data)
 }
 
 int
-do_reset_chan_stats (struct net_device * musycc_dev, void *data)
+do_reset_chan_stats (struct net_device *musycc_dev, void *data)
 {
     struct sbecom_chan_param cp;
 
@@ -824,8 +820,8 @@ do_reset_chan_stats (struct net_device * musycc_dev, void *data)
     return mkret (c4_del_chan_stats (cp.channum));
 }
 
-STATIC      status_t
-c4_ioctl (struct net_device * ndev, struct ifreq * ifr, int cmd)
+static      status_t
+c4_ioctl (struct net_device *ndev, struct ifreq *ifr, int cmd)
 {
     ci_t       *ci;
     void       *data;
@@ -952,7 +948,7 @@ static void c4_setup(struct net_device *dev)
 }
 
 struct net_device *__init
-c4_add_dev (hdw_info_t * hi, int brdno, unsigned long f0, unsigned long f1,
+c4_add_dev (hdw_info_t *hi, int brdno, unsigned long f0, unsigned long f1,
             int irq0, int irq1)
 {
     struct net_device *ndev;
@@ -963,7 +959,7 @@ c4_add_dev (hdw_info_t * hi, int brdno, unsigned long f0, unsigned long f1,
     {
         pr_warning("%s: no memory for struct net_device !\n", hi->devname);
         error_flag = ENOMEM;
-        return 0;
+	return NULL;
     }
     ci = (ci_t *)(netdev_priv(ndev));
     ndev->irq = irq0;
@@ -974,7 +970,7 @@ c4_add_dev (hdw_info_t * hi, int brdno, unsigned long f0, unsigned long f1,
     c4_list = ci;
     ci->brdno = ci->next ? ci->next->brdno + 1 : 0;
 
-    if (CI == 0)
+    if (!CI)
         CI = ci;                    /* DEBUG, only board 0 usage */
 
     strcpy (ci->devname, hi->devname);
@@ -1000,7 +996,7 @@ c4_add_dev (hdw_info_t * hi, int brdno, unsigned long f0, unsigned long f1,
         OS_kfree (netdev_priv(ndev));
         OS_kfree (ndev);
         error_flag = ENODEV;
-        return 0;
+	return NULL;
     }
     /*************************************************************
      *  int request_irq(unsigned int irq,
@@ -1026,7 +1022,7 @@ c4_add_dev (hdw_info_t * hi, int brdno, unsigned long f0, unsigned long f1,
         OS_kfree (netdev_priv(ndev));
         OS_kfree (ndev);
         error_flag = EIO;
-        return 0;
+	return NULL;
     }
 #ifdef CONFIG_SBE_PMCC4_NCOMM
     if (request_irq (irq1, &c4_ebus_interrupt, IRQF_SHARED, ndev->name, ndev))
@@ -1037,7 +1033,7 @@ c4_add_dev (hdw_info_t * hi, int brdno, unsigned long f0, unsigned long f1,
         OS_kfree (netdev_priv(ndev));
         OS_kfree (ndev);
         error_flag = EIO;
-        return 0;
+	return NULL;
     }
 #endif
 
@@ -1095,12 +1091,12 @@ c4_add_dev (hdw_info_t * hi, int brdno, unsigned long f0, unsigned long f1,
         free_irq (irq0, ndev);
         OS_kfree (netdev_priv(ndev));
         OS_kfree (ndev);
-        return 0;                   /* failure, error_flag is set */
+	return NULL;		/* failure, error_flag is set */
     }
     return ndev;
 }
 
-STATIC int  __init
+static int  __init
 c4_mod_init (void)
 {
     int         rtn;
@@ -1142,7 +1138,7 @@ c4_mod_init (void)
   * do_deluser()
   */
 
-STATIC void __exit
+static void __exit
 cleanup_hdlc (void)
 {
     hdw_info_t *hi;
@@ -1166,7 +1162,7 @@ cleanup_hdlc (void)
 }
 
 
-STATIC void __exit
+static void __exit
 c4_mod_remove (void)
 {
 	cleanup_hdlc();            /* delete any missed channels */

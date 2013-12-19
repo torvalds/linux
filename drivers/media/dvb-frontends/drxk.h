@@ -1,13 +1,14 @@
 #ifndef _DRXK_H_
 #define _DRXK_H_
 
+#include <linux/kconfig.h>
 #include <linux/types.h>
 #include <linux/i2c.h>
 
 /**
  * struct drxk_config - Configure the initial parameters for DRX-K
  *
- * @adr:		I2C Address of the DRX-K
+ * @adr:		I2C address of the DRX-K
  * @parallel_ts:	True means that the device uses parallel TS,
  * 			Serial otherwise.
  * @dynamic_clk:	True means that the clock will be dynamically
@@ -52,8 +53,7 @@ struct drxk_config {
 	int		 qam_demod_parameter_count;
 };
 
-#if defined(CONFIG_DVB_DRXK) || (defined(CONFIG_DVB_DRXK_MODULE) \
-        && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_DRXK)
 extern struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 					struct i2c_adapter *i2c);
 #else

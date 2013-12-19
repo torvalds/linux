@@ -5,10 +5,10 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
+#include "bcma_private.h"
+
 #include <linux/platform_device.h>
 #include <linux/bcma/bcma.h>
-
-#include "bcma_private.h"
 
 static struct resource bcma_sflash_resource = {
 	.name	= "bcma_sflash",
@@ -30,18 +30,18 @@ struct bcma_sflash_tbl_e {
 	u16 numblocks;
 };
 
-static struct bcma_sflash_tbl_e bcma_sflash_st_tbl[] = {
+static const struct bcma_sflash_tbl_e bcma_sflash_st_tbl[] = {
 	{ "M25P20", 0x11, 0x10000, 4, },
 	{ "M25P40", 0x12, 0x10000, 8, },
 
 	{ "M25P16", 0x14, 0x10000, 32, },
-	{ "M25P32", 0x14, 0x10000, 64, },
+	{ "M25P32", 0x15, 0x10000, 64, },
 	{ "M25P64", 0x16, 0x10000, 128, },
 	{ "M25FL128", 0x17, 0x10000, 256, },
 	{ 0 },
 };
 
-static struct bcma_sflash_tbl_e bcma_sflash_sst_tbl[] = {
+static const struct bcma_sflash_tbl_e bcma_sflash_sst_tbl[] = {
 	{ "SST25WF512", 1, 0x1000, 16, },
 	{ "SST25VF512", 0x48, 0x1000, 16, },
 	{ "SST25WF010", 2, 0x1000, 32, },
@@ -59,7 +59,7 @@ static struct bcma_sflash_tbl_e bcma_sflash_sst_tbl[] = {
 	{ 0 },
 };
 
-static struct bcma_sflash_tbl_e bcma_sflash_at_tbl[] = {
+static const struct bcma_sflash_tbl_e bcma_sflash_at_tbl[] = {
 	{ "AT45DB011", 0xc, 256, 512, },
 	{ "AT45DB021", 0x14, 256, 1024, },
 	{ "AT45DB041", 0x1c, 256, 2048, },
@@ -89,7 +89,7 @@ int bcma_sflash_init(struct bcma_drv_cc *cc)
 {
 	struct bcma_bus *bus = cc->core->bus;
 	struct bcma_sflash *sflash = &cc->sflash;
-	struct bcma_sflash_tbl_e *e;
+	const struct bcma_sflash_tbl_e *e;
 	u32 id, id2;
 
 	switch (cc->capabilities & BCMA_CC_CAP_FLASHT) {

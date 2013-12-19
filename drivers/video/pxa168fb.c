@@ -364,7 +364,7 @@ static void set_graphics_start(struct fb_info *info, int xoffset, int yoffset)
 static void set_dumb_panel_control(struct fb_info *info)
 {
 	struct pxa168fb_info *fbi = info->par;
-	struct pxa168fb_mach_info *mi = fbi->dev->platform_data;
+	struct pxa168fb_mach_info *mi = dev_get_platdata(fbi->dev);
 	u32 x;
 
 	/*
@@ -407,7 +407,7 @@ static int pxa168fb_set_par(struct fb_info *info)
 	u32 x;
 	struct pxa168fb_mach_info *mi;
 
-	mi = fbi->dev->platform_data;
+	mi = dev_get_platdata(fbi->dev);
 
 	/*
 	 * Set additional mode info.
@@ -560,7 +560,7 @@ static struct fb_ops pxa168fb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-static int __devinit pxa168fb_init_mode(struct fb_info *info,
+static int pxa168fb_init_mode(struct fb_info *info,
 			      struct pxa168fb_mach_info *mi)
 {
 	struct pxa168fb_info *fbi = info->par;
@@ -600,7 +600,7 @@ static int __devinit pxa168fb_init_mode(struct fb_info *info,
 	return ret;
 }
 
-static int __devinit pxa168fb_probe(struct platform_device *pdev)
+static int pxa168fb_probe(struct platform_device *pdev)
 {
 	struct pxa168fb_mach_info *mi;
 	struct fb_info *info = 0;
@@ -609,7 +609,7 @@ static int __devinit pxa168fb_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int irq, ret;
 
-	mi = pdev->dev.platform_data;
+	mi = dev_get_platdata(&pdev->dev);
 	if (mi == NULL) {
 		dev_err(&pdev->dev, "no platform data defined\n");
 		return -EINVAL;
@@ -783,7 +783,7 @@ failed_put_clk:
 	return ret;
 }
 
-static int __devexit pxa168fb_remove(struct platform_device *pdev)
+static int pxa168fb_remove(struct platform_device *pdev)
 {
 	struct pxa168fb_info *fbi = platform_get_drvdata(pdev);
 	struct fb_info *info;
@@ -826,7 +826,7 @@ static struct platform_driver pxa168fb_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pxa168fb_probe,
-	.remove		= __devexit_p(pxa168fb_remove),
+	.remove		= pxa168fb_remove,
 };
 
 module_platform_driver(pxa168fb_driver);

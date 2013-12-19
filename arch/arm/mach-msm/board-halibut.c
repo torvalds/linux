@@ -29,7 +29,6 @@
 #include <asm/setup.h>
 
 #include <mach/irqs.h>
-#include <mach/board.h>
 #include <mach/msm_iomap.h>
 
 #include <linux/mtd/nand.h>
@@ -59,6 +58,8 @@ static struct platform_device smc91x_device = {
 };
 
 static struct platform_device *devices[] __initdata = {
+	&msm_clock_7x01a,
+	&msm_device_gpio_7201,
 	&msm_device_uart3,
 	&msm_device_smd,
 	&msm_device_nand,
@@ -90,7 +91,6 @@ static void __init halibut_fixup(struct tag *tags, char **cmdline,
 static void __init halibut_map_io(void)
 {
 	msm_map_common_io();
-	msm_clock_init(msm_clocks_7x01a, msm_num_clocks_7x01a);
 }
 
 static void __init halibut_init_late(void)
@@ -106,5 +106,5 @@ MACHINE_START(HALIBUT, "Halibut Board (QCT SURF7200A)")
 	.init_irq	= halibut_init_irq,
 	.init_machine	= halibut_init,
 	.init_late	= halibut_init_late,
-	.timer		= &msm7x01_timer,
+	.init_time	= msm7x01_timer_init,
 MACHINE_END

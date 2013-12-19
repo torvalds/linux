@@ -90,9 +90,6 @@ struct tcp_options_received {
 		sack_ok : 4,	/* SACK seen on SYN packet		*/
 		snd_wscale : 4,	/* Window scaling received from sender	*/
 		rcv_wscale : 4;	/* Window scaling to send to receiver	*/
-	u8	cookie_plus:6,	/* bytes in authenticator/cookie option	*/
-		cookie_out_never:1,
-		cookie_in_always:1;
 	u8	num_sacks;	/* Number of SACK blocks		*/
 	u16	user_mss;	/* mss requested by user in ioctl	*/
 	u16	mss_clamp;	/* Maximal mss, negotiated at connection setup */
@@ -102,7 +99,6 @@ static inline void tcp_clear_options(struct tcp_options_received *rx_opt)
 {
 	rx_opt->tstamp_ok = rx_opt->sack_ok = 0;
 	rx_opt->wscale_ok = rx_opt->snd_wscale = 0;
-	rx_opt->cookie_plus = 0;
 }
 
 /* This is the max number of SACKS that we'll generate and process. It's safe
@@ -111,7 +107,6 @@ static inline void tcp_clear_options(struct tcp_options_received *rx_opt)
  * only four options will fit in a standard TCP header */
 #define TCP_NUM_SACKS 4
 
-struct tcp_cookie_values;
 struct tcp_request_sock_ops;
 
 struct tcp_request_sock {
@@ -162,6 +157,8 @@ struct tcp_sock {
 	u32	rcv_tstamp;	/* timestamp of last received ACK (for keepalives) */
 	u32	lsndtime;	/* timestamp of last sent data packet (for restart window) */
 
+	u32	tsoffset;	/* timestamp offset */
+
 	struct list_head tsq_node; /* anchor in tsq_tasklet.head list */
 	unsigned long	tsq_flags;
 
@@ -189,20 +186,19 @@ struct tcp_sock {
 	u32	window_clamp;	/* Maximal window to advertise		*/
 	u32	rcv_ssthresh;	/* Current window clamp			*/
 
-	u32	frto_highmark;	/* snd_nxt when RTO occurred */
 	u16	advmss;		/* Advertised MSS			*/
-	u8	frto_counter;	/* Number of new acks after RTO */
+	u8	unused;
 	u8	nonagle     : 4,/* Disable Nagle algorithm?             */
 		thin_lto    : 1,/* Use linear timeouts for thin streams */
 		thin_dupack : 1,/* Fast retransmit on first dupack      */
 		repair      : 1,
-		unused      : 1;
+		frto        : 1;/* F-RTO (RFC5682) activated in CA_Loss */
 	u8	repair_queue;
 	u8	do_early_retrans:1,/* Enable RFC5827 early-retransmit  */
-		early_retrans_delayed:1, /* Delayed ER timer installed */
 		syn_data:1,	/* SYN includes data */
 		syn_fastopen:1,	/* SYN includes Fast Open option */
 		syn_data_acked:1;/* data in SYN is acked by SYN-ACK */
+	u32	tlp_high_seq;	/* snd_nxt at the time of TLP retransmit. */
 
 /* RTT measurement */
 	u32	srtt;		/* smoothed round trip time << 3	*/
@@ -241,16 +237,15 @@ struct tcp_sock {
 
  	u32	rcv_wnd;	/* Current receiver window		*/
 	u32	write_seq;	/* Tail(+1) of data held in tcp send buffer */
+	u32	notsent_lowat;	/* TCP_NOTSENT_LOWAT */
 	u32	pushed_seq;	/* Last pushed seq, required to talk to windows */
 	u32	lost_out;	/* Lost packets			*/
 	u32	sacked_out;	/* SACK'd packets			*/
 	u32	fackets_out;	/* FACK'd packets			*/
 	u32	tso_deferred;
-	u32	bytes_acked;	/* Appropriate Byte Counting - RFC3465 */
 
 	/* from STCP, retrans queue hinting */
 	struct sk_buff* lost_skb_hint;
-	struct sk_buff *scoreboard_skb_hint;
 	struct sk_buff *retransmit_skb_hint;
 
 	struct sk_buff_head	out_of_order_queue; /* Out of order segments go here */
@@ -319,12 +314,6 @@ struct tcp_sock {
 	struct tcp_md5sig_info	__rcu *md5sig_info;
 #endif
 
-	/* When the cookie options are generated and exchanged, then this
-	 * object holds a reference to them (cookie_values->kref).  Also
-	 * contains related tcp_cookie_transactions fields.
-	 */
-	struct tcp_cookie_values  *cookie_values;
-
 /* TCP fastopen related information */
 	struct tcp_fastopen_request *fastopen_req;
 	/* fastopen_rsk points to request_sock that resulted in this big
@@ -354,15 +343,12 @@ struct tcp_timewait_sock {
 	u32			  tw_rcv_nxt;
 	u32			  tw_snd_nxt;
 	u32			  tw_rcv_wnd;
+	u32			  tw_ts_offset;
 	u32			  tw_ts_recent;
 	long			  tw_ts_recent_stamp;
 #ifdef CONFIG_TCP_MD5SIG
 	struct tcp_md5sig_key	  *tw_md5_key;
 #endif
-	/* Few sockets in timewait have cookies; in that case, then this
-	 * object holds a reference to them (tw_cookie_values->kref).
-	 */
-	struct tcp_cookie_values  *tw_cookie_values;
 };
 
 static inline struct tcp_timewait_sock *tcp_twsk(const struct sock *sk)

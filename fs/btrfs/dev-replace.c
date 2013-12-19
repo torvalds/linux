@@ -26,7 +26,6 @@
 #include <linux/kthread.h>
 #include <linux/math64.h>
 #include <asm/div64.h>
-#include "compat.h"
 #include "ctree.h"
 #include "extent_map.h"
 #include "disk-io.h"
@@ -38,7 +37,6 @@
 #include "rcu-string.h"
 #include "dev-replace.h"
 
-static u64 btrfs_get_seconds_since_1970(void);
 static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 				       int scrub_ret);
 static void btrfs_dev_replace_update_device_in_mapping_tree(
@@ -148,13 +146,13 @@ no_valid_dev_replace_entry_found:
 		    !btrfs_test_opt(dev_root, DEGRADED)) {
 			ret = -EIO;
 			pr_warn("btrfs: cannot mount because device replace operation is ongoing and\n" "srcdev (devid %llu) is missing, need to run 'btrfs dev scan'?\n",
-				(unsigned long long)src_devid);
+				src_devid);
 		}
 		if (!dev_replace->tgtdev &&
 		    !btrfs_test_opt(dev_root, DEGRADED)) {
 			ret = -EIO;
 			pr_warn("btrfs: cannot mount because device replace operation is ongoing and\n" "tgtdev (devid %llu) is missing, need to run btrfs dev scan?\n",
-				(unsigned long long)BTRFS_DEV_REPLACE_DEVID);
+				BTRFS_DEV_REPLACE_DEVID);
 		}
 		if (dev_replace->tgtdev) {
 			if (dev_replace->srcdev) {
@@ -296,13 +294,6 @@ void btrfs_after_dev_replace_commit(struct btrfs_fs_info *fs_info)
 		dev_replace->cursor_left_last_write_of_item;
 }
 
-static u64 btrfs_get_seconds_since_1970(void)
-{
-	struct timespec t = CURRENT_TIME_SEC;
-
-	return t.tv_sec;
-}
-
 int btrfs_dev_replace_start(struct btrfs_root *root,
 			    struct btrfs_ioctl_dev_replace_args *args)
 {
@@ -312,6 +303,11 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	int ret;
 	struct btrfs_device *tgt_device = NULL;
 	struct btrfs_device *src_device = NULL;
+
+	if (btrfs_fs_incompat(fs_info, RAID56)) {
+		pr_warn("btrfs: dev_replace cannot yet handle RAID5/RAID6\n");
+		return -EINVAL;
+	}
 
 	switch (args->start.cont_reading_from_srcdev_mode) {
 	case BTRFS_IOCTL_DEV_REPLACE_CONT_READING_FROM_SRCDEV_MODE_ALWAYS:
@@ -370,7 +366,7 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	dev_replace->tgtdev = tgt_device;
 
 	printk_in_rcu(KERN_INFO
-		      "btrfs: dev_replace from %s (devid %llu) to %s) started\n",
+		      "btrfs: dev_replace from %s (devid %llu) to %s started\n",
 		      src_device->missing ? "<missing disk>" :
 		        rcu_str_deref(src_device->name),
 		      src_device->devid,
@@ -385,7 +381,7 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	 * go to the tgtdev as well (refer to btrfs_map_block()).
 	 */
 	dev_replace->replace_state = BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED;
-	dev_replace->time_started = btrfs_get_seconds_since_1970();
+	dev_replace->time_started = get_seconds();
 	dev_replace->cursor_left = 0;
 	dev_replace->committed_cursor_left = 0;
 	dev_replace->cursor_left_last_write_of_item = 0;
@@ -395,7 +391,7 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	args->result = BTRFS_IOCTL_DEV_REPLACE_RESULT_NO_ERROR;
 	btrfs_dev_replace_unlock(dev_replace);
 
-	btrfs_wait_ordered_extents(root, 0);
+	btrfs_wait_ordered_roots(root->fs_info, -1);
 
 	/* force writing the updated state information to disk */
 	trans = btrfs_start_transaction(root, 0);
@@ -465,8 +461,12 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	 * flush all outstanding I/O and inode extent mappings before the
 	 * copy operation is declared as being finished
 	 */
-	btrfs_start_delalloc_inodes(root, 0);
-	btrfs_wait_ordered_extents(root, 0);
+	ret = btrfs_start_delalloc_roots(root->fs_info, 0);
+	if (ret) {
+		mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
+		return ret;
+	}
+	btrfs_wait_ordered_roots(root->fs_info, -1);
 
 	trans = btrfs_start_transaction(root, 0);
 	if (IS_ERR(trans)) {
@@ -484,7 +484,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 			  : BTRFS_IOCTL_DEV_REPLACE_STATE_FINISHED;
 	dev_replace->tgtdev = NULL;
 	dev_replace->srcdev = NULL;
-	dev_replace->time_stopped = btrfs_get_seconds_since_1970();
+	dev_replace->time_stopped = get_seconds();
 	dev_replace->item_needs_writeback = 1;
 
 	if (scrub_ret) {
@@ -526,10 +526,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	list_add(&tgt_device->dev_alloc_list, &fs_info->fs_devices->alloc_list);
 
 	btrfs_rm_dev_replace_srcdev(fs_info, src_device);
-	if (src_device->bdev) {
-		/* zero out the old super */
-		btrfs_scratch_superblock(src_device);
-	}
+
 	/*
 	 * this is again a consistent state where no dev_replace procedure
 	 * is running, the target device is part of the filesystem, the
@@ -644,6 +641,9 @@ static u64 __btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 	u64 result;
 	int ret;
 
+	if (fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
+
 	mutex_lock(&dev_replace->lock_finishing_cancel_unmount);
 	btrfs_dev_replace_lock(dev_replace);
 	switch (dev_replace->replace_state) {
@@ -662,7 +662,7 @@ static u64 __btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 		break;
 	}
 	dev_replace->replace_state = BTRFS_IOCTL_DEV_REPLACE_STATE_CANCELED;
-	dev_replace->time_stopped = btrfs_get_seconds_since_1970();
+	dev_replace->time_stopped = get_seconds();
 	dev_replace->item_needs_writeback = 1;
 	btrfs_dev_replace_unlock(dev_replace);
 	btrfs_scrub_cancel(fs_info);
@@ -697,7 +697,7 @@ void btrfs_dev_replace_suspend_for_unmount(struct btrfs_fs_info *fs_info)
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED:
 		dev_replace->replace_state =
 			BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED;
-		dev_replace->time_stopped = btrfs_get_seconds_since_1970();
+		dev_replace->time_stopped = get_seconds();
 		dev_replace->item_needs_writeback = 1;
 		pr_info("btrfs: suspending dev_replace for unmount\n");
 		break;
@@ -738,7 +738,7 @@ int btrfs_resume_dev_replace_async(struct btrfs_fs_info *fs_info)
 	WARN_ON(atomic_xchg(
 		&fs_info->mutually_exclusive_operation_running, 1));
 	task = kthread_run(btrfs_dev_replace_kthread, fs_info, "btrfs-devrepl");
-	return PTR_RET(task);
+	return PTR_ERR_OR_ZERO(task);
 }
 
 static int btrfs_dev_replace_kthread(void *data)

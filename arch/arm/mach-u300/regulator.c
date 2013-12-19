@@ -10,11 +10,18 @@
 #include <linux/device.h>
 #include <linux/signal.h>
 #include <linux/err.h>
+#include <linux/of.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/regulator/machine.h>
 #include <linux/regulator/consumer.h>
-/* Those are just for writing in syscon */
-#include <linux/io.h>
-#include <mach/hardware.h>
-#include <mach/syscon.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
+
+/* Power Management Control 16bit (R/W) */
+#define U300_SYSCON_PMCR					(0x50)
+#define U300_SYSCON_PMCR_DCON_ENABLE				(0x0002)
+#define U300_SYSCON_PMCR_PWR_MGNT_ENABLE			(0x0001)
 
 /*
  * Regulators that power the board and chip and which are
@@ -47,13 +54,28 @@ void u300_pm_poweroff(void)
 /*
  * Hog the regulators needed to power up the board.
  */
-static int __init u300_init_boardpower(void)
+static int __init __u300_init_boardpower(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
+	struct device_node *syscon_np;
+	struct regmap *regmap;
 	int err;
-	u32 val;
 
 	pr_info("U300: setting up board power\n");
-	main_power_15 = regulator_get(NULL, "vana15");
+
+	syscon_np = of_parse_phandle(np, "syscon", 0);
+	if (!syscon_np) {
+		pr_crit("U300: no syscon node\n");
+		return -ENODEV;
+	}
+	regmap = syscon_node_to_regmap(syscon_np);
+	if (!regmap) {
+		pr_crit("U300: could not locate syscon regmap\n");
+		return -ENODEV;
+	}
+
+	main_power_15 = regulator_get(&pdev->dev, "vana15");
+
 	if (IS_ERR(main_power_15)) {
 		pr_err("could not get vana15");
 		return PTR_ERR(main_power_15);
@@ -72,9 +94,8 @@ static int __init u300_init_boardpower(void)
 	 * the rest of the U300 power management is implemented.
 	 */
 	pr_info("U300: disable system controller pull-up\n");
-	val = readw(U300_SYSCON_VBASE + U300_SYSCON_PMCR);
-	val &= ~U300_SYSCON_PMCR_DCON_ENABLE;
-	writew(val, U300_SYSCON_VBASE + U300_SYSCON_PMCR);
+	regmap_update_bits(regmap, U300_SYSCON_PMCR,
+			   U300_SYSCON_PMCR_DCON_ENABLE, 0);
 
 	/* Register globally exported PM poweroff hook */
 	pm_power_off = u300_pm_poweroff;
@@ -82,7 +103,31 @@ static int __init u300_init_boardpower(void)
 	return 0;
 }
 
+static int __init s365_board_probe(struct platform_device *pdev)
+{
+	return __u300_init_boardpower(pdev);
+}
+
+static const struct of_device_id s365_board_match[] = {
+	{ .compatible = "stericsson,s365" },
+	{},
+};
+
+static struct platform_driver s365_board_driver = {
+	.driver		= {
+		.name   = "s365-board",
+		.owner  = THIS_MODULE,
+		.of_match_table = s365_board_match,
+	},
+};
+
 /*
  * So at module init time we hog the regulator!
  */
-module_init(u300_init_boardpower);
+static int __init u300_init_boardpower(void)
+{
+	return platform_driver_probe(&s365_board_driver,
+				     s365_board_probe);
+}
+
+device_initcall(u300_init_boardpower);

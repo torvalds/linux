@@ -10,12 +10,14 @@
  */
 
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/memblock.h>
 #include <linux/vmalloc.h>
 #include <linux/memory.h>
 
 #include <asm/firmware.h>
 #include <asm/machdep.h>
+#include <asm/prom.h>
 #include <asm/sparsemem.h>
 
 static unsigned long get_memblock_size(void)
@@ -72,6 +74,7 @@ unsigned long memory_block_size_bytes(void)
 	return get_memblock_size();
 }
 
+#ifdef CONFIG_MEMORY_HOTREMOVE
 static int pseries_remove_memblock(unsigned long base, unsigned int memblock_size)
 {
 	unsigned long start, start_pfn;
@@ -153,6 +156,17 @@ static int pseries_remove_memory(struct device_node *np)
 	ret = pseries_remove_memblock(base, lmb_size);
 	return ret;
 }
+#else
+static inline int pseries_remove_memblock(unsigned long base,
+					  unsigned int memblock_size)
+{
+	return -EOPNOTSUPP;
+}
+static inline int pseries_remove_memory(struct device_node *np)
+{
+	return -EOPNOTSUPP;
+}
+#endif /* CONFIG_MEMORY_HOTREMOVE */
 
 static int pseries_add_memory(struct device_node *np)
 {

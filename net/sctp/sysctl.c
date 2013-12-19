@@ -25,10 +25,7 @@
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    Mingqin Liu           <liuming@us.ibm.com>
@@ -36,9 +33,6 @@
  *    Ardelle Fan           <ardelle.fan@intel.com>
  *    Ryan Layer            <rmlayer@us.ibm.com>
  *    Sridhar Samudrala     <sri@us.ibm.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #include <net/sctp/structs.h>
@@ -62,12 +56,17 @@ extern long sysctl_sctp_mem[3];
 extern int sysctl_sctp_rmem[3];
 extern int sysctl_sctp_wmem[3];
 
-static int proc_sctp_do_hmac_alg(ctl_table *ctl,
-				int write,
+static int proc_sctp_do_hmac_alg(struct ctl_table *ctl, int write,
 				void __user *buffer, size_t *lenp,
-
 				loff_t *ppos);
-static ctl_table sctp_table[] = {
+static int proc_sctp_do_rto_min(struct ctl_table *ctl, int write,
+				void __user *buffer, size_t *lenp,
+				loff_t *ppos);
+static int proc_sctp_do_rto_max(struct ctl_table *ctl, int write,
+				void __user *buffer, size_t *lenp,
+				loff_t *ppos);
+
+static struct ctl_table sctp_table[] = {
 	{
 		.procname	= "sctp_mem",
 		.data		= &sysctl_sctp_mem,
@@ -93,7 +92,7 @@ static ctl_table sctp_table[] = {
 	{ /* sentinel */ }
 };
 
-static ctl_table sctp_net_table[] = {
+static struct ctl_table sctp_net_table[] = {
 	{
 		.procname	= "rto_initial",
 		.data		= &init_net.sctp.rto_initial,
@@ -108,17 +107,17 @@ static ctl_table sctp_net_table[] = {
 		.data		= &init_net.sctp.rto_min,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_sctp_do_rto_min,
 		.extra1         = &one,
-		.extra2         = &timer_max
+		.extra2         = &init_net.sctp.rto_max
 	},
 	{
 		.procname	= "rto_max",
 		.data		= &init_net.sctp.rto_max,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1         = &one,
+		.proc_handler	= proc_sctp_do_rto_max,
+		.extra1         = &init_net.sctp.rto_min,
 		.extra2         = &timer_max
 	},
 	{
@@ -300,14 +299,13 @@ static ctl_table sctp_net_table[] = {
 	{ /* sentinel */ }
 };
 
-static int proc_sctp_do_hmac_alg(ctl_table *ctl,
-				int write,
+static int proc_sctp_do_hmac_alg(struct ctl_table *ctl, int write,
 				void __user *buffer, size_t *lenp,
 				loff_t *ppos)
 {
 	struct net *net = current->nsproxy->net_ns;
 	char tmp[8];
-	ctl_table tbl;
+	struct ctl_table tbl;
 	int ret;
 	int changed = 0;
 	char *none = "none";
@@ -348,6 +346,60 @@ static int proc_sctp_do_hmac_alg(ctl_table *ctl,
 	return ret;
 }
 
+static int proc_sctp_do_rto_min(struct ctl_table *ctl, int write,
+				void __user *buffer, size_t *lenp,
+				loff_t *ppos)
+{
+	struct net *net = current->nsproxy->net_ns;
+	int new_value;
+	struct ctl_table tbl;
+	unsigned int min = *(unsigned int *) ctl->extra1;
+	unsigned int max = *(unsigned int *) ctl->extra2;
+	int ret;
+
+	memset(&tbl, 0, sizeof(struct ctl_table));
+	tbl.maxlen = sizeof(unsigned int);
+
+	if (write)
+		tbl.data = &new_value;
+	else
+		tbl.data = &net->sctp.rto_min;
+	ret = proc_dointvec(&tbl, write, buffer, lenp, ppos);
+	if (write) {
+		if (ret || new_value > max || new_value < min)
+			return -EINVAL;
+		net->sctp.rto_min = new_value;
+	}
+	return ret;
+}
+
+static int proc_sctp_do_rto_max(struct ctl_table *ctl, int write,
+				void __user *buffer, size_t *lenp,
+				loff_t *ppos)
+{
+	struct net *net = current->nsproxy->net_ns;
+	int new_value;
+	struct ctl_table tbl;
+	unsigned int min = *(unsigned int *) ctl->extra1;
+	unsigned int max = *(unsigned int *) ctl->extra2;
+	int ret;
+
+	memset(&tbl, 0, sizeof(struct ctl_table));
+	tbl.maxlen = sizeof(unsigned int);
+
+	if (write)
+		tbl.data = &new_value;
+	else
+		tbl.data = &net->sctp.rto_max;
+	ret = proc_dointvec(&tbl, write, buffer, lenp, ppos);
+	if (write) {
+		if (ret || new_value > max || new_value < min)
+			return -EINVAL;
+		net->sctp.rto_max = new_value;
+	}
+	return ret;
+}
+
 int sctp_sysctl_net_register(struct net *net)
 {
 	struct ctl_table *table;
@@ -366,7 +418,11 @@ int sctp_sysctl_net_register(struct net *net)
 
 void sctp_sysctl_net_unregister(struct net *net)
 {
+	struct ctl_table *table;
+
+	table = net->sctp.sysctl_header->ctl_table_arg;
 	unregister_net_sysctl_table(net->sctp.sysctl_header);
+	kfree(table);
 }
 
 static struct ctl_table_header * sctp_sysctl_header;

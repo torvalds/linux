@@ -14,23 +14,26 @@
 
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/irqchip/bcm2835.h>
+#include <linux/irqchip.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
-#include <linux/bcm2835_timer.h>
 #include <linux/clk/bcm2835.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/bcm2835_soc.h>
-
 #define PM_RSTC				0x1c
+#define PM_RSTS				0x20
 #define PM_WDOG				0x24
 
 #define PM_PASSWORD			0x5a000000
 #define PM_RSTC_WRCFG_MASK		0x00000030
 #define PM_RSTC_WRCFG_FULL_RESET	0x00000020
+#define PM_RSTS_HADWRH_SET		0x00000040
+
+#define BCM2835_PERIPH_PHYS	0x20000000
+#define BCM2835_PERIPH_VIRT	0xf0000000
+#define BCM2835_PERIPH_SIZE	SZ_16M
 
 static void __iomem *wdt_regs;
 
@@ -49,7 +52,7 @@ static void bcm2835_setup_restart(void)
 	WARN(!wdt_regs, "failed to remap watchdog regs");
 }
 
-static void bcm2835_restart(char mode, const char *cmd)
+static void bcm2835_restart(enum reboot_mode mode, const char *cmd)
 {
 	u32 val;
 
@@ -65,6 +68,29 @@ static void bcm2835_restart(char mode, const char *cmd)
 
 	/* No sleeping, possibly atomic. */
 	mdelay(1);
+}
+
+/*
+ * We can't really power off, but if we do the normal reset scheme, and
+ * indicate to bootcode.bin not to reboot, then most of the chip will be
+ * powered off.
+ */
+static void bcm2835_power_off(void)
+{
+	u32 val;
+
+	/*
+	 * We set the watchdog hard reset bit here to distinguish this reset
+	 * from the normal (full) reset. bootcode.bin will not reboot after a
+	 * hard reset.
+	 */
+	val = readl_relaxed(wdt_regs + PM_RSTS);
+	val &= ~PM_RSTC_WRCFG_MASK;
+	val |= PM_PASSWORD | PM_RSTS_HADWRH_SET;
+	writel_relaxed(val, wdt_regs + PM_RSTS);
+
+	/* Continue with normal reset mechanism */
+	bcm2835_restart(REBOOT_HARD, "");
 }
 
 static struct map_desc io_map __initdata = {
@@ -84,6 +110,9 @@ static void __init bcm2835_init(void)
 	int ret;
 
 	bcm2835_setup_restart();
+	if (wdt_regs)
+		pm_power_off = bcm2835_power_off;
+
 	bcm2835_init_clocks();
 
 	ret = of_platform_populate(NULL, of_default_bus_match_table, NULL,
@@ -101,10 +130,8 @@ static const char * const bcm2835_compat[] = {
 
 DT_MACHINE_START(BCM2835, "BCM2835")
 	.map_io = bcm2835_map_io,
-	.init_irq = bcm2835_init_irq,
-	.handle_irq = bcm2835_handle_irq,
+	.init_irq = irqchip_init,
 	.init_machine = bcm2835_init,
-	.timer = &bcm2835_timer,
 	.restart = bcm2835_restart,
 	.dt_compat = bcm2835_compat
 MACHINE_END

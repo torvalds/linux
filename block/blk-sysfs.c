@@ -7,6 +7,7 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/blktrace_api.h>
+#include <linux/blk-mq.h>
 
 #include "blk.h"
 #include "blk-cgroup.h"
@@ -29,7 +30,7 @@ queue_var_store(unsigned long *var, const char *page, size_t count)
 	int err;
 	unsigned long v;
 
-	err = strict_strtoul(page, 10, &v);
+	err = kstrtoul(page, 10, &v);
 	if (err || v > UINT_MAX)
 		return -EINVAL;
 
@@ -229,6 +230,8 @@ queue_store_##name(struct request_queue *q, const char *page, size_t count) \
 	unsigned long val;						\
 	ssize_t ret;							\
 	ret = queue_var_store(&val, page, count);			\
+	if (ret < 0)							\
+		 return ret;						\
 	if (neg)							\
 		val = !val;						\
 									\
@@ -285,7 +288,7 @@ static ssize_t
 queue_rq_affinity_store(struct request_queue *q, const char *page, size_t count)
 {
 	ssize_t ret = -EINVAL;
-#if defined(CONFIG_USE_GENERIC_SMP_HELPERS)
+#ifdef CONFIG_SMP
 	unsigned long val;
 
 	ret = queue_var_store(&val, page, count);
@@ -497,6 +500,13 @@ queue_attr_store(struct kobject *kobj, struct attribute *attr,
 	return res;
 }
 
+static void blk_free_queue_rcu(struct rcu_head *rcu_head)
+{
+	struct request_queue *q = container_of(rcu_head, struct request_queue,
+					       rcu_head);
+	kmem_cache_free(blk_requestq_cachep, q);
+}
+
 /**
  * blk_release_queue: - release a &struct request_queue when it is no longer needed
  * @kobj:    the kobj belonging to the request queue to be released
@@ -533,12 +543,17 @@ static void blk_release_queue(struct kobject *kobj)
 	if (q->queue_tags)
 		__blk_queue_free_tags(q);
 
+	percpu_counter_destroy(&q->mq_usage_counter);
+
+	if (q->mq_ops)
+		blk_mq_free_queue(q);
+
 	blk_trace_shutdown(q);
 
 	bdi_destroy(&q->backing_dev_info);
 
 	ida_simple_remove(&blk_queue_ida, q->id);
-	kmem_cache_free(blk_requestq_cachep, q);
+	call_rcu(&q->rcu_head, blk_free_queue_rcu);
 }
 
 static const struct sysfs_ops queue_sysfs_ops = {
@@ -566,6 +581,7 @@ int blk_register_queue(struct gendisk *disk)
 	 * bypass from queue allocation.
 	 */
 	blk_queue_bypass_end(q);
+	queue_flag_set_unlocked(QUEUE_FLAG_INIT_DONE, q);
 
 	ret = blk_trace_init_sysfs(dev);
 	if (ret)
@@ -578,6 +594,9 @@ int blk_register_queue(struct gendisk *disk)
 	}
 
 	kobject_uevent(&q->kobj, KOBJ_ADD);
+
+	if (q->mq_ops)
+		blk_mq_register_disk(disk);
 
 	if (!q->request_fn)
 		return 0;
@@ -600,6 +619,9 @@ void blk_unregister_queue(struct gendisk *disk)
 
 	if (WARN_ON(!q))
 		return;
+
+	if (q->mq_ops)
+		blk_mq_unregister_disk(disk);
 
 	if (q->request_fn)
 		elv_unregister_queue(q);

@@ -118,7 +118,6 @@ void ext2_free_inode (struct inode * inode)
 	 * as writing the quota to disk may need the lock as well.
 	 */
 	/* Quota is already initialized in iput() */
-	ext2_xattr_delete_inode(inode);
 	dquot_free_inode(inode);
 	dquot_drop(inode);
 

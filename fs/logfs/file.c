@@ -159,7 +159,8 @@ static int logfs_writepage(struct page *page, struct writeback_control *wbc)
 	return __logfs_writepage(page);
 }
 
-static void logfs_invalidatepage(struct page *page, unsigned long offset)
+static void logfs_invalidatepage(struct page *page, unsigned int offset,
+				 unsigned int length)
 {
 	struct logfs_block *block = logfs_block(page);
 
@@ -183,7 +184,7 @@ static int logfs_releasepage(struct page *page, gfp_t only_xfs_uses_this)
 
 long logfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct logfs_inode *li = logfs_inode(inode);
 	unsigned int oldflags, flags;
 	int err;

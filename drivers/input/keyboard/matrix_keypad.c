@@ -403,7 +403,7 @@ matrix_keypad_parse_dt(struct device *dev)
 	struct matrix_keypad_platform_data *pdata;
 	struct device_node *np = dev->of_node;
 	unsigned int *gpios;
-	int i;
+	int i, nrow, ncol;
 
 	if (!np) {
 		dev_err(dev, "device lacks DT data\n");
@@ -416,9 +416,9 @@ matrix_keypad_parse_dt(struct device *dev)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	pdata->num_row_gpios = of_gpio_named_count(np, "row-gpios");
-	pdata->num_col_gpios = of_gpio_named_count(np, "col-gpios");
-	if (!pdata->num_row_gpios || !pdata->num_col_gpios) {
+	pdata->num_row_gpios = nrow = of_gpio_named_count(np, "row-gpios");
+	pdata->num_col_gpios = ncol = of_gpio_named_count(np, "col-gpios");
+	if (nrow <= 0 || ncol <= 0) {
 		dev_err(dev, "number of keypad rows/columns not specified\n");
 		return ERR_PTR(-EINVAL);
 	}
@@ -548,8 +548,6 @@ static int matrix_keypad_remove(struct platform_device *pdev)
 	matrix_keypad_free_gpio(keypad);
 	input_unregister_device(keypad->input_dev);
 	kfree(keypad);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

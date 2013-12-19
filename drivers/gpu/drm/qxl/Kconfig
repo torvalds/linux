@@ -1,0 +1,12 @@
+config DRM_QXL
+	tristate "QXL virtual GPU"
+	depends on DRM && PCI
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_DEFERRED_IO
+        select DRM_KMS_HELPER
+	select DRM_KMS_FB_HELPER
+        select DRM_TTM
+	help
+		QXL virtual GPU for Spice virtualization desktop integration. Do not enable this driver unless your distro ships a corresponding X.org QXL driver that can handle kernel modesetting.

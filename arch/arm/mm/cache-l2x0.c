@@ -290,7 +290,7 @@ static void l2x0_disable(void)
 	raw_spin_lock_irqsave(&l2x0_lock, flags);
 	__l2x0_flush_all();
 	writel_relaxed(0, l2x0_base + L2X0_CTRL);
-	dsb();
+	dsb(st);
 	raw_spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
@@ -299,7 +299,7 @@ static void l2x0_unlock(u32 cache_id)
 	int lockregs;
 	int i;
 
-	switch (cache_id) {
+	switch (cache_id & L2X0_CACHE_ID_PART_MASK) {
 	case L2X0_CACHE_ID_PART_L310:
 		lockregs = 8;
 		break;
@@ -333,15 +333,14 @@ void __init l2x0_init(void __iomem *base, u32 aux_val, u32 aux_mask)
 	if (cache_id_part_number_from_dt)
 		cache_id = cache_id_part_number_from_dt;
 	else
-		cache_id = readl_relaxed(l2x0_base + L2X0_CACHE_ID)
-			& L2X0_CACHE_ID_PART_MASK;
+		cache_id = readl_relaxed(l2x0_base + L2X0_CACHE_ID);
 	aux = readl_relaxed(l2x0_base + L2X0_AUX_CTRL);
 
 	aux &= aux_mask;
 	aux |= aux_val;
 
 	/* Determine the number of ways */
-	switch (cache_id) {
+	switch (cache_id & L2X0_CACHE_ID_PART_MASK) {
 	case L2X0_CACHE_ID_PART_L310:
 		if (aux & (1 << 16))
 			ways = 16;
@@ -352,7 +351,8 @@ void __init l2x0_init(void __iomem *base, u32 aux_val, u32 aux_mask)
 		/* Unmapped register. */
 		sync_reg_offset = L2X0_DUMMY_REG;
 #endif
-		outer_cache.set_debug = pl310_set_debug;
+		if ((cache_id & L2X0_CACHE_ID_RTL_MASK) <= L2X0_CACHE_ID_RTL_R3P0)
+			outer_cache.set_debug = pl310_set_debug;
 		break;
 	case L2X0_CACHE_ID_PART_L210:
 		ways = (aux >> 13) & 0xf;
@@ -417,9 +417,9 @@ void __init l2x0_init(void __iomem *base, u32 aux_val, u32 aux_mask)
 		outer_cache.disable = l2x0_disable;
 	}
 
-	printk(KERN_INFO "%s cache controller enabled\n", type);
-	printk(KERN_INFO "l2x0: %d ways, CACHE_ID 0x%08x, AUX_CTRL 0x%08x, Cache size: %d B\n",
-			ways, cache_id, aux, l2x0_size);
+	pr_info("%s cache controller enabled\n", type);
+	pr_info("l2x0: %d ways, CACHE_ID 0x%08x, AUX_CTRL 0x%08x, Cache size: %d kB\n",
+		ways, cache_id, aux, l2x0_size >> 10);
 }
 
 #ifdef CONFIG_OF
@@ -459,8 +459,8 @@ static void aurora_pa_range(unsigned long start, unsigned long end,
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&l2x0_lock, flags);
-	writel(start, l2x0_base + AURORA_RANGE_BASE_ADDR_REG);
-	writel(end, l2x0_base + offset);
+	writel_relaxed(start, l2x0_base + AURORA_RANGE_BASE_ADDR_REG);
+	writel_relaxed(end, l2x0_base + offset);
 	raw_spin_unlock_irqrestore(&l2x0_lock, flags);
 
 	cache_sync();
@@ -505,16 +505,163 @@ static void aurora_clean_range(unsigned long start, unsigned long end)
 
 static void aurora_flush_range(unsigned long start, unsigned long end)
 {
-	if (!l2_wt_override) {
-		start &= ~(CACHE_LINE_SIZE - 1);
-		end = ALIGN(end, CACHE_LINE_SIZE);
-		while (start != end) {
-			unsigned long range_end = calc_range_end(start, end);
+	start &= ~(CACHE_LINE_SIZE - 1);
+	end = ALIGN(end, CACHE_LINE_SIZE);
+	while (start != end) {
+		unsigned long range_end = calc_range_end(start, end);
+		/*
+		 * If L2 is forced to WT, the L2 will always be clean and we
+		 * just need to invalidate.
+		 */
+		if (l2_wt_override)
 			aurora_pa_range(start, range_end - CACHE_LINE_SIZE,
-					AURORA_FLUSH_RANGE_REG);
-			start = range_end;
-		}
+							AURORA_INVAL_RANGE_REG);
+		else
+			aurora_pa_range(start, range_end - CACHE_LINE_SIZE,
+							AURORA_FLUSH_RANGE_REG);
+		start = range_end;
 	}
+}
+
+/*
+ * For certain Broadcom SoCs, depending on the address range, different offsets
+ * need to be added to the address before passing it to L2 for
+ * invalidation/clean/flush
+ *
+ * Section Address Range              Offset        EMI
+ *   1     0x00000000 - 0x3FFFFFFF    0x80000000    VC
+ *   2     0x40000000 - 0xBFFFFFFF    0x40000000    SYS
+ *   3     0xC0000000 - 0xFFFFFFFF    0x80000000    VC
+ *
+ * When the start and end addresses have crossed two different sections, we
+ * need to break the L2 operation into two, each within its own section.
+ * For example, if we need to invalidate addresses starts at 0xBFFF0000 and
+ * ends at 0xC0001000, we need do invalidate 1) 0xBFFF0000 - 0xBFFFFFFF and 2)
+ * 0xC0000000 - 0xC0001000
+ *
+ * Note 1:
+ * By breaking a single L2 operation into two, we may potentially suffer some
+ * performance hit, but keep in mind the cross section case is very rare
+ *
+ * Note 2:
+ * We do not need to handle the case when the start address is in
+ * Section 1 and the end address is in Section 3, since it is not a valid use
+ * case
+ *
+ * Note 3:
+ * Section 1 in practical terms can no longer be used on rev A2. Because of
+ * that the code does not need to handle section 1 at all.
+ *
+ */
+#define BCM_SYS_EMI_START_ADDR        0x40000000UL
+#define BCM_VC_EMI_SEC3_START_ADDR    0xC0000000UL
+
+#define BCM_SYS_EMI_OFFSET            0x40000000UL
+#define BCM_VC_EMI_OFFSET             0x80000000UL
+
+static inline int bcm_addr_is_sys_emi(unsigned long addr)
+{
+	return (addr >= BCM_SYS_EMI_START_ADDR) &&
+		(addr < BCM_VC_EMI_SEC3_START_ADDR);
+}
+
+static inline unsigned long bcm_l2_phys_addr(unsigned long addr)
+{
+	if (bcm_addr_is_sys_emi(addr))
+		return addr + BCM_SYS_EMI_OFFSET;
+	else
+		return addr + BCM_VC_EMI_OFFSET;
+}
+
+static void bcm_inv_range(unsigned long start, unsigned long end)
+{
+	unsigned long new_start, new_end;
+
+	BUG_ON(start < BCM_SYS_EMI_START_ADDR);
+
+	if (unlikely(end <= start))
+		return;
+
+	new_start = bcm_l2_phys_addr(start);
+	new_end = bcm_l2_phys_addr(end);
+
+	/* normal case, no cross section between start and end */
+	if (likely(bcm_addr_is_sys_emi(end) || !bcm_addr_is_sys_emi(start))) {
+		l2x0_inv_range(new_start, new_end);
+		return;
+	}
+
+	/* They cross sections, so it can only be a cross from section
+	 * 2 to section 3
+	 */
+	l2x0_inv_range(new_start,
+		bcm_l2_phys_addr(BCM_VC_EMI_SEC3_START_ADDR-1));
+	l2x0_inv_range(bcm_l2_phys_addr(BCM_VC_EMI_SEC3_START_ADDR),
+		new_end);
+}
+
+static void bcm_clean_range(unsigned long start, unsigned long end)
+{
+	unsigned long new_start, new_end;
+
+	BUG_ON(start < BCM_SYS_EMI_START_ADDR);
+
+	if (unlikely(end <= start))
+		return;
+
+	if ((end - start) >= l2x0_size) {
+		l2x0_clean_all();
+		return;
+	}
+
+	new_start = bcm_l2_phys_addr(start);
+	new_end = bcm_l2_phys_addr(end);
+
+	/* normal case, no cross section between start and end */
+	if (likely(bcm_addr_is_sys_emi(end) || !bcm_addr_is_sys_emi(start))) {
+		l2x0_clean_range(new_start, new_end);
+		return;
+	}
+
+	/* They cross sections, so it can only be a cross from section
+	 * 2 to section 3
+	 */
+	l2x0_clean_range(new_start,
+		bcm_l2_phys_addr(BCM_VC_EMI_SEC3_START_ADDR-1));
+	l2x0_clean_range(bcm_l2_phys_addr(BCM_VC_EMI_SEC3_START_ADDR),
+		new_end);
+}
+
+static void bcm_flush_range(unsigned long start, unsigned long end)
+{
+	unsigned long new_start, new_end;
+
+	BUG_ON(start < BCM_SYS_EMI_START_ADDR);
+
+	if (unlikely(end <= start))
+		return;
+
+	if ((end - start) >= l2x0_size) {
+		l2x0_flush_all();
+		return;
+	}
+
+	new_start = bcm_l2_phys_addr(start);
+	new_end = bcm_l2_phys_addr(end);
+
+	/* normal case, no cross section between start and end */
+	if (likely(bcm_addr_is_sys_emi(end) || !bcm_addr_is_sys_emi(start))) {
+		l2x0_flush_range(new_start, new_end);
+		return;
+	}
+
+	/* They cross sections, so it can only be a cross from section
+	 * 2 to section 3
+	 */
+	l2x0_flush_range(new_start,
+		bcm_l2_phys_addr(BCM_VC_EMI_SEC3_START_ADDR-1));
+	l2x0_flush_range(bcm_l2_phys_addr(BCM_VC_EMI_SEC3_START_ADDR),
+		new_end);
 }
 
 static void __init l2x0_of_setup(const struct device_node *np,
@@ -668,8 +815,9 @@ static void pl310_resume(void)
 static void aurora_resume(void)
 {
 	if (!(readl(l2x0_base + L2X0_CTRL) & L2X0_CTRL_EN)) {
-		writel(l2x0_saved_regs.aux_ctrl, l2x0_base + L2X0_AUX_CTRL);
-		writel(l2x0_saved_regs.ctrl, l2x0_base + L2X0_CTRL);
+		writel_relaxed(l2x0_saved_regs.aux_ctrl,
+				l2x0_base + L2X0_AUX_CTRL);
+		writel_relaxed(l2x0_saved_regs.ctrl, l2x0_base + L2X0_CTRL);
 	}
 }
 
@@ -717,7 +865,6 @@ static const struct l2x0_of_data pl310_data = {
 		.flush_all   = l2x0_flush_all,
 		.inv_all     = l2x0_inv_all,
 		.disable     = l2x0_disable,
-		.set_debug   = pl310_set_debug,
 	},
 };
 
@@ -759,6 +906,21 @@ static const struct l2x0_of_data aurora_no_outer_data = {
 	},
 };
 
+static const struct l2x0_of_data bcm_l2x0_data = {
+	.setup = pl310_of_setup,
+	.save  = pl310_save,
+	.outer_cache = {
+		.resume      = pl310_resume,
+		.inv_range   = bcm_inv_range,
+		.clean_range = bcm_clean_range,
+		.flush_range = bcm_flush_range,
+		.sync        = l2x0_cache_sync,
+		.flush_all   = l2x0_flush_all,
+		.inv_all     = l2x0_inv_all,
+		.disable     = l2x0_disable,
+	},
+};
+
 static const struct of_device_id l2x0_ids[] __initconst = {
 	{ .compatible = "arm,pl310-cache", .data = (void *)&pl310_data },
 	{ .compatible = "arm,l220-cache", .data = (void *)&l2x0_data },
@@ -767,6 +929,10 @@ static const struct of_device_id l2x0_ids[] __initconst = {
 	  .data = (void *)&aurora_no_outer_data},
 	{ .compatible = "marvell,aurora-outer-cache",
 	  .data = (void *)&aurora_with_outer_data},
+	{ .compatible = "brcm,bcm11351-a2-pl310-cache",
+	  .data = (void *)&bcm_l2x0_data},
+	{ .compatible = "bcm,bcm11351-a2-pl310-cache", /* deprecated name */
+	  .data = (void *)&bcm_l2x0_data},
 	{}
 };
 
@@ -806,9 +972,8 @@ int __init l2x0_of_init(u32 aux_val, u32 aux_mask)
 		data->save();
 
 	of_init = true;
-	l2x0_init(l2x0_base, aux_val, aux_mask);
-
 	memcpy(&outer_cache, &data->outer_cache, sizeof(outer_cache));
+	l2x0_init(l2x0_base, aux_val, aux_mask);
 
 	return 0;
 }

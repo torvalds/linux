@@ -82,12 +82,14 @@
 #define PS_CALLINC_SHIFT	16
 #define PS_CALLINC_MASK		0x00030000
 #define PS_OWB_SHIFT		8
+#define PS_OWB_WIDTH		4
 #define PS_OWB_MASK		0x00000F00
 #define PS_RING_SHIFT		6
 #define PS_RING_MASK		0x000000C0
 #define PS_UM_BIT		5
 #define PS_EXCM_BIT		4
 #define PS_INTLEVEL_SHIFT	0
+#define PS_INTLEVEL_WIDTH	4
 #define PS_INTLEVEL_MASK	0x0000000F
 
 /*  DBREAKCn register fields.  */

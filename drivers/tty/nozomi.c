@@ -791,7 +791,6 @@ static int send_data(enum port_type index, struct nozomi *dc)
 	const u8 toggle = port->toggle_ul;
 	void __iomem *addr = port->ul_addr[toggle];
 	const u32 ul_size = port->ul_size[toggle];
-	struct tty_struct *tty = tty_port_tty_get(&port->port);
 
 	/* Get data from tty and place in buf for now */
 	size = kfifo_out(&port->fifo_ul, dc->send_buf,
@@ -799,7 +798,6 @@ static int send_data(enum port_type index, struct nozomi *dc)
 
 	if (size == 0) {
 		DBG4("No more data to send, disable link:");
-		tty_kref_put(tty);
 		return 0;
 	}
 
@@ -809,10 +807,8 @@ static int send_data(enum port_type index, struct nozomi *dc)
 	write_mem32(addr, (u32 *) &size, 4);
 	write_mem32(addr + 4, (u32 *) dc->send_buf, size);
 
-	if (tty)
-		tty_wakeup(tty);
+	tty_port_tty_wakeup(&port->port);
 
-	tty_kref_put(tty);
 	return 1;
 }
 
@@ -827,15 +823,10 @@ static int receive_data(enum port_type index, struct nozomi *dc)
 	struct tty_struct *tty = tty_port_tty_get(&port->port);
 	int i, ret;
 
-	if (unlikely(!tty)) {
-		DBG1("tty not open for port: %d?", index);
-		return 1;
-	}
-
 	read_mem32((u32 *) &size, addr, 4);
 	/*  DBG1( "%d bytes port: %d", size, index); */
 
-	if (test_bit(TTY_THROTTLED, &tty->flags)) {
+	if (tty && test_bit(TTY_THROTTLED, &tty->flags)) {
 		DBG1("No room in tty, don't read data, don't ack interrupt, "
 			"disable interrupt");
 
@@ -855,13 +846,14 @@ static int receive_data(enum port_type index, struct nozomi *dc)
 		read_mem32((u32 *) buf, addr + offset, RECEIVE_BUF_MAX);
 
 		if (size == 1) {
-			tty_insert_flip_char(tty, buf[0], TTY_NORMAL);
+			tty_insert_flip_char(&port->port, buf[0], TTY_NORMAL);
 			size = 0;
 		} else if (size < RECEIVE_BUF_MAX) {
-			size -= tty_insert_flip_string(tty, (char *) buf, size);
+			size -= tty_insert_flip_string(&port->port,
+					(char *)buf, size);
 		} else {
-			i = tty_insert_flip_string(tty, \
-						(char *) buf, RECEIVE_BUF_MAX);
+			i = tty_insert_flip_string(&port->port,
+					(char *)buf, RECEIVE_BUF_MAX);
 			size -= i;
 			offset += i;
 		}
@@ -967,7 +959,7 @@ static int receive_flow_control(struct nozomi *dc)
 		dev_err(&dc->pdev->dev,
 			"ERROR: flow control received for non-existing port\n");
 		return 0;
-	};
+	}
 
 	DBG1("0x%04X->0x%04X", *((u16 *)&dc->port[port].ctrl_dl),
 	   *((u16 *)&ctrl_dl));
@@ -1033,7 +1025,7 @@ static enum ctrl_port_type port2ctrl(enum port_type port,
 		dev_err(&dc->pdev->dev,
 			"ERROR: send flow control " \
 			"received for non-existing port\n");
-	};
+	}
 	return CTRL_ERROR;
 }
 
@@ -1276,15 +1268,11 @@ static irqreturn_t interrupt_handler(int irq, void *dev_id)
 
 exit_handler:
 	spin_unlock(&dc->spin_mutex);
-	for (a = 0; a < NOZOMI_MAX_PORTS; a++) {
-		struct tty_struct *tty;
-		if (test_and_clear_bit(a, &dc->flip)) {
-			tty = tty_port_tty_get(&dc->port[a].port);
-			if (tty)
-				tty_flip_buffer_push(tty);
-			tty_kref_put(tty);
-		}
-	}
+
+	for (a = 0; a < NOZOMI_MAX_PORTS; a++)
+		if (test_and_clear_bit(a, &dc->flip))
+			tty_flip_buffer_push(&dc->port[a].port);
+
 	return IRQ_HANDLED;
 none:
 	spin_unlock(&dc->spin_mutex);
@@ -1513,12 +1501,9 @@ static void tty_exit(struct nozomi *dc)
 
 	DBG1(" ");
 
-	for (i = 0; i < MAX_PORT; ++i) {
-		struct tty_struct *tty = tty_port_tty_get(&dc->port[i].port);
-		if (tty && list_empty(&tty->hangup_work.entry))
-			tty_hangup(tty);
-		tty_kref_put(tty);
-	}
+	for (i = 0; i < MAX_PORT; ++i)
+		tty_port_tty_hangup(&dc->port[i].port, false);
+
 	/* Racy below - surely should wait for scheduled work to be done or
 	   complete off a hangup method ? */
 	while (dc->open_ttys)
@@ -1687,12 +1672,6 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
 
 	rval = kfifo_in(&port->fifo_ul, (unsigned char *)buffer, count);
 
-	/* notify card */
-	if (unlikely(dc == NULL)) {
-		DBG1("No device context?");
-		goto exit;
-	}
-
 	spin_lock_irqsave(&dc->spin_mutex, flags);
 	/* CTS is only valid on the modem channel */
 	if (port == &(dc->port[PORT_MDM])) {
@@ -1708,7 +1687,6 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
 	}
 	spin_unlock_irqrestore(&dc->spin_mutex, flags);
 
-exit:
 	return rval;
 }
 
@@ -1827,7 +1805,7 @@ static int ntty_ioctl(struct tty_struct *tty,
 	default:
 		DBG1("ERR: 0x%08X, %d", cmd, cmd);
 		break;
-	};
+	}
 
 	return rval;
 }

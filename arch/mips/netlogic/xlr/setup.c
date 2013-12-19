@@ -36,6 +36,7 @@
 #include <linux/serial_8250.h>
 #include <linux/pm.h>
 
+#include <asm/idle.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <asm/bootinfo.h>
@@ -70,7 +71,7 @@ static void __init nlm_early_serial_setup(void)
 	s.iotype	= UPIO_MEM32;
 	s.regshift	= 2;
 	s.irq		= PIC_UART_0_IRQ;
-	s.uartclk	= PIC_CLKS_PER_SEC;
+	s.uartclk	= PIC_CLK_HZ;
 	s.serial_in	= nlm_xlr_uart_in;
 	s.serial_out	= nlm_xlr_uart_out;
 	s.mapbase	= uart_base;
@@ -163,7 +164,7 @@ static void prom_add_memory(void)
 {
 	struct nlm_boot_mem_map *bootm;
 	u64 start, size;
-	u64 pref_backup = 512;  /* avoid pref walking beyond end */
+	u64 pref_backup = 512;	/* avoid pref walking beyond end */
 	int i;
 
 	bootm = (void *)(long)nlm_prom_info.psb_mem_map;
@@ -193,8 +194,12 @@ static void nlm_init_node(void)
 
 void __init prom_init(void)
 {
-	int i, *argv, *envp;		/* passed as 32 bit ptrs */
+	int *argv, *envp;		/* passed as 32 bit ptrs */
 	struct psb_info *prom_infop;
+	void *reset_vec;
+#ifdef CONFIG_SMP
+	int i;
+#endif
 
 	/* truncate to 32 bit and sign extend all args */
 	argv = (int *)(long)(int)fw_arg1;
@@ -203,6 +208,12 @@ void __init prom_init(void)
 
 	nlm_prom_info = *prom_infop;
 	nlm_init_node();
+
+	/* Update reset entry point with CPU init code */
+	reset_vec = (void *)CKSEG1ADDR(RESET_VEC_PHYS);
+	memset(reset_vec, 0, RESET_VEC_SIZE);
+	memcpy(reset_vec, (void *)nlm_reset_entry,
+			(nlm_reset_entry_end - nlm_reset_entry));
 
 	nlm_early_serial_setup();
 	build_arcs_cmdline(argv);

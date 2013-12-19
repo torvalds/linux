@@ -611,7 +611,7 @@ static void n2rng_work(struct work_struct *work)
 		schedule_delayed_work(&np->work, HZ * 2);
 }
 
-static void __devinit n2rng_driver_version(void)
+static void n2rng_driver_version(void)
 {
 	static int n2rng_version_printed;
 
@@ -620,7 +620,7 @@ static void __devinit n2rng_driver_version(void)
 }
 
 static const struct of_device_id n2rng_match[];
-static int __devinit n2rng_probe(struct platform_device *op)
+static int n2rng_probe(struct platform_device *op)
 {
 	const struct of_device_id *match;
 	int multi_capable;
@@ -700,7 +700,7 @@ static int __devinit n2rng_probe(struct platform_device *op)
 	if (err)
 		goto out_free_units;
 
-	dev_set_drvdata(&op->dev, np);
+	platform_set_drvdata(op, np);
 
 	schedule_delayed_work(&np->work, 0);
 
@@ -721,7 +721,7 @@ out:
 
 static int n2rng_remove(struct platform_device *op)
 {
-	struct n2rng *np = dev_get_drvdata(&op->dev);
+	struct n2rng *np = platform_get_drvdata(op);
 
 	np->flags |= N2RNG_FLAG_SHUTDOWN;
 
@@ -735,8 +735,6 @@ static int n2rng_remove(struct platform_device *op)
 	np->units = NULL;
 
 	kfree(np);
-
-	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }
@@ -767,7 +765,7 @@ static struct platform_driver n2rng_driver = {
 		.of_match_table = n2rng_match,
 	},
 	.probe		= n2rng_probe,
-	.remove		= __devexit_p(n2rng_remove),
+	.remove		= n2rng_remove,
 };
 
 module_platform_driver(n2rng_driver);

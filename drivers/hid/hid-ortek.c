@@ -50,17 +50,6 @@ static struct hid_driver ortek_driver = {
 	.id_table = ortek_devices,
 	.report_fixup = ortek_report_fixup
 };
+module_hid_driver(ortek_driver);
 
-static int __init ortek_init(void)
-{
-	return hid_register_driver(&ortek_driver);
-}
-
-static void __exit ortek_exit(void)
-{
-	hid_unregister_driver(&ortek_driver);
-}
-
-module_init(ortek_init);
-module_exit(ortek_exit);
 MODULE_LICENSE("GPL");

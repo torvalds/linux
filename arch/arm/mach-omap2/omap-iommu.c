@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 
 #include <linux/platform_data/iommu-omap.h>
+#include "soc.h"
 #include "omap_hwmod.h"
 #include "omap_device.h"
 
@@ -41,8 +42,7 @@ static int __init omap_iommu_dev_init(struct omap_hwmod *oh, void *unused)
 		pdata->deassert_reset = omap_device_deassert_hardreset;
 	}
 
-	pdev = omap_device_build("omap-iommu", i, oh, pdata, sizeof(*pdata),
-				NULL, 0, 0);
+	pdev = omap_device_build("omap-iommu", i, oh, pdata, sizeof(*pdata));
 
 	kfree(pdata);
 
@@ -61,7 +61,7 @@ static int __init omap_iommu_init(void)
 	return omap_hwmod_for_each_by_class("mmu", omap_iommu_dev_init, NULL);
 }
 /* must be ready before omap3isp is probed */
-subsys_initcall(omap_iommu_init);
+omap_subsys_initcall(omap_iommu_init);
 
 static void __exit omap_iommu_exit(void)
 {

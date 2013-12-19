@@ -1,5 +1,5 @@
 /*
- *	Sysfs attributes of bridge ports
+ *	Sysfs attributes of bridge
  *	Linux ethernet bridge
  *
  *	Authors:
@@ -375,6 +375,31 @@ static ssize_t store_multicast_snooping(struct device *d,
 static DEVICE_ATTR(multicast_snooping, S_IRUGO | S_IWUSR,
 		   show_multicast_snooping, store_multicast_snooping);
 
+static ssize_t show_multicast_query_use_ifaddr(struct device *d,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+	return sprintf(buf, "%d\n", br->multicast_query_use_ifaddr);
+}
+
+static int set_query_use_ifaddr(struct net_bridge *br, unsigned long val)
+{
+	br->multicast_query_use_ifaddr = !!val;
+	return 0;
+}
+
+static ssize_t
+store_multicast_query_use_ifaddr(struct device *d,
+				 struct device_attribute *attr,
+				 const char *buf, size_t len)
+{
+	return store_bridge_parm(d, buf, len, set_query_use_ifaddr);
+}
+static DEVICE_ATTR(multicast_query_use_ifaddr, S_IRUGO | S_IWUSR,
+		   show_multicast_query_use_ifaddr,
+		   store_multicast_query_use_ifaddr);
+
 static ssize_t show_multicast_querier(struct device *d,
 				      struct device_attribute *attr,
 				      char *buf)
@@ -691,6 +716,24 @@ static ssize_t store_nf_call_arptables(
 static DEVICE_ATTR(nf_call_arptables, S_IRUGO | S_IWUSR,
 		   show_nf_call_arptables, store_nf_call_arptables);
 #endif
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+static ssize_t show_vlan_filtering(struct device *d,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+	return sprintf(buf, "%d\n", br->vlan_enabled);
+}
+
+static ssize_t store_vlan_filtering(struct device *d,
+				    struct device_attribute *attr,
+				    const char *buf, size_t len)
+{
+	return store_bridge_parm(d, buf, len, br_vlan_filter_toggle);
+}
+static DEVICE_ATTR(vlan_filtering, S_IRUGO | S_IWUSR,
+		   show_vlan_filtering, store_vlan_filtering);
+#endif
 
 static struct attribute *bridge_attrs[] = {
 	&dev_attr_forward_delay.attr,
@@ -716,6 +759,7 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_multicast_router.attr,
 	&dev_attr_multicast_snooping.attr,
 	&dev_attr_multicast_querier.attr,
+	&dev_attr_multicast_query_use_ifaddr.attr,
 	&dev_attr_hash_elasticity.attr,
 	&dev_attr_hash_max.attr,
 	&dev_attr_multicast_last_member_count.attr,
@@ -731,6 +775,9 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_nf_call_iptables.attr,
 	&dev_attr_nf_call_ip6tables.attr,
 	&dev_attr_nf_call_arptables.attr,
+#endif
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+	&dev_attr_vlan_filtering.attr,
 #endif
 	NULL
 };

@@ -10,195 +10,6 @@
 #ifndef TEGRA_HDMI_H
 #define TEGRA_HDMI_H 1
 
-#define HDMI_INFOFRAME_TYPE_VENDOR   0x81
-#define HDMI_INFOFRAME_TYPE_AVI      0x82
-#define HDMI_INFOFRAME_TYPE_SPD      0x83
-#define HDMI_INFOFRAME_TYPE_AUDIO    0x84
-#define HDMI_INFOFRAME_TYPE_MPEG_SRC 0x85
-#define HDMI_INFOFRAME_TYPE_NTSC_VBI 0x86
-
-/* all fields little endian */
-struct hdmi_avi_infoframe {
-	/* PB0 */
-	u8 csum;
-
-	/* PB1 */
-	unsigned s:2; /* scan information */
-	unsigned b:2; /* bar info data valid */
-	unsigned a:1; /* active info present */
-	unsigned y:2; /* RGB or YCbCr */
-	unsigned res1:1;
-
-	/* PB2 */
-	unsigned r:4; /* active format aspect ratio */
-	unsigned m:2; /* picture aspect ratio */
-	unsigned c:2; /* colorimetry */
-
-	/* PB3 */
-	unsigned sc:2;  /* scan information */
-	unsigned q:2;   /* quantization range */
-	unsigned ec:3;  /* extended colorimetry */
-	unsigned itc:1; /* it content */
-
-	/* PB4 */
-	unsigned vic:7; /* video format id code */
-	unsigned res4:1;
-
-	/* PB5 */
-	unsigned pr:4; /* pixel repetition factor */
-	unsigned cn:2; /* it content type*/
-	unsigned yq:2; /* ycc quantization range */
-
-	/* PB6-7 */
-	u16 top_bar_end_line;
-
-	/* PB8-9 */
-	u16 bot_bar_start_line;
-
-	/* PB10-11 */
-	u16 left_bar_end_pixel;
-
-	/* PB12-13 */
-	u16 right_bar_start_pixel;
-} __packed;
-
-#define HDMI_AVI_VERSION 0x02
-
-#define HDMI_AVI_Y_RGB       0x0
-#define HDMI_AVI_Y_YCBCR_422 0x1
-#define HDMI_AVI_Y_YCBCR_444 0x2
-
-#define HDMI_AVI_B_VERT  0x1
-#define HDMI_AVI_B_HORIZ 0x2
-
-#define HDMI_AVI_S_NONE      0x0
-#define HDMI_AVI_S_OVERSCAN  0x1
-#define HDMI_AVI_S_UNDERSCAN 0x2
-
-#define HDMI_AVI_C_NONE     0x0
-#define HDMI_AVI_C_SMPTE    0x1
-#define HDMI_AVI_C_ITU_R    0x2
-#define HDMI_AVI_C_EXTENDED 0x4
-
-#define HDMI_AVI_M_4_3  0x1
-#define HDMI_AVI_M_16_9 0x2
-
-#define HDMI_AVI_R_SAME        0x8
-#define HDMI_AVI_R_4_3_CENTER  0x9
-#define HDMI_AVI_R_16_9_CENTER 0xa
-#define HDMI_AVI_R_14_9_CENTER 0xb
-
-/* all fields little endian */
-struct hdmi_audio_infoframe {
-	/* PB0 */
-	u8 csum;
-
-	/* PB1 */
-	unsigned cc:3; /* channel count */
-	unsigned res1:1;
-	unsigned ct:4; /* coding type */
-
-	/* PB2 */
-	unsigned ss:2; /* sample size */
-	unsigned sf:3; /* sample frequency */
-	unsigned res2:3;
-
-	/* PB3 */
-	unsigned cxt:5; /* coding extention type */
-	unsigned res3:3;
-
-	/* PB4 */
-	u8 ca; /* channel/speaker allocation */
-
-	/* PB5 */
-	unsigned res5:3;
-	unsigned lsv:4; /* level shift value */
-	unsigned dm_inh:1; /* downmix inhibit */
-
-	/* PB6-10 reserved */
-	u8 res6;
-	u8 res7;
-	u8 res8;
-	u8 res9;
-	u8 res10;
-} __packed;
-
-#define HDMI_AUDIO_VERSION 0x01
-
-#define HDMI_AUDIO_CC_STREAM 0x0 /* specified by audio stream */
-#define HDMI_AUDIO_CC_2      0x1
-#define HDMI_AUDIO_CC_3      0x2
-#define HDMI_AUDIO_CC_4      0x3
-#define HDMI_AUDIO_CC_5      0x4
-#define HDMI_AUDIO_CC_6      0x5
-#define HDMI_AUDIO_CC_7      0x6
-#define HDMI_AUDIO_CC_8      0x7
-
-#define HDMI_AUDIO_CT_STREAM  0x0 /* specified by audio stream */
-#define HDMI_AUDIO_CT_PCM     0x1
-#define HDMI_AUDIO_CT_AC3     0x2
-#define HDMI_AUDIO_CT_MPEG1   0x3
-#define HDMI_AUDIO_CT_MP3     0x4
-#define HDMI_AUDIO_CT_MPEG2   0x5
-#define HDMI_AUDIO_CT_AAC_LC  0x6
-#define HDMI_AUDIO_CT_DTS     0x7
-#define HDMI_AUDIO_CT_ATRAC   0x8
-#define HDMI_AUDIO_CT_DSD     0x9
-#define HDMI_AUDIO_CT_E_AC3   0xa
-#define HDMI_AUDIO_CT_DTS_HD  0xb
-#define HDMI_AUDIO_CT_MLP     0xc
-#define HDMI_AUDIO_CT_DST     0xd
-#define HDMI_AUDIO_CT_WMA_PRO 0xe
-#define HDMI_AUDIO_CT_CXT     0xf
-
-#define HDMI_AUDIO_SF_STREAM 0x0 /* specified by audio stream */
-#define HDMI_AUIDO_SF_32K    0x1
-#define HDMI_AUDIO_SF_44_1K  0x2
-#define HDMI_AUDIO_SF_48K    0x3
-#define HDMI_AUDIO_SF_88_2K  0x4
-#define HDMI_AUDIO_SF_96K    0x5
-#define HDMI_AUDIO_SF_176_4K 0x6
-#define HDMI_AUDIO_SF_192K   0x7
-
-#define HDMI_AUDIO_SS_STREAM 0x0 /* specified by audio stream */
-#define HDMI_AUDIO_SS_16BIT  0x1
-#define HDMI_AUDIO_SS_20BIT  0x2
-#define HDMI_AUDIO_SS_24BIT  0x3
-
-#define HDMI_AUDIO_CXT_CT            0x0 /* refer to coding in CT */
-#define HDMI_AUDIO_CXT_HE_AAC        0x1
-#define HDMI_AUDIO_CXT_HE_AAC_V2     0x2
-#define HDMI_AUDIO_CXT_MPEG_SURROUND 0x3
-
-/* all fields little endian */
-struct hdmi_stereo_infoframe {
-	/* PB0 */
-	u8 csum;
-
-	/* PB1 */
-	u8 regid0;
-
-	/* PB2 */
-	u8 regid1;
-
-	/* PB3 */
-	u8 regid2;
-
-	/* PB4 */
-	unsigned res1:5;
-	unsigned hdmi_video_format:3;
-
-	/* PB5 */
-	unsigned res2:4;
-	unsigned _3d_structure:4;
-
-	/* PB6*/
-	unsigned res3:4;
-	unsigned _3d_ext_data:4;
-} __packed;
-
-#define HDMI_VENDOR_VERSION 0x01
-
 /* register definitions */
 #define HDMI_CTXSW						0x00
 
@@ -422,7 +233,10 @@ struct hdmi_stereo_infoframe {
 #define DRIVE_CURRENT_LANE1(x)      (((x) & 0x3f) <<  8)
 #define DRIVE_CURRENT_LANE2(x)      (((x) & 0x3f) << 16)
 #define DRIVE_CURRENT_LANE3(x)      (((x) & 0x3f) << 24)
-#define DRIVE_CURRENT_FUSE_OVERRIDE (1 << 31)
+#define DRIVE_CURRENT_LANE0_T114(x) (((x) & 0x7f) <<  0)
+#define DRIVE_CURRENT_LANE1_T114(x) (((x) & 0x7f) <<  8)
+#define DRIVE_CURRENT_LANE2_T114(x) (((x) & 0x7f) << 16)
+#define DRIVE_CURRENT_LANE3_T114(x) (((x) & 0x7f) << 24)
 
 #define DRIVE_CURRENT_1_500_mA  0x00
 #define DRIVE_CURRENT_1_875_mA  0x01
@@ -488,6 +302,79 @@ struct hdmi_stereo_infoframe {
 #define DRIVE_CURRENT_24_375_mA 0x3d
 #define DRIVE_CURRENT_24_750_mA 0x3e
 
+#define DRIVE_CURRENT_0_000_mA_T114 0x00
+#define DRIVE_CURRENT_0_400_mA_T114 0x01
+#define DRIVE_CURRENT_0_800_mA_T114 0x02
+#define DRIVE_CURRENT_1_200_mA_T114 0x03
+#define DRIVE_CURRENT_1_600_mA_T114 0x04
+#define DRIVE_CURRENT_2_000_mA_T114 0x05
+#define DRIVE_CURRENT_2_400_mA_T114 0x06
+#define DRIVE_CURRENT_2_800_mA_T114 0x07
+#define DRIVE_CURRENT_3_200_mA_T114 0x08
+#define DRIVE_CURRENT_3_600_mA_T114 0x09
+#define DRIVE_CURRENT_4_000_mA_T114 0x0a
+#define DRIVE_CURRENT_4_400_mA_T114 0x0b
+#define DRIVE_CURRENT_4_800_mA_T114 0x0c
+#define DRIVE_CURRENT_5_200_mA_T114 0x0d
+#define DRIVE_CURRENT_5_600_mA_T114 0x0e
+#define DRIVE_CURRENT_6_000_mA_T114 0x0f
+#define DRIVE_CURRENT_6_400_mA_T114 0x10
+#define DRIVE_CURRENT_6_800_mA_T114 0x11
+#define DRIVE_CURRENT_7_200_mA_T114 0x12
+#define DRIVE_CURRENT_7_600_mA_T114 0x13
+#define DRIVE_CURRENT_8_000_mA_T114 0x14
+#define DRIVE_CURRENT_8_400_mA_T114 0x15
+#define DRIVE_CURRENT_8_800_mA_T114 0x16
+#define DRIVE_CURRENT_9_200_mA_T114 0x17
+#define DRIVE_CURRENT_9_600_mA_T114 0x18
+#define DRIVE_CURRENT_10_000_mA_T114 0x19
+#define DRIVE_CURRENT_10_400_mA_T114 0x1a
+#define DRIVE_CURRENT_10_800_mA_T114 0x1b
+#define DRIVE_CURRENT_11_200_mA_T114 0x1c
+#define DRIVE_CURRENT_11_600_mA_T114 0x1d
+#define DRIVE_CURRENT_12_000_mA_T114 0x1e
+#define DRIVE_CURRENT_12_400_mA_T114 0x1f
+#define DRIVE_CURRENT_12_800_mA_T114 0x20
+#define DRIVE_CURRENT_13_200_mA_T114 0x21
+#define DRIVE_CURRENT_13_600_mA_T114 0x22
+#define DRIVE_CURRENT_14_000_mA_T114 0x23
+#define DRIVE_CURRENT_14_400_mA_T114 0x24
+#define DRIVE_CURRENT_14_800_mA_T114 0x25
+#define DRIVE_CURRENT_15_200_mA_T114 0x26
+#define DRIVE_CURRENT_15_600_mA_T114 0x27
+#define DRIVE_CURRENT_16_000_mA_T114 0x28
+#define DRIVE_CURRENT_16_400_mA_T114 0x29
+#define DRIVE_CURRENT_16_800_mA_T114 0x2a
+#define DRIVE_CURRENT_17_200_mA_T114 0x2b
+#define DRIVE_CURRENT_17_600_mA_T114 0x2c
+#define DRIVE_CURRENT_18_000_mA_T114 0x2d
+#define DRIVE_CURRENT_18_400_mA_T114 0x2e
+#define DRIVE_CURRENT_18_800_mA_T114 0x2f
+#define DRIVE_CURRENT_19_200_mA_T114 0x30
+#define DRIVE_CURRENT_19_600_mA_T114 0x31
+#define DRIVE_CURRENT_20_000_mA_T114 0x32
+#define DRIVE_CURRENT_20_400_mA_T114 0x33
+#define DRIVE_CURRENT_20_800_mA_T114 0x34
+#define DRIVE_CURRENT_21_200_mA_T114 0x35
+#define DRIVE_CURRENT_21_600_mA_T114 0x36
+#define DRIVE_CURRENT_22_000_mA_T114 0x37
+#define DRIVE_CURRENT_22_400_mA_T114 0x38
+#define DRIVE_CURRENT_22_800_mA_T114 0x39
+#define DRIVE_CURRENT_23_200_mA_T114 0x3a
+#define DRIVE_CURRENT_23_600_mA_T114 0x3b
+#define DRIVE_CURRENT_24_000_mA_T114 0x3c
+#define DRIVE_CURRENT_24_400_mA_T114 0x3d
+#define DRIVE_CURRENT_24_800_mA_T114 0x3e
+#define DRIVE_CURRENT_25_200_mA_T114 0x3f
+#define DRIVE_CURRENT_25_400_mA_T114 0x40
+#define DRIVE_CURRENT_25_800_mA_T114 0x41
+#define DRIVE_CURRENT_26_200_mA_T114 0x42
+#define DRIVE_CURRENT_26_600_mA_T114 0x43
+#define DRIVE_CURRENT_27_000_mA_T114 0x44
+#define DRIVE_CURRENT_27_400_mA_T114 0x45
+#define DRIVE_CURRENT_27_800_mA_T114 0x46
+#define DRIVE_CURRENT_28_200_mA_T114 0x47
+
 #define HDMI_NV_PDISP_AUDIO_DEBUG0				0x7f
 #define HDMI_NV_PDISP_AUDIO_DEBUG1				0x80
 #define HDMI_NV_PDISP_AUDIO_DEBUG2				0x81
@@ -547,6 +434,23 @@ struct hdmi_stereo_infoframe {
 #define PE_CURRENT_7_0_mA 0xe
 #define PE_CURRENT_7_5_mA 0xf
 
+#define PE_CURRENT_0_mA_T114 0x0
+#define PE_CURRENT_1_mA_T114 0x1
+#define PE_CURRENT_2_mA_T114 0x2
+#define PE_CURRENT_3_mA_T114 0x3
+#define PE_CURRENT_4_mA_T114 0x4
+#define PE_CURRENT_5_mA_T114 0x5
+#define PE_CURRENT_6_mA_T114 0x6
+#define PE_CURRENT_7_mA_T114 0x7
+#define PE_CURRENT_8_mA_T114 0x8
+#define PE_CURRENT_9_mA_T114 0x9
+#define PE_CURRENT_10_mA_T114 0xa
+#define PE_CURRENT_11_mA_T114 0xb
+#define PE_CURRENT_12_mA_T114 0xc
+#define PE_CURRENT_13_mA_T114 0xd
+#define PE_CURRENT_14_mA_T114 0xe
+#define PE_CURRENT_15_mA_T114 0xf
+
 #define HDMI_NV_PDISP_KEY_CTRL					0x9a
 #define HDMI_NV_PDISP_KEY_DEBUG0				0x9b
 #define HDMI_NV_PDISP_KEY_DEBUG1				0x9c
@@ -571,5 +475,62 @@ struct hdmi_stereo_infoframe {
 #define HDMI_NV_PDISP_SOR_AUDIO_AVAL_0960    0xc4
 #define HDMI_NV_PDISP_SOR_AUDIO_AVAL_1920    0xc5
 #define HDMI_NV_PDISP_SOR_AUDIO_AVAL_DEFAULT 0xc5
+
+#define HDMI_NV_PDISP_SOR_IO_PEAK_CURRENT		0xd1
+#define PEAK_CURRENT_LANE0(x) (((x) & 0x7f) <<  0)
+#define PEAK_CURRENT_LANE1(x) (((x) & 0x7f) <<  8)
+#define PEAK_CURRENT_LANE2(x) (((x) & 0x7f) << 16)
+#define PEAK_CURRENT_LANE3(x) (((x) & 0x7f) << 24)
+
+#define PEAK_CURRENT_0_000_mA 0x00
+#define PEAK_CURRENT_0_200_mA 0x01
+#define PEAK_CURRENT_0_400_mA 0x02
+#define PEAK_CURRENT_0_600_mA 0x03
+#define PEAK_CURRENT_0_800_mA 0x04
+#define PEAK_CURRENT_1_000_mA 0x05
+#define PEAK_CURRENT_1_200_mA 0x06
+#define PEAK_CURRENT_1_400_mA 0x07
+#define PEAK_CURRENT_1_600_mA 0x08
+#define PEAK_CURRENT_1_800_mA 0x09
+#define PEAK_CURRENT_2_000_mA 0x0a
+#define PEAK_CURRENT_2_200_mA 0x0b
+#define PEAK_CURRENT_2_400_mA 0x0c
+#define PEAK_CURRENT_2_600_mA 0x0d
+#define PEAK_CURRENT_2_800_mA 0x0e
+#define PEAK_CURRENT_3_000_mA 0x0f
+#define PEAK_CURRENT_3_200_mA 0x10
+#define PEAK_CURRENT_3_400_mA 0x11
+#define PEAK_CURRENT_3_600_mA 0x12
+#define PEAK_CURRENT_3_800_mA 0x13
+#define PEAK_CURRENT_4_000_mA 0x14
+#define PEAK_CURRENT_4_200_mA 0x15
+#define PEAK_CURRENT_4_400_mA 0x16
+#define PEAK_CURRENT_4_600_mA 0x17
+#define PEAK_CURRENT_4_800_mA 0x18
+#define PEAK_CURRENT_5_000_mA 0x19
+#define PEAK_CURRENT_5_200_mA 0x1a
+#define PEAK_CURRENT_5_400_mA 0x1b
+#define PEAK_CURRENT_5_600_mA 0x1c
+#define PEAK_CURRENT_5_800_mA 0x1d
+#define PEAK_CURRENT_6_000_mA 0x1e
+#define PEAK_CURRENT_6_200_mA 0x1f
+#define PEAK_CURRENT_6_400_mA 0x20
+#define PEAK_CURRENT_6_600_mA 0x21
+#define PEAK_CURRENT_6_800_mA 0x22
+#define PEAK_CURRENT_7_000_mA 0x23
+#define PEAK_CURRENT_7_200_mA 0x24
+#define PEAK_CURRENT_7_400_mA 0x25
+#define PEAK_CURRENT_7_600_mA 0x26
+#define PEAK_CURRENT_7_800_mA 0x27
+#define PEAK_CURRENT_8_000_mA 0x28
+#define PEAK_CURRENT_8_200_mA 0x29
+#define PEAK_CURRENT_8_400_mA 0x2a
+#define PEAK_CURRENT_8_600_mA 0x2b
+#define PEAK_CURRENT_8_800_mA 0x2c
+#define PEAK_CURRENT_9_000_mA 0x2d
+#define PEAK_CURRENT_9_200_mA 0x2e
+#define PEAK_CURRENT_9_400_mA 0x2f
+
+#define HDMI_NV_PDISP_SOR_PAD_CTLS0		0xd2
 
 #endif /* TEGRA_HDMI_H */

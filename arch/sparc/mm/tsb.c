@@ -7,11 +7,10 @@
 #include <linux/preempt.h>
 #include <linux/slab.h>
 #include <asm/page.h>
-#include <asm/tlbflush.h>
-#include <asm/tlb.h>
-#include <asm/mmu_context.h>
 #include <asm/pgtable.h>
+#include <asm/mmu_context.h>
 #include <asm/tsb.h>
+#include <asm/tlb.h>
 #include <asm/oplib.h>
 
 extern struct tsb swapper_tsb[KERNEL_TSB_NENTRIES];
@@ -46,23 +45,27 @@ void flush_tsb_kernel_range(unsigned long start, unsigned long end)
 	}
 }
 
+static void __flush_tsb_one_entry(unsigned long tsb, unsigned long v,
+				  unsigned long hash_shift,
+				  unsigned long nentries)
+{
+	unsigned long tag, ent, hash;
+
+	v &= ~0x1UL;
+	hash = tsb_hash(v, hash_shift, nentries);
+	ent = tsb + (hash * sizeof(struct tsb));
+	tag = (v >> 22UL);
+
+	tsb_flush(ent, tag);
+}
+
 static void __flush_tsb_one(struct tlb_batch *tb, unsigned long hash_shift,
 			    unsigned long tsb, unsigned long nentries)
 {
 	unsigned long i;
 
-	for (i = 0; i < tb->tlb_nr; i++) {
-		unsigned long v = tb->vaddrs[i];
-		unsigned long tag, ent, hash;
-
-		v &= ~0x1UL;
-
-		hash = tsb_hash(v, hash_shift, nentries);
-		ent = tsb + (hash * sizeof(struct tsb));
-		tag = (v >> 22UL);
-
-		tsb_flush(ent, tag);
-	}
+	for (i = 0; i < tb->tlb_nr; i++)
+		__flush_tsb_one_entry(tsb, tb->vaddrs[i], hash_shift, nentries);
 }
 
 void flush_tsb_user(struct tlb_batch *tb)
@@ -84,7 +87,31 @@ void flush_tsb_user(struct tlb_batch *tb)
 		nentries = mm->context.tsb_block[MM_TSB_HUGE].tsb_nentries;
 		if (tlb_type == cheetah_plus || tlb_type == hypervisor)
 			base = __pa(base);
-		__flush_tsb_one(tb, HPAGE_SHIFT, base, nentries);
+		__flush_tsb_one(tb, REAL_HPAGE_SHIFT, base, nentries);
+	}
+#endif
+	spin_unlock_irqrestore(&mm->context.lock, flags);
+}
+
+void flush_tsb_user_page(struct mm_struct *mm, unsigned long vaddr)
+{
+	unsigned long nentries, base, flags;
+
+	spin_lock_irqsave(&mm->context.lock, flags);
+
+	base = (unsigned long) mm->context.tsb_block[MM_TSB_BASE].tsb;
+	nentries = mm->context.tsb_block[MM_TSB_BASE].tsb_nentries;
+	if (tlb_type == cheetah_plus || tlb_type == hypervisor)
+		base = __pa(base);
+	__flush_tsb_one_entry(base, vaddr, PAGE_SHIFT, nentries);
+
+#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
+	if (mm->context.tsb_block[MM_TSB_HUGE].tsb) {
+		base = (unsigned long) mm->context.tsb_block[MM_TSB_HUGE].tsb;
+		nentries = mm->context.tsb_block[MM_TSB_HUGE].tsb_nentries;
+		if (tlb_type == cheetah_plus || tlb_type == hypervisor)
+			base = __pa(base);
+		__flush_tsb_one_entry(base, vaddr, REAL_HPAGE_SHIFT, nentries);
 	}
 #endif
 	spin_unlock_irqrestore(&mm->context.lock, flags);
@@ -314,7 +341,7 @@ void tsb_grow(struct mm_struct *mm, unsigned long tsb_index, unsigned long rss)
 retry_tsb_alloc:
 	gfp_flags = GFP_KERNEL;
 	if (new_size > (PAGE_SIZE * 2))
-		gfp_flags = __GFP_NOWARN | __GFP_NORETRY;
+		gfp_flags |= __GFP_NOWARN | __GFP_NORETRY;
 
 	new_tsb = kmem_cache_alloc_node(tsb_caches[new_cache_index],
 					gfp_flags, numa_node_id());
@@ -445,8 +472,6 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	mm->context.huge_pte_count = 0;
 #endif
 
-	mm->context.pgtable_page = NULL;
-
 	/* copy_mm() copies over the parent's mm_struct before calling
 	 * us, so we need to zero out the TSB pointer or else tsb_grow()
 	 * will be confused and think there is an older TSB to free up.
@@ -485,16 +510,9 @@ static void tsb_destroy_one(struct tsb_config *tp)
 void destroy_context(struct mm_struct *mm)
 {
 	unsigned long flags, i;
-	struct page *page;
 
 	for (i = 0; i < MM_NUM_TSBS; i++)
 		tsb_destroy_one(&mm->context.tsb_block[i]);
-
-	page = mm->context.pgtable_page;
-	if (page && put_page_testzero(page)) {
-		pgtable_page_dtor(page);
-		free_hot_cold_page(page, 0);
-	}
 
 	spin_lock_irqsave(&ctx_alloc_lock, flags);
 

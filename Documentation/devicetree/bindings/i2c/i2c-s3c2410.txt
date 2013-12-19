@@ -8,6 +8,8 @@ Required properties:
       (b) "samsung, s3c2440-i2c", for i2c compatible with s3c2440 i2c.
       (c) "samsung, s3c2440-hdmiphy-i2c", for s3c2440-like i2c used
           inside HDMIPHY block found on several samsung SoCs
+      (d) "samsung, exynos5440-i2c", for s3c2440-like i2c used
+	   on EXYNOS5440 which does not need GPIO configuration.
   - reg: physical base address of the controller and length of memory mapped
     region.
   - interrupts: interrupt number to the cpu.
@@ -24,7 +26,7 @@ Required for all cases except "samsung,s3c2440-hdmiphy-i2c":
     - pinctrl-names: Should contain only one value - "default".
 
 Optional properties:
-  - samsung,i2c-slave-addr: Slave address in multi-master enviroment. If not
+  - samsung,i2c-slave-addr: Slave address in multi-master environment. If not
     specified, default value is 0.
   - samsung,i2c-max-bus-freq: Desired frequency in Hz of the bus. If not
     specified, the default value in Hz is 100000.

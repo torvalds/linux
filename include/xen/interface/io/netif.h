@@ -13,11 +13,55 @@
 #include <xen/interface/grant_table.h>
 
 /*
+ * Older implementation of Xen network frontend / backend has an
+ * implicit dependency on the MAX_SKB_FRAGS as the maximum number of
+ * ring slots a skb can use. Netfront / netback may not work as
+ * expected when frontend and backend have different MAX_SKB_FRAGS.
+ *
+ * A better approach is to add mechanism for netfront / netback to
+ * negotiate this value. However we cannot fix all possible
+ * frontends, so we need to define a value which states the minimum
+ * slots backend must support.
+ *
+ * The minimum value derives from older Linux kernel's MAX_SKB_FRAGS
+ * (18), which is proved to work with most frontends. Any new backend
+ * which doesn't negotiate with frontend should expect frontend to
+ * send a valid packet using slots up to this value.
+ */
+#define XEN_NETIF_NR_SLOTS_MIN 18
+
+/*
  * Notifications after enqueuing any type of message should be conditional on
  * the appropriate req_event or rsp_event field in the shared ring.
  * If the client sends notification for rx requests then it should specify
  * feature 'feature-rx-notify' via xenbus. Otherwise the backend will assume
  * that it cannot safely queue packets (as it may not be kicked to send them).
+ */
+
+ /*
+ * "feature-split-event-channels" is introduced to separate guest TX
+ * and RX notificaion. Backend either doesn't support this feature or
+ * advertise it via xenstore as 0 (disabled) or 1 (enabled).
+ *
+ * To make use of this feature, frontend should allocate two event
+ * channels for TX and RX, advertise them to backend as
+ * "event-channel-tx" and "event-channel-rx" respectively. If frontend
+ * doesn't want to use this feature, it just writes "event-channel"
+ * node as before.
+ */
+
+/*
+ * "feature-no-csum-offload" should be used to turn IPv4 TCP/UDP checksum
+ * offload off or on. If it is missing then the feature is assumed to be on.
+ * "feature-ipv6-csum-offload" should be used to turn IPv6 TCP/UDP checksum
+ * offload on or off. If it is missing then the feature is assumed to be off.
+ */
+
+/*
+ * "feature-gso-tcpv4" and "feature-gso-tcpv6" advertise the capability to
+ * handle large TCP packets (in IPv4 or IPv6 form respectively). Neither
+ * frontends nor backends are assumed to be capable unless the flags are
+ * present.
  */
 
 /*
@@ -47,6 +91,7 @@
 #define _XEN_NETTXF_extra_info		(3)
 #define  XEN_NETTXF_extra_info		(1U<<_XEN_NETTXF_extra_info)
 
+#define XEN_NETIF_MAX_TX_SIZE 0xFFFF
 struct xen_netif_tx_request {
     grant_ref_t gref;      /* Reference to buffer page */
     uint16_t offset;       /* Offset within buffer page */
@@ -64,8 +109,10 @@ struct xen_netif_tx_request {
 #define _XEN_NETIF_EXTRA_FLAG_MORE	(0)
 #define  XEN_NETIF_EXTRA_FLAG_MORE	(1U<<_XEN_NETIF_EXTRA_FLAG_MORE)
 
-/* GSO types - only TCPv4 currently supported. */
+/* GSO types */
+#define XEN_NETIF_GSO_TYPE_NONE		(0)
 #define XEN_NETIF_GSO_TYPE_TCPV4	(1)
+#define XEN_NETIF_GSO_TYPE_TCPV6	(2)
 
 /*
  * This structure needs to fit within both netif_tx_request and

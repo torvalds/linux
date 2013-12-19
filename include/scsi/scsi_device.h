@@ -52,8 +52,15 @@ enum scsi_device_state {
 
 enum scsi_device_event {
 	SDEV_EVT_MEDIA_CHANGE	= 1,	/* media has changed */
+	SDEV_EVT_INQUIRY_CHANGE_REPORTED,		/* 3F 03  UA reported */
+	SDEV_EVT_CAPACITY_CHANGE_REPORTED,		/* 2A 09  UA reported */
+	SDEV_EVT_SOFT_THRESHOLD_REACHED_REPORTED,	/* 38 07  UA reported */
+	SDEV_EVT_MODE_PARAMETER_CHANGE_REPORTED,	/* 2A 01  UA reported */
+	SDEV_EVT_LUN_CHANGE_REPORTED,			/* 3F 0E  UA reported */
 
-	SDEV_EVT_LAST		= SDEV_EVT_MEDIA_CHANGE,
+	SDEV_EVT_FIRST		= SDEV_EVT_MEDIA_CHANGE,
+	SDEV_EVT_LAST		= SDEV_EVT_LUN_CHANGE_REPORTED,
+
 	SDEV_EVT_MAXBITS	= SDEV_EVT_LAST + 1
 };
 
@@ -113,6 +120,7 @@ struct scsi_device {
 				 * scsi_devinfo.[hc]. For now used only to
 				 * pass settings from slave_alloc to scsi
 				 * core. */
+	unsigned int eh_timeout; /* Error handling timeout */
 	unsigned writeable:1;
 	unsigned removable:1;
 	unsigned changed:1;	/* Data invalid due to media change */
@@ -157,11 +165,13 @@ struct scsi_device {
 	unsigned no_read_capacity_16:1; /* Avoid READ_CAPACITY_16 cmds */
 	unsigned try_rc_10_first:1;	/* Try READ_CAPACACITY_10 first */
 	unsigned is_visible:1;	/* is the device visible in sysfs */
-	unsigned can_power_off:1; /* Device supports runtime power off */
 	unsigned wce_default_on:1;	/* Cache is ON by default */
 	unsigned no_dif:1;	/* T10 PI (DIF) should be disabled */
 
+	atomic_t disk_events_disable_depth; /* disable depth for disk events */
+
 	DECLARE_BITMAP(supported_events, SDEV_EVT_MAXBITS); /* supported events */
+	DECLARE_BITMAP(pending_events, SDEV_EVT_MAXBITS); /* pending events */
 	struct list_head event_list;	/* asserted events */
 	struct work_struct event_work;
 
@@ -259,6 +269,9 @@ struct scsi_target {
 						 * means no lun present. */
 	unsigned int		no_report_luns:1;	/* Don't use
 						 * REPORT LUNS for scanning. */
+	unsigned int		expecting_lun_change:1;	/* A device has reported
+						 * a 3F/0E UA, other devices on
+						 * the same target will also. */
 	/* commands actually active on LLD. protected by host lock. */
 	unsigned int		target_busy;
 	/*
@@ -393,10 +406,20 @@ extern int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 			int data_direction, void *buffer, unsigned bufflen,
 			unsigned char *sense, int timeout, int retries,
 			int flag, int *resid);
-extern int scsi_execute_req(struct scsi_device *sdev, const unsigned char *cmd,
-			    int data_direction, void *buffer, unsigned bufflen,
-			    struct scsi_sense_hdr *, int timeout, int retries,
-			    int *resid);
+extern int scsi_execute_req_flags(struct scsi_device *sdev,
+	const unsigned char *cmd, int data_direction, void *buffer,
+	unsigned bufflen, struct scsi_sense_hdr *sshdr, int timeout,
+	int retries, int *resid, int flags);
+static inline int scsi_execute_req(struct scsi_device *sdev,
+	const unsigned char *cmd, int data_direction, void *buffer,
+	unsigned bufflen, struct scsi_sense_hdr *sshdr, int timeout,
+	int retries, int *resid)
+{
+	return scsi_execute_req_flags(sdev, cmd, data_direction, buffer,
+		bufflen, sshdr, timeout, retries, resid, 0);
+}
+extern void sdev_disable_disk_events(struct scsi_device *sdev);
+extern void sdev_enable_disk_events(struct scsi_device *sdev);
 
 #ifdef CONFIG_PM_RUNTIME
 extern int scsi_autopm_get_device(struct scsi_device *);

@@ -87,23 +87,18 @@ EXPORT_SYMBOL(p9_idpool_destroy);
 
 int p9_idpool_get(struct p9_idpool *p)
 {
-	int i = 0;
-	int error;
+	int i;
 	unsigned long flags;
 
-retry:
-	if (idr_pre_get(&p->pool, GFP_NOFS) == 0)
-		return -1;
-
+	idr_preload(GFP_NOFS);
 	spin_lock_irqsave(&p->lock, flags);
 
 	/* no need to store exactly p, we just need something non-null */
-	error = idr_get_new(&p->pool, p, &i);
-	spin_unlock_irqrestore(&p->lock, flags);
+	i = idr_alloc(&p->pool, p, 0, 0, GFP_NOWAIT);
 
-	if (error == -EAGAIN)
-		goto retry;
-	else if (error)
+	spin_unlock_irqrestore(&p->lock, flags);
+	idr_preload_end();
+	if (i < 0)
 		return -1;
 
 	p9_debug(P9_DEBUG_MUX, " id %d pool %p\n", i, p);

@@ -29,6 +29,8 @@
 static int wl1251_event_scan_complete(struct wl1251 *wl,
 				      struct event_mailbox *mbox)
 {
+	int ret = 0;
+
 	wl1251_debug(DEBUG_EVENT, "status: 0x%x, channels: %d",
 		     mbox->scheduled_scan_status,
 		     mbox->scheduled_scan_channels);
@@ -37,9 +39,11 @@ static int wl1251_event_scan_complete(struct wl1251 *wl,
 		ieee80211_scan_completed(wl->hw, false);
 		wl1251_debug(DEBUG_MAC80211, "mac80211 hw scan completed");
 		wl->scanning = false;
+		if (wl->hw->conf.flags & IEEE80211_CONF_IDLE)
+			ret = wl1251_ps_set_mode(wl, STATION_IDLE);
 	}
 
-	return 0;
+	return ret;
 }
 
 static void wl1251_event_mbox_dump(struct event_mailbox *mbox)

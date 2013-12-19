@@ -21,7 +21,6 @@
  * use these just as IDs.
  */
 enum dma_ch {
-	DMACH_DT_PROP = -1,
 	DMACH_UART0_RX = 0,
 	DMACH_UART0_TX,
 	DMACH_UART1_RX,

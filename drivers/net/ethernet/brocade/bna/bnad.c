@@ -610,7 +610,7 @@ bnad_cq_process(struct bnad *bnad, struct bna_ccb *ccb, int budget)
 		rcb->rxq->rx_bytes += length;
 
 		if (flags & BNA_CQ_EF_VLAN)
-			__vlan_hwaccel_put_tag(skb, ntohs(cmpl->vlan_tag));
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ntohs(cmpl->vlan_tag));
 
 		if (BNAD_RXBUF_IS_PAGE(unmap_q->type))
 			napi_gro_frags(&rx_ctrl->napi);
@@ -1264,9 +1264,8 @@ bnad_mem_alloc(struct bnad *bnad,
 			mem_info->mdl[i].len = mem_info->len;
 			mem_info->mdl[i].kva =
 				dma_alloc_coherent(&bnad->pcidev->dev,
-						mem_info->len, &dma_pa,
-						GFP_KERNEL);
-
+						   mem_info->len, &dma_pa,
+						   GFP_KERNEL);
 			if (mem_info->mdl[i].kva == NULL)
 				goto err_return;
 
@@ -2625,6 +2624,9 @@ bnad_stop(struct net_device *netdev)
 	bnad_destroy_tx(bnad, 0);
 	bnad_destroy_rx(bnad, 0);
 
+	/* These config flags are cleared in the hardware */
+	bnad->cfg_flags &= ~(BNAD_CF_ALLMULTI | BNAD_CF_PROMISC);
+
 	/* Synchronize mailbox IRQ */
 	bnad_mbox_irq_sync(bnad);
 
@@ -3069,8 +3071,7 @@ bnad_change_mtu(struct net_device *netdev, int new_mtu)
 }
 
 static int
-bnad_vlan_rx_add_vid(struct net_device *netdev,
-				 unsigned short vid)
+bnad_vlan_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct bnad *bnad = netdev_priv(netdev);
 	unsigned long flags;
@@ -3091,8 +3092,7 @@ bnad_vlan_rx_add_vid(struct net_device *netdev,
 }
 
 static int
-bnad_vlan_rx_kill_vid(struct net_device *netdev,
-				  unsigned short vid)
+bnad_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct bnad *bnad = netdev_priv(netdev);
 	unsigned long flags;
@@ -3171,14 +3171,14 @@ bnad_netdev_init(struct bnad *bnad, bool using_dac)
 
 	netdev->hw_features = NETIF_F_SG | NETIF_F_RXCSUM |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-		NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_HW_VLAN_TX;
+		NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_HW_VLAN_CTAG_TX;
 
 	netdev->vlan_features = NETIF_F_SG | NETIF_F_HIGHDMA |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		NETIF_F_TSO | NETIF_F_TSO6;
 
 	netdev->features |= netdev->hw_features |
-		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
+		NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	if (using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
@@ -3212,7 +3212,6 @@ bnad_init(struct bnad *bnad,
 	bnad->bar0 = ioremap_nocache(bnad->mmio_start, bnad->mmio_len);
 	if (!bnad->bar0) {
 		dev_err(&pdev->dev, "ioremap for bar0 failed\n");
-		pci_set_drvdata(pdev, NULL);
 		return -ENOMEM;
 	}
 	pr_info("bar0 mapped to %p, len %llu\n", bnad->bar0,
@@ -3239,9 +3238,10 @@ bnad_init(struct bnad *bnad,
 
 	sprintf(bnad->wq_name, "%s_wq_%d", BNAD_NAME, bnad->id);
 	bnad->work_q = create_singlethread_workqueue(bnad->wq_name);
-
-	if (!bnad->work_q)
+	if (!bnad->work_q) {
+		iounmap(bnad->bar0);
 		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -3299,17 +3299,12 @@ bnad_pci_init(struct bnad *bnad,
 	err = pci_request_regions(pdev, BNAD_NAME);
 	if (err)
 		goto disable_device;
-	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64)) &&
-	    !dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64))) {
+	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
 		*using_dac = true;
 	} else {
-		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
-		if (err) {
-			err = dma_set_coherent_mask(&pdev->dev,
-						    DMA_BIT_MASK(32));
-			if (err)
-				goto release_regions;
-		}
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+		if (err)
+			goto release_regions;
 		*using_dac = false;
 	}
 	pci_set_master(pdev);

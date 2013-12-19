@@ -1,0 +1,103 @@
+/*
+ * Device Tree Source for IGEP COM MODULE (TI OMAP AM/DM37x)
+ *
+ * Copyright (C) 2012 Javier Martinez Canillas <javier@collabora.co.uk>
+ * Copyright (C) 2012 Enric Balletbo i Serra <eballetbo@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "omap3-igep.dtsi"
+
+/ {
+	model = "IGEP COM MODULE (TI OMAP AM/DM37x)";
+	compatible = "isee,omap3-igep0030", "ti,omap3";
+
+	leds {
+		pinctrl-names = "default";
+		pinctrl-0 = <&leds_pins>;
+		compatible = "gpio-leds";
+
+		boot {
+			 label = "omap3:green:boot";
+			 gpios = <&twl_gpio 13 GPIO_ACTIVE_LOW>;
+			 default-state = "on";
+		};
+
+		user0 {
+			 label = "omap3:red:user0";
+			 gpios = <&twl_gpio 18 GPIO_ACTIVE_LOW>; /* LEDA */
+			 default-state = "off";
+		};
+
+		user1 {
+			 label = "omap3:green:user1";
+			 gpios = <&twl_gpio 19 GPIO_ACTIVE_LOW>; /* LEDB */
+			 default-state = "off";
+		};
+
+		user2 {
+			 label = "omap3:red:user1";
+			 gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
+			 default-state = "off";
+		};
+	};
+};
+
+&leds_pins {
+	pinctrl-single,pins = <
+		0x5b0 (PIN_OUTPUT | MUX_MODE4) /* etk_d2.gpio_16 */
+	>;
+};
+
+&gpmc {
+	ranges = <0 0 0x00000000 0x20000000>;
+
+	nand@0,0 {
+		linux,mtd-name= "micron,mt29c4g96maz";
+		reg = <0 0 0>;
+		nand-bus-width = <16>;
+		ti,nand-ecc-opt = "bch8";
+
+		gpmc,sync-clk-ps = <0>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <44>;
+		gpmc,cs-wr-off-ns = <44>;
+		gpmc,adv-on-ns = <6>;
+		gpmc,adv-rd-off-ns = <34>;
+		gpmc,adv-wr-off-ns = <44>;
+		gpmc,we-off-ns = <40>;
+		gpmc,oe-off-ns = <54>;
+		gpmc,access-ns = <64>;
+		gpmc,rd-cycle-ns = <82>;
+		gpmc,wr-cycle-ns = <82>;
+		gpmc,wr-access-ns = <40>;
+		gpmc,wr-data-mux-bus-ns = <0>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "SPL";
+			reg = <0 0x100000>;
+		};
+		partition@80000 {
+			label = "U-Boot";
+			reg = <0x100000 0x180000>;
+		};
+		partition@1c0000 {
+			label = "Environment";
+			reg = <0x280000 0x100000>;
+		};
+		partition@280000 {
+			label = "Kernel";
+			reg = <0x380000 0x300000>;
+		};
+		partition@780000 {
+			label = "Filesystem";
+			reg = <0x680000 0x1f980000>;
+		};
+	};
+};

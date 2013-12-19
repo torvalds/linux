@@ -14,7 +14,7 @@ A single node in the device tree is used to describe the shared
 interrupt multiplexor (one node for all groups). A group in the
 interrupt controller shares config/control registers with other groups.
 For example, a 32-bit interrupt enable/disable config register can
-accommodate upto 4 interrupt groups.
+accommodate up to 4 interrupt groups.
 
 Required properties:
   - compatible: should be, either of

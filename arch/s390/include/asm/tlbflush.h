@@ -74,8 +74,6 @@ static inline void __tlb_flush_idte(unsigned long asce)
 
 static inline void __tlb_flush_mm(struct mm_struct * mm)
 {
-	if (unlikely(cpumask_empty(mm_cpumask(mm))))
-		return;
 	/*
 	 * If the machine has IDTE we prefer to do a per mm flush
 	 * on all cpus instead of doing a local flush if the mm
@@ -88,7 +86,7 @@ static inline void __tlb_flush_mm(struct mm_struct * mm)
 		__tlb_flush_full(mm);
 }
 
-static inline void __tlb_flush_mm_cond(struct mm_struct * mm)
+static inline void __tlb_flush_mm_lazy(struct mm_struct * mm)
 {
 	if (mm->context.flush_mm) {
 		__tlb_flush_mm(mm);
@@ -120,13 +118,13 @@ static inline void __tlb_flush_mm_cond(struct mm_struct * mm)
 
 static inline void flush_tlb_mm(struct mm_struct *mm)
 {
-	__tlb_flush_mm_cond(mm);
+	__tlb_flush_mm_lazy(mm);
 }
 
 static inline void flush_tlb_range(struct vm_area_struct *vma,
 				   unsigned long start, unsigned long end)
 {
-	__tlb_flush_mm_cond(vma->vm_mm);
+	__tlb_flush_mm_lazy(vma->vm_mm);
 }
 
 static inline void flush_tlb_kernel_range(unsigned long start,

@@ -101,9 +101,10 @@ static int exynos_read(struct hwrng *rng, void *buf,
 	return 4;
 }
 
-static int __devinit exynos_rng_probe(struct platform_device *pdev)
+static int exynos_rng_probe(struct platform_device *pdev)
 {
 	struct exynos_rng *exynos_rng;
+	struct resource *res;
 
 	exynos_rng = devm_kzalloc(&pdev->dev, sizeof(struct exynos_rng),
 					GFP_KERNEL);
@@ -120,10 +121,10 @@ static int __devinit exynos_rng_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	exynos_rng->mem = devm_request_and_ioremap(&pdev->dev,
-			platform_get_resource(pdev, IORESOURCE_MEM, 0));
-	if (!exynos_rng->mem)
-		return -EBUSY;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	exynos_rng->mem = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(exynos_rng->mem))
+		return PTR_ERR(exynos_rng->mem);
 
 	platform_set_drvdata(pdev, exynos_rng);
 
@@ -143,6 +144,7 @@ static int exynos_rng_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM_RUNTIME)
 static int exynos_rng_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -160,9 +162,9 @@ static int exynos_rng_runtime_resume(struct device *dev)
 
 	return clk_prepare_enable(exynos_rng->clk);
 }
+#endif
 
-
-UNIVERSAL_DEV_PM_OPS(exynos_rng_pm_ops, exynos_rng_runtime_suspend,
+static UNIVERSAL_DEV_PM_OPS(exynos_rng_pm_ops, exynos_rng_runtime_suspend,
 					exynos_rng_runtime_resume, NULL);
 
 static struct platform_driver exynos_rng_driver = {
@@ -172,7 +174,7 @@ static struct platform_driver exynos_rng_driver = {
 		.pm	= &exynos_rng_pm_ops,
 	},
 	.probe		= exynos_rng_probe,
-	.remove		= __devexit_p(exynos_rng_remove),
+	.remove		= exynos_rng_remove,
 };
 
 module_platform_driver(exynos_rng_driver);

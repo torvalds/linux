@@ -48,7 +48,7 @@ static const int eukrea_cpuimx27_pins[] __initconst = {
 	PE14_PF_UART1_CTS,
 	PE15_PF_UART1_RTS,
 	/* UART4 */
-#if defined(MACH_EUKREA_CPUIMX27_USEUART4)
+#if defined(CONFIG_MACH_EUKREA_CPUIMX27_USEUART4)
 	PB26_AF_UART4_RTS,
 	PB28_AF_UART4_TXD,
 	PB29_AF_UART4_CTS,
@@ -272,7 +272,7 @@ static void __init eukrea_cpuimx27_init(void)
 	/* SDHC2 can be used for Wifi */
 	imx27_add_mxc_mmc(1, NULL);
 #endif
-#if defined(MACH_EUKREA_CPUIMX27_USEUART4)
+#if defined(CONFIG_MACH_EUKREA_CPUIMX27_USEUART4)
 	/* in which case UART4 is also used for Bluetooth */
 	imx27_add_imx_uart3(&uart_pdata);
 #endif
@@ -309,17 +309,13 @@ static void __init eukrea_cpuimx27_timer_init(void)
 	mx27_clocks_init(26000000);
 }
 
-static struct sys_timer eukrea_cpuimx27_timer = {
-	.init = eukrea_cpuimx27_timer_init,
-};
-
 MACHINE_START(EUKREA_CPUIMX27, "EUKREA CPUIMX27")
 	.atag_offset = 0x100,
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
 	.handle_irq = imx27_handle_irq,
-	.timer = &eukrea_cpuimx27_timer,
+	.init_time	= eukrea_cpuimx27_timer_init,
 	.init_machine = eukrea_cpuimx27_init,
 	.restart	= mxc_restart,
 MACHINE_END

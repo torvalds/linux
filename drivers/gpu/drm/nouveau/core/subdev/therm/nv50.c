@@ -25,6 +25,10 @@
 
 #include "priv.h"
 
+struct nv50_therm_priv {
+	struct nouveau_therm_priv base;
+};
+
 static int
 pwm_info(struct nouveau_therm *therm, int *line, int *ctrl, int *indx)
 {
@@ -51,6 +55,16 @@ pwm_info(struct nouveau_therm *therm, int *line, int *ctrl, int *indx)
 }
 
 int
+nv50_fan_pwm_ctrl(struct nouveau_therm *therm, int line, bool enable)
+{
+	u32 data = enable ? 0x00000001 : 0x00000000;
+	int ctrl, id, ret = pwm_info(therm, &line, &ctrl, &id);
+	if (ret == 0)
+		nv_mask(therm, ctrl, 0x00010001 << line, data << line);
+	return ret;
+}
+
+int
 nv50_fan_pwm_get(struct nouveau_therm *therm, int line, u32 *divs, u32 *duty)
 {
 	int ctrl, id, ret = pwm_info(therm, &line, &ctrl, &id);
@@ -73,7 +87,6 @@ nv50_fan_pwm_set(struct nouveau_therm *therm, int line, u32 divs, u32 duty)
 	if (ret)
 		return ret;
 
-	nv_mask(therm, ctrl, 0x00010001 << line, 0x00000001 << line);
 	nv_wr32(therm, 0x00e114 + (id * 8), divs);
 	nv_wr32(therm, 0x00e118 + (id * 8), duty | 0x80000000);
 	return 0;
@@ -105,44 +118,71 @@ nv50_fan_pwm_clock(struct nouveau_therm *therm)
 	return pwm_clock;
 }
 
-int
+static void
+nv50_sensor_setup(struct nouveau_therm *therm)
+{
+	nv_mask(therm, 0x20010, 0x40000000, 0x0);
+	mdelay(20); /* wait for the temperature to stabilize */
+}
+
+static int
 nv50_temp_get(struct nouveau_therm *therm)
 {
-	return nv_rd32(therm, 0x20400);
+	struct nouveau_therm_priv *priv = (void *)therm;
+	struct nvbios_therm_sensor *sensor = &priv->bios_sensor;
+	int core_temp;
+
+	core_temp = nv_rd32(therm, 0x20014) & 0x3fff;
+
+	/* if the slope or the offset is unset, do no use the sensor */
+	if (!sensor->slope_div || !sensor->slope_mult ||
+	    !sensor->offset_num || !sensor->offset_den)
+	    return -ENODEV;
+
+	core_temp = core_temp * sensor->slope_mult / sensor->slope_div;
+	core_temp = core_temp + sensor->offset_num / sensor->offset_den;
+	core_temp = core_temp + sensor->offset_constant - 8;
+
+	/* reserve negative temperatures for errors */
+	if (core_temp < 0)
+		core_temp = 0;
+
+	return core_temp;
 }
 
 static int
 nv50_therm_ctor(struct nouveau_object *parent,
-		   struct nouveau_object *engine,
-		   struct nouveau_oclass *oclass, void *data, u32 size,
-		   struct nouveau_object **pobject)
+		struct nouveau_object *engine,
+		struct nouveau_oclass *oclass, void *data, u32 size,
+		struct nouveau_object **pobject)
 {
-	struct nouveau_therm_priv *priv;
-	struct nouveau_therm *therm;
+	struct nv50_therm_priv *priv;
 	int ret;
 
 	ret = nouveau_therm_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
-	therm = (void *) priv;
 	if (ret)
 		return ret;
 
-	nouveau_therm_ic_ctor(therm);
-	nouveau_therm_sensor_ctor(therm);
-	nouveau_therm_fan_ctor(therm);
+	priv->base.base.pwm_ctrl = nv50_fan_pwm_ctrl;
+	priv->base.base.pwm_get = nv50_fan_pwm_get;
+	priv->base.base.pwm_set = nv50_fan_pwm_set;
+	priv->base.base.pwm_clock = nv50_fan_pwm_clock;
+	priv->base.base.temp_get = nv50_temp_get;
+	priv->base.sensor.program_alarms = nouveau_therm_program_alarms_polling;
+	nv_subdev(priv)->intr = nv40_therm_intr;
 
-	priv->fan.pwm_get = nv50_fan_pwm_get;
-	priv->fan.pwm_set = nv50_fan_pwm_set;
-	priv->fan.pwm_clock = nv50_fan_pwm_clock;
+	return nouveau_therm_preinit(&priv->base.base);
+}
 
-	therm->temp_get = nv50_temp_get;
-	therm->fan_get = nouveau_therm_fan_user_get;
-	therm->fan_set = nouveau_therm_fan_user_set;
-	therm->fan_sense = nouveau_therm_fan_sense;
-	therm->attr_get = nouveau_therm_attr_get;
-	therm->attr_set = nouveau_therm_attr_set;
+static int
+nv50_therm_init(struct nouveau_object *object)
+{
+	struct nouveau_therm *therm = (void *)object;
 
-	return 0;
+	nv50_sensor_setup(therm);
+
+	return _nouveau_therm_init(object);
 }
 
 struct nouveau_oclass
@@ -151,7 +191,7 @@ nv50_therm_oclass = {
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv50_therm_ctor,
 		.dtor = _nouveau_therm_dtor,
-		.init = nouveau_therm_init,
-		.fini = nouveau_therm_fini,
+		.init = nv50_therm_init,
+		.fini = _nouveau_therm_fini,
 	},
 };

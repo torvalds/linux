@@ -513,10 +513,11 @@ static ssize_t qeth_dev_isolation_store(struct device *dev,
 	rc = count;
 
 	/* defer IP assist if device is offline (until discipline->set_online)*/
+	card->options.prev_isolation = card->options.isolation;
 	card->options.isolation = isolation;
 	if (card->state == CARD_STATE_SOFTSETUP ||
 	    card->state == CARD_STATE_UP) {
-		int ipa_rc = qeth_set_access_ctrl_online(card);
+		int ipa_rc = qeth_set_access_ctrl_online(card, 1);
 		if (ipa_rc != 0)
 			rc = ipa_rc;
 	}

@@ -691,8 +691,8 @@ static int netlbl_cipsov4_remove_cb(struct netlbl_dom_map *entry, void *arg)
 {
 	struct netlbl_domhsh_walk_arg *cb_arg = arg;
 
-	if (entry->type == NETLBL_NLTYPE_CIPSOV4 &&
-	    entry->type_def.cipsov4->doi == cb_arg->doi)
+	if (entry->def.type == NETLBL_NLTYPE_CIPSOV4 &&
+	    entry->def.cipso->doi == cb_arg->doi)
 		return netlbl_domhsh_remove_entry(entry, cb_arg->audit_info);
 
 	return 0;
@@ -737,7 +737,7 @@ static int netlbl_cipsov4_remove(struct sk_buff *skb, struct genl_info *info)
  * NetLabel Generic NETLINK Command Definitions
  */
 
-static struct genl_ops netlbl_cipsov4_ops[] = {
+static const struct genl_ops netlbl_cipsov4_ops[] = {
 	{
 	.cmd = NLBL_CIPSOV4_C_ADD,
 	.flags = GENL_ADMIN_PERM,
@@ -783,5 +783,5 @@ static struct genl_ops netlbl_cipsov4_ops[] = {
 int __init netlbl_cipsov4_genl_init(void)
 {
 	return genl_register_family_with_ops(&netlbl_cipsov4_gnl_family,
-		netlbl_cipsov4_ops, ARRAY_SIZE(netlbl_cipsov4_ops));
+					     netlbl_cipsov4_ops);
 }

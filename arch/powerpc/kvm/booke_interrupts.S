@@ -45,18 +45,20 @@
                         (1<<BOOKE_INTERRUPT_DEBUG))
 
 #define NEED_DEAR_MASK ((1<<BOOKE_INTERRUPT_DATA_STORAGE) | \
-                        (1<<BOOKE_INTERRUPT_DTLB_MISS))
+                        (1<<BOOKE_INTERRUPT_DTLB_MISS) | \
+                        (1<<BOOKE_INTERRUPT_ALIGNMENT))
 
 #define NEED_ESR_MASK ((1<<BOOKE_INTERRUPT_DATA_STORAGE) | \
                        (1<<BOOKE_INTERRUPT_INST_STORAGE) | \
                        (1<<BOOKE_INTERRUPT_PROGRAM) | \
-                       (1<<BOOKE_INTERRUPT_DTLB_MISS))
+                       (1<<BOOKE_INTERRUPT_DTLB_MISS) | \
+                       (1<<BOOKE_INTERRUPT_ALIGNMENT))
 
-.macro KVM_HANDLER ivor_nr scratch srr0
-_GLOBAL(kvmppc_handler_\ivor_nr)
+.macro __KVM_HANDLER ivor_nr scratch srr0
 	/* Get pointer to vcpu and record exit number. */
 	mtspr	\scratch , r4
-	mfspr	r4, SPRN_SPRG_RVCPU
+	mfspr   r4, SPRN_SPRG_THREAD
+	lwz     r4, THREAD_KVM_VCPU(r4)
 	stw	r3, VCPU_GPR(R3)(r4)
 	stw	r5, VCPU_GPR(R5)(r4)
 	stw	r6, VCPU_GPR(R6)(r4)
@@ -71,6 +73,51 @@ _GLOBAL(kvmppc_handler_\ivor_nr)
 	ori	r6, r6, kvmppc_resume_host@l
 	mtctr	r6
 	bctr
+.endm
+
+.macro KVM_HANDLER ivor_nr scratch srr0
+_GLOBAL(kvmppc_handler_\ivor_nr)
+	__KVM_HANDLER \ivor_nr \scratch \srr0
+.endm
+
+.macro KVM_DBG_HANDLER ivor_nr scratch srr0
+_GLOBAL(kvmppc_handler_\ivor_nr)
+	mtspr   \scratch, r4
+	mfspr	r4, SPRN_SPRG_THREAD
+	lwz	r4, THREAD_KVM_VCPU(r4)
+	stw	r3, VCPU_CRIT_SAVE(r4)
+	mfcr	r3
+	mfspr	r4, SPRN_CSRR1
+	andi.	r4, r4, MSR_PR
+	bne	1f
+	/* debug interrupt happened in enter/exit path */
+	mfspr   r4, SPRN_CSRR1
+	rlwinm  r4, r4, 0, ~MSR_DE
+	mtspr   SPRN_CSRR1, r4
+	lis	r4, 0xffff
+	ori	r4, r4, 0xffff
+	mtspr	SPRN_DBSR, r4
+	mfspr	r4, SPRN_SPRG_THREAD
+	lwz	r4, THREAD_KVM_VCPU(r4)
+	mtcr	r3
+	lwz     r3, VCPU_CRIT_SAVE(r4)
+	mfspr   r4, \scratch
+	rfci
+1:	/* debug interrupt happened in guest */
+	mtcr	r3
+	mfspr	r4, SPRN_SPRG_THREAD
+	lwz	r4, THREAD_KVM_VCPU(r4)
+	lwz     r3, VCPU_CRIT_SAVE(r4)
+	mfspr   r4, \scratch
+	__KVM_HANDLER \ivor_nr \scratch \srr0
+.endm
+
+.macro KVM_HANDLER_ADDR ivor_nr
+	.long	kvmppc_handler_\ivor_nr
+.endm
+
+.macro KVM_HANDLER_END
+	.long	kvmppc_handlers_end
 .endm
 
 _GLOBAL(kvmppc_handlers_start)
@@ -89,13 +136,11 @@ KVM_HANDLER BOOKE_INTERRUPT_FIT SPRN_SPRG_RSCRATCH0 SPRN_SRR0
 KVM_HANDLER BOOKE_INTERRUPT_WATCHDOG SPRN_SPRG_RSCRATCH_CRIT SPRN_CSRR0
 KVM_HANDLER BOOKE_INTERRUPT_DTLB_MISS SPRN_SPRG_RSCRATCH0 SPRN_SRR0
 KVM_HANDLER BOOKE_INTERRUPT_ITLB_MISS SPRN_SPRG_RSCRATCH0 SPRN_SRR0
-KVM_HANDLER BOOKE_INTERRUPT_DEBUG SPRN_SPRG_RSCRATCH_CRIT SPRN_CSRR0
+KVM_DBG_HANDLER BOOKE_INTERRUPT_DEBUG SPRN_SPRG_RSCRATCH_CRIT SPRN_CSRR0
 KVM_HANDLER BOOKE_INTERRUPT_SPE_UNAVAIL SPRN_SPRG_RSCRATCH0 SPRN_SRR0
 KVM_HANDLER BOOKE_INTERRUPT_SPE_FP_DATA SPRN_SPRG_RSCRATCH0 SPRN_SRR0
 KVM_HANDLER BOOKE_INTERRUPT_SPE_FP_ROUND SPRN_SPRG_RSCRATCH0 SPRN_SRR0
-
-_GLOBAL(kvmppc_handler_len)
-	.long kvmppc_handler_1 - kvmppc_handler_0
+_GLOBAL(kvmppc_handlers_end)
 
 /* Registers:
  *  SPRG_SCRATCH0: guest r4
@@ -402,9 +447,6 @@ lightweight_exit:
 	lwz	r8, kvmppc_booke_handlers@l(r8)
 	mtspr	SPRN_IVPR, r8
 
-	/* Save vcpu pointer for the exception handlers. */
-	mtspr	SPRN_SPRG_WVCPU, r4
-
 	lwz	r5, VCPU_SHARED(r4)
 
 	/* Can't switch the stack pointer until after IVPR is switched,
@@ -462,6 +504,31 @@ lightweight_exit:
 	lwz	r3, VCPU_GPR(R3)(r4)
 	lwz	r4, VCPU_GPR(R4)(r4)
 	rfi
+
+	.data
+	.align	4
+	.globl	kvmppc_booke_handler_addr
+kvmppc_booke_handler_addr:
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_CRITICAL
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_MACHINE_CHECK
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_DATA_STORAGE
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_INST_STORAGE
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_EXTERNAL
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_ALIGNMENT
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_PROGRAM
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_FP_UNAVAIL
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_SYSCALL
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_AP_UNAVAIL
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_DECREMENTER
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_FIT
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_WATCHDOG
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_DTLB_MISS
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_ITLB_MISS
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_DEBUG
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_SPE_UNAVAIL
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_SPE_FP_DATA
+KVM_HANDLER_ADDR BOOKE_INTERRUPT_SPE_FP_ROUND
+KVM_HANDLER_END /*Always keep this in end*/
 
 #ifdef CONFIG_SPE
 _GLOBAL(kvmppc_save_guest_spe)

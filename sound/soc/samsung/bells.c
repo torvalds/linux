@@ -350,8 +350,17 @@ static struct snd_soc_codec_conf bells_codec_conf[] = {
 	},
 };
 
+static struct snd_soc_dapm_widget bells_widgets[] = {
+	SND_SOC_DAPM_MIC("DMIC", NULL),
+};
+
 static struct snd_soc_dapm_route bells_routes[] = {
 	{ "Sub CLK_SYS", NULL, "OPCLK" },
+	{ "CLKIN", NULL, "OPCLK" },
+
+	{ "DMIC", NULL, "MICBIAS2" },
+	{ "IN2L", NULL, "DMIC" },
+	{ "IN2R", NULL, "DMIC" },
 };
 
 static struct snd_soc_card bells_cards[] = {
@@ -365,6 +374,8 @@ static struct snd_soc_card bells_cards[] = {
 
 		.late_probe = bells_late_probe,
 
+		.dapm_widgets = bells_widgets,
+		.num_dapm_widgets = ARRAY_SIZE(bells_widgets),
 		.dapm_routes = bells_routes,
 		.num_dapm_routes = ARRAY_SIZE(bells_routes),
 
@@ -383,6 +394,8 @@ static struct snd_soc_card bells_cards[] = {
 
 		.late_probe = bells_late_probe,
 
+		.dapm_widgets = bells_widgets,
+		.num_dapm_widgets = ARRAY_SIZE(bells_widgets),
 		.dapm_routes = bells_routes,
 		.num_dapm_routes = ARRAY_SIZE(bells_routes),
 
@@ -401,6 +414,8 @@ static struct snd_soc_card bells_cards[] = {
 
 		.late_probe = bells_late_probe,
 
+		.dapm_widgets = bells_widgets,
+		.num_dapm_widgets = ARRAY_SIZE(bells_widgets),
 		.dapm_routes = bells_routes,
 		.num_dapm_routes = ARRAY_SIZE(bells_routes),
 

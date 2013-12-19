@@ -100,7 +100,7 @@ struct c67x00_urb_priv {
 #define TD_PIDEP_OFFSET		0x04
 #define TD_PIDEPMASK_PID	0xF0
 #define TD_PIDEPMASK_EP		0x0F
-#define TD_PORTLENMASK_DL	0x02FF
+#define TD_PORTLENMASK_DL	0x03FF
 #define TD_PORTLENMASK_PN	0xC000
 
 #define TD_STATUS_OFFSET	0x07
@@ -344,7 +344,7 @@ void c67x00_endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 		/* it could happen that we reinitialize this completion, while
 		 * somebody was waiting for that completion.  The timeout and
 		 * while loop handle such cases, but this might be improved */
-		INIT_COMPLETION(c67x00->endpoint_disable);
+		reinit_completion(&c67x00->endpoint_disable);
 		c67x00_sched_kick(c67x00);
 		wait_for_completion_timeout(&c67x00->endpoint_disable, 1 * HZ);
 
@@ -590,7 +590,7 @@ static int c67x00_create_td(struct c67x00_hcd *c67x00, struct urb *urb,
 {
 	struct c67x00_td *td;
 	struct c67x00_urb_priv *urbp = urb->hcpriv;
-	const __u8 active_flag = 1, retry_cnt = 1;
+	const __u8 active_flag = 1, retry_cnt = 3;
 	__u8 cmd = 0;
 	int tt = 0;
 

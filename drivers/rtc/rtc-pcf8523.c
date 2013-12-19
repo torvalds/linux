@@ -23,6 +23,7 @@
 #define REG_CONTROL3_PM_VDD (1 << 6) /* switch-over disabled */
 #define REG_CONTROL3_PM_DSM (1 << 5) /* direct switching mode */
 #define REG_CONTROL3_PM_MASK 0xe0
+#define REG_CONTROL3_BLF (1 << 2) /* battery low bit, read-only */
 
 #define REG_SECONDS  0x03
 #define REG_SECONDS_OS (1 << 7)
@@ -250,9 +251,39 @@ static int pcf8523_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return pcf8523_start_rtc(client);
 }
 
+#ifdef CONFIG_RTC_INTF_DEV
+static int pcf8523_rtc_ioctl(struct device *dev, unsigned int cmd,
+			     unsigned long arg)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	u8 value;
+	int ret = 0, err;
+
+	switch (cmd) {
+	case RTC_VL_READ:
+		err = pcf8523_read(client, REG_CONTROL3, &value);
+		if (err < 0)
+			return err;
+
+		if (value & REG_CONTROL3_BLF)
+			ret = 1;
+
+		if (copy_to_user((void __user *)arg, &ret, sizeof(int)))
+			return -EFAULT;
+
+		return 0;
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+#else
+#define pcf8523_rtc_ioctl NULL
+#endif
+
 static const struct rtc_class_ops pcf8523_rtc_ops = {
 	.read_time = pcf8523_rtc_read_time,
 	.set_time = pcf8523_rtc_set_time,
+	.ioctl = pcf8523_rtc_ioctl,
 };
 
 static int pcf8523_probe(struct i2c_client *client,
@@ -276,21 +307,12 @@ static int pcf8523_probe(struct i2c_client *client,
 	if (err < 0)
 		return err;
 
-	pcf->rtc = rtc_device_register(DRIVER_NAME, &client->dev,
+	pcf->rtc = devm_rtc_device_register(&client->dev, DRIVER_NAME,
 				       &pcf8523_rtc_ops, THIS_MODULE);
 	if (IS_ERR(pcf->rtc))
 		return PTR_ERR(pcf->rtc);
 
 	i2c_set_clientdata(client, pcf);
-
-	return 0;
-}
-
-static int pcf8523_remove(struct i2c_client *client)
-{
-	struct pcf8523 *pcf = i2c_get_clientdata(client);
-
-	rtc_device_unregister(pcf->rtc);
 
 	return 0;
 }
@@ -316,7 +338,6 @@ static struct i2c_driver pcf8523_driver = {
 		.of_match_table = of_match_ptr(pcf8523_of_match),
 	},
 	.probe = pcf8523_probe,
-	.remove = pcf8523_remove,
 	.id_table = pcf8523_id,
 };
 module_i2c_driver(pcf8523_driver);

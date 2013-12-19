@@ -22,16 +22,10 @@
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    Sridhar Samudrala <sri@us.ibm.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #include <linux/types.h>
@@ -134,9 +128,15 @@ static void sctp_seq_dump_local_addrs(struct seq_file *seq, struct sctp_ep_commo
 	struct sctp_af *af;
 
 	if (epb->type == SCTP_EP_TYPE_ASSOCIATION) {
-	    asoc = sctp_assoc(epb);
-	    peer = asoc->peer.primary_path;
-	    primary = &peer->saddr;
+		asoc = sctp_assoc(epb);
+
+		peer = asoc->peer.primary_path;
+		if (unlikely(peer == NULL)) {
+			WARN(1, "Association %p with NULL primary path!\n", asoc);
+			return;
+		}
+
+		primary = &peer->saddr;
 	}
 
 	rcu_read_lock();
@@ -213,7 +213,6 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 	struct sctp_ep_common *epb;
 	struct sctp_endpoint *ep;
 	struct sock *sk;
-	struct hlist_node *node;
 	int    hash = *(loff_t *)v;
 
 	if (hash >= sctp_ep_hashsize)
@@ -222,12 +221,12 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 	head = &sctp_ep_hashtable[hash];
 	sctp_local_bh_disable();
 	read_lock(&head->lock);
-	sctp_for_each_hentry(epb, node, &head->chain) {
+	sctp_for_each_hentry(epb, &head->chain) {
 		ep = sctp_ep(epb);
 		sk = epb->sk;
 		if (!net_eq(sock_net(sk), seq_file_net(seq)))
 			continue;
-		seq_printf(seq, "%8pK %8pK %-3d %-3d %-4d %-5d %5d %5lu ", ep, sk,
+		seq_printf(seq, "%8pK %8pK %-3d %-3d %-4d %-5d %5u %5lu ", ep, sk,
 			   sctp_sk(sk)->type, sk->sk_state, hash,
 			   epb->bind_addr.port,
 			   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
@@ -296,7 +295,8 @@ static void * sctp_assocs_seq_start(struct seq_file *seq, loff_t *pos)
 		seq_printf(seq, " ASSOC     SOCK   STY SST ST HBKT "
 				"ASSOC-ID TX_QUEUE RX_QUEUE UID INODE LPORT "
 				"RPORT LADDRS <-> RADDRS "
-				"HBINT INS OUTS MAXRT T1X T2X RTXC\n");
+				"HBINT INS OUTS MAXRT T1X T2X RTXC "
+				"wmema wmemq sndbuf rcvbuf\n");
 
 	return (void *)pos;
 }
@@ -321,7 +321,6 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 	struct sctp_ep_common *epb;
 	struct sctp_association *assoc;
 	struct sock *sk;
-	struct hlist_node *node;
 	int    hash = *(loff_t *)v;
 
 	if (hash >= sctp_assoc_hashsize)
@@ -330,14 +329,14 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 	head = &sctp_assoc_hashtable[hash];
 	sctp_local_bh_disable();
 	read_lock(&head->lock);
-	sctp_for_each_hentry(epb, node, &head->chain) {
+	sctp_for_each_hentry(epb, &head->chain) {
 		assoc = sctp_assoc(epb);
 		sk = epb->sk;
 		if (!net_eq(sock_net(sk), seq_file_net(seq)))
 			continue;
 		seq_printf(seq,
 			   "%8pK %8pK %-3d %-3d %-2d %-4d "
-			   "%4d %8d %8d %7d %5lu %-5d %5d ",
+			   "%4d %8d %8d %7u %5lu %-5d %5d ",
 			   assoc, sk, sctp_sk(sk)->type, sk->sk_state,
 			   assoc->state, hash,
 			   assoc->assoc_id,
@@ -351,11 +350,16 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 		sctp_seq_dump_local_addrs(seq, epb);
 		seq_printf(seq, "<-> ");
 		sctp_seq_dump_remote_addrs(seq, assoc);
-		seq_printf(seq, "\t%8lu %5d %5d %4d %4d %4d %8d ",
+		seq_printf(seq, "\t%8lu %5d %5d %4d %4d %4d %8d "
+			   "%8d %8d %8d %8d",
 			assoc->hbinterval, assoc->c.sinit_max_instreams,
 			assoc->c.sinit_num_ostreams, assoc->max_retrans,
 			assoc->init_retries, assoc->shutdown_retries,
-			assoc->rtx_data_chunks);
+			assoc->rtx_data_chunks,
+			atomic_read(&sk->sk_wmem_alloc),
+			sk->sk_wmem_queued,
+			sk->sk_sndbuf,
+			sk->sk_rcvbuf);
 		seq_printf(seq, "\n");
 	}
 	read_unlock(&head->lock);
@@ -436,7 +440,6 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 	struct sctp_hashbucket *head;
 	struct sctp_ep_common *epb;
 	struct sctp_association *assoc;
-	struct hlist_node *node;
 	struct sctp_transport *tsp;
 	int    hash = *(loff_t *)v;
 
@@ -447,7 +450,7 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 	sctp_local_bh_disable();
 	read_lock(&head->lock);
 	rcu_read_lock();
-	sctp_for_each_hentry(epb, node, &head->chain) {
+	sctp_for_each_hentry(epb, &head->chain) {
 		if (!net_eq(sock_net(epb->sk), seq_file_net(seq)))
 			continue;
 		assoc = sctp_assoc(epb);

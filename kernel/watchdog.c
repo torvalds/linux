@@ -23,14 +23,15 @@
 #include <linux/module.h>
 #include <linux/sysctl.h>
 #include <linux/smpboot.h>
+#include <linux/sched/rt.h>
 
 #include <asm/irq_regs.h>
 #include <linux/kvm_para.h>
 #include <linux/perf_event.h>
 
-int watchdog_enabled = 1;
+int watchdog_user_enabled = 1;
 int __read_mostly watchdog_thresh = 10;
-static int __read_mostly watchdog_disabled;
+static int __read_mostly watchdog_running;
 static u64 __read_mostly sample_period;
 
 static DEFINE_PER_CPU(unsigned long, watchdog_touch_ts);
@@ -62,7 +63,7 @@ static int __init hardlockup_panic_setup(char *str)
 	else if (!strncmp(str, "nopanic", 7))
 		hardlockup_panic = 0;
 	else if (!strncmp(str, "0", 1))
-		watchdog_enabled = 0;
+		watchdog_user_enabled = 0;
 	return 1;
 }
 __setup("nmi_watchdog=", hardlockup_panic_setup);
@@ -81,7 +82,7 @@ __setup("softlockup_panic=", softlockup_panic_setup);
 
 static int __init nowatchdog_setup(char *str)
 {
-	watchdog_enabled = 0;
+	watchdog_user_enabled = 0;
 	return 1;
 }
 __setup("nowatchdog", nowatchdog_setup);
@@ -89,7 +90,7 @@ __setup("nowatchdog", nowatchdog_setup);
 /* deprecated */
 static int __init nosoftlockup_setup(char *str)
 {
-	watchdog_enabled = 0;
+	watchdog_user_enabled = 0;
 	return 1;
 }
 __setup("nosoftlockup", nosoftlockup_setup);
@@ -112,9 +113,9 @@ static int get_softlockup_thresh(void)
  * resolution, and we don't need to waste time with a big divide when
  * 2^30ns == 1.074s.
  */
-static unsigned long get_timestamp(int this_cpu)
+static unsigned long get_timestamp(void)
 {
-	return cpu_clock(this_cpu) >> 30LL;  /* 2^30 ~= 10^9 */
+	return local_clock() >> 30LL;  /* 2^30 ~= 10^9 */
 }
 
 static void set_sample_period(void)
@@ -132,9 +133,7 @@ static void set_sample_period(void)
 /* Commands for resetting the watchdog */
 static void __touch_watchdog(void)
 {
-	int this_cpu = smp_processor_id();
-
-	__this_cpu_write(watchdog_touch_ts, get_timestamp(this_cpu));
+	__this_cpu_write(watchdog_touch_ts, get_timestamp());
 }
 
 void touch_softlockup_watchdog(void)
@@ -159,7 +158,7 @@ void touch_all_softlockup_watchdogs(void)
 #ifdef CONFIG_HARDLOCKUP_DETECTOR
 void touch_nmi_watchdog(void)
 {
-	if (watchdog_enabled) {
+	if (watchdog_user_enabled) {
 		unsigned cpu;
 
 		for_each_present_cpu(cpu) {
@@ -195,7 +194,7 @@ static int is_hardlockup(void)
 
 static int is_softlockup(unsigned long touch_ts)
 {
-	unsigned long now = get_timestamp(smp_processor_id());
+	unsigned long now = get_timestamp();
 
 	/* Warn about unreasonable delays: */
 	if (time_after(now, touch_ts + get_softlockup_thresh()))
@@ -348,11 +347,6 @@ static void watchdog_enable(unsigned int cpu)
 	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hrtimer->function = watchdog_timer_fn;
 
-	if (!watchdog_enabled) {
-		kthread_park(current);
-		return;
-	}
-
 	/* Enable the perf event */
 	watchdog_nmi_enable(cpu);
 
@@ -373,6 +367,11 @@ static void watchdog_disable(unsigned int cpu)
 	hrtimer_cancel(hrtimer);
 	/* disable the perf event */
 	watchdog_nmi_disable(cpu);
+}
+
+static void watchdog_cleanup(unsigned int cpu, bool online)
+{
+	watchdog_disable(cpu);
 }
 
 static int watchdog_should_run(unsigned int cpu)
@@ -476,28 +475,87 @@ static int watchdog_nmi_enable(unsigned int cpu) { return 0; }
 static void watchdog_nmi_disable(unsigned int cpu) { return; }
 #endif /* CONFIG_HARDLOCKUP_DETECTOR */
 
+static struct smp_hotplug_thread watchdog_threads = {
+	.store			= &softlockup_watchdog,
+	.thread_should_run	= watchdog_should_run,
+	.thread_fn		= watchdog,
+	.thread_comm		= "watchdog/%u",
+	.setup			= watchdog_enable,
+	.cleanup		= watchdog_cleanup,
+	.park			= watchdog_disable,
+	.unpark			= watchdog_enable,
+};
+
+static void restart_watchdog_hrtimer(void *info)
+{
+	struct hrtimer *hrtimer = &__raw_get_cpu_var(watchdog_hrtimer);
+	int ret;
+
+	/*
+	 * No need to cancel and restart hrtimer if it is currently executing
+	 * because it will reprogram itself with the new period now.
+	 * We should never see it unqueued here because we are running per-cpu
+	 * with interrupts disabled.
+	 */
+	ret = hrtimer_try_to_cancel(hrtimer);
+	if (ret == 1)
+		hrtimer_start(hrtimer, ns_to_ktime(sample_period),
+				HRTIMER_MODE_REL_PINNED);
+}
+
+static void update_timers(int cpu)
+{
+	struct call_single_data data = {.func = restart_watchdog_hrtimer};
+	/*
+	 * Make sure that perf event counter will adopt to a new
+	 * sampling period. Updating the sampling period directly would
+	 * be much nicer but we do not have an API for that now so
+	 * let's use a big hammer.
+	 * Hrtimer will adopt the new period on the next tick but this
+	 * might be late already so we have to restart the timer as well.
+	 */
+	watchdog_nmi_disable(cpu);
+	__smp_call_function_single(cpu, &data, 1);
+	watchdog_nmi_enable(cpu);
+}
+
+static void update_timers_all_cpus(void)
+{
+	int cpu;
+
+	get_online_cpus();
+	preempt_disable();
+	for_each_online_cpu(cpu)
+		update_timers(cpu);
+	preempt_enable();
+	put_online_cpus();
+}
+
+static int watchdog_enable_all_cpus(bool sample_period_changed)
+{
+	int err = 0;
+
+	if (!watchdog_running) {
+		err = smpboot_register_percpu_thread(&watchdog_threads);
+		if (err)
+			pr_err("Failed to create watchdog threads, disabled\n");
+		else
+			watchdog_running = 1;
+	} else if (sample_period_changed) {
+		update_timers_all_cpus();
+	}
+
+	return err;
+}
+
 /* prepare/enable/disable routines */
 /* sysctl functions */
 #ifdef CONFIG_SYSCTL
-static void watchdog_enable_all_cpus(void)
-{
-	unsigned int cpu;
-
-	if (watchdog_disabled) {
-		watchdog_disabled = 0;
-		for_each_online_cpu(cpu)
-			kthread_unpark(per_cpu(softlockup_watchdog, cpu));
-	}
-}
-
 static void watchdog_disable_all_cpus(void)
 {
-	unsigned int cpu;
-
-	if (!watchdog_disabled) {
-		watchdog_disabled = 1;
-		for_each_online_cpu(cpu)
-			kthread_park(per_cpu(softlockup_watchdog, cpu));
+	if (watchdog_running) {
+		watchdog_running = 0;
+		smpboot_unregister_percpu_thread(&watchdog_threads);
 	}
 }
 
@@ -508,40 +566,43 @@ static void watchdog_disable_all_cpus(void)
 int proc_dowatchdog(struct ctl_table *table, int write,
 		    void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret;
+	int err, old_thresh, old_enabled;
+	static DEFINE_MUTEX(watchdog_proc_mutex);
 
-	if (watchdog_disabled < 0)
-		return -ENODEV;
+	mutex_lock(&watchdog_proc_mutex);
+	old_thresh = ACCESS_ONCE(watchdog_thresh);
+	old_enabled = ACCESS_ONCE(watchdog_user_enabled);
 
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	if (ret || !write)
-		return ret;
+	err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (err || !write)
+		goto out;
 
 	set_sample_period();
-	if (watchdog_enabled && watchdog_thresh)
-		watchdog_enable_all_cpus();
+	/*
+	 * Watchdog threads shouldn't be enabled if they are
+	 * disabled. The 'watchdog_running' variable check in
+	 * watchdog_*_all_cpus() function takes care of this.
+	 */
+	if (watchdog_user_enabled && watchdog_thresh)
+		err = watchdog_enable_all_cpus(old_thresh != watchdog_thresh);
 	else
 		watchdog_disable_all_cpus();
 
-	return ret;
+	/* Restore old values on failure */
+	if (err) {
+		watchdog_thresh = old_thresh;
+		watchdog_user_enabled = old_enabled;
+	}
+out:
+	mutex_unlock(&watchdog_proc_mutex);
+	return err;
 }
 #endif /* CONFIG_SYSCTL */
-
-static struct smp_hotplug_thread watchdog_threads = {
-	.store			= &softlockup_watchdog,
-	.thread_should_run	= watchdog_should_run,
-	.thread_fn		= watchdog,
-	.thread_comm		= "watchdog/%u",
-	.setup			= watchdog_enable,
-	.park			= watchdog_disable,
-	.unpark			= watchdog_enable,
-};
 
 void __init lockup_detector_init(void)
 {
 	set_sample_period();
-	if (smpboot_register_percpu_thread(&watchdog_threads)) {
-		pr_err("Failed to create watchdog threads, disabled\n");
-		watchdog_disabled = -ENODEV;
-	}
+
+	if (watchdog_user_enabled)
+		watchdog_enable_all_cpus(false);
 }

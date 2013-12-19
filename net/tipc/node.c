@@ -69,12 +69,11 @@ static unsigned int tipc_hashfn(u32 addr)
 struct tipc_node *tipc_node_find(u32 addr)
 {
 	struct tipc_node *node;
-	struct hlist_node *pos;
 
 	if (unlikely(!in_own_cluster_exact(addr)))
 		return NULL;
 
-	hlist_for_each_entry(node, pos, &node_htable[tipc_hashfn(addr)], hash) {
+	hlist_for_each_entry(node, &node_htable[tipc_hashfn(addr)], hash) {
 		if (node->addr == addr)
 			return node;
 	}
@@ -299,9 +298,10 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		}
 		n_ptr->bclink.deferred_size = 0;
 
-		if (n_ptr->bclink.defragm) {
-			kfree_skb(n_ptr->bclink.defragm);
-			n_ptr->bclink.defragm = NULL;
+		if (n_ptr->bclink.reasm_head) {
+			kfree_skb(n_ptr->bclink.reasm_head);
+			n_ptr->bclink.reasm_head = NULL;
+			n_ptr->bclink.reasm_tail = NULL;
 		}
 
 		tipc_bclink_remove_node(n_ptr->addr);

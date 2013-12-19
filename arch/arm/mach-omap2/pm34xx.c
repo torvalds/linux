@@ -120,7 +120,7 @@ static void omap3_save_secure_ram_context(void)
 		 * will hang the system.
 		 */
 		pwrdm_set_next_pwrst(mpu_pwrdm, PWRDM_POWER_ON);
-		ret = _omap_save_secure_sram((u32 *)
+		ret = _omap_save_secure_sram((u32 *)(unsigned long)
 				__pa(omap3_secure_ram_storage));
 		pwrdm_set_next_pwrst(mpu_pwrdm, mpu_next_state);
 		/* Following is for error tracking, it should not happen */
@@ -346,21 +346,14 @@ void omap_sram_idle(void)
 
 static void omap3_pm_idle(void)
 {
-	local_fiq_disable();
-
 	if (omap_irq_pending())
-		goto out;
+		return;
 
-	trace_power_start(POWER_CSTATE, 1, smp_processor_id());
 	trace_cpu_idle(1, smp_processor_id());
 
 	omap_sram_idle();
 
-	trace_power_end(smp_processor_id());
 	trace_cpu_idle(PWR_EVENT_EXIT, smp_processor_id());
-
-out:
-	local_fiq_enable();
 }
 
 #ifdef CONFIG_SUSPEND
@@ -437,8 +430,7 @@ static void __init omap3_iva_idle(void)
 			 OMAP3430_IVA2_MOD, CM_FCLKEN);
 
 	/* Set IVA2 boot mode to 'idle' */
-	omap_ctrl_writel(OMAP3_IVA2_BOOTMOD_IDLE,
-			 OMAP343X_CONTROL_IVA2_BOOTMOD);
+	omap3_ctrl_set_iva_bootmode_idle();
 
 	/* Un-reset IVA2 */
 	omap2_prm_write_mod_reg(0, OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
@@ -553,8 +545,10 @@ static void __init prcm_setup_regs(void)
 	/* Clear any pending PRCM interrupts */
 	omap2_prm_write_mod_reg(0, OCP_MOD, OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
 
-	if (omap3_has_iva())
-		omap3_iva_idle();
+	/*
+	 * We need to idle iva2_pwrdm even on am3703 with no iva2.
+	 */
+	omap3_iva_idle();
 
 	omap3_d2d_idle();
 }
@@ -759,14 +753,12 @@ int __init omap3_pm_init(void)
 			pr_err("Memory allocation failed when allocating for secure sram context\n");
 
 		local_irq_disable();
-		local_fiq_disable();
 
 		omap_dma_global_context_save();
 		omap3_save_secure_ram_context();
 		omap_dma_global_context_restore();
 
 		local_irq_enable();
-		local_fiq_enable();
 	}
 
 	omap3_save_scratchpad_contents();

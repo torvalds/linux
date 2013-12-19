@@ -30,6 +30,7 @@
 #include <linux/seq_file.h>
 #include <asm/uaccess.h>
 #include <linux/dma-mapping.h>
+#include <linux/genalloc.h>
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <sound/memalloc.h>
@@ -81,7 +82,7 @@ static inline void dec_snd_pages(int order)
  *
  * Allocates the physically contiguous pages with the given size.
  *
- * Returns the pointer of the buffer, or NULL if no enoguh memory.
+ * Return: The pointer of the buffer, or %NULL if no enough memory.
  */
 void *snd_malloc_pages(size_t size, gfp_t gfp_flags)
 {
@@ -157,6 +158,47 @@ static void snd_free_dev_pages(struct device *dev, size_t size, void *ptr,
 	dec_snd_pages(pg);
 	dma_free_coherent(dev, PAGE_SIZE << pg, ptr, dma);
 }
+
+#ifdef CONFIG_GENERIC_ALLOCATOR
+/**
+ * snd_malloc_dev_iram - allocate memory from on-chip internal ram
+ * @dmab: buffer allocation record to store the allocated data
+ * @size: number of bytes to allocate from the iram
+ *
+ * This function requires iram phandle provided via of_node
+ */
+static void snd_malloc_dev_iram(struct snd_dma_buffer *dmab, size_t size)
+{
+	struct device *dev = dmab->dev.dev;
+	struct gen_pool *pool = NULL;
+
+	dmab->area = NULL;
+	dmab->addr = 0;
+
+	if (dev->of_node)
+		pool = of_get_named_gen_pool(dev->of_node, "iram", 0);
+
+	if (!pool)
+		return;
+
+	/* Assign the pool into private_data field */
+	dmab->private_data = pool;
+
+	dmab->area = gen_pool_dma_alloc(pool, size, &dmab->addr);
+}
+
+/**
+ * snd_free_dev_iram - free allocated specific memory from on-chip internal ram
+ * @dmab: buffer allocation record to store the allocated data
+ */
+static void snd_free_dev_iram(struct snd_dma_buffer *dmab)
+{
+	struct gen_pool *pool = dmab->private_data;
+
+	if (pool && dmab->area)
+		gen_pool_free(pool, (unsigned long)dmab->area, dmab->bytes);
+}
+#endif /* CONFIG_GENERIC_ALLOCATOR */
 #endif /* CONFIG_HAS_DMA */
 
 /*
@@ -175,9 +217,9 @@ static void snd_free_dev_pages(struct device *dev, size_t size, void *ptr,
  *
  * Calls the memory-allocator function for the corresponding
  * buffer type.
- * 
- * Returns zero if the buffer with the given size is allocated successfully,
- * other a negative value at error.
+ *
+ * Return: Zero if the buffer with the given size is allocated successfully,
+ * otherwise a negative value on error.
  */
 int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 			struct snd_dma_buffer *dmab)
@@ -197,6 +239,16 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 		dmab->addr = 0;
 		break;
 #ifdef CONFIG_HAS_DMA
+#ifdef CONFIG_GENERIC_ALLOCATOR
+	case SNDRV_DMA_TYPE_DEV_IRAM:
+		snd_malloc_dev_iram(dmab, size);
+		if (dmab->area)
+			break;
+		/* Internal memory might have limited size and no enough space,
+		 * so if we fail to malloc, try to fetch memory traditionally.
+		 */
+		dmab->dev.type = SNDRV_DMA_TYPE_DEV;
+#endif /* CONFIG_GENERIC_ALLOCATOR */
 	case SNDRV_DMA_TYPE_DEV:
 		dmab->area = snd_malloc_dev_pages(device, size, &dmab->addr);
 		break;
@@ -229,9 +281,9 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
  * buffer type.  When no space is left, this function reduces the size and
  * tries to allocate again.  The size actually allocated is stored in
  * res_size argument.
- * 
- * Returns zero if the buffer with the given size is allocated successfully,
- * other a negative value at error.
+ *
+ * Return: Zero if the buffer with the given size is allocated successfully,
+ * otherwise a negative value on error.
  */
 int snd_dma_alloc_pages_fallback(int type, struct device *device, size_t size,
 				 struct snd_dma_buffer *dmab)
@@ -269,6 +321,11 @@ void snd_dma_free_pages(struct snd_dma_buffer *dmab)
 		snd_free_pages(dmab->area, dmab->bytes);
 		break;
 #ifdef CONFIG_HAS_DMA
+#ifdef CONFIG_GENERIC_ALLOCATOR
+	case SNDRV_DMA_TYPE_DEV_IRAM:
+		snd_free_dev_iram(dmab);
+		break;
+#endif /* CONFIG_GENERIC_ALLOCATOR */
 	case SNDRV_DMA_TYPE_DEV:
 		snd_free_dev_pages(dmab->dev.dev, dmab->bytes, dmab->area, dmab->addr);
 		break;
@@ -292,7 +349,7 @@ void snd_dma_free_pages(struct snd_dma_buffer *dmab)
  * Looks for the reserved-buffer list and re-uses if the same buffer
  * is found in the list.  When the buffer is found, it's removed from the free list.
  *
- * Returns the size of buffer if the buffer is found, or zero if not found.
+ * Return: The size of buffer if the buffer is found, or zero if not found.
  */
 size_t snd_dma_get_reserved_buf(struct snd_dma_buffer *dmab, unsigned int id)
 {
@@ -326,8 +383,8 @@ size_t snd_dma_get_reserved_buf(struct snd_dma_buffer *dmab, unsigned int id)
  * @id: the buffer id
  *
  * Reserves the given buffer as a reserved buffer.
- * 
- * Returns zero if successful, or a negative code at error.
+ *
+ * Return: Zero if successful, or a negative code on error.
  */
 int snd_dma_reserve_buf(struct snd_dma_buffer *dmab, unsigned int id)
 {

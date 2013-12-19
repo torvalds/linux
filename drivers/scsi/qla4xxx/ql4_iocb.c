@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -316,7 +316,7 @@ int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb)
 		goto queuing_error;
 
 	/* total iocbs active */
-	if ((ha->iocb_cnt + req_cnt) >= REQUEST_QUEUE_DEPTH)
+	if ((ha->iocb_cnt + req_cnt) >= ha->iocb_hiwat)
 		goto queuing_error;
 
 	/* Build command packet */
@@ -507,6 +507,7 @@ static int qla4xxx_send_mbox_iocb(struct scsi_qla_host *ha, struct mrb *mrb,
 	mrb->mbox_cmd = in_mbox[0];
 	wmb();
 
+	ha->iocb_cnt += mrb->iocb_cnt;
 	ha->isp_ops->queue_iocb(ha);
 exit_mbox_iocb:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);

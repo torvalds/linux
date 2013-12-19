@@ -1,0 +1,141 @@
+* Rockchip Pinmux Controller
+
+The Rockchip Pinmux Controller, enables the IC
+to share one PAD to several functional blocks. The sharing is done by
+multiplexing the PAD input/output signals. For each PAD there are up to
+4 muxing options with option 0 being the use as a GPIO.
+
+Please refer to pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices, including the meaning of the
+phrase "pin configuration node".
+
+The Rockchip pin configuration node is a node of a group of pins which can be
+used for a specific device or function. This node represents both mux and
+config of the pins in that group. The 'pins' selects the function mode(also
+named pin mode) this pin can work on and the 'config' configures various pad
+settings such as pull-up, etc.
+
+The pins are grouped into up to 5 individual pin banks which need to be
+defined as gpio sub-nodes of the pinmux controller.
+
+Required properties for iomux controller:
+  - compatible: one of "rockchip,rk2928-pinctrl", "rockchip,rk3066a-pinctrl"
+		       "rockchip,rk3066b-pinctrl", "rockchip,rk3188-pinctrl"
+  - reg: first element is the general register space of the iomux controller
+	 second element is the separate pull register space of the rk3188
+
+Required properties for gpio sub nodes:
+  - compatible: "rockchip,gpio-bank", "rockchip,rk3188-gpio-bank0"
+  - reg: register of the gpio bank (different than the iomux registerset)
+         second element: separate pull register for rk3188 bank0
+  - interrupts: base interrupt of the gpio bank in the interrupt controller
+  - clocks: clock that drives this bank
+  - gpio-controller: identifies the node as a gpio controller and pin bank.
+  - #gpio-cells: number of cells in GPIO specifier. Since the generic GPIO
+    binding is used, the amount of cells must be specified as 2. See generic
+    GPIO binding documentation for description of particular cells.
+  - interrupt-controller: identifies the controller node as interrupt-parent.
+  - #interrupt-cells: the value of this property should be 2 and the interrupt
+    cells should use the standard two-cell scheme described in
+    bindings/interrupt-controller/interrupts.txt
+
+Required properties for pin configuration node:
+  - rockchip,pins: 3 integers array, represents a group of pins mux and config
+    setting. The format is rockchip,pins = <PIN_BANK PIN_BANK_IDX MUX &phandle>.
+    The MUX 0 means gpio and MUX 1 to 3 mean the specific device function.
+    The phandle of a node containing the generic pinconfig options
+    to use, as described in pinctrl-bindings.txt in this directory.
+
+Examples:
+
+#include <dt-bindings/pinctrl/rockchip.h>
+
+...
+
+pinctrl@20008000 {
+	compatible = "rockchip,rk3066a-pinctrl";
+	reg = <0x20008000 0x150>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+
+	gpio0: gpio0@20034000 {
+		compatible = "rockchip,gpio-bank";
+		reg = <0x20034000 0x100>;
+		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_gates8 9>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+
+	...
+
+	pcfg_pull_default: pcfg_pull_default {
+		bias-pull-pin-default
+	};
+
+	uart2 {
+		uart2_xfer: uart2-xfer {
+			rockchip,pins = <RK_GPIO1 8 1 &pcfg_pull_default>,
+					<RK_GPIO1 9 1 &pcfg_pull_default>;
+		};
+	};
+};
+
+uart2: serial@20064000 {
+	compatible = "snps,dw-apb-uart";
+	reg = <0x20064000 0x400>;
+	interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+	reg-shift = <2>;
+	reg-io-width = <1>;
+	clocks = <&mux_uart2>;
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_xfer>;
+};
+
+Example for rk3188:
+
+	pinctrl@20008000 {
+		compatible = "rockchip,rk3188-pinctrl";
+		reg = <0x20008000 0xa0>,
+		      <0x20008164 0x1a0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gpio0: gpio0@0x2000a000 {
+			compatible = "rockchip,rk3188-gpio-bank0";
+			reg = <0x2000a000 0x100>,
+			      <0x20004064 0x8>;
+			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates8 9>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio1: gpio1@0x2003c000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x2003c000 0x100>;
+			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates8 10>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		...
+
+	};

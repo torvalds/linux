@@ -64,19 +64,14 @@ static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct ad7476_state *st = iio_priv(indio_dev);
-	s64 time_ns;
 	int b_sent;
 
 	b_sent = spi_sync(st->spi, &st->msg);
 	if (b_sent < 0)
 		goto done;
 
-	time_ns = iio_get_time_ns();
-
-	if (indio_dev->scan_timestamp)
-		((s64 *)st->data)[1] = time_ns;
-
-	iio_push_to_buffers(indio_dev, st->data);
+	iio_push_to_buffers_with_timestamp(indio_dev, st->data,
+		iio_get_time_ns());
 done:
 	iio_trigger_notify_done(indio_dev->trig);
 
@@ -132,20 +127,19 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 		} else {
 			scale_uv = st->chip_info->int_vref_uv;
 		}
-		scale_uv >>= chan->scan_type.realbits;
-		*val =  scale_uv / 1000;
-		*val2 = (scale_uv % 1000) * 1000;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = scale_uv / 1000;
+		*val2 = chan->scan_type.realbits;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	}
 	return -EINVAL;
 }
 
-#define _AD7476_CHAN(bits, _shift, _info_mask)			\
+#define _AD7476_CHAN(bits, _shift, _info_mask_sep)		\
 	{							\
 	.type = IIO_VOLTAGE,					\
 	.indexed = 1,						\
-	.info_mask = _info_mask |				\
-	IIO_CHAN_INFO_SCALE_SHARED_BIT,				\
+	.info_mask_separate = _info_mask_sep,			\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
 	.scan_type = {						\
 		.sign = 'u',					\
 		.realbits = (bits),				\
@@ -156,9 +150,9 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 }
 
 #define AD7476_CHAN(bits) _AD7476_CHAN((bits), 13 - (bits), \
-		IIO_CHAN_INFO_RAW_SEPARATE_BIT)
+		BIT(IIO_CHAN_INFO_RAW))
 #define AD7940_CHAN(bits) _AD7476_CHAN((bits), 15 - (bits), \
-		IIO_CHAN_INFO_RAW_SEPARATE_BIT)
+		BIT(IIO_CHAN_INFO_RAW))
 #define AD7091R_CHAN(bits) _AD7476_CHAN((bits), 16 - (bits), 0)
 
 static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
@@ -207,30 +201,27 @@ static const struct iio_info ad7476_info = {
 	.read_raw = &ad7476_read_raw,
 };
 
-static int __devinit ad7476_probe(struct spi_device *spi)
+static int ad7476_probe(struct spi_device *spi)
 {
 	struct ad7476_state *st;
 	struct iio_dev *indio_dev;
 	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	if (!indio_dev)
+		return -ENOMEM;
+
 	st = iio_priv(indio_dev);
 	st->chip_info =
 		&ad7476_chip_info_tbl[spi_get_device_id(spi)->driver_data];
 
-	st->reg = regulator_get(&spi->dev, "vcc");
-	if (IS_ERR(st->reg)) {
-		ret = PTR_ERR(st->reg);
-		goto error_free_dev;
-	}
+	st->reg = devm_regulator_get(&spi->dev, "vcc");
+	if (IS_ERR(st->reg))
+		return PTR_ERR(st->reg);
 
 	ret = regulator_enable(st->reg);
 	if (ret)
-		goto error_put_reg;
+		return ret;
 
 	spi_set_drvdata(spi, indio_dev);
 
@@ -268,16 +259,11 @@ error_ring_unregister:
 	iio_triggered_buffer_cleanup(indio_dev);
 error_disable_reg:
 	regulator_disable(st->reg);
-error_put_reg:
-	regulator_put(st->reg);
-error_free_dev:
-	iio_device_free(indio_dev);
 
-error_ret:
 	return ret;
 }
 
-static int __devexit ad7476_remove(struct spi_device *spi)
+static int ad7476_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7476_state *st = iio_priv(indio_dev);
@@ -285,8 +271,6 @@ static int __devexit ad7476_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	regulator_disable(st->reg);
-	regulator_put(st->reg);
-	iio_device_free(indio_dev);
 
 	return 0;
 }
@@ -322,7 +306,7 @@ static struct spi_driver ad7476_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad7476_probe,
-	.remove		= __devexit_p(ad7476_remove),
+	.remove		= ad7476_remove,
 	.id_table	= ad7476_id,
 };
 module_spi_driver(ad7476_driver);

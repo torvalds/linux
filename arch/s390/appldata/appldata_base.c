@@ -48,9 +48,9 @@ static struct platform_device *appldata_pdev;
  * /proc entries (sysctl)
  */
 static const char appldata_proc_name[APPLDATA_PROC_NAME_LENGTH] = "appldata";
-static int appldata_timer_handler(ctl_table *ctl, int write,
+static int appldata_timer_handler(struct ctl_table *ctl, int write,
 				  void __user *buffer, size_t *lenp, loff_t *ppos);
-static int appldata_interval_handler(ctl_table *ctl, int write,
+static int appldata_interval_handler(struct ctl_table *ctl, int write,
 					 void __user *buffer,
 					 size_t *lenp, loff_t *ppos);
 
@@ -201,10 +201,10 @@ static void __appldata_vtimer_setup(int cmd)
  * Start/Stop timer, show status of timer (0 = not active, 1 = active)
  */
 static int
-appldata_timer_handler(ctl_table *ctl, int write,
+appldata_timer_handler(struct ctl_table *ctl, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	int len;
+	unsigned int len;
 	char buf[2];
 
 	if (!*lenp || *ppos) {
@@ -212,7 +212,9 @@ appldata_timer_handler(ctl_table *ctl, int write,
 		return 0;
 	}
 	if (!write) {
-		len = sprintf(buf, appldata_timer_active ? "1\n" : "0\n");
+		strncpy(buf, appldata_timer_active ? "1\n" : "0\n",
+			ARRAY_SIZE(buf));
+		len = strnlen(buf, ARRAY_SIZE(buf));
 		if (len > *lenp)
 			len = *lenp;
 		if (copy_to_user(buffer, buf, len))
@@ -241,10 +243,11 @@ out:
  * current timer interval.
  */
 static int
-appldata_interval_handler(ctl_table *ctl, int write,
+appldata_interval_handler(struct ctl_table *ctl, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	int len, interval;
+	unsigned int len;
+	int interval;
 	char buf[16];
 
 	if (!*lenp || *ppos) {
@@ -284,11 +287,12 @@ out:
  * monitoring (0 = not in process, 1 = in process)
  */
 static int
-appldata_generic_handler(ctl_table *ctl, int write,
+appldata_generic_handler(struct ctl_table *ctl, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct appldata_ops *ops = NULL, *tmp_ops;
-	int rc, len, found;
+	unsigned int len;
+	int rc, found;
 	char buf[2];
 	struct list_head *lh;
 
@@ -317,7 +321,8 @@ appldata_generic_handler(ctl_table *ctl, int write,
 		return 0;
 	}
 	if (!write) {
-		len = sprintf(buf, ops->active ? "1\n" : "0\n");
+		strncpy(buf, ops->active ? "1\n" : "0\n", ARRAY_SIZE(buf));
+		len = strnlen(buf, ARRAY_SIZE(buf));
 		if (len > *lenp)
 			len = *lenp;
 		if (copy_to_user(buffer, buf, len)) {

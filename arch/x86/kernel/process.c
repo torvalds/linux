@@ -36,7 +36,7 @@
  * section. Since TSS's are completely CPU-local, we want them
  * on exact cacheline boundaries, to eliminate cacheline ping-pong.
  */
-DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, init_tss) = INIT_TSS;
+__visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, init_tss) = INIT_TSS;
 
 #ifdef CONFIG_X86_64
 static DEFINE_PER_CPU(unsigned char, is_idle);
@@ -119,30 +119,6 @@ void exit_thread(void)
 	}
 
 	drop_fpu(me);
-}
-
-void show_regs_common(void)
-{
-	const char *vendor, *product, *board;
-
-	vendor = dmi_get_system_info(DMI_SYS_VENDOR);
-	if (!vendor)
-		vendor = "";
-	product = dmi_get_system_info(DMI_PRODUCT_NAME);
-	if (!product)
-		product = "";
-
-	/* Board Name is optional */
-	board = dmi_get_system_info(DMI_BOARD_NAME);
-
-	printk(KERN_DEFAULT "Pid: %d, comm: %.20s %s %s %.*s %s %s%s%s\n",
-	       current->pid, current->comm, print_tainted(),
-	       init_utsname()->release,
-	       (int)strcspn(init_utsname()->version, " "),
-	       init_utsname()->version,
-	       vendor, product,
-	       board ? "/" : "",
-	       board ? board : "");
 }
 
 void flush_thread(void)
@@ -268,13 +244,7 @@ void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 unsigned long boot_option_idle_override = IDLE_NO_OVERRIDE;
 EXPORT_SYMBOL(boot_option_idle_override);
 
-/*
- * Powermanagement idle function, if any..
- */
-void (*pm_idle)(void);
-#ifdef CONFIG_APM_MODULE
-EXPORT_SYMBOL(pm_idle);
-#endif
+static void (*x86_idle)(void);
 
 #ifndef CONFIG_SMP
 static inline void play_dead(void)
@@ -307,103 +277,56 @@ void exit_idle(void)
 }
 #endif
 
-/*
- * The idle thread. There's no useful work to be
- * done, so just try to conserve power and have a
- * low exit latency (ie sit in a loop waiting for
- * somebody to say that they'd like to reschedule)
- */
-void cpu_idle(void)
+void arch_cpu_idle_enter(void)
 {
-	/*
-	 * If we're the non-boot CPU, nothing set the stack canary up
-	 * for us.  CPU0 already has it initialized but no harm in
-	 * doing it again.  This is a good place for updating it, as
-	 * we wont ever return from this function (so the invalid
-	 * canaries already on the stack wont ever trigger).
-	 */
-	boot_init_stack_canary();
-	current_thread_info()->status |= TS_POLLING;
+	local_touch_nmi();
+	enter_idle();
+}
 
-	while (1) {
-		tick_nohz_idle_enter();
+void arch_cpu_idle_exit(void)
+{
+	__exit_idle();
+}
 
-		while (!need_resched()) {
-			rmb();
-
-			if (cpu_is_offline(smp_processor_id()))
-				play_dead();
-
-			/*
-			 * Idle routines should keep interrupts disabled
-			 * from here on, until they go to idle.
-			 * Otherwise, idle callbacks can misfire.
-			 */
-			local_touch_nmi();
-			local_irq_disable();
-
-			enter_idle();
-
-			/* Don't trace irqs off for idle */
-			stop_critical_timings();
-
-			/* enter_idle() needs rcu for notifiers */
-			rcu_idle_enter();
-
-			if (cpuidle_idle_call())
-				pm_idle();
-
-			rcu_idle_exit();
-			start_critical_timings();
-
-			/* In many cases the interrupt that ended idle
-			   has already called exit_idle. But some idle
-			   loops can be woken up without interrupt. */
-			__exit_idle();
-		}
-
-		tick_nohz_idle_exit();
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
-	}
+void arch_cpu_idle_dead(void)
+{
+	play_dead();
 }
 
 /*
- * We use this if we don't have any better
- * idle routine..
+ * Called from the generic idle code.
+ */
+void arch_cpu_idle(void)
+{
+	if (cpuidle_idle_call())
+		x86_idle();
+	else
+		local_irq_enable();
+}
+
+/*
+ * We use this if we don't have any better idle routine..
  */
 void default_idle(void)
 {
-	trace_power_start_rcuidle(POWER_CSTATE, 1, smp_processor_id());
 	trace_cpu_idle_rcuidle(1, smp_processor_id());
-	current_thread_info()->status &= ~TS_POLLING;
-	/*
-	 * TS_POLLING-cleared state must be visible before we
-	 * test NEED_RESCHED:
-	 */
-	smp_mb();
-
-	if (!need_resched())
-		safe_halt();	/* enables interrupts racelessly */
-	else
-		local_irq_enable();
-	current_thread_info()->status |= TS_POLLING;
-	trace_power_end_rcuidle(smp_processor_id());
+	safe_halt();
 	trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, smp_processor_id());
 }
 #ifdef CONFIG_APM_MODULE
 EXPORT_SYMBOL(default_idle);
 #endif
 
-bool set_pm_idle_to_default(void)
+#ifdef CONFIG_XEN
+bool xen_set_default_idle(void)
 {
-	bool ret = !!pm_idle;
+	bool ret = !!x86_idle;
 
-	pm_idle = default_idle;
+	x86_idle = default_idle;
 
 	return ret;
 }
+#endif
 void stop_this_cpu(void *dummy)
 {
 	local_irq_disable();
@@ -413,94 +336,8 @@ void stop_this_cpu(void *dummy)
 	set_cpu_online(smp_processor_id(), false);
 	disable_local_APIC();
 
-	for (;;) {
-		if (hlt_works(smp_processor_id()))
-			halt();
-	}
-}
-
-/* Default MONITOR/MWAIT with no hints, used for default C1 state */
-static void mwait_idle(void)
-{
-	if (!need_resched()) {
-		trace_power_start_rcuidle(POWER_CSTATE, 1, smp_processor_id());
-		trace_cpu_idle_rcuidle(1, smp_processor_id());
-		if (this_cpu_has(X86_FEATURE_CLFLUSH_MONITOR))
-			clflush((void *)&current_thread_info()->flags);
-
-		__monitor((void *)&current_thread_info()->flags, 0, 0);
-		smp_mb();
-		if (!need_resched())
-			__sti_mwait(0, 0);
-		else
-			local_irq_enable();
-		trace_power_end_rcuidle(smp_processor_id());
-		trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, smp_processor_id());
-	} else
-		local_irq_enable();
-}
-
-/*
- * On SMP it's slightly faster (but much more power-consuming!)
- * to poll the ->work.need_resched flag instead of waiting for the
- * cross-CPU IPI to arrive. Use this option with caution.
- */
-static void poll_idle(void)
-{
-	trace_power_start_rcuidle(POWER_CSTATE, 0, smp_processor_id());
-	trace_cpu_idle_rcuidle(0, smp_processor_id());
-	local_irq_enable();
-	while (!need_resched())
-		cpu_relax();
-	trace_power_end_rcuidle(smp_processor_id());
-	trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, smp_processor_id());
-}
-
-/*
- * mwait selection logic:
- *
- * It depends on the CPU. For AMD CPUs that support MWAIT this is
- * wrong. Family 0x10 and 0x11 CPUs will enter C1 on HLT. Powersavings
- * then depend on a clock divisor and current Pstate of the core. If
- * all cores of a processor are in halt state (C1) the processor can
- * enter the C1E (C1 enhanced) state. If mwait is used this will never
- * happen.
- *
- * idle=mwait overrides this decision and forces the usage of mwait.
- */
-
-#define MWAIT_INFO			0x05
-#define MWAIT_ECX_EXTENDED_INFO		0x01
-#define MWAIT_EDX_C1			0xf0
-
-int mwait_usable(const struct cpuinfo_x86 *c)
-{
-	u32 eax, ebx, ecx, edx;
-
-	/* Use mwait if idle=mwait boot option is given */
-	if (boot_option_idle_override == IDLE_FORCE_MWAIT)
-		return 1;
-
-	/*
-	 * Any idle= boot option other than idle=mwait means that we must not
-	 * use mwait. Eg: idle=halt or idle=poll or idle=nomwait
-	 */
-	if (boot_option_idle_override != IDLE_NO_OVERRIDE)
-		return 0;
-
-	if (c->cpuid_level < MWAIT_INFO)
-		return 0;
-
-	cpuid(MWAIT_INFO, &eax, &ebx, &ecx, &edx);
-	/* Check, whether EDX has extended info about MWAIT */
-	if (!(ecx & MWAIT_ECX_EXTENDED_INFO))
-		return 1;
-
-	/*
-	 * edx enumeratios MONITOR/MWAIT extensions. Check, whether
-	 * C1  supports MWAIT
-	 */
-	return (edx & MWAIT_EDX_C1);
+	for (;;)
+		halt();
 }
 
 bool amd_e400_c1e_detected;
@@ -521,9 +358,6 @@ void amd_e400_remove_cpu(int cpu)
  */
 static void amd_e400_idle(void)
 {
-	if (need_resched())
-		return;
-
 	if (!amd_e400_c1e_detected) {
 		u32 lo, hi;
 
@@ -557,41 +391,34 @@ static void amd_e400_idle(void)
 		 * The switch back from broadcast mode needs to be
 		 * called with interrupts disabled.
 		 */
-		 local_irq_disable();
-		 clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu);
-		 local_irq_enable();
+		local_irq_disable();
+		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu);
+		local_irq_enable();
 	} else
 		default_idle();
 }
 
-void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
+void select_idle_routine(const struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
-	if (pm_idle == poll_idle && smp_num_siblings > 1) {
+	if (boot_option_idle_override == IDLE_POLL && smp_num_siblings > 1)
 		pr_warn_once("WARNING: polling idle and HT enabled, performance may degrade\n");
-	}
 #endif
-	if (pm_idle)
+	if (x86_idle || boot_option_idle_override == IDLE_POLL)
 		return;
 
-	if (cpu_has(c, X86_FEATURE_MWAIT) && mwait_usable(c)) {
-		/*
-		 * One CPU supports mwait => All CPUs supports mwait
-		 */
-		pr_info("using mwait in idle threads\n");
-		pm_idle = mwait_idle;
-	} else if (cpu_has_amd_erratum(amd_erratum_400)) {
+	if (cpu_has_bug(c, X86_BUG_AMD_APIC_C1E)) {
 		/* E400: APIC timer interrupt does not wake up CPU from C1e */
 		pr_info("using AMD E400 aware idle routine\n");
-		pm_idle = amd_e400_idle;
+		x86_idle = amd_e400_idle;
 	} else
-		pm_idle = default_idle;
+		x86_idle = default_idle;
 }
 
 void __init init_amd_e400_c1e_mask(void)
 {
 	/* If we're using amd_e400_idle, we need to allocate amd_e400_c1e_mask. */
-	if (pm_idle == amd_e400_idle)
+	if (x86_idle == amd_e400_idle)
 		zalloc_cpumask_var(&amd_e400_c1e_mask, GFP_KERNEL);
 }
 
@@ -602,11 +429,8 @@ static int __init idle_setup(char *str)
 
 	if (!strcmp(str, "poll")) {
 		pr_info("using polling idle threads\n");
-		pm_idle = poll_idle;
 		boot_option_idle_override = IDLE_POLL;
-	} else if (!strcmp(str, "mwait")) {
-		boot_option_idle_override = IDLE_FORCE_MWAIT;
-		WARN_ONCE(1, "\"idle=mwait\" will be removed in 2012\n");
+		cpu_idle_poll_ctrl(true);
 	} else if (!strcmp(str, "halt")) {
 		/*
 		 * When the boot option of idle=halt is added, halt is
@@ -615,7 +439,7 @@ static int __init idle_setup(char *str)
 		 * To continue to load the CPU idle driver, don't touch
 		 * the boot_option_idle_override.
 		 */
-		pm_idle = default_idle;
+		x86_idle = default_idle;
 		boot_option_idle_override = IDLE_HALT;
 	} else if (!strcmp(str, "nomwait")) {
 		/*

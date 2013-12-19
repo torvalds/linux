@@ -88,7 +88,7 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 			continue;
 		addr = pci_iomap(pdev, i, 0);
 		if (addr == NULL) {
-			pr_err("%s: ERROR: cannot map register memory, aborting",
+			pr_err("%s: ERROR: cannot map register memory aborting",
 			       __func__);
 			ret = -EIO;
 			goto err_out_map_failed;
@@ -102,6 +102,7 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 	priv = stmmac_dvr_probe(&(pdev->dev), &plat_dat, addr);
 	if (!priv) {
 		pr_err("%s: main driver probe failed", __func__);
+		ret = -ENODEV;
 		goto err_out;
 	}
 	priv->dev->irq = pdev->irq;
@@ -137,7 +138,6 @@ static void stmmac_pci_remove(struct pci_dev *pdev)
 
 	stmmac_dvr_remove(ndev);
 
-	pci_set_drvdata(pdev, NULL);
 	pci_iounmap(pdev, priv->ioaddr);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

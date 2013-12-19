@@ -40,10 +40,13 @@ int tm6000_read_write_usb(struct tm6000_core *dev, u8 req_type, u8 req,
 	u8	     *data = NULL;
 	int delay = 5000;
 
-	mutex_lock(&dev->usb_lock);
-
-	if (len)
+	if (len) {
 		data = kzalloc(len, GFP_KERNEL);
+		if (!data)
+			return -ENOMEM;
+	}
+
+	mutex_lock(&dev->usb_lock);
 
 	if (req_type & USB_DIR_IN)
 		pipe = usb_rcvctrlpipe(dev->udev, 0);

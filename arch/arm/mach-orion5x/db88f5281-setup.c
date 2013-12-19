@@ -340,16 +340,27 @@ static void __init db88f5281_init(void)
 	orion5x_uart0_init();
 	orion5x_uart1_init();
 
-	orion5x_setup_dev_boot_win(DB88F5281_NOR_BOOT_BASE,
-				DB88F5281_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
+				    ORION_MBUS_DEVBUS_BOOT_ATTR,
+				    DB88F5281_NOR_BOOT_BASE,
+				    DB88F5281_NOR_BOOT_SIZE);
 	platform_device_register(&db88f5281_boot_flash);
 
-	orion5x_setup_dev0_win(DB88F5281_7SEG_BASE, DB88F5281_7SEG_SIZE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_TARGET(0),
+				    ORION_MBUS_DEVBUS_ATTR(0),
+				    DB88F5281_7SEG_BASE,
+				    DB88F5281_7SEG_SIZE);
 
-	orion5x_setup_dev1_win(DB88F5281_NOR_BASE, DB88F5281_NOR_SIZE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_TARGET(1),
+				    ORION_MBUS_DEVBUS_ATTR(1),
+				    DB88F5281_NOR_BASE,
+				    DB88F5281_NOR_SIZE);
 	platform_device_register(&db88f5281_nor_flash);
 
-	orion5x_setup_dev2_win(DB88F5281_NAND_BASE, DB88F5281_NAND_SIZE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_TARGET(2),
+				    ORION_MBUS_DEVBUS_ATTR(2),
+				    DB88F5281_NAND_BASE,
+				    DB88F5281_NAND_SIZE);
 	platform_device_register(&db88f5281_nand_flash);
 
 	i2c_register_board_info(0, &db88f5281_i2c_rtc, 1);
@@ -362,6 +373,6 @@ MACHINE_START(DB88F5281, "Marvell Orion-2 Development Board")
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
-	.timer		= &orion5x_timer,
+	.init_time	= orion5x_timer_init,
 	.restart	= orion5x_restart,
 MACHINE_END

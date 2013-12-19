@@ -120,7 +120,6 @@ struct cpts {
 	struct delayed_work overflow_work;
 	int phc_index;
 	struct clk *refclk;
-	unsigned long freq;
 	struct list_head events;
 	struct list_head pool;
 	struct cpts_event pool_data[CPTS_MAX_EVENTS];
@@ -128,8 +127,8 @@ struct cpts {
 };
 
 #ifdef CONFIG_TI_CPTS
-extern void cpts_rx_timestamp(struct cpts *cpts, struct sk_buff *skb);
-extern void cpts_tx_timestamp(struct cpts *cpts, struct sk_buff *skb);
+void cpts_rx_timestamp(struct cpts *cpts, struct sk_buff *skb);
+void cpts_tx_timestamp(struct cpts *cpts, struct sk_buff *skb);
 #else
 static inline void cpts_rx_timestamp(struct cpts *cpts, struct sk_buff *skb)
 {
@@ -139,8 +138,7 @@ static inline void cpts_tx_timestamp(struct cpts *cpts, struct sk_buff *skb)
 }
 #endif
 
-extern int cpts_register(struct device *dev, struct cpts *cpts,
-			 u32 mult, u32 shift);
-extern void cpts_unregister(struct cpts *cpts);
+int cpts_register(struct device *dev, struct cpts *cpts, u32 mult, u32 shift);
+void cpts_unregister(struct cpts *cpts);
 
 #endif

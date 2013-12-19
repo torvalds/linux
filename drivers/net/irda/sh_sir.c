@@ -761,7 +761,7 @@ static int sh_sir_probe(struct platform_device *pdev)
 		goto err_mem_4;
 
 	platform_set_drvdata(pdev, ndev);
-	err = request_irq(irq, sh_sir_irq, IRQF_DISABLED, "sh_sir", self);
+	err = request_irq(irq, sh_sir_irq, 0, "sh_sir", self);
 	if (err) {
 		dev_warn(&pdev->dev, "Unable to attach sh_sir interrupt\n");
 		goto err_mem_4;
@@ -796,7 +796,6 @@ static int sh_sir_remove(struct platform_device *pdev)
 	sh_sir_remove_iobuf(self);
 	iounmap(self->membase);
 	free_netdev(ndev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

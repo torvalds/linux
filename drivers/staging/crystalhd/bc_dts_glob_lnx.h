@@ -58,11 +58,11 @@
  * between the driver and the application.
  */
 enum BC_DTS_GLOBALS {
-	BC_MAX_FW_CMD_BUFF_SZ	= 0x40,		/* FW passthrough cmd/rsp buffer size */
+	BC_MAX_FW_CMD_BUFF_SZ = 0x40, /* FW passthrough cmd/rsp buffer size */
 	PCI_CFG_SIZE		= 256,		/* PCI config size buffer */
 	BC_IOCTL_DATA_POOL_SIZE	= 8,		/* BC_IOCTL_DATA Pool size */
-	BC_LINK_MAX_OPENS	= 3,		/* Maximum simultaneous opens*/
-	BC_LINK_MAX_SGLS	= 1024,		/* Maximum SG elements 4M/4K */
+	BC_LINK_MAX_OPENS	= 3,	/* Maximum simultaneous opens*/
+	BC_LINK_MAX_SGLS	= 1024,	/* Maximum SG elements 4M/4K */
 	BC_TX_LIST_CNT		= 2,		/* Max Tx DMA Rings */
 	BC_RX_LIST_CNT		= 8,		/* Max Rx DMA Rings*/
 	BC_PROC_OUTPUT_TIMEOUT	= 3000,		/* Milliseconds */
@@ -240,11 +240,14 @@ enum BC_DRV_CMD {
 	DRV_CMD_ADD_RXBUFFS,	/* Add Rx side buffers to driver pool */
 	DRV_CMD_FETCH_RXBUFF,	/* Get Rx DMAed buffer */
 	DRV_CMD_START_RX_CAP,	/* Start Rx Buffer Capture */
-	DRV_CMD_FLUSH_RX_CAP,	/* Stop the capture for now...we will enhance this later*/
+	DRV_CMD_FLUSH_RX_CAP,	/* Stop the capture for now...
+			we will enhance this later*/
 	DRV_CMD_GET_DRV_STAT,	/* Get Driver Internal Statistics */
 	DRV_CMD_RST_DRV_STAT,	/* Reset Driver Internal Statistics */
-	DRV_CMD_NOTIFY_MODE,	/* Notify the Mode to driver in which the application is Operating*/
-	DRV_CMD_CHANGE_CLOCK,	/* Change the core clock to either save power or improve performance */
+	DRV_CMD_NOTIFY_MODE,	/* Notify the Mode to driver
+			in which the application is Operating*/
+	DRV_CMD_CHANGE_CLOCK,	/* Change the core clock to either save power
+			or improve performance */
 
 	/* MUST be the last one.. */
 	DRV_CMD_END,			/* End of the List.. */
@@ -283,8 +286,8 @@ struct crystalhd_ioctl_data {
 	struct BC_IOCTL_DATA	udata;		/* IOCTL from App..*/
 	uint32_t		u_id;		/* Driver specific user ID */
 	uint32_t		cmd;		/* Cmd ID for driver's use. */
-	void			*add_cdata;	/* Additional command specific data..*/
-	uint32_t		add_cdata_sz;	/* Additional command specific data size */
+	void	 *add_cdata;	/* Additional command specific data..*/
+	uint32_t add_cdata_sz;	/* Additional command specific data size */
 	struct crystalhd_ioctl_data *next;	/* List/Fifo management */
 };
 

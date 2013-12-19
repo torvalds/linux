@@ -400,7 +400,7 @@ static void minix_write_failed(struct address_space *mapping, loff_t to)
 	struct inode *inode = mapping->host;
 
 	if (to > inode->i_size) {
-		truncate_pagecache(inode, to, inode->i_size);
+		truncate_pagecache(inode, inode->i_size);
 		minix_truncate(inode);
 	}
 }
@@ -660,6 +660,7 @@ static struct file_system_type minix_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("minix");
 
 static int __init init_minix_fs(void)
 {

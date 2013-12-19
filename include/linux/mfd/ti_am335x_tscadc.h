@@ -30,8 +30,8 @@
 #define REG_IDLECONFIG		0x058
 #define REG_CHARGECONFIG	0x05C
 #define REG_CHARGEDELAY		0x060
-#define REG_STEPCONFIG(n)	(0x64 + ((n - 1) * 8))
-#define REG_STEPDELAY(n)	(0x68 + ((n - 1) * 8))
+#define REG_STEPCONFIG(n)	(0x64 + ((n) * 8))
+#define REG_STEPDELAY(n)	(0x68 + ((n) * 8))
 #define REG_FIFO0CNT		0xE4
 #define REG_FIFO0THR		0xE8
 #define REG_FIFO1CNT		0xF0
@@ -46,18 +46,24 @@
 /* Step Enable */
 #define STEPENB_MASK		(0x1FFFF << 0)
 #define STEPENB(val)		((val) << 0)
+#define ENB(val)			(1 << (val))
 #define STPENB_STEPENB		STEPENB(0x1FFFF)
 #define STPENB_STEPENB_TC	STEPENB(0x1FFF)
 
 /* IRQ enable */
 #define IRQENB_HW_PEN		BIT(0)
 #define IRQENB_FIFO0THRES	BIT(2)
+#define IRQENB_FIFO0OVRRUN	BIT(3)
+#define IRQENB_FIFO0UNDRFLW	BIT(4)
 #define IRQENB_FIFO1THRES	BIT(5)
+#define IRQENB_FIFO1OVRRUN	BIT(6)
+#define IRQENB_FIFO1UNDRFLW	BIT(7)
 #define IRQENB_PENUP		BIT(9)
 
 /* Step Configuration */
 #define STEPCONFIG_MODE_MASK	(3 << 0)
 #define STEPCONFIG_MODE(val)	((val) << 0)
+#define STEPCONFIG_MODE_SWCNT	STEPCONFIG_MODE(1)
 #define STEPCONFIG_MODE_HWSYNC	STEPCONFIG_MODE(2)
 #define STEPCONFIG_AVG_MASK	(7 << 2)
 #define STEPCONFIG_AVG(val)	((val) << 2)
@@ -73,8 +79,6 @@
 #define STEPCONFIG_INM_ADCREFM	STEPCONFIG_INM(8)
 #define STEPCONFIG_INP_MASK	(0xF << 19)
 #define STEPCONFIG_INP(val)	((val) << 19)
-#define STEPCONFIG_INP_AN2	STEPCONFIG_INP(2)
-#define STEPCONFIG_INP_AN3	STEPCONFIG_INP(3)
 #define STEPCONFIG_INP_AN4	STEPCONFIG_INP(4)
 #define STEPCONFIG_INP_ADCREFM	STEPCONFIG_INP(8)
 #define STEPCONFIG_FIFO1	BIT(26)
@@ -96,7 +100,6 @@
 #define STEPCHARGE_INM_AN1	STEPCHARGE_INM(1)
 #define STEPCHARGE_INP_MASK	(0xF << 19)
 #define STEPCHARGE_INP(val)	((val) << 19)
-#define STEPCHARGE_INP_AN1	STEPCHARGE_INP(1)
 #define STEPCHARGE_RFM_MASK	(3 << 23)
 #define STEPCHARGE_RFM(val)	((val) << 23)
 #define STEPCHARGE_RFM_XNUR	STEPCHARGE_RFM(1)
@@ -118,29 +121,46 @@
 #define CNTRLREG_8WIRE		CNTRLREG_AFE_CTRL(3)
 #define CNTRLREG_TSCENB		BIT(7)
 
+/* FIFO READ Register */
+#define FIFOREAD_DATA_MASK (0xfff << 0)
+#define FIFOREAD_CHNLID_MASK (0xf << 16)
+
+/* Sequencer Status */
+#define SEQ_STATUS BIT(5)
+
 #define ADC_CLK			3000000
-#define	MAX_CLK_DIV		7
 #define TOTAL_STEPS		16
 #define TOTAL_CHANNELS		8
+#define FIFO1_THRESHOLD		19
+
+/*
+ * time in us for processing a single channel, calculated as follows:
+ *
+ * num cycles = open delay + (sample delay + conv time) * averaging
+ *
+ * num cycles: 152 + (1 + 13) * 16 = 376
+ *
+ * clock frequency: 26MHz / 8 = 3.25MHz
+ * clock period: 1 / 3.25MHz = 308ns
+ *
+ * processing time: 376 * 308ns = 116us
+ */
+#define IDLE_TIMEOUT 116 /* microsec */
 
 #define TSCADC_CELLS		2
-
-enum tscadc_cells {
-	TSC_CELL,
-	ADC_CELL,
-};
-
-struct mfd_tscadc_board {
-	struct tsc_data *tsc_init;
-	struct adc_data *adc_init;
-};
 
 struct ti_tscadc_dev {
 	struct device *dev;
 	struct regmap *regmap_tscadc;
 	void __iomem *tscadc_base;
 	int irq;
+	int used_cells;	/* 1-2 */
+	int tsc_cell;	/* -1 if not used */
+	int adc_cell;	/* -1 if not used */
 	struct mfd_cell cells[TSCADC_CELLS];
+	u32 reg_se_cache;
+	spinlock_t reg_lock;
+	unsigned int clk_div;
 
 	/* tsc device */
 	struct titsc *tsc;
@@ -148,5 +168,16 @@ struct ti_tscadc_dev {
 	/* adc device */
 	struct adc_device *adc;
 };
+
+static inline struct ti_tscadc_dev *ti_tscadc_dev_get(struct platform_device *p)
+{
+	struct ti_tscadc_dev **tscadc_dev = p->dev.platform_data;
+
+	return *tscadc_dev;
+}
+
+void am335x_tsc_se_update(struct ti_tscadc_dev *tsadc);
+void am335x_tsc_se_set(struct ti_tscadc_dev *tsadc, u32 val);
+void am335x_tsc_se_clr(struct ti_tscadc_dev *tsadc, u32 val);
 
 #endif

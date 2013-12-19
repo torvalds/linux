@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/client.h>
 #include <core/os.h>
 #include <core/class.h>
 #include <core/handle.h>
@@ -44,6 +45,14 @@ struct nv40_graph_priv {
 struct nv40_graph_chan {
 	struct nouveau_graph_chan base;
 };
+
+static u64
+nv40_graph_units(struct nouveau_graph *graph)
+{
+	struct nv40_graph_priv *priv = (void *)graph;
+
+	return nv_rd32(priv, 0x1540);
+}
 
 /*******************************************************************************
  * Graphics object classes
@@ -321,16 +330,17 @@ nv40_graph_intr(struct nouveau_subdev *subdev)
 	nv_wr32(priv, NV04_PGRAPH_FIFO, 0x00000001);
 
 	if (show) {
-		nv_error(priv, "");
+		nv_error(priv, "%s", "");
 		nouveau_bitfield_print(nv10_graph_intr_name, show);
-		printk(" nsource:");
+		pr_cont(" nsource:");
 		nouveau_bitfield_print(nv04_graph_nsource, nsource);
-		printk(" nstatus:");
+		pr_cont(" nstatus:");
 		nouveau_bitfield_print(nv10_graph_nstatus, nstatus);
-		printk("\n");
-		nv_error(priv, "ch %d [0x%08x] subc %d class 0x%04x "
-			       "mthd 0x%04x data 0x%08x\n",
-			 chid, inst << 4, subc, class, mthd, data);
+		pr_cont("\n");
+		nv_error(priv,
+			 "ch %d [0x%08x %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
+			 chid, inst << 4, nouveau_client_name(engctx), subc,
+			 class, mthd, data);
 	}
 
 	nouveau_engctx_put(engctx);
@@ -357,6 +367,8 @@ nv40_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	else
 		nv_engine(priv)->sclass = nv40_graph_sclass;
 	nv_engine(priv)->tile_prog = nv40_graph_tile_prog;
+
+	priv->base.units = nv40_graph_units;
 	return 0;
 }
 

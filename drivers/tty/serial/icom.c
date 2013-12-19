@@ -105,7 +105,7 @@ static const struct pci_device_id icom_pci_table[] = {
 	{}
 };
 
-struct lookup_proc_table start_proc[4] = {
+static struct lookup_proc_table start_proc[4] = {
 	{NULL, ICOM_CONTROL_START_A},
 	{NULL, ICOM_CONTROL_START_B},
 	{NULL, ICOM_CONTROL_START_C},
@@ -113,14 +113,14 @@ struct lookup_proc_table start_proc[4] = {
 };
 
 
-struct lookup_proc_table stop_proc[4] = {
+static struct lookup_proc_table stop_proc[4] = {
 	{NULL, ICOM_CONTROL_STOP_A},
 	{NULL, ICOM_CONTROL_STOP_B},
 	{NULL, ICOM_CONTROL_STOP_C},
 	{NULL, ICOM_CONTROL_STOP_D}
 };
 
-struct lookup_int_table int_mask_tbl[4] = {
+static struct lookup_int_table int_mask_tbl[4] = {
 	{NULL, ICOM_INT_MASK_PRC_A},
 	{NULL, ICOM_INT_MASK_PRC_B},
 	{NULL, ICOM_INT_MASK_PRC_C},
@@ -297,25 +297,25 @@ static void stop_processor(struct icom_port *icom_port)
 	spin_lock_irqsave(&icom_lock, flags);
 
 	port = icom_port->port;
+	if (port >= ARRAY_SIZE(stop_proc)) {
+		dev_err(&icom_port->adapter->pci_dev->dev,
+			"Invalid port assignment\n");
+		goto unlock;
+	}
+
 	if (port == 0 || port == 1)
 		stop_proc[port].global_control_reg = &icom_port->global_reg->control;
 	else
 		stop_proc[port].global_control_reg = &icom_port->global_reg->control_2;
 
+	temp = readl(stop_proc[port].global_control_reg);
+	temp = (temp & ~start_proc[port].processor_id) | stop_proc[port].processor_id;
+	writel(temp, stop_proc[port].global_control_reg);
 
-	if (port < 4) {
-		temp = readl(stop_proc[port].global_control_reg);
-		temp =
-			(temp & ~start_proc[port].processor_id) | stop_proc[port].processor_id;
-		writel(temp, stop_proc[port].global_control_reg);
+	/* write flush */
+	readl(stop_proc[port].global_control_reg);
 
-		/* write flush */
-		readl(stop_proc[port].global_control_reg);
-	} else {
-		dev_err(&icom_port->adapter->pci_dev->dev,
-                        "Invalid port assignment\n");
-	}
-
+unlock:
 	spin_unlock_irqrestore(&icom_lock, flags);
 }
 
@@ -328,23 +328,25 @@ static void start_processor(struct icom_port *icom_port)
 	spin_lock_irqsave(&icom_lock, flags);
 
 	port = icom_port->port;
+	if (port >= ARRAY_SIZE(start_proc)) {
+		dev_err(&icom_port->adapter->pci_dev->dev,
+			"Invalid port assignment\n");
+		goto unlock;
+	}
+
 	if (port == 0 || port == 1)
 		start_proc[port].global_control_reg = &icom_port->global_reg->control;
 	else
 		start_proc[port].global_control_reg = &icom_port->global_reg->control_2;
-	if (port < 4) {
-		temp = readl(start_proc[port].global_control_reg);
-		temp =
-			(temp & ~stop_proc[port].processor_id) | start_proc[port].processor_id;
-		writel(temp, start_proc[port].global_control_reg);
 
-		/* write flush */
-		readl(start_proc[port].global_control_reg);
-	} else {
-		dev_err(&icom_port->adapter->pci_dev->dev,
-                        "Invalid port assignment\n");
-	}
+	temp = readl(start_proc[port].global_control_reg);
+	temp = (temp & ~stop_proc[port].processor_id) | start_proc[port].processor_id;
+	writel(temp, start_proc[port].global_control_reg);
 
+	/* write flush */
+	readl(start_proc[port].global_control_reg);
+
+unlock:
 	spin_unlock_irqrestore(&icom_lock, flags);
 }
 
@@ -557,6 +559,12 @@ static int startup(struct icom_port *icom_port)
 	 */
 	spin_lock_irqsave(&icom_lock, flags);
 	port = icom_port->port;
+	if (port >= ARRAY_SIZE(int_mask_tbl)) {
+		dev_err(&icom_port->adapter->pci_dev->dev,
+			"Invalid port assignment\n");
+		goto unlock;
+	}
+
 	if (port == 0 || port == 1)
 		int_mask_tbl[port].global_int_mask = &icom_port->global_reg->int_mask;
 	else
@@ -566,17 +574,14 @@ static int startup(struct icom_port *icom_port)
 		writew(0x00FF, icom_port->int_reg);
 	else
 		writew(0x3F00, icom_port->int_reg);
-	if (port < 4) {
-		temp = readl(int_mask_tbl[port].global_int_mask);
-		writel(temp & ~int_mask_tbl[port].processor_id, int_mask_tbl[port].global_int_mask);
 
-		/* write flush */
-		readl(int_mask_tbl[port].global_int_mask);
-	} else {
-		dev_err(&icom_port->adapter->pci_dev->dev,
-                        "Invalid port assignment\n");
-	}
+	temp = readl(int_mask_tbl[port].global_int_mask);
+	writel(temp & ~int_mask_tbl[port].processor_id, int_mask_tbl[port].global_int_mask);
 
+	/* write flush */
+	readl(int_mask_tbl[port].global_int_mask);
+
+unlock:
 	spin_unlock_irqrestore(&icom_lock, flags);
 	return 0;
 }
@@ -595,21 +600,23 @@ static void shutdown(struct icom_port *icom_port)
 	 * disable all interrupts
 	 */
 	port = icom_port->port;
+	if (port >= ARRAY_SIZE(int_mask_tbl)) {
+		dev_err(&icom_port->adapter->pci_dev->dev,
+			"Invalid port assignment\n");
+		goto unlock;
+	}
 	if (port == 0 || port == 1)
 		int_mask_tbl[port].global_int_mask = &icom_port->global_reg->int_mask;
 	else
 		int_mask_tbl[port].global_int_mask = &icom_port->global_reg->int_mask_2;
 
-	if (port < 4) {
-		temp = readl(int_mask_tbl[port].global_int_mask);
-		writel(temp | int_mask_tbl[port].processor_id, int_mask_tbl[port].global_int_mask);
+	temp = readl(int_mask_tbl[port].global_int_mask);
+	writel(temp | int_mask_tbl[port].processor_id, int_mask_tbl[port].global_int_mask);
 
-		/* write flush */
-		readl(int_mask_tbl[port].global_int_mask);
-	} else {
-		dev_err(&icom_port->adapter->pci_dev->dev,
-                        "Invalid port assignment\n");
-	}
+	/* write flush */
+	readl(int_mask_tbl[port].global_int_mask);
+
+unlock:
 	spin_unlock_irqrestore(&icom_lock, flags);
 
 	/*
@@ -734,7 +741,7 @@ static void xmit_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 {
 	short int count, rcv_buff;
-	struct tty_struct *tty = icom_port->uart_port.state->port.tty;
+	struct tty_port *port = &icom_port->uart_port.state->port;
 	unsigned short int status;
 	struct uart_icount *icount;
 	unsigned long offset;
@@ -761,7 +768,7 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 		/* Block copy all but the last byte as this may have status */
 		if (count > 0) {
 			first = icom_port->recv_buf[offset];
-			tty_insert_flip_string(tty, icom_port->recv_buf + offset, count - 1);
+			tty_insert_flip_string(port, icom_port->recv_buf + offset, count - 1);
 		}
 
 		icount = &icom_port->uart_port.icount;
@@ -812,7 +819,7 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 
 		}
 
-		tty_insert_flip_char(tty, *(icom_port->recv_buf + offset + count - 1), flag);
+		tty_insert_flip_char(port, *(icom_port->recv_buf + offset + count - 1), flag);
 
 		if (status & SA_FLAGS_OVERRUN)
 			/*
@@ -820,7 +827,7 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 			 * reported immediately, and doesn't
 			 * affect the current character
 			 */
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(port, 0, TTY_OVERRUN);
 ignore_char:
 		icom_port->statStg->rcv[rcv_buff].flags = 0;
 		icom_port->statStg->rcv[rcv_buff].leLength = 0;
@@ -834,7 +841,10 @@ ignore_char:
 		status = cpu_to_le16(icom_port->statStg->rcv[rcv_buff].flags);
 	}
 	icom_port->next_rcv = rcv_buff;
-	tty_flip_buffer_push(tty);
+
+	spin_unlock(&icom_port->uart_port.lock);
+	tty_flip_buffer_push(port);
+	spin_lock(&icom_port->uart_port.lock);
 }
 
 static void process_interrupt(u16 port_int_reg,
@@ -1087,8 +1097,7 @@ static void icom_close(struct uart_port *port)
 
 	/* stop receiver */
 	cmdReg = readb(&ICOM_PORT->dram->CmdReg);
-	writeb(cmdReg & (unsigned char) ~CMD_RCV_ENABLE,
-	       &ICOM_PORT->dram->CmdReg);
+	writeb(cmdReg & ~CMD_RCV_ENABLE, &ICOM_PORT->dram->CmdReg);
 
 	shutdown(ICOM_PORT);
 
@@ -1415,8 +1424,7 @@ static int icom_alloc_adapter(struct icom_adapter
 	struct icom_adapter *cur_adapter_entry;
 	struct list_head *tmp;
 
-	icom_adapter = (struct icom_adapter *)
-	    kzalloc(sizeof(struct icom_adapter), GFP_KERNEL);
+	icom_adapter = kzalloc(sizeof(struct icom_adapter), GFP_KERNEL);
 
 	if (!icom_adapter) {
 		return -ENOMEM;
@@ -1568,7 +1576,7 @@ static int icom_probe(struct pci_dev *dev,
 			icom_port->uart_port.type = PORT_ICOM;
 			icom_port->uart_port.iotype = UPIO_MEM;
 			icom_port->uart_port.membase =
-					       (char *) icom_adapter->base_addr_pci;
+				(unsigned char __iomem *)icom_adapter->base_addr_pci;
 			icom_port->uart_port.fifosize = 16;
 			icom_port->uart_port.ops = &icom_ops;
 			icom_port->uart_port.line =

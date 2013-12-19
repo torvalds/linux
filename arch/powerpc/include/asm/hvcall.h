@@ -264,11 +264,15 @@
 #define H_GET_MPP		0x2D4
 #define H_HOME_NODE_ASSOCIATIVITY 0x2EC
 #define H_BEST_ENERGY		0x2F4
+#define H_XIRR_X		0x2FC
 #define H_RANDOM		0x300
 #define H_COP			0x304
 #define H_GET_MPP_X		0x314
 #define H_SET_MODE		0x31C
 #define MAX_HCALL_OPCODE	H_SET_MODE
+
+/* Platform specific hcalls, used by KVM */
+#define H_RTAS			0xf000
 
 #ifndef __ASSEMBLY__
 
@@ -395,6 +399,17 @@ static inline unsigned long cmo_get_page_size(void)
 {
 	return CMO_PageSize;
 }
+
+extern long pSeries_enable_reloc_on_exc(void);
+extern long pSeries_disable_reloc_on_exc(void);
+
+extern long pseries_big_endian_exceptions(void);
+
+#else
+
+#define pSeries_enable_reloc_on_exc()  do {} while (0)
+#define pSeries_disable_reloc_on_exc() do {} while (0)
+
 #endif /* CONFIG_PPC_PSERIES */
 
 #endif /* __ASSEMBLY__ */

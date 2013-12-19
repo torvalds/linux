@@ -72,6 +72,7 @@ Code  Seq#(hex)	Include File		Comments
 0x06	all	linux/lp.h
 0x09	all	linux/raid/md_u.h
 0x10	00-0F	drivers/char/s390/vmcp.h
+0x10	10-1F	arch/s390/include/uapi/sclp_ctl.h
 0x12	all	linux/fs.h
 		linux/blkpg.h
 0x1b	all	InfiniBand Subsystem	<http://infiniband.sourceforge.net/>
@@ -131,11 +132,13 @@ Code  Seq#(hex)	Include File		Comments
 'H'	40-4F	sound/hdspm.h		conflict!
 'H'	40-4F	sound/hdsp.h		conflict!
 'H'	90	sound/usb/usx2y/usb_stream.h
+'H'	A0	uapi/linux/usb/cdc-wdm.h
 'H'	C0-F0	net/bluetooth/hci.h	conflict!
 'H'	C0-DF	net/bluetooth/hidp/hidp.h	conflict!
 'H'	C0-DF	net/bluetooth/cmtp/cmtp.h	conflict!
 'H'	C0-DF	net/bluetooth/bnep/bnep.h	conflict!
 'H'	F1	linux/hid-roccat.h	<mailto:erazor_de@users.sourceforge.net>
+'H'	F8-FA	sound/firewire.h
 'I'	all	linux/isdn.h		conflict!
 'I'	00-0F	drivers/isdn/divert/isdn_divert.h	conflict!
 'I'	40-4F	linux/mISDNif.h		conflict!
@@ -179,7 +182,7 @@ Code  Seq#(hex)	Include File		Comments
 'V'	C0	media/davinci/vpfe_capture.h	conflict!
 'V'	C0	media/si4713.h		conflict!
 'W'	00-1F	linux/watchdog.h	conflict!
-'W'	00-1F	linux/wanrouter.h	conflict!
+'W'	00-1F	linux/wanrouter.h	conflict!		(pre 3.9)
 'W'	00-3F	sound/asound.h		conflict!
 'X'	all	fs/xfs/xfs_fs.h		conflict!
 		and fs/xfs/linux-2.6/xfs_ioctl32.h

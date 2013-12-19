@@ -10,6 +10,7 @@
 
 #include <linux/ssb/ssb.h>
 
+#include <linux/mtd/physmap.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
@@ -17,6 +18,25 @@
 
 #include "ssb_private.h"
 
+static const char * const part_probes[] = { "bcm47xxpart", NULL };
+
+static struct physmap_flash_data ssb_pflash_data = {
+	.part_probe_types	= part_probes,
+};
+
+static struct resource ssb_pflash_resource = {
+	.name	= "ssb_pflash",
+	.flags  = IORESOURCE_MEM,
+};
+
+struct platform_device ssb_pflash_dev = {
+	.name		= "physmap-flash",
+	.dev		= {
+		.platform_data  = &ssb_pflash_data,
+	},
+	.resource	= &ssb_pflash_resource,
+	.num_resources	= 1,
+};
 
 static inline u32 mips_read32(struct ssb_mipscore *mcore,
 			      u16 offset)
@@ -147,21 +167,22 @@ static void set_irq(struct ssb_device *dev, unsigned int irq)
 		irqflag |= (ipsflag & ~ipsflag_irq_mask[irq]);
 		ssb_write32(mdev, SSB_IPSFLAG, irqflag);
 	}
-	ssb_dprintk(KERN_INFO PFX
-		    "set_irq: core 0x%04x, irq %d => %d\n",
-		    dev->id.coreid, oldirq+2, irq+2);
+	ssb_dbg("set_irq: core 0x%04x, irq %d => %d\n",
+		dev->id.coreid, oldirq+2, irq+2);
 }
 
 static void print_irq(struct ssb_device *dev, unsigned int irq)
 {
-	int i;
 	static const char *irq_name[] = {"2(S)", "3", "4", "5", "6", "D", "I"};
-	ssb_dprintk(KERN_INFO PFX
-		"core 0x%04x, irq :", dev->id.coreid);
-	for (i = 0; i <= 6; i++) {
-		ssb_dprintk(" %s%s", irq_name[i], i==irq?"*":" ");
-	}
-	ssb_dprintk("\n");
+	ssb_dbg("core 0x%04x, irq : %s%s %s%s %s%s %s%s %s%s %s%s %s%s\n",
+		dev->id.coreid,
+		irq_name[0], irq == 0 ? "*" : " ",
+		irq_name[1], irq == 1 ? "*" : " ",
+		irq_name[2], irq == 2 ? "*" : " ",
+		irq_name[3], irq == 3 ? "*" : " ",
+		irq_name[4], irq == 4 ? "*" : " ",
+		irq_name[5], irq == 5 ? "*" : " ",
+		irq_name[6], irq == 6 ? "*" : " ");
 }
 
 static void dump_irq(struct ssb_bus *bus)
@@ -189,33 +210,42 @@ static void ssb_mips_serial_init(struct ssb_mipscore *mcore)
 static void ssb_mips_flash_detect(struct ssb_mipscore *mcore)
 {
 	struct ssb_bus *bus = mcore->dev->bus;
+	struct ssb_pflash *pflash = &mcore->pflash;
 
 	/* When there is no chipcommon on the bus there is 4MB flash */
 	if (!ssb_chipco_available(&bus->chipco)) {
-		mcore->pflash.present = true;
-		mcore->pflash.buswidth = 2;
-		mcore->pflash.window = SSB_FLASH1;
-		mcore->pflash.window_size = SSB_FLASH1_SZ;
-		return;
+		pflash->present = true;
+		pflash->buswidth = 2;
+		pflash->window = SSB_FLASH1;
+		pflash->window_size = SSB_FLASH1_SZ;
+		goto ssb_pflash;
 	}
 
 	/* There is ChipCommon, so use it to read info about flash */
 	switch (bus->chipco.capabilities & SSB_CHIPCO_CAP_FLASHT) {
 	case SSB_CHIPCO_FLASHT_STSER:
 	case SSB_CHIPCO_FLASHT_ATSER:
-		pr_err("Serial flash not supported\n");
+		pr_debug("Found serial flash\n");
+		ssb_sflash_init(&bus->chipco);
 		break;
 	case SSB_CHIPCO_FLASHT_PARA:
 		pr_debug("Found parallel flash\n");
-		mcore->pflash.present = true;
-		mcore->pflash.window = SSB_FLASH2;
-		mcore->pflash.window_size = SSB_FLASH2_SZ;
+		pflash->present = true;
+		pflash->window = SSB_FLASH2;
+		pflash->window_size = SSB_FLASH2_SZ;
 		if ((ssb_read32(bus->chipco.dev, SSB_CHIPCO_FLASH_CFG)
 		               & SSB_CHIPCO_CFG_DS16) == 0)
-			mcore->pflash.buswidth = 1;
+			pflash->buswidth = 1;
 		else
-			mcore->pflash.buswidth = 2;
+			pflash->buswidth = 2;
 		break;
+	}
+
+ssb_pflash:
+	if (pflash->present) {
+		ssb_pflash_data.width = pflash->buswidth;
+		ssb_pflash_resource.start = pflash->window;
+		ssb_pflash_resource.end = pflash->window + pflash->window_size;
 	}
 }
 
@@ -257,7 +287,7 @@ void ssb_mipscore_init(struct ssb_mipscore *mcore)
 	if (!mcore->dev)
 		return; /* We don't have a MIPS core */
 
-	ssb_dprintk(KERN_INFO PFX "Initializing MIPS core...\n");
+	ssb_dbg("Initializing MIPS core...\n");
 
 	bus = mcore->dev->bus;
 	hz = ssb_clockspeed(bus);
@@ -305,7 +335,7 @@ void ssb_mipscore_init(struct ssb_mipscore *mcore)
 			break;
 		}
 	}
-	ssb_dprintk(KERN_INFO PFX "after irq reconfiguration\n");
+	ssb_dbg("after irq reconfiguration\n");
 	dump_irq(bus);
 
 	ssb_mips_serial_init(mcore);

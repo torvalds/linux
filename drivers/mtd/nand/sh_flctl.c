@@ -137,7 +137,7 @@ static void flctl_setup_dma(struct sh_flctl *flctl)
 	dma_cap_mask_t mask;
 	struct dma_slave_config cfg;
 	struct platform_device *pdev = flctl->pdev;
-	struct sh_flctl_platform_data *pdata = pdev->dev.platform_data;
+	struct sh_flctl_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	int ret;
 
 	if (!pdata)
@@ -1081,7 +1081,6 @@ static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
 	return pdata;
 }
 #else /* CONFIG_OF */
-#define of_flctl_match NULL
 static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
 {
 	return NULL;
@@ -1132,7 +1131,7 @@ static int flctl_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node)
 		pdata = flctl_parse_dt(&pdev->dev);
 	else
-		pdata = pdev->dev.platform_data;
+		pdata = dev_get_platdata(&pdev->dev);
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "no setup data defined\n");
@@ -1219,22 +1218,11 @@ static struct platform_driver flctl_driver = {
 	.driver = {
 		.name	= "sh_flctl",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_flctl_match,
+		.of_match_table = of_match_ptr(of_flctl_match),
 	},
 };
 
-static int __init flctl_nand_init(void)
-{
-	return platform_driver_probe(&flctl_driver, flctl_probe);
-}
-
-static void __exit flctl_nand_cleanup(void)
-{
-	platform_driver_unregister(&flctl_driver);
-}
-
-module_init(flctl_nand_init);
-module_exit(flctl_nand_cleanup);
+module_platform_driver_probe(flctl_driver, flctl_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yoshihiro Shimoda");

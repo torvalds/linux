@@ -44,12 +44,13 @@
 
 #include <plat/clock.h>
 #include <plat/cpu.h>
-#include <plat/s3c244x.h>
 #include <plat/pm.h>
 
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
 #include <plat/gpio-cfg-helpers.h>
+
+#include "common.h"
 
 /* S3C2442 extended clock support */
 
@@ -172,9 +173,9 @@ int __init s3c2442_init(void)
 
 #ifdef CONFIG_PM
 	register_syscore_ops(&s3c2410_pm_syscore_ops);
+	register_syscore_ops(&s3c24xx_irq_syscore_ops);
 #endif
 	register_syscore_ops(&s3c244x_pm_syscore_ops);
-	register_syscore_ops(&s3c24xx_irq_syscore_ops);
 
 	return device_register(&s3c2442_dev);
 }

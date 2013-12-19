@@ -201,12 +201,17 @@ EXCEPTION_ENTRY(_bus_fault_handler)
 	 l.nop
 
 /* ---[ 0x300: Data Page Fault exception ]------------------------------- */
+EXCEPTION_ENTRY(_dtlb_miss_page_fault_handler)
+	l.and	r5,r5,r0
+	l.j	1f
+	 l.nop
 
 EXCEPTION_ENTRY(_data_page_fault_handler)
 	/* set up parameters for do_page_fault */
+	l.ori	r5,r0,0x300		   // exception vector
+1:
 	l.addi  r3,r1,0                    // pt_regs
 	/* r4 set be EXCEPTION_HANDLE */   // effective address of fault
-	l.ori   r5,r0,0x300                // exception vector
 
 	/*
 	 * __PHX__: TODO
@@ -276,12 +281,17 @@ EXCEPTION_ENTRY(_data_page_fault_handler)
 	l.nop
 
 /* ---[ 0x400: Insn Page Fault exception ]------------------------------- */
+EXCEPTION_ENTRY(_itlb_miss_page_fault_handler)
+	l.and	r5,r5,r0
+	l.j	1f
+	 l.nop
 
 EXCEPTION_ENTRY(_insn_page_fault_handler)
 	/* set up parameters for do_page_fault */
+	l.ori	r5,r0,0x400		   // exception vector
+1:
 	l.addi  r3,r1,0                    // pt_regs
 	/* r4 set be EXCEPTION_HANDLE */   // effective address of fault
-	l.ori   r5,r0,0x400                // exception vector
 	l.ori	r6,r0,0x0		   // !write access
 
 	/* call fault.c handler in or32/mm/fault.c */
@@ -1040,7 +1050,7 @@ ENTRY(_switch)
 	 * we are expected to have set up the arg to schedule_tail already,
 	 * hence we do so here unconditionally:
 	 */
-	l.lwz   r3,TI_STACK(r3)		/* Load 'prev' as schedule_tail arg */
+	l.lwz   r3,TI_TASK(r3)		/* Load 'prev' as schedule_tail arg */
 	l.jr	r9
 	 l.nop
 
@@ -1082,10 +1092,6 @@ ENTRY(__sys_fork)
 	l.ori	r29,r29,lo(sys_fork)
 	l.j	_fork_save_extra_regs_and_call
 	 l.addi	r3,r1,0
-
-ENTRY(sys_sigaltstack)
-	l.j	_sys_sigaltstack
-	 l.addi	r5,r1,0
 
 ENTRY(sys_rt_sigreturn)
 	l.j	_sys_rt_sigreturn

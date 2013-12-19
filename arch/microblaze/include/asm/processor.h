@@ -22,7 +22,6 @@
 extern const struct seq_operations cpuinfo_op;
 
 # define cpu_relax()		barrier()
-# define cpu_sleep()		do {} while (0)
 
 #define task_pt_regs(tsk) \
 		(((struct pt_regs *)(THREAD_SIZE + task_stack_page(tsk))) - 1)
@@ -159,10 +158,6 @@ unsigned long get_wchan(struct task_struct *p);
 
 #  define STACK_TOP	TASK_SIZE
 #  define STACK_TOP_MAX	STACK_TOP
-
-void disable_hlt(void);
-void enable_hlt(void);
-void default_idle(void);
 
 #ifdef CONFIG_DEBUG_FS
 extern struct dentry *of_debugfs_root;

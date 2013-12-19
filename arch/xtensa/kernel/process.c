@@ -105,19 +105,9 @@ void coprocessor_flush_all(struct thread_info *ti)
 /*
  * Powermanagement idle function, if any is provided by the platform.
  */
-
-void cpu_idle(void)
+void arch_cpu_idle(void)
 {
-	local_irq_enable();
-
-	/* endless idle loop with no priority at all */
-	while (1) {
-		rcu_idle_enter();
-		while (!need_resched())
-			platform_idle();
-		rcu_idle_exit();
-		schedule_preempt_disabled();
-	}
+	platform_idle();
 }
 
 /*
@@ -259,9 +249,10 @@ int copy_thread(unsigned long clone_flags, unsigned long usp_thread_fn,
 			memcpy(&childregs->areg[XCHAL_NUM_AREGS - len/4],
 			       &regs->areg[XCHAL_NUM_AREGS - len/4], len);
 		}
-// FIXME: we need to set THREADPTR in thread_info...
+
+		/* The thread pointer is passed in the '4th argument' (= a5) */
 		if (clone_flags & CLONE_SETTLS)
-			childregs->areg[2] = childregs->areg[6];
+			childregs->threadptr = childregs->areg[5];
 	} else {
 		p->thread.ra = MAKE_RA_FOR_CALL(
 				(unsigned long)ret_from_kernel_thread, 1);

@@ -85,11 +85,7 @@ static int ad5504_spi_read(struct spi_device *spi, u8 addr)
 			.rx_buf		= &val,
 			.len		= 2,
 		};
-	struct spi_message	m;
-
-	spi_message_init(&m);
-	spi_message_add_tail(&t, &m);
-	ret = spi_sync(spi, &m);
+	ret = spi_sync_transfer(spi, &t, 1);
 
 	if (ret < 0)
 		return ret;
@@ -104,7 +100,6 @@ static int ad5504_read_raw(struct iio_dev *indio_dev,
 			   long m)
 {
 	struct ad5504_state *st = iio_priv(indio_dev);
-	unsigned long scale_uv;
 	int ret;
 
 	switch (m) {
@@ -117,11 +112,9 @@ static int ad5504_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		scale_uv = (st->vref_mv * 1000) >> chan->scan_type.realbits;
-		*val =  scale_uv / 1000;
-		*val2 = (scale_uv % 1000) * 1000;
-		return IIO_VAL_INT_PLUS_MICRO;
-
+		*val = st->vref_mv;
+		*val2 = chan->scan_type.realbits;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	}
 	return -EINVAL;
 }
@@ -252,8 +245,10 @@ static const struct iio_chan_spec_ext_info ad5504_ext_info[] = {
 		.name = "powerdown",
 		.read = ad5504_read_dac_powerdown,
 		.write = ad5504_write_dac_powerdown,
+		.shared = IIO_SEPARATE,
 	},
-	IIO_ENUM("powerdown_mode", true, &ad5504_powerdown_mode_enum),
+	IIO_ENUM("powerdown_mode", IIO_SHARED_BY_TYPE,
+		 &ad5504_powerdown_mode_enum),
 	IIO_ENUM_AVAILABLE("powerdown_mode", &ad5504_powerdown_mode_enum),
 	{ },
 };
@@ -263,8 +258,8 @@ static const struct iio_chan_spec_ext_info ad5504_ext_info[] = {
 	.indexed = 1, \
 	.output = 1, \
 	.channel = (_chan), \
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT | \
-		     IIO_CHAN_INFO_SCALE_SHARED_BIT, \
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
 	.address = AD5504_ADDR_DAC(_chan), \
 	.scan_type = IIO_ST('u', 12, 16, 0), \
 	.ext_info = ad5504_ext_info, \
@@ -277,7 +272,7 @@ static const struct iio_chan_spec ad5504_channels[] = {
 	AD5504_CHANNEL(3),
 };
 
-static int __devinit ad5504_probe(struct spi_device *spi)
+static int ad5504_probe(struct spi_device *spi)
 {
 	struct ad5504_platform_data *pdata = spi->dev.platform_data;
 	struct iio_dev *indio_dev;
@@ -285,18 +280,20 @@ static int __devinit ad5504_probe(struct spi_device *spi)
 	struct regulator *reg;
 	int ret, voltage_uv = 0;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	reg = regulator_get(&spi->dev, "vcc");
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	if (!indio_dev)
+		return -ENOMEM;
+	reg = devm_regulator_get(&spi->dev, "vcc");
 	if (!IS_ERR(reg)) {
 		ret = regulator_enable(reg);
 		if (ret)
-			goto error_put_reg;
+			return ret;
 
-		voltage_uv = regulator_get_voltage(reg);
+		ret = regulator_get_voltage(reg);
+		if (ret < 0)
+			goto error_disable_reg;
+
+		voltage_uv = ret;
 	}
 
 	spi_set_drvdata(spi, indio_dev);
@@ -321,7 +318,7 @@ static int __devinit ad5504_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	if (spi->irq) {
-		ret = request_threaded_irq(spi->irq,
+		ret = devm_request_threaded_irq(&spi->dev, spi->irq,
 					   NULL,
 					   &ad5504_event_handler,
 					   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
@@ -333,39 +330,26 @@ static int __devinit ad5504_probe(struct spi_device *spi)
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_free_irq;
+		goto error_disable_reg;
 
 	return 0;
 
-error_free_irq:
-	if (spi->irq)
-		free_irq(spi->irq, indio_dev);
 error_disable_reg:
 	if (!IS_ERR(reg))
 		regulator_disable(reg);
-error_put_reg:
-	if (!IS_ERR(reg))
-		regulator_put(reg);
 
-	iio_device_free(indio_dev);
-error_ret:
 	return ret;
 }
 
-static int __devexit ad5504_remove(struct spi_device *spi)
+static int ad5504_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5504_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	if (spi->irq)
-		free_irq(spi->irq, indio_dev);
 
-	if (!IS_ERR(st->reg)) {
+	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
-		regulator_put(st->reg);
-	}
-	iio_device_free(indio_dev);
 
 	return 0;
 }
@@ -383,7 +367,7 @@ static struct spi_driver ad5504_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = ad5504_probe,
-	.remove = __devexit_p(ad5504_remove),
+	.remove = ad5504_remove,
 	.id_table = ad5504_id,
 };
 module_spi_driver(ad5504_driver);

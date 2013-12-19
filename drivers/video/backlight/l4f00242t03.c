@@ -48,17 +48,36 @@ static void l4f00242t03_reset(unsigned int gpio)
 
 static void l4f00242t03_lcd_init(struct spi_device *spi)
 {
-	struct l4f00242t03_pdata *pdata = spi->dev.platform_data;
-	struct l4f00242t03_priv *priv = dev_get_drvdata(&spi->dev);
+	struct l4f00242t03_pdata *pdata = dev_get_platdata(&spi->dev);
+	struct l4f00242t03_priv *priv = spi_get_drvdata(spi);
 	const u16 cmd[] = { 0x36, param(0), 0x3A, param(0x60) };
+	int ret;
 
 	dev_dbg(&spi->dev, "initializing LCD\n");
 
-	regulator_set_voltage(priv->io_reg, 1800000, 1800000);
-	regulator_enable(priv->io_reg);
+	ret = regulator_set_voltage(priv->io_reg, 1800000, 1800000);
+	if (ret) {
+		dev_err(&spi->dev, "failed to set the IO regulator voltage.\n");
+		return;
+	}
+	ret = regulator_enable(priv->io_reg);
+	if (ret) {
+		dev_err(&spi->dev, "failed to enable the IO regulator.\n");
+		return;
+	}
 
-	regulator_set_voltage(priv->core_reg, 2800000, 2800000);
-	regulator_enable(priv->core_reg);
+	ret = regulator_set_voltage(priv->core_reg, 2800000, 2800000);
+	if (ret) {
+		dev_err(&spi->dev, "failed to set the core regulator voltage.\n");
+		regulator_disable(priv->io_reg);
+		return;
+	}
+	ret = regulator_enable(priv->core_reg);
+	if (ret) {
+		dev_err(&spi->dev, "failed to enable the core regulator.\n");
+		regulator_disable(priv->io_reg);
+		return;
+	}
 
 	l4f00242t03_reset(pdata->reset_gpio);
 
@@ -69,8 +88,8 @@ static void l4f00242t03_lcd_init(struct spi_device *spi)
 
 static void l4f00242t03_lcd_powerdown(struct spi_device *spi)
 {
-	struct l4f00242t03_pdata *pdata = spi->dev.platform_data;
-	struct l4f00242t03_priv *priv = dev_get_drvdata(&spi->dev);
+	struct l4f00242t03_pdata *pdata = dev_get_platdata(&spi->dev);
+	struct l4f00242t03_priv *priv = spi_get_drvdata(spi);
 
 	dev_dbg(&spi->dev, "Powering down LCD\n");
 
@@ -152,7 +171,7 @@ static struct lcd_ops l4f_ops = {
 static int l4f00242t03_probe(struct spi_device *spi)
 {
 	struct l4f00242t03_priv *priv;
-	struct l4f00242t03_pdata *pdata = spi->dev.platform_data;
+	struct l4f00242t03_pdata *pdata = dev_get_platdata(&spi->dev);
 	int ret;
 
 	if (pdata == NULL) {
@@ -168,7 +187,7 @@ static int l4f00242t03_probe(struct spi_device *spi)
 		return -ENOMEM;
 	}
 
-	dev_set_drvdata(&spi->dev, priv);
+	spi_set_drvdata(spi, priv);
 	spi->bits_per_word = 9;
 	spi_setup(spi);
 
@@ -190,27 +209,24 @@ static int l4f00242t03_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	priv->io_reg = regulator_get(&spi->dev, "vdd");
+	priv->io_reg = devm_regulator_get(&spi->dev, "vdd");
 	if (IS_ERR(priv->io_reg)) {
 		dev_err(&spi->dev, "%s: Unable to get the IO regulator\n",
 		       __func__);
 		return PTR_ERR(priv->io_reg);
 	}
 
-	priv->core_reg = regulator_get(&spi->dev, "vcore");
+	priv->core_reg = devm_regulator_get(&spi->dev, "vcore");
 	if (IS_ERR(priv->core_reg)) {
-		ret = PTR_ERR(priv->core_reg);
 		dev_err(&spi->dev, "%s: Unable to get the core regulator\n",
 		       __func__);
-		goto err1;
+		return PTR_ERR(priv->core_reg);
 	}
 
 	priv->ld = lcd_device_register("l4f00242t03",
 					&spi->dev, priv, &l4f_ops);
-	if (IS_ERR(priv->ld)) {
-		ret = PTR_ERR(priv->ld);
-		goto err2;
-	}
+	if (IS_ERR(priv->ld))
+		return PTR_ERR(priv->ld);
 
 	/* Init the LCD */
 	l4f00242t03_lcd_init(spi);
@@ -220,33 +236,21 @@ static int l4f00242t03_probe(struct spi_device *spi)
 	dev_info(&spi->dev, "Epson l4f00242t03 lcd probed.\n");
 
 	return 0;
-
-err2:
-	regulator_put(priv->core_reg);
-err1:
-	regulator_put(priv->io_reg);
-
-	return ret;
 }
 
 static int l4f00242t03_remove(struct spi_device *spi)
 {
-	struct l4f00242t03_priv *priv = dev_get_drvdata(&spi->dev);
+	struct l4f00242t03_priv *priv = spi_get_drvdata(spi);
 
 	l4f00242t03_lcd_power_set(priv->ld, FB_BLANK_POWERDOWN);
 	lcd_device_unregister(priv->ld);
-
-	dev_set_drvdata(&spi->dev, NULL);
-
-	regulator_put(priv->io_reg);
-	regulator_put(priv->core_reg);
 
 	return 0;
 }
 
 static void l4f00242t03_shutdown(struct spi_device *spi)
 {
-	struct l4f00242t03_priv *priv = dev_get_drvdata(&spi->dev);
+	struct l4f00242t03_priv *priv = spi_get_drvdata(spi);
 
 	if (priv)
 		l4f00242t03_lcd_power_set(priv->ld, FB_BLANK_POWERDOWN);

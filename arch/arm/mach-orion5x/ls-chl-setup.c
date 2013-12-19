@@ -139,7 +139,7 @@ static struct mv_sata_platform_data lschl_sata_data = {
 
 static void lschl_power_off(void)
 {
-	orion5x_restart('h', NULL);
+	orion5x_restart(REBOOT_HARD, NULL);
 }
 
 /*****************************************************************************
@@ -294,8 +294,10 @@ static void __init lschl_init(void)
 	orion5x_uart0_init();
 	orion5x_xor_init();
 
-	orion5x_setup_dev_boot_win(LSCHL_NOR_BOOT_BASE,
-				   LSCHL_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
+				    ORION_MBUS_DEVBUS_BOOT_ATTR,
+				    LSCHL_NOR_BOOT_BASE,
+				    LSCHL_NOR_BOOT_SIZE);
 	platform_device_register(&lschl_nor_flash);
 
 	platform_device_register(&lschl_leds);
@@ -322,7 +324,7 @@ MACHINE_START(LINKSTATION_LSCHL, "Buffalo Linkstation LiveV3 (LS-CHL)")
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
-	.timer		= &orion5x_timer,
+	.init_time	= orion5x_timer_init,
 	.fixup		= tag_fixup_mem32,
 	.restart	= orion5x_restart,
 MACHINE_END

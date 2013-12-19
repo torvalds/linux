@@ -79,10 +79,9 @@ static int atmel_probe(struct pcmcia_device *p_dev)
 
 	/* Allocate space for private device-specific data */
 	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
-	if (!local) {
-		printk(KERN_ERR "atmel_cs: no memory for new device\n");
+	if (!local)
 		return -ENOMEM;
-	}
+
 	p_dev->priv = local;
 
 	return atmel_config(p_dev);
@@ -246,16 +245,7 @@ static struct pcmcia_driver atmel_driver = {
 	.suspend	= atmel_suspend,
 	.resume		= atmel_resume,
 };
-
-static int __init atmel_cs_init(void)
-{
-        return pcmcia_register_driver(&atmel_driver);
-}
-
-static void __exit atmel_cs_cleanup(void)
-{
-        pcmcia_unregister_driver(&atmel_driver);
-}
+module_pcmcia_driver(atmel_driver);
 
 /*
     This program is free software; you can redistribute it and/or
@@ -295,6 +285,3 @@ static void __exit atmel_cs_cleanup(void)
     IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
     POSSIBILITY OF SUCH DAMAGE.
 */
-
-module_init(atmel_cs_init);
-module_exit(atmel_cs_cleanup);

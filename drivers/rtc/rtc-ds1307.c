@@ -4,6 +4,7 @@
  *  Copyright (C) 2005 James Chapman (ds1337 core)
  *  Copyright (C) 2006 David Brownell
  *  Copyright (C) 2009 Matthias Fuchs (rx8025 support)
+ *  Copyright (C) 2012 Bertrand Achard (nvram access fixes)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -196,7 +197,7 @@ static s32 ds1307_read_block_data_once(const struct i2c_client *client,
 static s32 ds1307_read_block_data(const struct i2c_client *client, u8 command,
 				  u8 length, u8 *values)
 {
-	u8 oldvalues[I2C_SMBUS_BLOCK_MAX];
+	u8 oldvalues[255];
 	s32 ret;
 	int tries = 0;
 
@@ -222,7 +223,7 @@ static s32 ds1307_read_block_data(const struct i2c_client *client, u8 command,
 static s32 ds1307_write_block_data(const struct i2c_client *client, u8 command,
 				   u8 length, const u8 *values)
 {
-	u8 currvalues[I2C_SMBUS_BLOCK_MAX];
+	u8 currvalues[255];
 	int tries = 0;
 
 	dev_dbg(&client->dev, "ds1307_write_block_data (length=%d)\n", length);
@@ -245,6 +246,57 @@ static s32 ds1307_write_block_data(const struct i2c_client *client, u8 command,
 		if (ret < 0)
 			return ret;
 	} while (memcmp(currvalues, values, length));
+	return length;
+}
+
+/*----------------------------------------------------------------------*/
+
+/* These RTC devices are not designed to be connected to a SMbus adapter.
+   SMbus limits block operations length to 32 bytes, whereas it's not
+   limited on I2C buses. As a result, accesses may exceed 32 bytes;
+   in that case, split them into smaller blocks */
+
+static s32 ds1307_native_smbus_write_block_data(const struct i2c_client *client,
+				u8 command, u8 length, const u8 *values)
+{
+	u8 suboffset = 0;
+
+	if (length <= I2C_SMBUS_BLOCK_MAX)
+		return i2c_smbus_write_i2c_block_data(client,
+					command, length, values);
+
+	while (suboffset < length) {
+		s32 retval = i2c_smbus_write_i2c_block_data(client,
+				command + suboffset,
+				min(I2C_SMBUS_BLOCK_MAX, length - suboffset),
+				values + suboffset);
+		if (retval < 0)
+			return retval;
+
+		suboffset += I2C_SMBUS_BLOCK_MAX;
+	}
+	return length;
+}
+
+static s32 ds1307_native_smbus_read_block_data(const struct i2c_client *client,
+				u8 command, u8 length, u8 *values)
+{
+	u8 suboffset = 0;
+
+	if (length <= I2C_SMBUS_BLOCK_MAX)
+		return i2c_smbus_read_i2c_block_data(client,
+					command, length, values);
+
+	while (suboffset < length) {
+		s32 retval = i2c_smbus_read_i2c_block_data(client,
+				command + suboffset,
+				min(I2C_SMBUS_BLOCK_MAX, length - suboffset),
+				values + suboffset);
+		if (retval < 0)
+			return retval;
+
+		suboffset += I2C_SMBUS_BLOCK_MAX;
+	}
 	return length;
 }
 
@@ -322,12 +374,7 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 		return -EIO;
 	}
 
-	dev_dbg(dev, "%s: %02x %02x %02x %02x %02x %02x %02x\n",
-			"read",
-			ds1307->regs[0], ds1307->regs[1],
-			ds1307->regs[2], ds1307->regs[3],
-			ds1307->regs[4], ds1307->regs[5],
-			ds1307->regs[6]);
+	dev_dbg(dev, "%s: %7ph\n", "read", ds1307->regs);
 
 	t->tm_sec = bcd2bin(ds1307->regs[DS1307_REG_SECS] & 0x7f);
 	t->tm_min = bcd2bin(ds1307->regs[DS1307_REG_MIN] & 0x7f);
@@ -398,9 +445,7 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 		break;
 	}
 
-	dev_dbg(dev, "%s: %02x %02x %02x %02x %02x %02x %02x\n",
-		"write", buf[0], buf[1], buf[2], buf[3],
-		buf[4], buf[5], buf[6]);
+	dev_dbg(dev, "%s: %7ph\n", "write", buf);
 
 	result = ds1307->write_block_data(ds1307->client,
 		ds1307->offset, 7, buf);
@@ -617,17 +662,17 @@ ds1307_nvram_write(struct file *filp, struct kobject *kobj,
 
 /*----------------------------------------------------------------------*/
 
-static int __devinit ds1307_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int ds1307_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	struct ds1307		*ds1307;
 	int			err = -ENODEV;
 	int			tmp;
 	const struct chip_desc	*chip = &chips[id->driver_data];
 	struct i2c_adapter	*adapter = to_i2c_adapter(client->dev.parent);
-	int			want_irq = false;
+	bool			want_irq = false;
 	unsigned char		*buf;
-	struct ds1307_platform_data *pdata = client->dev.platform_data;
+	struct ds1307_platform_data *pdata = dev_get_platdata(&client->dev);
 	static const int	bbsqi_bitpos[] = {
 		[ds_1337] = 0,
 		[ds_1339] = DS1339_BIT_BBSQI,
@@ -638,7 +683,7 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 	    && !i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -EIO;
 
-	ds1307 = kzalloc(sizeof(struct ds1307), GFP_KERNEL);
+	ds1307 = devm_kzalloc(&client->dev, sizeof(struct ds1307), GFP_KERNEL);
 	if (!ds1307)
 		return -ENOMEM;
 
@@ -653,8 +698,8 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 
 	buf = ds1307->regs;
 	if (i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK)) {
-		ds1307->read_block_data = i2c_smbus_read_i2c_block_data;
-		ds1307->write_block_data = i2c_smbus_write_i2c_block_data;
+		ds1307->read_block_data = ds1307_native_smbus_read_block_data;
+		ds1307->write_block_data = ds1307_native_smbus_write_block_data;
 	} else {
 		ds1307->read_block_data = ds1307_read_block_data;
 		ds1307->write_block_data = ds1307_write_block_data;
@@ -668,9 +713,9 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 		tmp = ds1307->read_block_data(ds1307->client,
 				DS1337_REG_CONTROL, 2, buf);
 		if (tmp != 2) {
-			pr_debug("read error %d\n", tmp);
+			dev_dbg(&client->dev, "read error %d\n", tmp);
 			err = -EIO;
-			goto exit_free;
+			goto exit;
 		}
 
 		/* oscillator off?  turn it on, so clock can tick. */
@@ -707,9 +752,9 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 		tmp = i2c_smbus_read_i2c_block_data(ds1307->client,
 				RX8025_REG_CTRL1 << 4 | 0x08, 2, buf);
 		if (tmp != 2) {
-			pr_debug("read error %d\n", tmp);
+			dev_dbg(&client->dev, "read error %d\n", tmp);
 			err = -EIO;
-			goto exit_free;
+			goto exit;
 		}
 
 		/* oscillator off?  turn it on, so clock can tick. */
@@ -751,9 +796,9 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 			tmp = i2c_smbus_read_i2c_block_data(ds1307->client,
 					RX8025_REG_CTRL1 << 4 | 0x08, 2, buf);
 			if (tmp != 2) {
-				pr_debug("read error %d\n", tmp);
+				dev_dbg(&client->dev, "read error %d\n", tmp);
 				err = -EIO;
-				goto exit_free;
+				goto exit;
 			}
 
 			/* correct hour */
@@ -779,9 +824,9 @@ read_rtc:
 	/* read RTC registers */
 	tmp = ds1307->read_block_data(ds1307->client, ds1307->offset, 8, buf);
 	if (tmp != 8) {
-		pr_debug("read error %d\n", tmp);
+		dev_dbg(&client->dev, "read error %d\n", tmp);
 		err = -EIO;
-		goto exit_free;
+		goto exit;
 	}
 
 	/*
@@ -821,9 +866,9 @@ read_rtc:
 
 		tmp = i2c_smbus_read_byte_data(client, DS1340_REG_FLAG);
 		if (tmp < 0) {
-			pr_debug("read error %d\n", tmp);
+			dev_dbg(&client->dev, "read error %d\n", tmp);
 			err = -EIO;
-			goto exit_free;
+			goto exit;
 		}
 
 		/* oscillator fault?  clear flag, and warn */
@@ -882,13 +927,13 @@ read_rtc:
 				bin2bcd(tmp));
 	}
 
-	ds1307->rtc = rtc_device_register(client->name, &client->dev,
+	ds1307->rtc = devm_rtc_device_register(&client->dev, client->name,
 				&ds13xx_rtc_ops, THIS_MODULE);
 	if (IS_ERR(ds1307->rtc)) {
 		err = PTR_ERR(ds1307->rtc);
 		dev_err(&client->dev,
 			"unable to register the class device\n");
-		goto exit_free;
+		goto exit;
 	}
 
 	if (want_irq) {
@@ -897,7 +942,7 @@ read_rtc:
 		if (err) {
 			dev_err(&client->dev,
 				"unable to request IRQ!\n");
-			goto exit_irq;
+			goto exit;
 		}
 
 		device_set_wakeup_capable(&client->dev, 1);
@@ -906,39 +951,36 @@ read_rtc:
 	}
 
 	if (chip->nvram_size) {
-		ds1307->nvram = kzalloc(sizeof(struct bin_attribute),
-							GFP_KERNEL);
+		ds1307->nvram = devm_kzalloc(&client->dev,
+					sizeof(struct bin_attribute),
+					GFP_KERNEL);
 		if (!ds1307->nvram) {
 			err = -ENOMEM;
-			goto exit_nvram;
+			goto err_irq;
 		}
 		ds1307->nvram->attr.name = "nvram";
 		ds1307->nvram->attr.mode = S_IRUGO | S_IWUSR;
 		sysfs_bin_attr_init(ds1307->nvram);
-		ds1307->nvram->read = ds1307_nvram_read,
-		ds1307->nvram->write = ds1307_nvram_write,
+		ds1307->nvram->read = ds1307_nvram_read;
+		ds1307->nvram->write = ds1307_nvram_write;
 		ds1307->nvram->size = chip->nvram_size;
 		ds1307->nvram_offset = chip->nvram_offset;
 		err = sysfs_create_bin_file(&client->dev.kobj, ds1307->nvram);
-		if (err) {
-			kfree(ds1307->nvram);
-			goto exit_nvram;
-		}
+		if (err)
+			goto err_irq;
 		set_bit(HAS_NVRAM, &ds1307->flags);
 		dev_info(&client->dev, "%zu bytes nvram\n", ds1307->nvram->size);
 	}
 
 	return 0;
 
-exit_nvram:
-exit_irq:
-	rtc_device_unregister(ds1307->rtc);
-exit_free:
-	kfree(ds1307);
+err_irq:
+	free_irq(client->irq, client);
+exit:
 	return err;
 }
 
-static int __devexit ds1307_remove(struct i2c_client *client)
+static int ds1307_remove(struct i2c_client *client)
 {
 	struct ds1307 *ds1307 = i2c_get_clientdata(client);
 
@@ -947,13 +989,9 @@ static int __devexit ds1307_remove(struct i2c_client *client)
 		cancel_work_sync(&ds1307->work);
 	}
 
-	if (test_and_clear_bit(HAS_NVRAM, &ds1307->flags)) {
+	if (test_and_clear_bit(HAS_NVRAM, &ds1307->flags))
 		sysfs_remove_bin_file(&client->dev.kobj, ds1307->nvram);
-		kfree(ds1307->nvram);
-	}
 
-	rtc_device_unregister(ds1307->rtc);
-	kfree(ds1307);
 	return 0;
 }
 
@@ -963,7 +1001,7 @@ static struct i2c_driver ds1307_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ds1307_probe,
-	.remove		= __devexit_p(ds1307_remove),
+	.remove		= ds1307_remove,
 	.id_table	= ds1307_id,
 };
 

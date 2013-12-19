@@ -43,6 +43,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_qos.h>
 #include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
 #include <linux/scatterlist.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
@@ -155,6 +156,7 @@ static void tmio_mmc_set_clock(struct tmio_mmc_host *host, int new_clock)
 		host->set_clk_div(host->pdev, (clk>>22) & 1);
 
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, clk & 0x1ff);
+	msleep(10);
 }
 
 static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
@@ -768,16 +770,52 @@ static int tmio_mmc_clk_update(struct mmc_host *mmc)
 	return ret;
 }
 
-static void tmio_mmc_set_power(struct tmio_mmc_host *host, struct mmc_ios *ios)
+static void tmio_mmc_power_on(struct tmio_mmc_host *host, unsigned short vdd)
+{
+	struct mmc_host *mmc = host->mmc;
+	int ret = 0;
+
+	/* .set_ios() is returning void, so, no chance to report an error */
+
+	if (host->set_pwr)
+		host->set_pwr(host->pdev, 1);
+
+	if (!IS_ERR(mmc->supply.vmmc)) {
+		ret = mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, vdd);
+		/*
+		 * Attention: empiric value. With a b43 WiFi SDIO card this
+		 * delay proved necessary for reliable card-insertion probing.
+		 * 100us were not enough. Is this the same 140us delay, as in
+		 * tmio_mmc_set_ios()?
+		 */
+		udelay(200);
+	}
+	/*
+	 * It seems, VccQ should be switched on after Vcc, this is also what the
+	 * omap_hsmmc.c driver does.
+	 */
+	if (!IS_ERR(mmc->supply.vqmmc) && !ret) {
+		ret = regulator_enable(mmc->supply.vqmmc);
+		udelay(200);
+	}
+
+	if (ret < 0)
+		dev_dbg(&host->pdev->dev, "Regulators failed to power up: %d\n",
+			ret);
+}
+
+static void tmio_mmc_power_off(struct tmio_mmc_host *host)
 {
 	struct mmc_host *mmc = host->mmc;
 
-	if (host->set_pwr)
-		host->set_pwr(host->pdev, ios->power_mode != MMC_POWER_OFF);
+	if (!IS_ERR(mmc->supply.vqmmc))
+		regulator_disable(mmc->supply.vqmmc);
+
 	if (!IS_ERR(mmc->supply.vmmc))
-		/* Errors ignored... */
-		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc,
-				      ios->power_mode ? ios->vdd : 0);
+		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
+
+	if (host->set_pwr)
+		host->set_pwr(host->pdev, 0);
 }
 
 /* Set MMC clock / power.
@@ -825,30 +863,45 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	 * is kept positive, so no suspending actually takes place.
 	 */
 	if (ios->power_mode == MMC_POWER_ON && ios->clock) {
-		if (!host->power) {
+		if (host->power != TMIO_MMC_ON_RUN) {
 			tmio_mmc_clk_update(mmc);
 			pm_runtime_get_sync(dev);
-			host->power = true;
+			if (host->resuming) {
+				tmio_mmc_reset(host);
+				host->resuming = false;
+			}
 		}
+		if (host->power == TMIO_MMC_OFF_STOP)
+			tmio_mmc_reset(host);
 		tmio_mmc_set_clock(host, ios->clock);
-		/* power up SD bus */
-		tmio_mmc_set_power(host, ios);
+		if (host->power == TMIO_MMC_OFF_STOP)
+			/* power up SD card and the bus */
+			tmio_mmc_power_on(host, ios->vdd);
+		host->power = TMIO_MMC_ON_RUN;
 		/* start bus clock */
 		tmio_mmc_clk_start(host);
 	} else if (ios->power_mode != MMC_POWER_UP) {
-		if (ios->power_mode == MMC_POWER_OFF)
-			tmio_mmc_set_power(host, ios);
-		if (host->power) {
-			struct tmio_mmc_data *pdata = host->pdata;
+		struct tmio_mmc_data *pdata = host->pdata;
+		unsigned int old_power = host->power;
+
+		if (old_power != TMIO_MMC_OFF_STOP) {
+			if (ios->power_mode == MMC_POWER_OFF) {
+				tmio_mmc_power_off(host);
+				host->power = TMIO_MMC_OFF_STOP;
+			} else {
+				host->power = TMIO_MMC_ON_STOP;
+			}
+		}
+
+		if (old_power == TMIO_MMC_ON_RUN) {
 			tmio_mmc_clk_stop(host);
-			host->power = false;
 			pm_runtime_put(dev);
 			if (pdata->clk_disable)
 				pdata->clk_disable(host->pdev);
 		}
 	}
 
-	if (host->power) {
+	if (host->power != TMIO_MMC_OFF_STOP) {
 		switch (ios->bus_width) {
 		case MMC_BUS_WIDTH_1:
 			sd_ctrl_write16(host, CTL_SD_MEM_CARD_OPT, 0x80e0);
@@ -883,25 +936,11 @@ static int tmio_mmc_get_ro(struct mmc_host *mmc)
 		 (sd_ctrl_read32(host, CTL_STATUS) & TMIO_STAT_WRPROTECT));
 }
 
-static int tmio_mmc_get_cd(struct mmc_host *mmc)
-{
-	struct tmio_mmc_host *host = mmc_priv(mmc);
-	struct tmio_mmc_data *pdata = host->pdata;
-	int ret = mmc_gpio_get_cd(mmc);
-	if (ret >= 0)
-		return ret;
-
-	if (!pdata->get_cd)
-		return -ENOSYS;
-	else
-		return pdata->get_cd(host->pdev);
-}
-
 static const struct mmc_host_ops tmio_mmc_ops = {
 	.request	= tmio_mmc_request,
 	.set_ios	= tmio_mmc_set_ios,
 	.get_ro         = tmio_mmc_get_ro,
-	.get_cd		= tmio_mmc_get_cd,
+	.get_cd		= mmc_gpio_get_cd,
 	.enable_sdio_irq = tmio_mmc_enable_sdio_irq,
 };
 
@@ -918,6 +957,17 @@ static void tmio_mmc_init_ocr(struct tmio_mmc_host *host)
 		dev_warn(mmc_dev(mmc), "Platform OCR mask is ignored\n");
 }
 
+static void tmio_mmc_of_parse(struct platform_device *pdev,
+			      struct tmio_mmc_data *pdata)
+{
+	const struct device_node *np = pdev->dev.of_node;
+	if (!np)
+		return;
+
+	if (of_get_property(np, "toshiba,mmc-wrprotect-disable", NULL))
+		pdata->flags |= TMIO_MMC_WRPROTECT_DISABLE;
+}
+
 int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 				  struct platform_device *pdev,
 				  struct tmio_mmc_data *pdata)
@@ -928,6 +978,11 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	int ret;
 	u32 irq_mask = TMIO_MASK_CMD;
 
+	tmio_mmc_of_parse(pdev, pdata);
+
+	if (!(pdata->flags & TMIO_MMC_HAS_IDLE_WAIT))
+		pdata->write16_hook = NULL;
+
 	res_ctl = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_ctl)
 		return -EINVAL;
@@ -935,6 +990,10 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	mmc = mmc_alloc_host(sizeof(struct tmio_mmc_host), &pdev->dev);
 	if (!mmc)
 		return -ENOMEM;
+
+	ret = mmc_of_parse(mmc);
+	if (ret < 0)
+		goto host_free;
 
 	pdata->dev = &pdev->dev;
 	_host = mmc_priv(mmc);
@@ -956,7 +1015,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	}
 
 	mmc->ops = &tmio_mmc_ops;
-	mmc->caps = MMC_CAP_4_BIT_DATA | pdata->capabilities;
+	mmc->caps |= MMC_CAP_4_BIT_DATA | pdata->capabilities;
 	mmc->caps2 = pdata->capabilities2;
 	mmc->max_segs = 32;
 	mmc->max_blk_size = 512;
@@ -968,9 +1027,10 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 
 	_host->native_hotplug = !(pdata->flags & TMIO_MMC_USE_GPIO_CD ||
 				  mmc->caps & MMC_CAP_NEEDS_POLL ||
-				  mmc->caps & MMC_CAP_NONREMOVABLE);
+				  mmc->caps & MMC_CAP_NONREMOVABLE ||
+				  mmc->slot.cd_irq >= 0);
 
-	_host->power = false;
+	_host->power = TMIO_MMC_OFF_STOP;
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_resume(&pdev->dev);
 	if (ret < 0)
@@ -1036,7 +1096,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	dev_pm_qos_expose_latency_limit(&pdev->dev, 100);
 
 	if (pdata->flags & TMIO_MMC_USE_GPIO_CD) {
-		ret = mmc_gpio_request_cd(mmc, pdata->cd_gpio);
+		ret = mmc_gpio_request_cd(mmc, pdata->cd_gpio, 0);
 		if (ret < 0) {
 			tmio_mmc_host_remove(_host);
 			return ret;
@@ -1060,15 +1120,7 @@ EXPORT_SYMBOL(tmio_mmc_host_probe);
 void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 {
 	struct platform_device *pdev = host->pdev;
-	struct tmio_mmc_data *pdata = host->pdata;
 	struct mmc_host *mmc = host->mmc;
-
-	if (pdata->flags & TMIO_MMC_USE_GPIO_CD)
-		/*
-		 * This means we can miss a card-eject, but this is anyway
-		 * possible, because of delayed processing of hotplug events.
-		 */
-		mmc_gpio_free_cd(mmc);
 
 	if (!host->native_hotplug)
 		pm_runtime_get_sync(&pdev->dev);
@@ -1093,12 +1145,9 @@ int tmio_mmc_host_suspend(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
-	int ret = mmc_suspend_host(mmc);
 
-	if (!ret)
-		tmio_mmc_disable_mmc_irqs(host, TMIO_MASK_ALL);
-
-	return ret;
+	tmio_mmc_disable_mmc_irqs(host, TMIO_MASK_ALL);
+	return 0;
 }
 EXPORT_SYMBOL(tmio_mmc_host_suspend);
 
@@ -1107,11 +1156,11 @@ int tmio_mmc_host_resume(struct device *dev)
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 
-	tmio_mmc_reset(host);
 	tmio_mmc_enable_dma(host, true);
 
 	/* The MMC core will perform the complete set up */
-	return mmc_resume_host(mmc);
+	host->resuming = true;
+	return 0;
 }
 EXPORT_SYMBOL(tmio_mmc_host_resume);
 
@@ -1128,7 +1177,6 @@ int tmio_mmc_host_runtime_resume(struct device *dev)
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 
-	tmio_mmc_reset(host);
 	tmio_mmc_enable_dma(host, true);
 
 	return 0;

@@ -107,6 +107,14 @@
 		interrupt-parent = <&UIC0>;
 	};
 
+	OCM: ocm@400040000 {
+		compatible = "ibm,ocm";
+		status = "ok";
+		cell-index = <1>;
+		/* configured in U-Boot */
+		reg = <4 0x00040000 0x8000>; /* 32K */
+	};
+
 	SDR0: sdr {
 		compatible = "ibm,sdr-apm821xx";
 		dcr-reg = <0x00e 0x002>;

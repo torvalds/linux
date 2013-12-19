@@ -99,7 +99,7 @@ static struct epd_frame epd_frame_table[] = {
 	},
 };
 
-static struct fb_fix_screeninfo metronomefb_fix __devinitdata = {
+static struct fb_fix_screeninfo metronomefb_fix = {
 	.id =		"metronomefb",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_STATIC_PSEUDOCOLOR,
@@ -110,7 +110,7 @@ static struct fb_fix_screeninfo metronomefb_fix __devinitdata = {
 	.accel =	FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo metronomefb_var __devinitdata = {
+static struct fb_var_screeninfo metronomefb_var = {
 	.xres		= DPY_W,
 	.yres		= DPY_H,
 	.xres_virtual	= DPY_W,
@@ -167,8 +167,8 @@ static u16 calc_img_cksum(u16 *start, int length)
 }
 
 /* here we decode the incoming waveform file and populate metromem */
-static int __devinit load_waveform(u8 *mem, size_t size, int m, int t,
-				struct metronomefb_par *par)
+static int load_waveform(u8 *mem, size_t size, int m, int t,
+			 struct metronomefb_par *par)
 {
 	int tta;
 	int wmta;
@@ -338,7 +338,7 @@ static int metronome_display_cmd(struct metronomefb_par *par)
 	return par->board->met_wait_event_intr(par);
 }
 
-static int __devinit metronome_powerup_cmd(struct metronomefb_par *par)
+static int metronome_powerup_cmd(struct metronomefb_par *par)
 {
 	int i;
 	u16 cs;
@@ -367,7 +367,7 @@ static int __devinit metronome_powerup_cmd(struct metronomefb_par *par)
 	return par->board->met_wait_event(par);
 }
 
-static int __devinit metronome_config_cmd(struct metronomefb_par *par)
+static int metronome_config_cmd(struct metronomefb_par *par)
 {
 	/* setup config command
 	we can't immediately set the opcode since the controller
@@ -385,7 +385,7 @@ static int __devinit metronome_config_cmd(struct metronomefb_par *par)
 	return par->board->met_wait_event(par);
 }
 
-static int __devinit metronome_init_cmd(struct metronomefb_par *par)
+static int metronome_init_cmd(struct metronomefb_par *par)
 {
 	int i;
 	u16 cs;
@@ -411,7 +411,7 @@ static int __devinit metronome_init_cmd(struct metronomefb_par *par)
 	return par->board->met_wait_event(par);
 }
 
-static int __devinit metronome_init_regs(struct metronomefb_par *par)
+static int metronome_init_regs(struct metronomefb_par *par)
 {
 	int res;
 
@@ -569,7 +569,7 @@ static struct fb_deferred_io metronomefb_defio = {
 	.deferred_io	= metronomefb_dpy_deferred_io,
 };
 
-static int __devinit metronomefb_probe(struct platform_device *dev)
+static int metronomefb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 	struct metronome_board *board;
@@ -690,7 +690,8 @@ static int __devinit metronomefb_probe(struct platform_device *dev)
 		goto err_csum_table;
 	}
 
-	if (board->setup_irq(info))
+	retval = board->setup_irq(info);
+	if (retval)
 		goto err_csum_table;
 
 	retval = metronome_init_regs(par);
@@ -741,7 +742,7 @@ err:
 	return retval;
 }
 
-static int __devexit metronomefb_remove(struct platform_device *dev)
+static int metronomefb_remove(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 
@@ -763,28 +764,16 @@ static int __devexit metronomefb_remove(struct platform_device *dev)
 
 static struct platform_driver metronomefb_driver = {
 	.probe	= metronomefb_probe,
-	.remove = __devexit_p(metronomefb_remove),
+	.remove = metronomefb_remove,
 	.driver	= {
 		.owner	= THIS_MODULE,
 		.name	= "metronomefb",
 	},
 };
-
-static int __init metronomefb_init(void)
-{
-	return platform_driver_register(&metronomefb_driver);
-}
-
-static void __exit metronomefb_exit(void)
-{
-	platform_driver_unregister(&metronomefb_driver);
-}
+module_platform_driver(metronomefb_driver);
 
 module_param(user_wfm_size, uint, 0);
 MODULE_PARM_DESC(user_wfm_size, "Set custom waveform size");
-
-module_init(metronomefb_init);
-module_exit(metronomefb_exit);
 
 MODULE_DESCRIPTION("fbdev driver for Metronome controller");
 MODULE_AUTHOR("Jaya Kumar");

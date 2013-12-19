@@ -36,7 +36,6 @@
 #define NAMEI_RA_CHUNKS  2
 #define NAMEI_RA_BLOCKS  4
 #define NAMEI_RA_SIZE        (NAMEI_RA_CHUNKS * NAMEI_RA_BLOCKS)
-#define NAMEI_RA_INDEX(c,b)  (((c) * NAMEI_RA_BLOCKS) + (b))
 
 static struct buffer_head *ext3_append(handle_t *handle,
 					struct inode *inode,
@@ -577,11 +576,8 @@ static int htree_dirblock_to_tree(struct file *dir_file,
 		if (!ext3_check_dir_entry("htree_dirblock_to_tree", dir, de, bh,
 					(block<<EXT3_BLOCK_SIZE_BITS(dir->i_sb))
 						+((char *)de - bh->b_data))) {
-			/* On error, skip the f_pos to the next block. */
-			dir_file->f_pos = (dir_file->f_pos |
-					(dir->i_sb->s_blocksize - 1)) + 1;
-			brelse (bh);
-			return count;
+			/* silently ignore the rest of the block */
+			break;
 		}
 		ext3fs_dirhash(de->name, de->name_len, hinfo);
 		if ((hinfo->hash < start_hash) ||
@@ -624,7 +620,7 @@ int ext3_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 
 	dxtrace(printk("In htree_fill_tree, start hash: %x:%x\n", start_hash,
 		       start_minor_hash));
-	dir = dir_file->f_path.dentry->d_inode;
+	dir = file_inode(dir_file);
 	if (!(EXT3_I(dir)->i_flags & EXT3_INDEX_FL)) {
 		hinfo.hash_version = EXT3_SB(dir->i_sb)->s_def_hash_version;
 		if (hinfo.hash_version <= DX_HASH_TEA)
@@ -638,7 +634,7 @@ int ext3_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 	}
 	hinfo.hash = start_hash;
 	hinfo.minor_hash = 0;
-	frame = dx_probe(NULL, dir_file->f_path.dentry->d_inode, &hinfo, frames, &err);
+	frame = dx_probe(NULL, file_inode(dir_file), &hinfo, frames, &err);
 	if (!frame)
 		return err;
 
@@ -1763,6 +1759,44 @@ retry:
 	return err;
 }
 
+static int ext3_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+{
+	handle_t *handle;
+	struct inode *inode;
+	int err, retries = 0;
+
+	dquot_initialize(dir);
+
+retry:
+	handle = ext3_journal_start(dir, EXT3_MAXQUOTAS_INIT_BLOCKS(dir->i_sb) +
+			  4 + EXT3_XATTR_TRANS_BLOCKS);
+
+	if (IS_ERR(handle))
+		return PTR_ERR(handle);
+
+	inode = ext3_new_inode (handle, dir, NULL, mode);
+	err = PTR_ERR(inode);
+	if (!IS_ERR(inode)) {
+		inode->i_op = &ext3_file_inode_operations;
+		inode->i_fop = &ext3_file_operations;
+		ext3_set_aops(inode);
+		d_tmpfile(dentry, inode);
+		err = ext3_orphan_add(handle, inode);
+		if (err)
+			goto err_unlock_inode;
+		mark_inode_dirty(inode);
+		unlock_new_inode(inode);
+	}
+	ext3_journal_stop(handle);
+	if (err == -ENOSPC && ext3_should_retry_alloc(dir->i_sb, &retries))
+		goto retry;
+	return err;
+err_unlock_inode:
+	ext3_journal_stop(handle);
+	unlock_new_inode(inode);
+	return err;
+}
+
 static int ext3_mkdir(struct inode * dir, struct dentry * dentry, umode_t mode)
 {
 	handle_t *handle;
@@ -2304,7 +2338,7 @@ static int ext3_link (struct dentry * old_dentry,
 
 retry:
 	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS(dir->i_sb) +
-					EXT3_INDEX_EXTRA_TRANS_BLOCKS);
+					EXT3_INDEX_EXTRA_TRANS_BLOCKS + 1);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -2318,6 +2352,11 @@ retry:
 	err = ext3_add_entry(handle, dentry, inode);
 	if (!err) {
 		ext3_mark_inode_dirty(handle, inode);
+		/* this can happen only for tmpfile being
+		 * linked the first time
+		 */
+		if (inode->i_nlink == 1)
+			ext3_orphan_del(handle, inode);
 		d_instantiate(dentry, inode);
 	} else {
 		drop_nlink(inode);
@@ -2520,6 +2559,7 @@ const struct inode_operations ext3_dir_inode_operations = {
 	.mkdir		= ext3_mkdir,
 	.rmdir		= ext3_rmdir,
 	.mknod		= ext3_mknod,
+	.tmpfile	= ext3_tmpfile,
 	.rename		= ext3_rename,
 	.setattr	= ext3_setattr,
 #ifdef CONFIG_EXT3_FS_XATTR

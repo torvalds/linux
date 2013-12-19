@@ -20,7 +20,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/fsl/mxs-dma.h>
+#include <linux/dmaengine.h>
 
 #define GPMI_CLK_MAX 5 /* MX6Q needs five clocks */
 struct resources {
@@ -180,7 +180,6 @@ struct gpmi_nand_data {
 	/* DMA channels */
 #define DMA_CHANS		8
 	struct dma_chan		*dma_chans[DMA_CHANS];
-	struct mxs_dma_data	dma_data;
 	enum dma_ops_type	last_dma_type;
 	enum dma_ops_type	dma_type;
 	struct completion	dma_done;
@@ -283,6 +282,10 @@ extern int gpmi_read_page(struct gpmi_nand_data *,
 #define STATUS_GOOD		0x00
 #define STATUS_ERASED		0xff
 #define STATUS_UNCORRECTABLE	0xfe
+
+/* BCH's bit correction capability. */
+#define MXS_ECC_STRENGTH_MAX	20	/* mx23 and mx28 */
+#define MX6_ECC_STRENGTH_MAX	40
 
 /* Use the platform_id to distinguish different Archs. */
 #define IS_MX23			0x0

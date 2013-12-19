@@ -2,7 +2,7 @@
    This file contains wireless extension handlers.
 
    This is part of rtl8180 OpenSource driver.
-   Copyright (C) Andrea Merello 2004-2005  <andreamrl@tiscali.it>
+   Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
    Released under the terms of GPL (General Public Licence)
 
    Parts of this driver are based on the GPL part
@@ -127,156 +127,6 @@ static int r8192_wx_get_power(struct net_device *dev,
 	return ieee80211_wx_get_power(priv->ieee80211,info,wrqu,extra);
 }
 
-#ifdef JOHN_IOCTL
-u16 read_rtl8225(struct net_device *dev, u8 addr);
-void write_rtl8225(struct net_device *dev, u8 adr, u16 data);
-u32 john_read_rtl8225(struct net_device *dev, u8 adr);
-void _write_rtl8225(struct net_device *dev, u8 adr, u16 data);
-
-static int r8192_wx_read_regs(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	u8 addr;
-	u16 data1;
-
-	down(&priv->wx_sem);
-
-
-	get_user(addr,(u8*)wrqu->data.pointer);
-	data1 = read_rtl8225(dev, addr);
-	wrqu->data.length = data1;
-
-	up(&priv->wx_sem);
-	return 0;
-
-}
-
-static int r8192_wx_write_regs(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	u8 addr;
-
-	down(&priv->wx_sem);
-
-	get_user(addr, (u8*)wrqu->data.pointer);
-	write_rtl8225(dev, addr, wrqu->data.length);
-
-	up(&priv->wx_sem);
-	return 0;
-
-}
-
-void rtl8187_write_phy(struct net_device *dev, u8 adr, u32 data);
-u8 rtl8187_read_phy(struct net_device *dev,u8 adr, u32 data);
-
-static int r8192_wx_read_bb(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	u8 databb;
-
-	down(&priv->wx_sem);
-
-	databb = rtl8187_read_phy(dev, (u8)wrqu->data.length, 0x00000000);
-	wrqu->data.length = databb;
-
-	up(&priv->wx_sem);
-	return 0;
-}
-
-void rtl8187_write_phy(struct net_device *dev, u8 adr, u32 data);
-static int r8192_wx_write_bb(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	u8 databb;
-
-	down(&priv->wx_sem);
-
-	get_user(databb, (u8*)wrqu->data.pointer);
-	rtl8187_write_phy(dev, wrqu->data.length, databb);
-
-	up(&priv->wx_sem);
-	return 0;
-
-}
-
-
-static int r8192_wx_write_nicb(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	u32 addr;
-
-	down(&priv->wx_sem);
-
-	get_user(addr, (u32*)wrqu->data.pointer);
-	write_nic_byte(dev, addr, wrqu->data.length);
-
-	up(&priv->wx_sem);
-	return 0;
-
-}
-static int r8192_wx_read_nicb(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	u32 addr;
-	u16 data1;
-
-	down(&priv->wx_sem);
-
-	get_user(addr,(u32*)wrqu->data.pointer);
-	data1 = read_nic_byte(dev, addr);
-	wrqu->data.length = data1;
-
-	up(&priv->wx_sem);
-	return 0;
-}
-
-static int r8192_wx_get_ap_status(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	struct ieee80211_device *ieee = priv->ieee80211;
-	struct ieee80211_network *target;
-	int name_len;
-
-	down(&priv->wx_sem);
-
-	//count the length of input ssid
-	for(name_len=0 ; ((char*)wrqu->data.pointer)[name_len]!='\0' ; name_len++);
-
-	//search for the corresponding info which is received
-	list_for_each_entry(target, &ieee->network_list, list) {
-		if ( (target->ssid_len == name_len) &&
-		     (strncmp(target->ssid, (char*)wrqu->data.pointer, name_len)==0)){
-			if(target->wpa_ie_len>0 || target->rsn_ie_len>0 )
-				//set flags=1 to indicate this ap is WPA
-				wrqu->data.flags = 1;
-			else wrqu->data.flags = 0;
-
-
-		break;
-		}
-	}
-
-	up(&priv->wx_sem);
-	return 0;
-}
-
-
-
-#endif
 static int r8192_wx_force_reset(struct net_device *dev,
 		struct iw_request_info *info,
 		union iwreq_data *wrqu, char *extra)
@@ -354,8 +204,7 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 	return ret;
 }
 
-struct  iw_range_with_scan_capa
-{
+struct  iw_range_with_scan_capa {
 	/* Informative stuff (to choose between different interface) */
 	__u32           throughput;     /* To give an idea... */
 	/* In theory this value should be the maximum benchmarked
@@ -381,7 +230,7 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 				union iwreq_data *wrqu, char *extra)
 {
 	struct iw_range *range = (struct iw_range *)extra;
-	struct iw_range_with_scan_capa* tmp = (struct iw_range_with_scan_capa*)range;
+	struct iw_range_with_scan_capa *tmp = (struct iw_range_with_scan_capa *)range;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u16 val;
 	int i;
@@ -484,7 +333,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	struct ieee80211_device* ieee = priv->ieee80211;
+	struct ieee80211_device *ieee = priv->ieee80211;
 	int ret = 0;
 
 	if(!priv->up) return -ENETDOWN;
@@ -493,7 +342,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 		return -EAGAIN;
 	if (wrqu->data.flags & IW_SCAN_THIS_ESSID)
 	{
-		struct iw_scan_req* req = (struct iw_scan_req*)b;
+		struct iw_scan_req *req = (struct iw_scan_req *)b;
 		if (req->essid_len)
 		{
 			//printk("==**&*&*&**===>scan set ssid:%s\n", req->essid);
@@ -710,13 +559,13 @@ static int r8192_wx_set_enc(struct net_device *dev,
 		#define CONF_WEP40  0x4
 		#define CONF_WEP104 0x14
 
-		switch(wrqu->encoding.flags & IW_ENCODE_INDEX){
-			case 0: key_idx = ieee->tx_keyidx; break;
-			case 1:	key_idx = 0; break;
-			case 2:	key_idx = 1; break;
-			case 3:	key_idx = 2; break;
-			case 4:	key_idx	= 3; break;
-			default: break;
+		switch (wrqu->encoding.flags & IW_ENCODE_INDEX){
+		case 0: key_idx = ieee->tx_keyidx; break;
+		case 1:	key_idx = 0; break;
+		case 2:	key_idx = 1; break;
+		case 3:	key_idx = 2; break;
+		case 4:	key_idx	= 3; break;
+		default: break;
 		}
 
 		if(wrqu->encoding.length==0x5){
@@ -758,7 +607,7 @@ static int r8192_wx_set_scan_type(struct net_device *dev, struct iw_request_info
  iwreq_data *wrqu, char *p){
 
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	int *parms=(int*)p;
+	int *parms=(int *)p;
 	int mode=parms[0];
 
 	priv->ieee80211->active_scan = mode;
@@ -892,7 +741,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 {
 	int ret=0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	struct ieee80211_device* ieee = priv->ieee80211;
+	struct ieee80211_device *ieee = priv->ieee80211;
 	//printk("===>%s()\n", __FUNCTION__);
 
 
@@ -923,7 +772,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 			ieee->pairwise_key_type = alg;
 			EnableHWSecurityConfig8192(dev);
 		}
-		memcpy((u8*)key, ext->key, 16); //we only get 16 bytes key.why? WB 2008.7.1
+		memcpy((u8 *)key, ext->key, 16); //we only get 16 bytes key.why? WB 2008.7.1
 
 		if ((alg & KEY_TYPE_WEP40) && (ieee->auth_mode !=2) )
 		{
@@ -953,7 +802,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 					4,//EntryNo
 					idx, //KeyIndex
 					alg,  //KeyType
-					(u8*)ieee->ap_mac_addr, //MacAddr
+					(u8 *)ieee->ap_mac_addr, //MacAddr
 					0,              //DefaultKey
 					key);           //KeyContent
 		}
@@ -1021,7 +870,7 @@ static int dummy(struct net_device *dev, struct iw_request_info *a,
 static iw_handler r8192_wx_handlers[] =
 {
 	NULL,                     /* SIOCSIWCOMMIT */
-	r8192_wx_get_name,   	  /* SIOCGIWNAME */
+	r8192_wx_get_name,	  /* SIOCGIWNAME */
 	dummy,                    /* SIOCSIWNWID */
 	dummy,                    /* SIOCGIWNWID */
 	r8192_wx_set_freq,        /* SIOCSIWFREQ */
@@ -1040,7 +889,7 @@ static iw_handler r8192_wx_handlers[] =
 	dummy,                    /* SIOCGIWSPY */
 	NULL,                     /* SIOCGIWTHRSPY */
 	NULL,                     /* SIOCWIWTHRSPY */
-	r8192_wx_set_wap,      	  /* SIOCSIWAP */
+	r8192_wx_set_wap,	  /* SIOCSIWAP */
 	r8192_wx_get_wap,         /* SIOCGIWAP */
 #if (WIRELESS_EXT >= 18)
 	r8192_wx_set_mlme,                     /* MLME-- */
@@ -1071,23 +920,23 @@ static iw_handler r8192_wx_handlers[] =
 	r8192_wx_set_power,                    /* SIOCSIWPOWER */
 	r8192_wx_get_power,                    /* SIOCGIWPOWER */
 	NULL,			/*---hole---*/
-	NULL, 			/*---hole---*/
-	r8192_wx_set_gen_ie,//NULL, 			/* SIOCSIWGENIE */
-	NULL, 			/* SIOCSIWGENIE */
+	NULL,			/*---hole---*/
+	r8192_wx_set_gen_ie,//NULL,			/* SIOCSIWGENIE */
+	NULL,			/* SIOCSIWGENIE */
 
 #if (WIRELESS_EXT >= 18)
-	r8192_wx_set_auth,//NULL, 			/* SIOCSIWAUTH */
-	NULL,//r8192_wx_get_auth,//NULL, 			/* SIOCSIWAUTH */
-	r8192_wx_set_enc_ext, 			/* SIOCSIWENCODEEXT */
-	NULL,//r8192_wx_get_enc_ext,//NULL, 			/* SIOCSIWENCODEEXT */
+	r8192_wx_set_auth,//NULL,			/* SIOCSIWAUTH */
+	NULL,//r8192_wx_get_auth,//NULL,			/* SIOCSIWAUTH */
+	r8192_wx_set_enc_ext,			/* SIOCSIWENCODEEXT */
+	NULL,//r8192_wx_get_enc_ext,//NULL,			/* SIOCSIWENCODEEXT */
 #else
 	NULL,
 	NULL,
 	NULL,
 	NULL,
 #endif
-	NULL, 			/* SIOCSIWPMKSA */
-	NULL, 			 /*---hole---*/
+	NULL,			/* SIOCSIWPMKSA */
+	NULL,			 /*---hole---*/
 
 };
 
@@ -1107,46 +956,7 @@ static const struct iw_priv_args r8192_private_args[] = {
 	{
 		SIOCIWFIRSTPRIV + 0x2,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "rawtx"
-	}
-#ifdef JOHN_IOCTL
-	,
-	{
-		SIOCIWFIRSTPRIV + 0x3,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "readRF"
-	}
-	,
-	{
-		SIOCIWFIRSTPRIV + 0x4,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "writeRF"
-	}
-	,
-	{
-		SIOCIWFIRSTPRIV + 0x5,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "readBB"
-	}
-	,
-	{
-		SIOCIWFIRSTPRIV + 0x6,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "writeBB"
-	}
-	,
-	{
-		SIOCIWFIRSTPRIV + 0x7,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "readnicb"
-	}
-	,
-	{
-		SIOCIWFIRSTPRIV + 0x8,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "writenicb"
-	}
-	,
-	{
-		SIOCIWFIRSTPRIV + 0x9,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "apinfo"
-	}
-
-#endif
-	,
+	},
 	{
 		SIOCIWFIRSTPRIV + 0x3,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "forcereset"
@@ -1164,15 +974,6 @@ static iw_handler r8192_private_handler[] = {
 //	r8192_wx_set_monitor_type,
 	r8192_wx_set_scan_type,
 	r8192_wx_set_rawtx,
-#ifdef JOHN_IOCTL
-	r8192_wx_read_regs,
-	r8192_wx_write_regs,
-	r8192_wx_read_bb,
-	r8192_wx_write_bb,
-	r8192_wx_read_nicb,
-	r8192_wx_write_nicb,
-	r8192_wx_get_ap_status,
-#endif
 	//r8192_wx_null,
 	r8192_wx_force_reset,
 };
@@ -1181,8 +982,8 @@ static iw_handler r8192_private_handler[] = {
 struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 {
        struct r8192_priv *priv = ieee80211_priv(dev);
-	struct ieee80211_device* ieee = priv->ieee80211;
-	struct iw_statistics* wstats = &priv->wstats;
+	struct ieee80211_device *ieee = priv->ieee80211;
+	struct iw_statistics *wstats = &priv->wstats;
 	int tmp_level = 0;
 	int tmp_qual = 0;
 	int tmp_noise = 0;

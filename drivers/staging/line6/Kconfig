@@ -23,16 +23,6 @@ menuconfig LINE6_USB
 
 if LINE6_USB
 
-config LINE6_USB_DUMP_PCM
-	bool "dump PCM data"
-	default n
-	help
-	  Say Y here to write PCM data sent to and received from Line6
-	  devices to the syslog. This will produce a huge amount of
-	  syslog data during playback and capture.
-
-	  If unsure, say N.
-
 config LINE6_USB_IMPULSE_RESPONSE
 	bool "measure impulse response"
 	default n

@@ -777,7 +777,7 @@ extern inline int ieee80211_get_hdrlen(u16 fc)
 struct registry_priv;
 
 u8 *r8712_set_ie(u8 *pbuf, sint index, uint len, u8 *source, uint *frlen);
-u8 *r8712_get_ie(u8*pbuf, sint index, sint *len, sint limit);
+u8 *r8712_get_ie(u8 *pbuf, sint index, sint *len, sint limit);
 unsigned char *r8712_get_wpa_ie(unsigned char *pie, int *rsn_ie_len, int limit);
 unsigned char *r8712_get_wpa2_ie(unsigned char *pie, int *rsn_ie_len,
 				 int limit);

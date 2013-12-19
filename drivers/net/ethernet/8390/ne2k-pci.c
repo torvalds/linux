@@ -374,7 +374,6 @@ static int ne2k_pci_init_one(struct pci_dev *pdev,
 	NS8390_init(dev, 0);
 
 	memcpy(dev->dev_addr, SA_prom, dev->addr_len);
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	i = register_netdev(dev);
 	if (i)
@@ -390,9 +389,7 @@ err_out_free_netdev:
 	free_netdev (dev);
 err_out_free_res:
 	release_region (ioaddr, NE_IO_EXTENT);
-	pci_set_drvdata (pdev, NULL);
 	return -ENODEV;
-
 }
 
 /*
@@ -656,7 +653,6 @@ static void ne2k_pci_remove_one(struct pci_dev *pdev)
 	release_region(dev->base_addr, NE_IO_EXTENT);
 	free_netdev(dev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 #ifdef CONFIG_PM
@@ -677,7 +673,7 @@ static int ne2k_pci_resume (struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata (pdev);
 	int rc;
 
-	pci_set_power_state(pdev, 0);
+	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
 	rc = pci_enable_device(pdev);

@@ -88,6 +88,14 @@ enum drbd_req_event {
 	QUEUE_FOR_NET_READ,
 	QUEUE_FOR_SEND_OOS,
 
+	/* An empty flush is queued as P_BARRIER,
+	 * which will cause it to complete "successfully",
+	 * even if the local disk flush failed.
+	 *
+	 * Just like "real" requests, empty flushes (blkdev_issue_flush()) will
+	 * only see an error if neither local nor remote data is reachable. */
+	QUEUE_AS_DRBD_BARRIER,
+
 	SEND_CANCELED,
 	SEND_FAILED,
 	HANDED_OVER_TO_NETWORK,
@@ -267,6 +275,7 @@ struct bio_and_error {
 	int error;
 };
 
+extern void start_new_tl_epoch(struct drbd_tconn *tconn);
 extern void drbd_req_destroy(struct kref *kref);
 extern void _req_may_be_done(struct drbd_request *req,
 		struct bio_and_error *m);

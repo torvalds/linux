@@ -110,11 +110,11 @@ int am33xx_prm_assert_hardreset(u8 shift, s16 inst, u16 rstctrl_offs)
  * -EINVAL upon an argument error, -EEXIST if the submodule was already out
  * of reset, or -EBUSY if the submodule did not exit reset promptly.
  */
-int am33xx_prm_deassert_hardreset(u8 shift, s16 inst,
+int am33xx_prm_deassert_hardreset(u8 shift, u8 st_shift, s16 inst,
 		u16 rstctrl_offs, u16 rstst_offs)
 {
 	int c;
-	u32 mask = 1 << shift;
+	u32 mask = 1 << st_shift;
 
 	/* Check the current status to avoid  de-asserting the line twice */
 	if (am33xx_prm_is_hardreset_asserted(shift, inst, rstctrl_offs) == 0)
@@ -122,11 +122,14 @@ int am33xx_prm_deassert_hardreset(u8 shift, s16 inst,
 
 	/* Clear the reset status by writing 1 to the status bit */
 	am33xx_prm_rmw_reg_bits(0xffffffff, mask, inst, rstst_offs);
-	/* de-assert the reset control line */
-	am33xx_prm_rmw_reg_bits(mask, 0, inst, rstctrl_offs);
-	/* wait the status to be set */
 
-	omap_test_timeout(am33xx_prm_is_hardreset_asserted(shift, inst,
+	/* de-assert the reset control line */
+	mask = 1 << shift;
+
+	am33xx_prm_rmw_reg_bits(mask, 0, inst, rstctrl_offs);
+
+	/* wait the status to be set */
+	omap_test_timeout(am33xx_prm_is_hardreset_asserted(st_shift, inst,
 							   rstst_offs),
 			  MAX_MODULE_HARDRESET_WAIT, c);
 
@@ -317,6 +320,12 @@ static int am33xx_pwrdm_wait_transition(struct powerdomain *pwrdm)
 	return 0;
 }
 
+static int am33xx_check_vcvp(void)
+{
+	/* No VC/VP on am33xx devices */
+	return 0;
+}
+
 struct pwrdm_ops am33xx_pwrdm_operations = {
 	.pwrdm_set_next_pwrst		= am33xx_pwrdm_set_next_pwrst,
 	.pwrdm_read_next_pwrst		= am33xx_pwrdm_read_next_pwrst,
@@ -332,4 +341,5 @@ struct pwrdm_ops am33xx_pwrdm_operations = {
 	.pwrdm_set_mem_onst		= am33xx_pwrdm_set_mem_onst,
 	.pwrdm_set_mem_retst		= am33xx_pwrdm_set_mem_retst,
 	.pwrdm_wait_transition		= am33xx_pwrdm_wait_transition,
+	.pwrdm_has_voltdm		= am33xx_check_vcvp,
 };

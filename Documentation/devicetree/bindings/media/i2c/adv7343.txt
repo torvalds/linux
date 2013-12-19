@@ -1,0 +1,48 @@
+* Analog Devices adv7343 video encoder
+
+The ADV7343 are high speed, digital-to-analog video encoders in a 64-lead LQFP
+package. Six high speed, 3.3 V, 11-bit video DACs provide support for composite
+(CVBS), S-Video (Y-C), and component (YPrPb/RGB) analog outputs in standard
+definition (SD), enhanced definition (ED), or high definition (HD) video
+formats.
+
+Required Properties :
+- compatible: Must be "adi,adv7343"
+
+Optional Properties :
+- adi,power-mode-sleep-mode: on enable the current consumption is reduced to
+			      micro ampere level. All DACs and the internal PLL
+			      circuit are disabled.
+- adi,power-mode-pll-ctrl: PLL and oversampling control. This control allows
+			   internal PLL 1 circuit to be powered down and the
+			   oversampling to be switched off.
+- ad,adv7343-power-mode-dac: array configuring the power on/off DAC's 1..6,
+			      0 = OFF and 1 = ON, Default value when this
+			      property is not specified is <0 0 0 0 0 0>.
+- ad,adv7343-sd-config-dac-out: array configure SD DAC Output's 1 and 2, 0 = OFF
+				 and 1 = ON, Default value when this property is
+				 not specified is <0 0>.
+
+Example:
+
+i2c0@1c22000 {
+	...
+	...
+
+	adv7343@2a {
+		compatible = "adi,adv7343";
+		reg = <0x2a>;
+
+		port {
+			adv7343_1: endpoint {
+					adi,power-mode-sleep-mode;
+					adi,power-mode-pll-ctrl;
+					/* Use DAC1..3, DAC6 */
+					adi,dac-enable = <1 1 1 0 0 1>;
+					/* Use SD DAC output 1 */
+					adi,sd-dac-enable = <1 0>;
+			};
+		};
+	};
+	...
+};

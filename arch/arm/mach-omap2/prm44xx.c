@@ -56,9 +56,9 @@ static struct omap_prcm_irq_setup omap4_prcm_irq_setup = {
  *   enumeration)
  */
 static struct prm_reset_src_map omap44xx_prm_reset_src_map[] = {
-	{ OMAP4430_RST_GLOBAL_WARM_SW_SHIFT,
+	{ OMAP4430_GLOBAL_WARM_SW_RST_SHIFT,
 	  OMAP_GLOBAL_WARM_RST_SRC_ID_SHIFT },
-	{ OMAP4430_RST_GLOBAL_COLD_SW_SHIFT,
+	{ OMAP4430_GLOBAL_COLD_RST_SHIFT,
 	  OMAP_GLOBAL_COLD_RST_SRC_ID_SHIFT },
 	{ OMAP4430_MPU_SECURITY_VIOL_RST_SHIFT,
 	  OMAP_SECU_VIOL_RST_SRC_ID_SHIFT },
@@ -81,13 +81,13 @@ static struct prm_reset_src_map omap44xx_prm_reset_src_map[] = {
 /* Read a register in a CM/PRM instance in the PRM module */
 u32 omap4_prm_read_inst_reg(s16 inst, u16 reg)
 {
-	return __raw_readl(OMAP44XX_PRM_REGADDR(inst, reg));
+	return __raw_readl(prm_base + inst + reg);
 }
 
 /* Write into a register in a CM/PRM instance in the PRM module */
 void omap4_prm_write_inst_reg(u32 val, s16 inst, u16 reg)
 {
-	__raw_writel(val, OMAP44XX_PRM_REGADDR(inst, reg));
+	__raw_writel(val, prm_base + inst + reg);
 }
 
 /* Read-modify-write a register in a PRM module. Caller must lock */
@@ -333,7 +333,7 @@ static u32 omap44xx_prm_read_reset_sources(void)
 	u32 r = 0;
 	u32 v;
 
-	v = omap4_prm_read_inst_reg(OMAP4430_PRM_OCP_SOCKET_INST,
+	v = omap4_prm_read_inst_reg(OMAP4430_PRM_DEVICE_INST,
 				    OMAP4_RM_RSTST);
 
 	p = omap44xx_prm_reset_src_map;
@@ -620,6 +620,15 @@ static int omap4_pwrdm_wait_transition(struct powerdomain *pwrdm)
 	return 0;
 }
 
+static int omap4_check_vcvp(void)
+{
+	/* No VC/VP on dra7xx devices */
+	if (soc_is_dra7xx())
+		return 0;
+
+	return 1;
+}
+
 struct pwrdm_ops omap4_pwrdm_operations = {
 	.pwrdm_set_next_pwrst	= omap4_pwrdm_set_next_pwrst,
 	.pwrdm_read_next_pwrst	= omap4_pwrdm_read_next_pwrst,
@@ -637,6 +646,7 @@ struct pwrdm_ops omap4_pwrdm_operations = {
 	.pwrdm_set_mem_onst	= omap4_pwrdm_set_mem_onst,
 	.pwrdm_set_mem_retst	= omap4_pwrdm_set_mem_retst,
 	.pwrdm_wait_transition	= omap4_pwrdm_wait_transition,
+	.pwrdm_has_voltdm	= omap4_check_vcvp,
 };
 
 /*
@@ -650,7 +660,7 @@ static struct prm_ll_data omap44xx_prm_ll_data = {
 
 int __init omap44xx_prm_init(void)
 {
-	if (!cpu_is_omap44xx())
+	if (!cpu_is_omap44xx() && !soc_is_omap54xx() && !soc_is_dra7xx())
 		return 0;
 
 	return prm_register(&omap44xx_prm_ll_data);
@@ -665,7 +675,7 @@ static int __init omap44xx_prm_late_init(void)
 
 	return omap_prcm_register_chain_handler(&omap4_prcm_irq_setup);
 }
-subsys_initcall(omap44xx_prm_late_init);
+omap_subsys_initcall(omap44xx_prm_late_init);
 
 static void __exit omap44xx_prm_exit(void)
 {

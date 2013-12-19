@@ -126,6 +126,8 @@ void show_regs(struct pt_regs *regs)
 	user = user_mode(regs);
 	level = user ? KERN_DEBUG : KERN_CRIT;
 
+	show_regs_print_info(level);
+
 	print_gr(level, regs);
 
 	for (i = 0; i < 8; i += 4)
@@ -157,14 +159,6 @@ void show_regs(struct pt_regs *regs)
 		parisc_show_stack(current, NULL, regs);
 	}
 }
-
-
-void dump_stack(void)
-{
-	show_stack(NULL, NULL);
-}
-
-EXPORT_SYMBOL(dump_stack);
 
 static void do_show_stack(struct unwind_frame_info *info)
 {
@@ -282,7 +276,7 @@ void die_if_kernel(char *str, struct pt_regs *regs, long err)
 
 	show_regs(regs);
 	dump_stack();
-	add_taint(TAINT_DIE);
+	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
 
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
@@ -295,11 +289,6 @@ void die_if_kernel(char *str, struct pt_regs *regs, long err)
 
 	oops_exit();
 	do_exit(SIGSEGV);
-}
-
-int syscall_ipi(int (*syscall) (struct pt_regs *), struct pt_regs *regs)
-{
-	return syscall(regs);
 }
 
 /* gdb uses break 4,8 */
@@ -528,10 +517,10 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	 */
 	if (((unsigned long)regs->iaoq[0] & 3) &&
 	    ((unsigned long)regs->iasq[0] != (unsigned long)regs->sr[7])) { 
-	  	/* Kill the user process later */
-	  	regs->iaoq[0] = 0 | 3;
+		/* Kill the user process later */
+		regs->iaoq[0] = 0 | 3;
 		regs->iaoq[1] = regs->iaoq[0] + 4;
-	 	regs->iasq[0] = regs->iasq[1] = regs->sr[7];
+		regs->iasq[0] = regs->iasq[1] = regs->sr[7];
 		regs->gr[0] &= ~PSW_B;
 		return;
 	}
@@ -547,8 +536,8 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 		
 		/* set up a new led state on systems shipped with a LED State panel */
 		pdc_chassis_send_status(PDC_CHASSIS_DIRECT_HPMC);
-		    
-	    	parisc_terminate("High Priority Machine Check (HPMC)",
+
+		parisc_terminate("High Priority Machine Check (HPMC)",
 				regs, code, 0);
 		/* NOT REACHED */
 		
@@ -590,13 +579,13 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 		/* Break instruction trap */
 		handle_break(regs);
 		return;
-	
+
 	case 10:
 		/* Privileged operation trap */
 		die_if_kernel("Privileged operation", regs, code);
 		si.si_code = ILL_PRVOPC;
 		goto give_sigill;
-	
+
 	case 11:
 		/* Privileged register trap */
 		if ((regs->iir & 0xffdfffe0) == 0x034008a0) {
@@ -640,7 +629,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 		if(user_mode(regs)){
 			si.si_signo = SIGFPE;
 			/* Set to zero, and let the userspace app figure it out from
-		   	   the insn pointed to by si_addr */
+			   the insn pointed to by si_addr */
 			si.si_code = 0;
 			si.si_addr = (void __user *) regs->iaoq[0];
 			force_sig_info(SIGFPE, &si, current);
@@ -652,9 +641,10 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	case 14:
 		/* Assist Exception Trap, i.e. floating point exception. */
 		die_if_kernel("Floating point exception", regs, 0); /* quiet */
+		__inc_irq_stat(irq_fpassist_count);
 		handle_fpe(regs);
 		return;
-		
+
 	case 15:
 		/* Data TLB miss fault/Data page fault */
 		/* Fall through */
@@ -666,15 +656,15 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	case 17:
 		/* Non-access data TLB miss fault/Non-access data page fault */
 		/* FIXME: 
-		 	 Still need to add slow path emulation code here!
-		         If the insn used a non-shadow register, then the tlb
+			 Still need to add slow path emulation code here!
+			 If the insn used a non-shadow register, then the tlb
 			 handlers could not have their side-effect (e.g. probe
 			 writing to a target register) emulated since rfir would
 			 erase the changes to said register. Instead we have to
 			 setup everything, call this function we are in, and emulate
 			 by hand. Technically we need to emulate:
 			 fdc,fdce,pdc,"fic,4f",prober,probeir,probew, probeiw
-		*/			  
+		*/
 		fault_address = regs->ior;
 		fault_space = regs->isr;
 		break;
@@ -810,14 +800,14 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	else {
 
 	    /*
-	     * The kernel should never fault on its own address space.
+	     * The kernel should never fault on its own address space,
+	     * unless pagefault_disable() was called before.
 	     */
 
-	    if (fault_space == 0) 
+	    if (fault_space == 0 && !in_atomic())
 	    {
 		pdc_chassis_send_status(PDC_CHASSIS_DIRECT_PANIC);
 		parisc_terminate("Kernel Fault", regs, code, fault_address);
-	
 	    }
 	}
 

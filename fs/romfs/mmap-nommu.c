@@ -49,8 +49,11 @@ static unsigned long romfs_get_unmapped_area(struct file *file,
 		return (unsigned long) -EINVAL;
 
 	offset += ROMFS_I(inode)->i_dataoffset;
-	if (offset > mtd->size - len)
+	if (offset >= mtd->size)
 		return (unsigned long) -EINVAL;
+	/* the mapping mustn't extend beyond the EOF */
+	if ((offset + len) > mtd->size)
+		len = mtd->size - offset;
 
 	ret = mtd_get_unmapped_area(mtd, len, offset, flags);
 	if (ret == -EOPNOTSUPP)

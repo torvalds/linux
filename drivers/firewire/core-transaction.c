@@ -477,7 +477,7 @@ void fw_send_phy_config(struct fw_card *card,
 	phy_config_packet.header[1] = data;
 	phy_config_packet.header[2] = ~data;
 	phy_config_packet.generation = generation;
-	INIT_COMPLETION(phy_config_done);
+	reinit_completion(&phy_config_done);
 
 	card->driver->send_request(card, &phy_config_packet);
 	wait_for_completion_timeout(&phy_config_done, timeout);
@@ -1262,8 +1262,7 @@ static int __init fw_core_init(void)
 {
 	int ret;
 
-	fw_workqueue = alloc_workqueue("firewire",
-				       WQ_NON_REENTRANT | WQ_MEM_RECLAIM, 0);
+	fw_workqueue = alloc_workqueue("firewire", WQ_MEM_RECLAIM, 0);
 	if (!fw_workqueue)
 		return -ENOMEM;
 

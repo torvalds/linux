@@ -4,7 +4,7 @@
  * This file contains the Storage Engine  <-> Linux BlockIO transport
  * specific functions.
  *
- * (c) Copyright 2003-2012 RisingTide Systems LLC.
+ * (c) Copyright 2003-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *
@@ -154,6 +154,7 @@ static int iblock_configure_device(struct se_device *dev)
 
 	if (blk_queue_nonrot(q))
 		dev->dev_attrib.is_nonrot = 1;
+
 	return 0;
 
 out_free_bioset:
@@ -379,95 +380,40 @@ iblock_execute_sync_cache(struct se_cmd *cmd)
 }
 
 static sense_reason_t
+iblock_do_unmap(struct se_cmd *cmd, void *priv,
+		sector_t lba, sector_t nolb)
+{
+	struct block_device *bdev = priv;
+	int ret;
+
+	ret = blkdev_issue_discard(bdev, lba, nolb, GFP_KERNEL, 0);
+	if (ret < 0) {
+		pr_err("blkdev_issue_discard() failed: %d\n", ret);
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	}
+
+	return 0;
+}
+
+static sense_reason_t
 iblock_execute_unmap(struct se_cmd *cmd)
 {
-	struct se_device *dev = cmd->se_dev;
-	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
-	unsigned char *buf, *ptr = NULL;
-	sector_t lba;
-	int size;
-	u32 range;
-	sense_reason_t ret = 0;
-	int dl, bd_dl, err;
+	struct block_device *bdev = IBLOCK_DEV(cmd->se_dev)->ibd_bd;
 
-	if (cmd->data_length < 8) {
-		pr_warn("UNMAP parameter list length %u too small\n",
-			cmd->data_length);
-		return TCM_INVALID_PARAMETER_LIST;
-	}
-
-	buf = transport_kmap_data_sg(cmd);
-	if (!buf)
-		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-
-	dl = get_unaligned_be16(&buf[0]);
-	bd_dl = get_unaligned_be16(&buf[2]);
-
-	size = cmd->data_length - 8;
-	if (bd_dl > size)
-		pr_warn("UNMAP parameter list length %u too small, ignoring bd_dl %u\n",
-			cmd->data_length, bd_dl);
-	else
-		size = bd_dl;
-
-	if (size / 16 > dev->dev_attrib.max_unmap_block_desc_count) {
-		ret = TCM_INVALID_PARAMETER_LIST;
-		goto err;
-	}
-
-	/* First UNMAP block descriptor starts at 8 byte offset */
-	ptr = &buf[8];
-	pr_debug("UNMAP: Sub: %s Using dl: %u bd_dl: %u size: %u"
-		" ptr: %p\n", dev->transport->name, dl, bd_dl, size, ptr);
-
-	while (size >= 16) {
-		lba = get_unaligned_be64(&ptr[0]);
-		range = get_unaligned_be32(&ptr[8]);
-		pr_debug("UNMAP: Using lba: %llu and range: %u\n",
-				 (unsigned long long)lba, range);
-
-		if (range > dev->dev_attrib.max_unmap_lba_count) {
-			ret = TCM_INVALID_PARAMETER_LIST;
-			goto err;
-		}
-
-		if (lba + range > dev->transport->get_blocks(dev) + 1) {
-			ret = TCM_ADDRESS_OUT_OF_RANGE;
-			goto err;
-		}
-
-		err = blkdev_issue_discard(ib_dev->ibd_bd, lba, range,
-					   GFP_KERNEL, 0);
-		if (err < 0) {
-			pr_err("blkdev_issue_discard() failed: %d\n",
-					err);
-			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-			goto err;
-		}
-
-		ptr += 16;
-		size -= 16;
-	}
-
-err:
-	transport_kunmap_data_sg(cmd);
-	if (!ret)
-		target_complete_cmd(cmd, GOOD);
-	return ret;
+	return sbc_execute_unmap(cmd, iblock_do_unmap, bdev);
 }
 
 static sense_reason_t
 iblock_execute_write_same_unmap(struct se_cmd *cmd)
 {
-	struct iblock_dev *ib_dev = IBLOCK_DEV(cmd->se_dev);
-	int rc;
+	struct block_device *bdev = IBLOCK_DEV(cmd->se_dev)->ibd_bd;
+	sector_t lba = cmd->t_task_lba;
+	sector_t nolb = sbc_get_write_same_sectors(cmd);
+	int ret;
 
-	rc = blkdev_issue_discard(ib_dev->ibd_bd, cmd->t_task_lba,
-			spc_get_write_same_sectors(cmd), GFP_KERNEL, 0);
-	if (rc < 0) {
-		pr_warn("blkdev_issue_discard() failed: %d\n", rc);
-		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-	}
+	ret = iblock_do_unmap(cmd, bdev, lba, nolb);
+	if (ret)
+		return ret;
 
 	target_complete_cmd(cmd, GOOD);
 	return 0;
@@ -481,7 +427,7 @@ iblock_execute_write_same(struct se_cmd *cmd)
 	struct bio *bio;
 	struct bio_list list;
 	sector_t block_lba = cmd->t_task_lba;
-	sector_t sectors = spc_get_write_same_sectors(cmd);
+	sector_t sectors = sbc_get_write_same_sectors(cmd);
 
 	sg = &cmd->t_data_sg[0];
 
@@ -590,10 +536,10 @@ static ssize_t iblock_set_configfs_dev_params(struct se_device *dev,
 				ret = -ENOMEM;
 				break;
 			}
-			ret = strict_strtoul(arg_p, 0, &tmp_readonly);
+			ret = kstrtoul(arg_p, 0, &tmp_readonly);
 			kfree(arg_p);
 			if (ret < 0) {
-				pr_err("strict_strtoul() failed for"
+				pr_err("kstrtoul() failed for"
 						" readonly=\n");
 				goto out;
 			}
@@ -641,11 +587,9 @@ static ssize_t iblock_show_configfs_dev_params(struct se_device *dev, char *b)
 }
 
 static sense_reason_t
-iblock_execute_rw(struct se_cmd *cmd)
+iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
+		  enum dma_data_direction data_direction)
 {
-	struct scatterlist *sgl = cmd->t_data_sg;
-	u32 sgl_nents = cmd->t_data_nents;
-	enum dma_data_direction data_direction = cmd->data_direction;
 	struct se_device *dev = cmd->se_dev;
 	struct iblock_req *ibr;
 	struct bio *bio;
@@ -654,20 +598,26 @@ iblock_execute_rw(struct se_cmd *cmd)
 	u32 sg_num = sgl_nents;
 	sector_t block_lba;
 	unsigned bio_cnt;
-	int rw;
+	int rw = 0;
 	int i;
 
 	if (data_direction == DMA_TO_DEVICE) {
+		struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+		struct request_queue *q = bdev_get_queue(ib_dev->ibd_bd);
 		/*
-		 * Force data to disk if we pretend to not have a volatile
-		 * write cache, or the initiator set the Force Unit Access bit.
+		 * Force writethrough using WRITE_FUA if a volatile write cache
+		 * is not enabled, or if initiator set the Force Unit Access bit.
 		 */
-		if (dev->dev_attrib.emulate_write_cache == 0 ||
-		    (dev->dev_attrib.emulate_fua_write > 0 &&
-		     (cmd->se_cmd_flags & SCF_FUA)))
-			rw = WRITE_FUA;
-		else
+		if (q->flush_flags & REQ_FUA) {
+			if (cmd->se_cmd_flags & SCF_FUA)
+				rw = WRITE_FUA;
+			else if (!(q->flush_flags & REQ_FLUSH))
+				rw = WRITE_FUA;
+			else
+				rw = WRITE;
+		} else {
 			rw = WRITE;
+		}
 	} else {
 		rw = READ;
 	}
@@ -760,6 +710,45 @@ static sector_t iblock_get_blocks(struct se_device *dev)
 	return iblock_emulate_read_cap_with_block_size(dev, bd, q);
 }
 
+static sector_t iblock_get_alignment_offset_lbas(struct se_device *dev)
+{
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+	struct block_device *bd = ib_dev->ibd_bd;
+	int ret;
+
+	ret = bdev_alignment_offset(bd);
+	if (ret == -1)
+		return 0;
+
+	/* convert offset-bytes to offset-lbas */
+	return ret / bdev_logical_block_size(bd);
+}
+
+static unsigned int iblock_get_lbppbe(struct se_device *dev)
+{
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+	struct block_device *bd = ib_dev->ibd_bd;
+	int logs_per_phys = bdev_physical_block_size(bd) / bdev_logical_block_size(bd);
+
+	return ilog2(logs_per_phys);
+}
+
+static unsigned int iblock_get_io_min(struct se_device *dev)
+{
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+	struct block_device *bd = ib_dev->ibd_bd;
+
+	return bdev_io_min(bd);
+}
+
+static unsigned int iblock_get_io_opt(struct se_device *dev)
+{
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+	struct block_device *bd = ib_dev->ibd_bd;
+
+	return bdev_io_opt(bd);
+}
+
 static struct sbc_ops iblock_sbc_ops = {
 	.execute_rw		= iblock_execute_rw,
 	.execute_sync_cache	= iblock_execute_sync_cache,
@@ -772,6 +761,15 @@ static sense_reason_t
 iblock_parse_cdb(struct se_cmd *cmd)
 {
 	return sbc_parse_cdb(cmd, &iblock_sbc_ops);
+}
+
+bool iblock_get_write_cache(struct se_device *dev)
+{
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+	struct block_device *bd = ib_dev->ibd_bd;
+	struct request_queue *q = bdev_get_queue(bd);
+
+	return q->flush_flags & REQ_FLUSH;
 }
 
 static struct se_subsystem_api iblock_template = {
@@ -790,6 +788,11 @@ static struct se_subsystem_api iblock_template = {
 	.show_configfs_dev_params = iblock_show_configfs_dev_params,
 	.get_device_type	= sbc_get_device_type,
 	.get_blocks		= iblock_get_blocks,
+	.get_alignment_offset_lbas = iblock_get_alignment_offset_lbas,
+	.get_lbppbe		= iblock_get_lbppbe,
+	.get_io_min		= iblock_get_io_min,
+	.get_io_opt		= iblock_get_io_opt,
+	.get_write_cache	= iblock_get_write_cache,
 };
 
 static int __init iblock_module_init(void)
@@ -797,7 +800,7 @@ static int __init iblock_module_init(void)
 	return transport_subsystem_register(&iblock_template);
 }
 
-static void iblock_module_exit(void)
+static void __exit iblock_module_exit(void)
 {
 	transport_subsystem_release(&iblock_template);
 }

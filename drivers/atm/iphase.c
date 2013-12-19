@@ -2299,7 +2299,7 @@ static int reset_sar(struct atm_dev *dev)
 }  
 	  
 	  
-static int __devinit ia_init(struct atm_dev *dev)
+static int ia_init(struct atm_dev *dev)
 {  
 	IADEV *iadev;  
 	unsigned long real_base;
@@ -2492,7 +2492,7 @@ static void ia_free_rx(IADEV *iadev)
 			  iadev->rx_dle_dma);  
 }
 
-static int __devinit ia_start(struct atm_dev *dev)
+static int ia_start(struct atm_dev *dev)
 {  
 	IADEV *iadev;  
 	int error;  
@@ -3168,8 +3168,7 @@ static const struct atmdev_ops ops = {
 	.owner		= THIS_MODULE,
 };  
 	  
-static int __devinit ia_init_one(struct pci_dev *pdev,
-				 const struct pci_device_id *ent)
+static int ia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {  
 	struct atm_dev *dev;  
 	IADEV *iadev;  
@@ -3229,7 +3228,7 @@ err_out:
 	return ret;
 }
 
-static void __devexit ia_remove_one(struct pci_dev *pdev)
+static void ia_remove_one(struct pci_dev *pdev)
 {
 	struct atm_dev *dev = pci_get_drvdata(pdev);
 	IADEV *iadev = INPH_IA_DEV(dev);
@@ -3270,7 +3269,7 @@ static struct pci_driver ia_driver = {
 	.name =         DEV_LABEL,
 	.id_table =     ia_pci_tbl,
 	.probe =        ia_init_one,
-	.remove =       __devexit_p(ia_remove_one),
+	.remove =       ia_remove_one,
 };
 
 static int __init ia_module_init(void)

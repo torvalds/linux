@@ -30,7 +30,8 @@
 #include <asm/machdep.h>
 #include <asm/vdso_datapage.h>
 #include <asm/xics.h>
-#include "plpar_wrappers.h"
+#include <asm/plpar_wrappers.h>
+
 #include "offline_states.h"
 
 /* This version can't take the spinlock, because it never returns */
@@ -123,20 +124,28 @@ static void pseries_mach_cpu_die(void)
 		cede_latency_hint = 2;
 
 		get_lppaca()->idle = 1;
-		if (!get_lppaca()->shared_proc)
+		if (!lppaca_shared_proc(get_lppaca()))
 			get_lppaca()->donate_dedicated_cpu = 1;
 
 		while (get_preferred_offline_state(cpu) == CPU_STATE_INACTIVE) {
+			while (!prep_irq_for_idle()) {
+				local_irq_enable();
+				local_irq_disable();
+			}
+
 			extended_cede_processor(cede_latency_hint);
 		}
 
-		if (!get_lppaca()->shared_proc)
+		local_irq_disable();
+
+		if (!lppaca_shared_proc(get_lppaca()))
 			get_lppaca()->donate_dedicated_cpu = 0;
 		get_lppaca()->idle = 0;
 
 		if (get_preferred_offline_state(cpu) == CPU_STATE_ONLINE) {
 			unregister_slb_shadow(hwcpu);
 
+			hard_irq_disable();
 			/*
 			 * Call to start_secondary_resume() will not return.
 			 * Kernel stack will be reset and start_secondary()

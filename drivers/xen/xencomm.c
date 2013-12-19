@@ -18,6 +18,8 @@
  * Authors: Hollis Blanchard <hollisb@us.ibm.com>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <asm/page.h>

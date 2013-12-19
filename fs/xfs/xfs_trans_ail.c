@@ -18,15 +18,16 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
+#include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_trace.h"
 #include "xfs_error.h"
+#include "xfs_log.h"
 
 #ifdef DEBUG
 /*
@@ -55,40 +56,12 @@ xfs_ail_check(
 		ASSERT(XFS_LSN_CMP(prev_lip->li_lsn, lip->li_lsn) >= 0);
 
 
-#ifdef XFS_TRANS_DEBUG
-	/*
-	 * Walk the list checking lsn ordering, and that every entry has the
-	 * XFS_LI_IN_AIL flag set. This is really expensive, so only do it
-	 * when specifically debugging the transaction subsystem.
-	 */
-	prev_lip = list_entry(&ailp->xa_ail, xfs_log_item_t, li_ail);
-	list_for_each_entry(lip, &ailp->xa_ail, li_ail) {
-		if (&prev_lip->li_ail != &ailp->xa_ail)
-			ASSERT(XFS_LSN_CMP(prev_lip->li_lsn, lip->li_lsn) <= 0);
-		ASSERT((lip->li_flags & XFS_LI_IN_AIL) != 0);
-		prev_lip = lip;
-	}
-#endif /* XFS_TRANS_DEBUG */
 }
 #else /* !DEBUG */
 #define	xfs_ail_check(a,l)
 #endif /* DEBUG */
 
 /*
- * Return a pointer to the first item in the AIL.  If the AIL is empty, then
- * return NULL.
- */
-xfs_log_item_t *
-xfs_ail_min(
-	struct xfs_ail  *ailp)
-{
-	if (list_empty(&ailp->xa_ail))
-		return NULL;
-
-	return list_first_entry(&ailp->xa_ail, xfs_log_item_t, li_ail);
-}
-
- /*
  * Return a pointer to the last item in the AIL.  If the AIL is empty, then
  * return NULL.
  */
@@ -407,11 +380,11 @@ xfsaild_push(
 		int	lock_result;
 
 		/*
-		 * Note that IOP_PUSH may unlock and reacquire the AIL lock.  We
+		 * Note that iop_push may unlock and reacquire the AIL lock.  We
 		 * rely on the AIL cursor implementation to be able to deal with
 		 * the dropped lock.
 		 */
-		lock_result = IOP_PUSH(lip, &ailp->xa_buf_list);
+		lock_result = lip->li_ops->iop_push(lip, &ailp->xa_buf_list);
 		switch (lock_result) {
 		case XFS_ITEM_SUCCESS:
 			XFS_STATS_INC(xs_push_ail_success);
@@ -686,11 +659,13 @@ xfs_trans_ail_update_bulk(
 			if (XFS_LSN_CMP(lsn, lip->li_lsn) <= 0)
 				continue;
 
+			trace_xfs_ail_move(lip, lip->li_lsn, lsn);
 			xfs_ail_delete(ailp, lip);
 			if (mlip == lip)
 				mlip_changed = 1;
 		} else {
 			lip->li_flags |= XFS_LI_IN_AIL;
+			trace_xfs_ail_insert(lip, 0, lsn);
 		}
 		lip->li_lsn = lsn;
 		list_add(&lip->li_ail, &tmp);
@@ -759,6 +734,7 @@ xfs_trans_ail_delete_bulk(
 			return;
 		}
 
+		trace_xfs_ail_delete(lip, mlip->li_lsn, lip->li_lsn);
 		xfs_ail_delete(ailp, lip);
 		lip->li_flags &= ~XFS_LI_IN_AIL;
 		lip->li_lsn = 0;

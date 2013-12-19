@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/client.h>
 #include <core/os.h>
 #include <core/enum.h>
 #include <core/class.h>
@@ -126,23 +127,17 @@ nv84_crypt_intr(struct nouveau_subdev *subdev)
 	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat) {
-		nv_error(priv, "");
+		nv_error(priv, "%s", "");
 		nouveau_bitfield_print(nv84_crypt_intr_mask, stat);
-		printk(" ch %d [0x%010llx] mthd 0x%04x data 0x%08x\n",
-		       chid, (u64)inst << 12, mthd, data);
+		pr_cont(" ch %d [0x%010llx %s] mthd 0x%04x data 0x%08x\n",
+		       chid, (u64)inst << 12, nouveau_client_name(engctx),
+		       mthd, data);
 	}
 
 	nv_wr32(priv, 0x102130, stat);
 	nv_wr32(priv, 0x10200c, 0x10);
 
 	nouveau_engctx_put(engctx);
-}
-
-static int
-nv84_crypt_tlb_flush(struct nouveau_engine *engine)
-{
-	nv50_vm_flush_engine(&engine->base, 0x0a);
-	return 0;
 }
 
 static int
@@ -163,7 +158,6 @@ nv84_crypt_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_subdev(priv)->intr = nv84_crypt_intr;
 	nv_engine(priv)->cclass = &nv84_crypt_cclass;
 	nv_engine(priv)->sclass = nv84_crypt_sclass;
-	nv_engine(priv)->tlb_flush = nv84_crypt_tlb_flush;
 	return 0;
 }
 

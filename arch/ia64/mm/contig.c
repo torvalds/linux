@@ -47,6 +47,8 @@ void show_mem(unsigned int filter)
 	printk(KERN_INFO "Mem-info:\n");
 	show_free_areas(filter);
 	printk(KERN_INFO "Node memory in pages:\n");
+	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
+		return;
 	for_each_online_pgdat(pgdat) {
 		unsigned long present;
 		unsigned long flags;
@@ -93,7 +95,7 @@ void show_mem(unsigned int filter)
 	printk(KERN_INFO "%d pages swap cached\n", total_cached);
 	printk(KERN_INFO "Total of %ld pages in page table cache\n",
 	       quicklist_total_size());
-	printk(KERN_INFO "%d free buffer pages\n", nr_free_buffer_pages());
+	printk(KERN_INFO "%ld free buffer pages\n", nr_free_buffer_pages());
 }
 
 
@@ -154,8 +156,7 @@ static void *cpu_data;
  *
  * Allocate and setup per-cpu data areas.
  */
-void * __cpuinit
-per_cpu_init (void)
+void *per_cpu_init(void)
 {
 	static bool first_time = true;
 	void *cpu0_data = __cpu0_per_cpu;
@@ -293,14 +294,6 @@ find_memory (void)
 	alloc_per_cpu_data();
 }
 
-static int count_pages(u64 start, u64 end, void *arg)
-{
-	unsigned long *count = arg;
-
-	*count += (end - start) >> PAGE_SHIFT;
-	return 0;
-}
-
 /*
  * Set up the page tables.
  */
@@ -310,9 +303,6 @@ paging_init (void)
 {
 	unsigned long max_dma;
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
-
-	num_physpages = 0;
-	efi_memmap_walk(count_pages, &num_physpages);
 
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 #ifdef CONFIG_ZONE_DMA

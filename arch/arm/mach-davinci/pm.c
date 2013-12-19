@@ -19,6 +19,7 @@
 #include <asm/delay.h>
 #include <asm/io.h>
 
+#include <mach/common.h>
 #include <mach/da8xx.h>
 #include <mach/sram.h>
 #include <mach/pm.h>

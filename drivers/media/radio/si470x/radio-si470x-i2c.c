@@ -347,8 +347,8 @@ end:
 /*
  * si470x_i2c_probe - probe for the device
  */
-static int __devinit si470x_i2c_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int si470x_i2c_probe(struct i2c_client *client,
+			    const struct i2c_device_id *id)
 {
 	struct si470x_device *radio;
 	int retval = 0;
@@ -451,7 +451,7 @@ err_initial:
 /*
  * si470x_i2c_remove - remove the device
  */
-static __devexit int si470x_i2c_remove(struct i2c_client *client)
+static int si470x_i2c_remove(struct i2c_client *client)
 {
 	struct si470x_device *radio = i2c_get_clientdata(client);
 
@@ -463,7 +463,7 @@ static __devexit int si470x_i2c_remove(struct i2c_client *client)
 }
 
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  * si470x_i2c_suspend - suspend the device
  */
@@ -509,12 +509,12 @@ static struct i2c_driver si470x_i2c_driver = {
 	.driver = {
 		.name		= "si470x",
 		.owner		= THIS_MODULE,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 		.pm		= &si470x_i2c_pm,
 #endif
 	},
 	.probe			= si470x_i2c_probe,
-	.remove			= __devexit_p(si470x_i2c_remove),
+	.remove			= si470x_i2c_remove,
 	.id_table		= si470x_i2c_id,
 };
 

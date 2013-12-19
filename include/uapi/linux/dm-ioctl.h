@@ -267,9 +267,9 @@ enum {
 #define DM_DEV_SET_GEOMETRY	_IOWR(DM_IOCTL, DM_DEV_SET_GEOMETRY_CMD, struct dm_ioctl)
 
 #define DM_VERSION_MAJOR	4
-#define DM_VERSION_MINOR	23
-#define DM_VERSION_PATCHLEVEL	1
-#define DM_VERSION_EXTRA	"-ioctl (2012-12-18)"
+#define DM_VERSION_MINOR	27
+#define DM_VERSION_PATCHLEVEL	0
+#define DM_VERSION_EXTRA	"-ioctl (2013-10-30)"
 
 /* Status bits */
 #define DM_READONLY_FLAG	(1 << 0) /* In/Out */
@@ -335,5 +335,21 @@ enum {
  * or requesting sensitive data such as an encryption key.
  */
 #define DM_SECURE_DATA_FLAG		(1 << 15) /* In */
+
+/*
+ * If set, a message generated output data.
+ */
+#define DM_DATA_OUT_FLAG		(1 << 16) /* Out */
+
+/*
+ * If set with DM_DEV_REMOVE or DM_REMOVE_ALL this indicates that if
+ * the device cannot be removed immediately because it is still in use
+ * it should instead be scheduled for removal when it gets closed.
+ *
+ * On return from DM_DEV_REMOVE, DM_DEV_STATUS or other ioctls, this
+ * flag indicates that the device is scheduled to be removed when it
+ * gets closed.
+ */
+#define DM_DEFERRED_REMOVE		(1 << 17) /* In/Out */
 
 #endif				/* _LINUX_DM_IOCTL_H */

@@ -51,8 +51,8 @@ int  nouveau_parent_create_(struct nouveau_object *, struct nouveau_object *,
 void nouveau_parent_destroy(struct nouveau_parent *);
 
 void _nouveau_parent_dtor(struct nouveau_object *);
-#define _nouveau_parent_init _nouveau_object_init
-#define _nouveau_parent_fini _nouveau_object_fini
+#define _nouveau_parent_init nouveau_object_init
+#define _nouveau_parent_fini nouveau_object_fini
 
 int nouveau_parent_sclass(struct nouveau_object *, u16 handle,
 			  struct nouveau_object **pengine,

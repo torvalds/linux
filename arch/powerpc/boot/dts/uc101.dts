@@ -13,54 +13,20 @@
 
 /include/ "mpc5200b.dtsi"
 
+&gpt0 { gpio-controller; };
+&gpt1 { gpio-controller; };
+&gpt2 { gpio-controller; };
+&gpt3 { gpio-controller; };
+&gpt4 { gpio-controller; };
+&gpt5 { gpio-controller; };
+&gpt6 { gpio-controller; };
+&gpt7 { gpio-controller; };
+
 / {
 	model = "manroland,uc101";
 	compatible = "manroland,uc101";
 
 	soc5200@f0000000 {
-		gpt0: timer@600 {	// General Purpose Timer in GPIO mode
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
-		gpt1: timer@610 {	// General Purpose Timer in GPIO mode
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
-		gpt2: timer@620 {	// General Purpose Timer in GPIO mode
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
-		gpt3: timer@630 {	// General Purpose Timer in GPIO mode
-			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
-			reg = <0x630 0x10>;
-			interrupts = <1 12 0>;
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
-		gpt4: timer@640 {	// General Purpose Timer in GPIO mode
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
-		gpt5: timer@650 {	// General Purpose Timer in GPIO mode
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
-		gpt6: timer@660 {	// General Purpose Timer in GPIO mode
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
-		gpt7: timer@670 {	// General Purpose Timer in GPIO mode
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
 		rtc@800 {
 			status = "disabled";
 		};

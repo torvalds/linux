@@ -22,7 +22,7 @@ to /proc/cpuinfo.
 
 4) /sys/devices/system/cpu/cpuX/topology/thread_siblings:
 
-	internel kernel map of cpuX's hardware threads within the same
+	internal kernel map of cpuX's hardware threads within the same
 	core as cpuX
 
 5) /sys/devices/system/cpu/cpuX/topology/core_siblings:

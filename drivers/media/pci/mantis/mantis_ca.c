@@ -198,11 +198,12 @@ void mantis_ca_exit(struct mantis_pci *mantis)
 	struct mantis_ca *ca = mantis->mantis_ca;
 
 	dprintk(MANTIS_DEBUG, 1, "Mantis CA exit");
+	if (!ca)
+		return;
 
 	mantis_evmgr_exit(ca);
 	dprintk(MANTIS_ERROR, 1, "Unregistering EN50221 device");
-	if (ca)
-		dvb_ca_en50221_release(&ca->en50221);
+	dvb_ca_en50221_release(&ca->en50221);
 
 	kfree(ca);
 }

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -146,7 +146,24 @@ struct acpi_table_rsdp {
 	u8 reserved[3];		/* Reserved, must be zero */
 };
 
-#define ACPI_RSDP_REV0_SIZE     20	/* Size of original ACPI 1.0 RSDP */
+/* Standalone struct for the ACPI 1.0 RSDP */
+
+struct acpi_rsdp_common {
+	char signature[8];
+	u8 checksum;
+	char oem_id[ACPI_OEM_ID_SIZE];
+	u8 revision;
+	u32 rsdt_physical_address;
+};
+
+/* Standalone struct for the extended part of the RSDP (ACPI 2.0+) */
+
+struct acpi_rsdp_extension {
+	u32 length;
+	u64 xsdt_physical_address;
+	u8 extended_checksum;
+	u8 reserved[3];
+};
 
 /*******************************************************************************
  *
@@ -326,8 +343,6 @@ enum acpi_preferred_pm_profiles {
 
 #pragma pack()
 
-#define ACPI_FADT_OFFSET(f)             (u16) ACPI_OFFSET (struct acpi_table_fadt, f)
-
 /*
  * Internal table-related structures
  */
@@ -359,10 +374,13 @@ struct acpi_table_desc {
 /*
  * Get the remaining ACPI tables
  */
-
 #include <acpi/actbl1.h>
 #include <acpi/actbl2.h>
 #include <acpi/actbl3.h>
+
+/* Macros used to generate offsets to specific table fields */
+
+#define ACPI_FADT_OFFSET(f)             (u16) ACPI_OFFSET (struct acpi_table_fadt, f)
 
 /*
  * Sizes of the various flavors of FADT. We need to look closely

@@ -20,8 +20,8 @@
 #define F2FS_BLKSIZE			4096	/* support only 4KB block */
 #define F2FS_MAX_EXTENSION		64	/* # of extension entries */
 
-#define NULL_ADDR		0x0U
-#define NEW_ADDR		-1U
+#define NULL_ADDR		((block_t)0)	/* used as block_t addresses */
+#define NEW_ADDR		((block_t)-1)	/* used as block_t addresses */
 
 #define F2FS_ROOT_INO(sbi)	(sbi->root_ino_num)
 #define F2FS_NODE_INO(sbi)	(sbi->node_ino_num)
@@ -139,15 +139,25 @@ struct f2fs_extent {
 	__le32 len;		/* lengh of the extent */
 } __packed;
 
-#define F2FS_MAX_NAME_LEN	256
-#define ADDRS_PER_INODE         923	/* Address Pointers in an Inode */
-#define ADDRS_PER_BLOCK         1018	/* Address Pointers in a Direct Block */
-#define NIDS_PER_BLOCK          1018	/* Node IDs in an Indirect Block */
+#define F2FS_NAME_LEN		255
+#define F2FS_INLINE_XATTR_ADDRS	50	/* 200 bytes for inline xattrs */
+#define DEF_ADDRS_PER_INODE	923	/* Address Pointers in an Inode */
+#define ADDRS_PER_INODE(fi)	addrs_per_inode(fi)
+#define ADDRS_PER_BLOCK		1018	/* Address Pointers in a Direct Block */
+#define NIDS_PER_BLOCK		1018	/* Node IDs in an Indirect Block */
+
+#define	NODE_DIR1_BLOCK		(DEF_ADDRS_PER_INODE + 1)
+#define	NODE_DIR2_BLOCK		(DEF_ADDRS_PER_INODE + 2)
+#define	NODE_IND1_BLOCK		(DEF_ADDRS_PER_INODE + 3)
+#define	NODE_IND2_BLOCK		(DEF_ADDRS_PER_INODE + 4)
+#define	NODE_DIND_BLOCK		(DEF_ADDRS_PER_INODE + 5)
+
+#define F2FS_INLINE_XATTR	0x01	/* file inline xattr flag */
 
 struct f2fs_inode {
 	__le16 i_mode;			/* file mode */
 	__u8 i_advise;			/* file hints */
-	__u8 i_reserved;		/* reserved */
+	__u8 i_inline;			/* file inline flags */
 	__le32 i_uid;			/* user ID */
 	__le32 i_gid;			/* group ID */
 	__le32 i_links;			/* links count */
@@ -165,11 +175,12 @@ struct f2fs_inode {
 	__le32 i_flags;			/* file attributes */
 	__le32 i_pino;			/* parent inode number */
 	__le32 i_namelen;		/* file name length */
-	__u8 i_name[F2FS_MAX_NAME_LEN];	/* file name for SPOR */
+	__u8 i_name[F2FS_NAME_LEN];	/* file name for SPOR */
+	__u8 i_reserved2;		/* for backward compatibility */
 
 	struct f2fs_extent i_ext;	/* caching a largest extent */
 
-	__le32 i_addr[ADDRS_PER_INODE];	/* Pointers to data blocks */
+	__le32 i_addr[DEF_ADDRS_PER_INODE];	/* Pointers to data blocks */
 
 	__le32 i_nid[5];		/* direct(2), indirect(2),
 						double_indirect(1) node id */
@@ -362,10 +373,10 @@ struct f2fs_summary_block {
 typedef __le32	f2fs_hash_t;
 
 /* One directory entry slot covers 8bytes-long file name */
-#define F2FS_NAME_LEN		8
-#define F2FS_NAME_LEN_BITS	3
+#define F2FS_SLOT_LEN		8
+#define F2FS_SLOT_LEN_BITS	3
 
-#define GET_DENTRY_SLOTS(x)	((x + F2FS_NAME_LEN - 1) >> F2FS_NAME_LEN_BITS)
+#define GET_DENTRY_SLOTS(x)	((x + F2FS_SLOT_LEN - 1) >> F2FS_SLOT_LEN_BITS)
 
 /* the number of dentry in a block */
 #define NR_DENTRY_IN_BLOCK	214
@@ -377,10 +388,10 @@ typedef __le32	f2fs_hash_t;
 #define SIZE_OF_DENTRY_BITMAP	((NR_DENTRY_IN_BLOCK + BITS_PER_BYTE - 1) / \
 					BITS_PER_BYTE)
 #define SIZE_OF_RESERVED	(PAGE_SIZE - ((SIZE_OF_DIR_ENTRY + \
-				F2FS_NAME_LEN) * \
+				F2FS_SLOT_LEN) * \
 				NR_DENTRY_IN_BLOCK + SIZE_OF_DENTRY_BITMAP))
 
-/* One directory entry slot representing F2FS_NAME_LEN-sized file name */
+/* One directory entry slot representing F2FS_SLOT_LEN-sized file name */
 struct f2fs_dir_entry {
 	__le32 hash_code;	/* hash code of file name */
 	__le32 ino;		/* inode number */
@@ -394,7 +405,7 @@ struct f2fs_dentry_block {
 	__u8 dentry_bitmap[SIZE_OF_DENTRY_BITMAP];
 	__u8 reserved[SIZE_OF_RESERVED];
 	struct f2fs_dir_entry dentry[NR_DENTRY_IN_BLOCK];
-	__u8 filename[NR_DENTRY_IN_BLOCK][F2FS_NAME_LEN];
+	__u8 filename[NR_DENTRY_IN_BLOCK][F2FS_SLOT_LEN];
 } __packed;
 
 /* file types used in inode_info->flags */

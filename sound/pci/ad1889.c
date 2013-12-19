@@ -739,7 +739,7 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 	reg = ad1889_readw(chip, AD_DS_WADA);
 	snd_iprintf(buffer, "Right: %s, -%d dB\n",
 			(reg & AD_DS_WADA_RWAM) ? "mute" : "unmute",
-			((reg & AD_DS_WADA_RWAA) >> 8) * 3);
+			(reg & AD_DS_WADA_RWAA) * 3);
 	
 	reg = ad1889_readw(chip, AD_DS_WAS);
 	snd_iprintf(buffer, "Wave samplerate: %u Hz\n", reg);
@@ -1046,7 +1046,6 @@ static void
 snd_ad1889_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(snd_ad1889_ids) = {

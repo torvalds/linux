@@ -189,6 +189,7 @@ static int az6007_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 	return az6007_write(d, 0xbc, onoff, 0, NULL, 0);
 }
 
+#if IS_ENABLED(CONFIG_RC_CORE)
 /* remote control stuff (does not work with my box) */
 static int az6007_rc_query(struct dvb_usb_device *d)
 {
@@ -214,6 +215,20 @@ static int az6007_rc_query(struct dvb_usb_device *d)
 
 	return 0;
 }
+
+static int az6007_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
+{
+	pr_debug("Getting az6007 Remote Control properties\n");
+
+	rc->allowed_protos = RC_BIT_NEC;
+	rc->query          = az6007_rc_query;
+	rc->interval       = 400;
+
+	return 0;
+}
+#else
+	#define az6007_get_rc_config NULL
+#endif
 
 static int az6007_ci_read_attribute_mem(struct dvb_ca_en50221 *ca,
 					int slot,
@@ -822,23 +837,12 @@ static void az6007_usb_disconnect(struct usb_interface *intf)
 	dvb_usbv2_disconnect(intf);
 }
 
-static int az6007_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
-{
-	pr_debug("Getting az6007 Remote Control properties\n");
-
-	rc->allowed_protos = RC_BIT_NEC;
-	rc->query          = az6007_rc_query;
-	rc->interval       = 400;
-
-	return 0;
-}
-
 static int az6007_download_firmware(struct dvb_usb_device *d,
 	const struct firmware *fw)
 {
 	pr_debug("Loading az6007 firmware\n");
 
-	return usbv2_cypress_load_firmware(d->udev, fw, CYPRESS_FX2);
+	return cypress_load_firmware(d->udev, fw, CYPRESS_FX2);
 }
 
 /* DVB USB Driver stuff */

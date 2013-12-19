@@ -29,6 +29,8 @@
 #include <linux/spinlock.h>
 #include <linux/crc32.h>
 #include <linux/mii.h>
+#include <linux/of.h>
+#include <linux/of_net.h>
 #include <linux/ethtool.h>
 #include <linux/dm9000.h>
 #include <linux/delay.h>
@@ -156,18 +158,6 @@ static inline board_info_t *to_dm9000_board(struct net_device *dev)
 
 /* DM9000 network board routine ---------------------------- */
 
-static void
-dm9000_reset(board_info_t * db)
-{
-	dev_dbg(db->dev, "resetting device\n");
-
-	/* RESET device */
-	writeb(DM9000_NCR, db->io_addr);
-	udelay(200);
-	writeb(NCR_RST, db->io_data);
-	udelay(200);
-}
-
 /*
  *   Read a byte from I/O port
  */
@@ -187,6 +177,27 @@ iow(board_info_t * db, int reg, int value)
 {
 	writeb(reg, db->io_addr);
 	writeb(value, db->io_data);
+}
+
+static void
+dm9000_reset(board_info_t *db)
+{
+	dev_dbg(db->dev, "resetting device\n");
+
+	/* Reset DM9000, see DM9000 Application Notes V1.22 Jun 11, 2004 page 29
+	 * The essential point is that we have to do a double reset, and the
+	 * instruction is to set LBK into MAC internal loopback mode.
+	 */
+	iow(db, DM9000_NCR, 0x03);
+	udelay(100); /* Application note says at least 20 us */
+	if (ior(db, DM9000_NCR) & 1)
+		dev_err(db->dev, "dm9000 did not respond to first reset\n");
+
+	iow(db, DM9000_NCR, 0);
+	iow(db, DM9000_NCR, 0x03);
+	udelay(100);
+	if (ior(db, DM9000_NCR) & 1)
+		dev_err(db->dev, "dm9000 did not respond to second reset\n");
 }
 
 /* routines for sending block to chip */
@@ -255,6 +266,107 @@ static void dm9000_dumpblk_32bit(void __iomem *reg, int count)
 
 	for (i = 0; i < count; i++)
 		tmp = readl(reg);
+}
+
+/*
+ * Sleep, either by using msleep() or if we are suspending, then
+ * use mdelay() to sleep.
+ */
+static void dm9000_msleep(board_info_t *db, unsigned int ms)
+{
+	if (db->in_suspend)
+		mdelay(ms);
+	else
+		msleep(ms);
+}
+
+/* Read a word from phyxcer */
+static int
+dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
+{
+	board_info_t *db = netdev_priv(dev);
+	unsigned long flags;
+	unsigned int reg_save;
+	int ret;
+
+	mutex_lock(&db->addr_lock);
+
+	spin_lock_irqsave(&db->lock, flags);
+
+	/* Save previous register address */
+	reg_save = readb(db->io_addr);
+
+	/* Fill the phyxcer register into REG_0C */
+	iow(db, DM9000_EPAR, DM9000_PHY | reg);
+
+	/* Issue phyxcer read command */
+	iow(db, DM9000_EPCR, EPCR_ERPRR | EPCR_EPOS);
+
+	writeb(reg_save, db->io_addr);
+	spin_unlock_irqrestore(&db->lock, flags);
+
+	dm9000_msleep(db, 1);		/* Wait read complete */
+
+	spin_lock_irqsave(&db->lock, flags);
+	reg_save = readb(db->io_addr);
+
+	iow(db, DM9000_EPCR, 0x0);	/* Clear phyxcer read command */
+
+	/* The read data keeps on REG_0D & REG_0E */
+	ret = (ior(db, DM9000_EPDRH) << 8) | ior(db, DM9000_EPDRL);
+
+	/* restore the previous address */
+	writeb(reg_save, db->io_addr);
+	spin_unlock_irqrestore(&db->lock, flags);
+
+	mutex_unlock(&db->addr_lock);
+
+	dm9000_dbg(db, 5, "phy_read[%02x] -> %04x\n", reg, ret);
+	return ret;
+}
+
+/* Write a word to phyxcer */
+static void
+dm9000_phy_write(struct net_device *dev,
+		 int phyaddr_unused, int reg, int value)
+{
+	board_info_t *db = netdev_priv(dev);
+	unsigned long flags;
+	unsigned long reg_save;
+
+	dm9000_dbg(db, 5, "phy_write[%02x] = %04x\n", reg, value);
+	mutex_lock(&db->addr_lock);
+
+	spin_lock_irqsave(&db->lock, flags);
+
+	/* Save previous register address */
+	reg_save = readb(db->io_addr);
+
+	/* Fill the phyxcer register into REG_0C */
+	iow(db, DM9000_EPAR, DM9000_PHY | reg);
+
+	/* Fill the written data into REG_0D & REG_0E */
+	iow(db, DM9000_EPDRL, value);
+	iow(db, DM9000_EPDRH, value >> 8);
+
+	/* Issue phyxcer write command */
+	iow(db, DM9000_EPCR, EPCR_EPOS | EPCR_ERPRW);
+
+	writeb(reg_save, db->io_addr);
+	spin_unlock_irqrestore(&db->lock, flags);
+
+	dm9000_msleep(db, 1);		/* Wait write complete */
+
+	spin_lock_irqsave(&db->lock, flags);
+	reg_save = readb(db->io_addr);
+
+	iow(db, DM9000_EPCR, 0x0);	/* Clear phyxcer write command */
+
+	/* restore the previous address */
+	writeb(reg_save, db->io_addr);
+
+	spin_unlock_irqrestore(&db->lock, flags);
+	mutex_unlock(&db->addr_lock);
 }
 
 /* dm9000_set_io
@@ -434,9 +546,10 @@ static void dm9000_get_drvinfo(struct net_device *dev,
 {
 	board_info_t *dm = to_dm9000_board(dev);
 
-	strcpy(info->driver, CARDNAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, to_platform_device(dm->dev)->name);
+	strlcpy(info->driver, CARDNAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, to_platform_device(dm->dev)->name,
+		sizeof(info->bus_info));
 }
 
 static u32 dm9000_get_msglevel(struct net_device *dev)
@@ -640,15 +753,20 @@ static const struct ethtool_ops dm9000_ethtool_ops = {
 static void dm9000_show_carrier(board_info_t *db,
 				unsigned carrier, unsigned nsr)
 {
+	int lpa;
 	struct net_device *ndev = db->ndev;
+	struct mii_if_info *mii = &db->mii;
 	unsigned ncr = dm9000_read_locked(db, DM9000_NCR);
 
-	if (carrier)
-		dev_info(db->dev, "%s: link up, %dMbps, %s-duplex, no LPA\n",
+	if (carrier) {
+		lpa = mii->mdio_read(mii->dev, mii->phy_id, MII_LPA);
+		dev_info(db->dev,
+			 "%s: link up, %dMbps, %s-duplex, lpa 0x%04X\n",
 			 ndev->name, (nsr & NSR_SPEED) ? 10 : 100,
-			 (ncr & NCR_FDX) ? "full" : "half");
-	else
+			 (ncr & NCR_FDX) ? "full" : "half", lpa);
+	} else {
 		dev_info(db->dev, "%s: link down\n", ndev->name);
+	}
 }
 
 static void
@@ -725,20 +843,13 @@ dm9000_hash_table_unlocked(struct net_device *dev)
 	struct netdev_hw_addr *ha;
 	int i, oft;
 	u32 hash_val;
-	u16 hash_table[4];
+	u16 hash_table[4] = { 0, 0, 0, 0x8000 }; /* broadcast address */
 	u8 rcr = RCR_DIS_LONG | RCR_DIS_CRC | RCR_RXEN;
 
 	dm9000_dbg(db, 1, "entering %s\n", __func__);
 
 	for (i = 0, oft = DM9000_PAR; i < 6; i++, oft++)
 		iow(db, oft, dev->dev_addr[i]);
-
-	/* Clear Hash Table */
-	for (i = 0; i < 4; i++)
-		hash_table[i] = 0x0;
-
-	/* broadcast address */
-	hash_table[3] = 0x8000;
 
 	if (dev->flags & IFF_PROMISC)
 		rcr |= RCR_PRMSC;
@@ -793,6 +904,15 @@ dm9000_init_dm9000(struct net_device *dev)
 			(dev->features & NETIF_F_RXCSUM) ? RCSR_CSUM : 0);
 
 	iow(db, DM9000_GPCR, GPCR_GEP_CNTL);	/* Let GPIO0 output */
+	iow(db, DM9000_GPR, 0);
+
+	/* If we are dealing with DM9000B, some extra steps are required: a
+	 * manual phy reset, and setting init params.
+	 */
+	if (db->type == TYPE_DM9000B) {
+		dm9000_phy_write(dev, 0, MII_BMCR, BMCR_RESET);
+		dm9000_phy_write(dev, 0, MII_DM_DSPCR, DSPCR_INIT_PARAM);
+	}
 
 	ncr = (db->flags & DM9000_PLATF_EXT_PHY) ? NCR_EXT_PHY : 0;
 
@@ -1200,109 +1320,6 @@ dm9000_open(struct net_device *dev)
 	return 0;
 }
 
-/*
- * Sleep, either by using msleep() or if we are suspending, then
- * use mdelay() to sleep.
- */
-static void dm9000_msleep(board_info_t *db, unsigned int ms)
-{
-	if (db->in_suspend)
-		mdelay(ms);
-	else
-		msleep(ms);
-}
-
-/*
- *   Read a word from phyxcer
- */
-static int
-dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
-{
-	board_info_t *db = netdev_priv(dev);
-	unsigned long flags;
-	unsigned int reg_save;
-	int ret;
-
-	mutex_lock(&db->addr_lock);
-
-	spin_lock_irqsave(&db->lock,flags);
-
-	/* Save previous register address */
-	reg_save = readb(db->io_addr);
-
-	/* Fill the phyxcer register into REG_0C */
-	iow(db, DM9000_EPAR, DM9000_PHY | reg);
-
-	iow(db, DM9000_EPCR, EPCR_ERPRR | EPCR_EPOS);	/* Issue phyxcer read command */
-
-	writeb(reg_save, db->io_addr);
-	spin_unlock_irqrestore(&db->lock,flags);
-
-	dm9000_msleep(db, 1);		/* Wait read complete */
-
-	spin_lock_irqsave(&db->lock,flags);
-	reg_save = readb(db->io_addr);
-
-	iow(db, DM9000_EPCR, 0x0);	/* Clear phyxcer read command */
-
-	/* The read data keeps on REG_0D & REG_0E */
-	ret = (ior(db, DM9000_EPDRH) << 8) | ior(db, DM9000_EPDRL);
-
-	/* restore the previous address */
-	writeb(reg_save, db->io_addr);
-	spin_unlock_irqrestore(&db->lock,flags);
-
-	mutex_unlock(&db->addr_lock);
-
-	dm9000_dbg(db, 5, "phy_read[%02x] -> %04x\n", reg, ret);
-	return ret;
-}
-
-/*
- *   Write a word to phyxcer
- */
-static void
-dm9000_phy_write(struct net_device *dev,
-		 int phyaddr_unused, int reg, int value)
-{
-	board_info_t *db = netdev_priv(dev);
-	unsigned long flags;
-	unsigned long reg_save;
-
-	dm9000_dbg(db, 5, "phy_write[%02x] = %04x\n", reg, value);
-	mutex_lock(&db->addr_lock);
-
-	spin_lock_irqsave(&db->lock,flags);
-
-	/* Save previous register address */
-	reg_save = readb(db->io_addr);
-
-	/* Fill the phyxcer register into REG_0C */
-	iow(db, DM9000_EPAR, DM9000_PHY | reg);
-
-	/* Fill the written data into REG_0D & REG_0E */
-	iow(db, DM9000_EPDRL, value);
-	iow(db, DM9000_EPDRH, value >> 8);
-
-	iow(db, DM9000_EPCR, EPCR_EPOS | EPCR_ERPRW);	/* Issue phyxcer write command */
-
-	writeb(reg_save, db->io_addr);
-	spin_unlock_irqrestore(&db->lock, flags);
-
-	dm9000_msleep(db, 1);		/* Wait write complete */
-
-	spin_lock_irqsave(&db->lock,flags);
-	reg_save = readb(db->io_addr);
-
-	iow(db, DM9000_EPCR, 0x0);	/* Clear phyxcer write command */
-
-	/* restore the previous address */
-	writeb(reg_save, db->io_addr);
-
-	spin_unlock_irqrestore(&db->lock, flags);
-	mutex_unlock(&db->addr_lock);
-}
-
 static void
 dm9000_shutdown(struct net_device *dev)
 {
@@ -1356,13 +1373,38 @@ static const struct net_device_ops dm9000_netdev_ops = {
 #endif
 };
 
+static struct dm9000_plat_data *dm9000_parse_dt(struct device *dev)
+{
+	struct dm9000_plat_data *pdata;
+	struct device_node *np = dev->of_node;
+	const void *mac_addr;
+
+	if (!IS_ENABLED(CONFIG_OF) || !np)
+		return NULL;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	if (of_find_property(np, "davicom,ext-phy", NULL))
+		pdata->flags |= DM9000_PLATF_EXT_PHY;
+	if (of_find_property(np, "davicom,no-eeprom", NULL))
+		pdata->flags |= DM9000_PLATF_NO_EEPROM;
+
+	mac_addr = of_get_mac_address(np);
+	if (mac_addr)
+		memcpy(pdata->dev_addr, mac_addr, sizeof(pdata->dev_addr));
+
+	return pdata;
+}
+
 /*
  * Search DM9000 board, allocate space and register it
  */
 static int
 dm9000_probe(struct platform_device *pdev)
 {
-	struct dm9000_plat_data *pdata = pdev->dev.platform_data;
+	struct dm9000_plat_data *pdata = dev_get_platdata(&pdev->dev);
 	struct board_info *db;	/* Point a board information structure */
 	struct net_device *ndev;
 	const unsigned char *mac_src;
@@ -1370,6 +1412,12 @@ dm9000_probe(struct platform_device *pdev)
 	int iosize;
 	int i;
 	u32 id_val;
+
+	if (!pdata) {
+		pdata = dm9000_parse_dt(&pdev->dev);
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
+	}
 
 	/* Init network device */
 	ndev = alloc_etherdev(sizeof(struct board_info));
@@ -1501,7 +1549,12 @@ dm9000_probe(struct platform_device *pdev)
 	db->flags |= DM9000_PLATF_SIMPLE_PHY;
 #endif
 
-	dm9000_reset(db);
+	/* Fixing bug on dm9000_probe, takeover dm9000_reset(db),
+	 * Need 'NCR_MAC_LBK' bit to indeed stable our DM9000 fifo
+	 * while probe stage.
+	 */
+
+	iow(db, DM9000_NCR, NCR_MAC_LBK | NCR_RST);
 
 	/* try multiple times, DM9000 sometimes gets the read wrong */
 	for (i = 0; i < 8; i++) {
@@ -1570,7 +1623,7 @@ dm9000_probe(struct platform_device *pdev)
 
 	if (!is_valid_ether_addr(ndev->dev_addr) && pdata != NULL) {
 		mac_src = "platform data";
-		memcpy(ndev->dev_addr, pdata->dev_addr, 6);
+		memcpy(ndev->dev_addr, pdata->dev_addr, ETH_ALEN);
 	}
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
@@ -1666,8 +1719,6 @@ dm9000_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	unregister_netdev(ndev);
 	dm9000_release_board(pdev, netdev_priv(ndev));
 	free_netdev(ndev);		/* free device structure */
@@ -1676,32 +1727,26 @@ dm9000_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id dm9000_of_matches[] = {
+	{ .compatible = "davicom,dm9000", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, dm9000_of_matches);
+#endif
+
 static struct platform_driver dm9000_driver = {
 	.driver	= {
 		.name    = "dm9000",
 		.owner	 = THIS_MODULE,
 		.pm	 = &dm9000_drv_pm_ops,
+		.of_match_table = of_match_ptr(dm9000_of_matches),
 	},
 	.probe   = dm9000_probe,
 	.remove  = dm9000_drv_remove,
 };
 
-static int __init
-dm9000_init(void)
-{
-	printk(KERN_INFO "%s Ethernet Driver, V%s\n", CARDNAME, DRV_VERSION);
-
-	return platform_driver_register(&dm9000_driver);
-}
-
-static void __exit
-dm9000_cleanup(void)
-{
-	platform_driver_unregister(&dm9000_driver);
-}
-
-module_init(dm9000_init);
-module_exit(dm9000_cleanup);
+module_platform_driver(dm9000_driver);
 
 MODULE_AUTHOR("Sascha Hauer, Ben Dooks");
 MODULE_DESCRIPTION("Davicom DM9000 network driver");

@@ -45,13 +45,12 @@ static struct ima_queue_entry *ima_lookup_digest_entry(u8 *digest_value)
 {
 	struct ima_queue_entry *qe, *ret = NULL;
 	unsigned int key;
-	struct hlist_node *pos;
 	int rc;
 
 	key = ima_hash_key(digest_value);
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(qe, pos, &ima_htable.queue[key], hnext) {
-		rc = memcmp(qe->entry->digest, digest_value, IMA_DIGEST_SIZE);
+	hlist_for_each_entry_rcu(qe, &ima_htable.queue[key], hnext) {
+		rc = memcmp(qe->entry->digest, digest_value, TPM_DIGEST_SIZE);
 		if (rc == 0) {
 			ret = qe;
 			break;
@@ -105,9 +104,10 @@ static int ima_pcr_extend(const u8 *hash)
  * and extend the pcr.
  */
 int ima_add_template_entry(struct ima_template_entry *entry, int violation,
-			   const char *op, struct inode *inode)
+			   const char *op, struct inode *inode,
+			   const unsigned char *filename)
 {
-	u8 digest[IMA_DIGEST_SIZE];
+	u8 digest[TPM_DIGEST_SIZE];
 	const char *audit_cause = "hash_added";
 	char tpm_audit_cause[AUDIT_CAUSE_LEN_MAX];
 	int audit_info = 1;
@@ -142,8 +142,7 @@ int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 	}
 out:
 	mutex_unlock(&ima_extend_list_mutex);
-	integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode,
-			    entry->template.file_name,
+	integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode, filename,
 			    op, audit_cause, result, audit_info);
 	return result;
 }

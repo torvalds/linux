@@ -13,7 +13,8 @@
  * info about what this counter is.
  */
 
-#include <linux/cgroup.h>
+#include <linux/spinlock.h>
+#include <linux/errno.h>
 
 /*
  * The core object. the cgroup that wishes to account for some
@@ -53,7 +54,7 @@ struct res_counter {
 	struct res_counter *parent;
 };
 
-#define RESOURCE_MAX (unsigned long long)LLONG_MAX
+#define RES_COUNTER_MAX ULLONG_MAX
 
 /**
  * Helpers to interact with userspace

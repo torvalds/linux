@@ -332,8 +332,8 @@ static const struct agp_bridge_driver nvidia_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static int __devinit agp_nvidia_probe(struct pci_dev *pdev,
-				      const struct pci_device_id *ent)
+static int agp_nvidia_probe(struct pci_dev *pdev,
+			    const struct pci_device_id *ent)
 {
 	struct agp_bridge_data *bridge;
 	u8 cap_ptr;
@@ -399,8 +399,8 @@ static void agp_nvidia_remove(struct pci_dev *pdev)
 #ifdef CONFIG_PM
 static int agp_nvidia_suspend(struct pci_dev *pdev, pm_message_t state)
 {
-	pci_save_state (pdev);
-	pci_set_power_state (pdev, 3);
+	pci_save_state(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
 
 	return 0;
 }
@@ -408,7 +408,7 @@ static int agp_nvidia_suspend(struct pci_dev *pdev, pm_message_t state)
 static int agp_nvidia_resume(struct pci_dev *pdev)
 {
 	/* set power state 0 and restore PCI space */
-	pci_set_power_state (pdev, 0);
+	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
 	/* reconfigure AGP hardware again */

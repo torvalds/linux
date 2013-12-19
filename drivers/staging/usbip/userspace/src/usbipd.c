@@ -20,6 +20,7 @@
 #include "../config.h"
 #endif
 
+#define _GNU_SOURCE
 #include <errno.h>
 #include <unistd.h>
 #include <netdb.h>
@@ -35,10 +36,9 @@
 #include <tcpd.h>
 #endif
 
-#define _GNU_SOURCE
 #include <getopt.h>
-#include <glib.h>
 #include <signal.h>
+#include <poll.h>
 
 #include "usbip_host_driver.h"
 #include "usbip_common.h"
@@ -48,23 +48,39 @@
 #define PROGNAME "usbipd"
 #define MAXSOCKFD 20
 
-GMainLoop *main_loop;
+#define MAIN_LOOP_TIMEOUT 10
+
+#define DEFAULT_PID_FILE "/var/run/" PROGNAME ".pid"
 
 static const char usbip_version_string[] = PACKAGE_STRING;
 
 static const char usbipd_help_string[] =
-	"usage: usbipd [options]			\n"
-	"	-D, --daemon				\n"
-	"		Run as a daemon process.	\n"
-	"						\n"
-	"	-d, --debug				\n"
-	"		Print debugging information.	\n"
-	"						\n"
-	"	-h, --help 				\n"
-	"		Print this help.		\n"
-	"						\n"
-	"	-v, --version				\n"
-	"		Show version.			\n";
+	"usage: usbipd [options]\n"
+	"\n"
+	"	-4, --ipv4\n"
+	"		Bind to IPv4. Default is both.\n"
+	"\n"
+	"	-6, --ipv6\n"
+	"		Bind to IPv6. Default is both.\n"
+	"\n"
+	"	-D, --daemon\n"
+	"		Run as a daemon process.\n"
+	"\n"
+	"	-d, --debug\n"
+	"		Print debugging information.\n"
+	"\n"
+	"	-PFILE, --pid FILE\n"
+	"		Write process id to FILE.\n"
+	"		If no FILE specified, use " DEFAULT_PID_FILE "\n"
+	"\n"
+	"	-tPORT, --tcp-port PORT\n"
+	"		Listen on TCP/IP port PORT.\n"
+	"\n"
+	"	-h, --help\n"
+	"		Print this help.\n"
+	"\n"
+	"	-v, --version\n"
+	"		Show version.\n";
 
 static void usbipd_help(void)
 {
@@ -286,13 +302,13 @@ static int do_accept(int listenfd)
 
 	memset(&ss, 0, sizeof(ss));
 
-	connfd = accept(listenfd, (struct sockaddr *) &ss, &len);
+	connfd = accept(listenfd, (struct sockaddr *)&ss, &len);
 	if (connfd < 0) {
 		err("failed to accept connection");
 		return -1;
 	}
 
-	rc = getnameinfo((struct sockaddr *) &ss, len, host, sizeof(host),
+	rc = getnameinfo((struct sockaddr *)&ss, len, host, sizeof(host),
 			 port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV);
 	if (rc)
 		err("getnameinfo: %s", gai_strerror(rc));
@@ -310,88 +326,92 @@ static int do_accept(int listenfd)
 	return connfd;
 }
 
-gboolean process_request(GIOChannel *gio, GIOCondition condition,
-			 gpointer unused_data)
+int process_request(int listenfd)
 {
-	int listenfd;
+	pid_t childpid;
 	int connfd;
 
-	(void) unused_data;
-
-	if (condition & (G_IO_ERR | G_IO_HUP | G_IO_NVAL)) {
-		err("unknown condition");
-		BUG();
-	}
-
-	if (condition & G_IO_IN) {
-		listenfd = g_io_channel_unix_get_fd(gio);
-		connfd = do_accept(listenfd);
-		if (connfd < 0)
-			return TRUE;
-
+	connfd = do_accept(listenfd);
+	if (connfd < 0)
+		return -1;
+	childpid = fork();
+	if (childpid == 0) {
+		close(listenfd);
 		recv_pdu(connfd);
-		close(connfd);
+		exit(0);
 	}
-
-	return TRUE;
+	close(connfd);
+	return 0;
 }
 
-static void log_addrinfo(struct addrinfo *ai)
+static void addrinfo_to_text(struct addrinfo *ai, char buf[],
+			     const size_t buf_size)
 {
 	char hbuf[NI_MAXHOST];
 	char sbuf[NI_MAXSERV];
 	int rc;
+
+	buf[0] = '\0';
 
 	rc = getnameinfo(ai->ai_addr, ai->ai_addrlen, hbuf, sizeof(hbuf),
 			 sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV);
 	if (rc)
 		err("getnameinfo: %s", gai_strerror(rc));
 
-	info("listening on %s:%s", hbuf, sbuf);
+	snprintf(buf, buf_size, "%s:%s", hbuf, sbuf);
 }
 
-static int listen_all_addrinfo(struct addrinfo *ai_head, int sockfdlist[])
+static int listen_all_addrinfo(struct addrinfo *ai_head, int sockfdlist[],
+			     int maxsockfd)
 {
 	struct addrinfo *ai;
 	int ret, nsockfd = 0;
+	const size_t ai_buf_size = NI_MAXHOST + NI_MAXSERV + 2;
+	char ai_buf[ai_buf_size];
 
-	for (ai = ai_head; ai && nsockfd < MAXSOCKFD; ai = ai->ai_next) {
-		sockfdlist[nsockfd] = socket(ai->ai_family, ai->ai_socktype,
-					     ai->ai_protocol);
-		if (sockfdlist[nsockfd] < 0)
-			continue;
-
-		usbip_net_set_reuseaddr(sockfdlist[nsockfd]);
-		usbip_net_set_nodelay(sockfdlist[nsockfd]);
-
-		if (sockfdlist[nsockfd] >= FD_SETSIZE) {
-			close(sockfdlist[nsockfd]);
-			sockfdlist[nsockfd] = -1;
+	for (ai = ai_head; ai && nsockfd < maxsockfd; ai = ai->ai_next) {
+		int sock;
+		addrinfo_to_text(ai, ai_buf, ai_buf_size);
+		dbg("opening %s", ai_buf);
+		sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+		if (sock < 0) {
+			err("socket: %s: %d (%s)",
+			    ai_buf, errno, strerror(errno));
 			continue;
 		}
 
-		ret = bind(sockfdlist[nsockfd], ai->ai_addr, ai->ai_addrlen);
+		usbip_net_set_reuseaddr(sock);
+		usbip_net_set_nodelay(sock);
+		/* We use seperate sockets for IPv4 and IPv6
+		 * (see do_standalone_mode()) */
+		usbip_net_set_v6only(sock);
+
+		if (sock >= FD_SETSIZE) {
+			err("FD_SETSIZE: %s: sock=%d, max=%d",
+			    ai_buf, sock, FD_SETSIZE);
+			close(sock);
+			continue;
+		}
+
+		ret = bind(sock, ai->ai_addr, ai->ai_addrlen);
 		if (ret < 0) {
-			close(sockfdlist[nsockfd]);
-			sockfdlist[nsockfd] = -1;
+			err("bind: %s: %d (%s)",
+			    ai_buf, errno, strerror(errno));
+			close(sock);
 			continue;
 		}
 
-		ret = listen(sockfdlist[nsockfd], SOMAXCONN);
+		ret = listen(sock, SOMAXCONN);
 		if (ret < 0) {
-			close(sockfdlist[nsockfd]);
-			sockfdlist[nsockfd] = -1;
+			err("listen: %s: %d (%s)",
+			    ai_buf, errno, strerror(errno));
+			close(sock);
 			continue;
 		}
 
-		log_addrinfo(ai);
-		nsockfd++;
+		info("listening on %s", ai_buf);
+		sockfdlist[nsockfd++] = sock;
 	}
-
-	if (nsockfd == 0)
-		return -1;
-
-	dbg("listening on %d address%s", nsockfd, (nsockfd == 1) ? "" : "es");
 
 	return nsockfd;
 }
@@ -406,9 +426,9 @@ static struct addrinfo *do_getaddrinfo(char *host, int ai_family)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags    = AI_PASSIVE;
 
-	rc = getaddrinfo(host, USBIP_PORT_STRING, &hints, &ai_head);
+	rc = getaddrinfo(host, usbip_port_string, &hints, &ai_head);
 	if (rc) {
-		err("failed to get a network address %s: %s", USBIP_PORT_STRING,
+		err("failed to get a network address %s: %s", usbip_port_string,
 		    gai_strerror(rc));
 		return NULL;
 	}
@@ -418,10 +438,7 @@ static struct addrinfo *do_getaddrinfo(char *host, int ai_family)
 
 static void signal_handler(int i)
 {
-	dbg("received signal: code %d", i);
-
-	if (main_loop)
-		g_main_loop_quit(main_loop);
+	dbg("received '%s' signal", strsignal(i));
 }
 
 static void set_signal(void)
@@ -433,17 +450,44 @@ static void set_signal(void)
 	sigemptyset(&act.sa_mask);
 	sigaction(SIGTERM, &act, NULL);
 	sigaction(SIGINT, &act, NULL);
+	act.sa_handler = SIG_IGN;
+	sigaction(SIGCLD, &act, NULL);
 }
 
-static int do_standalone_mode(gboolean daemonize)
+static const char *pid_file;
+
+static void write_pid_file()
+{
+	if (pid_file) {
+		dbg("creating pid file %s", pid_file);
+		FILE *fp = fopen(pid_file, "w");
+		if (!fp) {
+			err("pid_file: %s: %d (%s)",
+			    pid_file, errno, strerror(errno));
+			return;
+		}
+		fprintf(fp, "%d\n", getpid());
+		fclose(fp);
+	}
+}
+
+static void remove_pid_file()
+{
+	if (pid_file) {
+		dbg("removing pid file %s", pid_file);
+		unlink(pid_file);
+	}
+}
+
+static int do_standalone_mode(int daemonize, int ipv4, int ipv6)
 {
 	struct addrinfo *ai_head;
 	int sockfdlist[MAXSOCKFD];
-	int nsockfd;
-	int i;
-
-	if (usbip_names_init(USBIDS_FILE))
-		err("failed to open %s", USBIDS_FILE);
+	int nsockfd, family;
+	int i, terminate;
+	struct pollfd *fds;
+	struct timespec timeout;
+	sigset_t sigmask;
 
 	if (usbip_host_driver_open()) {
 		err("please load " USBIP_CORE_MOD_NAME ".ko and "
@@ -452,43 +496,83 @@ static int do_standalone_mode(gboolean daemonize)
 	}
 
 	if (daemonize) {
-		if (daemon(0,0) < 0) {
+		if (daemon(0, 0) < 0) {
 			err("daemonizing failed: %s", strerror(errno));
+			usbip_host_driver_close();
 			return -1;
 		}
-
+		umask(0);
 		usbip_use_syslog = 1;
 	}
 	set_signal();
-
-	ai_head = do_getaddrinfo(NULL, PF_UNSPEC);
-	if (!ai_head)
-		return -1;
+	write_pid_file();
 
 	info("starting " PROGNAME " (%s)", usbip_version_string);
 
-	nsockfd = listen_all_addrinfo(ai_head, sockfdlist);
+	/*
+	 * To suppress warnings on systems with bindv6only disabled
+	 * (default), we use seperate sockets for IPv6 and IPv4 and set
+	 * IPV6_V6ONLY on the IPv6 sockets.
+	 */
+	if (ipv4 && ipv6)
+		family = AF_UNSPEC;
+	else if (ipv4)
+		family = AF_INET;
+	else
+		family = AF_INET6;
+
+	ai_head = do_getaddrinfo(NULL, family);
+	if (!ai_head) {
+		usbip_host_driver_close();
+		return -1;
+	}
+	nsockfd = listen_all_addrinfo(ai_head, sockfdlist,
+		sizeof(sockfdlist) / sizeof(*sockfdlist));
+	freeaddrinfo(ai_head);
 	if (nsockfd <= 0) {
 		err("failed to open a listening socket");
+		usbip_host_driver_close();
 		return -1;
 	}
 
-	for (i = 0; i < nsockfd; i++) {
-		GIOChannel *gio;
+	dbg("listening on %d address%s", nsockfd, (nsockfd == 1) ? "" : "es");
 
-		gio = g_io_channel_unix_new(sockfdlist[i]);
-		g_io_add_watch(gio, (G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL),
-			       process_request, NULL);
+	fds = calloc(nsockfd, sizeof(struct pollfd));
+	for (i = 0; i < nsockfd; i++) {
+		fds[i].fd = sockfdlist[i];
+		fds[i].events = POLLIN;
+	}
+	timeout.tv_sec = MAIN_LOOP_TIMEOUT;
+	timeout.tv_nsec = 0;
+
+	sigfillset(&sigmask);
+	sigdelset(&sigmask, SIGTERM);
+	sigdelset(&sigmask, SIGINT);
+
+	terminate = 0;
+	while (!terminate) {
+		int r;
+
+		r = ppoll(fds, nsockfd, &timeout, &sigmask);
+		if (r < 0) {
+			dbg("%s", strerror(errno));
+			terminate = 1;
+		} else if (r) {
+			for (i = 0; i < nsockfd; i++) {
+				if (fds[i].revents & POLLIN) {
+					dbg("read event on fd[%d]=%d",
+					    i, sockfdlist[i]);
+					process_request(sockfdlist[i]);
+				}
+			}
+		} else {
+			dbg("heartbeat timeout on ppoll()");
+		}
 	}
 
-	main_loop = g_main_loop_new(FALSE, FALSE);
-	g_main_loop_run(main_loop);
-
 	info("shutting down " PROGNAME);
-
-	freeaddrinfo(ai_head);
+	free(fds);
 	usbip_host_driver_close();
-	usbip_names_free();
 
 	return 0;
 }
@@ -496,11 +580,16 @@ static int do_standalone_mode(gboolean daemonize)
 int main(int argc, char *argv[])
 {
 	static const struct option longopts[] = {
-		{ "daemon",  no_argument, NULL, 'D' },
-		{ "debug",   no_argument, NULL, 'd' },
-		{ "help",    no_argument, NULL, 'h' },
-		{ "version", no_argument, NULL, 'v' },
-		{ NULL,	     0,           NULL,  0  }
+		{ "ipv4",     no_argument,       NULL, '4' },
+		{ "ipv6",     no_argument,       NULL, '6' },
+		{ "daemon",   no_argument,       NULL, 'D' },
+		{ "daemon",   no_argument,       NULL, 'D' },
+		{ "debug",    no_argument,       NULL, 'd' },
+		{ "pid",      optional_argument, NULL, 'P' },
+		{ "tcp-port", required_argument, NULL, 't' },
+		{ "help",     no_argument,       NULL, 'h' },
+		{ "version",  no_argument,       NULL, 'v' },
+		{ NULL,	      0,                 NULL,  0  }
 	};
 
 	enum {
@@ -509,8 +598,10 @@ int main(int argc, char *argv[])
 		cmd_version
 	} cmd;
 
-	gboolean daemonize = FALSE;
+	int daemonize = 0;
+	int ipv4 = 0, ipv6 = 0;
 	int opt, rc = -1;
+	pid_file = NULL;
 
 	usbip_use_stderr = 1;
 	usbip_use_syslog = 0;
@@ -520,20 +611,32 @@ int main(int argc, char *argv[])
 
 	cmd = cmd_standalone_mode;
 	for (;;) {
-		opt = getopt_long(argc, argv, "Ddhv", longopts, NULL);
+		opt = getopt_long(argc, argv, "46DdP::t:hv", longopts, NULL);
 
 		if (opt == -1)
 			break;
 
 		switch (opt) {
+		case '4':
+			ipv4 = 1;
+			break;
+		case '6':
+			ipv6 = 1;
+			break;
 		case 'D':
-			daemonize = TRUE;
+			daemonize = 1;
 			break;
 		case 'd':
 			usbip_use_debug = 1;
 			break;
 		case 'h':
 			cmd = cmd_help;
+			break;
+		case 'P':
+			pid_file = optarg ? optarg : DEFAULT_PID_FILE;
+			break;
+		case 't':
+			usbip_setup_port_number(optarg);
 			break;
 		case 'v':
 			cmd = cmd_version;
@@ -545,9 +648,13 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if (!ipv4 && !ipv6)
+		ipv4 = ipv6 = 1;
+
 	switch (cmd) {
 	case cmd_standalone_mode:
-		rc = do_standalone_mode(daemonize);
+		rc = do_standalone_mode(daemonize, ipv4, ipv6);
+		remove_pid_file();
 		break;
 	case cmd_version:
 		printf(PROGNAME " (%s)\n", usbip_version_string);

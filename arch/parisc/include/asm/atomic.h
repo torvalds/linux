@@ -115,8 +115,8 @@ static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
 }
 
 
-#define atomic_add(i,v)	((void)(__atomic_add_return( (i),(v))))
-#define atomic_sub(i,v)	((void)(__atomic_add_return(-(i),(v))))
+#define atomic_add(i,v)	((void)(__atomic_add_return(        (i),(v))))
+#define atomic_sub(i,v)	((void)(__atomic_add_return(-((int) (i)),(v))))
 #define atomic_inc(v)	((void)(__atomic_add_return(   1,(v))))
 #define atomic_dec(v)	((void)(__atomic_add_return(  -1,(v))))
 
@@ -228,6 +228,29 @@ static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
 }
 
 #define atomic64_inc_not_zero(v) atomic64_add_unless((v), 1, 0)
+
+/*
+ * atomic64_dec_if_positive - decrement by 1 if old value positive
+ * @v: pointer of type atomic_t
+ *
+ * The function returns the old value of *v minus 1, even if
+ * the atomic variable, v, was not decremented.
+ */
+static inline long atomic64_dec_if_positive(atomic64_t *v)
+{
+	long c, old, dec;
+	c = atomic64_read(v);
+	for (;;) {
+		dec = c - 1;
+		if (unlikely(dec < 0))
+			break;
+		old = atomic64_cmpxchg((v), c, dec);
+		if (likely(old == c))
+			break;
+		c = old;
+	}
+	return dec;
+}
 
 #endif /* !CONFIG_64BIT */
 

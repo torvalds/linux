@@ -78,11 +78,6 @@ static void scsi_done(struct scsi_cmnd *cmd);
  * Definitions and constants.
  */
 
-#define MIN_RESET_DELAY (2*HZ)
-
-/* Do not call reset on error if we just did a reset within 15 sec. */
-#define MIN_RESET_PERIOD (15*HZ)
-
 /*
  * Note - the initial logging level can be set here to log events at boot time.
  * After the system is up, you may enable logging via the /proc interface.
@@ -658,7 +653,6 @@ EXPORT_SYMBOL(scsi_cmd_get_serial);
 int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 {
 	struct Scsi_Host *host = cmd->device->host;
-	unsigned long timeout;
 	int rtn = 0;
 
 	atomic_inc(&cmd->device->iorequest_cnt);
@@ -702,28 +696,6 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 	    cmd->device->scsi_level != SCSI_UNKNOWN) {
 		cmd->cmnd[1] = (cmd->cmnd[1] & 0x1f) |
 			       (cmd->device->lun << 5 & 0xe0);
-	}
-
-	/*
-	 * We will wait MIN_RESET_DELAY clock ticks after the last reset so
-	 * we can avoid the drive not being ready.
-	 */
-	timeout = host->last_reset + MIN_RESET_DELAY;
-
-	if (host->resetting && time_before(jiffies, timeout)) {
-		int ticks_remaining = timeout - jiffies;
-		/*
-		 * NOTE: This may be executed from within an interrupt
-		 * handler!  This is bad, but for now, it'll do.  The irq
-		 * level of the interrupt handler has been masked out by the
-		 * platform dependent interrupt handling code already, so the
-		 * sti() here will not cause another call to the SCSI host's
-		 * interrupt handler (assuming there is one irq-level per
-		 * host).
-		 */
-		while (--ticks_remaining >= 0)
-			mdelay(1 + 999 / HZ);
-		host->resetting = 0;
 	}
 
 	scsi_log_send(cmd);
@@ -1031,6 +1003,9 @@ int scsi_get_vpd_page(struct scsi_device *sdev, u8 page, unsigned char *buf,
 {
 	int i, result;
 
+	if (sdev->skip_vpd_pages)
+		goto fail;
+
 	/* Ask for all the pages supported by this device */
 	result = scsi_vpd_inquiry(sdev, buf, 0, buf_len);
 	if (result)
@@ -1070,8 +1045,8 @@ EXPORT_SYMBOL_GPL(scsi_get_vpd_page);
  * @opcode:	opcode for command to look up
  *
  * Uses the REPORT SUPPORTED OPERATION CODES to look up the given
- * opcode. Returns 0 if RSOC fails or if the command opcode is
- * unsupported. Returns 1 if the device claims to support the command.
+ * opcode. Returns -EINVAL if RSOC fails, 0 if the command opcode is
+ * unsupported and 1 if the device claims to support the command.
  */
 int scsi_report_opcode(struct scsi_device *sdev, unsigned char *buffer,
 		       unsigned int len, unsigned char opcode)
@@ -1081,7 +1056,7 @@ int scsi_report_opcode(struct scsi_device *sdev, unsigned char *buffer,
 	int result;
 
 	if (sdev->no_report_opcodes || sdev->scsi_level < SCSI_SPC_3)
-		return 0;
+		return -EINVAL;
 
 	memset(cmd, 0, 16);
 	cmd[0] = MAINTENANCE_IN;
@@ -1097,7 +1072,7 @@ int scsi_report_opcode(struct scsi_device *sdev, unsigned char *buffer,
 	if (result && scsi_sense_valid(&sshdr) &&
 	    sshdr.sense_key == ILLEGAL_REQUEST &&
 	    (sshdr.asc == 0x20 || sshdr.asc == 0x24) && sshdr.ascq == 0x00)
-		return 0;
+		return -EINVAL;
 
 	if ((buffer[1] & 3) == 3) /* Command supported */
 		return 1;

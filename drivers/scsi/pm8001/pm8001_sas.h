@@ -1,5 +1,5 @@
 /*
- * PMC-Sierra SPC 8001 SAS/SATA based host adapters driver
+ * PMC-Sierra PM8001/8081/8088/8089 SAS/SATA based host adapters driver
  *
  * Copyright (c) 2008-2009 USI Co., Ltd.
  * All rights reserved.
@@ -57,8 +57,8 @@
 #include <linux/atomic.h>
 #include "pm8001_defs.h"
 
-#define DRV_NAME		"pm8001"
-#define DRV_VERSION		"0.1.36"
+#define DRV_NAME		"pm80xx"
+#define DRV_VERSION		"0.1.37"
 #define PM8001_FAIL_LOGGING	0x01 /* Error message logging */
 #define PM8001_INIT_LOGGING	0x02 /* driver init logging */
 #define PM8001_DISC_LOGGING	0x04 /* discovery layer logging */
@@ -66,8 +66,8 @@
 #define PM8001_EH_LOGGING	0x10 /* libsas EH function logging*/
 #define PM8001_IOCTL_LOGGING	0x20 /* IOCTL message logging */
 #define PM8001_MSG_LOGGING	0x40 /* misc message logging */
-#define pm8001_printk(format, arg...)	printk(KERN_INFO "%s %d:" format,\
-				__func__, __LINE__, ## arg)
+#define pm8001_printk(format, arg...)	printk(KERN_INFO "pm80xx %s %d:" \
+			format, __func__, __LINE__, ## arg)
 #define PM8001_CHECK_LOGGING(HBA, LEVEL, CMD)	\
 do {						\
 	if (unlikely(HBA->logging_level & LEVEL))	\
@@ -103,11 +103,15 @@ do {						\
 #define PM8001_READ_VPD
 
 
-#define DEV_IS_EXPANDER(type)	((type == EDGE_DEV) || (type == FANOUT_DEV))
+#define DEV_IS_EXPANDER(type)	((type == SAS_EDGE_EXPANDER_DEVICE) || (type == SAS_FANOUT_EXPANDER_DEVICE))
+#define IS_SPCV_12G(dev)	((dev->device == 0X8074)		\
+				|| (dev->device == 0X8076)		\
+				|| (dev->device == 0X8077))
 
 #define PM8001_NAME_LENGTH		32/* generic length of strings */
 extern struct list_head hba_list;
 extern const struct pm8001_dispatch pm8001_8001_dispatch;
+extern const struct pm8001_dispatch pm8001_80xx_dispatch;
 
 struct pm8001_hba_info;
 struct pm8001_ccb_info;
@@ -128,18 +132,73 @@ struct pm8001_ioctl_payload {
 	u8	*func_specific;
 };
 
+#define MPI_FATAL_ERROR_TABLE_OFFSET_MASK 0xFFFFFF
+#define MPI_FATAL_ERROR_TABLE_SIZE(value) ((0xFF000000 & value) >> SHIFT24)
+#define MPI_FATAL_EDUMP_TABLE_LO_OFFSET            0x00     /* HNFBUFL */
+#define MPI_FATAL_EDUMP_TABLE_HI_OFFSET            0x04     /* HNFBUFH */
+#define MPI_FATAL_EDUMP_TABLE_LENGTH               0x08     /* HNFBLEN */
+#define MPI_FATAL_EDUMP_TABLE_HANDSHAKE            0x0C     /* FDDHSHK */
+#define MPI_FATAL_EDUMP_TABLE_STATUS               0x10     /* FDDTSTAT */
+#define MPI_FATAL_EDUMP_TABLE_ACCUM_LEN            0x14     /* ACCDDLEN */
+#define MPI_FATAL_EDUMP_HANDSHAKE_RDY              0x1
+#define MPI_FATAL_EDUMP_HANDSHAKE_BUSY             0x0
+#define MPI_FATAL_EDUMP_TABLE_STAT_RSVD                 0x0
+#define MPI_FATAL_EDUMP_TABLE_STAT_DMA_FAILED           0x1
+#define MPI_FATAL_EDUMP_TABLE_STAT_NF_SUCCESS_MORE_DATA 0x2
+#define MPI_FATAL_EDUMP_TABLE_STAT_NF_SUCCESS_DONE      0x3
+#define TYPE_GSM_SPACE        1
+#define TYPE_QUEUE            2
+#define TYPE_FATAL            3
+#define TYPE_NON_FATAL        4
+#define TYPE_INBOUND          1
+#define TYPE_OUTBOUND         2
+struct forensic_data {
+	u32  data_type;
+	union {
+		struct {
+			u32  direct_len;
+			u32  direct_offset;
+			void  *direct_data;
+		} gsm_buf;
+		struct {
+			u16  queue_type;
+			u16  queue_index;
+			u32  direct_len;
+			void  *direct_data;
+		} queue_buf;
+		struct {
+			u32  direct_len;
+			u32  direct_offset;
+			u32  read_len;
+			void  *direct_data;
+		} data_buf;
+	};
+};
+
+/* bit31-26 - mask bar */
+#define SCRATCH_PAD0_BAR_MASK                    0xFC000000
+/* bit25-0  - offset mask */
+#define SCRATCH_PAD0_OFFSET_MASK                 0x03FFFFFF
+/* if AAP error state */
+#define SCRATCH_PAD0_AAPERR_MASK                 0xFFFFFFFF
+/* Inbound doorbell bit7 */
+#define SPCv_MSGU_CFG_TABLE_NONFATAL_DUMP	 0x80
+/* Inbound doorbell bit7 SPCV */
+#define SPCV_MSGU_CFG_TABLE_TRANSFER_DEBUG_INFO  0x80
+#define MAIN_MERRDCTO_MERRDCES		         0xA0/* DWORD 0x28) */
+
 struct pm8001_dispatch {
 	char *name;
 	int (*chip_init)(struct pm8001_hba_info *pm8001_ha);
-	int (*chip_soft_rst)(struct pm8001_hba_info *pm8001_ha, u32 signature);
+	int (*chip_soft_rst)(struct pm8001_hba_info *pm8001_ha);
 	void (*chip_rst)(struct pm8001_hba_info *pm8001_ha);
 	int (*chip_ioremap)(struct pm8001_hba_info *pm8001_ha);
 	void (*chip_iounmap)(struct pm8001_hba_info *pm8001_ha);
-	irqreturn_t (*isr)(struct pm8001_hba_info *pm8001_ha);
+	irqreturn_t (*isr)(struct pm8001_hba_info *pm8001_ha, u8 vec);
 	u32 (*is_our_interupt)(struct pm8001_hba_info *pm8001_ha);
-	int (*isr_process_oq)(struct pm8001_hba_info *pm8001_ha);
-	void (*interrupt_enable)(struct pm8001_hba_info *pm8001_ha);
-	void (*interrupt_disable)(struct pm8001_hba_info *pm8001_ha);
+	int (*isr_process_oq)(struct pm8001_hba_info *pm8001_ha, u8 vec);
+	void (*interrupt_enable)(struct pm8001_hba_info *pm8001_ha, u8 vec);
+	void (*interrupt_disable)(struct pm8001_hba_info *pm8001_ha, u8 vec);
 	void (*make_prd)(struct scatterlist *scatter, int nr, void *prd);
 	int (*smp_req)(struct pm8001_hba_info *pm8001_ha,
 		struct pm8001_ccb_info *ccb);
@@ -173,6 +232,7 @@ struct pm8001_dispatch {
 };
 
 struct pm8001_chip_info {
+	u32     encrypt;
 	u32	n_phy;
 	const struct pm8001_dispatch	*dispatch;
 };
@@ -204,7 +264,7 @@ struct pm8001_phy {
 };
 
 struct pm8001_device {
-	enum sas_dev_type	dev_type;
+	enum sas_device_type	dev_type;
 	struct domain_device	*sas_device;
 	u32			attached_phy;
 	u32			id;
@@ -256,7 +316,20 @@ struct mpi_mem_req {
 	struct mpi_mem		region[USI_MAX_MEMCNT];
 };
 
-struct main_cfg_table {
+struct encrypt {
+	u32	cipher_mode;
+	u32	sec_mode;
+	u32	status;
+	u32	flag;
+};
+
+struct sas_phy_attribute_table {
+	u32	phystart1_16[16];
+	u32	outbound_hw_event_pid1_16[16];
+};
+
+union main_cfg_table {
+	struct {
 	u32			signature;
 	u32			interface_rev;
 	u32			firmware_rev;
@@ -292,19 +365,70 @@ struct main_cfg_table {
 	u32			fatal_err_dump_length1;
 	u32			hda_mode_flag;
 	u32			anolog_setup_table_offset;
+	u32			rsvd[4];
+	} pm8001_tbl;
+
+	struct {
+	u32			signature;
+	u32			interface_rev;
+	u32			firmware_rev;
+	u32			max_out_io;
+	u32			max_sgl;
+	u32			ctrl_cap_flag;
+	u32			gst_offset;
+	u32			inbound_queue_offset;
+	u32			outbound_queue_offset;
+	u32			inbound_q_nppd_hppd;
+	u32			rsvd[8];
+	u32			crc_core_dump;
+	u32			rsvd1;
+	u32			upper_event_log_addr;
+	u32			lower_event_log_addr;
+	u32			event_log_size;
+	u32			event_log_severity;
+	u32			upper_pcs_event_log_addr;
+	u32			lower_pcs_event_log_addr;
+	u32			pcs_event_log_size;
+	u32			pcs_event_log_severity;
+	u32			fatal_err_interrupt;
+	u32			fatal_err_dump_offset0;
+	u32			fatal_err_dump_length0;
+	u32			fatal_err_dump_offset1;
+	u32			fatal_err_dump_length1;
+	u32			gpio_led_mapping;
+	u32			analog_setup_table_offset;
+	u32			int_vec_table_offset;
+	u32			phy_attr_table_offset;
+	u32			port_recovery_timer;
+	u32			interrupt_reassertion_delay;
+	u32			fatal_n_non_fatal_dump;	        /* 0x28 */
+	} pm80xx_tbl;
 };
-struct general_status_table {
+
+union general_status_table {
+	struct {
 	u32			gst_len_mpistate;
 	u32			iq_freeze_state0;
 	u32			iq_freeze_state1;
 	u32			msgu_tcnt;
 	u32			iop_tcnt;
-	u32			reserved;
+	u32			rsvd;
 	u32			phy_state[8];
-	u32			reserved1;
-	u32			reserved2;
-	u32			reserved3;
+	u32			gpio_input_val;
+	u32			rsvd1[2];
 	u32			recover_err_info[8];
+	} pm8001_tbl;
+	struct {
+	u32			gst_len_mpistate;
+	u32			iq_freeze_state0;
+	u32			iq_freeze_state1;
+	u32			msgu_tcnt;
+	u32			iop_tcnt;
+	u32			rsvd[9];
+	u32			gpio_input_val;
+	u32			rsvd1[2];
+	u32			recover_err_info[8];
+	} pm80xx_tbl;
 };
 struct inbound_queue_table {
 	u32			element_pri_size_cnt;
@@ -342,6 +466,10 @@ struct pm8001_hba_memspace {
 	u64			membase;
 	u32			memsize;
 };
+struct isr_param {
+	struct pm8001_hba_info *drv_inst;
+	u32 irq_id;
+};
 struct pm8001_hba_info {
 	char			name[PM8001_NAME_LENGTH];
 	struct list_head	list;
@@ -351,15 +479,29 @@ struct pm8001_hba_info {
 	struct device		*dev;
 	struct pm8001_hba_memspace io_mem[6];
 	struct mpi_mem_req	memoryMap;
+	struct encrypt		encrypt_info; /* support encryption */
+	struct forensic_data	forensic_info;
+	u32			fatal_bar_loc;
+	u32			forensic_last_offset;
+	u32			fatal_forensic_shift_offset;
+	u32			forensic_fatal_step;
+	u32			evtlog_ib_offset;
+	u32			evtlog_ob_offset;
 	void __iomem	*msg_unit_tbl_addr;/*Message Unit Table Addr*/
 	void __iomem	*main_cfg_tbl_addr;/*Main Config Table Addr*/
 	void __iomem	*general_stat_tbl_addr;/*General Status Table Addr*/
 	void __iomem	*inbnd_q_tbl_addr;/*Inbound Queue Config Table Addr*/
 	void __iomem	*outbnd_q_tbl_addr;/*Outbound Queue Config Table Addr*/
-	struct main_cfg_table	main_cfg_tbl;
-	struct general_status_table	gs_tbl;
-	struct inbound_queue_table	inbnd_q_tbl[PM8001_MAX_INB_NUM];
-	struct outbound_queue_table	outbnd_q_tbl[PM8001_MAX_OUTB_NUM];
+	void __iomem	*pspa_q_tbl_addr;
+			/*MPI SAS PHY attributes Queue Config Table Addr*/
+	void __iomem	*ivt_tbl_addr; /*MPI IVT Table Addr */
+	void __iomem	*fatal_tbl_addr; /*MPI IVT Table Addr */
+	union main_cfg_table	main_cfg_tbl;
+	union general_status_table	gs_tbl;
+	struct inbound_queue_table	inbnd_q_tbl[PM8001_MAX_SPCV_INB_NUM];
+	struct outbound_queue_table	outbnd_q_tbl[PM8001_MAX_SPCV_OUTB_NUM];
+	struct sas_phy_attribute_table	phy_attr_table;
+					/* MPI SAS PHY attributes */
 	u8			sas_addr[SAS_ADDR_SIZE];
 	struct sas_ha_struct	*sas;/* SCSI/SAS glue */
 	struct Scsi_Host	*shost;
@@ -372,18 +514,22 @@ struct pm8001_hba_info {
 	struct pm8001_port	port[PM8001_MAX_PHYS];
 	u32			id;
 	u32			irq;
+	u32			iomb_size; /* SPC and SPCV IOMB size */
 	struct pm8001_device	*devices;
 	struct pm8001_ccb_info	*ccb_info;
 #ifdef PM8001_USE_MSIX
-	struct msix_entry	msix_entries[16];/*for msi-x interrupt*/
+	struct msix_entry	msix_entries[PM8001_MAX_MSIX_VEC];
+					/*for msi-x interrupt*/
 	int			number_of_intr;/*will be used in remove()*/
 #endif
 #ifdef PM8001_USE_TASKLET
-	struct tasklet_struct	tasklet;
+	struct tasklet_struct	tasklet[PM8001_MAX_MSIX_VEC];
 #endif
 	u32			logging_level;
 	u32			fw_status;
+	u32			smp_exp_mode;
 	const struct firmware 	*fw_image;
+	struct isr_param irq_vector[PM8001_MAX_MSIX_VEC];
 };
 
 struct pm8001_work {
@@ -419,6 +565,9 @@ struct pm8001_fw_image_header {
 #define FLASH_UPDATE_DNLD_NOT_SUPPORTED		0x10
 #define FLASH_UPDATE_DISABLED			0x11
 
+#define	NCQ_READ_LOG_FLAG			0x80000000
+#define	NCQ_ABORT_ALL_FLAG			0x40000000
+#define	NCQ_2ND_RLE_FLAG			0x20000000
 /**
  * brief param structure for firmware flash update.
  */
@@ -484,6 +633,7 @@ int pm8001_dev_found(struct domain_device *dev);
 void pm8001_dev_gone(struct domain_device *dev);
 int pm8001_lu_reset(struct domain_device *dev, u8 *lun);
 int pm8001_I_T_nexus_reset(struct domain_device *dev);
+int pm8001_I_T_nexus_event_handler(struct domain_device *dev);
 int pm8001_query_task(struct sas_task *task);
 void pm8001_open_reject_retry(
 	struct pm8001_hba_info *pm8001_ha,
@@ -493,8 +643,68 @@ int pm8001_mem_alloc(struct pci_dev *pdev, void **virt_addr,
 	dma_addr_t *pphys_addr, u32 *pphys_addr_hi, u32 *pphys_addr_lo,
 	u32 mem_size, u32 align);
 
-int pm8001_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue);
+void pm8001_chip_iounmap(struct pm8001_hba_info *pm8001_ha);
+int pm8001_mpi_build_cmd(struct pm8001_hba_info *pm8001_ha,
+			struct inbound_queue_table *circularQ,
+			u32 opCode, void *payload, u32 responseQueue);
+int pm8001_mpi_msg_free_get(struct inbound_queue_table *circularQ,
+				u16 messageSize, void **messagePtr);
+u32 pm8001_mpi_msg_free_set(struct pm8001_hba_info *pm8001_ha, void *pMsg,
+			struct outbound_queue_table *circularQ, u8 bc);
+u32 pm8001_mpi_msg_consume(struct pm8001_hba_info *pm8001_ha,
+			struct outbound_queue_table *circularQ,
+			void **messagePtr1, u8 *pBC);
+int pm8001_chip_set_dev_state_req(struct pm8001_hba_info *pm8001_ha,
+			struct pm8001_device *pm8001_dev, u32 state);
+int pm8001_chip_fw_flash_update_req(struct pm8001_hba_info *pm8001_ha,
+					void *payload);
+int pm8001_chip_fw_flash_update_build(struct pm8001_hba_info *pm8001_ha,
+					void *fw_flash_updata_info, u32 tag);
+int pm8001_chip_set_nvmd_req(struct pm8001_hba_info *pm8001_ha, void *payload);
+int pm8001_chip_get_nvmd_req(struct pm8001_hba_info *pm8001_ha, void *payload);
+int pm8001_chip_ssp_tm_req(struct pm8001_hba_info *pm8001_ha,
+				struct pm8001_ccb_info *ccb,
+				struct pm8001_tmf_task *tmf);
+int pm8001_chip_abort_task(struct pm8001_hba_info *pm8001_ha,
+				struct pm8001_device *pm8001_dev,
+				u8 flag, u32 task_tag, u32 cmd_tag);
+int pm8001_chip_dereg_dev_req(struct pm8001_hba_info *pm8001_ha, u32 device_id);
+void pm8001_chip_make_sg(struct scatterlist *scatter, int nr, void *prd);
+void pm8001_work_fn(struct work_struct *work);
+int pm8001_handle_event(struct pm8001_hba_info *pm8001_ha,
+					void *data, int handler);
+void pm8001_mpi_set_dev_state_resp(struct pm8001_hba_info *pm8001_ha,
+							void *piomb);
+void pm8001_mpi_set_nvmd_resp(struct pm8001_hba_info *pm8001_ha,
+							void *piomb);
+void pm8001_mpi_get_nvmd_resp(struct pm8001_hba_info *pm8001_ha,
+							void *piomb);
+int pm8001_mpi_local_phy_ctl(struct pm8001_hba_info *pm8001_ha,
+							void *piomb);
+void pm8001_get_lrate_mode(struct pm8001_phy *phy, u8 link_rate);
+void pm8001_get_attached_sas_addr(struct pm8001_phy *phy, u8 *sas_addr);
+void pm8001_bytes_dmaed(struct pm8001_hba_info *pm8001_ha, int i);
+int pm8001_mpi_reg_resp(struct pm8001_hba_info *pm8001_ha, void *piomb);
+int pm8001_mpi_dereg_resp(struct pm8001_hba_info *pm8001_ha, void *piomb);
+int pm8001_mpi_fw_flash_update_resp(struct pm8001_hba_info *pm8001_ha,
+							void *piomb);
+int pm8001_mpi_general_event(struct pm8001_hba_info *pm8001_ha , void *piomb);
+int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb);
+struct sas_task *pm8001_alloc_task(void);
+void pm8001_task_done(struct sas_task *task);
+void pm8001_free_task(struct sas_task *task);
+void pm8001_tag_free(struct pm8001_hba_info *pm8001_ha, u32 tag);
+struct pm8001_device *pm8001_find_dev(struct pm8001_hba_info *pm8001_ha,
+					u32 device_id);
+int pm80xx_set_thermal_config(struct pm8001_hba_info *pm8001_ha);
 
+int pm8001_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue);
+void pm8001_set_phy_profile(struct pm8001_hba_info *pm8001_ha,
+	u32 length, u8 *buf);
+int pm80xx_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue);
+ssize_t pm80xx_get_fatal_dump(struct device *cdev,
+		struct device_attribute *attr, char *buf);
+ssize_t pm8001_get_gsm_dump(struct device *cdev, u32, char *buf);
 /* ctl shared API */
 extern struct device_attribute *pm8001_host_attrs[];
 

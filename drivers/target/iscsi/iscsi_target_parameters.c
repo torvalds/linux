@@ -1,9 +1,7 @@
 /*******************************************************************************
  * This file contains main functions related to iSCSI Parameter negotiation.
  *
- * \u00a9 Copyright 2007-2011 RisingTide Systems LLC.
- *
- * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
+ * (c) Copyright 2007-2013 Datera, Inc.
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
@@ -59,7 +57,7 @@ int iscsi_login_tx_data(
 	char *text_buf,
 	int text_length)
 {
-	int length, tx_sent;
+	int length, tx_sent, iov_cnt = 1;
 	struct kvec iov[2];
 
 	length = (ISCSI_HDR_LEN + text_length);
@@ -67,8 +65,12 @@ int iscsi_login_tx_data(
 	memset(&iov[0], 0, 2 * sizeof(struct kvec));
 	iov[0].iov_len		= ISCSI_HDR_LEN;
 	iov[0].iov_base		= pdu_buf;
-	iov[1].iov_len		= text_length;
-	iov[1].iov_base		= text_buf;
+
+	if (text_buf && text_length) {
+		iov[1].iov_len	= text_length;
+		iov[1].iov_base	= text_buf;
+		iov_cnt++;
+	}
 
 	/*
 	 * Initial Marker-less Interval.
@@ -77,7 +79,7 @@ int iscsi_login_tx_data(
 	 */
 	conn->if_marker += length;
 
-	tx_sent = tx_data(conn, &iov[0], 2, length);
+	tx_sent = tx_data(conn, &iov[0], iov_cnt, length);
 	if (tx_sent != length) {
 		pr_err("tx_data returned %d, expecting %d.\n",
 				tx_sent, length);
@@ -429,6 +431,28 @@ int iscsi_create_default_params(struct iscsi_param_list **param_list_ptr)
 			TYPERANGE_MARKINT, USE_INITIAL_ONLY);
 	if (!param)
 		goto out;
+	/*
+	 * Extra parameters for ISER from RFC-5046
+	 */
+	param = iscsi_set_default_param(pl, RDMAEXTENSIONS, INITIAL_RDMAEXTENSIONS,
+			PHASE_OPERATIONAL, SCOPE_SESSION_WIDE, SENDER_BOTH,
+			TYPERANGE_BOOL_AND, USE_LEADING_ONLY);
+	if (!param)
+		goto out;
+
+	param = iscsi_set_default_param(pl, INITIATORRECVDATASEGMENTLENGTH,
+			INITIAL_INITIATORRECVDATASEGMENTLENGTH,
+			PHASE_OPERATIONAL, SCOPE_CONNECTION_ONLY, SENDER_BOTH,
+			TYPERANGE_512_TO_16777215, USE_ALL);
+	if (!param)
+		goto out;
+
+	param = iscsi_set_default_param(pl, TARGETRECVDATASEGMENTLENGTH,
+			INITIAL_TARGETRECVDATASEGMENTLENGTH,
+			PHASE_OPERATIONAL, SCOPE_CONNECTION_ONLY, SENDER_BOTH,
+			TYPERANGE_512_TO_16777215, USE_ALL);
+	if (!param)
+		goto out;
 
 	*param_list_ptr = pl;
 	return 0;
@@ -438,19 +462,23 @@ out:
 }
 
 int iscsi_set_keys_to_negotiate(
-	int sessiontype,
-	struct iscsi_param_list *param_list)
+	struct iscsi_param_list *param_list,
+	bool iser)
 {
 	struct iscsi_param *param;
+
+	param_list->iser = iser;
 
 	list_for_each_entry(param, &param_list->param_list, p_list) {
 		param->state = 0;
 		if (!strcmp(param->name, AUTHMETHOD)) {
 			SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, HEADERDIGEST)) {
-			SET_PSTATE_NEGOTIATE(param);
+			if (iser == false)
+				SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, DATADIGEST)) {
-			SET_PSTATE_NEGOTIATE(param);
+			if (iser == false)
+				SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, MAXCONNECTIONS)) {
 			SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, TARGETNAME)) {
@@ -469,7 +497,8 @@ int iscsi_set_keys_to_negotiate(
 		} else if (!strcmp(param->name, IMMEDIATEDATA)) {
 			SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, MAXRECVDATASEGMENTLENGTH)) {
-			SET_PSTATE_NEGOTIATE(param);
+			if (iser == false)
+				SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, MAXXMITDATASEGMENTLENGTH)) {
 			continue;
 		} else if (!strcmp(param->name, MAXBURSTLENGTH)) {
@@ -498,6 +527,15 @@ int iscsi_set_keys_to_negotiate(
 			SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, OFMARKINT)) {
 			SET_PSTATE_NEGOTIATE(param);
+		} else if (!strcmp(param->name, RDMAEXTENSIONS)) {
+			if (iser == true)
+				SET_PSTATE_NEGOTIATE(param);
+		} else if (!strcmp(param->name, INITIATORRECVDATASEGMENTLENGTH)) {
+			if (iser == true)
+				SET_PSTATE_NEGOTIATE(param);
+		} else if (!strcmp(param->name, TARGETRECVDATASEGMENTLENGTH)) {
+			if (iser == true)
+				SET_PSTATE_NEGOTIATE(param);
 		}
 	}
 
@@ -539,6 +577,12 @@ int iscsi_set_keys_irrelevant_for_discovery(
 		else if (!strcmp(param->name, IFMARKINT))
 			param->state &= ~PSTATE_NEGOTIATE;
 		else if (!strcmp(param->name, OFMARKINT))
+			param->state &= ~PSTATE_NEGOTIATE;
+		else if (!strcmp(param->name, RDMAEXTENSIONS))
+			param->state &= ~PSTATE_NEGOTIATE;
+		else if (!strcmp(param->name, INITIATORRECVDATASEGMENTLENGTH))
+			param->state &= ~PSTATE_NEGOTIATE;
+		else if (!strcmp(param->name, TARGETRECVDATASEGMENTLENGTH))
 			param->state &= ~PSTATE_NEGOTIATE;
 	}
 
@@ -712,9 +756,9 @@ static int iscsi_add_notunderstood_response(
 	}
 	INIT_LIST_HEAD(&extra_response->er_list);
 
-	strncpy(extra_response->key, key, strlen(key) + 1);
-	strncpy(extra_response->value, NOTUNDERSTOOD,
-			strlen(NOTUNDERSTOOD) + 1);
+	strlcpy(extra_response->key, key, sizeof(extra_response->key));
+	strlcpy(extra_response->value, NOTUNDERSTOOD,
+		sizeof(extra_response->value));
 
 	list_add_tail(&extra_response->er_list,
 			&param_list->extra_response_list);
@@ -1095,11 +1139,11 @@ static int iscsi_check_acceptor_state(struct iscsi_param *param, char *value,
 				SET_PSTATE_REPLY_OPTIONAL(param);
 		}
 	} else if (IS_TYPE_NUMBER(param)) {
-		char *tmpptr, buf[10];
+		char *tmpptr, buf[11];
 		u32 acceptor_value = simple_strtoul(param->value, &tmpptr, 0);
 		u32 proposer_value = simple_strtoul(value, &tmpptr, 0);
 
-		memset(buf, 0, 10);
+		memset(buf, 0, sizeof(buf));
 
 		if (!strcmp(param->name, MAXCONNECTIONS) ||
 		    !strcmp(param->name, MAXBURSTLENGTH) ||
@@ -1136,7 +1180,7 @@ static int iscsi_check_acceptor_state(struct iscsi_param *param, char *value,
 			unsigned long long tmp;
 			int rc;
 
-			rc = strict_strtoull(param->value, 0, &tmp);
+			rc = kstrtoull(param->value, 0, &tmp);
 			if (rc < 0)
 				return -1;
 
@@ -1503,8 +1547,8 @@ static int iscsi_enforce_integrity_rules(
 			FirstBurstLength = simple_strtoul(param->value,
 					&tmpptr, 0);
 			if (FirstBurstLength > MaxBurstLength) {
-				char tmpbuf[10];
-				memset(tmpbuf, 0, 10);
+				char tmpbuf[11];
+				memset(tmpbuf, 0, sizeof(tmpbuf));
 				sprintf(tmpbuf, "%u", MaxBurstLength);
 				if (iscsi_update_param_value(param, tmpbuf))
 					return -1;
@@ -1583,8 +1627,6 @@ int iscsi_decode_text_input(
 
 		if (phase & PHASE_SECURITY) {
 			if (iscsi_check_for_auth_key(key) > 0) {
-				char *tmpptr = key + strlen(key);
-				*tmpptr = '=';
 				kfree(tmpbuf);
 				return 1;
 			}
@@ -1800,6 +1842,22 @@ void iscsi_set_connection_parameters(
 				simple_strtoul(param->value, &tmpptr, 0);
 			pr_debug("IFMarkInt:                    %s\n",
 				param->value);
+		} else if (!strcmp(param->name, INITIATORRECVDATASEGMENTLENGTH)) {
+			ops->InitiatorRecvDataSegmentLength =
+				simple_strtoul(param->value, &tmpptr, 0);
+			pr_debug("InitiatorRecvDataSegmentLength: %s\n",
+				param->value);
+			ops->MaxRecvDataSegmentLength =
+					ops->InitiatorRecvDataSegmentLength;
+			pr_debug("Set MRDSL from InitiatorRecvDataSegmentLength\n");
+		} else if (!strcmp(param->name, TARGETRECVDATASEGMENTLENGTH)) {
+			ops->TargetRecvDataSegmentLength =
+				simple_strtoul(param->value, &tmpptr, 0);
+			pr_debug("TargetRecvDataSegmentLength:  %s\n",
+				param->value);
+			ops->MaxXmitDataSegmentLength =
+					ops->TargetRecvDataSegmentLength;
+			pr_debug("Set MXDSL from TargetRecvDataSegmentLength\n");
 		}
 	}
 	pr_debug("----------------------------------------------------"
@@ -1911,6 +1969,10 @@ void iscsi_set_session_parameters(
 		} else if (!strcmp(param->name, SESSIONTYPE)) {
 			ops->SessionType = !strcmp(param->value, DISCOVERY);
 			pr_debug("SessionType:                  %s\n",
+				param->value);
+		} else if (!strcmp(param->name, RDMAEXTENSIONS)) {
+			ops->RDMAExtensions = !strcmp(param->value, YES);
+			pr_debug("RDMAExtensions:               %s\n",
 				param->value);
 		}
 	}

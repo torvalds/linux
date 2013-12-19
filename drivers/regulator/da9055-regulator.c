@@ -58,7 +58,6 @@ struct da9055_volt_reg {
 	int reg_b;
 	int sl_shift;
 	int v_mask;
-	int v_shift;
 };
 
 struct da9055_mode_reg {
@@ -388,7 +387,6 @@ static struct regulator_ops da9055_ldo_ops = {
 		.reg_b = DA9055_REG_VBCORE_B + DA9055_ID_##_id, \
 		.sl_shift = 7,\
 		.v_mask = (1 << (vbits)) - 1,\
-		.v_shift = (vbits),\
 	},\
 }
 
@@ -417,7 +415,6 @@ static struct regulator_ops da9055_ldo_ops = {
 		.reg_b = DA9055_REG_VBCORE_B + DA9055_ID_##_id, \
 		.sl_shift = 7,\
 		.v_mask = (1 << (vbits)) - 1,\
-		.v_shift = (vbits),\
 	},\
 	.mode = {\
 		.reg = DA9055_REG_BCORE_MODE,\
@@ -442,9 +439,9 @@ static struct da9055_regulator_info da9055_regulator_info[] = {
  * GPIO can control regulator state and/or select the regulator register
  * set A/B for voltage ramping.
  */
-static __devinit int da9055_gpio_init(struct da9055_regulator *regulator,
-				      struct regulator_config *config,
-				      struct da9055_pdata *pdata, int id)
+static int da9055_gpio_init(struct da9055_regulator *regulator,
+			    struct regulator_config *config,
+			    struct da9055_pdata *pdata, int id)
 {
 	struct da9055_regulator_info *info = regulator->info;
 	int ret = 0;
@@ -533,12 +530,12 @@ static inline struct da9055_regulator_info *find_regulator_info(int id)
 	return NULL;
 }
 
-static int __devinit da9055_regulator_probe(struct platform_device *pdev)
+static int da9055_regulator_probe(struct platform_device *pdev)
 {
 	struct regulator_config config = { };
 	struct da9055_regulator *regulator;
 	struct da9055 *da9055 = dev_get_drvdata(pdev->dev.parent);
-	struct da9055_pdata *pdata = da9055->dev->platform_data;
+	struct da9055_pdata *pdata = dev_get_platdata(da9055->dev);
 	int ret, irq;
 
 	if (pdata == NULL || pdata->regulators[pdev->id] == NULL)
@@ -567,13 +564,13 @@ static int __devinit da9055_regulator_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	regulator->rdev = regulator_register(&regulator->info->reg_desc,
-					     &config);
+	regulator->rdev = devm_regulator_register(&pdev->dev,
+						  &regulator->info->reg_desc,
+						  &config);
 	if (IS_ERR(regulator->rdev)) {
 		dev_err(&pdev->dev, "Failed to register regulator %s\n",
 			regulator->info->reg_desc.name);
-		ret = PTR_ERR(regulator->rdev);
-		return ret;
+		return PTR_ERR(regulator->rdev);
 	}
 
 	/* Only LDO 5 and 6 has got the over current interrupt */
@@ -591,7 +588,7 @@ static int __devinit da9055_regulator_probe(struct platform_device *pdev)
 				dev_err(&pdev->dev,
 				"Failed to request Regulator IRQ %d: %d\n",
 				irq, ret);
-				goto err_regulator;
+				return ret;
 			}
 		}
 	}
@@ -599,24 +596,10 @@ static int __devinit da9055_regulator_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, regulator);
 
 	return 0;
-
-err_regulator:
-	regulator_unregister(regulator->rdev);
-	return ret;
-}
-
-static int __devexit da9055_regulator_remove(struct platform_device *pdev)
-{
-	struct da9055_regulator *regulator = platform_get_drvdata(pdev);
-
-	regulator_unregister(regulator->rdev);
-
-	return 0;
 }
 
 static struct platform_driver da9055_regulator_driver = {
 	.probe = da9055_regulator_probe,
-	.remove = __devexit_p(da9055_regulator_remove),
 	.driver = {
 		.name = "da9055-regulator",
 		.owner = THIS_MODULE,

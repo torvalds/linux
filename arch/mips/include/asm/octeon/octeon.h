@@ -75,15 +75,15 @@ struct octeon_boot_descriptor {
 	uint32_t argc;
 	uint32_t argv[OCTEON_ARGV_MAX_ARGS];
 
-#define  BOOT_FLAG_INIT_CORE		(1 << 0)
-#define  OCTEON_BL_FLAG_DEBUG		(1 << 1)
-#define  OCTEON_BL_FLAG_NO_MAGIC	(1 << 2)
+#define	 BOOT_FLAG_INIT_CORE		(1 << 0)
+#define	 OCTEON_BL_FLAG_DEBUG		(1 << 1)
+#define	 OCTEON_BL_FLAG_NO_MAGIC	(1 << 2)
 	/* If set, use uart1 for console */
-#define  OCTEON_BL_FLAG_CONSOLE_UART1	(1 << 3)
+#define	 OCTEON_BL_FLAG_CONSOLE_UART1	(1 << 3)
 	/* If set, use PCI console */
-#define  OCTEON_BL_FLAG_CONSOLE_PCI	(1 << 4)
+#define	 OCTEON_BL_FLAG_CONSOLE_PCI	(1 << 4)
 	/* Call exit on break on serial port */
-#define  OCTEON_BL_FLAG_BREAK		(1 << 5)
+#define	 OCTEON_BL_FLAG_BREAK		(1 << 5)
 
 	uint32_t flags;
 	uint32_t core_mask;
@@ -250,5 +250,7 @@ extern void (*octeon_irq_setup_secondary)(void);
 
 typedef void (*octeon_irq_ip4_handler_t)(void);
 void octeon_irq_set_ip4_handler(octeon_irq_ip4_handler_t);
+
+extern void octeon_fixup_irqs(void);
 
 #endif /* __ASM_OCTEON_OCTEON_H */

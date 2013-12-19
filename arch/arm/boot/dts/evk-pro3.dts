@@ -9,7 +9,7 @@
 
 /dts-v1/;
 
-/include/ "ge863-pro3.dtsi"
+#include "ge863-pro3.dtsi"
 
 / {
 	model = "Telit EVK-PRO3 for Telit GE863-PRO3";
@@ -31,7 +31,7 @@
 			};
 
 			usb1: gadget@fffa4000 {
-				atmel,vbus-gpio = <&pioC 5 0>;
+				atmel,vbus-gpio = <&pioC 5 GPIO_ACTIVE_HIGH>;
 				status = "okay";
 			};
 

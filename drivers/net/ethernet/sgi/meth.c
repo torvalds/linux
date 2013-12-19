@@ -212,11 +212,11 @@ static void meth_check_link(struct net_device *dev)
 static int meth_init_tx_ring(struct meth_private *priv)
 {
 	/* Init TX ring */
-	priv->tx_ring = dma_alloc_coherent(NULL, TX_RING_BUFFER_SIZE,
-	                                   &priv->tx_ring_dma, GFP_ATOMIC);
+	priv->tx_ring = dma_zalloc_coherent(NULL, TX_RING_BUFFER_SIZE,
+					    &priv->tx_ring_dma, GFP_ATOMIC);
 	if (!priv->tx_ring)
 		return -ENOMEM;
-	memset(priv->tx_ring, 0, TX_RING_BUFFER_SIZE);
+
 	priv->tx_count = priv->tx_read = priv->tx_write = 0;
 	mace->eth.tx_ring_base = priv->tx_ring_dma;
 	/* Now init skb save area */
@@ -839,7 +839,7 @@ static int meth_probe(struct platform_device *pdev)
 	dev->watchdog_timeo	= timeout;
 	dev->irq		= MACE_ETHERNET_IRQ;
 	dev->base_addr		= (unsigned long)&mace->eth;
-	memcpy(dev->dev_addr, o2meth_eaddr, 6);
+	memcpy(dev->dev_addr, o2meth_eaddr, ETH_ALEN);
 
 	priv = netdev_priv(dev);
 	spin_lock_init(&priv->meth_lock);
@@ -862,7 +862,6 @@ static int __exit meth_remove(struct platform_device *pdev)
 
 	unregister_netdev(dev);
 	free_netdev(dev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

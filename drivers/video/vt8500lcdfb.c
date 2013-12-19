@@ -15,22 +15,21 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/errno.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/dma-mapping.h>
+#include <linux/kernel.h>
+#include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/wait.h>
-
-#include <linux/platform_data/video-vt8500lcdfb.h>
+#include <video/of_display_timing.h>
 
 #include "vt8500lcdfb.h"
 #include "wmt_ge_rops.h"
@@ -273,15 +272,15 @@ static irqreturn_t vt8500lcd_handle_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit vt8500lcd_probe(struct platform_device *pdev)
+static int vt8500lcd_probe(struct platform_device *pdev)
 {
 	struct vt8500lcd_info *fbi;
 	struct resource *res;
+	struct display_timings *disp_timing;
 	void *addr;
 	int irq, ret;
 
 	struct fb_videomode	of_mode;
-	struct device_node	*np;
 	u32			bpp;
 	dma_addr_t fb_mem_phys;
 	unsigned long fb_mem_len;
@@ -294,8 +293,7 @@ static int __devinit vt8500lcd_probe(struct platform_device *pdev)
 			+ sizeof(u32) * 16, GFP_KERNEL);
 	if (!fbi) {
 		dev_err(&pdev->dev, "Failed to initialize framebuffer device\n");
-		ret = -ENOMEM;
-		goto failed;
+		return -ENOMEM;
 	}
 
 	strcpy(fbi->fb.fix.id, "VT8500 LCD");
@@ -328,15 +326,13 @@ static int __devinit vt8500lcd_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "no I/O memory resource defined\n");
-		ret = -ENODEV;
-		goto failed_fbi;
+		return -ENODEV;
 	}
 
 	res = request_mem_region(res->start, resource_size(res), "vt8500lcd");
 	if (res == NULL) {
 		dev_err(&pdev->dev, "failed to request I/O memory\n");
-		ret = -EBUSY;
-		goto failed_fbi;
+		return -EBUSY;
 	}
 
 	fbi->regbase = ioremap(res->start, resource_size(res));
@@ -346,32 +342,20 @@ static int __devinit vt8500lcd_probe(struct platform_device *pdev)
 		goto failed_free_res;
 	}
 
-	np = of_parse_phandle(pdev->dev.of_node, "default-mode", 0);
-	if (!np) {
-		pr_err("%s: No display description in Device Tree\n", __func__);
+	disp_timing = of_get_display_timings(pdev->dev.of_node);
+	if (!disp_timing) {
 		ret = -EINVAL;
-		goto failed_free_res;
+		goto failed_free_io;
 	}
 
-	/*
-	 * This code is copied from Sascha Hauer's of_videomode helper
-	 * and can be replaced with a call to the helper once mainlined
-	 */
-	ret = 0;
-	ret |= of_property_read_u32(np, "hactive", &of_mode.xres);
-	ret |= of_property_read_u32(np, "vactive", &of_mode.yres);
-	ret |= of_property_read_u32(np, "hback-porch", &of_mode.left_margin);
-	ret |= of_property_read_u32(np, "hfront-porch", &of_mode.right_margin);
-	ret |= of_property_read_u32(np, "hsync-len", &of_mode.hsync_len);
-	ret |= of_property_read_u32(np, "vback-porch", &of_mode.upper_margin);
-	ret |= of_property_read_u32(np, "vfront-porch", &of_mode.lower_margin);
-	ret |= of_property_read_u32(np, "vsync-len", &of_mode.vsync_len);
-	ret |= of_property_read_u32(np, "bpp", &bpp);
-	if (ret) {
-		pr_err("%s: Unable to read display properties\n", __func__);
-		goto failed_free_res;
-	}
-	of_mode.vmode = FB_VMODE_NONINTERLACED;
+	ret = of_get_fb_videomode(pdev->dev.of_node, &of_mode,
+							OF_USE_NATIVE_MODE);
+	if (ret)
+		goto failed_free_io;
+
+	ret = of_property_read_u32(pdev->dev.of_node, "bits-per-pixel", &bpp);
+	if (ret)
+		goto failed_free_io;
 
 	/* try allocating the framebuffer */
 	fb_mem_len = of_mode.xres * of_mode.yres * 2 * (bpp / 8);
@@ -379,8 +363,9 @@ static int __devinit vt8500lcd_probe(struct platform_device *pdev)
 				GFP_KERNEL);
 	if (!fb_mem_virt) {
 		pr_err("%s: Failed to allocate framebuffer\n", __func__);
-		return -ENOMEM;
-	};
+		ret = -ENOMEM;
+		goto failed_free_io;
+	}
 
 	fbi->fb.fix.smem_start	= fb_mem_phys;
 	fbi->fb.fix.smem_len	= fb_mem_len;
@@ -462,14 +447,10 @@ failed_free_io:
 	iounmap(fbi->regbase);
 failed_free_res:
 	release_mem_region(res->start, resource_size(res));
-failed_fbi:
-	platform_set_drvdata(pdev, NULL);
-	kfree(fbi);
-failed:
 	return ret;
 }
 
-static int __devexit vt8500lcd_remove(struct platform_device *pdev)
+static int vt8500lcd_remove(struct platform_device *pdev)
 {
 	struct vt8500lcd_info *fbi = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -505,7 +486,7 @@ static const struct of_device_id via_dt_ids[] = {
 
 static struct platform_driver vt8500lcd_driver = {
 	.probe		= vt8500lcd_probe,
-	.remove		= __devexit_p(vt8500lcd_remove),
+	.remove		= vt8500lcd_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "vt8500-lcd",

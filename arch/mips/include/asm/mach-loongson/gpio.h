@@ -10,8 +10,8 @@
  * (at your option) any later version.
  */
 
-#ifndef	__STLS2F_GPIO_H
-#define	__STLS2F_GPIO_H
+#ifndef __STLS2F_GPIO_H
+#define __STLS2F_GPIO_H
 
 #include <asm-generic/gpio.h>
 

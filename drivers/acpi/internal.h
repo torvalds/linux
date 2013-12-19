@@ -23,9 +23,43 @@
 
 #define PREFIX "ACPI: "
 
+acpi_status acpi_os_initialize1(void);
 int init_acpi_device_notify(void);
 int acpi_scan_init(void);
+void acpi_pci_root_init(void);
+void acpi_pci_link_init(void);
+void acpi_pci_root_hp_init(void);
+void acpi_processor_init(void);
+void acpi_platform_init(void);
 int acpi_sysfs_init(void);
+#ifdef CONFIG_ACPI_CONTAINER
+void acpi_container_init(void);
+#else
+static inline void acpi_container_init(void) {}
+#endif
+#ifdef CONFIG_ACPI_DOCK
+void acpi_dock_init(void);
+#else
+static inline void acpi_dock_init(void) {}
+#endif
+#ifdef CONFIG_ACPI_HOTPLUG_MEMORY
+void acpi_memory_hotplug_init(void);
+#else
+static inline void acpi_memory_hotplug_init(void) {}
+#endif
+#ifdef CONFIG_X86
+void acpi_cmos_rtc_init(void);
+#else
+static inline void acpi_cmos_rtc_init(void) {}
+#endif
+
+extern bool acpi_force_hot_remove;
+
+void acpi_sysfs_add_hotplug_profile(struct acpi_hotplug_profile *hotplug,
+				    const char *name);
+int acpi_scan_add_handler_with_hotplug(struct acpi_scan_handler *handler,
+				       const char *hotplug_profile_name);
+void acpi_scan_hotplug_enabled(struct acpi_hotplug_profile *hotplug, bool val);
 
 #ifdef CONFIG_DEBUG_FS
 extern struct dentry *acpi_debugfs_dir;
@@ -33,17 +67,43 @@ int acpi_debugfs_init(void);
 #else
 static inline void acpi_debugfs_init(void) { return; }
 #endif
+#ifdef CONFIG_X86_INTEL_LPSS
+void acpi_lpss_init(void);
+#else
+static inline void acpi_lpss_init(void) {}
+#endif
+
+/* --------------------------------------------------------------------------
+                     Device Node Initialization / Removal
+   -------------------------------------------------------------------------- */
+#define ACPI_STA_DEFAULT (ACPI_STA_DEVICE_PRESENT | ACPI_STA_DEVICE_ENABLED | \
+			  ACPI_STA_DEVICE_UI | ACPI_STA_DEVICE_FUNCTIONING)
+
+int acpi_device_add(struct acpi_device *device,
+		    void (*release)(struct device *));
+void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
+			     int type, unsigned long long sta);
+void acpi_device_add_finalize(struct acpi_device *device);
+void acpi_free_pnp_ids(struct acpi_device_pnp *pnp);
+int acpi_bind_one(struct device *dev, acpi_handle handle);
+int acpi_unbind_one(struct device *dev);
+void acpi_bus_device_eject(void *data, u32 ost_src);
 
 /* --------------------------------------------------------------------------
                                   Power Resource
    -------------------------------------------------------------------------- */
 int acpi_power_init(void);
+void acpi_power_resources_list_free(struct list_head *list);
+int acpi_extract_power_resources(union acpi_object *package, unsigned int start,
+				 struct list_head *list);
+int acpi_add_power_resource(acpi_handle handle);
+void acpi_power_add_remove_device(struct acpi_device *adev, bool add);
+int acpi_power_wakeup_list_init(struct list_head *list, int *system_level);
 int acpi_device_sleep_wake(struct acpi_device *dev,
                            int enable, int sleep_state, int dev_state);
 int acpi_power_get_inferred_state(struct acpi_device *device, int *state);
 int acpi_power_on_resources(struct acpi_device *device, int state);
 int acpi_power_transition(struct acpi_device *device, int state);
-int acpi_bus_init_power(struct acpi_device *device);
 
 int acpi_wakeup_device_init(void);
 void acpi_early_processor_set_pdc(void);
@@ -98,6 +158,14 @@ static inline void suspend_nvs_restore(void) {}
   -------------------------------------------------------------------------- */
 struct platform_device;
 
-struct platform_device *acpi_create_platform_device(struct acpi_device *adev);
+int acpi_create_platform_device(struct acpi_device *adev,
+				const struct acpi_device_id *id);
+
+/*--------------------------------------------------------------------------
+					Video
+  -------------------------------------------------------------------------- */
+#if defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE)
+bool acpi_osi_is_win8(void);
+#endif
 
 #endif /* _ACPI_INTERNAL_H_ */

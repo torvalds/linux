@@ -26,7 +26,6 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/pinctrl/consumer.h>
 
 #include "imx-audmux.h"
 
@@ -67,21 +66,25 @@ static ssize_t audmux_read_file(struct file *file, char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
 	ssize_t ret;
-	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	char *buf;
 	int port = (int)file->private_data;
 	u32 pdcr, ptcr;
 
-	if (!buf)
-		return -ENOMEM;
-
-	if (audmux_clk)
-		clk_prepare_enable(audmux_clk);
+	if (audmux_clk) {
+		ret = clk_prepare_enable(audmux_clk);
+		if (ret)
+			return ret;
+	}
 
 	ptcr = readl(audmux_base + IMX_AUDMUX_V2_PTCR(port));
 	pdcr = readl(audmux_base + IMX_AUDMUX_V2_PDCR(port));
 
 	if (audmux_clk)
 		clk_disable_unprepare(audmux_clk);
+
+	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
 	ret = snprintf(buf, PAGE_SIZE, "PDCR: %08x\nPTCR: %08x\n",
 		       pdcr, ptcr);
@@ -176,7 +179,7 @@ static inline void audmux_debugfs_remove(void)
 }
 #endif
 
-enum imx_audmux_type {
+static enum imx_audmux_type {
 	IMX21_AUDMUX,
 	IMX31_AUDMUX,
 } audmux_type;
@@ -225,14 +228,19 @@ EXPORT_SYMBOL_GPL(imx_audmux_v1_configure_port);
 int imx_audmux_v2_configure_port(unsigned int port, unsigned int ptcr,
 		unsigned int pdcr)
 {
+	int ret;
+
 	if (audmux_type != IMX31_AUDMUX)
 		return -EINVAL;
 
 	if (!audmux_base)
 		return -ENOSYS;
 
-	if (audmux_clk)
-		clk_prepare_enable(audmux_clk);
+	if (audmux_clk) {
+		ret = clk_prepare_enable(audmux_clk);
+		if (ret)
+			return ret;
+	}
 
 	writel(ptcr, audmux_base + IMX_AUDMUX_V2_PTCR(port));
 	writel(pdcr, audmux_base + IMX_AUDMUX_V2_PDCR(port));
@@ -244,25 +252,78 @@ int imx_audmux_v2_configure_port(unsigned int port, unsigned int ptcr,
 }
 EXPORT_SYMBOL_GPL(imx_audmux_v2_configure_port);
 
+static int imx_audmux_parse_dt_defaults(struct platform_device *pdev,
+		struct device_node *of_node)
+{
+	struct device_node *child;
+
+	for_each_available_child_of_node(of_node, child) {
+		unsigned int port;
+		unsigned int ptcr = 0;
+		unsigned int pdcr = 0;
+		unsigned int pcr = 0;
+		unsigned int val;
+		int ret;
+		int i = 0;
+
+		ret = of_property_read_u32(child, "fsl,audmux-port", &port);
+		if (ret) {
+			dev_warn(&pdev->dev, "Failed to get fsl,audmux-port of child node \"%s\"\n",
+					child->full_name);
+			continue;
+		}
+		if (!of_property_read_bool(child, "fsl,port-config")) {
+			dev_warn(&pdev->dev, "child node \"%s\" does not have property fsl,port-config\n",
+					child->full_name);
+			continue;
+		}
+
+		for (i = 0; (ret = of_property_read_u32_index(child,
+					"fsl,port-config", i, &val)) == 0;
+				++i) {
+			if (audmux_type == IMX31_AUDMUX) {
+				if (i % 2)
+					pdcr |= val;
+				else
+					ptcr |= val;
+			} else {
+				pcr |= val;
+			}
+		}
+
+		if (ret != -EOVERFLOW) {
+			dev_err(&pdev->dev, "Failed to read u32 at index %d of child %s\n",
+					i, child->full_name);
+			continue;
+		}
+
+		if (audmux_type == IMX31_AUDMUX) {
+			if (i % 2) {
+				dev_err(&pdev->dev, "One pdcr value is missing in child node %s\n",
+						child->full_name);
+				continue;
+			}
+			imx_audmux_v2_configure_port(port, ptcr, pdcr);
+		} else {
+			imx_audmux_v1_configure_port(port, pcr);
+		}
+	}
+
+	return 0;
+}
+
 static int imx_audmux_probe(struct platform_device *pdev)
 {
 	struct resource *res;
-	struct pinctrl *pinctrl;
 	const struct of_device_id *of_id =
 			of_match_device(imx_audmux_dt_ids, &pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	audmux_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!audmux_base)
-		return -EADDRNOTAVAIL;
+	audmux_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(audmux_base))
+		return PTR_ERR(audmux_base);
 
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		dev_err(&pdev->dev, "setup pinctrl failed!");
-		return PTR_ERR(pinctrl);
-	}
-
-	audmux_clk = clk_get(&pdev->dev, "audmux");
+	audmux_clk = devm_clk_get(&pdev->dev, "audmux");
 	if (IS_ERR(audmux_clk)) {
 		dev_dbg(&pdev->dev, "cannot get clock: %ld\n",
 				PTR_ERR(audmux_clk));
@@ -275,6 +336,9 @@ static int imx_audmux_probe(struct platform_device *pdev)
 	if (audmux_type == IMX31_AUDMUX)
 		audmux_debugfs_init();
 
+	if (of_id)
+		imx_audmux_parse_dt_defaults(pdev, pdev->dev.of_node);
+
 	return 0;
 }
 
@@ -282,7 +346,6 @@ static int imx_audmux_remove(struct platform_device *pdev)
 {
 	if (audmux_type == IMX31_AUDMUX)
 		audmux_debugfs_remove();
-	clk_put(audmux_clk);
 
 	return 0;
 }

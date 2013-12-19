@@ -453,8 +453,8 @@ static void lx_trigger_start(struct lx6464es *chip, struct lx_stream *lx_stream)
 				     lower_32_bits(buf), upper_32_bits(buf),
 				     &buffer_index);
 
-		snd_printdd(LXP "starting: buffer index %x on %p (%d bytes)\n",
-			    buffer_index, (void *)buf, period_bytes);
+		snd_printdd(LXP "starting: buffer index %x on 0x%lx (%d bytes)\n",
+			    buffer_index, (unsigned long)buf, period_bytes);
 		buf += period_bytes;
 	}
 
@@ -1139,7 +1139,6 @@ out_free:
 static void snd_lx6464es_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 

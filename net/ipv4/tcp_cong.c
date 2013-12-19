@@ -15,8 +15,6 @@
 #include <linux/gfp.h>
 #include <net/tcp.h>
 
-int sysctl_tcp_max_ssthresh = 0;
-
 static DEFINE_SPINLOCK(tcp_cong_list_lock);
 static LIST_HEAD(tcp_cong_list);
 
@@ -299,46 +297,24 @@ bool tcp_is_cwnd_limited(const struct sock *sk, u32 in_flight)
 }
 EXPORT_SYMBOL_GPL(tcp_is_cwnd_limited);
 
-/*
- * Slow start is used when congestion window is less than slow start
- * threshold. This version implements the basic RFC2581 version
- * and optionally supports:
- * 	RFC3742 Limited Slow Start  	  - growth limited to max_ssthresh
- *	RFC3465 Appropriate Byte Counting - growth limited by bytes acknowledged
+/* Slow start is used when congestion window is no greater than the slow start
+ * threshold. We base on RFC2581 and also handle stretch ACKs properly.
+ * We do not implement RFC3465 Appropriate Byte Counting (ABC) per se but
+ * something better;) a packet is only considered (s)acked in its entirety to
+ * defend the ACK attacks described in the RFC. Slow start processes a stretch
+ * ACK of degree N as if N acks of degree 1 are received back to back except
+ * ABC caps N to 2. Slow start exits when cwnd grows over ssthresh and
+ * returns the leftover acks to adjust cwnd in congestion avoidance mode.
  */
-void tcp_slow_start(struct tcp_sock *tp)
+int tcp_slow_start(struct tcp_sock *tp, u32 acked)
 {
-	int cnt; /* increase in packets */
-	unsigned int delta = 0;
+	u32 cwnd = tp->snd_cwnd + acked;
 
-	/* RFC3465: ABC Slow start
-	 * Increase only after a full MSS of bytes is acked
-	 *
-	 * TCP sender SHOULD increase cwnd by the number of
-	 * previously unacknowledged bytes ACKed by each incoming
-	 * acknowledgment, provided the increase is not more than L
-	 */
-	if (sysctl_tcp_abc && tp->bytes_acked < tp->mss_cache)
-		return;
-
-	if (sysctl_tcp_max_ssthresh > 0 && tp->snd_cwnd > sysctl_tcp_max_ssthresh)
-		cnt = sysctl_tcp_max_ssthresh >> 1;	/* limited slow start */
-	else
-		cnt = tp->snd_cwnd;			/* exponential increase */
-
-	/* RFC3465: ABC
-	 * We MAY increase by 2 if discovered delayed ack
-	 */
-	if (sysctl_tcp_abc > 1 && tp->bytes_acked >= 2*tp->mss_cache)
-		cnt <<= 1;
-	tp->bytes_acked = 0;
-
-	tp->snd_cwnd_cnt += cnt;
-	while (tp->snd_cwnd_cnt >= tp->snd_cwnd) {
-		tp->snd_cwnd_cnt -= tp->snd_cwnd;
-		delta++;
-	}
-	tp->snd_cwnd = min(tp->snd_cwnd + delta, tp->snd_cwnd_clamp);
+	if (cwnd > tp->snd_ssthresh)
+		cwnd = tp->snd_ssthresh + 1;
+	acked -= cwnd - tp->snd_cwnd;
+	tp->snd_cwnd = min(cwnd, tp->snd_cwnd_clamp);
+	return acked;
 }
 EXPORT_SYMBOL_GPL(tcp_slow_start);
 
@@ -362,7 +338,7 @@ EXPORT_SYMBOL_GPL(tcp_cong_avoid_ai);
 /* This is Jacobson's slow start and congestion avoidance.
  * SIGCOMM '88, p. 328.
  */
-void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
+void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked, u32 in_flight)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -371,21 +347,10 @@ void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 
 	/* In "safe" area, increase. */
 	if (tp->snd_cwnd <= tp->snd_ssthresh)
-		tcp_slow_start(tp);
-
+		tcp_slow_start(tp, acked);
 	/* In dangerous area, increase slowly. */
-	else if (sysctl_tcp_abc) {
-		/* RFC3465: Appropriate Byte Count
-		 * increase once for each full cwnd acked
-		 */
-		if (tp->bytes_acked >= tp->snd_cwnd*tp->mss_cache) {
-			tp->bytes_acked -= tp->snd_cwnd*tp->mss_cache;
-			if (tp->snd_cwnd < tp->snd_cwnd_clamp)
-				tp->snd_cwnd++;
-		}
-	} else {
+	else
 		tcp_cong_avoid_ai(tp, tp->snd_cwnd);
-	}
 }
 EXPORT_SYMBOL_GPL(tcp_reno_cong_avoid);
 

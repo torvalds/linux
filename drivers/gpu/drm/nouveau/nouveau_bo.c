@@ -28,6 +28,7 @@
  */
 
 #include <core/engine.h>
+#include <linux/swiotlb.h>
 
 #include <subdev/fb.h>
 #include <subdev/vm.h>
@@ -97,12 +98,7 @@ nv10_bo_put_tile_region(struct drm_device *dev, struct nouveau_drm_tile *tile,
 
 	if (tile) {
 		spin_lock(&drm->tile.lock);
-		if (fence) {
-			/* Mark it as pending. */
-			tile->fence = fence;
-			nouveau_fence_ref(fence);
-		}
-
+		tile->fence = nouveau_fence_ref(fence);
 		tile->used = false;
 		spin_unlock(&drm->tile.lock);
 	}
@@ -145,8 +141,9 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 	struct drm_device *dev = drm->dev;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 
-	if (unlikely(nvbo->gem))
+	if (unlikely(nvbo->gem.filp))
 		DRM_ERROR("bo %p still attached to GEM object\n", bo);
+	WARN_ON(nvbo->pin_refcnt > 0);
 	nv10_bo_put_tile_region(dev, nvbo->tile, NULL);
 	kfree(nvbo);
 }
@@ -196,6 +193,17 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	size_t acc_size;
 	int ret;
 	int type = ttm_bo_type_device;
+	int lpg_shift = 12;
+	int max_size;
+
+	if (drm->client.base.vm)
+		lpg_shift = drm->client.base.vm->vmm->lpg_shift;
+	max_size = INT_MAX & ~((1 << lpg_shift) - 1);
+
+	if (size <= 0 || size > max_size) {
+		nv_warn(drm, "skipped size %x\n", (u32)size);
+		return -EINVAL;
+	}
 
 	if (sg)
 		type = ttm_bo_type_sg;
@@ -254,9 +262,10 @@ set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct nouveau_fb *pfb = nouveau_fb(drm->device);
-	u32 vram_pages = pfb->ram.size >> PAGE_SHIFT;
+	u32 vram_pages = pfb->ram->size >> PAGE_SHIFT;
 
-	if (nv_device(drm->device)->card_type == NV_10 &&
+	if ((nv_device(drm->device)->card_type == NV_10 ||
+	     nv_device(drm->device)->card_type == NV_11) &&
 	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM) &&
 	    nvbo->bo.mem.num_pages < vram_pages / 4) {
 		/*
@@ -300,17 +309,18 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype)
 	struct ttm_buffer_object *bo = &nvbo->bo;
 	int ret;
 
+	ret = ttm_bo_reserve(bo, false, false, false, 0);
+	if (ret)
+		goto out;
+
 	if (nvbo->pin_refcnt && !(memtype & (1 << bo->mem.mem_type))) {
 		NV_ERROR(drm, "bo %p pinned elsewhere: 0x%08x vs 0x%08x\n", bo,
 			 1 << bo->mem.mem_type, memtype);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	if (nvbo->pin_refcnt++)
-		return 0;
-
-	ret = ttm_bo_reserve(bo, false, false, false, 0);
-	if (ret)
 		goto out;
 
 	nouveau_bo_placement_set(nvbo, memtype, 0);
@@ -328,10 +338,8 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype)
 			break;
 		}
 	}
-	ttm_bo_unreserve(bo);
 out:
-	if (unlikely(ret))
-		nvbo->pin_refcnt--;
+	ttm_bo_unreserve(bo);
 	return ret;
 }
 
@@ -340,14 +348,16 @@ nouveau_bo_unpin(struct nouveau_bo *nvbo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct ttm_buffer_object *bo = &nvbo->bo;
-	int ret;
-
-	if (--nvbo->pin_refcnt)
-		return 0;
+	int ret, ref;
 
 	ret = ttm_bo_reserve(bo, false, false, false, 0);
 	if (ret)
 		return ret;
+
+	ref = --nvbo->pin_refcnt;
+	WARN_ON_ONCE(ref < 0);
+	if (ref)
+		goto out;
 
 	nouveau_bo_placement_set(nvbo, bo->mem.placement, 0);
 
@@ -365,6 +375,7 @@ nouveau_bo_unpin(struct nouveau_bo *nvbo)
 		}
 	}
 
+out:
 	ttm_bo_unreserve(bo);
 	return ret;
 }
@@ -561,7 +572,7 @@ nouveau_bo_move_accel_cleanup(struct nouveau_channel *chan,
 	struct nouveau_fence *fence = NULL;
 	int ret;
 
-	ret = nouveau_fence_new(chan, &fence);
+	ret = nouveau_fence_new(chan, false, &fence);
 	if (ret)
 		return ret;
 
@@ -577,7 +588,7 @@ nve0_bo_move_init(struct nouveau_channel *chan, u32 handle)
 	int ret = RING_SPACE(chan, 2);
 	if (ret == 0) {
 		BEGIN_NVC0(chan, NvSubCopy, 0x0000, 1);
-		OUT_RING  (chan, handle);
+		OUT_RING  (chan, handle & 0x0000ffff);
 		FIRE_RING (chan);
 	}
 	return ret;
@@ -800,7 +811,7 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		stride  = 16 * 4;
 		height  = amount / stride;
 
-		if (new_mem->mem_type == TTM_PL_VRAM &&
+		if (old_mem->mem_type == TTM_PL_VRAM &&
 		    nouveau_bo_tile_layout(nvbo)) {
 			ret = RING_SPACE(chan, 8);
 			if (ret)
@@ -822,7 +833,7 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 			BEGIN_NV04(chan, NvSubCopy, 0x0200, 1);
 			OUT_RING  (chan, 1);
 		}
-		if (old_mem->mem_type == TTM_PL_VRAM &&
+		if (new_mem->mem_type == TTM_PL_VRAM &&
 		    nouveau_bo_tile_layout(nvbo)) {
 			ret = RING_SPACE(chan, 8);
 			if (ret)
@@ -967,12 +978,12 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 		     bool no_wait_gpu, struct ttm_mem_reg *new_mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
-	struct nouveau_channel *chan = chan = drm->channel;
+	struct nouveau_channel *chan = drm->ttm.chan;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	int ret;
 
-	mutex_lock(&chan->cli->mutex);
+	mutex_lock_nested(&chan->cli->mutex, SINGLE_DEPTH_NESTING);
 
 	/* create temporary vmas for the transfer and attach them to the
 	 * old nouveau_mem node, these will get cleaned up after ttm has
@@ -1013,7 +1024,7 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 			    struct ttm_mem_reg *, struct ttm_mem_reg *);
 		int (*init)(struct nouveau_channel *, u32 handle);
 	} _methods[] = {
-		{  "COPY", 0, 0xa0b5, nve0_bo_move_copy, nve0_bo_move_init },
+		{  "COPY", 4, 0xa0b5, nve0_bo_move_copy, nve0_bo_move_init },
 		{  "GRCE", 0, 0xa0b5, nve0_bo_move_copy, nvc0_bo_move_init },
 		{ "COPY1", 5, 0x90b8, nvc0_bo_move_copy, nvc0_bo_move_init },
 		{ "COPY0", 4, 0x90b5, nvc0_bo_move_copy, nvc0_bo_move_init },
@@ -1033,7 +1044,7 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 		struct nouveau_channel *chan;
 		u32 handle = (mthd->engine << 16) | mthd->oclass;
 
-		if (mthd->init == nve0_bo_move_init)
+		if (mthd->engine)
 			chan = drm->cechan;
 		else
 			chan = drm->channel;
@@ -1051,6 +1062,7 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 			}
 
 			drm->ttm.move = mthd->exec;
+			drm->ttm.chan = chan;
 			name = mthd->name;
 			break;
 		}
@@ -1249,7 +1261,9 @@ out:
 static int
 nouveau_bo_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
-	return 0;
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+
+	return drm_vma_node_verify_access(&nvbo->gem.vma_node, filp);
 }
 
 static int
@@ -1276,7 +1290,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 		if (drm->agp.stat == ENABLED) {
 			mem->bus.offset = mem->start << PAGE_SHIFT;
 			mem->bus.base = drm->agp.base;
-			mem->bus.is_iomem = true;
+			mem->bus.is_iomem = !dev->agp->cant_use_aperture;
 		}
 #endif
 		break;
@@ -1443,14 +1457,12 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 void
 nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence)
 {
+	struct nouveau_fence *new_fence = nouveau_fence_ref(fence);
 	struct nouveau_fence *old_fence = NULL;
-
-	if (likely(fence))
-		nouveau_fence_ref(fence);
 
 	spin_lock(&nvbo->bo.bdev->fence_lock);
 	old_fence = nvbo->bo.sync_obj;
-	nvbo->bo.sync_obj = fence;
+	nvbo->bo.sync_obj = new_fence;
 	spin_unlock(&nvbo->bo.bdev->fence_lock);
 
 	nouveau_fence_unref(&old_fence);
@@ -1533,7 +1545,8 @@ nouveau_bo_vma_add(struct nouveau_bo *nvbo, struct nouveau_vm *vm,
 
 	if (nvbo->bo.mem.mem_type == TTM_PL_VRAM)
 		nouveau_vm_map(vma, nvbo->bo.mem.mm_node);
-	else if (nvbo->bo.mem.mem_type == TTM_PL_TT) {
+	else if (nvbo->bo.mem.mem_type == TTM_PL_TT &&
+		 nvbo->page_shift == vma->vm->vmm->spg_shift) {
 		if (node->sg)
 			nouveau_vm_map_sg_table(vma, 0, size, node);
 		else
@@ -1549,13 +1562,8 @@ void
 nouveau_bo_vma_del(struct nouveau_bo *nvbo, struct nouveau_vma *vma)
 {
 	if (vma->node) {
-		if (nvbo->bo.mem.mem_type != TTM_PL_SYSTEM) {
-			spin_lock(&nvbo->bo.bdev->fence_lock);
-			ttm_bo_wait(&nvbo->bo, false, false, false);
-			spin_unlock(&nvbo->bo.bdev->fence_lock);
+		if (nvbo->bo.mem.mem_type != TTM_PL_SYSTEM)
 			nouveau_vm_unmap(vma);
-		}
-
 		nouveau_vm_put(vma);
 		list_del(&vma->head);
 	}

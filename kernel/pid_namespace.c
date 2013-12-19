@@ -15,11 +15,9 @@
 #include <linux/err.h>
 #include <linux/acct.h>
 #include <linux/slab.h>
-#include <linux/proc_fs.h>
+#include <linux/proc_ns.h>
 #include <linux/reboot.h>
 #include <linux/export.h>
-
-#define BITS_PER_PAGE		(PAGE_SIZE*8)
 
 struct pid_cache {
 	int nr_ids;
@@ -115,6 +113,7 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	ns->level = level;
 	ns->parent = get_pid_ns(parent_pid_ns);
 	ns->user_ns = get_user_ns(user_ns);
+	ns->nr_hashed = PIDNS_HASH_ADDING;
 	INIT_WORK(&ns->proc_work, proc_cleanup_work);
 
 	set_bit(0, ns->pidmap[0].page);
@@ -133,6 +132,12 @@ out:
 	return ERR_PTR(err);
 }
 
+static void delayed_free_pidns(struct rcu_head *p)
+{
+	kmem_cache_free(pid_ns_cachep,
+			container_of(p, struct pid_namespace, rcu));
+}
+
 static void destroy_pid_namespace(struct pid_namespace *ns)
 {
 	int i;
@@ -141,7 +146,7 @@ static void destroy_pid_namespace(struct pid_namespace *ns)
 	for (i = 0; i < PIDMAP_ENTRIES; i++)
 		kfree(ns->pidmap[i].page);
 	put_user_ns(ns->user_ns);
-	kmem_cache_free(pid_ns_cachep, ns);
+	call_rcu(&ns->rcu, delayed_free_pidns);
 }
 
 struct pid_namespace *copy_pid_ns(unsigned long flags,
@@ -180,6 +185,10 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	int nr;
 	int rc;
 	struct task_struct *task, *me = current;
+	int init_pids = thread_group_leader(me) ? 1 : 2;
+
+	/* Don't allow any more processes into the pid namespace */
+	disable_pid_allocation(pid_ns);
 
 	/* Ignore SIGCHLD causing any terminated children to autoreap */
 	spin_lock_irq(&me->sighand->siglock);
@@ -226,7 +235,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	 */
 	for (;;) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		if (pid_ns->nr_hashed == 1)
+		if (pid_ns->nr_hashed == init_pids)
 			break;
 		schedule();
 	}
@@ -326,7 +335,7 @@ static int pidns_install(struct nsproxy *nsproxy, void *ns)
 	struct pid_namespace *ancestor, *new = ns;
 
 	if (!ns_capable(new->user_ns, CAP_SYS_ADMIN) ||
-	    !nsown_capable(CAP_SYS_ADMIN))
+	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
 		return -EPERM;
 
 	/*
@@ -346,8 +355,8 @@ static int pidns_install(struct nsproxy *nsproxy, void *ns)
 	if (ancestor != active)
 		return -EINVAL;
 
-	put_pid_ns(nsproxy->pid_ns);
-	nsproxy->pid_ns = get_pid_ns(new);
+	put_pid_ns(nsproxy->pid_ns_for_children);
+	nsproxy->pid_ns_for_children = get_pid_ns(new);
 	return 0;
 }
 

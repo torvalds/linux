@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -193,6 +193,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 			return_VOID;
 
 		default:
+
 			break;
 		}
 
@@ -226,6 +227,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 					break;
 
 				default:
+
 					acpi_ex_do_debug_object((source_desc->
 								 reference.
 								 node)->object,

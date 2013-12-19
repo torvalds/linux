@@ -222,6 +222,8 @@ struct bfa_ioc_hwif {
 #define bfa_ioc_bar0(__ioc)		((__ioc)->pcidev.pci_bar_kva)
 #define bfa_ioc_portid(__ioc)		((__ioc)->port_id)
 #define bfa_ioc_asic_gen(__ioc)		((__ioc)->asic_gen)
+#define bfa_ioc_is_default(__ioc)	\
+	(bfa_ioc_pcifn(__ioc) == bfa_ioc_portid(__ioc))
 #define bfa_ioc_fetch_stats(__ioc, __stats) \
 		(((__stats)->drv_stats) = (__ioc)->stats)
 #define bfa_ioc_clr_stats(__ioc)	\

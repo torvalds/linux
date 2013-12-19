@@ -338,7 +338,8 @@ static int s35390a_probe(struct i2c_client *client,
 		goto exit;
 	}
 
-	s35390a = kzalloc(sizeof(struct s35390a), GFP_KERNEL);
+	s35390a = devm_kzalloc(&client->dev, sizeof(struct s35390a),
+				GFP_KERNEL);
 	if (!s35390a) {
 		err = -ENOMEM;
 		goto exit;
@@ -386,8 +387,9 @@ static int s35390a_probe(struct i2c_client *client,
 
 	device_set_wakeup_capable(&client->dev, 1);
 
-	s35390a->rtc = rtc_device_register(s35390a_driver.driver.name,
-				&client->dev, &s35390a_rtc_ops, THIS_MODULE);
+	s35390a->rtc = devm_rtc_device_register(&client->dev,
+					s35390a_driver.driver.name,
+					&s35390a_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(s35390a->rtc)) {
 		err = PTR_ERR(s35390a->rtc);
@@ -399,7 +401,6 @@ exit_dummy:
 	for (i = 1; i < 8; ++i)
 		if (s35390a->client[i])
 			i2c_unregister_device(s35390a->client[i]);
-	kfree(s35390a);
 
 exit:
 	return err;
@@ -408,14 +409,11 @@ exit:
 static int s35390a_remove(struct i2c_client *client)
 {
 	unsigned int i;
-
 	struct s35390a *s35390a = i2c_get_clientdata(client);
+
 	for (i = 1; i < 8; ++i)
 		if (s35390a->client[i])
 			i2c_unregister_device(s35390a->client[i]);
-
-	rtc_device_unregister(s35390a->rtc);
-	kfree(s35390a);
 
 	return 0;
 }

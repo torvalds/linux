@@ -27,7 +27,7 @@
 /*
  * Return the reason code for a reservations's DRP IE.
  */
-int uwb_rsv_reason_code(struct uwb_rsv *rsv)
+static int uwb_rsv_reason_code(struct uwb_rsv *rsv)
 {
 	static const int reason_codes[] = {
 		[UWB_RSV_STATE_O_INITIATED]          = UWB_DRP_REASON_ACCEPTED,
@@ -55,7 +55,7 @@ int uwb_rsv_reason_code(struct uwb_rsv *rsv)
 /*
  * Return the reason code for a reservations's companion DRP IE .
  */
-int uwb_rsv_companion_reason_code(struct uwb_rsv *rsv)
+static int uwb_rsv_companion_reason_code(struct uwb_rsv *rsv)
 {
 	static const int companion_reason_codes[] = {
 		[UWB_RSV_STATE_O_MOVE_EXPANDING]     = UWB_DRP_REASON_ACCEPTED,

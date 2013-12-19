@@ -32,7 +32,7 @@ cpus {
 			396000  950000
 			198000  850000
 		>;
-		transition-latency = <61036>; /* two CLK32 periods */
+		clock-latency = <61036>; /* two CLK32 periods */
 	};
 
 	cpu@1 {

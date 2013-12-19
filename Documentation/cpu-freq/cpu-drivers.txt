@@ -23,8 +23,8 @@ Contents:
 1.1  Initialization
 1.2  Per-CPU Initialization
 1.3  verify
-1.4  target or setpolicy?
-1.5  target
+1.4  target/target_index or setpolicy?
+1.5  target/target_index
 1.6  setpolicy
 2.   Frequency Table Helpers
 
@@ -50,15 +50,14 @@ What shall this struct cpufreq_driver contain?
 
 cpufreq_driver.name -		The name of this driver.
 
-cpufreq_driver.owner -		THIS_MODULE;
-
 cpufreq_driver.init -		A pointer to the per-CPU initialization 
 				function.
 
 cpufreq_driver.verify -		A pointer to a "verification" function.
 
 cpufreq_driver.setpolicy _or_ 
-cpufreq_driver.target -		See below on the differences.
+cpufreq_driver.target/
+target_index		-	See below on the differences.
 
 And optionally
 
@@ -68,7 +67,7 @@ cpufreq_driver.resume -		A pointer to a per-CPU resume function
 				which is called with interrupts disabled
 				and _before_ the pre-suspend frequency
 				and/or policy is restored by a call to
-				->target or ->setpolicy.
+				->target/target_index or ->setpolicy.
 
 cpufreq_driver.attr -		A pointer to a NULL-terminated list of
 				"struct freq_attr" which allow to
@@ -105,11 +104,18 @@ policy->governor		must contain the "default policy" for
 				this CPU. A few moments later,
 				cpufreq_driver.verify and either
 				cpufreq_driver.setpolicy or
-				cpufreq_driver.target is called with
-				these values.
+				cpufreq_driver.target/target_index is called
+				with these values.
 
-For setting some of these values, the frequency table helpers might be
-helpful. See the section 2 for more information on them.
+For setting some of these values (cpuinfo.min[max]_freq, policy->min[max]), the
+frequency table helpers might be helpful. See the section 2 for more information
+on them.
+
+SMP systems normally have same clock source for a group of cpus. For these the
+.init() would be called only once for the first online cpu. Here the .init()
+routine must initialize policy->cpus with mask of all possible cpus (Online +
+Offline) that share the clock. Then the core would copy this mask onto
+policy->related_cpus and will reset policy->cpus to carry only online cpus.
 
 
 1.3 verify
@@ -128,20 +134,28 @@ range) is within policy->min and policy->max. If necessary, increase
 policy->max first, and only if this is no solution, decrease policy->min.
 
 
-1.4 target or setpolicy?
+1.4 target/target_index or setpolicy?
 ----------------------------
 
 Most cpufreq drivers or even most cpu frequency scaling algorithms 
 only allow the CPU to be set to one frequency. For these, you use the
-->target call.
+->target/target_index call.
 
 Some cpufreq-capable processors switch the frequency between certain
 limits on their own. These shall use the ->setpolicy call
 
 
-1.4. target
+1.4. target/target_index
 -------------
 
+The target_index call has two arguments: struct cpufreq_policy *policy,
+and unsigned int index (into the exposed frequency table).
+
+The CPUfreq driver must set the new frequency when called here. The
+actual frequency must be determined by freq_table[index].frequency.
+
+Deprecated:
+----------
 The target call has three arguments: struct cpufreq_policy *policy,
 unsigned int target_frequency, unsigned int relation.
 
@@ -178,10 +192,10 @@ the reference implementation in drivers/cpufreq/longrun.c
 As most cpufreq processors only allow for being set to a few specific
 frequencies, a "frequency table" with some functions might assist in
 some work of the processor driver. Such a "frequency table" consists
-of an array of struct cpufreq_freq_table entries, with any value in
-"index" you want to use, and the corresponding frequency in
+of an array of struct cpufreq_frequency_table entries, with any value in
+"driver_data" you want to use, and the corresponding frequency in
 "frequency". At the end of the table, you need to add a
-cpufreq_freq_table entry with frequency set to CPUFREQ_TABLE_END. And
+cpufreq_frequency_table entry with frequency set to CPUFREQ_TABLE_END. And
 if you want to skip one entry in the table, set the frequency to 
 CPUFREQ_ENTRY_INVALID. The entries don't need to be in ascending
 order.
@@ -207,10 +221,4 @@ int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 is the corresponding frequency table helper for the ->target
 stage. Just pass the values to this function, and the unsigned int
 index returns the number of the frequency table entry which contains
-the frequency the CPU shall be set to. PLEASE NOTE: This is not the
-"index" which is in this cpufreq_table_entry.index, but instead
-cpufreq_table[index]. So, the new frequency is
-cpufreq_table[index].frequency, and the value you stored into the
-frequency table "index" field is
-cpufreq_table[index].index.
-
+the frequency the CPU shall be set to.

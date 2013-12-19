@@ -63,12 +63,12 @@ void clk_rate_table_build(struct clk *clk,
 		else
 			freq = clk->parent->rate * mult / div;
 
-		freq_table[i].index = i;
+		freq_table[i].driver_data = i;
 		freq_table[i].frequency = freq;
 	}
 
 	/* Termination entry */
-	freq_table[i].index = i;
+	freq_table[i].driver_data = i;
 	freq_table[i].frequency = CPUFREQ_TABLE_END;
 }
 

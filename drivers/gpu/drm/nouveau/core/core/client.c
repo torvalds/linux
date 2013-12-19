@@ -27,7 +27,7 @@
 #include <core/handle.h>
 #include <core/option.h>
 
-#include <subdev/device.h>
+#include <engine/device.h>
 
 static void
 nouveau_client_dtor(struct nouveau_object *object)
@@ -58,18 +58,17 @@ nouveau_client_create_(const char *name, u64 devname, const char *cfg,
 		return -ENODEV;
 
 	ret = nouveau_namedb_create_(NULL, NULL, &nouveau_client_oclass,
-				     NV_CLIENT_CLASS, nouveau_device_sclass,
-				     0, length, pobject);
+				     NV_CLIENT_CLASS, NULL,
+				     (1ULL << NVDEV_ENGINE_DEVICE),
+				     length, pobject);
 	client = *pobject;
 	if (ret)
 		return ret;
 
 	ret = nouveau_handle_create(nv_object(client), ~0, ~0,
 				    nv_object(client), &client->root);
-	if (ret) {
-		nouveau_namedb_destroy(&client->base);
+	if (ret)
 		return ret;
-	}
 
 	/* prevent init/fini being called, os in in charge of this */
 	atomic_set(&nv_object(client)->usecount, 2);
@@ -100,4 +99,14 @@ nouveau_client_fini(struct nouveau_client *client, bool suspend)
 	ret = nouveau_handle_fini(client->root, suspend);
 	nv_debug(client, "%s completed with %d\n", name[suspend], ret);
 	return ret;
+}
+
+const char *
+nouveau_client_name(void *obj)
+{
+	const char *client_name = "unknown";
+	struct nouveau_client *client = nouveau_client(obj);
+	if (client)
+		client_name = client->name;
+	return client_name;
 }

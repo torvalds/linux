@@ -177,8 +177,7 @@ AVM_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 	return (0);
 }
 
-int __devinit
-setup_avm_a1(struct IsdnCard *card)
+int setup_avm_a1(struct IsdnCard *card)
 {
 	u_char val;
 	struct IsdnCardState *cs = card->cs;

@@ -10,9 +10,9 @@
 #ifndef _LINUX_IF_TEAM_H_
 #define _LINUX_IF_TEAM_H_
 
-
 #include <linux/netpoll.h>
 #include <net/sch_generic.h>
+#include <linux/types.h>
 #include <uapi/linux/if_team.h>
 
 struct team_pcpu_stats {
@@ -69,6 +69,7 @@ struct team_port {
 	s32 priority; /* lower number ~ higher priority */
 	u16 queue_id;
 	struct list_head qom_list; /* node in queue override mapping list */
+	struct rcu_head	rcu;
 	long mode_priv[0];
 };
 
@@ -111,6 +112,10 @@ struct team_mode_ops {
 	void (*port_enabled)(struct team *team, struct team_port *port);
 	void (*port_disabled)(struct team *team, struct team_port *port);
 };
+
+extern int team_modeop_port_enter(struct team *team, struct team_port *port);
+extern void team_modeop_port_change_dev_addr(struct team *team,
+					     struct team_port *port);
 
 enum team_option_type {
 	TEAM_OPTION_TYPE_U32,
@@ -186,8 +191,21 @@ struct team {
 
 	const struct team_mode *mode;
 	struct team_mode_ops ops;
+	bool user_carrier_enabled;
 	bool queue_override_enabled;
 	struct list_head *qom_lists; /* array of queue override mapping lists */
+	struct {
+		unsigned int count;
+		unsigned int interval; /* in ms */
+		atomic_t count_pending;
+		struct delayed_work dw;
+	} notify_peers;
+	struct {
+		unsigned int count;
+		unsigned int interval; /* in ms */
+		atomic_t count_pending;
+		struct delayed_work dw;
+	} mcast_rejoin;
 	long mode_priv[TEAM_MODE_PRIV_LONGS];
 };
 
@@ -215,29 +233,56 @@ static inline struct hlist_head *team_port_index_hash(struct team *team,
 static inline struct team_port *team_get_port_by_index(struct team *team,
 						       int port_index)
 {
-	struct hlist_node *p;
 	struct team_port *port;
 	struct hlist_head *head = team_port_index_hash(team, port_index);
 
-	hlist_for_each_entry(port, p, head, hlist)
+	hlist_for_each_entry(port, head, hlist)
 		if (port->index == port_index)
 			return port;
 	return NULL;
 }
+
+static inline int team_num_to_port_index(struct team *team, int num)
+{
+	int en_port_count = ACCESS_ONCE(team->en_port_count);
+
+	if (unlikely(!en_port_count))
+		return 0;
+	return num % en_port_count;
+}
+
 static inline struct team_port *team_get_port_by_index_rcu(struct team *team,
 							   int port_index)
 {
-	struct hlist_node *p;
 	struct team_port *port;
 	struct hlist_head *head = team_port_index_hash(team, port_index);
 
-	hlist_for_each_entry_rcu(port, p, head, hlist)
+	hlist_for_each_entry_rcu(port, head, hlist)
 		if (port->index == port_index)
 			return port;
 	return NULL;
 }
 
-extern int team_port_set_team_dev_addr(struct team_port *port);
+static inline struct team_port *
+team_get_first_port_txable_rcu(struct team *team, struct team_port *port)
+{
+	struct team_port *cur;
+
+	if (likely(team_port_txable(port)))
+		return port;
+	cur = port;
+	list_for_each_entry_continue_rcu(cur, &team->port_list, list)
+		if (team_port_txable(cur))
+			return cur;
+	list_for_each_entry_rcu(cur, &team->port_list, list) {
+		if (cur == port)
+			break;
+		if (team_port_txable(cur))
+			return cur;
+	}
+	return NULL;
+}
+
 extern int team_options_register(struct team *team,
 				 const struct team_option *option,
 				 size_t option_count);

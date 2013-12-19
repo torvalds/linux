@@ -234,7 +234,7 @@ static const struct rtc_class_ops pm80x_rtc_ops = {
 	.alarm_irq_enable = pm80x_rtc_alarm_irq_enable,
 };
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int pm80x_rtc_suspend(struct device *dev)
 {
 	return pm80x_dev_suspend(dev);
@@ -248,17 +248,18 @@ static int pm80x_rtc_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(pm80x_rtc_pm_ops, pm80x_rtc_suspend, pm80x_rtc_resume);
 
-static int __devinit pm80x_rtc_probe(struct platform_device *pdev)
+static int pm80x_rtc_probe(struct platform_device *pdev)
 {
 	struct pm80x_chip *chip = dev_get_drvdata(pdev->dev.parent);
-	struct pm80x_platform_data *pm80x_pdata;
+	struct pm80x_platform_data *pm80x_pdata =
+				dev_get_platdata(pdev->dev.parent);
 	struct pm80x_rtc_pdata *pdata = NULL;
 	struct pm80x_rtc_info *info;
 	struct rtc_time tm;
 	unsigned long ticks = 0;
 	int ret;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (pdata == NULL)
 		dev_warn(&pdev->dev, "No platform data!\n");
 
@@ -312,7 +313,7 @@ static int __devinit pm80x_rtc_probe(struct platform_device *pdev)
 	}
 	rtc_tm_to_time(&tm, &ticks);
 
-	info->rtc_dev = rtc_device_register("88pm80x-rtc", &pdev->dev,
+	info->rtc_dev = devm_rtc_device_register(&pdev->dev, "88pm80x-rtc",
 					    &pm80x_rtc_ops, THIS_MODULE);
 	if (IS_ERR(info->rtc_dev)) {
 		ret = PTR_ERR(info->rtc_dev);
@@ -326,8 +327,7 @@ static int __devinit pm80x_rtc_probe(struct platform_device *pdev)
 	regmap_update_bits(info->map, PM800_RTC_CONTROL, PM800_RTC1_USE_XO,
 			   PM800_RTC1_USE_XO);
 
-	if (pdev->dev.parent->platform_data) {
-		pm80x_pdata = pdev->dev.parent->platform_data;
+	if (pm80x_pdata) {
 		pdata = pm80x_pdata->rtc;
 		if (pdata)
 			info->rtc_dev->dev.platform_data = &pdata->rtc_wakeup;
@@ -342,11 +342,9 @@ out:
 	return ret;
 }
 
-static int __devexit pm80x_rtc_remove(struct platform_device *pdev)
+static int pm80x_rtc_remove(struct platform_device *pdev)
 {
 	struct pm80x_rtc_info *info = platform_get_drvdata(pdev);
-	platform_set_drvdata(pdev, NULL);
-	rtc_device_unregister(info->rtc_dev);
 	pm80x_free_irq(info->chip, info->irq, info);
 	return 0;
 }
@@ -358,7 +356,7 @@ static struct platform_driver pm80x_rtc_driver = {
 		   .pm = &pm80x_rtc_pm_ops,
 		   },
 	.probe = pm80x_rtc_probe,
-	.remove = __devexit_p(pm80x_rtc_remove),
+	.remove = pm80x_rtc_remove,
 };
 
 module_platform_driver(pm80x_rtc_driver);

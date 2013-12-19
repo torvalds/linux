@@ -109,7 +109,8 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 	if (pool == AGP_TYPE) {
 		retval = drm_mm_insert_node(&dev_priv->agp_mm,
 					    &item->mm_node,
-					    mem->size, 0);
+					    mem->size, 0,
+					    DRM_MM_SEARCH_DEFAULT);
 		offset = item->mm_node.start;
 	} else {
 #if defined(CONFIG_FB_SIS) || defined(CONFIG_FB_SIS_MODULE)
@@ -121,24 +122,18 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 #else
 		retval = drm_mm_insert_node(&dev_priv->vram_mm,
 					    &item->mm_node,
-					    mem->size, 0);
+					    mem->size, 0,
+					    DRM_MM_SEARCH_DEFAULT);
 		offset = item->mm_node.start;
 #endif
 	}
 	if (retval)
 		goto fail_alloc;
 
-again:
-	if (idr_pre_get(&dev_priv->object_idr, GFP_KERNEL) == 0) {
-		retval = -ENOMEM;
+	retval = idr_alloc(&dev_priv->object_idr, item, 1, 0, GFP_KERNEL);
+	if (retval < 0)
 		goto fail_idr;
-	}
-
-	retval = idr_get_new_above(&dev_priv->object_idr, item, 1, &user_key);
-	if (retval == -EAGAIN)
-		goto again;
-	if (retval)
-		goto fail_idr;
+	user_key = retval;
 
 	list_add(&item->owner_list, &file_priv->obj_list);
 	mutex_unlock(&dev->struct_mutex);
@@ -355,7 +350,7 @@ void sis_reclaim_buffers_locked(struct drm_device *dev,
 	return;
 }
 
-struct drm_ioctl_desc sis_ioctls[] = {
+const struct drm_ioctl_desc sis_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(SIS_FB_ALLOC, sis_fb_alloc, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(SIS_FB_FREE, sis_drm_free, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(SIS_AGP_INIT, sis_ioctl_agp_init, DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),

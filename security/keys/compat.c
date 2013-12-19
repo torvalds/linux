@@ -40,12 +40,12 @@ static long compat_keyctl_instantiate_key_iov(
 					   ARRAY_SIZE(iovstack),
 					   iovstack, &iov);
 	if (ret < 0)
-		return ret;
+		goto err;
 	if (ret == 0)
 		goto no_payload_free;
 
 	ret = keyctl_instantiate_key_common(id, iov, ioc, ret, ringid);
-
+err:
 	if (iov != iovstack)
 		kfree(iov);
 	return ret;
@@ -137,6 +137,9 @@ asmlinkage long compat_sys_keyctl(u32 option,
 
 	case KEYCTL_INVALIDATE:
 		return keyctl_invalidate_key(arg2);
+
+	case KEYCTL_GET_PERSISTENT:
+		return keyctl_get_persistent(arg2, arg3);
 
 	default:
 		return -EOPNOTSUPP;

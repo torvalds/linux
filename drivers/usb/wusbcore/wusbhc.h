@@ -69,6 +69,8 @@
  * zone 0.
  */
 #define WUSB_CHANNEL_STOP_DELAY_MS 8
+#define WUSB_RETRY_COUNT_MAX 15
+#define WUSB_RETRY_COUNT_INFINITE 0
 
 /**
  * Wireless USB device
@@ -95,6 +97,7 @@ struct wusb_dev {
 	struct kref refcnt;
 	struct wusbhc *wusbhc;
 	struct list_head cack_node;	/* Connect-Ack list */
+	struct list_head rekey_node;	/* GTK rekey list */
 	u8 port_idx;
 	u8 addr;
 	u8 beacon_type:4;
@@ -105,8 +108,6 @@ struct wusb_dev {
 	struct usb_wireless_cap_descriptor *wusb_cap_descr;
 	struct uwb_mas_bm availability;
 	struct work_struct devconnect_acked_work;
-	struct urb *set_gtk_urb;
-	struct usb_ctrlrequest *set_gtk_req;
 	struct usb_device *usb_dev;
 };
 
@@ -252,6 +253,9 @@ struct wusbhc {
 	unsigned trust_timeout;			/* in jiffies */
 	struct wusb_ckhdid chid;
 	uint8_t phy_rate;
+	uint8_t dnts_num_slots;
+	uint8_t dnts_interval;
+	uint8_t retry_count;
 	struct wuie_host_info *wuie_host_info;
 
 	struct mutex mutex;			/* locks everything else */
@@ -291,8 +295,7 @@ struct wusbhc {
 	} __attribute__((packed)) gtk;
 	u8 gtk_index;
 	u32 gtk_tkid;
-	struct work_struct gtk_rekey_done_work;
-	int pending_set_gtks;
+	struct work_struct gtk_rekey_work;
 
 	struct usb_encryption_descriptor *ccm1_etd;
 };
@@ -399,8 +402,6 @@ extern void wusbhc_rh_destroy(struct wusbhc *);
 
 extern int wusbhc_rh_status_data(struct usb_hcd *, char *);
 extern int wusbhc_rh_control(struct usb_hcd *, u16, u16, u16, char *, u16);
-extern int wusbhc_rh_suspend(struct usb_hcd *);
-extern int wusbhc_rh_resume(struct usb_hcd *);
 extern int wusbhc_rh_start_port_reset(struct usb_hcd *, unsigned);
 
 /* MMC handling */

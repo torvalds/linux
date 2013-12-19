@@ -1352,7 +1352,7 @@ toshoboe_net_open (struct net_device *dev)
     return 0;
 
   rc = request_irq (self->io.irq, toshoboe_interrupt,
-                    IRQF_SHARED | IRQF_DISABLED, dev->name, self);
+                    IRQF_SHARED, dev->name, self);
   if (rc)
   	return rc;
 
@@ -1488,7 +1488,7 @@ static void
 toshoboe_close (struct pci_dev *pci_dev)
 {
   int i;
-  struct toshoboe_cb *self = (struct toshoboe_cb*)pci_get_drvdata(pci_dev);
+  struct toshoboe_cb *self = pci_get_drvdata(pci_dev);
 
   IRDA_DEBUG (4, "%s()\n", __func__);
 
@@ -1559,7 +1559,7 @@ toshoboe_open (struct pci_dev *pci_dev, const struct pci_device_id *pdid)
   self->io.fir_base = self->base;
   self->io.fir_ext = OBOE_IO_EXTENT;
   self->io.irq = pci_dev->irq;
-  self->io.irqflags = IRQF_SHARED | IRQF_DISABLED;
+  self->io.irqflags = IRQF_SHARED;
 
   self->speed = self->io.speed = 9600;
   self->async = 0;
@@ -1696,7 +1696,7 @@ freeself:
 static int
 toshoboe_gotosleep (struct pci_dev *pci_dev, pm_message_t crap)
 {
-  struct toshoboe_cb *self = (struct toshoboe_cb*)pci_get_drvdata(pci_dev);
+  struct toshoboe_cb *self = pci_get_drvdata(pci_dev);
   unsigned long flags;
   int i = 10;
 
@@ -1725,7 +1725,7 @@ toshoboe_gotosleep (struct pci_dev *pci_dev, pm_message_t crap)
 static int
 toshoboe_wakeup (struct pci_dev *pci_dev)
 {
-  struct toshoboe_cb *self = (struct toshoboe_cb*)pci_get_drvdata(pci_dev);
+  struct toshoboe_cb *self = pci_get_drvdata(pci_dev);
   unsigned long flags;
 
   IRDA_DEBUG (4, "%s()\n", __func__);

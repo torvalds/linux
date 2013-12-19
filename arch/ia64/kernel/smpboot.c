@@ -347,12 +347,11 @@ ia64_sync_itc (unsigned int master)
 /*
  * Ideally sets up per-cpu profiling hooks.  Doesn't do much now...
  */
-static inline void __devinit
-smp_setup_percpu_timer (void)
+static inline void smp_setup_percpu_timer(void)
 {
 }
 
-static void __cpuinit
+static void
 smp_callin (void)
 {
 	int cpuid, phys_id, itc_master;
@@ -443,7 +442,7 @@ smp_callin (void)
 /*
  * Activate a secondary processor.  head.S calls this.
  */
-int __cpuinit
+int
 start_secondary (void *unused)
 {
 	/* Early console may use I/O ports */
@@ -456,11 +455,11 @@ start_secondary (void *unused)
 	preempt_disable();
 	smp_callin();
 
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 	return 0;
 }
 
-static int __cpuinit
+static int
 do_boot_cpu (int sapicid, int cpu, struct task_struct *idle)
 {
 	int timeout;
@@ -563,7 +562,7 @@ smp_prepare_cpus (unsigned int max_cpus)
 	}
 }
 
-void __devinit smp_prepare_boot_cpu(void)
+void smp_prepare_boot_cpu(void)
 {
 	set_cpu_online(smp_processor_id(), true);
 	cpu_set(smp_processor_id(), cpu_callin_map);
@@ -713,8 +712,7 @@ smp_cpus_done (unsigned int dummy)
 	       (int)num_online_cpus(), bogosum/(500000/HZ), (bogosum/(5000/HZ))%100);
 }
 
-static inline void __devinit
-set_cpu_sibling_map(int cpu)
+static inline void set_cpu_sibling_map(int cpu)
 {
 	int i;
 
@@ -730,7 +728,7 @@ set_cpu_sibling_map(int cpu)
 	}
 }
 
-int __cpuinit
+int
 __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int ret;
@@ -793,8 +791,7 @@ init_smp_config(void)
  * identify_siblings(cpu) gets called from identify_cpu. This populates the 
  * information related to logical execution units in per_cpu_data structure.
  */
-void __devinit
-identify_siblings(struct cpuinfo_ia64 *c)
+void identify_siblings(struct cpuinfo_ia64 *c)
 {
 	long status;
 	u16 pltid;

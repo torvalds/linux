@@ -74,7 +74,7 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	dwsmmio->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dwsmmio->clk)) {
 		ret = PTR_ERR(dwsmmio->clk);
-		goto err_irq;
+		goto err_unmap;
 	}
 	clk_enable(dwsmmio->clk);
 
@@ -94,8 +94,6 @@ err_clk:
 	clk_disable(dwsmmio->clk);
 	clk_put(dwsmmio->clk);
 	dwsmmio->clk = NULL;
-err_irq:
-	free_irq(dws->irq, dws);
 err_unmap:
 	iounmap(dws->regs);
 err_release_reg:
@@ -111,13 +109,10 @@ static int dw_spi_mmio_remove(struct platform_device *pdev)
 	struct dw_spi_mmio *dwsmmio = platform_get_drvdata(pdev);
 	struct resource *mem;
 
-	platform_set_drvdata(pdev, NULL);
-
 	clk_disable(dwsmmio->clk);
 	clk_put(dwsmmio->clk);
 	dwsmmio->clk = NULL;
 
-	free_irq(dwsmmio->dws.irq, &dwsmmio->dws);
 	dw_spi_remove_host(&dwsmmio->dws);
 	iounmap(dwsmmio->dws.regs);
 	kfree(dwsmmio);

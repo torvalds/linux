@@ -472,19 +472,33 @@ static int sh_tmu_setup(struct sh_tmu_priv *p, struct platform_device *pdev)
 		ret = PTR_ERR(p->clk);
 		goto err1;
 	}
+
+	ret = clk_prepare(p->clk);
+	if (ret < 0)
+		goto err2;
+
 	p->cs_enabled = false;
 	p->enable_count = 0;
 
-	return sh_tmu_register(p, (char *)dev_name(&p->pdev->dev),
-			       cfg->clockevent_rating,
-			       cfg->clocksource_rating);
+	ret = sh_tmu_register(p, (char *)dev_name(&p->pdev->dev),
+			      cfg->clockevent_rating,
+			      cfg->clocksource_rating);
+	if (ret < 0)
+		goto err3;
+
+	return 0;
+
+ err3:
+	clk_unprepare(p->clk);
+ err2:
+	clk_put(p->clk);
  err1:
 	iounmap(p->mapbase);
  err0:
 	return ret;
 }
 
-static int __devinit sh_tmu_probe(struct platform_device *pdev)
+static int sh_tmu_probe(struct platform_device *pdev)
 {
 	struct sh_tmu_priv *p = platform_get_drvdata(pdev);
 	struct sh_timer_config *cfg = pdev->dev.platform_data;
@@ -525,14 +539,14 @@ static int __devinit sh_tmu_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit sh_tmu_remove(struct platform_device *pdev)
+static int sh_tmu_remove(struct platform_device *pdev)
 {
 	return -EBUSY; /* cannot unregister clockevent and clocksource */
 }
 
 static struct platform_driver sh_tmu_device_driver = {
 	.probe		= sh_tmu_probe,
-	.remove		= __devexit_p(sh_tmu_remove),
+	.remove		= sh_tmu_remove,
 	.driver		= {
 		.name	= "sh_tmu",
 	}
@@ -549,7 +563,7 @@ static void __exit sh_tmu_exit(void)
 }
 
 early_platform_init("earlytimer", &sh_tmu_device_driver);
-module_init(sh_tmu_init);
+subsys_initcall(sh_tmu_init);
 module_exit(sh_tmu_exit);
 
 MODULE_AUTHOR("Magnus Damm");

@@ -37,18 +37,17 @@
 #include <mach/regs-gpio.h>
 #include <mach/regs-lcd.h>
 
-#include <mach/idle.h>
 #include <linux/platform_data/usb-s3c2410_udc.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <mach/fb.h>
 
-#include <plat/s3c2410.h>
-#include <plat/s3c2412.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
+#include <plat/samsung-time.h>
 
-#include <plat/common-smdk.h>
+#include "common.h"
+#include "common-smdk.h"
 
 static struct map_desc smdk2413_iodesc[] __initdata = {
 };
@@ -90,6 +89,7 @@ static struct platform_device *smdk2413_devices[] __initdata = {
 	&s3c_device_i2c0,
 	&s3c_device_iis,
 	&s3c_device_usbgadget,
+	&s3c2412_device_dma,
 };
 
 static void __init smdk2413_fixup(struct tag *tags, char **cmdline,
@@ -107,6 +107,7 @@ static void __init smdk2413_map_io(void)
 	s3c24xx_init_io(smdk2413_iodesc, ARRAY_SIZE(smdk2413_iodesc));
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(smdk2413_uartcfgs, ARRAY_SIZE(smdk2413_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
 
 static void __init smdk2413_machine_init(void)
@@ -130,10 +131,10 @@ MACHINE_START(S3C2413, "S3C2413")
 	.atag_offset	= 0x100,
 
 	.fixup		= smdk2413_fixup,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2412_init_irq,
 	.map_io		= smdk2413_map_io,
 	.init_machine	= smdk2413_machine_init,
-	.timer		= &s3c24xx_timer,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c2412_restart,
 MACHINE_END
 
@@ -142,10 +143,10 @@ MACHINE_START(SMDK2412, "SMDK2412")
 	.atag_offset	= 0x100,
 
 	.fixup		= smdk2413_fixup,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2412_init_irq,
 	.map_io		= smdk2413_map_io,
 	.init_machine	= smdk2413_machine_init,
-	.timer		= &s3c24xx_timer,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c2412_restart,
 MACHINE_END
 
@@ -154,9 +155,9 @@ MACHINE_START(SMDK2413, "SMDK2413")
 	.atag_offset	= 0x100,
 
 	.fixup		= smdk2413_fixup,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2412_init_irq,
 	.map_io		= smdk2413_map_io,
 	.init_machine	= smdk2413_machine_init,
-	.timer		= &s3c24xx_timer,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c2412_restart,
 MACHINE_END

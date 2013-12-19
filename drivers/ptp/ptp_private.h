@@ -84,7 +84,7 @@ uint ptp_poll(struct posix_clock *pc,
  * see ptp_sysfs.c
  */
 
-extern struct device_attribute ptp_dev_attrs[];
+extern const struct attribute_group *ptp_groups[];
 
 int ptp_cleanup_sysfs(struct ptp_clock *ptp);
 

@@ -29,7 +29,7 @@
 
 #include <linux/platform_data/spi-s3c64xx.h>
 
-#include <mach/crag6410.h>
+#include "crag6410.h"
 
 static struct s3c64xx_spi_csinfo wm0010_spi_csinfo = {
 	.line = S3C64XX_GPC(3),
@@ -47,7 +47,7 @@ static struct spi_board_info wm1253_devs[] = {
 		.bus_num	= 0,
 		.chip_select	= 0,
 		.mode		= SPI_MODE_0,
-		.irq		= S3C_EINT(5),
+		.irq		= S3C_EINT(4),
 		.controller_data = &wm0010_spi_csinfo,
 		.platform_data = &wm0010_pdata,
 	},
@@ -208,8 +208,9 @@ static const struct i2c_board_info wm1277_devs[] = {
 static struct arizona_pdata wm5102_reva_pdata = {
 	.ldoena = S3C64XX_GPN(7),
 	.gpio_base = CODEC_GPIO_BASE,
-	.irq_active_high = true,
+	.irq_flags = IRQF_TRIGGER_HIGH,
 	.micd_pol_gpio = CODEC_GPIO_BASE + 4,
+	.micd_rate = 6,
 	.gpio_defaults = {
 		[2] = 0x10000, /* AIF3TXLRCLK */
 		[3] = 0x4,     /* OPCLK */
@@ -237,7 +238,7 @@ static struct spi_board_info wm5102_reva_spi_devs[] = {
 static struct arizona_pdata wm5102_pdata = {
 	.ldoena = S3C64XX_GPN(7),
 	.gpio_base = CODEC_GPIO_BASE,
-	.irq_active_high = true,
+	.irq_flags = IRQF_TRIGGER_HIGH,
 	.micd_pol_gpio = CODEC_GPIO_BASE + 2,
 	.gpio_defaults = {
 		[2] = 0x10000, /* AIF3TXLRCLK */
@@ -290,7 +291,7 @@ static const struct i2c_board_info wm2200_i2c[] = {
 	  .platform_data = &wm2200_pdata, },
 };
 
-static __devinitdata const struct {
+static const struct {
 	u8 id;
 	u8 rev;
 	const char *name;
@@ -343,8 +344,8 @@ static __devinitdata const struct {
 	  .i2c_devs = wm2200_i2c, .num_i2c_devs = ARRAY_SIZE(wm2200_i2c) },
 };
 
-static __devinit int wlf_gf_module_probe(struct i2c_client *i2c,
-					 const struct i2c_device_id *i2c_id)
+static int wlf_gf_module_probe(struct i2c_client *i2c,
+			       const struct i2c_device_id *i2c_id)
 {
 	int ret, i, j, id, rev;
 

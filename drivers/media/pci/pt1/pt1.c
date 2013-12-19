@@ -1058,7 +1058,7 @@ static void pt1_i2c_init(struct pt1 *pt1)
 		pt1_i2c_emit(pt1, i, 0, 0, 1, 1, 0);
 }
 
-static void __devexit pt1_remove(struct pci_dev *pdev)
+static void pt1_remove(struct pci_dev *pdev)
 {
 	struct pt1 *pt1;
 	void __iomem *regs;
@@ -1076,15 +1076,13 @@ static void __devexit pt1_remove(struct pci_dev *pdev)
 	pt1_update_power(pt1);
 	pt1_cleanup_adapters(pt1);
 	i2c_del_adapter(&pt1->i2c_adap);
-	pci_set_drvdata(pdev, NULL);
 	kfree(pt1);
 	pci_iounmap(pdev, regs);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 }
 
-static int __devinit
-pt1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int pt1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int ret;
 	void __iomem *regs;
@@ -1199,7 +1197,6 @@ err_i2c_del_adapter:
 err_pt1_cleanup_adapters:
 	pt1_cleanup_adapters(pt1);
 err_kfree:
-	pci_set_drvdata(pdev, NULL);
 	kfree(pt1);
 err_pci_iounmap:
 	pci_iounmap(pdev, regs);
@@ -1222,24 +1219,11 @@ MODULE_DEVICE_TABLE(pci, pt1_id_table);
 static struct pci_driver pt1_driver = {
 	.name		= DRIVER_NAME,
 	.probe		= pt1_probe,
-	.remove		= __devexit_p(pt1_remove),
+	.remove		= pt1_remove,
 	.id_table	= pt1_id_table,
 };
 
-
-static int __init pt1_init(void)
-{
-	return pci_register_driver(&pt1_driver);
-}
-
-
-static void __exit pt1_cleanup(void)
-{
-	pci_unregister_driver(&pt1_driver);
-}
-
-module_init(pt1_init);
-module_exit(pt1_cleanup);
+module_pci_driver(pt1_driver);
 
 MODULE_AUTHOR("Takahito HIRANO <hiranotaka@zng.info>");
 MODULE_DESCRIPTION("Earthsoft PT1/PT2 Driver");

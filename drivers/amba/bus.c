@@ -45,7 +45,6 @@ static int amba_match(struct device *dev, struct device_driver *drv)
 	return amba_lookup(pcdrv->id_table, pcdev) != NULL;
 }
 
-#ifdef CONFIG_HOTPLUG
 static int amba_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct amba_device *pcdev = to_amba_device(dev);
@@ -58,9 +57,6 @@ static int amba_uevent(struct device *dev, struct kobj_uevent_env *env)
 	retval = add_uevent_var(env, "MODALIAS=amba:d%08X", pcdev->periphid);
 	return retval;
 }
-#else
-#define amba_uevent NULL
-#endif
 
 #define amba_attr_func(name,fmt,arg...)					\
 static ssize_t name##_show(struct device *_dev,				\
@@ -288,7 +284,7 @@ static const struct dev_pm_ops amba_pm = {
 	SET_RUNTIME_PM_OPS(
 		amba_pm_runtime_suspend,
 		amba_pm_runtime_resume,
-		pm_generic_runtime_idle
+		NULL
 	)
 };
 
@@ -556,7 +552,6 @@ amba_aphb_device_add(struct device *parent, const char *name,
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
-	dev->dma_mask = dma_mask;
 	dev->dev.coherent_dma_mask = dma_mask;
 	dev->irq[0] = irq1;
 	dev->irq[1] = irq2;
@@ -623,7 +618,7 @@ static void amba_device_initialize(struct amba_device *dev, const char *name)
 		dev_set_name(&dev->dev, "%s", name);
 	dev->dev.release = amba_device_release;
 	dev->dev.bus = &amba_bustype;
-	dev->dev.dma_mask = &dev->dma_mask;
+	dev->dev.dma_mask = &dev->dev.coherent_dma_mask;
 	dev->res.name = dev_name(&dev->dev);
 }
 
@@ -666,9 +661,6 @@ int amba_device_register(struct amba_device *dev, struct resource *parent)
 {
 	amba_device_initialize(dev, dev->dev.init_name);
 	dev->dev.init_name = NULL;
-
-	if (!dev->dev.coherent_dma_mask && dev->dma_mask)
-		dev_warn(&dev->dev, "coherent dma mask is unset\n");
 
 	return amba_device_add(dev, parent);
 }

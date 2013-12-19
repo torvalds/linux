@@ -658,15 +658,18 @@ __init void e820_setup_gap(void)
  * boot_params.e820_map, others are passed via SETUP_E820_EXT node of
  * linked list of struct setup_data, which is parsed here.
  */
-void __init parse_e820_ext(struct setup_data *sdata)
+void __init parse_e820_ext(u64 phys_addr, u32 data_len)
 {
 	int entries;
 	struct e820entry *extmap;
+	struct setup_data *sdata;
 
+	sdata = early_memremap(phys_addr, data_len);
 	entries = sdata->len / sizeof(struct e820entry);
 	extmap = (struct e820entry *)(sdata->data);
 	__append_e820_map(extmap, entries);
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+	early_iounmap(sdata, data_len);
 	printk(KERN_INFO "e820: extended physical RAM map:\n");
 	e820_print_map("extended");
 }
@@ -835,7 +838,7 @@ static int __init parse_memopt(char *p)
 }
 early_param("mem", parse_memopt);
 
-static int __init parse_memmap_opt(char *p)
+static int __init parse_memmap_one(char *p)
 {
 	char *oldp;
 	u64 start_at, mem_size;
@@ -876,6 +879,20 @@ static int __init parse_memmap_opt(char *p)
 		e820_remove_range(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
 
 	return *p == '\0' ? 0 : -EINVAL;
+}
+static int __init parse_memmap_opt(char *str)
+{
+	while (str) {
+		char *k = strchr(str, ',');
+
+		if (k)
+			*k++ = 0;
+
+		parse_memmap_one(str);
+		str = k;
+	}
+
+	return 0;
 }
 early_param("memmap", parse_memmap_opt);
 

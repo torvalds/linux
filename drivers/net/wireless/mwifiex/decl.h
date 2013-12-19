@@ -26,6 +26,8 @@
 #include <linux/wait.h>
 #include <linux/timer.h>
 #include <linux/ieee80211.h>
+#include <uapi/linux/if_arp.h>
+#include <net/mac80211.h>
 
 
 #define MWIFIEX_MAX_BSS_NUM         (3)
@@ -40,8 +42,15 @@
 #define MWIFIEX_MAX_TX_BASTREAM_SUPPORTED	2
 #define MWIFIEX_MAX_RX_BASTREAM_SUPPORTED	16
 
-#define MWIFIEX_AMPDU_DEF_TXWINSIZE        32
-#define MWIFIEX_AMPDU_DEF_RXWINSIZE        16
+#define MWIFIEX_STA_AMPDU_DEF_TXWINSIZE        16
+#define MWIFIEX_STA_AMPDU_DEF_RXWINSIZE        32
+#define MWIFIEX_UAP_AMPDU_DEF_TXWINSIZE        32
+#define MWIFIEX_UAP_AMPDU_DEF_RXWINSIZE        16
+#define MWIFIEX_11AC_STA_AMPDU_DEF_TXWINSIZE   32
+#define MWIFIEX_11AC_STA_AMPDU_DEF_RXWINSIZE   48
+#define MWIFIEX_11AC_UAP_AMPDU_DEF_TXWINSIZE   48
+#define MWIFIEX_11AC_UAP_AMPDU_DEF_RXWINSIZE   32
+
 #define MWIFIEX_DEFAULT_BLOCK_ACK_TIMEOUT  0xffff
 
 #define MWIFIEX_RATE_BITMAP_MCS0   32
@@ -58,6 +67,8 @@
 #define MWIFIEX_RTS_MAX_VALUE              (2347)
 #define MWIFIEX_FRAG_MIN_VALUE             (256)
 #define MWIFIEX_FRAG_MAX_VALUE             (2346)
+#define MWIFIEX_WMM_VERSION                0x01
+#define MWIFIEX_WMM_SUBTYPE                0x01
 
 #define MWIFIEX_RETRY_LIMIT                14
 #define MWIFIEX_SDIO_BLOCK_SIZE            256
@@ -65,7 +76,8 @@
 #define MWIFIEX_BUF_FLAG_REQUEUED_PKT      BIT(0)
 #define MWIFIEX_BUF_FLAG_BRIDGED_PKT	   BIT(1)
 
-#define MWIFIEX_BRIDGED_PKTS_THRESHOLD     1024
+#define MWIFIEX_BRIDGED_PKTS_THR_HIGH      1024
+#define MWIFIEX_BRIDGED_PKTS_THR_LOW        128
 
 enum mwifiex_bss_type {
 	MWIFIEX_BSS_TYPE_STA = 0,
@@ -125,5 +137,28 @@ enum mwifiex_wmm_ac_e {
 	WMM_AC_BE,
 	WMM_AC_VI,
 	WMM_AC_VO
+} __packed;
+
+struct ieee_types_wmm_ac_parameters {
+	u8 aci_aifsn_bitmap;
+	u8 ecw_bitmap;
+	__le16 tx_op_limit;
+} __packed;
+
+struct mwifiex_types_wmm_info {
+	u8 oui[4];
+	u8 subtype;
+	u8 version;
+	u8 qos_info;
+	u8 reserved;
+	struct ieee_types_wmm_ac_parameters ac_params[IEEE80211_NUM_ACS];
+} __packed;
+
+struct mwifiex_arp_eth_header {
+	struct arphdr hdr;
+	u8 ar_sha[ETH_ALEN];
+	u8 ar_sip[4];
+	u8 ar_tha[ETH_ALEN];
+	u8 ar_tip[4];
 } __packed;
 #endif /* !_MWIFIEX_DECL_H_ */

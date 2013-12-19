@@ -43,46 +43,15 @@ static DEFINE_MUTEX(all_stat_sessions_mutex);
 /* The root directory for all stat files */
 static struct dentry		*stat_dir;
 
-/*
- * Iterate through the rbtree using a post order traversal path
- * to release the next node.
- * It won't necessary release one at each iteration
- * but it will at least advance closer to the next one
- * to be released.
- */
-static struct rb_node *release_next(struct tracer_stat *ts,
-				    struct rb_node *node)
-{
-	struct stat_node *snode;
-	struct rb_node *parent = rb_parent(node);
-
-	if (node->rb_left)
-		return node->rb_left;
-	else if (node->rb_right)
-		return node->rb_right;
-	else {
-		if (!parent)
-			;
-		else if (parent->rb_left == node)
-			parent->rb_left = NULL;
-		else
-			parent->rb_right = NULL;
-
-		snode = container_of(node, struct stat_node, node);
-		if (ts->stat_release)
-			ts->stat_release(snode->stat);
-		kfree(snode);
-
-		return parent;
-	}
-}
-
 static void __reset_stat_session(struct stat_session *session)
 {
-	struct rb_node *node = session->stat_root.rb_node;
+	struct stat_node *snode, *n;
 
-	while (node)
-		node = release_next(session->ts, node);
+	rbtree_postorder_for_each_entry_safe(snode, n, &session->stat_root, node) {
+		if (session->ts->stat_release)
+			session->ts->stat_release(snode->stat);
+		kfree(snode);
+	}
 
 	session->stat_root = RB_ROOT;
 }
@@ -307,6 +276,8 @@ static int tracing_stat_init(void)
 	struct dentry *d_tracing;
 
 	d_tracing = tracing_init_dentry();
+	if (!d_tracing)
+		return 0;
 
 	stat_dir = debugfs_create_dir("trace_stat", d_tracing);
 	if (!stat_dir)

@@ -15,10 +15,6 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
     PCMCIA support code for this driver is adapted from the dummy_cs.c
     driver of the Linux PCMCIA Card Services package.
 
@@ -38,10 +34,11 @@ Status: experimental
 
 */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
-#include "../comedidev.h"
 #include <linux/delay.h>
+
+#include "../comedidev.h"
 
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -88,8 +85,6 @@ struct das16cs_private {
 	unsigned short status1;
 	unsigned short status2;
 };
-
-static struct pcmcia_device *cur_dev;
 
 static const struct comedi_lrange das16cs_ai_range = {
 	4, {
@@ -239,9 +234,9 @@ static int das16cs_ai_cmdtest(struct comedi_device *dev,
 		unsigned int div1 = 0, div2 = 0;
 
 		tmp = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer(100, &div1, &div2,
-					  &cmd->scan_begin_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+					  &div1, &div2,
+					  &cmd->scan_begin_arg, cmd->flags);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
@@ -249,9 +244,9 @@ static int das16cs_ai_cmdtest(struct comedi_device *dev,
 		unsigned int div1 = 0, div2 = 0;
 
 		tmp = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(100, &div1, &div2,
-					  &cmd->scan_begin_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+					  &div1, &div2,
+					  &cmd->scan_begin_arg, cmd->flags);
 		if (tmp != cmd->convert_arg)
 			err++;
 		if (cmd->scan_begin_src == TRIG_TIMER &&
@@ -330,14 +325,11 @@ static int das16cs_ao_rinsn(struct comedi_device *dev,
 
 static int das16cs_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
-
+	if (comedi_dio_update_state(s, data))
 		outw(s->state, dev->iobase + DAS16CS_DIO);
-	}
 
 	data[1] = inw(dev->iobase + DAS16CS_DIO);
 
@@ -346,33 +338,22 @@ static int das16cs_dio_insn_bits(struct comedi_device *dev,
 
 static int das16cs_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct das16cs_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
-	int bits;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask;
+	int ret;
 
 	if (chan < 4)
-		bits = 0x0f;
+		mask = 0x0f;
 	else
-		bits = 0xf0;
+		mask = 0xf0;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= bits;
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= bits;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-		break;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
 
 	devpriv->status2 &= ~0x00c0;
 	devpriv->status2 |= (s->io_bits & 0xf0) ? 0x0080 : 0;
@@ -383,53 +364,51 @@ static int das16cs_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static const struct das16cs_board *das16cs_probe(struct comedi_device *dev,
-						 struct pcmcia_device *link)
+static const void *das16cs_find_boardinfo(struct comedi_device *dev,
+					  struct pcmcia_device *link)
 {
+	const struct das16cs_board *board;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(das16cs_boards); i++) {
-		if (das16cs_boards[i].device_id == link->card_id)
-			return das16cs_boards + i;
+		board = &das16cs_boards[i];
+		if (board->device_id == link->card_id)
+			return board;
 	}
-
-	dev_dbg(dev->class_dev, "unknown board!\n");
 
 	return NULL;
 }
 
-static int das16cs_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static int das16cs_auto_attach(struct comedi_device *dev,
+			       unsigned long context)
 {
-	const struct das16cs_board *thisboard;
+	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
+	const struct das16cs_board *board;
 	struct das16cs_private *devpriv;
-	struct pcmcia_device *link;
 	struct comedi_subdevice *s;
 	int ret;
 
-	link = cur_dev;		/* XXX hack */
-	if (!link)
-		return -EIO;
+	board = das16cs_find_boardinfo(dev, link);
+	if (!board)
+		return -ENODEV;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
-	dev->board_ptr = das16cs_probe(dev, link);
-	if (!dev->board_ptr)
-		return -EIO;
-	thisboard = comedi_board(dev);
-
-	dev->board_name = thisboard->name;
-
+	link->config_flags |= CONF_AUTO_SET_IO | CONF_ENABLE_IRQ;
+	ret = comedi_pcmcia_enable(dev, NULL);
+	if (ret)
+		return ret;
 	dev->iobase = link->resource[0]->start;
 
-	ret = request_irq(link->irq, das16cs_interrupt,
-			  IRQF_SHARED, "cb_das16_cs", dev);
-	if (ret < 0)
+	link->priv = dev;
+	ret = pcmcia_request_irq(link, das16cs_interrupt);
+	if (ret)
 		return ret;
 	dev->irq = link->irq;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
@@ -450,10 +429,10 @@ static int das16cs_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[1];
 	/* analog output subdevice */
-	if (thisboard->n_ao_chans) {
+	if (board->n_ao_chans) {
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE;
-		s->n_chan	= thisboard->n_ao_chans;
+		s->n_chan	= board->n_ao_chans;
 		s->maxdata	= 0xffff;
 		s->range_table	= &range_bipolar10;
 		s->insn_write	= &das16cs_ao_winsn;
@@ -479,58 +458,16 @@ static int das16cs_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void das16cs_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-}
-
 static struct comedi_driver driver_das16cs = {
 	.driver_name	= "cb_das16_cs",
 	.module		= THIS_MODULE,
-	.attach		= das16cs_attach,
-	.detach		= das16cs_detach,
+	.auto_attach	= das16cs_auto_attach,
+	.detach		= comedi_pcmcia_disable,
 };
-
-static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				void *priv_data)
-{
-	if (p_dev->config_index == 0)
-		return -EINVAL;
-
-	return pcmcia_request_io(p_dev);
-}
 
 static int das16cs_pcmcia_attach(struct pcmcia_device *link)
 {
-	int ret;
-
-	/* Do we need to allocate an interrupt? */
-	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
-
-	ret = pcmcia_loop_config(link, das16cs_pcmcia_config_loop, NULL);
-	if (ret)
-		goto failed;
-
-	if (!link->irq)
-		goto failed;
-
-	ret = pcmcia_enable_device(link);
-	if (ret)
-		goto failed;
-
-	cur_dev = link;
-	return 0;
-
-failed:
-	pcmcia_disable_device(link);
-	return ret;
-}
-
-static void das16cs_pcmcia_detach(struct pcmcia_device *link)
-{
-	pcmcia_disable_device(link);
-	cur_dev = NULL;
+	return comedi_pcmcia_auto_config(link, &driver_das16cs);
 }
 
 static const struct pcmcia_device_id das16cs_id_table[] = {
@@ -543,35 +480,11 @@ MODULE_DEVICE_TABLE(pcmcia, das16cs_id_table);
 static struct pcmcia_driver das16cs_driver = {
 	.name		= "cb_das16_cs",
 	.owner		= THIS_MODULE,
-	.probe		= das16cs_pcmcia_attach,
-	.remove		= das16cs_pcmcia_detach,
 	.id_table	= das16cs_id_table,
+	.probe		= das16cs_pcmcia_attach,
+	.remove		= comedi_pcmcia_auto_unconfig,
 };
-
-static int __init das16cs_init(void)
-{
-	int ret;
-
-	ret = comedi_driver_register(&driver_das16cs);
-	if (ret < 0)
-		return ret;
-
-	ret = pcmcia_register_driver(&das16cs_driver);
-	if (ret < 0) {
-		comedi_driver_unregister(&driver_das16cs);
-		return ret;
-	}
-
-	return 0;
-}
-module_init(das16cs_init);
-
-static void __exit das16cs_exit(void)
-{
-	pcmcia_unregister_driver(&das16cs_driver);
-	comedi_driver_unregister(&driver_das16cs);
-}
-module_exit(das16cs_exit);
+module_comedi_pcmcia_driver(driver_das16cs, das16cs_driver);
 
 MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");
 MODULE_DESCRIPTION("Comedi driver for Computer Boards PC-CARD DAS16/16");

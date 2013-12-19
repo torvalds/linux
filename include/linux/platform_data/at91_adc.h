@@ -14,12 +14,16 @@
 			(Interruptions registers mostly)
  * @status_register:	Offset of the Interrupt Status Register
  * @trigger_register:	Offset of the Trigger setup register
+ * @mr_prescal_mask:	Mask of the PRESCAL field in the adc MR register
+ * @mr_startup_mask:	Mask of the STARTUP field in the adc MR register
  */
 struct at91_adc_reg_desc {
 	u8	channel_base;
 	u32	drdy_mask;
 	u8	status_register;
 	u8	trigger_register;
+	u32	mr_prescal_mask;
+	u32	mr_startup_mask;
 };
 
 /**

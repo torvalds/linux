@@ -28,6 +28,7 @@
 #include <linux/perf_event.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/smp.h>
+#include <linux/cpu_pm.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
@@ -35,6 +36,7 @@
 #include <asm/hw_breakpoint.h>
 #include <asm/kdebug.h>
 #include <asm/traps.h>
+#include <asm/hardware/coresight.h>
 
 /* Breakpoint currently in use for each BRP. */
 static DEFINE_PER_CPU(struct perf_event *, bp_on_reg[ARM_MAX_BRP]);
@@ -48,6 +50,9 @@ static int core_num_wrps;
 
 /* Debug architecture version. */
 static u8 debug_arch;
+
+/* Does debug architecture support OS Save and Restore? */
+static bool has_ossr;
 
 /* Maximum supported watchpoint length. */
 static u8 max_watchpoint_len;
@@ -339,13 +344,13 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 		/* Breakpoint */
 		ctrl_base = ARM_BASE_BCR;
 		val_base = ARM_BASE_BVR;
-		slots = (struct perf_event **)__get_cpu_var(bp_on_reg);
+		slots = this_cpu_ptr(bp_on_reg);
 		max_slots = core_num_brps;
 	} else {
 		/* Watchpoint */
 		ctrl_base = ARM_BASE_WCR;
 		val_base = ARM_BASE_WVR;
-		slots = (struct perf_event **)__get_cpu_var(wp_on_reg);
+		slots = this_cpu_ptr(wp_on_reg);
 		max_slots = core_num_wrps;
 	}
 
@@ -391,12 +396,12 @@ void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 	if (info->ctrl.type == ARM_BREAKPOINT_EXECUTE) {
 		/* Breakpoint */
 		base = ARM_BASE_BCR;
-		slots = (struct perf_event **)__get_cpu_var(bp_on_reg);
+		slots = this_cpu_ptr(bp_on_reg);
 		max_slots = core_num_brps;
 	} else {
 		/* Watchpoint */
 		base = ARM_BASE_WCR;
-		slots = (struct perf_event **)__get_cpu_var(wp_on_reg);
+		slots = this_cpu_ptr(wp_on_reg);
 		max_slots = core_num_wrps;
 	}
 
@@ -692,7 +697,7 @@ static void watchpoint_handler(unsigned long addr, unsigned int fsr,
 	struct arch_hw_breakpoint *info;
 	struct arch_hw_breakpoint_ctrl ctrl;
 
-	slots = (struct perf_event **)__get_cpu_var(wp_on_reg);
+	slots = this_cpu_ptr(wp_on_reg);
 
 	for (i = 0; i < core_num_wrps; ++i) {
 		rcu_read_lock();
@@ -763,7 +768,7 @@ static void watchpoint_single_step_handler(unsigned long pc)
 	struct perf_event *wp, **slots;
 	struct arch_hw_breakpoint *info;
 
-	slots = (struct perf_event **)__get_cpu_var(wp_on_reg);
+	slots = this_cpu_ptr(wp_on_reg);
 
 	for (i = 0; i < core_num_wrps; ++i) {
 		rcu_read_lock();
@@ -797,7 +802,7 @@ static void breakpoint_handler(unsigned long unknown, struct pt_regs *regs)
 	struct arch_hw_breakpoint *info;
 	struct arch_hw_breakpoint_ctrl ctrl;
 
-	slots = (struct perf_event **)__get_cpu_var(bp_on_reg);
+	slots = this_cpu_ptr(bp_on_reg);
 
 	/* The exception entry code places the amended lr in the PC. */
 	addr = regs->ARM_pc;
@@ -903,6 +908,23 @@ static struct undef_hook debug_reg_hook = {
 	.fn		= debug_reg_trap,
 };
 
+/* Does this core support OS Save and Restore? */
+static bool core_has_os_save_restore(void)
+{
+	u32 oslsr;
+
+	switch (get_debug_arch()) {
+	case ARM_DEBUG_ARCH_V7_1:
+		return true;
+	case ARM_DEBUG_ARCH_V7_ECP14:
+		ARM_DBG_READ(c1, c1, 4, oslsr);
+		if (oslsr & ARM_OSLSR_OSLM0)
+			return true;
+	default:
+		return false;
+	}
+}
+
 static void reset_ctrl_regs(void *unused)
 {
 	int i, raw_num_brps, err = 0, cpu = smp_processor_id();
@@ -930,11 +952,7 @@ static void reset_ctrl_regs(void *unused)
 		if ((val & 0x1) == 0)
 			err = -EPERM;
 
-		/*
-		 * Check whether we implement OS save and restore.
-		 */
-		ARM_DBG_READ(c1, c1, 4, val);
-		if ((val & 0x9) == 0)
+		if (!has_ossr)
 			goto clear_vcr;
 		break;
 	case ARM_DEBUG_ARCH_V7_1:
@@ -948,16 +966,16 @@ static void reset_ctrl_regs(void *unused)
 	}
 
 	if (err) {
-		pr_warning("CPU %d debug is powered down!\n", cpu);
+		pr_warn_once("CPU %d debug is powered down!\n", cpu);
 		cpumask_or(&debug_err_mask, &debug_err_mask, cpumask_of(cpu));
 		return;
 	}
 
 	/*
 	 * Unconditionally clear the OS lock by writing a value
-	 * other than 0xC5ACCE55 to the access register.
+	 * other than CS_LAR_KEY to the access register.
 	 */
-	ARM_DBG_WRITE(c1, c0, 4, 0);
+	ARM_DBG_WRITE(c1, c0, 4, ~CS_LAR_KEY);
 	isb();
 
 	/*
@@ -969,7 +987,7 @@ clear_vcr:
 	isb();
 
 	if (cpumask_intersects(&debug_err_mask, cpumask_of(cpu))) {
-		pr_warning("CPU %d failed to disable vector catch\n", cpu);
+		pr_warn_once("CPU %d failed to disable vector catch\n", cpu);
 		return;
 	}
 
@@ -989,7 +1007,7 @@ clear_vcr:
 	}
 
 	if (cpumask_intersects(&debug_err_mask, cpumask_of(cpu))) {
-		pr_warning("CPU %d failed to clear debug register pairs\n", cpu);
+		pr_warn_once("CPU %d failed to clear debug register pairs\n", cpu);
 		return;
 	}
 
@@ -1002,18 +1020,42 @@ out_mdbgen:
 		cpumask_or(&debug_err_mask, &debug_err_mask, cpumask_of(cpu));
 }
 
-static int __cpuinit dbg_reset_notify(struct notifier_block *self,
+static int dbg_reset_notify(struct notifier_block *self,
 				      unsigned long action, void *cpu)
 {
-	if (action == CPU_ONLINE)
+	if ((action & ~CPU_TASKS_FROZEN) == CPU_ONLINE)
 		smp_call_function_single((int)cpu, reset_ctrl_regs, NULL, 1);
 
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata dbg_reset_nb = {
+static struct notifier_block dbg_reset_nb = {
 	.notifier_call = dbg_reset_notify,
 };
+
+#ifdef CONFIG_CPU_PM
+static int dbg_cpu_pm_notify(struct notifier_block *self, unsigned long action,
+			     void *v)
+{
+	if (action == CPU_PM_EXIT)
+		reset_ctrl_regs(NULL);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block dbg_cpu_pm_nb = {
+	.notifier_call = dbg_cpu_pm_notify,
+};
+
+static void __init pm_init(void)
+{
+	cpu_pm_register_notifier(&dbg_cpu_pm_nb);
+}
+#else
+static inline void pm_init(void)
+{
+}
+#endif
 
 static int __init arch_hw_breakpoint_init(void)
 {
@@ -1023,6 +1065,8 @@ static int __init arch_hw_breakpoint_init(void)
 		pr_info("debug architecture 0x%x unsupported.\n", debug_arch);
 		return 0;
 	}
+
+	has_ossr = core_has_os_save_restore();
 
 	/* Determine how many BRPs/WRPs are available. */
 	core_num_brps = get_num_brps();
@@ -1062,8 +1106,9 @@ static int __init arch_hw_breakpoint_init(void)
 	hook_ifault_code(FAULT_CODE_DEBUG, hw_breakpoint_pending, SIGTRAP,
 			TRAP_HWBKPT, "breakpoint debug exception");
 
-	/* Register hotplug notifier. */
+	/* Register hotplug and PM notifiers. */
 	register_cpu_notifier(&dbg_reset_nb);
+	pm_init();
 	return 0;
 }
 arch_initcall(arch_hw_breakpoint_init);

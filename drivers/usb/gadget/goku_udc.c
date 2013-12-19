@@ -35,6 +35,7 @@
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/device.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -50,8 +51,6 @@
 
 #define	DRIVER_DESC		"TC86C001 USB Device Controller"
 #define	DRIVER_VERSION		"30-Oct 2003"
-
-#define	DMA_ADDR_INVALID	(~(dma_addr_t)0)
 
 static const char driver_name [] = "goku_udc";
 static const char driver_desc [] = DRIVER_DESC;
@@ -275,7 +274,6 @@ goku_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 	if (!req)
 		return NULL;
 
-	req->req.dma = DMA_ADDR_INVALID;
 	INIT_LIST_HEAD(&req->queue);
 	return &req->req;
 }
@@ -774,7 +772,7 @@ goku_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 
 	} /* else pio or dma irq handler advances the queue. */
 
-	if (likely(req != 0))
+	if (likely(req != NULL))
 		list_add_tail(&req->queue, &ep->queue);
 
 	if (likely(!list_empty(&ep->queue))
@@ -993,21 +991,22 @@ static int goku_get_frame(struct usb_gadget *_gadget)
 	return -EOPNOTSUPP;
 }
 
-static int goku_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
-static int goku_stop(struct usb_gadget_driver *driver);
+static int goku_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
+static int goku_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
 
 static const struct usb_gadget_ops goku_ops = {
 	.get_frame	= goku_get_frame,
-	.start		= goku_start,
-	.stop		= goku_stop,
+	.udc_start	= goku_udc_start,
+	.udc_stop	= goku_udc_stop,
 	// no remote wakeup
 	// not selfpowered
 };
 
 /*-------------------------------------------------------------------------*/
 
-static inline char *dmastr(void)
+static inline const char *dmastr(void)
 {
 	if (use_dma == 0)
 		return "(dma disabled)";
@@ -1024,13 +1023,10 @@ static const char proc_node_name [] = "driver/udc";
 #define FOURBITS "%s%s%s%s"
 #define EIGHTBITS FOURBITS FOURBITS
 
-static void
-dump_intmask(const char *label, u32 mask, char **next, unsigned *size)
+static void dump_intmask(struct seq_file *m, const char *label, u32 mask)
 {
-	int t;
-
 	/* int_status is the same format ... */
-	t = scnprintf(*next, *size,
+	seq_printf(m,
 		"%s %05X =" FOURBITS EIGHTBITS EIGHTBITS "\n",
 		label, mask,
 		(mask & INT_PWRDETECT) ? " power" : "",
@@ -1057,33 +1053,23 @@ dump_intmask(const char *label, u32 mask, char **next, unsigned *size)
 		(mask & INT_ENDPOINT0) ? " ep0" : "",
 		(mask & INT_USBRESET) ? " reset" : "",
 		(mask & INT_SUSPEND) ? " suspend" : "");
-	*size -= t;
-	*next += t;
 }
 
 
-static int
-udc_proc_read(char *buffer, char **start, off_t off, int count,
-		int *eof, void *_dev)
+static int udc_proc_read(struct seq_file *m, void *v)
 {
-	char				*buf = buffer;
-	struct goku_udc			*dev = _dev;
+	struct goku_udc			*dev = m->private;
 	struct goku_udc_regs __iomem	*regs = dev->regs;
-	char				*next = buf;
-	unsigned			size = count;
 	unsigned long			flags;
-	int				i, t, is_usb_connected;
+	int				i, is_usb_connected;
 	u32				tmp;
-
-	if (off != 0)
-		return 0;
 
 	local_irq_save(flags);
 
 	/* basic device status */
 	tmp = readl(&regs->power_detect);
 	is_usb_connected = tmp & PW_DETECT;
-	t = scnprintf(next, size,
+	seq_printf(m,
 		"%s - %s\n"
 		"%s version: %s %s\n"
 		"Gadget driver: %s\n"
@@ -1095,7 +1081,7 @@ udc_proc_read(char *buffer, char **start, off_t off, int count,
 		is_usb_connected
 			? ((tmp & PW_PULLUP) ? "full speed" : "powered")
 			: "disconnected",
-		({char *state;
+		({const char *state;
 		switch(dev->ep0state){
 		case EP0_DISCONNECT:	state = "ep0_disconnect"; break;
 		case EP0_IDLE:		state = "ep0_idle"; break;
@@ -1107,27 +1093,24 @@ udc_proc_read(char *buffer, char **start, off_t off, int count,
 		default:		state = "ep0_?"; break;
 		} state; })
 		);
-	size -= t;
-	next += t;
 
-	dump_intmask("int_status", readl(&regs->int_status), &next, &size);
-	dump_intmask("int_enable", readl(&regs->int_enable), &next, &size);
+	dump_intmask(m, "int_status", readl(&regs->int_status));
+	dump_intmask(m, "int_enable", readl(&regs->int_enable));
 
 	if (!is_usb_connected || !dev->driver || (tmp & PW_PULLUP) == 0)
 		goto done;
 
 	/* registers for (active) device and ep0 */
-	t = scnprintf(next, size, "\nirqs %lu\ndataset %02x "
+	if (seq_printf(m, "\nirqs %lu\ndataset %02x "
 			"single.bcs %02x.%02x state %x addr %u\n",
 			dev->irqs, readl(&regs->DataSet),
 			readl(&regs->EPxSingle), readl(&regs->EPxBCS),
 			readl(&regs->UsbState),
-			readl(&regs->address));
-	size -= t;
-	next += t;
+			readl(&regs->address)) < 0)
+		goto done;
 
 	tmp = readl(&regs->dma_master);
-	t = scnprintf(next, size,
+	if (seq_printf(m,
 		"dma %03X =" EIGHTBITS "%s %s\n", tmp,
 		(tmp & MST_EOPB_DIS) ? " eopb-" : "",
 		(tmp & MST_EOPB_ENA) ? " eopb+" : "",
@@ -1142,9 +1125,8 @@ udc_proc_read(char *buffer, char **start, off_t off, int count,
 		(tmp & MST_WR_ENA) ? " OUT" : "",
 		(tmp & MST_CONNECTION)
 			? "ep1in/ep2out"
-			: "ep1out/ep2in");
-	size -= t;
-	next += t;
+			: "ep1out/ep2in") < 0)
+		goto done;
 
 	/* dump endpoint queues */
 	for (i = 0; i < 4; i++) {
@@ -1155,7 +1137,7 @@ udc_proc_read(char *buffer, char **start, off_t off, int count,
 			continue;
 
 		tmp = readl(ep->reg_status);
-		t = scnprintf(next, size,
+		if (seq_printf(m,
 			"%s %s max %u %s, irqs %lu, "
 			"status %02x (%s) " FOURBITS "\n",
 			ep->ep.name,
@@ -1183,23 +1165,17 @@ udc_proc_read(char *buffer, char **start, off_t off, int count,
 				s = "invalid"; break;
 			default:
 				s = "?"; break;
-			}; s; }),
+			} s; }),
 			(tmp & EPxSTATUS_TOGGLE) ? "data1" : "data0",
 			(tmp & EPxSTATUS_SUSPEND) ? " suspend" : "",
 			(tmp & EPxSTATUS_FIFO_DISABLE) ? " disable" : "",
 			(tmp & EPxSTATUS_STAGE_ERROR) ? " ep0stat" : ""
-			);
-		if (t <= 0 || t > size)
+			) < 0)
 			goto done;
-		size -= t;
-		next += t;
 
 		if (list_empty(&ep->queue)) {
-			t = scnprintf(next, size, "\t(nothing queued)\n");
-			if (t <= 0 || t > size)
+			if (seq_puts(m, "\t(nothing queued)\n") < 0)
 				goto done;
-			size -= t;
-			next += t;
 			continue;
 		}
 		list_for_each_entry(req, &ep->queue, queue) {
@@ -1213,22 +1189,33 @@ udc_proc_read(char *buffer, char **start, off_t off, int count,
 			} else
 				tmp = req->req.actual;
 
-			t = scnprintf(next, size,
+			if (seq_printf(m,
 				"\treq %p len %u/%u buf %p\n",
 				&req->req, tmp, req->req.length,
-				req->req.buf);
-			if (t <= 0 || t > size)
+				req->req.buf) < 0)
 				goto done;
-			size -= t;
-			next += t;
 		}
 	}
 
 done:
 	local_irq_restore(flags);
-	*eof = 1;
-	return count - size;
+	return 0;
 }
+
+/*
+ * seq_file wrappers for procfile show routines.
+ */
+static int udc_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, udc_proc_read, PDE_DATA(file_inode(file)));
+}
+
+static const struct file_operations udc_proc_fops = {
+	.open		= udc_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 #endif	/* CONFIG_USB_GADGET_DEBUG_FILES */
 
@@ -1339,50 +1326,27 @@ static void udc_enable(struct goku_udc *dev)
  * - one function driver, initted second
  */
 
-static struct goku_udc	*the_controller;
-
 /* when a driver is successfully registered, it will receive
  * control requests including set_configuration(), which enables
  * non-control requests.  then usb traffic follows until a
  * disconnect is reported.  then a host may connect again, or
  * the driver might get unbound.
  */
-static int goku_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
+static int goku_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct goku_udc	*dev = the_controller;
-	int			retval;
-
-	if (!driver
-			|| driver->max_speed < USB_SPEED_FULL
-			|| !bind
-			|| !driver->disconnect
-			|| !driver->setup)
-		return -EINVAL;
-	if (!dev)
-		return -ENODEV;
-	if (dev->driver)
-		return -EBUSY;
+	struct goku_udc	*dev = to_goku_udc(g);
 
 	/* hook up the driver */
 	driver->driver.bus = NULL;
 	dev->driver = driver;
-	dev->gadget.dev.driver = &driver->driver;
-	retval = bind(&dev->gadget, driver);
-	if (retval) {
-		DBG(dev, "bind to driver %s --> error %d\n",
-				driver->driver.name, retval);
-		dev->driver = NULL;
-		dev->gadget.dev.driver = NULL;
-		return retval;
-	}
 
-	/* then enable host detection and ep0; and we're ready
+	/*
+	 * then enable host detection and ep0; and we're ready
 	 * for set_configuration as well as eventual disconnect.
 	 */
 	udc_enable(dev);
 
-	DBG(dev, "registered gadget driver '%s'\n", driver->driver.name);
 	return 0;
 }
 
@@ -1400,35 +1364,22 @@ stop_activity(struct goku_udc *dev, struct usb_gadget_driver *driver)
 	udc_reset (dev);
 	for (i = 0; i < 4; i++)
 		nuke(&dev->ep [i], -ESHUTDOWN);
-	if (driver) {
-		spin_unlock(&dev->lock);
-		driver->disconnect(&dev->gadget);
-		spin_lock(&dev->lock);
-	}
 
 	if (dev->driver)
 		udc_enable(dev);
 }
 
-static int goku_stop(struct usb_gadget_driver *driver)
+static int goku_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct goku_udc	*dev = the_controller;
+	struct goku_udc	*dev = to_goku_udc(g);
 	unsigned long	flags;
-
-	if (!dev)
-		return -ENODEV;
-	if (!driver || driver != dev->driver || !driver->unbind)
-		return -EINVAL;
 
 	spin_lock_irqsave(&dev->lock, flags);
 	dev->driver = NULL;
 	stop_activity(dev, driver);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	driver->unbind(&dev->gadget);
-	dev->gadget.dev.driver = NULL;
-
-	DBG(dev, "unregistered driver '%s'\n", driver->driver.name);
 	return 0;
 }
 
@@ -1749,12 +1700,8 @@ static void goku_remove(struct pci_dev *pdev)
 				pci_resource_len (pdev, 0));
 	if (dev->enabled)
 		pci_disable_device(pdev);
-	if (dev->registered)
-		device_unregister(&dev->gadget.dev);
 
-	pci_set_drvdata(pdev, NULL);
 	dev->regs = NULL;
-	the_controller = NULL;
 
 	INFO(dev, "unbind\n");
 }
@@ -1770,13 +1717,6 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	void __iomem		*base = NULL;
 	int			retval;
 
-	/* if you want to support more than one controller in a system,
-	 * usb_gadget_driver_{register,unregister}() must change.
-	 */
-	if (the_controller) {
-		pr_warning("ignoring %s\n", pci_name(pdev));
-		return -EBUSY;
-	}
 	if (!pdev->irq) {
 		printk(KERN_ERR "Check PCI %s IRQ setup!\n", pci_name(pdev));
 		retval = -ENODEV;
@@ -1797,10 +1737,6 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev->gadget.max_speed = USB_SPEED_FULL;
 
 	/* the "gadget" abstracts/virtualizes the controller */
-	dev_set_name(&dev->gadget.dev, "gadget");
-	dev->gadget.dev.parent = &pdev->dev;
-	dev->gadget.dev.dma_mask = pdev->dev.dma_mask;
-	dev->gadget.dev.release = gadget_release;
 	dev->gadget.name = driver_name;
 
 	/* now all the pci goodies ... */
@@ -1848,17 +1784,11 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FILES
-	create_proc_read_entry(proc_node_name, 0, NULL, udc_proc_read, dev);
+	proc_create_data(proc_node_name, 0, NULL, &udc_proc_fops, dev);
 #endif
 
-	the_controller = dev;
-	retval = device_register(&dev->gadget.dev);
-	if (retval) {
-		put_device(&dev->gadget.dev);
-		goto err;
-	}
-	dev->registered = 1;
-	retval = usb_add_gadget_udc(&pdev->dev, &dev->gadget);
+	retval = usb_add_gadget_udc_release(&pdev->dev, &dev->gadget,
+			gadget_release);
 	if (retval)
 		goto err;
 

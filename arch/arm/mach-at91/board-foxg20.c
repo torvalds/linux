@@ -176,6 +176,7 @@ static struct w1_gpio_platform_data w1_gpio_pdata = {
 	/* If you choose to use a pin other than PB16 it needs to be 3.3V */
 	.pin		= AT91_PIN_PB16,
 	.is_open_drain  = 1,
+	.ext_pullup_enable_pin	= -EINVAL,
 };
 
 static struct platform_device w1_device = {
@@ -261,7 +262,7 @@ static void __init foxg20_board_init(void)
 
 MACHINE_START(ACMENETUSFOXG20, "Acme Systems srl FOX Board G20")
 	/* Maintainer: Sergio Tanzilli */
-	.timer		= &at91sam926x_timer,
+	.init_time	= at91sam926x_pit_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= foxg20_init_early,

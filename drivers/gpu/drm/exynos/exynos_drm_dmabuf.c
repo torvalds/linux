@@ -3,28 +3,15 @@
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  * Author: Inki Dae <inki.dae@samsung.com>
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
  */
 
 #include <drm/drmP.h>
 #include <drm/exynos_drm.h>
+#include "exynos_drm_dmabuf.h"
 #include "exynos_drm_drv.h"
 #include "exynos_drm_gem.h"
 
@@ -33,7 +20,13 @@
 struct exynos_drm_dmabuf_attachment {
 	struct sg_table sgt;
 	enum dma_data_direction dir;
+	bool is_mapped;
 };
+
+static struct exynos_drm_gem_obj *dma_buf_to_obj(struct dma_buf *buf)
+{
+	return to_exynos_gem_obj(buf->priv);
+}
 
 static int exynos_gem_attach_dma_buf(struct dma_buf *dmabuf,
 					struct device *dev,
@@ -76,7 +69,7 @@ static struct sg_table *
 					enum dma_data_direction dir)
 {
 	struct exynos_drm_dmabuf_attachment *exynos_attach = attach->priv;
-	struct exynos_drm_gem_obj *gem_obj = attach->dmabuf->priv;
+	struct exynos_drm_gem_obj *gem_obj = dma_buf_to_obj(attach->dmabuf);
 	struct drm_device *dev = gem_obj->base.dev;
 	struct exynos_drm_gem_buf *buf;
 	struct scatterlist *rd, *wr;
@@ -84,18 +77,9 @@ static struct sg_table *
 	unsigned int i;
 	int nents, ret;
 
-	DRM_DEBUG_PRIME("%s\n", __FILE__);
-
-	if (WARN_ON(dir == DMA_NONE))
-		return ERR_PTR(-EINVAL);
-
 	/* just return current sgt if already requested. */
-	if (exynos_attach->dir == dir)
+	if (exynos_attach->dir == dir && exynos_attach->is_mapped)
 		return &exynos_attach->sgt;
-
-	/* reattaching is not allowed. */
-	if (WARN_ON(exynos_attach->dir != DMA_NONE))
-		return ERR_PTR(-EBUSY);
 
 	buf = gem_obj->buffer;
 	if (!buf) {
@@ -121,13 +105,17 @@ static struct sg_table *
 		wr = sg_next(wr);
 	}
 
-	nents = dma_map_sg(attach->dev, sgt->sgl, sgt->orig_nents, dir);
-	if (!nents) {
-		DRM_ERROR("failed to map sgl with iommu.\n");
-		sgt = ERR_PTR(-EIO);
-		goto err_unlock;
+	if (dir != DMA_NONE) {
+		nents = dma_map_sg(attach->dev, sgt->sgl, sgt->orig_nents, dir);
+		if (!nents) {
+			DRM_ERROR("failed to map sgl with iommu.\n");
+			sg_free_table(sgt);
+			sgt = ERR_PTR(-EIO);
+			goto err_unlock;
+		}
 	}
 
+	exynos_attach->is_mapped = true;
 	exynos_attach->dir = dir;
 	attach->priv = exynos_attach;
 
@@ -143,29 +131,6 @@ static void exynos_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
 						enum dma_data_direction dir)
 {
 	/* Nothing to do. */
-}
-
-static void exynos_dmabuf_release(struct dma_buf *dmabuf)
-{
-	struct exynos_drm_gem_obj *exynos_gem_obj = dmabuf->priv;
-
-	DRM_DEBUG_PRIME("%s\n", __FILE__);
-
-	/*
-	 * exynos_dmabuf_release() call means that file object's
-	 * f_count is 0 and it calls drm_gem_object_handle_unreference()
-	 * to drop the references that these values had been increased
-	 * at drm_prime_handle_to_fd()
-	 */
-	if (exynos_gem_obj->base.export_dma_buf == dmabuf) {
-		exynos_gem_obj->base.export_dma_buf = NULL;
-
-		/*
-		 * drop this gem object refcount to release allocated buffer
-		 * and resources.
-		 */
-		drm_gem_object_unreference_unlocked(&exynos_gem_obj->base);
-	}
 }
 
 static void *exynos_gem_dmabuf_kmap_atomic(struct dma_buf *dma_buf,
@@ -213,7 +178,7 @@ static struct dma_buf_ops exynos_dmabuf_ops = {
 	.kunmap			= exynos_gem_dmabuf_kunmap,
 	.kunmap_atomic		= exynos_gem_dmabuf_kunmap_atomic,
 	.mmap			= exynos_gem_dmabuf_mmap,
-	.release		= exynos_dmabuf_release,
+	.release		= drm_gem_dmabuf_release,
 };
 
 struct dma_buf *exynos_dmabuf_prime_export(struct drm_device *drm_dev,
@@ -221,8 +186,8 @@ struct dma_buf *exynos_dmabuf_prime_export(struct drm_device *drm_dev,
 {
 	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
 
-	return dma_buf_export(exynos_gem_obj, &exynos_dmabuf_ops,
-				exynos_gem_obj->base.size, 0600);
+	return dma_buf_export(obj, &exynos_dmabuf_ops,
+				exynos_gem_obj->base.size, flags);
 }
 
 struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
@@ -235,17 +200,18 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 	struct exynos_drm_gem_buf *buffer;
 	int ret;
 
-	DRM_DEBUG_PRIME("%s\n", __FILE__);
-
 	/* is this one of own objects? */
 	if (dma_buf->ops == &exynos_dmabuf_ops) {
 		struct drm_gem_object *obj;
 
-		exynos_gem_obj = dma_buf->priv;
-		obj = &exynos_gem_obj->base;
+		obj = dma_buf->priv;
 
 		/* is it from our device? */
 		if (obj->dev == drm_dev) {
+			/*
+			 * Importing dmabuf exported from out own gem increases
+			 * refcount on gem itself instead of f_count of dmabuf.
+			 */
 			drm_gem_object_reference(obj);
 			return obj;
 		}
@@ -255,6 +221,7 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 	if (IS_ERR(attach))
 		return ERR_PTR(-EINVAL);
 
+	get_dma_buf(dma_buf);
 
 	sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
 	if (IS_ERR_OR_NULL(sgt)) {
@@ -264,7 +231,6 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	if (!buffer) {
-		DRM_ERROR("failed to allocate exynos_drm_gem_buf.\n");
 		ret = -ENOMEM;
 		goto err_unmap_attach;
 	}
@@ -309,6 +275,8 @@ err_unmap_attach:
 	dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
 err_buf_detach:
 	dma_buf_detach(dma_buf, attach);
+	dma_buf_put(dma_buf);
+
 	return ERR_PTR(ret);
 }
 

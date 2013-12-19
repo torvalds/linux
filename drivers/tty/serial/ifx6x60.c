@@ -270,23 +270,6 @@ static void mrdy_assert(struct ifx_spi_device *ifx_dev)
 }
 
 /**
- *	ifx_spi_hangup		-	hang up an IFX device
- *	@ifx_dev: our SPI device
- *
- *	Hang up the tty attached to the IFX device if one is currently
- *	open. If not take no action
- */
-static void ifx_spi_ttyhangup(struct ifx_spi_device *ifx_dev)
-{
-	struct tty_port *pport = &ifx_dev->tty_port;
-	struct tty_struct *tty = tty_port_tty_get(pport);
-	if (tty) {
-		tty_hangup(tty);
-		tty_kref_put(tty);
-	}
-}
-
-/**
  *	ifx_spi_timeout		-	SPI timeout
  *	@arg: our SPI device
  *
@@ -298,7 +281,7 @@ static void ifx_spi_timeout(unsigned long arg)
 	struct ifx_spi_device *ifx_dev = (struct ifx_spi_device *)arg;
 
 	dev_warn(&ifx_dev->spi_dev->dev, "*** SPI Timeout ***");
-	ifx_spi_ttyhangup(ifx_dev);
+	tty_port_tty_hangup(&ifx_dev->tty_port, false);
 	mrdy_set_low(ifx_dev);
 	clear_bit(IFX_SPI_STATE_TIMER_PENDING, &ifx_dev->flags);
 }
@@ -443,25 +426,6 @@ static void ifx_spi_setup_spi_header(unsigned char *txbuffer, int tx_count,
 }
 
 /**
- *	ifx_spi_wakeup_serial	-	SPI space made
- *	@port_data: our SPI device
- *
- *	We have emptied the FIFO enough that we want to get more data
- *	queued into it. Poke the line discipline via tty_wakeup so that
- *	it will feed us more bits
- */
-static void ifx_spi_wakeup_serial(struct ifx_spi_device *ifx_dev)
-{
-	struct tty_struct *tty;
-
-	tty = tty_port_tty_get(&ifx_dev->tty_port);
-	if (!tty)
-		return;
-	tty_wakeup(tty);
-	tty_kref_put(tty);
-}
-
-/**
  *	ifx_spi_prepare_tx_buffer	-	prepare transmit frame
  *	@ifx_dev: our SPI device
  *
@@ -481,7 +445,6 @@ static int ifx_spi_prepare_tx_buffer(struct ifx_spi_device *ifx_dev)
 	unsigned char *tx_buffer;
 
 	tx_buffer = ifx_dev->tx_buffer;
-	memset(tx_buffer, 0, IFX_SPI_TRANSFER_SIZE);
 
 	/* make room for required SPI header */
 	tx_buffer += IFX_SPI_HEADER_OVERHEAD;
@@ -507,7 +470,7 @@ static int ifx_spi_prepare_tx_buffer(struct ifx_spi_device *ifx_dev)
 			tx_count += temp_count;
 			if (temp_count == queue_length)
 				/* poke port to get more data */
-				ifx_spi_wakeup_serial(ifx_dev);
+				tty_port_tty_wakeup(&ifx_dev->tty_port);
 			else /* more data in port, use next SPI message */
 				ifx_dev->spi_more = 1;
 		}
@@ -615,7 +578,7 @@ static int ifx_port_activate(struct tty_port *port, struct tty_struct *tty)
 	tty->driver_data = ifx_dev;
 
 	/* allows flip string push from int context */
-	tty->low_latency = 1;
+	port->low_latency = 1;
 
 	/* set flag to allows data transfer */
 	set_bit(IFX_SPI_STATE_IO_AVAILABLE, &ifx_dev->flags);
@@ -637,6 +600,7 @@ static void ifx_port_shutdown(struct tty_port *port)
 
 	clear_bit(IFX_SPI_STATE_IO_AVAILABLE, &ifx_dev->flags);
 	mrdy_set_low(ifx_dev);
+	del_timer(&ifx_dev->spi_timer);
 	clear_bit(IFX_SPI_STATE_TIMER_PENDING, &ifx_dev->flags);
 	tasklet_kill(&ifx_dev->io_work_tasklet);
 }
@@ -669,12 +633,8 @@ static const struct tty_operations ifx_spi_serial_ops = {
 static void ifx_spi_insert_flip_string(struct ifx_spi_device *ifx_dev,
 				    unsigned char *chars, size_t size)
 {
-	struct tty_struct *tty = tty_port_tty_get(&ifx_dev->tty_port);
-	if (!tty)
-		return;
-	tty_insert_flip_string(tty, chars, size);
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_insert_flip_string(&ifx_dev->tty_port, chars, size);
+	tty_flip_buffer_push(&ifx_dev->tty_port);
 }
 
 /**
@@ -687,8 +647,6 @@ static void ifx_spi_insert_flip_string(struct ifx_spi_device *ifx_dev,
 static void ifx_spi_complete(void *ctx)
 {
 	struct ifx_spi_device *ifx_dev = ctx;
-	struct tty_struct *tty;
-	struct tty_ldisc *ldisc = NULL;
 	int length;
 	int actual_length;
 	unsigned char more;
@@ -766,15 +724,7 @@ complete_exit:
 			 */
 			ifx_spi_power_state_clear(ifx_dev,
 						  IFX_SPI_POWER_DATA_PENDING);
-			tty = tty_port_tty_get(&ifx_dev->tty_port);
-			if (tty) {
-				ldisc = tty_ldisc_ref(tty);
-				if (ldisc) {
-					ldisc->ops->write_wakeup(tty);
-					tty_ldisc_deref(ldisc);
-				}
-				tty_kref_put(tty);
-			}
+			tty_port_tty_wakeup(&ifx_dev->tty_port);
 		}
 	}
 }
@@ -810,7 +760,8 @@ static void ifx_spi_io(unsigned long data)
 		ifx_dev->spi_xfer.cs_change = 0;
 		ifx_dev->spi_xfer.speed_hz = ifx_dev->spi_dev->max_speed_hz;
 		/* ifx_dev->spi_xfer.speed_hz = 390625; */
-		ifx_dev->spi_xfer.bits_per_word = spi_bpw;
+		ifx_dev->spi_xfer.bits_per_word =
+			ifx_dev->spi_dev->bits_per_word;
 
 		ifx_dev->spi_xfer.tx_buf = ifx_dev->tx_buffer;
 		ifx_dev->spi_xfer.rx_buf = ifx_dev->rx_buffer;
@@ -965,7 +916,7 @@ static irqreturn_t ifx_spi_reset_interrupt(int irq, void *dev)
 		set_bit(MR_INPROGRESS, &ifx_dev->mdm_reset_state);
 		if (!solreset) {
 			/* unsolicited reset  */
-			ifx_spi_ttyhangup(ifx_dev);
+			tty_port_tty_hangup(&ifx_dev->tty_port, false);
 		}
 	} else {
 		/* exited reset */
@@ -1057,7 +1008,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	pl_data = (struct ifx_modem_platform_data *)spi->dev.platform_data;
+	pl_data = dev_get_platdata(&spi->dev);
 	if (!pl_data) {
 		dev_err(&spi->dev, "missing platform data!");
 		return -ENODEV;
@@ -1328,30 +1279,6 @@ static void ifx_spi_spi_shutdown(struct spi_device *spi)
  */
 
 /**
- *	ifx_spi_spi_suspend	-	suspend SPI on system suspend
- *	@dev: device being suspended
- *
- *	Suspend the SPI side. No action needed on Intel MID platforms, may
- *	need extending for other systems.
- */
-static int ifx_spi_spi_suspend(struct spi_device *spi, pm_message_t msg)
-{
-	return 0;
-}
-
-/**
- *	ifx_spi_spi_resume	-	resume SPI side on system resume
- *	@dev: device being suspended
- *
- *	Suspend the SPI side. No action needed on Intel MID platforms, may
- *	need extending for other systems.
- */
-static int ifx_spi_spi_resume(struct spi_device *spi)
-{
-	return 0;
-}
-
-/**
  *	ifx_spi_pm_suspend	-	suspend modem on system suspend
  *	@dev: device being suspended
  *
@@ -1440,8 +1367,6 @@ static struct spi_driver ifx_spi_driver = {
 	.probe = ifx_spi_spi_probe,
 	.shutdown = ifx_spi_spi_shutdown,
 	.remove = ifx_spi_spi_remove,
-	.suspend = ifx_spi_spi_suspend,
-	.resume = ifx_spi_spi_resume,
 	.id_table = ifx_id_table
 };
 

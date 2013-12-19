@@ -53,7 +53,7 @@ int (*cx18_ext_init)(struct cx18 *);
 EXPORT_SYMBOL(cx18_ext_init);
 
 /* add your revision and whatnot here */
-static struct pci_device_id cx18_pci_tbl[] __devinitdata = {
+static struct pci_device_id cx18_pci_tbl[] = {
 	{PCI_VENDOR_ID_CX, PCI_DEVICE_ID_CX23418,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0,}
@@ -324,23 +324,24 @@ static void cx18_eeprom_dump(struct cx18 *cx, unsigned char *eedata, int len)
 /* Hauppauge card? get values from tveeprom */
 void cx18_read_eeprom(struct cx18 *cx, struct tveeprom *tv)
 {
-	struct i2c_client c;
+	struct i2c_client *c;
 	u8 eedata[256];
 
-	memset(&c, 0, sizeof(c));
-	strlcpy(c.name, "cx18 tveeprom tmp", sizeof(c.name));
-	c.adapter = &cx->i2c_adap[0];
-	c.addr = 0xA0 >> 1;
+	c = kzalloc(sizeof(*c), GFP_KERNEL);
+
+	strlcpy(c->name, "cx18 tveeprom tmp", sizeof(c->name));
+	c->adapter = &cx->i2c_adap[0];
+	c->addr = 0xa0 >> 1;
 
 	memset(tv, 0, sizeof(*tv));
-	if (tveeprom_read(&c, eedata, sizeof(eedata)))
-		return;
+	if (tveeprom_read(c, eedata, sizeof(eedata)))
+		goto ret;
 
 	switch (cx->card->type) {
 	case CX18_CARD_HVR_1600_ESMT:
 	case CX18_CARD_HVR_1600_SAMSUNG:
 	case CX18_CARD_HVR_1600_S5H1411:
-		tveeprom_hauppauge_analog(&c, tv, eedata);
+		tveeprom_hauppauge_analog(c, tv, eedata);
 		break;
 	case CX18_CARD_YUAN_MPC718:
 	case CX18_CARD_GOTVIEW_PCI_DVD3:
@@ -354,6 +355,9 @@ void cx18_read_eeprom(struct cx18 *cx, struct tveeprom *tv)
 		cx18_eeprom_dump(cx, eedata, sizeof(eedata));
 		break;
 	}
+
+ret:
+	kfree(c);
 }
 
 static void cx18_process_eeprom(struct cx18 *cx)
@@ -691,11 +695,11 @@ done:
 	cx->card_i2c = cx->card->i2c;
 }
 
-static int __devinit cx18_create_in_workq(struct cx18 *cx)
+static int cx18_create_in_workq(struct cx18 *cx)
 {
 	snprintf(cx->in_workq_name, sizeof(cx->in_workq_name), "%s-in",
 		 cx->v4l2_dev.name);
-	cx->in_work_queue = alloc_ordered_workqueue(cx->in_workq_name, 0);
+	cx->in_work_queue = alloc_ordered_workqueue("%s", 0, cx->in_workq_name);
 	if (cx->in_work_queue == NULL) {
 		CX18_ERR("Unable to create incoming mailbox handler thread\n");
 		return -ENOMEM;
@@ -703,7 +707,7 @@ static int __devinit cx18_create_in_workq(struct cx18 *cx)
 	return 0;
 }
 
-static void __devinit cx18_init_in_work_orders(struct cx18 *cx)
+static void cx18_init_in_work_orders(struct cx18 *cx)
 {
 	int i;
 	for (i = 0; i < CX18_MAX_IN_WORK_ORDERS; i++) {
@@ -718,7 +722,7 @@ static void __devinit cx18_init_in_work_orders(struct cx18 *cx)
    No assumptions on the card type may be made here (see cx18_init_struct2
    for that).
  */
-static int __devinit cx18_init_struct1(struct cx18 *cx)
+static int cx18_init_struct1(struct cx18 *cx)
 {
 	int ret;
 
@@ -775,7 +779,7 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 
 /* Second initialization part. Here the card type has been
    autodetected. */
-static void __devinit cx18_init_struct2(struct cx18 *cx)
+static void cx18_init_struct2(struct cx18 *cx)
 {
 	int i;
 
@@ -892,8 +896,8 @@ static void cx18_init_subdevs(struct cx18 *cx)
 		cx->sd_extmux = cx18_find_hw(cx, cx->card->hw_muxer);
 }
 
-static int __devinit cx18_probe(struct pci_dev *pci_dev,
-				const struct pci_device_id *pci_id)
+static int cx18_probe(struct pci_dev *pci_dev,
+		      const struct pci_device_id *pci_id)
 {
 	int retval = 0;
 	int i;
@@ -1031,8 +1035,7 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 
 	/* Register IRQ */
 	retval = request_irq(cx->pci_dev->irq, cx18_irq_handler,
-			     IRQF_SHARED | IRQF_DISABLED,
-			     cx->v4l2_dev.name, (void *)cx);
+			     IRQF_SHARED, cx->v4l2_dev.name, (void *)cx);
 	if (retval) {
 		CX18_ERR("Failed to register irq %d\n", retval);
 		goto free_i2c;
@@ -1243,7 +1246,7 @@ int cx18_init_on_first_open(struct cx18 *cx)
 	   in one place. */
 	cx->std++;		/* Force full standard initialization */
 	std = (cx->tuner_std == V4L2_STD_ALL) ? V4L2_STD_NTSC_M : cx->tuner_std;
-	cx18_s_std(NULL, &fh, &std);
+	cx18_s_std(NULL, &fh, std);
 	cx18_s_frequency(NULL, &fh, &vf);
 	return 0;
 }

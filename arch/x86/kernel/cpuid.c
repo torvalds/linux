@@ -85,7 +85,7 @@ static ssize_t cpuid_read(struct file *file, char __user *buf,
 {
 	char __user *tmp = buf;
 	struct cpuid_regs cmd;
-	int cpu = iminor(file->f_path.dentry->d_inode);
+	int cpu = iminor(file_inode(file));
 	u64 pos = *ppos;
 	ssize_t bytes = 0;
 	int err = 0;
@@ -116,7 +116,7 @@ static int cpuid_open(struct inode *inode, struct file *file)
 	unsigned int cpu;
 	struct cpuinfo_x86 *c;
 
-	cpu = iminor(file->f_path.dentry->d_inode);
+	cpu = iminor(file_inode(file));
 	if (cpu >= nr_cpu_ids || !cpu_online(cpu))
 		return -ENXIO;	/* No such CPU */
 
@@ -137,7 +137,7 @@ static const struct file_operations cpuid_fops = {
 	.open = cpuid_open,
 };
 
-static __cpuinit int cpuid_device_create(int cpu)
+static int cpuid_device_create(int cpu)
 {
 	struct device *dev;
 
@@ -151,9 +151,8 @@ static void cpuid_device_destroy(int cpu)
 	device_destroy(cpuid_class, MKDEV(CPUID_MAJOR, cpu));
 }
 
-static int __cpuinit cpuid_class_cpu_callback(struct notifier_block *nfb,
-					      unsigned long action,
-					      void *hcpu)
+static int cpuid_class_cpu_callback(struct notifier_block *nfb,
+				    unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
 	int err = 0;

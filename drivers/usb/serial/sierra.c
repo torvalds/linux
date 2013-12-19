@@ -569,7 +569,6 @@ static void sierra_indat_callback(struct urb *urb)
 	int err;
 	int endpoint;
 	struct usb_serial_port *port;
-	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
 
@@ -581,16 +580,12 @@ static void sierra_indat_callback(struct urb *urb)
 			" endpoint %02x\n", __func__, status, endpoint);
 	} else {
 		if (urb->actual_length) {
-			tty = tty_port_tty_get(&port->port);
-			if (tty) {
-				tty_insert_flip_string(tty, data,
-					urb->actual_length);
-				tty_flip_buffer_push(tty);
+			tty_insert_flip_string(&port->port, data,
+				urb->actual_length);
+			tty_flip_buffer_push(&port->port);
 
-				tty_kref_put(tty);
-				usb_serial_debug_data(&port->dev, __func__,
-						      urb->actual_length, data);
-			}
+			usb_serial_debug_data(&port->dev, __func__,
+					      urb->actual_length, data);
 		} else {
 			dev_dbg(&port->dev, "%s: empty read urb"
 				" received\n", __func__);
@@ -633,7 +628,6 @@ static void sierra_instat_callback(struct urb *urb)
 			unsigned char signals = *((unsigned char *)
 					urb->transfer_buffer +
 					sizeof(struct usb_ctrlrequest));
-			struct tty_struct *tty;
 
 			dev_dbg(&port->dev, "%s: signal x%x\n", __func__,
 				signals);
@@ -644,11 +638,8 @@ static void sierra_instat_callback(struct urb *urb)
 			portdata->dsr_state = ((signals & 0x02) ? 1 : 0);
 			portdata->ri_state = ((signals & 0x08) ? 1 : 0);
 
-			tty = tty_port_tty_get(&port->port);
-			if (tty && !C_CLOCAL(tty) &&
-					old_dcd_state && !portdata->dcd_state)
-				tty_hangup(tty);
-			tty_kref_put(tty);
+			if (old_dcd_state && !portdata->dcd_state)
+				tty_port_tty_hangup(&port->port, true);
 		} else {
 			dev_dbg(&port->dev, "%s: type %x req %x\n",
 				__func__, req_pkt->bRequestType,
@@ -783,30 +774,25 @@ static void sierra_close(struct usb_serial_port *port)
 	portdata->rts_state = 0;
 	portdata->dtr_state = 0;
 
-	if (serial->dev) {
-		mutex_lock(&serial->disc_mutex);
-		if (!serial->disconnected) {
-			serial->interface->needs_remote_wakeup = 0;
-			/* odd error handling due to pm counters */
-			if (!usb_autopm_get_interface(serial->interface))
-				sierra_send_setup(port);
-			else
-				usb_autopm_get_interface_no_resume(serial->interface);
-				
-		}
-		mutex_unlock(&serial->disc_mutex);
-		spin_lock_irq(&intfdata->susp_lock);
-		portdata->opened = 0;
-		spin_unlock_irq(&intfdata->susp_lock);
+	mutex_lock(&serial->disc_mutex);
+	if (!serial->disconnected) {
+		serial->interface->needs_remote_wakeup = 0;
+		/* odd error handling due to pm counters */
+		if (!usb_autopm_get_interface(serial->interface))
+			sierra_send_setup(port);
+		else
+			usb_autopm_get_interface_no_resume(serial->interface);
 
+	}
+	mutex_unlock(&serial->disc_mutex);
+	spin_lock_irq(&intfdata->susp_lock);
+	portdata->opened = 0;
+	spin_unlock_irq(&intfdata->susp_lock);
 
-		/* Stop reading urbs */
-		sierra_stop_rx_urbs(port);
-		/* .. and release them */
-		for (i = 0; i < portdata->num_in_urbs; i++) {
-			sierra_release_urb(portdata->in_urbs[i]);
-			portdata->in_urbs[i] = NULL;
-		}
+	sierra_stop_rx_urbs(port);
+	for (i = 0; i < portdata->num_in_urbs; i++) {
+		sierra_release_urb(portdata->in_urbs[i]);
+		portdata->in_urbs[i] = NULL;
 	}
 }
 
@@ -861,19 +847,13 @@ static int sierra_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 static void sierra_dtr_rts(struct usb_serial_port *port, int on)
 {
-	struct usb_serial *serial = port->serial;
 	struct sierra_port_private *portdata;
 
 	portdata = usb_get_serial_port_data(port);
 	portdata->rts_state = on;
 	portdata->dtr_state = on;
 
-	if (serial->dev) {
-		mutex_lock(&serial->disc_mutex);
-		if (!serial->disconnected)
-			sierra_send_setup(port);
-		mutex_unlock(&serial->disc_mutex);
-	}
+	sierra_send_setup(port);
 }
 
 static int sierra_startup(struct usb_serial *serial)
@@ -934,7 +914,7 @@ static int sierra_port_probe(struct usb_serial_port *port)
 		/* This is really the usb-serial port number of the interface
 		 * rather than the interface number.
 		 */
-		ifnum = port->number - serial->minor;
+		ifnum = port->port_number;
 		himemoryp = &typeA_interface_list;
 	}
 

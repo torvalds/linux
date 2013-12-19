@@ -1,5 +1,5 @@
-#ifndef _ASM_SOCKET_H
-#define _ASM_SOCKET_H
+#ifndef _UAPI_ASM_SOCKET_H
+#define _UAPI_ASM_SOCKET_H
 
 #include <asm/sockios.h>
 
@@ -13,7 +13,7 @@
 #define SO_BROADCAST	0x0020
 #define SO_LINGER	0x0080
 #define SO_OOBINLINE	0x0100
-/* To add :#define SO_REUSEPORT 0x0200 */
+#define SO_REUSEPORT	0x0200
 #define SO_SNDBUF	0x1001
 #define SO_RCVBUF	0x1002
 #define SO_SNDBUFFORCE	0x100a
@@ -69,10 +69,12 @@
 /* Instruct lower device to use last 4-bytes of skb data as FCS */
 #define SO_NOFCS		0x4024
 
+#define SO_LOCK_FILTER		0x4025
 
-/* O_NONBLOCK clashes with the bits used for socket types.  Therefore we
- * have to define SOCK_NONBLOCK to a different value here.
- */
-#define SOCK_NONBLOCK   0x40000000
+#define SO_SELECT_ERR_QUEUE	0x4026
 
-#endif /* _ASM_SOCKET_H */
+#define SO_BUSY_POLL		0x4027
+
+#define SO_MAX_PACING_RATE	0x4048
+
+#endif /* _UAPI_ASM_SOCKET_H */

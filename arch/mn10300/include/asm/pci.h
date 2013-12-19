@@ -44,7 +44,6 @@ extern void unit_pci_init(void);
 #define pcibios_assign_all_busses()	0
 #endif
 
-extern unsigned long pci_mem_start;
 #define PCIBIOS_MIN_IO		0xBE000004
 #define PCIBIOS_MIN_MEM		0xB8000000
 
@@ -102,5 +101,7 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {
 	return channel ? 15 : 14;
 }
+
+#include <asm-generic/pci_iomap.h>
 
 #endif /* _ASM_PCI_H */

@@ -237,6 +237,12 @@ MEM
   devm_kzalloc()
   devm_kfree()
 
+IIO
+  devm_iio_device_alloc()
+  devm_iio_device_free()
+  devm_iio_trigger_alloc()
+  devm_iio_trigger_free()
+
 IO region
   devm_request_region()
   devm_request_mem_region()
@@ -266,7 +272,8 @@ IOMAP
   devm_ioremap()
   devm_ioremap_nocache()
   devm_iounmap()
-  devm_request_and_ioremap() : checks resource, requests region, ioremaps
+  devm_ioremap_resource() : checks resource, requests memory region, ioremaps
+  devm_request_and_ioremap() : obsoleted by devm_ioremap_resource()
   pcim_iomap()
   pcim_iounmap()
   pcim_iomap_table()	: array of mapped addresses indexed by BAR
@@ -276,6 +283,7 @@ REGULATOR
   devm_regulator_get()
   devm_regulator_put()
   devm_regulator_bulk_get()
+  devm_regulator_register()
 
 CLOCK
   devm_clk_get()
@@ -288,3 +296,13 @@ PINCTRL
 PWM
   devm_pwm_get()
   devm_pwm_put()
+
+PHY
+  devm_usb_get_phy()
+  devm_usb_put_phy()
+
+SLAVE DMA ENGINE
+  devm_acpi_dma_controller_register()
+
+SPI
+  devm_spi_register_master()

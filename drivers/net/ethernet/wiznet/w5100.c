@@ -570,7 +570,6 @@ static int w5100_set_macaddr(struct net_device *ndev, void *addr)
 	if (!is_valid_ether_addr(sock_addr->sa_data))
 		return -EADDRNOTAVAIL;
 	memcpy(ndev->dev_addr, sock_addr->sa_data, ETH_ALEN);
-	ndev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	w5100_write_macaddr(priv);
 	return 0;
 }
@@ -623,7 +622,7 @@ static const struct net_device_ops w5100_netdev_ops = {
 
 static int w5100_hw_probe(struct platform_device *pdev)
 {
-	struct wiznet_platform_data *data = pdev->dev.platform_data;
+	struct wiznet_platform_data *data = dev_get_platdata(&pdev->dev);
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct w5100_priv *priv = netdev_priv(ndev);
 	const char *name = netdev_name(ndev);
@@ -735,7 +734,6 @@ err_hw_probe:
 	unregister_netdev(ndev);
 err_register:
 	free_netdev(ndev);
-	platform_set_drvdata(pdev, NULL);
 	return err;
 }
 
@@ -751,11 +749,10 @@ static int w5100_remove(struct platform_device *pdev)
 
 	unregister_netdev(ndev);
 	free_netdev(ndev);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int w5100_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -788,7 +785,7 @@ static int w5100_resume(struct device *dev)
 	}
 	return 0;
 }
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(w5100_pm_ops, w5100_suspend, w5100_resume);
 

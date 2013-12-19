@@ -561,6 +561,13 @@ static void ttusb_process_muxpack(struct ttusb *ttusb, const u8 * muxpack,
 {
 	u16 csum = 0, cc;
 	int i;
+
+	if (len < 4 || len & 0x1) {
+		pr_warn("%s: muxpack has invalid len %d\n", __func__, len);
+		numinvalid++;
+		return;
+	}
+
 	for (i = 0; i < len; i += 2)
 		csum ^= le16_to_cpup((__le16 *) (muxpack + i));
 	if (csum) {
@@ -923,11 +930,11 @@ static int ttusb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	if (dvbdmxfeed->type == DMX_TYPE_TS) {
 		switch (dvbdmxfeed->pes_type) {
-		case DMX_TS_PES_VIDEO:
-		case DMX_TS_PES_AUDIO:
-		case DMX_TS_PES_TELETEXT:
-		case DMX_TS_PES_PCR:
-		case DMX_TS_PES_OTHER:
+		case DMX_PES_VIDEO:
+		case DMX_PES_AUDIO:
+		case DMX_PES_TELETEXT:
+		case DMX_PES_PCR:
+		case DMX_PES_OTHER:
 			break;
 		default:
 			return -EINVAL;
@@ -1761,6 +1768,8 @@ err_i2c_del_adapter:
 	i2c_del_adapter(&ttusb->i2c_adap);
 err_unregister_adapter:
 	dvb_unregister_adapter (&ttusb->adapter);
+	ttusb_free_iso_urbs(ttusb);
+	kfree(ttusb);
 	return result;
 }
 

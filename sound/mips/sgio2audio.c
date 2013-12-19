@@ -963,7 +963,6 @@ static int snd_sgio2audio_remove(struct platform_device *pdev)
 	struct snd_card *card = platform_get_drvdata(pdev);
 
 	snd_card_free(card);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

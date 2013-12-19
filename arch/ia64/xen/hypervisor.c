@@ -74,7 +74,7 @@ void __init xen_setup_vcpu_info_placement(void)
 		xen_vcpu_setup(cpu);
 }
 
-void __cpuinit
+void
 xen_cpu_init(void)
 {
 	xen_smp_intr_init();

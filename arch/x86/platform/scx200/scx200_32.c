@@ -35,7 +35,7 @@ static struct pci_device_id scx200_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci,scx200_tbl);
 
-static int __devinit scx200_probe(struct pci_dev *, const struct pci_device_id *);
+static int scx200_probe(struct pci_dev *, const struct pci_device_id *);
 
 static struct pci_driver scx200_pci_driver = {
 	.name = "scx200",
@@ -45,7 +45,7 @@ static struct pci_driver scx200_pci_driver = {
 
 static DEFINE_MUTEX(scx200_gpio_config_lock);
 
-static void __devinit scx200_init_shadow(void)
+static void scx200_init_shadow(void)
 {
 	int bank;
 
@@ -54,7 +54,7 @@ static void __devinit scx200_init_shadow(void)
 		scx200_gpio_shadow[bank] = inl(scx200_gpio_base + 0x10 * bank);
 }
 
-static int __devinit scx200_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int scx200_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	unsigned base;
 

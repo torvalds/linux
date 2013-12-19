@@ -244,13 +244,8 @@ static void i_usX2Y_usbpcm_urb_complete(struct urb *urb)
 		usX2Y_error_urb_status(usX2Y, subs, urb);
 		return;
 	}
-	if (likely((urb->start_frame & 0xFFFF) == (usX2Y->wait_iso_frame & 0xFFFF)))
-		subs->completed_urb = urb;
-	else {
-		usX2Y_error_sequence(usX2Y, subs, urb);
-		return;
-	}
 
+	subs->completed_urb = urb;
 	capsubs = usX2Y->subs[SNDRV_PCM_STREAM_CAPTURE];
 	capsubs2 = usX2Y->subs[SNDRV_PCM_STREAM_CAPTURE + 2];
 	playbacksubs = usX2Y->subs[SNDRV_PCM_STREAM_PLAYBACK];
@@ -443,7 +438,6 @@ static int usX2Y_usbpcm_urbs_start(struct snd_usX2Y_substream *subs)
 					if (0 == u)
 						atomic_set(&subs->state, state_STARTING3);
 					urb->dev = usX2Y->dev;
-					urb->transfer_flags = URB_ISO_ASAP;
 					for (pack = 0; pack < nr_of_packs(); pack++) {
 						urb->iso_frame_desc[pack].offset = subs->maxpacksize * (pack + u * nr_of_packs());
 						urb->iso_frame_desc[pack].length = subs->maxpacksize;

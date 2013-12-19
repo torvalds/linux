@@ -36,7 +36,8 @@ static void s3c_dma_cb(struct s3c2410_dma_chan *channel, void *param,
 }
 
 static unsigned s3c_dma_request(enum dma_ch dma_ch,
-					struct samsung_dma_req *param)
+				struct samsung_dma_req *param,
+				struct device *dev, char *ch_name)
 {
 	struct cb_data *data;
 
@@ -81,7 +82,8 @@ static int s3c_dma_config(unsigned ch, struct samsung_dma_config *param)
 static int s3c_dma_prepare(unsigned ch, struct samsung_dma_prep *param)
 {
 	struct cb_data *data;
-	int len = (param->cap == DMA_CYCLIC) ? param->period : param->len;
+	dma_addr_t pos = param->buf;
+	dma_addr_t end = param->buf + param->len;
 
 	list_for_each_entry(data, &dma_list, node)
 		if (data->ch == ch)
@@ -93,7 +95,15 @@ static int s3c_dma_prepare(unsigned ch, struct samsung_dma_prep *param)
 		data->fp_param = param->fp_param;
 	}
 
-	s3c2410_dma_enqueue(ch, (void *)data, param->buf, len);
+	if (param->cap != DMA_CYCLIC) {
+		s3c2410_dma_enqueue(ch, (void *)data, param->buf, param->len);
+		return 0;
+	}
+
+	while (pos < end) {
+		s3c2410_dma_enqueue(ch, (void *)data, pos, param->period);
+		pos += param->period;
+	}
 
 	return 0;
 }

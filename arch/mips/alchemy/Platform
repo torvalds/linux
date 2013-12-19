@@ -1,36 +1,18 @@
 #
 # Core Alchemy code
 #
-platform-$(CONFIG_MIPS_ALCHEMY)	+= alchemy/common/
+platform-$(CONFIG_MIPS_ALCHEMY) += alchemy/common/
 
 
 #
-# AMD Alchemy Pb1100 eval board
-#
-platform-$(CONFIG_MIPS_PB1100)	+= alchemy/devboards/
-load-$(CONFIG_MIPS_PB1100)	+= 0xffffffff80100000
-
-#
-# AMD Alchemy Pb1500 eval board
-#
-platform-$(CONFIG_MIPS_PB1500)	+= alchemy/devboards/
-load-$(CONFIG_MIPS_PB1500)	+= 0xffffffff80100000
-
-#
-# AMD Alchemy Pb1550 eval board
-#
-platform-$(CONFIG_MIPS_PB1550)	+= alchemy/devboards/
-load-$(CONFIG_MIPS_PB1550)	+= 0xffffffff80100000
-
-#
-# AMD Alchemy Db1000/Db1500/Db1100 eval boards
+# AMD Alchemy Db1000/Db1500/Pb1500/Db1100/Pb1100 eval boards
 #
 platform-$(CONFIG_MIPS_DB1000)	+= alchemy/devboards/
 cflags-$(CONFIG_MIPS_DB1000)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_DB1000)	+= 0xffffffff80100000
 
 #
-# AMD Alchemy Db1200/Pb1200/Db1550/Db1300 eval boards
+# AMD Alchemy Db1200/Pb1200/Db1550/Pb1550/Db1300 eval boards
 #
 platform-$(CONFIG_MIPS_DB1235)	+= alchemy/devboards/
 cflags-$(CONFIG_MIPS_DB1235)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
@@ -45,7 +27,7 @@ load-$(CONFIG_MIPS_MTX1)	+= 0xffffffff80100000
 #
 # MyCable eval board
 #
-platform-$(CONFIG_MIPS_XXS1500)	+= alchemy/
+platform-$(CONFIG_MIPS_XXS1500) += alchemy/
 load-$(CONFIG_MIPS_XXS1500)	+= 0xffffffff80100000
 
 #
@@ -56,7 +38,7 @@ load-$(CONFIG_MIPS_GPR)		+= 0xffffffff80100000
 
 # boards can specify their own <gpio.h> in one of their include dirs.
 # If they do, placing this line here at the end will make sure the
-# compiler picks the board one.  If they don't, it will make sure
+# compiler picks the board one.	 If they don't, it will make sure
 # the alchemy generic gpio header is picked up.
 
 cflags-$(CONFIG_MIPS_ALCHEMY)	+= -I$(srctree)/arch/mips/include/asm/mach-au1x00

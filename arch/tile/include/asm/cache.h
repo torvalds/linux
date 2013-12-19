@@ -49,9 +49,16 @@
 #define __read_mostly __attribute__((__section__(".data..read_mostly")))
 
 /*
- * Attribute for data that is kept read/write coherent until the end of
- * initialization, then bumped to read/only incoherent for performance.
+ * Originally we used small TLB pages for kernel data and grouped some
+ * things together as "write once", enforcing the property at the end
+ * of initialization by making those pages read-only and non-coherent.
+ * This allowed better cache utilization since cache inclusion did not
+ * need to be maintained.  However, to do this requires an extra TLB
+ * entry, which on balance is more of a performance hit than the
+ * non-coherence is a performance gain, so we now just make "read
+ * mostly" and "write once" be synonyms.  We keep the attribute
+ * separate in case we change our minds at a future date.
  */
-#define __write_once __attribute__((__section__(".w1data")))
+#define __write_once __read_mostly
 
 #endif /* _ASM_TILE_CACHE_H */

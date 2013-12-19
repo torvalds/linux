@@ -1,0 +1,52 @@
+#
+# KVM configuration
+#
+
+source "virt/kvm/Kconfig"
+
+menuconfig VIRTUALIZATION
+	bool "Virtualization"
+	---help---
+	  Say Y here to get to see options for using your Linux host to run
+	  other operating systems inside virtual machines (guests).
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and
+	  disabled.
+
+if VIRTUALIZATION
+
+config KVM
+	bool "Kernel-based Virtual Machine (KVM) support"
+	select MMU_NOTIFIER
+	select PREEMPT_NOTIFIERS
+	select ANON_INODES
+	select HAVE_KVM_CPU_RELAX_INTERCEPT
+	select KVM_MMIO
+	select KVM_ARM_HOST
+	select KVM_ARM_VGIC
+	select KVM_ARM_TIMER
+	---help---
+	  Support hosting virtualized guest machines.
+
+	  If unsure, say N.
+
+config KVM_ARM_HOST
+	bool
+	---help---
+	  Provides host support for ARM processors.
+
+config KVM_ARM_VGIC
+	bool
+	depends on KVM_ARM_HOST && OF
+	select HAVE_KVM_IRQCHIP
+	---help---
+	  Adds support for a hardware assisted, in-kernel GIC emulation.
+
+config KVM_ARM_TIMER
+	bool
+	depends on KVM_ARM_VGIC
+	---help---
+	  Adds support for the Architected Timers in virtual machines.
+
+endif # VIRTUALIZATION

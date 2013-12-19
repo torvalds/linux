@@ -316,6 +316,12 @@ static void scsi_host_dev_release(struct device *dev)
 	kfree(shost);
 }
 
+static unsigned int shost_eh_deadline;
+
+module_param_named(eh_deadline, shost_eh_deadline, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(eh_deadline,
+		 "SCSI EH timeout in seconds (should be between 1 and 2^32-1)");
+
 static struct device_type scsi_host_type = {
 	.name =		"scsi_host",
 	.release =	scsi_host_dev_release,
@@ -388,6 +394,8 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	shost->unchecked_isa_dma = sht->unchecked_isa_dma;
 	shost->use_clustering = sht->use_clustering;
 	shost->ordered_tag = sht->ordered_tag;
+	shost->eh_deadline = shost_eh_deadline * HZ;
+	shost->no_write_same = sht->no_write_same;
 
 	if (sht->supported_mode == MODE_UNKNOWN)
 		/* means we didn't set it ... default to INITIATOR */
@@ -468,10 +476,10 @@ void scsi_unregister(struct Scsi_Host *shost)
 }
 EXPORT_SYMBOL(scsi_unregister);
 
-static int __scsi_host_match(struct device *dev, void *data)
+static int __scsi_host_match(struct device *dev, const void *data)
 {
 	struct Scsi_Host *p;
-	unsigned short *hostnum = (unsigned short *)data;
+	const unsigned short *hostnum = data;
 
 	p = class_to_shost(dev);
 	return p->host_no == *hostnum;

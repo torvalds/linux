@@ -123,7 +123,7 @@ omap_otg_init(struct omap_usb_config *config)
 	syscon = omap_readl(OTG_SYSCON_1);
 	syscon |= HST_IDLE_EN|DEV_IDLE_EN|OTG_IDLE_EN;
 
-#ifdef	CONFIG_USB_GADGET_OMAP
+#if IS_ENABLED(CONFIG_USB_OMAP)
 	if (config->otg || config->register_dev) {
 		struct platform_device *udc_device = config->udc_device;
 		int status;
@@ -169,7 +169,7 @@ omap_otg_init(struct omap_usb_config *config)
 void omap_otg_init(struct omap_usb_config *config) {}
 #endif
 
-#ifdef	CONFIG_USB_GADGET_OMAP
+#if IS_ENABLED(CONFIG_USB_OMAP)
 
 static struct resource udc_resources[] = {
 	/* order is significant! */
@@ -600,7 +600,7 @@ static void __init omap_1510_usb_init(struct omap_usb_config *config)
 	while (!(omap_readw(ULPD_DPLL_CTRL) & DPLL_LOCK))
 		cpu_relax();
 
-#ifdef	CONFIG_USB_GADGET_OMAP
+#if IS_ENABLED(CONFIG_USB_OMAP)
 	if (config->register_dev) {
 		int status;
 
@@ -629,8 +629,14 @@ static void __init omap_1510_usb_init(struct omap_usb_config *config)
 static inline void omap_1510_usb_init(struct omap_usb_config *config) {}
 #endif
 
-void __init omap1_usb_init(struct omap_usb_config *pdata)
+void __init omap1_usb_init(struct omap_usb_config *_pdata)
 {
+	struct omap_usb_config *pdata;
+
+	pdata = kmemdup(_pdata, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return;
+
 	pdata->usb0_init = omap1_usb0_init;
 	pdata->usb1_init = omap1_usb1_init;
 	pdata->usb2_init = omap1_usb2_init;

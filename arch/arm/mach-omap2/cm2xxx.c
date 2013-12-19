@@ -273,9 +273,6 @@ int omap2xxx_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id, u8 idlest_shift)
 
 static void omap2xxx_clkdm_allow_idle(struct clockdomain *clkdm)
 {
-	if (atomic_read(&clkdm->usecount) > 0)
-		_clkdm_add_autodeps(clkdm);
-
 	omap2xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 				       clkdm->clktrctrl_mask);
 }
@@ -284,9 +281,6 @@ static void omap2xxx_clkdm_deny_idle(struct clockdomain *clkdm)
 {
 	omap2xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 					clkdm->clktrctrl_mask);
-
-	if (atomic_read(&clkdm->usecount) > 0)
-		_clkdm_del_autodeps(clkdm);
 }
 
 static int omap2xxx_clkdm_clk_enable(struct clockdomain *clkdm)
@@ -298,18 +292,8 @@ static int omap2xxx_clkdm_clk_enable(struct clockdomain *clkdm)
 
 	hwsup = omap2xxx_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 					      clkdm->clktrctrl_mask);
-
-	if (hwsup) {
-		/* Disable HW transitions when we are changing deps */
-		omap2xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-						clkdm->clktrctrl_mask);
-		_clkdm_add_autodeps(clkdm);
-		omap2xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-					       clkdm->clktrctrl_mask);
-	} else {
-		if (clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)
-			omap2xxx_clkdm_wakeup(clkdm);
-	}
+	if (!hwsup && clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)
+		omap2xxx_clkdm_wakeup(clkdm);
 
 	return 0;
 }
@@ -324,17 +308,8 @@ static int omap2xxx_clkdm_clk_disable(struct clockdomain *clkdm)
 	hwsup = omap2xxx_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 					      clkdm->clktrctrl_mask);
 
-	if (hwsup) {
-		/* Disable HW transitions when we are changing deps */
-		omap2xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-						clkdm->clktrctrl_mask);
-		_clkdm_del_autodeps(clkdm);
-		omap2xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-					       clkdm->clktrctrl_mask);
-	} else {
-		if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP)
-			omap2xxx_clkdm_sleep(clkdm);
-	}
+	if (!hwsup && clkdm->flags & CLKDM_CAN_FORCE_SLEEP)
+		omap2xxx_clkdm_sleep(clkdm);
 
 	return 0;
 }
@@ -351,6 +326,73 @@ struct clkdm_ops omap2_clkdm_operations = {
 	.clkdm_clk_enable	= omap2xxx_clkdm_clk_enable,
 	.clkdm_clk_disable	= omap2xxx_clkdm_clk_disable,
 };
+
+int omap2xxx_cm_fclks_active(void)
+{
+	u32 f1, f2;
+
+	f1 = omap2_cm_read_mod_reg(CORE_MOD, CM_FCLKEN1);
+	f2 = omap2_cm_read_mod_reg(CORE_MOD, OMAP24XX_CM_FCLKEN2);
+
+	return (f1 | f2) ? 1 : 0;
+}
+
+int omap2xxx_cm_mpu_retention_allowed(void)
+{
+	u32 l;
+
+	/* Check for MMC, UART2, UART1, McSPI2, McSPI1 and DSS1. */
+	l = omap2_cm_read_mod_reg(CORE_MOD, CM_FCLKEN1);
+	if (l & (OMAP2420_EN_MMC_MASK | OMAP24XX_EN_UART2_MASK |
+		 OMAP24XX_EN_UART1_MASK | OMAP24XX_EN_MCSPI2_MASK |
+		 OMAP24XX_EN_MCSPI1_MASK | OMAP24XX_EN_DSS1_MASK))
+		return 0;
+	/* Check for UART3. */
+	l = omap2_cm_read_mod_reg(CORE_MOD, OMAP24XX_CM_FCLKEN2);
+	if (l & OMAP24XX_EN_UART3_MASK)
+		return 0;
+
+	return 1;
+}
+
+u32 omap2xxx_cm_get_core_clk_src(void)
+{
+	u32 v;
+
+	v = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
+	v &= OMAP24XX_CORE_CLK_SRC_MASK;
+
+	return v;
+}
+
+u32 omap2xxx_cm_get_core_pll_config(void)
+{
+	return omap2_cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
+}
+
+u32 omap2xxx_cm_get_pll_config(void)
+{
+	return omap2_cm_read_mod_reg(PLL_MOD, CM_CLKSEL1);
+}
+
+u32 omap2xxx_cm_get_pll_status(void)
+{
+	return omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
+}
+
+void omap2xxx_cm_set_mod_dividers(u32 mpu, u32 dsp, u32 gfx, u32 core, u32 mdm)
+{
+	u32 tmp;
+
+	omap2_cm_write_mod_reg(mpu, MPU_MOD, CM_CLKSEL);
+	omap2_cm_write_mod_reg(dsp, OMAP24XX_DSP_MOD, CM_CLKSEL);
+	omap2_cm_write_mod_reg(gfx, GFX_MOD, CM_CLKSEL);
+	tmp = omap2_cm_read_mod_reg(CORE_MOD, CM_CLKSEL1) &
+		OMAP24XX_CLKSEL_DSS2_MASK;
+	omap2_cm_write_mod_reg(core | tmp, CORE_MOD, CM_CLKSEL1);
+	if (cpu_is_omap2430())
+		omap2_cm_write_mod_reg(mdm, OMAP2430_MDM_MOD, CM_CLKSEL);
+}
 
 /*
  *

@@ -4,6 +4,7 @@
 #ifdef __KERNEL__
 
 #include <asm/virtconvert.h>
+#include <asm-generic/iomap.h>
 
 /*
  * These are for ISA/PCI shared memory _only_ and should never be used

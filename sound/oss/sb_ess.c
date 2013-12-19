@@ -1544,7 +1544,7 @@ static int ess_has_rec_mixer (int submodel)
 		return 1;
 	default:
 		return 0;
-	};
+	}
 };
 
 #ifdef FKS_LOGGING

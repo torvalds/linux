@@ -42,10 +42,21 @@ static int ocqp_support = 1;
 module_param(ocqp_support, int, 0644);
 MODULE_PARM_DESC(ocqp_support, "Support on-chip SQs (default=1)");
 
-int db_fc_threshold = 2000;
+int db_fc_threshold = 1000;
 module_param(db_fc_threshold, int, 0644);
-MODULE_PARM_DESC(db_fc_threshold, "QP count/threshold that triggers automatic "
-		 "db flow control mode (default = 2000)");
+MODULE_PARM_DESC(db_fc_threshold,
+		 "QP count/threshold that triggers"
+		 " automatic db flow control mode (default = 1000)");
+
+int db_coalescing_threshold;
+module_param(db_coalescing_threshold, int, 0644);
+MODULE_PARM_DESC(db_coalescing_threshold,
+		 "QP count/threshold that triggers"
+		 " disabling db coalescing (default = 0)");
+
+static int max_fr_immd = T4_MAX_FR_IMMD;
+module_param(max_fr_immd, int, 0644);
+MODULE_PARM_DESC(max_fr_immd, "fastreg threshold for using DSGL instead of immedate");
 
 static void set_state(struct c4iw_qp *qhp, enum c4iw_qp_state state)
 {
@@ -76,7 +87,7 @@ static void dealloc_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 
 static int alloc_oc_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 {
-	if (!ocqp_support || !t4_ocqp_supported())
+	if (!ocqp_support || !ocqp_supported(&rdev->lldi))
 		return -ENOSYS;
 	sq->dma_addr = c4iw_ocqp_pool_alloc(rdev, sq->memsize);
 	if (!sq->dma_addr)
@@ -98,6 +109,16 @@ static int alloc_host_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 	sq->phys_addr = virt_to_phys(sq->queue);
 	pci_unmap_addr_set(sq, mapping, sq->dma_addr);
 	return 0;
+}
+
+static int alloc_sq(struct c4iw_rdev *rdev, struct t4_sq *sq, int user)
+{
+	int ret = -ENOSYS;
+	if (user)
+		ret = alloc_oc_sq(rdev, sq);
+	if (ret)
+		ret = alloc_host_sq(rdev, sq);
+	return ret;
 }
 
 static int destroy_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
@@ -129,7 +150,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	int wr_len;
 	struct c4iw_wr_wait wr_wait;
 	struct sk_buff *skb;
-	int ret;
+	int ret = 0;
 	int eqsize;
 
 	wq->sq.qid = c4iw_get_qpid(rdev, uctx);
@@ -168,26 +189,19 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		goto free_sw_rq;
 	}
 
-	if (user) {
-		ret = alloc_oc_sq(rdev, &wq->sq);
-		if (ret)
-			goto free_hwaddr;
-
-		ret = alloc_host_sq(rdev, &wq->sq);
-		if (ret)
-			goto free_sq;
-	} else
-		ret = alloc_host_sq(rdev, &wq->sq);
-		if (ret)
-			goto free_hwaddr;
+	ret = alloc_sq(rdev, &wq->sq, user);
+	if (ret)
+		goto free_hwaddr;
 	memset(wq->sq.queue, 0, wq->sq.memsize);
 	dma_unmap_addr_set(&wq->sq, mapping, wq->sq.dma_addr);
 
 	wq->rq.queue = dma_alloc_coherent(&(rdev->lldi.pdev->dev),
 					  wq->rq.memsize, &(wq->rq.dma_addr),
 					  GFP_KERNEL);
-	if (!wq->rq.queue)
+	if (!wq->rq.queue) {
+		ret = -ENOMEM;
 		goto free_sq;
+	}
 	PDBG("%s sq base va 0x%p pa 0x%llx rq base va 0x%p pa 0x%llx\n",
 		__func__, wq->sq.queue,
 		(unsigned long long)virt_to_phys(wq->sq.queue),
@@ -532,7 +546,7 @@ static int build_rdma_recv(struct c4iw_qp *qhp, union t4_recv_wr *wqe,
 }
 
 static int build_fastreg(struct t4_sq *sq, union t4_wr *wqe,
-			 struct ib_send_wr *wr, u8 *len16)
+			 struct ib_send_wr *wr, u8 *len16, u8 t5dev)
 {
 
 	struct fw_ri_immd *imdp;
@@ -554,28 +568,51 @@ static int build_fastreg(struct t4_sq *sq, union t4_wr *wqe,
 	wqe->fr.va_hi = cpu_to_be32(wr->wr.fast_reg.iova_start >> 32);
 	wqe->fr.va_lo_fbo = cpu_to_be32(wr->wr.fast_reg.iova_start &
 					0xffffffff);
-	WARN_ON(pbllen > T4_MAX_FR_IMMD);
-	imdp = (struct fw_ri_immd *)(&wqe->fr + 1);
-	imdp->op = FW_RI_DATA_IMMD;
-	imdp->r1 = 0;
-	imdp->r2 = 0;
-	imdp->immdlen = cpu_to_be32(pbllen);
-	p = (__be64 *)(imdp + 1);
-	rem = pbllen;
-	for (i = 0; i < wr->wr.fast_reg.page_list_len; i++) {
-		*p = cpu_to_be64((u64)wr->wr.fast_reg.page_list->page_list[i]);
-		rem -= sizeof *p;
-		if (++p == (__be64 *)&sq->queue[sq->size])
-			p = (__be64 *)sq->queue;
+
+	if (t5dev && use_dsgl && (pbllen > max_fr_immd)) {
+		struct c4iw_fr_page_list *c4pl =
+			to_c4iw_fr_page_list(wr->wr.fast_reg.page_list);
+		struct fw_ri_dsgl *sglp;
+
+		for (i = 0; i < wr->wr.fast_reg.page_list_len; i++) {
+			wr->wr.fast_reg.page_list->page_list[i] = (__force u64)
+				cpu_to_be64((u64)
+				wr->wr.fast_reg.page_list->page_list[i]);
+		}
+
+		sglp = (struct fw_ri_dsgl *)(&wqe->fr + 1);
+		sglp->op = FW_RI_DATA_DSGL;
+		sglp->r1 = 0;
+		sglp->nsge = cpu_to_be16(1);
+		sglp->addr0 = cpu_to_be64(c4pl->dma_addr);
+		sglp->len0 = cpu_to_be32(pbllen);
+
+		*len16 = DIV_ROUND_UP(sizeof(wqe->fr) + sizeof(*sglp), 16);
+	} else {
+		imdp = (struct fw_ri_immd *)(&wqe->fr + 1);
+		imdp->op = FW_RI_DATA_IMMD;
+		imdp->r1 = 0;
+		imdp->r2 = 0;
+		imdp->immdlen = cpu_to_be32(pbllen);
+		p = (__be64 *)(imdp + 1);
+		rem = pbllen;
+		for (i = 0; i < wr->wr.fast_reg.page_list_len; i++) {
+			*p = cpu_to_be64(
+				(u64)wr->wr.fast_reg.page_list->page_list[i]);
+			rem -= sizeof(*p);
+			if (++p == (__be64 *)&sq->queue[sq->size])
+				p = (__be64 *)sq->queue;
+		}
+		BUG_ON(rem < 0);
+		while (rem) {
+			*p = 0;
+			rem -= sizeof(*p);
+			if (++p == (__be64 *)&sq->queue[sq->size])
+				p = (__be64 *)sq->queue;
+		}
+		*len16 = DIV_ROUND_UP(sizeof(wqe->fr) + sizeof(*imdp)
+				      + pbllen, 16);
 	}
-	BUG_ON(rem < 0);
-	while (rem) {
-		*p = 0;
-		rem -= sizeof *p;
-		if (++p == (__be64 *)&sq->queue[sq->size])
-			p = (__be64 *)sq->queue;
-	}
-	*len16 = DIV_ROUND_UP(sizeof wqe->fr + sizeof *imdp + pbllen, 16);
 	return 0;
 }
 
@@ -676,7 +713,10 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		case IB_WR_FAST_REG_MR:
 			fw_opcode = FW_RI_FR_NSMR_WR;
 			swsqe->opcode = FW_RI_FAST_REGISTER;
-			err = build_fastreg(&qhp->wq.sq, wqe, wr, &len16);
+			err = build_fastreg(&qhp->wq.sq, wqe, wr, &len16,
+					    is_t5(
+					    qhp->rhp->rdev.lldi.adapter_type) ?
+					    1 : 0);
 			break;
 		case IB_WR_LOCAL_INV:
 			if (wr->send_flags & IB_SEND_FENCE)
@@ -697,6 +737,7 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		swsqe->idx = qhp->wq.sq.pidx;
 		swsqe->complete = 0;
 		swsqe->signaled = (wr->send_flags & IB_SEND_SIGNALED);
+		swsqe->flushed = 0;
 		swsqe->wr_id = wr->wr_id;
 
 		init_wr_hdr(wqe, qhp->wq.sq.pidx, fw_opcode, fw_flags, len16);
@@ -966,7 +1007,15 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&rchp->lock, flag);
 	spin_lock(&qhp->lock);
-	c4iw_flush_hw_cq(&rchp->cq);
+
+	if (qhp->wq.flushed) {
+		spin_unlock(&qhp->lock);
+		spin_unlock_irqrestore(&rchp->lock, flag);
+		return;
+	}
+	qhp->wq.flushed = 1;
+
+	c4iw_flush_hw_cq(rchp);
 	c4iw_count_rcqes(&rchp->cq, &qhp->wq, &count);
 	flushed = c4iw_flush_rq(&qhp->wq, &rchp->cq, count);
 	spin_unlock(&qhp->lock);
@@ -980,9 +1029,9 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&schp->lock, flag);
 	spin_lock(&qhp->lock);
-	c4iw_flush_hw_cq(&schp->cq);
-	c4iw_count_scqes(&schp->cq, &qhp->wq, &count);
-	flushed = c4iw_flush_sq(&qhp->wq, &schp->cq, count);
+	if (schp != rchp)
+		c4iw_flush_hw_cq(schp);
+	flushed = c4iw_flush_sq(qhp);
 	spin_unlock(&qhp->lock);
 	spin_unlock_irqrestore(&schp->lock, flag);
 	if (flushed) {
@@ -997,11 +1046,11 @@ static void flush_qp(struct c4iw_qp *qhp)
 	struct c4iw_cq *rchp, *schp;
 	unsigned long flag;
 
-	rchp = get_chp(qhp->rhp, qhp->attr.rcq);
-	schp = get_chp(qhp->rhp, qhp->attr.scq);
+	rchp = to_c4iw_cq(qhp->ibqp.recv_cq);
+	schp = to_c4iw_cq(qhp->ibqp.send_cq);
 
+	t4_set_wq_in_error(&qhp->wq);
 	if (qhp->ibqp.uobject) {
-		t4_set_wq_in_error(&qhp->wq);
 		t4_set_cq_in_error(&rchp->cq);
 		spin_lock_irqsave(&rchp->comp_handler_lock, flag);
 		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
@@ -1290,8 +1339,7 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 				disconnect = 1;
 				c4iw_get_ep(&qhp->ep->com);
 			}
-			if (qhp->ibqp.uobject)
-				t4_set_wq_in_error(&qhp->wq);
+			t4_set_wq_in_error(&qhp->wq);
 			ret = rdma_fini(rhp, qhp, ep);
 			if (ret)
 				goto err;
@@ -1300,18 +1348,21 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 			set_state(qhp, C4IW_QP_STATE_TERMINATE);
 			qhp->attr.layer_etype = attrs->layer_etype;
 			qhp->attr.ecode = attrs->ecode;
-			if (qhp->ibqp.uobject)
-				t4_set_wq_in_error(&qhp->wq);
+			t4_set_wq_in_error(&qhp->wq);
 			ep = qhp->ep;
+			disconnect = 1;
 			if (!internal)
 				terminate = 1;
-			disconnect = 1;
+			else {
+				ret = rdma_fini(rhp, qhp, ep);
+				if (ret)
+					goto err;
+			}
 			c4iw_get_ep(&qhp->ep->com);
 			break;
 		case C4IW_QP_STATE_ERROR:
 			set_state(qhp, C4IW_QP_STATE_ERROR);
-			if (qhp->ibqp.uobject)
-				t4_set_wq_in_error(&qhp->wq);
+			t4_set_wq_in_error(&qhp->wq);
 			if (!internal) {
 				abort = 1;
 				disconnect = 1;
@@ -1383,6 +1434,7 @@ err:
 	qhp->ep = NULL;
 	set_state(qhp, C4IW_QP_STATE_ERROR);
 	free = 1;
+	abort = 1;
 	wake_up(&qhp->wait);
 	BUG_ON(!ep);
 	flush_qp(qhp);
@@ -1447,6 +1499,9 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp)
 		rhp->db_state = NORMAL;
 		idr_for_each(&rhp->qpidr, enable_qp_db, NULL);
 	}
+	if (db_coalescing_threshold >= 0)
+		if (rhp->qpcnt <= db_coalescing_threshold)
+			cxgb4_enable_db_coalescing(rhp->rdev.lldi.ports[0]);
 	spin_unlock_irq(&rhp->lock);
 	atomic_dec(&qhp->refcnt);
 	wait_event(qhp->wait, !atomic_read(&qhp->refcnt));
@@ -1508,12 +1563,12 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 
 	ucontext = pd->uobject ? to_c4iw_ucontext(pd->uobject->context) : NULL;
 
-
 	qhp = kzalloc(sizeof(*qhp), GFP_KERNEL);
 	if (!qhp)
 		return ERR_PTR(-ENOMEM);
 	qhp->wq.sq.size = sqsize;
 	qhp->wq.sq.memsize = (sqsize + 1) * sizeof *qhp->wq.sq.queue;
+	qhp->wq.sq.flush_cidx = -1;
 	qhp->wq.rq.size = rqsize;
 	qhp->wq.rq.memsize = (rqsize + 1) * sizeof *qhp->wq.rq.queue;
 
@@ -1558,11 +1613,15 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	spin_lock_irq(&rhp->lock);
 	if (rhp->db_state != NORMAL)
 		t4_disable_wq_db(&qhp->wq);
-	if (++rhp->qpcnt > db_fc_threshold && rhp->db_state == NORMAL) {
+	rhp->qpcnt++;
+	if (rhp->qpcnt > db_fc_threshold && rhp->db_state == NORMAL) {
 		rhp->rdev.stats.db_state_transitions++;
 		rhp->db_state = FLOW_CONTROL;
 		idr_for_each(&rhp->qpidr, disable_qp_db, NULL);
 	}
+	if (db_coalescing_threshold >= 0)
+		if (rhp->qpcnt > db_coalescing_threshold)
+			cxgb4_disable_db_coalescing(rhp->rdev.lldi.ports[0]);
 	ret = insert_handle_nolock(rhp, &rhp->qpidr, qhp, qhp->wq.sq.qid);
 	spin_unlock_irq(&rhp->lock);
 	if (ret)
@@ -1609,6 +1668,8 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 		if (mm5) {
 			uresp.ma_sync_key = ucontext->key;
 			ucontext->key += PAGE_SIZE;
+		} else {
+			uresp.ma_sync_key =  0;
 		}
 		uresp.sq_key = ucontext->key;
 		ucontext->key += PAGE_SIZE;

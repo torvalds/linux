@@ -1,4 +1,4 @@
-/* Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2013 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *

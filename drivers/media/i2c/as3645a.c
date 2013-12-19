@@ -713,7 +713,7 @@ static int as3645a_resume(struct device *dev)
  * The number of LEDs reported in platform data is used to compute default
  * limits. Parameters passed through platform data can override those limits.
  */
-static int __devinit as3645a_init_controls(struct as3645a *flash)
+static int as3645a_init_controls(struct as3645a *flash)
 {
 	const struct as3645a_platform_data *pdata = flash->pdata;
 	struct v4l2_ctrl *ctrl;
@@ -804,8 +804,8 @@ static int __devinit as3645a_init_controls(struct as3645a *flash)
 	return flash->ctrls.error;
 }
 
-static int __devinit as3645a_probe(struct i2c_client *client,
-				   const struct i2c_device_id *devid)
+static int as3645a_probe(struct i2c_client *client,
+			 const struct i2c_device_id *devid)
 {
 	struct as3645a *flash;
 	int ret;
@@ -813,7 +813,7 @@ static int __devinit as3645a_probe(struct i2c_client *client,
 	if (client->dev.platform_data == NULL)
 		return -ENODEV;
 
-	flash = kzalloc(sizeof(*flash), GFP_KERNEL);
+	flash = devm_kzalloc(&client->dev, sizeof(*flash), GFP_KERNEL);
 	if (flash == NULL)
 		return -ENOMEM;
 
@@ -838,15 +838,13 @@ static int __devinit as3645a_probe(struct i2c_client *client,
 	flash->led_mode = V4L2_FLASH_LED_MODE_NONE;
 
 done:
-	if (ret < 0) {
+	if (ret < 0)
 		v4l2_ctrl_handler_free(&flash->ctrls);
-		kfree(flash);
-	}
 
 	return ret;
 }
 
-static int __devexit as3645a_remove(struct i2c_client *client)
+static int as3645a_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct as3645a *flash = to_as3645a(subdev);
@@ -855,7 +853,6 @@ static int __devexit as3645a_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&flash->ctrls);
 	media_entity_cleanup(&flash->subdev.entity);
 	mutex_destroy(&flash->power_lock);
-	kfree(flash);
 
 	return 0;
 }
@@ -877,7 +874,7 @@ static struct i2c_driver as3645a_i2c_driver = {
 		.pm   = &as3645a_pm_ops,
 	},
 	.probe	= as3645a_probe,
-	.remove	= __devexit_p(as3645a_remove),
+	.remove	= as3645a_remove,
 	.id_table = as3645a_id_table,
 };
 

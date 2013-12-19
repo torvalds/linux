@@ -48,10 +48,25 @@
 #define PORTSC_SUSP           BIT(7)
 #define PORTSC_HSP            BIT(9)
 #define PORTSC_PTC            (0x0FUL << 16)
+#define PORTSC_PHCD(d)	      ((d) ? BIT(22) : BIT(23))
+/* PTS and PTW for non lpm version only */
+#define PORTSC_PTS(d)						\
+	(u32)((((d) & 0x3) << 30) | (((d) & 0x4) ? BIT(25) : 0))
+#define PORTSC_PTW            BIT(28)
+#define PORTSC_STS            BIT(29)
 
 /* DEVLC */
 #define DEVLC_PSPD            (0x03UL << 25)
-#define    DEVLC_PSPD_HS      (0x02UL << 25)
+#define DEVLC_PSPD_HS         (0x02UL << 25)
+#define DEVLC_PTW             BIT(27)
+#define DEVLC_STS             BIT(28)
+#define DEVLC_PTS(d)          (u32)(((d) & 0x7) << 29)
+
+/* Encoding for DEVLC_PTS and PORTSC_PTS */
+#define PTS_UTMI              0
+#define PTS_ULPI              2
+#define PTS_SERIAL            3
+#define PTS_HSIC              4
 
 /* OTGSC */
 #define OTGSC_IDPU	      BIT(5)
@@ -65,11 +80,21 @@
 #define OTGSC_ASVIS	      BIT(18)
 #define OTGSC_BSVIS	      BIT(19)
 #define OTGSC_BSEIS	      BIT(20)
+#define OTGSC_1MSIS	      BIT(21)
+#define OTGSC_DPIS	      BIT(22)
 #define OTGSC_IDIE	      BIT(24)
 #define OTGSC_AVVIE	      BIT(25)
 #define OTGSC_ASVIE	      BIT(26)
 #define OTGSC_BSVIE	      BIT(27)
 #define OTGSC_BSEIE	      BIT(28)
+#define OTGSC_1MSIE	      BIT(29)
+#define OTGSC_DPIE	      BIT(30)
+#define OTGSC_INT_EN_BITS	(OTGSC_IDIE | OTGSC_AVVIE | OTGSC_ASVIE \
+				| OTGSC_BSVIE | OTGSC_BSEIE | OTGSC_1MSIE \
+				| OTGSC_DPIE)
+#define OTGSC_INT_STATUS_BITS	(OTGSC_IDIS | OTGSC_AVVIS | OTGSC_ASVIS	\
+				| OTGSC_BSVIS | OTGSC_BSEIS | OTGSC_1MSIS \
+				| OTGSC_DPIS)
 
 /* USBMODE */
 #define USBMODE_CM            (0x03UL <<  0)

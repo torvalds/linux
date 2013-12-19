@@ -38,7 +38,7 @@
 #define CONFIG_MTD_NAND_DISKONCHIP_PROBE_ADDRESS 0
 #endif
 
-static unsigned long __initdata doc_locations[] = {
+static unsigned long doc_locations[] __initdata = {
 #if defined (__alpha__) || defined(__i386__) || defined(__x86_64__)
 #ifdef CONFIG_MTD_NAND_DISKONCHIP_PROBE_HIGH
 	0xfffc8000, 0xfffca000, 0xfffcc000, 0xfffce000,
@@ -46,13 +46,13 @@ static unsigned long __initdata doc_locations[] = {
 	0xfffd8000, 0xfffda000, 0xfffdc000, 0xfffde000,
 	0xfffe0000, 0xfffe2000, 0xfffe4000, 0xfffe6000,
 	0xfffe8000, 0xfffea000, 0xfffec000, 0xfffee000,
-#else /*  CONFIG_MTD_DOCPROBE_HIGH */
+#else
 	0xc8000, 0xca000, 0xcc000, 0xce000,
 	0xd0000, 0xd2000, 0xd4000, 0xd6000,
 	0xd8000, 0xda000, 0xdc000, 0xde000,
 	0xe0000, 0xe2000, 0xe4000, 0xe6000,
 	0xe8000, 0xea000, 0xec000, 0xee000,
-#endif /*  CONFIG_MTD_DOCPROBE_HIGH */
+#endif
 #endif
 	0xffffffff };
 

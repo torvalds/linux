@@ -60,7 +60,7 @@ static void read_int_callback(struct urb *urb/*, struct pt_regs *regs*/)
 				psIntfAdapter->psAdapter->downloadDDR +=1;
 				wake_up(&Adapter->tx_packet_wait_queue);
 			}
-			if(FALSE == Adapter->waiting_to_fw_download_done)
+			if(false == Adapter->waiting_to_fw_download_done)
 			{
 				Adapter->waiting_to_fw_download_done = TRUE;
 				wake_up(&Adapter->ioctl_fw_dnld_wait_queue);
@@ -147,11 +147,11 @@ INT StartInterruptUrb(struct bcm_interface_adapter *psIntfAdapter)
 {
 	INT status = 0;
 
-	if( FALSE == psIntfAdapter->psAdapter->device_removed &&
-		FALSE == psIntfAdapter->psAdapter->bEndPointHalted &&
-		FALSE == psIntfAdapter->bSuspended &&
-		FALSE == psIntfAdapter->bPreparingForBusSuspend &&
-		FALSE == psIntfAdapter->psAdapter->StopAllXaction)
+	if( false == psIntfAdapter->psAdapter->device_removed &&
+		false == psIntfAdapter->psAdapter->bEndPointHalted &&
+		false == psIntfAdapter->bSuspended &&
+		false == psIntfAdapter->bPreparingForBusSuspend &&
+		false == psIntfAdapter->psAdapter->StopAllXaction)
 	{
 		status = usb_submit_urb(psIntfAdapter->psInterruptUrb, GFP_ATOMIC);
 		if (status)

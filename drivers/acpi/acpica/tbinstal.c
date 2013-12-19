@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -80,16 +80,10 @@ acpi_status acpi_tb_verify_table(struct acpi_table_desc *table_desc)
 		}
 	}
 
-	/* FACS is the odd table, has no standard ACPI header and no checksum */
+	/* Always calculate checksum, ignore bad checksum if requested */
 
-	if (!ACPI_COMPARE_NAME(&table_desc->signature, ACPI_SIG_FACS)) {
-
-		/* Always calculate checksum, ignore bad checksum if requested */
-
-		status =
-		    acpi_tb_verify_checksum(table_desc->pointer,
-					    table_desc->length);
-	}
+	status =
+	    acpi_tb_verify_checksum(table_desc->pointer, table_desc->length);
 
 	return_ACPI_STATUS(status);
 }
@@ -141,8 +135,7 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 		ACPI_BIOS_ERROR((AE_INFO,
 				 "Table has invalid signature [%4.4s] (0x%8.8X), "
 				 "must be SSDT or OEMx",
-				 acpi_ut_valid_acpi_name(*(u32 *)table_desc->
-							 pointer->
+				 acpi_ut_valid_acpi_name(table_desc->pointer->
 							 signature) ?
 				 table_desc->pointer->signature : "????",
 				 *(u32 *)table_desc->pointer->signature));
@@ -238,10 +231,10 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 		goto release;
 	}
 
-      print_header:
+print_header:
 	acpi_tb_print_table_header(table_desc->address, table_desc->pointer);
 
-      release:
+release:
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 	return_ACPI_STATUS(status);
 }
@@ -313,7 +306,7 @@ struct acpi_table_header *acpi_tb_table_override(struct acpi_table_header
 
 	return (NULL);		/* There was no override */
 
-      finish_override:
+finish_override:
 
 	ACPI_INFO((AE_INFO,
 		   "%4.4s %p %s table override, new table: %p",
@@ -471,15 +464,19 @@ void acpi_tb_delete_table(struct acpi_table_desc *table_desc)
 	}
 	switch (table_desc->flags & ACPI_TABLE_ORIGIN_MASK) {
 	case ACPI_TABLE_ORIGIN_MAPPED:
+
 		acpi_os_unmap_memory(table_desc->pointer, table_desc->length);
 		break;
+
 	case ACPI_TABLE_ORIGIN_ALLOCATED:
+
 		ACPI_FREE(table_desc->pointer);
 		break;
 
 		/* Not mapped or allocated, there is nothing we can do */
 
 	default:
+
 		return;
 	}
 

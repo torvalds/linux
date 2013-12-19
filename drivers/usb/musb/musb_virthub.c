@@ -44,7 +44,6 @@
 
 #include "musb_core.h"
 
-
 static void musb_port_suspend(struct musb *musb, bool do_suspend)
 {
 	struct usb_otg	*otg = musb->xceiv->otg;
@@ -95,7 +94,7 @@ static void musb_port_suspend(struct musb *musb, bool do_suspend)
 			break;
 		default:
 			dev_dbg(musb->controller, "bogus rh suspend? %s\n",
-				otg_state_string(musb->xceiv->state));
+				usb_otg_state_string(musb->xceiv->state));
 		}
 	} else if (power & MUSB_POWER_SUSPENDM) {
 		power &= ~MUSB_POWER_SUSPENDM;
@@ -145,7 +144,6 @@ static void musb_port_reset(struct musb *musb, bool do_reset)
 			msleep(1);
 		}
 
-		musb->ignore_disconnect = true;
 		power &= 0xf0;
 		musb_writeb(mbase, MUSB_POWER,
 				power | MUSB_POWER_RESET);
@@ -158,8 +156,6 @@ static void musb_port_reset(struct musb *musb, bool do_reset)
 		musb_writeb(mbase, MUSB_POWER,
 				power & ~MUSB_POWER_RESET);
 
-		musb->ignore_disconnect = false;
-
 		power = musb_readb(mbase, MUSB_POWER);
 		if (power & MUSB_POWER_HSMODE) {
 			dev_dbg(musb->controller, "high-speed device connected\n");
@@ -170,7 +166,7 @@ static void musb_port_reset(struct musb *musb, bool do_reset)
 		musb->port1_status |= USB_PORT_STAT_ENABLE
 					| (USB_PORT_STAT_C_RESET << 16)
 					| (USB_PORT_STAT_C_ENABLE << 16);
-		usb_hcd_poll_rh_status(musb_to_hcd(musb));
+		usb_hcd_poll_rh_status(musb->hcd);
 
 		musb->vbuserr_retry = VBUSERR_RETRY_COUNT;
 	}
@@ -183,7 +179,7 @@ void musb_root_disconnect(struct musb *musb)
 	musb->port1_status = USB_PORT_STAT_POWER
 			| (USB_PORT_STAT_C_CONNECTION << 16);
 
-	usb_hcd_poll_rh_status(musb_to_hcd(musb));
+	usb_hcd_poll_rh_status(musb->hcd);
 	musb->is_active = 0;
 
 	switch (musb->xceiv->state) {
@@ -203,7 +199,7 @@ void musb_root_disconnect(struct musb *musb)
 		break;
 	default:
 		dev_dbg(musb->controller, "host disconnect (%s)\n",
-			otg_state_string(musb->xceiv->state));
+			usb_otg_state_string(musb->xceiv->state));
 	}
 }
 
@@ -222,6 +218,23 @@ int musb_hub_status_data(struct usb_hcd *hcd, char *buf)
 		retval = 1;
 	}
 	return retval;
+}
+
+static int musb_has_gadget(struct musb *musb)
+{
+	/*
+	 * In host-only mode we start a connection right away. In OTG mode
+	 * we have to wait until we loaded a gadget. We don't really need a
+	 * gadget if we operate as a host but we should not start a session
+	 * as a device without a gadget or else we explode.
+	 */
+#ifdef CONFIG_USB_MUSB_HOST
+	return 1;
+#else
+	if (musb->port_mode == MUSB_PORT_MODE_HOST)
+		return 1;
+	return musb->g.dev.driver != NULL;
+#endif
 }
 
 int musb_hub_control(
@@ -337,7 +350,7 @@ int musb_hub_control(
 			musb->port1_status &= ~(USB_PORT_STAT_SUSPEND
 					| MUSB_PORT_STAT_RESUME);
 			musb->port1_status |= USB_PORT_STAT_C_SUSPEND << 16;
-			usb_hcd_poll_rh_status(musb_to_hcd(musb));
+			usb_hcd_poll_rh_status(musb->hcd);
 			/* NOTE: it might really be A_WAIT_BCON ... */
 			musb->xceiv->state = OTG_STATE_A_HOST;
 		}
@@ -366,7 +379,7 @@ int musb_hub_control(
 			 * initialization logic, e.g. for OTG, or change any
 			 * logic relating to VBUS power-up.
 			 */
-			if (!hcd->self.is_b_host)
+			if (!hcd->self.is_b_host && musb_has_gadget(musb))
 				musb_start(musb);
 			break;
 		case USB_PORT_FEAT_RESET:

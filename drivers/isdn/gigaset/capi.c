@@ -248,6 +248,8 @@ static inline void dump_rawmsg(enum debuglevel level, const char *tag,
 		CAPIMSG_APPID(data), CAPIMSG_MSGID(data), l,
 		CAPIMSG_CONTROL(data));
 	l -= 12;
+	if (l <= 0)
+		return;
 	dbgline = kmalloc(3 * l, GFP_ATOMIC);
 	if (!dbgline)
 		return;
@@ -2332,7 +2334,7 @@ static int gigaset_proc_show(struct seq_file *m, void *v)
 
 static int gigaset_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, gigaset_proc_show, PDE(inode)->data);
+	return single_open(file, gigaset_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations gigaset_proc_fops = {

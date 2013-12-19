@@ -102,6 +102,11 @@
  */
 #define X86_PLATFORM_IPI_VECTOR		0xf7
 
+/* Vector for KVM to deliver posted interrupt IPI */
+#ifdef CONFIG_HAVE_KVM
+#define POSTED_INTR_VECTOR		0xf2
+#endif
+
 /*
  * IRQ work vector:
  */
@@ -109,8 +114,8 @@
 
 #define UV_BAU_MESSAGE			0xf5
 
-/* Xen vector callback to receive events in a HVM domain */
-#define XEN_HVM_EVTCHN_CALLBACK		0xf3
+/* Vector on which hypervisor callbacks will be delivered */
+#define HYPERVISOR_CALLBACK_VECTOR	0xf3
 
 /*
  * Local APIC timer IRQ vector is on a different priority level,

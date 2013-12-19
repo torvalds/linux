@@ -309,7 +309,7 @@ static int xo1_sci_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit setup_sci_interrupt(struct platform_device *pdev)
+static int setup_sci_interrupt(struct platform_device *pdev)
 {
 	u32 lo, hi;
 	u32 sts;
@@ -351,7 +351,7 @@ static int __devinit setup_sci_interrupt(struct platform_device *pdev)
 	return r;
 }
 
-static int __devinit setup_ec_sci(void)
+static int setup_ec_sci(void)
 {
 	int r;
 
@@ -395,7 +395,7 @@ static void free_ec_sci(void)
 	gpio_free(OLPC_GPIO_ECSCI);
 }
 
-static int __devinit setup_lid_events(void)
+static int setup_lid_events(void)
 {
 	int r;
 
@@ -432,7 +432,7 @@ static void free_lid_events(void)
 	gpio_free(OLPC_GPIO_LID);
 }
 
-static int __devinit setup_power_button(struct platform_device *pdev)
+static int setup_power_button(struct platform_device *pdev)
 {
 	int r;
 
@@ -460,10 +460,9 @@ static int __devinit setup_power_button(struct platform_device *pdev)
 static void free_power_button(void)
 {
 	input_unregister_device(power_button_idev);
-	input_free_device(power_button_idev);
 }
 
-static int __devinit setup_ebook_switch(struct platform_device *pdev)
+static int setup_ebook_switch(struct platform_device *pdev)
 {
 	int r;
 
@@ -491,10 +490,9 @@ static int __devinit setup_ebook_switch(struct platform_device *pdev)
 static void free_ebook_switch(void)
 {
 	input_unregister_device(ebook_switch_idev);
-	input_free_device(ebook_switch_idev);
 }
 
-static int __devinit setup_lid_switch(struct platform_device *pdev)
+static int setup_lid_switch(struct platform_device *pdev)
 {
 	int r;
 
@@ -526,6 +524,7 @@ static int __devinit setup_lid_switch(struct platform_device *pdev)
 
 err_create_attr:
 	input_unregister_device(lid_switch_idev);
+	lid_switch_idev = NULL;
 err_register:
 	input_free_device(lid_switch_idev);
 	return r;
@@ -535,10 +534,9 @@ static void free_lid_switch(void)
 {
 	device_remove_file(&lid_switch_idev->dev, &dev_attr_lid_wake_mode);
 	input_unregister_device(lid_switch_idev);
-	input_free_device(lid_switch_idev);
 }
 
-static int __devinit xo1_sci_probe(struct platform_device *pdev)
+static int xo1_sci_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int r;
@@ -613,7 +611,7 @@ err_ebook:
 	return r;
 }
 
-static int __devexit xo1_sci_remove(struct platform_device *pdev)
+static int xo1_sci_remove(struct platform_device *pdev)
 {
 	mfd_cell_disable(pdev);
 	free_irq(sci_irq, pdev);
@@ -632,7 +630,7 @@ static struct platform_driver xo1_sci_driver = {
 		.name = "olpc-xo1-sci-acpi",
 	},
 	.probe = xo1_sci_probe,
-	.remove = __devexit_p(xo1_sci_remove),
+	.remove = xo1_sci_remove,
 	.suspend = xo1_sci_suspend,
 	.resume = xo1_sci_resume,
 };

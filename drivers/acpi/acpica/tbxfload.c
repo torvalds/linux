@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
@@ -52,8 +53,6 @@ ACPI_MODULE_NAME("tbxfload")
 
 /* Local prototypes */
 static acpi_status acpi_tb_load_namespace(void);
-
-static int no_auto_ssdt;
 
 /*******************************************************************************
  *
@@ -67,7 +66,7 @@ static int no_auto_ssdt;
  *
  ******************************************************************************/
 
-acpi_status acpi_load_tables(void)
+acpi_status __init acpi_load_tables(void)
 {
 	acpi_status status;
 
@@ -84,7 +83,7 @@ acpi_status acpi_load_tables(void)
 	return_ACPI_STATUS(status);
 }
 
-ACPI_EXPORT_SYMBOL(acpi_load_tables)
+ACPI_EXPORT_SYMBOL_INIT(acpi_load_tables)
 
 /*******************************************************************************
  *
@@ -180,8 +179,16 @@ static acpi_status acpi_tb_load_namespace(void)
 			continue;
 		}
 
-		if (no_auto_ssdt) {
-			printk(KERN_WARNING "ACPI: SSDT ignored due to \"acpi_no_auto_ssdt\"\n");
+		/*
+		 * Optionally do not load any SSDTs from the RSDT/XSDT. This can
+		 * be useful for debugging ACPI problems on some machines.
+		 */
+		if (acpi_gbl_disable_ssdt_table_load) {
+			ACPI_INFO((AE_INFO, "Ignoring %4.4s at %p",
+				   acpi_gbl_root_table_list.tables[i].signature.
+				   ascii, ACPI_CAST_PTR(void,
+							acpi_gbl_root_table_list.
+							tables[i].address)));
 			continue;
 		}
 
@@ -192,9 +199,9 @@ static acpi_status acpi_tb_load_namespace(void)
 		(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INIT, "ACPI Tables successfully acquired\n"));
+	ACPI_INFO((AE_INFO, "All ACPI Tables successfully acquired"));
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 	return_ACPI_STATUS(status);
 }
@@ -262,7 +269,7 @@ acpi_status acpi_load_table(struct acpi_table_header *table)
 					     acpi_gbl_table_handler_context);
 	}
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_INTERPRETER);
 	return_ACPI_STATUS(status);
 }
@@ -376,14 +383,3 @@ acpi_status acpi_unload_parent_table(acpi_handle object)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_unload_parent_table)
-
-static int __init acpi_no_auto_ssdt_setup(char *s) {
-
-        printk(KERN_NOTICE "ACPI: SSDT auto-load disabled\n");
-
-        no_auto_ssdt = 1;
-
-        return 1;
-}
-
-__setup("acpi_no_auto_ssdt", acpi_no_auto_ssdt_setup);

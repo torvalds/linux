@@ -19,6 +19,7 @@
 #endif
 
 #include <linux/fb.h>
+#include <linux/irqreturn.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
@@ -64,7 +65,7 @@ struct mxr_format {
 	int num_subframes;
 	/** specifies to which subframe belong given plane */
 	int plane2subframe[MXR_MAX_PLANES];
-	/** internal code, driver dependant */
+	/** internal code, driver dependent */
 	unsigned long cookie;
 };
 
@@ -290,7 +291,7 @@ static inline struct v4l2_subdev *to_outsd(struct mxr_device *mdev)
 struct mxr_platform_data;
 
 /** acquiring common video resources */
-int __devinit mxr_acquire_video(struct mxr_device *mdev,
+int mxr_acquire_video(struct mxr_device *mdev,
 	struct mxr_output_conf *output_cont, int output_count);
 
 /** releasing common video resources */

@@ -41,7 +41,6 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/stmp_device.h>
 #include <linux/spi/mxs-spi.h>
 
@@ -72,6 +71,9 @@ struct mxs_mmc_host {
 	int				sdio_irq_en;
 	int				wp_gpio;
 	bool				wp_inverted;
+	bool				cd_inverted;
+	bool				broken_cd;
+	bool				non_removable;
 };
 
 static int mxs_mmc_get_ro(struct mmc_host *mmc)
@@ -95,16 +97,20 @@ static int mxs_mmc_get_cd(struct mmc_host *mmc)
 	struct mxs_mmc_host *host = mmc_priv(mmc);
 	struct mxs_ssp *ssp = &host->ssp;
 
-	return !(readl(ssp->base + HW_SSP_STATUS(ssp)) &
-		 BM_SSP_STATUS_CARD_DETECT);
+	return host->non_removable || host->broken_cd ||
+		!(readl(ssp->base + HW_SSP_STATUS(ssp)) &
+		  BM_SSP_STATUS_CARD_DETECT) ^ host->cd_inverted;
 }
 
-static void mxs_mmc_reset(struct mxs_mmc_host *host)
+static int mxs_mmc_reset(struct mxs_mmc_host *host)
 {
 	struct mxs_ssp *ssp = &host->ssp;
 	u32 ctrl0, ctrl1;
+	int ret;
 
-	stmp_reset_block(ssp->base);
+	ret = stmp_reset_block(ssp->base);
+	if (ret)
+		return ret;
 
 	ctrl0 = BM_SSP_CTRL0_IGNORE_CRC;
 	ctrl1 = BF_SSP(0x3, CTRL1_SSP_MODE) |
@@ -129,6 +135,7 @@ static void mxs_mmc_reset(struct mxs_mmc_host *host)
 
 	writel(ctrl0, ssp->base + HW_SSP_CTRL0);
 	writel(ctrl1, ssp->base + HW_SSP_CTRL1(ssp));
+	return 0;
 }
 
 static void mxs_mmc_start_cmd(struct mxs_mmc_host *host,
@@ -354,7 +361,7 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
 	struct dma_async_tx_descriptor *desc;
 	struct scatterlist *sgl = data->sg, *sg;
 	unsigned int sg_len = data->sg_len;
-	int i;
+	unsigned int i;
 
 	unsigned short dma_data_dir, timeout;
 	enum dma_transfer_direction slave_dirn;
@@ -548,22 +555,6 @@ static const struct mmc_host_ops mxs_mmc_ops = {
 	.enable_sdio_irq = mxs_mmc_enable_sdio_irq,
 };
 
-static bool mxs_mmc_dma_filter(struct dma_chan *chan, void *param)
-{
-	struct mxs_mmc_host *host = param;
-	struct mxs_ssp *ssp = &host->ssp;
-
-	if (!mxs_dma_is_apbh(chan))
-		return false;
-
-	if (chan->chan_id != ssp->dma_channel)
-		return false;
-
-	chan->private = &ssp->dma_data;
-
-	return true;
-}
-
 static struct platform_device_id mxs_ssp_ids[] = {
 	{
 		.name = "imx23-mmc",
@@ -591,20 +582,16 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct mxs_mmc_host *host;
 	struct mmc_host *mmc;
-	struct resource *iores, *dmares;
-	struct pinctrl *pinctrl;
-	int ret = 0, irq_err, irq_dma;
-	dma_cap_mask_t mask;
+	struct resource *iores;
+	int ret = 0, irq_err;
 	struct regulator *reg_vmmc;
 	enum of_gpio_flags flags;
 	struct mxs_ssp *ssp;
 	u32 bus_width = 0;
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	irq_err = platform_get_irq(pdev, 0);
-	irq_dma = platform_get_irq(pdev, 1);
-	if (!iores || irq_err < 0 || irq_dma < 0)
+	if (!iores || irq_err < 0)
 		return -EINVAL;
 
 	mmc = mmc_alloc_host(sizeof(struct mxs_mmc_host), &pdev->dev);
@@ -614,29 +601,13 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	host = mmc_priv(mmc);
 	ssp = &host->ssp;
 	ssp->dev = &pdev->dev;
-	ssp->base = devm_request_and_ioremap(&pdev->dev, iores);
-	if (!ssp->base) {
-		ret = -EADDRNOTAVAIL;
+	ssp->base = devm_ioremap_resource(&pdev->dev, iores);
+	if (IS_ERR(ssp->base)) {
+		ret = PTR_ERR(ssp->base);
 		goto out_mmc_free;
 	}
 
-	if (np) {
-		ssp->devid = (enum mxs_ssp_id) of_id->data;
-		/*
-		 * TODO: This is a temporary solution and should be changed
-		 * to use generic DMA binding later when the helpers get in.
-		 */
-		ret = of_property_read_u32(np, "fsl,ssp-dma-channel",
-					   &ssp->dma_channel);
-		if (ret) {
-			dev_err(mmc_dev(host->mmc),
-				"failed to get dma channel\n");
-			goto out_mmc_free;
-		}
-	} else {
-		ssp->devid = pdev->id_entry->driver_data;
-		ssp->dma_channel = dmares->start;
-	}
+	ssp->devid = (enum mxs_ssp_id) of_id->data;
 
 	host->mmc = mmc;
 	host->sdio_irq_en = 0;
@@ -651,29 +622,25 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 		}
 	}
 
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		ret = PTR_ERR(pinctrl);
-		goto out_mmc_free;
-	}
-
-	ssp->clk = clk_get(&pdev->dev, NULL);
+	ssp->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(ssp->clk)) {
 		ret = PTR_ERR(ssp->clk);
 		goto out_mmc_free;
 	}
 	clk_prepare_enable(ssp->clk);
 
-	mxs_mmc_reset(host);
+	ret = mxs_mmc_reset(host);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to reset mmc: %d\n", ret);
+		goto out_clk_disable;
+	}
 
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-	ssp->dma_data.chan_irq = irq_dma;
-	ssp->dmach = dma_request_channel(mask, mxs_mmc_dma_filter, host);
+	ssp->dmach = dma_request_slave_channel(&pdev->dev, "rx-tx");
 	if (!ssp->dmach) {
 		dev_err(mmc_dev(host->mmc),
 			"%s: failed to request dma\n", __func__);
-		goto out_clk_put;
+		ret = -ENODEV;
+		goto out_clk_disable;
 	}
 
 	/* set mmc core parameters */
@@ -686,10 +653,15 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 	else if (bus_width == 8)
 		mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;
+	host->broken_cd = of_property_read_bool(np, "broken-cd");
+	host->non_removable = of_property_read_bool(np, "non-removable");
+	if (host->non_removable)
+		mmc->caps |= MMC_CAP_NONREMOVABLE;
 	host->wp_gpio = of_get_named_gpio_flags(np, "wp-gpios", 0, &flags);
-
 	if (flags & OF_GPIO_ACTIVE_LOW)
 		host->wp_inverted = 1;
+
+	host->cd_inverted = of_property_read_bool(np, "cd-inverted");
 
 	mmc->f_min = 400000;
 	mmc->f_max = 288000000;
@@ -721,9 +693,8 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 out_free_dma:
 	if (ssp->dmach)
 		dma_release_channel(ssp->dmach);
-out_clk_put:
+out_clk_disable:
 	clk_disable_unprepare(ssp->clk);
-	clk_put(ssp->clk);
 out_mmc_free:
 	mmc_free_host(mmc);
 	return ret;
@@ -737,13 +708,10 @@ static int mxs_mmc_remove(struct platform_device *pdev)
 
 	mmc_remove_host(mmc);
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (ssp->dmach)
 		dma_release_channel(ssp->dmach);
 
 	clk_disable_unprepare(ssp->clk);
-	clk_put(ssp->clk);
 
 	mmc_free_host(mmc);
 
@@ -756,13 +724,9 @@ static int mxs_mmc_suspend(struct device *dev)
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct mxs_mmc_host *host = mmc_priv(mmc);
 	struct mxs_ssp *ssp = &host->ssp;
-	int ret = 0;
-
-	ret = mmc_suspend_host(mmc);
 
 	clk_disable_unprepare(ssp->clk);
-
-	return ret;
+	return 0;
 }
 
 static int mxs_mmc_resume(struct device *dev)
@@ -770,13 +734,9 @@ static int mxs_mmc_resume(struct device *dev)
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct mxs_mmc_host *host = mmc_priv(mmc);
 	struct mxs_ssp *ssp = &host->ssp;
-	int ret = 0;
 
 	clk_prepare_enable(ssp->clk);
-
-	ret = mmc_resume_host(mmc);
-
-	return ret;
+	return 0;
 }
 
 static const struct dev_pm_ops mxs_mmc_pm_ops = {
@@ -804,3 +764,4 @@ module_platform_driver(mxs_mmc_driver);
 MODULE_DESCRIPTION("FREESCALE MXS MMC peripheral");
 MODULE_AUTHOR("Freescale Semiconductor");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" DRIVER_NAME);

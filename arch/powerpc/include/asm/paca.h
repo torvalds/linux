@@ -68,8 +68,13 @@ struct paca_struct {
 	 * instruction.  They must travel together and be properly
 	 * aligned.
 	 */
+#ifdef __BIG_ENDIAN__
 	u16 lock_token;			/* Constant 0x8000, used in locks */
 	u16 paca_index;			/* Logical processor number */
+#else
+	u16 paca_index;			/* Logical processor number */
+	u16 lock_token;			/* Constant 0x8000, used in locks */
+#endif
 
 	u64 kernel_toc;			/* Kernel TOC address */
 	u64 kernelbase;			/* Base address of kernel */
@@ -93,9 +98,9 @@ struct paca_struct {
 	 * Now, starting in cacheline 2, the exception save areas
 	 */
 	/* used for most interrupts/exceptions */
-	u64 exgen[11] __attribute__((aligned(0x80)));
-	u64 exmc[11];		/* used for machine checks */
-	u64 exslb[11];		/* used for SLB/segment table misses
+	u64 exgen[13] __attribute__((aligned(0x80)));
+	u64 exmc[13];		/* used for machine checks */
+	u64 exslb[13];		/* used for SLB/segment table misses
  				 * on the linear mapping */
 	/* SLB related definitions */
 	u16 vmalloc_sllp;
@@ -137,6 +142,9 @@ struct paca_struct {
 	u8 irq_work_pending;		/* IRQ_WORK interrupt while soft-disable */
 	u8 nap_state_lost;		/* NV GPR values lost in power7_idle */
 	u64 sprg3;			/* Saved user-visible sprg */
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	u64 tm_scratch;                 /* TM scratch area for reclaim */
+#endif
 
 #ifdef CONFIG_PPC_POWERNV
 	/* Pointer to OPAL machine check event structure set by the
@@ -158,7 +166,7 @@ struct paca_struct {
 	struct dtl_entry *dtl_curr;	/* pointer corresponding to dtl_ridx */
 
 #ifdef CONFIG_KVM_BOOK3S_HANDLER
-#ifdef CONFIG_KVM_BOOK3S_PR
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 	/* We use this to store guest state in */
 	struct kvmppc_book3s_shadow_vcpu shadow_vcpu;
 #endif
@@ -167,7 +175,6 @@ struct paca_struct {
 };
 
 extern struct paca_struct *paca;
-extern __initdata struct paca_struct boot_paca;
 extern void initialise_paca(struct paca_struct *new_paca, int cpu);
 extern void setup_paca(struct paca_struct *new_paca);
 extern void allocate_pacas(void);

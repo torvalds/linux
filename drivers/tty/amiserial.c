@@ -251,7 +251,6 @@ static void receive_chars(struct serial_state *info)
 {
         int status;
 	int serdatr;
-	struct tty_struct *tty = info->tport.tty;
 	unsigned char ch, flag;
 	struct	async_icount *icount;
 	int oe = 0;
@@ -314,7 +313,7 @@ static void receive_chars(struct serial_state *info)
 #endif
 	    flag = TTY_BREAK;
 	    if (info->tport.flags & ASYNC_SAK)
-	      do_SAK(tty);
+	      do_SAK(info->tport.tty);
 	  } else if (status & UART_LSR_PE)
 	    flag = TTY_PARITY;
 	  else if (status & UART_LSR_FE)
@@ -328,10 +327,10 @@ static void receive_chars(struct serial_state *info)
 	     oe = 1;
 	  }
 	}
-	tty_insert_flip_char(tty, ch, flag);
+	tty_insert_flip_char(&info->tport, ch, flag);
 	if (oe == 1)
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-	tty_flip_buffer_push(tty);
+		tty_insert_flip_char(&info->tport, 0, TTY_OVERRUN);
+	tty_flip_buffer_push(&info->tport);
 out:
 	return;
 }
@@ -394,11 +393,6 @@ static void check_modem_status(struct serial_state *info)
 			icount->dsr++;
 		if (dstatus & SER_DCD) {
 			icount->dcd++;
-#ifdef CONFIG_HARD_PPS
-			if ((port->flags & ASYNC_HARDPPS_CD) &&
-			    !(status & SER_DCD))
-				hardpps();
-#endif
 		}
 		if (dstatus & SER_CTS)
 			icount->cts++;
@@ -1099,7 +1093,7 @@ static int set_serial_info(struct tty_struct *tty, struct serial_state *state,
 	state->custom_divisor = new_serial.custom_divisor;
 	port->close_delay = new_serial.close_delay * HZ/100;
 	port->closing_wait = new_serial.closing_wait * HZ/100;
-	tty->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	port->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 check_and_exit:
 	if (port->flags & ASYNC_INITIALIZED) {
@@ -1528,7 +1522,7 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 	if (serial_paranoia_check(info, tty->name, "rs_open"))
 		return -ENODEV;
 
-	tty->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	port->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	retval = startup(tty, info);
 	if (retval) {
@@ -1791,8 +1785,6 @@ static int __exit amiga_serial_remove(struct platform_device *pdev)
 	free_irq(IRQ_AMIGA_TBE, state);
 	free_irq(IRQ_AMIGA_RBF, state);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return error;
 }
 
@@ -1804,19 +1796,7 @@ static struct platform_driver amiga_serial_driver = {
 	},
 };
 
-static int __init amiga_serial_init(void)
-{
-	return platform_driver_probe(&amiga_serial_driver, amiga_serial_probe);
-}
-
-module_init(amiga_serial_init);
-
-static void __exit amiga_serial_exit(void)
-{
-	platform_driver_unregister(&amiga_serial_driver);
-}
-
-module_exit(amiga_serial_exit);
+module_platform_driver_probe(amiga_serial_driver, amiga_serial_probe);
 
 
 #if defined(CONFIG_SERIAL_CONSOLE) && !defined(MODULE)
@@ -1875,6 +1855,9 @@ static struct console sercons = {
  */
 static int __init amiserial_console_init(void)
 {
+	if (!MACH_IS_AMIGA)
+		return -ENODEV;
+
 	register_console(&sercons);
 	return 0;
 }

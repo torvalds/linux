@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 
@@ -100,8 +101,13 @@ acpi_status acpi_get_timer(u32 * ticks)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	status = acpi_hw_read(ticks, &acpi_gbl_FADT.xpm_timer_block);
+	/* ACPI 5.0A: PM Timer is optional */
 
+	if (!acpi_gbl_FADT.xpm_timer_block.address) {
+		return_ACPI_STATUS(AE_SUPPORT);
+	}
+
+	status = acpi_hw_read(ticks, &acpi_gbl_FADT.xpm_timer_block);
 	return_ACPI_STATUS(status);
 }
 
@@ -148,6 +154,12 @@ acpi_get_timer_duration(u32 start_ticks, u32 end_ticks, u32 * time_elapsed)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
+	/* ACPI 5.0A: PM Timer is optional */
+
+	if (!acpi_gbl_FADT.xpm_timer_block.address) {
+		return_ACPI_STATUS(AE_SUPPORT);
+	}
+
 	/*
 	 * Compute Tick Delta:
 	 * Handle (max one) timer rollovers on 24-bit versus 32-bit timers.
@@ -176,10 +188,11 @@ acpi_get_timer_duration(u32 start_ticks, u32 end_ticks, u32 * time_elapsed)
 	/*
 	 * Compute Duration (Requires a 64-bit multiply and divide):
 	 *
-	 * time_elapsed = (delta_ticks * 1000000) / PM_TIMER_FREQUENCY;
+	 * time_elapsed (microseconds) =
+	 *  (delta_ticks * ACPI_USEC_PER_SEC) / ACPI_PM_TIMER_FREQUENCY;
 	 */
-	status = acpi_ut_short_divide(((u64) delta_ticks) * 1000000,
-				      PM_TIMER_FREQUENCY, &quotient, NULL);
+	status = acpi_ut_short_divide(((u64)delta_ticks) * ACPI_USEC_PER_SEC,
+				      ACPI_PM_TIMER_FREQUENCY, &quotient, NULL);
 
 	*time_elapsed = (u32) quotient;
 	return_ACPI_STATUS(status);

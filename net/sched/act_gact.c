@@ -58,8 +58,9 @@ static const struct nla_policy gact_policy[TCA_GACT_MAX + 1] = {
 	[TCA_GACT_PROB]		= { .len = sizeof(struct tc_gact_p) },
 };
 
-static int tcf_gact_init(struct nlattr *nla, struct nlattr *est,
-			 struct tc_action *a, int ovr, int bind)
+static int tcf_gact_init(struct net *net, struct nlattr *nla,
+			 struct nlattr *est, struct tc_action *a,
+			 int ovr, int bind)
 {
 	struct nlattr *tb[TCA_GACT_MAX + 1];
 	struct tc_gact *parm;
@@ -205,9 +206,7 @@ static struct tc_action_ops act_gact_ops = {
 	.act		=	tcf_gact,
 	.dump		=	tcf_gact_dump,
 	.cleanup	=	tcf_gact_cleanup,
-	.lookup		=	tcf_hash_search,
 	.init		=	tcf_gact_init,
-	.walk		=	tcf_generic_walker
 };
 
 MODULE_AUTHOR("Jamal Hadi Salim(2002-4)");

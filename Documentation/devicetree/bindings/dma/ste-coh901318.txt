@@ -1,0 +1,32 @@
+ST-Ericsson COH 901 318 DMA Controller
+
+This is a DMA controller which has begun as a fork of the
+ARM PL08x PrimeCell VHDL code.
+
+Required properties:
+- compatible: should be "stericsson,coh901318"
+- reg: register locations and length
+- interrupts: the single DMA IRQ
+- #dma-cells: must be set to <1>, as the channels on the
+  COH 901 318 are simple and identified by a single number
+- dma-channels: the number of DMA channels handled
+
+Example:
+
+dmac: dma-controller@c00020000 {
+	compatible = "stericsson,coh901318";
+	reg = <0xc0020000 0x1000>;
+	interrupt-parent = <&vica>;
+	interrupts = <2>;
+	#dma-cells = <1>;
+	dma-channels = <40>;
+};
+
+Consumers example:
+
+uart0: serial@c0013000 {
+	compatible = "...";
+	(...)
+	dmas = <&dmac 17 &dmac 18>;
+	dma-names = "tx", "rx";
+};

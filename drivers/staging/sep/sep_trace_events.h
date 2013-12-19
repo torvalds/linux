@@ -53,6 +53,11 @@
 #include <linux/tracepoint.h>
 
 /*
+ * Since use str*cpy in header file, better to include string.h, directly.
+ */
+#include <linux/string.h>
+
+/*
  * The TRACE_EVENT macro is broken up into 5 parts.
  *
  * name: name of the trace point. This is also how to enable the tracepoint.
@@ -97,7 +102,7 @@ TRACE_EVENT(sep_func_start,
 	),
 
 	TP_fast_assign(
-		strncpy(__entry->name, name, 20);
+		strlcpy(__entry->name, name, 20);
 		__entry->branch	= branch;
 	),
 
@@ -116,7 +121,7 @@ TRACE_EVENT(sep_func_end,
 	),
 
 	TP_fast_assign(
-		strncpy(__entry->name, name, 20);
+		strlcpy(__entry->name, name, 20);
 		__entry->branch	= branch;
 	),
 
@@ -135,7 +140,7 @@ TRACE_EVENT(sep_misc_event,
 	),
 
 	TP_fast_assign(
-		strncpy(__entry->name, name, 20);
+		strlcpy(__entry->name, name, 20);
 		__entry->branch	= branch;
 	),
 

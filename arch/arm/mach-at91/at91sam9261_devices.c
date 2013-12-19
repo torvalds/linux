@@ -465,7 +465,7 @@ void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices) 
 
 #if defined(CONFIG_FB_ATMEL) || defined(CONFIG_FB_ATMEL_MODULE)
 static u64 lcdc_dmamask = DMA_BIT_MASK(32);
-static struct atmel_lcdfb_info lcdc_data;
+static struct atmel_lcdfb_pdata lcdc_data;
 
 static struct resource lcdc_resources[] = {
 	[0] = {
@@ -488,7 +488,6 @@ static struct resource lcdc_resources[] = {
 };
 
 static struct platform_device at91_lcdc_device = {
-	.name		= "atmel_lcdfb",
 	.id		= 0,
 	.dev		= {
 				.dma_mask		= &lcdc_dmamask,
@@ -499,11 +498,16 @@ static struct platform_device at91_lcdc_device = {
 	.num_resources	= ARRAY_SIZE(lcdc_resources),
 };
 
-void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data)
+void __init at91_add_device_lcdc(struct atmel_lcdfb_pdata *data)
 {
 	if (!data) {
 		return;
 	}
+
+	if (cpu_is_at91sam9g10())
+		at91_lcdc_device.name = "at91sam9g10-lcdfb";
+	else
+		at91_lcdc_device.name = "at91sam9261-lcdfb";
 
 #if defined(CONFIG_FB_ATMEL_STN)
 	at91_set_A_periph(AT91_PIN_PB0, 0);     /* LCDVSYNC */
@@ -555,7 +559,7 @@ void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data)
 	platform_device_register(&at91_lcdc_device);
 }
 #else
-void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data) {}
+void __init at91_add_device_lcdc(struct atmel_lcdfb_pdata *data) {}
 #endif
 
 

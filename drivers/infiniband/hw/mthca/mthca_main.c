@@ -130,7 +130,7 @@ static int log_mtts_per_seg = ilog2(MTHCA_MTT_SEG_SIZE / 8);
 module_param_named(log_mtts_per_seg, log_mtts_per_seg, int, 0444);
 MODULE_PARM_DESC(log_mtts_per_seg, "Log2 number of MTT entries per segment (1-5)");
 
-static char mthca_version[] __devinitdata =
+static char mthca_version[] =
 	DRV_NAME ": Mellanox InfiniBand HCA driver v"
 	DRV_VERSION " (" DRV_RELDATE ")\n";
 
@@ -1139,8 +1139,7 @@ int __mthca_restart_one(struct pci_dev *pdev)
 	return __mthca_init_one(pdev, hca_type);
 }
 
-static int __devinit mthca_init_one(struct pci_dev *pdev,
-				    const struct pci_device_id *id)
+static int mthca_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int ret;
 
@@ -1162,7 +1161,7 @@ static int __devinit mthca_init_one(struct pci_dev *pdev,
 	return ret;
 }
 
-static void __devexit mthca_remove_one(struct pci_dev *pdev)
+static void mthca_remove_one(struct pci_dev *pdev)
 {
 	mutex_lock(&mthca_device_mutex);
 	__mthca_remove_one(pdev);
@@ -1199,7 +1198,7 @@ static struct pci_driver mthca_driver = {
 	.name		= DRV_NAME,
 	.id_table	= mthca_pci_table,
 	.probe		= mthca_init_one,
-	.remove		= __devexit_p(mthca_remove_one)
+	.remove		= mthca_remove_one,
 };
 
 static void __init __mthca_check_profile_val(const char *name, int *pval,

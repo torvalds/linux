@@ -48,7 +48,13 @@
 #define SBSDIO_NUM_FUNCTION		3
 
 /* function 0 vendor specific CCCR registers */
-#define SDIO_CCCR_BRCM_SEPINT		0xf2
+#define SDIO_CCCR_BRCM_CARDCAP			0xf0
+#define SDIO_CCCR_BRCM_CARDCAP_CMD14_SUPPORT	0x02
+#define SDIO_CCCR_BRCM_CARDCAP_CMD14_EXT	0x04
+#define SDIO_CCCR_BRCM_CARDCAP_CMD_NODEC	0x08
+#define SDIO_CCCR_BRCM_CARDCTRL		0xf1
+#define SDIO_CCCR_BRCM_CARDCTRL_WLANRESET	0x02
+#define SDIO_CCCR_BRCM_SEPINT			0xf2
 
 #define  SDIO_SEPINT_MASK		0x01
 #define  SDIO_SEPINT_OE			0x02
@@ -97,9 +103,23 @@
 #define SBSDIO_FUNC1_RFRAMEBCLO		0x1001B
 /* Read Frame Byte Count High */
 #define SBSDIO_FUNC1_RFRAMEBCHI		0x1001C
+/* MesBusyCtl (rev 11) */
+#define SBSDIO_FUNC1_MESBUSYCTRL	0x1001D
+/* Sdio Core Rev 12 */
+#define SBSDIO_FUNC1_WAKEUPCTRL		0x1001E
+#define SBSDIO_FUNC1_WCTRL_ALPWAIT_MASK		0x1
+#define SBSDIO_FUNC1_WCTRL_ALPWAIT_SHIFT	0
+#define SBSDIO_FUNC1_WCTRL_HTWAIT_MASK		0x2
+#define SBSDIO_FUNC1_WCTRL_HTWAIT_SHIFT		1
+#define SBSDIO_FUNC1_SLEEPCSR		0x1001F
+#define SBSDIO_FUNC1_SLEEPCSR_KSO_MASK		0x1
+#define SBSDIO_FUNC1_SLEEPCSR_KSO_SHIFT		0
+#define SBSDIO_FUNC1_SLEEPCSR_KSO_EN		1
+#define SBSDIO_FUNC1_SLEEPCSR_DEVON_MASK	0x2
+#define SBSDIO_FUNC1_SLEEPCSR_DEVON_SHIFT	1
 
 #define SBSDIO_FUNC1_MISC_REG_START	0x10000	/* f1 misc register start */
-#define SBSDIO_FUNC1_MISC_REG_LIMIT	0x1001C	/* f1 misc register end */
+#define SBSDIO_FUNC1_MISC_REG_LIMIT	0x1001F	/* f1 misc register end */
 
 /* function 1 OCP space */
 
@@ -150,32 +170,33 @@ struct brcmf_sdio_dev {
 	atomic_t suspend;		/* suspend flag */
 	wait_queue_head_t request_byte_wait;
 	wait_queue_head_t request_word_wait;
-	wait_queue_head_t request_chain_wait;
 	wait_queue_head_t request_buffer_wait;
 	struct device *dev;
 	struct brcmf_bus *bus_if;
-#ifdef CONFIG_BRCMFMAC_SDIO_OOB
-	unsigned int irq;		/* oob interrupt number */
-	unsigned long irq_flags;	/* board specific oob flags */
+	struct brcmfmac_sdio_platform_data *pdata;
+	bool oob_irq_requested;
 	bool irq_en;			/* irq enable flags */
 	spinlock_t irq_en_lock;
 	bool irq_wake;			/* irq wake enable flags */
-#endif		/* CONFIG_BRCMFMAC_SDIO_OOB */
+	bool sg_support;
+	uint max_request_size;
+	ushort max_segment_count;
+	uint max_segment_size;
 };
 
 /* Register/deregister interrupt handler. */
-extern int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev);
-extern int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev);
+int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev);
+int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev);
 
 /* sdio device register access interface */
-extern u8 brcmf_sdio_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
-extern u32 brcmf_sdio_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
-extern void brcmf_sdio_regwb(struct brcmf_sdio_dev *sdiodev, u32 addr,
-			     u8 data, int *ret);
-extern void brcmf_sdio_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr,
-			     u32 data, int *ret);
-extern int brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
-				   void *data, bool write);
+u8 brcmf_sdio_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
+u32 brcmf_sdio_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
+void brcmf_sdio_regwb(struct brcmf_sdio_dev *sdiodev, u32 addr, u8 data,
+		      int *ret);
+void brcmf_sdio_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data,
+		      int *ret);
+int brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
+			    void *data, bool write);
 
 /* Buffer transfer to/from device (client) core via cmd53.
  *   fn:       function number
@@ -189,22 +210,17 @@ extern int brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
  * Returns 0 or error code.
  * NOTE: Async operation is not currently supported.
  */
-extern int
-brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, struct sk_buff *pkt);
-extern int
-brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, u8 *buf, uint nbytes);
+int brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+			  uint flags, struct sk_buff_head *pktq);
+int brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+			  uint flags, u8 *buf, uint nbytes);
 
-extern int
-brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, struct sk_buff *pkt);
-extern int
-brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, u8 *buf, uint nbytes);
-extern int
-brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-			uint flags, struct sk_buff_head *pktq);
+int brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+			  uint flags, struct sk_buff *pkt);
+int brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+			  uint flags, u8 *buf, uint nbytes);
+int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+			    uint flags, struct sk_buff_head *pktq, uint totlen);
 
 /* Flags bits */
 
@@ -212,8 +228,6 @@ brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 #define SDIO_REQ_4BYTE	0x1
 /* Fixed address (FIFO) (vs. incrementing address) */
 #define SDIO_REQ_FIXED	0x2
-/* Async request (vs. sync request) */
-#define SDIO_REQ_ASYNC	0x4
 
 /* Read/write to memory block (F1, no FIFO) via CMD53 (sync only).
  *   rw:       read or write (0/1)
@@ -222,53 +236,43 @@ brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
  *   nbytes:   number of bytes to transfer to/from buf
  * Returns 0 or error code.
  */
-extern int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw,
-			       u32 addr, u8 *buf, uint nbytes);
+int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw, u32 addr,
+			u8 *buf, uint nbytes);
+int brcmf_sdio_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
+		     u8 *data, uint size);
 
 /* Issue an abort to the specified function */
-extern int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn);
+int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn);
 
 /* platform specific/high level functions */
-extern int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev);
-extern int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev);
-
-extern int brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev,
-					  u32 address);
+int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev);
+int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev);
 
 /* attach, return handler on success, NULL if failed.
  *  The handler shall be provided by all subsequent calls. No local cache
  *  cfghdl points to the starting address of pci device mapped memory
  */
-extern int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev);
-extern void brcmf_sdioh_detach(struct brcmf_sdio_dev *sdiodev);
+int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev);
+void brcmf_sdioh_detach(struct brcmf_sdio_dev *sdiodev);
 
 /* read or write one byte using cmd52 */
-extern int brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw,
-				    uint fnc, uint addr, u8 *byte);
+int brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint fnc,
+			     uint addr, u8 *byte);
 
 /* read or write 2/4 bytes using cmd53 */
-extern int
-brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev,
-			 uint rw, uint fnc, uint addr,
-			 u32 *word, uint nbyte);
-
-/* read or write any buffer using cmd53 */
-extern int
-brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
-			   uint fix_inc, uint rw, uint fnc_num, u32 addr,
-			   struct sk_buff *pkt);
-extern int
-brcmf_sdioh_request_chain(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
-			  uint write, uint func, uint addr,
-			  struct sk_buff_head *pktq);
+int brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev, uint rw, uint fnc,
+			     uint addr, u32 *word, uint nbyte);
 
 /* Watchdog timer interface for pm ops */
-extern void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev,
-				    bool enable);
+void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev, bool enable);
 
-extern void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev);
-extern void brcmf_sdbrcm_disconnect(void *ptr);
-extern void brcmf_sdbrcm_isr(void *arg);
+void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev);
+void brcmf_sdbrcm_disconnect(void *ptr);
+void brcmf_sdbrcm_isr(void *arg);
 
-extern void brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick);
+void brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick);
+
+void brcmf_pm_resume_wait(struct brcmf_sdio_dev *sdiodev,
+			  wait_queue_head_t *wq);
+bool brcmf_pm_resume_error(struct brcmf_sdio_dev *sdiodev);
 #endif				/* _BRCM_SDH_H_ */

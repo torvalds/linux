@@ -22,12 +22,14 @@
 	.macro	DBGSTR, str
 #ifdef DEBUG
 	stmfd	sp!, {r0-r3, ip, lr}
-	add	r0, pc, #4
+	ldr	r0, =1f
 	bl	printk
-	b	1f
-	.asciz  KERN_DEBUG "VFP: \str\n"
-	.balign 4
-1:	ldmfd	sp!, {r0-r3, ip, lr}
+	ldmfd	sp!, {r0-r3, ip, lr}
+
+	.pushsection .rodata, "a"
+1:	.ascii	KERN_DEBUG "VFP: \str\n"
+	.byte	0
+	.previous
 #endif
 	.endm
 
@@ -35,12 +37,14 @@
 #ifdef DEBUG
 	stmfd	sp!, {r0-r3, ip, lr}
 	mov	r1, \arg
-	add	r0, pc, #4
+	ldr	r0, =1f
 	bl	printk
-	b	1f
-	.asciz  KERN_DEBUG "VFP: \str\n"
-	.balign 4
-1:	ldmfd	sp!, {r0-r3, ip, lr}
+	ldmfd	sp!, {r0-r3, ip, lr}
+
+	.pushsection .rodata, "a"
+1:	.ascii	KERN_DEBUG "VFP: \str\n"
+	.byte	0
+	.previous
 #endif
 	.endm
 
@@ -50,12 +54,14 @@
 	mov	r3, \arg3
 	mov	r2, \arg2
 	mov	r1, \arg1
-	add	r0, pc, #4
+	ldr	r0, =1f
 	bl	printk
-	b	1f
-	.asciz  KERN_DEBUG "VFP: \str\n"
-	.balign 4
-1:	ldmfd	sp!, {r0-r3, ip, lr}
+	ldmfd	sp!, {r0-r3, ip, lr}
+
+	.pushsection .rodata, "a"
+1:	.ascii	KERN_DEBUG "VFP: \str\n"
+	.byte	0
+	.previous
 #endif
 	.endm
 
@@ -71,6 +77,11 @@
 @  IRQs enabled.
 ENTRY(vfp_support_entry)
 	DBGSTR3	"instr %08x pc %08x state %p", r0, r2, r10
+
+	ldr	r3, [sp, #S_PSR]	@ Neither lazy restore nor FP exceptions
+	and	r3, r3, #MODE_MASK	@ are supported in kernel mode
+	teq	r3, #USR_MODE
+	bne	vfp_kmode_exception	@ Returns through lr
 
 	VFPFMRX	r1, FPEXC		@ Is the VFP enabled?
 	DBGSTR1	"fpexc %08x", r1
@@ -168,7 +179,7 @@ vfp_hw_state_valid:
 					@ else it's one 32-bit instruction, so
 					@ always subtract 4 from the following
 					@ instruction address.
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPT_COUNT
 	get_thread_info	r10
 	ldr	r4, [r10, #TI_PREEMPT]	@ get preempt count
 	sub	r11, r4, #1		@ decrement it
@@ -192,7 +203,7 @@ look_for_VFP_exceptions:
 	@ not recognised by VFP
 
 	DBGSTR	"not VFP"
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPT_COUNT
 	get_thread_info	r10
 	ldr	r4, [r10, #TI_PREEMPT]	@ get preempt count
 	sub	r11, r4, #1		@ decrement it

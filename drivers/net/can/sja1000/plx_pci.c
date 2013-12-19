@@ -348,20 +348,20 @@ static inline int plx_pci_check_sja1000(const struct sja1000_priv *priv)
 	 */
 	if ((priv->read_reg(priv, REG_CR) & REG_CR_BASICCAN_INITIAL_MASK) ==
 	    REG_CR_BASICCAN_INITIAL &&
-	    (priv->read_reg(priv, REG_SR) == REG_SR_BASICCAN_INITIAL) &&
-	    (priv->read_reg(priv, REG_IR) == REG_IR_BASICCAN_INITIAL))
+	    (priv->read_reg(priv, SJA1000_SR) == REG_SR_BASICCAN_INITIAL) &&
+	    (priv->read_reg(priv, SJA1000_IR) == REG_IR_BASICCAN_INITIAL))
 		flag = 1;
 
 	/* Bring the SJA1000 into the PeliCAN mode*/
-	priv->write_reg(priv, REG_CDR, CDR_PELICAN);
+	priv->write_reg(priv, SJA1000_CDR, CDR_PELICAN);
 
 	/*
 	 * Check registers after reset in the PeliCAN mode.
 	 * See states on p. 23 of the Datasheet.
 	 */
-	if (priv->read_reg(priv, REG_MOD) == REG_MOD_PELICAN_INITIAL &&
-	    priv->read_reg(priv, REG_SR) == REG_SR_PELICAN_INITIAL &&
-	    priv->read_reg(priv, REG_IR) == REG_IR_PELICAN_INITIAL)
+	if (priv->read_reg(priv, SJA1000_MOD) == REG_MOD_PELICAN_INITIAL &&
+	    priv->read_reg(priv, SJA1000_SR) == REG_SR_PELICAN_INITIAL &&
+	    priv->read_reg(priv, SJA1000_IR) == REG_IR_PELICAN_INITIAL)
 		return flag;
 
 	return 0;
@@ -477,7 +477,6 @@ static void plx_pci_del_card(struct pci_dev *pdev)
 	kfree(card);
 
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 /*
@@ -508,7 +507,6 @@ static int plx_pci_add_card(struct pci_dev *pdev,
 	/* Allocate card structures to hold addresses, ... */
 	card = kzalloc(sizeof(*card), GFP_KERNEL);
 	if (!card) {
-		dev_err(&pdev->dev, "Unable to allocate memory\n");
 		pci_disable_device(pdev);
 		return -ENOMEM;
 	}

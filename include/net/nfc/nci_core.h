@@ -3,6 +3,7 @@
  *  NFC Controller (NFCC) and a Device Host (DH).
  *
  *  Copyright (C) 2011 Texas Instruments, Inc.
+ *  Copyright (C) 2013 Intel Corporation. All rights reserved.
  *
  *  Written by Ilan Elias <ilane@ti.com>
  *
@@ -66,7 +67,7 @@ struct nci_dev;
 struct nci_ops {
 	int (*open)(struct nci_dev *ndev);
 	int (*close)(struct nci_dev *ndev);
-	int (*send)(struct sk_buff *skb);
+	int (*send)(struct nci_dev *ndev, struct sk_buff *skb);
 };
 
 #define NCI_MAX_SUPPORTED_RF_INTERFACES		4
@@ -152,7 +153,7 @@ struct nci_dev *nci_allocate_device(struct nci_ops *ops,
 void nci_free_device(struct nci_dev *ndev);
 int nci_register_device(struct nci_dev *ndev);
 void nci_unregister_device(struct nci_dev *ndev);
-int nci_recv_frame(struct sk_buff *skb);
+int nci_recv_frame(struct nci_dev *ndev, struct sk_buff *skb);
 
 static inline struct sk_buff *nci_skb_alloc(struct nci_dev *ndev,
 					    unsigned int len,
@@ -200,5 +201,31 @@ void nci_req_complete(struct nci_dev *ndev, int result);
 
 /* ----- NCI status code ----- */
 int nci_to_errno(__u8 code);
+
+/* ----- NCI over SPI acknowledge modes ----- */
+#define NCI_SPI_CRC_DISABLED	0x00
+#define NCI_SPI_CRC_ENABLED	0x01
+
+/* ----- NCI SPI structures ----- */
+struct nci_spi {
+	struct nci_dev		*ndev;
+	struct spi_device	*spi;
+
+	unsigned int		xfer_udelay;	/* microseconds delay between
+						  transactions */
+	u8			acknowledge_mode;
+
+	struct completion	req_completion;
+	u8			req_result;
+};
+
+/* ----- NCI SPI ----- */
+struct nci_spi *nci_spi_allocate_spi(struct spi_device *spi,
+				     u8 acknowledge_mode, unsigned int delay,
+				     struct nci_dev *ndev);
+int nci_spi_send(struct nci_spi *nspi,
+		 struct completion *write_handshake_completion,
+		 struct sk_buff *skb);
+struct sk_buff *nci_spi_read(struct nci_spi *nspi);
 
 #endif /* __NCI_CORE_H */

@@ -48,7 +48,7 @@ static struct resource tc6387xb_mmc_resources[] = {
 static int tc6387xb_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct tc6387xb *tc6387xb = platform_get_drvdata(dev);
-	struct tc6387xb_platform_data *pdata = dev->dev.platform_data;
+	struct tc6387xb_platform_data *pdata = dev_get_platdata(&dev->dev);
 
 	if (pdata && pdata->suspend)
 		pdata->suspend(dev);
@@ -60,7 +60,7 @@ static int tc6387xb_suspend(struct platform_device *dev, pm_message_t state)
 static int tc6387xb_resume(struct platform_device *dev)
 {
 	struct tc6387xb *tc6387xb = platform_get_drvdata(dev);
-	struct tc6387xb_platform_data *pdata = dev->dev.platform_data;
+	struct tc6387xb_platform_data *pdata = dev_get_platdata(&dev->dev);
 
 	clk_enable(tc6387xb->clk32k);
 	if (pdata && pdata->resume)
@@ -140,7 +140,7 @@ static struct mfd_cell tc6387xb_cells[] = {
 
 static int tc6387xb_probe(struct platform_device *dev)
 {
-	struct tc6387xb_platform_data *pdata = dev->dev.platform_data;
+	struct tc6387xb_platform_data *pdata = dev_get_platdata(&dev->dev);
 	struct resource *iomem, *rscr;
 	struct clk *clk32k;
 	struct tc6387xb *tc6387xb;
@@ -217,7 +217,6 @@ static int tc6387xb_remove(struct platform_device *dev)
 	release_resource(&tc6387xb->rscr);
 	clk_disable(tc6387xb->clk32k);
 	clk_put(tc6387xb->clk32k);
-	platform_set_drvdata(dev, NULL);
 	kfree(tc6387xb);
 
 	return 0;

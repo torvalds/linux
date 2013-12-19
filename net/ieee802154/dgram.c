@@ -291,6 +291,9 @@ static int dgram_recvmsg(struct kiocb *iocb, struct sock *sk,
 	size_t copied = 0;
 	int err = -EOPNOTSUPP;
 	struct sk_buff *skb;
+	struct sockaddr_ieee802154 *saddr;
+
+	saddr = (struct sockaddr_ieee802154 *)msg->msg_name;
 
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
 	if (!skb)
@@ -308,6 +311,12 @@ static int dgram_recvmsg(struct kiocb *iocb, struct sock *sk,
 		goto done;
 
 	sock_recv_ts_and_drops(msg, sk, skb);
+
+	if (saddr) {
+		saddr->family = AF_IEEE802154;
+		saddr->addr = mac_cb(skb)->sa;
+		*addr_len = sizeof(*saddr);
+	}
 
 	if (flags & MSG_TRUNC)
 		copied = skb->len;
@@ -350,7 +359,6 @@ static inline int ieee802154_match_sock(u8 *hw_addr, u16 pan_id,
 int ieee802154_dgram_deliver(struct net_device *dev, struct sk_buff *skb)
 {
 	struct sock *sk, *prev = NULL;
-	struct hlist_node *node;
 	int ret = NET_RX_SUCCESS;
 	u16 pan_id, short_addr;
 
@@ -361,7 +369,7 @@ int ieee802154_dgram_deliver(struct net_device *dev, struct sk_buff *skb)
 	short_addr = ieee802154_mlme_ops(dev)->get_short_addr(dev);
 
 	read_lock(&dgram_lock);
-	sk_for_each(sk, node, &dgram_head) {
+	sk_for_each(sk, &dgram_head) {
 		if (ieee802154_match_sock(dev->dev_addr, pan_id, short_addr,
 					dgram_sk(sk))) {
 			if (prev) {

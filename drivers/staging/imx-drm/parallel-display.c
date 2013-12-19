@@ -23,7 +23,6 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <linux/videodev2.h>
-#include <linux/pinctrl/consumer.h>
 
 #include "imx-drm.h"
 
@@ -57,6 +56,7 @@ static void imx_pd_connector_destroy(struct drm_connector *connector)
 static int imx_pd_connector_get_modes(struct drm_connector *connector)
 {
 	struct imx_parallel_display *imxpd = con_to_imxpd(connector);
+	struct device_node *np = imxpd->dev->of_node;
 	int num_modes = 0;
 
 	if (imxpd->edid) {
@@ -66,6 +66,15 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 
 	if (imxpd->mode_valid) {
 		struct drm_display_mode *mode = drm_mode_create(connector->dev);
+		drm_mode_copy(mode, &imxpd->mode);
+		mode->type |= DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
+		drm_mode_probed_add(connector, mode);
+		num_modes++;
+	}
+
+	if (np) {
+		struct drm_display_mode *mode = drm_mode_create(connector->dev);
+		of_get_drm_display_mode(np, &imxpd->mode, 0);
 		drm_mode_copy(mode, &imxpd->mode);
 		mode->type |= DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 		drm_mode_probed_add(connector, mode);
@@ -196,19 +205,10 @@ static int imx_pd_probe(struct platform_device *pdev)
 	struct imx_parallel_display *imxpd;
 	int ret;
 	const char *fmt;
-	struct pinctrl *pinctrl;
 
 	imxpd = devm_kzalloc(&pdev->dev, sizeof(*imxpd), GFP_KERNEL);
 	if (!imxpd)
 		return -ENOMEM;
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		ret = PTR_ERR(pinctrl);
-		dev_warn(&pdev->dev, "pinctrl_get_select_default failed with %d",
-				ret);
-		return ret;
-	}
 
 	edidp = of_get_property(np, "edid", &imxpd->edid_len);
 	if (edidp)
@@ -220,6 +220,8 @@ static int imx_pd_probe(struct platform_device *pdev)
 			imxpd->interface_pix_fmt = V4L2_PIX_FMT_RGB24;
 		else if (!strcmp(fmt, "rgb565"))
 			imxpd->interface_pix_fmt = V4L2_PIX_FMT_RGB565;
+		else if (!strcmp(fmt, "bgr666"))
+			imxpd->interface_pix_fmt = V4L2_PIX_FMT_BGR666;
 	}
 
 	imxpd->dev = &pdev->dev;
@@ -253,6 +255,7 @@ static const struct of_device_id imx_pd_dt_ids[] = {
 	{ .compatible = "fsl,imx-parallel-display", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, imx_pd_dt_ids);
 
 static struct platform_driver imx_pd_driver = {
 	.probe		= imx_pd_probe,
@@ -269,3 +272,4 @@ module_platform_driver(imx_pd_driver);
 MODULE_DESCRIPTION("i.MX parallel display driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:imx-parallel-display");

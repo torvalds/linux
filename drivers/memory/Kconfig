@@ -20,6 +20,16 @@ config TI_EMIF
 	  parameters and other settings during frequency, voltage and
 	  temperature changes
 
+config MVEBU_DEVBUS
+	bool "Marvell EBU Device Bus Controller"
+	default y
+	depends on PLAT_ORION && OF
+	help
+	  This driver is for the Device Bus controller available in some
+	  Marvell EBU SoCs such as Discovery (mv78xx0), Orion (88f5xxx) and
+	  Armada 370 and Armada XP. This controller allows to handle flash
+	  devices such as NOR, NAND, SRAM, and FPGA.
+
 config TEGRA20_MC
 	bool "Tegra20 Memory Controller(MC) driver"
 	default y

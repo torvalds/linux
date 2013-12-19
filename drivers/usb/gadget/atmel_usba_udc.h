@@ -216,12 +216,6 @@
 #define EP0_EPT_SIZE		USBA_EPT_SIZE_64
 #define EP0_NR_BANKS		1
 
-/*
- * REVISIT: Try to eliminate this value. Can we rely on req->mapped to
- * provide this information?
- */
-#define DMA_ADDR_INVALID (~(dma_addr_t)0)
-
 #define FIFO_IOMEM_ID	0
 #define CTRL_IOMEM_ID	1
 
@@ -323,8 +317,10 @@ struct usba_udc {
 	int irq;
 	int vbus_pin;
 	int vbus_pin_inverted;
+	int num_ep;
 	struct clk *pclk;
 	struct clk *hclk;
+	struct usba_ep *usba_ep;
 
 	u16 devstatus;
 

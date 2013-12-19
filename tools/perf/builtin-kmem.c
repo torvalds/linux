@@ -13,10 +13,12 @@
 
 #include "util/parse-options.h"
 #include "util/trace-event.h"
+#include "util/data.h"
 
 #include "util/debug.h"
 
 #include <linux/rbtree.h>
+#include <linux/string.h>
 
 struct alloc_stat;
 typedef int (*sort_fn_t)(struct alloc_stat *, struct alloc_stat *);
@@ -100,7 +102,7 @@ static int setup_cpunode_map(void)
 
 	dir1 = opendir(PATH_SYS_NODE);
 	if (!dir1)
-		return -1;
+		return 0;
 
 	while ((dent1 = readdir(dir1)) != NULL) {
 		if (dent1->d_type != DT_DIR ||
@@ -304,7 +306,8 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 				struct perf_evsel *evsel,
 				struct machine *machine)
 {
-	struct thread *thread = machine__findnew_thread(machine, event->ip.pid);
+	struct thread *thread = machine__findnew_thread(machine, sample->pid,
+							sample->pid);
 
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
@@ -312,10 +315,10 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 		return -1;
 	}
 
-	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
+	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread->tid);
 
-	if (evsel->handler.func != NULL) {
-		tracepoint_handler f = evsel->handler.func;
+	if (evsel->handler != NULL) {
+		tracepoint_handler f = evsel->handler;
 		return f(evsel, sample);
 	}
 
@@ -340,7 +343,7 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 			   int n_lines, int is_caller)
 {
 	struct rb_node *next;
-	struct machine *machine;
+	struct machine *machine = &session->machines.host;
 
 	printf("%.102s\n", graph_dotted_line);
 	printf(" %-34s |",  is_caller ? "Callsite": "Alloc Ptr");
@@ -349,11 +352,6 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 
 	next = rb_first(root);
 
-	machine = perf_session__find_host_machine(session);
-	if (!machine) {
-		pr_err("__print_result: couldn't find kernel information\n");
-		return;
-	}
 	while (next && n_lines--) {
 		struct alloc_stat *data = rb_entry(next, struct alloc_stat,
 						   node);
@@ -489,8 +487,12 @@ static int __cmd_kmem(void)
 		{ "kmem:kfree",			perf_evsel__process_free_event, },
     		{ "kmem:kmem_cache_free",	perf_evsel__process_free_event, },
 	};
+	struct perf_data_file file = {
+		.path = input_name,
+		.mode = PERF_DATA_MODE_READ,
+	};
 
-	session = perf_session__new(input_name, O_RDONLY, 0, false, &perf_kmem);
+	session = perf_session__new(&file, false, &perf_kmem);
 	if (session == NULL)
 		return -ENOMEM;
 
@@ -614,8 +616,7 @@ static struct sort_dimension *avail_sorts[] = {
 	&pingpong_sort_dimension,
 };
 
-#define NUM_AVAIL_SORTS	\
-	(int)(sizeof(avail_sorts) / sizeof(struct sort_dimension *))
+#define NUM_AVAIL_SORTS	((int)ARRAY_SIZE(avail_sorts))
 
 static int sort_dimension__add(const char *tok, struct list_head *list)
 {
@@ -624,12 +625,11 @@ static int sort_dimension__add(const char *tok, struct list_head *list)
 
 	for (i = 0; i < NUM_AVAIL_SORTS; i++) {
 		if (!strcmp(avail_sorts[i]->name, tok)) {
-			sort = malloc(sizeof(*sort));
+			sort = memdup(avail_sorts[i], sizeof(*avail_sorts[i]));
 			if (!sort) {
-				pr_err("%s: malloc failed\n", __func__);
+				pr_err("%s: memdup failed\n", __func__);
 				return -1;
 			}
-			memcpy(sort, avail_sorts[i], sizeof(*sort));
 			list_add_tail(&sort->list, list);
 			return 0;
 		}
@@ -714,7 +714,7 @@ static int parse_line_opt(const struct option *opt __maybe_unused,
 static int __cmd_record(int argc, const char **argv)
 {
 	const char * const record_args[] = {
-	"record", "-a", "-R", "-f", "-c", "1",
+	"record", "-a", "-R", "-c", "1",
 	"-e", "kmem:kmalloc",
 	"-e", "kmem:kmalloc_node",
 	"-e", "kmem:kfree",

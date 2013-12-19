@@ -92,7 +92,7 @@
 		: "memory")
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 # define OCTEON_SYNCW_STR	".set push\n.set arch=octeon\nsyncw\nsyncw\n.set pop\n"
-# define __syncw() 	__asm__ __volatile__(OCTEON_SYNCW_STR : : : "memory")
+# define __syncw()	__asm__ __volatile__(OCTEON_SYNCW_STR : : : "memory")
 
 # define fast_wmb()	__syncw()
 # define fast_rmb()	barrier()
@@ -158,7 +158,7 @@
 #endif
 
 #if defined(CONFIG_WEAK_REORDERING_BEYOND_LLSC) && defined(CONFIG_SMP)
-#define __WEAK_LLSC_MB		"       sync	\n"
+#define __WEAK_LLSC_MB		"	sync	\n"
 #else
 #define __WEAK_LLSC_MB		"		\n"
 #endif

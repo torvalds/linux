@@ -29,7 +29,6 @@
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/v4l2-common.h>
-#include <media/v4l2-chip-ident.h>
 
 #include <media/cx25840.h>
 #include "dvb-usb-ids.h"
@@ -263,7 +262,11 @@ struct cx231xx_board cx231xx_boards[] = {
 		.norm = V4L2_STD_PAL,
 		.no_alt_vanc = 1,
 		.external_av = 1,
-		.has_417 = 1,
+		.dont_use_port_3 = 1,
+		/* Actually, it has a 417, but it isn't working correctly.
+		 * So set to 0 for now until someone can manage to get this
+		 * to work reliably. */
+		.has_417 = 0,
 
 		.input = {{
 				.type = CX231XX_VMUX_COMPOSITE1,
@@ -421,6 +424,44 @@ struct cx231xx_board cx231xx_boards[] = {
 		.has_dvb = 1,
 		.demod_addr = 0x10,
 		.norm = V4L2_STD_PAL_M,
+		.input = {{
+			.type = CX231XX_VMUX_TELEVISION,
+			.vmux = CX231XX_VIN_3_1,
+			.amux = CX231XX_AMUX_VIDEO,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		} },
+	},
+	[CX231XX_BOARD_KWORLD_UB445_USB_HYBRID] = {
+		.name = "Kworld UB445 USB Hybrid",
+		.tuner_type = TUNER_NXP_TDA18271,
+		.tuner_addr = 0x60,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x11,	/* According with PV cxPolaris.inf file */
+		.tuner_sif_gpio = -1,
+		.tuner_scl_gpio = -1,
+		.tuner_sda_gpio = -1,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = 2,
+		.demod_i2c_master = 1,
+		.ir_i2c_master = 2,
+		.has_dvb = 1,
+		.demod_addr = 0x10,
+		.norm = V4L2_STD_NTSC_M,
 		.input = {{
 			.type = CX231XX_VMUX_TELEVISION,
 			.vmux = CX231XX_VIN_3_1,
@@ -603,6 +644,66 @@ struct cx231xx_board cx231xx_boards[] = {
 			.gpio = NULL,
 		} },
 	},
+	[CX231XX_BOARD_ELGATO_VIDEO_CAPTURE_V2] = {
+		.name = "Elgato Video Capture V2",
+		.tuner_type = TUNER_ABSENT,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c,
+		.gpio_pin_status_mask = 0x4001000,
+		.norm = V4L2_STD_NTSC,
+		.no_alt_vanc = 1,
+		.external_av = 1,
+		.dont_use_port_3 = 1,
+		.input = {{
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		} },
+	},
+	[CX231XX_BOARD_OTG102] = {
+		.name = "Geniatech OTG102",
+		.tuner_type = TUNER_ABSENT,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c, 
+			/* According with PV CxPlrCAP.inf file */
+		.gpio_pin_status_mask = 0x4001000,
+		.norm = V4L2_STD_NTSC,
+		.no_alt_vanc = 1,
+		.external_av = 1,
+		.dont_use_port_3 = 1,
+		/*.has_417 = 1, */
+		/* This board is believed to have a hardware encoding chip
+		 * supporting mpeg1/2/4, but as the 417 is apparently not
+		 * working for the reference board it is not here either. */
+
+		.input = {{
+				.type = CX231XX_VMUX_COMPOSITE1,
+				.vmux = CX231XX_VIN_2_1,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = NULL,
+			}, {
+				.type = CX231XX_VMUX_SVIDEO,
+				.vmux = CX231XX_VIN_1_1 |
+					(CX231XX_VIN_1_2 << 8) |
+					CX25840_SVIDEO_ON,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = NULL,
+			}
+		},
+	},
 };
 const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
 
@@ -640,8 +741,14 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_PV_XCAPTURE_USB},
 	{USB_DEVICE(0x1b80, 0xe424),
 	 .driver_info = CX231XX_BOARD_KWORLD_UB430_USB_HYBRID},
+	{USB_DEVICE(0x1b80, 0xe421),
+	 .driver_info = CX231XX_BOARD_KWORLD_UB445_USB_HYBRID},
 	{USB_DEVICE(0x1f4d, 0x0237),
 	 .driver_info = CX231XX_BOARD_ICONBIT_U100},
+	{USB_DEVICE(0x0fd9, 0x0037),
+	 .driver_info = CX231XX_BOARD_ELGATO_VIDEO_CAPTURE_V2},
+	{USB_DEVICE(0x1f4d, 0x0102),
+	 .driver_info = CX231XX_BOARD_OTG102},
 	{},
 };
 
@@ -707,7 +814,7 @@ static void cx231xx_sleep_s5h1432(struct cx231xx *dev)
 
 static inline void cx231xx_set_model(struct cx231xx *dev)
 {
-	memcpy(&dev->board, &cx231xx_boards[dev->model], sizeof(dev->board));
+	dev->board = cx231xx_boards[dev->model];
 }
 
 /* Since cx231xx_pre_card_setup() requires a proper dev->model,
@@ -817,8 +924,6 @@ void cx231xx_card_setup(struct cx231xx *dev)
 int cx231xx_config(struct cx231xx *dev)
 {
 	/* TBD need to add cx231xx specific code */
-	dev->mute = 1;		/* maybe not the right place... */
-	dev->volume = 0x1f;
 
 	return 0;
 }
@@ -873,7 +978,6 @@ static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 			    int minor)
 {
 	int retval = -ENOMEM;
-	int errCode;
 	unsigned int maxh, maxw;
 
 	dev->udev = udev;
@@ -909,8 +1013,8 @@ static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 	/* Cx231xx pre card setup */
 	cx231xx_pre_card_setup(dev);
 
-	errCode = cx231xx_config(dev);
-	if (errCode) {
+	retval = cx231xx_config(dev);
+	if (retval) {
 		cx231xx_errdev("error configuring device\n");
 		return -ENOMEM;
 	}
@@ -919,12 +1023,11 @@ static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 	dev->norm = dev->board.norm;
 
 	/* register i2c bus */
-	errCode = cx231xx_dev_init(dev);
-	if (errCode < 0) {
-		cx231xx_dev_uninit(dev);
+	retval = cx231xx_dev_init(dev);
+	if (retval) {
 		cx231xx_errdev("%s: cx231xx_i2c_register - errCode [%d]!\n",
-			       __func__, errCode);
-		return errCode;
+			       __func__, retval);
+		goto err_dev_init;
 	}
 
 	/* Do board specific init */
@@ -942,11 +1045,11 @@ static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 	dev->interlaced = 0;
 	dev->video_input = 0;
 
-	errCode = cx231xx_config(dev);
-	if (errCode < 0) {
+	retval = cx231xx_config(dev);
+	if (retval) {
 		cx231xx_errdev("%s: cx231xx_config - errCode [%d]!\n",
-			       __func__, errCode);
-		return errCode;
+			       __func__, retval);
+		goto err_dev_init;
 	}
 
 	/* init video dma queues */
@@ -970,9 +1073,9 @@ static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 	}
 
 	retval = cx231xx_register_analog_devices(dev);
-	if (retval < 0) {
-		cx231xx_release_resources(dev);
-		return retval;
+	if (retval) {
+		cx231xx_release_analog_resources(dev);
+		goto err_analog;
 	}
 
 	cx231xx_ir_init(dev);
@@ -980,6 +1083,11 @@ static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 	cx231xx_init_extension(dev);
 
 	return 0;
+err_analog:
+	cx231xx_remove_from_devlist(dev);
+err_dev_init:
+	cx231xx_dev_uninit(dev);
+	return retval;
 }
 
 #if defined(CONFIG_MODULES) && defined(MODULE)
@@ -1027,7 +1135,6 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	char *speed;
 	struct usb_interface_assoc_descriptor *assoc_desc;
 
-	udev = usb_get_dev(interface_to_usbdev(interface));
 	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 
 	/*
@@ -1055,6 +1162,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		clear_bit(nr, &cx231xx_devused);
 		return -ENOMEM;
 	}
+
+	udev = usb_get_dev(interface_to_usbdev(interface));
 
 	snprintf(dev->name, 29, "cx231xx #%d", nr);
 	dev->devno = nr;
@@ -1118,10 +1227,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	if (assoc_desc->bFirstInterface != ifnum) {
 		cx231xx_err(DRIVER_NAME ": Not found "
 			    "matching IAD interface\n");
-		clear_bit(dev->devno, &cx231xx_devused);
-		kfree(dev);
-		dev = NULL;
-		return -ENODEV;
+		retval = -ENODEV;
+		goto err_if;
 	}
 
 	cx231xx_info("registering interface %d\n", ifnum);
@@ -1137,29 +1244,20 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	retval = v4l2_device_register(&interface->dev, &dev->v4l2_dev);
 	if (retval) {
 		cx231xx_errdev("v4l2_device_register failed\n");
-		clear_bit(dev->devno, &cx231xx_devused);
-		kfree(dev);
-		dev = NULL;
-		return -EIO;
+		retval = -EIO;
+		goto err_v4l2;
 	}
 	/* allocate device struct */
 	retval = cx231xx_init_dev(dev, udev, nr);
-	if (retval) {
-		clear_bit(dev->devno, &cx231xx_devused);
-		v4l2_device_unregister(&dev->v4l2_dev);
-		kfree(dev);
-		dev = NULL;
-		usb_set_intfdata(interface, NULL);
-
-		return retval;
-	}
+	if (retval)
+		goto err_init;
 
 	/* compute alternate max packet sizes for video */
 	uif = udev->actconfig->interface[dev->current_pcb_config.
 		       hs_config_info[0].interface_info.video_index + 1];
 
-	dev->video_mode.end_point_addr = le16_to_cpu(uif->altsetting[0].
-			endpoint[isoc_pipe].desc.bEndpointAddress);
+	dev->video_mode.end_point_addr = uif->altsetting[0].
+			endpoint[isoc_pipe].desc.bEndpointAddress;
 
 	dev->video_mode.num_alt = uif->num_altsetting;
 	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
@@ -1170,11 +1268,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 
 	if (dev->video_mode.alt_max_pkt_size == NULL) {
 		cx231xx_errdev("out of memory!\n");
-		clear_bit(dev->devno, &cx231xx_devused);
-		v4l2_device_unregister(&dev->v4l2_dev);
-		kfree(dev);
-		dev = NULL;
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto err_video_alt;
 	}
 
 	for (i = 0; i < dev->video_mode.num_alt; i++) {
@@ -1192,8 +1287,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 				       vanc_index + 1];
 
 	dev->vbi_mode.end_point_addr =
-	    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.
-			bEndpointAddress);
+	    uif->altsetting[0].endpoint[isoc_pipe].desc.
+			bEndpointAddress;
 
 	dev->vbi_mode.num_alt = uif->num_altsetting;
 	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
@@ -1204,11 +1299,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 
 	if (dev->vbi_mode.alt_max_pkt_size == NULL) {
 		cx231xx_errdev("out of memory!\n");
-		clear_bit(dev->devno, &cx231xx_devused);
-		v4l2_device_unregister(&dev->v4l2_dev);
-		kfree(dev);
-		dev = NULL;
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto err_vbi_alt;
 	}
 
 	for (i = 0; i < dev->vbi_mode.num_alt; i++) {
@@ -1227,8 +1319,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 				       hanc_index + 1];
 
 	dev->sliced_cc_mode.end_point_addr =
-	    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.
-			bEndpointAddress);
+	    uif->altsetting[0].endpoint[isoc_pipe].desc.
+			bEndpointAddress;
 
 	dev->sliced_cc_mode.num_alt = uif->num_altsetting;
 	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
@@ -1239,11 +1331,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 
 	if (dev->sliced_cc_mode.alt_max_pkt_size == NULL) {
 		cx231xx_errdev("out of memory!\n");
-		clear_bit(dev->devno, &cx231xx_devused);
-		v4l2_device_unregister(&dev->v4l2_dev);
-		kfree(dev);
-		dev = NULL;
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto err_sliced_cc_alt;
 	}
 
 	for (i = 0; i < dev->sliced_cc_mode.num_alt; i++) {
@@ -1263,8 +1352,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 					       ts1_index + 1];
 
 		dev->ts1_mode.end_point_addr =
-		    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].
-				desc.bEndpointAddress);
+		    uif->altsetting[0].endpoint[isoc_pipe].
+				desc.bEndpointAddress;
 
 		dev->ts1_mode.num_alt = uif->num_altsetting;
 		cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
@@ -1275,11 +1364,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 
 		if (dev->ts1_mode.alt_max_pkt_size == NULL) {
 			cx231xx_errdev("out of memory!\n");
-			clear_bit(dev->devno, &cx231xx_devused);
-			v4l2_device_unregister(&dev->v4l2_dev);
-			kfree(dev);
-			dev = NULL;
-			return -ENOMEM;
+			retval = -ENOMEM;
+			goto err_ts1_alt;
 		}
 
 		for (i = 0; i < dev->ts1_mode.num_alt; i++) {
@@ -1306,6 +1392,29 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	request_modules(dev);
 
 	return 0;
+err_ts1_alt:
+	kfree(dev->sliced_cc_mode.alt_max_pkt_size);
+err_sliced_cc_alt:
+	kfree(dev->vbi_mode.alt_max_pkt_size);
+err_vbi_alt:
+	kfree(dev->video_mode.alt_max_pkt_size);
+err_video_alt:
+	/* cx231xx_uninit_dev: */
+	cx231xx_close_extension(dev);
+	cx231xx_ir_exit(dev);
+	cx231xx_release_analog_resources(dev);
+	cx231xx_417_unregister(dev);
+	cx231xx_remove_from_devlist(dev);
+	cx231xx_dev_uninit(dev);
+err_init:
+	v4l2_device_unregister(&dev->v4l2_dev);
+err_v4l2:
+	usb_set_intfdata(interface, NULL);
+err_if:
+	usb_put_dev(udev);
+	clear_bit(dev->devno, &cx231xx_devused);
+	kfree(dev);
+	return retval;
 }
 
 /*

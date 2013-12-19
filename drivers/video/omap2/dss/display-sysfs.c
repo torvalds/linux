@@ -22,42 +22,69 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/jiffies.h>
 #include <linux/platform_device.h>
+#include <linux/sysfs.h>
 
 #include <video/omapdss.h>
 #include "dss.h"
-#include "dss_features.h"
+
+static struct omap_dss_device *to_dss_device_sysfs(struct device *dev)
+{
+	struct omap_dss_device *dssdev = NULL;
+
+	for_each_dss_dev(dssdev) {
+		if (dssdev->dev == dev) {
+			omap_dss_put_device(dssdev);
+			return dssdev;
+		}
+	}
+
+	return NULL;
+}
+
+static ssize_t display_name_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct omap_dss_device *dssdev = to_dss_device_sysfs(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			dssdev->name ?
+			dssdev->name : "");
+}
 
 static ssize_t display_enabled_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-	bool enabled = dssdev->state != OMAP_DSS_DISPLAY_DISABLED;
+	struct omap_dss_device *dssdev = to_dss_device_sysfs(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", enabled);
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			omapdss_device_is_enabled(dssdev));
 }
 
 static ssize_t display_enabled_store(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf, size_t size)
 {
-	struct omap_dss_device *dssdev = to_dss_device(dev);
+	struct omap_dss_device *dssdev = to_dss_device_sysfs(dev);
 	int r;
-	bool enabled;
+	bool enable;
 
-	r = strtobool(buf, &enabled);
+	r = strtobool(buf, &enable);
 	if (r)
 		return r;
 
-	if (enabled != (dssdev->state != OMAP_DSS_DISPLAY_DISABLED)) {
-		if (enabled) {
-			r = dssdev->driver->enable(dssdev);
-			if (r)
-				return r;
-		} else {
-			dssdev->driver->disable(dssdev);
-		}
+	if (enable == omapdss_device_is_enabled(dssdev))
+		return size;
+
+	if (omapdss_device_is_connected(dssdev) == false)
+		return -ENODEV;
+
+	if (enable) {
+		r = dssdev->driver->enable(dssdev);
+		if (r)
+			return r;
+	} else {
+		dssdev->driver->disable(dssdev);
 	}
 
 	return size;
@@ -66,7 +93,7 @@ static ssize_t display_enabled_store(struct device *dev,
 static ssize_t display_tear_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct omap_dss_device *dssdev = to_dss_device(dev);
+	struct omap_dss_device *dssdev = to_dss_device_sysfs(dev);
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			dssdev->driver->get_te ?
 			dssdev->driver->get_te(dssdev) : 0);
@@ -75,7 +102,7 @@ static ssize_t display_tear_show(struct device *dev,
 static ssize_t display_tear_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct omap_dss_device *dssdev = to_dss_device(dev);
+	struct omap_dss_device *dssdev = to_dss_device_sysfs(dev);
 	int r;
 	bool te;
 
@@ -96,7 +123,7 @@ static ssize_t display_tear_store(struct device *dev,
 static ssize_t display_timings_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct omap_dss_device *dssdev = to_dss_device(dev);
+	struct omap_dss_device *dssdev = to_dss_device_sysfs(dev);
 	struct omap_video_timings t;
 
 	if (!dssdev->driver->get_timings)
@@ -113,7 +140,7 @@ static ssize_t display_timings_show(struct device *dev,
 static ssize_t display_timings_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct omap_dss_device *dssdev = to_dss_device(dev);
+	struct omap_dss_device *dssdev = to_dss_device_sysfs(dev);
 	struct omap_video_timings t = dssdev->panel.timings;
 	int r, found;
 
@@ -152,7 +179,7 @@ static ssize_t display_timings_store(struct device *dev,
 static ssize_t display_rotate_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct omap_dss_device *dssdev = to_dss_device(dev);
+	struct omap_dss_device *dssdev = to_dss_device_sysfs(dev);
 	int rotate;
 	if (!dssdev->driver->get_rotate)
 		return -ENOENT;
@@ -163,7 +190,7 @@ static ssize_t display_rotate_show(struct device *dev,
 static ssize_t display_rotate_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct omap_dss_device *dssdev = to_dss_device(dev);
+	struct omap_dss_device *dssdev = to_dss_device_sysfs(dev);
 	int rot, r;
 
 	if (!dssdev->driver->set_rotate || !dssdev->driver->get_rotate)
@@ -183,7 +210,7 @@ static ssize_t display_rotate_store(struct device *dev,
 static ssize_t display_mirror_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct omap_dss_device *dssdev = to_dss_device(dev);
+	struct omap_dss_device *dssdev = to_dss_device_sysfs(dev);
 	int mirror;
 	if (!dssdev->driver->get_mirror)
 		return -ENOENT;
@@ -194,7 +221,7 @@ static ssize_t display_mirror_show(struct device *dev,
 static ssize_t display_mirror_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct omap_dss_device *dssdev = to_dss_device(dev);
+	struct omap_dss_device *dssdev = to_dss_device_sysfs(dev);
 	int r;
 	bool mirror;
 
@@ -215,7 +242,7 @@ static ssize_t display_mirror_store(struct device *dev,
 static ssize_t display_wss_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct omap_dss_device *dssdev = to_dss_device(dev);
+	struct omap_dss_device *dssdev = to_dss_device_sysfs(dev);
 	unsigned int wss;
 
 	if (!dssdev->driver->get_wss)
@@ -229,7 +256,7 @@ static ssize_t display_wss_show(struct device *dev,
 static ssize_t display_wss_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct omap_dss_device *dssdev = to_dss_device(dev);
+	struct omap_dss_device *dssdev = to_dss_device_sysfs(dev);
 	u32 wss;
 	int r;
 
@@ -250,6 +277,7 @@ static ssize_t display_wss_store(struct device *dev,
 	return size;
 }
 
+static DEVICE_ATTR(name, S_IRUGO, display_name_show, NULL);
 static DEVICE_ATTR(enabled, S_IRUGO|S_IWUSR,
 		display_enabled_show, display_enabled_store);
 static DEVICE_ATTR(tear_elim, S_IRUGO|S_IWUSR,
@@ -263,59 +291,55 @@ static DEVICE_ATTR(mirror, S_IRUGO|S_IWUSR,
 static DEVICE_ATTR(wss, S_IRUGO|S_IWUSR,
 		display_wss_show, display_wss_store);
 
-static struct device_attribute *display_sysfs_attrs[] = {
-	&dev_attr_enabled,
-	&dev_attr_tear_elim,
-	&dev_attr_timings,
-	&dev_attr_rotate,
-	&dev_attr_mirror,
-	&dev_attr_wss,
+static const struct attribute *display_sysfs_attrs[] = {
+	&dev_attr_name.attr,
+	&dev_attr_enabled.attr,
+	&dev_attr_tear_elim.attr,
+	&dev_attr_timings.attr,
+	&dev_attr_rotate.attr,
+	&dev_attr_mirror.attr,
+	&dev_attr_wss.attr,
 	NULL
 };
 
-int display_init_sysfs(struct platform_device *pdev,
-		struct omap_dss_device *dssdev)
+int display_init_sysfs(struct platform_device *pdev)
 {
-	struct device_attribute *attr;
-	int i, r;
+	struct omap_dss_device *dssdev = NULL;
+	int r;
 
-	/* create device sysfs files */
-	i = 0;
-	while ((attr = display_sysfs_attrs[i++]) != NULL) {
-		r = device_create_file(&dssdev->dev, attr);
+	for_each_dss_dev(dssdev) {
+		struct kobject *kobj = &dssdev->dev->kobj;
+
+		r = sysfs_create_files(kobj, display_sysfs_attrs);
 		if (r) {
-			for (i = i - 2; i >= 0; i--) {
-				attr = display_sysfs_attrs[i];
-				device_remove_file(&dssdev->dev, attr);
-			}
+			DSSERR("failed to create sysfs files\n");
+			goto err;
+		}
 
-			DSSERR("failed to create sysfs file\n");
-			return r;
+		r = sysfs_create_link(&pdev->dev.kobj, kobj, dssdev->alias);
+		if (r) {
+			sysfs_remove_files(kobj, display_sysfs_attrs);
+
+			DSSERR("failed to create sysfs display link\n");
+			goto err;
 		}
 	}
 
-	/* create display? sysfs links */
-	r = sysfs_create_link(&pdev->dev.kobj, &dssdev->dev.kobj,
-			dev_name(&dssdev->dev));
-	if (r) {
-		while ((attr = display_sysfs_attrs[i++]) != NULL)
-			device_remove_file(&dssdev->dev, attr);
-
-		DSSERR("failed to create sysfs display link\n");
-		return r;
-	}
-
 	return 0;
+
+err:
+	display_uninit_sysfs(pdev);
+
+	return r;
 }
 
-void display_uninit_sysfs(struct platform_device *pdev,
-		struct omap_dss_device *dssdev)
+void display_uninit_sysfs(struct platform_device *pdev)
 {
-	struct device_attribute *attr;
-	int i = 0;
+	struct omap_dss_device *dssdev = NULL;
 
-	sysfs_remove_link(&pdev->dev.kobj, dev_name(&dssdev->dev));
-
-	while ((attr = display_sysfs_attrs[i++]) != NULL)
-		device_remove_file(&dssdev->dev, attr);
+	for_each_dss_dev(dssdev) {
+		sysfs_remove_link(&pdev->dev.kobj, dssdev->alias);
+		sysfs_remove_files(&dssdev->dev->kobj,
+				display_sysfs_attrs);
+	}
 }

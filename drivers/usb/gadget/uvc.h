@@ -57,6 +57,7 @@ struct uvc_event
 #include <linux/videodev2.h>
 #include <linux/version.h>
 #include <media/v4l2-fh.h>
+#include <media/v4l2-device.h>
 
 #include "uvc_queue.h"
 
@@ -97,8 +98,6 @@ extern unsigned int uvc_gadget_trace_param;
 
 #define DRIVER_VERSION				"0.1.0"
 #define DRIVER_VERSION_NUMBER			KERNEL_VERSION(0, 1, 0)
-
-#define DMA_ADDR_INVALID			(~(dma_addr_t)0)
 
 #define UVC_NUM_REQUESTS			4
 #define UVC_MAX_REQUEST_SIZE			64
@@ -147,6 +146,7 @@ enum uvc_state
 struct uvc_device
 {
 	struct video_device *vdev;
+	struct v4l2_device v4l2_dev;
 	enum uvc_state state;
 	struct usb_function func;
 	struct uvc_video video;
@@ -190,6 +190,7 @@ struct uvc_file_handle
  * Functions
  */
 
+extern void uvc_function_setup_continue(struct uvc_device *uvc);
 extern void uvc_endpoint_stream(struct uvc_device *dev);
 
 extern void uvc_function_connect(struct uvc_device *uvc);

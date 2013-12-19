@@ -151,8 +151,6 @@ static int opencores_kbd_remove(struct platform_device *pdev)
 	input_unregister_device(opencores_kbd->input);
 	kfree(opencores_kbd);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

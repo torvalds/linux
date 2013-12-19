@@ -640,10 +640,10 @@ static void catc_set_multicast_list(struct net_device *netdev)
 {
 	struct catc *catc = netdev_priv(netdev);
 	struct netdev_hw_addr *ha;
-	u8 broadcast[6];
+	u8 broadcast[ETH_ALEN];
 	u8 rx = RxEnable | RxPolarity | RxMultiCast;
 
-	memset(broadcast, 0xff, 6);
+	memset(broadcast, 0xff, ETH_ALEN);
 	memset(catc->multicast, 0, 64);
 
 	catc_multicast(broadcast, catc->multicast);
@@ -685,9 +685,9 @@ static void catc_get_drvinfo(struct net_device *dev,
 			     struct ethtool_drvinfo *info)
 {
 	struct catc *catc = netdev_priv(dev);
-	strncpy(info->driver, driver_name, ETHTOOL_BUSINFO_LEN);
-	strncpy(info->version, DRIVER_VERSION, ETHTOOL_BUSINFO_LEN);
-	usb_make_path (catc->usbdev, info->bus_info, sizeof info->bus_info);
+	strlcpy(info->driver, driver_name, sizeof(info->driver));
+	strlcpy(info->version, DRIVER_VERSION, sizeof(info->version));
+	usb_make_path(catc->usbdev, info->bus_info, sizeof(info->bus_info));
 }
 
 static int catc_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -778,7 +778,7 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 	struct usb_device *usbdev = interface_to_usbdev(intf);
 	struct net_device *netdev;
 	struct catc *catc;
-	u8 broadcast[6];
+	u8 broadcast[ETH_ALEN];
 	int i, pktsz;
 
 	if (usb_set_interface(usbdev,
@@ -882,7 +882,7 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 		
 		dev_dbg(dev, "Filling the multicast list.\n");
 	  
-		memset(broadcast, 0xff, 6);
+		memset(broadcast, 0xff, ETH_ALEN);
 		catc_multicast(broadcast, catc->multicast);
 		catc_multicast(netdev->dev_addr, catc->multicast);
 		catc_write_mem(catc, 0xfa80, catc->multicast, 64);

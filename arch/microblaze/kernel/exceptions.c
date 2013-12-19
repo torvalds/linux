@@ -13,11 +13,11 @@
  * This file handles the architecture-dependent parts of hardware exceptions
  */
 
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kallsyms.h>
-#include <linux/module.h>
 
 #include <asm/exceptions.h>
 #include <asm/entry.h>		/* For KM CPU var */
@@ -40,7 +40,7 @@ void die(const char *str, struct pt_regs *fp, long err)
 {
 	console_verbose();
 	spin_lock_irq(&die_lock);
-	printk(KERN_WARNING "Oops: %s, sig: %ld\n", str, err);
+	pr_warn("Oops: %s, sig: %ld\n", str, err);
 	show_regs(fp);
 	spin_unlock_irq(&die_lock);
 	/* do_exit() should take care of panic'ing from an interrupt
@@ -61,9 +61,9 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 {
 	siginfo_t info;
 
-	if (kernel_mode(regs)) {
+	if (kernel_mode(regs))
 		die("Exception in kernel mode", regs, signr);
-	}
+
 	info.si_signo = signr;
 	info.si_errno = 0;
 	info.si_code = code;
@@ -79,8 +79,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 #endif
 
 #if 0
-	printk(KERN_WARNING "Exception %02x in %s mode, FSR=%08x PC=%08x " \
-							"ESR=%08x\n",
+	pr_warn("Exception %02x in %s mode, FSR=%08x PC=%08x ESR=%08x\n",
 			type, user_mode(regs) ? "user" : "kernel", fsr,
 			(unsigned int) regs->pc, (unsigned int) regs->esr);
 #endif
@@ -92,8 +91,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 			_exception(SIGILL, regs, ILL_ILLOPC, addr);
 			return;
 		}
-		printk(KERN_WARNING "Illegal opcode exception " \
-							"in kernel mode.\n");
+		pr_warn("Illegal opcode exception in kernel mode.\n");
 		die("opcode exception", regs, SIGBUS);
 		break;
 	case MICROBLAZE_IBUS_EXCEPTION:
@@ -102,8 +100,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 			_exception(SIGBUS, regs, BUS_ADRERR, addr);
 			return;
 		}
-		printk(KERN_WARNING "Instruction bus error exception " \
-							"in kernel mode.\n");
+		pr_warn("Instruction bus error exception in kernel mode.\n");
 		die("bus exception", regs, SIGBUS);
 		break;
 	case MICROBLAZE_DBUS_EXCEPTION:
@@ -112,8 +109,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 			_exception(SIGBUS, regs, BUS_ADRERR, addr);
 			return;
 		}
-		printk(KERN_WARNING "Data bus error exception " \
-							"in kernel mode.\n");
+		pr_warn("Data bus error exception in kernel mode.\n");
 		die("bus exception", regs, SIGBUS);
 		break;
 	case MICROBLAZE_DIV_ZERO_EXCEPTION:
@@ -122,8 +118,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 			_exception(SIGFPE, regs, FPE_INTDIV, addr);
 			return;
 		}
-		printk(KERN_WARNING "Divide by zero exception " \
-							"in kernel mode.\n");
+		pr_warn("Divide by zero exception in kernel mode.\n");
 		die("Divide by zero exception", regs, SIGBUS);
 		break;
 	case MICROBLAZE_FPU_EXCEPTION:
@@ -151,8 +146,8 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 #endif
 	default:
 	/* FIXME what to do in unexpected exception */
-		printk(KERN_WARNING "Unexpected exception %02x "
-			"PC=%08x in %s mode\n", type, (unsigned int) addr,
+		pr_warn("Unexpected exception %02x PC=%08x in %s mode\n",
+			type, (unsigned int) addr,
 			kernel_mode(regs) ? "kernel" : "user");
 	}
 	return;

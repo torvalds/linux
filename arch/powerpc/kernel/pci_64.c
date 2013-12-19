@@ -109,7 +109,7 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 	hose = pci_bus_to_host(bus);
 
 	/* Check if we have IOs allocated */
-	if (hose->io_base_alloc == 0)
+	if (hose->io_base_alloc == NULL)
 		return 0;
 
 	pr_debug("IO unmapping for PHB %s\n", hose->dn->full_name);
@@ -122,7 +122,7 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 }
 EXPORT_SYMBOL_GPL(pcibios_unmap_io_space);
 
-static int __devinit pcibios_map_phb_io_space(struct pci_controller *hose)
+static int pcibios_map_phb_io_space(struct pci_controller *hose)
 {
 	struct vm_struct *area;
 	unsigned long phys_page;
@@ -173,7 +173,7 @@ static int __devinit pcibios_map_phb_io_space(struct pci_controller *hose)
 	return 0;
 }
 
-int __devinit pcibios_map_io_space(struct pci_bus *bus)
+int pcibios_map_io_space(struct pci_bus *bus)
 {
 	WARN_ON(bus == NULL);
 
@@ -193,7 +193,7 @@ int __devinit pcibios_map_io_space(struct pci_bus *bus)
 }
 EXPORT_SYMBOL_GPL(pcibios_map_io_space);
 
-void __devinit pcibios_setup_phb_io_space(struct pci_controller *hose)
+void pcibios_setup_phb_io_space(struct pci_controller *hose)
 {
 	pcibios_map_phb_io_space(hose);
 }
@@ -246,7 +246,7 @@ long sys_pciconfig_iobase(long which, unsigned long in_bus,
 	case IOBASE_BRIDGE_NUMBER:
 		return (long)hose->first_busno;
 	case IOBASE_MEMORY:
-		return (long)hose->pci_mem_offset;
+		return (long)hose->mem_offset[0];
 	case IOBASE_IO:
 		return (long)hose->io_base_phys;
 	case IOBASE_ISA_IO:
@@ -266,3 +266,13 @@ int pcibus_to_node(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pcibus_to_node);
 #endif
+
+static void quirk_radeon_32bit_msi(struct pci_dev *dev)
+{
+	struct pci_dn *pdn = pci_get_pdn(dev);
+
+	if (pdn)
+		pdn->force_32bit_msi = true;
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x68f2, quirk_radeon_32bit_msi);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0xaa68, quirk_radeon_32bit_msi);

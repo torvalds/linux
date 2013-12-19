@@ -23,8 +23,6 @@
 #include <asm/dma.h>
 #include "pipe.h"
 
-#define	DMA_ADDR_INVALID	(~(dma_addr_t)0)
-
 struct usbhs_fifo {
 	char *name;
 	u32 port;	/* xFIFO */

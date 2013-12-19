@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -1514,11 +1514,11 @@ qla4_8xxx_set_drv_active(struct scsi_qla_host *ha)
 	drv_active = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_ACTIVE);
 
 	/*
-	 * For ISP8324, drv_active register has 1 bit per function,
+	 * For ISP8324 and ISP8042, drv_active register has 1 bit per function,
 	 * shift 1 by func_num to set a bit for the function.
 	 * For ISP8022, drv_active has 4 bits per function
 	 */
-	if (is_qla8032(ha))
+	if (is_qla8032(ha) || is_qla8042(ha))
 		drv_active |= (1 << ha->func_num);
 	else
 		drv_active |= (1 << (ha->func_num * 4));
@@ -1536,11 +1536,11 @@ qla4_8xxx_clear_drv_active(struct scsi_qla_host *ha)
 	drv_active = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_ACTIVE);
 
 	/*
-	 * For ISP8324, drv_active register has 1 bit per function,
+	 * For ISP8324 and ISP8042, drv_active register has 1 bit per function,
 	 * shift 1 by func_num to set a bit for the function.
 	 * For ISP8022, drv_active has 4 bits per function
 	 */
-	if (is_qla8032(ha))
+	if (is_qla8032(ha) || is_qla8042(ha))
 		drv_active &= ~(1 << (ha->func_num));
 	else
 		drv_active &= ~(1 << (ha->func_num * 4));
@@ -1559,11 +1559,11 @@ inline int qla4_8xxx_need_reset(struct scsi_qla_host *ha)
 	drv_state = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_STATE);
 
 	/*
-	 * For ISP8324, drv_active register has 1 bit per function,
+	 * For ISP8324 and ISP8042, drv_active register has 1 bit per function,
 	 * shift 1 by func_num to set a bit for the function.
 	 * For ISP8022, drv_active has 4 bits per function
 	 */
-	if (is_qla8032(ha))
+	if (is_qla8032(ha) || is_qla8042(ha))
 		rval = drv_state & (1 << ha->func_num);
 	else
 		rval = drv_state & (1 << (ha->func_num * 4));
@@ -1581,11 +1581,11 @@ void qla4_8xxx_set_rst_ready(struct scsi_qla_host *ha)
 	drv_state = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_STATE);
 
 	/*
-	 * For ISP8324, drv_active register has 1 bit per function,
+	 * For ISP8324 and ISP8042, drv_active register has 1 bit per function,
 	 * shift 1 by func_num to set a bit for the function.
 	 * For ISP8022, drv_active has 4 bits per function
 	 */
-	if (is_qla8032(ha))
+	if (is_qla8032(ha) || is_qla8042(ha))
 		drv_state |= (1 << ha->func_num);
 	else
 		drv_state |= (1 << (ha->func_num * 4));
@@ -1602,11 +1602,11 @@ void qla4_8xxx_clear_rst_ready(struct scsi_qla_host *ha)
 	drv_state = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_STATE);
 
 	/*
-	 * For ISP8324, drv_active register has 1 bit per function,
+	 * For ISP8324 and ISP8042, drv_active register has 1 bit per function,
 	 * shift 1 by func_num to set a bit for the function.
 	 * For ISP8022, drv_active has 4 bits per function
 	 */
-	if (is_qla8032(ha))
+	if (is_qla8032(ha) || is_qla8042(ha))
 		drv_state &= ~(1 << ha->func_num);
 	else
 		drv_state &= ~(1 << (ha->func_num * 4));
@@ -1624,11 +1624,11 @@ qla4_8xxx_set_qsnt_ready(struct scsi_qla_host *ha)
 	qsnt_state = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_STATE);
 
 	/*
-	 * For ISP8324, drv_active register has 1 bit per function,
+	 * For ISP8324 and ISP8042, drv_active register has 1 bit per function,
 	 * shift 1 by func_num to set a bit for the function.
 	 * For ISP8022, drv_active has 4 bits per function.
 	 */
-	if (is_qla8032(ha))
+	if (is_qla8032(ha) || is_qla8042(ha))
 		qsnt_state |= (1 << ha->func_num);
 	else
 		qsnt_state |= (2 << (ha->func_num * 4));
@@ -1735,6 +1735,208 @@ static void qla4_8xxx_minidump_process_rdcrb(struct scsi_qla_host *ha,
 		r_addr += r_stride;
 	}
 	*d_ptr = data_ptr;
+}
+
+static int qla4_83xx_check_dma_engine_state(struct scsi_qla_host *ha)
+{
+	int rval = QLA_SUCCESS;
+	uint32_t dma_eng_num = 0, cmd_sts_and_cntrl = 0;
+	uint64_t dma_base_addr = 0;
+	struct qla4_8xxx_minidump_template_hdr *tmplt_hdr = NULL;
+
+	tmplt_hdr = (struct qla4_8xxx_minidump_template_hdr *)
+							ha->fw_dump_tmplt_hdr;
+	dma_eng_num =
+		tmplt_hdr->saved_state_array[QLA83XX_PEX_DMA_ENGINE_INDEX];
+	dma_base_addr = QLA83XX_PEX_DMA_BASE_ADDRESS +
+				(dma_eng_num * QLA83XX_PEX_DMA_NUM_OFFSET);
+
+	/* Read the pex-dma's command-status-and-control register. */
+	rval = ha->isp_ops->rd_reg_indirect(ha,
+			(dma_base_addr + QLA83XX_PEX_DMA_CMD_STS_AND_CNTRL),
+			&cmd_sts_and_cntrl);
+
+	if (rval)
+		return QLA_ERROR;
+
+	/* Check if requested pex-dma engine is available. */
+	if (cmd_sts_and_cntrl & BIT_31)
+		return QLA_SUCCESS;
+	else
+		return QLA_ERROR;
+}
+
+static int qla4_83xx_start_pex_dma(struct scsi_qla_host *ha,
+			   struct qla4_83xx_minidump_entry_rdmem_pex_dma *m_hdr)
+{
+	int rval = QLA_SUCCESS, wait = 0;
+	uint32_t dma_eng_num = 0, cmd_sts_and_cntrl = 0;
+	uint64_t dma_base_addr = 0;
+	struct qla4_8xxx_minidump_template_hdr *tmplt_hdr = NULL;
+
+	tmplt_hdr = (struct qla4_8xxx_minidump_template_hdr *)
+							ha->fw_dump_tmplt_hdr;
+	dma_eng_num =
+		tmplt_hdr->saved_state_array[QLA83XX_PEX_DMA_ENGINE_INDEX];
+	dma_base_addr = QLA83XX_PEX_DMA_BASE_ADDRESS +
+				(dma_eng_num * QLA83XX_PEX_DMA_NUM_OFFSET);
+
+	rval = ha->isp_ops->wr_reg_indirect(ha,
+				dma_base_addr + QLA83XX_PEX_DMA_CMD_ADDR_LOW,
+				m_hdr->desc_card_addr);
+	if (rval)
+		goto error_exit;
+
+	rval = ha->isp_ops->wr_reg_indirect(ha,
+			      dma_base_addr + QLA83XX_PEX_DMA_CMD_ADDR_HIGH, 0);
+	if (rval)
+		goto error_exit;
+
+	rval = ha->isp_ops->wr_reg_indirect(ha,
+			      dma_base_addr + QLA83XX_PEX_DMA_CMD_STS_AND_CNTRL,
+			      m_hdr->start_dma_cmd);
+	if (rval)
+		goto error_exit;
+
+	/* Wait for dma operation to complete. */
+	for (wait = 0; wait < QLA83XX_PEX_DMA_MAX_WAIT; wait++) {
+		rval = ha->isp_ops->rd_reg_indirect(ha,
+			    (dma_base_addr + QLA83XX_PEX_DMA_CMD_STS_AND_CNTRL),
+			    &cmd_sts_and_cntrl);
+		if (rval)
+			goto error_exit;
+
+		if ((cmd_sts_and_cntrl & BIT_1) == 0)
+			break;
+		else
+			udelay(10);
+	}
+
+	/* Wait a max of 100 ms, otherwise fallback to rdmem entry read */
+	if (wait >= QLA83XX_PEX_DMA_MAX_WAIT) {
+		rval = QLA_ERROR;
+		goto error_exit;
+	}
+
+error_exit:
+	return rval;
+}
+
+static int qla4_83xx_minidump_pex_dma_read(struct scsi_qla_host *ha,
+				struct qla8xxx_minidump_entry_hdr *entry_hdr,
+				uint32_t **d_ptr)
+{
+	int rval = QLA_SUCCESS;
+	struct qla4_83xx_minidump_entry_rdmem_pex_dma *m_hdr = NULL;
+	uint32_t size, read_size;
+	uint8_t *data_ptr = (uint8_t *)*d_ptr;
+	void *rdmem_buffer = NULL;
+	dma_addr_t rdmem_dma;
+	struct qla4_83xx_pex_dma_descriptor dma_desc;
+
+	DEBUG2(ql4_printk(KERN_INFO, ha, "Entering fn: %s\n", __func__));
+
+	rval = qla4_83xx_check_dma_engine_state(ha);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2(ql4_printk(KERN_INFO, ha,
+				  "%s: DMA engine not available. Fallback to rdmem-read.\n",
+				  __func__));
+		return QLA_ERROR;
+	}
+
+	m_hdr = (struct qla4_83xx_minidump_entry_rdmem_pex_dma *)entry_hdr;
+	rdmem_buffer = dma_alloc_coherent(&ha->pdev->dev,
+					  QLA83XX_PEX_DMA_READ_SIZE,
+					  &rdmem_dma, GFP_KERNEL);
+	if (!rdmem_buffer) {
+		DEBUG2(ql4_printk(KERN_INFO, ha,
+				  "%s: Unable to allocate rdmem dma buffer\n",
+				  __func__));
+		return QLA_ERROR;
+	}
+
+	/* Prepare pex-dma descriptor to be written to MS memory. */
+	/* dma-desc-cmd layout:
+	 *              0-3: dma-desc-cmd 0-3
+	 *              4-7: pcid function number
+	 *              8-15: dma-desc-cmd 8-15
+	 */
+	dma_desc.cmd.dma_desc_cmd = (m_hdr->dma_desc_cmd & 0xff0f);
+	dma_desc.cmd.dma_desc_cmd |= ((PCI_FUNC(ha->pdev->devfn) & 0xf) << 0x4);
+	dma_desc.dma_bus_addr = rdmem_dma;
+
+	size = 0;
+	read_size = 0;
+	/*
+	 * Perform rdmem operation using pex-dma.
+	 * Prepare dma in chunks of QLA83XX_PEX_DMA_READ_SIZE.
+	 */
+	while (read_size < m_hdr->read_data_size) {
+		if (m_hdr->read_data_size - read_size >=
+		    QLA83XX_PEX_DMA_READ_SIZE)
+			size = QLA83XX_PEX_DMA_READ_SIZE;
+		else {
+			size = (m_hdr->read_data_size - read_size);
+
+			if (rdmem_buffer)
+				dma_free_coherent(&ha->pdev->dev,
+						  QLA83XX_PEX_DMA_READ_SIZE,
+						  rdmem_buffer, rdmem_dma);
+
+			rdmem_buffer = dma_alloc_coherent(&ha->pdev->dev, size,
+							  &rdmem_dma,
+							  GFP_KERNEL);
+			if (!rdmem_buffer) {
+				DEBUG2(ql4_printk(KERN_INFO, ha,
+						  "%s: Unable to allocate rdmem dma buffer\n",
+						  __func__));
+				return QLA_ERROR;
+			}
+			dma_desc.dma_bus_addr = rdmem_dma;
+		}
+
+		dma_desc.src_addr = m_hdr->read_addr + read_size;
+		dma_desc.cmd.read_data_size = size;
+
+		/* Prepare: Write pex-dma descriptor to MS memory. */
+		rval = qla4_83xx_ms_mem_write_128b(ha,
+			      (uint64_t)m_hdr->desc_card_addr,
+			      (uint32_t *)&dma_desc,
+			      (sizeof(struct qla4_83xx_pex_dma_descriptor)/16));
+		if (rval == -1) {
+			ql4_printk(KERN_INFO, ha,
+				   "%s: Error writing rdmem-dma-init to MS !!!\n",
+				   __func__);
+			goto error_exit;
+		}
+
+		DEBUG2(ql4_printk(KERN_INFO, ha,
+				  "%s: Dma-desc: Instruct for rdmem dma (size 0x%x).\n",
+				  __func__, size));
+		/* Execute: Start pex-dma operation. */
+		rval = qla4_83xx_start_pex_dma(ha, m_hdr);
+		if (rval != QLA_SUCCESS) {
+			DEBUG2(ql4_printk(KERN_INFO, ha,
+					  "scsi(%ld): start-pex-dma failed rval=0x%x\n",
+					  ha->host_no, rval));
+			goto error_exit;
+		}
+
+		memcpy(data_ptr, rdmem_buffer, size);
+		data_ptr += size;
+		read_size += size;
+	}
+
+	DEBUG2(ql4_printk(KERN_INFO, ha, "Leaving fn: %s\n", __func__));
+
+	*d_ptr = (uint32_t *)data_ptr;
+
+error_exit:
+	if (rdmem_buffer)
+		dma_free_coherent(&ha->pdev->dev, size, rdmem_buffer,
+				  rdmem_dma);
+
+	return rval;
 }
 
 static int qla4_8xxx_minidump_process_l2tag(struct scsi_qla_host *ha,
@@ -2068,7 +2270,7 @@ static void qla4_82xx_minidump_process_rdrom(struct scsi_qla_host *ha,
 #define MD_MIU_TEST_AGT_ADDR_LO		0x41000094
 #define MD_MIU_TEST_AGT_ADDR_HI		0x41000098
 
-static int qla4_8xxx_minidump_process_rdmem(struct scsi_qla_host *ha,
+static int __qla4_8xxx_minidump_process_rdmem(struct scsi_qla_host *ha,
 				struct qla8xxx_minidump_entry_hdr *entry_hdr,
 				uint32_t **d_ptr)
 {
@@ -2089,7 +2291,7 @@ static int qla4_8xxx_minidump_process_rdmem(struct scsi_qla_host *ha,
 
 	if (r_addr & 0xf) {
 		DEBUG2(ql4_printk(KERN_INFO, ha,
-				  "[%s]: Read addr 0x%x not 16 bytes alligned\n",
+				  "[%s]: Read addr 0x%x not 16 bytes aligned\n",
 				  __func__, r_addr));
 		return QLA_ERROR;
 	}
@@ -2148,6 +2350,28 @@ static int qla4_8xxx_minidump_process_rdmem(struct scsi_qla_host *ha,
 
 	*d_ptr = data_ptr;
 	return QLA_SUCCESS;
+}
+
+static int qla4_8xxx_minidump_process_rdmem(struct scsi_qla_host *ha,
+				struct qla8xxx_minidump_entry_hdr *entry_hdr,
+				uint32_t **d_ptr)
+{
+	uint32_t *data_ptr = *d_ptr;
+	int rval = QLA_SUCCESS;
+
+	if (is_qla8032(ha) || is_qla8042(ha)) {
+		rval = qla4_83xx_minidump_pex_dma_read(ha, entry_hdr,
+						       &data_ptr);
+		if (rval != QLA_SUCCESS) {
+			rval = __qla4_8xxx_minidump_process_rdmem(ha, entry_hdr,
+								  &data_ptr);
+		}
+	} else {
+		rval = __qla4_8xxx_minidump_process_rdmem(ha, entry_hdr,
+							  &data_ptr);
+	}
+	*d_ptr = data_ptr;
+	return rval;
 }
 
 static void qla4_8xxx_mark_entry_skipped(struct scsi_qla_host *ha,
@@ -2398,13 +2622,13 @@ static int qla4_8xxx_collect_md_data(struct scsi_qla_host *ha)
 					(((uint8_t *)ha->fw_dump_tmplt_hdr) +
 					 tmplt_hdr->first_entry_offset);
 
-	if (is_qla8032(ha))
+	if (is_qla8032(ha) || is_qla8042(ha))
 		tmplt_hdr->saved_state_array[QLA83XX_SS_OCM_WNDREG_INDEX] =
 					tmplt_hdr->ocm_window_reg[ha->func_num];
 
 	/* Walk through the entry headers - validate/perform required action */
 	for (i = 0; i < num_entry_hdr; i++) {
-		if (data_collected >= ha->fw_dump_size) {
+		if (data_collected > ha->fw_dump_size) {
 			ql4_printk(KERN_INFO, ha,
 				   "Data collected: [0x%x], Total Dump size: [0x%x]\n",
 				   data_collected, ha->fw_dump_size);
@@ -2455,7 +2679,7 @@ static int qla4_8xxx_collect_md_data(struct scsi_qla_host *ha)
 			if (is_qla8022(ha)) {
 				qla4_82xx_minidump_process_rdrom(ha, entry_hdr,
 								 &data_ptr);
-			} else if (is_qla8032(ha)) {
+			} else if (is_qla8032(ha) || is_qla8042(ha)) {
 				rval = qla4_83xx_minidump_process_rdrom(ha,
 								    entry_hdr,
 								    &data_ptr);
@@ -2496,7 +2720,7 @@ static int qla4_8xxx_collect_md_data(struct scsi_qla_host *ha)
 							 &data_ptr);
 			break;
 		case QLA83XX_POLLRD:
-			if (!is_qla8032(ha)) {
+			if (is_qla8022(ha)) {
 				qla4_8xxx_mark_entry_skipped(ha, entry_hdr, i);
 				break;
 			}
@@ -2506,7 +2730,7 @@ static int qla4_8xxx_collect_md_data(struct scsi_qla_host *ha)
 				qla4_8xxx_mark_entry_skipped(ha, entry_hdr, i);
 			break;
 		case QLA83XX_RDMUX2:
-			if (!is_qla8032(ha)) {
+			if (is_qla8022(ha)) {
 				qla4_8xxx_mark_entry_skipped(ha, entry_hdr, i);
 				break;
 			}
@@ -2514,7 +2738,7 @@ static int qla4_8xxx_collect_md_data(struct scsi_qla_host *ha)
 							&data_ptr);
 			break;
 		case QLA83XX_POLLRDMWR:
-			if (!is_qla8032(ha)) {
+			if (is_qla8022(ha)) {
 				qla4_8xxx_mark_entry_skipped(ha, entry_hdr, i);
 				break;
 			}
@@ -2529,9 +2753,7 @@ static int qla4_8xxx_collect_md_data(struct scsi_qla_host *ha)
 			break;
 		}
 
-		data_collected = (uint8_t *)data_ptr -
-				 ((uint8_t *)((uint8_t *)ha->fw_dump +
-						ha->fw_dump_tmplt_size));
+		data_collected = (uint8_t *)data_ptr - (uint8_t *)ha->fw_dump;
 skip_nxt_entry:
 		/*  next entry in the template */
 		entry_hdr = (struct qla8xxx_minidump_entry_hdr *)
@@ -2539,10 +2761,11 @@ skip_nxt_entry:
 				 entry_hdr->entry_size);
 	}
 
-	if ((data_collected + ha->fw_dump_tmplt_size) != ha->fw_dump_size) {
+	if (data_collected != ha->fw_dump_size) {
 		ql4_printk(KERN_INFO, ha,
 			   "Dump data mismatch: Data collected: [0x%x], total_data_size:[0x%x]\n",
 			   data_collected, ha->fw_dump_size);
+		rval = QLA_ERROR;
 		goto md_failed;
 	}
 
@@ -2642,10 +2865,10 @@ dev_initialize:
 			    QLA8XXX_DEV_INITIALIZING);
 
 	/*
-	 * For ISP8324, if IDC_CTRL GRACEFUL_RESET_BIT1 is set, reset it after
-	 * device goes to INIT state.
+	 * For ISP8324 and ISP8042, if IDC_CTRL GRACEFUL_RESET_BIT1 is set,
+	 * reset it after device goes to INIT state.
 	 */
-	if (is_qla8032(ha)) {
+	if (is_qla8032(ha) || is_qla8042(ha)) {
 		idc_ctrl = qla4_83xx_rd_reg(ha, QLA83XX_IDC_DRV_CTRL);
 		if (idc_ctrl & GRACEFUL_RESET_BIT1) {
 			qla4_83xx_wr_reg(ha, QLA83XX_IDC_DRV_CTRL,
@@ -2846,7 +3069,7 @@ int qla4_8xxx_update_idc_reg(struct scsi_qla_host *ha)
 	 * If we are the first driver to load and
 	 * ql4xdontresethba is not set, clear IDC_CTRL BIT0.
 	 */
-	if (is_qla8032(ha)) {
+	if (is_qla8032(ha) || is_qla8042(ha)) {
 		drv_active = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_ACTIVE);
 		if ((drv_active == (1 << ha->func_num)) && !ql4xdontresethba)
 			qla4_83xx_clear_idc_dontreset(ha);
@@ -2854,7 +3077,7 @@ int qla4_8xxx_update_idc_reg(struct scsi_qla_host *ha)
 
 	if (is_qla8022(ha)) {
 		qla4_82xx_set_idc_ver(ha);
-	} else if (is_qla8032(ha)) {
+	} else if (is_qla8032(ha) || is_qla8042(ha)) {
 		rval = qla4_83xx_set_idc_ver(ha);
 		if (rval == QLA_ERROR)
 			qla4_8xxx_clear_drv_active(ha);
@@ -2922,11 +3145,11 @@ int qla4_8xxx_device_state_handler(struct scsi_qla_host *ha)
 			break;
 		case QLA8XXX_DEV_NEED_RESET:
 			/*
-			 * For ISP8324, if NEED_RESET is set by any driver,
-			 * it should be honored, irrespective of IDC_CTRL
-			 * DONTRESET_BIT0
+			 * For ISP8324 and ISP8042, if NEED_RESET is set by any
+			 * driver, it should be honored, irrespective of
+			 * IDC_CTRL DONTRESET_BIT0
 			 */
-			if (is_qla8032(ha)) {
+			if (is_qla8032(ha) || is_qla8042(ha)) {
 				qla4_83xx_need_reset_handler(ha);
 			} else if (is_qla8022(ha)) {
 				if (!ql4xdontresethba) {
@@ -2976,7 +3199,7 @@ int qla4_8xxx_load_risc(struct scsi_qla_host *ha)
 	int retval;
 
 	/* clear the interrupt */
-	if (is_qla8032(ha)) {
+	if (is_qla8032(ha) || is_qla8042(ha)) {
 		writel(0, &ha->qla4_83xx_reg->risc_intr);
 		readl(&ha->qla4_83xx_reg->risc_intr);
 	} else if (is_qla8022(ha)) {
@@ -2986,7 +3209,7 @@ int qla4_8xxx_load_risc(struct scsi_qla_host *ha)
 
 	retval = qla4_8xxx_device_state_handler(ha);
 
-	if (retval == QLA_SUCCESS && !test_bit(AF_INIT_DONE, &ha->flags))
+	if (retval == QLA_SUCCESS && !test_bit(AF_IRQ_ATTACHED, &ha->flags))
 		retval = qla4xxx_request_irqs(ha);
 
 	return retval;
@@ -3094,7 +3317,7 @@ qla4_8xxx_get_flt_info(struct scsi_qla_host *ha, uint32_t flt_addr)
 	if (is_qla8022(ha)) {
 		qla4_82xx_read_optrom_data(ha, (uint8_t *)ha->request_ring,
 					   flt_addr << 2, OPTROM_BURST_SIZE);
-	} else if (is_qla8032(ha)) {
+	} else if (is_qla8032(ha) || is_qla8042(ha)) {
 		status = qla4_83xx_flash_read_u32(ha, flt_addr << 2,
 						  (uint8_t *)ha->request_ring,
 						  0x400);
@@ -3154,6 +3377,10 @@ qla4_8xxx_get_flt_info(struct scsi_qla_host *ha, uint32_t flt_addr)
 			hw->flt_region_chap =  start;
 			hw->flt_chap_size =  le32_to_cpu(region->size);
 			break;
+		case FLT_REG_ISCSI_DDB:
+			hw->flt_region_ddb =  start;
+			hw->flt_ddb_size =  le32_to_cpu(region->size);
+			break;
 		}
 	}
 	goto done;
@@ -3166,14 +3393,19 @@ no_flash_data:
 	hw->flt_region_boot     = FA_BOOT_CODE_ADDR_82;
 	hw->flt_region_bootload = FA_BOOT_LOAD_ADDR_82;
 	hw->flt_region_fw       = FA_RISC_CODE_ADDR_82;
-	hw->flt_region_chap	= FA_FLASH_ISCSI_CHAP;
+	hw->flt_region_chap	= FA_FLASH_ISCSI_CHAP >> 2;
 	hw->flt_chap_size	= FA_FLASH_CHAP_SIZE;
+	hw->flt_region_ddb	= FA_FLASH_ISCSI_DDB >> 2;
+	hw->flt_ddb_size	= FA_FLASH_DDB_SIZE;
 
 done:
-	DEBUG2(ql4_printk(KERN_INFO, ha, "FLT[%s]: flt=0x%x fdt=0x%x "
-	    "boot=0x%x bootload=0x%x fw=0x%x\n", loc, hw->flt_region_flt,
-	    hw->flt_region_fdt,	hw->flt_region_boot, hw->flt_region_bootload,
-	    hw->flt_region_fw));
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+			  "FLT[%s]: flt=0x%x fdt=0x%x boot=0x%x bootload=0x%x fw=0x%x chap=0x%x chap_size=0x%x ddb=0x%x  ddb_size=0x%x\n",
+			  loc, hw->flt_region_flt, hw->flt_region_fdt,
+			  hw->flt_region_boot, hw->flt_region_bootload,
+			  hw->flt_region_fw, hw->flt_region_chap,
+			  hw->flt_chap_size, hw->flt_region_ddb,
+			  hw->flt_ddb_size));
 }
 
 static void
@@ -3317,7 +3549,7 @@ qla4_8xxx_get_flash_info(struct scsi_qla_host *ha)
 	if (is_qla8022(ha)) {
 		qla4_82xx_get_fdt_info(ha);
 		qla4_82xx_get_idc_param(ha);
-	} else if (is_qla8032(ha)) {
+	} else if (is_qla8032(ha) || is_qla8042(ha)) {
 		qla4_83xx_get_idc_param(ha);
 	}
 
@@ -3427,11 +3659,11 @@ int qla4_8xxx_get_sys_info(struct scsi_qla_host *ha)
 	}
 
 	/* Make sure we receive the minimum required data to cache internally */
-	if (mbox_sts[4] < offsetof(struct mbx_sys_info, reserved)) {
+	if (((is_qla8032(ha) || is_qla8042(ha)) ? mbox_sts[3] : mbox_sts[4]) <
+	    offsetof(struct mbx_sys_info, reserved)) {
 		DEBUG2(printk("scsi%ld: %s: GET_SYS_INFO data receive"
 		    " error (%x)\n", ha->host_no, __func__, mbox_sts[4]));
 		goto exit_validate_mac82;
-
 	}
 
 	/* Save M.A.C. address & serial_number */
@@ -3463,7 +3695,7 @@ exit_validate_mac82:
 
 /* Interrupt handling helpers. */
 
-int qla4_8xxx_mbx_intr_enable(struct scsi_qla_host *ha)
+int qla4_8xxx_intr_enable(struct scsi_qla_host *ha)
 {
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
 	uint32_t mbox_sts[MBOX_REG_COUNT];
@@ -3484,7 +3716,7 @@ int qla4_8xxx_mbx_intr_enable(struct scsi_qla_host *ha)
 	return QLA_SUCCESS;
 }
 
-int qla4_8xxx_mbx_intr_disable(struct scsi_qla_host *ha)
+int qla4_8xxx_intr_disable(struct scsi_qla_host *ha)
 {
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
 	uint32_t mbox_sts[MBOX_REG_COUNT];
@@ -3509,7 +3741,7 @@ int qla4_8xxx_mbx_intr_disable(struct scsi_qla_host *ha)
 void
 qla4_82xx_enable_intrs(struct scsi_qla_host *ha)
 {
-	qla4_8xxx_mbx_intr_enable(ha);
+	qla4_8xxx_intr_enable(ha);
 
 	spin_lock_irq(&ha->hardware_lock);
 	/* BIT 10 - reset */
@@ -3522,7 +3754,7 @@ void
 qla4_82xx_disable_intrs(struct scsi_qla_host *ha)
 {
 	if (test_and_clear_bit(AF_INTERRUPTS_ON, &ha->flags))
-		qla4_8xxx_mbx_intr_disable(ha);
+		qla4_8xxx_intr_disable(ha);
 
 	spin_lock_irq(&ha->hardware_lock);
 	/* BIT 10 - set */

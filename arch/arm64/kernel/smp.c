@@ -39,10 +39,12 @@
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
+#include <asm/cpu_ops.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/processor.h>
+#include <asm/smp_plat.h>
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
 #include <asm/ptrace.h>
@@ -53,7 +55,6 @@
  * where to place its SVC stack
  */
 struct secondary_data secondary_data;
-volatile unsigned long secondary_holding_pen_release = -1;
 
 enum ipi_msg_type {
 	IPI_RESCHEDULE,
@@ -62,66 +63,21 @@ enum ipi_msg_type {
 	IPI_CPU_STOP,
 };
 
-static DEFINE_RAW_SPINLOCK(boot_lock);
-
-/*
- * Write secondary_holding_pen_release in a way that is guaranteed to be
- * visible to all observers, irrespective of whether they're taking part
- * in coherency or not.  This is necessary for the hotplug code to work
- * reliably.
- */
-static void __cpuinit write_pen_release(int val)
-{
-	void *start = (void *)&secondary_holding_pen_release;
-	unsigned long size = sizeof(secondary_holding_pen_release);
-
-	secondary_holding_pen_release = val;
-	__flush_dcache_area(start, size);
-}
-
 /*
  * Boot a secondary CPU, and assign it the specified idle task.
  * This also gives us the initial stack to use for this CPU.
  */
-static int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	unsigned long timeout;
+	if (cpu_ops[cpu]->cpu_boot)
+		return cpu_ops[cpu]->cpu_boot(cpu);
 
-	/*
-	 * Set synchronisation state between this boot processor
-	 * and the secondary one
-	 */
-	raw_spin_lock(&boot_lock);
-
-	/*
-	 * Update the pen release flag.
-	 */
-	write_pen_release(cpu);
-
-	/*
-	 * Send an event, causing the secondaries to read pen_release.
-	 */
-	sev();
-
-	timeout = jiffies + (1 * HZ);
-	while (time_before(jiffies, timeout)) {
-		if (secondary_holding_pen_release == -1UL)
-			break;
-		udelay(10);
-	}
-
-	/*
-	 * Now the secondary core is starting up let it run its
-	 * calibrations, then wait for it to finish
-	 */
-	raw_spin_unlock(&boot_lock);
-
-	return secondary_holding_pen_release != -1 ? -ENOSYS : 0;
+	return -EOPNOTSUPP;
 }
 
 static DECLARE_COMPLETION(cpu_running);
 
-int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
+int __cpu_up(unsigned int cpu, struct task_struct *idle)
 {
 	int ret;
 
@@ -161,7 +117,7 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
  * This is the secondary CPU boot entry.  We're using this CPUs
  * idle thread stack, but a set of temporary page tables.
  */
-asmlinkage void __cpuinit secondary_start_kernel(void)
+asmlinkage void secondary_start_kernel(void)
 {
 	struct mm_struct *mm = &init_mm;
 	unsigned int cpu = smp_processor_id();
@@ -186,24 +142,13 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	preempt_disable();
 	trace_hardirqs_off();
 
-	/*
-	 * Let the primary processor know we're out of the
-	 * pen, then head off into the C entry point
-	 */
-	write_pen_release(-1);
+	if (cpu_ops[cpu]->cpu_postboot)
+		cpu_ops[cpu]->cpu_postboot();
 
 	/*
-	 * Synchronise with the boot thread.
-	 */
-	raw_spin_lock(&boot_lock);
-	raw_spin_unlock(&boot_lock);
-
-	/*
-	 * Enable local interrupts.
+	 * Enable GIC and timers.
 	 */
 	notify_cpu_starting(cpu);
-	local_irq_enable();
-	local_fiq_enable();
 
 	/*
 	 * OK, now it's safe to let the boot CPU continue.  Wait for
@@ -213,19 +158,115 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	set_cpu_online(cpu, true);
 	complete(&cpu_running);
 
+	local_irq_enable();
+	local_fiq_enable();
+	local_async_enable();
+
 	/*
 	 * OK, it's off to the idle thread for us
 	 */
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+static int op_cpu_disable(unsigned int cpu)
+{
+	/*
+	 * If we don't have a cpu_die method, abort before we reach the point
+	 * of no return. CPU0 may not have an cpu_ops, so test for it.
+	 */
+	if (!cpu_ops[cpu] || !cpu_ops[cpu]->cpu_die)
+		return -EOPNOTSUPP;
+
+	/*
+	 * We may need to abort a hot unplug for some other mechanism-specific
+	 * reason.
+	 */
+	if (cpu_ops[cpu]->cpu_disable)
+		return cpu_ops[cpu]->cpu_disable(cpu);
+
+	return 0;
+}
+
+/*
+ * __cpu_disable runs on the processor to be shutdown.
+ */
+int __cpu_disable(void)
+{
+	unsigned int cpu = smp_processor_id();
+	int ret;
+
+	ret = op_cpu_disable(cpu);
+	if (ret)
+		return ret;
+
+	/*
+	 * Take this CPU offline.  Once we clear this, we can't return,
+	 * and we must not schedule until we're ready to give up the cpu.
+	 */
+	set_cpu_online(cpu, false);
+
+	/*
+	 * OK - migrate IRQs away from this CPU
+	 */
+	migrate_irqs();
+
+	/*
+	 * Remove this CPU from the vm mask set of all processes.
+	 */
+	clear_tasks_mm_cpumask(cpu);
+
+	return 0;
+}
+
+static DECLARE_COMPLETION(cpu_died);
+
+/*
+ * called on the thread which is asking for a CPU to be shutdown -
+ * waits until shutdown has completed, or it is timed out.
+ */
+void __cpu_die(unsigned int cpu)
+{
+	if (!wait_for_completion_timeout(&cpu_died, msecs_to_jiffies(5000))) {
+		pr_crit("CPU%u: cpu didn't die\n", cpu);
+		return;
+	}
+	pr_notice("CPU%u: shutdown\n", cpu);
+}
+
+/*
+ * Called from the idle thread for the CPU which has been shutdown.
+ *
+ * Note that we disable IRQs here, but do not re-enable them
+ * before returning to the caller. This is also the behaviour
+ * of the other hotplug-cpu capable cores, so presumably coming
+ * out of idle fixes this.
+ */
+void cpu_die(void)
+{
+	unsigned int cpu = smp_processor_id();
+
+	idle_task_exit();
+
+	local_irq_disable();
+
+	/* Tell __cpu_die() that this CPU is now safe to dispose of */
+	complete(&cpu_died);
+
+	/*
+	 * Actually shutdown the CPU. This must never fail. The specific hotplug
+	 * mechanism must perform all required cache maintenance to ensure that
+	 * no dirty lines are lost in the process of shutting down the CPU.
+	 */
+	cpu_ops[cpu]->cpu_die(cpu);
+
+	BUG();
+}
+#endif
 
 void __init smp_cpus_done(unsigned int max_cpus)
 {
-	unsigned long bogosum = loops_per_jiffy * num_online_cpus();
-
-	pr_info("SMP: Total of %d processors activated (%lu.%02lu BogoMIPS).\n",
-		num_online_cpus(), bogosum / (500000/HZ),
-		(bogosum / (5000/HZ)) % 100);
+	pr_info("SMP: Total of %d processors activated.\n", num_online_cpus());
 }
 
 void __init smp_prepare_boot_cpu(void)
@@ -233,42 +274,92 @@ void __init smp_prepare_boot_cpu(void)
 }
 
 static void (*smp_cross_call)(const struct cpumask *, unsigned int);
-static phys_addr_t cpu_release_addr[NR_CPUS];
 
 /*
- * Enumerate the possible CPU set from the device tree.
+ * Enumerate the possible CPU set from the device tree and build the
+ * cpu logical map array containing MPIDR values related to logical
+ * cpus. Assumes that cpu_logical_map(0) has already been initialized.
  */
 void __init smp_init_cpus(void)
 {
-	const char *enable_method;
 	struct device_node *dn = NULL;
-	int cpu = 0;
+	unsigned int i, cpu = 1;
+	bool bootcpu_valid = false;
 
 	while ((dn = of_find_node_by_type(dn, "cpu"))) {
+		const u32 *cell;
+		u64 hwid;
+
+		/*
+		 * A cpu node with missing "reg" property is
+		 * considered invalid to build a cpu_logical_map
+		 * entry.
+		 */
+		cell = of_get_property(dn, "reg", NULL);
+		if (!cell) {
+			pr_err("%s: missing reg property\n", dn->full_name);
+			goto next;
+		}
+		hwid = of_read_number(cell, of_n_addr_cells(dn));
+
+		/*
+		 * Non affinity bits must be set to 0 in the DT
+		 */
+		if (hwid & ~MPIDR_HWID_BITMASK) {
+			pr_err("%s: invalid reg property\n", dn->full_name);
+			goto next;
+		}
+
+		/*
+		 * Duplicate MPIDRs are a recipe for disaster. Scan
+		 * all initialized entries and check for
+		 * duplicates. If any is found just ignore the cpu.
+		 * cpu_logical_map was initialized to INVALID_HWID to
+		 * avoid matching valid MPIDR values.
+		 */
+		for (i = 1; (i < cpu) && (i < NR_CPUS); i++) {
+			if (cpu_logical_map(i) == hwid) {
+				pr_err("%s: duplicate cpu reg properties in the DT\n",
+					dn->full_name);
+				goto next;
+			}
+		}
+
+		/*
+		 * The numbering scheme requires that the boot CPU
+		 * must be assigned logical id 0. Record it so that
+		 * the logical map built from DT is validated and can
+		 * be used.
+		 */
+		if (hwid == cpu_logical_map(0)) {
+			if (bootcpu_valid) {
+				pr_err("%s: duplicate boot cpu reg property in DT\n",
+					dn->full_name);
+				goto next;
+			}
+
+			bootcpu_valid = true;
+
+			/*
+			 * cpu_logical_map has already been
+			 * initialized and the boot cpu doesn't need
+			 * the enable-method so continue without
+			 * incrementing cpu.
+			 */
+			continue;
+		}
+
 		if (cpu >= NR_CPUS)
 			goto next;
 
-		/*
-		 * We currently support only the "spin-table" enable-method.
-		 */
-		enable_method = of_get_property(dn, "enable-method", NULL);
-		if (!enable_method || strcmp(enable_method, "spin-table")) {
-			pr_err("CPU %d: missing or invalid enable-method property: %s\n",
-			       cpu, enable_method);
+		if (cpu_read_ops(dn, cpu) != 0)
 			goto next;
-		}
 
-		/*
-		 * Determine the address from which the CPU is polling.
-		 */
-		if (of_property_read_u64(dn, "cpu-release-addr",
-					 &cpu_release_addr[cpu])) {
-			pr_err("CPU %d: missing or invalid cpu-release-addr property\n",
-			       cpu);
+		if (cpu_ops[cpu]->cpu_init(dn, cpu))
 			goto next;
-		}
 
-		set_cpu_possible(cpu, true);
+		pr_debug("cpu logical map 0x%llx\n", hwid);
+		cpu_logical_map(cpu) = hwid;
 next:
 		cpu++;
 	}
@@ -277,13 +368,25 @@ next:
 	if (cpu > NR_CPUS)
 		pr_warning("no. of cores (%d) greater than configured maximum of %d - clipping\n",
 			   cpu, NR_CPUS);
+
+	if (!bootcpu_valid) {
+		pr_err("DT missing boot CPU MPIDR, not enabling secondaries\n");
+		return;
+	}
+
+	/*
+	 * All the cpus that made it to the cpu_logical_map have been
+	 * validated so set them as possible cpus.
+	 */
+	for (i = 0; i < NR_CPUS; i++)
+		if (cpu_logical_map(i) != INVALID_HWID)
+			set_cpu_possible(i, true);
 }
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
-	int cpu;
-	void **release_addr;
-	unsigned int ncores = num_possible_cpus();
+	int err;
+	unsigned int cpu, ncores = num_possible_cpus();
 
 	/*
 	 * are we trying to boot more cores than exist?
@@ -291,30 +394,35 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	if (max_cpus > ncores)
 		max_cpus = ncores;
 
+	/* Don't bother if we're effectively UP */
+	if (max_cpus <= 1)
+		return;
+
 	/*
 	 * Initialise the present map (which describes the set of CPUs
 	 * actually populated at the present time) and release the
 	 * secondaries from the bootloader.
+	 *
+	 * Make sure we online at most (max_cpus - 1) additional CPUs.
 	 */
+	max_cpus--;
 	for_each_possible_cpu(cpu) {
 		if (max_cpus == 0)
 			break;
 
-		if (!cpu_release_addr[cpu])
+		if (cpu == smp_processor_id())
 			continue;
 
-		release_addr = __va(cpu_release_addr[cpu]);
-		release_addr[0] = (void *)__pa(secondary_holding_pen);
-		__flush_dcache_area(release_addr, sizeof(release_addr[0]));
+		if (!cpu_ops[cpu])
+			continue;
+
+		err = cpu_ops[cpu]->cpu_prepare(cpu);
+		if (err)
+			continue;
 
 		set_cpu_present(cpu, true);
 		max_cpus--;
 	}
-
-	/*
-	 * Send an event to wake up the secondaries.
-	 */
-	sev();
 }
 
 
@@ -348,7 +456,7 @@ void show_ipi_list(struct seq_file *p, int prec)
 	for (i = 0; i < NR_IPI; i++) {
 		seq_printf(p, "%*s%u:%s", prec - 1, "IPI", i + IPI_RESCHEDULE,
 			   prec >= 4 ? " " : "");
-		for_each_present_cpu(cpu)
+		for_each_online_cpu(cpu)
 			seq_printf(p, "%10u ",
 				   __get_irq_stat(cpu, ipi_irqs[i]));
 		seq_printf(p, "      %s\n", ipi_types[i]);

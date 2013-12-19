@@ -32,7 +32,7 @@ uvc_video_encode_header(struct uvc_video *video, struct uvc_buffer *buf,
 	data[0] = 2;
 	data[1] = UVC_STREAM_EOH | video->fid;
 
-	if (buf->buf.bytesused - video->queue.buf_used <= len - 2)
+	if (buf->bytesused - video->queue.buf_used <= len - 2)
 		data[1] |= UVC_STREAM_EOF;
 
 	return 2;
@@ -47,8 +47,8 @@ uvc_video_encode_data(struct uvc_video *video, struct uvc_buffer *buf,
 	void *mem;
 
 	/* Copy video data to the USB buffer. */
-	mem = queue->mem + buf->buf.m.offset + queue->buf_used;
-	nbytes = min((unsigned int)len, buf->buf.bytesused - queue->buf_used);
+	mem = buf->mem + queue->buf_used;
+	nbytes = min((unsigned int)len, buf->bytesused - queue->buf_used);
 
 	memcpy(data, mem, nbytes);
 	queue->buf_used += nbytes;
@@ -82,7 +82,7 @@ uvc_video_encode_bulk(struct usb_request *req, struct uvc_video *video,
 	req->length = video->req_size - len;
 	req->zero = video->payload_size == video->max_payload_size;
 
-	if (buf->buf.bytesused == video->queue.buf_used) {
+	if (buf->bytesused == video->queue.buf_used) {
 		video->queue.buf_used = 0;
 		buf->state = UVC_BUF_STATE_DONE;
 		uvc_queue_next_buffer(&video->queue, buf);
@@ -92,7 +92,7 @@ uvc_video_encode_bulk(struct usb_request *req, struct uvc_video *video,
 	}
 
 	if (video->payload_size == video->max_payload_size ||
-	    buf->buf.bytesused == video->queue.buf_used)
+	    buf->bytesused == video->queue.buf_used)
 		video->payload_size = 0;
 }
 
@@ -115,7 +115,7 @@ uvc_video_encode_isoc(struct usb_request *req, struct uvc_video *video,
 
 	req->length = video->req_size - len;
 
-	if (buf->buf.bytesused == video->queue.buf_used) {
+	if (buf->bytesused == video->queue.buf_used) {
 		video->queue.buf_used = 0;
 		buf->state = UVC_BUF_STATE_DONE;
 		uvc_queue_next_buffer(&video->queue, buf);
@@ -161,6 +161,7 @@ static void
 uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	struct uvc_video *video = req->context;
+	struct uvc_video_queue *queue = &video->queue;
 	struct uvc_buffer *buf;
 	unsigned long flags;
 	int ret;
@@ -169,13 +170,15 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 	case 0:
 		break;
 
-	case -ESHUTDOWN:
+	case -ESHUTDOWN:	/* disconnect from host. */
 		printk(KERN_INFO "VS request cancelled.\n");
+		uvc_queue_cancel(queue, 1);
 		goto requeue;
 
 	default:
 		printk(KERN_INFO "VS request completed with status %d.\n",
 			req->status);
+		uvc_queue_cancel(queue, 0);
 		goto requeue;
 	}
 
@@ -229,13 +232,18 @@ uvc_video_free_requests(struct uvc_video *video)
 static int
 uvc_video_alloc_requests(struct uvc_video *video)
 {
+	unsigned int req_size;
 	unsigned int i;
 	int ret = -ENOMEM;
 
 	BUG_ON(video->req_size);
 
+	req_size = video->ep->maxpacket
+		 * max_t(unsigned int, video->ep->maxburst, 1)
+		 * (video->ep->mult + 1);
+
 	for (i = 0; i < UVC_NUM_REQUESTS; ++i) {
-		video->req_buffer[i] = kmalloc(video->ep->maxpacket, GFP_KERNEL);
+		video->req_buffer[i] = kmalloc(req_size, GFP_KERNEL);
 		if (video->req_buffer[i] == NULL)
 			goto error;
 
@@ -245,14 +253,14 @@ uvc_video_alloc_requests(struct uvc_video *video)
 
 		video->req[i]->buf = video->req_buffer[i];
 		video->req[i]->length = 0;
-		video->req[i]->dma = DMA_ADDR_INVALID;
 		video->req[i]->complete = uvc_video_complete;
 		video->req[i]->context = video;
 
 		list_add_tail(&video->req[i]->list, &video->req_free);
 	}
 
-	video->req_size = video->ep->maxpacket;
+	video->req_size = req_size;
+
 	return 0;
 
 error:
@@ -309,7 +317,8 @@ uvc_video_pump(struct uvc_video *video)
 		video->encode(req, video, buf);
 
 		/* Queue the USB request */
-		if ((ret = usb_ep_queue(video->ep, req, GFP_KERNEL)) < 0) {
+		ret = usb_ep_queue(video->ep, req, GFP_ATOMIC);
+		if (ret < 0) {
 			printk(KERN_INFO "Failed to queue request (%d)\n", ret);
 			usb_ep_set_halt(video->ep);
 			spin_unlock_irqrestore(&video->queue.irqlock, flags);

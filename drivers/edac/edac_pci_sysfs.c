@@ -256,7 +256,7 @@ static ssize_t edac_pci_dev_store(struct kobject *kobj,
 	struct edac_pci_dev_attribute *edac_pci_dev;
 	edac_pci_dev = (struct edac_pci_dev_attribute *)attr;
 
-	if (edac_pci_dev->show)
+	if (edac_pci_dev->store)
 		return edac_pci_dev->store(edac_pci_dev->value, buffer, count);
 	return -EIO;
 }
@@ -429,8 +429,8 @@ static void edac_pci_main_kobj_teardown(void)
 	if (atomic_dec_return(&edac_pci_sysfs_refcount) == 0) {
 		edac_dbg(0, "called kobject_put on main kobj\n");
 		kobject_put(edac_pci_top_main_kobj);
+		edac_put_sysfs_subsys();
 	}
-	edac_put_sysfs_subsys();
 }
 
 /*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2011 Nicira, Inc.
+ * Copyright (c) 2007-2013 Nicira, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -34,13 +34,38 @@
 
 struct sk_buff;
 
-struct sw_flow_actions {
-	struct rcu_head rcu;
-	u32 actions_len;
-	struct nlattr actions[];
+/* Used to memset ovs_key_ipv4_tunnel padding. */
+#define OVS_TUNNEL_KEY_SIZE					\
+	(offsetof(struct ovs_key_ipv4_tunnel, ipv4_ttl) +	\
+	FIELD_SIZEOF(struct ovs_key_ipv4_tunnel, ipv4_ttl))
+
+struct ovs_key_ipv4_tunnel {
+	__be64 tun_id;
+	__be32 ipv4_src;
+	__be32 ipv4_dst;
+	__be16 tun_flags;
+	u8   ipv4_tos;
+	u8   ipv4_ttl;
 };
 
+static inline void ovs_flow_tun_key_init(struct ovs_key_ipv4_tunnel *tun_key,
+					 const struct iphdr *iph, __be64 tun_id,
+					 __be16 tun_flags)
+{
+	tun_key->tun_id = tun_id;
+	tun_key->ipv4_src = iph->saddr;
+	tun_key->ipv4_dst = iph->daddr;
+	tun_key->ipv4_tos = iph->tos;
+	tun_key->ipv4_ttl = iph->ttl;
+	tun_key->tun_flags = tun_flags;
+
+	/* clear struct padding. */
+	memset((unsigned char *) tun_key + OVS_TUNNEL_KEY_SIZE, 0,
+	       sizeof(*tun_key) - OVS_TUNNEL_KEY_SIZE);
+}
+
 struct sw_flow_key {
+	struct ovs_key_ipv4_tunnel tun_key;  /* Encapsulating tunnel key. */
 	struct {
 		u32	priority;	/* Packet QoS priority. */
 		u32	skb_mark;	/* SKB mark. */
@@ -66,8 +91,9 @@ struct sw_flow_key {
 			} addr;
 			union {
 				struct {
-					__be16 src;		/* TCP/UDP source port. */
-					__be16 dst;		/* TCP/UDP destination port. */
+					__be16 src;		/* TCP/UDP/SCTP source port. */
+					__be16 dst;		/* TCP/UDP/SCTP destination port. */
+					__be16 flags;		/* TCP flags. */
 				} tp;
 				struct {
 					u8 sha[ETH_ALEN];	/* ARP source hardware address. */
@@ -82,8 +108,9 @@ struct sw_flow_key {
 			} addr;
 			__be32 label;			/* IPv6 flow label. */
 			struct {
-				__be16 src;		/* TCP/UDP source port. */
-				__be16 dst;		/* TCP/UDP destination port. */
+				__be16 src;		/* TCP/UDP/SCTP source port. */
+				__be16 dst;		/* TCP/UDP/SCTP destination port. */
+				__be16 flags;		/* TCP flags. */
 			} tp;
 			struct {
 				struct in6_addr target;	/* ND target address. */
@@ -92,6 +119,31 @@ struct sw_flow_key {
 			} nd;
 		} ipv6;
 	};
+} __aligned(BITS_PER_LONG/8); /* Ensure that we can do comparisons as longs. */
+
+struct sw_flow_key_range {
+	size_t start;
+	size_t end;
+};
+
+struct sw_flow_mask {
+	int ref_count;
+	struct rcu_head rcu;
+	struct list_head list;
+	struct sw_flow_key_range range;
+	struct sw_flow_key key;
+};
+
+struct sw_flow_match {
+	struct sw_flow_key *key;
+	struct sw_flow_key_range range;
+	struct sw_flow_mask *mask;
+};
+
+struct sw_flow_actions {
+	struct rcu_head rcu;
+	u32 actions_len;
+	struct nlattr actions[];
 };
 
 struct sw_flow {
@@ -100,13 +152,15 @@ struct sw_flow {
 	u32 hash;
 
 	struct sw_flow_key key;
+	struct sw_flow_key unmasked_key;
+	struct sw_flow_mask *mask;
 	struct sw_flow_actions __rcu *sf_acts;
 
 	spinlock_t lock;	/* Lock for values below. */
 	unsigned long used;	/* Last used time (in jiffies). */
 	u64 packet_count;	/* Number of packets matched. */
 	u64 byte_count;		/* Number of bytes matched. */
-	u8 tcp_flags;		/* Union of seen TCP flags. */
+	__be16 tcp_flags;	/* Union of seen TCP flags. */
 };
 
 struct arp_eth_header {
@@ -123,82 +177,9 @@ struct arp_eth_header {
 	unsigned char       ar_tip[4];		/* target IP address        */
 } __packed;
 
-int ovs_flow_init(void);
-void ovs_flow_exit(void);
-
-struct sw_flow *ovs_flow_alloc(void);
-void ovs_flow_deferred_free(struct sw_flow *);
-void ovs_flow_free(struct sw_flow *flow);
-
-struct sw_flow_actions *ovs_flow_actions_alloc(const struct nlattr *);
-void ovs_flow_deferred_free_acts(struct sw_flow_actions *);
-
-int ovs_flow_extract(struct sk_buff *, u16 in_port, struct sw_flow_key *,
-		     int *key_lenp);
 void ovs_flow_used(struct sw_flow *, struct sk_buff *);
 u64 ovs_flow_used_time(unsigned long flow_jiffies);
 
-/* Upper bound on the length of a nlattr-formatted flow key.  The longest
- * nlattr-formatted flow key would be:
- *
- *                         struct  pad  nl hdr  total
- *                         ------  ---  ------  -----
- *  OVS_KEY_ATTR_PRIORITY      4    --     4      8
- *  OVS_KEY_ATTR_IN_PORT       4    --     4      8
- *  OVS_KEY_ATTR_SKB_MARK      4    --     4      8
- *  OVS_KEY_ATTR_ETHERNET     12    --     4     16
- *  OVS_KEY_ATTR_ETHERTYPE     2     2     4      8  (outer VLAN ethertype)
- *  OVS_KEY_ATTR_8021Q         4    --     4      8
- *  OVS_KEY_ATTR_ENCAP         0    --     4      4  (VLAN encapsulation)
- *  OVS_KEY_ATTR_ETHERTYPE     2     2     4      8  (inner VLAN ethertype)
- *  OVS_KEY_ATTR_IPV6         40    --     4     44
- *  OVS_KEY_ATTR_ICMPV6        2     2     4      8
- *  OVS_KEY_ATTR_ND           28    --     4     32
- *  -------------------------------------------------
- *  total                                       152
- */
-#define FLOW_BUFSIZE 152
-
-int ovs_flow_to_nlattrs(const struct sw_flow_key *, struct sk_buff *);
-int ovs_flow_from_nlattrs(struct sw_flow_key *swkey, int *key_lenp,
-		      const struct nlattr *);
-int ovs_flow_metadata_from_nlattrs(u32 *priority, u32 *mark, u16 *in_port,
-			       const struct nlattr *);
-
-#define MAX_ACTIONS_BUFSIZE    (16 * 1024)
-#define TBL_MIN_BUCKETS		1024
-
-struct flow_table {
-	struct flex_array *buckets;
-	unsigned int count, n_buckets;
-	struct rcu_head rcu;
-	int node_ver;
-	u32 hash_seed;
-	bool keep_flows;
-};
-
-static inline int ovs_flow_tbl_count(struct flow_table *table)
-{
-	return table->count;
-}
-
-static inline int ovs_flow_tbl_need_to_expand(struct flow_table *table)
-{
-	return (table->count > table->n_buckets);
-}
-
-struct sw_flow *ovs_flow_tbl_lookup(struct flow_table *table,
-				    struct sw_flow_key *key, int len);
-void ovs_flow_tbl_destroy(struct flow_table *table);
-void ovs_flow_tbl_deferred_destroy(struct flow_table *table);
-struct flow_table *ovs_flow_tbl_alloc(int new_size);
-struct flow_table *ovs_flow_tbl_expand(struct flow_table *table);
-struct flow_table *ovs_flow_tbl_rehash(struct flow_table *table);
-void ovs_flow_tbl_insert(struct flow_table *table, struct sw_flow *flow);
-void ovs_flow_tbl_remove(struct flow_table *table, struct sw_flow *flow);
-u32 ovs_flow_hash(const struct sw_flow_key *key, int key_len);
-
-struct sw_flow *ovs_flow_tbl_next(struct flow_table *table, u32 *bucket, u32 *idx);
-extern const int ovs_key_lens[OVS_KEY_ATTR_MAX + 1];
+int ovs_flow_extract(struct sk_buff *, u16 in_port, struct sw_flow_key *);
 
 #endif /* flow.h */

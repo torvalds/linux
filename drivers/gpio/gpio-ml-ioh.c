@@ -465,6 +465,7 @@ static int ioh_gpio_probe(struct pci_dev *pdev,
 			dev_warn(&pdev->dev,
 				"ml_ioh_gpio: Failed to get IRQ base num\n");
 			chip->irq_base = -1;
+			ret = irq_base;
 			goto err_irq_alloc_descs;
 		}
 		chip->irq_base = irq_base;
@@ -496,8 +497,7 @@ err_irq_alloc_descs:
 err_gpiochip_add:
 	while (--i >= 0) {
 		chip--;
-		ret = gpiochip_remove(&chip->gpio);
-		if (ret)
+		if (gpiochip_remove(&chip->gpio))
 			dev_err(&pdev->dev, "Failed gpiochip_remove(%d)\n", i);
 	}
 	kfree(chip_save);

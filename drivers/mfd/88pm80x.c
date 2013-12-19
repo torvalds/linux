@@ -18,6 +18,23 @@
 #include <linux/uaccess.h>
 #include <linux/err.h>
 
+/* 88pm80x chips have same definition for chip id register. */
+#define PM80X_CHIP_ID			(0x00)
+#define PM80X_CHIP_ID_NUM(x)		(((x) >> 5) & 0x7)
+#define PM80X_CHIP_ID_REVISION(x)	((x) & 0x1F)
+
+struct pm80x_chip_mapping {
+	unsigned int	id;
+	int		type;
+};
+
+static struct pm80x_chip_mapping chip_mapping[] = {
+	/* 88PM800 chip id number */
+	{0x3,	CHIP_PM800},
+	/* 88PM805 chip id number */
+	{0x0,	CHIP_PM805},
+};
+
 /*
  * workaround: some registers needed by pm805 are defined in pm800, so
  * need to use this global variable to maintain the relation between
@@ -31,12 +48,13 @@ const struct regmap_config pm80x_regmap_config = {
 };
 EXPORT_SYMBOL_GPL(pm80x_regmap_config);
 
-int pm80x_init(struct i2c_client *client,
-				 const struct i2c_device_id *id)
+
+int pm80x_init(struct i2c_client *client)
 {
 	struct pm80x_chip *chip;
 	struct regmap *map;
-	int ret = 0;
+	unsigned int val;
+	int i, ret = 0;
 
 	chip =
 	    devm_kzalloc(&client->dev, sizeof(struct pm80x_chip), GFP_KERNEL);
@@ -48,13 +66,7 @@ int pm80x_init(struct i2c_client *client,
 		ret = PTR_ERR(map);
 		dev_err(&client->dev, "Failed to allocate register map: %d\n",
 			ret);
-		goto err_regmap_init;
-	}
-
-	chip->id = id->driver_data;
-	if (chip->id < CHIP_PM800 || chip->id > CHIP_PM805) {
-		ret = -EINVAL;
-		goto err_chip_id;
+		return ret;
 	}
 
 	chip->client = client;
@@ -65,6 +77,25 @@ int pm80x_init(struct i2c_client *client,
 	chip->dev = &client->dev;
 	dev_set_drvdata(chip->dev, chip);
 	i2c_set_clientdata(chip->client, chip);
+
+	ret = regmap_read(chip->regmap, PM80X_CHIP_ID, &val);
+	if (ret < 0) {
+		dev_err(chip->dev, "Failed to read CHIP ID: %d\n", ret);
+		return ret;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(chip_mapping); i++) {
+		if (chip_mapping[i].id == PM80X_CHIP_ID_NUM(val)) {
+			chip->type = chip_mapping[i].type;
+			break;
+		}
+	}
+
+	if (i == ARRAY_SIZE(chip_mapping)) {
+		dev_err(chip->dev,
+			"Failed to detect Marvell 88PM800:ChipID[0x%x]\n", val);
+		return -EINVAL;
+	}
 
 	device_init_wakeup(&client->dev, 1);
 
@@ -82,19 +113,11 @@ int pm80x_init(struct i2c_client *client,
 	}
 
 	return 0;
-
-err_chip_id:
-	regmap_exit(map);
-err_regmap_init:
-	devm_kfree(&client->dev, chip);
-	return ret;
 }
 EXPORT_SYMBOL_GPL(pm80x_init);
 
-int pm80x_deinit(struct i2c_client *client)
+int pm80x_deinit(void)
 {
-	struct pm80x_chip *chip = i2c_get_clientdata(client);
-
 	/*
 	 * workaround: clear the dependency between pm800 and pm805.
 	 * would remove it after HW chip fixes the issue.
@@ -103,10 +126,6 @@ int pm80x_deinit(struct i2c_client *client)
 		g_pm80x_chip->companion = NULL;
 	else
 		g_pm80x_chip = NULL;
-
-	regmap_exit(chip->regmap);
-	devm_kfree(&client->dev, chip);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pm80x_deinit);

@@ -82,9 +82,9 @@ static void vr_nor_destroy_mtd_setup(struct vr_nor_mtd *p)
 
 static int vr_nor_mtd_setup(struct vr_nor_mtd *p)
 {
-	static const char *probe_types[] =
+	static const char * const probe_types[] =
 	    { "cfi_probe", "jedec_probe", NULL };
-	const char **type;
+	const char * const *type;
 
 	for (type = probe_types; !p->info && *type; type++)
 		p->info = do_map_probe(*type, &p->map);
@@ -180,7 +180,6 @@ static void vr_nor_pci_remove(struct pci_dev *dev)
 {
 	struct vr_nor_mtd *p = pci_get_drvdata(dev);
 
-	pci_set_drvdata(dev, NULL);
 	vr_nor_destroy_partitions(p);
 	vr_nor_destroy_mtd_setup(p);
 	vr_nor_destroy_maps(p);
@@ -189,8 +188,7 @@ static void vr_nor_pci_remove(struct pci_dev *dev)
 	pci_disable_device(dev);
 }
 
-static int
-vr_nor_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int vr_nor_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct vr_nor_mtd *p = NULL;
 	unsigned int exp_timing_cs0;

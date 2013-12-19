@@ -49,6 +49,10 @@ static struct platform_device gpmc_smc91x_device = {
 	.resource	= gpmc_smc91x_resources,
 };
 
+static struct gpmc_settings smc91x_settings = {
+	.device_width = GPMC_DEVWIDTH_16BIT,
+};
+
 /*
  * Set the gpmc timings for smc91c96. The timings are taken
  * from the data sheet available at:
@@ -67,18 +71,6 @@ static int smc91c96_gpmc_retime(void)
 	const int t7 = 5;	/* Figure 12.4 write */
 	const int t8 = 5;	/* Figure 12.4 write */
 	const int t20 = 185;	/* Figure 12.2 read and 12.4 write */
-	u32 l;
-
-	l = GPMC_CONFIG1_DEVICESIZE_16;
-	if (gpmc_cfg->flags & GPMC_MUX_ADD_DATA)
-		l |= GPMC_CONFIG1_MUXADDDATA;
-	if (gpmc_cfg->flags & GPMC_READ_MON)
-		l |= GPMC_CONFIG1_WAIT_READ_MON;
-	if (gpmc_cfg->flags & GPMC_WRITE_MON)
-		l |= GPMC_CONFIG1_WAIT_WRITE_MON;
-	if (gpmc_cfg->wait_pin)
-		l |= GPMC_CONFIG1_WAIT_PIN_SEL(gpmc_cfg->wait_pin);
-	gpmc_cs_write_reg(gpmc_cfg->cs, GPMC_CS_CONFIG1, l);
 
 	/*
 	 * FIXME: Calculate the address and data bus muxed timings.
@@ -104,7 +96,7 @@ static int smc91c96_gpmc_retime(void)
 	dev_t.t_cez_w = t4_w * 1000;
 	dev_t.t_wr_cycle = (t20 - t3) * 1000;
 
-	gpmc_calc_timings(&t, &dev_t);
+	gpmc_calc_timings(&t, &smc91x_settings, &dev_t);
 
 	return gpmc_cs_set_timings(gpmc_cfg->cs, &t);
 }
@@ -132,6 +124,18 @@ void __init gpmc_smc91x_init(struct omap_smc91x_platform_data *board_data)
 	gpmc_smc91x_resources[0].start = cs_mem_base + 0x300;
 	gpmc_smc91x_resources[0].end = cs_mem_base + 0x30f;
 	gpmc_smc91x_resources[1].flags |= (gpmc_cfg->flags & IRQF_TRIGGER_MASK);
+
+	if (gpmc_cfg->flags & GPMC_MUX_ADD_DATA)
+		smc91x_settings.mux_add_data = GPMC_MUX_AD;
+	if (gpmc_cfg->flags & GPMC_READ_MON)
+		smc91x_settings.wait_on_read = true;
+	if (gpmc_cfg->flags & GPMC_WRITE_MON)
+		smc91x_settings.wait_on_write = true;
+	if (gpmc_cfg->wait_pin)
+		smc91x_settings.wait_pin = gpmc_cfg->wait_pin;
+	ret = gpmc_cs_program_settings(gpmc_cfg->cs, &smc91x_settings);
+	if (ret < 0)
+		goto free1;
 
 	if (gpmc_cfg->retime) {
 		ret = gpmc_cfg->retime();

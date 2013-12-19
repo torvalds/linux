@@ -550,7 +550,7 @@ static struct iommu_table *cell_get_iommu_table(struct device *dev)
 	 */
 	iommu = cell_iommu_for_node(dev_to_node(dev));
 	if (iommu == NULL || list_empty(&iommu->windows)) {
-		printk(KERN_ERR "iommu: missing iommu for %s (node %d)\n",
+		dev_err(dev, "iommu: missing iommu for %s (node %d)\n",
 		       of_node_full_name(dev->of_node), dev_to_node(dev));
 		return NULL;
 	}
@@ -697,7 +697,7 @@ static int __init cell_iommu_get_window(struct device_node *np,
 					 unsigned long *base,
 					 unsigned long *size)
 {
-	const void *dma_window;
+	const __be32 *dma_window;
 	unsigned long index;
 
 	/* Use ibm,dma-window if available, else, hard code ! */

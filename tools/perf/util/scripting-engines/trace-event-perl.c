@@ -261,7 +261,8 @@ static void perl_process_tracepoint(union perf_event *perf_event __maybe_unused,
 				    struct perf_sample *sample,
 				    struct perf_evsel *evsel,
 				    struct machine *machine __maybe_unused,
-				    struct addr_location *al)
+				    struct thread *thread,
+					struct addr_location *al)
 {
 	struct format_field *field;
 	static char handler[256];
@@ -272,8 +273,7 @@ static void perl_process_tracepoint(union perf_event *perf_event __maybe_unused,
 	int cpu = sample->cpu;
 	void *data = sample->raw_data;
 	unsigned long long nsecs = sample->time;
-	struct thread *thread = al->thread;
-	char *comm = thread->comm;
+	const char *comm = thread__comm_str(thread);
 
 	dSP;
 
@@ -282,7 +282,7 @@ static void perl_process_tracepoint(union perf_event *perf_event __maybe_unused,
 
 	event = find_cache_event(evsel);
 	if (!event)
-		die("ug! no event found for type %" PRIu64, evsel->attr.config);
+		die("ug! no event found for type %" PRIu64, (u64)evsel->attr.config);
 
 	pid = raw_field_value(event, "common_pid", data);
 
@@ -292,6 +292,7 @@ static void perl_process_tracepoint(union perf_event *perf_event __maybe_unused,
 	ns = nsecs - s * NSECS_PER_SEC;
 
 	scripting_context->event_data = data;
+	scripting_context->pevent = evsel->tp_format->pevent;
 
 	ENTER;
 	SAVETMPS;
@@ -350,7 +351,8 @@ static void perl_process_event_generic(union perf_event *event,
 				       struct perf_sample *sample,
 				       struct perf_evsel *evsel,
 				       struct machine *machine __maybe_unused,
-				       struct addr_location *al __maybe_unused)
+				       struct thread *thread __maybe_unused,
+					   struct addr_location *al __maybe_unused)
 {
 	dSP;
 
@@ -376,10 +378,11 @@ static void perl_process_event(union perf_event *event,
 			       struct perf_sample *sample,
 			       struct perf_evsel *evsel,
 			       struct machine *machine,
-			       struct addr_location *al)
+			       struct thread *thread,
+				   struct addr_location *al)
 {
-	perl_process_tracepoint(event, sample, evsel, machine, al);
-	perl_process_event_generic(event, sample, evsel, machine, al);
+	perl_process_tracepoint(event, sample, evsel, machine, thread, al);
+	perl_process_event_generic(event, sample, evsel, machine, thread, al);
 }
 
 static void run_start_sub(void)

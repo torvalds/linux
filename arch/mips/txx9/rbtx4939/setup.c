@@ -243,7 +243,7 @@ static int __init rbtx4939_led_probe(struct platform_device *pdev)
 }
 
 static struct platform_driver rbtx4939_led_driver = {
-	.driver  = {
+	.driver	 = {
 		.name = "rbtx4939-led",
 		.owner = THIS_MODULE,
 	},
@@ -337,7 +337,7 @@ static void rbtx4939_flash_copy_from(struct map_info *map, void *to,
 		shift = bdipsw & 3;
 		while (len) {
 			curlen = min_t(unsigned long, len,
-				     0x400000 -	(from & (0x400000 - 1)));
+				     0x400000 - (from & (0x400000 - 1)));
 			memcpy(to,
 			       (void *)((from & ~0xc00000) |
 					((((from >> 22) + shift) & 3) << 22)),

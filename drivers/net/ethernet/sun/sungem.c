@@ -2779,7 +2779,7 @@ static int gem_get_device_address(struct gem *gp)
 		return -1;
 #endif
 	}
-	memcpy(dev->dev_addr, addr, 6);
+	memcpy(dev->dev_addr, addr, ETH_ALEN);
 #else
 	get_gem_mac_nonobp(gp->pdev, gp->dev->dev_addr);
 #endif
@@ -2806,8 +2806,6 @@ static void gem_remove_one(struct pci_dev *pdev)
 		iounmap(gp->regs);
 		pci_release_regions(pdev);
 		free_netdev(dev);
-
-		pci_set_drvdata(pdev, NULL);
 	}
 }
 
@@ -3028,15 +3026,4 @@ static struct pci_driver gem_driver = {
 #endif /* CONFIG_PM */
 };
 
-static int __init gem_init(void)
-{
-	return pci_register_driver(&gem_driver);
-}
-
-static void __exit gem_cleanup(void)
-{
-	pci_unregister_driver(&gem_driver);
-}
-
-module_init(gem_init);
-module_exit(gem_cleanup);
+module_pci_driver(gem_driver);

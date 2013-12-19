@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -32,9 +32,11 @@ qla2x00_get_cmd_direction(srb_t *sp)
 	if (cmd->sc_data_direction == DMA_TO_DEVICE) {
 		cflags = CF_WRITE;
 		vha->qla_stats.output_bytes += scsi_bufflen(cmd);
+		vha->qla_stats.output_requests++;
 	} else if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		cflags = CF_READ;
 		vha->qla_stats.input_bytes += scsi_bufflen(cmd);
+		vha->qla_stats.input_requests++;
 	}
 	return (cflags);
 }
@@ -135,7 +137,8 @@ qla2x00_prep_cont_type1_iocb(scsi_qla_host_t *vha, struct req_que *req)
 	cont_pkt = (cont_a64_entry_t *)req->ring_ptr;
 
 	/* Load packet defaults. */
-	*((uint32_t *)(&cont_pkt->entry_type)) =
+	*((uint32_t *)(&cont_pkt->entry_type)) = IS_QLAFX00(vha->hw) ?
+	    __constant_cpu_to_le32(CONTINUE_A64_TYPE_FX00) :
 	    __constant_cpu_to_le32(CONTINUE_A64_TYPE);
 
 	return (cont_pkt);
@@ -349,14 +352,14 @@ qla2x00_start_scsi(srb_t *sp)
 
 	/* Check for room in outstanding command list. */
 	handle = req->current_outstanding_cmd;
-	for (index = 1; index < MAX_OUTSTANDING_COMMANDS; index++) {
+	for (index = 1; index < req->num_outstanding_cmds; index++) {
 		handle++;
-		if (handle == MAX_OUTSTANDING_COMMANDS)
+		if (handle == req->num_outstanding_cmds)
 			handle = 1;
 		if (!req->outstanding_cmds[handle])
 			break;
 	}
-	if (index == MAX_OUTSTANDING_COMMANDS)
+	if (index == req->num_outstanding_cmds)
 		goto queuing_error;
 
 	/* Map the sg table so we have an accurate count of sg entries needed */
@@ -418,6 +421,8 @@ qla2x00_start_scsi(srb_t *sp)
 			    __constant_cpu_to_le16(CF_SIMPLE_TAG);
 			break;
 		}
+	} else {
+		cmd_pkt->control_flags = __constant_cpu_to_le16(CF_SIMPLE_TAG);
 	}
 
 	/* Load SCSI command packet. */
@@ -471,7 +476,7 @@ qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
 	struct qla_hw_data *ha = vha->hw;
 	device_reg_t __iomem *reg = ISP_QUE_REG(ha, req->id);
 
-	if (IS_QLA82XX(ha)) {
+	if (IS_P3P_TYPE(ha)) {
 		qla82xx_start_iocbs(vha);
 	} else {
 		/* Adjust ring index. */
@@ -486,6 +491,10 @@ qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
 		if (ha->mqenable || IS_QLA83XX(ha)) {
 			WRT_REG_DWORD(req->req_q_in, req->ring_index);
 			RD_REG_DWORD_RELAXED(&ha->iobase->isp24.hccr);
+		} else if (IS_QLAFX00(ha)) {
+			WRT_REG_DWORD(&reg->ispfx00.req_q_in, req->ring_index);
+			RD_REG_DWORD_RELAXED(&reg->ispfx00.req_q_in);
+			QLAFX00_SET_HST_INTR(ha, ha->rqstq_intr_code);
 		} else if (IS_FWI2_CAPABLE(ha)) {
 			WRT_REG_DWORD(&reg->isp24.req_q_in, req->ring_index);
 			RD_REG_DWORD_RELAXED(&reg->isp24.req_q_in);
@@ -514,11 +523,12 @@ __qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 			uint16_t lun, uint8_t type)
 {
 	mrk_entry_t *mrk;
-	struct mrk_entry_24xx *mrk24;
+	struct mrk_entry_24xx *mrk24 = NULL;
+	struct mrk_entry_fx00 *mrkfx = NULL;
+
 	struct qla_hw_data *ha = vha->hw;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
-	mrk24 = NULL;
 	req = ha->req_q_map[0];
 	mrk = (mrk_entry_t *)qla2x00_alloc_iocbs(vha, NULL);
 	if (mrk == NULL) {
@@ -531,7 +541,15 @@ __qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 	mrk->entry_type = MARKER_TYPE;
 	mrk->modifier = type;
 	if (type != MK_SYNC_ALL) {
-		if (IS_FWI2_CAPABLE(ha)) {
+		if (IS_QLAFX00(ha)) {
+			mrkfx = (struct mrk_entry_fx00 *) mrk;
+			mrkfx->handle = MAKE_HANDLE(req->id, mrkfx->handle);
+			mrkfx->handle_hi = 0;
+			mrkfx->tgt_id = cpu_to_le16(loop_id);
+			mrkfx->lun[1] = LSB(lun);
+			mrkfx->lun[2] = MSB(lun);
+			host_to_fcp_swap(mrkfx->lun, sizeof(mrkfx->lun));
+		} else if (IS_FWI2_CAPABLE(ha)) {
 			mrk24 = (struct mrk_entry_24xx *) mrk;
 			mrk24->nport_handle = cpu_to_le16(loop_id);
 			mrk24->lun[1] = LSB(lun);
@@ -589,28 +607,6 @@ int qla2x00_issue_marker(scsi_qla_host_t *vha, int ha_locked)
 	return QLA_SUCCESS;
 }
 
-/**
- * qla24xx_calc_iocbs() - Determine number of Command Type 3 and
- * Continuation Type 1 IOCBs to allocate.
- *
- * @dsds: number of data segment decriptors needed
- *
- * Returns the number of IOCB entries needed to store @dsds.
- */
-inline uint16_t
-qla24xx_calc_iocbs(scsi_qla_host_t *vha, uint16_t dsds)
-{
-	uint16_t iocbs;
-
-	iocbs = 1;
-	if (dsds > 1) {
-		iocbs += (dsds - 1) / 5;
-		if ((dsds - 1) % 5)
-			iocbs++;
-	}
-	return iocbs;
-}
-
 static inline int
 qla24xx_build_scsi_type_6_iocbs(srb_t *sp, struct cmd_type_6 *cmd_pkt,
 	uint16_t tot_dsds)
@@ -648,10 +644,12 @@ qla24xx_build_scsi_type_6_iocbs(srb_t *sp, struct cmd_type_6 *cmd_pkt,
 		cmd_pkt->control_flags =
 		    __constant_cpu_to_le16(CF_WRITE_DATA);
 		vha->qla_stats.output_bytes += scsi_bufflen(cmd);
+		vha->qla_stats.output_requests++;
 	} else if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		cmd_pkt->control_flags =
 		    __constant_cpu_to_le16(CF_READ_DATA);
 		vha->qla_stats.input_bytes += scsi_bufflen(cmd);
+		vha->qla_stats.input_requests++;
 	}
 
 	cur_seg = scsi_sglist(cmd);
@@ -764,10 +762,12 @@ qla24xx_build_scsi_iocbs(srb_t *sp, struct cmd_type_7 *cmd_pkt,
 		cmd_pkt->task_mgmt_flags =
 		    __constant_cpu_to_le16(TMF_WRITE_DATA);
 		vha->qla_stats.output_bytes += scsi_bufflen(cmd);
+		vha->qla_stats.output_requests++;
 	} else if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		cmd_pkt->task_mgmt_flags =
 		    __constant_cpu_to_le16(TMF_READ_DATA);
 		vha->qla_stats.input_bytes += scsi_bufflen(cmd);
+		vha->qla_stats.input_requests++;
 	}
 
 	/* One DSD is available in the Command Type 3 IOCB */
@@ -1197,7 +1197,6 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	uint32_t		*cur_dsd, *fcp_dl;
 	scsi_qla_host_t		*vha;
 	struct scsi_cmnd	*cmd;
-	struct scatterlist	*cur_seg;
 	int			sgc;
 	uint32_t		total_bytes = 0;
 	uint32_t		data_bytes;
@@ -1316,11 +1315,11 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 		    fcp_cmnd->task_attribute = TSK_ORDERED;
 		    break;
 		default:
-		    fcp_cmnd->task_attribute = 0;
+		    fcp_cmnd->task_attribute = TSK_SIMPLE;
 		    break;
 		}
 	} else {
-		fcp_cmnd->task_attribute = 0;
+		fcp_cmnd->task_attribute = TSK_SIMPLE;
 	}
 
 	cmd_pkt->fcp_rsp_dseg_len = 0; /* Let response come in status iocb */
@@ -1404,7 +1403,6 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 
 	if (bundling && tot_prot_dsds) {
 		/* Walks dif segments */
-		cur_seg = scsi_prot_sglist(cmd);
 		cmd_pkt->control_flags |=
 			__constant_cpu_to_le16(CF_DIF_SEG_DESCR_ENABLE);
 		cur_dsd = (uint32_t *) &crc_ctx_pkt->u.bundling.dif_address;
@@ -1467,16 +1465,15 @@ qla24xx_start_scsi(srb_t *sp)
 
 	/* Check for room in outstanding command list. */
 	handle = req->current_outstanding_cmd;
-	for (index = 1; index < MAX_OUTSTANDING_COMMANDS; index++) {
+	for (index = 1; index < req->num_outstanding_cmds; index++) {
 		handle++;
-		if (handle == MAX_OUTSTANDING_COMMANDS)
+		if (handle == req->num_outstanding_cmds)
 			handle = 1;
 		if (!req->outstanding_cmds[handle])
 			break;
 	}
-	if (index == MAX_OUTSTANDING_COMMANDS) {
+	if (index == req->num_outstanding_cmds)
 		goto queuing_error;
-	}
 
 	/* Map the sg table so we have an accurate count of sg entries needed */
 	if (scsi_sg_count(cmd)) {
@@ -1536,7 +1533,12 @@ qla24xx_start_scsi(srb_t *sp)
 		case ORDERED_QUEUE_TAG:
 			cmd_pkt->task = TSK_ORDERED;
 			break;
+		default:
+		    cmd_pkt->task = TSK_SIMPLE;
+		    break;
 		}
+	} else {
+		cmd_pkt->task = TSK_SIMPLE;
 	}
 
 	/* Load SCSI command packet. */
@@ -1583,7 +1585,6 @@ queuing_error:
 
 	return QLA_FUNCTION_FAILED;
 }
-
 
 /**
  * qla24xx_dif_start_scsi() - Send a SCSI command to the ISP
@@ -1641,15 +1642,15 @@ qla24xx_dif_start_scsi(srb_t *sp)
 
 	/* Check for room in outstanding command list. */
 	handle = req->current_outstanding_cmd;
-	for (index = 1; index < MAX_OUTSTANDING_COMMANDS; index++) {
+	for (index = 1; index < req->num_outstanding_cmds; index++) {
 		handle++;
-		if (handle == MAX_OUTSTANDING_COMMANDS)
+		if (handle == req->num_outstanding_cmds)
 			handle = 1;
 		if (!req->outstanding_cmds[handle])
 			break;
 	}
 
-	if (index == MAX_OUTSTANDING_COMMANDS)
+	if (index == req->num_outstanding_cmds)
 		goto queuing_error;
 
 	/* Compute number of required data segments */
@@ -1822,14 +1823,14 @@ qla2x00_alloc_iocbs(scsi_qla_host_t *vha, srb_t *sp)
 
 	/* Check for room in outstanding command list. */
 	handle = req->current_outstanding_cmd;
-	for (index = 1; index < MAX_OUTSTANDING_COMMANDS; index++) {
+	for (index = 1; req->num_outstanding_cmds; index++) {
 		handle++;
-		if (handle == MAX_OUTSTANDING_COMMANDS)
+		if (handle == req->num_outstanding_cmds)
 			handle = 1;
 		if (!req->outstanding_cmds[handle])
 			break;
 	}
-	if (index == MAX_OUTSTANDING_COMMANDS) {
+	if (index == req->num_outstanding_cmds) {
 		ql_log(ql_log_warn, vha, 0x700b,
 		    "No room on outstanding cmd array.\n");
 		goto queuing_error;
@@ -1849,10 +1850,12 @@ skip_cmd_array:
 	if (req->cnt < req_cnt) {
 		if (ha->mqenable || IS_QLA83XX(ha))
 			cnt = RD_REG_DWORD(&reg->isp25mq.req_q_out);
-		else if (IS_QLA82XX(ha))
+		else if (IS_P3P_TYPE(ha))
 			cnt = RD_REG_DWORD(&reg->isp82.req_q_out);
 		else if (IS_FWI2_CAPABLE(ha))
 			cnt = RD_REG_DWORD(&reg->isp24.req_q_out);
+		else if (IS_QLAFX00(ha))
+			cnt = RD_REG_DWORD(&reg->ispfx00.req_q_out);
 		else
 			cnt = qla2x00_debounce_register(
 			    ISP_REQ_Q_OUT(ha, &reg->isp));
@@ -1870,8 +1873,13 @@ skip_cmd_array:
 	req->cnt -= req_cnt;
 	pkt = req->ring_ptr;
 	memset(pkt, 0, REQUEST_ENTRY_SIZE);
-	pkt->entry_count = req_cnt;
-	pkt->handle = handle;
+	if (IS_QLAFX00(ha)) {
+		WRT_REG_BYTE((void __iomem *)&pkt->entry_count, req_cnt);
+		WRT_REG_WORD((void __iomem *)&pkt->handle, handle);
+	} else {
+		pkt->entry_count = req_cnt;
+		pkt->handle = handle;
+	}
 
 queuing_error:
 	return pkt;
@@ -2054,6 +2062,8 @@ qla24xx_els_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
             (bsg_job->reply_payload.sg_list)));
         els_iocb->rx_len = cpu_to_le32(sg_dma_len
             (bsg_job->reply_payload.sg_list));
+
+	sp->fcport->vha->qla_stats.control_requests++;
 }
 
 static void
@@ -2131,6 +2141,8 @@ qla2x00_ct_iocb(srb_t *sp, ms_iocb_entry_t *ct_iocb)
 		avail_dsds--;
 	}
 	ct_iocb->entry_count = entry_count;
+
+	sp->fcport->vha->qla_stats.control_requests++;
 }
 
 static void
@@ -2263,14 +2275,14 @@ qla82xx_start_scsi(srb_t *sp)
 
 	/* Check for room in outstanding command list. */
 	handle = req->current_outstanding_cmd;
-	for (index = 1; index < MAX_OUTSTANDING_COMMANDS; index++) {
+	for (index = 1; index < req->num_outstanding_cmds; index++) {
 		handle++;
-		if (handle == MAX_OUTSTANDING_COMMANDS)
+		if (handle == req->num_outstanding_cmds)
 			handle = 1;
 		if (!req->outstanding_cmds[handle])
 			break;
 	}
-	if (index == MAX_OUTSTANDING_COMMANDS)
+	if (index == req->num_outstanding_cmds)
 		goto queuing_error;
 
 	/* Map the sg table so we have an accurate count of sg entries needed */
@@ -2626,7 +2638,16 @@ qla2x00_start_sp(srb_t *sp)
 		    qla2x00_adisc_iocb(sp, pkt);
 		break;
 	case SRB_TM_CMD:
-		qla24xx_tm_iocb(sp, pkt);
+		IS_QLAFX00(ha) ?
+		    qlafx00_tm_iocb(sp, pkt) :
+		    qla24xx_tm_iocb(sp, pkt);
+		break;
+	case SRB_FXIOCB_DCMD:
+	case SRB_FXIOCB_BCMD:
+		qlafx00_fxdisc_iocb(sp, pkt);
+		break;
+	case SRB_ABT_CMD:
+		qlafx00_abort_iocb(sp, pkt);
 		break;
 	default:
 		break;
@@ -2673,6 +2694,9 @@ qla25xx_build_bidir_iocb(srb_t *sp, struct scsi_qla_host *vha,
 
 	vha->bidi_stats.transfer_bytes += req_data_len;
 	vha->bidi_stats.io_count++;
+
+	vha->qla_stats.output_bytes += req_data_len;
+	vha->qla_stats.output_requests++;
 
 	/* Only one dsd is available for bidirectional IOCB, remaining dsds
 	 * are bundled in continuation iocb
@@ -2767,15 +2791,15 @@ qla2x00_start_bidir(srb_t *sp, struct scsi_qla_host *vha, uint32_t tot_dsds)
 
 	/* Check for room in outstanding command list. */
 	handle = req->current_outstanding_cmd;
-	for (index = 1; index < MAX_OUTSTANDING_COMMANDS; index++) {
+	for (index = 1; index < req->num_outstanding_cmds; index++) {
 		handle++;
-	if (handle == MAX_OUTSTANDING_COMMANDS)
+	if (handle == req->num_outstanding_cmds)
 		handle = 1;
 	if (!req->outstanding_cmds[handle])
 		break;
 	}
 
-	if (index == MAX_OUTSTANDING_COMMANDS) {
+	if (index == req->num_outstanding_cmds) {
 		rval = EXT_STATUS_BUSY;
 		goto queuing_error;
 	}

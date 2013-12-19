@@ -29,7 +29,6 @@
 #include <video/platform_lcd.h>
 #include <video/samsung_fimd.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/irq.h>
@@ -38,7 +37,6 @@
 #include <mach/hardware.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>
-#include <mach/i2c.h>
 #include <mach/regs-gpio.h>
 
 #include <plat/regs-serial.h>
@@ -50,12 +48,13 @@
 #include <plat/pll.h>
 #include <plat/adc.h>
 #include <linux/platform_data/touchscreen-s3c2410.h>
-#include <plat/s5p-time.h>
+#include <plat/samsung-time.h>
 #include <plat/backlight.h>
 #include <plat/fb.h>
 #include <plat/sdhci.h>
 
 #include "common.h"
+#include "i2c.h"
 
 #define SMDK6440_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
 				S3C2410_UCON_RXILEVEL |		\
@@ -163,6 +162,7 @@ static struct platform_device *smdk6440_devices[] __initdata = {
 	&s3c_device_rtc,
 	&s3c_device_i2c0,
 	&s3c_device_i2c1,
+	&samsung_device_pwm,
 	&s3c_device_ts,
 	&s3c_device_wdt,
 	&s5p6440_device_iis,
@@ -223,6 +223,7 @@ static struct samsung_bl_gpio_info smdk6440_bl_gpio_info = {
 
 static struct platform_pwm_backlight_data smdk6440_bl_data = {
 	.pwm_id = 1,
+	.enable_gpio = -1,
 };
 
 static void __init smdk6440_map_io(void)
@@ -230,7 +231,7 @@ static void __init smdk6440_map_io(void)
 	s5p64x0_init_io(NULL, 0);
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(smdk6440_uartcfgs, ARRAY_SIZE(smdk6440_uartcfgs));
-	s5p_set_timer_source(S5P_PWM3, S5P_PWM4);
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
 
 static void s5p6440_set_lcd_interface(void)
@@ -255,8 +256,6 @@ static void __init smdk6440_machine_init(void)
 	i2c_register_board_info(1, smdk6440_i2c_devs1,
 			ARRAY_SIZE(smdk6440_i2c_devs1));
 
-	samsung_bl_set(&smdk6440_bl_gpio_info, &smdk6440_bl_data);
-
 	s5p6440_set_lcd_interface();
 	s3c_fb_set_platdata(&smdk6440_lcd_pdata);
 
@@ -265,6 +264,8 @@ static void __init smdk6440_machine_init(void)
 	s3c_sdhci2_set_platdata(&smdk6440_hsmmc2_pdata);
 
 	platform_add_devices(smdk6440_devices, ARRAY_SIZE(smdk6440_devices));
+
+	samsung_bl_set(&smdk6440_bl_gpio_info, &smdk6440_bl_data);
 }
 
 MACHINE_START(SMDK6440, "SMDK6440")
@@ -272,9 +273,8 @@ MACHINE_START(SMDK6440, "SMDK6440")
 	.atag_offset	= 0x100,
 
 	.init_irq	= s5p6440_init_irq,
-	.handle_irq	= vic_handle_irq,
 	.map_io		= smdk6440_map_io,
 	.init_machine	= smdk6440_machine_init,
-	.timer		= &s5p_timer,
+	.init_time	= samsung_timer_init,
 	.restart	= s5p64x0_restart,
 MACHINE_END

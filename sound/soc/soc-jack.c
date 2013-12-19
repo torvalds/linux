@@ -65,6 +65,7 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 	struct snd_soc_codec *codec;
 	struct snd_soc_dapm_context *dapm;
 	struct snd_soc_jack_pin *pin;
+	unsigned int sync = 0;
 	int enable;
 
 	trace_snd_soc_jack_report(jack, mask, status);
@@ -92,12 +93,16 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 			snd_soc_dapm_enable_pin(dapm, pin->pin);
 		else
 			snd_soc_dapm_disable_pin(dapm, pin->pin);
+
+		/* we need to sync for this case only */
+		sync = 1;
 	}
 
 	/* Report before the DAPM sync to help users updating micbias status */
 	blocking_notifier_call_chain(&jack->notifier, jack->status, jack);
 
-	snd_soc_dapm_sync(dapm);
+	if (sync)
+		snd_soc_dapm_sync(dapm);
 
 	snd_jack_report(jack->jack, jack->status);
 
@@ -183,8 +188,6 @@ int snd_soc_jack_add_pins(struct snd_soc_jack *jack, int count,
 		list_add(&(pins[i].list), &jack->pins);
 	}
 
-	snd_soc_dapm_new_widgets(&jack->codec->card->dapm);
-
 	/* Update to reflect the last reported status; canned jack
 	 * implementations are likely to set their state before the
 	 * card has an opportunity to associate pins.
@@ -263,7 +266,7 @@ static irqreturn_t gpio_handler(int irq, void *data)
 	if (device_may_wakeup(dev))
 		pm_wakeup_event(dev, gpio->debounce_time + 50);
 
-	schedule_delayed_work(&gpio->work,
+	queue_delayed_work(system_power_efficient_wq, &gpio->work,
 			      msecs_to_jiffies(gpio->debounce_time));
 
 	return IRQ_HANDLED;

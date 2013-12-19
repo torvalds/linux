@@ -95,7 +95,7 @@ static const struct hc_driver ohci_tilegx_hc_driver = {
 static int ohci_hcd_tilegx_drv_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
-	struct tilegx_usb_platform_data *pdata = pdev->dev.platform_data;
+	struct tilegx_usb_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	pte_t pte = { 0 };
 	int my_cpu = smp_processor_id();
 	int ret;
@@ -112,8 +112,10 @@ static int ohci_hcd_tilegx_drv_probe(struct platform_device *pdev)
 
 	hcd = usb_create_hcd(&ohci_tilegx_hc_driver, &pdev->dev,
 			     dev_name(&pdev->dev));
-	if (!hcd)
-		return -ENOMEM;
+	if (!hcd) {
+		ret = -ENOMEM;
+		goto err_hcd;
+	}
 
 	/*
 	 * We don't use rsrc_start to map in our registers, but seems like
@@ -165,6 +167,7 @@ err_have_irq:
 err_no_irq:
 	tilegx_stop_ohc();
 	usb_put_hcd(hcd);
+err_hcd:
 	gxio_usb_host_destroy(&pdata->usb_ctx);
 	return ret;
 }
@@ -172,14 +175,13 @@ err_no_irq:
 static int ohci_hcd_tilegx_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
-	struct tilegx_usb_platform_data* pdata = pdev->dev.platform_data;
+	struct tilegx_usb_platform_data *pdata = dev_get_platdata(&pdev->dev);
 
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
 	tilegx_stop_ohc();
 	gxio_usb_host_destroy(&pdata->usb_ctx);
 	destroy_irq(pdata->irq);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

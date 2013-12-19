@@ -18,6 +18,7 @@ files can be found in mm/swap.c.
 
 Currently, these files are in /proc/sys/vm:
 
+- admin_reserve_kbytes
 - block_dump
 - compact_memory
 - dirty_background_bytes
@@ -53,8 +54,38 @@ Currently, these files are in /proc/sys/vm:
 - percpu_pagelist_fraction
 - stat_interval
 - swappiness
+- user_reserve_kbytes
 - vfs_cache_pressure
 - zone_reclaim_mode
+
+==============================================================
+
+admin_reserve_kbytes
+
+The amount of free memory in the system that should be reserved for users
+with the capability cap_sys_admin.
+
+admin_reserve_kbytes defaults to min(3% of free pages, 8MB)
+
+That should provide enough for the admin to log in and kill a process,
+if necessary, under the default overcommit 'guess' mode.
+
+Systems running under overcommit 'never' should increase this to account
+for the full Virtual Memory Size of programs used to recover. Otherwise,
+root may not be able to log in to recover the system.
+
+How do you calculate a minimum useful reserve?
+
+sshd or login + bash (or some other shell) + top (or ps, kill, etc.)
+
+For overcommit 'guess', we can sum resident set sizes (RSS).
+On x86_64 this is about 8MB.
+
+For overcommit 'never', we can take the max of their virtual sizes (VSZ)
+and add the sum of their RSS.
+On x86_64 this is about 128MB.
+
+Changing this takes effect whenever an application requests memory.
 
 ==============================================================
 
@@ -88,8 +119,11 @@ other appears as 0 when read.
 
 dirty_background_ratio
 
-Contains, as a percentage of total system memory, the number of pages at which
-the background kernel flusher threads will start writing out dirty data.
+Contains, as a percentage of total available memory that contains free pages
+and reclaimable pages, the number of pages at which the background kernel
+flusher threads will start writing out dirty data.
+
+The total avaiable memory is not equal to total system memory.
 
 ==============================================================
 
@@ -120,9 +154,11 @@ interval will be written out next time a flusher thread wakes up.
 
 dirty_ratio
 
-Contains, as a percentage of total system memory, the number of pages at which
-a process which is generating disk writes will itself start writing out dirty
-data.
+Contains, as a percentage of total available memory that contains free pages
+and reclaimable pages, the number of pages at which a process which is
+generating disk writes will itself start writing out dirty data.
+
+The total avaiable memory is not equal to total system memory.
 
 ==============================================================
 
@@ -169,17 +205,25 @@ fragmentation index is <= extfrag_threshold. The default value is 500.
 
 hugepages_treat_as_movable
 
-This parameter is only useful when kernelcore= is specified at boot time to
-create ZONE_MOVABLE for pages that may be reclaimed or migrated. Huge pages
-are not movable so are not normally allocated from ZONE_MOVABLE. A non-zero
-value written to hugepages_treat_as_movable allows huge pages to be allocated
-from ZONE_MOVABLE.
+This parameter controls whether we can allocate hugepages from ZONE_MOVABLE
+or not. If set to non-zero, hugepages can be allocated from ZONE_MOVABLE.
+ZONE_MOVABLE is created when kernel boot parameter kernelcore= is specified,
+so this parameter has no effect if used without kernelcore=.
 
-Once enabled, the ZONE_MOVABLE is treated as an area of memory the huge
-pages pool can easily grow or shrink within. Assuming that applications are
-not running that mlock() a lot of memory, it is likely the huge pages pool
-can grow to the size of ZONE_MOVABLE by repeatedly entering the desired value
-into nr_hugepages and triggering page reclaim.
+Hugepage migration is now available in some situations which depend on the
+architecture and/or the hugepage size. If a hugepage supports migration,
+allocation from ZONE_MOVABLE is always enabled for the hugepage regardless
+of the value of this parameter.
+IOW, this parameter affects only non-migratable hugepages.
+
+Assuming that hugepages are not migratable in your system, one usecase of
+this parameter is that users can make hugepage pool more extensible by
+enabling the allocation from ZONE_MOVABLE. This is because on ZONE_MOVABLE
+page reclaim/migration/compaction work more and you can get contiguous
+memory more likely. Note that using ZONE_MOVABLE for non-migratable
+hugepages can do harm to other features like memory hotremove (because
+memory hotremove expects that memory blocks on ZONE_MOVABLE are always
+removable,) so it's a trade-off responsible for the users.
 
 ==============================================================
 
@@ -479,7 +523,7 @@ Specify "[Dd]efault" to request automatic configuration.  Autoconfiguration
 will select "node" order in following case.
 (1) if the DMA zone does not exist or
 (2) if the DMA zone comprises greater than 50% of the available memory or
-(3) if any node's DMA zone comprises greater than 60% of its local memory and
+(3) if any node's DMA zone comprises greater than 70% of its local memory and
     the amount of local memory is big enough.
 
 Otherwise, "zone" order will be selected. Default order is recommended unless
@@ -542,6 +586,7 @@ memory until it actually runs out.
 
 When this flag is 2, the kernel uses a "never overcommit"
 policy that attempts to prevent any overcommit of memory.
+Note that user_reserve_kbytes affects this policy.
 
 This feature can be very useful because there are a lot of
 programs that malloc() huge amounts of memory "just-in-case"
@@ -642,6 +687,24 @@ memory pages.  Higher values will increase agressiveness, lower values
 decrease the amount of swap.
 
 The default value is 60.
+
+==============================================================
+
+- user_reserve_kbytes
+
+When overcommit_memory is set to 2, "never overommit" mode, reserve
+min(3% of current process size, user_reserve_kbytes) of free memory.
+This is intended to prevent a user from starting a single memory hogging
+process, such that they cannot recover (kill the hog).
+
+user_reserve_kbytes defaults to min(3% of the current process size, 128MB).
+
+If this is reduced to zero, then the user will be allowed to allocate
+all free memory with a single process, minus admin_reserve_kbytes.
+Any subsequent attempts to execute a command will result in
+"fork: Cannot allocate memory".
+
+Changing this takes effect whenever an application requests memory.
 
 ==============================================================
 

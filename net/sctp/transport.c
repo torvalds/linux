@@ -30,10 +30,7 @@
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    La Monte H.P. Yarroll <piggy@acm.org>
@@ -43,9 +40,6 @@
  *    Hui Huang             <hui.huang@nokia.com>
  *    Sridhar Samudrala	    <sri@us.ibm.com>
  *    Ardelle Fan	    <ardelle.fan@intel.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -116,14 +110,13 @@ struct sctp_transport *sctp_transport_new(struct net *net,
 {
 	struct sctp_transport *transport;
 
-	transport = t_new(struct sctp_transport, gfp);
+	transport = kzalloc(sizeof(*transport), gfp);
 	if (!transport)
 		goto fail;
 
 	if (!sctp_transport_init(net, transport, addr, gfp))
 		goto fail_init;
 
-	transport->malloced = 1;
 	SCTP_DBG_OBJCNT_INC(transport);
 
 	return transport;
@@ -151,13 +144,11 @@ void sctp_transport_free(struct sctp_transport *transport)
 	 * structure hang around in memory since we know
 	 * the tranport is going away.
 	 */
-	if (timer_pending(&transport->T3_rtx_timer) &&
-	    del_timer(&transport->T3_rtx_timer))
+	if (del_timer(&transport->T3_rtx_timer))
 		sctp_transport_put(transport);
 
 	/* Delete the ICMP proto unreachable timer if it's active. */
-	if (timer_pending(&transport->proto_unreach_timer) &&
-	    del_timer(&transport->proto_unreach_timer))
+	if (del_timer(&transport->proto_unreach_timer))
 		sctp_association_put(transport->asoc);
 
 	sctp_transport_put(transport);
@@ -168,10 +159,6 @@ static void sctp_transport_destroy_rcu(struct rcu_head *head)
 	struct sctp_transport *transport;
 
 	transport = container_of(head, struct sctp_transport, rcu);
-	if (transport->asoc)
-		sctp_association_put(transport->asoc);
-
-	sctp_packet_free(&transport->packet);
 
 	dst_release(transport->dst);
 	kfree(transport);
@@ -183,7 +170,15 @@ static void sctp_transport_destroy_rcu(struct rcu_head *head)
  */
 static void sctp_transport_destroy(struct sctp_transport *transport)
 {
-	SCTP_ASSERT(transport->dead, "Transport is not dead", return);
+	if (unlikely(!transport->dead)) {
+		WARN(1, "Attempt to destroy undead transport %p!\n", transport);
+		return;
+	}
+
+	sctp_packet_free(&transport->packet);
+
+	if (transport->asoc)
+		sctp_association_put(transport->asoc);
 
 	call_rcu(&transport->rcu, sctp_transport_destroy_rcu);
 }
@@ -319,11 +314,9 @@ void sctp_transport_put(struct sctp_transport *transport)
 /* Update transport's RTO based on the newly calculated RTT. */
 void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 {
-	/* Check for valid transport.  */
-	SCTP_ASSERT(tp, "NULL transport", return);
-
-	/* We should not be doing any RTO updates unless rto_pending is set.  */
-	SCTP_ASSERT(tp->rto_pending, "rto_pending not set", return);
+	if (unlikely(!tp->rto_pending))
+		/* We should not be doing any RTO updates unless rto_pending is set.  */
+		pr_debug("%s: rto_pending not set on transport %p!\n", __func__, tp);
 
 	if (tp->rttvar || tp->srtt) {
 		struct net *net = sock_net(tp->asoc->base.sk);
@@ -379,9 +372,8 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 	 */
 	tp->rto_pending = 0;
 
-	SCTP_DEBUG_PRINTK("%s: transport: %p, rtt: %d, srtt: %d "
-			  "rttvar: %d, rto: %ld\n", __func__,
-			  tp, rtt, tp->srtt, tp->rttvar, tp->rto);
+	pr_debug("%s: transport:%p, rtt:%d, srtt:%d rttvar:%d, rto:%ld\n",
+		 __func__, tp, rtt, tp->srtt, tp->rttvar, tp->rto);
 }
 
 /* This routine updates the transport's cwnd and partial_bytes_acked
@@ -435,12 +427,11 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 			cwnd += pmtu;
 		else
 			cwnd += bytes_acked;
-		SCTP_DEBUG_PRINTK("%s: SLOW START: transport: %p, "
-				  "bytes_acked: %d, cwnd: %d, ssthresh: %d, "
-				  "flight_size: %d, pba: %d\n",
-				  __func__,
-				  transport, bytes_acked, cwnd,
-				  ssthresh, flight_size, pba);
+
+		pr_debug("%s: slow start: transport:%p, bytes_acked:%d, "
+			 "cwnd:%d, ssthresh:%d, flight_size:%d, pba:%d\n",
+			 __func__, transport, bytes_acked, cwnd, ssthresh,
+			 flight_size, pba);
 	} else {
 		/* RFC 2960 7.2.2 Whenever cwnd is greater than ssthresh,
 		 * upon each SACK arrival that advances the Cumulative TSN Ack
@@ -461,12 +452,12 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 			cwnd += pmtu;
 			pba = ((cwnd < pba) ? (pba - cwnd) : 0);
 		}
-		SCTP_DEBUG_PRINTK("%s: CONGESTION AVOIDANCE: "
-				  "transport: %p, bytes_acked: %d, cwnd: %d, "
-				  "ssthresh: %d, flight_size: %d, pba: %d\n",
-				  __func__,
-				  transport, bytes_acked, cwnd,
-				  ssthresh, flight_size, pba);
+
+		pr_debug("%s: congestion avoidance: transport:%p, "
+			 "bytes_acked:%d, cwnd:%d, ssthresh:%d, "
+			 "flight_size:%d, pba:%d\n", __func__,
+			 transport, bytes_acked, cwnd, ssthresh,
+			 flight_size, pba);
 	}
 
 	transport->cwnd = cwnd;
@@ -560,10 +551,10 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 	}
 
 	transport->partial_bytes_acked = 0;
-	SCTP_DEBUG_PRINTK("%s: transport: %p reason: %d cwnd: "
-			  "%d ssthresh: %d\n", __func__,
-			  transport, reason,
-			  transport->cwnd, transport->ssthresh);
+
+	pr_debug("%s: transport:%p, reason:%d, cwnd:%d, ssthresh:%d\n",
+		 __func__, transport, reason, transport->cwnd,
+		 transport->ssthresh);
 }
 
 /* Apply Max.Burst limit to the congestion window:
@@ -582,7 +573,7 @@ void sctp_transport_burst_limited(struct sctp_transport *t)
 	u32 old_cwnd = t->cwnd;
 	u32 max_burst_bytes;
 
-	if (t->burst_limited)
+	if (t->burst_limited || asoc->max_burst == 0)
 		return;
 
 	max_burst_bytes = t->flight_size + (asoc->max_burst * asoc->pathmtu);
@@ -654,10 +645,9 @@ void sctp_transport_reset(struct sctp_transport *t)
 void sctp_transport_immediate_rtx(struct sctp_transport *t)
 {
 	/* Stop pending T3_rtx_timer */
-	if (timer_pending(&t->T3_rtx_timer)) {
-		(void)del_timer(&t->T3_rtx_timer);
+	if (del_timer(&t->T3_rtx_timer))
 		sctp_transport_put(t);
-	}
+
 	sctp_retransmit(&t->asoc->outqueue, t, SCTP_RTXR_T3_RTX);
 	if (!timer_pending(&t->T3_rtx_timer)) {
 		if (!mod_timer(&t->T3_rtx_timer, jiffies + t->rto))

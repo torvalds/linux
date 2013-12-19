@@ -27,7 +27,7 @@
 struct ad7266_state {
 	struct spi_device	*spi;
 	struct regulator	*reg;
-	unsigned long		vref_uv;
+	unsigned long		vref_mv;
 
 	struct spi_transfer	single_xfer[3];
 	struct spi_message	single_msg;
@@ -61,17 +61,7 @@ static int ad7266_powerdown(struct ad7266_state *st)
 static int ad7266_preenable(struct iio_dev *indio_dev)
 {
 	struct ad7266_state *st = iio_priv(indio_dev);
-	int ret;
-
-	ret = ad7266_wakeup(st);
-	if (ret)
-		return ret;
-
-	ret = iio_sw_buffer_preenable(indio_dev);
-	if (ret)
-		ad7266_powerdown(st);
-
-	return ret;
+	return ad7266_wakeup(st);
 }
 
 static int ad7266_postdisable(struct iio_dev *indio_dev)
@@ -96,9 +86,8 @@ static irqreturn_t ad7266_trigger_handler(int irq, void *p)
 
 	ret = spi_read(st->spi, st->data, 4);
 	if (ret == 0) {
-		if (indio_dev->scan_timestamp)
-			((s64 *)st->data)[1] = pf->timestamp;
-		iio_push_to_buffers(indio_dev, (u8 *)st->data);
+		iio_push_to_buffers_with_timestamp(indio_dev, st->data,
+			    pf->timestamp);
 	}
 
 	iio_trigger_notify_done(indio_dev->trig);
@@ -157,7 +146,7 @@ static int ad7266_read_raw(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan, int *val, int *val2, long m)
 {
 	struct ad7266_state *st = iio_priv(indio_dev);
-	unsigned long scale_uv;
+	unsigned long scale_mv;
 	int ret;
 
 	switch (m) {
@@ -175,16 +164,15 @@ static int ad7266_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		scale_uv = (st->vref_uv * 100);
+		scale_mv = st->vref_mv;
 		if (st->mode == AD7266_MODE_DIFF)
-			scale_uv *= 2;
+			scale_mv *= 2;
 		if (st->range == AD7266_RANGE_2VREF)
-			scale_uv *= 2;
+			scale_mv *= 2;
 
-		scale_uv >>= chan->scan_type.realbits;
-		*val =  scale_uv / 100000;
-		*val2 = (scale_uv % 100000) * 10;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = scale_mv;
+		*val2 = chan->scan_type.realbits;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	case IIO_CHAN_INFO_OFFSET:
 		if (st->range == AD7266_RANGE_2VREF &&
 			st->mode != AD7266_MODE_DIFF)
@@ -201,9 +189,9 @@ static int ad7266_read_raw(struct iio_dev *indio_dev,
 	.indexed = 1,					\
 	.channel = (_chan),				\
 	.address = (_chan),				\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT	\
-		| IIO_CHAN_INFO_SCALE_SHARED_BIT	\
-		| IIO_CHAN_INFO_OFFSET_SHARED_BIT,	\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) \
+		| BIT(IIO_CHAN_INFO_OFFSET),			\
 	.scan_index = (_chan),				\
 	.scan_type = {					\
 		.sign = (_sign),			\
@@ -249,9 +237,9 @@ static AD7266_DECLARE_SINGLE_ENDED_CHANNELS_FIXED(s, 's');
 	.channel = (_chan) * 2,				\
 	.channel2 = (_chan) * 2 + 1,			\
 	.address = (_chan),				\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT	\
-		| IIO_CHAN_INFO_SCALE_SHARED_BIT	\
-		| IIO_CHAN_INFO_OFFSET_SHARED_BIT,	\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE)	\
+		| BIT(IIO_CHAN_INFO_OFFSET),			\
 	.scan_index = (_chan),				\
 	.scan_type = {					\
 		.sign = _sign,			\
@@ -293,7 +281,7 @@ static const struct iio_info ad7266_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static unsigned long ad7266_available_scan_masks[] = {
+static const unsigned long ad7266_available_scan_masks[] = {
 	0x003,
 	0x00c,
 	0x030,
@@ -303,14 +291,14 @@ static unsigned long ad7266_available_scan_masks[] = {
 	0x000,
 };
 
-static unsigned long ad7266_available_scan_masks_diff[] = {
+static const unsigned long ad7266_available_scan_masks_diff[] = {
 	0x003,
 	0x00c,
 	0x030,
 	0x000,
 };
 
-static unsigned long ad7266_available_scan_masks_fixed[] = {
+static const unsigned long ad7266_available_scan_masks_fixed[] = {
 	0x003,
 	0x000,
 };
@@ -318,7 +306,7 @@ static unsigned long ad7266_available_scan_masks_fixed[] = {
 struct ad7266_chan_info {
 	const struct iio_chan_spec *channels;
 	unsigned int num_channels;
-	unsigned long *scan_masks;
+	const unsigned long *scan_masks;
 };
 
 #define AD7266_CHAN_INFO_INDEX(_differential, _signed, _fixed) \
@@ -367,7 +355,7 @@ static const struct ad7266_chan_info ad7266_chan_infos[] = {
 	},
 };
 
-static void __devinit ad7266_init_channels(struct iio_dev *indio_dev)
+static void ad7266_init_channels(struct iio_dev *indio_dev)
 {
 	struct ad7266_state *st = iio_priv(indio_dev);
 	bool is_differential, is_signed;
@@ -391,7 +379,7 @@ static const char * const ad7266_gpio_labels[] = {
 	"AD0", "AD1", "AD2",
 };
 
-static int __devinit ad7266_probe(struct spi_device *spi)
+static int ad7266_probe(struct spi_device *spi)
 {
 	struct ad7266_platform_data *pdata = spi->dev.platform_data;
 	struct iio_dev *indio_dev;
@@ -399,22 +387,26 @@ static int __devinit ad7266_probe(struct spi_device *spi)
 	unsigned int i;
 	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
 
-	st->reg = regulator_get(&spi->dev, "vref");
+	st->reg = devm_regulator_get(&spi->dev, "vref");
 	if (!IS_ERR_OR_NULL(st->reg)) {
 		ret = regulator_enable(st->reg);
 		if (ret)
-			goto error_put_reg;
+			return ret;
 
-		st->vref_uv = regulator_get_voltage(st->reg);
+		ret = regulator_get_voltage(st->reg);
+		if (ret < 0)
+			goto error_disable_reg;
+
+		st->vref_mv = ret / 1000;
 	} else {
 		/* Use internal reference */
-		st->vref_uv = 2500000;
+		st->vref_mv = 2500;
 	}
 
 	if (pdata) {
@@ -485,16 +477,11 @@ error_free_gpios:
 error_disable_reg:
 	if (!IS_ERR_OR_NULL(st->reg))
 		regulator_disable(st->reg);
-error_put_reg:
-	if (!IS_ERR_OR_NULL(st->reg))
-		regulator_put(st->reg);
-
-	iio_device_free(indio_dev);
 
 	return ret;
 }
 
-static int __devexit ad7266_remove(struct spi_device *spi)
+static int ad7266_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7266_state *st = iio_priv(indio_dev);
@@ -503,11 +490,8 @@ static int __devexit ad7266_remove(struct spi_device *spi)
 	iio_triggered_buffer_cleanup(indio_dev);
 	if (!st->fixed_addr)
 		gpio_free_array(st->gpios, ARRAY_SIZE(st->gpios));
-	if (!IS_ERR_OR_NULL(st->reg)) {
+	if (!IS_ERR_OR_NULL(st->reg))
 		regulator_disable(st->reg);
-		regulator_put(st->reg);
-	}
-	iio_device_free(indio_dev);
 
 	return 0;
 }
@@ -525,7 +509,7 @@ static struct spi_driver ad7266_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad7266_probe,
-	.remove		= __devexit_p(ad7266_remove),
+	.remove		= ad7266_remove,
 	.id_table	= ad7266_id,
 };
 module_spi_driver(ad7266_driver);

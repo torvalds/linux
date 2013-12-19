@@ -165,6 +165,7 @@ static struct platform_pwm_backlight_data palmte2_backlight_data = {
 	.max_brightness	= PALMTE2_MAX_INTENSITY,
 	.dft_brightness	= PALMTE2_MAX_INTENSITY,
 	.pwm_period_ns	= PALMTE2_PERIOD_NS,
+	.enable_gpio	= -1,
 	.init		= palmte2_backlight_init,
 	.notify		= palmte2_backlight_notify,
 	.exit		= palmte2_backlight_exit,
@@ -363,7 +364,7 @@ MACHINE_START(PALMTE2, "Palm Tungsten|E2")
 	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
 	.handle_irq	= pxa25x_handle_irq,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine	= palmte2_init,
 	.restart	= pxa_restart,
 MACHINE_END

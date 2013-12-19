@@ -176,7 +176,7 @@ enum SINF_BITS { SINF_NUM_BATTERIES = 0,
 /* R1 handles SINF_AC_CUR_BRIGHT as SINF_CUR_BRIGHT, doesn't know AC state */
 
 static int acpi_pcc_hotkey_add(struct acpi_device *device);
-static int acpi_pcc_hotkey_remove(struct acpi_device *device, int type);
+static int acpi_pcc_hotkey_remove(struct acpi_device *device);
 static void acpi_pcc_hotkey_notify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id pcc_device_ids[] = {
@@ -464,9 +464,6 @@ static void acpi_pcc_generate_keyinput(struct pcc_acpi *pcc)
 				 "error getting hotkey status\n"));
 		return;
 	}
-
-	acpi_bus_generate_proc_event(pcc->device, HKEY_NOTIFY, result);
-
 	if (!sparse_keymap_report_event(hotk_input_dev,
 					result & 0xf, result & 0x80, false))
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
@@ -493,11 +490,8 @@ static int acpi_pcc_init_input(struct pcc_acpi *pcc)
 	int error;
 
 	input_dev = input_allocate_device();
-	if (!input_dev) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Couldn't allocate input device for hotkey"));
+	if (!input_dev)
 		return -ENOMEM;
-	}
 
 	input_dev->name = ACPI_PCC_DRIVER_NAME;
 	input_dev->phys = ACPI_PCC_INPUT_PHYS;
@@ -646,24 +640,7 @@ out_hotkey:
 	return result;
 }
 
-static int __init acpi_pcc_init(void)
-{
-	int result = 0;
-
-	if (acpi_disabled)
-		return -ENODEV;
-
-	result = acpi_bus_register_driver(&acpi_pcc_driver);
-	if (result < 0) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error registering hotkey driver\n"));
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-static int acpi_pcc_hotkey_remove(struct acpi_device *device, int type)
+static int acpi_pcc_hotkey_remove(struct acpi_device *device)
 {
 	struct pcc_acpi *pcc = acpi_driver_data(device);
 
@@ -682,10 +659,4 @@ static int acpi_pcc_hotkey_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static void __exit acpi_pcc_exit(void)
-{
-	acpi_bus_unregister_driver(&acpi_pcc_driver);
-}
-
-module_init(acpi_pcc_init);
-module_exit(acpi_pcc_exit);
+module_acpi_driver(acpi_pcc_driver);

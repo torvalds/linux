@@ -22,12 +22,14 @@
  * Authors: Ben Skeggs
  */
 
-#include <core/falcon.h>
-#include <core/class.h>
-#include <core/enum.h>
-
+#include <engine/falcon.h>
 #include <engine/fifo.h>
 #include <engine/copy.h>
+
+#include <core/class.h>
+#include <core/enum.h>
+#include <core/class.h>
+#include <core/enum.h>
 
 #include "fuc/nvc0.fuc.h"
 

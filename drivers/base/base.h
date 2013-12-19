@@ -101,6 +101,8 @@ static inline int hypervisor_init(void) { return 0; }
 extern int platform_bus_init(void);
 extern void cpu_dev_init(void);
 
+struct kobject *virtual_device_parent(struct device *dev);
+
 extern int bus_add_device(struct device *dev);
 extern void bus_probe_device(struct device *dev);
 extern void bus_remove_device(struct device *dev);
@@ -116,6 +118,16 @@ static inline int driver_match_device(struct device_driver *drv,
 {
 	return drv->bus->match ? drv->bus->match(dev, drv) : 1;
 }
+
+extern int driver_add_groups(struct device_driver *drv,
+			     const struct attribute_group **groups);
+extern void driver_remove_groups(struct device_driver *drv,
+				 const struct attribute_group **groups);
+
+extern int device_add_groups(struct device *dev,
+			     const struct attribute_group **groups);
+extern void device_remove_groups(struct device *dev,
+				 const struct attribute_group **groups);
 
 extern char *make_class_name(const char *name, struct kobject *kobj);
 

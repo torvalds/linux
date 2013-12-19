@@ -14,6 +14,7 @@
 #define _UAPI_LINUX_IF_BRIDGE_H
 
 #include <linux/types.h>
+#include <linux/if_ether.h>
 
 #define SYSFS_BRIDGE_ATTR	"bridge"
 #define SYSFS_BRIDGE_FDB	"brforward"
@@ -88,7 +89,7 @@ struct __port_info {
 };
 
 struct __fdb_entry {
-	__u8 mac_addr[6];
+	__u8 mac_addr[ETH_ALEN];
 	__u8 port_no;
 	__u8 is_local;
 	__u32 ageing_timer_value;
@@ -108,14 +109,25 @@ struct __fdb_entry {
  * [IFLA_AF_SPEC] = {
  *     [IFLA_BRIDGE_FLAGS]
  *     [IFLA_BRIDGE_MODE]
+ *     [IFLA_BRIDGE_VLAN_INFO]
  * }
  */
 enum {
 	IFLA_BRIDGE_FLAGS,
 	IFLA_BRIDGE_MODE,
+	IFLA_BRIDGE_VLAN_INFO,
 	__IFLA_BRIDGE_MAX,
 };
 #define IFLA_BRIDGE_MAX (__IFLA_BRIDGE_MAX - 1)
+
+#define BRIDGE_VLAN_INFO_MASTER	(1<<0)	/* Operate on Bridge device as well */
+#define BRIDGE_VLAN_INFO_PVID	(1<<1)	/* VLAN is PVID, ingress untagged */
+#define BRIDGE_VLAN_INFO_UNTAGGED	(1<<2)	/* VLAN egresses untagged */
+
+struct bridge_vlan_info {
+	__u16 flags;
+	__u16 vid;
+};
 
 /* Bridge multicast database attributes
  * [MDBA_MDB] = {

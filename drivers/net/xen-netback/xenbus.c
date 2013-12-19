@@ -24,6 +24,12 @@
 struct backend_info {
 	struct xenbus_device *dev;
 	struct xenvif *vif;
+
+	/* This is the state that will be reflected in xenstore when any
+	 * active hotplug script completes.
+	 */
+	enum xenbus_state state;
+
 	enum xenbus_state frontend_state;
 	struct xenbus_watch hotplug_status_watch;
 	u8 have_hotplug_status_watch:1;
@@ -33,16 +39,20 @@ static int connect_rings(struct backend_info *);
 static void connect(struct backend_info *);
 static void backend_create_xenvif(struct backend_info *be);
 static void unregister_hotplug_status_watch(struct backend_info *be);
+static void set_backend_state(struct backend_info *be,
+			      enum xenbus_state state);
 
 static int netback_remove(struct xenbus_device *dev)
 {
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
 
+	set_backend_state(be, XenbusStateClosed);
+
 	unregister_hotplug_status_watch(be);
 	if (be->vif) {
 		kobject_uevent(&dev->dev.kobj, KOBJ_OFFLINE);
 		xenbus_rm(XBT_NIL, dev->nodename, "hotplug-status");
-		xenvif_disconnect(be->vif);
+		xenvif_free(be->vif);
 		be->vif = NULL;
 	}
 	kfree(be);
@@ -95,6 +105,22 @@ static int netback_probe(struct xenbus_device *dev,
 			goto abort_transaction;
 		}
 
+		err = xenbus_printf(xbt, dev->nodename, "feature-gso-tcpv6",
+				    "%d", sg);
+		if (err) {
+			message = "writing feature-gso-tcpv6";
+			goto abort_transaction;
+		}
+
+		/* We support partial checksum setup for IPv6 packets */
+		err = xenbus_printf(xbt, dev->nodename,
+				    "feature-ipv6-csum-offload",
+				    "%d", 1);
+		if (err) {
+			message = "writing feature-ipv6-csum-offload";
+			goto abort_transaction;
+		}
+
 		/* We support rx-copy path. */
 		err = xenbus_printf(xbt, dev->nodename,
 				    "feature-rx-copy", "%d", 1);
@@ -122,9 +148,21 @@ static int netback_probe(struct xenbus_device *dev,
 		goto fail;
 	}
 
+	/*
+	 * Split event channels support, this is optional so it is not
+	 * put inside the above loop.
+	 */
+	err = xenbus_printf(XBT_NIL, dev->nodename,
+			    "feature-split-event-channels",
+			    "%u", separate_tx_rx_irq);
+	if (err)
+		pr_debug("Error writing feature-split-event-channels\n");
+
 	err = xenbus_switch_state(dev, XenbusStateInitWait);
 	if (err)
 		goto fail;
+
+	be->state = XenbusStateInitWait;
 
 	/* This kicks hotplug scripts, so do it immediately. */
 	backend_create_xenvif(be);
@@ -135,7 +173,7 @@ abort_transaction:
 	xenbus_transaction_end(xbt, 1);
 	xenbus_dev_fatal(dev, err, "%s", message);
 fail:
-	pr_debug("failed");
+	pr_debug("failed\n");
 	netback_remove(dev);
 	return err;
 }
@@ -198,15 +236,113 @@ static void backend_create_xenvif(struct backend_info *be)
 	kobject_uevent(&dev->dev.kobj, KOBJ_ONLINE);
 }
 
-
-static void disconnect_backend(struct xenbus_device *dev)
+static void backend_disconnect(struct backend_info *be)
 {
-	struct backend_info *be = dev_get_drvdata(&dev->dev);
-
-	if (be->vif) {
-		xenbus_rm(XBT_NIL, dev->nodename, "hotplug-status");
+	if (be->vif)
 		xenvif_disconnect(be->vif);
-		be->vif = NULL;
+}
+
+static void backend_connect(struct backend_info *be)
+{
+	if (be->vif)
+		connect(be);
+}
+
+static inline void backend_switch_state(struct backend_info *be,
+					enum xenbus_state state)
+{
+	struct xenbus_device *dev = be->dev;
+
+	pr_debug("%s -> %s\n", dev->nodename, xenbus_strstate(state));
+	be->state = state;
+
+	/* If we are waiting for a hotplug script then defer the
+	 * actual xenbus state change.
+	 */
+	if (!be->have_hotplug_status_watch)
+		xenbus_switch_state(dev, state);
+}
+
+/* Handle backend state transitions:
+ *
+ * The backend state starts in InitWait and the following transitions are
+ * allowed.
+ *
+ * InitWait -> Connected
+ *
+ *    ^    \         |
+ *    |     \        |
+ *    |      \       |
+ *    |       \      |
+ *    |        \     |
+ *    |         \    |
+ *    |          V   V
+ *
+ *  Closed  <-> Closing
+ *
+ * The state argument specifies the eventual state of the backend and the
+ * function transitions to that state via the shortest path.
+ */
+static void set_backend_state(struct backend_info *be,
+			      enum xenbus_state state)
+{
+	while (be->state != state) {
+		switch (be->state) {
+		case XenbusStateClosed:
+			switch (state) {
+			case XenbusStateInitWait:
+			case XenbusStateConnected:
+				pr_info("%s: prepare for reconnect\n",
+					be->dev->nodename);
+				backend_switch_state(be, XenbusStateInitWait);
+				break;
+			case XenbusStateClosing:
+				backend_switch_state(be, XenbusStateClosing);
+				break;
+			default:
+				BUG();
+			}
+			break;
+		case XenbusStateInitWait:
+			switch (state) {
+			case XenbusStateConnected:
+				backend_connect(be);
+				backend_switch_state(be, XenbusStateConnected);
+				break;
+			case XenbusStateClosing:
+			case XenbusStateClosed:
+				backend_switch_state(be, XenbusStateClosing);
+				break;
+			default:
+				BUG();
+			}
+			break;
+		case XenbusStateConnected:
+			switch (state) {
+			case XenbusStateInitWait:
+			case XenbusStateClosing:
+			case XenbusStateClosed:
+				backend_disconnect(be);
+				backend_switch_state(be, XenbusStateClosing);
+				break;
+			default:
+				BUG();
+			}
+			break;
+		case XenbusStateClosing:
+			switch (state) {
+			case XenbusStateInitWait:
+			case XenbusStateConnected:
+			case XenbusStateClosed:
+				backend_switch_state(be, XenbusStateClosed);
+				break;
+			default:
+				BUG();
+			}
+			break;
+		default:
+			BUG();
+		}
 	}
 }
 
@@ -218,43 +354,33 @@ static void frontend_changed(struct xenbus_device *dev,
 {
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
 
-	pr_debug("frontend state %s", xenbus_strstate(frontend_state));
+	pr_debug("%s -> %s\n", dev->otherend, xenbus_strstate(frontend_state));
 
 	be->frontend_state = frontend_state;
 
 	switch (frontend_state) {
 	case XenbusStateInitialising:
-		if (dev->state == XenbusStateClosed) {
-			printk(KERN_INFO "%s: %s: prepare for reconnect\n",
-			       __func__, dev->nodename);
-			xenbus_switch_state(dev, XenbusStateInitWait);
-		}
+		set_backend_state(be, XenbusStateInitWait);
 		break;
 
 	case XenbusStateInitialised:
 		break;
 
 	case XenbusStateConnected:
-		if (dev->state == XenbusStateConnected)
-			break;
-		backend_create_xenvif(be);
-		if (be->vif)
-			connect(be);
+		set_backend_state(be, XenbusStateConnected);
 		break;
 
 	case XenbusStateClosing:
-		if (be->vif)
-			kobject_uevent(&dev->dev.kobj, KOBJ_OFFLINE);
-		disconnect_backend(dev);
-		xenbus_switch_state(dev, XenbusStateClosing);
+		set_backend_state(be, XenbusStateClosing);
 		break;
 
 	case XenbusStateClosed:
-		xenbus_switch_state(dev, XenbusStateClosed);
+		set_backend_state(be, XenbusStateClosed);
 		if (xenbus_dev_is_online(dev))
 			break;
 		/* fall through if not online */
 	case XenbusStateUnknown:
+		set_backend_state(be, XenbusStateClosed);
 		device_unregister(&dev->dev);
 		break;
 
@@ -347,7 +473,9 @@ static void hotplug_status_changed(struct xenbus_watch *watch,
 	if (IS_ERR(str))
 		return;
 	if (len == sizeof("connected")-1 && !memcmp(str, "connected", len)) {
-		xenbus_switch_state(be->dev, XenbusStateConnected);
+		/* Complete any pending state change */
+		xenbus_switch_state(be->dev, be->state);
+
 		/* Not interested in this watch anymore. */
 		unregister_hotplug_status_watch(be);
 	}
@@ -377,12 +505,8 @@ static void connect(struct backend_info *be)
 	err = xenbus_watch_pathfmt(dev, &be->hotplug_status_watch,
 				   hotplug_status_changed,
 				   "%s/%s", dev->nodename, "hotplug-status");
-	if (err) {
-		/* Switch now, since we can't do a watch. */
-		xenbus_switch_state(dev, XenbusStateConnected);
-	} else {
+	if (!err)
 		be->have_hotplug_status_watch = 1;
-	}
 
 	netif_wake_queue(be->vif->dev);
 }
@@ -393,19 +517,34 @@ static int connect_rings(struct backend_info *be)
 	struct xenvif *vif = be->vif;
 	struct xenbus_device *dev = be->dev;
 	unsigned long tx_ring_ref, rx_ring_ref;
-	unsigned int evtchn, rx_copy;
+	unsigned int tx_evtchn, rx_evtchn, rx_copy;
 	int err;
 	int val;
 
 	err = xenbus_gather(XBT_NIL, dev->otherend,
 			    "tx-ring-ref", "%lu", &tx_ring_ref,
-			    "rx-ring-ref", "%lu", &rx_ring_ref,
-			    "event-channel", "%u", &evtchn, NULL);
+			    "rx-ring-ref", "%lu", &rx_ring_ref, NULL);
 	if (err) {
 		xenbus_dev_fatal(dev, err,
-				 "reading %s/ring-ref and event-channel",
+				 "reading %s/ring-ref",
 				 dev->otherend);
 		return err;
+	}
+
+	/* Try split event channels first, then single event channel. */
+	err = xenbus_gather(XBT_NIL, dev->otherend,
+			    "event-channel-tx", "%u", &tx_evtchn,
+			    "event-channel-rx", "%u", &rx_evtchn, NULL);
+	if (err < 0) {
+		err = xenbus_scanf(XBT_NIL, dev->otherend,
+				   "event-channel", "%u", &tx_evtchn);
+		if (err < 0) {
+			xenbus_dev_fatal(dev, err,
+					 "reading %s/event-channel(-tx/rx)",
+					 dev->otherend);
+			return err;
+		}
+		rx_evtchn = tx_evtchn;
 	}
 
 	err = xenbus_scanf(XBT_NIL, dev->otherend, "request-rx-copy", "%u",
@@ -438,27 +577,59 @@ static int connect_rings(struct backend_info *be)
 		val = 0;
 	vif->can_sg = !!val;
 
+	vif->gso_mask = 0;
+	vif->gso_prefix_mask = 0;
+
 	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-gso-tcpv4",
 			 "%d", &val) < 0)
 		val = 0;
-	vif->gso = !!val;
+	if (val)
+		vif->gso_mask |= GSO_BIT(TCPV4);
 
 	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-gso-tcpv4-prefix",
 			 "%d", &val) < 0)
 		val = 0;
-	vif->gso_prefix = !!val;
+	if (val)
+		vif->gso_prefix_mask |= GSO_BIT(TCPV4);
+
+	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-gso-tcpv6",
+			 "%d", &val) < 0)
+		val = 0;
+	if (val)
+		vif->gso_mask |= GSO_BIT(TCPV6);
+
+	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-gso-tcpv6-prefix",
+			 "%d", &val) < 0)
+		val = 0;
+	if (val)
+		vif->gso_prefix_mask |= GSO_BIT(TCPV6);
+
+	if (vif->gso_mask & vif->gso_prefix_mask) {
+		xenbus_dev_fatal(dev, err,
+				 "%s: gso and gso prefix flags are not "
+				 "mutually exclusive",
+				 dev->otherend);
+		return -EOPNOTSUPP;
+	}
 
 	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-no-csum-offload",
 			 "%d", &val) < 0)
 		val = 0;
-	vif->csum = !val;
+	vif->ip_csum = !val;
+
+	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-ipv6-csum-offload",
+			 "%d", &val) < 0)
+		val = 0;
+	vif->ipv6_csum = !!val;
 
 	/* Map the shared frame, irq etc. */
-	err = xenvif_connect(vif, tx_ring_ref, rx_ring_ref, evtchn);
+	err = xenvif_connect(vif, tx_ring_ref, rx_ring_ref,
+			     tx_evtchn, rx_evtchn);
 	if (err) {
 		xenbus_dev_fatal(dev, err,
-				 "mapping shared-frames %lu/%lu port %u",
-				 tx_ring_ref, rx_ring_ref, evtchn);
+				 "mapping shared-frames %lu/%lu port tx %u rx %u",
+				 tx_ring_ref, rx_ring_ref,
+				 tx_evtchn, rx_evtchn);
 		return err;
 	}
 	return 0;
@@ -484,4 +655,9 @@ static DEFINE_XENBUS_DRIVER(netback, ,
 int xenvif_xenbus_init(void)
 {
 	return xenbus_register_backend(&netback_driver);
+}
+
+void xenvif_xenbus_fini(void)
+{
+	return xenbus_unregister_driver(&netback_driver);
 }

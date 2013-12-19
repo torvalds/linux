@@ -34,6 +34,9 @@
 #include <linux/i2c-gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/export.h>
+#include <linux/irqchip/arm-vic.h>
+#include <linux/reboot.h>
+#include <linux/usb/ohci_pdriver.h>
 
 #include <mach/hardware.h>
 #include <linux/platform_data/video-ep93xx.h>
@@ -43,8 +46,6 @@
 
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-
-#include <asm/hardware/vic.h>
 
 #include "soc.h"
 
@@ -140,10 +141,28 @@ static struct irqaction ep93xx_timer_irq = {
 	.handler	= ep93xx_timer_interrupt,
 };
 
-static void __init ep93xx_timer_init(void)
+static u32 ep93xx_gettimeoffset(void)
+{
+	int offset;
+
+	offset = __raw_readl(EP93XX_TIMER4_VALUE_LOW) - last_jiffy_time;
+
+	/*
+	 * Timer 4 is based on a 983.04 kHz reference clock,
+	 * so dividing by 983040 gives the fraction of a second,
+	 * so dividing by 0.983040 converts to uS.
+	 * Refactor the calculation to avoid overflow.
+	 * Finally, multiply by 1000 to give nS.
+	 */
+	return (offset + (53 * offset / 3072)) * 1000;
+}
+
+void __init ep93xx_timer_init(void)
 {
 	u32 tmode = EP93XX_TIMER123_CONTROL_MODE |
 		    EP93XX_TIMER123_CONTROL_CLKSEL;
+
+	arch_gettimeoffset = ep93xx_gettimeoffset;
 
 	/* Enable periodic HZ timer.  */
 	__raw_writel(tmode, EP93XX_TIMER1_CONTROL);
@@ -157,21 +176,6 @@ static void __init ep93xx_timer_init(void)
 
 	setup_irq(IRQ_EP93XX_TIMER1, &ep93xx_timer_irq);
 }
-
-static unsigned long ep93xx_gettimeoffset(void)
-{
-	int offset;
-
-	offset = __raw_readl(EP93XX_TIMER4_VALUE_LOW) - last_jiffy_time;
-
-	/* Calculate (1000000 / 983040) * offset.  */
-	return offset + (53 * offset / 3072);
-}
-
-struct sys_timer ep93xx_timer = {
-	.init		= ep93xx_timer_init,
-	.offset		= ep93xx_gettimeoffset,
-};
 
 
 /*************************************************************************
@@ -278,7 +282,7 @@ static AMBA_APB_DEVICE(uart1, "apb:uart1", 0x00041010, EP93XX_UART1_PHYS_BASE,
 	{ IRQ_EP93XX_UART1 }, &ep93xx_uart_data);
 
 static AMBA_APB_DEVICE(uart2, "apb:uart2", 0x00041010, EP93XX_UART2_PHYS_BASE,
-	{ IRQ_EP93XX_UART2 }, &ep93xx_uart_data);
+	{ IRQ_EP93XX_UART2 }, NULL);
 
 static AMBA_APB_DEVICE(uart3, "apb:uart3", 0x00041010, EP93XX_UART3_PHYS_BASE,
 	{ IRQ_EP93XX_UART3 }, &ep93xx_uart_data);
@@ -294,24 +298,52 @@ static struct platform_device ep93xx_rtc_device = {
 	.resource	= ep93xx_rtc_resource,
 };
 
+/*************************************************************************
+ * EP93xx OHCI USB Host
+ *************************************************************************/
+
+static struct clk *ep93xx_ohci_host_clock;
+
+static int ep93xx_ohci_power_on(struct platform_device *pdev)
+{
+	if (!ep93xx_ohci_host_clock) {
+		ep93xx_ohci_host_clock = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(ep93xx_ohci_host_clock))
+			return PTR_ERR(ep93xx_ohci_host_clock);
+	}
+
+	return clk_enable(ep93xx_ohci_host_clock);
+}
+
+static void ep93xx_ohci_power_off(struct platform_device *pdev)
+{
+	clk_disable(ep93xx_ohci_host_clock);
+}
+
+static struct usb_ohci_pdata ep93xx_ohci_pdata = {
+	.power_on	= ep93xx_ohci_power_on,
+	.power_off	= ep93xx_ohci_power_off,
+	.power_suspend	= ep93xx_ohci_power_off,
+};
 
 static struct resource ep93xx_ohci_resources[] = {
 	DEFINE_RES_MEM(EP93XX_USB_PHYS_BASE, 0x1000),
 	DEFINE_RES_IRQ(IRQ_EP93XX_USB),
 };
 
+static u64 ep93xx_ohci_dma_mask = DMA_BIT_MASK(32);
 
 static struct platform_device ep93xx_ohci_device = {
-	.name		= "ep93xx-ohci",
+	.name		= "ohci-platform",
 	.id		= -1,
-	.dev		= {
-		.dma_mask		= &ep93xx_ohci_device.dev.coherent_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
 	.num_resources	= ARRAY_SIZE(ep93xx_ohci_resources),
 	.resource	= ep93xx_ohci_resources,
+	.dev		= {
+		.dma_mask		= &ep93xx_ohci_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &ep93xx_ohci_pdata,
+	},
 };
-
 
 /*************************************************************************
  * EP93xx physmap'ed flash
@@ -919,7 +951,7 @@ void __init ep93xx_init_devices(void)
 	gpio_led_register_device(-1, &ep93xx_led_data);
 }
 
-void ep93xx_restart(char mode, const char *cmd)
+void ep93xx_restart(enum reboot_mode mode, const char *cmd)
 {
 	/*
 	 * Set then clear the SWRST bit to initiate a software reset

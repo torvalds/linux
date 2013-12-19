@@ -16,20 +16,21 @@
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
-#include "xfs_types.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
 #include "xfs_mount.h"
+#include "xfs_da_format.h"
+#include "xfs_dir2.h"
 #include "xfs_export.h"
-#include "xfs_vnodeops.h"
-#include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
+#include "xfs_trans.h"
 #include "xfs_inode_item.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
+#include "xfs_log.h"
 
 /*
  * Note that we only accept fileids which are long enough rather than allow
@@ -48,7 +49,7 @@ static int xfs_fileid_length(int fileid_type)
 	case FILEID_INO32_GEN_PARENT | XFS_FILEID_TYPE_64FLAG:
 		return 6;
 	}
-	return 255; /* invalid */
+	return FILEID_INVALID;
 }
 
 STATIC int
@@ -90,7 +91,7 @@ xfs_fs_encode_fh(
 	len = xfs_fileid_length(fileid_type);
 	if (*max_len < len) {
 		*max_len = len;
-		return 255;
+		return FILEID_INVALID;
 	}
 	*max_len = len;
 

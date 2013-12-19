@@ -37,6 +37,8 @@
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 
 /*************************************
  * ARC UART Hardware Specs
@@ -160,7 +162,7 @@ static unsigned int arc_serial_tx_empty(struct uart_port *port)
 /*
  * Driver internal routine, used by both tty(serial core) as well as tx-isr
  *  -Called under spinlock in either cases
- *  -also tty->stopped / tty->hw_stopped has already been checked
+ *  -also tty->stopped has already been checked
  *     = by uart_start( ) before calling us
  *     = tx_ist checks that too before calling
  */
@@ -207,13 +209,9 @@ static void arc_serial_start_tx(struct uart_port *port)
 	arc_serial_tx_chars(uart);
 }
 
-static void arc_serial_rx_chars(struct arc_uart_port *uart)
+static void arc_serial_rx_chars(struct arc_uart_port *uart, unsigned int status)
 {
-	struct tty_struct *tty = tty_port_tty_get(&uart->port.state->port);
-	unsigned int status, ch, flg = 0;
-
-	if (!tty)
-		return;
+	unsigned int ch, flg = 0;
 
 	/*
 	 * UART has 4 deep RX-FIFO. Driver's recongnition of this fact
@@ -224,11 +222,11 @@ static void arc_serial_rx_chars(struct arc_uart_port *uart)
 	 * before RX-EMPTY=0, implies some sort of buffering going on in the
 	 * controller, which is indeed the Rx-FIFO.
 	 */
-	while (!((status = UART_GET_STATUS(uart)) & RXEMPTY)) {
-
-		ch = UART_GET_DATA(uart);
-		uart->port.icount.rx++;
-
+	do {
+		/*
+		 * This could be an Rx Intr for err (no data),
+		 * so check err and clear that Intr first
+		 */
 		if (unlikely(status & (RXOERR | RXFERR))) {
 			if (status & RXOERR) {
 				uart->port.icount.overrun++;
@@ -244,16 +242,19 @@ static void arc_serial_rx_chars(struct arc_uart_port *uart)
 		} else
 			flg = TTY_NORMAL;
 
-		if (unlikely(uart_handle_sysrq_char(&uart->port, ch)))
-			goto done;
+		if (status & RXEMPTY)
+			continue;
 
-		uart_insert_char(&uart->port, status, RXOERR, ch, flg);
+		ch = UART_GET_DATA(uart);
+		uart->port.icount.rx++;
 
-done:
-		tty_flip_buffer_push(tty);
-	}
+		if (!(uart_handle_sysrq_char(&uart->port, ch)))
+			uart_insert_char(&uart->port, status, RXOERR, ch, flg);
 
-	tty_kref_put(tty);
+		spin_unlock(&uart->port.lock);
+		tty_flip_buffer_push(&uart->port.state->port);
+		spin_lock(&uart->port.lock);
+	} while (!((status = UART_GET_STATUS(uart)) & RXEMPTY));
 }
 
 /*
@@ -296,11 +297,11 @@ static irqreturn_t arc_serial_isr(int irq, void *dev_id)
 	 * notifications from the UART Controller.
 	 * To demultiplex between the two, we check the relevant bits
 	 */
-	if ((status & RXIENB) && !(status & RXEMPTY)) {
+	if (status & RXIENB) {
 
 		/* already in ISR, no need of xx_irqsave */
 		spin_lock(&uart->port.lock);
-		arc_serial_rx_chars(uart);
+		arc_serial_rx_chars(uart, status);
 		spin_unlock(&uart->port.lock);
 	}
 
@@ -526,18 +527,37 @@ static struct uart_ops arc_serial_pops = {
 };
 
 static int
-arc_uart_init_one(struct platform_device *pdev, struct arc_uart_port *uart)
+arc_uart_init_one(struct platform_device *pdev, int dev_id)
 {
 	struct resource *res, *res2;
 	unsigned long *plat_data;
+	struct arc_uart_port *uart = &arc_uart_ports[dev_id];
 
-	if (pdev->id < 0 || pdev->id >= CONFIG_SERIAL_ARC_NR_PORTS) {
-		dev_err(&pdev->dev, "Wrong uart platform device id.\n");
-		return -ENOENT;
+	plat_data = dev_get_platdata(&pdev->dev);
+	if (!plat_data)
+		return -ENODEV;
+
+	uart->is_emulated = !!plat_data[0];	/* workaround ISS bug */
+
+	if (is_early_platform_device(pdev)) {
+		uart->port.uartclk = plat_data[1];
+		uart->baud = plat_data[2];
+	} else {
+		struct device_node *np = pdev->dev.of_node;
+		u32 val;
+
+		if (of_property_read_u32(np, "clock-frequency", &val)) {
+			dev_err(&pdev->dev, "clock-frequency property NOTset\n");
+			return -EINVAL;
+		}
+		uart->port.uartclk = val;
+
+		if (of_property_read_u32(np, "current-speed", &val)) {
+			dev_err(&pdev->dev, "current-speed property NOT set\n");
+			return -EINVAL;
+		}
+		uart->baud = val;
 	}
-
-	plat_data = ((unsigned long *)(pdev->dev.platform_data));
-	uart->baud = plat_data[0];
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -557,10 +577,9 @@ arc_uart_init_one(struct platform_device *pdev, struct arc_uart_port *uart)
 	uart->port.dev = &pdev->dev;
 	uart->port.iotype = UPIO_MEM;
 	uart->port.flags = UPF_BOOT_AUTOCONF;
-	uart->port.line = pdev->id;
+	uart->port.line = dev_id;
 	uart->port.ops = &arc_serial_pops;
 
-	uart->port.uartclk = plat_data[1];
 	uart->port.fifosize = ARC_UART_TX_FIFO_SIZE;
 
 	/*
@@ -568,9 +587,6 @@ arc_uart_init_one(struct platform_device *pdev, struct arc_uart_port *uart)
 	 * char or not. Explicitly setting it here, removes the subtelty
 	 */
 	uart->port.ignore_status_mask = 0;
-
-	/* Real Hardware vs. emulated to work around a bug */
-	uart->is_emulated = !!plat_data[2];
 
 	return 0;
 }
@@ -648,45 +664,50 @@ static __init void early_serial_write(struct console *con, const char *s,
 	}
 }
 
-static struct __initdata console arc_early_serial_console = {
+static struct console arc_early_serial_console __initdata = {
 	.name = "early_ARCuart",
 	.write = early_serial_write,
 	.flags = CON_PRINTBUFFER | CON_BOOT,
 	.index = -1
 };
 
-static int arc_serial_probe_earlyprintk(struct platform_device *pdev)
+static int __init arc_serial_probe_earlyprintk(struct platform_device *pdev)
 {
-	arc_early_serial_console.index = pdev->id;
+	int dev_id = pdev->id < 0 ? 0 : pdev->id;
+	int rc;
 
-	arc_uart_init_one(pdev, &arc_uart_ports[pdev->id]);
+	arc_early_serial_console.index = dev_id;
+
+	rc = arc_uart_init_one(pdev, dev_id);
+	if (rc)
+		panic("early console init failed\n");
 
 	arc_serial_console_setup(&arc_early_serial_console, NULL);
 
 	register_console(&arc_early_serial_console);
 	return 0;
 }
-#else
-static int arc_serial_probe_earlyprintk(struct platform_device *pdev)
-{
-	return -ENODEV;
-}
 #endif	/* CONFIG_SERIAL_ARC_CONSOLE */
 
 static int arc_serial_probe(struct platform_device *pdev)
 {
-	struct arc_uart_port *uart;
-	int rc;
+	int rc, dev_id;
+	struct device_node *np = pdev->dev.of_node;
 
-	if (is_early_platform_device(pdev))
-		return arc_serial_probe_earlyprintk(pdev);
+	/* no device tree device */
+	if (!np)
+		return -ENODEV;
 
-	uart = &arc_uart_ports[pdev->id];
-	rc = arc_uart_init_one(pdev, uart);
+	dev_id = of_alias_get_id(np, "serial");
+	if (dev_id < 0)
+		dev_id = 0;
+
+	rc = arc_uart_init_one(pdev, dev_id);
 	if (rc)
 		return rc;
 
-	return uart_add_one_port(&arc_uart_driver, &uart->port);
+	rc = uart_add_one_port(&arc_uart_driver, &arc_uart_ports[dev_id].port);
+	return rc;
 }
 
 static int arc_serial_remove(struct platform_device *pdev)
@@ -695,16 +716,32 @@ static int arc_serial_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id arc_uart_dt_ids[] = {
+	{ .compatible = "snps,arc-uart" },
+	{ /* Sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, arc_uart_dt_ids);
+
 static struct platform_driver arc_platform_driver = {
 	.probe = arc_serial_probe,
 	.remove = arc_serial_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
+		.of_match_table  = arc_uart_dt_ids,
 	 },
 };
 
 #ifdef CONFIG_SERIAL_ARC_CONSOLE
+
+static struct platform_driver early_arc_platform_driver __initdata = {
+	.probe = arc_serial_probe_earlyprintk,
+	.remove = arc_serial_remove,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+	 },
+};
 /*
  * Register an early platform driver of "earlyprintk" class.
  * ARCH platform code installs the driver and probes the early devices
@@ -712,7 +749,7 @@ static struct platform_driver arc_platform_driver = {
  * or it could be done independently, for all "earlyprintk" class drivers.
  * [see arch/arc/plat-arcfpga/platform.c]
  */
-early_platform_init("earlyprintk", &arc_platform_driver);
+early_platform_init("earlyprintk", &early_arc_platform_driver);
 
 #endif  /* CONFIG_SERIAL_ARC_CONSOLE */
 
@@ -741,6 +778,6 @@ module_init(arc_serial_init);
 module_exit(arc_serial_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("plat-arcfpga/uart");
+MODULE_ALIAS("platform:" DRIVER_NAME);
 MODULE_AUTHOR("Vineet Gupta");
 MODULE_DESCRIPTION("ARC(Synopsys) On-Chip(fpga) serial driver");

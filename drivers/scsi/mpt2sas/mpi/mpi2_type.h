@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2000-2007 LSI Corporation.
+ *  Copyright (c) 2000-2013 LSI Corporation.
  *
  *
  *           Name:  mpi2_type.h

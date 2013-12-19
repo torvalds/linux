@@ -1230,7 +1230,7 @@ static int cyber2000fb_ddc_getsda(void *data)
 	return retval;
 }
 
-static int __devinit cyber2000fb_setup_ddc_bus(struct cfb_info *cfb)
+static int cyber2000fb_setup_ddc_bus(struct cfb_info *cfb)
 {
 	strlcpy(cfb->ddc_adapter.name, cfb->fb.fix.id,
 		sizeof(cfb->ddc_adapter.name));
@@ -1305,7 +1305,7 @@ static int cyber2000fb_i2c_getscl(void *data)
 	return ret;
 }
 
-static int __devinit cyber2000fb_i2c_register(struct cfb_info *cfb)
+static int cyber2000fb_i2c_register(struct cfb_info *cfb)
 {
 	strlcpy(cfb->i2c_adapter.name, cfb->fb.fix.id,
 		sizeof(cfb->i2c_adapter.name));
@@ -1336,7 +1336,7 @@ static void cyber2000fb_i2c_unregister(struct cfb_info *cfb)
  * These parameters give
  * 640x480, hsync 31.5kHz, vsync 60Hz
  */
-static struct fb_videomode __devinitdata cyber2000fb_default_mode = {
+static struct fb_videomode cyber2000fb_default_mode = {
 	.refresh	= 60,
 	.xres		= 640,
 	.yres		= 480,
@@ -1404,8 +1404,7 @@ static void cyberpro_init_hw(struct cfb_info *cfb)
 	}
 }
 
-static struct cfb_info __devinit *cyberpro_alloc_fb_info(unsigned int id,
-							 char *name)
+static struct cfb_info *cyberpro_alloc_fb_info(unsigned int id, char *name)
 {
 	struct cfb_info *cfb;
 
@@ -1524,7 +1523,7 @@ static int cyber2000fb_setup(char *options)
  *  - memory mapped access to the registers
  *  - initialised mem_ctl1 and mem_ctl2 appropriately.
  */
-static int __devinit cyberpro_common_probe(struct cfb_info *cfb)
+static int cyberpro_common_probe(struct cfb_info *cfb)
 {
 	u_long smem_size;
 	u_int h_sync, v_sync;
@@ -1615,7 +1614,7 @@ failed:
 	return err;
 }
 
-static void __devexit cyberpro_common_remove(struct cfb_info *cfb)
+static void cyberpro_common_remove(struct cfb_info *cfb)
 {
 	unregister_framebuffer(&cfb->fb);
 #ifdef CONFIG_FB_CYBER2000_DDC
@@ -1641,67 +1640,6 @@ static void cyberpro_common_resume(struct cfb_info *cfb)
 	 */
 	cyber2000fb_set_par(&cfb->fb);
 }
-
-#ifdef CONFIG_ARCH_SHARK
-
-#include <mach/framebuffer.h>
-
-static int __devinit cyberpro_vl_probe(void)
-{
-	struct cfb_info *cfb;
-	int err = -ENOMEM;
-
-	if (!request_mem_region(FB_START, FB_SIZE, "CyberPro2010"))
-		return err;
-
-	cfb = cyberpro_alloc_fb_info(ID_CYBERPRO_2010, "CyberPro2010");
-	if (!cfb)
-		goto failed_release;
-
-	cfb->irq = -1;
-	cfb->region = ioremap(FB_START, FB_SIZE);
-	if (!cfb->region)
-		goto failed_ioremap;
-
-	cfb->regs = cfb->region + MMIO_OFFSET;
-	cfb->fb.device = NULL;
-	cfb->fb.fix.mmio_start = FB_START + MMIO_OFFSET;
-	cfb->fb.fix.smem_start = FB_START;
-
-	/*
-	 * Bring up the hardware.  This is expected to enable access
-	 * to the linear memory region, and allow access to the memory
-	 * mapped registers.  Also, mem_ctl1 and mem_ctl2 must be
-	 * initialised.
-	 */
-	cyber2000fb_writeb(0x18, 0x46e8, cfb);
-	cyber2000fb_writeb(0x01, 0x102, cfb);
-	cyber2000fb_writeb(0x08, 0x46e8, cfb);
-	cyber2000fb_writeb(EXT_BIU_MISC, 0x3ce, cfb);
-	cyber2000fb_writeb(EXT_BIU_MISC_LIN_ENABLE, 0x3cf, cfb);
-
-	cfb->mclk_mult = 0xdb;
-	cfb->mclk_div  = 0x54;
-
-	err = cyberpro_common_probe(cfb);
-	if (err)
-		goto failed;
-
-	if (int_cfb_info == NULL)
-		int_cfb_info = cfb;
-
-	return 0;
-
-failed:
-	iounmap(cfb->region);
-failed_ioremap:
-	cyberpro_free_fb_info(cfb);
-failed_release:
-	release_mem_region(FB_START, FB_SIZE);
-
-	return err;
-}
-#endif /* CONFIG_ARCH_SHARK */
 
 /*
  * PCI specific support.
@@ -1780,8 +1718,8 @@ static int cyberpro_pci_enable_mmio(struct cfb_info *cfb)
 	return 0;
 }
 
-static int __devinit
-cyberpro_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int cyberpro_pci_probe(struct pci_dev *dev,
+			      const struct pci_device_id *id)
 {
 	struct cfb_info *cfb;
 	char name[16];
@@ -1863,7 +1801,7 @@ failed_release:
 	return err;
 }
 
-static void __devexit cyberpro_pci_remove(struct pci_dev *dev)
+static void cyberpro_pci_remove(struct pci_dev *dev)
 {
 	struct cfb_info *cfb = pci_get_drvdata(dev);
 
@@ -1872,11 +1810,6 @@ static void __devexit cyberpro_pci_remove(struct pci_dev *dev)
 		iounmap(cfb->region);
 		cyberpro_free_fb_info(cfb);
 
-		/*
-		 * Ensure that the driver data is no longer
-		 * valid.
-		 */
-		pci_set_drvdata(dev, NULL);
 		if (cfb == int_cfb_info)
 			int_cfb_info = NULL;
 
@@ -1923,7 +1856,7 @@ MODULE_DEVICE_TABLE(pci, cyberpro_pci_table);
 static struct pci_driver cyberpro_driver = {
 	.name		= "CyberPro",
 	.probe		= cyberpro_pci_probe,
-	.remove		= __devexit_p(cyberpro_pci_remove),
+	.remove		= cyberpro_pci_remove,
 	.suspend	= cyberpro_pci_suspend,
 	.resume		= cyberpro_pci_resume,
 	.id_table	= cyberpro_pci_table
@@ -1949,28 +1882,19 @@ static int __init cyber2000fb_init(void)
 	cyber2000fb_setup(option);
 #endif
 
-#ifdef CONFIG_ARCH_SHARK
-	err = cyberpro_vl_probe();
-	if (!err)
-		ret = 0;
-#endif
-#ifdef CONFIG_PCI
 	err = pci_register_driver(&cyberpro_driver);
 	if (!err)
 		ret = 0;
-#endif
 
 	return ret ? err : 0;
 }
 module_init(cyber2000fb_init);
 
-#ifndef CONFIG_ARCH_SHARK
 static void __exit cyberpro_exit(void)
 {
 	pci_unregister_driver(&cyberpro_driver);
 }
 module_exit(cyberpro_exit);
-#endif
 
 MODULE_AUTHOR("Russell King");
 MODULE_DESCRIPTION("CyberPro 2000, 2010 and 5000 framebuffer driver");

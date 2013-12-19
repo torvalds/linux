@@ -40,7 +40,6 @@
 #include <linux/gpio.h>
 #include "../codecs/ssm2602.h"
 #include "bf5xx-sport.h"
-#include "bf5xx-i2s-pcm.h"
 
 static struct snd_soc_card bf5xx_ssm2602;
 

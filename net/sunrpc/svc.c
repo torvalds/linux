@@ -515,15 +515,6 @@ EXPORT_SYMBOL_GPL(svc_create_pooled);
 
 void svc_shutdown_net(struct svc_serv *serv, struct net *net)
 {
-	/*
-	 * The set of xprts (contained in the sv_tempsocks and
-	 * sv_permsocks lists) is now constant, since it is modified
-	 * only by accepting new sockets (done by service threads in
-	 * svc_recv) or aging old ones (done by sv_temptimer), or
-	 * configuration changes (excluded by whatever locking the
-	 * caller is using--nfsd_mutex in the case of nfsd).  So it's
-	 * safe to traverse those lists and shut everything down:
-	 */
 	svc_close_net(serv, net);
 
 	if (serv->sv_shutdown)
@@ -749,7 +740,7 @@ svc_set_num_threads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 
 		__module_get(serv->sv_module);
 		task = kthread_create_on_node(serv->sv_function, rqstp,
-					      node, serv->sv_name);
+					      node, "%s", serv->sv_name);
 		if (IS_ERR(task)) {
 			error = PTR_ERR(task);
 			module_put(serv->sv_module);
@@ -1042,6 +1033,7 @@ static void svc_unregister(const struct svc_serv *serv, struct net *net)
 /*
  * dprintk the given error with the address of the client that caused it.
  */
+#ifdef RPC_DEBUG
 static __printf(2, 3)
 void svc_printk(struct svc_rqst *rqstp, const char *fmt, ...)
 {
@@ -1058,6 +1050,9 @@ void svc_printk(struct svc_rqst *rqstp, const char *fmt, ...)
 
 	va_end(args);
 }
+#else
+static __printf(2,3) void svc_printk(struct svc_rqst *rqstp, const char *fmt, ...) {}
+#endif
 
 /*
  * Common routine for processing the RPC request.
@@ -1108,8 +1103,6 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	rqstp->rq_prog = prog = svc_getnl(argv);	/* program number */
 	rqstp->rq_vers = vers = svc_getnl(argv);	/* version number */
 	rqstp->rq_proc = proc = svc_getnl(argv);	/* procedure number */
-
-	progp = serv->sv_program;
 
 	for (progp = serv->sv_program; progp; progp = progp->pg_next)
 		if (prog == progp->pg_prog)

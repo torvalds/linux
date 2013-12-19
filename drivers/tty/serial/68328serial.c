@@ -14,7 +14,6 @@
  * 2.4/2.5 port                 David McCullough
  */
 
-#include <asm/dbg.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/serial.h>
@@ -262,8 +261,7 @@ static void rs_start(struct tty_struct *tty)
 	local_irq_restore(flags);
 }
 
-static void receive_chars(struct m68k_serial *info, struct tty_struct *tty,
-		unsigned short rx)
+static void receive_chars(struct m68k_serial *info, unsigned short rx)
 {
 	m68328_uart *uart = &uart_addr[info->line];
 	unsigned char ch, flag;
@@ -293,9 +291,6 @@ static void receive_chars(struct m68k_serial *info, struct tty_struct *tty,
 			}
 		}
 
-		if(!tty)
-			goto clear_and_exit;
-		
 		flag = TTY_NORMAL;
 
 		if (rx & URX_PARITY_ERROR)
@@ -305,15 +300,12 @@ static void receive_chars(struct m68k_serial *info, struct tty_struct *tty,
 		else if (rx & URX_FRAME_ERROR)
 			flag = TTY_FRAME;
 
-		tty_insert_flip_char(tty, ch, flag);
+		tty_insert_flip_char(&info->tport, ch, flag);
 #ifndef CONFIG_XCOPILOT_BUGS
 	} while((rx = uart->urx.w) & URX_DATA_READY);
 #endif
 
-	tty_schedule_flip(tty);
-
-clear_and_exit:
-	return;
+	tty_schedule_flip(&info->tport);
 }
 
 static void transmit_chars(struct m68k_serial *info, struct tty_struct *tty)
@@ -367,11 +359,11 @@ irqreturn_t rs_interrupt(int irq, void *dev_id)
 	tx = uart->utx.w;
 
 	if (rx & URX_DATA_READY)
-		receive_chars(info, tty, rx);
+		receive_chars(info, rx);
 	if (tx & UTX_TX_AVAIL)
 		transmit_chars(info, tty);
 #else
-	receive_chars(info, tty, rx);
+	receive_chars(info, rx);
 #endif
 	tty_kref_put(tty);
 
@@ -637,8 +629,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 	/* Enable transmitter */
 	local_irq_save(flags);
 
-	if (info->xmit_cnt <= 0 || tty->stopped || tty->hw_stopped ||
-			!info->xmit_buf) {
+	if (info->xmit_cnt <= 0 || tty->stopped || !info->xmit_buf) {
 		local_irq_restore(flags);
 		return;
 	}
@@ -704,7 +695,7 @@ static int rs_write(struct tty_struct * tty,
 		total += c;
 	}
 
-	if (info->xmit_cnt && !tty->stopped && !tty->hw_stopped) {
+	if (info->xmit_cnt && !tty->stopped) {
 		/* Enable transmitter */
 		local_irq_disable();		
 #ifndef USE_INTS
@@ -985,10 +976,8 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	change_speed(info, tty);
 
 	if ((old_termios->c_cflag & CRTSCTS) &&
-	    !(tty->termios.c_cflag & CRTSCTS)) {
-		tty->hw_stopped = 0;
+	    !(tty->termios.c_cflag & CRTSCTS))
 		rs_start(tty);
-	}
 	
 }
 
@@ -1009,7 +998,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	m68328_uart *uart = &uart_addr[info->line];
 	unsigned long flags;
 
-	if (!info || serial_paranoia_check(info, tty->name, "rs_close"))
+	if (serial_paranoia_check(info, tty->name, "rs_close"))
 		return;
 	
 	local_irq_save(flags);

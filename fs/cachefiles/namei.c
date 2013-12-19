@@ -38,7 +38,7 @@ void __cachefiles_printk_object(struct cachefiles_object *object,
 	printk(KERN_ERR "%sobject: OBJ%x\n",
 	       prefix, object->fscache.debug_id);
 	printk(KERN_ERR "%sobjstate=%s fl=%lx wbusy=%x ev=%lx[%lx]\n",
-	       prefix, fscache_object_states[object->fscache.state],
+	       prefix, object->fscache.state->name,
 	       object->fscache.flags, work_busy(&object->fscache.work),
 	       object->fscache.events, object->fscache.event_mask);
 	printk(KERN_ERR "%sops=%u inp=%u exc=%u\n",
@@ -56,7 +56,7 @@ void __cachefiles_printk_object(struct cachefiles_object *object,
 		       object->fscache.cookie->parent,
 		       object->fscache.cookie->netfs_data,
 		       object->fscache.cookie->flags);
-		if (keybuf)
+		if (keybuf && cookie->def)
 			keylen = cookie->def->get_key(cookie->netfs_data, keybuf,
 						      CACHEFILES_KEYBUF_SIZE);
 		else
@@ -127,10 +127,10 @@ static void cachefiles_mark_object_buried(struct cachefiles_cache *cache,
 found_dentry:
 	kdebug("preemptive burial: OBJ%x [%s] %p",
 	       object->fscache.debug_id,
-	       fscache_object_states[object->fscache.state],
+	       object->fscache.state->name,
 	       dentry);
 
-	if (object->fscache.state < FSCACHE_OBJECT_DYING) {
+	if (fscache_object_is_live(&object->fscache)) {
 		printk(KERN_ERR "\n");
 		printk(KERN_ERR "CacheFiles: Error:"
 		       " Can't preemptively bury live object\n");
@@ -192,7 +192,7 @@ try_again:
 	/* an old object from a previous incarnation is hogging the slot - we
 	 * need to wait for it to be destroyed */
 wait_for_old_object:
-	if (xobject->fscache.state < FSCACHE_OBJECT_DYING) {
+	if (fscache_object_is_live(&object->fscache)) {
 		printk(KERN_ERR "\n");
 		printk(KERN_ERR "CacheFiles: Error:"
 		       " Unexpected object collision\n");
@@ -294,7 +294,7 @@ static int cachefiles_bury_object(struct cachefiles_cache *cache,
 		if (ret < 0) {
 			cachefiles_io_error(cache, "Unlink security error");
 		} else {
-			ret = vfs_unlink(dir->d_inode, rep);
+			ret = vfs_unlink(dir->d_inode, rep, NULL);
 
 			if (preemptive)
 				cachefiles_mark_object_buried(cache, rep);
@@ -396,7 +396,7 @@ try_again:
 		cachefiles_io_error(cache, "Rename security error %d", ret);
 	} else {
 		ret = vfs_rename(dir->d_inode, rep,
-				 cache->graveyard->d_inode, grave);
+				 cache->graveyard->d_inode, grave, NULL);
 		if (ret != 0 && ret != -ENOMEM)
 			cachefiles_io_error(cache,
 					    "Rename failed with error %d", ret);
@@ -836,7 +836,7 @@ static struct dentry *cachefiles_check_active(struct cachefiles_cache *cache,
 	//       dir->d_name.len, dir->d_name.len, dir->d_name.name, filename);
 
 	/* look up the victim */
-	mutex_lock_nested(&dir->d_inode->i_mutex, 1);
+	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
 
 	start = jiffies;
 	victim = lookup_one_len(filename, dir, strlen(filename));

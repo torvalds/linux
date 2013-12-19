@@ -14,10 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /*
@@ -34,17 +30,17 @@
  *    Analog Input, Analog Output, Digital I/O
  */
 
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
-#include <linux/firmware.h>
+
 #include "../comedidev.h"
+
+#include "plx9052.h"
 
 #define ME2600_FIRMWARE		"me2600_firmware.bin"
 
-#define ME2000_DEVICE_ID	0x2000
-#define ME2600_DEVICE_ID	0x2600
-
-#define PLX_INTCSR		0x4C	/* PLX interrupt status register */
 #define XILINX_DOWNLOAD_RESET	0x42	/* Xilinx registers */
 
 #define ME_CONTROL_1			0x0000	/* - | W */
@@ -147,21 +143,26 @@ static const struct comedi_lrange me_ao_range = {
 	}
 };
 
+enum me_boardid {
+	BOARD_ME2600,
+	BOARD_ME2000,
+};
+
 struct me_board {
 	const char *name;
-	int device_id;
+	int needs_firmware;
 	int has_ao;
 };
 
 static const struct me_board me_boards[] = {
-	{
+	[BOARD_ME2600] = {
 		.name		= "me-2600i",
-		.device_id	= ME2600_DEVICE_ID,
+		.needs_firmware	= 1,
 		.has_ao		= 1,
-	}, {
+	},
+	[BOARD_ME2000] = {
 		.name		= "me-2000i",
-		.device_id	= ME2000_DEVICE_ID,
-	}
+	},
 };
 
 struct me_private_data {
@@ -185,38 +186,30 @@ static int me_dio_insn_config(struct comedi_device *dev,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	struct me_private_data *dev_private = dev->private;
-	unsigned int mask = 1 << CR_CHAN(insn->chanspec);
-	unsigned int bits;
-	unsigned int port;
+	struct me_private_data *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask;
+	int ret;
 
-	if (mask & 0x0000ffff) {
-		bits = 0x0000ffff;
-		port = ENABLE_PORT_A;
-	} else {
-		bits = 0xffff0000;
-		port = ENABLE_PORT_B;
-	}
+	if (chan < 16)
+		mask = 0x0000ffff;
+	else
+		mask = 0xffff0000;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~bits;
-		dev_private->control_2 &= ~port;
-		break;
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= bits;
-		dev_private->control_2 |= port;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & bits) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
 
-	/* Update the port configuration */
-	writew(dev_private->control_2, dev_private->me_regbase + ME_CONTROL_2);
+	if (s->io_bits & 0x0000ffff)
+		devpriv->control_2 |= ENABLE_PORT_A;
+	else
+		devpriv->control_2 &= ~ENABLE_PORT_A;
+	if (s->io_bits & 0xffff0000)
+		devpriv->control_2 |= ENABLE_PORT_B;
+	else
+		devpriv->control_2 &= ~ENABLE_PORT_B;
+
+	writew(devpriv->control_2, devpriv->me_regbase + ME_CONTROL_2);
 
 	return insn->n;
 }
@@ -229,15 +222,11 @@ static int me_dio_insn_bits(struct comedi_device *dev,
 	struct me_private_data *dev_private = dev->private;
 	void __iomem *mmio_porta = dev_private->me_regbase + ME_DIO_PORT_A;
 	void __iomem *mmio_portb = dev_private->me_regbase + ME_DIO_PORT_B;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
+	unsigned int mask;
 	unsigned int val;
 
-	mask &= s->io_bits;	/* only update the COMEDI_OUTPUT channels */
+	mask = comedi_dio_update_state(s, data);
 	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
 		if (mask & 0x0000ffff)
 			writew((s->state & 0xffff), mmio_porta);
 		if (mask & 0xffff0000)
@@ -386,7 +375,8 @@ static int me_ao_insn_read(struct comedi_device *dev,
 }
 
 static int me2600_xilinx_download(struct comedi_device *dev,
-				  const u8 *data, size_t size)
+				  const u8 *data, size_t size,
+				  unsigned long context)
 {
 	struct me_private_data *dev_private = dev->private;
 	unsigned int value;
@@ -394,7 +384,7 @@ static int me2600_xilinx_download(struct comedi_device *dev,
 	unsigned int i;
 
 	/* disable irq's on PLX */
-	writel(0x00, dev_private->plx_regbase + PLX_INTCSR);
+	writel(0x00, dev_private->plx_regbase + PLX9052_INTCSR);
 
 	/* First, make a dummy read to reset xilinx */
 	value = readw(dev_private->me_regbase + XILINX_DOWNLOAD_RESET);
@@ -424,7 +414,7 @@ static int me2600_xilinx_download(struct comedi_device *dev,
 
 	/*
 	 * Loop for writing firmware byte by byte to xilinx
-	 * Firmware data start at offfset 16
+	 * Firmware data start at offset 16
 	 */
 	for (i = 0; i < file_length; i++)
 		writeb((data[16 + i] & 0xff),
@@ -435,10 +425,10 @@ static int me2600_xilinx_download(struct comedi_device *dev,
 		writeb(0x00, dev_private->me_regbase + 0x0);
 
 	/* Test if there was an error during download -> INTB was thrown */
-	value = readl(dev_private->plx_regbase + PLX_INTCSR);
-	if (value & 0x20) {
+	value = readl(dev_private->plx_regbase + PLX9052_INTCSR);
+	if (value & PLX9052_INTCSR_LI2STAT) {
 		/* Disable interrupt */
-		writel(0x00, dev_private->plx_regbase + PLX_INTCSR);
+		writel(0x00, dev_private->plx_regbase + PLX9052_INTCSR);
 		dev_err(dev->class_dev, "Xilinx download failed\n");
 		return -EIO;
 	}
@@ -447,25 +437,12 @@ static int me2600_xilinx_download(struct comedi_device *dev,
 	sleep(1);
 
 	/* Enable PLX-Interrupts */
-	writel(0x43, dev_private->plx_regbase + PLX_INTCSR);
+	writel(PLX9052_INTCSR_LI1ENAB |
+	       PLX9052_INTCSR_LI1POL |
+	       PLX9052_INTCSR_PCIENAB,
+	       dev_private->plx_regbase + PLX9052_INTCSR);
 
 	return 0;
-}
-
-static int me2600_upload_firmware(struct comedi_device *dev)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct firmware *fw;
-	int ret;
-
-	ret = request_firmware(&fw, ME2600_FIRMWARE, &pcidev->dev);
-	if (ret)
-		return ret;
-
-	ret = me2600_xilinx_download(dev, fw->data, fw->size);
-	release_firmware(fw);
-
-	return ret;
 }
 
 static int me_reset(struct comedi_device *dev)
@@ -486,58 +463,43 @@ static int me_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static const void *me_find_boardinfo(struct comedi_device *dev,
-				     struct pci_dev *pcidev)
-{
-	const struct me_board *board;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(me_boards); i++) {
-		board = &me_boards[i];
-		if (board->device_id == pcidev->device)
-			return board;
-	}
-	return NULL;
-}
-
 static int me_auto_attach(struct comedi_device *dev,
-				    unsigned long context_unused)
+			  unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct me_board *board;
+	const struct me_board *board = NULL;
 	struct me_private_data *dev_private;
 	struct comedi_subdevice *s;
 	int ret;
 
-	board = me_find_boardinfo(dev, pcidev);
+	if (context < ARRAY_SIZE(me_boards))
+		board = &me_boards[context];
 	if (!board)
 		return -ENODEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
-	dev_private = kzalloc(sizeof(*dev_private), GFP_KERNEL);
+	dev_private = comedi_alloc_devpriv(dev, sizeof(*dev_private));
 	if (!dev_private)
 		return -ENOMEM;
-	dev->private = dev_private;
 
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
-	dev->iobase = 1;	/* detach needs this */
 
-	dev_private->plx_regbase = ioremap(pci_resource_start(pcidev, 0),
-					   pci_resource_len(pcidev, 0));
+	dev_private->plx_regbase = pci_ioremap_bar(pcidev, 0);
 	if (!dev_private->plx_regbase)
 		return -ENOMEM;
 
-	dev_private->me_regbase = ioremap(pci_resource_start(pcidev, 2),
-					  pci_resource_len(pcidev, 2));
+	dev_private->me_regbase = pci_ioremap_bar(pcidev, 2);
 	if (!dev_private->me_regbase)
 		return -ENOMEM;
 
 	/* Download firmware and reset card */
-	if (board->device_id == ME2600_DEVICE_ID) {
-		ret = me2600_upload_firmware(dev);
+	if (board->needs_firmware) {
+		ret = comedi_load_firmware(dev, &comedi_to_pci_dev(dev)->dev,
+					   ME2600_FIRMWARE,
+					   me2600_xilinx_download, 0);
 		if (ret < 0)
 			return ret;
 	}
@@ -579,7 +541,6 @@ static int me_auto_attach(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= me_dio_insn_bits;
 	s->insn_config	= me_dio_insn_config;
-	s->io_bits	= 0;
 
 	dev_info(dev->class_dev, "%s: %s attached\n",
 		dev->driver->driver_name, dev->board_name);
@@ -589,7 +550,6 @@ static int me_auto_attach(struct comedi_device *dev,
 
 static void me_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct me_private_data *dev_private = dev->private;
 
 	if (dev_private) {
@@ -600,10 +560,7 @@ static void me_detach(struct comedi_device *dev)
 		if (dev_private->plx_regbase)
 			iounmap(dev_private->plx_regbase);
 	}
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver me_daq_driver = {
@@ -614,19 +571,14 @@ static struct comedi_driver me_daq_driver = {
 };
 
 static int me_daq_pci_probe(struct pci_dev *dev,
-				      const struct pci_device_id *ent)
+			    const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &me_daq_driver);
-}
-
-static void me_daq_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
+	return comedi_pci_auto_config(dev, &me_daq_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(me_daq_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, ME2600_DEVICE_ID) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, ME2000_DEVICE_ID) },
+	{ PCI_VDEVICE(MEILHAUS, 0x2600), BOARD_ME2600 },
+	{ PCI_VDEVICE(MEILHAUS, 0x2000), BOARD_ME2000 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, me_daq_pci_table);
@@ -635,7 +587,7 @@ static struct pci_driver me_daq_pci_driver = {
 	.name		= "me_daq",
 	.id_table	= me_daq_pci_table,
 	.probe		= me_daq_pci_probe,
-	.remove		= me_daq_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(me_daq_driver, me_daq_pci_driver);
 

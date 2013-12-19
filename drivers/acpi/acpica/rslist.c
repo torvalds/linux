@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -178,6 +178,14 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 			return_ACPI_STATUS(AE_BAD_DATA);
 		}
 
+		/* Sanity check the length. It must not be zero, or we loop forever */
+
+		if (!resource->length) {
+			ACPI_ERROR((AE_INFO,
+				    "Invalid zero length descriptor in resource list\n"));
+			return_ACPI_STATUS(AE_AML_BAD_RESOURCE_LENGTH);
+		}
+
 		/* Perform the conversion */
 
 		if (resource->type == ACPI_RESOURCE_TYPE_SERIAL_BUS) {
@@ -217,9 +225,10 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 
 		/* Perform final sanity check on the new AML resource descriptor */
 
-		status =
-		    acpi_ut_validate_resource(ACPI_CAST_PTR
-					      (union aml_resource, aml), NULL);
+		status = acpi_ut_validate_resource(NULL,
+						   ACPI_CAST_PTR(union
+								 aml_resource,
+								 aml), NULL);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}

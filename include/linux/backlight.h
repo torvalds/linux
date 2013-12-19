@@ -100,6 +100,9 @@ struct backlight_device {
 	/* The framebuffer notifier block */
 	struct notifier_block fb_notif;
 
+	/* list entry of all registered backlight devices */
+	struct list_head entry;
+
 	struct device dev;
 };
 
@@ -114,9 +117,16 @@ static inline void backlight_update_status(struct backlight_device *bd)
 extern struct backlight_device *backlight_device_register(const char *name,
 	struct device *dev, void *devdata, const struct backlight_ops *ops,
 	const struct backlight_properties *props);
+extern struct backlight_device *devm_backlight_device_register(
+	struct device *dev, const char *name, struct device *parent,
+	void *devdata, const struct backlight_ops *ops,
+	const struct backlight_properties *props);
 extern void backlight_device_unregister(struct backlight_device *bd);
+extern void devm_backlight_device_unregister(struct device *dev,
+					struct backlight_device *bd);
 extern void backlight_force_update(struct backlight_device *bd,
 				   enum backlight_update_reason reason);
+extern bool backlight_device_registered(enum backlight_type type);
 
 #define to_backlight_device(obj) container_of(obj, struct backlight_device, dev)
 

@@ -40,6 +40,7 @@ Features:
  - soft limit
  - moving (recharging) account at moving a task is selectable.
  - usage threshold notifier
+ - memory pressure notifier
  - oom-killer disable knob and oom-notifier
  - Root cgroup has no limit controls.
 
@@ -65,6 +66,7 @@ Brief summary of control files.
  memory.stat			 # show various statistics
  memory.use_hierarchy		 # set/show hierarchical account enabled
  memory.force_empty		 # trigger forced move charge to parent
+ memory.pressure_level		 # set memory pressure notifications
  memory.swappiness		 # set/show swappiness parameter of vmscan
 				 (See sysctl's vm.swappiness)
  memory.move_charge_at_immigrate # set/show controls of moving charges
@@ -194,7 +196,7 @@ the cgroup that brought it in -- this will happen on memory pressure).
 But see section 8.2: when moving a task to another cgroup, its pages may
 be recharged to the new cgroup, if move_charge_at_immigrate has been chosen.
 
-Exception: If CONFIG_CGROUP_CGROUP_MEMCG_SWAP is not used.
+Exception: If CONFIG_MEMCG_SWAP is not used.
 When you do swapoff and make swapped-out pages of shmem(tmpfs) to
 be backed into memory in force, charges for pages are accounted against the
 caller of swapoff rather than the users of shmem.
@@ -302,7 +304,7 @@ kernel memory, we prevent new processes from being created when the kernel
 memory usage is too high.
 
 * slab pages: pages allocated by the SLAB or SLUB allocator are tracked. A copy
-of each kmem_cache is created everytime the cache is touched by the first time
+of each kmem_cache is created every time the cache is touched by the first time
 from inside the memcg. The creation is done lazily, so some objects can still be
 skipped while the cache is being created. All objects in a slab page should
 belong to the same memcg. This only fails to hold when a task is migrated to a
@@ -478,7 +480,9 @@ memory.stat file includes following statistics
 
 # per-memory cgroup local status
 cache		- # of bytes of page cache memory.
-rss		- # of bytes of anonymous and swap cache memory.
+rss		- # of bytes of anonymous and swap cache memory (includes
+		transparent hugepages).
+rss_huge	- # of bytes of anonymous transparent hugepages.
 mapped_file	- # of bytes of mapped file (includes tmpfs/shmem)
 pgpgin		- # of charging events to the memory cgroup. The charging
 		event happens each time a page is accounted as either mapped
@@ -486,10 +490,12 @@ pgpgin		- # of charging events to the memory cgroup. The charging
 pgpgout		- # of uncharging events to the memory cgroup. The uncharging
 		event happens each time a page is unaccounted from the cgroup.
 swap		- # of bytes of swap usage
-inactive_anon	- # of bytes of anonymous memory and swap cache memory on
+writeback	- # of bytes of file/anon cache that are queued for syncing to
+		disk.
+inactive_anon	- # of bytes of anonymous and swap cache memory on inactive
 		LRU list.
 active_anon	- # of bytes of anonymous and swap cache memory on active
-		inactive LRU list.
+		LRU list.
 inactive_file	- # of bytes of file-backed memory on inactive LRU list.
 active_file	- # of bytes of file-backed memory on active LRU list.
 unevictable	- # of bytes of memory that cannot be reclaimed (mlocked etc).
@@ -567,15 +573,19 @@ an memcg since the pages are allowed to be allocated from any physical
 node.  One of the use cases is evaluating application performance by
 combining this information with the application's CPU allocation.
 
-We export "total", "file", "anon" and "unevictable" pages per-node for
-each memcg.  The ouput format of memory.numa_stat is:
+Each memcg's numa_stat file includes "total", "file", "anon" and "unevictable"
+per-node page counts including "hierarchical_<counter>" which sums up all
+hierarchical children's values in addition to the memcg's own value.
+
+The ouput format of memory.numa_stat is:
 
 total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
 file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
 anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
 unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+hierarchical_<counter>=<counter pages> N0=<node 0 pages> N1=<node 1 pages> ...
 
-And we have total = file + anon + unevictable.
+The "total" count is sum of file + anon + unevictable.
 
 6. Hierarchy support
 
@@ -762,12 +772,77 @@ At reading, current status of OOM is shown.
 	under_oom	 0 or 1 (if 1, the memory cgroup is under OOM, tasks may
 				 be stopped.)
 
-11. TODO
+11. Memory Pressure
 
-1. Add support for accounting huge pages (as a separate controller)
-2. Make per-cgroup scanner reclaim not-shared pages first
-3. Teach controller to account for shared-pages
-4. Start reclamation in the background when the limit is
+The pressure level notifications can be used to monitor the memory
+allocation cost; based on the pressure, applications can implement
+different strategies of managing their memory resources. The pressure
+levels are defined as following:
+
+The "low" level means that the system is reclaiming memory for new
+allocations. Monitoring this reclaiming activity might be useful for
+maintaining cache level. Upon notification, the program (typically
+"Activity Manager") might analyze vmstat and act in advance (i.e.
+prematurely shutdown unimportant services).
+
+The "medium" level means that the system is experiencing medium memory
+pressure, the system might be making swap, paging out active file caches,
+etc. Upon this event applications may decide to further analyze
+vmstat/zoneinfo/memcg or internal memory usage statistics and free any
+resources that can be easily reconstructed or re-read from a disk.
+
+The "critical" level means that the system is actively thrashing, it is
+about to out of memory (OOM) or even the in-kernel OOM killer is on its
+way to trigger. Applications should do whatever they can to help the
+system. It might be too late to consult with vmstat or any other
+statistics, so it's advisable to take an immediate action.
+
+The events are propagated upward until the event is handled, i.e. the
+events are not pass-through. Here is what this means: for example you have
+three cgroups: A->B->C. Now you set up an event listener on cgroups A, B
+and C, and suppose group C experiences some pressure. In this situation,
+only group C will receive the notification, i.e. groups A and B will not
+receive it. This is done to avoid excessive "broadcasting" of messages,
+which disturbs the system and which is especially bad if we are low on
+memory or thrashing. So, organize the cgroups wisely, or propagate the
+events manually (or, ask us to implement the pass-through events,
+explaining why would you need them.)
+
+The file memory.pressure_level is only used to setup an eventfd. To
+register a notification, an application must:
+
+- create an eventfd using eventfd(2);
+- open memory.pressure_level;
+- write string like "<event_fd> <fd of memory.pressure_level> <level>"
+  to cgroup.event_control.
+
+Application will be notified through eventfd when memory pressure is at
+the specific level (or higher). Read/write operations to
+memory.pressure_level are no implemented.
+
+Test:
+
+   Here is a small script example that makes a new cgroup, sets up a
+   memory limit, sets up a notification in the cgroup and then makes child
+   cgroup experience a critical pressure:
+
+   # cd /sys/fs/cgroup/memory/
+   # mkdir foo
+   # cd foo
+   # cgroup_event_listener memory.pressure_level low &
+   # echo 8000000 > memory.limit_in_bytes
+   # echo 8000000 > memory.memsw.limit_in_bytes
+   # echo $$ > tasks
+   # dd if=/dev/zero | read x
+
+   (Expect a bunch of notifications, and eventually, the oom-killer will
+   trigger.)
+
+12. TODO
+
+1. Make per-cgroup scanner reclaim not-shared pages first
+2. Teach controller to account for shared-pages
+3. Start reclamation in the background when the limit is
    not yet hit but the usage is getting closer
 
 Summary

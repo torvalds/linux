@@ -138,7 +138,6 @@ static int gpio_mouse_probe(struct platform_device *pdev)
 
  out_free_polldev:
 	input_free_polled_device(input_poll);
-	platform_set_drvdata(pdev, NULL);
 
  out_free_gpios:
 	while (--i >= 0) {
@@ -164,8 +163,6 @@ static int gpio_mouse_remove(struct platform_device *pdev)
 		if (pin >= 0)
 			gpio_free(pin);
 	}
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

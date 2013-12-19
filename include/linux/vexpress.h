@@ -15,6 +15,7 @@
 #define _LINUX_VEXPRESS_H
 
 #include <linux/device.h>
+#include <linux/reboot.h>
 
 #define VEXPRESS_SITE_MB		0
 #define VEXPRESS_SITE_DB1		1
@@ -27,6 +28,14 @@
 #define VEXPRESS_GPIO_MMC_CARDIN	0
 #define VEXPRESS_GPIO_MMC_WPROT		1
 #define VEXPRESS_GPIO_FLASH_WPn		2
+#define VEXPRESS_GPIO_LED0		3
+#define VEXPRESS_GPIO_LED1		4
+#define VEXPRESS_GPIO_LED2		5
+#define VEXPRESS_GPIO_LED3		6
+#define VEXPRESS_GPIO_LED4		7
+#define VEXPRESS_GPIO_LED5		8
+#define VEXPRESS_GPIO_LED6		9
+#define VEXPRESS_GPIO_LED7		10
 
 #define VEXPRESS_RES_FUNC(_site, _func)	\
 {					\
@@ -106,9 +115,6 @@ unsigned __vexpress_get_site(struct device *dev, struct device_node *node);
 
 void vexpress_sysreg_early_init(void __iomem *base);
 void vexpress_sysreg_of_early_init(void);
-
-void vexpress_power_off(void);
-void vexpress_restart(char str, const char *cmd);
 
 /* Clocks */
 

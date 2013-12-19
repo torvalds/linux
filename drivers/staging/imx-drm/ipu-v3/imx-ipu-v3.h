@@ -54,6 +54,9 @@ struct ipu_di_signal_cfg {
 #define IPU_DI_CLKMODE_SYNC	(1 << 0)
 #define IPU_DI_CLKMODE_EXT	(1 << 1)
 	unsigned long clkflags;
+
+	u8 hsync_pin;
+	u8 vsync_pin;
 };
 
 enum ipu_color_space {
@@ -94,6 +97,7 @@ void ipu_idmac_put(struct ipuv3_channel *);
 
 int ipu_idmac_enable_channel(struct ipuv3_channel *channel);
 int ipu_idmac_disable_channel(struct ipuv3_channel *channel);
+int ipu_idmac_wait_busy(struct ipuv3_channel *channel, int ms);
 
 void ipu_idmac_set_double_buffer(struct ipuv3_channel *channel,
 		bool doublebuffer);
@@ -280,7 +284,7 @@ int ipu_cpmem_set_format_passthrough(struct ipu_ch_param __iomem *p,
 		int width);
 
 int ipu_cpmem_set_format_rgb(struct ipu_ch_param __iomem *,
-		struct ipu_rgb *rgb);
+		const struct ipu_rgb *rgb);
 
 static inline void ipu_cpmem_interlaced_scan(struct ipu_ch_param *p,
 		int stride)
@@ -292,13 +296,15 @@ static inline void ipu_cpmem_interlaced_scan(struct ipu_ch_param *p,
 
 void ipu_cpmem_set_yuv_planar(struct ipu_ch_param __iomem *p, u32 pixel_format,
 			int stride, int height);
-void ipu_cpmem_set_yuv_interleaved(struct ipu_ch_param *p, u32 pixel_format);
+void ipu_cpmem_set_yuv_interleaved(struct ipu_ch_param __iomem *p,
+				   u32 pixel_format);
 void ipu_cpmem_set_yuv_planar_full(struct ipu_ch_param __iomem *p,
 		u32 pixel_format, int stride, int u_offset, int v_offset);
 int ipu_cpmem_set_fmt(struct ipu_ch_param __iomem *cpmem, u32 pixelformat);
 int ipu_cpmem_set_image(struct ipu_ch_param __iomem *cpmem,
 		struct ipu_image *image);
 
+enum ipu_color_space ipu_drm_fourcc_to_colorspace(u32 drm_fourcc);
 enum ipu_color_space ipu_pixelformat_to_colorspace(u32 pixelformat);
 
 static inline void ipu_cpmem_set_burstsize(struct ipu_ch_param __iomem *p,

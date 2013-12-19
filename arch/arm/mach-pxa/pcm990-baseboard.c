@@ -153,6 +153,7 @@ static struct platform_pwm_backlight_data pcm990_backlight_data = {
 	.max_brightness	= 1023,
 	.dft_brightness	= 1023,
 	.pwm_period_ns	= 78770,
+	.enable_gpio	= -1,
 };
 
 static struct platform_device pcm990_backlight_device = {
@@ -335,7 +336,7 @@ static int pcm990_mci_init(struct device *dev, irq_handler_t mci_detect_int,
 	return err;
 }
 
-static void pcm990_mci_setpower(struct device *dev, unsigned int vdd)
+static int pcm990_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	struct pxamci_platform_data *p_d = dev->platform_data;
 	u8 val;
@@ -348,6 +349,7 @@ static void pcm990_mci_setpower(struct device *dev, unsigned int vdd)
 		val &= ~PCM990_CTRL_MMC2PWR;
 
 	pcm990_cpld_writeb(PCM990_CTRL_MMC2PWR, PCM990_CTRL_REG5);
+	return 0;
 }
 
 static void pcm990_mci_exit(struct device *dev, void *data)
@@ -407,7 +409,7 @@ struct pxacamera_platform_data pcm990_pxacamera_platform_data = {
 	.mclk_10khz = 1000,
 };
 
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 
 static struct pca953x_platform_data pca9536_data = {
 	.gpio_base	= PXA_NR_BUILTIN_GPIO,

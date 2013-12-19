@@ -9,6 +9,15 @@
 
 if ARCH_S3C24XX
 
+config PLAT_S3C24XX
+	def_bool y
+	select ARCH_REQUIRE_GPIOLIB
+	select NO_IOPORT
+	select S3C_DEV_NAND
+	select IRQ_DOMAIN
+	help
+	  Base platform code for any Samsung S3C24XX device
+
 menu "SAMSUNG S3C24XX SoCs Support"
 
 comment "S3C24XX SoCs"
@@ -19,15 +28,16 @@ config CPU_S3C2410
 	select CPU_ARM920T
 	select CPU_LLSERIAL_S3C2410
 	select S3C2410_CLOCK
-	select S3C2410_CPUFREQ if CPU_FREQ_S3C24XX
+	select S3C2410_DMA if S3C24XX_DMA
+	select ARM_S3C2410_CPUFREQ if ARM_S3C24XX_CPUFREQ
 	select S3C2410_PM if PM
+	select SAMSUNG_WDT_RESET
 	help
 	  Support for S3C2410 and S3C2410A family from the S3C24XX line
 	  of Samsung Mobile CPUs.
 
 config CPU_S3C2412
 	bool "SAMSUNG S3C2412"
-	depends on ARCH_S3C24XX
 	select CPU_ARM926T
 	select CPU_LLSERIAL_S3C2440
 	select S3C2412_DMA if S3C24XX_DMA
@@ -37,7 +47,6 @@ config CPU_S3C2412
 
 config CPU_S3C2416
 	bool "SAMSUNG S3C2416/S3C2450"
-	depends on ARCH_S3C24XX
 	select CPU_ARM926T
 	select CPU_LLSERIAL_S3C2440
 	select S3C2416_PM if PM
@@ -62,6 +71,7 @@ config CPU_S3C2442
 	select CPU_ARM920T
 	select CPU_LLSERIAL_S3C2440
 	select S3C2410_CLOCK
+	select S3C2410_DMA if S3C24XX_DMA
 	select S3C2410_PM if PM
 	help
 	  Support for S3C2442 Samsung Mobile CPU based systems.
@@ -69,10 +79,10 @@ config CPU_S3C2442
 config CPU_S3C244X
 	def_bool y
 	depends on CPU_S3C2440 || CPU_S3C2442
+	select SAMSUNG_WDT_RESET
 
 config CPU_S3C2443
 	bool "SAMSUNG S3C2443"
-	depends on ARCH_S3C24XX
 	select CPU_ARM920T
 	select CPU_LLSERIAL_S3C2440
 	select S3C2443_COMMON
@@ -82,6 +92,17 @@ config CPU_S3C2443
 	  Support for the S3C2443 SoC from the S3C24XX line
 
 # common code
+
+config S3C2410_CLOCK
+	bool
+	help
+	  Clock code for the S3C2410, and similar processors which
+	  is currently includes the S3C2410, S3C2440, S3C2442.
+
+config S3C24XX_DCLK
+	bool
+	help
+	  Clock code for supporting DCLK/CLKOUT on S3C24XX architectures
 
 config S3C24XX_SMDK
 	bool
@@ -111,10 +132,24 @@ config S3C24XX_SETUP_TS
 	help
 	  Compile in platform device definition for Samsung TouchScreen.
 
+config S3C24XX_DMA
+	bool "S3C2410 DMA support"
+	select S3C_DMA
+	help
+	  S3C2410 DMA support. This is needed for drivers like sound which
+	  use the S3C2410's DMA system to move data to and from the
+	  peripheral blocks.
+
+config S3C2410_DMA_DEBUG
+	bool "S3C2410 DMA support debug"
+	depends on S3C2410_DMA
+	help
+	  Enable debugging output for the DMA code. This option sends info
+	  to the kernel log, at priority KERN_DEBUG.
+
 config S3C2410_DMA
 	bool
 	depends on S3C24XX_DMA && (CPU_S3C2410 || CPU_S3C2442)
-	default y if CPU_S3C2410 || CPU_S3C2442
 	help
 	  DMA device selection for S3C2410 and compatible CPUs
 
@@ -123,9 +158,95 @@ config S3C2410_PM
 	help
 	  Power Management code common to S3C2410 and better
 
+# low-level serial option nodes
+
+config CPU_LLSERIAL_S3C2410_ONLY
+	bool
+	default y if CPU_LLSERIAL_S3C2410 && !CPU_LLSERIAL_S3C2440
+
+config CPU_LLSERIAL_S3C2440_ONLY
+	bool
+	default y if CPU_LLSERIAL_S3C2440 && !CPU_LLSERIAL_S3C2410
+
+config CPU_LLSERIAL_S3C2410
+	bool
+	help
+	  Selected if there is an S3C2410 (or register compatible) serial
+	  low-level implementation needed
+
+config CPU_LLSERIAL_S3C2440
+	bool
+	help
+	  Selected if there is an S3C2440 (or register compatible) serial
+	  low-level implementation needed
+
+# gpio configurations
+
+config S3C24XX_GPIO_EXTRA
+	int
+	default 128 if S3C24XX_GPIO_EXTRA128
+	default 64 if S3C24XX_GPIO_EXTRA64
+	default 16 if ARCH_H1940
+	default 0
+
+config S3C24XX_GPIO_EXTRA64
+	bool
+	help
+	  Add an extra 64 gpio numbers to the available GPIO pool. This is
+	  available for boards that need extra gpios for external devices.
+
+config S3C24XX_GPIO_EXTRA128
+	bool
+	help
+	  Add an extra 128 gpio numbers to the available GPIO pool. This is
+	  available for boards that need extra gpios for external devices.
+
+config S3C24XX_PLL
+	bool "Support CPUfreq changing of PLL frequency (EXPERIMENTAL)"
+	depends on ARM_S3C24XX_CPUFREQ
+	help
+	  Compile in support for changing the PLL frequency from the
+	  S3C24XX series CPUfreq driver. The PLL takes time to settle
+	  after a frequency change, so by default it is not enabled.
+
+	  This also means that the PLL tables for the selected CPU(s) will
+	  be built which may increase the size of the kernel image.
+
+# cpu frequency items common between s3c2410 and s3c2440/s3c2442
+
+config S3C2410_IOTIMING
+	bool
+	depends on ARM_S3C24XX_CPUFREQ
+	help
+	  Internal node to select io timing code that is common to the s3c2410
+	  and s3c2440/s3c2442 cpu frequency support.
+
+config S3C2410_CPUFREQ_UTILS
+       bool
+       depends on ARM_S3C24XX_CPUFREQ
+       help
+         Internal node to select timing code that is common to the s3c2410
+         and s3c2440/s3c244 cpu frequency support.
+
+# cpu frequency support common to s3c2412, s3c2413 and s3c2442
+
+config S3C2412_IOTIMING
+	bool
+	depends on ARM_S3C24XX_CPUFREQ && (CPU_S3C2412 || CPU_S3C2443)
+	help
+	  Intel node to select io timing code that is common to the s3c2412
+	  and the s3c2443.
+
 # cpu-specific sections
 
 if CPU_S3C2410
+
+config S3C2410_PLL
+	bool
+	depends on ARM_S3C2410_CPUFREQ && S3C24XX_PLL
+	default y
+	help
+	  Select the PLL table for the S3C2410
 
 config S3C24XX_SIMTEC_NOR
 	bool
@@ -158,7 +279,7 @@ config ARCH_BAST
 	bool "Simtec Electronics BAST (EB2410ITX)"
 	select ISA
 	select MACH_BAST_IDE
-	select S3C2410_IOTIMING if S3C2410_CPUFREQ
+	select S3C2410_IOTIMING if ARM_S3C2410_CPUFREQ
 	select S3C24XX_DCLK
 	select S3C24XX_SIMTEC_NOR
 	select S3C24XX_SIMTEC_PM if PM
@@ -202,7 +323,6 @@ config PM_H1940
 
 config MACH_N30
 	bool "Acer N30 family"
-	select MACH_N35
 	select S3C_DEV_NAND
 	select S3C_DEV_USB_HOST
 	help
@@ -226,6 +346,7 @@ config MACH_QT2410
 config ARCH_SMDK2410
 	bool "SMDK2410/A9M2410"
 	select S3C24XX_SMDK
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the SMDK2410 or the derived module A9M2410
 	  <http://www.fsforth.de>
@@ -261,9 +382,8 @@ if CPU_S3C2412
 
 config CPU_S3C2412_ONLY
 	bool
-	depends on ARCH_S3C24XX && !CPU_S3C2410 && \
-		   !CPU_S3C2416 && !CPU_S3C2440 && !CPU_S3C2442 && \
-		   !CPU_S3C2443 && CPU_S3C2412
+	depends on !CPU_S3C2410 && !CPU_S3C2416 && !CPU_S3C2440 && \
+		   !CPU_S3C2442 && !CPU_S3C2443
 	default y
 
 config S3C2412_DMA
@@ -273,6 +393,8 @@ config S3C2412_DMA
 
 config S3C2412_PM
 	bool
+	select S3C2412_PM_SLEEP
+	select SAMSUNG_WAKEMASK
 	help
 	  Internal config node to apply S3C2412 power management
 
@@ -291,8 +413,8 @@ config MACH_JIVE
 	  Say Y here if you are using the Logitech Jive.
 
 config MACH_JIVE_SHOW_BOOTLOADER
-	bool "Allow access to bootloader partitions in MTD (EXPERIMENTAL)"
-	depends on MACH_JIVE && EXPERIMENTAL
+	bool "Allow access to bootloader partitions in MTD"
+	depends on MACH_JIVE
 
 config MACH_S3C2413
 	bool
@@ -361,6 +483,18 @@ config MACH_SMDK2416
 	help
 	  Say Y here if you are using an SMDK2416
 
+config MACH_S3C2416_DT
+	bool "Samsung S3C2416 machine using devicetree"
+	select CLKSRC_OF
+	select USE_OF
+	select PINCTRL
+	select PINCTRL_S3C24XX
+	help
+	  Machine support for Samsung S3C2416 machines with device tree enabled.
+	  Select this if a fdt blob is available for the S3C2416 SoC based board.
+	  Note: This is under development and not all peripherals can be supported
+	  with this machine file.
+
 endif	# CPU_S3C2416
 
 if CPU_S3C2440
@@ -369,6 +503,32 @@ config S3C2440_DMA
 	bool
 	help
 	  Support for S3C2440 specific DMA code5A
+
+config S3C2440_XTAL_12000000
+	bool
+	help
+	  Indicate that the build needs to support 12MHz system
+	  crystal.
+
+config S3C2440_XTAL_16934400
+	bool
+	help
+	  Indicate that the build needs to support 16.9344MHz system
+	  crystal.
+
+config S3C2440_PLL_12000000
+	bool
+	depends on ARM_S3C2440_CPUFREQ && S3C2440_XTAL_12000000
+	default y if S3C24XX_PLL
+	help
+	  PLL tables for S3C2440 or S3C2442 CPUs with 12MHz crystals.
+
+config S3C2440_PLL_16934400
+	bool
+	depends on ARM_S3C2440_CPUFREQ && S3C2440_XTAL_16934400
+	default y if S3C24XX_PLL
+	help
+	  PLL tables for S3C2440 or S3C2442 CPUs with 16.934MHz crystals.
 
 comment "S3C2440 Boards"
 
@@ -420,7 +580,7 @@ config MACH_NEXCODER_2440
 
 config MACH_OSIRIS
 	bool "Simtec IM2440D20 (OSIRIS) module"
-	select S3C2410_IOTIMING if S3C2440_CPUFREQ
+	select S3C2410_IOTIMING if ARM_S3C2440_CPUFREQ
 	select S3C2440_XTAL_12000000
 	select S3C24XX_DCLK
 	select S3C24XX_GPIO_EXTRA128
@@ -480,7 +640,6 @@ comment "S3C2442 Boards"
 config MACH_NEO1973_GTA02
 	bool "Openmoko GTA02 / Freerunner phone"
 	select I2C
-	select MACH_NEO1973
 	select MFD_PCF50633
 	select PCF50633_GPIO
 	select POWER_SUPPLY
@@ -493,7 +652,7 @@ config MACH_RX1950
 	bool "HP iPAQ rx1950"
 	select I2C
 	select PM_H1940 if PM
-	select S3C2410_IOTIMING if S3C2440_CPUFREQ
+	select S3C2410_IOTIMING if ARM_S3C2440_CPUFREQ
 	select S3C2440_XTAL_16934400
 	select S3C24XX_DCLK
 	select S3C24XX_PWM
@@ -501,10 +660,7 @@ config MACH_RX1950
 	help
 	   Say Y here if you're using HP iPAQ rx1950
 
-config SMDK2440_CPU2442
-	bool "SMDM2440 with S3C2442 CPU module"
-
-endif	# CPU_S3C2440
+endif	# CPU_S3C2442
 
 if CPU_S3C2443 || CPU_S3C2416
 

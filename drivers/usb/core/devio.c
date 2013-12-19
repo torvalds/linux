@@ -40,6 +40,7 @@
 #include <linux/signal.h>
 #include <linux/poll.h>
 #include <linux/module.h>
+#include <linux/string.h>
 #include <linux/usb.h>
 #include <linux/usbdevice_fs.h>
 #include <linux/usb/hcd.h>	/* for usbcore internals */
@@ -48,14 +49,14 @@
 #include <linux/security.h>
 #include <linux/user_namespace.h>
 #include <linux/scatterlist.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/byteorder.h>
 #include <linux/moduleparam.h>
 
 #include "usb.h"
 
 #define USB_MAXBUS			64
-#define USB_DEVICE_MAX			USB_MAXBUS * 128
+#define USB_DEVICE_MAX			(USB_MAXBUS * 128)
 #define USB_SG_SIZE			16384 /* split-size for large txs */
 
 /* Mutual exclusion for removal, open, and release */
@@ -160,7 +161,7 @@ static loff_t usbdev_lseek(struct file *file, loff_t offset, int orig)
 {
 	loff_t ret;
 
-	mutex_lock(&file->f_dentry->d_inode->i_mutex);
+	mutex_lock(&file_inode(file)->i_mutex);
 
 	switch (orig) {
 	case 0:
@@ -176,7 +177,7 @@ static loff_t usbdev_lseek(struct file *file, loff_t offset, int orig)
 		ret = -EINVAL;
 	}
 
-	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
+	mutex_unlock(&file_inode(file)->i_mutex);
 	return ret;
 }
 
@@ -724,21 +725,39 @@ static int check_ctrlrecip(struct dev_state *ps, unsigned int requesttype,
 
 	/*
 	 * check for the special corner case 'get_device_id' in the printer
-	 * class specification, where wIndex is (interface << 8 | altsetting)
-	 * instead of just interface
+	 * class specification, which we always want to allow as it is used
+	 * to query things like ink level, etc.
 	 */
 	if (requesttype == 0xa1 && request == 0) {
 		alt_setting = usb_find_alt_setting(ps->dev->actconfig,
 						   index >> 8, index & 0xff);
 		if (alt_setting
 		 && alt_setting->desc.bInterfaceClass == USB_CLASS_PRINTER)
-			index >>= 8;
+			return 0;
 	}
 
 	index &= 0xff;
 	switch (requesttype & USB_RECIP_MASK) {
 	case USB_RECIP_ENDPOINT:
+		if ((index & ~USB_DIR_IN) == 0)
+			return 0;
 		ret = findintfep(ps->dev, index);
+		if (ret < 0) {
+			/*
+			 * Some not fully compliant Win apps seem to get
+			 * index wrong and have the endpoint number here
+			 * rather than the endpoint address (with the
+			 * correct direction). Win does let this through,
+			 * so we'll not reject it here but leave it to
+			 * the device to not break KVM. But we warn.
+			 */
+			ret = findintfep(ps->dev, index ^ 0x80);
+			if (ret >= 0)
+				dev_info(&ps->dev->dev,
+					"%s: process %i (%s) requesting ep %02x but needs %02x\n",
+					__func__, task_pid_nr(current),
+					current->comm, index, index ^ 0x80);
+		}
 		if (ret >= 0)
 			ret = checkintf(ps, ret);
 		break;
@@ -895,10 +914,8 @@ static int proc_control(struct dev_state *ps, void __user *arg)
 	snoop(&dev->dev, "control urb: bRequestType=%02x "
 		"bRequest=%02x wValue=%04x "
 		"wIndex=%04x wLength=%04x\n",
-		ctrl.bRequestType, ctrl.bRequest,
-		__le16_to_cpup(&ctrl.wValue),
-		__le16_to_cpup(&ctrl.wIndex),
-		__le16_to_cpup(&ctrl.wLength));
+		ctrl.bRequestType, ctrl.bRequest, ctrl.wValue,
+		ctrl.wIndex, ctrl.wLength);
 	if (ctrl.bRequestType & 0x80) {
 		if (ctrl.wLength && !access_ok(VERIFY_WRITE, ctrl.data,
 					       ctrl.wLength)) {
@@ -1077,7 +1094,7 @@ static int proc_getdriver(struct dev_state *ps, void __user *arg)
 	if (!intf || !intf->dev.driver)
 		ret = -ENODATA;
 	else {
-		strncpy(gd.driver, intf->dev.driver->name,
+		strlcpy(gd.driver, intf->dev.driver->name,
 				sizeof(gd.driver));
 		ret = (copy_to_user(arg, &gd, sizeof(gd)) ? -EFAULT : 0);
 	}
@@ -1284,9 +1301,13 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 			goto error;
 		}
 		for (totlen = u = 0; u < uurb->number_of_packets; u++) {
-			/* arbitrary limit,
-			 * sufficient for USB 2.0 high-bandwidth iso */
-			if (isopkt[u].length > 8192) {
+			/*
+			 * arbitrary limit need for USB 3.0
+			 * bMaxBurst (0~15 allowed, 1~16 packets)
+			 * bmAttributes (bit 1:0, mult 0~2, 1~3 packets)
+			 * sizemax: 1024 * 16 * 3 = 49152
+			 */
+			if (isopkt[u].length > 49152) {
 				ret = -EINVAL;
 				goto error;
 			}
@@ -1613,32 +1634,32 @@ static int proc_reapurbnonblock(struct dev_state *ps, void __user *arg)
 static int proc_control_compat(struct dev_state *ps,
 				struct usbdevfs_ctrltransfer32 __user *p32)
 {
-        struct usbdevfs_ctrltransfer __user *p;
-        __u32 udata;
-        p = compat_alloc_user_space(sizeof(*p));
-        if (copy_in_user(p, p32, (sizeof(*p32) - sizeof(compat_caddr_t))) ||
-            get_user(udata, &p32->data) ||
+	struct usbdevfs_ctrltransfer __user *p;
+	__u32 udata;
+	p = compat_alloc_user_space(sizeof(*p));
+	if (copy_in_user(p, p32, (sizeof(*p32) - sizeof(compat_caddr_t))) ||
+	    get_user(udata, &p32->data) ||
 	    put_user(compat_ptr(udata), &p->data))
 		return -EFAULT;
-        return proc_control(ps, p);
+	return proc_control(ps, p);
 }
 
 static int proc_bulk_compat(struct dev_state *ps,
 			struct usbdevfs_bulktransfer32 __user *p32)
 {
-        struct usbdevfs_bulktransfer __user *p;
-        compat_uint_t n;
-        compat_caddr_t addr;
+	struct usbdevfs_bulktransfer __user *p;
+	compat_uint_t n;
+	compat_caddr_t addr;
 
-        p = compat_alloc_user_space(sizeof(*p));
+	p = compat_alloc_user_space(sizeof(*p));
 
-        if (get_user(n, &p32->ep) || put_user(n, &p->ep) ||
-            get_user(n, &p32->len) || put_user(n, &p->len) ||
-            get_user(n, &p32->timeout) || put_user(n, &p->timeout) ||
-            get_user(addr, &p32->data) || put_user(compat_ptr(addr), &p->data))
-                return -EFAULT;
+	if (get_user(n, &p32->ep) || put_user(n, &p->ep) ||
+	    get_user(n, &p32->len) || put_user(n, &p->len) ||
+	    get_user(n, &p32->timeout) || put_user(n, &p->timeout) ||
+	    get_user(addr, &p32->data) || put_user(compat_ptr(addr), &p->data))
+		return -EFAULT;
 
-        return proc_bulk(ps, p);
+	return proc_bulk(ps, p);
 }
 static int proc_disconnectsignal_compat(struct dev_state *ps, void __user *arg)
 {
@@ -1797,7 +1818,8 @@ static int proc_ioctl(struct dev_state *ps, struct usbdevfs_ioctl *ctl)
 
 	/* alloc buffer */
 	if ((size = _IOC_SIZE(ctl->ioctl_code)) > 0) {
-		if ((buf = kmalloc(size, GFP_KERNEL)) == NULL)
+		buf = kmalloc(size, GFP_KERNEL);
+		if (buf == NULL)
 			return -ENOMEM;
 		if ((_IOC_DIR(ctl->ioctl_code) & _IOC_WRITE)) {
 			if (copy_from_user(buf, ctl->data, size)) {
@@ -1970,7 +1992,7 @@ static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
 				void __user *p)
 {
 	struct dev_state *ps = file->private_data;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct usb_device *dev = ps->dev;
 	int ret = -ENOTTY;
 

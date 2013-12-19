@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/fb.h>
+#include <linux/io.h>
 
 #include <linux/platform_data/video-ep93xx.h>
 
@@ -418,7 +419,7 @@ static struct fb_ops ep93xxfb_ops = {
 	.fb_mmap	= ep93xxfb_mmap,
 };
 
-static int __init ep93xxfb_calc_fbsize(struct ep93xxfb_mach_info *mach_info)
+static int ep93xxfb_calc_fbsize(struct ep93xxfb_mach_info *mach_info)
 {
 	int i, fb_size = 0;
 
@@ -440,7 +441,7 @@ static int __init ep93xxfb_calc_fbsize(struct ep93xxfb_mach_info *mach_info)
 	return fb_size;
 }
 
-static int __init ep93xxfb_alloc_videomem(struct fb_info *info)
+static int ep93xxfb_alloc_videomem(struct fb_info *info)
 {
 	struct ep93xx_fbi *fbi = info->par;
 	char __iomem *virt_addr;
@@ -484,9 +485,9 @@ static void ep93xxfb_dealloc_videomem(struct fb_info *info)
 				  info->screen_base, info->fix.smem_start);
 }
 
-static int __devinit ep93xxfb_probe(struct platform_device *pdev)
+static int ep93xxfb_probe(struct platform_device *pdev)
 {
-	struct ep93xxfb_mach_info *mach_info = pdev->dev.platform_data;
+	struct ep93xxfb_mach_info *mach_info = dev_get_platdata(&pdev->dev);
 	struct fb_info *info;
 	struct ep93xx_fbi *fbi;
 	struct resource *res;
@@ -594,12 +595,11 @@ failed_videomem:
 	fb_dealloc_cmap(&info->cmap);
 failed_cmap:
 	kfree(info);
-	platform_set_drvdata(pdev, NULL);
 
 	return err;
 }
 
-static int __devexit ep93xxfb_remove(struct platform_device *pdev)
+static int ep93xxfb_remove(struct platform_device *pdev)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
 	struct ep93xx_fbi *fbi = info->par;
@@ -613,32 +613,19 @@ static int __devexit ep93xxfb_remove(struct platform_device *pdev)
 		fbi->mach_info->teardown(pdev);
 
 	kfree(info);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
 static struct platform_driver ep93xxfb_driver = {
 	.probe		= ep93xxfb_probe,
-	.remove		= __devexit_p(ep93xxfb_remove),
+	.remove		= ep93xxfb_remove,
 	.driver = {
 		.name	= "ep93xx-fb",
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int __devinit ep93xxfb_init(void)
-{
-	return platform_driver_register(&ep93xxfb_driver);
-}
-
-static void __exit ep93xxfb_exit(void)
-{
-	platform_driver_unregister(&ep93xxfb_driver);
-}
-
-module_init(ep93xxfb_init);
-module_exit(ep93xxfb_exit);
+module_platform_driver(ep93xxfb_driver);
 
 MODULE_DESCRIPTION("EP93XX Framebuffer Driver");
 MODULE_ALIAS("platform:ep93xx-fb");

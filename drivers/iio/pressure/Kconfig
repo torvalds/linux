@@ -1,0 +1,37 @@
+#
+# Pressure drivers
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Pressure sensors"
+
+config IIO_ST_PRESS
+	tristate "STMicroelectronics pressure sensor Driver"
+	depends on (I2C || SPI_MASTER) && SYSFS
+	select IIO_ST_SENSORS_CORE
+	select IIO_ST_PRESS_I2C if (I2C)
+	select IIO_ST_PRESS_SPI if (SPI_MASTER)
+	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
+	help
+	  Say yes here to build support for STMicroelectronics pressure
+	  sensors: LPS001WP, LPS331AP.
+
+	  This driver can also be built as a module. If so, these modules
+	  will be created:
+	  - st_pressure (core functions for the driver [it is mandatory]);
+	  - st_pressure_i2c (necessary for the I2C devices [optional*]);
+	  - st_pressure_spi (necessary for the SPI devices [optional*]);
+
+	  (*) one of these is necessary to do something.
+
+config IIO_ST_PRESS_I2C
+	tristate
+	depends on IIO_ST_PRESS
+	depends on IIO_ST_SENSORS_I2C
+
+config IIO_ST_PRESS_SPI
+	tristate
+	depends on IIO_ST_PRESS
+	depends on IIO_ST_SENSORS_SPI
+
+endmenu

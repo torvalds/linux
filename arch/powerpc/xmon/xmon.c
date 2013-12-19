@@ -43,6 +43,7 @@
 #include <asm/setjmp.h>
 #include <asm/reg.h>
 #include <asm/debug.h>
+#include <asm/hw_breakpoint.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/hvcall.h>
@@ -607,7 +608,7 @@ static int xmon_sstep(struct pt_regs *regs)
 	return 1;
 }
 
-static int xmon_dabr_match(struct pt_regs *regs)
+static int xmon_break_match(struct pt_regs *regs)
 {
 	if ((regs->msr & (MSR_IR|MSR_PR|MSR_64BIT)) != (MSR_IR|MSR_64BIT))
 		return 0;
@@ -740,8 +741,14 @@ static void insert_bpts(void)
 
 static void insert_cpu_bpts(void)
 {
-	if (dabr.enabled)
-		set_dabr(dabr.address | (dabr.enabled & 7), DABRX_ALL);
+	struct arch_hw_breakpoint brk;
+
+	if (dabr.enabled) {
+		brk.address = dabr.address;
+		brk.type = (dabr.enabled & HW_BRK_TYPE_DABR) | HW_BRK_TYPE_PRIV_ALL;
+		brk.len = 8;
+		set_breakpoint(&brk);
+	}
 	if (iabr && cpu_has_feature(CPU_FTR_IABR))
 		mtspr(SPRN_IABR, iabr->address
 			 | (iabr->enabled & (BP_IABR|BP_IABR_TE)));
@@ -769,7 +776,7 @@ static void remove_bpts(void)
 
 static void remove_cpu_bpts(void)
 {
-	set_dabr(0, 0);
+	hw_breakpoint_disable();
 	if (cpu_has_feature(CPU_FTR_IABR))
 		mtspr(SPRN_IABR, 0);
 }
@@ -965,27 +972,27 @@ static void bootcmds(void)
 static int cpu_cmd(void)
 {
 #ifdef CONFIG_SMP
-	unsigned long cpu;
+	unsigned long cpu, first_cpu, last_cpu;
 	int timeout;
-	int count;
 
 	if (!scanhex(&cpu)) {
 		/* print cpus waiting or in xmon */
 		printf("cpus stopped:");
-		count = 0;
+		last_cpu = first_cpu = NR_CPUS;
 		for_each_possible_cpu(cpu) {
 			if (cpumask_test_cpu(cpu, &cpus_in_xmon)) {
-				if (count == 0)
-					printf(" %x", cpu);
-				++count;
-			} else {
-				if (count > 1)
-					printf("-%x", cpu - 1);
-				count = 0;
+				if (cpu == last_cpu + 1) {
+					last_cpu = cpu;
+				} else {
+					if (last_cpu != first_cpu)
+						printf("-%lx", last_cpu);
+					last_cpu = first_cpu = cpu;
+					printf(" %lx", cpu);
+				}
 			}
 		}
-		if (count > 1)
-			printf("-%x", NR_CPUS - 1);
+		if (last_cpu != first_cpu)
+			printf("-%lx", last_cpu);
 		printf("\n");
 		return 0;
 	}
@@ -1138,7 +1145,7 @@ bpt_cmds(void)
 				printf(badaddr);
 				break;
 			}
-			dabr.address &= ~7;
+			dabr.address &= ~HW_BRK_TYPE_DABR;
 			dabr.enabled = mode | BP_DABR;
 		}
 		break;
@@ -1249,11 +1256,18 @@ const char *getvecname(unsigned long vec)
 	case 0x700:	ret = "(Program Check)"; break;
 	case 0x800:	ret = "(FPU Unavailable)"; break;
 	case 0x900:	ret = "(Decrementer)"; break;
+	case 0x980:	ret = "(Hypervisor Decrementer)"; break;
+	case 0xa00:	ret = "(Doorbell)"; break;
 	case 0xc00:	ret = "(System Call)"; break;
 	case 0xd00:	ret = "(Single Step)"; break;
+	case 0xe40:	ret = "(Emulation Assist)"; break;
+	case 0xe60:	ret = "(HMI)"; break;
+	case 0xe80:	ret = "(Hypervisor Doorbell)"; break;
 	case 0xf00:	ret = "(Performance Monitor)"; break;
 	case 0xf20:	ret = "(Altivec Unavailable)"; break;
 	case 0x1300:	ret = "(Instruction Breakpoint)"; break;
+	case 0x1500:	ret = "(Denormalisation)"; break;
+	case 0x1700:	ret = "(Altivec Assist)"; break;
 	default: ret = "";
 	}
 	return ret;
@@ -1423,7 +1437,7 @@ static void excprint(struct pt_regs *fp)
 	printf("    sp: %lx\n", fp->gpr[1]);
 	printf("   msr: %lx\n", fp->msr);
 
-	if (trap == 0x300 || trap == 0x380 || trap == 0x600) {
+	if (trap == 0x300 || trap == 0x380 || trap == 0x600 || trap == 0x200) {
 		printf("   dar: %lx\n", fp->dar);
 		if (trap != 0x380)
 			printf(" dsisr: %lx\n", fp->dsisr);
@@ -2917,7 +2931,7 @@ static void xmon_init(int enable)
 		__debugger_bpt = xmon_bpt;
 		__debugger_sstep = xmon_sstep;
 		__debugger_iabr_match = xmon_iabr_match;
-		__debugger_dabr_match = xmon_dabr_match;
+		__debugger_break_match = xmon_break_match;
 		__debugger_fault_handler = xmon_fault_handler;
 	} else {
 		__debugger = NULL;
@@ -2925,7 +2939,7 @@ static void xmon_init(int enable)
 		__debugger_bpt = NULL;
 		__debugger_sstep = NULL;
 		__debugger_iabr_match = NULL;
-		__debugger_dabr_match = NULL;
+		__debugger_break_match = NULL;
 		__debugger_fault_handler = NULL;
 	}
 }
@@ -2940,7 +2954,7 @@ static void sysrq_handle_xmon(int key)
 
 static struct sysrq_key_op sysrq_xmon_op = {
 	.handler =	sysrq_handle_xmon,
-	.help_msg =	"Xmon",
+	.help_msg =	"xmon(x)",
 	.action_msg =	"Entering xmon",
 };
 

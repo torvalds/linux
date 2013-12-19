@@ -154,6 +154,8 @@
 #define WBCIR_CNTR_R		0x02
 /* Invert TX */
 #define WBCIR_IRTX_INV		0x04
+/* Receiver oversampling */
+#define WBCIR_RX_T_OV		0x40
 
 /* Valid banks for the SP3 UART */
 enum wbcir_bank {
@@ -211,13 +213,11 @@ struct wbcir_data {
 
 	/* RX state */
 	enum wbcir_rxstate rxstate;
-	struct led_trigger *rxtrigger;
 	int carrier_report_enabled;
 	u32 pulse_duration;
 
 	/* TX state */
 	enum wbcir_txstate txstate;
-	struct led_trigger *txtrigger;
 	u32 txlen;
 	u32 txoff;
 	u32 *txbuf;
@@ -364,14 +364,11 @@ wbcir_idle_rx(struct rc_dev *dev, bool idle)
 {
 	struct wbcir_data *data = dev->priv;
 
-	if (!idle && data->rxstate == WBCIR_RXSTATE_INACTIVE) {
+	if (!idle && data->rxstate == WBCIR_RXSTATE_INACTIVE)
 		data->rxstate = WBCIR_RXSTATE_ACTIVE;
-		led_trigger_event(data->rxtrigger, LED_FULL);
-	}
 
 	if (idle && data->rxstate != WBCIR_RXSTATE_INACTIVE) {
 		data->rxstate = WBCIR_RXSTATE_INACTIVE;
-		led_trigger_event(data->rxtrigger, LED_OFF);
 
 		if (data->carrier_report_enabled)
 			wbcir_carrier_report(data);
@@ -394,7 +391,8 @@ wbcir_irq_rx(struct wbcir_data *data, struct pnp_dev *device)
 		if (data->rxstate == WBCIR_RXSTATE_ERROR)
 			continue;
 
-		duration = ((irdata & 0x7F) + 1) * 2;
+		duration = ((irdata & 0x7F) + 1) *
+			(data->carrier_report_enabled ? 2 : 10);
 		rawir.pulse = irdata & 0x80 ? false : true;
 		rawir.duration = US_TO_NS(duration);
 
@@ -422,7 +420,6 @@ wbcir_irq_tx(struct wbcir_data *data)
 	case WBCIR_TXSTATE_INACTIVE:
 		/* TX FIFO empty */
 		space = 16;
-		led_trigger_event(data->txtrigger, LED_FULL);
 		break;
 	case WBCIR_TXSTATE_ACTIVE:
 		/* TX FIFO low (3 bytes or less) */
@@ -461,7 +458,6 @@ wbcir_irq_tx(struct wbcir_data *data)
 			/* Clear TX underrun bit */
 			outb(WBCIR_TX_UNDERRUN, data->sbase + WBCIR_REG_SP3_ASCR);
 		wbcir_set_irqmask(data, WBCIR_IRQ_RX | WBCIR_IRQ_ERR);
-		led_trigger_event(data->txtrigger, LED_OFF);
 		kfree(data->txbuf);
 		data->txbuf = NULL;
 		data->txstate = WBCIR_TXSTATE_INACTIVE;
@@ -549,6 +545,17 @@ wbcir_set_carrier_report(struct rc_dev *dev, int enable)
 	if (enable && data->dev->idle)
 		wbcir_set_bits(data->ebase + WBCIR_REG_ECEIR_CCTL,
 				WBCIR_CNTR_EN, WBCIR_CNTR_EN | WBCIR_CNTR_R);
+
+	/* Set a higher sampling resolution if carrier reports are enabled */
+	wbcir_select_bank(data, WBCIR_BANK_2);
+	data->dev->rx_resolution = US_TO_NS(enable ? 2 : 10);
+	outb(enable ? 0x03 : 0x0f, data->sbase + WBCIR_REG_SP3_BGDL);
+	outb(0x00, data->sbase + WBCIR_REG_SP3_BGDH);
+
+	/* Enable oversampling if carrier reports are enabled */
+	wbcir_select_bank(data, WBCIR_BANK_7);
+	wbcir_set_bits(data->sbase + WBCIR_REG_SP3_RCCFG,
+				enable ? WBCIR_RX_T_OV : 0, WBCIR_RX_T_OV);
 
 	data->carrier_report_enabled = enable;
 	spin_unlock_irqrestore(&data->spinlock, flags);
@@ -864,15 +871,13 @@ finish:
 	 */
 	wbcir_set_irqmask(data, WBCIR_IRQ_NONE);
 	disable_irq(data->irq);
-
-	/* Disable LED */
-	led_trigger_event(data->rxtrigger, LED_OFF);
-	led_trigger_event(data->txtrigger, LED_OFF);
 }
 
 static int
 wbcir_suspend(struct pnp_dev *device, pm_message_t state)
 {
+	struct wbcir_data *data = pnp_get_drvdata(device);
+	led_classdev_suspend(&data->led);
 	wbcir_shutdown(device);
 	return 0;
 }
@@ -931,8 +936,8 @@ wbcir_init_hw(struct wbcir_data *data)
 	/* prescaler 1.0, tx/rx fifo lvl 16 */
 	outb(0x30, data->sbase + WBCIR_REG_SP3_EXCR2);
 
-	/* Set baud divisor to sample every 2 ns */
-	outb(0x03, data->sbase + WBCIR_REG_SP3_BGDL);
+	/* Set baud divisor to sample every 10 us */
+	outb(0x0f, data->sbase + WBCIR_REG_SP3_BGDL);
 	outb(0x00, data->sbase + WBCIR_REG_SP3_BGDH);
 
 	/* Set CEIR mode */
@@ -941,12 +946,9 @@ wbcir_init_hw(struct wbcir_data *data)
 	inb(data->sbase + WBCIR_REG_SP3_LSR); /* Clear LSR */
 	inb(data->sbase + WBCIR_REG_SP3_MSR); /* Clear MSR */
 
-	/*
-	 * Disable RX demod, enable run-length enc/dec, set freq span and
-	 * enable over-sampling
-	 */
+	/* Disable RX demod, enable run-length enc/dec, set freq span */
 	wbcir_select_bank(data, WBCIR_BANK_7);
-	outb(0xd0, data->sbase + WBCIR_REG_SP3_RCCFG);
+	outb(0x90, data->sbase + WBCIR_REG_SP3_RCCFG);
 
 	/* Disable timer */
 	wbcir_select_bank(data, WBCIR_BANK_4);
@@ -1004,11 +1006,12 @@ wbcir_resume(struct pnp_dev *device)
 
 	wbcir_init_hw(data);
 	enable_irq(data->irq);
+	led_classdev_resume(&data->led);
 
 	return 0;
 }
 
-static int __devinit
+static int
 wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 {
 	struct device *dev = &device->dev;
@@ -1047,25 +1050,13 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 		"(w: 0x%lX, e: 0x%lX, s: 0x%lX, i: %u)\n",
 		data->wbase, data->ebase, data->sbase, data->irq);
 
-	led_trigger_register_simple("cir-tx", &data->txtrigger);
-	if (!data->txtrigger) {
-		err = -ENOMEM;
-		goto exit_free_data;
-	}
-
-	led_trigger_register_simple("cir-rx", &data->rxtrigger);
-	if (!data->rxtrigger) {
-		err = -ENOMEM;
-		goto exit_unregister_txtrigger;
-	}
-
 	data->led.name = "cir::activity";
-	data->led.default_trigger = "cir-rx";
+	data->led.default_trigger = "rc-feedback";
 	data->led.brightness_set = wbcir_led_brightness_set;
 	data->led.brightness_get = wbcir_led_brightness_get;
 	err = led_classdev_register(&device->dev, &data->led);
 	if (err)
-		goto exit_unregister_rxtrigger;
+		goto exit_free_data;
 
 	data->dev = rc_allocate_device();
 	if (!data->dev) {
@@ -1093,11 +1084,15 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 	data->dev->rx_resolution = US_TO_NS(2);
 	data->dev->allowed_protos = RC_BIT_ALL;
 
+	err = rc_register_device(data->dev);
+	if (err)
+		goto exit_free_rc;
+
 	if (!request_region(data->wbase, WAKEUP_IOMEM_LEN, DRVNAME)) {
 		dev_err(dev, "Region 0x%lx-0x%lx already in use!\n",
 			data->wbase, data->wbase + WAKEUP_IOMEM_LEN - 1);
 		err = -EBUSY;
-		goto exit_free_rc;
+		goto exit_unregister_device;
 	}
 
 	if (!request_region(data->ebase, EHFUNC_IOMEM_LEN, DRVNAME)) {
@@ -1115,16 +1110,12 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 	}
 
 	err = request_irq(data->irq, wbcir_irq_handler,
-			  IRQF_DISABLED, DRVNAME, device);
+			  0, DRVNAME, device);
 	if (err) {
 		dev_err(dev, "Failed to claim IRQ %u\n", data->irq);
 		err = -EBUSY;
 		goto exit_release_sbase;
 	}
-
-	err = rc_register_device(data->dev);
-	if (err)
-		goto exit_free_irq;
 
 	device_init_wakeup(&device->dev, 1);
 
@@ -1132,22 +1123,19 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 
 	return 0;
 
-exit_free_irq:
-	free_irq(data->irq, device);
 exit_release_sbase:
 	release_region(data->sbase, SP_IOMEM_LEN);
 exit_release_ebase:
 	release_region(data->ebase, EHFUNC_IOMEM_LEN);
 exit_release_wbase:
 	release_region(data->wbase, WAKEUP_IOMEM_LEN);
+exit_unregister_device:
+	rc_unregister_device(data->dev);
+	data->dev = NULL;
 exit_free_rc:
 	rc_free_device(data->dev);
 exit_unregister_led:
 	led_classdev_unregister(&data->led);
-exit_unregister_rxtrigger:
-	led_trigger_unregister_simple(data->rxtrigger);
-exit_unregister_txtrigger:
-	led_trigger_unregister_simple(data->txtrigger);
 exit_free_data:
 	kfree(data);
 	pnp_set_drvdata(device, NULL);
@@ -1155,7 +1143,7 @@ exit:
 	return err;
 }
 
-static void __devexit
+static void
 wbcir_remove(struct pnp_dev *device)
 {
 	struct wbcir_data *data = pnp_get_drvdata(device);
@@ -1175,8 +1163,6 @@ wbcir_remove(struct pnp_dev *device)
 
 	rc_unregister_device(data->dev);
 
-	led_trigger_unregister_simple(data->rxtrigger);
-	led_trigger_unregister_simple(data->txtrigger);
 	led_classdev_unregister(&data->led);
 
 	/* This is ok since &data->led isn't actually used */
@@ -1201,7 +1187,7 @@ static struct pnp_driver wbcir_driver = {
 	.name     = WBCIR_NAME,
 	.id_table = wbcir_ids,
 	.probe    = wbcir_probe,
-	.remove   = __devexit_p(wbcir_remove),
+	.remove   = wbcir_remove,
 	.suspend  = wbcir_suspend,
 	.resume   = wbcir_resume,
 	.shutdown = wbcir_shutdown

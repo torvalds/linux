@@ -24,11 +24,12 @@
 /*
  * Flag indicating that the kernel was not entered in the same mode on every
  * CPU.  The zImage loader stashes this value in an SPSR, so we need an
- * architecturally defined flag bit here (the N flag, as it happens)
+ * architecturally defined flag bit here.
  */
-#define BOOT_CPU_MODE_MISMATCH (1<<31)
+#define BOOT_CPU_MODE_MISMATCH	PSR_N_BIT
 
 #ifndef __ASSEMBLY__
+#include <asm/cacheflush.h>
 
 #ifdef CONFIG_ARM_VIRT_EXT
 /*
@@ -41,10 +42,21 @@
  */
 extern int __boot_cpu_mode;
 
+static inline void sync_boot_mode(void)
+{
+	/*
+	 * As secondaries write to __boot_cpu_mode with caches disabled, we
+	 * must flush the corresponding cache entries to ensure the visibility
+	 * of their writes.
+	 */
+	sync_cache_r(&__boot_cpu_mode);
+}
+
 void __hyp_set_vectors(unsigned long phys_vector_base);
 unsigned long __hyp_get_vectors(void);
 #else
 #define __boot_cpu_mode	(SVC_MODE)
+#define sync_boot_mode()
 #endif
 
 #ifndef ZIMAGE

@@ -21,8 +21,6 @@
 #include <linux/hid-debug.h>
 #include <linux/input.h>
 #include "hid-ids.h"
-#include "usbhid/usbhid.h"
-#include <linux/usb.h>
 
 #include <linux/fb.h>
 #include <linux/vmalloc.h>
@@ -147,6 +145,7 @@ void picolcd_exit_cir(struct picolcd_data *data)
 	struct rc_dev *rdev = data->rc_dev;
 
 	data->rc_dev = NULL;
-	rc_unregister_device(rdev);
+	if (rdev)
+		rc_unregister_device(rdev);
 }
 

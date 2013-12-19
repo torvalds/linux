@@ -701,8 +701,8 @@ int omap_request_dma(int dev_id, const char *dev_name,
 	for (ch = 0; ch < dma_chan_count; ch++) {
 		if (free_ch == -1 && dma_chan[ch].dev_id == -1) {
 			free_ch = ch;
-			if (dev_id == 0)
-				break;
+			/* Exit after first free channel found */
+			break;
 		}
 	}
 	if (free_ch == -1) {
@@ -894,11 +894,12 @@ void omap_start_dma(int lch)
 		int next_lch, cur_lch;
 		char dma_chan_link_map[MAX_LOGICAL_DMA_CH_COUNT];
 
-		dma_chan_link_map[lch] = 1;
 		/* Set the link register of the first channel */
 		enable_lnk(lch);
 
 		memset(dma_chan_link_map, 0, sizeof(dma_chan_link_map));
+		dma_chan_link_map[lch] = 1;
+
 		cur_lch = dma_chan[lch].next_lch;
 		do {
 			next_lch = dma_chan[cur_lch].next_lch;
@@ -1964,7 +1965,6 @@ static irqreturn_t omap2_dma_irq_handler(int irq, void *dev_id)
 static struct irqaction omap24xx_dma_irq = {
 	.name = "DMA",
 	.handler = omap2_dma_irq_handler,
-	.flags = IRQF_DISABLED
 };
 
 #else
@@ -2000,7 +2000,7 @@ void omap_dma_global_context_restore(void)
 			omap_clear_dma(ch);
 }
 
-static int __devinit omap_system_dma_probe(struct platform_device *pdev)
+static int omap_system_dma_probe(struct platform_device *pdev)
 {
 	int ch, ret = 0;
 	int dma_irq;
@@ -2019,7 +2019,7 @@ static int __devinit omap_system_dma_probe(struct platform_device *pdev)
 	errata			= p->errata;
 
 	if ((d->dev_caps & RESERVE_CHANNEL) && omap_dma_reserve_channels
-			&& (omap_dma_reserve_channels <= dma_lch_count))
+			&& (omap_dma_reserve_channels < d->lch_count))
 		d->lch_count	= omap_dma_reserve_channels;
 
 	dma_lch_count		= d->lch_count;
@@ -2082,6 +2082,7 @@ static int __devinit omap_system_dma_probe(struct platform_device *pdev)
 		dma_irq = platform_get_irq_byname(pdev, irq_name);
 		if (dma_irq < 0) {
 			dev_err(&pdev->dev, "failed: request IRQ %d", dma_irq);
+			ret = dma_irq;
 			goto exit_dma_lch_fail;
 		}
 		ret = setup_irq(dma_irq, &omap24xx_dma_irq);
@@ -2110,13 +2111,11 @@ exit_dma_irq_fail:
 	}
 
 exit_dma_lch_fail:
-	kfree(p);
-	kfree(d);
 	kfree(dma_chan);
 	return ret;
 }
 
-static int __devexit omap_system_dma_remove(struct platform_device *pdev)
+static int omap_system_dma_remove(struct platform_device *pdev)
 {
 	int dma_irq;
 
@@ -2132,15 +2131,13 @@ static int __devexit omap_system_dma_remove(struct platform_device *pdev)
 			free_irq(dma_irq, (void *)(irq_rel + 1));
 		}
 	}
-	kfree(p);
-	kfree(d);
 	kfree(dma_chan);
 	return 0;
 }
 
 static struct platform_driver omap_system_dma_driver = {
 	.probe		= omap_system_dma_probe,
-	.remove		= __devexit_p(omap_system_dma_remove),
+	.remove		= omap_system_dma_remove,
 	.driver		= {
 		.name	= "omap_dma_system"
 	},

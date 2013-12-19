@@ -159,9 +159,9 @@ static int number_of_sja1000_chip(void __iomem *base_addr)
 	for (i = 0; i < MAX_NO_OF_CHANNELS; i++) {
 		/* reset chip */
 		iowrite8(MOD_RM, base_addr +
-			 (i * KVASER_PCI_PORT_BYTES) + REG_MOD);
+			 (i * KVASER_PCI_PORT_BYTES) + SJA1000_MOD);
 		status = ioread8(base_addr +
-				 (i * KVASER_PCI_PORT_BYTES) + REG_MOD);
+				 (i * KVASER_PCI_PORT_BYTES) + SJA1000_MOD);
 		/* check reset bit */
 		if (!(status & MOD_RM))
 			break;
@@ -387,7 +387,6 @@ static void kvaser_pci_remove_one(struct pci_dev *pdev)
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static struct pci_driver kvaser_pci_driver = {

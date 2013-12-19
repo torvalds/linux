@@ -36,8 +36,6 @@ struct files_stat_struct files_stat = {
 	.max_files = NR_FILE
 };
 
-DEFINE_STATIC_LGLOCK(files_lglock);
-
 /* SLAB cache for file structures */
 static struct kmem_cache *filp_cachep __read_mostly;
 
@@ -94,8 +92,8 @@ int proc_nr_files(ctl_table *table, int write,
 #endif
 
 /* Find an unused file structure and return a pointer to it.
- * Returns NULL, if there are no more free file structures or
- * we run out of memory.
+ * Returns an error pointer if some error happend e.g. we over file
+ * structures limit, run out of memory or operation is not permitted.
  *
  * Be very careful using this.  You are responsible for
  * getting write access to any mount that you might assign
@@ -107,7 +105,8 @@ struct file *get_empty_filp(void)
 {
 	const struct cred *cred = current_cred();
 	static long old_max;
-	struct file * f;
+	struct file *f;
+	int error;
 
 	/*
 	 * Privileged users can go above max_files
@@ -122,15 +121,17 @@ struct file *get_empty_filp(void)
 	}
 
 	f = kmem_cache_zalloc(filp_cachep, GFP_KERNEL);
-	if (f == NULL)
-		goto fail;
+	if (unlikely(!f))
+		return ERR_PTR(-ENOMEM);
 
 	percpu_counter_inc(&nr_files);
 	f->f_cred = get_cred(cred);
-	if (security_file_alloc(f))
-		goto fail_sec;
+	error = security_file_alloc(f);
+	if (unlikely(error)) {
+		file_free(f);
+		return ERR_PTR(error);
+	}
 
-	INIT_LIST_HEAD(&f->f_u.fu_list);
 	atomic_long_set(&f->f_count, 1);
 	rwlock_init(&f->f_owner.lock);
 	spin_lock_init(&f->f_lock);
@@ -144,12 +145,7 @@ over:
 		pr_info("VFS: file-max limit %lu reached\n", get_max_files());
 		old_max = get_nr_files();
 	}
-	goto fail;
-
-fail_sec:
-	file_free(f);
-fail:
-	return NULL;
+	return ERR_PTR(-ENFILE);
 }
 
 /**
@@ -173,10 +169,11 @@ struct file *alloc_file(struct path *path, fmode_t mode,
 	struct file *file;
 
 	file = get_empty_filp();
-	if (!file)
-		return NULL;
+	if (IS_ERR(file))
+		return file;
 
 	file->f_path = *path;
+	file->f_inode = path->dentry->d_inode;
 	file->f_mapping = path->dentry->d_inode->i_mapping;
 	file->f_mode = mode;
 	file->f_op = fop;
@@ -227,7 +224,7 @@ static void __fput(struct file *file)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct vfsmount *mnt = file->f_path.mnt;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_inode;
 
 	might_sleep();
 
@@ -240,11 +237,11 @@ static void __fput(struct file *file)
 	locks_remove_flock(file);
 
 	if (unlikely(file->f_flags & FASYNC)) {
-		if (file->f_op && file->f_op->fasync)
+		if (file->f_op->fasync)
 			file->f_op->fasync(-1, file, 0);
 	}
 	ima_file_free(file);
-	if (file->f_op && file->f_op->release)
+	if (file->f_op->release)
 		file->f_op->release(inode, file);
 	security_file_free(file);
 	if (unlikely(S_ISCHR(inode->i_mode) && inode->i_cdev != NULL &&
@@ -259,23 +256,21 @@ static void __fput(struct file *file)
 		drop_file_write_access(file);
 	file->f_path.dentry = NULL;
 	file->f_path.mnt = NULL;
+	file->f_inode = NULL;
 	file_free(file);
 	dput(dentry);
 	mntput(mnt);
 }
 
-static DEFINE_SPINLOCK(delayed_fput_lock);
-static LIST_HEAD(delayed_fput_list);
+static LLIST_HEAD(delayed_fput_list);
 static void delayed_fput(struct work_struct *unused)
 {
-	LIST_HEAD(head);
-	spin_lock_irq(&delayed_fput_lock);
-	list_splice_init(&delayed_fput_list, &head);
-	spin_unlock_irq(&delayed_fput_lock);
-	while (!list_empty(&head)) {
-		struct file *f = list_first_entry(&head, struct file, f_u.fu_list);
-		list_del_init(&f->f_u.fu_list);
-		__fput(f);
+	struct llist_node *node = llist_del_all(&delayed_fput_list);
+	struct llist_node *next;
+
+	for (; node; node = next) {
+		next = llist_next(node);
+		__fput(llist_entry(node, struct file, f_u.fu_llist));
 	}
 }
 
@@ -299,23 +294,26 @@ void flush_delayed_fput(void)
 	delayed_fput(NULL);
 }
 
-static DECLARE_WORK(delayed_fput_work, delayed_fput);
+static DECLARE_DELAYED_WORK(delayed_fput_work, delayed_fput);
 
 void fput(struct file *file)
 {
 	if (atomic_long_dec_and_test(&file->f_count)) {
 		struct task_struct *task = current;
-		file_sb_list_del(file);
-		if (unlikely(in_interrupt() || task->flags & PF_KTHREAD)) {
-			unsigned long flags;
-			spin_lock_irqsave(&delayed_fput_lock, flags);
-			list_add(&file->f_u.fu_list, &delayed_fput_list);
-			schedule_work(&delayed_fput_work);
-			spin_unlock_irqrestore(&delayed_fput_lock, flags);
-			return;
+
+		if (likely(!in_interrupt() && !(task->flags & PF_KTHREAD))) {
+			init_task_work(&file->f_u.fu_rcuhead, ____fput);
+			if (!task_work_add(task, &file->f_u.fu_rcuhead, true))
+				return;
+			/*
+			 * After this task has run exit_task_work(),
+			 * task_work_add() will fail.  Fall through to delayed
+			 * fput to avoid leaking *file.
+			 */
 		}
-		init_task_work(&file->f_u.fu_rcuhead, ____fput);
-		task_work_add(task, &file->f_u.fu_rcuhead, true);
+
+		if (llist_add(&file->f_u.fu_llist, &delayed_fput_list))
+			schedule_delayed_work(&delayed_fput_work, 1);
 	}
 }
 
@@ -331,7 +329,6 @@ void __fput_sync(struct file *file)
 {
 	if (atomic_long_dec_and_test(&file->f_count)) {
 		struct task_struct *task = current;
-		file_sb_list_del(file);
 		BUG_ON(!(task->flags & PF_KTHREAD));
 		__fput(file);
 	}
@@ -343,125 +340,8 @@ void put_filp(struct file *file)
 {
 	if (atomic_long_dec_and_test(&file->f_count)) {
 		security_file_free(file);
-		file_sb_list_del(file);
 		file_free(file);
 	}
-}
-
-static inline int file_list_cpu(struct file *file)
-{
-#ifdef CONFIG_SMP
-	return file->f_sb_list_cpu;
-#else
-	return smp_processor_id();
-#endif
-}
-
-/* helper for file_sb_list_add to reduce ifdefs */
-static inline void __file_sb_list_add(struct file *file, struct super_block *sb)
-{
-	struct list_head *list;
-#ifdef CONFIG_SMP
-	int cpu;
-	cpu = smp_processor_id();
-	file->f_sb_list_cpu = cpu;
-	list = per_cpu_ptr(sb->s_files, cpu);
-#else
-	list = &sb->s_files;
-#endif
-	list_add(&file->f_u.fu_list, list);
-}
-
-/**
- * file_sb_list_add - add a file to the sb's file list
- * @file: file to add
- * @sb: sb to add it to
- *
- * Use this function to associate a file with the superblock of the inode it
- * refers to.
- */
-void file_sb_list_add(struct file *file, struct super_block *sb)
-{
-	lg_local_lock(&files_lglock);
-	__file_sb_list_add(file, sb);
-	lg_local_unlock(&files_lglock);
-}
-
-/**
- * file_sb_list_del - remove a file from the sb's file list
- * @file: file to remove
- * @sb: sb to remove it from
- *
- * Use this function to remove a file from its superblock.
- */
-void file_sb_list_del(struct file *file)
-{
-	if (!list_empty(&file->f_u.fu_list)) {
-		lg_local_lock_cpu(&files_lglock, file_list_cpu(file));
-		list_del_init(&file->f_u.fu_list);
-		lg_local_unlock_cpu(&files_lglock, file_list_cpu(file));
-	}
-}
-
-#ifdef CONFIG_SMP
-
-/*
- * These macros iterate all files on all CPUs for a given superblock.
- * files_lglock must be held globally.
- */
-#define do_file_list_for_each_entry(__sb, __file)		\
-{								\
-	int i;							\
-	for_each_possible_cpu(i) {				\
-		struct list_head *list;				\
-		list = per_cpu_ptr((__sb)->s_files, i);		\
-		list_for_each_entry((__file), list, f_u.fu_list)
-
-#define while_file_list_for_each_entry				\
-	}							\
-}
-
-#else
-
-#define do_file_list_for_each_entry(__sb, __file)		\
-{								\
-	struct list_head *list;					\
-	list = &(sb)->s_files;					\
-	list_for_each_entry((__file), list, f_u.fu_list)
-
-#define while_file_list_for_each_entry				\
-}
-
-#endif
-
-/**
- *	mark_files_ro - mark all files read-only
- *	@sb: superblock in question
- *
- *	All files are marked read-only.  We don't care about pending
- *	delete files so this should be used in 'force' mode only.
- */
-void mark_files_ro(struct super_block *sb)
-{
-	struct file *f;
-
-	lg_global_lock(&files_lglock);
-	do_file_list_for_each_entry(sb, f) {
-		if (!S_ISREG(f->f_path.dentry->d_inode->i_mode))
-		       continue;
-		if (!file_count(f))
-			continue;
-		if (!(f->f_mode & FMODE_WRITE))
-			continue;
-		spin_lock(&f->f_lock);
-		f->f_mode &= ~FMODE_WRITE;
-		spin_unlock(&f->f_lock);
-		if (file_check_writeable(f) != 0)
-			continue;
-		__mnt_drop_write(f->f_path.mnt);
-		file_release_write(f);
-	} while_file_list_for_each_entry;
-	lg_global_unlock(&files_lglock);
 }
 
 void __init files_init(unsigned long mempages)
@@ -479,6 +359,5 @@ void __init files_init(unsigned long mempages)
 	n = (mempages * (PAGE_SIZE / 1024)) / 10;
 	files_stat.max_files = max_t(unsigned long, n, NR_FILE);
 	files_defer_init();
-	lg_lock_init(&files_lglock, "files_lglock");
 	percpu_counter_init(&nr_files, 0);
 } 

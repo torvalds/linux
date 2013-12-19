@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,7 +71,8 @@ acpi_status acpi_ev_init_global_lock_handler(void);
 
 ACPI_HW_DEPENDENT_RETURN_OK(acpi_status
 			    acpi_ev_acquire_global_lock(u16 timeout))
- ACPI_HW_DEPENDENT_RETURN_OK(acpi_status acpi_ev_release_global_lock(void))
+
+ACPI_HW_DEPENDENT_RETURN_OK(acpi_status acpi_ev_release_global_lock(void))
  acpi_status acpi_ev_remove_global_lock_handler(void);
 
 /*
@@ -158,10 +159,23 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 			    void *context);
 
 /*
- * evregion - Address Space handling
+ * evhandler - Address space handling
  */
+u8
+acpi_ev_has_default_handler(struct acpi_namespace_node *node,
+			    acpi_adr_space_type space_id);
+
 acpi_status acpi_ev_install_region_handlers(void);
 
+acpi_status
+acpi_ev_install_space_handler(struct acpi_namespace_node *node,
+			      acpi_adr_space_type space_id,
+			      acpi_adr_space_handler handler,
+			      acpi_adr_space_setup setup, void *context);
+
+/*
+ * evregion - Operation region support
+ */
 acpi_status acpi_ev_initialize_op_regions(void);
 
 acpi_status
@@ -178,12 +192,6 @@ acpi_ev_attach_region(union acpi_operand_object *handler_obj,
 void
 acpi_ev_detach_region(union acpi_operand_object *region_obj,
 		      u8 acpi_ns_is_locked);
-
-acpi_status
-acpi_ev_install_space_handler(struct acpi_namespace_node *node,
-			      acpi_adr_space_type space_id,
-			      acpi_adr_space_handler handler,
-			      acpi_adr_space_setup setup, void *context);
 
 acpi_status
 acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
@@ -235,11 +243,11 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
  */
 u32 ACPI_SYSTEM_XFACE acpi_ev_gpe_xrupt_handler(void *context);
 
+u32 acpi_ev_sci_dispatch(void);
+
 u32 acpi_ev_install_sci_handler(void);
 
-acpi_status acpi_ev_remove_sci_handler(void);
-
-u32 acpi_ev_initialize_SCI(u32 program_SCI);
+acpi_status acpi_ev_remove_all_sci_handlers(void);
 
 ACPI_HW_DEPENDENT_RETURN_VOID(void acpi_ev_terminate(void))
 #endif				/* __ACEVENTS_H__  */

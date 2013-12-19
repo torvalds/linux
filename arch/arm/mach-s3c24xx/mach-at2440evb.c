@@ -14,6 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/timer.h>
@@ -34,7 +35,6 @@
 
 #include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-mem.h>
 #include <mach/regs-lcd.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
 #include <linux/platform_data/i2c-s3c2410.h>
@@ -48,6 +48,7 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <linux/platform_data/mmc-s3cmci.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
 
@@ -192,6 +193,7 @@ static void __init at2440evb_map_io(void)
 	s3c24xx_init_io(at2440evb_iodesc, ARRAY_SIZE(at2440evb_iodesc));
 	s3c24xx_init_clocks(16934400);
 	s3c24xx_init_uarts(at2440evb_uartcfgs, ARRAY_SIZE(at2440evb_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
 
 static void __init at2440evb_init(void)
@@ -209,7 +211,7 @@ MACHINE_START(AT2440EVB, "AT2440EVB")
 	.atag_offset	= 0x100,
 	.map_io		= at2440evb_map_io,
 	.init_machine	= at2440evb_init,
-	.init_irq	= s3c24xx_init_irq,
-	.timer		= &s3c24xx_timer,
+	.init_irq	= s3c2440_init_irq,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c244x_restart,
 MACHINE_END

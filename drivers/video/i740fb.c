@@ -33,10 +33,10 @@
 
 #include "i740_reg.h"
 
-static char *mode_option __devinitdata;
+static char *mode_option;
 
 #ifdef CONFIG_MTRR
-static int mtrr __devinitdata = 1;
+static int mtrr = 1;
 #endif
 
 struct i740fb_par {
@@ -91,7 +91,7 @@ struct i740fb_par {
 #define DACSPEED24_SD	128
 #define DACSPEED32	86
 
-static struct fb_fix_screeninfo i740fb_fix __devinitdata = {
+static struct fb_fix_screeninfo i740fb_fix = {
 	.id =		"i740fb",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_TRUECOLOR,
@@ -163,7 +163,7 @@ static int i740fb_ddc_getsda(void *data)
 	return !!(i740inreg(par, XRX, REG_DDC_STATE) & DDC_SDA);
 }
 
-static int __devinit i740fb_setup_ddc_bus(struct fb_info *info)
+static int i740fb_setup_ddc_bus(struct fb_info *info)
 {
 	struct i740fb_par *par = info->par;
 
@@ -203,8 +203,7 @@ static int i740fb_release(struct fb_info *info, int user)
 
 	mutex_lock(&(par->open_lock));
 	if (par->ref_count == 0) {
-		printk(KERN_ERR "fb%d: release called with zero refcount\n",
-			info->node);
+		fb_err(info, "release called with zero refcount\n");
 		mutex_unlock(&(par->open_lock));
 		return -EINVAL;
 	}
@@ -1007,8 +1006,7 @@ static struct fb_ops i740fb_ops = {
 
 /* ------------------------------------------------------------------------- */
 
-static int __devinit i740fb_probe(struct pci_dev *dev,
-				  const struct pci_device_id *ent)
+static int i740fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 {
 	struct fb_info *info;
 	struct i740fb_par *par;
@@ -1068,7 +1066,7 @@ static int __devinit i740fb_probe(struct pci_dev *dev,
 	par->has_sgram = !((tmp & DRAM_RAS_TIMING) ||
 			   (tmp & DRAM_RAS_PRECHARGE));
 
-	printk(KERN_INFO "fb%d: Intel740 on %s, %ld KB %s\n", info->node,
+	fb_info(info, "Intel740 on %s, %ld KB %s\n",
 		pci_name(dev), info->screen_size >> 10,
 		par->has_sgram ? "SGRAM" : "SDRAM");
 
@@ -1144,8 +1142,7 @@ static int __devinit i740fb_probe(struct pci_dev *dev,
 		goto err_reg_framebuffer;
 	}
 
-	printk(KERN_INFO "fb%d: %s frame buffer device\n",
-		info->node, info->fix.id);
+	fb_info(info, "%s frame buffer device\n", info->fix.id);
 	pci_set_drvdata(dev, info);
 #ifdef CONFIG_MTRR
 	if (mtrr) {
@@ -1174,7 +1171,7 @@ err_enable_device:
 	return ret;
 }
 
-static void __devexit i740fb_remove(struct pci_dev *dev)
+static void i740fb_remove(struct pci_dev *dev)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
 
@@ -1195,7 +1192,6 @@ static void __devexit i740fb_remove(struct pci_dev *dev)
 		pci_iounmap(dev, info->screen_base);
 		pci_release_regions(dev);
 /*		pci_disable_device(dev); */
-		pci_set_drvdata(dev, NULL);
 		framebuffer_release(info);
 	}
 }
@@ -1275,7 +1271,7 @@ static struct pci_driver i740fb_driver = {
 	.name		= "i740fb",
 	.id_table	= i740fb_id_table,
 	.probe		= i740fb_probe,
-	.remove		= __devexit_p(i740fb_remove),
+	.remove		= i740fb_remove,
 	.suspend	= i740fb_suspend,
 	.resume		= i740fb_resume,
 };
@@ -1303,7 +1299,7 @@ static int  __init i740fb_setup(char *options)
 }
 #endif
 
-int __init i740fb_init(void)
+static int __init i740fb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;

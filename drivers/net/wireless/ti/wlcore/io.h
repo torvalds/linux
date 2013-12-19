@@ -105,13 +105,13 @@ static inline int __must_check wlcore_raw_read32(struct wl1271 *wl, int addr,
 {
 	int ret;
 
-	ret = wlcore_raw_read(wl, addr, &wl->buffer_32,
-			      sizeof(wl->buffer_32), false);
+	ret = wlcore_raw_read(wl, addr, wl->buffer_32,
+			      sizeof(*wl->buffer_32), false);
 	if (ret < 0)
 		return ret;
 
 	if (val)
-		*val = le32_to_cpu(wl->buffer_32);
+		*val = le32_to_cpu(*wl->buffer_32);
 
 	return 0;
 }
@@ -119,9 +119,9 @@ static inline int __must_check wlcore_raw_read32(struct wl1271 *wl, int addr,
 static inline int __must_check wlcore_raw_write32(struct wl1271 *wl, int addr,
 						  u32 val)
 {
-	wl->buffer_32 = cpu_to_le32(val);
-	return wlcore_raw_write(wl, addr, &wl->buffer_32,
-				sizeof(wl->buffer_32), false);
+	*wl->buffer_32 = cpu_to_le32(val);
+	return wlcore_raw_write(wl, addr, wl->buffer_32,
+				sizeof(*wl->buffer_32), false);
 }
 
 static inline int __must_check wlcore_read(struct wl1271 *wl, int addr,
@@ -165,8 +165,8 @@ static inline int __must_check wlcore_read_hwaddr(struct wl1271 *wl, int hwaddr,
 	int physical;
 	int addr;
 
-	/* Addresses are stored internally as addresses to 32 bytes blocks */
-	addr = hwaddr << 5;
+	/* Convert from FW internal address which is chip arch dependent */
+	addr = wl->ops->convert_hwaddr(wl, hwaddr);
 
 	physical = wlcore_translate_addr(wl, addr);
 

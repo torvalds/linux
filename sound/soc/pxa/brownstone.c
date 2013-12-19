@@ -129,6 +129,7 @@ static struct snd_soc_dai_link brownstone_wm8994_dai[] = {
 /* audio machine driver */
 static struct snd_soc_card brownstone = {
 	.name         = "brownstone",
+	.owner        = THIS_MODULE,
 	.dai_link     = brownstone_wm8994_dai,
 	.num_links    = ARRAY_SIZE(brownstone_wm8994_dai),
 
@@ -162,6 +163,7 @@ static struct platform_driver mmp_driver = {
 	.driver		= {
 		.name	= "brownstone-audio",
 		.owner	= THIS_MODULE,
+		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= brownstone_probe,
 	.remove		= brownstone_remove,

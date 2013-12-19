@@ -83,12 +83,12 @@ static u32 sdhci_dove_readl(struct sdhci_host *host, int reg)
 	return ret;
 }
 
-static struct sdhci_ops sdhci_dove_ops = {
+static const struct sdhci_ops sdhci_dove_ops = {
 	.read_w	= sdhci_dove_readw,
 	.read_l	= sdhci_dove_readl,
 };
 
-static struct sdhci_pltfm_data sdhci_dove_pdata = {
+static const struct sdhci_pltfm_data sdhci_dove_pdata = {
 	.ops	= &sdhci_dove_ops,
 	.quirks	= SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER |
 		  SDHCI_QUIRK_NO_BUSY_IRQ |
@@ -130,7 +130,7 @@ static int sdhci_dove_probe(struct platform_device *pdev)
 		gpio_direction_input(priv->gpio_cd);
 	}
 
-	host = sdhci_pltfm_init(pdev, &sdhci_dove_pdata);
+	host = sdhci_pltfm_init(pdev, &sdhci_dove_pdata, 0);
 	if (IS_ERR(host)) {
 		ret = PTR_ERR(host);
 		goto err_sdhci_pltfm_init;

@@ -567,8 +567,9 @@ static int ac97_probing_bugs(struct pci_dev *pci)
 
 	q = snd_pci_quirk_lookup(pci, atiixp_quirks);
 	if (q) {
-		snd_printdd(KERN_INFO "Atiixp quirk for %s.  "
-			    "Forcing codec %d\n", q->name, q->value);
+		snd_printdd(KERN_INFO
+			    "Atiixp quirk for %s.  Forcing codec %d\n",
+			    snd_pci_quirk_name(q), q->value);
 		return q->value;
 	}
 	/* this hardware doesn't need workarounds.  Probe for codec */
@@ -688,7 +689,9 @@ static void snd_atiixp_xrun_dma(struct atiixp *chip, struct atiixp_dma *dma)
 	if (! dma->substream || ! dma->running)
 		return;
 	snd_printdd("atiixp: XRUN detected (DMA %d)\n", dma->ops->type);
+	snd_pcm_stream_lock(dma->substream);
 	snd_pcm_stop(dma->substream, SNDRV_PCM_STATE_XRUN);
+	snd_pcm_stream_unlock(dma->substream);
 }
 
 /*
@@ -1713,7 +1716,6 @@ static int snd_atiixp_probe(struct pci_dev *pci,
 static void snd_atiixp_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static struct pci_driver atiixp_driver = {

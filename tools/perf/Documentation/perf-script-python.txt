@@ -336,7 +336,6 @@ scripts listed by the 'perf script -l' command e.g.:
 ----
 root@tropicana:~# perf script -l
 List of available trace scripts:
-  workqueue-stats                      workqueue stats (ins/exe/create/destroy)
   wakeup-latency                       system-wide min/max/avg wakeup latency
   rw-by-file <comm>                    r/w activity for a program, by file
   rw-by-pid                            system-wide r/w activity
@@ -402,7 +401,6 @@ should show a new entry for your script:
 ----
 root@tropicana:~# perf script -l
 List of available trace scripts:
-  workqueue-stats                      workqueue stats (ins/exe/create/destroy)
   wakeup-latency                       system-wide min/max/avg wakeup latency
   rw-by-file <comm>                    r/w activity for a program, by file
   rw-by-pid                            system-wide r/w activity

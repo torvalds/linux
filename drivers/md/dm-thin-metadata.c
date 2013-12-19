@@ -280,7 +280,7 @@ static void unpack_block_time(uint64_t v, dm_block_t *b, uint32_t *t)
 	*t = v & ((1 << 24) - 1);
 }
 
-static void data_block_inc(void *context, void *value_le)
+static void data_block_inc(void *context, const void *value_le)
 {
 	struct dm_space_map *sm = context;
 	__le64 v_le;
@@ -292,7 +292,7 @@ static void data_block_inc(void *context, void *value_le)
 	dm_sm_inc_block(sm, b);
 }
 
-static void data_block_dec(void *context, void *value_le)
+static void data_block_dec(void *context, const void *value_le)
 {
 	struct dm_space_map *sm = context;
 	__le64 v_le;
@@ -304,7 +304,7 @@ static void data_block_dec(void *context, void *value_le)
 	dm_sm_dec_block(sm, b);
 }
 
-static int data_block_equal(void *context, void *value1_le, void *value2_le)
+static int data_block_equal(void *context, const void *value1_le, const void *value2_le)
 {
 	__le64 v1_le, v2_le;
 	uint64_t b1, b2;
@@ -318,7 +318,7 @@ static int data_block_equal(void *context, void *value1_le, void *value2_le)
 	return b1 == b2;
 }
 
-static void subtree_inc(void *context, void *value)
+static void subtree_inc(void *context, const void *value)
 {
 	struct dm_btree_info *info = context;
 	__le64 root_le;
@@ -329,7 +329,7 @@ static void subtree_inc(void *context, void *value)
 	dm_tm_inc(info->tm, root);
 }
 
-static void subtree_dec(void *context, void *value)
+static void subtree_dec(void *context, const void *value)
 {
 	struct dm_btree_info *info = context;
 	__le64 root_le;
@@ -341,7 +341,7 @@ static void subtree_dec(void *context, void *value)
 		DMERR("btree delete failed\n");
 }
 
-static int subtree_equal(void *context, void *value1_le, void *value2_le)
+static int subtree_equal(void *context, const void *value1_le, const void *value2_le)
 {
 	__le64 v1_le, v2_le;
 	memcpy(&v1_le, value1_le, sizeof(v1_le));
@@ -1645,12 +1645,12 @@ int dm_thin_get_highest_mapped_block(struct dm_thin_device *td,
 	return r;
 }
 
-static int __resize_data_dev(struct dm_pool_metadata *pmd, dm_block_t new_count)
+static int __resize_space_map(struct dm_space_map *sm, dm_block_t new_count)
 {
 	int r;
 	dm_block_t old_count;
 
-	r = dm_sm_get_nr_blocks(pmd->data_sm, &old_count);
+	r = dm_sm_get_nr_blocks(sm, &old_count);
 	if (r)
 		return r;
 
@@ -1658,11 +1658,11 @@ static int __resize_data_dev(struct dm_pool_metadata *pmd, dm_block_t new_count)
 		return 0;
 
 	if (new_count < old_count) {
-		DMERR("cannot reduce size of data device");
+		DMERR("cannot reduce size of space map");
 		return -EINVAL;
 	}
 
-	return dm_sm_extend(pmd->data_sm, new_count - old_count);
+	return dm_sm_extend(sm, new_count - old_count);
 }
 
 int dm_pool_resize_data_dev(struct dm_pool_metadata *pmd, dm_block_t new_count)
@@ -1671,7 +1671,19 @@ int dm_pool_resize_data_dev(struct dm_pool_metadata *pmd, dm_block_t new_count)
 
 	down_write(&pmd->root_lock);
 	if (!pmd->fail_io)
-		r = __resize_data_dev(pmd, new_count);
+		r = __resize_space_map(pmd->data_sm, new_count);
+	up_write(&pmd->root_lock);
+
+	return r;
+}
+
+int dm_pool_resize_metadata_dev(struct dm_pool_metadata *pmd, dm_block_t new_count)
+{
+	int r = -EINVAL;
+
+	down_write(&pmd->root_lock);
+	if (!pmd->fail_io)
+		r = __resize_space_map(pmd->metadata_sm, new_count);
 	up_write(&pmd->root_lock);
 
 	return r;
@@ -1683,4 +1695,26 @@ void dm_pool_metadata_read_only(struct dm_pool_metadata *pmd)
 	pmd->read_only = true;
 	dm_bm_set_read_only(pmd->bm);
 	up_write(&pmd->root_lock);
+}
+
+void dm_pool_metadata_read_write(struct dm_pool_metadata *pmd)
+{
+	down_write(&pmd->root_lock);
+	pmd->read_only = false;
+	dm_bm_set_read_write(pmd->bm);
+	up_write(&pmd->root_lock);
+}
+
+int dm_pool_register_metadata_threshold(struct dm_pool_metadata *pmd,
+					dm_block_t threshold,
+					dm_sm_threshold_fn fn,
+					void *context)
+{
+	int r;
+
+	down_write(&pmd->root_lock);
+	r = dm_sm_register_threshold_callback(pmd->metadata_sm, threshold, fn, context);
+	up_write(&pmd->root_lock);
+
+	return r;
 }

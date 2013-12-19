@@ -2,7 +2,7 @@
  * A hwmon driver for the Analog Devices ADT7462
  * Copyright (C) 2008 IBM
  *
- * Author: Darrick J. Wong <djwong@us.ibm.com>
+ * Author: Darrick J. Wong <darrick.wong@oracle.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -333,7 +333,7 @@ static int ADT7462_REG_VOLT_MAX(struct adt7462_data *data, int which)
 			return 0x4C;
 		break;
 	}
-	return -ENODEV;
+	return 0;
 }
 
 static int ADT7462_REG_VOLT_MIN(struct adt7462_data *data, int which)
@@ -392,7 +392,7 @@ static int ADT7462_REG_VOLT_MIN(struct adt7462_data *data, int which)
 			return 0x77;
 		break;
 	}
-	return -ENODEV;
+	return 0;
 }
 
 static int ADT7462_REG_VOLT(struct adt7462_data *data, int which)
@@ -700,7 +700,7 @@ static int find_trange_value(int trange)
 		if (trange_values[i] == trange)
 			return i;
 
-	return -ENODEV;
+	return -EINVAL;
 }
 
 static struct adt7462_data *adt7462_update_device(struct device *dev)
@@ -836,7 +836,7 @@ static ssize_t set_temp_min(struct device *dev,
 		return -EINVAL;
 
 	temp = DIV_ROUND_CLOSEST(temp, 1000) + 64;
-	temp = SENSORS_LIMIT(temp, 0, 255);
+	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->temp_min[attr->index] = temp;
@@ -874,7 +874,7 @@ static ssize_t set_temp_max(struct device *dev,
 		return -EINVAL;
 
 	temp = DIV_ROUND_CLOSEST(temp, 1000) + 64;
-	temp = SENSORS_LIMIT(temp, 0, 255);
+	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->temp_max[attr->index] = temp;
@@ -939,7 +939,7 @@ static ssize_t set_volt_max(struct device *dev,
 
 	temp *= 1000; /* convert mV to uV */
 	temp = DIV_ROUND_CLOSEST(temp, x);
-	temp = SENSORS_LIMIT(temp, 0, 255);
+	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->volt_max[attr->index] = temp;
@@ -981,7 +981,7 @@ static ssize_t set_volt_min(struct device *dev,
 
 	temp *= 1000; /* convert mV to uV */
 	temp = DIV_ROUND_CLOSEST(temp, x);
-	temp = SENSORS_LIMIT(temp, 0, 255);
+	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->volt_min[attr->index] = temp;
@@ -1071,7 +1071,7 @@ static ssize_t set_fan_min(struct device *dev,
 
 	temp = FAN_RPM_TO_PERIOD(temp);
 	temp >>= 8;
-	temp = SENSORS_LIMIT(temp, 1, 255);
+	temp = clamp_val(temp, 1, 255);
 
 	mutex_lock(&data->lock);
 	data->fan_min[attr->index] = temp;
@@ -1149,7 +1149,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *devattr,
 	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
-	temp = SENSORS_LIMIT(temp, 0, 255);
+	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->pwm[attr->index] = temp;
@@ -1179,7 +1179,7 @@ static ssize_t set_pwm_max(struct device *dev,
 	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
-	temp = SENSORS_LIMIT(temp, 0, 255);
+	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->pwm_max = temp;
@@ -1211,7 +1211,7 @@ static ssize_t set_pwm_min(struct device *dev,
 	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
-	temp = SENSORS_LIMIT(temp, 0, 255);
+	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->pwm_min[attr->index] = temp;
@@ -1246,7 +1246,7 @@ static ssize_t set_pwm_hyst(struct device *dev,
 		return -EINVAL;
 
 	temp = DIV_ROUND_CLOSEST(temp, 1000);
-	temp = SENSORS_LIMIT(temp, 0, 15);
+	temp = clamp_val(temp, 0, 15);
 
 	/* package things up */
 	temp &= ADT7462_PWM_HYST_MASK;
@@ -1294,9 +1294,8 @@ static ssize_t set_pwm_tmax(struct device *dev,
 	/* trange = tmax - tmin */
 	tmin = (data->pwm_tmin[attr->index] - 64) * 1000;
 	trange_value = find_trange_value(trange - tmin);
-
 	if (trange_value < 0)
-		return -EINVAL;
+		return trange_value;
 
 	temp = trange_value << ADT7462_PWM_RANGE_SHIFT;
 	temp |= data->pwm_trange[attr->index] & ADT7462_PWM_HYST_MASK;
@@ -1333,7 +1332,7 @@ static ssize_t set_pwm_tmin(struct device *dev,
 		return -EINVAL;
 
 	temp = DIV_ROUND_CLOSEST(temp, 1000) + 64;
-	temp = SENSORS_LIMIT(temp, 0, 255);
+	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->pwm_tmin[attr->index] = temp;
@@ -1970,6 +1969,6 @@ static int adt7462_remove(struct i2c_client *client)
 
 module_i2c_driver(adt7462_driver);
 
-MODULE_AUTHOR("Darrick J. Wong <djwong@us.ibm.com>");
+MODULE_AUTHOR("Darrick J. Wong <darrick.wong@oracle.com>");
 MODULE_DESCRIPTION("ADT7462 driver");
 MODULE_LICENSE("GPL");

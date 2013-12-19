@@ -366,7 +366,7 @@ static irqreturn_t mpc52xx_psc_spi_isr(int irq, void *dev_id)
 static int mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 				u32 size, unsigned int irq, s16 bus_num)
 {
-	struct fsl_spi_platform_data *pdata = dev->platform_data;
+	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
 	struct mpc52xx_psc_spi *mps;
 	struct spi_master *master;
 	int ret;
@@ -383,8 +383,8 @@ static int mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 
 	mps->irq = irq;
 	if (pdata == NULL) {
-		dev_warn(dev, "probe called without platform data, no "
-				"cs_control function will be called\n");
+		dev_warn(dev,
+			 "probe called without platform data, no cs_control function will be called\n");
 		mps->cs_control = NULL;
 		mps->sysclk = 0;
 		master->bus_num = bus_num;
@@ -481,7 +481,7 @@ static int mpc52xx_psc_spi_of_probe(struct platform_device *op)
 
 static int mpc52xx_psc_spi_of_remove(struct platform_device *op)
 {
-	struct spi_master *master = spi_master_get(dev_get_drvdata(&op->dev));
+	struct spi_master *master = spi_master_get(platform_get_drvdata(op));
 	struct mpc52xx_psc_spi *mps = spi_master_get_devdata(master);
 
 	flush_workqueue(mps->workqueue);

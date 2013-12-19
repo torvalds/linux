@@ -21,11 +21,8 @@
 #include <linux/screen_info.h>
 #include <linux/bootmem.h>
 #include <linux/kernel.h>
-
-#ifdef CONFIG_OF
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
-#endif
 
 #if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
 # include <linux/console.h>
@@ -64,8 +61,8 @@ extern struct rtc_ops no_rtc_ops;
 struct rtc_ops *rtc_ops;
 
 #ifdef CONFIG_BLK_DEV_INITRD
-extern void *initrd_start;
-extern void *initrd_end;
+extern unsigned long initrd_start;
+extern unsigned long initrd_end;
 int initrd_is_mapped = 0;
 extern int initrd_below_start_ok;
 #endif
@@ -152,8 +149,8 @@ static int __init parse_tag_initrd(const bp_tag_t* tag)
 {
 	meminfo_t* mi;
 	mi = (meminfo_t*)(tag->data);
-	initrd_start = (void*)(mi->start);
-	initrd_end = (void*)(mi->end);
+	initrd_start = (unsigned long)__va(mi->start);
+	initrd_end = (unsigned long)__va(mi->end);
 
 	return 0;
 }
@@ -164,19 +161,11 @@ __tagtable(BP_TAG_INITRD, parse_tag_initrd);
 
 static int __init parse_tag_fdt(const bp_tag_t *tag)
 {
-	dtb_start = (void *)(tag->data[0]);
+	dtb_start = __va(tag->data[0]);
 	return 0;
 }
 
 __tagtable(BP_TAG_FDT, parse_tag_fdt);
-
-void __init early_init_dt_setup_initrd_arch(unsigned long start,
-		unsigned long end)
-{
-	initrd_start = (void *)__va(start);
-	initrd_end = (void *)__va(end);
-	initrd_below_start_ok = 1;
-}
 
 #endif /* CONFIG_OF */
 
@@ -223,9 +212,13 @@ static int __init parse_bootparam(const bp_tag_t* tag)
 }
 
 #ifdef CONFIG_OF
+bool __initdata dt_memory_scan = false;
 
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
+	if (!dt_memory_scan)
+		return;
+
 	size &= PAGE_MASK;
 	add_sysmem_bank(MEMORY_TYPE_CONVENTIONAL, base, base + size);
 }
@@ -237,31 +230,13 @@ void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 
 void __init early_init_devtree(void *params)
 {
-	/* Setup flat device-tree pointer */
-	initial_boot_params = params;
-
-	/* Retrieve various informations from the /chosen node of the
-	 * device-tree, including the platform type, initrd location and
-	 * size, TCE reserve, and more ...
-	 */
-	if (!command_line[0])
-		of_scan_flat_dt(early_init_dt_scan_chosen, command_line);
-
-	/* Scan memory nodes and rebuild MEMBLOCKs */
-	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	if (sysmem.nr_banks == 0)
-		of_scan_flat_dt(early_init_dt_scan_memory, NULL);
-}
+		dt_memory_scan = true;
 
-static void __init copy_devtree(void)
-{
-	void *alloc = early_init_dt_alloc_memory_arch(
-			be32_to_cpu(initial_boot_params->totalsize), 0);
-	if (alloc) {
-		memcpy(alloc, initial_boot_params,
-				be32_to_cpu(initial_boot_params->totalsize));
-		initial_boot_params = alloc;
-	}
+	early_init_dt_scan(params);
+
+	if (!command_line[0])
+		strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 }
 
 static int __init xtensa_device_probe(void)
@@ -328,6 +303,27 @@ extern char _UserExceptionVector_literal_start;
 extern char _UserExceptionVector_text_end;
 extern char _DoubleExceptionVector_literal_start;
 extern char _DoubleExceptionVector_text_end;
+#if XCHAL_EXCM_LEVEL >= 2
+extern char _Level2InterruptVector_text_start;
+extern char _Level2InterruptVector_text_end;
+#endif
+#if XCHAL_EXCM_LEVEL >= 3
+extern char _Level3InterruptVector_text_start;
+extern char _Level3InterruptVector_text_end;
+#endif
+#if XCHAL_EXCM_LEVEL >= 4
+extern char _Level4InterruptVector_text_start;
+extern char _Level4InterruptVector_text_end;
+#endif
+#if XCHAL_EXCM_LEVEL >= 5
+extern char _Level5InterruptVector_text_start;
+extern char _Level5InterruptVector_text_end;
+#endif
+#if XCHAL_EXCM_LEVEL >= 6
+extern char _Level6InterruptVector_text_start;
+extern char _Level6InterruptVector_text_end;
+#endif
+
 
 
 #ifdef CONFIG_S32C1I_SELFTEST
@@ -482,12 +478,30 @@ void __init setup_arch(char **cmdline_p)
 	mem_reserve(__pa(&_DoubleExceptionVector_literal_start),
 		    __pa(&_DoubleExceptionVector_text_end), 0);
 
+#if XCHAL_EXCM_LEVEL >= 2
+	mem_reserve(__pa(&_Level2InterruptVector_text_start),
+		    __pa(&_Level2InterruptVector_text_end), 0);
+#endif
+#if XCHAL_EXCM_LEVEL >= 3
+	mem_reserve(__pa(&_Level3InterruptVector_text_start),
+		    __pa(&_Level3InterruptVector_text_end), 0);
+#endif
+#if XCHAL_EXCM_LEVEL >= 4
+	mem_reserve(__pa(&_Level4InterruptVector_text_start),
+		    __pa(&_Level4InterruptVector_text_end), 0);
+#endif
+#if XCHAL_EXCM_LEVEL >= 5
+	mem_reserve(__pa(&_Level5InterruptVector_text_start),
+		    __pa(&_Level5InterruptVector_text_end), 0);
+#endif
+#if XCHAL_EXCM_LEVEL >= 6
+	mem_reserve(__pa(&_Level6InterruptVector_text_start),
+		    __pa(&_Level6InterruptVector_text_end), 0);
+#endif
+
 	bootmem_init();
 
-#ifdef CONFIG_OF
-	copy_devtree();
-	unflatten_device_tree();
-#endif
+	unflatten_and_copy_device_tree();
 
 	platform_setup(cmdline_p);
 
@@ -543,8 +557,8 @@ c_show(struct seq_file *f, void *slot)
 		     "bogomips\t: %lu.%02lu\n",
 		     XCHAL_BUILD_UNIQUE_ID,
 		     XCHAL_HAVE_BE ?  "big" : "little",
-		     CCOUNT_PER_JIFFY/(1000000/HZ),
-		     (CCOUNT_PER_JIFFY/(10000/HZ)) % 100,
+		     ccount_freq/1000000,
+		     (ccount_freq/10000) % 100,
 		     loops_per_jiffy/(500000/HZ),
 		     (loops_per_jiffy/(5000/HZ)) % 100);
 

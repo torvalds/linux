@@ -98,7 +98,6 @@ static void serial_pxa_stop_rx(struct uart_port *port)
 
 static inline void receive_chars(struct uart_pxa_port *up, int *status)
 {
-	struct tty_struct *tty = up->port.state->port.tty;
 	unsigned int ch, flag;
 	int max_count = 256;
 
@@ -168,7 +167,7 @@ static inline void receive_chars(struct uart_pxa_port *up, int *status)
 	ignore_char:
 		*status = serial_in(up, UART_LSR);
 	} while ((*status & UART_LSR_DR) && (max_count-- > 0));
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&up->port.state->port);
 
 	/* work around Errata #20 according to
 	 * Intel(R) PXA27x Processor Family
@@ -332,31 +331,6 @@ static void serial_pxa_break_ctl(struct uart_port *port, int break_state)
 	serial_out(up, UART_LCR, up->lcr);
 	spin_unlock_irqrestore(&up->port.lock, flags);
 }
-
-#if 0
-static void serial_pxa_dma_init(struct pxa_uart *up)
-{
-	up->rxdma =
-		pxa_request_dma(up->name, DMA_PRIO_LOW, pxa_receive_dma, up);
-	if (up->rxdma < 0)
-		goto out;
-	up->txdma =
-		pxa_request_dma(up->name, DMA_PRIO_LOW, pxa_transmit_dma, up);
-	if (up->txdma < 0)
-		goto err_txdma;
-	up->dmadesc = kmalloc(4 * sizeof(pxa_dma_desc), GFP_KERNEL);
-	if (!up->dmadesc)
-		goto err_alloc;
-
-	/* ... */
-err_alloc:
-	pxa_free_dma(up->txdma);
-err_rxdma:
-	pxa_free_dma(up->rxdma);
-out:
-	return;
-}
-#endif
 
 static int serial_pxa_startup(struct uart_port *port)
 {
@@ -673,8 +647,7 @@ serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 	unsigned long flags;
 	int locked = 1;
 
-	clk_prepare_enable(up->clk);
-
+	clk_enable(up->clk);
 	local_irq_save(flags);
 	if (up->port.sysrq)
 		locked = 0;
@@ -701,8 +674,8 @@ serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 	if (locked)
 		spin_unlock(&up->port.lock);
 	local_irq_restore(flags);
+	clk_disable(up->clk);
 
-	clk_disable_unprepare(up->clk);
 }
 
 #ifdef CONFIG_CONSOLE_POLL
@@ -792,7 +765,7 @@ static struct console serial_pxa_console = {
 #define PXA_CONSOLE	NULL
 #endif
 
-struct uart_ops serial_pxa_pops = {
+static struct uart_ops serial_pxa_pops = {
 	.tx_empty	= serial_pxa_tx_empty,
 	.set_mctrl	= serial_pxa_set_mctrl,
 	.get_mctrl	= serial_pxa_get_mctrl,
@@ -899,6 +872,12 @@ static int serial_pxa_probe(struct platform_device *dev)
 		goto err_free;
 	}
 
+	ret = clk_prepare(sport->clk);
+	if (ret) {
+		clk_put(sport->clk);
+		goto err_free;
+	}
+
 	sport->port.type = PORT_PXA;
 	sport->port.iotype = UPIO_MEM;
 	sport->port.mapbase = mmres->start;
@@ -930,6 +909,7 @@ static int serial_pxa_probe(struct platform_device *dev)
 	return 0;
 
  err_clk:
+	clk_unprepare(sport->clk);
 	clk_put(sport->clk);
  err_free:
 	kfree(sport);
@@ -940,9 +920,9 @@ static int serial_pxa_remove(struct platform_device *dev)
 {
 	struct uart_pxa_port *sport = platform_get_drvdata(dev);
 
-	platform_set_drvdata(dev, NULL);
-
 	uart_remove_one_port(&serial_pxa_reg, &sport->port);
+
+	clk_unprepare(sport->clk);
 	clk_put(sport->clk);
 	kfree(sport);
 
@@ -963,7 +943,7 @@ static struct platform_driver serial_pxa_driver = {
 	},
 };
 
-int __init serial_pxa_init(void)
+static int __init serial_pxa_init(void)
 {
 	int ret;
 
@@ -978,7 +958,7 @@ int __init serial_pxa_init(void)
 	return ret;
 }
 
-void __exit serial_pxa_exit(void)
+static void __exit serial_pxa_exit(void)
 {
 	platform_driver_unregister(&serial_pxa_driver);
 	uart_unregister_driver(&serial_pxa_reg);

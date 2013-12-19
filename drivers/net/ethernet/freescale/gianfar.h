@@ -146,6 +146,10 @@ extern const char gfar_driver_version[];
 		| SUPPORTED_Autoneg \
 		| SUPPORTED_MII)
 
+#define GFAR_SUPPORTED_GBIT (SUPPORTED_1000baseT_Full \
+		| SUPPORTED_Pause \
+		| SUPPORTED_Asym_Pause)
+
 /* TBI register addresses */
 #define MII_TBICON		0x11
 
@@ -291,7 +295,9 @@ extern const char gfar_driver_version[];
 #define RCTRL_PADDING(x)	((x << 16) & RCTRL_PAL_MASK)
 
 
-#define RSTAT_CLEAR_RHALT       0x00800000
+#define RSTAT_CLEAR_RHALT	0x00800000
+#define RSTAT_CLEAR_RXF0	0x00000080
+#define RSTAT_RXF_MASK		0x000000ff
 
 #define TCTRL_IPCSEN		0x00004000
 #define TCTRL_TUCSEN		0x00002000
@@ -569,7 +575,7 @@ struct rxfcb {
 };
 
 struct gianfar_skb_cb {
-	int alignamount;
+	unsigned int bytes_sent; /* bytes-on-wire (i.e. no FCB) */
 };
 
 #define GFAR_CB(skb) ((struct gianfar_skb_cb *)((skb)->cb))
@@ -627,35 +633,27 @@ struct rmon_mib
 };
 
 struct gfar_extra_stats {
-	u64 kernel_dropped;
-	u64 rx_large;
-	u64 rx_short;
-	u64 rx_nonoctet;
-	u64 rx_crcerr;
-	u64 rx_overrun;
-	u64 rx_bsy;
-	u64 rx_babr;
-	u64 rx_trunc;
-	u64 eberr;
-	u64 tx_babt;
-	u64 tx_underrun;
-	u64 rx_skbmissing;
-	u64 tx_timeout;
+	atomic64_t rx_large;
+	atomic64_t rx_short;
+	atomic64_t rx_nonoctet;
+	atomic64_t rx_crcerr;
+	atomic64_t rx_overrun;
+	atomic64_t rx_bsy;
+	atomic64_t rx_babr;
+	atomic64_t rx_trunc;
+	atomic64_t eberr;
+	atomic64_t tx_babt;
+	atomic64_t tx_underrun;
+	atomic64_t rx_skbmissing;
+	atomic64_t tx_timeout;
 };
 
 #define GFAR_RMON_LEN ((sizeof(struct rmon_mib) - 16)/sizeof(u32))
-#define GFAR_EXTRA_STATS_LEN (sizeof(struct gfar_extra_stats)/sizeof(u64))
+#define GFAR_EXTRA_STATS_LEN \
+	(sizeof(struct gfar_extra_stats)/sizeof(atomic64_t))
 
-/* Number of stats in the stats structure (ignore car and cam regs)*/
+/* Number of stats exported via ethtool */
 #define GFAR_STATS_LEN (GFAR_RMON_LEN + GFAR_EXTRA_STATS_LEN)
-
-#define GFAR_INFOSTR_LEN 32
-
-struct gfar_stats {
-	u64 extra[GFAR_EXTRA_STATS_LEN];
-	u64 rmon[GFAR_RMON_LEN];
-};
-
 
 struct gfar {
 	u32	tsec_id;	/* 0x.000 - Controller ID register */
@@ -937,26 +935,25 @@ struct tx_q_stats {
  *	@txtime: coalescing value if based on time
  */
 struct gfar_priv_tx_q {
+	/* cacheline 1 */
 	spinlock_t txlock __attribute__ ((aligned (SMP_CACHE_BYTES)));
-	struct sk_buff ** tx_skbuff;
-	/* Buffer descriptor pointers */
-	dma_addr_t tx_bd_dma_base;
 	struct	txbd8 *tx_bd_base;
 	struct	txbd8 *cur_tx;
-	struct	txbd8 *dirty_tx;
-	struct tx_q_stats stats;
-	struct	net_device *dev;
-	struct gfar_priv_grp *grp;
-	u16	skb_curtx;
-	u16	skb_dirtytx;
-	u16	qindex;
-	unsigned int tx_ring_size;
 	unsigned int num_txbdfree;
+	unsigned short skb_curtx;
+	unsigned short tx_ring_size;
+	struct tx_q_stats stats;
+	struct gfar_priv_grp *grp;
+	/* cacheline 2 */
+	struct net_device *dev;
+	struct sk_buff **tx_skbuff;
+	struct	txbd8 *dirty_tx;
+	unsigned short skb_dirtytx;
+	unsigned short qindex;
 	/* Configuration info for the coalescing features */
-	unsigned char txcoalescing;
+	unsigned int txcoalescing;
 	unsigned long txic;
-	unsigned short txcount;
-	unsigned short txtime;
+	dma_addr_t tx_bd_dma_base;
 };
 
 /*
@@ -999,18 +996,24 @@ struct gfar_priv_rx_q {
 	unsigned long rxic;
 };
 
+enum gfar_irqinfo_id {
+	GFAR_TX = 0,
+	GFAR_RX = 1,
+	GFAR_ER = 2,
+	GFAR_NUM_IRQS = 3
+};
+
+struct gfar_irqinfo {
+	unsigned int irq;
+	char name[GFAR_INT_NAME_MAX];
+};
+
 /**
  *	struct gfar_priv_grp - per group structure
  *	@napi: the napi poll function
  *	@priv: back pointer to the priv structure
  *	@regs: the ioremapped register space for this group
- *	@grp_id: group id for this group
- *	@interruptTransmit: The TX interrupt number for this group
- *	@interruptReceive: The RX interrupt number for this group
- *	@interruptError: The ERROR interrupt number for this group
- *	@int_name_tx: tx interrupt name for this group
- *	@int_name_rx: rx interrupt name for this group
- *	@int_name_er: er interrupt name for this group
+ *	@irqinfo: TX/RX/ER irq data for this group
  */
 
 struct gfar_priv_grp {
@@ -1018,23 +1021,19 @@ struct gfar_priv_grp {
 	struct	napi_struct napi;
 	struct gfar_private *priv;
 	struct gfar __iomem *regs;
-	unsigned int grp_id;
-	unsigned long rx_bit_map;
-	unsigned long tx_bit_map;
-	unsigned long num_tx_queues;
-	unsigned long num_rx_queues;
 	unsigned int rstat;
+	unsigned long num_rx_queues;
+	unsigned long rx_bit_map;
+	/* cacheline 3 */
 	unsigned int tstat;
-	unsigned int imask;
-	unsigned int ievent;
-	unsigned int interruptTransmit;
-	unsigned int interruptReceive;
-	unsigned int interruptError;
+	unsigned long num_tx_queues;
+	unsigned long tx_bit_map;
 
-	char int_name_tx[GFAR_INT_NAME_MAX];
-	char int_name_rx[GFAR_INT_NAME_MAX];
-	char int_name_er[GFAR_INT_NAME_MAX];
+	struct gfar_irqinfo *irqinfo[GFAR_NUM_IRQS];
 };
+
+#define gfar_irq(grp, ID) \
+	((grp)->irqinfo[GFAR_##ID])
 
 enum gfar_errata {
 	GFAR_ERRATA_74		= 0x01,
@@ -1053,28 +1052,69 @@ enum gfar_errata {
  * the buffer descriptor determines the actual condition.
  */
 struct gfar_private {
-
-	/* Indicates how many tx, rx queues are enabled */
-	unsigned int num_tx_queues;
 	unsigned int num_rx_queues;
-	unsigned int num_grps;
+
+	struct device *dev;
+	struct net_device *ndev;
+	enum gfar_errata errata;
+	unsigned int rx_buffer_size;
+
+	u16 uses_rxfcb;
+	u16 padding;
+
+	/* HW time stamping enabled flag */
+	int hwts_rx_en;
+	int hwts_tx_en;
+
+	struct gfar_priv_tx_q *tx_queue[MAX_TX_QS];
+	struct gfar_priv_rx_q *rx_queue[MAX_RX_QS];
+	struct gfar_priv_grp gfargrp[MAXGROUPS];
+
+	u32 device_flags;
+
 	unsigned int mode;
+	unsigned int num_tx_queues;
+	unsigned int num_grps;
+
+	/* Network Statistics */
+	struct gfar_extra_stats extra_stats;
+
+	/* PHY stuff */
+	phy_interface_t interface;
+	struct device_node *phy_node;
+	struct device_node *tbi_node;
+	struct phy_device *phydev;
+	struct mii_bus *mii_bus;
+	int oldspeed;
+	int oldduplex;
+	int oldlink;
+
+	/* Bitfield update lock */
+	spinlock_t bflock;
+
+	uint32_t msg_enable;
+
+	struct work_struct reset_task;
+
+	struct platform_device *ofdev;
+	unsigned char
+		extended_hash:1,
+		bd_stash_en:1,
+		rx_filer_enable:1,
+		/* Wake-on-LAN enabled */
+		wol_en:1,
+		/* Enable priorty based Tx scheduling in Hw */
+		prio_sched_en:1,
+		/* Flow control flags */
+		pause_aneg_en:1,
+		tx_pause_en:1,
+		rx_pause_en:1;
 
 	/* The total tx and rx ring size for the enabled queues */
 	unsigned int total_tx_ring_size;
 	unsigned int total_rx_ring_size;
 
-	struct device_node *node;
-	struct net_device *ndev;
-	struct platform_device *ofdev;
-	enum gfar_errata errata;
-
-	struct gfar_priv_grp gfargrp[MAXGROUPS];
-	struct gfar_priv_tx_q *tx_queue[MAX_TX_QS];
-	struct gfar_priv_rx_q *rx_queue[MAX_RX_QS];
-
 	/* RX per device parameters */
-	unsigned int rx_buffer_size;
 	unsigned int rx_stash_size;
 	unsigned int rx_stash_index;
 
@@ -1093,39 +1133,6 @@ struct gfar_private {
 	unsigned int fifo_starve;
 	unsigned int fifo_starve_off;
 
-	/* Bitfield update lock */
-	spinlock_t bflock;
-
-	phy_interface_t interface;
-	struct device_node *phy_node;
-	struct device_node *tbi_node;
-	u32 device_flags;
-	unsigned char
-		extended_hash:1,
-		bd_stash_en:1,
-		rx_filer_enable:1,
-		wol_en:1, /* Wake-on-LAN enabled */
-		prio_sched_en:1; /* Enable priorty based Tx scheduling in Hw */
-	unsigned short padding;
-
-	/* PHY stuff */
-	struct phy_device *phydev;
-	struct mii_bus *mii_bus;
-	int oldspeed;
-	int oldduplex;
-	int oldlink;
-
-	uint32_t msg_enable;
-
-	struct work_struct reset_task;
-
-	/* Network Statistics */
-	struct gfar_extra_stats extra_stats;
-
-	/* HW time stamping enabled flag */
-	int hwts_rx_en;
-	int hwts_tx_en;
-
 	/*Filer table*/
 	unsigned int ftp_rqfpr[MAX_FILER_IDX + 1];
 	unsigned int ftp_rqfcr[MAX_FILER_IDX + 1];
@@ -1138,16 +1145,16 @@ static inline int gfar_has_errata(struct gfar_private *priv,
 	return priv->errata & err;
 }
 
-static inline u32 gfar_read(volatile unsigned __iomem *addr)
+static inline u32 gfar_read(unsigned __iomem *addr)
 {
 	u32 val;
-	val = in_be32(addr);
+	val = ioread32be(addr);
 	return val;
 }
 
-static inline void gfar_write(volatile unsigned __iomem *addr, u32 val)
+static inline void gfar_write(unsigned __iomem *addr, u32 val)
 {
-	out_be32(addr, val);
+	iowrite32be(val, addr);
 }
 
 static inline void gfar_write_filer(struct gfar_private *priv,
@@ -1170,22 +1177,21 @@ static inline void gfar_read_filer(struct gfar_private *priv,
 	*fpr = gfar_read(&regs->rqfpr);
 }
 
-extern void lock_rx_qs(struct gfar_private *priv);
-extern void lock_tx_qs(struct gfar_private *priv);
-extern void unlock_rx_qs(struct gfar_private *priv);
-extern void unlock_tx_qs(struct gfar_private *priv);
-extern irqreturn_t gfar_receive(int irq, void *dev_id);
-extern int startup_gfar(struct net_device *dev);
-extern void stop_gfar(struct net_device *dev);
-extern void gfar_halt(struct net_device *dev);
-extern void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev,
-		int enable, u32 regnum, u32 read);
-extern void gfar_configure_coalescing(struct gfar_private *priv,
-		unsigned long tx_mask, unsigned long rx_mask);
+void lock_rx_qs(struct gfar_private *priv);
+void lock_tx_qs(struct gfar_private *priv);
+void unlock_rx_qs(struct gfar_private *priv);
+void unlock_tx_qs(struct gfar_private *priv);
+irqreturn_t gfar_receive(int irq, void *dev_id);
+int startup_gfar(struct net_device *dev);
+void stop_gfar(struct net_device *dev);
+void gfar_halt(struct net_device *dev);
+void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev, int enable,
+		   u32 regnum, u32 read);
+void gfar_configure_coalescing_all(struct gfar_private *priv);
 void gfar_init_sysfs(struct net_device *dev);
 int gfar_set_features(struct net_device *dev, netdev_features_t features);
-extern void gfar_check_rx_parser_mode(struct gfar_private *priv);
-extern void gfar_vlan_mode(struct net_device *dev, netdev_features_t features);
+void gfar_check_rx_parser_mode(struct gfar_private *priv);
+void gfar_vlan_mode(struct net_device *dev, netdev_features_t features);
 
 extern const struct ethtool_ops gfar_ethtool_ops;
 

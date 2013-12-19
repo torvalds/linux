@@ -50,12 +50,20 @@
 #include <asm/runlatch.h>
 #include <asm/syscalls.h>
 #include <asm/switch_to.h>
+#include <asm/tm.h>
 #include <asm/debug.h>
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
 #endif
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
+
+/* Transactional Memory debug */
+#ifdef TM_DEBUG_SW
+#define TM_DEBUG(x...) printk(KERN_INFO x)
+#else
+#define TM_DEBUG(x...) do { } while(0)
+#endif
 
 extern unsigned long _get_SP(void);
 
@@ -66,6 +74,7 @@ struct task_struct *last_task_used_vsx = NULL;
 struct task_struct *last_task_used_spe = NULL;
 #endif
 
+#ifdef CONFIG_PPC_FPU
 /*
  * Make sure the floating-point register state in the
  * the thread_struct is up to date for task tsk.
@@ -99,6 +108,7 @@ void flush_fp_to_thread(struct task_struct *tsk)
 	}
 }
 EXPORT_SYMBOL_GPL(flush_fp_to_thread);
+#endif
 
 void enable_kernel_fp(void)
 {
@@ -271,7 +281,7 @@ void do_send_trap(struct pt_regs *regs, unsigned long address,
 	force_sig_info(SIGTRAP, &info, current);
 }
 #else	/* !CONFIG_PPC_ADV_DEBUG_REGS */
-void do_dabr(struct pt_regs *regs, unsigned long address,
+void do_break (struct pt_regs *regs, unsigned long address,
 		    unsigned long error_code)
 {
 	siginfo_t info;
@@ -281,11 +291,11 @@ void do_dabr(struct pt_regs *regs, unsigned long address,
 			11, SIGSEGV) == NOTIFY_STOP)
 		return;
 
-	if (debugger_dabr_match(regs))
+	if (debugger_break_match(regs))
 		return;
 
-	/* Clear the DABR */
-	set_dabr(0, 0);
+	/* Clear the breakpoint */
+	hw_breakpoint_disable();
 
 	/* Deliver the signal to userspace */
 	info.si_signo = SIGTRAP;
@@ -296,7 +306,7 @@ void do_dabr(struct pt_regs *regs, unsigned long address,
 }
 #endif	/* CONFIG_PPC_ADV_DEBUG_REGS */
 
-static DEFINE_PER_CPU(unsigned long, current_dabr);
+static DEFINE_PER_CPU(struct arch_hw_breakpoint, current_brk);
 
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 /*
@@ -304,49 +314,56 @@ static DEFINE_PER_CPU(unsigned long, current_dabr);
  */
 static void set_debug_reg_defaults(struct thread_struct *thread)
 {
-	thread->iac1 = thread->iac2 = 0;
+	thread->debug.iac1 = thread->debug.iac2 = 0;
 #if CONFIG_PPC_ADV_DEBUG_IACS > 2
-	thread->iac3 = thread->iac4 = 0;
+	thread->debug.iac3 = thread->debug.iac4 = 0;
 #endif
-	thread->dac1 = thread->dac2 = 0;
+	thread->debug.dac1 = thread->debug.dac2 = 0;
 #if CONFIG_PPC_ADV_DEBUG_DVCS > 0
-	thread->dvc1 = thread->dvc2 = 0;
+	thread->debug.dvc1 = thread->debug.dvc2 = 0;
 #endif
-	thread->dbcr0 = 0;
+	thread->debug.dbcr0 = 0;
 #ifdef CONFIG_BOOKE
 	/*
 	 * Force User/Supervisor bits to b11 (user-only MSR[PR]=1)
 	 */
-	thread->dbcr1 = DBCR1_IAC1US | DBCR1_IAC2US |	\
+	thread->debug.dbcr1 = DBCR1_IAC1US | DBCR1_IAC2US |
 			DBCR1_IAC3US | DBCR1_IAC4US;
 	/*
 	 * Force Data Address Compare User/Supervisor bits to be User-only
 	 * (0b11 MSR[PR]=1) and set all other bits in DBCR2 register to be 0.
 	 */
-	thread->dbcr2 = DBCR2_DAC1US | DBCR2_DAC2US;
+	thread->debug.dbcr2 = DBCR2_DAC1US | DBCR2_DAC2US;
 #else
-	thread->dbcr1 = 0;
+	thread->debug.dbcr1 = 0;
 #endif
 }
 
 static void prime_debug_regs(struct thread_struct *thread)
 {
-	mtspr(SPRN_IAC1, thread->iac1);
-	mtspr(SPRN_IAC2, thread->iac2);
+	/*
+	 * We could have inherited MSR_DE from userspace, since
+	 * it doesn't get cleared on exception entry.  Make sure
+	 * MSR_DE is clear before we enable any debug events.
+	 */
+	mtmsr(mfmsr() & ~MSR_DE);
+
+	mtspr(SPRN_IAC1, thread->debug.iac1);
+	mtspr(SPRN_IAC2, thread->debug.iac2);
 #if CONFIG_PPC_ADV_DEBUG_IACS > 2
-	mtspr(SPRN_IAC3, thread->iac3);
-	mtspr(SPRN_IAC4, thread->iac4);
+	mtspr(SPRN_IAC3, thread->debug.iac3);
+	mtspr(SPRN_IAC4, thread->debug.iac4);
 #endif
-	mtspr(SPRN_DAC1, thread->dac1);
-	mtspr(SPRN_DAC2, thread->dac2);
+	mtspr(SPRN_DAC1, thread->debug.dac1);
+	mtspr(SPRN_DAC2, thread->debug.dac2);
 #if CONFIG_PPC_ADV_DEBUG_DVCS > 0
-	mtspr(SPRN_DVC1, thread->dvc1);
-	mtspr(SPRN_DVC2, thread->dvc2);
+	mtspr(SPRN_DVC1, thread->debug.dvc1);
+	mtspr(SPRN_DVC2, thread->debug.dvc2);
 #endif
-	mtspr(SPRN_DBCR0, thread->dbcr0);
-	mtspr(SPRN_DBCR1, thread->dbcr1);
+	mtspr(SPRN_DBCR0, thread->debug.dbcr0);
+	mtspr(SPRN_DBCR1, thread->debug.dbcr1);
 #ifdef CONFIG_BOOKE
-	mtspr(SPRN_DBCR2, thread->dbcr2);
+	mtspr(SPRN_DBCR2, thread->debug.dbcr2);
 #endif
 }
 /*
@@ -354,58 +371,250 @@ static void prime_debug_regs(struct thread_struct *thread)
  * debug registers, set the debug registers from the values
  * stored in the new thread.
  */
-static void switch_booke_debug_regs(struct thread_struct *new_thread)
+void switch_booke_debug_regs(struct thread_struct *new_thread)
 {
-	if ((current->thread.dbcr0 & DBCR0_IDM)
-		|| (new_thread->dbcr0 & DBCR0_IDM))
+	if ((current->thread.debug.dbcr0 & DBCR0_IDM)
+		|| (new_thread->debug.dbcr0 & DBCR0_IDM))
 			prime_debug_regs(new_thread);
 }
+EXPORT_SYMBOL_GPL(switch_booke_debug_regs);
 #else	/* !CONFIG_PPC_ADV_DEBUG_REGS */
 #ifndef CONFIG_HAVE_HW_BREAKPOINT
 static void set_debug_reg_defaults(struct thread_struct *thread)
 {
-	if (thread->dabr) {
-		thread->dabr = 0;
-		thread->dabrx = 0;
-		set_dabr(0, 0);
-	}
+	thread->hw_brk.address = 0;
+	thread->hw_brk.type = 0;
+	set_breakpoint(&thread->hw_brk);
 }
 #endif /* !CONFIG_HAVE_HW_BREAKPOINT */
 #endif	/* CONFIG_PPC_ADV_DEBUG_REGS */
 
-int set_dabr(unsigned long dabr, unsigned long dabrx)
-{
-	__get_cpu_var(current_dabr) = dabr;
-
-	if (ppc_md.set_dabr)
-		return ppc_md.set_dabr(dabr, dabrx);
-
-	/* XXX should we have a CPU_FTR_HAS_DABR ? */
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
+static inline int __set_dabr(unsigned long dabr, unsigned long dabrx)
+{
 	mtspr(SPRN_DAC1, dabr);
 #ifdef CONFIG_PPC_47x
 	isync();
 #endif
-#elif defined(CONFIG_PPC_BOOK3S)
-	mtspr(SPRN_DABR, dabr);
-	mtspr(SPRN_DABRX, dabrx);
-#endif
 	return 0;
+}
+#elif defined(CONFIG_PPC_BOOK3S)
+static inline int __set_dabr(unsigned long dabr, unsigned long dabrx)
+{
+	mtspr(SPRN_DABR, dabr);
+	if (cpu_has_feature(CPU_FTR_DABRX))
+		mtspr(SPRN_DABRX, dabrx);
+	return 0;
+}
+#else
+static inline int __set_dabr(unsigned long dabr, unsigned long dabrx)
+{
+	return -EINVAL;
+}
+#endif
+
+static inline int set_dabr(struct arch_hw_breakpoint *brk)
+{
+	unsigned long dabr, dabrx;
+
+	dabr = brk->address | (brk->type & HW_BRK_TYPE_DABR);
+	dabrx = ((brk->type >> 3) & 0x7);
+
+	if (ppc_md.set_dabr)
+		return ppc_md.set_dabr(dabr, dabrx);
+
+	return __set_dabr(dabr, dabrx);
+}
+
+static inline int set_dawr(struct arch_hw_breakpoint *brk)
+{
+	unsigned long dawr, dawrx, mrd;
+
+	dawr = brk->address;
+
+	dawrx  = (brk->type & (HW_BRK_TYPE_READ | HW_BRK_TYPE_WRITE)) \
+		                   << (63 - 58); //* read/write bits */
+	dawrx |= ((brk->type & (HW_BRK_TYPE_TRANSLATE)) >> 2) \
+		                   << (63 - 59); //* translate */
+	dawrx |= (brk->type & (HW_BRK_TYPE_PRIV_ALL)) \
+		                   >> 3; //* PRIM bits */
+	/* dawr length is stored in field MDR bits 48:53.  Matches range in
+	   doublewords (64 bits) baised by -1 eg. 0b000000=1DW and
+	   0b111111=64DW.
+	   brk->len is in bytes.
+	   This aligns up to double word size, shifts and does the bias.
+	*/
+	mrd = ((brk->len + 7) >> 3) - 1;
+	dawrx |= (mrd & 0x3f) << (63 - 53);
+
+	if (ppc_md.set_dawr)
+		return ppc_md.set_dawr(dawr, dawrx);
+	mtspr(SPRN_DAWR, dawr);
+	mtspr(SPRN_DAWRX, dawrx);
+	return 0;
+}
+
+int set_breakpoint(struct arch_hw_breakpoint *brk)
+{
+	__get_cpu_var(current_brk) = *brk;
+
+	if (cpu_has_feature(CPU_FTR_DAWR))
+		return set_dawr(brk);
+
+	return set_dabr(brk);
 }
 
 #ifdef CONFIG_PPC64
 DEFINE_PER_CPU(struct cpu_usage, cpu_usage_array);
 #endif
 
+static inline bool hw_brk_match(struct arch_hw_breakpoint *a,
+			      struct arch_hw_breakpoint *b)
+{
+	if (a->address != b->address)
+		return false;
+	if (a->type != b->type)
+		return false;
+	if (a->len != b->len)
+		return false;
+	return true;
+}
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+static inline void tm_reclaim_task(struct task_struct *tsk)
+{
+	/* We have to work out if we're switching from/to a task that's in the
+	 * middle of a transaction.
+	 *
+	 * In switching we need to maintain a 2nd register state as
+	 * oldtask->thread.ckpt_regs.  We tm_reclaim(oldproc); this saves the
+	 * checkpointed (tbegin) state in ckpt_regs and saves the transactional
+	 * (current) FPRs into oldtask->thread.transact_fpr[].
+	 *
+	 * We also context switch (save) TFHAR/TEXASR/TFIAR in here.
+	 */
+	struct thread_struct *thr = &tsk->thread;
+
+	if (!thr->regs)
+		return;
+
+	if (!MSR_TM_ACTIVE(thr->regs->msr))
+		goto out_and_saveregs;
+
+	/* Stash the original thread MSR, as giveup_fpu et al will
+	 * modify it.  We hold onto it to see whether the task used
+	 * FP & vector regs.
+	 */
+	thr->tm_orig_msr = thr->regs->msr;
+
+	TM_DEBUG("--- tm_reclaim on pid %d (NIP=%lx, "
+		 "ccr=%lx, msr=%lx, trap=%lx)\n",
+		 tsk->pid, thr->regs->nip,
+		 thr->regs->ccr, thr->regs->msr,
+		 thr->regs->trap);
+
+	tm_reclaim(thr, thr->regs->msr, TM_CAUSE_RESCHED);
+
+	TM_DEBUG("--- tm_reclaim on pid %d complete\n",
+		 tsk->pid);
+
+out_and_saveregs:
+	/* Always save the regs here, even if a transaction's not active.
+	 * This context-switches a thread's TM info SPRs.  We do it here to
+	 * be consistent with the restore path (in recheckpoint) which
+	 * cannot happen later in _switch().
+	 */
+	tm_save_sprs(thr);
+}
+
+static inline void tm_recheckpoint_new_task(struct task_struct *new)
+{
+	unsigned long msr;
+
+	if (!cpu_has_feature(CPU_FTR_TM))
+		return;
+
+	/* Recheckpoint the registers of the thread we're about to switch to.
+	 *
+	 * If the task was using FP, we non-lazily reload both the original and
+	 * the speculative FP register states.  This is because the kernel
+	 * doesn't see if/when a TM rollback occurs, so if we take an FP
+	 * unavoidable later, we are unable to determine which set of FP regs
+	 * need to be restored.
+	 */
+	if (!new->thread.regs)
+		return;
+
+	/* The TM SPRs are restored here, so that TEXASR.FS can be set
+	 * before the trecheckpoint and no explosion occurs.
+	 */
+	tm_restore_sprs(&new->thread);
+
+	if (!MSR_TM_ACTIVE(new->thread.regs->msr))
+		return;
+	msr = new->thread.tm_orig_msr;
+	/* Recheckpoint to restore original checkpointed register state. */
+	TM_DEBUG("*** tm_recheckpoint of pid %d "
+		 "(new->msr 0x%lx, new->origmsr 0x%lx)\n",
+		 new->pid, new->thread.regs->msr, msr);
+
+	/* This loads the checkpointed FP/VEC state, if used */
+	tm_recheckpoint(&new->thread, msr);
+
+	/* This loads the speculative FP/VEC state, if used */
+	if (msr & MSR_FP) {
+		do_load_up_transact_fpu(&new->thread);
+		new->thread.regs->msr |=
+			(MSR_FP | new->thread.fpexc_mode);
+	}
+#ifdef CONFIG_ALTIVEC
+	if (msr & MSR_VEC) {
+		do_load_up_transact_altivec(&new->thread);
+		new->thread.regs->msr |= MSR_VEC;
+	}
+#endif
+	/* We may as well turn on VSX too since all the state is restored now */
+	if (msr & MSR_VSX)
+		new->thread.regs->msr |= MSR_VSX;
+
+	TM_DEBUG("*** tm_recheckpoint of pid %d complete "
+		 "(kernel msr 0x%lx)\n",
+		 new->pid, mfmsr());
+}
+
+static inline void __switch_to_tm(struct task_struct *prev)
+{
+	if (cpu_has_feature(CPU_FTR_TM)) {
+		tm_enable();
+		tm_reclaim_task(prev);
+	}
+}
+#else
+#define tm_recheckpoint_new_task(new)
+#define __switch_to_tm(prev)
+#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
+
 struct task_struct *__switch_to(struct task_struct *prev,
 	struct task_struct *new)
 {
 	struct thread_struct *new_thread, *old_thread;
-	unsigned long flags;
 	struct task_struct *last;
 #ifdef CONFIG_PPC_BOOK3S_64
 	struct ppc64_tlb_batch *batch;
 #endif
+
+	WARN_ON(!irqs_disabled());
+
+	/* Back up the TAR across context switches.
+	 * Note that the TAR is not available for use in the kernel.  (To
+	 * provide this, the TAR should be backed up/restored on exception
+	 * entry/exit instead, and be in pt_regs.  FIXME, this should be in
+	 * pt_regs anyway (for debug).)
+	 * Save the TAR here before we do treclaim/trecheckpoint as these
+	 * will change the TAR.
+	 */
+	save_tar(&prev->thread);
+
+	__switch_to_tm(prev);
 
 #ifdef CONFIG_SMP
 	/* avoid complexity of lazy save/restore of fpu
@@ -481,8 +690,8 @@ struct task_struct *__switch_to(struct task_struct *prev,
  * schedule DABR
  */
 #ifndef CONFIG_HAVE_HW_BREAKPOINT
-	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr))
-		set_dabr(new->thread.dabr, new->thread.dabrx);
+	if (unlikely(hw_brk_match(&__get_cpu_var(current_brk), &new->thread.hw_brk)))
+		set_breakpoint(&new->thread.hw_brk);
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #endif
 
@@ -514,14 +723,15 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	}
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
-	local_irq_save(flags);
-
 	/*
 	 * We can't take a PMU exception inside _switch() since there is a
 	 * window where the kernel stack SLB and the kernel stack are out
 	 * of sync. Hard disable here.
 	 */
 	hard_irq_disable();
+
+	tm_recheckpoint_new_task(new);
+
 	last = _switch(old_thread, new_thread);
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -531,8 +741,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		batch->active = 1;
 	}
 #endif /* CONFIG_PPC_BOOK3S_64 */
-
-	local_irq_restore(flags);
 
 	return last;
 }
@@ -641,6 +849,8 @@ void show_regs(struct pt_regs * regs)
 {
 	int i, trap;
 
+	show_regs_print_info(KERN_DEFAULT);
+
 	printk("NIP: "REG" LR: "REG" CTR: "REG"\n",
 	       regs->nip, regs->link, regs->ctr);
 	printk("REGS: %p TRAP: %04lx   %s  (%s)\n",
@@ -648,24 +858,22 @@ void show_regs(struct pt_regs * regs)
 	printk("MSR: "REG" ", regs->msr);
 	printbits(regs->msr, msr_bits);
 	printk("  CR: %08lx  XER: %08lx\n", regs->ccr, regs->xer);
-#ifdef CONFIG_PPC64
-	printk("SOFTE: %ld\n", regs->softe);
-#endif
 	trap = TRAP(regs);
 	if ((regs->trap != 0xc00) && cpu_has_feature(CPU_FTR_CFAR))
-		printk("CFAR: "REG"\n", regs->orig_gpr3);
-	if (trap == 0x300 || trap == 0x600)
+		printk("CFAR: "REG" ", regs->orig_gpr3);
+	if (trap == 0x200 || trap == 0x300 || trap == 0x600)
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
-		printk("DEAR: "REG", ESR: "REG"\n", regs->dar, regs->dsisr);
+		printk("DEAR: "REG" ESR: "REG" ", regs->dar, regs->dsisr);
 #else
-		printk("DAR: "REG", DSISR: %08lx\n", regs->dar, regs->dsisr);
+		printk("DAR: "REG" DSISR: %08lx ", regs->dar, regs->dsisr);
 #endif
-	printk("TASK = %p[%d] '%s' THREAD: %p",
-	       current, task_pid_nr(current), current->comm, task_thread_info(current));
-
-#ifdef CONFIG_SMP
-	printk(" CPU: %d", raw_smp_processor_id());
-#endif /* CONFIG_SMP */
+#ifdef CONFIG_PPC64
+	printk("SOFTE: %ld ", regs->softe);
+#endif
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	if (MSR_TM_ACTIVE(regs->msr))
+		printk("\nPACATMSCRATCH: %016llx ", get_paca()->tm_scratch);
+#endif
 
 	for (i = 0;  i < 32;  i++) {
 		if ((i % REGS_PER_LINE) == 0)
@@ -719,11 +927,11 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	flush_altivec_to_thread(src);
 	flush_vsx_to_thread(src);
 	flush_spe_to_thread(src);
-#ifdef CONFIG_HAVE_HW_BREAKPOINT
-	flush_ptrace_hw_breakpoint(src);
-#endif /* CONFIG_HAVE_HW_BREAKPOINT */
 
 	*dst = *src;
+
+	clear_task_ebb(dst);
+
 	return 0;
 }
 
@@ -786,12 +994,23 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	 * do some house keeping and then return from the fork or clone
 	 * system call, using the stack frame created above.
 	 */
+	((unsigned long *)sp)[0] = 0;
 	sp -= sizeof(struct pt_regs);
 	kregs = (struct pt_regs *) sp;
 	sp -= STACK_FRAME_OVERHEAD;
 	p->thread.ksp = sp;
+#ifdef CONFIG_PPC32
 	p->thread.ksp_limit = (unsigned long)task_stack_page(p) +
 				_ALIGN_UP(sizeof(struct thread_info), 16);
+#endif
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	p->thread.ptrace_bps[0] = NULL;
+#endif
+
+	p->thread.fp_save_area = NULL;
+#ifdef CONFIG_ALTIVEC
+	p->thread.vr_save_area = NULL;
+#endif
 
 #ifdef CONFIG_PPC_STD_MMU_64
 	if (mmu_has_feature(MMU_FTR_SLB)) {
@@ -813,6 +1032,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		p->thread.dscr_inherit = current->thread.dscr_inherit;
 		p->thread.dscr = current->thread.dscr;
 	}
+	if (cpu_has_feature(CPU_FTR_HAS_PPR))
+		p->thread.ppr = INIT_PPR;
 #endif
 	/*
 	 * The PPC64 ABI makes use of a TOC to contain function 
@@ -866,25 +1087,45 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	regs->msr = MSR_USER;
 #else
 	if (!is_32bit_task()) {
-		unsigned long entry, toc;
+		unsigned long entry;
 
-		/* start is a relocated pointer to the function descriptor for
-		 * the elf _start routine.  The first entry in the function
-		 * descriptor is the entry address of _start and the second
-		 * entry is the TOC value we need to use.
-		 */
-		__get_user(entry, (unsigned long __user *)start);
-		__get_user(toc, (unsigned long __user *)start+1);
+		if (is_elf2_task()) {
+			/* Look ma, no function descriptors! */
+			entry = start;
 
-		/* Check whether the e_entry function descriptor entries
-		 * need to be relocated before we can use them.
-		 */
-		if (load_addr != 0) {
-			entry += load_addr;
-			toc   += load_addr;
+			/*
+			 * Ulrich says:
+			 *   The latest iteration of the ABI requires that when
+			 *   calling a function (at its global entry point),
+			 *   the caller must ensure r12 holds the entry point
+			 *   address (so that the function can quickly
+			 *   establish addressability).
+			 */
+			regs->gpr[12] = start;
+			/* Make sure that's restored on entry to userspace. */
+			set_thread_flag(TIF_RESTOREALL);
+		} else {
+			unsigned long toc;
+
+			/* start is a relocated pointer to the function
+			 * descriptor for the elf _start routine.  The first
+			 * entry in the function descriptor is the entry
+			 * address of _start and the second entry is the TOC
+			 * value we need to use.
+			 */
+			__get_user(entry, (unsigned long __user *)start);
+			__get_user(toc, (unsigned long __user *)start+1);
+
+			/* Check whether the e_entry function descriptor entries
+			 * need to be relocated before we can use them.
+			 */
+			if (load_addr != 0) {
+				entry += load_addr;
+				toc   += load_addr;
+			}
+			regs->gpr[2] = toc;
 		}
 		regs->nip = entry;
-		regs->gpr[2] = toc;
 		regs->msr = MSR_USER64;
 	} else {
 		regs->nip = start;
@@ -892,17 +1133,16 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 		regs->msr = MSR_USER32;
 	}
 #endif
-
 	discard_lazy_cpu_state();
 #ifdef CONFIG_VSX
 	current->thread.used_vsr = 0;
 #endif
-	memset(current->thread.fpr, 0, sizeof(current->thread.fpr));
-	current->thread.fpscr.val = 0;
+	memset(&current->thread.fp_state, 0, sizeof(current->thread.fp_state));
+	current->thread.fp_save_area = NULL;
 #ifdef CONFIG_ALTIVEC
-	memset(current->thread.vr, 0, sizeof(current->thread.vr));
-	memset(&current->thread.vscr, 0, sizeof(current->thread.vscr));
-	current->thread.vscr.u[3] = 0x00010000; /* Java mode disabled */
+	memset(&current->thread.vr_state, 0, sizeof(current->thread.vr_state));
+	current->thread.vr_state.vscr.u[3] = 0x00010000; /* Java mode disabled */
+	current->thread.vr_save_area = NULL;
 	current->thread.vrsave = 0;
 	current->thread.used_vr = 0;
 #endif /* CONFIG_ALTIVEC */
@@ -912,6 +1152,13 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	current->thread.spefscr = 0;
 	current->thread.used_spe = 0;
 #endif /* CONFIG_SPE */
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	if (cpu_has_feature(CPU_FTR_TM))
+		regs->msr |= MSR_TM;
+	current->thread.tm_tfhar = 0;
+	current->thread.tm_texasr = 0;
+	current->thread.tm_tfiar = 0;
+#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 }
 
 #define PR_FP_ALL_EXCEPT (PR_FP_EXC_DIV | PR_FP_EXC_OVF | PR_FP_EXC_UND \
@@ -1161,15 +1408,9 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 	} while (count++ < kstack_depth_to_print);
 }
 
-void dump_stack(void)
-{
-	show_stack(current, NULL);
-}
-EXPORT_SYMBOL(dump_stack);
-
 #ifdef CONFIG_PPC64
 /* Called with hard IRQs off */
-void __ppc64_runlatch_on(void)
+void notrace __ppc64_runlatch_on(void)
 {
 	struct thread_info *ti = current_thread_info();
 	unsigned long ctrl;
@@ -1182,7 +1423,7 @@ void __ppc64_runlatch_on(void)
 }
 
 /* Called with hard IRQs off */
-void __ppc64_runlatch_off(void)
+void notrace __ppc64_runlatch_off(void)
 {
 	struct thread_info *ti = current_thread_info();
 	unsigned long ctrl;

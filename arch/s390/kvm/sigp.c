@@ -79,8 +79,8 @@ static int __sigp_emergency(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	list_add_tail(&inti->list, &li->list);
 	atomic_set(&li->active, 1);
 	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
-	if (waitqueue_active(&li->wq))
-		wake_up_interruptible(&li->wq);
+	if (waitqueue_active(li->wq))
+		wake_up_interruptible(li->wq);
 	spin_unlock_bh(&li->lock);
 	rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 	VCPU_EVENT(vcpu, 4, "sent sigp emerg to cpu %x", cpu_addr);
@@ -117,8 +117,8 @@ static int __sigp_external_call(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	list_add_tail(&inti->list, &li->list);
 	atomic_set(&li->active, 1);
 	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
-	if (waitqueue_active(&li->wq))
-		wake_up_interruptible(&li->wq);
+	if (waitqueue_active(li->wq))
+		wake_up_interruptible(li->wq);
 	spin_unlock_bh(&li->lock);
 	rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 	VCPU_EVENT(vcpu, 4, "sent sigp ext call to cpu %x", cpu_addr);
@@ -137,14 +137,16 @@ static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
 	inti->type = KVM_S390_SIGP_STOP;
 
 	spin_lock_bh(&li->lock);
-	if ((atomic_read(li->cpuflags) & CPUSTAT_STOPPED))
+	if ((atomic_read(li->cpuflags) & CPUSTAT_STOPPED)) {
+		kfree(inti);
 		goto out;
+	}
 	list_add_tail(&inti->list, &li->list);
 	atomic_set(&li->active, 1);
 	atomic_set_mask(CPUSTAT_STOP_INT, li->cpuflags);
 	li->action_bits |= action;
-	if (waitqueue_active(&li->wq))
-		wake_up_interruptible(&li->wq);
+	if (waitqueue_active(li->wq))
+		wake_up_interruptible(li->wq);
 out:
 	spin_unlock_bh(&li->lock);
 
@@ -248,8 +250,8 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 
 	list_add_tail(&inti->list, &li->list);
 	atomic_set(&li->active, 1);
-	if (waitqueue_active(&li->wq))
-		wake_up_interruptible(&li->wq);
+	if (waitqueue_active(li->wq))
+		wake_up_interruptible(li->wq);
 	rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 
 	VCPU_EVENT(vcpu, 4, "set prefix of cpu %02x to %x", cpu_addr, address);
@@ -324,8 +326,6 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 {
 	int r1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
 	int r3 = vcpu->arch.sie_block->ipa & 0x000f;
-	int base2 = vcpu->arch.sie_block->ipb >> 28;
-	int disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
 	u32 parameter;
 	u16 cpu_addr = vcpu->run->s.regs.gprs[r3];
 	u8 order_code;
@@ -333,12 +333,9 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 
 	/* sigp in userspace can exit */
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
-		return kvm_s390_inject_program_int(vcpu,
-						   PGM_PRIVILEGED_OPERATION);
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
-	order_code = disp2;
-	if (base2)
-		order_code += vcpu->run->s.regs.gprs[base2];
+	order_code = kvm_s390_get_base_disp_rs(vcpu);
 
 	if (r1 % 2)
 		parameter = vcpu->run->s.regs.gprs[r1];

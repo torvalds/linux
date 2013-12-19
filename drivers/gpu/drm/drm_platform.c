@@ -28,7 +28,7 @@
 #include <linux/export.h>
 #include <drm/drmP.h>
 
-/**
+/*
  * Register.
  *
  * \param platdev - Platform device struture
@@ -39,57 +39,23 @@
  * Try and register, if we fail to register, backout previous work.
  */
 
-int drm_get_platform_dev(struct platform_device *platdev,
-			 struct drm_driver *driver)
+static int drm_get_platform_dev(struct platform_device *platdev,
+				struct drm_driver *driver)
 {
 	struct drm_device *dev;
 	int ret;
 
 	DRM_DEBUG("\n");
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = drm_dev_alloc(driver, &platdev->dev);
 	if (!dev)
 		return -ENOMEM;
 
 	dev->platformdev = platdev;
-	dev->dev = &platdev->dev;
 
-	mutex_lock(&drm_global_mutex);
-
-	ret = drm_fill_in_dev(dev, NULL, driver);
-
-	if (ret) {
-		printk(KERN_ERR "DRM: Fill_in_dev failed.\n");
-		goto err_g1;
-	}
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = drm_get_minor(dev, &dev->control, DRM_MINOR_CONTROL);
-		if (ret)
-			goto err_g1;
-	}
-
-	ret = drm_get_minor(dev, &dev->primary, DRM_MINOR_LEGACY);
+	ret = drm_dev_register(dev, 0);
 	if (ret)
-		goto err_g2;
-
-	if (dev->driver->load) {
-		ret = dev->driver->load(dev, 0);
-		if (ret)
-			goto err_g3;
-	}
-
-	/* setup the grouping for the legacy output */
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = drm_mode_group_init_legacy_group(dev,
-				&dev->primary->mode_group);
-		if (ret)
-			goto err_g3;
-	}
-
-	list_add_tail(&dev->driver_item, &driver->device_list);
-
-	mutex_unlock(&drm_global_mutex);
+		goto err_free;
 
 	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n",
 		 driver->name, driver->major, driver->minor, driver->patchlevel,
@@ -97,17 +63,10 @@ int drm_get_platform_dev(struct platform_device *platdev,
 
 	return 0;
 
-err_g3:
-	drm_put_minor(&dev->primary);
-err_g2:
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_put_minor(&dev->control);
-err_g1:
-	kfree(dev);
-	mutex_unlock(&drm_global_mutex);
+err_free:
+	drm_dev_free(dev);
 	return ret;
 }
-EXPORT_SYMBOL(drm_get_platform_dev);
 
 static int drm_platform_get_irq(struct drm_device *dev)
 {

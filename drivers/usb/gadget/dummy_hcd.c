@@ -130,10 +130,7 @@ static const char ep0name[] = "ep0";
 static const char *const ep_name[] = {
 	ep0name,				/* everyone has ep0 */
 
-	/* act like a net2280: high speed, six configurable endpoints */
-	"ep-a", "ep-b", "ep-c", "ep-d", "ep-e", "ep-f",
-
-	/* or like pxa250: fifteen fixed function endpoints */
+	/* act like a pxa250: fifteen fixed function endpoints */
 	"ep1in-bulk", "ep2out-bulk", "ep3in-iso", "ep4out-iso", "ep5in-int",
 	"ep6in-bulk", "ep7out-bulk", "ep8in-iso", "ep9out-iso", "ep10in-int",
 	"ep11in-bulk", "ep12out-bulk", "ep13in-iso", "ep14out-iso",
@@ -141,6 +138,10 @@ static const char *const ep_name[] = {
 
 	/* or like sa1100: two fixed function endpoints */
 	"ep1out-bulk", "ep2in-bulk",
+
+	/* and now some generic EPs so we have enough in multi config */
+	"ep3out", "ep4in", "ep5out", "ep6out", "ep7in", "ep8out", "ep9in",
+	"ep10out", "ep11out", "ep12in", "ep13out", "ep14in", "ep15out",
 };
 #define DUMMY_ENDPOINTS	ARRAY_SIZE(ep_name)
 
@@ -543,7 +544,7 @@ static int dummy_enable(struct usb_ep *_ep,
 		 default:
 			 val = "ctrl";
 			 break;
-		 }; val; }),
+		 } val; }),
 		max, ep->stream_en ? "enabled" : "disabled");
 
 	/* at this point real hardware should be NAKing transfers
@@ -867,7 +868,7 @@ static const struct usb_gadget_ops dummy_ops = {
 /*-------------------------------------------------------------------------*/
 
 /* "function" sysfs attribute */
-static ssize_t show_function(struct device *dev, struct device_attribute *attr,
+static ssize_t function_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	struct dummy	*dum = gadget_dev_to_dummy(dev);
@@ -876,7 +877,7 @@ static ssize_t show_function(struct device *dev, struct device_attribute *attr,
 		return 0;
 	return scnprintf(buf, PAGE_SIZE, "%s\n", dum->driver->function);
 }
-static DEVICE_ATTR(function, S_IRUGO, show_function, NULL);
+static DEVICE_ATTR_RO(function);
 
 /*-------------------------------------------------------------------------*/
 
@@ -911,7 +912,6 @@ static int dummy_udc_start(struct usb_gadget *g,
 	dum->devstatus = 0;
 
 	dum->driver = driver;
-	dum->gadget.dev.driver = &driver->driver;
 	dev_dbg(udc_dev(dum), "binding gadget driver '%s'\n",
 			driver->driver.name);
 	return 0;
@@ -923,10 +923,10 @@ static int dummy_udc_stop(struct usb_gadget *g,
 	struct dummy_hcd	*dum_hcd = gadget_to_dummy_hcd(g);
 	struct dummy		*dum = dum_hcd->dum;
 
-	dev_dbg(udc_dev(dum), "unregister gadget driver '%s'\n",
-			driver->driver.name);
+	if (driver)
+		dev_dbg(udc_dev(dum), "unregister gadget driver '%s'\n",
+				driver->driver.name);
 
-	dum->gadget.dev.driver = NULL;
 	dum->driver = NULL;
 
 	return 0;
@@ -936,11 +936,6 @@ static int dummy_udc_stop(struct usb_gadget *g,
 
 /* The gadget structure is stored inside the hcd structure and will be
  * released along with it. */
-static void dummy_gadget_release(struct device *dev)
-{
-	return;
-}
-
 static void init_dummy_udc_hw(struct dummy *dum)
 {
 	int i;
@@ -983,15 +978,7 @@ static int dummy_udc_probe(struct platform_device *pdev)
 	dum->gadget.ops = &dummy_ops;
 	dum->gadget.max_speed = USB_SPEED_SUPER;
 
-	dev_set_name(&dum->gadget.dev, "gadget");
 	dum->gadget.dev.parent = &pdev->dev;
-	dum->gadget.dev.release = dummy_gadget_release;
-	rc = device_register(&dum->gadget.dev);
-	if (rc < 0) {
-		put_device(&dum->gadget.dev);
-		return rc;
-	}
-
 	init_dummy_udc_hw(dum);
 
 	rc = usb_add_gadget_udc(&pdev->dev, &dum->gadget);
@@ -1007,7 +994,6 @@ static int dummy_udc_probe(struct platform_device *pdev)
 err_dev:
 	usb_del_gadget_udc(&dum->gadget);
 err_udc:
-	device_unregister(&dum->gadget.dev);
 	return rc;
 }
 
@@ -1015,10 +1001,8 @@ static int dummy_udc_remove(struct platform_device *pdev)
 {
 	struct dummy	*dum = platform_get_drvdata(pdev);
 
-	usb_del_gadget_udc(&dum->gadget);
-	platform_set_drvdata(pdev, NULL);
 	device_remove_file(&dum->gadget.dev, &dev_attr_function);
-	device_unregister(&dum->gadget.dev);
+	usb_del_gadget_udc(&dum->gadget);
 	return 0;
 }
 
@@ -1922,7 +1906,7 @@ done:
 }
 
 /* usb 3.0 root hub device descriptor */
-struct {
+static struct {
 	struct usb_bos_descriptor bos;
 	struct usb_ss_cap_descriptor ss_cap;
 } __packed usb3_bos_desc = {
@@ -2287,7 +2271,7 @@ static inline ssize_t show_urb(char *buf, size_t size, struct urb *urb)
 		default:
 			s = "?";
 			break;
-		 }; s; }),
+		 } s; }),
 		ep, ep ? (usb_pipein(urb->pipe) ? "in" : "out") : "",
 		({ char *s; \
 		switch (usb_pipetype(urb->pipe)) { \
@@ -2303,11 +2287,11 @@ static inline ssize_t show_urb(char *buf, size_t size, struct urb *urb)
 		default: \
 			s = "-iso"; \
 			break; \
-		}; s; }),
+		} s; }),
 		urb->actual_length, urb->transfer_buffer_length);
 }
 
-static ssize_t show_urbs(struct device *dev, struct device_attribute *attr,
+static ssize_t urbs_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	struct usb_hcd		*hcd = dev_get_drvdata(dev);
@@ -2328,7 +2312,7 @@ static ssize_t show_urbs(struct device *dev, struct device_attribute *attr,
 
 	return size;
 }
-static DEVICE_ATTR(urbs, S_IRUGO, show_urbs, NULL);
+static DEVICE_ATTR_RO(urbs);
 
 static int dummy_start_ss(struct dummy_hcd *dum_hcd)
 {
@@ -2677,8 +2661,10 @@ static int __init init(void)
 	}
 	for (i = 0; i < mod_data.num; i++) {
 		dum[i] = kzalloc(sizeof(struct dummy), GFP_KERNEL);
-		if (!dum[i])
+		if (!dum[i]) {
+			retval = -ENOMEM;
 			goto err_add_pdata;
+		}
 		retval = platform_device_add_data(the_hcd_pdev[i], &dum[i],
 				sizeof(void *));
 		if (retval)

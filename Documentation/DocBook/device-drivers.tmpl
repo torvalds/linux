@@ -58,7 +58,7 @@
      </sect1>
      <sect1><title>Wait queues and Wake events</title>
 !Iinclude/linux/wait.h
-!Ekernel/wait.c
+!Ekernel/sched/wait.c
      </sect1>
      <sect1><title>High-resolution timers</title>
 !Iinclude/linux/ktime.h
@@ -84,10 +84,13 @@ X!Iinclude/linux/kobject.h
 
      <sect1><title>Kernel utility functions</title>
 !Iinclude/linux/kernel.h
-!Ekernel/printk.c
+!Ekernel/printk/printk.c
 !Ekernel/panic.c
 !Ekernel/sys.c
-!Ekernel/rcupdate.c
+!Ekernel/rcu/srcu.c
+!Ekernel/rcu/tree.c
+!Ekernel/rcu/tree_plugin.h
+!Ekernel/rcu/update.c
      </sect1>
 
      <sect1><title>Device Resource Management</title>
@@ -126,6 +129,8 @@ X!Edrivers/base/interface.c
      </sect1>
      <sect1><title>Device Drivers DMA Management</title>
 !Edrivers/base/dma-buf.c
+!Edrivers/base/reservation.c
+!Iinclude/linux/reservation.h
 !Edrivers/base/dma-coherent.c
 !Edrivers/base/dma-mapping.c
      </sect1>
@@ -227,7 +232,7 @@ X!Isound/sound_firmware.c
   <chapter id="uart16x50">
      <title>16x50 UART Driver</title>
 !Edrivers/tty/serial/serial_core.c
-!Edrivers/tty/serial/8250/8250.c
+!Edrivers/tty/serial/8250/8250_core.c
   </chapter>
 
   <chapter id="fbdev">
@@ -297,10 +302,10 @@ KAO -->
      </sect1>
      <sect1><title>Frame Buffer Fonts</title>
         <para>
-           Refer to the file drivers/video/console/fonts.c for more information.
+           Refer to the file lib/fonts/fonts.c for more information.
         </para>
 <!-- FIXME: Removed for now since no structured comments in source
-X!Idrivers/video/console/fonts.c
+X!Ilib/fonts/fonts.c
 -->
      </sect1>
   </chapter>

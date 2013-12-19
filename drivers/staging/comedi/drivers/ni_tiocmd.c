@@ -13,10 +13,6 @@
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 /*
@@ -48,6 +44,7 @@ TODO:
 	Support use of both banks X and Y
 */
 
+#include <linux/module.h>
 #include "comedi_fc.h"
 #include "ni_tio_internal.h"
 #include "mite.h"
@@ -159,6 +156,7 @@ static int ni_tio_input_cmd(struct ni_gpct *counter, struct comedi_async *async)
 		async->inttrig = NULL;
 		mite_dma_arm(counter->mite_chan);
 		retval = ni_tio_arm(counter, 1, cmd->start_arg);
+		break;
 	case TRIG_OTHER:
 		async->inttrig = NULL;
 		mite_dma_arm(counter->mite_chan);

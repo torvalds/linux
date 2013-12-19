@@ -3,8 +3,8 @@
 #
 
 menuconfig IP_SCTP
-	tristate "The SCTP Protocol (EXPERIMENTAL)"
-	depends on INET && EXPERIMENTAL
+	tristate "The SCTP Protocol"
+	depends on INET
 	depends on IPV6 || IPV6=n
 	select CRYPTO
 	select CRYPTO_HMAC
@@ -30,7 +30,8 @@ menuconfig IP_SCTP
 	  homing at either or both ends of an association."
 
 	  To compile this protocol support as a module, choose M here: the
-	  module will be called sctp.
+	  module will be called sctp. Debug messages are handeled by the
+	  kernel's dynamic debugging framework.
 
 	  If in doubt, say N.
 
@@ -48,14 +49,6 @@ config NET_SCTPPROBE
         To compile this code as a module, choose M here: the
         module will be called sctp_probe.
 
-config SCTP_DBG_MSG
-	bool "SCTP: Debug messages"
-	help
-	  If you say Y, this will enable verbose debugging messages. 
-
-	  If unsure, say N.  However, if you are running into problems, use 
-	  this option to gather detailed trace information
-
 config SCTP_DBG_OBJCNT
 	bool "SCTP: Debug object counts"
 	depends on PROC_FS
@@ -68,7 +61,7 @@ config SCTP_DBG_OBJCNT
 	  If unsure, say N
 choice
 	prompt "Default SCTP cookie HMAC encoding"
-	default SCTP_COOKIE_HMAC_MD5
+	default SCTP_DEFAULT_COOKIE_HMAC_MD5
 	help
 	  This option sets the default sctp cookie hmac algorithm
 	  when in doubt select 'md5'

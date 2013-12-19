@@ -35,6 +35,9 @@
 #ifdef CONFIG_BF60x
 #include <mach/pm.h>
 #endif
+#ifdef CONFIG_SCB_PRIORITY
+#include <asm/scb.h>
+#endif
 
 u16 _bfin_swrst;
 EXPORT_SYMBOL(_bfin_swrst);
@@ -99,7 +102,7 @@ void __init generate_cplb_tables(void)
 }
 #endif
 
-void __cpuinit bfin_setup_caches(unsigned int cpu)
+void bfin_setup_caches(unsigned int cpu)
 {
 #ifdef CONFIG_BFIN_ICACHE
 	bfin_icache_init(icplb_tbl[cpu]);
@@ -165,7 +168,7 @@ void __cpuinit bfin_setup_caches(unsigned int cpu)
 #endif
 }
 
-void __cpuinit bfin_setup_cpudata(unsigned int cpu)
+void bfin_setup_cpudata(unsigned int cpu)
 {
 	struct blackfin_cpudata *cpudata = &per_cpu(cpu_data, cpu);
 
@@ -1101,6 +1104,9 @@ void __init setup_arch(char **cmdline_p)
 #endif
 	init_exception_vectors();
 	bfin_cache_init();	/* Initialize caches for the boot CPU */
+#ifdef CONFIG_SCB_PRIORITY
+	init_scb();
+#endif
 }
 
 static int __init topology_init(void)
@@ -1314,7 +1320,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			seq_printf(m, "(Compiled for Rev %d)", bfin_compiled_revid());
 	}
 
-	seq_printf(m, "\ncpu MHz\t\t: %lu.%03lu/%lu.%03lu\n",
+	seq_printf(m, "\ncpu MHz\t\t: %lu.%06lu/%lu.%06lu\n",
 		cclk/1000000, cclk%1000000,
 		sclk/1000000, sclk%1000000);
 	seq_printf(m, "bogomips\t: %lu.%02lu\n"

@@ -1,0 +1,56 @@
+ChromeOS Embedded Controller
+
+Google's ChromeOS EC is a Cortex-M device which talks to the AP and
+implements various function such as keyboard and battery charging.
+
+The EC can be connect through various means (I2C, SPI, LPC) and the
+compatible string used depends on the interface. Each connection method has
+its own driver which connects to the top level interface-agnostic EC driver.
+Other Linux driver (such as cros-ec-keyb for the matrix keyboard) connect to
+the top-level driver.
+
+Required properties (I2C):
+- compatible: "google,cros-ec-i2c"
+- reg: I2C slave address
+
+Required properties (SPI):
+- compatible: "google,cros-ec-spi"
+- reg: SPI chip select
+
+Required properties (LPC):
+- compatible: "google,cros-ec-lpc"
+- reg: List of (IO address, size) pairs defining the interface uses
+
+
+Example for I2C:
+
+i2c@12CA0000 {
+	cros-ec@1e {
+		reg = <0x1e>;
+		compatible = "google,cros-ec-i2c";
+		interrupts = <14 0>;
+		interrupt-parent = <&wakeup_eint>;
+		wakeup-source;
+	};
+
+
+Example for SPI:
+
+spi@131b0000 {
+	ec@0 {
+		compatible = "google,cros-ec-spi";
+		reg = <0x0>;
+		interrupts = <14 0>;
+		interrupt-parent = <&wakeup_eint>;
+		wakeup-source;
+		spi-max-frequency = <5000000>;
+		controller-data {
+		cs-gpio = <&gpf0 3 4 3 0>;
+		samsung,spi-cs;
+		samsung,spi-feedback-delay = <2>;
+		};
+	};
+};
+
+
+Example for LPC is not supplied as it is not yet implemented.

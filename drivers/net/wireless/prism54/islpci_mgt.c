@@ -123,11 +123,8 @@ islpci_mgmt_rx_fill(struct net_device *ndev)
 
 		if (buf->mem == NULL) {
 			buf->mem = kmalloc(MGMT_FRAME_SIZE, GFP_ATOMIC);
-			if (!buf->mem) {
-				printk(KERN_WARNING
-				       "Error allocating management frame.\n");
+			if (!buf->mem)
 				return -ENOMEM;
-			}
 			buf->size = MGMT_FRAME_SIZE;
 		}
 		if (buf->pci_addr == 0) {
@@ -356,14 +353,11 @@ islpci_mgt_receive(struct net_device *ndev)
 
 		/* Determine frame size, skipping OID_INL_TUNNEL headers. */
 		size = PIMFOR_HEADER_SIZE + header->length;
-		frame = kmalloc(sizeof (struct islpci_mgmtframe) + size,
+		frame = kmalloc(sizeof(struct islpci_mgmtframe) + size,
 				GFP_ATOMIC);
-		if (!frame) {
-			printk(KERN_WARNING
-			       "%s: Out of memory, cannot handle oid 0x%08x\n",
-			       ndev->name, header->oid);
+		if (!frame)
 			continue;
-		}
+
 		frame->ndev = ndev;
 		memcpy(&frame->buf, header, size);
 		frame->header = (pimfor_header_t *) frame->buf;

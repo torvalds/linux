@@ -69,7 +69,8 @@ void __init setup_cmdline(char **cmdline_p)
 		/* called from hpux boot loader */
 		boot_command_line[0] = '\0';
 	} else {
-		strcpy(boot_command_line, (char *)__va(boot_args[1]));
+		strlcpy(boot_command_line, (char *)__va(boot_args[1]),
+			COMMAND_LINE_SIZE);
 
 #ifdef CONFIG_BLK_DEV_INITRD
 		if (boot_args[2] != 0) /* did palo pass us a ramdisk? */
@@ -129,6 +130,8 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_INFO "The 32-bit Kernel has started...\n");
 #endif
 
+	printk(KERN_INFO "Default page size is %dKB.\n", (int)(PAGE_SIZE / 1024));
+
 	pdc_console_init();
 
 #ifdef CONFIG_64BIT
@@ -153,7 +156,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #if defined(CONFIG_VT) && defined(CONFIG_DUMMY_CONSOLE)
-	conswitchp = &dummy_con;	/* we use take_over_console() later ! */
+	conswitchp = &dummy_con;	/* we use do_take_over_console() later ! */
 #endif
 
 }
@@ -315,8 +318,12 @@ static int __init parisc_init(void)
 	pdc_stable_write(0x40, &osid, sizeof(osid));
 	
 	processor_init();
-	printk(KERN_INFO "CPU(s): %d x %s at %d.%06d MHz\n",
-			num_present_cpus(),
+#ifdef CONFIG_SMP
+	pr_info("CPU(s): %d out of %d %s at %d.%06d MHz online\n",
+		num_online_cpus(), num_present_cpus(),
+#else
+	pr_info("CPU(s): 1 x %s at %d.%06d MHz\n",
+#endif
 			boot_cpu_data.cpu_name,
 			boot_cpu_data.cpu_hz / 1000000,
 			boot_cpu_data.cpu_hz % 1000000	);

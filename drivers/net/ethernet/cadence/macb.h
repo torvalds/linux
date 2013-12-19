@@ -173,6 +173,8 @@
 /* Bitfields in DMACFG. */
 #define GEM_FBLDO_OFFSET			0
 #define GEM_FBLDO_SIZE				5
+#define GEM_ENDIA_OFFSET			7
+#define GEM_ENDIA_SIZE				1
 #define GEM_RXBMS_OFFSET			8
 #define GEM_RXBMS_SIZE				2
 #define GEM_TXPBMS_OFFSET			10
@@ -298,6 +300,8 @@
 #define MACB_REV_SIZE				16
 
 /* Bitfields in DCFG1. */
+#define GEM_IRQCOR_OFFSET			23
+#define GEM_IRQCOR_SIZE				1
 #define GEM_DBWDEF_OFFSET			25
 #define GEM_DBWDEF_SIZE				3
 
@@ -320,6 +324,9 @@
 #define MACB_MAN_WRITE				1
 #define MACB_MAN_READ				2
 #define MACB_MAN_CODE				2
+
+/* Capability mask bits */
+#define MACB_CAPS_ISR_CLEAR_ON_WRITE		0x1
 
 /* Bit manipulation macros */
 #define MACB_BIT(name)					\
@@ -538,12 +545,24 @@ struct gem_stats {
 	u32	rx_udp_checksum_errors;
 };
 
+struct macb;
+
+struct macb_or_gem_ops {
+	int	(*mog_alloc_rx_buffers)(struct macb *bp);
+	void	(*mog_free_rx_buffers)(struct macb *bp);
+	void	(*mog_init_rings)(struct macb *bp);
+	int	(*mog_rx)(struct macb *bp, int budget);
+};
+
 struct macb {
 	void __iomem		*regs;
 
 	unsigned int		rx_tail;
+	unsigned int		rx_prepared_head;
 	struct macb_dma_desc	*rx_ring;
+	struct sk_buff		**rx_skbuff;
 	void			*rx_buffers;
+	size_t			rx_buffer_size;
 
 	unsigned int		tx_head, tx_tail;
 	struct macb_dma_desc	*tx_ring;
@@ -566,11 +585,15 @@ struct macb {
 	dma_addr_t		tx_ring_dma;
 	dma_addr_t		rx_buffers_dma;
 
+	struct macb_or_gem_ops	macbgem_ops;
+
 	struct mii_bus		*mii_bus;
 	struct phy_device	*phy_dev;
 	unsigned int 		link;
 	unsigned int 		speed;
 	unsigned int 		duplex;
+
+	u32			caps;
 
 	phy_interface_t		phy_interface;
 

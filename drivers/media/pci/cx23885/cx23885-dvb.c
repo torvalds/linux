@@ -51,12 +51,14 @@
 #include "stv6110.h"
 #include "lnbh24.h"
 #include "cx24116.h"
+#include "cx24117.h"
 #include "cimax2.h"
 #include "lgs8gxx.h"
 #include "netup-eeprom.h"
 #include "netup-init.h"
 #include "lgdt3305.h"
 #include "atbm8830.h"
+#include "ts2020.h"
 #include "ds3000.h"
 #include "cx23885-f300.h"
 #include "altera-ci.h"
@@ -66,6 +68,9 @@
 #include "stv090x.h"
 #include "stb6100.h"
 #include "stb6100_cfg.h"
+#include "tda10071.h"
+#include "a8293.h"
+#include "mb86a20s.h"
 
 static unsigned int debug;
 
@@ -116,8 +121,6 @@ static void dvb_buf_release(struct videobuf_queue *q,
 	cx23885_free_buffer(q, (struct cx23885_buffer *)vb);
 }
 
-static int cx23885_dvb_set_frontend(struct dvb_frontend *fe);
-
 static void cx23885_dvb_gate_ctrl(struct cx23885_tsport  *port, int open)
 {
 	struct videobuf_dvb_frontends *f;
@@ -132,12 +135,6 @@ static void cx23885_dvb_gate_ctrl(struct cx23885_tsport  *port, int open)
 
 	if (fe && fe->dvb.frontend && fe->dvb.frontend->ops.i2c_gate_ctrl)
 		fe->dvb.frontend->ops.i2c_gate_ctrl(fe->dvb.frontend, open);
-
-	/*
-	 * FIXME: Improve this path to avoid calling the
-	 * cx23885_dvb_set_frontend() every time it passes here.
-	 */
-	cx23885_dvb_set_frontend(fe->dvb.frontend);
 }
 
 static struct videobuf_queue_ops dvb_qops = {
@@ -465,8 +462,17 @@ static struct cx24116_config tbs_cx24116_config = {
 	.demod_address = 0x55,
 };
 
+static struct cx24117_config tbs_cx24117_config = {
+	.demod_address = 0x55,
+};
+
 static struct ds3000_config tevii_ds3000_config = {
 	.demod_address = 0x68,
+};
+
+static struct ts2020_config tevii_ts2020_config  = {
+	.tuner_address = 0x60,
+	.clk_out_div = 1,
 };
 
 static struct cx24116_config dvbworld_cx24116_config = {
@@ -492,21 +498,30 @@ static struct xc5000_config mygica_x8506_xc5000_config = {
 	.if_khz = 5380,
 };
 
-static struct stv090x_config prof_8000_stv090x_config = {
-        .device                 = STV0903,
-        .demod_mode             = STV090x_SINGLE,
-        .clk_mode               = STV090x_CLK_EXT,
-        .xtal                   = 27000000,
-        .address                = 0x6A,
-        .ts1_mode               = STV090x_TSMODE_PARALLEL_PUNCTURED,
-        .repeater_level         = STV090x_RPTLEVEL_64,
-        .adc1_range             = STV090x_ADC_2Vpp,
-        .diseqc_envelope_mode   = false,
+static struct mb86a20s_config mygica_x8507_mb86a20s_config = {
+	.demod_address = 0x10,
+};
 
-        .tuner_get_frequency    = stb6100_get_frequency,
-        .tuner_set_frequency    = stb6100_set_frequency,
-        .tuner_set_bandwidth    = stb6100_set_bandwidth,
-        .tuner_get_bandwidth    = stb6100_get_bandwidth,
+static struct xc5000_config mygica_x8507_xc5000_config = {
+	.i2c_address = 0x61,
+	.if_khz = 4000,
+};
+
+static struct stv090x_config prof_8000_stv090x_config = {
+	.device                 = STV0903,
+	.demod_mode             = STV090x_SINGLE,
+	.clk_mode               = STV090x_CLK_EXT,
+	.xtal                   = 27000000,
+	.address                = 0x6A,
+	.ts1_mode               = STV090x_TSMODE_PARALLEL_PUNCTURED,
+	.repeater_level         = STV090x_RPTLEVEL_64,
+	.adc1_range             = STV090x_ADC_2Vpp,
+	.diseqc_envelope_mode   = false,
+
+	.tuner_get_frequency    = stb6100_get_frequency,
+	.tuner_set_frequency    = stb6100_set_frequency,
+	.tuner_set_bandwidth    = stb6100_set_bandwidth,
+	.tuner_get_bandwidth    = stb6100_get_bandwidth,
 };
 
 static struct stb6100_config prof_8000_stb6100_config = {
@@ -548,12 +563,25 @@ static int cx23885_dvb_set_frontend(struct dvb_frontend *fe)
 		}
 		break;
 	case CX23885_BOARD_MYGICA_X8506:
+	case CX23885_BOARD_MYGICA_X8507:
 	case CX23885_BOARD_MAGICPRO_PROHDTVE2:
 		/* Select Digital TV */
 		cx23885_gpio_set(dev, GPIO_0);
 		break;
 	}
+
+	/* Call the real set_frontend */
+	if (port->set_frontend)
+		return port->set_frontend(fe);
+
 	return 0;
+}
+
+static void cx23885_set_frontend_hook(struct cx23885_tsport *port,
+				     struct dvb_frontend *fe)
+{
+	port->set_frontend = fe->ops.set_frontend;
+	fe->ops.set_frontend = cx23885_dvb_set_frontend;
 }
 
 static struct lgs8gxx_config magicpro_prohdtve2_lgs8g75_config = {
@@ -659,6 +687,20 @@ static struct mt2063_config terratec_mt2063_config[] = {
 	},
 };
 
+static const struct tda10071_config hauppauge_tda10071_config = {
+	.demod_i2c_addr = 0x05,
+	.tuner_i2c_addr = 0x54,
+	.i2c_wr_max = 64,
+	.ts_mode = TDA10071_TS_SERIAL,
+	.spec_inv = 0,
+	.xtal = 40444000, /* 40.444 MHz */
+	.pll_multiplier = 20,
+};
+
+static const struct a8293_config hauppauge_a8293_config = {
+	.i2c_addr = 0x0b,
+};
+
 static int netup_altera_fpga_rw(void *device, int flag, int data, int read)
 {
 	struct cx23885_dev *dev = (struct cx23885_dev *)device;
@@ -749,6 +791,8 @@ static int dvb_register(struct cx23885_tsport *port)
 				   0x60, &dev->i2c_bus[1].i2c_adap,
 				   &hauppauge_hvr127x_config);
 		}
+		if (dev->board == CX23885_BOARD_HAUPPAUGE_HVR1275)
+			cx23885_set_frontend_hook(port, fe0->dvb.frontend);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1255:
 	case CX23885_BOARD_HAUPPAUGE_HVR1255_22111:
@@ -1005,14 +1049,36 @@ static int dvb_register(struct cx23885_tsport *port)
 			fe0->dvb.frontend->ops.set_voltage = f300_set_voltage;
 
 		break;
+	case CX23885_BOARD_TBS_6980:
+	case CX23885_BOARD_TBS_6981:
+		i2c_bus = &dev->i2c_bus[1];
+
+		switch (port->nr) {
+		/* PORT B */
+		case 1:
+			fe0->dvb.frontend = dvb_attach(cx24117_attach,
+					&tbs_cx24117_config,
+					&i2c_bus->i2c_adap);
+			break;
+		/* PORT C */
+		case 2:
+			fe0->dvb.frontend = dvb_attach(cx24117_attach,
+					&tbs_cx24117_config,
+					&i2c_bus->i2c_adap);
+			break;
+		}
+		break;
 	case CX23885_BOARD_TEVII_S470:
 		i2c_bus = &dev->i2c_bus[1];
 
 		fe0->dvb.frontend = dvb_attach(ds3000_attach,
 					&tevii_ds3000_config,
 					&i2c_bus->i2c_adap);
-		if (fe0->dvb.frontend != NULL)
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(ts2020_attach, fe0->dvb.frontend,
+				&tevii_ts2020_config, &i2c_bus->i2c_adap);
 			fe0->dvb.frontend->ops.set_voltage = f300_set_voltage;
+		}
 
 		break;
 	case CX23885_BOARD_DVBWORLD_2005:
@@ -1081,6 +1147,21 @@ static int dvb_register(struct cx23885_tsport *port)
 				&i2c_bus2->i2c_adap,
 				&mygica_x8506_xc5000_config);
 		}
+		cx23885_set_frontend_hook(port, fe0->dvb.frontend);
+		break;
+	case CX23885_BOARD_MYGICA_X8507:
+		i2c_bus = &dev->i2c_bus[0];
+		i2c_bus2 = &dev->i2c_bus[1];
+		fe0->dvb.frontend = dvb_attach(mb86a20s_attach,
+			&mygica_x8507_mb86a20s_config,
+			&i2c_bus->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(xc5000_attach,
+			fe0->dvb.frontend,
+			&i2c_bus2->i2c_adap,
+			&mygica_x8507_xc5000_config);
+		}
+		cx23885_set_frontend_hook(port, fe0->dvb.frontend);
 		break;
 	case CX23885_BOARD_MAGICPRO_PROHDTVE2:
 		i2c_bus = &dev->i2c_bus[0];
@@ -1094,6 +1175,7 @@ static int dvb_register(struct cx23885_tsport *port)
 				&i2c_bus2->i2c_adap,
 				&magicpro_prohdtve2_xc5000_config);
 		}
+		cx23885_set_frontend_hook(port, fe0->dvb.frontend);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 		i2c_bus = &dev->i2c_bus[0];
@@ -1224,6 +1306,10 @@ static int dvb_register(struct cx23885_tsport *port)
 		fe0->dvb.frontend = dvb_attach(ds3000_attach,
 					&tevii_ds3000_config,
 					&i2c_bus->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(ts2020_attach, fe0->dvb.frontend,
+				&tevii_ts2020_config, &i2c_bus->i2c_adap);
+		}
 		break;
 	case CX23885_BOARD_PROF_8000:
 		i2c_bus = &dev->i2c_bus[0];
@@ -1240,6 +1326,17 @@ static int dvb_register(struct cx23885_tsport *port)
 				goto frontend_detach;
 
 			fe0->dvb.frontend->ops.set_voltage = p8000_set_voltage;
+		}
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR4400:
+		i2c_bus = &dev->i2c_bus[0];
+		fe0->dvb.frontend = dvb_attach(tda10071_attach,
+						&hauppauge_tda10071_config,
+						&i2c_bus->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(a8293_attach, fe0->dvb.frontend,
+				   &i2c_bus->i2c_adap,
+				   &hauppauge_a8293_config);
 		}
 		break;
 	default:

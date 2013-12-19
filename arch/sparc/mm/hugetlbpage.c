@@ -21,8 +21,6 @@
 /* Slightly simplified from the non-hugepage variant because by
  * definition we don't have to worry about any page coloring stuff
  */
-#define VA_EXCLUDE_START (0x0000080000000000UL - (1UL << 32UL))
-#define VA_EXCLUDE_END   (0xfffff80000000000UL + (1UL << 32UL))
 
 static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *filp,
 							unsigned long addr,
@@ -230,6 +228,11 @@ int pmd_huge(pmd_t pmd)
 }
 
 int pud_huge(pud_t pud)
+{
+	return 0;
+}
+
+int pmd_huge_support(void)
 {
 	return 0;
 }

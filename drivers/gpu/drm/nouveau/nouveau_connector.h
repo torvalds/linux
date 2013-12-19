@@ -30,6 +30,11 @@
 #include <drm/drm_edid.h>
 #include "nouveau_crtc.h"
 
+#include <core/event.h>
+
+#include <subdev/bios.h>
+#include <subdev/bios/gpio.h>
+
 struct nouveau_i2c_port;
 
 enum nouveau_underscan_type {
@@ -61,7 +66,10 @@ struct nouveau_connector {
 	enum dcb_connector_type type;
 	u8 index;
 	u8 *dcb;
-	u8 hpd;
+
+	struct dcb_gpio_func hpd;
+	struct work_struct hpd_work;
+	struct nouveau_eventh *hpd_func;
 
 	int dithering_mode;
 	int dithering_depth;
@@ -98,8 +106,5 @@ nouveau_crtc_connector_get(struct nouveau_crtc *nv_crtc)
 
 struct drm_connector *
 nouveau_connector_create(struct drm_device *, int index);
-
-int
-nouveau_connector_bpp(struct drm_connector *);
 
 #endif /* __NOUVEAU_CONNECTOR_H__ */

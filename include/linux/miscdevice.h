@@ -31,6 +31,7 @@
 #define I2O_MINOR		166
 #define MICROCODE_MINOR		184
 #define TUN_MINOR		200
+#define CUSE_MINOR		203
 #define MWAVE_MINOR		219	/* ACP/Mwave Modem */
 #define MPT_MINOR		220
 #define MPT2SAS_MINOR		221
@@ -45,6 +46,7 @@
 #define MAPPER_CTRL_MINOR	236
 #define LOOP_CTRL_MINOR		237
 #define VHOST_NET_MINOR		238
+#define UHID_MINOR		239
 #define MISC_DYNAMIC_MINOR	255
 
 struct device;

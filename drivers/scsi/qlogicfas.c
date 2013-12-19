@@ -142,7 +142,7 @@ module_param_array(irq, int, NULL, 0);
 MODULE_PARM_DESC(iobase, "I/O address");
 MODULE_PARM_DESC(irq, "IRQ");
 
-static int __devinit qlogicfas_detect(struct scsi_host_template *sht)
+static int qlogicfas_detect(struct scsi_host_template *sht)
 {
 	struct Scsi_Host *shost;
 	struct qlogicfas408_priv *priv;

@@ -494,19 +494,15 @@ static void pcnet32_realloc_tx_ring(struct net_device *dev,
 	}
 	memset(new_tx_ring, 0, sizeof(struct pcnet32_tx_head) * (1 << size));
 
-	new_dma_addr_list = kcalloc((1 << size), sizeof(dma_addr_t),
-				GFP_ATOMIC);
-	if (!new_dma_addr_list) {
-		netif_err(lp, drv, dev, "Memory allocation failed\n");
+	new_dma_addr_list = kcalloc(1 << size, sizeof(dma_addr_t),
+				    GFP_ATOMIC);
+	if (!new_dma_addr_list)
 		goto free_new_tx_ring;
-	}
 
-	new_skb_list = kcalloc((1 << size), sizeof(struct sk_buff *),
-				GFP_ATOMIC);
-	if (!new_skb_list) {
-		netif_err(lp, drv, dev, "Memory allocation failed\n");
+	new_skb_list = kcalloc(1 << size, sizeof(struct sk_buff *),
+			       GFP_ATOMIC);
+	if (!new_skb_list)
 		goto free_new_lists;
-	}
 
 	kfree(lp->tx_skbuff);
 	kfree(lp->tx_dma_addr);
@@ -564,19 +560,14 @@ static void pcnet32_realloc_rx_ring(struct net_device *dev,
 	}
 	memset(new_rx_ring, 0, sizeof(struct pcnet32_rx_head) * (1 << size));
 
-	new_dma_addr_list = kcalloc((1 << size), sizeof(dma_addr_t),
-				GFP_ATOMIC);
-	if (!new_dma_addr_list) {
-		netif_err(lp, drv, dev, "Memory allocation failed\n");
+	new_dma_addr_list = kcalloc(1 << size, sizeof(dma_addr_t), GFP_ATOMIC);
+	if (!new_dma_addr_list)
 		goto free_new_rx_ring;
-	}
 
-	new_skb_list = kcalloc((1 << size), sizeof(struct sk_buff *),
-				GFP_ATOMIC);
-	if (!new_skb_list) {
-		netif_err(lp, drv, dev, "Memory allocation failed\n");
+	new_skb_list = kcalloc(1 << size, sizeof(struct sk_buff *),
+			       GFP_ATOMIC);
+	if (!new_skb_list)
 		goto free_new_lists;
-	}
 
 	/* first copy the current receive buffers */
 	overlap = min(size, lp->rx_ring_size);
@@ -1175,7 +1166,6 @@ static void pcnet32_rx_entry(struct net_device *dev,
 		skb = netdev_alloc_skb(dev, pkt_len + NET_IP_ALIGN);
 
 	if (skb == NULL) {
-		netif_err(lp, drv, dev, "Memory squeeze, dropping packet\n");
 		dev->stats.rx_dropped++;
 		return;
 	}
@@ -1531,7 +1521,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	char *chipname;
 	struct net_device *dev;
 	const struct pcnet32_access *a = NULL;
-	u8 promaddr[6];
+	u8 promaddr[ETH_ALEN];
 	int ret = -ENODEV;
 
 	/* reset the chip */
@@ -1675,23 +1665,22 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	}
 
 	/* read PROM address and compare with CSR address */
-	for (i = 0; i < 6; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		promaddr[i] = inb(ioaddr + i);
 
-	if (memcmp(promaddr, dev->dev_addr, 6) ||
+	if (memcmp(promaddr, dev->dev_addr, ETH_ALEN) ||
 	    !is_valid_ether_addr(dev->dev_addr)) {
 		if (is_valid_ether_addr(promaddr)) {
 			if (pcnet32_debug & NETIF_MSG_PROBE) {
 				pr_cont(" warning: CSR address invalid,\n");
 				pr_info("    using instead PROM address of");
 			}
-			memcpy(dev->dev_addr, promaddr, 6);
+			memcpy(dev->dev_addr, promaddr, ETH_ALEN);
 		}
 	}
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	/* if the ethernet address is not valid, force to 00:00:00:00:00:00 */
-	if (!is_valid_ether_addr(dev->perm_addr))
+	if (!is_valid_ether_addr(dev->dev_addr))
 		memset(dev->dev_addr, 0, ETH_ALEN);
 
 	if (pcnet32_debug & NETIF_MSG_PROBE) {
@@ -1934,31 +1923,23 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 
 	lp->tx_dma_addr = kcalloc(lp->tx_ring_size, sizeof(dma_addr_t),
 				  GFP_ATOMIC);
-	if (!lp->tx_dma_addr) {
-		netif_err(lp, drv, dev, "Memory allocation failed\n");
+	if (!lp->tx_dma_addr)
 		return -ENOMEM;
-	}
 
 	lp->rx_dma_addr = kcalloc(lp->rx_ring_size, sizeof(dma_addr_t),
 				  GFP_ATOMIC);
-	if (!lp->rx_dma_addr) {
-		netif_err(lp, drv, dev, "Memory allocation failed\n");
+	if (!lp->rx_dma_addr)
 		return -ENOMEM;
-	}
 
 	lp->tx_skbuff = kcalloc(lp->tx_ring_size, sizeof(struct sk_buff *),
 				GFP_ATOMIC);
-	if (!lp->tx_skbuff) {
-		netif_err(lp, drv, dev, "Memory allocation failed\n");
+	if (!lp->tx_skbuff)
 		return -ENOMEM;
-	}
 
 	lp->rx_skbuff = kcalloc(lp->rx_ring_size, sizeof(struct sk_buff *),
 				GFP_ATOMIC);
-	if (!lp->rx_skbuff) {
-		netif_err(lp, drv, dev, "Memory allocation failed\n");
+	if (!lp->rx_skbuff)
 		return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -2837,7 +2818,6 @@ static void pcnet32_remove_one(struct pci_dev *pdev)
 				    lp->init_block, lp->init_dma_addr);
 		free_netdev(dev);
 		pci_disable_device(pdev);
-		pci_set_drvdata(pdev, NULL);
 	}
 }
 

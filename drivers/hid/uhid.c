@@ -11,6 +11,7 @@
  */
 
 #include <linux/atomic.h>
+#include <linux/compat.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/hid.h>
@@ -113,30 +114,6 @@ static void uhid_hid_close(struct hid_device *hid)
 	struct uhid_device *uhid = hid->driver_data;
 
 	uhid_queue_event(uhid, UHID_CLOSE);
-}
-
-static int uhid_hid_input(struct input_dev *input, unsigned int type,
-			  unsigned int code, int value)
-{
-	struct hid_device *hid = input_get_drvdata(input);
-	struct uhid_device *uhid = hid->driver_data;
-	unsigned long flags;
-	struct uhid_event *ev;
-
-	ev = kzalloc(sizeof(*ev), GFP_ATOMIC);
-	if (!ev)
-		return -ENOMEM;
-
-	ev->type = UHID_OUTPUT_EV;
-	ev->u.output_ev.type = type;
-	ev->u.output_ev.code = code;
-	ev->u.output_ev.value = value;
-
-	spin_lock_irqsave(&uhid->qlock, flags);
-	uhid_queue(uhid, ev);
-	spin_unlock_irqrestore(&uhid->qlock, flags);
-
-	return 0;
 }
 
 static int uhid_hid_parse(struct hid_device *hid)
@@ -272,9 +249,96 @@ static struct hid_ll_driver uhid_hid_driver = {
 	.stop = uhid_hid_stop,
 	.open = uhid_hid_open,
 	.close = uhid_hid_close,
-	.hidinput_input_event = uhid_hid_input,
 	.parse = uhid_hid_parse,
 };
+
+#ifdef CONFIG_COMPAT
+
+/* Apparently we haven't stepped on these rakes enough times yet. */
+struct uhid_create_req_compat {
+	__u8 name[128];
+	__u8 phys[64];
+	__u8 uniq[64];
+
+	compat_uptr_t rd_data;
+	__u16 rd_size;
+
+	__u16 bus;
+	__u32 vendor;
+	__u32 product;
+	__u32 version;
+	__u32 country;
+} __attribute__((__packed__));
+
+static int uhid_event_from_user(const char __user *buffer, size_t len,
+				struct uhid_event *event)
+{
+	if (is_compat_task()) {
+		u32 type;
+
+		if (get_user(type, buffer))
+			return -EFAULT;
+
+		if (type == UHID_CREATE) {
+			/*
+			 * This is our messed up request with compat pointer.
+			 * It is largish (more than 256 bytes) so we better
+			 * allocate it from the heap.
+			 */
+			struct uhid_create_req_compat *compat;
+
+			compat = kzalloc(sizeof(*compat), GFP_KERNEL);
+			if (!compat)
+				return -ENOMEM;
+
+			buffer += sizeof(type);
+			len -= sizeof(type);
+			if (copy_from_user(compat, buffer,
+					   min(len, sizeof(*compat)))) {
+				kfree(compat);
+				return -EFAULT;
+			}
+
+			/* Shuffle the data over to proper structure */
+			event->type = type;
+
+			memcpy(event->u.create.name, compat->name,
+				sizeof(compat->name));
+			memcpy(event->u.create.phys, compat->phys,
+				sizeof(compat->phys));
+			memcpy(event->u.create.uniq, compat->uniq,
+				sizeof(compat->uniq));
+
+			event->u.create.rd_data = compat_ptr(compat->rd_data);
+			event->u.create.rd_size = compat->rd_size;
+
+			event->u.create.bus = compat->bus;
+			event->u.create.vendor = compat->vendor;
+			event->u.create.product = compat->product;
+			event->u.create.version = compat->version;
+			event->u.create.country = compat->country;
+
+			kfree(compat);
+			return 0;
+		}
+		/* All others can be copied directly */
+	}
+
+	if (copy_from_user(event, buffer, min(len, sizeof(*event))))
+		return -EFAULT;
+
+	return 0;
+}
+#else
+static int uhid_event_from_user(const char __user *buffer, size_t len,
+				struct uhid_event *event)
+{
+	if (copy_from_user(event, buffer, min(len, sizeof(*event))))
+		return -EFAULT;
+
+	return 0;
+}
+#endif
 
 static int uhid_dev_create(struct uhid_device *uhid,
 			   const struct uhid_event *ev)
@@ -498,10 +562,10 @@ static ssize_t uhid_char_write(struct file *file, const char __user *buffer,
 
 	memset(&uhid->input_buf, 0, sizeof(uhid->input_buf));
 	len = min(count, sizeof(uhid->input_buf));
-	if (copy_from_user(&uhid->input_buf, buffer, len)) {
-		ret = -EFAULT;
+
+	ret = uhid_event_from_user(buffer, len, &uhid->input_buf);
+	if (ret)
 		goto unlock;
-	}
 
 	switch (uhid->input_buf.type) {
 	case UHID_CREATE:
@@ -551,7 +615,7 @@ static const struct file_operations uhid_fops = {
 
 static struct miscdevice uhid_misc = {
 	.fops		= &uhid_fops,
-	.minor		= MISC_DYNAMIC_MINOR,
+	.minor		= UHID_MINOR,
 	.name		= UHID_NAME,
 };
 
@@ -570,3 +634,5 @@ module_exit(uhid_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Herrmann <dh.herrmann@gmail.com>");
 MODULE_DESCRIPTION("User-space I/O driver support for HID subsystem");
+MODULE_ALIAS_MISCDEV(UHID_MINOR);
+MODULE_ALIAS("devname:" UHID_NAME);

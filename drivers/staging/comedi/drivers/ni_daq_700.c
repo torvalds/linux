@@ -15,11 +15,6 @@
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program; if not, write to the Free Software
- *     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 /*
@@ -40,7 +35,7 @@ port, bit 0; channel 8 corresponds to the input port, bit 0.
 Digital direction configuration: channels 0-7 output, 8-15 input (8225 device
 emu as port A output, port B input, port C N/A).
 
-Analog: The input  range is 0 to 4095 for -10 to +10 volts 
+Analog: The input  range is 0 to 4095 for -10 to +10 volts
 IRQ is assigned but not used.
 
 Version 0.1	Original DIO only driver
@@ -50,21 +45,14 @@ Manuals:	Register level:	http://www.ni.com/pdf/manuals/340698.pdf
 		User Manual:	http://www.ni.com/pdf/manuals/320676d.pdf
 */
 
+#include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
+
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
-
 #include <pcmcia/cistpl.h>
-#include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
-
-static struct pcmcia_device *pcmcia_cur_dev;
-
-struct daq700_board {
-	const char *name;
-};
 
 /* daqcard700 registers */
 #define DIO_W		0x04	/* WO 8bit */
@@ -84,39 +72,39 @@ struct daq700_board {
 
 static int daq700_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	unsigned int mask;
+	unsigned int val;
 
-		if (data[0] & 0xff)
+	mask = comedi_dio_update_state(s, data);
+	if (mask) {
+		if (mask & 0xff)
 			outb(s->state & 0xff, dev->iobase + DIO_W);
 	}
 
-	data[1] = s->state & 0xff;
-	data[1] |= inb(dev->iobase + DIO_R) << 8;
+	val = s->state & 0xff;
+	val |= inb(dev->iobase + DIO_R) << 8;
+
+	data[1] = val;
 
 	return insn->n;
 }
 
 static int daq700_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-	unsigned int chan = 1 << CR_CHAN(insn->chanspec);
+	int ret;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_INPUT:
-		break;
-	case INSN_CONFIG_DIO_OUTPUT:
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & chan) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
+
+	/* The DIO channels are not configurable, fix the io_bits */
+	s->io_bits = 0x00ff;
 
 	return insn->n;
 }
@@ -190,7 +178,7 @@ static int daq700_ai_rinsn(struct comedi_device *dev,
  */
 static void daq700_ai_config(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
-{			
+{
 	unsigned long iobase = dev->iobase;
 
 	outb(0x80, iobase + CMD_R1);	/* disable scanning, ADC to chan 0 */
@@ -202,24 +190,18 @@ static void daq700_ai_config(struct comedi_device *dev,
 	inw(iobase + ADFIFO_R);		/* read 16bit junk from FIFO to clear */
 }
 
-static int daq700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int daq700_auto_attach(struct comedi_device *dev,
+			      unsigned long context)
 {
-	const struct daq700_board *thisboard = comedi_board(dev);
+	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
 	struct comedi_subdevice *s;
-	struct pcmcia_device *link;
 	int ret;
 
-	link = pcmcia_cur_dev;	/* XXX hack */
-	if (!link)
-		return -EIO;
-
+	link->config_flags |= CONF_AUTO_SET_IO;
+	ret = comedi_pcmcia_enable(dev, NULL);
+	if (ret)
+		return ret;
 	dev->iobase = link->resource[0]->start;
-	if (!dev->iobase) {
-		dev_err(dev->class_dev, "io base address is zero!\n");
-		return -EINVAL;
-	}
-
-	dev->board_name = thisboard->name;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
@@ -234,7 +216,6 @@ static int daq700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= 1;
 	s->insn_bits	= daq700_dio_insn_bits;
 	s->insn_config	= daq700_dio_insn_config;
-	s->state	= 0;
 	s->io_bits	= 0x00ff;
 
 	/* DAQCard-700 ai */
@@ -256,68 +237,16 @@ static int daq700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void daq700_detach(struct comedi_device *dev)
-{
-	/* nothing to cleanup */
-}
-
-static const struct daq700_board daq700_boards[] = {
-	{
-		.name		= "daqcard-700",
-	}, {
-		.name		= "ni_daq_700",
-	},
-};
-
 static struct comedi_driver daq700_driver = {
 	.driver_name	= "ni_daq_700",
 	.module		= THIS_MODULE,
-	.attach		= daq700_attach,
-	.detach		= daq700_detach,
-	.board_name	= &daq700_boards[0].name,
-	.num_names	= ARRAY_SIZE(daq700_boards),
-	.offset		= sizeof(struct daq700_board),
+	.auto_attach	= daq700_auto_attach,
+	.detach		= comedi_pcmcia_disable,
 };
-
-static int daq700_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				void *priv_data)
-{
-	if (p_dev->config_index == 0)
-		return -EINVAL;
-
-	return pcmcia_request_io(p_dev);
-}
 
 static int daq700_cs_attach(struct pcmcia_device *link)
 {
-	int ret;
-
-	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_AUDIO |
-		CONF_AUTO_SET_IO;
-
-	ret = pcmcia_loop_config(link, daq700_pcmcia_config_loop, NULL);
-	if (ret)
-		goto failed;
-
-	if (!link->irq)
-		goto failed;
-
-	ret = pcmcia_enable_device(link);
-	if (ret)
-		goto failed;
-
-	pcmcia_cur_dev = link;
-	return 0;
-
-failed:
-	pcmcia_disable_device(link);
-	return ret;
-}
-
-static void daq700_cs_detach(struct pcmcia_device *link)
-{
-	pcmcia_disable_device(link);
-	pcmcia_cur_dev = NULL;
+	return comedi_pcmcia_auto_config(link, &daq700_driver);
 }
 
 static const struct pcmcia_device_id daq700_cs_ids[] = {
@@ -329,35 +258,11 @@ MODULE_DEVICE_TABLE(pcmcia, daq700_cs_ids);
 static struct pcmcia_driver daq700_cs_driver = {
 	.name		= "ni_daq_700",
 	.owner		= THIS_MODULE,
-	.probe		= daq700_cs_attach,
-	.remove		= daq700_cs_detach,
 	.id_table	= daq700_cs_ids,
+	.probe		= daq700_cs_attach,
+	.remove		= comedi_pcmcia_auto_unconfig,
 };
-
-static int __init daq700_cs_init(void)
-{
-	int ret;
-
-	ret = comedi_driver_register(&daq700_driver);
-	if (ret < 0)
-		return ret;
-
-	ret = pcmcia_register_driver(&daq700_cs_driver);
-	if (ret < 0) {
-		comedi_driver_unregister(&daq700_driver);
-		return ret;
-	}
-
-	return 0;
-}
-module_init(daq700_cs_init);
-
-static void __exit daq700_cs_exit(void)
-{
-	pcmcia_unregister_driver(&daq700_cs_driver);
-	comedi_driver_unregister(&daq700_driver);
-}
-module_exit(daq700_cs_exit);
+module_comedi_pcmcia_driver(daq700_driver, daq700_cs_driver);
 
 MODULE_AUTHOR("Fred Brooks <nsaspook@nsaspook.com>");
 MODULE_DESCRIPTION(

@@ -2886,9 +2886,9 @@ static void do_fd_request(struct request_queue *q)
 		return;
 
 	if (WARN(atomic_read(&usage_count) == 0,
-		 "warning: usage count=0, current_req=%p sect=%ld type=%x flags=%x\n",
+		 "warning: usage count=0, current_req=%p sect=%ld type=%x flags=%llx\n",
 		 current_req, (long)blk_rq_pos(current_req), current_req->cmd_type,
-		 current_req->cmd_flags))
+		 (unsigned long long) current_req->cmd_flags))
 		return;
 
 	if (test_and_set_bit(0, &fdc_busy)) {
@@ -3601,7 +3601,7 @@ static void __init config_types(void)
 		pr_cont("\n");
 }
 
-static int floppy_release(struct gendisk *disk, fmode_t mode)
+static void floppy_release(struct gendisk *disk, fmode_t mode)
 {
 	int drive = (long)disk->private_data;
 
@@ -3615,8 +3615,6 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 		opened_bdev[drive] = NULL;
 	mutex_unlock(&open_lock);
 	mutex_unlock(&floppy_mutex);
-
-	return 0;
 }
 
 /*
@@ -3777,7 +3775,6 @@ static int __floppy_read_block_0(struct block_device *bdev)
 	bio_vec.bv_len = size;
 	bio_vec.bv_offset = 0;
 	bio.bi_vcnt = 1;
-	bio.bi_idx = 0;
 	bio.bi_size = size;
 	bio.bi_bdev = bdev;
 	bio.bi_sector = 0;

@@ -211,8 +211,6 @@ static int __init _omap_mux_get_by_name(struct omap_mux_partition *partition,
 		return -EINVAL;
 	}
 
-	pr_err("%s: Could not find signal %s\n", __func__, muxname);
-
 	return -ENODEV;
 }
 
@@ -233,6 +231,8 @@ int __init omap_mux_get_by_name(const char *muxname,
 
 		return mux_mode;
 	}
+
+	pr_err("%s: Could not find signal %s\n", __func__, muxname);
 
 	return -ENODEV;
 }
@@ -739,8 +739,9 @@ static void __init omap_mux_dbg_create_entry(
 	list_for_each_entry(e, &partition->muxmodes, node) {
 		struct omap_mux *m = &e->mux;
 
-		(void)debugfs_create_file(m->muxnames[0], S_IWUSR, mux_dbg_dir,
-					  m, &omap_mux_dbg_signal_fops);
+		(void)debugfs_create_file(m->muxnames[0], S_IWUSR | S_IRUGO,
+					  mux_dbg_dir, m,
+					  &omap_mux_dbg_signal_fops);
 	}
 }
 
@@ -810,14 +811,18 @@ int __init omap_mux_late_init(void)
 		}
 	}
 
+	omap_mux_dbg_init();
+
+	/* see pinctrl-single-omap for the wake-up interrupt handling */
+	if (of_have_populated_dt())
+		return 0;
+
 	ret = request_irq(omap_prcm_event_to_irq("io"),
 		omap_hwmod_mux_handle_irq, IRQF_SHARED | IRQF_NO_SUSPEND,
 			"hwmod_io", omap_mux_late_init);
 
 	if (ret)
 		pr_warning("mux: Failed to setup hwmod io irq %d\n", ret);
-
-	omap_mux_dbg_init();
 
 	return 0;
 }

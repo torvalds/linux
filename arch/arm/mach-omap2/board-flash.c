@@ -112,6 +112,9 @@ struct gpmc_timings nand_default_timings[1] = {
 		.cs_rd_off = 36,
 		.cs_wr_off = 36,
 
+		.we_on = 6,
+		.oe_on = 6,
+
 		.adv_on = 6,
 		.adv_rd_off = 24,
 		.adv_wr_off = 36,
@@ -139,7 +142,7 @@ __init board_nand_init(struct mtd_partition *nand_parts, u8 nr_parts, u8 cs,
 	board_nand_data.nr_parts	= nr_parts;
 	board_nand_data.devsize		= nand_type;
 
-	board_nand_data.ecc_opt = OMAP_ECC_HAMMING_CODE_DEFAULT;
+	board_nand_data.ecc_opt = OMAP_ECC_BCH8_CODE_HW;
 	gpmc_nand_init(&board_nand_data, gpmc_t);
 }
 #endif /* CONFIG_MTD_NAND_OMAP2 || CONFIG_MTD_NAND_OMAP2_MODULE */

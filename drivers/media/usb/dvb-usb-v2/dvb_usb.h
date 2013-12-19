@@ -140,7 +140,7 @@ struct dvb_usb_rc {
 	int (*change_protocol)(struct rc_dev *dev, u64 *rc_type);
 	int (*query) (struct dvb_usb_device *d);
 	unsigned int interval;
-	const enum rc_driver_type driver_type;
+	enum rc_driver_type driver_type;
 	bool bulk_mode;
 };
 
@@ -329,13 +329,16 @@ struct dvb_usb_adapter {
 	u8 feed_count;
 	u8 max_feed_count;
 	s8 active_fe;
+#define ADAP_INIT                0
+#define ADAP_SLEEP               1
+#define ADAP_STREAMING           2
+	unsigned long state_bits;
 
 	/* dvb */
 	struct dvb_adapter   dvb_adap;
 	struct dmxdev        dmxdev;
 	struct dvb_demux     demux;
 	struct dvb_net       dvb_net;
-	struct mutex         sync_mutex;
 
 	struct dvb_frontend *fe[MAX_NO_OF_FE_PER_ADAP];
 	int (*fe_init[MAX_NO_OF_FE_PER_ADAP]) (struct dvb_frontend *);
@@ -347,10 +350,9 @@ struct dvb_usb_adapter {
  * @props: device properties
  * @name: device name
  * @rc_map: name of rc codes table
+ * @rc_polling_active: set when RC polling is active
  * @udev: pointer to the device's struct usb_device
- * @intf: pointer to the device's usb interface
  * @rc: remote controller configuration
- * @probe_work: work to defer .probe()
  * @powered: indicated whether the device is power or not
  * @usb_mutex: mutex for usb control messages
  * @i2c_mutex: mutex for i2c-transfers
@@ -364,12 +366,9 @@ struct dvb_usb_device {
 	const struct dvb_usb_device_properties *props;
 	const char *name;
 	const char *rc_map;
-
+	bool rc_polling_active;
 	struct usb_device *udev;
-	struct usb_interface *intf;
 	struct dvb_usb_rc rc;
-	struct work_struct probe_work;
-	pid_t work_pid;
 	int powered;
 
 	/* locking */
@@ -399,5 +398,9 @@ extern int dvb_usbv2_reset_resume(struct usb_interface *);
 /* the generic read/write method for device control */
 extern int dvb_usbv2_generic_rw(struct dvb_usb_device *, u8 *, u16, u8 *, u16);
 extern int dvb_usbv2_generic_write(struct dvb_usb_device *, u8 *, u16);
+/* caller must hold lock when locked versions are called */
+extern int dvb_usbv2_generic_rw_locked(struct dvb_usb_device *,
+		u8 *, u16, u8 *, u16);
+extern int dvb_usbv2_generic_write_locked(struct dvb_usb_device *, u8 *, u16);
 
 #endif

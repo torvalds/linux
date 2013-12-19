@@ -50,7 +50,7 @@ static inline dma_addr_t plat_map_dma_mem_page(struct device *dev,
 	return pa;
 }
 
-/* This is almost certainly wrong but it's what dma-ip32.c used to use  */
+/* This is almost certainly wrong but it's what dma-ip32.c used to use	*/
 static inline unsigned long plat_dma_addr_to_phys(struct device *dev,
 	dma_addr_t dma_addr)
 {
@@ -78,17 +78,6 @@ static inline int plat_dma_supported(struct device *dev, u64 mask)
 		return 0;
 
 	return 1;
-}
-
-static inline void plat_extra_sync_for_device(struct device *dev)
-{
-	return;
-}
-
-static inline int plat_dma_mapping_error(struct device *dev,
-					 dma_addr_t dma_addr)
-{
-	return 0;
 }
 
 static inline int plat_device_is_coherent(struct device *dev)

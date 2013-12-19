@@ -8,11 +8,25 @@
 #include <net/inetpeer.h>
 #include <net/tcp.h>
 
-int sysctl_tcp_fastopen __read_mostly;
+int sysctl_tcp_fastopen __read_mostly = TFO_CLIENT_ENABLE;
 
 struct tcp_fastopen_context __rcu *tcp_fastopen_ctx;
 
 static DEFINE_SPINLOCK(tcp_fastopen_ctx_lock);
+
+void tcp_fastopen_init_key_once(bool publish)
+{
+	static u8 key[TCP_FASTOPEN_KEY_LENGTH];
+
+	/* tcp_fastopen_reset_cipher publishes the new context
+	 * atomically, so we allow this race happening here.
+	 *
+	 * All call sites of tcp_fastopen_cookie_gen also check
+	 * for a valid cookie, so this is an acceptable risk.
+	 */
+	if (net_get_random_once(key, sizeof(key)) && publish)
+		tcp_fastopen_reset_cipher(key, sizeof(key));
+}
 
 static void tcp_fastopen_ctx_free(struct rcu_head *head)
 {
@@ -58,35 +72,25 @@ error:		kfree(ctx);
 	return err;
 }
 
-/* Computes the fastopen cookie for the peer.
- * The peer address is a 128 bits long (pad with zeros for IPv4).
+/* Computes the fastopen cookie for the IP path.
+ * The path is a 128 bits long (pad with zeros for IPv4).
  *
  * The caller must check foc->len to determine if a valid cookie
  * has been generated successfully.
 */
-void tcp_fastopen_cookie_gen(__be32 addr, struct tcp_fastopen_cookie *foc)
+void tcp_fastopen_cookie_gen(__be32 src, __be32 dst,
+			     struct tcp_fastopen_cookie *foc)
 {
-	__be32 peer_addr[4] = { addr, 0, 0, 0 };
+	__be32 path[4] = { src, dst, 0, 0 };
 	struct tcp_fastopen_context *ctx;
+
+	tcp_fastopen_init_key_once(true);
 
 	rcu_read_lock();
 	ctx = rcu_dereference(tcp_fastopen_ctx);
 	if (ctx) {
-		crypto_cipher_encrypt_one(ctx->tfm,
-					  foc->val,
-					  (__u8 *)peer_addr);
+		crypto_cipher_encrypt_one(ctx->tfm, foc->val, (__u8 *)path);
 		foc->len = TCP_FASTOPEN_COOKIE_SIZE;
 	}
 	rcu_read_unlock();
 }
-
-static int __init tcp_fastopen_init(void)
-{
-	__u8 key[TCP_FASTOPEN_KEY_LENGTH];
-
-	get_random_bytes(key, sizeof(key));
-	tcp_fastopen_reset_cipher(key, sizeof(key));
-	return 0;
-}
-
-late_initcall(tcp_fastopen_init);

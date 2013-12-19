@@ -36,9 +36,12 @@
  *	HP PARISC Hardware Database
  *	Access to this database is only possible during bootup
  *	so don't reference this table after starting the init process
+ *
+ *	NOTE: Product names which are listed here and ends with a '?'
+ *	are guessed. If you know the correct name, please let us know.
  */
  
-static struct hp_hardware hp_hardware_list[] __devinitdata = {
+static struct hp_hardware hp_hardware_list[] = {
 	{HPHW_NPROC,0x01,0x4,0x0,"Indigo (840, 930)"},
 	{HPHW_NPROC,0x8,0x4,0x01,"Firefox(825,925)"},
 	{HPHW_NPROC,0xA,0x4,0x01,"Top Gun (835,834,935,635)"},
@@ -222,6 +225,7 @@ static struct hp_hardware hp_hardware_list[] __devinitdata = {
 	{HPHW_NPROC,0x5DD,0x4,0x81,"Duet W2"},
 	{HPHW_NPROC,0x5DE,0x4,0x81,"Piccolo W+"},
 	{HPHW_NPROC,0x5DF,0x4,0x81,"Cantata W2"},
+	{HPHW_NPROC,0x5DF,0x0,0x00,"Marcato W+ (rp5470)?"},
 	{HPHW_NPROC,0x5E0,0x4,0x91,"Cantata DC- W2"},
 	{HPHW_NPROC,0x5E1,0x4,0x91,"Crescendo DC- W2"},
 	{HPHW_NPROC,0x5E2,0x4,0x91,"Crescendo 650 W2"},
@@ -275,9 +279,11 @@ static struct hp_hardware hp_hardware_list[] __devinitdata = {
 	{HPHW_NPROC,0x888,0x4,0x91,"Storm Peak Fast DC-"},
 	{HPHW_NPROC,0x889,0x4,0x91,"Storm Peak Fast"},
 	{HPHW_NPROC,0x88A,0x4,0x91,"Crestone Peak Slow"},
+	{HPHW_NPROC,0x88B,0x4,0x91,"Crestone Peak Fast?"},
 	{HPHW_NPROC,0x88C,0x4,0x91,"Orca Mako+"},
 	{HPHW_NPROC,0x88D,0x4,0x91,"Rainier/Medel Mako+ Slow"},
 	{HPHW_NPROC,0x88E,0x4,0x91,"Rainier/Medel Mako+ Fast"},
+	{HPHW_NPROC,0x892,0x4,0x91,"Mt. Hamilton Slow Mako+?"},
 	{HPHW_NPROC,0x894,0x4,0x91,"Mt. Hamilton Fast Mako+"},
 	{HPHW_NPROC,0x895,0x4,0x91,"Storm Peak Slow Mako+"},
 	{HPHW_NPROC,0x896,0x4,0x91,"Storm Peak Fast Mako+"},
@@ -1204,6 +1210,7 @@ static struct hp_hardware hp_hardware_list[] __devinitdata = {
 	{HPHW_FIO, 0x004, 0x00320, 0x0, "Metheus Frame Buffer"}, 
 	{HPHW_FIO, 0x004, 0x00340, 0x0, "BARCO CX4500 VME Grphx Cnsl"}, 
 	{HPHW_FIO, 0x004, 0x00360, 0x0, "Hughes TOG VME FDDI"}, 
+	{HPHW_FIO, 0x076, 0x000AD, 0x00, "Crestone Peak RS-232"},
 	{HPHW_IOA, 0x185, 0x0000B, 0x00, "Java BC Summit Port"}, 
 	{HPHW_IOA, 0x1FF, 0x0000B, 0x00, "Hitachi Ghostview Summit Port"}, 
 	{HPHW_IOA, 0x580, 0x0000B, 0x10, "U2-IOA BC Runway Port"}, 
@@ -1230,7 +1237,7 @@ static struct hp_cpu_type_mask {
 	unsigned short model;
 	unsigned short mask;
 	enum cpu_type cpu;
-} hp_cpu_type_mask_list[] __devinitdata = {
+} hp_cpu_type_mask_list[] = {
 
 	{ 0x0000, 0x0ff0, pcx    },  /* 0x0000 - 0x000f */
 	{ 0x0048, 0x0ff0, pcxl   },  /* 0x0040 - 0x004f */
@@ -1327,8 +1334,7 @@ const char * const cpu_name_version[][2] = {
 	[mako2] = { "PA8900 (Shortfin)",	"2.0" }
 };
 
-const char * __devinit
-parisc_hardware_description(struct parisc_device_id *id)
+const char *parisc_hardware_description(struct parisc_device_id *id)
 {
 	struct hp_hardware *listptr;
 	
@@ -1366,7 +1372,7 @@ parisc_hardware_description(struct parisc_device_id *id)
 
 
 /* Interpret hversion (ret[0]) from PDC_MODEL(4)/PDC_MODEL_INFO(0) */
-enum cpu_type __cpuinit
+enum cpu_type
 parisc_get_cpu_type(unsigned long hversion)
 {
 	struct hp_cpu_type_mask *ptr;

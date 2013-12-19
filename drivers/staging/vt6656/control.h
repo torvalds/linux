@@ -30,11 +30,8 @@
 #ifndef __CONTROL_H__
 #define __CONTROL_H__
 
-#include "ttype.h"
 #include "device.h"
 #include "usbpipe.h"
-
-/*---------------------  Export Definitions -------------------------*/
 
 #define CONTROLnsRequestOut(Device, Request, Value, Index, Length, Buffer) \
 	PIPEnsControlOut(Device, Request, Value, Index, Length, Buffer)
@@ -45,34 +42,13 @@
 #define CONTROLnsRequestIn(Device, Request, Value, Index, Length, Buffer) \
 	PIPEnsControlIn(Device, Request, Value, Index, Length, Buffer)
 
-/*---------------------  Export Classes  ----------------------------*/
+void ControlvWriteByte(struct vnt_private *pDevice, u8 reg, u8 reg_off,
+			u8 data);
 
-/*---------------------  Export Variables  --------------------------*/
+void ControlvReadByte(struct vnt_private *pDevice, u8 reg, u8 reg_off,
+			u8 *data);
 
-/*---------------------  Export Functions  --------------------------*/
-
-void ControlvWriteByte(
-     PSDevice pDevice,
-     BYTE byRegType,
-     BYTE byRegOfs,
-     BYTE byData
-    );
-
-
-void ControlvReadByte(
-     PSDevice pDevice,
-     BYTE byRegType,
-     BYTE byRegOfs,
-     PBYTE pbyData
-    );
-
-
-void ControlvMaskByte(
-     PSDevice pDevice,
-     BYTE byRegType,
-     BYTE byRegOfs,
-     BYTE byMask,
-     BYTE byData
-    );
+void ControlvMaskByte(struct vnt_private *pDevice, u8 reg_type, u8 reg_off,
+			u8 reg_mask, u8 data);
 
 #endif /* __CONTROL_H__ */

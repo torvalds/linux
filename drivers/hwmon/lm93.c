@@ -354,12 +354,12 @@ static const unsigned long lm93_vin_val_max[16] = {
 
 static unsigned LM93_IN_FROM_REG(int nr, u8 reg)
 {
-	const long uV_max = lm93_vin_val_max[nr] * 1000;
-	const long uV_min = lm93_vin_val_min[nr] * 1000;
+	const long uv_max = lm93_vin_val_max[nr] * 1000;
+	const long uv_min = lm93_vin_val_min[nr] * 1000;
 
-	const long slope = (uV_max - uV_min) /
+	const long slope = (uv_max - uv_min) /
 		(lm93_vin_reg_max[nr] - lm93_vin_reg_min[nr]);
-	const long intercept = uV_min - slope * lm93_vin_reg_min[nr];
+	const long intercept = uv_min - slope * lm93_vin_reg_min[nr];
 
 	return (slope * reg + intercept + 500) / 1000;
 }
@@ -371,32 +371,32 @@ static unsigned LM93_IN_FROM_REG(int nr, u8 reg)
 static u8 LM93_IN_TO_REG(int nr, unsigned val)
 {
 	/* range limit */
-	const long mV = SENSORS_LIMIT(val,
-		lm93_vin_val_min[nr], lm93_vin_val_max[nr]);
+	const long mv = clamp_val(val,
+				  lm93_vin_val_min[nr], lm93_vin_val_max[nr]);
 
 	/* try not to lose too much precision here */
-	const long uV = mV * 1000;
-	const long uV_max = lm93_vin_val_max[nr] * 1000;
-	const long uV_min = lm93_vin_val_min[nr] * 1000;
+	const long uv = mv * 1000;
+	const long uv_max = lm93_vin_val_max[nr] * 1000;
+	const long uv_min = lm93_vin_val_min[nr] * 1000;
 
 	/* convert */
-	const long slope = (uV_max - uV_min) /
+	const long slope = (uv_max - uv_min) /
 		(lm93_vin_reg_max[nr] - lm93_vin_reg_min[nr]);
-	const long intercept = uV_min - slope * lm93_vin_reg_min[nr];
+	const long intercept = uv_min - slope * lm93_vin_reg_min[nr];
 
-	u8 result = ((uV - intercept + (slope/2)) / slope);
-	result = SENSORS_LIMIT(result,
-			lm93_vin_reg_min[nr], lm93_vin_reg_max[nr]);
+	u8 result = ((uv - intercept + (slope/2)) / slope);
+	result = clamp_val(result,
+			   lm93_vin_reg_min[nr], lm93_vin_reg_max[nr]);
 	return result;
 }
 
 /* vid in mV, upper == 0 indicates low limit, otherwise upper limit */
 static unsigned LM93_IN_REL_FROM_REG(u8 reg, int upper, int vid)
 {
-	const long uV_offset = upper ? (((reg >> 4 & 0x0f) + 1) * 12500) :
+	const long uv_offset = upper ? (((reg >> 4 & 0x0f) + 1) * 12500) :
 				(((reg >> 0 & 0x0f) + 1) * -25000);
-	const long uV_vid = vid * 1000;
-	return (uV_vid + uV_offset + 5000) / 10000;
+	const long uv_vid = vid * 1000;
+	return (uv_vid + uv_offset + 5000) / 10000;
 }
 
 #define LM93_IN_MIN_FROM_REG(reg, vid)	LM93_IN_REL_FROM_REG((reg), 0, (vid))
@@ -409,13 +409,13 @@ static unsigned LM93_IN_REL_FROM_REG(u8 reg, int upper, int vid)
  */
 static u8 LM93_IN_REL_TO_REG(unsigned val, int upper, int vid)
 {
-	long uV_offset = vid * 1000 - val * 10000;
+	long uv_offset = vid * 1000 - val * 10000;
 	if (upper) {
-		uV_offset = SENSORS_LIMIT(uV_offset, 12500, 200000);
-		return (u8)((uV_offset /  12500 - 1) << 4);
+		uv_offset = clamp_val(uv_offset, 12500, 200000);
+		return (u8)((uv_offset /  12500 - 1) << 4);
 	} else {
-		uV_offset = SENSORS_LIMIT(uV_offset, -400000, -25000);
-		return (u8)((uV_offset / -25000 - 1) << 0);
+		uv_offset = clamp_val(uv_offset, -400000, -25000);
+		return (u8)((uv_offset / -25000 - 1) << 0);
 	}
 }
 
@@ -437,7 +437,7 @@ static int LM93_TEMP_FROM_REG(u8 reg)
  */
 static u8 LM93_TEMP_TO_REG(long temp)
 {
-	int ntemp = SENSORS_LIMIT(temp, LM93_TEMP_MIN, LM93_TEMP_MAX);
+	int ntemp = clamp_val(temp, LM93_TEMP_MIN, LM93_TEMP_MAX);
 	ntemp += (ntemp < 0 ? -500 : 500);
 	return (u8)(ntemp / 1000);
 }
@@ -472,7 +472,7 @@ static u8 LM93_TEMP_OFFSET_TO_REG(int off, int mode)
 {
 	int factor = mode ? 5 : 10;
 
-	off = SENSORS_LIMIT(off, LM93_TEMP_OFFSET_MIN,
+	off = clamp_val(off, LM93_TEMP_OFFSET_MIN,
 		mode ? LM93_TEMP_OFFSET_MAX1 : LM93_TEMP_OFFSET_MAX0);
 	return (u8)((off + factor/2) / factor);
 }
@@ -620,8 +620,8 @@ static u16 LM93_FAN_TO_REG(long rpm)
 	if (rpm == 0) {
 		count = 0x3fff;
 	} else {
-		rpm = SENSORS_LIMIT(rpm, 1, 1000000);
-		count = SENSORS_LIMIT((1350000 + rpm) / rpm, 1, 0x3ffe);
+		rpm = clamp_val(rpm, 1, 1000000);
+		count = clamp_val((1350000 + rpm) / rpm, 1, 0x3ffe);
 	}
 
 	regs = count << 2;
@@ -692,7 +692,7 @@ static int LM93_RAMP_FROM_REG(u8 reg)
  */
 static u8 LM93_RAMP_TO_REG(int ramp)
 {
-	ramp = SENSORS_LIMIT(ramp, LM93_RAMP_MIN, LM93_RAMP_MAX);
+	ramp = clamp_val(ramp, LM93_RAMP_MIN, LM93_RAMP_MAX);
 	return (u8)((ramp + 2) / 5);
 }
 
@@ -702,7 +702,7 @@ static u8 LM93_RAMP_TO_REG(int ramp)
  */
 static u8 LM93_PROCHOT_TO_REG(long prochot)
 {
-	prochot = SENSORS_LIMIT(prochot, 0, 255);
+	prochot = clamp_val(prochot, 0, 255);
 	return (u8)prochot;
 }
 
@@ -818,8 +818,9 @@ static u8 lm93_read_byte(struct i2c_client *client, u8 reg)
 		if (value >= 0) {
 			return value;
 		} else {
-			dev_warn(&client->dev, "lm93: read byte data failed, "
-				"address 0x%02x.\n", reg);
+			dev_warn(&client->dev,
+				 "lm93: read byte data failed, address 0x%02x.\n",
+				 reg);
 			mdelay(i + 3);
 		}
 
@@ -838,8 +839,9 @@ static int lm93_write_byte(struct i2c_client *client, u8 reg, u8 value)
 	result = i2c_smbus_write_byte_data(client, reg, value);
 
 	if (result < 0)
-		dev_warn(&client->dev, "lm93: write byte data failed, "
-			 "0x%02x at address 0x%02x.\n", value, reg);
+		dev_warn(&client->dev,
+			 "lm93: write byte data failed, 0x%02x at address 0x%02x.\n",
+			 value, reg);
 
 	return result;
 }
@@ -854,8 +856,9 @@ static u16 lm93_read_word(struct i2c_client *client, u8 reg)
 		if (value >= 0) {
 			return value;
 		} else {
-			dev_warn(&client->dev, "lm93: read word data failed, "
-				 "address 0x%02x.\n", reg);
+			dev_warn(&client->dev,
+				 "lm93: read word data failed, address 0x%02x.\n",
+				 reg);
 			mdelay(i + 3);
 		}
 
@@ -874,8 +877,9 @@ static int lm93_write_word(struct i2c_client *client, u8 reg, u16 value)
 	result = i2c_smbus_write_word_data(client, reg, value);
 
 	if (result < 0)
-		dev_warn(&client->dev, "lm93: write word data failed, "
-			 "0x%04x at address 0x%02x.\n", value, reg);
+		dev_warn(&client->dev,
+			 "lm93: write word data failed, 0x%04x at address 0x%02x.\n",
+			 value, reg);
 
 	return result;
 }
@@ -898,8 +902,8 @@ static void lm93_read_block(struct i2c_client *client, u8 fbn, u8 *values)
 		if (result == lm93_block_read_cmds[fbn].len) {
 			break;
 		} else {
-			dev_warn(&client->dev, "lm93: block read data failed, "
-				 "command 0x%02x.\n",
+			dev_warn(&client->dev,
+				 "lm93: block read data failed, command 0x%02x.\n",
 				 lm93_block_read_cmds[fbn].cmd);
 			mdelay(i + 3);
 		}
@@ -2052,7 +2056,7 @@ static ssize_t store_pwm_auto_channels(struct device *dev,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->block9[nr][LM93_PWM_CTL1] = SENSORS_LIMIT(val, 0, 255);
+	data->block9[nr][LM93_PWM_CTL1] = clamp_val(val, 0, 255);
 	lm93_write_byte(client, LM93_REG_PWM_CTL(nr, LM93_PWM_CTL1),
 				data->block9[nr][LM93_PWM_CTL1]);
 	mutex_unlock(&data->update_lock);
@@ -2397,7 +2401,7 @@ static ssize_t store_prochot_override_duty_cycle(struct device *dev,
 
 	mutex_lock(&data->update_lock);
 	data->prochot_override = (data->prochot_override & 0xf0) |
-					SENSORS_LIMIT(val, 0, 15);
+					clamp_val(val, 0, 15);
 	lm93_write_byte(client, LM93_REG_PROCHOT_OVERRIDE,
 			data->prochot_override);
 	mutex_unlock(&data->update_lock);
@@ -2672,8 +2676,8 @@ static void lm93_init_client(struct i2c_client *client)
 			return;
 	}
 
-	dev_warn(&client->dev, "timed out waiting for sensor "
-		 "chip to signal ready!\n");
+	dev_warn(&client->dev,
+		 "timed out waiting for sensor chip to signal ready!\n");
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
@@ -2733,12 +2737,12 @@ static int lm93_probe(struct i2c_client *client,
 		dev_dbg(&client->dev, "using SMBus block data transactions\n");
 		update = lm93_update_client_full;
 	} else if ((LM93_SMBUS_FUNC_MIN & func) == LM93_SMBUS_FUNC_MIN) {
-		dev_dbg(&client->dev, "disabled SMBus block data "
-			"transactions\n");
+		dev_dbg(&client->dev,
+			"disabled SMBus block data transactions\n");
 		update = lm93_update_client_min;
 	} else {
-		dev_dbg(&client->dev, "detect failed, "
-			"smbus byte and/or word data not supported!\n");
+		dev_dbg(&client->dev,
+			"detect failed, smbus byte and/or word data not supported!\n");
 		return -ENODEV;
 	}
 

@@ -25,7 +25,6 @@
 #include <linux/input.h>
 #include <linux/pwm_backlight.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
@@ -52,6 +51,7 @@
 #include <linux/platform_data/touchscreen-s3c2410.h>
 #include <linux/platform_data/asoc-s3c.h>
 #include <plat/backlight.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
 
@@ -194,6 +194,7 @@ static struct platform_device *smdkc100_devices[] __initdata = {
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
 	&s3c_device_hsmmc2,
+	&samsung_device_pwm,
 	&s3c_device_ts,
 	&s3c_device_wdt,
 	&smdkc100_lcd_powerdev,
@@ -215,6 +216,7 @@ static struct samsung_bl_gpio_info smdkc100_bl_gpio_info = {
 
 static struct platform_pwm_backlight_data smdkc100_bl_data = {
 	.pwm_id = 0,
+	.enable_gpio = -1,
 };
 
 static void __init smdkc100_map_io(void)
@@ -222,6 +224,7 @@ static void __init smdkc100_map_io(void)
 	s5pc100_init_io(NULL, 0);
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(smdkc100_uartcfgs, ARRAY_SIZE(smdkc100_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
 
 static void __init smdkc100_machine_init(void)
@@ -245,18 +248,17 @@ static void __init smdkc100_machine_init(void)
 	gpio_request(S5PC100_GPH0(6), "GPH0");
 	smdkc100_lcd_power_set(&smdkc100_lcd_power_data, 0);
 
-	samsung_bl_set(&smdkc100_bl_gpio_info, &smdkc100_bl_data);
-
 	platform_add_devices(smdkc100_devices, ARRAY_SIZE(smdkc100_devices));
+
+	samsung_bl_set(&smdkc100_bl_gpio_info, &smdkc100_bl_data);
 }
 
 MACHINE_START(SMDKC100, "SMDKC100")
 	/* Maintainer: Byungho Min <bhmin@samsung.com> */
 	.atag_offset	= 0x100,
 	.init_irq	= s5pc100_init_irq,
-	.handle_irq	= vic_handle_irq,
 	.map_io		= smdkc100_map_io,
 	.init_machine	= smdkc100_machine_init,
-	.timer		= &s3c24xx_timer,
+	.init_time	= samsung_timer_init,
 	.restart	= s5pc100_restart,
 MACHINE_END

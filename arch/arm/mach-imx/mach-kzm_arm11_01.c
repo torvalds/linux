@@ -284,17 +284,13 @@ static void __init kzm_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-static struct sys_timer kzm_timer = {
-	.init = kzm_timer_init,
-};
-
 MACHINE_START(KZM_ARM11_01, "Kyoto Microcomputer Co., Ltd. KZM-ARM11-01")
 	.atag_offset = 0x100,
 	.map_io = kzm_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
 	.handle_irq = imx31_handle_irq,
-	.timer = &kzm_timer,
+	.init_time	= kzm_timer_init,
 	.init_machine = kzm_board_init,
 	.restart	= mxc_restart,
 MACHINE_END

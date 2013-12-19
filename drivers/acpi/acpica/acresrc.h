@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -184,7 +184,7 @@ acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
 			     struct acpi_buffer *output_buffer);
 
 acpi_status
-acpi_rs_create_aml_resources(struct acpi_resource *linked_list_buffer,
+acpi_rs_create_aml_resources(struct acpi_buffer *resource_list,
 			     struct acpi_buffer *output_buffer);
 
 acpi_status
@@ -227,8 +227,8 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			u32 aml_buffer_length, acpi_size * size_needed);
 
 acpi_status
-acpi_rs_get_aml_length(struct acpi_resource *linked_list_buffer,
-		       acpi_size * size_needed);
+acpi_rs_get_aml_length(struct acpi_resource *resource_list,
+		       acpi_size resource_list_size, acpi_size * size_needed);
 
 acpi_status
 acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
@@ -347,18 +347,21 @@ extern struct acpi_rsdump_info *acpi_gbl_dump_resource_dispatch[];
 extern struct acpi_rsdump_info *acpi_gbl_dump_serial_bus_dispatch[];
 
 /*
- * rsdump
+ * rsdumpinfo
  */
 extern struct acpi_rsdump_info acpi_rs_dump_irq[];
+extern struct acpi_rsdump_info acpi_rs_dump_prt[];
 extern struct acpi_rsdump_info acpi_rs_dump_dma[];
 extern struct acpi_rsdump_info acpi_rs_dump_start_dpf[];
 extern struct acpi_rsdump_info acpi_rs_dump_end_dpf[];
 extern struct acpi_rsdump_info acpi_rs_dump_io[];
+extern struct acpi_rsdump_info acpi_rs_dump_io_flags[];
 extern struct acpi_rsdump_info acpi_rs_dump_fixed_io[];
 extern struct acpi_rsdump_info acpi_rs_dump_vendor[];
 extern struct acpi_rsdump_info acpi_rs_dump_end_tag[];
 extern struct acpi_rsdump_info acpi_rs_dump_memory24[];
 extern struct acpi_rsdump_info acpi_rs_dump_memory32[];
+extern struct acpi_rsdump_info acpi_rs_dump_memory_flags[];
 extern struct acpi_rsdump_info acpi_rs_dump_fixed_memory32[];
 extern struct acpi_rsdump_info acpi_rs_dump_address16[];
 extern struct acpi_rsdump_info acpi_rs_dump_address32[];
@@ -372,6 +375,7 @@ extern struct acpi_rsdump_info acpi_rs_dump_common_serial_bus[];
 extern struct acpi_rsdump_info acpi_rs_dump_i2c_serial_bus[];
 extern struct acpi_rsdump_info acpi_rs_dump_spi_serial_bus[];
 extern struct acpi_rsdump_info acpi_rs_dump_uart_serial_bus[];
+extern struct acpi_rsdump_info acpi_rs_dump_general_flags[];
 #endif
 
 #endif				/* __ACRESRC_H__ */

@@ -1,6 +1,6 @@
 * Atmel AT91 Pinmux Controller
 
-The AT91 Pinmux Controler, enables the IC
+The AT91 Pinmux Controller, enables the IC
 to share one PAD to several functional blocks. The sharing is done by
 multiplexing the PAD input/output signals. For each PAD there are up to
 8 muxing options (called periph modes). Since different modules require
@@ -18,7 +18,7 @@ mode) this pin can work on and the 'config' configures various pad settings
 such as pull-up, multi drive, etc.
 
 Required properties for iomux controller:
-- compatible: "atmel,at91rm9200-pinctrl"
+- compatible: "atmel,at91rm9200-pinctrl" or "atmel,at91sam9x5-pinctrl"
 - atmel,mux-mask: array of mask (periph per bank) to describe if a pin can be
   configured in this periph mode. All the periph and bank need to be describe.
 
@@ -37,7 +37,7 @@ Bank: 3 (A, B and C)
   0xffffffff 0x7fff3ccf  /* pioB */
   0xffffffff 0x007fffff  /* pioC */
 
-For each peripheral/bank we will descibe in a u32 if a pin can can be
+For each peripheral/bank we will descibe in a u32 if a pin can be
 configured in it by putting 1 to the pin bit (1 << pin)
 
 Let's take the pioA on peripheral B
@@ -81,7 +81,8 @@ PA31	TXD4
 Required properties for pin configuration node:
 - atmel,pins: 4 integers array, represents a group of pins mux and config
   setting. The format is atmel,pins = <PIN_BANK PIN_BANK_NUM PERIPH CONFIG>.
-  The PERIPH 0 means gpio.
+  The PERIPH 0 means gpio, PERIPH 1 is periph A, PERIPH 2 is periph B...
+  PIN_BANK 0 is pioA, PIN_BANK 1 is pioB...
 
 Bits used for CONFIG:
 PULL_UP		(1 << 0): indicate this pin need a pull up.
@@ -126,7 +127,7 @@ pinctrl@fffff400 {
 		pinctrl_dbgu: dbgu-0 {
 			atmel,pins =
 				<1 14 0x1 0x0	/* PB14 periph A */
-				 1 15 0x1 0x1>;	/* PB15 periph with pullup */
+				 1 15 0x1 0x1>;	/* PB15 periph A with pullup */
 		};
 	};
 };

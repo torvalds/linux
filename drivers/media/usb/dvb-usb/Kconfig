@@ -202,8 +202,12 @@ config DVB_USB_TTUSB2
 	select DVB_TDA10086 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_LNBP21 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_TDA826X if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA10023 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA10048 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_TDA827X if MEDIA_SUBDRV_AUTOSELECT
 	help
-	  Say Y here to support the Pinnacle 400e DVB-S USB2.0 receiver. The
+	  Say Y here to support the Pinnacle 400e DVB-S USB2.0 receiver and
+	  the TechnoTrend CT-3650 CI DVB-C/T USB2.0 receiver. The
 	  firmware protocol used by this module is similar to the one used by the
 	  old ttusb-driver - that's why the module is called dvb-usb-ttusb2.
 
@@ -267,9 +271,11 @@ config DVB_USB_DW2102
 	select DVB_MT312 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_ZL10039 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_DS3000 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TS2020 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_STB6100 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_STV6110 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_STV0900 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_M88RS2000 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y here to support the DvbWorld, TeVii, Prof DVB-S/S2 USB2.0
 	  receivers.

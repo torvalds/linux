@@ -528,7 +528,7 @@ static int db8500_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit db8500_regulator_remove(struct platform_device *pdev)
+static int db8500_regulator_remove(struct platform_device *pdev)
 {
 	int i;
 
@@ -553,7 +553,7 @@ static struct platform_driver db8500_regulator_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = db8500_regulator_probe,
-	.remove = __exit_p(db8500_regulator_remove),
+	.remove = db8500_regulator_remove,
 };
 
 static int __init db8500_regulator_init(void)

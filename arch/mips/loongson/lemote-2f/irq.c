@@ -2,9 +2,9 @@
  * Copyright (C) 2007 Lemote Inc.
  * Author: Fuxin Zhang, zhangfx@lemote.com
  *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
+ *  This program is free software; you can redistribute	 it and/or modify it
+ *  under  the terms of	 the GNU General  Public License as published by the
+ *  Free Software Foundation;  either version 2 of the	License, or (at your
  *  option) any later version.
  */
 
@@ -18,10 +18,10 @@
 #include <loongson.h>
 #include <machine.h>
 
-#define LOONGSON_TIMER_IRQ	(MIPS_CPU_IRQ_BASE + 7)	/* cpu timer */
-#define LOONGSON_NORTH_BRIDGE_IRQ	(MIPS_CPU_IRQ_BASE + 6)	/* bonito */
-#define LOONGSON_UART_IRQ	(MIPS_CPU_IRQ_BASE + 3)	/* cpu serial port */
-#define LOONGSON_SOUTH_BRIDGE_IRQ	(MIPS_CPU_IRQ_BASE + 2)	/* i8259 */
+#define LOONGSON_TIMER_IRQ	(MIPS_CPU_IRQ_BASE + 7) /* cpu timer */
+#define LOONGSON_NORTH_BRIDGE_IRQ	(MIPS_CPU_IRQ_BASE + 6) /* bonito */
+#define LOONGSON_UART_IRQ	(MIPS_CPU_IRQ_BASE + 3) /* cpu serial port */
+#define LOONGSON_SOUTH_BRIDGE_IRQ	(MIPS_CPU_IRQ_BASE + 2) /* i8259 */
 
 #define LOONGSON_INT_BIT_INT0		(1 << 11)
 #define LOONGSON_INT_BIT_INT1		(1 << 12)
@@ -108,9 +108,9 @@ struct irqaction cascade_irqaction = {
 void __init mach_init_irq(void)
 {
 	/* init all controller
-	 *   0-15         ------> i8259 interrupt
-	 *   16-23        ------> mips cpu interrupt
-	 *   32-63        ------> bonito irq
+	 *   0-15	  ------> i8259 interrupt
+	 *   16-23	  ------> mips cpu interrupt
+	 *   32-63	  ------> bonito irq
 	 */
 
 	/* setup cs5536 as high level trigger */

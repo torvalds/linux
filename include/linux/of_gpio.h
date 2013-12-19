@@ -19,6 +19,7 @@
 #include <linux/errno.h>
 #include <linux/gpio.h>
 #include <linux/of.h>
+#include <linux/gpio/consumer.h>
 
 struct device_node;
 
@@ -47,11 +48,8 @@ static inline struct of_mm_gpio_chip *to_of_mm_gpio_chip(struct gpio_chip *gc)
 	return container_of(gc, struct of_mm_gpio_chip, gc);
 }
 
-extern int of_get_named_gpio_flags(struct device_node *np,
+extern struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 		const char *list_name, int index, enum of_gpio_flags *flags);
-
-extern unsigned int of_gpio_named_count(struct device_node *np,
-					const char* propname);
 
 extern int of_mm_gpiochip_add(struct device_node *np,
 			      struct of_mm_gpio_chip *mm_gc);
@@ -65,16 +63,10 @@ extern int of_gpio_simple_xlate(struct gpio_chip *gc,
 #else /* CONFIG_OF_GPIO */
 
 /* Drivers may not strictly depend on the GPIO support, so let them link. */
-static inline int of_get_named_gpio_flags(struct device_node *np,
+static inline struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 		const char *list_name, int index, enum of_gpio_flags *flags)
 {
-	return -ENOSYS;
-}
-
-static inline unsigned int of_gpio_named_count(struct device_node *np,
-					const char* propname)
-{
-	return 0;
+	return ERR_PTR(-ENOSYS);
 }
 
 static inline int of_gpio_simple_xlate(struct gpio_chip *gc,
@@ -89,37 +81,70 @@ static inline void of_gpiochip_remove(struct gpio_chip *gc) { }
 
 #endif /* CONFIG_OF_GPIO */
 
+static inline int of_get_named_gpio_flags(struct device_node *np,
+		const char *list_name, int index, enum of_gpio_flags *flags)
+{
+	struct gpio_desc *desc;
+	desc = of_get_named_gpiod_flags(np, list_name, index, flags);
+
+	if (IS_ERR(desc))
+		return PTR_ERR(desc);
+	else
+		return desc_to_gpio(desc);
+}
+
 /**
- * of_gpio_count - Count GPIOs for a device
+ * of_gpio_named_count() - Count GPIOs for a device
  * @np:		device node to count GPIOs for
+ * @propname:	property name containing gpio specifier(s)
  *
  * The function returns the count of GPIOs specified for a node.
+ * Note that the empty GPIO specifiers count too. Returns either
+ *   Number of gpios defined in property,
+ *   -EINVAL for an incorrectly formed gpios property, or
+ *   -ENOENT for a missing gpios property
  *
- * Note that the empty GPIO specifiers counts too. For example,
- *
+ * Example:
  * gpios = <0
- *          &pio1 1 2
+ *          &gpio1 1 2
  *          0
- *          &pio2 3 4>;
+ *          &gpio2 3 4>;
  *
- * defines four GPIOs (so this function will return 4), two of which
- * are not specified.
+ * The above example defines four GPIOs, two of which are not specified.
+ * This function will return '4'
  */
-static inline unsigned int of_gpio_count(struct device_node *np)
+static inline int of_gpio_named_count(struct device_node *np, const char* propname)
+{
+	return of_count_phandle_with_args(np, propname, "#gpio-cells");
+}
+
+/**
+ * of_gpio_count() - Count GPIOs for a device
+ * @np:		device node to count GPIOs for
+ *
+ * Same as of_gpio_named_count, but hard coded to use the 'gpios' property
+ */
+static inline int of_gpio_count(struct device_node *np)
 {
 	return of_gpio_named_count(np, "gpios");
 }
 
 /**
- * of_get_gpio_flags() - Get a GPIO number and flags to use with GPIO API
+ * of_get_gpiod_flags() - Get a GPIO descriptor and flags to use with GPIO API
  * @np:		device node to get GPIO from
  * @index:	index of the GPIO
  * @flags:	a flags pointer to fill in
  *
- * Returns GPIO number to use with Linux generic GPIO API, or one of the errno
+ * Returns GPIO descriptor to use with Linux generic GPIO API, or a errno
  * value on the error condition. If @flags is not NULL the function also fills
  * in flags for the GPIO.
  */
+static inline struct gpio_desc *of_get_gpiod_flags(struct device_node *np,
+					int index, enum of_gpio_flags *flags)
+{
+	return of_get_named_gpiod_flags(np, "gpios", index, flags);
+}
+
 static inline int of_get_gpio_flags(struct device_node *np, int index,
 		      enum of_gpio_flags *flags)
 {

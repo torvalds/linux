@@ -13,6 +13,7 @@
 
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
+#include <asm/virtio-ccw.h>
 #include "kvm-s390.h"
 #include "trace.h"
 #include "trace-s390.h"
@@ -104,9 +105,42 @@ static int __diag_ipl_functions(struct kvm_vcpu *vcpu)
 	return -EREMOTE;
 }
 
+static int __diag_virtio_hypercall(struct kvm_vcpu *vcpu)
+{
+	int ret;
+
+	/* No virtio-ccw notification? Get out quickly. */
+	if (!vcpu->kvm->arch.css_support ||
+	    (vcpu->run->s.regs.gprs[1] != KVM_S390_VIRTIO_CCW_NOTIFY))
+		return -EOPNOTSUPP;
+
+	/*
+	 * The layout is as follows:
+	 * - gpr 2 contains the subchannel id (passed as addr)
+	 * - gpr 3 contains the virtqueue index (passed as datamatch)
+	 * - gpr 4 contains the index on the bus (optionally)
+	 */
+	ret = kvm_io_bus_write_cookie(vcpu->kvm, KVM_VIRTIO_CCW_NOTIFY_BUS,
+				      vcpu->run->s.regs.gprs[2],
+				      8, &vcpu->run->s.regs.gprs[3],
+				      vcpu->run->s.regs.gprs[4]);
+
+	/*
+	 * Return cookie in gpr 2, but don't overwrite the register if the
+	 * diagnose will be handled by userspace.
+	 */
+	if (ret != -EOPNOTSUPP)
+		vcpu->run->s.regs.gprs[2] = ret;
+	/* kvm_io_bus_write_cookie returns -EOPNOTSUPP if it found no match. */
+	return ret < 0 ? ret : 0;
+}
+
 int kvm_s390_handle_diag(struct kvm_vcpu *vcpu)
 {
 	int code = (vcpu->arch.sie_block->ipb & 0xfff0000) >> 16;
+
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
 	trace_kvm_s390_handle_diag(vcpu, code);
 	switch (code) {
@@ -118,6 +152,8 @@ int kvm_s390_handle_diag(struct kvm_vcpu *vcpu)
 		return __diag_time_slice_end_directed(vcpu);
 	case 0x308:
 		return __diag_ipl_functions(vcpu);
+	case 0x500:
+		return __diag_virtio_hypercall(vcpu);
 	default:
 		return -EOPNOTSUPP;
 	}

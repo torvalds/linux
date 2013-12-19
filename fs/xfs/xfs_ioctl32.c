@@ -22,19 +22,16 @@
 #include <asm/uaccess.h>
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
 #include "xfs_vnode.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_itable.h"
 #include "xfs_error.h"
-#include "xfs_dfrag.h"
-#include "xfs_vnodeops.h"
 #include "xfs_fsops.h"
 #include "xfs_alloc.h"
 #include "xfs_rtalloc.h"
@@ -359,7 +356,8 @@ xfs_compat_attrlist_by_handle(
 	if (copy_from_user(&al_hreq, arg,
 			   sizeof(compat_xfs_fsop_attrlist_handlereq_t)))
 		return -XFS_ERROR(EFAULT);
-	if (al_hreq.buflen > XATTR_LIST_MAX)
+	if (al_hreq.buflen < sizeof(struct attrlist) ||
+	    al_hreq.buflen > XATTR_LIST_MAX)
 		return -XFS_ERROR(EINVAL);
 
 	/*
@@ -373,7 +371,7 @@ xfs_compat_attrlist_by_handle(
 		return PTR_ERR(dentry);
 
 	error = -ENOMEM;
-	kbuf = kmalloc(al_hreq.buflen, GFP_KERNEL);
+	kbuf = kmem_zalloc_large(al_hreq.buflen, KM_SLEEP);
 	if (!kbuf)
 		goto out_dput;
 
@@ -386,9 +384,9 @@ xfs_compat_attrlist_by_handle(
 	if (copy_to_user(compat_ptr(al_hreq.buffer), kbuf, al_hreq.buflen))
 		error = -EFAULT;
 
- out_kfree:
-	kfree(kbuf);
- out_dput:
+out_kfree:
+	kmem_free(kbuf);
+out_dput:
 	dput(dentry);
 	return error;
 }
@@ -530,7 +528,7 @@ xfs_file_compat_ioctl(
 	unsigned		cmd,
 	unsigned long		p)
 {
-	struct inode		*inode = filp->f_path.dentry->d_inode;
+	struct inode		*inode = file_inode(filp);
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 	void			__user *arg = (void __user *)p;
@@ -638,7 +636,7 @@ xfs_file_compat_ioctl(
 		error = mnt_want_write_file(filp);
 		if (error)
 			return error;
-		error = xfs_swapext(&sxp);
+		error = xfs_ioc_swapext(&sxp);
 		mnt_drop_write_file(filp);
 		return -error;
 	}

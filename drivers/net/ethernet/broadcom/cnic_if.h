@@ -1,6 +1,6 @@
 /* cnic_if.h: Broadcom CNIC core network driver.
  *
- * Copyright (c) 2006-2012 Broadcom Corporation
+ * Copyright (c) 2006-2013 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,8 +14,8 @@
 
 #include "bnx2x/bnx2x_mfw_req.h"
 
-#define CNIC_MODULE_VERSION	"2.5.16"
-#define CNIC_MODULE_RELDATE	"Dec 05, 2012"
+#define CNIC_MODULE_VERSION	"2.5.18"
+#define CNIC_MODULE_RELDATE	"Sept 01, 2013"
 
 #define CNIC_ULP_RDMA		0
 #define CNIC_ULP_ISCSI		1
@@ -179,6 +179,7 @@ struct cnic_eth_dev {
 #define CNIC_DRV_STATE_NO_ISCSI_OOO	0x00000004
 #define CNIC_DRV_STATE_NO_ISCSI		0x00000008
 #define CNIC_DRV_STATE_NO_FCOE		0x00000010
+#define CNIC_DRV_STATE_HANDLES_IRQ	0x00000020
 	u32		chip_id;
 	u32		max_kwqe_pending;
 	struct pci_dev	*pdev;
@@ -194,6 +195,7 @@ struct cnic_eth_dev {
 	u32		max_fcoe_conn;
 	u32		max_rdma_conn;
 	u32		fcoe_init_cid;
+	u32		max_fcoe_exchanges;
 	u32		fcoe_wwn_port_name_hi;
 	u32		fcoe_wwn_port_name_lo;
 	u32		fcoe_wwn_node_name_hi;
@@ -236,8 +238,8 @@ struct cnic_sock {
 	u16	src_port;
 	u16	dst_port;
 	u16	vlan_id;
-	unsigned char old_ha[6];
-	unsigned char ha[6];
+	unsigned char old_ha[ETH_ALEN];
+	unsigned char ha[ETH_ALEN];
 	u32	mtu;
 	u32	cid;
 	u32	l5_cid;
@@ -306,11 +308,13 @@ struct cnic_dev {
 #define CNIC_F_BNX2_CLASS	3
 #define CNIC_F_BNX2X_CLASS	4
 	atomic_t	ref_count;
-	u8		mac_addr[6];
+	u8		mac_addr[ETH_ALEN];
 
 	int		max_iscsi_conn;
 	int		max_fcoe_conn;
 	int		max_rdma_conn;
+
+	int		max_fcoe_exchanges;
 
 	union drv_info_to_mcp	*stats_addr;
 	struct fcoe_capabilities	*fcoe_cap;
@@ -349,8 +353,8 @@ struct cnic_ulp_ops {
 	atomic_t ref_count;
 };
 
-extern int cnic_register_driver(int ulp_type, struct cnic_ulp_ops *ulp_ops);
+int cnic_register_driver(int ulp_type, struct cnic_ulp_ops *ulp_ops);
 
-extern int cnic_unregister_driver(int ulp_type);
+int cnic_unregister_driver(int ulp_type);
 
 #endif

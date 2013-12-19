@@ -528,17 +528,21 @@ static void unmap_rx_buf(struct adapter *adapter, struct sge_fl *fl)
  */
 static inline void ring_fl_db(struct adapter *adapter, struct sge_fl *fl)
 {
+	u32 val;
+
 	/*
 	 * The SGE keeps track of its Producer and Consumer Indices in terms
 	 * of Egress Queue Units so we can only tell it about integral numbers
 	 * of multiples of Free List Entries per Egress Queue Units ...
 	 */
 	if (fl->pend_cred >= FL_PER_EQ_UNIT) {
+		val = PIDX(fl->pend_cred / FL_PER_EQ_UNIT);
+		if (!is_t4(adapter->params.chip))
+			val |= DBTYPE(1);
 		wmb();
 		t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_KDOORBELL,
 			     DBPRIO(1) |
-			     QID(fl->cntxt_id) |
-			     PIDX(fl->pend_cred / FL_PER_EQ_UNIT));
+			     QID(fl->cntxt_id) | val);
 		fl->pend_cred %= FL_PER_EQ_UNIT;
 	}
 }
@@ -1392,8 +1396,9 @@ static inline void copy_frags(struct sk_buff *skb,
  *	Builds an sk_buff from the given packet gather list.  Returns the
  *	sk_buff or %NULL if sk_buff allocation failed.
  */
-struct sk_buff *t4vf_pktgl_to_skb(const struct pkt_gl *gl,
-				  unsigned int skb_len, unsigned int pull_len)
+static struct sk_buff *t4vf_pktgl_to_skb(const struct pkt_gl *gl,
+					 unsigned int skb_len,
+					 unsigned int pull_len)
 {
 	struct sk_buff *skb;
 
@@ -1439,7 +1444,7 @@ out:
  *	Releases the pages of a packet gather list.  We do not own the last
  *	page on the list and do not free it.
  */
-void t4vf_pktgl_free(const struct pkt_gl *gl)
+static void t4vf_pktgl_free(const struct pkt_gl *gl)
 {
 	int frag;
 
@@ -1477,8 +1482,11 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb_record_rx_queue(skb, rxq->rspq.idx);
 
-	if (pkt->vlan_ex)
-		__vlan_hwaccel_put_tag(skb, be16_to_cpu(pkt->vlan));
+	if (pkt->vlan_ex) {
+		__vlan_hwaccel_put_tag(skb, cpu_to_be16(ETH_P_8021Q),
+					be16_to_cpu(pkt->vlan));
+		rxq->stats.vlan_ex++;
+	}
 	ret = napi_gro_frags(&rxq->rspq.napi);
 
 	if (ret == GRO_HELD)
@@ -1501,7 +1509,7 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 		       const struct pkt_gl *gl)
 {
 	struct sk_buff *skb;
-	const struct cpl_rx_pkt *pkt = (void *)&rsp[1];
+	const struct cpl_rx_pkt *pkt = (void *)rsp;
 	bool csum_ok = pkt->csum_calc && !pkt->err_vec;
 	struct sge_eth_rxq *rxq = container_of(rspq, struct sge_eth_rxq, rspq);
 
@@ -1545,7 +1553,7 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 
 	if (pkt->vlan_ex) {
 		rxq->stats.vlan_ex++;
-		__vlan_hwaccel_put_tag(skb, be16_to_cpu(pkt->vlan));
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), be16_to_cpu(pkt->vlan));
 	}
 
 	netif_receive_skb(skb);
@@ -1633,7 +1641,7 @@ static inline void rspq_next(struct sge_rspq *rspq)
  *	on this queue.  If the system is under memory shortage use a fairly
  *	long delay to help recovery.
  */
-int process_responses(struct sge_rspq *rspq, int budget)
+static int process_responses(struct sge_rspq *rspq, int budget)
 {
 	struct sge_eth_rxq *rxq = container_of(rspq, struct sge_eth_rxq, rspq);
 	int budget_left = budget;
@@ -1886,7 +1894,7 @@ static unsigned int process_intrq(struct adapter *adapter)
  * The MSI interrupt handler handles data events from SGE response queues as
  * well as error and other async events as they all use the same MSI vector.
  */
-irqreturn_t t4vf_intr_msi(int irq, void *cookie)
+static irqreturn_t t4vf_intr_msi(int irq, void *cookie)
 {
 	struct adapter *adapter = cookie;
 

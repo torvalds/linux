@@ -33,6 +33,10 @@ built with CONFIG_USB_SUSPEND enabled (which depends on
 CONFIG_PM_RUNTIME).  System PM support is present only if the kernel
 was built with CONFIG_SUSPEND or CONFIG_HIBERNATION enabled.
 
+(Starting with the 3.10 kernel release, dynamic PM support for USB is
+present whenever the kernel was built with CONFIG_PM_RUNTIME enabled.
+The CONFIG_USB_SUSPEND option has been eliminated.)
+
 
 	What is Remote Wakeup?
 	----------------------
@@ -206,10 +210,8 @@ initialized to 5.  (The idle-delay values for already existing devices
 will not be affected.)
 
 Setting the initial default idle-delay to -1 will prevent any
-autosuspend of any USB device.  This is a simple alternative to
-disabling CONFIG_USB_SUSPEND and rebuilding the kernel, and it has the
-added benefit of allowing you to enable autosuspend for selected
-devices.
+autosuspend of any USB device.  This has the benefit of allowing you
+then to enable autosuspend for selected devices.
 
 
 	Warnings

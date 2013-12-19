@@ -35,12 +35,6 @@ unsigned int max_bh = 0;
 #include "pmcc4.h"
 #include "musycc.h"
 
-#ifdef SBE_INCLUDE_SYMBOLS
-#define STATIC
-#else
-#define STATIC  static
-#endif
-
 #define sd_find_chan(ci,ch)   c4_find_chan(ch)
 
 
@@ -65,7 +59,6 @@ void        c4_wk_chan_restart(mch_t *);
 void        musycc_bh_tx_eom(mpi_t *, int);
 int         musycc_chan_up(ci_t *, int);
 status_t __init musycc_init(ci_t *);
-STATIC void __init musycc_init_port(mpi_t *);
 void        musycc_intr_bh_tasklet(ci_t *);
 void        musycc_serv_req(mpi_t *, u_int32_t);
 void        musycc_update_timeslots(mpi_t *);
@@ -73,8 +66,8 @@ void        musycc_update_timeslots(mpi_t *);
 /*******************************************************************/
 
 #if 1
-STATIC int
-musycc_dump_rxbuffer_ring(mch_t * ch, int lockit)
+static int
+musycc_dump_rxbuffer_ring(mch_t *ch, int lockit)
 {
     struct mdesc *m;
     unsigned long flags = 0;
@@ -139,8 +132,8 @@ musycc_dump_rxbuffer_ring(mch_t * ch, int lockit)
 #endif
 
 #if 1
-STATIC int
-musycc_dump_txbuffer_ring(mch_t * ch, int lockit)
+static int
+musycc_dump_txbuffer_ring(mch_t *ch, int lockit)
 {
     struct mdesc *m;
     unsigned long flags = 0;
@@ -205,7 +198,7 @@ musycc_dump_txbuffer_ring(mch_t * ch, int lockit)
  */
 
 status_t
-musycc_dump_ring(ci_t * ci, unsigned int chan)
+musycc_dump_ring(ci_t *ci, unsigned int chan)
 {
     mch_t      *ch;
 
@@ -248,7 +241,7 @@ musycc_dump_ring(ci_t * ci, unsigned int chan)
 
 
 status_t
-musycc_dump_rings(ci_t * ci, unsigned int start_chan)
+musycc_dump_rings(ci_t *ci, unsigned int start_chan)
 {
     unsigned int chan;
 
@@ -264,7 +257,7 @@ musycc_dump_rings(ci_t * ci, unsigned int start_chan)
  */
 
 void
-musycc_init_mdt(mpi_t * pi)
+musycc_init_mdt(mpi_t *pi)
 {
     u_int32_t  *addr, cfg;
     int         i;
@@ -288,7 +281,7 @@ musycc_init_mdt(mpi_t * pi)
 /* Set TX thp to the next unprocessed md */
 
 void
-musycc_update_tx_thp(mch_t * ch)
+musycc_update_tx_thp(mch_t *ch)
 {
     struct mdesc *md;
     unsigned long flags;
@@ -443,7 +436,7 @@ musycc_wq_chan_restart(void *arg)      /* channel private structure */
   */
 
 void
-musycc_chan_restart(mch_t * ch)
+musycc_chan_restart(mch_t *ch)
 {
 #ifdef RLD_RESTART_DEBUG
     pr_info("++ musycc_chan_restart[%d]: txd_irq_srv @ %p = sts %x\n",
@@ -461,7 +454,7 @@ musycc_chan_restart(mch_t * ch)
 
 
 void
-rld_put_led(mpi_t * pi, u_int32_t ledval)
+rld_put_led(mpi_t *pi, u_int32_t ledval)
 {
     static u_int32_t led = 0;
 
@@ -477,7 +470,7 @@ rld_put_led(mpi_t * pi, u_int32_t ledval)
 #define MUSYCC_SR_RETRY_CNT  9
 
 void
-musycc_serv_req(mpi_t * pi, u_int32_t req)
+musycc_serv_req(mpi_t *pi, u_int32_t req)
 {
     volatile u_int32_t r;
     int         rcnt;
@@ -578,7 +571,7 @@ rewrite:
 
 #ifdef  SBE_PMCC4_ENABLE
 void
-musycc_update_timeslots(mpi_t * pi)
+musycc_update_timeslots(mpi_t *pi)
 {
     int         i, ch;
     char        e1mode = IS_FRAME_ANY_E1(pi->p.port_mode);
@@ -640,7 +633,7 @@ musycc_update_timeslots(mpi_t * pi)
 
 #ifdef SBE_WAN256T3_ENABLE
 void
-musycc_update_timeslots(mpi_t * pi)
+musycc_update_timeslots(mpi_t *pi)
 {
     mch_t      *ch;
 
@@ -702,8 +695,8 @@ musycc_chan_proto(int proto)
 }
 
 #ifdef SBE_WAN256T3_ENABLE
-STATIC void __init
-musycc_init_port(mpi_t * pi)
+static void __init
+musycc_init_port(mpi_t *pi)
 {
     pci_write_32((u_int32_t *) &pi->reg->gbp, OS_vtophys(pi->regram));
 
@@ -737,7 +730,7 @@ musycc_init_port(mpi_t * pi)
 
 
 status_t    __init
-musycc_init(ci_t * ci)
+musycc_init(ci_t *ci)
 {
     char       *regaddr;        /* temp for address boundary calculations */
     int         i, gchan;
@@ -752,8 +745,8 @@ musycc_init(ci_t * ci)
 #define INT_QUEUE_BOUNDARY  4
 
     regaddr = OS_kmalloc((INT_QUEUE_SIZE + 1) * sizeof(u_int32_t));
-    if (regaddr == 0)
-	return ENOMEM;
+    if (!regaddr)
+	return -ENOMEM;
     ci->iqd_p_saved = regaddr;      /* save orig value for free's usage */
     ci->iqd_p = (u_int32_t *) ((unsigned long) (regaddr + INT_QUEUE_BOUNDARY - 1) &
 			       (~(INT_QUEUE_BOUNDARY - 1)));    /* this calculates
@@ -773,13 +766,13 @@ musycc_init(ci_t * ci)
 #define GROUP_BOUNDARY   0x800
 
 	regaddr = OS_kmalloc(sizeof(struct musycc_groupr) + GROUP_BOUNDARY);
-	if (regaddr == 0) {
+	if (!regaddr) {
 	    for (gchan = 0; gchan < i; gchan++) {
 		pi = &ci->port[gchan];
 		OS_kfree(pi->reg);
-		pi->reg = 0;
+		pi->reg = NULL;
 	    }
-	    return ENOMEM;
+	    return -ENOMEM;
 	}
 	pi->regram_saved = regaddr; /* save orig value for free's usage */
 	pi->regram = (struct musycc_groupr *) ((unsigned long) (regaddr + GROUP_BOUNDARY - 1) &
@@ -832,7 +825,7 @@ musycc_init(ci_t * ci)
 
 
 void
-musycc_bh_tx_eom(mpi_t * pi, int gchan)
+musycc_bh_tx_eom(mpi_t *pi, int gchan)
 {
     mch_t      *ch;
     struct mdesc *md;
@@ -846,12 +839,12 @@ musycc_bh_tx_eom(mpi_t * pi, int gchan)
     volatile u_int32_t status;
 
     ch = pi->chan[gchan];
-    if (ch == 0 || ch->state != UP) {
+    if (!ch || ch->state != UP) {
 	if (cxt1e1_log_level >= LOG_ERROR)
 	    pr_info("%s: intr: xmit EOM on uninitialized channel %d\n",
 		    pi->up->devname, gchan);
     }
-    if (ch == 0 || ch->mdt == 0)
+    if (!ch || !ch->mdt)
 	return;                     /* note: mdt==0 implies a malloc()
 				     * failure w/in chan_up() routine */
 
@@ -914,7 +907,7 @@ musycc_bh_tx_eom(mpi_t * pi, int gchan)
 	ch->txd_irq_srv = md->snext;
 
 	md->data = 0;
-	if (md->mem_token != 0)	{
+	if (md->mem_token)	{
 	    /* upcount channel */
 	    atomic_sub(OS_mem_token_tlen(md->mem_token), &ch->tx_pending);
 	    /* upcount card */
@@ -938,7 +931,7 @@ musycc_bh_tx_eom(mpi_t * pi, int gchan)
 #endif                              /*** CONFIG_SBE_WAN256T3_NCOMM ***/
 
 	    OS_mem_token_free_irq(md->mem_token);
-	    md->mem_token = 0;
+	    md->mem_token = NULL;
 	}
 	md->status = 0;
 #ifdef RLD_TXFULL_DEBUG
@@ -1009,8 +1002,8 @@ musycc_bh_tx_eom(mpi_t * pi, int gchan)
 }
 
 
-STATIC void
-musycc_bh_rx_eom(mpi_t * pi, int gchan)
+static void
+musycc_bh_rx_eom(mpi_t *pi, int gchan)
 {
     mch_t      *ch;
     void       *m, *m2;
@@ -1019,13 +1012,13 @@ musycc_bh_rx_eom(mpi_t * pi, int gchan)
     u_int32_t   error;
 
     ch = pi->chan[gchan];
-    if (ch == 0 || ch->state != UP) {
+    if (!ch || ch->state != UP) {
 	if (cxt1e1_log_level > LOG_ERROR)
 	    pr_info("%s: intr: receive EOM on uninitialized channel %d\n",
 		    pi->up->devname, gchan);
 	return;
     }
-    if (ch->mdr == 0)
+    if (!ch->mdr)
 	return;                     /* can this happen ? */
 
     for (;;) {
@@ -1229,7 +1222,7 @@ unsigned long
 #else
 void
 #endif
-musycc_intr_bh_tasklet(ci_t * ci)
+musycc_intr_bh_tasklet(ci_t *ci)
 {
     mpi_t      *pi;
     mch_t      *ch;
@@ -1517,7 +1510,7 @@ musycc_intr_bh_tasklet(ci_t * ci)
 
 #if 0
 int         __init
-musycc_new_chan(ci_t * ci, int channum, void *user)
+musycc_new_chan(ci_t *ci, int channum, void *user)
 {
     mch_t      *ch;
 
@@ -1546,7 +1539,7 @@ musycc_new_chan(ci_t * ci, int channum, void *user)
 
 #ifdef SBE_PMCC4_ENABLE
 status_t
-musycc_chan_down(ci_t * dummy, int channum)
+musycc_chan_down(ci_t *dummy, int channum)
 {
     mpi_t      *pi;
     mch_t      *ch;
@@ -1573,18 +1566,18 @@ musycc_chan_down(ci_t * dummy, int channum)
     pi->regram->rmp[gchan] = 0;
     FLUSH_MEM_WRITE();
     for (i = 0; i < ch->txd_num; i++)
-	if (ch->mdt[i].mem_token != 0)
+	if (ch->mdt[i].mem_token)
 	    OS_mem_token_free(ch->mdt[i].mem_token);
 
     for (i = 0; i < ch->rxd_num; i++)
-	if (ch->mdr[i].mem_token != 0)
+	if (ch->mdr[i].mem_token)
 	    OS_mem_token_free(ch->mdr[i].mem_token);
 
     OS_kfree(ch->mdr);
-    ch->mdr = 0;
+    ch->mdr = NULL;
     ch->rxd_num = 0;
     OS_kfree(ch->mdt);
-    ch->mdt = 0;
+    ch->mdt = NULL;
     ch->txd_num = 0;
 
     musycc_update_timeslots(pi);
@@ -1597,7 +1590,7 @@ musycc_chan_down(ci_t * dummy, int channum)
 
 
 int
-musycc_del_chan(ci_t * ci, int channum)
+musycc_del_chan(ci_t *ci, int channum)
 {
     mch_t      *ch;
 
@@ -1613,7 +1606,7 @@ musycc_del_chan(ci_t * ci, int channum)
 
 
 int
-musycc_del_chan_stats(ci_t * ci, int channum)
+musycc_del_chan_stats(ci_t *ci, int channum)
 {
     mch_t      *ch;
 
@@ -1628,7 +1621,7 @@ musycc_del_chan_stats(ci_t * ci, int channum)
 
 
 int
-musycc_start_xmit(ci_t * ci, int channum, void *mem_token)
+musycc_start_xmit(ci_t *ci, int channum, void *mem_token)
 {
     mch_t      *ch;
     struct mdesc *md;
@@ -1753,7 +1746,7 @@ musycc_start_xmit(ci_t * ci, int channum, void *mem_token)
 #endif
 	    u |= (PADFILL_ENABLE | (ch->p.pad_fill_count << EXTRA_FLAGS));
 	}
-	md->mem_token = len ? 0 : mem_token;    /* Fill in mds on last
+	md->mem_token = len ? NULL : mem_token;    /* Fill in mds on last
 						 * segment, others set ZERO
 						 * so that entire token is
 						 * removed ONLY when ALL

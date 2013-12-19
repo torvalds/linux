@@ -20,6 +20,7 @@
 
 /*#define DEBUG*/
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
@@ -352,16 +353,9 @@ static int __init vrfb_probe(struct platform_device *pdev)
 	/* first resource is the register res, the rest are vrfb contexts */
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		dev_err(&pdev->dev, "can't get vrfb base address\n");
-		return -EINVAL;
-	}
-
-	vrfb_base = devm_request_and_ioremap(&pdev->dev, mem);
-	if (!vrfb_base) {
-		dev_err(&pdev->dev, "can't ioremap vrfb memory\n");
-		return -ENOMEM;
-	}
+	vrfb_base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(vrfb_base))
+		return PTR_ERR(vrfb_base);
 
 	num_ctxs = pdev->num_resources - 1;
 
@@ -398,18 +392,7 @@ static struct platform_driver vrfb_driver = {
 	.remove		= __exit_p(vrfb_remove),
 };
 
-static int __init vrfb_init(void)
-{
-	return platform_driver_probe(&vrfb_driver, &vrfb_probe);
-}
-
-static void __exit vrfb_exit(void)
-{
-	platform_driver_unregister(&vrfb_driver);
-}
-
-module_init(vrfb_init);
-module_exit(vrfb_exit);
+module_platform_driver_probe(vrfb_driver, vrfb_probe);
 
 MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@ti.com>");
 MODULE_DESCRIPTION("OMAP VRFB");

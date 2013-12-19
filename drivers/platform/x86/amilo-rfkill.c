@@ -74,11 +74,18 @@ static const struct rfkill_ops amilo_m7440_rfkill_ops = {
 	.set_block = amilo_m7440_rfkill_set_block
 };
 
-static const struct dmi_system_id __devinitconst amilo_rfkill_id_table[] = {
+static const struct dmi_system_id amilo_rfkill_id_table[] = {
 	{
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_BOARD_NAME, "AMILO A1655"),
+		},
+		.driver_data = (void *)&amilo_a1655_rfkill_ops
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_BOARD_NAME, "AMILO L1310"),
 		},
 		.driver_data = (void *)&amilo_a1655_rfkill_ops
 	},
@@ -95,7 +102,7 @@ static const struct dmi_system_id __devinitconst amilo_rfkill_id_table[] = {
 static struct platform_device *amilo_rfkill_pdev;
 static struct rfkill *amilo_rfkill_dev;
 
-static int __devinit amilo_rfkill_probe(struct platform_device *device)
+static int amilo_rfkill_probe(struct platform_device *device)
 {
 	int rc;
 	const struct dmi_system_id *system_id =

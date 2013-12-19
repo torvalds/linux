@@ -353,13 +353,13 @@ static const struct snd_kcontrol_new wm8983_snd_controls[] = {
 	SOC_ENUM_EXT("Equalizer Function", eqmode, eqmode_get, eqmode_put),
 	SOC_ENUM("EQ1 Cutoff", eq1_cutoff),
 	SOC_SINGLE_TLV("EQ1 Volume", WM8983_EQ1_LOW_SHELF,  0, 24, 1, eq_tlv),
-	SOC_ENUM("EQ2 Bandwith", eq2_bw),
+	SOC_ENUM("EQ2 Bandwidth", eq2_bw),
 	SOC_ENUM("EQ2 Cutoff", eq2_cutoff),
 	SOC_SINGLE_TLV("EQ2 Volume", WM8983_EQ2_PEAK_1, 0, 24, 1, eq_tlv),
-	SOC_ENUM("EQ3 Bandwith", eq3_bw),
+	SOC_ENUM("EQ3 Bandwidth", eq3_bw),
 	SOC_ENUM("EQ3 Cutoff", eq3_cutoff),
 	SOC_SINGLE_TLV("EQ3 Volume", WM8983_EQ3_PEAK_2, 0, 24, 1, eq_tlv),
-	SOC_ENUM("EQ4 Bandwith", eq4_bw),
+	SOC_ENUM("EQ4 Bandwidth", eq4_bw),
 	SOC_ENUM("EQ4 Cutoff", eq4_cutoff),
 	SOC_SINGLE_TLV("EQ4 Volume", WM8983_EQ4_PEAK_3, 0, 24, 1, eq_tlv),
 	SOC_ENUM("EQ5 Cutoff", eq5_cutoff),
@@ -851,30 +851,33 @@ static int wm8983_set_pll(struct snd_soc_dai *dai, int pll_id,
 	struct pll_div pll_div;
 
 	codec = dai->codec;
-	if (freq_in && freq_out) {
+	if (!freq_in || !freq_out) {
+		/* disable the PLL */
+		snd_soc_update_bits(codec, WM8983_POWER_MANAGEMENT_1,
+				    WM8983_PLLEN_MASK, 0);
+		return 0;
+	} else {
 		ret = pll_factors(&pll_div, freq_out * 4 * 2, freq_in);
 		if (ret)
 			return ret;
+
+		/* disable the PLL before re-programming it */
+		snd_soc_update_bits(codec, WM8983_POWER_MANAGEMENT_1,
+				    WM8983_PLLEN_MASK, 0);
+
+		/* set PLLN and PRESCALE */
+		snd_soc_write(codec, WM8983_PLL_N,
+			(pll_div.div2 << WM8983_PLL_PRESCALE_SHIFT)
+			| pll_div.n);
+		/* set PLLK */
+		snd_soc_write(codec, WM8983_PLL_K_3, pll_div.k & 0x1ff);
+		snd_soc_write(codec, WM8983_PLL_K_2, (pll_div.k >> 9) & 0x1ff);
+		snd_soc_write(codec, WM8983_PLL_K_1, (pll_div.k >> 18));
+		/* enable the PLL */
+		snd_soc_update_bits(codec, WM8983_POWER_MANAGEMENT_1,
+					WM8983_PLLEN_MASK, WM8983_PLLEN);
 	}
 
-	/* disable the PLL before re-programming it */
-	snd_soc_update_bits(codec, WM8983_POWER_MANAGEMENT_1,
-			    WM8983_PLLEN_MASK, 0);
-
-	if (!freq_in || !freq_out)
-		return 0;
-
-	/* set PLLN and PRESCALE */
-	snd_soc_write(codec, WM8983_PLL_N,
-		      (pll_div.div2 << WM8983_PLL_PRESCALE_SHIFT)
-		      | pll_div.n);
-	/* set PLLK */
-	snd_soc_write(codec, WM8983_PLL_K_3, pll_div.k & 0x1ff);
-	snd_soc_write(codec, WM8983_PLL_K_2, (pll_div.k >> 9) & 0x1ff);
-	snd_soc_write(codec, WM8983_PLL_K_1, (pll_div.k >> 18));
-	/* enable the PLL */
-	snd_soc_update_bits(codec, WM8983_POWER_MANAGEMENT_1,
-			    WM8983_PLLEN_MASK, WM8983_PLLEN);
 	return 0;
 }
 

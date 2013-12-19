@@ -5,6 +5,7 @@
  * Copyright (C) 2004 Alex Aizman
  * Copyright (C) 2005 Mike Christie
  * Copyright (c) 2005, 2006 Voltaire, Inc. All rights reserved.
+ * Copyright (c) 2013 Mellanox Technologies. All rights reserved.
  * maintained by openib-general@openib.org
  *
  * This software is available to you under a choice of one of two
@@ -82,10 +83,10 @@ module_param_named(max_lun, iscsi_max_lun, uint, S_IRUGO);
 
 int iser_debug_level = 0;
 
-MODULE_DESCRIPTION("iSER (iSCSI Extensions for RDMA) Datamover "
-		   "v" DRV_VER " (" DRV_DATE ")");
+MODULE_DESCRIPTION("iSER (iSCSI Extensions for RDMA) Datamover");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Alex Nezhinsky, Dan Bar Dov, Or Gerlitz");
+MODULE_VERSION(DRV_VER);
 
 module_param_named(debug_level, iser_debug_level, int, 0644);
 MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0 (default:disabled)");
@@ -346,6 +347,7 @@ iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct iscsi_iser_conn *iser_conn;
+	struct iscsi_session *session;
 	struct iser_conn *ib_conn;
 	struct iscsi_endpoint *ep;
 	int error;
@@ -364,14 +366,15 @@ iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 	}
 	ib_conn = ep->dd_data;
 
-	if (iser_alloc_rx_descriptors(ib_conn))
+	session = conn->session;
+	if (iser_alloc_rx_descriptors(ib_conn, session))
 		return -ENOMEM;
 
 	/* binds the iSER connection retrieved from the previously
 	 * connected ep_handle to the iSCSI layer connection. exchanges
 	 * connection pointers */
-	iser_err("binding iscsi/iser conn %p %p to ib_conn %p\n",
-					conn, conn->dd_data, ib_conn);
+	iser_info("binding iscsi/iser conn %p %p to ib_conn %p\n",
+		  conn, conn->dd_data, ib_conn);
 	iser_conn = conn->dd_data;
 	ib_conn->iser_conn = iser_conn;
 	iser_conn->ib_conn  = ib_conn;
@@ -418,12 +421,13 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;
 	struct Scsi_Host *shost;
-	struct iser_conn *ib_conn;
+	struct iser_conn *ib_conn = NULL;
 
 	shost = iscsi_host_alloc(&iscsi_iser_sht, 0, 0);
 	if (!shost)
 		return NULL;
 	shost->transportt = iscsi_iser_scsi_transport;
+	shost->cmd_per_lun = qdepth;
 	shost->max_lun = iscsi_max_lun;
 	shost->max_id = 0;
 	shost->max_channel = 0;
@@ -440,12 +444,14 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 			   ep ? ib_conn->device->ib_device->dma_device : NULL))
 		goto free_host;
 
-	/*
-	 * we do not support setting can_queue cmd_per_lun from userspace yet
-	 * because we preallocate so many resources
-	 */
+	if (cmds_max > ISER_DEF_XMIT_CMDS_MAX) {
+		iser_info("cmds_max changed from %u to %u\n",
+			  cmds_max, ISER_DEF_XMIT_CMDS_MAX);
+		cmds_max = ISER_DEF_XMIT_CMDS_MAX;
+	}
+
 	cls_session = iscsi_session_setup(&iscsi_iser_transport, shost,
-					  ISCSI_DEF_XMIT_CMDS_MAX, 0,
+					  cmds_max, 0,
 					  sizeof(struct iscsi_iser_task),
 					  initial_cmdsn, 0);
 	if (!cls_session)
@@ -475,28 +481,28 @@ iscsi_iser_set_param(struct iscsi_cls_conn *cls_conn,
 	case ISCSI_PARAM_HDRDGST_EN:
 		sscanf(buf, "%d", &value);
 		if (value) {
-			printk(KERN_ERR "DataDigest wasn't negotiated to None");
+			iser_err("DataDigest wasn't negotiated to None");
 			return -EPROTO;
 		}
 		break;
 	case ISCSI_PARAM_DATADGST_EN:
 		sscanf(buf, "%d", &value);
 		if (value) {
-			printk(KERN_ERR "DataDigest wasn't negotiated to None");
+			iser_err("DataDigest wasn't negotiated to None");
 			return -EPROTO;
 		}
 		break;
 	case ISCSI_PARAM_IFMARKER_EN:
 		sscanf(buf, "%d", &value);
 		if (value) {
-			printk(KERN_ERR "IFMarker wasn't negotiated to No");
+			iser_err("IFMarker wasn't negotiated to No");
 			return -EPROTO;
 		}
 		break;
 	case ISCSI_PARAM_OFMARKER_EN:
 		sscanf(buf, "%d", &value);
 		if (value) {
-			printk(KERN_ERR "OFMarker wasn't negotiated to No");
+			iser_err("OFMarker wasn't negotiated to No");
 			return -EPROTO;
 		}
 		break;
@@ -596,7 +602,7 @@ iscsi_iser_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
 	     ib_conn->state == ISER_CONN_DOWN))
 		rc = -1;
 
-	iser_err("ib conn %p rc = %d\n", ib_conn, rc);
+	iser_info("ib conn %p rc = %d\n", ib_conn, rc);
 
 	if (rc > 0)
 		return 1; /* success, this is the equivalent of POLLOUT */
@@ -623,7 +629,7 @@ iscsi_iser_ep_disconnect(struct iscsi_endpoint *ep)
 		iscsi_suspend_tx(ib_conn->iser_conn->iscsi_conn);
 
 
-	iser_err("ib conn %p state %d\n",ib_conn, ib_conn->state);
+	iser_info("ib conn %p state %d\n", ib_conn, ib_conn->state);
 	iser_conn_terminate(ib_conn);
 }
 
@@ -671,6 +677,7 @@ static umode_t iser_attr_is_visible(int param_type, int param)
 		case ISCSI_PARAM_TGT_RESET_TMO:
 		case ISCSI_PARAM_IFACE_NAME:
 		case ISCSI_PARAM_INITIATOR_NAME:
+		case ISCSI_PARAM_DISCOVERY_SESS:
 			return S_IRUGO;
 		default:
 			return 0;
@@ -682,7 +689,7 @@ static umode_t iser_attr_is_visible(int param_type, int param)
 
 static struct scsi_host_template iscsi_iser_sht = {
 	.module                 = THIS_MODULE,
-	.name                   = "iSCSI Initiator over iSER, v." DRV_VER,
+	.name                   = "iSCSI Initiator over iSER",
 	.queuecommand           = iscsi_queuecommand,
 	.change_queue_depth	= iscsi_change_queue_depth,
 	.sg_tablesize           = ISCSI_ISER_SG_TABLESIZE,
@@ -700,7 +707,7 @@ static struct scsi_host_template iscsi_iser_sht = {
 static struct iscsi_transport iscsi_iser_transport = {
 	.owner                  = THIS_MODULE,
 	.name                   = "iser",
-	.caps                   = CAP_RECOVERY_L0 | CAP_MULTI_R2T,
+	.caps                   = CAP_RECOVERY_L0 | CAP_MULTI_R2T | CAP_TEXT_NEGO,
 	/* session management */
 	.create_session         = iscsi_iser_session_create,
 	.destroy_session        = iscsi_iser_session_destroy,
@@ -740,7 +747,7 @@ static int __init iser_init(void)
 	iser_dbg("Starting iSER datamover...\n");
 
 	if (iscsi_max_lun < 1) {
-		printk(KERN_ERR "Invalid max_lun value of %u\n", iscsi_max_lun);
+		iser_err("Invalid max_lun value of %u\n", iscsi_max_lun);
 		return -EINVAL;
 	}
 

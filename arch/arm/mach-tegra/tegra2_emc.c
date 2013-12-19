@@ -183,7 +183,7 @@ static struct device_node *tegra_emc_ramcode_devnode(struct device_node *np)
 	u32 reg;
 
 	for_each_child_of_node(np, iter) {
-		if (of_property_read_u32(np, "nvidia,ram-code", &reg))
+		if (of_property_read_u32(iter, "nvidia,ram-code", &reg))
 			continue;
 		if (reg == tegra_bct_strapping)
 			return of_node_get(iter);
@@ -268,7 +268,7 @@ static struct tegra_emc_pdata *tegra_emc_dt_parse_pdata(
 }
 #endif
 
-static struct tegra_emc_pdata __devinit *tegra_emc_fill_pdata(struct platform_device *pdev)
+static struct tegra_emc_pdata *tegra_emc_fill_pdata(struct platform_device *pdev)
 {
 	struct clk *c = clk_get_sys(NULL, "emc");
 	struct tegra_emc_pdata *pdata;
@@ -276,7 +276,7 @@ static struct tegra_emc_pdata __devinit *tegra_emc_fill_pdata(struct platform_de
 	int i;
 
 	WARN_ON(pdev->dev.platform_data);
-	BUG_ON(IS_ERR_OR_NULL(c));
+	BUG_ON(IS_ERR(c));
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	pdata->tables = devm_kzalloc(&pdev->dev, sizeof(*pdata->tables),
@@ -296,7 +296,7 @@ static struct tegra_emc_pdata __devinit *tegra_emc_fill_pdata(struct platform_de
 	return pdata;
 }
 
-static int __devinit tegra_emc_probe(struct platform_device *pdev)
+static int tegra_emc_probe(struct platform_device *pdev)
 {
 	struct tegra_emc_pdata *pdata;
 	struct resource *res;
@@ -307,16 +307,9 @@ static int __devinit tegra_emc_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "missing register base\n");
-		return -ENOMEM;
-	}
-
-	emc_regbase = devm_request_and_ioremap(&pdev->dev, res);
-	if (!emc_regbase) {
-		dev_err(&pdev->dev, "failed to remap registers\n");
-		return -ENOMEM;
-	}
+	emc_regbase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(emc_regbase))
+		return PTR_ERR(emc_regbase);
 
 	pdata = pdev->dev.platform_data;
 
@@ -333,7 +326,7 @@ static int __devinit tegra_emc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id tegra_emc_of_match[] __devinitdata = {
+static struct of_device_id tegra_emc_of_match[] = {
 	{ .compatible = "nvidia,tegra20-emc", },
 	{ },
 };

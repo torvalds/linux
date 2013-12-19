@@ -42,6 +42,8 @@
 #include <linux/uaccess.h>
 #include <linux/proc_fs.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <asm/dcr.h>
 #include <asm/dcr-regs.h>
@@ -802,218 +804,6 @@ static void ppc440spe_desc_set_link(struct ppc440spe_adma_chan *chan,
 }
 
 /**
- * ppc440spe_desc_get_src_addr - extract the source address from the descriptor
- */
-static u32 ppc440spe_desc_get_src_addr(struct ppc440spe_adma_desc_slot *desc,
-				struct ppc440spe_adma_chan *chan, int src_idx)
-{
-	struct dma_cdb *dma_hw_desc;
-	struct xor_cb *xor_hw_desc;
-
-	switch (chan->device->id) {
-	case PPC440SPE_DMA0_ID:
-	case PPC440SPE_DMA1_ID:
-		dma_hw_desc = desc->hw_desc;
-		/* May have 0, 1, 2, or 3 sources */
-		switch (dma_hw_desc->opc) {
-		case DMA_CDB_OPC_NO_OP:
-		case DMA_CDB_OPC_DFILL128:
-			return 0;
-		case DMA_CDB_OPC_DCHECK128:
-			if (unlikely(src_idx)) {
-				printk(KERN_ERR "%s: try to get %d source for"
-				    " DCHECK128\n", __func__, src_idx);
-				BUG();
-			}
-			return le32_to_cpu(dma_hw_desc->sg1l);
-		case DMA_CDB_OPC_MULTICAST:
-		case DMA_CDB_OPC_MV_SG1_SG2:
-			if (unlikely(src_idx > 2)) {
-				printk(KERN_ERR "%s: try to get %d source from"
-				    " DMA descr\n", __func__, src_idx);
-				BUG();
-			}
-			if (src_idx) {
-				if (le32_to_cpu(dma_hw_desc->sg1u) &
-				    DMA_CUED_XOR_WIN_MSK) {
-					u8 region;
-
-					if (src_idx == 1)
-						return le32_to_cpu(
-						    dma_hw_desc->sg1l) +
-							desc->unmap_len;
-
-					region = (le32_to_cpu(
-					    dma_hw_desc->sg1u)) >>
-						DMA_CUED_REGION_OFF;
-
-					region &= DMA_CUED_REGION_MSK;
-					switch (region) {
-					case DMA_RXOR123:
-						return le32_to_cpu(
-						    dma_hw_desc->sg1l) +
-							(desc->unmap_len << 1);
-					case DMA_RXOR124:
-						return le32_to_cpu(
-						    dma_hw_desc->sg1l) +
-							(desc->unmap_len * 3);
-					case DMA_RXOR125:
-						return le32_to_cpu(
-						    dma_hw_desc->sg1l) +
-							(desc->unmap_len << 2);
-					default:
-						printk(KERN_ERR
-						    "%s: try to"
-						    " get src3 for region %02x"
-						    "PPC440SPE_DESC_RXOR12?\n",
-						    __func__, region);
-						BUG();
-					}
-				} else {
-					printk(KERN_ERR
-						"%s: try to get %d"
-						" source for non-cued descr\n",
-						__func__, src_idx);
-					BUG();
-				}
-			}
-			return le32_to_cpu(dma_hw_desc->sg1l);
-		default:
-			printk(KERN_ERR "%s: unknown OPC 0x%02x\n",
-				__func__, dma_hw_desc->opc);
-			BUG();
-		}
-		return le32_to_cpu(dma_hw_desc->sg1l);
-	case PPC440SPE_XOR_ID:
-		/* May have up to 16 sources */
-		xor_hw_desc = desc->hw_desc;
-		return xor_hw_desc->ops[src_idx].l;
-	}
-	return 0;
-}
-
-/**
- * ppc440spe_desc_get_dest_addr - extract the destination address from the
- * descriptor
- */
-static u32 ppc440spe_desc_get_dest_addr(struct ppc440spe_adma_desc_slot *desc,
-				struct ppc440spe_adma_chan *chan, int idx)
-{
-	struct dma_cdb *dma_hw_desc;
-	struct xor_cb *xor_hw_desc;
-
-	switch (chan->device->id) {
-	case PPC440SPE_DMA0_ID:
-	case PPC440SPE_DMA1_ID:
-		dma_hw_desc = desc->hw_desc;
-
-		if (likely(!idx))
-			return le32_to_cpu(dma_hw_desc->sg2l);
-		return le32_to_cpu(dma_hw_desc->sg3l);
-	case PPC440SPE_XOR_ID:
-		xor_hw_desc = desc->hw_desc;
-		return xor_hw_desc->cbtal;
-	}
-	return 0;
-}
-
-/**
- * ppc440spe_desc_get_src_num - extract the number of source addresses from
- * the descriptor
- */
-static u32 ppc440spe_desc_get_src_num(struct ppc440spe_adma_desc_slot *desc,
-				struct ppc440spe_adma_chan *chan)
-{
-	struct dma_cdb *dma_hw_desc;
-	struct xor_cb *xor_hw_desc;
-
-	switch (chan->device->id) {
-	case PPC440SPE_DMA0_ID:
-	case PPC440SPE_DMA1_ID:
-		dma_hw_desc = desc->hw_desc;
-
-		switch (dma_hw_desc->opc) {
-		case DMA_CDB_OPC_NO_OP:
-		case DMA_CDB_OPC_DFILL128:
-			return 0;
-		case DMA_CDB_OPC_DCHECK128:
-			return 1;
-		case DMA_CDB_OPC_MV_SG1_SG2:
-		case DMA_CDB_OPC_MULTICAST:
-			/*
-			 * Only for RXOR operations we have more than
-			 * one source
-			 */
-			if (le32_to_cpu(dma_hw_desc->sg1u) &
-			    DMA_CUED_XOR_WIN_MSK) {
-				/* RXOR op, there are 2 or 3 sources */
-				if (((le32_to_cpu(dma_hw_desc->sg1u) >>
-				    DMA_CUED_REGION_OFF) &
-				      DMA_CUED_REGION_MSK) == DMA_RXOR12) {
-					/* RXOR 1-2 */
-					return 2;
-				} else {
-					/* RXOR 1-2-3/1-2-4/1-2-5 */
-					return 3;
-				}
-			}
-			return 1;
-		default:
-			printk(KERN_ERR "%s: unknown OPC 0x%02x\n",
-				__func__, dma_hw_desc->opc);
-			BUG();
-		}
-	case PPC440SPE_XOR_ID:
-		/* up to 16 sources */
-		xor_hw_desc = desc->hw_desc;
-		return xor_hw_desc->cbc & XOR_CDCR_OAC_MSK;
-	default:
-		BUG();
-	}
-	return 0;
-}
-
-/**
- * ppc440spe_desc_get_dst_num - get the number of destination addresses in
- * this descriptor
- */
-static u32 ppc440spe_desc_get_dst_num(struct ppc440spe_adma_desc_slot *desc,
-				struct ppc440spe_adma_chan *chan)
-{
-	struct dma_cdb *dma_hw_desc;
-
-	switch (chan->device->id) {
-	case PPC440SPE_DMA0_ID:
-	case PPC440SPE_DMA1_ID:
-		/* May be 1 or 2 destinations */
-		dma_hw_desc = desc->hw_desc;
-		switch (dma_hw_desc->opc) {
-		case DMA_CDB_OPC_NO_OP:
-		case DMA_CDB_OPC_DCHECK128:
-			return 0;
-		case DMA_CDB_OPC_MV_SG1_SG2:
-		case DMA_CDB_OPC_DFILL128:
-			return 1;
-		case DMA_CDB_OPC_MULTICAST:
-			if (desc->dst_cnt == 2)
-				return 2;
-			else
-				return 1;
-		default:
-			printk(KERN_ERR "%s: unknown OPC 0x%02x\n",
-				__func__, dma_hw_desc->opc);
-			BUG();
-		}
-	case PPC440SPE_XOR_ID:
-		/* Always only 1 destination */
-		return 1;
-	default:
-		BUG();
-	}
-	return 0;
-}
-
-/**
  * ppc440spe_desc_get_link - get the address of the descriptor that
  * follows this one
  */
@@ -1705,43 +1495,6 @@ static void ppc440spe_adma_free_slots(struct ppc440spe_adma_desc_slot *slot,
 	}
 }
 
-static void ppc440spe_adma_unmap(struct ppc440spe_adma_chan *chan,
-				 struct ppc440spe_adma_desc_slot *desc)
-{
-	u32 src_cnt, dst_cnt;
-	dma_addr_t addr;
-
-	/*
-	 * get the number of sources & destination
-	 * included in this descriptor and unmap
-	 * them all
-	 */
-	src_cnt = ppc440spe_desc_get_src_num(desc, chan);
-	dst_cnt = ppc440spe_desc_get_dst_num(desc, chan);
-
-	/* unmap destinations */
-	if (!(desc->async_tx.flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
-		while (dst_cnt--) {
-			addr = ppc440spe_desc_get_dest_addr(
-				desc, chan, dst_cnt);
-			dma_unmap_page(chan->device->dev,
-					addr, desc->unmap_len,
-					DMA_FROM_DEVICE);
-		}
-	}
-
-	/* unmap sources */
-	if (!(desc->async_tx.flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-		while (src_cnt--) {
-			addr = ppc440spe_desc_get_src_addr(
-				desc, chan, src_cnt);
-			dma_unmap_page(chan->device->dev,
-					addr, desc->unmap_len,
-					DMA_TO_DEVICE);
-		}
-	}
-}
-
 /**
  * ppc440spe_adma_run_tx_complete_actions - call functions to be called
  * upon completion
@@ -1765,26 +1518,7 @@ static dma_cookie_t ppc440spe_adma_run_tx_complete_actions(
 			desc->async_tx.callback(
 				desc->async_tx.callback_param);
 
-		/* unmap dma addresses
-		 * (unmap_single vs unmap_page?)
-		 *
-		 * actually, ppc's dma_unmap_page() functions are empty, so
-		 * the following code is just for the sake of completeness
-		 */
-		if (chan && chan->needs_unmap && desc->group_head &&
-		     desc->unmap_len) {
-			struct ppc440spe_adma_desc_slot *unmap =
-							desc->group_head;
-			/* assume 1 slot per op always */
-			u32 slot_count = unmap->slot_cnt;
-
-			/* Run through the group list and unmap addresses */
-			for (i = 0; i < slot_count; i++) {
-				BUG_ON(!unmap);
-				ppc440spe_adma_unmap(chan, unmap);
-				unmap = unmap->hw_next;
-			}
-		}
+		dma_descriptor_unmap(&desc->async_tx);
 	}
 
 	/* run dependent operations */
@@ -2313,47 +2047,6 @@ static struct dma_async_tx_descriptor *ppc440spe_adma_prep_dma_memcpy(
 		ppc440spe_desc_init_memcpy(group_start, flags);
 		ppc440spe_adma_set_dest(group_start, dma_dest, 0);
 		ppc440spe_adma_memcpy_xor_set_src(group_start, dma_src, 0);
-		ppc440spe_desc_set_byte_count(group_start, ppc440spe_chan, len);
-		sw_desc->unmap_len = len;
-		sw_desc->async_tx.flags = flags;
-	}
-	spin_unlock_bh(&ppc440spe_chan->lock);
-
-	return sw_desc ? &sw_desc->async_tx : NULL;
-}
-
-/**
- * ppc440spe_adma_prep_dma_memset - prepare CDB for a MEMSET operation
- */
-static struct dma_async_tx_descriptor *ppc440spe_adma_prep_dma_memset(
-		struct dma_chan *chan, dma_addr_t dma_dest, int value,
-		size_t len, unsigned long flags)
-{
-	struct ppc440spe_adma_chan *ppc440spe_chan;
-	struct ppc440spe_adma_desc_slot *sw_desc, *group_start;
-	int slot_cnt, slots_per_op;
-
-	ppc440spe_chan = to_ppc440spe_adma_chan(chan);
-
-	if (unlikely(!len))
-		return NULL;
-
-	BUG_ON(len > PPC440SPE_ADMA_DMA_MAX_BYTE_COUNT);
-
-	spin_lock_bh(&ppc440spe_chan->lock);
-
-	dev_dbg(ppc440spe_chan->device->common.dev,
-		"ppc440spe adma%d: %s cal: %u len: %u int_en %d\n",
-		ppc440spe_chan->device->id, __func__, value, len,
-		flags & DMA_PREP_INTERRUPT ? 1 : 0);
-
-	slot_cnt = slots_per_op = 1;
-	sw_desc = ppc440spe_adma_alloc_slots(ppc440spe_chan, slot_cnt,
-		slots_per_op);
-	if (sw_desc) {
-		group_start = sw_desc->group_head;
-		ppc440spe_desc_init_memset(group_start, value, flags);
-		ppc440spe_adma_set_dest(group_start, dma_dest, 0);
 		ppc440spe_desc_set_byte_count(group_start, ppc440spe_chan, len);
 		sw_desc->unmap_len = len;
 		sw_desc->async_tx.flags = flags;
@@ -3932,7 +3625,7 @@ static enum dma_status ppc440spe_adma_tx_status(struct dma_chan *chan,
 
 	ppc440spe_chan = to_ppc440spe_adma_chan(chan);
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret == DMA_SUCCESS)
+	if (ret == DMA_COMPLETE)
 		return ret;
 
 	ppc440spe_adma_slot_cleanup(ppc440spe_chan);
@@ -4125,7 +3818,6 @@ static void ppc440spe_adma_init_capabilities(struct ppc440spe_adma_device *adev)
 	case PPC440SPE_DMA1_ID:
 		dma_cap_set(DMA_MEMCPY, adev->common.cap_mask);
 		dma_cap_set(DMA_INTERRUPT, adev->common.cap_mask);
-		dma_cap_set(DMA_MEMSET, adev->common.cap_mask);
 		dma_cap_set(DMA_PQ, adev->common.cap_mask);
 		dma_cap_set(DMA_PQ_VAL, adev->common.cap_mask);
 		dma_cap_set(DMA_XOR_VAL, adev->common.cap_mask);
@@ -4150,10 +3842,6 @@ static void ppc440spe_adma_init_capabilities(struct ppc440spe_adma_device *adev)
 	if (dma_has_cap(DMA_MEMCPY, adev->common.cap_mask)) {
 		adev->common.device_prep_dma_memcpy =
 			ppc440spe_adma_prep_dma_memcpy;
-	}
-	if (dma_has_cap(DMA_MEMSET, adev->common.cap_mask)) {
-		adev->common.device_prep_dma_memset =
-			ppc440spe_adma_prep_dma_memset;
 	}
 	if (dma_has_cap(DMA_XOR, adev->common.cap_mask)) {
 		adev->common.max_xor = XOR_MAX_OPS;
@@ -4217,7 +3905,6 @@ static void ppc440spe_adma_init_capabilities(struct ppc440spe_adma_device *adev)
 	  dma_has_cap(DMA_XOR, adev->common.cap_mask) ? "xor " : "",
 	  dma_has_cap(DMA_XOR_VAL, adev->common.cap_mask) ? "xor_val " : "",
 	  dma_has_cap(DMA_MEMCPY, adev->common.cap_mask) ? "memcpy " : "",
-	  dma_has_cap(DMA_MEMSET, adev->common.cap_mask)  ? "memset " : "",
 	  dma_has_cap(DMA_INTERRUPT, adev->common.cap_mask) ? "intr " : "");
 }
 
@@ -4481,7 +4168,7 @@ static int ppc440spe_adma_probe(struct platform_device *ofdev)
 	adev->dev = &ofdev->dev;
 	adev->common.dev = &ofdev->dev;
 	INIT_LIST_HEAD(&adev->common.channels);
-	dev_set_drvdata(&ofdev->dev, adev);
+	platform_set_drvdata(ofdev, adev);
 
 	/* create a channel */
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
@@ -4592,16 +4279,15 @@ out:
 /**
  * ppc440spe_adma_remove - remove the asynch device
  */
-static int __devexit ppc440spe_adma_remove(struct platform_device *ofdev)
+static int ppc440spe_adma_remove(struct platform_device *ofdev)
 {
-	struct ppc440spe_adma_device *adev = dev_get_drvdata(&ofdev->dev);
+	struct ppc440spe_adma_device *adev = platform_get_drvdata(ofdev);
 	struct device_node *np = ofdev->dev.of_node;
 	struct resource res;
 	struct dma_chan *chan, *_chan;
 	struct ppc_dma_chan_ref *ref, *_ref;
 	struct ppc440spe_adma_chan *ppc440spe_chan;
 
-	dev_set_drvdata(&ofdev->dev, NULL);
 	if (adev->id < PPC440SPE_ADMA_ENGINES_NUM)
 		ppc440spe_adma_devices[adev->id] = -1;
 
@@ -4905,7 +4591,7 @@ out_free:
 	return ret;
 }
 
-static const struct of_device_id ppc440spe_adma_of_match[] __devinitconst = {
+static const struct of_device_id ppc440spe_adma_of_match[] = {
 	{ .compatible	= "ibm,dma-440spe", },
 	{ .compatible	= "amcc,xor-accelerator", },
 	{},

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,6 +66,12 @@ acpi_status acpi_hw_set_mode(u32 mode)
 
 	ACPI_FUNCTION_TRACE(hw_set_mode);
 
+	/* If the Hardware Reduced flag is set, machine is always in acpi mode */
+
+	if (acpi_gbl_reduced_hardware) {
+		return_ACPI_STATUS(AE_OK);
+	}
+
 	/*
 	 * ACPI 2.0 clarified that if SMI_CMD in FADT is zero,
 	 * system does not support mode transition.
@@ -102,19 +108,18 @@ acpi_status acpi_hw_set_mode(u32 mode)
 		break;
 
 	case ACPI_SYS_MODE_LEGACY:
-
 		/*
 		 * BIOS should clear all fixed status bits and restore fixed event
 		 * enable bits to default
 		 */
 		status = acpi_hw_write_port(acpi_gbl_FADT.smi_command,
-					    (u32) acpi_gbl_FADT.acpi_disable,
-					    8);
+					    (u32)acpi_gbl_FADT.acpi_disable, 8);
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Attempting to enable Legacy (non-ACPI) mode\n"));
 		break;
 
 	default:
+
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
@@ -146,6 +151,12 @@ u32 acpi_hw_get_mode(void)
 	u32 value;
 
 	ACPI_FUNCTION_TRACE(hw_get_mode);
+
+	/* If the Hardware Reduced flag is set, machine is always in acpi mode */
+
+	if (acpi_gbl_reduced_hardware) {
+		return_UINT32(ACPI_SYS_MODE_ACPI);
+	}
 
 	/*
 	 * ACPI 2.0 clarified that if SMI_CMD in FADT is zero,

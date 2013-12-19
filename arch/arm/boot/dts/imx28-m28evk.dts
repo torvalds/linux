@@ -10,7 +10,7 @@
  */
 
 /dts-v1/;
-/include/ "imx28.dtsi"
+#include "imx28.dtsi"
 
 / {
 	model = "DENX M28EVK";
@@ -92,26 +92,26 @@
 				hog_pins_a: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x31c3 /* MX28_PAD_PWM3__GPIO_3_28 */
-						0x30a3 /* MX28_PAD_AUART2_CTS__GPIO_3_10 */
-						0x30b3 /* MX28_PAD_AUART2_RTS__GPIO_3_11 */
-						0x30c3 /* MX28_PAD_AUART3_RX__GPIO_3_12 */
-						0x30d3 /* MX28_PAD_AUART3_TX__GPIO_3_13 */
+						MX28_PAD_PWM3__GPIO_3_28
+						MX28_PAD_AUART2_CTS__GPIO_3_10
+						MX28_PAD_AUART2_RTS__GPIO_3_11
+						MX28_PAD_AUART3_RX__GPIO_3_12
+						MX28_PAD_AUART3_TX__GPIO_3_13
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				lcdif_pins_m28: lcdif-m28@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x11e0 /* MX28_PAD_LCD_DOTCLK__LCD_DOTCLK */
-						0x11f0 /* MX28_PAD_LCD_ENABLE__LCD_ENABLE */
+						MX28_PAD_LCD_DOTCLK__LCD_DOTCLK
+						MX28_PAD_LCD_ENABLE__LCD_ENABLE
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 			};
 
@@ -119,7 +119,32 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&lcdif_24bit_pins_a
 					     &lcdif_pins_m28>;
+				display = <&display>;
 				status = "okay";
+
+				display: display {
+					bits-per-pixel = <16>;
+					bus-width = <18>;
+
+					display-timings {
+						native-mode = <&timing0>;
+						timing0: timing0 {
+							clock-frequency = <33260000>;
+							hactive = <800>;
+							vactive = <480>;
+							hback-porch = <0>;
+							hfront-porch = <256>;
+							vback-porch = <0>;
+							vfront-porch = <45>;
+							hsync-len = <1>;
+							vsync-len = <1>;
+							hsync-active = <0>;
+							vsync-active = <0>;
+							de-active = <1>;
+							pixelclk-active = <1>;
+						};
+					};
+				};
 			};
 
 			can0: can@80032000 {
@@ -152,7 +177,6 @@
 			i2c0: i2c@80058000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c0_pins_a>;
-				clock-frequency = <400000>;
 				status = "okay";
 
 				sgtl5000: codec@0a {
@@ -160,7 +184,7 @@
 					reg = <0x0a>;
 					VDDA-supply = <&reg_3p3v>;
 					VDDIO-supply = <&reg_3p3v>;
-
+					clocks = <&saif0>;
 				};
 
 				eeprom: eeprom@51 {
@@ -177,6 +201,7 @@
 
 			lradc@80050000 {
 				status = "okay";
+				fsl,lradc-touchscreen-wires = <4>;
 			};
 
 			duart: serial@80074000 {
@@ -195,7 +220,25 @@
 
 			auart0: serial@8006a000 {
 				pinctrl-names = "default";
-				pinctrl-0 = <&auart0_2pins_a>;
+				pinctrl-0 = <&auart0_pins_a>;
+				status = "okay";
+			};
+
+			auart1: serial@8006c000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&auart1_pins_a>;
+				status = "okay";
+			};
+
+			auart2: serial@8006e000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&auart2_2pins_b>;
+				status = "okay";
+			};
+
+			pwm: pwm@80064000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pwm4_pins_a>;
 				status = "okay";
 			};
 		};
@@ -220,6 +263,8 @@
 			phy-mode = "rmii";
 			pinctrl-names = "default";
 			pinctrl-0 = <&mac0_pins_a>;
+			clocks = <&clks 57>, <&clks 57>;
+			clock-names = "ipg", "ahb";
 			status = "okay";
 		};
 
@@ -229,6 +274,13 @@
 			pinctrl-0 = <&mac1_pins_a>;
 			status = "okay";
 		};
+	};
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm 4 5000000>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
 	};
 
 	regulators {

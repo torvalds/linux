@@ -248,9 +248,16 @@ config PPC4xx_GPIO
 	bool "PPC4xx GPIO support"
 	depends on 44x
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_GPIO
 	help
 	  Enable gpiolib support for ppc440 based boards
+
+config PPC4xx_OCM
+	bool "PPC4xx On Chip Memory (OCM) support"
+	depends on 4xx
+	select PPC_LIB_RHEAP
+	help
+	  Enable OCM support for PowerPC 4xx platforms with on chip memory,
+	  OCM provides the fast place for memory access to improve performance.
 
 # 44x specific CPU modules, selected based on the board above.
 config 440EP
@@ -266,6 +273,8 @@ config 440EPX
 	select IBM_EMAC_EMAC4
 	select IBM_EMAC_RGMII
 	select IBM_EMAC_ZMII
+	select USB_EHCI_BIG_ENDIAN_MMIO
+	select USB_EHCI_BIG_ENDIAN_DESC
 
 config 440GRX
 	bool

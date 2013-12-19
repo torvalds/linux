@@ -13,7 +13,6 @@
 #ifndef _KGDB_H_
 #define _KGDB_H_
 
-#include <linux/serial_8250.h>
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <linux/atomic.h>
@@ -311,6 +310,7 @@ extern int
 kgdb_handle_exception(int ex_vector, int signo, int err_code,
 		      struct pt_regs *regs);
 extern int kgdb_nmicallback(int cpu, void *regs);
+extern int kgdb_nmicallin(int cpu, int trapnr, void *regs, atomic_t *snd_rdy);
 extern void gdbstub_exit(int status);
 
 extern int			kgdb_single_step;

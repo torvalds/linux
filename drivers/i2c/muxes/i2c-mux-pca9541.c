@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2010 Ericsson AB.
  *
- * Author: Guenter Roeck <guenter.roeck@ericsson.com>
+ * Author: Guenter Roeck <linux@roeck-us.net>
  *
  * Derived from:
  *  pca954x.c
@@ -324,7 +324,7 @@ static int pca9541_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adap = client->adapter;
-	struct pca954x_platform_data *pdata = client->dev.platform_data;
+	struct pca954x_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct pca9541 *data;
 	int force;
 	int ret = -ENODEV;

@@ -22,7 +22,7 @@
 #define NV_DEVICE_DISABLE_PPP                             0x0000004000000000ULL
 #define NV_DEVICE_DISABLE_COPY0                           0x0000008000000000ULL
 #define NV_DEVICE_DISABLE_COPY1                           0x0000010000000000ULL
-#define NV_DEVICE_DISABLE_UNK1C1                          0x0000020000000000ULL
+#define NV_DEVICE_DISABLE_VIC                             0x0000020000000000ULL
 #define NV_DEVICE_DISABLE_VENC                            0x0000040000000000ULL
 
 struct nv_device_class {
@@ -98,6 +98,77 @@ struct nv_dma_class {
 	u32 conf0;
 };
 
+/* Perfmon counter class
+ *
+ * XXXX: NV_PERFCTR
+ */
+#define NV_PERFCTR_CLASS                                             0x0000ffff
+#define NV_PERFCTR_QUERY                                             0x00000000
+#define NV_PERFCTR_SAMPLE                                            0x00000001
+#define NV_PERFCTR_READ                                              0x00000002
+
+struct nv_perfctr_class {
+	u16 logic_op;
+	struct {
+		char __user *name; /*XXX: use cfu when exposed to userspace */
+		u32 size;
+	} signal[4];
+};
+
+struct nv_perfctr_query {
+	u32 iter;
+	u32 size;
+	char __user *name; /*XXX: use ctu when exposed to userspace */
+};
+
+struct nv_perfctr_sample {
+};
+
+struct nv_perfctr_read {
+	u32 ctr;
+	u32 clk;
+};
+
+/* Device control class
+ *
+ * XXXX: NV_CONTROL
+ */
+#define NV_CONTROL_CLASS                                             0x0000fffe
+
+#define NV_CONTROL_PSTATE_INFO                                       0x00000000
+#define NV_CONTROL_PSTATE_INFO_USTATE_DISABLE                              (-1)
+#define NV_CONTROL_PSTATE_INFO_USTATE_PERFMON                              (-2)
+#define NV_CONTROL_PSTATE_INFO_PSTATE_UNKNOWN                              (-1)
+#define NV_CONTROL_PSTATE_INFO_PSTATE_PERFMON                              (-2)
+#define NV_CONTROL_PSTATE_ATTR                                       0x00000001
+#define NV_CONTROL_PSTATE_ATTR_STATE_CURRENT                               (-1)
+#define NV_CONTROL_PSTATE_USER                                       0x00000002
+#define NV_CONTROL_PSTATE_USER_STATE_UNKNOWN                               (-1)
+#define NV_CONTROL_PSTATE_USER_STATE_PERFMON                               (-2)
+
+struct nv_control_pstate_info {
+	u32 count; /* out: number of power states */
+	s32 ustate; /* out: current target pstate index */
+	u32 pstate; /* out: current pstate index */
+};
+
+struct nv_control_pstate_attr {
+	s32 state; /*  in: index of pstate to query
+		    * out: pstate identifier
+		    */
+	u32 index; /*  in: index of attribute to query
+		    * out: index of next attribute, or 0 if no more
+		    */
+	char name[32];
+	char unit[16];
+	u32 min;
+	u32 max;
+};
+
+struct nv_control_pstate_user {
+	s32 state; /*  in: pstate identifier */
+};
+
 /* DMA FIFO channel classes
  *
  * 006b: NV03_CHANNEL_DMA
@@ -154,6 +225,14 @@ struct nve0_channel_ind_class {
 	u32 engine;
 };
 
+/* 0046: NV04_DISP
+ */
+
+#define NV04_DISP_CLASS                                              0x00000046
+
+struct nv04_display_class {
+};
+
 /* 5070: NV50_DISP
  * 8270: NV84_DISP
  * 8370: NVA0_DISP
@@ -161,6 +240,7 @@ struct nve0_channel_ind_class {
  * 8570: NVA3_DISP
  * 9070: NVD0_DISP
  * 9170: NVE0_DISP
+ * 9270: NVF0_DISP
  */
 
 #define NV50_DISP_CLASS                                              0x00005070
@@ -170,6 +250,7 @@ struct nve0_channel_ind_class {
 #define NVA3_DISP_CLASS                                              0x00008570
 #define NVD0_DISP_CLASS                                              0x00009070
 #define NVE0_DISP_CLASS                                              0x00009170
+#define NVF0_DISP_CLASS                                              0x00009270
 
 #define NV50_DISP_SOR_MTHD                                           0x00010000
 #define NV50_DISP_SOR_MTHD_TYPE                                      0x0000f000
@@ -190,25 +271,6 @@ struct nve0_channel_ind_class {
 #define NV84_DISP_SOR_HDMI_PWR_REKEY                                 0x0000007f
 #define NV50_DISP_SOR_LVDS_SCRIPT                                    0x00013000
 #define NV50_DISP_SOR_LVDS_SCRIPT_ID                                 0x0000ffff
-#define NV94_DISP_SOR_DP_TRAIN                                       0x00016000
-#define NV94_DISP_SOR_DP_TRAIN_OP                                    0xf0000000
-#define NV94_DISP_SOR_DP_TRAIN_OP_PATTERN                            0x00000000
-#define NV94_DISP_SOR_DP_TRAIN_OP_INIT                               0x10000000
-#define NV94_DISP_SOR_DP_TRAIN_OP_FINI                               0x20000000
-#define NV94_DISP_SOR_DP_TRAIN_INIT_SPREAD                           0x00000001
-#define NV94_DISP_SOR_DP_TRAIN_INIT_SPREAD_OFF                       0x00000000
-#define NV94_DISP_SOR_DP_TRAIN_INIT_SPREAD_ON                        0x00000001
-#define NV94_DISP_SOR_DP_TRAIN_PATTERN                               0x00000003
-#define NV94_DISP_SOR_DP_TRAIN_PATTERN_DISABLED                      0x00000000
-#define NV94_DISP_SOR_DP_LNKCTL                                      0x00016040
-#define NV94_DISP_SOR_DP_LNKCTL_FRAME                                0x80000000
-#define NV94_DISP_SOR_DP_LNKCTL_FRAME_STD                            0x00000000
-#define NV94_DISP_SOR_DP_LNKCTL_FRAME_ENH                            0x80000000
-#define NV94_DISP_SOR_DP_LNKCTL_WIDTH                                0x00001f00
-#define NV94_DISP_SOR_DP_LNKCTL_COUNT                                0x00000007
-#define NV94_DISP_SOR_DP_DRVCTL(l)                     ((l) * 0x40 + 0x00016100)
-#define NV94_DISP_SOR_DP_DRVCTL_VS                                   0x00000300
-#define NV94_DISP_SOR_DP_DRVCTL_PE                                   0x00000003
 
 #define NV50_DISP_DAC_MTHD                                           0x00020000
 #define NV50_DISP_DAC_MTHD_TYPE                                      0x0000f000
@@ -227,8 +289,25 @@ struct nve0_channel_ind_class {
 #define NV50_DISP_DAC_PWR_STATE                                      0x00000040
 #define NV50_DISP_DAC_PWR_STATE_ON                                   0x00000000
 #define NV50_DISP_DAC_PWR_STATE_OFF                                  0x00000040
-#define NV50_DISP_DAC_LOAD                                           0x0002000c
+#define NV50_DISP_DAC_LOAD                                           0x00020100
 #define NV50_DISP_DAC_LOAD_VALUE                                     0x00000007
+
+#define NV50_DISP_PIOR_MTHD                                          0x00030000
+#define NV50_DISP_PIOR_MTHD_TYPE                                     0x0000f000
+#define NV50_DISP_PIOR_MTHD_OR                                       0x00000003
+
+#define NV50_DISP_PIOR_PWR                                           0x00030000
+#define NV50_DISP_PIOR_PWR_STATE                                     0x00000001
+#define NV50_DISP_PIOR_PWR_STATE_ON                                  0x00000001
+#define NV50_DISP_PIOR_PWR_STATE_OFF                                 0x00000000
+#define NV50_DISP_PIOR_TMDS_PWR                                      0x00032000
+#define NV50_DISP_PIOR_TMDS_PWR_STATE                                0x00000001
+#define NV50_DISP_PIOR_TMDS_PWR_STATE_ON                             0x00000001
+#define NV50_DISP_PIOR_TMDS_PWR_STATE_OFF                            0x00000000
+#define NV50_DISP_PIOR_DP_PWR                                        0x00036000
+#define NV50_DISP_PIOR_DP_PWR_STATE                                  0x00000001
+#define NV50_DISP_PIOR_DP_PWR_STATE_ON                               0x00000001
+#define NV50_DISP_PIOR_DP_PWR_STATE_OFF                              0x00000000
 
 struct nv50_display_class {
 };
@@ -240,6 +319,7 @@ struct nv50_display_class {
  * 857a: NVA3_DISP_CURS
  * 907a: NVD0_DISP_CURS
  * 917a: NVE0_DISP_CURS
+ * 927a: NVF0_DISP_CURS
  */
 
 #define NV50_DISP_CURS_CLASS                                         0x0000507a
@@ -249,6 +329,7 @@ struct nv50_display_class {
 #define NVA3_DISP_CURS_CLASS                                         0x0000857a
 #define NVD0_DISP_CURS_CLASS                                         0x0000907a
 #define NVE0_DISP_CURS_CLASS                                         0x0000917a
+#define NVF0_DISP_CURS_CLASS                                         0x0000927a
 
 struct nv50_display_curs_class {
 	u32 head;
@@ -261,6 +342,7 @@ struct nv50_display_curs_class {
  * 857b: NVA3_DISP_OIMM
  * 907b: NVD0_DISP_OIMM
  * 917b: NVE0_DISP_OIMM
+ * 927b: NVE0_DISP_OIMM
  */
 
 #define NV50_DISP_OIMM_CLASS                                         0x0000507b
@@ -270,6 +352,7 @@ struct nv50_display_curs_class {
 #define NVA3_DISP_OIMM_CLASS                                         0x0000857b
 #define NVD0_DISP_OIMM_CLASS                                         0x0000907b
 #define NVE0_DISP_OIMM_CLASS                                         0x0000917b
+#define NVF0_DISP_OIMM_CLASS                                         0x0000927b
 
 struct nv50_display_oimm_class {
 	u32 head;
@@ -282,6 +365,7 @@ struct nv50_display_oimm_class {
  * 857c: NVA3_DISP_SYNC
  * 907c: NVD0_DISP_SYNC
  * 917c: NVE0_DISP_SYNC
+ * 927c: NVF0_DISP_SYNC
  */
 
 #define NV50_DISP_SYNC_CLASS                                         0x0000507c
@@ -291,6 +375,7 @@ struct nv50_display_oimm_class {
 #define NVA3_DISP_SYNC_CLASS                                         0x0000857c
 #define NVD0_DISP_SYNC_CLASS                                         0x0000907c
 #define NVE0_DISP_SYNC_CLASS                                         0x0000917c
+#define NVF0_DISP_SYNC_CLASS                                         0x0000927c
 
 struct nv50_display_sync_class {
 	u32 pushbuf;
@@ -304,6 +389,7 @@ struct nv50_display_sync_class {
  * 857d: NVA3_DISP_MAST
  * 907d: NVD0_DISP_MAST
  * 917d: NVE0_DISP_MAST
+ * 927d: NVF0_DISP_MAST
  */
 
 #define NV50_DISP_MAST_CLASS                                         0x0000507d
@@ -313,6 +399,7 @@ struct nv50_display_sync_class {
 #define NVA3_DISP_MAST_CLASS                                         0x0000857d
 #define NVD0_DISP_MAST_CLASS                                         0x0000907d
 #define NVE0_DISP_MAST_CLASS                                         0x0000917d
+#define NVF0_DISP_MAST_CLASS                                         0x0000927d
 
 struct nv50_display_mast_class {
 	u32 pushbuf;
@@ -325,6 +412,7 @@ struct nv50_display_mast_class {
  * 857e: NVA3_DISP_OVLY
  * 907e: NVD0_DISP_OVLY
  * 917e: NVE0_DISP_OVLY
+ * 927e: NVF0_DISP_OVLY
  */
 
 #define NV50_DISP_OVLY_CLASS                                         0x0000507e
@@ -334,6 +422,7 @@ struct nv50_display_mast_class {
 #define NVA3_DISP_OVLY_CLASS                                         0x0000857e
 #define NVD0_DISP_OVLY_CLASS                                         0x0000907e
 #define NVE0_DISP_OVLY_CLASS                                         0x0000917e
+#define NVF0_DISP_OVLY_CLASS                                         0x0000927e
 
 struct nv50_display_ovly_class {
 	u32 pushbuf;

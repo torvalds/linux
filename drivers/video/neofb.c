@@ -88,7 +88,7 @@ static bool external;
 static bool libretto;
 static bool nostretch;
 static bool nopciburst;
-static char *mode_option __devinitdata = NULL;
+static char *mode_option = NULL;
 
 #ifdef MODULE
 
@@ -1632,7 +1632,7 @@ static struct fb_ops neofb_ops = {
 
 /* --------------------------------------------------------------------- */
 
-static struct fb_videomode __devinitdata mode800x480 = {
+static struct fb_videomode mode800x480 = {
 	.xres           = 800,
 	.yres           = 480,
 	.pixclock       = 25000,
@@ -1646,8 +1646,7 @@ static struct fb_videomode __devinitdata mode800x480 = {
 	.vmode          = FB_VMODE_NONINTERLACED
 };
 
-static int __devinit neo_map_mmio(struct fb_info *info,
-				  struct pci_dev *dev)
+static int neo_map_mmio(struct fb_info *info, struct pci_dev *dev)
 {
 	struct neofb_par *par = info->par;
 
@@ -1707,8 +1706,8 @@ static void neo_unmap_mmio(struct fb_info *info)
 			   info->fix.mmio_len);
 }
 
-static int __devinit neo_map_video(struct fb_info *info,
-				   struct pci_dev *dev, int video_len)
+static int neo_map_video(struct fb_info *info, struct pci_dev *dev,
+			 int video_len)
 {
 	//unsigned long addr;
 
@@ -1772,7 +1771,7 @@ static void neo_unmap_video(struct fb_info *info)
 			   info->fix.smem_len);
 }
 
-static int __devinit neo_scan_monitor(struct fb_info *info)
+static int neo_scan_monitor(struct fb_info *info)
 {
 	struct neofb_par *par = info->par;
 	unsigned char type, display;
@@ -1851,7 +1850,7 @@ static int __devinit neo_scan_monitor(struct fb_info *info)
 	return 0;
 }
 
-static int __devinit neo_init_hw(struct fb_info *info)
+static int neo_init_hw(struct fb_info *info)
 {
 	struct neofb_par *par = info->par;
 	int videoRam = 896;
@@ -1939,8 +1938,8 @@ static int __devinit neo_init_hw(struct fb_info *info)
 }
 
 
-static struct fb_info *__devinit neo_alloc_fb_info(struct pci_dev *dev, const struct
-						   pci_device_id *id)
+static struct fb_info *neo_alloc_fb_info(struct pci_dev *dev,
+					 const struct pci_device_id *id)
 {
 	struct fb_info *info;
 	struct neofb_par *par;
@@ -2038,8 +2037,7 @@ static void neo_free_fb_info(struct fb_info *info)
 
 /* --------------------------------------------------------------------- */
 
-static int __devinit neofb_probe(struct pci_dev *dev,
-				 const struct pci_device_id *id)
+static int neofb_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct fb_info *info;
 	u_int h_sync, v_sync;
@@ -2077,6 +2075,7 @@ static int __devinit neofb_probe(struct pci_dev *dev,
 	if (!fb_find_mode(&info->var, info, mode_option, NULL, 0,
 			info->monspecs.modedb, 16)) {
 		printk(KERN_ERR "neofb: Unable to find usable video mode.\n");
+		err = -EINVAL;
 		goto err_map_video;
 	}
 
@@ -2099,15 +2098,15 @@ static int __devinit neofb_probe(struct pci_dev *dev,
 	       info->fix.smem_len >> 10, info->var.xres,
 	       info->var.yres, h_sync / 1000, h_sync % 1000, v_sync);
 
-	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0)
+	err = fb_alloc_cmap(&info->cmap, 256, 0);
+	if (err < 0)
 		goto err_map_video;
 
 	err = register_framebuffer(info);
 	if (err < 0)
 		goto err_reg_fb;
 
-	printk(KERN_INFO "fb%d: %s frame buffer device\n",
-	       info->node, info->fix.id);
+	fb_info(info, "%s frame buffer device\n", info->fix.id);
 
 	/*
 	 * Our driver data
@@ -2128,7 +2127,7 @@ err_map_mmio:
 	return err;
 }
 
-static void __devexit neofb_remove(struct pci_dev *dev)
+static void neofb_remove(struct pci_dev *dev)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
 
@@ -2148,12 +2147,6 @@ static void __devexit neofb_remove(struct pci_dev *dev)
 		fb_destroy_modedb(info->monspecs.modedb);
 		neo_unmap_mmio(info);
 		neo_free_fb_info(info);
-
-		/*
-		 * Ensure that the driver data is no longer
-		 * valid.
-		 */
-		pci_set_drvdata(dev, NULL);
 	}
 }
 
@@ -2194,7 +2187,7 @@ static struct pci_driver neofb_driver = {
 	.name =		"neofb",
 	.id_table =	neofb_devices,
 	.probe =	neofb_probe,
-	.remove =	__devexit_p(neofb_remove)
+	.remove =	neofb_remove,
 };
 
 /* ************************* init in-kernel code ************************** */

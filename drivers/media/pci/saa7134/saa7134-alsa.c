@@ -172,7 +172,9 @@ static void saa7134_irq_alsa_done(struct saa7134_dev *dev,
 		dprintk("irq: overrun [full=%d/%d] - Blocks in %d\n",dev->dmasound.read_count,
 			dev->dmasound.bufsize, dev->dmasound.blocks);
 		spin_unlock(&dev->slock);
+		snd_pcm_stream_lock(dev->dmasound.substream);
 		snd_pcm_stop(dev->dmasound.substream,SNDRV_PCM_STATE_XRUN);
+		snd_pcm_stream_unlock(dev->dmasound.substream);
 		return;
 	}
 
@@ -1094,7 +1096,7 @@ static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 
 
 	err = request_irq(dev->pci->irq, saa7134_alsa_irq,
-				IRQF_SHARED | IRQF_DISABLED, dev->name,
+				IRQF_SHARED, dev->name,
 				(void*) &dev->dmasound);
 
 	if (err < 0) {

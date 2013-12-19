@@ -111,9 +111,9 @@ static const char usbhsh_hcd_name[] = "renesas_usbhs host";
 	container_of(usbhs_mod_get(priv, USBHS_HOST), struct usbhsh_hpriv, mod)
 
 #define __usbhsh_for_each_udev(start, pos, h, i)	\
-	for (i = start, pos = (h)->udev + i;		\
-	     i < USBHSH_DEVICE_MAX;			\
-	     i++, pos = (h)->udev + i)
+	for ((i) = start;						\
+	     ((i) < USBHSH_DEVICE_MAX) && ((pos) = (h)->udev + (i));	\
+	     (i)++)
 
 #define usbhsh_for_each_udev(pos, hpriv, i)	\
 	__usbhsh_for_each_udev(1, pos, hpriv, i)
@@ -661,9 +661,10 @@ static void usbhsh_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
 		status = -ESHUTDOWN;
 
 	urb->actual_length = pkt->actual;
-	usbhsh_ureq_free(hpriv, ureq);
 
 	usbhsh_endpoint_sequence_save(hpriv, urb, pkt);
+	usbhsh_ureq_free(hpriv, ureq);
+
 	usbhsh_pipe_detach(hpriv, usbhsh_ep_to_uep(urb->ep));
 
 	usb_hcd_unlink_urb_from_ep(hcd, urb);

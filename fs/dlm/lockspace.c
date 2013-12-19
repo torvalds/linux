@@ -706,9 +706,7 @@ static int lkb_idr_is_local(int id, void *p, void *data)
 {
 	struct dlm_lkb *lkb = p;
 
-	if (!lkb->lkb_nodeid)
-		return 1;
-	return 0;
+	return lkb->lkb_nodeid == 0 && lkb->lkb_grmode != DLM_LOCK_IV;
 }
 
 static int lkb_idr_is_any(int id, void *p, void *data)
@@ -796,7 +794,6 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	 */
 
 	idr_for_each(&ls->ls_lkbidr, lkb_idr_free, ls);
-	idr_remove_all(&ls->ls_lkbidr);
 	idr_destroy(&ls->ls_lkbidr);
 
 	/*
@@ -884,17 +881,24 @@ int dlm_release_lockspace(void *lockspace, int force)
 void dlm_stop_lockspaces(void)
 {
 	struct dlm_ls *ls;
+	int count;
 
  restart:
+	count = 0;
 	spin_lock(&lslist_lock);
 	list_for_each_entry(ls, &lslist, ls_list) {
-		if (!test_bit(LSFL_RUNNING, &ls->ls_flags))
+		if (!test_bit(LSFL_RUNNING, &ls->ls_flags)) {
+			count++;
 			continue;
+		}
 		spin_unlock(&lslist_lock);
 		log_error(ls, "no userland control daemon, stopping lockspace");
 		dlm_ls_stop(ls);
 		goto restart;
 	}
 	spin_unlock(&lslist_lock);
+
+	if (count)
+		log_print("dlm user daemon left %d lockspaces", count);
 }
 

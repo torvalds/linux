@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
@@ -199,7 +200,6 @@ struct pxa_camera_dev {
 	 * interface. If anyone ever builds hardware to enable more than
 	 * one camera, they will have to modify this driver too
 	 */
-	struct soc_camera_device *icd;
 	struct clk		*clk;
 
 	unsigned int		irq;
@@ -681,7 +681,7 @@ static void pxa_camera_wakeup(struct pxa_camera_dev *pcdev,
 	/* _init is used to debug races, see comment in pxa_camera_reqbufs() */
 	list_del_init(&vb->queue);
 	vb->state = VIDEOBUF_DONE;
-	do_gettimeofday(&vb->ts);
+	v4l2_get_timestamp(&vb->ts);
 	vb->field_count++;
 	wake_up(&vb->done);
 	dev_dbg(pcdev->soc_host.v4l2_dev.dev, "%s dequeud buffer (vb=0x%p)\n",
@@ -842,7 +842,7 @@ static void pxa_camera_init_videobuf(struct videobuf_queue *q,
 	 */
 	videobuf_queue_sg_init(q, &pxa_videobuf_ops, NULL, &pcdev->lock,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
-				sizeof(struct pxa_buffer), icd, &icd->video_lock);
+				sizeof(struct pxa_buffer), icd, &ici->host_lock);
 }
 
 static u32 mclk_get_divisor(struct platform_device *pdev,
@@ -955,39 +955,38 @@ static irqreturn_t pxa_camera_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-/*
- * The following two functions absolutely depend on the fact, that
- * there can be only one camera on PXA quick capture interface
- * Called with .video_lock held
- */
 static int pxa_camera_add_device(struct soc_camera_device *icd)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	struct pxa_camera_dev *pcdev = ici->priv;
-
-	if (pcdev->icd)
-		return -EBUSY;
-
-	pxa_camera_activate(pcdev);
-
-	pcdev->icd = icd;
-
 	dev_info(icd->parent, "PXA Camera driver attached to camera %d\n",
 		 icd->devnum);
 
 	return 0;
 }
 
-/* Called with .video_lock held */
 static void pxa_camera_remove_device(struct soc_camera_device *icd)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	struct pxa_camera_dev *pcdev = ici->priv;
-
-	BUG_ON(icd != pcdev->icd);
-
 	dev_info(icd->parent, "PXA Camera driver detached from camera %d\n",
 		 icd->devnum);
+}
+
+/*
+ * The following two functions absolutely depend on the fact, that
+ * there can be only one camera on PXA quick capture interface
+ * Called with .host_lock held
+ */
+static int pxa_camera_clock_start(struct soc_camera_host *ici)
+{
+	struct pxa_camera_dev *pcdev = ici->priv;
+
+	pxa_camera_activate(pcdev);
+
+	return 0;
+}
+
+/* Called with .host_lock held */
+static void pxa_camera_clock_stop(struct soc_camera_host *ici)
+{
+	struct pxa_camera_dev *pcdev = ici->priv;
 
 	/* disable capture, disable interrupts */
 	__raw_writel(0x3ff, pcdev->base + CICR0);
@@ -998,8 +997,6 @@ static void pxa_camera_remove_device(struct soc_camera_device *icd)
 	DCSR(pcdev->dma_chans[2]) = 0;
 
 	pxa_camera_deactivate(pcdev);
-
-	pcdev->icd = NULL;
 }
 
 static int test_platform_param(struct pxa_camera_dev *pcdev,
@@ -1595,8 +1592,8 @@ static int pxa_camera_suspend(struct device *dev)
 	pcdev->save_cicr[i++] = __raw_readl(pcdev->base + CICR3);
 	pcdev->save_cicr[i++] = __raw_readl(pcdev->base + CICR4);
 
-	if (pcdev->icd) {
-		struct v4l2_subdev *sd = soc_camera_to_subdev(pcdev->icd);
+	if (pcdev->soc_host.icd) {
+		struct v4l2_subdev *sd = soc_camera_to_subdev(pcdev->soc_host.icd);
 		ret = v4l2_subdev_call(sd, core, s_power, 0);
 		if (ret == -ENOIOCTLCMD)
 			ret = 0;
@@ -1621,8 +1618,8 @@ static int pxa_camera_resume(struct device *dev)
 	__raw_writel(pcdev->save_cicr[i++], pcdev->base + CICR3);
 	__raw_writel(pcdev->save_cicr[i++], pcdev->base + CICR4);
 
-	if (pcdev->icd) {
-		struct v4l2_subdev *sd = soc_camera_to_subdev(pcdev->icd);
+	if (pcdev->soc_host.icd) {
+		struct v4l2_subdev *sd = soc_camera_to_subdev(pcdev->soc_host.icd);
 		ret = v4l2_subdev_call(sd, core, s_power, 1);
 		if (ret == -ENOIOCTLCMD)
 			ret = 0;
@@ -1639,6 +1636,8 @@ static struct soc_camera_host_ops pxa_soc_camera_host_ops = {
 	.owner		= THIS_MODULE,
 	.add		= pxa_camera_add_device,
 	.remove		= pxa_camera_remove_device,
+	.clock_start	= pxa_camera_clock_start,
+	.clock_stop	= pxa_camera_clock_stop,
 	.set_crop	= pxa_camera_set_crop,
 	.get_formats	= pxa_camera_get_formats,
 	.put_formats	= pxa_camera_put_formats,
@@ -1651,7 +1650,7 @@ static struct soc_camera_host_ops pxa_soc_camera_host_ops = {
 	.set_bus_param	= pxa_camera_set_bus_param,
 };
 
-static int __devinit pxa_camera_probe(struct platform_device *pdev)
+static int pxa_camera_probe(struct platform_device *pdev)
 {
 	struct pxa_camera_dev *pcdev;
 	struct resource *res;
@@ -1661,23 +1660,18 @@ static int __devinit pxa_camera_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (!res || irq < 0) {
-		err = -ENODEV;
-		goto exit;
-	}
+	if (!res || irq < 0)
+		return -ENODEV;
 
-	pcdev = kzalloc(sizeof(*pcdev), GFP_KERNEL);
+	pcdev = devm_kzalloc(&pdev->dev, sizeof(*pcdev), GFP_KERNEL);
 	if (!pcdev) {
 		dev_err(&pdev->dev, "Could not allocate pcdev\n");
-		err = -ENOMEM;
-		goto exit;
+		return -ENOMEM;
 	}
 
-	pcdev->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(pcdev->clk)) {
-		err = PTR_ERR(pcdev->clk);
-		goto exit_kfree;
-	}
+	pcdev->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(pcdev->clk))
+		return PTR_ERR(pcdev->clk);
 
 	pcdev->res = res;
 
@@ -1715,17 +1709,10 @@ static int __devinit pxa_camera_probe(struct platform_device *pdev)
 	/*
 	 * Request the regions.
 	 */
-	if (!request_mem_region(res->start, resource_size(res),
-				PXA_CAM_DRV_NAME)) {
-		err = -EBUSY;
-		goto exit_clk;
-	}
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
-	base = ioremap(res->start, resource_size(res));
-	if (!base) {
-		err = -ENOMEM;
-		goto exit_release;
-	}
 	pcdev->irq = irq;
 	pcdev->base = base;
 
@@ -1734,7 +1721,7 @@ static int __devinit pxa_camera_probe(struct platform_device *pdev)
 			      pxa_camera_dma_irq_y, pcdev);
 	if (err < 0) {
 		dev_err(&pdev->dev, "Can't request DMA for Y\n");
-		goto exit_iounmap;
+		return err;
 	}
 	pcdev->dma_chans[0] = err;
 	dev_dbg(&pdev->dev, "got DMA channel %d\n", pcdev->dma_chans[0]);
@@ -1762,10 +1749,10 @@ static int __devinit pxa_camera_probe(struct platform_device *pdev)
 	DRCMR(70) = pcdev->dma_chans[2] | DRCMR_MAPVLD;
 
 	/* request irq */
-	err = request_irq(pcdev->irq, pxa_camera_irq, 0, PXA_CAM_DRV_NAME,
-			  pcdev);
+	err = devm_request_irq(&pdev->dev, pcdev->irq, pxa_camera_irq, 0,
+			       PXA_CAM_DRV_NAME, pcdev);
 	if (err) {
-		dev_err(&pdev->dev, "Camera interrupt register failed \n");
+		dev_err(&pdev->dev, "Camera interrupt register failed\n");
 		goto exit_free_dma;
 	}
 
@@ -1777,70 +1764,48 @@ static int __devinit pxa_camera_probe(struct platform_device *pdev)
 
 	err = soc_camera_host_register(&pcdev->soc_host);
 	if (err)
-		goto exit_free_irq;
+		goto exit_free_dma;
 
 	return 0;
 
-exit_free_irq:
-	free_irq(pcdev->irq, pcdev);
 exit_free_dma:
 	pxa_free_dma(pcdev->dma_chans[2]);
 exit_free_dma_u:
 	pxa_free_dma(pcdev->dma_chans[1]);
 exit_free_dma_y:
 	pxa_free_dma(pcdev->dma_chans[0]);
-exit_iounmap:
-	iounmap(base);
-exit_release:
-	release_mem_region(res->start, resource_size(res));
-exit_clk:
-	clk_put(pcdev->clk);
-exit_kfree:
-	kfree(pcdev);
-exit:
 	return err;
 }
 
-static int __devexit pxa_camera_remove(struct platform_device *pdev)
+static int pxa_camera_remove(struct platform_device *pdev)
 {
 	struct soc_camera_host *soc_host = to_soc_camera_host(&pdev->dev);
 	struct pxa_camera_dev *pcdev = container_of(soc_host,
 					struct pxa_camera_dev, soc_host);
-	struct resource *res;
-
-	clk_put(pcdev->clk);
 
 	pxa_free_dma(pcdev->dma_chans[0]);
 	pxa_free_dma(pcdev->dma_chans[1]);
 	pxa_free_dma(pcdev->dma_chans[2]);
-	free_irq(pcdev->irq, pcdev);
 
 	soc_camera_host_unregister(soc_host);
-
-	iounmap(pcdev->base);
-
-	res = pcdev->res;
-	release_mem_region(res->start, resource_size(res));
-
-	kfree(pcdev);
 
 	dev_info(&pdev->dev, "PXA Camera driver unloaded\n");
 
 	return 0;
 }
 
-static struct dev_pm_ops pxa_camera_pm = {
+static const struct dev_pm_ops pxa_camera_pm = {
 	.suspend	= pxa_camera_suspend,
 	.resume		= pxa_camera_resume,
 };
 
 static struct platform_driver pxa_camera_driver = {
-	.driver 	= {
+	.driver		= {
 		.name	= PXA_CAM_DRV_NAME,
 		.pm	= &pxa_camera_pm,
 	},
 	.probe		= pxa_camera_probe,
-	.remove		= __devexit_p(pxa_camera_remove),
+	.remove		= pxa_camera_remove,
 };
 
 module_platform_driver(pxa_camera_driver);

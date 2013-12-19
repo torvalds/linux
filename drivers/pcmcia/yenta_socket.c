@@ -1439,20 +1439,6 @@ static struct pci_driver yenta_cardbus_driver = {
 	.driver.pm	= YENTA_PM_OPS,
 };
 
-
-static int __init yenta_socket_init(void)
-{
-	return pci_register_driver(&yenta_cardbus_driver);
-}
-
-
-static void __exit yenta_socket_exit(void)
-{
-	pci_unregister_driver(&yenta_cardbus_driver);
-}
-
-
-module_init(yenta_socket_init);
-module_exit(yenta_socket_exit);
+module_pci_driver(yenta_cardbus_driver);
 
 MODULE_LICENSE("GPL");

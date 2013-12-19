@@ -20,6 +20,8 @@ struct timekeeper {
 	u32			shift;
 	/* Number of clock cycles in one NTP interval. */
 	cycle_t			cycle_interval;
+	/* Last cycle value (also stored in clock->cycle_last) */
+	cycle_t			cycle_last;
 	/* Number of clock shifted nano seconds in one NTP interval. */
 	u64			xtime_interval;
 	/* shifted nano seconds left over when rounding cycle_interval */
@@ -62,8 +64,11 @@ struct timekeeper {
 	ktime_t			offs_boot;
 	/* The raw monotonic time for the CLOCK_MONOTONIC_RAW posix clock. */
 	struct timespec		raw_time;
-	/* Seqlock for all timekeeper values */
-	seqlock_t		lock;
+	/* The current UTC to TAI offset in seconds */
+	s32			tai_offset;
+	/* Offset clock monotonic -> clock tai */
+	ktime_t			offs_tai;
+
 };
 
 static inline struct timespec tk_xtime(struct timekeeper *tk)

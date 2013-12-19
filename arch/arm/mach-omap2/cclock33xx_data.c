@@ -284,9 +284,10 @@ DEFINE_STRUCT_CLK(dpll_disp_ck, dpll_core_ck_parents, dpll_ddr_ck_ops);
  * TODO: Add clksel here (sys_clkin, CORE_CLKOUTM6, PER_CLKOUTM2
  * and ALT_CLK1/2)
  */
-DEFINE_CLK_DIVIDER(dpll_disp_m2_ck, "dpll_disp_ck", &dpll_disp_ck, 0x0,
-		   AM33XX_CM_DIV_M2_DPLL_DISP, AM33XX_DPLL_CLKOUT_DIV_SHIFT,
-		   AM33XX_DPLL_CLKOUT_DIV_WIDTH, CLK_DIVIDER_ONE_BASED, NULL);
+DEFINE_CLK_DIVIDER(dpll_disp_m2_ck, "dpll_disp_ck", &dpll_disp_ck,
+		   CLK_SET_RATE_PARENT, AM33XX_CM_DIV_M2_DPLL_DISP,
+		   AM33XX_DPLL_CLKOUT_DIV_SHIFT, AM33XX_DPLL_CLKOUT_DIV_WIDTH,
+		   CLK_DIVIDER_ONE_BASED, NULL);
 
 /* DPLL_PER */
 static struct dpll_data dpll_per_dd = {
@@ -412,6 +413,18 @@ static struct clk smartreflex1_fck;
 DEFINE_STRUCT_CLK_HW_OMAP(smartreflex1_fck, NULL);
 DEFINE_STRUCT_CLK(smartreflex1_fck, dpll_core_ck_parents, clk_ops_null);
 
+static struct clk sha0_fck;
+DEFINE_STRUCT_CLK_HW_OMAP(sha0_fck, NULL);
+DEFINE_STRUCT_CLK(sha0_fck, dpll_core_ck_parents, clk_ops_null);
+
+static struct clk aes0_fck;
+DEFINE_STRUCT_CLK_HW_OMAP(aes0_fck, NULL);
+DEFINE_STRUCT_CLK(aes0_fck, dpll_core_ck_parents, clk_ops_null);
+
+static struct clk rng_fck;
+DEFINE_STRUCT_CLK_HW_OMAP(rng_fck, NULL);
+DEFINE_STRUCT_CLK(rng_fck, dpll_core_ck_parents, clk_ops_null);
+
 /*
  * Modules clock nodes
  *
@@ -422,15 +435,11 @@ DEFINE_STRUCT_CLK(smartreflex1_fck, dpll_core_ck_parents, clk_ops_null);
  *  - Driver code is not yet migrated to use hwmod/runtime pm
  *  - Modules outside kernel access (to disable them by default)
  *
- *     - debugss
  *     - mmu (gfx domain)
  *     - cefuse
  *     - usbotg_fck (its additional clock and not really a modulemode)
  *     - ieee5000
  */
-DEFINE_CLK_GATE(debugss_ick, "dpll_core_m4_ck", &dpll_core_m4_ck, 0x0,
-		AM33XX_CM_WKUP_DEBUGSS_CLKCTRL, AM33XX_MODULEMODE_SWCTRL_SHIFT,
-		0x0, NULL);
 
 DEFINE_CLK_GATE(mmu_fck, "dpll_core_m4_ck", &dpll_core_m4_ck, 0x0,
 		AM33XX_CM_GFX_MMUDATA_CLKCTRL, AM33XX_MODULEMODE_SWCTRL_SHIFT,
@@ -445,9 +454,29 @@ DEFINE_CLK_GATE(cefuse_fck, "sys_clkin_ck", &sys_clkin_ck, 0x0,
  */
 DEFINE_CLK_FIXED_FACTOR(clkdiv32k_ck, "clk_24mhz", &clk_24mhz, 0x0, 1, 732);
 
-DEFINE_CLK_GATE(clkdiv32k_ick, "clkdiv32k_ck", &clkdiv32k_ck, 0x0,
-		AM33XX_CM_PER_CLKDIV32K_CLKCTRL, AM33XX_MODULEMODE_SWCTRL_SHIFT,
-		0x0, NULL);
+static struct clk clkdiv32k_ick;
+
+static const char *clkdiv32k_ick_parent_names[] = {
+	"clkdiv32k_ck",
+};
+
+static const struct clk_ops clkdiv32k_ick_ops = {
+	.enable         = &omap2_dflt_clk_enable,
+	.disable        = &omap2_dflt_clk_disable,
+	.is_enabled     = &omap2_dflt_clk_is_enabled,
+	.init           = &omap2_init_clk_clkdm,
+};
+
+static struct clk_hw_omap clkdiv32k_ick_hw = {
+	.hw	= {
+		.clk	= &clkdiv32k_ick,
+	},
+	.enable_reg	= AM33XX_CM_PER_CLKDIV32K_CLKCTRL,
+	.enable_bit	= AM33XX_MODULEMODE_SWCTRL_SHIFT,
+	.clkdm_name	= "clk_24mhz_clkdm",
+};
+
+DEFINE_STRUCT_CLK(clkdiv32k_ick, clkdiv32k_ick_parent_names, clkdiv32k_ick_ops);
 
 /* "usbotg_fck" is an additional clock and not really a modulemode */
 DEFINE_CLK_GATE(usbotg_fck, "dpll_per_ck", &dpll_per_ck, 0x0,
@@ -723,7 +752,8 @@ static struct clk_hw_omap lcd_gclk_hw = {
 	.clksel_mask	= AM33XX_CLKSEL_0_1_MASK,
 };
 
-DEFINE_STRUCT_CLK(lcd_gclk, lcd_ck_parents, gpio_fck_ops);
+DEFINE_STRUCT_CLK_FLAGS(lcd_gclk, lcd_ck_parents,
+			gpio_fck_ops, CLK_SET_RATE_PARENT);
 
 DEFINE_CLK_FIXED_FACTOR(mmc_clk, "dpll_per_m2_ck", &dpll_per_m2_ck, 0x0, 1, 2);
 
@@ -832,84 +862,159 @@ static struct clk_hw_omap wdt1_fck_hw = {
 
 DEFINE_STRUCT_CLK(wdt1_fck, wdt_ck_parents, gpio_fck_ops);
 
+static const char *pwmss_clk_parents[] = {
+	"dpll_per_m2_ck",
+};
+
+static const struct clk_ops ehrpwm_tbclk_ops = {
+	.enable		= &omap2_dflt_clk_enable,
+	.disable	= &omap2_dflt_clk_disable,
+};
+
+DEFINE_CLK_OMAP_MUX_GATE(ehrpwm0_tbclk, "l4ls_clkdm",
+			 NULL, NULL, 0,
+			 AM33XX_CTRL_REGADDR(AM33XX_PWMSS_TBCLK_CLKCTRL),
+			 AM33XX_PWMSS0_TBCLKEN_SHIFT,
+			 NULL, pwmss_clk_parents, ehrpwm_tbclk_ops);
+
+DEFINE_CLK_OMAP_MUX_GATE(ehrpwm1_tbclk, "l4ls_clkdm",
+			 NULL, NULL, 0,
+			 AM33XX_CTRL_REGADDR(AM33XX_PWMSS_TBCLK_CLKCTRL),
+			 AM33XX_PWMSS1_TBCLKEN_SHIFT,
+			 NULL, pwmss_clk_parents, ehrpwm_tbclk_ops);
+
+DEFINE_CLK_OMAP_MUX_GATE(ehrpwm2_tbclk, "l4ls_clkdm",
+			 NULL, NULL, 0,
+			 AM33XX_CTRL_REGADDR(AM33XX_PWMSS_TBCLK_CLKCTRL),
+			 AM33XX_PWMSS2_TBCLKEN_SHIFT,
+			 NULL, pwmss_clk_parents, ehrpwm_tbclk_ops);
+
+/*
+ * debugss optional clocks
+ */
+DEFINE_CLK_GATE(dbg_sysclk_ck, "sys_clkin_ck", &sys_clkin_ck,
+		0x0, AM33XX_CM_WKUP_DEBUGSS_CLKCTRL,
+		AM33XX_OPTFCLKEN_DBGSYSCLK_SHIFT, 0x0, NULL);
+
+DEFINE_CLK_GATE(dbg_clka_ck, "dpll_core_m4_ck", &dpll_core_m4_ck,
+		0x0, AM33XX_CM_WKUP_DEBUGSS_CLKCTRL,
+		AM33XX_OPTCLK_DEBUG_CLKA_SHIFT, 0x0, NULL);
+
+static const char *stm_pmd_clock_mux_ck_parents[] = {
+	"dbg_sysclk_ck", "dbg_clka_ck",
+};
+
+DEFINE_CLK_MUX(stm_pmd_clock_mux_ck, stm_pmd_clock_mux_ck_parents, NULL, 0x0,
+	       AM33XX_CM_WKUP_DEBUGSS_CLKCTRL, AM33XX_STM_PMD_CLKSEL_SHIFT,
+	       AM33XX_STM_PMD_CLKSEL_WIDTH, 0x0, NULL);
+
+DEFINE_CLK_MUX(trace_pmd_clk_mux_ck, stm_pmd_clock_mux_ck_parents, NULL, 0x0,
+	       AM33XX_CM_WKUP_DEBUGSS_CLKCTRL,
+	       AM33XX_TRC_PMD_CLKSEL_SHIFT,
+	       AM33XX_TRC_PMD_CLKSEL_WIDTH, 0x0, NULL);
+
+DEFINE_CLK_DIVIDER(stm_clk_div_ck, "stm_pmd_clock_mux_ck",
+		   &stm_pmd_clock_mux_ck, 0x0, AM33XX_CM_WKUP_DEBUGSS_CLKCTRL,
+		   AM33XX_STM_PMD_CLKDIVSEL_SHIFT,
+		   AM33XX_STM_PMD_CLKDIVSEL_WIDTH, CLK_DIVIDER_POWER_OF_TWO,
+		   NULL);
+
+DEFINE_CLK_DIVIDER(trace_clk_div_ck, "trace_pmd_clk_mux_ck",
+		   &trace_pmd_clk_mux_ck, 0x0, AM33XX_CM_WKUP_DEBUGSS_CLKCTRL,
+		   AM33XX_TRC_PMD_CLKDIVSEL_SHIFT,
+		   AM33XX_TRC_PMD_CLKDIVSEL_WIDTH, CLK_DIVIDER_POWER_OF_TWO,
+		   NULL);
+
 /*
  * clkdev
  */
 static struct omap_clk am33xx_clks[] = {
-	CLK(NULL,	"clk_32768_ck",		&clk_32768_ck,	CK_AM33XX),
-	CLK(NULL,	"clk_rc32k_ck",		&clk_rc32k_ck,	CK_AM33XX),
-	CLK(NULL,	"virt_19200000_ck",	&virt_19200000_ck,	CK_AM33XX),
-	CLK(NULL,	"virt_24000000_ck",	&virt_24000000_ck,	CK_AM33XX),
-	CLK(NULL,	"virt_25000000_ck",	&virt_25000000_ck,	CK_AM33XX),
-	CLK(NULL,	"virt_26000000_ck",	&virt_26000000_ck,	CK_AM33XX),
-	CLK(NULL,	"sys_clkin_ck",		&sys_clkin_ck,	CK_AM33XX),
-	CLK(NULL,	"tclkin_ck",		&tclkin_ck,	CK_AM33XX),
-	CLK(NULL,	"dpll_core_ck",		&dpll_core_ck,	CK_AM33XX),
-	CLK(NULL,	"dpll_core_x2_ck",	&dpll_core_x2_ck,	CK_AM33XX),
-	CLK(NULL,	"dpll_core_m4_ck",	&dpll_core_m4_ck,	CK_AM33XX),
-	CLK(NULL,	"dpll_core_m5_ck",	&dpll_core_m5_ck,	CK_AM33XX),
-	CLK(NULL,	"dpll_core_m6_ck",	&dpll_core_m6_ck,	CK_AM33XX),
-	CLK(NULL,	"dpll_mpu_ck",		&dpll_mpu_ck,	CK_AM33XX),
-	CLK("cpu0",	NULL,			&dpll_mpu_ck,	CK_AM33XX),
-	CLK(NULL,	"dpll_mpu_m2_ck",	&dpll_mpu_m2_ck,	CK_AM33XX),
-	CLK(NULL,	"dpll_ddr_ck",		&dpll_ddr_ck,	CK_AM33XX),
-	CLK(NULL,	"dpll_ddr_m2_ck",	&dpll_ddr_m2_ck,	CK_AM33XX),
-	CLK(NULL,	"dpll_ddr_m2_div2_ck",	&dpll_ddr_m2_div2_ck,	CK_AM33XX),
-	CLK(NULL,	"dpll_disp_ck",		&dpll_disp_ck,	CK_AM33XX),
-	CLK(NULL,	"dpll_disp_m2_ck",	&dpll_disp_m2_ck,	CK_AM33XX),
-	CLK(NULL,	"dpll_per_ck",		&dpll_per_ck,	CK_AM33XX),
-	CLK(NULL,	"dpll_per_m2_ck",	&dpll_per_m2_ck,	CK_AM33XX),
-	CLK(NULL,	"dpll_per_m2_div4_wkupdm_ck",	&dpll_per_m2_div4_wkupdm_ck,	CK_AM33XX),
-	CLK(NULL,	"dpll_per_m2_div4_ck",	&dpll_per_m2_div4_ck,	CK_AM33XX),
-	CLK(NULL,	"adc_tsc_fck",		&adc_tsc_fck,	CK_AM33XX),
-	CLK(NULL,	"cefuse_fck",		&cefuse_fck,	CK_AM33XX),
-	CLK(NULL,	"clkdiv32k_ck",		&clkdiv32k_ck,	CK_AM33XX),
-	CLK(NULL,	"clkdiv32k_ick",	&clkdiv32k_ick,	CK_AM33XX),
-	CLK(NULL,	"dcan0_fck",		&dcan0_fck,	CK_AM33XX),
-	CLK("481cc000.d_can",	NULL,		&dcan0_fck,	CK_AM33XX),
-	CLK(NULL,	"dcan1_fck",		&dcan1_fck,	CK_AM33XX),
-	CLK("481d0000.d_can",	NULL,		&dcan1_fck,	CK_AM33XX),
-	CLK(NULL,	"debugss_ick",		&debugss_ick,	CK_AM33XX),
-	CLK(NULL,	"pruss_ocp_gclk",	&pruss_ocp_gclk,	CK_AM33XX),
-	CLK(NULL,	"mcasp0_fck",		&mcasp0_fck,	CK_AM33XX),
-	CLK(NULL,	"mcasp1_fck",		&mcasp1_fck,	CK_AM33XX),
-	CLK(NULL,	"mmu_fck",		&mmu_fck,	CK_AM33XX),
-	CLK(NULL,	"smartreflex0_fck",	&smartreflex0_fck,	CK_AM33XX),
-	CLK(NULL,	"smartreflex1_fck",	&smartreflex1_fck,	CK_AM33XX),
-	CLK(NULL,	"timer1_fck",		&timer1_fck,	CK_AM33XX),
-	CLK(NULL,	"timer2_fck",		&timer2_fck,	CK_AM33XX),
-	CLK(NULL,	"timer3_fck",		&timer3_fck,	CK_AM33XX),
-	CLK(NULL,	"timer4_fck",		&timer4_fck,	CK_AM33XX),
-	CLK(NULL,	"timer5_fck",		&timer5_fck,	CK_AM33XX),
-	CLK(NULL,	"timer6_fck",		&timer6_fck,	CK_AM33XX),
-	CLK(NULL,	"timer7_fck",		&timer7_fck,	CK_AM33XX),
-	CLK(NULL,	"usbotg_fck",		&usbotg_fck,	CK_AM33XX),
-	CLK(NULL,	"ieee5000_fck",		&ieee5000_fck,	CK_AM33XX),
-	CLK(NULL,	"wdt1_fck",		&wdt1_fck,	CK_AM33XX),
-	CLK(NULL,	"l4_rtc_gclk",		&l4_rtc_gclk,	CK_AM33XX),
-	CLK(NULL,	"l3_gclk",		&l3_gclk,	CK_AM33XX),
-	CLK(NULL,	"dpll_core_m4_div2_ck",	&dpll_core_m4_div2_ck,	CK_AM33XX),
-	CLK(NULL,	"l4hs_gclk",		&l4hs_gclk,	CK_AM33XX),
-	CLK(NULL,	"l3s_gclk",		&l3s_gclk,	CK_AM33XX),
-	CLK(NULL,	"l4fw_gclk",		&l4fw_gclk,	CK_AM33XX),
-	CLK(NULL,	"l4ls_gclk",		&l4ls_gclk,	CK_AM33XX),
-	CLK(NULL,	"clk_24mhz",		&clk_24mhz,	CK_AM33XX),
-	CLK(NULL,	"sysclk_div_ck",	&sysclk_div_ck,	CK_AM33XX),
-	CLK(NULL,	"cpsw_125mhz_gclk",	&cpsw_125mhz_gclk,	CK_AM33XX),
-	CLK(NULL,	"cpsw_cpts_rft_clk",	&cpsw_cpts_rft_clk,	CK_AM33XX),
-	CLK(NULL,	"gpio0_dbclk_mux_ck",	&gpio0_dbclk_mux_ck,	CK_AM33XX),
-	CLK(NULL,	"gpio0_dbclk",		&gpio0_dbclk,	CK_AM33XX),
-	CLK(NULL,	"gpio1_dbclk",		&gpio1_dbclk,	CK_AM33XX),
-	CLK(NULL,	"gpio2_dbclk",		&gpio2_dbclk,	CK_AM33XX),
-	CLK(NULL,	"gpio3_dbclk",		&gpio3_dbclk,	CK_AM33XX),
-	CLK(NULL,	"lcd_gclk",		&lcd_gclk,	CK_AM33XX),
-	CLK(NULL,	"mmc_clk",		&mmc_clk,	CK_AM33XX),
-	CLK(NULL,	"gfx_fclk_clksel_ck",	&gfx_fclk_clksel_ck,	CK_AM33XX),
-	CLK(NULL,	"gfx_fck_div_ck",	&gfx_fck_div_ck,	CK_AM33XX),
-	CLK(NULL,	"sysclkout_pre_ck",	&sysclkout_pre_ck,	CK_AM33XX),
-	CLK(NULL,	"clkout2_div_ck",	&clkout2_div_ck,	CK_AM33XX),
-	CLK(NULL,	"timer_32k_ck",		&clkdiv32k_ick,	CK_AM33XX),
-	CLK(NULL,	"timer_sys_ck",		&sys_clkin_ck,	CK_AM33XX),
+	CLK(NULL,	"clk_32768_ck",		&clk_32768_ck),
+	CLK(NULL,	"clk_rc32k_ck",		&clk_rc32k_ck),
+	CLK(NULL,	"virt_19200000_ck",	&virt_19200000_ck),
+	CLK(NULL,	"virt_24000000_ck",	&virt_24000000_ck),
+	CLK(NULL,	"virt_25000000_ck",	&virt_25000000_ck),
+	CLK(NULL,	"virt_26000000_ck",	&virt_26000000_ck),
+	CLK(NULL,	"sys_clkin_ck",		&sys_clkin_ck),
+	CLK(NULL,	"tclkin_ck",		&tclkin_ck),
+	CLK(NULL,	"dpll_core_ck",		&dpll_core_ck),
+	CLK(NULL,	"dpll_core_x2_ck",	&dpll_core_x2_ck),
+	CLK(NULL,	"dpll_core_m4_ck",	&dpll_core_m4_ck),
+	CLK(NULL,	"dpll_core_m5_ck",	&dpll_core_m5_ck),
+	CLK(NULL,	"dpll_core_m6_ck",	&dpll_core_m6_ck),
+	CLK(NULL,	"dpll_mpu_ck",		&dpll_mpu_ck),
+	CLK("cpu0",	NULL,			&dpll_mpu_ck),
+	CLK(NULL,	"dpll_mpu_m2_ck",	&dpll_mpu_m2_ck),
+	CLK(NULL,	"dpll_ddr_ck",		&dpll_ddr_ck),
+	CLK(NULL,	"dpll_ddr_m2_ck",	&dpll_ddr_m2_ck),
+	CLK(NULL,	"dpll_ddr_m2_div2_ck",	&dpll_ddr_m2_div2_ck),
+	CLK(NULL,	"dpll_disp_ck",		&dpll_disp_ck),
+	CLK(NULL,	"dpll_disp_m2_ck",	&dpll_disp_m2_ck),
+	CLK(NULL,	"dpll_per_ck",		&dpll_per_ck),
+	CLK(NULL,	"dpll_per_m2_ck",	&dpll_per_m2_ck),
+	CLK(NULL,	"dpll_per_m2_div4_wkupdm_ck",	&dpll_per_m2_div4_wkupdm_ck),
+	CLK(NULL,	"dpll_per_m2_div4_ck",	&dpll_per_m2_div4_ck),
+	CLK(NULL,	"adc_tsc_fck",		&adc_tsc_fck),
+	CLK(NULL,	"cefuse_fck",		&cefuse_fck),
+	CLK(NULL,	"clkdiv32k_ck",		&clkdiv32k_ck),
+	CLK(NULL,	"clkdiv32k_ick",	&clkdiv32k_ick),
+	CLK(NULL,	"dcan0_fck",		&dcan0_fck),
+	CLK("481cc000.d_can",	NULL,		&dcan0_fck),
+	CLK(NULL,	"dcan1_fck",		&dcan1_fck),
+	CLK("481d0000.d_can",	NULL,		&dcan1_fck),
+	CLK(NULL,	"pruss_ocp_gclk",	&pruss_ocp_gclk),
+	CLK(NULL,	"mcasp0_fck",		&mcasp0_fck),
+	CLK(NULL,	"mcasp1_fck",		&mcasp1_fck),
+	CLK(NULL,	"mmu_fck",		&mmu_fck),
+	CLK(NULL,	"smartreflex0_fck",	&smartreflex0_fck),
+	CLK(NULL,	"smartreflex1_fck",	&smartreflex1_fck),
+	CLK(NULL,	"sha0_fck",		&sha0_fck),
+	CLK(NULL,	"aes0_fck",		&aes0_fck),
+	CLK(NULL,	"rng_fck",		&rng_fck),
+	CLK(NULL,	"timer1_fck",		&timer1_fck),
+	CLK(NULL,	"timer2_fck",		&timer2_fck),
+	CLK(NULL,	"timer3_fck",		&timer3_fck),
+	CLK(NULL,	"timer4_fck",		&timer4_fck),
+	CLK(NULL,	"timer5_fck",		&timer5_fck),
+	CLK(NULL,	"timer6_fck",		&timer6_fck),
+	CLK(NULL,	"timer7_fck",		&timer7_fck),
+	CLK(NULL,	"usbotg_fck",		&usbotg_fck),
+	CLK(NULL,	"ieee5000_fck",		&ieee5000_fck),
+	CLK(NULL,	"wdt1_fck",		&wdt1_fck),
+	CLK(NULL,	"l4_rtc_gclk",		&l4_rtc_gclk),
+	CLK(NULL,	"l3_gclk",		&l3_gclk),
+	CLK(NULL,	"dpll_core_m4_div2_ck",	&dpll_core_m4_div2_ck),
+	CLK(NULL,	"l4hs_gclk",		&l4hs_gclk),
+	CLK(NULL,	"l3s_gclk",		&l3s_gclk),
+	CLK(NULL,	"l4fw_gclk",		&l4fw_gclk),
+	CLK(NULL,	"l4ls_gclk",		&l4ls_gclk),
+	CLK(NULL,	"clk_24mhz",		&clk_24mhz),
+	CLK(NULL,	"sysclk_div_ck",	&sysclk_div_ck),
+	CLK(NULL,	"cpsw_125mhz_gclk",	&cpsw_125mhz_gclk),
+	CLK(NULL,	"cpsw_cpts_rft_clk",	&cpsw_cpts_rft_clk),
+	CLK(NULL,	"gpio0_dbclk_mux_ck",	&gpio0_dbclk_mux_ck),
+	CLK(NULL,	"gpio0_dbclk",		&gpio0_dbclk),
+	CLK(NULL,	"gpio1_dbclk",		&gpio1_dbclk),
+	CLK(NULL,	"gpio2_dbclk",		&gpio2_dbclk),
+	CLK(NULL,	"gpio3_dbclk",		&gpio3_dbclk),
+	CLK(NULL,	"lcd_gclk",		&lcd_gclk),
+	CLK(NULL,	"mmc_clk",		&mmc_clk),
+	CLK(NULL,	"gfx_fclk_clksel_ck",	&gfx_fclk_clksel_ck),
+	CLK(NULL,	"gfx_fck_div_ck",	&gfx_fck_div_ck),
+	CLK(NULL,	"sysclkout_pre_ck",	&sysclkout_pre_ck),
+	CLK(NULL,	"clkout2_div_ck",	&clkout2_div_ck),
+	CLK(NULL,	"timer_32k_ck",		&clkdiv32k_ick),
+	CLK(NULL,	"timer_sys_ck",		&sys_clkin_ck),
+	CLK(NULL,	"dbg_sysclk_ck",	&dbg_sysclk_ck),
+	CLK(NULL,	"dbg_clka_ck",		&dbg_clka_ck),
+	CLK(NULL,	"stm_pmd_clock_mux_ck",	&stm_pmd_clock_mux_ck),
+	CLK(NULL,	"trace_pmd_clk_mux_ck",	&trace_pmd_clk_mux_ck),
+	CLK(NULL,	"stm_clk_div_ck",	&stm_clk_div_ck),
+	CLK(NULL,	"trace_clk_div_ck",	&trace_clk_div_ck),
+	CLK(NULL,	"clkout2_ck",		&clkout2_ck),
+	CLK("48300200.ehrpwm",	"tbclk",	&ehrpwm0_tbclk),
+	CLK("48302200.ehrpwm",	"tbclk",	&ehrpwm1_tbclk),
+	CLK("48304200.ehrpwm",	"tbclk",	&ehrpwm2_tbclk),
 };
 
 
@@ -920,25 +1025,15 @@ static const char *enable_init_clks[] = {
 	"l4hs_gclk",
 	"l4fw_gclk",
 	"l4ls_gclk",
+	"clkout2_ck",	/* Required for external peripherals like, Audio codecs */
 };
 
 int __init am33xx_clk_init(void)
 {
-	struct omap_clk *c;
-	u32 cpu_clkflg;
-
-	if (soc_is_am33xx()) {
+	if (soc_is_am33xx())
 		cpu_mask = RATE_IN_AM33XX;
-		cpu_clkflg = CK_AM33XX;
-	}
 
-	for (c = am33xx_clks; c < am33xx_clks + ARRAY_SIZE(am33xx_clks); c++) {
-		if (c->cpu & cpu_clkflg) {
-			clkdev_add(&c->lk);
-			if (!__clk_init(NULL, c->lk.clk))
-				omap2_init_clk_hw_omap_clocks(c->lk.clk);
-		}
-	}
+	omap_clocks_register(am33xx_clks, ARRAY_SIZE(am33xx_clks));
 
 	omap2_clk_disable_autoidle_all();
 
@@ -956,6 +1051,14 @@ int __init am33xx_clk_init(void)
 
 	clk_set_parent(&timer3_fck, &sys_clkin_ck);
 	clk_set_parent(&timer6_fck, &sys_clkin_ck);
+	/*
+	 * The On-Chip 32K RC Osc clock is not an accurate clock-source as per
+	 * the design/spec, so as a result, for example, timer which supposed
+	 * to get expired @60Sec, but will expire somewhere ~@40Sec, which is
+	 * not expected by any use-case, so change WDT1 clock source to PRCM
+	 * 32KHz clock.
+	 */
+	clk_set_parent(&wdt1_fck, &clkdiv32k_ick);
 
 	return 0;
 }

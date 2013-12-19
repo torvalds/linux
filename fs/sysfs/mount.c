@@ -10,7 +10,7 @@
  * Please see Documentation/filesystems/sysfs.txt for more information.
  */
 
-#define DEBUG 
+#define DEBUG
 
 #include <linux/fs.h>
 #include <linux/mount.h>
@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/magic.h>
 #include <linux/slab.h>
+#include <linux/user_namespace.h>
 
 #include "sysfs.h"
 
@@ -63,7 +64,7 @@ static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
 	/* instantiate and link root dentry */
 	root = d_make_root(inode);
 	if (!root) {
-		pr_debug("%s: could not get root dentry!\n",__func__);
+		pr_debug("%s: could not get root dentry!\n", __func__);
 		return -ENOMEM;
 	}
 	root->d_fsdata = &sysfs_root;
@@ -110,6 +111,16 @@ static struct dentry *sysfs_mount(struct file_system_type *fs_type,
 	enum kobj_ns_type type;
 	struct super_block *sb;
 	int error;
+
+	if (!(flags & MS_KERNMOUNT)) {
+		if (!capable(CAP_SYS_ADMIN) && !fs_fully_visible(fs_type))
+			return ERR_PTR(-EPERM);
+
+		for (type = KOBJ_NS_TYPE_NONE; type < KOBJ_NS_TYPES; type++) {
+			if (!kobj_ns_current_may_mount(type))
+				return ERR_PTR(-EPERM);
+		}
+	}
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)

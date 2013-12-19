@@ -16,7 +16,6 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/delay.h>
-#include "clk-cpu.h"
 
 #define SYS_CTRL_CLK_DIVIDER_CTRL_OFFSET    0x0
 #define SYS_CTRL_CLK_DIVIDER_VALUE_OFFSET   0xC
@@ -120,11 +119,11 @@ void __init of_cpu_clk_setup(struct device_node *node)
 
 	cpuclk = kzalloc(ncpus * sizeof(*cpuclk), GFP_KERNEL);
 	if (WARN_ON(!cpuclk))
-		return;
+		goto cpuclk_out;
 
 	clks = kzalloc(ncpus * sizeof(*clks), GFP_KERNEL);
 	if (WARN_ON(!clks))
-		return;
+		goto clks_out;
 
 	for_each_node_by_type(dn, "cpu") {
 		struct clk_init_data init;
@@ -134,11 +133,11 @@ void __init of_cpu_clk_setup(struct device_node *node)
 		int cpu, err;
 
 		if (WARN_ON(!clk_name))
-			return;
+			goto bail_out;
 
 		err = of_property_read_u32(dn, "reg", &cpu);
 		if (WARN_ON(err))
-			return;
+			goto bail_out;
 
 		sprintf(clk_name, "cpu%d", cpu);
 		parent_clk = of_clk_get(node, 0);
@@ -167,20 +166,13 @@ void __init of_cpu_clk_setup(struct device_node *node)
 	return;
 bail_out:
 	kfree(clks);
+	while(ncpus--)
+		kfree(cpuclk[ncpus].clk_name);
+clks_out:
 	kfree(cpuclk);
+cpuclk_out:
+	iounmap(clock_complex_base);
 }
 
-static const __initconst struct of_device_id clk_cpu_match[] = {
-	{
-		.compatible = "marvell,armada-xp-cpu-clock",
-		.data = of_cpu_clk_setup,
-	},
-	{
-		/* sentinel */
-	},
-};
-
-void __init mvebu_cpu_clk_init(void)
-{
-	of_clk_init(clk_cpu_match);
-}
+CLK_OF_DECLARE(armada_xp_cpu_clock, "marvell,armada-xp-cpu-clock",
+					 of_cpu_clk_setup);

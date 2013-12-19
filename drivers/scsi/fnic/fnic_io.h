@@ -21,7 +21,7 @@
 #include <scsi/fc/fc_fcp.h>
 
 #define FNIC_DFLT_SG_DESC_CNT  32
-#define FNIC_MAX_SG_DESC_CNT        1024    /* Maximum descriptors per sgl */
+#define FNIC_MAX_SG_DESC_CNT        256     /* Maximum descriptors per sgl */
 #define FNIC_SG_DESC_ALIGN          16      /* Descriptor address alignment */
 
 struct host_sg_desc {
@@ -45,7 +45,8 @@ enum fnic_sgl_list_type {
 };
 
 enum fnic_ioreq_state {
-	FNIC_IOREQ_CMD_PENDING = 0,
+	FNIC_IOREQ_NOT_INITED = 0,
+	FNIC_IOREQ_CMD_PENDING,
 	FNIC_IOREQ_ABTS_PENDING,
 	FNIC_IOREQ_ABTS_COMPLETE,
 	FNIC_IOREQ_CMD_COMPLETE,
@@ -60,6 +61,7 @@ struct fnic_io_req {
 	u8 sgl_type; /* device DMA descriptor list type */
 	u8 io_completed:1; /* set to 1 when fw completes IO */
 	u32 port_id; /* remote port DID */
+	unsigned long start_time; /* in jiffies */
 	struct completion *abts_done; /* completion for abts */
 	struct completion *dr_done; /* completion for device reset */
 };

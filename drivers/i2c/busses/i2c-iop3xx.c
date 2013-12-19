@@ -176,7 +176,7 @@ iop3xx_i2c_wait_event(struct i2c_algo_iop3xx_data *iop3xx_adap,
 		interrupted = wait_event_interruptible_timeout (
 			iop3xx_adap->waitq,
 			(done = compare( sr = iop3xx_i2c_get_srstat(iop3xx_adap) ,flags )),
-			1 * HZ;
+			1 * HZ
 			);
 		if ((rc = iop3xx_i2c_error(sr)) < 0) {
 			*status = sr;
@@ -414,8 +414,6 @@ iop3xx_i2c_remove(struct platform_device *pdev)
 	release_mem_region(res->start, IOP3XX_I2C_IO_SIZE);
 	kfree(adapter_data);
 	kfree(padapter);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

@@ -292,16 +292,11 @@ int sm_ll_lookup_bitmap(struct ll_disk *ll, dm_block_t b, uint32_t *result)
 	return dm_tm_unlock(ll->tm, blk);
 }
 
-int sm_ll_lookup(struct ll_disk *ll, dm_block_t b, uint32_t *result)
+static int sm_ll_lookup_big_ref_count(struct ll_disk *ll, dm_block_t b,
+				      uint32_t *result)
 {
 	__le32 le_rc;
-	int r = sm_ll_lookup_bitmap(ll, b, result);
-
-	if (r)
-		return r;
-
-	if (*result != 3)
-		return r;
+	int r;
 
 	r = dm_btree_lookup(&ll->ref_count_info, ll->ref_count_root, &b, &le_rc);
 	if (r < 0)
@@ -310,6 +305,19 @@ int sm_ll_lookup(struct ll_disk *ll, dm_block_t b, uint32_t *result)
 	*result = le32_to_cpu(le_rc);
 
 	return r;
+}
+
+int sm_ll_lookup(struct ll_disk *ll, dm_block_t b, uint32_t *result)
+{
+	int r = sm_ll_lookup_bitmap(ll, b, result);
+
+	if (r)
+		return r;
+
+	if (*result != 3)
+		return r;
+
+	return sm_ll_lookup_big_ref_count(ll, b, result);
 }
 
 int sm_ll_find_free_block(struct ll_disk *ll, dm_block_t begin,
@@ -372,11 +380,12 @@ int sm_ll_find_free_block(struct ll_disk *ll, dm_block_t begin,
 	return -ENOSPC;
 }
 
-int sm_ll_insert(struct ll_disk *ll, dm_block_t b,
-		 uint32_t ref_count, enum allocation_event *ev)
+static int sm_ll_mutate(struct ll_disk *ll, dm_block_t b,
+			int (*mutator)(void *context, uint32_t old, uint32_t *new),
+			void *context, enum allocation_event *ev)
 {
 	int r;
-	uint32_t bit, old;
+	uint32_t bit, old, ref_count;
 	struct dm_block *nb;
 	dm_block_t index = b;
 	struct disk_index_entry ie_disk;
@@ -398,6 +407,20 @@ int sm_ll_insert(struct ll_disk *ll, dm_block_t b,
 
 	bm_le = dm_bitmap_data(nb);
 	old = sm_lookup_bitmap(bm_le, bit);
+
+	if (old > 2) {
+		r = sm_ll_lookup_big_ref_count(ll, b, &old);
+		if (r < 0) {
+			dm_tm_unlock(ll->tm, nb);
+			return r;
+		}
+	}
+
+	r = mutator(context, old, &ref_count);
+	if (r) {
+		dm_tm_unlock(ll->tm, nb);
+		return r;
+	}
 
 	if (ref_count <= 2) {
 		sm_set_bitmap(bm_le, bit, ref_count);
@@ -448,31 +471,43 @@ int sm_ll_insert(struct ll_disk *ll, dm_block_t b,
 	return ll->save_ie(ll, index, &ie_disk);
 }
 
+static int set_ref_count(void *context, uint32_t old, uint32_t *new)
+{
+	*new = *((uint32_t *) context);
+	return 0;
+}
+
+int sm_ll_insert(struct ll_disk *ll, dm_block_t b,
+		 uint32_t ref_count, enum allocation_event *ev)
+{
+	return sm_ll_mutate(ll, b, set_ref_count, &ref_count, ev);
+}
+
+static int inc_ref_count(void *context, uint32_t old, uint32_t *new)
+{
+	*new = old + 1;
+	return 0;
+}
+
 int sm_ll_inc(struct ll_disk *ll, dm_block_t b, enum allocation_event *ev)
 {
-	int r;
-	uint32_t rc;
+	return sm_ll_mutate(ll, b, inc_ref_count, NULL, ev);
+}
 
-	r = sm_ll_lookup(ll, b, &rc);
-	if (r)
-		return r;
+static int dec_ref_count(void *context, uint32_t old, uint32_t *new)
+{
+	if (!old) {
+		DMERR_LIMIT("unable to decrement a reference count below 0");
+		return -EINVAL;
+	}
 
-	return sm_ll_insert(ll, b, rc + 1, ev);
+	*new = old - 1;
+	return 0;
 }
 
 int sm_ll_dec(struct ll_disk *ll, dm_block_t b, enum allocation_event *ev)
 {
-	int r;
-	uint32_t rc;
-
-	r = sm_ll_lookup(ll, b, &rc);
-	if (r)
-		return r;
-
-	if (!rc)
-		return -EINVAL;
-
-	return sm_ll_insert(ll, b, rc - 1, ev);
+	return sm_ll_mutate(ll, b, dec_ref_count, NULL, ev);
 }
 
 int sm_ll_commit(struct ll_disk *ll)

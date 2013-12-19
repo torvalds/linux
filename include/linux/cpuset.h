@@ -11,7 +11,6 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/nodemask.h>
-#include <linux/cgroup.h>
 #include <linux/mm.h>
 
 #ifdef CONFIG_CPUSETS
@@ -64,10 +63,9 @@ extern int cpuset_mems_allowed_intersects(const struct task_struct *tsk1,
 extern int cpuset_memory_pressure_enabled;
 extern void __cpuset_memory_pressure_bump(void);
 
-extern const struct file_operations proc_cpuset_operations;
-struct seq_file;
 extern void cpuset_task_status_allowed(struct seq_file *m,
 					struct task_struct *task);
+extern int proc_cpuset_show(struct seq_file *, void *);
 
 extern int cpuset_mem_spread_node(void);
 extern int cpuset_slab_spread_node(void);
@@ -112,10 +110,14 @@ static inline bool put_mems_allowed(unsigned int seq)
 
 static inline void set_mems_allowed(nodemask_t nodemask)
 {
+	unsigned long flags;
+
 	task_lock(current);
+	local_irq_save(flags);
 	write_seqcount_begin(&current->mems_allowed_seq);
 	current->mems_allowed = nodemask;
 	write_seqcount_end(&current->mems_allowed_seq);
+	local_irq_restore(flags);
 	task_unlock(current);
 }
 

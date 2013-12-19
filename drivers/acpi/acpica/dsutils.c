@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -240,7 +240,6 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 
 		case AML_IF_OP:
 		case AML_WHILE_OP:
-
 			/*
 			 * If we are executing the predicate AND this is the predicate op,
 			 * we will use the return value
@@ -254,7 +253,9 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 			break;
 
 		default:
+
 			/* Ignore other control opcodes */
+
 			break;
 		}
 
@@ -263,7 +264,6 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 		goto result_not_used;
 
 	case AML_CLASS_CREATE:
-
 		/*
 		 * These opcodes allow term_arg(s) as operands and therefore
 		 * the operands can be method calls. The result is used.
@@ -292,7 +292,6 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 		goto result_not_used;
 
 	default:
-
 		/*
 		 * In all other cases. the parent will actually use the return
 		 * object, so keep it.
@@ -300,7 +299,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 		goto result_used;
 	}
 
-      result_used:
+result_used:
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 			  "Result of [%s] used by Parent [%s] Op=%p\n",
 			  acpi_ps_get_opcode_name(op->common.aml_opcode),
@@ -309,7 +308,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 
 	return_UINT8(TRUE);
 
-      result_not_used:
+result_not_used:
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 			  "Result of [%s] not used by Parent [%s] Op=%p\n",
 			  acpi_ps_get_opcode_name(op->common.aml_opcode),
@@ -753,7 +752,7 @@ acpi_ds_create_operands(struct acpi_walk_state *walk_state,
 
 	return_ACPI_STATUS(status);
 
-      cleanup:
+cleanup:
 	/*
 	 * We must undo everything done above; meaning that we must
 	 * pop everything off of the operand stack and delete those
@@ -852,7 +851,7 @@ acpi_status acpi_ds_evaluate_name_path(struct acpi_walk_state *walk_state)
 		goto exit;
 	}
 
-      push_result:
+push_result:
 
 	walk_state->result_obj = new_obj_desc;
 
@@ -864,7 +863,7 @@ acpi_status acpi_ds_evaluate_name_path(struct acpi_walk_state *walk_state)
 		op->common.flags |= ACPI_PARSEOP_IN_STACK;
 	}
 
-      exit:
+exit:
 
 	return_ACPI_STATUS(status);
 }

@@ -103,7 +103,7 @@ Letting the PHY Abstraction Layer do Everything
  
  Now, to connect, just call this function:
  
-   phydev = phy_connect(dev, phy_name, &adjust_link, flags, interface);
+   phydev = phy_connect(dev, phy_name, &adjust_link, interface);
 
  phydev is a pointer to the phy_device structure which represents the PHY.  If
  phy_connect is successful, it will return the pointer.  dev, here, is the
@@ -113,7 +113,9 @@ Letting the PHY Abstraction Layer do Everything
  current state, though the PHY will not yet be truly operational at this
  point.
 
- flags is a u32 which can optionally contain phy-specific flags.
+ PHY-specific flags should be set in phydev->dev_flags prior to the call
+ to phy_connect() such that the underlying PHY driver can check for flags
+ and perform specific operations based on them.
  This is useful if the system has put hardware restrictions on
  the PHY/controller, of which the PHY needs to be aware.
 
@@ -185,11 +187,10 @@ Doing it all yourself
    start, or disables then frees them for stop.
 
  struct phy_device * phy_attach(struct net_device *dev, const char *phy_id,
-		 u32 flags, phy_interface_t interface);
+		 phy_interface_t interface);
 
    Attaches a network device to a particular PHY, binding the PHY to a generic
-   driver if none was found during bus initialization.  Passes in
-   any phy-specific flags as needed.
+   driver if none was found during bus initialization.
 
  int phy_start_aneg(struct phy_device *phydev);
    

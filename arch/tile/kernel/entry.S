@@ -27,22 +27,6 @@ STD_ENTRY(current_text_addr)
 	{ move r0, lr; jrp lr }
 	STD_ENDPROC(current_text_addr)
 
-/*
- * We don't run this function directly, but instead copy it to a page
- * we map into every user process.  See vdso_setup().
- *
- * Note that libc has a copy of this function that it uses to compare
- * against the PC when a stack backtrace ends, so if this code is
- * changed, the libc implementation(s) should also be updated.
- */
-	.pushsection .data
-ENTRY(__rt_sigreturn)
-	moveli TREG_SYSCALL_NR_NAME,__NR_rt_sigreturn
-	swint1
-	ENDPROC(__rt_sigreturn)
-	ENTRY(__rt_sigreturn_end)
-	.popsection
-
 STD_ENTRY(dump_stack)
 	{ move r2, lr; lnk r1 }
 	{ move r4, r52; addli r1, r1, dump_stack - . }

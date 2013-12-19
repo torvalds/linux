@@ -54,6 +54,7 @@ struct blkcg {
 
 	/* TODO: per-policy storage in blkcg */
 	unsigned int			cfq_weight;	/* belongs to cfq */
+	unsigned int			cfq_leaf_weight;
 };
 
 struct blkg_stat {
@@ -80,8 +81,9 @@ struct blkg_rwstat {
  * beginning and pd_size can't be smaller than pd.
  */
 struct blkg_policy_data {
-	/* the blkg this per-policy data belongs to */
+	/* the blkg and policy id this per-policy data belongs to */
 	struct blkcg_gq			*blkg;
+	int				plid;
 
 	/* used during policy activation */
 	struct list_head		alloc_node;
@@ -94,10 +96,18 @@ struct blkcg_gq {
 	struct list_head		q_node;
 	struct hlist_node		blkcg_node;
 	struct blkcg			*blkcg;
+
+	/* all non-root blkcg_gq's are guaranteed to have access to parent */
+	struct blkcg_gq			*parent;
+
 	/* request allocation list for this blkcg-q pair */
 	struct request_list		rl;
+
 	/* reference count */
 	int				refcnt;
+
+	/* is this blkg online? protected by both blkcg and q locks */
+	bool				online;
 
 	struct blkg_policy_data		*pd[BLKCG_MAX_POLS];
 
@@ -105,6 +115,8 @@ struct blkcg_gq {
 };
 
 typedef void (blkcg_pol_init_pd_fn)(struct blkcg_gq *blkg);
+typedef void (blkcg_pol_online_pd_fn)(struct blkcg_gq *blkg);
+typedef void (blkcg_pol_offline_pd_fn)(struct blkcg_gq *blkg);
 typedef void (blkcg_pol_exit_pd_fn)(struct blkcg_gq *blkg);
 typedef void (blkcg_pol_reset_pd_stats_fn)(struct blkcg_gq *blkg);
 
@@ -117,6 +129,8 @@ struct blkcg_policy {
 
 	/* operations */
 	blkcg_pol_init_pd_fn		*pd_init_fn;
+	blkcg_pol_online_pd_fn		*pd_online_fn;
+	blkcg_pol_offline_pd_fn		*pd_offline_fn;
 	blkcg_pol_exit_pd_fn		*pd_exit_fn;
 	blkcg_pol_reset_pd_stats_fn	*pd_reset_stats_fn;
 };
@@ -150,6 +164,10 @@ u64 blkg_prfill_stat(struct seq_file *sf, struct blkg_policy_data *pd, int off);
 u64 blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 		       int off);
 
+u64 blkg_stat_recursive_sum(struct blkg_policy_data *pd, int off);
+struct blkg_rwstat blkg_rwstat_recursive_sum(struct blkg_policy_data *pd,
+					     int off);
+
 struct blkg_conf_ctx {
 	struct gendisk			*disk;
 	struct blkcg_gq			*blkg;
@@ -161,23 +179,32 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 void blkg_conf_finish(struct blkg_conf_ctx *ctx);
 
 
-static inline struct blkcg *cgroup_to_blkcg(struct cgroup *cgroup)
+static inline struct blkcg *css_to_blkcg(struct cgroup_subsys_state *css)
 {
-	return container_of(cgroup_subsys_state(cgroup, blkio_subsys_id),
-			    struct blkcg, css);
+	return css ? container_of(css, struct blkcg, css) : NULL;
 }
 
 static inline struct blkcg *task_blkcg(struct task_struct *tsk)
 {
-	return container_of(task_subsys_state(tsk, blkio_subsys_id),
-			    struct blkcg, css);
+	return css_to_blkcg(task_css(tsk, blkio_subsys_id));
 }
 
 static inline struct blkcg *bio_blkcg(struct bio *bio)
 {
 	if (bio && bio->bi_css)
-		return container_of(bio->bi_css, struct blkcg, css);
+		return css_to_blkcg(bio->bi_css);
 	return task_blkcg(current);
+}
+
+/**
+ * blkcg_parent - get the parent of a blkcg
+ * @blkcg: blkcg of interest
+ *
+ * Return the parent blkcg of @blkcg.  Can be called anytime.
+ */
+static inline struct blkcg *blkcg_parent(struct blkcg *blkcg)
+{
+	return css_to_blkcg(css_parent(&blkcg->css));
 }
 
 /**
@@ -216,9 +243,7 @@ static inline int blkg_path(struct blkcg_gq *blkg, char *buf, int buflen)
 {
 	int ret;
 
-	rcu_read_lock();
 	ret = cgroup_path(blkg->blkcg->css.cgroup, buf, buflen);
-	rcu_read_unlock();
 	if (ret)
 		strncpy(buf, "<unavailable>", buflen);
 	return ret;
@@ -237,7 +262,7 @@ static inline void blkg_get(struct blkcg_gq *blkg)
 	blkg->refcnt++;
 }
 
-void __blkg_release(struct blkcg_gq *blkg);
+void __blkg_release_rcu(struct rcu_head *rcu);
 
 /**
  * blkg_put - put a blkg reference
@@ -250,8 +275,43 @@ static inline void blkg_put(struct blkcg_gq *blkg)
 	lockdep_assert_held(blkg->q->queue_lock);
 	WARN_ON_ONCE(blkg->refcnt <= 0);
 	if (!--blkg->refcnt)
-		__blkg_release(blkg);
+		call_rcu(&blkg->rcu_head, __blkg_release_rcu);
 }
+
+struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg, struct request_queue *q,
+			       bool update_hint);
+
+/**
+ * blkg_for_each_descendant_pre - pre-order walk of a blkg's descendants
+ * @d_blkg: loop cursor pointing to the current descendant
+ * @pos_css: used for iteration
+ * @p_blkg: target blkg to walk descendants of
+ *
+ * Walk @c_blkg through the descendants of @p_blkg.  Must be used with RCU
+ * read locked.  If called under either blkcg or queue lock, the iteration
+ * is guaranteed to include all and only online blkgs.  The caller may
+ * update @pos_css by calling css_rightmost_descendant() to skip subtree.
+ * @p_blkg is included in the iteration and the first node to be visited.
+ */
+#define blkg_for_each_descendant_pre(d_blkg, pos_css, p_blkg)		\
+	css_for_each_descendant_pre((pos_css), &(p_blkg)->blkcg->css)	\
+		if (((d_blkg) = __blkg_lookup(css_to_blkcg(pos_css),	\
+					      (p_blkg)->q, false)))
+
+/**
+ * blkg_for_each_descendant_post - post-order walk of a blkg's descendants
+ * @d_blkg: loop cursor pointing to the current descendant
+ * @pos_css: used for iteration
+ * @p_blkg: target blkg to walk descendants of
+ *
+ * Similar to blkg_for_each_descendant_pre() but performs post-order
+ * traversal instead.  Synchronization rules are the same.  @p_blkg is
+ * included in the iteration and the last node to be visited.
+ */
+#define blkg_for_each_descendant_post(d_blkg, pos_css, p_blkg)		\
+	css_for_each_descendant_post((pos_css), &(p_blkg)->blkcg->css)	\
+		if (((d_blkg) = __blkg_lookup(css_to_blkcg(pos_css),	\
+					      (p_blkg)->q, false)))
 
 /**
  * blk_get_rl - get request_list to use
@@ -342,6 +402,11 @@ struct request_list *__blk_queue_next_rl(struct request_list *rl,
 #define blk_queue_for_each_rl(rl, q)	\
 	for ((rl) = &(q)->root_rl; (rl); (rl) = __blk_queue_next_rl((rl), (q)))
 
+static inline void blkg_stat_init(struct blkg_stat *stat)
+{
+	u64_stats_init(&stat->syncp);
+}
+
 /**
  * blkg_stat_add - add a value to a blkg_stat
  * @stat: target blkg_stat
@@ -370,9 +435,9 @@ static inline uint64_t blkg_stat_read(struct blkg_stat *stat)
 	uint64_t v;
 
 	do {
-		start = u64_stats_fetch_begin(&stat->syncp);
+		start = u64_stats_fetch_begin_bh(&stat->syncp);
 		v = stat->cnt;
-	} while (u64_stats_fetch_retry(&stat->syncp, start));
+	} while (u64_stats_fetch_retry_bh(&stat->syncp, start));
 
 	return v;
 }
@@ -384,6 +449,23 @@ static inline uint64_t blkg_stat_read(struct blkg_stat *stat)
 static inline void blkg_stat_reset(struct blkg_stat *stat)
 {
 	stat->cnt = 0;
+}
+
+/**
+ * blkg_stat_merge - merge a blkg_stat into another
+ * @to: the destination blkg_stat
+ * @from: the source
+ *
+ * Add @from's count to @to.
+ */
+static inline void blkg_stat_merge(struct blkg_stat *to, struct blkg_stat *from)
+{
+	blkg_stat_add(to, blkg_stat_read(from));
+}
+
+static inline void blkg_rwstat_init(struct blkg_rwstat *rwstat)
+{
+	u64_stats_init(&rwstat->syncp);
 }
 
 /**
@@ -426,22 +508,22 @@ static inline struct blkg_rwstat blkg_rwstat_read(struct blkg_rwstat *rwstat)
 	struct blkg_rwstat tmp;
 
 	do {
-		start = u64_stats_fetch_begin(&rwstat->syncp);
+		start = u64_stats_fetch_begin_bh(&rwstat->syncp);
 		tmp = *rwstat;
-	} while (u64_stats_fetch_retry(&rwstat->syncp, start));
+	} while (u64_stats_fetch_retry_bh(&rwstat->syncp, start));
 
 	return tmp;
 }
 
 /**
- * blkg_rwstat_sum - read the total count of a blkg_rwstat
+ * blkg_rwstat_total - read the total count of a blkg_rwstat
  * @rwstat: blkg_rwstat to read
  *
  * Return the total count of @rwstat regardless of the IO direction.  This
  * function can be called without synchronization and takes care of u64
  * atomicity.
  */
-static inline uint64_t blkg_rwstat_sum(struct blkg_rwstat *rwstat)
+static inline uint64_t blkg_rwstat_total(struct blkg_rwstat *rwstat)
 {
 	struct blkg_rwstat tmp = blkg_rwstat_read(rwstat);
 
@@ -455,6 +537,25 @@ static inline uint64_t blkg_rwstat_sum(struct blkg_rwstat *rwstat)
 static inline void blkg_rwstat_reset(struct blkg_rwstat *rwstat)
 {
 	memset(rwstat->cnt, 0, sizeof(rwstat->cnt));
+}
+
+/**
+ * blkg_rwstat_merge - merge a blkg_rwstat into another
+ * @to: the destination blkg_rwstat
+ * @from: the source
+ *
+ * Add @from's counts to @to.
+ */
+static inline void blkg_rwstat_merge(struct blkg_rwstat *to,
+				     struct blkg_rwstat *from)
+{
+	struct blkg_rwstat v = blkg_rwstat_read(from);
+	int i;
+
+	u64_stats_update_begin(&to->syncp);
+	for (i = 0; i < BLKG_RWSTAT_NR; i++)
+		to->cnt[i] += v.cnt[i];
+	u64_stats_update_end(&to->syncp);
 }
 
 #else	/* CONFIG_BLK_CGROUP */
@@ -482,7 +583,6 @@ static inline int blkcg_activate_policy(struct request_queue *q,
 static inline void blkcg_deactivate_policy(struct request_queue *q,
 					   const struct blkcg_policy *pol) { }
 
-static inline struct blkcg *cgroup_to_blkcg(struct cgroup *cgroup) { return NULL; }
 static inline struct blkcg *bio_blkcg(struct bio *bio) { return NULL; }
 
 static inline struct blkg_policy_data *blkg_to_pd(struct blkcg_gq *blkg,

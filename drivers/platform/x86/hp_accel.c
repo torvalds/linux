@@ -337,7 +337,7 @@ static int lis3lv02d_add(struct acpi_device *device)
 	return ret;
 }
 
-static int lis3lv02d_remove(struct acpi_device *device, int type)
+static int lis3lv02d_remove(struct acpi_device *device)
 {
 	if (!device)
 		return -EINVAL;
@@ -362,7 +362,8 @@ static int lis3lv02d_suspend(struct device *dev)
 
 static int lis3lv02d_resume(struct device *dev)
 {
-	return lis3lv02d_poweron(&lis3_dev);
+	lis3lv02d_poweron(&lis3_dev);
+	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(hp_accel_pm, lis3lv02d_suspend, lis3lv02d_resume);

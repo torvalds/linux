@@ -241,6 +241,7 @@ static u32 make_flags(struct gfs2_glock *gl, const unsigned int gfs_flags,
 
 static void gfs2_reverse_hex(char *c, u64 value)
 {
+	*c = '0';
 	while (value) {
 		*c-- = hex_asc[value & 0x0f];
 		value >>= 4;
@@ -280,6 +281,7 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
+	int lvb_needs_unlock = 0;
 	int error;
 
 	if (gl->gl_lksb.sb_lkid == 0) {
@@ -293,8 +295,12 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 	gfs2_update_request_times(gl);
 
 	/* don't want to skip dlm_unlock writing the lvb when lock is ex */
+
+	if (gl->gl_lksb.sb_lvbptr && (gl->gl_state == LM_ST_EXCLUSIVE))
+		lvb_needs_unlock = 1;
+
 	if (test_bit(SDF_SKIP_DLM_UNLOCK, &sdp->sd_flags) &&
-	    gl->gl_lksb.sb_lvbptr && (gl->gl_state != LM_ST_EXCLUSIVE)) {
+	    !lvb_needs_unlock) {
 		gfs2_glock_free(gl);
 		return;
 	}
@@ -460,29 +466,25 @@ static void gdlm_cancel(struct gfs2_glock *gl)
 static void control_lvb_read(struct lm_lockstruct *ls, uint32_t *lvb_gen,
 			     char *lvb_bits)
 {
-	uint32_t gen;
+	__le32 gen;
 	memcpy(lvb_bits, ls->ls_control_lvb, GDLM_LVB_SIZE);
-	memcpy(&gen, lvb_bits, sizeof(uint32_t));
+	memcpy(&gen, lvb_bits, sizeof(__le32));
 	*lvb_gen = le32_to_cpu(gen);
 }
 
 static void control_lvb_write(struct lm_lockstruct *ls, uint32_t lvb_gen,
 			      char *lvb_bits)
 {
-	uint32_t gen;
+	__le32 gen;
 	memcpy(ls->ls_control_lvb, lvb_bits, GDLM_LVB_SIZE);
 	gen = cpu_to_le32(lvb_gen);
-	memcpy(ls->ls_control_lvb, &gen, sizeof(uint32_t));
+	memcpy(ls->ls_control_lvb, &gen, sizeof(__le32));
 }
 
 static int all_jid_bits_clear(char *lvb)
 {
-	int i;
-	for (i = JID_BITMAP_OFFSET; i < GDLM_LVB_SIZE; i++) {
-		if (lvb[i])
-			return 0;
-	}
-	return 1;
+	return !memchr_inv(lvb + JID_BITMAP_OFFSET, 0,
+			GDLM_LVB_SIZE - JID_BITMAP_OFFSET);
 }
 
 static void sync_wait_cb(void *arg)
@@ -574,7 +576,6 @@ static void gfs2_control_func(struct work_struct *work)
 {
 	struct gfs2_sbd *sdp = container_of(work, struct gfs2_sbd, sd_control_work.work);
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
-	char lvb_bits[GDLM_LVB_SIZE];
 	uint32_t block_gen, start_gen, lvb_gen, flags;
 	int recover_set = 0;
 	int write_lvb = 0;
@@ -628,7 +629,7 @@ static void gfs2_control_func(struct work_struct *work)
 		return;
 	}
 
-	control_lvb_read(ls, &lvb_gen, lvb_bits);
+	control_lvb_read(ls, &lvb_gen, ls->ls_lvb_bits);
 
 	spin_lock(&ls->ls_recover_spin);
 	if (block_gen != ls->ls_recover_block ||
@@ -658,10 +659,10 @@ static void gfs2_control_func(struct work_struct *work)
 
 			ls->ls_recover_result[i] = 0;
 
-			if (!test_bit_le(i, lvb_bits + JID_BITMAP_OFFSET))
+			if (!test_bit_le(i, ls->ls_lvb_bits + JID_BITMAP_OFFSET))
 				continue;
 
-			__clear_bit_le(i, lvb_bits + JID_BITMAP_OFFSET);
+			__clear_bit_le(i, ls->ls_lvb_bits + JID_BITMAP_OFFSET);
 			write_lvb = 1;
 		}
 	}
@@ -685,7 +686,7 @@ static void gfs2_control_func(struct work_struct *work)
 				continue;
 			if (ls->ls_recover_submit[i] < start_gen) {
 				ls->ls_recover_submit[i] = 0;
-				__set_bit_le(i, lvb_bits + JID_BITMAP_OFFSET);
+				__set_bit_le(i, ls->ls_lvb_bits + JID_BITMAP_OFFSET);
 			}
 		}
 		/* even if there are no bits to set, we need to write the
@@ -699,7 +700,7 @@ static void gfs2_control_func(struct work_struct *work)
 	spin_unlock(&ls->ls_recover_spin);
 
 	if (write_lvb) {
-		control_lvb_write(ls, start_gen, lvb_bits);
+		control_lvb_write(ls, start_gen, ls->ls_lvb_bits);
 		flags = DLM_LKF_CONVERT | DLM_LKF_VALBLK;
 	} else {
 		flags = DLM_LKF_CONVERT;
@@ -719,7 +720,7 @@ static void gfs2_control_func(struct work_struct *work)
 	 */
 
 	for (i = 0; i < recover_size; i++) {
-		if (test_bit_le(i, lvb_bits + JID_BITMAP_OFFSET)) {
+		if (test_bit_le(i, ls->ls_lvb_bits + JID_BITMAP_OFFSET)) {
 			fs_info(sdp, "recover generation %u jid %d\n",
 				start_gen, i);
 			gfs2_recover_set(sdp, i);
@@ -752,7 +753,6 @@ static void gfs2_control_func(struct work_struct *work)
 static int control_mount(struct gfs2_sbd *sdp)
 {
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
-	char lvb_bits[GDLM_LVB_SIZE];
 	uint32_t start_gen, block_gen, mount_gen, lvb_gen;
 	int mounted_mode;
 	int retries = 0;
@@ -851,7 +851,7 @@ locks_done:
 	 * lvb_gen will be non-zero.
 	 */
 
-	control_lvb_read(ls, &lvb_gen, lvb_bits);
+	control_lvb_read(ls, &lvb_gen, ls->ls_lvb_bits);
 
 	if (lvb_gen == 0xFFFFFFFF) {
 		/* special value to force mount attempts to fail */
@@ -881,7 +881,7 @@ locks_done:
 	 * and all lvb bits to be clear (no pending journal recoveries.)
 	 */
 
-	if (!all_jid_bits_clear(lvb_bits)) {
+	if (!all_jid_bits_clear(ls->ls_lvb_bits)) {
 		/* journals need recovery, wait until all are clear */
 		fs_info(sdp, "control_mount wait for journal recovery\n");
 		goto restart;
@@ -943,7 +943,6 @@ static int dlm_recovery_wait(void *word)
 static int control_first_done(struct gfs2_sbd *sdp)
 {
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
-	char lvb_bits[GDLM_LVB_SIZE];
 	uint32_t start_gen, block_gen;
 	int error;
 
@@ -985,8 +984,8 @@ restart:
 	memset(ls->ls_recover_result, 0, ls->ls_recover_size*sizeof(uint32_t));
 	spin_unlock(&ls->ls_recover_spin);
 
-	memset(lvb_bits, 0, sizeof(lvb_bits));
-	control_lvb_write(ls, start_gen, lvb_bits);
+	memset(ls->ls_lvb_bits, 0, GDLM_LVB_SIZE);
+	control_lvb_write(ls, start_gen, ls->ls_lvb_bits);
 
 	error = mounted_lock(sdp, DLM_LOCK_PR, DLM_LKF_CONVERT);
 	if (error)
@@ -1015,6 +1014,12 @@ static int set_recover_size(struct gfs2_sbd *sdp, struct dlm_slot *slots,
 	uint32_t *result = NULL;
 	uint32_t old_size, new_size;
 	int i, max_jid;
+
+	if (!ls->ls_lvb_bits) {
+		ls->ls_lvb_bits = kzalloc(GDLM_LVB_SIZE, GFP_NOFS);
+		if (!ls->ls_lvb_bits)
+			return -ENOMEM;
+	}
 
 	max_jid = 0;
 	for (i = 0; i < num_slots; i++) {
@@ -1051,6 +1056,7 @@ static int set_recover_size(struct gfs2_sbd *sdp, struct dlm_slot *slots,
 
 static void free_recover_size(struct lm_lockstruct *ls)
 {
+	kfree(ls->ls_lvb_bits);
 	kfree(ls->ls_recover_submit);
 	kfree(ls->ls_recover_result);
 	ls->ls_recover_submit = NULL;
@@ -1199,6 +1205,7 @@ static int gdlm_mount(struct gfs2_sbd *sdp, const char *table)
 	ls->ls_recover_size = 0;
 	ls->ls_recover_submit = NULL;
 	ls->ls_recover_result = NULL;
+	ls->ls_lvb_bits = NULL;
 
 	error = set_recover_size(sdp, NULL, 0);
 	if (error)

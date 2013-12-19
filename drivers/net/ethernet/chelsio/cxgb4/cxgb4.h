@@ -48,11 +48,16 @@
 #include <linux/vmalloc.h>
 #include <asm/io.h>
 #include "cxgb4_uld.h"
-#include "t4_hw.h"
 
-#define FW_VERSION_MAJOR 1
-#define FW_VERSION_MINOR 1
-#define FW_VERSION_MICRO 0
+#define T4FW_VERSION_MAJOR 0x01
+#define T4FW_VERSION_MINOR 0x06
+#define T4FW_VERSION_MICRO 0x18
+#define T4FW_VERSION_BUILD 0x00
+
+#define T5FW_VERSION_MAJOR 0x01
+#define T5FW_VERSION_MINOR 0x08
+#define T5FW_VERSION_MICRO 0x1C
+#define T5FW_VERSION_BUILD 0x00
 
 #define CH_WARN(adap, fmt, ...) dev_warn(adap->pdev_dev, fmt, ## __VA_ARGS__)
 
@@ -66,7 +71,9 @@ enum {
 enum {
 	MEM_EDC0,
 	MEM_EDC1,
-	MEM_MC
+	MEM_MC,
+	MEM_MC0 = MEM_MC,
+	MEM_MC1
 };
 
 enum {
@@ -74,8 +81,10 @@ enum {
 	MEMWIN0_BASE     = 0x1b800,
 	MEMWIN1_APERTURE = 32768,
 	MEMWIN1_BASE     = 0x28000,
+	MEMWIN1_BASE_T5  = 0x52000,
 	MEMWIN2_APERTURE = 65536,
 	MEMWIN2_BASE     = 0x30000,
+	MEMWIN2_BASE_T5  = 0x54000,
 };
 
 enum dev_master {
@@ -233,6 +242,26 @@ struct pci_params {
 	unsigned char width;
 };
 
+#define CHELSIO_CHIP_CODE(version, revision) (((version) << 4) | (revision))
+#define CHELSIO_CHIP_FPGA          0x100
+#define CHELSIO_CHIP_VERSION(code) (((code) >> 4) & 0xf)
+#define CHELSIO_CHIP_RELEASE(code) ((code) & 0xf)
+
+#define CHELSIO_T4		0x4
+#define CHELSIO_T5		0x5
+
+enum chip_type {
+	T4_A1 = CHELSIO_CHIP_CODE(CHELSIO_T4, 1),
+	T4_A2 = CHELSIO_CHIP_CODE(CHELSIO_T4, 2),
+	T4_FIRST_REV	= T4_A1,
+	T4_LAST_REV	= T4_A2,
+
+	T5_A0 = CHELSIO_CHIP_CODE(CHELSIO_T5, 0),
+	T5_A1 = CHELSIO_CHIP_CODE(CHELSIO_T5, 1),
+	T5_FIRST_REV	= T5_A0,
+	T5_LAST_REV	= T5_A1,
+};
+
 struct adapter_params {
 	struct tp_params  tp;
 	struct vpd_params vpd;
@@ -252,13 +281,30 @@ struct adapter_params {
 
 	unsigned char nports;             /* # of ethernet ports */
 	unsigned char portvec;
-	unsigned char rev;                /* chip revision */
+	enum chip_type chip;               /* chip code */
 	unsigned char offload;
 
 	unsigned char bypass;
 
 	unsigned int ofldq_wr_cred;
 };
+
+#include "t4fw_api.h"
+
+#define FW_VERSION(chip) ( \
+		FW_HDR_FW_VER_MAJOR_GET(chip##FW_VERSION_MAJOR) | \
+		FW_HDR_FW_VER_MINOR_GET(chip##FW_VERSION_MINOR) | \
+		FW_HDR_FW_VER_MICRO_GET(chip##FW_VERSION_MICRO) | \
+		FW_HDR_FW_VER_BUILD_GET(chip##FW_VERSION_BUILD))
+#define FW_INTFVER(chip, intf) (FW_HDR_INTFVER_##intf)
+
+struct fw_info {
+	u8 chip;
+	char *fs_name;
+	char *fw_mod_name;
+	struct fw_hdr fw_hdr;
+};
+
 
 struct trace_params {
 	u32 data[TRACE_LEN / 4];
@@ -431,6 +477,7 @@ struct sge_txq {
 	spinlock_t db_lock;
 	int db_disabled;
 	unsigned short db_pidx;
+	u64 udb;
 };
 
 struct sge_eth_txq {                /* state for an SGE Ethernet Tx queue */
@@ -504,13 +551,25 @@ struct sge {
 
 struct l2t_data;
 
+#ifdef CONFIG_PCI_IOV
+
+/* T4 supports SRIOV on PF0-3 and T5 on PF0-7.  However, the Serial
+ * Configuration initialization for T5 only has SR-IOV functionality enabled
+ * on PF0-3 in order to simplify everything.
+ */
+#define NUM_OF_PF_WITH_SRIOV 4
+
+#endif
+
 struct adapter {
 	void __iomem *regs;
+	void __iomem *bar2;
 	struct pci_dev *pdev;
 	struct device *pdev_dev;
 	unsigned int mbox;
 	unsigned int fn;
 	unsigned int flags;
+	enum chip_type chip;
 
 	int msg_enable;
 
@@ -536,6 +595,7 @@ struct adapter {
 	struct l2t_data *l2t;
 	void *uld_handle[CXGB4_ULD_MAX];
 	struct list_head list_node;
+	struct list_head rcu_node;
 
 	struct tid_info tids;
 	void **tid_release_head;
@@ -672,6 +732,16 @@ enum {
 	VLAN_INSERT,
 	VLAN_REWRITE
 };
+
+static inline int is_t5(enum chip_type chip)
+{
+	return CHELSIO_CHIP_VERSION(chip) == CHELSIO_T5;
+}
+
+static inline int is_t4(enum chip_type chip)
+{
+	return CHELSIO_CHIP_VERSION(chip) == CHELSIO_T4;
+}
 
 static inline u32 t4_read_reg(struct adapter *adap, u32 reg_addr)
 {
@@ -850,7 +920,11 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
 unsigned int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_load_cfg(struct adapter *adapter, const u8 *cfg_data, unsigned int size);
-int t4_check_fw_version(struct adapter *adapter);
+int t4_get_fw_version(struct adapter *adapter, u32 *vers);
+int t4_get_tp_version(struct adapter *adapter, u32 *vers);
+int t4_prep_fw(struct adapter *adap, struct fw_info *fw_info,
+	       const u8 *fw_data, unsigned int fw_size,
+	       struct fw_hdr *card_fw, enum dev_state state, int *reset);
 int t4_prep_adapter(struct adapter *adapter);
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf);
 void t4_fatal_err(struct adapter *adapter);
@@ -858,7 +932,8 @@ int t4_config_rss_range(struct adapter *adapter, int mbox, unsigned int viid,
 			int start, int n, const u16 *rspq, unsigned int nrspq);
 int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
 		       unsigned int flags);
-int t4_mc_read(struct adapter *adap, u32 addr, __be32 *data, u64 *parity);
+int t4_mc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,
+	       u64 *parity);
 int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,
 		u64 *parity);
 

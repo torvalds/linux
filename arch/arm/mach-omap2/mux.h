@@ -10,7 +10,6 @@
 #include "mux2420.h"
 #include "mux2430.h"
 #include "mux34xx.h"
-#include "mux44xx.h"
 
 #define OMAP_MUX_TERMINATOR	0xffff
 
@@ -29,7 +28,7 @@
 #define OMAP_PULL_UP			(1 << 4)
 #define OMAP_ALTELECTRICALSEL		(1 << 5)
 
-/* 34xx specific mux bit defines */
+/* omap3/4/5 specific mux bit defines */
 #define OMAP_INPUT_EN			(1 << 8)
 #define OMAP_OFF_EN			(1 << 9)
 #define OMAP_OFFOUT_EN			(1 << 10)
@@ -37,8 +36,6 @@
 #define OMAP_OFF_PULL_EN		(1 << 12)
 #define OMAP_OFF_PULL_UP		(1 << 13)
 #define OMAP_WAKEUP_EN			(1 << 14)
-
-/* 44xx specific mux bit defines */
 #define OMAP_WAKEUP_EVENT		(1 << 15)
 
 /* Active pin states */
@@ -64,8 +61,6 @@
 
 /* Flags for omapX_mux_init */
 #define OMAP_PACKAGE_MASK		0xffff
-#define OMAP_PACKAGE_CBS		8		/* 547-pin 0.40 0.40 */
-#define OMAP_PACKAGE_CBL		7		/* 547-pin 0.40 0.40 */
 #define OMAP_PACKAGE_CBP		6		/* 515-pin 0.40 0.50 */
 #define OMAP_PACKAGE_CUS		5		/* 423-pin 0.65 */
 #define OMAP_PACKAGE_CBB		4		/* 515-pin 0.40 0.50 */

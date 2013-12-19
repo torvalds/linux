@@ -124,25 +124,26 @@ You add non-menu controls by calling v4l2_ctrl_new_std:
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, s32 min, s32 max, u32 step, s32 def);
 
-Menu controls are added by calling v4l2_ctrl_new_std_menu:
+Menu and integer menu controls are added by calling v4l2_ctrl_new_std_menu:
 
 	struct v4l2_ctrl *v4l2_ctrl_new_std_menu(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, s32 max, s32 skip_mask, s32 def);
 
-Or alternatively for integer menu controls, by calling v4l2_ctrl_new_int_menu:
+Menu controls with a driver specific menu are added by calling
+v4l2_ctrl_new_std_menu_items:
+
+       struct v4l2_ctrl *v4l2_ctrl_new_std_menu_items(
+                       struct v4l2_ctrl_handler *hdl,
+                       const struct v4l2_ctrl_ops *ops, u32 id, s32 max,
+                       s32 skip_mask, s32 def, const char * const *qmenu);
+
+Integer menu controls with a driver specific menu can be added by calling
+v4l2_ctrl_new_int_menu:
 
 	struct v4l2_ctrl *v4l2_ctrl_new_int_menu(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, s32 max, s32 def, const s64 *qmenu_int);
-
-Standard menu controls with a driver specific menu are added by calling
-v4l2_ctrl_new_std_menu_items:
-
-	struct v4l2_ctrl *v4l2_ctrl_new_std_menu_items(
-		struct v4l2_ctrl_handler *hdl,
-		const struct v4l2_ctrl_ops *ops, u32 id, s32 max,
-		s32 skip_mask, s32 def, const char * const *qmenu);
 
 These functions are typically called right after the v4l2_ctrl_handler_init:
 
@@ -715,14 +716,20 @@ a control of this type whenever the first control belonging to a new control
 class is added.
 
 
-Proposals for Extensions
-========================
+Adding Notify Callbacks
+=======================
 
-Some ideas for future extensions to the spec:
+Sometimes the platform or bridge driver needs to be notified when a control
+from a sub-device driver changes. You can set a notify callback by calling
+this function:
 
-1) Add a V4L2_CTRL_FLAG_HEX to have values shown as hexadecimal instead of
-decimal. Useful for e.g. video_mute_yuv.
+void v4l2_ctrl_notify(struct v4l2_ctrl *ctrl,
+	void (*notify)(struct v4l2_ctrl *ctrl, void *priv), void *priv);
 
-2) It is possible to mark in the controls array which controls have been
-successfully written and which failed by for example adding a bit to the
-control ID. Not sure if it is worth the effort, though.
+Whenever the give control changes value the notify callback will be called
+with a pointer to the control and the priv pointer that was passed with
+v4l2_ctrl_notify. Note that the control's handler lock is held when the
+notify function is called.
+
+There can be only one notify function per control handler. Any attempt
+to set another notify function will cause a WARN_ON.

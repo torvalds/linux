@@ -70,12 +70,12 @@ dcb_i2c_parse(struct nouveau_bios *bios, u8 idx, struct dcb_i2c_entry *info)
 	u8  ver, len;
 	u16 ent = dcb_i2c_entry(bios, idx, &ver, &len);
 	if (ent) {
-		info->data = nv_ro32(bios, ent + 0);
-		info->type = nv_ro08(bios, ent + 3);
+		info->type  = nv_ro08(bios, ent + 3);
+		info->share = DCB_I2C_UNUSED;
 		if (ver < 0x30) {
 			info->type &= 0x07;
 			if (info->type == 0x07)
-				info->type = 0xff;
+				info->type = DCB_I2C_UNUSED;
 		}
 
 		switch (info->type) {
@@ -88,7 +88,11 @@ dcb_i2c_parse(struct nouveau_bios *bios, u8 idx, struct dcb_i2c_entry *info)
 			return 0;
 		case DCB_I2C_NVIO_BIT:
 		case DCB_I2C_NVIO_AUX:
-			info->drive = nv_ro08(bios, ent + 0);
+			info->drive = nv_ro08(bios, ent + 0) & 0x0f;
+			if (nv_ro08(bios, ent + 1) & 0x01) {
+				info->share  = nv_ro08(bios, ent + 1) >> 1;
+				info->share &= 0x0f;
+			}
 			return 0;
 		case DCB_I2C_UNUSED:
 			return 0;
@@ -121,7 +125,8 @@ dcb_i2c_parse(struct nouveau_bios *bios, u8 idx, struct dcb_i2c_entry *info)
 			if (!info->sense) info->sense = 0x36;
 		}
 
-		info->type = DCB_I2C_NV04_BIT;
+		info->type  = DCB_I2C_NV04_BIT;
+		info->share = DCB_I2C_UNUSED;
 		return 0;
 	}
 

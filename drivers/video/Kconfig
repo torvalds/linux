@@ -19,9 +19,9 @@ source "drivers/char/agp/Kconfig"
 
 source "drivers/gpu/vga/Kconfig"
 
-source "drivers/gpu/drm/Kconfig"
+source "drivers/gpu/host1x/Kconfig"
 
-source "drivers/gpu/stub/Kconfig"
+source "drivers/gpu/drm/Kconfig"
 
 config VGASTATE
        tristate
@@ -32,6 +32,12 @@ config VIDEO_OUTPUT_CONTROL
 	help
 	  This framework adds support for low-level control of the video 
 	  output switch.
+
+config VIDEOMODE_HELPERS
+	bool
+
+config HDMI
+	bool
 
 menuconfig FB
 	tristate "Support for frame buffer devices"
@@ -189,14 +195,6 @@ config FB_SYS_FOPS
        tristate
        depends on FB
        default n
-
-config FB_WMT_GE_ROPS
-	tristate
-	depends on FB
-	default n
-	---help---
-	  Include functions for accelerated rectangle filling and area
-	  copying using WonderMedia Graphics Engine operations.
 
 config FB_DEFERRED_IO
 	bool
@@ -364,11 +362,13 @@ config FB_SA1100
 	  Y here.
 
 config FB_IMX
-	tristate "Freescale i.MX LCD support"
+	tristate "Freescale i.MX1/21/25/27 LCD support"
 	depends on FB && IMX_HAVE_PLATFORM_IMX_FB
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_MODE_HELPERS
+	select VIDEOMODE_HELPERS
 
 config FB_CYBER2000
 	tristate "CyberPro 2000/2010/5000 support"
@@ -996,6 +996,8 @@ config FB_ATMEL
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_MODE_HELPERS
+	select VIDEOMODE_HELPERS
 	help
 	  This enables support for the AT91/AT32 LCD Controller.
 
@@ -1112,8 +1114,8 @@ config FB_RIVA_BACKLIGHT
 	  Say Y here if you want to control the backlight of your display.
 
 config FB_I740
-	tristate "Intel740 support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && FB && PCI
+	tristate "Intel740 support"
+	depends on FB && PCI
 	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -1124,8 +1126,8 @@ config FB_I740
 	  This driver supports graphics cards based on Intel740 chip.
 
 config FB_I810
-	tristate "Intel 810/815 support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && FB && PCI && X86_32 && AGP_INTEL
+	tristate "Intel 810/815 support"
+	depends on FB && PCI && X86_32 && AGP_INTEL
 	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -1187,8 +1189,8 @@ config FB_CARILLO_RANCH
 	  This driver supports the LE80578 (Carillo Ranch) board
 
 config FB_INTEL
-	tristate "Intel 830M/845G/852GM/855GM/865G/915G/945G/945GM/965G/965GM support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && FB && PCI && X86 && AGP_INTEL && EXPERT
+	tristate "Intel 830M/845G/852GM/855GM/865G/915G/945G/945GM/965G/965GM support"
+	depends on FB && PCI && X86 && AGP_INTEL && EXPERT
 	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -1432,7 +1434,7 @@ config FB_ATY_CT
 	  is at <http://support.ati.com/products/pc/mach64/mach64.html>.
 
 config FB_ATY_GENERIC_LCD
-	bool "Mach64 generic LCD support (EXPERIMENTAL)"
+	bool "Mach64 generic LCD support"
 	depends on FB_ATY_CT
 	help
 	  Say Y if you have a laptop with an ATI Rage LT PRO, Rage Mobility,
@@ -1479,7 +1481,7 @@ config FB_S3_DDC
 
 config FB_SAVAGE
 	tristate "S3 Savage support"
-	depends on FB && PCI && EXPERIMENTAL
+	depends on FB && PCI
 	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -1633,15 +1635,15 @@ config FB_3DFX
 	  module will be called tdfxfb.
 
 config FB_3DFX_ACCEL
-	bool "3Dfx Acceleration functions (EXPERIMENTAL)"
-	depends on FB_3DFX && EXPERIMENTAL
+	bool "3Dfx Acceleration functions"
+	depends on FB_3DFX
 	---help---
 	This will compile the 3Dfx Banshee/Voodoo3/VSA-100 frame buffer
 	device driver with acceleration functions.
 
 config FB_3DFX_I2C
 	bool "Enable DDC/I2C support"
-	depends on FB_3DFX && EXPERIMENTAL
+	depends on FB_3DFX
 	select FB_DDC
 	default y
 	help
@@ -1714,8 +1716,8 @@ config FB_ARK
 	  and ICS 5342 RAMDAC.
 
 config FB_PM3
-	tristate "Permedia3 support (EXPERIMENTAL)"
-	depends on FB && PCI && EXPERIMENTAL
+	tristate "Permedia3 support"
+	depends on FB && PCI
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -1775,22 +1777,37 @@ config FB_AU1200
 	  option au1200fb:panel=<name>.
 
 config FB_VT8500
-	bool "VT8500 LCD Driver"
+	bool "VIA VT8500 framebuffer support"
 	depends on (FB = y) && ARM && ARCH_VT8500
-	select FB_WMT_GE_ROPS
+	select FB_SYS_FILLRECT if (!FB_WMT_GE_ROPS)
+	select FB_SYS_COPYAREA if (!FB_WMT_GE_ROPS)
 	select FB_SYS_IMAGEBLIT
+	select FB_MODE_HELPERS
+	select VIDEOMODE_HELPERS
 	help
 	  This is the framebuffer driver for VIA VT8500 integrated LCD
 	  controller.
 
 config FB_WM8505
-	bool "WM8505 frame buffer support"
+	bool "Wondermedia WM8xxx-series frame buffer support"
 	depends on (FB = y) && ARM && ARCH_VT8500
-	select FB_WMT_GE_ROPS
+	select FB_SYS_FILLRECT if (!FB_WMT_GE_ROPS)
+	select FB_SYS_COPYAREA if (!FB_WMT_GE_ROPS)
 	select FB_SYS_IMAGEBLIT
+	select FB_MODE_HELPERS
+	select VIDEOMODE_HELPERS
 	help
-	  This is the framebuffer driver for WonderMedia WM8505/WM8650
-	  integrated LCD controller.
+	  This is the framebuffer driver for WonderMedia WM8xxx-series
+	  integrated LCD controller. This driver covers the WM8505, WM8650
+	  and WM8850 SoCs.
+
+config FB_WMT_GE_ROPS
+	bool "VT8500/WM8xxx accelerated raster ops support"
+	depends on (FB = y) && (FB_VT8500 || FB_WM8505)
+	default n
+	help
+	  This adds support for accelerated raster operations on the
+	  VIA VT8500 and Wondermedia 85xx series SoCs.
 
 source "drivers/video/geode/Kconfig"
 
@@ -2025,7 +2042,8 @@ config FB_TMIO_ACCELL
 
 config FB_S3C
 	tristate "Samsung S3C framebuffer support"
-	depends on FB && (S3C_DEV_FB || S5P_DEV_FIMD0)
+	depends on FB && (CPU_S3C2416 || ARCH_S3C64XX || ARCH_S5P64X0 || \
+		ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2083,13 +2101,6 @@ config FB_NUC900
 config GPM1040A0_320X240
         bool "Giantplus Technology GPM1040A0 320x240 Color TFT LCD"
         depends on FB_NUC900
-
-config FB_NUC900_DEBUG
-        bool "NUC900 lcd debug messages"
-        depends on FB_NUC900
-        help
-          Turn on debugging messages. Note that you can set/unset at run time
-          through sysfs
 
 config FB_SM501
 	tristate "Silicon Motion SM501 framebuffer support"
@@ -2174,7 +2185,7 @@ config FB_PS3_DEFAULT_SIZE_M
 
 config FB_XILINX
 	tristate "Xilinx frame buffer support"
-	depends on FB && (XILINX_VIRTEX || MICROBLAZE)
+	depends on FB && (XILINX_VIRTEX || MICROBLAZE || ARCH_ZYNQ)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2182,6 +2193,15 @@ config FB_XILINX
 	  Include support for the Xilinx ML300/ML403 reference design
 	  framebuffer. ML300 carries a 640*480 LCD display on the board,
 	  ML403 uses a standard DB15 VGA connector.
+
+config FB_GOLDFISH
+	tristate "Goldfish Framebuffer"
+	depends on FB && HAS_DMA
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  Framebuffer driver for Goldfish Virtual Platform
 
 config FB_COBALT
 	tristate "Cobalt server LCD frame buffer support"
@@ -2203,15 +2223,17 @@ config FB_SH7760
 	  panels <= 320 pixel horizontal resolution.
 
 config FB_DA8XX
-	tristate "DA8xx/OMAP-L1xx Framebuffer support"
-	depends on FB && ARCH_DAVINCI_DA8XX
+	tristate "DA8xx/OMAP-L1xx/AM335x Framebuffer support"
+	depends on FB && (ARCH_DAVINCI_DA8XX || SOC_AM33XX)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_CFB_REV_PIXELS_IN_BYTE
+	select FB_MODE_HELPERS
+	select VIDEOMODE_HELPERS
 	---help---
 	  This is the frame buffer device driver for the TI LCD controller
-	  found on DA8xx/OMAP-L1xx SoCs.
+	  found on DA8xx/OMAP-L1xx/AM335x SoCs.
 	  If unsure, say N.
 
 config FB_VIRTUAL
@@ -2245,7 +2267,7 @@ config XEN_FBDEV_FRONTEND
 	select FB_SYS_IMAGEBLIT
 	select FB_SYS_FOPS
 	select FB_DEFERRED_IO
-	select INPUT_XEN_KBDDEV_FRONTEND
+	select INPUT_XEN_KBDDEV_FRONTEND if INPUT_MISC
 	select XEN_XENBUS_FRONTEND
 	default y
 	help
@@ -2405,6 +2427,8 @@ config FB_MXS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_MODE_HELPERS
+	select VIDEOMODE_HELPERS
 	help
 	  Framebuffer support for the MXS SoC.
 
@@ -2419,9 +2443,35 @@ config FB_PUV3_UNIGFX
 	  Choose this option if you want to use the Unigfx device as a
 	  framebuffer device. Without the support of PCI & AGP.
 
+config FB_HYPERV
+	tristate "Microsoft Hyper-V Synthetic Video support"
+	depends on FB && HYPERV
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This framebuffer driver supports Microsoft Hyper-V Synthetic Video.
+
+config FB_SIMPLE
+	bool "Simple framebuffer support"
+	depends on (FB = y)
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  Say Y if you want support for a simple frame-buffer.
+
+	  This driver assumes that the display hardware has been initialized
+	  before the kernel boots, and the kernel will simply render to the
+	  pre-allocated frame buffer surface.
+
+	  Configuration re: surface address, size, and format must be provided
+	  through device tree, or plain old platform data.
+
 source "drivers/video/omap/Kconfig"
 source "drivers/video/omap2/Kconfig"
 source "drivers/video/exynos/Kconfig"
+source "drivers/video/mmp/Kconfig"
 source "drivers/video/backlight/Kconfig"
 
 if VT
@@ -2448,7 +2498,7 @@ config FB_SSD1307
 	tristate "Solomon SSD1307 framebuffer support"
 	depends on FB && I2C
 	depends on OF
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	select FB_SYS_FOPS
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA

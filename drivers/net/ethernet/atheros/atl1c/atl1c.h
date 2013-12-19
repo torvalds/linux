@@ -520,6 +520,9 @@ struct atl1c_adapter {
 	struct net_device   *netdev;
 	struct pci_dev      *pdev;
 	struct napi_struct  napi;
+	struct page         *rx_page;
+	unsigned int	    rx_page_offset;
+	unsigned int	    rx_frag_size;
 	struct atl1c_hw        hw;
 	struct atl1c_hw_stats  hw_stats;
 	struct mii_if_info  mii;    /* MII interface info */
@@ -597,7 +600,7 @@ struct atl1c_adapter {
 extern char atl1c_driver_name[];
 extern char atl1c_driver_version[];
 
-extern void atl1c_reinit_locked(struct atl1c_adapter *adapter);
-extern s32 atl1c_reset_hw(struct atl1c_hw *hw);
-extern void atl1c_set_ethtool_ops(struct net_device *netdev);
+void atl1c_reinit_locked(struct atl1c_adapter *adapter);
+s32 atl1c_reset_hw(struct atl1c_hw *hw);
+void atl1c_set_ethtool_ops(struct net_device *netdev);
 #endif /* _ATL1C_H_ */

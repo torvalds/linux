@@ -451,10 +451,10 @@ static int snd_ali_reset_5451(struct snd_ali *codec)
 	if (pci_dev) {
 		pci_read_config_dword(pci_dev, 0x7c, &dwVal);
 		pci_write_config_dword(pci_dev, 0x7c, dwVal | 0x08000000);
-		udelay(5000);
+		mdelay(5);
 		pci_read_config_dword(pci_dev, 0x7c, &dwVal);
 		pci_write_config_dword(pci_dev, 0x7c, dwVal & 0xf7ffffff);
-		udelay(5000);
+		mdelay(5);
 	}
 	
 	pci_dev = codec->pci;
@@ -463,14 +463,14 @@ static int snd_ali_reset_5451(struct snd_ali *codec)
 	udelay(500);
 	pci_read_config_dword(pci_dev, 0x44, &dwVal);
 	pci_write_config_dword(pci_dev, 0x44, dwVal & 0xfffbffff);
-	udelay(5000);
+	mdelay(5);
 	
 	wCount = 200;
 	while(wCount--) {
 		wReg = snd_ali_codec_peek(codec, 0, AC97_POWERDOWN);
 		if ((wReg & 0x000f) == 0x000f)
 			return 0;
-		udelay(5000);
+		mdelay(5);
 	}
 
 	/* non-fatal if you have a non PM capable codec */
@@ -855,7 +855,6 @@ static void snd_ali_disable_spdif_out(struct snd_ali *codec)
 static void snd_ali_update_ptr(struct snd_ali *codec, int channel)
 {
 	struct snd_ali_voice *pvoice;
-	struct snd_pcm_runtime *runtime;
 	struct snd_ali_channel_control *pchregs;
 	unsigned int old, mask;
 #ifdef ALI_DEBUG
@@ -872,7 +871,6 @@ static void snd_ali_update_ptr(struct snd_ali *codec, int channel)
 		return;
 
 	pvoice = &codec->synth.voices[channel];
-	runtime = pvoice->substream->runtime;
 
 	udelay(100);
 	spin_lock(&codec->reg_lock);
@@ -1435,7 +1433,7 @@ static snd_pcm_uframes_t snd_ali_pointer(struct snd_pcm_substream *substream)
 
 	spin_lock(&codec->reg_lock);
 	if (!pvoice->running) {
-		spin_unlock_irq(&codec->reg_lock);
+		spin_unlock(&codec->reg_lock);
 		return 0;
 	}
 	outb(pvoice->number, ALI_REG(codec, ALI_GC_CIR));
@@ -2298,7 +2296,6 @@ static int snd_ali_probe(struct pci_dev *pci,
 static void snd_ali_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static struct pci_driver ali5451_driver = {

@@ -545,8 +545,10 @@ static int add_port(struct ib_device *device, int port_num,
 
 	p->gid_group.name  = "gids";
 	p->gid_group.attrs = alloc_group_attrs(show_port_gid, attr.gid_tbl_len);
-	if (!p->gid_group.attrs)
+	if (!p->gid_group.attrs) {
+		ret = -ENOMEM;
 		goto err_remove_pma;
+	}
 
 	ret = sysfs_create_group(&p->kobj, &p->gid_group);
 	if (ret)
@@ -555,8 +557,10 @@ static int add_port(struct ib_device *device, int port_num,
 	p->pkey_group.name  = "pkeys";
 	p->pkey_group.attrs = alloc_group_attrs(show_port_pkey,
 						attr.pkey_tbl_len);
-	if (!p->pkey_group.attrs)
+	if (!p->pkey_group.attrs) {
+		ret = -ENOMEM;
 		goto err_remove_gid;
+	}
 
 	ret = sysfs_create_group(&p->kobj, &p->pkey_group);
 	if (ret)
@@ -608,6 +612,7 @@ static ssize_t show_node_type(struct device *device,
 	switch (dev->node_type) {
 	case RDMA_NODE_IB_CA:	  return sprintf(buf, "%d: CA\n", dev->node_type);
 	case RDMA_NODE_RNIC:	  return sprintf(buf, "%d: RNIC\n", dev->node_type);
+	case RDMA_NODE_USNIC:	  return sprintf(buf, "%d: usNIC\n", dev->node_type);
 	case RDMA_NODE_IB_SWITCH: return sprintf(buf, "%d: switch\n", dev->node_type);
 	case RDMA_NODE_IB_ROUTER: return sprintf(buf, "%d: router\n", dev->node_type);
 	default:		  return sprintf(buf, "%d: <unknown>\n", dev->node_type);
@@ -813,7 +818,7 @@ int ib_device_register_sysfs(struct ib_device *device,
 
 	class_dev->class      = &ib_class;
 	class_dev->parent     = device->dma_device;
-	dev_set_name(class_dev, device->name);
+	dev_set_name(class_dev, "%s", device->name);
 	dev_set_drvdata(class_dev, device);
 
 	INIT_LIST_HEAD(&device->port_list);

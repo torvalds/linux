@@ -556,7 +556,7 @@ static int sa1100fb_mmap(struct fb_info *info,
 			 struct vm_area_struct *vma)
 {
 	struct sa1100fb_info *fbi = (struct sa1100fb_info *)info;
-	unsigned long start, len, off = vma->vm_pgoff << PAGE_SHIFT;
+	unsigned long off = vma->vm_pgoff << PAGE_SHIFT;
 
 	if (off < info->fix.smem_len) {
 		vma->vm_pgoff += 1; /* skip over the palette */
@@ -564,19 +564,9 @@ static int sa1100fb_mmap(struct fb_info *info,
 					     fbi->map_dma, fbi->map_size);
 	}
 
-	start = info->fix.mmio_start;
-	len = PAGE_ALIGN((start & ~PAGE_MASK) + info->fix.mmio_len);
-
-	if ((vma->vm_end - vma->vm_start + off) > len)
-		return -EINVAL;
-
-	off += start & PAGE_MASK;
-	vma->vm_pgoff = off >> PAGE_SHIFT;
-	vma->vm_flags |= VM_IO;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	return io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
-				   vma->vm_end - vma->vm_start,
-				   vma->vm_page_prot);
+
+	return vm_iomap_memory(vma, info->fix.mmio_start, info->fix.mmio_len);
 }
 
 static struct fb_ops sa1100fb_ops = {
@@ -1090,7 +1080,7 @@ static int sa1100fb_resume(struct platform_device *dev)
  *      cache.  Once this area is remapped, all virtual memory
  *      access to the video memory should occur at the new region.
  */
-static int __devinit sa1100fb_map_video_memory(struct sa1100fb_info *fbi)
+static int sa1100fb_map_video_memory(struct sa1100fb_info *fbi)
 {
 	/*
 	 * We reserve one page for the palette, plus the size
@@ -1116,7 +1106,7 @@ static int __devinit sa1100fb_map_video_memory(struct sa1100fb_info *fbi)
 }
 
 /* Fake monspecs to fill in fbinfo structure */
-static struct fb_monspecs monspecs __devinitdata = {
+static struct fb_monspecs monspecs = {
 	.hfmin	= 30000,
 	.hfmax	= 70000,
 	.vfmin	= 50,
@@ -1124,9 +1114,9 @@ static struct fb_monspecs monspecs __devinitdata = {
 };
 
 
-static struct sa1100fb_info * __devinit sa1100fb_init_fbinfo(struct device *dev)
+static struct sa1100fb_info *sa1100fb_init_fbinfo(struct device *dev)
 {
-	struct sa1100fb_mach_info *inf = dev->platform_data;
+	struct sa1100fb_mach_info *inf = dev_get_platdata(dev);
 	struct sa1100fb_info *fbi;
 	unsigned i;
 
@@ -1205,13 +1195,13 @@ static struct sa1100fb_info * __devinit sa1100fb_init_fbinfo(struct device *dev)
 	return fbi;
 }
 
-static int __devinit sa1100fb_probe(struct platform_device *pdev)
+static int sa1100fb_probe(struct platform_device *pdev)
 {
 	struct sa1100fb_info *fbi;
 	struct resource *res;
 	int ret, irq;
 
-	if (!pdev->dev.platform_data) {
+	if (!dev_get_platdata(&pdev->dev)) {
 		dev_err(&pdev->dev, "no platform LCD data\n");
 		return -EINVAL;
 	}
@@ -1281,7 +1271,6 @@ static int __devinit sa1100fb_probe(struct platform_device *pdev)
  failed:
 	if (fbi)
 		iounmap(fbi->base);
-	platform_set_drvdata(pdev, NULL);
 	kfree(fbi);
 	release_mem_region(res->start, resource_size(res));
 	return ret;

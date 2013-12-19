@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -197,7 +197,7 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 	status = acpi_ex_extract_from_field(obj_desc, buffer, (u32) length);
 	acpi_ex_release_global_lock(obj_desc->common_field.field_flags);
 
-      exit:
+exit:
 	if (ACPI_FAILURE(status)) {
 		acpi_ut_remove_reference(buffer_desc);
 	} else {
@@ -331,21 +331,25 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 
 	switch (source_desc->common.type) {
 	case ACPI_TYPE_INTEGER:
+
 		buffer = &source_desc->integer.value;
 		length = sizeof(source_desc->integer.value);
 		break;
 
 	case ACPI_TYPE_BUFFER:
+
 		buffer = source_desc->buffer.pointer;
 		length = source_desc->buffer.length;
 		break;
 
 	case ACPI_TYPE_STRING:
+
 		buffer = source_desc->string.pointer;
 		length = source_desc->string.length;
 		break;
 
 	default:
+
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 	}
 

@@ -686,8 +686,7 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
  *	%-EINVAL	no platform data passed
  *	%0		successful.
  */
-static int __devinit
-__sa1111_probe(struct device *me, struct resource *mem, int irq)
+static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
 {
 	struct sa1111_platform_data *pd = me->platform_data;
 	struct sa1111 *sachip;
@@ -1011,7 +1010,7 @@ static int sa1111_resume(struct platform_device *dev)
 #define sa1111_resume  NULL
 #endif
 
-static int __devinit sa1111_probe(struct platform_device *pdev)
+static int sa1111_probe(struct platform_device *pdev)
 {
 	struct resource *mem;
 	int irq;

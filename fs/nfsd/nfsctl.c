@@ -10,7 +10,7 @@
 
 #include <linux/sunrpc/svcsock.h>
 #include <linux/lockd/lockd.h>
-#include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/gss_api.h>
 #include <linux/sunrpc/gss_krb5_enctypes.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
@@ -35,6 +35,7 @@ enum {
 	NFSD_Threads,
 	NFSD_Pool_Threads,
 	NFSD_Pool_Stats,
+	NFSD_Reply_Cache_Stats,
 	NFSD_Versions,
 	NFSD_Ports,
 	NFSD_MaxBlkSize,
@@ -85,7 +86,7 @@ static ssize_t (*write_op[])(struct file *, char *, size_t) = {
 
 static ssize_t nfsctl_transaction_write(struct file *file, const char __user *buf, size_t size, loff_t *pos)
 {
-	ino_t ino =  file->f_path.dentry->d_inode->i_ino;
+	ino_t ino =  file_inode(file)->i_ino;
 	char *data;
 	ssize_t rv;
 
@@ -125,11 +126,11 @@ static const struct file_operations transaction_ops = {
 	.llseek		= default_llseek,
 };
 
-static int exports_open(struct inode *inode, struct file *file)
+static int exports_net_open(struct net *net, struct file *file)
 {
 	int err;
 	struct seq_file *seq;
-	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	err = seq_open(file, &nfs_exports_op);
 	if (err)
@@ -140,8 +141,26 @@ static int exports_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations exports_operations = {
-	.open		= exports_open,
+static int exports_proc_open(struct inode *inode, struct file *file)
+{
+	return exports_net_open(current->nsproxy->net_ns, file);
+}
+
+static const struct file_operations exports_proc_operations = {
+	.open		= exports_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+	.owner		= THIS_MODULE,
+};
+
+static int exports_nfsd_open(struct inode *inode, struct file *file)
+{
+	return exports_net_open(inode->i_sb->s_fs_info, file);
+}
+
+static const struct file_operations exports_nfsd_operations = {
+	.open		= exports_nfsd_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
@@ -159,7 +178,7 @@ static int export_features_open(struct inode *inode, struct file *file)
 	return single_open(file, export_features_show, NULL);
 }
 
-static struct file_operations export_features_operations = {
+static const struct file_operations export_features_operations = {
 	.open		= export_features_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -178,7 +197,7 @@ static int supported_enctypes_open(struct inode *inode, struct file *file)
 	return single_open(file, supported_enctypes_show, NULL);
 }
 
-static struct file_operations supported_enctypes_ops = {
+static const struct file_operations supported_enctypes_ops = {
 	.open		= supported_enctypes_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -192,6 +211,13 @@ static const struct file_operations pool_stats_operations = {
 	.llseek		= seq_lseek,
 	.release	= nfsd_pool_stats_release,
 	.owner		= THIS_MODULE,
+};
+
+static struct file_operations reply_cache_stats_operations = {
+	.open		= nfsd_reply_cache_stats_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
 };
 
 /*----------------------------------------------------------------------------*/
@@ -220,6 +246,7 @@ static ssize_t write_unlock_ip(struct file *file, char *buf, size_t size)
 	struct sockaddr *sap = (struct sockaddr *)&address;
 	size_t salen = sizeof(address);
 	char *fo_path;
+	struct net *net = file->f_dentry->d_sb->s_fs_info;
 
 	/* sanity check */
 	if (size == 0)
@@ -232,7 +259,7 @@ static ssize_t write_unlock_ip(struct file *file, char *buf, size_t size)
 	if (qword_get(&buf, fo_path, size) < 0)
 		return -EINVAL;
 
-	if (rpc_pton(&init_net, fo_path, size, sap, salen) == 0)
+	if (rpc_pton(net, fo_path, size, sap, salen) == 0)
 		return -EINVAL;
 
 	return nlmsvc_unlock_all_by_ip(sap);
@@ -317,6 +344,7 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 	int len;
 	struct auth_domain *dom;
 	struct knfsd_fh fh;
+	struct net *net = file->f_dentry->d_sb->s_fs_info;
 
 	if (size == 0)
 		return -EINVAL;
@@ -352,7 +380,7 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 	if (!dom)
 		return -ENOMEM;
 
-	len = exp_rootfh(&init_net, dom, path, &fh,  maxsize);
+	len = exp_rootfh(net, dom, path, &fh,  maxsize);
 	auth_domain_put(dom);
 	if (len)
 		return len;
@@ -396,7 +424,7 @@ static ssize_t write_threads(struct file *file, char *buf, size_t size)
 {
 	char *mesg = buf;
 	int rv;
-	struct net *net = &init_net;
+	struct net *net = file->f_dentry->d_sb->s_fs_info;
 
 	if (size > 0) {
 		int newthreads;
@@ -447,7 +475,7 @@ static ssize_t write_pool_threads(struct file *file, char *buf, size_t size)
 	int len;
 	int npools;
 	int *nthreads;
-	struct net *net = &init_net;
+	struct net *net = file->f_dentry->d_sb->s_fs_info;
 
 	mutex_lock(&nfsd_mutex);
 	npools = nfsd_nrpools(net);
@@ -510,7 +538,7 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 	unsigned minor;
 	ssize_t tlen = 0;
 	char *sep;
-	struct net *net = &init_net;
+	struct net *net = file->f_dentry->d_sb->s_fs_info;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	if (size>0) {
@@ -534,7 +562,7 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 			else
 				num = simple_strtol(vers, &minorp, 0);
 			if (*minorp == '.') {
-				if (num < 4)
+				if (num != 4)
 					return -EINVAL;
 				minor = simple_strtoul(minorp+1, NULL, 0);
 				if (minor == 0)
@@ -792,7 +820,7 @@ static ssize_t __write_ports(struct file *file, char *buf, size_t size,
 static ssize_t write_ports(struct file *file, char *buf, size_t size)
 {
 	ssize_t rv;
-	struct net *net = &init_net;
+	struct net *net = file->f_dentry->d_sb->s_fs_info;
 
 	mutex_lock(&nfsd_mutex);
 	rv = __write_ports(file, buf, size, net);
@@ -827,7 +855,7 @@ int nfsd_max_blksize;
 static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 {
 	char *mesg = buf;
-	struct net *net = &init_net;
+	struct net *net = file->f_dentry->d_sb->s_fs_info;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	if (size > 0) {
@@ -923,7 +951,8 @@ static ssize_t nfsd4_write_time(struct file *file, char *buf, size_t size,
  */
 static ssize_t write_leasetime(struct file *file, char *buf, size_t size)
 {
-	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
+	struct net *net = file->f_dentry->d_sb->s_fs_info;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	return nfsd4_write_time(file, buf, size, &nn->nfsd4_lease, nn);
 }
 
@@ -939,7 +968,8 @@ static ssize_t write_leasetime(struct file *file, char *buf, size_t size)
  */
 static ssize_t write_gracetime(struct file *file, char *buf, size_t size)
 {
-	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
+	struct net *net = file->f_dentry->d_sb->s_fs_info;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	return nfsd4_write_time(file, buf, size, &nn->nfsd4_grace, nn);
 }
 
@@ -995,7 +1025,8 @@ static ssize_t __write_recoverydir(struct file *file, char *buf, size_t size,
 static ssize_t write_recoverydir(struct file *file, char *buf, size_t size)
 {
 	ssize_t rv;
-	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
+	struct net *net = file->f_dentry->d_sb->s_fs_info;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	mutex_lock(&nfsd_mutex);
 	rv = __write_recoverydir(file, buf, size, nn);
@@ -1013,7 +1044,7 @@ static ssize_t write_recoverydir(struct file *file, char *buf, size_t size)
 static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 {
 	static struct tree_descr nfsd_files[] = {
-		[NFSD_List] = {"exports", &exports_operations, S_IRUGO},
+		[NFSD_List] = {"exports", &exports_nfsd_operations, S_IRUGO},
 		[NFSD_Export_features] = {"export_features",
 					&export_features_operations, S_IRUGO},
 		[NFSD_FO_UnlockIP] = {"unlock_ip",
@@ -1024,6 +1055,7 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 		[NFSD_Threads] = {"threads", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Pool_Threads] = {"pool_threads", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Pool_Stats] = {"pool_stats", &pool_stats_operations, S_IRUGO},
+		[NFSD_Reply_Cache_Stats] = {"reply_cache_stats", &reply_cache_stats_operations, S_IRUGO},
 		[NFSD_Versions] = {"versions", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Ports] = {"portlist", &transaction_ops, S_IWUSR|S_IRUGO},
 		[NFSD_MaxBlkSize] = {"max_block_size", &transaction_ops, S_IWUSR|S_IRUGO},
@@ -1037,21 +1069,37 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 #endif
 		/* last one */ {""}
 	};
-	return simple_fill_super(sb, 0x6e667364, nfsd_files);
+	struct net *net = data;
+	int ret;
+
+	ret = simple_fill_super(sb, 0x6e667364, nfsd_files);
+	if (ret)
+		return ret;
+	sb->s_fs_info = get_net(net);
+	return 0;
 }
 
 static struct dentry *nfsd_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
-	return mount_single(fs_type, flags, data, nfsd_fill_super);
+	return mount_ns(fs_type, flags, current->nsproxy->net_ns, nfsd_fill_super);
+}
+
+static void nfsd_umount(struct super_block *sb)
+{
+	struct net *net = sb->s_fs_info;
+
+	kill_litter_super(sb);
+	put_net(net);
 }
 
 static struct file_system_type nfsd_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "nfsd",
 	.mount		= nfsd_mount,
-	.kill_sb	= kill_litter_super,
+	.kill_sb	= nfsd_umount,
 };
+MODULE_ALIAS_FS("nfsd");
 
 #ifdef CONFIG_PROC_FS
 static int create_proc_exports_entry(void)
@@ -1061,9 +1109,12 @@ static int create_proc_exports_entry(void)
 	entry = proc_mkdir("fs/nfs", NULL);
 	if (!entry)
 		return -ENOMEM;
-	entry = proc_create("exports", 0, entry, &exports_operations);
-	if (!entry)
+	entry = proc_create("exports", 0, entry,
+				 &exports_proc_operations);
+	if (!entry) {
+		remove_proc_entry("fs/nfs", NULL);
 		return -ENOMEM;
+	}
 	return 0;
 }
 #else /* CONFIG_PROC_FS */

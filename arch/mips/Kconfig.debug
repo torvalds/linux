@@ -20,6 +20,14 @@ config EARLY_PRINTK
 	  doesn't cooperate with an X server. You should normally say N here,
 	  unless you want to debug such a crash.
 
+config EARLY_PRINTK_8250
+	bool "8250/16550 and compatible serial early printk driver"
+	depends on EARLY_PRINTK
+	default n
+	help
+	  If you say Y here, it will be possible to use a 8250/16550 serial
+	  port as the boot console.
+
 config CMDLINE_BOOL
 	bool "Built-in kernel command line"
 	default n
@@ -66,15 +74,6 @@ config CMDLINE_OVERRIDE
 	  Instead, the built-in command line will be used exclusively.
 
 	  Normally, you will choose 'N' here.
-
-config DEBUG_STACKOVERFLOW
-	bool "Check for stack overflows"
-	depends on DEBUG_KERNEL
-	help
-	  This option will cause messages to be printed if free stack space
-	  drops below a certain limit(2GB on MIPS). The debugging option
-	  provides another way to check stack overflow happened on kernel mode
-	  stack usually caused by nested interruption.
 
 config SMTC_IDLE_HOOK_DEBUG
 	bool "Enable additional debug checks before going into CPU idle loop"

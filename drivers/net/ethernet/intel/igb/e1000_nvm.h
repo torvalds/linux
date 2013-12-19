@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2012 Intel Corporation.
+  Copyright(c) 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -44,6 +44,7 @@ struct e1000_fw_version {
 	u32 etrack_id;
 	u16 eep_major;
 	u16 eep_minor;
+	u16 eep_build;
 
 	u8 invm_major;
 	u8 invm_minor;

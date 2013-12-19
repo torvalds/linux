@@ -6,7 +6,6 @@ source "arch/powerpc/platforms/chrp/Kconfig"
 source "arch/powerpc/platforms/512x/Kconfig"
 source "arch/powerpc/platforms/52xx/Kconfig"
 source "arch/powerpc/platforms/powermac/Kconfig"
-source "arch/powerpc/platforms/prep/Kconfig"
 source "arch/powerpc/platforms/maple/Kconfig"
 source "arch/powerpc/platforms/pasemi/Kconfig"
 source "arch/powerpc/platforms/ps3/Kconfig"
@@ -87,6 +86,27 @@ config MPIC
 	bool
 	default n
 
+config MPIC_TIMER
+	bool "MPIC Global Timer"
+	depends on MPIC && FSL_SOC
+	default n
+	help
+	  The MPIC global timer is a hardware timer inside the
+	  Freescale PIC complying with OpenPIC standard. When the
+	  specified interval times out, the hardware timer generates
+	  an interrupt. The driver currently is only tested on fsl
+	  chip, but it can potentially support other global timers
+	  complying with the OpenPIC standard.
+
+config FSL_MPIC_TIMER_WAKEUP
+	tristate "Freescale MPIC global timer wakeup driver"
+	depends on FSL_SOC &&  MPIC_TIMER && PM
+	default n
+	help
+	  The driver provides a way to wake up the system by MPIC
+	  timer.
+	  e.g. "echo 5 > /sys/devices/system/mpic/timer_wakeup"
+
 config PPC_EPAPR_HV_PIC
 	bool
 	default n
@@ -129,7 +149,7 @@ config PPC_RTAS_DAEMON
 
 config RTAS_PROC
 	bool "Proc interface to RTAS"
-	depends on PPC_RTAS
+	depends on PPC_RTAS && PROC_FS
 	default y
 
 config RTAS_FLASH
@@ -165,6 +185,11 @@ config IBMEBUS
 	help
 	  Bus device driver for GX bus based adapters.
 
+config EEH
+	bool
+	depends on (PPC_POWERNV || PPC_PSERIES) && PCI
+	default y
+
 config PPC_MPC106
 	bool
 	default n
@@ -177,53 +202,17 @@ config PPC_P7_NAP
 	bool
 	default n
 
-config PPC_INDIRECT_IO
+config PPC_INDIRECT_PIO
 	bool
 	select GENERIC_IOMAP
 
-config PPC_INDIRECT_PIO
-	bool
-	select PPC_INDIRECT_IO
-
 config PPC_INDIRECT_MMIO
 	bool
-	select PPC_INDIRECT_IO
 
 config PPC_IO_WORKAROUNDS
 	bool
 
 source "drivers/cpufreq/Kconfig"
-
-menu "CPU Frequency drivers"
-	depends on CPU_FREQ
-
-config CPU_FREQ_PMAC
-	bool "Support for Apple PowerBooks"
-	depends on ADB_PMU && PPC32
-	select CPU_FREQ_TABLE
-	help
-	  This adds support for frequency switching on Apple PowerBooks,
-	  this currently includes some models of iBook & Titanium
-	  PowerBook.
-
-config CPU_FREQ_PMAC64
-	bool "Support for some Apple G5s"
-	depends on PPC_PMAC && PPC64
-	select CPU_FREQ_TABLE
-	help
-	  This adds support for frequency switching on Apple iMac G5,
-	  and some of the more recent desktop G5 machines as well.
-
-config PPC_PASEMI_CPUFREQ
-	bool "Support for PA Semi PWRficient"
-	depends on PPC_PASEMI
-	default y
-	select CPU_FREQ_TABLE
-	help
-	  This adds the support for frequency switching on PA Semi
-	  PWRficient processors.
-
-endmenu
 
 menu "CPUIdle driver"
 
@@ -233,7 +222,7 @@ endmenu
 
 config PPC601_SYNC_FIX
 	bool "Workarounds for PPC601 bugs"
-	depends on 6xx && (PPC_PREP || PPC_PMAC)
+	depends on 6xx && PPC_PMAC
 	help
 	  Some versions of the PPC601 (the first PowerPC chip) have bugs which
 	  mean that extra synchronization instructions are required near
@@ -303,7 +292,6 @@ config QUICC_ENGINE
 config QE_GPIO
 	bool "QE GPIO support"
 	depends on QUICC_ENGINE
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Say Y here if you're going to use hardware that connects to the
@@ -316,7 +304,6 @@ config CPM2
 	select PPC_LIB_RHEAP
 	select PPC_PCI_CHOICE
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_GPIO
 	help
 	  The CPM2 (Communications Processor Module) is a coprocessor on
 	  embedded CPUs made by Freescale.  Selecting this option means that
@@ -344,7 +331,6 @@ config FSL_ULI1575
 
 config CPM
 	bool
-	select PPC_CLOCK
 
 config OF_RTC
 	bool
@@ -352,12 +338,9 @@ config OF_RTC
 	  Uses information from the OF or flattened device tree to instantiate
 	  platform devices for direct mapped RTC chips like the DS1742 or DS1743.
 
-source "arch/powerpc/sysdev/bestcomm/Kconfig"
-
 config SIMPLE_GPIO
 	bool "Support for simple, memory-mapped GPIO controllers"
 	depends on PPC
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Say Y here to support simple, memory-mapped GPIO controllers.
@@ -368,7 +351,6 @@ config SIMPLE_GPIO
 config MCU_MPC8349EMITX
 	bool "MPC8349E-mITX MCU driver"
 	depends on I2C=y && PPC_83xx
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Say Y here to enable soft power-off functionality on the Freescale

@@ -27,7 +27,9 @@ struct vb2_fileio_data;
  *		return NULL on failure or a pointer to allocator private,
  *		per-buffer data on success; the returned private structure
  *		will then be passed as buf_priv argument to other ops in this
- *		structure
+ *		structure. Additional gfp_flags to use when allocating the
+ *		are also passed to this operation. These flags are from the
+ *		gfp_flags field of vb2_queue.
  * @put:	inform the allocator that the buffer will no longer be used;
  *		usually will result in the allocator freeing the buffer (if
  *		no other users of this buffer are present); the buf_priv
@@ -79,9 +81,9 @@ struct vb2_fileio_data;
  *				  unmap_dmabuf.
  */
 struct vb2_mem_ops {
-	void		*(*alloc)(void *alloc_ctx, unsigned long size);
+	void		*(*alloc)(void *alloc_ctx, unsigned long size, gfp_t gfp_flags);
 	void		(*put)(void *buf_priv);
-	struct dma_buf *(*get_dmabuf)(void *buf_priv);
+	struct dma_buf *(*get_dmabuf)(void *buf_priv, unsigned long flags);
 
 	void		*(*get_userptr)(void *alloc_ctx, unsigned long vaddr,
 					unsigned long size, int write);
@@ -217,8 +219,9 @@ struct vb2_buffer {
  *			configured format and *num_buffers is the total number
  *			of buffers, that are being allocated. When called from
  *			VIDIOC_CREATE_BUFS, fmt != NULL and it describes the
- *			target frame format. In this case *num_buffers are being
- *			allocated additionally to q->num_buffers.
+ *			target frame format (if the format isn't valid the
+ *			callback must return -EINVAL). In this case *num_buffers
+ *			are being allocated additionally to q->num_buffers.
  * @wait_prepare:	release any locks taken while calling vb2 functions;
  *			it is called before an ioctl needs to wait for a new
  *			buffer to arrive; required to avoid a deadlock in
@@ -234,8 +237,10 @@ struct vb2_buffer {
  * @buf_prepare:	called every time the buffer is queued from userspace
  *			and from the VIDIOC_PREPARE_BUF ioctl; drivers may
  *			perform any initialization required before each hardware
- *			operation in this callback; if an error is returned, the
- *			buffer will not be queued in driver; optional
+ *			operation in this callback; drivers that support
+ *			VIDIOC_CREATE_BUFS must also validate the buffer size;
+ *			if an error is returned, the buffer will not be queued
+ *			in driver; optional
  * @buf_finish:		called before every dequeue of the buffer back to
  *			userspace; drivers may perform any operations required
  *			before userspace accesses the buffer; optional
@@ -302,6 +307,9 @@ struct v4l2_fh;
  * @buf_struct_size: size of the driver-specific buffer structure;
  *		"0" indicates the driver doesn't want to use a custom buffer
  *		structure type, so sizeof(struct vb2_buffer) will is used
+ * @gfp_flags:	additional gfp flags used when allocating the buffers.
+ *		Typically this is 0, but it may be e.g. GFP_DMA or __GFP_DMA32
+ *		to force the buffer allocation to a specific memory zone.
  *
  * @memory:	current memory type used
  * @bufs:	videobuf buffer structures
@@ -326,6 +334,8 @@ struct vb2_queue {
 	const struct vb2_mem_ops	*mem_ops;
 	void				*drv_priv;
 	unsigned int			buf_struct_size;
+	u32				timestamp_type;
+	gfp_t				gfp_flags;
 
 /* private: internal use only */
 	enum v4l2_memory		memory;
@@ -381,7 +391,7 @@ unsigned long vb2_get_unmapped_area(struct vb2_queue *q,
 unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait);
 size_t vb2_read(struct vb2_queue *q, char __user *data, size_t count,
 		loff_t *ppos, int nonblock);
-size_t vb2_write(struct vb2_queue *q, char __user *data, size_t count,
+size_t vb2_write(struct vb2_queue *q, const char __user *data, size_t count,
 		loff_t *ppos, int nonblock);
 
 /**
@@ -481,7 +491,7 @@ int vb2_ioctl_expbuf(struct file *file, void *priv,
 
 int vb2_fop_mmap(struct file *file, struct vm_area_struct *vma);
 int vb2_fop_release(struct file *file);
-ssize_t vb2_fop_write(struct file *file, char __user *buf,
+ssize_t vb2_fop_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *ppos);
 ssize_t vb2_fop_read(struct file *file, char __user *buf,
 		size_t count, loff_t *ppos);

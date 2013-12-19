@@ -1,6 +1,6 @@
 /* Driver for Realtek driver-based card reader
  *
- * Copyright(c) 2009 Realtek Semiconductor Corp. All rights reserved.
+ * Copyright(c) 2009-2013 Realtek Semiconductor Corp. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,7 +17,6 @@
  *
  * Author:
  *   Wei WANG <wei_wang@realsil.com.cn>
- *   No. 450, Shenhu Road, Suzhou Industry Park, Suzhou, China
  */
 
 #ifndef __RTSX_COMMON_H
@@ -37,6 +36,9 @@
 
 #define RTSX_SD_CARD			0
 #define RTSX_MS_CARD			1
+
+#define CLK_TO_DIV_N			0
+#define DIV_N_TO_CLK			1
 
 struct platform_device;
 

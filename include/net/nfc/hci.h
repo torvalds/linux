@@ -24,12 +24,6 @@
 
 #include <net/nfc/nfc.h>
 
-struct nfc_phy_ops {
-	int (*write)(void *dev_id, struct sk_buff *skb);
-	int (*enable)(void *dev_id);
-	void (*disable)(void *dev_id);
-};
-
 struct nfc_hci_dev;
 
 struct nfc_hci_ops {
@@ -57,8 +51,12 @@ struct nfc_hci_ops {
 	int (*tm_send)(struct nfc_hci_dev *hdev, struct sk_buff *skb);
 	int (*check_presence)(struct nfc_hci_dev *hdev,
 			      struct nfc_target *target);
-	void (*event_received)(struct nfc_hci_dev *hdev, u8 gate, u8 event,
-				struct sk_buff *skb);
+	int (*event_received)(struct nfc_hci_dev *hdev, u8 gate, u8 event,
+			      struct sk_buff *skb);
+	int (*fw_download)(struct nfc_hci_dev *hdev, const char *firmware_name);
+	int (*discover_se)(struct nfc_hci_dev *dev);
+	int (*enable_se)(struct nfc_hci_dev *dev, u32 se_idx);
+	int (*disable_se)(struct nfc_hci_dev *dev, u32 se_idx);
 };
 
 /* Pipes */
@@ -82,10 +80,22 @@ typedef int (*xmit) (struct sk_buff *skb, void *cb_data);
 
 #define NFC_HCI_MAX_GATES		256
 
+/*
+ * These values can be specified by a driver to indicate it requires some
+ * adaptation of the HCI standard.
+ *
+ * NFC_HCI_QUIRK_SHORT_CLEAR - send HCI_ADM_CLEAR_ALL_PIPE cmd with no params
+ */
+enum {
+	NFC_HCI_QUIRK_SHORT_CLEAR	= 0,
+};
+
 struct nfc_hci_dev {
 	struct nfc_dev *ndev;
 
 	u32 max_data_link_payload;
+
+	bool shutting_down;
 
 	struct mutex msg_tx_mutex;
 
@@ -129,11 +139,14 @@ struct nfc_hci_dev {
 
 	u8 *gb;
 	size_t gb_len;
+
+	unsigned long quirks;
 };
 
 /* hci device allocation */
 struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
 					    struct nfc_hci_init_data *init_data,
+					    unsigned long quirks,
 					    u32 protocols,
 					    const char *llc_name,
 					    int tx_headroom,

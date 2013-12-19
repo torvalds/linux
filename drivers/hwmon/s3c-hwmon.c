@@ -107,17 +107,14 @@ static ssize_t s3c_hwmon_show_raw(struct device *dev,
 	return  (ret < 0) ? ret : snprintf(buf, PAGE_SIZE, "%d\n", ret);
 }
 
-#define DEF_ADC_ATTR(x)	\
-	static SENSOR_DEVICE_ATTR(adc##x##_raw, S_IRUGO, s3c_hwmon_show_raw, NULL, x)
-
-DEF_ADC_ATTR(0);
-DEF_ADC_ATTR(1);
-DEF_ADC_ATTR(2);
-DEF_ADC_ATTR(3);
-DEF_ADC_ATTR(4);
-DEF_ADC_ATTR(5);
-DEF_ADC_ATTR(6);
-DEF_ADC_ATTR(7);
+static SENSOR_DEVICE_ATTR(adc0_raw, S_IRUGO, s3c_hwmon_show_raw, NULL, 0);
+static SENSOR_DEVICE_ATTR(adc1_raw, S_IRUGO, s3c_hwmon_show_raw, NULL, 1);
+static SENSOR_DEVICE_ATTR(adc2_raw, S_IRUGO, s3c_hwmon_show_raw, NULL, 2);
+static SENSOR_DEVICE_ATTR(adc3_raw, S_IRUGO, s3c_hwmon_show_raw, NULL, 3);
+static SENSOR_DEVICE_ATTR(adc4_raw, S_IRUGO, s3c_hwmon_show_raw, NULL, 4);
+static SENSOR_DEVICE_ATTR(adc5_raw, S_IRUGO, s3c_hwmon_show_raw, NULL, 5);
+static SENSOR_DEVICE_ATTR(adc6_raw, S_IRUGO, s3c_hwmon_show_raw, NULL, 6);
+static SENSOR_DEVICE_ATTR(adc7_raw, S_IRUGO, s3c_hwmon_show_raw, NULL, 7);
 
 static struct attribute *s3c_hwmon_attrs[9] = {
 	&sensor_dev_attr_adc0_raw.dev_attr.attr,
@@ -168,7 +165,7 @@ static ssize_t s3c_hwmon_ch_show(struct device *dev,
 {
 	struct sensor_device_attribute *sen_attr = to_sensor_dev_attr(attr);
 	struct s3c_hwmon *hwmon = platform_get_drvdata(to_platform_device(dev));
-	struct s3c_hwmon_pdata *pdata = dev->platform_data;
+	struct s3c_hwmon_pdata *pdata = dev_get_platdata(dev);
 	struct s3c_hwmon_chcfg *cfg;
 	int ret;
 
@@ -197,7 +194,7 @@ static ssize_t s3c_hwmon_label_show(struct device *dev,
 				    char *buf)
 {
 	struct sensor_device_attribute *sen_attr = to_sensor_dev_attr(attr);
-	struct s3c_hwmon_pdata *pdata = dev->platform_data;
+	struct s3c_hwmon_pdata *pdata = dev_get_platdata(dev);
 	struct s3c_hwmon_chcfg *cfg;
 
 	cfg = pdata->in[sen_attr->index];
@@ -277,7 +274,7 @@ static void s3c_hwmon_remove_attr(struct device *dev,
 */
 static int s3c_hwmon_probe(struct platform_device *dev)
 {
-	struct s3c_hwmon_pdata *pdata = dev->dev.platform_data;
+	struct s3c_hwmon_pdata *pdata = dev_get_platdata(&dev->dev);
 	struct s3c_hwmon *hwmon;
 	int ret = 0;
 	int i;

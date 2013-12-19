@@ -446,7 +446,8 @@ static void copy_from_user_state(struct xfrm_state *x, struct xfrm_usersa_info *
 	memcpy(&x->sel, &p->sel, sizeof(x->sel));
 	memcpy(&x->lft, &p->lft, sizeof(x->lft));
 	x->props.mode = p->mode;
-	x->props.replay_window = p->replay_window;
+	x->props.replay_window = min_t(unsigned int, p->replay_window,
+					sizeof(x->replay.bitmap) * 8);
 	x->props.reqid = p->reqid;
 	x->props.family = p->family;
 	memcpy(&x->props.saddr, &p->saddr, sizeof(x->props.saddr));
@@ -514,6 +515,9 @@ static struct xfrm_state *xfrm_state_construct(struct net *net,
 		goto error_no_put;
 
 	copy_from_user_state(x, p);
+
+	if (attrs[XFRMA_SA_EXTRA_FLAGS])
+		x->props.extra_flags = nla_get_u32(attrs[XFRMA_SA_EXTRA_FLAGS]);
 
 	if ((err = attach_aead(&x->aead, &x->props.ealgo,
 			       attrs[XFRMA_ALG_AEAD])))
@@ -778,6 +782,13 @@ static int copy_to_user_state_extra(struct xfrm_state *x,
 	int ret = 0;
 
 	copy_to_user_state(x, p);
+
+	if (x->props.extra_flags) {
+		ret = nla_put_u32(skb, XFRMA_SA_EXTRA_FLAGS,
+				  x->props.extra_flags);
+		if (ret)
+			goto out;
+	}
 
 	if (x->coaddr) {
 		ret = nla_put(skb, XFRMA_COADDR, sizeof(*x->coaddr), x->coaddr);
@@ -1112,7 +1123,7 @@ static int xfrm_alloc_userspi(struct sk_buff *skb, struct nlmsghdr *nlh,
 	mark = xfrm_mark_get(attrs, &m);
 	if (p->info.seq) {
 		x = xfrm_find_acq_byseq(net, mark, p->info.seq);
-		if (x && xfrm_addr_cmp(&x->id.daddr, daddr, family)) {
+		if (x && !xfrm_addr_equal(&x->id.daddr, daddr, family)) {
 			xfrm_state_put(x);
 			x = NULL;
 		}
@@ -1671,6 +1682,8 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 out:
 	xfrm_pol_put(xp);
+	if (delete && err == 0)
+		xfrm_garbage_collect(net);
 	return err;
 }
 
@@ -1844,7 +1857,7 @@ static int xfrm_new_ae(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (x->km.state != XFRM_STATE_VALID)
 		goto out;
 
-	err = xfrm_replay_verify_len(x->replay_esn, rp);
+	err = xfrm_replay_verify_len(x->replay_esn, re);
 	if (err)
 		goto out;
 
@@ -2302,9 +2315,10 @@ static const struct nla_policy xfrma_policy[XFRMA_MAX+1] = {
 	[XFRMA_MARK]		= { .len = sizeof(struct xfrm_mark) },
 	[XFRMA_TFCPAD]		= { .type = NLA_U32 },
 	[XFRMA_REPLAY_ESN_VAL]	= { .len = sizeof(struct xfrm_replay_state_esn) },
+	[XFRMA_SA_EXTRA_FLAGS]	= { .type = NLA_U32 },
 };
 
-static struct xfrm_link {
+static const struct xfrm_link {
 	int (*doit)(struct sk_buff *, struct nlmsghdr *, struct nlattr **);
 	int (*dump)(struct sk_buff *, struct netlink_callback *);
 	int (*done)(struct netlink_callback *);
@@ -2338,7 +2352,7 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *attrs[XFRMA_MAX+1];
-	struct xfrm_link *link;
+	const struct xfrm_link *link;
 	int type, err;
 
 	type = nlh->nlmsg_type;
@@ -2495,6 +2509,8 @@ static inline size_t xfrm_sa_len(struct xfrm_state *x)
 				    x->security->ctx_len);
 	if (x->coaddr)
 		l += nla_total_size(sizeof(*x->coaddr));
+	if (x->props.extra_flags)
+		l += nla_total_size(sizeof(x->props.extra_flags));
 
 	/* Must count x->lastused as it may become non-zero behind our back. */
 	l += nla_total_size(sizeof(u64));

@@ -1433,7 +1433,6 @@ static void _rtl8723ae_dm_bt_coexist_2_ant(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	struct rtl_pci_priv *rtlpcipriv = rtl_pcipriv(hw);
-	u8 bt_retry_cnt;
 	u8 bt_info_original;
 	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
 		 "[BTCoex] Get bt info by fw!!\n");
@@ -1445,7 +1444,6 @@ static void _rtl8723ae_dm_bt_coexist_2_ant(struct ieee80211_hw *hw)
 				 "[BTCoex] c2h for btInfo not rcvd yet!!\n");
 	}
 
-	bt_retry_cnt = rtlhal->hal_coex_8723.bt_retry_cnt;
 	bt_info_original = rtlhal->hal_coex_8723.c2h_bt_info_original;
 
 	/* when bt inquiry or page scan, we have to set h2c 0x25

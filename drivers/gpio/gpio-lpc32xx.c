@@ -21,6 +21,7 @@
 #include <linux/io.h>
 #include <linux/errno.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
@@ -255,7 +256,7 @@ static int __get_gpo_state_p3(struct lpc32xx_gpio_chip *group,
 }
 
 /*
- * GENERIC_GPIO primitives.
+ * GPIO primitives.
  */
 static int lpc32xx_gpio_dir_input_p012(struct gpio_chip *chip,
 	unsigned pin)
@@ -533,7 +534,7 @@ static int lpc32xx_of_xlate(struct gpio_chip *gc,
 {
 	/* Is this the correct bank? */
 	u32 bank = gpiospec->args[0];
-	if ((bank > ARRAY_SIZE(lpc32xx_gpiochip) ||
+	if ((bank >= ARRAY_SIZE(lpc32xx_gpiochip) ||
 	    (gc != &lpc32xx_gpiochip[bank].chip)))
 		return -EINVAL;
 

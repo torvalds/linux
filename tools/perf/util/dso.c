@@ -7,19 +7,20 @@
 char dso__symtab_origin(const struct dso *dso)
 {
 	static const char origin[] = {
-		[DSO_BINARY_TYPE__KALLSYMS]		= 'k',
-		[DSO_BINARY_TYPE__VMLINUX]		= 'v',
-		[DSO_BINARY_TYPE__JAVA_JIT]		= 'j',
-		[DSO_BINARY_TYPE__DEBUGLINK]		= 'l',
-		[DSO_BINARY_TYPE__BUILD_ID_CACHE]	= 'B',
-		[DSO_BINARY_TYPE__FEDORA_DEBUGINFO]	= 'f',
-		[DSO_BINARY_TYPE__UBUNTU_DEBUGINFO]	= 'u',
-		[DSO_BINARY_TYPE__BUILDID_DEBUGINFO]	= 'b',
-		[DSO_BINARY_TYPE__SYSTEM_PATH_DSO]	= 'd',
-		[DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE]	= 'K',
-		[DSO_BINARY_TYPE__GUEST_KALLSYMS]	= 'g',
-		[DSO_BINARY_TYPE__GUEST_KMODULE]	= 'G',
-		[DSO_BINARY_TYPE__GUEST_VMLINUX]	= 'V',
+		[DSO_BINARY_TYPE__KALLSYMS]			= 'k',
+		[DSO_BINARY_TYPE__VMLINUX]			= 'v',
+		[DSO_BINARY_TYPE__JAVA_JIT]			= 'j',
+		[DSO_BINARY_TYPE__DEBUGLINK]			= 'l',
+		[DSO_BINARY_TYPE__BUILD_ID_CACHE]		= 'B',
+		[DSO_BINARY_TYPE__FEDORA_DEBUGINFO]		= 'f',
+		[DSO_BINARY_TYPE__UBUNTU_DEBUGINFO]		= 'u',
+		[DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO]	= 'o',
+		[DSO_BINARY_TYPE__BUILDID_DEBUGINFO]		= 'b',
+		[DSO_BINARY_TYPE__SYSTEM_PATH_DSO]		= 'd',
+		[DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE]		= 'K',
+		[DSO_BINARY_TYPE__GUEST_KALLSYMS]		= 'g',
+		[DSO_BINARY_TYPE__GUEST_KMODULE]		= 'G',
+		[DSO_BINARY_TYPE__GUEST_VMLINUX]		= 'V',
 	};
 
 	if (dso == NULL || dso->symtab_type == DSO_BINARY_TYPE__NOT_FOUND)
@@ -64,6 +65,28 @@ int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
 			 symbol_conf.symfs, dso->long_name);
 		break;
 
+	case DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO:
+	{
+		char *last_slash;
+		size_t len;
+		size_t dir_size;
+
+		last_slash = dso->long_name + dso->long_name_len;
+		while (last_slash != dso->long_name && *last_slash != '/')
+			last_slash--;
+
+		len = scnprintf(file, size, "%s", symbol_conf.symfs);
+		dir_size = last_slash - dso->long_name + 2;
+		if (dir_size > (size - len)) {
+			ret = -1;
+			break;
+		}
+		len += scnprintf(file + len, dir_size, "%s",  dso->long_name);
+		len += scnprintf(file + len , size - len, ".debug%s",
+								last_slash);
+		break;
+	}
+
 	case DSO_BINARY_TYPE__BUILDID_DEBUGINFO:
 		if (!dso->has_build_id) {
 			ret = -1;
@@ -78,6 +101,8 @@ int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
 			 symbol_conf.symfs, build_id_hex, build_id_hex + 2);
 		break;
 
+	case DSO_BINARY_TYPE__VMLINUX:
+	case DSO_BINARY_TYPE__GUEST_VMLINUX:
 	case DSO_BINARY_TYPE__SYSTEM_PATH_DSO:
 		snprintf(file, size, "%s%s",
 			 symbol_conf.symfs, dso->long_name);
@@ -93,11 +118,14 @@ int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
 			 dso->long_name);
 		break;
 
+	case DSO_BINARY_TYPE__KCORE:
+	case DSO_BINARY_TYPE__GUEST_KCORE:
+		snprintf(file, size, "%s", dso->long_name);
+		break;
+
 	default:
 	case DSO_BINARY_TYPE__KALLSYMS:
-	case DSO_BINARY_TYPE__VMLINUX:
 	case DSO_BINARY_TYPE__GUEST_KALLSYMS:
-	case DSO_BINARY_TYPE__GUEST_VMLINUX:
 	case DSO_BINARY_TYPE__JAVA_JIT:
 	case DSO_BINARY_TYPE__NOT_FOUND:
 		ret = -1;
@@ -419,8 +447,10 @@ struct dso *dso__new(const char *name)
 		dso->symtab_type = DSO_BINARY_TYPE__NOT_FOUND;
 		dso->data_type   = DSO_BINARY_TYPE__NOT_FOUND;
 		dso->loaded = 0;
+		dso->rel = 0;
 		dso->sorted_by_name = 0;
 		dso->has_build_id = 0;
+		dso->has_srcline = 1;
 		dso->kernel = DSO_TYPE_USER;
 		dso->needs_swap = DSO_SWAP__UNSET;
 		INIT_LIST_HEAD(&dso->node);
@@ -513,10 +543,16 @@ void dsos__add(struct list_head *head, struct dso *dso)
 	list_add_tail(&dso->node, head);
 }
 
-struct dso *dsos__find(struct list_head *head, const char *name)
+struct dso *dsos__find(struct list_head *head, const char *name, bool cmp_short)
 {
 	struct dso *pos;
 
+	if (cmp_short) {
+		list_for_each_entry(pos, head, node)
+			if (strcmp(pos->short_name, name) == 0)
+				return pos;
+		return NULL;
+	}
 	list_for_each_entry(pos, head, node)
 		if (strcmp(pos->long_name, name) == 0)
 			return pos;
@@ -525,7 +561,7 @@ struct dso *dsos__find(struct list_head *head, const char *name)
 
 struct dso *__dsos__findnew(struct list_head *head, const char *name)
 {
-	struct dso *dso = dsos__find(head, name);
+	struct dso *dso = dsos__find(head, name, false);
 
 	if (!dso) {
 		dso = dso__new(name);
@@ -539,13 +575,13 @@ struct dso *__dsos__findnew(struct list_head *head, const char *name)
 }
 
 size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,
-			       bool with_hits)
+			       bool (skip)(struct dso *dso, int parm), int parm)
 {
 	struct dso *pos;
 	size_t ret = 0;
 
 	list_for_each_entry(pos, head, node) {
-		if (with_hits && !pos->hit)
+		if (skip && skip(pos, parm))
 			continue;
 		ret += dso__fprintf_buildid(pos, fp);
 		ret += fprintf(fp, " %s\n", pos->long_name);
@@ -583,7 +619,7 @@ size_t dso__fprintf(struct dso *dso, enum map_type type, FILE *fp)
 	if (dso->short_name != dso->long_name)
 		ret += fprintf(fp, "%s, ", dso->long_name);
 	ret += fprintf(fp, "%s, %sloaded, ", map_type__name[type],
-		       dso->loaded ? "" : "NOT ");
+		       dso__loaded(dso, type) ? "" : "NOT ");
 	ret += dso__fprintf_buildid(dso, fp);
 	ret += fprintf(fp, ")\n");
 	for (nd = rb_first(&dso->symbols[type]); nd; nd = rb_next(nd)) {

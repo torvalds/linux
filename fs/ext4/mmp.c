@@ -7,7 +7,7 @@
 #include "ext4.h"
 
 /* Checksumming functions */
-static __u32 ext4_mmp_csum(struct super_block *sb, struct mmp_struct *mmp)
+static __le32 ext4_mmp_csum(struct super_block *sb, struct mmp_struct *mmp)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	int offset = offsetof(struct mmp_struct, mmp_checksum);
@@ -54,7 +54,7 @@ static int write_mmp_block(struct super_block *sb, struct buffer_head *bh)
 	lock_buffer(bh);
 	bh->b_end_io = end_buffer_write_sync;
 	get_bh(bh);
-	submit_bh(WRITE_SYNC, bh);
+	submit_bh(WRITE_SYNC | REQ_META | REQ_PRIO, bh);
 	wait_on_buffer(bh);
 	sb_end_write(sb);
 	if (unlikely(!buffer_uptodate(bh)))
@@ -80,18 +80,20 @@ static int read_mmp_block(struct super_block *sb, struct buffer_head **bh,
 	 * is not blocked in the elevator. */
 	if (!*bh)
 		*bh = sb_getblk(sb, mmp_block);
+	if (!*bh)
+		return -ENOMEM;
 	if (*bh) {
 		get_bh(*bh);
 		lock_buffer(*bh);
 		(*bh)->b_end_io = end_buffer_read_sync;
-		submit_bh(READ_SYNC, *bh);
+		submit_bh(READ_SYNC | REQ_META | REQ_PRIO, *bh);
 		wait_on_buffer(*bh);
 		if (!buffer_uptodate(*bh)) {
 			brelse(*bh);
 			*bh = NULL;
 		}
 	}
-	if (!*bh) {
+	if (unlikely(!*bh)) {
 		ext4_warning(sb, "Error while reading MMP block %llu",
 			     mmp_block);
 		return -EIO;
@@ -257,7 +259,7 @@ static unsigned int mmp_new_seq(void)
 	u32 new_seq;
 
 	do {
-		get_random_bytes(&new_seq, sizeof(u32));
+		new_seq = prandom_u32();
 	} while (new_seq > EXT4_MMP_SEQ_MAX);
 
 	return new_seq;

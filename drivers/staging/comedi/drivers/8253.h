@@ -14,17 +14,21 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
 #ifndef _8253_H
 #define _8253_H
 
 #include "../comedi.h"
+
+/*
+ * Common oscillator base values in nanoseconds
+ */
+#define I8254_OSC_BASE_10MHZ		100
+#define I8254_OSC_BASE_5MHZ		200
+#define I8254_OSC_BASE_4MHZ		250
+#define I8254_OSC_BASE_2MHZ		500
+#define I8254_OSC_BASE_1MHZ		1000
 
 #define i8253_cascade_ns_to_timer i8253_cascade_ns_to_timer_2div
 

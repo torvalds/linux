@@ -82,11 +82,11 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 	if (!is_kernel_addr(addr)) {
 		ssize = user_segment_size(addr);
 		vsid = get_vsid(mm->context.id, addr, ssize);
-		WARN_ON(vsid == 0);
 	} else {
 		vsid = get_kernel_vsid(addr, mmu_kernel_ssize);
 		ssize = mmu_kernel_ssize;
 	}
+	WARN_ON(vsid == 0);
 	vpn = hpt_vpn(addr, vsid, ssize);
 	rpte = __real_pte(__pte(pte), ptep);
 
@@ -183,14 +183,13 @@ void tlb_flush(struct mmu_gather *tlb)
  * since 64K pages may overlap with other bridges when using 64K pages
  * with 4K HW pages on IO space.
  *
- * Because of that usage pattern, it's only available with CONFIG_HOTPLUG
- * and is implemented for small size rather than speed.
+ * Because of that usage pattern, it is implemented for small size rather
+ * than speed.
  */
-#ifdef CONFIG_HOTPLUG
-
 void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
 			      unsigned long end)
 {
+	int hugepage_shift;
 	unsigned long flags;
 
 	start = _ALIGN_DOWN(start, PAGE_SIZE);
@@ -208,7 +207,8 @@ void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
 	local_irq_save(flags);
 	arch_enter_lazy_mmu_mode();
 	for (; start < end; start += PAGE_SIZE) {
-		pte_t *ptep = find_linux_pte(mm->pgd, start);
+		pte_t *ptep = find_linux_pte_or_hugepte(mm->pgd, start,
+							&hugepage_shift);
 		unsigned long pte;
 
 		if (ptep == NULL)
@@ -216,10 +216,38 @@ void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
 		pte = pte_val(*ptep);
 		if (!(pte & _PAGE_HASHPTE))
 			continue;
-		hpte_need_flush(mm, start, ptep, pte, 0);
+		if (unlikely(hugepage_shift && pmd_trans_huge(*(pmd_t *)pte)))
+			hpte_do_hugepage_flush(mm, start, (pmd_t *)pte);
+		else
+			hpte_need_flush(mm, start, ptep, pte, 0);
 	}
 	arch_leave_lazy_mmu_mode();
 	local_irq_restore(flags);
 }
 
-#endif /* CONFIG_HOTPLUG */
+void flush_tlb_pmd_range(struct mm_struct *mm, pmd_t *pmd, unsigned long addr)
+{
+	pte_t *pte;
+	pte_t *start_pte;
+	unsigned long flags;
+
+	addr = _ALIGN_DOWN(addr, PMD_SIZE);
+	/* Note: Normally, we should only ever use a batch within a
+	 * PTE locked section. This violates the rule, but will work
+	 * since we don't actually modify the PTEs, we just flush the
+	 * hash while leaving the PTEs intact (including their reference
+	 * to being hashed). This is not the most performance oriented
+	 * way to do things but is fine for our needs here.
+	 */
+	local_irq_save(flags);
+	arch_enter_lazy_mmu_mode();
+	start_pte = pte_offset_map(pmd, addr);
+	for (pte = start_pte; pte < start_pte + PTRS_PER_PTE; pte++) {
+		unsigned long pteval = pte_val(*pte);
+		if (pteval & _PAGE_HASHPTE)
+			hpte_need_flush(mm, addr, pte, pteval, 0);
+		addr += PAGE_SIZE;
+	}
+	arch_leave_lazy_mmu_mode();
+	local_irq_restore(flags);
+}

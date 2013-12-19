@@ -515,6 +515,7 @@ struct pnp_resource *pnp_add_resource(struct pnp_dev *dev,
 	}
 
 	pnp_res->res = *res;
+	pnp_res->res.name = dev->name;
 	dev_dbg(&dev->dev, "%pR\n", res);
 	return pnp_res;
 }

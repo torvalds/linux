@@ -727,7 +727,6 @@ static void __rtl8139_cleanup_dev (struct net_device *dev)
 	pci_release_regions (pdev);
 
 	free_netdev(dev);
-	pci_set_drvdata (pdev, NULL);
 }
 
 
@@ -790,6 +789,9 @@ static struct net_device *rtl8139_init_board(struct pci_dev *pdev)
 	disable_dev_on_err = 1;
 
 	pci_set_master (pdev);
+
+	u64_stats_init(&tp->rx_stats.syncp);
+	u64_stats_init(&tp->tx_stats.syncp);
 
 retry:
 	/* PIO bar register comes first. */
@@ -991,7 +993,6 @@ static int rtl8139_init_one(struct pci_dev *pdev,
 	for (i = 0; i < 3; i++)
 		((__le16 *) (dev->dev_addr))[i] =
 		    cpu_to_le16(read_eeprom (ioaddr, i + 7, addr_len));
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	/* The Rtl8139-specific entries in the device structure. */
 	dev->netdev_ops = &rtl8139_netdev_ops;
@@ -2042,8 +2043,6 @@ keep_pkt:
 
 			netif_receive_skb (skb);
 		} else {
-			if (net_ratelimit())
-				netdev_warn(dev, "Memory squeeze, dropping packet\n");
 			dev->stats.rx_dropped++;
 		}
 		received++;

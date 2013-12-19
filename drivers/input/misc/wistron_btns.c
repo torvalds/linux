@@ -46,7 +46,6 @@
 MODULE_AUTHOR("Miloslav Trmac <mitr@volny.cz>");
 MODULE_DESCRIPTION("Wistron laptop button driver");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION("0.3");
 
 static bool force; /* = 0; */
 module_param(force, bool, 0);
@@ -563,7 +562,7 @@ static struct key_entry keymap_wistron_md96500[] __initdata = {
 	{ KE_KEY, 0x36, {KEY_WWW} },
 	{ KE_WIFI, 0x30 },
 	{ KE_BLUETOOTH, 0x44 },
-	{ KE_END, FE_UNTESTED }
+	{ KE_END, 0 }
 };
 
 static struct key_entry keymap_wistron_generic[] __initdata = {
@@ -635,7 +634,7 @@ static struct key_entry keymap_prestigio[] __initdata = {
  * a list of buttons and their key codes (reported when loading this module
  * with force=1) and the output of dmidecode to $MODULE_AUTHOR.
  */
-static const struct dmi_system_id __initconst dmi_ids[] = {
+static const struct dmi_system_id dmi_ids[] __initconst = {
 	{
 		/* Fujitsu-Siemens Amilo Pro V2000 */
 		.callback = dmi_matched,
@@ -972,6 +971,7 @@ static const struct dmi_system_id __initconst dmi_ids[] = {
 	},
 	{ NULL, }
 };
+MODULE_DEVICE_TABLE(dmi, dmi_ids);
 
 /* Copy the good keymap, as the original ones are free'd */
 static int __init copy_keymap(void)

@@ -38,6 +38,7 @@
 #include <drm/radeon_drm.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/swiotlb.h>
 #include "radeon_reg.h"
 #include "radeon.h"
 
@@ -202,7 +203,9 @@ static void radeon_evict_flags(struct ttm_buffer_object *bo,
 
 static int radeon_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
-	return 0;
+	struct radeon_bo *rbo = container_of(bo, struct radeon_bo, tbo);
+
+	return drm_vma_node_verify_access(&rbo->gem_base.vma_node, filp);
 }
 
 static void radeon_move_null(struct ttm_buffer_object *bo,
@@ -725,7 +728,7 @@ int radeon_ttm_init(struct radeon_device *rdev)
 		return r;
 	}
 	DRM_INFO("radeon: %uM of VRAM memory ready\n",
-		 (unsigned)rdev->mc.real_vram_size / (1024 * 1024));
+		 (unsigned) (rdev->mc.real_vram_size / (1024 * 1024)));
 	r = ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_TT,
 				rdev->mc.gtt_size >> PAGE_SHIFT);
 	if (r) {

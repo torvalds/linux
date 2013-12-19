@@ -267,7 +267,6 @@ static void e1000_check_copper_options(struct e1000_adapter *adapter);
  * value exists, a default value is used.  The final value is stored
  * in a variable in the adapter structure.
  **/
-
 void e1000_check_options(struct e1000_adapter *adapter)
 {
 	struct e1000_option opt;
@@ -319,7 +318,8 @@ void e1000_check_options(struct e1000_adapter *adapter)
 			.def  = E1000_DEFAULT_RXD,
 			.arg  = { .r = {
 				.min = E1000_MIN_RXD,
-				.max = mac_type < e1000_82544 ? E1000_MAX_RXD : E1000_MAX_82544_RXD
+				.max = mac_type < e1000_82544 ? E1000_MAX_RXD :
+				       E1000_MAX_82544_RXD
 			}}
 		};
 
@@ -408,7 +408,7 @@ void e1000_check_options(struct e1000_adapter *adapter)
 		if (num_TxAbsIntDelay > bd) {
 			adapter->tx_abs_int_delay = TxAbsIntDelay[bd];
 			e1000_validate_option(&adapter->tx_abs_int_delay, &opt,
-			                      adapter);
+					      adapter);
 		} else {
 			adapter->tx_abs_int_delay = opt.def;
 		}
@@ -426,7 +426,7 @@ void e1000_check_options(struct e1000_adapter *adapter)
 		if (num_RxIntDelay > bd) {
 			adapter->rx_int_delay = RxIntDelay[bd];
 			e1000_validate_option(&adapter->rx_int_delay, &opt,
-			                      adapter);
+					      adapter);
 		} else {
 			adapter->rx_int_delay = opt.def;
 		}
@@ -444,7 +444,7 @@ void e1000_check_options(struct e1000_adapter *adapter)
 		if (num_RxAbsIntDelay > bd) {
 			adapter->rx_abs_int_delay = RxAbsIntDelay[bd];
 			e1000_validate_option(&adapter->rx_abs_int_delay, &opt,
-			                      adapter);
+					      adapter);
 		} else {
 			adapter->rx_abs_int_delay = opt.def;
 		}
@@ -479,16 +479,17 @@ void e1000_check_options(struct e1000_adapter *adapter)
 				break;
 			case 4:
 				e_dev_info("%s set to simplified "
-				           "(2000-8000) ints mode\n", opt.name);
+					   "(2000-8000) ints mode\n", opt.name);
 				adapter->itr_setting = adapter->itr;
 				break;
 			default:
 				e1000_validate_option(&adapter->itr, &opt,
-				        adapter);
+						      adapter);
 				/* save the setting, because the dynamic bits
 				 * change itr.
 				 * clear the lower two bits because they are
-				 * used as control */
+				 * used as control
+				 */
 				adapter->itr_setting = adapter->itr & ~3;
 				break;
 			}
@@ -533,7 +534,6 @@ void e1000_check_options(struct e1000_adapter *adapter)
  *
  * Handles speed and duplex options on fiber adapters
  **/
-
 static void e1000_check_fiber_options(struct e1000_adapter *adapter)
 {
 	int bd = adapter->bd_number;
@@ -559,7 +559,6 @@ static void e1000_check_fiber_options(struct e1000_adapter *adapter)
  *
  * Handles speed and duplex options on copper adapters
  **/
-
 static void e1000_check_copper_options(struct e1000_adapter *adapter)
 {
 	struct e1000_option opt;
@@ -681,22 +680,22 @@ static void e1000_check_copper_options(struct e1000_adapter *adapter)
 		e_dev_info("Using Autonegotiation at Half Duplex only\n");
 		adapter->hw.autoneg = adapter->fc_autoneg = 1;
 		adapter->hw.autoneg_advertised = ADVERTISE_10_HALF |
-		                                 ADVERTISE_100_HALF;
+						 ADVERTISE_100_HALF;
 		break;
 	case FULL_DUPLEX:
 		e_dev_info("Full Duplex specified without Speed\n");
 		e_dev_info("Using Autonegotiation at Full Duplex only\n");
 		adapter->hw.autoneg = adapter->fc_autoneg = 1;
 		adapter->hw.autoneg_advertised = ADVERTISE_10_FULL |
-		                                 ADVERTISE_100_FULL |
-		                                 ADVERTISE_1000_FULL;
+						 ADVERTISE_100_FULL |
+						 ADVERTISE_1000_FULL;
 		break;
 	case SPEED_10:
 		e_dev_info("10 Mbps Speed specified without Duplex\n");
 		e_dev_info("Using Autonegotiation at 10 Mbps only\n");
 		adapter->hw.autoneg = adapter->fc_autoneg = 1;
 		adapter->hw.autoneg_advertised = ADVERTISE_10_HALF |
-		                                 ADVERTISE_10_FULL;
+						 ADVERTISE_10_FULL;
 		break;
 	case SPEED_10 + HALF_DUPLEX:
 		e_dev_info("Forcing to 10 Mbps Half Duplex\n");
@@ -715,7 +714,7 @@ static void e1000_check_copper_options(struct e1000_adapter *adapter)
 		e_dev_info("Using Autonegotiation at 100 Mbps only\n");
 		adapter->hw.autoneg = adapter->fc_autoneg = 1;
 		adapter->hw.autoneg_advertised = ADVERTISE_100_HALF |
-		                                 ADVERTISE_100_FULL;
+						 ADVERTISE_100_FULL;
 		break;
 	case SPEED_100 + HALF_DUPLEX:
 		e_dev_info("Forcing to 100 Mbps Half Duplex\n");

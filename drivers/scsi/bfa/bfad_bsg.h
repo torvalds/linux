@@ -46,8 +46,9 @@ enum {
 	IOCMD_PORT_CFG_ALPA,
 	IOCMD_PORT_CFG_MAXFRSZ,
 	IOCMD_PORT_CLR_ALPA,
-	IOCMD_PORT_BBSC_ENABLE,
-	IOCMD_PORT_BBSC_DISABLE,
+	IOCMD_PORT_BBCR_ENABLE,
+	IOCMD_PORT_BBCR_DISABLE,
+	IOCMD_PORT_BBCR_GET_ATTR,
 	IOCMD_LPORT_GET_ATTR,
 	IOCMD_LPORT_GET_RPORTS,
 	IOCMD_LPORT_GET_STATS,
@@ -143,7 +144,6 @@ enum {
 	IOCMD_FCPIM_LUNMASK_DELETE,
 	IOCMD_DIAG_DPORT_ENABLE,
 	IOCMD_DIAG_DPORT_DISABLE,
-	IOCMD_DIAG_DPORT_GET_STATE,
 	IOCMD_QOS_SET_BW,
 	IOCMD_FCPIM_THROTTLE_QUERY,
 	IOCMD_FCPIM_THROTTLE_SET,
@@ -152,6 +152,8 @@ enum {
 	IOCMD_FRUVPD_READ,
 	IOCMD_FRUVPD_UPDATE,
 	IOCMD_FRUVPD_GET_MAX_SIZE,
+	IOCMD_DIAG_DPORT_SHOW,
+	IOCMD_DIAG_DPORT_START,
 };
 
 struct bfa_bsg_gen_s {
@@ -495,6 +497,20 @@ struct bfa_bsg_port_cfg_mode_s {
 	struct bfa_port_cfg_mode_s cfg;
 };
 
+struct bfa_bsg_bbcr_enable_s {
+	bfa_status_t    status;
+	u16		bfad_num;
+	u8		bb_scn;
+	u8		rsvd;
+};
+
+struct bfa_bsg_bbcr_attr_s {
+	bfa_status_t    status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct bfa_bbcr_attr_s attr;
+};
+
 struct bfa_bsg_faa_attr_s {
 	bfa_status_t		status;
 	u16			bfad_num;
@@ -578,6 +594,21 @@ struct bfa_bsg_diag_loopback_s {
 	struct bfa_diag_loopback_result_s result;
 };
 
+struct bfa_bsg_diag_dport_show_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct bfa_diag_dport_result_s result;
+};
+
+struct bfa_bsg_dport_enable_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	u16		lpcnt;
+	u16		pat;
+};
+
 struct bfa_bsg_diag_fwping_s {
 	bfa_status_t	status;
 	u16		bfad_num;
@@ -623,13 +654,6 @@ struct bfa_bsg_diag_lb_stat_s {
 	bfa_status_t	status;
 	u16		bfad_num;
 	u16		rsvd;
-};
-
-struct bfa_bsg_diag_dport_get_state_s {
-	bfa_status_t	status;
-	u16		bfad_num;
-	u16		rsvd;
-	enum bfa_dport_state state;
 };
 
 struct bfa_bsg_phy_attr_s {
@@ -770,10 +794,12 @@ struct bfa_bsg_tfru_s {
 struct bfa_bsg_fruvpd_s {
 	bfa_status_t	status;
 	u16		bfad_num;
-	u16		rsvd;
+	u16		rsvd1;
 	u32		offset;
 	u32		len;
 	u8		data[BFA_MAX_FRUVPD_TRANSFER_SIZE];
+	u8		trfr_cmpl;
+	u8		rsvd2[3];
 };
 
 struct bfa_bsg_fruvpd_max_size_s {
@@ -795,10 +821,12 @@ struct bfa_bsg_fcpt_s {
 };
 #define bfa_bsg_fcpt_t struct bfa_bsg_fcpt_s
 
+#pragma pack(1)
 struct bfa_bsg_data {
 	int payload_len;
-	void *payload;
+	u64 payload;
 };
+#pragma pack()
 
 #define bfad_chk_iocmd_sz(__payload_len, __hdrsz, __bufsz)	\
 	(((__payload_len) != ((__hdrsz) + (__bufsz))) ?		\

@@ -163,11 +163,6 @@ input/output interface to linux-media@vger.kernel.org on 19 Oct 2009.
 	&cs-def;
 	<tbody valign="top">
 	  <row>
-	    <entry><constant>V4L2_OUT_CAP_PRESETS</constant></entry>
-	    <entry>0x00000001</entry>
-	    <entry>This output supports setting DV presets by using VIDIOC_S_DV_PRESET.</entry>
-	  </row>
-	  <row>
 	    <entry><constant>V4L2_OUT_CAP_DV_TIMINGS</constant></entry>
 	    <entry>0x00000002</entry>
 	    <entry>This output supports setting video timings by using VIDIOC_S_DV_TIMINGS.</entry>

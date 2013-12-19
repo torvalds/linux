@@ -28,11 +28,11 @@ static inline void up_send_ipi_mask(const struct cpumask *mask,
  *  After we've done initial boot, this function is called to allow the
  *  board code to clean up state, if needed
  */
-static void __cpuinit up_init_secondary(void)
+static void up_init_secondary(void)
 {
 }
 
-static void __cpuinit up_smp_finish(void)
+static void up_smp_finish(void)
 {
 }
 
@@ -44,7 +44,7 @@ static void up_cpus_done(void)
 /*
  * Firmware CPU startup hook
  */
-static void __cpuinit up_boot_secondary(int cpu, struct task_struct *idle)
+static void up_boot_secondary(int cpu, struct task_struct *idle)
 {
 }
 

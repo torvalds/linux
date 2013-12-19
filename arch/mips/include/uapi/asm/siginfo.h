@@ -11,7 +11,7 @@
 
 
 #define __ARCH_SIGEV_PREAMBLE_SIZE (sizeof(long) + 2*sizeof(int))
-#undef __ARCH_SI_TRAPNO	/* exception code needs to fill this ...  */
+#undef __ARCH_SI_TRAPNO /* exception code needs to fill this ...  */
 
 #define HAVE_ARCH_SIGINFO_T
 
@@ -25,12 +25,15 @@ struct siginfo;
 /*
  * Careful to keep union _sifields from shifting ...
  */
-#ifdef CONFIG_32BIT
+#if _MIPS_SZLONG == 32
 #define __ARCH_SI_PREAMBLE_SIZE (3 * sizeof(int))
-#endif
-#ifdef CONFIG_64BIT
+#elif _MIPS_SZLONG == 64
 #define __ARCH_SI_PREAMBLE_SIZE (4 * sizeof(int))
+#else
+#error _MIPS_SZLONG neither 32 nor 64
 #endif
+
+#define __ARCH_SIGSYS
 
 #include <asm-generic/siginfo.h>
 
@@ -55,7 +58,7 @@ typedef struct siginfo {
 			int _overrun;		/* overrun count */
 			char _pad[sizeof( __ARCH_SI_UID_T) - sizeof(int)];
 			sigval_t _sigval;	/* same as below */
-			int _sys_private;       /* not to be passed to user */
+			int _sys_private;	/* not to be passed to user */
 		} _timer;
 
 		/* POSIX.1b signals */
@@ -91,11 +94,18 @@ typedef struct siginfo {
 			short _addr_lsb;
 		} _sigfault;
 
-		/* SIGPOLL, SIGXFSZ (To do ...)  */
+		/* SIGPOLL, SIGXFSZ (To do ...)	 */
 		struct {
-			__ARCH_SI_BAND_T _band;	/* POLL_IN, POLL_OUT, POLL_MSG */
+			__ARCH_SI_BAND_T _band; /* POLL_IN, POLL_OUT, POLL_MSG */
 			int _fd;
 		} _sigpoll;
+
+		/* SIGSYS */
+		struct {
+			void __user *_call_addr; /* calling user insn */
+			int _syscall;	/* triggering system call number */
+			unsigned int _arch;	/* AUDIT_ARCH_* of syscall */
+		} _sigsys;
 	} _sifields;
 } siginfo_t;
 

@@ -17,6 +17,7 @@
 
 #include "super.h"
 #include "mds_client.h"
+#include "cache.h"
 
 #include <linux/ceph/ceph_features.h>
 #include <linux/ceph/decode.h>
@@ -71,8 +72,14 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 	/*
 	 * express utilization in terms of large blocks to avoid
 	 * overflow on 32-bit machines.
+	 *
+	 * NOTE: for the time being, we make bsize == frsize to humor
+	 * not-yet-ancient versions of glibc that are broken.
+	 * Someday, we will probably want to report a real block
+	 * size...  whatever that may mean for a network file system!
 	 */
 	buf->f_bsize = 1 << CEPH_BLOCK_SHIFT;
+	buf->f_frsize = 1 << CEPH_BLOCK_SHIFT;
 	buf->f_blocks = le64_to_cpu(st.kb) >> (CEPH_BLOCK_SHIFT-10);
 	buf->f_bfree = le64_to_cpu(st.kb_avail) >> (CEPH_BLOCK_SHIFT-10);
 	buf->f_bavail = le64_to_cpu(st.kb_avail) >> (CEPH_BLOCK_SHIFT-10);
@@ -80,7 +87,6 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_files = le64_to_cpu(st.num_objects);
 	buf->f_ffree = -1;
 	buf->f_namelen = NAME_MAX;
-	buf->f_frsize = PAGE_CACHE_SIZE;
 
 	/* leave fsid little-endian, regardless of host endianness */
 	fsid = *(u64 *)(&monmap->fsid) ^ *((u64 *)&monmap->fsid + 1);
@@ -137,6 +143,8 @@ enum {
 	Opt_nodcache,
 	Opt_ino32,
 	Opt_noino32,
+	Opt_fscache,
+	Opt_nofscache
 };
 
 static match_table_t fsopt_tokens = {
@@ -162,6 +170,8 @@ static match_table_t fsopt_tokens = {
 	{Opt_nodcache, "nodcache"},
 	{Opt_ino32, "ino32"},
 	{Opt_noino32, "noino32"},
+	{Opt_fscache, "fsc"},
+	{Opt_nofscache, "nofsc"},
 	{-1, NULL}
 };
 
@@ -254,6 +264,12 @@ static int parse_fsopt_token(char *c, void *private)
 		break;
 	case Opt_noino32:
 		fsopt->flags &= ~CEPH_MOUNT_OPT_INO32;
+		break;
+	case Opt_fscache:
+		fsopt->flags |= CEPH_MOUNT_OPT_FSCACHE;
+		break;
+	case Opt_nofscache:
+		fsopt->flags &= ~CEPH_MOUNT_OPT_FSCACHE;
 		break;
 	default:
 		BUG_ON(token);
@@ -352,7 +368,7 @@ static int parse_mount_options(struct ceph_mount_options **pfsopt,
 	}
 	err = -EINVAL;
 	dev_name_end--;		/* back up to ':' separator */
-	if (*dev_name_end != ':') {
+	if (dev_name_end < dev_name || *dev_name_end != ':') {
 		pr_err("device name is missing path (no : separator in %s)\n",
 				dev_name);
 		goto out;
@@ -417,6 +433,10 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",dcache");
 	else
 		seq_puts(m, ",nodcache");
+	if (fsopt->flags & CEPH_MOUNT_OPT_FSCACHE)
+		seq_puts(m, ",fsc");
+	else
+		seq_puts(m, ",nofsc");
 
 	if (fsopt->wsize)
 		seq_printf(m, ",wsize=%d", fsopt->wsize);
@@ -474,6 +494,8 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 		CEPH_FEATURE_FLOCK |
 		CEPH_FEATURE_DIRLAYOUTHASH;
 	const unsigned required_features = 0;
+	int page_count;
+	size_t size;
 	int err = -ENOMEM;
 
 	fsc = kzalloc(sizeof(*fsc), GFP_KERNEL);
@@ -517,16 +539,24 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 
 	/* set up mempools */
 	err = -ENOMEM;
-	fsc->wb_pagevec_pool = mempool_create_kmalloc_pool(10,
-			      fsc->mount_options->wsize >> PAGE_CACHE_SHIFT);
+	page_count = fsc->mount_options->wsize >> PAGE_CACHE_SHIFT;
+	size = sizeof (struct page *) * (page_count ? page_count : 1);
+	fsc->wb_pagevec_pool = mempool_create_kmalloc_pool(10, size);
 	if (!fsc->wb_pagevec_pool)
 		goto fail_trunc_wq;
+
+	/* setup fscache */
+	if ((fsopt->flags & CEPH_MOUNT_OPT_FSCACHE) &&
+	    (ceph_fscache_register_fs(fsc) != 0))
+		goto fail_fscache;
 
 	/* caps */
 	fsc->min_caps = fsopt->max_readdir;
 
 	return fsc;
 
+fail_fscache:
+	ceph_fscache_unregister_fs(fsc);
 fail_trunc_wq:
 	destroy_workqueue(fsc->trunc_wq);
 fail_pg_inv_wq:
@@ -545,6 +575,8 @@ fail:
 static void destroy_fs_client(struct ceph_fs_client *fsc)
 {
 	dout("destroy_fs_client %p\n", fsc);
+
+	ceph_fscache_unregister_fs(fsc);
 
 	destroy_workqueue(fsc->wb_wq);
 	destroy_workqueue(fsc->pg_inv_wq);
@@ -580,6 +612,8 @@ static void ceph_inode_init_once(void *foo)
 
 static int __init init_caches(void)
 {
+	int error = -ENOMEM;
+
 	ceph_inode_cachep = kmem_cache_create("ceph_inode_info",
 				      sizeof(struct ceph_inode_info),
 				      __alignof__(struct ceph_inode_info),
@@ -603,15 +637,17 @@ static int __init init_caches(void)
 	if (ceph_file_cachep == NULL)
 		goto bad_file;
 
-	return 0;
+	if ((error = ceph_fscache_register()))
+		goto bad_file;
 
+	return 0;
 bad_file:
 	kmem_cache_destroy(ceph_dentry_cachep);
 bad_dentry:
 	kmem_cache_destroy(ceph_cap_cachep);
 bad_cap:
 	kmem_cache_destroy(ceph_inode_cachep);
-	return -ENOMEM;
+	return error;
 }
 
 static void destroy_caches(void)
@@ -621,10 +657,13 @@ static void destroy_caches(void)
 	 * destroy cache.
 	 */
 	rcu_barrier();
+
 	kmem_cache_destroy(ceph_inode_cachep);
 	kmem_cache_destroy(ceph_cap_cachep);
 	kmem_cache_destroy(ceph_dentry_cachep);
 	kmem_cache_destroy(ceph_file_cachep);
+
+	ceph_fscache_unregister();
 }
 
 
@@ -947,6 +986,7 @@ static struct file_system_type ceph_fs_type = {
 	.kill_sb	= ceph_kill_sb,
 	.fs_flags	= FS_RENAME_DOES_D_MOVE,
 };
+MODULE_ALIAS_FS("ceph");
 
 #define _STRINGIFY(x) #x
 #define STRINGIFY(x) _STRINGIFY(x)

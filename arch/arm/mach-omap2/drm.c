@@ -25,11 +25,10 @@
 #include <linux/dma-mapping.h>
 #include <linux/platform_data/omap_drm.h>
 
-#include "omap_device.h"
-#include "omap_hwmod.h"
-#include <plat/cpu.h>
+#include "soc.h"
+#include "display.h"
 
-#if defined(CONFIG_DRM_OMAP) || (CONFIG_DRM_OMAP_MODULE)
+#if defined(CONFIG_DRM_OMAP) || defined(CONFIG_DRM_OMAP_MODULE)
 
 static struct omap_drm_platform_data platform_data;
 
@@ -42,27 +41,13 @@ static struct platform_device omap_drm_device = {
 	.id = 0,
 };
 
-static int __init omap_init_drm(void)
+int __init omap_init_drm(void)
 {
-	struct omap_hwmod *oh = NULL;
-	struct platform_device *pdev;
-
-	/* lookup and populate the DMM information, if present - OMAP4+ */
-	oh = omap_hwmod_lookup("dmm");
-
-	if (oh) {
-		pdev = omap_device_build(oh->name, -1, oh, NULL, 0, NULL, 0,
-					false);
-		WARN(IS_ERR(pdev), "Could not build omap_device for %s\n",
-			oh->name);
-	}
-
-	platform_data.omaprev = GET_OMAP_REVISION();
+	platform_data.omaprev = GET_OMAP_TYPE;
 
 	return platform_device_register(&omap_drm_device);
 
 }
-
-arch_initcall(omap_init_drm);
-
+#else
+int __init omap_init_drm(void) { return 0; }
 #endif

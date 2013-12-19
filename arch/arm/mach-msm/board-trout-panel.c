@@ -7,7 +7,6 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/leds.h>
-#include <linux/clk.h>
 #include <linux/err.h>
 
 #include <asm/io.h>
@@ -19,6 +18,7 @@
 
 #include "board-trout.h"
 #include "proc_comm.h"
+#include "clock-pcom.h"
 #include "devices.h"
 
 #define TROUT_DEFAULT_BACKLIGHT_BRIGHTNESS 255
@@ -170,7 +170,6 @@ static struct mddi_table mddi_toshiba_init_table[] = {
 #define INTMASK_VWAKEOUT (1U << 0)
 
 
-static struct clk *gp_clk;
 static int trout_new_backlight = 1;
 static struct vreg *vreg_mddi_1v5;
 static struct vreg *vreg_lcm_2v85;
@@ -273,18 +272,14 @@ int __init trout_init_panel(void)
 	} else {
 		uint32_t config = PCOM_GPIO_CFG(27, 1, GPIO_OUTPUT,
 						GPIO_NO_PULL, GPIO_8MA);
+		uint32_t id = P_GP_CLK;
+		uint32_t rate = 19200000;
+
 		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &config, 0);
 
-		gp_clk = clk_get(NULL, "gp_clk");
-		if (IS_ERR(gp_clk)) {
-			printk(KERN_ERR "trout_init_panel: could not get gp"
-			       "clock\n");
-			gp_clk = NULL;
-		}
-		rc = clk_set_rate(gp_clk, 19200000);
-		if (rc)
-			printk(KERN_ERR "trout_init_panel: set clock rate "
-			       "failed\n");
+		msm_proc_comm(PCOM_CLKCTL_RPC_SET_RATE, &id, &rate);
+		if (id < 0)
+			pr_err("trout_init_panel: set clock rate failed\n");
 	}
 
 	rc = platform_device_register(&msm_device_mdp);

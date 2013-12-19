@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "actables.h"
@@ -61,7 +62,6 @@ ACPI_MODULE_NAME("evxfevnt")
  * DESCRIPTION: Transfers the system into ACPI mode.
  *
  ******************************************************************************/
-
 acpi_status acpi_enable(void)
 {
 	acpi_status status;
@@ -73,6 +73,12 @@ acpi_status acpi_enable(void)
 
 	if (!acpi_tb_tables_loaded()) {
 		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
+	}
+
+	/* If the Hardware Reduced flag is set, machine is always in acpi mode */
+
+	if (acpi_gbl_reduced_hardware) {
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	/* Check current mode */
@@ -126,6 +132,12 @@ acpi_status acpi_disable(void)
 	acpi_status status = AE_OK;
 
 	ACPI_FUNCTION_TRACE(acpi_disable);
+
+	/* If the Hardware Reduced flag is set, machine is always in acpi mode */
+
+	if (acpi_gbl_reduced_hardware) {
+		return_ACPI_STATUS(AE_OK);
+	}
 
 	if (acpi_hw_get_mode() == ACPI_SYS_MODE_LEGACY) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
@@ -210,8 +222,8 @@ ACPI_EXPORT_SYMBOL(acpi_enable_event)
  *
  * FUNCTION:    acpi_disable_event
  *
- * PARAMETERS:  Event           - The fixed eventto be enabled
- *              Flags           - Reserved
+ * PARAMETERS:  event           - The fixed event to be disabled
+ *              flags           - Reserved
  *
  * RETURN:      Status
  *

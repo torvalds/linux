@@ -41,6 +41,7 @@
 #include <drm/drm_hashtab.h>
 #include <linux/kref.h>
 #include <linux/rcupdate.h>
+#include <linux/dma-buf.h>
 #include <ttm/ttm_memory.h>
 
 /**
@@ -77,6 +78,7 @@ enum ttm_object_type {
 	ttm_fence_type,
 	ttm_buffer_type,
 	ttm_lock_type,
+	ttm_prime_type,
 	ttm_driver_type0 = 256,
 	ttm_driver_type1,
 	ttm_driver_type2,
@@ -130,6 +132,30 @@ struct ttm_base_object {
 	void (*refcount_release) (struct ttm_base_object **base);
 	void (*ref_obj_release) (struct ttm_base_object *base,
 				 enum ttm_ref_type ref_type);
+};
+
+
+/**
+ * struct ttm_prime_object - Modified base object that is prime-aware
+ *
+ * @base: struct ttm_base_object that we derive from
+ * @mutex: Mutex protecting the @dma_buf member.
+ * @size: Size of the dma_buf associated with this object
+ * @real_type: Type of the underlying object. Needed since we're setting
+ * the value of @base::object_type to ttm_prime_type
+ * @dma_buf: Non ref-coutned pointer to a struct dma_buf created from this
+ * object.
+ * @refcount_release: The underlying object's release method. Needed since
+ * we set @base::refcount_release to our own release method.
+ */
+
+struct ttm_prime_object {
+	struct ttm_base_object base;
+	struct mutex mutex;
+	size_t size;
+	enum ttm_object_type real_type;
+	struct dma_buf *dma_buf;
+	void (*refcount_release) (struct ttm_base_object **);
 };
 
 /**
@@ -248,14 +274,18 @@ extern void ttm_object_file_release(struct ttm_object_file **p_tfile);
 /**
  * ttm_object device init - initialize a struct ttm_object_device
  *
+ * @mem_glob: struct ttm_mem_global for memory accounting.
  * @hash_order: Order of hash table used to hash the base objects.
+ * @ops: DMA buf ops for prime objects of this device.
  *
  * This function is typically called on device initialization to prepare
  * data structures needed for ttm base and ref objects.
  */
 
-extern struct ttm_object_device *ttm_object_device_init
-    (struct ttm_mem_global *mem_glob, unsigned int hash_order);
+extern struct ttm_object_device *
+ttm_object_device_init(struct ttm_mem_global *mem_glob,
+		       unsigned int hash_order,
+		       const struct dma_buf_ops *ops);
 
 /**
  * ttm_object_device_release - release data held by a ttm_object_device
@@ -272,4 +302,31 @@ extern void ttm_object_device_release(struct ttm_object_device **p_tdev);
 
 #define ttm_base_object_kfree(__object, __base)\
 	kfree_rcu(__object, __base.rhead)
+
+extern int ttm_prime_object_init(struct ttm_object_file *tfile,
+				 size_t size,
+				 struct ttm_prime_object *prime,
+				 bool shareable,
+				 enum ttm_object_type type,
+				 void (*refcount_release)
+				 (struct ttm_base_object **),
+				 void (*ref_obj_release)
+				 (struct ttm_base_object *,
+				  enum ttm_ref_type ref_type));
+
+static inline enum ttm_object_type
+ttm_base_object_type(struct ttm_base_object *base)
+{
+	return (base->object_type == ttm_prime_type) ?
+		container_of(base, struct ttm_prime_object, base)->real_type :
+		base->object_type;
+}
+extern int ttm_prime_fd_to_handle(struct ttm_object_file *tfile,
+				  int fd, u32 *handle);
+extern int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
+				  uint32_t handle, uint32_t flags,
+				  int *prime_fd);
+
+#define ttm_prime_object_kfree(__obj, __prime)		\
+	kfree_rcu(__obj, __prime.base.rhead)
 #endif

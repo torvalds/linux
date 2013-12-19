@@ -84,6 +84,7 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 	rbo->placement.fpfn = 0;
 	rbo->placement.lpfn = 0;
 	rbo->placement.placement = rbo->placements;
+	rbo->placement.busy_placement = rbo->placements;
 	if (domain & RADEON_GEM_DOMAIN_VRAM)
 		rbo->placements[c++] = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
 					TTM_PL_FLAG_VRAM;
@@ -104,14 +105,6 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 	if (!c)
 		rbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
 	rbo->placement.num_placement = c;
-
-	c = 0;
-	rbo->placement.busy_placement = rbo->busy_placements;
-	if (rbo->rdev->flags & RADEON_IS_AGP) {
-		rbo->busy_placements[c++] = TTM_PL_FLAG_WC | TTM_PL_FLAG_TT;
-	} else {
-		rbo->busy_placements[c++] = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_TT;
-	}
 	rbo->placement.num_busy_placement = c;
 }
 
@@ -149,7 +142,6 @@ int radeon_bo_create(struct radeon_device *rdev,
 		return r;
 	}
 	bo->rdev = rdev;
-	bo->gem_base.driver_private = NULL;
 	bo->surface_reg = -1;
 	INIT_LIST_HEAD(&bo->list);
 	INIT_LIST_HEAD(&bo->va);
@@ -328,8 +320,10 @@ void radeon_bo_force_delete(struct radeon_device *rdev)
 int radeon_bo_init(struct radeon_device *rdev)
 {
 	/* Add an MTRR for the VRAM */
-	rdev->mc.vram_mtrr = mtrr_add(rdev->mc.aper_base, rdev->mc.aper_size,
-			MTRR_TYPE_WRCOMB, 1);
+	if (!rdev->fastfb_working) {
+		rdev->mc.vram_mtrr = arch_phys_wc_add(rdev->mc.aper_base,
+						      rdev->mc.aper_size);
+	}
 	DRM_INFO("Detected VRAM RAM=%lluM, BAR=%lluM\n",
 		rdev->mc.mc_vram_size >> 20,
 		(unsigned long long)rdev->mc.aper_size >> 20);
@@ -341,34 +335,48 @@ int radeon_bo_init(struct radeon_device *rdev)
 void radeon_bo_fini(struct radeon_device *rdev)
 {
 	radeon_ttm_fini(rdev);
+	arch_phys_wc_del(rdev->mc.vram_mtrr);
 }
 
 void radeon_bo_list_add_object(struct radeon_bo_list *lobj,
 				struct list_head *head)
 {
-	if (lobj->wdomain) {
+	if (lobj->written) {
 		list_add(&lobj->tv.head, head);
 	} else {
 		list_add_tail(&lobj->tv.head, head);
 	}
 }
 
-int radeon_bo_list_validate(struct list_head *head)
+int radeon_bo_list_validate(struct ww_acquire_ctx *ticket,
+			    struct list_head *head, int ring)
 {
 	struct radeon_bo_list *lobj;
 	struct radeon_bo *bo;
+	u32 domain;
 	int r;
 
-	r = ttm_eu_reserve_buffers(head);
+	r = ttm_eu_reserve_buffers(ticket, head);
 	if (unlikely(r != 0)) {
 		return r;
 	}
 	list_for_each_entry(lobj, head, tv.head) {
 		bo = lobj->bo;
 		if (!bo->pin_count) {
+			domain = lobj->domain;
+			
+		retry:
+			radeon_ttm_placement_from_domain(bo, domain);
+			if (ring == R600_RING_TYPE_UVD_INDEX)
+				radeon_uvd_force_into_uvd_segment(bo);
 			r = ttm_bo_validate(&bo->tbo, &bo->placement,
 						true, false);
 			if (unlikely(r)) {
+				if (r != -ERESTARTSYS && domain != lobj->alt_domain) {
+					domain = lobj->alt_domain;
+					goto retry;
+				}
+				ttm_eu_backoff_reservation(ticket, head);
 				return r;
 			}
 		}
@@ -392,7 +400,7 @@ int radeon_bo_get_surface_reg(struct radeon_bo *bo)
 	int steal;
 	int i;
 
-	BUG_ON(!radeon_bo_is_reserved(bo));
+	lockdep_assert_held(&bo->tbo.resv->lock.base);
 
 	if (!bo->tiling_flags)
 		return 0;
@@ -518,7 +526,8 @@ void radeon_bo_get_tiling_flags(struct radeon_bo *bo,
 				uint32_t *tiling_flags,
 				uint32_t *pitch)
 {
-	BUG_ON(!radeon_bo_is_reserved(bo));
+	lockdep_assert_held(&bo->tbo.resv->lock.base);
+
 	if (tiling_flags)
 		*tiling_flags = bo->tiling_flags;
 	if (pitch)
@@ -528,7 +537,8 @@ void radeon_bo_get_tiling_flags(struct radeon_bo *bo,
 int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 				bool force_drop)
 {
-	BUG_ON(!radeon_bo_is_reserved(bo) && !force_drop);
+	if (!force_drop)
+		lockdep_assert_held(&bo->tbo.resv->lock.base);
 
 	if (!(bo->tiling_flags & RADEON_TILING_SURFACE))
 		return 0;
@@ -610,27 +620,4 @@ int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait)
 	spin_unlock(&bo->tbo.bdev->fence_lock);
 	ttm_bo_unreserve(&bo->tbo);
 	return r;
-}
-
-
-/**
- * radeon_bo_reserve - reserve bo
- * @bo:		bo structure
- * @no_intr:	don't return -ERESTARTSYS on pending signal
- *
- * Returns:
- * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
- * a signal. Release all buffer reservations and return to user-space.
- */
-int radeon_bo_reserve(struct radeon_bo *bo, bool no_intr)
-{
-	int r;
-
-	r = ttm_bo_reserve(&bo->tbo, !no_intr, false, false, 0);
-	if (unlikely(r != 0)) {
-		if (r != -ERESTARTSYS)
-			dev_err(bo->rdev->dev, "%p reserve failed\n", bo);
-		return r;
-	}
-	return 0;
 }

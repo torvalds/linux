@@ -85,11 +85,15 @@ static void
 nouveau_bios_shadow_pramin(struct nouveau_bios *bios)
 {
 	struct nouveau_device *device = nv_device(bios);
+	u64 addr = 0;
 	u32 bar0 = 0;
 	int i;
 
 	if (device->card_type >= NV_50) {
-		u64 addr = (u64)(nv_rd32(bios, 0x619f04) & 0xffffff00) << 8;
+		if (  device->card_type < NV_C0 ||
+		    !(nv_rd32(bios, 0x022500) & 0x00000001))
+			addr = (u64)(nv_rd32(bios, 0x619f04) & 0xffffff00) << 8;
+
 		if (!addr) {
 			addr  = (u64)nv_rd32(bios, 0x001700) << 16;
 			addr += 0xf0000;
@@ -172,7 +176,7 @@ out:
 	nv_wr32(bios, pcireg, access);
 }
 
-#if defined(CONFIG_ACPI)
+#if defined(CONFIG_ACPI) && defined(CONFIG_X86)
 int nouveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len);
 bool nouveau_acpi_rom_supported(struct pci_dev *pdev);
 #else
@@ -248,6 +252,22 @@ nouveau_bios_shadow_pci(struct nouveau_bios *bios)
 	}
 }
 
+static void
+nouveau_bios_shadow_platform(struct nouveau_bios *bios)
+{
+	struct pci_dev *pdev = nv_device(bios)->pdev;
+	size_t size;
+
+	void __iomem *rom = pci_platform_rom(pdev, &size);
+	if (rom && size) {
+		bios->data = kmalloc(size, GFP_KERNEL);
+		if (bios->data) {
+			memcpy_fromio(bios->data, rom, size);
+			bios->size = size;
+		}
+	}
+}
+
 static int
 nouveau_bios_score(struct nouveau_bios *bios, const bool writeable)
 {
@@ -288,6 +308,7 @@ nouveau_bios_shadow(struct nouveau_bios *bios)
 		{ "PROM", nouveau_bios_shadow_prom, false, 0, 0, NULL },
 		{ "ACPI", nouveau_bios_shadow_acpi, true, 0, 0, NULL },
 		{ "PCIROM", nouveau_bios_shadow_pci, true, 0, 0, NULL },
+		{ "PLATFORM", nouveau_bios_shadow_platform, true, 0, 0, NULL },
 		{}
 	};
 	struct methods *mthd, *best;
@@ -447,6 +468,7 @@ nouveau_bios_ctor(struct nouveau_object *parent,
 		bios->version.chip  = nv_ro08(bios, bit_i.offset + 2);
 		bios->version.minor = nv_ro08(bios, bit_i.offset + 1);
 		bios->version.micro = nv_ro08(bios, bit_i.offset + 0);
+		bios->version.patch = nv_ro08(bios, bit_i.offset + 4);
 	} else
 	if (bmp_version(bios)) {
 		bios->version.major = nv_ro08(bios, bios->bmp_offset + 13);
@@ -455,9 +477,9 @@ nouveau_bios_ctor(struct nouveau_object *parent,
 		bios->version.micro = nv_ro08(bios, bios->bmp_offset + 10);
 	}
 
-	nv_info(bios, "version %02x.%02x.%02x.%02x\n",
+	nv_info(bios, "version %02x.%02x.%02x.%02x.%02x\n",
 		bios->version.major, bios->version.chip,
-		bios->version.minor, bios->version.micro);
+		bios->version.minor, bios->version.micro, bios->version.patch);
 
 	return 0;
 }

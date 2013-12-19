@@ -31,14 +31,10 @@ static struct irqaction pit_timer_irq = {
 	.dev_id		= &i8253_clockevent,
 };
 
-static void __init isa_timer_init(void)
+void __init isa_timer_init(void)
 {
 	clocksource_i8253_init();
 
 	setup_irq(i8253_clockevent.irq, &pit_timer_irq);
 	clockevent_i8253_init(false);
 }
-
-struct sys_timer isa_timer = {
-	.init		= isa_timer_init,
-};

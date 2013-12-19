@@ -187,7 +187,7 @@ bool scm_need_cluster_request(struct scm_request *scmrq)
 void scm_initiate_cluster_request(struct scm_request *scmrq)
 {
 	scm_prepare_cluster_request(scmrq);
-	if (scm_start_aob(scmrq->aob))
+	if (eadm_start_aob(scmrq->aob))
 		scm_request_requeue(scmrq);
 }
 
@@ -223,6 +223,8 @@ void scm_cluster_request_irq(struct scm_request *scmrq)
 
 bool scm_cluster_size_valid(void)
 {
-	return write_cluster_size == 0 || write_cluster_size == 32 ||
-		write_cluster_size == 64 || write_cluster_size == 128;
+	if (write_cluster_size == 1 || write_cluster_size > 128)
+		return false;
+
+	return !(write_cluster_size & (write_cluster_size - 1));
 }

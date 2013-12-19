@@ -19,8 +19,6 @@
  * For certain dcmd codes, the dongle interprets string data from the host.
  ******************************************************************************/
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/types.h>
 #include <linux/netdevice.h>
 
@@ -30,7 +28,9 @@
 #include "dhd.h"
 #include "dhd_proto.h"
 #include "dhd_bus.h"
+#include "fwsignal.h"
 #include "dhd_dbg.h"
+#include "tracepoint.h"
 
 struct brcmf_proto_cdc_dcmd {
 	__le32 cmd;	/* dongle command value */
@@ -73,13 +73,26 @@ struct brcmf_proto_cdc_dcmd {
 	((hdr)->flags2 = (((hdr)->flags2 & ~BDC_FLAG2_IF_MASK) | \
 	((idx) << BDC_FLAG2_IF_SHIFT)))
 
+/**
+ * struct brcmf_proto_bdc_header - BDC header format
+ *
+ * @flags: flags contain protocol and checksum info.
+ * @priority: 802.1d priority and USB flow control info (bit 4:7).
+ * @flags2: additional flags containing dongle interface index.
+ * @data_offset: start of packet data. header is following by firmware signals.
+ */
 struct brcmf_proto_bdc_header {
 	u8 flags;
-	u8 priority;	/* 802.1d Priority, 4:7 flow control info for usb */
+	u8 priority;
 	u8 flags2;
 	u8 data_offset;
 };
 
+/*
+ * maximum length of firmware signal data between
+ * the BDC header and packet data in the tx path.
+ */
+#define BRCMF_PROT_FW_SIGNAL_MAX_TXBYTES	12
 
 #define RETRIES 2 /* # of retries to retrieve matching dcmd response */
 #define BUS_HEADER_LEN	(16+64)		/* Must be atleast SDPCM_RESERVE
@@ -94,8 +107,6 @@ struct brcmf_proto_bdc_header {
 
 struct brcmf_proto {
 	u16 reqid;
-	u8 pending;
-	u32 lastcmd;
 	u8 bus_header[BUS_HEADER_LEN];
 	struct brcmf_proto_cdc_dcmd msg;
 	unsigned char buf[BRCMF_DCMD_MAXLEN + ROUND_UP_MARGIN];
@@ -107,7 +118,7 @@ static int brcmf_proto_cdc_msg(struct brcmf_pub *drvr)
 	int len = le32_to_cpu(prot->msg.len) +
 			sizeof(struct brcmf_proto_cdc_dcmd);
 
-	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(CDC, "Enter\n");
 
 	/* NOTE : cdc->msg.len holds the desired length of the buffer to be
 	 *        returned. Only up to CDC_MAX_MSG_SIZE of this buffer area
@@ -125,7 +136,7 @@ static int brcmf_proto_cdc_cmplt(struct brcmf_pub *drvr, u32 id, u32 len)
 	int ret;
 	struct brcmf_proto *prot = drvr->prot;
 
-	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(CDC, "Enter\n");
 	len += sizeof(struct brcmf_proto_cdc_dcmd);
 	do {
 		ret = brcmf_bus_rxctl(drvr->bus_if, (unsigned char *)&prot->msg,
@@ -147,20 +158,7 @@ brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 	int ret = 0, retries = 0;
 	u32 id, flags;
 
-	brcmf_dbg(TRACE, "Enter\n");
-	brcmf_dbg(CTL, "cmd %d len %d\n", cmd, len);
-
-	/* Respond "bcmerror" and "bcmerrorstr" with local cache */
-	if (cmd == BRCMF_C_GET_VAR && buf) {
-		if (!strcmp((char *)buf, "bcmerrorstr")) {
-			strncpy((char *)buf, "bcm_error",
-				BCME_STRLEN);
-			goto done;
-		} else if (!strcmp((char *)buf, "bcmerror")) {
-			*(int *)buf = drvr->dongle_error;
-			goto done;
-		}
-	}
+	brcmf_dbg(CDC, "Enter, cmd %d len %d\n", cmd, len);
 
 	memset(msg, 0, sizeof(struct brcmf_proto_cdc_dcmd));
 
@@ -210,11 +208,8 @@ retry:
 	}
 
 	/* Check the ERROR flag */
-	if (flags & CDC_DCMD_ERROR) {
+	if (flags & CDC_DCMD_ERROR)
 		ret = le32_to_cpu(msg->status);
-		/* Cache error from dongle */
-		drvr->dongle_error = ret;
-	}
 
 done:
 	return ret;
@@ -228,8 +223,7 @@ int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 	int ret = 0;
 	u32 flags, id;
 
-	brcmf_dbg(TRACE, "Enter\n");
-	brcmf_dbg(CTL, "cmd %d len %d\n", cmd, len);
+	brcmf_dbg(CDC, "Enter, cmd %d len %d\n", cmd, len);
 
 	memset(msg, 0, sizeof(struct brcmf_proto_cdc_dcmd));
 
@@ -262,11 +256,8 @@ int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 	}
 
 	/* Check the ERROR flag */
-	if (flags & CDC_DCMD_ERROR) {
+	if (flags & CDC_DCMD_ERROR)
 		ret = le32_to_cpu(msg->status);
-		/* Cache error from dongle */
-		drvr->dongle_error = ret;
-	}
 
 done:
 	return ret;
@@ -282,15 +273,14 @@ static void pkt_set_sum_good(struct sk_buff *skb, bool x)
 	skb->ip_summed = (x ? CHECKSUM_UNNECESSARY : CHECKSUM_NONE);
 }
 
-void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx,
+void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx, u8 offset,
 			 struct sk_buff *pktbuf)
 {
 	struct brcmf_proto_bdc_header *h;
 
-	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(CDC, "Enter\n");
 
 	/* Push BDC header used to convey priority for buses that don't */
-
 	skb_push(pktbuf, BDC_HEADER_LEN);
 
 	h = (struct brcmf_proto_bdc_header *)(pktbuf->data);
@@ -301,27 +291,27 @@ void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx,
 
 	h->priority = (pktbuf->priority & BDC_PRIORITY_MASK);
 	h->flags2 = 0;
-	h->data_offset = 0;
+	h->data_offset = offset;
 	BDC_SET_IF_IDX(h, ifidx);
+	trace_brcmf_bdchdr(pktbuf->data);
 }
 
-int brcmf_proto_hdrpull(struct device *dev, int *ifidx,
+int brcmf_proto_hdrpull(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
 			struct sk_buff *pktbuf)
 {
 	struct brcmf_proto_bdc_header *h;
-	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_pub *drvr = bus_if->drvr;
 
-	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(CDC, "Enter\n");
 
 	/* Pop BDC header used to convey priority for buses that don't */
 
-	if (pktbuf->len < BDC_HEADER_LEN) {
-		brcmf_err("rx data too short (%d < %d)\n",
+	if (pktbuf->len <= BDC_HEADER_LEN) {
+		brcmf_dbg(INFO, "rx data too short (%d <= %d)\n",
 			  pktbuf->len, BDC_HEADER_LEN);
 		return -EBADE;
 	}
 
+	trace_brcmf_bdchdr(pktbuf->data);
 	h = (struct brcmf_proto_bdc_header *)(pktbuf->data);
 
 	*ifidx = BDC_GET_IF_IDX(h);
@@ -329,6 +319,14 @@ int brcmf_proto_hdrpull(struct device *dev, int *ifidx,
 		brcmf_err("rx data ifnum out of range (%d)\n", *ifidx);
 		return -EBADE;
 	}
+	/* The ifidx is the idx to map to matching netdev/ifp. When receiving
+	 * events this is easy because it contains the bssidx which maps
+	 * 1-on-1 to the netdev/ifp. But for data frames the ifidx is rcvd.
+	 * bssidx 1 is used for p2p0 and no data can be received or
+	 * transmitted on it. Therefor bssidx is ifidx + 1 if ifidx > 0
+	 */
+	if (*ifidx)
+		(*ifidx)++;
 
 	if (((h->flags & BDC_FLAG_VER_MASK) >> BDC_FLAG_VER_SHIFT) !=
 	    BDC_PROTO_VER) {
@@ -338,7 +336,7 @@ int brcmf_proto_hdrpull(struct device *dev, int *ifidx,
 	}
 
 	if (h->flags & BDC_FLAG_SUM_GOOD) {
-		brcmf_dbg(INFO, "%s: BDC packet received with good rx-csum, flags 0x%x\n",
+		brcmf_dbg(CDC, "%s: BDC rcv, good checksum, flags 0x%x\n",
 			  brcmf_ifname(drvr, *ifidx), h->flags);
 		pkt_set_sum_good(pktbuf, true);
 	}
@@ -346,8 +344,13 @@ int brcmf_proto_hdrpull(struct device *dev, int *ifidx,
 	pktbuf->priority = h->priority & BDC_PRIORITY_MASK;
 
 	skb_pull(pktbuf, BDC_HEADER_LEN);
-	skb_pull(pktbuf, h->data_offset << 2);
+	if (do_fws)
+		brcmf_fws_hdrpull(drvr, *ifidx, h->data_offset << 2, pktbuf);
+	else
+		skb_pull(pktbuf, h->data_offset << 2);
 
+	if (pktbuf->len == 0)
+		return -ENODATA;
 	return 0;
 }
 
@@ -366,7 +369,7 @@ int brcmf_proto_attach(struct brcmf_pub *drvr)
 	}
 
 	drvr->prot = cdc;
-	drvr->hdrlen += BDC_HEADER_LEN;
+	drvr->hdrlen += BDC_HEADER_LEN + BRCMF_PROT_FW_SIGNAL_MAX_TXBYTES;
 	drvr->bus_if->maxctl = BRCMF_DCMD_MAXLEN +
 			sizeof(struct brcmf_proto_cdc_dcmd) + ROUND_UP_MARGIN;
 	return 0;

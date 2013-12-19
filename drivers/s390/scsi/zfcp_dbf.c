@@ -3,7 +3,7 @@
  *
  * Debug traces for zfcp.
  *
- * Copyright IBM Corp. 2002, 2010
+ * Copyright IBM Corp. 2002, 2013
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -22,6 +22,13 @@ static u32 dbfsize = 4;
 module_param(dbfsize, uint, 0400);
 MODULE_PARM_DESC(dbfsize,
 		 "number of pages for each debug feature area (default 4)");
+
+static u32 dbflevel = 3;
+
+module_param(dbflevel, uint, 0400);
+MODULE_PARM_DESC(dbflevel,
+		 "log level for each debug feature area "
+		 "(default 3, range 0..6)");
 
 static inline unsigned int zfcp_dbf_plen(unsigned int offset)
 {
@@ -337,7 +344,7 @@ void zfcp_dbf_san(char *tag, struct zfcp_dbf *dbf, void *data, u8 id, u16 len,
 
 /**
  * zfcp_dbf_san_req - trace event for issued SAN request
- * @tag: indentifier for event
+ * @tag: identifier for event
  * @fsf_req: request containing issued CT data
  * d_id: destination ID
  */
@@ -354,7 +361,7 @@ void zfcp_dbf_san_req(char *tag, struct zfcp_fsf_req *fsf, u32 d_id)
 
 /**
  * zfcp_dbf_san_res - trace event for received SAN request
- * @tag: indentifier for event
+ * @tag: identifier for event
  * @fsf_req: request containing issued CT data
  */
 void zfcp_dbf_san_res(char *tag, struct zfcp_fsf_req *fsf)
@@ -370,7 +377,7 @@ void zfcp_dbf_san_res(char *tag, struct zfcp_fsf_req *fsf)
 
 /**
  * zfcp_dbf_san_in_els - trace event for incoming ELS
- * @tag: indentifier for event
+ * @tag: identifier for event
  * @fsf_req: request containing issued CT data
  */
 void zfcp_dbf_san_in_els(char *tag, struct zfcp_fsf_req *fsf)
@@ -447,7 +454,7 @@ static debug_info_t *zfcp_dbf_reg(const char *name, int size, int rec_size)
 		return NULL;
 
 	debug_register_view(d, &debug_hex_ascii_view);
-	debug_set_level(d, 3);
+	debug_set_level(d, dbflevel);
 
 	return d;
 }

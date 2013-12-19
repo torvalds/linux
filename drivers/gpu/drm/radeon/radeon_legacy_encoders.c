@@ -392,7 +392,7 @@ void radeon_legacy_backlight_init(struct radeon_encoder *radeon_encoder,
 	props.type = BACKLIGHT_RAW;
 	snprintf(bl_name, sizeof(bl_name),
 		 "radeon_bl%d", dev->primary->index);
-	bd = backlight_device_register(bl_name, &drm_connector->kdev,
+	bd = backlight_device_register(bl_name, drm_connector->kdev,
 				       pdata, &radeon_backlight_ops, &props);
 	if (IS_ERR(bd)) {
 		DRM_ERROR("Backlight registration failed\n");
@@ -639,6 +639,14 @@ static enum drm_connector_status radeon_legacy_primary_dac_detect(struct drm_enc
 	uint32_t dac_ext_cntl, dac_cntl, dac_macro_cntl, tmp;
 	enum drm_connector_status found = connector_status_disconnected;
 	bool color = true;
+
+	/* just don't bother on RN50 those chip are often connected to remoting
+	 * console hw and often we get failure to load detect those. So to make
+	 * everyone happy report the encoder as always connected.
+	 */
+	if (ASIC_IS_RN50(rdev)) {
+		return connector_status_connected;
+	}
 
 	/* save the regs we need */
 	vclk_ecp_cntl = RREG32_PLL(RADEON_VCLK_ECP_CNTL);

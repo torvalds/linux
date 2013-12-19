@@ -24,6 +24,8 @@
 #include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
 #include <asm/io.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
 static unsigned int intr_coalescing_count;
@@ -285,6 +287,7 @@ struct sata_fsl_host_priv {
 	int irq;
 	int data_snoop;
 	struct device_attribute intr_coalescing;
+	struct device_attribute rx_watermark;
 };
 
 static void fsl_sata_set_irq_coalescing(struct ata_host *host,
@@ -292,6 +295,7 @@ static void fsl_sata_set_irq_coalescing(struct ata_host *host,
 {
 	struct sata_fsl_host_priv *host_priv = host->private_data;
 	void __iomem *hcr_base = host_priv->hcr_base;
+	unsigned long flags;
 
 	if (count > ICC_MAX_INT_COUNT_THRESHOLD)
 		count = ICC_MAX_INT_COUNT_THRESHOLD;
@@ -304,14 +308,14 @@ static void fsl_sata_set_irq_coalescing(struct ata_host *host,
 			(count > ICC_MIN_INT_COUNT_THRESHOLD))
 		ticks = ICC_SAFE_INT_TICKS;
 
-	spin_lock(&host->lock);
+	spin_lock_irqsave(&host->lock, flags);
 	iowrite32((count << 24 | ticks), hcr_base + ICC);
 
 	intr_coalescing_count = count;
 	intr_coalescing_ticks = ticks;
-	spin_unlock(&host->lock);
+	spin_unlock_irqrestore(&host->lock, flags);
 
-	DPRINTK("intrrupt coalescing, count = 0x%x, ticks = %x\n",
+	DPRINTK("interrupt coalescing, count = 0x%x, ticks = %x\n",
 			intr_coalescing_count, intr_coalescing_ticks);
 	DPRINTK("ICC register status: (hcr base: 0x%x) = 0x%x\n",
 			hcr_base, ioread32(hcr_base + ICC));
@@ -340,6 +344,48 @@ static ssize_t fsl_sata_intr_coalescing_store(struct device *dev,
 	fsl_sata_set_irq_coalescing(dev_get_drvdata(dev),
 			coalescing_count, coalescing_ticks);
 
+	return strlen(buf);
+}
+
+static ssize_t fsl_sata_rx_watermark_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	unsigned int rx_watermark;
+	unsigned long flags;
+	struct ata_host *host = dev_get_drvdata(dev);
+	struct sata_fsl_host_priv *host_priv = host->private_data;
+	void __iomem *csr_base = host_priv->csr_base;
+
+	spin_lock_irqsave(&host->lock, flags);
+	rx_watermark = ioread32(csr_base + TRANSCFG);
+	rx_watermark &= 0x1f;
+
+	spin_unlock_irqrestore(&host->lock, flags);
+	return sprintf(buf, "%d\n", rx_watermark);
+}
+
+static ssize_t fsl_sata_rx_watermark_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	unsigned int rx_watermark;
+	unsigned long flags;
+	struct ata_host *host = dev_get_drvdata(dev);
+	struct sata_fsl_host_priv *host_priv = host->private_data;
+	void __iomem *csr_base = host_priv->csr_base;
+	u32 temp;
+
+	if (sscanf(buf, "%d", &rx_watermark) != 1) {
+		printk(KERN_ERR "fsl-sata: wrong parameter format.\n");
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&host->lock, flags);
+	temp = ioread32(csr_base + TRANSCFG);
+	temp &= 0xffffffe0;
+	iowrite32(temp | rx_watermark, csr_base + TRANSCFG);
+
+	spin_unlock_irqrestore(&host->lock, flags);
 	return strlen(buf);
 }
 
@@ -1489,7 +1535,7 @@ static int sata_fsl_probe(struct platform_device *ofdev)
 	ata_host_activate(host, irq, sata_fsl_interrupt, SATA_FSL_IRQ_FLAG,
 			  &sata_fsl_sht);
 
-	dev_set_drvdata(&ofdev->dev, host);
+	platform_set_drvdata(ofdev, host);
 
 	host_priv->intr_coalescing.show = fsl_sata_intr_coalescing_show;
 	host_priv->intr_coalescing.store = fsl_sata_intr_coalescing_store;
@@ -1500,33 +1546,40 @@ static int sata_fsl_probe(struct platform_device *ofdev)
 	if (retval)
 		goto error_exit_with_cleanup;
 
+	host_priv->rx_watermark.show = fsl_sata_rx_watermark_show;
+	host_priv->rx_watermark.store = fsl_sata_rx_watermark_store;
+	sysfs_attr_init(&host_priv->rx_watermark.attr);
+	host_priv->rx_watermark.attr.name = "rx_watermark";
+	host_priv->rx_watermark.attr.mode = S_IRUGO | S_IWUSR;
+	retval = device_create_file(host->dev, &host_priv->rx_watermark);
+	if (retval) {
+		device_remove_file(&ofdev->dev, &host_priv->intr_coalescing);
+		goto error_exit_with_cleanup;
+	}
+
 	return 0;
 
 error_exit_with_cleanup:
 
-	if (host) {
-		dev_set_drvdata(&ofdev->dev, NULL);
+	if (host)
 		ata_host_detach(host);
-	}
 
 	if (hcr_base)
 		iounmap(hcr_base);
-	if (host_priv)
-		kfree(host_priv);
+	kfree(host_priv);
 
 	return retval;
 }
 
 static int sata_fsl_remove(struct platform_device *ofdev)
 {
-	struct ata_host *host = dev_get_drvdata(&ofdev->dev);
+	struct ata_host *host = platform_get_drvdata(ofdev);
 	struct sata_fsl_host_priv *host_priv = host->private_data;
 
 	device_remove_file(&ofdev->dev, &host_priv->intr_coalescing);
+	device_remove_file(&ofdev->dev, &host_priv->rx_watermark);
 
 	ata_host_detach(host);
-
-	dev_set_drvdata(&ofdev->dev, NULL);
 
 	irq_dispose_mapping(host_priv->irq);
 	iounmap(host_priv->hcr_base);
@@ -1538,13 +1591,13 @@ static int sata_fsl_remove(struct platform_device *ofdev)
 #ifdef CONFIG_PM
 static int sata_fsl_suspend(struct platform_device *op, pm_message_t state)
 {
-	struct ata_host *host = dev_get_drvdata(&op->dev);
+	struct ata_host *host = platform_get_drvdata(op);
 	return ata_host_suspend(host, state);
 }
 
 static int sata_fsl_resume(struct platform_device *op)
 {
-	struct ata_host *host = dev_get_drvdata(&op->dev);
+	struct ata_host *host = platform_get_drvdata(op);
 	struct sata_fsl_host_priv *host_priv = host->private_data;
 	int ret;
 	void __iomem *hcr_base = host_priv->hcr_base;

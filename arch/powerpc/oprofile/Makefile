@@ -1,6 +1,6 @@
 subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
-ccflags-$(CONFIG_PPC64)	:= -mno-minimal-toc
+ccflags-$(CONFIG_PPC64)	:= $(NO_MINIMAL_TOC)
 
 obj-$(CONFIG_OPROFILE) += oprofile.o
 

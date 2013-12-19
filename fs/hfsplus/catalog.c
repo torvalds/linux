@@ -45,7 +45,8 @@ void hfsplus_cat_build_key(struct super_block *sb, hfsplus_btree_key *key,
 
 	key->cat.parent = cpu_to_be32(parent);
 	if (str) {
-		hfsplus_asc2uni(sb, &key->cat.name, str->name, str->len);
+		hfsplus_asc2uni(sb, &key->cat.name, HFSPLUS_MAX_STRLEN,
+					str->name, str->len);
 		len = be16_to_cpu(key->cat.name.length);
 	} else {
 		key->cat.name.length = 0;
@@ -167,7 +168,8 @@ static int hfsplus_fill_cat_thread(struct super_block *sb,
 	entry->type = cpu_to_be16(type);
 	entry->thread.reserved = 0;
 	entry->thread.parentID = cpu_to_be32(parentid);
-	hfsplus_asc2uni(sb, &entry->thread.nodeName, str->name, str->len);
+	hfsplus_asc2uni(sb, &entry->thread.nodeName, HFSPLUS_MAX_STRLEN,
+				str->name, str->len);
 	return 10 + be16_to_cpu(entry->thread.nodeName.length) * 2;
 }
 
@@ -186,19 +188,19 @@ int hfsplus_find_cat(struct super_block *sb, u32 cnid,
 
 	type = be16_to_cpu(tmp.type);
 	if (type != HFSPLUS_FOLDER_THREAD && type != HFSPLUS_FILE_THREAD) {
-		printk(KERN_ERR "hfs: found bad thread record in catalog\n");
+		pr_err("found bad thread record in catalog\n");
 		return -EIO;
 	}
 
 	if (be16_to_cpu(tmp.thread.nodeName.length) > 255) {
-		printk(KERN_ERR "hfs: catalog name length corrupted\n");
+		pr_err("catalog name length corrupted\n");
 		return -EIO;
 	}
 
 	hfsplus_cat_build_key_uni(fd->search_key,
 		be32_to_cpu(tmp.thread.parentID),
 		&tmp.thread.nodeName);
-	return hfs_brec_find(fd);
+	return hfs_brec_find(fd, hfs_find_rec_by_key);
 }
 
 int hfsplus_create_cat(u32 cnid, struct inode *dir,
@@ -210,7 +212,7 @@ int hfsplus_create_cat(u32 cnid, struct inode *dir,
 	int entry_size;
 	int err;
 
-	dprint(DBG_CAT_MOD, "create_cat: %s,%u(%d)\n",
+	hfs_dbg(CAT_MOD, "create_cat: %s,%u(%d)\n",
 		str->name, cnid, inode->i_nlink);
 	err = hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
 	if (err)
@@ -221,7 +223,7 @@ int hfsplus_create_cat(u32 cnid, struct inode *dir,
 		S_ISDIR(inode->i_mode) ?
 			HFSPLUS_FOLDER_THREAD : HFSPLUS_FILE_THREAD,
 		dir->i_ino, str);
-	err = hfs_brec_find(&fd);
+	err = hfs_brec_find(&fd, hfs_find_rec_by_key);
 	if (err != -ENOENT) {
 		if (!err)
 			err = -EEXIST;
@@ -233,7 +235,7 @@ int hfsplus_create_cat(u32 cnid, struct inode *dir,
 
 	hfsplus_cat_build_key(sb, fd.search_key, dir->i_ino, str);
 	entry_size = hfsplus_cat_build_record(&entry, cnid, inode);
-	err = hfs_brec_find(&fd);
+	err = hfs_brec_find(&fd, hfs_find_rec_by_key);
 	if (err != -ENOENT) {
 		/* panic? */
 		if (!err)
@@ -253,7 +255,7 @@ int hfsplus_create_cat(u32 cnid, struct inode *dir,
 
 err1:
 	hfsplus_cat_build_key(sb, fd.search_key, cnid, NULL);
-	if (!hfs_brec_find(&fd))
+	if (!hfs_brec_find(&fd, hfs_find_rec_by_key))
 		hfs_brec_remove(&fd);
 err2:
 	hfs_find_exit(&fd);
@@ -269,8 +271,7 @@ int hfsplus_delete_cat(u32 cnid, struct inode *dir, struct qstr *str)
 	int err, off;
 	u16 type;
 
-	dprint(DBG_CAT_MOD, "delete_cat: %s,%u\n",
-		str ? str->name : NULL, cnid);
+	hfs_dbg(CAT_MOD, "delete_cat: %s,%u\n", str ? str->name : NULL, cnid);
 	err = hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
 	if (err)
 		return err;
@@ -279,7 +280,7 @@ int hfsplus_delete_cat(u32 cnid, struct inode *dir, struct qstr *str)
 		int len;
 
 		hfsplus_cat_build_key(sb, fd.search_key, cnid, NULL);
-		err = hfs_brec_find(&fd);
+		err = hfs_brec_find(&fd, hfs_find_rec_by_key);
 		if (err)
 			goto out;
 
@@ -296,7 +297,7 @@ int hfsplus_delete_cat(u32 cnid, struct inode *dir, struct qstr *str)
 	} else
 		hfsplus_cat_build_key(sb, fd.search_key, dir->i_ino, str);
 
-	err = hfs_brec_find(&fd);
+	err = hfs_brec_find(&fd, hfs_find_rec_by_key);
 	if (err)
 		goto out;
 
@@ -326,7 +327,7 @@ int hfsplus_delete_cat(u32 cnid, struct inode *dir, struct qstr *str)
 		goto out;
 
 	hfsplus_cat_build_key(sb, fd.search_key, cnid, NULL);
-	err = hfs_brec_find(&fd);
+	err = hfs_brec_find(&fd, hfs_find_rec_by_key);
 	if (err)
 		goto out;
 
@@ -337,6 +338,12 @@ int hfsplus_delete_cat(u32 cnid, struct inode *dir, struct qstr *str)
 	dir->i_size--;
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
 	hfsplus_mark_inode_dirty(dir, HFSPLUS_I_CAT_DIRTY);
+
+	if (type == HFSPLUS_FILE || type == HFSPLUS_FOLDER) {
+		if (HFSPLUS_SB(sb)->attr_tree)
+			hfsplus_delete_all_attrs(dir, cnid);
+	}
+
 out:
 	hfs_find_exit(&fd);
 
@@ -353,7 +360,7 @@ int hfsplus_rename_cat(u32 cnid,
 	int entry_size, type;
 	int err;
 
-	dprint(DBG_CAT_MOD, "rename_cat: %u - %lu,%s - %lu,%s\n",
+	hfs_dbg(CAT_MOD, "rename_cat: %u - %lu,%s - %lu,%s\n",
 		cnid, src_dir->i_ino, src_name->name,
 		dst_dir->i_ino, dst_name->name);
 	err = hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &src_fd);
@@ -363,7 +370,7 @@ int hfsplus_rename_cat(u32 cnid,
 
 	/* find the old dir entry and read the data */
 	hfsplus_cat_build_key(sb, src_fd.search_key, src_dir->i_ino, src_name);
-	err = hfs_brec_find(&src_fd);
+	err = hfs_brec_find(&src_fd, hfs_find_rec_by_key);
 	if (err)
 		goto out;
 	if (src_fd.entrylength > sizeof(entry) || src_fd.entrylength < 0) {
@@ -376,7 +383,7 @@ int hfsplus_rename_cat(u32 cnid,
 
 	/* create new dir entry with the data from the old entry */
 	hfsplus_cat_build_key(sb, dst_fd.search_key, dst_dir->i_ino, dst_name);
-	err = hfs_brec_find(&dst_fd);
+	err = hfs_brec_find(&dst_fd, hfs_find_rec_by_key);
 	if (err != -ENOENT) {
 		if (!err)
 			err = -EEXIST;
@@ -391,7 +398,7 @@ int hfsplus_rename_cat(u32 cnid,
 
 	/* finally remove the old entry */
 	hfsplus_cat_build_key(sb, src_fd.search_key, src_dir->i_ino, src_name);
-	err = hfs_brec_find(&src_fd);
+	err = hfs_brec_find(&src_fd, hfs_find_rec_by_key);
 	if (err)
 		goto out;
 	err = hfs_brec_remove(&src_fd);
@@ -402,7 +409,7 @@ int hfsplus_rename_cat(u32 cnid,
 
 	/* remove old thread entry */
 	hfsplus_cat_build_key(sb, src_fd.search_key, cnid, NULL);
-	err = hfs_brec_find(&src_fd);
+	err = hfs_brec_find(&src_fd, hfs_find_rec_by_key);
 	if (err)
 		goto out;
 	type = hfs_bnode_read_u16(src_fd.bnode, src_fd.entryoffset);
@@ -414,7 +421,7 @@ int hfsplus_rename_cat(u32 cnid,
 	hfsplus_cat_build_key(sb, dst_fd.search_key, cnid, NULL);
 	entry_size = hfsplus_fill_cat_thread(sb, &entry, type,
 		dst_dir->i_ino, dst_name);
-	err = hfs_brec_find(&dst_fd);
+	err = hfs_brec_find(&dst_fd, hfs_find_rec_by_key);
 	if (err != -ENOENT) {
 		if (!err)
 			err = -EEXIST;

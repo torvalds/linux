@@ -1,0 +1,28 @@
+Texas Instruments TWL family (twl4030) reset and power management module
+
+The power management module inside the TWL family provides several facilities
+to control the power resources, including power scripts. For now, the
+binding only supports the complete shutdown of the system after poweroff.
+
+Required properties:
+- compatible : must be "ti,twl4030-power"
+
+Optional properties:
+- ti,use_poweroff: With this flag, the chip will initiates an ACTIVE-to-OFF or
+		   SLEEP-to-OFF transition when the system poweroffs.
+
+Example:
+&i2c1 {
+	clock-frequency = <2600000>;
+
+	twl: twl@48 {
+		reg = <0x48>;
+		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
+		interrupt-parent = <&intc>;
+
+		twl_power: power {
+			compatible = "ti,twl4030-power";
+			ti,use_poweroff;
+		};
+	};
+};

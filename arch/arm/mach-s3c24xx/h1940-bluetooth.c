@@ -19,10 +19,10 @@
 #include <linux/gpio.h>
 #include <linux/rfkill.h>
 
-#include <mach/regs-gpio.h>
 #include <mach/hardware.h>
-#include <mach/h1940-latch.h>
-#include <mach/h1940.h>
+#include <mach/regs-gpio.h>
+
+#include "h1940.h"
 
 #define DRV_NAME "h1940-bt"
 
@@ -62,7 +62,7 @@ static const struct rfkill_ops h1940bt_rfkill_ops = {
 	.set_block = h1940bt_set_block,
 };
 
-static int __devinit h1940bt_probe(struct platform_device *pdev)
+static int h1940bt_probe(struct platform_device *pdev)
 {
 	struct rfkill *rfk;
 	int ret = 0;

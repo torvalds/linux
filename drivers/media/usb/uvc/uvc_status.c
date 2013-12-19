@@ -206,32 +206,15 @@ void uvc_status_cleanup(struct uvc_device *dev)
 	uvc_input_cleanup(dev);
 }
 
-int uvc_status_start(struct uvc_device *dev)
+int uvc_status_start(struct uvc_device *dev, gfp_t flags)
 {
 	if (dev->int_urb == NULL)
 		return 0;
 
-	return usb_submit_urb(dev->int_urb, GFP_KERNEL);
+	return usb_submit_urb(dev->int_urb, flags);
 }
 
 void uvc_status_stop(struct uvc_device *dev)
 {
 	usb_kill_urb(dev->int_urb);
 }
-
-int uvc_status_suspend(struct uvc_device *dev)
-{
-	if (atomic_read(&dev->users))
-		usb_kill_urb(dev->int_urb);
-
-	return 0;
-}
-
-int uvc_status_resume(struct uvc_device *dev)
-{
-	if (dev->int_urb == NULL || atomic_read(&dev->users) == 0)
-		return 0;
-
-	return usb_submit_urb(dev->int_urb, GFP_NOIO);
-}
-

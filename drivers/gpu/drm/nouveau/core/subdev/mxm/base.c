@@ -116,7 +116,7 @@ mxm_shadow_dsm(struct nouveau_mxm *mxm, u8 version)
 	acpi_handle handle;
 	int ret;
 
-	handle = DEVICE_ACPI_HANDLE(&device->pdev->dev);
+	handle = ACPI_HANDLE(&device->pdev->dev);
 	if (!handle)
 		return false;
 
@@ -260,7 +260,7 @@ nouveau_mxm_create_(struct nouveau_object *parent,
 
 	data = mxm_table(bios, &ver, &len);
 	if (!data || !(ver = nv_ro08(bios, data))) {
-		nv_info(mxm, "no VBIOS data, nothing to do\n");
+		nv_debug(mxm, "no VBIOS data, nothing to do\n");
 		return 0;
 	}
 

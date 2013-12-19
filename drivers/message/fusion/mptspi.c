@@ -831,7 +831,7 @@ static void mptspi_slave_destroy(struct scsi_device *sdev)
 static struct scsi_host_template mptspi_driver_template = {
 	.module				= THIS_MODULE,
 	.proc_name			= "mptspi",
-	.proc_info			= mptscsih_proc_info,
+	.show_info			= mptscsih_show_info,
 	.name				= "MPT SPI Host",
 	.info				= mptscsih_info,
 	.queuecommand			= mptspi_qcmd,
@@ -1550,7 +1550,7 @@ static struct pci_driver mptspi_driver = {
 	.name		= "mptspi",
 	.id_table	= mptspi_pci_table,
 	.probe		= mptspi_probe,
-	.remove		= __devexit_p(mptscsih_remove),
+	.remove		= mptscsih_remove,
 	.shutdown	= mptscsih_shutdown,
 #ifdef CONFIG_PM
 	.suspend	= mptscsih_suspend,

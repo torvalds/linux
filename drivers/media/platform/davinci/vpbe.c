@@ -344,7 +344,7 @@ static int vpbe_s_dv_timings(struct vpbe_device *vpbe_dev,
 		return -EINVAL;
 
 	for (i = 0; i < output->num_modes; i++) {
-		if (output->modes[i].timings_type == VPBE_ENC_CUSTOM_TIMINGS &&
+		if (output->modes[i].timings_type == VPBE_ENC_DV_TIMINGS &&
 		    !memcmp(&output->modes[i].dv_timings,
 				dv_timings, sizeof(*dv_timings)))
 			break;
@@ -385,7 +385,7 @@ static int vpbe_g_dv_timings(struct vpbe_device *vpbe_dev,
 		     struct v4l2_dv_timings *dv_timings)
 {
 	if (vpbe_dev->current_timings.timings_type &
-	  VPBE_ENC_CUSTOM_TIMINGS) {
+	  VPBE_ENC_DV_TIMINGS) {
 		*dv_timings = vpbe_dev->current_timings.dv_timings;
 		return 0;
 	}
@@ -412,7 +412,7 @@ static int vpbe_enum_dv_timings(struct vpbe_device *vpbe_dev,
 		return -EINVAL;
 
 	for (i = 0; i < output->num_modes; i++) {
-		if (output->modes[i].timings_type == VPBE_ENC_CUSTOM_TIMINGS) {
+		if (output->modes[i].timings_type == VPBE_ENC_DV_TIMINGS) {
 			if (j == timings->index)
 				break;
 			j++;
@@ -431,7 +431,7 @@ static int vpbe_enum_dv_timings(struct vpbe_device *vpbe_dev,
  * Sets the standard if supported by the current encoder. Return the status.
  * 0 - success & -EINVAL on error
  */
-static int vpbe_s_std(struct vpbe_device *vpbe_dev, v4l2_std_id *std_id)
+static int vpbe_s_std(struct vpbe_device *vpbe_dev, v4l2_std_id std_id)
 {
 	struct vpbe_config *cfg = vpbe_dev->cfg;
 	int out_index = vpbe_dev->current_out_index;
@@ -442,14 +442,14 @@ static int vpbe_s_std(struct vpbe_device *vpbe_dev, v4l2_std_id *std_id)
 		V4L2_OUT_CAP_STD))
 		return -EINVAL;
 
-	ret = vpbe_get_std_info(vpbe_dev, *std_id);
+	ret = vpbe_get_std_info(vpbe_dev, std_id);
 	if (ret)
 		return ret;
 
 	mutex_lock(&vpbe_dev->lock);
 
 	ret = v4l2_subdev_call(vpbe_dev->encoders[sd_index], video,
-			       s_std_output, *std_id);
+			       s_std_output, std_id);
 	/* set the lcd controller output for the given mode */
 	if (!ret) {
 		struct osd_state *osd_device = vpbe_dev->osd_device;
@@ -513,9 +513,9 @@ static int vpbe_set_mode(struct vpbe_device *vpbe_dev,
 			 */
 			if (preset_mode->timings_type & VPBE_ENC_STD)
 				return vpbe_s_std(vpbe_dev,
-						 &preset_mode->std_id);
+						 preset_mode->std_id);
 			if (preset_mode->timings_type &
-						VPBE_ENC_CUSTOM_TIMINGS) {
+						VPBE_ENC_DV_TIMINGS) {
 				dv_timings =
 					preset_mode->dv_timings;
 				return vpbe_s_dv_timings(vpbe_dev, &dv_timings);
@@ -558,9 +558,9 @@ static int platform_device_get(struct device *dev, void *data)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct vpbe_device *vpbe_dev = data;
 
-	if (strcmp("vpbe-osd", pdev->name) == 0)
+	if (strstr(pdev->name, "vpbe-osd") != NULL)
 		vpbe_dev->osd_device = platform_get_drvdata(pdev);
-	if (strcmp("vpbe-venc", pdev->name) == 0)
+	if (strstr(pdev->name, "vpbe-venc") != NULL)
 		vpbe_dev->venc_device = dev_get_platdata(&pdev->dev);
 
 	return 0;
@@ -584,7 +584,6 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 	struct v4l2_subdev **enc_subdev;
 	struct osd_state *osd_device;
 	struct i2c_adapter *i2c_adap;
-	int output_index;
 	int num_encoders;
 	int ret = 0;
 	int err;
@@ -632,8 +631,10 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 
 	err = bus_for_each_dev(&platform_bus_type, NULL, vpbe_dev,
 			       platform_device_get);
-	if (err < 0)
-		return err;
+	if (err < 0) {
+		ret = err;
+		goto fail_dev_unregister;
+	}
 
 	vpbe_dev->venc = venc_sub_dev_init(&vpbe_dev->v4l2_dev,
 					   vpbe_dev->cfg->venc.module_name);
@@ -731,7 +732,6 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 	/* set the current encoder and output to that of venc by default */
 	vpbe_dev->current_sd_index = 0;
 	vpbe_dev->current_out_index = 0;
-	output_index = 0;
 
 	mutex_unlock(&vpbe_dev->lock);
 
@@ -807,7 +807,7 @@ static struct vpbe_device_ops vpbe_dev_ops = {
 	.set_mode = vpbe_set_mode,
 };
 
-static __devinit int vpbe_probe(struct platform_device *pdev)
+static int vpbe_probe(struct platform_device *pdev)
 {
 	struct vpbe_device *vpbe_dev;
 	struct vpbe_config *cfg;

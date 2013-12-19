@@ -2561,7 +2561,7 @@ static void hifn_tasklet_callback(unsigned long data)
 		hifn_process_queue(dev);
 }
 
-static int __devinit hifn_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int hifn_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int err, i;
 	struct hifn_device *dev;
@@ -2676,7 +2676,7 @@ err_out_stop_device:
 	hifn_reset_dma(dev, 1);
 	hifn_stop_device(dev);
 err_out_free_irq:
-	free_irq(dev->irq, dev->name);
+	free_irq(dev->irq, dev);
 	tasklet_kill(&dev->tasklet);
 err_out_free_desc:
 	pci_free_consistent(pdev, sizeof(struct hifn_dma),
@@ -2696,7 +2696,7 @@ err_out_disable_pci_device:
 	return err;
 }
 
-static void __devexit hifn_remove(struct pci_dev *pdev)
+static void hifn_remove(struct pci_dev *pdev)
 {
 	int i;
 	struct hifn_device *dev;
@@ -2711,7 +2711,7 @@ static void __devexit hifn_remove(struct pci_dev *pdev)
 		hifn_reset_dma(dev, 1);
 		hifn_stop_device(dev);
 
-		free_irq(dev->irq, dev->name);
+		free_irq(dev->irq, dev);
 		tasklet_kill(&dev->tasklet);
 
 		hifn_flush(dev);
@@ -2740,7 +2740,7 @@ static struct pci_driver hifn_pci_driver = {
 	.name     = "hifn795x",
 	.id_table = hifn_pci_tbl,
 	.probe    = hifn_probe,
-	.remove   = __devexit_p(hifn_remove),
+	.remove   = hifn_remove,
 };
 
 static int __init hifn_init(void)

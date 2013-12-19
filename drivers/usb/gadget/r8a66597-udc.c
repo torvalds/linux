@@ -1469,10 +1469,10 @@ static irqreturn_t r8a66597_irq(int irq, void *_r8a66597)
 	u16 savepipe;
 	u16 mask0;
 
+	spin_lock(&r8a66597->lock);
+
 	if (r8a66597_is_sudmac(r8a66597))
 		r8a66597_sudmac_irq(r8a66597);
-
-	spin_lock(&r8a66597->lock);
 
 	intsts0 = r8a66597_read(r8a66597, INTSTS0);
 	intenb0 = r8a66597_read(r8a66597, INTENB0);
@@ -1812,7 +1812,7 @@ static int r8a66597_set_selfpowered(struct usb_gadget *gadget, int is_self)
 	return 0;
 }
 
-static struct usb_gadget_ops r8a66597_gadget_ops = {
+static const struct usb_gadget_ops r8a66597_gadget_ops = {
 	.get_frame		= r8a66597_get_frame,
 	.udc_start		= r8a66597_start,
 	.udc_stop		= r8a66597_stop,
@@ -1822,7 +1822,7 @@ static struct usb_gadget_ops r8a66597_gadget_ops = {
 
 static int __exit r8a66597_remove(struct platform_device *pdev)
 {
-	struct r8a66597		*r8a66597 = dev_get_drvdata(&pdev->dev);
+	struct r8a66597		*r8a66597 = platform_get_drvdata(pdev);
 
 	usb_del_gadget_udc(&r8a66597->gadget);
 	del_timer_sync(&r8a66597->timer);
@@ -1837,7 +1837,6 @@ static int __exit r8a66597_remove(struct platform_device *pdev)
 		clk_put(r8a66597->clk);
 	}
 
-	device_unregister(&r8a66597->gadget.dev);
 	kfree(r8a66597);
 	return 0;
 }
@@ -1910,22 +1909,13 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	}
 
 	spin_lock_init(&r8a66597->lock);
-	dev_set_drvdata(&pdev->dev, r8a66597);
-	r8a66597->pdata = pdev->dev.platform_data;
+	platform_set_drvdata(pdev, r8a66597);
+	r8a66597->pdata = dev_get_platdata(&pdev->dev);
 	r8a66597->irq_sense_low = irq_trigger == IRQF_TRIGGER_LOW;
 
 	r8a66597->gadget.ops = &r8a66597_gadget_ops;
-	dev_set_name(&r8a66597->gadget.dev, "gadget");
 	r8a66597->gadget.max_speed = USB_SPEED_HIGH;
-	r8a66597->gadget.dev.parent = &pdev->dev;
-	r8a66597->gadget.dev.dma_mask = pdev->dev.dma_mask;
-	r8a66597->gadget.dev.release = pdev->dev.release;
 	r8a66597->gadget.name = udc_name;
-	ret = device_register(&r8a66597->gadget.dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "device_register failed\n");
-		goto clean_up;
-	}
 
 	init_timer(&r8a66597->timer);
 	r8a66597->timer.function = r8a66597_timer;
@@ -1939,7 +1929,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "cannot get clock \"%s\"\n",
 				clk_name);
 			ret = PTR_ERR(r8a66597->clk);
-			goto clean_up_dev;
+			goto clean_up;
 		}
 		clk_enable(r8a66597->clk);
 	}
@@ -1987,8 +1977,10 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 
 	r8a66597->ep0_req = r8a66597_alloc_request(&r8a66597->ep[0].ep,
 							GFP_KERNEL);
-	if (r8a66597->ep0_req == NULL)
+	if (r8a66597->ep0_req == NULL) {
+		ret = -ENOMEM;
 		goto clean_up3;
+	}
 	r8a66597->ep0_req->complete = nop_completion;
 
 	ret = usb_add_gadget_udc(&pdev->dev, &r8a66597->gadget);
@@ -2007,8 +1999,6 @@ clean_up2:
 		clk_disable(r8a66597->clk);
 		clk_put(r8a66597->clk);
 	}
-clean_up_dev:
-	device_unregister(&r8a66597->gadget.dev);
 clean_up:
 	if (r8a66597) {
 		if (r8a66597->sudmac_reg)
@@ -2031,21 +2021,10 @@ static struct platform_driver r8a66597_driver = {
 		.name =	(char *) udc_name,
 	},
 };
-MODULE_ALIAS("platform:r8a66597_udc");
 
-static int __init r8a66597_udc_init(void)
-{
-	return platform_driver_probe(&r8a66597_driver, r8a66597_probe);
-}
-module_init(r8a66597_udc_init);
-
-static void __exit r8a66597_udc_cleanup(void)
-{
-	platform_driver_unregister(&r8a66597_driver);
-}
-module_exit(r8a66597_udc_cleanup);
+module_platform_driver_probe(r8a66597_driver, r8a66597_probe);
 
 MODULE_DESCRIPTION("R8A66597 USB gadget driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yoshihiro Shimoda");
-
+MODULE_ALIAS("platform:r8a66597_udc");

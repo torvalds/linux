@@ -449,9 +449,6 @@ static int snd_cx231xx_capture_open(struct snd_pcm_substream *substream)
 		return -ENODEV;
 	}
 
-	/* Sets volume, mute, etc */
-	dev->mute = 0;
-
 	/* set alternate setting for audio interface */
 	/* 1 - 48000 samples per sec */
 	mutex_lock(&dev->lock);
@@ -503,7 +500,6 @@ static int snd_cx231xx_pcm_close(struct snd_pcm_substream *substream)
 		return ret;
 	}
 
-	dev->mute = 1;
 	dev->adev.users--;
 	mutex_unlock(&dev->lock);
 
@@ -708,8 +704,8 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 					    audio_index + 1];
 
 	adev->end_point_addr =
-	    le16_to_cpu(uif->altsetting[0].endpoint[isoc_pipe].desc.
-			bEndpointAddress);
+	    uif->altsetting[0].endpoint[isoc_pipe].desc.
+			bEndpointAddress;
 
 	adev->num_alt = uif->num_altsetting;
 	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",

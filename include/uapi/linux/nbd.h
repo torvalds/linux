@@ -33,13 +33,14 @@ enum {
 	NBD_CMD_READ = 0,
 	NBD_CMD_WRITE = 1,
 	NBD_CMD_DISC = 2,
-	/* there is a gap here to match userspace */
+	NBD_CMD_FLUSH = 3,
 	NBD_CMD_TRIM = 4
 };
 
 /* values for flags field */
 #define NBD_FLAG_HAS_FLAGS    (1 << 0) /* nbd-server supports flags */
 #define NBD_FLAG_READ_ONLY    (1 << 1) /* device is read-only */
+#define NBD_FLAG_SEND_FLUSH   (1 << 2) /* can flush writeback cache */
 /* there is a gap here to match userspace */
 #define NBD_FLAG_SEND_TRIM    (1 << 5) /* send trim/discard */
 

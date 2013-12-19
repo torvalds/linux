@@ -497,7 +497,7 @@ static irqreturn_t bfin_bf54x_irq_error(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit bfin_bf54x_probe(struct platform_device *pdev)
+static int bfin_bf54x_probe(struct platform_device *pdev)
 {
 #ifndef NO_BL_SUPPORT
 	struct backlight_properties props;
@@ -681,12 +681,11 @@ out3:
 out2:
 	free_dma(CH_EPPI0);
 out1:
-	platform_set_drvdata(pdev, NULL);
 
 	return ret;
 }
 
-static int __devexit bfin_bf54x_remove(struct platform_device *pdev)
+static int bfin_bf54x_remove(struct platform_device *pdev)
 {
 
 	struct fb_info *fbinfo = platform_get_drvdata(pdev);
@@ -754,7 +753,7 @@ static int bfin_bf54x_resume(struct platform_device *pdev)
 
 static struct platform_driver bfin_bf54x_driver = {
 	.probe = bfin_bf54x_probe,
-	.remove = __devexit_p(bfin_bf54x_remove),
+	.remove = bfin_bf54x_remove,
 	.suspend = bfin_bf54x_suspend,
 	.resume = bfin_bf54x_resume,
 	.driver = {
@@ -762,19 +761,7 @@ static struct platform_driver bfin_bf54x_driver = {
 		   .owner = THIS_MODULE,
 		   },
 };
-
-static int __init bfin_bf54x_driver_init(void)
-{
-	return platform_driver_register(&bfin_bf54x_driver);
-}
-
-static void __exit bfin_bf54x_driver_cleanup(void)
-{
-	platform_driver_unregister(&bfin_bf54x_driver);
-}
+module_platform_driver(bfin_bf54x_driver);
 
 MODULE_DESCRIPTION("Blackfin BF54x TFT LCD Driver");
 MODULE_LICENSE("GPL");
-
-module_init(bfin_bf54x_driver_init);
-module_exit(bfin_bf54x_driver_cleanup);

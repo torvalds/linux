@@ -244,10 +244,9 @@ static void _rtl8723ae_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	struct ieee80211_hdr *hdr;
 	u8 *tmp_buf;
 	u8 *praddr;
-	u8 *psaddr;
 	__le16 fc;
 	u16 type;
-	bool packet_matchbssid, packet_toself, packet_beacon;
+	bool packet_matchbssid, packet_toself, packet_beacon = false;
 
 	tmp_buf = skb->data + pstatus->rx_drvinfo_size + pstatus->rx_bufshift;
 
@@ -255,18 +254,17 @@ static void _rtl8723ae_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	fc = hdr->frame_control;
 	type = WLAN_FC_GET_TYPE(fc);
 	praddr = hdr->addr1;
-	psaddr = ieee80211_get_SA(hdr);
 
-	packet_matchbssid = ((IEEE80211_FTYPE_CTL != type) &&
-			    (!compare_ether_addr(mac->bssid,
-			    (le16_to_cpu(fc) & IEEE80211_FCTL_TODS) ?
-			    hdr->addr1 : (le16_to_cpu(fc) &
-			    IEEE80211_FCTL_FROMDS) ?
-			    hdr->addr2 : hdr->addr3)) && (!pstatus->hwerror) &&
-			    (!pstatus->crc) && (!pstatus->icv));
+	packet_matchbssid =
+		((IEEE80211_FTYPE_CTL != type) &&
+		 ether_addr_equal(mac->bssid,
+				  (le16_to_cpu(fc) & IEEE80211_FCTL_TODS) ? hdr->addr1 :
+				  (le16_to_cpu(fc) & IEEE80211_FCTL_FROMDS) ? hdr->addr2 :
+				  hdr->addr3) &&
+		 (!pstatus->hwerror) && (!pstatus->crc) && (!pstatus->icv));
 
-	packet_toself = packet_matchbssid &&
-	    (!compare_ether_addr(praddr, rtlefuse->dev_addr));
+	packet_toself = (packet_matchbssid &&
+			 ether_addr_equal(praddr, rtlefuse->dev_addr));
 
 	if (ieee80211_is_beacon(fc))
 		packet_beacon = true;
@@ -306,11 +304,8 @@ bool rtl8723ae_rx_query_desc(struct ieee80211_hw *hw,
 
 	status->is_cck = RTL8723E_RX_HAL_IS_CCK_RATE(status->rate);
 
-	rx_status->freq = hw->conf.channel->center_freq;
-	rx_status->band = hw->conf.channel->band;
-
-	hdr = (struct ieee80211_hdr *)(skb->data + status->rx_drvinfo_size
-		+ status->rx_bufshift);
+	rx_status->freq = hw->conf.chandef.chan->center_freq;
+	rx_status->band = hw->conf.chandef.chan->band;
 
 	if (status->crc)
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
@@ -332,6 +327,13 @@ bool rtl8723ae_rx_query_desc(struct ieee80211_hw *hw,
 	 * to decrypt it
 	 */
 	if (status->decrypted) {
+		hdr = (struct ieee80211_hdr *)(skb->data +
+		       status->rx_drvinfo_size + status->rx_bufshift);
+
+		if (!hdr) {
+			/* during testing, hdr could be NULL here */
+			return false;
+		}
 		if ((ieee80211_is_robust_mgmt_frame(hdr)) &&
 			(ieee80211_has_protected(hdr->frame_control)))
 			rx_status->flag &= ~RX_FLAG_DECRYPTED;
@@ -357,7 +359,6 @@ bool rtl8723ae_rx_query_desc(struct ieee80211_hw *hw,
 
 	/*rx_status->qual = status->signal; */
 	rx_status->signal = status->recvsignalpower + 10;
-	/*rx_status->noise = -status->noise; */
 
 	return true;
 }
@@ -387,13 +388,17 @@ void rtl8723ae_tx_fill_desc(struct ieee80211_hw *hw,
 					    PCI_DMA_TODEVICE);
 	u8 bw_40 = 0;
 
+	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
+		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
+			 "DMA mapping error");
+		return;
+	}
 	if (mac->opmode == NL80211_IFTYPE_STATION) {
 		bw_40 = mac->bw_40;
 	} else if (mac->opmode == NL80211_IFTYPE_AP ||
 		mac->opmode == NL80211_IFTYPE_ADHOC) {
 		if (sta)
-			bw_40 = sta->ht_cap.cap &
-				IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+			bw_40 = sta->bandwidth >= IEEE80211_STA_RX_BW_40;
 	}
 
 	seq_number = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
@@ -542,6 +547,11 @@ void rtl8723ae_tx_fill_cmddesc(struct ieee80211_hw *hw,
 					    PCI_DMA_TODEVICE);
 	__le16 fc = hdr->frame_control;
 
+	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
+		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
+			 "DMA mapping error");
+		return;
+	}
 	CLEAR_PCI_TX_DESC_CONTENT(pdesc, TX_DESC_SIZE);
 
 	if (firstseg)

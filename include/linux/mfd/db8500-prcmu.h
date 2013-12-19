@@ -16,12 +16,6 @@
 /*
  * Registers
  */
-#define DB8500_PRCM_GPIOCR 0x138
-#define DB8500_PRCM_GPIOCR_DBG_UARTMOD_CMD0	BIT(0)
-#define DB8500_PRCM_GPIOCR_DBG_STM_APE_CMD	BIT(9)
-#define DB8500_PRCM_GPIOCR_DBG_STM_MOD_CMD1	BIT(11)
-#define DB8500_PRCM_GPIOCR_SPI2_SELECT		BIT(23)
-
 #define DB8500_PRCM_LINE_VALUE 0x170
 #define DB8500_PRCM_LINE_VALUE_HSI_CAWAKE0	BIT(3)
 
@@ -493,23 +487,9 @@ struct prcmu_auto_pm_config {
 	u8 sva_policy;
 };
 
-#define PRCMU_FW_PROJECT_U8500		2
-#define PRCMU_FW_PROJECT_U9500		4
-#define PRCMU_FW_PROJECT_U8500_C2	7
-#define PRCMU_FW_PROJECT_U9500_C2	11
-#define PRCMU_FW_PROJECT_U8520		13
-#define PRCMU_FW_PROJECT_U8420		14
-
-struct prcmu_fw_version {
-	u8 project;
-	u8 api_version;
-	u8 func_version;
-	u8 errata;
-};
-
 #ifdef CONFIG_MFD_DB8500_PRCMU
 
-void db8500_prcmu_early_init(void);
+void db8500_prcmu_early_init(u32 phy_base, u32 size);
 int prcmu_set_rc_a2p(enum romcode_write);
 enum romcode_read prcmu_get_rc_p2a(void);
 enum ap_pwrst prcmu_get_xp70_current_state(void);
@@ -542,12 +522,6 @@ int db8500_prcmu_load_a9wdog(u8 id, u32 val);
 void db8500_prcmu_system_reset(u16 reset_code);
 int db8500_prcmu_set_power_state(u8 state, bool keep_ulp_clk, bool keep_ap_pll);
 u8 db8500_prcmu_get_power_state_result(void);
-int db8500_prcmu_gic_decouple(void);
-int db8500_prcmu_gic_recouple(void);
-int db8500_prcmu_copy_gic_settings(void);
-bool db8500_prcmu_gic_pending_irq(void);
-bool db8500_prcmu_pending_irq(void);
-bool db8500_prcmu_is_cpu_in_wfi(int cpu);
 void db8500_prcmu_enable_wakeups(u32 wakeups);
 int db8500_prcmu_set_epod(u16 epod_id, u8 epod_state);
 int db8500_prcmu_request_clock(u8 clock, bool enable);
@@ -573,7 +547,7 @@ void db8500_prcmu_write_masked(unsigned int reg, u32 mask, u32 value);
 
 #else /* !CONFIG_MFD_DB8500_PRCMU */
 
-static inline void db8500_prcmu_early_init(void) {}
+static inline void db8500_prcmu_early_init(u32 phy_base, u32 size) {}
 
 static inline int prcmu_set_rc_a2p(enum romcode_write code)
 {

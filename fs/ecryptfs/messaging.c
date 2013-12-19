@@ -97,8 +97,7 @@ static void ecryptfs_msg_ctx_free_to_alloc(struct ecryptfs_msg_ctx *msg_ctx)
 void ecryptfs_msg_ctx_alloc_to_free(struct ecryptfs_msg_ctx *msg_ctx)
 {
 	list_move(&(msg_ctx->node), &ecryptfs_msg_ctx_free_list);
-	if (msg_ctx->msg)
-		kfree(msg_ctx->msg);
+	kfree(msg_ctx->msg);
 	msg_ctx->msg = NULL;
 	msg_ctx->state = ECRYPTFS_MSG_CTX_STATE_FREE;
 }
@@ -115,10 +114,9 @@ void ecryptfs_msg_ctx_alloc_to_free(struct ecryptfs_msg_ctx *msg_ctx)
  */
 int ecryptfs_find_daemon_by_euid(struct ecryptfs_daemon **daemon)
 {
-	struct hlist_node *elem;
 	int rc;
 
-	hlist_for_each_entry(*daemon, elem,
+	hlist_for_each_entry(*daemon,
 			    &ecryptfs_daemon_hash[ecryptfs_current_euid_hash()],
 			    euid_chain) {
 		if (uid_eq((*daemon)->file->f_cred->euid, current_euid())) {
@@ -249,14 +247,13 @@ int ecryptfs_process_response(struct ecryptfs_daemon *daemon,
 		goto unlock;
 	}
 	msg_size = (sizeof(*msg) + msg->data_len);
-	msg_ctx->msg = kmalloc(msg_size, GFP_KERNEL);
+	msg_ctx->msg = kmemdup(msg, msg_size, GFP_KERNEL);
 	if (!msg_ctx->msg) {
 		rc = -ENOMEM;
 		printk(KERN_ERR "%s: Failed to allocate [%zd] bytes of "
 		       "GFP_KERNEL memory\n", __func__, msg_size);
 		goto unlock;
 	}
-	memcpy(msg_ctx->msg, msg, msg_size);
 	msg_ctx->state = ECRYPTFS_MSG_CTX_STATE_DONE;
 	wake_up_process(msg_ctx->task);
 	rc = 0;
@@ -284,7 +281,7 @@ ecryptfs_send_message_locked(char *data, int data_len, u8 msg_type,
 	int rc;
 
 	rc = ecryptfs_find_daemon_by_euid(&daemon);
-	if (rc || !daemon) {
+	if (rc) {
 		rc = -ENOTCONN;
 		goto out;
 	}
@@ -445,7 +442,6 @@ void ecryptfs_release_messaging(void)
 		mutex_unlock(&ecryptfs_msg_ctx_lists_mux);
 	}
 	if (ecryptfs_daemon_hash) {
-		struct hlist_node *elem;
 		struct ecryptfs_daemon *daemon;
 		int i;
 
@@ -453,7 +449,7 @@ void ecryptfs_release_messaging(void)
 		for (i = 0; i < (1 << ecryptfs_hash_bits); i++) {
 			int rc;
 
-			hlist_for_each_entry(daemon, elem,
+			hlist_for_each_entry(daemon,
 					     &ecryptfs_daemon_hash[i],
 					     euid_chain) {
 				rc = ecryptfs_exorcise_daemon(daemon);

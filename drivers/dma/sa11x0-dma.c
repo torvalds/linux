@@ -436,7 +436,7 @@ static enum dma_status sa11x0_dma_tx_status(struct dma_chan *chan,
 	enum dma_status ret;
 
 	ret = dma_cookie_status(&c->vc.chan, cookie, state);
-	if (ret == DMA_SUCCESS)
+	if (ret == DMA_COMPLETE)
 		return ret;
 
 	if (!state)
@@ -967,7 +967,7 @@ static int sa11x0_dma_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit sa11x0_dma_remove(struct platform_device *pdev)
+static int sa11x0_dma_remove(struct platform_device *pdev)
 {
 	struct sa11x0_dma_dev *d = platform_get_drvdata(pdev);
 	unsigned pch;

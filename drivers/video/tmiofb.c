@@ -191,7 +191,7 @@
 #define LCR_VCLKHW		0x1b4 /* VCLK High Width		*/
 #define LCR_OC			0x1b6 /* Output Control			*/
 
-static char *mode_option __devinitdata;
+static char *mode_option;
 
 struct tmiofb_par {
 	u32				pseudo_palette[16];
@@ -250,7 +250,7 @@ static irqreturn_t tmiofb_irq(int irq, void *__info)
  */
 static int tmiofb_hw_stop(struct platform_device *dev)
 {
-	struct tmio_fb_data *data = dev->dev.platform_data;
+	struct tmio_fb_data *data = dev_get_platdata(&dev->dev);
 	struct fb_info *info = platform_get_drvdata(dev);
 	struct tmiofb_par *par = info->par;
 
@@ -311,7 +311,7 @@ static int tmiofb_hw_init(struct platform_device *dev)
  */
 static void tmiofb_hw_mode(struct platform_device *dev)
 {
-	struct tmio_fb_data *data = dev->dev.platform_data;
+	struct tmio_fb_data *data = dev_get_platdata(&dev->dev);
 	struct fb_info *info = platform_get_drvdata(dev);
 	struct fb_videomode *mode = info->mode;
 	struct tmiofb_par *par = info->par;
@@ -557,7 +557,7 @@ static int tmiofb_ioctl(struct fb_info *fbi,
 static struct fb_videomode *
 tmiofb_find_mode(struct fb_info *info, struct fb_var_screeninfo *var)
 {
-	struct tmio_fb_data *data = info->device->platform_data;
+	struct tmio_fb_data *data = dev_get_platdata(info->device);
 	struct fb_videomode *best = NULL;
 	int i;
 
@@ -577,7 +577,7 @@ static int tmiofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 
 	struct fb_videomode *mode;
-	struct tmio_fb_data *data = info->device->platform_data;
+	struct tmio_fb_data *data = dev_get_platdata(info->device);
 
 	mode = tmiofb_find_mode(info, var);
 	if (!mode || var->bits_per_pixel > 16)
@@ -675,10 +675,10 @@ static struct fb_ops tmiofb_ops = {
 
 /*--------------------------------------------------------------------------*/
 
-static int __devinit tmiofb_probe(struct platform_device *dev)
+static int tmiofb_probe(struct platform_device *dev)
 {
 	const struct mfd_cell *cell = mfd_get_cell(dev);
-	struct tmio_fb_data *data = dev->dev.platform_data;
+	struct tmio_fb_data *data = dev_get_platdata(&dev->dev);
 	struct resource *ccr = platform_get_resource(dev, IORESOURCE_MEM, 1);
 	struct resource *lcr = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	struct resource *vram = platform_get_resource(dev, IORESOURCE_MEM, 2);
@@ -781,8 +781,7 @@ static int __devinit tmiofb_probe(struct platform_device *dev)
 	if (retval < 0)
 		goto err_register_framebuffer;
 
-	printk(KERN_INFO "fb%d: %s frame buffer device\n",
-				info->node, info->fix.id);
+	fb_info(info, "%s frame buffer device\n", info->fix.id);
 
 	return 0;
 
@@ -794,7 +793,6 @@ err_hw_init:
 		cell->disable(dev);
 err_enable:
 err_find_mode:
-	platform_set_drvdata(dev, NULL);
 	free_irq(irq, info);
 err_request_irq:
 	iounmap(info->screen_base);
@@ -807,7 +805,7 @@ err_ioremap_ccr:
 	return retval;
 }
 
-static int __devexit tmiofb_remove(struct platform_device *dev)
+static int tmiofb_remove(struct platform_device *dev)
 {
 	const struct mfd_cell *cell = mfd_get_cell(dev);
 	struct fb_info *info = platform_get_drvdata(dev);
@@ -822,8 +820,6 @@ static int __devexit tmiofb_remove(struct platform_device *dev)
 
 		if (cell->disable)
 			cell->disable(dev);
-
-		platform_set_drvdata(dev, NULL);
 
 		free_irq(irq, info);
 
@@ -1002,7 +998,7 @@ static struct platform_driver tmiofb_driver = {
 	.driver.name	= "tmio-fb",
 	.driver.owner	= THIS_MODULE,
 	.probe		= tmiofb_probe,
-	.remove		= __devexit_p(tmiofb_remove),
+	.remove		= tmiofb_remove,
 	.suspend	= tmiofb_suspend,
 	.resume		= tmiofb_resume,
 };

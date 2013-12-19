@@ -128,7 +128,7 @@ static int lms283gf05_power_set(struct lcd_device *ld, int power)
 {
 	struct lms283gf05_state *st = lcd_get_data(ld);
 	struct spi_device *spi = st->spi;
-	struct lms283gf05_pdata *pdata = spi->dev.platform_data;
+	struct lms283gf05_pdata *pdata = dev_get_platdata(&spi->dev);
 
 	if (power <= FB_BLANK_NORMAL) {
 		if (pdata)
@@ -153,7 +153,7 @@ static struct lcd_ops lms_ops = {
 static int lms283gf05_probe(struct spi_device *spi)
 {
 	struct lms283gf05_state *st;
-	struct lms283gf05_pdata *pdata = spi->dev.platform_data;
+	struct lms283gf05_pdata *pdata = dev_get_platdata(&spi->dev);
 	struct lcd_device *ld;
 	int ret = 0;
 
@@ -173,28 +173,20 @@ static int lms283gf05_probe(struct spi_device *spi)
 		return -ENOMEM;
 	}
 
-	ld = lcd_device_register("lms283gf05", &spi->dev, st, &lms_ops);
+	ld = devm_lcd_device_register(&spi->dev, "lms283gf05", &spi->dev, st,
+					&lms_ops);
 	if (IS_ERR(ld))
 		return PTR_ERR(ld);
 
 	st->spi = spi;
 	st->ld = ld;
 
-	dev_set_drvdata(&spi->dev, st);
+	spi_set_drvdata(spi, st);
 
 	/* kick in the LCD */
 	if (pdata)
 		lms283gf05_reset(pdata->reset_gpio, pdata->reset_inverted);
 	lms283gf05_toggle(spi, disp_initseq, ARRAY_SIZE(disp_initseq));
-
-	return 0;
-}
-
-static int lms283gf05_remove(struct spi_device *spi)
-{
-	struct lms283gf05_state *st = dev_get_drvdata(&spi->dev);
-
-	lcd_device_unregister(st->ld);
 
 	return 0;
 }
@@ -205,7 +197,6 @@ static struct spi_driver lms283gf05_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= lms283gf05_probe,
-	.remove		= lms283gf05_remove,
 };
 
 module_spi_driver(lms283gf05_driver);

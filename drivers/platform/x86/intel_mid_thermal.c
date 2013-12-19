@@ -542,7 +542,6 @@ static int mid_thermal_remove(struct platform_device *pdev)
 	}
 
 	kfree(pinfo);
-	platform_set_drvdata(pdev, NULL);
 
 	/* Stop the ADC */
 	return configure_adc(0);
@@ -563,7 +562,7 @@ static struct platform_driver mid_thermal_driver = {
 		.pm = &mid_thermal_pm,
 	},
 	.probe = mid_thermal_probe,
-	.remove = __devexit_p(mid_thermal_remove),
+	.remove = mid_thermal_remove,
 	.id_table = therm_id_table,
 };
 

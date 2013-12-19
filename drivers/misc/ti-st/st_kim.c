@@ -218,7 +218,7 @@ static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 
 	pr_debug("%s", __func__);
 
-	INIT_COMPLETION(kim_gdata->kim_rcvd);
+	reinit_completion(&kim_gdata->kim_rcvd);
 	if (4 != st_int_write(kim_gdata->core_data, read_ver_cmd, 4)) {
 		pr_err("kim: couldn't write 4 bytes");
 		return -EIO;
@@ -229,7 +229,7 @@ static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 		pr_err(" waiting for ver info- timed out ");
 		return -ETIMEDOUT;
 	}
-	INIT_COMPLETION(kim_gdata->kim_rcvd);
+	reinit_completion(&kim_gdata->kim_rcvd);
 	/* the positions 12 & 13 in the response buffer provide with the
 	 * chip, major & minor numbers
 	 */
@@ -362,7 +362,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 			/* reinit completion before sending for the
 			 * relevant wait
 			 */
-			INIT_COMPLETION(kim_gdata->kim_rcvd);
+			reinit_completion(&kim_gdata->kim_rcvd);
 
 			/*
 			 * Free space found in uart buffer, call st_int_write
@@ -398,7 +398,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 				release_firmware(kim_gdata->fw_entry);
 				return -ETIMEDOUT;
 			}
-			INIT_COMPLETION(kim_gdata->kim_rcvd);
+			reinit_completion(&kim_gdata->kim_rcvd);
 			break;
 		case ACTION_DELAY:	/* sleep */
 			pr_info("sleep command in scr");
@@ -468,8 +468,13 @@ long st_kim_start(void *kim_data)
 		if (pdata->chip_enable)
 			pdata->chip_enable(kim_gdata);
 
+		/* Configure BT nShutdown to HIGH state */
+		gpio_set_value(kim_gdata->nshutdown, GPIO_LOW);
+		mdelay(5);	/* FIXME: a proper toggle */
+		gpio_set_value(kim_gdata->nshutdown, GPIO_HIGH);
+		mdelay(100);
 		/* re-initialize the completion */
-		INIT_COMPLETION(kim_gdata->ldisc_installed);
+		reinit_completion(&kim_gdata->ldisc_installed);
 		/* send notification to UIM */
 		kim_gdata->ldisc_install = 1;
 		pr_info("ldisc_install = 1");
@@ -509,7 +514,8 @@ long st_kim_start(void *kim_data)
  *	(b) upon failure to either install ldisc or download firmware.
  *	The function is responsible to (a) notify UIM about un-installation,
  *	(b) flush UART if the ldisc was installed.
- *	(c) invoke platform's chip disabling routine.
+ *	(c) reset BT_EN - pull down nshutdown at the end.
+ *	(d) invoke platform's chip disabling routine.
  */
 long st_kim_stop(void *kim_data)
 {
@@ -519,7 +525,7 @@ long st_kim_stop(void *kim_data)
 		kim_gdata->kim_pdev->dev.platform_data;
 	struct tty_struct	*tty = kim_gdata->core_data->tty;
 
-	INIT_COMPLETION(kim_gdata->ldisc_installed);
+	reinit_completion(&kim_gdata->ldisc_installed);
 
 	if (tty) {	/* can be called before ldisc is installed */
 		/* Flush any pending characters in the driver and discipline. */
@@ -540,6 +546,13 @@ long st_kim_stop(void *kim_data)
 		pr_err(" timed out waiting for ldisc to be un-installed");
 		err = -ETIMEDOUT;
 	}
+
+	/* By default configure BT nShutdown to LOW state */
+	gpio_set_value(kim_gdata->nshutdown, GPIO_LOW);
+	mdelay(1);
+	gpio_set_value(kim_gdata->nshutdown, GPIO_HIGH);
+	mdelay(1);
+	gpio_set_value(kim_gdata->nshutdown, GPIO_LOW);
 
 	/* platform specific disable */
 	if (pdata->chip_disable)
@@ -667,7 +680,7 @@ void st_kim_ref(struct st_data_s **core_data, int id)
 		*core_data = NULL;
 		return;
 	}
-	kim_gdata = dev_get_drvdata(&pdev->dev);
+	kim_gdata = platform_get_drvdata(pdev);
 	*core_data = kim_gdata->core_data;
 }
 
@@ -722,7 +735,7 @@ static int kim_probe(struct platform_device *pdev)
 		pr_err("no mem to allocate");
 		return -ENOMEM;
 	}
-	dev_set_drvdata(&pdev->dev, kim_gdata);
+	platform_set_drvdata(pdev, kim_gdata);
 
 	err = st_core_init(&kim_gdata->core_data);
 	if (err != 0) {
@@ -733,6 +746,20 @@ static int kim_probe(struct platform_device *pdev)
 	/* refer to itself */
 	kim_gdata->core_data->kim_data = kim_gdata;
 
+	/* Claim the chip enable nShutdown gpio from the system */
+	kim_gdata->nshutdown = pdata->nshutdown_gpio;
+	err = gpio_request(kim_gdata->nshutdown, "kim");
+	if (unlikely(err)) {
+		pr_err(" gpio %ld request failed ", kim_gdata->nshutdown);
+		return err;
+	}
+
+	/* Configure nShutdown GPIO as output=0 */
+	err = gpio_direction_output(kim_gdata->nshutdown, 0);
+	if (unlikely(err)) {
+		pr_err(" unable to configure gpio %ld", kim_gdata->nshutdown);
+		return err;
+	}
 	/* get reference of pdev for request_firmware
 	 */
 	kim_gdata->kim_pdev = pdev;
@@ -779,9 +806,17 @@ err_core_init:
 
 static int kim_remove(struct platform_device *pdev)
 {
+	/* free the GPIOs requested */
+	struct ti_st_plat_data	*pdata = pdev->dev.platform_data;
 	struct kim_data_s	*kim_gdata;
 
-	kim_gdata = dev_get_drvdata(&pdev->dev);
+	kim_gdata = platform_get_drvdata(pdev);
+
+	/* Free the Bluetooth/FM/GPIO
+	 * nShutdown gpio from the system
+	 */
+	gpio_free(pdata->nshutdown_gpio);
+	pr_info("nshutdown GPIO Freed");
 
 	debugfs_remove_recursive(kim_debugfs_dir);
 	sysfs_remove_group(&pdev->dev.kobj, &uim_attr_grp);

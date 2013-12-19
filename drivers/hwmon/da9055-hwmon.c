@@ -119,7 +119,7 @@ static irqreturn_t da9055_auxadc_irq(int irq, void *irq_data)
 }
 
 /* Conversion function for VSYS and ADCINx */
-static inline int volt_reg_to_mV(int value, int channel)
+static inline int volt_reg_to_mv(int value, int channel)
 {
 	if (channel == DA9055_ADC_VSYS)
 		return DIV_ROUND_CLOSEST(value * 1000, DA9055_VSYS_DIV) + 2500;
@@ -168,7 +168,7 @@ static ssize_t da9055_read_auto_ch(struct device *dev,
 
 	mutex_unlock(&hwmon->hwmon_lock);
 
-	return sprintf(buf, "%d\n", volt_reg_to_mV(adc, channel));
+	return sprintf(buf, "%d\n", volt_reg_to_mv(adc, channel));
 
 hwmon_err_release:
 	da9055_disable_auto_mode(hwmon->da9055, channel);

@@ -414,7 +414,7 @@ static void qe_rx(struct sunqe *qep)
 	struct qe_rxd *this;
 	struct sunqe_buffers *qbufs = qep->buffers;
 	__u32 qbufs_dvma = qep->buffers_dvma;
-	int elem = qep->rx_new, drops = 0;
+	int elem = qep->rx_new;
 	u32 flags;
 
 	this = &rxbase[elem];
@@ -436,7 +436,6 @@ static void qe_rx(struct sunqe *qep)
 		} else {
 			skb = netdev_alloc_skb(dev, len + 2);
 			if (skb == NULL) {
-				drops++;
 				dev->stats.rx_dropped++;
 			} else {
 				skb_reserve(skb, 2);
@@ -456,8 +455,6 @@ static void qe_rx(struct sunqe *qep)
 		this = &rxbase[elem];
 	}
 	qep->rx_new = elem;
-	if (drops)
-		printk(KERN_NOTICE "%s: Memory squeeze, deferring packet.\n", qep->dev->name);
 }
 
 static void qe_tx_reclaim(struct sunqe *qep);
@@ -685,13 +682,14 @@ static void qe_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	struct sunqe *qep = netdev_priv(dev);
 	struct platform_device *op;
 
-	strcpy(info->driver, "sunqe");
-	strcpy(info->version, "3.0");
+	strlcpy(info->driver, "sunqe", sizeof(info->driver));
+	strlcpy(info->version, "3.0", sizeof(info->version));
 
 	op = qep->op;
 	regs = of_get_property(op->dev.of_node, "reg", NULL);
 	if (regs)
-		sprintf(info->bus_info, "SBUS:%d", regs->which_io);
+		snprintf(info->bus_info, sizeof(info->bus_info), "SBUS:%d",
+			 regs->which_io);
 
 }
 
@@ -769,7 +767,7 @@ static struct sunqec *get_qec(struct platform_device *child)
 	struct platform_device *op = to_platform_device(child->dev.parent);
 	struct sunqec *qecp;
 
-	qecp = dev_get_drvdata(&op->dev);
+	qecp = platform_get_drvdata(op);
 	if (!qecp) {
 		qecp = kzalloc(sizeof(struct sunqec), GFP_KERNEL);
 		if (qecp) {
@@ -803,7 +801,7 @@ static struct sunqec *get_qec(struct platform_device *child)
 				goto fail;
 			}
 
-			dev_set_drvdata(&op->dev, qecp);
+			platform_set_drvdata(op, qecp);
 
 			qecp->next_module = root_qec_dev;
 			root_qec_dev = qecp;
@@ -845,7 +843,7 @@ static int qec_ether_init(struct platform_device *op)
 	if (!dev)
 		return -ENOMEM;
 
-	memcpy(dev->dev_addr, idprom->id_ethaddr, 6);
+	memcpy(dev->dev_addr, idprom->id_ethaddr, ETH_ALEN);
 
 	qe = netdev_priv(dev);
 
@@ -904,7 +902,7 @@ static int qec_ether_init(struct platform_device *op)
 	if (res)
 		goto fail;
 
-	dev_set_drvdata(&op->dev, qe);
+	platform_set_drvdata(op, qe);
 
 	printk(KERN_INFO "%s: qe channel[%d] %pM\n", dev->name, qe->channel,
 	       dev->dev_addr);
@@ -936,7 +934,7 @@ static int qec_sbus_probe(struct platform_device *op)
 
 static int qec_sbus_remove(struct platform_device *op)
 {
-	struct sunqe *qp = dev_get_drvdata(&op->dev);
+	struct sunqe *qp = platform_get_drvdata(op);
 	struct net_device *net_dev = qp->dev;
 
 	unregister_netdev(net_dev);
@@ -949,8 +947,6 @@ static int qec_sbus_remove(struct platform_device *op)
 			  qp->buffers, qp->buffers_dvma);
 
 	free_netdev(net_dev);
-
-	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }

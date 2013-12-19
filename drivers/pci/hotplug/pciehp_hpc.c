@@ -92,7 +92,7 @@ static void start_int_poll_timer(struct controller *ctrl, int sec)
 {
 	/* Clamp to sane value */
 	if ((sec <= 0) || (sec > 60))
-        	sec = 2;
+		sec = 2;
 
 	ctrl->poll_timer.function = &int_poll_timeout;
 	ctrl->poll_timer.data = (unsigned long)ctrl;
@@ -194,7 +194,7 @@ static int pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 			ctrl_dbg(ctrl, "CMD_COMPLETED not clear after 1 sec\n");
 		} else if (!NO_CMD_CMPL(ctrl)) {
 			/*
-			 * This controller semms to notify of command completed
+			 * This controller seems to notify of command completed
 			 * event even though it supports none of power
 			 * controller, attention led, power led and EMI.
 			 */
@@ -749,6 +749,37 @@ static void pcie_disable_notification(struct controller *ctrl)
 		ctrl_warn(ctrl, "Cannot disable software notification\n");
 }
 
+/*
+ * pciehp has a 1:1 bus:slot relationship so we ultimately want a secondary
+ * bus reset of the bridge, but if the slot supports surprise removal we need
+ * to disable presence detection around the bus reset and clear any spurious
+ * events after.
+ */
+int pciehp_reset_slot(struct slot *slot, int probe)
+{
+	struct controller *ctrl = slot->ctrl;
+
+	if (probe)
+		return 0;
+
+	if (HP_SUPR_RM(ctrl)) {
+		pcie_write_cmd(ctrl, 0, PCI_EXP_SLTCTL_PDCE);
+		if (pciehp_poll_mode)
+			del_timer_sync(&ctrl->poll_timer);
+	}
+
+	pci_reset_bridge_secondary_bus(ctrl->pcie->port);
+
+	if (HP_SUPR_RM(ctrl)) {
+		pciehp_writew(ctrl, PCI_EXP_SLTSTA, PCI_EXP_SLTSTA_PDC);
+		pcie_write_cmd(ctrl, PCI_EXP_SLTCTL_PDCE, PCI_EXP_SLTCTL_PDCE);
+		if (pciehp_poll_mode)
+			int_poll_timeout(ctrl->poll_timer.data);
+	}
+
+	return 0;
+}
+
 int pcie_init_notification(struct controller *ctrl)
 {
 	if (pciehp_request_irq(ctrl))
@@ -778,18 +809,25 @@ static int pcie_init_slot(struct controller *ctrl)
 	if (!slot)
 		return -ENOMEM;
 
+	slot->wq = alloc_workqueue("pciehp-%u", 0, 0, PSN(ctrl));
+	if (!slot->wq)
+		goto abort;
+
 	slot->ctrl = ctrl;
 	mutex_init(&slot->lock);
 	INIT_DELAYED_WORK(&slot->work, pciehp_queue_pushbutton_work);
 	ctrl->slot = slot;
 	return 0;
+abort:
+	kfree(slot);
+	return -ENOMEM;
 }
 
 static void pcie_cleanup_slot(struct controller *ctrl)
 {
 	struct slot *slot = ctrl->slot;
 	cancel_delayed_work(&slot->work);
-	flush_workqueue(pciehp_wq);
+	destroy_workqueue(slot->wq);
 	kfree(slot);
 }
 
@@ -888,7 +926,7 @@ struct controller *pcie_init(struct pcie_device *dev)
 	if (pciehp_writew(ctrl, PCI_EXP_SLTSTA, 0x1f))
 		goto abort_ctrl;
 
-	/* Disable sotfware notification */
+	/* Disable software notification */
 	pcie_disable_notification(ctrl);
 
 	ctrl_info(ctrl, "HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n",

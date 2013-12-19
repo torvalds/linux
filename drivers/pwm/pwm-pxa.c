@@ -23,14 +23,13 @@
 #include <asm/div64.h>
 
 #define HAS_SECONDARY_PWM	0x10
-#define PWM_ID_BASE(d)		((d) & 0xf)
 
 static const struct platform_device_id pwm_id_table[] = {
 	/*   PWM    has_secondary_pwm? */
 	{ "pxa25x-pwm", 0 },
-	{ "pxa27x-pwm", 0 | HAS_SECONDARY_PWM },
-	{ "pxa168-pwm", 1 },
-	{ "pxa910-pwm", 1 },
+	{ "pxa27x-pwm", HAS_SECONDARY_PWM },
+	{ "pxa168-pwm", 0 },
+	{ "pxa910-pwm", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, pwm_id_table);
@@ -48,7 +47,6 @@ struct pxa_pwm_chip {
 	struct device	*dev;
 
 	struct clk	*clk;
-	int		clk_enabled;
 	void __iomem	*mmio_base;
 };
 
@@ -108,24 +106,15 @@ static int pxa_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 static int pxa_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct pxa_pwm_chip *pc = to_pxa_pwm_chip(chip);
-	int rc = 0;
 
-	if (!pc->clk_enabled) {
-		rc = clk_prepare_enable(pc->clk);
-		if (!rc)
-			pc->clk_enabled++;
-	}
-	return rc;
+	return clk_prepare_enable(pc->clk);
 }
 
 static void pxa_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct pxa_pwm_chip *pc = to_pxa_pwm_chip(chip);
 
-	if (pc->clk_enabled) {
-		clk_disable_unprepare(pc->clk);
-		pc->clk_enabled--;
-	}
+	clk_disable_unprepare(pc->clk);
 }
 
 static struct pwm_ops pxa_pwm_ops = {
@@ -152,22 +141,15 @@ static int pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(pwm->clk))
 		return PTR_ERR(pwm->clk);
 
-	pwm->clk_enabled = 0;
-
 	pwm->chip.dev = &pdev->dev;
 	pwm->chip.ops = &pxa_pwm_ops;
 	pwm->chip.base = -1;
 	pwm->chip.npwm = (id->driver_data & HAS_SECONDARY_PWM) ? 2 : 1;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (r == NULL) {
-		dev_err(&pdev->dev, "no memory resource defined\n");
-		return -ENODEV;
-	}
-
-	pwm->mmio_base = devm_request_and_ioremap(&pdev->dev, r);
-	if (pwm->mmio_base == NULL)
-		return -EADDRNOTAVAIL;
+	pwm->mmio_base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(pwm->mmio_base))
+		return PTR_ERR(pwm->mmio_base);
 
 	ret = pwmchip_add(&pwm->chip);
 	if (ret < 0) {
@@ -200,16 +182,6 @@ static struct platform_driver pwm_driver = {
 	.id_table	= pwm_id_table,
 };
 
-static int __init pwm_init(void)
-{
-	return platform_driver_register(&pwm_driver);
-}
-arch_initcall(pwm_init);
-
-static void __exit pwm_exit(void)
-{
-	platform_driver_unregister(&pwm_driver);
-}
-module_exit(pwm_exit);
+module_platform_driver(pwm_driver);
 
 MODULE_LICENSE("GPL v2");

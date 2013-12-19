@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/stop_machine.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
 #include <asm/machdep.h>
 #include <asm/cell-regs.h>
 
@@ -124,7 +125,7 @@ static void cell_edac_check(struct mem_ctl_info *mci)
 	}
 }
 
-static void __devinit cell_edac_init_csrows(struct mem_ctl_info *mci)
+static void cell_edac_init_csrows(struct mem_ctl_info *mci)
 {
 	struct csrow_info		*csrow = mci->csrows[0];
 	struct dimm_info		*dimm;
@@ -162,9 +163,10 @@ static void __devinit cell_edac_init_csrows(struct mem_ctl_info *mci)
 			csrow->first_page, nr_pages);
 		break;
 	}
+	of_node_put(np);
 }
 
-static int __devinit cell_edac_probe(struct platform_device *pdev)
+static int cell_edac_probe(struct platform_device *pdev)
 {
 	struct cbe_mic_tm_regs __iomem	*regs;
 	struct mem_ctl_info		*mci;
@@ -233,7 +235,7 @@ static int __devinit cell_edac_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit cell_edac_remove(struct platform_device *pdev)
+static int cell_edac_remove(struct platform_device *pdev)
 {
 	struct mem_ctl_info *mci = edac_mc_del_mc(&pdev->dev);
 	if (mci)
@@ -247,7 +249,7 @@ static struct platform_driver cell_edac_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= cell_edac_probe,
-	.remove		= __devexit_p(cell_edac_remove),
+	.remove		= cell_edac_remove,
 };
 
 static int __init cell_edac_init(void)

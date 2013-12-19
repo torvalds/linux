@@ -37,7 +37,6 @@ config GEF_PPC9A
 	bool "GE PPC9A"
 	select DEFAULT_UIMAGE
 	select MMIO_NVRAM
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select GE_FPGA
 	help
@@ -47,7 +46,6 @@ config GEF_SBC310
 	bool "GE SBC310"
 	select DEFAULT_UIMAGE
 	select MMIO_NVRAM
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select GE_FPGA
 	help
@@ -57,7 +55,6 @@ config GEF_SBC610
 	bool "GE SBC610"
 	select DEFAULT_UIMAGE
 	select MMIO_NVRAM
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select GE_FPGA
 	select HAS_RAPIDIO

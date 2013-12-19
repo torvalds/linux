@@ -51,6 +51,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
+#include <linux/sunrpc/addr.h>
 
 #include "xprt_rdma.h"
 
@@ -85,7 +86,7 @@ static unsigned int max_memreg = RPCRDMA_LAST - 1;
 
 static struct ctl_table_header *sunrpc_table_header;
 
-static ctl_table xr_tunables_table[] = {
+static struct ctl_table xr_tunables_table[] = {
 	{
 		.procname	= "rdma_slot_table_entries",
 		.data		= &xprt_rdma_slot_table_entries,
@@ -137,7 +138,7 @@ static ctl_table xr_tunables_table[] = {
 	{ },
 };
 
-static ctl_table sunrpc_table[] = {
+static struct ctl_table sunrpc_table[] = {
 	{
 		.procname	= "sunrpc",
 		.mode		= 0555,
@@ -426,9 +427,8 @@ xprt_rdma_set_port(struct rpc_xprt *xprt, u16 port)
 }
 
 static void
-xprt_rdma_connect(struct rpc_task *task)
+xprt_rdma_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 {
-	struct rpc_xprt *xprt = (struct rpc_xprt *)task->tk_xprt;
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 
 	if (r_xprt->rx_ep.rep_connected != 0) {
@@ -475,7 +475,7 @@ xprt_rdma_reserve_xprt(struct rpc_xprt *xprt, struct rpc_task *task)
 static void *
 xprt_rdma_allocate(struct rpc_task *task, size_t size)
 {
-	struct rpc_xprt *xprt = task->tk_xprt;
+	struct rpc_xprt *xprt = task->tk_rqstp->rq_xprt;
 	struct rpcrdma_req *req, *nreq;
 
 	req = rpcrdma_buffer_get(&rpcx_to_rdmax(xprt)->rx_buf);
@@ -627,7 +627,7 @@ static int
 xprt_rdma_send_request(struct rpc_task *task)
 {
 	struct rpc_rqst *rqst = task->tk_rqstp;
-	struct rpc_xprt *xprt = task->tk_xprt;
+	struct rpc_xprt *xprt = rqst->rq_xprt;
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 

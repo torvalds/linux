@@ -13,15 +13,28 @@
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */
+
+#include <linux/hrtimer.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/usb/ohci_pdriver.h>
+#include <linux/usb.h>
+#include <linux/usb/hcd.h>
+
+#include "ohci.h"
+
+#define DRIVER_DESC "OHCI generic platform driver"
+
+static const char hcd_name[] = "ohci-platform";
 
 static int ohci_platform_reset(struct usb_hcd *hcd)
 {
 	struct platform_device *pdev = to_platform_device(hcd->self.controller);
-	struct usb_ohci_pdata *pdata = pdev->dev.platform_data;
+	struct usb_ohci_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
-	int err;
 
 	if (pdata->big_endian_desc)
 		ohci->flags |= OHCI_QUIRK_BE_DESC;
@@ -29,65 +42,24 @@ static int ohci_platform_reset(struct usb_hcd *hcd)
 		ohci->flags |= OHCI_QUIRK_BE_MMIO;
 	if (pdata->no_big_frame_no)
 		ohci->flags |= OHCI_QUIRK_FRAME_NO;
-
-	ohci_hcd_init(ohci);
-
 	if (pdata->num_ports)
 		ohci->num_ports = pdata->num_ports;
 
-	err = ohci_init(ohci);
-
-	return err;
+	return ohci_setup(hcd);
 }
 
-static int ohci_platform_start(struct usb_hcd *hcd)
-{
-	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
-	int err;
+static struct hc_driver __read_mostly ohci_platform_hc_driver;
 
-	err = ohci_run(ohci);
-	if (err < 0) {
-		ohci_err(ohci, "can't start\n");
-		ohci_stop(hcd);
-	}
-
-	return err;
-}
-
-static const struct hc_driver ohci_platform_hc_driver = {
-	.description		= hcd_name,
-	.product_desc		= "Generic Platform OHCI Controller",
-	.hcd_priv_size		= sizeof(struct ohci_hcd),
-
-	.irq			= ohci_irq,
-	.flags			= HCD_MEMORY | HCD_USB11,
-
-	.reset			= ohci_platform_reset,
-	.start			= ohci_platform_start,
-	.stop			= ohci_stop,
-	.shutdown		= ohci_shutdown,
-
-	.urb_enqueue		= ohci_urb_enqueue,
-	.urb_dequeue		= ohci_urb_dequeue,
-	.endpoint_disable	= ohci_endpoint_disable,
-
-	.get_frame_number	= ohci_get_frame,
-
-	.hub_status_data	= ohci_hub_status_data,
-	.hub_control		= ohci_hub_control,
-#ifdef	CONFIG_PM
-	.bus_suspend		= ohci_bus_suspend,
-	.bus_resume		= ohci_bus_resume,
-#endif
-
-	.start_port_reset	= ohci_start_port_reset,
+static const struct ohci_driver_overrides platform_overrides __initconst = {
+	.product_desc =	"Generic Platform OHCI controller",
+	.reset =	ohci_platform_reset,
 };
 
 static int ohci_platform_probe(struct platform_device *dev)
 {
 	struct usb_hcd *hcd;
 	struct resource *res_mem;
-	struct usb_ohci_pdata *pdata = dev->dev.platform_data;
+	struct usb_ohci_pdata *pdata = dev_get_platdata(&dev->dev);
 	int irq;
 	int err = -ENOMEM;
 
@@ -127,9 +99,9 @@ static int ohci_platform_probe(struct platform_device *dev)
 	hcd->rsrc_start = res_mem->start;
 	hcd->rsrc_len = resource_size(res_mem);
 
-	hcd->regs = devm_request_and_ioremap(&dev->dev, res_mem);
-	if (!hcd->regs) {
-		err = -ENOMEM;
+	hcd->regs = devm_ioremap_resource(&dev->dev, res_mem);
+	if (IS_ERR(hcd->regs)) {
+		err = PTR_ERR(hcd->regs);
 		goto err_put_hcd;
 	}
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
@@ -152,11 +124,10 @@ err_power:
 static int ohci_platform_remove(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
-	struct usb_ohci_pdata *pdata = dev->dev.platform_data;
+	struct usb_ohci_pdata *pdata = dev_get_platdata(&dev->dev);
 
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
-	platform_set_drvdata(dev, NULL);
 
 	if (pdata->power_off)
 		pdata->power_off(dev);
@@ -168,20 +139,27 @@ static int ohci_platform_remove(struct platform_device *dev)
 
 static int ohci_platform_suspend(struct device *dev)
 {
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct usb_ohci_pdata *pdata = dev->platform_data;
 	struct platform_device *pdev =
 		container_of(dev, struct platform_device, dev);
+	bool do_wakeup = device_may_wakeup(dev);
+	int ret;
+
+	ret = ohci_suspend(hcd, do_wakeup);
+	if (ret)
+		return ret;
 
 	if (pdata->power_suspend)
 		pdata->power_suspend(pdev);
 
-	return 0;
+	return ret;
 }
 
 static int ohci_platform_resume(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
-	struct usb_ohci_pdata *pdata = dev->platform_data;
+	struct usb_ohci_pdata *pdata = dev_get_platdata(dev);
 	struct platform_device *pdev =
 		container_of(dev, struct platform_device, dev);
 
@@ -222,3 +200,26 @@ static struct platform_driver ohci_platform_driver = {
 		.pm	= &ohci_platform_pm_ops,
 	}
 };
+
+static int __init ohci_platform_init(void)
+{
+	if (usb_disabled())
+		return -ENODEV;
+
+	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
+
+	ohci_init_driver(&ohci_platform_hc_driver, &platform_overrides);
+	return platform_driver_register(&ohci_platform_driver);
+}
+module_init(ohci_platform_init);
+
+static void __exit ohci_platform_cleanup(void)
+{
+	platform_driver_unregister(&ohci_platform_driver);
+}
+module_exit(ohci_platform_cleanup);
+
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Hauke Mehrtens");
+MODULE_AUTHOR("Alan Stern");
+MODULE_LICENSE("GPL");

@@ -99,9 +99,9 @@
 #define JZ_LCD_CTRL_BPP_15_16		0x4
 #define JZ_LCD_CTRL_BPP_18_24		0x5
 
-#define JZ_LCD_CMD_SOF_IRQ BIT(15)
-#define JZ_LCD_CMD_EOF_IRQ BIT(16)
-#define JZ_LCD_CMD_ENABLE_PAL BIT(12)
+#define JZ_LCD_CMD_SOF_IRQ BIT(31)
+#define JZ_LCD_CMD_EOF_IRQ BIT(30)
+#define JZ_LCD_CMD_ENABLE_PAL BIT(28)
 
 #define JZ_LCD_SYNC_MASK 0x3ff
 
@@ -136,7 +136,7 @@ struct jzfb {
 	uint32_t pseudo_palette[16];
 };
 
-static const struct fb_fix_screeninfo jzfb_fix __devinitconst = {
+static const struct fb_fix_screeninfo jzfb_fix = {
 	.id		= "JZ4740 FB",
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_TRUECOLOR,
@@ -471,7 +471,7 @@ static int jzfb_set_par(struct fb_info *info)
 	writel(ctrl, jzfb->base + JZ_REG_LCD_CTRL);
 
 	if (!jzfb->is_enabled)
-		clk_disable(jzfb->ldclk);
+		clk_disable_unprepare(jzfb->ldclk);
 
 	mutex_unlock(&jzfb->lock);
 
@@ -485,7 +485,7 @@ static void jzfb_enable(struct jzfb *jzfb)
 {
 	uint32_t ctrl;
 
-	clk_enable(jzfb->ldclk);
+	clk_prepare_enable(jzfb->ldclk);
 
 	jz_gpio_bulk_resume(jz_lcd_ctrl_pins, jzfb_num_ctrl_pins(jzfb));
 	jz_gpio_bulk_resume(jz_lcd_data_pins, jzfb_num_data_pins(jzfb));
@@ -514,7 +514,7 @@ static void jzfb_disable(struct jzfb *jzfb)
 	jz_gpio_bulk_suspend(jz_lcd_ctrl_pins, jzfb_num_ctrl_pins(jzfb));
 	jz_gpio_bulk_suspend(jz_lcd_data_pins, jzfb_num_data_pins(jzfb));
 
-	clk_disable(jzfb->ldclk);
+	clk_disable_unprepare(jzfb->ldclk);
 }
 
 static int jzfb_blank(int blank_mode, struct fb_info *info)
@@ -619,7 +619,7 @@ static struct  fb_ops jzfb_ops = {
 	.fb_setcolreg = jzfb_setcolreg,
 };
 
-static int __devinit jzfb_probe(struct platform_device *pdev)
+static int jzfb_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct jzfb *jzfb;
@@ -660,9 +660,9 @@ static int __devinit jzfb_probe(struct platform_device *pdev)
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	jzfb->base = devm_request_and_ioremap(&pdev->dev, mem);
-	if (!jzfb->base) {
-		ret = -EBUSY;
+	jzfb->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(jzfb->base)) {
+		ret = PTR_ERR(jzfb->base);
 		goto err_framebuffer_release;
 	}
 
@@ -693,7 +693,7 @@ static int __devinit jzfb_probe(struct platform_device *pdev)
 
 	fb_alloc_cmap(&fb->cmap, 256, 0);
 
-	clk_enable(jzfb->ldclk);
+	clk_prepare_enable(jzfb->ldclk);
 	jzfb->is_enabled = 1;
 
 	writel(jzfb->framedesc->next, jzfb->base + JZ_REG_LCD_DA0);
@@ -725,7 +725,7 @@ err_framebuffer_release:
 	return ret;
 }
 
-static int __devexit jzfb_remove(struct platform_device *pdev)
+static int jzfb_remove(struct platform_device *pdev)
 {
 	struct jzfb *jzfb = platform_get_drvdata(pdev);
 
@@ -736,8 +736,6 @@ static int __devexit jzfb_remove(struct platform_device *pdev)
 
 	fb_dealloc_cmap(&jzfb->fb->cmap);
 	jzfb_free_devmem(jzfb);
-
-	platform_set_drvdata(pdev, NULL);
 
 	framebuffer_release(jzfb->fb);
 
@@ -765,7 +763,7 @@ static int jzfb_suspend(struct device *dev)
 static int jzfb_resume(struct device *dev)
 {
 	struct jzfb *jzfb = dev_get_drvdata(dev);
-	clk_enable(jzfb->ldclk);
+	clk_prepare_enable(jzfb->ldclk);
 
 	mutex_lock(&jzfb->lock);
 	if (jzfb->is_enabled)
@@ -794,24 +792,13 @@ static const struct dev_pm_ops jzfb_pm_ops = {
 
 static struct platform_driver jzfb_driver = {
 	.probe = jzfb_probe,
-	.remove = __devexit_p(jzfb_remove),
+	.remove = jzfb_remove,
 	.driver = {
 		.name = "jz4740-fb",
 		.pm = JZFB_PM_OPS,
 	},
 };
-
-static int __init jzfb_init(void)
-{
-	return platform_driver_register(&jzfb_driver);
-}
-module_init(jzfb_init);
-
-static void __exit jzfb_exit(void)
-{
-	platform_driver_unregister(&jzfb_driver);
-}
-module_exit(jzfb_exit);
+module_platform_driver(jzfb_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");

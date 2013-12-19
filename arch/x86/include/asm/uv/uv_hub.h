@@ -5,7 +5,7 @@
  *
  * SGI UV architectural definitions
  *
- * Copyright (C) 2007-2010 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2007-2013 Silicon Graphics, Inc. All rights reserved.
  */
 
 #ifndef _ASM_X86_UV_UV_HUB_H
@@ -175,6 +175,7 @@ DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
  */
 #define UV1_HUB_REVISION_BASE		1
 #define UV2_HUB_REVISION_BASE		3
+#define UV3_HUB_REVISION_BASE		5
 
 static inline int is_uv1_hub(void)
 {
@@ -182,6 +183,23 @@ static inline int is_uv1_hub(void)
 }
 
 static inline int is_uv2_hub(void)
+{
+	return ((uv_hub_info->hub_revision >= UV2_HUB_REVISION_BASE) &&
+		(uv_hub_info->hub_revision < UV3_HUB_REVISION_BASE));
+}
+
+static inline int is_uv3_hub(void)
+{
+	return uv_hub_info->hub_revision >= UV3_HUB_REVISION_BASE;
+}
+
+static inline int is_uv_hub(void)
+{
+	return uv_hub_info->hub_revision;
+}
+
+/* code common to uv2 and uv3 only */
+static inline int is_uvx_hub(void)
 {
 	return uv_hub_info->hub_revision >= UV2_HUB_REVISION_BASE;
 }
@@ -230,14 +248,23 @@ union uvh_apicid {
 #define UV2_LOCAL_MMR_SIZE		(32UL * 1024 * 1024)
 #define UV2_GLOBAL_MMR32_SIZE		(32UL * 1024 * 1024)
 
-#define UV_LOCAL_MMR_BASE		(is_uv1_hub() ? UV1_LOCAL_MMR_BASE     \
-						: UV2_LOCAL_MMR_BASE)
-#define UV_GLOBAL_MMR32_BASE		(is_uv1_hub() ? UV1_GLOBAL_MMR32_BASE  \
-						: UV2_GLOBAL_MMR32_BASE)
-#define UV_LOCAL_MMR_SIZE		(is_uv1_hub() ? UV1_LOCAL_MMR_SIZE :   \
-						UV2_LOCAL_MMR_SIZE)
+#define UV3_LOCAL_MMR_BASE		0xfa000000UL
+#define UV3_GLOBAL_MMR32_BASE		0xfc000000UL
+#define UV3_LOCAL_MMR_SIZE		(32UL * 1024 * 1024)
+#define UV3_GLOBAL_MMR32_SIZE		(32UL * 1024 * 1024)
+
+#define UV_LOCAL_MMR_BASE		(is_uv1_hub() ? UV1_LOCAL_MMR_BASE : \
+					(is_uv2_hub() ? UV2_LOCAL_MMR_BASE : \
+							UV3_LOCAL_MMR_BASE))
+#define UV_GLOBAL_MMR32_BASE		(is_uv1_hub() ? UV1_GLOBAL_MMR32_BASE :\
+					(is_uv2_hub() ? UV2_GLOBAL_MMR32_BASE :\
+							UV3_GLOBAL_MMR32_BASE))
+#define UV_LOCAL_MMR_SIZE		(is_uv1_hub() ? UV1_LOCAL_MMR_SIZE : \
+					(is_uv2_hub() ? UV2_LOCAL_MMR_SIZE : \
+							UV3_LOCAL_MMR_SIZE))
 #define UV_GLOBAL_MMR32_SIZE		(is_uv1_hub() ? UV1_GLOBAL_MMR32_SIZE :\
-						UV2_GLOBAL_MMR32_SIZE)
+					(is_uv2_hub() ? UV2_GLOBAL_MMR32_SIZE :\
+							UV3_GLOBAL_MMR32_SIZE))
 #define UV_GLOBAL_MMR64_BASE		(uv_hub_info->global_mmr_base)
 
 #define UV_GLOBAL_GRU_MMR_BASE		0x4000000
@@ -475,8 +502,8 @@ struct uv_blade_info {
 	unsigned short	nr_online_cpus;
 	unsigned short	pnode;
 	short		memory_nid;
-	spinlock_t	nmi_lock;
-	unsigned long	nmi_count;
+	spinlock_t	nmi_lock;	/* obsolete, see uv_hub_nmi */
+	unsigned long	nmi_count;	/* obsolete, see uv_hub_nmi */
 };
 extern struct uv_blade_info *uv_blade_info;
 extern short *uv_node_to_blade;
@@ -549,6 +576,59 @@ static inline int uv_num_possible_blades(void)
 	return uv_possible_blades;
 }
 
+/* Per Hub NMI support */
+extern void uv_nmi_setup(void);
+
+/* BMC sets a bit this MMR non-zero before sending an NMI */
+#define UVH_NMI_MMR		UVH_SCRATCH5
+#define UVH_NMI_MMR_CLEAR	UVH_SCRATCH5_ALIAS
+#define UVH_NMI_MMR_SHIFT	63
+#define	UVH_NMI_MMR_TYPE	"SCRATCH5"
+
+/* Newer SMM NMI handler, not present in all systems */
+#define UVH_NMI_MMRX		UVH_EVENT_OCCURRED0
+#define UVH_NMI_MMRX_CLEAR	UVH_EVENT_OCCURRED0_ALIAS
+#define UVH_NMI_MMRX_SHIFT	(is_uv1_hub() ? \
+					UV1H_EVENT_OCCURRED0_EXTIO_INT0_SHFT :\
+					UVXH_EVENT_OCCURRED0_EXTIO_INT0_SHFT)
+#define	UVH_NMI_MMRX_TYPE	"EXTIO_INT0"
+
+/* Non-zero indicates newer SMM NMI handler present */
+#define UVH_NMI_MMRX_SUPPORTED	UVH_EXTIO_INT0_BROADCAST
+
+/* Indicates to BIOS that we want to use the newer SMM NMI handler */
+#define UVH_NMI_MMRX_REQ	UVH_SCRATCH5_ALIAS_2
+#define UVH_NMI_MMRX_REQ_SHIFT	62
+
+struct uv_hub_nmi_s {
+	raw_spinlock_t	nmi_lock;
+	atomic_t	in_nmi;		/* flag this node in UV NMI IRQ */
+	atomic_t	cpu_owner;	/* last locker of this struct */
+	atomic_t	read_mmr_count;	/* count of MMR reads */
+	atomic_t	nmi_count;	/* count of true UV NMIs */
+	unsigned long	nmi_value;	/* last value read from NMI MMR */
+};
+
+struct uv_cpu_nmi_s {
+	struct uv_hub_nmi_s	*hub;
+	atomic_t		state;
+	atomic_t		pinging;
+	int			queries;
+	int			pings;
+};
+
+DECLARE_PER_CPU(struct uv_cpu_nmi_s, __uv_cpu_nmi);
+#define uv_cpu_nmi			(__get_cpu_var(__uv_cpu_nmi))
+#define uv_hub_nmi			(uv_cpu_nmi.hub)
+#define uv_cpu_nmi_per(cpu)		(per_cpu(__uv_cpu_nmi, cpu))
+#define uv_hub_nmi_per(cpu)		(uv_cpu_nmi_per(cpu).hub)
+
+/* uv_cpu_nmi_states */
+#define	UV_NMI_STATE_OUT		0
+#define	UV_NMI_STATE_IN			1
+#define	UV_NMI_STATE_DUMP		2
+#define	UV_NMI_STATE_DUMP_DONE		3
+
 /* Update SCIR state */
 static inline void uv_set_scir_bits(unsigned char value)
 {
@@ -599,6 +679,7 @@ static inline void uv_hub_send_ipi(int pnode, int apicid, int vector)
  *     1 - UV1 rev 1.0 initial silicon
  *     2 - UV1 rev 2.0 production silicon
  *     3 - UV2 rev 1.0 initial silicon
+ *     5 - UV3 rev 1.0 initial silicon
  */
 static inline int uv_get_min_hub_revision_id(void)
 {

@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -96,6 +96,23 @@
 #define APMG_SVR_DIGITAL_VOLTAGE_1_32		(0x00000060)
 
 #define APMG_PCIDEV_STT_VAL_L1_ACT_DIS		(0x00000800)
+
+#define APMG_RTC_INT_STT_RFKILL		(0x10000000)
+
+/* Device system time */
+#define DEVICE_SYSTEM_TIME_REG 0xA0206C
+
+/*****************************************************************************
+ *                        7000/3000 series SHR DTS addresses                 *
+ *****************************************************************************/
+
+#define SHR_MISC_WFM_DTS_EN	(0x00a10024)
+#define DTSC_CFG_MODE		(0x00a10604)
+#define DTSC_VREF_AVG		(0x00a10648)
+#define DTSC_VREF5_AVG		(0x00a1064c)
+#define DTSC_CFG_MODE_PERIODIC	(0x2)
+#define DTSC_PTAT_AVG		(0x00a10650)
+
 
 /**
  * Tx Scheduler

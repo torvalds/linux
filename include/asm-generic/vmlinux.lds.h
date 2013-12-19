@@ -52,13 +52,7 @@
 #define LOAD_OFFSET 0
 #endif
 
-#ifndef SYMBOL_PREFIX
-#define VMLINUX_SYMBOL(sym) sym
-#else
-#define PASTE2(x,y) x##y
-#define PASTE(x,y) PASTE2(x,y)
-#define VMLINUX_SYMBOL(sym) PASTE(SYMBOL_PREFIX, sym)
-#endif
+#include <linux/export.h>
 
 /* Align . to a 8 byte boundary equals to maximum function alignment. */
 #define ALIGN_FUNCTION()  . = ALIGN(8)
@@ -74,14 +68,6 @@
  * are handled as text/data or they can be discarded (which
  * often happens at runtime)
  */
-#ifdef CONFIG_HOTPLUG
-#define DEV_KEEP(sec)    *(.dev##sec)
-#define DEV_DISCARD(sec)
-#else
-#define DEV_KEEP(sec)
-#define DEV_DISCARD(sec) *(.dev##sec)
-#endif
-
 #ifdef CONFIG_HOTPLUG_CPU
 #define CPU_KEEP(sec)    *(.cpu##sec)
 #define CPU_DISCARD(sec)
@@ -136,8 +122,12 @@
 #define TRACE_PRINTKS() VMLINUX_SYMBOL(__start___trace_bprintk_fmt) = .;      \
 			 *(__trace_printk_fmt) /* Trace_printk fmt' pointer */ \
 			 VMLINUX_SYMBOL(__stop___trace_bprintk_fmt) = .;
+#define TRACEPOINT_STR() VMLINUX_SYMBOL(__start___tracepoint_str) = .;	\
+			 *(__tracepoint_str) /* Trace_printk fmt' pointer */ \
+			 VMLINUX_SYMBOL(__stop___tracepoint_str) = .;
 #else
 #define TRACE_PRINTKS()
+#define TRACEPOINT_STR()
 #endif
 
 #ifdef CONFIG_FTRACE_SYSCALLS
@@ -149,6 +139,33 @@
 #define TRACE_SYSCALLS()
 #endif
 
+#ifdef CONFIG_CLKSRC_OF
+#define CLKSRC_OF_TABLES() . = ALIGN(8);				\
+			   VMLINUX_SYMBOL(__clksrc_of_table) = .;	\
+			   *(__clksrc_of_table)				\
+			   *(__clksrc_of_table_end)
+#else
+#define CLKSRC_OF_TABLES()
+#endif
+
+#ifdef CONFIG_IRQCHIP
+#define IRQCHIP_OF_MATCH_TABLE()					\
+	. = ALIGN(8);							\
+	VMLINUX_SYMBOL(__irqchip_begin) = .;				\
+	*(__irqchip_of_table)		  				\
+	*(__irqchip_of_end)
+#else
+#define IRQCHIP_OF_MATCH_TABLE()
+#endif
+
+#ifdef CONFIG_COMMON_CLK
+#define CLK_OF_TABLES() . = ALIGN(8);				\
+			VMLINUX_SYMBOL(__clk_of_table) = .;	\
+			*(__clk_of_table)			\
+			*(__clk_of_table_end)
+#else
+#define CLK_OF_TABLES()
+#endif
 
 #define KERNEL_DTB()							\
 	STRUCT_ALIGN();							\
@@ -161,10 +178,6 @@
 	*(.data)							\
 	*(.ref.data)							\
 	*(.data..shared_aligned) /* percpu related */			\
-	DEV_KEEP(init.data)						\
-	DEV_KEEP(exit.data)						\
-	CPU_KEEP(init.data)						\
-	CPU_KEEP(exit.data)						\
 	MEM_KEEP(init.data)						\
 	MEM_KEEP(exit.data)						\
 	*(.data.unlikely)						\
@@ -181,7 +194,8 @@
 	VMLINUX_SYMBOL(__stop___verbose) = .;				\
 	LIKELY_PROFILE()		       				\
 	BRANCH_PROFILE()						\
-	TRACE_PRINTKS()
+	TRACE_PRINTKS()							\
+	TRACEPOINT_STR()
 
 /*
  * Data section helpers
@@ -264,13 +278,6 @@
 		VMLINUX_SYMBOL(__end_builtin_fw) = .;			\
 	}								\
 									\
-	/* RapidIO route ops */						\
-	.rio_ops        : AT(ADDR(.rio_ops) - LOAD_OFFSET) {		\
-		VMLINUX_SYMBOL(__start_rio_switch_ops) = .;		\
-		*(.rio_switch_ops)					\
-		VMLINUX_SYMBOL(__end_rio_switch_ops) = .;		\
-	}								\
-									\
 	TRACEDATA							\
 									\
 	/* Kernel symbol table: Normal symbols */			\
@@ -351,10 +358,6 @@
 	/* __*init sections */						\
 	__init_rodata : AT(ADDR(__init_rodata) - LOAD_OFFSET) {		\
 		*(.ref.rodata)						\
-		DEV_KEEP(init.rodata)					\
-		DEV_KEEP(exit.rodata)					\
-		CPU_KEEP(init.rodata)					\
-		CPU_KEEP(exit.rodata)					\
 		MEM_KEEP(init.rodata)					\
 		MEM_KEEP(exit.rodata)					\
 	}								\
@@ -395,10 +398,6 @@
 		*(.text.hot)						\
 		*(.text)						\
 		*(.ref.text)						\
-	DEV_KEEP(init.text)						\
-	DEV_KEEP(exit.text)						\
-	CPU_KEEP(init.text)						\
-	CPU_KEEP(exit.text)						\
 	MEM_KEEP(init.text)						\
 	MEM_KEEP(exit.text)						\
 		*(.text.unlikely)
@@ -474,6 +473,7 @@
 #define KERNEL_CTORS()	. = ALIGN(8);			   \
 			VMLINUX_SYMBOL(__ctors_start) = .; \
 			*(.ctors)			   \
+			*(.init_array)			   \
 			VMLINUX_SYMBOL(__ctors_end) = .;
 #else
 #define KERNEL_CTORS()
@@ -482,38 +482,29 @@
 /* init and exit section handling */
 #define INIT_DATA							\
 	*(.init.data)							\
-	DEV_DISCARD(init.data)						\
-	CPU_DISCARD(init.data)						\
 	MEM_DISCARD(init.data)						\
 	KERNEL_CTORS()							\
 	MCOUNT_REC()							\
 	*(.init.rodata)							\
 	FTRACE_EVENTS()							\
 	TRACE_SYSCALLS()						\
-	DEV_DISCARD(init.rodata)					\
-	CPU_DISCARD(init.rodata)					\
 	MEM_DISCARD(init.rodata)					\
-	KERNEL_DTB()
+	CLK_OF_TABLES()							\
+	CLKSRC_OF_TABLES()						\
+	KERNEL_DTB()							\
+	IRQCHIP_OF_MATCH_TABLE()
 
 #define INIT_TEXT							\
 	*(.init.text)							\
-	DEV_DISCARD(init.text)						\
-	CPU_DISCARD(init.text)						\
 	MEM_DISCARD(init.text)
 
 #define EXIT_DATA							\
 	*(.exit.data)							\
-	DEV_DISCARD(exit.data)						\
-	DEV_DISCARD(exit.rodata)					\
-	CPU_DISCARD(exit.data)						\
-	CPU_DISCARD(exit.rodata)					\
 	MEM_DISCARD(exit.data)						\
 	MEM_DISCARD(exit.rodata)
 
 #define EXIT_TEXT							\
 	*(.exit.text)							\
-	DEV_DISCARD(exit.text)						\
-	CPU_DISCARD(exit.text)						\
 	MEM_DISCARD(exit.text)
 
 #define EXIT_CALL							\

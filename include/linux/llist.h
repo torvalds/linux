@@ -125,6 +125,29 @@ static inline void init_llist_head(struct llist_head *list)
 	     (pos) = llist_entry((pos)->member.next, typeof(*(pos)), member))
 
 /**
+ * llist_for_each_entry_safe - iterate over some deleted entries of lock-less list of given type
+ *			       safe against removal of list entry
+ * @pos:	the type * to use as a loop cursor.
+ * @n:		another type * to use as temporary storage
+ * @node:	the first entry of deleted list entries.
+ * @member:	the name of the llist_node with the struct.
+ *
+ * In general, some entries of the lock-less list can be traversed
+ * safely only after being removed from list, so start with an entry
+ * instead of list head.
+ *
+ * If being used on entries deleted from lock-less list directly, the
+ * traverse order is from the newest to the oldest added entry.  If
+ * you want to traverse from the oldest to the newest, you must
+ * reverse the order by yourself before traversing.
+ */
+#define llist_for_each_entry_safe(pos, n, node, member)			       \
+	for (pos = llist_entry((node), typeof(*pos), member);		       \
+	     &pos->member != NULL &&					       \
+	        (n = llist_entry(pos->member.next, typeof(*n), member), true); \
+	     pos = n)
+
+/**
  * llist_empty - tests whether a lock-less list is empty
  * @head:	the list to test
  *
@@ -142,6 +165,9 @@ static inline struct llist_node *llist_next(struct llist_node *node)
 	return node->next;
 }
 
+extern bool llist_add_batch(struct llist_node *new_first,
+			    struct llist_node *new_last,
+			    struct llist_head *head);
 /**
  * llist_add - add a new entry
  * @new:	new entry to be added
@@ -151,18 +177,7 @@ static inline struct llist_node *llist_next(struct llist_node *node)
  */
 static inline bool llist_add(struct llist_node *new, struct llist_head *head)
 {
-	struct llist_node *entry, *old_entry;
-
-	entry = head->first;
-	for (;;) {
-		old_entry = entry;
-		new->next = entry;
-		entry = cmpxchg(&head->first, old_entry, new);
-		if (entry == old_entry)
-			break;
-	}
-
-	return old_entry == NULL;
+	return llist_add_batch(new, new, head);
 }
 
 /**
@@ -178,9 +193,8 @@ static inline struct llist_node *llist_del_all(struct llist_head *head)
 	return xchg(&head->first, NULL);
 }
 
-extern bool llist_add_batch(struct llist_node *new_first,
-			    struct llist_node *new_last,
-			    struct llist_head *head);
 extern struct llist_node *llist_del_first(struct llist_head *head);
+
+struct llist_node *llist_reverse_order(struct llist_node *head);
 
 #endif /* LLIST_H */

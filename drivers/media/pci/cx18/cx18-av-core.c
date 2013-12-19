@@ -22,7 +22,6 @@
  *  02110-1301, USA.
  */
 
-#include <media/v4l2-chip-ident.h>
 #include "cx18-driver.h"
 #include "cx18-io.h"
 #include "cx18-cards.h"
@@ -576,7 +575,7 @@ static void input_change(struct cx18 *cx)
 }
 
 static int cx18_av_s_frequency(struct v4l2_subdev *sd,
-			       struct v4l2_frequency *freq)
+			       const struct v4l2_frequency *freq)
 {
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 	input_change(cx);
@@ -809,7 +808,7 @@ static int cx18_av_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	return 0;
 }
 
-static int cx18_av_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
+static int cx18_av_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 {
 	struct cx18_av_state *state = to_cx18_av_state(sd);
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
@@ -1231,51 +1230,26 @@ static int cx18_av_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static inline int cx18_av_dbg_match(const struct v4l2_dbg_match *match)
-{
-	return match->type == V4L2_CHIP_MATCH_HOST && match->addr == 1;
-}
-
-static int cx18_av_g_chip_ident(struct v4l2_subdev *sd,
-				struct v4l2_dbg_chip_ident *chip)
-{
-	struct cx18_av_state *state = to_cx18_av_state(sd);
-
-	if (cx18_av_dbg_match(&chip->match)) {
-		chip->ident = state->id;
-		chip->revision = state->rev;
-	}
-	return 0;
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int cx18_av_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
 {
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 
-	if (!cx18_av_dbg_match(&reg->match))
-		return -EINVAL;
 	if ((reg->reg & 0x3) != 0)
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	reg->size = 4;
 	reg->val = cx18_av_read4(cx, reg->reg & 0x00000ffc);
 	return 0;
 }
 
 static int cx18_av_s_register(struct v4l2_subdev *sd,
-			      struct v4l2_dbg_register *reg)
+			      const struct v4l2_dbg_register *reg)
 {
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 
-	if (!cx18_av_dbg_match(&reg->match))
-		return -EINVAL;
 	if ((reg->reg & 0x3) != 0)
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	cx18_av_write4(cx, reg->reg & 0x00000ffc, reg->val);
 	return 0;
 }
@@ -1286,17 +1260,9 @@ static const struct v4l2_ctrl_ops cx18_av_ctrl_ops = {
 };
 
 static const struct v4l2_subdev_core_ops cx18_av_general_ops = {
-	.g_chip_ident = cx18_av_g_chip_ident,
 	.log_status = cx18_av_log_status,
 	.load_fw = cx18_av_load_fw,
 	.reset = cx18_av_reset,
-	.g_ctrl = v4l2_subdev_g_ctrl,
-	.s_ctrl = v4l2_subdev_s_ctrl,
-	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
-	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
-	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
-	.queryctrl = v4l2_subdev_queryctrl,
-	.querymenu = v4l2_subdev_querymenu,
 	.s_std = cx18_av_s_std,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = cx18_av_g_register,
@@ -1344,8 +1310,6 @@ int cx18_av_probe(struct cx18 *cx)
 	int err;
 
 	state->rev = cx18_av_read4(cx, CXADEC_CHIP_CTRL) & 0xffff;
-	state->id = ((state->rev >> 4) == CXADEC_CHIP_TYPE_MAKO)
-		    ? V4L2_IDENT_CX23418_843 : V4L2_IDENT_UNKNOWN;
 
 	state->vid_input = CX18_AV_COMPOSITE7;
 	state->aud_input = CX18_AV_AUDIO8;

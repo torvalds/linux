@@ -19,6 +19,7 @@
 
 #include <mach/hardware.h>
 #include <asm/setup.h>
+#include <asm/irq.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -396,6 +397,6 @@ MACHINE_START(SIMPAD, "Simpad")
 	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
 	.init_late	= sa11x0_init_late,
-	.timer		= &sa1100_timer,
+	.init_time	= sa1100_timer_init,
 	.restart	= sa11x0_restart,
 MACHINE_END

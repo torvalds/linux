@@ -6,6 +6,7 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
+#include <linux/context_tracking.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
@@ -84,9 +85,9 @@ static inline void mult_sh_align_mod(long *v1, long *v2, long *w,
 		".set	noreorder\n\t"
 		".set	nomacro\n\t"
 		"mult	%2, %3\n\t"
-		"dsll32	%0, %4, %5\n\t"
+		"dsll32 %0, %4, %5\n\t"
 		"mflo	$0\n\t"
-		"dsll32	%1, %4, %5\n\t"
+		"dsll32 %1, %4, %5\n\t"
 		"nop\n\t"
 		".set	pop"
 		: "=&r" (lv1), "=r" (lw)
@@ -167,12 +168,16 @@ static inline void check_mult_sh(void)
 	panic(bug64hit, !R4000_WAR ? r4kwar : nowar);
 }
 
-static volatile int daddi_ov __cpuinitdata;
+static volatile int daddi_ov;
 
 asmlinkage void __init do_daddi_ov(struct pt_regs *regs)
 {
+	enum ctx_state prev_state;
+
+	prev_state = exception_enter();
 	daddi_ov = 1;
 	regs->cp0_epc += 4;
+	exception_exit(prev_state);
 }
 
 static inline void check_daddi(void)
@@ -239,7 +244,7 @@ static inline void check_daddi(void)
 	panic(bug64hit, !DADDI_WAR ? daddiwar : nowar);
 }
 
-int daddiu_bug  = -1;
+int daddiu_bug	= -1;
 
 static inline void check_daddiu(void)
 {
@@ -273,7 +278,7 @@ static inline void check_daddiu(void)
 #ifdef HAVE_AS_SET_DADDI
 		".set	daddi\n\t"
 #endif
-		"daddiu	%0, %2, %4\n\t"
+		"daddiu %0, %2, %4\n\t"
 		"addiu	%1, $0, %4\n\t"
 		"daddu	%1, %2\n\t"
 		".set	pop"
@@ -292,7 +297,7 @@ static inline void check_daddiu(void)
 	asm volatile(
 		"addiu	%2, $0, %3\n\t"
 		"dsrl	%2, %2, 1\n\t"
-		"daddiu	%0, %2, %4\n\t"
+		"daddiu %0, %2, %4\n\t"
 		"addiu	%1, $0, %4\n\t"
 		"daddu	%1, %2"
 		: "=&r" (v), "=&r" (w), "=&r" (tmp)

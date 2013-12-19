@@ -40,6 +40,8 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/sh_flctl.h>
+#include <linux/pinctrl/machine.h>
+#include <linux/platform_data/gpio_backlight.h>
 #include <linux/pm_clock.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
@@ -48,7 +50,6 @@
 #include <linux/tca6416_keypad.h>
 #include <linux/usb/renesas_usbhs.h>
 #include <linux/dma-mapping.h>
-
 #include <video/sh_mobile_hdmi.h>
 #include <video/sh_mobile_lcdc.h>
 #include <media/sh_mobile_ceu.h>
@@ -202,9 +203,7 @@
  *
  * it needs amixer settings for playing
  *
- * amixer set "Headphone" on
- * amixer set "HPOUTL Mixer DACH" on
- * amixer set "HPOUTR Mixer DACH" on
+ * amixer set "Headphone Enable" on
  */
 
 /* Fixed 3.3V and 1.8V regulators to be used by multiple devices */
@@ -347,7 +346,7 @@ static struct platform_device meram_device = {
 	},
 };
 
-/* LCDC */
+/* LCDC and backlight */
 static struct fb_videomode mackerel_lcdc_modes[] = {
 	{
 		.name		= "WVGA Panel",
@@ -362,13 +361,6 @@ static struct fb_videomode mackerel_lcdc_modes[] = {
 		.sync		= 0,
 	},
 };
-
-static int mackerel_set_brightness(int brightness)
-{
-	gpio_set_value(GPIO_PORT31, brightness);
-
-	return 0;
-}
 
 static const struct sh_mobile_meram_cfg lcd_meram_cfg = {
 	.icb[0] = {
@@ -394,11 +386,6 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 			.width		= 152,
 			.height		= 91,
 		},
-		.bl_info = {
-			.name = "sh_mobile_lcdc_bl",
-			.max_brightness = 1,
-			.set_brightness = mackerel_set_brightness,
-		},
 		.meram_cfg = &lcd_meram_cfg,
 	}
 };
@@ -423,6 +410,20 @@ static struct platform_device lcdc_device = {
 	.dev	= {
 		.platform_data	= &lcdc_info,
 		.coherent_dma_mask = ~0,
+	},
+};
+
+static struct gpio_backlight_platform_data gpio_backlight_data = {
+	.fbdev = &lcdc_device.dev,
+	.gpio = 31,
+	.def_value = 1,
+	.name = "backlight",
+};
+
+static struct platform_device gpio_backlight_device = {
+	.name = "gpio-backlight",
+	.dev = {
+		.platform_data = &gpio_backlight_data,
 	},
 };
 
@@ -502,18 +503,18 @@ static struct platform_device hdmi_lcdc_device = {
 	},
 };
 
-static struct asoc_simple_dai_init_info fsi2_hdmi_init_info = {
-	.cpu_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
-};
-
 static struct asoc_simple_card_info fsi2_hdmi_info = {
 	.name		= "HDMI",
 	.card		= "FSI2B-HDMI",
-	.cpu_dai	= "fsib-dai",
 	.codec		= "sh-mobile-hdmi",
 	.platform	= "sh_fsi2",
-	.codec_dai	= "sh_mobile_hdmi-hifi",
-	.init		= &fsi2_hdmi_init_info,
+	.cpu_dai = {
+		.name	= "fsib-dai",
+		.fmt	= SND_SOC_DAIFMT_CBM_CFM | SND_SOC_DAIFMT_IB_NF,
+	},
+	.codec_dai = {
+		.name	= "sh_mobile_hdmi-hifi",
+	},
 };
 
 static struct platform_device fsi_hdmi_device = {
@@ -598,12 +599,14 @@ static int usbhs_get_vbus(struct platform_device *pdev)
 	return usbhs_is_connected(usbhs_get_priv(pdev));
 }
 
-static void usbhs_phy_reset(struct platform_device *pdev)
+static int usbhs_phy_reset(struct platform_device *pdev)
 {
 	struct usbhs_private *priv = usbhs_get_priv(pdev);
 
 	/* init phy */
 	__raw_writew(0x8a0a, priv->usbcrcaddr);
+
+	return 0;
 }
 
 static int usbhs0_get_id(struct platform_device *pdev)
@@ -630,11 +633,13 @@ static int usbhs0_hardware_init(struct platform_device *pdev)
 	return 0;
 }
 
-static void usbhs0_hardware_exit(struct platform_device *pdev)
+static int usbhs0_hardware_exit(struct platform_device *pdev)
 {
 	struct usbhs_private *priv = usbhs_get_priv(pdev);
 
 	cancel_delayed_work_sync(&priv->work);
+
+	return 0;
 }
 
 static struct usbhs_private usbhs0_private = {
@@ -737,7 +742,7 @@ static int usbhs1_hardware_init(struct platform_device *pdev)
 	return 0;
 }
 
-static void usbhs1_hardware_exit(struct platform_device *pdev)
+static int usbhs1_hardware_exit(struct platform_device *pdev)
 {
 	struct usbhs_private *priv = usbhs_get_priv(pdev);
 
@@ -745,6 +750,8 @@ static void usbhs1_hardware_exit(struct platform_device *pdev)
 	__raw_writew(USB_PHY_MODE | USB_PHY_INT_CLR, priv->usbphyaddr);
 
 	free_irq(IRQ8, pdev);
+
+	return 0;
 }
 
 static int usbhs1_get_id(struct platform_device *pdev)
@@ -821,22 +828,22 @@ static struct platform_device usbhs1_device = {
 static struct gpio_led mackerel_leds[] = {
 	{
 		.name		= "led0",
-		.gpio		= GPIO_PORT0,
+		.gpio		= 0,
 		.default_state	= LEDS_GPIO_DEFSTATE_ON,
 	},
 	{
 		.name		= "led1",
-		.gpio		= GPIO_PORT1,
+		.gpio		= 1,
 		.default_state	= LEDS_GPIO_DEFSTATE_ON,
 	},
 	{
 		.name		= "led2",
-		.gpio		= GPIO_PORT2,
+		.gpio		= 2,
 		.default_state	= LEDS_GPIO_DEFSTATE_ON,
 	},
 	{
 		.name		= "led3",
-		.gpio		= GPIO_PORT159,
+		.gpio		= 159,
 		.default_state	= LEDS_GPIO_DEFSTATE_ON,
 	}
 };
@@ -858,16 +865,12 @@ static struct platform_device leds_device = {
 #define IRQ_FSI evt2irq(0x1840)
 static struct sh_fsi_platform_info fsi_info = {
 	.port_a = {
-		.flags = SH_FSI_BRS_INV,
 		.tx_id = SHDMA_SLAVE_FSIA_TX,
 		.rx_id = SHDMA_SLAVE_FSIA_RX,
 	},
 	.port_b = {
-		.flags = SH_FSI_BRS_INV	|
-			SH_FSI_BRM_INV	|
-			SH_FSI_LRS_INV	|
-			SH_FSI_CLK_CPG	|
-			SH_FSI_FMT_SPDIF,
+		.flags = SH_FSI_CLK_CPG	|
+			 SH_FSI_FMT_SPDIF,
 	}
 };
 
@@ -896,21 +899,21 @@ static struct platform_device fsi_device = {
 	},
 };
 
-static struct asoc_simple_dai_init_info fsi2_ak4643_init_info = {
-	.fmt		= SND_SOC_DAIFMT_LEFT_J,
-	.codec_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
-	.cpu_daifmt	= SND_SOC_DAIFMT_CBS_CFS,
-	.sysclk		= 11289600,
-};
-
 static struct asoc_simple_card_info fsi2_ak4643_info = {
 	.name		= "AK4643",
 	.card		= "FSI2A-AK4643",
-	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0013",
 	.platform	= "sh_fsi2",
-	.codec_dai	= "ak4642-hifi",
-	.init		= &fsi2_ak4643_init_info,
+	.daifmt		= SND_SOC_DAIFMT_LEFT_J,
+	.cpu_dai = {
+		.name	= "fsia-dai",
+		.fmt	= SND_SOC_DAIFMT_CBS_CFS,
+	},
+	.codec_dai = {
+		.name	= "ak4642-hifi",
+		.fmt	= SND_SOC_DAIFMT_CBM_CFM,
+		.sysclk	= 11289600,
+	},
 };
 
 static struct platform_device fsi_ak4643_device = {
@@ -968,40 +971,27 @@ static struct platform_device nand_flash_device = {
 	},
 };
 
-/*
- * The card detect pin of the top SD/MMC slot (CN7) is active low and is
- * connected to GPIO A22 of SH7372 (GPIO_PORT41).
- */
-static int slot_cn7_get_cd(struct platform_device *pdev)
-{
-	return !gpio_get_value(GPIO_PORT41);
-}
-
 /* SDHI0 */
 static struct sh_mobile_sdhi_info sdhi0_info = {
 	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
 	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
 	.tmio_flags	= TMIO_MMC_USE_GPIO_CD,
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
-	.cd_gpio	= GPIO_PORT172,
+	.cd_gpio	= 172,
 };
 
 static struct resource sdhi0_resources[] = {
-	[0] = {
+	{
 		.name	= "SDHI0",
 		.start	= 0xe6850000,
 		.end	= 0xe68500ff,
 		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= evt2irq(0x0e00) /* SDHI0_SDHI0I0 */,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[2] = {
+	}, {
+		.name	= SH_MOBILE_SDHI_IRQ_SDCARD,
 		.start	= evt2irq(0x0e20) /* SDHI0_SDHI0I1 */,
 		.flags	= IORESOURCE_IRQ,
-	},
-	[3] = {
+	}, {
+		.name	= SH_MOBILE_SDHI_IRQ_SDIO,
 		.start	= evt2irq(0x0e40) /* SDHI0_SDHI0I2 */,
 		.flags	= IORESOURCE_IRQ,
 	},
@@ -1017,36 +1007,30 @@ static struct platform_device sdhi0_device = {
 	},
 };
 
-#if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
+#if !IS_ENABLED(CONFIG_MMC_SH_MMCIF)
 /* SDHI1 */
+
+/* GPIO 41 can trigger IRQ8, but it is used by USBHS1, we have to poll */
 static struct sh_mobile_sdhi_info sdhi1_info = {
 	.dma_slave_tx	= SHDMA_SLAVE_SDHI1_TX,
 	.dma_slave_rx	= SHDMA_SLAVE_SDHI1_RX,
-	.tmio_ocr_mask	= MMC_VDD_165_195,
-	.tmio_flags	= TMIO_MMC_WRPROTECT_DISABLE,
+	.tmio_flags	= TMIO_MMC_WRPROTECT_DISABLE | TMIO_MMC_USE_GPIO_CD,
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_NEEDS_POLL,
-	.get_cd		= slot_cn7_get_cd,
+	.cd_gpio	= 41,
 };
 
 static struct resource sdhi1_resources[] = {
-	[0] = {
+	{
 		.name	= "SDHI1",
 		.start	= 0xe6860000,
 		.end	= 0xe68600ff,
 		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.name	= SH_MOBILE_SDHI_IRQ_CARD_DETECT,
-		.start	= evt2irq(0x0e80), /* SDHI1_SDHI1I0 */
-		.flags	= IORESOURCE_IRQ,
-	},
-	[2] = {
+	}, {
 		.name	= SH_MOBILE_SDHI_IRQ_SDCARD,
 		.start	= evt2irq(0x0ea0), /* SDHI1_SDHI1I1 */
 		.flags	= IORESOURCE_IRQ,
-	},
-	[3] = {
+	}, {
 		.name	= SH_MOBILE_SDHI_IRQ_SDIO,
 		.start	= evt2irq(0x0ec0), /* SDHI1_SDHI1I2 */
 		.flags	= IORESOURCE_IRQ,
@@ -1064,43 +1048,32 @@ static struct platform_device sdhi1_device = {
 };
 #endif
 
+/* SDHI2 */
+
 /*
  * The card detect pin of the top SD/MMC slot (CN23) is active low and is
- * connected to GPIO SCIFB_SCK of SH7372 (GPIO_PORT162).
+ * connected to GPIO SCIFB_SCK of SH7372 (GPIO 162).
  */
-static int slot_cn23_get_cd(struct platform_device *pdev)
-{
-	return !gpio_get_value(GPIO_PORT162);
-}
-
-/* SDHI2 */
 static struct sh_mobile_sdhi_info sdhi2_info = {
 	.dma_slave_tx	= SHDMA_SLAVE_SDHI2_TX,
 	.dma_slave_rx	= SHDMA_SLAVE_SDHI2_RX,
-	.tmio_flags	= TMIO_MMC_WRPROTECT_DISABLE,
+	.tmio_flags	= TMIO_MMC_WRPROTECT_DISABLE | TMIO_MMC_USE_GPIO_CD,
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_NEEDS_POLL,
-	.get_cd		= slot_cn23_get_cd,
+	.cd_gpio	= 162,
 };
 
 static struct resource sdhi2_resources[] = {
-	[0] = {
+	{
 		.name	= "SDHI2",
 		.start	= 0xe6870000,
 		.end	= 0xe68700ff,
 		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.name	= SH_MOBILE_SDHI_IRQ_CARD_DETECT,
-		.start	= evt2irq(0x1200), /* SDHI2_SDHI2I0 */
-		.flags	= IORESOURCE_IRQ,
-	},
-	[2] = {
+	}, {
 		.name	= SH_MOBILE_SDHI_IRQ_SDCARD,
 		.start	= evt2irq(0x1220), /* SDHI2_SDHI2I1 */
 		.flags	= IORESOURCE_IRQ,
-	},
-	[3] = {
+	}, {
 		.name	= SH_MOBILE_SDHI_IRQ_SDIO,
 		.start	= evt2irq(0x1240), /* SDHI2_SDHI2I2 */
 		.flags	= IORESOURCE_IRQ,
@@ -1118,6 +1091,7 @@ static struct platform_device sdhi2_device = {
 };
 
 /* SH_MMCIF */
+#if IS_ENABLED(CONFIG_MMC_SH_MMCIF)
 static struct resource sh_mmcif_resources[] = {
 	[0] = {
 		.name	= "MMCIF",
@@ -1139,11 +1113,12 @@ static struct resource sh_mmcif_resources[] = {
 
 static struct sh_mmcif_plat_data sh_mmcif_plat = {
 	.sup_pclk	= 0,
-	.ocr		= MMC_VDD_165_195 | MMC_VDD_32_33 | MMC_VDD_33_34,
 	.caps		= MMC_CAP_4_BIT_DATA |
 			  MMC_CAP_8_BIT_DATA |
 			  MMC_CAP_NEEDS_POLL,
-	.get_cd		= slot_cn7_get_cd,
+	.use_cd_gpio	= true,
+	/* card detect pin for SD/MMC slot (CN7) */
+	.cd_gpio	= 41,
 	.slave_id_tx	= SHDMA_SLAVE_MMCIF_TX,
 	.slave_id_rx	= SHDMA_SLAVE_MMCIF_RX,
 };
@@ -1159,7 +1134,7 @@ static struct platform_device sh_mmcif_device = {
 	.num_resources	= ARRAY_SIZE(sh_mmcif_resources),
 	.resource	= sh_mmcif_resources,
 };
-
+#endif
 
 static int mackerel_camera_add(struct soc_camera_device *icd);
 static void mackerel_camera_del(struct soc_camera_device *icd);
@@ -1258,6 +1233,7 @@ static struct platform_device *mackerel_devices[] __initdata = {
 	&nor_flash_device,
 	&smc911x_device,
 	&lcdc_device,
+	&gpio_backlight_device,
 	&usbhs0_device,
 	&usbhs1_device,
 	&leds_device,
@@ -1266,11 +1242,12 @@ static struct platform_device *mackerel_devices[] __initdata = {
 	&fsi_hdmi_device,
 	&nand_flash_device,
 	&sdhi0_device,
-#if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
+#if !IS_ENABLED(CONFIG_MMC_SH_MMCIF)
 	&sdhi1_device,
+#else
+	&sh_mmcif_device,
 #endif
 	&sdhi2_device,
-	&sh_mmcif_device,
 	&ceu_device,
 	&mackerel_camera,
 	&hdmi_device,
@@ -1334,6 +1311,98 @@ static struct i2c_board_info i2c1_devices[] = {
 	},
 };
 
+static const struct pinctrl_map mackerel_pinctrl_map[] = {
+	/* ADXL34X */
+	PIN_MAP_MUX_GROUP_DEFAULT("1-0053", "pfc-sh7372",
+				  "intc_irq21", "intc"),
+	/* CEU */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-sh7372",
+				  "ceu_data_0_7", "ceu"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-sh7372",
+				  "ceu_clk_0", "ceu"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-sh7372",
+				  "ceu_sync", "ceu"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-sh7372",
+				  "ceu_field", "ceu"),
+	/* FLCTL */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_flctl.0", "pfc-sh7372",
+				  "flctl_data", "flctl"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_flctl.0", "pfc-sh7372",
+				  "flctl_ce0", "flctl"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_flctl.0", "pfc-sh7372",
+				  "flctl_ctrl", "flctl"),
+	/* FSIA (AK4643) */
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-sh7372",
+				  "fsia_sclk_in", "fsia"),
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-sh7372",
+				  "fsia_data_in", "fsia"),
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-sh7372",
+				  "fsia_data_out", "fsia"),
+	/* FSIB (HDMI) */
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.1", "pfc-sh7372",
+				  "fsib_mclk_in", "fsib"),
+	/* HDMI */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-mobile-hdmi", "pfc-sh7372",
+				  "hdmi", "hdmi"),
+	/* LCDC */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_lcdc_fb.0", "pfc-sh7372",
+				  "lcd_data24", "lcd"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_lcdc_fb.0", "pfc-sh7372",
+				  "lcd_sync", "lcd"),
+	/* SCIFA0 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.0", "pfc-sh7372",
+				  "scifa0_data", "scifa0"),
+	/* SCIFA2 (GT-720F GPS module) */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.2", "pfc-sh7372",
+				  "scifa2_data", "scifa2"),
+	/* SDHI0 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh7372",
+				  "sdhi0_data4", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh7372",
+				  "sdhi0_ctrl", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh7372",
+				  "sdhi0_wp", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh7372",
+				  "intc_irq26_1", "intc"),
+	/* SDHI1 */
+#if !IS_ENABLED(CONFIG_MMC_SH_MMCIF)
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.1", "pfc-sh7372",
+				  "sdhi1_data4", "sdhi1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.1", "pfc-sh7372",
+				  "sdhi1_ctrl", "sdhi1"),
+#else
+	/* MMCIF */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mmcif.0", "pfc-sh7372",
+				  "mmc0_data8_0", "mmc0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mmcif.0", "pfc-sh7372",
+				  "mmc0_ctrl_0", "mmc0"),
+#endif
+	/* SDHI2 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.2", "pfc-sh7372",
+				  "sdhi2_data4", "sdhi2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.2", "pfc-sh7372",
+				  "sdhi2_ctrl", "sdhi2"),
+	/* SMSC911X */
+	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x", "pfc-sh7372",
+				  "bsc_cs5a", "bsc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x", "pfc-sh7372",
+				  "intc_irq6_0", "intc"),
+	/* ST1232 */
+	PIN_MAP_MUX_GROUP_DEFAULT("0-0055", "pfc-sh7372",
+				  "intc_irq7_0", "intc"),
+	/* TCA6416 */
+	PIN_MAP_MUX_GROUP_DEFAULT("0-0020", "pfc-sh7372",
+				  "intc_irq9_0", "intc"),
+	/* USBHS0 */
+	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs.0", "pfc-sh7372",
+				  "usb0_vbus", "usb0"),
+	/* USBHS1 */
+	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs.1", "pfc-sh7372",
+				  "usb1_vbus", "usb1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs.1", "pfc-sh7372",
+				  "usb1_otg_id_0", "usb1"),
+};
+
 #define GPIO_PORT9CR	IOMEM(0xE6051009)
 #define GPIO_PORT10CR	IOMEM(0xE605100A)
 #define GPIO_PORT167CR	IOMEM(0xE60520A7)
@@ -1350,10 +1419,11 @@ static void __init mackerel_init(void)
 		{ "A3SP", &usbhs0_device, },
 		{ "A3SP", &usbhs1_device, },
 		{ "A3SP", &nand_flash_device, },
-		{ "A3SP", &sh_mmcif_device, },
 		{ "A3SP", &sdhi0_device, },
-#if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
+#if !IS_ENABLED(CONFIG_MMC_SH_MMCIF)
 		{ "A3SP", &sdhi1_device, },
+#else
+		{ "A3SP", &sh_mmcif_device, },
 #endif
 		{ "A3SP", &sdhi2_device, },
 		{ "A4R", &ceu_device, },
@@ -1370,76 +1440,29 @@ static void __init mackerel_init(void)
 	/* External clock source */
 	clk_set_rate(&sh7372_dv_clki_clk, 27000000);
 
+	pinctrl_register_mappings(mackerel_pinctrl_map,
+				  ARRAY_SIZE(mackerel_pinctrl_map));
 	sh7372_pinmux_init();
 
-	/* enable SCIFA0 */
-	gpio_request(GPIO_FN_SCIFA0_TXD, NULL);
-	gpio_request(GPIO_FN_SCIFA0_RXD, NULL);
-
-	/* enable SMSC911X */
-	gpio_request(GPIO_FN_CS5A,	NULL);
-	gpio_request(GPIO_FN_IRQ6_39,	NULL);
-
-	/* LCDC */
-	gpio_request(GPIO_FN_LCDD23,   NULL);
-	gpio_request(GPIO_FN_LCDD22,   NULL);
-	gpio_request(GPIO_FN_LCDD21,   NULL);
-	gpio_request(GPIO_FN_LCDD20,   NULL);
-	gpio_request(GPIO_FN_LCDD19,   NULL);
-	gpio_request(GPIO_FN_LCDD18,   NULL);
-	gpio_request(GPIO_FN_LCDD17,   NULL);
-	gpio_request(GPIO_FN_LCDD16,   NULL);
-	gpio_request(GPIO_FN_LCDD15,   NULL);
-	gpio_request(GPIO_FN_LCDD14,   NULL);
-	gpio_request(GPIO_FN_LCDD13,   NULL);
-	gpio_request(GPIO_FN_LCDD12,   NULL);
-	gpio_request(GPIO_FN_LCDD11,   NULL);
-	gpio_request(GPIO_FN_LCDD10,   NULL);
-	gpio_request(GPIO_FN_LCDD9,    NULL);
-	gpio_request(GPIO_FN_LCDD8,    NULL);
-	gpio_request(GPIO_FN_LCDD7,    NULL);
-	gpio_request(GPIO_FN_LCDD6,    NULL);
-	gpio_request(GPIO_FN_LCDD5,    NULL);
-	gpio_request(GPIO_FN_LCDD4,    NULL);
-	gpio_request(GPIO_FN_LCDD3,    NULL);
-	gpio_request(GPIO_FN_LCDD2,    NULL);
-	gpio_request(GPIO_FN_LCDD1,    NULL);
-	gpio_request(GPIO_FN_LCDD0,    NULL);
-	gpio_request(GPIO_FN_LCDDISP,  NULL);
-	gpio_request(GPIO_FN_LCDDCK,   NULL);
-
-	gpio_request(GPIO_PORT31, NULL); /* backlight */
-	gpio_direction_output(GPIO_PORT31, 0); /* off by default */
-
-	gpio_request(GPIO_PORT151, NULL); /* LCDDON */
-	gpio_direction_output(GPIO_PORT151, 1);
+	gpio_request_one(151, GPIOF_OUT_INIT_HIGH, NULL); /* LCDDON */
 
 	/* USBHS0 */
-	gpio_request(GPIO_FN_VBUS0_0, NULL);
 	gpio_request_pulldown(GPIO_PORT168CR); /* VBUS0_0 pull down */
 
 	/* USBHS1 */
-	gpio_request(GPIO_FN_VBUS0_1, NULL);
 	gpio_request_pulldown(GPIO_PORT167CR); /* VBUS0_1 pull down */
-	gpio_request(GPIO_FN_IDIN_1_113, NULL);
 
-	/* enable FSI2 port A (ak4643) */
-	gpio_request(GPIO_FN_FSIAIBT,	NULL);
-	gpio_request(GPIO_FN_FSIAILR,	NULL);
-	gpio_request(GPIO_FN_FSIAISLD,	NULL);
-	gpio_request(GPIO_FN_FSIAOSLD,	NULL);
-	gpio_request(GPIO_PORT161,	NULL);
-	gpio_direction_output(GPIO_PORT161, 0); /* slave */
+	/* FSI2 port A (ak4643) */
+	gpio_request_one(161, GPIOF_OUT_INIT_LOW, NULL); /* slave */
 
-	gpio_request(GPIO_PORT9,  NULL);
-	gpio_request(GPIO_PORT10, NULL);
+	gpio_request(9,  NULL);
+	gpio_request(10, NULL);
 	gpio_direction_none(GPIO_PORT9CR);  /* FSIAOBT needs no direction */
 	gpio_direction_none(GPIO_PORT10CR); /* FSIAOLR needs no direction */
 
 	intc_set_priority(IRQ_FSI, 3); /* irq priority FSI(3) > SMSC911X(2) */
 
-	/* setup FSI2 port B (HDMI) */
-	gpio_request(GPIO_FN_FSIBCK, NULL);
+	/* FSI2 port B (HDMI) */
 	__raw_writew(__raw_readw(USCCR1) & ~(1 << 6), USCCR1); /* use SPDIF */
 
 	/* set SPU2 clock to 119.6 MHz */
@@ -1449,113 +1472,14 @@ static void __init mackerel_init(void)
 		clk_put(clk);
 	}
 
-	/* enable Keypad */
-	gpio_request(GPIO_FN_IRQ9_42,	NULL);
+	/* Keypad */
 	irq_set_irq_type(IRQ9, IRQ_TYPE_LEVEL_HIGH);
 
-	/* enable Touchscreen */
-	gpio_request(GPIO_FN_IRQ7_40,	NULL);
+	/* Touchscreen */
 	irq_set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);
 
-	/* enable Accelerometer */
-	gpio_request(GPIO_FN_IRQ21,	NULL);
+	/* Accelerometer */
 	irq_set_irq_type(IRQ21, IRQ_TYPE_LEVEL_HIGH);
-
-	/* enable SDHI0 */
-	gpio_request(GPIO_FN_SDHIWP0, NULL);
-	gpio_request(GPIO_FN_SDHICMD0, NULL);
-	gpio_request(GPIO_FN_SDHICLK0, NULL);
-	gpio_request(GPIO_FN_SDHID0_3, NULL);
-	gpio_request(GPIO_FN_SDHID0_2, NULL);
-	gpio_request(GPIO_FN_SDHID0_1, NULL);
-	gpio_request(GPIO_FN_SDHID0_0, NULL);
-
-	/* SDHI0 PORT172 card-detect IRQ26 */
-	gpio_request(GPIO_FN_IRQ26_172, NULL);
-
-#if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
-	/* enable SDHI1 */
-	gpio_request(GPIO_FN_SDHICMD1, NULL);
-	gpio_request(GPIO_FN_SDHICLK1, NULL);
-	gpio_request(GPIO_FN_SDHID1_3, NULL);
-	gpio_request(GPIO_FN_SDHID1_2, NULL);
-	gpio_request(GPIO_FN_SDHID1_1, NULL);
-	gpio_request(GPIO_FN_SDHID1_0, NULL);
-#endif
-	/* card detect pin for MMC slot (CN7) */
-	gpio_request(GPIO_PORT41, NULL);
-	gpio_direction_input(GPIO_PORT41);
-
-	/* enable SDHI2 */
-	gpio_request(GPIO_FN_SDHICMD2, NULL);
-	gpio_request(GPIO_FN_SDHICLK2, NULL);
-	gpio_request(GPIO_FN_SDHID2_3, NULL);
-	gpio_request(GPIO_FN_SDHID2_2, NULL);
-	gpio_request(GPIO_FN_SDHID2_1, NULL);
-	gpio_request(GPIO_FN_SDHID2_0, NULL);
-
-	/* card detect pin for microSD slot (CN23) */
-	gpio_request(GPIO_PORT162, NULL);
-	gpio_direction_input(GPIO_PORT162);
-
-	/* MMCIF */
-	gpio_request(GPIO_FN_MMCD0_0, NULL);
-	gpio_request(GPIO_FN_MMCD0_1, NULL);
-	gpio_request(GPIO_FN_MMCD0_2, NULL);
-	gpio_request(GPIO_FN_MMCD0_3, NULL);
-	gpio_request(GPIO_FN_MMCD0_4, NULL);
-	gpio_request(GPIO_FN_MMCD0_5, NULL);
-	gpio_request(GPIO_FN_MMCD0_6, NULL);
-	gpio_request(GPIO_FN_MMCD0_7, NULL);
-	gpio_request(GPIO_FN_MMCCMD0, NULL);
-	gpio_request(GPIO_FN_MMCCLK0, NULL);
-
-	/* FLCTL */
-	gpio_request(GPIO_FN_D0_NAF0, NULL);
-	gpio_request(GPIO_FN_D1_NAF1, NULL);
-	gpio_request(GPIO_FN_D2_NAF2, NULL);
-	gpio_request(GPIO_FN_D3_NAF3, NULL);
-	gpio_request(GPIO_FN_D4_NAF4, NULL);
-	gpio_request(GPIO_FN_D5_NAF5, NULL);
-	gpio_request(GPIO_FN_D6_NAF6, NULL);
-	gpio_request(GPIO_FN_D7_NAF7, NULL);
-	gpio_request(GPIO_FN_D8_NAF8, NULL);
-	gpio_request(GPIO_FN_D9_NAF9, NULL);
-	gpio_request(GPIO_FN_D10_NAF10, NULL);
-	gpio_request(GPIO_FN_D11_NAF11, NULL);
-	gpio_request(GPIO_FN_D12_NAF12, NULL);
-	gpio_request(GPIO_FN_D13_NAF13, NULL);
-	gpio_request(GPIO_FN_D14_NAF14, NULL);
-	gpio_request(GPIO_FN_D15_NAF15, NULL);
-	gpio_request(GPIO_FN_FCE0, NULL);
-	gpio_request(GPIO_FN_WE0_FWE, NULL);
-	gpio_request(GPIO_FN_FRB, NULL);
-	gpio_request(GPIO_FN_A4_FOE, NULL);
-	gpio_request(GPIO_FN_A5_FCDE, NULL);
-	gpio_request(GPIO_FN_RD_FSC, NULL);
-
-	/* enable GPS module (GT-720F) */
-	gpio_request(GPIO_FN_SCIFA2_TXD1, NULL);
-	gpio_request(GPIO_FN_SCIFA2_RXD1, NULL);
-
-	/* CEU */
-	gpio_request(GPIO_FN_VIO_CLK, NULL);
-	gpio_request(GPIO_FN_VIO_VD, NULL);
-	gpio_request(GPIO_FN_VIO_HD, NULL);
-	gpio_request(GPIO_FN_VIO_FIELD, NULL);
-	gpio_request(GPIO_FN_VIO_CKO, NULL);
-	gpio_request(GPIO_FN_VIO_D7, NULL);
-	gpio_request(GPIO_FN_VIO_D6, NULL);
-	gpio_request(GPIO_FN_VIO_D5, NULL);
-	gpio_request(GPIO_FN_VIO_D4, NULL);
-	gpio_request(GPIO_FN_VIO_D3, NULL);
-	gpio_request(GPIO_FN_VIO_D2, NULL);
-	gpio_request(GPIO_FN_VIO_D1, NULL);
-	gpio_request(GPIO_FN_VIO_D0, NULL);
-
-	/* HDMI */
-	gpio_request(GPIO_FN_HDMI_HPD, NULL);
-	gpio_request(GPIO_FN_HDMI_CEC, NULL);
 
 	/* Reset HDMI, must be held at least one EXTALR (32768Hz) period */
 	srcr4 = __raw_readl(SRCR4);
@@ -1593,6 +1517,6 @@ DT_MACHINE_START(MACKEREL_DT, "mackerel")
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= mackerel_init,
 	.init_late	= sh7372_pm_init_late,
-	.timer		= &shmobile_timer,
+	.init_time	= sh7372_earlytimer_init,
 	.dt_compat  = mackerel_boards_compat_dt,
 MACHINE_END

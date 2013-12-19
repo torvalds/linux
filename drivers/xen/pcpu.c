@@ -31,6 +31,8 @@
  * IN THE SOFTWARE.
  */
 
+#define pr_fmt(fmt) "xen_cpu: " fmt
+
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/cpu.h>
@@ -44,7 +46,6 @@
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
-#define XEN_PCPU "xen_cpu: "
 
 /*
  * @cpu_id: Xen physical cpu logic number
@@ -242,8 +243,7 @@ static struct pcpu *create_and_register_pcpu(struct xenpf_pcpuinfo *info)
 
 	err = register_pcpu(pcpu);
 	if (err) {
-		pr_warning(XEN_PCPU "Failed to register pcpu%u\n",
-			   info->xen_cpuid);
+		pr_warn("Failed to register pcpu%u\n", info->xen_cpuid);
 		return ERR_PTR(-ENOENT);
 	}
 
@@ -278,8 +278,7 @@ static int sync_pcpu(uint32_t cpu, uint32_t *max_cpu)
 	 * Only those at cpu present map has its sys interface.
 	 */
 	if (info->flags & XEN_PCPU_FLAGS_INVALID) {
-		if (pcpu)
-			unregister_and_remove_pcpu(pcpu);
+		unregister_and_remove_pcpu(pcpu);
 		return 0;
 	}
 
@@ -333,6 +332,41 @@ static irqreturn_t xen_pcpu_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+/* Sync with Xen hypervisor after cpu hotadded */
+void xen_pcpu_hotplug_sync(void)
+{
+	schedule_work(&xen_pcpu_work);
+}
+EXPORT_SYMBOL_GPL(xen_pcpu_hotplug_sync);
+
+/*
+ * For hypervisor presented cpu, return logic cpu id;
+ * For hypervisor non-presented cpu, return -ENODEV.
+ */
+int xen_pcpu_id(uint32_t acpi_id)
+{
+	int cpu_id = 0, max_id = 0;
+	struct xen_platform_op op;
+
+	op.cmd = XENPF_get_cpuinfo;
+	while (cpu_id <= max_id) {
+		op.u.pcpu_info.xen_cpuid = cpu_id;
+		if (HYPERVISOR_dom0_op(&op)) {
+			cpu_id++;
+			continue;
+		}
+
+		if (acpi_id == op.u.pcpu_info.acpi_id)
+			return cpu_id;
+		if (op.u.pcpu_info.max_present > max_id)
+			max_id = op.u.pcpu_info.max_present;
+		cpu_id++;
+	}
+
+	return -ENODEV;
+}
+EXPORT_SYMBOL_GPL(xen_pcpu_id);
+
 static int __init xen_pcpu_init(void)
 {
 	int irq, ret;
@@ -344,19 +378,19 @@ static int __init xen_pcpu_init(void)
 				      xen_pcpu_interrupt, 0,
 				      "xen-pcpu", NULL);
 	if (irq < 0) {
-		pr_warning(XEN_PCPU "Failed to bind pcpu virq\n");
+		pr_warn("Failed to bind pcpu virq\n");
 		return irq;
 	}
 
 	ret = subsys_system_register(&xen_pcpu_subsys, NULL);
 	if (ret) {
-		pr_warning(XEN_PCPU "Failed to register pcpu subsys\n");
+		pr_warn("Failed to register pcpu subsys\n");
 		goto err1;
 	}
 
 	ret = xen_sync_pcpus();
 	if (ret) {
-		pr_warning(XEN_PCPU "Failed to sync pcpu info\n");
+		pr_warn("Failed to sync pcpu info\n");
 		goto err2;
 	}
 

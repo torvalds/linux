@@ -131,7 +131,7 @@ static void octeon_l2c_poll_oct2(struct edac_device_ctl_info *l2c)
 		_octeon_l2c_poll_oct2(l2c, i);
 }
 
-static int __devinit octeon_l2c_probe(struct platform_device *pdev)
+static int octeon_l2c_probe(struct platform_device *pdev)
 {
 	struct edac_device_ctl_info *l2c;
 

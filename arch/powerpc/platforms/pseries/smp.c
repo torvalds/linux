@@ -42,8 +42,9 @@
 #include <asm/vdso_datapage.h>
 #include <asm/cputhreads.h>
 #include <asm/xics.h>
+#include <asm/dbell.h>
+#include <asm/plpar_wrappers.h>
 
-#include "plpar_wrappers.h"
 #include "pseries.h"
 #include "offline_states.h"
 
@@ -53,6 +54,11 @@
  * interface by prom_hold_cpus and is spinning on secondary_hold_spinloop.
  */
 static cpumask_var_t of_spin_mask;
+
+/*
+ * If we multiplex IPI mechanisms, store the appropriate XICS IPI mechanism here
+ */
+static void  (*xics_cause_ipi)(int cpu, unsigned long data);
 
 /* Query where a cpu is now.  Return codes #defined in plpar_wrappers.h */
 int smp_query_cpu_stopped(unsigned int pcpu)
@@ -87,7 +93,7 @@ int smp_query_cpu_stopped(unsigned int pcpu)
  *	0	- failure
  *	1	- success
  */
-static inline int __devinit smp_startup_cpu(unsigned int lcpu)
+static inline int smp_startup_cpu(unsigned int lcpu)
 {
 	int status;
 	unsigned long start_here = __pa((u32)*((unsigned long *)
@@ -133,10 +139,12 @@ out:
 	return 1;
 }
 
-static void __devinit smp_xics_setup_cpu(int cpu)
+static void smp_xics_setup_cpu(int cpu)
 {
 	if (cpu != boot_cpuid)
 		xics_setup_cpu();
+	if (cpu_has_feature(CPU_FTR_DBELL))
+		doorbell_setup_this_cpu();
 
 	if (firmware_has_feature(FW_FEATURE_SPLPAR))
 		vpa_init(cpu);
@@ -148,7 +156,7 @@ static void __devinit smp_xics_setup_cpu(int cpu)
 #endif
 }
 
-static int __devinit smp_pSeries_kick_cpu(int nr)
+static int smp_pSeries_kick_cpu(int nr)
 {
 	BUG_ON(nr < 0 || nr >= NR_CPUS);
 
@@ -179,20 +187,25 @@ static int __devinit smp_pSeries_kick_cpu(int nr)
 	return 0;
 }
 
-static int smp_pSeries_cpu_bootable(unsigned int nr)
+/* Only used on systems that support multiple IPI mechanisms */
+static void pSeries_cause_ipi_mux(int cpu, unsigned long data)
 {
-	/* Special case - we inhibit secondary thread startup
-	 * during boot if the user requests it.
-	 */
-	if (system_state < SYSTEM_RUNNING && cpu_has_feature(CPU_FTR_SMT)) {
-		if (!smt_enabled_at_boot && cpu_thread_in_core(nr) != 0)
-			return 0;
-		if (smt_enabled_at_boot
-		    && cpu_thread_in_core(nr) >= smt_enabled_at_boot)
-			return 0;
+	if (cpumask_test_cpu(cpu, cpu_sibling_mask(smp_processor_id())))
+		doorbell_cause_ipi(cpu, data);
+	else
+		xics_cause_ipi(cpu, data);
+}
+
+static __init int pSeries_smp_probe(void)
+{
+	int ret = xics_smp_probe();
+
+	if (cpu_has_feature(CPU_FTR_DBELL)) {
+		xics_cause_ipi = smp_ops->cause_ipi;
+		smp_ops->cause_ipi = pSeries_cause_ipi_mux;
 	}
 
-	return 1;
+	return ret;
 }
 
 static struct smp_ops_t pSeries_mpic_smp_ops = {
@@ -204,11 +217,11 @@ static struct smp_ops_t pSeries_mpic_smp_ops = {
 
 static struct smp_ops_t pSeries_xics_smp_ops = {
 	.message_pass	= NULL,	/* Use smp_muxed_ipi_message_pass */
-	.cause_ipi	= NULL,	/* Filled at runtime by xics_smp_probe() */
-	.probe		= xics_smp_probe,
+	.cause_ipi	= NULL,	/* Filled at runtime by pSeries_smp_probe() */
+	.probe		= pSeries_smp_probe,
 	.kick_cpu	= smp_pSeries_kick_cpu,
 	.setup_cpu	= smp_xics_setup_cpu,
-	.cpu_bootable	= smp_pSeries_cpu_bootable,
+	.cpu_bootable	= smp_generic_cpu_bootable,
 };
 
 /* This is called very early */
@@ -220,17 +233,23 @@ static void __init smp_init_pseries(void)
 
 	alloc_bootmem_cpumask_var(&of_spin_mask);
 
-	/* Mark threads which are still spinning in hold loops. */
-	if (cpu_has_feature(CPU_FTR_SMT)) {
-		for_each_present_cpu(i) { 
-			if (cpu_thread_in_core(i) == 0)
-				cpumask_set_cpu(i, of_spin_mask);
-		}
-	} else {
-		cpumask_copy(of_spin_mask, cpu_present_mask);
-	}
+	/*
+	 * Mark threads which are still spinning in hold loops
+	 *
+	 * We know prom_init will not have started them if RTAS supports
+	 * query-cpu-stopped-state.
+	 */
+	if (rtas_token("query-cpu-stopped-state") == RTAS_UNKNOWN_SERVICE) {
+		if (cpu_has_feature(CPU_FTR_SMT)) {
+			for_each_present_cpu(i) {
+				if (cpu_thread_in_core(i) == 0)
+					cpumask_set_cpu(i, of_spin_mask);
+			}
+		} else
+			cpumask_copy(of_spin_mask, cpu_present_mask);
 
-	cpumask_clear_cpu(boot_cpuid, of_spin_mask);
+		cpumask_clear_cpu(boot_cpuid, of_spin_mask);
+	}
 
 	/* Non-lpar has additional take/give timebase */
 	if (rtas_token("freeze-time-base") != RTAS_UNKNOWN_SERVICE) {

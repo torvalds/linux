@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2011 Emulex
+ * Copyright (C) 2005 - 2013 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -54,7 +54,7 @@ static const struct be_ethtool_stat et_stats[] = {
 	/* Received packets dropped when they don't pass the unicast or
 	 * multicast address filtering.
 	 */
-	{DRVSTAT_INFO(rx_address_mismatch_drops)},
+	{DRVSTAT_INFO(rx_address_filtered)},
 	/* Received packets dropped when IP packet length field is less than
 	 * the IP header length field.
 	 */
@@ -85,6 +85,7 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_INFO(tx_pauseframes)},
 	{DRVSTAT_INFO(tx_controlframes)},
 	{DRVSTAT_INFO(rx_priority_pause_frames)},
+	{DRVSTAT_INFO(tx_priority_pauseframes)},
 	/* Received packets dropped when an internal fifo going into
 	 * main packet buffer tank (PMEM) overflows.
 	 */
@@ -115,7 +116,12 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_INFO(rx_drops_mtu)},
 	/* Number of packets dropped due to random early drop function */
 	{DRVSTAT_INFO(eth_red_drops)},
-	{DRVSTAT_INFO(be_on_die_temperature)}
+	{DRVSTAT_INFO(be_on_die_temperature)},
+	{DRVSTAT_INFO(rx_roce_bytes_lsd)},
+	{DRVSTAT_INFO(rx_roce_bytes_msd)},
+	{DRVSTAT_INFO(rx_roce_frames)},
+	{DRVSTAT_INFO(roce_drops_payload_len)},
+	{DRVSTAT_INFO(roce_drops_crc)}
 };
 #define ETHTOOL_STATS_NUM ARRAY_SIZE(et_stats)
 
@@ -154,7 +160,9 @@ static const struct be_ethtool_stat et_tx_stats[] = {
 	/* Number of times the TX queue was stopped due to lack
 	 * of spaces in the TXQ.
 	 */
-	{DRVSTAT_TX_INFO(tx_stops)}
+	{DRVSTAT_TX_INFO(tx_stops)},
+	/* Pkts dropped in the driver's transmit path */
+	{DRVSTAT_TX_INFO(tx_drv_drops)}
 };
 #define ETHTOOL_TXSTATS_NUM (ARRAY_SIZE(et_tx_stats))
 
@@ -176,19 +184,15 @@ static void be_get_drvinfo(struct net_device *netdev,
 				struct ethtool_drvinfo *drvinfo)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	char fw_on_flash[FW_VER_LEN];
-
-	memset(fw_on_flash, 0 , sizeof(fw_on_flash));
-	be_cmd_get_fw_ver(adapter, adapter->fw_ver, fw_on_flash);
 
 	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, DRV_VER, sizeof(drvinfo->version));
-	strncpy(drvinfo->fw_version, adapter->fw_ver, FW_VER_LEN);
-	if (memcmp(adapter->fw_ver, fw_on_flash, FW_VER_LEN) != 0) {
-		strcat(drvinfo->fw_version, " [");
-		strcat(drvinfo->fw_version, fw_on_flash);
-		strcat(drvinfo->fw_version, "]");
-	}
+	if (!memcmp(adapter->fw_ver, adapter->fw_on_flash, FW_VER_LEN))
+		strlcpy(drvinfo->fw_version, adapter->fw_ver,
+			sizeof(drvinfo->fw_version));
+	else
+		snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
+			 "%s [%s]", adapter->fw_ver, adapter->fw_on_flash);
 
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
@@ -293,19 +297,19 @@ static int be_get_coalesce(struct net_device *netdev,
 			   struct ethtool_coalesce *et)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_eq_obj *eqo = &adapter->eq_obj[0];
+	struct be_aic_obj *aic = &adapter->aic_obj[0];
 
 
-	et->rx_coalesce_usecs = eqo->cur_eqd;
-	et->rx_coalesce_usecs_high = eqo->max_eqd;
-	et->rx_coalesce_usecs_low = eqo->min_eqd;
+	et->rx_coalesce_usecs = aic->prev_eqd;
+	et->rx_coalesce_usecs_high = aic->max_eqd;
+	et->rx_coalesce_usecs_low = aic->min_eqd;
 
-	et->tx_coalesce_usecs = eqo->cur_eqd;
-	et->tx_coalesce_usecs_high = eqo->max_eqd;
-	et->tx_coalesce_usecs_low = eqo->min_eqd;
+	et->tx_coalesce_usecs = aic->prev_eqd;
+	et->tx_coalesce_usecs_high = aic->max_eqd;
+	et->tx_coalesce_usecs_low = aic->min_eqd;
 
-	et->use_adaptive_rx_coalesce = eqo->enable_aic;
-	et->use_adaptive_tx_coalesce = eqo->enable_aic;
+	et->use_adaptive_rx_coalesce = aic->enable;
+	et->use_adaptive_tx_coalesce = aic->enable;
 
 	return 0;
 }
@@ -317,14 +321,17 @@ static int be_set_coalesce(struct net_device *netdev,
 			   struct ethtool_coalesce *et)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	struct be_aic_obj *aic = &adapter->aic_obj[0];
 	struct be_eq_obj *eqo;
 	int i;
 
 	for_all_evt_queues(adapter, eqo, i) {
-		eqo->enable_aic = et->use_adaptive_rx_coalesce;
-		eqo->max_eqd = min(et->rx_coalesce_usecs_high, BE_MAX_EQD);
-		eqo->min_eqd = min(et->rx_coalesce_usecs_low, eqo->max_eqd);
-		eqo->eqd = et->rx_coalesce_usecs;
+		aic->enable = et->use_adaptive_rx_coalesce;
+		aic->max_eqd = min(et->rx_coalesce_usecs_high, BE_MAX_EQD);
+		aic->min_eqd = min(et->rx_coalesce_usecs_low, aic->max_eqd);
+		aic->et_eqd = min(et->rx_coalesce_usecs, aic->max_eqd);
+		aic->et_eqd = max(aic->et_eqd, aic->min_eqd);
+		aic++;
 	}
 
 	return 0;
@@ -672,6 +679,34 @@ be_set_phys_id(struct net_device *netdev,
 	return 0;
 }
 
+static int be_set_dump(struct net_device *netdev, struct ethtool_dump *dump)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	struct device *dev = &adapter->pdev->dev;
+	int status;
+
+	if (!lancer_chip(adapter)) {
+		dev_err(dev, "FW dump not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (dump_present(adapter)) {
+		dev_err(dev, "Previous dump not cleared, not forcing dump\n");
+		return 0;
+	}
+
+	switch (dump->flag) {
+	case LANCER_INITIATE_FW_DUMP:
+		status = lancer_initiate_dump(adapter);
+		if (!status)
+			dev_info(dev, "F/w dump initiated successfully\n");
+		break;
+	default:
+		dev_err(dev, "Invalid dump level: 0x%x\n", dump->flag);
+		return -EINVAL;
+	}
+	return status;
+}
 
 static void
 be_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
@@ -680,7 +715,8 @@ be_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 
 	if (be_is_wol_supported(adapter)) {
 		wol->supported |= WAKE_MAGIC;
-		wol->wolopts |= WAKE_MAGIC;
+		if (adapter->wol)
+			wol->wolopts |= WAKE_MAGIC;
 	} else
 		wol->wolopts = 0;
 	memset(&wol->sopass, 0, sizeof(wol->sopass));
@@ -719,10 +755,8 @@ be_test_ddr_dma(struct be_adapter *adapter)
 	ddrdma_cmd.size = sizeof(struct be_cmd_req_ddrdma_test);
 	ddrdma_cmd.va = dma_alloc_coherent(&adapter->pdev->dev, ddrdma_cmd.size,
 					   &ddrdma_cmd.dma, GFP_KERNEL);
-	if (!ddrdma_cmd.va) {
-		dev_err(&adapter->pdev->dev, "Memory allocation failure\n");
+	if (!ddrdma_cmd.va)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < 2; i++) {
 		ret = be_cmd_ddr_dma_test(adapter, pattern[i],
@@ -756,6 +790,12 @@ be_self_test(struct net_device *netdev, struct ethtool_test *test, u64 *data)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	int status;
 	u8 link_status = 0;
+
+	if (adapter->function_caps & BE_FUNCTION_CAPS_SUPER_NIC) {
+		dev_err(&adapter->pdev->dev, "Self test not supported\n");
+		test->flags |= ETH_TEST_FL_FAILED;
+		return;
+	}
 
 	memset(data, 0, sizeof(u64) * ETHTOOL_TESTS_NUM);
 
@@ -845,11 +885,8 @@ be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	eeprom_cmd.va = dma_alloc_coherent(&adapter->pdev->dev, eeprom_cmd.size,
 					   &eeprom_cmd.dma, GFP_KERNEL);
 
-	if (!eeprom_cmd.va) {
-		dev_err(&adapter->pdev->dev,
-			"Memory allocation failure. Could not read eeprom\n");
+	if (!eeprom_cmd.va)
 		return -ENOMEM;
-	}
 
 	status = be_cmd_get_seeprom_data(adapter, &eeprom_cmd);
 
@@ -939,6 +976,182 @@ static void be_set_msg_level(struct net_device *netdev, u32 level)
 	return;
 }
 
+static u64 be_get_rss_hash_opts(struct be_adapter *adapter, u64 flow_type)
+{
+	u64 data = 0;
+
+	switch (flow_type) {
+	case TCP_V4_FLOW:
+		if (adapter->rss_flags & RSS_ENABLE_IPV4)
+			data |= RXH_IP_DST | RXH_IP_SRC;
+		if (adapter->rss_flags & RSS_ENABLE_TCP_IPV4)
+			data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
+	case UDP_V4_FLOW:
+		if (adapter->rss_flags & RSS_ENABLE_IPV4)
+			data |= RXH_IP_DST | RXH_IP_SRC;
+		if (adapter->rss_flags & RSS_ENABLE_UDP_IPV4)
+			data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
+	case TCP_V6_FLOW:
+		if (adapter->rss_flags & RSS_ENABLE_IPV6)
+			data |= RXH_IP_DST | RXH_IP_SRC;
+		if (adapter->rss_flags & RSS_ENABLE_TCP_IPV6)
+			data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
+	case UDP_V6_FLOW:
+		if (adapter->rss_flags & RSS_ENABLE_IPV6)
+			data |= RXH_IP_DST | RXH_IP_SRC;
+		if (adapter->rss_flags & RSS_ENABLE_UDP_IPV6)
+			data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
+	}
+
+	return data;
+}
+
+static int be_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
+		      u32 *rule_locs)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	if (!be_multi_rxq(adapter)) {
+		dev_info(&adapter->pdev->dev,
+			 "ethtool::get_rxnfc: RX flow hashing is disabled\n");
+		return -EINVAL;
+	}
+
+	switch (cmd->cmd) {
+	case ETHTOOL_GRXFH:
+		cmd->data = be_get_rss_hash_opts(adapter, cmd->flow_type);
+		break;
+	case ETHTOOL_GRXRINGS:
+		cmd->data = adapter->num_rx_qs - 1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int be_set_rss_hash_opts(struct be_adapter *adapter,
+				struct ethtool_rxnfc *cmd)
+{
+	struct be_rx_obj *rxo;
+	int status = 0, i, j;
+	u8 rsstable[128];
+	u32 rss_flags = adapter->rss_flags;
+
+	if (cmd->data != L3_RSS_FLAGS &&
+	    cmd->data != (L3_RSS_FLAGS | L4_RSS_FLAGS))
+		return -EINVAL;
+
+	switch (cmd->flow_type) {
+	case TCP_V4_FLOW:
+		if (cmd->data == L3_RSS_FLAGS)
+			rss_flags &= ~RSS_ENABLE_TCP_IPV4;
+		else if (cmd->data == (L3_RSS_FLAGS | L4_RSS_FLAGS))
+			rss_flags |= RSS_ENABLE_IPV4 |
+					RSS_ENABLE_TCP_IPV4;
+		break;
+	case TCP_V6_FLOW:
+		if (cmd->data == L3_RSS_FLAGS)
+			rss_flags &= ~RSS_ENABLE_TCP_IPV6;
+		else if (cmd->data == (L3_RSS_FLAGS | L4_RSS_FLAGS))
+			rss_flags |= RSS_ENABLE_IPV6 |
+					RSS_ENABLE_TCP_IPV6;
+		break;
+	case UDP_V4_FLOW:
+		if ((cmd->data == (L3_RSS_FLAGS | L4_RSS_FLAGS)) &&
+		    BEx_chip(adapter))
+			return -EINVAL;
+
+		if (cmd->data == L3_RSS_FLAGS)
+			rss_flags &= ~RSS_ENABLE_UDP_IPV4;
+		else if (cmd->data == (L3_RSS_FLAGS | L4_RSS_FLAGS))
+			rss_flags |= RSS_ENABLE_IPV4 |
+					RSS_ENABLE_UDP_IPV4;
+		break;
+	case UDP_V6_FLOW:
+		if ((cmd->data == (L3_RSS_FLAGS | L4_RSS_FLAGS)) &&
+		    BEx_chip(adapter))
+			return -EINVAL;
+
+		if (cmd->data == L3_RSS_FLAGS)
+			rss_flags &= ~RSS_ENABLE_UDP_IPV6;
+		else if (cmd->data == (L3_RSS_FLAGS | L4_RSS_FLAGS))
+			rss_flags |= RSS_ENABLE_IPV6 |
+					RSS_ENABLE_UDP_IPV6;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (rss_flags == adapter->rss_flags)
+		return status;
+
+	if (be_multi_rxq(adapter)) {
+		for (j = 0; j < 128; j += adapter->num_rx_qs - 1) {
+			for_all_rss_queues(adapter, rxo, i) {
+				if ((j + i) >= 128)
+					break;
+				rsstable[j + i] = rxo->rss_id;
+			}
+		}
+	}
+	status = be_cmd_rss_config(adapter, rsstable, rss_flags, 128);
+	if (!status)
+		adapter->rss_flags = rss_flags;
+
+	return status;
+}
+
+static int be_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	int status = 0;
+
+	if (!be_multi_rxq(adapter)) {
+		dev_err(&adapter->pdev->dev,
+			"ethtool::set_rxnfc: RX flow hashing is disabled\n");
+		return -EINVAL;
+	}
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXFH:
+		status = be_set_rss_hash_opts(adapter, cmd);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return status;
+}
+
+static void be_get_channels(struct net_device *netdev,
+			    struct ethtool_channels *ch)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	ch->combined_count = adapter->num_evt_qs;
+	ch->max_combined = be_max_qs(adapter);
+}
+
+static int be_set_channels(struct net_device  *netdev,
+			   struct ethtool_channels *ch)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	if (ch->rx_count || ch->tx_count || ch->other_count ||
+	    !ch->combined_count || ch->combined_count > be_max_qs(adapter))
+		return -EINVAL;
+
+	adapter->cfg_num_qs = ch->combined_count;
+
+	return be_update_queues(adapter);
+}
+
 const struct ethtool_ops be_ethtool_ops = {
 	.get_settings = be_get_settings,
 	.get_drvinfo = be_get_drvinfo,
@@ -954,6 +1167,7 @@ const struct ethtool_ops be_ethtool_ops = {
 	.set_pauseparam = be_set_pauseparam,
 	.get_strings = be_get_stat_strings,
 	.set_phys_id = be_set_phys_id,
+	.set_dump = be_set_dump,
 	.get_msglevel = be_get_msg_level,
 	.set_msglevel = be_set_msg_level,
 	.get_sset_count = be_get_sset_count,
@@ -962,4 +1176,8 @@ const struct ethtool_ops be_ethtool_ops = {
 	.get_regs = be_get_regs,
 	.flash_device = be_do_flash,
 	.self_test = be_self_test,
+	.get_rxnfc = be_get_rxnfc,
+	.set_rxnfc = be_set_rxnfc,
+	.get_channels = be_get_channels,
+	.set_channels = be_set_channels
 };

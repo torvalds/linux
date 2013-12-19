@@ -121,7 +121,7 @@ static int atlas_acpi_button_add(struct acpi_device *device)
 	return err;
 }
 
-static int atlas_acpi_button_remove(struct acpi_device *device, int type)
+static int atlas_acpi_button_remove(struct acpi_device *device)
 {
 	acpi_status status;
 

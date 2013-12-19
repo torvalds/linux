@@ -6,7 +6,7 @@ int InterfaceFileDownload(PVOID arg, struct file *flp, unsigned int on_chip_loc)
 	mm_segment_t oldfs = {0};
 	int errno = 0, len = 0; /* ,is_config_file = 0 */
 	loff_t pos = 0;
-	struct bcm_interface_adapter *psIntfAdapter = (struct bcm_interface_adapter *)arg;
+	struct bcm_interface_adapter *psIntfAdapter = arg;
 	/* struct bcm_mini_adapter *Adapter = psIntfAdapter->psAdapter; */
 	char *buff = kmalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_KERNEL);
 
@@ -61,7 +61,7 @@ int InterfaceFileReadbackFromChip(PVOID arg, struct file *flp, unsigned int on_c
 	loff_t pos = 0;
 	static int fw_down;
 	INT Status = STATUS_SUCCESS;
-	struct bcm_interface_adapter *psIntfAdapter = (struct bcm_interface_adapter *)arg;
+	struct bcm_interface_adapter *psIntfAdapter = arg;
 	int bytes;
 
 	buff = kmalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_DMA);
@@ -138,12 +138,12 @@ static int bcm_download_config_file(struct bcm_mini_adapter *Adapter, struct bcm
 	B_UINT32 value = 0;
 
 	if (Adapter->pstargetparams == NULL) {
-		Adapter->pstargetparams = kmalloc(sizeof(STARGETPARAMS), GFP_KERNEL);
+		Adapter->pstargetparams = kmalloc(sizeof(struct bcm_target_params), GFP_KERNEL);
 		if (Adapter->pstargetparams == NULL)
 			return -ENOMEM;
 	}
 
-	if (psFwInfo->u32FirmwareLength != sizeof(STARGETPARAMS))
+	if (psFwInfo->u32FirmwareLength != sizeof(struct bcm_target_params))
 		return -EIO;
 
 	retval = copy_from_user(Adapter->pstargetparams, psFwInfo->pvMappedFirmwareAddress, psFwInfo->u32FirmwareLength);
@@ -166,7 +166,7 @@ static int bcm_download_config_file(struct bcm_mini_adapter *Adapter, struct bcm
 	}
 
 	if (Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY) {
-		Adapter->LEDInfo.bLedInitDone = FALSE;
+		Adapter->LEDInfo.bLedInitDone = false;
 		Adapter->DriverState = DRIVER_INIT;
 		wake_up(&Adapter->LEDInfo.notify_led_event);
 	}
@@ -195,37 +195,13 @@ static int bcm_download_config_file(struct bcm_mini_adapter *Adapter, struct bcm
 		}
 	}
 
-	retval = buffDnldVerify(Adapter, (PUCHAR)Adapter->pstargetparams, sizeof(STARGETPARAMS), CONFIG_BEGIN_ADDR);
+	retval = buffDnldVerify(Adapter, (PUCHAR)Adapter->pstargetparams, sizeof(struct bcm_target_params), CONFIG_BEGIN_ADDR);
 
 	if (retval)
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "configuration file not downloaded properly");
 	else
 		Adapter->bCfgDownloaded = TRUE;
 
-	return retval;
-}
-
-static int bcm_compare_buff_contents(unsigned char *readbackbuff, unsigned char *buff, unsigned int len)
-{
-	int retval = STATUS_SUCCESS;
-	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
-	if ((len-sizeof(unsigned int)) < 4) {
-		if (memcmp(readbackbuff , buff, len))
-			retval = -EINVAL;
-	} else {
-		len -= 4;
-
-		while (len) {
-			if (*(unsigned int *)&readbackbuff[len] != *(unsigned int *)&buff[len]) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Firmware Download is not proper");
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Val from Binary %x, Val From Read Back %x ", *(unsigned int *)&buff[len], *(unsigned int*)&readbackbuff[len]);
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "len =%x!!!", len);
-				retval = -EINVAL;
-				break;
-			}
-			len -= 4;
-		}
-	}
 	return retval;
 }
 
@@ -238,7 +214,7 @@ int bcm_ioctl_fw_download(struct bcm_mini_adapter *Adapter, struct bcm_firmware_
 	 * Firmware. Check for the Config file to be first to be sent from the
 	 * Application
 	 */
-	atomic_set(&Adapter->uiMBupdate, FALSE);
+	atomic_set(&Adapter->uiMBupdate, false);
 	if (!Adapter->bCfgDownloaded && psFwInfo->u32StartingAddress != CONFIG_BEGIN_ADDR) {
 		/* Can't Download Firmware. */
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Download the config File first\n");
@@ -321,9 +297,11 @@ static INT buffRdbkVerify(struct bcm_mini_adapter *Adapter, PUCHAR mappedbuffer,
 			break;
 		}
 
-		retval = bcm_compare_buff_contents(readbackbuff, mappedbuffer, len);
-		if (STATUS_SUCCESS != retval)
-			break;
+		if (memcmp(readbackbuff, mappedbuffer, len) != 0) {
+			pr_err("%s() failed.  The firmware doesn't match what was written",
+			       __func__);
+			retval = -EIO;
+		}
 
 		u32StartingAddress += len;
 		u32FirmwareLength -= len;

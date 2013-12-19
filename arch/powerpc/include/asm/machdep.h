@@ -29,19 +29,20 @@ struct rtc_time;
 struct file;
 struct pci_controller;
 struct kimage;
+struct pci_host_bridge;
 
 struct machdep_calls {
 	char		*name;
 #ifdef CONFIG_PPC64
 	void            (*hpte_invalidate)(unsigned long slot,
 					   unsigned long vpn,
-					   int psize, int ssize,
-					   int local);
+					   int bpsize, int apsize,
+					   int ssize, int local);
 	long		(*hpte_updatepp)(unsigned long slot, 
 					 unsigned long newpp, 
 					 unsigned long vpn,
-					 int psize, int ssize,
-					 int local);
+					 int bpsize, int apsize,
+					 int ssize, int local);
 	void            (*hpte_updateboltedpp)(unsigned long newpp, 
 					       unsigned long ea,
 					       int psize, int ssize);
@@ -50,11 +51,15 @@ struct machdep_calls {
 				       unsigned long prpn,
 				       unsigned long rflags,
 				       unsigned long vflags,
-				       int psize, int ssize);
+				       int psize, int apsize,
+				       int ssize);
 	long		(*hpte_remove)(unsigned long hpte_group);
 	void            (*hpte_removebolted)(unsigned long ea,
 					     int psize, int ssize);
 	void		(*flush_hash_range)(unsigned long number, int local);
+	void		(*hugepage_invalidate)(struct mm_struct *mm,
+					       unsigned char *hpte_slot_array,
+					       unsigned long addr, int psize);
 
 	/* special for kexec, to be called in real mode, linear mapping is
 	 * destroyed as well */
@@ -72,6 +77,18 @@ struct machdep_calls {
 	unsigned long	(*tce_get)(struct iommu_table *tbl,
 				    long index);
 	void		(*tce_flush)(struct iommu_table *tbl);
+
+	/* _rm versions are for real mode use only */
+	int		(*tce_build_rm)(struct iommu_table *tbl,
+				     long index,
+				     long npages,
+				     unsigned long uaddr,
+				     enum dma_data_direction direction,
+				     struct dma_attrs *attrs);
+	void		(*tce_free_rm)(struct iommu_table *tbl,
+				    long index,
+				    long npages);
+	void		(*tce_flush_rm)(struct iommu_table *tbl);
 
 	void __iomem *	(*ioremap)(phys_addr_t addr, unsigned long size,
 				   unsigned long flags, void *caller);
@@ -107,6 +124,8 @@ struct machdep_calls {
 	void		(*pcibios_fixup)(void);
 	int		(*pci_probe_mode)(struct pci_bus *);
 	void		(*pci_irq_fixup)(struct pci_dev *dev);
+	int		(*pcibios_root_bridge_prepare)(struct pci_host_bridge
+				*bridge);
 
 	/* To setup PHBs when using automatic OF platform driver for PCI */
 	int		(*pci_setup_phb)(struct pci_controller *host);
@@ -180,6 +199,10 @@ struct machdep_calls {
 	int		(*set_dabr)(unsigned long dabr,
 				    unsigned long dabrx);
 
+	/* Set DAWR for this platform, leave empty for default implemenation */
+	int		(*set_dawr)(unsigned long dawr,
+				    unsigned long dawrx);
+
 #ifdef CONFIG_PPC32	/* XXX for now */
 	/* A general init function, called by ppc_init in init/main.c.
 	   May be NULL. */
@@ -251,6 +274,10 @@ struct machdep_calls {
 #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
 	ssize_t (*cpu_probe)(const char *, size_t);
 	ssize_t (*cpu_release)(const char *, size_t);
+#endif
+
+#ifdef CONFIG_ARCH_RANDOM
+	int (*get_random_long)(unsigned long *v);
 #endif
 };
 

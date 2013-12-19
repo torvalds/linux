@@ -14,7 +14,7 @@
  ******************************************************************************
 
   Few modifications for Realtek's Wi-Fi drivers by
-  Andrea Merello <andreamrl@tiscali.it>
+  Andrea Merello <andrea.merello@gmail.com>
 
   A special thanks goes to Realtek for their support !
 
@@ -777,6 +777,8 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 
 		/* Allocate new skb for releasing to upper layer */
 		sub_skb = dev_alloc_skb(RTLLIB_SKBBUFFER_SIZE);
+		if (!sub_skb)
+			return 0;
 		skb_reserve(sub_skb, 12);
 		data_ptr = (u8 *)skb_put(sub_skb, skb->len);
 		memcpy(data_ptr, skb->data, skb->len);
@@ -825,6 +827,8 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 
 			/* Allocate new skb for releasing to upper layer */
 			sub_skb = dev_alloc_skb(nSubframe_Length + 12);
+			if (!sub_skb)
+				return 0;
 			skb_reserve(sub_skb, 12);
 			data_ptr = (u8 *)skb_put(sub_skb, nSubframe_Length);
 			memcpy(data_ptr, skb->data, nSubframe_Length);
@@ -869,11 +873,11 @@ static size_t rtllib_rx_get_hdrlen(struct rtllib_device *ieee,
 		if (net_ratelimit())
 			printk(KERN_INFO "%s: find HTCControl!\n", __func__);
 		hdrlen += 4;
-		rx_stats->bContainHTC = 1;
+		rx_stats->bContainHTC = true;
 	}
 
 	 if (RTLLIB_QOS_HAS_SEQ(fc))
-		rx_stats->bIsQosData = 1;
+		rx_stats->bIsQosData = true;
 
 	return hdrlen;
 }
@@ -953,16 +957,15 @@ static void rtllib_rx_extract_addr(struct rtllib_device *ieee,
 static int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc,
 				 u8 *dst, u8 *src, u8 *bssid, u8 *addr2)
 {
-	u8 zero_addr[ETH_ALEN] = {0};
 	u8 type, stype;
 
 	type = WLAN_FC_GET_TYPE(fc);
 	stype = WLAN_FC_GET_STYPE(fc);
 
 	/* Filter frames from different BSS */
-	if (((fc & RTLLIB_FCTL_DSTODS) != RTLLIB_FCTL_DSTODS)
-		&& (compare_ether_addr(ieee->current_network.bssid, bssid) != 0)
-		&& memcmp(ieee->current_network.bssid, zero_addr, ETH_ALEN)) {
+	if (((fc & RTLLIB_FCTL_DSTODS) != RTLLIB_FCTL_DSTODS) &&
+	    !ether_addr_equal(ieee->current_network.bssid, bssid) &&
+	    !is_zero_ether_addr(ieee->current_network.bssid)) {
 		return -1;
 	}
 
@@ -970,8 +973,8 @@ static int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc,
 	if (ieee->IntelPromiscuousModeInfo.bPromiscuousOn  &&
 		ieee->IntelPromiscuousModeInfo.bFilterSourceStationFrame) {
 		if ((fc & RTLLIB_FCTL_TODS) && !(fc & RTLLIB_FCTL_FROMDS) &&
-			(compare_ether_addr(dst, ieee->current_network.bssid) != 0) &&
-			(compare_ether_addr(bssid, ieee->current_network.bssid) == 0)) {
+		    !ether_addr_equal(dst, ieee->current_network.bssid) &&
+		    ether_addr_equal(bssid, ieee->current_network.bssid)) {
 			return -1;
 		}
 	}
@@ -1271,7 +1274,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	/*Filter pkt not to me*/
 	multicast = is_multicast_ether_addr(hdr->addr1);
 	unicast = !multicast;
-	if (unicast && (compare_ether_addr(dev->dev_addr, hdr->addr1) != 0)) {
+	if (unicast && !ether_addr_equal(dev->dev_addr, hdr->addr1)) {
 		if (ieee->bNetPromiscuousMode)
 			bToOtherSTA = true;
 		else
@@ -1726,7 +1729,7 @@ static inline void rtllib_extract_country_ie(
 			network->CountryIeLen = info_element->len;
 
 			if (!IS_COUNTRY_IE_VALID(ieee)) {
-				if ((rtllib_act_scanning(ieee, false) == true) && (ieee->FirstIe_InScan == 1))
+				if (rtllib_act_scanning(ieee, false) && ieee->FirstIe_InScan)
 					printk(KERN_INFO "Received beacon ContryIE, SSID: <%s>\n", network->ssid);
 				Dot11d_UpdateCountryIe(ieee, addr2, info_element->len, info_element->data);
 			}
@@ -1822,7 +1825,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 				network->rates_ex[i] = info_element->data[i];
 				p += snprintf(p, sizeof(rates_str) -
 					      (p - rates_str), "%02X ",
-					      network->rates[i]);
+					      network->rates_ex[i]);
 				if (rtllib_is_ofdm_rate
 				    (info_element->data[i])) {
 					network->flags |= NETWORK_HAS_OFDM;

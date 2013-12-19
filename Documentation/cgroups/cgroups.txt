@@ -442,7 +442,7 @@ You can attach the current shell task by echoing 0:
 You can use the cgroup.procs file instead of the tasks file to move all
 threads in a threadgroup at once. Echoing the PID of any task in a
 threadgroup to cgroup.procs causes all tasks in that threadgroup to be
-be attached to the cgroup. Writing 0 to cgroup.procs moves all tasks
+attached to the cgroup. Writing 0 to cgroup.procs moves all tasks
 in the writing task's threadgroup.
 
 Note: Since every task is always a member of exactly one cgroup in each
@@ -580,6 +580,7 @@ propagation along the hierarchy. See the comment on
 cgroup_for_each_descendant_pre() for details.
 
 void css_offline(struct cgroup *cgrp);
+(cgroup_mutex held by caller)
 
 This is the counterpart of css_online() and called iff css_online()
 has succeeded on @cgrp. This signifies the beginning of the end of

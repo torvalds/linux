@@ -12,7 +12,7 @@
 
 /*
  * This file essentially defines the interface between board
- * specific PCI code and MIPS common PCI code.  Should potentially put
+ * specific PCI code and MIPS common PCI code.	Should potentially put
  * into include/asm/pci.h file.
  */
 
@@ -20,7 +20,7 @@
 #include <linux/of.h>
 
 /*
- * Each pci channel is a top-level PCI bus seem by CPU.  A machine  with
+ * Each pci channel is a top-level PCI bus seem by CPU.	 A machine  with
  * multiple PCI channels may have multiple PCI host controllers or a
  * single controller supporting multiple channels.
  */
@@ -52,7 +52,6 @@ struct pci_controller {
 /*
  * Used by boards to register their PCI busses before the actual scanning.
  */
-extern struct pci_controller * alloc_pci_controller(void);
 extern void register_pci_controller(struct pci_controller *hose);
 
 /*
@@ -84,6 +83,18 @@ static inline void pcibios_penalize_isa_irq(int irq, int active)
 extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 	enum pci_mmap_state mmap_state, int write_combine);
 
+#define HAVE_ARCH_PCI_RESOURCE_TO_USER
+
+static inline void pci_resource_to_user(const struct pci_dev *dev, int bar,
+		const struct resource *rsrc, resource_size_t *start,
+		resource_size_t *end)
+{
+	phys_t size = resource_size(rsrc);
+
+	*start = fixup_bigphys_addr(rsrc->start, size);
+	*end = rsrc->start + size;
+}
+
 /*
  * Dynamic DMA mapping stuff.
  * MIPS has everything mapped statically.
@@ -99,7 +110,7 @@ extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 struct pci_dev;
 
 /*
- * The PCI address space does equal the physical memory address space.  The
+ * The PCI address space does equal the physical memory address space.	The
  * networking and block device layers use this boolean for bounce buffer
  * decisions.  This is set if any hose does not have an IOMMU.
  */
@@ -137,15 +148,15 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 	return channel ? 15 : 14;
 }
 
-#ifdef CONFIG_CPU_CAVIUM_OCTEON
-/* MSI arch hook for OCTEON */
-#define arch_setup_msi_irqs arch_setup_msi_irqs
-#endif
-
 extern char * (*pcibios_plat_setup)(char *str);
 
+#ifdef CONFIG_OF
 /* this function parses memory ranges from a device node */
-extern void __devinit pci_load_of_ranges(struct pci_controller *hose,
-					 struct device_node *node);
+extern void pci_load_of_ranges(struct pci_controller *hose,
+			       struct device_node *node);
+#else
+static inline void pci_load_of_ranges(struct pci_controller *hose,
+				      struct device_node *node) {}
+#endif
 
 #endif /* _ASM_PCI_H */

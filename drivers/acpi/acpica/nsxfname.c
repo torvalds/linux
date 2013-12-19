@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
@@ -107,7 +108,7 @@ acpi_get_handle(acpi_handle parent,
 	 *
 	 * Error for <null Parent + relative path>
 	 */
-	if (acpi_ns_valid_root_prefix(pathname[0])) {
+	if (ACPI_IS_ROOT_PREFIX(pathname[0])) {
 
 		/* Pathname is fully qualified (starts with '\') */
 
@@ -158,6 +159,7 @@ acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer * buffer)
 {
 	acpi_status status;
 	struct acpi_namespace_node *node;
+	char *node_name;
 
 	/* Parameter validation */
 
@@ -202,11 +204,12 @@ acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer * buffer)
 
 	/* Just copy the ACPI name from the Node and zero terminate it */
 
-	ACPI_MOVE_NAME(buffer->pointer, acpi_ut_get_node_name(node));
+	node_name = acpi_ut_get_node_name(node);
+	ACPI_MOVE_NAME(buffer->pointer, node_name);
 	((char *)buffer->pointer)[ACPI_NAME_SIZE] = 0;
 	status = AE_OK;
 
-      unlock_and_exit:
+unlock_and_exit:
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return (status);
@@ -290,7 +293,7 @@ acpi_get_object_info(acpi_handle handle,
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
-		goto cleanup;
+		return (status);
 	}
 
 	node = acpi_ns_validate_handle(handle);
@@ -379,9 +382,14 @@ acpi_get_object_info(acpi_handle handle,
 		 * Get extra info for ACPI Device/Processor objects only:
 		 * Run the _STA, _ADR and, sx_w, and _sx_d methods.
 		 *
-		 * Note: none of these methods are required, so they may or may
+		 * Notes: none of these methods are required, so they may or may
 		 * not be present for this device. The Info->Valid bitfield is used
 		 * to indicate which methods were found and run successfully.
+		 *
+		 * For _STA, if the method does not exist, then (as per the ACPI
+		 * specification), the returned current_status flags will indicate
+		 * that the device is present/functional/enabled. Otherwise, the
+		 * current_status flags reflect the value returned from _STA.
 		 */
 
 		/* Execute the Device._STA method */
@@ -489,7 +497,7 @@ acpi_get_object_info(acpi_handle handle,
 	*return_buffer = info;
 	status = AE_OK;
 
-      cleanup:
+cleanup:
 	if (hid) {
 		ACPI_FREE(hid);
 	}
@@ -539,14 +547,14 @@ acpi_status acpi_install_method(u8 *buffer)
 	/* Parameter validation */
 
 	if (!buffer) {
-		return AE_BAD_PARAMETER;
+		return (AE_BAD_PARAMETER);
 	}
 
 	/* Table must be a DSDT or SSDT */
 
 	if (!ACPI_COMPARE_NAME(table->signature, ACPI_SIG_DSDT) &&
 	    !ACPI_COMPARE_NAME(table->signature, ACPI_SIG_SSDT)) {
-		return AE_BAD_HEADER;
+		return (AE_BAD_HEADER);
 	}
 
 	/* First AML opcode in the table must be a control method */
@@ -554,7 +562,7 @@ acpi_status acpi_install_method(u8 *buffer)
 	parser_state.aml = buffer + sizeof(struct acpi_table_header);
 	opcode = acpi_ps_peek_opcode(&parser_state);
 	if (opcode != AML_METHOD_OP) {
-		return AE_BAD_PARAMETER;
+		return (AE_BAD_PARAMETER);
 	}
 
 	/* Extract method information from the raw AML */
@@ -572,13 +580,13 @@ acpi_status acpi_install_method(u8 *buffer)
 	 */
 	aml_buffer = ACPI_ALLOCATE(aml_length);
 	if (!aml_buffer) {
-		return AE_NO_MEMORY;
+		return (AE_NO_MEMORY);
 	}
 
 	method_obj = acpi_ut_create_internal_object(ACPI_TYPE_METHOD);
 	if (!method_obj) {
 		ACPI_FREE(aml_buffer);
-		return AE_NO_MEMORY;
+		return (AE_NO_MEMORY);
 	}
 
 	/* Lock namespace for acpi_ns_lookup, we may be creating a new node */
@@ -644,12 +652,12 @@ acpi_status acpi_install_method(u8 *buffer)
 	/* Remove local reference to the method object */
 
 	acpi_ut_remove_reference(method_obj);
-	return status;
+	return (status);
 
 error_exit:
 
 	ACPI_FREE(aml_buffer);
 	ACPI_FREE(method_obj);
-	return status;
+	return (status);
 }
 ACPI_EXPORT_SYMBOL(acpi_install_method)

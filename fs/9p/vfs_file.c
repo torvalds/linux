@@ -80,10 +80,6 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 			p9_client_clunk(fid);
 			return err;
 		}
-		if (file->f_flags & O_TRUNC) {
-			i_size_write(inode, 0);
-			inode->i_blocks = 0;
-		}
 		if ((file->f_flags & O_APPEND) &&
 			(!v9fs_proto_dotu(v9ses) && !v9fs_proto_dotl(v9ses)))
 			generic_file_llseek(file, 0, SEEK_END);
@@ -109,10 +105,8 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 		v9inode->writeback_fid = (void *) fid;
 	}
 	mutex_unlock(&v9inode->v_mutex);
-#ifdef CONFIG_9P_FSCACHE
 	if (v9ses->cache)
 		v9fs_cache_inode_set_cookie(inode, file);
-#endif
 	return 0;
 out_error:
 	p9_client_clunk(file->private_data);
@@ -133,7 +127,7 @@ out_error:
 static int v9fs_file_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
 	int res = 0;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 
 	p9_debug(P9_DEBUG_VFS, "filp: %p lock: %p\n", filp, fl);
 
@@ -187,7 +181,7 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 	else
 		flock.length = fl->fl_end - fl->fl_start + 1;
 	flock.proc_id = fl->fl_pid;
-	flock.client_id = utsname()->nodename;
+	flock.client_id = fid->clnt->name;
 	if (IS_SETLKW(cmd))
 		flock.flags = P9_LOCK_FLAGS_BLOCK;
 
@@ -264,7 +258,7 @@ static int v9fs_file_getlock(struct file *filp, struct file_lock *fl)
 	else
 		glock.length = fl->fl_end - fl->fl_start + 1;
 	glock.proc_id = fl->fl_pid;
-	glock.client_id = utsname()->nodename;
+	glock.client_id = fid->clnt->name;
 
 	res = p9_client_getlock_dotl(fid, &glock);
 	if (res < 0)
@@ -302,7 +296,7 @@ static int v9fs_file_getlock(struct file *filp, struct file_lock *fl)
 
 static int v9fs_file_lock_dotl(struct file *filp, int cmd, struct file_lock *fl)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	int ret = -ENOLCK;
 
 	p9_debug(P9_DEBUG_VFS, "filp: %p cmd:%d lock: %p name: %s\n",
@@ -338,7 +332,7 @@ out_err:
 static int v9fs_file_flock_dotl(struct file *filp, int cmd,
 	struct file_lock *fl)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	int ret = -ENOLCK;
 
 	p9_debug(P9_DEBUG_VFS, "filp: %p cmd:%d lock: %p name: %s\n",
@@ -529,7 +523,7 @@ v9fs_file_write(struct file *filp, const char __user * data,
 	if (!count)
 		goto out;
 
-	retval = v9fs_file_write_internal(filp->f_path.dentry->d_inode,
+	retval = v9fs_file_write_internal(file_inode(filp),
 					filp->private_data,
 					data, count, &origin, 1);
 	/* update offset on successful write */
@@ -604,7 +598,7 @@ v9fs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct v9fs_inode *v9inode;
 	struct page *page = vmf->page;
 	struct file *filp = vma->vm_file;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 
 
 	p9_debug(P9_DEBUG_VFS, "page %p fid %lx\n",
@@ -620,6 +614,7 @@ v9fs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	lock_page(page);
 	if (page->mapping != inode->i_mapping)
 		goto out_unlock;
+	wait_for_stable_page(page);
 
 	return VM_FAULT_LOCKED;
 out_unlock:

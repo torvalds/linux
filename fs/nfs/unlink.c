@@ -20,6 +20,8 @@
 #include "iostat.h"
 #include "delegation.h"
 
+#include "nfstrace.h"
+
 /**
  * nfs_free_unlinkdata - release data from a sillydelete operation.
  * @data: pointer to unlink structure.
@@ -77,6 +79,7 @@ static void nfs_async_unlink_done(struct rpc_task *task, void *calldata)
 	struct nfs_unlinkdata *data = calldata;
 	struct inode *dir = data->dir;
 
+	trace_nfs_sillyrename_unlink(data, task->tk_status);
 	if (!NFS_PROTO(dir)->unlink_done(task, dir))
 		rpc_restart_call_prepare(task);
 }
@@ -95,7 +98,7 @@ static void nfs_async_unlink_release(void *calldata)
 
 	nfs_dec_sillycount(data->dir);
 	nfs_free_unlinkdata(data);
-	nfs_sb_deactive_async(sb);
+	nfs_sb_deactive(sb);
 }
 
 static void nfs_unlink_prepare(struct rpc_task *task, void *calldata)
@@ -204,6 +207,13 @@ out_free:
 	return ret;
 }
 
+void nfs_wait_on_sillyrename(struct dentry *dentry)
+{
+	struct nfs_inode *nfsi = NFS_I(dentry->d_inode);
+
+	wait_event(nfsi->waitqueue, atomic_read(&nfsi->silly_count) <= 1);
+}
+
 void nfs_block_sillyrename(struct dentry *dentry)
 {
 	struct nfs_inode *nfsi = NFS_I(dentry->d_inode);
@@ -268,8 +278,7 @@ nfs_async_unlink(struct inode *dir, struct dentry *dentry)
 	 * point dentry is definitely not a root, so we won't need
 	 * that anymore.
 	 */
-	if (devname_garbage)
-		kfree(devname_garbage);
+	kfree(devname_garbage);
 	return 0;
 out_unlock:
 	spin_unlock(&dentry->d_lock);
@@ -336,20 +345,16 @@ static void nfs_async_rename_done(struct rpc_task *task, void *calldata)
 	struct inode *old_dir = data->old_dir;
 	struct inode *new_dir = data->new_dir;
 	struct dentry *old_dentry = data->old_dentry;
-	struct dentry *new_dentry = data->new_dentry;
 
+	trace_nfs_sillyrename_rename(old_dir, old_dentry,
+			new_dir, data->new_dentry, task->tk_status);
 	if (!NFS_PROTO(old_dir)->rename_done(task, old_dir, new_dir)) {
 		rpc_restart_call_prepare(task);
 		return;
 	}
 
-	if (task->tk_status != 0) {
+	if (task->tk_status != 0)
 		nfs_cancel_async_unlink(old_dentry);
-		return;
-	}
-
-	d_drop(old_dentry);
-	d_drop(new_dentry);
 }
 
 /**
@@ -451,6 +456,14 @@ nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
 	return rpc_run_task(&task_setup_data);
 }
 
+#define SILLYNAME_PREFIX ".nfs"
+#define SILLYNAME_PREFIX_LEN ((unsigned)sizeof(SILLYNAME_PREFIX) - 1)
+#define SILLYNAME_FILEID_LEN ((unsigned)sizeof(u64) << 1)
+#define SILLYNAME_COUNTER_LEN ((unsigned)sizeof(unsigned int) << 1)
+#define SILLYNAME_LEN (SILLYNAME_PREFIX_LEN + \
+		SILLYNAME_FILEID_LEN + \
+		SILLYNAME_COUNTER_LEN)
+
 /**
  * nfs_sillyrename - Perform a silly-rename of a dentry
  * @dir: inode of directory that contains dentry
@@ -476,43 +489,39 @@ int
 nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 {
 	static unsigned int sillycounter;
-	const int      fileidsize  = sizeof(NFS_FILEID(dentry->d_inode))*2;
-	const int      countersize = sizeof(sillycounter)*2;
-	const int      slen        = sizeof(".nfs")+fileidsize+countersize-1;
-	char           silly[slen+1];
+	unsigned char silly[SILLYNAME_LEN + 1];
+	unsigned long long fileid;
 	struct dentry *sdentry;
 	struct rpc_task *task;
-	int            error = -EIO;
+	int            error = -EBUSY;
 
-	dfprintk(VFS, "NFS: silly-rename(%s/%s, ct=%d)\n",
-		dentry->d_parent->d_name.name, dentry->d_name.name,
-		dentry->d_count);
+	dfprintk(VFS, "NFS: silly-rename(%pd2, ct=%d)\n",
+		dentry, d_count(dentry));
 	nfs_inc_stats(dir, NFSIOS_SILLYRENAME);
 
 	/*
 	 * We don't allow a dentry to be silly-renamed twice.
 	 */
-	error = -EBUSY;
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED)
 		goto out;
 
-	sprintf(silly, ".nfs%*.*Lx",
-		fileidsize, fileidsize,
-		(unsigned long long)NFS_FILEID(dentry->d_inode));
+	fileid = NFS_FILEID(dentry->d_inode);
 
 	/* Return delegation in anticipation of the rename */
 	NFS_PROTO(dentry->d_inode)->return_delegation(dentry->d_inode);
 
 	sdentry = NULL;
 	do {
-		char *suffix = silly + slen - countersize;
-
+		int slen;
 		dput(sdentry);
 		sillycounter++;
-		sprintf(suffix, "%*.*x", countersize, countersize, sillycounter);
+		slen = scnprintf(silly, sizeof(silly),
+				SILLYNAME_PREFIX "%0*llx%0*x",
+				SILLYNAME_FILEID_LEN, fileid,
+				SILLYNAME_COUNTER_LEN, sillycounter);
 
-		dfprintk(VFS, "NFS: trying to rename %s to %s\n",
-				dentry->d_name.name, silly);
+		dfprintk(VFS, "NFS: trying to rename %pd to %s\n",
+				dentry, silly);
 
 		sdentry = lookup_one_len(silly, dentry->d_parent, slen);
 		/*
@@ -550,6 +559,18 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 	error = rpc_wait_for_completion_task(task);
 	if (error == 0)
 		error = task->tk_status;
+	switch (error) {
+	case 0:
+		/* The rename succeeded */
+		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
+		d_move(dentry, sdentry);
+		break;
+	case -ERESTARTSYS:
+		/* The result of the rename is unknown. Play it safe by
+		 * forcing a new lookup */
+		d_drop(dentry);
+		d_drop(sdentry);
+	}
 	rpc_put_task(task);
 out_dput:
 	dput(sdentry);

@@ -195,9 +195,8 @@ static void can_print_rcvlist(struct seq_file *m, struct hlist_head *rx_list,
 			      struct net_device *dev)
 {
 	struct receiver *r;
-	struct hlist_node *n;
 
-	hlist_for_each_entry_rcu(r, n, rx_list, list) {
+	hlist_for_each_entry_rcu(r, rx_list, list) {
 		char *fmt = (r->can_id & CAN_EFF_FLAG)?
 			"   %-5s  %08x  %08x  %pK  %pK  %8ld  %s\n" :
 			"   %-5s     %03x    %08x  %pK  %pK  %8ld  %s\n";
@@ -379,7 +378,7 @@ static int can_rcvlist_proc_show(struct seq_file *m, void *v)
 
 static int can_rcvlist_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, can_rcvlist_proc_show, PDE(inode)->data);
+	return single_open(file, can_rcvlist_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations can_rcvlist_proc_fops = {
@@ -531,5 +530,5 @@ void can_remove_proc(void)
 		can_remove_proc_readentry(CAN_PROC_RCVLIST_SFF);
 
 	if (can_dir)
-		proc_net_remove(&init_net, "can");
+		remove_proc_entry("can", init_net.proc_net);
 }

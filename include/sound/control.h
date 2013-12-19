@@ -189,7 +189,6 @@ int _snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave,
  *
  * Add a virtual slave control to the given master element created via
  * snd_ctl_create_virtual_master() beforehand.
- * Returns zero if successful or a negative error code.
  *
  * All slaves must be the same type (returning the same information
  * via info callback).  The function doesn't check it, so it's your
@@ -199,6 +198,8 @@ int _snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave,
  * at most two channels,
  * logarithmic volume control (dB level) thus no linear volume,
  * master can only attenuate the volume without gain
+ *
+ * Return: Zero if successful or a negative error code.
  */
 static inline int
 snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave)
@@ -219,6 +220,8 @@ snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave)
  * When the control peeks the hardware values directly and the value
  * can be changed by other means than the put callback of the element,
  * this function should be used to keep the value always up-to-date.
+ *
+ * Return: Zero if successful or a negative error code.
  */
 static inline int
 snd_ctl_add_slave_uncached(struct snd_kcontrol *master,
@@ -230,7 +233,8 @@ snd_ctl_add_slave_uncached(struct snd_kcontrol *master,
 int snd_ctl_add_vmaster_hook(struct snd_kcontrol *kctl,
 			     void (*hook)(void *private_data, int),
 			     void *private_data);
-void snd_ctl_sync_vmaster_hook(struct snd_kcontrol *kctl);
+void snd_ctl_sync_vmaster(struct snd_kcontrol *kctl, bool hook_only);
+#define snd_ctl_sync_vmaster_hook(kctl)	snd_ctl_sync_vmaster(kctl, true)
 
 /*
  * Helper functions for jack-detection controls

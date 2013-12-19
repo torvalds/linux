@@ -28,6 +28,8 @@
 #include <linux/videodev2.h>
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-fh.h>
 
 /* DVB */
 #include "demux.h"
@@ -118,6 +120,9 @@ enum au0828_dev_state {
 };
 
 struct au0828_fh {
+	/* must be the first field of this struct! */
+	struct v4l2_fh fh;
+
 	struct au0828_dev *dev;
 	unsigned int  resources;
 
@@ -199,8 +204,11 @@ struct au0828_dev {
 	struct au0828_dvb		dvb;
 	struct work_struct              restart_streaming;
 
+#ifdef CONFIG_VIDEO_AU0828_V4L2
 	/* Analog */
 	struct v4l2_device v4l2_dev;
+	struct v4l2_ctrl_handler v4l2_ctrl_hdl;
+#endif
 	int users;
 	unsigned int resources;	/* resources in use */
 	struct video_device *vdev;
@@ -214,6 +222,7 @@ struct au0828_dev {
 	int vbi_width;
 	int vbi_height;
 	u32 vbi_read;
+	v4l2_std_id std;
 	u32 field_size;
 	u32 frame_size;
 	u32 bytesperline;

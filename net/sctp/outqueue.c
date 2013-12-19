@@ -28,10 +28,7 @@
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    La Monte H.P. Yarroll <piggy@acm.org>
@@ -41,9 +38,6 @@
  *    Hui Huang 	    <hui.huang@nokia.com>
  *    Sridhar Samudrala     <sri@us.ibm.com>
  *    Jon Grimm             <jgrimm@us.ibm.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -206,6 +200,8 @@ static inline int sctp_cacc_skip(struct sctp_transport *primary,
  */
 void sctp_outq_init(struct sctp_association *asoc, struct sctp_outq *q)
 {
+	memset(q, 0, sizeof(struct sctp_outq));
+
 	q->asoc = asoc;
 	INIT_LIST_HEAD(&q->out_chunk_list);
 	INIT_LIST_HEAD(&q->control_chunk_list);
@@ -213,18 +209,12 @@ void sctp_outq_init(struct sctp_association *asoc, struct sctp_outq *q)
 	INIT_LIST_HEAD(&q->sacked);
 	INIT_LIST_HEAD(&q->abandoned);
 
-	q->fast_rtx = 0;
-	q->outstanding_bytes = 0;
 	q->empty = 1;
-	q->cork  = 0;
-
-	q->malloced = 0;
-	q->out_qlen = 0;
 }
 
 /* Free the outqueue structure and any related pending chunks.
  */
-void sctp_outq_teardown(struct sctp_outq *q)
+static void __sctp_outq_teardown(struct sctp_outq *q)
 {
 	struct sctp_transport *transport;
 	struct list_head *lchunk, *temp;
@@ -277,8 +267,6 @@ void sctp_outq_teardown(struct sctp_outq *q)
 		sctp_chunk_free(chunk);
 	}
 
-	q->error = 0;
-
 	/* Throw away any leftover control chunks. */
 	list_for_each_entry_safe(chunk, tmp, &q->control_chunk_list, list) {
 		list_del_init(&chunk->list);
@@ -286,15 +274,17 @@ void sctp_outq_teardown(struct sctp_outq *q)
 	}
 }
 
+void sctp_outq_teardown(struct sctp_outq *q)
+{
+	__sctp_outq_teardown(q);
+	sctp_outq_init(q->asoc, q);
+}
+
 /* Free the outqueue structure and any related pending chunks.  */
 void sctp_outq_free(struct sctp_outq *q)
 {
 	/* Throw away leftover chunks. */
-	sctp_outq_teardown(q);
-
-	/* If we were kmalloc()'d, free the memory.  */
-	if (q->malloced)
-		kfree(q);
+	__sctp_outq_teardown(q);
 }
 
 /* Put a new chunk in an sctp_outq.  */
@@ -303,10 +293,10 @@ int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk)
 	struct net *net = sock_net(q->asoc->base.sk);
 	int error = 0;
 
-	SCTP_DEBUG_PRINTK("sctp_outq_tail(%p, %p[%s])\n",
-			  q, chunk, chunk && chunk->chunk_hdr ?
-			  sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type))
-			  : "Illegal Chunk");
+	pr_debug("%s: outq:%p, chunk:%p[%s]\n", __func__, q, chunk,
+		 chunk && chunk->chunk_hdr ?
+		 sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type)) :
+		 "illegal chunk");
 
 	/* If it is data, queue it up, otherwise, send it
 	 * immediately.
@@ -332,10 +322,10 @@ int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk)
 			break;
 
 		default:
-			SCTP_DEBUG_PRINTK("outqueueing (%p, %p[%s])\n",
-			  q, chunk, chunk && chunk->chunk_hdr ?
-			  sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type))
-			  : "Illegal Chunk");
+			pr_debug("%s: outqueueing: outq:%p, chunk:%p[%s])\n",
+				 __func__, q, chunk, chunk && chunk->chunk_hdr ?
+				 sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type)) :
+				 "illegal chunk");
 
 			sctp_outq_tail_data(q, chunk);
 			if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
@@ -456,6 +446,8 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 				transport->rto_pending = 0;
 			}
 
+			chunk->resent = 1;
+
 			/* Move the chunk to the retransmit queue. The chunks
 			 * on the retransmit queue are always kept in order.
 			 */
@@ -464,14 +456,10 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 		}
 	}
 
-	SCTP_DEBUG_PRINTK("%s: transport: %p, reason: %d, "
-			  "cwnd: %d, ssthresh: %d, flight_size: %d, "
-			  "pba: %d\n", __func__,
-			  transport, reason,
-			  transport->cwnd, transport->ssthresh,
-			  transport->flight_size,
-			  transport->partial_bytes_acked);
-
+	pr_debug("%s: transport:%p, reason:%d, cwnd:%d, ssthresh:%d, "
+		 "flight_size:%d, pba:%d\n", __func__, transport, reason,
+		 transport->cwnd, transport->ssthresh, transport->flight_size,
+		 transport->partial_bytes_acked);
 }
 
 /* Mark all the eligible packets on a transport for retransmission and force
@@ -703,11 +691,10 @@ redo:
 /* Cork the outqueue so queued chunks are really queued. */
 int sctp_outq_uncork(struct sctp_outq *q)
 {
-	int error = 0;
 	if (q->cork)
 		q->cork = 0;
-	error = sctp_outq_flush(q, 0);
-	return error;
+
+	return sctp_outq_flush(q, 0);
 }
 
 
@@ -1019,19 +1006,13 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 				sctp_transport_burst_limited(transport);
 			}
 
-			SCTP_DEBUG_PRINTK("sctp_outq_flush(%p, %p[%s]), ",
-					  q, chunk,
-					  chunk && chunk->chunk_hdr ?
-					  sctp_cname(SCTP_ST_CHUNK(
-						  chunk->chunk_hdr->type))
-					  : "Illegal Chunk");
-
-			SCTP_DEBUG_PRINTK("TX TSN 0x%x skb->head "
-					"%p skb->users %d.\n",
-					ntohl(chunk->subh.data_hdr->tsn),
-					chunk->skb ?chunk->skb->head : NULL,
-					chunk->skb ?
-					atomic_read(&chunk->skb->users) : -1);
+			pr_debug("%s: outq:%p, chunk:%p[%s], tx-tsn:0x%x skb->head:%p "
+				 "skb->users:%d\n",
+				 __func__, q, chunk, chunk && chunk->chunk_hdr ?
+				 sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type)) :
+				 "illegal chunk", ntohl(chunk->subh.data_hdr->tsn),
+				 chunk->skb ? chunk->skb->head : NULL, chunk->skb ?
+				 atomic_read(&chunk->skb->users) : -1);
 
 			/* Add the chunk to the packet.  */
 			status = sctp_packet_transmit_chunk(packet, chunk, 0);
@@ -1043,10 +1024,10 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 				/* We could not append this chunk, so put
 				 * the chunk back on the output queue.
 				 */
-				SCTP_DEBUG_PRINTK("sctp_outq_flush: could "
-					"not transmit TSN: 0x%x, status: %d\n",
-					ntohl(chunk->subh.data_hdr->tsn),
-					status);
+				pr_debug("%s: could not transmit tsn:0x%x, status:%d\n",
+					 __func__, ntohl(chunk->subh.data_hdr->tsn),
+					 status);
+
 				sctp_outq_head_data(q, chunk);
 				goto sctp_flush_out;
 				break;
@@ -1289,11 +1270,10 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_chunk *chunk)
 
 	sctp_generate_fwdtsn(q, sack_ctsn);
 
-	SCTP_DEBUG_PRINTK("%s: sack Cumulative TSN Ack is 0x%x.\n",
-			  __func__, sack_ctsn);
-	SCTP_DEBUG_PRINTK("%s: Cumulative TSN Ack of association, "
-			  "%p is 0x%x. Adv peer ack point: 0x%x\n",
-			  __func__, asoc, ctsn, asoc->adv_peer_ack_point);
+	pr_debug("%s: sack cumulative tsn ack:0x%x\n", __func__, sack_ctsn);
+	pr_debug("%s: cumulative tsn ack of assoc:%p is 0x%x, "
+		 "advertised peer ack point:0x%x\n", __func__, asoc, ctsn,
+		 asoc->adv_peer_ack_point);
 
 	/* See if all chunks are acked.
 	 * Make sure the empty queue handler will get run later.
@@ -1309,7 +1289,7 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_chunk *chunk)
 			goto finish;
 	}
 
-	SCTP_DEBUG_PRINTK("sack queue is empty.\n");
+	pr_debug("%s: sack queue is empty\n", __func__);
 finish:
 	return q->empty;
 }
@@ -1350,21 +1330,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 	__u8 restart_timer = 0;
 	int bytes_acked = 0;
 	int migrate_bytes = 0;
-
-	/* These state variables are for coherent debug output. --xguo */
-
-#if SCTP_DEBUG
-	__u32 dbg_ack_tsn = 0;	/* An ACKed TSN range starts here... */
-	__u32 dbg_last_ack_tsn = 0;  /* ...and finishes here.	     */
-	__u32 dbg_kept_tsn = 0;	/* An un-ACKed range starts here...  */
-	__u32 dbg_last_kept_tsn = 0; /* ...and finishes here.	     */
-
-	/* 0 : The last TSN was ACKed.
-	 * 1 : The last TSN was NOT ACKed (i.e. KEPT).
-	 * -1: We need to initialize.
-	 */
-	int dbg_prt_state = -1;
-#endif /* SCTP_DEBUG */
+	bool forward_progress = false;
 
 	sack_ctsn = ntohl(sack->cum_tsn_ack);
 
@@ -1411,6 +1377,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 				 * instance).
 				 */
 				if (!tchunk->tsn_gap_acked &&
+				    !tchunk->resent &&
 				    tchunk->rtt_in_progress) {
 					tchunk->rtt_in_progress = 0;
 					rtt = jiffies - tchunk->sent_at;
@@ -1427,10 +1394,12 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			 */
 			if (!tchunk->tsn_gap_acked) {
 				tchunk->tsn_gap_acked = 1;
-				*highest_new_tsn_in_sack = tsn;
+				if (TSN_lt(*highest_new_tsn_in_sack, tsn))
+					*highest_new_tsn_in_sack = tsn;
 				bytes_acked += sctp_data_size(tchunk);
 				if (!tchunk->transport)
 					migrate_bytes += sctp_data_size(tchunk);
+				forward_progress = true;
 			}
 
 			if (TSN_lte(tsn, sack_ctsn)) {
@@ -1444,6 +1413,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 				 * current RTO.
 				 */
 				restart_timer = 1;
+				forward_progress = true;
 
 				if (!tchunk->tsn_gap_acked) {
 					/*
@@ -1487,57 +1457,11 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 				 */
 				list_add_tail(lchunk, &tlist);
 			}
-
-#if SCTP_DEBUG
-			switch (dbg_prt_state) {
-			case 0:	/* last TSN was ACKed */
-				if (dbg_last_ack_tsn + 1 == tsn) {
-					/* This TSN belongs to the
-					 * current ACK range.
-					 */
-					break;
-				}
-
-				if (dbg_last_ack_tsn != dbg_ack_tsn) {
-					/* Display the end of the
-					 * current range.
-					 */
-					SCTP_DEBUG_PRINTK_CONT("-%08x",
-							       dbg_last_ack_tsn);
-				}
-
-				/* Start a new range.  */
-				SCTP_DEBUG_PRINTK_CONT(",%08x", tsn);
-				dbg_ack_tsn = tsn;
-				break;
-
-			case 1:	/* The last TSN was NOT ACKed. */
-				if (dbg_last_kept_tsn != dbg_kept_tsn) {
-					/* Display the end of current range. */
-					SCTP_DEBUG_PRINTK_CONT("-%08x",
-							       dbg_last_kept_tsn);
-				}
-
-				SCTP_DEBUG_PRINTK_CONT("\n");
-
-				/* FALL THROUGH... */
-			default:
-				/* This is the first-ever TSN we examined.  */
-				/* Start a new range of ACK-ed TSNs.  */
-				SCTP_DEBUG_PRINTK("ACKed: %08x", tsn);
-				dbg_prt_state = 0;
-				dbg_ack_tsn = tsn;
-			}
-
-			dbg_last_ack_tsn = tsn;
-#endif /* SCTP_DEBUG */
-
 		} else {
 			if (tchunk->tsn_gap_acked) {
-				SCTP_DEBUG_PRINTK("%s: Receiver reneged on "
-						  "data TSN: 0x%x\n",
-						  __func__,
-						  tsn);
+				pr_debug("%s: receiver reneged on data TSN:0x%x\n",
+					 __func__, tsn);
+
 				tchunk->tsn_gap_acked = 0;
 
 				if (tchunk->transport)
@@ -1556,59 +1480,9 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			}
 
 			list_add_tail(lchunk, &tlist);
-
-#if SCTP_DEBUG
-			/* See the above comments on ACK-ed TSNs. */
-			switch (dbg_prt_state) {
-			case 1:
-				if (dbg_last_kept_tsn + 1 == tsn)
-					break;
-
-				if (dbg_last_kept_tsn != dbg_kept_tsn)
-					SCTP_DEBUG_PRINTK_CONT("-%08x",
-							       dbg_last_kept_tsn);
-
-				SCTP_DEBUG_PRINTK_CONT(",%08x", tsn);
-				dbg_kept_tsn = tsn;
-				break;
-
-			case 0:
-				if (dbg_last_ack_tsn != dbg_ack_tsn)
-					SCTP_DEBUG_PRINTK_CONT("-%08x",
-							       dbg_last_ack_tsn);
-				SCTP_DEBUG_PRINTK_CONT("\n");
-
-				/* FALL THROUGH... */
-			default:
-				SCTP_DEBUG_PRINTK("KEPT: %08x",tsn);
-				dbg_prt_state = 1;
-				dbg_kept_tsn = tsn;
-			}
-
-			dbg_last_kept_tsn = tsn;
-#endif /* SCTP_DEBUG */
 		}
 	}
 
-#if SCTP_DEBUG
-	/* Finish off the last range, displaying its ending TSN.  */
-	switch (dbg_prt_state) {
-	case 0:
-		if (dbg_last_ack_tsn != dbg_ack_tsn) {
-			SCTP_DEBUG_PRINTK_CONT("-%08x\n", dbg_last_ack_tsn);
-		} else {
-			SCTP_DEBUG_PRINTK_CONT("\n");
-		}
-	break;
-
-	case 1:
-		if (dbg_last_kept_tsn != dbg_kept_tsn) {
-			SCTP_DEBUG_PRINTK_CONT("-%08x\n", dbg_last_kept_tsn);
-		} else {
-			SCTP_DEBUG_PRINTK_CONT("\n");
-		}
-	}
-#endif /* SCTP_DEBUG */
 	if (transport) {
 		if (bytes_acked) {
 			struct sctp_association *asoc = transport->asoc;
@@ -1630,6 +1504,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			 */
 			transport->error_count = 0;
 			transport->asoc->overall_error_count = 0;
+			forward_progress = true;
 
 			/*
 			 * While in SHUTDOWN PENDING, we may have started
@@ -1681,9 +1556,9 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			    !list_empty(&tlist) &&
 			    (sack_ctsn+2 == q->asoc->next_tsn) &&
 			    q->asoc->state < SCTP_STATE_SHUTDOWN_PENDING) {
-				SCTP_DEBUG_PRINTK("%s: SACK received for zero "
-						  "window probe: %u\n",
-						  __func__, sack_ctsn);
+				pr_debug("%s: sack received for zero window "
+					 "probe:%u\n", __func__, sack_ctsn);
+
 				q->asoc->overall_error_count = 0;
 				transport->error_count = 0;
 			}
@@ -1696,14 +1571,17 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 		 * address.
 		 */
 		if (!transport->flight_size) {
-			if (timer_pending(&transport->T3_rtx_timer) &&
-			    del_timer(&transport->T3_rtx_timer)) {
+			if (del_timer(&transport->T3_rtx_timer))
 				sctp_transport_put(transport);
-			}
 		} else if (restart_timer) {
 			if (!mod_timer(&transport->T3_rtx_timer,
 				       jiffies + transport->rto))
 				sctp_transport_hold(transport);
+		}
+
+		if (forward_progress) {
+			if (transport->dst)
+				dst_confirm(transport->dst);
 		}
 	}
 
@@ -1746,10 +1624,8 @@ static void sctp_mark_missing(struct sctp_outq *q,
 						count_of_newacks, tsn)) {
 				chunk->tsn_missing_report++;
 
-				SCTP_DEBUG_PRINTK(
-					"%s: TSN 0x%x missing counter: %d\n",
-					__func__, tsn,
-					chunk->tsn_missing_report);
+				pr_debug("%s: tsn:0x%x missing counter:%d\n",
+					 __func__, tsn, chunk->tsn_missing_report);
 			}
 		}
 		/*
@@ -1769,11 +1645,10 @@ static void sctp_mark_missing(struct sctp_outq *q,
 		if (do_fast_retransmit)
 			sctp_retransmit(q, transport, SCTP_RTXR_FAST_RTX);
 
-		SCTP_DEBUG_PRINTK("%s: transport: %p, cwnd: %d, "
-				  "ssthresh: %d, flight_size: %d, pba: %d\n",
-				  __func__, transport, transport->cwnd,
-				  transport->ssthresh, transport->flight_size,
-				  transport->partial_bytes_acked);
+		pr_debug("%s: transport:%p, cwnd:%d, ssthresh:%d, "
+			 "flight_size:%d, pba:%d\n",  __func__, transport,
+			 transport->cwnd, transport->ssthresh,
+			 transport->flight_size, transport->partial_bytes_acked);
 	}
 }
 

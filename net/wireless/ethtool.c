@@ -15,10 +15,10 @@ static void cfg80211_get_drvinfo(struct net_device *dev,
 	strlcpy(info->version, init_utsname()->release, sizeof(info->version));
 
 	if (wdev->wiphy->fw_version[0])
-		strncpy(info->fw_version, wdev->wiphy->fw_version,
+		strlcpy(info->fw_version, wdev->wiphy->fw_version,
 			sizeof(info->fw_version));
 	else
-		strncpy(info->fw_version, "N/A", sizeof(info->fw_version));
+		strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
 
 	strlcpy(info->bus_info, dev_name(wiphy_dev(wdev->wiphy)),
 		sizeof(info->bus_info));

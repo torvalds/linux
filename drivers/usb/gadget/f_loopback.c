@@ -15,10 +15,11 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <linux/module.h>
+#include <linux/err.h>
+#include <linux/usb/composite.h>
 
 #include "g_zero.h"
-#include "gadget_chips.h"
-
 
 /*
  * LOOPBACK FUNCTION ... a testing vehicle for USB peripherals,
@@ -44,9 +45,8 @@ static inline struct f_loopback *func_to_loop(struct usb_function *f)
 	return container_of(f, struct f_loopback, function);
 }
 
-static unsigned qlen = 32;
-module_param(qlen, uint, 0);
-MODULE_PARM_DESC(qlenn, "depth of loopback queue");
+static unsigned qlen;
+static unsigned buflen;
 
 /*-------------------------------------------------------------------------*/
 
@@ -171,8 +171,7 @@ static struct usb_gadget_strings *loopback_strings[] = {
 
 /*-------------------------------------------------------------------------*/
 
-static int __init
-loopback_bind(struct usb_configuration *c, struct usb_function *f)
+static int loopback_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
 	struct f_loopback	*loop = func_to_loop(f);
@@ -184,6 +183,12 @@ loopback_bind(struct usb_configuration *c, struct usb_function *f)
 	if (id < 0)
 		return id;
 	loopback_intf.bInterfaceNumber = id;
+
+	id = usb_string_id(cdev);
+	if (id < 0)
+		return id;
+	strings_loopback[0].id = id;
+	loopback_intf.iInterface = id;
 
 	/* allocate endpoints */
 
@@ -223,8 +228,7 @@ autoconf_fail:
 	return 0;
 }
 
-static void
-loopback_unbind(struct usb_configuration *c, struct usb_function *f)
+static void lb_free_func(struct usb_function *f)
 {
 	usb_free_all_descriptors(f);
 	kfree(func_to_loop(f));
@@ -366,63 +370,64 @@ static void loopback_disable(struct usb_function *f)
 	disable_loopback(loop);
 }
 
-/*-------------------------------------------------------------------------*/
-
-static int __init loopback_bind_config(struct usb_configuration *c)
+static struct usb_function *loopback_alloc(struct usb_function_instance *fi)
 {
 	struct f_loopback	*loop;
-	int			status;
+	struct f_lb_opts	*lb_opts;
 
 	loop = kzalloc(sizeof *loop, GFP_KERNEL);
 	if (!loop)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
+
+	lb_opts = container_of(fi, struct f_lb_opts, func_inst);
+	buflen = lb_opts->bulk_buflen;
+	qlen = lb_opts->qlen;
+	if (!qlen)
+		qlen = 32;
 
 	loop->function.name = "loopback";
 	loop->function.bind = loopback_bind;
-	loop->function.unbind = loopback_unbind;
 	loop->function.set_alt = loopback_set_alt;
 	loop->function.disable = loopback_disable;
+	loop->function.strings = loopback_strings;
 
-	status = usb_add_function(c, &loop->function);
-	if (status)
-		kfree(loop);
-	return status;
+	loop->function.free_func = lb_free_func;
+
+	return &loop->function;
 }
 
-static struct usb_configuration loopback_driver = {
-	.label		= "loopback",
-	.strings	= loopback_strings,
-	.bConfigurationValue = 2,
-	.bmAttributes	= USB_CONFIG_ATT_SELFPOWER,
-	/* .iConfiguration = DYNAMIC */
-};
-
-/**
- * loopback_add - add a loopback testing configuration to a device
- * @cdev: the device to support the loopback configuration
- */
-int __init loopback_add(struct usb_composite_dev *cdev, bool autoresume)
+static void lb_free_instance(struct usb_function_instance *fi)
 {
-	int id;
+	struct f_lb_opts *lb_opts;
 
-	/* allocate string ID(s) */
-	id = usb_string_id(cdev);
-	if (id < 0)
-		return id;
-	strings_loopback[0].id = id;
-
-	loopback_intf.iInterface = id;
-	loopback_driver.iConfiguration = id;
-
-	/* support autoresume for remote wakeup testing */
-	if (autoresume)
-		loopback_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
-
-	/* support OTG systems */
-	if (gadget_is_otg(cdev->gadget)) {
-		loopback_driver.descriptors = otg_desc;
-		loopback_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
-	}
-
-	return usb_add_config(cdev, &loopback_driver, loopback_bind_config);
+	lb_opts = container_of(fi, struct f_lb_opts, func_inst);
+	kfree(lb_opts);
 }
+
+static struct usb_function_instance *loopback_alloc_instance(void)
+{
+	struct f_lb_opts *lb_opts;
+
+	lb_opts = kzalloc(sizeof(*lb_opts), GFP_KERNEL);
+	if (!lb_opts)
+		return ERR_PTR(-ENOMEM);
+	lb_opts->func_inst.free_func_inst = lb_free_instance;
+	return  &lb_opts->func_inst;
+}
+DECLARE_USB_FUNCTION(Loopback, loopback_alloc_instance, loopback_alloc);
+
+int __init lb_modinit(void)
+{
+	int ret;
+
+	ret = usb_function_register(&Loopbackusb_func);
+	if (ret)
+		return ret;
+	return ret;
+}
+void __exit lb_modexit(void)
+{
+	usb_function_unregister(&Loopbackusb_func);
+}
+
+MODULE_LICENSE("GPL");

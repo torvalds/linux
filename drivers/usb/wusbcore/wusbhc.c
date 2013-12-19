@@ -75,12 +75,11 @@ static ssize_t wusb_trust_timeout_store(struct device *dev,
 		result = -EINVAL;
 		goto out;
 	}
-	/* FIXME: maybe we should check for range validity? */
-	wusbhc->trust_timeout = trust_timeout;
+	wusbhc->trust_timeout = min_t(unsigned, trust_timeout, 500);
 	cancel_delayed_work(&wusbhc->keep_alive_timer);
 	flush_workqueue(wusbd);
 	queue_delayed_work(wusbd, &wusbhc->keep_alive_timer,
-			   (trust_timeout * CONFIG_HZ)/1000/2);
+			   msecs_to_jiffies(wusbhc->trust_timeout / 2));
 out:
 	return result < 0 ? result : size;
 }
@@ -176,11 +175,72 @@ static ssize_t wusb_phy_rate_store(struct device *dev,
 }
 static DEVICE_ATTR(wusb_phy_rate, 0644, wusb_phy_rate_show, wusb_phy_rate_store);
 
+static ssize_t wusb_dnts_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct wusbhc *wusbhc = usbhc_dev_to_wusbhc(dev);
+
+	return sprintf(buf, "num slots: %d\ninterval: %dms\n",
+			wusbhc->dnts_num_slots, wusbhc->dnts_interval);
+}
+
+static ssize_t wusb_dnts_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t size)
+{
+	struct wusbhc *wusbhc = usbhc_dev_to_wusbhc(dev);
+	uint8_t num_slots, interval;
+	ssize_t result;
+
+	result = sscanf(buf, "%hhu %hhu", &num_slots, &interval);
+
+	if (result != 2)
+		return -EINVAL;
+
+	wusbhc->dnts_num_slots = num_slots;
+	wusbhc->dnts_interval = interval;
+
+	return size;
+}
+static DEVICE_ATTR(wusb_dnts, 0644, wusb_dnts_show, wusb_dnts_store);
+
+static ssize_t wusb_retry_count_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct wusbhc *wusbhc = usbhc_dev_to_wusbhc(dev);
+
+	return sprintf(buf, "%d\n", wusbhc->retry_count);
+}
+
+static ssize_t wusb_retry_count_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t size)
+{
+	struct wusbhc *wusbhc = usbhc_dev_to_wusbhc(dev);
+	uint8_t retry_count;
+	ssize_t result;
+
+	result = sscanf(buf, "%hhu", &retry_count);
+
+	if (result != 1)
+		return -EINVAL;
+
+	wusbhc->retry_count = max_t(uint8_t, retry_count, WUSB_RETRY_COUNT_MAX);
+
+	return size;
+}
+static DEVICE_ATTR(wusb_retry_count, 0644, wusb_retry_count_show,
+	wusb_retry_count_store);
+
 /* Group all the WUSBHC attributes */
 static struct attribute *wusbhc_attrs[] = {
 		&dev_attr_wusb_trust_timeout.attr,
 		&dev_attr_wusb_chid.attr,
 		&dev_attr_wusb_phy_rate.attr,
+		&dev_attr_wusb_dnts.attr,
+		&dev_attr_wusb_retry_count.attr,
 		NULL,
 };
 
@@ -206,8 +266,12 @@ int wusbhc_create(struct wusbhc *wusbhc)
 {
 	int result = 0;
 
+	/* set defaults.  These can be overwritten using sysfs attributes. */
 	wusbhc->trust_timeout = WUSB_TRUST_TIMEOUT_MS;
 	wusbhc->phy_rate = UWB_PHY_RATE_INVALID - 1;
+	wusbhc->dnts_num_slots = 4;
+	wusbhc->dnts_interval = 2;
+	wusbhc->retry_count = WUSB_RETRY_COUNT_INFINITE;
 
 	mutex_init(&wusbhc->mutex);
 	result = wusbhc_mmcie_create(wusbhc);
@@ -261,13 +325,7 @@ int wusbhc_b_create(struct wusbhc *wusbhc)
 		goto error_create_attr_group;
 	}
 
-	result = wusbhc_pal_register(wusbhc);
-	if (result < 0)
-		goto error_pal_register;
 	return 0;
-
-error_pal_register:
-	sysfs_remove_group(wusbhc_kobj(wusbhc), &wusbhc_attr_group);
 error_create_attr_group:
 	return result;
 }
@@ -393,7 +451,8 @@ EXPORT_SYMBOL_GPL(wusbhc_giveback_urb);
  */
 void wusbhc_reset_all(struct wusbhc *wusbhc)
 {
-	uwb_rc_reset_all(wusbhc->uwb_rc);
+	if (wusbhc->uwb_rc)
+		uwb_rc_reset_all(wusbhc->uwb_rc);
 }
 EXPORT_SYMBOL_GPL(wusbhc_reset_all);
 

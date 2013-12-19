@@ -29,6 +29,7 @@ struct tcm_qla2xxx_tpg_attrib {
 	int cache_dynamic_acls;
 	int demo_mode_write_protect;
 	int prod_mode_write_protect;
+	int demo_mode_login_only;
 };
 
 struct tcm_qla2xxx_tpg {
@@ -43,8 +44,6 @@ struct tcm_qla2xxx_tpg {
 	/* Returned by tcm_qla2xxx_make_tpg() */
 	struct se_portal_group se_tpg;
 };
-
-#define QLA_TPG_ATTRIB(tpg)	(&(tpg)->tpg_attrib)
 
 struct tcm_qla2xxx_fc_loopid {
 	struct se_node_acl *se_nacl;

@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -54,6 +54,16 @@
 /* set value to pause threshold value */
 #define QLA83XX_SET_PAUSE_VAL		0x0
 #define QLA83XX_SET_TC_MAX_CELL_VAL	0x03FF03FF
+
+#define QLA83XX_RESET_CONTROL		0x28084E50
+#define QLA83XX_RESET_REG		0x28084E60
+#define QLA83XX_RESET_PORT0		0x28084E70
+#define QLA83XX_RESET_PORT1		0x28084E80
+#define QLA83XX_RESET_PORT2		0x28084E90
+#define QLA83XX_RESET_PORT3		0x28084EA0
+#define QLA83XX_RESET_SRE_SHIM		0x28084EB0
+#define QLA83XX_RESET_EPG_SHIM		0x28084EC0
+#define QLA83XX_RESET_ETHER_PCS		0x28084ED0
 
 /* qla_83xx_reg_tbl registers */
 #define QLA83XX_PEG_HALT_STATUS1	0x34A8
@@ -279,5 +289,39 @@ struct qla4_83xx_idc_information {
 	uint32_t info2; /* IDC additional info */
 	uint32_t info3; /* IDC additional info */
 };
+
+#define QLA83XX_PEX_DMA_ENGINE_INDEX		8
+#define QLA83XX_PEX_DMA_BASE_ADDRESS		0x77320000
+#define QLA83XX_PEX_DMA_NUM_OFFSET		0x10000
+#define QLA83XX_PEX_DMA_CMD_ADDR_LOW		0x0
+#define QLA83XX_PEX_DMA_CMD_ADDR_HIGH		0x04
+#define QLA83XX_PEX_DMA_CMD_STS_AND_CNTRL	0x08
+
+#define QLA83XX_PEX_DMA_READ_SIZE	(16 * 1024)
+#define QLA83XX_PEX_DMA_MAX_WAIT	(100 * 100) /* Max wait of 100 msecs */
+
+/* Read Memory: For Pex-DMA */
+struct qla4_83xx_minidump_entry_rdmem_pex_dma {
+	struct qla8xxx_minidump_entry_hdr h;
+	uint32_t desc_card_addr;
+	uint16_t dma_desc_cmd;
+	uint8_t rsvd[2];
+	uint32_t start_dma_cmd;
+	uint8_t rsvd2[12];
+	uint32_t read_addr;
+	uint32_t read_data_size;
+};
+
+struct qla4_83xx_pex_dma_descriptor {
+	struct {
+		uint32_t read_data_size; /* 0-23: size, 24-31: rsvd */
+		uint8_t rsvd[2];
+		uint16_t dma_desc_cmd;
+	} cmd;
+	uint64_t src_addr;
+	uint64_t dma_bus_addr; /* 0-3: desc-cmd, 4-7: pci-func,
+				* 8-15: desc-cmd */
+	uint8_t rsvd[24];
+} __packed;
 
 #endif

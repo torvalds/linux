@@ -26,7 +26,6 @@
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/of_device.h>
-#include <linux/pinctrl/consumer.h>
 
 #include "pwm-tipwmss.h"
 
@@ -113,6 +112,17 @@
 
 #define NUM_PWM_CHANNEL		2	/* EHRPWM channels */
 
+struct ehrpwm_context {
+	u16 tbctl;
+	u16 tbprd;
+	u16 cmpa;
+	u16 cmpb;
+	u16 aqctla;
+	u16 aqctlb;
+	u16 aqsfrc;
+	u16 aqcsfrc;
+};
+
 struct ehrpwm_pwm_chip {
 	struct pwm_chip	chip;
 	unsigned int	clk_rate;
@@ -120,6 +130,7 @@ struct ehrpwm_pwm_chip {
 	unsigned long period_cycles[NUM_PWM_CHANNEL];
 	enum pwm_polarity polarity[NUM_PWM_CHANNEL];
 	struct	clk	*tbclk;
+	struct ehrpwm_context ctx;
 };
 
 static inline struct ehrpwm_pwm_chip *to_ehrpwm_pwm_chip(struct pwm_chip *chip)
@@ -127,12 +138,17 @@ static inline struct ehrpwm_pwm_chip *to_ehrpwm_pwm_chip(struct pwm_chip *chip)
 	return container_of(chip, struct ehrpwm_pwm_chip, chip);
 }
 
-static void ehrpwm_write(void *base, int offset, unsigned int val)
+static u16 ehrpwm_read(void __iomem *base, int offset)
+{
+	return readw(base + offset);
+}
+
+static void ehrpwm_write(void __iomem *base, int offset, unsigned int val)
 {
 	writew(val & 0xFFFF, base + offset);
 }
 
-static void ehrpwm_modify(void *base, int offset,
+static void ehrpwm_modify(void __iomem *base, int offset,
 		unsigned short mask, unsigned short val)
 {
 	unsigned short regval;
@@ -318,6 +334,7 @@ static int ehrpwm_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct ehrpwm_pwm_chip *pc = to_ehrpwm_pwm_chip(chip);
 	unsigned short aqcsfrc_val, aqcsfrc_mask;
+	int ret;
 
 	/* Leave clock enabled on enabling PWM */
 	pm_runtime_get_sync(chip->dev);
@@ -341,7 +358,12 @@ static int ehrpwm_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	configure_polarity(pc, pwm->hwpwm);
 
 	/* Enable TBCLK before enabling PWM device */
-	clk_enable(pc->tbclk);
+	ret = clk_enable(pc->tbclk);
+	if (ret) {
+		pr_err("Failed to enable TBCLK for %s\n",
+				dev_name(pc->chip.dev));
+		return ret;
+	}
 
 	/* Enable time counter for free_run */
 	ehrpwm_modify(pc->mmio_base, TBCTL, TBCTL_RUN_MASK, TBCTL_FREE_RUN);
@@ -416,11 +438,6 @@ static int ehrpwm_pwm_probe(struct platform_device *pdev)
 	struct clk *clk;
 	struct ehrpwm_pwm_chip *pc;
 	u16 status;
-	struct pinctrl *pinctrl;
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl))
-		dev_warn(&pdev->dev, "unable to select pin group\n");
 
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc) {
@@ -448,20 +465,21 @@ static int ehrpwm_pwm_probe(struct platform_device *pdev)
 	pc->chip.npwm = NUM_PWM_CHANNEL;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(&pdev->dev, "no memory resource defined\n");
-		return -ENODEV;
-	}
-
-	pc->mmio_base = devm_request_and_ioremap(&pdev->dev, r);
-	if (!pc->mmio_base)
-		return  -EADDRNOTAVAIL;
+	pc->mmio_base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(pc->mmio_base))
+		return PTR_ERR(pc->mmio_base);
 
 	/* Acquire tbclk for Time Base EHRPWM submodule */
 	pc->tbclk = devm_clk_get(&pdev->dev, "tbclk");
 	if (IS_ERR(pc->tbclk)) {
 		dev_err(&pdev->dev, "Failed to get tbclk\n");
 		return PTR_ERR(pc->tbclk);
+	}
+
+	ret = clk_prepare(pc->tbclk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "clk_prepare() failed: %d\n", ret);
+		return ret;
 	}
 
 	ret = pwmchip_add(&pc->chip);
@@ -490,12 +508,15 @@ pwmss_clk_failure:
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pwmchip_remove(&pc->chip);
+	clk_unprepare(pc->tbclk);
 	return ret;
 }
 
 static int ehrpwm_pwm_remove(struct platform_device *pdev)
 {
 	struct ehrpwm_pwm_chip *pc = platform_get_drvdata(pdev);
+
+	clk_unprepare(pc->tbclk);
 
 	pm_runtime_get_sync(&pdev->dev);
 	/*
@@ -510,11 +531,79 @@ static int ehrpwm_pwm_remove(struct platform_device *pdev)
 	return pwmchip_remove(&pc->chip);
 }
 
+static void ehrpwm_pwm_save_context(struct ehrpwm_pwm_chip *pc)
+{
+	pm_runtime_get_sync(pc->chip.dev);
+	pc->ctx.tbctl = ehrpwm_read(pc->mmio_base, TBCTL);
+	pc->ctx.tbprd = ehrpwm_read(pc->mmio_base, TBPRD);
+	pc->ctx.cmpa = ehrpwm_read(pc->mmio_base, CMPA);
+	pc->ctx.cmpb = ehrpwm_read(pc->mmio_base, CMPB);
+	pc->ctx.aqctla = ehrpwm_read(pc->mmio_base, AQCTLA);
+	pc->ctx.aqctlb = ehrpwm_read(pc->mmio_base, AQCTLB);
+	pc->ctx.aqsfrc = ehrpwm_read(pc->mmio_base, AQSFRC);
+	pc->ctx.aqcsfrc = ehrpwm_read(pc->mmio_base, AQCSFRC);
+	pm_runtime_put_sync(pc->chip.dev);
+}
+
+static void ehrpwm_pwm_restore_context(struct ehrpwm_pwm_chip *pc)
+{
+	ehrpwm_write(pc->mmio_base, TBPRD, pc->ctx.tbprd);
+	ehrpwm_write(pc->mmio_base, CMPA, pc->ctx.cmpa);
+	ehrpwm_write(pc->mmio_base, CMPB, pc->ctx.cmpb);
+	ehrpwm_write(pc->mmio_base, AQCTLA, pc->ctx.aqctla);
+	ehrpwm_write(pc->mmio_base, AQCTLB, pc->ctx.aqctlb);
+	ehrpwm_write(pc->mmio_base, AQSFRC, pc->ctx.aqsfrc);
+	ehrpwm_write(pc->mmio_base, AQCSFRC, pc->ctx.aqcsfrc);
+	ehrpwm_write(pc->mmio_base, TBCTL, pc->ctx.tbctl);
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int ehrpwm_pwm_suspend(struct device *dev)
+{
+	struct ehrpwm_pwm_chip *pc = dev_get_drvdata(dev);
+	int i;
+
+	ehrpwm_pwm_save_context(pc);
+	for (i = 0; i < pc->chip.npwm; i++) {
+		struct pwm_device *pwm = &pc->chip.pwms[i];
+
+		if (!test_bit(PWMF_ENABLED, &pwm->flags))
+			continue;
+
+		/* Disable explicitly if PWM is running */
+		pm_runtime_put_sync(dev);
+	}
+	return 0;
+}
+
+static int ehrpwm_pwm_resume(struct device *dev)
+{
+	struct ehrpwm_pwm_chip *pc = dev_get_drvdata(dev);
+	int i;
+
+	for (i = 0; i < pc->chip.npwm; i++) {
+		struct pwm_device *pwm = &pc->chip.pwms[i];
+
+		if (!test_bit(PWMF_ENABLED, &pwm->flags))
+			continue;
+
+		/* Enable explicitly if PWM was running */
+		pm_runtime_get_sync(dev);
+	}
+	ehrpwm_pwm_restore_context(pc);
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(ehrpwm_pwm_pm_ops, ehrpwm_pwm_suspend,
+		ehrpwm_pwm_resume);
+
 static struct platform_driver ehrpwm_pwm_driver = {
 	.driver = {
 		.name	= "ehrpwm",
 		.owner	= THIS_MODULE,
 		.of_match_table = ehrpwm_of_match,
+		.pm	= &ehrpwm_pwm_pm_ops,
 	},
 	.probe = ehrpwm_pwm_probe,
 	.remove = ehrpwm_pwm_remove,

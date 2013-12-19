@@ -3,15 +3,61 @@
 Required properties:
 - compatible: "snps,dma-spear1340"
 - reg: Address range of the DMAC registers
+- interrupt: Should contain the DMAC interrupt number
+- dma-channels: Number of channels supported by hardware
+- dma-requests: Number of DMA request lines supported, up to 16
+- dma-masters: Number of AHB masters supported by the controller
+- #dma-cells: must be <3>
+- chan_allocation_order: order of allocation of channel, 0 (default): ascending,
+  1: descending
+- chan_priority: priority of channels. 0 (default): increase from chan 0->n, 1:
+  increase from chan n->0
+- block_size: Maximum block size supported by the controller
+- data_width: Maximum data width supported by hardware per AHB master
+  (0 - 8bits, 1 - 16bits, ..., 5 - 256bits)
+
+
+Optional properties:
 - interrupt-parent: Should be the phandle for the interrupt controller
   that services interrupts for this device
-- interrupt: Should contain the DMAC interrupt number
+- is_private: The device channels should be marked as private and not for by the
+  general purpose DMA channel allocator. False if not passed.
 
 Example:
 
-	dma@fc000000 {
+	dmahost: dma@fc000000 {
 		compatible = "snps,dma-spear1340";
 		reg = <0xfc000000 0x1000>;
 		interrupt-parent = <&vic1>;
 		interrupts = <12>;
+
+		dma-channels = <8>;
+		dma-requests = <16>;
+		dma-masters = <2>;
+		#dma-cells = <3>;
+		chan_allocation_order = <1>;
+		chan_priority = <1>;
+		block_size = <0xfff>;
+		data_width = <3 3 0 0>;
+	};
+
+DMA clients connected to the Designware DMA controller must use the format
+described in the dma.txt file, using a four-cell specifier for each channel.
+The four cells in order are:
+
+1. A phandle pointing to the DMA controller
+2. The DMA request line number
+3. Source master for transfers on allocated channel
+4. Destination master for transfers on allocated channel
+
+Example:
+	
+	serial@e0000000 {
+		compatible = "arm,pl011", "arm,primecell";
+		reg = <0xe0000000 0x1000>;
+		interrupts = <0 35 0x4>;
+		status = "disabled";
+		dmas = <&dmahost 12 0 1>,
+			<&dmahost 13 0 1 0>;
+		dma-names = "rx", "rx";
 	};

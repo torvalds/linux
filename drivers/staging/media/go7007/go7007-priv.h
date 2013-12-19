@@ -22,6 +22,9 @@
  */
 
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-fh.h>
+#include <media/videobuf2-core.h>
 
 struct go7007;
 
@@ -34,15 +37,13 @@ struct go7007;
 #define GO7007_BOARDID_XMEN_II		5
 #define GO7007_BOARDID_XMEN_III		6
 #define GO7007_BOARDID_MATRIX_REV	7
-#define GO7007_BOARDID_PX_M402U		16
-#define GO7007_BOARDID_PX_TV402U_ANY	17 /* need to check tuner model */
-#define GO7007_BOARDID_PX_TV402U_NA	18 /* detected NTSC tuner */
-#define GO7007_BOARDID_PX_TV402U_EU	19 /* detected PAL tuner */
-#define GO7007_BOARDID_PX_TV402U_JP	20 /* detected NTSC-J tuner */
-#define GO7007_BOARDID_LIFEVIEW_LR192	21 /* TV Walker Ultra */
-#define GO7007_BOARDID_ENDURA		22
-#define GO7007_BOARDID_ADLINK_MPG24	23
-#define GO7007_BOARDID_SENSORAY_2250	24 /* Sensoray 2250/2251 */
+#define GO7007_BOARDID_PX_M402U		8
+#define GO7007_BOARDID_PX_TV402U	9
+#define GO7007_BOARDID_LIFEVIEW_LR192	10 /* TV Walker Ultra */
+#define GO7007_BOARDID_ENDURA		11
+#define GO7007_BOARDID_ADLINK_MPG24	12
+#define GO7007_BOARDID_SENSORAY_2250	13 /* Sensoray 2250/2251 */
+#define GO7007_BOARDID_ADS_USBAV_709    14
 
 /* Various characteristics of each board */
 #define GO7007_BOARD_HAS_AUDIO		(1<<0)
@@ -61,6 +62,7 @@ struct go7007;
 #define GO7007_SENSOR_TV		(1<<7)
 #define GO7007_SENSOR_VBI		(1<<8)
 #define GO7007_SENSOR_SCALING		(1<<9)
+#define GO7007_SENSOR_SAA7115		(1<<10)
 
 /* Characteristics of audio sensor devices */
 #define GO7007_AUDIO_I2S_MODE_1		(1)
@@ -74,7 +76,6 @@ struct go7007;
 #define GO7007_AUDIO_OKI_MODE		(1<<17)
 
 struct go7007_board_info {
-	char *firmware;
 	unsigned int flags;
 	int hpi_buffer_cap;
 	unsigned int sensor_flags;
@@ -88,17 +89,25 @@ struct go7007_board_info {
 	int audio_bclk_div;
 	int audio_main_div;
 	int num_i2c_devs;
-	struct {
+	struct go_i2c {
 		const char *type;
-		int id;
+		unsigned int is_video:1;
+		unsigned int is_audio:1;
 		int addr;
-	} i2c_devs[4];
+		u32 flags;
+	} i2c_devs[5];
 	int num_inputs;
 	struct {
 		int video_input;
-		int audio_input;
+		int audio_index;
 		char *name;
 	} inputs[4];
+	int video_config;
+	int num_aud_inputs;
+	struct {
+		int audio_input;
+		char *name;
+	} aud_inputs[3];
 };
 
 struct go7007_hpi_ops {
@@ -109,6 +118,7 @@ struct go7007_hpi_ops {
 	int (*stream_stop)(struct go7007 *go);
 	int (*send_firmware)(struct go7007 *go, u8 *data, int len);
 	int (*send_command)(struct go7007 *go, unsigned int cmd, void *arg);
+	void (*release)(struct go7007 *go);
 };
 
 /* The video buffer size must be a multiple of PAGE_SIZE */
@@ -116,34 +126,11 @@ struct go7007_hpi_ops {
 #define	GO7007_BUF_SIZE		(GO7007_BUF_PAGES << PAGE_SHIFT)
 
 struct go7007_buffer {
-	struct go7007 *go; /* Reverse reference for VMA ops */
-	int index; /* Reverse reference for DQBUF */
-	enum { BUF_STATE_IDLE, BUF_STATE_QUEUED, BUF_STATE_DONE } state;
-	u32 seq;
-	struct timeval timestamp;
-	struct list_head stream;
-	struct page *pages[GO7007_BUF_PAGES + 1]; /* extra for straddling */
-	unsigned long user_addr;
-	unsigned int page_count;
-	unsigned int offset;
-	unsigned int bytesused;
+	struct vb2_buffer vb;
+	struct list_head list;
 	unsigned int frame_offset;
 	u32 modet_active;
-	int mapped;
 };
-
-struct go7007_file {
-	struct go7007 *go;
-	struct mutex lock;
-	int buf_count;
-	struct go7007_buffer *bufs;
-};
-
-#define	GO7007_FORMAT_MJPEG	0
-#define GO7007_FORMAT_MPEG4	1
-#define GO7007_FORMAT_MPEG1	2
-#define GO7007_FORMAT_MPEG2	3
-#define GO7007_FORMAT_H263	4
 
 #define GO7007_RATIO_1_1	0
 #define GO7007_RATIO_4_3	1
@@ -163,24 +150,38 @@ enum go7007_parser_state {
 
 struct go7007 {
 	struct device *dev;
-	struct go7007_board_info *board_info;
+	u8 bus_info[32];
+	const struct go7007_board_info *board_info;
 	unsigned int board_id;
 	int tuner_type;
 	int channel_number; /* for multi-channel boards like Adlink PCI-MPG24 */
 	char name[64];
-	struct video_device *video_dev;
+	struct video_device vdev;
+	void *boot_fw;
+	unsigned boot_fw_len;
 	struct v4l2_device v4l2_dev;
-	int ref_count;
+	struct v4l2_ctrl_handler hdl;
+	struct v4l2_ctrl *mpeg_video_encoding;
+	struct v4l2_ctrl *mpeg_video_gop_size;
+	struct v4l2_ctrl *mpeg_video_gop_closure;
+	struct v4l2_ctrl *mpeg_video_bitrate;
+	struct v4l2_ctrl *mpeg_video_aspect_ratio;
+	struct v4l2_ctrl *mpeg_video_b_frames;
+	struct v4l2_ctrl *mpeg_video_rep_seqheader;
 	enum { STATUS_INIT, STATUS_ONLINE, STATUS_SHUTDOWN } status;
 	spinlock_t spinlock;
 	struct mutex hw_lock;
-	int streaming;
-	int in_use;
+	struct mutex serialize_lock;
 	int audio_enabled;
+	struct v4l2_subdev *sd_video;
+	struct v4l2_subdev *sd_audio;
+	u8 usb_buf[16];
 
 	/* Video input */
 	int input;
+	int aud_input;
 	enum { GO7007_STD_NTSC, GO7007_STD_PAL, GO7007_STD_OTHER } standard;
+	v4l2_std_id std;
 	int sensor_framerate;
 	int width;
 	int height;
@@ -191,7 +192,7 @@ struct go7007 {
 	unsigned int encoder_subsample:1;
 
 	/* Encoder config */
-	int format;
+	u32 format;
 	int bitrate;
 	int fps_scale;
 	int pali;
@@ -217,14 +218,16 @@ struct go7007 {
 	unsigned char active_map[216];
 
 	/* Video streaming */
-	struct go7007_buffer *active_buf;
+	struct mutex queue_lock;
+	struct vb2_queue vidq;
 	enum go7007_parser_state state;
 	int parse_length;
 	u16 modet_word;
 	int seen_frame;
 	u32 next_seq;
-	struct list_head stream;
+	struct list_head vidq_active;
 	wait_queue_head_t frame_waitq;
+	struct go7007_buffer *active_buf;
 
 	/* Audio streaming */
 	void (*audio_deliver)(struct go7007 *go, u8 *buf, int length);
@@ -267,12 +270,12 @@ int go7007_read_addr(struct go7007 *go, u16 addr, u16 *data);
 int go7007_read_interrupt(struct go7007 *go, u16 *value, u16 *data);
 int go7007_boot_encoder(struct go7007 *go, int init_i2c);
 int go7007_reset_encoder(struct go7007 *go);
-int go7007_register_encoder(struct go7007 *go);
+int go7007_register_encoder(struct go7007 *go, unsigned num_i2c_devs);
 int go7007_start_encoder(struct go7007 *go);
 void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length);
-struct go7007 *go7007_alloc(struct go7007_board_info *board,
+struct go7007 *go7007_alloc(const struct go7007_board_info *board,
 					struct device *dev);
-void go7007_remove(struct go7007 *go);
+void go7007_update_board(struct go7007 *go);
 
 /* go7007-fw.c */
 int go7007_construct_fw_image(struct go7007 *go, u8 **fw, int *fwlen);
@@ -283,6 +286,7 @@ int go7007_i2c_remove(struct go7007 *go);
 
 /* go7007-v4l2.c */
 int go7007_v4l2_init(struct go7007 *go);
+int go7007_v4l2_ctrl_init(struct go7007 *go);
 void go7007_v4l2_remove(struct go7007 *go);
 
 /* snd-go7007.c */

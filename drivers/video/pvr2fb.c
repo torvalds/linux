@@ -112,11 +112,11 @@ enum { VO_PAL, VO_NTSC, VO_VGA };
 enum { PAL_ARGB1555, PAL_RGB565, PAL_ARGB4444, PAL_ARGB8888 };
 
 struct pvr2_params { unsigned int val; char *name; };
-static struct pvr2_params cables[] __devinitdata = {
+static struct pvr2_params cables[] = {
 	{ CT_VGA, "VGA" }, { CT_RGB, "RGB" }, { CT_COMPOSITE, "COMPOSITE" },
 };
 
-static struct pvr2_params outputs[] __devinitdata = {
+static struct pvr2_params outputs[] = {
 	{ VO_PAL, "PAL" }, { VO_NTSC, "NTSC" }, { VO_VGA, "VGA" },
 };
 
@@ -145,7 +145,7 @@ static struct pvr2fb_par {
 
 static struct fb_info *fb_info;
 
-static struct fb_fix_screeninfo pvr2_fix __devinitdata = {
+static struct fb_fix_screeninfo pvr2_fix = {
 	.id =		"NEC PowerVR2",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_TRUECOLOR,
@@ -154,7 +154,7 @@ static struct fb_fix_screeninfo pvr2_fix __devinitdata = {
 	.accel =	FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo pvr2_var __devinitdata = {
+static struct fb_var_screeninfo pvr2_var = {
 	.xres =		640,
 	.yres =		480,
 	.xres_virtual =	640,
@@ -226,7 +226,7 @@ static struct fb_ops pvr2fb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-static struct fb_videomode pvr2_modedb[] __devinitdata = {
+static struct fb_videomode pvr2_modedb[] = {
     /*
      * Broadcast video modes (PAL and NTSC).  I'm unfamiliar with
      * PAL-M and PAL-N, but from what I've read both modes parallel PAL and
@@ -256,7 +256,7 @@ static struct fb_videomode pvr2_modedb[] __devinitdata = {
 #define DEFMODE_VGA	2
 
 static int defmode = DEFMODE_NTSC;
-static char *mode_option __devinitdata = NULL;
+static char *mode_option = NULL;
 
 static inline void pvr2fb_set_pal_type(unsigned int type)
 {
@@ -763,7 +763,7 @@ out_unmap:
  * in for flexibility anyways. Who knows, maybe someone has tv-out on a
  * PCI-based version of these things ;-)
  */
-static int __devinit pvr2fb_common_init(void)
+static int pvr2fb_common_init(void)
 {
 	struct pvr2fb_par *par = currentpar;
 	unsigned long modememused, rev;
@@ -817,24 +817,25 @@ static int __devinit pvr2fb_common_init(void)
 
 	rev = fb_readl(par->mmio_base + 0x04);
 
-	printk("fb%d: %s (rev %ld.%ld) frame buffer device, using %ldk/%ldk of video memory\n",
-	       fb_info->node, fb_info->fix.id, (rev >> 4) & 0x0f, rev & 0x0f,
-	       modememused >> 10, (unsigned long)(fb_info->fix.smem_len >> 10));
-	printk("fb%d: Mode %dx%d-%d pitch = %ld cable: %s video output: %s\n",
-	       fb_info->node, fb_info->var.xres, fb_info->var.yres,
-	       fb_info->var.bits_per_pixel,
-	       get_line_length(fb_info->var.xres, fb_info->var.bits_per_pixel),
-	       (char *)pvr2_get_param(cables, NULL, cable_type, 3),
-	       (char *)pvr2_get_param(outputs, NULL, video_output, 3));
+	fb_info(fb_info, "%s (rev %ld.%ld) frame buffer device, using %ldk/%ldk of video memory\n",
+		fb_info->fix.id, (rev >> 4) & 0x0f, rev & 0x0f,
+		modememused >> 10,
+		(unsigned long)(fb_info->fix.smem_len >> 10));
+	fb_info(fb_info, "Mode %dx%d-%d pitch = %ld cable: %s video output: %s\n",
+		fb_info->var.xres, fb_info->var.yres,
+		fb_info->var.bits_per_pixel,
+		get_line_length(fb_info->var.xres, fb_info->var.bits_per_pixel),
+		(char *)pvr2_get_param(cables, NULL, cable_type, 3),
+		(char *)pvr2_get_param(outputs, NULL, video_output, 3));
 
 #ifdef CONFIG_SH_STORE_QUEUES
-	printk(KERN_NOTICE "fb%d: registering with SQ API\n", fb_info->node);
+	fb_notice(fb_info, "registering with SQ API\n");
 
 	pvr2fb_map = sq_remap(fb_info->fix.smem_start, fb_info->fix.smem_len,
 			      fb_info->fix.id, PAGE_SHARED);
 
-	printk(KERN_NOTICE "fb%d: Mapped video memory to SQ addr 0x%lx\n",
-	       fb_info->node, pvr2fb_map);
+	fb_notice(fb_info, "Mapped video memory to SQ addr 0x%lx\n",
+		  pvr2fb_map);
 #endif
 
 	return 0;
@@ -922,8 +923,8 @@ static void __exit pvr2fb_dc_exit(void)
 #endif /* CONFIG_SH_DREAMCAST */
 
 #ifdef CONFIG_PCI
-static int __devinit pvr2fb_pci_probe(struct pci_dev *pdev,
-				      const struct pci_device_id *ent)
+static int pvr2fb_pci_probe(struct pci_dev *pdev,
+			    const struct pci_device_id *ent)
 {
 	int ret;
 
@@ -953,7 +954,7 @@ static int __devinit pvr2fb_pci_probe(struct pci_dev *pdev,
 	return pvr2fb_common_init();
 }
 
-static void __devexit pvr2fb_pci_remove(struct pci_dev *pdev)
+static void pvr2fb_pci_remove(struct pci_dev *pdev)
 {
 	if (fb_info->screen_base) {
 		iounmap(fb_info->screen_base);
@@ -967,7 +968,7 @@ static void __devexit pvr2fb_pci_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 }
 
-static struct pci_device_id pvr2fb_pci_tbl[] __devinitdata = {
+static struct pci_device_id pvr2fb_pci_tbl[] = {
 	{ PCI_VENDOR_ID_NEC, PCI_DEVICE_ID_NEC_NEON250,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0, },
@@ -979,7 +980,7 @@ static struct pci_driver pvr2fb_pci_driver = {
 	.name		= "pvr2fb",
 	.id_table	= pvr2fb_pci_tbl,
 	.probe		= pvr2fb_pci_probe,
-	.remove		= __devexit_p(pvr2fb_pci_remove),
+	.remove		= pvr2fb_pci_remove,
 };
 
 static int __init pvr2fb_pci_init(void)
@@ -993,8 +994,8 @@ static void __exit pvr2fb_pci_exit(void)
 }
 #endif /* CONFIG_PCI */
 
-static int __devinit pvr2_get_param(const struct pvr2_params *p, const char *s,
-                                   int val, int size)
+static int pvr2_get_param(const struct pvr2_params *p, const char *s, int val,
+			  int size)
 {
 	int i;
 

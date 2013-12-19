@@ -672,7 +672,7 @@ static int iowarrior_release(struct inode *inode, struct file *file)
 		retval = -ENODEV;	/* close called more than once */
 		mutex_unlock(&dev->mutex);
 	} else {
-		dev->opened = 0;	/* we're closeing now */
+		dev->opened = 0;	/* we're closing now */
 		retval = 0;
 		if (dev->present) {
 			/*
@@ -802,7 +802,7 @@ static int iowarrior_probe(struct usb_interface *interface,
 			/* this one will match for the IOWarrior56 only */
 			dev->int_out_endpoint = endpoint;
 	}
-	/* we have to check the report_size often, so remember it in the endianess suitable for our machine */
+	/* we have to check the report_size often, so remember it in the endianness suitable for our machine */
 	dev->report_size = usb_endpoint_maxp(dev->int_in_endpoint);
 	if ((dev->interface->cur_altsetting->desc.bInterfaceNumber == 0) &&
 	    (dev->product_id == USB_DEVICE_ID_CODEMERCS_IOW56))

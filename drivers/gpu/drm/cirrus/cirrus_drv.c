@@ -56,8 +56,8 @@ static int cirrus_kick_out_firmware_fb(struct pci_dev *pdev)
 	return 0;
 }
 
-static int __devinit
-cirrus_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int cirrus_pci_probe(struct pci_dev *pdev,
+			    const struct pci_device_id *ent)
 {
 	int ret;
 
@@ -85,10 +85,9 @@ static const struct file_operations cirrus_driver_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
 #endif
-	.fasync = drm_fasync,
 };
 static struct drm_driver driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_USE_MTRR,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM,
 	.load = cirrus_driver_load,
 	.unload = cirrus_driver_unload,
 	.fops = &cirrus_driver_fops,
@@ -98,11 +97,10 @@ static struct drm_driver driver = {
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
-	.gem_init_object = cirrus_gem_init_object,
 	.gem_free_object = cirrus_gem_free_object,
 	.dumb_create = cirrus_dumb_create,
 	.dumb_map_offset = cirrus_dumb_mmap_offset,
-	.dumb_destroy = cirrus_dumb_destroy,
+	.dumb_destroy = drm_gem_dumb_destroy,
 };
 
 static struct pci_driver cirrus_pci_driver = {

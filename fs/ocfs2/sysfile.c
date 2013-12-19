@@ -91,8 +91,7 @@ static struct inode **get_local_system_inode(struct ocfs2_super *osb,
 		} else
 			osb->local_system_inodes = local_system_inodes;
 		spin_unlock(&osb->osb_lock);
-		if (unlikely(free))
-			kfree(free);
+		kfree(free);
 	}
 
 	index = (slot * NUM_LOCAL_SYSTEM_INODES) +

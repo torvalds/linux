@@ -79,7 +79,7 @@ int via_final_context(struct drm_device *dev, int context)
 
 	/* Linux specific until context tracking code gets ported to BSD */
 	/* Last context, perform cleanup */
-	if (dev->ctx_count == 1 && dev->dev_private) {
+	if (list_is_singular(&dev->ctxlist) && dev->dev_private) {
 		DRM_DEBUG("Last Context\n");
 		drm_irq_uninstall(dev);
 		via_cleanup_futex(dev_priv);
@@ -140,25 +140,18 @@ int via_mem_alloc(struct drm_device *dev, void *data,
 	if (mem->type == VIA_MEM_AGP)
 		retval = drm_mm_insert_node(&dev_priv->agp_mm,
 					    &item->mm_node,
-					    tmpSize, 0);
+					    tmpSize, 0, DRM_MM_SEARCH_DEFAULT);
 	else
 		retval = drm_mm_insert_node(&dev_priv->vram_mm,
 					    &item->mm_node,
-					    tmpSize, 0);
+					    tmpSize, 0, DRM_MM_SEARCH_DEFAULT);
 	if (retval)
 		goto fail_alloc;
 
-again:
-	if (idr_pre_get(&dev_priv->object_idr, GFP_KERNEL) == 0) {
-		retval = -ENOMEM;
+	retval = idr_alloc(&dev_priv->object_idr, item, 1, 0, GFP_KERNEL);
+	if (retval < 0)
 		goto fail_idr;
-	}
-
-	retval = idr_get_new_above(&dev_priv->object_idr, item, 1, &user_key);
-	if (retval == -EAGAIN)
-		goto again;
-	if (retval)
-		goto fail_idr;
+	user_key = retval;
 
 	list_add(&item->owner_list, &file_priv->obj_list);
 	mutex_unlock(&dev->struct_mutex);

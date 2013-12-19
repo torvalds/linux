@@ -252,14 +252,11 @@ static inline int isAbortTrfCmnd(const unsigned char *buf)
 static void send_to_tty(struct usb_serial_port *port,
 			char *data, unsigned int actual_length)
 {
-	struct tty_struct *tty = tty_port_tty_get(&port->port);
-
-	if (tty && actual_length) {
+	if (actual_length) {
 		usb_serial_debug_data(&port->dev, __func__, actual_length, data);
-		tty_insert_flip_string(tty, data, actual_length);
-		tty_flip_buffer_push(tty);
+		tty_insert_flip_string(&port->port, data, actual_length);
+		tty_flip_buffer_push(&port->port);
 	}
-	tty_kref_put(tty);
 }
 
 
@@ -949,20 +946,13 @@ static int garmin_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 static void garmin_close(struct usb_serial_port *port)
 {
-	struct usb_serial *serial = port->serial;
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
 
-	dev_dbg(&port->dev, "%s - port %d - mode=%d state=%d flags=0x%X\n",
-		__func__, port->number, garmin_data_p->mode,
-		garmin_data_p->state, garmin_data_p->flags);
+	dev_dbg(&port->dev, "%s - mode=%d state=%d flags=0x%X\n",
+		__func__, garmin_data_p->mode, garmin_data_p->state,
+		garmin_data_p->flags);
 
-	if (!serial)
-		return;
-
-	mutex_lock(&port->serial->disc_mutex);
-
-	if (!port->serial->disconnected)
-		garmin_clear(garmin_data_p);
+	garmin_clear(garmin_data_p);
 
 	/* shutdown our urbs */
 	usb_kill_urb(port->read_urb);
@@ -971,8 +961,6 @@ static void garmin_close(struct usb_serial_port *port)
 	/* keep reset state so we know that we must start a new session */
 	if (garmin_data_p->state != STATE_RESET)
 		garmin_data_p->state = STATE_DISCONNECTED;
-
-	mutex_unlock(&port->serial->disc_mutex);
 }
 
 
@@ -1193,16 +1181,10 @@ static void garmin_read_bulk_callback(struct urb *urb)
 {
 	unsigned long flags;
 	struct usb_serial_port *port = urb->context;
-	struct usb_serial *serial =  port->serial;
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
 	int retval;
-
-	if (!serial) {
-		dev_dbg(&urb->dev->dev, "%s - bad serial pointer, exiting\n", __func__);
-		return;
-	}
 
 	if (status) {
 		dev_dbg(&urb->dev->dev, "%s - nonzero read bulk status received: %d\n",

@@ -41,7 +41,7 @@ struct vprbrd_adc {
 	.type = IIO_VOLTAGE,				\
 	.indexed = 1,					\
 	.channel = _index,				\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,	\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
 	.scan_index = _index,				\
 	.scan_type = {					\
 		.sign = 'u',				\
@@ -116,7 +116,7 @@ static const struct iio_info vprbrd_adc_iio_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit vprbrd_adc_probe(struct platform_device *pdev)
+static int vprbrd_adc_probe(struct platform_device *pdev)
 {
 	struct vprbrd *vb = dev_get_drvdata(pdev->dev.parent);
 	struct vprbrd_adc *adc;
@@ -124,7 +124,7 @@ static int __devinit vprbrd_adc_probe(struct platform_device *pdev)
 	int ret;
 
 	/* registering iio */
-	indio_dev = iio_device_alloc(sizeof(*adc));
+	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*adc));
 	if (!indio_dev) {
 		dev_err(&pdev->dev, "failed allocating iio device\n");
 		return -ENOMEM;
@@ -142,24 +142,19 @@ static int __devinit vprbrd_adc_probe(struct platform_device *pdev)
 	ret = iio_device_register(indio_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "could not register iio (adc)");
-		goto error;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, indio_dev);
 
 	return 0;
-
-error:
-	iio_device_free(indio_dev);
-	return ret;
 }
 
-static int __devexit vprbrd_adc_remove(struct platform_device *pdev)
+static int vprbrd_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 
 	iio_device_unregister(indio_dev);
-	iio_device_free(indio_dev);
 
 	return 0;
 }
@@ -170,7 +165,7 @@ static struct platform_driver vprbrd_adc_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= vprbrd_adc_probe,
-	.remove		= __devexit_p(vprbrd_adc_remove),
+	.remove		= vprbrd_adc_remove,
 };
 
 module_platform_driver(vprbrd_adc_driver);

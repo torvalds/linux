@@ -181,14 +181,9 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 	pwm->dev = &pdev->dev;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(&pdev->dev, "no memory resources defined\n");
-		return -ENODEV;
-	}
-
-	pwm->mmio_base = devm_request_and_ioremap(&pdev->dev, r);
-	if (!pwm->mmio_base)
-		return -EADDRNOTAVAIL;
+	pwm->mmio_base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(pwm->mmio_base))
+		return PTR_ERR(pwm->mmio_base);
 
 	platform_set_drvdata(pdev, pwm);
 
@@ -233,20 +228,19 @@ static int tegra_pwm_remove(struct platform_device *pdev)
 	return pwmchip_remove(&pc->chip);
 }
 
-#ifdef CONFIG_OF
-static struct of_device_id tegra_pwm_of_match[] = {
+static const struct of_device_id tegra_pwm_of_match[] = {
 	{ .compatible = "nvidia,tegra20-pwm" },
 	{ .compatible = "nvidia,tegra30-pwm" },
 	{ }
 };
 
 MODULE_DEVICE_TABLE(of, tegra_pwm_of_match);
-#endif
 
 static struct platform_driver tegra_pwm_driver = {
 	.driver = {
 		.name = "tegra-pwm",
-		.of_match_table = of_match_ptr(tegra_pwm_of_match),
+		.owner = THIS_MODULE,
+		.of_match_table = tegra_pwm_of_match,
 	},
 	.probe = tegra_pwm_probe,
 	.remove = tegra_pwm_remove,

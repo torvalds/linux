@@ -163,13 +163,13 @@ int drm_vblank_info(struct seq_file *m, void *data)
 	mutex_lock(&dev->struct_mutex);
 	for (crtc = 0; crtc < dev->num_crtcs; crtc++) {
 		seq_printf(m, "CRTC %d enable:     %d\n",
-			   crtc, atomic_read(&dev->vblank_refcount[crtc]));
+			   crtc, atomic_read(&dev->vblank[crtc].refcount));
 		seq_printf(m, "CRTC %d counter:    %d\n",
 			   crtc, drm_vblank_count(dev, crtc));
 		seq_printf(m, "CRTC %d last wait:  %d\n",
-			   crtc, dev->last_vblank_wait[crtc]);
+			   crtc, dev->vblank[crtc].last_wait);
 		seq_printf(m, "CRTC %d in modeset: %d\n",
-			   crtc, dev->vblank_inmodeset[crtc]);
+			   crtc, dev->vblank[crtc].inmodeset);
 	}
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
@@ -207,7 +207,7 @@ static int drm_gem_one_name_info(int id, void *ptr, void *data)
 
 	seq_printf(m, "%6d %8zd %7d %8d\n",
 		   obj->name, obj->size,
-		   atomic_read(&obj->handle_count),
+		   obj->handle_count,
 		   atomic_read(&obj->refcount.refcount));
 	return 0;
 }
@@ -218,7 +218,11 @@ int drm_gem_name_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 
 	seq_printf(m, "  name     size handles refcount\n");
+
+	mutex_lock(&dev->object_name_lock);
 	idr_for_each(&dev->object_name_idr, drm_gem_one_name_info, m);
+	mutex_unlock(&dev->object_name_lock);
+
 	return 0;
 }
 

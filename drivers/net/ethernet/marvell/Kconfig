@@ -21,8 +21,8 @@ if NET_VENDOR_MARVELL
 config MV643XX_ETH
 	tristate "Marvell Discovery (643XX) and Orion ethernet support"
 	depends on (MV64X60 || PPC32 || PLAT_ORION) && INET
-	select INET_LRO
 	select PHYLIB
+	select MVMDIO
 	---help---
 	  This driver supports the gigabit ethernet MACs in the
 	  Marvell Discovery PPC/MIPS chipset family (MV643XX) and
@@ -33,19 +33,17 @@ config MV643XX_ETH
 
 config MVMDIO
 	tristate "Marvell MDIO interface support"
+	select PHYLIB
 	---help---
 	  This driver supports the MDIO interface found in the network
 	  interface units of the Marvell EBU SoCs (Kirkwood, Orion5x,
 	  Dove, Armada 370 and Armada XP).
 
-	  For now, this driver is only needed for the MVNETA driver
-	  (used on Armada 370 and XP), but it could be used in the
-	  future by the MV643XX_ETH driver.
+	  This driver is used by the MV643XX_ETH and MVNETA drivers.
 
 config MVNETA
 	tristate "Marvell Armada 370/XP network interface support"
 	depends on MACH_ARMADA_370_XP
-	select PHYLIB
 	select MVMDIO
 	---help---
 	  This driver supports the network interface units in the

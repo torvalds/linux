@@ -71,9 +71,12 @@ enum nvec_event_size {
 enum nvec_msg_type {
 	NVEC_SYS = 1,
 	NVEC_BAT,
-	NVEC_KBD = 5,
+	NVEC_GPIO,
+	NVEC_SLEEP,
+	NVEC_KBD,
 	NVEC_PS2,
 	NVEC_CNTL,
+	NVEC_OEM0 = 0x0d,
 	NVEC_KB_EVT = 0x80,
 	NVEC_PS2_EVT,
 };
@@ -97,31 +100,6 @@ struct nvec_msg {
 	unsigned short size;
 	unsigned short pos;
 	atomic_t used;
-};
-
-/**
- * struct nvec_subdev - A subdevice of nvec, such as nvec_kbd
- * @name: The name of the sub device
- * @platform_data: Platform data
- * @id: Identifier of the sub device
- */
-struct nvec_subdev {
-	const char *name;
-	void *platform_data;
-	int id;
-};
-
-/**
- * struct nvec_platform_data - platform data for a tegra slave controller
- * @i2c_addr: number of i2c slave adapter the ec is connected to
- * @gpio: gpio number for the ec request line
- *
- * Platform data, to be used in board definitions. For an example, take a
- * look at the paz00 board in arch/arm/mach-tegra/board-paz00.c
- */
-struct nvec_platform_data {
-	int i2c_addr;
-	int gpio;
 };
 
 /**
@@ -194,9 +172,8 @@ extern int nvec_register_notifier(struct nvec_chip *nvec,
 				  struct notifier_block *nb,
 				  unsigned int events);
 
-extern int nvec_unregister_notifier(struct device *dev,
-				    struct notifier_block *nb,
-				    unsigned int events);
+extern int nvec_unregister_notifier(struct nvec_chip *dev,
+				    struct notifier_block *nb);
 
 extern void nvec_msg_free(struct nvec_chip *nvec, struct nvec_msg *msg);
 

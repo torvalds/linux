@@ -14,11 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 /*
 Driver: skel
@@ -72,9 +67,10 @@ Configuration Options:
  * options that are used with comedi_config.
  */
 
-#include "../comedidev.h"
+#include <linux/module.h>
+#include <linux/pci.h>
 
-#include <linux/pci.h>		/* for PCI devices */
+#include "../comedidev.h"
 
 #include "comedi_fc.h"
 
@@ -90,29 +86,30 @@ Configuration Options:
  * boards in this way is optional, and completely driver-dependent.
  * Some drivers use arrays such as this, other do not.
  */
+enum skel_boardid {
+	BOARD_SKEL100,
+	BOARD_SKEL200,
+};
+
 struct skel_board {
 	const char *name;
-	unsigned int devid;
 	int ai_chans;
 	int ai_bits;
 	int have_dio;
 };
 
 static const struct skel_board skel_boards[] = {
-	{
-	 .name = "skel-100",
-	 .devid = 0x100,
-	 .ai_chans = 16,
-	 .ai_bits = 12,
-	 .have_dio = 1,
-	 },
-	{
-	 .name = "skel-200",
-	 .devid = 0x200,
-	 .ai_chans = 8,
-	 .ai_bits = 16,
-	 .have_dio = 0,
-	 },
+	[BOARD_SKEL100] = {
+		.name		= "skel-100",
+		.ai_chans	= 16,
+		.ai_bits	= 12,
+		.have_dio	= 1,
+	},
+	[BOARD_SKEL200] = {
+		.name		= "skel-200",
+		.ai_chans	= 8,
+		.ai_bits	= 16,
+	},
 };
 
 /* this structure is for data unique to this hardware driver.  If
@@ -335,79 +332,73 @@ static int skel_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return i;
 }
 
-/* DIO devices are slightly special.  Although it is possible to
+/*
+ * DIO devices are slightly special. Although it is possible to
  * implement the insn_read/insn_write interface, it is much more
  * useful to applications if you implement the insn_bits interface.
- * This allows packed reading/writing of the DIO channels.  The
- * comedi core can convert between insn_bits and insn_read/write */
+ * This allows packed reading/writing of the DIO channels. The
+ * comedi core can convert between insn_bits and insn_read/write.
+ */
 static int skel_dio_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit. */
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
+	/*
+	 * The insn data is a mask in data[0] and the new data
+	 * in data[1], each channel cooresponding to a bit.
+	 *
+	 * The core provided comedi_dio_update_state() function can
+	 * be used to handle the internal state update to DIO subdevices
+	 * with <= 32 channels. This function will return '0' if the
+	 * state does not change or the mask of the channels that need
+	 * to be updated.
+	 */
+	if (comedi_dio_update_state(s, data)) {
 		/* Write out the new digital output lines */
-		/* outw(s->state,dev->iobase + SKEL_DIO); */
+		/* outw(s->state, dev->iobase + SKEL_DIO); */
 	}
 
-	/* on return, data[1] contains the value of the digital
-	 * input and output lines. */
-	/* data[1]=inw(dev->iobase + SKEL_DIO); */
-	/* or we could just return the software copy of the output values if
-	 * it was a purely digital output subdevice */
-	/* data[1]=s->state; */
+	/*
+	 * On return, data[1] contains the value of the digital
+	 * input and output lines.
+	 */
+	/* data[1] = inw(dev->iobase + SKEL_DIO); */
+
+	/*
+	 * Or we could just return the software copy of the output
+	 * values if it was a purely digital output subdevice.
+	 */
+	/* data[1] = s->state; */
 
 	return insn->n;
 }
 
 static int skel_dio_insn_config(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	int chan = CR_CHAN(insn->chanspec);
+	int ret;
 
-	/* The input or output configuration of each digital line is
-	 * configured by a special insn_config instruction.  chanspec
-	 * contains the channel to be changed, and data[0] contains the
-	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= 1 << chan;
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~(1 << chan);
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-		break;
-	}
-	/* outw(s->io_bits,dev->iobase + SKEL_DIO_CONFIG); */
+	/*
+	 * The input or output configuration of each digital line is
+	 * configured by special insn_config instructions.
+	 *
+	 * chanspec contains the channel to be changed
+	 * data[0] contains the instruction to perform on the channel
+	 *
+	 * Normally the core provided comedi_dio_insn_config() function
+	 * can be used to handle the boilerplpate.
+	 */
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
+
+	/* Update the hardware to the new configuration */
+	/* outw(s->io_bits, dev->iobase + SKEL_DIO_CONFIG); */
 
 	return insn->n;
-}
-
-static const struct skel_board *skel_find_pci_board(struct pci_dev *pcidev)
-{
-	unsigned int i;
-
-/*
- * This example code assumes all the entries in skel_boards[] are PCI boards
- * and all use the same PCI vendor ID.  If skel_boards[] contains a mixture
- * of PCI and non-PCI boards, this loop should skip over the non-PCI boards.
- */
-	for (i = 0; i < ARRAY_SIZE(skel_boards); i++)
-		if (/* skel_boards[i].bustype == pci_bustype && */
-		    pcidev->device == skel_boards[i].devid)
-			return &skel_boards[i];
-	return NULL;
 }
 
 /*
@@ -496,16 +487,17 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	thisboard = comedi_board(dev);
 
-/*
- * Initialize dev->board_name.
- */
-	dev->board_name = thisboard->name;
+	/*
+	 * The dev->board_name is initialized by the comedi core before
+	 * calling the (*attach) function. It can be optionally set by
+	 * the driver if additional probing has been done.
+	 */
+	/* dev->board_name = thisboard->name; */
 
 	/* Allocate the private data */
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 /*
  * Supported boards are usually either auto-attached via the
@@ -541,16 +533,13 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * comedi_usb_auto_config(), etc.) to handle devices that can be attached
  * to the Comedi core automatically without the COMEDI_DEVCONFIG ioctl.
  *
- * The context parameter is usually unused, but if the driver called
- * comedi_auto_config() directly instead of the comedi_pci_auto_config()
- * wrapper function, this will be a copy of the context passed to
- * comedi_auto_config().
+ * The context parameter is driver dependent.
  */
 static int skel_auto_attach(struct comedi_device *dev,
-				      unsigned long context)
+			    unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct skel_board *thisboard;
+	const struct skel_board *thisboard = NULL;
 	struct skel_private *devpriv;
 	int ret;
 
@@ -558,12 +547,18 @@ static int skel_auto_attach(struct comedi_device *dev,
 	if (!IS_ENABLED(CONFIG_COMEDI_PCI_DRIVERS))
 		return -EINVAL;
 
-	/* Find a matching board in skel_boards[]. */
-	thisboard = skel_find_pci_board(pcidev);
-	if (!thisboard) {
-		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
-		return -EINVAL;
-	}
+	/*
+	 * In this example, the _auto_attach is for a PCI device.
+	 *
+	 * The 'context' passed to this function is the id->driver_data
+	 * associated with the PCI device found in the id_table during
+	 * the modprobe. This 'context' is the index of the entry in
+	 * skel_boards[i] that contains the boardinfo for the PCI device.
+	 */
+	if (context < ARRAY_SIZE(skel_boards))
+		thisboard = &skel_boards[context];
+	if (!thisboard)
+		return -ENODEV;
 
 	/*
 	 * Point the struct comedi_device to the matching board info
@@ -573,13 +568,12 @@ static int skel_auto_attach(struct comedi_device *dev,
 	dev->board_name = thisboard->name;
 
 	/* Allocate the private data */
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	/* Enable the PCI device. */
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 
@@ -618,7 +612,6 @@ static void skel_detach(struct comedi_device *dev)
 {
 	const struct skel_board *thisboard = comedi_board(dev);
 	struct skel_private *devpriv = dev->private;
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
 	if (!thisboard || !devpriv)
 		return;
@@ -638,17 +631,17 @@ static void skel_detach(struct comedi_device *dev)
 		 * If PCI device enabled by _auto_attach() (or _attach()),
 		 * disable it here.
 		 */
-		if (pcidev && dev->iobase)
-			comedi_pci_disable(pcidev);
+		comedi_pci_disable(dev);
 	} else {
 		/*
 		 * ISA board
 		 *
-		 * If I/O regions successfully requested by _attach(),
-		 * release them here.
+		 * Release the first I/O region requested during the
+		 * _attach(). This is safe to call even if the request
+		 * failed. If any additional I/O regions are requested
+		 * they need to be released by the driver.
 		 */
-		if (dev->iobase)
-			release_region(dev->iobase, SKEL_SIZE);
+		comedi_legacy_detach(dev);
 	}
 }
 
@@ -689,33 +682,34 @@ static struct comedi_driver skel_driver = {
 
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
 
-/* This is used by modprobe to translate PCI IDs to drivers.  Should
- * only be used for PCI and ISA-PnP devices */
-/* Please add your PCI vendor ID to comedidev.h, and it will be forwarded
- * upstream. */
-#define PCI_VENDOR_ID_SKEL 0xdafe
+static int skel_pci_probe(struct pci_dev *dev,
+			  const struct pci_device_id *id)
+{
+	return comedi_pci_auto_config(dev, &skel_driver, id->driver_data);
+}
+
+/*
+ * Please add your PCI vendor ID to comedidev.h, and it will
+ * be forwarded upstream.
+ */
+#define PCI_VENDOR_ID_SKEL	0xdafe
+
+/*
+ * This is used by modprobe to translate PCI IDs to drivers.
+ * Should only be used for PCI and ISA-PnP devices
+ */
 static DEFINE_PCI_DEVICE_TABLE(skel_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_SKEL, 0x0100) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_SKEL, 0x0200) },
+	{ PCI_VDEVICE(SKEL, 0x0100), BOARD_SKEL100 },
+	{ PCI_VDEVICE(SKEL, 0x0200), BOARD_SKEL200 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, skel_pci_table);
 
-static int skel_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
-{
-	return comedi_pci_auto_config(dev, &skel_driver);
-}
-
-static void skel_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static struct pci_driver skel_pci_driver = {
-	.id_table = skel_pci_table,
-	.probe = &skel_pci_probe,
-	.remove = &skel_pci_remove
+	.name		= "dummy",
+	.id_table	= skel_pci_table,
+	.probe		= skel_pci_probe,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(skel_driver, skel_pci_driver);
 #else

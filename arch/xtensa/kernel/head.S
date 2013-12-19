@@ -7,7 +7,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001 - 2005 Tensilica Inc.
+ * Copyright (C) 2001 - 2008 Tensilica Inc.
  *
  * Chris Zankel <chris@zankel.net>
  * Marc Gauthier <marc@tensilica.com, marc@alumni.uwaterloo.ca>
@@ -48,17 +48,45 @@
 	 */
 
 	__HEAD
+	.begin	no-absolute-literals
+
 ENTRY(_start)
 
-	_j	2f
+	/* Preserve the pointer to the boot parameter list in EXCSAVE_1 */
+	wsr     a2, excsave1
+	_j	_SetupMMU
+
 	.align	4
-1:	.word	_startup
-2:	l32r	a0, 1b
+	.literal_position
+.Lstartup:
+	.word	_startup
+
+	.align	4
+	.global _SetupMMU
+_SetupMMU:
+	Offset = _SetupMMU - _start
+
+#ifdef CONFIG_INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	initialize_mmu
+#if defined(CONFIG_MMU) && XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY
+	rsr	a2, excsave1
+	movi	a3, 0x08000000
+	bgeu	a2, a3, 1f
+	movi	a3, 0xd0000000
+	add	a2, a2, a3
+	wsr	a2, excsave1
+1:
+#endif
+#endif
+	.end	no-absolute-literals
+
+	l32r	a0, .Lstartup
 	jx	a0
 
 ENDPROC(_start)
 
-	.section .init.text, "ax"
+	__INIT
+	.literal_position
 
 ENTRY(_startup)
 
@@ -66,10 +94,6 @@ ENTRY(_startup)
 
 	movi	a0, LOCKLEVEL
 	wsr	a0, ps
-
-	/* Preserve the pointer to the boot parameter list in EXCSAVE_1 */
-
-	wsr	a2, excsave1
 
 	/* Start with a fresh windowbase and windowstart.  */
 
@@ -86,7 +110,9 @@ ENTRY(_startup)
 	/* Clear debugging registers. */
 
 #if XCHAL_HAVE_DEBUG
+#if XCHAL_NUM_IBREAK > 0
 	wsr	a0, ibreakenable
+#endif
 	wsr	a0, icount
 	movi	a1, 15
 	wsr	a0, icountlevel
@@ -128,14 +154,14 @@ ENTRY(_startup)
 	wsr	a0, cpenable
 #endif
 
-	/* Set PS.INTLEVEL=1, PS.WOE=0, kernel stack, PS.EXCM=0
+	/* Set PS.INTLEVEL=LOCKLEVEL, PS.WOE=0, kernel stack, PS.EXCM=0
 	 *
 	 * Note: PS.EXCM must be cleared before using any loop
 	 *	 instructions; otherwise, they are silently disabled, and
 	 * 	 at most one iteration of the loop is executed.
 	 */
 
-	movi	a1, 1
+	movi	a1, LOCKLEVEL
 	wsr	a1, ps
 	rsync
 
@@ -155,8 +181,6 @@ ENTRY(_startup)
 	___invalidate_icache_all a2 a3
 
 	isync
-
-	initialize_mmu
 
 	/* Unpack data sections
 	 *
@@ -205,13 +229,18 @@ ENTRY(_startup)
 
 	___flush_dcache_all a2 a3
 #endif
+	memw
+	isync
+	___invalidate_icache_all a2 a3
+	isync
 
 	/* Setup stack and enable window exceptions (keep irqs disabled) */
 
 	movi	a1, init_thread_union
 	addi	a1, a1, KERNEL_STACK_SIZE
 
-	movi	a2, 0x00040001		# WOE=1, INTLEVEL=1, UM=0
+	movi	a2, (1 << PS_WOE_BIT) | LOCKLEVEL
+					# WOE=1, INTLEVEL=LOCKLEVEL, UM=0
 	wsr	a2, ps			# (enable reg-windows; progmode stack)
 	rsync
 

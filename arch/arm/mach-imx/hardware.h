@@ -20,6 +20,7 @@
 #ifndef __ASM_ARCH_MXC_HARDWARE_H__
 #define __ASM_ARCH_MXC_HARDWARE_H__
 
+#include <asm/io.h>
 #include <asm/sizes.h>
 
 #define addr_in_module(addr, mod) \
@@ -72,11 +73,6 @@
  *	AVIC	0x68000000+0x100000	->	0xf5800000+0x100000
  *	X_MEMC	0xb8000000+0x010000	->	0xf5c00000+0x010000
  *	SPBA0	0x50000000+0x100000	->	0xf5400000+0x100000
- * mx50:
- *	TZIC	0x0fffc000+0x004000	->	0xf4bfc000+0x004000
- *	AIPS1	0x53f00000+0x100000	->	0xf5700000+0x100000
- *	SPBA0	0x50000000+0x100000	->	0xf5400000+0x100000
- *	AIPS2	0x63f00000+0x100000	->	0xf5300000+0x100000
  * mx51:
  *	TZIC	0x0fffc000+0x004000	->	0xf4bfc000+0x004000
  *	IRAM	0x1ffe0000+0x020000	->	0xf4fe0000+0x020000
@@ -107,8 +103,6 @@
 
 #include "mxc.h"
 
-#include "mx6q.h"
-#include "mx50.h"
 #include "mx51.h"
 #include "mx53.h"
 #include "mx3x.h"

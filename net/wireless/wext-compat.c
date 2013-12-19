@@ -72,7 +72,6 @@ int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
 	struct cfg80211_registered_device *rdev;
 	struct vif_params vifparams;
 	enum nl80211_iftype type;
-	int ret;
 
 	rdev = wiphy_to_dev(wdev->wiphy);
 
@@ -98,11 +97,7 @@ int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
 
 	memset(&vifparams, 0, sizeof(vifparams));
 
-	cfg80211_lock_rdev(rdev);
-	ret = cfg80211_change_iface(rdev, dev, type, NULL, &vifparams);
-	cfg80211_unlock_rdev(rdev);
-
-	return ret;
+	return cfg80211_change_iface(rdev, dev, type, NULL, &vifparams);
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_siwmode);
 
@@ -579,13 +574,10 @@ static int cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 {
 	int err;
 
-	/* devlist mutex needed for possible IBSS re-join */
-	mutex_lock(&rdev->devlist_mtx);
 	wdev_lock(dev->ieee80211_ptr);
 	err = __cfg80211_set_encryption(rdev, dev, pairwise, addr,
 					remove, tx_key, idx, params);
 	wdev_unlock(dev->ieee80211_ptr);
-	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }
@@ -787,7 +779,7 @@ static int cfg80211_wext_siwfreq(struct net_device *dev,
 	struct cfg80211_chan_def chandef = {
 		.width = NL80211_CHAN_WIDTH_20_NOHT,
 	};
-	int freq, err;
+	int freq;
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
@@ -804,10 +796,7 @@ static int cfg80211_wext_siwfreq(struct net_device *dev,
 		chandef.chan = ieee80211_get_channel(&rdev->wiphy, freq);
 		if (!chandef.chan)
 			return -EINVAL;
-		mutex_lock(&rdev->devlist_mtx);
-		err = cfg80211_set_monitor_channel(rdev, &chandef);
-		mutex_unlock(&rdev->devlist_mtx);
-		return err;
+		return cfg80211_set_monitor_channel(rdev, &chandef);
 	case NL80211_IFTYPE_MESH_POINT:
 		freq = cfg80211_wext_freq(wdev->wiphy, wextfreq);
 		if (freq < 0)
@@ -818,10 +807,7 @@ static int cfg80211_wext_siwfreq(struct net_device *dev,
 		chandef.chan = ieee80211_get_channel(&rdev->wiphy, freq);
 		if (!chandef.chan)
 			return -EINVAL;
-		mutex_lock(&rdev->devlist_mtx);
-		err = cfg80211_set_mesh_channel(rdev, wdev, &chandef);
-		mutex_unlock(&rdev->devlist_mtx);
-		return err;
+		return cfg80211_set_mesh_channel(rdev, wdev, &chandef);
 	default:
 		return -EOPNOTSUPP;
 	}

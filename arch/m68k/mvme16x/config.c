@@ -43,7 +43,7 @@ static MK48T08ptr_t volatile rtc = (MK48T08ptr_t)MVME_RTC_BASE;
 
 static void mvme16x_get_model(char *model);
 extern void mvme16x_sched_init(irq_handler_t handler);
-extern unsigned long mvme16x_gettimeoffset (void);
+extern u32 mvme16x_gettimeoffset(void);
 extern int mvme16x_hwclk (int, struct rtc_time *);
 extern int mvme16x_set_clock_mmss (unsigned long);
 extern void mvme16x_reset (void);
@@ -289,7 +289,7 @@ void __init config_mvme16x(void)
     mach_max_dma_address = 0xffffffff;
     mach_sched_init      = mvme16x_sched_init;
     mach_init_IRQ        = mvme16x_init_IRQ;
-    mach_gettimeoffset   = mvme16x_gettimeoffset;
+    arch_gettimeoffset   = mvme16x_gettimeoffset;
     mach_hwclk           = mvme16x_hwclk;
     mach_set_clock_mmss	 = mvme16x_set_clock_mmss;
     mach_reset		 = mvme16x_reset;
@@ -405,9 +405,9 @@ void mvme16x_sched_init (irq_handler_t timer_routine)
 
 
 /* This is always executed with interrupts disabled.  */
-unsigned long mvme16x_gettimeoffset (void)
+u32 mvme16x_gettimeoffset(void)
 {
-    return (*(volatile unsigned long *)0xfff42008);
+    return (*(volatile u32 *)0xfff42008) * 1000;
 }
 
 int bcd2int (unsigned char b)

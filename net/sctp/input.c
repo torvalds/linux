@@ -29,10 +29,7 @@
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    La Monte H.P. Yarroll <piggy@acm.org>
@@ -43,9 +40,6 @@
  *    Daisy Chang <daisyc@us.ibm.com>
  *    Sridhar Samudrala <sri@us.ibm.com>
  *    Ardelle Fan <ardelle.fan@intel.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #include <linux/types.h>
@@ -87,15 +81,7 @@ static inline int sctp_rcv_checksum(struct net *net, struct sk_buff *skb)
 {
 	struct sctphdr *sh = sctp_hdr(skb);
 	__le32 cmp = sh->checksum;
-	struct sk_buff *list;
-	__le32 val;
-	__u32 tmp = sctp_start_cksum((__u8 *)sh, skb_headlen(skb));
-
-	skb_walk_frags(skb, list)
-		tmp = sctp_update_cksum((__u8 *)list->data, skb_headlen(list),
-					tmp);
-
-	val = sctp_end_cksum(tmp);
+	__le32 val = sctp_compute_cksum(skb, 0);
 
 	if (val != cmp) {
 		/* CRC failure, dump it. */
@@ -454,8 +440,6 @@ void sctp_icmp_proto_unreachable(struct sock *sk,
 			   struct sctp_association *asoc,
 			   struct sctp_transport *t)
 {
-	SCTP_DEBUG_PRINTK("%s\n",  __func__);
-
 	if (sock_owned_by_user(sk)) {
 		if (timer_pending(&t->proto_unreach_timer))
 			return;
@@ -464,12 +448,13 @@ void sctp_icmp_proto_unreachable(struct sock *sk,
 						jiffies + (HZ/20)))
 				sctp_association_hold(asoc);
 		}
-			
 	} else {
 		struct net *net = sock_net(sk);
 
-		if (timer_pending(&t->proto_unreach_timer) &&
-		    del_timer(&t->proto_unreach_timer))
+		pr_debug("%s: unrecognized next header type "
+			 "encountered!\n", __func__);
+
+		if (del_timer(&t->proto_unreach_timer))
 			sctp_association_put(asoc);
 
 		sctp_do_sm(net, SCTP_EVENT_T_OTHER,
@@ -590,7 +575,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	struct sctp_association *asoc = NULL;
 	struct sctp_transport *transport;
 	struct inet_sock *inet;
-	sk_buff_data_t saveip, savesctp;
+	__u16 saveip, savesctp;
 	int err;
 	struct net *net = dev_net(skb->dev);
 
@@ -649,8 +634,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 		break;
 	case ICMP_REDIRECT:
 		sctp_icmp_redirect(sk, transport, skb);
-		err = 0;
-		break;
+		/* Fall through to out_unlock. */
 	default:
 		goto out_unlock;
 	}
@@ -785,13 +769,12 @@ static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(struct net *net,
 	struct sctp_hashbucket *head;
 	struct sctp_ep_common *epb;
 	struct sctp_endpoint *ep;
-	struct hlist_node *node;
 	int hash;
 
 	hash = sctp_ep_hashfn(net, ntohs(laddr->v4.sin_port));
 	head = &sctp_ep_hashtable[hash];
 	read_lock(&head->lock);
-	sctp_for_each_hentry(epb, node, &head->chain) {
+	sctp_for_each_hentry(epb, &head->chain) {
 		ep = sctp_ep(epb);
 		if (sctp_endpoint_is_match(ep, net, laddr))
 			goto hit;
@@ -877,7 +860,6 @@ static struct sctp_association *__sctp_lookup_association(
 	struct sctp_ep_common *epb;
 	struct sctp_association *asoc;
 	struct sctp_transport *transport;
-	struct hlist_node *node;
 	int hash;
 
 	/* Optimize here for direct hit, only listening connections can
@@ -887,7 +869,7 @@ static struct sctp_association *__sctp_lookup_association(
 				 ntohs(peer->v4.sin_port));
 	head = &sctp_assoc_hashtable[hash];
 	read_lock(&head->lock);
-	sctp_for_each_hentry(epb, node, &head->chain) {
+	sctp_for_each_hentry(epb, &head->chain) {
 		asoc = sctp_assoc(epb);
 		transport = sctp_assoc_is_match(asoc, net, local, peer);
 		if (transport)
@@ -906,11 +888,11 @@ hit:
 }
 
 /* Look up an association. BH-safe. */
-SCTP_STATIC
+static
 struct sctp_association *sctp_lookup_association(struct net *net,
 						 const union sctp_addr *laddr,
 						 const union sctp_addr *paddr,
-					    struct sctp_transport **transportp)
+						 struct sctp_transport **transportp)
 {
 	struct sctp_association *asoc;
 

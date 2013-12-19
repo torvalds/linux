@@ -182,8 +182,8 @@ static void pl08x_put_signal(const struct pl08x_channel_data *cd, int ch)
 static struct pl08x_platform_data pl08x_pd = {
 	.slave_channels = &pl08x_slave_channels[0],
 	.num_slave_channels = ARRAY_SIZE(pl08x_slave_channels),
-	.get_signal = pl08x_get_signal,
-	.put_signal = pl08x_put_signal,
+	.get_xfer_signal = pl08x_get_signal,
+	.put_xfer_signal = pl08x_put_signal,
 	.lli_buses = PL08X_AHB1,
 	.mem_buses = PL08X_AHB1,
 };
@@ -263,7 +263,7 @@ DT_MACHINE_START(LPC32XX_DT, "LPC32XX SoC (Flattened Device Tree)")
 	.atag_offset	= 0x100,
 	.map_io		= lpc32xx_map_io,
 	.init_irq	= lpc32xx_init_irq,
-	.timer		= &lpc32xx_timer,
+	.init_time	= lpc32xx_timer_init,
 	.init_machine	= lpc3250_machine_init,
 	.dt_compat	= lpc32xx_dt_compat,
 	.restart	= lpc23xx_restart,

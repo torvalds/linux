@@ -902,7 +902,8 @@ static void fc_fcp_resp(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 	/*
 	 * Check for missing or extra data frames.
 	 */
-	if (unlikely(fsp->xfer_len != expected_len)) {
+	if (unlikely(fsp->cdb_status == SAM_STAT_GOOD &&
+		     fsp->xfer_len != expected_len)) {
 		if (fsp->xfer_len < expected_len) {
 			/*
 			 * Some data may be queued locally,
@@ -955,12 +956,11 @@ static void fc_fcp_complete_locked(struct fc_fcp_pkt *fsp)
 		 * Test for transport underrun, independent of response
 		 * underrun status.
 		 */
-		if (fsp->xfer_len < fsp->data_len && !fsp->io_status &&
+		if (fsp->cdb_status == SAM_STAT_GOOD &&
+		    fsp->xfer_len < fsp->data_len && !fsp->io_status &&
 		    (!(fsp->scsi_comp_flags & FCP_RESID_UNDER) ||
-		     fsp->xfer_len < fsp->data_len - fsp->scsi_resid)) {
+		     fsp->xfer_len < fsp->data_len - fsp->scsi_resid))
 			fsp->status_code = FC_DATA_UNDRUN;
-			fsp->io_status = 0;
-		}
 	}
 
 	seq = fsp->seq_ptr;
@@ -1381,10 +1381,10 @@ static void fc_fcp_timeout(unsigned long data)
 
 	fsp->state |= FC_SRB_FCP_PROCESSING_TMO;
 
-	if (fsp->state & FC_SRB_RCV_STATUS)
-		fc_fcp_complete_locked(fsp);
-	else if (rpriv->flags & FC_RP_FLAGS_REC_SUPPORTED)
+	if (rpriv->flags & FC_RP_FLAGS_REC_SUPPORTED)
 		fc_fcp_rec(fsp);
+	else if (fsp->state & FC_SRB_RCV_STATUS)
+		fc_fcp_complete_locked(fsp);
 	else
 		fc_fcp_recovery(fsp, FC_TIMED_OUT);
 	fsp->state &= ~FC_SRB_FCP_PROCESSING_TMO;
@@ -2043,7 +2043,7 @@ int fc_eh_abort(struct scsi_cmnd *sc_cmd)
 		spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
 		return SUCCESS;
 	}
-	/* grab a ref so the fsp and sc_cmd cannot be relased from under us */
+	/* grab a ref so the fsp and sc_cmd cannot be released from under us */
 	fc_fcp_pkt_hold(fsp);
 	spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
 

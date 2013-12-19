@@ -57,6 +57,9 @@ void (*mach_reset)(void);
 void (*mach_halt)(void);
 void (*mach_power_off)(void);
 
+#ifdef CONFIG_M68000
+#define CPU_NAME	"MC68000"
+#endif
 #ifdef CONFIG_M68328
 #define CPU_NAME	"MC68328"
 #endif
@@ -115,7 +118,7 @@ void (*mach_power_off)(void);
  *
  * Returns:
  */
-void parse_uboot_commandline(char *commandp, int size)
+static void __init parse_uboot_commandline(char *commandp, int size)
 {
 	extern unsigned long _init_sp;
 	unsigned long *sp;

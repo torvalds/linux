@@ -16,13 +16,13 @@
 #include <net/xfrm.h>
 
 /* Informational hook. The decap is still done here. */
-static struct xfrm_tunnel __rcu *rcv_notify_handlers __read_mostly;
+static struct xfrm_tunnel_notifier __rcu *rcv_notify_handlers __read_mostly;
 static DEFINE_MUTEX(xfrm4_mode_tunnel_input_mutex);
 
-int xfrm4_mode_tunnel_input_register(struct xfrm_tunnel *handler)
+int xfrm4_mode_tunnel_input_register(struct xfrm_tunnel_notifier *handler)
 {
-	struct xfrm_tunnel __rcu **pprev;
-	struct xfrm_tunnel *t;
+	struct xfrm_tunnel_notifier __rcu **pprev;
+	struct xfrm_tunnel_notifier *t;
 	int ret = -EEXIST;
 	int priority = handler->priority;
 
@@ -50,10 +50,10 @@ err:
 }
 EXPORT_SYMBOL_GPL(xfrm4_mode_tunnel_input_register);
 
-int xfrm4_mode_tunnel_input_deregister(struct xfrm_tunnel *handler)
+int xfrm4_mode_tunnel_input_deregister(struct xfrm_tunnel_notifier *handler)
 {
-	struct xfrm_tunnel __rcu **pprev;
-	struct xfrm_tunnel *t;
+	struct xfrm_tunnel_notifier __rcu **pprev;
+	struct xfrm_tunnel_notifier *t;
 	int ret = -ENOENT;
 
 	mutex_lock(&xfrm4_mode_tunnel_input_mutex);
@@ -103,8 +103,12 @@ static int xfrm4_mode_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	top_iph->protocol = xfrm_af2proto(skb_dst(skb)->ops->family);
 
-	/* DS disclosed */
-	top_iph->tos = INET_ECN_encapsulate(XFRM_MODE_SKB_CB(skb)->tos,
+	/* DS disclosing depends on XFRM_SA_XFLAG_DONT_ENCAP_DSCP */
+	if (x->props.extra_flags & XFRM_SA_XFLAG_DONT_ENCAP_DSCP)
+		top_iph->tos = 0;
+	else
+		top_iph->tos = XFRM_MODE_SKB_CB(skb)->tos;
+	top_iph->tos = INET_ECN_encapsulate(top_iph->tos,
 					    XFRM_MODE_SKB_CB(skb)->tos);
 
 	flags = x->props.flags;
@@ -113,7 +117,7 @@ static int xfrm4_mode_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	top_iph->frag_off = (flags & XFRM_STATE_NOPMTUDISC) ?
 		0 : (XFRM_MODE_SKB_CB(skb)->frag_off & htons(IP_DF));
-	ip_select_ident(top_iph, dst->child, NULL);
+	ip_select_ident(skb, dst->child, NULL);
 
 	top_iph->ttl = ip4_dst_hoplimit(dst->child);
 
@@ -130,7 +134,7 @@ static int xfrm4_mode_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 
 static int xfrm4_mode_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct xfrm_tunnel *handler;
+	struct xfrm_tunnel_notifier *handler;
 	int err = -EINVAL;
 
 	if (XFRM_MODE_SKB_CB(skb)->protocol != IPPROTO_IPIP)
@@ -142,8 +146,8 @@ static int xfrm4_mode_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 	for_each_input_rcu(rcv_notify_handlers, handler)
 		handler->handler(skb);
 
-	if (skb_cloned(skb) &&
-	    (err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC)))
+	err = skb_unclone(skb, GFP_ATOMIC);
+	if (err)
 		goto out;
 
 	if (x->props.flags & XFRM_STATE_DECAP_DSCP)

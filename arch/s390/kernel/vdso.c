@@ -63,7 +63,7 @@ static int __init vdso_setup(char *s)
 	else if (strncmp(s, "off", 4) == 0)
 		vdso_enabled = 0;
 	else {
-		rc = strict_strtoul(s, 0, &val);
+		rc = kstrtoul(s, 0, &val);
 		vdso_enabled = rc ? 0 : !!val;
 	}
 	return !rc;
@@ -84,8 +84,7 @@ struct vdso_data *vdso_data = &vdso_data_store.data;
  */
 static void vdso_init_data(struct vdso_data *vd)
 {
-	vd->ectg_available =
-		s390_user_mode != HOME_SPACE_MODE && test_facility(31);
+	vd->ectg_available = test_facility(31);
 }
 
 #ifdef CONFIG_64BIT
@@ -102,7 +101,7 @@ int vdso_alloc_per_cpu(struct _lowcore *lowcore)
 
 	lowcore->vdso_per_cpu_data = __LC_PASTE;
 
-	if (s390_user_mode == HOME_SPACE_MODE || !vdso_enabled)
+	if (!vdso_enabled)
 		return 0;
 
 	segment_table = __get_free_pages(GFP_KERNEL, SEGMENT_ORDER);
@@ -113,11 +112,11 @@ int vdso_alloc_per_cpu(struct _lowcore *lowcore)
 
 	clear_table((unsigned long *) segment_table, _SEGMENT_ENTRY_EMPTY,
 		    PAGE_SIZE << SEGMENT_ORDER);
-	clear_table((unsigned long *) page_table, _PAGE_TYPE_EMPTY,
+	clear_table((unsigned long *) page_table, _PAGE_INVALID,
 		    256*sizeof(unsigned long));
 
 	*(unsigned long *) segment_table = _SEGMENT_ENTRY + page_table;
-	*(unsigned long *) page_table = _PAGE_RO + page_frame;
+	*(unsigned long *) page_table = _PAGE_PROTECT + page_frame;
 
 	psal = (u32 *) (page_table + 256*sizeof(unsigned long));
 	aste = psal + 32;
@@ -126,7 +125,7 @@ int vdso_alloc_per_cpu(struct _lowcore *lowcore)
 		psal[i] = 0x80000000;
 
 	lowcore->paste[4] = (u32)(addr_t) psal;
-	psal[0] = 0x20000000;
+	psal[0] = 0x02000000;
 	psal[2] = (u32)(addr_t) aste;
 	*(unsigned long *) (aste + 2) = segment_table +
 		_ASCE_TABLE_LENGTH + _ASCE_USER_BITS + _ASCE_TYPE_SEGMENT;
@@ -147,7 +146,7 @@ void vdso_free_per_cpu(struct _lowcore *lowcore)
 	unsigned long segment_table, page_table, page_frame;
 	u32 *psal, *aste;
 
-	if (s390_user_mode == HOME_SPACE_MODE || !vdso_enabled)
+	if (!vdso_enabled)
 		return;
 
 	psal = (u32 *)(addr_t) lowcore->paste[4];
@@ -165,7 +164,7 @@ static void vdso_init_cr5(void)
 {
 	unsigned long cr5;
 
-	if (s390_user_mode == HOME_SPACE_MODE || !vdso_enabled)
+	if (!vdso_enabled)
 		return;
 	cr5 = offsetof(struct _lowcore, paste);
 	__ctl_load(cr5, 5, 5);

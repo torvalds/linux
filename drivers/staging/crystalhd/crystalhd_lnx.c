@@ -75,7 +75,9 @@ static int chd_dec_disable_int(struct crystalhd_adp *adp)
 	return 0;
 }
 
-struct crystalhd_ioctl_data *chd_dec_alloc_iodata(struct crystalhd_adp *adp, bool isr)
+static struct
+crystalhd_ioctl_data *chd_dec_alloc_iodata(struct crystalhd_adp *adp,
+					   bool isr)
 {
 	unsigned long flags = 0;
 	struct crystalhd_ioctl_data *temp;
@@ -95,8 +97,8 @@ struct crystalhd_ioctl_data *chd_dec_alloc_iodata(struct crystalhd_adp *adp, boo
 	return temp;
 }
 
-void chd_dec_free_iodata(struct crystalhd_adp *adp, struct crystalhd_ioctl_data *iodata,
-			 bool isr)
+static void chd_dec_free_iodata(struct crystalhd_adp *adp,
+				struct crystalhd_ioctl_data *iodata, bool isr)
 {
 	unsigned long flags = 0;
 
@@ -109,7 +111,8 @@ void chd_dec_free_iodata(struct crystalhd_adp *adp, struct crystalhd_ioctl_data 
 	spin_unlock_irqrestore(&adp->lock, flags);
 }
 
-static inline int crystalhd_user_data(unsigned long ud, void *dr, int size, int set)
+static inline int crystalhd_user_data(unsigned long ud, void *dr,
+			 int size, int set)
 {
 	int rc;
 
@@ -131,8 +134,8 @@ static inline int crystalhd_user_data(unsigned long ud, void *dr, int size, int 
 	return rc;
 }
 
-static int chd_dec_fetch_cdata(struct crystalhd_adp *adp, struct crystalhd_ioctl_data *io,
-			       uint32_t m_sz, unsigned long ua)
+static int chd_dec_fetch_cdata(struct crystalhd_adp *adp,
+	 struct crystalhd_ioctl_data *io, uint32_t m_sz, unsigned long ua)
 {
 	unsigned long ua_off;
 	int rc = 0;
@@ -154,7 +157,7 @@ static int chd_dec_fetch_cdata(struct crystalhd_adp *adp, struct crystalhd_ioctl
 	if (rc) {
 		BCMLOG_ERR("failed to pull add_cdata sz:%x ua_off:%x\n",
 			   io->add_cdata_sz, (unsigned int)ua_off);
-		kfree(io->add_cdata);
+		vfree(io->add_cdata);
 		io->add_cdata = NULL;
 		return -ENODATA;
 	}
@@ -163,7 +166,7 @@ static int chd_dec_fetch_cdata(struct crystalhd_adp *adp, struct crystalhd_ioctl
 }
 
 static int chd_dec_release_cdata(struct crystalhd_adp *adp,
-				 struct crystalhd_ioctl_data *io, unsigned long ua)
+			 struct crystalhd_ioctl_data *io, unsigned long ua)
 {
 	unsigned long ua_off;
 	int rc;
@@ -178,8 +181,9 @@ static int chd_dec_release_cdata(struct crystalhd_adp *adp,
 		rc = crystalhd_user_data(ua_off, io->add_cdata,
 					io->add_cdata_sz, 1);
 		if (rc) {
-			BCMLOG_ERR("failed to push add_cdata sz:%x ua_off:%x\n",
-				   io->add_cdata_sz, (unsigned int)ua_off);
+			BCMLOG_ERR(
+				"failed to push add_cdata sz:%x ua_off:%x\n",
+				 io->add_cdata_sz, (unsigned int)ua_off);
 			return -ENODATA;
 		}
 	}
@@ -252,10 +256,7 @@ static int chd_dec_api_cmd(struct crystalhd_adp *adp, unsigned long ua,
 		rc = chd_dec_proc_user_data(adp, temp, ua, 1);
 	}
 
-	if (temp) {
-		chd_dec_free_iodata(adp, temp, 0);
-		temp = NULL;
-	}
+	chd_dec_free_iodata(adp, temp, 0);
 
 	return rc;
 }
@@ -378,8 +379,8 @@ static int chd_dec_init_chdev(struct crystalhd_adp *adp)
 		goto class_create_fail;
 	}
 
-	dev = device_create(crystalhd_class, NULL, MKDEV(adp->chd_dec_major, 0),
-			    NULL, "crystalhd");
+	dev = device_create(crystalhd_class, NULL,
+			 MKDEV(adp->chd_dec_major, 0), NULL, "crystalhd");
 	if (IS_ERR(dev)) {
 		rc = PTR_ERR(dev);
 		BCMLOG_ERR("failed to create device\n");
@@ -394,7 +395,8 @@ static int chd_dec_init_chdev(struct crystalhd_adp *adp)
 
 	/* Allocate general purpose ioctl pool. */
 	for (i = 0; i < CHD_IODATA_POOL_SZ; i++) {
-		temp = kzalloc(sizeof(struct crystalhd_ioctl_data), GFP_KERNEL);
+		temp = kzalloc(sizeof(struct crystalhd_ioctl_data),
+					 GFP_KERNEL);
 		if (!temp) {
 			BCMLOG_ERR("ioctl data pool kzalloc failed\n");
 			rc = -ENOMEM;
@@ -544,8 +546,7 @@ static int chd_dec_pci_probe(struct pci_dev *pdev,
 	int rc;
 	enum BC_STATUS sts = BC_STS_SUCCESS;
 
-	BCMLOG(BCMLOG_DBG, "PCI_INFO: Vendor:0x%04x Device:0x%04x "
-	       "s_vendor:0x%04x s_device: 0x%04x\n",
+	BCMLOG(BCMLOG_DBG, "PCI_INFO: Vendor:0x%04x Device:0x%04x s_vendor:0x%04x s_device: 0x%04x\n",
 	       pdev->vendor, pdev->device, pdev->subsystem_vendor,
 	       pdev->subsystem_device);
 
@@ -627,7 +628,7 @@ err:
 }
 
 #ifdef CONFIG_PM
-int chd_dec_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+static int chd_dec_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct crystalhd_adp *adp;
 	struct crystalhd_ioctl_data *temp;
@@ -661,7 +662,7 @@ int chd_dec_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-int chd_dec_pci_resume(struct pci_dev *pdev)
+static int chd_dec_pci_resume(struct pci_dev *pdev)
 {
 	struct crystalhd_adp *adp;
 	enum BC_STATUS sts = BC_STS_SUCCESS;

@@ -17,10 +17,12 @@
 #include <net/netns/ipv6.h>
 #include <net/netns/sctp.h>
 #include <net/netns/dccp.h>
+#include <net/netns/netfilter.h>
 #include <net/netns/x_tables.h>
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 #include <net/netns/conntrack.h>
 #endif
+#include <net/netns/nftables.h>
 #include <net/netns/xfrm.h>
 
 struct user_namespace;
@@ -73,6 +75,7 @@ struct net {
 	struct hlist_head	*dev_index_head;
 	unsigned int		dev_base_seq;	/* protected by rtnl_mutex */
 	int			ifindex;
+	unsigned int		dev_unreg_count;
 
 	/* core fib_rules */
 	struct list_head	rules_ops;
@@ -94,9 +97,13 @@ struct net {
 	struct netns_dccp	dccp;
 #endif
 #ifdef CONFIG_NETFILTER
+	struct netns_nf		nf;
 	struct netns_xt		xt;
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	struct netns_ct		ct;
+#endif
+#if defined(CONFIG_NF_TABLES) || defined(CONFIG_NF_TABLES_MODULE)
+	struct netns_nftables	nft;
 #endif
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
 	struct netns_nf_frag	nf_frag;
@@ -113,9 +120,11 @@ struct net {
 #ifdef CONFIG_XFRM
 	struct netns_xfrm	xfrm;
 #endif
+#if IS_ENABLED(CONFIG_IP_VS)
 	struct netns_ipvs	*ipvs;
+#endif
 	struct sock		*diag_nlsk;
-	atomic_t		rt_genid;
+	atomic_t		fnhe_genid;
 };
 
 /*
@@ -132,8 +141,8 @@ struct net {
 extern struct net init_net;
 
 #ifdef CONFIG_NET_NS
-extern struct net *copy_net_ns(unsigned long flags,
-	struct user_namespace *user_ns, struct net *old_net);
+struct net *copy_net_ns(unsigned long flags, struct user_namespace *user_ns,
+			struct net *old_net);
 
 #else /* CONFIG_NET_NS */
 #include <linux/sched.h>
@@ -150,11 +159,11 @@ static inline struct net *copy_net_ns(unsigned long flags,
 
 extern struct list_head net_namespace_list;
 
-extern struct net *get_net_ns_by_pid(pid_t pid);
-extern struct net *get_net_ns_by_fd(int pid);
+struct net *get_net_ns_by_pid(pid_t pid);
+struct net *get_net_ns_by_fd(int pid);
 
 #ifdef CONFIG_NET_NS
-extern void __put_net(struct net *net);
+void __put_net(struct net *net);
 
 static inline struct net *get_net(struct net *net)
 {
@@ -186,7 +195,7 @@ int net_eq(const struct net *net1, const struct net *net2)
 	return net1 == net2;
 }
 
-extern void net_drop_ns(void *);
+void net_drop_ns(void *);
 
 #else
 
@@ -303,19 +312,19 @@ struct pernet_operations {
  * device which caused kernel oops, and panics during network
  * namespace cleanup.   So please don't get this wrong.
  */
-extern int register_pernet_subsys(struct pernet_operations *);
-extern void unregister_pernet_subsys(struct pernet_operations *);
-extern int register_pernet_device(struct pernet_operations *);
-extern void unregister_pernet_device(struct pernet_operations *);
+int register_pernet_subsys(struct pernet_operations *);
+void unregister_pernet_subsys(struct pernet_operations *);
+int register_pernet_device(struct pernet_operations *);
+void unregister_pernet_device(struct pernet_operations *);
 
 struct ctl_table;
 struct ctl_table_header;
 
 #ifdef CONFIG_SYSCTL
-extern int net_sysctl_init(void);
-extern struct ctl_table_header *register_net_sysctl(struct net *net,
-	const char *path, struct ctl_table *table);
-extern void unregister_net_sysctl_table(struct ctl_table_header *header);
+int net_sysctl_init(void);
+struct ctl_table_header *register_net_sysctl(struct net *net, const char *path,
+					     struct ctl_table *table);
+void unregister_net_sysctl_table(struct ctl_table_header *header);
 #else
 static inline int net_sysctl_init(void) { return 0; }
 static inline struct ctl_table_header *register_net_sysctl(struct net *net,
@@ -328,14 +337,52 @@ static inline void unregister_net_sysctl_table(struct ctl_table_header *header)
 }
 #endif
 
-static inline int rt_genid(struct net *net)
+static inline int rt_genid_ipv4(struct net *net)
 {
-	return atomic_read(&net->rt_genid);
+	return atomic_read(&net->ipv4.rt_genid);
 }
 
-static inline void rt_genid_bump(struct net *net)
+static inline void rt_genid_bump_ipv4(struct net *net)
 {
-	atomic_inc(&net->rt_genid);
+	atomic_inc(&net->ipv4.rt_genid);
+}
+
+#if IS_ENABLED(CONFIG_IPV6)
+static inline int rt_genid_ipv6(struct net *net)
+{
+	return atomic_read(&net->ipv6.rt_genid);
+}
+
+static inline void rt_genid_bump_ipv6(struct net *net)
+{
+	atomic_inc(&net->ipv6.rt_genid);
+}
+#else
+static inline int rt_genid_ipv6(struct net *net)
+{
+	return 0;
+}
+
+static inline void rt_genid_bump_ipv6(struct net *net)
+{
+}
+#endif
+
+/* For callers who don't really care about whether it's IPv4 or IPv6 */
+static inline void rt_genid_bump_all(struct net *net)
+{
+	rt_genid_bump_ipv4(net);
+	rt_genid_bump_ipv6(net);
+}
+
+static inline int fnhe_genid(struct net *net)
+{
+	return atomic_read(&net->fnhe_genid);
+}
+
+static inline void fnhe_genid_bump(struct net *net)
+{
+	atomic_inc(&net->fnhe_genid);
 }
 
 #endif /* __NET_NET_NAMESPACE_H */

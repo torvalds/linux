@@ -25,7 +25,7 @@
 ******************************************************************************
 
   Few modifications for Realtek's Wi-Fi drivers by
-  Andrea Merello <andreamrl@tiscali.it>
+  Andrea Merello <andrea.merello@gmail.com>
 
   A special thanks goes to Realtek for their support !
 
@@ -70,7 +70,7 @@ val  | 0  |  0  |  0  |  1  |  x  |  0  |  0  |  0  |  1  |  0  |  x  |  x  |  x
 desc | ^-ver-^  |  ^type-^  |  ^-----subtype-----^  | to  |from |more |retry| pwr |more |wep   |
      |          |           | x=0 data,x=1 data+ack | DS  | DS  |frag |     | mgm |data |      |
      '-----------------------------------------------------------------------------------------'
-		                                    /\
+                                                    /\
                                                     |
 802.11 Data Frame                                   |
            ,--------- 'ctrl' expands to >-----------'
@@ -183,7 +183,7 @@ int ieee80211_encrypt_fragment(
 	struct sk_buff *frag,
 	int hdr_len)
 {
-	struct ieee80211_crypt_data* crypt = ieee->crypt[ieee->tx_keyidx];
+	struct ieee80211_crypt_data *crypt = ieee->crypt[ieee->tx_keyidx];
 	int res;
 
 	if (!(crypt && crypt->ops))
@@ -237,13 +237,13 @@ void ieee80211_txb_free(struct ieee80211_txb *txb) {
 	kfree(txb);
 }
 
-struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
-					  int gfp_mask)
+static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
+						 gfp_t gfp_mask)
 {
 	struct ieee80211_txb *txb;
 	int i;
 	txb = kmalloc(
-		sizeof(struct ieee80211_txb) + (sizeof(u8*) * nr_frags),
+		sizeof(struct ieee80211_txb) + (sizeof(u8 *) * nr_frags),
 		gfp_mask);
 	if (!txb)
 		return NULL;
@@ -283,31 +283,32 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 //	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, skb->data, skb->len);
 	ip = ip_hdr(skb);
 	switch (ip->tos & 0xfc) {
-		case 0x20:
-			return 2;
-		case 0x40:
-			return 1;
-		case 0x60:
-			return 3;
-		case 0x80:
-			return 4;
-		case 0xa0:
-			return 5;
-		case 0xc0:
-			return 6;
-		case 0xe0:
-			return 7;
-		default:
-			return 0;
+	case 0x20:
+		return 2;
+	case 0x40:
+		return 1;
+	case 0x60:
+		return 3;
+	case 0x80:
+		return 4;
+	case 0xa0:
+		return 5;
+	case 0xc0:
+		return 6;
+	case 0xe0:
+		return 7;
+	default:
+		return 0;
 	}
 }
 
 #define SN_LESS(a, b)		(((a-b)&0x800)!=0)
-void ieee80211_tx_query_agg_cap(struct ieee80211_device* ieee, struct sk_buff* skb, cb_desc* tcb_desc)
+static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
+				       struct sk_buff *skb, cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	PTX_TS_RECORD			pTxTs = NULL;
-	struct ieee80211_hdr_1addr* hdr = (struct ieee80211_hdr_1addr*)skb->data;
+	struct ieee80211_hdr_1addr *hdr = (struct ieee80211_hdr_1addr *)skb->data;
 
 	if (!pHTInfo->bCurrentHTSupport||!pHTInfo->bEnableHT)
 		return;
@@ -330,7 +331,7 @@ void ieee80211_tx_query_agg_cap(struct ieee80211_device* ieee, struct sk_buff* s
 	}
 	if(pHTInfo->bCurrentAMPDUEnable)
 	{
-		if (!GetTs(ieee, (PTS_COMMON_INFO*)(&pTxTs), hdr->addr1, skb->priority, TX_DIR, true))
+		if (!GetTs(ieee, (PTS_COMMON_INFO *)(&pTxTs), hdr->addr1, skb->priority, TX_DIR, true))
 		{
 			printk("===>can't get TS\n");
 			return;
@@ -356,7 +357,7 @@ void ieee80211_tx_query_agg_cap(struct ieee80211_device* ieee, struct sk_buff* s
 		}
 	}
 FORCED_AGG_SETTING:
-	switch(pHTInfo->ForcedAMPDUMode )
+	switch (pHTInfo->ForcedAMPDUMode )
 	{
 		case HT_AGG_AUTO:
 			break;
@@ -377,7 +378,7 @@ FORCED_AGG_SETTING:
 		return;
 }
 
-extern void ieee80211_qurey_ShortPreambleMode(struct ieee80211_device* ieee, cb_desc* tcb_desc)
+extern void ieee80211_qurey_ShortPreambleMode(struct ieee80211_device *ieee, cb_desc *tcb_desc)
 {
 	tcb_desc->bUseShortPreamble = false;
 	if (tcb_desc->data_rate == 2)
@@ -395,7 +396,7 @@ ieee80211_query_HTCapShortGI(struct ieee80211_device *ieee, cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT		pHTInfo = ieee->pHTInfo;
 
-	tcb_desc->bUseShortGI 		= false;
+	tcb_desc->bUseShortGI		= false;
 
 	if(!pHTInfo->bCurrentHTSupport||!pHTInfo->bEnableHT)
 		return;
@@ -412,7 +413,8 @@ ieee80211_query_HTCapShortGI(struct ieee80211_device *ieee, cb_desc *tcb_desc)
 		tcb_desc->bUseShortGI = true;
 }
 
-void ieee80211_query_BandwidthMode(struct ieee80211_device* ieee, cb_desc *tcb_desc)
+static void ieee80211_query_BandwidthMode(struct ieee80211_device *ieee,
+					  cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 
@@ -432,7 +434,9 @@ void ieee80211_query_BandwidthMode(struct ieee80211_device* ieee, cb_desc *tcb_d
 	return;
 }
 
-void ieee80211_query_protectionmode(struct ieee80211_device* ieee, cb_desc* tcb_desc, struct sk_buff* skb)
+static void ieee80211_query_protectionmode(struct ieee80211_device *ieee,
+					   cb_desc *tcb_desc,
+					   struct sk_buff *skb)
 {
 	// Common Settings
 	tcb_desc->bRTSSTBC			= false;
@@ -514,7 +518,7 @@ void ieee80211_query_protectionmode(struct ieee80211_device* ieee, cb_desc* tcb_
 			if(pHTInfo->IOTAction & HT_IOT_ACT_FORCED_CTS2SELF)
 			{
 				tcb_desc->bCTSEnable	= true;
-				tcb_desc->rts_rate  = 	MGN_24M;
+				tcb_desc->rts_rate  =	MGN_24M;
 				tcb_desc->bRTSEnable = true;
 				break;
 			}
@@ -527,7 +531,7 @@ void ieee80211_query_protectionmode(struct ieee80211_device* ieee, cb_desc* tcb_
 	{
 		tcb_desc->bCTSEnable	= true;
 		tcb_desc->rts_rate = MGN_24M;
-		tcb_desc->bRTSEnable 	= true;
+		tcb_desc->bRTSEnable	= true;
 	}
 	if (ieee->current_network.capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
 		tcb_desc->bUseShortPreamble = true;
@@ -543,7 +547,8 @@ NO_PROTECTION:
 }
 
 
-void ieee80211_txrate_selectmode(struct ieee80211_device* ieee, cb_desc* tcb_desc)
+static void ieee80211_txrate_selectmode(struct ieee80211_device *ieee,
+					cb_desc *tcb_desc)
 {
 #ifdef TO_DO_LIST
 	if(!IsDataFrame(pFrame))
@@ -573,14 +578,15 @@ void ieee80211_txrate_selectmode(struct ieee80211_device* ieee, cb_desc* tcb_des
 	}
 }
 
-void ieee80211_query_seqnum(struct ieee80211_device*ieee, struct sk_buff* skb, u8* dst)
+static void ieee80211_query_seqnum(struct ieee80211_device *ieee,
+				   struct sk_buff *skb, u8 *dst)
 {
 	if (is_multicast_ether_addr(dst))
 		return;
 	if (IsQoSDataFrame(skb->data)) //we deal qos data only
 	{
 		PTX_TS_RECORD pTS = NULL;
-		if (!GetTs(ieee, (PTS_COMMON_INFO*)(&pTS), dst, skb->priority, TX_DIR, true))
+		if (!GetTs(ieee, (PTS_COMMON_INFO *)(&pTS), dst, skb->priority, TX_DIR, true))
 		{
 			return;
 		}
@@ -607,7 +613,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	u8 dest[ETH_ALEN], src[ETH_ALEN];
 	int qos_actived = ieee->current_network.qos_data.active;
 
-	struct ieee80211_crypt_data* crypt;
+	struct ieee80211_crypt_data *crypt;
 
 	cb_desc *tcb_desc;
 
@@ -656,17 +662,17 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		memcpy(&dest, skb->data, ETH_ALEN);
 		memcpy(&src, skb->data+ETH_ALEN, ETH_ALEN);
 
-                /* Advance the SKB to the start of the payload */
-                skb_pull(skb, sizeof(struct ethhdr));
+		/* Advance the SKB to the start of the payload */
+		skb_pull(skb, sizeof(struct ethhdr));
 
-                /* Determine total amount of storage required for TXB packets */
-                bytes = skb->len + SNAP_SIZE + sizeof(u16);
+		/* Determine total amount of storage required for TXB packets */
+		bytes = skb->len + SNAP_SIZE + sizeof(u16);
 
 		if (encrypt)
 			fc = IEEE80211_FTYPE_DATA | IEEE80211_FCTL_WEP;
 		else
 
-                        fc = IEEE80211_FTYPE_DATA;
+			fc = IEEE80211_FTYPE_DATA;
 
 		//if(ieee->current_network.QoS_Enable)
 		if(qos_actived)
@@ -689,7 +695,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			memcpy(&header.addr3, ieee->current_network.bssid, ETH_ALEN);
 		}
 
-                header.frame_ctl = cpu_to_le16(fc);
+		header.frame_ctl = cpu_to_le16(fc);
 
 		/* Determine fragmentation size based on destination (multicast
 		* and broadcast are not fragmented) */
@@ -833,7 +839,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		  else
 			ieee->seq_ctrl[UP2AC(skb->priority) + 1]++;
 		} else {
-  		  if (ieee->seq_ctrl[0] == 0xFFF)
+		  if (ieee->seq_ctrl[0] == 0xFFF)
 			ieee->seq_ctrl[0] = 0;
 		  else
 			ieee->seq_ctrl[0]++;

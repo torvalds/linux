@@ -149,6 +149,7 @@ static int wf_smu_all_controls_ok, wf_smu_all_sensors_ok, wf_smu_started;
 
 static unsigned int wf_smu_failure_state;
 static int wf_smu_readjust, wf_smu_skipping;
+static bool wf_smu_overtemp;
 
 /*
  * ****** System Fans Control Loop ******
@@ -593,6 +594,7 @@ static void wf_smu_tick(void)
 	if (new_failure & FAILURE_OVERTEMP) {
 		wf_set_overtemp();
 		wf_smu_skipping = 2;
+		wf_smu_overtemp = true;
 	}
 
 	/* We only clear the overtemp condition if overtemp is cleared
@@ -601,8 +603,10 @@ static void wf_smu_tick(void)
 	 * the control loop levels, but we don't want to keep it clear
 	 * here in this case
 	 */
-	if (new_failure == 0 && last_failure & FAILURE_OVERTEMP)
+	if (!wf_smu_failure_state && wf_smu_overtemp) {
 		wf_clear_overtemp();
+		wf_smu_overtemp = false;
+	}
 }
 
 static void wf_smu_new_control(struct wf_control *ct)
@@ -720,7 +724,7 @@ static int wf_smu_probe(struct platform_device *ddev)
 	return 0;
 }
 
-static int __devexit wf_smu_remove(struct platform_device *ddev)
+static int wf_smu_remove(struct platform_device *ddev)
 {
 	wf_unregister_client(&wf_smu_events);
 
@@ -763,7 +767,7 @@ static int __devexit wf_smu_remove(struct platform_device *ddev)
 
 static struct platform_driver wf_smu_driver = {
         .probe = wf_smu_probe,
-        .remove = __devexit_p(wf_smu_remove),
+        .remove = wf_smu_remove,
 	.driver = {
 		.name = "windfarm",
 		.owner	= THIS_MODULE,

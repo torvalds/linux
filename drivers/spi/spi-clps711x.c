@@ -42,12 +42,6 @@ static int spi_clps711x_setup(struct spi_device *spi)
 {
 	struct spi_clps711x_data *hw = spi_master_get_devdata(spi->master);
 
-	if (spi->bits_per_word != 8) {
-		dev_err(&spi->dev, "Unsupported master bus width %i\n",
-			spi->bits_per_word);
-		return -EINVAL;
-	}
-
 	/* We are expect that SPI-device is not selected */
 	gpio_direction_output(hw->chipselect[spi->chip_select],
 			      !(spi->mode & SPI_CS_HIGH));
@@ -68,7 +62,7 @@ static int spi_clps711x_setup_xfer(struct spi_device *spi,
 				   struct spi_transfer *xfer)
 {
 	u32 speed = xfer->speed_hz ? : spi->max_speed_hz;
-	u8 bpw = xfer->bits_per_word ? : spi->bits_per_word;
+	u8 bpw = xfer->bits_per_word;
 	struct spi_clps711x_data *hw = spi_master_get_devdata(spi->master);
 
 	if (bpw != 8) {
@@ -111,7 +105,7 @@ static int spi_clps711x_transfer_one_message(struct spi_master *master,
 
 		gpio_set_value(cs, !!(msg->spi->mode & SPI_CS_HIGH));
 
-		INIT_COMPLETION(hw->done);
+		reinit_completion(&hw->done);
 
 		hw->count = 0;
 		hw->len = xfer->len;
@@ -190,6 +184,7 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 
 	master->bus_num = pdev->id;
 	master->mode_bits = SPI_CPHA | SPI_CS_HIGH;
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->num_chipselect = pdata->num_chipselect;
 	master->setup = spi_clps711x_setup;
 	master->transfer_one_message = spi_clps711x_transfer_one_message;
@@ -231,11 +226,10 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 			       dev_name(&pdev->dev), hw);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't request IRQ\n");
-		clk_put(hw->spi_clk);
-		goto clk_out;
+		goto err_out;
 	}
 
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(&pdev->dev, master);
 	if (!ret) {
 		dev_info(&pdev->dev,
 			 "SPI bus driver initialized. Master clock %u Hz\n",
@@ -244,19 +238,13 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 	}
 
 	dev_err(&pdev->dev, "Failed to register master\n");
-	devm_free_irq(&pdev->dev, IRQ_SSEOTI, hw);
-
-clk_out:
-	devm_clk_put(&pdev->dev, hw->spi_clk);
 
 err_out:
 	while (--i >= 0)
 		if (gpio_is_valid(hw->chipselect[i]))
 			gpio_free(hw->chipselect[i]);
 
-	platform_set_drvdata(pdev, NULL);
 	spi_master_put(master);
-	kfree(master);
 
 	return ret;
 }
@@ -267,16 +255,9 @@ static int spi_clps711x_remove(struct platform_device *pdev)
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct spi_clps711x_data *hw = spi_master_get_devdata(master);
 
-	devm_free_irq(&pdev->dev, IRQ_SSEOTI, hw);
-
 	for (i = 0; i < master->num_chipselect; i++)
 		if (gpio_is_valid(hw->chipselect[i]))
 			gpio_free(hw->chipselect[i]);
-
-	devm_clk_put(&pdev->dev, hw->spi_clk);
-	platform_set_drvdata(pdev, NULL);
-	spi_unregister_master(master);
-	kfree(master);
 
 	return 0;
 }

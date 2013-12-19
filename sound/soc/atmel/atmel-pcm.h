@@ -88,7 +88,8 @@ void atmel_pcm_free(struct snd_pcm *pcm);
 int atmel_pcm_mmap(struct snd_pcm_substream *substream,
 		struct vm_area_struct *vma);
 
-#ifdef CONFIG_SND_ATMEL_SOC_PDC
+#if defined(CONFIG_SND_ATMEL_SOC_PDC) || \
+	defined(CONFIG_SND_ATMEL_SOC_PDC_MODULE)
 int atmel_pcm_pdc_platform_register(struct device *dev);
 void atmel_pcm_pdc_platform_unregister(struct device *dev);
 #else
@@ -101,7 +102,8 @@ static inline void atmel_pcm_pdc_platform_unregister(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_SND_ATMEL_SOC_DMA
+#if defined(CONFIG_SND_ATMEL_SOC_DMA) || \
+	defined(CONFIG_SND_ATMEL_SOC_DMA_MODULE)
 int atmel_pcm_dma_platform_register(struct device *dev);
 void atmel_pcm_dma_platform_unregister(struct device *dev);
 #else

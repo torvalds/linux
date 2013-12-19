@@ -27,6 +27,7 @@
 #include <linux/pci.h>
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
+#include <linux/slab.h>
 
 #include "vfio_pci_private.h"
 
@@ -273,9 +274,10 @@ static int vfio_direct_config_read(struct vfio_pci_device *vdev, int pos,
 	return count;
 }
 
-static int vfio_direct_config_write(struct vfio_pci_device *vdev, int pos,
-				    int count, struct perm_bits *perm,
-				    int offset, __le32 val)
+/* Raw access skips any kind of virtualization */
+static int vfio_raw_config_write(struct vfio_pci_device *vdev, int pos,
+				 int count, struct perm_bits *perm,
+				 int offset, __le32 val)
 {
 	int ret;
 
@@ -286,12 +288,35 @@ static int vfio_direct_config_write(struct vfio_pci_device *vdev, int pos,
 	return count;
 }
 
-/* Default all regions to read-only, no-virtualization */
+static int vfio_raw_config_read(struct vfio_pci_device *vdev, int pos,
+				int count, struct perm_bits *perm,
+				int offset, __le32 *val)
+{
+	int ret;
+
+	ret = vfio_user_config_read(vdev->pdev, pos, val, count);
+	if (ret)
+		return pcibios_err_to_errno(ret);
+
+	return count;
+}
+
+/* Default capability regions to read-only, no-virtualization */
 static struct perm_bits cap_perms[PCI_CAP_ID_MAX + 1] = {
 	[0 ... PCI_CAP_ID_MAX] = { .readfn = vfio_direct_config_read }
 };
 static struct perm_bits ecap_perms[PCI_EXT_CAP_ID_MAX + 1] = {
 	[0 ... PCI_EXT_CAP_ID_MAX] = { .readfn = vfio_direct_config_read }
+};
+/*
+ * Default unassigned regions to raw read-write access.  Some devices
+ * require this to function as they hide registers between the gaps in
+ * config space (be2net).  Like MMIO and I/O port registers, we have
+ * to trust the hardware isolation.
+ */
+static struct perm_bits unassigned_perms = {
+	.readfn = vfio_raw_config_read,
+	.writefn = vfio_raw_config_write
 };
 
 static void free_perm_bits(struct perm_bits *perm)
@@ -587,11 +612,45 @@ static int __init init_pci_cap_basic_perm(struct perm_bits *perm)
 	return 0;
 }
 
+static int vfio_pm_config_write(struct vfio_pci_device *vdev, int pos,
+				int count, struct perm_bits *perm,
+				int offset, __le32 val)
+{
+	count = vfio_default_config_write(vdev, pos, count, perm, offset, val);
+	if (count < 0)
+		return count;
+
+	if (offset == PCI_PM_CTRL) {
+		pci_power_t state;
+
+		switch (le32_to_cpu(val) & PCI_PM_CTRL_STATE_MASK) {
+		case 0:
+			state = PCI_D0;
+			break;
+		case 1:
+			state = PCI_D1;
+			break;
+		case 2:
+			state = PCI_D2;
+			break;
+		case 3:
+			state = PCI_D3hot;
+			break;
+		}
+
+		pci_set_power_state(vdev->pdev, state);
+	}
+
+	return count;
+}
+
 /* Permissions for the Power Management capability */
 static int __init init_pci_cap_pm_perm(struct perm_bits *perm)
 {
 	if (alloc_perm_bits(perm, pci_cap_length[PCI_CAP_ID_PM]))
 		return -ENOMEM;
+
+	perm->writefn = vfio_pm_config_write;
 
 	/*
 	 * We always virtualize the next field so we can remove
@@ -600,10 +659,11 @@ static int __init init_pci_cap_pm_perm(struct perm_bits *perm)
 	p_setb(perm, PCI_CAP_LIST_NEXT, (u8)ALL_VIRT, NO_WRITE);
 
 	/*
-	 * Power management is defined *per function*,
-	 * so we let the user write this
+	 * Power management is defined *per function*, so we can let
+	 * the user change power state, but we trap and initiate the
+	 * change ourselves, so the state bits are read-only.
 	 */
-	p_setd(perm, PCI_PM_CTRL, NO_VIRT, ALL_WRITE);
+	p_setd(perm, PCI_PM_CTRL, NO_VIRT, ~PCI_PM_CTRL_STATE_MASK);
 	return 0;
 }
 
@@ -743,16 +803,16 @@ int __init vfio_pci_init_perm_bits(void)
 
 	/* Capabilities */
 	ret |= init_pci_cap_pm_perm(&cap_perms[PCI_CAP_ID_PM]);
-	cap_perms[PCI_CAP_ID_VPD].writefn = vfio_direct_config_write;
+	cap_perms[PCI_CAP_ID_VPD].writefn = vfio_raw_config_write;
 	ret |= init_pci_cap_pcix_perm(&cap_perms[PCI_CAP_ID_PCIX]);
-	cap_perms[PCI_CAP_ID_VNDR].writefn = vfio_direct_config_write;
+	cap_perms[PCI_CAP_ID_VNDR].writefn = vfio_raw_config_write;
 	ret |= init_pci_cap_exp_perm(&cap_perms[PCI_CAP_ID_EXP]);
 	ret |= init_pci_cap_af_perm(&cap_perms[PCI_CAP_ID_AF]);
 
 	/* Extended capabilities */
 	ret |= init_pci_ext_cap_err_perm(&ecap_perms[PCI_EXT_CAP_ID_ERR]);
 	ret |= init_pci_ext_cap_pwr_perm(&ecap_perms[PCI_EXT_CAP_ID_PWR]);
-	ecap_perms[PCI_EXT_CAP_ID_VNDR].writefn = vfio_direct_config_write;
+	ecap_perms[PCI_EXT_CAP_ID_VNDR].writefn = vfio_raw_config_write;
 
 	if (ret)
 		vfio_pci_uninit_perm_bits();
@@ -765,9 +825,6 @@ static int vfio_find_cap_start(struct vfio_pci_device *vdev, int pos)
 	u8 cap;
 	int base = (pos >= PCI_CFG_SPACE_SIZE) ? PCI_CFG_SPACE_SIZE :
 						 PCI_STD_HEADER_SIZEOF;
-	base /= 4;
-	pos /= 4;
-
 	cap = vdev->pci_config_map[pos];
 
 	if (cap == PCI_CAP_ID_BASIC)
@@ -777,7 +834,7 @@ static int vfio_find_cap_start(struct vfio_pci_device *vdev, int pos)
 	while (pos - 1 >= base && vdev->pci_config_map[pos - 1] == cap)
 		pos--;
 
-	return pos * 4;
+	return pos;
 }
 
 static int vfio_msi_config_read(struct vfio_pci_device *vdev, int pos,
@@ -955,6 +1012,7 @@ static int vfio_vc_cap_len(struct vfio_pci_device *vdev, u16 pos)
 static int vfio_cap_len(struct vfio_pci_device *vdev, u8 cap, u8 pos)
 {
 	struct pci_dev *pdev = vdev->pdev;
+	u32 dword;
 	u16 word;
 	u8 byte;
 	int ret;
@@ -968,7 +1026,9 @@ static int vfio_cap_len(struct vfio_pci_device *vdev, u8 cap, u8 pos)
 			return pcibios_err_to_errno(ret);
 
 		if (PCI_X_CMD_VERSION(word)) {
-			vdev->extended_caps = true;
+			/* Test for extended capabilities */
+			pci_read_config_dword(pdev, PCI_CFG_SPACE_SIZE, &dword);
+			vdev->extended_caps = (dword != 0);
 			return PCI_CAP_PCIX_SIZEOF_V2;
 		} else
 			return PCI_CAP_PCIX_SIZEOF_V0;
@@ -980,17 +1040,15 @@ static int vfio_cap_len(struct vfio_pci_device *vdev, u8 cap, u8 pos)
 
 		return byte;
 	case PCI_CAP_ID_EXP:
-		/* length based on version */
-		ret = pci_read_config_word(pdev, pos + PCI_EXP_FLAGS, &word);
-		if (ret)
-			return pcibios_err_to_errno(ret);
+		/* Test for extended capabilities */
+		pci_read_config_dword(pdev, PCI_CFG_SPACE_SIZE, &dword);
+		vdev->extended_caps = (dword != 0);
 
-		if ((word & PCI_EXP_FLAGS_VERS) == 1)
+		/* length based on version */
+		if ((pcie_caps_reg(pdev) & PCI_EXP_FLAGS_VERS) == 1)
 			return PCI_CAP_EXP_ENDPOINT_SIZEOF_V1;
-		else {
-			vdev->extended_caps = true;
+		else
 			return PCI_CAP_EXP_ENDPOINT_SIZEOF_V2;
-		}
 	case PCI_CAP_ID_HT:
 		ret = pci_read_config_byte(pdev, pos + 3, &byte);
 		if (ret)
@@ -1194,8 +1252,8 @@ static int vfio_cap_init(struct vfio_pci_device *vdev)
 		}
 
 		/* Sanity check, do we overlap other capabilities? */
-		for (i = 0; i < len; i += 4) {
-			if (likely(map[(pos + i) / 4] == PCI_CAP_ID_INVALID))
+		for (i = 0; i < len; i++) {
+			if (likely(map[pos + i] == PCI_CAP_ID_INVALID))
 				continue;
 
 			pr_warn("%s: %s pci config conflict @0x%x, was cap 0x%x now cap 0x%x\n",
@@ -1203,7 +1261,7 @@ static int vfio_cap_init(struct vfio_pci_device *vdev)
 				pos + i, map[pos + i], cap);
 		}
 
-		memset(map + (pos / 4), cap, len / 4);
+		memset(map + pos, cap, len);
 		ret = vfio_fill_vconfig_bytes(vdev, pos, len);
 		if (ret)
 			return ret;
@@ -1278,8 +1336,8 @@ static int vfio_ecap_init(struct vfio_pci_device *vdev)
 			hidden = true;
 		}
 
-		for (i = 0; i < len; i += 4) {
-			if (likely(map[(epos + i) / 4] == PCI_CAP_ID_INVALID))
+		for (i = 0; i < len; i++) {
+			if (likely(map[epos + i] == PCI_CAP_ID_INVALID))
 				continue;
 
 			pr_warn("%s: %s pci config conflict @0x%x, was ecap 0x%x now ecap 0x%x\n",
@@ -1294,7 +1352,7 @@ static int vfio_ecap_init(struct vfio_pci_device *vdev)
 		 */
 		BUILD_BUG_ON(PCI_EXT_CAP_ID_MAX >= PCI_CAP_ID_INVALID);
 
-		memset(map + (epos / 4), ecap, len / 4);
+		memset(map + epos, ecap, len);
 		ret = vfio_fill_vconfig_bytes(vdev, epos, len);
 		if (ret)
 			return ret;
@@ -1341,10 +1399,12 @@ int vfio_config_init(struct vfio_pci_device *vdev)
 	int ret;
 
 	/*
-	 * Config space, caps and ecaps are all dword aligned, so we can
-	 * use one byte per dword to record the type.
+	 * Config space, caps and ecaps are all dword aligned, so we could
+	 * use one byte per dword to record the type.  However, there are
+	 * no requiremenst on the length of a capability, so the gap between
+	 * capabilities needs byte granularity.
 	 */
-	map = kmalloc(pdev->cfg_size / 4, GFP_KERNEL);
+	map = kmalloc(pdev->cfg_size, GFP_KERNEL);
 	if (!map)
 		return -ENOMEM;
 
@@ -1357,9 +1417,9 @@ int vfio_config_init(struct vfio_pci_device *vdev)
 	vdev->pci_config_map = map;
 	vdev->vconfig = vconfig;
 
-	memset(map, PCI_CAP_ID_BASIC, PCI_STD_HEADER_SIZEOF / 4);
-	memset(map + (PCI_STD_HEADER_SIZEOF / 4), PCI_CAP_ID_INVALID,
-	       (pdev->cfg_size - PCI_STD_HEADER_SIZEOF) / 4);
+	memset(map, PCI_CAP_ID_BASIC, PCI_STD_HEADER_SIZEOF);
+	memset(map + PCI_STD_HEADER_SIZEOF, PCI_CAP_ID_INVALID,
+	       pdev->cfg_size - PCI_STD_HEADER_SIZEOF);
 
 	ret = vfio_fill_vconfig_bytes(vdev, 0, PCI_STD_HEADER_SIZEOF);
 	if (ret)
@@ -1414,6 +1474,22 @@ void vfio_config_free(struct vfio_pci_device *vdev)
 	vdev->msi_perm = NULL;
 }
 
+/*
+ * Find the remaining number of bytes in a dword that match the given
+ * position.  Stop at either the end of the capability or the dword boundary.
+ */
+static size_t vfio_pci_cap_remaining_dword(struct vfio_pci_device *vdev,
+					   loff_t pos)
+{
+	u8 cap = vdev->pci_config_map[pos];
+	size_t i;
+
+	for (i = 1; (pos + i) % 4 && vdev->pci_config_map[pos + i] == cap; i++)
+		/* nop */;
+
+	return i;
+}
+
 static ssize_t vfio_config_do_rw(struct vfio_pci_device *vdev, char __user *buf,
 				 size_t count, loff_t *ppos, bool iswrite)
 {
@@ -1422,55 +1498,48 @@ static ssize_t vfio_config_do_rw(struct vfio_pci_device *vdev, char __user *buf,
 	__le32 val = 0;
 	int cap_start = 0, offset;
 	u8 cap_id;
-	ssize_t ret = count;
+	ssize_t ret;
 
-	if (*ppos < 0 || *ppos + count > pdev->cfg_size)
+	if (*ppos < 0 || *ppos >= pdev->cfg_size ||
+	    *ppos + count > pdev->cfg_size)
 		return -EFAULT;
 
 	/*
-	 * gcc can't seem to figure out we're a static function, only called
-	 * with count of 1/2/4 and hits copy_from_user_overflow without this.
+	 * Chop accesses into aligned chunks containing no more than a
+	 * single capability.  Caller increments to the next chunk.
 	 */
-	if (count > sizeof(val))
-		return -EINVAL;
+	count = min(count, vfio_pci_cap_remaining_dword(vdev, *ppos));
+	if (count >= 4 && !(*ppos % 4))
+		count = 4;
+	else if (count >= 2 && !(*ppos % 2))
+		count = 2;
+	else
+		count = 1;
 
-	cap_id = vdev->pci_config_map[*ppos / 4];
+	ret = count;
+
+	cap_id = vdev->pci_config_map[*ppos];
 
 	if (cap_id == PCI_CAP_ID_INVALID) {
-		if (iswrite)
-			return ret; /* drop */
-
-		/*
-		 * Per PCI spec 3.0, section 6.1, reads from reserved and
-		 * unimplemented registers return 0
-		 */
-		if (copy_to_user(buf, &val, count))
-			return -EFAULT;
-
-		return ret;
-	}
-
-	/*
-	 * All capabilities are minimum 4 bytes and aligned on dword
-	 * boundaries.  Since we don't support unaligned accesses, we're
-	 * only ever accessing a single capability.
-	 */
-	if (*ppos >= PCI_CFG_SPACE_SIZE) {
-		WARN_ON(cap_id > PCI_EXT_CAP_ID_MAX);
-
-		perm = &ecap_perms[cap_id];
-		cap_start = vfio_find_cap_start(vdev, *ppos);
-
+		perm = &unassigned_perms;
+		cap_start = *ppos;
 	} else {
-		WARN_ON(cap_id > PCI_CAP_ID_MAX);
+		if (*ppos >= PCI_CFG_SPACE_SIZE) {
+			WARN_ON(cap_id > PCI_EXT_CAP_ID_MAX);
 
-		perm = &cap_perms[cap_id];
-
-		if (cap_id == PCI_CAP_ID_MSI)
-			perm = vdev->msi_perm;
-
-		if (cap_id > PCI_CAP_ID_BASIC)
+			perm = &ecap_perms[cap_id];
 			cap_start = vfio_find_cap_start(vdev, *ppos);
+		} else {
+			WARN_ON(cap_id > PCI_CAP_ID_MAX);
+
+			perm = &cap_perms[cap_id];
+
+			if (cap_id == PCI_CAP_ID_MSI)
+				perm = vdev->msi_perm;
+
+			if (cap_id > PCI_CAP_ID_BASIC)
+				cap_start = vfio_find_cap_start(vdev, *ppos);
+		}
 	}
 
 	WARN_ON(!cap_start && cap_id != PCI_CAP_ID_BASIC);
@@ -1501,9 +1570,8 @@ static ssize_t vfio_config_do_rw(struct vfio_pci_device *vdev, char __user *buf,
 	return ret;
 }
 
-ssize_t vfio_pci_config_readwrite(struct vfio_pci_device *vdev,
-				  char __user *buf, size_t count,
-				  loff_t *ppos, bool iswrite)
+ssize_t vfio_pci_config_rw(struct vfio_pci_device *vdev, char __user *buf,
+			   size_t count, loff_t *ppos, bool iswrite)
 {
 	size_t done = 0;
 	int ret = 0;
@@ -1511,20 +1579,8 @@ ssize_t vfio_pci_config_readwrite(struct vfio_pci_device *vdev,
 
 	pos &= VFIO_PCI_OFFSET_MASK;
 
-	/*
-	 * We want to both keep the access size the caller users as well as
-	 * support reading large chunks of config space in a single call.
-	 * PCI doesn't support unaligned accesses, so we can safely break
-	 * those apart.
-	 */
 	while (count) {
-		if (count >= 4 && !(pos % 4))
-			ret = vfio_config_do_rw(vdev, buf, 4, &pos, iswrite);
-		else if (count >= 2 && !(pos % 2))
-			ret = vfio_config_do_rw(vdev, buf, 2, &pos, iswrite);
-		else
-			ret = vfio_config_do_rw(vdev, buf, 1, &pos, iswrite);
-
+		ret = vfio_config_do_rw(vdev, buf, count, &pos, iswrite);
 		if (ret < 0)
 			return ret;
 

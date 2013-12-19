@@ -98,8 +98,8 @@
 
 #define PR_EEP(_s, _val)						\
 	do {								\
-		len += snprintf(buf + len, size - len, "%20s : %10d\n",	\
-				_s, (_val));				\
+		len += scnprintf(buf + len, size - len, "%20s : %10d\n",\
+				 _s, (_val));				\
 	} while (0)
 
 #define SM(_v, _f)  (((_v) << _f##_S) & _f)
@@ -246,9 +246,9 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_MCI			= BIT(15),
 	ATH9K_HW_CAP_DFS			= BIT(16),
 	ATH9K_HW_WOW_DEVICE_CAPABLE		= BIT(17),
-	ATH9K_HW_WOW_PATTERN_MATCH_EXACT	= BIT(18),
-	ATH9K_HW_WOW_PATTERN_MATCH_DWORD	= BIT(19),
-	ATH9K_HW_CAP_PAPRD			= BIT(20),
+	ATH9K_HW_CAP_PAPRD			= BIT(18),
+	ATH9K_HW_CAP_FCC_BAND_SWITCH		= BIT(19),
+	ATH9K_HW_CAP_BT_ANT_DIV			= BIT(20),
 };
 
 /*
@@ -291,7 +291,6 @@ struct ath9k_ops_config {
 	u32 ofdm_trig_high;
 	u32 cck_trig_high;
 	u32 cck_trig_low;
-	u32 enable_ani;
 	u32 enable_paprd;
 	int serialize_regmode;
 	bool rx_intr_mitigation;
@@ -310,6 +309,14 @@ struct ath9k_ops_config {
 	u16 spurchans[AR_EEPROM_MODAL_SPURS][2];
 	u8 max_txtrig_level;
 	u16 ani_poll_interval; /* ANI poll interval in ms */
+
+	/* Platform specific config */
+	u32 aspm_l1_fix;
+	u32 xlna_gpio;
+	u32 ant_ctrl_comm2g_switch_enable;
+	bool xatten_margin_cfg;
+	bool alt_mingainidx;
+	bool no_pll_pwrsave;
 };
 
 enum ath9k_int {
@@ -363,55 +370,30 @@ enum ath9k_int {
 	ATH9K_INT_NOCARD = 0xffffffff
 };
 
-#define CHANNEL_CW_INT    0x00002
-#define CHANNEL_CCK       0x00020
-#define CHANNEL_OFDM      0x00040
-#define CHANNEL_2GHZ      0x00080
-#define CHANNEL_5GHZ      0x00100
-#define CHANNEL_PASSIVE   0x00200
-#define CHANNEL_DYN       0x00400
-#define CHANNEL_HALF      0x04000
-#define CHANNEL_QUARTER   0x08000
-#define CHANNEL_HT20      0x10000
-#define CHANNEL_HT40PLUS  0x20000
-#define CHANNEL_HT40MINUS 0x40000
-
-#define CHANNEL_A           (CHANNEL_5GHZ|CHANNEL_OFDM)
-#define CHANNEL_B           (CHANNEL_2GHZ|CHANNEL_CCK)
-#define CHANNEL_G           (CHANNEL_2GHZ|CHANNEL_OFDM)
-#define CHANNEL_G_HT20      (CHANNEL_2GHZ|CHANNEL_HT20)
-#define CHANNEL_A_HT20      (CHANNEL_5GHZ|CHANNEL_HT20)
-#define CHANNEL_G_HT40PLUS  (CHANNEL_2GHZ|CHANNEL_HT40PLUS)
-#define CHANNEL_G_HT40MINUS (CHANNEL_2GHZ|CHANNEL_HT40MINUS)
-#define CHANNEL_A_HT40PLUS  (CHANNEL_5GHZ|CHANNEL_HT40PLUS)
-#define CHANNEL_A_HT40MINUS (CHANNEL_5GHZ|CHANNEL_HT40MINUS)
-#define CHANNEL_ALL				\
-	(CHANNEL_OFDM|				\
-	 CHANNEL_CCK|				\
-	 CHANNEL_2GHZ |				\
-	 CHANNEL_5GHZ |				\
-	 CHANNEL_HT20 |				\
-	 CHANNEL_HT40PLUS |			\
-	 CHANNEL_HT40MINUS)
-
 #define MAX_RTT_TABLE_ENTRY     6
 #define MAX_IQCAL_MEASUREMENT	8
 #define MAX_CL_TAB_ENTRY	16
+#define CL_TAB_ENTRY(reg_base)	(reg_base + (4 * j))
+
+enum ath9k_cal_flags {
+	RTT_DONE,
+	PAPRD_PACKET_SENT,
+	PAPRD_DONE,
+	NFCAL_PENDING,
+	NFCAL_INTF,
+	TXIQCAL_DONE,
+	TXCLCAL_DONE,
+	SW_PKDET_DONE,
+};
 
 struct ath9k_hw_cal_data {
 	u16 channel;
-	u32 channelFlags;
-	u32 chanmode;
+	u16 channelFlags;
+	unsigned long cal_flags;
 	int32_t CalValid;
 	int8_t iCoff;
 	int8_t qCoff;
-	bool rtt_done;
-	bool paprd_packet_sent;
-	bool paprd_done;
-	bool nfcal_pending;
-	bool nfcal_interference;
-	bool done_txiqcal_once;
-	bool done_txclcal_once;
+	u8 caldac[2];
 	u16 small_signal_gain[AR9300_MAX_CHAINS];
 	u32 pa_table[AR9300_MAX_CHAINS][PAPRD_TABLE_SZ];
 	u32 num_measures[AR9300_MAX_CHAINS];
@@ -423,35 +405,35 @@ struct ath9k_hw_cal_data {
 
 struct ath9k_channel {
 	struct ieee80211_channel *chan;
-	struct ar5416AniState ani;
 	u16 channel;
-	u32 channelFlags;
-	u32 chanmode;
+	u16 channelFlags;
 	s16 noisefloor;
 };
 
-#define IS_CHAN_G(_c) ((((_c)->channelFlags & (CHANNEL_G)) == CHANNEL_G) || \
-       (((_c)->channelFlags & CHANNEL_G_HT20) == CHANNEL_G_HT20) || \
-       (((_c)->channelFlags & CHANNEL_G_HT40PLUS) == CHANNEL_G_HT40PLUS) || \
-       (((_c)->channelFlags & CHANNEL_G_HT40MINUS) == CHANNEL_G_HT40MINUS))
-#define IS_CHAN_OFDM(_c) (((_c)->channelFlags & CHANNEL_OFDM) != 0)
-#define IS_CHAN_5GHZ(_c) (((_c)->channelFlags & CHANNEL_5GHZ) != 0)
-#define IS_CHAN_2GHZ(_c) (((_c)->channelFlags & CHANNEL_2GHZ) != 0)
-#define IS_CHAN_HALF_RATE(_c) (((_c)->channelFlags & CHANNEL_HALF) != 0)
-#define IS_CHAN_QUARTER_RATE(_c) (((_c)->channelFlags & CHANNEL_QUARTER) != 0)
-#define IS_CHAN_A_FAST_CLOCK(_ah, _c)			\
-	((((_c)->channelFlags & CHANNEL_5GHZ) != 0) &&	\
-	 ((_ah)->caps.hw_caps & ATH9K_HW_CAP_FASTCLOCK))
+#define CHANNEL_5GHZ		BIT(0)
+#define CHANNEL_HALF		BIT(1)
+#define CHANNEL_QUARTER		BIT(2)
+#define CHANNEL_HT		BIT(3)
+#define CHANNEL_HT40PLUS	BIT(4)
+#define CHANNEL_HT40MINUS	BIT(5)
 
-/* These macros check chanmode and not channelFlags */
-#define IS_CHAN_B(_c) ((_c)->chanmode == CHANNEL_B)
-#define IS_CHAN_HT20(_c) (((_c)->chanmode == CHANNEL_A_HT20) ||	\
-			  ((_c)->chanmode == CHANNEL_G_HT20))
-#define IS_CHAN_HT40(_c) (((_c)->chanmode == CHANNEL_A_HT40PLUS) ||	\
-			  ((_c)->chanmode == CHANNEL_A_HT40MINUS) ||	\
-			  ((_c)->chanmode == CHANNEL_G_HT40PLUS) ||	\
-			  ((_c)->chanmode == CHANNEL_G_HT40MINUS))
-#define IS_CHAN_HT(_c) (IS_CHAN_HT20((_c)) || IS_CHAN_HT40((_c)))
+#define IS_CHAN_5GHZ(_c) (!!((_c)->channelFlags & CHANNEL_5GHZ))
+#define IS_CHAN_2GHZ(_c) (!IS_CHAN_5GHZ(_c))
+
+#define IS_CHAN_HALF_RATE(_c) (!!((_c)->channelFlags & CHANNEL_HALF))
+#define IS_CHAN_QUARTER_RATE(_c) (!!((_c)->channelFlags & CHANNEL_QUARTER))
+#define IS_CHAN_A_FAST_CLOCK(_ah, _c)			\
+	(IS_CHAN_5GHZ(_c) && ((_ah)->caps.hw_caps & ATH9K_HW_CAP_FASTCLOCK))
+
+#define IS_CHAN_HT(_c) ((_c)->channelFlags & CHANNEL_HT)
+
+#define IS_CHAN_HT20(_c) (IS_CHAN_HT(_c) && !IS_CHAN_HT40(_c))
+
+#define IS_CHAN_HT40(_c) \
+	(!!((_c)->channelFlags & (CHANNEL_HT40PLUS | CHANNEL_HT40MINUS)))
+
+#define IS_CHAN_HT40PLUS(_c) ((_c)->channelFlags & CHANNEL_HT40PLUS)
+#define IS_CHAN_HT40MINUS(_c) ((_c)->channelFlags & CHANNEL_HT40MINUS)
 
 enum ath9k_power_mode {
 	ATH9K_PM_AWAKE = 0,
@@ -553,6 +535,7 @@ struct ath_hw_antcomb_conf {
 	u8 main_gaintb;
 	u8 alt_gaintb;
 	int lna1_lna2_delta;
+	int lna1_lna2_switch_delta;
 	u8 div_group;
 };
 
@@ -599,13 +582,10 @@ struct ath_hw_radar_conf {
  * @init_cal_settings: setup types of calibrations supported
  * @init_cal: starts actual calibration
  *
- * @init_mode_regs: Initializes mode registers
  * @init_mode_gain_regs: Initialize TX/RX gain registers
  *
  * @rf_set_freq: change frequency
  * @spur_mitigate_freq: spur mitigation
- * @rf_alloc_ext_banks:
- * @rf_free_ext_banks:
  * @set_rf_regs:
  * @compute_pll_control: compute the PLL control value to use for
  *	AR_RTC_PLL_CONTROL for a given channel
@@ -620,7 +600,6 @@ struct ath_hw_private_ops {
 	void (*init_cal_settings)(struct ath_hw *ah);
 	bool (*init_cal)(struct ath_hw *ah, struct ath9k_channel *chan);
 
-	void (*init_mode_regs)(struct ath_hw *ah);
 	void (*init_mode_gain_regs)(struct ath_hw *ah);
 	void (*setup_calibration)(struct ath_hw *ah,
 				  struct ath9k_cal_list *currCal);
@@ -630,8 +609,6 @@ struct ath_hw_private_ops {
 			   struct ath9k_channel *chan);
 	void (*spur_mitigate_freq)(struct ath_hw *ah,
 				   struct ath9k_channel *chan);
-	int (*rf_alloc_ext_banks)(struct ath_hw *ah);
-	void (*rf_free_ext_banks)(struct ath_hw *ah);
 	bool (*set_rf_regs)(struct ath_hw *ah,
 			    struct ath9k_channel *chan,
 			    u16 modesIndex);
@@ -661,6 +638,37 @@ struct ath_hw_private_ops {
 };
 
 /**
+ * struct ath_spec_scan - parameters for Atheros spectral scan
+ *
+ * @enabled: enable/disable spectral scan
+ * @short_repeat: controls whether the chip is in spectral scan mode
+ *		  for 4 usec (enabled) or 204 usec (disabled)
+ * @count: number of scan results requested. There are special meanings
+ *	   in some chip revisions:
+ *	   AR92xx: highest bit set (>=128) for endless mode
+ *		   (spectral scan won't stopped until explicitly disabled)
+ *	   AR9300 and newer: 0 for endless mode
+ * @endless: true if endless mode is intended. Otherwise, count value is
+ *           corrected to the next possible value.
+ * @period: time duration between successive spectral scan entry points
+ *	    (period*256*Tclk). Tclk = ath_common->clockrate
+ * @fft_period: PHY passes FFT frames to MAC every (fft_period+1)*4uS
+ *
+ * Note: Tclk = 40MHz or 44MHz depending upon operating mode.
+ *	 Typically it's 44MHz in 2/5GHz on later chips, but there's
+ *	 a "fast clock" check for this in 5GHz.
+ *
+ */
+struct ath_spec_scan {
+	bool enabled;
+	bool short_repeat;
+	bool endless;
+	u8 count;
+	u8 period;
+	u8 fft_period;
+};
+
+/**
  * struct ath_hw_ops - callbacks used by hardware code and driver code
  *
  * This structure contains callbacks designed to to be used internally by
@@ -668,6 +676,10 @@ struct ath_hw_private_ops {
  *
  * @config_pci_powersave:
  * @calibrate: periodic calibration for NF, ANI, IQ, ADC gain, ADC-DC
+ *
+ * @spectral_scan_config: set parameters for spectral scan and enable/disable it
+ * @spectral_scan_trigger: trigger a spectral scan run
+ * @spectral_scan_wait: wait for a spectral scan run to finish
  */
 struct ath_hw_ops {
 	void (*config_pci_powersave)(struct ath_hw *ah,
@@ -687,7 +699,18 @@ struct ath_hw_ops {
 			struct ath_hw_antcomb_conf *antconf);
 	void (*antdiv_comb_conf_set)(struct ath_hw *ah,
 			struct ath_hw_antcomb_conf *antconf);
-	void (*antctrl_shared_chain_lnadiv)(struct ath_hw *hw, bool enable);
+	void (*spectral_scan_config)(struct ath_hw *ah,
+				     struct ath_spec_scan *param);
+	void (*spectral_scan_trigger)(struct ath_hw *ah);
+	void (*spectral_scan_wait)(struct ath_hw *ah);
+
+	void (*tx99_start)(struct ath_hw *ah, u32 qnum);
+	void (*tx99_stop)(struct ath_hw *ah);
+	void (*tx99_set_txpower)(struct ath_hw *ah, u8 power);
+
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+	void (*set_bt_ant_diversity)(struct ath_hw *hw, bool enable);
+#endif
 };
 
 struct ath_nf_limits {
@@ -710,6 +733,7 @@ enum ath_cal_list {
 struct ath_hw {
 	struct ath_ops reg_ops;
 
+	struct device *dev;
 	struct ieee80211_hw *hw;
 	struct ath_common common;
 	struct ath9k_hw_version hw_version;
@@ -731,7 +755,6 @@ struct ath_hw {
 	bool aspm_enabled;
 	bool is_monitoring;
 	bool need_an_top2_fixup;
-	bool shared_chain_lnadiv;
 	u16 tx_trig_level;
 
 	u32 nf_regs[6];
@@ -771,7 +794,6 @@ struct ath_hw {
 	struct ath9k_cal_list iq_caldata;
 	struct ath9k_cal_list adcgain_caldata;
 	struct ath9k_cal_list adcdc_caldata;
-	struct ath9k_cal_list tempCompCalData;
 	struct ath9k_cal_list *cal_list;
 	struct ath9k_cal_list *cal_list_last;
 	struct ath9k_cal_list *cal_list_curr;
@@ -814,28 +836,17 @@ struct ath_hw {
 	struct ath_hw_ops ops;
 
 	/* Used to program the radio on non single-chip devices */
-	u32 *analogBank0Data;
-	u32 *analogBank1Data;
-	u32 *analogBank2Data;
-	u32 *analogBank3Data;
 	u32 *analogBank6Data;
-	u32 *analogBank6TPCData;
-	u32 *analogBank7Data;
-	u32 *bank6Temp;
 
 	int coverage_class;
 	u32 slottime;
 	u32 globaltxtimeout;
 
 	/* ANI */
-	u32 proc_phyerr;
 	u32 aniperiod;
-	int totalSizeDesired[5];
-	int coarse_high[5];
-	int coarse_low[5];
-	int firpwr[5];
 	enum ath9k_ani_cmd ani_function;
 	u32 ani_skip_count;
+	struct ar5416AniState ani;
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	struct ath_btcoex_hw btcoex_hw;
@@ -856,19 +867,10 @@ struct ath_hw {
 
 	struct ar5416IniArray iniModes;
 	struct ar5416IniArray iniCommon;
-	struct ar5416IniArray iniBank0;
 	struct ar5416IniArray iniBB_RfGain;
-	struct ar5416IniArray iniBank1;
-	struct ar5416IniArray iniBank2;
-	struct ar5416IniArray iniBank3;
 	struct ar5416IniArray iniBank6;
-	struct ar5416IniArray iniBank6TPC;
-	struct ar5416IniArray iniBank7;
 	struct ar5416IniArray iniAddac;
 	struct ar5416IniArray iniPcieSerdes;
-#ifdef CONFIG_PM_SLEEP
-	struct ar5416IniArray iniPcieSerdesWow;
-#endif
 	struct ar5416IniArray iniPcieSerdesLowPower;
 	struct ar5416IniArray iniModesFastClock;
 	struct ar5416IniArray iniAdditional;
@@ -879,6 +881,9 @@ struct ath_hw {
 	struct ar5416IniArray iniCckfirJapan2484;
 	struct ar5416IniArray iniModes_9271_ANI_reg;
 	struct ar5416IniArray ini_radio_post_sys2ant;
+	struct ar5416IniArray ini_modes_rxgain_5g_xlna;
+	struct ar5416IniArray ini_modes_rxgain_bb_core;
+	struct ar5416IniArray ini_modes_rxgain_bb_postamble;
 
 	struct ar5416IniArray iniMac[ATH_INI_NUM_SPLIT];
 	struct ar5416IniArray iniBB[ATH_INI_NUM_SPLIT];
@@ -979,7 +984,7 @@ void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna);
 void ath9k_hw_synth_delay(struct ath_hw *ah, struct ath9k_channel *chan,
 			  int hw_delay);
 bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout);
-void ath9k_hw_write_array(struct ath_hw *ah, struct ar5416IniArray *array,
+void ath9k_hw_write_array(struct ath_hw *ah, const struct ar5416IniArray *array,
 			  int column, unsigned int *writecnt);
 u32 ath9k_hw_reverse_bits(u32 val, u32 n);
 u16 ath9k_hw_computetxtime(struct ath_hw *ah,
@@ -1003,10 +1008,11 @@ void ath9k_hw_reset_tsf(struct ath_hw *ah);
 void ath9k_hw_set_tsfadjust(struct ath_hw *ah, bool set);
 void ath9k_hw_init_global_settings(struct ath_hw *ah);
 u32 ar9003_get_pll_sqsum_dvc(struct ath_hw *ah);
-void ath9k_hw_set11nmac2040(struct ath_hw *ah);
+void ath9k_hw_set11nmac2040(struct ath_hw *ah, struct ath9k_channel *chan);
 void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period);
 void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 				    const struct ath9k_beacon_state *bs);
+void ath9k_hw_check_nav(struct ath_hw *ah);
 bool ath9k_hw_check_alive(struct ath_hw *ah);
 
 bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode);
@@ -1066,16 +1072,17 @@ void ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain);
 int ar9003_paprd_init_table(struct ath_hw *ah);
 bool ar9003_paprd_is_done(struct ath_hw *ah);
 bool ar9003_is_paprd_enabled(struct ath_hw *ah);
+void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx);
 
 /* Hardware family op attach helpers */
-void ar5008_hw_attach_phy_ops(struct ath_hw *ah);
+int ar5008_hw_attach_phy_ops(struct ath_hw *ah);
 void ar9002_hw_attach_phy_ops(struct ath_hw *ah);
 void ar9003_hw_attach_phy_ops(struct ath_hw *ah);
 
 void ar9002_hw_attach_calib_ops(struct ath_hw *ah);
 void ar9003_hw_attach_calib_ops(struct ath_hw *ah);
 
-void ar9002_hw_attach_ops(struct ath_hw *ah);
+int ar9002_hw_attach_ops(struct ath_hw *ah);
 void ar9003_hw_attach_ops(struct ath_hw *ah);
 
 void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan);
@@ -1147,8 +1154,6 @@ static inline void ath9k_hw_wow_enable(struct ath_hw *ah, u32 pattern_enable)
 {
 }
 #endif
-
-
 
 #define ATH9K_CLOCK_RATE_CCK		22
 #define ATH9K_CLOCK_RATE_5GHZ_OFDM	40

@@ -38,7 +38,7 @@ static struct zorro_driver_data {
 	const char *name;
 	unsigned long offset;
 	int absolute;	/* offset is absolute address */
-} zorro7xx_driver_data[] __devinitdata = {
+} zorro7xx_driver_data[] = {
 	{ .name = "PowerUP 603e+", .offset = 0xf40000, .absolute = 1 },
 	{ .name = "WarpEngine 40xx", .offset = 0x40000 },
 	{ .name = "A4091", .offset = 0x800000 },
@@ -46,7 +46,7 @@ static struct zorro_driver_data {
 	{ 0 }
 };
 
-static struct zorro_device_id zorro7xx_zorro_tbl[] __devinitdata = {
+static struct zorro_device_id zorro7xx_zorro_tbl[] = {
 	{
 		.id = ZORRO_PROD_PHASE5_BLIZZARD_603E_PLUS,
 		.driver_data = (unsigned long)&zorro7xx_driver_data[0],
@@ -71,8 +71,8 @@ static struct zorro_device_id zorro7xx_zorro_tbl[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(zorro, zorro7xx_zorro_tbl);
 
-static int __devinit zorro7xx_init_one(struct zorro_dev *z,
-				       const struct zorro_device_id *ent)
+static int zorro7xx_init_one(struct zorro_dev *z,
+			     const struct zorro_device_id *ent)
 {
 	struct Scsi_Host *host;
 	struct NCR_700_Host_Parameters *hostdata;
@@ -150,7 +150,7 @@ static int __devinit zorro7xx_init_one(struct zorro_dev *z,
 	return -ENODEV;
 }
 
-static __devexit void zorro7xx_remove_one(struct zorro_dev *z)
+static void zorro7xx_remove_one(struct zorro_dev *z)
 {
 	struct Scsi_Host *host = zorro_get_drvdata(z);
 	struct NCR_700_Host_Parameters *hostdata = shost_priv(host);
@@ -167,7 +167,7 @@ static struct zorro_driver zorro7xx_driver = {
 	.name	  = "zorro7xx-scsi",
 	.id_table = zorro7xx_zorro_tbl,
 	.probe	  = zorro7xx_init_one,
-	.remove	  = __devexit_p(zorro7xx_remove_one),
+	.remove	  = zorro7xx_remove_one,
 };
 
 static int __init zorro7xx_scsi_init(void)

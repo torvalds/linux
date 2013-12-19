@@ -27,7 +27,6 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 #include <asm/unaligned.h>
-#include "usbhid/usbhid.h"
 #include "hid-ids.h"
 #include "hid-logitech-dj.h"
 
@@ -459,19 +458,25 @@ static int logi_dj_recv_send_report(struct dj_receiver_dev *djrcv_dev,
 				    struct dj_report *dj_report)
 {
 	struct hid_device *hdev = djrcv_dev->hdev;
-	int sent_bytes;
+	struct hid_report *report;
+	struct hid_report_enum *output_report_enum;
+	u8 *data = (u8 *)(&dj_report->device_index);
+	unsigned int i;
 
-	if (!hdev->hid_output_raw_report) {
-		dev_err(&hdev->dev, "%s:"
-			"hid_output_raw_report is null\n", __func__);
+	output_report_enum = &hdev->report_enum[HID_OUTPUT_REPORT];
+	report = output_report_enum->report_id_hash[REPORT_ID_DJ_SHORT];
+
+	if (!report) {
+		dev_err(&hdev->dev, "%s: unable to find dj report\n", __func__);
 		return -ENODEV;
 	}
 
-	sent_bytes = hdev->hid_output_raw_report(hdev, (u8 *) dj_report,
-						 sizeof(struct dj_report),
-						 HID_OUTPUT_REPORT);
+	for (i = 0; i < DJREPORT_SHORT_LENGTH - 1; i++)
+		report->field[0]->value[i] = data[i];
 
-	return (sent_bytes < 0) ? sent_bytes : 0;
+	hid_hw_request(hdev, report, HID_REQ_SET_REPORT);
+
+	return 0;
 }
 
 static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev)
@@ -537,9 +542,9 @@ static int logi_dj_output_hidraw_report(struct hid_device *hid, u8 * buf,
 	return 0;
 }
 
-static void rdcat(char **rdesc, unsigned int *rsize, const char *data, unsigned int size)
+static void rdcat(char *rdesc, unsigned int *rsize, const char *data, unsigned int size)
 {
-	memcpy(*rdesc + *rsize, data, size);
+	memcpy(rdesc + *rsize, data, size);
 	*rsize += size;
 }
 
@@ -562,31 +567,31 @@ static int logi_dj_ll_parse(struct hid_device *hid)
 	if (djdev->reports_supported & STD_KEYBOARD) {
 		dbg_hid("%s: sending a kbd descriptor, reports_supported: %x\n",
 			__func__, djdev->reports_supported);
-		rdcat(&rdesc, &rsize, kbd_descriptor, sizeof(kbd_descriptor));
+		rdcat(rdesc, &rsize, kbd_descriptor, sizeof(kbd_descriptor));
 	}
 
 	if (djdev->reports_supported & STD_MOUSE) {
 		dbg_hid("%s: sending a mouse descriptor, reports_supported: "
 			"%x\n", __func__, djdev->reports_supported);
-		rdcat(&rdesc, &rsize, mse_descriptor, sizeof(mse_descriptor));
+		rdcat(rdesc, &rsize, mse_descriptor, sizeof(mse_descriptor));
 	}
 
 	if (djdev->reports_supported & MULTIMEDIA) {
 		dbg_hid("%s: sending a multimedia report descriptor: %x\n",
 			__func__, djdev->reports_supported);
-		rdcat(&rdesc, &rsize, consumer_descriptor, sizeof(consumer_descriptor));
+		rdcat(rdesc, &rsize, consumer_descriptor, sizeof(consumer_descriptor));
 	}
 
 	if (djdev->reports_supported & POWER_KEYS) {
 		dbg_hid("%s: sending a power keys report descriptor: %x\n",
 			__func__, djdev->reports_supported);
-		rdcat(&rdesc, &rsize, syscontrol_descriptor, sizeof(syscontrol_descriptor));
+		rdcat(rdesc, &rsize, syscontrol_descriptor, sizeof(syscontrol_descriptor));
 	}
 
 	if (djdev->reports_supported & MEDIA_CENTER) {
 		dbg_hid("%s: sending a media center report descriptor: %x\n",
 			__func__, djdev->reports_supported);
-		rdcat(&rdesc, &rsize, media_descriptor, sizeof(media_descriptor));
+		rdcat(rdesc, &rsize, media_descriptor, sizeof(media_descriptor));
 	}
 
 	if (djdev->reports_supported & KBD_LEDS) {
@@ -614,7 +619,7 @@ static int logi_dj_ll_input_event(struct input_dev *dev, unsigned int type,
 
 	struct hid_field *field;
 	struct hid_report *report;
-	unsigned char data[8];
+	unsigned char *data;
 	int offset;
 
 	dbg_hid("%s: %s, type:%d | code:%d | value:%d\n",
@@ -630,6 +635,13 @@ static int logi_dj_ll_input_event(struct input_dev *dev, unsigned int type,
 		return -1;
 	}
 	hid_set_field(field, offset, value);
+
+	data = hid_alloc_report_buf(field->report, GFP_ATOMIC);
+	if (!data) {
+		dev_warn(&dev->dev, "failed to allocate report buf memory\n");
+		return -1;
+	}
+
 	hid_output_report(field->report, &data[0]);
 
 	output_report_enum = &dj_rcv_hiddev->report_enum[HID_OUTPUT_REPORT];
@@ -638,10 +650,11 @@ static int logi_dj_ll_input_event(struct input_dev *dev, unsigned int type,
 	hid_set_field(report->field[0], 1, REPORT_TYPE_LEDS);
 	hid_set_field(report->field[0], 2, data[1]);
 
-	usbhid_submit_report(dj_rcv_hiddev, report, USB_DIR_OUT);
+	hid_hw_request(dj_rcv_hiddev, report, HID_REQ_SET_REPORT);
+
+	kfree(data);
 
 	return 0;
-
 }
 
 static int logi_dj_ll_start(struct hid_device *hid)
@@ -778,6 +791,12 @@ static int logi_dj_probe(struct hid_device *hdev,
 		goto hid_parse_fail;
 	}
 
+	if (!hid_validate_values(hdev, HID_OUTPUT_REPORT, REPORT_ID_DJ_SHORT,
+				 0, DJREPORT_SHORT_LENGTH - 1)) {
+		retval = -ENODEV;
+		goto hid_parse_fail;
+	}
+
 	/* Starts the usb device and connects to upper interfaces hiddev and
 	 * hidraw */
 	retval = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
@@ -796,12 +815,15 @@ static int logi_dj_probe(struct hid_device *hdev,
 	}
 
 	/* This is enabling the polling urb on the IN endpoint */
-	retval = hdev->ll_driver->open(hdev);
+	retval = hid_hw_open(hdev);
 	if (retval < 0) {
-		dev_err(&hdev->dev, "%s:hdev->ll_driver->open returned "
-			"error:%d\n", __func__, retval);
+		dev_err(&hdev->dev, "%s:hid_hw_open returned error:%d\n",
+			__func__, retval);
 		goto llopen_failed;
 	}
+
+	/* Allow incoming packets to arrive: */
+	hid_device_io_start(hdev);
 
 	retval = logi_dj_recv_query_paired_devices(djrcv_dev);
 	if (retval < 0) {
@@ -813,7 +835,7 @@ static int logi_dj_probe(struct hid_device *hdev,
 	return retval;
 
 logi_dj_recv_query_paired_devices_failed:
-	hdev->ll_driver->close(hdev);
+	hid_hw_close(hdev);
 
 llopen_failed:
 switch_to_dj_mode_fail:
@@ -855,7 +877,7 @@ static void logi_dj_remove(struct hid_device *hdev)
 
 	cancel_work_sync(&djrcv_dev->work);
 
-	hdev->ll_driver->close(hdev);
+	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
 
 	/* I suppose that at this point the only context that can access

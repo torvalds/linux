@@ -32,7 +32,7 @@
 #define VME_SOURCE_BASE    56
 #define VME_MAX_SOURCES    16
 
-#define NUM_ATARI_SOURCES   (VME_SOURCE_BASE+VME_MAX_SOURCES-STMFP_SOURCE_BASE)
+#define NUM_ATARI_SOURCES  141
 
 /* convert vector number to int source number */
 #define IRQ_VECTOR_TO_SOURCE(v)	((v) - ((v) < 0x20 ? 0x18 : (0x40-8)))
@@ -94,6 +94,15 @@
 #define IRQ_SCCA_RX	     (52)
 #define IRQ_SCCA_SPCOND	     (54)
 
+/* shared MFP timer D interrupts - hires timer for EtherNEC et al. */
+#define IRQ_MFP_TIMER1       (64)
+#define IRQ_MFP_TIMER2       (65)
+#define IRQ_MFP_TIMER3       (66)
+#define IRQ_MFP_TIMER4       (67)
+#define IRQ_MFP_TIMER5       (68)
+#define IRQ_MFP_TIMER6       (69)
+#define IRQ_MFP_TIMER7       (70)
+#define IRQ_MFP_TIMER8       (71)
 
 #define INT_CLK   24576	    /* CLK while int_clk =2.456MHz and divide = 100 */
 #define INT_TICKS 246	    /* to make sched_time = 99.902... HZ */

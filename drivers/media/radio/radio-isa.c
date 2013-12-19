@@ -51,8 +51,8 @@ static int radio_isa_querycap(struct file *file, void  *priv,
 	strlcpy(v->card, isa->drv->card, sizeof(v->card));
 	snprintf(v->bus_info, sizeof(v->bus_info), "ISA:%s", isa->v4l2_dev.name);
 
-	v->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
-	v->device_caps = v->capabilities | V4L2_CAP_DEVICE_CAPS;
+	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
+	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -87,7 +87,7 @@ static int radio_isa_g_tuner(struct file *file, void *priv,
 }
 
 static int radio_isa_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *v)
+				const struct v4l2_tuner *v)
 {
 	struct radio_isa_card *isa = video_drvdata(file);
 	const struct radio_isa_ops *ops = isa->drv->ops;
@@ -102,17 +102,18 @@ static int radio_isa_s_tuner(struct file *file, void *priv,
 }
 
 static int radio_isa_s_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *f)
+				const struct v4l2_frequency *f)
 {
 	struct radio_isa_card *isa = video_drvdata(file);
+	u32 freq = f->frequency;
 	int res;
 
 	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
 		return -EINVAL;
-	f->frequency = clamp(f->frequency, FREQ_LOW, FREQ_HIGH);
-	res = isa->drv->ops->s_frequency(isa, f->frequency);
+	freq = clamp(freq, FREQ_LOW, FREQ_HIGH);
+	res = isa->drv->ops->s_frequency(isa, freq);
 	if (res == 0)
-		isa->freq = f->frequency;
+		isa->freq = freq;
 	return res;
 }
 

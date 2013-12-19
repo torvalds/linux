@@ -286,13 +286,12 @@ static const struct hc_driver ehci_msp_hc_driver = {
 #else
 	.irq =			ehci_irq,
 #endif
-	.flags =		HCD_MEMORY | HCD_USB2,
+	.flags =		HCD_MEMORY | HCD_USB2 | HCD_BH,
 
 	/*
 	 * basic lifecycle operations
 	 */
-	.reset =		ehci_msp_setup,
-	.start =		ehci_run,
+	.reset			= ehci_msp_setup,
 	.shutdown		= ehci_shutdown,
 	.start			= ehci_run,
 	.stop			= ehci_stop,

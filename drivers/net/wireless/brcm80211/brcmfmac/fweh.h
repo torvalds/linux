@@ -83,6 +83,7 @@ struct brcmf_event;
 	BRCMF_ENUM_DEF(MULTICAST_DECODE_ERROR, 51) \
 	BRCMF_ENUM_DEF(TRACE, 52) \
 	BRCMF_ENUM_DEF(IF, 54) \
+	BRCMF_ENUM_DEF(P2P_DISC_LISTEN_COMPLETE, 55) \
 	BRCMF_ENUM_DEF(RSSI, 56) \
 	BRCMF_ENUM_DEF(PFN_SCAN_COMPLETE, 57) \
 	BRCMF_ENUM_DEF(EXTLOG_MSG, 58) \
@@ -96,8 +97,13 @@ struct brcmf_event;
 	BRCMF_ENUM_DEF(DFS_AP_RESUME, 66) \
 	BRCMF_ENUM_DEF(ESCAN_RESULT, 69) \
 	BRCMF_ENUM_DEF(ACTION_FRAME_OFF_CHAN_COMPLETE, 70) \
+	BRCMF_ENUM_DEF(PROBERESP_MSG, 71) \
+	BRCMF_ENUM_DEF(P2P_PROBEREQ_MSG, 72) \
 	BRCMF_ENUM_DEF(DCS_REQUEST, 73) \
-	BRCMF_ENUM_DEF(FIFO_CREDIT_MAP, 74)
+	BRCMF_ENUM_DEF(FIFO_CREDIT_MAP, 74) \
+	BRCMF_ENUM_DEF(ACTION_FRAME_RX, 75) \
+	BRCMF_ENUM_DEF(BCMC_CREDIT_SUPPORT, 127) \
+	BRCMF_ENUM_DEF(PSTA_PRIMARY_INTF_IND, 128)
 
 #define BRCMF_ENUM_DEF(id, val) \
 	BRCMF_E_##id = (val),
@@ -108,6 +114,8 @@ enum brcmf_fweh_event_code {
 	BRCMF_E_LAST
 };
 #undef BRCMF_ENUM_DEF
+
+#define BRCMF_EVENTING_MASK_LEN		DIV_ROUND_UP(BRCMF_E_LAST, 8)
 
 /* flags field values in struct brcmf_event_msg */
 #define BRCMF_EVENT_MSG_LINK		0x01
@@ -183,10 +191,10 @@ void brcmf_fweh_unregister(struct brcmf_pub *drvr,
 			   enum brcmf_fweh_event_code code);
 int brcmf_fweh_activate_events(struct brcmf_if *ifp);
 void brcmf_fweh_process_event(struct brcmf_pub *drvr,
-			      struct brcmf_event *event_packet, u8 *ifidx);
+			      struct brcmf_event *event_packet);
 
 static inline void brcmf_fweh_process_skb(struct brcmf_pub *drvr,
-					  struct sk_buff *skb, u8 *ifidx)
+					  struct sk_buff *skb)
 {
 	struct brcmf_event *event_packet;
 	u8 *data;
@@ -209,7 +217,7 @@ static inline void brcmf_fweh_process_skb(struct brcmf_pub *drvr,
 	if (usr_stype != BCMILCP_BCM_SUBTYPE_EVENT)
 		return;
 
-	brcmf_fweh_process_event(drvr, event_packet, ifidx);
+	brcmf_fweh_process_event(drvr, event_packet);
 }
 
 #endif /* FWEH_H_ */

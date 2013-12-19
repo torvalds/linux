@@ -124,6 +124,7 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_r
 	rep->udiag_family = AF_UNIX;
 	rep->udiag_type = sk->sk_type;
 	rep->udiag_state = sk->sk_state;
+	rep->pad = 0;
 	rep->udiag_ino = sk_ino;
 	sock_diag_save_cookie(sk, rep->udiag_cookie);
 
@@ -192,10 +193,9 @@ static int unix_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	     slot < ARRAY_SIZE(unix_socket_table);
 	     s_num = 0, slot++) {
 		struct sock *sk;
-		struct hlist_node *node;
 
 		num = 0;
-		sk_for_each(sk, node, &unix_socket_table[slot]) {
+		sk_for_each(sk, &unix_socket_table[slot]) {
 			if (!net_eq(sock_net(sk), net))
 				continue;
 			if (num < s_num)
@@ -226,9 +226,7 @@ static struct sock *unix_lookup_by_ino(int ino)
 
 	spin_lock(&unix_table_lock);
 	for (i = 0; i < ARRAY_SIZE(unix_socket_table); i++) {
-		struct hlist_node *node;
-
-		sk_for_each(sk, node, &unix_socket_table[i])
+		sk_for_each(sk, &unix_socket_table[i])
 			if (ino == sock_i_ino(sk)) {
 				sock_hold(sk);
 				spin_unlock(&unix_table_lock);

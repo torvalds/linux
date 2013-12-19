@@ -13,31 +13,42 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
+#include <asm/pci_debug.h>
 #include <asm/pci_clp.h>
+
+static inline void zpci_err_clp(unsigned int rsp, int rc)
+{
+	struct {
+		unsigned int rsp;
+		int rc;
+	} __packed data = {rsp, rc};
+
+	zpci_err_hex(&data, sizeof(data));
+}
 
 /*
  * Call Logical Processor
  * Retry logic is handled by the caller.
  */
-static inline u8 clp_instr(void *req)
+static inline u8 clp_instr(void *data)
 {
-	u64 ilpm;
+	struct { u8 _[CLP_BLK_SIZE]; } *req = data;
+	u64 ignored;
 	u8 cc;
 
 	asm volatile (
-		"	.insn	rrf,0xb9a00000,%[ilpm],%[req],0x0,0x2\n"
+		"	.insn	rrf,0xb9a00000,%[ign],%[req],0x0,0x2\n"
 		"	ipm	%[cc]\n"
 		"	srl	%[cc],28\n"
-		: [cc] "=d" (cc), [ilpm] "=d" (ilpm)
+		: [cc] "=d" (cc), [ign] "=d" (ignored), "+m" (*req)
 		: [req] "a" (req)
-		: "cc", "memory");
+		: "cc");
 	return cc;
 }
 
-static void *clp_alloc_block(void)
+static void *clp_alloc_block(gfp_t gfp_mask)
 {
-	struct page *page = alloc_pages(GFP_KERNEL, get_order(CLP_BLK_SIZE));
-	return (page) ? page_address(page) : NULL;
+	return (void *) __get_free_pages(gfp_mask, get_order(CLP_BLK_SIZE));
 }
 
 static void clp_free_block(void *ptr)
@@ -53,7 +64,6 @@ static void clp_store_query_pci_fngrp(struct zpci_dev *zdev,
 	zdev->msi_addr = response->msia;
 	zdev->fmb_update = response->mui;
 
-	pr_debug("Supported number of MSI vectors: %u\n", response->noi);
 	switch (response->version) {
 	case 1:
 		zdev->max_bus_speed = PCIE_SPEED_5_0GT;
@@ -69,7 +79,7 @@ static int clp_query_pci_fngrp(struct zpci_dev *zdev, u8 pfgid)
 	struct clp_req_rsp_query_pci_grp *rrb;
 	int rc;
 
-	rrb = clp_alloc_block();
+	rrb = clp_alloc_block(GFP_KERNEL);
 	if (!rrb)
 		return -ENOMEM;
 
@@ -83,8 +93,8 @@ static int clp_query_pci_fngrp(struct zpci_dev *zdev, u8 pfgid)
 	if (!rc && rrb->response.hdr.rsp == CLP_RC_OK)
 		clp_store_query_pci_fngrp(zdev, &rrb->response);
 	else {
-		pr_err("Query PCI FNGRP failed with response: %x  cc: %d\n",
-			rrb->response.hdr.rsp, rc);
+		zpci_err("Q PCI FGRP:\n");
+		zpci_err_clp(rrb->response.hdr.rsp, rc);
 		rc = -EIO;
 	}
 	clp_free_block(rrb);
@@ -112,7 +122,7 @@ static int clp_query_pci_fn(struct zpci_dev *zdev, u32 fh)
 	struct clp_req_rsp_query_pci *rrb;
 	int rc;
 
-	rrb = clp_alloc_block();
+	rrb = clp_alloc_block(GFP_KERNEL);
 	if (!rrb)
 		return -ENOMEM;
 
@@ -130,8 +140,8 @@ static int clp_query_pci_fn(struct zpci_dev *zdev, u32 fh)
 		if (rrb->response.pfgid)
 			rc = clp_query_pci_fngrp(zdev, rrb->response.pfgid);
 	} else {
-		pr_err("Query PCI failed with response: %x  cc: %d\n",
-			 rrb->response.hdr.rsp, rc);
+		zpci_err("Q PCI FN:\n");
+		zpci_err_clp(rrb->response.hdr.rsp, rc);
 		rc = -EIO;
 	}
 out:
@@ -144,9 +154,10 @@ int clp_add_pci_device(u32 fid, u32 fh, int configured)
 	struct zpci_dev *zdev;
 	int rc;
 
-	zdev = zpci_alloc_device();
-	if (IS_ERR(zdev))
-		return PTR_ERR(zdev);
+	zpci_dbg(3, "add fid:%x, fh:%x, c:%d\n", fid, fh, configured);
+	zdev = kzalloc(sizeof(*zdev), GFP_KERNEL);
+	if (!zdev)
+		return -ENOMEM;
 
 	zdev->fh = fh;
 	zdev->fid = fid;
@@ -167,7 +178,7 @@ int clp_add_pci_device(u32 fid, u32 fh, int configured)
 	return 0;
 
 error:
-	zpci_free_device(zdev);
+	kfree(zdev);
 	return rc;
 }
 
@@ -177,9 +188,9 @@ error:
 static int clp_set_pci_fn(u32 *fh, u8 nr_dma_as, u8 command)
 {
 	struct clp_req_rsp_set_pci *rrb;
-	int rc, retries = 1000;
+	int rc, retries = 100;
 
-	rrb = clp_alloc_block();
+	rrb = clp_alloc_block(GFP_KERNEL);
 	if (!rrb)
 		return -ENOMEM;
 
@@ -197,15 +208,15 @@ static int clp_set_pci_fn(u32 *fh, u8 nr_dma_as, u8 command)
 			retries--;
 			if (retries < 0)
 				break;
-			msleep(1);
+			msleep(20);
 		}
 	} while (rrb->response.hdr.rsp == CLP_RC_SETPCIFN_BUSY);
 
 	if (!rc && rrb->response.hdr.rsp == CLP_RC_OK)
 		*fh = rrb->response.fh;
 	else {
-		pr_err("Set PCI FN failed with response: %x  cc: %d\n",
-			rrb->response.hdr.rsp, rc);
+		zpci_err("Set PCI FN:\n");
+		zpci_err_clp(rrb->response.hdr.rsp, rc);
 		rc = -EIO;
 	}
 	clp_free_block(rrb);
@@ -221,6 +232,8 @@ int clp_enable_fh(struct zpci_dev *zdev, u8 nr_dma_as)
 	if (!rc)
 		/* Success -> store enabled handle in zdev */
 		zdev->fh = fh;
+
+	zpci_dbg(3, "ena fid:%x, fh:%x, rc:%d\n", zdev->fid, zdev->fh, rc);
 	return rc;
 }
 
@@ -232,59 +245,20 @@ int clp_disable_fh(struct zpci_dev *zdev)
 	if (!zdev_enabled(zdev))
 		return 0;
 
-	dev_info(&zdev->pdev->dev, "disabling fn handle: 0x%x\n", fh);
 	rc = clp_set_pci_fn(&fh, 0, CLP_SET_DISABLE_PCI_FN);
 	if (!rc)
 		/* Success -> store disabled handle in zdev */
 		zdev->fh = fh;
-	else
-		dev_err(&zdev->pdev->dev,
-			"Failed to disable fn handle: 0x%x\n", fh);
+
+	zpci_dbg(3, "dis fid:%x, fh:%x, rc:%d\n", zdev->fid, zdev->fh, rc);
 	return rc;
 }
 
-static void clp_check_pcifn_entry(struct clp_fh_list_entry *entry)
+static int clp_list_pci(struct clp_req_rsp_list_pci *rrb,
+			void (*cb)(struct clp_fh_list_entry *entry))
 {
-	int present, rc;
-
-	if (!entry->vendor_id)
-		return;
-
-	/* TODO: be a little bit more scalable */
-	present = zpci_fid_present(entry->fid);
-
-	if (present)
-		pr_debug("%s: device %x already present\n", __func__, entry->fid);
-
-	/* skip already used functions */
-	if (present && entry->config_state)
-		return;
-
-	/* aev 306: function moved to stand-by state */
-	if (present && !entry->config_state) {
-		/*
-		 * The handle is already disabled, that means no iota/irq freeing via
-		 * the firmware interfaces anymore. Need to free resources manually
-		 * (DMA memory, debug, sysfs)...
-		 */
-		zpci_stop_device(get_zdev_by_fid(entry->fid));
-		return;
-	}
-
-	rc = clp_add_pci_device(entry->fid, entry->fh, entry->config_state);
-	if (rc)
-		pr_err("Failed to add fid: 0x%x\n", entry->fid);
-}
-
-int clp_find_pci_devices(void)
-{
-	struct clp_req_rsp_list_pci *rrb;
 	u64 resume_token = 0;
 	int entries, i, rc;
-
-	rrb = clp_alloc_block();
-	if (!rrb)
-		return -ENOMEM;
 
 	do {
 		memset(rrb, 0, sizeof(*rrb));
@@ -297,8 +271,8 @@ int clp_find_pci_devices(void)
 		/* Get PCI function handle list */
 		rc = clp_instr(rrb);
 		if (rc || rrb->response.hdr.rsp != CLP_RC_OK) {
-			pr_err("List PCI failed with response: 0x%x  cc: %d\n",
-				rrb->response.hdr.rsp, rc);
+			zpci_err("List PCI FN:\n");
+			zpci_err_clp(rrb->response.hdr.rsp, rc);
 			rc = -EIO;
 			goto out;
 		}
@@ -308,18 +282,101 @@ int clp_find_pci_devices(void)
 
 		entries = (rrb->response.hdr.len - LIST_PCI_HDR_LEN) /
 			rrb->response.entry_size;
-		pr_info("Detected number of PCI functions: %u\n", entries);
 
-		/* Store the returned resume token as input for the next call */
 		resume_token = rrb->response.resume_token;
-
 		for (i = 0; i < entries; i++)
-			clp_check_pcifn_entry(&rrb->response.fh_list[i]);
+			cb(&rrb->response.fh_list[i]);
 	} while (resume_token);
-
-	pr_debug("Maximum number of supported PCI functions: %u\n",
-		rrb->response.max_fn);
 out:
+	return rc;
+}
+
+static void __clp_add(struct clp_fh_list_entry *entry)
+{
+	if (!entry->vendor_id)
+		return;
+
+	clp_add_pci_device(entry->fid, entry->fh, entry->config_state);
+}
+
+static void __clp_rescan(struct clp_fh_list_entry *entry)
+{
+	struct zpci_dev *zdev;
+
+	if (!entry->vendor_id)
+		return;
+
+	zdev = get_zdev_by_fid(entry->fid);
+	if (!zdev) {
+		clp_add_pci_device(entry->fid, entry->fh, entry->config_state);
+		return;
+	}
+
+	if (!entry->config_state) {
+		/*
+		 * The handle is already disabled, that means no iota/irq freeing via
+		 * the firmware interfaces anymore. Need to free resources manually
+		 * (DMA memory, debug, sysfs)...
+		 */
+		zpci_stop_device(zdev);
+	}
+}
+
+static void __clp_update(struct clp_fh_list_entry *entry)
+{
+	struct zpci_dev *zdev;
+
+	if (!entry->vendor_id)
+		return;
+
+	zdev = get_zdev_by_fid(entry->fid);
+	if (!zdev)
+		return;
+
+	zdev->fh = entry->fh;
+}
+
+int clp_scan_pci_devices(void)
+{
+	struct clp_req_rsp_list_pci *rrb;
+	int rc;
+
+	rrb = clp_alloc_block(GFP_KERNEL);
+	if (!rrb)
+		return -ENOMEM;
+
+	rc = clp_list_pci(rrb, __clp_add);
+
+	clp_free_block(rrb);
+	return rc;
+}
+
+int clp_rescan_pci_devices(void)
+{
+	struct clp_req_rsp_list_pci *rrb;
+	int rc;
+
+	rrb = clp_alloc_block(GFP_KERNEL);
+	if (!rrb)
+		return -ENOMEM;
+
+	rc = clp_list_pci(rrb, __clp_rescan);
+
+	clp_free_block(rrb);
+	return rc;
+}
+
+int clp_rescan_pci_devices_simple(void)
+{
+	struct clp_req_rsp_list_pci *rrb;
+	int rc;
+
+	rrb = clp_alloc_block(GFP_NOWAIT);
+	if (!rrb)
+		return -ENOMEM;
+
+	rc = clp_list_pci(rrb, __clp_update);
+
 	clp_free_block(rrb);
 	return rc;
 }

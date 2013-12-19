@@ -16,11 +16,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 /*
 Driver: amplc_pci224
@@ -103,6 +98,8 @@ Caveats:
      correctly.
 */
 
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 
@@ -218,12 +215,6 @@ Caveats:
 #define CLK_EXT		7	/* external clock */
 /* Macro to construct clock input configuration register value. */
 #define CLK_CONFIG(chan, src)	((((chan) & 3) << 3) | ((src) & 7))
-/* Timebases in ns. */
-#define TIMEBASE_10MHZ		100
-#define TIMEBASE_1MHZ		1000
-#define TIMEBASE_100KHZ		10000
-#define TIMEBASE_10KHZ		100000
-#define TIMEBASE_1KHZ		1000000
 
 /*
  * Counter/timer gate input configuration sources.
@@ -382,7 +373,7 @@ struct pci224_private {
 	unsigned long state;
 	spinlock_t ao_spinlock;
 	unsigned int *ao_readback;
-	short *ao_scan_vals;
+	unsigned short *ao_scan_vals;
 	unsigned char *ao_scan_order;
 	int intr_cpuid;
 	short intr_running;
@@ -846,26 +837,26 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		switch (round_mode) {
 		case TRIG_ROUND_NEAREST:
 		default:
-			round = TIMEBASE_10MHZ / 2;
+			round = I8254_OSC_BASE_10MHZ / 2;
 			break;
 		case TRIG_ROUND_DOWN:
 			round = 0;
 			break;
 		case TRIG_ROUND_UP:
-			round = TIMEBASE_10MHZ - 1;
+			round = I8254_OSC_BASE_10MHZ - 1;
 			break;
 		}
 		/* Be careful to avoid overflow! */
-		div2 = cmd->scan_begin_arg / TIMEBASE_10MHZ;
-		div2 += (round + cmd->scan_begin_arg % TIMEBASE_10MHZ) /
-		    TIMEBASE_10MHZ;
+		div2 = cmd->scan_begin_arg / I8254_OSC_BASE_10MHZ;
+		div2 += (round + cmd->scan_begin_arg % I8254_OSC_BASE_10MHZ) /
+			I8254_OSC_BASE_10MHZ;
 		if (div2 <= 0x10000) {
 			/* A single timer will suffice. */
 			if (div2 < 2)
 				div2 = 2;
-			cmd->scan_begin_arg = div2 * TIMEBASE_10MHZ;
+			cmd->scan_begin_arg = div2 * I8254_OSC_BASE_10MHZ;
 			if (cmd->scan_begin_arg < div2 ||
-			    cmd->scan_begin_arg < TIMEBASE_10MHZ) {
+			    cmd->scan_begin_arg < I8254_OSC_BASE_10MHZ) {
 				/* Overflow! */
 				cmd->scan_begin_arg = MAX_SCAN_PERIOD;
 			}
@@ -873,7 +864,8 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 			/* Use two timers. */
 			div1 = devpriv->cached_div1;
 			div2 = devpriv->cached_div2;
-			pci224_cascade_ns_to_timer(TIMEBASE_10MHZ, &div1, &div2,
+			pci224_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+						   &div1, &div2,
 						   &cmd->scan_begin_arg,
 						   round_mode);
 			devpriv->cached_div1 = div1;
@@ -1005,19 +997,19 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		switch (round_mode) {
 		case TRIG_ROUND_NEAREST:
 		default:
-			round = TIMEBASE_10MHZ / 2;
+			round = I8254_OSC_BASE_10MHZ / 2;
 			break;
 		case TRIG_ROUND_DOWN:
 			round = 0;
 			break;
 		case TRIG_ROUND_UP:
-			round = TIMEBASE_10MHZ - 1;
+			round = I8254_OSC_BASE_10MHZ - 1;
 			break;
 		}
 		/* Be careful to avoid overflow! */
-		div2 = cmd->scan_begin_arg / TIMEBASE_10MHZ;
-		div2 += (round + cmd->scan_begin_arg % TIMEBASE_10MHZ) /
-		    TIMEBASE_10MHZ;
+		div2 = cmd->scan_begin_arg / I8254_OSC_BASE_10MHZ;
+		div2 += (round + cmd->scan_begin_arg % I8254_OSC_BASE_10MHZ) /
+			I8254_OSC_BASE_10MHZ;
 		if (div2 <= 0x10000) {
 			/* A single timer will suffice. */
 			if (div2 < 2)
@@ -1028,7 +1020,8 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			/* Use two timers. */
 			div1 = devpriv->cached_div1;
 			div2 = devpriv->cached_div2;
-			pci224_cascade_ns_to_timer(TIMEBASE_10MHZ, &div1, &div2,
+			pci224_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+						   &div1, &div2,
 						   &ns, round_mode);
 		}
 
@@ -1119,7 +1112,7 @@ pci224_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 	const struct pci224_board *thisboard = comedi_board(dev);
 	struct pci224_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
-	short *array = data;
+	unsigned short *array = data;
 	unsigned int length = num_bytes / sizeof(*array);
 	unsigned int offset;
 	unsigned int shift;
@@ -1279,13 +1272,10 @@ static int pci224_attach_common(struct comedi_device *dev,
 
 	comedi_set_hw_dev(dev, &pci_dev->dev);
 
-	ret = comedi_pci_enable(pci_dev, DRIVER_NAME);
-	if (ret < 0) {
-		dev_err(dev->class_dev,
-			"error! cannot enable PCI device and request regions!\n"
-			);
+	ret = comedi_pci_enable(dev);
+	if (ret)
 		return ret;
-	}
+
 	spin_lock_init(&devpriv->ao_spinlock);
 
 	devpriv->iobase1 = pci_resource_start(pci_dev, 2);
@@ -1426,10 +1416,9 @@ static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev_info(dev->class_dev, DRIVER_NAME ": attach\n");
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	pci_dev = pci224_find_pci_dev(dev, it);
 	if (!pci_dev)
@@ -1447,10 +1436,9 @@ pci224_auto_attach(struct comedi_device *dev, unsigned long context_unused)
 	dev_info(dev->class_dev, DRIVER_NAME ": attach pci %s\n",
 		 pci_name(pci_dev));
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	dev->board_ptr = pci224_find_pci_board(pci_dev);
 	if (dev->board_ptr == NULL) {
@@ -1487,11 +1475,9 @@ static void pci224_detach(struct comedi_device *dev)
 		kfree(devpriv->ao_scan_vals);
 		kfree(devpriv->ao_scan_order);
 	}
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
+	comedi_pci_disable(dev);
+	if (pcidev)
 		pci_dev_put(pcidev);
-	}
 }
 
 static struct comedi_driver amplc_pci224_driver = {
@@ -1506,15 +1492,10 @@ static struct comedi_driver amplc_pci224_driver = {
 };
 
 static int amplc_pci224_pci_probe(struct pci_dev *dev,
-						   const struct pci_device_id
-						   *ent)
+				  const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &amplc_pci224_driver);
-}
-
-static void amplc_pci224_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
+	return comedi_pci_auto_config(dev, &amplc_pci224_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(amplc_pci224_pci_table) = {
@@ -1528,7 +1509,7 @@ static struct pci_driver amplc_pci224_pci_driver = {
 	.name		= "amplc_pci224",
 	.id_table	= amplc_pci224_pci_table,
 	.probe		= amplc_pci224_pci_probe,
-	.remove		= amplc_pci224_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(amplc_pci224_driver, amplc_pci224_pci_driver);
 

@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/bcd.h>
 #include <linux/io.h>
+#include <linux/err.h>
 
 #define DRV_VERSION		"1.0"
 
@@ -141,16 +142,15 @@ static const struct rtc_class_ops m48t35_ops = {
 	.set_time	= m48t35_set_time,
 };
 
-static int __devinit m48t35_probe(struct platform_device *pdev)
+static int m48t35_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct m48t35_priv *priv;
-	int ret = 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENODEV;
-	priv = kzalloc(sizeof(struct m48t35_priv), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(struct m48t35_priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -160,51 +160,22 @@ static int __devinit m48t35_probe(struct platform_device *pdev)
 	 * conflicts are resolved
 	 */
 #ifndef CONFIG_SGI_IP27
-	if (!request_mem_region(res->start, priv->size, pdev->name)) {
-		ret = -EBUSY;
-		goto out;
-	}
+	if (!devm_request_mem_region(&pdev->dev, res->start, priv->size,
+				     pdev->name))
+		return -EBUSY;
 #endif
 	priv->baseaddr = res->start;
-	priv->reg = ioremap(priv->baseaddr, priv->size);
-	if (!priv->reg) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	priv->reg = devm_ioremap(&pdev->dev, priv->baseaddr, priv->size);
+	if (!priv->reg)
+		return -ENOMEM;
 
 	spin_lock_init(&priv->lock);
 
 	platform_set_drvdata(pdev, priv);
 
-	priv->rtc = rtc_device_register("m48t35", &pdev->dev,
+	priv->rtc = devm_rtc_device_register(&pdev->dev, "m48t35",
 				  &m48t35_ops, THIS_MODULE);
-	if (IS_ERR(priv->rtc)) {
-		ret = PTR_ERR(priv->rtc);
-		goto out;
-	}
-
-	return 0;
-
-out:
-	if (priv->reg)
-		iounmap(priv->reg);
-	if (priv->baseaddr)
-		release_mem_region(priv->baseaddr, priv->size);
-	kfree(priv);
-	return ret;
-}
-
-static int __devexit m48t35_remove(struct platform_device *pdev)
-{
-	struct m48t35_priv *priv = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(priv->rtc);
-	iounmap(priv->reg);
-#ifndef CONFIG_SGI_IP27
-	release_mem_region(priv->baseaddr, priv->size);
-#endif
-	kfree(priv);
-	return 0;
+	return PTR_ERR_OR_ZERO(priv->rtc);
 }
 
 static struct platform_driver m48t35_platform_driver = {
@@ -213,7 +184,6 @@ static struct platform_driver m48t35_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= m48t35_probe,
-	.remove		= __devexit_p(m48t35_remove),
 };
 
 module_platform_driver(m48t35_platform_driver);

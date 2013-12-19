@@ -21,6 +21,8 @@
 #include <linux/io.h>
 #include <linux/sh_clk.h>
 #include <linux/clkdev.h>
+#include <asm/processor.h>
+#include <mach/clock.h>
 #include <mach/common.h>
 
 #define FRQCRA		IOMEM(0xe6150000)
@@ -82,59 +84,14 @@ struct clk sh73a0_extal2_clk = {
 	.rate		= 48000000,
 };
 
-/* A fixed divide-by-2 block */
-static unsigned long div2_recalc(struct clk *clk)
-{
-	return clk->parent->rate / 2;
-}
-
-static struct sh_clk_ops div2_clk_ops = {
-	.recalc		= div2_recalc,
-};
-
-static unsigned long div7_recalc(struct clk *clk)
-{
-	return clk->parent->rate / 7;
-}
-
-static struct sh_clk_ops div7_clk_ops = {
-	.recalc		= div7_recalc,
-};
-
-static unsigned long div13_recalc(struct clk *clk)
-{
-	return clk->parent->rate / 13;
-}
-
-static struct sh_clk_ops div13_clk_ops = {
-	.recalc		= div13_recalc,
-};
-
-/* Divide extal1 by two */
-static struct clk extal1_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &sh73a0_extal1_clk,
-};
-
-/* Divide extal2 by two */
-static struct clk extal2_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &sh73a0_extal2_clk,
-};
-
 static struct sh_clk_ops main_clk_ops = {
 	.recalc		= followparent_recalc,
 };
 
 /* Main clock */
 static struct clk main_clk = {
+	/* .parent wll be set on sh73a0_clock_init() */
 	.ops		= &main_clk_ops,
-};
-
-/* Divide Main clock by two */
-static struct clk main_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &main_clk,
 };
 
 /* PLL0, PLL1, PLL2, PLL3 */
@@ -192,21 +149,17 @@ static struct clk pll3_clk = {
 	.enable_bit	= 3,
 };
 
-/* Divide PLL */
-static struct clk pll1_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &pll1_clk,
-};
+/* A fixed divide block */
+SH_CLK_RATIO(div2,  1, 2);
+SH_CLK_RATIO(div7,  1, 7);
+SH_CLK_RATIO(div13, 1, 13);
 
-static struct clk pll1_div7_clk = {
-	.ops		= &div7_clk_ops,
-	.parent		= &pll1_clk,
-};
-
-static struct clk pll1_div13_clk = {
-	.ops		= &div13_clk_ops,
-	.parent		= &pll1_clk,
-};
+SH_FIXED_RATIO_CLK(extal1_div2_clk,	sh73a0_extal1_clk,	div2);
+SH_FIXED_RATIO_CLK(extal2_div2_clk,	sh73a0_extal2_clk,	div2);
+SH_FIXED_RATIO_CLK(main_div2_clk,	main_clk,		div2);
+SH_FIXED_RATIO_CLK(pll1_div2_clk,	pll1_clk,		div2);
+SH_FIXED_RATIO_CLK(pll1_div7_clk,	pll1_clk,		div7);
+SH_FIXED_RATIO_CLK(pll1_div13_clk,	pll1_clk,		div13);
 
 /* External input clock */
 struct clk sh73a0_extcki_clk = {
@@ -234,14 +187,24 @@ static struct clk *main_clks[] = {
 	&sh73a0_extalr_clk,
 };
 
+static int frqcr_kick(void)
+{
+	int i;
+
+	/* set KICK bit in FRQCRB to update hardware setting, check success */
+	__raw_writel(__raw_readl(FRQCRB) | (1 << 31), FRQCRB);
+	for (i = 1000; i; i--)
+		if (__raw_readl(FRQCRB) & (1 << 31))
+			cpu_relax();
+		else
+			return i;
+
+	return -ETIMEDOUT;
+}
+
 static void div4_kick(struct clk *clk)
 {
-	unsigned long value;
-
-	/* set KICK bit in FRQCRB to update hardware setting */
-	value = __raw_readl(FRQCRB);
-	value |= (1 << 31);
-	__raw_writel(value, FRQCRB);
+	frqcr_kick();
 }
 
 static int divisors[] = { 2, 3, 4, 6, 8, 12, 16, 18,
@@ -258,24 +221,136 @@ static struct clk_div4_table div4_table = {
 };
 
 enum { DIV4_I, DIV4_ZG, DIV4_M3, DIV4_B, DIV4_M1, DIV4_M2,
-	DIV4_Z, DIV4_ZTR, DIV4_ZT, DIV4_ZX, DIV4_HP, DIV4_NR };
+	DIV4_Z, DIV4_ZX, DIV4_HP, DIV4_NR };
 
 #define DIV4(_reg, _bit, _mask, _flags) \
 	SH_CLK_DIV4(&pll1_clk, _reg, _bit, _mask, _flags)
 
 static struct clk div4_clks[DIV4_NR] = {
-	[DIV4_I] = DIV4(FRQCRA, 20, 0xfff, CLK_ENABLE_ON_INIT),
-	[DIV4_ZG] = DIV4(FRQCRA, 16, 0xbff, CLK_ENABLE_ON_INIT),
-	[DIV4_M3] = DIV4(FRQCRA, 12, 0xfff, CLK_ENABLE_ON_INIT),
-	[DIV4_B] = DIV4(FRQCRA, 8, 0xfff, CLK_ENABLE_ON_INIT),
-	[DIV4_M1] = DIV4(FRQCRA, 4, 0xfff, 0),
-	[DIV4_M2] = DIV4(FRQCRA, 0, 0xfff, 0),
-	[DIV4_Z] = DIV4(FRQCRB, 24, 0xbff, 0),
-	[DIV4_ZTR] = DIV4(FRQCRB, 20, 0xfff, 0),
-	[DIV4_ZT] = DIV4(FRQCRB, 16, 0xfff, 0),
-	[DIV4_ZX] = DIV4(FRQCRB, 12, 0xfff, 0),
-	[DIV4_HP] = DIV4(FRQCRB, 4, 0xfff, 0),
+	[DIV4_I] = DIV4(FRQCRA, 20, 0xdff, CLK_ENABLE_ON_INIT),
+	/*
+	 * ZG clock is dividing PLL0 frequency to supply SGX. Make sure not to
+	 * exceed maximum frequencies of 201.5MHz for VDD_DVFS=1.175 and
+	 * 239.2MHz for VDD_DVFS=1.315V.
+	 */
+	[DIV4_ZG] = SH_CLK_DIV4(&pll0_clk, FRQCRA, 16, 0xd7f, CLK_ENABLE_ON_INIT),
+	[DIV4_M3] = DIV4(FRQCRA, 12, 0x1dff, CLK_ENABLE_ON_INIT),
+	[DIV4_B] = DIV4(FRQCRA, 8, 0xdff, CLK_ENABLE_ON_INIT),
+	[DIV4_M1] = DIV4(FRQCRA, 4, 0x1dff, 0),
+	[DIV4_M2] = DIV4(FRQCRA, 0, 0x1dff, 0),
+	[DIV4_Z] = SH_CLK_DIV4(&pll0_clk, FRQCRB, 24, 0x97f, 0),
+	[DIV4_ZX] = DIV4(FRQCRB, 12, 0xdff, 0),
+	[DIV4_HP] = DIV4(FRQCRB, 4, 0xdff, 0),
 };
+
+static unsigned long twd_recalc(struct clk *clk)
+{
+	return clk_get_rate(clk->parent) / 4;
+}
+
+static struct sh_clk_ops twd_clk_ops = {
+	.recalc = twd_recalc,
+};
+
+static struct clk twd_clk = {
+	.parent = &div4_clks[DIV4_Z],
+	.ops = &twd_clk_ops,
+};
+
+static struct sh_clk_ops zclk_ops, kicker_ops;
+static const struct sh_clk_ops *div4_clk_ops;
+
+static int zclk_set_rate(struct clk *clk, unsigned long rate)
+{
+	int ret;
+
+	if (!clk->parent || !__clk_get(clk->parent))
+		return -ENODEV;
+
+	if (readl(FRQCRB) & (1 << 31))
+		return -EBUSY;
+
+	if (rate == clk_get_rate(clk->parent)) {
+		/* 1:1 - switch off divider */
+		__raw_writel(__raw_readl(FRQCRB) & ~(1 << 28), FRQCRB);
+		/* nullify the divider to prepare for the next time */
+		ret = div4_clk_ops->set_rate(clk, rate / 2);
+		if (!ret)
+			ret = frqcr_kick();
+		if (ret > 0)
+			ret = 0;
+	} else {
+		/* Enable the divider */
+		__raw_writel(__raw_readl(FRQCRB) | (1 << 28), FRQCRB);
+
+		ret = frqcr_kick();
+		if (ret >= 0)
+			/*
+			 * set the divider - call the DIV4 method, it will kick
+			 * FRQCRB too
+			 */
+			ret = div4_clk_ops->set_rate(clk, rate);
+		if (ret < 0)
+			goto esetrate;
+	}
+
+esetrate:
+	__clk_put(clk->parent);
+	return ret;
+}
+
+static long zclk_round_rate(struct clk *clk, unsigned long rate)
+{
+	unsigned long div_freq = div4_clk_ops->round_rate(clk, rate),
+		parent_freq = clk_get_rate(clk->parent);
+
+	if (rate > div_freq && abs(parent_freq - rate) < rate - div_freq)
+		return parent_freq;
+
+	return div_freq;
+}
+
+static unsigned long zclk_recalc(struct clk *clk)
+{
+	/*
+	 * Must recalculate frequencies in case PLL0 has been changed, even if
+	 * the divisor is unused ATM!
+	 */
+	unsigned long div_freq = div4_clk_ops->recalc(clk);
+
+	if (__raw_readl(FRQCRB) & (1 << 28))
+		return div_freq;
+
+	return clk_get_rate(clk->parent);
+}
+
+static int kicker_set_rate(struct clk *clk, unsigned long rate)
+{
+	if (__raw_readl(FRQCRB) & (1 << 31))
+		return -EBUSY;
+
+	return div4_clk_ops->set_rate(clk, rate);
+}
+
+static void div4_clk_extend(void)
+{
+	int i;
+
+	div4_clk_ops = div4_clks[0].ops;
+
+	/* Add a kicker-busy check before changing the rate */
+	kicker_ops = *div4_clk_ops;
+	/* We extend the DIV4 clock with a 1:1 pass-through case */
+	zclk_ops = *div4_clk_ops;
+
+	kicker_ops.set_rate = kicker_set_rate;
+	zclk_ops.set_rate = zclk_set_rate;
+	zclk_ops.round_rate = zclk_round_rate;
+	zclk_ops.recalc = zclk_recalc;
+
+	for (i = 0; i < DIV4_NR; i++)
+		div4_clks[i].ops = i == DIV4_Z ? &zclk_ops : &kicker_ops;
+}
 
 enum { DIV6_VCK1, DIV6_VCK2, DIV6_VCK3, DIV6_ZB1,
 	DIV6_FLCTL, DIV6_SDHI0, DIV6_SDHI1, DIV6_SDHI2,
@@ -471,15 +546,16 @@ static struct clk dsi1phy_clk = {
 static struct clk *late_main_clks[] = {
 	&dsi0phy_clk,
 	&dsi1phy_clk,
+	&twd_clk,
 };
 
 enum { MSTP001,
-	MSTP129, MSTP128, MSTP127, MSTP126, MSTP125, MSTP118, MSTP116, MSTP100,
+	MSTP129, MSTP128, MSTP127, MSTP126, MSTP125, MSTP118, MSTP116, MSTP112, MSTP100,
 	MSTP219, MSTP218, MSTP217,
 	MSTP207, MSTP206, MSTP204, MSTP203, MSTP202, MSTP201, MSTP200,
 	MSTP331, MSTP329, MSTP328, MSTP325, MSTP323, MSTP322,
 	MSTP314, MSTP313, MSTP312, MSTP311,
-	MSTP303, MSTP302, MSTP301, MSTP300,
+	MSTP304, MSTP303, MSTP302, MSTP301, MSTP300,
 	MSTP411, MSTP410, MSTP403,
 	MSTP_NR };
 
@@ -495,6 +571,7 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP125] = MSTP(&div6_clks[DIV6_SUB], SMSTPCR1, 25, 0), /* TMU0 */
 	[MSTP118] = MSTP(&div4_clks[DIV4_B], SMSTPCR1, 18, 0), /* DSITX0 */
 	[MSTP116] = MSTP(&div4_clks[DIV4_HP], SMSTPCR1, 16, 0), /* IIC0 */
+	[MSTP112] = MSTP(&div4_clks[DIV4_ZG], SMSTPCR1, 12, 0), /* SGX */
 	[MSTP100] = MSTP(&div4_clks[DIV4_B], SMSTPCR1, 0, 0), /* LCDC0 */
 	[MSTP219] = MSTP(&div6_clks[DIV6_SUB], SMSTPCR2, 19, 0), /* SCIFA7 */
 	[MSTP218] = MSTP(&div4_clks[DIV4_HP], SMSTPCR2, 18, 0), /* SY-DMAC */
@@ -516,6 +593,7 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP313] = MSTP(&div6_clks[DIV6_SDHI1], SMSTPCR3, 13, 0), /* SDHI1 */
 	[MSTP312] = MSTP(&div4_clks[DIV4_HP], SMSTPCR3, 12, 0), /* MMCIF0 */
 	[MSTP311] = MSTP(&div6_clks[DIV6_SDHI2], SMSTPCR3, 11, 0), /* SDHI2 */
+	[MSTP304] = MSTP(&main_div2_clk, SMSTPCR3, 4, 0), /* TPU0 */
 	[MSTP303] = MSTP(&main_div2_clk, SMSTPCR3, 3, 0), /* TPU1 */
 	[MSTP302] = MSTP(&main_div2_clk, SMSTPCR3, 2, 0), /* TPU2 */
 	[MSTP301] = MSTP(&main_div2_clk, SMSTPCR3, 1, 0), /* TPU3 */
@@ -525,9 +603,20 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP403] = MSTP(&r_clk, SMSTPCR4, 3, 0), /* KEYSC */
 };
 
+/* The lookups structure below includes duplicate entries for some clocks
+ * with alternate names.
+ * - The traditional name used when a device is initialised with platform data
+ * - The name used when a device is initialised using device tree
+ * The longer-term aim is to remove these duplicates, and indeed the
+ * lookups table entirely, by describing clocks using device tree.
+ */
 static struct clk_lookup lookups[] = {
 	/* main clocks */
 	CLKDEV_CON_ID("r_clk", &r_clk),
+	CLKDEV_DEV_ID("smp_twd", &twd_clk), /* smp_twd */
+
+	/* DIV4 clocks */
+	CLKDEV_DEV_ID("cpu0", &div4_clks[DIV4_Z]),
 
 	/* DIV6 clocks */
 	CLKDEV_CON_ID("vck1_clk", &div6_clks[DIV6_VCK1]),
@@ -545,6 +634,7 @@ static struct clk_lookup lookups[] = {
 
 	/* MSTP32 clocks */
 	CLKDEV_DEV_ID("i2c-sh_mobile.2", &mstp_clks[MSTP001]), /* I2C2 */
+	CLKDEV_DEV_ID("e6824000.i2c", &mstp_clks[MSTP001]), /* I2C2 */
 	CLKDEV_DEV_ID("sh_mobile_ceu.1", &mstp_clks[MSTP129]), /* CEU1 */
 	CLKDEV_DEV_ID("sh-mobile-csi2.1", &mstp_clks[MSTP128]), /* CSI2-RX1 */
 	CLKDEV_DEV_ID("sh_mobile_ceu.0", &mstp_clks[MSTP127]), /* CEU0 */
@@ -553,6 +643,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh_tmu.1", &mstp_clks[MSTP125]), /* TMU01 */
 	CLKDEV_DEV_ID("sh-mipi-dsi.0", &mstp_clks[MSTP118]), /* DSITX */
 	CLKDEV_DEV_ID("i2c-sh_mobile.0", &mstp_clks[MSTP116]), /* I2C0 */
+	CLKDEV_DEV_ID("e6820000.i2c", &mstp_clks[MSTP116]), /* I2C0 */
 	CLKDEV_DEV_ID("sh_mobile_lcdc_fb.0", &mstp_clks[MSTP100]), /* LCDC0 */
 	CLKDEV_DEV_ID("sh-sci.7", &mstp_clks[MSTP219]), /* SCIFA7 */
 	CLKDEV_DEV_ID("sh-dma-engine.0", &mstp_clks[MSTP218]), /* SY-DMAC */
@@ -569,17 +660,25 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh_fsi2", &mstp_clks[MSTP328]), /* FSI */
 	CLKDEV_DEV_ID("sh_irda.0", &mstp_clks[MSTP325]), /* IrDA */
 	CLKDEV_DEV_ID("i2c-sh_mobile.1", &mstp_clks[MSTP323]), /* I2C1 */
+	CLKDEV_DEV_ID("e6822000.i2c", &mstp_clks[MSTP323]), /* I2C1 */
 	CLKDEV_DEV_ID("renesas_usbhs", &mstp_clks[MSTP322]), /* USB */
 	CLKDEV_DEV_ID("sh_mobile_sdhi.0", &mstp_clks[MSTP314]), /* SDHI0 */
+	CLKDEV_DEV_ID("ee100000.sdhi", &mstp_clks[MSTP314]), /* SDHI0 */
 	CLKDEV_DEV_ID("sh_mobile_sdhi.1", &mstp_clks[MSTP313]), /* SDHI1 */
+	CLKDEV_DEV_ID("ee120000.sdhi", &mstp_clks[MSTP313]), /* SDHI1 */
 	CLKDEV_DEV_ID("sh_mmcif.0", &mstp_clks[MSTP312]), /* MMCIF0 */
+	CLKDEV_DEV_ID("e6bd0000.mmcif", &mstp_clks[MSTP312]), /* MMCIF0 */
 	CLKDEV_DEV_ID("sh_mobile_sdhi.2", &mstp_clks[MSTP311]), /* SDHI2 */
-	CLKDEV_DEV_ID("leds-renesas-tpu.12", &mstp_clks[MSTP303]), /* TPU1 */
-	CLKDEV_DEV_ID("leds-renesas-tpu.21", &mstp_clks[MSTP302]), /* TPU2 */
-	CLKDEV_DEV_ID("leds-renesas-tpu.30", &mstp_clks[MSTP301]), /* TPU3 */
-	CLKDEV_DEV_ID("leds-renesas-tpu.41", &mstp_clks[MSTP300]), /* TPU4 */
+	CLKDEV_DEV_ID("ee140000.sdhi", &mstp_clks[MSTP311]), /* SDHI2 */
+	CLKDEV_DEV_ID("renesas-tpu-pwm.0", &mstp_clks[MSTP304]), /* TPU0 */
+	CLKDEV_DEV_ID("renesas-tpu-pwm.1", &mstp_clks[MSTP303]), /* TPU1 */
+	CLKDEV_DEV_ID("renesas-tpu-pwm.2", &mstp_clks[MSTP302]), /* TPU2 */
+	CLKDEV_DEV_ID("renesas-tpu-pwm.3", &mstp_clks[MSTP301]), /* TPU3 */
+	CLKDEV_DEV_ID("renesas-tpu-pwm.4", &mstp_clks[MSTP300]), /* TPU4 */
 	CLKDEV_DEV_ID("i2c-sh_mobile.3", &mstp_clks[MSTP411]), /* I2C3 */
+	CLKDEV_DEV_ID("e6826000.i2c", &mstp_clks[MSTP411]), /* I2C3 */
 	CLKDEV_DEV_ID("i2c-sh_mobile.4", &mstp_clks[MSTP410]), /* I2C4 */
+	CLKDEV_DEV_ID("e6828000.i2c", &mstp_clks[MSTP410]), /* I2C4 */
 	CLKDEV_DEV_ID("sh_keysc.0", &mstp_clks[MSTP403]), /* KEYSC */
 };
 
@@ -611,8 +710,11 @@ void __init sh73a0_clock_init(void)
 	for (k = 0; !ret && (k < ARRAY_SIZE(main_clks)); k++)
 		ret = clk_register(main_clks[k]);
 
-	if (!ret)
+	if (!ret) {
 		ret = sh_clk_div4_register(div4_clks, DIV4_NR, &div4_table);
+		if (!ret)
+			div4_clk_extend();
+	}
 
 	if (!ret)
 		ret = sh_clk_div6_reparent_register(div6_clks, DIV6_NR);

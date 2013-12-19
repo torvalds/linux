@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -137,10 +137,6 @@ static inline int iwl_queue_dec_wrap(int index, int n_bd)
 struct iwl_cmd_meta {
 	/* only for SYNC commands, iff the reply skb is wanted */
 	struct iwl_host_cmd *source;
-
-	DEFINE_DMA_UNMAP_ADDR(mapping);
-	DEFINE_DMA_UNMAP_LEN(len);
-
 	u32 flags;
 };
 
@@ -182,25 +178,46 @@ struct iwl_queue {
 #define TFD_TX_CMD_SLOTS 256
 #define TFD_CMD_SLOTS 32
 
+/*
+ * The FH will write back to the first TB only, so we need
+ * to copy some data into the buffer regardless of whether
+ * it should be mapped or not. This indicates how big the
+ * first TB must be to include the scratch buffer. Since
+ * the scratch is 4 bytes at offset 12, it's 16 now. If we
+ * make it bigger then allocations will be bigger and copy
+ * slower, so that's probably not useful.
+ */
+#define IWL_HCMD_SCRATCHBUF_SIZE	16
+
 struct iwl_pcie_txq_entry {
 	struct iwl_device_cmd *cmd;
-	struct iwl_device_cmd *copy_cmd;
 	struct sk_buff *skb;
 	/* buffer to free after command completes */
 	const void *free_buf;
 	struct iwl_cmd_meta meta;
 };
 
+struct iwl_pcie_txq_scratch_buf {
+	struct iwl_cmd_header hdr;
+	u8 buf[8];
+	__le32 scratch;
+};
+
 /**
  * struct iwl_txq - Tx Queue for DMA
  * @q: generic Rx/Tx queue descriptor
  * @tfds: transmit frame descriptors (DMA memory)
+ * @scratchbufs: start of command headers, including scratch buffers, for
+ *	the writeback -- this is DMA memory and an array holding one buffer
+ *	for each command on the queue
+ * @scratchbufs_dma: DMA address for the scratchbufs start
  * @entries: transmit entries (driver state)
  * @lock: queue lock
  * @stuck_timer: timer that fires if queue gets stuck
  * @trans_pcie: pointer back to transport (for timer)
  * @need_update: indicates need to update read/write index
  * @active: stores if queue is active
+ * @ampdu: true if this queue is an ampdu queue for an specific RA/TID
  *
  * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
  * descriptors) and required locking structures.
@@ -208,13 +225,23 @@ struct iwl_pcie_txq_entry {
 struct iwl_txq {
 	struct iwl_queue q;
 	struct iwl_tfd *tfds;
+	struct iwl_pcie_txq_scratch_buf *scratchbufs;
+	dma_addr_t scratchbufs_dma;
 	struct iwl_pcie_txq_entry *entries;
 	spinlock_t lock;
 	struct timer_list stuck_timer;
 	struct iwl_trans_pcie *trans_pcie;
 	u8 need_update;
 	u8 active;
+	bool ampdu;
 };
+
+static inline dma_addr_t
+iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
+{
+	return txq->scratchbufs_dma +
+	       sizeof(struct iwl_pcie_txq_scratch_buf) * idx;
+}
 
 /**
  * struct iwl_trans_pcie - PCIe transport specific data
@@ -222,8 +249,6 @@ struct iwl_txq {
  * @rx_replenish: work that will be called when buffers need to be allocated
  * @drv - pointer to iwl_drv
  * @trans: pointer to the generic transport area
- * @irq - the irq number for the device
- * @irq_requested: true when the irq has been requested
  * @scd_base_addr: scheduler sram base address in SRAM
  * @scd_bc_tbls: pointer to the byte count table of the scheduler
  * @kw: keep warm address
@@ -234,8 +259,10 @@ struct iwl_txq {
  * @status - transport specific status flags
  * @cmd_queue - command queue number
  * @rx_buf_size_8k: 8 kB RX buffer size
+ * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
  * @rx_page_order: page order for receive buffer size
  * @wd_timeout: queue watchdog timeout (jiffies)
+ * @reg_lock: protect hw register access
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq rxq;
@@ -249,11 +276,8 @@ struct iwl_trans_pcie {
 	int ict_index;
 	u32 inta;
 	bool use_ict;
-	bool irq_requested;
-	struct tasklet_struct irq_tasklet;
 	struct isr_statistics isr_stats;
 
-	unsigned int irq;
 	spinlock_t irq_lock;
 	u32 inta_mask;
 	u32 scd_base_addr;
@@ -279,12 +303,16 @@ struct iwl_trans_pcie {
 	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
 
 	bool rx_buf_size_8k;
+	bool bc_table_dword;
 	u32 rx_page_order;
 
 	const char **command_names;
 
 	/* queue watchdog */
 	unsigned long wd_timeout;
+
+	/*protect hw register */
+	spinlock_t reg_lock;
 };
 
 /**
@@ -328,7 +356,7 @@ void iwl_trans_pcie_free(struct iwl_trans *trans);
 * RX
 ******************************************************/
 int iwl_pcie_rx_init(struct iwl_trans *trans);
-void iwl_pcie_tasklet(struct iwl_trans *trans);
+irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id);
 int iwl_pcie_rx_stop(struct iwl_trans *trans);
 void iwl_pcie_rx_free(struct iwl_trans *trans);
 
@@ -359,10 +387,11 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 			    struct iwl_rx_cmd_buffer *rxb, int handler_status);
 void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			    struct sk_buff_head *skbs);
+void iwl_trans_pcie_tx_reset(struct iwl_trans *trans);
+
 /*****************************************************
 * Error handling
 ******************************************************/
-int iwl_pcie_dump_fh(struct iwl_trans *trans, char **buf);
 void iwl_pcie_dump_csr(struct iwl_trans *trans);
 
 /*****************************************************
@@ -446,6 +475,14 @@ static inline bool iwl_is_rfkill_set(struct iwl_trans *trans)
 {
 	return !(iwl_read32(trans, CSR_GP_CNTRL) &
 		CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
+}
+
+static inline void iwl_nic_error(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	set_bit(STATUS_FW_ERROR, &trans_pcie->status);
+	iwl_op_mode_nic_error(trans->op_mode);
 }
 
 #endif /* __iwl_trans_int_pcie_h__ */

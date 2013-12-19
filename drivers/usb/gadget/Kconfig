@@ -58,6 +58,20 @@ config USB_GADGET_DEBUG
 	   trying to track down.  Never enable these messages for a
 	   production build.
 
+config USB_GADGET_VERBOSE
+	bool "Verbose debugging Messages (DEVELOPMENT)"
+	depends on USB_GADGET_DEBUG
+	help
+	   Many controller and gadget drivers will print verbose debugging
+	   messages if you use this option to ask for those messages.
+
+	   Avoid enabling these messages, even if you're actively
+	   debugging such a driver.  Many drivers will emit so many
+	   messages that the driver timings are affected, which will
+	   either create new failure modes or remove the one you're
+	   trying to track down.  Never enable these messages for a
+	   production build.
+
 config USB_GADGET_DEBUG_FILES
 	boolean "Debugging information files (DEVELOPMENT)"
 	depends on PROC_FS
@@ -154,7 +168,7 @@ config USB_LPC32XX
 
 config USB_ATMEL_USBA
 	tristate "Atmel USBA"
-	depends on AVR32 || ARCH_AT91SAM9RL || ARCH_AT91SAM9G45
+	depends on AVR32 || ARCH_AT91
 	help
 	  USBA is the integrated high-speed USB Device controller on
 	  the AT32AP700x, some AT91SAM9 and AT91CAP9 processors from Atmel.
@@ -187,15 +201,25 @@ config USB_FSL_USB2
 
 config USB_FUSB300
 	tristate "Faraday FUSB300 USB Peripheral Controller"
-	depends on !PHYS_ADDR_T_64BIT
+	depends on !PHYS_ADDR_T_64BIT && HAS_DMA
 	help
 	   Faraday usb device controller FUSB300 driver
+
+config USB_FOTG210_UDC
+	depends on HAS_DMA
+	tristate "Faraday FOTG210 USB Peripheral Controller"
+	help
+	   Faraday USB2.0 OTG controller which can be configured as
+	   high speed or full speed USB device. This driver supppors
+	   Bulk Transfer so far.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "fotg210_udc".
 
 config USB_OMAP
 	tristate "OMAP USB Device Controller"
 	depends on ARCH_OMAP1
 	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3 || MACH_OMAP_H4_OTG
-	select USB_OTG_UTILS if ARCH_OMAP
 	help
 	   Many Texas Instruments OMAP processors have flexible full
 	   speed USB device controllers, with support for up to 30
@@ -210,7 +234,6 @@ config USB_OMAP
 config USB_PXA25X
 	tristate "PXA 25x or IXP 4xx"
 	depends on (ARCH_PXA && PXA25x) || ARCH_IXP4XX
-	select USB_OTG_UTILS
 	help
 	   Intel's PXA 25x series XScale ARM-5TE processors include
 	   an integrated full speed USB 1.1 device controller.  The
@@ -235,6 +258,7 @@ config USB_PXA25X_SMALL
 
 config USB_R8A66597
 	tristate "Renesas R8A66597 USB Peripheral Controller"
+	depends on HAS_DMA
 	help
 	   R8A66597 is a discrete USB host and peripheral controller chip that
 	   supports both full and high speed USB 2.0 data transfers.
@@ -258,8 +282,6 @@ config USB_RENESAS_USBHS_UDC
 
 config USB_PXA27X
 	tristate "PXA 27x"
-	depends on ARCH_PXA && (PXA27x || PXA3xx)
-	select USB_OTG_UTILS
 	help
 	   Intel's PXA 27x series XScale ARM v5TE processors include
 	   an integrated full speed USB 1.1 device controller.
@@ -277,20 +299,6 @@ config USB_S3C_HSOTG
 	help
 	  The Samsung S3C64XX USB2.0 high-speed gadget controller
 	  integrated into the S3C64XX series SoC.
-
-config USB_IMX
-	tristate "Freescale i.MX1 USB Peripheral Controller"
-	depends on ARCH_MXC
-	help
-	   Freescale's i.MX1 includes an integrated full speed
-	   USB 1.1 device controller.
-
-	   It has Six fixed-function endpoints, as well as endpoint
-	   zero (for control transfers).
-
-	   Say "y" to link the driver statically, or "m" to build a
-	   dynamically linked module called "imx_udc" and force all
-	   gadget drivers to also be dynamically linked.
 
 config USB_S3C2410
 	tristate "S3C2410 USB Device Controller"
@@ -319,16 +327,15 @@ config USB_S3C_HSUDC
 
 config USB_MV_UDC
 	tristate "Marvell USB2.0 Device Controller"
+	depends on HAS_DMA
 	help
 	  Marvell Socs (including PXA and MMP series) include a high speed
 	  USB2.0 OTG controller, which can be configured as high speed or
 	  full speed USB peripheral.
 
 config USB_MV_U3D
+	depends on HAS_DMA
 	tristate "MARVELL PXA2128 USB 3.0 controller"
-	depends on CPU_MMP3
-	select USB_GADGET_DUALSPEED
-	select USB_GADGET_SUPERSPEED
 	help
 	  MARVELL PXA2128 Processor series include a super speed USB3.0 device
 	  controller, which support super speed USB peripheral.
@@ -336,14 +343,6 @@ config USB_MV_U3D
 #
 # Controllers available in both integrated and discrete versions
 #
-
-# musb builds in ../musb along with host support
-config USB_GADGET_MUSB_HDRC
-	tristate "Inventra HDRC USB Peripheral (TI, ADI, ...)"
-	depends on USB_MUSB_HDRC
-	help
-	  This OTG-capable silicon IP is used in dual designs including
-	  the TI DaVinci, OMAP 243x, OMAP 343x, TUSB 6010, and ADI Blackfin
 
 config USB_M66592
 	tristate "Renesas M66592 USB Peripheral Controller"
@@ -401,7 +400,7 @@ config USB_NET2272
 
 config USB_NET2272_DMA
 	boolean "Support external DMA controller"
-	depends on USB_NET2272
+	depends on USB_NET2272 && HAS_DMA
 	help
 	  The NET2272 part can optionally support an external DMA
 	  controller, but your board has to have support in the
@@ -498,7 +497,50 @@ endmenu
 # composite based drivers
 config USB_LIBCOMPOSITE
 	tristate
+	select CONFIGFS_FS
 	depends on USB_GADGET
+
+config USB_F_ACM
+	tristate
+
+config USB_F_SS_LB
+	tristate
+
+config USB_U_SERIAL
+	tristate
+
+config USB_U_ETHER
+	tristate
+
+config USB_U_RNDIS
+	tristate
+
+config USB_F_SERIAL
+	tristate
+
+config USB_F_OBEX
+	tristate
+
+config USB_F_NCM
+	tristate
+
+config USB_F_ECM
+	tristate
+
+config USB_F_PHONET
+	tristate
+
+config USB_F_EEM
+	tristate
+
+config USB_F_SUBSET
+	tristate
+
+config USB_F_RNDIS
+	tristate
+
+config USB_F_MASS_STORAGE
+	tristate
 
 choice
 	tristate "USB Gadget Drivers"
@@ -521,9 +563,137 @@ choice
 
 # this first set of drivers all depend on bulk-capable hardware.
 
+config USB_CONFIGFS
+	tristate "USB functions configurable through configfs"
+	select USB_LIBCOMPOSITE
+	help
+	  A Linux USB "gadget" can be set up through configfs.
+	  If this is the case, the USB functions (which from the host's
+	  perspective are seen as interfaces) and configurations are
+	  specified simply by creating appropriate directories in configfs.
+	  Associating functions with configurations is done by creating
+	  appropriate symbolic links.
+	  For more information see Documentation/usb/gadget_configfs.txt.
+
+config USB_CONFIGFS_SERIAL
+	boolean "Generic serial bulk in/out"
+	depends on USB_CONFIGFS
+	depends on TTY
+	select USB_U_SERIAL
+	select USB_F_SERIAL
+	help
+	  The function talks to the Linux-USB generic serial driver.
+
+config USB_CONFIGFS_ACM
+	boolean "Abstract Control Model (CDC ACM)"
+	depends on USB_CONFIGFS
+	depends on TTY
+	select USB_U_SERIAL
+	select USB_F_ACM
+	help
+	  ACM serial link.  This function can be used to interoperate with
+	  MS-Windows hosts or with the Linux-USB "cdc-acm" driver.
+
+config USB_CONFIGFS_OBEX
+	boolean "Object Exchange Model (CDC OBEX)"
+	depends on USB_CONFIGFS
+	depends on TTY
+	select USB_U_SERIAL
+	select USB_F_OBEX
+	help
+	  You will need a user space OBEX server talking to /dev/ttyGS*,
+	  since the kernel itself doesn't implement the OBEX protocol.
+
+config USB_CONFIGFS_NCM
+	boolean "Network Control Model (CDC NCM)"
+	depends on USB_CONFIGFS
+	depends on NET
+	select USB_U_ETHER
+	select USB_F_NCM
+	help
+	  NCM is an advanced protocol for Ethernet encapsulation, allows
+	  grouping of several ethernet frames into one USB transfer and
+	  different alignment possibilities.
+
+config USB_CONFIGFS_ECM
+	boolean "Ethernet Control Model (CDC ECM)"
+	depends on USB_CONFIGFS
+	depends on NET
+	select USB_U_ETHER
+	select USB_F_ECM
+	help
+	  The "Communication Device Class" (CDC) Ethernet Control Model.
+	  That protocol is often avoided with pure Ethernet adapters, in
+	  favor of simpler vendor-specific hardware, but is widely
+	  supported by firmware for smart network devices.
+
+config USB_CONFIGFS_ECM_SUBSET
+	boolean "Ethernet Control Model (CDC ECM) subset"
+	depends on USB_CONFIGFS
+	depends on NET
+	select USB_U_ETHER
+	select USB_F_SUBSET
+	help
+	  On hardware that can't implement the full protocol,
+	  a simple CDC subset is used, placing fewer demands on USB.
+
+config USB_CONFIGFS_RNDIS
+	bool "RNDIS"
+	depends on USB_CONFIGFS
+	depends on NET
+	select USB_U_ETHER
+	select USB_U_RNDIS
+	select USB_F_RNDIS
+	help
+	   Microsoft Windows XP bundles the "Remote NDIS" (RNDIS) protocol,
+	   and Microsoft provides redistributable binary RNDIS drivers for
+	   older versions of Windows.
+
+	   To make MS-Windows work with this, use Documentation/usb/linux.inf
+	   as the "driver info file".  For versions of MS-Windows older than
+	   XP, you'll need to download drivers from Microsoft's website; a URL
+	   is given in comments found in that info file.
+
+config USB_CONFIGFS_EEM
+	bool "Ethernet Emulation Model (EEM)"
+	depends on USB_CONFIGFS
+	depends on NET
+	select USB_U_ETHER
+	select USB_F_EEM
+	help
+	  CDC EEM is a newer USB standard that is somewhat simpler than CDC ECM
+	  and therefore can be supported by more hardware.  Technically ECM and
+	  EEM are designed for different applications.  The ECM model extends
+	  the network interface to the target (e.g. a USB cable modem), and the
+	  EEM model is for mobile devices to communicate with hosts using
+	  ethernet over USB.  For Linux gadgets, however, the interface with
+	  the host is the same (a usbX device), so the differences are minimal.
+
+config USB_CONFIGFS_PHONET
+	boolean "Phonet protocol"
+	depends on USB_CONFIGFS
+	depends on NET
+	depends on PHONET
+	select USB_U_ETHER
+	select USB_F_PHONET
+	help
+	  The Phonet protocol implementation for USB device.
+
+config USB_CONFIGFS_MASS_STORAGE
+	boolean "Mass storage"
+	depends on USB_CONFIGFS
+	depends on BLOCK
+	select USB_F_MASS_STORAGE
+	help
+	  The Mass Storage Gadget acts as a USB Mass Storage disk drive.
+	  As its storage repository it can use a regular file or a block
+	  device (in much the same way as the "loop" device driver),
+	  specified as a module parameter or sysfs option.
+
 config USB_ZERO
 	tristate "Gadget Zero (DEVELOPMENT)"
 	select USB_LIBCOMPOSITE
+	select USB_F_SS_LB
 	help
 	  Gadget Zero is a two-configuration device.  It either sinks and
 	  sources bulk data; or it loops back a configurable number of
@@ -589,6 +759,10 @@ config USB_ETH
 	tristate "Ethernet Gadget (with CDC Ethernet support)"
 	depends on NET
 	select USB_LIBCOMPOSITE
+	select USB_U_ETHER
+	select USB_U_RNDIS
+	select USB_F_ECM
+	select USB_F_SUBSET
 	select CRC32
 	help
 	  This driver implements Ethernet style communication, in one of
@@ -625,6 +799,7 @@ config USB_ETH_RNDIS
 	bool "RNDIS support"
 	depends on USB_ETH
 	select USB_LIBCOMPOSITE
+	select USB_F_RNDIS
 	default y
 	help
 	   Microsoft Windows XP bundles the "Remote NDIS" (RNDIS) protocol,
@@ -644,6 +819,7 @@ config USB_ETH_EEM
        bool "Ethernet Emulation Model (EEM) support"
        depends on USB_ETH
 	select USB_LIBCOMPOSITE
+	select USB_F_EEM
        default n
        help
          CDC EEM is a newer USB standard that is somewhat simpler than CDC ECM
@@ -661,6 +837,8 @@ config USB_G_NCM
 	tristate "Network Control Model (NCM) support"
 	depends on NET
 	select USB_LIBCOMPOSITE
+	select USB_U_ETHER
+	select USB_F_NCM
 	select CRC32
 	help
 	  This driver implements USB CDC NCM subclass standard. NCM is
@@ -704,6 +882,7 @@ config USB_FUNCTIONFS
 config USB_FUNCTIONFS_ETH
 	bool "Include configuration with CDC ECM (Ethernet)"
 	depends on USB_FUNCTIONFS && NET
+	select USB_U_ETHER
 	help
 	  Include a configuration with CDC ECM function (Ethernet) and the
 	  Function Filesystem.
@@ -711,6 +890,8 @@ config USB_FUNCTIONFS_ETH
 config USB_FUNCTIONFS_RNDIS
 	bool "Include configuration with RNDIS (Ethernet)"
 	depends on USB_FUNCTIONFS && NET
+	select USB_U_ETHER
+	select USB_U_RNDIS
 	help
 	  Include a configuration with RNDIS function (Ethernet) and the Filesystem.
 
@@ -725,6 +906,7 @@ config USB_MASS_STORAGE
 	tristate "Mass Storage Gadget"
 	depends on BLOCK
 	select USB_LIBCOMPOSITE
+	select USB_F_MASS_STORAGE
 	help
 	  The Mass Storage Gadget acts as a USB Mass Storage disk drive.
 	  As its storage repository it can use a regular file or a block
@@ -750,6 +932,11 @@ config USB_GADGET_TARGET
 
 config USB_G_SERIAL
 	tristate "Serial Gadget (with CDC ACM and CDC OBEX support)"
+	depends on TTY
+	select USB_U_SERIAL
+	select USB_F_ACM
+	select USB_F_SERIAL
+	select USB_F_OBEX
 	select USB_LIBCOMPOSITE
 	help
 	  The Serial Gadget talks to the Linux-USB generic serial driver.
@@ -799,10 +986,16 @@ config USB_G_PRINTER
 	  For more information, see Documentation/usb/gadget_printer.txt
 	  which includes sample code for accessing the device file.
 
+if TTY
+
 config USB_CDC_COMPOSITE
 	tristate "CDC Composite Device (Ethernet and ACM)"
 	depends on NET
 	select USB_LIBCOMPOSITE
+	select USB_U_SERIAL
+	select USB_U_ETHER
+	select USB_F_ACM
+	select USB_F_ECM
 	help
 	  This driver provides two functions in one configuration:
 	  a CDC Ethernet (ECM) link, and a CDC ACM (serial port) link.
@@ -818,6 +1011,12 @@ config USB_G_NOKIA
 	tristate "Nokia composite gadget"
 	depends on PHONET
 	select USB_LIBCOMPOSITE
+	select USB_U_SERIAL
+	select USB_U_ETHER
+	select USB_F_ACM
+	select USB_F_OBEX
+	select USB_F_PHONET
+	select USB_F_ECM
 	help
 	  The Nokia composite gadget provides support for acm, obex
 	  and phonet in only one composite gadget driver.
@@ -829,6 +1028,9 @@ config USB_G_ACM_MS
 	tristate "CDC Composite Device (ACM and mass storage)"
 	depends on BLOCK
 	select USB_LIBCOMPOSITE
+	select USB_U_SERIAL
+	select USB_F_ACM
+	select USB_F_MASS_STORAGE
 	help
 	  This driver provides two functions in one configuration:
 	  a mass storage, and a CDC ACM (serial port) link.
@@ -841,6 +1043,10 @@ config USB_G_MULTI
 	depends on BLOCK && NET
 	select USB_G_MULTI_CDC if !USB_G_MULTI_RNDIS
 	select USB_LIBCOMPOSITE
+	select USB_U_SERIAL
+	select USB_U_ETHER
+	select USB_F_ACM
+	select USB_F_MASS_STORAGE
 	help
 	  The Multifunction Composite Gadget provides Ethernet (RNDIS
 	  and/or CDC Ethernet), mass storage and ACM serial link
@@ -859,6 +1065,8 @@ config USB_G_MULTI
 config USB_G_MULTI_RNDIS
 	bool "RNDIS + CDC Serial + Storage configuration"
 	depends on USB_G_MULTI
+	select USB_U_RNDIS
+	select USB_F_RNDIS
 	default y
 	help
 	  This option enables a configuration with RNDIS, CDC Serial and
@@ -872,12 +1080,15 @@ config USB_G_MULTI_CDC
 	bool "CDC Ethernet + CDC Serial + Storage configuration"
 	depends on USB_G_MULTI
 	default n
+	select USB_F_ECM
 	help
 	  This option enables a configuration with CDC Ethernet (ECM), CDC
 	  Serial and Mass Storage functions available in the Multifunction
 	  Composite Gadget.
 
 	  If unsure, say "y".
+
+endif # TTY
 
 config USB_G_HID
 	tristate "HID Gadget"
@@ -895,6 +1106,7 @@ config USB_G_HID
 # Standalone / single function gadgets
 config USB_G_DBGP
 	tristate "EHCI Debug Device Gadget"
+	depends on TTY
 	select USB_LIBCOMPOSITE
 	help
 	  This gadget emulates an EHCI Debug device. This is useful when you want
@@ -916,6 +1128,7 @@ config USB_G_DBGP_PRINTK
 
 config USB_G_DBGP_SERIAL
 	depends on USB_G_DBGP
+	select USB_U_SERIAL
 	bool "serial"
 	help
 	  Userland can interact using /dev/ttyGSxxx.
@@ -928,6 +1141,7 @@ config USB_G_WEBCAM
 	tristate "USB Webcam Gadget"
 	depends on VIDEO_DEV
 	select USB_LIBCOMPOSITE
+	select VIDEOBUF2_VMALLOC
 	help
 	  The Webcam Gadget acts as a composite USB Audio and Video Class
 	  device. It provides a userspace API to process UVC control requests

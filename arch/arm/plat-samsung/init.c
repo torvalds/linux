@@ -11,12 +11,18 @@
  * published by the Free Software Foundation.
 */
 
+/*
+ * NOTE: Code in this file is not used on S3C64xx when booting with
+ * Device Tree support.
+ */
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 
 #include <mach/hardware.h>
 
@@ -55,12 +61,13 @@ void __init s3c_init_cpu(unsigned long idcode,
 
 	printk("CPU %s (id 0x%08lx)\n", cpu->name, idcode);
 
-	if (cpu->map_io == NULL || cpu->init == NULL) {
+	if (cpu->init == NULL) {
 		printk(KERN_ERR "CPU %s support not enabled\n", cpu->name);
 		panic("Unsupported Samsung CPU");
 	}
 
-	cpu->map_io();
+	if (cpu->map_io)
+		cpu->map_io();
 }
 
 /* s3c24xx_init_clocks
@@ -87,7 +94,7 @@ void __init s3c24xx_init_clocks(int xtal)
 }
 
 /* uart management */
-
+#if IS_ENABLED(CONFIG_SAMSUNG_ATAGS)
 static int nr_uarts __initdata = 0;
 
 static struct s3c2410_uartcfg uart_cfgs[CONFIG_SERIAL_SAMSUNG_UARTS];
@@ -134,11 +141,12 @@ void __init s3c24xx_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 	if (cpu == NULL)
 		return;
 
-	if (cpu->init_uarts == NULL) {
+	if (cpu->init_uarts == NULL && IS_ENABLED(CONFIG_SAMSUNG_ATAGS)) {
 		printk(KERN_ERR "s3c24xx_init_uarts: cpu has no uart init\n");
 	} else
 		(cpu->init_uarts)(cfg, no);
 }
+#endif
 
 static int __init s3c_arch_init(void)
 {
@@ -146,14 +154,19 @@ static int __init s3c_arch_init(void)
 
 	// do the correct init for cpu
 
-	if (cpu == NULL)
+	if (cpu == NULL) {
+		/* Not needed when booting with device tree. */
+		if (of_have_populated_dt())
+			return 0;
 		panic("s3c_arch_init: NULL cpu\n");
+	}
 
 	ret = (cpu->init)();
 	if (ret != 0)
 		return ret;
-
+#if IS_ENABLED(CONFIG_SAMSUNG_ATAGS)
 	ret = platform_add_devices(s3c24xx_uart_devs, nr_uarts);
+#endif
 	return ret;
 }
 

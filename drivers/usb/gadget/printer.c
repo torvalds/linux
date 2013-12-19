@@ -688,7 +688,7 @@ static int
 printer_fsync(struct file *fd, loff_t start, loff_t end, int datasync)
 {
 	struct printer_dev	*dev = fd->private_data;
-	struct inode *inode = fd->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(fd);
 	unsigned long		flags;
 	int			tx_list_empty;
 

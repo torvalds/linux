@@ -78,7 +78,7 @@ static struct clk_init_data wm831x_clkout_init = {
 	.flags = CLK_IS_ROOT,
 };
 
-static int __devinit twl6040_clk_probe(struct platform_device *pdev)
+static int twl6040_clk_probe(struct platform_device *pdev)
 {
 	struct twl6040 *twl6040 = dev_get_drvdata(pdev->dev.parent);
 	struct twl6040_clk *clkdata;
@@ -95,14 +95,14 @@ static int __devinit twl6040_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(clkdata->clk))
 		return PTR_ERR(clkdata->clk);
 
-	dev_set_drvdata(&pdev->dev, clkdata);
+	platform_set_drvdata(pdev, clkdata);
 
 	return 0;
 }
 
-static int __devexit twl6040_clk_remove(struct platform_device *pdev)
+static int twl6040_clk_remove(struct platform_device *pdev)
 {
-	struct twl6040_clk *clkdata = dev_get_drvdata(&pdev->dev);
+	struct twl6040_clk *clkdata = platform_get_drvdata(pdev);
 
 	clk_unregister(clkdata->clk);
 
@@ -115,7 +115,7 @@ static struct platform_driver twl6040_clk_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = twl6040_clk_probe,
-	.remove = __devexit_p(twl6040_clk_remove),
+	.remove = twl6040_clk_remove,
 };
 
 module_platform_driver(twl6040_clk_driver);

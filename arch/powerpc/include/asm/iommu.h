@@ -76,6 +76,9 @@ struct iommu_table {
 	struct iommu_pool large_pool;
 	struct iommu_pool pools[IOMMU_NR_POOLS];
 	unsigned long *it_map;       /* A simple allocation bitmap for now */
+#ifdef CONFIG_IOMMU_API
+	struct iommu_group *it_group;
+#endif
 };
 
 struct scatterlist;
@@ -98,6 +101,8 @@ extern void iommu_free_table(struct iommu_table *tbl, const char *node_name);
  */
 extern struct iommu_table *iommu_init_table(struct iommu_table * tbl,
 					    int nid);
+extern void iommu_register_group(struct iommu_table *tbl,
+				 int pci_domain_number, unsigned long pe_num);
 
 extern int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 			struct scatterlist *sglist, int nelems,
@@ -125,13 +130,6 @@ extern void iommu_init_early_pSeries(void);
 extern void iommu_init_early_dart(void);
 extern void iommu_init_early_pasemi(void);
 
-#ifdef CONFIG_PCI
-extern void pci_iommu_init(void);
-extern void pci_direct_iommu_init(void);
-#else
-static inline void pci_iommu_init(void) { }
-#endif
-
 extern void alloc_dart_table(void);
 #if defined(CONFIG_PPC64) && defined(CONFIG_PM)
 static inline void iommu_save(void)
@@ -146,6 +144,27 @@ static inline void iommu_restore(void)
 		ppc_md.iommu_restore();
 }
 #endif
+
+/* The API to support IOMMU operations for VFIO */
+extern int iommu_tce_clear_param_check(struct iommu_table *tbl,
+		unsigned long ioba, unsigned long tce_value,
+		unsigned long npages);
+extern int iommu_tce_put_param_check(struct iommu_table *tbl,
+		unsigned long ioba, unsigned long tce);
+extern int iommu_tce_build(struct iommu_table *tbl, unsigned long entry,
+		unsigned long hwaddr, enum dma_data_direction direction);
+extern unsigned long iommu_clear_tce(struct iommu_table *tbl,
+		unsigned long entry);
+extern int iommu_clear_tces_and_put_pages(struct iommu_table *tbl,
+		unsigned long entry, unsigned long pages);
+extern int iommu_put_tce_user_mode(struct iommu_table *tbl,
+		unsigned long entry, unsigned long tce);
+
+extern void iommu_flush_tce(struct iommu_table *tbl);
+extern int iommu_take_ownership(struct iommu_table *tbl);
+extern void iommu_release_ownership(struct iommu_table *tbl);
+
+extern enum dma_data_direction iommu_tce_direction(unsigned long tce);
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_IOMMU_H */

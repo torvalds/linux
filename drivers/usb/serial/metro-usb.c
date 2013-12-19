@@ -95,7 +95,6 @@ static void metrousb_read_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
-	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int throttled = 0;
 	int result = 0;
@@ -124,15 +123,13 @@ static void metrousb_read_int_callback(struct urb *urb)
 
 
 	/* Set the data read from the usb port into the serial port buffer. */
-	tty = tty_port_tty_get(&port->port);
-	if (tty && urb->actual_length) {
+	if (urb->actual_length) {
 		/* Loop through the data copying each byte to the tty layer. */
-		tty_insert_flip_string(tty, data, urb->actual_length);
+		tty_insert_flip_string(&port->port, data, urb->actual_length);
 
 		/* Force the data to the tty layer. */
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&port->port);
 	}
-	tty_kref_put(tty);
 
 	/* Set any port variables. */
 	spin_lock_irqsave(&metro_priv->lock, flags);
@@ -180,10 +177,7 @@ static void metrousb_cleanup(struct usb_serial_port *port)
 	usb_unlink_urb(port->interrupt_in_urb);
 	usb_kill_urb(port->interrupt_in_urb);
 
-	mutex_lock(&port->serial->disc_mutex);
-	if (!port->serial->disconnected)
-		metrousb_send_unidirectional_cmd(UNI_CMD_CLOSE, port);
-	mutex_unlock(&port->serial->disc_mutex);
+	metrousb_send_unidirectional_cmd(UNI_CMD_CLOSE, port);
 }
 
 static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
@@ -230,8 +224,8 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 	result = metrousb_send_unidirectional_cmd(UNI_CMD_OPEN, port);
 	if (result) {
 		dev_err(&port->dev,
-			"%s - failed to configure device for port number=%d, error code=%d\n",
-			__func__, port->number, result);
+			"%s - failed to configure device, error code=%d\n",
+			__func__, result);
 		goto exit;
 	}
 

@@ -96,7 +96,7 @@ static struct sas_domain_function_template mvs_transport_ops = {
 
 };
 
-static void __devinit mvs_phy_init(struct mvs_info *mvi, int phy_id)
+static void mvs_phy_init(struct mvs_info *mvi, int phy_id)
 {
 	struct mvs_phy *phy = &mvi->phy[phy_id];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
@@ -235,7 +235,7 @@ static irqreturn_t mvs_interrupt(int irq, void *opaque)
 	return IRQ_HANDLED;
 }
 
-static int __devinit mvs_alloc(struct mvs_info *mvi, struct Scsi_Host *shost)
+static int mvs_alloc(struct mvs_info *mvi, struct Scsi_Host *shost)
 {
 	int i = 0, slot_nr;
 	char pool_name[32];
@@ -254,7 +254,7 @@ static int __devinit mvs_alloc(struct mvs_info *mvi, struct Scsi_Host *shost)
 	}
 	for (i = 0; i < MVS_MAX_DEVICES; i++) {
 		mvi->devices[i].taskfileset = MVS_ID_NOT_MAPPED;
-		mvi->devices[i].dev_type = NO_DEVICE;
+		mvi->devices[i].dev_type = SAS_PHY_UNUSED;
 		mvi->devices[i].device_id = i;
 		mvi->devices[i].dev_status = MVS_DEV_NORMAL;
 		init_timer(&mvi->devices[i].timer);
@@ -373,7 +373,7 @@ void mvs_iounmap(void __iomem *regs)
 	iounmap(regs);
 }
 
-static struct mvs_info *__devinit mvs_pci_alloc(struct pci_dev *pdev,
+static struct mvs_info *mvs_pci_alloc(struct pci_dev *pdev,
 				const struct pci_device_id *ent,
 				struct Scsi_Host *shost, unsigned int id)
 {
@@ -444,7 +444,7 @@ static int pci_go_64(struct pci_dev *pdev)
 	return rc;
 }
 
-static int __devinit mvs_prep_sas_ha_init(struct Scsi_Host *shost,
+static int mvs_prep_sas_ha_init(struct Scsi_Host *shost,
 				const struct mvs_chip_info *chip_info)
 {
 	int phy_nr, port_nr; unsigned short core_nr;
@@ -486,7 +486,7 @@ exit_free:
 
 }
 
-static void  __devinit mvs_post_sas_ha_init(struct Scsi_Host *shost,
+static void  mvs_post_sas_ha_init(struct Scsi_Host *shost,
 			const struct mvs_chip_info *chip_info)
 {
 	int can_queue, i = 0, j = 0;
@@ -537,8 +537,7 @@ static void mvs_init_sas_add(struct mvs_info *mvi)
 	memcpy(mvi->sas_addr, &mvi->phy[0].dev_sas_addr, SAS_ADDR_SIZE);
 }
 
-static int __devinit mvs_pci_init(struct pci_dev *pdev,
-				  const struct pci_device_id *ent)
+static int mvs_pci_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	unsigned int rc, nhost = 0;
 	struct mvs_info *mvi;
@@ -645,7 +644,7 @@ err_out_enable:
 	return rc;
 }
 
-static void __devexit mvs_pci_remove(struct pci_dev *pdev)
+static void mvs_pci_remove(struct pci_dev *pdev)
 {
 	unsigned short core_nr, i = 0;
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
@@ -658,7 +657,6 @@ static void __devexit mvs_pci_remove(struct pci_dev *pdev)
 	tasklet_kill(&((struct mvs_prv_info *)sha->lldd_ha)->mv_tasklet);
 #endif
 
-	pci_set_drvdata(pdev, NULL);
 	sas_unregister_ha(sha);
 	sas_remove_host(mvi->shost);
 	scsi_remove_host(mvi->shost);
@@ -677,7 +675,7 @@ static void __devexit mvs_pci_remove(struct pci_dev *pdev)
 	return;
 }
 
-static struct pci_device_id __devinitdata mvs_pci_table[] = {
+static struct pci_device_id mvs_pci_table[] = {
 	{ PCI_VDEVICE(MARVELL, 0x6320), chip_6320 },
 	{ PCI_VDEVICE(MARVELL, 0x6340), chip_6440 },
 	{
@@ -704,7 +702,7 @@ static struct pci_device_id __devinitdata mvs_pci_table[] = {
 	{ PCI_VDEVICE(TTI, 0x2744), chip_9480 },
 	{ PCI_VDEVICE(TTI, 0x2760), chip_9480 },
 	{
-		.vendor		= 0x1b4b,
+		.vendor		= PCI_VENDOR_ID_MARVELL_EXT,
 		.device		= 0x9480,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= 0x9480,
@@ -713,7 +711,7 @@ static struct pci_device_id __devinitdata mvs_pci_table[] = {
 		.driver_data	= chip_9480,
 	},
 	{
-		.vendor		= 0x1b4b,
+		.vendor		= PCI_VENDOR_ID_MARVELL_EXT,
 		.device		= 0x9445,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= 0x9480,
@@ -722,7 +720,7 @@ static struct pci_device_id __devinitdata mvs_pci_table[] = {
 		.driver_data	= chip_9445,
 	},
 	{
-		.vendor		= 0x1b4b,
+		.vendor		= PCI_VENDOR_ID_MARVELL_EXT,
 		.device		= 0x9485,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= 0x9480,
@@ -748,7 +746,7 @@ static struct pci_driver mvs_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= mvs_pci_table,
 	.probe		= mvs_pci_init,
-	.remove		= __devexit_p(mvs_pci_remove),
+	.remove		= mvs_pci_remove,
 };
 
 static ssize_t

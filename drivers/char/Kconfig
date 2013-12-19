@@ -15,18 +15,6 @@ config DEVKMEM
 	  kind of kernel debugging operations.
 	  When in doubt, say "N".
 
-config STALDRV
-	bool "Stallion multiport serial support"
-	depends on SERIAL_NONSTANDARD
-	help
-	  Stallion cards give you many serial ports.  You would need something
-	  like this to connect more than two modems to your Linux box, for
-	  instance in order to become a dial-in server.  If you say Y here,
-	  you will be asked for your specific card model in the next
-	  questions.  Make sure to read <file:Documentation/serial/stallion.txt>
-	  in this case.  If you have never heard about all this, it's safe to
-	  say N.
-
 config SGI_SNSC
 	bool "SGI Altix system controller communication support"
 	depends on (IA64_SGI_SN2 || IA64_GENERIC)
@@ -53,7 +41,7 @@ source "drivers/tty/serial/Kconfig"
 
 config TTY_PRINTK
 	bool "TTY driver to output user messages via printk"
-	depends on EXPERT
+	depends on EXPERT && TTY
 	default n
 	---help---
 	  If you say Y here, the support for writing user messages (i.e.
@@ -159,7 +147,7 @@ source "drivers/tty/hvc/Kconfig"
 
 config VIRTIO_CONSOLE
 	tristate "Virtio console"
-	depends on VIRTIO
+	depends on VIRTIO && TTY
 	select HVC_DRIVER
 	help
 	  Virtio console for use with lguest and other hypervisors.
@@ -392,6 +380,7 @@ config XILINX_HWICAP
 
 config R3964
 	tristate "Siemens R3964 line discipline"
+	depends on TTY
 	---help---
 	  This driver allows synchronous communication with devices using the
 	  Siemens R3964 packet protocol. Unless you are dealing with special
@@ -439,7 +428,7 @@ source "drivers/char/pcmcia/Kconfig"
 
 config MWAVE
 	tristate "ACP Modem (Mwave) support"
-	depends on X86
+	depends on X86 && TTY
 	select SERIAL_8250
 	---help---
 	  The ACP modem (Mwave) for Linux is a WinModem. It is composed of a
@@ -533,10 +522,16 @@ config HPET_MMAP
 	  If you say Y here, user applications will be able to mmap
 	  the HPET registers.
 
+config HPET_MMAP_DEFAULT
+	bool "Enable HPET MMAP access by default"
+	default y
+	depends on HPET_MMAP
+	help
 	  In some hardware implementations, the page containing HPET
 	  registers may also contain other things that shouldn't be
-	  exposed to the user.  If this applies to your hardware,
-	  say N here.
+	  exposed to the user.  This option selects the default (if
+	  kernel parameter hpet_mmap is not set) user access to the
+	  registers for applications that require it.
 
 config HANGCHECK_TIMER
 	tristate "Hangcheck timer"

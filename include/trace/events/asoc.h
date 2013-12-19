@@ -14,6 +14,7 @@ struct snd_soc_codec;
 struct snd_soc_platform;
 struct snd_soc_card;
 struct snd_soc_dapm_widget;
+struct snd_soc_dapm_path;
 
 /*
  * Log register events

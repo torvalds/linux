@@ -47,23 +47,31 @@ void pxa27x_clear_otgph(void)
 EXPORT_SYMBOL(pxa27x_clear_otgph);
 
 static unsigned long ac97_reset_config[] = {
-	GPIO113_GPIO,
+	GPIO113_AC97_nRESET_GPIO_HIGH,
 	GPIO113_AC97_nRESET,
-	GPIO95_GPIO,
+	GPIO95_AC97_nRESET_GPIO_HIGH,
 	GPIO95_AC97_nRESET,
 };
 
-void pxa27x_assert_ac97reset(int reset_gpio, int on)
+void pxa27x_configure_ac97reset(int reset_gpio, bool to_gpio)
 {
+	/*
+	 * This helper function is used to work around a bug in the pxa27x's
+	 * ac97 controller during a warm reset.  The configuration of the
+	 * reset_gpio is changed as follows:
+	 * to_gpio == true: configured to generic output gpio and driven high
+	 * to_gpio == false: configured to ac97 controller alt fn AC97_nRESET
+	 */
+
 	if (reset_gpio == 113)
-		pxa2xx_mfp_config(on ? &ac97_reset_config[0] :
-				       &ac97_reset_config[1], 1);
+		pxa2xx_mfp_config(to_gpio ? &ac97_reset_config[0] :
+				  &ac97_reset_config[1], 1);
 
 	if (reset_gpio == 95)
-		pxa2xx_mfp_config(on ? &ac97_reset_config[2] :
-				       &ac97_reset_config[3], 1);
+		pxa2xx_mfp_config(to_gpio ? &ac97_reset_config[2] :
+				  &ac97_reset_config[3], 1);
 }
-EXPORT_SYMBOL_GPL(pxa27x_assert_ac97reset);
+EXPORT_SYMBOL_GPL(pxa27x_configure_ac97reset);
 
 /* Crystal clock: 13MHz */
 #define BASE_CLK	13000000
@@ -229,7 +237,8 @@ static struct clk_lookup pxa27x_clkregs[] = {
 	INIT_CLKREG(&clk_pxa27x_im, NULL, "IMCLK"),
 	INIT_CLKREG(&clk_pxa27x_memc, NULL, "MEMCLK"),
 	INIT_CLKREG(&clk_pxa27x_mem, "pxa2xx-pcmcia", NULL),
-	INIT_CLKREG(&clk_dummy, "pxa-gpio", NULL),
+	INIT_CLKREG(&clk_dummy, "pxa27x-gpio", NULL),
+	INIT_CLKREG(&clk_dummy, "sa1100-rtc", NULL),
 };
 
 #ifdef CONFIG_PM
@@ -422,7 +431,8 @@ void __init pxa27x_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 }
 
 static struct pxa_gpio_platform_data pxa27x_gpio_info __initdata = {
-	.gpio_set_wake = gpio_set_wake,
+	.irq_base	= PXA_GPIO_TO_IRQ(0),
+	.gpio_set_wake	= gpio_set_wake,
 };
 
 static struct platform_device *devices[] __initdata = {
@@ -461,7 +471,7 @@ static int __init pxa27x_init(void)
 		register_syscore_ops(&pxa2xx_mfp_syscore_ops);
 		register_syscore_ops(&pxa2xx_clock_syscore_ops);
 
-		pxa_register_device(&pxa_device_gpio, &pxa27x_gpio_info);
+		pxa_register_device(&pxa27x_device_gpio, &pxa27x_gpio_info);
 		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	}
 

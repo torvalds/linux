@@ -70,7 +70,7 @@ static const struct fb_videomode grvga_modedb[] = {
     }
  };
 
-static struct fb_fix_screeninfo grvga_fix __devinitdata = {
+static struct fb_fix_screeninfo grvga_fix = {
 	.id =		"AG SVGACTRL",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =       FB_VISUAL_PSEUDOCOLOR,
@@ -267,8 +267,8 @@ static struct fb_ops grvga_ops = {
 	.fb_imageblit	= cfb_imageblit
 };
 
-static int __devinit grvga_parse_custom(char *options,
-				     struct fb_var_screeninfo *screendata)
+static int grvga_parse_custom(char *options,
+			      struct fb_var_screeninfo *screendata)
 {
 	char *this_opt;
 	int count = 0;
@@ -329,7 +329,7 @@ static int __devinit grvga_parse_custom(char *options,
 	return 0;
 }
 
-static int __devinit grvga_probe(struct platform_device *dev)
+static int grvga_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 	int retval = -ENOMEM;
@@ -496,7 +496,6 @@ static int __devinit grvga_probe(struct platform_device *dev)
 	return 0;
 
 free_mem:
-	dev_set_drvdata(&dev->dev, NULL);
 	if (grvga_fix_addr)
 		iounmap((void *)virtual_start);
 	else
@@ -512,7 +511,7 @@ free_fb:
 	return retval;
 }
 
-static int __devexit grvga_remove(struct platform_device *device)
+static int grvga_remove(struct platform_device *device)
 {
 	struct fb_info *info = dev_get_drvdata(&device->dev);
 	struct grvga_par *par = info->par;
@@ -530,7 +529,6 @@ static int __devexit grvga_remove(struct platform_device *device)
 			kfree((void *)info->screen_base);
 
 		framebuffer_release(info);
-		dev_set_drvdata(&device->dev, NULL);
 	}
 
 	return 0;
@@ -554,22 +552,10 @@ static struct platform_driver grvga_driver = {
 		.of_match_table = svgactrl_of_match,
 	},
 	.probe		= grvga_probe,
-	.remove		= __devexit_p(grvga_remove),
+	.remove		= grvga_remove,
 };
 
-
-static int __init grvga_init(void)
-{
-	return platform_driver_register(&grvga_driver);
-}
-
-static void __exit grvga_exit(void)
-{
-	platform_driver_unregister(&grvga_driver);
-}
-
-module_init(grvga_init);
-module_exit(grvga_exit);
+module_platform_driver(grvga_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Aeroflex Gaisler");

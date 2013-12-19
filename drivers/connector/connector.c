@@ -23,7 +23,7 @@
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/skbuff.h>
-#include <linux/netlink.h>
+#include <net/netlink.h>
 #include <linux/moduleparam.h>
 #include <linux/connector.h>
 #include <linux/slab.h>
@@ -95,13 +95,13 @@ int cn_netlink_send(struct cn_msg *msg, u32 __group, gfp_t gfp_mask)
 	if (!netlink_has_listeners(dev->nls, group))
 		return -ESRCH;
 
-	size = NLMSG_SPACE(sizeof(*msg) + msg->len);
+	size = sizeof(*msg) + msg->len;
 
-	skb = alloc_skb(size, gfp_mask);
+	skb = nlmsg_new(size, gfp_mask);
 	if (!skb)
 		return -ENOMEM;
 
-	nlh = nlmsg_put(skb, 0, msg->seq, NLMSG_DONE, size - sizeof(*nlh), 0);
+	nlh = nlmsg_put(skb, 0, msg->seq, NLMSG_DONE, size, 0);
 	if (!nlh) {
 		kfree_skb(skb);
 		return -EMSGSIZE;
@@ -109,7 +109,7 @@ int cn_netlink_send(struct cn_msg *msg, u32 __group, gfp_t gfp_mask)
 
 	data = nlmsg_data(nlh);
 
-	memcpy(data, msg, sizeof(*data) + msg->len);
+	memcpy(data, msg, size);
 
 	NETLINK_CB(skb).dst_group = group;
 
@@ -124,7 +124,7 @@ static int cn_call_callback(struct sk_buff *skb)
 {
 	struct cn_callback_entry *i, *cbq = NULL;
 	struct cn_dev *dev = &cdev;
-	struct cn_msg *msg = NLMSG_DATA(nlmsg_hdr(skb));
+	struct cn_msg *msg = nlmsg_data(nlmsg_hdr(skb));
 	struct netlink_skb_parms *nsp = &NETLINK_CB(skb);
 	int err = -ENODEV;
 
@@ -157,17 +157,18 @@ static int cn_call_callback(struct sk_buff *skb)
 static void cn_rx_skb(struct sk_buff *__skb)
 {
 	struct nlmsghdr *nlh;
-	int err;
 	struct sk_buff *skb;
+	int len, err;
 
 	skb = skb_get(__skb);
 
-	if (skb->len >= NLMSG_SPACE(0)) {
+	if (skb->len >= NLMSG_HDRLEN) {
 		nlh = nlmsg_hdr(skb);
+		len = nlmsg_len(nlh);
 
-		if (nlh->nlmsg_len < sizeof(struct cn_msg) ||
+		if (len < (int)sizeof(struct cn_msg) ||
 		    skb->len < nlh->nlmsg_len ||
-		    nlh->nlmsg_len > CONNECTOR_MAX_MSG_SIZE) {
+		    len > CONNECTOR_MAX_MSG_SIZE) {
 			kfree_skb(skb);
 			return;
 		}
@@ -256,7 +257,7 @@ static struct cn_dev cdev = {
 	.input   = cn_rx_skb,
 };
 
-static int __devinit cn_init(void)
+static int cn_init(void)
 {
 	struct cn_dev *dev = &cdev;
 	struct netlink_kernel_cfg cfg = {
@@ -276,18 +277,18 @@ static int __devinit cn_init(void)
 
 	cn_already_initialized = 1;
 
-	proc_net_fops_create(&init_net, "connector", S_IRUGO, &cn_file_ops);
+	proc_create("connector", S_IRUGO, init_net.proc_net, &cn_file_ops);
 
 	return 0;
 }
 
-static void __devexit cn_fini(void)
+static void cn_fini(void)
 {
 	struct cn_dev *dev = &cdev;
 
 	cn_already_initialized = 0;
 
-	proc_net_remove(&init_net, "connector");
+	remove_proc_entry("connector", init_net.proc_net);
 
 	cn_queue_free_dev(dev->cbdev);
 	netlink_kernel_release(dev->nls);

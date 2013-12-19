@@ -22,6 +22,7 @@
 #define PSW32_MASK_ASC		0x0000C000UL
 #define PSW32_MASK_CC		0x00003000UL
 #define PSW32_MASK_PM		0x00000f00UL
+#define PSW32_MASK_RI		0x00000080UL
 
 #define PSW32_MASK_USER		0x0000FF00UL
 
@@ -35,7 +36,9 @@
 #define PSW32_ASC_SECONDARY	0x00008000UL
 #define PSW32_ASC_HOME		0x0000C000UL
 
-extern u32 psw32_user_bits;
+#define PSW32_USER_BITS (PSW32_MASK_DAT | PSW32_MASK_IO | PSW32_MASK_EXT | \
+			 PSW32_DEFAULT_KEY | PSW32_MASK_BASE | \
+			 PSW32_MASK_MCHECK | PSW32_MASK_PSTATE | PSW32_ASC_HOME)
 
 #define COMPAT_USER_HZ		100
 #define COMPAT_UTS_MACHINE	"s390\0\0\0\0"
@@ -69,6 +72,22 @@ typedef u32		compat_uint_t;
 typedef u32		compat_ulong_t;
 typedef u64		compat_u64;
 typedef u32		compat_uptr_t;
+
+typedef struct {
+	u32 mask;
+	u32 addr;
+} __aligned(8) psw_compat_t;
+
+typedef struct {
+	psw_compat_t psw;
+	u32 gprs[NUM_GPRS];
+	u32 acrs[NUM_ACRS];
+	u32 orig_gpr2;
+} s390_compat_regs;
+
+typedef struct {
+	u32 gprs_high[NUM_GPRS];
+} s390_compat_regs_high;
 
 struct compat_timespec {
 	compat_time_t	tv_sec;
@@ -124,18 +143,33 @@ struct compat_flock64 {
 };
 
 struct compat_statfs {
-	s32		f_type;
-	s32		f_bsize;
-	s32		f_blocks;
-	s32		f_bfree;
-	s32		f_bavail;
-	s32		f_files;
-	s32		f_ffree;
+	u32		f_type;
+	u32		f_bsize;
+	u32		f_blocks;
+	u32		f_bfree;
+	u32		f_bavail;
+	u32		f_files;
+	u32		f_ffree;
 	compat_fsid_t	f_fsid;
-	s32		f_namelen;
-	s32		f_frsize;
-	s32		f_flags;
-	s32		f_spare[5];
+	u32		f_namelen;
+	u32		f_frsize;
+	u32		f_flags;
+	u32		f_spare[4];
+};
+
+struct compat_statfs64 {
+	u32		f_type;
+	u32		f_bsize;
+	u64		f_blocks;
+	u64		f_bfree;
+	u64		f_bavail;
+	u64		f_files;
+	u64		f_ffree;
+	compat_fsid_t	f_fsid;
+	u32		f_namelen;
+	u32		f_frsize;
+	u32		f_flags;
+	u32		f_spare[4];
 };
 
 #define COMPAT_RLIM_OLD_INFINITY	0x7fffffff
@@ -248,8 +282,6 @@ static inline int is_compat_task(void)
 	return is_32bit_task();
 }
 
-#endif
-
 static inline void __user *arch_compat_alloc_user_space(long len)
 {
 	unsigned long stack;
@@ -259,6 +291,8 @@ static inline void __user *arch_compat_alloc_user_space(long len)
 		stack &= 0x7fffffffUL;
 	return (void __user *) (stack - len);
 }
+
+#endif
 
 struct compat_ipc64_perm {
 	compat_key_t key;

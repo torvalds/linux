@@ -91,30 +91,12 @@ APICs
 		 apicmaintimer. Useful when your PIT timer is totally
 		 broken.
 
-Early Console
-
-   syntax: earlyprintk=vga
-           earlyprintk=serial[,ttySn[,baudrate]]
-
-   The early console is useful when the kernel crashes before the
-   normal console is initialized. It is not enabled by
-   default because it has some cosmetic problems.
-   Append ,keep to not disable it when the real console takes over.
-   Only vga or serial at a time, not both.
-   Currently only ttyS0 and ttyS1 are supported.
-   Interaction with the standard serial driver is not very good.
-   The VGA output is eventually overwritten by the real console.
-
 Timing
 
   notsc
   Don't use the CPU time stamp counter to read the wall time.
   This can be used to work around timing problems on multiprocessor systems
   with not properly synchronized CPUs.
-
-  report_lost_ticks
-  Report when timer interrupts are lost because some code turned off
-  interrupts for too long.
 
   nohpet
   Don't use the HPET timer.
@@ -193,6 +175,11 @@ ACPI
   acpi_sci={edge,level,high,low}  Set up ACPI SCI interrupt.
 
   acpi=noirq	Don't route interrupts
+
+  acpi=nocmcff	Disable firmware first mode for corrected errors. This
+		disables parsing the HEST CMC error source to check if
+		firmware has set the FF flag. This may result in
+		duplicate corrected error reports.
 
 PCI
 

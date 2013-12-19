@@ -5,19 +5,6 @@
 menu "Near Field Communication (NFC) devices"
 	depends on NFC
 
-config PN544_HCI_NFC
-	tristate "HCI PN544 NFC driver"
-	depends on I2C && NFC_HCI && NFC_SHDLC
-	select CRC_CCITT
-	default n
-	---help---
-	  NXP PN544 i2c driver.
-	  This is a driver based on the SHDLC and HCI NFC kernel layers and
-	  will thus not work with NXP libnfc library.
-
-	  To compile this driver as a module, choose m here. The module will
-	  be called pn544_hci.
-
 config NFC_PN533
 	tristate "NXP PN533 USB driver"
 	depends on USB
@@ -38,5 +25,38 @@ config NFC_WILINK
 
 	  Say Y here to compile support for Texas Instrument's NFC WiLink driver
 	  into the kernel or say M to compile it as module.
+
+config NFC_MEI_PHY
+	tristate "MEI bus NFC device support"
+	depends on INTEL_MEI && NFC_HCI
+	help
+	  This adds support to use an mei bus nfc device. Select this if you
+	  will use an HCI NFC driver for an NFC chip connected behind an
+	  Intel's Management Engine chip.
+
+	  If unsure, say N.
+
+config NFC_SIM
+	tristate "NFC hardware simulator driver"
+	help
+	  This driver declares two virtual NFC devices supporting NFC-DEP
+	  protocol. An LLCP connection can be established between them and
+	  all packets sent from one device is sent back to the other, acting as
+	  loopback devices.
+
+	  If unsure, say N.
+
+config NFC_PORT100
+	tristate "Sony NFC Port-100 Series USB device support"
+	depends on USB
+	depends on NFC_DIGITAL
+	help
+	  This adds support for Sony Port-100 chip based USB devices such as the
+	  RC-S380 dongle.
+
+	  If unsure, say N.
+
+source "drivers/nfc/pn544/Kconfig"
+source "drivers/nfc/microread/Kconfig"
 
 endmenu

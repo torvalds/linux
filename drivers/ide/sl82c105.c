@@ -299,7 +299,7 @@ static const struct ide_dma_ops sl82c105_dma_ops = {
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
-static const struct ide_port_info sl82c105_chipset __devinitconst = {
+static const struct ide_port_info sl82c105_chipset = {
 	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_sl82c105,
 	.enablebits	= {{0x40,0x01,0x01}, {0x40,0x10,0x10}},
@@ -313,7 +313,7 @@ static const struct ide_port_info sl82c105_chipset __devinitconst = {
 	.mwdma_mask	= ATA_MWDMA2,
 };
 
-static int __devinit sl82c105_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+static int sl82c105_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct ide_port_info d = sl82c105_chipset;
 	u8 rev = sl82c105_bridge_revision(dev);

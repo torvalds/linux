@@ -134,7 +134,7 @@ static int whc_urb_enqueue(struct usb_hcd *usb_hcd, struct urb *urb,
 	default:
 		ret = asl_urb_enqueue(whc, urb, mem_flags);
 		break;
-	};
+	}
 
 	return ret;
 }
@@ -160,7 +160,7 @@ static int whc_urb_dequeue(struct usb_hcd *usb_hcd, struct urb *urb, int status)
 	default:
 		ret = asl_urb_dequeue(whc, urb, status);
 		break;
-	};
+	}
 
 	return ret;
 }
@@ -231,8 +231,6 @@ static struct hc_driver whc_hc_driver = {
 
 	.hub_status_data = wusbhc_rh_status_data,
 	.hub_control = wusbhc_rh_control,
-	.bus_suspend = wusbhc_rh_suspend,
-	.bus_resume = wusbhc_rh_resume,
 	.start_port_reset = wusbhc_rh_start_port_reset,
 };
 

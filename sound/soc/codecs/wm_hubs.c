@@ -199,11 +199,12 @@ static void wm_hubs_dcs_cache_set(struct snd_soc_codec *codec, u16 dcs_cfg)
 	list_add_tail(&cache->list, &hubs->dcs_cache);
 }
 
-static void wm_hubs_read_dc_servo(struct snd_soc_codec *codec,
+static int wm_hubs_read_dc_servo(struct snd_soc_codec *codec,
 				  u16 *reg_l, u16 *reg_r)
 {
 	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
 	u16 dcs_reg, reg;
+	int ret = 0;
 
 	switch (hubs->dcs_readback_mode) {
 	case 2:
@@ -236,8 +237,9 @@ static void wm_hubs_read_dc_servo(struct snd_soc_codec *codec,
 		break;
 	default:
 		WARN(1, "Unknown DCS readback method\n");
-		return;
+		ret = -1;
 	}
+	return ret;
 }
 
 /*
@@ -286,7 +288,8 @@ static void enable_dc_servo(struct snd_soc_codec *codec)
 				  WM8993_DCS_TRIG_STARTUP_1);
 	}
 
-	wm_hubs_read_dc_servo(codec, &reg_l, &reg_r);
+	if (wm_hubs_read_dc_servo(codec, &reg_l, &reg_r) < 0)
+		return;
 
 	dev_dbg(codec->dev, "DCS input: %x %x\n", reg_l, reg_r);
 
@@ -527,6 +530,7 @@ static int hp_supply_event(struct snd_soc_dapm_widget *w,
 				hubs->hp_startup_mode);
 			break;
 		}
+		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
 		snd_soc_update_bits(codec, WM8993_CHARGE_PUMP_1,
@@ -607,7 +611,7 @@ static int earpiece_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		break;
 	}
 
@@ -690,17 +694,13 @@ void wm_hubs_update_class_w(struct snd_soc_codec *codec)
 EXPORT_SYMBOL_GPL(wm_hubs_update_class_w);
 
 #define WM_HUBS_SINGLE_W(xname, reg, shift, max, invert) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
-	.info = snd_soc_info_volsw, \
-	.get = snd_soc_dapm_get_volsw, .put = class_w_put_volsw, \
-	.private_value =  SOC_SINGLE_VALUE(reg, shift, max, invert) }
+	SOC_SINGLE_EXT(xname, reg, shift, max, invert, \
+		snd_soc_dapm_get_volsw, class_w_put_volsw)
 
 static int class_w_put_volsw(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
-	struct snd_soc_codec *codec = widget->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
 	int ret;
 
 	ret = snd_soc_dapm_put_volsw(kcontrol, ucontrol);
@@ -720,9 +720,7 @@ static int class_w_put_volsw(struct snd_kcontrol *kcontrol,
 static int class_w_put_double(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
-	struct snd_soc_codec *codec = widget->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
 	int ret;
 
 	ret = snd_soc_dapm_put_enum_double(kcontrol, ucontrol);

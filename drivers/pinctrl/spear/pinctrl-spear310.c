@@ -378,7 +378,7 @@ static struct of_device_id spear310_pinctrl_of_match[] = {
 	{},
 };
 
-static int __devinit spear310_pinctrl_probe(struct platform_device *pdev)
+static int spear310_pinctrl_probe(struct platform_device *pdev)
 {
 	int ret;
 
@@ -430,4 +430,4 @@ module_exit(spear310_pinctrl_exit);
 MODULE_AUTHOR("Viresh Kumar <viresh.linux@gmail.com>");
 MODULE_DESCRIPTION("ST Microelectronics SPEAr310 pinctrl driver");
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, SPEAr310_pinctrl_of_match);
+MODULE_DEVICE_TABLE(of, spear310_pinctrl_of_match);

@@ -51,9 +51,11 @@ enum {
 	NvSubCtxSurf2D  = 0,
 	NvSubSw		= 1,
 	NvSubImageBlit  = 2,
-	NvSub2D		= 3,
 	NvSubGdiRect    = 3,
-	NvSubCopy	= 4,
+
+	NvSub2D		= 3, /* DO NOT CHANGE - hardcoded for kepler gr fifo */
+	NvSubCopy	= 4, /* DO NOT CHANGE - hardcoded for kepler gr fifo */
+	FermiSw		= 5, /* DO NOT CHANGE (well.. 6/7 will work...) */
 };
 
 /* Object handles. */
@@ -191,10 +193,9 @@ WIND_RING(struct nouveau_channel *chan)
 #define NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG                    0x00000002
 #define NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_GEQUAL                0x00000004
 #define NVC0_SUBCHAN_SEMAPHORE_TRIGGER_YIELD                         0x00001000
-#define NV84_SUBCHAN_NOTIFY_INTR                                     0x00000020
+#define NV84_SUBCHAN_UEVENT                                          0x00000020
 #define NV84_SUBCHAN_WRCACHE_FLUSH                                   0x00000024
 #define NV10_SUBCHAN_REF_CNT                                         0x00000050
-#define NVSW_SUBCHAN_PAGE_FLIP                                       0x00000054
 #define NV11_SUBCHAN_DMA_SEMAPHORE                                   0x00000060
 #define NV11_SUBCHAN_SEMAPHORE_OFFSET                                0x00000064
 #define NV11_SUBCHAN_SEMAPHORE_ACQUIRE                               0x00000068

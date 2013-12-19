@@ -53,7 +53,7 @@
 
 #define PSC_CTRL_DISABLE	0
 #define PSC_CTRL_SUSPEND	2
-#define PSC_CTRL_ENABLE 	3
+#define PSC_CTRL_ENABLE		3
 
 /* AC97 Registers. */
 #define PSC_AC97CFG_OFFSET	0x00000008
@@ -85,8 +85,8 @@
 #define PSC_AC97CFG_SE_ENABLE	(1 << 25)
 
 #define PSC_AC97CFG_LEN_MASK	(0xf << 21)
-#define PSC_AC97CFG_TXSLOT_MASK	(0x3ff << 11)
-#define PSC_AC97CFG_RXSLOT_MASK	(0x3ff << 1)
+#define PSC_AC97CFG_TXSLOT_MASK (0x3ff << 11)
+#define PSC_AC97CFG_RXSLOT_MASK (0x3ff << 1)
 #define PSC_AC97CFG_GE_ENABLE	(1)
 
 /* Enable slots 3-12. */
@@ -95,7 +95,7 @@
 
 /*
  * The word length equation is ((x) * 2) + 2, so choose 'x' appropriately.
- * The only sensible numbers are 7, 9, or possibly 11.  Nah, just do the
+ * The only sensible numbers are 7, 9, or possibly 11.	Nah, just do the
  * arithmetic in the macro.
  */
 #define PSC_AC97CFG_SET_LEN(x)	(((((x) - 2) / 2) & 0xf) << 21)

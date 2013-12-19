@@ -71,18 +71,27 @@ flush_cache_all_local(void)
 }
 EXPORT_SYMBOL(flush_cache_all_local);
 
+/* Virtual address of pfn.  */
+#define pfn_va(pfn)	__va(PFN_PHYS(pfn))
+
 void
 update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
-	struct page *page = pte_page(*ptep);
+	unsigned long pfn = pte_pfn(*ptep);
+	struct page *page;
 
-	if (pfn_valid(page_to_pfn(page)) && page_mapping(page) &&
-	    test_bit(PG_dcache_dirty, &page->flags)) {
+	/* We don't have pte special.  As a result, we can be called with
+	   an invalid pfn and we don't need to flush the kernel dcache page.
+	   This occurs with FireGL card in C8000.  */
+	if (!pfn_valid(pfn))
+		return;
 
-		flush_kernel_dcache_page(page);
+	page = pfn_to_page(pfn);
+	if (page_mapping(page) && test_bit(PG_dcache_dirty, &page->flags)) {
+		flush_kernel_dcache_page_addr(pfn_va(pfn));
 		clear_bit(PG_dcache_dirty, &page->flags);
 	} else if (parisc_requires_coherency())
-		flush_kernel_dcache_page(page);
+		flush_kernel_dcache_page_addr(pfn_va(pfn));
 }
 
 void
@@ -267,9 +276,11 @@ static inline void
 __flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr,
 		   unsigned long physaddr)
 {
+	preempt_disable();
 	flush_dcache_page_asm(physaddr, vmaddr);
 	if (vma->vm_flags & VM_EXEC)
 		flush_icache_page_asm(physaddr, vmaddr);
+	preempt_enable();
 }
 
 void flush_dcache_page(struct page *page)
@@ -329,17 +340,6 @@ EXPORT_SYMBOL(flush_kernel_dcache_page_asm);
 EXPORT_SYMBOL(flush_data_cache_local);
 EXPORT_SYMBOL(flush_kernel_icache_range_asm);
 
-void clear_user_page_asm(void *page, unsigned long vaddr)
-{
-	unsigned long flags;
-	/* This function is implemented in assembly in pacache.S */
-	extern void __clear_user_page_asm(void *page, unsigned long vaddr);
-
-	purge_tlb_start(flags);
-	__clear_user_page_asm(page, vaddr);
-	purge_tlb_end(flags);
-}
-
 #define FLUSH_THRESHOLD 0x80000 /* 0.5MB */
 int parisc_cache_flush_threshold __read_mostly = FLUSH_THRESHOLD;
 
@@ -373,20 +373,9 @@ void __init parisc_setup_cache_timing(void)
 	printk(KERN_INFO "Setting cache flush threshold to %x (%d CPUs online)\n", parisc_cache_flush_threshold, num_online_cpus());
 }
 
-extern void purge_kernel_dcache_page(unsigned long);
-extern void clear_user_page_asm(void *page, unsigned long vaddr);
-
-void clear_user_page(void *page, unsigned long vaddr, struct page *pg)
-{
-	unsigned long flags;
-
-	purge_kernel_dcache_page((unsigned long)page);
-	purge_tlb_start(flags);
-	pdtlb_kernel(page);
-	purge_tlb_end(flags);
-	clear_user_page_asm(page, vaddr);
-}
-EXPORT_SYMBOL(clear_user_page);
+extern void purge_kernel_dcache_page_asm(unsigned long);
+extern void clear_user_page_asm(void *, unsigned long);
+extern void copy_user_page_asm(void *, void *, unsigned long);
 
 void flush_kernel_dcache_page_addr(void *addr)
 {
@@ -399,11 +388,26 @@ void flush_kernel_dcache_page_addr(void *addr)
 }
 EXPORT_SYMBOL(flush_kernel_dcache_page_addr);
 
-void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
-		    struct page *pg)
+void clear_user_page(void *vto, unsigned long vaddr, struct page *page)
 {
-	/* no coherency needed (all in kmap/kunmap) */
-	copy_user_page_asm(vto, vfrom);
+	clear_page_asm(vto);
+	if (!parisc_requires_coherency())
+		flush_kernel_dcache_page_asm(vto);
+}
+EXPORT_SYMBOL(clear_user_page);
+
+void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
+	struct page *pg)
+{
+	/* Copy using kernel mapping.  No coherency is needed
+	   (all in kmap/kunmap) on machines that don't support
+	   non-equivalent aliasing.  However, the `from' page
+	   needs to be flushed before it can be accessed through
+	   the kernel mapping. */
+	preempt_disable();
+	flush_dcache_page_asm(__pa(vfrom), vaddr);
+	preempt_enable();
+	copy_page_asm(vto, vfrom);
 	if (!parisc_requires_coherency())
 		flush_kernel_dcache_page_asm(vto);
 }
@@ -419,6 +423,21 @@ void kunmap_parisc(void *addr)
 EXPORT_SYMBOL(kunmap_parisc);
 #endif
 
+void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
+{
+	unsigned long flags;
+
+	/* Note: purge_tlb_entries can be called at startup with
+	   no context.  */
+
+	purge_tlb_start(flags);
+	mtsp(mm->context, 1);
+	pdtlb(addr);
+	pitlb(addr);
+	purge_tlb_end(flags);
+}
+EXPORT_SYMBOL(purge_tlb_entries);
+
 void __flush_tlb_range(unsigned long sid, unsigned long start,
 		       unsigned long end)
 {
@@ -430,8 +449,8 @@ void __flush_tlb_range(unsigned long sid, unsigned long start,
 	else {
 		unsigned long flags;
 
-		mtsp(sid, 1);
 		purge_tlb_start(flags);
+		mtsp(sid, 1);
 		if (split_tlb) {
 			while (npages--) {
 				pdtlb(start);
@@ -458,13 +477,69 @@ void flush_cache_all(void)
 	on_each_cpu(cacheflush_h_tmp_function, NULL, 1);
 }
 
+static inline unsigned long mm_total_size(struct mm_struct *mm)
+{
+	struct vm_area_struct *vma;
+	unsigned long usize = 0;
+
+	for (vma = mm->mmap; vma; vma = vma->vm_next)
+		usize += vma->vm_end - vma->vm_start;
+	return usize;
+}
+
+static inline pte_t *get_ptep(pgd_t *pgd, unsigned long addr)
+{
+	pte_t *ptep = NULL;
+
+	if (!pgd_none(*pgd)) {
+		pud_t *pud = pud_offset(pgd, addr);
+		if (!pud_none(*pud)) {
+			pmd_t *pmd = pmd_offset(pud, addr);
+			if (!pmd_none(*pmd))
+				ptep = pte_offset_map(pmd, addr);
+		}
+	}
+	return ptep;
+}
+
 void flush_cache_mm(struct mm_struct *mm)
 {
-#ifdef CONFIG_SMP
-	flush_cache_all();
-#else
-	flush_cache_all_local();
-#endif
+	struct vm_area_struct *vma;
+	pgd_t *pgd;
+
+	/* Flushing the whole cache on each cpu takes forever on
+	   rp3440, etc.  So, avoid it if the mm isn't too big.  */
+	if (mm_total_size(mm) >= parisc_cache_flush_threshold) {
+		flush_cache_all();
+		return;
+	}
+
+	if (mm->context == mfsp(3)) {
+		for (vma = mm->mmap; vma; vma = vma->vm_next) {
+			flush_user_dcache_range_asm(vma->vm_start, vma->vm_end);
+			if ((vma->vm_flags & VM_EXEC) == 0)
+				continue;
+			flush_user_icache_range_asm(vma->vm_start, vma->vm_end);
+		}
+		return;
+	}
+
+	pgd = mm->pgd;
+	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+		unsigned long addr;
+
+		for (addr = vma->vm_start; addr < vma->vm_end;
+		     addr += PAGE_SIZE) {
+			unsigned long pfn;
+			pte_t *ptep = get_ptep(pgd, addr);
+			if (!ptep)
+				continue;
+			pfn = pte_pfn(*ptep);
+			if (!pfn_valid(pfn))
+				continue;
+			__flush_cache_page(vma, addr, PFN_PHYS(pfn));
+		}
+	}
 }
 
 void
@@ -485,20 +560,35 @@ flush_user_icache_range(unsigned long start, unsigned long end)
 		flush_instruction_cache();
 }
 
-
 void flush_cache_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end)
 {
-	int sr3;
+	unsigned long addr;
+	pgd_t *pgd;
 
 	BUG_ON(!vma->vm_mm->context);
 
-	sr3 = mfsp(3);
-	if (vma->vm_mm->context == sr3) {
-		flush_user_dcache_range(start,end);
-		flush_user_icache_range(start,end);
-	} else {
+	if ((end - start) >= parisc_cache_flush_threshold) {
 		flush_cache_all();
+		return;
+	}
+
+	if (vma->vm_mm->context == mfsp(3)) {
+		flush_user_dcache_range_asm(start, end);
+		if (vma->vm_flags & VM_EXEC)
+			flush_user_icache_range_asm(start, end);
+		return;
+	}
+
+	pgd = vma->vm_mm->pgd;
+	for (addr = start & PAGE_MASK; addr < end; addr += PAGE_SIZE) {
+		unsigned long pfn;
+		pte_t *ptep = get_ptep(pgd, addr);
+		if (!ptep)
+			continue;
+		pfn = pte_pfn(*ptep);
+		if (pfn_valid(pfn))
+			__flush_cache_page(vma, addr, PFN_PHYS(pfn));
 	}
 }
 
@@ -507,7 +597,72 @@ flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long
 {
 	BUG_ON(!vma->vm_mm->context);
 
-	flush_tlb_page(vma, vmaddr);
-	__flush_cache_page(vma, vmaddr, page_to_phys(pfn_to_page(pfn)));
-
+	if (pfn_valid(pfn)) {
+		flush_tlb_page(vma, vmaddr);
+		__flush_cache_page(vma, vmaddr, PFN_PHYS(pfn));
+	}
 }
+
+#ifdef CONFIG_PARISC_TMPALIAS
+
+void clear_user_highpage(struct page *page, unsigned long vaddr)
+{
+	void *vto;
+	unsigned long flags;
+
+	/* Clear using TMPALIAS region.  The page doesn't need to
+	   be flushed but the kernel mapping needs to be purged.  */
+
+	vto = kmap_atomic(page);
+
+	/* The PA-RISC 2.0 Architecture book states on page F-6:
+	   "Before a write-capable translation is enabled, *all*
+	   non-equivalently-aliased translations must be removed
+	   from the page table and purged from the TLB.  (Note
+	   that the caches are not required to be flushed at this
+	   time.)  Before any non-equivalent aliased translation
+	   is re-enabled, the virtual address range for the writeable
+	   page (the entire page) must be flushed from the cache,
+	   and the write-capable translation removed from the page
+	   table and purged from the TLB."  */
+
+	purge_kernel_dcache_page_asm((unsigned long)vto);
+	purge_tlb_start(flags);
+	pdtlb_kernel(vto);
+	purge_tlb_end(flags);
+	preempt_disable();
+	clear_user_page_asm(vto, vaddr);
+	preempt_enable();
+
+	pagefault_enable();		/* kunmap_atomic(addr, KM_USER0); */
+}
+
+void copy_user_highpage(struct page *to, struct page *from,
+	unsigned long vaddr, struct vm_area_struct *vma)
+{
+	void *vfrom, *vto;
+	unsigned long flags;
+
+	/* Copy using TMPALIAS region.  This has the advantage
+	   that the `from' page doesn't need to be flushed.  However,
+	   the `to' page must be flushed in copy_user_page_asm since
+	   it can be used to bring in executable code.  */
+
+	vfrom = kmap_atomic(from);
+	vto = kmap_atomic(to);
+
+	purge_kernel_dcache_page_asm((unsigned long)vto);
+	purge_tlb_start(flags);
+	pdtlb_kernel(vto);
+	pdtlb_kernel(vfrom);
+	purge_tlb_end(flags);
+	preempt_disable();
+	copy_user_page_asm(vto, vfrom, vaddr);
+	flush_dcache_page_asm(__pa(vto), vaddr);
+	preempt_enable();
+
+	pagefault_enable();		/* kunmap_atomic(addr, KM_USER1); */
+	pagefault_enable();		/* kunmap_atomic(addr, KM_USER0); */
+}
+
+#endif /* CONFIG_PARISC_TMPALIAS */

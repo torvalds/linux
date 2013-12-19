@@ -120,7 +120,7 @@ The Intel MEI Driver supports the following IOCTL command:
 	Notes:
         max_msg_length (MTU) in client properties describes the maximum
         data that can be sent or received. (e.g. if MTU=2K, can send
-        requests up to bytes 2k and received responses upto 2k bytes).
+        requests up to bytes 2k and received responses up to 2k bytes).
 
 Intel ME Applications:
 ==============

@@ -654,7 +654,7 @@ static int sync_serial_release(struct inode *inode, struct file *file)
 
 static unsigned int sync_serial_poll(struct file *file, poll_table *wait)
 {
-	int dev = MINOR(file->f_dentry->d_inode->i_rdev);
+	int dev = MINOR(file_inode(file)->i_rdev);
 	unsigned int mask = 0;
 	struct sync_port *port;
 	DEBUGPOLL(static unsigned int prev_mask = 0);
@@ -685,7 +685,7 @@ static int sync_serial_ioctl_unlocked(struct file *file,
 	int return_val = 0;
 	unsigned long flags;
 
-	int dev = MINOR(file->f_dentry->d_inode->i_rdev);
+	int dev = MINOR(file_inode(file)->i_rdev);
 	struct sync_port *port;
 
 	if (dev < 0 || dev >= NUMBER_OF_PORTS || !ports[dev].enabled) {
@@ -973,7 +973,7 @@ static long sync_serial_ioctl(struct file *file,
 static ssize_t sync_serial_write(struct file *file, const char *buf,
 	size_t count, loff_t *ppos)
 {
-	int dev = MINOR(file->f_dentry->d_inode->i_rdev);
+	int dev = MINOR(file_inode(file)->i_rdev);
 	DECLARE_WAITQUEUE(wait, current);
 	struct sync_port *port;
 	unsigned long flags;
@@ -1097,7 +1097,7 @@ static ssize_t sync_serial_write(struct file *file, const char *buf,
 static ssize_t sync_serial_read(struct file *file, char *buf,
 				size_t count, loff_t *ppos)
 {
-	int dev = MINOR(file->f_dentry->d_inode->i_rdev);
+	int dev = MINOR(file_inode(file)->i_rdev);
 	int avail;
 	struct sync_port *port;
 	unsigned char *start;

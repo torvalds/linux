@@ -1,5 +1,5 @@
 menu "CAN USB interfaces"
-	depends on USB && CAN_DEV
+	depends on USB
 
 config CAN_EMS_USB
 	tristate "EMS CPC-USB/ARM7 CAN/USB interface"
@@ -47,5 +47,11 @@ config CAN_PEAK_USB
 	---help---
 	  This driver supports the PCAN-USB and PCAN-USB Pro adapters
 	  from PEAK-System Technik (http://www.peak-system.com).
+
+config CAN_8DEV_USB
+	tristate "8 devices USB2CAN interface"
+	---help---
+	  This driver supports the USB2CAN interface
+	  from 8 devices (http://www.8devices.com).
 
 endmenu

@@ -220,8 +220,8 @@ int mvs_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 	return rc;
 }
 
-void __devinit mvs_set_sas_addr(struct mvs_info *mvi, int port_id,
-				u32 off_lo, u32 off_hi, u64 sas_addr)
+void mvs_set_sas_addr(struct mvs_info *mvi, int port_id, u32 off_lo,
+		      u32 off_hi, u64 sas_addr)
 {
 	u32 lo = (u32)sas_addr;
 	u32 hi = (u32)(sas_addr>>32);
@@ -316,10 +316,13 @@ static int mvs_task_prep_smp(struct mvs_info *mvi,
 			     struct mvs_task_exec_info *tei)
 {
 	int elem, rc, i;
+	struct sas_ha_struct *sha = mvi->sas;
 	struct sas_task *task = tei->task;
 	struct mvs_cmd_hdr *hdr = tei->hdr;
 	struct domain_device *dev = task->dev;
 	struct asd_sas_port *sas_port = dev->port;
+	struct sas_phy *sphy = dev->phy;
+	struct asd_sas_phy *sas_phy = sha->sas_phy[sphy->number];
 	struct scatterlist *sg_req, *sg_resp;
 	u32 req_len, resp_len, tag = tei->tag;
 	void *buf_tmp;
@@ -392,7 +395,7 @@ static int mvs_task_prep_smp(struct mvs_info *mvi,
 	slot->tx = mvi->tx_prod;
 	mvi->tx[mvi->tx_prod] = cpu_to_le32((TXQ_CMD_SMP << TXQ_CMD_SHIFT) |
 					TXQ_MODE_I | tag |
-					(sas_port->phy_mask << TXQ_PHY_SHIFT));
+					(MVS_PHY_ID << TXQ_PHY_SHIFT));
 
 	hdr->flags |= flags;
 	hdr->lens = cpu_to_le32(((resp_len / 4) << 16) | ((req_len - 4) / 4));
@@ -438,11 +441,14 @@ static u32 mvs_get_ncq_tag(struct sas_task *task, u32 *tag)
 static int mvs_task_prep_ata(struct mvs_info *mvi,
 			     struct mvs_task_exec_info *tei)
 {
+	struct sas_ha_struct *sha = mvi->sas;
 	struct sas_task *task = tei->task;
 	struct domain_device *dev = task->dev;
 	struct mvs_device *mvi_dev = dev->lldd_dev;
 	struct mvs_cmd_hdr *hdr = tei->hdr;
 	struct asd_sas_port *sas_port = dev->port;
+	struct sas_phy *sphy = dev->phy;
+	struct asd_sas_phy *sas_phy = sha->sas_phy[sphy->number];
 	struct mvs_slot_info *slot;
 	void *buf_prd;
 	u32 tag = tei->tag, hdr_tag;
@@ -462,7 +468,7 @@ static int mvs_task_prep_ata(struct mvs_info *mvi,
 	slot->tx = mvi->tx_prod;
 	del_q = TXQ_MODE_I | tag |
 		(TXQ_CMD_STP << TXQ_CMD_SHIFT) |
-		(sas_port->phy_mask << TXQ_PHY_SHIFT) |
+		(MVS_PHY_ID << TXQ_PHY_SHIFT) |
 		(mvi_dev->taskfileset << TXQ_SRS_SHIFT);
 	mvi->tx[mvi->tx_prod] = cpu_to_le32(del_q);
 
@@ -680,7 +686,8 @@ static int mvs_task_prep_ssp(struct mvs_info *mvi,
 	if (ssp_hdr->frame_type != SSP_TASK) {
 		buf_cmd[9] = fburst | task->ssp_task.task_attr |
 				(task->ssp_task.task_prio << 3);
-		memcpy(buf_cmd + 12, &task->ssp_task.cdb, 16);
+		memcpy(buf_cmd + 12, task->ssp_task.cmd->cmnd,
+		       task->ssp_task.cmd->cmd_len);
 	} else{
 		buf_cmd[10] = tmf->tmf;
 		switch (tmf->tmf) {
@@ -700,7 +707,7 @@ static int mvs_task_prep_ssp(struct mvs_info *mvi,
 	return 0;
 }
 
-#define	DEV_IS_GONE(mvi_dev)	((!mvi_dev || (mvi_dev->dev_type == NO_DEVICE)))
+#define	DEV_IS_GONE(mvi_dev)	((!mvi_dev || (mvi_dev->dev_type == SAS_PHY_UNUSED)))
 static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int is_tmf,
 				struct mvs_tmf_task *tmf, int *pass)
 {
@@ -720,7 +727,7 @@ static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int is_tmf
 		 * libsas will use dev->port, should
 		 * not call task_done for sata
 		 */
-		if (dev->dev_type != SATA_DEV)
+		if (dev->dev_type != SAS_SATA_DEV)
 			task->task_done(task);
 		return rc;
 	}
@@ -1153,10 +1160,10 @@ void mvs_update_phyinfo(struct mvs_info *mvi, int i, int get_st)
 			phy->identify.device_type =
 				phy->att_dev_info & PORT_DEV_TYPE_MASK;
 
-			if (phy->identify.device_type == SAS_END_DEV)
+			if (phy->identify.device_type == SAS_END_DEVICE)
 				phy->identify.target_port_protocols =
 							SAS_PROTOCOL_SSP;
-			else if (phy->identify.device_type != NO_DEVICE)
+			else if (phy->identify.device_type != SAS_PHY_UNUSED)
 				phy->identify.target_port_protocols =
 							SAS_PROTOCOL_SMP;
 			if (oob_done)
@@ -1254,7 +1261,7 @@ struct mvs_device *mvs_alloc_dev(struct mvs_info *mvi)
 {
 	u32 dev;
 	for (dev = 0; dev < MVS_MAX_DEVICES; dev++) {
-		if (mvi->devices[dev].dev_type == NO_DEVICE) {
+		if (mvi->devices[dev].dev_type == SAS_PHY_UNUSED) {
 			mvi->devices[dev].device_id = dev;
 			return &mvi->devices[dev];
 		}
@@ -1272,7 +1279,7 @@ void mvs_free_dev(struct mvs_device *mvi_dev)
 	u32 id = mvi_dev->device_id;
 	memset(mvi_dev, 0, sizeof(*mvi_dev));
 	mvi_dev->device_id = id;
-	mvi_dev->dev_type = NO_DEVICE;
+	mvi_dev->dev_type = SAS_PHY_UNUSED;
 	mvi_dev->dev_status = MVS_DEV_NORMAL;
 	mvi_dev->taskfileset = MVS_ID_NOT_MAPPED;
 }
@@ -1404,7 +1411,7 @@ static int mvs_exec_internal_tmf_task(struct domain_device *dev,
 
 		if (res) {
 			del_timer(&task->slow_task->timer);
-			mv_printk("executing internel task failed:%d\n", res);
+			mv_printk("executing internal task failed:%d\n", res);
 			goto ex_err;
 		}
 
@@ -1474,7 +1481,7 @@ static int mvs_debug_I_T_nexus_reset(struct domain_device *dev)
 {
 	int rc;
 	struct sas_phy *phy = sas_get_local_phy(dev);
-	int reset_type = (dev->dev_type == SATA_DEV ||
+	int reset_type = (dev->dev_type == SAS_SATA_DEV ||
 			(dev->tproto & SAS_PROTOCOL_STP)) ? 0 : 1;
 	rc = sas_phy_reset(phy, reset_type);
 	sas_put_local_phy(phy);
@@ -1623,7 +1630,7 @@ int mvs_abort_task(struct sas_task *task)
 
 	} else if (task->task_proto & SAS_PROTOCOL_SATA ||
 		task->task_proto & SAS_PROTOCOL_STP) {
-		if (SATA_DEV == dev->dev_type) {
+		if (SAS_SATA_DEV == dev->dev_type) {
 			struct mvs_slot_info *slot = task->lldd_task;
 			u32 slot_idx = (u32)(slot - mvi->slot_info);
 			mv_dprintk("mvs_abort_task() mvi=%p task=%p "
@@ -1850,11 +1857,16 @@ int mvs_slot_complete(struct mvs_info *mvi, u32 rx_desc, u32 flags)
 		goto out;
 	}
 
-	/* error info record present */
-	if (unlikely((rx_desc & RXQ_ERR) && (*(u64 *) slot->response))) {
+	/*
+	 * error info record present; slot->response is 32 bit aligned but may
+	 * not be 64 bit aligned, so check for zero in two 32 bit reads
+	 */
+	if (unlikely((rx_desc & RXQ_ERR)
+		     && (*((u32 *)slot->response)
+			 || *(((u32 *)slot->response) + 1)))) {
 		mv_dprintk("port %d slot %d rx_desc %X has error info"
 			"%016llX.\n", slot->port->sas_port.id, slot_idx,
-			 rx_desc, (u64)(*(u64 *)slot->response));
+			 rx_desc, get_unaligned_le64(slot->response));
 		tstat->stat = mvs_slot_err(mvi, task, slot_idx);
 		tstat->resp = SAS_TASK_COMPLETE;
 		goto out;

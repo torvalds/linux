@@ -31,6 +31,7 @@
 #include <linux/pci.h>
 #include <linux/gfp.h>
 #include <linux/memblock.h>
+#include <linux/edd.h>
 
 #include <xen/xen.h>
 #include <xen/events.h>
@@ -67,6 +68,7 @@
 #include <asm/hypervisor.h>
 #include <asm/mwait.h>
 #include <asm/pci_x86.h>
+#include <asm/pat.h>
 
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>
@@ -83,7 +85,29 @@
 
 EXPORT_SYMBOL_GPL(hypercall_page);
 
+/*
+ * Pointer to the xen_vcpu_info structure or
+ * &HYPERVISOR_shared_info->vcpu_info[cpu]. See xen_hvm_init_shared_info
+ * and xen_vcpu_setup for details. By default it points to share_info->vcpu_info
+ * but if the hypervisor supports VCPUOP_register_vcpu_info then it can point
+ * to xen_vcpu_info. The pointer is used in __xen_evtchn_do_upcall to
+ * acknowledge pending events.
+ * Also more subtly it is used by the patched version of irq enable/disable
+ * e.g. xen_irq_enable_direct and xen_iret in PV mode.
+ *
+ * The desire to be able to do those mask/unmask operations as a single
+ * instruction by using the per-cpu offset held in %gs is the real reason
+ * vcpu info is in a per-cpu pointer and the original reason for this
+ * hypercall.
+ *
+ */
 DEFINE_PER_CPU(struct vcpu_info *, xen_vcpu);
+
+/*
+ * Per CPU pages used if hypervisor supports VCPUOP_register_vcpu_info
+ * hypercall. This can be used both in PV and PVHVM mode. The structure
+ * overrides the default per_cpu(xen_vcpu, cpu) value.
+ */
 DEFINE_PER_CPU(struct vcpu_info, xen_vcpu_info);
 
 enum xen_domain_type xen_domain_type = XEN_NATIVE;
@@ -155,6 +179,21 @@ static void xen_vcpu_setup(int cpu)
 
 	BUG_ON(HYPERVISOR_shared_info == &xen_dummy_shared_info);
 
+	/*
+	 * This path is called twice on PVHVM - first during bootup via
+	 * smp_init -> xen_hvm_cpu_notify, and then if the VCPU is being
+	 * hotplugged: cpu_up -> xen_hvm_cpu_notify.
+	 * As we can only do the VCPUOP_register_vcpu_info once lets
+	 * not over-write its result.
+	 *
+	 * For PV it is called during restore (xen_vcpu_restore) and bootup
+	 * (xen_setup_vcpu_info_placement). The hotplug mechanism does not
+	 * use this function.
+	 */
+	if (xen_hvm_domain()) {
+		if (per_cpu(xen_vcpu, cpu) == &per_cpu(xen_vcpu_info, cpu))
+			return;
+	}
 	if (cpu < MAX_VIRT_CPUS)
 		per_cpu(xen_vcpu,cpu) = &HYPERVISOR_shared_info->vcpu_info[cpu];
 
@@ -170,7 +209,12 @@ static void xen_vcpu_setup(int cpu)
 
 	/* Check to see if the hypervisor will put the vcpu_info
 	   structure where we want it, which allows direct access via
-	   a percpu-variable. */
+	   a percpu-variable.
+	   N.B. This hypercall can _only_ be called once per CPU. Subsequent
+	   calls will error out with -EINVAL. This is due to the fact that
+	   hypervisor has no unregister variant and this hypercall does not
+	   allow to over-write info.mfn and info.offset.
+	 */
 	err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, cpu, &info);
 
 	if (err) {
@@ -383,8 +427,10 @@ static void __init xen_init_cpuid_mask(void)
 
 	if (!xen_initial_domain())
 		cpuid_leaf1_edx_mask &=
-			~((1 << X86_FEATURE_APIC) |  /* disable local APIC */
-			  (1 << X86_FEATURE_ACPI));  /* disable ACPI */
+			~((1 << X86_FEATURE_ACPI));  /* disable ACPI */
+
+	cpuid_leaf1_ecx_mask &= ~(1 << (X86_FEATURE_X2APIC % 32));
+
 	ax = 1;
 	cx = 0;
 	xen_cpuid(&ax, &bx, &cx, &dx);
@@ -688,8 +734,7 @@ static int cvt_gate_to_trap(int vector, const gate_desc *val,
 		addr = (unsigned long)xen_int3;
 	else if (addr == (unsigned long)stack_segment)
 		addr = (unsigned long)xen_stack_segment;
-	else if (addr == (unsigned long)double_fault ||
-		 addr == (unsigned long)nmi) {
+	else if (addr == (unsigned long)double_fault) {
 		/* Don't need to handle these */
 		return 0;
 #ifdef CONFIG_X86_MCE
@@ -700,7 +745,12 @@ static int cvt_gate_to_trap(int vector, const gate_desc *val,
 		 */
 		;
 #endif
-	} else {
+	} else if (addr == (unsigned long)nmi)
+		/*
+		 * Use the native version as well.
+		 */
+		;
+	else {
 		/* Some other trap using IST? */
 		if (WARN_ON(val->ist != 0))
 			return 0;
@@ -1219,7 +1269,6 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.alloc_ldt = xen_alloc_ldt,
 	.free_ldt = xen_free_ldt,
 
-	.store_gdt = native_store_gdt,
 	.store_idt = native_store_idt,
 	.store_tr = xen_store_tr,
 
@@ -1304,6 +1353,55 @@ static const struct machine_ops xen_machine_ops __initconst = {
 	.crash_shutdown = xen_crash_shutdown,
 	.emergency_restart = xen_emergency_restart,
 };
+
+static void __init xen_boot_params_init_edd(void)
+{
+#if IS_ENABLED(CONFIG_EDD)
+	struct xen_platform_op op;
+	struct edd_info *edd_info;
+	u32 *mbr_signature;
+	unsigned nr;
+	int ret;
+
+	edd_info = boot_params.eddbuf;
+	mbr_signature = boot_params.edd_mbr_sig_buffer;
+
+	op.cmd = XENPF_firmware_info;
+
+	op.u.firmware_info.type = XEN_FW_DISK_INFO;
+	for (nr = 0; nr < EDDMAXNR; nr++) {
+		struct edd_info *info = edd_info + nr;
+
+		op.u.firmware_info.index = nr;
+		info->params.length = sizeof(info->params);
+		set_xen_guest_handle(op.u.firmware_info.u.disk_info.edd_params,
+				     &info->params);
+		ret = HYPERVISOR_dom0_op(&op);
+		if (ret)
+			break;
+
+#define C(x) info->x = op.u.firmware_info.u.disk_info.x
+		C(device);
+		C(version);
+		C(interface_support);
+		C(legacy_max_cylinder);
+		C(legacy_max_head);
+		C(legacy_sectors_per_track);
+#undef C
+	}
+	boot_params.eddbuf_entries = nr;
+
+	op.u.firmware_info.type = XEN_FW_DISK_MBR_SIGNATURE;
+	for (nr = 0; nr < EDD_MBR_SIG_MAX; nr++) {
+		op.u.firmware_info.index = nr;
+		ret = HYPERVISOR_dom0_op(&op);
+		if (ret)
+			break;
+		mbr_signature[nr] = op.u.firmware_info.u.disk_mbr_signature.mbr_signature;
+	}
+	boot_params.edd_mbr_sig_buf_entries = nr;
+#endif
+}
 
 /*
  * Set up the GDT and segment registers for -fstack-protector.  Until
@@ -1417,7 +1515,14 @@ asmlinkage void __init xen_start_kernel(void)
 	 */
 	acpi_numa = -1;
 #endif
-
+#ifdef CONFIG_X86_PAT
+	/*
+	 * For right now disable the PAT. We should remove this once
+	 * git commit 8eaffa67b43e99ae581622c5133e20b0f48bcef1
+	 * (xen/pat: Disable PAT support for now) is reverted.
+	 */
+	pat_enabled = 0;
+#endif
 	/* Don't do the full vcpu_info placement stuff until we have a
 	   possible map and a non-dummy shared_info. */
 	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
@@ -1455,7 +1560,7 @@ asmlinkage void __init xen_start_kernel(void)
 #ifdef CONFIG_X86_32
 	/* set up basic CPUID stuff */
 	cpu_detect(&new_cpu_data);
-	new_cpu_data.hard_math = 1;
+	set_cpu_cap(&new_cpu_data, X86_FEATURE_FPU);
 	new_cpu_data.wp_works_ok = 1;
 	new_cpu_data.x86_capability[0] = cpuid_edx(1);
 #endif
@@ -1500,6 +1605,8 @@ asmlinkage void __init xen_start_kernel(void)
 		/* Avoid searching for BIOS MP tables */
 		x86_init.mpparse.find_smp_config = x86_init_noop;
 		x86_init.mpparse.get_smp_config = x86_init_uint_noop;
+
+		xen_boot_params_init_edd();
 	}
 #ifdef CONFIG_PCI
 	/* PCI BIOS service won't work from a PV guest. */
@@ -1517,72 +1624,54 @@ asmlinkage void __init xen_start_kernel(void)
 #endif
 }
 
-#ifdef CONFIG_XEN_PVHVM
-#define HVM_SHARED_INFO_ADDR 0xFE700000UL
-static struct shared_info *xen_hvm_shared_info;
-static unsigned long xen_hvm_sip_phys;
-static int xen_major, xen_minor;
-
-static void xen_hvm_connect_shared_info(unsigned long pfn)
+void __ref xen_hvm_init_shared_info(void)
 {
+	int cpu;
 	struct xen_add_to_physmap xatp;
+	static struct shared_info *shared_info_page = 0;
 
+	if (!shared_info_page)
+		shared_info_page = (struct shared_info *)
+			extend_brk(PAGE_SIZE, PAGE_SIZE);
 	xatp.domid = DOMID_SELF;
 	xatp.idx = 0;
 	xatp.space = XENMAPSPACE_shared_info;
-	xatp.gpfn = pfn;
+	xatp.gpfn = __pa(shared_info_page) >> PAGE_SHIFT;
 	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
 		BUG();
 
-}
-static void __init xen_hvm_set_shared_info(struct shared_info *sip)
-{
-	int cpu;
-
-	HYPERVISOR_shared_info = sip;
+	HYPERVISOR_shared_info = (struct shared_info *)shared_info_page;
 
 	/* xen_vcpu is a pointer to the vcpu_info struct in the shared_info
 	 * page, we use it in the event channel upcall and in some pvclock
 	 * related functions. We don't need the vcpu_info placement
 	 * optimizations because we don't use any pv_mmu or pv_irq op on
-	 * HVM. */
-	for_each_online_cpu(cpu)
+	 * HVM.
+	 * When xen_hvm_init_shared_info is run at boot time only vcpu 0 is
+	 * online but xen_hvm_init_shared_info is run at resume time too and
+	 * in that case multiple vcpus might be online. */
+	for_each_online_cpu(cpu) {
+		/* Leave it to be NULL. */
+		if (cpu >= MAX_VIRT_CPUS)
+			continue;
 		per_cpu(xen_vcpu, cpu) = &HYPERVISOR_shared_info->vcpu_info[cpu];
-}
-
-/* Reconnect the shared_info pfn to a (new) mfn */
-void xen_hvm_resume_shared_info(void)
-{
-	xen_hvm_connect_shared_info(xen_hvm_sip_phys >> PAGE_SHIFT);
-}
-
-/* Xen tools prior to Xen 4 do not provide a E820_Reserved area for guest usage.
- * On these old tools the shared info page will be placed in E820_Ram.
- * Xen 4 provides a E820_Reserved area at 0xFC000000, and this code expects
- * that nothing is mapped up to HVM_SHARED_INFO_ADDR.
- * Xen 4.3+ provides an explicit 1MB area at HVM_SHARED_INFO_ADDR which is used
- * here for the shared info page. */
-static void __init xen_hvm_init_shared_info(void)
-{
-	if (xen_major < 4) {
-		xen_hvm_shared_info = extend_brk(PAGE_SIZE, PAGE_SIZE);
-		xen_hvm_sip_phys = __pa(xen_hvm_shared_info);
-	} else {
-		xen_hvm_sip_phys = HVM_SHARED_INFO_ADDR;
-		set_fixmap(FIX_PARAVIRT_BOOTMAP, xen_hvm_sip_phys);
-		xen_hvm_shared_info =
-		(struct shared_info *)fix_to_virt(FIX_PARAVIRT_BOOTMAP);
 	}
-	xen_hvm_connect_shared_info(xen_hvm_sip_phys >> PAGE_SHIFT);
-	xen_hvm_set_shared_info(xen_hvm_shared_info);
 }
 
+#ifdef CONFIG_XEN_PVHVM
 static void __init init_hvm_pv_info(void)
 {
-	uint32_t ecx, edx, pages, msr, base;
+	int major, minor;
+	uint32_t eax, ebx, ecx, edx, pages, msr, base;
 	u64 pfn;
 
 	base = xen_cpuid_base();
+	cpuid(base + 1, &eax, &ebx, &ecx, &edx);
+
+	major = eax >> 16;
+	minor = eax & 0xffff;
+	printk(KERN_INFO "Xen version %d.%d.\n", major, minor);
+
 	cpuid(base + 2, &pages, &msr, &ecx, &edx);
 
 	pfn = __pa(hypercall_page);
@@ -1595,15 +1684,17 @@ static void __init init_hvm_pv_info(void)
 	xen_domain_type = XEN_HVM_DOMAIN;
 }
 
-static int __cpuinit xen_hvm_cpu_notify(struct notifier_block *self,
-				    unsigned long action, void *hcpu)
+static int xen_hvm_cpu_notify(struct notifier_block *self, unsigned long action,
+			      void *hcpu)
 {
 	int cpu = (long)hcpu;
 	switch (action) {
 	case CPU_UP_PREPARE:
 		xen_vcpu_setup(cpu);
-		if (xen_have_vector_callback)
-			xen_init_lock_cpu(cpu);
+		if (xen_have_vector_callback) {
+			if (xen_feature(XENFEAT_hvm_safe_pvclock))
+				xen_setup_timer(cpu);
+		}
 		break;
 	default:
 		break;
@@ -1611,7 +1702,7 @@ static int __cpuinit xen_hvm_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block xen_hvm_cpu_notifier __cpuinitdata = {
+static struct notifier_block xen_hvm_cpu_notifier = {
 	.notifier_call	= xen_hvm_cpu_notify,
 };
 
@@ -1620,6 +1711,8 @@ static void __init xen_hvm_guest_init(void)
 	init_hvm_pv_info();
 
 	xen_hvm_init_shared_info();
+
+	xen_panic_handler_init();
 
 	if (xen_feature(XENFEAT_hvm_callback_vector))
 		xen_have_vector_callback = 1;
@@ -1631,25 +1724,12 @@ static void __init xen_hvm_guest_init(void)
 	xen_hvm_init_mmu_ops();
 }
 
-static bool __init xen_hvm_platform(void)
+static uint32_t __init xen_hvm_platform(void)
 {
-	uint32_t eax, ebx, ecx, edx, base;
-
 	if (xen_pv_domain())
-		return false;
+		return 0;
 
-	base = xen_cpuid_base();
-	if (!base)
-		return false;
-
-	cpuid(base + 1, &eax, &ebx, &ecx, &edx);
-
-	xen_major = eax >> 16;
-	xen_minor = eax & 0xffff;
-
-	printk(KERN_INFO "Xen version %d.%d.\n", xen_major, xen_minor);
-
-	return true;
+	return xen_cpuid_base();
 }
 
 bool xen_hvm_need_lapic(void)
@@ -1668,6 +1748,7 @@ const struct hypervisor_x86 x86_hyper_xen_hvm __refconst = {
 	.name			= "Xen HVM",
 	.detect			= xen_hvm_platform,
 	.init_platform		= xen_hvm_guest_init,
+	.x2apic_available	= xen_x2apic_para_available,
 };
 EXPORT_SYMBOL(x86_hyper_xen_hvm);
 #endif

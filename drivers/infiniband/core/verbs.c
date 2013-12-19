@@ -114,6 +114,8 @@ rdma_node_get_transport(enum rdma_node_type node_type)
 		return RDMA_TRANSPORT_IB;
 	case RDMA_NODE_RNIC:
 		return RDMA_TRANSPORT_IWARP;
+	case RDMA_NODE_USNIC:
+		return RDMA_TRANSPORT_USNIC;
 	default:
 		BUG();
 		return 0;
@@ -130,6 +132,7 @@ enum rdma_link_layer rdma_port_get_link_layer(struct ib_device *device, u8 port_
 	case RDMA_TRANSPORT_IB:
 		return IB_LINK_LAYER_INFINIBAND;
 	case RDMA_TRANSPORT_IWARP:
+	case RDMA_TRANSPORT_USNIC:
 		return IB_LINK_LAYER_ETHERNET;
 	default:
 		return IB_LINK_LAYER_UNSPECIFIED;
@@ -346,9 +349,13 @@ EXPORT_SYMBOL(ib_destroy_srq);
 static void __ib_shared_qp_event_handler(struct ib_event *event, void *context)
 {
 	struct ib_qp *qp = context;
+	unsigned long flags;
 
+	spin_lock_irqsave(&qp->device->event_handler_lock, flags);
 	list_for_each_entry(event->element.qp, &qp->open_list, open_list)
-		event->element.qp->event_handler(event, event->element.qp->qp_context);
+		if (event->element.qp->event_handler)
+			event->element.qp->event_handler(event, event->element.qp->qp_context);
+	spin_unlock_irqrestore(&qp->device->event_handler_lock, flags);
 }
 
 static void __ib_insert_xrcd_qp(struct ib_xrcd *xrcd, struct ib_qp *qp)
@@ -954,6 +961,11 @@ EXPORT_SYMBOL(ib_resize_cq);
 struct ib_mr *ib_get_dma_mr(struct ib_pd *pd, int mr_access_flags)
 {
 	struct ib_mr *mr;
+	int err;
+
+	err = ib_check_mr_access(mr_access_flags);
+	if (err)
+		return ERR_PTR(err);
 
 	mr = pd->device->get_dma_mr(pd, mr_access_flags);
 
@@ -976,6 +988,11 @@ struct ib_mr *ib_reg_phys_mr(struct ib_pd *pd,
 			     u64 *iova_start)
 {
 	struct ib_mr *mr;
+	int err;
+
+	err = ib_check_mr_access(mr_access_flags);
+	if (err)
+		return ERR_PTR(err);
 
 	if (!pd->device->reg_phys_mr)
 		return ERR_PTR(-ENOSYS);
@@ -1005,6 +1022,10 @@ int ib_rereg_phys_mr(struct ib_mr *mr,
 {
 	struct ib_pd *old_pd;
 	int ret;
+
+	ret = ib_check_mr_access(mr_access_flags);
+	if (ret)
+		return ret;
 
 	if (!mr->device->rereg_phys_mr)
 		return -ENOSYS;
@@ -1099,18 +1120,19 @@ EXPORT_SYMBOL(ib_free_fast_reg_page_list);
 
 /* Memory windows */
 
-struct ib_mw *ib_alloc_mw(struct ib_pd *pd)
+struct ib_mw *ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type)
 {
 	struct ib_mw *mw;
 
 	if (!pd->device->alloc_mw)
 		return ERR_PTR(-ENOSYS);
 
-	mw = pd->device->alloc_mw(pd);
+	mw = pd->device->alloc_mw(pd, type);
 	if (!IS_ERR(mw)) {
 		mw->device  = pd->device;
 		mw->pd      = pd;
 		mw->uobject = NULL;
+		mw->type    = type;
 		atomic_inc(&pd->usecnt);
 	}
 
@@ -1252,3 +1274,30 @@ int ib_dealloc_xrcd(struct ib_xrcd *xrcd)
 	return xrcd->device->dealloc_xrcd(xrcd);
 }
 EXPORT_SYMBOL(ib_dealloc_xrcd);
+
+struct ib_flow *ib_create_flow(struct ib_qp *qp,
+			       struct ib_flow_attr *flow_attr,
+			       int domain)
+{
+	struct ib_flow *flow_id;
+	if (!qp->device->create_flow)
+		return ERR_PTR(-ENOSYS);
+
+	flow_id = qp->device->create_flow(qp, flow_attr, domain);
+	if (!IS_ERR(flow_id))
+		atomic_inc(&qp->usecnt);
+	return flow_id;
+}
+EXPORT_SYMBOL(ib_create_flow);
+
+int ib_destroy_flow(struct ib_flow *flow_id)
+{
+	int err;
+	struct ib_qp *qp = flow_id->qp;
+
+	err = qp->device->destroy_flow(flow_id);
+	if (!err)
+		atomic_dec(&qp->usecnt);
+	return err;
+}
+EXPORT_SYMBOL(ib_destroy_flow);

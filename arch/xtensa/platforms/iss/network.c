@@ -700,7 +700,7 @@ struct iss_net_init {
 
 #define ERR KERN_ERR "iss_net_setup: "
 
-static int iss_net_setup(char *str)
+static int __init iss_net_setup(char *str)
 {
 	struct iss_net_private *device = NULL;
 	struct iss_net_init *new;
@@ -737,7 +737,8 @@ static int iss_net_setup(char *str)
 		return 1;
 	}
 
-	if ((new = alloc_bootmem(sizeof new)) == NULL) {
+	new = alloc_bootmem(sizeof(*new));
+	if (new == NULL) {
 		printk("Alloc_bootmem failed\n");
 		return 1;
 	}

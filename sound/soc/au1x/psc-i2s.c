@@ -288,6 +288,10 @@ static const struct snd_soc_dai_driver au1xpsc_i2s_dai_template = {
 	.ops = &au1xpsc_i2s_dai_ops,
 };
 
+static const struct snd_soc_component_driver au1xpsc_i2s_component = {
+	.name		= "au1xpsc-i2s",
+};
+
 static int au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 {
 	struct resource *iores, *dmares;
@@ -350,14 +354,15 @@ static int au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, wd);
 
-	return snd_soc_register_dai(&pdev->dev, &wd->dai_drv);
+	return snd_soc_register_component(&pdev->dev, &au1xpsc_i2s_component,
+					  &wd->dai_drv, 1);
 }
 
 static int au1xpsc_i2s_drvremove(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_data *wd = platform_get_drvdata(pdev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	au_writel(0, I2S_CFG(wd));
 	au_sync();

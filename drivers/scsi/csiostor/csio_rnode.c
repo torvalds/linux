@@ -302,7 +302,7 @@ csio_confirm_rnode(struct csio_lnode *ln, uint32_t rdev_flowid,
 {
 	uint8_t rport_type;
 	struct csio_rnode *rn, *match_rn;
-	uint32_t vnp_flowid;
+	uint32_t vnp_flowid = 0;
 	__be32 *port_id;
 
 	port_id = (__be32 *)&rdevp->r_id[0];
@@ -350,6 +350,14 @@ csio_confirm_rnode(struct csio_lnode *ln, uint32_t rdev_flowid,
 			 * Else, go ahead and alloc a new rnode.
 			 */
 			if (!memcmp(csio_rn_wwpn(match_rn), rdevp->wwpn, 8)) {
+				if (rn == match_rn)
+					goto found_rnode;
+				csio_ln_dbg(ln,
+					    "nport_id:x%x and wwpn:%llx"
+					    " match for ssni:x%x\n",
+					    rn->nport_id,
+					    wwn_to_u64(rdevp->wwpn),
+					    rdev_flowid);
 				if (csio_is_rnode_ready(rn)) {
 					csio_ln_warn(ln,
 						     "rnode is already"

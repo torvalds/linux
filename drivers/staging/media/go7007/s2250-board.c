@@ -29,6 +29,13 @@
 MODULE_DESCRIPTION("Sensoray 2250/2251 i2c v4l2 subdev driver");
 MODULE_LICENSE("GPL v2");
 
+/*
+ * Note: this board has two i2c devices: a vpx3226f and a tlv320aic23b.
+ * Due to the unusual way these are accessed on this device we do not
+ * reuse the i2c drivers, but instead they are implemented in this
+ * driver. It would be nice to improve on this, though.
+ */
+
 #define TLV320_ADDRESS      0x34
 #define VPX322_ADDR_ANALOGCONTROL1	0x02
 #define VPX322_ADDR_BRIGHTNESS0		0x0127
@@ -103,8 +110,7 @@ static u16 vid_regs_fp[] = {
 };
 
 /* PAL specific values */
-static u16 vid_regs_fp_pal[] =
-{
+static u16 vid_regs_fp_pal[] = {
 	0x120, 0x017,
 	0x121, 0xd22,
 	0x122, 0x122,
@@ -117,6 +123,7 @@ static u16 vid_regs_fp_pal[] =
 
 struct s2250 {
 	struct v4l2_subdev sd;
+	struct v4l2_ctrl_handler hdl;
 	v4l2_std_id std;
 	int input;
 	int brightness;
@@ -174,7 +181,7 @@ static int write_reg(struct i2c_client *client, u8 reg, u8 value)
 
 	usb = go->hpi_context;
 	if (mutex_lock_interruptible(&usb->i2c_lock) != 0) {
-		printk(KERN_INFO "i2c lock failed\n");
+		dev_info(&client->dev, "i2c lock failed\n");
 		kfree(buf);
 		return -EINTR;
 	}
@@ -213,7 +220,7 @@ static int write_reg_fp(struct i2c_client *client, u16 addr, u16 val)
 
 	usb = go->hpi_context;
 	if (mutex_lock_interruptible(&usb->i2c_lock) != 0) {
-		printk(KERN_INFO "i2c lock failed\n");
+		dev_info(&client->dev, "i2c lock failed\n");
 		kfree(buf);
 		return -EINTR;
 	}
@@ -231,13 +238,13 @@ static int write_reg_fp(struct i2c_client *client, u16 addr, u16 val)
 		val_read = (buf[2] << 8) + buf[3];
 		kfree(buf);
 		if (val_read != val) {
-			printk(KERN_INFO "invalid fp write %x %x\n",
-			       val_read, val);
+			dev_info(&client->dev, "invalid fp write %x %x\n",
+				 val_read, val);
 			return -EFAULT;
 		}
 		if (subaddr != addr) {
-			printk(KERN_INFO "invalid fp write addr %x %x\n",
-			       subaddr, addr);
+			dev_info(&client->dev, "invalid fp write addr %x %x\n",
+				 subaddr, addr);
 			return -EFAULT;
 		}
 	} else {
@@ -275,7 +282,7 @@ static int read_reg_fp(struct i2c_client *client, u16 addr, u16 *val)
 	memset(buf, 0xcd, 6);
 	usb = go->hpi_context;
 	if (mutex_lock_interruptible(&usb->i2c_lock) != 0) {
-		printk(KERN_INFO "i2c lock failed\n");
+		dev_info(&client->dev, "i2c lock failed\n");
 		kfree(buf);
 		return -EINTR;
 	}
@@ -299,7 +306,7 @@ static int write_regs(struct i2c_client *client, u8 *regs)
 
 	for (i = 0; !((regs[i] == 0x00) && (regs[i+1] == 0x00)); i += 2) {
 		if (write_reg(client, regs[i], regs[i+1]) < 0) {
-			printk(KERN_INFO "s2250: failed\n");
+			dev_info(&client->dev, "failed\n");
 			return -1;
 		}
 	}
@@ -312,7 +319,7 @@ static int write_regs_fp(struct i2c_client *client, u16 *regs)
 
 	for (i = 0; !((regs[i] == 0x00) && (regs[i+1] == 0x00)); i += 2) {
 		if (write_reg_fp(client, regs[i], regs[i+1]) < 0) {
-			printk(KERN_INFO "s2250: failed fp\n");
+			dev_info(&client->dev, "failed fp\n");
 			return -1;
 		}
 	}
@@ -354,127 +361,48 @@ static int s2250_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 	u16 vidsource;
 
 	vidsource = (state->input == 1) ? 0x040 : 0x020;
-	switch (norm) {
-	case V4L2_STD_NTSC:
-		write_regs_fp(client, vid_regs_fp);
-		write_reg_fp(client, 0x20, vidsource | 1);
-		break;
-	case V4L2_STD_PAL:
+	if (norm & V4L2_STD_625_50) {
 		write_regs_fp(client, vid_regs_fp);
 		write_regs_fp(client, vid_regs_fp_pal);
 		write_reg_fp(client, 0x20, vidsource);
-		break;
-	default:
-		return -EINVAL;
+	} else {
+		write_regs_fp(client, vid_regs_fp);
+		write_reg_fp(client, 0x20, vidsource | 1);
 	}
 	state->std = norm;
 	return 0;
 }
 
-static int s2250_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *query)
+static int s2250_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	switch (query->id) {
-	case V4L2_CID_BRIGHTNESS:
-		return v4l2_ctrl_query_fill(query, 0, 100, 1, 50);
-	case V4L2_CID_CONTRAST:
-		return v4l2_ctrl_query_fill(query, 0, 100, 1, 50);
-	case V4L2_CID_SATURATION:
-		return v4l2_ctrl_query_fill(query, 0, 100, 1, 50);
-	case V4L2_CID_HUE:
-		return v4l2_ctrl_query_fill(query, -50, 50, 1, 0);
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int s2250_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	struct s2250 *state = to_state(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int value1;
+	struct s2250 *state = container_of(ctrl->handler, struct s2250, hdl);
+	struct i2c_client *client = v4l2_get_subdevdata(&state->sd);
 	u16 oldvalue;
 
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
-		if (ctrl->value > 100)
-			state->brightness = 100;
-		else if (ctrl->value < 0)
-			state->brightness = 0;
-		else
-			state->brightness = ctrl->value;
-		value1 = (state->brightness - 50) * 255 / 100;
 		read_reg_fp(client, VPX322_ADDR_BRIGHTNESS0, &oldvalue);
 		write_reg_fp(client, VPX322_ADDR_BRIGHTNESS0,
-			     value1 | (oldvalue & ~0xff));
+			     ctrl->val | (oldvalue & ~0xff));
 		read_reg_fp(client, VPX322_ADDR_BRIGHTNESS1, &oldvalue);
 		write_reg_fp(client, VPX322_ADDR_BRIGHTNESS1,
-			     value1 | (oldvalue & ~0xff));
+			     ctrl->val | (oldvalue & ~0xff));
 		write_reg_fp(client, 0x140, 0x60);
 		break;
 	case V4L2_CID_CONTRAST:
-		if (ctrl->value > 100)
-			state->contrast = 100;
-		else if (ctrl->value < 0)
-			state->contrast = 0;
-		else
-			state->contrast = ctrl->value;
-		value1 = state->contrast * 0x40 / 100;
-		if (value1 > 0x3f)
-			value1 = 0x3f; /* max */
 		read_reg_fp(client, VPX322_ADDR_CONTRAST0, &oldvalue);
 		write_reg_fp(client, VPX322_ADDR_CONTRAST0,
-			     value1 | (oldvalue & ~0x3f));
+			     ctrl->val | (oldvalue & ~0x3f));
 		read_reg_fp(client, VPX322_ADDR_CONTRAST1, &oldvalue);
 		write_reg_fp(client, VPX322_ADDR_CONTRAST1,
-			     value1 | (oldvalue & ~0x3f));
+			     ctrl->val | (oldvalue & ~0x3f));
 		write_reg_fp(client, 0x140, 0x60);
 		break;
 	case V4L2_CID_SATURATION:
-		if (ctrl->value > 100)
-			state->saturation = 100;
-		else if (ctrl->value < 0)
-			state->saturation = 0;
-		else
-			state->saturation = ctrl->value;
-		value1 = state->saturation * 4140 / 100;
-		if (value1 > 4094)
-			value1 = 4094;
-		write_reg_fp(client, VPX322_ADDR_SAT, value1);
+		write_reg_fp(client, VPX322_ADDR_SAT, ctrl->val);
 		break;
 	case V4L2_CID_HUE:
-		if (ctrl->value > 50)
-			state->hue = 50;
-		else if (ctrl->value < -50)
-			state->hue = -50;
-		else
-			state->hue = ctrl->value;
-		/* clamp the hue range */
-		value1 = state->hue * 280 / 50;
-		write_reg_fp(client, VPX322_ADDR_HUE, value1);
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int s2250_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	struct s2250 *state = to_state(sd);
-
-	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		ctrl->value = state->brightness;
-		break;
-	case V4L2_CID_CONTRAST:
-		ctrl->value = state->contrast;
-		break;
-	case V4L2_CID_SATURATION:
-		ctrl->value = state->saturation;
-		break;
-	case V4L2_CID_HUE:
-		ctrl->value = state->hue;
+		write_reg_fp(client, VPX322_ADDR_HUE, ctrl->val);
 		break;
 	default:
 		return -EINVAL;
@@ -532,24 +460,21 @@ static int s2250_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "Input: %s\n", state->input == 0 ? "Composite" :
 					state->input == 1 ? "S-video" :
 					"error");
-	v4l2_info(sd, "Brightness: %d\n", state->brightness);
-	v4l2_info(sd, "Contrast: %d\n", state->contrast);
-	v4l2_info(sd, "Saturation: %d\n", state->saturation);
-	v4l2_info(sd, "Hue: %d\n", state->hue);	return 0;
 	v4l2_info(sd, "Audio input: %s\n", state->audio_input == 0 ? "Line In" :
 					state->audio_input == 1 ? "Mic" :
 					state->audio_input == 2 ? "Mic Boost" :
 					"error");
-	return 0;
+	return v4l2_ctrl_subdev_log_status(sd);
 }
 
 /* --------------------------------------------------------------------------*/
 
+static const struct v4l2_ctrl_ops s2250_ctrl_ops = {
+	.s_ctrl = s2250_s_ctrl,
+};
+
 static const struct v4l2_subdev_core_ops s2250_core_ops = {
 	.log_status = s2250_log_status,
-	.g_ctrl = s2250_g_ctrl,
-	.s_ctrl = s2250_s_ctrl,
-	.queryctrl = s2250_queryctrl,
 	.s_std = s2250_s_std,
 };
 
@@ -585,7 +510,7 @@ static int s2250_probe(struct i2c_client *client,
 	if (audio == NULL)
 		return -ENOMEM;
 
-	state = kmalloc(sizeof(struct s2250), GFP_KERNEL);
+	state = kzalloc(sizeof(struct s2250), GFP_KERNEL);
 	if (state == NULL) {
 		i2c_unregister_device(audio);
 		return -ENOMEM;
@@ -597,6 +522,24 @@ static int s2250_probe(struct i2c_client *client,
 	v4l2_info(sd, "initializing %s at address 0x%x on %s\n",
 	       "Sensoray 2250/2251", client->addr, client->adapter->name);
 
+	v4l2_ctrl_handler_init(&state->hdl, 4);
+	v4l2_ctrl_new_std(&state->hdl, &s2250_ctrl_ops,
+		V4L2_CID_BRIGHTNESS, -128, 127, 1, 0);
+	v4l2_ctrl_new_std(&state->hdl, &s2250_ctrl_ops,
+		V4L2_CID_CONTRAST, 0, 0x3f, 1, 0x32);
+	v4l2_ctrl_new_std(&state->hdl, &s2250_ctrl_ops,
+		V4L2_CID_SATURATION, 0, 4094, 1, 2070);
+	v4l2_ctrl_new_std(&state->hdl, &s2250_ctrl_ops,
+		V4L2_CID_HUE, -512, 511, 1, 0);
+	sd->ctrl_handler = &state->hdl;
+	if (state->hdl.error) {
+		int err = state->hdl.error;
+
+		v4l2_ctrl_handler_free(&state->hdl);
+		kfree(state);
+		return err;
+	}
+
 	state->std = V4L2_STD_NTSC;
 	state->brightness = 50;
 	state->contrast = 50;
@@ -606,26 +549,17 @@ static int s2250_probe(struct i2c_client *client,
 
 	/* initialize the audio */
 	if (write_regs(audio, aud_regs) < 0) {
-		printk(KERN_ERR
-		       "s2250: error initializing audio\n");
-		i2c_unregister_device(audio);
-		kfree(state);
-		return 0;
+		dev_err(&client->dev, "error initializing audio\n");
+		goto fail;
 	}
 
 	if (write_regs(client, vid_regs) < 0) {
-		printk(KERN_ERR
-		       "s2250: error initializing decoder\n");
-		i2c_unregister_device(audio);
-		kfree(state);
-		return 0;
+		dev_err(&client->dev, "error initializing decoder\n");
+		goto fail;
 	}
 	if (write_regs_fp(client, vid_regs_fp) < 0) {
-		printk(KERN_ERR
-		       "s2250: error initializing decoder\n");
-		i2c_unregister_device(audio);
-		kfree(state);
-		return 0;
+		dev_err(&client->dev, "error initializing decoder\n");
+		goto fail;
 	}
 	/* set default channel */
 	/* composite */
@@ -661,14 +595,21 @@ static int s2250_probe(struct i2c_client *client,
 
 	v4l2_info(sd, "initialized successfully\n");
 	return 0;
+
+fail:
+	i2c_unregister_device(audio);
+	v4l2_ctrl_handler_free(&state->hdl);
+	kfree(state);
+	return -EIO;
 }
 
 static int s2250_remove(struct i2c_client *client)
 {
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct s2250 *state = to_state(i2c_get_clientdata(client));
 
-	v4l2_device_unregister_subdev(sd);
-	kfree(to_state(sd));
+	v4l2_device_unregister_subdev(&state->sd);
+	v4l2_ctrl_handler_free(&state->hdl);
+	kfree(state);
 	return 0;
 }
 

@@ -8,19 +8,23 @@ config TILE
 	select HAVE_KVM if !TILEGX
 	select GENERIC_FIND_FIRST_BIT
 	select SYSCTL_EXCEPTION_TRACE
-	select USE_GENERIC_SMP_HELPERS
 	select CC_OPTIMIZE_FOR_SIZE
 	select HAVE_DEBUG_KMEMLEAK
-	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_IRQ_SHOW
 	select HAVE_DEBUG_BUGVERBOSE
-	select HAVE_SYSCALL_WRAPPERS if TILEGX
+	select VIRT_TO_BUS
 	select SYS_HYPERVISOR
+	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_CLOCKEVENTS
 	select MODULES_USE_ELF_RELA
+	select HAVE_ARCH_TRACEHOOK
+	select HAVE_SYSCALL_TRACEPOINTS
+	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
+	select HAVE_DEBUG_STACKOVERFLOW
+	select ARCH_WANT_FRAME_POINTERS
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT
@@ -37,9 +41,6 @@ config MMU
 	def_bool y
 
 config GENERIC_CSUM
-	def_bool y
-
-config SEMAPHORE_SLEEPERS
 	def_bool y
 
 config HAVE_ARCH_ALLOC_REMAP
@@ -62,15 +63,12 @@ config HUGETLB_SUPER_PAGES
 	depends on HUGETLB_PAGE && TILEGX
 	def_bool y
 
+config GENERIC_TIME_VSYSCALL
+	def_bool y
+
 # FIXME: tilegx can implement a more efficient rwsem.
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
-
-# We have a very flat architecture from a migration point of view,
-# so save boot time by presetting this (particularly useful on tile-sim).
-config DEFAULT_MIGRATION_COST
-	int
-	default "10000000"
 
 # We only support gcc 4.4 and above, so this should work.
 config ARCH_SUPPORTS_OPTIMIZED_INLINING
@@ -113,19 +111,22 @@ config STRICT_DEVMEM
 config SMP
 	def_bool y
 
-# Allow checking for compile-time determined overflow errors in
-# copy_from_user().  There are still unprovable places in the
-# generic code as of 2.6.34, so this option is not really compatible
-# with -Werror, which is more useful in general.
-config DEBUG_COPY_FROM_USER
-	def_bool n
-
 config HVC_TILE
+	depends on TTY
 	select HVC_DRIVER
+	select HVC_IRQ if TILEGX
 	def_bool y
 
 config TILEGX
-	bool "Building with TILE-Gx (64-bit) compiler and toolchain"
+	bool "Building for TILE-Gx (64-bit) processor"
+	select HAVE_FUNCTION_TRACER
+	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_KPROBES
+	select HAVE_KRETPROBES
+	select HAVE_ARCH_KGDB
 
 config TILEPRO
 	def_bool !TILEGX
@@ -139,6 +140,8 @@ config ARCH_DEFCONFIG
 	default "arch/tile/configs/tilegx_defconfig" if TILEGX
 
 source "init/Kconfig"
+
+source "kernel/Kconfig.freezer"
 
 menu "Tilera-specific configuration"
 
@@ -202,7 +205,7 @@ config SYSVIPC_COMPAT
 	def_bool y
 	depends on COMPAT && SYSVIPC
 
-# We do not currently support disabling HIGHMEM on tile64 and tilepro.
+# We do not currently support disabling HIGHMEM on tilepro.
 config HIGHMEM
 	bool # "Support for more than 512 MB of RAM"
 	default !TILEGX
@@ -308,6 +311,8 @@ config PAGE_OFFSET
 
 source "mm/Kconfig"
 
+source "kernel/Kconfig.preempt"
+
 config CMDLINE_BOOL
 	bool "Built-in kernel command line"
 	default n
@@ -355,7 +360,7 @@ config CMDLINE_OVERRIDE
 
 config VMALLOC_RESERVE
 	hex
-	default 0x1000000
+	default 0x2000000
 
 config HARDWALL
 	bool "Hardwall support to allow access to user dynamic network"
@@ -364,11 +369,17 @@ config HARDWALL
 config KERNEL_PL
 	int "Processor protection level for kernel"
 	range 1 2
-	default "1"
+	default 2 if TILEGX
+	default 1 if !TILEGX
 	---help---
-	  This setting determines the processor protection level the
-	  kernel will be built to run at.  Generally you should use
-	  the default value here.
+	  Since MDE 4.2, the Tilera hypervisor runs the kernel
+	  at PL2 by default.  If running under an older hypervisor,
+	  or as a KVM guest, you must run at PL1.  (The current
+	  hypervisor may also be recompiled with "make HV_PL=2" to
+	  allow it to run a kernel at PL1, but clients running at PL1
+	  are not expected to be supported indefinitely.)
+
+	  If you're not sure, don't change the default.
 
 source "arch/tile/gxio/Kconfig"
 
@@ -382,7 +393,6 @@ config PCI
 	select PCI_DOMAINS
 	select GENERIC_PCI_IOMAP
 	select TILE_GXIO_TRIO if TILEGX
-	select ARCH_SUPPORTS_MSI if TILEGX
 	select PCI_MSI if TILEGX
 	---help---
 	  Enable PCI root complex support, so PCIe endpoint devices can
@@ -398,7 +408,19 @@ config NO_IOMEM
 config NO_IOPORT
 	def_bool !PCI
 
+config TILE_PCI_IO
+	bool "PCI I/O space support"
+	default n
+	depends on PCI
+	depends on TILEGX
+	---help---
+	  Enable PCI I/O space support on TILEGx. Since the PCI I/O space
+	  is used by few modern PCIe endpoint devices, its support is disabled
+	  by default to save the TRIO PIO Region resource for other purposes.
+
 source "drivers/pci/Kconfig"
+
+source "drivers/pci/pcie/Kconfig"
 
 config TILE_USB
 	tristate "Tilera USB host adapter support"
@@ -410,22 +432,11 @@ config TILE_USB
 	  Provides USB host adapter support for the built-in EHCI and OHCI
 	  interfaces on TILE-Gx chips.
 
-# USB OHCI needs the bounce pool since tilegx will often have more
-# than 4GB of memory, but we don't currently use the IOTLB to present
-# a 32-bit address to OHCI.  So we need to use a bounce pool instead.
-config NEED_BOUNCE_POOL
-	def_bool USB_OHCI_HCD
-
 source "drivers/pci/hotplug/Kconfig"
 
 endmenu
 
 menu "Executable file formats"
-
-# only elf supported
-config KCORE_ELF
-	def_bool y
-	depends on PROC_FS
 
 source "fs/Kconfig.binfmt"
 

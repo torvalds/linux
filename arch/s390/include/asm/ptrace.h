@@ -9,11 +9,12 @@
 #include <uapi/asm/ptrace.h>
 
 #ifndef __ASSEMBLY__
-#ifndef __s390x__
-#else /* __s390x__ */
-#endif /* __s390x__ */
-extern long psw_kernel_bits;
-extern long psw_user_bits;
+
+#define PSW_KERNEL_BITS	(PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_ASC_HOME | \
+			 PSW_MASK_EA | PSW_MASK_BA)
+#define PSW_USER_BITS	(PSW_MASK_DAT | PSW_MASK_IO | PSW_MASK_EXT | \
+			 PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_MASK_MCHECK | \
+			 PSW_MASK_PSTATE | PSW_ASC_PRIMARY)
 
 /*
  * The pt_regs struct defines the way the registers are stored on
@@ -26,6 +27,7 @@ struct pt_regs
 	unsigned long gprs[NUM_GPRS];
 	unsigned long orig_gpr2;
 	unsigned int int_code;
+	unsigned int int_parm;
 	unsigned long int_parm_long;
 };
 
@@ -77,8 +79,6 @@ struct per_struct_kernel {
 #define PER_CONTROL_SUSPENSION		0x00400000UL
 #define PER_CONTROL_ALTERATION		0x00200000UL
 
-#ifdef __s390x__
-#endif /* __s390x__ */
 /*
  * These are defined as per linux/ptrace.h, which see.
  */

@@ -186,7 +186,7 @@ static int omap3xxx_clkdm_clear_all_sleepdeps(struct clockdomain *clkdm)
 			continue; /* only happens if data is erroneous */
 
 		mask |= 1 << cd->clkdm->dep_bit;
-		atomic_set(&cd->sleepdep_usecount, 0);
+		cd->sleepdep_usecount = 0;
 	}
 	omap2_cm_clear_mod_reg_bits(mask, clkdm->pwrdm.ptr->prcm_offs,
 				    OMAP3430_CM_SLEEPDEP);
@@ -209,8 +209,8 @@ static int omap3xxx_clkdm_wakeup(struct clockdomain *clkdm)
 
 static void omap3xxx_clkdm_allow_idle(struct clockdomain *clkdm)
 {
-	if (atomic_read(&clkdm->usecount) > 0)
-		_clkdm_add_autodeps(clkdm);
+	if (clkdm->usecount > 0)
+		clkdm_add_autodeps(clkdm);
 
 	omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 				       clkdm->clktrctrl_mask);
@@ -221,8 +221,8 @@ static void omap3xxx_clkdm_deny_idle(struct clockdomain *clkdm)
 	omap3xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 					clkdm->clktrctrl_mask);
 
-	if (atomic_read(&clkdm->usecount) > 0)
-		_clkdm_del_autodeps(clkdm);
+	if (clkdm->usecount > 0)
+		clkdm_del_autodeps(clkdm);
 }
 
 static int omap3xxx_clkdm_clk_enable(struct clockdomain *clkdm)
@@ -250,7 +250,7 @@ static int omap3xxx_clkdm_clk_enable(struct clockdomain *clkdm)
 		/* Disable HW transitions when we are changing deps */
 		omap3xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 						clkdm->clktrctrl_mask);
-		_clkdm_add_autodeps(clkdm);
+		clkdm_add_autodeps(clkdm);
 		omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 					       clkdm->clktrctrl_mask);
 	} else {
@@ -287,7 +287,7 @@ static int omap3xxx_clkdm_clk_disable(struct clockdomain *clkdm)
 		/* Disable HW transitions when we are changing deps */
 		omap3xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 						clkdm->clktrctrl_mask);
-		_clkdm_del_autodeps(clkdm);
+		clkdm_del_autodeps(clkdm);
 		omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 					       clkdm->clktrctrl_mask);
 	} else {
@@ -634,6 +634,28 @@ void omap3_cm_restore_context(void)
 			       OMAP3430ES2_USBHOST_MOD, OMAP3430_CM_SLEEPDEP);
 	omap2_cm_write_mod_reg(cm_context.cm_clkout_ctrl, OMAP3430_CCR_MOD,
 			       OMAP3_CM_CLKOUT_CTRL_OFFSET);
+}
+
+void omap3_cm_save_scratchpad_contents(u32 *ptr)
+{
+	*ptr++ = omap2_cm_read_mod_reg(CORE_MOD, CM_CLKSEL);
+	*ptr++ = omap2_cm_read_mod_reg(WKUP_MOD, CM_CLKSEL);
+	*ptr++ = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
+
+	/*
+	 * As per erratum i671, ROM code does not respect the PER DPLL
+	 * programming scheme if CM_AUTOIDLE_PLL..AUTO_PERIPH_DPLL == 1.
+	 * Then,  in anycase, clear these bits to avoid extra latencies.
+	 */
+	*ptr++ = omap2_cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE) &
+		~OMAP3430_AUTO_PERIPH_DPLL_MASK;
+	*ptr++ = omap2_cm_read_mod_reg(PLL_MOD, OMAP3430_CM_CLKSEL1_PLL);
+	*ptr++ = omap2_cm_read_mod_reg(PLL_MOD, OMAP3430_CM_CLKSEL2_PLL);
+	*ptr++ = omap2_cm_read_mod_reg(PLL_MOD, OMAP3430_CM_CLKSEL3);
+	*ptr++ = omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_CLKEN_PLL);
+	*ptr++ = omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_AUTOIDLE_PLL);
+	*ptr++ = omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_CLKSEL1_PLL);
+	*ptr++ = omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_CLKSEL2_PLL);
 }
 
 /*

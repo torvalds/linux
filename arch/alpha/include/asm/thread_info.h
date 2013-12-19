@@ -58,8 +58,6 @@ register struct thread_info *__current_thread_info __asm__("$8");
 #define THREAD_SIZE_ORDER 1
 #define THREAD_SIZE (2*PAGE_SIZE)
 
-#define PREEMPT_ACTIVE		0x40000000
-
 /*
  * Thread information flags:
  * - these are process state flags and used from assembly
@@ -94,8 +92,6 @@ register struct thread_info *__current_thread_info __asm__("$8");
 #define TS_RESTORE_SIGMASK	0x0008	/* restore signal mask in do_signal() */
 #define TS_POLLING		0x0010	/* idle task polling need_resched,
 					   skip sending interrupt */
-
-#define tsk_is_polling(t) (task_thread_info(t)->status & TS_POLLING)
 
 #ifndef __ASSEMBLY__
 #define HAVE_SET_RESTORE_SIGMASK	1

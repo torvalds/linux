@@ -14,6 +14,7 @@
 #include <linux/pagemap.h>
 #include <linux/writeback.h>
 #include <linux/pagevec.h>
+#include <linux/aio.h>
 #include "internal.h"
 
 static int afs_write_back_from_locked_page(struct afs_writeback *wb,
@@ -120,7 +121,7 @@ int afs_write_begin(struct file *file, struct address_space *mapping,
 		    struct page **pagep, void **fsdata)
 {
 	struct afs_writeback *candidate, *wb;
-	struct afs_vnode *vnode = AFS_FS_I(file->f_dentry->d_inode);
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 	struct page *page;
 	struct key *key = file->private_data;
 	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
@@ -245,7 +246,7 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 		  loff_t pos, unsigned len, unsigned copied,
 		  struct page *page, void *fsdata)
 {
-	struct afs_vnode *vnode = AFS_FS_I(file->f_dentry->d_inode);
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 	loff_t i_size, maybe_i_size;
 
 	_enter("{%x:%u},{%lx}",
@@ -627,8 +628,7 @@ void afs_pages_written_back(struct afs_vnode *vnode, struct afs_call *call)
 ssize_t afs_file_write(struct kiocb *iocb, const struct iovec *iov,
 		       unsigned long nr_segs, loff_t pos)
 {
-	struct dentry *dentry = iocb->ki_filp->f_path.dentry;
-	struct afs_vnode *vnode = AFS_FS_I(dentry->d_inode);
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(iocb->ki_filp));
 	ssize_t result;
 	size_t count = iov_length(iov, nr_segs);
 

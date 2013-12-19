@@ -1,6 +1,7 @@
+if PCI && MEDIA_SUPPORT
+
 menuconfig MEDIA_PCI_SUPPORT
 	bool "Media PCI Adapters"
-	depends on PCI && MEDIA_SUPPORT
 	help
 	  Enable media drivers for PCI/PCIe bus.
 	  If you have such devices, say Y.
@@ -45,3 +46,4 @@ source "drivers/media/pci/ddbridge/Kconfig"
 endif
 
 endif #MEDIA_PCI_SUPPORT
+endif #PCI

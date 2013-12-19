@@ -513,10 +513,6 @@ static int __init pnpbios_init(void)
 {
 	int ret;
 
-#if defined(CONFIG_PPC)
-	if (check_legacy_ioport(PNPBIOS_BASE))
-		return -ENODEV;
-#endif
 	if (pnpbios_disabled || dmi_check_system(pnpbios_dmi_table) ||
 	    paravirt_enabled()) {
 		printk(KERN_INFO "PnPBIOS: Disabled\n");
@@ -570,10 +566,7 @@ fs_initcall(pnpbios_init);
 static int __init pnpbios_thread_init(void)
 {
 	struct task_struct *task;
-#if defined(CONFIG_PPC)
-	if (check_legacy_ioport(PNPBIOS_BASE))
-		return 0;
-#endif
+
 	if (pnpbios_disabled)
 		return 0;
 

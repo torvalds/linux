@@ -23,7 +23,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/slab.h>
-#include <linux/of_i2c.h>
+#include <linux/of.h>
 
 #define I2C_PNX_TIMEOUT_DEFAULT		10 /* msec */
 #define I2C_PNX_SPEED_KHZ_DEFAULT	100
@@ -595,7 +595,7 @@ static struct i2c_algorithm pnx_algorithm = {
 	.functionality = i2c_pnx_func,
 };
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int i2c_pnx_controller_suspend(struct device *dev)
 {
 	struct i2c_pnx_algo_data *alg_data = dev_get_drvdata(dev);
@@ -619,7 +619,7 @@ static SIMPLE_DEV_PM_OPS(i2c_pnx_pm,
 #define PNX_I2C_PM	NULL
 #endif
 
-static int __devinit i2c_pnx_probe(struct platform_device *pdev)
+static int i2c_pnx_probe(struct platform_device *pdev)
 {
 	unsigned long tmp;
 	int ret = 0;
@@ -727,7 +727,8 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 	alg_data->irq = platform_get_irq(pdev, 0);
 	if (alg_data->irq < 0) {
 		dev_err(&pdev->dev, "Failed to get IRQ from platform resource\n");
-		goto out_irq;
+		ret = alg_data->irq;
+		goto out_clock;
 	}
 	ret = request_irq(alg_data->irq, i2c_pnx_interrupt,
 			0, pdev->name, alg_data);
@@ -740,8 +741,6 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "I2C: Failed to add bus\n");
 		goto out_irq;
 	}
-
-	of_i2c_register_devices(&alg_data->adapter);
 
 	dev_dbg(&pdev->dev, "%s: Master at %#8x, irq %d.\n",
 		alg_data->adapter.name, res->start, alg_data->irq);
@@ -761,11 +760,10 @@ out_clkget:
 out_drvdata:
 	kfree(alg_data);
 err_kzalloc:
-	platform_set_drvdata(pdev, NULL);
 	return ret;
 }
 
-static int __devexit i2c_pnx_remove(struct platform_device *pdev)
+static int i2c_pnx_remove(struct platform_device *pdev)
 {
 	struct i2c_pnx_algo_data *alg_data = platform_get_drvdata(pdev);
 
@@ -776,7 +774,6 @@ static int __devexit i2c_pnx_remove(struct platform_device *pdev)
 	release_mem_region(alg_data->base, I2C_PNX_REGION_SIZE);
 	clk_put(alg_data->clk);
 	kfree(alg_data);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -797,7 +794,7 @@ static struct platform_driver i2c_pnx_driver = {
 		.pm = PNX_I2C_PM,
 	},
 	.probe = i2c_pnx_probe,
-	.remove = __devexit_p(i2c_pnx_remove),
+	.remove = i2c_pnx_remove,
 };
 
 static int __init i2c_adap_pnx_init(void)

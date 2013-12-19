@@ -56,7 +56,7 @@ static irqreturn_t mfld_pb_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit mfld_pb_probe(struct platform_device *pdev)
+static int mfld_pb_probe(struct platform_device *pdev)
 {
 	struct input_dev *input;
 	int irq = platform_get_irq(pdev, 0);
@@ -66,10 +66,8 @@ static int __devinit mfld_pb_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	input = input_allocate_device();
-	if (!input) {
-		dev_err(&pdev->dev, "Input device allocation error\n");
+	if (!input)
 		return -ENOMEM;
-	}
 
 	input->name = pdev->name;
 	input->phys = "power-button/input0";
@@ -121,14 +119,13 @@ err_free_input:
 	return error;
 }
 
-static int __devexit mfld_pb_remove(struct platform_device *pdev)
+static int mfld_pb_remove(struct platform_device *pdev)
 {
 	struct input_dev *input = platform_get_drvdata(pdev);
 	int irq = platform_get_irq(pdev, 0);
 
 	free_irq(irq, input);
 	input_unregister_device(input);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -139,7 +136,7 @@ static struct platform_driver mfld_pb_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe	= mfld_pb_probe,
-	.remove	= __devexit_p(mfld_pb_remove),
+	.remove	= mfld_pb_remove,
 };
 
 module_platform_driver(mfld_pb_driver);

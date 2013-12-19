@@ -22,55 +22,46 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/mc.h>
+#include "nv04.h"
 
-struct nvc0_mc_priv {
-	struct nouveau_mc base;
-};
-
-static const struct nouveau_mc_intr
+const struct nouveau_mc_intr
 nvc0_mc_intr[] = {
 	{ 0x00000001, NVDEV_ENGINE_PPP },
 	{ 0x00000020, NVDEV_ENGINE_COPY0 },
 	{ 0x00000040, NVDEV_ENGINE_COPY1 },
+	{ 0x00000080, NVDEV_ENGINE_COPY2 },
 	{ 0x00000100, NVDEV_ENGINE_FIFO },
 	{ 0x00001000, NVDEV_ENGINE_GR },
 	{ 0x00008000, NVDEV_ENGINE_BSP },
+	{ 0x00040000, NVDEV_SUBDEV_THERM },
 	{ 0x00020000, NVDEV_ENGINE_VP },
 	{ 0x00100000, NVDEV_SUBDEV_TIMER },
 	{ 0x00200000, NVDEV_SUBDEV_GPIO },
+	{ 0x01000000, NVDEV_SUBDEV_PWR },
 	{ 0x02000000, NVDEV_SUBDEV_LTCG },
 	{ 0x04000000, NVDEV_ENGINE_DISP },
+	{ 0x10000000, NVDEV_SUBDEV_BUS },
 	{ 0x40000000, NVDEV_SUBDEV_IBUS },
 	{ 0x80000000, NVDEV_ENGINE_SW },
 	{},
 };
 
-static int
-nvc0_mc_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
+static void
+nvc0_mc_msi_rearm(struct nouveau_mc *pmc)
 {
-	struct nvc0_mc_priv *priv;
-	int ret;
-
-	ret = nouveau_mc_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->intr = nouveau_mc_intr;
-	priv->base.intr_map = nvc0_mc_intr;
-	return 0;
+	struct nv04_mc_priv *priv = (void *)pmc;
+	nv_wr32(priv, 0x088704, 0x00000000);
 }
 
-struct nouveau_oclass
-nvc0_mc_oclass = {
-	.handle = NV_SUBDEV(MC, 0xc0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_mc_ctor,
+struct nouveau_oclass *
+nvc0_mc_oclass = &(struct nouveau_mc_oclass) {
+	.base.handle = NV_SUBDEV(MC, 0xc0),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv04_mc_ctor,
 		.dtor = _nouveau_mc_dtor,
 		.init = nv50_mc_init,
 		.fini = _nouveau_mc_fini,
 	},
-};
+	.intr = nvc0_mc_intr,
+	.msi_rearm = nvc0_mc_msi_rearm,
+}.base;

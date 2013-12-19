@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -222,7 +222,7 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 			 */
 			ACPI_WARNING((AE_INFO,
 				      "Type override - [%4.4s] had invalid type (%s) "
-				      "for Scope operator, changed to type ANY\n",
+				      "for Scope operator, changed to type ANY",
 				      acpi_ut_get_node_name(node),
 				      acpi_ut_get_type_name(node->type)));
 
@@ -509,6 +509,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 			break;
 
 		default:
+
 			/* All NAMED_FIELD opcodes must be handled above */
 			break;
 		}
@@ -548,6 +549,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 			break;
 
 		default:
+
 			/* Unknown opcode */
 
 			status = AE_OK;
@@ -674,6 +676,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 #endif				/* ACPI_NO_METHOD_EXECUTION */
 
 		default:
+
 			/* All NAMED_COMPLEX opcodes must be handled above */
 			break;
 		}
@@ -721,10 +724,11 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 		break;
 
 	default:
+
 		break;
 	}
 
-      cleanup:
+cleanup:
 
 	/* Remove the Node pushed at the very beginning */
 

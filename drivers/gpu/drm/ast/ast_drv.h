@@ -98,6 +98,8 @@ struct ast_private {
 
 	struct drm_gem_object *cursor_cache;
 	uint64_t cursor_cache_gpu_addr;
+	/* Acces to this cache is protected by the crtc->mutex of the only crtc
+	 * we have. */
 	struct ttm_bo_kmap_obj cache_kmap;
 	int next_cursor;
 };
@@ -175,7 +177,7 @@ uint8_t ast_get_index_reg_mask(struct ast_private *ast,
 
 static inline void ast_open_key(struct ast_private *ast)
 {
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xA1, 0xFF, 0x04);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x80, 0xA8);
 }
 
 #define AST_VIDMEM_SIZE_8M    0x00800000
@@ -239,6 +241,8 @@ struct ast_fbdev {
 	void *sysram;
 	int size;
 	struct ttm_bo_kmap_obj mapping;
+	int x1, y1, x2, y2; /* dirty rect */
+	spinlock_t dirty_lock;
 };
 
 #define to_ast_crtc(x) container_of(x, struct ast_crtc, base)
@@ -318,11 +322,7 @@ ast_bo(struct ttm_buffer_object *bo)
 extern int ast_dumb_create(struct drm_file *file,
 			   struct drm_device *dev,
 			   struct drm_mode_create_dumb *args);
-extern int ast_dumb_destroy(struct drm_file *file,
-			    struct drm_device *dev,
-			    uint32_t handle);
 
-extern int ast_gem_init_object(struct drm_gem_object *obj);
 extern void ast_gem_free_object(struct drm_gem_object *obj);
 extern int ast_dumb_mmap_offset(struct drm_file *file,
 				struct drm_device *dev,
@@ -344,8 +344,24 @@ int ast_gem_create(struct drm_device *dev,
 int ast_bo_pin(struct ast_bo *bo, u32 pl_flag, u64 *gpu_addr);
 int ast_bo_unpin(struct ast_bo *bo);
 
-int ast_bo_reserve(struct ast_bo *bo, bool no_wait);
-void ast_bo_unreserve(struct ast_bo *bo);
+static inline int ast_bo_reserve(struct ast_bo *bo, bool no_wait)
+{
+	int ret;
+
+	ret = ttm_bo_reserve(&bo->bo, true, no_wait, false, 0);
+	if (ret) {
+		if (ret != -ERESTARTSYS && ret != -EBUSY)
+			DRM_ERROR("reserve failed %p\n", bo);
+		return ret;
+	}
+	return 0;
+}
+
+static inline void ast_bo_unreserve(struct ast_bo *bo)
+{
+	ttm_bo_unreserve(&bo->bo);
+}
+
 void ast_ttm_placement(struct ast_bo *bo, int domain);
 int ast_bo_push_sysram(struct ast_bo *bo);
 int ast_mmap(struct file *filp, struct vm_area_struct *vma);

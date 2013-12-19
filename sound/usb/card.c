@@ -79,9 +79,9 @@ static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;/* Enable this card *
 /* Vendor/product IDs for this card */
 static int vid[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = -1 };
 static int pid[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = -1 };
-static int nrpacks = 8;		/* max. number of packets per urb */
 static int device_setup[SNDRV_CARDS]; /* device parameter for this card */
 static bool ignore_ctl_error;
+static bool autoclock = true;
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for the USB audio adapter.");
@@ -93,13 +93,13 @@ module_param_array(vid, int, NULL, 0444);
 MODULE_PARM_DESC(vid, "Vendor ID for the USB audio device.");
 module_param_array(pid, int, NULL, 0444);
 MODULE_PARM_DESC(pid, "Product ID for the USB audio device.");
-module_param(nrpacks, int, 0644);
-MODULE_PARM_DESC(nrpacks, "Max. number of packets per URB.");
 module_param_array(device_setup, int, NULL, 0444);
 MODULE_PARM_DESC(device_setup, "Specific device setup (if needed).");
 module_param(ignore_ctl_error, bool, 0444);
 MODULE_PARM_DESC(ignore_ctl_error,
 		 "Ignore errors from USB controller for mixer interfaces.");
+module_param(autoclock, bool, 0444);
+MODULE_PARM_DESC(autoclock, "Enable auto-clock selection for UAC2 devices (default: yes).");
 
 /*
  * we keep the snd_usb_audio_t instances by ourselves for merging
@@ -144,14 +144,32 @@ static int snd_usb_create_stream(struct snd_usb_audio *chip, int ctrlif, int int
 		return -EINVAL;
 	}
 
+	alts = &iface->altsetting[0];
+	altsd = get_iface_desc(alts);
+
+	/*
+	 * Android with both accessory and audio interfaces enabled gets the
+	 * interface numbers wrong.
+	 */
+	if ((chip->usb_id == USB_ID(0x18d1, 0x2d04) ||
+	     chip->usb_id == USB_ID(0x18d1, 0x2d05)) &&
+	    interface == 0 &&
+	    altsd->bInterfaceClass == USB_CLASS_VENDOR_SPEC &&
+	    altsd->bInterfaceSubClass == USB_SUBCLASS_VENDOR_SPEC) {
+		interface = 2;
+		iface = usb_ifnum_to_if(dev, interface);
+		if (!iface)
+			return -EINVAL;
+		alts = &iface->altsetting[0];
+		altsd = get_iface_desc(alts);
+	}
+
 	if (usb_interface_claimed(iface)) {
 		snd_printdd(KERN_INFO "%d:%d:%d: skipping, already claimed\n",
 						dev->devnum, ctrlif, interface);
 		return -EINVAL;
 	}
 
-	alts = &iface->altsetting[0];
-	altsd = get_iface_desc(alts);
 	if ((altsd->bInterfaceClass == USB_CLASS_AUDIO ||
 	     altsd->bInterfaceClass == USB_CLASS_VENDOR_SPEC) &&
 	    altsd->bInterfaceSubClass == USB_SUBCLASS_MIDISTREAMING) {
@@ -244,6 +262,21 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 			usb_ifnum_to_if(dev, ctrlif)->intf_assoc;
 
 		if (!assoc) {
+			/*
+			 * Firmware writers cannot count to three.  So to find
+			 * the IAD on the NuForce UDH-100, also check the next
+			 * interface.
+			 */
+			struct usb_interface *iface =
+				usb_ifnum_to_if(dev, ctrlif + 1);
+			if (iface &&
+			    iface->intf_assoc &&
+			    iface->intf_assoc->bFunctionClass == USB_CLASS_AUDIO &&
+			    iface->intf_assoc->bFunctionProtocol == UAC_VERSION_2)
+				assoc = iface->intf_assoc;
+		}
+
+		if (!assoc) {
 			snd_printk(KERN_ERR "Audio class v2 interfaces need an interface association\n");
 			return -EINVAL;
 		}
@@ -313,6 +346,7 @@ static int snd_usb_audio_create(struct usb_device *dev, int idx,
 	case USB_SPEED_LOW:
 	case USB_SPEED_FULL:
 	case USB_SPEED_HIGH:
+	case USB_SPEED_WIRELESS:
 	case USB_SPEED_SUPER:
 		break;
 	default:
@@ -338,7 +372,7 @@ static int snd_usb_audio_create(struct usb_device *dev, int idx,
 	chip->dev = dev;
 	chip->card = card;
 	chip->setup = device_setup[idx];
-	chip->nrpacks = nrpacks;
+	chip->autoclock = autoclock;
 	chip->probing = 1;
 
 	chip->usb_id = USB_ID(le16_to_cpu(dev->descriptor.idVendor),
@@ -612,7 +646,9 @@ int snd_usb_autoresume(struct snd_usb_audio *chip)
 	int err = -ENODEV;
 
 	down_read(&chip->shutdown_rwsem);
-	if (!chip->shutdown && !chip->probing)
+	if (chip->probing)
+		err = 0;
+	else if (!chip->shutdown)
 		err = usb_autopm_get_interface(chip->pm_intf);
 	up_read(&chip->shutdown_rwsem);
 
@@ -630,7 +666,6 @@ void snd_usb_autosuspend(struct snd_usb_audio *chip)
 static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct snd_usb_audio *chip = usb_get_intfdata(intf);
-	struct list_head *p;
 	struct snd_usb_stream *as;
 	struct usb_mixer_interface *mixer;
 
@@ -640,13 +675,12 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 	if (!PMSG_IS_AUTO(message)) {
 		snd_power_change_state(chip->card, SNDRV_CTL_POWER_D3hot);
 		if (!chip->num_suspended_intf++) {
-			list_for_each(p, &chip->pcm_list) {
-				as = list_entry(p, struct snd_usb_stream, list);
+			list_for_each_entry(as, &chip->pcm_list, list) {
 				snd_pcm_suspend_all(as->pcm);
 				as->substream[0].need_setup_ep =
 					as->substream[1].need_setup_ep = true;
 			}
- 		}
+		}
 	} else {
 		/*
 		 * otherwise we keep the rest of the system in the dark
@@ -701,8 +735,7 @@ static struct usb_device_id usb_audio_ids [] = {
       .bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL },
     { }						/* Terminating entry */
 };
-
-MODULE_DEVICE_TABLE (usb, usb_audio_ids);
+MODULE_DEVICE_TABLE(usb, usb_audio_ids);
 
 /*
  * entry point for linux usb interface
@@ -718,19 +751,4 @@ static struct usb_driver usb_audio_driver = {
 	.supports_autosuspend = 1,
 };
 
-static int __init snd_usb_audio_init(void)
-{
-	if (nrpacks < 1 || nrpacks > MAX_PACKS) {
-		printk(KERN_WARNING "invalid nrpacks value.\n");
-		return -EINVAL;
-	}
-	return usb_register(&usb_audio_driver);
-}
-
-static void __exit snd_usb_audio_cleanup(void)
-{
-	usb_deregister(&usb_audio_driver);
-}
-
-module_init(snd_usb_audio_init);
-module_exit(snd_usb_audio_cleanup);
+module_usb_driver(usb_audio_driver);

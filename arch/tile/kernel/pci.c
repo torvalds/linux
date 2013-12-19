@@ -20,7 +20,6 @@
 #include <linux/capability.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
-#include <linux/bootmem.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
@@ -52,6 +51,8 @@
  *
  */
 
+static int pci_probe = 1;
+
 /*
  * This flag tells if the platform is TILEmpower that needs
  * special configuration for the PLX switch chip.
@@ -81,7 +82,7 @@ EXPORT_SYMBOL(pcibios_align_resource);
  * controller_id is the controller number, config type is 0 or 1 for
  * config0 or config1 operations.
  */
-static int __devinit tile_pcie_open(int controller_id, int config_type)
+static int tile_pcie_open(int controller_id, int config_type)
 {
 	char filename[32];
 	int fd;
@@ -97,8 +98,7 @@ static int __devinit tile_pcie_open(int controller_id, int config_type)
 /*
  * Get the IRQ numbers from the HV and set up the handlers for them.
  */
-static int __devinit tile_init_irqs(int controller_id,
-				 struct pci_controller *controller)
+static int tile_init_irqs(int controller_id, struct pci_controller *controller)
 {
 	char filename[32];
 	int fd;
@@ -144,6 +144,11 @@ static int __devinit tile_init_irqs(int controller_id,
 int __init tile_pci_init(void)
 {
 	int i;
+
+	if (!pci_probe) {
+		pr_info("PCI: disabled by boot argument\n");
+		return 0;
+	}
 
 	pr_info("PCI: Searching for controllers...\n");
 
@@ -193,7 +198,6 @@ int __init tile_pci_init(void)
 			controller->hv_cfg_fd[0] = hv_cfg_fd0;
 			controller->hv_cfg_fd[1] = hv_cfg_fd1;
 			controller->hv_mem_fd = hv_mem_fd;
-			controller->first_busno = 0;
 			controller->last_busno = 0xff;
 			controller->ops = &tile_cfg_ops;
 
@@ -237,7 +241,7 @@ static int tile_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 }
 
 
-static void __devinit fixup_read_and_payload_sizes(void)
+static void fixup_read_and_payload_sizes(void)
 {
 	struct pci_dev *dev = NULL;
 	int smallest_max_payload = 0x1; /* Tile maxes out at 256 bytes. */
@@ -247,15 +251,12 @@ static void __devinit fixup_read_and_payload_sizes(void)
 	/* Scan for the smallest maximum payload size. */
 	for_each_pci_dev(dev) {
 		u32 devcap;
-		int max_payload;
 
 		if (!pci_is_pcie(dev))
 			continue;
 
-		pcie_capability_read_dword(dev, PCI_EXP_DEVCAP, &devcap);
-		max_payload = devcap & PCI_EXP_DEVCAP_PAYLOAD;
-		if (max_payload < smallest_max_payload)
-			smallest_max_payload = max_payload;
+		if (dev->pcie_mpss < smallest_max_payload)
+			smallest_max_payload = dev->pcie_mpss;
 	}
 
 	/* Now, set the max_payload_size for all devices to that value. */
@@ -284,7 +285,7 @@ int __init pcibios_init(void)
 	 * known to require at least 20ms here, but we use a more
 	 * conservative value.
 	 */
-	mdelay(250);
+	msleep(250);
 
 	/* Scan all of the recorded PCI controllers.  */
 	for (i = 0; i < TILE_NUM_PCIE; i++) {
@@ -305,18 +306,10 @@ int __init pcibios_init(void)
 
 			pr_info("PCI: initializing controller #%d\n", i);
 
-			/*
-			 * This comes from the generic Linux PCI driver.
-			 *
-			 * It reads the PCI tree for this bus into the Linux
-			 * data structures.
-			 *
-			 * This is inlined in linux/pci.h and calls into
-			 * pci_scan_bus_parented() in probe.c.
-			 */
 			pci_add_resource(&resources, &ioport_resource);
 			pci_add_resource(&resources, &iomem_resource);
-			bus = pci_scan_root_bus(NULL, 0, controller->ops, controller, &resources);
+			bus = pci_scan_root_bus(NULL, 0, controller->ops,
+						controller, &resources);
 			controller->root_bus = bus;
 			controller->last_busno = bus->busn_res.end;
 		}
@@ -379,7 +372,7 @@ subsys_initcall(pcibios_init);
 /*
  * No bus fixups needed.
  */
-void __devinit pcibios_fixup_bus(struct pci_bus *bus)
+void pcibios_fixup_bus(struct pci_bus *bus)
 {
 	/* Nothing needs to be done. */
 }
@@ -387,6 +380,16 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 void pcibios_set_master(struct pci_dev *dev)
 {
 	/* No special bus mastering setup handling. */
+}
+
+/* Process any "pci=" kernel boot arguments. */
+char *__init pcibios_setup(char *str)
+{
+	if (!strcmp(str, "off")) {
+		pci_probe = 0;
+		return NULL;
+	}
+	return str;
 }
 
 /*
@@ -458,11 +461,8 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
  * specified bus & slot.
  */
 
-static int __devinit tile_cfg_read(struct pci_bus *bus,
-				   unsigned int devfn,
-				   int offset,
-				   int size,
-				   u32 *val)
+static int tile_cfg_read(struct pci_bus *bus, unsigned int devfn, int offset,
+			 int size, u32 *val)
 {
 	struct pci_controller *controller = bus->sysdata;
 	int busnum = bus->number & 0xff;
@@ -504,11 +504,8 @@ static int __devinit tile_cfg_read(struct pci_bus *bus,
  * See tile_cfg_read() for relevant comments.
  * Note that "val" is the value to write, not a pointer to that value.
  */
-static int __devinit tile_cfg_write(struct pci_bus *bus,
-				    unsigned int devfn,
-				    int offset,
-				    int size,
-				    u32 val)
+static int tile_cfg_write(struct pci_bus *bus, unsigned int devfn, int offset,
+			  int size, u32 val)
 {
 	struct pci_controller *controller = bus->sysdata;
 	int busnum = bus->number & 0xff;

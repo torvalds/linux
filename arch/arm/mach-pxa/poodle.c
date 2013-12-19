@@ -258,7 +258,7 @@ err_free_2:
 	return err;
 }
 
-static void poodle_mci_setpower(struct device *dev, unsigned int vdd)
+static int poodle_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	struct pxamci_platform_data* p_d = dev->platform_data;
 
@@ -270,6 +270,8 @@ static void poodle_mci_setpower(struct device *dev, unsigned int vdd)
 		gpio_set_value(POODLE_GPIO_SD_PWR1, 0);
 		gpio_set_value(POODLE_GPIO_SD_PWR, 0);
 	}
+
+	return 0;
 }
 
 static void poodle_mci_exit(struct device *dev, void *data)
@@ -422,7 +424,7 @@ static struct i2c_board_info __initdata poodle_i2c_devices[] = {
 
 static void poodle_poweroff(void)
 {
-	pxa_restart('h', NULL);
+	pxa_restart(REBOOT_HARD, NULL);
 }
 
 static void __init poodle_init(void)
@@ -469,7 +471,7 @@ MACHINE_START(POODLE, "SHARP Poodle")
 	.nr_irqs	= POODLE_NR_IRQS,	/* 4 for LoCoMo */
 	.init_irq	= pxa25x_init_irq,
 	.handle_irq	= pxa25x_handle_irq,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine	= poodle_init,
 	.restart	= pxa_restart,
 MACHINE_END

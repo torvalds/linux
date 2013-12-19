@@ -28,15 +28,18 @@
 #include "util/hist.h"
 #include "util/session.h"
 #include "util/tool.h"
+#include "util/data.h"
 #include "arch/common.h"
 
+#include <dlfcn.h>
 #include <linux/bitmap.h>
 
 struct perf_annotate {
 	struct perf_tool tool;
-	bool	   force, use_tui, use_stdio;
+	bool	   force, use_tui, use_stdio, use_gtk;
 	bool	   full_paths;
 	bool	   print_line;
+	bool	   skip_missing;
 	const char *sym_hist_filter;
 	const char *cpu_list;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
@@ -62,7 +65,7 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 		return 0;
 	}
 
-	he = __hists__add_entry(&evsel->hists, al, NULL, 1);
+	he = __hists__add_entry(&evsel->hists, al, NULL, NULL, NULL, 1, 1, 0);
 	if (he == NULL)
 		return -ENOMEM;
 
@@ -89,8 +92,7 @@ static int process_sample_event(struct perf_tool *tool,
 	struct perf_annotate *ann = container_of(tool, struct perf_annotate, tool);
 	struct addr_location al;
 
-	if (perf_event__preprocess_sample(event, machine, &al, sample,
-					  symbol__annotate_init) < 0) {
+	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;
@@ -108,17 +110,19 @@ static int process_sample_event(struct perf_tool *tool,
 	return 0;
 }
 
-static int hist_entry__tty_annotate(struct hist_entry *he, int evidx,
+static int hist_entry__tty_annotate(struct hist_entry *he,
+				    struct perf_evsel *evsel,
 				    struct perf_annotate *ann)
 {
-	return symbol__tty_annotate(he->ms.sym, he->ms.map, evidx,
+	return symbol__tty_annotate(he->ms.sym, he->ms.map, evsel,
 				    ann->print_line, ann->full_paths, 0, 0);
 }
 
-static void hists__find_annotations(struct hists *self, int evidx,
+static void hists__find_annotations(struct hists *hists,
+				    struct perf_evsel *evsel,
 				    struct perf_annotate *ann)
 {
-	struct rb_node *nd = rb_first(&self->entries), *next;
+	struct rb_node *nd = rb_first(&hists->entries), *next;
 	int key = K_RIGHT;
 
 	while (nd) {
@@ -138,9 +142,32 @@ find_next:
 			continue;
 		}
 
-		if (use_browser > 0) {
-			key = hist_entry__tui_annotate(he, evidx, NULL);
+		if (use_browser == 2) {
+			int ret;
+			int (*annotate)(struct hist_entry *he,
+					struct perf_evsel *evsel,
+					struct hist_browser_timer *hbt);
+
+			annotate = dlsym(perf_gtk_handle,
+					 "hist_entry__gtk_annotate");
+			if (annotate == NULL) {
+				ui__error("GTK browser not found!\n");
+				return;
+			}
+
+			ret = annotate(he, evsel, NULL);
+			if (!ret || !ann->skip_missing)
+				return;
+
+			/* skip missing symbols */
+			nd = rb_next(nd);
+		} else if (use_browser == 1) {
+			key = hist_entry__tui_annotate(he, evsel, NULL);
 			switch (key) {
+			case -1:
+				if (!ann->skip_missing)
+					return;
+				/* fall through */
 			case K_RIGHT:
 				next = rb_next(nd);
 				break;
@@ -154,7 +181,7 @@ find_next:
 			if (next != NULL)
 				nd = next;
 		} else {
-			hist_entry__tty_annotate(he, evidx, ann);
+			hist_entry__tty_annotate(he, evsel, ann);
 			nd = rb_next(nd);
 			/*
 			 * Since we have a hist_entry per IP for the same
@@ -173,11 +200,17 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	struct perf_session *session;
 	struct perf_evsel *pos;
 	u64 total_nr_samples;
+	struct perf_data_file file = {
+		.path  = input_name,
+		.mode  = PERF_DATA_MODE_READ,
+		.force = ann->force,
+	};
 
-	session = perf_session__new(input_name, O_RDONLY,
-				    ann->force, false, &ann->tool);
+	session = perf_session__new(&file, false, &ann->tool);
 	if (session == NULL)
 		return -ENOMEM;
+
+	machines__set_symbol_filter(&session->machines, symbol__annotate_init);
 
 	if (ann->cpu_list) {
 		ret = perf_session__cpu_bitmap(session, ann->cpu_list,
@@ -214,16 +247,34 @@ static int __cmd_annotate(struct perf_annotate *ann)
 
 		if (nr_samples > 0) {
 			total_nr_samples += nr_samples;
-			hists__collapse_resort(hists);
+			hists__collapse_resort(hists, NULL);
 			hists__output_resort(hists);
-			hists__find_annotations(hists, pos->idx, ann);
+
+			if (symbol_conf.event_group &&
+			    !perf_evsel__is_group_leader(pos))
+				continue;
+
+			hists__find_annotations(hists, pos, ann);
 		}
 	}
 
 	if (total_nr_samples == 0) {
-		ui__error("The %s file has no samples!\n", session->filename);
+		ui__error("The %s file has no samples!\n", file.path);
 		goto out_delete;
 	}
+
+	if (use_browser == 2) {
+		void (*show_annotations)(void);
+
+		show_annotations = dlsym(perf_gtk_handle,
+					 "perf_gtk__show_annotations");
+		if (show_annotations == NULL) {
+			ui__error("GTK browser not found!\n");
+			goto out_delete;
+		}
+		show_annotations();
+	}
+
 out_delete:
 	/*
 	 * Speed up the exit process, for large files this can
@@ -251,6 +302,7 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		.tool = {
 			.sample	= process_sample_event,
 			.mmap	= perf_event__process_mmap,
+			.mmap2	= perf_event__process_mmap2,
 			.comm	= perf_event__process_comm,
 			.exit	= perf_event__process_exit,
 			.fork	= perf_event__process_fork,
@@ -270,6 +322,7 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
+	OPT_BOOLEAN(0, "gtk", &annotate.use_gtk, "Use the GTK interface"),
 	OPT_BOOLEAN(0, "tui", &annotate.use_tui, "Use the TUI interface"),
 	OPT_BOOLEAN(0, "stdio", &annotate.use_stdio, "Use the stdio interface"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
@@ -280,6 +333,8 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "print matching source lines (may be slow)"),
 	OPT_BOOLEAN('P', "full-paths", &annotate.full_paths,
 		    "Don't shorten the displayed pathnames"),
+	OPT_BOOLEAN(0, "skip-missing", &annotate.skip_missing,
+		    "Skip symbols that cannot be annotated"),
 	OPT_STRING('C', "cpu", &annotate.cpu_list, "cpu", "list of cpus to profile"),
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		   "Look for files with symbols relative to this directory"),
@@ -291,6 +346,8 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_STRING(0, "objdump", &objdump_path, "path",
 		   "objdump binary to use for disassembly and annotations"),
+	OPT_BOOLEAN(0, "group", &symbol_conf.event_group,
+		    "Show event group information together"),
 	OPT_END()
 	};
 
@@ -300,6 +357,8 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		use_browser = 0;
 	else if (annotate.use_tui)
 		use_browser = 1;
+	else if (annotate.use_gtk)
+		use_browser = 2;
 
 	setup_browser(true);
 
@@ -309,7 +368,8 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (symbol__init() < 0)
 		return -1;
 
-	setup_sorting(annotate_usage, options);
+	if (setup_sorting() < 0)
+		usage_with_options(annotate_usage, options);
 
 	if (argc) {
 		/*

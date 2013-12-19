@@ -13,16 +13,22 @@
 #include <asm/cpu-info.h>
 #include <cpu-feature-overrides.h>
 
-#ifndef current_cpu_type
-#define current_cpu_type()      current_cpu_data.cputype
-#endif
-
 /*
  * SMP assumption: Options of CPU 0 are a superset of all processors.
  * This is true for all known MIPS systems.
  */
 #ifndef cpu_has_tlb
 #define cpu_has_tlb		(cpu_data[0].options & MIPS_CPU_TLB)
+#endif
+
+/*
+ * For the moment we don't consider R6000 and R8000 so we can assume that
+ * anything that doesn't support R4000-style exceptions and interrupts is
+ * R3000-like.  Users should still treat these two macro definitions as
+ * opaque.
+ */
+#ifndef cpu_has_3kex
+#define cpu_has_3kex		(!cpu_has_4kex)
 #endif
 #ifndef cpu_has_4kex
 #define cpu_has_4kex		(cpu_data[0].options & MIPS_CPU_4KEX)
@@ -87,16 +93,23 @@
 #define cpu_has_mips16		(cpu_data[0].ases & MIPS_ASE_MIPS16)
 #endif
 #ifndef cpu_has_mdmx
-#define cpu_has_mdmx           (cpu_data[0].ases & MIPS_ASE_MDMX)
+#define cpu_has_mdmx		(cpu_data[0].ases & MIPS_ASE_MDMX)
 #endif
 #ifndef cpu_has_mips3d
-#define cpu_has_mips3d         (cpu_data[0].ases & MIPS_ASE_MIPS3D)
+#define cpu_has_mips3d		(cpu_data[0].ases & MIPS_ASE_MIPS3D)
 #endif
 #ifndef cpu_has_smartmips
-#define cpu_has_smartmips      (cpu_data[0].ases & MIPS_ASE_SMARTMIPS)
+#define cpu_has_smartmips	(cpu_data[0].ases & MIPS_ASE_SMARTMIPS)
 #endif
 #ifndef cpu_has_rixi
 #define cpu_has_rixi		(cpu_data[0].options & MIPS_CPU_RIXI)
+#endif
+#ifndef cpu_has_mmips
+# ifdef CONFIG_SYS_SUPPORTS_MICROMIPS
+#  define cpu_has_mmips		(cpu_data[0].options & MIPS_CPU_MICROMIPS)
+# else
+#  define cpu_has_mmips		0
+# endif
 #endif
 #ifndef cpu_has_vtag_icache
 #define cpu_has_vtag_icache	(cpu_data[0].icache.flags & MIPS_CACHE_VTAG)
@@ -110,9 +123,12 @@
 #ifndef cpu_has_pindexed_dcache
 #define cpu_has_pindexed_dcache	(cpu_data[0].dcache.flags & MIPS_CACHE_PINDEX)
 #endif
+#ifndef cpu_has_local_ebase
+#define cpu_has_local_ebase	1
+#endif
 
 /*
- * I-Cache snoops remote store.  This only matters on SMP.  Some multiprocessors
+ * I-Cache snoops remote store.	 This only matters on SMP.  Some multiprocessors
  * such as the R10000 have I-Caches that snoop local stores; the embedded ones
  * don't.  For maintaining I-cache coherency this means we need to flush the
  * D-cache all the way back to whever the I-cache does refills from, so the
@@ -130,26 +146,38 @@
 #endif
 #endif
 
-# ifndef cpu_has_mips32r1
+#ifndef cpu_has_mips_2
+# define cpu_has_mips_2		(cpu_data[0].isa_level & MIPS_CPU_ISA_II)
+#endif
+#ifndef cpu_has_mips_3
+# define cpu_has_mips_3		(cpu_data[0].isa_level & MIPS_CPU_ISA_III)
+#endif
+#ifndef cpu_has_mips_4
+# define cpu_has_mips_4		(cpu_data[0].isa_level & MIPS_CPU_ISA_IV)
+#endif
+#ifndef cpu_has_mips_5
+# define cpu_has_mips_5		(cpu_data[0].isa_level & MIPS_CPU_ISA_V)
+#endif
+#ifndef cpu_has_mips32r1
 # define cpu_has_mips32r1	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R1)
-# endif
-# ifndef cpu_has_mips32r2
+#endif
+#ifndef cpu_has_mips32r2
 # define cpu_has_mips32r2	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R2)
-# endif
-# ifndef cpu_has_mips64r1
+#endif
+#ifndef cpu_has_mips64r1
 # define cpu_has_mips64r1	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R1)
-# endif
-# ifndef cpu_has_mips64r2
+#endif
+#ifndef cpu_has_mips64r2
 # define cpu_has_mips64r2	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R2)
-# endif
+#endif
 
 /*
  * Shortcuts ...
  */
 #define cpu_has_mips32	(cpu_has_mips32r1 | cpu_has_mips32r2)
 #define cpu_has_mips64	(cpu_has_mips64r1 | cpu_has_mips64r2)
-#define cpu_has_mips_r1	(cpu_has_mips32r1 | cpu_has_mips64r1)
-#define cpu_has_mips_r2	(cpu_has_mips32r2 | cpu_has_mips64r2)
+#define cpu_has_mips_r1 (cpu_has_mips32r1 | cpu_has_mips64r1)
+#define cpu_has_mips_r2 (cpu_has_mips32r2 | cpu_has_mips64r2)
 #define cpu_has_mips_r	(cpu_has_mips32r1 | cpu_has_mips32r2 | \
 			 cpu_has_mips64r1 | cpu_has_mips64r2)
 
@@ -159,13 +187,13 @@
 
 /*
  * MIPS32, MIPS64, VR5500, IDT32332, IDT32334 and maybe a few other
- * pre-MIPS32/MIPS53 processors have CLO, CLZ.  The IDT RC64574 is 64-bit and
+ * pre-MIPS32/MIPS64 processors have CLO, CLZ.	The IDT RC64574 is 64-bit and
  * has CLO and CLZ but not DCLO nor DCLZ.  For 64-bit kernels
  * cpu_has_clo_clz also indicates the availability of DCLO and DCLZ.
  */
-# ifndef cpu_has_clo_clz
-# define cpu_has_clo_clz	cpu_has_mips_r
-# endif
+#ifndef cpu_has_clo_clz
+#define cpu_has_clo_clz	cpu_has_mips_r
+#endif
 
 #ifndef cpu_has_dsp
 #define cpu_has_dsp		(cpu_data[0].ases & MIPS_ASE_DSP)
@@ -258,6 +286,10 @@
 
 #ifndef cpu_has_perf_cntr_intr_bit
 #define cpu_has_perf_cntr_intr_bit	(cpu_data[0].options & MIPS_CPU_PCI)
+#endif
+
+#ifndef cpu_has_vz
+#define cpu_has_vz		(cpu_data[0].ases & MIPS_ASE_VZ)
 #endif
 
 #endif /* __ASM_CPU_FEATURES_H */

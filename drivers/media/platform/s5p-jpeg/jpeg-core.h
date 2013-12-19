@@ -62,7 +62,7 @@
  */
 struct s5p_jpeg {
 	struct mutex		lock;
-	struct spinlock		slock;
+	spinlock_t		slock;
 
 	struct v4l2_device	v4l2_dev;
 	struct video_device	*vfd_encoder;

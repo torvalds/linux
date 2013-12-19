@@ -463,7 +463,7 @@ static int lola_parse_tree(struct lola *chip)
 
 	err = lola_read_param(chip, 1, LOLA_PAR_FUNCTION_TYPE, &val);
 	if (err < 0) {
-		printk(KERN_ERR SFX "Can't read FUNCTION_TYPE for 0x%x\n", nid);
+		printk(KERN_ERR SFX "Can't read FUNCTION_TYPE\n");
 		return err;
 	}
 	if (val != 1) {
@@ -759,7 +759,6 @@ out_free:
 static void lola_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 /* PCI IDs */

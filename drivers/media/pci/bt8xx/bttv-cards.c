@@ -87,7 +87,7 @@ static int tea5757_read(struct bttv *btv);
 static int tea5757_write(struct bttv *btv, int value);
 static void identify_by_eeprom(struct bttv *btv,
 			       unsigned char eeprom_data[256]);
-static int __devinit pvr_boot(struct bttv *btv);
+static int pvr_boot(struct bttv *btv);
 
 /* config variables */
 static unsigned int triton1;
@@ -131,7 +131,7 @@ MODULE_PARM_DESC(vsfx,"set VSFX pci config bit "
 		 "[yet another chipset flaw workaround]");
 MODULE_PARM_DESC(latency,"pci latency timer");
 MODULE_PARM_DESC(card,"specify TV/grabber card model, see CARDLIST file for a list");
-MODULE_PARM_DESC(pll,"specify installed crystal (0=none, 28=28 MHz, 35=35 MHz)");
+MODULE_PARM_DESC(pll, "specify installed crystal (0=none, 28=28 MHz, 35=35 MHz, 14=14 MHz)");
 MODULE_PARM_DESC(tuner,"specify installed tuner type");
 MODULE_PARM_DESC(autoload, "obsolete option, please do not use anymore");
 MODULE_PARM_DESC(audiodev, "specify audio device:\n"
@@ -151,7 +151,7 @@ static struct CARD {
 	unsigned id;
 	int cardnr;
 	char *name;
-} cards[] __devinitdata = {
+} cards[] = {
 	{ 0x13eb0070, BTTV_BOARD_HAUPPAUGE878,  "Hauppauge WinTV" },
 	{ 0x39000070, BTTV_BOARD_HAUPPAUGE878,  "Hauppauge WinTV-D" },
 	{ 0x45000070, BTTV_BOARD_HAUPPAUGEPVR,  "Hauppauge WinTV/PVR" },
@@ -2705,7 +2705,7 @@ struct tvcard bttv_tvcards[] = {
 		.has_radio      = 1,
 		.has_remote     = 1,
 	},
-		[BTTV_BOARD_VD012] = {
+	[BTTV_BOARD_VD012] = {
 		/* D.Heer@Phytec.de */
 		.name           = "PHYTEC VD-012 (bt878)",
 		.video_inputs   = 4,
@@ -2718,7 +2718,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 	},
-		[BTTV_BOARD_VD012_X1] = {
+	[BTTV_BOARD_VD012_X1] = {
 		/* D.Heer@Phytec.de */
 		.name           = "PHYTEC VD-012-X1 (bt878)",
 		.video_inputs   = 4,
@@ -2731,7 +2731,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 	},
-		[BTTV_BOARD_VD012_X2] = {
+	[BTTV_BOARD_VD012_X2] = {
 		/* D.Heer@Phytec.de */
 		.name           = "PHYTEC VD-012-X2 (bt878)",
 		.video_inputs   = 4,
@@ -2744,7 +2744,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 	},
-		[BTTV_BOARD_GEOVISION_GV800S] = {
+	[BTTV_BOARD_GEOVISION_GV800S] = {
 		/* Bruno Christo <bchristo@inf.ufsm.br>
 		 *
 		 * GeoVision GV-800(S) has 4 Conexant Fusion 878A:
@@ -2771,7 +2771,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda7432	= 1,
 		.muxsel_hook    = gv800s_muxsel,
 	},
-		[BTTV_BOARD_GEOVISION_GV800S_SL] = {
+	[BTTV_BOARD_GEOVISION_GV800S_SL] = {
 		/* Bruno Christo <bchristo@inf.ufsm.br>
 		 *
 		 * GeoVision GV-800(S) has 4 Conexant Fusion 878A:
@@ -2808,6 +2808,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 	},
+	/* ---- card 0xa0---------------------------------- */
 	[BTTV_BOARD_TVT_TD3116] = {
 		.name           = "Tongwei Video Technology TD-3116",
 		.video_inputs   = 16,
@@ -2825,6 +2826,35 @@ struct tvcard bttv_tvcards[] = {
 		.muxsel         = MUXSEL(2, 3, 1, 0),
 		.tuner_type     = TUNER_ABSENT,
 	},
+	[BTTV_BOARD_ADLINK_MPG24] = {
+		/* Adlink MPG24 */
+		.name           = "Adlink MPG24",
+		.video_inputs   = 1,
+		/* .audio_inputs= 1, */
+		.svhs           = NO_SVHS,
+		.muxsel         = MUXSEL(2, 2, 2, 2),
+		.tuner_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.pll            = PLL_28,
+	},
+	[BTTV_BOARD_BT848_CAP_14] = {
+		.name		= "Bt848 Capture 14MHz",
+		.video_inputs	= 4,
+		.svhs		= 2,
+		.muxsel		= MUXSEL(2, 3, 1, 0),
+		.pll		= PLL_14,
+		.tuner_type	= TUNER_ABSENT,
+	},
+	[BTTV_BOARD_CYBERVISION_CV06] = {
+		.name		= "CyberVision CV06 (SV)",
+		.video_inputs	= 4,
+		/* .audio_inputs= 0, */
+		.svhs		= NO_SVHS,
+		.muxsel		= MUXSEL(2, 3, 1, 0),
+		.pll		= PLL_28,
+		.tuner_type	= TUNER_ABSENT,
+		.tuner_addr	= ADDR_UNSET,
+	},
 
 };
 
@@ -2837,7 +2867,7 @@ static unsigned char eeprom_data[256];
 /*
  * identify card
  */
-void __devinit bttv_idcard(struct bttv *btv)
+void bttv_idcard(struct bttv *btv)
 {
 	unsigned int gpiobits;
 	int i,type;
@@ -3235,7 +3265,7 @@ static void bttv_reset_audio(struct bttv *btv)
 }
 
 /* initialization part one -- before registering i2c bus */
-void __devinit bttv_init_card1(struct bttv *btv)
+void bttv_init_card1(struct bttv *btv)
 {
 	switch (btv->c.type) {
 	case BTTV_BOARD_HAUPPAUGE:
@@ -3267,7 +3297,7 @@ void __devinit bttv_init_card1(struct bttv *btv)
 }
 
 /* initialization part two -- after registering i2c bus */
-void __devinit bttv_init_card2(struct bttv *btv)
+void bttv_init_card2(struct bttv *btv)
 {
 	btv->tuner_type = UNSET;
 
@@ -3390,6 +3420,10 @@ void __devinit bttv_init_card2(struct bttv *btv)
 			btv->pll.pll_ifreq=35468950;
 			btv->pll.pll_crystal=BT848_IFORM_XT1;
 		}
+		if (PLL_14 == bttv_tvcards[btv->c.type].pll) {
+			btv->pll.pll_ifreq = 14318181;
+			btv->pll.pll_crystal = BT848_IFORM_XT0;
+		}
 		/* insmod options can override */
 		switch (pll[btv->c.nr]) {
 		case 0: /* none */
@@ -3408,6 +3442,12 @@ void __devinit bttv_init_card2(struct bttv *btv)
 			btv->pll.pll_ifreq   = 35468950;
 			btv->pll.pll_ofreq   = 0;
 			btv->pll.pll_crystal = BT848_IFORM_XT1;
+			break;
+		case 3: /* 14 MHz */
+		case 14:
+			btv->pll.pll_ifreq   = 14318181;
+			btv->pll.pll_ofreq   = 0;
+			btv->pll.pll_crystal = BT848_IFORM_XT0;
 			break;
 		}
 	}
@@ -3547,6 +3587,16 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	if (btv->sd_msp34xx)
 		return;
 
+	/* Now see if we can find one of the tvaudio devices. */
+	btv->sd_tvaudio = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
+		&btv->c.i2c_adap, "tvaudio", 0, tvaudio_addrs());
+	if (btv->sd_tvaudio) {
+		/* There may be two tvaudio chips on the card, so try to
+		   find another. */
+		v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
+			&btv->c.i2c_adap, "tvaudio", 0, tvaudio_addrs());
+	}
+
 	/* it might also be a tda7432. */
 	if (!bttv_tvcards[btv->c.type].no_tda7432) {
 		static const unsigned short addrs[] = {
@@ -3554,14 +3604,11 @@ void __devinit bttv_init_card2(struct bttv *btv)
 			I2C_CLIENT_END
 		};
 
-		if (v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-				&btv->c.i2c_adap, "tda7432", 0, addrs))
+		btv->sd_tda7432 = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
+				&btv->c.i2c_adap, "tda7432", 0, addrs);
+		if (btv->sd_tda7432)
 			return;
 	}
-
-	/* Now see if we can find one of the tvaudio devices. */
-	btv->sd_tvaudio = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-		&btv->c.i2c_adap, "tvaudio", 0, tvaudio_addrs());
 	if (btv->sd_tvaudio)
 		return;
 
@@ -3571,7 +3618,7 @@ no_audio:
 
 
 /* initialize the tuner */
-void __devinit bttv_init_tuner(struct bttv *btv)
+void bttv_init_tuner(struct bttv *btv)
 {
 	int addr = ADDR_UNSET;
 
@@ -3635,7 +3682,7 @@ static void modtec_eeprom(struct bttv *btv)
 	}
 }
 
-static void __devinit hauppauge_eeprom(struct bttv *btv)
+static void hauppauge_eeprom(struct bttv *btv)
 {
 	struct tveeprom tv;
 
@@ -3709,8 +3756,7 @@ static int terratec_active_radio_upgrade(struct bttv *btv)
 #define BTTV_ALT_DCLK		0x100000
 #define BTTV_ALT_NCONFIG	0x800000
 
-static int __devinit pvr_altera_load(struct bttv *btv, const u8 *micro,
-				     u32 microlen)
+static int pvr_altera_load(struct bttv *btv, const u8 *micro, u32 microlen)
 {
 	u32 n;
 	u8 bits;
@@ -3747,7 +3793,7 @@ static int __devinit pvr_altera_load(struct bttv *btv, const u8 *micro,
 	return 0;
 }
 
-static int __devinit pvr_boot(struct bttv *btv)
+static int pvr_boot(struct bttv *btv)
 {
 	const struct firmware *fw_entry;
 	int rc;
@@ -3767,7 +3813,7 @@ static int __devinit pvr_boot(struct bttv *btv)
 /* ----------------------------------------------------------------------- */
 /* some osprey specific stuff                                              */
 
-static void __devinit osprey_eeprom(struct bttv *btv, const u8 ee[256])
+static void osprey_eeprom(struct bttv *btv, const u8 ee[256])
 {
 	int i;
 	u32 serial = 0;
@@ -3898,7 +3944,7 @@ static int tuner_1_table[] = {
 	TUNER_TEMIC_4012FY5, TUNER_TEMIC_4012FY5, /* TUNER_TEMIC_SECAM */
 	TUNER_TEMIC_4012FY5, TUNER_TEMIC_PAL};
 
-static void __devinit avermedia_eeprom(struct bttv *btv)
+static void avermedia_eeprom(struct bttv *btv)
 {
 	int tuner_make, tuner_tv_fm, tuner_format, tuner_type = 0;
 
@@ -3941,7 +3987,7 @@ static void __devinit avermedia_eeprom(struct bttv *btv)
 u32 bttv_tda9880_setnorm(struct bttv *btv, u32 gpiobits)
 {
 
-	if (btv->audio == TVAUDIO_INPUT_TUNER) {
+	if (btv->audio_input == TVAUDIO_INPUT_TUNER) {
 		if (bttv_tvnorms[btv->tvnorm].v4l2_id & V4L2_STD_MN)
 			gpiobits |= 0x10000;
 		else
@@ -3960,7 +4006,7 @@ u32 bttv_tda9880_setnorm(struct bttv *btv, u32 gpiobits)
  * Hauppauge:  pin  5
  * Voodoo:     pin 20
  */
-static void __devinit boot_msp34xx(struct bttv *btv, int pin)
+static void boot_msp34xx(struct bttv *btv, int pin)
 {
 	int mask = (1 << pin);
 
@@ -3983,11 +4029,10 @@ static void __devinit boot_msp34xx(struct bttv *btv, int pin)
  *  used by Alessandro Rubini in his pxc200
  *  driver, but using BTTV functions */
 
-static void __devinit init_PXC200(struct bttv *btv)
+static void init_PXC200(struct bttv *btv)
 {
-	static int vals[] __devinitdata = { 0x08, 0x09, 0x0a, 0x0b, 0x0d, 0x0d,
-					    0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
-					    0x00 };
+	static int vals[] = { 0x08, 0x09, 0x0a, 0x0b, 0x0d, 0x0d, 0x01, 0x02,
+			      0x03, 0x04, 0x05, 0x06, 0x00 };
 	unsigned int i;
 	int tmp;
 	u32 val;
@@ -4396,9 +4441,7 @@ static void tibetCS16_init(struct bttv *btv)
  * is {3, 0, 2, 1}, i.e. the first controller to be detected is logical
  * unit 3, the second (which is the master) is logical unit 0, etc.
  * We need to maintain the status of the analog switch (which of the 16
- * cameras is connected to which of the 4 controllers).  Rather than
- * add to the bttv structure for this, we use the data reserved for
- * the mbox (unused for this card type).
+ * cameras is connected to which of the 4 controllers) in sw_status array.
  */
 
 /*
@@ -4433,7 +4476,6 @@ static void kodicom4400r_write(struct bttv *btv,
  */
 static void kodicom4400r_muxsel(struct bttv *btv, unsigned int input)
 {
-	char *sw_status;
 	int xaddr, yaddr;
 	struct bttv *mctlr;
 	static unsigned char map[4] = {3, 0, 2, 1};
@@ -4444,14 +4486,13 @@ static void kodicom4400r_muxsel(struct bttv *btv, unsigned int input)
 	}
 	yaddr = (btv->c.nr - mctlr->c.nr + 1) & 3; /* the '&' is for safety */
 	yaddr = map[yaddr];
-	sw_status = (char *)(&mctlr->mbox_we);
 	xaddr = input & 0xf;
 	/* Check if the controller/camera pair has changed, else ignore */
-	if (sw_status[yaddr] != xaddr)
+	if (mctlr->sw_status[yaddr] != xaddr)
 	{
 		/* "open" the old switch, "close" the new one, save the new */
-		kodicom4400r_write(mctlr, sw_status[yaddr], yaddr, 0);
-		sw_status[yaddr] = xaddr;
+		kodicom4400r_write(mctlr, mctlr->sw_status[yaddr], yaddr, 0);
+		mctlr->sw_status[yaddr] = xaddr;
 		kodicom4400r_write(mctlr, xaddr, yaddr, 1);
 	}
 }
@@ -4464,7 +4505,6 @@ static void kodicom4400r_muxsel(struct bttv *btv, unsigned int input)
  */
 static void kodicom4400r_init(struct bttv *btv)
 {
-	char *sw_status = (char *)(&btv->mbox_we);
 	int ix;
 
 	gpio_inout(0x0003ff, 0x0003ff);
@@ -4472,7 +4512,7 @@ static void kodicom4400r_init(struct bttv *btv)
 	gpio_write(0);
 	/* Preset camera 0 to the 4 controllers */
 	for (ix = 0; ix < 4; ix++) {
-		sw_status[ix] = ix;
+		btv->sw_status[ix] = ix;
 		kodicom4400r_write(btv, ix, ix, 1);
 	}
 	/*
@@ -4749,7 +4789,6 @@ static void gv800s_write(struct bttv *btv,
 static void gv800s_muxsel(struct bttv *btv, unsigned int input)
 {
 	struct bttv *mctlr;
-	char *sw_status;
 	int xaddr, yaddr;
 	static unsigned int map[4][4] = { { 0x0, 0x4, 0xa, 0x6 },
 					  { 0x1, 0x5, 0xb, 0x7 },
@@ -4762,14 +4801,13 @@ static void gv800s_muxsel(struct bttv *btv, unsigned int input)
 		return;
 	}
 	yaddr = (btv->c.nr - mctlr->c.nr) & 3;
-	sw_status = (char *)(&mctlr->mbox_we);
 	xaddr = map[yaddr][input] & 0xf;
 
 	/* Check if the controller/camera pair has changed, ignore otherwise */
-	if (sw_status[yaddr] != xaddr) {
+	if (mctlr->sw_status[yaddr] != xaddr) {
 		/* disable the old switch, enable the new one and save status */
-		gv800s_write(mctlr, sw_status[yaddr], yaddr, 0);
-		sw_status[yaddr] = xaddr;
+		gv800s_write(mctlr, mctlr->sw_status[yaddr], yaddr, 0);
+		mctlr->sw_status[yaddr] = xaddr;
 		gv800s_write(mctlr, xaddr, yaddr, 1);
 	}
 }
@@ -4777,7 +4815,6 @@ static void gv800s_muxsel(struct bttv *btv, unsigned int input)
 /* GeoVision GV-800(S) "master" chip init */
 static void gv800s_init(struct bttv *btv)
 {
-	char *sw_status = (char *)(&btv->mbox_we);
 	int ix;
 
 	gpio_inout(0xf107f, 0xf107f);
@@ -4786,7 +4823,7 @@ static void gv800s_init(struct bttv *btv)
 
 	/* Preset camera 0 to the 4 controllers */
 	for (ix = 0; ix < 4; ix++) {
-		sw_status[ix] = ix;
+		btv->sw_status[ix] = ix;
 		gv800s_write(btv, ix, ix, 1);
 	}
 
@@ -4851,7 +4888,7 @@ void __init bttv_check_chipset(void)
 	}
 }
 
-int __devinit bttv_handle_chipset(struct bttv *btv)
+int bttv_handle_chipset(struct bttv *btv)
 {
 	unsigned char command;
 

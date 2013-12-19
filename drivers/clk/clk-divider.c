@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/string.h>
+#include <linux/log2.h>
 
 /*
  * DOC: basic adjustable divider clock that cannot gate
@@ -29,8 +30,7 @@
 
 #define to_clk_divider(_hw) container_of(_hw, struct clk_divider, hw)
 
-#define div_mask(d)	((1 << (d->width)) - 1)
-#define is_power_of_two(i)	!(i & ~i)
+#define div_mask(d)	((1 << ((d)->width)) - 1)
 
 static unsigned int _get_table_maxdiv(const struct clk_div_table *table)
 {
@@ -104,13 +104,14 @@ static unsigned long clk_divider_recalc_rate(struct clk_hw *hw,
 	struct clk_divider *divider = to_clk_divider(hw);
 	unsigned int div, val;
 
-	val = readl(divider->reg) >> divider->shift;
+	val = clk_readl(divider->reg) >> divider->shift;
 	val &= div_mask(divider);
 
 	div = _get_div(divider, val);
 	if (!div) {
-		WARN(1, "%s: Invalid divisor for clock %s\n", __func__,
-						__clk_get_name(hw->clk));
+		WARN(!(divider->flags & CLK_DIVIDER_ALLOW_ZERO),
+			"%s: Zero divisor and CLK_DIVIDER_ALLOW_ZERO not set\n",
+			__clk_get_name(hw->clk));
 		return parent_rate;
 	}
 
@@ -137,7 +138,7 @@ static bool _is_valid_table_div(const struct clk_div_table *table,
 static bool _is_valid_div(struct clk_divider *divider, unsigned int div)
 {
 	if (divider->flags & CLK_DIVIDER_POWER_OF_TWO)
-		return is_power_of_two(div);
+		return is_power_of_2(div);
 	if (divider->table)
 		return _is_valid_table_div(divider->table, div);
 	return true;
@@ -149,6 +150,7 @@ static int clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 	struct clk_divider *divider = to_clk_divider(hw);
 	int i, bestdiv = 0;
 	unsigned long parent_rate, best = 0, now, maxdiv;
+	unsigned long parent_rate_saved = *best_parent_rate;
 
 	if (!rate)
 		rate = 1;
@@ -172,6 +174,15 @@ static int clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 	for (i = 1; i <= maxdiv; i++) {
 		if (!_is_valid_div(divider, i))
 			continue;
+		if (rate * i == parent_rate_saved) {
+			/*
+			 * It's the most ideal case if the requested rate can be
+			 * divided from parent clock without needing to change
+			 * parent rate, so return the divider immediately.
+			 */
+			*best_parent_rate = parent_rate_saved;
+			return i;
+		}
 		parent_rate = __clk_round_rate(__clk_get_parent(hw->clk),
 				MULT_ROUND_UP(rate, i));
 		now = parent_rate / i;
@@ -216,10 +227,14 @@ static int clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (divider->lock)
 		spin_lock_irqsave(divider->lock, flags);
 
-	val = readl(divider->reg);
-	val &= ~(div_mask(divider) << divider->shift);
+	if (divider->flags & CLK_DIVIDER_HIWORD_MASK) {
+		val = div_mask(divider) << (divider->shift + 16);
+	} else {
+		val = clk_readl(divider->reg);
+		val &= ~(div_mask(divider) << divider->shift);
+	}
 	val |= value << divider->shift;
-	writel(val, divider->reg);
+	clk_writel(val, divider->reg);
 
 	if (divider->lock)
 		spin_unlock_irqrestore(divider->lock, flags);
@@ -243,6 +258,13 @@ static struct clk *_register_divider(struct device *dev, const char *name,
 	struct clk_divider *div;
 	struct clk *clk;
 	struct clk_init_data init;
+
+	if (clk_divider_flags & CLK_DIVIDER_HIWORD_MASK) {
+		if (width + shift > 16) {
+			pr_warn("divider value exceeds LOWORD field\n");
+			return ERR_PTR(-EINVAL);
+		}
+	}
 
 	/* allocate the divider */
 	div = kzalloc(sizeof(struct clk_divider), GFP_KERNEL);
@@ -295,6 +317,7 @@ struct clk *clk_register_divider(struct device *dev, const char *name,
 	return _register_divider(dev, name, parent_name, flags, reg, shift,
 			width, clk_divider_flags, NULL, lock);
 }
+EXPORT_SYMBOL_GPL(clk_register_divider);
 
 /**
  * clk_register_divider_table - register a table based divider clock with
@@ -319,3 +342,4 @@ struct clk *clk_register_divider_table(struct device *dev, const char *name,
 	return _register_divider(dev, name, parent_name, flags, reg, shift,
 			width, clk_divider_flags, table, lock);
 }
+EXPORT_SYMBOL_GPL(clk_register_divider_table);

@@ -1,0 +1,223 @@
+/*
+ * Common device tree for IGEP boards based on AM/DM37x
+ *
+ * Copyright (C) 2012 Javier Martinez Canillas <javier@collabora.co.uk>
+ * Copyright (C) 2012 Enric Balletbo i Serra <eballetbo@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/dts-v1/;
+
+#include "omap36xx.dtsi"
+
+/ {
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x20000000>; /* 512 MB */
+	};
+
+	sound {
+		compatible = "ti,omap-twl4030";
+		ti,model = "igep2";
+		ti,mcbsp = <&mcbsp2>;
+		ti,codec = <&twl_audio>;
+	};
+
+	vdd33: regulator-vdd33 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd33";
+		regulator-always-on;
+	};
+
+	lbee1usjyc_vmmc: lbee1usjyc_vmmc {
+		pinctrl-names = "default";
+		pinctrl-0 = <&lbee1usjyc_pins>;
+		compatible = "regulator-fixed";
+		regulator-name = "regulator-lbee1usjyc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio5 10 GPIO_ACTIVE_HIGH>;	/* gpio_138 WIFI_PDN */
+		startup-delay-us = <10000>;
+		enable-active-high;
+		vin-supply = <&vdd33>;
+	};
+};
+
+&omap3_pmx_core {
+	uart1_pins: pinmux_uart1_pins {
+		pinctrl-single,pins = <
+			0x152 (PIN_INPUT | MUX_MODE0)		/* uart1_rx.uart1_rx */
+			0x14c (PIN_OUTPUT |MUX_MODE0)		/* uart1_tx.uart1_tx */
+		>;
+	};
+
+	uart2_pins: pinmux_uart2_pins {
+		pinctrl-single,pins = <
+			0x14a (PIN_INPUT | MUX_MODE0)		/* uart2_rx.uart2_rx */
+			0x148 (PIN_OUTPUT | MUX_MODE0)		/* uart2_tx.uart2_tx */
+		>;
+	};
+
+	uart3_pins: pinmux_uart3_pins {
+		pinctrl-single,pins = <
+			0x16e (PIN_INPUT | MUX_MODE0)		/* uart3_rx.uart3_rx */
+			0x170 (PIN_OUTPUT | MUX_MODE0)		/* uart3_tx.uart3_tx */
+		>;
+	};
+
+	/* WiFi/BT combo */
+	lbee1usjyc_pins: pinmux_lbee1usjyc_pins {
+		pinctrl-single,pins = <
+			0x136 (PIN_OUTPUT | MUX_MODE4)	/* sdmmc2_dat5.gpio_137 */
+			0x138 (PIN_OUTPUT | MUX_MODE4)	/* sdmmc2_dat6.gpio_138 */
+			0x13a (PIN_OUTPUT | MUX_MODE4)	/* sdmmc2_dat7.gpio_139 */
+		>;
+	};
+
+	mcbsp2_pins: pinmux_mcbsp2_pins {
+		pinctrl-single,pins = <
+			0x10c (PIN_INPUT | MUX_MODE0)		/* mcbsp2_fsx.mcbsp2_fsx */
+			0x10e (PIN_INPUT | MUX_MODE0)		/* mcbsp2_clkx.mcbsp2_clkx */
+			0x110 (PIN_INPUT | MUX_MODE0)		/* mcbsp2_dr.mcbsp2.dr */
+			0x112 (PIN_OUTPUT | MUX_MODE0)		/* mcbsp2_dx.mcbsp2_dx */
+		>;
+	};
+
+	mmc1_pins: pinmux_mmc1_pins {
+		pinctrl-single,pins = <
+			0x114 (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_clk.sdmmc1_clk */
+			0x116 (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_cmd.sdmmc1_cmd */
+			0x118 (PIN_INPUT_PULLUP | MUX_MODE0) 	/* sdmmc1_dat0.sdmmc1_dat0 */
+			0x11a (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_dat1.sdmmc1_dat1 */
+			0x11c (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_dat2.sdmmc1_dat2 */
+			0x11e (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_dat3.sdmmc1_dat3 */
+		>;
+	};
+
+	mmc2_pins: pinmux_mmc2_pins {
+		pinctrl-single,pins = <
+			0x128 (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_clk.sdmmc2_clk */
+			0x12a (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_cmd.sdmmc2_cmd */
+			0x12c (PIN_INPUT_PULLUP | MUX_MODE0) 	/* sdmmc2_dat0.sdmmc2_dat0 */
+			0x12e (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_dat1.sdmmc2_dat1 */
+			0x130 (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_dat2.sdmmc2_dat2 */
+			0x132 (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_dat3.sdmmc2_dat3 */
+		>;
+	};
+
+	smsc911x_pins: pinmux_smsc911x_pins {
+		pinctrl-single,pins = <
+			0x1a2 (PIN_INPUT | MUX_MODE4)		/* mcspi1_cs2.gpio_176 */
+		>;
+	};
+
+	i2c1_pins: pinmux_i2c1_pins {
+		pinctrl-single,pins = <
+			0x18a (PIN_INPUT | MUX_MODE0)   /* i2c1_scl.i2c1_scl */
+			0x18c (PIN_INPUT | MUX_MODE0)   /* i2c1_sda.i2c1_sda */
+		>;
+	};
+
+	i2c2_pins: pinmux_i2c2_pins {
+		pinctrl-single,pins = <
+			0x18e (PIN_INPUT | MUX_MODE0)   /* i2c2_scl.i2c2_scl */
+			0x190 (PIN_INPUT | MUX_MODE0)   /* i2c2_sda.i2c2_sda */
+		>;
+	};
+
+	i2c3_pins: pinmux_i2c3_pins {
+		pinctrl-single,pins = <
+			0x192 (PIN_INPUT | MUX_MODE0)   /* i2c3_scl.i2c3_scl */
+			0x194 (PIN_INPUT | MUX_MODE0)   /* i2c3_sda.i2c3_sda */
+		>;
+	};
+
+	leds_pins: pinmux_leds_pins { };
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
+	clock-frequency = <2600000>;
+
+	twl: twl@48 {
+		reg = <0x48>;
+		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
+		interrupt-parent = <&intc>;
+
+		twl_audio: audio {
+			compatible = "ti,twl4030-audio";
+			codec {
+			      };
+		};
+	};
+};
+
+#include "twl4030.dtsi"
+#include "twl4030_omap3.dtsi"
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins>;
+	clock-frequency = <400000>;
+};
+
+&i2c3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_pins>;
+};
+
+&mcbsp2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp2_pins>;
+};
+
+&mmc1 {
+      pinctrl-names = "default";
+      pinctrl-0 = <&mmc1_pins>;
+      vmmc-supply = <&vmmc1>;
+      vmmc_aux-supply = <&vsim>;
+      bus-width = <4>;
+};
+
+&mmc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_pins>;
+	vmmc-supply = <&lbee1usjyc_vmmc>;
+	bus-width = <4>;
+	non-removable;
+};
+
+&mmc3 {
+	status = "disabled";
+};
+
+&uart1 {
+       pinctrl-names = "default";
+       pinctrl-0 = <&uart1_pins>;
+};
+
+&uart2 {
+       pinctrl-names = "default";
+       pinctrl-0 = <&uart2_pins>;
+};
+
+&uart3 {
+       pinctrl-names = "default";
+       pinctrl-0 = <&uart3_pins>;
+};
+
+&twl_gpio {
+	ti,use-leds;
+};
+
+&usb_otg_hs {
+	interface-type = <0>;
+	usb-phy = <&usb2_phy>;
+	phys = <&usb2_phy>;
+	phy-names = "usb2-phy";
+	mode = <3>;
+	power = <50>;
+};

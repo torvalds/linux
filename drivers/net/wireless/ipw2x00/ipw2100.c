@@ -2181,26 +2181,15 @@ static void isr_indicate_rf_kill(struct ipw2100_priv *priv, u32 status)
 	mod_delayed_work(system_wq, &priv->rf_kill, round_jiffies_relative(HZ));
 }
 
-static void send_scan_event(void *data)
+static void ipw2100_scan_event(struct work_struct *work)
 {
-	struct ipw2100_priv *priv = data;
+	struct ipw2100_priv *priv = container_of(work, struct ipw2100_priv,
+						 scan_event.work);
 	union iwreq_data wrqu;
 
 	wrqu.data.length = 0;
 	wrqu.data.flags = 0;
 	wireless_send_event(priv->net_dev, SIOCGIWSCAN, &wrqu, NULL);
-}
-
-static void ipw2100_scan_event_later(struct work_struct *work)
-{
-	send_scan_event(container_of(work, struct ipw2100_priv,
-					scan_event_later.work));
-}
-
-static void ipw2100_scan_event_now(struct work_struct *work)
-{
-	send_scan_event(container_of(work, struct ipw2100_priv,
-					scan_event_now));
 }
 
 static void isr_scan_complete(struct ipw2100_priv *priv, u32 status)
@@ -2212,13 +2201,11 @@ static void isr_scan_complete(struct ipw2100_priv *priv, u32 status)
 
 	/* Only userspace-requested scan completion events go out immediately */
 	if (!priv->user_requested_scan) {
-		if (!delayed_work_pending(&priv->scan_event_later))
-			schedule_delayed_work(&priv->scan_event_later,
-					      round_jiffies_relative(msecs_to_jiffies(4000)));
+		schedule_delayed_work(&priv->scan_event,
+				      round_jiffies_relative(msecs_to_jiffies(4000)));
 	} else {
 		priv->user_requested_scan = 0;
-		cancel_delayed_work(&priv->scan_event_later);
-		schedule_work(&priv->scan_event_now);
+		mod_delayed_work(system_wq, &priv->scan_event, 0);
 	}
 }
 
@@ -4180,17 +4167,11 @@ static ssize_t show_debug_level(struct device_driver *d, char *buf)
 static ssize_t store_debug_level(struct device_driver *d,
 				 const char *buf, size_t count)
 {
-	char *p = (char *)buf;
 	u32 val;
+	int ret;
 
-	if (p[1] == 'x' || p[1] == 'X' || p[0] == 'x' || p[0] == 'X') {
-		p++;
-		if (p[0] == 'x' || p[0] == 'X')
-			p++;
-		val = simple_strtoul(p, &p, 16);
-	} else
-		val = simple_strtoul(p, &p, 10);
-	if (p == buf)
+	ret = kstrtou32(buf, 0, &val);
+	if (ret)
 		IPW_DEBUG_INFO(": %s is not in hex or decimal form.\n", buf);
 	else
 		ipw2100_debug_level = val;
@@ -4251,27 +4232,15 @@ static ssize_t store_scan_age(struct device *d, struct device_attribute *attr,
 {
 	struct ipw2100_priv *priv = dev_get_drvdata(d);
 	struct net_device *dev = priv->net_dev;
-	char buffer[] = "00000000";
-	unsigned long len =
-	    (sizeof(buffer) - 1) > count ? count : sizeof(buffer) - 1;
 	unsigned long val;
-	char *p = buffer;
+	int ret;
 
 	(void)dev;		/* kill unused-var warning for debug-only code */
 
 	IPW_DEBUG_INFO("enter\n");
 
-	strncpy(buffer, buf, len);
-	buffer[len] = 0;
-
-	if (p[1] == 'x' || p[1] == 'X' || p[0] == 'x' || p[0] == 'X') {
-		p++;
-		if (p[0] == 'x' || p[0] == 'X')
-			p++;
-		val = simple_strtoul(p, &p, 16);
-	} else
-		val = simple_strtoul(p, &p, 10);
-	if (p == buffer) {
+	ret = kstrtoul(buf, 0, &val);
+	if (ret) {
 		IPW_DEBUG_INFO("%s: user supplied invalid value.\n", dev->name);
 	} else {
 		priv->ieee->scan_age = val;
@@ -4279,7 +4248,7 @@ static ssize_t store_scan_age(struct device *d, struct device_attribute *attr,
 	}
 
 	IPW_DEBUG_INFO("exit\n");
-	return len;
+	return strnlen(buf, count);
 }
 
 static DEVICE_ATTR(scan_age, S_IWUSR | S_IRUGO, show_scan_age, store_scan_age);
@@ -4459,8 +4428,7 @@ static void ipw2100_kill_works(struct ipw2100_priv *priv)
 	cancel_delayed_work_sync(&priv->wx_event_work);
 	cancel_delayed_work_sync(&priv->hang_check);
 	cancel_delayed_work_sync(&priv->rf_kill);
-	cancel_work_sync(&priv->scan_event_now);
-	cancel_delayed_work_sync(&priv->scan_event_later);
+	cancel_delayed_work_sync(&priv->scan_event);
 }
 
 static int ipw2100_tx_allocate(struct ipw2100_priv *priv)
@@ -4478,13 +4446,10 @@ static int ipw2100_tx_allocate(struct ipw2100_priv *priv)
 		return err;
 	}
 
-	priv->tx_buffers =
-	    kmalloc(TX_PENDED_QUEUE_LENGTH * sizeof(struct ipw2100_tx_packet),
-		    GFP_ATOMIC);
+	priv->tx_buffers = kmalloc_array(TX_PENDED_QUEUE_LENGTH,
+					 sizeof(struct ipw2100_tx_packet),
+					 GFP_ATOMIC);
 	if (!priv->tx_buffers) {
-		printk(KERN_ERR DRV_NAME
-		       ": %s: alloc failed form tx buffers.\n",
-		       priv->net_dev->name);
 		bd_queue_free(priv, &priv->tx_queue);
 		return -ENOMEM;
 	}
@@ -6195,8 +6160,7 @@ static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 	INIT_DELAYED_WORK(&priv->wx_event_work, ipw2100_wx_event_work);
 	INIT_DELAYED_WORK(&priv->hang_check, ipw2100_hang_check);
 	INIT_DELAYED_WORK(&priv->rf_kill, ipw2100_rf_kill);
-	INIT_WORK(&priv->scan_event_now, ipw2100_scan_event_now);
-	INIT_DELAYED_WORK(&priv->scan_event_later, ipw2100_scan_event_later);
+	INIT_DELAYED_WORK(&priv->scan_event, ipw2100_scan_event);
 
 	tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
 		     ipw2100_irq_tasklet, (unsigned long)priv);
@@ -6277,8 +6241,6 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	pci_read_config_dword(pci_dev, 0x40, &val);
 	if ((val & 0x0000ff00) != 0)
 		pci_write_config_dword(pci_dev, 0x40, val & 0xffff00ff);
-
-	pci_set_power_state(pci_dev, PCI_D0);
 
 	if (!ipw2100_hw_is_adapter_in_system(dev)) {
 		printk(KERN_WARNING DRV_NAME

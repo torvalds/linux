@@ -38,9 +38,14 @@
 
 /*
  * mmid - get context id from mm pointer (mm->context.id)
+ * note, this field is 64bit, so in big-endian the two words are swapped too.
  */
 	.macro	mmid, rd, rn
+#ifdef __ARMEB__
+	ldr	\rd, [\rn, #MM_CONTEXT_ID + 4 ]
+#else
 	ldr	\rd, [\rn, #MM_CONTEXT_ID]
+#endif
 	.endm
 
 /*
@@ -327,4 +332,9 @@ ENTRY(\name\()_tlb_fns)
 		.long	\flags_up
 	.endif
 	.size	\name\()_tlb_fns, . - \name\()_tlb_fns
+.endm
+
+.macro globl_equ x, y
+	.globl	\x
+	.equ	\x, \y
 .endm

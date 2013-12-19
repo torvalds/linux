@@ -24,6 +24,7 @@
 #include "main.h"
 #include "wmm.h"
 #include "11n.h"
+#include "11ac.h"
 
 /*
  * This function prepares command to set/get RSSI information.
@@ -238,14 +239,14 @@ static int mwifiex_cmd_tx_power_cfg(struct host_cmd_ds_command *cmd,
 			memmove(cmd_txp_cfg, txp,
 				sizeof(struct host_cmd_ds_txpwr_cfg) +
 				sizeof(struct mwifiex_types_power_group) +
-				pg_tlv->length);
+				le16_to_cpu(pg_tlv->length));
 
 			pg_tlv = (struct mwifiex_types_power_group *) ((u8 *)
 				  cmd_txp_cfg +
 				  sizeof(struct host_cmd_ds_txpwr_cfg));
 			cmd->size = cpu_to_le16(le16_to_cpu(cmd->size) +
 				  sizeof(struct mwifiex_types_power_group) +
-				  pg_tlv->length);
+				  le16_to_cpu(pg_tlv->length));
 		} else {
 			memmove(cmd_txp_cfg, txp, sizeof(*txp));
 		}
@@ -326,7 +327,7 @@ mwifiex_cmd_802_11_hs_cfg(struct mwifiex_private *priv,
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct host_cmd_ds_802_11_hs_cfg_enh *hs_cfg = &cmd->params.opt_hs_cfg;
-	u16 hs_activate = false;
+	bool hs_activate = false;
 
 	if (!hscfg_param)
 		/* New Activate command */
@@ -334,7 +335,7 @@ mwifiex_cmd_802_11_hs_cfg(struct mwifiex_private *priv,
 	cmd->command = cpu_to_le16(HostCmd_CMD_802_11_HS_CFG_ENH);
 
 	if (!hs_activate &&
-	    (hscfg_param->conditions != cpu_to_le32(HOST_SLEEP_CFG_CANCEL)) &&
+	    (hscfg_param->conditions != cpu_to_le32(HS_CFG_CANCEL)) &&
 	    ((adapter->arp_filter_size > 0) &&
 	     (adapter->arp_filter_size <= ARP_FILTER_MAX_BUF_SIZE))) {
 		dev_dbg(adapter->dev,
@@ -706,8 +707,9 @@ mwifiex_cmd_802_11_key_material(struct mwifiex_private *priv,
 		if (priv->bss_type == MWIFIEX_BSS_TYPE_UAP) {
 			tlv_mac = (void *)((u8 *)&key_material->key_param_set +
 					   key_param_len);
-			tlv_mac->tlv.type = cpu_to_le16(TLV_TYPE_STA_MAC_ADDR);
-			tlv_mac->tlv.len = cpu_to_le16(ETH_ALEN);
+			tlv_mac->header.type =
+					cpu_to_le16(TLV_TYPE_STA_MAC_ADDR);
+			tlv_mac->header.len = cpu_to_le16(ETH_ALEN);
 			memcpy(tlv_mac->mac_addr, enc_key->mac_addr, ETH_ALEN);
 			cmd_size = key_param_len + S_DS_GEN +
 				   sizeof(key_material->action) +
@@ -931,7 +933,6 @@ mwifiex_cmd_pcie_host_spec(struct mwifiex_private *priv,
 	struct host_cmd_ds_pcie_details *host_spec =
 					&cmd->params.pcie_host_spec;
 	struct pcie_service_card *card = priv->adapter->card;
-	phys_addr_t *buf_pa;
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_PCIE_DESC_DETAILS);
 	cmd->size = cpu_to_le16(sizeof(struct
@@ -953,10 +954,11 @@ mwifiex_cmd_pcie_host_spec(struct mwifiex_private *priv,
 	host_spec->evtbd_addr_lo = (u32)(card->evtbd_ring_pbase);
 	host_spec->evtbd_addr_hi = (u32)(((u64)card->evtbd_ring_pbase)>>32);
 	host_spec->evtbd_count = MWIFIEX_MAX_EVT_BD;
-	if (card->sleep_cookie) {
-		buf_pa = MWIFIEX_SKB_PACB(card->sleep_cookie);
-		host_spec->sleep_cookie_addr_lo = (u32) *buf_pa;
-		host_spec->sleep_cookie_addr_hi = (u32) (((u64)*buf_pa) >> 32);
+	if (card->sleep_cookie_vbase) {
+		host_spec->sleep_cookie_addr_lo =
+						(u32)(card->sleep_cookie_pbase);
+		host_spec->sleep_cookie_addr_hi =
+				 (u32)(((u64)(card->sleep_cookie_pbase)) >> 32);
 		dev_dbg(priv->adapter->dev, "sleep_cook_lo phy addr: 0x%x\n",
 			host_spec->sleep_cookie_addr_lo);
 	}
@@ -1059,6 +1061,193 @@ mwifiex_cmd_802_11_subsc_evt(struct mwifiex_private *priv,
 	return 0;
 }
 
+static int
+mwifiex_cmd_append_rpn_expression(struct mwifiex_private *priv,
+				  struct mwifiex_mef_entry *mef_entry,
+				  u8 **buffer)
+{
+	struct mwifiex_mef_filter *filter = mef_entry->filter;
+	int i, byte_len;
+	u8 *stack_ptr = *buffer;
+
+	for (i = 0; i < MWIFIEX_MEF_MAX_FILTERS; i++) {
+		filter = &mef_entry->filter[i];
+		if (!filter->filt_type)
+			break;
+		*(__le32 *)stack_ptr = cpu_to_le32((u32)filter->repeat);
+		stack_ptr += 4;
+		*stack_ptr = TYPE_DNUM;
+		stack_ptr += 1;
+
+		byte_len = filter->byte_seq[MWIFIEX_MEF_MAX_BYTESEQ];
+		memcpy(stack_ptr, filter->byte_seq, byte_len);
+		stack_ptr += byte_len;
+		*stack_ptr = byte_len;
+		stack_ptr += 1;
+		*stack_ptr = TYPE_BYTESEQ;
+		stack_ptr += 1;
+
+		*(__le32 *)stack_ptr = cpu_to_le32((u32)filter->offset);
+		stack_ptr += 4;
+		*stack_ptr = TYPE_DNUM;
+		stack_ptr += 1;
+
+		*stack_ptr = filter->filt_type;
+		stack_ptr += 1;
+
+		if (filter->filt_action) {
+			*stack_ptr = filter->filt_action;
+			stack_ptr += 1;
+		}
+
+		if (stack_ptr - *buffer > STACK_NBYTES)
+			return -1;
+	}
+
+	*buffer = stack_ptr;
+	return 0;
+}
+
+static int
+mwifiex_cmd_mef_cfg(struct mwifiex_private *priv,
+		    struct host_cmd_ds_command *cmd,
+		    struct mwifiex_ds_mef_cfg *mef)
+{
+	struct host_cmd_ds_mef_cfg *mef_cfg = &cmd->params.mef_cfg;
+	u8 *pos = (u8 *)mef_cfg;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_MEF_CFG);
+
+	mef_cfg->criteria = cpu_to_le32(mef->criteria);
+	mef_cfg->num_entries = cpu_to_le16(mef->num_entries);
+	pos += sizeof(*mef_cfg);
+	mef_cfg->mef_entry->mode = mef->mef_entry->mode;
+	mef_cfg->mef_entry->action = mef->mef_entry->action;
+	pos += sizeof(*(mef_cfg->mef_entry));
+
+	if (mwifiex_cmd_append_rpn_expression(priv, mef->mef_entry, &pos))
+		return -1;
+
+	mef_cfg->mef_entry->exprsize =
+			cpu_to_le16(pos - mef_cfg->mef_entry->expr);
+	cmd->size = cpu_to_le16((u16) (pos - (u8 *)mef_cfg) + S_DS_GEN);
+
+	return 0;
+}
+
+/* This function parse cal data from ASCII to hex */
+static u32 mwifiex_parse_cal_cfg(u8 *src, size_t len, u8 *dst)
+{
+	u8 *s = src, *d = dst;
+
+	while (s - src < len) {
+		if (*s && (isspace(*s) || *s == '\t')) {
+			s++;
+			continue;
+		}
+		if (isxdigit(*s)) {
+			*d++ = simple_strtol(s, NULL, 16);
+			s += 2;
+		} else {
+			s++;
+		}
+	}
+
+	return d - dst;
+}
+
+/* This function prepares command of set_cfg_data. */
+static int mwifiex_cmd_cfg_data(struct mwifiex_private *priv,
+				struct host_cmd_ds_command *cmd,
+				u16 cmd_action)
+{
+	struct host_cmd_ds_802_11_cfg_data *cfg_data = &cmd->params.cfg_data;
+	struct mwifiex_adapter *adapter = priv->adapter;
+	u32 len, cal_data_offset;
+	u8 *tmp_cmd = (u8 *)cmd;
+
+	cal_data_offset = S_DS_GEN + sizeof(*cfg_data);
+	if ((adapter->cal_data->data) && (adapter->cal_data->size > 0))
+		len = mwifiex_parse_cal_cfg((u8 *)adapter->cal_data->data,
+					    adapter->cal_data->size,
+					    (u8 *)(tmp_cmd + cal_data_offset));
+	else
+		return -1;
+
+	cfg_data->action = cpu_to_le16(cmd_action);
+	cfg_data->type = cpu_to_le16(CFG_DATA_TYPE_CAL);
+	cfg_data->data_len = cpu_to_le16(len);
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_CFG_DATA);
+	cmd->size = cpu_to_le16(S_DS_GEN + sizeof(*cfg_data) + len);
+
+	return 0;
+}
+
+static int
+mwifiex_cmd_coalesce_cfg(struct mwifiex_private *priv,
+			 struct host_cmd_ds_command *cmd,
+			 u16 cmd_action, void *data_buf)
+{
+	struct host_cmd_ds_coalesce_cfg *coalesce_cfg =
+						&cmd->params.coalesce_cfg;
+	struct mwifiex_ds_coalesce_cfg *cfg = data_buf;
+	struct coalesce_filt_field_param *param;
+	u16 cnt, idx, length;
+	struct coalesce_receive_filt_rule *rule;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_COALESCE_CFG);
+	cmd->size = cpu_to_le16(S_DS_GEN);
+
+	coalesce_cfg->action = cpu_to_le16(cmd_action);
+	coalesce_cfg->num_of_rules = cpu_to_le16(cfg->num_of_rules);
+	rule = coalesce_cfg->rule;
+
+	for (cnt = 0; cnt < cfg->num_of_rules; cnt++) {
+		rule->header.type = cpu_to_le16(TLV_TYPE_COALESCE_RULE);
+		rule->max_coalescing_delay =
+			cpu_to_le16(cfg->rule[cnt].max_coalescing_delay);
+		rule->pkt_type = cfg->rule[cnt].pkt_type;
+		rule->num_of_fields = cfg->rule[cnt].num_of_fields;
+
+		length = 0;
+
+		param = rule->params;
+		for (idx = 0; idx < cfg->rule[cnt].num_of_fields; idx++) {
+			param->operation = cfg->rule[cnt].params[idx].operation;
+			param->operand_len =
+					cfg->rule[cnt].params[idx].operand_len;
+			param->offset =
+				cpu_to_le16(cfg->rule[cnt].params[idx].offset);
+			memcpy(param->operand_byte_stream,
+			       cfg->rule[cnt].params[idx].operand_byte_stream,
+			       param->operand_len);
+
+			length += sizeof(struct coalesce_filt_field_param);
+
+			param++;
+		}
+
+		/* Total rule length is sizeof max_coalescing_delay(u16),
+		 * num_of_fields(u8), pkt_type(u8) and total length of the all
+		 * params
+		 */
+		rule->header.len = cpu_to_le16(length + sizeof(u16) +
+					       sizeof(u8) + sizeof(u8));
+
+		/* Add the rule length to the command size*/
+		le16_add_cpu(&cmd->size, le16_to_cpu(rule->header.len) +
+			     sizeof(struct mwifiex_ie_types_header));
+
+		rule = (void *)((u8 *)rule->params + length);
+	}
+
+	/* Add sizeof action, num_of_rules to total command length */
+	le16_add_cpu(&cmd->size, sizeof(u16) + sizeof(u16));
+
+	return 0;
+}
+
 /*
  * This function prepares the commands before sending them to the firmware.
  *
@@ -1076,6 +1265,9 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	switch (cmd_no) {
 	case HostCmd_CMD_GET_HW_SPEC:
 		ret = mwifiex_cmd_get_hw_spec(priv, cmd_ptr);
+		break;
+	case HostCmd_CMD_CFG_DATA:
+		ret = mwifiex_cmd_cfg_data(priv, cmd_ptr, cmd_action);
 		break;
 	case HostCmd_CMD_MAC_CONTROL:
 		ret = mwifiex_cmd_mac_control(priv, cmd_ptr, cmd_action,
@@ -1184,6 +1376,9 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		      cpu_to_le16(sizeof(struct host_cmd_ds_remain_on_chan) +
 				  S_DS_GEN);
 		break;
+	case HostCmd_CMD_11AC_CFG:
+		ret = mwifiex_cmd_11ac_cfg(priv, cmd_ptr, cmd_action, data_buf);
+		break;
 	case HostCmd_CMD_P2P_MODE_CFG:
 		cmd_ptr->command = cpu_to_le16(cmd_no);
 		cmd_ptr->params.mode_cfg.action = cpu_to_le16(cmd_action);
@@ -1230,7 +1425,7 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 						  data_buf);
 		break;
 	case HostCmd_CMD_11N_CFG:
-		ret = mwifiex_cmd_11n_cfg(cmd_ptr, cmd_action, data_buf);
+		ret = mwifiex_cmd_11n_cfg(priv, cmd_ptr, cmd_action, data_buf);
 		break;
 	case HostCmd_CMD_WMM_GET_STATUS:
 		dev_dbg(priv->adapter->dev,
@@ -1273,6 +1468,13 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_802_11_SUBSCRIBE_EVENT:
 		ret = mwifiex_cmd_802_11_subsc_evt(priv, cmd_ptr, data_buf);
 		break;
+	case HostCmd_CMD_MEF_CFG:
+		ret = mwifiex_cmd_mef_cfg(priv, cmd_ptr, data_buf);
+		break;
+	case HostCmd_CMD_COALESCE_CFG:
+		ret = mwifiex_cmd_coalesce_cfg(priv, cmd_ptr, cmd_action,
+					       data_buf);
+		break;
 	default:
 		dev_err(priv->adapter->dev,
 			"PREP_CMD: unknown cmd- %#x\n", cmd_no);
@@ -1303,6 +1505,7 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
  */
 int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 {
+	struct mwifiex_adapter *adapter = priv->adapter;
 	int ret;
 	u16 enable = true;
 	struct mwifiex_ds_11n_amsdu_aggr_ctrl amsdu_aggr_ctrl;
@@ -1323,6 +1526,15 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 					    HostCmd_ACT_GEN_SET, 0, NULL);
 		if (ret)
 			return -1;
+
+		/* Download calibration data to firmware */
+		if (adapter->cal_data) {
+			ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_CFG_DATA,
+						HostCmd_ACT_GEN_SET, 0, NULL);
+			if (ret)
+				return -1;
+		}
+
 		/* Read MAC address from HW */
 		ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_GET_HW_SPEC,
 					    HostCmd_ACT_GEN_GET, 0, NULL);

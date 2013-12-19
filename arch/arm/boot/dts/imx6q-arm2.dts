@@ -11,7 +11,7 @@
  */
 
 /dts-v1/;
-/include/ "imx6q.dtsi"
+#include "imx6q.dtsi"
 
 / {
 	model = "Freescale i.MX6 Quad Armadillo2 Board";
@@ -19,71 +19,6 @@
 
 	memory {
 		reg = <0x10000000 0x80000000>;
-	};
-
-	soc {
-		gpmi-nand@00112000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_gpmi_nand_1>;
-			status = "disabled"; /* gpmi nand conflicts with SD */
-		};
-
-		aips-bus@02000000 { /* AIPS1 */
-			iomuxc@020e0000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_hog>;
-
-				hog {
-					pinctrl_hog: hoggrp {
-						fsl,pins = <
-							176  0x80000000	/* MX6Q_PAD_EIM_D25__GPIO_3_25 */
-						>;
-					};
-				};
-
-				arm2 {
-					pinctrl_usdhc3_arm2: usdhc3grp-arm2 {
-						fsl,pins = <
-							1363 0x80000000	/* MX6Q_PAD_NANDF_CS0__GPIO_6_11 */
-							1369 0x80000000 /* MX6Q_PAD_NANDF_CS1__GPIO_6_14 */
-						>;
-					};
-				};
-			};
-		};
-
-		aips-bus@02100000 { /* AIPS2 */
-			ethernet@02188000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_enet_2>;
-				phy-mode = "rgmii";
-				status = "okay";
-			};
-
-			usdhc@02198000 { /* uSDHC3 */
-				cd-gpios = <&gpio6 11 0>;
-				wp-gpios = <&gpio6 14 0>;
-				vmmc-supply = <&reg_3p3v>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_usdhc3_1
-					     &pinctrl_usdhc3_arm2>;
-				status = "okay";
-			};
-
-			usdhc@0219c000 { /* uSDHC4 */
-				non-removable;
-				vmmc-supply = <&reg_3p3v>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_usdhc4_1>;
-				status = "okay";
-			};
-
-			uart4: serial@021f0000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_uart4_1>;
-				status = "okay";
-			};
-		};
 	};
 
 	regulators {
@@ -107,4 +42,71 @@
 			linux,default-trigger = "heartbeat";
 		};
 	};
+};
+
+&gpmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpmi_nand_1>;
+	status = "disabled"; /* gpmi nand conflicts with SD */
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
+	hog {
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D25__GPIO3_IO25 0x80000000
+			>;
+		};
+	};
+
+	arm2 {
+		pinctrl_usdhc3_arm2: usdhc3grp-arm2 {
+			fsl,pins = <
+				MX6QDL_PAD_NANDF_CS0__GPIO6_IO11 0x80000000
+				MX6QDL_PAD_NANDF_CS1__GPIO6_IO14 0x80000000
+			>;
+		};
+	};
+};
+
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_enet_2>;
+	phy-mode = "rgmii";
+	status = "okay";
+};
+
+&usdhc3 {
+	cd-gpios = <&gpio6 11 0>;
+	wp-gpios = <&gpio6 14 0>;
+	vmmc-supply = <&reg_3p3v>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc3_1
+		     &pinctrl_usdhc3_arm2>;
+	status = "okay";
+};
+
+&usdhc4 {
+	non-removable;
+	vmmc-supply = <&reg_3p3v>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc4_1>;
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2_2>;
+	fsl,dte-mode;
+	fsl,uart-has-rtscts;
+	status = "okay";
+};
+
+&uart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart4_1>;
+	status = "okay";
 };

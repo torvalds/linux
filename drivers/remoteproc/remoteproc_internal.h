@@ -27,7 +27,8 @@ struct rproc;
 
 /**
  * struct rproc_fw_ops - firmware format specific operations.
- * @find_rsc_table:	finds the resource table inside the firmware image
+ * @find_rsc_table:	find the resource table inside the firmware image
+ * @find_loaded_rsc_table: find the loaded resouce table
  * @load:		load firmeware to memory, where the remote processor
  *			expects to find it
  * @sanity_check:	sanity check the fw image
@@ -37,6 +38,8 @@ struct rproc_fw_ops {
 	struct resource_table *(*find_rsc_table) (struct rproc *rproc,
 						const struct firmware *fw,
 						int *tablesz);
+	struct resource_table *(*find_loaded_rsc_table)(struct rproc *rproc,
+						const struct firmware *fw);
 	int (*load)(struct rproc *rproc, const struct firmware *fw);
 	int (*sanity_check)(struct rproc *rproc, const struct firmware *fw);
 	u32 (*get_boot_addr)(struct rproc *rproc, const struct firmware *fw);
@@ -98,6 +101,16 @@ struct resource_table *rproc_find_rsc_table(struct rproc *rproc,
 {
 	if (rproc->fw_ops->find_rsc_table)
 		return rproc->fw_ops->find_rsc_table(rproc, fw, tablesz);
+
+	return NULL;
+}
+
+static inline
+struct resource_table *rproc_find_loaded_rsc_table(struct rproc *rproc,
+						const struct firmware *fw)
+{
+	if (rproc->fw_ops->find_loaded_rsc_table)
+		return rproc->fw_ops->find_loaded_rsc_table(rproc, fw);
 
 	return NULL;
 }

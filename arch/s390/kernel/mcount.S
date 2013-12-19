@@ -7,6 +7,7 @@
 
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
+#include <asm/ftrace.h>
 
 	.section .kprobes.text, "ax"
 
@@ -33,6 +34,7 @@ ENTRY(ftrace_caller)
 	la	%r2,0(%r14)
 	st	%r0,__SF_BACKCHAIN(%r15)
 	la	%r3,0(%r3)
+	ahi	%r2,-MCOUNT_INSN_SIZE
 	l	%r14,0b-0b(%r1)
 	l	%r14,0(%r14)
 	basr	%r14,%r14

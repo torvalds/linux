@@ -2948,7 +2948,7 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 					nes_debug(NES_DBG_CQ, "%s: Reporting stripped VLAN packet. Tag = 0x%04X\n",
 							nesvnic->netdev->name, vlan_tag);
 
-					__vlan_hwaccel_put_tag(rx_skb, vlan_tag);
+					__vlan_hwaccel_put_tag(rx_skb, htons(ETH_P_8021Q), vlan_tag);
 				}
 				if (nes_use_lro)
 					lro_receive_skb(&nesvnic->lro_mgr, rx_skb, NULL);
@@ -3570,10 +3570,10 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 	tcp_state = (aeq_info & NES_AEQE_TCP_STATE_MASK) >> NES_AEQE_TCP_STATE_SHIFT;
 	iwarp_state = (aeq_info & NES_AEQE_IWARP_STATE_MASK) >> NES_AEQE_IWARP_STATE_SHIFT;
 	nes_debug(NES_DBG_AEQ, "aeid = 0x%04X, qp-cq id = %d, aeqe = %p,"
-			" Tcp state = %d, iWARP state = %d\n",
+			" Tcp state = %s, iWARP state = %s\n",
 			async_event_id,
 			le32_to_cpu(aeqe->aeqe_words[NES_AEQE_COMP_QP_CQ_ID_IDX]), aeqe,
-			tcp_state, iwarp_state);
+			nes_tcp_state_str[tcp_state], nes_iwarp_state_str[iwarp_state]);
 
 	aeqe_cq_id = le32_to_cpu(aeqe->aeqe_words[NES_AEQE_COMP_QP_CQ_ID_IDX]);
 	if (aeq_info & NES_AEQE_QP) {

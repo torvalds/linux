@@ -369,7 +369,7 @@ static const unsigned short bt819_addrs[] = { 0x45, I2C_CLIENT_END };
 static const unsigned short bt856_addrs[] = { 0x44, I2C_CLIENT_END };
 static const unsigned short bt866_addrs[] = { 0x44, I2C_CLIENT_END };
 
-static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
+static struct card_info zoran_cards[NUM_CARDS] = {
 	{
 		.type = DC10_old,
 		.name = "DC10(old)",
@@ -708,8 +708,7 @@ static const struct i2c_algo_bit_data zoran_i2c_bit_data_template = {
 static int
 zoran_register_i2c (struct zoran *zr)
 {
-	memcpy(&zr->i2c_algo, &zoran_i2c_bit_data_template,
-	       sizeof(struct i2c_algo_bit_data));
+	zr->i2c_algo = zoran_i2c_bit_data_template;
 	zr->i2c_algo.data = zr;
 	strlcpy(zr->i2c_adapter.name, ZR_DEVNAME(zr),
 		sizeof(zr->i2c_adapter.name));
@@ -948,8 +947,7 @@ zoran_open_init_params (struct zoran *zr)
 	zr->testing = 0;
 }
 
-static void __devinit
-test_interrupts (struct zoran *zr)
+static void test_interrupts (struct zoran *zr)
 {
 	DEFINE_WAIT(wait);
 	int timeout, icr;
@@ -974,8 +972,7 @@ test_interrupts (struct zoran *zr)
 	btwrite(icr, ZR36057_ICR);
 }
 
-static int __devinit
-zr36057_init (struct zoran *zr)
+static int zr36057_init (struct zoran *zr)
 {
 	int j, err;
 
@@ -1053,7 +1050,7 @@ zr36057_init (struct zoran *zr)
 	 *   Now add the template and register the device unit.
 	 */
 	memcpy(zr->video_dev, &zoran_template, sizeof(zoran_template));
-	zr->video_dev->parent = &zr->pci_dev->dev;
+	zr->video_dev->v4l2_dev = &zr->v4l2_dev;
 	strcpy(zr->video_dev->name, ZR_DEVNAME(zr));
 	/* It's not a mem2mem device, but you can both capture and output from
 	   one and the same device. This should really be split up into two
@@ -1083,7 +1080,7 @@ exit_free:
 	return err;
 }
 
-static void __devexit zoran_remove(struct pci_dev *pdev)
+static void zoran_remove(struct pci_dev *pdev)
 {
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
 	struct zoran *zr = to_zoran(v4l2_dev);
@@ -1129,9 +1126,8 @@ zoran_vdev_release (struct video_device *vdev)
 	kfree(vdev);
 }
 
-static struct videocodec_master * __devinit
-zoran_setup_videocodec (struct zoran *zr,
-			int           type)
+static struct videocodec_master *zoran_setup_videocodec(struct zoran *zr,
+							int type)
 {
 	struct videocodec_master *m = NULL;
 
@@ -1192,8 +1188,7 @@ static void zoran_subdev_notify(struct v4l2_subdev *sd, unsigned int cmd, void *
  *   Scan for a Buz card (actually for the PCI controller ZR36057),
  *   request the irq and map the io memory
  */
-static int __devinit zoran_probe(struct pci_dev *pdev,
-				 const struct pci_device_id *ent)
+static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	unsigned char latency, need_latency;
 	struct zoran *zr;
@@ -1298,7 +1293,7 @@ static int __devinit zoran_probe(struct pci_dev *pdev,
 	}
 
 	result = request_irq(zr->pci_dev->irq, zoran_irq,
-			     IRQF_SHARED | IRQF_DISABLED, ZR_DEVNAME(zr), zr);
+			     IRQF_SHARED, ZR_DEVNAME(zr), zr);
 	if (result < 0) {
 		if (result == -EINVAL) {
 			dprintk(1,
@@ -1459,7 +1454,7 @@ static struct pci_driver zoran_driver = {
 	.name = "zr36067",
 	.id_table = zr36067_pci_tbl,
 	.probe = zoran_probe,
-	.remove = __devexit_p(zoran_remove),
+	.remove = zoran_remove,
 };
 
 static int __init zoran_init(void)

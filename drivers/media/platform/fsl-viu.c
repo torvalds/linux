@@ -21,6 +21,8 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <media/v4l2-common.h>
@@ -957,12 +959,12 @@ static int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct viu_fh *fh = priv;
 
-	fh->dev->std = *id;
-	decoder_call(fh->dev, core, s_std, *id);
+	fh->dev->std = id;
+	decoder_call(fh->dev, core, s_std, id);
 	return 0;
 }
 
@@ -1181,7 +1183,7 @@ static void viu_capture_intr(struct viu_dev *dev, u32 status)
 
 		if (waitqueue_active(&buf->vb.done)) {
 			list_del(&buf->vb.queue);
-			do_gettimeofday(&buf->vb.ts);
+			v4l2_get_timestamp(&buf->vb.ts);
 			buf->vb.state = VIDEOBUF_DONE;
 			buf->vb.field_count++;
 			wake_up(&buf->vb.done);
@@ -1475,10 +1477,9 @@ static struct video_device viu_template = {
 	.release	= video_device_release,
 
 	.tvnorms        = V4L2_STD_NTSC_M | V4L2_STD_PAL,
-	.current_norm   = V4L2_STD_NTSC_M,
 };
 
-static int __devinit viu_of_probe(struct platform_device *op)
+static int viu_of_probe(struct platform_device *op)
 {
 	struct viu_dev *viu_dev;
 	struct video_device *vdev;
@@ -1486,6 +1487,7 @@ static int __devinit viu_of_probe(struct platform_device *op)
 	struct viu_reg __iomem *viu_regs;
 	struct i2c_adapter *ad;
 	int ret, viu_irq;
+	struct clk *clk;
 
 	ret = of_address_to_resource(op->dev.of_node, 0, &r);
 	if (ret) {
@@ -1546,6 +1548,7 @@ static int __devinit viu_of_probe(struct platform_device *op)
 	viu_dev->vidq.timeout.function = viu_vid_timeout;
 	viu_dev->vidq.timeout.data     = (unsigned long)viu_dev;
 	init_timer(&viu_dev->vidq.timeout);
+	viu_dev->std = V4L2_STD_NTSC_M;
 	viu_dev->first = 1;
 
 	/* Allocate memory for video device */
@@ -1577,14 +1580,18 @@ static int __devinit viu_of_probe(struct platform_device *op)
 	}
 
 	/* enable VIU clock */
-	viu_dev->clk = clk_get(&op->dev, "viu_clk");
-	if (IS_ERR(viu_dev->clk)) {
-		dev_err(&op->dev, "failed to find the clock module!\n");
-		ret = -ENODEV;
+	clk = devm_clk_get(&op->dev, "viu_clk");
+	if (IS_ERR(clk)) {
+		dev_err(&op->dev, "failed to lookup the clock!\n");
+		ret = PTR_ERR(clk);
 		goto err_clk;
-	} else {
-		clk_enable(viu_dev->clk);
 	}
+	ret = clk_prepare_enable(clk);
+	if (ret) {
+		dev_err(&op->dev, "failed to enable the clock!\n");
+		goto err_clk;
+	}
+	viu_dev->clk = clk;
 
 	/* reset VIU module */
 	viu_reset(viu_dev->vr);
@@ -1602,8 +1609,7 @@ static int __devinit viu_of_probe(struct platform_device *op)
 	return ret;
 
 err_irq:
-	clk_disable(viu_dev->clk);
-	clk_put(viu_dev->clk);
+	clk_disable_unprepare(viu_dev->clk);
 err_clk:
 	video_unregister_device(viu_dev->vdev);
 err_vdev:
@@ -1615,7 +1621,7 @@ err:
 	return ret;
 }
 
-static int __devexit viu_of_remove(struct platform_device *op)
+static int viu_of_remove(struct platform_device *op)
 {
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(&op->dev);
 	struct viu_dev *dev = container_of(v4l2_dev, struct viu_dev, v4l2_dev);
@@ -1626,8 +1632,7 @@ static int __devexit viu_of_remove(struct platform_device *op)
 	free_irq(dev->irq, (void *)dev);
 	irq_dispose_mapping(dev->irq);
 
-	clk_disable(dev->clk);
-	clk_put(dev->clk);
+	clk_disable_unprepare(dev->clk);
 
 	video_unregister_device(dev->vdev);
 	i2c_put_adapter(client->adapter);
@@ -1668,7 +1673,7 @@ MODULE_DEVICE_TABLE(of, mpc512x_viu_of_match);
 
 static struct platform_driver viu_of_platform_driver = {
 	.probe = viu_of_probe,
-	.remove = __devexit_p(viu_of_remove),
+	.remove = viu_of_remove,
 #ifdef CONFIG_PM
 	.suspend = viu_suspend,
 	.resume = viu_resume,

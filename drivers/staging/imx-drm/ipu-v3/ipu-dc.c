@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 
+#include "../imx-drm.h"
 #include "imx-ipu-v3.h"
 #include "ipu-prv.h"
 
@@ -60,8 +61,10 @@
 
 #define WROD(lf)		(0x18 | ((lf) << 1))
 #define WRG			0x01
+#define WCLK			0xc9
 
 #define SYNC_WAVE 0
+#define NULL_WAVE (-1)
 
 #define DC_GEN_SYNC_1_6_SYNC	(2 << 1)
 #define DC_GEN_SYNC_PRIORITY_1	(1 << 7)
@@ -86,6 +89,9 @@ struct ipu_dc_priv;
 enum ipu_dc_map {
 	IPU_DC_MAP_RGB24,
 	IPU_DC_MAP_RGB565,
+	IPU_DC_MAP_GBR24, /* TVEv2 */
+	IPU_DC_MAP_BGR666,
+	IPU_DC_MAP_BGR24,
 };
 
 struct ipu_dc {
@@ -117,16 +123,23 @@ static void dc_link_event(struct ipu_dc *dc, int event, int addr, int priority)
 }
 
 static void dc_write_tmpl(struct ipu_dc *dc, int word, u32 opcode, u32 operand,
-		int map, int wave, int glue, int sync)
+		int map, int wave, int glue, int sync, int stop)
 {
 	struct ipu_dc_priv *priv = dc->priv;
-	u32 reg;
-	int stop = 1;
+	u32 reg1, reg2;
 
-	reg = sync | glue << 4 | ++wave << 11 | ++map << 15 | ((operand << 20) & 0xfff00000);
-	writel(reg, priv->dc_tmpl_reg + word * 8);
-	reg = operand >> 12 | opcode << 4 | stop << 9;
-	writel(reg, priv->dc_tmpl_reg + word * 8 + 4);
+	if (opcode == WCLK) {
+		reg1 = (operand << 20) & 0xfff00000;
+		reg2 = operand >> 12 | opcode << 1 | stop << 9;
+	} else if (opcode == WRG) {
+		reg1 = sync | glue << 4 | ++wave << 11 | ((operand << 15) & 0xffff8000);
+		reg2 = operand >> 17 | opcode << 7 | stop << 9;
+	} else {
+		reg1 = sync | glue << 4 | ++wave << 11 | ++map << 15 | ((operand << 20) & 0xfff00000);
+		reg2 = operand >> 12 | opcode << 4 | stop << 9;
+	}
+	writel(reg1, priv->dc_tmpl_reg + word * 8);
+	writel(reg2, priv->dc_tmpl_reg + word * 8 + 4);
 }
 
 static int ipu_pixfmt_to_map(u32 fmt)
@@ -136,6 +149,12 @@ static int ipu_pixfmt_to_map(u32 fmt)
 		return IPU_DC_MAP_RGB24;
 	case V4L2_PIX_FMT_RGB565:
 		return IPU_DC_MAP_RGB565;
+	case IPU_PIX_FMT_GBR24:
+		return IPU_DC_MAP_GBR24;
+	case V4L2_PIX_FMT_BGR666:
+		return IPU_DC_MAP_BGR666;
+	case V4L2_PIX_FMT_BGR24:
+		return IPU_DC_MAP_BGR24;
 	default:
 		return -EINVAL;
 	}
@@ -145,14 +164,15 @@ int ipu_dc_init_sync(struct ipu_dc *dc, struct ipu_di *di, bool interlaced,
 		u32 pixel_fmt, u32 width)
 {
 	struct ipu_dc_priv *priv = dc->priv;
-	u32 reg = 0, map;
+	u32 reg = 0;
+	int map;
 
 	dc->di = ipu_di_get_num(di);
 
 	map = ipu_pixfmt_to_map(pixel_fmt);
 	if (map < 0) {
 		dev_dbg(priv->dev, "IPU_DISP: No MAP\n");
-		return -EINVAL;
+		return map;
 	}
 
 	if (interlaced) {
@@ -161,24 +181,26 @@ int ipu_dc_init_sync(struct ipu_dc *dc, struct ipu_di *di, bool interlaced,
 		dc_link_event(dc, DC_EVT_NEW_DATA, 0, 1);
 
 		/* Init template microcode */
-		dc_write_tmpl(dc, 0, WROD(0), 0, map, SYNC_WAVE, 0, 8);
+		dc_write_tmpl(dc, 0, WROD(0), 0, map, SYNC_WAVE, 0, 8, 1);
 	} else {
 		if (dc->di) {
 			dc_link_event(dc, DC_EVT_NL, 2, 3);
 			dc_link_event(dc, DC_EVT_EOL, 3, 2);
-			dc_link_event(dc, DC_EVT_NEW_DATA, 4, 1);
+			dc_link_event(dc, DC_EVT_NEW_DATA, 1, 1);
 			/* Init template microcode */
-			dc_write_tmpl(dc, 2, WROD(0), 0, map, SYNC_WAVE, 8, 5);
-			dc_write_tmpl(dc, 3, WROD(0), 0, map, SYNC_WAVE, 4, 5);
-			dc_write_tmpl(dc, 4, WROD(0), 0, map, SYNC_WAVE, 0, 5);
+			dc_write_tmpl(dc, 2, WROD(0), 0, map, SYNC_WAVE, 8, 5, 1);
+			dc_write_tmpl(dc, 3, WROD(0), 0, map, SYNC_WAVE, 4, 5, 0);
+			dc_write_tmpl(dc, 4, WRG, 0, map, NULL_WAVE, 0, 0, 1);
+			dc_write_tmpl(dc, 1, WROD(0), 0, map, SYNC_WAVE, 0, 5, 1);
 		} else {
 			dc_link_event(dc, DC_EVT_NL, 5, 3);
 			dc_link_event(dc, DC_EVT_EOL, 6, 2);
-			dc_link_event(dc, DC_EVT_NEW_DATA, 7, 1);
+			dc_link_event(dc, DC_EVT_NEW_DATA, 8, 1);
 			/* Init template microcode */
-			dc_write_tmpl(dc, 5, WROD(0), 0, map, SYNC_WAVE, 8, 5);
-			dc_write_tmpl(dc, 6, WROD(0), 0, map, SYNC_WAVE, 4, 5);
-			dc_write_tmpl(dc, 7, WROD(0), 0, map, SYNC_WAVE, 0, 5);
+			dc_write_tmpl(dc, 5, WROD(0), 0, map, SYNC_WAVE, 8, 5, 1);
+			dc_write_tmpl(dc, 6, WROD(0), 0, map, SYNC_WAVE, 4, 5, 0);
+			dc_write_tmpl(dc, 7, WRG, 0, map, NULL_WAVE, 0, 0, 1);
+			dc_write_tmpl(dc, 8, WROD(0), 0, map, SYNC_WAVE, 0, 5, 1);
 		}
 	}
 	dc_link_event(dc, DC_EVT_NF, 0, 0);
@@ -294,7 +316,7 @@ struct ipu_dc *ipu_dc_get(struct ipu_soc *ipu, int channel)
 		return ERR_PTR(-EBUSY);
 	}
 
-	dc->in_use = 1;
+	dc->in_use = true;
 
 	mutex_unlock(&priv->mutex);
 
@@ -307,7 +329,7 @@ void ipu_dc_put(struct ipu_dc *dc)
 	struct ipu_dc_priv *priv = dc->priv;
 
 	mutex_lock(&priv->mutex);
-	dc->in_use = 0;
+	dc->in_use = false;
 	mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL_GPL(ipu_dc_put);
@@ -363,6 +385,24 @@ int ipu_dc_init(struct ipu_soc *ipu, struct device *dev,
 	ipu_dc_map_config(priv, IPU_DC_MAP_RGB565, 0, 4, 0xf8); /* blue */
 	ipu_dc_map_config(priv, IPU_DC_MAP_RGB565, 1, 10, 0xfc); /* green */
 	ipu_dc_map_config(priv, IPU_DC_MAP_RGB565, 2, 15, 0xf8); /* red */
+
+	/* gbr24 */
+	ipu_dc_map_clear(priv, IPU_DC_MAP_GBR24);
+	ipu_dc_map_config(priv, IPU_DC_MAP_GBR24, 2, 15, 0xff); /* green */
+	ipu_dc_map_config(priv, IPU_DC_MAP_GBR24, 1, 7, 0xff); /* blue */
+	ipu_dc_map_config(priv, IPU_DC_MAP_GBR24, 0, 23, 0xff); /* red */
+
+	/* bgr666 */
+	ipu_dc_map_clear(priv, IPU_DC_MAP_BGR666);
+	ipu_dc_map_config(priv, IPU_DC_MAP_BGR666, 0, 5, 0xfc); /* blue */
+	ipu_dc_map_config(priv, IPU_DC_MAP_BGR666, 1, 11, 0xfc); /* green */
+	ipu_dc_map_config(priv, IPU_DC_MAP_BGR666, 2, 17, 0xfc); /* red */
+
+	/* bgr24 */
+	ipu_dc_map_clear(priv, IPU_DC_MAP_BGR24);
+	ipu_dc_map_config(priv, IPU_DC_MAP_BGR24, 2, 7, 0xff); /* red */
+	ipu_dc_map_config(priv, IPU_DC_MAP_BGR24, 1, 15, 0xff); /* green */
+	ipu_dc_map_config(priv, IPU_DC_MAP_BGR24, 0, 23, 0xff); /* blue */
 
 	return 0;
 }

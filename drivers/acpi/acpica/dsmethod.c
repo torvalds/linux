@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@
 #include "acinterp.h"
 #include "acnamesp.h"
 #ifdef	ACPI_DISASSEMBLER
-#include <acpi/acdisasm.h>
+#include "acdisasm.h"
 #endif
 
 #define _COMPONENT          ACPI_DISPATCHER
@@ -151,6 +151,7 @@ acpi_ds_create_method_mutex(union acpi_operand_object *method_desc)
 
 	status = acpi_os_create_mutex(&mutex_desc->mutex.os_mutex);
 	if (ACPI_FAILURE(status)) {
+		acpi_ut_delete_object_desc(mutex_desc);
 		return_ACPI_STATUS(status);
 	}
 
@@ -291,9 +292,10 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
 	 * reentered one more time (even if it is the same thread)
 	 */
 	obj_desc->method.thread_count++;
+	acpi_method_count++;
 	return_ACPI_STATUS(status);
 
-      cleanup:
+cleanup:
 	/* On error, must release the method mutex (if present) */
 
 	if (obj_desc->method.mutex) {
@@ -378,7 +380,8 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 	 */
 	info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_evaluate_info));
 	if (!info) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		status = AE_NO_MEMORY;
+		goto cleanup;
 	}
 
 	info->parameters = &this_walk_state->operands[0];
@@ -422,7 +425,7 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 
 	return_ACPI_STATUS(status);
 
-      cleanup:
+cleanup:
 
 	/* On error, we must terminate the method properly */
 

@@ -82,7 +82,7 @@
 
 	.macro	enable_dbg_if_not_stepping, tmp
 	mrs	\tmp, mdscr_el1
-	tbnz	\tmp, #1, 9990f
+	tbnz	\tmp, #0, 9990f
 	enable_dbg
 9990:
 	.endm
@@ -114,4 +114,35 @@ lr	.req	x30		// link register
 	 .macro	ventry	label
 	.align	7
 	b	\label
+	.endm
+
+/*
+ * Select code when configured for BE.
+ */
+#ifdef CONFIG_CPU_BIG_ENDIAN
+#define CPU_BE(code...) code
+#else
+#define CPU_BE(code...)
+#endif
+
+/*
+ * Select code when configured for LE.
+ */
+#ifdef CONFIG_CPU_BIG_ENDIAN
+#define CPU_LE(code...)
+#else
+#define CPU_LE(code...) code
+#endif
+
+/*
+ * Define a macro that constructs a 64-bit value by concatenating two
+ * 32-bit registers. Note that on big endian systems the order of the
+ * registers is swapped.
+ */
+#ifndef CONFIG_CPU_BIG_ENDIAN
+	.macro	regs_to_64, rd, lbits, hbits
+#else
+	.macro	regs_to_64, rd, hbits, lbits
+#endif
+	orr	\rd, \lbits, \hbits, lsl #32
 	.endm

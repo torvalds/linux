@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -101,7 +101,7 @@ acpi_ev_walk_gpe_list(acpi_gpe_callback gpe_walk_callback, void *context)
 		gpe_xrupt_info = gpe_xrupt_info->next;
 	}
 
-      unlock_and_exit:
+unlock_and_exit:
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 	return_ACPI_STATUS(status);
 }
@@ -196,7 +196,7 @@ acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
  *
  * FUNCTION:    acpi_ev_get_gpe_xrupt_block
  *
- * PARAMETERS:  interrupt_number     - Interrupt for a GPE block
+ * PARAMETERS:  interrupt_number            - Interrupt for a GPE block
  *
  * RETURN:      A GPE interrupt block
  *

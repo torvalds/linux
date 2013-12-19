@@ -39,6 +39,7 @@
 #include "ocrdma_ah.h"
 #include "be_roce.h"
 #include "ocrdma_hw.h"
+#include "ocrdma_abi.h"
 
 MODULE_VERSION(OCRDMA_ROCE_DEV_VERSION);
 MODULE_DESCRIPTION("Emulex RoCE HCA Driver");
@@ -50,18 +51,6 @@ static DEFINE_SPINLOCK(ocrdma_devlist_lock);
 static DEFINE_IDR(ocrdma_dev_id);
 
 static union ib_gid ocrdma_zero_sgid;
-
-static int ocrdma_get_instance(void)
-{
-	int instance = 0;
-
-	/* Assign an unused number */
-	if (!idr_pre_get(&ocrdma_dev_id, GFP_KERNEL))
-		return -1;
-	if (idr_get_new(&ocrdma_dev_id, NULL, &instance))
-		return -1;
-	return instance;
-}
 
 void ocrdma_get_guid(struct ocrdma_dev *dev, u8 *guid)
 {
@@ -277,6 +266,7 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	memcpy(dev->ibdev.node_desc, OCRDMA_NODE_DESC,
 	       sizeof(OCRDMA_NODE_DESC));
 	dev->ibdev.owner = THIS_MODULE;
+	dev->ibdev.uverbs_abi_ver = OCRDMA_ABI_VERSION;
 	dev->ibdev.uverbs_cmd_mask =
 	    OCRDMA_UVERBS(GET_CONTEXT) |
 	    OCRDMA_UVERBS(QUERY_DEVICE) |
@@ -338,8 +328,13 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	dev->ibdev.req_notify_cq = ocrdma_arm_cq;
 
 	dev->ibdev.get_dma_mr = ocrdma_get_dma_mr;
+	dev->ibdev.reg_phys_mr = ocrdma_reg_kernel_mr;
 	dev->ibdev.dereg_mr = ocrdma_dereg_mr;
 	dev->ibdev.reg_user_mr = ocrdma_reg_user_mr;
+
+	dev->ibdev.alloc_fast_reg_mr = ocrdma_alloc_frmr;
+	dev->ibdev.alloc_fast_reg_page_list = ocrdma_alloc_frmr_page_list;
+	dev->ibdev.free_fast_reg_page_list = ocrdma_free_frmr_page_list;
 
 	/* mandatory to support user space verbs consumer. */
 	dev->ibdev.alloc_ucontext = ocrdma_alloc_ucontext;
@@ -390,7 +385,7 @@ static int ocrdma_alloc_resources(struct ocrdma_dev *dev)
 	spin_lock_init(&dev->flush_q_lock);
 	return 0;
 alloc_err:
-	ocrdma_err("%s(%d) error.\n", __func__, dev->id);
+	pr_err("%s(%d) error.\n", __func__, dev->id);
 	return -ENOMEM;
 }
 
@@ -408,7 +403,7 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 
 	dev = (struct ocrdma_dev *)ib_alloc_device(sizeof(struct ocrdma_dev));
 	if (!dev) {
-		ocrdma_err("Unable to allocate ib device\n");
+		pr_err("Unable to allocate ib device\n");
 		return NULL;
 	}
 	dev->mbx_cmd = kzalloc(sizeof(struct ocrdma_mqe_emb_cmd), GFP_KERNEL);
@@ -416,7 +411,7 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 		goto idr_err;
 
 	memcpy(&dev->nic_info, dev_info, sizeof(*dev_info));
-	dev->id = ocrdma_get_instance();
+	dev->id = idr_alloc(&ocrdma_dev_id, NULL, 0, 0, GFP_KERNEL);
 	if (dev->id < 0)
 		goto idr_err;
 
@@ -449,16 +444,13 @@ init_err:
 idr_err:
 	kfree(dev->mbx_cmd);
 	ib_dealloc_device(&dev->ibdev);
-	ocrdma_err("%s() leaving. ret=%d\n", __func__, status);
+	pr_err("%s() leaving. ret=%d\n", __func__, status);
 	return NULL;
 }
 
 static void ocrdma_remove_free(struct rcu_head *rcu)
 {
 	struct ocrdma_dev *dev = container_of(rcu, struct ocrdma_dev, rcu);
-
-	ocrdma_free_resources(dev);
-	ocrdma_cleanup_hw(dev);
 
 	idr_remove(&ocrdma_dev_id, dev->id);
 	kfree(dev->mbx_cmd);
@@ -475,6 +467,10 @@ static void ocrdma_remove(struct ocrdma_dev *dev)
 	spin_lock(&ocrdma_devlist_lock);
 	list_del_rcu(&dev->entry);
 	spin_unlock(&ocrdma_devlist_lock);
+
+	ocrdma_free_resources(dev);
+	ocrdma_cleanup_hw(dev);
+
 	call_rcu(&dev->rcu, ocrdma_remove_free);
 }
 
@@ -536,7 +532,7 @@ static void ocrdma_event_handler(struct ocrdma_dev *dev, u32 event)
 	case BE_DEV_DOWN:
 		ocrdma_close(dev);
 		break;
-	};
+	}
 }
 
 static struct ocrdma_driver ocrdma_drv = {

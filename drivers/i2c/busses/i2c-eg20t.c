@@ -312,24 +312,6 @@ static void pch_i2c_start(struct i2c_algo_pch_data *adap)
 }
 
 /**
- * pch_i2c_getack() - to confirm ACK/NACK
- * @adap:	Pointer to struct i2c_algo_pch_data.
- */
-static s32 pch_i2c_getack(struct i2c_algo_pch_data *adap)
-{
-	u32 reg_val;
-	void __iomem *p = adap->pch_base_address;
-	reg_val = ioread32(p + PCH_I2CSR) & PCH_GETACK;
-
-	if (reg_val != 0) {
-		pch_err(adap, "return%d\n", -EPROTO);
-		return -EPROTO;
-	}
-
-	return 0;
-}
-
-/**
  * pch_i2c_stop() - generate stop condition in normal mode.
  * @adap:	Pointer to struct i2c_algo_pch_data.
  */
@@ -344,6 +326,7 @@ static void pch_i2c_stop(struct i2c_algo_pch_data *adap)
 static int pch_i2c_wait_for_check_xfer(struct i2c_algo_pch_data *adap)
 {
 	long ret;
+	void __iomem *p = adap->pch_base_address;
 
 	ret = wait_event_timeout(pch_event,
 			(adap->pch_event_flag != 0), msecs_to_jiffies(1000));
@@ -366,10 +349,9 @@ static int pch_i2c_wait_for_check_xfer(struct i2c_algo_pch_data *adap)
 
 	adap->pch_event_flag = 0;
 
-	if (pch_i2c_getack(adap)) {
-		pch_dbg(adap, "Receive NACK for slave address"
-			"setting\n");
-		return -EIO;
+	if (ioread32(p + PCH_I2CSR) & PCH_GETACK) {
+		pch_dbg(adap, "Receive NACK for slave address setting\n");
+		return -ENXIO;
 	}
 
 	return 0;
@@ -758,7 +740,7 @@ static void pch_i2c_disbl_int(struct i2c_algo_pch_data *adap)
 	iowrite32(BUFFER_MODE_INTR_DISBL, p + PCH_I2CBUFMSK);
 }
 
-static int __devinit pch_i2c_probe(struct pci_dev *pdev,
+static int pch_i2c_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
 {
 	void __iomem *base_addr;
@@ -851,7 +833,7 @@ err_pci_enable:
 	return ret;
 }
 
-static void __devexit pch_i2c_remove(struct pci_dev *pdev)
+static void pch_i2c_remove(struct pci_dev *pdev)
 {
 	int i;
 	struct adapter_info *adap_info = pci_get_drvdata(pdev);
@@ -868,8 +850,6 @@ static void __devexit pch_i2c_remove(struct pci_dev *pdev)
 
 	for (i = 0; i < adap_info->ch_num; i++)
 		adap_info->pch_data[i].pch_base_address = NULL;
-
-	pci_set_drvdata(pdev, NULL);
 
 	pci_release_regions(pdev);
 
@@ -948,7 +928,7 @@ static struct pci_driver pch_pcidriver = {
 	.name = KBUILD_MODNAME,
 	.id_table = pch_pcidev_id,
 	.probe = pch_i2c_probe,
-	.remove = __devexit_p(pch_i2c_remove),
+	.remove = pch_i2c_remove,
 	.suspend = pch_i2c_suspend,
 	.resume = pch_i2c_resume
 };

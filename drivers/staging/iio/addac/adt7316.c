@@ -256,7 +256,7 @@ static ssize_t adt7316_store_enabled(struct device *dev,
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 	int enable;
 
-	if (!memcmp(buf, "1", 1))
+	if (buf[0] == '1')
 		enable = 1;
 	else
 		enable = 0;
@@ -299,7 +299,7 @@ static ssize_t adt7316_store_select_ex_temp(struct device *dev,
 		return -EPERM;
 
 	config1 = chip->config1 & (~ADT7516_SEL_EX_TEMP);
-	if (!memcmp(buf, "1", 1))
+	if (buf[0] == '1')
 		config1 |= ADT7516_SEL_EX_TEMP;
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG1, config1);
@@ -412,13 +412,13 @@ static ssize_t adt7316_store_ad_channel(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 	u8 config2;
-	unsigned long data = 0;
+	u8 data;
 	int ret;
 
 	if (!(chip->config2 & ADT7316_AD_SINGLE_CH_MODE))
 		return -EPERM;
 
-	ret = strict_strtoul(buf, 10, &data);
+	ret = kstrtou8(buf, 10, &data);
 	if (ret)
 		return -EINVAL;
 
@@ -495,7 +495,7 @@ static ssize_t adt7316_store_disable_averaging(struct device *dev,
 	int ret;
 
 	config2 = chip->config2 & (~ADT7316_DISABLE_AVERAGING);
-	if (!memcmp(buf, "1", 1))
+	if (buf[0] == '1')
 		config2 |= ADT7316_DISABLE_AVERAGING;
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG2, config2);
@@ -534,7 +534,7 @@ static ssize_t adt7316_store_enable_smbus_timeout(struct device *dev,
 	int ret;
 
 	config2 = chip->config2 & (~ADT7316_EN_SMBUS_TIMEOUT);
-	if (!memcmp(buf, "1", 1))
+	if (buf[0] == '1')
 		config2 |= ADT7316_EN_SMBUS_TIMEOUT;
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG2, config2);
@@ -549,31 +549,6 @@ static ssize_t adt7316_store_enable_smbus_timeout(struct device *dev,
 static IIO_DEVICE_ATTR(enable_smbus_timeout, S_IRUGO | S_IWUSR,
 		adt7316_show_enable_smbus_timeout,
 		adt7316_store_enable_smbus_timeout,
-		0);
-
-
-static ssize_t adt7316_store_reset(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
-{
-	struct iio_dev *dev_info = dev_to_iio_dev(dev);
-	struct adt7316_chip_info *chip = iio_priv(dev_info);
-	u8 config2;
-	int ret;
-
-	config2 = chip->config2 | ADT7316_RESET;
-
-	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG2, config2);
-	if (ret)
-		return -EIO;
-
-	return len;
-}
-
-static IIO_DEVICE_ATTR(reset, S_IWUSR,
-		NULL,
-		adt7316_store_reset,
 		0);
 
 static ssize_t adt7316_show_powerdown(struct device *dev,
@@ -597,7 +572,7 @@ static ssize_t adt7316_store_powerdown(struct device *dev,
 	int ret;
 
 	config1 = chip->config1 & (~ADT7316_PD);
-	if (!memcmp(buf, "1", 1))
+	if (buf[0] == '1')
 		config1 |= ADT7316_PD;
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG1, config1);
@@ -635,7 +610,7 @@ static ssize_t adt7316_store_fast_ad_clock(struct device *dev,
 	int ret;
 
 	config3 = chip->config3 & (~ADT7316_ADCLK_22_5);
-	if (!memcmp(buf, "1", 1))
+	if (buf[0] == '1')
 		config3 |= ADT7316_ADCLK_22_5;
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG3, config3);
@@ -681,7 +656,7 @@ static ssize_t adt7316_store_da_high_resolution(struct device *dev,
 
 	chip->dac_bits = 8;
 
-	if (!memcmp(buf, "1", 1)) {
+	if (buf[0] == '1') {
 		config3 = chip->config3 | ADT7316_DA_HIGH_RESOLUTION;
 		if (chip->id == ID_ADT7316 || chip->id == ID_ADT7516)
 			chip->dac_bits = 12;
@@ -731,7 +706,7 @@ static ssize_t adt7316_store_AIN_internal_Vref(struct device *dev,
 	if ((chip->id & ID_FAMILY_MASK) != ID_ADT75XX)
 		return -EPERM;
 
-	if (memcmp(buf, "1", 1))
+	if (buf[0] != '1')
 		config3 = chip->config3 & (~ADT7516_AIN_IN_VREF);
 	else
 		config3 = chip->config3 | ADT7516_AIN_IN_VREF;
@@ -773,7 +748,7 @@ static ssize_t adt7316_store_enable_prop_DACA(struct device *dev,
 	int ret;
 
 	config3 = chip->config3 & (~ADT7316_EN_IN_TEMP_PROP_DACA);
-	if (!memcmp(buf, "1", 1))
+	if (buf[0] == '1')
 		config3 |= ADT7316_EN_IN_TEMP_PROP_DACA;
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG3, config3);
@@ -812,7 +787,7 @@ static ssize_t adt7316_store_enable_prop_DACB(struct device *dev,
 	int ret;
 
 	config3 = chip->config3 & (~ADT7316_EN_EX_TEMP_PROP_DACB);
-	if (!memcmp(buf, "1", 1))
+	if (buf[0] == '1')
 		config3 |= ADT7316_EN_EX_TEMP_PROP_DACB;
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG3, config3);
@@ -848,10 +823,10 @@ static ssize_t adt7316_store_DAC_2Vref_ch_mask(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 	u8 dac_config;
-	unsigned long data = 0;
+	u8 data;
 	int ret;
 
-	ret = strict_strtoul(buf, 16, &data);
+	ret = kstrtou8(buf, 16, &data);
 	if (ret || data > ADT7316_DA_2VREF_CH_MASK)
 		return -EINVAL;
 
@@ -903,13 +878,13 @@ static ssize_t adt7316_store_DAC_update_mode(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 	u8 dac_config;
-	unsigned long data;
+	u8 data;
 	int ret;
 
 	if (!(chip->config3 & ADT7316_DA_EN_VIA_DAC_LDCA))
 		return -EPERM;
 
-	ret = strict_strtoul(buf, 10, &data);
+	ret = kstrtou8(buf, 10, &data);
 	if (ret || data > ADT7316_DA_EN_MODE_MASK)
 		return -EINVAL;
 
@@ -958,7 +933,7 @@ static ssize_t adt7316_store_update_DAC(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 	u8 ldac_config;
-	unsigned long data;
+	u8 data;
 	int ret;
 
 	if (chip->config3 & ADT7316_DA_EN_VIA_DAC_LDCA) {
@@ -966,7 +941,7 @@ static ssize_t adt7316_store_update_DAC(struct device *dev,
 			ADT7316_DA_EN_MODE_LDAC)
 			return -EPERM;
 
-		ret = strict_strtoul(buf, 16, &data);
+		ret = kstrtou8(buf, 16, &data);
 		if (ret || data > ADT7316_LDAC_EN_DA_MASK)
 			return -EINVAL;
 
@@ -1018,7 +993,7 @@ static ssize_t adt7316_store_DA_AB_Vref_bypass(struct device *dev,
 		return -EPERM;
 
 	dac_config = chip->dac_config & (~ADT7316_VREF_BYPASS_DAC_AB);
-	if (!memcmp(buf, "1", 1))
+	if (buf[0] == '1')
 		dac_config |= ADT7316_VREF_BYPASS_DAC_AB;
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_DAC_CONFIG, dac_config);
@@ -1063,7 +1038,7 @@ static ssize_t adt7316_store_DA_CD_Vref_bypass(struct device *dev,
 		return -EPERM;
 
 	dac_config = chip->dac_config & (~ADT7316_VREF_BYPASS_DAC_CD);
-	if (!memcmp(buf, "1", 1))
+	if (buf[0] == '1')
 		dac_config |= ADT7316_VREF_BYPASS_DAC_CD;
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_DAC_CONFIG, dac_config);
@@ -1104,11 +1079,11 @@ static ssize_t adt7316_store_DAC_internal_Vref(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 	u8 ldac_config;
-	unsigned long data;
+	u8 data;
 	int ret;
 
 	if ((chip->id & ID_FAMILY_MASK) == ID_ADT75XX) {
-		ret = strict_strtoul(buf, 16, &data);
+		ret = kstrtou8(buf, 16, &data);
 		if (ret || data > 3)
 			return -EINVAL;
 
@@ -1118,7 +1093,7 @@ static ssize_t adt7316_store_DAC_internal_Vref(struct device *dev,
 		else if (data & 0x2)
 			ldac_config |= ADT7516_DAC_CD_IN_VREF;
 	} else {
-		ret = strict_strtoul(buf, 16, &data);
+		ret = kstrtou8(buf, 16, &data);
 		if (ret)
 			return -EINVAL;
 
@@ -1306,11 +1281,11 @@ static ssize_t adt7316_show_temp_offset(struct adt7316_chip_info *chip,
 static ssize_t adt7316_store_temp_offset(struct adt7316_chip_info *chip,
 		int offset_addr, const char *buf, size_t len)
 {
-	long data;
+	int data;
 	u8 val;
 	int ret;
 
-	ret = strict_strtol(buf, 10, &data);
+	ret = kstrtoint(buf, 10, &data);
 	if (ret || data > 127 || data < -128)
 		return -EINVAL;
 
@@ -1467,7 +1442,7 @@ static ssize_t adt7316_store_DAC(struct adt7316_chip_info *chip,
 		int channel, const char *buf, size_t len)
 {
 	u8 msb, lsb, offset;
-	unsigned long data;
+	u16 data;
 	int ret;
 
 	if (channel >= ADT7316_DA_MSB_DATA_REGS ||
@@ -1479,7 +1454,7 @@ static ssize_t adt7316_store_DAC(struct adt7316_chip_info *chip,
 
 	offset = chip->dac_bits - 8;
 
-	ret = strict_strtoul(buf, 10, &data);
+	ret = kstrtou16(buf, 10, &data);
 	if (ret || data >= (1 << chip->dac_bits))
 		return -EINVAL;
 
@@ -1675,7 +1650,6 @@ static IIO_DEVICE_ATTR(bus_type, S_IRUGO, adt7316_show_bus_type, NULL, 0);
 static struct attribute *adt7316_attributes[] = {
 	&iio_dev_attr_all_modes.dev_attr.attr,
 	&iio_dev_attr_mode.dev_attr.attr,
-	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_dev_attr_enabled.dev_attr.attr,
 	&iio_dev_attr_ad_channel.dev_attr.attr,
 	&iio_dev_attr_all_ad_channels.dev_attr.attr,
@@ -1719,7 +1693,6 @@ static struct attribute *adt7516_attributes[] = {
 	&iio_dev_attr_all_modes.dev_attr.attr,
 	&iio_dev_attr_mode.dev_attr.attr,
 	&iio_dev_attr_select_ex_temp.dev_attr.attr,
-	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_dev_attr_enabled.dev_attr.attr,
 	&iio_dev_attr_ad_channel.dev_attr.attr,
 	&iio_dev_attr_all_ad_channels.dev_attr.attr,
@@ -1857,11 +1830,11 @@ static ssize_t adt7316_set_int_mask(struct device *dev,
 {
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
-	unsigned long data;
+	u16 data;
 	int ret;
 	u8 mask;
 
-	ret = strict_strtoul(buf, 16, &data);
+	ret = kstrtou16(buf, 16, &data);
 	if (ret || data >= ADT7316_VDD_INT_MASK + 1)
 		return -EINVAL;
 
@@ -1928,7 +1901,7 @@ static inline ssize_t adt7316_set_ad_bound(struct device *dev,
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
-	long data;
+	int data;
 	u8 val;
 	int ret;
 
@@ -1936,7 +1909,7 @@ static inline ssize_t adt7316_set_ad_bound(struct device *dev,
 		this_attr->address > ADT7316_EX_TEMP_LOW)
 		return -EPERM;
 
-	ret = strict_strtol(buf, 10, &data);
+	ret = kstrtoint(buf, 10, &data);
 	if (ret)
 		return -EINVAL;
 
@@ -1982,7 +1955,7 @@ static ssize_t adt7316_set_int_enabled(struct device *dev,
 	int ret;
 
 	config1 = chip->config1 & (~ADT7316_INT_EN);
-	if (!memcmp(buf, "1", 1))
+	if (buf[0] == '1')
 		config1 |= ADT7316_INT_EN;
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG1, config1);
@@ -2133,11 +2106,9 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 	unsigned short *adt7316_platform_data = dev->platform_data;
 	int ret = 0;
 
-	indio_dev = iio_device_alloc(sizeof(*chip));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*chip));
+	if (!indio_dev)
+		return -ENOMEM;
 	chip = iio_priv(indio_dev);
 	/* this is only used for device removal purposes */
 	dev_set_drvdata(dev, indio_dev);
@@ -2173,58 +2144,44 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 		if (adt7316_platform_data[0])
 			chip->bus.irq_flags = adt7316_platform_data[0];
 
-		ret = request_threaded_irq(chip->bus.irq,
-					   NULL,
-					   &adt7316_event_handler,
-					   chip->bus.irq_flags | IRQF_ONESHOT,
-					   indio_dev->name,
-					   indio_dev);
+		ret = devm_request_threaded_irq(dev, chip->bus.irq,
+						NULL,
+						&adt7316_event_handler,
+						chip->bus.irq_flags |
+						IRQF_ONESHOT,
+						indio_dev->name,
+						indio_dev);
 		if (ret)
-			goto error_free_dev;
+			return ret;
 
 		if (chip->bus.irq_flags & IRQF_TRIGGER_HIGH)
 			chip->config1 |= ADT7316_INT_POLARITY;
 	}
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG1, chip->config1);
-	if (ret) {
-		ret = -EIO;
-		goto error_unreg_irq;
-	}
+	if (ret)
+		return -EIO;
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG3, chip->config3);
-	if (ret) {
-		ret = -EIO;
-		goto error_unreg_irq;
-	}
+	if (ret)
+		return -EIO;
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_unreg_irq;
+		return ret;
 
 	dev_info(dev, "%s temperature sensor, ADC and DAC registered.\n",
 			indio_dev->name);
 
 	return 0;
-
-error_unreg_irq:
-	free_irq(chip->bus.irq, indio_dev);
-error_free_dev:
-	iio_device_free(indio_dev);
-error_ret:
-	return ret;
 }
 EXPORT_SYMBOL(adt7316_probe);
 
 int adt7316_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct adt7316_chip_info *chip = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	if (chip->bus.irq)
-		free_irq(chip->bus.irq, indio_dev);
-	iio_device_free(indio_dev);
 
 	return 0;
 }

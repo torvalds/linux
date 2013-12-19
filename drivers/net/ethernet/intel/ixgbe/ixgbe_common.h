@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -40,6 +40,8 @@ s32 ixgbe_clear_hw_cntrs_generic(struct ixgbe_hw *hw);
 s32 ixgbe_read_pba_string_generic(struct ixgbe_hw *hw, u8 *pba_num,
                                   u32 pba_num_size);
 s32 ixgbe_get_mac_addr_generic(struct ixgbe_hw *hw, u8 *mac_addr);
+enum ixgbe_bus_width ixgbe_convert_bus_width(u16 link_status);
+enum ixgbe_bus_speed ixgbe_convert_bus_speed(u16 link_status);
 s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw);
 void ixgbe_set_lan_id_multi_port_pcie(struct ixgbe_hw *hw);
 s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw);
@@ -78,7 +80,7 @@ s32 ixgbe_disable_rx_buff_generic(struct ixgbe_hw *hw);
 s32 ixgbe_enable_rx_buff_generic(struct ixgbe_hw *hw);
 s32 ixgbe_enable_rx_dma_generic(struct ixgbe_hw *hw, u32 regval);
 s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw);
-s32 ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw);
+bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw);
 void ixgbe_fc_autoneg(struct ixgbe_hw *hw);
 
 s32 ixgbe_acquire_swfw_sync(struct ixgbe_hw *hw, u16 mask);
@@ -141,8 +143,12 @@ s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw);
 
 #define IXGBE_WRITE_FLUSH(a) IXGBE_READ_REG(a, IXGBE_STATUS)
 
+#define ixgbe_hw_to_netdev(hw) (((struct ixgbe_adapter *)(hw)->back)->netdev)
+
 #define hw_dbg(hw, format, arg...) \
-	netdev_dbg(((struct ixgbe_adapter *)(hw->back))->netdev, format, ##arg)
+	netdev_dbg(ixgbe_hw_to_netdev(hw), format, ## arg)
+#define hw_err(hw, format, arg...) \
+	netdev_err(ixgbe_hw_to_netdev(hw), format, ## arg)
 #define e_dev_info(format, arg...) \
 	dev_info(&adapter->pdev->dev, format, ## arg)
 #define e_dev_warn(format, arg...) \

@@ -68,6 +68,8 @@ static struct idma_info {
 	dma_addr_t	lp_tx_addr;
 } idma;
 
+static int idma_irq;
+
 static void idma_getpos(dma_addr_t *src)
 {
 	*src = idma.lp_tx_addr +
@@ -255,7 +257,6 @@ static int idma_mmap(struct snd_pcm_substream *substream,
 
 	/* From snd_pcm_lib_mmap_iomem */
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	vma->vm_flags |= VM_IO;
 	size = vma->vm_end - vma->vm_start;
 	offset = vma->vm_pgoff << PAGE_SHIFT;
 	ret = io_remap_pfn_range(vma, vma->vm_start,
@@ -305,7 +306,7 @@ static int idma_open(struct snd_pcm_substream *substream)
 	if (prtd == NULL)
 		return -ENOMEM;
 
-	ret = request_irq(IRQ_I2S0, iis_irq, 0, "i2s", prtd);
+	ret = request_irq(idma_irq, iis_irq, 0, "i2s", prtd);
 	if (ret < 0) {
 		pr_err("fail to claim i2s irq , ret = %d\n", ret);
 		kfree(prtd);
@@ -324,7 +325,7 @@ static int idma_close(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct idma_ctrl *prtd = runtime->private_data;
 
-	free_irq(IRQ_I2S0, prtd);
+	free_irq(idma_irq, prtd);
 
 	if (!prtd)
 		pr_err("idma_close called with prtd == NULL\n");
@@ -382,18 +383,15 @@ static int preallocate_idma_buffer(struct snd_pcm *pcm, int stream)
 	return 0;
 }
 
-static u64 idma_mask = DMA_BIT_MASK(32);
-
 static int idma_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_pcm *pcm = rtd->pcm;
-	int ret = 0;
+	int ret;
 
-	if (!card->dev->dma_mask)
-		card->dev->dma_mask = &idma_mask;
-	if (!card->dev->coherent_dma_mask)
-		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		ret = preallocate_idma_buffer(pcm,
@@ -409,6 +407,7 @@ void idma_reg_addr_init(void __iomem *regs, dma_addr_t addr)
 	idma.regs = regs;
 	idma.lp_tx_addr = addr;
 }
+EXPORT_SYMBOL_GPL(idma_reg_addr_init);
 
 static struct snd_soc_platform_driver asoc_idma_platform = {
 	.ops = &idma_ops,
@@ -418,6 +417,10 @@ static struct snd_soc_platform_driver asoc_idma_platform = {
 
 static int asoc_idma_platform_probe(struct platform_device *pdev)
 {
+	idma_irq = platform_get_irq(pdev, 0);
+	if (idma_irq < 0)
+		return idma_irq;
+
 	return snd_soc_register_platform(&pdev->dev, &asoc_idma_platform);
 }
 

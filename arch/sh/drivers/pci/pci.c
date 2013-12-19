@@ -32,7 +32,7 @@ static struct pci_channel *hose_head, **hose_tail = &hose_head;
 
 static int pci_initialized;
 
-static void __devinit pcibios_scanbus(struct pci_channel *hose)
+static void pcibios_scanbus(struct pci_channel *hose)
 {
 	static int next_busno;
 	static int need_domain_info;
@@ -69,7 +69,6 @@ static void __devinit pcibios_scanbus(struct pci_channel *hose)
 
 		pci_bus_size_bridges(bus);
 		pci_bus_assign_resources(bus);
-		pci_enable_bridges(bus);
 	} else {
 		pci_free_resource_list(&resources);
 	}
@@ -82,7 +81,7 @@ static void __devinit pcibios_scanbus(struct pci_channel *hose)
 DEFINE_RAW_SPINLOCK(pci_config_lock);
 static DEFINE_MUTEX(pci_scan_mutex);
 
-int __devinit register_pci_controller(struct pci_channel *hose)
+int register_pci_controller(struct pci_channel *hose)
 {
 	int i;
 
@@ -156,7 +155,7 @@ subsys_initcall(pcibios_init);
  *  Called after each bus is probed, but before its children
  *  are examined.
  */
-void __devinit pcibios_fixup_bus(struct pci_bus *bus)
+void pcibios_fixup_bus(struct pci_bus *bus)
 {
 }
 

@@ -73,7 +73,7 @@ int acpi_map_pxm_to_node(int pxm)
 {
 	int node = pxm_to_node_map[pxm];
 
-	if (node < 0) {
+	if (node == NUMA_NO_NODE) {
 		if (nodes_weight(nodes_found_map) >= MAX_NUMNODES)
 			return NUMA_NO_NODE;
 		node = first_unset_node(nodes_found_map);
@@ -116,14 +116,16 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 			struct acpi_srat_mem_affinity *p =
 			    (struct acpi_srat_mem_affinity *)header;
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					  "SRAT Memory (0x%lx length 0x%lx) in proximity domain %d %s%s\n",
+					  "SRAT Memory (0x%lx length 0x%lx) in proximity domain %d %s%s%s\n",
 					  (unsigned long)p->base_address,
 					  (unsigned long)p->length,
 					  p->proximity_domain,
 					  (p->flags & ACPI_SRAT_MEM_ENABLED)?
 					  "enabled" : "disabled",
 					  (p->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE)?
-					  " hot-pluggable" : ""));
+					  " hot-pluggable" : "",
+					  (p->flags & ACPI_SRAT_MEM_NON_VOLATILE)?
+					  " non-volatile" : ""));
 		}
 #endif				/* ACPI_DEBUG_OUTPUT */
 		break;
@@ -157,7 +159,7 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
  * distance than the others.
  * Do some quick checks here and only use the SLIT if it passes.
  */
-static __init int slit_valid(struct acpi_table_slit *slit)
+static int __init slit_valid(struct acpi_table_slit *slit)
 {
 	int i, j;
 	int d = slit->locality_count;
@@ -273,7 +275,7 @@ static int __init acpi_parse_srat(struct acpi_table_header *table)
 
 static int __init
 acpi_table_parse_srat(enum acpi_srat_type id,
-		      acpi_table_entry_handler handler, unsigned int max_entries)
+		      acpi_tbl_entry_handler handler, unsigned int max_entries)
 {
 	return acpi_table_parse_entries(ACPI_SIG_SRAT,
 					    sizeof(struct acpi_table_srat), id,
@@ -332,7 +334,7 @@ int acpi_get_pxm(acpi_handle h)
 
 int acpi_get_node(acpi_handle *handle)
 {
-	int pxm, node = -1;
+	int pxm, node = NUMA_NO_NODE;
 
 	pxm = acpi_get_pxm(handle);
 	if (pxm >= 0 && pxm < MAX_PXM_DOMAINS)

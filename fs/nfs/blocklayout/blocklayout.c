@@ -1089,9 +1089,10 @@ nfs4_blk_get_deviceinfo(struct nfs_server *server, const struct nfs_fh *fh,
 	dev->pgbase = 0;
 	dev->pglen = PAGE_SIZE * max_pages;
 	dev->mincount = 0;
+	dev->maxcount = max_resp_sz - nfs41_maxgetdevinfo_overhead;
 
 	dprintk("%s: dev_id: %s\n", __func__, dev->dev_id.data);
-	rc = nfs4_proc_getdeviceinfo(server, dev);
+	rc = nfs4_proc_getdeviceinfo(server, dev, NULL);
 	dprintk("%s getdevice info returns %d\n", __func__, rc);
 	if (rc) {
 		rv = ERR_PTR(rc);
@@ -1273,6 +1274,7 @@ static const struct nfs_pageio_ops bl_pg_write_ops = {
 static struct pnfs_layoutdriver_type blocklayout_type = {
 	.id				= LAYOUT_BLOCK_VOLUME,
 	.name				= "LAYOUT_BLOCK_VOLUME",
+	.owner				= THIS_MODULE,
 	.read_pagelist			= bl_read_pagelist,
 	.write_pagelist			= bl_write_pagelist,
 	.alloc_layout_hdr		= bl_alloc_layout_hdr,

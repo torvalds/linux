@@ -29,11 +29,12 @@
 #include <linux/workqueue.h>
 #include <linux/gpio.h>
 #include <linux/extcon.h>
-#include <linux/extcon/extcon_gpio.h>
+#include <linux/extcon/extcon-gpio.h>
 
 struct gpio_extcon_data {
 	struct extcon_dev edev;
 	unsigned gpio;
+	bool gpio_active_low;
 	const char *state_on;
 	const char *state_off;
 	int irq;
@@ -49,6 +50,8 @@ static void gpio_extcon_work(struct work_struct *work)
 			     work);
 
 	state = gpio_get_value(data->gpio);
+	if (data->gpio_active_low)
+		state = !state;
 	extcon_set_state(&data->edev, state);
 }
 
@@ -56,7 +59,7 @@ static irqreturn_t gpio_irq_handler(int irq, void *dev_id)
 {
 	struct gpio_extcon_data *extcon_data = dev_id;
 
-	schedule_delayed_work(&extcon_data->work,
+	queue_delayed_work(system_power_efficient_wq, &extcon_data->work,
 			      extcon_data->debounce_jiffies);
 	return IRQ_HANDLED;
 }
@@ -78,9 +81,9 @@ static ssize_t extcon_gpio_print_state(struct extcon_dev *edev, char *buf)
 
 static int gpio_extcon_probe(struct platform_device *pdev)
 {
-	struct gpio_extcon_platform_data *pdata = pdev->dev.platform_data;
+	struct gpio_extcon_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct gpio_extcon_data *extcon_data;
-	int ret = 0;
+	int ret;
 
 	if (!pdata)
 		return -EBUSY;
@@ -95,14 +98,22 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	extcon_data->edev.name = pdata->name;
+	extcon_data->edev.dev.parent = &pdev->dev;
 	extcon_data->gpio = pdata->gpio;
+	extcon_data->gpio_active_low = pdata->gpio_active_low;
 	extcon_data->state_on = pdata->state_on;
 	extcon_data->state_off = pdata->state_off;
 	if (pdata->state_on && pdata->state_off)
 		extcon_data->edev.print_state = extcon_gpio_print_state;
-	extcon_data->debounce_jiffies = msecs_to_jiffies(pdata->debounce);
+	if (pdata->debounce) {
+		ret = gpio_set_debounce(extcon_data->gpio,
+					pdata->debounce * 1000);
+		if (ret < 0)
+			extcon_data->debounce_jiffies =
+				msecs_to_jiffies(pdata->debounce);
+	}
 
-	ret = extcon_dev_register(&extcon_data->edev, &pdev->dev);
+	ret = extcon_dev_register(&extcon_data->edev);
 	if (ret < 0)
 		return ret;
 

@@ -722,7 +722,6 @@ EXPORT_SYMBOL(oxygen_pci_probe);
 void oxygen_pci_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 EXPORT_SYMBOL(oxygen_pci_remove);
 

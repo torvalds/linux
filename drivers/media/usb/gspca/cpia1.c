@@ -421,8 +421,7 @@ static int cpia_usb_transferCmd(struct gspca_dev *gspca_dev, u8 *command)
 		pipe = usb_sndctrlpipe(gspca_dev->dev, 0);
 		requesttype = USB_TYPE_VENDOR | USB_RECIP_DEVICE;
 	} else {
-		PDEBUG(D_ERR, "Unexpected first byte of command: %x",
-		       command[0]);
+		PERR("Unexpected first byte of command: %x", command[0]);
 		return -EINVAL;
 	}
 
@@ -541,7 +540,7 @@ static int do_command(struct gspca_dev *gspca_dev, u16 command,
 		/* test button press */
 		a = ((gspca_dev->usb_buf[1] & 0x02) == 0);
 		if (a != sd->params.qx3.button) {
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 			input_report_key(gspca_dev->input_dev, KEY_CAMERA, a);
 			input_sync(gspca_dev->input_dev);
 #endif
@@ -701,7 +700,7 @@ static void reset_camera_params(struct gspca_dev *gspca_dev)
 	params->qx3.cradled = 0;
 }
 
-static void printstatus(struct cam_params *params)
+static void printstatus(struct gspca_dev *gspca_dev, struct cam_params *params)
 {
 	PDEBUG(D_PROBE, "status: %02x %02x %02x %02x %02x %02x %02x %02x",
 	       params->status.systemState, params->status.grabState,
@@ -725,10 +724,9 @@ static int goto_low_power(struct gspca_dev *gspca_dev)
 
 	if (sd->params.status.systemState != LO_POWER_STATE) {
 		if (sd->params.status.systemState != WARM_BOOT_STATE) {
-			PDEBUG(D_ERR,
-			       "unexpected state after lo power cmd: %02x",
-			       sd->params.status.systemState);
-			printstatus(&sd->params);
+			PERR("unexpected state after lo power cmd: %02x",
+			     sd->params.status.systemState);
+			printstatus(gspca_dev, &sd->params);
 		}
 		return -EIO;
 	}
@@ -756,9 +754,9 @@ static int goto_high_power(struct gspca_dev *gspca_dev)
 		return ret;
 
 	if (sd->params.status.systemState != HI_POWER_STATE) {
-		PDEBUG(D_ERR, "unexpected state after hi power cmd: %02x",
-			       sd->params.status.systemState);
-		printstatus(&sd->params);
+		PERR("unexpected state after hi power cmd: %02x",
+		     sd->params.status.systemState);
+		printstatus(gspca_dev, &sd->params);
 		return -EIO;
 	}
 
@@ -1449,8 +1447,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->params.version.firmwareVersion = 0;
 	get_version_information(gspca_dev);
 	if (sd->params.version.firmwareVersion != 1) {
-		PDEBUG(D_ERR, "only firmware version 1 is supported (got: %d)",
-		       sd->params.version.firmwareVersion);
+		PERR("only firmware version 1 is supported (got: %d)",
+		     sd->params.version.firmwareVersion);
 		return -ENODEV;
 	}
 
@@ -1475,9 +1473,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* Start the camera in low power mode */
 	if (goto_low_power(gspca_dev)) {
 		if (sd->params.status.systemState != WARM_BOOT_STATE) {
-			PDEBUG(D_ERR, "unexpected systemstate: %02x",
-			       sd->params.status.systemState);
-			printstatus(&sd->params);
+			PERR("unexpected systemstate: %02x",
+			     sd->params.status.systemState);
+			printstatus(gspca_dev, &sd->params);
 			return -ENODEV;
 		}
 
@@ -1523,9 +1521,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		return ret;
 
 	if (sd->params.status.fatalError) {
-		PDEBUG(D_ERR, "fatal_error: %04x, vp_status: %04x",
-		       sd->params.status.fatalError,
-		       sd->params.status.vpStatus);
+		PERR("fatal_error: %04x, vp_status: %04x",
+		     sd->params.status.fatalError, sd->params.status.vpStatus);
 		return -EIO;
 	}
 
@@ -1556,9 +1553,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		sd->params.format.videoSize = VIDEOSIZE_CIF;
 
 	sd->params.roi.colEnd = sd->params.roi.colStart +
-				(gspca_dev->width >> 3);
+				(gspca_dev->pixfmt.width >> 3);
 	sd->params.roi.rowEnd = sd->params.roi.rowStart +
-				(gspca_dev->height >> 2);
+				(gspca_dev->pixfmt.height >> 2);
 
 	/* And now set the camera to a known state */
 	ret = do_command(gspca_dev, CPIA_COMMAND_SetGrabMode,
@@ -1640,7 +1637,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	/* Update the camera status */
 	do_command(gspca_dev, CPIA_COMMAND_GetCameraStatus, 0, 0, 0, 0);
 
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 	/* If the last button state is pressed, release it now! */
 	if (sd->params.qx3.button) {
 		/* The camera latch will hold the pressed state until we reset
@@ -1869,7 +1866,7 @@ static const struct sd_desc sd_desc = {
 	.stopN = sd_stopN,
 	.dq_callback = sd_dq_callback,
 	.pkt_scan = sd_pkt_scan,
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 	.other_input = 1,
 #endif
 };

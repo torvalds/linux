@@ -39,6 +39,7 @@
 #include "internal.h"
 #include "delegation.h"
 #include "nfs4filelayout.h"
+#include "nfs4trace.h"
 
 #define NFSDBG_FACILITY         NFSDBG_PNFS_LD
 
@@ -99,7 +100,8 @@ static void filelayout_reset_write(struct nfs_write_data *data)
 
 		task->tk_status = pnfs_write_done_resend_to_mds(hdr->inode,
 							&hdr->pages,
-							hdr->completion_ops);
+							hdr->completion_ops,
+							hdr->dreq);
 	}
 }
 
@@ -119,7 +121,8 @@ static void filelayout_reset_read(struct nfs_read_data *data)
 
 		task->tk_status = pnfs_read_done_resend_to_mds(hdr->inode,
 							&hdr->pages,
-							hdr->completion_ops);
+							hdr->completion_ops,
+							hdr->dreq);
 	}
 }
 
@@ -127,7 +130,6 @@ static void filelayout_fenceme(struct inode *inode, struct pnfs_layout_hdr *lo)
 {
 	if (!test_and_clear_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
 		return;
-	clear_bit(NFS_INO_LAYOUTCOMMIT, &NFS_I(inode)->flags);
 	pnfs_return_layout(inode);
 }
 
@@ -157,11 +159,14 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 	case -NFS4ERR_OPENMODE:
 		if (state == NULL)
 			break;
-		nfs4_schedule_stateid_recovery(mds_server, state);
+		if (nfs4_schedule_stateid_recovery(mds_server, state) < 0)
+			goto out_bad_stateid;
 		goto wait_on_recovery;
 	case -NFS4ERR_EXPIRED:
-		if (state != NULL)
-			nfs4_schedule_stateid_recovery(mds_server, state);
+		if (state != NULL) {
+			if (nfs4_schedule_stateid_recovery(mds_server, state) < 0)
+				goto out_bad_stateid;
+		}
 		nfs4_schedule_lease_recovery(mds_client);
 		goto wait_on_recovery;
 	/* DS session errors */
@@ -225,6 +230,9 @@ reset:
 out:
 	task->tk_status = 0;
 	return -EAGAIN;
+out_bad_stateid:
+	task->tk_status = -EIO;
+	return 0;
 wait_on_recovery:
 	rpc_sleep_on(&mds_client->cl_rpcwaitq, task, NULL);
 	if (test_bit(NFS4CLNT_MANAGER_RUNNING, &mds_client->cl_state) == 0)
@@ -240,6 +248,7 @@ static int filelayout_read_done_cb(struct rpc_task *task,
 	struct nfs_pgio_header *hdr = data->header;
 	int err;
 
+	trace_nfs4_pnfs_read(data, task->tk_status);
 	err = filelayout_async_handle_error(task, data->args.context->state,
 					    data->ds_clp, hdr->lseg);
 
@@ -298,6 +307,10 @@ static void filelayout_read_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs_read_data *rdata = data;
 
+	if (unlikely(test_bit(NFS_CONTEXT_BAD, &rdata->args.context->flags))) {
+		rpc_exit(task, -EIO);
+		return;
+	}
 	if (filelayout_reset_to_mds(rdata->header->lseg)) {
 		dprintk("%s task %u reset io to MDS\n", __func__, task->tk_pid);
 		filelayout_reset_read(rdata);
@@ -306,10 +319,13 @@ static void filelayout_read_prepare(struct rpc_task *task, void *data)
 	}
 	rdata->read_done_cb = filelayout_read_done_cb;
 
-	nfs41_setup_sequence(rdata->ds_clp->cl_session,
+	if (nfs41_setup_sequence(rdata->ds_clp->cl_session,
 			&rdata->args.seq_args,
 			&rdata->res.seq_res,
-			task);
+			task))
+		return;
+	nfs4_set_rw_stateid(&rdata->args.stateid, rdata->args.context,
+			rdata->args.lock_context, FMODE_READ);
 }
 
 static void filelayout_read_call_done(struct rpc_task *task, void *data)
@@ -349,6 +365,7 @@ static int filelayout_write_done_cb(struct rpc_task *task,
 	struct nfs_pgio_header *hdr = data->header;
 	int err;
 
+	trace_nfs4_pnfs_write(data, task->tk_status);
 	err = filelayout_async_handle_error(task, data->args.context->state,
 					    data->ds_clp, hdr->lseg);
 
@@ -381,6 +398,7 @@ static int filelayout_commit_done_cb(struct rpc_task *task,
 {
 	int err;
 
+	trace_nfs4_pnfs_commit_ds(data, task->tk_status);
 	err = filelayout_async_handle_error(task, NULL, data->ds_clp,
 					    data->lseg);
 
@@ -400,16 +418,23 @@ static void filelayout_write_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs_write_data *wdata = data;
 
+	if (unlikely(test_bit(NFS_CONTEXT_BAD, &wdata->args.context->flags))) {
+		rpc_exit(task, -EIO);
+		return;
+	}
 	if (filelayout_reset_to_mds(wdata->header->lseg)) {
 		dprintk("%s task %u reset io to MDS\n", __func__, task->tk_pid);
 		filelayout_reset_write(wdata);
 		rpc_exit(task, 0);
 		return;
 	}
-	nfs41_setup_sequence(wdata->ds_clp->cl_session,
+	if (nfs41_setup_sequence(wdata->ds_clp->cl_session,
 			&wdata->args.seq_args,
 			&wdata->res.seq_res,
-			task);
+			task))
+		return;
+	nfs4_set_rw_stateid(&wdata->args.stateid, wdata->args.context,
+			wdata->args.lock_context, FMODE_WRITE);
 }
 
 static void filelayout_write_call_done(struct rpc_task *task, void *data)
@@ -503,6 +528,7 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 	struct nfs_pgio_header *hdr = data->header;
 	struct pnfs_layout_segment *lseg = hdr->lseg;
 	struct nfs4_pnfs_ds *ds;
+	struct rpc_clnt *ds_clnt;
 	loff_t offset = data->args.offset;
 	u32 j, idx;
 	struct nfs_fh *fh;
@@ -517,6 +543,11 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 	ds = nfs4_fl_prepare_ds(lseg, idx);
 	if (!ds)
 		return PNFS_NOT_ATTEMPTED;
+
+	ds_clnt = nfs4_find_or_create_ds_client(ds->ds_clp, hdr->inode);
+	if (IS_ERR(ds_clnt))
+		return PNFS_NOT_ATTEMPTED;
+
 	dprintk("%s USE DS: %s cl_count %d\n", __func__,
 		ds->ds_remotestr, atomic_read(&ds->ds_clp->cl_count));
 
@@ -531,7 +562,7 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 	data->mds_offset = offset;
 
 	/* Perform an asynchronous read to ds */
-	nfs_initiate_read(ds->ds_clp->cl_rpcclient, data,
+	nfs_initiate_read(ds_clnt, data,
 				  &filelayout_read_call_ops, RPC_TASK_SOFTCONN);
 	return PNFS_ATTEMPTED;
 }
@@ -543,6 +574,7 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 	struct nfs_pgio_header *hdr = data->header;
 	struct pnfs_layout_segment *lseg = hdr->lseg;
 	struct nfs4_pnfs_ds *ds;
+	struct rpc_clnt *ds_clnt;
 	loff_t offset = data->args.offset;
 	u32 j, idx;
 	struct nfs_fh *fh;
@@ -553,6 +585,11 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 	ds = nfs4_fl_prepare_ds(lseg, idx);
 	if (!ds)
 		return PNFS_NOT_ATTEMPTED;
+
+	ds_clnt = nfs4_find_or_create_ds_client(ds->ds_clp, hdr->inode);
+	if (IS_ERR(ds_clnt))
+		return PNFS_NOT_ATTEMPTED;
+
 	dprintk("%s ino %lu sync %d req %Zu@%llu DS: %s cl_count %d\n",
 		__func__, hdr->inode->i_ino, sync, (size_t) data->args.count,
 		offset, ds->ds_remotestr, atomic_read(&ds->ds_clp->cl_count));
@@ -570,7 +607,7 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 	data->args.offset = filelayout_get_dserver_offset(lseg, offset);
 
 	/* Perform an asynchronous write */
-	nfs_initiate_write(ds->ds_clp->cl_rpcclient, data,
+	nfs_initiate_write(ds_clnt, data,
 				    &filelayout_write_call_ops, sync,
 				    RPC_TASK_SOFTCONN);
 	return PNFS_ATTEMPTED;
@@ -622,7 +659,8 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 	d = nfs4_find_get_deviceid(NFS_SERVER(lo->plh_inode)->pnfs_curr_ld,
 				   NFS_SERVER(lo->plh_inode)->nfs_client, id);
 	if (d == NULL) {
-		dsaddr = filelayout_get_device_info(lo->plh_inode, id, gfp_flags);
+		dsaddr = filelayout_get_device_info(lo->plh_inode, id,
+				lo->plh_lc_cred, gfp_flags);
 		if (dsaddr == NULL)
 			goto out;
 	} else
@@ -1079,16 +1117,19 @@ static int filelayout_initiate_commit(struct nfs_commit_data *data, int how)
 {
 	struct pnfs_layout_segment *lseg = data->lseg;
 	struct nfs4_pnfs_ds *ds;
+	struct rpc_clnt *ds_clnt;
 	u32 idx;
 	struct nfs_fh *fh;
 
 	idx = calc_ds_index_from_commit(lseg, data->ds_commit_index);
 	ds = nfs4_fl_prepare_ds(lseg, idx);
-	if (!ds) {
-		prepare_to_resend_writes(data);
-		filelayout_commit_release(data);
-		return -EAGAIN;
-	}
+	if (!ds)
+		goto out_err;
+
+	ds_clnt = nfs4_find_or_create_ds_client(ds->ds_clp, data->inode);
+	if (IS_ERR(ds_clnt))
+		goto out_err;
+
 	dprintk("%s ino %lu, how %d cl_count %d\n", __func__,
 		data->inode->i_ino, how, atomic_read(&ds->ds_clp->cl_count));
 	data->commit_done_cb = filelayout_commit_done_cb;
@@ -1097,9 +1138,13 @@ static int filelayout_initiate_commit(struct nfs_commit_data *data, int how)
 	fh = select_ds_fh_from_commit(lseg, data->ds_commit_index);
 	if (fh)
 		data->args.fh = fh;
-	return nfs_initiate_commit(ds->ds_clp->cl_rpcclient, data,
+	return nfs_initiate_commit(ds_clnt, data,
 				   &filelayout_commit_call_ops, how,
 				   RPC_TASK_SOFTCONN);
+out_err:
+	prepare_to_resend_writes(data);
+	filelayout_commit_release(data);
+	return -EAGAIN;
 }
 
 static int

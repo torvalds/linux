@@ -172,6 +172,7 @@ static long gru_get_config_info(unsigned long arg)
 		nodesperblade = 2;
 	else
 		nodesperblade = 1;
+	memset(&info, 0, sizeof(info));
 	info.cpus = num_online_cpus();
 	info.nodes = num_online_nodes();
 	info.blades = info.nodes / nodesperblade;
@@ -517,7 +518,7 @@ static int __init gru_init(void)
 {
 	int ret;
 
-	if (!is_uv_system())
+	if (!is_uv_system() || (is_uvx_hub() && !is_uv2_hub()))
 		return 0;
 
 #if defined CONFIG_IA64

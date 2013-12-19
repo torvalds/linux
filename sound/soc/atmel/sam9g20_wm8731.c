@@ -37,8 +37,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
-
-#include <linux/pinctrl/consumer.h>
+#include <linux/of.h>
 
 #include <linux/atmel-ssc.h>
 
@@ -203,14 +202,7 @@ static int at91sam9g20ek_audio_probe(struct platform_device *pdev)
 	struct device_node *codec_np, *cpu_np;
 	struct clk *pllb;
 	struct snd_soc_card *card = &snd_soc_at91sam9g20ek;
-	struct pinctrl *pinctrl;
 	int ret;
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		dev_err(&pdev->dev, "Failed to request pinctrl for mck\n");
-		return PTR_ERR(pinctrl);
-	}
 
 	if (!np) {
 		if (!(machine_is_at91sam9g20ek() ||
@@ -305,10 +297,10 @@ static int at91sam9g20ek_audio_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
-	atmel_ssc_put_audio(0);
-	snd_soc_unregister_card(card);
-	clk_put(mclk);
+	clk_disable(mclk);
 	mclk = NULL;
+	snd_soc_unregister_card(card);
+	atmel_ssc_put_audio(0);
 
 	return 0;
 }

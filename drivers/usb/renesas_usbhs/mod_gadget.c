@@ -77,9 +77,9 @@ struct usbhsg_recip_handle {
 		struct usbhsg_gpriv, mod)
 
 #define __usbhsg_for_each_uep(start, pos, g, i)	\
-	for (i = start, pos = (g)->uep + i;	\
-	     i < (g)->uep_size;			\
-	     i++, pos = (g)->uep + i)
+	for ((i) = start;					\
+	     ((i) < (g)->uep_size) && ((pos) = (g)->uep + (i));	\
+	     (i)++)
 
 #define usbhsg_for_each_uep(pos, gpriv, i)	\
 	__usbhsg_for_each_uep(1, pos, gpriv, i)
@@ -230,7 +230,7 @@ static int usbhsg_recip_handler_std_clear_endpoint(struct usbhs_priv *priv,
 	return 0;
 }
 
-struct usbhsg_recip_handle req_clear_feature = {
+static struct usbhsg_recip_handle req_clear_feature = {
 	.name		= "clear feature",
 	.device		= usbhsg_recip_handler_std_control_done,
 	.interface	= usbhsg_recip_handler_std_control_done,
@@ -271,7 +271,7 @@ static int usbhsg_recip_handler_std_set_endpoint(struct usbhs_priv *priv,
 	return 0;
 }
 
-struct usbhsg_recip_handle req_set_feature = {
+static struct usbhsg_recip_handle req_set_feature = {
 	.name		= "set feature",
 	.device		= usbhsg_recip_handler_std_set_device,
 	.interface	= usbhsg_recip_handler_std_control_done,
@@ -372,7 +372,7 @@ static int usbhsg_recip_handler_std_get_endpoint(struct usbhs_priv *priv,
 	return 0;
 }
 
-struct usbhsg_recip_handle req_get_status = {
+static struct usbhsg_recip_handle req_get_status = {
 	.name		= "get status",
 	.device		= usbhsg_recip_handler_std_get_device,
 	.interface	= usbhsg_recip_handler_std_get_interface,
@@ -545,15 +545,6 @@ static int usbhsg_pipe_disable(struct usbhsg_uep *uep)
 	return 0;
 }
 
-static void usbhsg_uep_init(struct usbhsg_gpriv *gpriv)
-{
-	int i;
-	struct usbhsg_uep *uep;
-
-	usbhsg_for_each_uep_with_dcp(uep, gpriv, i)
-		uep->pipe = NULL;
-}
-
 /*
  *
  *		usb_ep_ops
@@ -610,7 +601,12 @@ static int usbhsg_ep_disable(struct usb_ep *ep)
 {
 	struct usbhsg_uep *uep = usbhsg_ep_to_uep(ep);
 
-	return usbhsg_pipe_disable(uep);
+	usbhsg_pipe_disable(uep);
+
+	uep->pipe->mod_private	= NULL;
+	uep->pipe		= NULL;
+
+	return 0;
 }
 
 static struct usb_request *usbhsg_ep_alloc_request(struct usb_ep *ep,
@@ -761,9 +757,8 @@ static int usbhsg_try_start(struct usbhs_priv *priv, u32 status)
 	usbhs_pipe_init(priv,
 			usbhsg_dma_map_ctrl);
 	usbhs_fifo_init(priv);
-	usbhsg_uep_init(gpriv);
 
-	/* dcp init */
+	/* dcp init instead of usbhsg_ep_enable() */
 	dcp->pipe		= usbhs_dcp_malloc(priv);
 	dcp->pipe->mod_private	= dcp;
 	usbhs_pipe_config_update(dcp->pipe, 0, 0, 64);
@@ -825,7 +820,7 @@ static int usbhsg_try_stop(struct usbhs_priv *priv, u32 status)
 	usbhs_sys_set_test_mode(priv, 0);
 	usbhs_sys_function_ctrl(priv, 0);
 
-	usbhsg_pipe_disable(dcp);
+	usbhsg_ep_disable(&dcp->ep);
 
 	dev_dbg(dev, "stop gadget\n");
 
@@ -850,7 +845,6 @@ static int usbhsg_gadget_start(struct usb_gadget *gadget,
 
 	/* first hook up the driver ... */
 	gpriv->driver = driver;
-	gpriv->gadget.dev.driver = &driver->driver;
 
 	return usbhsg_try_start(priv, USBHSG_STATUS_REGISTERD);
 }
@@ -861,12 +855,7 @@ static int usbhsg_gadget_stop(struct usb_gadget *gadget,
 	struct usbhsg_gpriv *gpriv = usbhsg_gadget_to_gpriv(gadget);
 	struct usbhs_priv *priv = usbhsg_gpriv_to_priv(gpriv);
 
-	if (!driver		||
-	    !driver->unbind)
-		return -EINVAL;
-
 	usbhsg_try_stop(priv, USBHSG_STATUS_REGISTERD);
-	gpriv->gadget.dev.driver = NULL;
 	gpriv->driver = NULL;
 
 	return 0;
@@ -905,7 +894,7 @@ static int usbhsg_set_selfpowered(struct usb_gadget *gadget, int is_self)
 	return 0;
 }
 
-static struct usb_gadget_ops usbhsg_gadget_ops = {
+static const struct usb_gadget_ops usbhsg_gadget_ops = {
 	.get_frame		= usbhsg_get_frame,
 	.set_selfpowered	= usbhsg_set_selfpowered,
 	.udc_start		= usbhsg_gadget_start,
@@ -928,11 +917,6 @@ static int usbhsg_stop(struct usbhs_priv *priv)
 		gpriv->driver->disconnect(&gpriv->gadget);
 
 	return usbhsg_try_stop(priv, USBHSG_STATUS_STARTED);
-}
-
-static void usbhs_mod_gadget_release(struct device *pdev)
-{
-	/* do nothing */
 }
 
 int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
@@ -981,15 +965,10 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	/*
 	 * init gadget
 	 */
-	dev_set_name(&gpriv->gadget.dev, "gadget");
 	gpriv->gadget.dev.parent	= dev;
-	gpriv->gadget.dev.release	= usbhs_mod_gadget_release;
 	gpriv->gadget.name		= "renesas_usbhs_udc";
 	gpriv->gadget.ops		= &usbhsg_gadget_ops;
 	gpriv->gadget.max_speed		= USB_SPEED_HIGH;
-	ret = device_register(&gpriv->gadget.dev);
-	if (ret < 0)
-		goto err_add_udc;
 
 	INIT_LIST_HEAD(&gpriv->gadget.ep_list);
 
@@ -998,6 +977,7 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	 */
 	usbhsg_for_each_uep_with_dcp(uep, gpriv, i) {
 		uep->gpriv	= gpriv;
+		uep->pipe	= NULL;
 		snprintf(uep->ep_name, EP_NAME_SIZE, "ep%d", i);
 
 		uep->ep.name		= uep->ep_name;
@@ -1018,15 +998,13 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 
 	ret = usb_add_gadget_udc(dev, &gpriv->gadget);
 	if (ret)
-		goto err_register;
+		goto err_add_udc;
 
 
 	dev_info(dev, "gadget probed\n");
 
 	return 0;
 
-err_register:
-	device_unregister(&gpriv->gadget.dev);
 err_add_udc:
 	kfree(gpriv->uep);
 
@@ -1041,8 +1019,6 @@ void usbhs_mod_gadget_remove(struct usbhs_priv *priv)
 	struct usbhsg_gpriv *gpriv = usbhsg_priv_to_gpriv(priv);
 
 	usb_del_gadget_udc(&gpriv->gadget);
-
-	device_unregister(&gpriv->gadget.dev);
 
 	kfree(gpriv->uep);
 	kfree(gpriv);

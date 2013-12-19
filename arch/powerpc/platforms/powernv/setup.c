@@ -23,6 +23,7 @@
 #include <linux/irq.h>
 #include <linux/seq_file.h>
 #include <linux/of.h>
+#include <linux/of_fdt.h>
 #include <linux/interrupt.h>
 #include <linux/bug.h>
 
@@ -31,6 +32,7 @@
 #include <asm/xics.h>
 #include <asm/rtas.h>
 #include <asm/opal.h>
+#include <asm/kexec.h>
 
 #include "powernv.h"
 
@@ -54,6 +56,12 @@ static void __init pnv_setup_arch(void)
 
 static void __init pnv_init_early(void)
 {
+	/*
+	 * Initialize the LPC bus now so that legacy serial
+	 * ports can be found on it
+	 */
+	opal_lpc_init();
+
 #ifdef CONFIG_HVC_OPAL
 	if (firmware_has_feature(FW_FEATURE_OPAL))
 		hvc_opal_init_early();
@@ -78,7 +86,9 @@ static void pnv_show_cpuinfo(struct seq_file *m)
 	if (root)
 		model = of_get_property(root, "model", NULL);
 	seq_printf(m, "machine\t\t: PowerNV %s\n", model);
-	if (firmware_has_feature(FW_FEATURE_OPALv2))
+	if (firmware_has_feature(FW_FEATURE_OPALv3))
+		seq_printf(m, "firmware\t: OPAL v3\n");
+	else if (firmware_has_feature(FW_FEATURE_OPALv2))
 		seq_printf(m, "firmware\t: OPAL v2\n");
 	else if (firmware_has_feature(FW_FEATURE_OPAL))
 		seq_printf(m, "firmware\t: OPAL v1\n");
@@ -90,6 +100,8 @@ static void pnv_show_cpuinfo(struct seq_file *m)
 static void  __noreturn pnv_restart(char *cmd)
 {
 	long rc = OPAL_BUSY;
+
+	opal_notifier_disable();
 
 	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
 		rc = opal_cec_reboot();
@@ -105,6 +117,8 @@ static void  __noreturn pnv_restart(char *cmd)
 static void __noreturn pnv_power_off(void)
 {
 	long rc = OPAL_BUSY;
+
+	opal_notifier_disable();
 
 	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
 		rc = opal_cec_power_down(0);
@@ -126,10 +140,31 @@ static void pnv_progress(char *s, unsigned short hex)
 {
 }
 
+static void pnv_shutdown(void)
+{
+	/* Let the PCI code clear up IODA tables */
+	pnv_pci_shutdown();
+
+	/* And unregister all OPAL interrupts so they don't fire
+	 * up while we kexec
+	 */
+	opal_shutdown();
+}
+
 #ifdef CONFIG_KEXEC
 static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 {
 	xics_kexec_teardown_cpu(secondary);
+
+	/* Return secondary CPUs to firmware on OPAL v3 */
+	if (firmware_has_feature(FW_FEATURE_OPALv3) && secondary) {
+		mb();
+		get_paca()->kexec_state = KEXEC_STATE_REAL_MODE;
+		mb();
+
+		/* Return the CPU to OPAL */
+		opal_return_cpu();
+	}
 }
 #endif /* CONFIG_KEXEC */
 
@@ -187,6 +222,7 @@ define_machine(powernv) {
 	.init_IRQ		= pnv_init_IRQ,
 	.show_cpuinfo		= pnv_show_cpuinfo,
 	.progress		= pnv_progress,
+	.machine_shutdown	= pnv_shutdown,
 	.power_save             = power7_idle,
 	.calibrate_decr		= generic_calibrate_decr,
 #ifdef CONFIG_KEXEC

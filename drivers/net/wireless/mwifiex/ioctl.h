@@ -20,7 +20,6 @@
 #ifndef _MWIFIEX_IOCTL_H_
 #define _MWIFIEX_IOCTL_H_
 
-#include <net/mac80211.h>
 #include <net/lib80211.h>
 
 enum {
@@ -61,6 +60,8 @@ enum {
 	BAND_A = 4,
 	BAND_GN = 8,
 	BAND_AN = 16,
+	BAND_GAC = 32,
+	BAND_AAC = 64,
 };
 
 #define MWIFIEX_WPA_PASSHPHRASE_LEN 64
@@ -104,9 +105,12 @@ struct mwifiex_uap_bss_param {
 	struct wpa_param wpa_cfg;
 	struct wep_key wep_cfg[NUM_WEP_KEYS];
 	struct ieee80211_ht_cap ht_cap;
+	struct ieee80211_vht_cap vht_cap;
 	u8 rates[MWIFIEX_SUPPORTED_RATES];
 	u32 sta_ao_timer;
 	u32 ps_sta_ao_timer;
+	u8 qos_info;
+	struct mwifiex_types_wmm_info wmm_info;
 };
 
 enum {
@@ -177,7 +181,6 @@ struct mwifiex_ds_tx_ba_stream_tbl {
 struct mwifiex_debug_info {
 	u32 int_counter;
 	u32 packets_out[MAX_NUM_TID];
-	u32 max_tx_buf_size;
 	u32 tx_buf_size;
 	u32 curr_tx_buf_size;
 	u32 tx_tbl_num;
@@ -269,9 +272,18 @@ struct mwifiex_ds_pm_cfg {
 	} param;
 };
 
+struct mwifiex_11ac_vht_cfg {
+	u8 band_config;
+	u8 misc_config;
+	u32 cap_info;
+	u32 mcs_tx_set;
+	u32 mcs_rx_set;
+};
+
 struct mwifiex_ds_11n_tx_cfg {
 	u16 tx_htcap;
 	u16 tx_htinfo;
+	u16 misc_config; /* Needed for 802.11AC cards only */
 };
 
 struct mwifiex_ds_11n_amsdu_aggr_ctrl {
@@ -350,6 +362,29 @@ struct mwifiex_ds_misc_subsc_evt {
 	struct subsc_evt_cfg bcn_h_rssi_cfg;
 };
 
+#define MWIFIEX_MEF_MAX_BYTESEQ		6	/* non-adjustable */
+#define MWIFIEX_MEF_MAX_FILTERS		10
+
+struct mwifiex_mef_filter {
+	u16 repeat;
+	u16 offset;
+	s8 byte_seq[MWIFIEX_MEF_MAX_BYTESEQ + 1];
+	u8 filt_type;
+	u8 filt_action;
+};
+
+struct mwifiex_mef_entry {
+	u8 mode;
+	u8 action;
+	struct mwifiex_mef_filter filter[MWIFIEX_MEF_MAX_FILTERS];
+};
+
+struct mwifiex_ds_mef_cfg {
+	u32 criteria;
+	u16 num_entries;
+	struct mwifiex_mef_entry *mef_entry;
+};
+
 #define MWIFIEX_MAX_VSIE_LEN       (256)
 #define MWIFIEX_MAX_VSIE_NUM       (8)
 #define MWIFIEX_VSIE_MASK_CLEAR    0x00
@@ -360,6 +395,41 @@ struct mwifiex_ds_misc_subsc_evt {
 enum {
 	MWIFIEX_FUNC_INIT = 1,
 	MWIFIEX_FUNC_SHUTDOWN,
+};
+
+enum COALESCE_OPERATION {
+	RECV_FILTER_MATCH_TYPE_EQ = 0x80,
+	RECV_FILTER_MATCH_TYPE_NE,
+};
+
+enum COALESCE_PACKET_TYPE {
+	PACKET_TYPE_UNICAST = 1,
+	PACKET_TYPE_MULTICAST = 2,
+	PACKET_TYPE_BROADCAST = 3
+};
+
+#define MWIFIEX_COALESCE_MAX_RULES	8
+#define MWIFIEX_COALESCE_MAX_BYTESEQ	4	/* non-adjustable */
+#define MWIFIEX_COALESCE_MAX_FILTERS	4
+#define MWIFIEX_MAX_COALESCING_DELAY	100     /* in msecs */
+
+struct filt_field_param {
+	u8 operation;
+	u8 operand_len;
+	u16 offset;
+	u8 operand_byte_stream[MWIFIEX_COALESCE_MAX_BYTESEQ];
+};
+
+struct mwifiex_coalesce_rule {
+	u16 max_coalescing_delay;
+	u8 num_of_fields;
+	u8 pkt_type;
+	struct filt_field_param params[MWIFIEX_COALESCE_MAX_FILTERS];
+};
+
+struct mwifiex_ds_coalesce_cfg {
+	u16 num_of_rules;
+	struct mwifiex_coalesce_rule rule[MWIFIEX_COALESCE_MAX_RULES];
 };
 
 #endif /* !_MWIFIEX_IOCTL_H_ */

@@ -18,4 +18,4 @@ obj-$(CONFIG_ARCH_SHMOBILE)	+= shmobile/
 obj-$(CONFIG_SH_ADC)		+= adc.o
 obj-$(CONFIG_SH_CLK_CPG_LEGACY)	+= clock-cpg.o
 
-obj-y	+= irq/ init.o clock.o fpu.o proc.o
+obj-y	+= irq/ init.o clock.o fpu.o pfc.o proc.o

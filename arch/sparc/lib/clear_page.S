@@ -37,10 +37,10 @@ _clear_page:		/* %o0=dest */
 	.globl		clear_user_page
 clear_user_page:	/* %o0=dest, %o1=vaddr */
 	lduw		[%g6 + TI_PRE_COUNT], %o2
-	sethi		%uhi(PAGE_OFFSET), %g2
+	sethi		%hi(PAGE_OFFSET), %g2
 	sethi		%hi(PAGE_SIZE), %o4
 
-	sllx		%g2, 32, %g2
+	ldx		[%g2 + %lo(PAGE_OFFSET)], %g2
 	sethi		%hi(PAGE_KERNEL_LOCKED), %g3
 
 	ldx		[%g3 + %lo(PAGE_KERNEL_LOCKED)], %g3

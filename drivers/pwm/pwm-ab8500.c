@@ -66,7 +66,7 @@ static int ab8500_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 				AB8500_MISC, AB8500_PWM_OUT_CTRL7_REG,
 				1 << (chip->base - 1), ENABLE_PWM);
 	if (ret < 0)
-		dev_err(chip->dev, "%s: Failed to disable PWM, Error %d\n",
+		dev_err(chip->dev, "%s: Failed to enable PWM, Error %d\n",
 							pwm->label, ret);
 	return ret;
 }
@@ -88,6 +88,7 @@ static const struct pwm_ops ab8500_pwm_ops = {
 	.config = ab8500_pwm_config,
 	.enable = ab8500_pwm_enable,
 	.disable = ab8500_pwm_disable,
+	.owner = THIS_MODULE,
 };
 
 static int ab8500_pwm_probe(struct platform_device *pdev)
@@ -99,7 +100,7 @@ static int ab8500_pwm_probe(struct platform_device *pdev)
 	 * Nothing to be done in probe, this is required to get the
 	 * device which is required for ab8500 read and write
 	 */
-	ab8500 = kzalloc(sizeof(*ab8500), GFP_KERNEL);
+	ab8500 = devm_kzalloc(&pdev->dev, sizeof(*ab8500), GFP_KERNEL);
 	if (ab8500 == NULL) {
 		dev_err(&pdev->dev, "failed to allocate memory\n");
 		return -ENOMEM;
@@ -111,10 +112,8 @@ static int ab8500_pwm_probe(struct platform_device *pdev)
 	ab8500->chip.npwm = 1;
 
 	err = pwmchip_add(&ab8500->chip);
-	if (err < 0) {
-		kfree(ab8500);
+	if (err < 0)
 		return err;
-	}
 
 	dev_dbg(&pdev->dev, "pwm probe successful\n");
 	platform_set_drvdata(pdev, ab8500);
@@ -132,7 +131,6 @@ static int ab8500_pwm_remove(struct platform_device *pdev)
 		return err;
 
 	dev_dbg(&pdev->dev, "pwm driver removed\n");
-	kfree(ab8500);
 
 	return 0;
 }

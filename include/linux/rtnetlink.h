@@ -15,7 +15,7 @@ extern int rtnetlink_put_metrics(struct sk_buff *skb, u32 *metrics);
 extern int rtnl_put_cacheinfo(struct sk_buff *skb, struct dst_entry *dst,
 			      u32 id, long expires, u32 error);
 
-extern void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change);
+void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change, gfp_t flags);
 
 /* RTNL is used as a global lock for all changes to network configuration  */
 extern void rtnl_lock(void);
@@ -69,6 +69,15 @@ extern int ndo_dflt_fdb_dump(struct sk_buff *skb,
 			     struct netlink_callback *cb,
 			     struct net_device *dev,
 			     int idx);
+extern int ndo_dflt_fdb_add(struct ndmsg *ndm,
+			    struct nlattr *tb[],
+			    struct net_device *dev,
+			    const unsigned char *addr,
+			     u16 flags);
+extern int ndo_dflt_fdb_del(struct ndmsg *ndm,
+			    struct nlattr *tb[],
+			    struct net_device *dev,
+			    const unsigned char *addr);
 
 extern int ndo_dflt_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				   struct net_device *dev, u16 mode);

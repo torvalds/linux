@@ -542,41 +542,10 @@ static int wm8350_dcdc_set_suspend_mode(struct regulator_dev *rdev,
 	return 0;
 }
 
-static int wm8350_ldo_list_voltage(struct regulator_dev *rdev,
-				    unsigned selector)
-{
-	if (selector > WM8350_LDO1_VSEL_MASK)
-		return -EINVAL;
-
-	if (selector < 16)
-		return (selector * 50000) + 900000;
-	else
-		return ((selector - 16) * 100000) + 1800000;
-}
-
-static int wm8350_ldo_map_voltage(struct regulator_dev *rdev, int min_uV,
-				  int max_uV)
-{
-	int volt, sel;
-	int min_mV = min_uV / 1000;
-	int max_mV = max_uV / 1000;
-
-	if (min_mV < 900 || min_mV > 3300)
-		return -EINVAL;
-	if (max_mV < 900 || max_mV > 3300)
-		return -EINVAL;
-
-	if (min_mV < 1800) /* step size is 50mV < 1800mV */
-		sel = DIV_ROUND_UP(min_uV - 900, 50);
-	else /* step size is 100mV > 1800mV */
-		sel = DIV_ROUND_UP(min_uV - 1800, 100) + 16;
-
-	volt = wm8350_ldo_list_voltage(rdev, sel);
-	if (volt < min_uV || volt > max_uV)
-		return -EINVAL;
-
-	return sel;
-}
+static const struct regulator_linear_range wm8350_ldo_ranges[] = {
+	REGULATOR_LINEAR_RANGE(900000, 0, 15, 50000),
+	REGULATOR_LINEAR_RANGE(1800000, 16, 31, 100000),
+};
 
 static int wm8350_ldo_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 {
@@ -603,7 +572,7 @@ static int wm8350_ldo_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 		return -EINVAL;
 	}
 
-	sel = wm8350_ldo_map_voltage(rdev, uV, uV);
+	sel = regulator_map_voltage_linear_range(rdev, uV, uV);
 	if (sel < 0)
 		return -EINVAL;
 
@@ -998,10 +967,10 @@ static struct regulator_ops wm8350_dcdc2_5_ops = {
 };
 
 static struct regulator_ops wm8350_ldo_ops = {
-	.map_voltage = wm8350_ldo_map_voltage,
+	.map_voltage = regulator_map_voltage_linear_range,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
-	.list_voltage = wm8350_ldo_list_voltage,
+	.list_voltage = regulator_list_voltage_linear_range,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -1108,6 +1077,8 @@ static const struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.irq = WM8350_IRQ_UV_LDO1,
 		.type = REGULATOR_VOLTAGE,
 		.n_voltages = WM8350_LDO1_VSEL_MASK + 1,
+		.linear_ranges = wm8350_ldo_ranges,
+		.n_linear_ranges = ARRAY_SIZE(wm8350_ldo_ranges),
 		.vsel_reg = WM8350_LDO1_CONTROL,
 		.vsel_mask = WM8350_LDO1_VSEL_MASK,
 		.enable_reg = WM8350_DCDC_LDO_REQUESTED,
@@ -1121,6 +1092,8 @@ static const struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.irq = WM8350_IRQ_UV_LDO2,
 		.type = REGULATOR_VOLTAGE,
 		.n_voltages = WM8350_LDO2_VSEL_MASK + 1,
+		.linear_ranges = wm8350_ldo_ranges,
+		.n_linear_ranges = ARRAY_SIZE(wm8350_ldo_ranges),
 		.vsel_reg = WM8350_LDO2_CONTROL,
 		.vsel_mask = WM8350_LDO2_VSEL_MASK,
 		.enable_reg = WM8350_DCDC_LDO_REQUESTED,
@@ -1134,6 +1107,8 @@ static const struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.irq = WM8350_IRQ_UV_LDO3,
 		.type = REGULATOR_VOLTAGE,
 		.n_voltages = WM8350_LDO3_VSEL_MASK + 1,
+		.linear_ranges = wm8350_ldo_ranges,
+		.n_linear_ranges = ARRAY_SIZE(wm8350_ldo_ranges),
 		.vsel_reg = WM8350_LDO3_CONTROL,
 		.vsel_mask = WM8350_LDO3_VSEL_MASK,
 		.enable_reg = WM8350_DCDC_LDO_REQUESTED,
@@ -1147,6 +1122,8 @@ static const struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.irq = WM8350_IRQ_UV_LDO4,
 		.type = REGULATOR_VOLTAGE,
 		.n_voltages = WM8350_LDO4_VSEL_MASK + 1,
+		.linear_ranges = wm8350_ldo_ranges,
+		.n_linear_ranges = ARRAY_SIZE(wm8350_ldo_ranges),
 		.vsel_reg = WM8350_LDO4_CONTROL,
 		.vsel_mask = WM8350_LDO4_VSEL_MASK,
 		.enable_reg = WM8350_DCDC_LDO_REQUESTED,
@@ -1222,12 +1199,13 @@ static int wm8350_regulator_probe(struct platform_device *pdev)
 	}
 
 	config.dev = &pdev->dev;
-	config.init_data = pdev->dev.platform_data;
+	config.init_data = dev_get_platdata(&pdev->dev);
 	config.driver_data = dev_get_drvdata(&pdev->dev);
 	config.regmap = wm8350->regmap;
 
 	/* register regulator */
-	rdev = regulator_register(&wm8350_reg[pdev->id], &config);
+	rdev = devm_regulator_register(&pdev->dev, &wm8350_reg[pdev->id],
+				       &config);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register %s\n",
 			wm8350_reg[pdev->id].name);
@@ -1238,7 +1216,6 @@ static int wm8350_regulator_probe(struct platform_device *pdev)
 	ret = wm8350_register_irq(wm8350, wm8350_reg[pdev->id].irq,
 				  pmic_uv_handler, 0, "UV", rdev);
 	if (ret < 0) {
-		regulator_unregister(rdev);
 		dev_err(&pdev->dev, "failed to register regulator %s IRQ\n",
 			wm8350_reg[pdev->id].name);
 		return ret;
@@ -1253,8 +1230,6 @@ static int wm8350_regulator_remove(struct platform_device *pdev)
 	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
 
 	wm8350_free_irq(wm8350, wm8350_reg[pdev->id].irq, rdev);
-
-	regulator_unregister(rdev);
 
 	return 0;
 }

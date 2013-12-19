@@ -116,7 +116,6 @@ static void pl010_enable_ms(struct uart_port *port)
 
 static void pl010_rx_chars(struct uart_amba_port *uap)
 {
-	struct tty_struct *tty = uap->port.state->port.tty;
 	unsigned int status, ch, flag, rsr, max_count = 256;
 
 	status = readb(uap->port.membase + UART01x_FR);
@@ -165,7 +164,7 @@ static void pl010_rx_chars(struct uart_amba_port *uap)
 		status = readb(uap->port.membase + UART01x_FR);
 	}
 	spin_unlock(&uap->port.lock);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&uap->port.state->port);
 	spin_lock(&uap->port.lock);
 }
 
@@ -722,14 +721,13 @@ static int pl010_probe(struct amba_device *dev, const struct amba_id *id)
 	uap->port.flags = UPF_BOOT_AUTOCONF;
 	uap->port.line = i;
 	uap->dev = dev;
-	uap->data = dev->dev.platform_data;
+	uap->data = dev_get_platdata(&dev->dev);
 
 	amba_ports[i] = uap;
 
 	amba_set_drvdata(dev, uap);
 	ret = uart_add_one_port(&amba_reg, &uap->port);
 	if (ret) {
-		amba_set_drvdata(dev, NULL);
 		amba_ports[i] = NULL;
 		clk_put(uap->clk);
  unmap:
@@ -745,8 +743,6 @@ static int pl010_remove(struct amba_device *dev)
 {
 	struct uart_amba_port *uap = amba_get_drvdata(dev);
 	int i;
-
-	amba_set_drvdata(dev, NULL);
 
 	uart_remove_one_port(&amba_reg, &uap->port);
 

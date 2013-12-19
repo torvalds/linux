@@ -959,6 +959,8 @@ int vme_dma_free(struct vme_resource *resource)
 
 	mutex_unlock(&ctrlr->mtx);
 
+	kfree(resource);
+
 	return 0;
 }
 EXPORT_SYMBOL(vme_dma_free);
@@ -1376,6 +1378,7 @@ static int __vme_register_driver_bus(struct vme_driver *drv,
 	return 0;
 
 err_reg:
+	put_device(&vdev->dev);
 	kfree(vdev);
 err_devalloc:
 	list_for_each_entry_safe(vdev, tmp, &drv->devices, drv_list) {

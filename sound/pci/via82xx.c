@@ -1940,7 +1940,7 @@ static int snd_via686_create_gameport(struct via82xx *chip, unsigned char *legac
 
 	r = request_region(JOYSTICK_ADDR, 8, "VIA686 gameport");
 	if (!r) {
-		printk(KERN_WARNING "via82xx: cannot reserve joystick port 0x%#x\n",
+		printk(KERN_WARNING "via82xx: cannot reserve joystick port %#x\n",
 		       JOYSTICK_ADDR);
 		return -EBUSY;
 	}
@@ -2517,7 +2517,7 @@ static int check_dxs_list(struct pci_dev *pci, int revision)
 	w = snd_pci_quirk_lookup(pci, dxs_whitelist);
 	if (w) {
 		snd_printdd(KERN_INFO "via82xx: DXS white list for %s found\n",
-			    w->name);
+			    snd_pci_quirk_name(w));
 		return w->value;
 	}
 
@@ -2646,7 +2646,6 @@ static int snd_via82xx_probe(struct pci_dev *pci,
 static void snd_via82xx_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static struct pci_driver via82xx_driver = {

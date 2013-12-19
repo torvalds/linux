@@ -32,6 +32,7 @@
 #include <linux/string.h>
 #include <linux/bitops.h>
 #include <linux/rcupdate.h>
+#include <linux/hardirq.h>		/* in_interrupt() */
 
 
 #ifdef __KERNEL__
@@ -207,7 +208,12 @@ radix_tree_node_alloc(struct radix_tree_root *root)
 	struct radix_tree_node *ret = NULL;
 	gfp_t gfp_mask = root_gfp_mask(root);
 
-	if (!(gfp_mask & __GFP_WAIT)) {
+	/*
+	 * Preload code isn't irq safe and it doesn't make sence to use
+	 * preloading in the interrupt anyway as all the allocations have to
+	 * be atomic. So just do normal allocation when in interrupt.
+	 */
+	if (!(gfp_mask & __GFP_WAIT) && !in_interrupt()) {
 		struct radix_tree_preload *rtp;
 
 		/*
@@ -264,7 +270,7 @@ radix_tree_node_free(struct radix_tree_node *node)
  * To make use of this facility, the radix tree must be initialised without
  * __GFP_WAIT being passed to INIT_RADIX_TREE().
  */
-int radix_tree_preload(gfp_t gfp_mask)
+static int __radix_tree_preload(gfp_t gfp_mask)
 {
 	struct radix_tree_preload *rtp;
 	struct radix_tree_node *node;
@@ -288,7 +294,38 @@ int radix_tree_preload(gfp_t gfp_mask)
 out:
 	return ret;
 }
+
+/*
+ * Load up this CPU's radix_tree_node buffer with sufficient objects to
+ * ensure that the addition of a single element in the tree cannot fail.  On
+ * success, return zero, with preemption disabled.  On error, return -ENOMEM
+ * with preemption not disabled.
+ *
+ * To make use of this facility, the radix tree must be initialised without
+ * __GFP_WAIT being passed to INIT_RADIX_TREE().
+ */
+int radix_tree_preload(gfp_t gfp_mask)
+{
+	/* Warn on non-sensical use... */
+	WARN_ON_ONCE(!(gfp_mask & __GFP_WAIT));
+	return __radix_tree_preload(gfp_mask);
+}
 EXPORT_SYMBOL(radix_tree_preload);
+
+/*
+ * The same as above function, except we don't guarantee preloading happens.
+ * We do it, if we decide it helps. On success, return zero with preemption
+ * disabled. On error, return -ENOMEM with preemption not disabled.
+ */
+int radix_tree_maybe_preload(gfp_t gfp_mask)
+{
+	if (gfp_mask & __GFP_WAIT)
+		return __radix_tree_preload(gfp_mask);
+	/* Preloading doesn't help anything with this gfp mask, skip it */
+	preempt_disable();
+	return 0;
+}
+EXPORT_SYMBOL(radix_tree_maybe_preload);
 
 /*
  *	Return the maximum key which can be store into a

@@ -61,7 +61,7 @@ struct target_core_fabric_ops {
 	int (*get_cmd_state)(struct se_cmd *);
 	int (*queue_data_in)(struct se_cmd *);
 	int (*queue_status)(struct se_cmd *);
-	int (*queue_tm_rsp)(struct se_cmd *);
+	void (*queue_tm_rsp)(struct se_cmd *);
 	/*
 	 * fabric module calls for target_core_fabric_configfs.c
 	 */
@@ -84,6 +84,9 @@ struct target_core_fabric_ops {
 };
 
 struct se_session *transport_init_session(void);
+int transport_alloc_session_tags(struct se_session *, unsigned int,
+		unsigned int);
+struct se_session *transport_init_session_tags(unsigned int, unsigned int);
 void	__transport_register_session(struct se_portal_group *,
 		struct se_node_acl *, struct se_session *, void *);
 void	transport_register_session(struct se_portal_group *,
@@ -114,16 +117,16 @@ sense_reason_t	transport_generic_new_cmd(struct se_cmd *);
 
 void	target_execute_cmd(struct se_cmd *cmd);
 
-void	transport_generic_free_cmd(struct se_cmd *, int);
+int	transport_generic_free_cmd(struct se_cmd *, int);
 
 bool	transport_wait_for_tasks(struct se_cmd *);
 int	transport_check_aborted_status(struct se_cmd *, int);
 int	transport_send_check_condition_and_sense(struct se_cmd *,
 		sense_reason_t, int);
-
+int	target_get_sess_cmd(struct se_session *, struct se_cmd *, bool);
 int	target_put_sess_cmd(struct se_session *, struct se_cmd *);
 void	target_sess_cmd_list_set_waiting(struct se_session *);
-void	target_wait_for_sess_cmds(struct se_session *, int);
+void	target_wait_for_sess_cmds(struct se_session *);
 
 int	core_alua_check_nonop_delay(struct se_cmd *);
 
@@ -131,8 +134,11 @@ int	core_tmr_alloc_req(struct se_cmd *, void *, u8, gfp_t);
 void	core_tmr_release_req(struct se_tmr_req *);
 int	transport_generic_handle_tmr(struct se_cmd *);
 void	transport_generic_request_failure(struct se_cmd *, sense_reason_t);
+void	__target_execute_cmd(struct se_cmd *);
 int	transport_lookup_tmr_lun(struct se_cmd *, u32);
 
+struct se_node_acl *core_tpg_get_initiator_node_acl(struct se_portal_group *tpg,
+		unsigned char *);
 struct se_node_acl *core_tpg_check_initiator_node_acl(struct se_portal_group *,
 		unsigned char *);
 void	core_tpg_clear_object_luns(struct se_portal_group *);
@@ -174,5 +180,31 @@ u32	iscsi_get_pr_transport_id_len(struct se_portal_group *, struct se_node_acl *
 		struct t10_pr_registration *, int *);
 char	*iscsi_parse_pr_out_transport_id(struct se_portal_group *, const char *,
 		u32 *, char **);
+
+/*
+ * The LIO target core uses DMA_TO_DEVICE to mean that data is going
+ * to the target (eg handling a WRITE) and DMA_FROM_DEVICE to mean
+ * that data is coming from the target (eg handling a READ).  However,
+ * this is just the opposite of what we have to tell the DMA mapping
+ * layer -- eg when handling a READ, the HBA will have to DMA the data
+ * out of memory so it can send it to the initiator, which means we
+ * need to use DMA_TO_DEVICE when we map the data.
+ */
+static inline enum dma_data_direction
+target_reverse_dma_direction(struct se_cmd *se_cmd)
+{
+	if (se_cmd->se_cmd_flags & SCF_BIDI)
+		return DMA_BIDIRECTIONAL;
+
+	switch (se_cmd->data_direction) {
+	case DMA_TO_DEVICE:
+		return DMA_FROM_DEVICE;
+	case DMA_FROM_DEVICE:
+		return DMA_TO_DEVICE;
+	case DMA_NONE:
+	default:
+		return DMA_NONE;
+	}
+}
 
 #endif /* TARGET_CORE_FABRICH */

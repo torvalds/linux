@@ -37,7 +37,7 @@
 #define OSM_DESCRIPTION	"I2O-subsystem"
 
 /* PCI device id table for all I2O controllers */
-static struct pci_device_id __devinitdata i2o_pci_ids[] = {
+static struct pci_device_id i2o_pci_ids[] = {
 	{PCI_DEVICE_CLASS(PCI_CLASS_INTELLIGENT_I2O << 8, 0xffff00)},
 	{PCI_DEVICE(PCI_VENDOR_ID_DPT, 0xa511)},
 	{.vendor = PCI_VENDOR_ID_INTEL,.device = 0x1962,
@@ -84,7 +84,7 @@ static void i2o_pci_free(struct i2o_controller *c)
  *
  *	Returns 0 on success or negative error code on failure.
  */
-static int __devinit i2o_pci_alloc(struct i2o_controller *c)
+static int i2o_pci_alloc(struct i2o_controller *c)
 {
 	struct pci_dev *pdev = c->pdev;
 	struct device *dev = &pdev->dev;
@@ -315,8 +315,7 @@ static void i2o_pci_irq_disable(struct i2o_controller *c)
  *
  *	Returns 0 on success or negative error code on failure.
  */
-static int __devinit i2o_pci_probe(struct pci_dev *pdev,
-				   const struct pci_device_id *id)
+static int i2o_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct i2o_controller *c;
 	int rc;
@@ -453,7 +452,7 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
  *	Reset the I2O controller, disable interrupts and remove all allocated
  *	resources.
  */
-static void __devexit i2o_pci_remove(struct pci_dev *pdev)
+static void i2o_pci_remove(struct pci_dev *pdev)
 {
 	struct i2o_controller *c;
 	c = pci_get_drvdata(pdev);
@@ -474,7 +473,7 @@ static struct pci_driver i2o_pci_driver = {
 	.name = "PCI_I2O",
 	.id_table = i2o_pci_ids,
 	.probe = i2o_pci_probe,
-	.remove = __devexit_p(i2o_pci_remove),
+	.remove = i2o_pci_remove,
 };
 
 /**

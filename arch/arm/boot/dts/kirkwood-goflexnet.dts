@@ -1,7 +1,7 @@
 /dts-v1/;
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-6281.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
 
 / {
 	model = "Seagate GoFlex Net";
@@ -18,15 +18,6 @@
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
-
-			pinctrl-0 = < &pmx_usb_power_enable &pmx_led_orange
-				      &pmx_led_left_cap_0 &pmx_led_left_cap_1
-				      &pmx_led_left_cap_2 &pmx_led_left_cap_3
-				      &pmx_led_right_cap_0 &pmx_led_right_cap_1
-				      &pmx_led_right_cap_2 &pmx_led_right_cap_3
-				    >;
-			pinctrl-names = "default";
-
 			pmx_usb_power_enable: pmx-usb-power-enable {
 				marvell,pins = "mpp29";
 				marvell,function = "gpio";
@@ -73,34 +64,9 @@
 			};
 		};
 		serial@12000 {
-			clock-frequency = <200000000>;
 			status = "ok";
 		};
 
-		nand@3000000 {
-			status = "okay";
-
-			partition@0 {
-				label = "u-boot";
-				reg = <0x0000000 0x100000>;
-				read-only;
-			};
-
-			partition@100000 {
-				label = "uImage";
-				reg = <0x0100000 0x400000>;
-			};
-
-			partition@500000 {
-				label = "pogoplug";
-				reg = <0x0500000 0x2000000>;
-			};
-
-			partition@2500000 {
-				label = "root";
-				reg = <0x02500000 0xd800000>;
-			};
-		};
 		sata@80000 {
 			status = "okay";
 			nr-ports = <2>;
@@ -109,6 +75,13 @@
 	};
 	gpio-leds {
 		compatible = "gpio-leds";
+		pinctrl-0 = < &pmx_led_orange
+			      &pmx_led_left_cap_0 &pmx_led_left_cap_1
+			      &pmx_led_left_cap_2 &pmx_led_left_cap_3
+			      &pmx_led_right_cap_0 &pmx_led_right_cap_1
+			      &pmx_led_right_cap_2 &pmx_led_right_cap_3
+			    >;
+		pinctrl-names = "default";
 
 		health {
 			label = "status:green:health";
@@ -156,6 +129,8 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-0 = <&pmx_usb_power_enable>;
+		pinctrl-names = "default";
 
 		usb_power: regulator@1 {
 			compatible = "regulator-fixed";
@@ -168,5 +143,47 @@
 			regulator-boot-on;
 			gpio = <&gpio0 29 0>;
 		};
+	};
+};
+
+&nand {
+	chip-delay = <40>;
+	status = "okay";
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0x100000>;
+		read-only;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x0100000 0x400000>;
+	};
+
+	partition@500000 {
+		label = "pogoplug";
+		reg = <0x0500000 0x2000000>;
+	};
+
+	partition@2500000 {
+		label = "root";
+		reg = <0x02500000 0xd800000>;
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		device_type = "ethernet-phy";
+		reg = <0>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
 	};
 };

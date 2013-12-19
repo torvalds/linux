@@ -224,11 +224,14 @@ static int r6040_phy_read(void __iomem *ioaddr, int phy_addr, int reg)
 			break;
 	}
 
+	if (limit < 0)
+		return -ETIMEDOUT;
+
 	return ioread16(ioaddr + MMRD);
 }
 
 /* Write a word data from PHY Chip */
-static void r6040_phy_write(void __iomem *ioaddr,
+static int r6040_phy_write(void __iomem *ioaddr,
 					int phy_addr, int reg, u16 val)
 {
 	int limit = MAC_DEF_TIMEOUT;
@@ -243,6 +246,8 @@ static void r6040_phy_write(void __iomem *ioaddr,
 		if (!(cmd & MDIO_WRITE))
 			break;
 	}
+
+	return (limit < 0) ? -ETIMEDOUT : 0;
 }
 
 static int r6040_mdiobus_read(struct mii_bus *bus, int phy_addr, int reg)
@@ -261,9 +266,7 @@ static int r6040_mdiobus_write(struct mii_bus *bus, int phy_addr,
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
 
-	r6040_phy_write(ioaddr, phy_addr, reg, value);
-
-	return 0;
+	return r6040_phy_write(ioaddr, phy_addr, reg, value);
 }
 
 static int r6040_mdiobus_reset(struct mii_bus *bus)
@@ -347,7 +350,6 @@ static int r6040_alloc_rxbufs(struct net_device *dev)
 	do {
 		skb = netdev_alloc_skb(dev, MAX_BUF_SIZE);
 		if (!skb) {
-			netdev_err(dev, "failed to alloc skb for rx\n");
 			rc = -ENOMEM;
 			goto err_exit;
 		}
@@ -755,9 +757,6 @@ static void r6040_mac_address(struct net_device *dev)
 	iowrite16(adrp[0], ioaddr + MID_0L);
 	iowrite16(adrp[1], ioaddr + MID_0M);
 	iowrite16(adrp[2], ioaddr + MID_0H);
-
-	/* Store MAC Address in perm_addr */
-	memcpy(dev->perm_addr, dev->dev_addr, ETH_ALEN);
 }
 
 static int r6040_open(struct net_device *dev)
@@ -957,9 +956,9 @@ static void netdev_get_drvinfo(struct net_device *dev,
 {
 	struct r6040_private *rp = netdev_priv(dev);
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, pci_name(rp->pdev));
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(rp->pdev), sizeof(info->bus_info));
 }
 
 static int netdev_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -1045,7 +1044,7 @@ static int r6040_mii_probe(struct net_device *dev)
 	}
 
 	phydev = phy_connect(dev, dev_name(&phydev->dev), &r6040_adjust_link,
-				0, PHY_INTERFACE_MODE_MII);
+			     PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
 		dev_err(&lp->pdev->dev, "could not attach to PHY\n");
@@ -1195,9 +1194,8 @@ static int r6040_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	lp->mii_bus->name = "r6040_eth_mii";
 	snprintf(lp->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		dev_name(&pdev->dev), card_idx);
-	lp->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
+	lp->mii_bus->irq = kmalloc_array(PHY_MAX_ADDR, sizeof(int), GFP_KERNEL);
 	if (!lp->mii_bus->irq) {
-		dev_err(&pdev->dev, "mii_bus irq allocation failed\n");
 		err = -ENOMEM;
 		goto err_out_mdio;
 	}
@@ -1233,7 +1231,6 @@ err_out_mdio:
 	mdiobus_free(lp->mii_bus);
 err_out_unmap:
 	netif_napi_del(&lp->napi);
-	pci_set_drvdata(pdev, NULL);
 	pci_iounmap(pdev, ioaddr);
 err_out_free_res:
 	pci_release_regions(pdev);
@@ -1259,7 +1256,6 @@ static void r6040_remove_one(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 	free_netdev(dev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 

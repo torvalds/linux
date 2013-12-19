@@ -85,6 +85,8 @@ struct wpan_phy;
  * Use wpan_wpy_put to put that reference.
  */
 struct ieee802154_mlme_ops {
+	/* The following fields are optional (can be NULL). */
+
 	int (*assoc_req)(struct net_device *dev,
 			struct ieee802154_addr *addr,
 			u8 channel, u8 page, u8 cap);
@@ -101,6 +103,8 @@ struct ieee802154_mlme_ops {
 	int (*scan_req)(struct net_device *dev,
 			u8 type, u32 channels, u8 page, u8 duration);
 
+	/* The fields below are required. */
+
 	struct wpan_phy *(*get_phy)(const struct net_device *dev);
 
 	/*
@@ -110,7 +114,6 @@ struct ieee802154_mlme_ops {
 	u16 (*get_pan_id)(const struct net_device *dev);
 	u16 (*get_short_addr)(const struct net_device *dev);
 	u8 (*get_dsn)(const struct net_device *dev);
-	u8 (*get_bsn)(const struct net_device *dev);
 };
 
 /* The IEEE 802.15.4 standard defines 2 type of the devices:

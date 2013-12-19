@@ -108,7 +108,7 @@ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
 	sg_init_one(&sg, vb->pfns, sizeof(vb->pfns[0]) * vb->num_pfns);
 
 	/* We should always be able to add one buffer to an empty queue. */
-	if (virtqueue_add_buf(vq, &sg, 1, 0, vb, GFP_KERNEL) < 0)
+	if (virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL) < 0)
 		BUG();
 	virtqueue_kick(vq);
 
@@ -148,7 +148,7 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
 		}
 		set_page_pfns(vb->pfns + vb->num_pfns, page);
 		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
-		totalram_pages--;
+		adjust_managed_page_count(page, -1);
 	}
 
 	/* Did we get any? */
@@ -163,8 +163,9 @@ static void release_pages_by_pfn(const u32 pfns[], unsigned int num)
 
 	/* Find pfns pointing at start of each page, get pages and free them. */
 	for (i = 0; i < num; i += VIRTIO_BALLOON_PAGES_PER_PAGE) {
-		balloon_page_free(balloon_pfn_to_page(pfns[i]));
-		totalram_pages++;
+		struct page *page = balloon_pfn_to_page(pfns[i]);
+		balloon_page_free(page);
+		adjust_managed_page_count(page, 1);
 	}
 }
 
@@ -191,7 +192,8 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
 	 * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
 	 * is true, we *have* to do it in this order
 	 */
-	tell_host(vb, vb->deflate_vq);
+	if (vb->num_pfns != 0)
+		tell_host(vb, vb->deflate_vq);
 	mutex_unlock(&vb->balloon_lock);
 	release_pages_by_pfn(vb->pfns, vb->num_pfns);
 }
@@ -256,7 +258,7 @@ static void stats_handle_request(struct virtio_balloon *vb)
 	if (!virtqueue_get_buf(vq, &len))
 		return;
 	sg_init_one(&sg, vb->stats, sizeof(vb->stats));
-	if (virtqueue_add_buf(vq, &sg, 1, 0, vb, GFP_KERNEL) < 0)
+	if (virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL) < 0)
 		BUG();
 	virtqueue_kick(vq);
 }
@@ -273,9 +275,8 @@ static inline s64 towards_target(struct virtio_balloon *vb)
 	__le32 v;
 	s64 target;
 
-	vb->vdev->config->get(vb->vdev,
-			      offsetof(struct virtio_balloon_config, num_pages),
-			      &v, sizeof(v));
+	virtio_cread(vb->vdev, struct virtio_balloon_config, num_pages, &v);
+
 	target = le32_to_cpu(v);
 	return target - vb->num_pages;
 }
@@ -284,9 +285,8 @@ static void update_balloon_size(struct virtio_balloon *vb)
 {
 	__le32 actual = cpu_to_le32(vb->num_pages);
 
-	vb->vdev->config->set(vb->vdev,
-			      offsetof(struct virtio_balloon_config, actual),
-			      &actual, sizeof(actual));
+	virtio_cwrite(vb->vdev, struct virtio_balloon_config, num_pages,
+		      &actual);
 }
 
 static int balloon(void *_vballoon)
@@ -341,7 +341,7 @@ static int init_vqs(struct virtio_balloon *vb)
 		 * use it to signal us later.
 		 */
 		sg_init_one(&sg, vb->stats, sizeof vb->stats);
-		if (virtqueue_add_buf(vb->stats_vq, &sg, 1, 0, vb, GFP_KERNEL)
+		if (virtqueue_add_outbuf(vb->stats_vq, &sg, 1, vb, GFP_KERNEL)
 		    < 0)
 			BUG();
 		virtqueue_kick(vb->stats_vq);
@@ -500,7 +500,7 @@ static void remove_common(struct virtio_balloon *vb)
 	vb->vdev->config->del_vqs(vb->vdev);
 }
 
-static void __devexit virtballoon_remove(struct virtio_device *vdev)
+static void virtballoon_remove(struct virtio_device *vdev)
 {
 	struct virtio_balloon *vb = vdev->priv;
 
@@ -511,7 +511,7 @@ static void __devexit virtballoon_remove(struct virtio_device *vdev)
 	kfree(vb);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int virtballoon_freeze(struct virtio_device *vdev)
 {
 	struct virtio_balloon *vb = vdev->priv;
@@ -552,26 +552,15 @@ static struct virtio_driver virtio_balloon_driver = {
 	.driver.owner =	THIS_MODULE,
 	.id_table =	id_table,
 	.probe =	virtballoon_probe,
-	.remove =	__devexit_p(virtballoon_remove),
+	.remove =	virtballoon_remove,
 	.config_changed = virtballoon_changed,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.freeze	=	virtballoon_freeze,
 	.restore =	virtballoon_restore,
 #endif
 };
 
-static int __init init(void)
-{
-	return register_virtio_driver(&virtio_balloon_driver);
-}
-
-static void __exit fini(void)
-{
-	unregister_virtio_driver(&virtio_balloon_driver);
-}
-module_init(init);
-module_exit(fini);
-
+module_virtio_driver(virtio_balloon_driver);
 MODULE_DEVICE_TABLE(virtio, id_table);
 MODULE_DESCRIPTION("Virtio balloon driver");
 MODULE_LICENSE("GPL");

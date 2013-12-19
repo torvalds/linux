@@ -7,10 +7,19 @@
  * Licensed under GPLv2 or later.
  */
 /dts-v1/;
-/include/ "at91sam9g35.dtsi"
-/include/ "at91sam9x5ek.dtsi"
+#include "at91sam9g35.dtsi"
+#include "at91sam9x5ek.dtsi"
 
 / {
 	model = "Atmel AT91SAM9G35-EK";
 	compatible = "atmel,at91sam9g35ek", "atmel,at91sam9x5ek", "atmel,at91sam9x5", "atmel,at91sam9";
+
+	ahb {
+		apb {
+			macb0: ethernet@f802c000 {
+				phy-mode = "rmii";
+				status = "okay";
+			};
+		};
+	};
 };

@@ -24,9 +24,9 @@
 #include <linux/init.h>
 #include <linux/ptrace.h>
 #include <linux/stat.h>
+#include <linux/uaccess.h>
 
 #include <asm/debug-monitors.h>
-#include <asm/local.h>
 #include <asm/cputype.h>
 #include <asm/system_misc.h>
 
@@ -88,8 +88,8 @@ early_param("nodebugmon", early_debug_disable);
  * Keep track of debug users on each core.
  * The ref counts are per-cpu so we use a local_t type.
  */
-static DEFINE_PER_CPU(local_t, mde_ref_count);
-static DEFINE_PER_CPU(local_t, kde_ref_count);
+static DEFINE_PER_CPU(int, mde_ref_count);
+static DEFINE_PER_CPU(int, kde_ref_count);
 
 void enable_debug_monitors(enum debug_el el)
 {
@@ -97,11 +97,11 @@ void enable_debug_monitors(enum debug_el el)
 
 	WARN_ON(preemptible());
 
-	if (local_inc_return(&__get_cpu_var(mde_ref_count)) == 1)
+	if (this_cpu_inc_return(mde_ref_count) == 1)
 		enable = DBG_MDSCR_MDE;
 
 	if (el == DBG_ACTIVE_EL1 &&
-	    local_inc_return(&__get_cpu_var(kde_ref_count)) == 1)
+	    this_cpu_inc_return(kde_ref_count) == 1)
 		enable |= DBG_MDSCR_KDE;
 
 	if (enable && debug_enabled) {
@@ -117,11 +117,11 @@ void disable_debug_monitors(enum debug_el el)
 
 	WARN_ON(preemptible());
 
-	if (local_dec_and_test(&__get_cpu_var(mde_ref_count)))
+	if (this_cpu_dec_return(mde_ref_count) == 0)
 		disable = ~DBG_MDSCR_MDE;
 
 	if (el == DBG_ACTIVE_EL1 &&
-	    local_dec_and_test(&__get_cpu_var(kde_ref_count)))
+	    this_cpu_dec_return(kde_ref_count) == 0)
 		disable &= ~DBG_MDSCR_KDE;
 
 	if (disable) {
@@ -136,13 +136,11 @@ void disable_debug_monitors(enum debug_el el)
  */
 static void clear_os_lock(void *unused)
 {
-	asm volatile("msr mdscr_el1, %0" : : "r" (0));
-	isb();
 	asm volatile("msr oslar_el1, %0" : : "r" (0));
 	isb();
 }
 
-static int __cpuinit os_lock_notify(struct notifier_block *self,
+static int os_lock_notify(struct notifier_block *self,
 				    unsigned long action, void *data)
 {
 	int cpu = (unsigned long)data;
@@ -151,11 +149,11 @@ static int __cpuinit os_lock_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata os_lock_nb = {
+static struct notifier_block os_lock_nb = {
 	.notifier_call = os_lock_notify,
 };
 
-static int __cpuinit debug_monitors_init(void)
+static int debug_monitors_init(void)
 {
 	/* Clear the OS lock. */
 	smp_call_function(clear_os_lock, NULL, 1);
@@ -228,13 +226,78 @@ static int single_step_handler(unsigned long addr, unsigned int esr,
 	return 0;
 }
 
-static int __init single_step_init(void)
+static int brk_handler(unsigned long addr, unsigned int esr,
+		       struct pt_regs *regs)
+{
+	siginfo_t info;
+
+	if (!user_mode(regs))
+		return -EFAULT;
+
+	info = (siginfo_t) {
+		.si_signo = SIGTRAP,
+		.si_errno = 0,
+		.si_code  = TRAP_BRKPT,
+		.si_addr  = (void __user *)instruction_pointer(regs),
+	};
+
+	force_sig_info(SIGTRAP, &info, current);
+	return 0;
+}
+
+int aarch32_break_handler(struct pt_regs *regs)
+{
+	siginfo_t info;
+	u32 arm_instr;
+	u16 thumb_instr;
+	bool bp = false;
+	void __user *pc = (void __user *)instruction_pointer(regs);
+
+	if (!compat_user_mode(regs))
+		return -EFAULT;
+
+	if (compat_thumb_mode(regs)) {
+		/* get 16-bit Thumb instruction */
+		get_user(thumb_instr, (u16 __user *)pc);
+		thumb_instr = le16_to_cpu(thumb_instr);
+		if (thumb_instr == AARCH32_BREAK_THUMB2_LO) {
+			/* get second half of 32-bit Thumb-2 instruction */
+			get_user(thumb_instr, (u16 __user *)(pc + 2));
+			thumb_instr = le16_to_cpu(thumb_instr);
+			bp = thumb_instr == AARCH32_BREAK_THUMB2_HI;
+		} else {
+			bp = thumb_instr == AARCH32_BREAK_THUMB;
+		}
+	} else {
+		/* 32-bit ARM instruction */
+		get_user(arm_instr, (u32 __user *)pc);
+		arm_instr = le32_to_cpu(arm_instr);
+		bp = (arm_instr & ~0xf0000000) == AARCH32_BREAK_ARM;
+	}
+
+	if (!bp)
+		return -EFAULT;
+
+	info = (siginfo_t) {
+		.si_signo = SIGTRAP,
+		.si_errno = 0,
+		.si_code  = TRAP_BRKPT,
+		.si_addr  = pc,
+	};
+
+	force_sig_info(SIGTRAP, &info, current);
+	return 0;
+}
+
+static int __init debug_traps_init(void)
 {
 	hook_debug_fault_code(DBG_ESR_EVT_HWSS, single_step_handler, SIGTRAP,
 			      TRAP_HWBKPT, "single-step handler");
+	hook_debug_fault_code(DBG_ESR_EVT_BRK, brk_handler, SIGTRAP,
+			      TRAP_BRKPT, "ptrace BRK handler");
 	return 0;
 }
-arch_initcall(single_step_init);
+arch_initcall(debug_traps_init);
 
 /* Re-enable single step for syscall restarting. */
 void user_rewind_single_step(struct task_struct *task)

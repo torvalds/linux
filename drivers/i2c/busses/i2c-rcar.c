@@ -33,6 +33,7 @@
 #include <linux/i2c/i2c-rcar.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
@@ -101,6 +102,11 @@ enum {
 #define ID_ARBLOST	(1 << 3)
 #define ID_NACK		(1 << 4)
 
+enum rcar_i2c_type {
+	I2C_RCAR_GEN1,
+	I2C_RCAR_GEN2,
+};
+
 struct rcar_i2c_priv {
 	void __iomem *io;
 	struct i2c_adapter adap;
@@ -113,6 +119,7 @@ struct rcar_i2c_priv {
 	int irq;
 	u32 icccr;
 	u32 flags;
+	enum rcar_i2c_type	devtype;
 };
 
 #define rcar_i2c_priv_to_dev(p)		((p)->adap.dev.parent)
@@ -220,13 +227,27 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv,
 				    u32 bus_speed,
 				    struct device *dev)
 {
-	struct clk *clkp = clk_get(NULL, "peripheral_clk");
+	struct clk *clkp = clk_get(dev, NULL);
 	u32 scgd, cdf;
 	u32 round, ick;
 	u32 scl;
+	u32 cdf_width;
+	unsigned long rate;
 
-	if (!clkp) {
-		dev_err(dev, "there is no peripheral_clk\n");
+	if (IS_ERR(clkp)) {
+		dev_err(dev, "couldn't get clock\n");
+		return PTR_ERR(clkp);
+	}
+
+	switch (priv->devtype) {
+	case I2C_RCAR_GEN1:
+		cdf_width = 2;
+		break;
+	case I2C_RCAR_GEN2:
+		cdf_width = 3;
+		break;
+	default:
+		dev_err(dev, "device type error\n");
 		return -EIO;
 	}
 
@@ -245,15 +266,14 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv,
 	 * clkp : peripheral_clk
 	 * F[]  : integer up-valuation
 	 */
-	for (cdf = 0; cdf < 4; cdf++) {
-		ick = clk_get_rate(clkp) / (1 + cdf);
-		if (ick < 20000000)
-			goto ick_find;
+	rate = clk_get_rate(clkp);
+	cdf = rate / 20000000;
+	if (cdf >= 1 << cdf_width) {
+		dev_err(dev, "Input clock %lu too high\n", rate);
+		return -EIO;
 	}
-	dev_err(dev, "there is no best CDF\n");
-	return -EIO;
+	ick = rate / (cdf + 1);
 
-ick_find:
 	/*
 	 * it is impossible to calculate large scale
 	 * number on u32. separate it
@@ -271,6 +291,12 @@ ick_find:
 	 *
 	 * Calculation result (= SCL) should be less than
 	 * bus_speed for hardware safety
+	 *
+	 * We could use something along the lines of
+	 *	div = ick / (bus_speed + 1) + 1;
+	 *	scgd = (div - 20 - round + 7) / 8;
+	 *	scl = ick / (20 + (scgd * 8) + round);
+	 * (not fully verified) but that would get pretty involved
 	 */
 	for (scgd = 0; scgd < 0x40; scgd++) {
 		scl = ick / (20 + (scgd * 8) + round);
@@ -287,7 +313,7 @@ scgd_find:
 	/*
 	 * keep icccr value
 	 */
-	priv->icccr = (scgd << 2 | cdf);
+	priv->icccr = scgd << cdf_width | cdf;
 
 	return 0;
 }
@@ -613,21 +639,24 @@ static const struct i2c_algorithm rcar_i2c_algo = {
 	.functionality	= rcar_i2c_func,
 };
 
-static int __devinit rcar_i2c_probe(struct platform_device *pdev)
+static const struct of_device_id rcar_i2c_dt_ids[] = {
+	{ .compatible = "renesas,i2c-rcar", .data = (void *)I2C_RCAR_GEN1 },
+	{ .compatible = "renesas,i2c-r8a7778", .data = (void *)I2C_RCAR_GEN1 },
+	{ .compatible = "renesas,i2c-r8a7779", .data = (void *)I2C_RCAR_GEN1 },
+	{ .compatible = "renesas,i2c-r8a7790", .data = (void *)I2C_RCAR_GEN2 },
+	{},
+};
+MODULE_DEVICE_TABLE(of, rcar_i2c_dt_ids);
+
+static int rcar_i2c_probe(struct platform_device *pdev)
 {
-	struct i2c_rcar_platform_data *pdata = pdev->dev.platform_data;
+	struct i2c_rcar_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct rcar_i2c_priv *priv;
 	struct i2c_adapter *adap;
 	struct resource *res;
 	struct device *dev = &pdev->dev;
 	u32 bus_speed;
 	int ret;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "no mmio resources\n");
-		return -ENODEV;
-	}
 
 	priv = devm_kzalloc(dev, sizeof(struct rcar_i2c_priv), GFP_KERNEL);
 	if (!priv) {
@@ -636,17 +665,24 @@ static int __devinit rcar_i2c_probe(struct platform_device *pdev)
 	}
 
 	bus_speed = 100000; /* default 100 kHz */
-	if (pdata && pdata->bus_speed)
+	ret = of_property_read_u32(dev->of_node, "clock-frequency", &bus_speed);
+	if (ret < 0 && pdata && pdata->bus_speed)
 		bus_speed = pdata->bus_speed;
+
+	if (pdev->dev.of_node)
+		priv->devtype = (long)of_match_device(rcar_i2c_dt_ids,
+						      dev)->data;
+	else
+		priv->devtype = platform_get_device_id(pdev)->driver_data;
+
 	ret = rcar_i2c_clock_calculate(priv, bus_speed, dev);
 	if (ret < 0)
 		return ret;
 
-	priv->io = devm_request_and_ioremap(dev, res);
-	if (!priv->io) {
-		dev_err(dev, "cannot ioremap\n");
-		return -ENODEV;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	priv->io = devm_ioremap_resource(dev, res);
+	if (IS_ERR(priv->io))
+		return PTR_ERR(priv->io);
 
 	priv->irq = platform_get_irq(pdev, 0);
 	init_waitqueue_head(&priv->wait);
@@ -658,6 +694,7 @@ static int __devinit rcar_i2c_probe(struct platform_device *pdev)
 	adap->class		= I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adap->retries		= 3;
 	adap->dev.parent	= dev;
+	adap->dev.of_node	= dev->of_node;
 	i2c_set_adapdata(adap, priv);
 	strlcpy(adap->name, pdev->name, sizeof(adap->name));
 
@@ -682,7 +719,7 @@ static int __devinit rcar_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit rcar_i2c_remove(struct platform_device *pdev)
+static int rcar_i2c_remove(struct platform_device *pdev)
 {
 	struct rcar_i2c_priv *priv = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -693,13 +730,23 @@ static int __devexit rcar_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct platform_device_id rcar_i2c_id_table[] = {
+	{ "i2c-rcar",		I2C_RCAR_GEN1 },
+	{ "i2c-rcar_gen1",	I2C_RCAR_GEN1 },
+	{ "i2c-rcar_gen2",	I2C_RCAR_GEN2 },
+	{},
+};
+MODULE_DEVICE_TABLE(platform, rcar_i2c_id_table);
+
 static struct platform_driver rcar_i2c_driver = {
 	.driver	= {
 		.name	= "i2c-rcar",
 		.owner	= THIS_MODULE,
+		.of_match_table = rcar_i2c_dt_ids,
 	},
 	.probe		= rcar_i2c_probe,
-	.remove		= __devexit_p(rcar_i2c_remove),
+	.remove		= rcar_i2c_remove,
+	.id_table	= rcar_i2c_id_table,
 };
 
 module_platform_driver(rcar_i2c_driver);

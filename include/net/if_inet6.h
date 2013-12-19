@@ -50,7 +50,7 @@ struct inet6_ifaddr {
 
 	int			state;
 
-	__u8			probes;
+	__u8			dad_probes;
 	__u8			flags;
 
 	__u16			scope;
@@ -58,7 +58,7 @@ struct inet6_ifaddr {
 	unsigned long		cstamp;	/* created timestamp */
 	unsigned long		tstamp; /* updated timestamp */
 
-	struct timer_list	timer;
+	struct timer_list	dad_timer;
 
 	struct inet6_dev	*idev;
 	struct rt6_info		*rt;
@@ -66,12 +66,14 @@ struct inet6_ifaddr {
 	struct hlist_node	addr_lst;
 	struct list_head	if_list;
 
-#ifdef CONFIG_IPV6_PRIVACY
 	struct list_head	tmp_list;
 	struct inet6_ifaddr	*ifpub;
 	int			regen_count;
-#endif
+
+	bool			tokenized;
+
 	struct rcu_head		rcu;
+	struct in6_addr		peer_addr;
 };
 
 struct ip6_sf_socklist {
@@ -163,17 +165,25 @@ struct inet6_dev {
 	struct net_device	*dev;
 
 	struct list_head	addr_list;
+	int			valid_ll_addr_cnt;
 
 	struct ifmcaddr6	*mc_list;
 	struct ifmcaddr6	*mc_tomb;
 	spinlock_t		mc_lock;
-	unsigned char		mc_qrv;
+
+	unsigned char		mc_qrv;		/* Query Robustness Variable */
 	unsigned char		mc_gq_running;
 	unsigned char		mc_ifc_count;
-	unsigned long		mc_v1_seen;
+	unsigned char		mc_dad_count;
+
+	unsigned long		mc_v1_seen;	/* Max time we stay in MLDv1 mode */
+	unsigned long		mc_qi;		/* Query Interval */
+	unsigned long		mc_qri;		/* Query Response Interval */
 	unsigned long		mc_maxdelay;
+
 	struct timer_list	mc_gq_timer;	/* general query timer */
 	struct timer_list	mc_ifc_timer;	/* interface change timer */
+	struct timer_list	mc_dad_timer;	/* dad complete mc timer */
 
 	struct ifacaddr6	*ac_list;
 	rwlock_t		lock;
@@ -181,16 +191,19 @@ struct inet6_dev {
 	__u32			if_flags;
 	int			dead;
 
-#ifdef CONFIG_IPV6_PRIVACY
 	u8			rndid[8];
 	struct timer_list	regen_timer;
 	struct list_head	tempaddr_list;
-#endif
+
+	struct in6_addr		token;
 
 	struct neigh_parms	*nd_parms;
-	struct inet6_dev	*next;
 	struct ipv6_devconf	cnf;
 	struct ipv6_devstat	stats;
+
+	struct timer_list	rs_timer;
+	__u8			rs_probes;
+
 	unsigned long		tstamp; /* ipv6InterfaceTable update timestamp */
 	struct rcu_head		rcu;
 };

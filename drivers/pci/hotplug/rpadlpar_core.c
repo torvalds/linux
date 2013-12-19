@@ -217,7 +217,7 @@ static int dlpar_remove_phb(char *drc_name, struct device_node *dn)
 	if (!pcibios_find_pci_bus(dn))
 		return -EINVAL;
 
-	/* If pci slot is hotplugable, use hotplug to remove it */
+	/* If pci slot is hotpluggable, use hotplug to remove it */
 	slot = find_php_slot(dn);
 	if (slot && rpaphp_deregister_slot(slot)) {
 		printk(KERN_ERR "%s: unable to remove hotplug slot %s\n",
@@ -388,7 +388,6 @@ int dlpar_remove_pci_slot(char *drc_name, struct device_node *dn)
 	/* Remove the EADS bridge device itself */
 	BUG_ON(!bus->self);
 	pr_debug("PCI: Now removing bridge device %s\n", pci_name(bus->self));
-	eeh_remove_bus_device(bus->self, true);
 	pci_stop_and_remove_bus_device(bus->self);
 
 	return 0;

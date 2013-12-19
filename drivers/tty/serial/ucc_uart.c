@@ -25,6 +25,8 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/dma-mapping.h>
 
@@ -269,7 +271,7 @@ static unsigned int qe_uart_tx_empty(struct uart_port *port)
 			return 1;
 
 		bdp++;
-	};
+	}
 }
 
 /*
@@ -469,7 +471,7 @@ static void qe_uart_int_rx(struct uart_qe_port *qe_port)
 	int i;
 	unsigned char ch, *cp;
 	struct uart_port *port = &qe_port->port;
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
 	struct qe_bd *bdp;
 	u16 status;
 	unsigned int flg;
@@ -491,7 +493,7 @@ static void qe_uart_int_rx(struct uart_qe_port *qe_port)
 		/* If we don't have enough room in RX buffer for the entire BD,
 		 * then we try later, which will be the next RX interrupt.
 		 */
-		if (tty_buffer_request_room(tty, i) < i) {
+		if (tty_buffer_request_room(tport, i) < i) {
 			dev_dbg(port->dev, "ucc-uart: no room in RX buffer\n");
 			return;
 		}
@@ -512,7 +514,7 @@ static void qe_uart_int_rx(struct uart_qe_port *qe_port)
 				continue;
 
 error_return:
-			tty_insert_flip_char(tty, ch, flg);
+			tty_insert_flip_char(tport, ch, flg);
 
 		}
 
@@ -530,7 +532,7 @@ error_return:
 	qe_port->rx_cur = bdp;
 
 	/* Activate BH processing */
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(tport);
 
 	return;
 
@@ -560,7 +562,7 @@ handle_error:
 
 	/* Overrun does not affect the current character ! */
 	if (status & BD_SC_OV)
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 #ifdef SUPPORT_SYSRQ
 	port->sysrq = 0;
 #endif
@@ -1451,7 +1453,7 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 		goto out_np;
 	}
 
-	dev_set_drvdata(&ofdev->dev, qe_port);
+	platform_set_drvdata(ofdev, qe_port);
 
 	dev_info(&ofdev->dev, "UCC%u assigned to /dev/ttyQE%u\n",
 		qe_port->ucc_num + 1, qe_port->port.line);
@@ -1471,13 +1473,12 @@ out_free:
 
 static int ucc_uart_remove(struct platform_device *ofdev)
 {
-	struct uart_qe_port *qe_port = dev_get_drvdata(&ofdev->dev);
+	struct uart_qe_port *qe_port = platform_get_drvdata(ofdev);
 
 	dev_info(&ofdev->dev, "removing /dev/ttyQE%u\n", qe_port->port.line);
 
 	uart_remove_one_port(&ucc_uart_driver, &qe_port->port);
 
-	dev_set_drvdata(&ofdev->dev, NULL);
 	kfree(qe_port);
 
 	return 0;
@@ -1518,9 +1519,11 @@ static int __init ucc_uart_init(void)
 	}
 
 	ret = platform_driver_register(&ucc_uart_of_driver);
-	if (ret)
+	if (ret) {
 		printk(KERN_ERR
 		       "ucc-uart: could not register platform driver\n");
+		uart_unregister_driver(&ucc_uart_driver);
+	}
 
 	return ret;
 }

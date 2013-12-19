@@ -24,6 +24,8 @@
  *
  */
 
+#include <linux/linkage.h>
+
 .file "serpent-sse2-i586-asm_32.S"
 .text
 
@@ -510,11 +512,7 @@
 	pxor t0,		x3; \
 	movdqu x3,		(3*4*4)(out);
 
-.align 8
-.global __serpent_enc_blk_4way
-.type   __serpent_enc_blk_4way,@function;
-
-__serpent_enc_blk_4way:
+ENTRY(__serpent_enc_blk_4way)
 	/* input:
 	 *	arg_ctx(%esp): ctx, CTX
 	 *	arg_dst(%esp): dst
@@ -566,22 +564,19 @@ __serpent_enc_blk_4way:
 	movl arg_dst(%esp), %eax;
 
 	cmpb $0, arg_xor(%esp);
-	jnz __enc_xor4;
+	jnz .L__enc_xor4;
 
 	write_blocks(%eax, RA, RB, RC, RD, RT0, RT1, RE);
 
 	ret;
 
-__enc_xor4:
+.L__enc_xor4:
 	xor_blocks(%eax, RA, RB, RC, RD, RT0, RT1, RE);
 
 	ret;
+ENDPROC(__serpent_enc_blk_4way)
 
-.align 8
-.global serpent_dec_blk_4way
-.type   serpent_dec_blk_4way,@function;
-
-serpent_dec_blk_4way:
+ENTRY(serpent_dec_blk_4way)
 	/* input:
 	 *	arg_ctx(%esp): ctx, CTX
 	 *	arg_dst(%esp): dst
@@ -633,3 +628,4 @@ serpent_dec_blk_4way:
 	write_blocks(%eax, RC, RD, RB, RE, RT0, RT1, RA);
 
 	ret;
+ENDPROC(serpent_dec_blk_4way)

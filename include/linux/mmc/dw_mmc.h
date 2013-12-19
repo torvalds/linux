@@ -15,6 +15,7 @@
 #define LINUX_MMC_DW_MMC_H
 
 #include <linux/scatterlist.h>
+#include <linux/mmc/core.h>
 
 #define MAX_MCI_SLOTS	2
 
@@ -129,6 +130,9 @@ struct dw_mci {
 	struct mmc_request	*mrq;
 	struct mmc_command	*cmd;
 	struct mmc_data		*data;
+	struct mmc_command	stop_abort;
+	unsigned int		prev_blksz;
+	unsigned char		timing;
 	struct workqueue_struct	*card_workqueue;
 
 	/* DMA interface members*/
@@ -209,8 +213,10 @@ struct dw_mci_dma_ops {
 #define DW_MCI_QUIRK_HIGHSPEED			BIT(2)
 /* Unreliable card detection */
 #define DW_MCI_QUIRK_BROKEN_CARD_DETECTION	BIT(3)
-/* Write Protect detection not available */
-#define DW_MCI_QUIRK_NO_WRITE_PROTECT		BIT(4)
+
+/* Slot level quirks */
+/* This slot has no write protect */
+#define DW_MCI_SLOT_QUIRK_NO_WRITE_PROTECT	BIT(0)
 
 struct dma_pdata;
 

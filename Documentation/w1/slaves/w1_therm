@@ -34,9 +34,16 @@ currently supported.  The driver also doesn't support reduced
 precision (which would also reduce the conversion time).
 
 The module parameter strong_pullup can be set to 0 to disable the
-strong pullup or 1 to enable.  If enabled the 5V strong pullup will be
-enabled when the conversion is taking place provided the master driver
-must support the strong pullup (or it falls back to a pullup
+strong pullup, 1 to enable autodetection or 2 to force strong pullup.
+In case of autodetection, the driver will use the "READ POWER SUPPLY"
+command to check if there are pariste powered devices on the bus.
+If so, it will activate the master's strong pullup.
+In case the detection of parasite devices using this command fails
+(seems to be the case with some DS18S20) the strong pullup can
+be force-enabled.
+If the strong pullup is enabled, the master's strong pullup will be
+driven when the conversion is taking place, provided the master driver
+does support the strong pullup (or it falls back to a pullup
 resistor).  The DS18b20 temperature sensor specification lists a
 maximum current draw of 1.5mA and that a 5k pullup resistor is not
 sufficient.  The strong pullup is designed to provide the additional

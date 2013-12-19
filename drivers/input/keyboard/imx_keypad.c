@@ -20,6 +20,7 @@
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
@@ -414,15 +415,23 @@ open_err:
 	return -EIO;
 }
 
+#ifdef CONFIG_OF
+static struct of_device_id imx_keypad_of_match[] = {
+	{ .compatible = "fsl,imx21-kpp", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, imx_keypad_of_match);
+#endif
+
 static int imx_keypad_probe(struct platform_device *pdev)
 {
 	const struct matrix_keymap_data *keymap_data = pdev->dev.platform_data;
 	struct imx_keypad *keypad;
 	struct input_dev *input_dev;
 	struct resource *res;
-	int irq, error, i;
+	int irq, error, i, row, col;
 
-	if (keymap_data == NULL) {
+	if (!keymap_data && !pdev->dev.of_node) {
 		dev_err(&pdev->dev, "no keymap defined\n");
 		return -EINVAL;
 	}
@@ -433,30 +442,17 @@ static int imx_keypad_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "no I/O memory defined in platform data\n");
-		return -EINVAL;
-	}
-
-	res = request_mem_region(res->start, resource_size(res), pdev->name);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "failed to request I/O memory\n");
-		return -EBUSY;
-	}
-
-	input_dev = input_allocate_device();
+	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!input_dev) {
 		dev_err(&pdev->dev, "failed to allocate the input device\n");
-		error = -ENOMEM;
-		goto failed_rel_mem;
+		return -ENOMEM;
 	}
 
-	keypad = kzalloc(sizeof(struct imx_keypad), GFP_KERNEL);
+	keypad = devm_kzalloc(&pdev->dev, sizeof(struct imx_keypad),
+			     GFP_KERNEL);
 	if (!keypad) {
 		dev_err(&pdev->dev, "not enough memory for driver data\n");
-		error = -ENOMEM;
-		goto failed_free_input;
+		return -ENOMEM;
 	}
 
 	keypad->input_dev = input_dev;
@@ -466,35 +462,16 @@ static int imx_keypad_probe(struct platform_device *pdev)
 	setup_timer(&keypad->check_matrix_timer,
 		    imx_keypad_check_for_events, (unsigned long) keypad);
 
-	keypad->mmio_base = ioremap(res->start, resource_size(res));
-	if (keypad->mmio_base == NULL) {
-		dev_err(&pdev->dev, "failed to remap I/O memory\n");
-		error = -ENOMEM;
-		goto failed_free_priv;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	keypad->mmio_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(keypad->mmio_base))
+		return PTR_ERR(keypad->mmio_base);
 
-	keypad->clk = clk_get(&pdev->dev, NULL);
+	keypad->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(keypad->clk)) {
 		dev_err(&pdev->dev, "failed to get keypad clock\n");
-		error = PTR_ERR(keypad->clk);
-		goto failed_unmap;
+		return PTR_ERR(keypad->clk);
 	}
-
-	/* Search for rows and cols enabled */
-	for (i = 0; i < keymap_data->keymap_size; i++) {
-		keypad->rows_en_mask |= 1 << KEY_ROW(keymap_data->keymap[i]);
-		keypad->cols_en_mask |= 1 << KEY_COL(keymap_data->keymap[i]);
-	}
-
-	if (keypad->rows_en_mask > ((1 << MAX_MATRIX_KEY_ROWS) - 1) ||
-	    keypad->cols_en_mask > ((1 << MAX_MATRIX_KEY_COLS) - 1)) {
-		dev_err(&pdev->dev,
-			"invalid key data (too many rows or colums)\n");
-		error = -EINVAL;
-		goto failed_clock_put;
-	}
-	dev_dbg(&pdev->dev, "enabled rows mask: %x\n", keypad->rows_en_mask);
-	dev_dbg(&pdev->dev, "enabled cols mask: %x\n", keypad->cols_en_mask);
 
 	/* Init the Input device */
 	input_dev->name = pdev->name;
@@ -509,8 +486,21 @@ static int imx_keypad_probe(struct platform_device *pdev)
 					   keypad->keycodes, input_dev);
 	if (error) {
 		dev_err(&pdev->dev, "failed to build keymap\n");
-		goto failed_clock_put;
+		return error;
 	}
+
+	/* Search for rows and cols enabled */
+	for (row = 0; row < MAX_MATRIX_KEY_ROWS; row++) {
+		for (col = 0; col < MAX_MATRIX_KEY_COLS; col++) {
+			i = MATRIX_SCAN_CODE(row, col, MATRIX_ROW_SHIFT);
+			if (keypad->keycodes[i] != KEY_RESERVED) {
+				keypad->rows_en_mask |= 1 << row;
+				keypad->cols_en_mask |= 1 << col;
+			}
+		}
+	}
+	dev_dbg(&pdev->dev, "enabled rows mask: %x\n", keypad->rows_en_mask);
+	dev_dbg(&pdev->dev, "enabled cols mask: %x\n", keypad->cols_en_mask);
 
 	__set_bit(EV_REP, input_dev->evbit);
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
@@ -521,59 +511,22 @@ static int imx_keypad_probe(struct platform_device *pdev)
 	imx_keypad_inhibit(keypad);
 	clk_disable_unprepare(keypad->clk);
 
-	error = request_irq(irq, imx_keypad_irq_handler, 0,
+	error = devm_request_irq(&pdev->dev, irq, imx_keypad_irq_handler, 0,
 			    pdev->name, keypad);
 	if (error) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
-		goto failed_clock_put;
+		return error;
 	}
 
 	/* Register the input device */
 	error = input_register_device(input_dev);
 	if (error) {
 		dev_err(&pdev->dev, "failed to register input device\n");
-		goto failed_free_irq;
+		return error;
 	}
 
 	platform_set_drvdata(pdev, keypad);
 	device_init_wakeup(&pdev->dev, 1);
-
-	return 0;
-
-failed_free_irq:
-	free_irq(irq, pdev);
-failed_clock_put:
-	clk_put(keypad->clk);
-failed_unmap:
-	iounmap(keypad->mmio_base);
-failed_free_priv:
-	kfree(keypad);
-failed_free_input:
-	input_free_device(input_dev);
-failed_rel_mem:
-	release_mem_region(res->start, resource_size(res));
-	return error;
-}
-
-static int imx_keypad_remove(struct platform_device *pdev)
-{
-	struct imx_keypad *keypad = platform_get_drvdata(pdev);
-	struct resource *res;
-
-	dev_dbg(&pdev->dev, ">%s\n", __func__);
-
-	platform_set_drvdata(pdev, NULL);
-
-	input_unregister_device(keypad->input_dev);
-
-	free_irq(keypad->irq, keypad);
-	clk_put(keypad->clk);
-
-	iounmap(keypad->mmio_base);
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, resource_size(res));
-
-	kfree(keypad);
 
 	return 0;
 }
@@ -631,9 +584,9 @@ static struct platform_driver imx_keypad_driver = {
 		.name	= "imx-keypad",
 		.owner	= THIS_MODULE,
 		.pm	= &imx_kbd_pm_ops,
+		.of_match_table = of_match_ptr(imx_keypad_of_match),
 	},
 	.probe		= imx_keypad_probe,
-	.remove		= imx_keypad_remove,
 };
 module_platform_driver(imx_keypad_driver);
 

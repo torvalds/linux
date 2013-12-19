@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -596,7 +596,7 @@ struct acpi_hest_generic {
 
 /* Generic Error Status block */
 
-struct acpi_hest_generic_status {
+struct acpi_generic_status {
 	u32 block_status;
 	u32 raw_data_offset;
 	u32 raw_data_length;
@@ -606,15 +606,15 @@ struct acpi_hest_generic_status {
 
 /* Values for block_status flags above */
 
-#define ACPI_HEST_UNCORRECTABLE             (1)
-#define ACPI_HEST_CORRECTABLE               (1<<1)
-#define ACPI_HEST_MULTIPLE_UNCORRECTABLE    (1<<2)
-#define ACPI_HEST_MULTIPLE_CORRECTABLE      (1<<3)
-#define ACPI_HEST_ERROR_ENTRY_COUNT         (0xFF<<4)	/* 8 bits, error count */
+#define ACPI_GEN_ERR_UC			BIT(0)
+#define ACPI_GEN_ERR_CE			BIT(1)
+#define ACPI_GEN_ERR_MULTI_UC		BIT(2)
+#define ACPI_GEN_ERR_MULTI_CE		BIT(3)
+#define ACPI_GEN_ERR_COUNT_SHIFT	(0xFF<<4) /* 8 bits, error count */
 
 /* Generic Error Data entry */
 
-struct acpi_hest_generic_data {
+struct acpi_generic_data {
 	u8 section_type[16];
 	u32 error_severity;
 	u16 revision;
@@ -768,7 +768,7 @@ struct acpi_madt_interrupt_source {
 
 struct acpi_madt_local_x2apic {
 	struct acpi_subtable_header header;
-	u16 reserved;		/* Reserved - must be zero */
+	u16 reserved;		/* reserved - must be zero */
 	u32 local_apic_id;	/* Processor x2APIC ID  */
 	u32 lapic_flags;
 	u32 uid;		/* ACPI processor UID */
@@ -781,14 +781,14 @@ struct acpi_madt_local_x2apic_nmi {
 	u16 inti_flags;
 	u32 uid;		/* ACPI processor UID */
 	u8 lint;		/* LINTn to which NMI is connected */
-	u8 reserved[3];
+	u8 reserved[3];		/* reserved - must be zero */
 };
 
 /* 11: Generic Interrupt (ACPI 5.0) */
 
 struct acpi_madt_generic_interrupt {
 	struct acpi_subtable_header header;
-	u16 reserved;		/* Reserved - must be zero */
+	u16 reserved;		/* reserved - must be zero */
 	u32 gic_id;
 	u32 uid;
 	u32 flags;

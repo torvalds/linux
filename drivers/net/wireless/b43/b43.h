@@ -7,6 +7,7 @@
 #include <linux/hw_random.h>
 #include <linux/bcma/bcma.h>
 #include <linux/ssb/ssb.h>
+#include <linux/completion.h>
 #include <net/mac80211.h>
 
 #include "debugfs.h"
@@ -284,7 +285,9 @@ enum {
 #define B43_SHM_SH_DTIMPER		0x0012	/* DTIM period */
 #define B43_SHM_SH_NOSLPZNATDTIM	0x004C	/* NOSLPZNAT DTIM */
 /* SHM_SHARED beacon/AP variables */
+#define B43_SHM_SH_BT_BASE0		0x0068	/* Beacon template base 0 */
 #define B43_SHM_SH_BTL0			0x0018	/* Beacon template length 0 */
+#define B43_SHM_SH_BT_BASE1		0x0468	/* Beacon template base 1 */
 #define B43_SHM_SH_BTL1			0x001A	/* Beacon template length 1 */
 #define B43_SHM_SH_BTSFOFF		0x001C	/* Beacon TSF offset */
 #define B43_SHM_SH_TIMBPOS		0x001E	/* TIM B position in beacon */
@@ -471,6 +474,12 @@ enum {
 #define B43_MACCMD_DFQ_VALID		0x00000004	/* Directed frame queue valid (IBSS PS mode, ATIM) */
 #define B43_MACCMD_CCA			0x00000008	/* Clear channel assessment */
 #define B43_MACCMD_BGNOISE		0x00000010	/* Background noise */
+
+/* See BCMA_CLKCTLST_EXTRESREQ and BCMA_CLKCTLST_EXTRESST */
+#define B43_BCMA_CLKCTLST_80211_PLL_REQ	0x00000100
+#define B43_BCMA_CLKCTLST_PHY_PLL_REQ	0x00000200
+#define B43_BCMA_CLKCTLST_80211_PLL_ST	0x01000000
+#define B43_BCMA_CLKCTLST_PHY_PLL_ST	0x02000000
 
 /* BCMA 802.11 core specific IO Control (BCMA_IOCTL) flags */
 #define B43_BCMA_IOCTL_PHY_CLKEN	0x00000004	/* PHY Clock Enable */
@@ -722,6 +731,10 @@ enum b43_firmware_file_type {
 struct b43_request_fw_context {
 	/* The device we are requesting the fw for. */
 	struct b43_wldev *dev;
+	/* a completion event structure needed if this call is asynchronous */
+	struct completion fw_load_complete;
+	/* a pointer to the firmware object */
+	const struct firmware *blob;
 	/* The type of firmware to request. */
 	enum b43_firmware_file_type req_type;
 	/* Error messages for each firmware type. */
@@ -967,7 +980,7 @@ static inline int b43_is_mode(struct b43_wl *wl, int type)
  */
 static inline enum ieee80211_band b43_current_band(struct b43_wl *wl)
 {
-	return wl->hw->conf.channel->band;
+	return wl->hw->conf.chandef.chan->band;
 }
 
 static inline int b43_bus_may_powerdown(struct b43_wldev *wldev)

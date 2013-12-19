@@ -362,12 +362,9 @@ END(ret_from_exception)
 #ifdef CONFIG_PREEMPT
 ENTRY(resume_kernel)
 	DISABLE_INTERRUPTS(CLBR_ANY)
-	cmpl $0,TI_preempt_count(%ebp)	# non-zero preempt_count ?
-	jnz restore_all
 need_resched:
-	movl TI_flags(%ebp), %ecx	# need_resched set ?
-	testb $_TIF_NEED_RESCHED, %cl
-	jz restore_all
+	cmpl $0,PER_CPU_VAR(__preempt_count)
+	jnz restore_all
 	testl $X86_EFLAGS_IF,PT_EFLAGS(%esp)	# interrupts off (exception path) ?
 	jz restore_all
 	call preempt_schedule_irq
@@ -699,51 +696,6 @@ END(syscall_badsys)
  */
 	.popsection
 
-/*
- * System calls that need a pt_regs pointer.
- */
-#define PTREGSCALL0(name) \
-ENTRY(ptregs_##name) ;  \
-	leal 4(%esp),%eax; \
-	jmp sys_##name; \
-ENDPROC(ptregs_##name)
-
-#define PTREGSCALL1(name) \
-ENTRY(ptregs_##name) ; \
-	leal 4(%esp),%edx; \
-	movl (PT_EBX+4)(%esp),%eax; \
-	jmp sys_##name; \
-ENDPROC(ptregs_##name)
-
-#define PTREGSCALL2(name) \
-ENTRY(ptregs_##name) ; \
-	leal 4(%esp),%ecx; \
-	movl (PT_ECX+4)(%esp),%edx; \
-	movl (PT_EBX+4)(%esp),%eax; \
-	jmp sys_##name; \
-ENDPROC(ptregs_##name)
-
-#define PTREGSCALL3(name) \
-ENTRY(ptregs_##name) ; \
-	CFI_STARTPROC; \
-	leal 4(%esp),%eax; \
-	pushl_cfi %eax; \
-	movl PT_EDX(%eax),%ecx; \
-	movl PT_ECX(%eax),%edx; \
-	movl PT_EBX(%eax),%eax; \
-	call sys_##name; \
-	addl $4,%esp; \
-	CFI_ADJUST_CFA_OFFSET -4; \
-	ret; \
-	CFI_ENDPROC; \
-ENDPROC(ptregs_##name)
-
-PTREGSCALL1(iopl)
-PTREGSCALL0(sigreturn)
-PTREGSCALL0(rt_sigreturn)
-PTREGSCALL2(vm86)
-PTREGSCALL1(vm86old)
-
 .macro FIXUP_ESPFIX_STACK
 /*
  * Switch back for ESPFIX stack to the normal zerobased stack
@@ -846,7 +798,17 @@ ENTRY(name)				\
 	CFI_ENDPROC;			\
 ENDPROC(name)
 
-#define BUILD_INTERRUPT(name, nr)	BUILD_INTERRUPT3(name, nr, smp_##name)
+
+#ifdef CONFIG_TRACING
+#define TRACE_BUILD_INTERRUPT(name, nr)		\
+	BUILD_INTERRUPT3(trace_##name, nr, smp_trace_##name)
+#else
+#define TRACE_BUILD_INTERRUPT(name, nr)
+#endif
+
+#define BUILD_INTERRUPT(name, nr) \
+	BUILD_INTERRUPT3(name, nr, smp_##name); \
+	TRACE_BUILD_INTERRUPT(name, nr)
 
 /* The include is where all of the SMP etc. interrupts come from */
 #include <asm/entry_arch.h>
@@ -1065,7 +1027,6 @@ ENTRY(xen_failsafe_callback)
 	lea 16(%esp),%esp
 	CFI_ADJUST_CFA_OFFSET -16
 	jz 5f
-	addl $16,%esp
 	jmp iret_exc
 5:	pushl_cfi $-1 /* orig_ax = -1 => not a system call */
 	SAVE_ALL
@@ -1092,10 +1053,17 @@ ENTRY(xen_failsafe_callback)
 	_ASM_EXTABLE(4b,9b)
 ENDPROC(xen_failsafe_callback)
 
-BUILD_INTERRUPT3(xen_hvm_callback_vector, XEN_HVM_EVTCHN_CALLBACK,
+BUILD_INTERRUPT3(xen_hvm_callback_vector, HYPERVISOR_CALLBACK_VECTOR,
 		xen_evtchn_do_upcall)
 
 #endif	/* CONFIG_XEN */
+
+#if IS_ENABLED(CONFIG_HYPERV)
+
+BUILD_INTERRUPT3(hyperv_callback_vector, HYPERVISOR_CALLBACK_VECTOR,
+	hyperv_vector_handler)
+
+#endif /* CONFIG_HYPERV */
 
 #ifdef CONFIG_FUNCTION_TRACER
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -1205,6 +1173,9 @@ ftrace_restore_flags:
 #else /* ! CONFIG_DYNAMIC_FTRACE */
 
 ENTRY(mcount)
+	cmpl $__PAGE_OFFSET, %esp
+	jb ftrace_stub		/* Paging not enabled yet? */
+
 	cmpl $0, function_trace_stop
 	jne  ftrace_stub
 
@@ -1272,6 +1243,16 @@ return_to_handler:
  * Some functions should be protected against kprobes
  */
 	.pushsection .kprobes.text, "ax"
+
+#ifdef CONFIG_TRACING
+ENTRY(trace_page_fault)
+	RING0_EC_FRAME
+	ASM_CLAC
+	pushl_cfi $trace_do_page_fault
+	jmp error_code
+	CFI_ENDPROC
+END(trace_page_fault)
+#endif
 
 ENTRY(page_fault)
 	RING0_EC_FRAME

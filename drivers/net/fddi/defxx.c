@@ -1068,15 +1068,12 @@ static int dfx_driver_init(struct net_device *dev, const char *print_name,
 #endif
 					sizeof(PI_CONSUMER_BLOCK) +
 					(PI_ALIGN_K_DESC_BLK - 1);
-	bp->kmalloced = top_v = dma_alloc_coherent(bp->bus_dev, alloc_size,
-						   &bp->kmalloced_dma,
-						   GFP_ATOMIC);
-	if (top_v == NULL) {
-		printk("%s: Could not allocate memory for host buffers "
-		       "and structures!\n", print_name);
+	bp->kmalloced = top_v = dma_zalloc_coherent(bp->bus_dev, alloc_size,
+						    &bp->kmalloced_dma,
+						    GFP_ATOMIC);
+	if (top_v == NULL)
 		return DFX_K_FAILURE;
-	}
-	memset(top_v, 0, alloc_size);	/* zero out memory before continuing */
+
 	top_p = bp->kmalloced_dma;	/* get physical address of buffer */
 
 	/*

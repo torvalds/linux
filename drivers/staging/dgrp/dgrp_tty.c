@@ -39,6 +39,7 @@
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
+#include <linux/device.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 
@@ -1119,7 +1120,9 @@ static void dgrp_tty_close(struct tty_struct *tty, struct file *file)
 				if (!sent_printer_offstr)
 					dgrp_tty_flush_buffer(tty);
 
+				spin_unlock_irqrestore(&nd->nd_lock, lock_flags);
 				tty_ldisc_flush(tty);
+				spin_lock_irqsave(&nd->nd_lock, lock_flags);
 				break;
 		}
 

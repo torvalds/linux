@@ -16,7 +16,6 @@
 #include <linux/smp.h>
 #include <linux/io.h>
 
-#include <asm/hardware/gic.h>
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
 #include <asm/mach-types.h>
@@ -39,15 +38,8 @@ static inline int get_core_count(void)
 	return ((read_cpuid_id() >> 4) & 3) + 1;
 }
 
-static void __cpuinit msm_secondary_init(unsigned int cpu)
+static void msm_secondary_init(unsigned int cpu)
 {
-	/*
-	 * if any interrupts are already enabled for the primary
-	 * core (e.g. timer irq), then they will not have been enabled
-	 * for us: do so
-	 */
-	gic_secondary_init(0);
-
 	/*
 	 * let the primary processor know we're out of the
 	 * pen, then head off into the C entry point
@@ -62,7 +54,7 @@ static void __cpuinit msm_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
-static __cpuinit void prepare_cold_cpu(unsigned int cpu)
+static void prepare_cold_cpu(unsigned int cpu)
 {
 	int ret;
 	ret = scm_set_boot_addr(virt_to_phys(msm_secondary_startup),
@@ -81,7 +73,7 @@ static __cpuinit void prepare_cold_cpu(unsigned int cpu)
 				  "address\n");
 }
 
-static int __cpuinit msm_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int msm_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 	static int cold_boot_done;
@@ -115,7 +107,7 @@ static int __cpuinit msm_boot_secondary(unsigned int cpu, struct task_struct *id
 	 * the boot monitor to read the system wide flags register,
 	 * and branch to the address found there.
 	 */
-	gic_raise_softirq(cpumask_of(cpu), 0);
+	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
 
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
@@ -153,8 +145,6 @@ static void __init msm_smp_init_cpus(void)
 
 	for (i = 0; i < ncores; i++)
 		set_cpu_possible(i, true);
-
-        set_smp_cross_call(gic_raise_softirq);
 }
 
 static void __init msm_smp_prepare_cpus(unsigned int max_cpus)

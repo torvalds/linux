@@ -22,7 +22,6 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_pdt.h>
-#include <asm/prom.h>
 
 static struct of_pdt_ops *of_pdt_prom_ops __initdata;
 
@@ -251,6 +250,6 @@ void __init of_pdt_build_devicetree(phandle root_node, struct of_pdt_ops *ops)
 	of_allnodes->child = of_pdt_build_tree(of_allnodes,
 			of_pdt_prom_ops->getchild(of_allnodes->phandle), &nextp);
 
-	/* Get pointer to "/chosen" and "/aliasas" nodes for use everywhere */
+	/* Get pointer to "/chosen" and "/aliases" nodes for use everywhere */
 	of_alias_scan(kernel_tree_alloc);
 }

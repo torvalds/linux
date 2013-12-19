@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -149,7 +149,7 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 
 	/* Truncate the predicate to 32-bits if necessary */
 
-	acpi_ex_truncate_for32bit_table(local_obj_desc);
+	(void)acpi_ex_truncate_for32bit_table(local_obj_desc);
 
 	/*
 	 * Save the result of the predicate evaluation on
@@ -170,7 +170,7 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 
 	(void)acpi_ds_do_implicit_return(local_obj_desc, walk_state, TRUE);
 
-      cleanup:
+cleanup:
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Completed a predicate eval=%X Op=%p\n",
 			  walk_state->control_state->common.value,
@@ -327,6 +327,7 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 		break;
 
 	default:
+
 		break;
 	}
 
@@ -334,7 +335,7 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 
 	return_ACPI_STATUS(status);
 
-      error_exit:
+error_exit:
 	status = acpi_ds_method_error(status, walk_state);
 	return_ACPI_STATUS(status);
 }
@@ -488,7 +489,6 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 			break;
 
 		case AML_TYPE_METHOD_CALL:
-
 			/*
 			 * If the method is referenced from within a package
 			 * declaration, it is not a invocation of the method, just
@@ -582,7 +582,6 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 
 			switch (op->common.parent->common.aml_opcode) {
 			case AML_NAME_OP:
-
 				/*
 				 * Put the Node on the object stack (Contains the ACPI Name
 				 * of this object)
@@ -693,7 +692,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 		default:
 
 			ACPI_ERROR((AE_INFO,
-				    "Unimplemented opcode, class=0x%X type=0x%X Opcode=-0x%X Op=%p",
+				    "Unimplemented opcode, class=0x%X type=0x%X Opcode=0x%X Op=%p",
 				    op_class, op_type, op->common.aml_opcode,
 				    op));
 
@@ -706,7 +705,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 	 * ACPI 2.0 support for 64-bit integers: Truncate numeric
 	 * result value if we are executing from a 32-bit ACPI table
 	 */
-	acpi_ex_truncate_for32bit_table(walk_state->result_obj);
+	(void)acpi_ex_truncate_for32bit_table(walk_state->result_obj);
 
 	/*
 	 * Check if we just completed the evaluation of a
@@ -723,7 +722,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 		walk_state->result_obj = NULL;
 	}
 
-      cleanup:
+cleanup:
 
 	if (walk_state->result_obj) {
 

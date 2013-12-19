@@ -70,7 +70,7 @@ static int ds2404_gpio_map(struct ds2404 *chip, struct platform_device *pdev,
 	for (i = 0; i < ARRAY_SIZE(ds2404_gpio); i++) {
 		err = gpio_request(ds2404_gpio[i].gpio, ds2404_gpio[i].name);
 		if (err) {
-			printk(KERN_ERR "error mapping gpio %s: %d\n",
+			dev_err(&pdev->dev, "error mapping gpio %s: %d\n",
 				ds2404_gpio[i].name, err);
 			goto err_request;
 		}
@@ -177,7 +177,7 @@ static void ds2404_write_memory(struct device *dev, u16 offset,
 
 	for (i = 0; i < length; i++) {
 		if (out[i] != ds2404_read_byte(dev)) {
-			printk(KERN_ERR "read invalid data\n");
+			dev_err(dev, "read invalid data\n");
 			return;
 		}
 	}
@@ -224,11 +224,11 @@ static const struct rtc_class_ops ds2404_rtc_ops = {
 
 static int rtc_probe(struct platform_device *pdev)
 {
-	struct ds2404_platform_data *pdata = pdev->dev.platform_data;
+	struct ds2404_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct ds2404 *chip;
 	int retval = -EBUSY;
 
-	chip = kzalloc(sizeof(struct ds2404), GFP_KERNEL);
+	chip = devm_kzalloc(&pdev->dev, sizeof(struct ds2404), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
@@ -244,8 +244,8 @@ static int rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, chip);
 
-	chip->rtc = rtc_device_register("ds2404",
-				&pdev->dev, &ds2404_rtc_ops, THIS_MODULE);
+	chip->rtc = devm_rtc_device_register(&pdev->dev, "ds2404",
+					&ds2404_rtc_ops, THIS_MODULE);
 	if (IS_ERR(chip->rtc)) {
 		retval = PTR_ERR(chip->rtc);
 		goto err_io;
@@ -257,20 +257,14 @@ static int rtc_probe(struct platform_device *pdev)
 err_io:
 	chip->ops->unmap_io(chip);
 err_chip:
-	kfree(chip);
 	return retval;
 }
 
 static int rtc_remove(struct platform_device *dev)
 {
 	struct ds2404 *chip = platform_get_drvdata(dev);
-	struct rtc_device *rtc = chip->rtc;
-
-	if (rtc)
-		rtc_device_unregister(rtc);
 
 	chip->ops->unmap_io(chip);
-	kfree(chip);
 
 	return 0;
 }
@@ -283,19 +277,7 @@ static struct platform_driver rtc_device_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-static __init int ds2404_init(void)
-{
-	return platform_driver_register(&rtc_device_driver);
-}
-
-static __exit void ds2404_exit(void)
-{
-	platform_driver_unregister(&rtc_device_driver);
-}
-
-module_init(ds2404_init);
-module_exit(ds2404_exit);
+module_platform_driver(rtc_device_driver);
 
 MODULE_DESCRIPTION("DS2404 RTC");
 MODULE_AUTHOR("Sven Schnelle");

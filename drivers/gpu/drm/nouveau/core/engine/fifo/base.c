@@ -22,8 +22,10 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/client.h>
 #include <core/object.h>
 #include <core/handle.h>
+#include <core/event.h>
 #include <core/class.h>
 
 #include <engine/dmaobj.h>
@@ -89,6 +91,8 @@ nouveau_fifo_channel_create_(struct nouveau_object *parent,
 	if (!chan->user)
 		return -EFAULT;
 
+	nouveau_event_trigger(priv->cevent, 0);
+
 	chan->size = size;
 	return 0;
 }
@@ -146,10 +150,26 @@ nouveau_fifo_chid(struct nouveau_fifo *priv, struct nouveau_object *object)
 	return -1;
 }
 
+const char *
+nouveau_client_name_for_fifo_chid(struct nouveau_fifo *fifo, u32 chid)
+{
+	struct nouveau_fifo_chan *chan = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&fifo->lock, flags);
+	if (chid >= fifo->min && chid <= fifo->max)
+		chan = (void *)fifo->channel[chid];
+	spin_unlock_irqrestore(&fifo->lock, flags);
+
+	return nouveau_client_name(chan);
+}
+
 void
 nouveau_fifo_destroy(struct nouveau_fifo *priv)
 {
 	kfree(priv->channel);
+	nouveau_event_destroy(&priv->uevent);
+	nouveau_event_destroy(&priv->cevent);
 	nouveau_engine_destroy(&priv->base);
 }
 
@@ -173,6 +193,14 @@ nouveau_fifo_create_(struct nouveau_object *parent,
 	priv->channel = kzalloc(sizeof(*priv->channel) * (max + 1), GFP_KERNEL);
 	if (!priv->channel)
 		return -ENOMEM;
+
+	ret = nouveau_event_create(1, &priv->cevent);
+	if (ret)
+		return ret;
+
+	ret = nouveau_event_create(1, &priv->uevent);
+	if (ret)
+		return ret;
 
 	priv->chid = nouveau_fifo_chid;
 	spin_lock_init(&priv->lock);

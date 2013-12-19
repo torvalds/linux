@@ -1122,7 +1122,7 @@ udc_queue(struct usb_ep *usbep, struct usb_request *usbreq, gfp_t gfp)
 			goto finished;
 		}
 		if (ep->dma) {
-			retval = prep_dma(ep, req, gfp);
+			retval = prep_dma(ep, req, GFP_ATOMIC);
 			if (retval != 0)
 				goto finished;
 			/* write desc pointer to enable DMA */
@@ -1190,7 +1190,7 @@ udc_queue(struct usb_ep *usbep, struct usb_request *usbreq, gfp_t gfp)
 		 * for PPB modes, because of chain creation reasons
 		 */
 		if (ep->in) {
-			retval = prep_dma(ep, req, gfp);
+			retval = prep_dma(ep, req, GFP_ATOMIC);
 			if (retval != 0)
 				goto finished;
 		}
@@ -1400,15 +1400,16 @@ static int udc_wakeup(struct usb_gadget *gadget)
 	return 0;
 }
 
-static int amd5536_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
-static int amd5536_stop(struct usb_gadget_driver *driver);
+static int amd5536_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
+static int amd5536_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
 /* gadget operations */
 static const struct usb_gadget_ops udc_ops = {
 	.wakeup		= udc_wakeup,
 	.get_frame	= udc_get_frame,
-	.start		= amd5536_start,
-	.stop		= amd5536_stop,
+	.udc_start	= amd5536_udc_start,
+	.udc_stop	= amd5536_udc_stop,
 };
 
 /* Setups endpoint parameters, adds endpoints to linked list */
@@ -1913,40 +1914,20 @@ static int setup_ep0(struct udc *dev)
 }
 
 /* Called by gadget driver to register itself */
-static int amd5536_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
+static int amd5536_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct udc		*dev = udc;
-	int			retval;
+	struct udc *dev = to_amd5536_udc(g);
 	u32 tmp;
-
-	if (!driver || !bind || !driver->setup
-			|| driver->max_speed < USB_SPEED_HIGH)
-		return -EINVAL;
-	if (!dev)
-		return -ENODEV;
-	if (dev->driver)
-		return -EBUSY;
 
 	driver->driver.bus = NULL;
 	dev->driver = driver;
-	dev->gadget.dev.driver = &driver->driver;
-
-	retval = bind(&dev->gadget, driver);
 
 	/* Some gadget drivers use both ep0 directions.
 	 * NOTE: to gadget driver, ep0 is just one endpoint...
 	 */
 	dev->ep[UDC_EP0OUT_IX].ep.driver_data =
 		dev->ep[UDC_EP0IN_IX].ep.driver_data;
-
-	if (retval) {
-		DBG(dev, "binding to %s returning %d\n",
-				driver->driver.name, retval);
-		dev->driver = NULL;
-		dev->gadget.dev.driver = NULL;
-		return retval;
-	}
 
 	/* get ready for ep0 traffic */
 	setup_ep0(dev);
@@ -1969,14 +1950,9 @@ __acquires(dev->lock)
 {
 	int tmp;
 
-	if (dev->gadget.speed != USB_SPEED_UNKNOWN) {
-		spin_unlock(&dev->lock);
-		driver->disconnect(&dev->gadget);
-		spin_lock(&dev->lock);
-	}
-
 	/* empty queues and init hardware */
 	udc_basic_init(dev);
+
 	for (tmp = 0; tmp < UDC_EP_NUM; tmp++)
 		empty_req_queue(&dev->ep[tmp]);
 
@@ -1984,33 +1960,24 @@ __acquires(dev->lock)
 }
 
 /* Called by gadget driver to unregister itself */
-static int amd5536_stop(struct usb_gadget_driver *driver)
+static int amd5536_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct udc	*dev = udc;
-	unsigned long	flags;
+	struct udc *dev = to_amd5536_udc(g);
+	unsigned long flags;
 	u32 tmp;
-
-	if (!dev)
-		return -ENODEV;
-	if (!driver || driver != dev->driver || !driver->unbind)
-		return -EINVAL;
 
 	spin_lock_irqsave(&dev->lock, flags);
 	udc_mask_unused_interrupts(dev);
 	shutdown(dev, driver);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	driver->unbind(&dev->gadget);
-	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 
 	/* set SD */
 	tmp = readl(&dev->regs->ctl);
 	tmp |= AMD_BIT(UDC_DEVCTL_SD);
 	writel(tmp, &dev->regs->ctl);
-
-
-	DBG(dev, "%s: unregistered\n", driver->driver.name);
 
 	return 0;
 }
@@ -3111,9 +3078,6 @@ static void udc_pci_remove(struct pci_dev *pdev)
 	if (dev->active)
 		pci_disable_device(pdev);
 
-	device_unregister(&dev->gadget.dev);
-	pci_set_drvdata(pdev, NULL);
-
 	udc_remove(dev);
 }
 
@@ -3231,7 +3195,7 @@ static int udc_pci_probe(
 	}
 
 	if (!pdev->irq) {
-		dev_err(&dev->pdev->dev, "irq not set\n");
+		dev_err(&pdev->dev, "irq not set\n");
 		kfree(dev);
 		dev = NULL;
 		retval = -ENODEV;
@@ -3250,7 +3214,7 @@ static int udc_pci_probe(
 	dev->txfifo = (u32 __iomem *)(dev->virt_addr + UDC_TXFIFO_ADDR);
 
 	if (request_irq(pdev->irq, udc_irq, IRQF_SHARED, name, dev) != 0) {
-		dev_dbg(&dev->pdev->dev, "request_irq(%d) fail\n", pdev->irq);
+		dev_dbg(&pdev->dev, "request_irq(%d) fail\n", pdev->irq);
 		kfree(dev);
 		dev = NULL;
 		retval = -EBUSY;
@@ -3276,8 +3240,6 @@ static int udc_pci_probe(
 	dev->phys_addr = resource;
 	dev->irq = pdev->irq;
 	dev->pdev = pdev;
-	dev->gadget.dev.parent = &pdev->dev;
-	dev->gadget.dev.dma_mask = pdev->dev.dma_mask;
 
 	/* general probing */
 	if (udc_probe(dev) == 0)
@@ -3304,7 +3266,6 @@ static int udc_probe(struct udc *dev)
 	dev->gadget.ops = &udc_ops;
 
 	dev_set_name(&dev->gadget.dev, "gadget");
-	dev->gadget.dev.release = gadget_release;
 	dev->gadget.name = name;
 	dev->gadget.max_speed = USB_SPEED_HIGH;
 
@@ -3328,16 +3289,10 @@ static int udc_probe(struct udc *dev)
 		"driver version: %s(for Geode5536 B1)\n", tmp);
 	udc = dev;
 
-	retval = usb_add_gadget_udc(&udc->pdev->dev, &dev->gadget);
+	retval = usb_add_gadget_udc_release(&udc->pdev->dev, &dev->gadget,
+			gadget_release);
 	if (retval)
 		goto finished;
-
-	retval = device_register(&dev->gadget.dev);
-	if (retval) {
-		usb_del_gadget_udc(&dev->gadget);
-		put_device(&dev->gadget.dev);
-		goto finished;
-	}
 
 	/* timer init */
 	init_timer(&udc_timer);

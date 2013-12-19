@@ -204,7 +204,6 @@ static int ad5380_read_raw(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan, int *val, int *val2, long info)
 {
 	struct ad5380_state *st = iio_priv(indio_dev);
-	unsigned long scale_uv;
 	int ret;
 
 	switch (info) {
@@ -225,10 +224,9 @@ static int ad5380_read_raw(struct iio_dev *indio_dev,
 		val -= (1 << chan->scan_type.realbits) / 2;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		scale_uv = ((2 * st->vref) >> chan->scan_type.realbits) * 100;
-		*val =  scale_uv / 100000;
-		*val2 = (scale_uv % 100000) * 10;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = 2 * st->vref;
+		*val2 = chan->scan_type.realbits;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	default:
 		break;
 	}
@@ -247,8 +245,10 @@ static struct iio_chan_spec_ext_info ad5380_ext_info[] = {
 		.name = "powerdown",
 		.read = ad5380_read_dac_powerdown,
 		.write = ad5380_write_dac_powerdown,
+		.shared = IIO_SEPARATE,
 	},
-	IIO_ENUM("powerdown_mode", true, &ad5380_powerdown_mode_enum),
+	IIO_ENUM("powerdown_mode", IIO_SHARED_BY_TYPE,
+		 &ad5380_powerdown_mode_enum),
 	IIO_ENUM_AVAILABLE("powerdown_mode", &ad5380_powerdown_mode_enum),
 	{ },
 };
@@ -257,10 +257,10 @@ static struct iio_chan_spec_ext_info ad5380_ext_info[] = {
 	.type = IIO_VOLTAGE,					\
 	.indexed = 1,						\
 	.output = 1,						\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
-		IIO_CHAN_INFO_SCALE_SHARED_BIT |		\
-		IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |		\
-		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,		\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
+		BIT(IIO_CHAN_INFO_CALIBSCALE) |			\
+		BIT(IIO_CHAN_INFO_CALIBBIAS),			\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
 	.scan_type = IIO_ST('u', (_bits), 16, 14 - (_bits)),	\
 	.ext_info = ad5380_ext_info,				\
 }
@@ -269,76 +269,76 @@ static const struct ad5380_chip_info ad5380_chip_info_tbl[] = {
 	[ID_AD5380_3] = {
 		.channel_template = AD5380_CHANNEL(14),
 		.num_channels = 40,
-		.int_vref = 1250000,
+		.int_vref = 1250,
 	},
 	[ID_AD5380_5] = {
 		.channel_template = AD5380_CHANNEL(14),
 		.num_channels = 40,
-		.int_vref = 2500000,
+		.int_vref = 2500,
 	},
 	[ID_AD5381_3] = {
 		.channel_template = AD5380_CHANNEL(12),
 		.num_channels = 16,
-		.int_vref = 1250000,
+		.int_vref = 1250,
 	},
 	[ID_AD5381_5] = {
 		.channel_template = AD5380_CHANNEL(12),
 		.num_channels = 16,
-		.int_vref = 2500000,
+		.int_vref = 2500,
 	},
 	[ID_AD5382_3] = {
 		.channel_template = AD5380_CHANNEL(14),
 		.num_channels = 32,
-		.int_vref = 1250000,
+		.int_vref = 1250,
 	},
 	[ID_AD5382_5] = {
 		.channel_template = AD5380_CHANNEL(14),
 		.num_channels = 32,
-		.int_vref = 2500000,
+		.int_vref = 2500,
 	},
 	[ID_AD5383_3] = {
 		.channel_template = AD5380_CHANNEL(12),
 		.num_channels = 32,
-		.int_vref = 1250000,
+		.int_vref = 1250,
 	},
 	[ID_AD5383_5] = {
 		.channel_template = AD5380_CHANNEL(12),
 		.num_channels = 32,
-		.int_vref = 2500000,
+		.int_vref = 2500,
 	},
 	[ID_AD5390_3] = {
 		.channel_template = AD5380_CHANNEL(14),
 		.num_channels = 16,
-		.int_vref = 1250000,
+		.int_vref = 1250,
 	},
 	[ID_AD5390_5] = {
 		.channel_template = AD5380_CHANNEL(14),
 		.num_channels = 16,
-		.int_vref = 2500000,
+		.int_vref = 2500,
 	},
 	[ID_AD5391_3] = {
 		.channel_template = AD5380_CHANNEL(12),
 		.num_channels = 16,
-		.int_vref = 1250000,
+		.int_vref = 1250,
 	},
 	[ID_AD5391_5] = {
 		.channel_template = AD5380_CHANNEL(12),
 		.num_channels = 16,
-		.int_vref = 2500000,
+		.int_vref = 2500,
 	},
 	[ID_AD5392_3] = {
 		.channel_template = AD5380_CHANNEL(14),
 		.num_channels = 8,
-		.int_vref = 1250000,
+		.int_vref = 1250,
 	},
 	[ID_AD5392_5] = {
 		.channel_template = AD5380_CHANNEL(14),
 		.num_channels = 8,
-		.int_vref = 2500000,
+		.int_vref = 2500,
 	},
 };
 
-static int __devinit ad5380_alloc_channels(struct iio_dev *indio_dev)
+static int ad5380_alloc_channels(struct iio_dev *indio_dev)
 {
 	struct ad5380_state *st = iio_priv(indio_dev);
 	struct iio_chan_spec *channels;
@@ -361,19 +361,18 @@ static int __devinit ad5380_alloc_channels(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static int __devinit ad5380_probe(struct device *dev, struct regmap *regmap,
-	enum ad5380_type type, const char *name)
+static int ad5380_probe(struct device *dev, struct regmap *regmap,
+			enum ad5380_type type, const char *name)
 {
 	struct iio_dev *indio_dev;
 	struct ad5380_state *st;
 	unsigned int ctrl = 0;
 	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (indio_dev == NULL) {
 		dev_err(dev, "Failed to allocate iio device\n");
-		ret = -ENOMEM;
-		goto error_out;
+		return -ENOMEM;
 	}
 
 	st = iio_priv(indio_dev);
@@ -391,13 +390,13 @@ static int __devinit ad5380_probe(struct device *dev, struct regmap *regmap,
 	ret = ad5380_alloc_channels(indio_dev);
 	if (ret) {
 		dev_err(dev, "Failed to allocate channel spec: %d\n", ret);
-		goto error_free;
+		return ret;
 	}
 
-	if (st->chip_info->int_vref == 2500000)
+	if (st->chip_info->int_vref == 2500)
 		ctrl |= AD5380_CTRL_INT_VREF_2V5;
 
-	st->vref_reg = regulator_get(dev, "vref");
+	st->vref_reg = devm_regulator_get(dev, "vref");
 	if (!IS_ERR(st->vref_reg)) {
 		ret = regulator_enable(st->vref_reg);
 		if (ret) {
@@ -406,7 +405,11 @@ static int __devinit ad5380_probe(struct device *dev, struct regmap *regmap,
 			goto error_free_reg;
 		}
 
-		st->vref = regulator_get_voltage(st->vref_reg);
+		ret = regulator_get_voltage(st->vref_reg);
+		if (ret < 0)
+			goto error_disable_reg;
+
+		st->vref = ret / 1000;
 	} else {
 		st->vref = st->chip_info->int_vref;
 		ctrl |= AD5380_CTRL_INT_VREF_EN;
@@ -430,18 +433,12 @@ error_disable_reg:
 	if (!IS_ERR(st->vref_reg))
 		regulator_disable(st->vref_reg);
 error_free_reg:
-	if (!IS_ERR(st->vref_reg))
-		regulator_put(st->vref_reg);
-
 	kfree(indio_dev->channels);
-error_free:
-	iio_device_free(indio_dev);
-error_out:
 
 	return ret;
 }
 
-static int __devexit ad5380_remove(struct device *dev)
+static int ad5380_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ad5380_state *st = iio_priv(indio_dev);
@@ -452,10 +449,7 @@ static int __devexit ad5380_remove(struct device *dev)
 
 	if (!IS_ERR(st->vref_reg)) {
 		regulator_disable(st->vref_reg);
-		regulator_put(st->vref_reg);
 	}
-
-	iio_device_free(indio_dev);
 
 	return 0;
 }
@@ -478,7 +472,7 @@ static const struct regmap_config ad5380_regmap_config = {
 
 #if IS_ENABLED(CONFIG_SPI_MASTER)
 
-static int __devinit ad5380_spi_probe(struct spi_device *spi)
+static int ad5380_spi_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct regmap *regmap;
@@ -491,7 +485,7 @@ static int __devinit ad5380_spi_probe(struct spi_device *spi)
 	return ad5380_probe(&spi->dev, regmap, id->driver_data, id->name);
 }
 
-static int __devexit ad5380_spi_remove(struct spi_device *spi)
+static int ad5380_spi_remove(struct spi_device *spi)
 {
 	return ad5380_remove(&spi->dev);
 }
@@ -523,7 +517,7 @@ static struct spi_driver ad5380_spi_driver = {
 		   .owner = THIS_MODULE,
 	},
 	.probe = ad5380_spi_probe,
-	.remove = __devexit_p(ad5380_spi_remove),
+	.remove = ad5380_spi_remove,
 	.id_table = ad5380_spi_ids,
 };
 
@@ -552,8 +546,8 @@ static inline void ad5380_spi_unregister_driver(void)
 
 #if IS_ENABLED(CONFIG_I2C)
 
-static int __devinit ad5380_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+static int ad5380_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct regmap *regmap;
 
@@ -565,7 +559,7 @@ static int __devinit ad5380_i2c_probe(struct i2c_client *i2c,
 	return ad5380_probe(&i2c->dev, regmap, id->driver_data, id->name);
 }
 
-static int __devexit ad5380_i2c_remove(struct i2c_client *i2c)
+static int ad5380_i2c_remove(struct i2c_client *i2c)
 {
 	return ad5380_remove(&i2c->dev);
 }
@@ -597,7 +591,7 @@ static struct i2c_driver ad5380_i2c_driver = {
 		   .owner = THIS_MODULE,
 	},
 	.probe = ad5380_i2c_probe,
-	.remove = __devexit_p(ad5380_i2c_remove),
+	.remove = ad5380_i2c_remove,
 	.id_table = ad5380_i2c_ids,
 };
 

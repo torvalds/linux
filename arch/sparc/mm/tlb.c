@@ -24,11 +24,17 @@ static DEFINE_PER_CPU(struct tlb_batch, tlb_batch);
 void flush_tlb_pending(void)
 {
 	struct tlb_batch *tb = &get_cpu_var(tlb_batch);
+	struct mm_struct *mm = tb->mm;
 
-	if (tb->tlb_nr) {
-		flush_tsb_user(tb);
+	if (!tb->tlb_nr)
+		goto out;
 
-		if (CTX_VALID(tb->mm->context)) {
+	flush_tsb_user(tb);
+
+	if (CTX_VALID(mm->context)) {
+		if (tb->tlb_nr == 1) {
+			global_flush_tlb_page(mm, tb->vaddrs[0]);
+		} else {
 #ifdef CONFIG_SMP
 			smp_flush_tlb_pending(tb->mm, tb->tlb_nr,
 					      &tb->vaddrs[0]);
@@ -37,10 +43,28 @@ void flush_tlb_pending(void)
 					    tb->tlb_nr, &tb->vaddrs[0]);
 #endif
 		}
-		tb->tlb_nr = 0;
 	}
 
+	tb->tlb_nr = 0;
+
+out:
 	put_cpu_var(tlb_batch);
+}
+
+void arch_enter_lazy_mmu_mode(void)
+{
+	struct tlb_batch *tb = &__get_cpu_var(tlb_batch);
+
+	tb->active = 1;
+}
+
+void arch_leave_lazy_mmu_mode(void)
+{
+	struct tlb_batch *tb = &__get_cpu_var(tlb_batch);
+
+	if (tb->tlb_nr)
+		flush_tlb_pending();
+	tb->active = 0;
 }
 
 static void tlb_batch_add_one(struct mm_struct *mm, unsigned long vaddr,
@@ -60,6 +84,12 @@ static void tlb_batch_add_one(struct mm_struct *mm, unsigned long vaddr,
 		nr = 0;
 	}
 
+	if (!tb->active) {
+		flush_tsb_user_page(mm, vaddr);
+		global_flush_tlb_page(mm, vaddr);
+		goto out;
+	}
+
 	if (nr == 0)
 		tb->mm = mm;
 
@@ -68,6 +98,7 @@ static void tlb_batch_add_one(struct mm_struct *mm, unsigned long vaddr,
 	if (nr >= TLB_BATCH_NR)
 		flush_tlb_pending();
 
+out:
 	put_cpu_var(tlb_batch);
 }
 
@@ -130,41 +161,52 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 	if (mm == &init_mm)
 		return;
 
-	if ((pmd_val(pmd) ^ pmd_val(orig)) & PMD_ISHUGE) {
-		if (pmd_val(pmd) & PMD_ISHUGE)
+	if ((pmd_val(pmd) ^ pmd_val(orig)) & _PAGE_PMD_HUGE) {
+		if (pmd_val(pmd) & _PAGE_PMD_HUGE)
 			mm->context.huge_pte_count++;
 		else
 			mm->context.huge_pte_count--;
-		if (mm->context.huge_pte_count == 1)
-			hugetlb_setup(mm);
+
+		/* Do not try to allocate the TSB hash table if we
+		 * don't have one already.  We have various locks held
+		 * and thus we'll end up doing a GFP_KERNEL allocation
+		 * in an atomic context.
+		 *
+		 * Instead, we let the first TLB miss on a hugepage
+		 * take care of this.
+		 */
 	}
 
 	if (!pmd_none(orig)) {
-		bool exec = ((pmd_val(orig) & PMD_HUGE_EXEC) != 0);
+		pte_t orig_pte = __pte(pmd_val(orig));
+		bool exec = pte_exec(orig_pte);
 
 		addr &= HPAGE_MASK;
-		if (pmd_val(orig) & PMD_ISHUGE)
+		if (pmd_trans_huge(orig)) {
 			tlb_batch_add_one(mm, addr, exec);
-		else
+			tlb_batch_add_one(mm, addr + REAL_HPAGE_SIZE, exec);
+		} else {
 			tlb_batch_pmd_scan(mm, addr, orig, exec);
+		}
 	}
 }
 
-void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable)
+void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
+				pgtable_t pgtable)
 {
 	struct list_head *lh = (struct list_head *) pgtable;
 
 	assert_spin_locked(&mm->page_table_lock);
 
 	/* FIFO */
-	if (!mm->pmd_huge_pte)
+	if (!pmd_huge_pte(mm, pmdp))
 		INIT_LIST_HEAD(lh);
 	else
-		list_add(lh, (struct list_head *) mm->pmd_huge_pte);
-	mm->pmd_huge_pte = pgtable;
+		list_add(lh, (struct list_head *) pmd_huge_pte(mm, pmdp));
+	pmd_huge_pte(mm, pmdp) = pgtable;
 }
 
-pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm)
+pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
 {
 	struct list_head *lh;
 	pgtable_t pgtable;
@@ -172,12 +214,12 @@ pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm)
 	assert_spin_locked(&mm->page_table_lock);
 
 	/* FIFO */
-	pgtable = mm->pmd_huge_pte;
+	pgtable = pmd_huge_pte(mm, pmdp);
 	lh = (struct list_head *) pgtable;
 	if (list_empty(lh))
-		mm->pmd_huge_pte = NULL;
+		pmd_huge_pte(mm, pmdp) = NULL;
 	else {
-		mm->pmd_huge_pte = (pgtable_t) lh->next;
+		pmd_huge_pte(mm, pmdp) = (pgtable_t) lh->next;
 		list_del(lh);
 	}
 	pte_val(pgtable[0]) = 0;

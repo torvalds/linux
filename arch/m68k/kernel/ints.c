@@ -58,12 +58,6 @@ void __init init_IRQ(void)
 {
 	int i;
 
-	/* assembly irq entry code relies on this... */
-	if (HARDIRQ_MASK != 0x00ff0000) {
-		extern void hardirq_mask_is_broken(void);
-		hardirq_mask_is_broken();
-	}
-
 	for (i = IRQ_AUTO_1; i <= IRQ_AUTO_7; i++)
 		irq_set_chip_and_handler(i, &auto_irq_chip, handle_simple_irq);
 
@@ -101,7 +95,7 @@ void __init m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt)
 	BUG_ON(IRQ_USER + cnt > NR_IRQS);
 	m68k_first_user_vec = vec;
 	for (i = 0; i < cnt; i++)
-		irq_set_chip(IRQ_USER + i, &user_irq_chip);
+		irq_set_chip_and_handler(i, &user_irq_chip, handle_simple_irq);
 	*user_irqvec_fixup = vec - IRQ_USER;
 	flush_icache();
 }

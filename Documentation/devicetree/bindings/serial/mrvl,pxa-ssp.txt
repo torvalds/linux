@@ -1,0 +1,65 @@
+Device tree bindings for Marvell PXA SSP ports
+
+Required properties:
+
+	- compatible:	Must be one of
+				mrvl,pxa25x-ssp
+				mvrl,pxa25x-nssp
+				mrvl,pxa27x-ssp
+				mrvl,pxa3xx-ssp
+				mvrl,pxa168-ssp
+				mrvl,pxa910-ssp
+				mrvl,ce4100-ssp
+				mrvl,lpss-ssp
+
+	- reg:		The memory base
+	- dmas:		Two dma phandles, one for rx, one for tx
+	- dma-names:	Must be "rx", "tx"
+
+
+Example for PXA3xx:
+
+	ssp0: ssp@41000000 {
+		compatible = "mrvl,pxa3xx-ssp";
+		reg = <0x41000000 0x40>;
+		ssp-id = <1>;
+		interrupts = <24>;
+		clock-names = "pxa27x-ssp.0";
+		dmas = <&dma 13
+			&dma 14>;
+		dma-names = "rx", "tx";
+	};
+
+	ssp1: ssp@41700000 {
+		compatible = "mrvl,pxa3xx-ssp";
+		reg = <0x41700000 0x40>;
+		ssp-id = <2>;
+		interrupts = <16>;
+		clock-names = "pxa27x-ssp.1";
+		dmas = <&dma 15
+			&dma 16>;
+		dma-names = "rx", "tx";
+	};
+
+	ssp2: ssp@41900000 {
+		compatibl3 = "mrvl,pxa3xx-ssp";
+		reg = <0x41900000 0x40>;
+		ssp-id = <3>;
+		interrupts = <0>;
+		clock-names = "pxa27x-ssp.2";
+		dmas = <&dma 66
+			&dma 67>;
+		dma-names = "rx", "tx";
+	};
+
+	ssp3: ssp@41a00000 {
+		compatible = "mrvl,pxa3xx-ssp";
+		reg = <0x41a00000 0x40>;
+		ssp-id = <4>;
+		interrupts = <13>;
+		clock-names = "pxa27x-ssp.3";
+		dmas = <&dma 2
+			&dma 3>;
+		dma-names = "rx", "tx";
+	};
+

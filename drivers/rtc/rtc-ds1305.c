@@ -158,7 +158,7 @@ static int ds1305_alarm_irq_enable(struct device *dev, unsigned int enabled)
 			goto done;
 		buf[1] &= ~DS1305_AEI0;
 	}
-	err = spi_write_then_read(ds1305->spi, buf, sizeof buf, NULL, 0);
+	err = spi_write_then_read(ds1305->spi, buf, sizeof(buf), NULL, 0);
 	if (err >= 0)
 		ds1305->ctrl[0] = buf[1];
 done:
@@ -181,8 +181,8 @@ static int ds1305_get_time(struct device *dev, struct rtc_time *time)
 	/* Use write-then-read to get all the date/time registers
 	 * since dma from stack is nonportable
 	 */
-	status = spi_write_then_read(ds1305->spi, &addr, sizeof addr,
-			buf, sizeof buf);
+	status = spi_write_then_read(ds1305->spi, &addr, sizeof(addr),
+			buf, sizeof(buf));
 	if (status < 0)
 		return status;
 
@@ -237,7 +237,7 @@ static int ds1305_set_time(struct device *dev, struct rtc_time *time)
 		buf[4], buf[5], buf[6], buf[7]);
 
 	/* use write-then-read since dma from stack is nonportable */
-	return spi_write_then_read(ds1305->spi, buf, sizeof buf,
+	return spi_write_then_read(ds1305->spi, buf, sizeof(buf),
 			NULL, 0);
 }
 
@@ -286,8 +286,8 @@ static int ds1305_get_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	 * of EFI status is at best fragile anyway (given IRQ handlers).
 	 */
 	addr = DS1305_CONTROL;
-	status = spi_write_then_read(spi, &addr, sizeof addr,
-			ds1305->ctrl, sizeof ds1305->ctrl);
+	status = spi_write_then_read(spi, &addr, sizeof(addr),
+			ds1305->ctrl, sizeof(ds1305->ctrl));
 	if (status < 0)
 		return status;
 
@@ -296,8 +296,8 @@ static int ds1305_get_alarm(struct device *dev, struct rtc_wkalrm *alm)
 
 	/* get and check ALM0 registers */
 	addr = DS1305_ALM0(DS1305_SEC);
-	status = spi_write_then_read(spi, &addr, sizeof addr,
-			buf, sizeof buf);
+	status = spi_write_then_read(spi, &addr, sizeof(addr),
+			buf, sizeof(buf));
 	if (status < 0)
 		return status;
 
@@ -381,7 +381,7 @@ static int ds1305_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 		"alm0 write", buf[1 + DS1305_SEC], buf[1 + DS1305_MIN],
 		buf[1 + DS1305_HOUR], buf[1 + DS1305_WDAY]);
 
-	status = spi_write_then_read(spi, buf, sizeof buf, NULL, 0);
+	status = spi_write_then_read(spi, buf, sizeof(buf), NULL, 0);
 	if (status < 0)
 		return status;
 
@@ -474,7 +474,7 @@ static void ds1305_work(struct work_struct *work)
 	buf[1] = ds1305->ctrl[0];
 	buf[2] = 0;
 
-	status = spi_write_then_read(spi, buf, sizeof buf,
+	status = spi_write_then_read(spi, buf, sizeof(buf),
 			NULL, 0);
 	if (status < 0)
 		dev_dbg(&spi->dev, "clear irq --> %d\n", status);
@@ -601,12 +601,12 @@ static struct bin_attribute nvram = {
  * Interface to SPI stack
  */
 
-static int __devinit ds1305_probe(struct spi_device *spi)
+static int ds1305_probe(struct spi_device *spi)
 {
 	struct ds1305			*ds1305;
 	int				status;
 	u8				addr, value;
-	struct ds1305_platform_data	*pdata = spi->dev.platform_data;
+	struct ds1305_platform_data	*pdata = dev_get_platdata(&spi->dev);
 	bool				write_ctrl = false;
 
 	/* Sanity check board setup data.  This may be hooked up
@@ -619,7 +619,7 @@ static int __devinit ds1305_probe(struct spi_device *spi)
 		return -EINVAL;
 
 	/* set up driver data */
-	ds1305 = kzalloc(sizeof *ds1305, GFP_KERNEL);
+	ds1305 = devm_kzalloc(&spi->dev, sizeof(*ds1305), GFP_KERNEL);
 	if (!ds1305)
 		return -ENOMEM;
 	ds1305->spi = spi;
@@ -627,17 +627,15 @@ static int __devinit ds1305_probe(struct spi_device *spi)
 
 	/* read and cache control registers */
 	addr = DS1305_CONTROL;
-	status = spi_write_then_read(spi, &addr, sizeof addr,
-			ds1305->ctrl, sizeof ds1305->ctrl);
+	status = spi_write_then_read(spi, &addr, sizeof(addr),
+			ds1305->ctrl, sizeof(ds1305->ctrl));
 	if (status < 0) {
 		dev_dbg(&spi->dev, "can't %s, %d\n",
 				"read", status);
-		goto fail0;
+		return status;
 	}
 
-	dev_dbg(&spi->dev, "ctrl %s: %02x %02x %02x\n",
-			"read", ds1305->ctrl[0],
-			ds1305->ctrl[1], ds1305->ctrl[2]);
+	dev_dbg(&spi->dev, "ctrl %s: %3ph\n", "read", ds1305->ctrl);
 
 	/* Sanity check register values ... partially compensating for the
 	 * fact that SPI has no device handshake.  A pullup on MISO would
@@ -646,8 +644,7 @@ static int __devinit ds1305_probe(struct spi_device *spi)
 	 */
 	if ((ds1305->ctrl[0] & 0x38) != 0 || (ds1305->ctrl[1] & 0xfc) != 0) {
 		dev_dbg(&spi->dev, "RTC chip is not present\n");
-		status = -ENODEV;
-		goto fail0;
+		return -ENODEV;
 	}
 	if (ds1305->ctrl[2] == 0)
 		dev_dbg(&spi->dev, "chip may not be present\n");
@@ -662,11 +659,11 @@ static int __devinit ds1305_probe(struct spi_device *spi)
 
 		buf[0] = DS1305_WRITE | DS1305_CONTROL;
 		buf[1] = ds1305->ctrl[0];
-		status = spi_write_then_read(spi, buf, sizeof buf, NULL, 0);
+		status = spi_write_then_read(spi, buf, sizeof(buf), NULL, 0);
 
 		dev_dbg(&spi->dev, "clear WP --> %d\n", status);
 		if (status < 0)
-			goto fail0;
+			return status;
 	}
 
 	/* on DS1305, maybe start oscillator; like most low power
@@ -716,25 +713,23 @@ static int __devinit ds1305_probe(struct spi_device *spi)
 		buf[1] = ds1305->ctrl[0];
 		buf[2] = ds1305->ctrl[1];
 		buf[3] = ds1305->ctrl[2];
-		status = spi_write_then_read(spi, buf, sizeof buf, NULL, 0);
+		status = spi_write_then_read(spi, buf, sizeof(buf), NULL, 0);
 		if (status < 0) {
 			dev_dbg(&spi->dev, "can't %s, %d\n",
 					"write", status);
-			goto fail0;
+			return status;
 		}
 
-		dev_dbg(&spi->dev, "ctrl %s: %02x %02x %02x\n",
-				"write", ds1305->ctrl[0],
-				ds1305->ctrl[1], ds1305->ctrl[2]);
+		dev_dbg(&spi->dev, "ctrl %s: %3ph\n", "write", ds1305->ctrl);
 	}
 
 	/* see if non-Linux software set up AM/PM mode */
 	addr = DS1305_HOUR;
-	status = spi_write_then_read(spi, &addr, sizeof addr,
-				&value, sizeof value);
+	status = spi_write_then_read(spi, &addr, sizeof(addr),
+				&value, sizeof(value));
 	if (status < 0) {
 		dev_dbg(&spi->dev, "read HOUR --> %d\n", status);
-		goto fail0;
+		return status;
 	}
 
 	ds1305->hr12 = (DS1305_HR_12 & value) != 0;
@@ -742,12 +737,12 @@ static int __devinit ds1305_probe(struct spi_device *spi)
 		dev_dbg(&spi->dev, "AM/PM\n");
 
 	/* register RTC ... from here on, ds1305->ctrl needs locking */
-	ds1305->rtc = rtc_device_register("ds1305", &spi->dev,
+	ds1305->rtc = devm_rtc_device_register(&spi->dev, "ds1305",
 			&ds1305_ops, THIS_MODULE);
 	if (IS_ERR(ds1305->rtc)) {
 		status = PTR_ERR(ds1305->rtc);
 		dev_dbg(&spi->dev, "register rtc --> %d\n", status);
-		goto fail0;
+		return status;
 	}
 
 	/* Maybe set up alarm IRQ; be ready to handle it triggering right
@@ -758,12 +753,12 @@ static int __devinit ds1305_probe(struct spi_device *spi)
 	 */
 	if (spi->irq) {
 		INIT_WORK(&ds1305->work, ds1305_work);
-		status = request_irq(spi->irq, ds1305_irq,
+		status = devm_request_irq(&spi->dev, spi->irq, ds1305_irq,
 				0, dev_name(&ds1305->rtc->dev), ds1305);
 		if (status < 0) {
 			dev_dbg(&spi->dev, "request_irq %d --> %d\n",
 					spi->irq, status);
-			goto fail1;
+			return status;
 		}
 
 		device_set_wakeup_capable(&spi->dev, 1);
@@ -773,21 +768,13 @@ static int __devinit ds1305_probe(struct spi_device *spi)
 	status = sysfs_create_bin_file(&spi->dev.kobj, &nvram);
 	if (status < 0) {
 		dev_dbg(&spi->dev, "register nvram --> %d\n", status);
-		goto fail2;
+		return status;
 	}
 
 	return 0;
-
-fail2:
-	free_irq(spi->irq, ds1305);
-fail1:
-	rtc_device_unregister(ds1305->rtc);
-fail0:
-	kfree(ds1305);
-	return status;
 }
 
-static int __devexit ds1305_remove(struct spi_device *spi)
+static int ds1305_remove(struct spi_device *spi)
 {
 	struct ds1305 *ds1305 = spi_get_drvdata(spi);
 
@@ -796,13 +783,11 @@ static int __devexit ds1305_remove(struct spi_device *spi)
 	/* carefully shut down irq and workqueue, if present */
 	if (spi->irq) {
 		set_bit(FLAG_EXITING, &ds1305->flags);
-		free_irq(spi->irq, ds1305);
+		devm_free_irq(&spi->dev, spi->irq, ds1305);
 		cancel_work_sync(&ds1305->work);
 	}
 
-	rtc_device_unregister(ds1305->rtc);
 	spi_set_drvdata(spi, NULL);
-	kfree(ds1305);
 	return 0;
 }
 
@@ -810,7 +795,7 @@ static struct spi_driver ds1305_driver = {
 	.driver.name	= "rtc-ds1305",
 	.driver.owner	= THIS_MODULE,
 	.probe		= ds1305_probe,
-	.remove		= __devexit_p(ds1305_remove),
+	.remove		= ds1305_remove,
 	/* REVISIT add suspend/resume */
 };
 

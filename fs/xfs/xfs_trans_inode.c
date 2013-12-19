@@ -17,29 +17,18 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_shared.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
-#include "xfs_btree.h"
+#include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_inode_item.h"
 #include "xfs_trace.h"
-
-#ifdef XFS_TRANS_DEBUG
-STATIC void
-xfs_trans_inode_broot_debug(
-	xfs_inode_t	*ip);
-#else
-#define	xfs_trans_inode_broot_debug(ip)
-#endif
 
 /*
  * Add a locked inode to the transaction.
@@ -67,8 +56,6 @@ xfs_trans_ijoin(
 	 * Get a log_item_desc to point at the new item.
 	 */
 	xfs_trans_add_item(tp, &iip->ili_item);
-
-	xfs_trans_inode_broot_debug(ip);
 }
 
 /*
@@ -122,6 +109,19 @@ xfs_trans_log_inode(
 	ASSERT(ip->i_itemp != NULL);
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
+	/*
+	 * First time we log the inode in a transaction, bump the inode change
+	 * counter if it is configured for this to occur. We don't use
+	 * inode_inc_version() because there is no need for extra locking around
+	 * i_version as we already hold the inode locked exclusively for
+	 * metadata modification.
+	 */
+	if (!(ip->i_itemp->ili_item.li_desc->lid_flags & XFS_LID_DIRTY) &&
+	    IS_I_VERSION(VFS_I(ip))) {
+		ip->i_d.di_changecount = ++VFS_I(ip)->i_version;
+		flags |= XFS_ILOG_CORE;
+	}
+
 	tp->t_flags |= XFS_TRANS_DIRTY;
 	ip->i_itemp->ili_item.li_desc->lid_flags |= XFS_LID_DIRTY;
 
@@ -135,34 +135,3 @@ xfs_trans_log_inode(
 	flags |= ip->i_itemp->ili_last_fields;
 	ip->i_itemp->ili_fields |= flags;
 }
-
-#ifdef XFS_TRANS_DEBUG
-/*
- * Keep track of the state of the inode btree root to make sure we
- * log it properly.
- */
-STATIC void
-xfs_trans_inode_broot_debug(
-	xfs_inode_t	*ip)
-{
-	xfs_inode_log_item_t	*iip;
-
-	ASSERT(ip->i_itemp != NULL);
-	iip = ip->i_itemp;
-	if (iip->ili_root_size != 0) {
-		ASSERT(iip->ili_orig_root != NULL);
-		kmem_free(iip->ili_orig_root);
-		iip->ili_root_size = 0;
-		iip->ili_orig_root = NULL;
-	}
-	if (ip->i_d.di_format == XFS_DINODE_FMT_BTREE) {
-		ASSERT((ip->i_df.if_broot != NULL) &&
-		       (ip->i_df.if_broot_bytes > 0));
-		iip->ili_root_size = ip->i_df.if_broot_bytes;
-		iip->ili_orig_root =
-			(char*)kmem_alloc(iip->ili_root_size, KM_SLEEP);
-		memcpy(iip->ili_orig_root, (char*)(ip->i_df.if_broot),
-		      iip->ili_root_size);
-	}
-}
-#endif

@@ -102,7 +102,6 @@ struct atmel_isi {
 	struct list_head		video_buffer_list;
 	struct frame_buffer		*active;
 
-	struct soc_camera_device	*icd;
 	struct soc_camera_host		soc_host;
 };
 
@@ -166,7 +165,7 @@ static irqreturn_t atmel_isi_handle_streaming(struct atmel_isi *isi)
 		struct frame_buffer *buf = isi->active;
 
 		list_del_init(&buf->list);
-		do_gettimeofday(&vb->v4l2_buf.timestamp);
+		v4l2_get_timestamp(&vb->v4l2_buf.timestamp);
 		vb->v4l2_buf.sequence = isi->sequence++;
 		vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
 	}
@@ -367,7 +366,7 @@ static void start_dma(struct atmel_isi *isi, struct frame_buffer *buffer)
 
 	/* Check if already in a frame */
 	if (isi_readl(isi, ISI_STATUS) & ISI_CTRL_CDC) {
-		dev_err(isi->icd->parent, "Already in frame handling.\n");
+		dev_err(isi->soc_host.icd->parent, "Already in frame handling.\n");
 		return;
 	}
 
@@ -514,6 +513,7 @@ static int isi_camera_init_videobuf(struct vb2_queue *q,
 	q->buf_struct_size = sizeof(struct frame_buffer);
 	q->ops = &isi_video_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
+	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	return vb2_queue_init(q);
 }
@@ -745,15 +745,25 @@ static int isi_camera_get_formats(struct soc_camera_device *icd,
 	return formats;
 }
 
-/* Called with .video_lock held */
 static int isi_camera_add_device(struct soc_camera_device *icd)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+	dev_dbg(icd->parent, "Atmel ISI Camera driver attached to camera %d\n",
+		 icd->devnum);
+
+	return 0;
+}
+
+static void isi_camera_remove_device(struct soc_camera_device *icd)
+{
+	dev_dbg(icd->parent, "Atmel ISI Camera driver detached from camera %d\n",
+		 icd->devnum);
+}
+
+/* Called with .host_lock held */
+static int isi_camera_clock_start(struct soc_camera_host *ici)
+{
 	struct atmel_isi *isi = ici->priv;
 	int ret;
-
-	if (isi->icd)
-		return -EBUSY;
 
 	ret = clk_enable(isi->pclk);
 	if (ret)
@@ -765,25 +775,16 @@ static int isi_camera_add_device(struct soc_camera_device *icd)
 		return ret;
 	}
 
-	isi->icd = icd;
-	dev_dbg(icd->parent, "Atmel ISI Camera driver attached to camera %d\n",
-		 icd->devnum);
 	return 0;
 }
-/* Called with .video_lock held */
-static void isi_camera_remove_device(struct soc_camera_device *icd)
-{
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	struct atmel_isi *isi = ici->priv;
 
-	BUG_ON(icd != isi->icd);
+/* Called with .host_lock held */
+static void isi_camera_clock_stop(struct soc_camera_host *ici)
+{
+	struct atmel_isi *isi = ici->priv;
 
 	clk_disable(isi->mck);
 	clk_disable(isi->pclk);
-	isi->icd = NULL;
-
-	dev_dbg(icd->parent, "Atmel ISI Camera driver detached from camera %d\n",
-		 icd->devnum);
 }
 
 static unsigned int isi_camera_poll(struct file *file, poll_table *pt)
@@ -887,6 +888,8 @@ static struct soc_camera_host_ops isi_soc_camera_host_ops = {
 	.owner		= THIS_MODULE,
 	.add		= isi_camera_add_device,
 	.remove		= isi_camera_remove_device,
+	.clock_start	= isi_camera_clock_start,
+	.clock_stop	= isi_camera_clock_stop,
 	.set_fmt	= isi_camera_set_fmt,
 	.try_fmt	= isi_camera_try_fmt,
 	.get_formats	= isi_camera_get_formats,
@@ -897,7 +900,7 @@ static struct soc_camera_host_ops isi_soc_camera_host_ops = {
 };
 
 /* -----------------------------------------------------------------------*/
-static int __devexit atmel_isi_remove(struct platform_device *pdev)
+static int atmel_isi_remove(struct platform_device *pdev)
 {
 	struct soc_camera_host *soc_host = to_soc_camera_host(&pdev->dev);
 	struct atmel_isi *isi = container_of(soc_host,
@@ -921,7 +924,7 @@ static int __devexit atmel_isi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit atmel_isi_probe(struct platform_device *pdev)
+static int atmel_isi_probe(struct platform_device *pdev)
 {
 	unsigned int irq;
 	struct atmel_isi *isi;
@@ -1020,7 +1023,7 @@ static int __devinit atmel_isi_probe(struct platform_device *pdev)
 	isi_writel(isi, ISI_CTRL, ISI_CTRL_DIS);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
+	if (IS_ERR_VALUE(irq)) {
 		ret = irq;
 		goto err_req_irq;
 	}
@@ -1073,25 +1076,14 @@ err_clk_prepare_pclk:
 }
 
 static struct platform_driver atmel_isi_driver = {
-	.probe		= atmel_isi_probe,
-	.remove		= __devexit_p(atmel_isi_remove),
+	.remove		= atmel_isi_remove,
 	.driver		= {
 		.name = "atmel_isi",
 		.owner = THIS_MODULE,
 	},
 };
 
-static int __init atmel_isi_init_module(void)
-{
-	return  platform_driver_probe(&atmel_isi_driver, &atmel_isi_probe);
-}
-
-static void __exit atmel_isi_exit(void)
-{
-	platform_driver_unregister(&atmel_isi_driver);
-}
-module_init(atmel_isi_init_module);
-module_exit(atmel_isi_exit);
+module_platform_driver_probe(atmel_isi_driver, atmel_isi_probe);
 
 MODULE_AUTHOR("Josh Wu <josh.wu@atmel.com>");
 MODULE_DESCRIPTION("The V4L2 driver for Atmel Linux");

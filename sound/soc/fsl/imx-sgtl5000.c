@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <linux/of_i2c.h>
+#include <linux/i2c.h>
 #include <linux/clk.h>
 #include <sound/soc.h>
 
@@ -62,7 +62,7 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 	struct device_node *ssi_np, *codec_np;
 	struct platform_device *ssi_pdev;
 	struct i2c_client *codec_dev;
-	struct imx_sgtl5000_data *data;
+	struct imx_sgtl5000_data *data = NULL;
 	int int_port, ext_port;
 	int ret;
 
@@ -113,13 +113,13 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 	ssi_pdev = of_find_device_by_node(ssi_np);
 	if (!ssi_pdev) {
 		dev_err(&pdev->dev, "failed to find SSI platform device\n");
-		ret = -EINVAL;
+		ret = -EPROBE_DEFER;
 		goto fail;
 	}
 	codec_dev = of_find_i2c_device_by_node(codec_np);
 	if (!codec_dev) {
 		dev_err(&pdev->dev, "failed to find codec platform device\n");
-		return -EINVAL;
+		return -EPROBE_DEFER;
 	}
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
@@ -130,26 +130,18 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 
 	data->codec_clk = clk_get(&codec_dev->dev, NULL);
 	if (IS_ERR(data->codec_clk)) {
-		/* assuming clock enabled by default */
-		data->codec_clk = NULL;
-		ret = of_property_read_u32(codec_np, "clock-frequency",
-					&data->clk_frequency);
-		if (ret) {
-			dev_err(&codec_dev->dev,
-				"clock-frequency missing or invalid\n");
-			goto fail;
-		}
-	} else {
-		data->clk_frequency = clk_get_rate(data->codec_clk);
-		clk_prepare_enable(data->codec_clk);
+		ret = PTR_ERR(data->codec_clk);
+		goto fail;
 	}
+
+	data->clk_frequency = clk_get_rate(data->codec_clk);
 
 	data->dai.name = "HiFi";
 	data->dai.stream_name = "HiFi";
 	data->dai.codec_dai_name = "sgtl5000";
 	data->dai.codec_of_node = codec_np;
-	data->dai.cpu_dai_name = dev_name(&ssi_pdev->dev);
-	data->dai.platform_name = "imx-pcm-audio";
+	data->dai.cpu_of_node = ssi_np;
+	data->dai.platform_of_node = ssi_np;
 	data->dai.init = &imx_sgtl5000_dai_init;
 	data->dai.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			    SND_SOC_DAIFMT_CBM_CFM;
@@ -157,26 +149,31 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 	data->card.dev = &pdev->dev;
 	ret = snd_soc_of_parse_card_name(&data->card, "model");
 	if (ret)
-		goto clk_fail;
+		goto fail;
 	ret = snd_soc_of_parse_audio_routing(&data->card, "audio-routing");
 	if (ret)
-		goto clk_fail;
+		goto fail;
 	data->card.num_links = 1;
 	data->card.owner = THIS_MODULE;
 	data->card.dai_link = &data->dai;
 	data->card.dapm_widgets = imx_sgtl5000_dapm_widgets;
 	data->card.num_dapm_widgets = ARRAY_SIZE(imx_sgtl5000_dapm_widgets);
 
-	ret = snd_soc_register_card(&data->card);
+	ret = devm_snd_soc_register_card(&pdev->dev, &data->card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
-		goto clk_fail;
+		goto fail;
 	}
 
 	platform_set_drvdata(pdev, data);
-clk_fail:
-	clk_put(data->codec_clk);
+	of_node_put(ssi_np);
+	of_node_put(codec_np);
+
+	return 0;
+
 fail:
+	if (data && !IS_ERR(data->codec_clk))
+		clk_put(data->codec_clk);
 	if (ssi_np)
 		of_node_put(ssi_np);
 	if (codec_np)
@@ -189,11 +186,7 @@ static int imx_sgtl5000_remove(struct platform_device *pdev)
 {
 	struct imx_sgtl5000_data *data = platform_get_drvdata(pdev);
 
-	if (data->codec_clk) {
-		clk_disable_unprepare(data->codec_clk);
-		clk_put(data->codec_clk);
-	}
-	snd_soc_unregister_card(&data->card);
+	clk_put(data->codec_clk);
 
 	return 0;
 }
@@ -208,6 +201,7 @@ static struct platform_driver imx_sgtl5000_driver = {
 	.driver = {
 		.name = "imx-sgtl5000",
 		.owner = THIS_MODULE,
+		.pm = &snd_soc_pm_ops,
 		.of_match_table = imx_sgtl5000_dt_ids,
 	},
 	.probe = imx_sgtl5000_probe,

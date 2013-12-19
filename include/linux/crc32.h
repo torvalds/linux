@@ -11,7 +11,47 @@
 extern u32  crc32_le(u32 crc, unsigned char const *p, size_t len);
 extern u32  crc32_be(u32 crc, unsigned char const *p, size_t len);
 
+/**
+ * crc32_le_combine - Combine two crc32 check values into one. For two
+ * 		      sequences of bytes, seq1 and seq2 with lengths len1
+ * 		      and len2, crc32_le() check values were calculated
+ * 		      for each, crc1 and crc2.
+ *
+ * @crc1: crc32 of the first block
+ * @crc2: crc32 of the second block
+ * @len2: length of the second block
+ *
+ * Return: The crc32_le() check value of seq1 and seq2 concatenated,
+ * 	   requiring only crc1, crc2, and len2. Note: If seq_full denotes
+ * 	   the concatenated memory area of seq1 with seq2, and crc_full
+ * 	   the crc32_le() value of seq_full, then crc_full ==
+ * 	   crc32_le_combine(crc1, crc2, len2) when crc_full was seeded
+ * 	   with the same initializer as crc1, and crc2 seed was 0. See
+ * 	   also crc32_combine_test().
+ */
+extern u32  crc32_le_combine(u32 crc1, u32 crc2, size_t len2);
+
 extern u32  __crc32c_le(u32 crc, unsigned char const *p, size_t len);
+
+/**
+ * __crc32c_le_combine - Combine two crc32c check values into one. For two
+ * 			 sequences of bytes, seq1 and seq2 with lengths len1
+ * 			 and len2, __crc32c_le() check values were calculated
+ * 			 for each, crc1 and crc2.
+ *
+ * @crc1: crc32c of the first block
+ * @crc2: crc32c of the second block
+ * @len2: length of the second block
+ *
+ * Return: The __crc32c_le() check value of seq1 and seq2 concatenated,
+ * 	   requiring only crc1, crc2, and len2. Note: If seq_full denotes
+ * 	   the concatenated memory area of seq1 with seq2, and crc_full
+ * 	   the __crc32c_le() value of seq_full, then crc_full ==
+ * 	   __crc32c_le_combine(crc1, crc2, len2) when crc_full was
+ * 	   seeded with the same initializer as crc1, and crc2 seed
+ * 	   was 0. See also crc32c_combine_test().
+ */
+extern u32  __crc32c_le_combine(u32 crc1, u32 crc2, size_t len2);
 
 #define crc32(seed, data, length)  crc32_le(seed, (unsigned char const *)(data), length)
 

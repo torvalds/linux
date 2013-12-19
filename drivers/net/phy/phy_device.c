@@ -44,13 +44,13 @@ MODULE_LICENSE("GPL");
 
 void phy_device_free(struct phy_device *phydev)
 {
-	kfree(phydev);
+	put_device(&phydev->dev);
 }
 EXPORT_SYMBOL(phy_device_free);
 
 static void phy_device_release(struct device *dev)
 {
-	phy_device_free(to_phy_device(dev));
+	kfree(to_phy_device(dev));
 }
 
 static struct phy_driver genphy_driver;
@@ -189,6 +189,7 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 
 	mutex_init(&dev->lock);
 	INIT_DELAYED_WORK(&dev->state_queue, phy_state_machine);
+	INIT_WORK(&dev->phy_queue, phy_change);
 
 	/* Request the appropriate module unconditionally; don't
 	   bother trying to do so only if it isn't already loaded,
@@ -200,6 +201,8 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 	   driver will get bored and give up as soon as it finds that
 	   there's no driver _already_ loaded. */
 	request_module(MDIO_MODULE_PREFIX MDIO_ID_FMT, MDIO_ID_ARGS(phy_id));
+
+	device_initialize(&dev->dev);
 
 	return dev;
 }
@@ -363,9 +366,9 @@ int phy_device_register(struct phy_device *phydev)
 	/* Run all of the fixups for this PHY */
 	phy_scan_fixups(phydev);
 
-	err = device_register(&phydev->dev);
+	err = device_add(&phydev->dev);
 	if (err) {
-		pr_err("phy %d failed to register\n", phydev->addr);
+		pr_err("PHY %d failed to add\n", phydev->addr);
 		goto out;
 	}
 
@@ -416,16 +419,15 @@ static void phy_prepare_link(struct phy_device *phydev,
  * @dev: the network device to connect
  * @phydev: the pointer to the phy device
  * @handler: callback function for state change notifications
- * @flags: PHY device's dev_flags
  * @interface: PHY device's interface
  */
 int phy_connect_direct(struct net_device *dev, struct phy_device *phydev,
-		       void (*handler)(struct net_device *), u32 flags,
+		       void (*handler)(struct net_device *),
 		       phy_interface_t interface)
 {
 	int rc;
 
-	rc = phy_attach_direct(dev, phydev, flags, interface);
+	rc = phy_attach_direct(dev, phydev, phydev->dev_flags, interface);
 	if (rc)
 		return rc;
 
@@ -443,7 +445,6 @@ EXPORT_SYMBOL(phy_connect_direct);
  * @dev: the network device to connect
  * @bus_id: the id string of the PHY device to connect
  * @handler: callback function for state change notifications
- * @flags: PHY device's dev_flags
  * @interface: PHY device's interface
  *
  * Description: Convenience function for connecting ethernet
@@ -455,7 +456,7 @@ EXPORT_SYMBOL(phy_connect_direct);
  *   the desired functionality.
  */
 struct phy_device * phy_connect(struct net_device *dev, const char *bus_id,
-		void (*handler)(struct net_device *), u32 flags,
+		void (*handler)(struct net_device *),
 		phy_interface_t interface)
 {
 	struct phy_device *phydev;
@@ -471,7 +472,7 @@ struct phy_device * phy_connect(struct net_device *dev, const char *bus_id,
 	}
 	phydev = to_phy_device(d);
 
-	rc = phy_connect_direct(dev, phydev, handler, flags, interface);
+	rc = phy_connect_direct(dev, phydev, handler, interface);
 	if (rc)
 		return ERR_PTR(rc);
 
@@ -576,14 +577,13 @@ static int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
  * phy_attach - attach a network device to a particular PHY device
  * @dev: network device to attach
  * @bus_id: Bus ID of PHY device to attach
- * @flags: PHY device's dev_flags
  * @interface: PHY device's interface
  *
  * Description: Same as phy_attach_direct() except that a PHY bus_id
  *     string is passed instead of a pointer to a struct phy_device.
  */
 struct phy_device *phy_attach(struct net_device *dev,
-		const char *bus_id, u32 flags, phy_interface_t interface)
+		const char *bus_id, phy_interface_t interface)
 {
 	struct bus_type *bus = &mdio_bus_type;
 	struct phy_device *phydev;
@@ -599,7 +599,7 @@ struct phy_device *phy_attach(struct net_device *dev,
 	}
 	phydev = to_phy_device(d);
 
-	rc = phy_attach_direct(dev, phydev, flags, interface);
+	rc = phy_attach_direct(dev, phydev, phydev->dev_flags, interface);
 	if (rc)
 		return ERR_PTR(rc);
 
@@ -697,7 +697,7 @@ static int genphy_config_advert(struct phy_device *phydev)
  *   to the values in phydev. Assumes that the values are valid.
  *   Please see phy_sanitize_settings().
  */
-static int genphy_setup_forced(struct phy_device *phydev)
+int genphy_setup_forced(struct phy_device *phydev)
 {
 	int err;
 	int ctl = 0;
@@ -716,7 +716,7 @@ static int genphy_setup_forced(struct phy_device *phydev)
 
 	return err;
 }
-
+EXPORT_SYMBOL(genphy_setup_forced);
 
 /**
  * genphy_restart_aneg - Enable and Restart Autonegotiation
@@ -1010,9 +1010,15 @@ static int phy_probe(struct device *dev)
 	phydrv = to_phy_driver(drv);
 	phydev->drv = phydrv;
 
-	/* Disable the interrupt if the PHY doesn't support it */
-	if (!(phydrv->flags & PHY_HAS_INTERRUPT))
+	/* Disable the interrupt if the PHY doesn't support it
+	 * but the interrupt is still a valid one
+	 */
+	if (!(phydrv->flags & PHY_HAS_INTERRUPT) &&
+			phy_interrupt_is_valid(phydev))
 		phydev->irq = PHY_POLL;
+
+	if (phydrv->flags & PHY_IS_INTERNAL)
+		phydev->is_internal = true;
 
 	mutex_lock(&phydev->lock);
 

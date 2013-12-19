@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -126,7 +126,8 @@ acpi_ns_build_external_path(struct acpi_namespace_node *node,
  *              the node, In external format (name segments separated by path
  *              separators.)
  *
- * DESCRIPTION: Used for debug printing in acpi_ns_search_table().
+ * DESCRIPTION: Used to obtain the full pathname to a namespace node, usually
+ *              for error and debug statements.
  *
  ******************************************************************************/
 

@@ -24,28 +24,7 @@
  *
  */
 
-#include <subdev/fb.h>
-
-struct nv20_fb_priv {
-	struct nouveau_fb base;
-};
-
-int
-nv20_fb_vram_init(struct nouveau_fb *pfb)
-{
-	u32 pbus1218 = nv_rd32(pfb, 0x001218);
-
-	switch (pbus1218 & 0x00000300) {
-	case 0x00000000: pfb->ram.type = NV_MEM_TYPE_SDRAM; break;
-	case 0x00000100: pfb->ram.type = NV_MEM_TYPE_DDR1; break;
-	case 0x00000200: pfb->ram.type = NV_MEM_TYPE_GDDR3; break;
-	case 0x00000300: pfb->ram.type = NV_MEM_TYPE_GDDR2; break;
-	}
-	pfb->ram.size  = (nv_rd32(pfb, 0x10020c) & 0xff000000);
-	pfb->ram.parts = (nv_rd32(pfb, 0x100200) & 0x00000003) + 1;
-
-	return nv_rd32(pfb, 0x100320);
-}
+#include "nv04.h"
 
 void
 nv20_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
@@ -65,7 +44,7 @@ nv20_fb_tile_comp(struct nouveau_fb *pfb, int i, u32 size, u32 flags,
 		  struct nouveau_fb_tile *tile)
 {
 	u32 tiles = DIV_ROUND_UP(size, 0x40);
-	u32 tags  = round_up(tiles / pfb->ram.parts, 0x40);
+	u32 tags  = round_up(tiles / pfb->ram->parts, 0x40);
 	if (!nouveau_mm_head(&pfb->tags, 1, tags, tags, 1, &tile->tag)) {
 		if (!(flags & 2)) tile->zcomp = 0x00000000; /* Z16 */
 		else              tile->zcomp = 0x04000000; /* Z24S8 */
@@ -97,36 +76,20 @@ nv20_fb_tile_prog(struct nouveau_fb *pfb, int i, struct nouveau_fb_tile *tile)
 	nv_wr32(pfb, 0x100300 + (i * 0x04), tile->zcomp);
 }
 
-static int
-nv20_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
-{
-	struct nv20_fb_priv *priv;
-	int ret;
-
-	ret = nouveau_fb_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.memtype_valid = nv04_fb_memtype_valid;
-	priv->base.ram.init = nv20_fb_vram_init;
-	priv->base.tile.regions = 8;
-	priv->base.tile.init = nv20_fb_tile_init;
-	priv->base.tile.comp = nv20_fb_tile_comp;
-	priv->base.tile.fini = nv20_fb_tile_fini;
-	priv->base.tile.prog = nv20_fb_tile_prog;
-	return nouveau_fb_preinit(&priv->base);
-}
-
-struct nouveau_oclass
-nv20_fb_oclass = {
-	.handle = NV_SUBDEV(FB, 0x20),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv20_fb_ctor,
+struct nouveau_oclass *
+nv20_fb_oclass = &(struct nv04_fb_impl) {
+	.base.base.handle = NV_SUBDEV(FB, 0x20),
+	.base.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv04_fb_ctor,
 		.dtor = _nouveau_fb_dtor,
 		.init = _nouveau_fb_init,
 		.fini = _nouveau_fb_fini,
 	},
-};
+	.base.memtype = nv04_fb_memtype_valid,
+	.base.ram = &nv20_ram_oclass,
+	.tile.regions = 8,
+	.tile.init = nv20_fb_tile_init,
+	.tile.comp = nv20_fb_tile_comp,
+	.tile.fini = nv20_fb_tile_fini,
+	.tile.prog = nv20_fb_tile_prog,
+}.base.base;

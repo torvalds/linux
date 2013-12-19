@@ -134,10 +134,28 @@ static int pcie_port_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static int pci_dev_pme_poll(struct pci_dev *pdev, void *data)
+{
+	bool *pme_poll = data;
+
+	if (pdev->pme_poll)
+		*pme_poll = true;
+	return 0;
+}
+
 static int pcie_port_runtime_idle(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
+	bool pme_poll = false;
+
+	/*
+	 * If any subordinate device needs pme poll, we should keep
+	 * the port in D0, because we need port in D0 to poll it.
+	 */
+	pci_walk_bus(pdev->subordinate, pci_dev_pme_poll, &pme_poll);
 	/* Delay for a short while to prevent too frequent suspend/resume */
-	pm_schedule_suspend(dev, 10);
+	if (!pme_poll)
+		pm_schedule_suspend(dev, 10);
 	return -EBUSY;
 }
 #else
@@ -165,14 +183,6 @@ static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 
 #define PCIE_PORTDRV_PM_OPS	NULL
 #endif /* !PM */
-
-/*
- * PCIe port runtime suspend is broken for some chipsets, so use a
- * black list to disable runtime PM for these chipsets.
- */
-static const struct pci_device_id port_runtime_pm_black_list[] = {
-	{ /* end: all zeroes */ }
-};
 
 /*
  * pcie_portdrv_probe - Probe PCI-Express port devices
@@ -207,18 +217,12 @@ static int pcie_portdrv_probe(struct pci_dev *dev,
 	 * it by default.
 	 */
 	dev->d3cold_allowed = false;
-	if (!pci_match_id(port_runtime_pm_black_list, dev))
-		pm_runtime_put_noidle(&dev->dev);
-
 	return 0;
 }
 
 static void pcie_portdrv_remove(struct pci_dev *dev)
 {
-	if (!pci_match_id(port_runtime_pm_black_list, dev))
-		pm_runtime_get_noresume(&dev->dev);
 	pcie_port_device_remove(dev);
-	pci_disable_device(dev);
 }
 
 static int error_detected_iter(struct device *device, void *data)
@@ -254,11 +258,9 @@ static pci_ers_result_t pcie_portdrv_error_detected(struct pci_dev *dev,
 					enum pci_channel_state error)
 {
 	struct aer_broadcast_data data = {error, PCI_ERS_RESULT_CAN_RECOVER};
-	int ret;
 
-	/* can not fail */
-	ret = device_for_each_child(&dev->dev, &data, error_detected_iter);
-
+	/* get true return value from &data */
+	device_for_each_child(&dev->dev, &data, error_detected_iter);
 	return data.result;
 }
 
@@ -290,10 +292,9 @@ static int mmio_enabled_iter(struct device *device, void *data)
 static pci_ers_result_t pcie_portdrv_mmio_enabled(struct pci_dev *dev)
 {
 	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
-	int retval;
 
 	/* get true return value from &status */
-	retval = device_for_each_child(&dev->dev, &status, mmio_enabled_iter);
+	device_for_each_child(&dev->dev, &status, mmio_enabled_iter);
 	return status;
 }
 
@@ -325,7 +326,6 @@ static int slot_reset_iter(struct device *device, void *data)
 static pci_ers_result_t pcie_portdrv_slot_reset(struct pci_dev *dev)
 {
 	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
-	int retval;
 
 	/* If fatal, restore cfg space for possible link reset at upstream */
 	if (dev->error_state == pci_channel_io_frozen) {
@@ -336,8 +336,7 @@ static pci_ers_result_t pcie_portdrv_slot_reset(struct pci_dev *dev)
 	}
 
 	/* get true return value from &status */
-	retval = device_for_each_child(&dev->dev, &status, slot_reset_iter);
-
+	device_for_each_child(&dev->dev, &status, slot_reset_iter);
 	return status;
 }
 
@@ -363,9 +362,7 @@ static int resume_iter(struct device *device, void *data)
 
 static void pcie_portdrv_err_resume(struct pci_dev *dev)
 {
-	int retval;
-	/* nothing to do with error value, if it ever happens */
-	retval = device_for_each_child(&dev->dev, NULL, resume_iter);
+	device_for_each_child(&dev->dev, NULL, resume_iter);
 }
 
 /*
@@ -392,9 +389,9 @@ static struct pci_driver pcie_portdriver = {
 	.probe		= pcie_portdrv_probe,
 	.remove		= pcie_portdrv_remove,
 
-	.err_handler 	= &pcie_portdrv_err_handler,
+	.err_handler	= &pcie_portdrv_err_handler,
 
-	.driver.pm 	= PCIE_PORTDRV_PM_OPS,
+	.driver.pm	= PCIE_PORTDRV_PM_OPS,
 };
 
 static int __init dmi_pcie_pme_disable_msi(const struct dmi_system_id *d)
@@ -414,7 +411,7 @@ static struct dmi_system_id __initdata pcie_portdrv_dmi_table[] = {
 	 .ident = "MSI Wind U-100",
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR,
-		     		"MICRO-STAR INTERNATIONAL CO., LTD"),
+				"MICRO-STAR INTERNATIONAL CO., LTD"),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "U-100"),
 		     },
 	 },

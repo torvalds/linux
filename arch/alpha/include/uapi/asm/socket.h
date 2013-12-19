@@ -19,7 +19,7 @@
 #define SO_BROADCAST	0x0020
 #define SO_LINGER	0x0080
 #define SO_OOBINLINE	0x0100
-/* To add :#define SO_REUSEPORT 0x0200 */
+#define SO_REUSEPORT	0x0200
 
 #define SO_TYPE		0x1008
 #define SO_ERROR	0x1007
@@ -77,5 +77,12 @@
 /* Instruct lower device to use last 4-bytes of skb data as FCS */
 #define SO_NOFCS		43
 
+#define SO_LOCK_FILTER		44
+
+#define SO_SELECT_ERR_QUEUE	45
+
+#define SO_BUSY_POLL		46
+
+#define SO_MAX_PACING_RATE	47
 
 #endif /* _UAPI_ASM_SOCKET_H */

@@ -62,8 +62,9 @@ static const struct nla_policy mirred_policy[TCA_MIRRED_MAX + 1] = {
 	[TCA_MIRRED_PARMS]	= { .len = sizeof(struct tc_mirred) },
 };
 
-static int tcf_mirred_init(struct nlattr *nla, struct nlattr *est,
-			   struct tc_action *a, int ovr, int bind)
+static int tcf_mirred_init(struct net *net, struct nlattr *nla,
+			   struct nlattr *est, struct tc_action *a, int ovr,
+			   int bind)
 {
 	struct nlattr *tb[TCA_MIRRED_MAX + 1];
 	struct tc_mirred *parm;
@@ -88,7 +89,7 @@ static int tcf_mirred_init(struct nlattr *nla, struct nlattr *est,
 		return -EINVAL;
 	}
 	if (parm->ifindex) {
-		dev = __dev_get_by_index(&init_net, parm->ifindex);
+		dev = __dev_get_by_index(net, parm->ifindex);
 		if (dev == NULL)
 			return -ENODEV;
 		switch (dev->type) {
@@ -242,7 +243,7 @@ nla_put_failure:
 static int mirred_device_event(struct notifier_block *unused,
 			       unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct tcf_mirred *m;
 
 	if (event == NETDEV_UNREGISTER)
@@ -270,9 +271,7 @@ static struct tc_action_ops act_mirred_ops = {
 	.act		=	tcf_mirred,
 	.dump		=	tcf_mirred_dump,
 	.cleanup	=	tcf_mirred_cleanup,
-	.lookup		=	tcf_hash_search,
 	.init		=	tcf_mirred_init,
-	.walk		=	tcf_generic_walker
 };
 
 MODULE_AUTHOR("Jamal Hadi Salim(2002)");

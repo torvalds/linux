@@ -1,0 +1,222 @@
+Binding for TI/National Semiconductor LP55xx Led Drivers
+
+Required properties:
+- compatible: "national,lp5521" or "national,lp5523" or "ti,lp5562" or "ti,lp8501"
+- reg: I2C slave address
+- clock-mode: Input clock mode, (0: automode, 1: internal, 2: external)
+
+Each child has own specific current settings
+- led-cur: Current setting at each led channel (mA x10, 0 if led is not connected)
+- max-cur: Maximun current at each led channel.
+
+Optional properties:
+- enable-gpio: GPIO attached to the chip's enable pin
+- label: Used for naming LEDs
+- pwr-sel: LP8501 specific property. Power selection for output channels.
+         0: D1~9 are connected to VDD
+         1: D1~6 with VDD, D7~9 with VOUT
+         2: D1~6 with VOUT, D7~9 with VDD
+         3: D1~9 are connected to VOUT
+
+Alternatively, each child can have a specific channel name and trigger:
+- chan-name (optional): name of channel
+- linux,default-trigger (optional): see
+  Documentation/devicetree/bindings/leds/common.txt
+
+example 1) LP5521
+3 LED channels, external clock used. Channel names are 'lp5521_pri:channel0',
+'lp5521_pri:channel1' and 'lp5521_pri:channel2', with a heartbeat trigger
+on channel 0.
+
+lp5521@32 {
+	compatible = "national,lp5521";
+	reg = <0x32>;
+	label = "lp5521_pri";
+	clock-mode = /bits/ 8 <2>;
+
+	chan0 {
+		led-cur = /bits/ 8 <0x2f>;
+		max-cur = /bits/ 8 <0x5f>;
+		linux,default-trigger = "heartbeat";
+	};
+
+	chan1 {
+		led-cur = /bits/ 8 <0x2f>;
+		max-cur = /bits/ 8 <0x5f>;
+	};
+
+	chan2 {
+		led-cur = /bits/ 8 <0x2f>;
+		max-cur = /bits/ 8 <0x5f>;
+	};
+};
+
+example 2) LP5523
+9 LED channels with specific name. Internal clock used.
+The I2C slave address is configurable with ASEL1 and ASEL0 pins.
+Available addresses are 32/33/34/35h.
+
+ASEL1    ASEL0    Address
+-------------------------
+ GND      GND       32h
+ GND      VEN       33h
+ VEN      GND       34h
+ VEN      VEN       35h
+
+lp5523@32 {
+	compatible = "national,lp5523";
+	reg = <0x32>;
+	clock-mode = /bits/ 8 <1>;
+
+	chan0 {
+		chan-name = "d1";
+		led-cur = /bits/ 8 <0x14>;
+		max-cur = /bits/ 8 <0x20>;
+	};
+
+	chan1 {
+		chan-name = "d2";
+		led-cur = /bits/ 8 <0x14>;
+		max-cur = /bits/ 8 <0x20>;
+	};
+
+	chan2 {
+		chan-name = "d3";
+		led-cur = /bits/ 8 <0x14>;
+		max-cur = /bits/ 8 <0x20>;
+	};
+
+	chan3 {
+		chan-name = "d4";
+		led-cur = /bits/ 8 <0x14>;
+		max-cur = /bits/ 8 <0x20>;
+	};
+
+	chan4 {
+		chan-name = "d5";
+		led-cur = /bits/ 8 <0x14>;
+		max-cur = /bits/ 8 <0x20>;
+	};
+
+	chan5 {
+		chan-name = "d6";
+		led-cur = /bits/ 8 <0x14>;
+		max-cur = /bits/ 8 <0x20>;
+	};
+
+	chan6 {
+		chan-name = "d7";
+		led-cur = /bits/ 8 <0x14>;
+		max-cur = /bits/ 8 <0x20>;
+	};
+
+	chan7 {
+		chan-name = "d8";
+		led-cur = /bits/ 8 <0x14>;
+		max-cur = /bits/ 8 <0x20>;
+	};
+
+	chan8 {
+		chan-name = "d9";
+		led-cur = /bits/ 8 <0x14>;
+		max-cur = /bits/ 8 <0x20>;
+	};
+};
+
+example 3) LP5562
+4 channels are defined.
+
+lp5562@30 {
+	compatible = "ti,lp5562";
+	reg = <0x30>;
+	clock-mode = /bits/8 <2>;
+
+	chan0 {
+		chan-name = "R";
+		led-cur = /bits/ 8 <0x20>;
+		max-cur = /bits/ 8 <0x60>;
+	};
+
+	chan1 {
+		chan-name = "G";
+		led-cur = /bits/ 8 <0x20>;
+		max-cur = /bits/ 8 <0x60>;
+	};
+
+	chan2 {
+		chan-name = "B";
+		led-cur = /bits/ 8 <0x20>;
+		max-cur = /bits/ 8 <0x60>;
+	};
+
+	chan3 {
+		chan-name = "W";
+		led-cur = /bits/ 8 <0x20>;
+		max-cur = /bits/ 8 <0x60>;
+	};
+};
+
+example 4) LP8501
+9 channels are defined. The 'pwr-sel' is LP8501 specific property.
+Others are same as LP5523.
+
+lp8501@32 {
+	compatible = "ti,lp8501";
+	reg = <0x32>;
+	clock-mode = /bits/ 8 <2>;
+	pwr-sel = /bits/ 8 <3>;	/* D1~9 connected to VOUT */
+
+	chan0 {
+		chan-name = "d1";
+		led-cur = /bits/ 8 <0x14>;
+		max-cur = /bits/ 8 <0x20>;
+	};
+
+	chan1 {
+		chan-name = "d2";
+		led-cur = /bits/ 8 <0x14>;
+		max-cur = /bits/ 8 <0x20>;
+	};
+
+	chan2 {
+		chan-name = "d3";
+		led-cur = /bits/ 8 <0x14>;
+		max-cur = /bits/ 8 <0x20>;
+	};
+
+	chan3 {
+		chan-name = "d4";
+		led-cur = /bits/ 8 <0x14>;
+		max-cur = /bits/ 8 <0x20>;
+	};
+
+	chan4 {
+		chan-name = "d5";
+		led-cur = /bits/ 8 <0x14>;
+		max-cur = /bits/ 8 <0x20>;
+	};
+
+	chan5 {
+		chan-name = "d6";
+		led-cur = /bits/ 8 <0x14>;
+		max-cur = /bits/ 8 <0x20>;
+	};
+
+	chan6 {
+		chan-name = "d7";
+		led-cur = /bits/ 8 <0x14>;
+		max-cur = /bits/ 8 <0x20>;
+	};
+
+	chan7 {
+		chan-name = "d8";
+		led-cur = /bits/ 8 <0x14>;
+		max-cur = /bits/ 8 <0x20>;
+	};
+
+	chan8 {
+		chan-name = "d9";
+		led-cur = /bits/ 8 <0x14>;
+		max-cur = /bits/ 8 <0x20>;
+	};
+};

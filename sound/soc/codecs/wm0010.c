@@ -14,6 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/interrupt.h>
 #include <linux/irqreturn.h>
 #include <linux/init.h>
 #include <linux/spi/spi.h>
@@ -342,7 +343,7 @@ static void byte_swap_64(u64 *data_in, u64 *data_out, u32 len)
 		data_out[i] = cpu_to_be64(le64_to_cpu(data_in[i]));
 }
 
-static int wm0010_firmware_load(char *name, struct snd_soc_codec *codec)
+static int wm0010_firmware_load(const char *name, struct snd_soc_codec *codec)
 {
 	struct spi_device *spi = to_spi_device(codec->dev);
 	struct wm0010_priv *wm0010 = snd_soc_codec_get_drvdata(codec);
@@ -361,8 +362,8 @@ static int wm0010_firmware_load(char *name, struct snd_soc_codec *codec)
 
 	ret = request_firmware(&fw, name, codec->dev);
 	if (ret != 0) {
-		dev_err(codec->dev, "Failed to request application: %d\n",
-			ret);
+		dev_err(codec->dev, "Failed to request application(%s): %d\n",
+			name, ret);
 		return ret;
 	}
 
@@ -371,7 +372,8 @@ static int wm0010_firmware_load(char *name, struct snd_soc_codec *codec)
 	offset = 0;
 	dsp = inforec->dsp_target;
 	wm0010->boot_failed = false;
-	BUG_ON(!list_empty(&xfer_list));
+	if (WARN_ON(!list_empty(&xfer_list)))
+		return -EINVAL;
 	init_completion(&done);
 
 	/* First record should be INFO */
@@ -409,39 +411,39 @@ static int wm0010_firmware_load(char *name, struct snd_soc_codec *codec)
 			rec->command, rec->length);
 		len = rec->length + 8;
 
-		out = kzalloc(len, GFP_KERNEL);
+		xfer = kzalloc(sizeof(*xfer), GFP_KERNEL);
+		if (!xfer) {
+			dev_err(codec->dev, "Failed to allocate xfer\n");
+			ret = -ENOMEM;
+			goto abort;
+		}
+
+		xfer->codec = codec;
+		list_add_tail(&xfer->list, &xfer_list);
+
+		out = kzalloc(len, GFP_KERNEL | GFP_DMA);
 		if (!out) {
 			dev_err(codec->dev,
 				"Failed to allocate RX buffer\n");
 			ret = -ENOMEM;
 			goto abort1;
 		}
+		xfer->t.rx_buf = out;
 
-		img = kzalloc(len, GFP_KERNEL);
+		img = kzalloc(len, GFP_KERNEL | GFP_DMA);
 		if (!img) {
 			dev_err(codec->dev,
 				"Failed to allocate image buffer\n");
 			ret = -ENOMEM;
 			goto abort1;
 		}
+		xfer->t.tx_buf = img;
 
 		byte_swap_64((u64 *)&rec->command, img, len);
-
-		xfer = kzalloc(sizeof(*xfer), GFP_KERNEL);
-		if (!xfer) {
-			dev_err(codec->dev, "Failed to allocate xfer\n");
-			ret = -ENOMEM;
-			goto abort1;
-		}
-
-		xfer->codec = codec;
-		list_add_tail(&xfer->list, &xfer_list);
 
 		spi_message_init(&xfer->m);
 		xfer->m.complete = wm0010_boot_xfer_complete;
 		xfer->m.context = xfer;
-		xfer->t.tx_buf = img;
-		xfer->t.rx_buf = out;
 		xfer->t.len = len;
 		xfer->t.bits_per_word = 8;
 
@@ -522,14 +524,14 @@ static int wm0010_stage2_load(struct snd_soc_codec *codec)
 	dev_dbg(codec->dev, "Downloading %zu byte stage 2 loader\n", fw->size);
 
 	/* Copy to local buffer first as vmalloc causes problems for dma */
-	img = kzalloc(fw->size, GFP_KERNEL);
+	img = kzalloc(fw->size, GFP_KERNEL | GFP_DMA);
 	if (!img) {
 		dev_err(codec->dev, "Failed to allocate image buffer\n");
 		ret = -ENOMEM;
 		goto abort2;
 	}
 
-	out = kzalloc(fw->size, GFP_KERNEL);
+	out = kzalloc(fw->size, GFP_KERNEL | GFP_DMA);
 	if (!out) {
 		dev_err(codec->dev, "Failed to allocate output buffer\n");
 		ret = -ENOMEM;
@@ -667,15 +669,16 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 		/* On wm0010 only the CLKCTRL1 value is used */
 		pll_rec.clkctrl1 = wm0010->pll_clkctrl1;
 
+		ret = -ENOMEM;
 		len = pll_rec.length + 8;
-		out = kzalloc(len, GFP_KERNEL);
+		out = kzalloc(len, GFP_KERNEL | GFP_DMA);
 		if (!out) {
 			dev_err(codec->dev,
 				"Failed to allocate RX buffer\n");
 			goto abort;
 		}
 
-		img_swap = kzalloc(len, GFP_KERNEL);
+		img_swap = kzalloc(len, GFP_KERNEL | GFP_DMA);
 		if (!img_swap) {
 			dev_err(codec->dev,
 				"Failed to allocate image buffer\n");
@@ -791,11 +794,11 @@ static int wm0010_set_sysclk(struct snd_soc_codec *codec, int source,
 		wm0010->max_spi_freq = 0;
 	} else {
 		for (i = 0; i < ARRAY_SIZE(pll_clock_map); i++)
-			if (freq >= pll_clock_map[i].max_sysclk)
+			if (freq >= pll_clock_map[i].max_sysclk) {
+				wm0010->max_spi_freq = pll_clock_map[i].max_pll_spi_speed;
+				wm0010->pll_clkctrl1 = pll_clock_map[i].pll_clkctrl1;
 				break;
-
-		wm0010->max_spi_freq = pll_clock_map[i].max_pll_spi_speed;
-		wm0010->pll_clkctrl1 = pll_clock_map[i].pll_clkctrl1;
+			}
 	}
 
 	return 0;
@@ -971,6 +974,13 @@ static int wm0010_spi_probe(struct spi_device *spi)
 	}
 	wm0010->irq = irq;
 
+	ret = irq_set_irq_wake(irq, 1);
+	if (ret) {
+		dev_err(wm0010->dev, "Failed to set IRQ %d as wake source: %d\n",
+			irq, ret);
+		return ret;
+	}
+
 	if (spi->max_speed_hz)
 		wm0010->board_max_spi_speed = spi->max_speed_hz;
 	else
@@ -993,6 +1003,8 @@ static int wm0010_spi_remove(struct spi_device *spi)
 
 	gpio_set_value_cansleep(wm0010->gpio_reset,
 				wm0010->gpio_reset_value);
+
+	irq_set_irq_wake(wm0010->irq, 0);
 
 	if (wm0010->irq)
 		free_irq(wm0010->irq, wm0010);

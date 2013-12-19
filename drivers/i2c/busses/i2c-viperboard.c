@@ -360,7 +360,7 @@ static const struct i2c_algorithm vprbrd_algorithm = {
 	.functionality	= vprbrd_i2c_func,
 };
 
-static int __devinit vprbrd_i2c_probe(struct platform_device *pdev)
+static int vprbrd_i2c_probe(struct platform_device *pdev)
 {
 	struct vprbrd *vb = dev_get_drvdata(pdev->dev.parent);
 	struct vprbrd_i2c *vb_i2c;
@@ -418,21 +418,20 @@ error:
 	return ret;
 }
 
-static int __devexit vprbrd_i2c_remove(struct platform_device *pdev)
+static int vprbrd_i2c_remove(struct platform_device *pdev)
 {
 	struct vprbrd_i2c *vb_i2c = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = i2c_del_adapter(&vb_i2c->i2c);
+	i2c_del_adapter(&vb_i2c->i2c);
 
-	return ret;
+	return 0;
 }
 
 static struct platform_driver vprbrd_i2c_driver = {
 	.driver.name	= "viperboard-i2c",
 	.driver.owner	= THIS_MODULE,
 	.probe		= vprbrd_i2c_probe,
-	.remove		= __devexit_p(vprbrd_i2c_remove),
+	.remove		= vprbrd_i2c_remove,
 };
 
 static int __init vprbrd_i2c_init(void)

@@ -1,0 +1,110 @@
+*ST pin controller.
+
+Each multi-function pin is controlled, driven and routed through the
+PIO multiplexing block. Each pin supports GPIO functionality (ALT0)
+and multiple alternate functions(ALT1 - ALTx) that directly connect
+the pin to different hardware blocks.
+
+When a pin is in GPIO mode, Output Enable (OE), Open Drain(OD), and
+Pull Up (PU) are driven by the related PIO block.
+
+ST pinctrl driver controls PIO multiplexing block and also interacts with
+gpio driver to configure a pin.
+
+Required properties: (PIO multiplexing block)
+- compatible	: should be "st,<SOC>-<pio-block>-pinctrl"
+	like st,stih415-sbc-pinctrl, st,stih415-front-pinctrl and so on.
+- gpio-controller : Indicates this device is a GPIO controller
+- #gpio-cells	  : Should be one. The first cell is the pin number.
+- st,retime-pin-mask	: Should be mask to specify which pins can be retimed.
+	If the property is not present, it is assumed that all the pins in the
+	bank are capable of retiming. Retiming is mainly used to improve the
+	IO timing margins of external synchronous interfaces.
+- st,bank-name		: Should be a name string for this bank as
+			specified in datasheet.
+- st,syscfg		: Should be a phandle of the syscfg node.
+
+Example:
+	pin-controller-sbc {
+		#address-cells	= <1>;
+		#size-cells	= <1>;
+		compatible	= "st,stih415-sbc-pinctrl";
+		st,syscfg	= <&syscfg_sbc>;
+		ranges 		= <0 0xfe610000 0x5000>;
+		PIO0: gpio@fe610000 {
+			gpio-controller;
+			#gpio-cells	= <1>;
+			reg		= <0 0x100>;
+			st,bank-name	= "PIO0";
+		};
+		...
+		pin-functions nodes follow...
+	};
+
+
+Contents of function subnode node:
+----------------------
+Required properties for pin configuration node:
+- st,pins	: Child node with list of pins with configuration.
+
+Below is the format of how each pin conf should look like.
+
+<bank offset mux mode rt_type rt_delay rt_clk>
+
+Every PIO is represented with 4-7 parameters depending on retime configuration.
+Each parameter is explained as below.
+
+-bank		: Should be bank phandle to which this PIO belongs.
+-offset		: Offset in the PIO bank.
+-mux		: Should be alternate function number associated this pin.
+		Use same numbers from datasheet.
+-mode		:pin configuration is selected from one of the below values.
+		IN
+		IN_PU
+		OUT
+		BIDIR
+		BIDIR_PU
+
+-rt_type	Retiming Configuration for the pin.
+		Possible retime configuration are:
+
+		-------		-------------
+		value		args
+		-------		-------------
+		NICLK		<delay> <clk>
+		ICLK_IO		<delay> <clk>
+		BYPASS		<delay>
+		DE_IO		<delay> <clk>
+		SE_ICLK_IO	<delay> <clk>
+		SE_NICLK_IO	<delay> <clk>
+
+- delay	is retime delay in pico seconds as mentioned in data sheet.
+
+- rt_clk	:clk to be use for retime.
+		Possible values are:
+		CLK_A
+		CLK_B
+		CLK_C
+		CLK_D
+
+Example of mmcclk pin which is a bi-direction pull pu with retime config
+as non inverted clock retimed with CLK_B and delay of 0 pico seconds:
+
+pin-controller {
+	...
+	mmc0 {
+		pinctrl_mmc: mmc {
+			st,pins {
+				mmcclk = <&PIO13 4 ALT4 BIDIR_PU NICLK 0 CLK_B>;
+				...
+			};
+		};
+	...
+	};
+};
+
+sdhci0:sdhci@fe810000{
+	...
+	pinctrl-names = "default";
+	pinctrl-0	= <&pinctrl_mmc>;
+};

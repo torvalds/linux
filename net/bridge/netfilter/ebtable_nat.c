@@ -60,17 +60,21 @@ static struct ebt_table frame_nat =
 };
 
 static unsigned int
-ebt_nat_in(unsigned int hook, struct sk_buff *skb, const struct net_device *in
-   , const struct net_device *out, int (*okfn)(struct sk_buff *))
+ebt_nat_in(const struct nf_hook_ops *ops, struct sk_buff *skb,
+	   const struct net_device *in, const struct net_device *out,
+	   int (*okfn)(struct sk_buff *))
 {
-	return ebt_do_table(hook, skb, in, out, dev_net(in)->xt.frame_nat);
+	return ebt_do_table(ops->hooknum, skb, in, out,
+			    dev_net(in)->xt.frame_nat);
 }
 
 static unsigned int
-ebt_nat_out(unsigned int hook, struct sk_buff *skb, const struct net_device *in
-   , const struct net_device *out, int (*okfn)(struct sk_buff *))
+ebt_nat_out(const struct nf_hook_ops *ops, struct sk_buff *skb,
+	    const struct net_device *in, const struct net_device *out,
+	    int (*okfn)(struct sk_buff *))
 {
-	return ebt_do_table(hook, skb, in, out, dev_net(out)->xt.frame_nat);
+	return ebt_do_table(ops->hooknum, skb, in, out,
+			    dev_net(out)->xt.frame_nat);
 }
 
 static struct nf_hook_ops ebt_ops_nat[] __read_mostly = {
@@ -100,7 +104,7 @@ static struct nf_hook_ops ebt_ops_nat[] __read_mostly = {
 static int __net_init frame_nat_net_init(struct net *net)
 {
 	net->xt.frame_nat = ebt_register_table(net, &frame_nat);
-	return PTR_RET(net->xt.frame_nat);
+	return PTR_ERR_OR_ZERO(net->xt.frame_nat);
 }
 
 static void __net_exit frame_nat_net_exit(struct net *net)

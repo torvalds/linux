@@ -1,0 +1,7 @@
+Renesas HSPI.
+
+Required properties:
+- compatible : 	"renesas,hspi"
+- reg : Offset and length of the register set for the device
+- interrupts : interrupt line used by HSPI
+

@@ -9,8 +9,9 @@
 
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <mach/hardware.h>
-#include <mach/id.h>
+
+#include "db8500-regs.h"
+#include "id.h"
 
 static void __iomem *l2x0_base;
 
@@ -41,13 +42,14 @@ static int __init ux500_l2x0_init(void)
 	if (cpu_is_u8500_family() || cpu_is_ux540_family())
 		l2x0_base = __io_address(U8500_L2CC_BASE);
 	else
-		ux500_unknown_soc();
+		/* Non-Ux500 platform */
+		return -ENODEV;
 
 	/* Unlock before init */
 	ux500_l2x0_unlock();
 
-	/* DB9540's L2 has 128KB way size */
-	if (cpu_is_u9540())
+	/* DBx540's L2 has 128KB way size */
+	if (cpu_is_ux540_family())
 		/* 128KB way size */
 		aux_val |= (0x4 << L2X0_AUX_CTRL_WAY_SIZE_SHIFT);
 	else
@@ -67,6 +69,7 @@ static int __init ux500_l2x0_init(void)
 	 * some SMI service available.
 	 */
 	outer_cache.disable = NULL;
+	outer_cache.set_debug = NULL;
 
 	return 0;
 }

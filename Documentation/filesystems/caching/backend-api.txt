@@ -299,6 +299,15 @@ performed on the denizens of the cache.  These are held in a structure of type:
      enough space in the cache to permit this.
 
 
+ (*) Check coherency state of an object [mandatory]:
+
+	int (*check_consistency)(struct fscache_object *object)
+
+     This method is called to have the cache check the saved auxiliary data of
+     the object against the netfs's idea of the state.  0 should be returned
+     if they're consistent and -ESTALE otherwise.  -ENOMEM and -ERESTARTSYS
+     may also be returned.
+
  (*) Update object [mandatory]:
 
 	int (*update_object)(struct fscache_object *object)

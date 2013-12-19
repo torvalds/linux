@@ -277,7 +277,6 @@ static void serial_txx9_initialize(struct uart_port *port)
 static inline void
 receive_chars(struct uart_txx9_port *up, unsigned int *status)
 {
-	struct tty_struct *tty = up->port.state->port.tty;
 	unsigned char ch;
 	unsigned int disr = *status;
 	int max_count = 256;
@@ -346,7 +345,7 @@ receive_chars(struct uart_txx9_port *up, unsigned int *status)
 		disr = sio_in(up, TXX9_SIDISR);
 	} while (!(disr & TXX9_SIDISR_UVALID) && (max_count-- > 0));
 	spin_unlock(&up->port.lock);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&up->port.state->port);
 	spin_lock(&up->port.lock);
 	*status = disr;
 }
@@ -1098,7 +1097,7 @@ static void serial_txx9_unregister_port(int line)
  */
 static int serial_txx9_probe(struct platform_device *dev)
 {
-	struct uart_port *p = dev->dev.platform_data;
+	struct uart_port *p = dev_get_platdata(&dev->dev);
 	struct uart_port port;
 	int ret, i;
 
@@ -1220,8 +1219,6 @@ pciserial_txx9_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 static void pciserial_txx9_remove_one(struct pci_dev *dev)
 {
 	struct uart_txx9_port *up = pci_get_drvdata(dev);
-
-	pci_set_drvdata(dev, NULL);
 
 	if (up) {
 		serial_txx9_unregister_port(up->port.line);

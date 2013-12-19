@@ -469,7 +469,7 @@ static void leo_wid_put(struct fb_info *info, struct fb_wid_list *wl)
 
 		default:
 			continue;
-		};
+		}
 		sbus_writel(0x5800 + j, &lx_krn->krn_type);
 		sbus_writel(wi->wi_values[0], &lx_krn->krn_value);
 	}
@@ -547,7 +547,7 @@ static void leo_unmap_regs(struct platform_device *op, struct fb_info *info,
 		of_iounmap(&op->resource[0], info->screen_base, 0x800000);
 }
 
-static int __devinit leo_probe(struct platform_device *op)
+static int leo_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
@@ -636,7 +636,7 @@ out_err:
 	return err;
 }
 
-static int __devexit leo_remove(struct platform_device *op)
+static int leo_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct leo_par *par = info->par;
@@ -647,8 +647,6 @@ static int __devexit leo_remove(struct platform_device *op)
 	leo_unmap_regs(op, info, par);
 
 	framebuffer_release(info);
-
-	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }
@@ -668,7 +666,7 @@ static struct platform_driver leo_driver = {
 		.of_match_table = leo_match,
 	},
 	.probe		= leo_probe,
-	.remove		= __devexit_p(leo_remove),
+	.remove		= leo_remove,
 };
 
 static int __init leo_init(void)

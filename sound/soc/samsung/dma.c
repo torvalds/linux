@@ -90,6 +90,13 @@ static void dma_enqueue(struct snd_pcm_substream *substream)
 	dma_info.period = prtd->dma_period;
 	dma_info.len = prtd->dma_period*limit;
 
+	if (dma_info.cap == DMA_CYCLIC) {
+		dma_info.buf = pos;
+		prtd->params->ops->prepare(prtd->params->ch, &dma_info);
+		prtd->dma_loaded += limit;
+		return;
+	}
+
 	while (prtd->dma_loaded < limit) {
 		pr_debug("dma_loaded: %d\n", prtd->dma_loaded);
 
@@ -174,7 +181,12 @@ static int dma_hw_params(struct snd_pcm_substream *substream,
 		config.width = prtd->params->dma_size;
 		config.fifo = prtd->params->dma_addr;
 		prtd->params->ch = prtd->params->ops->request(
-				prtd->params->channel, &req);
+				prtd->params->channel, &req, rtd->cpu_dai->dev,
+				prtd->params->ch_name);
+		if (!prtd->params->ch) {
+			pr_err("Failed to allocate DMA channel\n");
+			return -ENXIO;
+		}
 		prtd->params->ops->config(prtd->params->ch, &config);
 	}
 
@@ -394,20 +406,17 @@ static void dma_free_dma_buffers(struct snd_pcm *pcm)
 	}
 }
 
-static u64 dma_mask = DMA_BIT_MASK(32);
-
 static int dma_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_pcm *pcm = rtd->pcm;
-	int ret = 0;
+	int ret;
 
 	pr_debug("Entered %s\n", __func__);
 
-	if (!card->dev->dma_mask)
-		card->dev->dma_mask = &dma_mask;
-	if (!card->dev->coherent_dma_mask)
-		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		ret = preallocate_dma_buffer(pcm,
@@ -432,17 +441,17 @@ static struct snd_soc_platform_driver samsung_asoc_platform = {
 	.pcm_free	= dma_free_dma_buffers,
 };
 
-int asoc_dma_platform_register(struct device *dev)
+int samsung_asoc_dma_platform_register(struct device *dev)
 {
 	return snd_soc_register_platform(dev, &samsung_asoc_platform);
 }
-EXPORT_SYMBOL_GPL(asoc_dma_platform_register);
+EXPORT_SYMBOL_GPL(samsung_asoc_dma_platform_register);
 
-void asoc_dma_platform_unregister(struct device *dev)
+void samsung_asoc_dma_platform_unregister(struct device *dev)
 {
 	snd_soc_unregister_platform(dev);
 }
-EXPORT_SYMBOL_GPL(asoc_dma_platform_unregister);
+EXPORT_SYMBOL_GPL(samsung_asoc_dma_platform_unregister);
 
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("Samsung ASoC DMA Driver");

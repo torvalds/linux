@@ -78,7 +78,7 @@ struct carmine_fb {
 	u32 pseudo_palette[16];
 };
 
-static struct fb_fix_screeninfo carminefb_fix __devinitdata = {
+static struct fb_fix_screeninfo carminefb_fix = {
 	.id = "Carmine",
 	.type = FB_TYPE_PACKED_PIXELS,
 	.visual = FB_VISUAL_TRUECOLOR,
@@ -537,8 +537,9 @@ static struct fb_ops carminefb_ops = {
 	.fb_setcolreg	= carmine_setcolreg,
 };
 
-static int __devinit alloc_carmine_fb(void __iomem *regs, void __iomem *smem_base,
-		int smem_offset, struct device *device, struct fb_info **rinfo)
+static int alloc_carmine_fb(void __iomem *regs, void __iomem *smem_base,
+			    int smem_offset, struct device *device,
+			    struct fb_info **rinfo)
 {
 	int ret;
 	struct fb_info *info;
@@ -584,8 +585,7 @@ static int __devinit alloc_carmine_fb(void __iomem *regs, void __iomem *smem_bas
 	if (ret < 0)
 		goto err_dealloc_cmap;
 
-	printk(KERN_INFO "fb%d: %s frame buffer device\n", info->node,
-			info->fix.id);
+	fb_info(info, "%s frame buffer device\n", info->fix.id);
 
 	*rinfo = info;
 	return 0;
@@ -606,8 +606,7 @@ static void cleanup_fb_device(struct fb_info *info)
 	}
 }
 
-static int __devinit carminefb_probe(struct pci_dev *dev,
-		const struct pci_device_id *ent)
+static int carminefb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 {
 	struct carmine_hw *hw;
 	struct device *device = &dev->dev;
@@ -721,7 +720,7 @@ err_enable_pci:
 	return ret;
 }
 
-static void __devexit carminefb_remove(struct pci_dev *dev)
+static void carminefb_remove(struct pci_dev *dev)
 {
 	struct carmine_hw *hw = pci_get_drvdata(dev);
 	struct fb_fix_screeninfo fix;
@@ -746,13 +745,12 @@ static void __devexit carminefb_remove(struct pci_dev *dev)
 	iounmap(hw->v_regs);
 	release_mem_region(fix.mmio_start, fix.mmio_len);
 
-	pci_set_drvdata(dev, NULL);
 	pci_disable_device(dev);
 	kfree(hw);
 }
 
 #define PCI_VENDOR_ID_FUJITU_LIMITED 0x10cf
-static struct pci_device_id carmine_devices[] __devinitdata = {
+static struct pci_device_id carmine_devices[] = {
 {
 	PCI_DEVICE(PCI_VENDOR_ID_FUJITU_LIMITED, 0x202b)},
 	{0, 0, 0, 0, 0, 0, 0}
@@ -764,7 +762,7 @@ static struct pci_driver carmine_pci_driver = {
 	.name		= "carminefb",
 	.id_table	= carmine_devices,
 	.probe		= carminefb_probe,
-	.remove		= __devexit_p(carminefb_remove),
+	.remove		= carminefb_remove,
 };
 
 static int __init carminefb_init(void)

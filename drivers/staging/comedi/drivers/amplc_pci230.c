@@ -16,10 +16,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
   */
 /*
 Driver: amplc_pci230
@@ -188,10 +184,12 @@ Support for PCI230+/260+, more triggered scan functionality, and workarounds
 for (or detection of) various hardware problems added by Ian Abbott.
 */
 
-#include "../comedidev.h"
-
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #include "comedi_fc.h"
 #include "8253.h"
@@ -575,14 +573,14 @@ static const struct comedi_lrange pci230_ao_range = { 2, {
 /* PCI230 daccon bipolar flag for each analogue output range. */
 static const unsigned char pci230_ao_bipolar[2] = { 0, 1 };
 
-static short pci230_ai_read(struct comedi_device *dev)
+static unsigned short pci230_ai_read(struct comedi_device *dev)
 {
 	const struct pci230_board *thisboard = comedi_board(dev);
 	struct pci230_private *devpriv = dev->private;
-	short data;
+	unsigned short data;
 
 	/* Read sample. */
-	data = (short)inw(dev->iobase + PCI230_ADCDATA);
+	data = inw(dev->iobase + PCI230_ADCDATA);
 	/* PCI230 is 12 bit - stored in upper bits of 16 bit register (lower
 	 * four bits reserved for expansion). */
 	/* PCI230+ is 16 bit AI. */
@@ -597,7 +595,7 @@ static short pci230_ai_read(struct comedi_device *dev)
 }
 
 static inline unsigned short pci230_ao_mangle_datum(struct comedi_device *dev,
-						    short datum)
+						    unsigned short datum)
 {
 	const struct pci230_board *thisboard = comedi_board(dev);
 	struct pci230_private *devpriv = dev->private;
@@ -611,11 +609,12 @@ static inline unsigned short pci230_ao_mangle_datum(struct comedi_device *dev,
 	 * four bits reserved for expansion). */
 	/* PCI230+ is also 12 bit AO. */
 	datum <<= (16 - thisboard->ao_bits);
-	return (unsigned short)datum;
+	return datum;
 }
 
 static inline void pci230_ao_write_nofifo(struct comedi_device *dev,
-					  short datum, unsigned int chan)
+					  unsigned short datum,
+					  unsigned int chan)
 {
 	struct pci230_private *devpriv = dev->private;
 
@@ -629,8 +628,8 @@ static inline void pci230_ao_write_nofifo(struct comedi_device *dev,
 								PCI230_DACOUT2));
 }
 
-static inline void pci230_ao_write_fifo(struct comedi_device *dev, short datum,
-					unsigned int chan)
+static inline void pci230_ao_write_fifo(struct comedi_device *dev,
+					unsigned short datum, unsigned int chan)
 {
 	struct pci230_private *devpriv = dev->private;
 
@@ -1167,7 +1166,7 @@ static void pci230_handle_ao_nofifo(struct comedi_device *dev,
 				    struct comedi_subdevice *s)
 {
 	struct pci230_private *devpriv = dev->private;
-	short data;
+	unsigned short data;
 	int i, ret;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -1260,7 +1259,7 @@ static int pci230_handle_ao_fifo(struct comedi_device *dev,
 		/* Process scans. */
 		for (n = 0; n < num_scans; n++) {
 			for (i = 0; i < cmd->chanlist_len; i++) {
-				short datum;
+				unsigned short datum;
 
 				comedi_buf_get(async, &datum);
 				pci230_ao_write_fifo(dev, datum,
@@ -2618,10 +2617,9 @@ static int pci230_alloc_private(struct comedi_device *dev)
 {
 	struct pci230_private *devpriv;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	spin_lock_init(&devpriv->isr_spinlock);
 	spin_lock_init(&devpriv->res_spinlock);
@@ -2644,12 +2642,11 @@ static int pci230_attach_common(struct comedi_device *dev,
 	comedi_set_hw_dev(dev, &pci_dev->dev);
 
 	dev->board_name = thisboard->name;
-	/* Enable PCI device and reserve I/O spaces. */
-	if (comedi_pci_enable(pci_dev, "amplc_pci230") < 0) {
-		dev_err(dev->class_dev,
-			"failed to enable PCI device and request regions\n");
-		return -EIO;
-	}
+
+	rc = comedi_pci_enable(dev);
+	if (rc)
+		return rc;
+
 	/* Read base addresses of the PCI230's two I/O regions from PCI
 	 * configuration register. */
 	iobase1 = pci_resource_start(pci_dev, 2);
@@ -2832,18 +2829,13 @@ static int pci230_auto_attach(struct comedi_device *dev,
 
 static void pci230_detach(struct comedi_device *dev)
 {
-	const struct pci230_board *thisboard = comedi_board(dev);
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
-	if (dev->subdevices && thisboard->have_dio)
-		subdev_8255_cleanup(dev, &dev->subdevices[2]);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
+	comedi_pci_disable(dev);
+	if (pcidev)
 		pci_dev_put(pcidev);
-	}
 }
 
 static struct comedi_driver amplc_pci230_driver = {
@@ -2858,14 +2850,10 @@ static struct comedi_driver amplc_pci230_driver = {
 };
 
 static int amplc_pci230_pci_probe(struct pci_dev *dev,
-					    const struct pci_device_id *ent)
+				  const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &amplc_pci230_driver);
-}
-
-static void amplc_pci230_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
+	return comedi_pci_auto_config(dev, &amplc_pci230_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(amplc_pci230_pci_table) = {
@@ -2879,7 +2867,7 @@ static struct pci_driver amplc_pci230_pci_driver = {
 	.name		= "amplc_pci230",
 	.id_table	= amplc_pci230_pci_table,
 	.probe		= amplc_pci230_pci_probe,
-	.remove		= amplc_pci230_pci_remove
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(amplc_pci230_driver, amplc_pci230_pci_driver);
 

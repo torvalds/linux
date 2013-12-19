@@ -123,11 +123,11 @@ static inline void writel(unsigned int v, volatile void __iomem *addr)
  * inb_p/inw_p/...
  * The macros don't do byte-swapping.
  */
-#define inb(port)		readb((u8 *)((port)))
+#define inb(port)		readb((u8 *)((unsigned long)(port)))
 #define outb(val, port)		writeb((val), (u8 *)((unsigned long)(port)))
-#define inw(port)		readw((u16 *)((port)))
+#define inw(port)		readw((u16 *)((unsigned long)(port)))
 #define outw(val, port)		writew((val), (u16 *)((unsigned long)(port)))
-#define inl(port)		readl((u32 *)((port)))
+#define inl(port)		readl((u32 *)((unsigned long)(port)))
 #define outl(val, port)		writel((val), (u32 *)((unsigned long)(port)))
 
 #define inb_p(port)		inb((port))
@@ -150,7 +150,7 @@ static inline void writel(unsigned int v, volatile void __iomem *addr)
 #define page_to_bus(page)	(page_to_phys(page))
 #define bus_to_virt(addr)	(phys_to_virt(addr))
 
-extern void iounmap(void *addr);
+extern void iounmap(void __iomem *addr);
 /*extern void *__ioremap(phys_addr_t address, unsigned long size,
 		unsigned long flags);*/
 extern void __iomem *ioremap(phys_addr_t address, unsigned long size);

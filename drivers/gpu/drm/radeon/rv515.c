@@ -209,19 +209,27 @@ static void rv515_mc_init(struct radeon_device *rdev)
 
 uint32_t rv515_mc_rreg(struct radeon_device *rdev, uint32_t reg)
 {
+	unsigned long flags;
 	uint32_t r;
 
+	spin_lock_irqsave(&rdev->mc_idx_lock, flags);
 	WREG32(MC_IND_INDEX, 0x7f0000 | (reg & 0xffff));
 	r = RREG32(MC_IND_DATA);
 	WREG32(MC_IND_INDEX, 0);
+	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
+
 	return r;
 }
 
 void rv515_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->mc_idx_lock, flags);
 	WREG32(MC_IND_INDEX, 0xff0000 | ((reg) & 0xffff));
 	WREG32(MC_IND_DATA, (v));
 	WREG32(MC_IND_INDEX, 0);
+	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 }
 
 #if defined(CONFIG_DEBUG_FS)
@@ -303,8 +311,10 @@ void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save)
 			tmp = RREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i]);
 			if (!(tmp & AVIVO_CRTC_DISP_READ_REQUEST_DISABLE)) {
 				radeon_wait_for_vblank(rdev, i);
+				WREG32(AVIVO_D1CRTC_UPDATE_LOCK + crtc_offsets[i], 1);
 				tmp |= AVIVO_CRTC_DISP_READ_REQUEST_DISABLE;
 				WREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i], tmp);
+				WREG32(AVIVO_D1CRTC_UPDATE_LOCK + crtc_offsets[i], 0);
 			}
 			/* wait for the next frame */
 			frame_count = radeon_get_vblank_counter(rdev, i);
@@ -313,6 +323,15 @@ void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save)
 					break;
 				udelay(1);
 			}
+
+			/* XXX this is a hack to avoid strange behavior with EFI on certain systems */
+			WREG32(AVIVO_D1CRTC_UPDATE_LOCK + crtc_offsets[i], 1);
+			tmp = RREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i]);
+			tmp &= ~AVIVO_CRTC_EN;
+			WREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i], tmp);
+			WREG32(AVIVO_D1CRTC_UPDATE_LOCK + crtc_offsets[i], 0);
+			save->crtc_enabled[i] = false;
+			/* ***** */
 		} else {
 			save->crtc_enabled[i] = false;
 		}
@@ -336,6 +355,24 @@ void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save)
 				WREG32(R600_CITF_CNTL, blackout);
 		}
 	}
+	/* wait for the MC to settle */
+	udelay(100);
+
+	/* lock double buffered regs */
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (save->crtc_enabled[i]) {
+			tmp = RREG32(AVIVO_D1GRPH_UPDATE + crtc_offsets[i]);
+			if (!(tmp & AVIVO_D1GRPH_UPDATE_LOCK)) {
+				tmp |= AVIVO_D1GRPH_UPDATE_LOCK;
+				WREG32(AVIVO_D1GRPH_UPDATE + crtc_offsets[i], tmp);
+			}
+			tmp = RREG32(AVIVO_D1MODE_MASTER_UPDATE_LOCK + crtc_offsets[i]);
+			if (!(tmp & 1)) {
+				tmp |= 1;
+				WREG32(AVIVO_D1MODE_MASTER_UPDATE_LOCK + crtc_offsets[i], tmp);
+			}
+		}
+	}
 }
 
 void rv515_mc_resume(struct radeon_device *rdev, struct rv515_mc_save *save)
@@ -346,7 +383,7 @@ void rv515_mc_resume(struct radeon_device *rdev, struct rv515_mc_save *save)
 	/* update crtc base addresses */
 	for (i = 0; i < rdev->num_crtc; i++) {
 		if (rdev->family >= CHIP_RV770) {
-			if (i == 1) {
+			if (i == 0) {
 				WREG32(R700_D1GRPH_PRIMARY_SURFACE_ADDRESS_HIGH,
 				       upper_32_bits(rdev->mc.vram_start));
 				WREG32(R700_D1GRPH_SECONDARY_SURFACE_ADDRESS_HIGH,
@@ -364,6 +401,33 @@ void rv515_mc_resume(struct radeon_device *rdev, struct rv515_mc_save *save)
 		       (u32)rdev->mc.vram_start);
 	}
 	WREG32(R_000310_VGA_MEMORY_BASE_ADDRESS, (u32)rdev->mc.vram_start);
+
+	/* unlock regs and wait for update */
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (save->crtc_enabled[i]) {
+			tmp = RREG32(AVIVO_D1MODE_MASTER_UPDATE_MODE + crtc_offsets[i]);
+			if ((tmp & 0x3) != 0) {
+				tmp &= ~0x3;
+				WREG32(AVIVO_D1MODE_MASTER_UPDATE_MODE + crtc_offsets[i], tmp);
+			}
+			tmp = RREG32(AVIVO_D1GRPH_UPDATE + crtc_offsets[i]);
+			if (tmp & AVIVO_D1GRPH_UPDATE_LOCK) {
+				tmp &= ~AVIVO_D1GRPH_UPDATE_LOCK;
+				WREG32(AVIVO_D1GRPH_UPDATE + crtc_offsets[i], tmp);
+			}
+			tmp = RREG32(AVIVO_D1MODE_MASTER_UPDATE_LOCK + crtc_offsets[i]);
+			if (tmp & 1) {
+				tmp &= ~1;
+				WREG32(AVIVO_D1MODE_MASTER_UPDATE_LOCK + crtc_offsets[i], tmp);
+			}
+			for (j = 0; j < rdev->usec_timeout; j++) {
+				tmp = RREG32(AVIVO_D1GRPH_UPDATE + crtc_offsets[i]);
+				if ((tmp & AVIVO_D1GRPH_SURFACE_UPDATE_PENDING) == 0)
+					break;
+				udelay(1);
+			}
+		}
+	}
 
 	if (rdev->family >= CHIP_R600) {
 		/* unblackout the MC */
@@ -476,6 +540,12 @@ static int rv515_startup(struct radeon_device *rdev)
 	}
 
 	/* Enable IRQ */
+	if (!rdev->irq.installed) {
+		r = radeon_irq_kms_init(rdev);
+		if (r)
+			return r;
+	}
+
 	rs600_irq_set(rdev);
 	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
@@ -604,9 +674,6 @@ int rv515_init(struct radeon_device *rdev)
 	rv515_debugfs(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
-	if (r)
-		return r;
-	r = radeon_irq_kms_init(rdev);
 	if (r)
 		return r;
 	/* Memory manager */
@@ -878,19 +945,34 @@ struct rv515_watermark {
 };
 
 static void rv515_crtc_bandwidth_compute(struct radeon_device *rdev,
-				  struct radeon_crtc *crtc,
-				  struct rv515_watermark *wm)
+					 struct radeon_crtc *crtc,
+					 struct rv515_watermark *wm,
+					 bool low)
 {
 	struct drm_display_mode *mode = &crtc->base.mode;
 	fixed20_12 a, b, c;
 	fixed20_12 pclk, request_fifo_depth, tolerable_latency, estimated_width;
 	fixed20_12 consumption_time, line_time, chunk_time, read_delay_latency;
+	fixed20_12 sclk;
+	u32 selected_sclk;
 
 	if (!crtc->base.enabled) {
 		/* FIXME: wouldn't it better to set priority mark to maximum */
 		wm->lb_request_fifo_depth = 4;
 		return;
 	}
+
+	/* rv6xx, rv7xx */
+	if ((rdev->family >= CHIP_RV610) &&
+	    (rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled)
+		selected_sclk = radeon_dpm_get_sclk(rdev, low);
+	else
+		selected_sclk = rdev->pm.current_sclk;
+
+	/* sclk in Mhz */
+	a.full = dfixed_const(100);
+	sclk.full = dfixed_const(selected_sclk);
+	sclk.full = dfixed_div(sclk, a);
 
 	if (crtc->vsc.full > dfixed_const(2))
 		wm->num_line_pair.full = dfixed_const(2);
@@ -957,7 +1039,7 @@ static void rv515_crtc_bandwidth_compute(struct radeon_device *rdev,
 	 * sclk = system clock(Mhz)
 	 */
 	a.full = dfixed_const(600 * 1000);
-	chunk_time.full = dfixed_div(a, rdev->pm.sclk);
+	chunk_time.full = dfixed_div(a, sclk);
 	read_delay_latency.full = dfixed_const(1000);
 
 	/* Determine the worst case latency
@@ -1018,17 +1100,139 @@ static void rv515_crtc_bandwidth_compute(struct radeon_device *rdev,
 	}
 }
 
+static void rv515_compute_mode_priority(struct radeon_device *rdev,
+					struct rv515_watermark *wm0,
+					struct rv515_watermark *wm1,
+					struct drm_display_mode *mode0,
+					struct drm_display_mode *mode1,
+					u32 *d1mode_priority_a_cnt,
+					u32 *d2mode_priority_a_cnt)
+{
+	fixed20_12 priority_mark02, priority_mark12, fill_rate;
+	fixed20_12 a, b;
+
+	*d1mode_priority_a_cnt = MODE_PRIORITY_OFF;
+	*d2mode_priority_a_cnt = MODE_PRIORITY_OFF;
+
+	if (mode0 && mode1) {
+		if (dfixed_trunc(wm0->dbpp) > 64)
+			a.full = dfixed_div(wm0->dbpp, wm0->num_line_pair);
+		else
+			a.full = wm0->num_line_pair.full;
+		if (dfixed_trunc(wm1->dbpp) > 64)
+			b.full = dfixed_div(wm1->dbpp, wm1->num_line_pair);
+		else
+			b.full = wm1->num_line_pair.full;
+		a.full += b.full;
+		fill_rate.full = dfixed_div(wm0->sclk, a);
+		if (wm0->consumption_rate.full > fill_rate.full) {
+			b.full = wm0->consumption_rate.full - fill_rate.full;
+			b.full = dfixed_mul(b, wm0->active_time);
+			a.full = dfixed_const(16);
+			b.full = dfixed_div(b, a);
+			a.full = dfixed_mul(wm0->worst_case_latency,
+						wm0->consumption_rate);
+			priority_mark02.full = a.full + b.full;
+		} else {
+			a.full = dfixed_mul(wm0->worst_case_latency,
+						wm0->consumption_rate);
+			b.full = dfixed_const(16 * 1000);
+			priority_mark02.full = dfixed_div(a, b);
+		}
+		if (wm1->consumption_rate.full > fill_rate.full) {
+			b.full = wm1->consumption_rate.full - fill_rate.full;
+			b.full = dfixed_mul(b, wm1->active_time);
+			a.full = dfixed_const(16);
+			b.full = dfixed_div(b, a);
+			a.full = dfixed_mul(wm1->worst_case_latency,
+						wm1->consumption_rate);
+			priority_mark12.full = a.full + b.full;
+		} else {
+			a.full = dfixed_mul(wm1->worst_case_latency,
+						wm1->consumption_rate);
+			b.full = dfixed_const(16 * 1000);
+			priority_mark12.full = dfixed_div(a, b);
+		}
+		if (wm0->priority_mark.full > priority_mark02.full)
+			priority_mark02.full = wm0->priority_mark.full;
+		if (wm0->priority_mark_max.full > priority_mark02.full)
+			priority_mark02.full = wm0->priority_mark_max.full;
+		if (wm1->priority_mark.full > priority_mark12.full)
+			priority_mark12.full = wm1->priority_mark.full;
+		if (wm1->priority_mark_max.full > priority_mark12.full)
+			priority_mark12.full = wm1->priority_mark_max.full;
+		*d1mode_priority_a_cnt = dfixed_trunc(priority_mark02);
+		*d2mode_priority_a_cnt = dfixed_trunc(priority_mark12);
+		if (rdev->disp_priority == 2) {
+			*d1mode_priority_a_cnt |= MODE_PRIORITY_ALWAYS_ON;
+			*d2mode_priority_a_cnt |= MODE_PRIORITY_ALWAYS_ON;
+		}
+	} else if (mode0) {
+		if (dfixed_trunc(wm0->dbpp) > 64)
+			a.full = dfixed_div(wm0->dbpp, wm0->num_line_pair);
+		else
+			a.full = wm0->num_line_pair.full;
+		fill_rate.full = dfixed_div(wm0->sclk, a);
+		if (wm0->consumption_rate.full > fill_rate.full) {
+			b.full = wm0->consumption_rate.full - fill_rate.full;
+			b.full = dfixed_mul(b, wm0->active_time);
+			a.full = dfixed_const(16);
+			b.full = dfixed_div(b, a);
+			a.full = dfixed_mul(wm0->worst_case_latency,
+						wm0->consumption_rate);
+			priority_mark02.full = a.full + b.full;
+		} else {
+			a.full = dfixed_mul(wm0->worst_case_latency,
+						wm0->consumption_rate);
+			b.full = dfixed_const(16);
+			priority_mark02.full = dfixed_div(a, b);
+		}
+		if (wm0->priority_mark.full > priority_mark02.full)
+			priority_mark02.full = wm0->priority_mark.full;
+		if (wm0->priority_mark_max.full > priority_mark02.full)
+			priority_mark02.full = wm0->priority_mark_max.full;
+		*d1mode_priority_a_cnt = dfixed_trunc(priority_mark02);
+		if (rdev->disp_priority == 2)
+			*d1mode_priority_a_cnt |= MODE_PRIORITY_ALWAYS_ON;
+	} else if (mode1) {
+		if (dfixed_trunc(wm1->dbpp) > 64)
+			a.full = dfixed_div(wm1->dbpp, wm1->num_line_pair);
+		else
+			a.full = wm1->num_line_pair.full;
+		fill_rate.full = dfixed_div(wm1->sclk, a);
+		if (wm1->consumption_rate.full > fill_rate.full) {
+			b.full = wm1->consumption_rate.full - fill_rate.full;
+			b.full = dfixed_mul(b, wm1->active_time);
+			a.full = dfixed_const(16);
+			b.full = dfixed_div(b, a);
+			a.full = dfixed_mul(wm1->worst_case_latency,
+						wm1->consumption_rate);
+			priority_mark12.full = a.full + b.full;
+		} else {
+			a.full = dfixed_mul(wm1->worst_case_latency,
+						wm1->consumption_rate);
+			b.full = dfixed_const(16 * 1000);
+			priority_mark12.full = dfixed_div(a, b);
+		}
+		if (wm1->priority_mark.full > priority_mark12.full)
+			priority_mark12.full = wm1->priority_mark.full;
+		if (wm1->priority_mark_max.full > priority_mark12.full)
+			priority_mark12.full = wm1->priority_mark_max.full;
+		*d2mode_priority_a_cnt = dfixed_trunc(priority_mark12);
+		if (rdev->disp_priority == 2)
+			*d2mode_priority_a_cnt |= MODE_PRIORITY_ALWAYS_ON;
+	}
+}
+
 void rv515_bandwidth_avivo_update(struct radeon_device *rdev)
 {
 	struct drm_display_mode *mode0 = NULL;
 	struct drm_display_mode *mode1 = NULL;
-	struct rv515_watermark wm0;
-	struct rv515_watermark wm1;
+	struct rv515_watermark wm0_high, wm0_low;
+	struct rv515_watermark wm1_high, wm1_low;
 	u32 tmp;
-	u32 d1mode_priority_a_cnt = MODE_PRIORITY_OFF;
-	u32 d2mode_priority_a_cnt = MODE_PRIORITY_OFF;
-	fixed20_12 priority_mark02, priority_mark12, fill_rate;
-	fixed20_12 a, b;
+	u32 d1mode_priority_a_cnt, d1mode_priority_b_cnt;
+	u32 d2mode_priority_a_cnt, d2mode_priority_b_cnt;
 
 	if (rdev->mode_info.crtcs[0]->base.enabled)
 		mode0 = &rdev->mode_info.crtcs[0]->base.mode;
@@ -1036,134 +1240,29 @@ void rv515_bandwidth_avivo_update(struct radeon_device *rdev)
 		mode1 = &rdev->mode_info.crtcs[1]->base.mode;
 	rs690_line_buffer_adjust(rdev, mode0, mode1);
 
-	rv515_crtc_bandwidth_compute(rdev, rdev->mode_info.crtcs[0], &wm0);
-	rv515_crtc_bandwidth_compute(rdev, rdev->mode_info.crtcs[1], &wm1);
+	rv515_crtc_bandwidth_compute(rdev, rdev->mode_info.crtcs[0], &wm0_high, false);
+	rv515_crtc_bandwidth_compute(rdev, rdev->mode_info.crtcs[1], &wm1_high, false);
 
-	tmp = wm0.lb_request_fifo_depth;
-	tmp |= wm1.lb_request_fifo_depth << 16;
+	rv515_crtc_bandwidth_compute(rdev, rdev->mode_info.crtcs[0], &wm0_low, false);
+	rv515_crtc_bandwidth_compute(rdev, rdev->mode_info.crtcs[1], &wm1_low, false);
+
+	tmp = wm0_high.lb_request_fifo_depth;
+	tmp |= wm1_high.lb_request_fifo_depth << 16;
 	WREG32(LB_MAX_REQ_OUTSTANDING, tmp);
 
-	if (mode0 && mode1) {
-		if (dfixed_trunc(wm0.dbpp) > 64)
-			a.full = dfixed_div(wm0.dbpp, wm0.num_line_pair);
-		else
-			a.full = wm0.num_line_pair.full;
-		if (dfixed_trunc(wm1.dbpp) > 64)
-			b.full = dfixed_div(wm1.dbpp, wm1.num_line_pair);
-		else
-			b.full = wm1.num_line_pair.full;
-		a.full += b.full;
-		fill_rate.full = dfixed_div(wm0.sclk, a);
-		if (wm0.consumption_rate.full > fill_rate.full) {
-			b.full = wm0.consumption_rate.full - fill_rate.full;
-			b.full = dfixed_mul(b, wm0.active_time);
-			a.full = dfixed_const(16);
-			b.full = dfixed_div(b, a);
-			a.full = dfixed_mul(wm0.worst_case_latency,
-						wm0.consumption_rate);
-			priority_mark02.full = a.full + b.full;
-		} else {
-			a.full = dfixed_mul(wm0.worst_case_latency,
-						wm0.consumption_rate);
-			b.full = dfixed_const(16 * 1000);
-			priority_mark02.full = dfixed_div(a, b);
-		}
-		if (wm1.consumption_rate.full > fill_rate.full) {
-			b.full = wm1.consumption_rate.full - fill_rate.full;
-			b.full = dfixed_mul(b, wm1.active_time);
-			a.full = dfixed_const(16);
-			b.full = dfixed_div(b, a);
-			a.full = dfixed_mul(wm1.worst_case_latency,
-						wm1.consumption_rate);
-			priority_mark12.full = a.full + b.full;
-		} else {
-			a.full = dfixed_mul(wm1.worst_case_latency,
-						wm1.consumption_rate);
-			b.full = dfixed_const(16 * 1000);
-			priority_mark12.full = dfixed_div(a, b);
-		}
-		if (wm0.priority_mark.full > priority_mark02.full)
-			priority_mark02.full = wm0.priority_mark.full;
-		if (dfixed_trunc(priority_mark02) < 0)
-			priority_mark02.full = 0;
-		if (wm0.priority_mark_max.full > priority_mark02.full)
-			priority_mark02.full = wm0.priority_mark_max.full;
-		if (wm1.priority_mark.full > priority_mark12.full)
-			priority_mark12.full = wm1.priority_mark.full;
-		if (dfixed_trunc(priority_mark12) < 0)
-			priority_mark12.full = 0;
-		if (wm1.priority_mark_max.full > priority_mark12.full)
-			priority_mark12.full = wm1.priority_mark_max.full;
-		d1mode_priority_a_cnt = dfixed_trunc(priority_mark02);
-		d2mode_priority_a_cnt = dfixed_trunc(priority_mark12);
-		if (rdev->disp_priority == 2) {
-			d1mode_priority_a_cnt |= MODE_PRIORITY_ALWAYS_ON;
-			d2mode_priority_a_cnt |= MODE_PRIORITY_ALWAYS_ON;
-		}
-	} else if (mode0) {
-		if (dfixed_trunc(wm0.dbpp) > 64)
-			a.full = dfixed_div(wm0.dbpp, wm0.num_line_pair);
-		else
-			a.full = wm0.num_line_pair.full;
-		fill_rate.full = dfixed_div(wm0.sclk, a);
-		if (wm0.consumption_rate.full > fill_rate.full) {
-			b.full = wm0.consumption_rate.full - fill_rate.full;
-			b.full = dfixed_mul(b, wm0.active_time);
-			a.full = dfixed_const(16);
-			b.full = dfixed_div(b, a);
-			a.full = dfixed_mul(wm0.worst_case_latency,
-						wm0.consumption_rate);
-			priority_mark02.full = a.full + b.full;
-		} else {
-			a.full = dfixed_mul(wm0.worst_case_latency,
-						wm0.consumption_rate);
-			b.full = dfixed_const(16);
-			priority_mark02.full = dfixed_div(a, b);
-		}
-		if (wm0.priority_mark.full > priority_mark02.full)
-			priority_mark02.full = wm0.priority_mark.full;
-		if (dfixed_trunc(priority_mark02) < 0)
-			priority_mark02.full = 0;
-		if (wm0.priority_mark_max.full > priority_mark02.full)
-			priority_mark02.full = wm0.priority_mark_max.full;
-		d1mode_priority_a_cnt = dfixed_trunc(priority_mark02);
-		if (rdev->disp_priority == 2)
-			d1mode_priority_a_cnt |= MODE_PRIORITY_ALWAYS_ON;
-	} else if (mode1) {
-		if (dfixed_trunc(wm1.dbpp) > 64)
-			a.full = dfixed_div(wm1.dbpp, wm1.num_line_pair);
-		else
-			a.full = wm1.num_line_pair.full;
-		fill_rate.full = dfixed_div(wm1.sclk, a);
-		if (wm1.consumption_rate.full > fill_rate.full) {
-			b.full = wm1.consumption_rate.full - fill_rate.full;
-			b.full = dfixed_mul(b, wm1.active_time);
-			a.full = dfixed_const(16);
-			b.full = dfixed_div(b, a);
-			a.full = dfixed_mul(wm1.worst_case_latency,
-						wm1.consumption_rate);
-			priority_mark12.full = a.full + b.full;
-		} else {
-			a.full = dfixed_mul(wm1.worst_case_latency,
-						wm1.consumption_rate);
-			b.full = dfixed_const(16 * 1000);
-			priority_mark12.full = dfixed_div(a, b);
-		}
-		if (wm1.priority_mark.full > priority_mark12.full)
-			priority_mark12.full = wm1.priority_mark.full;
-		if (dfixed_trunc(priority_mark12) < 0)
-			priority_mark12.full = 0;
-		if (wm1.priority_mark_max.full > priority_mark12.full)
-			priority_mark12.full = wm1.priority_mark_max.full;
-		d2mode_priority_a_cnt = dfixed_trunc(priority_mark12);
-		if (rdev->disp_priority == 2)
-			d2mode_priority_a_cnt |= MODE_PRIORITY_ALWAYS_ON;
-	}
+	rv515_compute_mode_priority(rdev,
+				    &wm0_high, &wm1_high,
+				    mode0, mode1,
+				    &d1mode_priority_a_cnt, &d2mode_priority_a_cnt);
+	rv515_compute_mode_priority(rdev,
+				    &wm0_low, &wm1_low,
+				    mode0, mode1,
+				    &d1mode_priority_b_cnt, &d2mode_priority_b_cnt);
 
 	WREG32(D1MODE_PRIORITY_A_CNT, d1mode_priority_a_cnt);
-	WREG32(D1MODE_PRIORITY_B_CNT, d1mode_priority_a_cnt);
+	WREG32(D1MODE_PRIORITY_B_CNT, d1mode_priority_b_cnt);
 	WREG32(D2MODE_PRIORITY_A_CNT, d2mode_priority_a_cnt);
-	WREG32(D2MODE_PRIORITY_B_CNT, d2mode_priority_a_cnt);
+	WREG32(D2MODE_PRIORITY_B_CNT, d2mode_priority_b_cnt);
 }
 
 void rv515_bandwidth_update(struct radeon_device *rdev)

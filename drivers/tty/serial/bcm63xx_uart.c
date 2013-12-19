@@ -30,7 +30,6 @@
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 
-#include <bcm63xx_clk.h>
 #include <bcm63xx_irq.h>
 #include <bcm63xx_regs.h>
 #include <bcm63xx_io.h>
@@ -235,14 +234,13 @@ static const char *bcm_uart_type(struct uart_port *port)
  */
 static void bcm_uart_do_rx(struct uart_port *port)
 {
-	struct tty_struct *tty;
+	struct tty_port *tty_port = &port->state->port;
 	unsigned int max_count;
 
 	/* limit number of char read in interrupt, should not be
 	 * higher than fifo size anyway since we're much faster than
 	 * serial port */
 	max_count = 32;
-	tty = port->state->port.tty;
 	do {
 		unsigned int iestat, c, cstat;
 		char flag;
@@ -261,7 +259,7 @@ static void bcm_uart_do_rx(struct uart_port *port)
 			bcm_uart_writel(port, val, UART_CTL_REG);
 
 			port->icount.overrun++;
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(tty_port, 0, TTY_OVERRUN);
 		}
 
 		if (!(iestat & UART_IR_STAT(UART_IR_RXNOTEMPTY)))
@@ -300,11 +298,13 @@ static void bcm_uart_do_rx(struct uart_port *port)
 
 
 		if ((cstat & port->ignore_status_mask) == 0)
-			tty_insert_flip_char(tty, c, flag);
+			tty_insert_flip_char(tty_port, c, flag);
 
 	} while (--max_count);
 
-	tty_flip_buffer_push(tty);
+	spin_unlock(&port->lock);
+	tty_flip_buffer_push(tty_port);
+	spin_lock(&port->lock);
 }
 
 /*
@@ -854,7 +854,6 @@ static int bcm_uart_remove(struct platform_device *pdev)
 
 	port = platform_get_drvdata(pdev);
 	uart_remove_one_port(&bcm_uart_driver, port);
-	platform_set_drvdata(pdev, NULL);
 	/* mark port as free */
 	ports[pdev->id].membase = 0;
 	return 0;

@@ -84,7 +84,7 @@ static irqreturn_t do_hvm_evtchn_intr(int irq, void *dev_id)
 static int xen_allocate_irq(struct pci_dev *pdev)
 {
 	return request_irq(pdev->irq, do_hvm_evtchn_intr,
-			IRQF_DISABLED | IRQF_NOBALANCING | IRQF_TRIGGER_RISING,
+			IRQF_NOBALANCING | IRQF_TRIGGER_RISING,
 			"xen-platform-pci", pdev);
 }
 
@@ -101,8 +101,8 @@ static int platform_pci_resume(struct pci_dev *pdev)
 	return 0;
 }
 
-static int __devinit platform_pci_init(struct pci_dev *pdev,
-				       const struct pci_device_id *ent)
+static int platform_pci_init(struct pci_dev *pdev,
+			     const struct pci_device_id *ent)
 {
 	int i, ret;
 	long ioaddr;
@@ -170,7 +170,7 @@ pci_out:
 	return ret;
 }
 
-static struct pci_device_id platform_pci_tbl[] __devinitdata = {
+static struct pci_device_id platform_pci_tbl[] = {
 	{PCI_VENDOR_ID_XEN, PCI_DEVICE_ID_XEN_PLATFORM,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0,}

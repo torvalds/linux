@@ -25,11 +25,13 @@
 #include <linux/module.h>
 #include <linux/videodev2.h>
 #include <linux/uaccess.h>
+#include <linux/of.h>
 
 #include <media/adv7343.h>
+#include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-of.h>
 
 #include "adv7343_regs.h"
 
@@ -43,6 +45,7 @@ MODULE_PARM_DESC(debug, "Debug level 0-1");
 struct adv7343_state {
 	struct v4l2_subdev sd;
 	struct v4l2_ctrl_handler hdl;
+	const struct adv7343_platform_data *pdata;
 	u8 reg00;
 	u8 reg01;
 	u8 reg02;
@@ -215,12 +218,23 @@ static int adv7343_setoutput(struct v4l2_subdev *sd, u32 output_type)
 	/* Enable Appropriate DAC */
 	val = state->reg00 & 0x03;
 
-	if (output_type == ADV7343_COMPOSITE_ID)
-		val |= ADV7343_COMPOSITE_POWER_VALUE;
-	else if (output_type == ADV7343_COMPONENT_ID)
-		val |= ADV7343_COMPONENT_POWER_VALUE;
+	/* configure default configuration */
+	if (!state->pdata)
+		if (output_type == ADV7343_COMPOSITE_ID)
+			val |= ADV7343_COMPOSITE_POWER_VALUE;
+		else if (output_type == ADV7343_COMPONENT_ID)
+			val |= ADV7343_COMPONENT_POWER_VALUE;
+		else
+			val |= ADV7343_SVIDEO_POWER_VALUE;
 	else
-		val |= ADV7343_SVIDEO_POWER_VALUE;
+		val = state->pdata->mode_config.sleep_mode << 0 |
+		      state->pdata->mode_config.pll_control << 1 |
+		      state->pdata->mode_config.dac[2] << 2 |
+		      state->pdata->mode_config.dac[1] << 3 |
+		      state->pdata->mode_config.dac[0] << 4 |
+		      state->pdata->mode_config.dac[5] << 5 |
+		      state->pdata->mode_config.dac[4] << 6 |
+		      state->pdata->mode_config.dac[3] << 7;
 
 	err = adv7343_write(sd, ADV7343_POWER_MODE_REG, val);
 	if (err < 0)
@@ -238,6 +252,17 @@ static int adv7343_setoutput(struct v4l2_subdev *sd, u32 output_type)
 
 	/* configure SD DAC Output 2 and SD DAC Output 1 bit to zero */
 	val = state->reg82 & (SD_DAC_1_DI & SD_DAC_2_DI);
+
+	if (state->pdata && state->pdata->sd_config.sd_dac_out[0])
+		val = val | (state->pdata->sd_config.sd_dac_out[0] << 1);
+	else if (state->pdata && !state->pdata->sd_config.sd_dac_out[0])
+		val = val & ~(state->pdata->sd_config.sd_dac_out[0] << 1);
+
+	if (state->pdata && state->pdata->sd_config.sd_dac_out[1])
+		val = val | (state->pdata->sd_config.sd_dac_out[1] << 2);
+	else if (state->pdata && !state->pdata->sd_config.sd_dac_out[1])
+		val = val & ~(state->pdata->sd_config.sd_dac_out[1] << 2);
+
 	err = adv7343_write(sd, ADV7343_SD_MODE_REG2, val);
 	if (err < 0)
 		goto setoutput_exit;
@@ -288,21 +313,12 @@ static int adv7343_s_ctrl(struct v4l2_ctrl *ctrl)
 	return -EINVAL;
 }
 
-static int adv7343_g_chip_ident(struct v4l2_subdev *sd,
-				struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_ADV7343, 0);
-}
-
 static const struct v4l2_ctrl_ops adv7343_ctrl_ops = {
 	.s_ctrl = adv7343_s_ctrl,
 };
 
 static const struct v4l2_subdev_core_ops adv7343_core_ops = {
 	.log_status = adv7343_log_status,
-	.g_chip_ident = adv7343_g_chip_ident,
 	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
 	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
 	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
@@ -385,6 +401,40 @@ static int adv7343_initialize(struct v4l2_subdev *sd)
 	return err;
 }
 
+static struct adv7343_platform_data *
+adv7343_get_pdata(struct i2c_client *client)
+{
+	struct adv7343_platform_data *pdata;
+	struct device_node *np;
+
+	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
+		return client->dev.platform_data;
+
+	np = v4l2_of_get_next_endpoint(client->dev.of_node, NULL);
+	if (!np)
+		return NULL;
+
+	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		goto done;
+
+	pdata->mode_config.sleep_mode =
+			of_property_read_bool(np, "adi,power-mode-sleep-mode");
+
+	pdata->mode_config.pll_control =
+			of_property_read_bool(np, "adi,power-mode-pll-ctrl");
+
+	of_property_read_u32_array(np, "adi,dac-enable",
+				   pdata->mode_config.dac, 6);
+
+	of_property_read_u32_array(np, "adi,sd-dac-enable",
+				   pdata->sd_config.sd_dac_out, 2);
+
+done:
+	of_node_put(np);
+	return pdata;
+}
+
 static int adv7343_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
@@ -397,9 +447,13 @@ static int adv7343_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	state = kzalloc(sizeof(struct adv7343_state), GFP_KERNEL);
+	state = devm_kzalloc(&client->dev, sizeof(struct adv7343_state),
+			     GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
+
+	/* Copy board specific information here */
+	state->pdata = adv7343_get_pdata(client);
 
 	state->reg00	= 0x80;
 	state->reg01	= 0x00;
@@ -428,19 +482,21 @@ static int adv7343_probe(struct i2c_client *client,
 				       ADV7343_GAIN_DEF);
 	state->sd.ctrl_handler = &state->hdl;
 	if (state->hdl.error) {
-		int err = state->hdl.error;
-
-		v4l2_ctrl_handler_free(&state->hdl);
-		kfree(state);
-		return err;
+		err = state->hdl.error;
+		goto done;
 	}
 	v4l2_ctrl_handler_setup(&state->hdl);
 
 	err = adv7343_initialize(&state->sd);
-	if (err) {
+	if (err)
+		goto done;
+
+	err = v4l2_async_register_subdev(&state->sd);
+
+done:
+	if (err < 0)
 		v4l2_ctrl_handler_free(&state->hdl);
-		kfree(state);
-	}
+
 	return err;
 }
 
@@ -449,9 +505,9 @@ static int adv7343_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct adv7343_state *state = to_state(sd);
 
+	v4l2_async_unregister_subdev(&state->sd);
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&state->hdl);
-	kfree(state);
 
 	return 0;
 }
@@ -463,8 +519,17 @@ static const struct i2c_device_id adv7343_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, adv7343_id);
 
+#if IS_ENABLED(CONFIG_OF)
+static const struct of_device_id adv7343_of_match[] = {
+	{.compatible = "adi,adv7343", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, adv7343_of_match);
+#endif
+
 static struct i2c_driver adv7343_driver = {
 	.driver = {
+		.of_match_table = of_match_ptr(adv7343_of_match),
 		.owner	= THIS_MODULE,
 		.name	= "adv7343",
 	},

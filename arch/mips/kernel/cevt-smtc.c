@@ -49,7 +49,7 @@ static int smtc_nextinvpe[NR_CPUS];
 
 /*
  * Timestamps stored are absolute values to be programmed
- * into Count register.  Valid timestamps will never be zero.
+ * into Count register.	 Valid timestamps will never be zero.
  * If a Zero Count value is actually calculated, it is converted
  * to be a 1, which will introduce 1 or two CPU cycles of error
  * roughly once every four billion events, which at 1000 HZ means
@@ -248,7 +248,7 @@ irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 }
 
 
-int __cpuinit smtc_clockevent_init(void)
+int smtc_clockevent_init(void)
 {
 	uint64_t mips_freq = mips_hpt_frequency;
 	unsigned int cpu = smp_processor_id();

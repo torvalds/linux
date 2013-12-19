@@ -99,7 +99,6 @@
 #include <wl_main.h>
 #include <wl_netdev.h>
 #include <wl_cs.h>
-#include <wl_sysfs.h>
 
 
 /*******************************************************************************
@@ -133,6 +132,7 @@ static int wl_adapter_attach(struct pcmcia_device *link)
 {
 	struct net_device   *dev;
 	struct wl_private   *lp;
+	int ret;
 	/*--------------------------------------------------------------------*/
 
 	DBG_FUNC("wl_adapter_attach");
@@ -154,10 +154,12 @@ static int wl_adapter_attach(struct pcmcia_device *link)
 	lp = wl_priv(dev);
 	lp->link = link;
 
-	wl_adapter_insert(link);
+	ret = wl_adapter_insert(link);
+	if (ret != 0)
+		wl_device_dealloc(dev);
 
 	DBG_LEAVE(DbgInfo);
-	return 0;
+	return ret;
 } /* wl_adapter_attach */
 /*============================================================================*/
 
@@ -175,7 +177,6 @@ static void wl_adapter_detach(struct pcmcia_device *link)
 	wl_adapter_release(link);
 
 	if (dev) {
-		unregister_wlags_sysfs(dev);
 		unregister_netdev(dev);
 		wl_device_dealloc(dev);
 	}
@@ -224,7 +225,7 @@ static int wl_adapter_resume(struct pcmcia_device *link)
 	return 0;
 } /* wl_adapter_resume */
 
-void wl_adapter_insert(struct pcmcia_device *link)
+int wl_adapter_insert(struct pcmcia_device *link)
 {
 	struct net_device *dev;
 	int ret;
@@ -256,24 +257,23 @@ void wl_adapter_insert(struct pcmcia_device *link)
 	dev->base_addr  = link->resource[0]->start;
 
 	SET_NETDEV_DEV(dev, &link->dev);
-	if (register_netdev(dev) != 0) {
+	ret = register_netdev(dev);
+	if (ret != 0) {
 		printk("%s: register_netdev() failed\n", MODULE_NAME);
 		goto failed;
 	}
-
-	register_wlags_sysfs(dev);
 
 	printk(KERN_INFO "%s: Wireless, io_addr %#03lx, irq %d, mac_address"
 		" %pM\n", dev->name, dev->base_addr, dev->irq, dev->dev_addr);
 
 	DBG_LEAVE(DbgInfo);
-	return;
+	return 0;
 
 failed:
 	wl_adapter_release(link);
 
 	DBG_LEAVE(DbgInfo);
-	return;
+	return ret;
 } /* wl_adapter_insert */
 /*============================================================================*/
 

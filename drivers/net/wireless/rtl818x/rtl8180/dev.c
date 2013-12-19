@@ -3,10 +3,10 @@
  * Linux device driver for RTL8180 / RTL8185
  *
  * Copyright 2007 Michael Wu <flamingice@sourmilk.net>
- * Copyright 2007 Andrea Merello <andreamrl@tiscali.it>
+ * Copyright 2007 Andrea Merello <andrea.merello@gmail.com>
  *
  * Based on the r8180 driver, which is:
- * Copyright 2004-2005 Andrea Merello <andreamrl@tiscali.it>, et al.
+ * Copyright 2004-2005 Andrea Merello <andrea.merello@gmail.com>, et al.
  *
  * Thanks to Realtek for their support!
  *
@@ -32,7 +32,7 @@
 #include "grf5101.h"
 
 MODULE_AUTHOR("Michael Wu <flamingice@sourmilk.net>");
-MODULE_AUTHOR("Andrea Merello <andreamrl@tiscali.it>");
+MODULE_AUTHOR("Andrea Merello <andrea.merello@gmail.com>");
 MODULE_DESCRIPTION("RTL8180 / RTL8185 PCI wireless driver");
 MODULE_LICENSE("GPL");
 
@@ -147,8 +147,8 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 				signal = priv->rf->calc_rssi(agc, sq);
 			}
 			rx_status.signal = signal;
-			rx_status.freq = dev->conf.channel->center_freq;
-			rx_status.band = dev->conf.channel->band;
+			rx_status.freq = dev->conf.chandef.chan->center_freq;
+			rx_status.band = dev->conf.chandef.chan->band;
 			rx_status.mactime = le64_to_cpu(entry->tsft);
 			rx_status.flag |= RX_FLAG_MACTIME_START;
 			if (flags & RTL818X_RX_DESC_FLAG_CRC32_ERR)
@@ -1122,7 +1122,6 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	iounmap(priv->map);
 
  err_free_dev:
-	pci_set_drvdata(pdev, NULL);
 	ieee80211_free_hw(dev);
 
  err_free_reg:

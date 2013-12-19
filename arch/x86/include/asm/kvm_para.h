@@ -27,7 +27,7 @@ static inline bool kvm_check_and_clear_guest_paused(void)
  *
  * Up to four arguments may be passed in rbx, rcx, rdx, and rsi respectively.
  * The hypercall number should be placed in rax and the return value will be
- * placed in rax.  No other registers will be clobbered unless explicited
+ * placed in rax.  No other registers will be clobbered unless explicitly
  * noted by the particular hypercall.
  */
 
@@ -85,26 +85,20 @@ static inline long kvm_hypercall4(unsigned int nr, unsigned long p1,
 	return ret;
 }
 
-static inline int kvm_para_available(void)
+static inline uint32_t kvm_cpuid_base(void)
 {
-	unsigned int eax, ebx, ecx, edx;
-	char signature[13];
-
 	if (boot_cpu_data.cpuid_level < 0)
 		return 0;	/* So we don't blow up on old processors */
 
-	if (cpu_has_hypervisor) {
-		cpuid(KVM_CPUID_SIGNATURE, &eax, &ebx, &ecx, &edx);
-		memcpy(signature + 0, &ebx, 4);
-		memcpy(signature + 4, &ecx, 4);
-		memcpy(signature + 8, &edx, 4);
-		signature[12] = 0;
-
-		if (strcmp(signature, "KVMKVMKVM") == 0)
-			return 1;
-	}
+	if (cpu_has_hypervisor)
+		return hypervisor_cpuid_base("KVMKVMKVM\0\0\0", 0);
 
 	return 0;
+}
+
+static inline bool kvm_para_available(void)
+{
+	return kvm_cpuid_base() != 0;
 }
 
 static inline unsigned int kvm_arch_para_features(void)
@@ -118,10 +112,20 @@ void kvm_async_pf_task_wait(u32 token);
 void kvm_async_pf_task_wake(u32 token);
 u32 kvm_read_and_reset_pf_reason(void);
 extern void kvm_disable_steal_time(void);
-#else
-#define kvm_guest_init() do { } while (0)
+
+#ifdef CONFIG_PARAVIRT_SPINLOCKS
+void __init kvm_spinlock_init(void);
+#else /* !CONFIG_PARAVIRT_SPINLOCKS */
+static inline void kvm_spinlock_init(void)
+{
+}
+#endif /* CONFIG_PARAVIRT_SPINLOCKS */
+
+#else /* CONFIG_KVM_GUEST */
+#define kvm_guest_init() do {} while (0)
 #define kvm_async_pf_task_wait(T) do {} while(0)
 #define kvm_async_pf_task_wake(T) do {} while(0)
+
 static inline u32 kvm_read_and_reset_pf_reason(void)
 {
 	return 0;

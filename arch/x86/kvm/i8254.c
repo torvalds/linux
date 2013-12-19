@@ -122,7 +122,6 @@ static s64 __kpit_elapsed(struct kvm *kvm)
 	 */
 	remaining = hrtimer_get_remaining(&ps->timer);
 	elapsed = ps->period - ktime_to_ns(remaining);
-	elapsed = mod_64(elapsed, ps->period);
 
 	return elapsed;
 }
@@ -291,8 +290,8 @@ static void pit_do_work(struct kthread_work *work)
 	}
 	spin_unlock(&ps->inject_lock);
 	if (inject) {
-		kvm_set_irq(kvm, kvm->arch.vpit->irq_source_id, 0, 1);
-		kvm_set_irq(kvm, kvm->arch.vpit->irq_source_id, 0, 0);
+		kvm_set_irq(kvm, kvm->arch.vpit->irq_source_id, 0, 1, false);
+		kvm_set_irq(kvm, kvm->arch.vpit->irq_source_id, 0, 0, false);
 
 		/*
 		 * Provides NMI watchdog support via Virtual Wire mode.

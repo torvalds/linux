@@ -51,17 +51,19 @@
 #include <asm/netlogic/xlp-hal/xlp.h>
 #include <asm/netlogic/xlp-hal/sys.h>
 
-static int xlp_wakeup_core(uint64_t sysbase, int core)
+static int xlp_wakeup_core(uint64_t sysbase, int node, int core)
 {
 	uint32_t coremask, value;
 	int count;
 
 	coremask = (1 << core);
 
-	/* Enable CPU clock */
-	value = nlm_read_sys_reg(sysbase, SYS_CORE_DFS_DIS_CTRL);
-	value &= ~coremask;
-	nlm_write_sys_reg(sysbase, SYS_CORE_DFS_DIS_CTRL, value);
+	/* Enable CPU clock in case of 8xx/3xx */
+	if (!cpu_is_xlpii()) {
+		value = nlm_read_sys_reg(sysbase, SYS_CORE_DFS_DIS_CTRL);
+		value &= ~coremask;
+		nlm_write_sys_reg(sysbase, SYS_CORE_DFS_DIS_CTRL, value);
+	}
 
 	/* Remove CPU Reset */
 	value = nlm_read_sys_reg(sysbase, SYS_CPU_RESET);
@@ -73,6 +75,22 @@ static int xlp_wakeup_core(uint64_t sysbase, int core)
 	do {
 		value = nlm_read_sys_reg(sysbase, SYS_CPU_NONCOHERENT_MODE);
 	} while ((value & coremask) != 0 && --count > 0);
+
+	return count != 0;
+}
+
+static int wait_for_cpus(int cpu, int bootcpu)
+{
+	volatile uint32_t *cpu_ready = nlm_get_boot_data(BOOT_CPU_READY);
+	int i, count, notready;
+
+	count = 0x20000000;
+	do {
+		notready = nlm_threads_per_core;
+		for (i = 0; i < nlm_threads_per_core; i++)
+			if (cpu_ready[cpu + i] || cpu == bootcpu)
+				--notready;
+	} while (notready != 0 && --count > 0);
 
 	return count != 0;
 }
@@ -89,29 +107,41 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 		if (nlm_read_reg(syspcibase, 0) == 0xffffffff)
 			break;
 
-		/* read cores in reset from SYS and account for boot cpu */
-		nlm_node_init(n);
+		/* read cores in reset from SYS */
+		if (n != 0)
+			nlm_node_init(n);
 		nodep = nlm_get_node(n);
 		syscoremask = nlm_read_sys_reg(nodep->sysbase, SYS_CPU_RESET);
-		if (n == 0)
+		/* The boot cpu */
+		if (n == 0) {
 			syscoremask |= 1;
+			nodep->coremask = 1;
+		}
 
 		for (core = 0; core < NLM_CORES_PER_NODE; core++) {
+			/* we will be on node 0 core 0 */
+			if (n == 0 && core == 0)
+				continue;
+
 			/* see if the core exists */
 			if ((syscoremask & (1 << core)) == 0)
 				continue;
 
-			/* see if at least the first thread is enabled */
+			/* see if at least the first hw thread is enabled */
 			cpu = (n * NLM_CORES_PER_NODE + core)
 						* NLM_THREADS_PER_CORE;
 			if (!cpumask_test_cpu(cpu, wakeup_mask))
 				continue;
 
 			/* wake up the core */
-			if (xlp_wakeup_core(nodep->sysbase, core))
-				nodep->coremask |= 1u << core;
-			else
-				pr_err("Failed to enable core %d\n", core);
+			if (!xlp_wakeup_core(nodep->sysbase, n, core))
+				continue;
+
+			/* core is up */
+			nodep->coremask |= 1u << core;
+
+			/* spin until the hw threads sets their ready */
+			wait_for_cpus(cpu, 0);
 		}
 	}
 }
@@ -123,6 +153,7 @@ void xlp_wakeup_secondary_cpus()
 	 * first wakeup core 0 threads
 	 */
 	xlp_boot_core0_siblings();
+	wait_for_cpus(0, 0);
 
 	/* now get other cores out of reset */
 	xlp_enable_secondary_cores(&nlm_cpumask);

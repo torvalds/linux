@@ -1,0 +1,186 @@
+/*
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/* AM43x EPOS EVM */
+
+/dts-v1/;
+
+#include "am4372.dtsi"
+#include <dt-bindings/pinctrl/am43xx.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "TI AM43x EPOS EVM";
+	compatible = "ti,am43x-epos-evm","ti,am4372","ti,am43";
+
+	vmmcsd_fixed: fixedregulator-sd {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmcsd_fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+	};
+
+	am43xx_pinmux: pinmux@44e10800 {
+		cpsw_default: cpsw_default {
+			pinctrl-single,pins = <
+				/* Slave 1 */
+				0x10c (PIN_INPUT_PULLDOWN | MUX_MODE1)	/* mii1_crs.rmii1_crs */
+				0x110 (PIN_INPUT_PULLDOWN | MUX_MODE1)	/* mii1_rxerr.rmii1_rxerr */
+				0x114 (PIN_OUTPUT_PULLDOWN | MUX_MODE1)	/* mii1_txen.rmii1_txen */
+				0x118 (PIN_INPUT_PULLDOWN | MUX_MODE1)	/* mii1_rxdv.rmii1_rxdv */
+				0x124 (PIN_OUTPUT_PULLDOWN | MUX_MODE1)	/* mii1_txd1.rmii1_txd1 */
+				0x128 (PIN_OUTPUT_PULLDOWN | MUX_MODE1)	/* mii1_txd0.rmii1_txd0 */
+				0x13c (PIN_INPUT_PULLDOWN | MUX_MODE1)	/* mii1_rxd1.rmii1_rxd1 */
+				0x140 (PIN_INPUT_PULLDOWN | MUX_MODE1)	/* mii1_rxd0.rmii1_rxd0 */
+				0x144 (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* rmii1_refclk.rmii1_refclk */
+			>;
+		};
+
+		cpsw_sleep: cpsw_sleep {
+			pinctrl-single,pins = <
+				/* Slave 1 reset value */
+				0x10c (PIN_INPUT_PULLDOWN | MUX_MODE7)
+				0x110 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+				0x114 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+				0x118 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+				0x124 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+				0x128 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+				0x13c (PIN_INPUT_PULLDOWN | MUX_MODE7)
+				0x140 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+				0x144 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			>;
+		};
+
+		davinci_mdio_default: davinci_mdio_default {
+			pinctrl-single,pins = <
+				/* MDIO */
+				0x148 (PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE0)	/* mdio_data.mdio_data */
+				0x14c (PIN_OUTPUT_PULLUP | MUX_MODE0)			/* mdio_clk.mdio_clk */
+			>;
+		};
+
+		davinci_mdio_sleep: davinci_mdio_sleep {
+			pinctrl-single,pins = <
+				/* MDIO reset value */
+				0x148 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+				0x14c (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			>;
+		};
+
+		i2c0_pins: pinmux_i2c0_pins {
+			pinctrl-single,pins = <
+				0x188 (PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE0)	/* i2c0_sda.i2c0_sda */
+				0x18c (PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE0)	/* i2c0_scl.i2c0_scl */
+			>;
+		};
+	};
+
+	matrix_keypad: matrix_keypad@0 {
+			compatible = "gpio-matrix-keypad";
+			debounce-delay-ms = <5>;
+			col-scan-delay-us = <2>;
+
+			row-gpios = <&gpio0 12 GPIO_ACTIVE_HIGH		/* Bank0, pin12 */
+				     &gpio0 13 GPIO_ACTIVE_HIGH		/* Bank0, pin13 */
+				     &gpio0 14 GPIO_ACTIVE_HIGH		/* Bank0, pin14 */
+				     &gpio0 15 GPIO_ACTIVE_HIGH>;	/* Bank0, pin15 */
+
+			col-gpios = <&gpio3 9 GPIO_ACTIVE_HIGH		/* Bank3, pin9 */
+				     &gpio3 10 GPIO_ACTIVE_HIGH		/* Bank3, pin10 */
+				     &gpio2 18 GPIO_ACTIVE_HIGH		/* Bank2, pin18 */
+				     &gpio2 19 GPIO_ACTIVE_HIGH>;	/* Bank2, pin19 */
+
+			linux,keymap = <0x00000201	/* P1 */
+				0x01000204	/* P4 */
+				0x02000207	/* P7 */
+				0x0300020a	/* NUMERIC_STAR */
+				0x00010202	/* P2 */
+				0x01010205	/* P5 */
+				0x02010208	/* P8 */
+				0x03010200	/* P0 */
+				0x00020203	/* P3 */
+				0x01020206	/* P6 */
+				0x02020209	/* P9 */
+				0x0302020b	/* NUMERIC_POUND */
+				0x00030067	/* UP */
+				0x0103006a	/* RIGHT */
+				0x0203006c	/* DOWN */
+				0x03030069>;	/* LEFT */
+		};
+};
+
+&mmc1 {
+	status = "okay";
+	vmmc-supply = <&vmmcsd_fixed>;
+	bus-width = <4>;
+};
+
+&mac {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&cpsw_default>;
+	pinctrl-1 = <&cpsw_sleep>;
+	status = "okay";
+};
+
+&davinci_mdio {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&davinci_mdio_default>;
+	pinctrl-1 = <&davinci_mdio_sleep>;
+	status = "okay";
+};
+
+&cpsw_emac0 {
+	phy_id = <&davinci_mdio>, <16>;
+	phy-mode = "rmii";
+};
+
+&cpsw_emac1 {
+	phy_id = <&davinci_mdio>, <1>;
+	phy-mode = "rmii";
+};
+
+&i2c0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+
+	at24@50 {
+		compatible = "at24,24c256";
+		pagesize = <64>;
+		reg = <0x50>;
+	};
+
+	pixcir_ts@5c {
+		compatible = "pixcir,pixcir_ts";
+		reg = <0x5c>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <17 0>;
+
+		attb-gpio = <&gpio1 17 GPIO_ACTIVE_HIGH>;
+
+		x-size = <1024>;
+		y-size = <768>;
+	};
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&gpio2 {
+	status = "okay";
+};
+
+&gpio3 {
+	status = "okay";
+};

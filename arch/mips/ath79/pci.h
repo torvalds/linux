@@ -14,6 +14,7 @@
 #define _ATH79_PCI_H
 
 struct ath79_pci_irq {
+	int	bus;
 	u8	slot;
 	u8	pin;
 	int	irq;

@@ -63,8 +63,7 @@ MODULE_LICENSE("GPL");
 /*
  * PCI ID of the Intel ICH7 LPC Device within which the GPIO block lives.
  */
-static const struct pci_device_id ich7_lpc_pci_id[] =
-{
+static DEFINE_PCI_DEVICE_TABLE(ich7_lpc_pci_id) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_0) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_1) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_30) },
@@ -92,7 +91,7 @@ MODULE_PARM_DESC(nodetect, "Skip DMI-based hardware detection");
  * detected as working, but in reality it is not) as low as
  * possible.
  */
-static struct dmi_system_id __initdata nas_led_whitelist[] = {
+static struct dmi_system_id nas_led_whitelist[] __initdata = {
 	{
 		.callback = ss4200_led_dmi_callback,
 		.ident = "Intel SS4200-E",
@@ -198,7 +197,7 @@ static void nasgpio_led_set_attr(struct led_classdev *led_cdev,
 	spin_unlock(&nasgpio_gpio_lock);
 }
 
-u32 nasgpio_led_get_attr(struct led_classdev *led_cdev, u32 port)
+static u32 nasgpio_led_get_attr(struct led_classdev *led_cdev, u32 port)
 {
 	struct nasgpio_led *led = led_classdev_to_nasgpio_led(led_cdev);
 	u32 gpio_in;

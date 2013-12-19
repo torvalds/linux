@@ -384,7 +384,7 @@ static struct attribute_group lm3533_attribute_group = {
 
 static int lm3533_device_als_init(struct lm3533 *lm3533)
 {
-	struct lm3533_platform_data *pdata = lm3533->dev->platform_data;
+	struct lm3533_platform_data *pdata = dev_get_platdata(lm3533->dev);
 	int ret;
 
 	if (!pdata->als)
@@ -407,7 +407,7 @@ static int lm3533_device_als_init(struct lm3533 *lm3533)
 
 static int lm3533_device_bl_init(struct lm3533 *lm3533)
 {
-	struct lm3533_platform_data *pdata = lm3533->dev->platform_data;
+	struct lm3533_platform_data *pdata = dev_get_platdata(lm3533->dev);
 	int i;
 	int ret;
 
@@ -436,7 +436,7 @@ static int lm3533_device_bl_init(struct lm3533 *lm3533)
 
 static int lm3533_device_led_init(struct lm3533 *lm3533)
 {
-	struct lm3533_platform_data *pdata = lm3533->dev->platform_data;
+	struct lm3533_platform_data *pdata = dev_get_platdata(lm3533->dev);
 	int i;
 	int ret;
 
@@ -481,7 +481,7 @@ static int lm3533_device_setup(struct lm3533 *lm3533,
 
 static int lm3533_device_init(struct lm3533 *lm3533)
 {
-	struct lm3533_platform_data *pdata = lm3533->dev->platform_data;
+	struct lm3533_platform_data *pdata = dev_get_platdata(lm3533->dev);
 	int ret;
 
 	dev_dbg(lm3533->dev, "%s\n", __func__);
@@ -496,8 +496,8 @@ static int lm3533_device_init(struct lm3533 *lm3533)
 	dev_set_drvdata(lm3533->dev, lm3533);
 
 	if (gpio_is_valid(lm3533->gpio_hwen)) {
-		ret = gpio_request_one(lm3533->gpio_hwen, GPIOF_OUT_INIT_LOW,
-								"lm3533-hwen");
+		ret = devm_gpio_request_one(lm3533->dev, lm3533->gpio_hwen,
+					GPIOF_OUT_INIT_LOW, "lm3533-hwen");
 		if (ret < 0) {
 			dev_err(lm3533->dev,
 				"failed to request HWEN GPIO %d\n",
@@ -528,8 +528,6 @@ err_unregister:
 	mfd_remove_devices(lm3533->dev);
 err_disable:
 	lm3533_disable(lm3533);
-	if (gpio_is_valid(lm3533->gpio_hwen))
-		gpio_free(lm3533->gpio_hwen);
 
 	return ret;
 }
@@ -542,8 +540,6 @@ static void lm3533_device_exit(struct lm3533 *lm3533)
 
 	mfd_remove_devices(lm3533->dev);
 	lm3533_disable(lm3533);
-	if (gpio_is_valid(lm3533->gpio_hwen))
-		gpio_free(lm3533->gpio_hwen);
 }
 
 static bool lm3533_readable_register(struct device *dev, unsigned int reg)

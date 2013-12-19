@@ -17,6 +17,7 @@ struct nouveau_bios {
 		u8 chip;
 		u8 minor;
 		u8 micro;
+		u8 patch;
 	} version;
 };
 

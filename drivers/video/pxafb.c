@@ -457,7 +457,7 @@ static int pxafb_adjust_timing(struct pxafb_info *fbi,
 static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct pxafb_info *fbi = (struct pxafb_info *)info;
-	struct pxafb_mach_info *inf = fbi->dev->platform_data;
+	struct pxafb_mach_info *inf = dev_get_platdata(fbi->dev);
 	int err;
 
 	if (inf->fixed_modes) {
@@ -869,8 +869,8 @@ static struct fb_ops overlay_fb_ops = {
 	.fb_set_par		= overlayfb_set_par,
 };
 
-static void __devinit init_pxafb_overlay(struct pxafb_info *fbi,
-					 struct pxafb_layer *ofb, int id)
+static void init_pxafb_overlay(struct pxafb_info *fbi, struct pxafb_layer *ofb,
+			       int id)
 {
 	sprintf(ofb->fb.fix.id, "overlay%d", id + 1);
 
@@ -903,8 +903,8 @@ static inline int pxafb_overlay_supported(void)
 	return 0;
 }
 
-static int __devinit pxafb_overlay_map_video_memory(struct pxafb_info *pxafb,
-	struct pxafb_layer *ofb)
+static int pxafb_overlay_map_video_memory(struct pxafb_info *pxafb,
+					  struct pxafb_layer *ofb)
 {
 	/* We assume that user will use at most video_mem_size for overlay fb,
 	 * anyway, it's useless to use 16bpp main plane and 24bpp overlay
@@ -927,7 +927,7 @@ static int __devinit pxafb_overlay_map_video_memory(struct pxafb_info *pxafb,
 	return 0;
 }
 
-static void __devinit pxafb_overlay_init(struct pxafb_info *fbi)
+static void pxafb_overlay_init(struct pxafb_info *fbi)
 {
 	int i, ret;
 
@@ -959,7 +959,7 @@ static void __devinit pxafb_overlay_init(struct pxafb_info *fbi)
 	pr_info("PXA Overlay driver loaded successfully!\n");
 }
 
-static void __devexit pxafb_overlay_exit(struct pxafb_info *fbi)
+static void pxafb_overlay_exit(struct pxafb_info *fbi)
 {
 	int i;
 
@@ -1230,7 +1230,7 @@ static unsigned int __smart_timing(unsigned time_ns, unsigned long lcd_clk)
 static void setup_smart_timing(struct pxafb_info *fbi,
 				struct fb_var_screeninfo *var)
 {
-	struct pxafb_mach_info *inf = fbi->dev->platform_data;
+	struct pxafb_mach_info *inf = dev_get_platdata(fbi->dev);
 	struct pxafb_mode_info *mode = &inf->modes[0];
 	unsigned long lclk = clk_get_rate(fbi->clk);
 	unsigned t1, t2, t3, t4;
@@ -1258,14 +1258,14 @@ static void setup_smart_timing(struct pxafb_info *fbi,
 static int pxafb_smart_thread(void *arg)
 {
 	struct pxafb_info *fbi = arg;
-	struct pxafb_mach_info *inf = fbi->dev->platform_data;
+	struct pxafb_mach_info *inf = dev_get_platdata(fbi->dev);
 
 	if (!inf->smart_update) {
 		pr_err("%s: not properly initialized, thread terminated\n",
 				__func__);
 		return -EINVAL;
 	}
-	inf = fbi->dev->platform_data;
+	inf = dev_get_platdata(fbi->dev);
 
 	pr_debug("%s(): task starting\n", __func__);
 
@@ -1706,7 +1706,7 @@ static const struct dev_pm_ops pxafb_pm_ops = {
 };
 #endif
 
-static int __devinit pxafb_init_video_memory(struct pxafb_info *fbi)
+static int pxafb_init_video_memory(struct pxafb_info *fbi)
 {
 	int size = PAGE_ALIGN(fbi->video_mem_size);
 
@@ -1789,11 +1789,11 @@ decode_mode:
 		fbi->video_mem_size = video_mem_size;
 }
 
-static struct pxafb_info * __devinit pxafb_init_fbinfo(struct device *dev)
+static struct pxafb_info *pxafb_init_fbinfo(struct device *dev)
 {
 	struct pxafb_info *fbi;
 	void *addr;
-	struct pxafb_mach_info *inf = dev->platform_data;
+	struct pxafb_mach_info *inf = dev_get_platdata(dev);
 
 	/* Alloc the pxafb_info and pseudo_palette in one step */
 	fbi = kmalloc(sizeof(struct pxafb_info) + sizeof(u32) * 16, GFP_KERNEL);
@@ -1853,9 +1853,9 @@ static struct pxafb_info * __devinit pxafb_init_fbinfo(struct device *dev)
 }
 
 #ifdef CONFIG_FB_PXA_PARAMETERS
-static int __devinit parse_opt_mode(struct device *dev, const char *this_opt)
+static int parse_opt_mode(struct device *dev, const char *this_opt)
 {
-	struct pxafb_mach_info *inf = dev->platform_data;
+	struct pxafb_mach_info *inf = dev_get_platdata(dev);
 
 	const char *name = this_opt+5;
 	unsigned int namelen = strlen(name);
@@ -1912,9 +1912,9 @@ done:
 	return 0;
 }
 
-static int __devinit parse_opt(struct device *dev, char *this_opt)
+static int parse_opt(struct device *dev, char *this_opt)
 {
-	struct pxafb_mach_info *inf = dev->platform_data;
+	struct pxafb_mach_info *inf = dev_get_platdata(dev);
 	struct pxafb_mode_info *mode = &inf->modes[0];
 	char s[64];
 
@@ -2012,7 +2012,7 @@ static int __devinit parse_opt(struct device *dev, char *this_opt)
 	return 0;
 }
 
-static int __devinit pxafb_parse_options(struct device *dev, char *options)
+static int pxafb_parse_options(struct device *dev, char *options)
 {
 	char *this_opt;
 	int ret;
@@ -2031,7 +2031,7 @@ static int __devinit pxafb_parse_options(struct device *dev, char *options)
 	return 0;
 }
 
-static char g_options[256] __devinitdata = "";
+static char g_options[256] = "";
 
 #ifndef MODULE
 static int __init pxafb_setup_options(void)
@@ -2061,8 +2061,7 @@ MODULE_PARM_DESC(options, "LCD parameters (see Documentation/fb/pxafb.txt)");
 #ifdef DEBUG_VAR
 /* Check for various illegal bit-combinations. Currently only
  * a warning is given. */
-static void __devinit pxafb_check_options(struct device *dev,
-					  struct pxafb_mach_info *inf)
+static void pxafb_check_options(struct device *dev, struct pxafb_mach_info *inf)
 {
 	if (inf->lcd_conn)
 		return;
@@ -2094,7 +2093,7 @@ static void __devinit pxafb_check_options(struct device *dev,
 #define pxafb_check_options(...)	do {} while (0)
 #endif
 
-static int __devinit pxafb_probe(struct platform_device *dev)
+static int pxafb_probe(struct platform_device *dev)
 {
 	struct pxafb_info *fbi;
 	struct pxafb_mach_info *inf;
@@ -2103,7 +2102,7 @@ static int __devinit pxafb_probe(struct platform_device *dev)
 
 	dev_dbg(&dev->dev, "pxafb_probe\n");
 
-	inf = dev->dev.platform_data;
+	inf = dev_get_platdata(&dev->dev);
 	ret = -ENOMEM;
 	fbi = NULL;
 	if (!inf)
@@ -2257,13 +2256,12 @@ failed_free_res:
 	release_mem_region(r->start, resource_size(r));
 failed_fbi:
 	clk_put(fbi->clk);
-	platform_set_drvdata(dev, NULL);
 	kfree(fbi);
 failed:
 	return ret;
 }
 
-static int __devexit pxafb_remove(struct platform_device *dev)
+static int pxafb_remove(struct platform_device *dev)
 {
 	struct pxafb_info *fbi = platform_get_drvdata(dev);
 	struct resource *r;
@@ -2304,7 +2302,7 @@ static int __devexit pxafb_remove(struct platform_device *dev)
 
 static struct platform_driver pxafb_driver = {
 	.probe		= pxafb_probe,
-	.remove 	= __devexit_p(pxafb_remove),
+	.remove 	= pxafb_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "pxa2xx-fb",

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -51,8 +51,6 @@
 #include "power.h"
 #include "rs.h"
 #include "tt.h"
-
-#include "iwl-test.h"
 
 /* CT-KILL constants */
 #define CT_KILL_THRESHOLD_LEGACY   110 /* in Celsius */
@@ -272,7 +270,7 @@ struct iwl_sensitivity_ranges {
  * iwlXXXX_     <-- Hardware specific (implemented in iwl-XXXX.c for XXXX)
  *
  ****************************************************************************/
-extern void iwl_update_chain_flags(struct iwl_priv *priv);
+void iwl_update_chain_flags(struct iwl_priv *priv);
 extern const u8 iwl_bcast_addr[ETH_ALEN];
 
 #define IWL_OPERATION_MODE_AUTO     0
@@ -542,7 +540,6 @@ struct iwl_rxon_context {
 enum iwl_scan_type {
 	IWL_SCAN_NORMAL,
 	IWL_SCAN_RADIO_RESET,
-	IWL_SCAN_ROC,
 };
 
 /**
@@ -568,16 +565,61 @@ struct iwl_hw_params {
 	const struct iwl_sensitivity_ranges *sens;
 };
 
-struct iwl_lib_ops {
-	/* set hw dependent parameters */
+/**
+ * struct iwl_dvm_bt_params - DVM specific BT (coex) parameters
+ * @advanced_bt_coexist: support advanced bt coexist
+ * @bt_init_traffic_load: specify initial bt traffic load
+ * @bt_prio_boost: default bt priority boost value
+ * @agg_time_limit: maximum number of uSec in aggregation
+ * @bt_sco_disable: uCode should not response to BT in SCO/ESCO mode
+ */
+struct iwl_dvm_bt_params {
+	bool advanced_bt_coexist;
+	u8 bt_init_traffic_load;
+	u32 bt_prio_boost;
+	u16 agg_time_limit;
+	bool bt_sco_disable;
+	bool bt_session_2;
+};
+
+/**
+ * struct iwl_dvm_cfg - DVM firmware specific device configuration
+ * @set_hw_params: set hardware parameters
+ * @set_channel_switch: send channel switch command
+ * @nic_config: apply device specific configuration
+ * @temperature: read temperature
+ * @adv_thermal_throttle: support advance thermal throttle
+ * @support_ct_kill_exit: support ct kill exit condition
+ * @plcp_delta_threshold: plcp error rate threshold used to trigger
+ *	radio tuning when there is a high receiving plcp error rate
+ * @chain_noise_scale: default chain noise scale used for gain computation
+ * @hd_v2: v2 of enhanced sensitivity value, used for 2000 series and up
+ * @no_idle_support: do not support idle mode
+ * @bt_params: pointer to BT parameters
+ * @need_temp_offset_calib: need to perform temperature offset calibration
+ * @no_xtal_calib: some devices do not need crystal calibration data,
+ *	don't send it to those
+ * @temp_offset_v2: support v2 of temperature offset calibration
+ * @adv_pm: advanced power management
+ */
+struct iwl_dvm_cfg {
 	void (*set_hw_params)(struct iwl_priv *priv);
 	int (*set_channel_switch)(struct iwl_priv *priv,
 				  struct ieee80211_channel_switch *ch_switch);
-	/* device specific configuration */
 	void (*nic_config)(struct iwl_priv *priv);
-
-	/* temperature */
 	void (*temperature)(struct iwl_priv *priv);
+
+	const struct iwl_dvm_bt_params *bt_params;
+	s32 chain_noise_scale;
+	u8 plcp_delta_threshold;
+	bool adv_thermal_throttle;
+	bool support_ct_kill_exit;
+	bool hd_v2;
+	bool no_idle_support;
+	bool need_temp_offset_calib;
+	bool no_xtal_calib;
+	bool temp_offset_v2;
+	bool adv_pm;
 };
 
 struct iwl_wipan_noa_data {
@@ -610,7 +652,7 @@ struct iwl_priv {
 	struct device *dev;		/* for debug prints only */
 	const struct iwl_cfg *cfg;
 	const struct iwl_fw *fw;
-	const struct iwl_lib_ops *lib;
+	const struct iwl_dvm_cfg *lib;
 	unsigned long status;
 
 	spinlock_t sta_lock;
@@ -645,10 +687,6 @@ struct iwl_priv {
 	/* spectrum measurement report caching */
 	struct iwl_spectrum_notification measure_report;
 	u8 measurement_status;
-
-#define IWL_OWNERSHIP_DRIVER	0
-#define IWL_OWNERSHIP_TM	1
-	u8 ucode_owner;
 
 	/* ucode beacon time */
 	u32 ucode_beacon_time;
@@ -786,12 +824,6 @@ struct iwl_priv {
 	struct reply_tx_error_statistics reply_tx_stats;
 	struct reply_agg_tx_error_statistics reply_agg_tx_stats;
 
-	/* remain-on-channel offload support */
-	struct ieee80211_channel *hw_roc_channel;
-	struct delayed_work hw_roc_disable_work;
-	int hw_roc_duration;
-	bool hw_roc_setup, hw_roc_start_notified;
-
 	/* bt coex */
 	u8 bt_enable_flag;
 	u8 bt_status;
@@ -844,7 +876,7 @@ struct iwl_priv {
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 
 	struct iwl_nvm_data *nvm_data;
-	/* eeprom blob for debugfs/testmode */
+	/* eeprom blob for debugfs */
 	u8 *eeprom_blob;
 	size_t eeprom_blob_size;
 
@@ -860,16 +892,14 @@ struct iwl_priv {
 	unsigned long blink_on, blink_off;
 	bool led_registered;
 
-#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-	struct iwl_test tst;
-	u32 tm_fixed_rate;
-#endif
-
 	/* WoWLAN GTK rekey data */
 	u8 kck[NL80211_KCK_LEN], kek[NL80211_KEK_LEN];
 	__le64 replay_ctr;
 	__le16 last_seq_ctl;
 	bool have_rekey_data;
+#ifdef CONFIG_PM_SLEEP
+	struct wiphy_wowlan_support wowlan_support;
+#endif
 
 	/* device_pointers: pointers to ucode event tables */
 	struct {

@@ -226,7 +226,7 @@ out:
  *	performs channel-specific pre-initialization before drive probing.
  */
 
-static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
+static void init_hwif_cs5530 (ide_hwif_t *hwif)
 {
 	unsigned long basereg;
 	u32 d0_timings;
@@ -245,7 +245,7 @@ static const struct ide_port_ops cs5530_port_ops = {
 	.udma_filter		= cs5530_udma_filter,
 };
 
-static const struct ide_port_info cs5530_chipset __devinitconst = {
+static const struct ide_port_info cs5530_chipset = {
 	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_cs5530,
 	.init_hwif	= init_hwif_cs5530,
@@ -257,7 +257,7 @@ static const struct ide_port_info cs5530_chipset __devinitconst = {
 	.udma_mask	= ATA_UDMA2,
 };
 
-static int __devinit cs5530_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+static int cs5530_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	return ide_pci_init_one(dev, &cs5530_chipset, NULL);
 }

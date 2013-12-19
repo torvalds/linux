@@ -14,10 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 /*
 Driver: pcmmio
@@ -76,11 +72,13 @@ Configuration Options:
 	leave out if you don't need this feature)
 */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+
 #include "../comedidev.h"
-#include "pcm_common.h"
-#include <linux/pci.h>		/* for PCI devices */
+
+#include "comedi_fc.h"
 
 /* This stuff is all from pcmuio.c -- it refers to the DIO subdevices only */
 #define CHANS_PER_PORT   8
@@ -93,7 +91,6 @@ Configuration Options:
 #define INTR_PORTS_PER_SUBDEV (INTR_CHANS_PER_ASIC/CHANS_PER_PORT)
 #define MAX_DIO_CHANS   (PORTS_PER_ASIC*1*CHANS_PER_PORT)
 #define MAX_ASICS       (MAX_DIO_CHANS/CHANS_PER_ASIC)
-#define SDEV_NO ((int)(s - dev->subdevices))
 #define CALC_N_DIO_SUBDEVS(nchans) ((nchans)/MAX_CHANS_PER_SUBDEV + (!!((nchans)%MAX_CHANS_PER_SUBDEV)) /*+ (nchans > INTR_CHANS_PER_ASIC ? 2 : 1)*/)
 /* IO Memory sizes */
 #define ASIC_IOSIZE (0x0B)
@@ -313,68 +310,27 @@ static int pcmmio_dio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/* The input or output configuration of each digital line is
- * configured by a special insn_config instruction.  chanspec
- * contains the channel to be changed, and data[0] contains the
- * value COMEDI_INPUT or COMEDI_OUTPUT. */
 static int pcmmio_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-	int chan = CR_CHAN(insn->chanspec), byte_no = chan / 8, bit_no =
-	    chan % 8;
-	unsigned long ioaddr;
-	unsigned char byte;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int byte_no = chan / 8;
+	int bit_no = chan % 8;
+	int ret;
 
-	/* Compute ioaddr for this channel */
-	ioaddr = subpriv->iobases[byte_no];
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
 
-	/* NOTE:
-	   writing a 0 an IO channel's bit sets the channel to INPUT
-	   and pulls the line high as well
+	if (data[0] == INSN_CONFIG_DIO_INPUT) {
+		unsigned long ioaddr = subpriv->iobases[byte_no];
+		unsigned char val;
 
-	   writing a 1 to an IO channel's  bit pulls the line low
-
-	   All channels are implicitly always in OUTPUT mode -- but when
-	   they are high they can be considered to be in INPUT mode..
-
-	   Thus, we only force channels low if the config request was INPUT,
-	   otherwise we do nothing to the hardware.    */
-
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		/* save to io_bits -- don't actually do anything since
-		   all input channels are also output channels... */
-		s->io_bits |= 1 << chan;
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		/* write a 0 to the actual register representing the channel
-		   to set it to 'input'.  0 means "float high". */
-		byte = inb(ioaddr);
-		byte &= ~(1 << bit_no);
-				/**< set input channel to '0' */
-
-		/*
-		 * write out byte -- this is the only time we actually affect
-		 * the hardware as all channels are implicitly output
-		 * -- but input channels are set to float-high
-		 */
-		outb(byte, ioaddr);
-
-		/* save to io_bits */
-		s->io_bits &= ~(1 << chan);
-		break;
-
-	case INSN_CONFIG_DIO_QUERY:
-		/* retrieve from shadow register */
-		data[1] =
-		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
-
-	default:
-		return -EINVAL;
-		break;
+		val = inb(ioaddr);
+		val &= ~(1 << bit_no);
+		outb(val, ioaddr);
 	}
 
 	return insn->n;
@@ -597,12 +553,11 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 										val |= (1U << n);
 								}
 								/* Write the scan to the buffer. */
-								if (comedi_buf_put(s->async, ((short *)&val)[0])
+								if (comedi_buf_put(s->async, val)
 								    &&
 								    comedi_buf_put
 								    (s->async,
-								     ((short *)
-								      &val)[1])) {
+								     val >> 16)) {
 									s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
 								} else {
 									/* Overflow! Stop acquisition!! */
@@ -802,11 +757,59 @@ static int pcmmio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-static int
-pcmmio_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	       struct comedi_cmd *cmd)
+static int pcmmio_cmdtest(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_cmd *cmd)
 {
-	return comedi_pcm_cmdtest(dev, s, cmd);
+	int err = 0;
+
+	/* Step 1 : check if triggers are trivially valid */
+
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+
+	if (err)
+		return 1;
+
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
+
+	if (err)
+		return 2;
+
+	/* Step 3: check if arguments are trivially valid */
+
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	switch (cmd->stop_src) {
+	case TRIG_COUNT:
+		/* any count allowed */
+		break;
+	case TRIG_NONE:
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		break;
+	default:
+		break;
+	}
+
+	if (err)
+		return 3;
+
+	/* step 4: fix up any arguments */
+
+	/* if (err) return 4; */
+
+	return 0;
 }
 
 static int adc_wait_ready(unsigned long iobase)
@@ -842,7 +845,7 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    CR_RANGE(insn->chanspec), aref = CR_AREF(insn->chanspec);
 		unsigned char command_byte = 0;
 		unsigned iooffset = 0;
-		short sample, adc_adjust = 0;
+		unsigned short sample, adc_adjust = 0;
 
 		if (chan > 7)
 			chan -= 8, iooffset = 4;	/*
@@ -986,29 +989,18 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int sdev_no, chans_left, n_dio_subdevs, n_subdevs, port, asic,
 	    thisasic_chanct = 0;
-	unsigned long iobase;
 	unsigned int irq[MAX_ASICS];
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
-	iobase = it->options[0];
 	irq[0] = it->options[1];
 
-	printk(KERN_INFO "comedi%d: %s: io: %lx attaching...\n", dev->minor,
-			dev->board_name, iobase);
+	ret = comedi_request_region(dev, it->options[0], 32);
+	if (ret)
+		return ret;
 
-	dev->iobase = iobase;
-
-	if (!iobase || !request_region(iobase, 32, dev->board_name)) {
-		printk(KERN_ERR "comedi%d: I/O port conflict\n", dev->minor);
-		return -EIO;
-	}
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	for (asic = 0; asic < MAX_ASICS; ++asic) {
 		devpriv->asics[asic].num = asic;
@@ -1155,13 +1147,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->asics[asic].irq = irq[asic];
 	}
 
-	dev->irq = irq[0];	/*
-				 * grr.. wish comedi dev struct supported
-				 * multiple irqs..
-				 */
-
-	printk(KERN_INFO "comedi%d: attached\n", dev->minor);
-
 	return 1;
 }
 
@@ -1170,14 +1155,14 @@ static void pcmmio_detach(struct comedi_device *dev)
 	struct pcmmio_private *devpriv = dev->private;
 	int i;
 
-	if (dev->iobase)
-		release_region(dev->iobase, 32);
-	for (i = 0; i < MAX_ASICS; ++i) {
-		if (devpriv && devpriv->asics[i].irq)
-			free_irq(devpriv->asics[i].irq, dev);
-	}
-	if (devpriv && devpriv->sprivs)
+	if (devpriv) {
+		for (i = 0; i < MAX_ASICS; ++i) {
+			if (devpriv->asics[i].irq)
+				free_irq(devpriv->asics[i].irq, dev);
+		}
 		kfree(devpriv->sprivs);
+	}
+	comedi_legacy_detach(dev);
 }
 
 static struct comedi_driver pcmmio_driver = {

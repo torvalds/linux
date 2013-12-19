@@ -186,18 +186,6 @@ static int cpufreq_set_cur_state(unsigned int cpu, int state)
 
 #endif
 
-int acpi_processor_get_limit_info(struct acpi_processor *pr)
-{
-
-	if (!pr)
-		return -EINVAL;
-
-	if (pr->flags.throttling)
-		pr->flags.limit = 1;
-
-	return 0;
-}
-
 /* thermal coolign device callbacks */
 static int acpi_processor_max_state(struct acpi_processor *pr)
 {
@@ -218,9 +206,13 @@ processor_get_max_state(struct thermal_cooling_device *cdev,
 			unsigned long *state)
 {
 	struct acpi_device *device = cdev->devdata;
-	struct acpi_processor *pr = acpi_driver_data(device);
+	struct acpi_processor *pr;
 
-	if (!device || !pr)
+	if (!device)
+		return -EINVAL;
+
+	pr = acpi_driver_data(device);
+	if (!pr)
 		return -EINVAL;
 
 	*state = acpi_processor_max_state(pr);
@@ -232,9 +224,13 @@ processor_get_cur_state(struct thermal_cooling_device *cdev,
 			unsigned long *cur_state)
 {
 	struct acpi_device *device = cdev->devdata;
-	struct acpi_processor *pr = acpi_driver_data(device);
+	struct acpi_processor *pr;
 
-	if (!device || !pr)
+	if (!device)
+		return -EINVAL;
+
+	pr = acpi_driver_data(device);
+	if (!pr)
 		return -EINVAL;
 
 	*cur_state = cpufreq_get_cur_state(pr->id);
@@ -248,11 +244,15 @@ processor_set_cur_state(struct thermal_cooling_device *cdev,
 			unsigned long state)
 {
 	struct acpi_device *device = cdev->devdata;
-	struct acpi_processor *pr = acpi_driver_data(device);
+	struct acpi_processor *pr;
 	int result = 0;
 	int max_pstate;
 
-	if (!device || !pr)
+	if (!device)
+		return -EINVAL;
+
+	pr = acpi_driver_data(device);
+	if (!pr)
 		return -EINVAL;
 
 	max_pstate = cpufreq_get_max_state(pr->id);

@@ -77,6 +77,11 @@ static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 
 	skb_orphan(skb);
 
+	/* Before queueing this packet to netif_rx(),
+	 * make sure dst is refcounted.
+	 */
+	skb_dst_force(skb);
+
 	skb->protocol = eth_type_trans(skb, dev);
 
 	/* it's OK to use per_cpu_ptr() because BHs are off */
@@ -132,15 +137,22 @@ static const struct ethtool_ops loopback_ethtool_ops = {
 
 static int loopback_dev_init(struct net_device *dev)
 {
+	int i;
 	dev->lstats = alloc_percpu(struct pcpu_lstats);
 	if (!dev->lstats)
 		return -ENOMEM;
 
+	for_each_possible_cpu(i) {
+		struct pcpu_lstats *lb_stats;
+		lb_stats = per_cpu_ptr(dev->lstats, i);
+		u64_stats_init(&lb_stats->syncp);
+	}
 	return 0;
 }
 
 static void loopback_dev_free(struct net_device *dev)
 {
+	dev_net(dev)->loopback_dev = NULL;
 	free_percpu(dev->lstats);
 	free_netdev(dev);
 }

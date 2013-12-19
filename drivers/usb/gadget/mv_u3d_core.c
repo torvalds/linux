@@ -30,9 +30,6 @@
 #include <linux/platform_device.h>
 #include <linux/platform_data/mv_usb.h>
 #include <linux/clk.h>
-#include <asm/system.h>
-#include <asm/unaligned.h>
-#include <asm/byteorder.h>
 
 #include "mv_u3d.h"
 
@@ -125,7 +122,7 @@ static int mv_u3d_process_ep_req(struct mv_u3d *u3d, int index,
 	struct mv_u3d_trb	*curr_trb;
 	dma_addr_t cur_deq_lo;
 	struct mv_u3d_ep_context	*curr_ep_context;
-	int trb_complete, actual, remaining_length;
+	int trb_complete, actual, remaining_length = 0;
 	int direction, ep_num;
 	int retval = 0;
 	u32 tmp, status, length;
@@ -189,6 +186,8 @@ static int mv_u3d_process_ep_req(struct mv_u3d *u3d, int index,
  */
 static
 void mv_u3d_done(struct mv_u3d_ep *ep, struct mv_u3d_req *req, int status)
+	__releases(&ep->udc->lock)
+	__acquires(&ep->udc->lock)
 {
 	struct mv_u3d *u3d = (struct mv_u3d *)ep->u3d;
 
@@ -311,6 +310,7 @@ static struct mv_u3d_trb *mv_u3d_build_trb_one(struct mv_u3d_req *req,
 	 */
 	trb_hw = dma_pool_alloc(u3d->trb_pool, GFP_ATOMIC, dma);
 	if (!trb_hw) {
+		kfree(trb);
 		dev_err(u3d->dev,
 			"%s, dma_pool_alloc fail\n", __func__);
 		return NULL;
@@ -455,6 +455,7 @@ static int mv_u3d_req_to_trb(struct mv_u3d_req *req)
 
 		trb_hw = kcalloc(trb_num, sizeof(*trb_hw), GFP_ATOMIC);
 		if (!trb_hw) {
+			kfree(trb);
 			dev_err(u3d->dev,
 					"%s, trb_hw alloc fail\n", __func__);
 			return -ENOMEM;
@@ -646,6 +647,7 @@ static int  mv_u3d_ep_disable(struct usb_ep *_ep)
 	struct mv_u3d_ep *ep;
 	struct mv_u3d_ep_context *ep_context;
 	u32 epxcr, direction;
+	unsigned long flags;
 
 	if (!_ep)
 		return -EINVAL;
@@ -662,7 +664,9 @@ static int  mv_u3d_ep_disable(struct usb_ep *_ep)
 	direction = mv_u3d_ep_dir(ep);
 
 	/* nuke all pending requests (does flush) */
+	spin_lock_irqsave(&u3d->lock, flags);
 	mv_u3d_nuke(ep, -ESHUTDOWN);
+	spin_unlock_irqrestore(&u3d->lock, flags);
 
 	/* Disable the endpoint for Rx or Tx and reset the endpoint type */
 	if (direction == MV_U3D_EP_DIR_OUT) {
@@ -812,19 +816,19 @@ mv_u3d_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 		return 0;
 	}
 
-	dev_dbg(u3d->dev, "%s: %s, req: 0x%x\n",
-			__func__, _ep->name, (u32)req);
+	dev_dbg(u3d->dev, "%s: %s, req: 0x%p\n",
+			__func__, _ep->name, req);
 
 	/* catch various bogus parameters */
 	if (!req->req.complete || !req->req.buf
 			|| !list_empty(&req->queue)) {
 		dev_err(u3d->dev,
-			"%s, bad params, _req: 0x%x,"
-			"req->req.complete: 0x%x, req->req.buf: 0x%x,"
+			"%s, bad params, _req: 0x%p,"
+			"req->req.complete: 0x%p, req->req.buf: 0x%p,"
 			"list_empty: 0x%x\n",
-			__func__, (u32)_req,
-			(u32)req->req.complete, (u32)req->req.buf,
-			(u32)list_empty(&req->queue));
+			__func__, _req,
+			req->req.complete, req->req.buf,
+			list_empty(&req->queue));
 		return -EINVAL;
 	}
 	if (unlikely(!ep->ep.desc)) {
@@ -905,7 +909,7 @@ static int mv_u3d_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 					struct mv_u3d_req, queue);
 
 			/* Point first TRB of next request to the EP context. */
-			iowrite32((u32) next_req->trb_head,
+			iowrite32((unsigned long) next_req->trb_head,
 					&ep_context->trb_addr_lo);
 		} else {
 			struct mv_u3d_ep_context *ep_context;
@@ -1110,7 +1114,7 @@ static int mv_u3d_controller_reset(struct mv_u3d *u3d)
 
 static int mv_u3d_enable(struct mv_u3d *u3d)
 {
-	struct mv_usb_platform_data *pdata = u3d->dev->platform_data;
+	struct mv_usb_platform_data *pdata = dev_get_platdata(u3d->dev);
 	int retval;
 
 	if (u3d->active)
@@ -1139,7 +1143,7 @@ static int mv_u3d_enable(struct mv_u3d *u3d)
 
 static void mv_u3d_disable(struct mv_u3d *u3d)
 {
-	struct mv_usb_platform_data *pdata = u3d->dev->platform_data;
+	struct mv_usb_platform_data *pdata = dev_get_platdata(u3d->dev);
 	if (u3d->clock_gating && u3d->active) {
 		dev_dbg(u3d->dev, "disable u3d\n");
 		if (pdata->phy_deinit)
@@ -1247,7 +1251,7 @@ static int mv_u3d_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver)
 {
 	struct mv_u3d *u3d = container_of(g, struct mv_u3d, gadget);
-	struct mv_usb_platform_data *pdata = u3d->dev->platform_data;
+	struct mv_usb_platform_data *pdata = dev_get_platdata(u3d->dev);
 	unsigned long flags;
 
 	if (u3d->driver)
@@ -1264,7 +1268,6 @@ static int mv_u3d_start(struct usb_gadget *g,
 	/* hook up the driver ... */
 	driver->driver.bus = NULL;
 	u3d->driver = driver;
-	u3d->gadget.dev.driver = &driver->driver;
 
 	u3d->ep0_dir = USB_DIR_OUT;
 
@@ -1279,7 +1282,7 @@ static int mv_u3d_stop(struct usb_gadget *g,
 		struct usb_gadget_driver *driver)
 {
 	struct mv_u3d *u3d = container_of(g, struct mv_u3d, gadget);
-	struct mv_usb_platform_data *pdata = u3d->dev->platform_data;
+	struct mv_usb_platform_data *pdata = dev_get_platdata(u3d->dev);
 	unsigned long flags;
 
 	u3d->vbus_valid_detect = 0;
@@ -1302,7 +1305,6 @@ static int mv_u3d_stop(struct usb_gadget *g,
 
 	spin_unlock_irqrestore(&u3d->lock, flags);
 
-	u3d->gadget.dev.driver = NULL;
 	u3d->driver = NULL;
 
 	return 0;
@@ -1525,6 +1527,8 @@ static int mv_u3d_is_set_configuration(struct usb_ctrlrequest *setup)
 
 static void mv_u3d_handle_setup_packet(struct mv_u3d *u3d, u8 ep_num,
 	struct usb_ctrlrequest *setup)
+	__releases(&u3c->lock)
+	__acquires(&u3c->lock)
 {
 	bool delegate = false;
 
@@ -1758,11 +1762,6 @@ static irqreturn_t mv_u3d_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static void mv_u3d_gadget_release(struct device *dev)
-{
-	dev_dbg(dev, "%s\n", __func__);
-}
-
 static int mv_u3d_remove(struct platform_device *dev)
 {
 	struct mv_u3d *u3d = platform_get_drvdata(dev);
@@ -1782,7 +1781,7 @@ static int mv_u3d_remove(struct platform_device *dev)
 	kfree(u3d->eps);
 
 	if (u3d->irq)
-		free_irq(u3d->irq, &dev->dev);
+		free_irq(u3d->irq, u3d);
 
 	if (u3d->cap_regs)
 		iounmap(u3d->cap_regs);
@@ -1792,10 +1791,6 @@ static int mv_u3d_remove(struct platform_device *dev)
 
 	clk_put(u3d->clk);
 
-	device_unregister(&u3d->gadget.dev);
-
-	platform_set_drvdata(dev, NULL);
-
 	kfree(u3d);
 
 	return 0;
@@ -1804,12 +1799,12 @@ static int mv_u3d_remove(struct platform_device *dev)
 static int mv_u3d_probe(struct platform_device *dev)
 {
 	struct mv_u3d *u3d = NULL;
-	struct mv_usb_platform_data *pdata = dev->dev.platform_data;
+	struct mv_usb_platform_data *pdata = dev_get_platdata(&dev->dev);
 	int retval = 0;
 	struct resource *r;
 	size_t size;
 
-	if (!dev->dev.platform_data) {
+	if (!dev_get_platdata(&dev->dev)) {
 		dev_err(&dev->dev, "missing platform_data\n");
 		retval = -ENODEV;
 		goto err_pdata;
@@ -1829,7 +1824,7 @@ static int mv_u3d_probe(struct platform_device *dev)
 	u3d->dev = &dev->dev;
 	u3d->vbus = pdata->vbus;
 
-	u3d->clk = clk_get(&dev->dev, pdata->clkname[0]);
+	u3d->clk = clk_get(&dev->dev, NULL);
 	if (IS_ERR(u3d->clk)) {
 		retval = PTR_ERR(u3d->clk);
 		goto err_get_clk;
@@ -1849,8 +1844,9 @@ static int mv_u3d_probe(struct platform_device *dev)
 		retval = -EBUSY;
 		goto err_map_cap_regs;
 	} else {
-		dev_dbg(&dev->dev, "cap_regs address: 0x%x/0x%x\n",
-			(unsigned int)r->start, (unsigned int)u3d->cap_regs);
+		dev_dbg(&dev->dev, "cap_regs address: 0x%lx/0x%lx\n",
+			(unsigned long) r->start,
+			(unsigned long) u3d->cap_regs);
 	}
 
 	/* we will access controller register, so enable the u3d controller */
@@ -1864,10 +1860,10 @@ static int mv_u3d_probe(struct platform_device *dev)
 		}
 	}
 
-	u3d->op_regs = (struct mv_u3d_op_regs __iomem *)((u32)u3d->cap_regs
+	u3d->op_regs = (struct mv_u3d_op_regs __iomem *)(u3d->cap_regs
 		+ MV_U3D_USB3_OP_REGS_OFFSET);
 
-	u3d->vuc_regs = (struct mv_u3d_vuc_regs __iomem *)((u32)u3d->cap_regs
+	u3d->vuc_regs = (struct mv_u3d_vuc_regs __iomem *)(u3d->cap_regs
 		+ ioread32(&u3d->cap_regs->vuoff));
 
 	u3d->max_eps = 16;
@@ -1942,7 +1938,7 @@ static int mv_u3d_probe(struct platform_device *dev)
 	}
 	u3d->irq = r->start;
 	if (request_irq(u3d->irq, mv_u3d_irq,
-		IRQF_DISABLED | IRQF_SHARED, driver_name, u3d)) {
+		IRQF_SHARED, driver_name, u3d)) {
 		u3d->irq = 0;
 		dev_err(&dev->dev, "Request irq %d for u3d failed\n",
 			u3d->irq);
@@ -1957,15 +1953,7 @@ static int mv_u3d_probe(struct platform_device *dev)
 	u3d->gadget.speed = USB_SPEED_UNKNOWN;	/* speed */
 
 	/* the "gadget" abstracts/virtualizes the controller */
-	dev_set_name(&u3d->gadget.dev, "gadget");
-	u3d->gadget.dev.parent = &dev->dev;
-	u3d->gadget.dev.dma_mask = dev->dev.dma_mask;
-	u3d->gadget.dev.release = mv_u3d_gadget_release;
 	u3d->gadget.name = driver_name;		/* gadget name */
-
-	retval = device_register(&u3d->gadget.dev);
-	if (retval)
-		goto err_register_gadget_device;
 
 	mv_u3d_eps_init(u3d);
 
@@ -1991,9 +1979,7 @@ static int mv_u3d_probe(struct platform_device *dev)
 	return 0;
 
 err_unregister:
-	device_unregister(&u3d->gadget.dev);
-err_register_gadget_device:
-	free_irq(u3d->irq, &dev->dev);
+	free_irq(u3d->irq, u3d);
 err_request_irq:
 err_get_irq:
 	kfree(u3d->status_req);
@@ -2014,14 +2000,13 @@ err_map_cap_regs:
 err_get_cap_regs:
 err_get_clk:
 	clk_put(u3d->clk);
-	platform_set_drvdata(dev, NULL);
 	kfree(u3d);
 err_alloc_private:
 err_pdata:
 	return retval;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int mv_u3d_suspend(struct device *dev)
 {
 	struct mv_u3d *u3d = dev_get_drvdata(dev);
@@ -2064,13 +2049,13 @@ static int mv_u3d_resume(struct device *dev)
 
 	return 0;
 }
-
-SIMPLE_DEV_PM_OPS(mv_u3d_pm_ops, mv_u3d_suspend, mv_u3d_resume);
 #endif
+
+static SIMPLE_DEV_PM_OPS(mv_u3d_pm_ops, mv_u3d_suspend, mv_u3d_resume);
 
 static void mv_u3d_shutdown(struct platform_device *dev)
 {
-	struct mv_u3d *u3d = dev_get_drvdata(&dev->dev);
+	struct mv_u3d *u3d = platform_get_drvdata(dev);
 	u32 tmp;
 
 	tmp = ioread32(&u3d->op_regs->usbcmd);
@@ -2080,14 +2065,12 @@ static void mv_u3d_shutdown(struct platform_device *dev)
 
 static struct platform_driver mv_u3d_driver = {
 	.probe		= mv_u3d_probe,
-	.remove		= __exit_p(mv_u3d_remove),
+	.remove		= mv_u3d_remove,
 	.shutdown	= mv_u3d_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "mv-u3d",
-#ifdef CONFIG_PM
 		.pm	= &mv_u3d_pm_ops,
-#endif
 	},
 };
 

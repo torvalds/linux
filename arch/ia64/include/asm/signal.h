@@ -26,16 +26,6 @@ typedef struct {
 	unsigned long sig[_NSIG_WORDS];
 } sigset_t;
 
-struct sigaction {
-	__sighandler_t sa_handler;
-	unsigned long sa_flags;
-	sigset_t sa_mask;		/* mask last for extensibility */
-};
-
-struct k_sigaction {
-	struct sigaction sa;
-};
-
 #  include <asm/sigcontext.h>
 
 # endif /* !__ASSEMBLY__ */

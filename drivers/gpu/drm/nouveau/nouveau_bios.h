@@ -24,8 +24,6 @@
 #ifndef __NOUVEAU_DISPBIOS_H__
 #define __NOUVEAU_DISPBIOS_H__
 
-#include "nvreg.h"
-
 #define DCB_MAX_NUM_ENTRIES 16
 #define DCB_MAX_NUM_I2C_ENTRIES 16
 #define DCB_MAX_NUM_GPIO_ENTRIES 32
@@ -107,19 +105,9 @@ struct nvbios {
 	bool old_style_init;
 	uint16_t init_script_tbls_ptr;
 	uint16_t extra_init_script_tbl_ptr;
-	uint16_t macro_index_tbl_ptr;
-	uint16_t macro_tbl_ptr;
-	uint16_t condition_tbl_ptr;
-	uint16_t io_condition_tbl_ptr;
-	uint16_t io_flag_condition_tbl_ptr;
-	uint16_t init_function_tbl_ptr;
 
-	uint16_t pll_limit_tbl_ptr;
 	uint16_t ram_restrict_tbl_ptr;
 	uint8_t ram_restrict_group_count;
-
-	uint16_t some_script_ptr; /* BIT I + 14 */
-	uint16_t init96_tbl_ptr; /* BIT I + 16 */
 
 	struct dcb_table dcb;
 

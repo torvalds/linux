@@ -32,7 +32,6 @@ struct coeff {
 
 enum ar9003_cal_types {
 	IQ_MISMATCH_CAL = BIT(0),
-	TEMP_COMP_CAL = BIT(1),
 };
 
 static void ar9003_hw_setup_calibration(struct ath_hw *ah,
@@ -49,7 +48,7 @@ static void ar9003_hw_setup_calibration(struct ath_hw *ah,
 		 */
 		REG_RMW_FIELD(ah, AR_PHY_TIMING4,
 			      AR_PHY_TIMING4_IQCAL_LOG_COUNT_MAX,
-		currCal->calData->calCountMax);
+			      currCal->calData->calCountMax);
 		REG_WRITE(ah, AR_PHY_CALMODE, AR_PHY_CALMODE_IQ);
 
 		ath_dbg(common, CALIBRATE,
@@ -58,14 +57,8 @@ static void ar9003_hw_setup_calibration(struct ath_hw *ah,
 		/* Kick-off cal */
 		REG_SET_BIT(ah, AR_PHY_TIMING4, AR_PHY_TIMING4_DO_CAL);
 		break;
-	case TEMP_COMP_CAL:
-		REG_RMW_FIELD(ah, AR_PHY_65NM_CH0_THERM,
-			      AR_PHY_65NM_CH0_THERM_LOCAL, 1);
-		REG_RMW_FIELD(ah, AR_PHY_65NM_CH0_THERM,
-			      AR_PHY_65NM_CH0_THERM_START, 1);
-
-		ath_dbg(common, CALIBRATE,
-			"starting Temperature Compensation Calibration\n");
+	default:
+		ath_err(common, "Invalid calibration type\n");
 		break;
 	}
 }
@@ -323,6 +316,14 @@ static const struct ath9k_percal_data iq_cal_single_sample = {
 static void ar9003_hw_init_cal_settings(struct ath_hw *ah)
 {
 	ah->iq_caldata.calData = &iq_cal_single_sample;
+
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
+		ah->enabled_cals |= TX_IQ_CAL;
+		if (AR_SREV_9485_OR_LATER(ah) && !AR_SREV_9340(ah))
+			ah->enabled_cals |= TX_IQ_ON_AGC_CAL;
+	}
+
+	ah->supp_cals = IQ_MISMATCH_CAL;
 }
 
 /*
@@ -726,8 +727,12 @@ static void ar9003_hw_tx_iqcal_load_avg_2_passes(struct ath_hw *ah,
 	REG_RMW_FIELD(ah, AR_PHY_RX_IQCAL_CORR_B0,
 		      AR_PHY_RX_IQCAL_CORR_B0_LOOPBACK_IQCORR_EN, 0x1);
 
-	if (caldata)
-		caldata->done_txiqcal_once = is_reusable;
+	if (caldata) {
+		if (is_reusable)
+			set_bit(TXIQCAL_DONE, &caldata->cal_flags);
+		else
+			clear_bit(TXIQCAL_DONE, &caldata->cal_flags);
+	}
 
 	return;
 }
@@ -959,22 +964,98 @@ static void ar9003_hw_manual_peak_cal(struct ath_hw *ah, u8 chain, bool is_2g)
 		      AR_PHY_65NM_RXRF_AGC_AGC_CAL_OVR, 0);
 }
 
+static void ar9003_hw_do_manual_peak_cal(struct ath_hw *ah,
+					 struct ath9k_channel *chan,
+					 bool run_rtt_cal)
+{
+	struct ath9k_hw_cal_data *caldata = ah->caldata;
+	int i;
+
+	if (!AR_SREV_9462(ah) && !AR_SREV_9565(ah) && !AR_SREV_9485(ah))
+		return;
+
+	if ((ah->caps.hw_caps & ATH9K_HW_CAP_RTT) && !run_rtt_cal)
+		return;
+
+	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
+		if (!(ah->rxchainmask & (1 << i)))
+			continue;
+		ar9003_hw_manual_peak_cal(ah, i, IS_CHAN_2GHZ(chan));
+	}
+
+	if (caldata)
+		set_bit(SW_PKDET_DONE, &caldata->cal_flags);
+
+	if ((ah->caps.hw_caps & ATH9K_HW_CAP_RTT) && caldata) {
+		if (IS_CHAN_2GHZ(chan)){
+			caldata->caldac[0] = REG_READ_FIELD(ah,
+						    AR_PHY_65NM_RXRF_AGC(0),
+						    AR_PHY_65NM_RXRF_AGC_AGC2G_CALDAC_OVR);
+			caldata->caldac[1] = REG_READ_FIELD(ah,
+						    AR_PHY_65NM_RXRF_AGC(1),
+						    AR_PHY_65NM_RXRF_AGC_AGC2G_CALDAC_OVR);
+		} else {
+			caldata->caldac[0] = REG_READ_FIELD(ah,
+						    AR_PHY_65NM_RXRF_AGC(0),
+						    AR_PHY_65NM_RXRF_AGC_AGC5G_CALDAC_OVR);
+			caldata->caldac[1] = REG_READ_FIELD(ah,
+						    AR_PHY_65NM_RXRF_AGC(1),
+						    AR_PHY_65NM_RXRF_AGC_AGC5G_CALDAC_OVR);
+		}
+	}
+}
+
+static void ar9003_hw_cl_cal_post_proc(struct ath_hw *ah, bool is_reusable)
+{
+	u32 cl_idx[AR9300_MAX_CHAINS] = { AR_PHY_CL_TAB_0,
+					  AR_PHY_CL_TAB_1,
+					  AR_PHY_CL_TAB_2 };
+	struct ath9k_hw_cal_data *caldata = ah->caldata;
+	bool txclcal_done = false;
+	int i, j;
+
+	if (!caldata || !(ah->enabled_cals & TX_CL_CAL))
+		return;
+
+	txclcal_done = !!(REG_READ(ah, AR_PHY_AGC_CONTROL) &
+			  AR_PHY_AGC_CONTROL_CLC_SUCCESS);
+
+	if (test_bit(TXCLCAL_DONE, &caldata->cal_flags)) {
+		for (i = 0; i < AR9300_MAX_CHAINS; i++) {
+			if (!(ah->txchainmask & (1 << i)))
+				continue;
+			for (j = 0; j < MAX_CL_TAB_ENTRY; j++)
+				REG_WRITE(ah, CL_TAB_ENTRY(cl_idx[i]),
+					  caldata->tx_clcal[i][j]);
+		}
+	} else if (is_reusable && txclcal_done) {
+		for (i = 0; i < AR9300_MAX_CHAINS; i++) {
+			if (!(ah->txchainmask & (1 << i)))
+				continue;
+			for (j = 0; j < MAX_CL_TAB_ENTRY; j++)
+				caldata->tx_clcal[i][j] =
+					REG_READ(ah, CL_TAB_ENTRY(cl_idx[i]));
+		}
+		set_bit(TXCLCAL_DONE, &caldata->cal_flags);
+	}
+}
+
 static bool ar9003_hw_init_cal(struct ath_hw *ah,
 			       struct ath9k_channel *chan)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_cal_data *caldata = ah->caldata;
-	bool txiqcal_done = false, txclcal_done = false;
+	bool txiqcal_done = false;
 	bool is_reusable = true, status = true;
-	bool run_rtt_cal = false, run_agc_cal;
+	bool run_rtt_cal = false, run_agc_cal, sep_iq_cal = false;
 	bool rtt = !!(ah->caps.hw_caps & ATH9K_HW_CAP_RTT);
+	u32 rx_delay = 0;
 	u32 agc_ctrl = 0, agc_supp_cals = AR_PHY_AGC_CONTROL_OFFSET_CAL |
 					  AR_PHY_AGC_CONTROL_FLTR_CAL   |
 					  AR_PHY_AGC_CONTROL_PKDET_CAL;
-	int i, j;
-	u32 cl_idx[AR9300_MAX_CHAINS] = { AR_PHY_CL_TAB_0,
-					  AR_PHY_CL_TAB_1,
-					  AR_PHY_CL_TAB_2 };
+
+	/* Use chip chainmask only for calibration */
+	ar9003_hw_set_chain_masks(ah, ah->caps.rx_chainmask, ah->caps.tx_chainmask);
 
 	if (rtt) {
 		if (!ar9003_hw_rtt_restore(ah, chan))
@@ -992,17 +1073,22 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 		ar9003_hw_rtt_clear_hist(ah);
 	}
 
-	if (rtt && !run_rtt_cal) {
-		agc_ctrl = REG_READ(ah, AR_PHY_AGC_CONTROL);
-		agc_supp_cals &= agc_ctrl;
-		agc_ctrl &= ~(AR_PHY_AGC_CONTROL_OFFSET_CAL |
-			     AR_PHY_AGC_CONTROL_FLTR_CAL |
-			     AR_PHY_AGC_CONTROL_PKDET_CAL);
-		REG_WRITE(ah, AR_PHY_AGC_CONTROL, agc_ctrl);
+	if (rtt) {
+		if (!run_rtt_cal) {
+			agc_ctrl = REG_READ(ah, AR_PHY_AGC_CONTROL);
+			agc_supp_cals &= agc_ctrl;
+			agc_ctrl &= ~(AR_PHY_AGC_CONTROL_OFFSET_CAL |
+				      AR_PHY_AGC_CONTROL_FLTR_CAL |
+				      AR_PHY_AGC_CONTROL_PKDET_CAL);
+			REG_WRITE(ah, AR_PHY_AGC_CONTROL, agc_ctrl);
+		} else {
+			if (ah->ah_flags & AH_FASTCC)
+				run_agc_cal = true;
+		}
 	}
 
 	if (ah->enabled_cals & TX_CL_CAL) {
-		if (caldata && caldata->done_txclcal_once)
+		if (caldata && test_bit(TXCLCAL_DONE, &caldata->cal_flags))
 			REG_CLR_BIT(ah, AR_PHY_CL_CAL_CTL,
 				    AR_PHY_CL_CAL_ENABLE);
 		else {
@@ -1012,7 +1098,8 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 		}
 	}
 
-	if (!(ah->enabled_cals & TX_IQ_CAL))
+	if ((IS_CHAN_HALF_RATE(chan) || IS_CHAN_QUARTER_RATE(chan)) ||
+	    !(ah->enabled_cals & TX_IQ_CAL))
 		goto skip_tx_iqcal;
 
 	/* Do Tx IQ Calibration */
@@ -1025,28 +1112,38 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	 * AGC calibration
 	 */
 	if (ah->enabled_cals & TX_IQ_ON_AGC_CAL) {
-		if (caldata && !caldata->done_txiqcal_once)
+		if (caldata && !test_bit(TXIQCAL_DONE, &caldata->cal_flags))
 			REG_SET_BIT(ah, AR_PHY_TX_IQCAL_CONTROL_0,
 				    AR_PHY_TX_IQCAL_CONTROL_0_ENABLE_TXIQ_CAL);
 		else
 			REG_CLR_BIT(ah, AR_PHY_TX_IQCAL_CONTROL_0,
 				    AR_PHY_TX_IQCAL_CONTROL_0_ENABLE_TXIQ_CAL);
 		txiqcal_done = run_agc_cal = true;
-		goto skip_tx_iqcal;
-	} else if (caldata && !caldata->done_txiqcal_once)
+	} else if (caldata && !test_bit(TXIQCAL_DONE, &caldata->cal_flags)) {
 		run_agc_cal = true;
+		sep_iq_cal = true;
+	}
 
+skip_tx_iqcal:
 	if (ath9k_hw_mci_is_enabled(ah) && IS_CHAN_2GHZ(chan) && run_agc_cal)
 		ar9003_mci_init_cal_req(ah, &is_reusable);
 
-	if (!(IS_CHAN_HALF_RATE(chan) || IS_CHAN_QUARTER_RATE(chan))) {
+	if (sep_iq_cal) {
 		txiqcal_done = ar9003_hw_tx_iq_cal_run(ah);
 		REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
 		udelay(5);
 		REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
 	}
 
-skip_tx_iqcal:
+	if (REG_READ(ah, AR_PHY_CL_CAL_CTL) & AR_PHY_CL_CAL_ENABLE) {
+		rx_delay = REG_READ(ah, AR_PHY_RX_DELAY);
+		/* Disable BB_active */
+		REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
+		udelay(5);
+		REG_WRITE(ah, AR_PHY_RX_DELAY, AR_PHY_RX_DELAY_DELAY);
+		REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
+	}
+
 	if (run_agc_cal || !(ah->ah_flags & AH_FASTCC)) {
 		/* Calibrate the AGC */
 		REG_WRITE(ah, AR_PHY_AGC_CONTROL,
@@ -1057,14 +1154,13 @@ skip_tx_iqcal:
 		status = ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL,
 				       AR_PHY_AGC_CONTROL_CAL,
 				       0, AH_WAIT_TIMEOUT);
-		if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
-			for (i = 0; i < AR9300_MAX_CHAINS; i++) {
-				if (!(ah->rxchainmask & (1 << i)))
-					continue;
-				ar9003_hw_manual_peak_cal(ah, i,
-							  IS_CHAN_2GHZ(chan));
-			}
-		}
+
+		ar9003_hw_do_manual_peak_cal(ah, chan, run_rtt_cal);
+	}
+
+	if (REG_READ(ah, AR_PHY_CL_CAL_CTL) & AR_PHY_CL_CAL_ENABLE) {
+		REG_WRITE(ah, AR_PHY_RX_DELAY, rx_delay);
+		udelay(5);
 	}
 
 	if (ath9k_hw_mci_is_enabled(ah) && IS_CHAN_2GHZ(chan) && run_agc_cal)
@@ -1080,48 +1176,29 @@ skip_tx_iqcal:
 			ar9003_hw_rtt_disable(ah);
 
 		ath_dbg(common, CALIBRATE,
-			"offset calibration failed to complete in 1ms; noisy environment?\n");
+			"offset calibration failed to complete in %d ms; noisy environment?\n",
+			AH_WAIT_TIMEOUT / 1000);
 		return false;
 	}
 
 	if (txiqcal_done)
 		ar9003_hw_tx_iq_cal_post_proc(ah, is_reusable);
-	else if (caldata && caldata->done_txiqcal_once)
+	else if (caldata && test_bit(TXIQCAL_DONE, &caldata->cal_flags))
 		ar9003_hw_tx_iq_cal_reload(ah);
 
-#define CL_TAB_ENTRY(reg_base)	(reg_base + (4 * j))
-	if (caldata && (ah->enabled_cals & TX_CL_CAL)) {
-		txclcal_done = !!(REG_READ(ah, AR_PHY_AGC_CONTROL) &
-					   AR_PHY_AGC_CONTROL_CLC_SUCCESS);
-		if (caldata->done_txclcal_once) {
-			for (i = 0; i < AR9300_MAX_CHAINS; i++) {
-				if (!(ah->txchainmask & (1 << i)))
-					continue;
-				for (j = 0; j < MAX_CL_TAB_ENTRY; j++)
-					REG_WRITE(ah, CL_TAB_ENTRY(cl_idx[i]),
-						  caldata->tx_clcal[i][j]);
-			}
-		} else if (is_reusable && txclcal_done) {
-			for (i = 0; i < AR9300_MAX_CHAINS; i++) {
-				if (!(ah->txchainmask & (1 << i)))
-					continue;
-				for (j = 0; j < MAX_CL_TAB_ENTRY; j++)
-					caldata->tx_clcal[i][j] =
-						REG_READ(ah,
-						  CL_TAB_ENTRY(cl_idx[i]));
-			}
-			caldata->done_txclcal_once = true;
-		}
-	}
-#undef CL_TAB_ENTRY
+	ar9003_hw_cl_cal_post_proc(ah, is_reusable);
 
 	if (run_rtt_cal && caldata) {
 		if (is_reusable) {
-			if (!ath9k_hw_rfbus_req(ah))
+			if (!ath9k_hw_rfbus_req(ah)) {
 				ath_err(ath9k_hw_common(ah),
 					"Could not stop baseband\n");
-			else
+			} else {
 				ar9003_hw_rtt_fill_hist(ah);
+
+				if (test_bit(SW_PKDET_DONE, &caldata->cal_flags))
+					ar9003_hw_rtt_load_hist(ah);
+			}
 
 			ath9k_hw_rfbus_done(ah);
 		}
@@ -1129,22 +1206,15 @@ skip_tx_iqcal:
 		ar9003_hw_rtt_disable(ah);
 	}
 
+	/* Revert chainmask to runtime parameters */
+	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
+
 	/* Initialize list pointers */
 	ah->cal_list = ah->cal_list_last = ah->cal_list_curr = NULL;
-	ah->supp_cals = IQ_MISMATCH_CAL;
 
-	if (ah->supp_cals & IQ_MISMATCH_CAL) {
-		INIT_CAL(&ah->iq_caldata);
-		INSERT_CAL(ah, &ah->iq_caldata);
-		ath_dbg(common, CALIBRATE, "enabling IQ Calibration\n");
-	}
-
-	if (ah->supp_cals & TEMP_COMP_CAL) {
-		INIT_CAL(&ah->tempCompCalData);
-		INSERT_CAL(ah, &ah->tempCompCalData);
-		ath_dbg(common, CALIBRATE,
-			"enabling Temperature Compensation Calibration\n");
-	}
+	INIT_CAL(&ah->iq_caldata);
+	INSERT_CAL(ah, &ah->iq_caldata);
+	ath_dbg(common, CALIBRATE, "enabling IQ Calibration\n");
 
 	/* Initialize current pointer to first element in list */
 	ah->cal_list_curr = ah->cal_list;

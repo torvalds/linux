@@ -1,0 +1,26 @@
+MSM GPIO controller bindings
+
+Required properties:
+- compatible:
+  - "qcom,msm-gpio" for MSM controllers
+- #gpio-cells : Should be two.
+  - first cell is the pin number
+  - second cell is used to specify optional parameters (unused)
+- gpio-controller : Marks the device node as a GPIO controller.
+- #interrupt-cells : Should be 2.
+- interrupt-controller: Mark the device node as an interrupt controller
+- interrupts : Specify the TLMM summary interrupt number
+- ngpio : Specify the number of MSM GPIOs
+
+Example:
+
+	msmgpio: gpio@fd510000 {
+		compatible = "qcom,msm-gpio";
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		reg = <0xfd510000 0x4000>;
+		interrupts = <0 208 0>;
+		ngpio = <150>;
+	};

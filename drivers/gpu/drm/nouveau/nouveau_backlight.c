@@ -82,8 +82,10 @@ nv40_backlight_init(struct drm_connector *connector)
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = 31;
-	bd = backlight_device_register("nv_backlight", &connector->kdev, drm,
+	bd = backlight_device_register("nv_backlight", connector->kdev, drm,
 				       &nv40_bl_ops, &props);
+	if (IS_ERR(bd))
+		return PTR_ERR(bd);
 	drm->backlight = bd;
 	bd->props.brightness = nv40_get_intensity(bd);
 	backlight_update_status(bd);
@@ -202,7 +204,7 @@ nv50_backlight_init(struct drm_connector *connector)
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = 100;
-	bd = backlight_device_register("nv_backlight", &connector->kdev,
+	bd = backlight_device_register("nv_backlight", connector->kdev,
 				       nv_encoder, ops, &props);
 	if (IS_ERR(bd))
 		return PTR_ERR(bd);
@@ -237,6 +239,9 @@ nouveau_backlight_init(struct drm_device *dev)
 		case NV_40:
 			return nv40_backlight_init(connector);
 		case NV_50:
+		case NV_C0:
+		case NV_D0:
+		case NV_E0:
 			return nv50_backlight_init(connector);
 		default:
 			break;

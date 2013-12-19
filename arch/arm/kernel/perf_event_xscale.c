@@ -83,7 +83,7 @@ static const unsigned xscale_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 		},
 		[C(OP_WRITE)] = {
 			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= XSCALE_PERFCTR_ICACHE_MISS,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
 		},
 		[C(OP_PREFETCH)] = {
 			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
@@ -440,7 +440,7 @@ static int xscale_map_event(struct perf_event *event)
 				&xscale_perf_cache_map, 0xFF);
 }
 
-static int __devinit xscale1pmu_init(struct arm_pmu *cpu_pmu)
+static int xscale1pmu_init(struct arm_pmu *cpu_pmu)
 {
 	cpu_pmu->name		= "xscale1";
 	cpu_pmu->handle_irq	= xscale1pmu_handle_irq;
@@ -810,7 +810,7 @@ static inline void xscale2pmu_write_counter(struct perf_event *event, u32 val)
 	}
 }
 
-static int __devinit xscale2pmu_init(struct arm_pmu *cpu_pmu)
+static int xscale2pmu_init(struct arm_pmu *cpu_pmu)
 {
 	cpu_pmu->name		= "xscale2";
 	cpu_pmu->handle_irq	= xscale2pmu_handle_irq;

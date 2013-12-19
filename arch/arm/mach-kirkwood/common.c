@@ -20,6 +20,7 @@
 #include <linux/mv643xx_i2c.h>
 #include <linux/timex.h>
 #include <linux/kexec.h>
+#include <linux/reboot.h>
 #include <net/dsa.h>
 #include <asm/page.h>
 #include <asm/mach/map.h>
@@ -33,9 +34,14 @@
 #include <linux/platform_data/usb-ehci-orion.h>
 #include <plat/common.h>
 #include <plat/time.h>
-#include <plat/addr-map.h>
 #include <linux/platform_data/dma-mv_xor.h>
 #include "common.h"
+
+/* These can go away once Kirkwood uses the mvebu-mbus DT binding */
+#define KIRKWOOD_MBUS_NAND_TARGET 0x01
+#define KIRKWOOD_MBUS_NAND_ATTR   0x2f
+#define KIRKWOOD_MBUS_SRAM_TARGET 0x03
+#define KIRKWOOD_MBUS_SRAM_ATTR   0x01
 
 /*****************************************************************************
  * I/O Address Mapping
@@ -264,7 +270,7 @@ void __init kirkwood_clk_init(void)
 	orion_clkdev_add(NULL, MV_XOR_NAME ".1", xor1);
 	orion_clkdev_add("0", "pcie", pex0);
 	orion_clkdev_add("1", "pcie", pex1);
-	orion_clkdev_add(NULL, "kirkwood-i2s", audio);
+	orion_clkdev_add(NULL, "mvebu-audio", audio);
 	orion_clkdev_add(NULL, MV64XXX_I2C_CTLR_NAME ".0", runit);
 	orion_clkdev_add(NULL, MV64XXX_I2C_CTLR_NAME ".1", runit);
 
@@ -499,6 +505,28 @@ void __init kirkwood_wdt_init(void)
 	orion_wdt_init();
 }
 
+/*****************************************************************************
+ * CPU idle
+ ****************************************************************************/
+static struct resource kirkwood_cpuidle_resource[] = {
+	{
+		.flags	= IORESOURCE_MEM,
+		.start	= DDR_OPERATION_BASE,
+		.end	= DDR_OPERATION_BASE + 3,
+	},
+};
+
+static struct platform_device kirkwood_cpuidle = {
+	.name		= "kirkwood_cpuidle",
+	.id		= -1,
+	.resource	= kirkwood_cpuidle_resource,
+	.num_resources	= 1,
+};
+
+void __init kirkwood_cpuidle_init(void)
+{
+	platform_device_register(&kirkwood_cpuidle);
+}
 
 /*****************************************************************************
  * Time handling
@@ -506,13 +534,6 @@ void __init kirkwood_wdt_init(void)
 void __init kirkwood_init_early(void)
 {
 	orion_time_set_base(TIMER_VIRT_BASE);
-
-	/*
-	 * Some Kirkwood devices allocate their coherent buffers from atomic
-	 * context. Increase size of atomic coherent pool to make sure such
-	 * the allocations won't fail.
-	 */
-	init_dma_coherent_pool_size(SZ_1M);
 }
 
 int kirkwood_tclk;
@@ -530,7 +551,7 @@ static int __init kirkwood_find_tclk(void)
 	return 166666667;
 }
 
-static void __init kirkwood_timer_init(void)
+void __init kirkwood_timer_init(void)
 {
 	kirkwood_tclk = kirkwood_find_tclk();
 
@@ -538,14 +559,10 @@ static void __init kirkwood_timer_init(void)
 			IRQ_KIRKWOOD_BRIDGE, kirkwood_tclk);
 }
 
-struct sys_timer kirkwood_timer = {
-	.init = kirkwood_timer_init,
-};
-
 /*****************************************************************************
  * Audio
  ****************************************************************************/
-static struct resource kirkwood_i2s_resources[] = {
+static struct resource kirkwood_audio_resources[] = {
 	[0] = {
 		.start  = AUDIO_PHYS_BASE,
 		.end    = AUDIO_PHYS_BASE + SZ_16K - 1,
@@ -558,29 +575,46 @@ static struct resource kirkwood_i2s_resources[] = {
 	},
 };
 
-static struct kirkwood_asoc_platform_data kirkwood_i2s_data = {
+static struct kirkwood_asoc_platform_data kirkwood_audio_data = {
 	.burst       = 128,
 };
 
-static struct platform_device kirkwood_i2s_device = {
-	.name		= "kirkwood-i2s",
+static struct platform_device kirkwood_audio_device = {
+	.name		= "mvebu-audio",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(kirkwood_i2s_resources),
-	.resource	= kirkwood_i2s_resources,
+	.num_resources	= ARRAY_SIZE(kirkwood_audio_resources),
+	.resource	= kirkwood_audio_resources,
 	.dev		= {
-		.platform_data	= &kirkwood_i2s_data,
+		.platform_data	= &kirkwood_audio_data,
 	},
-};
-
-static struct platform_device kirkwood_pcm_device = {
-	.name		= "kirkwood-pcm-audio",
-	.id		= -1,
 };
 
 void __init kirkwood_audio_init(void)
 {
-	platform_device_register(&kirkwood_i2s_device);
-	platform_device_register(&kirkwood_pcm_device);
+	platform_device_register(&kirkwood_audio_device);
+}
+
+/*****************************************************************************
+ * CPU Frequency
+ ****************************************************************************/
+static struct resource kirkwood_cpufreq_resources[] = {
+	[0] = {
+		.start  = CPU_CONTROL_PHYS,
+		.end    = CPU_CONTROL_PHYS + 3,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device kirkwood_cpufreq_device = {
+	.name		= "kirkwood-cpufreq",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(kirkwood_cpufreq_resources),
+	.resource	= kirkwood_cpufreq_resources,
+};
+
+void __init kirkwood_cpufreq_init(void)
+{
+	platform_device_register(&kirkwood_cpufreq_device);
 }
 
 /*****************************************************************************
@@ -632,6 +666,18 @@ char * __init kirkwood_id(void)
 	}
 }
 
+void __init kirkwood_setup_wins(void)
+{
+	mvebu_mbus_add_window_by_id(KIRKWOOD_MBUS_NAND_TARGET,
+				    KIRKWOOD_MBUS_NAND_ATTR,
+				    KIRKWOOD_NAND_MEM_PHYS_BASE,
+				    KIRKWOOD_NAND_MEM_SIZE);
+	mvebu_mbus_add_window_by_id(KIRKWOOD_MBUS_SRAM_TARGET,
+				    KIRKWOOD_MBUS_SRAM_ATTR,
+				    KIRKWOOD_SRAM_PHYS_BASE,
+				    KIRKWOOD_SRAM_SIZE);
+}
+
 void __init kirkwood_l2_init(void)
 {
 #ifdef CONFIG_CACHE_FEROCEON_L2
@@ -657,7 +703,11 @@ void __init kirkwood_init(void)
 	 */
 	writel(readl(CPU_CONFIG) & ~CPU_CONFIG_ERROR_PROP, CPU_CONFIG);
 
-	kirkwood_setup_cpu_mbus();
+	BUG_ON(mvebu_mbus_init("marvell,kirkwood-mbus",
+			BRIDGE_WINS_BASE, BRIDGE_WINS_SZ,
+			DDR_WINDOW_CPU_BASE, DDR_WINDOW_CPU_SZ));
+
+	kirkwood_setup_wins();
 
 	kirkwood_l2_init();
 
@@ -671,12 +721,14 @@ void __init kirkwood_init(void)
 	kirkwood_xor1_init();
 	kirkwood_crypto_init();
 
+	kirkwood_pm_init();
+	kirkwood_cpuidle_init();
 #ifdef CONFIG_KEXEC
 	kexec_reinit = kirkwood_enable_pcie;
 #endif
 }
 
-void kirkwood_restart(char mode, const char *cmd)
+void kirkwood_restart(enum reboot_mode mode, const char *cmd)
 {
 	/*
 	 * Enable soft reset to assert RSTOUTn.

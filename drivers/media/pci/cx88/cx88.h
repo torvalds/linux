@@ -30,7 +30,6 @@
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/cx2341x.h>
 #include <media/videobuf-dvb.h>
 #include <media/ir-kbd-i2c.h>
@@ -259,6 +258,11 @@ struct cx88_input {
 	unsigned int    audioroute:4;
 };
 
+enum cx88_audio_chip {
+	CX88_AUDIO_WM8775 = 1,
+	CX88_AUDIO_TVAUDIO,
+};
+
 struct cx88_board {
 	const char              *name;
 	unsigned int            tuner_type;
@@ -269,7 +273,7 @@ struct cx88_board {
 	struct cx88_input       input[MAX_CX88_INPUT];
 	struct cx88_input       radio;
 	enum cx88_board_type    mpeg;
-	unsigned int            audio_chip;
+	enum cx88_audio_chip	audio_chip;
 	int			num_frontends;
 
 	/* Used for I2S devices */
@@ -334,6 +338,7 @@ struct cx88_core {
 	/* board name */
 	int                        nr;
 	char                       name[32];
+	u32			   model;
 
 	/* pci stuff */
 	int                        pci_bus;
@@ -363,7 +368,7 @@ struct cx88_core {
 	unsigned int               tuner_formats;
 
 	/* config info -- dvb */
-#if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_CX88_DVB)
 	int 			   (*prev_set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage);
 #endif
 	void			   (*gate_ctrl)(struct cx88_core  *core, int open);
@@ -562,8 +567,7 @@ struct cx8802_dev {
 
 	/* for blackbird only */
 	struct list_head           devlist;
-#if defined(CONFIG_VIDEO_CX88_BLACKBIRD) || \
-    defined(CONFIG_VIDEO_CX88_BLACKBIRD_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_CX88_BLACKBIRD)
 	struct video_device        *mpeg_dev;
 	u32                        mailbox;
 	int                        width;
@@ -574,13 +578,12 @@ struct cx8802_dev {
 	struct cx2341x_handler     cxhdl;
 #endif
 
-#if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_CX88_DVB)
 	/* for dvb only */
 	struct videobuf_dvb_frontends frontends;
 #endif
 
-#if defined(CONFIG_VIDEO_CX88_VP3054) || \
-    defined(CONFIG_VIDEO_CX88_VP3054_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_CX88_VP3054)
 	/* For VP3045 secondary I2C bus support */
 	struct vp3054_i2c_state	   *vp3054;
 #endif
@@ -618,6 +621,8 @@ struct cx8802_dev {
 
 /* ----------------------------------------------------------- */
 /* cx88-core.c                                                 */
+
+extern unsigned int cx88_core_debug;
 
 extern void cx88_print_irqbits(const char *name, const char *tag, const char *strings[],
 			       int len, u32 bits, u32 mask);
@@ -742,7 +747,7 @@ void cx8802_cancel_buffers(struct cx8802_dev *dev);
 /* ----------------------------------------------------------- */
 /* cx88-video.c*/
 int cx88_enum_input (struct cx88_core  *core,struct v4l2_input *i);
-int cx88_set_freq (struct cx88_core  *core,struct v4l2_frequency *f);
+int cx88_set_freq(struct cx88_core  *core, const struct v4l2_frequency *f);
 int cx88_video_mux(struct cx88_core *core, unsigned int input);
 void cx88_querycap(struct file *file, struct cx88_core *core,
 		struct v4l2_capability *cap);

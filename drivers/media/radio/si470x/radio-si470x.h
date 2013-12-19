@@ -163,7 +163,7 @@ struct si470x_device {
 	struct completion completion;
 	bool status_rssi_auto_update;	/* Does RSSI get updated automatic? */
 
-#if defined(CONFIG_USB_SI470X) || defined(CONFIG_USB_SI470X_MODULE)
+#if IS_ENABLED(CONFIG_USB_SI470X)
 	/* reference to USB and video device */
 	struct usb_device *usbdev;
 	struct usb_interface *intf;
@@ -179,7 +179,7 @@ struct si470x_device {
 	unsigned char hardware_version;
 #endif
 
-#if defined(CONFIG_I2C_SI470X) || defined(CONFIG_I2C_SI470X_MODULE)
+#if IS_ENABLED(CONFIG_I2C_SI470X)
 	struct i2c_client *client;
 #endif
 };

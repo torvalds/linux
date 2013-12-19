@@ -219,12 +219,8 @@ static int sep_allocate_dmatables_region(struct sep_device *sep,
 	dev_dbg(&sep->pdev->dev, "[PID%d] oldlen = 0x%08X\n", current->pid,
 				dma_ctx->dmatables_len);
 	tmp_region = kzalloc(new_len + dma_ctx->dmatables_len, GFP_KERNEL);
-	if (!tmp_region) {
-		dev_warn(&sep->pdev->dev,
-			 "[PID%d] no mem for dma tables region\n",
-				current->pid);
+	if (!tmp_region)
 		return -ENOMEM;
-	}
 
 	/* Were there any previous tables that need to be preserved ? */
 	if (*dmatables_region) {
@@ -497,8 +493,7 @@ int sep_free_dma_table_data_handler(struct sep_device *sep,
 		 * then we skip this step altogether as restricted
 		 * memory is not available to the o/s at all.
 		 */
-		if (((*dma_ctx)->secure_dma == false) &&
-			(dma->out_map_array)) {
+		if (!(*dma_ctx)->secure_dma && dma->out_map_array) {
 
 			for (count = 0; count < dma->out_num_pages; count++) {
 				dma_unmap_page(&sep->pdev->dev,
@@ -519,8 +514,7 @@ int sep_free_dma_table_data_handler(struct sep_device *sep,
 		}
 
 		/* Again, we do this only for non secure dma */
-		if (((*dma_ctx)->secure_dma == false) &&
-			(dma->out_page_array)) {
+		if (!(*dma_ctx)->secure_dma && dma->out_page_array) {
 
 			for (count = 0; count < dma->out_num_pages; count++) {
 				if (!PageReserved(dma->out_page_array[count]))
@@ -1245,39 +1239,30 @@ static int sep_lock_user_pages(struct sep_device *sep,
 					current->pid, num_pages);
 
 	/* Allocate array of pages structure pointers */
-	page_array = kmalloc(sizeof(struct page *) * num_pages, GFP_ATOMIC);
+	page_array = kmalloc_array(num_pages, sizeof(struct page *),
+				   GFP_ATOMIC);
 	if (!page_array) {
 		error = -ENOMEM;
 		goto end_function;
 	}
-	map_array = kmalloc(sizeof(struct sep_dma_map) * num_pages, GFP_ATOMIC);
+
+	map_array = kmalloc_array(num_pages, sizeof(struct sep_dma_map),
+				  GFP_ATOMIC);
 	if (!map_array) {
-		dev_warn(&sep->pdev->dev,
-			 "[PID%d] kmalloc for map_array failed\n",
-				current->pid);
 		error = -ENOMEM;
 		goto end_function_with_error1;
 	}
 
-	lli_array = kmalloc(sizeof(struct sep_lli_entry) * num_pages,
-		GFP_ATOMIC);
-
+	lli_array = kmalloc_array(num_pages, sizeof(struct sep_lli_entry),
+				  GFP_ATOMIC);
 	if (!lli_array) {
-		dev_warn(&sep->pdev->dev,
-			 "[PID%d] kmalloc for lli_array failed\n",
-				current->pid);
 		error = -ENOMEM;
 		goto end_function_with_error2;
 	}
 
 	/* Convert the application virtual address into a set of physical */
-	down_read(&current->mm->mmap_sem);
-	result = get_user_pages(current, current->mm, app_virt_addr,
-		num_pages,
-		((in_out_flag == SEP_DRIVER_IN_FLAG) ? 0 : 1),
-		0, page_array, NULL);
-
-	up_read(&current->mm->mmap_sem);
+	result = get_user_pages_fast(app_virt_addr, num_pages,
+		((in_out_flag == SEP_DRIVER_IN_FLAG) ? 0 : 1), page_array);
 
 	/* Check the number of pages locked - if not all then exit with error */
 	if (result != num_pages) {
@@ -1448,15 +1433,10 @@ static int sep_lli_table_secure_dma(struct sep_device *sep,
 	dev_dbg(&sep->pdev->dev, "[PID%d] num_pages is (hex) %x\n",
 		current->pid, num_pages);
 
-	lli_array = kmalloc(sizeof(struct sep_lli_entry) * num_pages,
-		GFP_ATOMIC);
-
-	if (!lli_array) {
-		dev_warn(&sep->pdev->dev,
-			"[PID%d] kmalloc for lli_array failed\n",
-			current->pid);
+	lli_array = kmalloc_array(num_pages, sizeof(struct sep_lli_entry),
+				  GFP_ATOMIC);
+	if (!lli_array)
 		return -ENOMEM;
-	}
 
 	/*
 	 * Fill the lli_array
@@ -1965,7 +1945,7 @@ static int sep_prepare_input_dma_table(struct sep_device *sep,
 	}
 
 	/* Check if the pages are in Kernel Virtual Address layout */
-	if (is_kva == true)
+	if (is_kva)
 		error = sep_lock_kernel_pages(sep, app_virt_addr,
 			data_size, &lli_array_ptr, SEP_DRIVER_IN_FLAG,
 			dma_ctx);
@@ -1999,7 +1979,7 @@ static int sep_prepare_input_dma_table(struct sep_device *sep,
 					dma_ctx,
 					sep_lli_entries);
 		if (error)
-			return error;
+			goto end_function_error;
 		lli_table_alloc_addr = *dmatables_region;
 	}
 
@@ -2289,7 +2269,7 @@ static int sep_construct_dma_tables_from_lli(
 			table_data_size);
 
 		/* If info entry is null - this is the first table built */
-		if (info_in_entry_ptr == NULL) {
+		if (info_in_entry_ptr == NULL || info_out_entry_ptr == NULL) {
 			/* Set the output parameters to physical addresses */
 			*lli_table_in_ptr =
 			sep_shared_area_virt_to_bus(sep, dma_in_lli_table_ptr);
@@ -2459,7 +2439,7 @@ static int sep_prepare_input_output_dma_table(struct sep_device *sep,
 	dma_ctx->dma_res_arr[dma_ctx->nr_dcb_creat].out_page_array = NULL;
 
 	/* Lock the pages of the buffer and translate them to pages */
-	if (is_kva == true) {
+	if (is_kva) {
 		dev_dbg(&sep->pdev->dev, "[PID%d] Locking kernel input pages\n",
 						current->pid);
 		error = sep_lock_kernel_pages(sep, app_virt_in_addr,
@@ -2503,7 +2483,7 @@ static int sep_prepare_input_output_dma_table(struct sep_device *sep,
 			goto end_function;
 		}
 
-		if (dma_ctx->secure_dma == true) {
+		if (dma_ctx->secure_dma) {
 			/* secure_dma requires use of non accessible memory */
 			dev_dbg(&sep->pdev->dev, "[PID%d] in secure_dma\n",
 				current->pid);
@@ -2740,11 +2720,11 @@ int sep_prepare_input_output_dma_table_in_dcb(struct sep_device *sep,
 	dcb_table_ptr->tail_data_size = 0;
 	dcb_table_ptr->out_vr_tail_pt = 0;
 
-	if (isapplet == true) {
+	if (isapplet) {
 
 		/* Check if there is enough data for DMA operation */
 		if (data_in_size < SEP_DRIVER_MIN_DATA_SIZE_PER_TABLE) {
-			if (is_kva == true) {
+			if (is_kva) {
 				error = -ENODEV;
 				goto end_function_error;
 			} else {
@@ -2785,7 +2765,7 @@ int sep_prepare_input_output_dma_table_in_dcb(struct sep_device *sep,
 		if (tail_size) {
 			if (tail_size > sizeof(dcb_table_ptr->tail_data))
 				return -EINVAL;
-			if (is_kva == true) {
+			if (is_kva) {
 				error = -ENODEV;
 				goto end_function_error;
 			} else {
@@ -2893,8 +2873,10 @@ static int sep_free_dma_tables_and_dcb(struct sep_device *sep, bool isapplet,
 
 	dev_dbg(&sep->pdev->dev, "[PID%d] sep_free_dma_tables_and_dcb\n",
 					current->pid);
+	if (!dma_ctx || !*dma_ctx) /* nothing to be done here*/
+		return 0;
 
-	if (((*dma_ctx)->secure_dma == false) && (isapplet == true)) {
+	if (!(*dma_ctx)->secure_dma && isapplet) {
 		dev_dbg(&sep->pdev->dev, "[PID%d] handling applet\n",
 			current->pid);
 
@@ -2908,13 +2890,12 @@ static int sep_free_dma_tables_and_dcb(struct sep_device *sep, bool isapplet,
 		 * Go over each DCB and see if
 		 * tail pointer must be updated
 		 */
-		for (i = 0; dma_ctx && *dma_ctx &&
-			i < (*dma_ctx)->nr_dcb_creat; i++, dcb_table_ptr++) {
+		for (i = 0; i < (*dma_ctx)->nr_dcb_creat; i++, dcb_table_ptr++) {
 			if (dcb_table_ptr->out_vr_tail_pt) {
 				pt_hold = (unsigned long)dcb_table_ptr->
 					out_vr_tail_pt;
 				tail_pt = (void *)pt_hold;
-				if (is_kva == true) {
+				if (is_kva) {
 					error = -ENODEV;
 					break;
 				} else {
@@ -3419,11 +3400,9 @@ static ssize_t sep_create_dcb_dmatables_context(struct sep_device *sep,
 		goto end_function;
 	}
 
-	dcb_args = kzalloc(num_dcbs * sizeof(struct build_dcb_struct),
+	dcb_args = kcalloc(num_dcbs, sizeof(struct build_dcb_struct),
 			   GFP_KERNEL);
 	if (!dcb_args) {
-		dev_warn(&sep->pdev->dev, "[PID%d] no memory for dcb args\n",
-			 current->pid);
 		error = -ENOMEM;
 		goto end_function;
 	}
@@ -3610,9 +3589,6 @@ static ssize_t sep_create_msgarea_context(struct sep_device *sep,
 	/* Allocate thread-specific memory for message buffer */
 	*msg_region = kzalloc(msg_len, GFP_KERNEL);
 	if (!(*msg_region)) {
-		dev_warn(&sep->pdev->dev,
-			 "[PID%d] no mem for msgarea context\n",
-			 current->pid);
 		error = -ENOMEM;
 		goto end_function;
 	}
@@ -4097,6 +4073,7 @@ static int sep_register_driver_with_fs(struct sep_device *sep)
 	if (ret_val) {
 		dev_warn(&sep->pdev->dev, "sysfs attribute1 fails for SEP %x\n",
 			ret_val);
+		misc_deregister(&sep->miscdev_sep);
 		return ret_val;
 	}
 
@@ -4133,8 +4110,6 @@ static int sep_probe(struct pci_dev *pdev,
 	/* Allocate the sep_device structure for this device */
 	sep_dev = kzalloc(sizeof(struct sep_device), GFP_ATOMIC);
 	if (sep_dev == NULL) {
-		dev_warn(&pdev->dev,
-			"can't kmalloc the sep_device structure\n");
 		error = -ENOMEM;
 		goto end_function_disable_device;
 	}

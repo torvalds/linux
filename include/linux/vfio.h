@@ -45,6 +45,9 @@ extern int vfio_add_group_dev(struct device *dev,
 			      void *device_data);
 
 extern void *vfio_del_group_dev(struct device *dev);
+extern struct vfio_device *vfio_device_get_from_dev(struct device *dev);
+extern void vfio_device_put(struct vfio_device *device);
+extern void *vfio_device_data(struct vfio_device *device);
 
 /**
  * struct vfio_iommu_driver_ops - VFIO IOMMU driver callbacks
@@ -86,5 +89,12 @@ extern void vfio_unregister_iommu_driver(
 #define offsetofend(TYPE, MEMBER) ({				\
 	TYPE tmp;						\
 	offsetof(TYPE, MEMBER) + sizeof(tmp.MEMBER); })		\
+
+/*
+ * External user API
+ */
+extern struct vfio_group *vfio_group_get_external_user(struct file *filep);
+extern void vfio_group_put_external_user(struct vfio_group *group);
+extern int vfio_external_user_iommu_id(struct vfio_group *group);
 
 #endif /* VFIO_H */

@@ -62,7 +62,6 @@
 #define MCE_PACKET_SIZE		4    /* Normal length of packet (without header) */
 #define MCE_IRDATA_HEADER	0x84 /* Actual header format is 0x80 + num_bytes */
 #define MCE_IRDATA_TRAILER	0x80 /* End of IR data */
-#define MCE_TX_HEADER_LENGTH	3    /* # of bytes in the initializing tx header */
 #define MCE_MAX_CHANNELS	2    /* Two transmitters, hardware dependent? */
 #define MCE_DEFAULT_TX_MASK	0x03 /* Vals: TX1=0x01, TX2=0x02, ALL=0x03 */
 #define MCE_PULSE_BIT		0x80 /* Pulse bit, MSB set == PULSE else SPACE */
@@ -291,7 +290,8 @@ static struct usb_device_id mceusb_dev_table[] = {
 	/* Philips/Spinel plus IR transceiver for ASUS */
 	{ USB_DEVICE(VENDOR_PHILIPS, 0x2088) },
 	/* Philips IR transceiver (Dell branded) */
-	{ USB_DEVICE(VENDOR_PHILIPS, 0x2093) },
+	{ USB_DEVICE(VENDOR_PHILIPS, 0x2093),
+	  .driver_info = MCE_GEN2_TX_INV },
 	/* Realtek MCE IR Receiver and card reader */
 	{ USB_DEVICE(VENDOR_REALTEK, 0x0161),
 	  .driver_info = MULTIFUNCTION },
@@ -365,7 +365,8 @@ static struct usb_device_id mceusb_dev_table[] = {
 	/* Formosa Industrial Computing */
 	{ USB_DEVICE(VENDOR_FORMOSA, 0xe042) },
 	/* Fintek eHome Infrared Transceiver (HP branded) */
-	{ USB_DEVICE(VENDOR_FINTEK, 0x5168) },
+	{ USB_DEVICE(VENDOR_FINTEK, 0x5168),
+	  .driver_info = MCE_GEN2_TX_INV },
 	/* Fintek eHome Infrared Transceiver */
 	{ USB_DEVICE(VENDOR_FINTEK, 0x0602) },
 	/* Fintek eHome Infrared Transceiver (in the AOpen MP45) */
@@ -481,7 +482,7 @@ static char SET_RX_SENSOR[]	= {MCE_CMD_PORT_IR,
 				   MCE_RSP_EQIRRXPORTEN, 0x00};
 */
 
-static int mceusb_cmdsize(u8 cmd, u8 subcmd)
+static int mceusb_cmd_datasize(u8 cmd, u8 subcmd)
 {
 	int datasize = 0;
 
@@ -492,6 +493,9 @@ static int mceusb_cmdsize(u8 cmd, u8 subcmd)
 		break;
 	case MCE_CMD_PORT_SYS:
 		switch (subcmd) {
+		case MCE_RSP_GETPORTSTATUS:
+			datasize = 5;
+			break;
 		case MCE_RSP_EQWAKEVERSION:
 			datasize = 4;
 			break;
@@ -499,6 +503,9 @@ static int mceusb_cmdsize(u8 cmd, u8 subcmd)
 			datasize = 2;
 			break;
 		case MCE_RSP_EQWAKESUPPORT:
+		case MCE_RSP_GETWAKESOURCE:
+		case MCE_RSP_EQDEVDETAILS:
+		case MCE_RSP_EQEMVER:
 			datasize = 1;
 			break;
 		}
@@ -508,6 +515,7 @@ static int mceusb_cmdsize(u8 cmd, u8 subcmd)
 		case MCE_RSP_EQIRCFS:
 		case MCE_RSP_EQIRTIMEOUT:
 		case MCE_RSP_EQIRRXCFCNT:
+		case MCE_RSP_EQIRNUMPORTS:
 			datasize = 2;
 			break;
 		case MCE_CMD_SIG_END:
@@ -788,18 +796,18 @@ static void mce_flush_rx_buffer(struct mceusb_dev *ir, int size)
 static int mceusb_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 {
 	struct mceusb_dev *ir = dev->priv;
-	int i, ret = 0;
+	int i, length, ret = 0;
 	int cmdcount = 0;
-	unsigned char *cmdbuf; /* MCE command buffer */
-
-	cmdbuf = kzalloc(sizeof(unsigned) * MCE_CMDBUF_SIZE, GFP_KERNEL);
-	if (!cmdbuf)
-		return -ENOMEM;
+	unsigned char cmdbuf[MCE_CMDBUF_SIZE];
 
 	/* MCE tx init header */
 	cmdbuf[cmdcount++] = MCE_CMD_PORT_IR;
 	cmdbuf[cmdcount++] = MCE_CMD_SETIRTXPORTS;
 	cmdbuf[cmdcount++] = ir->tx_mask;
+
+	/* Send the set TX ports command */
+	mce_async_out(ir, cmdbuf, cmdcount);
+	cmdcount = 0;
 
 	/* Generate mce packet data */
 	for (i = 0; (i < count) && (cmdcount < MCE_CMDBUF_SIZE); i++) {
@@ -809,8 +817,7 @@ static int mceusb_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 
 			/* Insert mce packet header every 4th entry */
 			if ((cmdcount < MCE_CMDBUF_SIZE) &&
-			    (cmdcount - MCE_TX_HEADER_LENGTH) %
-			     MCE_CODE_LENGTH == 0)
+			    (cmdcount % MCE_CODE_LENGTH) == 0)
 				cmdbuf[cmdcount++] = MCE_IRDATA_HEADER;
 
 			/* Insert mce packet data */
@@ -828,16 +835,15 @@ static int mceusb_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 			 (txbuf[i] -= MCE_MAX_PULSE_LENGTH));
 	}
 
-	/* Fix packet length in last header */
-	cmdbuf[cmdcount - (cmdcount - MCE_TX_HEADER_LENGTH) % MCE_CODE_LENGTH] =
-		MCE_COMMAND_IRDATA + (cmdcount - MCE_TX_HEADER_LENGTH) %
-		MCE_CODE_LENGTH - 1;
-
 	/* Check if we have room for the empty packet at the end */
 	if (cmdcount >= MCE_CMDBUF_SIZE) {
 		ret = -EINVAL;
 		goto out;
 	}
+
+	/* Fix packet length in last header */
+	length = cmdcount % MCE_CODE_LENGTH;
+	cmdbuf[cmdcount - length] -= MCE_CODE_LENGTH - length;
 
 	/* All mce commands end with an empty packet (0x80) */
 	cmdbuf[cmdcount++] = MCE_IRDATA_TRAILER;
@@ -846,7 +852,6 @@ static int mceusb_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 	mce_async_out(ir, cmdbuf, cmdcount);
 
 out:
-	kfree(cmdbuf);
 	return ret ? ret : count;
 }
 
@@ -970,7 +975,7 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 	for (; i < buf_len; i++) {
 		switch (ir->parser_state) {
 		case SUBCMD:
-			ir->rem = mceusb_cmdsize(ir->cmd, ir->buf_in[i]);
+			ir->rem = mceusb_cmd_datasize(ir->cmd, ir->buf_in[i]);
 			mceusb_dev_printdata(ir, ir->buf_in, i - 1,
 					     ir->rem + 2, false);
 			mceusb_handle_command(ir, i);
@@ -1121,15 +1126,12 @@ static void mceusb_gen1_init(struct mceusb_dev *ir)
 	mce_async_out(ir, GET_REVISION, sizeof(GET_REVISION));
 
 	kfree(data);
-};
+}
 
 static void mceusb_gen2_init(struct mceusb_dev *ir)
 {
 	/* device resume */
 	mce_async_out(ir, DEVICE_RESUME, sizeof(DEVICE_RESUME));
-
-	/* get hw/sw revision? */
-	mce_async_out(ir, GET_REVISION, sizeof(GET_REVISION));
 
 	/* get wake version (protocol, key, address) */
 	mce_async_out(ir, GET_WAKEVERSION, sizeof(GET_WAKEVERSION));
@@ -1229,8 +1231,8 @@ out:
 	return NULL;
 }
 
-static int __devinit mceusb_dev_probe(struct usb_interface *intf,
-				      const struct usb_device_id *id)
+static int mceusb_dev_probe(struct usb_interface *intf,
+			    const struct usb_device_id *id)
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
 	struct usb_host_interface *idesc;
@@ -1393,7 +1395,7 @@ mem_alloc_fail:
 }
 
 
-static void __devexit mceusb_dev_disconnect(struct usb_interface *intf)
+static void mceusb_dev_disconnect(struct usb_interface *intf)
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
 	struct mceusb_dev *ir = usb_get_intfdata(intf);
@@ -1432,7 +1434,7 @@ static int mceusb_dev_resume(struct usb_interface *intf)
 static struct usb_driver mceusb_dev_driver = {
 	.name =		DRIVER_NAME,
 	.probe =	mceusb_dev_probe,
-	.disconnect =	__devexit_p(mceusb_dev_disconnect),
+	.disconnect =	mceusb_dev_disconnect,
 	.suspend =	mceusb_dev_suspend,
 	.resume =	mceusb_dev_resume,
 	.reset_resume =	mceusb_dev_resume,

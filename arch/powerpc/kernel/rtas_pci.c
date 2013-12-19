@@ -201,7 +201,7 @@ static void python_countermeasures(struct device_node *dev)
 	iounmap(chip_regs);
 }
 
-void __init init_pci_config_tokens (void)
+void __init init_pci_config_tokens(void)
 {
 	read_pci_config = rtas_token("read-pci-config");
 	write_pci_config = rtas_token("write-pci-config");
@@ -209,7 +209,7 @@ void __init init_pci_config_tokens (void)
 	ibm_write_pci_config = rtas_token("ibm,write-pci-config");
 }
 
-unsigned long __devinit get_phb_buid (struct device_node *phb)
+unsigned long get_phb_buid(struct device_node *phb)
 {
 	struct resource r;
 
@@ -223,7 +223,7 @@ unsigned long __devinit get_phb_buid (struct device_node *phb)
 static int phb_set_bus_ranges(struct device_node *dev,
 			      struct pci_controller *phb)
 {
-	const int *bus_range;
+	const __be32 *bus_range;
 	unsigned int len;
 
 	bus_range = of_get_property(dev, "bus-range", &len);
@@ -231,13 +231,13 @@ static int phb_set_bus_ranges(struct device_node *dev,
 		return 1;
  	}
 
-	phb->first_busno =  bus_range[0];
-	phb->last_busno  =  bus_range[1];
+	phb->first_busno = be32_to_cpu(bus_range[0]);
+	phb->last_busno  = be32_to_cpu(bus_range[1]);
 
 	return 0;
 }
 
-int __devinit rtas_setup_phb(struct pci_controller *phb)
+int rtas_setup_phb(struct pci_controller *phb)
 {
 	struct device_node *dev = phb->dn;
 

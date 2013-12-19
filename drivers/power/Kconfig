@@ -152,6 +152,7 @@ config BATTERY_SBS
 
 config BATTERY_BQ27x00
 	tristate "BQ27x00 battery driver"
+	depends on I2C || I2C=n
 	help
 	  Say Y here to enable support for batteries with BQ27x00 (I2C/HDQ) chips.
 
@@ -215,6 +216,13 @@ config BATTERY_S3C_ADC
 	help
 	  Say Y here to enable support for iPAQ h1930/h1940/rx1950 battery
 
+config BATTERY_TWL4030_MADC
+	tristate "TWL4030 MADC battery driver"
+	depends on TWL4030_MADC
+	help
+	  Say Y here to enable this dumb driver for batteries managed
+	  through the TWL4030 MADC.
+
 config CHARGER_88PM860X
 	tristate "Marvell 88PM860x Charger driver"
 	depends on MFD_88PM860X && BATTERY_88PM860X
@@ -254,14 +262,13 @@ config BATTERY_RX51
 
 config CHARGER_ISP1704
 	tristate "ISP1704 USB Charger Detection"
-	depends on USB_OTG_UTILS
+	depends on USB_PHY
 	help
 	  Say Y to enable support for USB Charger Detection with
 	  ISP1707/ISP1704 USB transceivers.
 
 config CHARGER_MAX8903
 	tristate "MAX8903 Battery DC-DC Charger for USB and Adapter Power"
-	depends on GENERIC_HARDIRQS
 	help
 	  Say Y to enable support for the MAX8903 DC-DC charger and sysfs.
 	  The driver supports controlling charger-enable and current-limit
@@ -284,6 +291,7 @@ config CHARGER_LP8788
 	tristate "TI LP8788 charger driver"
 	depends on MFD_LP8788
 	depends on LP8788_ADC
+	depends on IIO
 	help
 	  Say Y to enable support for the LP8788 linear charger.
 
@@ -332,6 +340,18 @@ config CHARGER_BQ2415X
 	  You'll need this driver to charge batteries on e.g. Nokia
 	  RX-51/N900.
 
+config CHARGER_BQ24190
+	tristate "TI BQ24190 battery charger driver"
+	depends on I2C && GPIOLIB
+	help
+	  Say Y to enable support for the TI BQ24190 battery charger.
+
+config CHARGER_BQ24735
+	tristate "TI BQ24735 battery charger support"
+	depends on I2C && GPIOLIB
+	help
+	  Say Y to enable support for the TI BQ24735 battery charger.
+
 config CHARGER_SMB347
 	tristate "Summit Microelectronics SMB347 Battery Charger"
 	depends on I2C
@@ -340,11 +360,25 @@ config CHARGER_SMB347
 	  Say Y to include support for Summit Microelectronics SMB347
 	  Battery Charger.
 
+config CHARGER_TPS65090
+	tristate "TPS65090 battery charger driver"
+	depends on MFD_TPS65090
+	help
+	 Say Y here to enable support for battery charging with TPS65090
+	 PMIC chips.
+
 config AB8500_BM
 	bool "AB8500 Battery Management Driver"
 	depends on AB8500_CORE && AB8500_GPADC
 	help
 	  Say Y to include support for AB8500 battery management.
+
+config BATTERY_GOLDFISH
+	tristate "Goldfish battery driver"
+	depends on GOLDFISH || COMPILE_TEST
+	help
+	  Say Y to enable support for the battery and AC power in the
+	  Goldfish emulator.
 
 source "drivers/power/reset/Kconfig"
 

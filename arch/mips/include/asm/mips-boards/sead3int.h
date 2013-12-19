@@ -4,8 +4,8 @@
  * for more details.
  *
  * Copyright (C) 2000,2012 MIPS Technologies, Inc.  All rights reserved.
- *      Douglas Leung <douglas@mips.com>
- *      Steven J. Hill <sjhill@mips.com>
+ *	Douglas Leung <douglas@mips.com>
+ *	Steven J. Hill <sjhill@mips.com>
  */
 #ifndef _MIPS_SEAD3INT_H
 #define _MIPS_SEAD3INT_H

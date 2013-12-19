@@ -117,7 +117,7 @@ struct tda1004x_state {
 	enum tda1004x_demod demod_type;
 };
 
-#if defined(CONFIG_DVB_TDA1004X) || (defined(CONFIG_DVB_TDA1004X_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_TDA1004X)
 extern struct dvb_frontend* tda10045_attach(const struct tda1004x_config* config,
 					    struct i2c_adapter* i2c);
 

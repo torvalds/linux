@@ -1,9 +1,7 @@
 /*******************************************************************************
  * This file houses the main functions for the iSCSI CHAP support
  *
- * \u00a9 Copyright 2007-2011 RisingTide Systems LLC.
- *
- * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
+ * (c) Copyright 2007-2013 Datera, Inc.
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
@@ -49,32 +47,6 @@ static void chap_binaryhex_to_asciihex(char *dst, char *src, int src_len)
 	}
 }
 
-static void chap_set_random(char *data, int length)
-{
-	long r;
-	unsigned n;
-
-	while (length > 0) {
-		get_random_bytes(&r, sizeof(long));
-		r = r ^ (r >> 8);
-		r = r ^ (r >> 4);
-		n = r & 0x7;
-
-		get_random_bytes(&r, sizeof(long));
-		r = r ^ (r >> 8);
-		r = r ^ (r >> 5);
-		n = (n << 3) | (r & 0x7);
-
-		get_random_bytes(&r, sizeof(long));
-		r = r ^ (r >> 8);
-		r = r ^ (r >> 5);
-		n = (n << 2) | (r & 0x3);
-
-		*data++ = n;
-		length--;
-	}
-}
-
 static void chap_gen_challenge(
 	struct iscsi_conn *conn,
 	int caller,
@@ -86,7 +58,7 @@ static void chap_gen_challenge(
 
 	memset(challenge_asciihex, 0, CHAP_CHALLENGE_LENGTH * 2 + 1);
 
-	chap_set_random(chap->challenge, CHAP_CHALLENGE_LENGTH);
+	get_random_bytes(chap->challenge, CHAP_CHALLENGE_LENGTH);
 	chap_binaryhex_to_asciihex(challenge_asciihex, chap->challenge,
 				CHAP_CHALLENGE_LENGTH);
 	/*
@@ -139,7 +111,7 @@ static struct iscsi_chap *chap_server_open(
 	/*
 	 * Set Identifier.
 	 */
-	chap->id = ISCSI_TPG_C(conn)->tpg_chap_id++;
+	chap->id = conn->tpg->tpg_chap_id++;
 	*aic_len += sprintf(aic_str + *aic_len, "CHAP_I=%d", chap->id);
 	*aic_len += 1;
 	pr_debug("[server] Sending CHAP_I=%d\n", chap->id);
@@ -166,6 +138,7 @@ static int chap_server_compute_md5(
 {
 	char *endptr;
 	unsigned long id;
+	unsigned char id_as_uchar;
 	unsigned char digest[MD5_SIGNATURE_SIZE];
 	unsigned char type, response[MD5_SIGNATURE_SIZE * 2 + 2];
 	unsigned char identifier[10], *challenge = NULL;
@@ -173,6 +146,7 @@ static int chap_server_compute_md5(
 	unsigned char client_digest[MD5_SIGNATURE_SIZE];
 	unsigned char server_digest[MD5_SIGNATURE_SIZE];
 	unsigned char chap_n[MAX_CHAP_N_SIZE], chap_r[MAX_RESPONSE_LENGTH];
+	size_t compare_len;
 	struct iscsi_chap *chap = conn->auth_protocol;
 	struct crypto_hash *tfm;
 	struct hash_desc desc;
@@ -211,7 +185,9 @@ static int chap_server_compute_md5(
 		goto out;
 	}
 
-	if (memcmp(chap_n, auth->userid, strlen(auth->userid)) != 0) {
+	/* Include the terminating NULL in the compare */
+	compare_len = strlen(auth->userid) + 1;
+	if (strncmp(chap_n, auth->userid, compare_len) != 0) {
 		pr_err("CHAP_N values do not match!\n");
 		goto out;
 	}
@@ -355,7 +331,9 @@ static int chap_server_compute_md5(
 		goto out;
 	}
 
-	sg_init_one(&sg, &id, 1);
+	/* To handle both endiannesses */
+	id_as_uchar = id;
+	sg_init_one(&sg, &id_as_uchar, 1);
 	ret = crypto_hash_update(&desc, &sg, 1);
 	if (ret < 0) {
 		pr_err("crypto_hash_update() failed for id\n");

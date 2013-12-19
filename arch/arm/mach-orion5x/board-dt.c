@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/cpu.h>
 #include <asm/system_misc.h>
 #include <asm/mach/arch.h>
 #include <mach/orion5x.h>
@@ -41,7 +42,7 @@ static void __init orion5x_dt_init(void)
 	/*
 	 * Setup Orion address map
 	 */
-	orion5x_setup_cpu_mbus_bridge();
+	orion5x_setup_wins();
 
 	/* Setup root of clk tree */
 	clk_init();
@@ -52,7 +53,7 @@ static void __init orion5x_dt_init(void)
 	 */
 	if (dev == MV88F5281_DEV_ID && rev == MV88F5281_REV_D0) {
 		printk(KERN_INFO "Orion: Applying 5281 D0 WFI workaround.\n");
-		disable_hlt();
+		cpu_idle_poll_ctrl(true);
 	}
 
 	if (of_machine_is_compatible("lacie,ethernet-disk-mini-v2"))
@@ -72,7 +73,7 @@ DT_MACHINE_START(ORION5X_DT, "Marvell Orion5x (Flattened Device Tree)")
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,
 	.init_irq	= orion_dt_init_irq,
-	.timer		= &orion5x_timer,
+	.init_time	= orion5x_timer_init,
 	.init_machine	= orion5x_dt_init,
 	.restart	= orion5x_restart,
 	.dt_compat	= orion5x_dt_compat,

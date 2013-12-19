@@ -4,6 +4,7 @@
 #	Clock Distribution device drivers
 #	Phase-Locked Loop (PLL) frequency synthesizers
 #
+# When adding new entries keep the list in alphabetical order
 
 menu "Frequency Synthesizers DDS/PLL"
 

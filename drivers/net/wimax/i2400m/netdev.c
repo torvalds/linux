@@ -156,7 +156,7 @@ void i2400m_wake_tx_work(struct work_struct *ws)
 	struct i2400m *i2400m = container_of(ws, struct i2400m, wake_tx_ws);
 	struct net_device *net_dev = i2400m->wimax_dev.net_dev;
 	struct device *dev = i2400m_dev(i2400m);
-	struct sk_buff *skb = i2400m->wake_tx_skb;
+	struct sk_buff *skb;
 	unsigned long flags;
 
 	spin_lock_irqsave(&i2400m->tx_lock, flags);
@@ -236,23 +236,26 @@ void i2400m_tx_prep_header(struct sk_buff *skb)
 void i2400m_net_wake_stop(struct i2400m *i2400m)
 {
 	struct device *dev = i2400m_dev(i2400m);
+	struct sk_buff *wake_tx_skb;
+	unsigned long flags;
 
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
-	/* See i2400m_hard_start_xmit(), references are taken there
-	 * and here we release them if the work was still
-	 * pending. Note we can't differentiate work not pending vs
-	 * never scheduled, so the NULL check does that. */
-	if (cancel_work_sync(&i2400m->wake_tx_ws) == 0
-	    && i2400m->wake_tx_skb != NULL) {
-		unsigned long flags;
-		struct sk_buff *wake_tx_skb;
-		spin_lock_irqsave(&i2400m->tx_lock, flags);
-		wake_tx_skb = i2400m->wake_tx_skb;	/* compat help */
-		i2400m->wake_tx_skb = NULL;	/* compat help */
-		spin_unlock_irqrestore(&i2400m->tx_lock, flags);
+	/*
+	 * See i2400m_hard_start_xmit(), references are taken there and
+	 * here we release them if the packet was still pending.
+	 */
+	cancel_work_sync(&i2400m->wake_tx_ws);
+
+	spin_lock_irqsave(&i2400m->tx_lock, flags);
+	wake_tx_skb = i2400m->wake_tx_skb;
+	i2400m->wake_tx_skb = NULL;
+	spin_unlock_irqrestore(&i2400m->tx_lock, flags);
+
+	if (wake_tx_skb) {
 		i2400m_put(i2400m);
 		kfree_skb(wake_tx_skb);
 	}
+
 	d_fnend(3, dev, "(i2400m %p) = void\n", i2400m);
 }
 
@@ -288,7 +291,7 @@ int i2400m_net_wake_tx(struct i2400m *i2400m, struct net_device *net_dev,
 	 * and if pending, release those resources. */
 	result = 0;
 	spin_lock_irqsave(&i2400m->tx_lock, flags);
-	if (!work_pending(&i2400m->wake_tx_ws)) {
+	if (!i2400m->wake_tx_skb) {
 		netif_stop_queue(net_dev);
 		i2400m_get(i2400m);
 		i2400m->wake_tx_skb = skb_get(skb);	/* transfer ref count */
@@ -596,12 +599,12 @@ static void i2400m_get_drvinfo(struct net_device *net_dev,
 {
 	struct i2400m *i2400m = net_dev_to_i2400m(net_dev);
 
-	strncpy(info->driver, KBUILD_MODNAME, sizeof(info->driver) - 1);
-	strncpy(info->fw_version,
-	        i2400m->fw_name ? : "", sizeof(info->fw_version) - 1);
+	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	strlcpy(info->fw_version, i2400m->fw_name ? : "",
+		sizeof(info->fw_version));
 	if (net_dev->dev.parent)
-		strncpy(info->bus_info, dev_name(net_dev->dev.parent),
-			sizeof(info->bus_info) - 1);
+		strlcpy(info->bus_info, dev_name(net_dev->dev.parent),
+			sizeof(info->bus_info));
 }
 
 static const struct ethtool_ops i2400m_ethtool_ops = {

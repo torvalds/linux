@@ -32,6 +32,7 @@
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_object.h>
 #include <drm/ttm/ttm_module.h>
+#include <linux/dma_remapping.h>
 
 #define VMWGFX_DRIVER_NAME "vmwgfx"
 #define VMWGFX_DRIVER_DESC "Linux drm driver for VMware graphics devices"
@@ -124,7 +125,7 @@
  * Ioctl definitions.
  */
 
-static struct drm_ioctl_desc vmw_ioctls[] = {
+static const struct drm_ioctl_desc vmw_ioctls[] = {
 	VMW_IOCTL_DEF(VMW_GET_PARAM, vmw_getparam_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(VMW_ALLOC_DMABUF, vmw_dmabuf_alloc_ioctl,
@@ -185,6 +186,9 @@ static struct pci_device_id vmw_pci_id_list[] = {
 MODULE_DEVICE_TABLE(pci, vmw_pci_id_list);
 
 static int enable_fbdev = IS_ENABLED(CONFIG_DRM_VMWGFX_FBCON);
+static int vmw_force_iommu;
+static int vmw_restrict_iommu;
+static int vmw_force_coherent;
 
 static int vmw_probe(struct pci_dev *, const struct pci_device_id *);
 static void vmw_master_init(struct vmw_master *);
@@ -193,6 +197,13 @@ static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 
 MODULE_PARM_DESC(enable_fbdev, "Enable vmwgfx fbdev");
 module_param_named(enable_fbdev, enable_fbdev, int, 0600);
+MODULE_PARM_DESC(force_dma_api, "Force using the DMA API for TTM pages");
+module_param_named(force_dma_api, vmw_force_iommu, int, 0600);
+MODULE_PARM_DESC(restrict_iommu, "Try to limit IOMMU usage for TTM pages");
+module_param_named(restrict_iommu, vmw_restrict_iommu, int, 0600);
+MODULE_PARM_DESC(force_coherent, "Force coherent TTM pages");
+module_param_named(force_coherent, vmw_force_coherent, int, 0600);
+
 
 static void vmw_print_capabilities(uint32_t capabilities)
 {
@@ -427,12 +438,85 @@ static void vmw_get_initial_size(struct vmw_private *dev_priv)
 	dev_priv->initial_height = height;
 }
 
+/**
+ * vmw_dma_select_mode - Determine how DMA mappings should be set up for this
+ * system.
+ *
+ * @dev_priv: Pointer to a struct vmw_private
+ *
+ * This functions tries to determine the IOMMU setup and what actions
+ * need to be taken by the driver to make system pages visible to the
+ * device.
+ * If this function decides that DMA is not possible, it returns -EINVAL.
+ * The driver may then try to disable features of the device that require
+ * DMA.
+ */
+static int vmw_dma_select_mode(struct vmw_private *dev_priv)
+{
+	static const char *names[vmw_dma_map_max] = {
+		[vmw_dma_phys] = "Using physical TTM page addresses.",
+		[vmw_dma_alloc_coherent] = "Using coherent TTM pages.",
+		[vmw_dma_map_populate] = "Keeping DMA mappings.",
+		[vmw_dma_map_bind] = "Giving up DMA mappings early."};
+#ifdef CONFIG_X86
+	const struct dma_map_ops *dma_ops = get_dma_ops(dev_priv->dev->dev);
+
+#ifdef CONFIG_INTEL_IOMMU
+	if (intel_iommu_enabled) {
+		dev_priv->map_mode = vmw_dma_map_populate;
+		goto out_fixup;
+	}
+#endif
+
+	if (!(vmw_force_iommu || vmw_force_coherent)) {
+		dev_priv->map_mode = vmw_dma_phys;
+		DRM_INFO("DMA map mode: %s\n", names[dev_priv->map_mode]);
+		return 0;
+	}
+
+	dev_priv->map_mode = vmw_dma_map_populate;
+
+	if (dma_ops->sync_single_for_cpu)
+		dev_priv->map_mode = vmw_dma_alloc_coherent;
+#ifdef CONFIG_SWIOTLB
+	if (swiotlb_nr_tbl() == 0)
+		dev_priv->map_mode = vmw_dma_map_populate;
+#endif
+
+#ifdef CONFIG_INTEL_IOMMU
+out_fixup:
+#endif
+	if (dev_priv->map_mode == vmw_dma_map_populate &&
+	    vmw_restrict_iommu)
+		dev_priv->map_mode = vmw_dma_map_bind;
+
+	if (vmw_force_coherent)
+		dev_priv->map_mode = vmw_dma_alloc_coherent;
+
+#if !defined(CONFIG_SWIOTLB) && !defined(CONFIG_INTEL_IOMMU)
+	/*
+	 * No coherent page pool
+	 */
+	if (dev_priv->map_mode == vmw_dma_alloc_coherent)
+		return -EINVAL;
+#endif
+
+#else /* CONFIG_X86 */
+	dev_priv->map_mode = vmw_dma_map_populate;
+#endif /* CONFIG_X86 */
+
+	DRM_INFO("DMA map mode: %s\n", names[dev_priv->map_mode]);
+
+	return 0;
+}
+
 static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 {
 	struct vmw_private *dev_priv;
 	int ret;
 	uint32_t svga_id;
 	enum vmw_res_type i;
+	bool refuse_dma = false;
 
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (unlikely(dev_priv == NULL)) {
@@ -481,6 +565,11 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	}
 
 	dev_priv->capabilities = vmw_read(dev_priv, SVGA_REG_CAPABILITIES);
+	ret = vmw_dma_select_mode(dev_priv);
+	if (unlikely(ret != 0)) {
+		DRM_INFO("Restricting capabilities due to IOMMU setup.\n");
+		refuse_dma = true;
+	}
 
 	dev_priv->vram_size = vmw_read(dev_priv, SVGA_REG_VRAM_SIZE);
 	dev_priv->mmio_size = vmw_read(dev_priv, SVGA_REG_MEM_SIZE);
@@ -558,15 +647,16 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	}
 
 	dev_priv->has_gmr = true;
-	if (ttm_bo_init_mm(&dev_priv->bdev, VMW_PL_GMR,
-			   dev_priv->max_gmr_ids) != 0) {
+	if (((dev_priv->capabilities & (SVGA_CAP_GMR | SVGA_CAP_GMR2)) == 0) ||
+	    refuse_dma || ttm_bo_init_mm(&dev_priv->bdev, VMW_PL_GMR,
+					 dev_priv->max_gmr_ids) != 0) {
 		DRM_INFO("No GMR memory available. "
 			 "Graphics memory resources are very limited.\n");
 		dev_priv->has_gmr = false;
 	}
 
-	dev_priv->mmio_mtrr = drm_mtrr_add(dev_priv->mmio_start,
-					   dev_priv->mmio_size, DRM_MTRR_WC);
+	dev_priv->mmio_mtrr = arch_phys_wc_add(dev_priv->mmio_start,
+					       dev_priv->mmio_size);
 
 	dev_priv->mmio_virt = ioremap_wc(dev_priv->mmio_start,
 					 dev_priv->mmio_size);
@@ -587,7 +677,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	}
 
 	dev_priv->tdev = ttm_object_device_init
-	    (dev_priv->mem_global_ref.object, 12);
+		(dev_priv->mem_global_ref.object, 12, &vmw_prime_dmabuf_ops);
 
 	if (unlikely(dev_priv->tdev == NULL)) {
 		DRM_ERROR("Unable to initialize TTM object management.\n");
@@ -622,8 +712,10 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	}
 
 	dev_priv->fman = vmw_fence_manager_init(dev_priv);
-	if (unlikely(dev_priv->fman == NULL))
+	if (unlikely(dev_priv->fman == NULL)) {
+		ret = -ENOMEM;
 		goto out_no_fman;
+	}
 
 	vmw_kms_save_vga(dev_priv);
 
@@ -664,8 +756,7 @@ out_no_device:
 out_err4:
 	iounmap(dev_priv->mmio_virt);
 out_err3:
-	drm_mtrr_del(dev_priv->mmio_mtrr, dev_priv->mmio_start,
-		     dev_priv->mmio_size, DRM_MTRR_WC);
+	arch_phys_wc_del(dev_priv->mmio_mtrr);
 	if (dev_priv->has_gmr)
 		(void) ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_GMR);
 	(void)ttm_bo_clean_mm(&dev_priv->bdev, TTM_PL_VRAM);
@@ -709,8 +800,7 @@ static int vmw_driver_unload(struct drm_device *dev)
 
 	ttm_object_device_release(&dev_priv->tdev);
 	iounmap(dev_priv->mmio_virt);
-	drm_mtrr_del(dev_priv->mmio_mtrr, dev_priv->mmio_start,
-		     dev_priv->mmio_size, DRM_MTRR_WC);
+	arch_phys_wc_del(dev_priv->mmio_mtrr);
 	if (dev_priv->has_gmr)
 		(void)ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_GMR);
 	(void)ttm_bo_clean_mm(&dev_priv->bdev, TTM_PL_VRAM);
@@ -740,9 +830,17 @@ static void vmw_postclose(struct drm_device *dev,
 	struct vmw_fpriv *vmw_fp;
 
 	vmw_fp = vmw_fpriv(file_priv);
-	ttm_object_file_release(&vmw_fp->tfile);
-	if (vmw_fp->locked_master)
+
+	if (vmw_fp->locked_master) {
+		struct vmw_master *vmaster =
+			vmw_master(vmw_fp->locked_master);
+
+		ttm_lock_set_kill(&vmaster->lock, true, SIGTERM);
+		ttm_vt_unlock(&vmaster->lock);
 		drm_master_put(&vmw_fp->locked_master);
+	}
+
+	ttm_object_file_release(&vmw_fp->tfile);
 	kfree(vmw_fp);
 }
 
@@ -784,7 +882,7 @@ static long vmw_unlocked_ioctl(struct file *filp, unsigned int cmd,
 
 	if ((nr >= DRM_COMMAND_BASE) && (nr < DRM_COMMAND_END)
 	    && (nr < DRM_COMMAND_BASE + dev->driver->num_ioctls)) {
-		struct drm_ioctl_desc *ioctl =
+		const struct drm_ioctl_desc *ioctl =
 		    &vmw_ioctls[nr - DRM_COMMAND_BASE];
 
 		if (unlikely(ioctl->cmd_drv != cmd)) {
@@ -797,29 +895,12 @@ static long vmw_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	return drm_ioctl(filp, cmd, arg);
 }
 
-static int vmw_firstopen(struct drm_device *dev)
-{
-	struct vmw_private *dev_priv = vmw_priv(dev);
-	dev_priv->is_opened = true;
-
-	return 0;
-}
-
 static void vmw_lastclose(struct drm_device *dev)
 {
-	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct drm_crtc *crtc;
 	struct drm_mode_set set;
 	int ret;
 
-	/**
-	 * Do nothing on the lastclose call from drm_unload.
-	 */
-
-	if (!dev_priv->is_opened)
-		return;
-
-	dev_priv->is_opened = false;
 	set.x = 0;
 	set.y = 0;
 	set.fb = NULL;
@@ -829,7 +910,7 @@ static void vmw_lastclose(struct drm_device *dev)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		set.crtc = crtc;
-		ret = crtc->funcs->set_config(&set);
+		ret = drm_mode_set_config_internal(&set);
 		WARN_ON(ret != 0);
 	}
 
@@ -942,14 +1023,13 @@ static void vmw_master_drop(struct drm_device *dev,
 
 	vmw_fp->locked_master = drm_master_get(file_priv->master);
 	ret = ttm_vt_lock(&vmaster->lock, false, vmw_fp->tfile);
-	vmw_execbuf_release_pinned_bo(dev_priv);
-
 	if (unlikely((ret != 0))) {
 		DRM_ERROR("Unable to lock TTM at VT switch.\n");
 		drm_master_put(&vmw_fp->locked_master);
 	}
 
-	ttm_lock_set_kill(&vmaster->lock, true, SIGTERM);
+	ttm_lock_set_kill(&vmaster->lock, false, SIGTERM);
+	vmw_execbuf_release_pinned_bo(dev_priv);
 
 	if (!dev_priv->enable_fb) {
 		ret = ttm_bo_evict_mm(&dev_priv->bdev, TTM_PL_VRAM);
@@ -1122,7 +1202,6 @@ static const struct file_operations vmwgfx_driver_fops = {
 	.mmap = vmw_mmap,
 	.poll = vmw_fops_poll,
 	.read = vmw_fops_read,
-	.fasync = drm_fasync,
 #if defined(CONFIG_COMPAT)
 	.compat_ioctl = drm_compat_ioctl,
 #endif
@@ -1131,10 +1210,9 @@ static const struct file_operations vmwgfx_driver_fops = {
 
 static struct drm_driver driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED |
-	DRIVER_MODESET,
+	DRIVER_MODESET | DRIVER_PRIME,
 	.load = vmw_driver_load,
 	.unload = vmw_driver_unload,
-	.firstopen = vmw_firstopen,
 	.lastclose = vmw_lastclose,
 	.irq_preinstall = vmw_irq_preinstall,
 	.irq_postinstall = vmw_irq_postinstall,
@@ -1145,7 +1223,6 @@ static struct drm_driver driver = {
 	.disable_vblank = vmw_disable_vblank,
 	.ioctls = vmw_ioctls,
 	.num_ioctls = DRM_ARRAY_SIZE(vmw_ioctls),
-	.dma_quiescent = NULL,	/*vmw_dma_quiescent, */
 	.master_create = vmw_master_create,
 	.master_destroy = vmw_master_destroy,
 	.master_set = vmw_master_set,
@@ -1157,6 +1234,9 @@ static struct drm_driver driver = {
 	.dumb_create = vmw_dumb_create,
 	.dumb_map_offset = vmw_dumb_map_offset,
 	.dumb_destroy = vmw_dumb_destroy,
+
+	.prime_fd_to_handle = vmw_prime_fd_to_handle,
+	.prime_handle_to_fd = vmw_prime_handle_to_fd,
 
 	.fops = &vmwgfx_driver_fops,
 	.name = VMWGFX_DRIVER_NAME,

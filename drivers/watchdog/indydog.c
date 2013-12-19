@@ -214,4 +214,3 @@ module_exit(watchdog_exit);
 MODULE_AUTHOR("Guido Guenther <agx@sigxcpu.org>");
 MODULE_DESCRIPTION("Hardware Watchdog Device for SGI IP22");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

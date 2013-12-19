@@ -528,20 +528,19 @@ static void dib0090_reset_digital(struct dvb_frontend *fe, const struct dib0090_
 	u16 PllCfg, i, v;
 
 	HARD_RESET(state);
-
 	dib0090_write_reg(state, 0x24, EN_PLL | EN_CRYSTAL);
-	dib0090_write_reg(state, 0x1b, EN_DIGCLK | EN_PLL | EN_CRYSTAL);	/* PLL, DIG_CLK and CRYSTAL remain */
+	if (cfg->in_soc)
+		return;
 
-	if (!cfg->in_soc) {
-		/* adcClkOutRatio=8->7, release reset */
-		dib0090_write_reg(state, 0x20, ((cfg->io.adc_clock_ratio - 1) << 11) | (0 << 10) | (1 << 9) | (1 << 8) | (0 << 4) | 0);
-		if (cfg->clkoutdrive != 0)
-			dib0090_write_reg(state, 0x23, (0 << 15) | ((!cfg->analog_output) << 14) | (2 << 10) | (1 << 9) | (0 << 8)
-					  | (cfg->clkoutdrive << 5) | (cfg->clkouttobamse << 4) | (0 << 2) | (0));
-		else
-			dib0090_write_reg(state, 0x23, (0 << 15) | ((!cfg->analog_output) << 14) | (2 << 10) | (1 << 9) | (0 << 8)
-					  | (7 << 5) | (cfg->clkouttobamse << 4) | (0 << 2) | (0));
-	}
+	dib0090_write_reg(state, 0x1b, EN_DIGCLK | EN_PLL | EN_CRYSTAL);	/* PLL, DIG_CLK and CRYSTAL remain */
+	/* adcClkOutRatio=8->7, release reset */
+	dib0090_write_reg(state, 0x20, ((cfg->io.adc_clock_ratio - 1) << 11) | (0 << 10) | (1 << 9) | (1 << 8) | (0 << 4) | 0);
+	if (cfg->clkoutdrive != 0)
+		dib0090_write_reg(state, 0x23, (0 << 15) | ((!cfg->analog_output) << 14) | (2 << 10) | (1 << 9) | (0 << 8)
+				| (cfg->clkoutdrive << 5) | (cfg->clkouttobamse << 4) | (0 << 2) | (0));
+	else
+		dib0090_write_reg(state, 0x23, (0 << 15) | ((!cfg->analog_output) << 14) | (2 << 10) | (1 << 9) | (0 << 8)
+				| (7 << 5) | (cfg->clkouttobamse << 4) | (0 << 2) | (0));
 
 	/* Read Pll current config * */
 	PllCfg = dib0090_read_reg(state, 0x21);
@@ -694,192 +693,174 @@ void dib0090_dcc_freq(struct dvb_frontend *fe, u8 fast)
 EXPORT_SYMBOL(dib0090_dcc_freq);
 
 static const u16 bb_ramp_pwm_normal_socs[] = {
-	550,			/* max BB gain in 10th of dB */
-	(1 << 9) | 8,		/* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> BB_RAMP2 */
+	550, /* max BB gain in 10th of dB */
+	(1<<9) | 8, /* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> BB_RAMP2 */
 	440,
-	(4 << 9) | 0,		/* BB_RAMP3 = 26dB */
-	(0 << 9) | 208,		/* BB_RAMP4 */
-	(4 << 9) | 208,		/* BB_RAMP5 = 29dB */
-	(0 << 9) | 440,		/* BB_RAMP6 */
+	(4  << 9) | 0, /* BB_RAMP3 = 26dB */
+	(0  << 9) | 208, /* BB_RAMP4 */
+	(4  << 9) | 208, /* BB_RAMP5 = 29dB */
+	(0  << 9) | 440, /* BB_RAMP6 */
 };
 
-static const u16 rf_ramp_pwm_cband_7090[] = {
-	280,			/* max RF gain in 10th of dB */
-	18,			/* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> RF_RAMP2 */
-	504,			/* ramp_max = maximum X used on the ramp */
-	(29 << 10) | 364,	/* RF_RAMP5, LNA 1 = 8dB */
-	(0 << 10) | 504,	/* RF_RAMP6, LNA 1 */
-	(60 << 10) | 228,	/* RF_RAMP7, LNA 2 = 7.7dB */
-	(0 << 10) | 364,	/* RF_RAMP8, LNA 2 */
-	(34 << 10) | 109,	/* GAIN_4_1, LNA 3 = 6.8dB */
-	(0 << 10) | 228,	/* GAIN_4_2, LNA 3 */
-	(37 << 10) | 0,		/* RF_RAMP3, LNA 4 = 6.2dB */
-	(0 << 10) | 109,	/* RF_RAMP4, LNA 4 */
+static const u16 rf_ramp_pwm_cband_7090p[] = {
+	280, /* max RF gain in 10th of dB */
+	18, /* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> RF_RAMP2 */
+	504, /* ramp_max = maximum X used on the ramp */
+	(29 << 10) | 364, /* RF_RAMP5, LNA 1 = 8dB */
+	(0  << 10) | 504, /* RF_RAMP6, LNA 1 */
+	(60 << 10) | 228, /* RF_RAMP7, LNA 2 = 7.7dB */
+	(0  << 10) | 364, /* RF_RAMP8, LNA 2 */
+	(34 << 10) | 109, /* GAIN_4_1, LNA 3 = 6.8dB */
+	(0  << 10) | 228, /* GAIN_4_2, LNA 3 */
+	(37 << 10) | 0, /* RF_RAMP3, LNA 4 = 6.2dB */
+	(0  << 10) | 109, /* RF_RAMP4, LNA 4 */
 };
 
-static const uint16_t rf_ramp_pwm_cband_7090e_sensitivity[] = {
-	186,
-	40,
-	746,
-	(10 << 10) | 345,
-	(0  << 10) | 746,
-	(0 << 10) | 0,
-	(0  << 10) | 0,
-	(28 << 10) | 200,
-	(0  << 10) | 345,
-	(20 << 10) | 0,
-	(0  << 10) | 200,
+static const u16 rf_ramp_pwm_cband_7090e_sensitivity[] = {
+	186, /* max RF gain in 10th of dB */
+	40, /* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> RF_RAMP2 */
+	746, /* ramp_max = maximum X used on the ramp */
+	(10 << 10) | 345, /* RF_RAMP5, LNA 1 = 10dB */
+	(0  << 10) | 746, /* RF_RAMP6, LNA 1 */
+	(0 << 10) | 0, /* RF_RAMP7, LNA 2 = 0 dB */
+	(0  << 10) | 0, /* RF_RAMP8, LNA 2 */
+	(28 << 10) | 200, /* GAIN_4_1, LNA 3 = 6.8dB */ /* 3.61 dB */
+	(0  << 10) | 345, /* GAIN_4_2, LNA 3 */
+	(20 << 10) | 0, /* RF_RAMP3, LNA 4 = 6.2dB */ /* 4.96 dB */
+	(0  << 10) | 200, /* RF_RAMP4, LNA 4 */
 };
 
-static const uint16_t rf_ramp_pwm_cband_7090e_aci[] = {
-	86,
-	40,
-	345,
-	(0 << 10) | 0,
-	(0 << 10) | 0,
-	(0 << 10) | 0,
-	(0 << 10) | 0,
-	(28 << 10) | 200,
-	(0  << 10) | 345,
-	(20 << 10) | 0,
-	(0  << 10) | 200,
+static const u16 rf_ramp_pwm_cband_7090e_aci[] = {
+	86, /* max RF gain in 10th of dB */
+	40, /* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> RF_RAMP2 */
+	345, /* ramp_max = maximum X used on the ramp */
+	(0 << 10) | 0, /* RF_RAMP5, LNA 1 = 8dB */ /* 7.47 dB */
+	(0 << 10) | 0, /* RF_RAMP6, LNA 1 */
+	(0 << 10) | 0, /* RF_RAMP7, LNA 2 = 0 dB */
+	(0 << 10) | 0, /* RF_RAMP8, LNA 2 */
+	(28 << 10) | 200, /* GAIN_4_1, LNA 3 = 6.8dB */ /* 3.61 dB */
+	(0  << 10) | 345, /* GAIN_4_2, LNA 3 */
+	(20 << 10) | 0, /* RF_RAMP3, LNA 4 = 6.2dB */ /* 4.96 dB */
+	(0  << 10) | 200, /* RF_RAMP4, LNA 4 */
 };
 
 static const u16 rf_ramp_pwm_cband_8090[] = {
-	345,			/* max RF gain in 10th of dB */
-	29,			/* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> RF_RAMP2 */
-	1000,			/* ramp_max = maximum X used on the ramp */
-	(35 << 10) | 772,	/* RF_RAMP3, LNA 1 = 8dB */
-	(0 << 10) | 1000,	/* RF_RAMP4, LNA 1 */
-	(58 << 10) | 496,	/* RF_RAMP5, LNA 2 = 9.5dB */
-	(0 << 10) | 772,	/* RF_RAMP6, LNA 2 */
-	(27 << 10) | 200,	/* RF_RAMP7, LNA 3 = 10.5dB */
-	(0 << 10) | 496,	/* RF_RAMP8, LNA 3 */
-	(40 << 10) | 0,		/* GAIN_4_1, LNA 4 = 7dB */
-	(0 << 10) | 200,	/* GAIN_4_2, LNA 4 */
+	345, /* max RF gain in 10th of dB */
+	29, /* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> RF_RAMP2 */
+	1000, /* ramp_max = maximum X used on the ramp */
+	(35 << 10) | 772, /* RF_RAMP3, LNA 1 = 8dB */
+	(0  << 10) | 1000, /* RF_RAMP4, LNA 1 */
+	(58 << 10) | 496, /* RF_RAMP5, LNA 2 = 9.5dB */
+	(0  << 10) | 772, /* RF_RAMP6, LNA 2 */
+	(27 << 10) | 200, /* RF_RAMP7, LNA 3 = 10.5dB */
+	(0  << 10) | 496, /* RF_RAMP8, LNA 3 */
+	(40 << 10) | 0, /* GAIN_4_1, LNA 4 = 7dB */
+	(0  << 10) | 200, /* GAIN_4_2, LNA 4 */
 };
 
 static const u16 rf_ramp_pwm_uhf_7090[] = {
-	407,			/* max RF gain in 10th of dB */
-	13,			/* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> RF_RAMP2 */
-	529,			/* ramp_max = maximum X used on the ramp */
-	(23 << 10) | 0,		/* RF_RAMP3, LNA 1 = 14.7dB */
-	(0 << 10) | 176,	/* RF_RAMP4, LNA 1 */
-	(63 << 10) | 400,	/* RF_RAMP5, LNA 2 = 8dB */
-	(0 << 10) | 529,	/* RF_RAMP6, LNA 2 */
-	(48 << 10) | 316,	/* RF_RAMP7, LNA 3 = 6.8dB */
-	(0 << 10) | 400,	/* RF_RAMP8, LNA 3 */
-	(29 << 10) | 176,	/* GAIN_4_1, LNA 4 = 11.5dB */
-	(0 << 10) | 316,	/* GAIN_4_2, LNA 4 */
+	407, /* max RF gain in 10th of dB */
+	13, /* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> RF_RAMP2 */
+	529, /* ramp_max = maximum X used on the ramp */
+	(23 << 10) | 0, /* RF_RAMP3, LNA 1 = 14.7dB */
+	(0  << 10) | 176, /* RF_RAMP4, LNA 1 */
+	(63 << 10) | 400, /* RF_RAMP5, LNA 2 = 8dB */
+	(0  << 10) | 529, /* RF_RAMP6, LNA 2 */
+	(48 << 10) | 316, /* RF_RAMP7, LNA 3 = 6.8dB */
+	(0  << 10) | 400, /* RF_RAMP8, LNA 3 */
+	(29 << 10) | 176, /* GAIN_4_1, LNA 4 = 11.5dB */
+	(0  << 10) | 316, /* GAIN_4_2, LNA 4 */
 };
 
 static const u16 rf_ramp_pwm_uhf_8090[] = {
-	388,			/* max RF gain in 10th of dB */
-	26,			/* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> RF_RAMP2 */
-	1008,			/* ramp_max = maximum X used on the ramp */
-	(11 << 10) | 0,		/* RF_RAMP3, LNA 1 = 14.7dB */
-	(0 << 10) | 369,	/* RF_RAMP4, LNA 1 */
-	(41 << 10) | 809,	/* RF_RAMP5, LNA 2 = 8dB */
-	(0 << 10) | 1008,	/* RF_RAMP6, LNA 2 */
-	(27 << 10) | 659,	/* RF_RAMP7, LNA 3 = 6dB */
-	(0 << 10) | 809,	/* RF_RAMP8, LNA 3 */
-	(14 << 10) | 369,	/* GAIN_4_1, LNA 4 = 11.5dB */
-	(0 << 10) | 659,	/* GAIN_4_2, LNA 4 */
+	388, /* max RF gain in 10th of dB */
+	26, /* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> RF_RAMP2 */
+	1008, /* ramp_max = maximum X used on the ramp */
+	(11 << 10) | 0, /* RF_RAMP3, LNA 1 = 14.7dB */
+	(0  << 10) | 369, /* RF_RAMP4, LNA 1 */
+	(41 << 10) | 809, /* RF_RAMP5, LNA 2 = 8dB */
+	(0  << 10) | 1008, /* RF_RAMP6, LNA 2 */
+	(27 << 10) | 659, /* RF_RAMP7, LNA 3 = 6dB */
+	(0  << 10) | 809, /* RF_RAMP8, LNA 3 */
+	(14 << 10) | 369, /* GAIN_4_1, LNA 4 = 11.5dB */
+	(0  << 10) | 659, /* GAIN_4_2, LNA 4 */
+};
+
+/* GENERAL PWM ramp definition for all other Krosus */
+static const u16 bb_ramp_pwm_normal[] = {
+	500, /* max BB gain in 10th of dB */
+	8, /* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> BB_RAMP2 */
+	400,
+	(2  << 9) | 0, /* BB_RAMP3 = 21dB */
+	(0  << 9) | 168, /* BB_RAMP4 */
+	(2  << 9) | 168, /* BB_RAMP5 = 29dB */
+	(0  << 9) | 400, /* BB_RAMP6 */
+};
+
+static const u16 bb_ramp_pwm_boost[] = {
+	550, /* max BB gain in 10th of dB */
+	8, /* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> BB_RAMP2 */
+	440,
+	(2  << 9) | 0, /* BB_RAMP3 = 26dB */
+	(0  << 9) | 208, /* BB_RAMP4 */
+	(2  << 9) | 208, /* BB_RAMP5 = 29dB */
+	(0  << 9) | 440, /* BB_RAMP6 */
 };
 
 static const u16 rf_ramp_pwm_cband[] = {
-	0,			/* max RF gain in 10th of dB */
-	0,			/* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> 0x2b */
-	0,			/* ramp_max = maximum X used on the ramp */
-	(0 << 10) | 0,		/* 0x2c, LNA 1 = 0dB */
-	(0 << 10) | 0,		/* 0x2d, LNA 1 */
-	(0 << 10) | 0,		/* 0x2e, LNA 2 = 0dB */
-	(0 << 10) | 0,		/* 0x2f, LNA 2 */
-	(0 << 10) | 0,		/* 0x30, LNA 3 = 0dB */
-	(0 << 10) | 0,		/* 0x31, LNA 3 */
-	(0 << 10) | 0,		/* GAIN_4_1, LNA 4 = 0dB */
-	(0 << 10) | 0,		/* GAIN_4_2, LNA 4 */
-};
-
-static const u16 rf_ramp_vhf[] = {
-	412,			/* max RF gain in 10th of dB */
-	132, 307, 127,		/* LNA1,  13.2dB */
-	105, 412, 255,		/* LNA2,  10.5dB */
-	50, 50, 127,		/* LNA3,  5dB */
-	125, 175, 127,		/* LNA4,  12.5dB */
-	0, 0, 127,		/* CBAND, 0dB */
-};
-
-static const u16 rf_ramp_uhf[] = {
-	412,			/* max RF gain in 10th of dB */
-	132, 307, 127,		/* LNA1  : total gain = 13.2dB, point on the ramp where this amp is full gain, value to write to get full gain */
-	105, 412, 255,		/* LNA2  : 10.5 dB */
-	50, 50, 127,		/* LNA3  :  5.0 dB */
-	125, 175, 127,		/* LNA4  : 12.5 dB */
-	0, 0, 127,		/* CBAND :  0.0 dB */
-};
-
-static const u16 rf_ramp_cband_broadmatching[] =	/* for p1G only */
-{
-	314,			/* Calibrated at 200MHz order has been changed g4-g3-g2-g1 */
-	84, 314, 127,		/* LNA1 */
-	80, 230, 255,		/* LNA2 */
-	80, 150, 127,		/* LNA3  It was measured 12dB, do not lock if 120 */
-	70, 70, 127,		/* LNA4 */
-	0, 0, 127,		/* CBAND */
-};
-
-static const u16 rf_ramp_cband[] = {
-	332,			/* max RF gain in 10th of dB */
-	132, 252, 127,		/* LNA1,  dB */
-	80, 332, 255,		/* LNA2,  dB */
-	0, 0, 127,		/* LNA3,  dB */
-	0, 0, 127,		/* LNA4,  dB */
-	120, 120, 127,		/* LT1 CBAND */
+	314, /* max RF gain in 10th of dB */
+	33, /* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> RF_RAMP2 */
+	1023, /* ramp_max = maximum X used on the ramp */
+	(8  << 10) | 743, /* RF_RAMP3, LNA 1 = 0dB */
+	(0  << 10) | 1023, /* RF_RAMP4, LNA 1 */
+	(15 << 10) | 469, /* RF_RAMP5, LNA 2 = 0dB */
+	(0  << 10) | 742, /* RF_RAMP6, LNA 2 */
+	(9  << 10) | 234, /* RF_RAMP7, LNA 3 = 0dB */
+	(0  << 10) | 468, /* RF_RAMP8, LNA 3 */
+	(9  << 10) | 0, /* GAIN_4_1, LNA 4 = 0dB */
+	(0  << 10) | 233, /* GAIN_4_2, LNA 4 */
 };
 
 static const u16 rf_ramp_pwm_vhf[] = {
-	404,			/* max RF gain in 10th of dB */
-	25,			/* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> 0x2b */
-	1011,			/* ramp_max = maximum X used on the ramp */
-	(6 << 10) | 417,	/* 0x2c, LNA 1 = 13.2dB */
-	(0 << 10) | 756,	/* 0x2d, LNA 1 */
-	(16 << 10) | 756,	/* 0x2e, LNA 2 = 10.5dB */
-	(0 << 10) | 1011,	/* 0x2f, LNA 2 */
-	(16 << 10) | 290,	/* 0x30, LNA 3 = 5dB */
-	(0 << 10) | 417,	/* 0x31, LNA 3 */
-	(7 << 10) | 0,		/* GAIN_4_1, LNA 4 = 12.5dB */
-	(0 << 10) | 290,	/* GAIN_4_2, LNA 4 */
+	398, /* max RF gain in 10th of dB */
+	24, /* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> RF_RAMP2 */
+	954, /* ramp_max = maximum X used on the ramp */
+	(7  << 10) | 0, /* RF_RAMP3, LNA 1 = 13.2dB */
+	(0  << 10) | 290, /* RF_RAMP4, LNA 1 */
+	(16 << 10) | 699, /* RF_RAMP5, LNA 2 = 10.5dB */
+	(0  << 10) | 954, /* RF_RAMP6, LNA 2 */
+	(17 << 10) | 580, /* RF_RAMP7, LNA 3 = 5dB */
+	(0  << 10) | 699, /* RF_RAMP8, LNA 3 */
+	(7  << 10) | 290, /* GAIN_4_1, LNA 4 = 12.5dB */
+	(0  << 10) | 580, /* GAIN_4_2, LNA 4 */
 };
 
 static const u16 rf_ramp_pwm_uhf[] = {
-	404,			/* max RF gain in 10th of dB */
-	25,			/* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> 0x2b */
-	1011,			/* ramp_max = maximum X used on the ramp */
-	(6 << 10) | 417,	/* 0x2c, LNA 1 = 13.2dB */
-	(0 << 10) | 756,	/* 0x2d, LNA 1 */
-	(16 << 10) | 756,	/* 0x2e, LNA 2 = 10.5dB */
-	(0 << 10) | 1011,	/* 0x2f, LNA 2 */
-	(16 << 10) | 0,		/* 0x30, LNA 3 = 5dB */
-	(0 << 10) | 127,	/* 0x31, LNA 3 */
-	(7 << 10) | 127,	/* GAIN_4_1, LNA 4 = 12.5dB */
-	(0 << 10) | 417,	/* GAIN_4_2, LNA 4 */
+	398, /* max RF gain in 10th of dB */
+	24, /* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> RF_RAMP2 */
+	954, /* ramp_max = maximum X used on the ramp */
+	(7  << 10) | 0, /* RF_RAMP3, LNA 1 = 13.2dB */
+	(0  << 10) | 290, /* RF_RAMP4, LNA 1 */
+	(16 << 10) | 699, /* RF_RAMP5, LNA 2 = 10.5dB */
+	(0  << 10) | 954, /* RF_RAMP6, LNA 2 */
+	(17 << 10) | 580, /* RF_RAMP7, LNA 3 = 5dB */
+	(0  << 10) | 699, /* RF_RAMP8, LNA 3 */
+	(7  << 10) | 290, /* GAIN_4_1, LNA 4 = 12.5dB */
+	(0  << 10) | 580, /* GAIN_4_2, LNA 4 */
 };
 
-static const u16 bb_ramp_boost[] = {
-	550,			/* max BB gain in 10th of dB */
-	260, 260, 26,		/* BB1, 26dB */
-	290, 550, 29,		/* BB2, 29dB */
-};
-
-static const u16 bb_ramp_pwm_normal[] = {
-	500,			/* max RF gain in 10th of dB */
-	8,			/* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> 0x34 */
-	400,
-	(2 << 9) | 0,		/* 0x35 = 21dB */
-	(0 << 9) | 168,		/* 0x36 */
-	(2 << 9) | 168,		/* 0x37 = 29dB */
-	(0 << 9) | 400,		/* 0x38 */
+static const u16 rf_ramp_pwm_sband[] = {
+	253, /* max RF gain in 10th of dB */
+	38, /* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> RF_RAMP2 */
+	961,
+	(4  << 10) | 0, /* RF_RAMP3, LNA 1 = 14.1dB */
+	(0  << 10) | 508, /* RF_RAMP4, LNA 1 */
+	(9  << 10) | 508, /* RF_RAMP5, LNA 2 = 11.2dB */
+	(0  << 10) | 961, /* RF_RAMP6, LNA 2 */
+	(0  << 10) | 0, /* RF_RAMP7, LNA 3 = 0dB */
+	(0  << 10) | 0, /* RF_RAMP8, LNA 3 */
+	(0  << 10) | 0, /* GAIN_4_1, LNA 4 = 0dB */
+	(0  << 10) | 0, /* GAIN_4_2, LNA 4 */
 };
 
 struct slope {
@@ -1089,70 +1070,69 @@ static void dib0090_set_bbramp_pwm(struct dib0090_state *state, const u16 * cfg)
 void dib0090_pwm_gain_reset(struct dvb_frontend *fe)
 {
 	struct dib0090_state *state = fe->tuner_priv;
-	/* reset the AGC */
+	u16 *bb_ramp = (u16 *)&bb_ramp_pwm_normal; /* default baseband config */
+	u16 *rf_ramp = NULL;
+	u8 en_pwm_rf_mux = 1;
 
+	/* reset the AGC */
 	if (state->config->use_pwm_agc) {
-#ifdef CONFIG_BAND_SBAND
-		if (state->current_band == BAND_SBAND) {
-			dib0090_set_rframp_pwm(state, rf_ramp_pwm_sband);
-			dib0090_set_bbramp_pwm(state, bb_ramp_pwm_boost);
-		} else
-#endif
-#ifdef CONFIG_BAND_CBAND
 		if (state->current_band == BAND_CBAND) {
 			if (state->identity.in_soc) {
-				dib0090_set_bbramp_pwm(state, bb_ramp_pwm_normal_socs);
+				bb_ramp = (u16 *)&bb_ramp_pwm_normal_socs;
 				if (state->identity.version == SOC_8090_P1G_11R1 || state->identity.version == SOC_8090_P1G_21R1)
-					dib0090_set_rframp_pwm(state, rf_ramp_pwm_cband_8090);
-				else if (state->identity.version == SOC_7090_P1G_11R1
-						|| state->identity.version == SOC_7090_P1G_21R1) {
+					rf_ramp = (u16 *)&rf_ramp_pwm_cband_8090;
+				else if (state->identity.version == SOC_7090_P1G_11R1 || state->identity.version == SOC_7090_P1G_21R1) {
 					if (state->config->is_dib7090e) {
 						if (state->rf_ramp == NULL)
-							dib0090_set_rframp_pwm(state, rf_ramp_pwm_cband_7090e_sensitivity);
+							rf_ramp = (u16 *)&rf_ramp_pwm_cband_7090e_sensitivity;
 						else
-							dib0090_set_rframp_pwm(state, state->rf_ramp);
+							rf_ramp = (u16 *)state->rf_ramp;
 					} else
-						dib0090_set_rframp_pwm(state, rf_ramp_pwm_cband_7090);
+						rf_ramp = (u16 *)&rf_ramp_pwm_cband_7090p;
 				}
-			} else {
-				dib0090_set_rframp_pwm(state, rf_ramp_pwm_cband);
-				dib0090_set_bbramp_pwm(state, bb_ramp_pwm_normal);
-			}
+			} else
+				rf_ramp = (u16 *)&rf_ramp_pwm_cband;
 		} else
-#endif
-#ifdef CONFIG_BAND_VHF
-		if (state->current_band == BAND_VHF) {
-			if (state->identity.in_soc) {
-				dib0090_set_bbramp_pwm(state, bb_ramp_pwm_normal_socs);
-			} else {
-				dib0090_set_rframp_pwm(state, rf_ramp_pwm_vhf);
-				dib0090_set_bbramp_pwm(state, bb_ramp_pwm_normal);
-			}
-		} else
-#endif
-		{
-			if (state->identity.in_soc) {
-				if (state->identity.version == SOC_8090_P1G_11R1 || state->identity.version == SOC_8090_P1G_21R1)
-					dib0090_set_rframp_pwm(state, rf_ramp_pwm_uhf_8090);
-				else if (state->identity.version == SOC_7090_P1G_11R1 || state->identity.version == SOC_7090_P1G_21R1)
-					dib0090_set_rframp_pwm(state, rf_ramp_pwm_uhf_7090);
-				dib0090_set_bbramp_pwm(state, bb_ramp_pwm_normal_socs);
-			} else {
-				dib0090_set_rframp_pwm(state, rf_ramp_pwm_uhf);
-				dib0090_set_bbramp_pwm(state, bb_ramp_pwm_normal);
-			}
-		}
 
-		if (state->rf_ramp[0] != 0)
-			dib0090_write_reg(state, 0x32, (3 << 11));
+			if (state->current_band == BAND_VHF) {
+				if (state->identity.in_soc) {
+					bb_ramp = (u16 *)&bb_ramp_pwm_normal_socs;
+					/* rf_ramp = &rf_ramp_pwm_vhf_socs; */ /* TODO */
+				} else
+					rf_ramp = (u16 *)&rf_ramp_pwm_vhf;
+			} else if (state->current_band == BAND_UHF) {
+				if (state->identity.in_soc) {
+					bb_ramp = (u16 *)&bb_ramp_pwm_normal_socs;
+					if (state->identity.version == SOC_8090_P1G_11R1 || state->identity.version == SOC_8090_P1G_21R1)
+						rf_ramp = (u16 *)&rf_ramp_pwm_uhf_8090;
+					else if (state->identity.version == SOC_7090_P1G_11R1 || state->identity.version == SOC_7090_P1G_21R1)
+						rf_ramp = (u16 *)&rf_ramp_pwm_uhf_7090;
+				} else
+					rf_ramp = (u16 *)&rf_ramp_pwm_uhf;
+			}
+		if (rf_ramp)
+			dib0090_set_rframp_pwm(state, rf_ramp);
+		dib0090_set_bbramp_pwm(state, bb_ramp);
+
+		/* activate the ramp generator using PWM control */
+		dprintk("ramp RF gain = %d BAND = %s version = %d", state->rf_ramp[0], (state->current_band == BAND_CBAND) ? "CBAND" : "NOT CBAND", state->identity.version & 0x1f);
+
+		if ((state->rf_ramp[0] == 0) || (state->current_band == BAND_CBAND && (state->identity.version & 0x1f) <= P1D_E_F)) {
+			dprintk("DE-Engage mux for direct gain reg control");
+			en_pwm_rf_mux = 0;
+		} else
+			dprintk("Engage mux for PWM control");
+
+		dib0090_write_reg(state, 0x32, (en_pwm_rf_mux << 12) | (en_pwm_rf_mux << 11));
+
+		/* Set fast servo cutoff to start AGC; 0 = 1KHz ; 1 = 50Hz ; 2 = 150Hz ; 3 = 50KHz ; 4 = servo fast*/
+		if (state->identity.version == SOC_7090_P1G_11R1 || state->identity.version == SOC_7090_P1G_21R1)
+			dib0090_write_reg(state, 0x04, 3);
 		else
-			dib0090_write_reg(state, 0x32, (0 << 11));
-
-		dib0090_write_reg(state, 0x04, 0x03);
-		dib0090_write_reg(state, 0x39, (1 << 10));
+			dib0090_write_reg(state, 0x04, 1);
+		dib0090_write_reg(state, 0x39, (1 << 10)); /* 0 gain by default */
 	}
 }
-
 EXPORT_SYMBOL(dib0090_pwm_gain_reset);
 
 void dib0090_set_dc_servo(struct dvb_frontend *fe, u8 DC_servo_cutoff)
@@ -1193,22 +1173,22 @@ int dib0090_gain_control(struct dvb_frontend *fe)
 #endif
 #ifdef CONFIG_BAND_VHF
 		if (state->current_band == BAND_VHF && !state->identity.p1g) {
-			dib0090_set_rframp(state, rf_ramp_vhf);
-			dib0090_set_bbramp(state, bb_ramp_boost);
+			dib0090_set_rframp(state, rf_ramp_pwm_vhf);
+			dib0090_set_bbramp(state, bb_ramp_pwm_normal);
 		} else
 #endif
 #ifdef CONFIG_BAND_CBAND
 		if (state->current_band == BAND_CBAND && !state->identity.p1g) {
-			dib0090_set_rframp(state, rf_ramp_cband);
-			dib0090_set_bbramp(state, bb_ramp_boost);
+			dib0090_set_rframp(state, rf_ramp_pwm_cband);
+			dib0090_set_bbramp(state, bb_ramp_pwm_normal);
 		} else
 #endif
 		if ((state->current_band == BAND_CBAND || state->current_band == BAND_VHF) && state->identity.p1g) {
-			dib0090_set_rframp(state, rf_ramp_cband_broadmatching);
-			dib0090_set_bbramp(state, bb_ramp_boost);
+			dib0090_set_rframp(state, rf_ramp_pwm_cband_7090p);
+			dib0090_set_bbramp(state, bb_ramp_pwm_normal_socs);
 		} else {
-			dib0090_set_rframp(state, rf_ramp_uhf);
-			dib0090_set_bbramp(state, bb_ramp_boost);
+			dib0090_set_rframp(state, rf_ramp_pwm_uhf);
+			dib0090_set_bbramp(state, bb_ramp_pwm_normal);
 		}
 
 		dib0090_write_reg(state, 0x32, 0);
@@ -1553,14 +1533,16 @@ static void dib0090_set_EFUSE(struct dib0090_state *state)
 
 		if ((c >= CAP_VALUE_MAX) || (c <= CAP_VALUE_MIN))
 			c = 32;
+		else
+			c += 14;
 		if ((h >= HR_MAX) || (h <= HR_MIN))
 			h = 34;
 		if ((n >= POLY_MAX) || (n <= POLY_MIN))
 			n = 3;
 
-		dib0090_write_reg(state, 0x13, (h << 10)) ;
-		e2 = (n<<11) | ((h>>2)<<6) | (c);
-		dib0090_write_reg(state, 0x2, e2) ; /* Load the BB_2 */
+		dib0090_write_reg(state, 0x13, (h << 10));
+		e2 = (n << 11) | ((h >> 2)<<6) | c;
+		dib0090_write_reg(state, 0x2, e2); /* Load the BB_2 */
 	}
 }
 

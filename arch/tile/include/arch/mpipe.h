@@ -176,7 +176,18 @@ typedef union
      */
     uint_reg_t stack_idx    : 5;
     /* Reserved. */
-    uint_reg_t __reserved_2 : 5;
+    uint_reg_t __reserved_2 : 3;
+    /*
+     * Instance ID.  For devices that support automatic buffer return between
+     * mPIPE instances, this field indicates the buffer owner.  If the INST
+     * field does not match the mPIPE's instance number when a packet is
+     * egressed, buffers with HWB set will be returned to the other mPIPE
+     * instance.  Note that not all devices support multi-mPIPE buffer
+     * return.  The MPIPE_EDMA_INFO.REMOTE_BUFF_RTN_SUPPORT bit indicates
+     * whether the INST field in the buffer descriptor is populated by iDMA
+     * hardware. This field is ignored on writes.
+     */
+    uint_reg_t inst         : 2;
     /*
      * Reads as one to indicate that this is a hardware managed buffer.
      * Ignored on writes since all buffers on a given stack are the same size.
@@ -205,7 +216,8 @@ typedef union
     uint_reg_t c            : 2;
     uint_reg_t size         : 3;
     uint_reg_t hwb          : 1;
-    uint_reg_t __reserved_2 : 5;
+    uint_reg_t inst         : 2;
+    uint_reg_t __reserved_2 : 3;
     uint_reg_t stack_idx    : 5;
     uint_reg_t __reserved_1 : 6;
     int_reg_t va           : 35;
@@ -231,9 +243,9 @@ typedef union
     /* Reserved. */
     uint_reg_t __reserved_0 : 3;
     /* eDMA ring being accessed */
-    uint_reg_t ring         : 5;
+    uint_reg_t ring         : 6;
     /* Reserved. */
-    uint_reg_t __reserved_1 : 18;
+    uint_reg_t __reserved_1 : 17;
     /*
      * This field of the address selects the region (address space) to be
      * accessed.  For the egress DMA post region, this field must be 5.
@@ -250,8 +262,8 @@ typedef union
     uint_reg_t svc_dom      : 5;
     uint_reg_t __reserved_2 : 6;
     uint_reg_t region       : 3;
-    uint_reg_t __reserved_1 : 18;
-    uint_reg_t ring         : 5;
+    uint_reg_t __reserved_1 : 17;
+    uint_reg_t ring         : 6;
     uint_reg_t __reserved_0 : 3;
 #endif
   };

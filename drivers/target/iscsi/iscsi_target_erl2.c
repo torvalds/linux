@@ -2,9 +2,7 @@
  * This file contains error recovery level two functions used by
  * the iSCSI Target driver.
  *
- * \u00a9 Copyright 2007-2011 RisingTide Systems LLC.
- *
- * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
+ * (c) Copyright 2007-2013 Datera, Inc.
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
@@ -143,7 +141,7 @@ void iscsit_free_connection_recovery_entires(struct iscsi_session *sess)
 			list_del(&cmd->i_conn_node);
 			cmd->conn = NULL;
 			spin_unlock(&cr->conn_recovery_cmd_lock);
-			iscsit_free_cmd(cmd);
+			iscsit_free_cmd(cmd, true);
 			spin_lock(&cr->conn_recovery_cmd_lock);
 		}
 		spin_unlock(&cr->conn_recovery_cmd_lock);
@@ -165,7 +163,7 @@ void iscsit_free_connection_recovery_entires(struct iscsi_session *sess)
 			list_del(&cmd->i_conn_node);
 			cmd->conn = NULL;
 			spin_unlock(&cr->conn_recovery_cmd_lock);
-			iscsit_free_cmd(cmd);
+			iscsit_free_cmd(cmd, true);
 			spin_lock(&cr->conn_recovery_cmd_lock);
 		}
 		spin_unlock(&cr->conn_recovery_cmd_lock);
@@ -248,7 +246,7 @@ void iscsit_discard_cr_cmds_by_expstatsn(
 		iscsit_remove_cmd_from_connection_recovery(cmd, sess);
 
 		spin_unlock(&cr->conn_recovery_cmd_lock);
-		iscsit_free_cmd(cmd);
+		iscsit_free_cmd(cmd, true);
 		spin_lock(&cr->conn_recovery_cmd_lock);
 	}
 	spin_unlock(&cr->conn_recovery_cmd_lock);
@@ -302,7 +300,7 @@ int iscsit_discard_unacknowledged_ooo_cmdsns_for_conn(struct iscsi_conn *conn)
 		list_del(&cmd->i_conn_node);
 
 		spin_unlock_bh(&conn->cmd_lock);
-		iscsit_free_cmd(cmd);
+		iscsit_free_cmd(cmd, true);
 		spin_lock_bh(&conn->cmd_lock);
 	}
 	spin_unlock_bh(&conn->cmd_lock);
@@ -355,7 +353,7 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 
 			list_del(&cmd->i_conn_node);
 			spin_unlock_bh(&conn->cmd_lock);
-			iscsit_free_cmd(cmd);
+			iscsit_free_cmd(cmd, true);
 			spin_lock_bh(&conn->cmd_lock);
 			continue;
 		}
@@ -372,10 +370,10 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 		 * made generic here.
 		 */
 		if (!(cmd->cmd_flags & ICF_OOO_CMDSN) && !cmd->immediate_cmd &&
-		     iscsi_sna_gte(cmd->stat_sn, conn->sess->exp_cmd_sn)) {
+		     iscsi_sna_gte(cmd->cmd_sn, conn->sess->exp_cmd_sn)) {
 			list_del(&cmd->i_conn_node);
 			spin_unlock_bh(&conn->cmd_lock);
-			iscsit_free_cmd(cmd);
+			iscsit_free_cmd(cmd, true);
 			spin_lock_bh(&conn->cmd_lock);
 			continue;
 		}

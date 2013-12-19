@@ -12,7 +12,7 @@
 KBUILD_CFLAGS	+= -fno-builtin -Iarch/$(ARCH)/boot/include
 HOSTFLAGS	+= -Iarch/$(ARCH)/boot/include
 
-BIG_ENDIAN	:= $(shell echo -e __XTENSA_EB__ | $(CC) -E - | grep -v "\#")
+BIG_ENDIAN	:= $(shell echo __XTENSA_EB__ | $(CC) -E - | grep -v "\#")
 
 export ccflags-y
 export BIG_ENDIAN
@@ -24,18 +24,6 @@ subdir-y	:= lib
 bootdir-$(CONFIG_XTENSA_PLATFORM_ISS)	 += boot-elf
 bootdir-$(CONFIG_XTENSA_PLATFORM_XT2000) += boot-redboot boot-elf boot-uboot
 bootdir-$(CONFIG_XTENSA_PLATFORM_XTFPGA) += boot-redboot boot-elf boot-uboot
-
-
-BUILTIN_DTB := $(patsubst "%",%,$(CONFIG_BUILTIN_DTB)).dtb.o
-ifneq ($(CONFIG_BUILTIN_DTB),"")
-obj-$(CONFIG_OF) += $(BUILTIN_DTB)
-endif
-
-# Rule to build device tree blobs
-$(obj)/%.dtb: $(src)/dts/%.dts FORCE
-	$(call if_changed_dep,dtc)
-
-clean-files := *.dtb.S
 
 zImage Image: $(bootdir-y)
 

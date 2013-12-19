@@ -49,8 +49,8 @@ MODULE_AUTHOR("jyli@marvell.com");
 MODULE_DESCRIPTION("Marvell UMI Driver");
 
 static DEFINE_PCI_DEVICE_TABLE(mvumi_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_2, PCI_DEVICE_ID_MARVELL_MV9143) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_2, PCI_DEVICE_ID_MARVELL_MV9580) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, PCI_DEVICE_ID_MARVELL_MV9143) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, PCI_DEVICE_ID_MARVELL_MV9580) },
 	{ 0 }
 };
 
@@ -2506,8 +2506,7 @@ fail_add_device:
  * @pdev:		PCI device structure
  * @id:			PCI ids of supported hotplugged adapter
  */
-static int __devinit mvumi_probe_one(struct pci_dev *pdev,
-					const struct pci_device_id *id)
+static int mvumi_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct Scsi_Host *host;
 	struct mvumi_hba *mhba;
@@ -2584,7 +2583,6 @@ static int __devinit mvumi_probe_one(struct pci_dev *pdev,
 	return 0;
 
 fail_io_attach:
-	pci_set_drvdata(pdev, NULL);
 	mhba->instancet->disable_intr(mhba);
 	free_irq(mhba->pdev->irq, mhba);
 fail_init_irq:
@@ -2619,7 +2617,6 @@ static void mvumi_detach_one(struct pci_dev *pdev)
 	free_irq(mhba->pdev->irq, mhba);
 	mvumi_release_fw(mhba);
 	scsi_host_put(host);
-	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 	dev_dbg(&pdev->dev, "driver is removed!\n");
 }
@@ -2728,7 +2725,7 @@ static struct pci_driver mvumi_pci_driver = {
 	.name = MV_DRIVER_NAME,
 	.id_table = mvumi_pci_table,
 	.probe = mvumi_probe_one,
-	.remove = __devexit_p(mvumi_detach_one),
+	.remove = mvumi_detach_one,
 	.shutdown = mvumi_shutdown,
 #ifdef CONFIG_PM
 	.suspend = mvumi_suspend,

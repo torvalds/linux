@@ -5,6 +5,9 @@
 
 #include <linux/kvm_host.h>
 
+#define KVM_APIC_INIT		0
+#define KVM_APIC_SIPI		1
+
 struct kvm_timer {
 	struct hrtimer timer;
 	s64 period; 				/* unit: ns */
@@ -31,7 +34,9 @@ struct kvm_lapic {
 	 */
 	void *regs;
 	gpa_t vapic_addr;
-	struct page *vapic_page;
+	struct gfn_to_hva_cache vapic_cache;
+	unsigned long pending_events;
+	unsigned int sipi_vector;
 };
 int kvm_create_lapic(struct kvm_vcpu *vcpu);
 void kvm_free_lapic(struct kvm_vcpu *vcpu);
@@ -39,6 +44,7 @@ void kvm_free_lapic(struct kvm_vcpu *vcpu);
 int kvm_apic_has_interrupt(struct kvm_vcpu *vcpu);
 int kvm_apic_accept_pic_intr(struct kvm_vcpu *vcpu);
 int kvm_get_apic_interrupt(struct kvm_vcpu *vcpu);
+void kvm_apic_accept_events(struct kvm_vcpu *vcpu);
 void kvm_lapic_reset(struct kvm_vcpu *vcpu);
 u64 kvm_lapic_get_cr8(struct kvm_vcpu *vcpu);
 void kvm_lapic_set_tpr(struct kvm_vcpu *vcpu, unsigned long cr8);
@@ -47,13 +53,16 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value);
 u64 kvm_lapic_get_base(struct kvm_vcpu *vcpu);
 void kvm_apic_set_version(struct kvm_vcpu *vcpu);
 
+void kvm_apic_update_tmr(struct kvm_vcpu *vcpu, u32 *tmr);
+void kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir);
 int kvm_apic_match_physical_addr(struct kvm_lapic *apic, u16 dest);
 int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u8 mda);
-int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq);
+int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq,
+		unsigned long *dest_map);
 int kvm_apic_local_deliver(struct kvm_lapic *apic, int lvt_type);
 
 bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
-		struct kvm_lapic_irq *irq, int *r);
+		struct kvm_lapic_irq *irq, int *r, unsigned long *dest_map);
 
 u64 kvm_get_apic_base(struct kvm_vcpu *vcpu);
 void kvm_set_apic_base(struct kvm_vcpu *vcpu, u64 data);
@@ -64,7 +73,10 @@ int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu);
 u64 kvm_get_lapic_tscdeadline_msr(struct kvm_vcpu *vcpu);
 void kvm_set_lapic_tscdeadline_msr(struct kvm_vcpu *vcpu, u64 data);
 
-void kvm_lapic_set_vapic_addr(struct kvm_vcpu *vcpu, gpa_t vapic_addr);
+void kvm_apic_write_nodecode(struct kvm_vcpu *vcpu, u32 offset);
+void kvm_apic_set_eoi_accelerated(struct kvm_vcpu *vcpu, int vector);
+
+int kvm_lapic_set_vapic_addr(struct kvm_vcpu *vcpu, gpa_t vapic_addr);
 void kvm_lapic_sync_from_vapic(struct kvm_vcpu *vcpu);
 void kvm_lapic_sync_to_vapic(struct kvm_vcpu *vcpu);
 
@@ -123,5 +135,39 @@ static inline int kvm_lapic_enabled(struct kvm_vcpu *vcpu)
 {
 	return kvm_apic_present(vcpu) && kvm_apic_sw_enabled(vcpu->arch.apic);
 }
+
+static inline int apic_x2apic_mode(struct kvm_lapic *apic)
+{
+	return apic->vcpu->arch.apic_base & X2APIC_ENABLE;
+}
+
+static inline bool kvm_apic_vid_enabled(struct kvm *kvm)
+{
+	return kvm_x86_ops->vm_has_apicv(kvm);
+}
+
+static inline u16 apic_cluster_id(struct kvm_apic_map *map, u32 ldr)
+{
+	u16 cid;
+	ldr >>= 32 - map->ldr_bits;
+	cid = (ldr >> map->cid_shift) & map->cid_mask;
+
+	BUG_ON(cid >= ARRAY_SIZE(map->logical_map));
+
+	return cid;
+}
+
+static inline u16 apic_logical_id(struct kvm_apic_map *map, u32 ldr)
+{
+	ldr >>= (32 - map->ldr_bits);
+	return ldr & map->lid_mask;
+}
+
+static inline bool kvm_apic_has_events(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.apic->pending_events;
+}
+
+bool kvm_apic_pending_eoi(struct kvm_vcpu *vcpu, int vector);
 
 #endif

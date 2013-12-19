@@ -357,7 +357,8 @@ static int set_sample_rates(struct atmel_abdac *dac)
 		if (new_rate < 0)
 			break;
 		/* make sure we are below the ABDAC clock */
-		if (new_rate <= clk_get_rate(dac->pclk)) {
+		if (index < MAX_NUM_RATES &&
+		    new_rate <= clk_get_rate(dac->pclk)) {
 			dac->rates[index] = new_rate / 256;
 			index++;
 		}
@@ -582,8 +583,6 @@ static int atmel_abdac_remove(struct platform_device *pdev)
 	iounmap(dac->regs);
 	free_irq(dac->irq, dac);
 	snd_card_free(card);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

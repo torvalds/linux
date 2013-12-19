@@ -82,9 +82,8 @@ static int set_mode(struct spear_pmx *pmx, int mode)
 	return 0;
 }
 
-void __devinit
-pmx_init_gpio_pingroup_addr(struct spear_gpio_pingroup *gpio_pingroup,
-		unsigned count, u16 reg)
+void pmx_init_gpio_pingroup_addr(struct spear_gpio_pingroup *gpio_pingroup,
+				 unsigned count, u16 reg)
 {
 	int i, j;
 
@@ -93,7 +92,7 @@ pmx_init_gpio_pingroup_addr(struct spear_gpio_pingroup *gpio_pingroup,
 			gpio_pingroup[i].muxregs[j].reg = reg;
 }
 
-void __devinit pmx_init_addr(struct spear_pinctrl_machdata *machdata, u16 reg)
+void pmx_init_addr(struct spear_pinctrl_machdata *machdata, u16 reg)
 {
 	struct spear_pingroup *pgroup;
 	struct spear_modemux *modemux;
@@ -199,7 +198,7 @@ static void spear_pinctrl_dt_free_map(struct pinctrl_dev *pctldev,
 	kfree(map);
 }
 
-static struct pinctrl_ops spear_pinctrl_ops = {
+static const struct pinctrl_ops spear_pinctrl_ops = {
 	.get_groups_count = spear_pinctrl_get_groups_cnt,
 	.get_group_name = spear_pinctrl_get_group_name,
 	.get_group_pins = spear_pinctrl_get_group_pins,
@@ -341,7 +340,7 @@ static void gpio_disable_free(struct pinctrl_dev *pctldev,
 	gpio_request_endisable(pctldev, range, offset, false);
 }
 
-static struct pinmux_ops spear_pinmux_ops = {
+static const struct pinmux_ops spear_pinmux_ops = {
 	.get_functions_count = spear_pinctrl_get_funcs_count,
 	.get_function_name = spear_pinctrl_get_func_name,
 	.get_function_groups = spear_pinctrl_get_func_groups,
@@ -358,8 +357,8 @@ static struct pinctrl_desc spear_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
-int __devinit spear_pinctrl_probe(struct platform_device *pdev,
-		struct spear_pinctrl_machdata *machdata)
+int spear_pinctrl_probe(struct platform_device *pdev,
+			struct spear_pinctrl_machdata *machdata)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *res;
@@ -368,21 +367,16 @@ int __devinit spear_pinctrl_probe(struct platform_device *pdev,
 	if (!machdata)
 		return -ENODEV;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-
 	pmx = devm_kzalloc(&pdev->dev, sizeof(*pmx), GFP_KERNEL);
 	if (!pmx) {
 		dev_err(&pdev->dev, "Can't alloc spear_pmx\n");
 		return -ENOMEM;
 	}
 
-	pmx->vbase = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!pmx->vbase) {
-		dev_err(&pdev->dev, "Couldn't ioremap at index 0\n");
-		return -ENODEV;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pmx->vbase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pmx->vbase))
+		return PTR_ERR(pmx->vbase);
 
 	pmx->dev = &pdev->dev;
 	pmx->machdata = machdata;

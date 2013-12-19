@@ -1,3 +1,6 @@
+#include <linux/module.h>
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 #include "comedi_fc.h"
 #include "amcc_s5933.h"
@@ -11,9 +14,6 @@
 static const struct addi_board apci1564_boardtypes[] = {
 	{
 		.pc_DriverName		= "apci1564",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x1006,
-		.i_IorangeBase0		= 128,
 		.i_IorangeBase1		= APCI1564_ADDRESS_RANGE,
 		.i_PCIEeprom		= ADDIDATA_EEPROM,
 		.pc_EepromChip		= ADDIDATA_93C76,
@@ -34,25 +34,25 @@ static const struct addi_board apci1564_boardtypes[] = {
 	},
 };
 
+static int apci1564_auto_attach(struct comedi_device *dev,
+				unsigned long context)
+{
+	dev->board_ptr = &apci1564_boardtypes[0];
+
+	return addi_auto_attach(dev, context);
+}
+
 static struct comedi_driver apci1564_driver = {
 	.driver_name	= "addi_apci_1564",
 	.module		= THIS_MODULE,
-	.auto_attach	= addi_auto_attach,
+	.auto_attach	= apci1564_auto_attach,
 	.detach		= i_ADDI_Detach,
-	.num_names	= ARRAY_SIZE(apci1564_boardtypes),
-	.board_name	= &apci1564_boardtypes[0].pc_DriverName,
-	.offset		= sizeof(struct addi_board),
 };
 
 static int apci1564_pci_probe(struct pci_dev *dev,
-					const struct pci_device_id *ent)
+			      const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &apci1564_driver);
-}
-
-static void apci1564_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
+	return comedi_pci_auto_config(dev, &apci1564_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(apci1564_pci_table) = {
@@ -65,7 +65,7 @@ static struct pci_driver apci1564_pci_driver = {
 	.name		= "addi_apci_1564",
 	.id_table	= apci1564_pci_table,
 	.probe		= apci1564_pci_probe,
-	.remove		= apci1564_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(apci1564_driver, apci1564_pci_driver);
 

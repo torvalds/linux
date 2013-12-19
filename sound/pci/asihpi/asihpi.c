@@ -769,7 +769,10 @@ static void snd_card_asihpi_timer_function(unsigned long data)
 						s->number);
 				ds->drained_count++;
 				if (ds->drained_count > 20) {
+					unsigned long flags;
+					snd_pcm_stream_lock_irqsave(s, flags);
 					snd_pcm_stop(s, SNDRV_PCM_STATE_XRUN);
+					snd_pcm_stream_unlock_irqrestore(s, flags);
 					continue;
 				}
 			} else {
@@ -966,7 +969,7 @@ static u64 snd_card_asihpi_playback_formats(struct snd_card_asihpi *asihpi,
 		if (!err)
 			err = hpi_outstream_query_format(h_stream, &hpi_format);
 		if (!err && (hpi_to_alsa_formats[format] != -1))
-			formats |= (1ULL << hpi_to_alsa_formats[format]);
+			formats |= pcm_format_to_bits(hpi_to_alsa_formats[format]);
 	}
 	return formats;
 }
@@ -1141,8 +1144,8 @@ static u64 snd_card_asihpi_capture_formats(struct snd_card_asihpi *asihpi,
 					format, sample_rate, 128000, 0);
 		if (!err)
 			err = hpi_instream_query_format(h_stream, &hpi_format);
-		if (!err)
-			formats |= (1ULL << hpi_to_alsa_formats[format]);
+		if (!err && (hpi_to_alsa_formats[format] != -1))
+			formats |= pcm_format_to_bits(hpi_to_alsa_formats[format]);
 	}
 	return formats;
 }
@@ -1278,7 +1281,7 @@ struct hpi_control {
 	u16 dst_node_type;
 	u16 dst_node_index;
 	u16 band;
-	char name[44]; /* copied to snd_ctl_elem_id.name[44]; */
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN]; /* copied to snd_ctl_elem_id.name[44]; */
 };
 
 static const char * const asihpi_tuner_band_names[] = {
@@ -1910,6 +1913,7 @@ static int snd_asihpi_tuner_band_put(struct snd_kcontrol *kcontrol,
 	struct snd_card_asihpi *asihpi = snd_kcontrol_chip(kcontrol);
 	*/
 	u32 h_control = kcontrol->private_value;
+	unsigned int idx;
 	u16 band;
 	u16 tuner_bands[HPI_TUNER_BAND_LAST];
 	u32 num_bands = 0;
@@ -1917,7 +1921,10 @@ static int snd_asihpi_tuner_band_put(struct snd_kcontrol *kcontrol,
 	num_bands = asihpi_tuner_band_query(kcontrol, tuner_bands,
 			HPI_TUNER_BAND_LAST);
 
-	band = tuner_bands[ucontrol->value.enumerated.item[0]];
+	idx = ucontrol->value.enumerated.item[0];
+	if (idx >= ARRAY_SIZE(tuner_bands))
+		idx = ARRAY_SIZE(tuner_bands) - 1;
+	band = tuner_bands[idx];
 	hpi_handle_error(hpi_tuner_set_band(h_control, band));
 
 	return 1;
@@ -2380,7 +2387,8 @@ static int snd_asihpi_clksrc_put(struct snd_kcontrol *kcontrol,
 	struct snd_card_asihpi *asihpi =
 			(struct snd_card_asihpi *)(kcontrol->private_data);
 	struct clk_cache *clkcache = &asihpi->cc;
-	int change, item;
+	unsigned int item;
+	int change;
 	u32 h_control = kcontrol->private_value;
 
 	change = 1;
@@ -2549,7 +2557,7 @@ static int snd_asihpi_sampleclock_add(struct snd_card_asihpi *asihpi,
 
 static int snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 {
-	struct snd_card *card = asihpi->card;
+	struct snd_card *card;
 	unsigned int idx = 0;
 	unsigned int subindex = 0;
 	int err;
@@ -2557,6 +2565,7 @@ static int snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 
 	if (snd_BUG_ON(!asihpi))
 		return -EINVAL;
+	card = asihpi->card;
 	strcpy(card->mixername, "Asihpi Mixer");
 
 	err =

@@ -49,6 +49,9 @@ CAN WE PROVE THAT WE WON'T DO THIS IF INTS DISABLED??
 	.text
 	.align 5
 FEXPORT(__smtc_ipi_vector)
+#ifdef CONFIG_CPU_MICROMIPS
+	nop
+#endif
 	.set	noat
 	/* Disable thread scheduling to make Status update atomic */
 	DMT	27					# dmt	k1
@@ -65,7 +68,7 @@ FEXPORT(__smtc_ipi_vector)
 1:
 	/*
 	 * The IPI sender has put some information on the anticipated
-	 * kernel stack frame.  If we were in user mode, this will be
+	 * kernel stack frame.	If we were in user mode, this will be
 	 * built above the saved kernel SP.  If we were already in the
 	 * kernel, it will be built above the current CPU SP.
 	 *

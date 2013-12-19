@@ -271,6 +271,8 @@ struct av7110 {
 	struct dvb_frontend* fe;
 	fe_status_t fe_status;
 
+	struct mutex ioctl_mutex;
+
 	/* crash recovery */
 	void				(*recover)(struct av7110* av7110);
 	fe_sec_voltage_t		saved_voltage;

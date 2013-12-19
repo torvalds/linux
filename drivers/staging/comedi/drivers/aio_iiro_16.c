@@ -14,10 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 /*
@@ -34,8 +30,8 @@ Configuration Options:
 
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
-#include <linux/ioport.h>
 
 #define AIO_IIRO_16_SIZE	0x08
 #define AIO_IIRO_16_RELAY_0_7	0x00
@@ -49,9 +45,7 @@ static int aio_iiro_16_dio_insn_bits_write(struct comedi_device *dev,
 					   struct comedi_insn *insn,
 					   unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
+	if (comedi_dio_update_state(s, data)) {
 		outb(s->state & 0xff, dev->iobase + AIO_IIRO_16_RELAY_0_7);
 		outb((s->state >> 8) & 0xff,
 		     dev->iobase + AIO_IIRO_16_RELAY_8_15);
@@ -77,22 +71,12 @@ static int aio_iiro_16_dio_insn_bits_read(struct comedi_device *dev,
 static int aio_iiro_16_attach(struct comedi_device *dev,
 			      struct comedi_devconfig *it)
 {
-	int iobase;
 	struct comedi_subdevice *s;
 	int ret;
 
-	printk(KERN_INFO "comedi%d: aio_iiro_16: ", dev->minor);
-
-	dev->board_name = dev->driver->driver_name;
-
-	iobase = it->options[0];
-
-	if (!request_region(iobase, AIO_IIRO_16_SIZE, dev->board_name)) {
-		printk("I/O port conflict");
-		return -EIO;
-	}
-
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], AIO_IIRO_16_SIZE);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
@@ -114,22 +98,14 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = aio_iiro_16_dio_insn_bits_read;
 
-	printk("attached\n");
-
 	return 1;
-}
-
-static void aio_iiro_16_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, AIO_IIRO_16_SIZE);
 }
 
 static struct comedi_driver aio_iiro_16_driver = {
 	.driver_name	= "aio_iiro_16",
 	.module		= THIS_MODULE,
 	.attach		= aio_iiro_16_attach,
-	.detach		= aio_iiro_16_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(aio_iiro_16_driver);
 

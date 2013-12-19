@@ -108,8 +108,6 @@ static int atmel_trng_remove(struct platform_device *pdev)
 	clk_disable(trng->clk);
 	clk_put(trng->clk);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
@@ -138,7 +136,7 @@ static const struct dev_pm_ops atmel_trng_pm_ops = {
 
 static struct platform_driver atmel_trng_driver = {
 	.probe		= atmel_trng_probe,
-	.remove		= __devexit_p(atmel_trng_remove),
+	.remove		= atmel_trng_remove,
 	.driver		= {
 		.name	= "atmel-trng",
 		.owner	= THIS_MODULE,

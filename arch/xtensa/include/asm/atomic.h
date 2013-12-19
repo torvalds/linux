@@ -7,7 +7,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001 - 2005 Tensilica Inc.
+ * Copyright (C) 2001 - 2008 Tensilica Inc.
  */
 
 #ifndef _XTENSA_ATOMIC_H
@@ -24,11 +24,11 @@
 
 /*
  * This Xtensa implementation assumes that the right mechanism
- * for exclusion is for locking interrupts to level 1.
+ * for exclusion is for locking interrupts to level EXCM_LEVEL.
  *
  * Locking interrupts looks like this:
  *
- *    rsil a15, 1
+ *    rsil a15, LOCKLEVEL
  *    <code>
  *    wsr  a15, PS
  *    rsync

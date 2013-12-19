@@ -32,8 +32,10 @@ struct pci_dev;
 struct msi_msg;
 
 extern int disable_irq_remap;
+extern int irq_remap_broken;
 extern int disable_sourceid_checking;
 extern int no_x2apic_optout;
+extern int irq_remapping_enabled;
 
 struct irq_remap_ops {
 	/* Check whether Interrupt Remapping is supported */
@@ -88,6 +90,7 @@ extern struct irq_remap_ops amd_iommu_irq_ops;
 
 #define irq_remapping_enabled 0
 #define disable_irq_remap     1
+#define irq_remap_broken      0
 
 #endif /* CONFIG_IRQ_REMAP */
 

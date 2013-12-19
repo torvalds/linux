@@ -247,8 +247,7 @@ static const struct ethtool_ops sis900_ethtool_ops;
  *	@net_dev: the net device to get address for
  *
  *	Older SiS900 and friends, use EEPROM to store MAC address.
- *	MAC address is read from read_eeprom() into @net_dev->dev_addr and
- *	@net_dev->perm_addr.
+ *	MAC address is read from read_eeprom() into @net_dev->dev_addr.
  */
 
 static int sis900_get_mac_addr(struct pci_dev *pci_dev,
@@ -271,9 +270,6 @@ static int sis900_get_mac_addr(struct pci_dev *pci_dev,
 	for (i = 0; i < 3; i++)
 	        ((u16 *)(net_dev->dev_addr))[i] = read_eeprom(ioaddr, i+EEPROMMACAddr);
 
-	/* Store MAC Address in perm_addr */
-	memcpy(net_dev->perm_addr, net_dev->dev_addr, ETH_ALEN);
-
 	return 1;
 }
 
@@ -284,8 +280,7 @@ static int sis900_get_mac_addr(struct pci_dev *pci_dev,
  *
  *	SiS630E model, use APC CMOS RAM to store MAC address.
  *	APC CMOS RAM is accessed through ISA bridge.
- *	MAC address is read into @net_dev->dev_addr and
- *	@net_dev->perm_addr.
+ *	MAC address is read into @net_dev->dev_addr.
  */
 
 static int sis630e_get_mac_addr(struct pci_dev *pci_dev,
@@ -311,9 +306,6 @@ static int sis630e_get_mac_addr(struct pci_dev *pci_dev,
 		((u8 *)(net_dev->dev_addr))[i] = inb(0x71);
 	}
 
-	/* Store MAC Address in perm_addr */
-	memcpy(net_dev->perm_addr, net_dev->dev_addr, ETH_ALEN);
-
 	pci_write_config_byte(isa_bridge, 0x48, reg & ~0x40);
 	pci_dev_put(isa_bridge);
 
@@ -328,7 +320,7 @@ static int sis630e_get_mac_addr(struct pci_dev *pci_dev,
  *
  *	SiS635 model, set MAC Reload Bit to load Mac address from APC
  *	to rfdr. rfdr is accessed through rfcr. MAC address is read into
- *	@net_dev->dev_addr and @net_dev->perm_addr.
+ *	@net_dev->dev_addr.
  */
 
 static int sis635_get_mac_addr(struct pci_dev *pci_dev,
@@ -353,9 +345,6 @@ static int sis635_get_mac_addr(struct pci_dev *pci_dev,
 		*( ((u16 *)net_dev->dev_addr) + i) = sr16(rfdr);
 	}
 
-	/* Store MAC Address in perm_addr */
-	memcpy(net_dev->perm_addr, net_dev->dev_addr, ETH_ALEN);
-
 	/* enable packet filtering */
 	sw32(rfcr, rfcrSave | RFEN);
 
@@ -375,7 +364,7 @@ static int sis635_get_mac_addr(struct pci_dev *pci_dev,
  *	EEDONE signal to refuse EEPROM access by LAN.
  *	The EEPROM map of SiS962 or SiS963 is different to SiS900.
  *	The signature field in SiS962 or SiS963 spec is meaningless.
- *	MAC address is read into @net_dev->dev_addr and @net_dev->perm_addr.
+ *	MAC address is read into @net_dev->dev_addr.
  */
 
 static int sis96x_get_mac_addr(struct pci_dev *pci_dev,
@@ -394,9 +383,6 @@ static int sis96x_get_mac_addr(struct pci_dev *pci_dev,
 			/* get MAC address from EEPROM */
 			for (i = 0; i < 3; i++)
 			        mac[i] = read_eeprom(ioaddr, i + EEPROMMACAddr);
-
-			/* Store MAC Address in perm_addr */
-			memcpy(net_dev->perm_addr, net_dev->dev_addr, ETH_ALEN);
 
 			rc = 1;
 			break;
@@ -1201,8 +1187,14 @@ sis900_init_rx_ring(struct net_device *net_dev)
 		}
 		sis_priv->rx_skbuff[i] = skb;
 		sis_priv->rx_ring[i].cmdsts = RX_BUF_SIZE;
-                sis_priv->rx_ring[i].bufptr = pci_map_single(sis_priv->pci_dev,
-                        skb->data, RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
+		sis_priv->rx_ring[i].bufptr = pci_map_single(sis_priv->pci_dev,
+				skb->data, RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
+		if (unlikely(pci_dma_mapping_error(sis_priv->pci_dev,
+				sis_priv->rx_ring[i].bufptr))) {
+			dev_kfree_skb(skb);
+			sis_priv->rx_skbuff[i] = NULL;
+			break;
+		}
 	}
 	sis_priv->dirty_rx = (unsigned int) (i - NUM_RX_DESC);
 
@@ -1317,22 +1309,8 @@ static void sis900_timer(unsigned long data)
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	struct mii_phy *mii_phy = sis_priv->mii;
 	static const int next_tick = 5*HZ;
+	int speed = 0, duplex = 0;
 	u16 status;
-
-	if (!sis_priv->autong_complete){
-		int uninitialized_var(speed), duplex = 0;
-
-		sis900_read_mode(net_dev, &speed, &duplex);
-		if (duplex){
-			sis900_set_mode(sis_priv, speed, duplex);
-			sis630_set_eq(net_dev, sis_priv->chipset_rev);
-			netif_start_queue(net_dev);
-		}
-
-		sis_priv->timer.expires = jiffies + HZ;
-		add_timer(&sis_priv->timer);
-		return;
-	}
 
 	status = mdio_read(net_dev, sis_priv->cur_phy, MII_STATUS);
 	status = mdio_read(net_dev, sis_priv->cur_phy, MII_STATUS);
@@ -1344,9 +1322,15 @@ static void sis900_timer(unsigned long data)
 		status = sis900_default_phy(net_dev);
 		mii_phy = sis_priv->mii;
 
-		if (status & MII_STAT_LINK){
-			sis900_check_mode(net_dev, mii_phy);
-			netif_carrier_on(net_dev);
+		if (status & MII_STAT_LINK) {
+			WARN_ON(!(status & MII_STAT_AUTO_DONE));
+
+			sis900_read_mode(net_dev, &speed, &duplex);
+			if (duplex) {
+				sis900_set_mode(sis_priv, speed, duplex);
+				sis630_set_eq(net_dev, sis_priv->chipset_rev);
+				netif_carrier_on(net_dev);
+			}
 		}
 	} else {
 	/* Link ON -> OFF */
@@ -1620,12 +1604,6 @@ sis900_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 	unsigned int  index_cur_tx, index_dirty_tx;
 	unsigned int  count_dirty_tx;
 
-	/* Don't transmit data before the complete of auto-negotiation */
-	if(!sis_priv->autong_complete){
-		netif_stop_queue(net_dev);
-		return NETDEV_TX_BUSY;
-	}
-
 	spin_lock_irqsave(&sis_priv->lock, flags);
 
 	/* Calculate the next Tx descriptor entry. */
@@ -1635,6 +1613,14 @@ sis900_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 	/* set the transmit buffer descriptor and enable Transmit State Machine */
 	sis_priv->tx_ring[entry].bufptr = pci_map_single(sis_priv->pci_dev,
 		skb->data, skb->len, PCI_DMA_TODEVICE);
+	if (unlikely(pci_dma_mapping_error(sis_priv->pci_dev,
+		sis_priv->tx_ring[entry].bufptr))) {
+			dev_kfree_skb(skb);
+			sis_priv->tx_skbuff[entry] = NULL;
+			net_dev->stats.tx_dropped++;
+			spin_unlock_irqrestore(&sis_priv->lock, flags);
+			return NETDEV_TX_OK;
+	}
 	sis_priv->tx_ring[entry].cmdsts = (OWN | skb->len);
 	sw32(cr, TxENA | sr32(cr));
 
@@ -1723,7 +1709,7 @@ static irqreturn_t sis900_interrupt(int irq, void *dev_instance)
 
 	if(netif_msg_intr(sis_priv))
 		printk(KERN_DEBUG "%s: exiting interrupt, "
-		       "interrupt status = 0x%#8.8x.\n",
+		       "interrupt status = %#8.8x\n",
 		       net_dev->name, sr32(isr));
 
 	spin_unlock (&sis_priv->lock);
@@ -1838,9 +1824,15 @@ static int sis900_rx(struct net_device *net_dev)
 refill_rx_ring:
 			sis_priv->rx_skbuff[entry] = skb;
 			sis_priv->rx_ring[entry].cmdsts = RX_BUF_SIZE;
-                	sis_priv->rx_ring[entry].bufptr =
+			sis_priv->rx_ring[entry].bufptr =
 				pci_map_single(sis_priv->pci_dev, skb->data,
 					RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
+			if (unlikely(pci_dma_mapping_error(sis_priv->pci_dev,
+				sis_priv->rx_ring[entry].bufptr))) {
+				dev_kfree_skb_irq(skb);
+				sis_priv->rx_skbuff[entry] = NULL;
+				break;
+			}
 		}
 		sis_priv->cur_rx++;
 		entry = sis_priv->cur_rx % NUM_RX_DESC;
@@ -1855,23 +1847,26 @@ refill_rx_ring:
 		entry = sis_priv->dirty_rx % NUM_RX_DESC;
 
 		if (sis_priv->rx_skbuff[entry] == NULL) {
-			if ((skb = netdev_alloc_skb(net_dev, RX_BUF_SIZE)) == NULL) {
+			skb = netdev_alloc_skb(net_dev, RX_BUF_SIZE);
+			if (skb == NULL) {
 				/* not enough memory for skbuff, this makes a
 				 * "hole" on the buffer ring, it is not clear
 				 * how the hardware will react to this kind
 				 * of degenerated buffer */
-				if (netif_msg_rx_err(sis_priv))
-					printk(KERN_INFO "%s: Memory squeeze, "
-						"deferring packet.\n",
-						net_dev->name);
 				net_dev->stats.rx_dropped++;
 				break;
 			}
 			sis_priv->rx_skbuff[entry] = skb;
 			sis_priv->rx_ring[entry].cmdsts = RX_BUF_SIZE;
-                	sis_priv->rx_ring[entry].bufptr =
+			sis_priv->rx_ring[entry].bufptr =
 				pci_map_single(sis_priv->pci_dev, skb->data,
 					RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
+			if (unlikely(pci_dma_mapping_error(sis_priv->pci_dev,
+					sis_priv->rx_ring[entry].bufptr))) {
+				dev_kfree_skb_irq(skb);
+				sis_priv->rx_skbuff[entry] = NULL;
+				break;
+			}
 		}
 	}
 	/* re-enable the potentially idle receive state matchine */

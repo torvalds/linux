@@ -197,8 +197,8 @@ comment "IDE chipset support/bugfixes"
 
 config IDE_GENERIC
 	tristate "generic/default IDE chipset support"
-	depends on ALPHA || X86 || IA64 || M32R || MIPS || ARCH_RPC || ARCH_SHARK
-	default ARM && (ARCH_RPC || ARCH_SHARK)
+	depends on ALPHA || X86 || IA64 || M32R || MIPS || ARCH_RPC
+	default ARM && ARCH_RPC
 	help
 	  This is the generic IDE driver.  This driver attaches to the
 	  fixed legacy ports (e.g. on PCs 0x1f0/0x170, 0x1e8/0x168 and
@@ -322,8 +322,7 @@ config BLK_DEV_GENERIC
           which otherwise might not be supported.
 
 config BLK_DEV_OPTI621
-	tristate "OPTi 82C621 chipset enhanced support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "OPTi 82C621 chipset enhanced support"
 	select BLK_DEV_IDEPCI
 	help
 	  This is a driver for the OPTi 82C621 EIDE controller.
@@ -417,7 +416,6 @@ config BLK_DEV_CY82C693
 
 config BLK_DEV_CS5520
 	tristate "Cyrix CS5510/20 MediaGX chipset support (VERY EXPERIMENTAL)"
-	depends on EXPERIMENTAL
 	select BLK_DEV_IDEDMA_PCI
 	help
 	  Include support for PIO tuning and virtual DMA on the Cyrix MediaGX
@@ -702,11 +700,6 @@ config BLK_DEV_IDE_TX4939
 	depends on SOC_TX4939
 	select BLK_DEV_IDEDMA_SFF
 
-config BLK_DEV_IDE_AT91
-	tristate "Atmel AT91 (SAM9, CAP9, AT572D940HF) IDE support"
-	depends on ARM && ARCH_AT91 && !ARCH_AT91RM9200 && !ARCH_AT91X40
-	select IDE_TIMINGS
-
 config BLK_DEV_IDE_ICSIDE
 	tristate "ICS IDE interface support"
 	depends on ARM && ARCH_ACORN
@@ -728,13 +721,6 @@ config BLK_DEV_IDE_RAPIDE
 	help
 	  Say Y here if you want to support the Yellowstone RapIDE controller
 	  manufactured for use with Acorn computers.
-
-config IDE_H8300
-	tristate "H8300 IDE support"
-	depends on H8300
-	default y
-	help
-	  Enables the H8300 IDE driver.
 
 config BLK_DEV_GAYLE
 	tristate "Amiga Gayle IDE interface support"
@@ -761,8 +747,8 @@ config BLK_DEV_GAYLE
 	  use Gayle IDE interfaces on the Zorro expansion bus.
 
 config BLK_DEV_BUDDHA
-	tristate "Buddha/Catweasel/X-Surf IDE interface support (EXPERIMENTAL)"
-	depends on ZORRO && EXPERIMENTAL
+	tristate "Buddha/Catweasel/X-Surf IDE interface support"
+	depends on ZORRO
 	help
 	  This is the IDE driver for the IDE interfaces on the Buddha, Catweasel
 	  and X-Surf expansion boards.  It supports up to two interfaces on the

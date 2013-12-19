@@ -22,16 +22,10 @@
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *   Vlad Yasevich     <vladislav.yasevich@hp.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #include <linux/slab.h>
@@ -71,7 +65,7 @@ void sctp_auth_key_put(struct sctp_auth_bytes *key)
 		return;
 
 	if (atomic_dec_and_test(&key->refcnt)) {
-		kfree(key);
+		kzfree(key);
 		SCTP_DBG_OBJCNT_DEC(keys);
 	}
 }
@@ -200,27 +194,28 @@ static struct sctp_auth_bytes *sctp_auth_make_key_vector(
 	struct sctp_auth_bytes *new;
 	__u32	len;
 	__u32	offset = 0;
+	__u16	random_len, hmacs_len, chunks_len = 0;
 
-	len = ntohs(random->param_hdr.length) + ntohs(hmacs->param_hdr.length);
-        if (chunks)
-		len += ntohs(chunks->param_hdr.length);
+	random_len = ntohs(random->param_hdr.length);
+	hmacs_len = ntohs(hmacs->param_hdr.length);
+	if (chunks)
+		chunks_len = ntohs(chunks->param_hdr.length);
 
-	new = kmalloc(sizeof(struct sctp_auth_bytes) + len, gfp);
+	len = random_len + hmacs_len + chunks_len;
+
+	new = sctp_auth_create_key(len, gfp);
 	if (!new)
 		return NULL;
 
-	new->len = len;
-
-	memcpy(new->data, random, ntohs(random->param_hdr.length));
-	offset += ntohs(random->param_hdr.length);
+	memcpy(new->data, random, random_len);
+	offset += random_len;
 
 	if (chunks) {
-		memcpy(new->data + offset, chunks,
-			ntohs(chunks->param_hdr.length));
-		offset += ntohs(chunks->param_hdr.length);
+		memcpy(new->data + offset, chunks, chunks_len);
+		offset += chunks_len;
 	}
 
-	memcpy(new->data + offset, hmacs, ntohs(hmacs->param_hdr.length));
+	memcpy(new->data + offset, hmacs, hmacs_len);
 
 	return new;
 }
@@ -350,8 +345,8 @@ static struct sctp_auth_bytes *sctp_auth_asoc_create_secret(
 	secret = sctp_auth_asoc_set_secret(ep_key, first_vector, last_vector,
 					    gfp);
 out:
-	kfree(local_key_vector);
-	kfree(peer_key_vector);
+	sctp_auth_key_put(local_key_vector);
+	sctp_auth_key_put(peer_key_vector);
 
 	return secret;
 }
@@ -544,18 +539,14 @@ struct sctp_hmac *sctp_auth_asoc_get_hmac(const struct sctp_association *asoc)
 	for (i = 0; i < n_elt; i++) {
 		id = ntohs(hmacs->hmac_ids[i]);
 
-		/* Check the id is in the supported range */
-		if (id > SCTP_AUTH_HMAC_ID_MAX) {
-			id = 0;
-			continue;
-		}
-
-		/* See is we support the id.  Supported IDs have name and
-		 * length fields set, so that we can allocated and use
+		/* Check the id is in the supported range. And
+		 * see if we support the id.  Supported IDs have name and
+		 * length fields set, so that we can allocate and use
 		 * them.  We can safely just check for name, for without the
 		 * name, we can't allocate the TFM.
 		 */
-		if (!sctp_hmac_list[id].hmac_name) {
+		if (id > SCTP_AUTH_HMAC_ID_MAX ||
+		    !sctp_hmac_list[id].hmac_name) {
 			id = 0;
 			continue;
 		}

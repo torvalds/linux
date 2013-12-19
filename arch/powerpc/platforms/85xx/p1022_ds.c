@@ -106,42 +106,6 @@
 	(c2 << AD_COMP_2_SHIFT) | (c1 << AD_COMP_1_SHIFT) | \
 	(c0 << AD_COMP_0_SHIFT) | (size << AD_PIXEL_S_SHIFT))
 
-/**
- * p1022ds_get_pixel_format: return the Area Descriptor for a given pixel depth
- *
- * The Area Descriptor is a 32-bit value that determine which bits in each
- * pixel are to be used for each color.
- */
-static u32 p1022ds_get_pixel_format(enum fsl_diu_monitor_port port,
-				    unsigned int bits_per_pixel)
-{
-	switch (bits_per_pixel) {
-	case 32:
-		/* 0x88883316 */
-		return MAKE_AD(3, 2, 0, 1, 3, 8, 8, 8, 8);
-	case 24:
-		/* 0x88082219 */
-		return MAKE_AD(4, 0, 1, 2, 2, 0, 8, 8, 8);
-	case 16:
-		/* 0x65053118 */
-		return MAKE_AD(4, 2, 1, 0, 1, 5, 6, 5, 0);
-	default:
-		pr_err("fsl-diu: unsupported pixel depth %u\n", bits_per_pixel);
-		return 0;
-	}
-}
-
-/**
- * p1022ds_set_gamma_table: update the gamma table, if necessary
- *
- * On some boards, the gamma table for some ports may need to be modified.
- * This is not the case on the P1022DS, so we do nothing.
-*/
-static void p1022ds_set_gamma_table(enum fsl_diu_monitor_port port,
-				    char *gamma_table_base)
-{
-}
-
 struct fsl_law {
 	u32	lawbar;
 	u32	reserved1;
@@ -215,13 +179,13 @@ static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 	/* Map the global utilities registers. */
 	guts_node = of_find_compatible_node(NULL, NULL, "fsl,p1022-guts");
 	if (!guts_node) {
-		pr_err("p1022ds: missing global utilties device node\n");
+		pr_err("p1022ds: missing global utilities device node\n");
 		return;
 	}
 
 	guts = of_iomap(guts_node, 0);
 	if (!guts) {
-		pr_err("p1022ds: could not map global utilties device\n");
+		pr_err("p1022ds: could not map global utilities device\n");
 		goto exit;
 	}
 
@@ -302,7 +266,7 @@ static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 		goto exit;
 	}
 	cs1_addr = lbc_br_to_phys(ecm, num_laws, br1);
-	if (!cs0_addr) {
+	if (!cs1_addr) {
 		pr_err("p1022ds: could not determine physical address for CS1"
 		       " (BR1=%08x)\n", br1);
 		goto exit;
@@ -416,14 +380,14 @@ void p1022ds_set_pixel_clock(unsigned int pixclock)
 	/* Map the global utilities registers. */
 	guts_np = of_find_compatible_node(NULL, NULL, "fsl,p1022-guts");
 	if (!guts_np) {
-		pr_err("p1022ds: missing global utilties device node\n");
+		pr_err("p1022ds: missing global utilities device node\n");
 		return;
 	}
 
 	guts = of_iomap(guts_np, 0);
 	of_node_put(guts_np);
 	if (!guts) {
-		pr_err("p1022ds: could not map global utilties device\n");
+		pr_err("p1022ds: could not map global utilities device\n");
 		return;
 	}
 
@@ -510,8 +474,6 @@ static void __init p1022_ds_setup_arch(void)
 		ppc_md.progress("p1022_ds_setup_arch()", 0);
 
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
-	diu_ops.get_pixel_format	= p1022ds_get_pixel_format;
-	diu_ops.set_gamma_table		= p1022ds_set_gamma_table;
 	diu_ops.set_monitor_port	= p1022ds_set_monitor_port;
 	diu_ops.set_pixel_clock		= p1022ds_set_pixel_clock;
 	diu_ops.valid_monitor_port	= p1022ds_valid_monitor_port;

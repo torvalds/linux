@@ -40,7 +40,13 @@ Two elements are required for tracepoints :
 
 In order to use tracepoints, you should include linux/tracepoint.h.
 
-In include/trace/subsys.h :
+In include/trace/events/subsys.h :
+
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM subsys
+
+#if !defined(_TRACE_SUBSYS_H) || defined(TRACE_HEADER_MULTI_READ)
+#define _TRACE_SUBSYS_H
 
 #include <linux/tracepoint.h>
 
@@ -48,10 +54,16 @@ DECLARE_TRACE(subsys_eventname,
 	TP_PROTO(int firstarg, struct task_struct *p),
 	TP_ARGS(firstarg, p));
 
+#endif /* _TRACE_SUBSYS_H */
+
+/* This part must be outside protection */
+#include <trace/define_trace.h>
+
 In subsys/file.c (where the tracing statement must be added) :
 
-#include <trace/subsys.h>
+#include <trace/events/subsys.h>
 
+#define CREATE_TRACE_POINTS
 DEFINE_TRACE(subsys_eventname);
 
 void somefct(void)
@@ -72,6 +84,9 @@ Where :
 - TP_ARGS(firstarg, p) are the parameters names, same as found in the
   prototype.
 
+- if you use the header in multiple source files, #define CREATE_TRACE_POINTS
+  should appear only in one source file.
+
 Connecting a function (probe) to a tracepoint is done by providing a
 probe (function to call) for the specific tracepoint through
 register_trace_subsys_eventname().  Removing a probe is done through
@@ -81,7 +96,6 @@ tracepoint_synchronize_unregister() must be called before the end of
 the module exit function to make sure there is no caller left using
 the probe. This, and the fact that preemption is disabled around the
 probe call, make sure that probe removal and module unload are safe.
-See the "Probe example" section below for a sample probe module.
 
 The tracepoint mechanism supports inserting multiple instances of the
 same tracepoint, but a single definition must be made of a given
@@ -101,16 +115,7 @@ If the tracepoint has to be used in kernel modules, an
 EXPORT_TRACEPOINT_SYMBOL_GPL() or EXPORT_TRACEPOINT_SYMBOL() can be
 used to export the defined tracepoints.
 
-* Probe / tracepoint example
-
-See the example provided in samples/tracepoints
-
-Compile them with your kernel.  They are built during 'make' (not
-'make modules') when CONFIG_SAMPLE_TRACEPOINTS=m.
-
-Run, as root :
-modprobe tracepoint-sample (insmod order is not important)
-modprobe tracepoint-probe-sample
-cat /proc/tracepoint-sample (returns an expected error)
-rmmod tracepoint-sample tracepoint-probe-sample
-dmesg
+Note: The convenience macro TRACE_EVENT provides an alternative way to
+      define tracepoints. Check http://lwn.net/Articles/379903,
+      http://lwn.net/Articles/381064 and http://lwn.net/Articles/383362
+      for a series of articles with more details.

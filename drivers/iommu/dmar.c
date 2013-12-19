@@ -41,6 +41,8 @@
 #include <asm/irq_remapping.h>
 #include <asm/iommu_table.h>
 
+#include "irq_remapping.h"
+
 /* No locks are needed as DMA remapping hardware unit
  * list is constructed at boot time and hotplug of
  * these units are not supported by the architecture.
@@ -86,7 +88,7 @@ static int __init dmar_parse_one_dev_scope(struct acpi_dmar_device_scope *scope,
 			pr_warn("Device scope bus [%d] not found\n", scope->bus);
 			break;
 		}
-		pdev = pci_get_slot(bus, PCI_DEVFN(path->dev, path->fn));
+		pdev = pci_get_slot(bus, PCI_DEVFN(path->device, path->function));
 		if (!pdev) {
 			/* warning will be printed below */
 			break;
@@ -97,7 +99,7 @@ static int __init dmar_parse_one_dev_scope(struct acpi_dmar_device_scope *scope,
 	}
 	if (!pdev) {
 		pr_warn("Device scope device [%04x:%02x:%02x.%02x] not found\n",
-			segment, scope->bus, path->dev, path->fn);
+			segment, scope->bus, path->device, path->function);
 		*dev = NULL;
 		return 0;
 	}
@@ -127,7 +129,8 @@ int __init dmar_parse_dev_scope(void *start, void *end, int *cnt,
 		if (scope->entry_type == ACPI_DMAR_SCOPE_TYPE_ENDPOINT ||
 		    scope->entry_type == ACPI_DMAR_SCOPE_TYPE_BRIDGE)
 			(*cnt)++;
-		else if (scope->entry_type != ACPI_DMAR_SCOPE_TYPE_IOAPIC) {
+		else if (scope->entry_type != ACPI_DMAR_SCOPE_TYPE_IOAPIC &&
+			scope->entry_type != ACPI_DMAR_SCOPE_TYPE_HPET) {
 			pr_warn("Unsupported device scope\n");
 		}
 		start += scope->length;
@@ -306,6 +309,7 @@ parse_dmar_table(void)
 	struct acpi_table_dmar *dmar;
 	struct acpi_dmar_header *entry_header;
 	int ret = 0;
+	int drhd_count = 0;
 
 	/*
 	 * Do it again, earlier dmar_tbl mapping could be mapped with
@@ -344,6 +348,7 @@ parse_dmar_table(void)
 
 		switch (entry_header->type) {
 		case ACPI_DMAR_TYPE_HARDWARE_UNIT:
+			drhd_count++;
 			ret = dmar_parse_one_drhd(entry_header);
 			break;
 		case ACPI_DMAR_TYPE_RESERVED_MEMORY:
@@ -368,6 +373,8 @@ parse_dmar_table(void)
 
 		entry_header = ((void *)entry_header + entry_header->length);
 	}
+	if (drhd_count == 0)
+		pr_warn(FW_BUG "No DRHD structure found in DMAR table\n");
 	return ret;
 }
 
@@ -396,7 +403,7 @@ dmar_find_matched_drhd_unit(struct pci_dev *dev)
 
 	dev = pci_physfn(dev);
 
-	list_for_each_entry(dmaru, &dmar_drhd_units, list) {
+	for_each_drhd_unit(dmaru) {
 		drhd = container_of(dmaru->hdr,
 				    struct acpi_dmar_hardware_unit,
 				    header);
@@ -643,7 +650,7 @@ out:
 int alloc_iommu(struct dmar_drhd_unit *drhd)
 {
 	struct intel_iommu *iommu;
-	u32 ver;
+	u32 ver, sts;
 	static int iommu_allocated = 0;
 	int agaw = 0;
 	int msagaw = 0;
@@ -692,6 +699,15 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 		DMAR_VER_MAJOR(ver), DMAR_VER_MINOR(ver),
 		(unsigned long long)iommu->cap,
 		(unsigned long long)iommu->ecap);
+
+	/* Reflect status in gcmd */
+	sts = readl(iommu->reg + DMAR_GSTS_REG);
+	if (sts & DMA_GSTS_IRES)
+		iommu->gcmd |= DMA_GCMD_IRE;
+	if (sts & DMA_GSTS_TES)
+		iommu->gcmd |= DMA_GCMD_TE;
+	if (sts & DMA_GSTS_QIES)
+		iommu->gcmd |= DMA_GCMD_QIE;
 
 	raw_spin_lock_init(&iommu->register_lock);
 
@@ -1040,7 +1056,7 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 
 	qi->desc = page_address(desc_page);
 
-	qi->desc_status = kmalloc(QI_LENGTH * sizeof(int), GFP_ATOMIC);
+	qi->desc_status = kzalloc(QI_LENGTH * sizeof(int), GFP_ATOMIC);
 	if (!qi->desc_status) {
 		free_page((unsigned long) qi->desc);
 		kfree(qi);
@@ -1081,6 +1097,7 @@ static const char *dma_remap_fault_reasons[] =
 	"non-zero reserved fields in RTP",
 	"non-zero reserved fields in CTP",
 	"non-zero reserved fields in PTE",
+	"PCE for translation request specifies blocking",
 };
 
 static const char *irq_remap_fault_reasons[] =
@@ -1201,7 +1218,7 @@ irqreturn_t dmar_fault(int irq, void *dev_id)
 
 	/* TBD: ignore advanced fault log currently */
 	if (!(fault_status & DMA_FSTS_PPF))
-		goto clear_rest;
+		goto unlock_exit;
 
 	fault_index = dma_fsts_fault_record_index(fault_status);
 	reg = cap_fault_reg_offset(iommu->cap);
@@ -1242,11 +1259,10 @@ irqreturn_t dmar_fault(int irq, void *dev_id)
 			fault_index = 0;
 		raw_spin_lock_irqsave(&iommu->register_lock, flag);
 	}
-clear_rest:
-	/* clear all the other faults */
-	fault_status = readl(iommu->reg + DMAR_FSTS_REG);
-	writel(fault_status, iommu->reg + DMAR_FSTS_REG);
 
+	writel(DMA_FSTS_PFO | DMA_FSTS_PPF, iommu->reg + DMAR_FSTS_REG);
+
+unlock_exit:
 	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 	return IRQ_HANDLED;
 }
@@ -1294,6 +1310,7 @@ int __init enable_drhd_fault_handling(void)
 	for_each_drhd_unit(drhd) {
 		int ret;
 		struct intel_iommu *iommu = drhd->iommu;
+		u32 fault_status;
 		ret = dmar_set_interrupt(iommu);
 
 		if (ret) {
@@ -1306,6 +1323,8 @@ int __init enable_drhd_fault_handling(void)
 		 * Clear any previous faults.
 		 */
 		dmar_fault(iommu->irq, iommu);
+		fault_status = readl(iommu->reg + DMAR_FSTS_REG);
+		writel(fault_status, iommu->reg + DMAR_FSTS_REG);
 	}
 
 	return 0;

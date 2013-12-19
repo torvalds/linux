@@ -76,7 +76,7 @@ static int sp_probe(struct platform_device *pdev)
 	struct resource *res_mem, *res_irq;
 	struct sja1000_platform_data *pdata;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_err(&pdev->dev, "No platform data provided!\n");
 		err = -ENODEV;
@@ -135,7 +135,7 @@ static int sp_probe(struct platform_device *pdev)
 		break;
 	}
 
-	dev_set_drvdata(&pdev->dev, dev);
+	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	err = register_sja1000dev(dev);
@@ -161,12 +161,11 @@ static int sp_probe(struct platform_device *pdev)
 
 static int sp_remove(struct platform_device *pdev)
 {
-	struct net_device *dev = dev_get_drvdata(&pdev->dev);
+	struct net_device *dev = platform_get_drvdata(pdev);
 	struct sja1000_priv *priv = netdev_priv(dev);
 	struct resource *res;
 
 	unregister_sja1000dev(dev);
-	dev_set_drvdata(&pdev->dev, NULL);
 
 	if (priv->reg_base)
 		iounmap(priv->reg_base);

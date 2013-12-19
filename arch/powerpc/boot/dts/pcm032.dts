@@ -14,6 +14,14 @@
 
 /include/ "mpc5200b.dtsi"
 
+&gpt0 { fsl,has-wdt; };
+&gpt2 { gpio-controller; };
+&gpt3 { gpio-controller; };
+&gpt4 { gpio-controller; };
+&gpt5 { gpio-controller; };
+&gpt6 { gpio-controller; };
+&gpt7 { gpio-controller; };
+
 / {
 	model = "phytec,pcm032";
 	compatible = "phytec,pcm032";
@@ -23,43 +31,6 @@
 	};
 
 	soc5200@f0000000 {
-		timer@600 {		// General Purpose Timer
-			fsl,has-wdt;
-		};
-
-		gpt2: timer@620 {	// General Purpose Timer in GPIO mode
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
-		gpt3: timer@630 {	// General Purpose Timer in GPIO mode
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
-		gpt4: timer@640 {	// General Purpose Timer in GPIO mode
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
-		gpt5: timer@650 {	// General Purpose Timer in GPIO mode
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
-		gpt6: timer@660 {	// General Purpose Timer in GPIO mode
-			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
-			reg = <0x660 0x10>;
-			interrupts = <1 15 0>;
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
-		gpt7: timer@670 {	// General Purpose Timer in GPIO mode
-			gpio-controller;
-			#gpio-cells = <2>;
-		};
-
 		psc@2000 {	/* PSC1 is ac97 */
 			compatible = "fsl,mpc5200b-psc-ac97","fsl,mpc5200-psc-ac97";
 			cell-index = <0>;

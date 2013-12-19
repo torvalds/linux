@@ -209,7 +209,7 @@ static void cpia2_usb_complete(struct urb *urb)
 {
 	int i;
 	unsigned char *cdata;
-	static int frame_ready = false;
+	static bool frame_ready = false;
 	struct camera_data *cam = (struct camera_data *) urb->context;
 
 	if (urb->status!=0) {
@@ -328,7 +328,7 @@ static void cpia2_usb_complete(struct urb *urb)
 				continue;
 			}
 			DBG("Start of frame pattern found\n");
-			do_gettimeofday(&cam->workbuff->timestamp);
+			v4l2_get_timestamp(&cam->workbuff->timestamp);
 			cam->workbuff->seq = cam->frame_count++;
 			cam->workbuff->data[0] = 0xFF;
 			cam->workbuff->data[1] = 0xD8;

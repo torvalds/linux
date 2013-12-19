@@ -22,7 +22,6 @@
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/kmod.h>
-#include <linux/netlink.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <net/net_namespace.h>
@@ -118,7 +117,7 @@ static inline u32 tcf_auto_prio(struct tcf_proto *tp)
 
 /* Add/change/delete/get a filter node */
 
-static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
+static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tca[TCA_MAX + 1];
@@ -141,7 +140,12 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 
 	if ((n->nlmsg_type != RTM_GETTFILTER) && !capable(CAP_NET_ADMIN))
 		return -EPERM;
+
 replay:
+	err = nlmsg_parse(n, sizeof(*t), tca, TCA_MAX, NULL);
+	if (err < 0)
+		return err;
+
 	t = nlmsg_data(n);
 	protocol = TC_H_MIN(t->tcm_info);
 	prio = TC_H_MAJ(t->tcm_info);
@@ -163,10 +167,6 @@ replay:
 	dev = __dev_get_by_index(net, t->tcm_ifindex);
 	if (dev == NULL)
 		return -ENODEV;
-
-	err = nlmsg_parse(n, sizeof(*t), tca, TCA_MAX, NULL);
-	if (err < 0)
-		return err;
 
 	/* Find qdisc */
 	if (!parent) {
@@ -321,7 +321,7 @@ replay:
 		}
 	}
 
-	err = tp->ops->change(skb, tp, cl, t->tcm_handle, tca, &fh);
+	err = tp->ops->change(net, skb, tp, cl, t->tcm_handle, tca, &fh);
 	if (err == 0) {
 		if (tp_created) {
 			spin_lock_bh(root_lock);
@@ -427,7 +427,7 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 	const struct Qdisc_class_ops *cops;
 	struct tcf_dump_args arg;
 
-	if (cb->nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*tcm)))
+	if (nlmsg_len(cb->nlh) < sizeof(*tcm))
 		return skb->len;
 	dev = __dev_get_by_index(net, tcm->tcm_ifindex);
 	if (!dev)
@@ -508,7 +508,7 @@ void tcf_exts_destroy(struct tcf_proto *tp, struct tcf_exts *exts)
 }
 EXPORT_SYMBOL(tcf_exts_destroy);
 
-int tcf_exts_validate(struct tcf_proto *tp, struct nlattr **tb,
+int tcf_exts_validate(struct net *net, struct tcf_proto *tp, struct nlattr **tb,
 		  struct nlattr *rate_tlv, struct tcf_exts *exts,
 		  const struct tcf_ext_map *map)
 {
@@ -519,7 +519,7 @@ int tcf_exts_validate(struct tcf_proto *tp, struct nlattr **tb,
 		struct tc_action *act;
 
 		if (map->police && tb[map->police]) {
-			act = tcf_action_init_1(tb[map->police], rate_tlv,
+			act = tcf_action_init_1(net, tb[map->police], rate_tlv,
 						"police", TCA_ACT_NOREPLACE,
 						TCA_ACT_BIND);
 			if (IS_ERR(act))
@@ -528,8 +528,9 @@ int tcf_exts_validate(struct tcf_proto *tp, struct nlattr **tb,
 			act->type = TCA_OLD_COMPAT;
 			exts->action = act;
 		} else if (map->action && tb[map->action]) {
-			act = tcf_action_init(tb[map->action], rate_tlv, NULL,
-					      TCA_ACT_NOREPLACE, TCA_ACT_BIND);
+			act = tcf_action_init(net, tb[map->action], rate_tlv,
+					      NULL, TCA_ACT_NOREPLACE,
+					      TCA_ACT_BIND);
 			if (IS_ERR(act))
 				return PTR_ERR(act);
 

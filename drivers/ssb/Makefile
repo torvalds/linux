@@ -11,6 +11,7 @@ ssb-$(CONFIG_SSB_SDIOHOST)		+= sdio.o
 # built-in drivers
 ssb-y					+= driver_chipcommon.o
 ssb-y					+= driver_chipcommon_pmu.o
+ssb-$(CONFIG_SSB_SFLASH)		+= driver_chipcommon_sflash.o
 ssb-$(CONFIG_SSB_DRIVER_MIPS)		+= driver_mipscore.o
 ssb-$(CONFIG_SSB_DRIVER_EXTIF)		+= driver_extif.o
 ssb-$(CONFIG_SSB_DRIVER_PCICORE)	+= driver_pcicore.o

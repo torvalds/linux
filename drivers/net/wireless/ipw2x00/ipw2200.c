@@ -2698,7 +2698,7 @@ static u16 eeprom_read_u16(struct ipw_priv *priv, u8 addr)
 /* data's copy of the eeprom data                                 */
 static void eeprom_parse_mac(struct ipw_priv *priv, u8 * mac)
 {
-	memcpy(mac, &priv->eeprom[EEPROM_MAC_ADDRESS], 6);
+	memcpy(mac, &priv->eeprom[EEPROM_MAC_ADDRESS], ETH_ALEN);
 }
 
 static void ipw_read_eeprom(struct ipw_priv *priv)
@@ -3548,6 +3548,7 @@ static int ipw_load(struct ipw_priv *priv)
 		ipw_rx_queue_reset(priv, priv->rxq);
 	if (!priv->rxq) {
 		IPW_ERROR("Unable to initialize Rx queue\n");
+		rc = -ENOMEM;
 		goto error;
 	}
 
@@ -4480,18 +4481,11 @@ static void handle_scan_event(struct ipw_priv *priv)
 {
 	/* Only userspace-requested scan completion events go out immediately */
 	if (!priv->user_requested_scan) {
-		if (!delayed_work_pending(&priv->scan_event))
-			schedule_delayed_work(&priv->scan_event,
-					      round_jiffies_relative(msecs_to_jiffies(4000)));
+		schedule_delayed_work(&priv->scan_event,
+				      round_jiffies_relative(msecs_to_jiffies(4000)));
 	} else {
-		union iwreq_data wrqu;
-
 		priv->user_requested_scan = 0;
-		cancel_delayed_work(&priv->scan_event);
-
-		wrqu.data.length = 0;
-		wrqu.data.flags = 0;
-		wireless_send_event(priv->net_dev, SIOCGIWSCAN, &wrqu, NULL);
+		mod_delayed_work(system_wq, &priv->scan_event, 0);
 	}
 }
 
@@ -8263,7 +8257,7 @@ static  int is_duplicate_packet(struct ipw_priv *priv,
 			u8 *mac = header->addr2;
 			int index = mac[5] % IPW_IBSS_MAC_HASH_SIZE;
 
-			__list_for_each(p, &priv->ibss_mac_hash[index]) {
+			list_for_each(p, &priv->ibss_mac_hash[index]) {
 				entry =
 				    list_entry(p, struct ipw_ibss_seq, list);
 				if (!memcmp(entry->mac, mac, ETH_ALEN))
@@ -11327,7 +11321,6 @@ static int ipw_up(struct ipw_priv *priv)
 		if (!(priv->config & CFG_CUSTOM_MAC))
 			eeprom_parse_mac(priv, priv->mac_addr);
 		memcpy(priv->net_dev->dev_addr, priv->mac_addr, ETH_ALEN);
-		memcpy(priv->net_dev->perm_addr, priv->mac_addr, ETH_ALEN);
 
 		ipw_set_geo(priv);
 
@@ -11892,7 +11885,6 @@ static int ipw_pci_probe(struct pci_dev *pdev,
 	pci_release_regions(pdev);
       out_pci_disable_device:
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
       out_free_libipw:
 	free_libipw(priv->net_dev, 0);
       out:
@@ -11973,7 +11965,6 @@ static void ipw_pci_remove(struct pci_dev *pdev)
 	iounmap(priv->hw_base);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	/* wiphy_unregister needs to be here, before free_libipw */
 	wiphy_unregister(priv->ieee->wdev.wiphy);
 	kfree(priv->ieee->a_band.channels);

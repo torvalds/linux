@@ -1,9 +1,7 @@
 /*******************************************************************************
  * This file contains the iSCSI Target specific utility functions.
  *
- * \u00a9 Copyright 2007-2011 RisingTide Systems LLC.
- *
- * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
+ * (c) Copyright 2007-2013 Datera, Inc.
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
@@ -19,11 +17,13 @@
  ******************************************************************************/
 
 #include <linux/list.h>
+#include <linux/percpu_ida.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 #include <target/target_core_configfs.h>
+#include <target/iscsi/iscsi_transport.h>
 
 #include "iscsi_target_core.h"
 #include "iscsi_target_parameters.h"
@@ -155,18 +155,19 @@ void iscsit_free_r2ts_from_list(struct iscsi_cmd *cmd)
 struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
 {
 	struct iscsi_cmd *cmd;
+	struct se_session *se_sess = conn->sess->se_sess;
+	int size, tag;
 
-	cmd = kmem_cache_zalloc(lio_cmd_cache, gfp_mask);
-	if (!cmd) {
-		pr_err("Unable to allocate memory for struct iscsi_cmd.\n");
-		return NULL;
-	}
+	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, gfp_mask);
+	size = sizeof(struct iscsi_cmd) + conn->conn_transport->priv_size;
+	cmd = (struct iscsi_cmd *)(se_sess->sess_cmd_map + (tag * size));
+	memset(cmd, 0, size);
 
-	cmd->conn	= conn;
+	cmd->se_cmd.map_tag = tag;
+	cmd->conn = conn;
 	INIT_LIST_HEAD(&cmd->i_conn_node);
 	INIT_LIST_HEAD(&cmd->datain_list);
 	INIT_LIST_HEAD(&cmd->cmd_r2t_list);
-	init_completion(&cmd->reject_comp);
 	spin_lock_init(&cmd->datain_lock);
 	spin_lock_init(&cmd->dataout_timeout_lock);
 	spin_lock_init(&cmd->istate_lock);
@@ -175,6 +176,7 @@ struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
 
 	return cmd;
 }
+EXPORT_SYMBOL(iscsit_allocate_cmd);
 
 struct iscsi_seq *iscsit_get_seq_holder_for_datain(
 	struct iscsi_cmd *cmd,
@@ -240,9 +242,9 @@ static inline int iscsit_check_received_cmdsn(struct iscsi_session *sess, u32 cm
 	 */
 	if (iscsi_sna_gt(cmdsn, sess->max_cmd_sn)) {
 		pr_err("Received CmdSN: 0x%08x is greater than"
-		       " MaxCmdSN: 0x%08x, protocol error.\n", cmdsn,
+		       " MaxCmdSN: 0x%08x, ignoring.\n", cmdsn,
 		       sess->max_cmd_sn);
-		ret = CMDSN_ERROR_CANNOT_RECOVER;
+		ret = CMDSN_MAXCMDSN_OVERRUN;
 
 	} else if (cmdsn == sess->exp_cmd_sn) {
 		sess->exp_cmd_sn++;
@@ -271,13 +273,12 @@ static inline int iscsit_check_received_cmdsn(struct iscsi_session *sess, u32 cm
  * Commands may be received out of order if MC/S is in use.
  * Ensure they are executed in CmdSN order.
  */
-int iscsit_sequence_cmd(
-	struct iscsi_conn *conn,
-	struct iscsi_cmd *cmd,
-	__be32 cmdsn)
+int iscsit_sequence_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
+			unsigned char *buf, __be32 cmdsn)
 {
-	int ret;
-	int cmdsn_ret;
+	int ret, cmdsn_ret;
+	bool reject = false;
+	u8 reason = ISCSI_REASON_BOOKMARK_NO_RESOURCES;
 
 	mutex_lock(&conn->sess->cmdsn_mutex);
 
@@ -287,23 +288,41 @@ int iscsit_sequence_cmd(
 		ret = iscsit_execute_cmd(cmd, 0);
 		if ((ret >= 0) && !list_empty(&conn->sess->sess_ooo_cmdsn_list))
 			iscsit_execute_ooo_cmdsns(conn->sess);
+		else if (ret < 0) {
+			reject = true;
+			ret = CMDSN_ERROR_CANNOT_RECOVER;
+		}
 		break;
 	case CMDSN_HIGHER_THAN_EXP:
 		ret = iscsit_handle_ooo_cmdsn(conn->sess, cmd, be32_to_cpu(cmdsn));
+		if (ret < 0) {
+			reject = true;
+			ret = CMDSN_ERROR_CANNOT_RECOVER;
+			break;
+		}
+		ret = CMDSN_HIGHER_THAN_EXP;
 		break;
 	case CMDSN_LOWER_THAN_EXP:
+	case CMDSN_MAXCMDSN_OVERRUN:
+	default:
 		cmd->i_state = ISTATE_REMOVE;
 		iscsit_add_cmd_to_immediate_queue(cmd, conn, cmd->i_state);
-		ret = cmdsn_ret;
-		break;
-	default:
-		ret = cmdsn_ret;
+		/*
+		 * Existing callers for iscsit_sequence_cmd() will silently
+		 * ignore commands with CMDSN_LOWER_THAN_EXP, so force this
+		 * return for CMDSN_MAXCMDSN_OVERRUN as well..
+		 */
+		ret = CMDSN_LOWER_THAN_EXP;
 		break;
 	}
 	mutex_unlock(&conn->sess->cmdsn_mutex);
 
+	if (reject)
+		iscsit_reject_cmd(cmd, reason, buf);
+
 	return ret;
 }
+EXPORT_SYMBOL(iscsit_sequence_cmd);
 
 int iscsit_check_unsolicited_dataout(struct iscsi_cmd *cmd, unsigned char *buf)
 {
@@ -662,35 +681,68 @@ void iscsit_free_queue_reqs_for_conn(struct iscsi_conn *conn)
 
 void iscsit_release_cmd(struct iscsi_cmd *cmd)
 {
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsi_session *sess;
+	struct se_cmd *se_cmd = &cmd->se_cmd;
 
-	iscsit_free_r2ts_from_list(cmd);
-	iscsit_free_all_datain_reqs(cmd);
+	if (cmd->conn)
+		sess = cmd->conn->sess;
+	else
+		sess = cmd->sess;
+
+	BUG_ON(!sess || !sess->se_sess);
 
 	kfree(cmd->buf_ptr);
 	kfree(cmd->pdu_list);
 	kfree(cmd->seq_list);
 	kfree(cmd->tmr_req);
 	kfree(cmd->iov_data);
+	kfree(cmd->text_in_ptr);
 
-	if (conn) {
+	percpu_ida_free(&sess->se_sess->sess_tag_pool, se_cmd->map_tag);
+}
+EXPORT_SYMBOL(iscsit_release_cmd);
+
+static void __iscsit_free_cmd(struct iscsi_cmd *cmd, bool scsi_cmd,
+			      bool check_queues)
+{
+	struct iscsi_conn *conn = cmd->conn;
+
+	if (scsi_cmd) {
+		if (cmd->data_direction == DMA_TO_DEVICE) {
+			iscsit_stop_dataout_timer(cmd);
+			iscsit_free_r2ts_from_list(cmd);
+		}
+		if (cmd->data_direction == DMA_FROM_DEVICE)
+			iscsit_free_all_datain_reqs(cmd);
+	}
+
+	if (conn && check_queues) {
 		iscsit_remove_cmd_from_immediate_queue(cmd, conn);
 		iscsit_remove_cmd_from_response_queue(cmd, conn);
 	}
-
-	kmem_cache_free(lio_cmd_cache, cmd);
 }
 
-void iscsit_free_cmd(struct iscsi_cmd *cmd)
+void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 {
+	struct se_cmd *se_cmd = NULL;
+	int rc;
 	/*
 	 * Determine if a struct se_cmd is associated with
 	 * this struct iscsi_cmd.
 	 */
 	switch (cmd->iscsi_opcode) {
 	case ISCSI_OP_SCSI_CMD:
+		se_cmd = &cmd->se_cmd;
+		__iscsit_free_cmd(cmd, true, shutdown);
+		/*
+		 * Fallthrough
+		 */
 	case ISCSI_OP_SCSI_TMFUNC:
-		transport_generic_free_cmd(&cmd->se_cmd, 1);
+		rc = transport_generic_free_cmd(&cmd->se_cmd, shutdown);
+		if (!rc && shutdown && se_cmd && se_cmd->se_sess) {
+			__iscsit_free_cmd(cmd, true, shutdown);
+			target_put_sess_cmd(se_cmd->se_sess, se_cmd);
+		}
 		break;
 	case ISCSI_OP_REJECT:
 		/*
@@ -699,11 +751,19 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd)
 		 * associated cmd->se_cmd needs to be released.
 		 */
 		if (cmd->se_cmd.se_tfo != NULL) {
-			transport_generic_free_cmd(&cmd->se_cmd, 1);
+			se_cmd = &cmd->se_cmd;
+			__iscsit_free_cmd(cmd, true, shutdown);
+
+			rc = transport_generic_free_cmd(&cmd->se_cmd, shutdown);
+			if (!rc && shutdown && se_cmd->se_sess) {
+				__iscsit_free_cmd(cmd, true, shutdown);
+				target_put_sess_cmd(se_cmd->se_sess, se_cmd);
+			}
 			break;
 		}
 		/* Fall-through */
 	default:
+		__iscsit_free_cmd(cmd, false, shutdown);
 		iscsit_release_cmd(cmd);
 		break;
 	}
@@ -922,7 +982,7 @@ static void iscsit_handle_nopin_response_timeout(unsigned long data)
 		tiqn->sess_err_stats.last_sess_failure_type =
 				ISCSI_SESS_ERR_CXN_TIMEOUT;
 		tiqn->sess_err_stats.cxn_timeout_errors++;
-		conn->sess->conn_timeout_errors++;
+		atomic_long_inc(&conn->sess->conn_timeout_errors);
 		spin_unlock_bh(&tiqn->sess_err_stats.lock);
 	}
 	}
@@ -1226,34 +1286,19 @@ send_datacrc:
  */
 int iscsit_tx_login_rsp(struct iscsi_conn *conn, u8 status_class, u8 status_detail)
 {
-	u8 iscsi_hdr[ISCSI_HDR_LEN];
-	int err;
-	struct kvec iov;
 	struct iscsi_login_rsp *hdr;
+	struct iscsi_login *login = conn->conn_login;
 
+	login->login_failed = 1;
 	iscsit_collect_login_stats(conn, status_class, status_detail);
 
-	memset(&iov, 0, sizeof(struct kvec));
-	memset(&iscsi_hdr, 0x0, ISCSI_HDR_LEN);
-
-	hdr	= (struct iscsi_login_rsp *)&iscsi_hdr;
+	hdr	= (struct iscsi_login_rsp *)&login->rsp[0];
 	hdr->opcode		= ISCSI_OP_LOGIN_RSP;
 	hdr->status_class	= status_class;
 	hdr->status_detail	= status_detail;
 	hdr->itt		= conn->login_itt;
 
-	iov.iov_base		= &iscsi_hdr;
-	iov.iov_len		= ISCSI_HDR_LEN;
-
-	PRINT_BUFF(iscsi_hdr, ISCSI_HDR_LEN);
-
-	err = tx_data(conn, &iov, 1, ISCSI_HDR_LEN);
-	if (err != ISCSI_HDR_LEN) {
-		pr_err("tx_data returned less than expected\n");
-		return -1;
-	}
-
-	return 0;
+	return conn->conn_transport->iscsit_put_login_tx(conn, login, 0);
 }
 
 void iscsit_print_session_params(struct iscsi_session *sess)
@@ -1432,7 +1477,8 @@ void iscsit_collect_login_stats(
 		strcpy(ls->last_intr_fail_name,
 		       (intrname ? intrname->value : "Unknown"));
 
-		ls->last_intr_fail_ip_family = conn->sock->sk->sk_family;
+		ls->last_intr_fail_ip_family = conn->login_family;
+
 		snprintf(ls->last_intr_fail_ip_addr, IPV6_ADDRESS_SPACE,
 				"%s", conn->login_ip);
 		ls->last_fail_time = get_jiffies_64();

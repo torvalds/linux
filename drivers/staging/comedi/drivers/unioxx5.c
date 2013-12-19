@@ -18,10 +18,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the          *
  *  GNU General Public License for more details.                           *
  *                                                                         *
- *  You should have received a copy of the GNU General Public License      *
- *  along with this program; if not, write to the Free Software            *
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.              *
- *                                                                         *
  ***************************************************************************/
 /*
 
@@ -44,9 +40,9 @@ Devices: [Fastwel] UNIOxx-5 (unioxx5),
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/module.h>
+#include <linux/delay.h>
 #include "../comedidev.h"
-#include <linux/ioport.h>
-#include <linux/slab.h>
 
 #define DRIVER_NAME "unioxx5"
 #define UNIOXX5_SIZE 0x10
@@ -367,28 +363,22 @@ static int unioxx5_insn_config(struct comedi_device *dev,
 }
 
 /* initializing subdevice with given address */
-static int __unioxx5_subdev_init(struct comedi_subdevice *subdev,
-				 int subdev_iobase, int minor)
+static int __unioxx5_subdev_init(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 int iobase)
 {
 	struct unioxx5_subd_priv *usp;
 	int i, to, ndef_flag = 0;
+	int ret;
 
-	if (!request_region(subdev_iobase, UNIOXX5_SIZE, DRIVER_NAME)) {
-		dev_err(subdev->class_dev,
-			"comedi%d: I/O port conflict\n", minor);
-		return -EIO;
-	}
+	usp = comedi_alloc_spriv(s, sizeof(*usp));
+	if (!usp)
+		return -ENOMEM;
 
-	usp = kzalloc(sizeof(*usp), GFP_KERNEL);
-
-	if (usp == NULL) {
-		dev_err(subdev->class_dev,
-			"comedi%d: error! --> out of memory!\n", minor);
-		return -1;
-	}
-
-	usp->usp_iobase = subdev_iobase;
-	dev_info(subdev->class_dev, "comedi%d: |", minor);
+	ret = __comedi_request_region(dev, iobase, UNIOXX5_SIZE);
+	if (ret)
+		return ret;
+	usp->usp_iobase = iobase;
 
 	/* defining modules types */
 	for (i = 0; i < 12; i++) {
@@ -396,14 +386,14 @@ static int __unioxx5_subdev_init(struct comedi_subdevice *subdev,
 
 		__unioxx5_analog_config(usp, i * 2);
 		/* sends channel number to card */
-		outb(i + 1, subdev_iobase + 5);
-		outb('H', subdev_iobase + 6);	/* requests EEPROM world */
-		while (!(inb(subdev_iobase + 0) & TxBE))
+		outb(i + 1, iobase + 5);
+		outb('H', iobase + 6);	/* requests EEPROM world */
+		while (!(inb(iobase + 0) & TxBE))
 			;	/* waits while writting will be allowed */
-		outb(0, subdev_iobase + 6);
+		outb(0, iobase + 6);
 
 		/* waits while reading of two bytes will be allowed */
-		while (!(inb(subdev_iobase + 0) & Rx2CA)) {
+		while (!(inb(iobase + 0) & Rx2CA)) {
 			if (--to <= 0) {
 				ndef_flag = 1;
 				break;
@@ -414,25 +404,21 @@ static int __unioxx5_subdev_init(struct comedi_subdevice *subdev,
 			usp->usp_module_type[i] = 0;
 			ndef_flag = 0;
 		} else
-			usp->usp_module_type[i] = inb(subdev_iobase + 6);
+			usp->usp_module_type[i] = inb(iobase + 6);
 
-		printk(" [%d] 0x%02x |", i, usp->usp_module_type[i]);
 		udelay(1);
 	}
 
-	printk("\n");
-
 	/* initial subdevice for digital or analog i/o */
-	subdev->type = COMEDI_SUBD_DIO;
-	subdev->private = usp;
-	subdev->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	subdev->n_chan = UNIOXX5_NUM_OF_CHANS;
-	subdev->maxdata = 0xFFF;
-	subdev->range_table = &range_digital;
-	subdev->insn_read = unioxx5_subdev_read;
-	subdev->insn_write = unioxx5_subdev_write;
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = UNIOXX5_NUM_OF_CHANS;
+	s->maxdata = 0xFFF;
+	s->range_table = &range_digital;
+	s->insn_read = unioxx5_subdev_read;
+	s->insn_write = unioxx5_subdev_write;
 	/* for digital modules only!!! */
-	subdev->insn_config = unioxx5_insn_config;
+	s->insn_config = unioxx5_insn_config;
 
 	return 0;
 }
@@ -440,13 +426,13 @@ static int __unioxx5_subdev_init(struct comedi_subdevice *subdev,
 static int unioxx5_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct comedi_subdevice *s;
 	int iobase, i, n_subd;
 	int id, num, ba;
 	int ret;
 
 	iobase = it->options[0];
 
-	dev->board_name = DRIVER_NAME;
 	dev->iobase = iobase;
 	iobase += UNIOXX5_SUBDEV_BASE;
 
@@ -474,9 +460,10 @@ static int unioxx5_attach(struct comedi_device *dev,
 
 	/* initializing each of for same subdevices */
 	for (i = 0; i < n_subd; i++, iobase += UNIOXX5_SUBDEV_ODDS) {
-		if (__unioxx5_subdev_init(&dev->subdevices[i], iobase,
-					  dev->minor) < 0)
-			return -1;
+		s = &dev->subdevices[i];
+		ret = __unioxx5_subdev_init(dev, s, iobase);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -484,15 +471,15 @@ static int unioxx5_attach(struct comedi_device *dev,
 
 static void unioxx5_detach(struct comedi_device *dev)
 {
+	struct comedi_subdevice *s;
+	struct unioxx5_subd_priv *spriv;
 	int i;
-	struct comedi_subdevice *subdev;
-	struct unioxx5_subd_priv *usp;
 
 	for (i = 0; i < dev->n_subdevices; i++) {
-		subdev = &dev->subdevices[i];
-		usp = subdev->private;
-		release_region(usp->usp_iobase, UNIOXX5_SIZE);
-		kfree(subdev->private);
+		s = &dev->subdevices[i];
+		spriv = s->private;
+		if (spriv && spriv->usp_iobase)
+			release_region(spriv->usp_iobase, UNIOXX5_SIZE);
 	}
 }
 

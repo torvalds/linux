@@ -218,7 +218,7 @@ static int si470x_set_chan(struct si470x_device *radio, unsigned short chan)
 		goto done;
 
 	/* wait till tune operation has completed */
-	INIT_COMPLETION(radio->completion);
+	reinit_completion(&radio->completion);
 	retval = wait_for_completion_timeout(&radio->completion,
 			msecs_to_jiffies(tune_timeout));
 	if (!retval)
@@ -254,7 +254,7 @@ static unsigned int si470x_get_step(struct si470x_device *radio)
 	/* 2:  50 kHz */
 	default:
 		return 50 * 16;
-	};
+	}
 }
 
 
@@ -341,7 +341,7 @@ static int si470x_set_seek(struct si470x_device *radio,
 		return retval;
 
 	/* wait till tune operation has completed */
-	INIT_COMPLETION(radio->completion);
+	reinit_completion(&radio->completion);
 	retval = wait_for_completion_timeout(&radio->completion,
 			msecs_to_jiffies(seek_timeout));
 	if (!retval)
@@ -636,7 +636,7 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
  * si470x_vidioc_s_tuner - set tuner attributes
  */
 static int si470x_vidioc_s_tuner(struct file *file, void *priv,
-		struct v4l2_tuner *tuner)
+		const struct v4l2_tuner *tuner)
 {
 	struct si470x_device *radio = video_drvdata(file);
 
@@ -678,7 +678,7 @@ static int si470x_vidioc_g_frequency(struct file *file, void *priv,
  * si470x_vidioc_s_frequency - set tuner or modulator radio frequency
  */
 static int si470x_vidioc_s_frequency(struct file *file, void *priv,
-		struct v4l2_frequency *freq)
+		const struct v4l2_frequency *freq)
 {
 	struct si470x_device *radio = video_drvdata(file);
 	int retval;

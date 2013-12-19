@@ -71,11 +71,13 @@ config PPC_BOOK3S_64
 	select PPC_FPU
 	select PPC_HAVE_PMU_SUPPORT
 	select SYS_SUPPORTS_HUGETLBFS
+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if PPC_64K_PAGES
 
 config PPC_BOOK3E_64
 	bool "Embedded processors"
 	select PPC_FPU # Make it a choice ?
 	select PPC_SMP_MUXED_IPI
+	select PPC_DOORBELL
 
 endchoice
 
@@ -91,21 +93,35 @@ choice
 
 config GENERIC_CPU
 	bool "Generic"
+	depends on !CPU_LITTLE_ENDIAN
 
 config CELL_CPU
 	bool "Cell Broadband Engine"
+	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
 
 config POWER4_CPU
 	bool "POWER4"
+	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
 
 config POWER5_CPU
 	bool "POWER5"
+	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
 
 config POWER6_CPU
 	bool "POWER6"
+	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
 
 config POWER7_CPU
 	bool "POWER7"
+	depends on PPC_BOOK3S_64
+
+config E5500_CPU
+	bool "Freescale e5500"
+	depends on E500
+
+config E6500_CPU
+	bool "Freescale e6500"
+	depends on E500
 
 endchoice
 
@@ -123,9 +139,8 @@ config 6xx
 	select PPC_HAVE_PMU_SUPPORT
 
 config POWER3
-	bool
 	depends on PPC64 && PPC_BOOK3S
-	default y if !POWER4_ONLY
+	def_bool y
 
 config POWER4
 	depends on PPC64 && PPC_BOOK3S
@@ -144,8 +159,7 @@ config TUNE_CELL
 	  but somewhat slower on other machines. This option only changes
 	  the scheduling of instructions, not the selection of instructions
 	  itself, so the resulting kernel will keep running on all other
-	  machines. When building a kernel that is supposed to run only
-	  on Cell, you should also select the POWER4_ONLY option.
+	  machines.
 
 # this is temp to handle compat with arch=ppc
 config 8xx
@@ -159,6 +173,7 @@ config E500
 config PPC_E500MC
 	bool "e500mc Support"
 	select PPC_FPU
+	select COMMON_CLK
 	depends on E500
 	help
 	  This must be enabled for running on e500mc (and derivatives
@@ -208,6 +223,7 @@ config PPC_FSL_BOOK3E
 	select FSL_EMB_PERFMON
 	select PPC_SMP_MUXED_IPI
 	select SYS_SUPPORTS_HUGETLBFS if PHYS_64BIT || PPC64
+	select PPC_DOORBELL
 	default y if FSL_BOOKE
 
 config PTE_64BIT
@@ -230,7 +246,7 @@ config PHYS_64BIT
 
 config ALTIVEC
 	bool "AltiVec Support"
-	depends on 6xx || POWER4
+	depends on 6xx || POWER4 || (PPC_E500MC && PPC64)
 	---help---
 	  This option enables kernel support for the Altivec extensions to the
 	  PowerPC processor. The kernel currently supports saving and restoring
@@ -382,4 +398,33 @@ config NOT_COHERENT_CACHE
 config CHECK_CACHE_COHERENCY
 	bool
 
+config PPC_DOORBELL
+	bool
+	default n
+
 endmenu
+
+choice
+	prompt "Endianness selection"
+	default CPU_BIG_ENDIAN
+	help
+	  This option selects whether a big endian or little endian kernel will
+	  be built.
+
+config CPU_BIG_ENDIAN
+	bool "Build big endian kernel"
+	help
+	  Build a big endian kernel.
+
+	  If unsure, select this option.
+
+config CPU_LITTLE_ENDIAN
+	bool "Build little endian kernel"
+	help
+	  Build a little endian kernel.
+
+	  Note that if cross compiling a little endian kernel,
+	  CROSS_COMPILE must point to a toolchain capable of targeting
+	  little endian powerpc.
+
+endchoice

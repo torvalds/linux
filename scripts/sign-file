@@ -2,49 +2,43 @@
 #
 # Sign a module file using the given key.
 #
-# Format:
-#
-#	./scripts/sign-file [-v] <key> <x509> <module> [<dest>]
-#
-#
+
+my $USAGE =
+"Usage: scripts/sign-file [-v] <hash algo> <key> <x509> <module> [<dest>]\n" .
+"       scripts/sign-file [-v] -s <raw sig> <hash algo> <x509> <module> [<dest>]\n";
+
 use strict;
 use FileHandle;
 use IPC::Open2;
+use Getopt::Std;
 
-my $verbose = 0;
-if ($#ARGV >= 0 && $ARGV[0] eq "-v") {
-    $verbose = 1;
-    shift;
+my %opts;
+getopts('vs:', \%opts) or die $USAGE;
+my $verbose = $opts{'v'};
+my $signature_file = $opts{'s'};
+
+die $USAGE if ($#ARGV > 4);
+die $USAGE if (!$signature_file && $#ARGV < 3 || $signature_file && $#ARGV < 2);
+
+my $dgst = shift @ARGV;
+my $private_key;
+if (!$signature_file) {
+	$private_key = shift @ARGV;
+}
+my $x509 = shift @ARGV;
+my $module = shift @ARGV;
+my ($dest, $keep_orig);
+if (@ARGV) {
+	$dest = $ARGV[0];
+	$keep_orig = 1;
+} else {
+	$dest = $module . "~";
 }
 
-die "Format: ./scripts/sign-file [-v] <key> <x509> <module> [<dest>]\n"
-    if ($#ARGV != 2 && $#ARGV != 3);
-
-my $private_key = $ARGV[0];
-my $x509 = $ARGV[1];
-my $module = $ARGV[2];
-my $dest = ($#ARGV == 3) ? $ARGV[3] : $ARGV[2] . "~";
-
-die "Can't read private key\n" unless (-r $private_key);
+die "Can't read private key\n" if (!$signature_file && !-r $private_key);
+die "Can't read signature file\n" if ($signature_file && !-r $signature_file);
 die "Can't read X.509 certificate\n" unless (-r $x509);
 die "Can't read module\n" unless (-r $module);
-
-#
-# Read the kernel configuration
-#
-my %config = (
-    CONFIG_MODULE_SIG_SHA512 => 1
-    );
-
-if (-r ".config") {
-    open(FD, "<.config") || die ".config";
-    while (<FD>) {
-	if ($_ =~ /^(CONFIG_.*)=[ym]/) {
-	    $config{$1} = 1;
-	}
-    }
-    close(FD);
-}
 
 #
 # Function to read the contents of a file into a variable.
@@ -321,72 +315,70 @@ my $id_type = 1;	# Identifier type: X.509
 #
 # Digest the data
 #
-my ($dgst, $prologue) = ();
-if (exists $config{"CONFIG_MODULE_SIG_SHA1"}) {
+my $prologue;
+if ($dgst eq "sha1") {
     $prologue = pack("C*",
 		     0x30, 0x21, 0x30, 0x09, 0x06, 0x05,
 		     0x2B, 0x0E, 0x03, 0x02, 0x1A,
 		     0x05, 0x00, 0x04, 0x14);
-    $dgst = "-sha1";
     $hash = 2;
-} elsif (exists $config{"CONFIG_MODULE_SIG_SHA224"}) {
+} elsif ($dgst eq "sha224") {
     $prologue = pack("C*",
 		     0x30, 0x2d, 0x30, 0x0d, 0x06, 0x09,
 		     0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04,
 		     0x05, 0x00, 0x04, 0x1C);
-    $dgst = "-sha224";
     $hash = 7;
-} elsif (exists $config{"CONFIG_MODULE_SIG_SHA256"}) {
+} elsif ($dgst eq "sha256") {
     $prologue = pack("C*",
 		     0x30, 0x31, 0x30, 0x0d, 0x06, 0x09,
 		     0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01,
 		     0x05, 0x00, 0x04, 0x20);
-    $dgst = "-sha256";
     $hash = 4;
-} elsif (exists $config{"CONFIG_MODULE_SIG_SHA384"}) {
+} elsif ($dgst eq "sha384") {
     $prologue = pack("C*",
 		     0x30, 0x41, 0x30, 0x0d, 0x06, 0x09,
 		     0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02,
 		     0x05, 0x00, 0x04, 0x30);
-    $dgst = "-sha384";
     $hash = 5;
-} elsif (exists $config{"CONFIG_MODULE_SIG_SHA512"}) {
+} elsif ($dgst eq "sha512") {
     $prologue = pack("C*",
 		     0x30, 0x51, 0x30, 0x0d, 0x06, 0x09,
 		     0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03,
 		     0x05, 0x00, 0x04, 0x40);
-    $dgst = "-sha512";
     $hash = 6;
 } else {
-    die "Can't determine hash algorithm";
+    die "Unknown hash algorithm: $dgst\n";
 }
 
-#
-# Generate the digest and read from openssl's stdout
-#
-my $digest;
-$digest = readpipe("openssl dgst $dgst -binary $module") || die "openssl dgst";
-
-#
-# Generate the binary signature, which will be just the integer that comprises
-# the signature with no metadata attached.
-#
-my $pid;
-$pid = open2(*read_from, *write_to,
-	     "openssl rsautl -sign -inkey $private_key -keyform PEM") ||
-    die "openssl rsautl";
-binmode write_to;
-print write_to $prologue . $digest || die "pipe to openssl rsautl";
-close(write_to) || die "pipe to openssl rsautl";
-
-binmode read_from;
 my $signature;
-read(read_from, $signature, 4096) || die "pipe from openssl rsautl";
-close(read_from) || die "pipe from openssl rsautl";
-$signature = pack("n", length($signature)) . $signature,
+if ($signature_file) {
+	$signature = read_file($signature_file);
+} else {
+	#
+	# Generate the digest and read from openssl's stdout
+	#
+	my $digest;
+	$digest = readpipe("openssl dgst -$dgst -binary $module") || die "openssl dgst";
 
-waitpid($pid, 0) || die;
-die "openssl rsautl died: $?" if ($? >> 8);
+	#
+	# Generate the binary signature, which will be just the integer that
+	# comprises the signature with no metadata attached.
+	#
+	my $pid;
+	$pid = open2(*read_from, *write_to,
+		     "openssl rsautl -sign -inkey $private_key -keyform PEM") ||
+	    die "openssl rsautl";
+	binmode write_to;
+	print write_to $prologue . $digest || die "pipe to openssl rsautl";
+	close(write_to) || die "pipe to openssl rsautl";
+
+	binmode read_from;
+	read(read_from, $signature, 4096) || die "pipe from openssl rsautl";
+	close(read_from) || die "pipe from openssl rsautl";
+	waitpid($pid, 0) || die;
+	die "openssl rsautl died: $?" if ($? >> 8);
+}
+$signature = pack("n", length($signature)) . $signature,
 
 #
 # Build the signed binary
@@ -424,6 +416,6 @@ print FD
     ;
 close FD || die $dest;
 
-if ($#ARGV != 3) {
+if (!$keep_orig) {
     rename($dest, $module) || die $module;
 }

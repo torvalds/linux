@@ -932,7 +932,7 @@ static void enqueue_qtds(struct usb_hcd *hcd, struct isp1760_qh *qh)
 	}
 }
 
-void schedule_ptds(struct usb_hcd *hcd)
+static void schedule_ptds(struct usb_hcd *hcd)
 {
 	struct isp1760_hcd *priv;
 	struct isp1760_qh *qh, *qh_next;
@@ -1285,7 +1285,7 @@ leave:
 #define SLOT_CHECK_PERIOD 200
 static struct timer_list errata2_timer;
 
-void errata2_function(unsigned long data)
+static void errata2_function(unsigned long data)
 {
 	struct usb_hcd *hcd = (struct usb_hcd *) data;
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
@@ -1739,7 +1739,7 @@ static int isp1760_hub_status_data(struct usb_hcd *hcd, char *buf)
 	int retval = 1;
 	unsigned long flags;
 
-	/* if !USB_SUSPEND, root hub timers won't get shut down ... */
+	/* if !PM_RUNTIME, root hub timers won't get shut down ... */
 	if (!HC_IS_RUNNING(hcd->state))
 		return 0;
 

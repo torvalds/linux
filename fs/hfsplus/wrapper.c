@@ -24,13 +24,6 @@ struct hfsplus_wd {
 	u16 embed_count;
 };
 
-static void hfsplus_end_io_sync(struct bio *bio, int err)
-{
-	if (err)
-		clear_bit(BIO_UPTODATE, &bio->bi_flags);
-	complete(bio->bi_private);
-}
-
 /*
  * hfsplus_submit_bio - Perfrom block I/O
  * @sb: super block of volume for I/O
@@ -53,7 +46,6 @@ static void hfsplus_end_io_sync(struct bio *bio, int err)
 int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
 		void *buf, void **data, int rw)
 {
-	DECLARE_COMPLETION_ONSTACK(wait);
 	struct bio *bio;
 	int ret = 0;
 	u64 io_size;
@@ -73,8 +65,6 @@ int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
 	bio = bio_alloc(GFP_NOIO, 1);
 	bio->bi_sector = sector;
 	bio->bi_bdev = sb->s_bdev;
-	bio->bi_end_io = hfsplus_end_io_sync;
-	bio->bi_private = &wait;
 
 	if (!(rw & WRITE) && data)
 		*data = (u8 *)buf + offset;
@@ -93,12 +83,7 @@ int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
 		buf = (u8 *)buf + len;
 	}
 
-	submit_bio(rw, bio);
-	wait_for_completion(&wait);
-
-	if (!bio_flagged(bio, BIO_UPTODATE))
-		ret = -EIO;
-
+	ret = submit_bio_wait(rw, bio);
 out:
 	bio_put(bio);
 	return ret < 0 ? ret : 0;
@@ -156,7 +141,7 @@ static int hfsplus_get_last_session(struct super_block *sb,
 			*start = (sector_t)te.cdte_addr.lba << 2;
 			return 0;
 		}
-		printk(KERN_ERR "hfs: invalid session number or type of track\n");
+		pr_err("invalid session number or type of track\n");
 		return -EINVAL;
 	}
 	ms_info.addr_format = CDROM_LBA;
@@ -234,8 +219,7 @@ reread:
 
 	error = -EINVAL;
 	if (sbi->s_backup_vhdr->signature != sbi->s_vhdr->signature) {
-		printk(KERN_WARNING
-			"hfs: invalid secondary volume header\n");
+		pr_warn("invalid secondary volume header\n");
 		goto out_free_backup_vhdr;
 	}
 
@@ -259,8 +243,7 @@ reread:
 		blocksize >>= 1;
 
 	if (sb_set_blocksize(sb, blocksize) != blocksize) {
-		printk(KERN_ERR "hfs: unable to set blocksize to %u!\n",
-			blocksize);
+		pr_err("unable to set blocksize to %u!\n", blocksize);
 		goto out_free_backup_vhdr;
 	}
 

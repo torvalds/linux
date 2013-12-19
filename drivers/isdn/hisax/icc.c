@@ -134,7 +134,7 @@ icc_empty_fifo(struct IsdnCardState *cs, int count)
 
 		t += sprintf(t, "icc_empty_fifo cnt %d", count);
 		QuickHex(t, ptr, count);
-		debugl1(cs, cs->dlog);
+		debugl1(cs, "%s", cs->dlog);
 	}
 }
 
@@ -176,7 +176,7 @@ icc_fill_fifo(struct IsdnCardState *cs)
 
 		t += sprintf(t, "icc_fill_fifo cnt %d", count);
 		QuickHex(t, ptr, count);
-		debugl1(cs, cs->dlog);
+		debugl1(cs, "%s", cs->dlog);
 	}
 }
 
@@ -673,8 +673,7 @@ clear_pending_icc_ints(struct IsdnCardState *cs)
 	cs->writeisac(cs, ICC_MASK, 0xFF);
 }
 
-void __devinit
-setup_icc(struct IsdnCardState *cs)
+void setup_icc(struct IsdnCardState *cs)
 {
 	INIT_WORK(&cs->tqueue, icc_bh);
 	cs->dbusytimer.function = (void *) dbusy_timer_handler;

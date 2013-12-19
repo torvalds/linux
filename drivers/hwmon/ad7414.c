@@ -137,7 +137,7 @@ static ssize_t set_max_min(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	temp = SENSORS_LIMIT(temp, -40000, 85000);
+	temp = clamp_val(temp, -40000, 85000);
 	temp = (temp + (temp < 0 ? -500 : 500)) / 1000;
 
 	mutex_lock(&data->lock);

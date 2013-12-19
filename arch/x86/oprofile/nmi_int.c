@@ -403,7 +403,7 @@ static void nmi_cpu_down(void *dummy)
 		nmi_cpu_shutdown(dummy);
 }
 
-static int nmi_create_files(struct super_block *sb, struct dentry *root)
+static int nmi_create_files(struct dentry *root)
 {
 	unsigned int i;
 
@@ -420,14 +420,14 @@ static int nmi_create_files(struct super_block *sb, struct dentry *root)
 			continue;
 
 		snprintf(buf,  sizeof(buf), "%d", i);
-		dir = oprofilefs_mkdir(sb, root, buf);
-		oprofilefs_create_ulong(sb, dir, "enabled", &counter_config[i].enabled);
-		oprofilefs_create_ulong(sb, dir, "event", &counter_config[i].event);
-		oprofilefs_create_ulong(sb, dir, "count", &counter_config[i].count);
-		oprofilefs_create_ulong(sb, dir, "unit_mask", &counter_config[i].unit_mask);
-		oprofilefs_create_ulong(sb, dir, "kernel", &counter_config[i].kernel);
-		oprofilefs_create_ulong(sb, dir, "user", &counter_config[i].user);
-		oprofilefs_create_ulong(sb, dir, "extra", &counter_config[i].extra);
+		dir = oprofilefs_mkdir(root, buf);
+		oprofilefs_create_ulong(dir, "enabled", &counter_config[i].enabled);
+		oprofilefs_create_ulong(dir, "event", &counter_config[i].event);
+		oprofilefs_create_ulong(dir, "count", &counter_config[i].count);
+		oprofilefs_create_ulong(dir, "unit_mask", &counter_config[i].unit_mask);
+		oprofilefs_create_ulong(dir, "kernel", &counter_config[i].kernel);
+		oprofilefs_create_ulong(dir, "user", &counter_config[i].user);
+		oprofilefs_create_ulong(dir, "extra", &counter_config[i].extra);
 	}
 
 	return 0;

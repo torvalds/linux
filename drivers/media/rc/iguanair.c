@@ -58,6 +58,7 @@ struct iguanair {
 	char phys[64];
 };
 
+#define CMD_NOP			0x00
 #define CMD_GET_VERSION		0x01
 #define CMD_GET_BUFSIZE		0x11
 #define CMD_GET_FEATURES	0x10
@@ -196,13 +197,17 @@ static void iguanair_irq_out(struct urb *urb)
 
 	if (urb->status)
 		dev_dbg(ir->dev, "Error: out urb status = %d\n", urb->status);
+
+	/* if we sent an nop packet, do not expect a response */
+	if (urb->status == 0 && ir->packet->header.cmd == CMD_NOP)
+		complete(&ir->completion);
 }
 
 static int iguanair_send(struct iguanair *ir, unsigned size)
 {
 	int rc;
 
-	INIT_COMPLETION(ir->completion);
+	reinit_completion(&ir->completion);
 
 	ir->urb_out->transfer_buffer_length = size;
 	rc = usb_submit_urb(ir->urb_out, GFP_KERNEL);
@@ -219,10 +224,17 @@ static int iguanair_get_features(struct iguanair *ir)
 {
 	int rc;
 
+	/*
+	 * On cold boot, the iguanair initializes on the first packet
+	 * received but does not process that packet. Send an empty
+	 * packet.
+	 */
 	ir->packet->header.start = 0;
 	ir->packet->header.direction = DIR_OUT;
-	ir->packet->header.cmd = CMD_GET_VERSION;
+	ir->packet->header.cmd = CMD_NOP;
+	iguanair_send(ir, sizeof(ir->packet->header));
 
+	ir->packet->header.cmd = CMD_GET_VERSION;
 	rc = iguanair_send(ir, sizeof(ir->packet->header));
 	if (rc) {
 		dev_info(ir->dev, "failed to get version\n");
@@ -255,19 +267,14 @@ static int iguanair_get_features(struct iguanair *ir)
 	ir->packet->header.cmd = CMD_GET_FEATURES;
 
 	rc = iguanair_send(ir, sizeof(ir->packet->header));
-	if (rc) {
+	if (rc)
 		dev_info(ir->dev, "failed to get features\n");
-		goto out;
-	}
-
 out:
 	return rc;
 }
 
 static int iguanair_receiver(struct iguanair *ir, bool enable)
 {
-	int rc;
-
 	ir->packet->header.start = 0;
 	ir->packet->header.direction = DIR_OUT;
 	ir->packet->header.cmd = enable ? CMD_RECEIVER_ON : CMD_RECEIVER_OFF;
@@ -275,9 +282,7 @@ static int iguanair_receiver(struct iguanair *ir, bool enable)
 	if (enable)
 		ir_raw_event_reset(ir->rc);
 
-	rc = iguanair_send(ir, sizeof(ir->packet->header));
-
-	return rc;
+	return iguanair_send(ir, sizeof(ir->packet->header));
 }
 
 /*
@@ -303,22 +308,12 @@ static int iguanair_set_tx_carrier(struct rc_dev *dev, uint32_t carrier)
 		cycles = DIV_ROUND_CLOSEST(24000000, carrier * 2) -
 							ir->cycle_overhead;
 
-		/*  make up the the remainer of 4-cycle blocks */
-		switch (cycles & 3) {
-		case 0:
-			sevens = 0;
-			break;
-		case 1:
-			sevens = 3;
-			break;
-		case 2:
-			sevens = 2;
-			break;
-		case 3:
-			sevens = 1;
-			break;
-		}
-
+		/*
+		 * Calculate minimum number of 7 cycles needed so
+		 * we are left with a multiple of 4; so we want to have
+		 * (sevens * 7) & 3 == cycles & 3
+		 */
+		sevens = (4 - cycles) & 3;
 		fours = (cycles - sevens * 7) / 4;
 
 		/* magic happens here */
@@ -359,8 +354,8 @@ static int iguanair_tx(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 		periods = DIV_ROUND_CLOSEST(txbuf[i] * ir->carrier, 1000000);
 		bytes = DIV_ROUND_UP(periods, 127);
 		if (size + bytes > ir->bufsize) {
-			count = i;
-			break;
+			rc = -EINVAL;
+			goto out;
 		}
 		while (periods > 127) {
 			ir->packet->payload[size++] = 127 | space;
@@ -425,8 +420,8 @@ static void iguanair_close(struct rc_dev *rdev)
 	mutex_unlock(&ir->lock);
 }
 
-static int __devinit iguanair_probe(struct usb_interface *intf,
-						const struct usb_device_id *id)
+static int iguanair_probe(struct usb_interface *intf,
+			  const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct iguanair *ir;
@@ -512,6 +507,7 @@ static int __devinit iguanair_probe(struct usb_interface *intf,
 	rc->rx_resolution = RX_RESOLUTION;
 
 	iguanair_set_tx_carrier(rc, 38000);
+	iguanair_set_tx_mask(rc, 0);
 
 	ret = rc_register_device(rc);
 	if (ret < 0) {
@@ -538,7 +534,7 @@ out:
 	return ret;
 }
 
-static void __devexit iguanair_disconnect(struct usb_interface *intf)
+static void iguanair_disconnect(struct usb_interface *intf)
 {
 	struct iguanair *ir = usb_get_intfdata(intf);
 
@@ -604,7 +600,7 @@ static const struct usb_device_id iguanair_table[] = {
 static struct usb_driver iguanair_driver = {
 	.name =	DRIVER_NAME,
 	.probe = iguanair_probe,
-	.disconnect = __devexit_p(iguanair_disconnect),
+	.disconnect = iguanair_disconnect,
 	.suspend = iguanair_suspend,
 	.resume = iguanair_resume,
 	.reset_resume = iguanair_resume,

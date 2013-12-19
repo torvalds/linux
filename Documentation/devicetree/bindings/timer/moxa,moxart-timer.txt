@@ -1,0 +1,17 @@
+MOXA ART timer
+
+Required properties:
+
+- compatible : Must be "moxa,moxart-timer"
+- reg : Should contain registers location and length
+- interrupts : Should contain the timer interrupt number
+- clocks : Should contain phandle for the clock that drives the counter
+
+Example:
+
+	timer: timer@98400000 {
+		compatible = "moxa,moxart-timer";
+		reg = <0x98400000 0x42>;
+		interrupts = <19 1>;
+		clocks = <&coreclk>;
+	};

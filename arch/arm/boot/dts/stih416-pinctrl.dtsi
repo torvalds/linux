@@ -1,0 +1,303 @@
+
+/*
+ * Copyright (C) 2013 STMicroelectronics Limited.
+ * Author: Srinivas Kandagatla <srinivas.kandagatla@st.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * publishhed by the Free Software Foundation.
+ */
+#include "st-pincfg.h"
+/ {
+
+	aliases {
+		gpio0	= &PIO0;
+		gpio1	= &PIO1;
+		gpio2	= &PIO2;
+		gpio3	= &PIO3;
+		gpio4	= &PIO4;
+		gpio5	= &PIO40;
+		gpio6	= &PIO5;
+		gpio7	= &PIO6;
+		gpio8	= &PIO7;
+		gpio9	= &PIO8;
+		gpio10	= &PIO9;
+		gpio11	= &PIO10;
+		gpio12	= &PIO11;
+		gpio13	= &PIO12;
+		gpio14	= &PIO30;
+		gpio15	= &PIO31;
+		gpio16	= &PIO13;
+		gpio17	= &PIO14;
+		gpio18	= &PIO15;
+		gpio19	= &PIO16;
+		gpio20	= &PIO17;
+		gpio21	= &PIO18;
+		gpio22	= &PIO100;
+		gpio23	= &PIO101;
+		gpio24	= &PIO102;
+		gpio25	= &PIO103;
+		gpio26	= &PIO104;
+		gpio27	= &PIO105;
+		gpio28	= &PIO106;
+		gpio29	= &PIO107;
+	};
+
+	soc {
+		pin-controller-sbc {
+			#address-cells	= <1>;
+			#size-cells	= <1>;
+			compatible	= "st,stih416-sbc-pinctrl";
+			st,syscfg	= <&syscfg_sbc>;
+			ranges		= <0 0xfe610000 0x6000>;
+
+			PIO0: gpio@fe610000 {
+				gpio-controller;
+				#gpio-cells = <1>;
+				reg		= <0 0x100>;
+				st,bank-name	= "PIO0";
+			};
+			PIO1: gpio@fe611000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x1000 0x100>;
+				st,bank-name	= "PIO1";
+			};
+			PIO2: gpio@fe612000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x2000 0x100>;
+				st,bank-name	= "PIO2";
+			};
+			PIO3: gpio@fe613000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x3000 0x100>;
+				st,bank-name	= "PIO3";
+			};
+			PIO4: gpio@fe614000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x4000 0x100>;
+				st,bank-name	= "PIO4";
+			};
+			PIO40: gpio@fe615000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x5000 0x100>;
+				st,bank-name	= "PIO40";
+				st,retime-pin-mask = <0x7f>;
+			};
+
+			sbc_serial1 {
+				pinctrl_sbc_serial1: sbc_serial1 {
+					st,pins {
+						tx	= <&PIO2 6 ALT3 OUT>;
+						rx	= <&PIO2 7 ALT3 IN>;
+					};
+				};
+			};
+		};
+
+		pin-controller-front {
+			#address-cells	= <1>;
+			#size-cells	= <1>;
+			compatible	= "st,stih416-front-pinctrl";
+			st,syscfg	= <&syscfg_front>;
+			ranges		= <0 0xfee00000 0x10000>;
+
+			PIO5: gpio@fee00000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0 0x100>;
+				st,bank-name	= "PIO5";
+			};
+			PIO6: gpio@fee01000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x1000 0x100>;
+				st,bank-name	= "PIO6";
+			};
+			PIO7: gpio@fee02000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x2000 0x100>;
+				st,bank-name	= "PIO7";
+			};
+			PIO8: gpio@fee03000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x3000 0x100>;
+				st,bank-name	= "PIO8";
+			};
+			PIO9: gpio@fee04000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x4000 0x100>;
+				st,bank-name	= "PIO9";
+			};
+			PIO10: gpio@fee05000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x5000 0x100>;
+				st,bank-name	= "PIO10";
+			};
+			PIO11: gpio@fee06000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x6000 0x100>;
+				st,bank-name	= "PIO11";
+			};
+			PIO12: gpio@fee07000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x7000 0x100>;
+				st,bank-name	= "PIO12";
+			};
+			PIO30: gpio@fee08000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x8000 0x100>;
+				st,bank-name	= "PIO30";
+			};
+			PIO31: gpio@fee09000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x9000 0x100>;
+				st,bank-name	= "PIO31";
+			};
+
+			serial2-oe {
+				pinctrl_serial2_oe: serial2-1 {
+					st,pins {
+						output-enable	= <&PIO11 3 ALT2 OUT>;
+					};
+				};
+			};
+
+		};
+
+		pin-controller-rear {
+			#address-cells	= <1>;
+			#size-cells	= <1>;
+			compatible	= "st,stih416-rear-pinctrl";
+			st,syscfg	= <&syscfg_rear>;
+			ranges 		= <0 0xfe820000 0x6000>;
+
+			PIO13: gpio@fe820000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0 0x100>;
+				st,bank-name	= "PIO13";
+			};
+			PIO14: gpio@fe821000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x1000 0x100>;
+				st,bank-name	= "PIO14";
+			};
+			PIO15: gpio@fe822000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x2000 0x100>;
+				st,bank-name	= "PIO15";
+			};
+			PIO16: gpio@fe823000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x3000 0x100>;
+				st,bank-name	= "PIO16";
+			};
+			PIO17: gpio@fe824000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x4000 0x100>;
+				st,bank-name	= "PIO17";
+			};
+			PIO18: gpio@fe825000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x5000 0x100>;
+				st,bank-name	= "PIO18";
+				st,retime-pin-mask = <0xf>;
+			};
+
+			serial2 {
+				pinctrl_serial2: serial2-0 {
+					st,pins {
+						tx	= <&PIO17 4 ALT2 OUT>;
+						rx	= <&PIO17 5 ALT2 IN>;
+					};
+				};
+			};
+		};
+
+		pin-controller-fvdp-fe {
+			#address-cells	= <1>;
+			#size-cells	= <1>;
+			compatible	= "st,stih416-fvdp-fe-pinctrl";
+			st,syscfg	= <&syscfg_fvdp_fe>;
+			ranges		= <0 0xfd6b0000 0x3000>;
+
+			PIO100: gpio@fd6b0000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0 0x100>;
+				st,bank-name	= "PIO100";
+			};
+			PIO101: gpio@fd6b1000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x1000 0x100>;
+				st,bank-name	= "PIO101";
+			};
+			PIO102: gpio@fd6b2000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x2000 0x100>;
+				st,bank-name	= "PIO102";
+			};
+		};
+
+		pin-controller-fvdp-lite {
+			#address-cells	= <1>;
+			#size-cells	= <1>;
+			compatible	= "st,stih416-fvdp-lite-pinctrl";
+			st,syscfg		= <&syscfg_fvdp_lite>;
+			ranges			= <0 0xfd330000 0x5000>;
+
+			PIO103: gpio@fd330000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0 0x100>;
+				st,bank-name	= "PIO103";
+			};
+			PIO104: gpio@fd331000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x1000 0x100>;
+				st,bank-name	= "PIO104";
+			};
+			PIO105: gpio@fd332000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x2000 0x100>;
+				st,bank-name	= "PIO105";
+			};
+			PIO106: gpio@fd333000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x3000 0x100>;
+				st,bank-name	= "PIO106";
+			};
+
+			PIO107: gpio@fd334000 {
+				gpio-controller;
+				#gpio-cells	= <1>;
+				reg		= <0x4000 0x100>;
+				st,bank-name	= "PIO107";
+				st,retime-pin-mask = <0xf>;
+			};
+		};
+	};
+};

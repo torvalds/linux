@@ -146,10 +146,6 @@ clks: ccm@53f80000 {
 	compatible = "fsl,imx25-ccm";
 	reg = <0x53f80000 0x4000>;
 	interrupts = <31>;
-	clock-output-names = ...
-			"uart_ipg",
-			"uart_serial",
-			...;
 };
 
 uart1: serial@43f90000 {

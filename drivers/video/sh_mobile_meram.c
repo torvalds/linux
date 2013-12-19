@@ -569,6 +569,7 @@ EXPORT_SYMBOL_GPL(sh_mobile_meram_cache_update);
  * Power management
  */
 
+#if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM_RUNTIME)
 static int sh_mobile_meram_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -611,6 +612,7 @@ static int sh_mobile_meram_resume(struct device *dev)
 		meram_write_reg(priv->base, common_regs[i], priv->regs[i]);
 	return 0;
 }
+#endif /* CONFIG_PM_SLEEP || CONFIG_PM_RUNTIME */
 
 static UNIVERSAL_DEV_PM_OPS(sh_mobile_meram_dev_pm_ops,
 			    sh_mobile_meram_suspend,
@@ -620,7 +622,7 @@ static UNIVERSAL_DEV_PM_OPS(sh_mobile_meram_dev_pm_ops,
  * Probe/remove and driver init/exit
  */
 
-static int __devinit sh_mobile_meram_probe(struct platform_device *pdev)
+static int sh_mobile_meram_probe(struct platform_device *pdev)
 {
 	struct sh_mobile_meram_priv *priv;
 	struct sh_mobile_meram_info *pdata = pdev->dev.platform_data;

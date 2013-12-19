@@ -90,7 +90,7 @@ static void ri_tasklet(unsigned long dev)
 		u64_stats_update_end(&dp->tsync);
 
 		rcu_read_lock();
-		skb->dev = dev_get_by_index_rcu(&init_net, skb->skb_iif);
+		skb->dev = dev_get_by_index_rcu(dev_net(_dev), skb->skb_iif);
 		if (!skb->dev) {
 			rcu_read_unlock();
 			dev_kfree_skb(skb);
@@ -166,7 +166,8 @@ static const struct net_device_ops ifb_netdev_ops = {
 
 #define IFB_FEATURES (NETIF_F_HW_CSUM | NETIF_F_SG  | NETIF_F_FRAGLIST	| \
 		      NETIF_F_TSO_ECN | NETIF_F_TSO | NETIF_F_TSO6	| \
-		      NETIF_F_HIGHDMA | NETIF_F_HW_VLAN_TX)
+		      NETIF_F_HIGHDMA | NETIF_F_HW_VLAN_CTAG_TX		| \
+		      NETIF_F_HW_VLAN_STAG_TX)
 
 static void ifb_setup(struct net_device *dev)
 {
@@ -264,6 +265,7 @@ MODULE_PARM_DESC(numifbs, "Number of ifb devices");
 static int __init ifb_init_one(int index)
 {
 	struct net_device *dev_ifb;
+	struct ifb_private *dp;
 	int err;
 
 	dev_ifb = alloc_netdev(sizeof(struct ifb_private),
@@ -271,6 +273,10 @@ static int __init ifb_init_one(int index)
 
 	if (!dev_ifb)
 		return -ENOMEM;
+
+	dp = netdev_priv(dev_ifb);
+	u64_stats_init(&dp->rsync);
+	u64_stats_init(&dp->tsync);
 
 	dev_ifb->rtnl_link_ops = &ifb_link_ops;
 	err = register_netdevice(dev_ifb);
@@ -290,11 +296,17 @@ static int __init ifb_init_module(void)
 
 	rtnl_lock();
 	err = __rtnl_link_register(&ifb_link_ops);
+	if (err < 0)
+		goto out;
 
-	for (i = 0; i < numifbs && !err; i++)
+	for (i = 0; i < numifbs && !err; i++) {
 		err = ifb_init_one(i);
+		cond_resched();
+	}
 	if (err)
 		__rtnl_link_unregister(&ifb_link_ops);
+
+out:
 	rtnl_unlock();
 
 	return err;

@@ -28,9 +28,14 @@
 #include <linux/device.h>
 #include <linux/skbuff.h>
 
-#define nfc_dev_info(dev, fmt, arg...) dev_info((dev), "NFC: " fmt "\n", ## arg)
-#define nfc_dev_err(dev, fmt, arg...) dev_err((dev), "NFC: " fmt "\n", ## arg)
-#define nfc_dev_dbg(dev, fmt, arg...) dev_dbg((dev), fmt "\n", ## arg)
+#define nfc_info(dev, fmt, ...) dev_info((dev), "NFC: " fmt, ##__VA_ARGS__)
+#define nfc_err(dev, fmt, ...) dev_err((dev), "NFC: " fmt, ##__VA_ARGS__)
+
+struct nfc_phy_ops {
+	int (*write)(void *dev_id, struct sk_buff *skb);
+	int (*enable)(void *dev_id);
+	void (*disable)(void *dev_id);
+};
 
 struct nfc_dev;
 
@@ -47,6 +52,8 @@ struct nfc_dev;
  */
 typedef void (*data_exchange_cb_t)(void *context, struct sk_buff *skb,
 								int err);
+
+typedef void (*se_io_cb_t)(void *context, u8 *apdu, size_t apdu_len, int err);
 
 struct nfc_target;
 
@@ -68,12 +75,29 @@ struct nfc_ops {
 			     void *cb_context);
 	int (*tm_send)(struct nfc_dev *dev, struct sk_buff *skb);
 	int (*check_presence)(struct nfc_dev *dev, struct nfc_target *target);
+	int (*fw_download)(struct nfc_dev *dev, const char *firmware_name);
+
+	/* Secure Element API */
+	int (*discover_se)(struct nfc_dev *dev);
+	int (*enable_se)(struct nfc_dev *dev, u32 se_idx);
+	int (*disable_se)(struct nfc_dev *dev, u32 se_idx);
+	int (*se_io) (struct nfc_dev *dev, u32 se_idx,
+		      u8 *apdu, size_t apdu_length,
+		      se_io_cb_t cb, void *cb_context);
 };
 
 #define NFC_TARGET_IDX_ANY -1
 #define NFC_MAX_GT_LEN 48
 #define NFC_ATR_RES_GT_OFFSET 15
 
+/**
+ * struct nfc_target - NFC target descriptiom
+ *
+ * @sens_res: 2 bytes describing the target SENS_RES response, if the target
+ *	is a type A one. The %sens_res most significant byte must be byte 2
+ *	as described by the NFC Forum digital specification (i.e. the platform
+ *	configuration one) while %sens_res least significant byte is byte 1.
+ */
 struct nfc_target {
 	u32 idx;
 	u32 supported_protocols;
@@ -81,12 +105,31 @@ struct nfc_target {
 	u8 sel_res;
 	u8 nfcid1_len;
 	u8 nfcid1[NFC_NFCID1_MAXSIZE];
+	u8 nfcid2_len;
+	u8 nfcid2[NFC_NFCID2_MAXSIZE];
 	u8 sensb_res_len;
 	u8 sensb_res[NFC_SENSB_RES_MAXSIZE];
 	u8 sensf_res_len;
 	u8 sensf_res[NFC_SENSF_RES_MAXSIZE];
 	u8 hci_reader_gate;
 	u8 logical_idx;
+};
+
+/**
+ * nfc_se - A structure for NFC accessible secure elements.
+ *
+ * @idx: The secure element index. User space will enable or
+ *       disable a secure element by its index.
+ * @type: The secure element type. It can be SE_UICC or
+ *        SE_EMBEDDED.
+ * @state: The secure element state, either enabled or disabled.
+ *
+ */
+struct nfc_se {
+	struct list_head list;
+	u32 idx;
+	u16 type;
+	u16 state;
 };
 
 struct nfc_genl_data {
@@ -102,6 +145,7 @@ struct nfc_dev {
 	int targets_generation;
 	struct device dev;
 	bool dev_up;
+	bool fw_download_in_progress;
 	u8 rf_mode;
 	bool polling;
 	struct nfc_target *active_target;
@@ -109,11 +153,17 @@ struct nfc_dev {
 	struct nfc_genl_data genl_data;
 	u32 supported_protocols;
 
+	struct list_head secure_elements;
+
 	int tx_headroom;
 	int tx_tailroom;
 
 	struct timer_list check_pres_timer;
 	struct work_struct check_pres_work;
+
+	bool shutting_down;
+
+	struct rfkill *rfkill;
 
 	struct nfc_ops *ops;
 };
@@ -192,6 +242,9 @@ int nfc_set_remote_general_bytes(struct nfc_dev *dev,
 				 u8 *gt, u8 gt_len);
 u8 *nfc_get_local_general_bytes(struct nfc_dev *dev, size_t *gb_len);
 
+int nfc_fw_download_done(struct nfc_dev *dev, const char *firmware_name,
+			 u32 result);
+
 int nfc_targets_found(struct nfc_dev *dev,
 		      struct nfc_target *targets, int ntargets);
 int nfc_target_lost(struct nfc_dev *dev, u32 target_idx);
@@ -205,5 +258,9 @@ int nfc_tm_deactivated(struct nfc_dev *dev);
 int nfc_tm_data_received(struct nfc_dev *dev, struct sk_buff *skb);
 
 void nfc_driver_failure(struct nfc_dev *dev, int err);
+
+int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type);
+int nfc_remove_se(struct nfc_dev *dev, u32 se_idx);
+struct nfc_se *nfc_find_se(struct nfc_dev *dev, u32 se_idx);
 
 #endif /* __NET_NFC_H */

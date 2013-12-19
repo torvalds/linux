@@ -115,7 +115,7 @@ static ssize_t tmp102_set_temp(struct device *dev,
 
 	if (kstrtol(buf, 10, &val) < 0)
 		return -EINVAL;
-	val = SENSORS_LIMIT(val, -256000, 255000);
+	val = clamp_val(val, -256000, 255000);
 
 	mutex_lock(&tmp102->lock);
 	tmp102->temp[sda->index] = val;
@@ -155,8 +155,8 @@ static int tmp102_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_WORD_DATA)) {
-		dev_err(&client->dev, "adapter doesn't support SMBus word "
-			"transactions\n");
+		dev_err(&client->dev,
+			"adapter doesn't support SMBus word transactions\n");
 		return -ENODEV;
 	}
 

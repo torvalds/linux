@@ -1,6 +1,6 @@
 /* Realtek PCI-Express Memstick Card Interface driver
  *
- * Copyright(c) 2009 Realtek Semiconductor Corp. All rights reserved.
+ * Copyright(c) 2009-2013 Realtek Semiconductor Corp. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,7 +17,6 @@
  *
  * Author:
  *   Wei WANG <wei_wang@realsil.com.cn>
- *   No. 450, Shenhu Road, Suzhou Industry Park, Suzhou, China
  */
 
 #include <linux/module.h>
@@ -426,6 +425,9 @@ static void rtsx_pci_ms_request(struct memstick_host *msh)
 
 	dev_dbg(ms_dev(host), "--> %s\n", __func__);
 
+	if (rtsx_pci_card_exclusive_check(host->pcr, RTSX_MS_CARD))
+		return;
+
 	schedule_work(&host->handle_req);
 }
 
@@ -440,6 +442,10 @@ static int rtsx_pci_ms_set_param(struct memstick_host *msh,
 
 	dev_dbg(ms_dev(host), "%s: param = %d, value = %d\n",
 			__func__, param, value);
+
+	err = rtsx_pci_card_exclusive_check(host->pcr, RTSX_MS_CARD);
+	if (err)
+		return err;
 
 	switch (param) {
 	case MEMSTICK_POWER:
@@ -605,8 +611,6 @@ static int rtsx_pci_ms_drv_remove(struct platform_device *pdev)
 
 	memstick_remove_host(msh);
 	memstick_free_host(msh);
-
-	platform_set_drvdata(pdev, NULL);
 
 	dev_dbg(&(pdev->dev),
 		": Realtek PCI-E Memstick controller has been removed\n");

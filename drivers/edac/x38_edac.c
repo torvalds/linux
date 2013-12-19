@@ -248,8 +248,7 @@ static void x38_check(struct mem_ctl_info *mci)
 	x38_process_error_info(mci, &info);
 }
 
-
-void __iomem *x38_map_mchbar(struct pci_dev *pdev)
+static void __iomem *x38_map_mchbar(struct pci_dev *pdev)
 {
 	union {
 		u64 mchbar;
@@ -418,8 +417,7 @@ fail:
 	return rc;
 }
 
-static int __devinit x38_init_one(struct pci_dev *pdev,
-				const struct pci_device_id *ent)
+static int x38_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int rc;
 
@@ -435,7 +433,7 @@ static int __devinit x38_init_one(struct pci_dev *pdev,
 	return rc;
 }
 
-static void __devexit x38_remove_one(struct pci_dev *pdev)
+static void x38_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 
@@ -464,7 +462,7 @@ MODULE_DEVICE_TABLE(pci, x38_pci_tbl);
 static struct pci_driver x38_driver = {
 	.name = EDAC_MOD_STR,
 	.probe = x38_init_one,
-	.remove = __devexit_p(x38_remove_one),
+	.remove = x38_remove_one,
 	.id_table = x38_pci_tbl,
 };
 

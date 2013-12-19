@@ -535,37 +535,29 @@ static struct attribute *dcdbas_dev_attrs[] = {
 
 static struct attribute_group dcdbas_attr_group = {
 	.attrs = dcdbas_dev_attrs,
+	.bin_attrs = dcdbas_bin_attrs,
 };
 
-static int __devinit dcdbas_probe(struct platform_device *dev)
+static int dcdbas_probe(struct platform_device *dev)
 {
-	int i, error;
+	int error;
 
 	host_control_action = HC_ACTION_NONE;
 	host_control_smi_type = HC_SMITYPE_NONE;
+
+	dcdbas_pdev = dev;
 
 	/*
 	 * BIOS SMI calls require buffer addresses be in 32-bit address space.
 	 * This is done by setting the DMA mask below.
 	 */
-	dcdbas_pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-	dcdbas_pdev->dev.dma_mask = &dcdbas_pdev->dev.coherent_dma_mask;
+	error = dma_set_coherent_mask(&dcdbas_pdev->dev, DMA_BIT_MASK(32));
+	if (error)
+		return error;
 
 	error = sysfs_create_group(&dev->dev.kobj, &dcdbas_attr_group);
 	if (error)
 		return error;
-
-	for (i = 0; dcdbas_bin_attrs[i]; i++) {
-		error = sysfs_create_bin_file(&dev->dev.kobj,
-					      dcdbas_bin_attrs[i]);
-		if (error) {
-			while (--i >= 0)
-				sysfs_remove_bin_file(&dev->dev.kobj,
-						      dcdbas_bin_attrs[i]);
-			sysfs_remove_group(&dev->dev.kobj, &dcdbas_attr_group);
-			return error;
-		}
-	}
 
 	register_reboot_notifier(&dcdbas_reboot_nb);
 
@@ -575,13 +567,9 @@ static int __devinit dcdbas_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit dcdbas_remove(struct platform_device *dev)
+static int dcdbas_remove(struct platform_device *dev)
 {
-	int i;
-
 	unregister_reboot_notifier(&dcdbas_reboot_nb);
-	for (i = 0; dcdbas_bin_attrs[i]; i++)
-		sysfs_remove_bin_file(&dev->dev.kobj, dcdbas_bin_attrs[i]);
 	sysfs_remove_group(&dev->dev.kobj, &dcdbas_attr_group);
 
 	return 0;
@@ -593,8 +581,16 @@ static struct platform_driver dcdbas_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= dcdbas_probe,
-	.remove		= __devexit_p(dcdbas_remove),
+	.remove		= dcdbas_remove,
 };
+
+static const struct platform_device_info dcdbas_dev_info __initdata = {
+	.name		= DRIVER_NAME,
+	.id		= -1,
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+static struct platform_device *dcdbas_pdev_reg;
 
 /**
  * dcdbas_init: initialize driver
@@ -607,20 +603,14 @@ static int __init dcdbas_init(void)
 	if (error)
 		return error;
 
-	dcdbas_pdev = platform_device_alloc(DRIVER_NAME, -1);
-	if (!dcdbas_pdev) {
-		error = -ENOMEM;
+	dcdbas_pdev_reg = platform_device_register_full(&dcdbas_dev_info);
+	if (IS_ERR(dcdbas_pdev_reg)) {
+		error = PTR_ERR(dcdbas_pdev_reg);
 		goto err_unregister_driver;
 	}
 
-	error = platform_device_add(dcdbas_pdev);
-	if (error)
-		goto err_free_device;
-
 	return 0;
 
- err_free_device:
-	platform_device_put(dcdbas_pdev);
  err_unregister_driver:
 	platform_driver_unregister(&dcdbas_driver);
 	return error;
@@ -643,8 +633,9 @@ static void __exit dcdbas_exit(void)
 	 * all sysfs attributes belonging to this module have been
 	 * released.
 	 */
-	smi_data_buf_free();
-	platform_device_unregister(dcdbas_pdev);
+	if (dcdbas_pdev)
+		smi_data_buf_free();
+	platform_device_unregister(dcdbas_pdev_reg);
 	platform_driver_unregister(&dcdbas_driver);
 }
 

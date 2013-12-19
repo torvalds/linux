@@ -15,17 +15,13 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include <limits.h>
+#include <stdbool.h>
+#include <errno.h>
 #include "modpost.h"
 #include "../../include/generated/autoconf.h"
 #include "../../include/linux/license.h"
-
-/* Some toolchains use a `_' prefix for all user symbols. */
-#ifdef CONFIG_SYMBOL_PREFIX
-#define MODULE_SYMBOL_PREFIX CONFIG_SYMBOL_PREFIX
-#else
-#define MODULE_SYMBOL_PREFIX ""
-#endif
-
+#include "../../include/linux/export.h"
 
 /* Are we using CONFIG_MODVERSIONS? */
 int modversions = 0;
@@ -42,6 +38,8 @@ static int warn_unresolved = 0;
 /* How a symbol is exported */
 static int sec_mismatch_count = 0;
 static int sec_mismatch_verbose = 1;
+/* ignore missing files */
+static int ignore_missing_files;
 
 enum export {
 	export_plain,      export_unused,     export_gpl,
@@ -85,6 +83,14 @@ PRINTF void merror(const char *fmt, ...)
 	va_end(arglist);
 }
 
+static inline bool strends(const char *str, const char *postfix)
+{
+	if (strlen(str) < strlen(postfix))
+		return false;
+
+	return strcmp(str + strlen(str) - strlen(postfix), postfix) == 0;
+}
+
 static int is_vmlinux(const char *modname)
 {
 	const char *myname;
@@ -120,22 +126,20 @@ static struct module *find_module(char *modname)
 	return mod;
 }
 
-static struct module *new_module(char *modname)
+static struct module *new_module(const char *modname)
 {
 	struct module *mod;
-	char *p, *s;
+	char *p;
 
 	mod = NOFAIL(malloc(sizeof(*mod)));
 	memset(mod, 0, sizeof(*mod));
 	p = NOFAIL(strdup(modname));
 
 	/* strip trailing .o */
-	s = strrchr(p, '.');
-	if (s != NULL)
-		if (strcmp(s, ".o") == 0) {
-			*s = '\0';
-			mod->is_dot_o = 1;
-		}
+	if (strends(p, ".o")) {
+		p[strlen(p) - 2] = '\0';
+		mod->is_dot_o = 1;
+	}
 
 	/* add to list */
 	mod->name = p;
@@ -160,7 +164,7 @@ struct symbol {
 	unsigned int vmlinux:1;    /* 1 if symbol is defined in vmlinux */
 	unsigned int kernel:1;     /* 1 if symbol is from kernel
 				    *  (only for external modules) **/
-	unsigned int preloaded:1;  /* 1 if symbol from Module.symvers */
+	unsigned int preloaded:1;  /* 1 if symbol from Module.symvers, or crc */
 	enum export  export;       /* Type of export */
 	char name[0];
 };
@@ -328,8 +332,11 @@ static void sym_update_crc(const char *name, struct module *mod,
 {
 	struct symbol *s = find_symbol(name);
 
-	if (!s)
+	if (!s) {
 		s = new_symbol(name, mod, export);
+		/* Don't complain when we find it later. */
+		s->preloaded = 1;
+	}
 	s->crc = crc;
 	s->crc_valid = 1;
 }
@@ -406,6 +413,11 @@ static int parse_elf(struct elf_info *info, const char *filename)
 
 	hdr = grab_file(filename, &info->size);
 	if (!hdr) {
+		if (ignore_missing_files) {
+			fprintf(stderr, "%s: %s (ignored)\n", filename,
+				strerror(errno));
+			return 0;
+		}
 		perror(filename);
 		exit(1);
 	}
@@ -562,7 +574,7 @@ static void parse_elf_finish(struct elf_info *info)
 static int ignore_undef_symbol(struct elf_info *info, const char *symname)
 {
 	/* ignore __this_module, it will be resolved shortly */
-	if (strcmp(symname, MODULE_SYMBOL_PREFIX "__this_module") == 0)
+	if (strcmp(symname, VMLINUX_SYMBOL_STR(__this_module)) == 0)
 		return 1;
 	/* ignore global offset table */
 	if (strcmp(symname, "_GLOBAL_OFFSET_TABLE_") == 0)
@@ -583,8 +595,8 @@ static int ignore_undef_symbol(struct elf_info *info, const char *symname)
 	return 0;
 }
 
-#define CRC_PFX     MODULE_SYMBOL_PREFIX "__crc_"
-#define KSYMTAB_PFX MODULE_SYMBOL_PREFIX "__ksymtab_"
+#define CRC_PFX     VMLINUX_SYMBOL_STR(__crc_)
+#define KSYMTAB_PFX VMLINUX_SYMBOL_STR(__ksymtab_)
 
 static void handle_modversions(struct module *mod, struct elf_info *info,
 			       Elf_Sym *sym, const char *symname)
@@ -598,17 +610,16 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 	else
 		export = export_from_sec(info, get_secindex(info, sym));
 
+	/* CRC'd symbol */
+	if (strncmp(symname, CRC_PFX, strlen(CRC_PFX)) == 0) {
+		crc = (unsigned int) sym->st_value;
+		sym_update_crc(symname + strlen(CRC_PFX), mod, crc,
+				export);
+	}
+
 	switch (sym->st_shndx) {
 	case SHN_COMMON:
 		warn("\"%s\" [%s] is COMMON symbol\n", symname, mod->name);
-		break;
-	case SHN_ABS:
-		/* CRC'd symbol */
-		if (strncmp(symname, CRC_PFX, strlen(CRC_PFX)) == 0) {
-			crc = (unsigned int) sym->st_value;
-			sym_update_crc(symname + strlen(CRC_PFX), mod, crc,
-					export);
-		}
 		break;
 	case SHN_UNDEF:
 		/* undefined symbol */
@@ -637,14 +648,15 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 		}
 #endif
 
-		if (memcmp(symname, MODULE_SYMBOL_PREFIX,
-			   strlen(MODULE_SYMBOL_PREFIX)) == 0) {
-			mod->unres =
-			  alloc_symbol(symname +
-			               strlen(MODULE_SYMBOL_PREFIX),
-			               ELF_ST_BIND(sym->st_info) == STB_WEAK,
-			               mod->unres);
-		}
+#ifdef CONFIG_HAVE_UNDERSCORE_SYMBOL_PREFIX
+		if (symname[0] != '_')
+			break;
+		else
+			symname++;
+#endif
+		mod->unres = alloc_symbol(symname,
+					  ELF_ST_BIND(sym->st_info) == STB_WEAK,
+					  mod->unres);
 		break;
 	default:
 		/* All exported symbols */
@@ -652,9 +664,9 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 			sym_add_exported(symname + strlen(KSYMTAB_PFX), mod,
 					export);
 		}
-		if (strcmp(symname, MODULE_SYMBOL_PREFIX "init_module") == 0)
+		if (strcmp(symname, VMLINUX_SYMBOL_STR(init_module)) == 0)
 			mod->has_init = 1;
-		if (strcmp(symname, MODULE_SYMBOL_PREFIX "cleanup_module") == 0)
+		if (strcmp(symname, VMLINUX_SYMBOL_STR(cleanup_module)) == 0)
 			mod->has_cleanup = 1;
 		break;
 	}
@@ -819,6 +831,7 @@ static const char *section_white_list[] =
 {
 	".comment*",
 	".debug*",
+	".cranges",		/* sh64 */
 	".zdebug*",		/* Compressed debug sections. */
 	".GCC-command-line",	/* mn10300 */
 	".GCC.command.line",	/* record-gcc-switches, non mn10300 */
@@ -830,6 +843,8 @@ static const char *section_white_list[] =
 	".toc*",
 	".xt.prop",				 /* xtensa */
 	".xt.lit",         /* xtensa */
+	".arcextmap*",			/* arc */
+	".gnu.linkonce.arcext*",	/* arc : modules */
 	NULL
 };
 
@@ -857,37 +872,34 @@ static void check_section(const char *modname, struct elf_info *elf,
 
 
 #define ALL_INIT_DATA_SECTIONS \
-	".init.setup$", ".init.rodata$", \
-	".cpuinit.rodata$", ".meminit.rodata$", \
-	".init.data$", ".cpuinit.data$", ".meminit.data$"
+	".init.setup$", ".init.rodata$", ".meminit.rodata$", \
+	".init.data$", ".meminit.data$"
 #define ALL_EXIT_DATA_SECTIONS \
-	".exit.data$", ".cpuexit.data$", ".memexit.data$"
+	".exit.data$", ".memexit.data$"
 
 #define ALL_INIT_TEXT_SECTIONS \
-	".init.text$", ".cpuinit.text$", ".meminit.text$"
+	".init.text$", ".meminit.text$"
 #define ALL_EXIT_TEXT_SECTIONS \
-	".exit.text$", ".cpuexit.text$", ".memexit.text$"
+	".exit.text$", ".memexit.text$"
 
 #define ALL_PCI_INIT_SECTIONS	\
 	".pci_fixup_early$", ".pci_fixup_header$", ".pci_fixup_final$", \
 	".pci_fixup_enable$", ".pci_fixup_resume$", \
 	".pci_fixup_resume_early$", ".pci_fixup_suspend$"
 
-#define ALL_XXXINIT_SECTIONS CPU_INIT_SECTIONS, MEM_INIT_SECTIONS
-#define ALL_XXXEXIT_SECTIONS CPU_EXIT_SECTIONS, MEM_EXIT_SECTIONS
+#define ALL_XXXINIT_SECTIONS MEM_INIT_SECTIONS
+#define ALL_XXXEXIT_SECTIONS MEM_EXIT_SECTIONS
 
 #define ALL_INIT_SECTIONS INIT_SECTIONS, ALL_XXXINIT_SECTIONS
 #define ALL_EXIT_SECTIONS EXIT_SECTIONS, ALL_XXXEXIT_SECTIONS
 
 #define DATA_SECTIONS ".data$", ".data.rel$"
-#define TEXT_SECTIONS ".text$"
+#define TEXT_SECTIONS ".text$", ".text.unlikely$"
 
 #define INIT_SECTIONS      ".init.*"
-#define CPU_INIT_SECTIONS  ".cpuinit.*"
 #define MEM_INIT_SECTIONS  ".meminit.*"
 
 #define EXIT_SECTIONS      ".exit.*"
-#define CPU_EXIT_SECTIONS  ".cpuexit.*"
 #define MEM_EXIT_SECTIONS  ".memexit.*"
 
 /* init data sections */
@@ -975,45 +987,17 @@ const struct sectioncheck sectioncheck[] = {
 	.mismatch = DATA_TO_ANY_EXIT,
 	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
-/* Do not reference init code/data from cpuinit/meminit code/data */
+/* Do not reference init code/data from meminit code/data */
 {
 	.fromsec = { ALL_XXXINIT_SECTIONS, NULL },
 	.tosec   = { INIT_SECTIONS, NULL },
 	.mismatch = XXXINIT_TO_SOME_INIT,
 	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
-/* Do not reference cpuinit code/data from meminit code/data */
-{
-	.fromsec = { MEM_INIT_SECTIONS, NULL },
-	.tosec   = { CPU_INIT_SECTIONS, NULL },
-	.mismatch = XXXINIT_TO_SOME_INIT,
-	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
-},
-/* Do not reference meminit code/data from cpuinit code/data */
-{
-	.fromsec = { CPU_INIT_SECTIONS, NULL },
-	.tosec   = { MEM_INIT_SECTIONS, NULL },
-	.mismatch = XXXINIT_TO_SOME_INIT,
-	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
-},
-/* Do not reference exit code/data from cpuexit/memexit code/data */
+/* Do not reference exit code/data from memexit code/data */
 {
 	.fromsec = { ALL_XXXEXIT_SECTIONS, NULL },
 	.tosec   = { EXIT_SECTIONS, NULL },
-	.mismatch = XXXEXIT_TO_SOME_EXIT,
-	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
-},
-/* Do not reference cpuexit code/data from memexit code/data */
-{
-	.fromsec = { MEM_EXIT_SECTIONS, NULL },
-	.tosec   = { CPU_EXIT_SECTIONS, NULL },
-	.mismatch = XXXEXIT_TO_SOME_EXIT,
-	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
-},
-/* Do not reference memexit code/data from cpuexit code/data */
-{
-	.fromsec = { CPU_EXIT_SECTIONS, NULL },
-	.tosec   = { MEM_EXIT_SECTIONS, NULL },
 	.mismatch = XXXEXIT_TO_SOME_EXIT,
 	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
@@ -1085,8 +1069,6 @@ static const struct sectioncheck *section_mismatch(
  * Pattern 2:
  *   Many drivers utilise a *driver container with references to
  *   add, remove, probe functions etc.
- *   These functions may often be marked __cpuinit and we do not want to
- *   warn here.
  *   the pattern is identified by:
  *   tosec   = init or exit section
  *   fromsec = data section
@@ -1245,7 +1227,6 @@ static Elf_Sym *find_elf_symbol2(struct elf_info *elf, Elf_Addr addr,
 /*
  * Convert a section name to the function/data attribute
  * .init.text => __init
- * .cpuinit.data => __cpudata
  * .memexitconst => __memconst
  * etc.
  *
@@ -1760,6 +1741,27 @@ static void read_symbols(char *modname)
 		mod->unres = alloc_symbol("module_layout", 0, mod->unres);
 }
 
+static void read_symbols_from_files(const char *filename)
+{
+	FILE *in = stdin;
+	char fname[PATH_MAX];
+
+	if (strcmp(filename, "-") != 0) {
+		in = fopen(filename, "r");
+		if (!in)
+			fatal("Can't open filenames file %s: %m", filename);
+	}
+
+	while (fgets(fname, PATH_MAX, in) != NULL) {
+		if (strends(fname, "\n"))
+			fname[strlen(fname)-1] = '\0';
+		read_symbols(fname);
+	}
+
+	if (in != stdin)
+		fclose(in);
+}
+
 #define SZ 500
 
 /* We first write the generated file into memory using the
@@ -1861,7 +1863,7 @@ static void add_header(struct buffer *b, struct module *mod)
 	buf_printf(b, "\n");
 	buf_printf(b, "MODULE_INFO(vermagic, VERMAGIC_STRING);\n");
 	buf_printf(b, "\n");
-	buf_printf(b, "struct module __this_module\n");
+	buf_printf(b, "__visible struct module __this_module\n");
 	buf_printf(b, "__attribute__((section(\".gnu.linkonce.this_module\"))) = {\n");
 	buf_printf(b, "\t.name = KBUILD_MODNAME,\n");
 	if (mod->has_init)
@@ -1932,7 +1934,8 @@ static int add_versions(struct buffer *b, struct module *mod)
 				s->name, mod->name);
 			continue;
 		}
-		buf_printf(b, "\t{ %#8x, \"%s\" },\n", s->crc, s->name);
+		buf_printf(b, "\t{ %#8x, __VMLINUX_SYMBOL_STR(%s) },\n",
+			   s->crc, s->name);
 	}
 
 	buf_printf(b, "};\n");
@@ -2120,13 +2123,13 @@ int main(int argc, char **argv)
 	struct module *mod;
 	struct buffer buf = { };
 	char *kernel_read = NULL, *module_read = NULL;
-	char *dump_write = NULL;
+	char *dump_write = NULL, *files_source = NULL;
 	int opt;
 	int err;
 	struct ext_sym_list *extsym_iter;
 	struct ext_sym_list *extsym_start = NULL;
 
-	while ((opt = getopt(argc, argv, "i:I:e:cmsSo:awM:K:")) != -1) {
+	while ((opt = getopt(argc, argv, "i:I:e:mnsST:o:awM:K:")) != -1) {
 		switch (opt) {
 		case 'i':
 			kernel_read = optarg;
@@ -2134,9 +2137,6 @@ int main(int argc, char **argv)
 		case 'I':
 			module_read = optarg;
 			external_module = 1;
-			break;
-		case 'c':
-			cross_build = 1;
 			break;
 		case 'e':
 			external_module = 1;
@@ -2149,6 +2149,9 @@ int main(int argc, char **argv)
 		case 'm':
 			modversions = 1;
 			break;
+		case 'n':
+			ignore_missing_files = 1;
+			break;
 		case 'o':
 			dump_write = optarg;
 			break;
@@ -2160,6 +2163,9 @@ int main(int argc, char **argv)
 			break;
 		case 'S':
 			sec_mismatch_verbose = 0;
+			break;
+		case 'T':
+			files_source = optarg;
 			break;
 		case 'w':
 			warn_unresolved = 1;
@@ -2182,6 +2188,9 @@ int main(int argc, char **argv)
 
 	while (optind < argc)
 		read_symbols(argv[optind++]);
+
+	if (files_source)
+		read_symbols_from_files(files_source);
 
 	for (mod = modules; mod; mod = mod->next) {
 		if (mod->skip)

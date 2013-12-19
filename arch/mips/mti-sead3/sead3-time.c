@@ -7,11 +7,11 @@
  */
 #include <linux/init.h>
 
+#include <asm/cpu.h>
 #include <asm/setup.h>
 #include <asm/time.h>
 #include <asm/irq.h>
 #include <asm/mips-boards/generic.h>
-#include <asm/mips-boards/prom.h>
 
 unsigned long cpu_khz;
 
@@ -35,7 +35,7 @@ static void __iomem *status_reg = (void __iomem *)0xbf000410;
  */
 static unsigned int __init estimate_cpu_frequency(void)
 {
-	unsigned int prid = read_c0_prid() & 0xffff00;
+	unsigned int prid = read_c0_prid() & (PRID_COMP_MASK | PRID_IMP_MASK);
 	unsigned int tick = 0;
 	unsigned int freq;
 	unsigned int orig;
@@ -43,11 +43,11 @@ static unsigned int __init estimate_cpu_frequency(void)
 
 	local_irq_save(flags);
 
-	orig = readl(status_reg) & 0x2;               /* get original sample */
+	orig = readl(status_reg) & 0x2;		      /* get original sample */
 	/* wait for transition */
 	while ((readl(status_reg) & 0x2) == orig)
 		;
-	orig = orig ^ 0x2;                            /* flip the bit */
+	orig = orig ^ 0x2;			      /* flip the bit */
 
 	write_c0_count(0);
 
@@ -56,7 +56,7 @@ static unsigned int __init estimate_cpu_frequency(void)
 		/* wait for transition */
 		while ((readl(status_reg) & 0x2) == orig)
 			;
-		orig = orig ^ 0x2;                            /* flip the bit */
+		orig = orig ^ 0x2;			      /* flip the bit */
 		tick++;
 	}
 
@@ -71,7 +71,7 @@ static unsigned int __init estimate_cpu_frequency(void)
 		(prid != (PRID_COMP_MIPS | PRID_IMP_25KF)))
 		freq *= 2;
 
-	freq += 5000;        /* rounding */
+	freq += 5000;	     /* rounding */
 	freq -= freq%10000;
 
 	return freq ;
@@ -92,7 +92,7 @@ static void __init plat_perf_setup(void)
 	}
 }
 
-unsigned int __cpuinit get_c0_compare_int(void)
+unsigned int get_c0_compare_int(void)
 {
 	if (cpu_has_vint)
 		set_vi_handler(cp0_compare_irq, mips_timer_dispatch);

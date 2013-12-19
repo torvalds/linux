@@ -34,7 +34,7 @@
 
 /*
  * set cpu low power mode before WFI instruction. This function is called
- * mx5 because it can be used for mx50, mx51, and mx53.
+ * mx5 because it can be used for mx51, and mx53.
  */
 static void mx5_cpu_lp_set(enum mxc_cpu_pwr_mode mode)
 {
@@ -85,10 +85,7 @@ static void mx5_cpu_lp_set(enum mxc_cpu_pwr_mode mode)
 	__raw_writel(plat_lpc, MXC_CORTEXA8_PLAT_LPC);
 	__raw_writel(ccm_clpcr, MXC_CCM_CLPCR);
 	__raw_writel(arm_srpgcr, MXC_SRPG_ARM_SRPGCR);
-
-	/* Enable NEON SRPG for all but MX50TO1.0. */
-	if (mx50_revision() != IMX_CHIP_REVISION_1_0)
-		__raw_writel(arm_srpgcr, MXC_SRPG_NEON_SRPGCR);
+	__raw_writel(arm_srpgcr, MXC_SRPG_NEON_SRPGCR);
 
 	if (stop_mode) {
 		empgc0 |= MXC_SRPGCR_PCR;
@@ -152,33 +149,6 @@ static void imx5_pm_idle(void)
 	imx5_cpu_do_idle();
 }
 
-static int imx5_cpuidle_enter(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv, int idx)
-{
-	int ret;
-
-	ret = imx5_cpu_do_idle();
-	if (ret < 0)
-		return ret;
-
-	return idx;
-}
-
-static struct cpuidle_driver imx5_cpuidle_driver = {
-	.name			= "imx5_cpuidle",
-	.owner			= THIS_MODULE,
-	.en_core_tk_irqen	= 1,
-	.states[0]	= {
-		.enter			= imx5_cpuidle_enter,
-		.exit_latency		= 2,
-		.target_residency	= 1,
-		.flags			= CPUIDLE_FLAG_TIME_VALID,
-		.name			= "IMX5 SRPG",
-		.desc			= "CPU state retained,powered off",
-	},
-	.state_count		= 1,
-};
-
 static int __init imx5_pm_common_init(void)
 {
 	int ret;
@@ -196,18 +166,12 @@ static int __init imx5_pm_common_init(void)
 	/* Set the registers to the default cpu idle state. */
 	mx5_cpu_lp_set(IMX5_DEFAULT_CPU_IDLE_STATE);
 
-	imx_cpuidle_init(&imx5_cpuidle_driver);
-	return 0;
+	return imx5_cpuidle_init();
 }
 
-void __init imx51_pm_init(void)
+void __init imx5_pm_init(void)
 {
 	int ret = imx5_pm_common_init();
 	if (!ret)
 		suspend_set_ops(&mx5_suspend_ops);
-}
-
-void __init imx53_pm_init(void)
-{
-	imx5_pm_common_init();
 }

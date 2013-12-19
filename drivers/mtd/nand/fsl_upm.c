@@ -18,6 +18,7 @@
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/mtd.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/io.h>
@@ -153,8 +154,8 @@ static void fun_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 }
 
 static int fun_chip_init(struct fsl_upm_nand *fun,
-				   const struct device_node *upm_np,
-				   const struct resource *io_res)
+			 const struct device_node *upm_np,
+			 const struct resource *io_res)
 {
 	int ret;
 	struct device_node *flash_np;

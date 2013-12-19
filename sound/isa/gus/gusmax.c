@@ -357,7 +357,6 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 static int snd_gusmax_remove(struct device *devptr, unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(devptr));
-	dev_set_drvdata(devptr, NULL);
 	return 0;
 }
 

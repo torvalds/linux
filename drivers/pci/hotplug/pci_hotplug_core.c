@@ -41,6 +41,7 @@
 #include <linux/pci_hotplug.h>
 #include <asm/uaccess.h>
 #include "../pci.h"
+#include "cpci_hotplug.h"
 
 #define MY_NAME	"pci_hotplug"
 
@@ -62,14 +63,6 @@ static bool debug;
 
 static LIST_HEAD(pci_hotplug_slot_list);
 static DEFINE_MUTEX(pci_hp_mutex);
-
-#ifdef CONFIG_HOTPLUG_PCI_CPCI
-extern int cpci_hotplug_init(int debug);
-extern void cpci_hotplug_exit(void);
-#else
-static inline int cpci_hotplug_init(int debug) { return 0; }
-static inline void cpci_hotplug_exit(void) { }
-#endif
 
 /* Weee, fun with macros... */
 #define GET_STATUS(name,type)	\
@@ -138,7 +131,7 @@ static ssize_t power_write_file(struct pci_slot *pci_slot, const char *buf,
 	}
 	module_put(slot->ops->owner);
 
-exit:	
+exit:
 	if (retval)
 		return retval;
 	return count;
@@ -184,7 +177,7 @@ static ssize_t attention_write_file(struct pci_slot *slot, const char *buf,
 		retval = ops->set_attention_status(slot->hotplug, attention);
 	module_put(ops->owner);
 
-exit:	
+exit:
 	if (retval)
 		return retval;
 	return count;
@@ -254,7 +247,7 @@ static ssize_t test_write_file(struct pci_slot *pci_slot, const char *buf,
 		retval = slot->ops->hardware_test(slot, test);
 	module_put(slot->ops->owner);
 
-exit:	
+exit:
 	if (retval)
 		return retval;
 	return count;
@@ -519,18 +512,16 @@ int pci_hp_deregister(struct hotplug_slot *hotplug)
  * @hotplug: pointer to the slot whose info has changed
  * @info: pointer to the info copy into the slot's info structure
  *
- * @slot must have been registered with the pci 
+ * @slot must have been registered with the pci
  * hotplug subsystem previously with a call to pci_hp_register().
  *
  * Returns 0 if successful, anything else for an error.
  */
-int __must_check pci_hp_change_slot_info(struct hotplug_slot *hotplug,
-					 struct hotplug_slot_info *info)
+int pci_hp_change_slot_info(struct hotplug_slot *hotplug,
+			    struct hotplug_slot_info *info)
 {
-	struct pci_slot *slot;
 	if (!hotplug || !info)
 		return -ENODEV;
-	slot = hotplug->pci_slot;
 
 	memcpy(hotplug->info, info, sizeof(struct hotplug_slot_info));
 

@@ -1,0 +1,24 @@
+* Sitronix st1232 touchscreen controller
+
+Required properties:
+- compatible: must be "sitronix,st1232"
+- reg: I2C address of the chip
+- interrupts: interrupt to which the chip is connected
+
+Optional properties:
+- gpios: a phandle to the reset GPIO
+
+Example:
+
+	i2c@00000000 {
+		/* ... */
+
+		touchscreen@55 {
+			compatible = "sitronix,st1232";
+			reg = <0x55>;
+			interrupts = <2 0>;
+			gpios = <&gpio1 166 0>;
+		};
+
+		/* ... */
+	};

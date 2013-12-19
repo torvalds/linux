@@ -778,11 +778,9 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	}
 	host->io_base_dma = rc->start;
 
-	host->io_base = devm_request_and_ioremap(&pdev->dev, rc);
-	if (host->io_base == NULL) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		return -ENOMEM;
-	}
+	host->io_base = devm_ioremap_resource(&pdev->dev, rc);
+	if (IS_ERR(host->io_base))
+		return PTR_ERR(host->io_base);
 
 	if (pdev->dev.of_node)
 		host->ncfg = lpc32xx_parse_dt(&pdev->dev);
@@ -800,7 +798,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	}
 	lpc32xx_wp_disable(host);
 
-	host->pdata = pdev->dev.platform_data;
+	host->pdata = dev_get_platdata(&pdev->dev);
 
 	mtd = &host->mtd;
 	chip = &host->nand_chip;
@@ -895,7 +893,6 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 
 	/* Avoid extra scan if using BBT, setup BBT support */
 	if (host->ncfg->use_bbt) {
-		chip->options |= NAND_SKIP_BBTSCAN;
 		chip->bbt_options |= NAND_BBT_USE_FLASH;
 
 		/*
@@ -917,13 +914,6 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 		goto err_exit3;
 	}
 
-	/* Standard layout in FLASH for bad block tables */
-	if (host->ncfg->use_bbt) {
-		if (nand_default_bbt(mtd) < 0)
-			dev_err(&pdev->dev,
-			       "Error initializing default bad block tables\n");
-	}
-
 	mtd->name = "nxp_lpc3220_slc";
 	ppdata.of_node = pdev->dev.of_node;
 	res = mtd_device_parse_register(mtd, NULL, &ppdata, host->ncfg->parts,
@@ -938,7 +928,6 @@ err_exit3:
 err_exit2:
 	clk_disable(host->clk);
 	clk_put(host->clk);
-	platform_set_drvdata(pdev, NULL);
 err_exit1:
 	lpc32xx_wp_enable(host);
 	gpio_free(host->ncfg->wp_gpio);
@@ -965,7 +954,6 @@ static int lpc32xx_nand_remove(struct platform_device *pdev)
 
 	clk_disable(host->clk);
 	clk_put(host->clk);
-	platform_set_drvdata(pdev, NULL);
 	lpc32xx_wp_enable(host);
 	gpio_free(host->ncfg->wp_gpio);
 
@@ -1027,7 +1015,7 @@ static struct platform_driver lpc32xx_nand_driver = {
 	.driver		= {
 		.name	= LPC32XX_MODNAME,
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(lpc32xx_nand_match),
+		.of_match_table = lpc32xx_nand_match,
 	},
 };
 

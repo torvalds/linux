@@ -1,0 +1,125 @@
+fmc-write-eeprom
+================
+
+This module is designed to load a binary file from /lib/firmware and to
+write it to the internal EEPROM of the mezzanine card. This driver uses
+the `busid' generic parameter.
+
+Overwriting the EEPROM is not something you should do daily, and it is
+expected to only happen during manufacturing. For this reason, the
+module makes it unlikely for the random user to change a working EEPROM.
+
+The module takes the following measures:
+
+   * It accepts a `file=' argument (within /lib/firmware) and if no
+     such argument is received, it doesn't write anything to EEPROM
+     (i.e. there is no default file name).
+
+   * If the file name ends with `.bin' it is written verbatim starting
+     at offset 0.
+
+   * If the file name ends with `.tlv' it is interpreted as
+     type-length-value (i.e., it allows writev(2)-like operation).
+
+   * If the file name doesn't match any of the patterns above, it is
+     ignored and no write is performed.
+
+   * Only cards listed with `busid=' are written to. If no busid is
+     specified, no programming is done (and the probe function of the
+     driver will fail).
+
+
+Each TLV tuple is formatted in this way: the header is 5 bytes,
+followed by data. The first byte is `w' for write, the next two bytes
+represent the address, in little-endian byte order, and the next two
+represent the data length, in little-endian order. The length does not
+include the header (it is the actual number of bytes to be written).
+
+This is a real example: that writes 5 bytes at position 0x110:
+
+        spusa.root# od -t x1 -Ax /lib/firmware/try.tlv
+        000000 77 10 01 05 00 30 31 32 33 34
+        00000a
+        spusa.root# insmod /tmp/fmc-write-eeprom.ko busid=0x0200 file=try.tlv
+        [19983.391498] spec 0000:03:00.0: write 5 bytes at 0x0110
+        [19983.414615] spec 0000:03:00.0: write_eeprom: success
+
+Please note that you'll most likely want to use SDBFS to build your
+EEPROM image, at least if your mezzanines are being used in the White
+Rabbit environment. For this reason the TLV format is not expected to
+be used much and is not expected to be developed further.
+
+If you want to try reflashing fake EEPROM devices, you can use the
+fmc-fakedev.ko module (see *note fmc-fakedev::).  Whenever you change
+the image starting at offset 0, it will deregister and register again
+after two seconds.  Please note, however, that if fmc-write-eeprom is
+still loaded, the system will associate it to the new device, which
+will be reprogrammed and thus will be unloaded after two seconds.  The
+following example removes the module after it reflashed fakedev the
+first time.
+
+     spusa.root# insmod fmc-fakedev.ko
+        [   72.984733]  fake-fmc: Manufacturer: fake-vendor
+        [   72.989434]  fake-fmc: Product name: fake-design-for-testing
+        spusa.root# insmod fmc-write-eeprom.ko busid=0 file=fdelay-eeprom.bin; \
+            rmmod fmc-write-eeprom
+        [  130.874098]  fake-fmc: Matching a generic driver (no ID)
+        [  130.887845]  fake-fmc: programming 6155 bytes
+        [  130.894567]  fake-fmc: write_eeprom: success
+        [  132.895794]  fake-fmc: Manufacturer: CERN
+        [  132.899872]  fake-fmc: Product name: FmcDelay1ns4cha
+
+
+Writing to the EEPROM
+=====================
+
+Once you have created a binary file for your EEPROM, you can write it
+to the storage medium using the fmc-write-eeprom (See *note
+fmc-write-eeprom::, while relying on a carrier driver.  The procedure
+here shown here uses the SPEC driver
+(`http://www.ohwr.org/projects/spec-sw').
+
+The example assumes no driver is already loaded (actually, I unloaded
+them by hand as everything loads automatically at boot time after you
+installed the modules), and shows kernel messages together with
+commands. Here the prompt is spusa.root# and two SPEC cards are plugged
+in the system.
+
+     spusa.root# insmod fmc.ko
+     spusa.root# insmod spec.ko
+     [13972.382818] spec 0000:02:00.0:  probe for device 0002:0000
+     [13972.392773] spec 0000:02:00.0: got file "fmc/spec-init.bin", 1484404 (0x16a674) bytes
+     [13972.591388] spec 0000:02:00.0: FPGA programming successful
+     [13972.883011] spec 0000:02:00.0: EEPROM has no FRU information
+     [13972.888719] spec 0000:02:00.0: No device_id filled, using index
+     [13972.894676] spec 0000:02:00.0: No mezzanine_name found
+     [13972.899863] /home/rubini/wip/spec-sw/kernel/spec-gpio.c - spec_gpio_init
+     [13972.906578] spec 0000:04:00.0:  probe for device 0004:0000
+     [13972.916509] spec 0000:04:00.0: got file "fmc/spec-init.bin", 1484404 (0x16a674) bytes
+     [13973.115096] spec 0000:04:00.0: FPGA programming successful
+     [13973.401798] spec 0000:04:00.0: EEPROM has no FRU information
+     [13973.407474] spec 0000:04:00.0: No device_id filled, using index
+     [13973.413417] spec 0000:04:00.0: No mezzanine_name found
+     [13973.418600] /home/rubini/wip/spec-sw/kernel/spec-gpio.c - spec_gpio_init
+     spusa.root# ls /sys/bus/fmc/devices
+     fmc-0000  fmc-0001
+     spusa.root# insmod fmc-write-eeprom.ko busid=0x0200 file=fdelay-eeprom.bin
+     [14103.966259] spec 0000:02:00.0: Matching an generic driver (no ID)
+     [14103.975519] spec 0000:02:00.0: programming 6155 bytes
+     [14126.373762] spec 0000:02:00.0: write_eeprom: success
+     [14126.378770] spec 0000:04:00.0: Matching an generic driver (no ID)
+     [14126.384903] spec 0000:04:00.0: fmc_write_eeprom: no filename given: not programming
+     [14126.392600] fmc_write_eeprom: probe of fmc-0001 failed with error -2
+
+Reading back the EEPROM
+=======================
+
+In order to read back the binary content of the EEPROM of your
+mezzanine device, the bus creates a read-only sysfs file called eeprom
+for each mezzanine it knows about:
+
+   spusa.root# cd /sys/bus/fmc/devices; ls -l */eeprom
+   -r--r--r-- 1 root root 8192 Apr  9 16:53 FmcDelay1ns4cha-f001/eeprom
+   -r--r--r-- 1 root root 8192 Apr  9 17:19 fake-design-for-testing-f002/eeprom
+   -r--r--r-- 1 root root 8192 Apr  9 17:19 fake-design-for-testing-f003/eeprom
+   -r--r--r-- 1 root root 8192 Apr  9 17:19 fmc-f004/eeprom

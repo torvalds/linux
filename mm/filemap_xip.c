@@ -26,7 +26,7 @@
  * of ZERO_PAGE(), such as /dev/zero
  */
 static DEFINE_MUTEX(xip_sparse_mutex);
-static seqcount_t xip_sparse_seq = SEQCNT_ZERO;
+static seqcount_t xip_sparse_seq = SEQCNT_ZERO(xip_sparse_seq);
 static struct page *__xip_sparse_page;
 
 /* called under xip_sparse_mutex */
@@ -404,8 +404,6 @@ xip_file_write(struct file *filp, const char __user *buf, size_t len,
 	loff_t pos;
 	ssize_t ret;
 
-	sb_start_write(inode->i_sb);
-
 	mutex_lock(&inode->i_mutex);
 
 	if (!access_ok(VERIFY_READ, buf, len)) {
@@ -439,7 +437,6 @@ xip_file_write(struct file *filp, const char __user *buf, size_t len,
 	current->backing_dev_info = NULL;
  out_up:
 	mutex_unlock(&inode->i_mutex);
-	sb_end_write(inode->i_sb);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(xip_file_write);

@@ -51,7 +51,7 @@ config ASYNC_TX_ENABLE_CHANNEL_SWITCH
 
 config AMBA_PL08X
 	bool "ARM PrimeCell PL080 or PL081 support"
-	depends on ARM_AMBA && EXPERIMENTAL
+	depends on ARM_AMBA
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
@@ -63,8 +63,6 @@ config INTEL_IOATDMA
 	depends on PCI && X86
 	select DMA_ENGINE
 	select DCA
-	select ASYNC_TX_DISABLE_PQ_VAL_DMA
-	select ASYNC_TX_DISABLE_XOR_VAL_DMA
 	help
 	  Enable support for the Intel(R) I/OAT DMA engine present
 	  in recent Intel Xeon chipsets.
@@ -81,25 +79,7 @@ config INTEL_IOP_ADMA
 	help
 	  Enable support for the Intel(R) IOP Series RAID engines.
 
-config DW_DMAC
-	tristate "Synopsys DesignWare AHB DMA support"
-	depends on HAVE_CLK
-	select DMA_ENGINE
-	default y if CPU_AT32AP7000
-	help
-	  Support the Synopsys DesignWare AHB DMA controller.  This
-	  can be integrated in chips such as the Atmel AT32ap7000.
-
-config DW_DMAC_BIG_ENDIAN_IO
-	bool "Use big endian I/O register access"
-	default y if AVR32
-	depends on DW_DMAC
-	help
-	  Say yes here to use big endian I/O access when reading and writing
-	  to the DMA controller registers. This is needed on some platforms,
-	  like the Atmel AVR32 architecture.
-
-	  If unsure, use the default setting.
+source "drivers/dma/dw/Kconfig"
 
 config AT_HDMAC
 	tristate "Atmel AHB DMA support"
@@ -109,14 +89,15 @@ config AT_HDMAC
 	  Support the Atmel AHB DMA controller.
 
 config FSL_DMA
-	tristate "Freescale Elo and Elo Plus DMA support"
+	tristate "Freescale Elo series DMA support"
 	depends on FSL_SOC
 	select DMA_ENGINE
 	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	---help---
-	  Enable support for the Freescale Elo and Elo Plus DMA controllers.
-	  The Elo is the DMA controller on some 82xx and 83xx parts, and the
-	  Elo Plus is the DMA controller on 85xx and 86xx parts.
+	  Enable support for the Freescale Elo series DMA controllers.
+	  The Elo is the DMA controller on some mpc82xx and mpc83xx parts, the
+	  EloPlus is on mpc85xx and mpc86xx and Pxxx parts, and the Elo3 is on
+	  some Txxx and Bxxx parts.
 
 config MPC512X_DMA
 	tristate "Freescale MPC512x built-in DMA engine support"
@@ -124,6 +105,8 @@ config MPC512X_DMA
 	select DMA_ENGINE
 	---help---
 	  Enable support for the Freescale MPC512x built-in DMA engine.
+
+source "drivers/dma/bestcomm/Kconfig"
 
 config MV_XOR
 	bool "Marvell XOR engine support"
@@ -172,15 +155,19 @@ config TEGRA20_APB_DMA
 	  This DMA controller transfers data from memory to peripheral fifo
 	  or vice versa. It does not support memory to memory data transfer.
 
-
-
-config SH_DMAE
-	tristate "Renesas SuperH DMAC support"
-	depends on (SUPERH && SH_DMA) || (ARM && ARCH_SHMOBILE)
-	depends on !SH_DMA_API
+config S3C24XX_DMAC
+	tristate "Samsung S3C24XX DMA support"
+	depends on ARCH_S3C24XX && !S3C24XX_DMA
 	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
 	help
-	  Enable support for the Renesas SuperH DMA controllers.
+	  Support for the Samsung S3C24XX DMA controller driver. The
+	  DMA controller is having multiple DMA channels which can be
+	  configured for different peripherals like audio, UART, SPI.
+	  The DMA controller can transfer data from memory to peripheral,
+	  periphal to memory, periphal to periphal and memory to memory.
+
+source "drivers/dma/sh/Kconfig"
 
 config COH901318
 	bool "ST-Ericsson COH901318 DMA support"
@@ -213,17 +200,18 @@ config TIMB_DMA
 	  Enable support for the Timberdale FPGA DMA engine.
 
 config SIRF_DMA
-	tristate "CSR SiRFprimaII DMA support"
-	depends on ARCH_PRIMA2
+	tristate "CSR SiRFprimaII/SiRFmarco DMA support"
+	depends on ARCH_SIRF
 	select DMA_ENGINE
 	help
 	  Enable support for the CSR SiRFprimaII DMA engine.
 
 config TI_EDMA
-	tristate "TI EDMA support"
-	depends on ARCH_DAVINCI
+	bool "TI EDMA support"
+	depends on ARCH_DAVINCI || ARCH_OMAP || ARCH_KEYSTONE
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
+	select TI_PRIV_EDMA
 	default n
 	help
 	  Enable support for the TI EDMA controller. This DMA
@@ -313,18 +301,49 @@ config DMA_OMAP
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 
+config TI_CPPI41
+	tristate "AM33xx CPPI41 DMA support"
+	depends on ARCH_OMAP
+	select DMA_ENGINE
+	help
+	  The Communications Port Programming Interface (CPPI) 4.1 DMA engine
+	  is currently used by the USB driver on AM335x platforms.
+
 config MMP_PDMA
 	bool "MMP PDMA support"
 	depends on (ARCH_MMP || ARCH_PXA)
 	select DMA_ENGINE
 	help
-	  Support the MMP PDMA engine for PXA and MMP platfrom.
+	  Support the MMP PDMA engine for PXA and MMP platform.
+
+config DMA_JZ4740
+	tristate "JZ4740 DMA support"
+	depends on MACH_JZ4740
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+
+config K3_DMA
+	tristate "Hisilicon K3 DMA support"
+	depends on ARCH_HI3xxx
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the DMA engine for Hisilicon K3 platform
+	  devices.
 
 config DMA_ENGINE
 	bool
 
 config DMA_VIRTUAL_CHANNELS
 	tristate
+
+config DMA_ACPI
+	def_bool y
+	depends on ACPI
+
+config DMA_OF
+	def_bool y
+	depends on OF
 
 comment "DMA Clients"
 	depends on DMA_ENGINE

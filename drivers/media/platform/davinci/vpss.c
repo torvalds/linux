@@ -17,15 +17,12 @@
  *
  * common vpss system module platform driver for all video drivers.
  */
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/spinlock.h>
-#include <linux/compiler.h>
 #include <linux/io.h>
-#include <mach/hardware.h>
+#include <linux/pm_runtime.h>
+#include <linux/err.h>
+
 #include <media/davinci/vpss.h>
 
 MODULE_LICENSE("GPL");
@@ -51,13 +48,29 @@ MODULE_AUTHOR("Texas Instruments");
 /* VENCINT - vpss_int8 */
 #define DM355_VPSSBL_EVTSEL_DEFAULT	0x4
 
-#define DM365_ISP5_PCCR 		0x04
+#define DM365_ISP5_PCCR				0x04
+#define DM365_ISP5_PCCR_BL_CLK_ENABLE		BIT(0)
+#define DM365_ISP5_PCCR_ISIF_CLK_ENABLE		BIT(1)
+#define DM365_ISP5_PCCR_H3A_CLK_ENABLE		BIT(2)
+#define DM365_ISP5_PCCR_RSZ_CLK_ENABLE		BIT(3)
+#define DM365_ISP5_PCCR_IPIPE_CLK_ENABLE	BIT(4)
+#define DM365_ISP5_PCCR_IPIPEIF_CLK_ENABLE	BIT(5)
+#define DM365_ISP5_PCCR_RSV			BIT(6)
+
+#define DM365_ISP5_BCR			0x08
+#define DM365_ISP5_BCR_ISIF_OUT_ENABLE	BIT(1)
+
 #define DM365_ISP5_INTSEL1		0x10
 #define DM365_ISP5_INTSEL2		0x14
 #define DM365_ISP5_INTSEL3		0x18
 #define DM365_ISP5_CCDCMUX 		0x20
 #define DM365_ISP5_PG_FRAME_SIZE 	0x28
 #define DM365_VPBE_CLK_CTRL 		0x00
+
+#define VPSS_CLK_CTRL			0x01c40044
+#define VPSS_CLK_CTRL_VENCCLKEN		BIT(3)
+#define VPSS_CLK_CTRL_DACCLKEN		BIT(4)
+
 /*
  * vpss interrupts. VDINT0 - vpss_int0, VDINT1 - vpss_int1,
  * AF - vpss_int3
@@ -84,7 +97,7 @@ enum vpss_platform_type {
 
 /*
  * vpss operations. Depends on platform. Not all functions are available
- * on all platforms. The api, first check if a functio is available before
+ * on all platforms. The api, first check if a function is available before
  * invoking it. In the probe, the function ptrs are initialized based on
  * vpss name. vpss name can be "dm355_vpss", "dm644x_vpss" etc.
  */
@@ -95,12 +108,19 @@ struct vpss_hw_ops {
 	void (*select_ccdc_source)(enum vpss_ccdc_source_sel src_sel);
 	/* clear wbl overflow bit */
 	int (*clear_wbl_overflow)(enum vpss_wbl_sel wbl_sel);
+	/* set sync polarity */
+	void (*set_sync_pol)(struct vpss_sync_pol);
+	/* set the PG_FRAME_SIZE register*/
+	void (*set_pg_frame_size)(struct vpss_pg_frame_size);
+	/* check and clear interrupt if occurred */
+	int (*dma_complete_interrupt)(void);
 };
 
 /* vpss configuration */
 struct vpss_oper_config {
 	__iomem void *vpss_regs_base0;
 	__iomem void *vpss_regs_base1;
+	resource_size_t *vpss_regs_base2;
 	enum vpss_platform_type platform;
 	spinlock_t vpss_lock;
 	struct vpss_hw_ops hw_ops;
@@ -158,6 +178,14 @@ static void dm355_select_ccdc_source(enum vpss_ccdc_source_sel src_sel)
 	bl_regw(src_sel << VPSS_HSSISEL_SHIFT, DM355_VPSSBL_CCDCMUX);
 }
 
+int vpss_dma_complete_interrupt(void)
+{
+	if (!oper_cfg.hw_ops.dma_complete_interrupt)
+		return 2;
+	return oper_cfg.hw_ops.dma_complete_interrupt();
+}
+EXPORT_SYMBOL(vpss_dma_complete_interrupt);
+
 int vpss_select_ccdc_source(enum vpss_ccdc_source_sel src_sel)
 {
 	if (!oper_cfg.hw_ops.select_ccdc_source)
@@ -183,6 +211,15 @@ static int dm644x_clear_wbl_overflow(enum vpss_wbl_sel wbl_sel)
 	return 0;
 }
 
+void vpss_set_sync_pol(struct vpss_sync_pol sync)
+{
+	if (!oper_cfg.hw_ops.set_sync_pol)
+		return;
+
+	oper_cfg.hw_ops.set_sync_pol(sync);
+}
+EXPORT_SYMBOL(vpss_set_sync_pol);
+
 int vpss_clear_wbl_overflow(enum vpss_wbl_sel wbl_sel)
 {
 	if (!oper_cfg.hw_ops.clear_wbl_overflow)
@@ -194,7 +231,7 @@ EXPORT_SYMBOL(vpss_clear_wbl_overflow);
 
 /*
  *  dm355_enable_clock - Enable VPSS Clock
- *  @clock_sel: CLock to be enabled/disabled
+ *  @clock_sel: Clock to be enabled/disabled
  *  @en: enable/disable flag
  *
  *  This is called to enable or disable a vpss clock
@@ -348,6 +385,15 @@ void dm365_vpss_set_sync_pol(struct vpss_sync_pol sync)
 }
 EXPORT_SYMBOL(dm365_vpss_set_sync_pol);
 
+void vpss_set_pg_frame_size(struct vpss_pg_frame_size frame_size)
+{
+	if (!oper_cfg.hw_ops.set_pg_frame_size)
+		return;
+
+	oper_cfg.hw_ops.set_pg_frame_size(frame_size);
+}
+EXPORT_SYMBOL(vpss_set_pg_frame_size);
+
 void dm365_vpss_set_pg_frame_size(struct vpss_pg_frame_size frame_size)
 {
 	int current_reg = ((frame_size.hlpfr >> 1) - 1) << 16;
@@ -357,11 +403,10 @@ void dm365_vpss_set_pg_frame_size(struct vpss_pg_frame_size frame_size)
 }
 EXPORT_SYMBOL(dm365_vpss_set_pg_frame_size);
 
-static int __devinit vpss_probe(struct platform_device *pdev)
+static int vpss_probe(struct platform_device *pdev)
 {
-	struct resource		*r1, *r2;
+	struct resource *res;
 	char *platform_name;
-	int status;
 
 	if (!pdev->dev.platform_data) {
 		dev_err(&pdev->dev, "no platform data\n");
@@ -382,38 +427,19 @@ static int __devinit vpss_probe(struct platform_device *pdev)
 	}
 
 	dev_info(&pdev->dev, "%s vpss probed\n", platform_name);
-	r1 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r1)
-		return -ENOENT;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	r1 = request_mem_region(r1->start, resource_size(r1), r1->name);
-	if (!r1)
-		return -EBUSY;
-
-	oper_cfg.vpss_regs_base0 = ioremap(r1->start, resource_size(r1));
-	if (!oper_cfg.vpss_regs_base0) {
-		status = -EBUSY;
-		goto fail1;
-	}
+	oper_cfg.vpss_regs_base0 = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(oper_cfg.vpss_regs_base0))
+		return PTR_ERR(oper_cfg.vpss_regs_base0);
 
 	if (oper_cfg.platform == DM355 || oper_cfg.platform == DM365) {
-		r2 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (!r2) {
-			status = -ENOENT;
-			goto fail2;
-		}
-		r2 = request_mem_region(r2->start, resource_size(r2), r2->name);
-		if (!r2) {
-			status = -EBUSY;
-			goto fail2;
-		}
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 
-		oper_cfg.vpss_regs_base1 = ioremap(r2->start,
-						   resource_size(r2));
-		if (!oper_cfg.vpss_regs_base1) {
-			status = -EBUSY;
-			goto fail3;
-		}
+		oper_cfg.vpss_regs_base1 = devm_ioremap_resource(&pdev->dev,
+								 res);
+		if (IS_ERR(oper_cfg.vpss_regs_base1))
+			return PTR_ERR(oper_cfg.vpss_regs_base1);
 	}
 
 	if (oper_cfg.platform == DM355) {
@@ -426,56 +452,81 @@ static int __devinit vpss_probe(struct platform_device *pdev)
 		oper_cfg.hw_ops.enable_clock = dm365_enable_clock;
 		oper_cfg.hw_ops.select_ccdc_source = dm365_select_ccdc_source;
 		/* Setup vpss interrupts */
+		isp5_write((isp5_read(DM365_ISP5_PCCR) |
+				      DM365_ISP5_PCCR_BL_CLK_ENABLE |
+				      DM365_ISP5_PCCR_ISIF_CLK_ENABLE |
+				      DM365_ISP5_PCCR_H3A_CLK_ENABLE |
+				      DM365_ISP5_PCCR_RSZ_CLK_ENABLE |
+				      DM365_ISP5_PCCR_IPIPE_CLK_ENABLE |
+				      DM365_ISP5_PCCR_IPIPEIF_CLK_ENABLE |
+				      DM365_ISP5_PCCR_RSV), DM365_ISP5_PCCR);
+		isp5_write((isp5_read(DM365_ISP5_BCR) |
+			    DM365_ISP5_BCR_ISIF_OUT_ENABLE), DM365_ISP5_BCR);
 		isp5_write(DM365_ISP5_INTSEL1_DEFAULT, DM365_ISP5_INTSEL1);
 		isp5_write(DM365_ISP5_INTSEL2_DEFAULT, DM365_ISP5_INTSEL2);
 		isp5_write(DM365_ISP5_INTSEL3_DEFAULT, DM365_ISP5_INTSEL3);
 	} else
 		oper_cfg.hw_ops.clear_wbl_overflow = dm644x_clear_wbl_overflow;
 
+	pm_runtime_enable(&pdev->dev);
+
+	pm_runtime_get(&pdev->dev);
+
 	spin_lock_init(&oper_cfg.vpss_lock);
 	dev_info(&pdev->dev, "%s vpss probe success\n", platform_name);
-	return 0;
 
-fail3:
-	release_mem_region(r2->start, resource_size(r2));
-fail2:
-	iounmap(oper_cfg.vpss_regs_base0);
-fail1:
-	release_mem_region(r1->start, resource_size(r1));
-	return status;
+	return 0;
 }
 
-static int __devexit vpss_remove(struct platform_device *pdev)
+static int vpss_remove(struct platform_device *pdev)
 {
-	struct resource		*res;
-
-	iounmap(oper_cfg.vpss_regs_base0);
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, resource_size(res));
-	if (oper_cfg.platform == DM355 || oper_cfg.platform == DM365) {
-		iounmap(oper_cfg.vpss_regs_base1);
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		release_mem_region(res->start, resource_size(res));
-	}
+	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
+
+static int vpss_suspend(struct device *dev)
+{
+	pm_runtime_put(dev);
+	return 0;
+}
+
+static int vpss_resume(struct device *dev)
+{
+	pm_runtime_get(dev);
+	return 0;
+}
+
+static const struct dev_pm_ops vpss_pm_ops = {
+	.suspend = vpss_suspend,
+	.resume = vpss_resume,
+};
 
 static struct platform_driver vpss_driver = {
 	.driver = {
 		.name	= "vpss",
 		.owner = THIS_MODULE,
+		.pm = &vpss_pm_ops,
 	},
-	.remove = __devexit_p(vpss_remove),
+	.remove = vpss_remove,
 	.probe = vpss_probe,
 };
 
 static void vpss_exit(void)
 {
+	iounmap(oper_cfg.vpss_regs_base2);
+	release_mem_region(VPSS_CLK_CTRL, 4);
 	platform_driver_unregister(&vpss_driver);
 }
 
 static int __init vpss_init(void)
 {
+	if (!request_mem_region(VPSS_CLK_CTRL, 4, "vpss_clock_control"))
+		return -EBUSY;
+
+	oper_cfg.vpss_regs_base2 = ioremap(VPSS_CLK_CTRL, 4);
+	writel(VPSS_CLK_CTRL_VENCCLKEN |
+		     VPSS_CLK_CTRL_DACCLKEN, oper_cfg.vpss_regs_base2);
+
 	return platform_driver_register(&vpss_driver);
 }
 subsys_initcall(vpss_init);

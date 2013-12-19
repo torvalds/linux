@@ -76,17 +76,6 @@ static struct hid_driver ez_driver = {
 	.input_mapping = ez_input_mapping,
 	.event = ez_event,
 };
+module_hid_driver(ez_driver);
 
-static int __init ez_init(void)
-{
-	return hid_register_driver(&ez_driver);
-}
-
-static void __exit ez_exit(void)
-{
-	hid_unregister_driver(&ez_driver);
-}
-
-module_init(ez_init);
-module_exit(ez_exit);
 MODULE_LICENSE("GPL");

@@ -26,6 +26,9 @@
 #define DOVE_MPP_VIRT_BASE		(DOVE_SB_REGS_VIRT_BASE + 0xd0200)
 #define DOVE_PMU_MPP_GENERAL_CTRL	(DOVE_MPP_VIRT_BASE + 0x10)
 #define  DOVE_AU0_AC97_SEL		BIT(16)
+#define DOVE_PMU_SIGNAL_SELECT_0	(DOVE_SB_REGS_VIRT_BASE + 0xd802C)
+#define DOVE_PMU_SIGNAL_SELECT_1	(DOVE_SB_REGS_VIRT_BASE + 0xd8030)
+#define DOVE_GLOBAL_CONFIG_1		(DOVE_SB_REGS_VIRT_BASE + 0xe802C)
 #define DOVE_GLOBAL_CONFIG_1		(DOVE_SB_REGS_VIRT_BASE + 0xe802C)
 #define  DOVE_TWSI_ENABLE_OPTION1	BIT(7)
 #define DOVE_GLOBAL_CONFIG_2		(DOVE_SB_REGS_VIRT_BASE + 0xe8030)
@@ -58,12 +61,16 @@ static int dove_pmu_mpp_ctrl_get(struct mvebu_mpp_ctrl *ctrl,
 	unsigned off = (ctrl->pid / MPPS_PER_REG) * MPP_BITS;
 	unsigned shift = (ctrl->pid % MPPS_PER_REG) * MPP_BITS;
 	unsigned long pmu = readl(DOVE_PMU_MPP_GENERAL_CTRL);
-	unsigned long mpp = readl(DOVE_MPP_VIRT_BASE + off);
+	unsigned long func;
 
-	if (pmu & (1 << ctrl->pid))
-		*config = CONFIG_PMU;
-	else
-		*config = (mpp >> shift) & MPP_MASK;
+	if (pmu & (1 << ctrl->pid)) {
+		func = readl(DOVE_PMU_SIGNAL_SELECT_0 + off);
+		*config = (func >> shift) & MPP_MASK;
+		*config |= CONFIG_PMU;
+	} else {
+		func = readl(DOVE_MPP_VIRT_BASE + off);
+		*config = (func >> shift) & MPP_MASK;
+	}
 	return 0;
 }
 
@@ -73,15 +80,20 @@ static int dove_pmu_mpp_ctrl_set(struct mvebu_mpp_ctrl *ctrl,
 	unsigned off = (ctrl->pid / MPPS_PER_REG) * MPP_BITS;
 	unsigned shift = (ctrl->pid % MPPS_PER_REG) * MPP_BITS;
 	unsigned long pmu = readl(DOVE_PMU_MPP_GENERAL_CTRL);
-	unsigned long mpp = readl(DOVE_MPP_VIRT_BASE + off);
+	unsigned long func;
 
-	if (config == CONFIG_PMU)
+	if (config & CONFIG_PMU) {
 		writel(pmu | (1 << ctrl->pid), DOVE_PMU_MPP_GENERAL_CTRL);
-	else {
+		func = readl(DOVE_PMU_SIGNAL_SELECT_0 + off);
+		func &= ~(MPP_MASK << shift);
+		func |= (config & MPP_MASK) << shift;
+		writel(func, DOVE_PMU_SIGNAL_SELECT_0 + off);
+	} else {
 		writel(pmu & ~(1 << ctrl->pid), DOVE_PMU_MPP_GENERAL_CTRL);
-		mpp &= ~(MPP_MASK << shift);
-		mpp |= config << shift;
-		writel(mpp, DOVE_MPP_VIRT_BASE + off);
+		func = readl(DOVE_MPP_VIRT_BASE + off);
+		func &= ~(MPP_MASK << shift);
+		func |= (config & MPP_MASK) << shift;
+		writel(func, DOVE_MPP_VIRT_BASE + off);
 	}
 	return 0;
 }
@@ -323,7 +335,7 @@ static int dove_twsi_ctrl_set(struct mvebu_mpp_ctrl *ctrl,
 	unsigned long gcfg2 = readl(DOVE_GLOBAL_CONFIG_2);
 
 	gcfg1 &= ~DOVE_TWSI_ENABLE_OPTION1;
-	gcfg2 &= ~(DOVE_TWSI_ENABLE_OPTION2 | DOVE_TWSI_ENABLE_OPTION2);
+	gcfg2 &= ~(DOVE_TWSI_ENABLE_OPTION2 | DOVE_TWSI_ENABLE_OPTION3);
 
 	switch (config) {
 	case 1:
@@ -378,20 +390,53 @@ static struct mvebu_mpp_mode dove_mpp_modes[] = {
 		MPP_FUNCTION(0x02, "uart2", "rts"),
 		MPP_FUNCTION(0x03, "sdio0", "cd"),
 		MPP_FUNCTION(0x0f, "lcd0", "pwm"),
-		MPP_FUNCTION(0x10, "pmu", NULL)),
+		MPP_FUNCTION(CONFIG_PMU | 0x0, "pmu-nc", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x1, "pmu-low", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x2, "pmu-high", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x3, "pmic", "sdi"),
+		MPP_FUNCTION(CONFIG_PMU | 0x4, "cpu-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x5, "standby-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x8, "core-pwr-good", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xa, "bat-fault", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xb, "ext0-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xc, "ext1-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xd, "ext2-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xe, "pmu-blink", NULL)),
 	MPP_MODE(1,
 		MPP_FUNCTION(0x00, "gpio", NULL),
 		MPP_FUNCTION(0x02, "uart2", "cts"),
 		MPP_FUNCTION(0x03, "sdio0", "wp"),
 		MPP_FUNCTION(0x0f, "lcd1", "pwm"),
-		MPP_FUNCTION(0x10, "pmu", NULL)),
+		MPP_FUNCTION(CONFIG_PMU | 0x0, "pmu-nc", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x1, "pmu-low", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x2, "pmu-high", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x3, "pmic", "sdi"),
+		MPP_FUNCTION(CONFIG_PMU | 0x4, "cpu-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x5, "standby-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x8, "core-pwr-good", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xa, "bat-fault", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xb, "ext0-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xc, "ext1-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xd, "ext2-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xe, "pmu-blink", NULL)),
 	MPP_MODE(2,
 		MPP_FUNCTION(0x00, "gpio", NULL),
 		MPP_FUNCTION(0x01, "sata", "prsnt"),
 		MPP_FUNCTION(0x02, "uart2", "txd"),
 		MPP_FUNCTION(0x03, "sdio0", "buspwr"),
 		MPP_FUNCTION(0x04, "uart1", "rts"),
-		MPP_FUNCTION(0x10, "pmu", NULL)),
+		MPP_FUNCTION(CONFIG_PMU | 0x0, "pmu-nc", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x1, "pmu-low", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x2, "pmu-high", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x3, "pmic", "sdi"),
+		MPP_FUNCTION(CONFIG_PMU | 0x4, "cpu-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x5, "standby-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x8, "core-pwr-good", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xa, "bat-fault", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xb, "ext0-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xc, "ext1-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xd, "ext2-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xe, "pmu-blink", NULL)),
 	MPP_MODE(3,
 		MPP_FUNCTION(0x00, "gpio", NULL),
 		MPP_FUNCTION(0x01, "sata", "act"),
@@ -399,43 +444,131 @@ static struct mvebu_mpp_mode dove_mpp_modes[] = {
 		MPP_FUNCTION(0x03, "sdio0", "ledctrl"),
 		MPP_FUNCTION(0x04, "uart1", "cts"),
 		MPP_FUNCTION(0x0f, "lcd-spi", "cs1"),
-		MPP_FUNCTION(0x10, "pmu", NULL)),
+		MPP_FUNCTION(CONFIG_PMU | 0x0, "pmu-nc", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x1, "pmu-low", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x2, "pmu-high", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x3, "pmic", "sdi"),
+		MPP_FUNCTION(CONFIG_PMU | 0x4, "cpu-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x5, "standby-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x8, "core-pwr-good", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xa, "bat-fault", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xb, "ext0-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xc, "ext1-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xd, "ext2-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xe, "pmu-blink", NULL)),
 	MPP_MODE(4,
 		MPP_FUNCTION(0x00, "gpio", NULL),
 		MPP_FUNCTION(0x02, "uart3", "rts"),
 		MPP_FUNCTION(0x03, "sdio1", "cd"),
 		MPP_FUNCTION(0x04, "spi1", "miso"),
-		MPP_FUNCTION(0x10, "pmu", NULL)),
+		MPP_FUNCTION(CONFIG_PMU | 0x0, "pmu-nc", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x1, "pmu-low", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x2, "pmu-high", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x3, "pmic", "sdi"),
+		MPP_FUNCTION(CONFIG_PMU | 0x4, "cpu-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x5, "standby-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x8, "core-pwr-good", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xa, "bat-fault", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xb, "ext0-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xc, "ext1-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xd, "ext2-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xe, "pmu-blink", NULL)),
 	MPP_MODE(5,
 		MPP_FUNCTION(0x00, "gpio", NULL),
 		MPP_FUNCTION(0x02, "uart3", "cts"),
 		MPP_FUNCTION(0x03, "sdio1", "wp"),
 		MPP_FUNCTION(0x04, "spi1", "cs"),
-		MPP_FUNCTION(0x10, "pmu", NULL)),
+		MPP_FUNCTION(CONFIG_PMU | 0x0, "pmu-nc", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x1, "pmu-low", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x2, "pmu-high", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x3, "pmic", "sdi"),
+		MPP_FUNCTION(CONFIG_PMU | 0x4, "cpu-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x5, "standby-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x8, "core-pwr-good", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xa, "bat-fault", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xb, "ext0-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xc, "ext1-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xd, "ext2-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xe, "pmu-blink", NULL)),
 	MPP_MODE(6,
 		MPP_FUNCTION(0x00, "gpio", NULL),
 		MPP_FUNCTION(0x02, "uart3", "txd"),
 		MPP_FUNCTION(0x03, "sdio1", "buspwr"),
 		MPP_FUNCTION(0x04, "spi1", "mosi"),
-		MPP_FUNCTION(0x10, "pmu", NULL)),
+		MPP_FUNCTION(CONFIG_PMU | 0x0, "pmu-nc", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x1, "pmu-low", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x2, "pmu-high", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x3, "pmic", "sdi"),
+		MPP_FUNCTION(CONFIG_PMU | 0x4, "cpu-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x5, "standby-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x8, "core-pwr-good", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xa, "bat-fault", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xb, "ext0-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xc, "ext1-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xd, "ext2-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xe, "pmu-blink", NULL)),
 	MPP_MODE(7,
 		MPP_FUNCTION(0x00, "gpio", NULL),
 		MPP_FUNCTION(0x02, "uart3", "rxd"),
 		MPP_FUNCTION(0x03, "sdio1", "ledctrl"),
 		MPP_FUNCTION(0x04, "spi1", "sck"),
-		MPP_FUNCTION(0x10, "pmu", NULL)),
+		MPP_FUNCTION(CONFIG_PMU | 0x0, "pmu-nc", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x1, "pmu-low", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x2, "pmu-high", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x3, "pmic", "sdi"),
+		MPP_FUNCTION(CONFIG_PMU | 0x4, "cpu-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x5, "standby-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x8, "core-pwr-good", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xa, "bat-fault", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xb, "ext0-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xc, "ext1-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xd, "ext2-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xe, "pmu-blink", NULL)),
 	MPP_MODE(8,
 		MPP_FUNCTION(0x00, "gpio", NULL),
 		MPP_FUNCTION(0x01, "watchdog", "rstout"),
-		MPP_FUNCTION(0x10, "pmu", NULL)),
+		MPP_FUNCTION(CONFIG_PMU | 0x0, "pmu-nc", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x1, "pmu-low", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x2, "pmu-high", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x3, "pmic", "sdi"),
+		MPP_FUNCTION(CONFIG_PMU | 0x4, "cpu-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x5, "standby-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x8, "cpu-pwr-good", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xa, "bat-fault", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xb, "ext0-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xc, "ext1-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xd, "ext2-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xe, "pmu-blink", NULL)),
 	MPP_MODE(9,
 		MPP_FUNCTION(0x00, "gpio", NULL),
 		MPP_FUNCTION(0x05, "pex1", "clkreq"),
-		MPP_FUNCTION(0x10, "pmu", NULL)),
+		MPP_FUNCTION(CONFIG_PMU | 0x0, "pmu-nc", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x1, "pmu-low", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x2, "pmu-high", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x3, "pmic", "sdi"),
+		MPP_FUNCTION(CONFIG_PMU | 0x4, "cpu-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x5, "standby-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x8, "cpu-pwr-good", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xa, "bat-fault", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xb, "ext0-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xc, "ext1-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xd, "ext2-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xe, "pmu-blink", NULL)),
 	MPP_MODE(10,
 		MPP_FUNCTION(0x00, "gpio", NULL),
 		MPP_FUNCTION(0x05, "ssp", "sclk"),
-		MPP_FUNCTION(0x10, "pmu", NULL)),
+		MPP_FUNCTION(CONFIG_PMU | 0x0, "pmu-nc", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x1, "pmu-low", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x2, "pmu-high", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x3, "pmic", "sdi"),
+		MPP_FUNCTION(CONFIG_PMU | 0x4, "cpu-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x5, "standby-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x8, "cpu-pwr-good", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xa, "bat-fault", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xb, "ext0-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xc, "ext1-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xd, "ext2-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xe, "pmu-blink", NULL)),
 	MPP_MODE(11,
 		MPP_FUNCTION(0x00, "gpio", NULL),
 		MPP_FUNCTION(0x01, "sata", "prsnt"),
@@ -443,33 +576,88 @@ static struct mvebu_mpp_mode dove_mpp_modes[] = {
 		MPP_FUNCTION(0x03, "sdio0", "ledctrl"),
 		MPP_FUNCTION(0x04, "sdio1", "ledctrl"),
 		MPP_FUNCTION(0x05, "pex0", "clkreq"),
-		MPP_FUNCTION(0x10, "pmu", NULL)),
+		MPP_FUNCTION(CONFIG_PMU | 0x0, "pmu-nc", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x1, "pmu-low", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x2, "pmu-high", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x3, "pmic", "sdi"),
+		MPP_FUNCTION(CONFIG_PMU | 0x4, "cpu-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x5, "standby-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x8, "cpu-pwr-good", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xa, "bat-fault", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xb, "ext0-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xc, "ext1-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xd, "ext2-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xe, "pmu-blink", NULL)),
 	MPP_MODE(12,
 		MPP_FUNCTION(0x00, "gpio", NULL),
 		MPP_FUNCTION(0x01, "sata", "act"),
 		MPP_FUNCTION(0x02, "uart2", "rts"),
 		MPP_FUNCTION(0x03, "audio0", "extclk"),
 		MPP_FUNCTION(0x04, "sdio1", "cd"),
-		MPP_FUNCTION(0x10, "pmu", NULL)),
+		MPP_FUNCTION(CONFIG_PMU | 0x0, "pmu-nc", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x1, "pmu-low", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x2, "pmu-high", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x3, "pmic", "sdi"),
+		MPP_FUNCTION(CONFIG_PMU | 0x4, "cpu-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x5, "standby-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x8, "cpu-pwr-good", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xa, "bat-fault", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xb, "ext0-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xc, "ext1-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xd, "ext2-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xe, "pmu-blink", NULL)),
 	MPP_MODE(13,
 		MPP_FUNCTION(0x00, "gpio", NULL),
 		MPP_FUNCTION(0x02, "uart2", "cts"),
 		MPP_FUNCTION(0x03, "audio1", "extclk"),
 		MPP_FUNCTION(0x04, "sdio1", "wp"),
 		MPP_FUNCTION(0x05, "ssp", "extclk"),
-		MPP_FUNCTION(0x10, "pmu", NULL)),
+		MPP_FUNCTION(CONFIG_PMU | 0x0, "pmu-nc", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x1, "pmu-low", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x2, "pmu-high", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x3, "pmic", "sdi"),
+		MPP_FUNCTION(CONFIG_PMU | 0x4, "cpu-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x5, "standby-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x8, "cpu-pwr-good", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xa, "bat-fault", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xb, "ext0-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xc, "ext1-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xd, "ext2-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xe, "pmu-blink", NULL)),
 	MPP_MODE(14,
 		MPP_FUNCTION(0x00, "gpio", NULL),
 		MPP_FUNCTION(0x02, "uart2", "txd"),
 		MPP_FUNCTION(0x04, "sdio1", "buspwr"),
 		MPP_FUNCTION(0x05, "ssp", "rxd"),
-		MPP_FUNCTION(0x10, "pmu", NULL)),
+		MPP_FUNCTION(CONFIG_PMU | 0x0, "pmu-nc", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x1, "pmu-low", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x2, "pmu-high", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x3, "pmic", "sdi"),
+		MPP_FUNCTION(CONFIG_PMU | 0x4, "cpu-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x5, "standby-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x8, "cpu-pwr-good", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xa, "bat-fault", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xb, "ext0-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xc, "ext1-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xd, "ext2-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xe, "pmu-blink", NULL)),
 	MPP_MODE(15,
 		MPP_FUNCTION(0x00, "gpio", NULL),
 		MPP_FUNCTION(0x02, "uart2", "rxd"),
 		MPP_FUNCTION(0x04, "sdio1", "ledctrl"),
 		MPP_FUNCTION(0x05, "ssp", "sfrm"),
-		MPP_FUNCTION(0x10, "pmu", NULL)),
+		MPP_FUNCTION(CONFIG_PMU | 0x0, "pmu-nc", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x1, "pmu-low", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x2, "pmu-high", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x3, "pmic", "sdi"),
+		MPP_FUNCTION(CONFIG_PMU | 0x4, "cpu-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x5, "standby-pwr-down", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0x8, "cpu-pwr-good", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xa, "bat-fault", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xb, "ext0-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xc, "ext1-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xd, "ext2-wakeup", NULL),
+		MPP_FUNCTION(CONFIG_PMU | 0xe, "pmu-blink", NULL)),
 	MPP_MODE(16,
 		MPP_FUNCTION(0x00, "gpio", NULL),
 		MPP_FUNCTION(0x02, "uart3", "rts"),
@@ -579,29 +767,32 @@ static struct mvebu_pinctrl_soc_info dove_pinctrl_info = {
 
 static struct clk *clk;
 
-static struct of_device_id dove_pinctrl_of_match[] __devinitdata = {
+static struct of_device_id dove_pinctrl_of_match[] = {
 	{ .compatible = "marvell,dove-pinctrl", .data = &dove_pinctrl_info },
 	{ }
 };
 
-static int __devinit dove_pinctrl_probe(struct platform_device *pdev)
+static int dove_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match =
 		of_match_device(dove_pinctrl_of_match, &pdev->dev);
-	pdev->dev.platform_data = match->data;
+	pdev->dev.platform_data = (void *)match->data;
 
 	/*
 	 * General MPP Configuration Register is part of pdma registers.
 	 * grab clk to make sure it is ticking.
 	 */
 	clk = devm_clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(clk))
-		clk_prepare_enable(clk);
+	if (IS_ERR(clk)) {
+		dev_err(&pdev->dev, "Unable to get pdma clock");
+		return PTR_ERR(clk);
+	}
+	clk_prepare_enable(clk);
 
 	return mvebu_pinctrl_probe(pdev);
 }
 
-static int __devexit dove_pinctrl_remove(struct platform_device *pdev)
+static int dove_pinctrl_remove(struct platform_device *pdev)
 {
 	int ret;
 
@@ -615,10 +806,10 @@ static struct platform_driver dove_pinctrl_driver = {
 	.driver = {
 		.name = "dove-pinctrl",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(dove_pinctrl_of_match),
+		.of_match_table = dove_pinctrl_of_match,
 	},
 	.probe = dove_pinctrl_probe,
-	.remove = __devexit_p(dove_pinctrl_remove),
+	.remove = dove_pinctrl_remove,
 };
 
 module_platform_driver(dove_pinctrl_driver);

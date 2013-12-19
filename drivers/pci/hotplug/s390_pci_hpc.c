@@ -16,6 +16,7 @@
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
 #include <linux/init.h>
+#include <asm/pci_debug.h>
 #include <asm/sclp.h>
 
 #define SLOT_NAME_SIZE	10
@@ -40,6 +41,28 @@ struct slot {
 	struct zpci_dev *zdev;
 };
 
+static inline int slot_configure(struct slot *slot)
+{
+	int ret = sclp_pci_configure(slot->zdev->fid);
+
+	zpci_dbg(3, "conf fid:%x, rc:%d\n", slot->zdev->fid, ret);
+	if (!ret)
+		slot->zdev->state = ZPCI_FN_STATE_CONFIGURED;
+
+	return ret;
+}
+
+static inline int slot_deconfigure(struct slot *slot)
+{
+	int ret = sclp_pci_deconfigure(slot->zdev->fid);
+
+	zpci_dbg(3, "deconf fid:%x, rc:%d\n", slot->zdev->fid, ret);
+	if (!ret)
+		slot->zdev->state = ZPCI_FN_STATE_STANDBY;
+
+	return ret;
+}
+
 static int enable_slot(struct hotplug_slot *hotplug_slot)
 {
 	struct slot *slot = hotplug_slot->private;
@@ -48,13 +71,21 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 	if (slot->zdev->state != ZPCI_FN_STATE_STANDBY)
 		return -EIO;
 
-	rc = sclp_pci_configure(slot->zdev->fid);
-	if (!rc) {
-		slot->zdev->state = ZPCI_FN_STATE_CONFIGURED;
-		/* automatically scan the device after is was configured */
-		zpci_enable_device(slot->zdev);
-		zpci_scan_device(slot->zdev);
-	}
+	rc = slot_configure(slot);
+	if (rc)
+		return rc;
+
+	rc = zpci_enable_device(slot->zdev);
+	if (rc)
+		goto out_deconfigure;
+
+	pci_scan_slot(slot->zdev->bus, ZPCI_DEVFN);
+	pci_bus_add_devices(slot->zdev->bus);
+
+	return rc;
+
+out_deconfigure:
+	slot_deconfigure(slot);
 	return rc;
 }
 
@@ -66,17 +97,14 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 	if (!zpci_fn_configured(slot->zdev->state))
 		return -EIO;
 
-	/* TODO: we rely on the user to unbind/remove the device, is that plausible
-	 *	 or do we need to trigger that here?
-	 */
-	rc = sclp_pci_deconfigure(slot->zdev->fid);
-	if (!rc) {
-		/* Fixme: better call List-PCI to find the disabled FH
-		   for the FID since the FH should be opaque... */
-		slot->zdev->fh &= 0x7fffffff;
-		slot->zdev->state = ZPCI_FN_STATE_STANDBY;
-	}
-	return rc;
+	if (slot->zdev->pdev)
+		pci_stop_and_remove_bus_device(slot->zdev->pdev);
+
+	rc = zpci_disable_device(slot->zdev);
+	if (rc)
+		return rc;
+
+	return slot_deconfigure(slot);
 }
 
 static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
@@ -105,7 +133,6 @@ static void release_slot(struct hotplug_slot *hotplug_slot)
 {
 	struct slot *slot = hotplug_slot->private;
 
-	pr_debug("%s - physical_slot = %s\n", __func__, hotplug_slot_name(hotplug_slot));
 	kfree(slot->hotplug_slot->info);
 	kfree(slot->hotplug_slot);
 	kfree(slot);
@@ -118,7 +145,7 @@ static struct hotplug_slot_ops s390_hotplug_slot_ops = {
 	.get_adapter_status =	get_adapter_status,
 };
 
-static int init_pci_slot(struct zpci_dev *zdev)
+int zpci_init_slot(struct zpci_dev *zdev)
 {
 	struct hotplug_slot *hotplug_slot;
 	struct hotplug_slot_info *info;
@@ -155,10 +182,9 @@ static int init_pci_slot(struct zpci_dev *zdev)
 	snprintf(name, SLOT_NAME_SIZE, "%08x", zdev->fid);
 	rc = pci_hp_register(slot->hotplug_slot, zdev->bus,
 			     ZPCI_DEVFN, name);
-	if (rc) {
-		pr_err("pci_hp_register failed with error %d\n", rc);
+	if (rc)
 		goto error_reg;
-	}
+
 	list_add(&slot->slot_list, &s390_hotplug_slot_list);
 	return 0;
 
@@ -172,26 +198,7 @@ error:
 	return -ENOMEM;
 }
 
-static int __init init_pci_slots(void)
-{
-	struct zpci_dev *zdev;
-	int device = 0;
-
-	/*
-	 * Create a structure for each slot, and register that slot
-	 * with the pci_hotplug subsystem.
-	 */
-	mutex_lock(&zpci_list_lock);
-	list_for_each_entry(zdev, &zpci_list, entry) {
-		init_pci_slot(zdev);
-		device++;
-	}
-
-	mutex_unlock(&zpci_list_lock);
-	return (device) ? 0 : -ENODEV;
-}
-
-static void exit_pci_slot(struct zpci_dev *zdev)
+void zpci_exit_slot(struct zpci_dev *zdev)
 {
 	struct list_head *tmp, *n;
 	struct slot *slot;
@@ -204,49 +211,3 @@ static void exit_pci_slot(struct zpci_dev *zdev)
 		pci_hp_deregister(slot->hotplug_slot);
 	}
 }
-
-static void __exit exit_pci_slots(void)
-{
-	struct list_head *tmp, *n;
-	struct slot *slot;
-
-	/*
-	 * Unregister all of our slots with the pci_hotplug subsystem.
-	 * Memory will be freed in release_slot() callback after slot's
-	 * lifespan is finished.
-	 */
-	list_for_each_safe(tmp, n, &s390_hotplug_slot_list) {
-		slot = list_entry(tmp, struct slot, slot_list);
-		list_del(&slot->slot_list);
-		pci_hp_deregister(slot->hotplug_slot);
-	}
-}
-
-static int __init pci_hotplug_s390_init(void)
-{
-	/*
-	 * Do specific initialization stuff for your driver here
-	 * like initializing your controller hardware (if any) and
-	 * determining the number of slots you have in the system
-	 * right now.
-	 */
-
-	if (!pci_probe)
-		return -EOPNOTSUPP;
-
-	/* register callbacks for slot handling from arch code */
-	mutex_lock(&zpci_list_lock);
-	hotplug_ops.create_slot = init_pci_slot;
-	hotplug_ops.remove_slot = exit_pci_slot;
-	mutex_unlock(&zpci_list_lock);
-	pr_info("registered hotplug slot callbacks\n");
-	return init_pci_slots();
-}
-
-static void __exit pci_hotplug_s390_exit(void)
-{
-	exit_pci_slots();
-}
-
-module_init(pci_hotplug_s390_init);
-module_exit(pci_hotplug_s390_exit);

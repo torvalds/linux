@@ -36,6 +36,8 @@ enum {
 struct auto_pin_cfg_item {
 	hda_nid_t pin;
 	int type;
+	unsigned int is_headset_mic:1;
+	unsigned int is_headphone_mic:1; /* Mic-only in headphone jack */
 };
 
 struct auto_pin_cfg;
@@ -51,8 +53,9 @@ enum {
 	INPUT_PIN_ATTR_INT,	/* internal mic/line-in */
 	INPUT_PIN_ATTR_DOCK,	/* docking mic/line-in */
 	INPUT_PIN_ATTR_NORMAL,	/* mic/line-in jack */
-	INPUT_PIN_ATTR_FRONT,	/* mic/line-in jack in front */
 	INPUT_PIN_ATTR_REAR,	/* mic/line-in jack in rear */
+	INPUT_PIN_ATTR_FRONT,	/* mic/line-in jack in front */
+	INPUT_PIN_ATTR_LAST = INPUT_PIN_ATTR_FRONT,
 };
 
 int snd_hda_get_input_pin_attr(unsigned int def_conf);
@@ -77,8 +80,10 @@ struct auto_pin_cfg {
 };
 
 /* bit-flags for snd_hda_parse_pin_def_config() behavior */
-#define HDA_PINCFG_NO_HP_FIXUP	(1 << 0) /* no HP-split */
-#define HDA_PINCFG_NO_LO_FIXUP	(1 << 1) /* don't take other outs as LO */
+#define HDA_PINCFG_NO_HP_FIXUP   (1 << 0) /* no HP-split */
+#define HDA_PINCFG_NO_LO_FIXUP   (1 << 1) /* don't take other outs as LO */
+#define HDA_PINCFG_HEADSET_MIC   (1 << 2) /* Try to find headset mic; mark seq number as 0xc to trigger */
+#define HDA_PINCFG_HEADPHONE_MIC (1 << 3) /* Try to find headphone mic; mark seq number as 0xd to trigger */
 
 int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 			     struct auto_pin_cfg *cfg,
@@ -89,82 +94,25 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 #define snd_hda_parse_pin_def_config(codec, cfg, ignore) \
 	snd_hda_parse_pin_defcfg(codec, cfg, ignore, 0)
 
-/*
- */
-
-struct hda_gen_spec {
-	/* fix-up list */
-	int fixup_id;
-	const struct hda_fixup *fixup_list;
-	const char *fixup_name;
-
-	/* additional init verbs */
-	struct snd_array verbs;
-};
-
-
-/*
- * Fix-up pin default configurations and add default verbs
- */
-
-struct hda_pintbl {
-	hda_nid_t nid;
-	u32 val;
-};
-
-struct hda_model_fixup {
-	const int id;
-	const char *name;
-};
-
-struct hda_fixup {
-	int type;
-	bool chained;
-	int chain_id;
-	union {
-		const struct hda_pintbl *pins;
-		const struct hda_verb *verbs;
-		void (*func)(struct hda_codec *codec,
-			     const struct hda_fixup *fix,
-			     int action);
-	} v;
-};
-
-/* fixup types */
-enum {
-	HDA_FIXUP_INVALID,
-	HDA_FIXUP_PINS,
-	HDA_FIXUP_VERBS,
-	HDA_FIXUP_FUNC,
-};
-
-/* fixup action definitions */
-enum {
-	HDA_FIXUP_ACT_PRE_PROBE,
-	HDA_FIXUP_ACT_PROBE,
-	HDA_FIXUP_ACT_INIT,
-	HDA_FIXUP_ACT_BUILD,
-};
-
-int snd_hda_gen_add_verbs(struct hda_gen_spec *spec,
-			  const struct hda_verb *list);
-void snd_hda_gen_apply_verbs(struct hda_codec *codec);
-void snd_hda_apply_pincfgs(struct hda_codec *codec,
-			   const struct hda_pintbl *cfg);
-void snd_hda_apply_fixup(struct hda_codec *codec, int action);
-void snd_hda_pick_fixup(struct hda_codec *codec,
-			const struct hda_model_fixup *models,
-			const struct snd_pci_quirk *quirk,
-			const struct hda_fixup *fixlist);
-
-static inline void snd_hda_gen_init(struct hda_gen_spec *spec)
+static inline int auto_cfg_hp_outs(const struct auto_pin_cfg *cfg)
 {
-	snd_array_init(&spec->verbs, sizeof(struct hda_verb *), 8);
+	return (cfg->line_out_type == AUTO_PIN_HP_OUT) ?
+	       cfg->line_outs : cfg->hp_outs;
 }
-
-static inline void snd_hda_gen_free(struct hda_gen_spec *spec)
+static inline const hda_nid_t *auto_cfg_hp_pins(const struct auto_pin_cfg *cfg)
 {
-	snd_array_free(&spec->verbs);
+	return (cfg->line_out_type == AUTO_PIN_HP_OUT) ?
+	       cfg->line_out_pins : cfg->hp_pins;
+}
+static inline int auto_cfg_speaker_outs(const struct auto_pin_cfg *cfg)
+{
+	return (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT) ?
+	       cfg->line_outs : cfg->speaker_outs;
+}
+static inline const hda_nid_t *auto_cfg_speaker_pins(const struct auto_pin_cfg *cfg)
+{
+	return (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT) ?
+	       cfg->line_out_pins : cfg->speaker_pins;
 }
 
 #endif /* __SOUND_HDA_AUTO_PARSER_H */

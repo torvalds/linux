@@ -11,8 +11,12 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/clkdev.h>
+#include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/err.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include "crm-regs-imx5.h"
 #include "clk.h"
@@ -45,16 +49,46 @@ static const char *mx53_ipu_di1_sel[] = { "di_pred", "osc", "ckih1", "tve_di", "
 static const char *mx53_ldb_di1_sel[] = { "pll3_sw", "pll4_sw", };
 static const char *mx51_tve_ext_sel[] = { "osc", "ckih1", };
 static const char *mx53_tve_ext_sel[] = { "pll4_sw", "ckih1", };
-static const char *tve_sel[] = { "tve_pred", "tve_ext_sel", };
+static const char *mx51_tve_sel[] = { "tve_pred", "tve_ext_sel", };
 static const char *ipu_sel[] = { "axi_a", "axi_b", "emi_slow_gate", "ahb", };
+static const char *gpu3d_sel[] = { "axi_a", "axi_b", "emi_slow_gate", "ahb" };
+static const char *gpu2d_sel[] = { "axi_a", "axi_b", "emi_slow_gate", "ahb" };
 static const char *vpu_sel[] = { "axi_a", "axi_b", "emi_slow_gate", "ahb", };
 static const char *mx53_can_sel[] = { "ipg", "ckih1", "ckih2", "lp_apm", };
+static const char *mx53_cko1_sel[] = {
+	"cpu_podf", "pll1_sw", "pll2_sw", "pll3_sw",
+	"emi_slow_podf", "pll4_sw", "nfc_podf", "dummy",
+	"di_pred", "dummy", "dummy", "ahb",
+	"ipg", "per_root", "ckil", "dummy",};
+static const char *mx53_cko2_sel[] = {
+	"dummy"/* dptc_core */, "dummy"/* dptc_perich */,
+	"dummy", "esdhc_a_podf",
+	"usboh3_podf", "dummy"/* wrck_clk_root */,
+	"ecspi_podf", "dummy"/* pll1_ref_clk */,
+	"esdhc_b_podf", "dummy"/* ddr_clk_root */,
+	"dummy"/* arm_axi_clk_root */, "dummy"/* usb_phy_out */,
+	"vpu_sel", "ipu_sel",
+	"osc", "ckih1",
+	"dummy", "esdhc_c_sel",
+	"ssi1_root_podf", "ssi2_root_podf",
+	"dummy", "dummy",
+	"dummy"/* lpsr_clk_root */, "dummy"/* pgc_clk_root */,
+	"dummy"/* tve_out */, "usb_phy_sel",
+	"tve_sel", "lp_apm",
+	"uart_root", "dummy"/* spdif0_clk_root */,
+	"dummy", "dummy", };
+static const char *mx51_spdif_xtal_sel[] = { "osc", "ckih", "ckih2", };
+static const char *mx53_spdif_xtal_sel[] = { "osc", "ckih", "ckih2", "pll4_sw", };
+static const char *spdif_sel[] = { "pll1_sw", "pll2_sw", "pll3_sw", "spdif_xtal_sel", };
+static const char *spdif0_com_sel[] = { "spdif0_podf", "ssi1_root_gate", };
+static const char *mx51_spdif1_com_sel[] = { "spdif1_podf", "ssi2_root_gate", };
+
 
 enum imx5_clks {
 	dummy, ckil, osc, ckih1, ckih2, ahb, ipg, axi_a, axi_b, uart_pred,
 	uart_root, esdhc_a_pred, esdhc_b_pred, esdhc_c_s, esdhc_d_s,
 	emi_sel, emi_slow_podf, nfc_podf, ecspi_pred, ecspi_podf, usboh3_pred,
-	usboh3_podf, usb_phy_pred, usb_phy_podf, cpu_podf, di_pred, tve_di,
+	usboh3_podf, usb_phy_pred, usb_phy_podf, cpu_podf, di_pred, tve_di_unused,
 	tve_s, uart1_ipg_gate, uart1_per_gate, uart2_ipg_gate,
 	uart2_per_gate, uart3_ipg_gate, uart3_per_gate, i2c1_gate, i2c2_gate,
 	gpt_ipg_gate, pwm1_ipg_gate, pwm1_hf_gate, pwm2_ipg_gate, pwm2_hf_gate,
@@ -83,7 +117,13 @@ enum imx5_clks {
 	ssi2_root_gate, ssi3_root_gate, ssi_ext1_gate, ssi_ext2_gate,
 	epit1_ipg_gate, epit1_hf_gate, epit2_ipg_gate, epit2_hf_gate,
 	can_sel, can1_serial_gate, can1_ipg_gate,
-	clk_max
+	owire_gate, gpu3d_s, gpu2d_s, gpu3d_gate, gpu2d_gate, garb_gate,
+	cko1_sel, cko1_podf, cko1,
+	cko2_sel, cko2_podf, cko2,
+	srtc_gate, pata_gate, sata_gate, spdif_xtal_sel, spdif0_sel,
+	spdif1_sel, spdif0_pred, spdif0_podf, spdif1_pred, spdif1_podf,
+	spdif0_com_s, spdif1_com_sel, spdif0_gate, spdif1_gate, spdif_ipg_gate,
+	ocram, clk_max
 };
 
 static struct clk *clk[clk_max];
@@ -96,10 +136,10 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 	int i;
 
 	clk[dummy] = imx_clk_fixed("dummy", 0);
-	clk[ckil] = imx_clk_fixed("ckil", rate_ckil);
-	clk[osc] = imx_clk_fixed("osc", rate_osc);
-	clk[ckih1] = imx_clk_fixed("ckih1", rate_ckih1);
-	clk[ckih2] = imx_clk_fixed("ckih2", rate_ckih2);
+	clk[ckil] = imx_obtain_fixed_clock("ckil", rate_ckil);
+	clk[osc] = imx_obtain_fixed_clock("osc", rate_osc);
+	clk[ckih1] = imx_obtain_fixed_clock("ckih1", rate_ckih1);
+	clk[ckih2] = imx_obtain_fixed_clock("ckih2", rate_ckih2);
 
 	clk[lp_apm] = imx_clk_mux("lp_apm", MXC_CCM_CCSR, 9, 1,
 				lp_apm_sel, ARRAY_SIZE(lp_apm_sel));
@@ -159,8 +199,6 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 				usb_phy_sel_str, ARRAY_SIZE(usb_phy_sel_str));
 	clk[cpu_podf] = imx_clk_divider("cpu_podf", "pll1_sw", MXC_CCM_CACRR, 0, 3);
 	clk[di_pred] = imx_clk_divider("di_pred", "pll3_sw", MXC_CCM_CDCDR, 6, 3);
-	clk[tve_di] = imx_clk_fixed("tve_di", 65000000); /* FIXME */
-	clk[tve_s] = imx_clk_mux("tve_sel", MXC_CCM_CSCMR1, 7, 1, tve_sel, ARRAY_SIZE(tve_sel));
 	clk[iim_gate] = imx_clk_gate2("iim_gate", "ipg", MXC_CCM_CCGR0, 30);
 	clk[uart1_ipg_gate] = imx_clk_gate2("uart1_ipg_gate", "ipg", MXC_CCM_CCGR1, 6);
 	clk[uart1_per_gate] = imx_clk_gate2("uart1_per_gate", "uart_root", MXC_CCM_CCGR1, 8);
@@ -199,6 +237,11 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 	clk[nfc_gate] = imx_clk_gate2("nfc_gate", "nfc_podf", MXC_CCM_CCGR5, 20);
 	clk[ipu_di0_gate] = imx_clk_gate2("ipu_di0_gate", "ipu_di0_sel", MXC_CCM_CCGR6, 10);
 	clk[ipu_di1_gate] = imx_clk_gate2("ipu_di1_gate", "ipu_di1_sel", MXC_CCM_CCGR6, 12);
+	clk[gpu3d_s] = imx_clk_mux("gpu3d_sel", MXC_CCM_CBCMR, 4, 2, gpu3d_sel, ARRAY_SIZE(gpu3d_sel));
+	clk[gpu2d_s] = imx_clk_mux("gpu2d_sel", MXC_CCM_CBCMR, 16, 2, gpu2d_sel, ARRAY_SIZE(gpu2d_sel));
+	clk[gpu3d_gate] = imx_clk_gate2("gpu3d_gate", "gpu3d_sel", MXC_CCM_CCGR5, 2);
+	clk[garb_gate] = imx_clk_gate2("garb_gate", "axi_a", MXC_CCM_CCGR5, 4);
+	clk[gpu2d_gate] = imx_clk_gate2("gpu2d_gate", "gpu2d_sel", MXC_CCM_CCGR6, 14);
 	clk[vpu_s] = imx_clk_mux("vpu_sel", MXC_CCM_CBCMR, 14, 2, vpu_sel, ARRAY_SIZE(vpu_sel));
 	clk[vpu_gate] = imx_clk_gate2("vpu_gate", "vpu_sel", MXC_CCM_CCGR5, 6);
 	clk[vpu_reference_gate] = imx_clk_gate2("vpu_reference_gate", "osc", MXC_CCM_CCGR5, 8);
@@ -233,12 +276,22 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 	clk[epit1_hf_gate] = imx_clk_gate2("epit1_hf_gate", "per_root", MXC_CCM_CCGR2, 4);
 	clk[epit2_ipg_gate] = imx_clk_gate2("epit2_ipg_gate", "ipg", MXC_CCM_CCGR2, 6);
 	clk[epit2_hf_gate] = imx_clk_gate2("epit2_hf_gate", "per_root", MXC_CCM_CCGR2, 8);
+	clk[owire_gate] = imx_clk_gate2("owire_gate", "per_root", MXC_CCM_CCGR2, 22);
+	clk[srtc_gate] = imx_clk_gate2("srtc_gate", "per_root", MXC_CCM_CCGR4, 28);
+	clk[pata_gate] = imx_clk_gate2("pata_gate", "ipg", MXC_CCM_CCGR4, 0);
+	clk[spdif0_sel] = imx_clk_mux("spdif0_sel", MXC_CCM_CSCMR2, 0, 2, spdif_sel, ARRAY_SIZE(spdif_sel));
+	clk[spdif0_pred] = imx_clk_divider("spdif0_pred", "spdif0_sel", MXC_CCM_CDCDR, 25, 3);
+	clk[spdif0_podf] = imx_clk_divider("spdif0_podf", "spdif0_pred", MXC_CCM_CDCDR, 19, 6);
+	clk[spdif0_com_s] = imx_clk_mux_flags("spdif0_com_sel", MXC_CCM_CSCMR2, 4, 1,
+				spdif0_com_sel, ARRAY_SIZE(spdif0_com_sel), CLK_SET_RATE_PARENT);
+	clk[spdif0_gate] = imx_clk_gate2("spdif0_gate", "spdif0_com_sel", MXC_CCM_CCGR5, 26);
+	clk[spdif_ipg_gate] = imx_clk_gate2("spdif_ipg_gate", "ipg", MXC_CCM_CCGR5, 30);
 
 	for (i = 0; i < ARRAY_SIZE(clk); i++)
 		if (IS_ERR(clk[i]))
 			pr_err("i.MX5 clk %d: register failed with %ld\n",
 				i, PTR_ERR(clk[i]));
-	
+
 	clk_register_clkdev(clk[gpt_hf_gate], "per", "imx-gpt.0");
 	clk_register_clkdev(clk[gpt_ipg_gate], "ipg", "imx-gpt.0");
 	clk_register_clkdev(clk[uart1_per_gate], "per", "imx21-uart.0");
@@ -269,22 +322,19 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 	clk_register_clkdev(clk[usboh3_per_gate], "per", "mxc-ehci.2");
 	clk_register_clkdev(clk[usboh3_gate], "ipg", "mxc-ehci.2");
 	clk_register_clkdev(clk[usboh3_gate], "ahb", "mxc-ehci.2");
-	clk_register_clkdev(clk[usboh3_per_gate], "per", "fsl-usb2-udc");
-	clk_register_clkdev(clk[usboh3_gate], "ipg", "fsl-usb2-udc");
-	clk_register_clkdev(clk[usboh3_gate], "ahb", "fsl-usb2-udc");
+	clk_register_clkdev(clk[usboh3_per_gate], "per", "imx-udc-mx51");
+	clk_register_clkdev(clk[usboh3_gate], "ipg", "imx-udc-mx51");
+	clk_register_clkdev(clk[usboh3_gate], "ahb", "imx-udc-mx51");
 	clk_register_clkdev(clk[nfc_gate], NULL, "imx51-nand");
 	clk_register_clkdev(clk[ssi1_ipg_gate], NULL, "imx-ssi.0");
 	clk_register_clkdev(clk[ssi2_ipg_gate], NULL, "imx-ssi.1");
 	clk_register_clkdev(clk[ssi3_ipg_gate], NULL, "imx-ssi.2");
-	clk_register_clkdev(clk[ssi_ext1_gate], "ssi_ext1", NULL);
-	clk_register_clkdev(clk[ssi_ext2_gate], "ssi_ext2", NULL);
 	clk_register_clkdev(clk[sdma_gate], NULL, "imx35-sdma");
-	clk_register_clkdev(clk[cpu_podf], "cpu", NULL);
+	clk_register_clkdev(clk[cpu_podf], NULL, "cpu0");
 	clk_register_clkdev(clk[iim_gate], "iim", NULL);
 	clk_register_clkdev(clk[dummy], NULL, "imx2-wdt.0");
 	clk_register_clkdev(clk[dummy], NULL, "imx2-wdt.1");
 	clk_register_clkdev(clk[dummy], NULL, "imx-keypad");
-	clk_register_clkdev(clk[tve_gate], NULL, "imx-tve.0");
 	clk_register_clkdev(clk[ipu_di1_gate], "di1", "imx-tve.0");
 	clk_register_clkdev(clk[gpc_dvfs], "gpc_dvfs", NULL);
 	clk_register_clkdev(clk[epit1_ipg_gate], "ipg", "imx-epit.0");
@@ -329,8 +379,10 @@ int __init mx51_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 				mx51_ipu_di0_sel, ARRAY_SIZE(mx51_ipu_di0_sel));
 	clk[ipu_di1_sel] = imx_clk_mux("ipu_di1_sel", MXC_CCM_CSCMR2, 29, 3,
 				mx51_ipu_di1_sel, ARRAY_SIZE(mx51_ipu_di1_sel));
-	clk[tve_ext_sel] = imx_clk_mux("tve_ext_sel", MXC_CCM_CSCMR1, 6, 1,
-				mx51_tve_ext_sel, ARRAY_SIZE(mx51_tve_ext_sel));
+	clk[tve_ext_sel] = imx_clk_mux_flags("tve_ext_sel", MXC_CCM_CSCMR1, 6, 1,
+				mx51_tve_ext_sel, ARRAY_SIZE(mx51_tve_ext_sel), CLK_SET_RATE_PARENT);
+	clk[tve_s] = imx_clk_mux("tve_sel", MXC_CCM_CSCMR1, 7, 1,
+				mx51_tve_sel, ARRAY_SIZE(mx51_tve_sel));
 	clk[tve_gate] = imx_clk_gate2("tve_gate", "tve_sel", MXC_CCM_CCGR2, 30);
 	clk[tve_pred] = imx_clk_divider("tve_pred", "pll3_sw", MXC_CCM_CDCDR, 28, 3);
 	clk[esdhc1_per_gate] = imx_clk_gate2("esdhc1_per_gate", "esdhc_a_podf", MXC_CCM_CCGR3, 2);
@@ -343,6 +395,15 @@ int __init mx51_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 	clk[mipi_hsc2_gate] = imx_clk_gate2("mipi_hsc2_gate", "ipg", MXC_CCM_CCGR4, 8);
 	clk[mipi_esc_gate] = imx_clk_gate2("mipi_esc_gate", "ipg", MXC_CCM_CCGR4, 10);
 	clk[mipi_hsp_gate] = imx_clk_gate2("mipi_hsp_gate", "ipg", MXC_CCM_CCGR4, 12);
+	clk[spdif_xtal_sel] = imx_clk_mux("spdif_xtal_sel", MXC_CCM_CSCMR1, 2, 2,
+				mx51_spdif_xtal_sel, ARRAY_SIZE(mx51_spdif_xtal_sel));
+	clk[spdif1_sel] = imx_clk_mux("spdif1_sel", MXC_CCM_CSCMR2, 2, 2,
+				spdif_sel, ARRAY_SIZE(spdif_sel));
+	clk[spdif1_pred] = imx_clk_divider("spdif1_pred", "spdif1_sel", MXC_CCM_CDCDR, 16, 3);
+	clk[spdif1_podf] = imx_clk_divider("spdif1_podf", "spdif1_pred", MXC_CCM_CDCDR, 9, 6);
+	clk[spdif1_com_sel] = imx_clk_mux("spdif1_com_sel", MXC_CCM_CSCMR2, 5, 1,
+				mx51_spdif1_com_sel, ARRAY_SIZE(mx51_spdif1_com_sel));
+	clk[spdif1_gate] = imx_clk_gate2("spdif1_gate", "spdif1_com_sel", MXC_CCM_CCGR5, 28);
 
 	for (i = 0; i < ARRAY_SIZE(clk); i++)
 		if (IS_ERR(clk[i]))
@@ -360,9 +421,6 @@ int __init mx51_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 	clk_register_clkdev(clk[mx51_mipi], "mipi_hsp", NULL);
 	clk_register_clkdev(clk[vpu_gate], NULL, "imx51-vpu.0");
 	clk_register_clkdev(clk[fec_gate], NULL, "imx27-fec.0");
-	clk_register_clkdev(clk[ipu_gate], "bus", "40000000.ipu");
-	clk_register_clkdev(clk[ipu_di0_gate], "di0", "40000000.ipu");
-	clk_register_clkdev(clk[ipu_di1_gate], "di1", "40000000.ipu");
 	clk_register_clkdev(clk[usb_phy_gate], "phy", "mxc-ehci.0");
 	clk_register_clkdev(clk[esdhc1_ipg_gate], "ipg", "sdhci-esdhc-imx51.0");
 	clk_register_clkdev(clk[dummy], "ahb", "sdhci-esdhc-imx51.0");
@@ -409,35 +467,40 @@ int __init mx51_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 	return 0;
 }
 
-int __init mx53_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
-			unsigned long rate_ckih1, unsigned long rate_ckih2)
+static void __init mx51_clocks_init_dt(struct device_node *np)
 {
-	int i;
+	mx51_clocks_init(0, 0, 0, 0);
+}
+CLK_OF_DECLARE(imx51_ccm, "fsl,imx51-ccm", mx51_clocks_init_dt);
+
+static void __init mx53_clocks_init(struct device_node *np)
+{
+	int i, irq;
 	unsigned long r;
-	struct device_node *np;
+	void __iomem *base;
 
 	clk[pll1_sw] = imx_clk_pllv2("pll1_sw", "osc", MX53_DPLL1_BASE);
 	clk[pll2_sw] = imx_clk_pllv2("pll2_sw", "osc", MX53_DPLL2_BASE);
 	clk[pll3_sw] = imx_clk_pllv2("pll3_sw", "osc", MX53_DPLL3_BASE);
 	clk[pll4_sw] = imx_clk_pllv2("pll4_sw", "osc", MX53_DPLL4_BASE);
 
-	clk[ldb_di1_sel] = imx_clk_mux("ldb_di1_sel", MXC_CCM_CSCMR2, 9, 1,
-				mx53_ldb_di1_sel, ARRAY_SIZE(mx53_ldb_di1_sel));
 	clk[ldb_di1_div_3_5] = imx_clk_fixed_factor("ldb_di1_div_3_5", "ldb_di1_sel", 2, 7);
-	clk[ldb_di1_div] = imx_clk_divider("ldb_di1_div", "ldb_di1_div_3_5", MXC_CCM_CSCMR2, 11, 1);
+	clk[ldb_di1_div] = imx_clk_divider_flags("ldb_di1_div", "ldb_di1_div_3_5", MXC_CCM_CSCMR2, 11, 1, 0);
+	clk[ldb_di1_sel] = imx_clk_mux_flags("ldb_di1_sel", MXC_CCM_CSCMR2, 9, 1,
+				mx53_ldb_di1_sel, ARRAY_SIZE(mx53_ldb_di1_sel), CLK_SET_RATE_PARENT);
 	clk[di_pll4_podf] = imx_clk_divider("di_pll4_podf", "pll4_sw", MXC_CCM_CDCDR, 16, 3);
-	clk[ldb_di0_sel] = imx_clk_mux("ldb_di0_sel", MXC_CCM_CSCMR2, 8, 1,
-				mx53_ldb_di0_sel, ARRAY_SIZE(mx53_ldb_di0_sel));
 	clk[ldb_di0_div_3_5] = imx_clk_fixed_factor("ldb_di0_div_3_5", "ldb_di0_sel", 2, 7);
-	clk[ldb_di0_div] = imx_clk_divider("ldb_di0_div", "ldb_di0_div_3_5", MXC_CCM_CSCMR2, 10, 1);
+	clk[ldb_di0_div] = imx_clk_divider_flags("ldb_di0_div", "ldb_di0_div_3_5", MXC_CCM_CSCMR2, 10, 1, 0);
+	clk[ldb_di0_sel] = imx_clk_mux_flags("ldb_di0_sel", MXC_CCM_CSCMR2, 8, 1,
+				mx53_ldb_di0_sel, ARRAY_SIZE(mx53_ldb_di0_sel), CLK_SET_RATE_PARENT);
 	clk[ldb_di0_gate] = imx_clk_gate2("ldb_di0_gate", "ldb_di0_div", MXC_CCM_CCGR6, 28);
 	clk[ldb_di1_gate] = imx_clk_gate2("ldb_di1_gate", "ldb_di1_div", MXC_CCM_CCGR6, 30);
 	clk[ipu_di0_sel] = imx_clk_mux("ipu_di0_sel", MXC_CCM_CSCMR2, 26, 3,
 				mx53_ipu_di0_sel, ARRAY_SIZE(mx53_ipu_di0_sel));
 	clk[ipu_di1_sel] = imx_clk_mux("ipu_di1_sel", MXC_CCM_CSCMR2, 29, 3,
 				mx53_ipu_di1_sel, ARRAY_SIZE(mx53_ipu_di1_sel));
-	clk[tve_ext_sel] = imx_clk_mux("tve_ext_sel", MXC_CCM_CSCMR1, 6, 1,
-				mx53_tve_ext_sel, ARRAY_SIZE(mx53_tve_ext_sel));
+	clk[tve_ext_sel] = imx_clk_mux_flags("tve_ext_sel", MXC_CCM_CSCMR1, 6, 1,
+				mx53_tve_ext_sel, ARRAY_SIZE(mx53_tve_ext_sel), CLK_SET_RATE_PARENT);
 	clk[tve_gate] = imx_clk_gate2("tve_gate", "tve_pred", MXC_CCM_CCGR2, 30);
 	clk[tve_pred] = imx_clk_divider("tve_pred", "tve_ext_sel", MXC_CCM_CDCDR, 28, 3);
 	clk[esdhc1_per_gate] = imx_clk_gate2("esdhc1_per_gate", "esdhc_a_podf", MXC_CCM_CCGR3, 2);
@@ -450,29 +513,38 @@ int __init mx53_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 				mx53_can_sel, ARRAY_SIZE(mx53_can_sel));
 	clk[can1_serial_gate] = imx_clk_gate2("can1_serial_gate", "can_sel", MXC_CCM_CCGR6, 22);
 	clk[can1_ipg_gate] = imx_clk_gate2("can1_ipg_gate", "ipg", MXC_CCM_CCGR6, 20);
+	clk[ocram] = imx_clk_gate2("ocram", "ahb", MXC_CCM_CCGR6, 2);
 	clk[can2_serial_gate] = imx_clk_gate2("can2_serial_gate", "can_sel", MXC_CCM_CCGR4, 8);
 	clk[can2_ipg_gate] = imx_clk_gate2("can2_ipg_gate", "ipg", MXC_CCM_CCGR4, 6);
 	clk[i2c3_gate] = imx_clk_gate2("i2c3_gate", "per_root", MXC_CCM_CCGR1, 22);
+	clk[sata_gate] = imx_clk_gate2("sata_gate", "ipg", MXC_CCM_CCGR4, 2);
+
+	clk[cko1_sel] = imx_clk_mux("cko1_sel", MXC_CCM_CCOSR, 0, 4,
+				mx53_cko1_sel, ARRAY_SIZE(mx53_cko1_sel));
+	clk[cko1_podf] = imx_clk_divider("cko1_podf", "cko1_sel", MXC_CCM_CCOSR, 4, 3);
+	clk[cko1] = imx_clk_gate2("cko1", "cko1_podf", MXC_CCM_CCOSR, 7);
+
+	clk[cko2_sel] = imx_clk_mux("cko2_sel", MXC_CCM_CCOSR, 16, 5,
+				mx53_cko2_sel, ARRAY_SIZE(mx53_cko2_sel));
+	clk[cko2_podf] = imx_clk_divider("cko2_podf", "cko2_sel", MXC_CCM_CCOSR, 21, 3);
+	clk[cko2] = imx_clk_gate2("cko2", "cko2_podf", MXC_CCM_CCOSR, 24);
+	clk[spdif_xtal_sel] = imx_clk_mux("spdif_xtal_sel", MXC_CCM_CSCMR1, 2, 2,
+				mx53_spdif_xtal_sel, ARRAY_SIZE(mx53_spdif_xtal_sel));
 
 	for (i = 0; i < ARRAY_SIZE(clk); i++)
 		if (IS_ERR(clk[i]))
 			pr_err("i.MX53 clk %d: register failed with %ld\n",
 				i, PTR_ERR(clk[i]));
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx53-ccm");
 	clk_data.clks = clk;
 	clk_data.clk_num = ARRAY_SIZE(clk);
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 
-	mx5_clocks_common_init(rate_ckil, rate_osc, rate_ckih1, rate_ckih2);
+	mx5_clocks_common_init(0, 0, 0, 0);
 
 	clk_register_clkdev(clk[vpu_gate], NULL, "imx53-vpu.0");
 	clk_register_clkdev(clk[i2c3_gate], NULL, "imx21-i2c.2");
 	clk_register_clkdev(clk[fec_gate], NULL, "imx25-fec.0");
-	clk_register_clkdev(clk[ipu_gate], "bus", "18000000.ipu");
-	clk_register_clkdev(clk[ipu_di0_gate], "di0", "18000000.ipu");
-	clk_register_clkdev(clk[ipu_di1_gate], "di1", "18000000.ipu");
-	clk_register_clkdev(clk[ipu_gate], "hsp", "18000000.ipu");
 	clk_register_clkdev(clk[usb_phy1_gate], "usb_phy1", "mxc-ehci.0");
 	clk_register_clkdev(clk[esdhc1_ipg_gate], "ipg", "sdhci-esdhc-imx53.0");
 	clk_register_clkdev(clk[dummy], "ahb", "sdhci-esdhc-imx53.0");
@@ -491,9 +563,6 @@ int __init mx53_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 	clk_set_rate(clk[esdhc_a_podf], 200000000);
 	clk_set_rate(clk[esdhc_b_podf], 200000000);
 
-	/* System timer */
-	mxc_timer_init(MX53_IO_ADDRESS(MX53_GPT1_BASE_ADDR), MX53_INT_GPT);
-
 	clk_prepare_enable(clk[iim_gate]);
 	imx_print_silicon_rev("i.MX53", mx53_revision());
 	clk_disable_unprepare(clk[iim_gate]);
@@ -501,45 +570,10 @@ int __init mx53_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 	r = clk_round_rate(clk[usboh3_per_gate], 54000000);
 	clk_set_rate(clk[usboh3_per_gate], r);
 
-	return 0;
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx53-gpt");
+	base = of_iomap(np, 0);
+	WARN_ON(!base);
+	irq = irq_of_parse_and_map(np, 0);
+	mxc_timer_init(base, irq);
 }
-
-#ifdef CONFIG_OF
-static void __init clk_get_freq_dt(unsigned long *ckil, unsigned long *osc,
-				   unsigned long *ckih1, unsigned long *ckih2)
-{
-	struct device_node *np;
-
-	/* retrieve the freqency of fixed clocks from device tree */
-	for_each_compatible_node(np, NULL, "fixed-clock") {
-		u32 rate;
-		if (of_property_read_u32(np, "clock-frequency", &rate))
-			continue;
-
-		if (of_device_is_compatible(np, "fsl,imx-ckil"))
-			*ckil = rate;
-		else if (of_device_is_compatible(np, "fsl,imx-osc"))
-			*osc = rate;
-		else if (of_device_is_compatible(np, "fsl,imx-ckih1"))
-			*ckih1 = rate;
-		else if (of_device_is_compatible(np, "fsl,imx-ckih2"))
-			*ckih2 = rate;
-	}
-}
-
-int __init mx51_clocks_init_dt(void)
-{
-	unsigned long ckil, osc, ckih1, ckih2;
-
-	clk_get_freq_dt(&ckil, &osc, &ckih1, &ckih2);
-	return mx51_clocks_init(ckil, osc, ckih1, ckih2);
-}
-
-int __init mx53_clocks_init_dt(void)
-{
-	unsigned long ckil, osc, ckih1, ckih2;
-
-	clk_get_freq_dt(&ckil, &osc, &ckih1, &ckih2);
-	return mx53_clocks_init(ckil, osc, ckih1, ckih2);
-}
-#endif
+CLK_OF_DECLARE(imx53_ccm, "fsl,imx53-ccm", mx53_clocks_init);

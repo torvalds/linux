@@ -216,8 +216,7 @@ void set_phy_rate(struct mvs_info *mvi, int phy_id, u8 rate)
 	mvs_write_port_vsr_data(mvi, phy_id, phy_cfg.v);
 }
 
-static void __devinit
-mvs_94xx_config_reg_from_hba(struct mvs_info *mvi, int phy_id)
+static void mvs_94xx_config_reg_from_hba(struct mvs_info *mvi, int phy_id)
 {
 	u32 temp;
 	temp = (u32)(*(u32 *)&mvi->hba_info_param.phy_tuning[phy_id]);
@@ -258,7 +257,7 @@ mvs_94xx_config_reg_from_hba(struct mvs_info *mvi, int phy_id)
 		mvi->hba_info_param.phy_rate[phy_id]);
 }
 
-static void __devinit mvs_94xx_enable_xmt(struct mvs_info *mvi, int phy_id)
+static void mvs_94xx_enable_xmt(struct mvs_info *mvi, int phy_id)
 {
 	void __iomem *regs = mvi->regs;
 	u32 tmp;
@@ -331,7 +330,7 @@ static void mvs_94xx_phy_enable(struct mvs_info *mvi, u32 phy_id)
 	mvs_write_port_vsr_data(mvi, phy_id, tmp & 0xfd7fffff);
 }
 
-static int __devinit mvs_94xx_init(struct mvs_info *mvi)
+static int mvs_94xx_init(struct mvs_info *mvi)
 {
 	void __iomem *regs = mvi->regs;
 	int i;

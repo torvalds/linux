@@ -17,10 +17,6 @@ This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 /*
@@ -68,12 +64,15 @@ TODO:
 
 */
 
-#include "../comedidev.h"
-
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
+#include "../comedidev.h"
+
 #include "8253.h"
+#include "plx9052.h"
 #include "comedi_fc.h"
 
 #define PCI9111_DRIVER_NAME	"adl_pci9111"
@@ -86,8 +85,6 @@ TODO:
 #define PCI9111_RANGE_SETTING_DELAY		10
 #define PCI9111_AI_INSTANT_READ_UDELAY_US	2
 #define PCI9111_AI_INSTANT_READ_TIMEOUT		100
-
-#define PCI9111_8254_CLOCK_PERIOD_NS		500
 
 /*
  * IO address map and bit defines
@@ -119,6 +116,14 @@ TODO:
 #define PCI9111_8254_BASE_REG		0x40
 #define PCI9111_INT_CLR_REG		0x48
 
+/* PLX 9052 Local Interrupt 1 enabled and active */
+#define PCI9111_LI1_ACTIVE	(PLX9052_INTCSR_LI1ENAB |	\
+				 PLX9052_INTCSR_LI1STAT)
+
+/* PLX 9052 Local Interrupt 2 enabled and active */
+#define PCI9111_LI2_ACTIVE	(PLX9052_INTCSR_LI2ENAB |	\
+				 PLX9052_INTCSR_LI2STAT)
+
 static const struct comedi_lrange pci9111_ai_range = {
 	5,
 	{
@@ -146,19 +151,8 @@ struct pci9111_private_data {
 	unsigned int div1;
 	unsigned int div2;
 
-	short ai_bounce_buffer[2 * PCI9111_FIFO_HALF_SIZE];
+	unsigned short ai_bounce_buffer[2 * PCI9111_FIFO_HALF_SIZE];
 };
-
-#define PLX9050_REGISTER_INTERRUPT_CONTROL 0x4c
-
-#define PLX9050_LINTI1_ENABLE		(1 << 0)
-#define PLX9050_LINTI1_ACTIVE_HIGH	(1 << 1)
-#define PLX9050_LINTI1_STATUS		(1 << 2)
-#define PLX9050_LINTI2_ENABLE		(1 << 3)
-#define PLX9050_LINTI2_ACTIVE_HIGH	(1 << 4)
-#define PLX9050_LINTI2_STATUS		(1 << 5)
-#define PLX9050_PCI_INTERRUPT_ENABLE	(1 << 6)
-#define PLX9050_SOFTWARE_INTERRUPT	(1 << 7)
 
 static void plx9050_interrupt_control(unsigned long io_base,
 				      bool LINTi1_enable,
@@ -170,18 +164,18 @@ static void plx9050_interrupt_control(unsigned long io_base,
 	int flags = 0;
 
 	if (LINTi1_enable)
-		flags |= PLX9050_LINTI1_ENABLE;
+		flags |= PLX9052_INTCSR_LI1ENAB;
 	if (LINTi1_active_high)
-		flags |= PLX9050_LINTI1_ACTIVE_HIGH;
+		flags |= PLX9052_INTCSR_LI1POL;
 	if (LINTi2_enable)
-		flags |= PLX9050_LINTI2_ENABLE;
+		flags |= PLX9052_INTCSR_LI2ENAB;
 	if (LINTi2_active_high)
-		flags |= PLX9050_LINTI2_ACTIVE_HIGH;
+		flags |= PLX9052_INTCSR_LI2POL;
 
 	if (interrupt_enable)
-		flags |= PLX9050_PCI_INTERRUPT_ENABLE;
+		flags |= PLX9052_INTCSR_PCIENAB;
 
-	outb(flags, io_base + PLX9050_REGISTER_INTERRUPT_CONTROL);
+	outb(flags, io_base + PLX9052_INTCSR);
 }
 
 static void pci9111_timer_set(struct comedi_device *dev)
@@ -397,11 +391,10 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
-		i8253_cascade_ns_to_timer_2div(PCI9111_8254_CLOCK_PERIOD_NS,
-					       &dev_private->div1,
-					       &dev_private->div2,
-					       &cmd->convert_arg,
-					       cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
+					  &dev_private->div1,
+					  &dev_private->div2,
+					  &cmd->convert_arg, cmd->flags);
 		if (tmp != cmd->convert_arg)
 			error++;
 	}
@@ -574,7 +567,7 @@ static void pci9111_ai_munge(struct comedi_device *dev,
 			     unsigned int num_bytes,
 			     unsigned int start_chan_index)
 {
-	short *array = data;
+	unsigned short *array = data;
 	unsigned int maxdata = s->maxdata;
 	unsigned int invert = (maxdata + 1) >> 1;
 	unsigned int shift = (maxdata == 0xffff) ? 0 : 4;
@@ -606,21 +599,17 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
 
 	/*  Check if we are source of interrupt */
-	intcsr = inb(dev_private->lcr_io_base +
-		     PLX9050_REGISTER_INTERRUPT_CONTROL);
-	if (!(((intcsr & PLX9050_PCI_INTERRUPT_ENABLE) != 0)
-	      && (((intcsr & (PLX9050_LINTI1_ENABLE | PLX9050_LINTI1_STATUS))
-		   == (PLX9050_LINTI1_ENABLE | PLX9050_LINTI1_STATUS))
-		  || ((intcsr & (PLX9050_LINTI2_ENABLE | PLX9050_LINTI2_STATUS))
-		      == (PLX9050_LINTI2_ENABLE | PLX9050_LINTI2_STATUS))))) {
+	intcsr = inb(dev_private->lcr_io_base + PLX9052_INTCSR);
+	if (!(((intcsr & PLX9052_INTCSR_PCIENAB) != 0) &&
+	      (((intcsr & PCI9111_LI1_ACTIVE) == PCI9111_LI1_ACTIVE) ||
+	       ((intcsr & PCI9111_LI2_ACTIVE) == PCI9111_LI2_ACTIVE)))) {
 		/*  Not the source of the interrupt. */
-		/*  (N.B. not using PLX9050_SOFTWARE_INTERRUPT) */
+		/*  (N.B. not using PLX9052_INTCSR_SOFTINT) */
 		spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 		return IRQ_NONE;
 	}
 
-	if ((intcsr & (PLX9050_LINTI1_ENABLE | PLX9050_LINTI1_STATUS)) ==
-	    (PLX9050_LINTI1_ENABLE | PLX9050_LINTI1_STATUS)) {
+	if ((intcsr & PCI9111_LI1_ACTIVE) == PCI9111_LI1_ACTIVE) {
 		/*  Interrupt comes from fifo_half-full signal */
 
 		status = inb(dev->iobase + PCI9111_AI_RANGE_STAT_REG);
@@ -821,15 +810,8 @@ static int pci9111_do_insn_bits(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
+	if (comedi_dio_update_state(s, data))
 		outw(s->state, dev->iobase + PCI9111_DIO_REG);
-	}
 
 	data[1] = s->state;
 
@@ -864,14 +846,11 @@ static int pci9111_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
-	dev_private = kzalloc(sizeof(*dev_private), GFP_KERNEL);
+	dev_private = comedi_alloc_devpriv(dev, sizeof(*dev_private));
 	if (!dev_private)
 		return -ENOMEM;
-	dev->private = dev_private;
 
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 	dev_private->lcr_io_base = pci_resource_start(pcidev, 1);
@@ -938,16 +917,11 @@ static int pci9111_auto_attach(struct comedi_device *dev,
 
 static void pci9111_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
 	if (dev->iobase)
 		pci9111_reset(dev);
 	if (dev->irq != 0)
 		free_irq(dev->irq, dev);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver adl_pci9111_driver = {
@@ -958,14 +932,10 @@ static struct comedi_driver adl_pci9111_driver = {
 };
 
 static int pci9111_pci_probe(struct pci_dev *dev,
-				       const struct pci_device_id *ent)
+			     const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &adl_pci9111_driver);
-}
-
-static void pci9111_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
+	return comedi_pci_auto_config(dev, &adl_pci9111_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(pci9111_pci_table) = {
@@ -979,7 +949,7 @@ static struct pci_driver adl_pci9111_pci_driver = {
 	.name		= "adl_pci9111",
 	.id_table	= pci9111_pci_table,
 	.probe		= pci9111_pci_probe,
-	.remove		= pci9111_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(adl_pci9111_driver, adl_pci9111_pci_driver);
 

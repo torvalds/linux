@@ -325,6 +325,7 @@ struct srpt_rdma_ch {
 	u8			sess_name[36];
 	struct work_struct	release_work;
 	struct completion	*release_done;
+	bool			in_shutdown;
 };
 
 /**

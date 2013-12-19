@@ -16,7 +16,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/errno.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/memblock.h>
@@ -63,12 +63,6 @@
 #include <asm/os_info.h>
 #include <asm/sclp.h>
 #include "entry.h"
-
-long psw_kernel_bits	= PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_ASC_PRIMARY |
-			  PSW_MASK_EA | PSW_MASK_BA;
-long psw_user_bits	= PSW_MASK_DAT | PSW_MASK_IO | PSW_MASK_EXT |
-			  PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_MASK_MCHECK |
-			  PSW_MASK_PSTATE | PSW_ASC_HOME;
 
 /*
  * User copy operations.
@@ -226,25 +220,17 @@ static void __init conmode_default(void)
 }
 
 #ifdef CONFIG_ZFCPDUMP
-static void __init setup_zfcpdump(unsigned int console_devno)
+static void __init setup_zfcpdump(void)
 {
-	static char str[41];
-
 	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
 		return;
 	if (OLDMEM_BASE)
 		return;
-	if (console_devno != -1)
-		sprintf(str, " cio_ignore=all,!0.0.%04x,!0.0.%04x",
-			ipl_info.data.fcp.dev_id.devno, console_devno);
-	else
-		sprintf(str, " cio_ignore=all,!0.0.%04x",
-			ipl_info.data.fcp.dev_id.devno);
-	strcat(boot_command_line, str);
+	strcat(boot_command_line, " cio_ignore=all,!ipldev,!condev");
 	console_loglevel = 2;
 }
 #else
-static inline void setup_zfcpdump(unsigned int console_devno) {}
+static inline void setup_zfcpdump(void) {}
 #endif /* CONFIG_ZFCPDUMP */
 
  /*
@@ -289,6 +275,7 @@ void machine_power_off(void)
  * Dummy power off function.
  */
 void (*pm_power_off)(void) = machine_power_off;
+EXPORT_SYMBOL_GPL(pm_power_off);
 
 static int __init early_parse_mem(char *p)
 {
@@ -307,42 +294,13 @@ static int __init parse_vmalloc(char *arg)
 }
 early_param("vmalloc", parse_vmalloc);
 
-unsigned int s390_user_mode = PRIMARY_SPACE_MODE;
-EXPORT_SYMBOL_GPL(s390_user_mode);
-
-static void __init set_user_mode_primary(void)
-{
-	psw_kernel_bits = (psw_kernel_bits & ~PSW_MASK_ASC) | PSW_ASC_HOME;
-	psw_user_bits = (psw_user_bits & ~PSW_MASK_ASC) | PSW_ASC_PRIMARY;
-#ifdef CONFIG_COMPAT
-	psw32_user_bits =
-		(psw32_user_bits & ~PSW32_MASK_ASC) | PSW32_ASC_PRIMARY;
-#endif
-	uaccess = MACHINE_HAS_MVCOS ? uaccess_mvcos_switch : uaccess_pt;
-}
-
 static int __init early_parse_user_mode(char *p)
 {
-	if (p && strcmp(p, "primary") == 0)
-		s390_user_mode = PRIMARY_SPACE_MODE;
-	else if (!p || strcmp(p, "home") == 0)
-		s390_user_mode = HOME_SPACE_MODE;
-	else
-		return 1;
-	return 0;
+	if (!p || strcmp(p, "primary") == 0)
+		return 0;
+	return 1;
 }
 early_param("user_mode", early_parse_user_mode);
-
-static void __init setup_addressing_mode(void)
-{
-	if (s390_user_mode != PRIMARY_SPACE_MODE)
-		return;
-	set_user_mode_primary();
-	if (MACHINE_HAS_MVCOS)
-		pr_info("Address spaces switched, mvcos available\n");
-	else
-		pr_info("Address spaces switched, mvcos not available\n");
-}
 
 void *restart_stack __attribute__((__section__(".data")));
 
@@ -355,32 +313,35 @@ static void __init setup_lowcore(void)
 	 */
 	BUILD_BUG_ON(sizeof(struct _lowcore) != LC_PAGES * 4096);
 	lc = __alloc_bootmem_low(LC_PAGES * PAGE_SIZE, LC_PAGES * PAGE_SIZE, 0);
-	lc->restart_psw.mask = psw_kernel_bits;
+	lc->restart_psw.mask = PSW_KERNEL_BITS;
 	lc->restart_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) restart_int_handler;
-	lc->external_new_psw.mask = psw_kernel_bits |
+	lc->external_new_psw.mask = PSW_KERNEL_BITS |
 		PSW_MASK_DAT | PSW_MASK_MCHECK;
 	lc->external_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) ext_int_handler;
-	lc->svc_new_psw.mask = psw_kernel_bits |
+	lc->svc_new_psw.mask = PSW_KERNEL_BITS |
 		PSW_MASK_DAT | PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 	lc->svc_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) system_call;
-	lc->program_new_psw.mask = psw_kernel_bits |
+	lc->program_new_psw.mask = PSW_KERNEL_BITS |
 		PSW_MASK_DAT | PSW_MASK_MCHECK;
 	lc->program_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) pgm_check_handler;
-	lc->mcck_new_psw.mask = psw_kernel_bits;
+	lc->mcck_new_psw.mask = PSW_KERNEL_BITS;
 	lc->mcck_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) mcck_int_handler;
-	lc->io_new_psw.mask = psw_kernel_bits |
+	lc->io_new_psw.mask = PSW_KERNEL_BITS |
 		PSW_MASK_DAT | PSW_MASK_MCHECK;
 	lc->io_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) io_int_handler;
 	lc->clock_comparator = -1ULL;
-	lc->kernel_stack = ((unsigned long) &init_thread_union) + THREAD_SIZE;
+	lc->kernel_stack = ((unsigned long) &init_thread_union)
+		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->async_stack = (unsigned long)
-		__alloc_bootmem(ASYNC_SIZE, ASYNC_SIZE, 0) + ASYNC_SIZE;
+		__alloc_bootmem(ASYNC_SIZE, ASYNC_SIZE, 0)
+		+ ASYNC_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->panic_stack = (unsigned long)
-		__alloc_bootmem(PAGE_SIZE, PAGE_SIZE, 0) + PAGE_SIZE;
+		__alloc_bootmem(PAGE_SIZE, PAGE_SIZE, 0)
+		+ PAGE_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->current_task = (unsigned long) init_thread_union.thread_info.task;
 	lc->thread_info = (unsigned long) &init_thread_union;
 	lc->machine_flags = S390_lowcore.machine_flags;
@@ -467,14 +428,10 @@ static void __init setup_resources(void)
 	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		if (!memory_chunk[i].size)
 			continue;
-		if (memory_chunk[i].type == CHUNK_OLDMEM ||
-		    memory_chunk[i].type == CHUNK_CRASHK)
-			continue;
 		res = alloc_bootmem_low(sizeof(*res));
 		res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
 		switch (memory_chunk[i].type) {
 		case CHUNK_READ_WRITE:
-		case CHUNK_CRASHK:
 			res->name = "System RAM";
 			break;
 		case CHUNK_READ_ONLY:
@@ -506,22 +463,20 @@ static void __init setup_resources(void)
 	}
 }
 
-unsigned long real_memory_size;
-EXPORT_SYMBOL_GPL(real_memory_size);
-
 static void __init setup_memory_end(void)
 {
 	unsigned long vmax, vmalloc_size, tmp;
+	unsigned long real_memory_size = 0;
 	int i;
 
 
 #ifdef CONFIG_ZFCPDUMP
-	if (ipl_info.type == IPL_TYPE_FCP_DUMP && !OLDMEM_BASE) {
-		memory_end = ZFCPDUMP_HSA_SIZE;
+	if (ipl_info.type == IPL_TYPE_FCP_DUMP &&
+	    !OLDMEM_BASE && sclp_get_hsa_size()) {
+		memory_end = sclp_get_hsa_size();
 		memory_end_set = 1;
 	}
 #endif
-	real_memory_size = 0;
 	memory_end &= PAGE_MASK;
 
 	/*
@@ -534,6 +489,8 @@ static void __init setup_memory_end(void)
 		unsigned long align;
 
 		chunk = &memory_chunk[i];
+		if (!chunk->size)
+			continue;
 		align = 1UL << (MAX_ORDER + PAGE_SHIFT - 1);
 		start = (chunk->addr + align - 1) & ~(align - 1);
 		end = (chunk->addr + chunk->size) & ~(align - 1);
@@ -570,6 +527,8 @@ static void __init setup_memory_end(void)
 
 	/* Split remaining virtual space between 1:1 mapping & vmemmap array */
 	tmp = VMALLOC_START / (PAGE_SIZE + sizeof(struct page));
+	/* vmemmap contains a multiple of PAGES_PER_SECTION struct pages */
+	tmp = SECTION_ALIGN_UP(tmp);
 	tmp = VMALLOC_START - tmp * sizeof(struct page);
 	tmp &= ~((vmax >> 11) - 1);	/* align to page table level */
 	tmp = min(tmp, 1UL << MAX_PHYSMEM_BITS);
@@ -582,6 +541,8 @@ static void __init setup_memory_end(void)
 	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		struct mem_chunk *chunk = &memory_chunk[i];
 
+		if (!chunk->size)
+			continue;
 		if (chunk->addr >= memory_end) {
 			memset(chunk, 0, sizeof(*chunk));
 			continue;
@@ -626,7 +587,7 @@ static unsigned long __init find_crash_base(unsigned long crash_size,
 		crash_base = (chunk->addr + chunk->size) - crash_size;
 		if (crash_base < crash_size)
 			continue;
-		if (crash_base < ZFCPDUMP_HSA_SIZE_MAX)
+		if (crash_base < sclp_get_hsa_size())
 			continue;
 		if (crash_base < (unsigned long) INITRD_START + INITRD_SIZE)
 			continue;
@@ -682,15 +643,6 @@ static int __init verify_crash_base(unsigned long crash_base,
 }
 
 /*
- * Reserve kdump memory by creating a memory hole in the mem_chunk array
- */
-static void __init reserve_kdump_bootmem(unsigned long addr, unsigned long size,
-					 int type)
-{
-	create_mem_hole(memory_chunk, addr, size, type);
-}
-
-/*
  * When kdump is enabled, we have to ensure that no memory from
  * the area [0 - crashkernel memory size] and
  * [crashk_res.start - crashk_res.end] is set offline.
@@ -721,16 +673,18 @@ static struct notifier_block kdump_mem_nb = {
 static void reserve_oldmem(void)
 {
 #ifdef CONFIG_CRASH_DUMP
+	unsigned long real_size = 0;
+	int i;
+
 	if (!OLDMEM_BASE)
 		return;
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
+		struct mem_chunk *chunk = &memory_chunk[i];
 
-	reserve_kdump_bootmem(OLDMEM_BASE, OLDMEM_SIZE, CHUNK_OLDMEM);
-	reserve_kdump_bootmem(OLDMEM_SIZE, memory_end - OLDMEM_SIZE,
-			      CHUNK_OLDMEM);
-	if (OLDMEM_BASE + OLDMEM_SIZE == real_memory_size)
-		saved_max_pfn = PFN_DOWN(OLDMEM_BASE) - 1;
-	else
-		saved_max_pfn = PFN_DOWN(real_memory_size) - 1;
+		real_size = max(real_size, chunk->addr + chunk->size);
+	}
+	create_mem_hole(memory_chunk, OLDMEM_BASE, OLDMEM_SIZE);
+	create_mem_hole(memory_chunk, OLDMEM_SIZE, real_size - OLDMEM_SIZE);
 #endif
 }
 
@@ -769,7 +723,7 @@ static void __init reserve_crashkernel(void)
 	crashk_res.start = crash_base;
 	crashk_res.end = crash_base + crash_size - 1;
 	insert_resource(&iomem_resource, &crashk_res);
-	reserve_kdump_bootmem(crash_base, crash_size, CHUNK_CRASHK);
+	create_mem_hole(memory_chunk, crash_base, crash_size);
 	pr_info("Reserving %lluMB of memory at %lluMB "
 		"for crashkernel (System RAM: %luMB)\n",
 		crash_size >> 20, crash_base >> 20, memory_end >> 20);
@@ -841,11 +795,10 @@ static void __init setup_memory(void)
 	 * Register RAM areas with the bootmem allocator.
 	 */
 
-	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		unsigned long start_chunk, end_chunk, pfn;
 
-		if (memory_chunk[i].type != CHUNK_READ_WRITE &&
-		    memory_chunk[i].type != CHUNK_CRASHK)
+		if (!memory_chunk[i].size)
 			continue;
 		start_chunk = PFN_DOWN(memory_chunk[i].addr);
 		end_chunk = start_chunk + PFN_DOWN(memory_chunk[i].size);
@@ -1007,6 +960,7 @@ static void __init setup_hwcaps(void)
 		strcpy(elf_platform, "z196");
 		break;
 	case 0x2827:
+	case 0x2828:
 		strcpy(elf_platform, "zEC12");
 		break;
 	}
@@ -1055,18 +1009,14 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_data = (unsigned long) &_edata;
 	init_mm.brk = (unsigned long) &_end;
 
-	if (MACHINE_HAS_MVCOS)
-		memcpy(&uaccess, &uaccess_mvcos, sizeof(uaccess));
-	else
-		memcpy(&uaccess, &uaccess_std, sizeof(uaccess));
+	uaccess = MACHINE_HAS_MVCOS ? uaccess_mvcos : uaccess_pt;
 
 	parse_early_param();
-
+	detect_memory_layout(memory_chunk, memory_end);
 	os_info_init();
 	setup_ipl();
-	setup_memory_end();
-	setup_addressing_mode();
 	reserve_oldmem();
+	setup_memory_end();
 	reserve_crashkernel();
 	setup_memory();
 	setup_resources();
@@ -1091,5 +1041,5 @@ void __init setup_arch(char **cmdline_p)
 	set_preferred_console();
 
 	/* Setup zfcpdump support */
-	setup_zfcpdump(console_devno);
+	setup_zfcpdump();
 }

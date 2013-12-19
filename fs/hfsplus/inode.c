@@ -14,9 +14,12 @@
 #include <linux/pagemap.h>
 #include <linux/mpage.h>
 #include <linux/sched.h>
+#include <linux/aio.h>
 
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"
+#include "xattr.h"
+#include "acl.h"
 
 static int hfsplus_readpage(struct file *file, struct page *page)
 {
@@ -33,7 +36,7 @@ static void hfsplus_write_failed(struct address_space *mapping, loff_t to)
 	struct inode *inode = mapping->host;
 
 	if (to > inode->i_size) {
-		truncate_pagecache(inode, to, inode->i_size);
+		truncate_pagecache(inode, inode->i_size);
 		hfsplus_file_truncate(inode);
 	}
 }
@@ -124,7 +127,7 @@ static ssize_t hfsplus_direct_IO(int rw, struct kiocb *iocb,
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = file->f_path.dentry->d_inode->i_mapping->host;
+	struct inode *inode = file_inode(file)->i_mapping->host;
 	ssize_t ret;
 
 	ret = blockdev_direct_IO(rw, iocb, inode, iov, offset, nr_segs,
@@ -314,6 +317,13 @@ static int hfsplus_setattr(struct dentry *dentry, struct iattr *attr)
 
 	setattr_copy(inode, attr);
 	mark_inode_dirty(inode);
+
+	if (attr->ia_valid & ATTR_MODE) {
+		error = hfsplus_posix_acl_chmod(inode);
+		if (unlikely(error))
+			return error;
+	}
+
 	return 0;
 }
 
@@ -348,6 +358,18 @@ int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 			error = error2;
 	}
 
+	if (test_and_clear_bit(HFSPLUS_I_ATTR_DIRTY, &hip->flags)) {
+		if (sbi->attr_tree) {
+			error2 =
+				filemap_write_and_wait(
+					    sbi->attr_tree->inode->i_mapping);
+			if (!error)
+				error = error2;
+		} else {
+			pr_err("sync non-existent attributes tree\n");
+		}
+	}
+
 	if (test_and_clear_bit(HFSPLUS_I_ALLOC_DIRTY, &hip->flags)) {
 		error2 = filemap_write_and_wait(sbi->alloc_file->i_mapping);
 		if (!error)
@@ -365,9 +387,13 @@ int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 static const struct inode_operations hfsplus_file_inode_operations = {
 	.lookup		= hfsplus_file_lookup,
 	.setattr	= hfsplus_setattr,
-	.setxattr	= hfsplus_setxattr,
-	.getxattr	= hfsplus_getxattr,
+	.setxattr	= generic_setxattr,
+	.getxattr	= generic_getxattr,
 	.listxattr	= hfsplus_listxattr,
+	.removexattr	= hfsplus_removexattr,
+#ifdef CONFIG_HFSPLUS_FS_POSIX_ACL
+	.get_acl	= hfsplus_get_posix_acl,
+#endif
 };
 
 static const struct file_operations hfsplus_file_operations = {
@@ -559,7 +585,7 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 		inode->i_ctime = hfsp_mt2ut(file->attribute_mod_date);
 		HFSPLUS_I(inode)->create_date = file->create_date;
 	} else {
-		printk(KERN_ERR "hfs: bad catalog entry used to create inode\n");
+		pr_err("bad catalog entry used to create inode\n");
 		res = -EIO;
 	}
 	return res;

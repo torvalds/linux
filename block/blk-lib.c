@@ -43,8 +43,8 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	DECLARE_COMPLETION_ONSTACK(wait);
 	struct request_queue *q = bdev_get_queue(bdev);
 	int type = REQ_WRITE | REQ_DISCARD;
-	sector_t max_discard_sectors;
-	sector_t granularity, alignment;
+	unsigned int max_discard_sectors, granularity;
+	int alignment;
 	struct bio_batch bb;
 	struct bio *bio;
 	int ret = 0;
@@ -58,16 +58,14 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 
 	/* Zero-sector (unknown) and one-sector granularities are the same.  */
 	granularity = max(q->limits.discard_granularity >> 9, 1U);
-	alignment = bdev_discard_alignment(bdev) >> 9;
-	alignment = sector_div(alignment, granularity);
+	alignment = (bdev_discard_alignment(bdev) >> 9) % granularity;
 
 	/*
 	 * Ensure that max_discard_sectors is of the proper
 	 * granularity, so that requests stay aligned after a split.
 	 */
 	max_discard_sectors = min(q->limits.max_discard_sectors, UINT_MAX >> 9);
-	sector_div(max_discard_sectors, granularity);
-	max_discard_sectors *= granularity;
+	max_discard_sectors -= max_discard_sectors % granularity;
 	if (unlikely(!max_discard_sectors)) {
 		/* Avoid infinite loop below. Being cautious never hurts. */
 		return -EOPNOTSUPP;
@@ -126,7 +124,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 
 	/* Wait for bios in-flight */
 	if (!atomic_dec_and_test(&bb.done))
-		wait_for_completion(&wait);
+		wait_for_completion_io(&wait);
 
 	if (!test_bit(BIO_UPTODATE, &bb.flags))
 		ret = -EIO;
@@ -200,7 +198,7 @@ int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
 
 	/* Wait for bios in-flight */
 	if (!atomic_dec_and_test(&bb.done))
-		wait_for_completion(&wait);
+		wait_for_completion_io(&wait);
 
 	if (!test_bit(BIO_UPTODATE, &bb.flags))
 		ret = -ENOTSUPP;
@@ -262,7 +260,7 @@ int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 
 	/* Wait for bios in-flight */
 	if (!atomic_dec_and_test(&bb.done))
-		wait_for_completion(&wait);
+		wait_for_completion_io(&wait);
 
 	if (!test_bit(BIO_UPTODATE, &bb.flags))
 		/* One of bios in the batch was completed with error.*/

@@ -146,7 +146,7 @@ static int iommu_enable(struct omap_iommu *obj)
 	struct platform_device *pdev = to_platform_device(obj->dev);
 	struct iommu_platform_data *pdata = pdev->dev.platform_data;
 
-	if (!obj || !pdata)
+	if (!pdata)
 		return -EINVAL;
 
 	if (!arch_iommu)
@@ -172,7 +172,7 @@ static void iommu_disable(struct omap_iommu *obj)
 	struct platform_device *pdev = to_platform_device(obj->dev);
 	struct iommu_platform_data *pdata = pdev->dev.platform_data;
 
-	if (!obj || !pdata)
+	if (!pdata)
 		return;
 
 	arch_iommu->disable(obj);
@@ -833,16 +833,15 @@ static irqreturn_t iommu_fault_handler(int irq, void *data)
 	iopgd = iopgd_offset(obj, da);
 
 	if (!iopgd_is_table(*iopgd)) {
-		dev_err(obj->dev, "%s: errs:0x%08x da:0x%08x pgd:0x%p "
-			"*pgd:px%08x\n", obj->name, errs, da, iopgd, *iopgd);
+		dev_err(obj->dev, "%s: errs:0x%08x da:0x%08x pgd:0x%p *pgd:px%08x\n",
+				obj->name, errs, da, iopgd, *iopgd);
 		return IRQ_NONE;
 	}
 
 	iopte = iopte_offset(iopgd, da);
 
-	dev_err(obj->dev, "%s: errs:0x%08x da:0x%08x pgd:0x%p *pgd:0x%08x "
-		"pte:0x%p *pte:0x%08x\n", obj->name, errs, da, iopgd, *iopgd,
-		iopte, *iopte);
+	dev_err(obj->dev, "%s: errs:0x%08x da:0x%08x pgd:0x%p *pgd:0x%08x pte:0x%p *pte:0x%08x\n",
+			obj->name, errs, da, iopgd, *iopgd, iopte, *iopte);
 
 	return IRQ_NONE;
 }
@@ -934,7 +933,7 @@ static void omap_iommu_detach(struct omap_iommu *obj)
 /*
  *	OMAP Device MMU(IOMMU) detection
  */
-static int __devinit omap_iommu_probe(struct platform_device *pdev)
+static int omap_iommu_probe(struct platform_device *pdev)
 {
 	int err = -ENODEV;
 	int irq;
@@ -1003,13 +1002,11 @@ err_mem:
 	return err;
 }
 
-static int __devexit omap_iommu_remove(struct platform_device *pdev)
+static int omap_iommu_remove(struct platform_device *pdev)
 {
 	int irq;
 	struct resource *res;
 	struct omap_iommu *obj = platform_get_drvdata(pdev);
-
-	platform_set_drvdata(pdev, NULL);
 
 	iopgtable_clear_entry_all(obj);
 
@@ -1028,7 +1025,7 @@ static int __devexit omap_iommu_remove(struct platform_device *pdev)
 
 static struct platform_driver omap_iommu_driver = {
 	.probe	= omap_iommu_probe,
-	.remove	= __devexit_p(omap_iommu_remove),
+	.remove	= omap_iommu_remove,
 	.driver	= {
 		.name	= "omap-iommu",
 	},
@@ -1219,7 +1216,7 @@ static void omap_iommu_domain_destroy(struct iommu_domain *domain)
 }
 
 static phys_addr_t omap_iommu_iova_to_phys(struct iommu_domain *domain,
-					  unsigned long da)
+					  dma_addr_t da)
 {
 	struct omap_iommu_domain *omap_domain = domain->priv;
 	struct omap_iommu *oiommu = omap_domain->iommu_dev;
@@ -1235,14 +1232,16 @@ static phys_addr_t omap_iommu_iova_to_phys(struct iommu_domain *domain,
 		else if (iopte_is_large(*pte))
 			ret = omap_iommu_translate(*pte, da, IOLARGE_MASK);
 		else
-			dev_err(dev, "bogus pte 0x%x, da 0x%lx", *pte, da);
+			dev_err(dev, "bogus pte 0x%x, da 0x%llx", *pte,
+							(unsigned long long)da);
 	} else {
 		if (iopgd_is_section(*pgd))
 			ret = omap_iommu_translate(*pgd, da, IOSECTION_MASK);
 		else if (iopgd_is_super(*pgd))
 			ret = omap_iommu_translate(*pgd, da, IOSUPER_MASK);
 		else
-			dev_err(dev, "bogus pgd 0x%x, da 0x%lx", *pgd, da);
+			dev_err(dev, "bogus pgd 0x%x, da 0x%llx", *pgd,
+							(unsigned long long)da);
 	}
 
 	return ret;

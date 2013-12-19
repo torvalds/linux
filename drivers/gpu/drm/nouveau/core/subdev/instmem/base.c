@@ -40,15 +40,21 @@ nouveau_instobj_create_(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
+	mutex_lock(&imem->base.mutex);
 	list_add(&iobj->head, &imem->list);
+	mutex_unlock(&imem->base.mutex);
 	return 0;
 }
 
 void
 nouveau_instobj_destroy(struct nouveau_instobj *iobj)
 {
-	if (iobj->head.prev)
-		list_del(&iobj->head);
+	struct nouveau_subdev *subdev = nv_subdev(iobj->base.engine);
+
+	mutex_lock(&subdev->mutex);
+	list_del(&iobj->head);
+	mutex_unlock(&subdev->mutex);
+
 	return nouveau_object_destroy(&iobj->base);
 }
 
@@ -88,6 +94,8 @@ nouveau_instmem_init(struct nouveau_instmem *imem)
 	if (ret)
 		return ret;
 
+	mutex_lock(&imem->base.mutex);
+
 	list_for_each_entry(iobj, &imem->list, head) {
 		if (iobj->suspend) {
 			for (i = 0; i < iobj->size; i += 4)
@@ -97,6 +105,8 @@ nouveau_instmem_init(struct nouveau_instmem *imem)
 		}
 	}
 
+	mutex_unlock(&imem->base.mutex);
+
 	return 0;
 }
 
@@ -104,17 +114,26 @@ int
 nouveau_instmem_fini(struct nouveau_instmem *imem, bool suspend)
 {
 	struct nouveau_instobj *iobj;
-	int i;
+	int i, ret = 0;
 
 	if (suspend) {
+		mutex_lock(&imem->base.mutex);
+
 		list_for_each_entry(iobj, &imem->list, head) {
 			iobj->suspend = vmalloc(iobj->size);
-			if (iobj->suspend) {
-				for (i = 0; i < iobj->size; i += 4)
-					iobj->suspend[i / 4] = nv_ro32(iobj, i);
-			} else
-				return -ENOMEM;
+			if (!iobj->suspend) {
+				ret = -ENOMEM;
+				break;
+			}
+
+			for (i = 0; i < iobj->size; i += 4)
+				iobj->suspend[i / 4] = nv_ro32(iobj, i);
 		}
+
+		mutex_unlock(&imem->base.mutex);
+
+		if (ret)
+			return ret;
 	}
 
 	return nouveau_subdev_fini(&imem->base, suspend);

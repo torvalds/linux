@@ -27,7 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/fb.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
@@ -275,13 +275,13 @@ static struct fb_monspecs at91fb_default_monspecs = {
 					| ATMEL_LCDC_DISTYPE_TFT \
 					| ATMEL_LCDC_CLKMOD_ALWAYSACTIVE)
 
-static void at91_lcdc_power_control(int on)
+static void at91_lcdc_power_control(struct atmel_lcdfb_pdata *pdata, int on)
 {
 	at91_set_gpio_value(AT91_PIN_PA30, on);
 }
 
 /* Driver datas */
-static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
+static struct atmel_lcdfb_pdata __initdata ek_lcdc_data = {
 	.lcdcon_is_backlight		= true,
 	.default_bpp			= 16,
 	.default_dmacon			= ATMEL_LCDC_DMAEN,
@@ -292,7 +292,7 @@ static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
 };
 
 #else
-static struct atmel_lcdfb_info __initdata ek_lcdc_data;
+static struct atmel_lcdfb_pdata __initdata ek_lcdc_data;
 #endif
 
 
@@ -443,7 +443,7 @@ static void __init ek_board_init(void)
 
 MACHINE_START(AT91SAM9263EK, "Atmel AT91SAM9263-EK")
 	/* Maintainer: Atmel */
-	.timer		= &at91sam926x_timer,
+	.init_time	= at91sam926x_pit_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= ek_init_early,

@@ -27,6 +27,7 @@
 #include <linux/bcd.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
 
 #include <linux/i2c/twl.h>
 
@@ -212,12 +213,24 @@ static int mask_rtc_irq_bit(unsigned char bit)
 
 static int twl_rtc_alarm_irq_enable(struct device *dev, unsigned enabled)
 {
+	struct platform_device *pdev = to_platform_device(dev);
+	int irq = platform_get_irq(pdev, 0);
+	static bool twl_rtc_wake_enabled;
 	int ret;
 
-	if (enabled)
+	if (enabled) {
 		ret = set_rtc_irq_bit(BIT_RTC_INTERRUPTS_REG_IT_ALARM_M);
-	else
+		if (device_can_wakeup(dev) && !twl_rtc_wake_enabled) {
+			enable_irq_wake(irq);
+			twl_rtc_wake_enabled = true;
+		}
+	} else {
 		ret = mask_rtc_irq_bit(BIT_RTC_INTERRUPTS_REG_IT_ALARM_M);
+		if (twl_rtc_wake_enabled) {
+			disable_irq_wake(irq);
+			twl_rtc_wake_enabled = false;
+		}
+	}
 
 	return ret;
 }
@@ -458,7 +471,7 @@ static struct rtc_class_ops twl_rtc_ops = {
 
 /*----------------------------------------------------------------------*/
 
-static int __devinit twl_rtc_probe(struct platform_device *pdev)
+static int twl_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 	int ret = -EINVAL;
@@ -467,6 +480,12 @@ static int __devinit twl_rtc_probe(struct platform_device *pdev)
 
 	if (irq <= 0)
 		goto out1;
+
+	/* Initialize the register map */
+	if (twl_class_is_4030())
+		rtc_reg_map = (u8 *)twl4030_rtc_reg_map;
+	else
+		rtc_reg_map = (u8 *)twl6030_rtc_reg_map;
 
 	ret = twl_rtc_read_u8(&rd_reg, REG_RTC_STATUS_REG);
 	if (ret < 0)
@@ -505,6 +524,8 @@ static int __devinit twl_rtc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto out1;
 
+	device_init_wakeup(&pdev->dev, 1);
+
 	rtc = rtc_device_register(pdev->name,
 				  &pdev->dev, &twl_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
@@ -535,7 +556,7 @@ out1:
  * Disable all TWL RTC module interrupts.
  * Sets status flag to free.
  */
-static int __devexit twl_rtc_remove(struct platform_device *pdev)
+static int twl_rtc_remove(struct platform_device *pdev)
 {
 	/* leave rtc running, but disable irqs */
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
@@ -554,7 +575,6 @@ static int __devexit twl_rtc_remove(struct platform_device *pdev)
 	free_irq(irq, rtc);
 
 	rtc_device_unregister(rtc);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
@@ -565,11 +585,10 @@ static void twl_rtc_shutdown(struct platform_device *pdev)
 	mask_rtc_irq_bit(BIT_RTC_INTERRUPTS_REG_IT_TIMER_M);
 }
 
-#ifdef CONFIG_PM
-
+#ifdef CONFIG_PM_SLEEP
 static unsigned char irqstat;
 
-static int twl_rtc_suspend(struct platform_device *pdev, pm_message_t state)
+static int twl_rtc_suspend(struct device *dev)
 {
 	irqstat = rtc_irq_bits;
 
@@ -577,53 +596,38 @@ static int twl_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int twl_rtc_resume(struct platform_device *pdev)
+static int twl_rtc_resume(struct device *dev)
 {
 	set_rtc_irq_bit(irqstat);
 	return 0;
 }
-
-#else
-#define twl_rtc_suspend NULL
-#define twl_rtc_resume  NULL
 #endif
 
+static SIMPLE_DEV_PM_OPS(twl_rtc_pm_ops, twl_rtc_suspend, twl_rtc_resume);
+
+#ifdef CONFIG_OF
 static const struct of_device_id twl_rtc_of_match[] = {
 	{.compatible = "ti,twl4030-rtc", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, twl_rtc_of_match);
+#endif
+
 MODULE_ALIAS("platform:twl_rtc");
 
 static struct platform_driver twl4030rtc_driver = {
 	.probe		= twl_rtc_probe,
-	.remove		= __devexit_p(twl_rtc_remove),
+	.remove		= twl_rtc_remove,
 	.shutdown	= twl_rtc_shutdown,
-	.suspend	= twl_rtc_suspend,
-	.resume		= twl_rtc_resume,
 	.driver		= {
 		.owner		= THIS_MODULE,
 		.name		= "twl_rtc",
-		.of_match_table = twl_rtc_of_match,
+		.pm		= &twl_rtc_pm_ops,
+		.of_match_table = of_match_ptr(twl_rtc_of_match),
 	},
 };
 
-static int __init twl_rtc_init(void)
-{
-	if (twl_class_is_4030())
-		rtc_reg_map = (u8 *) twl4030_rtc_reg_map;
-	else
-		rtc_reg_map = (u8 *) twl6030_rtc_reg_map;
-
-	return platform_driver_register(&twl4030rtc_driver);
-}
-module_init(twl_rtc_init);
-
-static void __exit twl_rtc_exit(void)
-{
-	platform_driver_unregister(&twl4030rtc_driver);
-}
-module_exit(twl_rtc_exit);
+module_platform_driver(twl4030rtc_driver);
 
 MODULE_AUTHOR("Texas Instruments, MontaVista Software");
 MODULE_LICENSE("GPL");

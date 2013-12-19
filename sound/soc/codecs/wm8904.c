@@ -603,13 +603,8 @@ SOC_DOUBLE_R("Capture Switch", WM8904_ANALOGUE_LEFT_INPUT_0,
 
 SOC_SINGLE("High Pass Filter Switch", WM8904_ADC_DIGITAL_0, 4, 1, 0),
 SOC_ENUM("High Pass Filter Mode", hpf_mode),
-
-{       .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "ADC 128x OSR Switch",
-	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw,
-	.put = wm8904_adc_osr_put,
-	.private_value = SOC_SINGLE_VALUE(WM8904_ANALOGUE_ADC_0, 0, 1, 0),
-},
+SOC_SINGLE_EXT("ADC 128x OSR Switch", WM8904_ANALOGUE_ADC_0, 0, 1, 0,
+	snd_soc_get_volsw, wm8904_adc_osr_put),
 };
 
 static const char *drc_path_text[] = {
@@ -663,7 +658,8 @@ SOC_SINGLE_TLV("EQ5 Volume", WM8904_EQ6, 0, 24, 0, eq_tlv),
 static int cp_event(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
-	BUG_ON(event != SND_SOC_DAPM_POST_PMU);
+	if (WARN_ON(event != SND_SOC_DAPM_POST_PMU))
+		return -EINVAL;
 
 	/* Maximum startup time */
 	udelay(500);
@@ -745,7 +741,7 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 		dcs_r = 3;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid reg %d\n", reg);
 		return -EINVAL;
 	}
 
@@ -1017,7 +1013,7 @@ static const struct soc_enum liner_enum =
 	SOC_ENUM_SINGLE(WM8904_ANALOGUE_OUT12_ZC, 0, 2, out_mux_text);
 
 static const struct snd_kcontrol_new liner_mux =
-	SOC_DAPM_ENUM("LINEL Mux", liner_enum);
+	SOC_DAPM_ENUM("LINER Mux", liner_enum);
 
 static const char *sidetone_text[] = {
 	"None", "Left", "Right"
@@ -1207,7 +1203,6 @@ static int wm8904_add_widgets(struct snd_soc_codec *codec)
 		break;
 	}
 
-	snd_soc_dapm_new_widgets(dapm);
 	return 0;
 }
 

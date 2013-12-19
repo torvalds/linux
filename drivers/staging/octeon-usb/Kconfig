@@ -1,0 +1,10 @@
+config OCTEON_USB
+	tristate "Cavium Networks Octeon USB support"
+	depends on CAVIUM_OCTEON_SOC && USB
+	help
+	  This driver supports USB host controller on some Cavium
+	  Networks' products in the Octeon family.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called octeon-usb.
+

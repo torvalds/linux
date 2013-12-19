@@ -582,6 +582,19 @@ struct pch_gbe_hw_stats {
 };
 
 /**
+ * struct pch_gbe_privdata - PCI Device ID driver data
+ * @phy_tx_clk_delay:		Bool, configure the PHY TX delay in software
+ * @phy_disable_hibernate:	Bool, disable PHY hibernation
+ * @platform_init:		Platform initialization callback, called from
+ *				probe, prior to PHY initialization.
+ */
+struct pch_gbe_privdata {
+	bool phy_tx_clk_delay;
+	bool phy_disable_hibernate;
+	int (*platform_init)(struct pci_dev *pdev);
+};
+
+/**
  * struct pch_gbe_adapter - board specific private data structure
  * @stats_lock:	Spinlock structure for status
  * @ethtool_lock:	Spinlock structure for ethtool
@@ -604,6 +617,7 @@ struct pch_gbe_hw_stats {
  * @rx_buffer_len:	Receive buffer length
  * @tx_queue_len:	Transmit queue length
  * @have_msi:		PCI MSI mode flag
+ * @pch_gbe_privdata:	PCI Device ID driver_data
  */
 
 struct pch_gbe_adapter {
@@ -631,43 +645,46 @@ struct pch_gbe_adapter {
 	int hwts_tx_en;
 	int hwts_rx_en;
 	struct pci_dev *ptp_pdev;
+	struct pch_gbe_privdata *pdata;
 };
+
+#define pch_gbe_hw_to_adapter(hw)	container_of(hw, struct pch_gbe_adapter, hw)
 
 extern const char pch_driver_version[];
 
 /* pch_gbe_main.c */
-extern int pch_gbe_up(struct pch_gbe_adapter *adapter);
-extern void pch_gbe_down(struct pch_gbe_adapter *adapter);
-extern void pch_gbe_reinit_locked(struct pch_gbe_adapter *adapter);
-extern void pch_gbe_reset(struct pch_gbe_adapter *adapter);
-extern int pch_gbe_setup_tx_resources(struct pch_gbe_adapter *adapter,
-				       struct pch_gbe_tx_ring *txdr);
-extern int pch_gbe_setup_rx_resources(struct pch_gbe_adapter *adapter,
-				       struct pch_gbe_rx_ring *rxdr);
-extern void pch_gbe_free_tx_resources(struct pch_gbe_adapter *adapter,
-				       struct pch_gbe_tx_ring *tx_ring);
-extern void pch_gbe_free_rx_resources(struct pch_gbe_adapter *adapter,
-				       struct pch_gbe_rx_ring *rx_ring);
-extern void pch_gbe_update_stats(struct pch_gbe_adapter *adapter);
-extern u32 pch_ch_control_read(struct pci_dev *pdev);
-extern void pch_ch_control_write(struct pci_dev *pdev, u32 val);
-extern u32 pch_ch_event_read(struct pci_dev *pdev);
-extern void pch_ch_event_write(struct pci_dev *pdev, u32 val);
-extern u32 pch_src_uuid_lo_read(struct pci_dev *pdev);
-extern u32 pch_src_uuid_hi_read(struct pci_dev *pdev);
-extern u64 pch_rx_snap_read(struct pci_dev *pdev);
-extern u64 pch_tx_snap_read(struct pci_dev *pdev);
-extern int pch_set_station_address(u8 *addr, struct pci_dev *pdev);
+int pch_gbe_up(struct pch_gbe_adapter *adapter);
+void pch_gbe_down(struct pch_gbe_adapter *adapter);
+void pch_gbe_reinit_locked(struct pch_gbe_adapter *adapter);
+void pch_gbe_reset(struct pch_gbe_adapter *adapter);
+int pch_gbe_setup_tx_resources(struct pch_gbe_adapter *adapter,
+			       struct pch_gbe_tx_ring *txdr);
+int pch_gbe_setup_rx_resources(struct pch_gbe_adapter *adapter,
+			       struct pch_gbe_rx_ring *rxdr);
+void pch_gbe_free_tx_resources(struct pch_gbe_adapter *adapter,
+			       struct pch_gbe_tx_ring *tx_ring);
+void pch_gbe_free_rx_resources(struct pch_gbe_adapter *adapter,
+			       struct pch_gbe_rx_ring *rx_ring);
+void pch_gbe_update_stats(struct pch_gbe_adapter *adapter);
+u32 pch_ch_control_read(struct pci_dev *pdev);
+void pch_ch_control_write(struct pci_dev *pdev, u32 val);
+u32 pch_ch_event_read(struct pci_dev *pdev);
+void pch_ch_event_write(struct pci_dev *pdev, u32 val);
+u32 pch_src_uuid_lo_read(struct pci_dev *pdev);
+u32 pch_src_uuid_hi_read(struct pci_dev *pdev);
+u64 pch_rx_snap_read(struct pci_dev *pdev);
+u64 pch_tx_snap_read(struct pci_dev *pdev);
+int pch_set_station_address(u8 *addr, struct pci_dev *pdev);
 
 /* pch_gbe_param.c */
-extern void pch_gbe_check_options(struct pch_gbe_adapter *adapter);
+void pch_gbe_check_options(struct pch_gbe_adapter *adapter);
 
 /* pch_gbe_ethtool.c */
-extern void pch_gbe_set_ethtool_ops(struct net_device *netdev);
+void pch_gbe_set_ethtool_ops(struct net_device *netdev);
 
 /* pch_gbe_mac.c */
-extern s32 pch_gbe_mac_force_mac_fc(struct pch_gbe_hw *hw);
-extern s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw);
-extern u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw,
-				  u32 addr, u32 dir, u32 reg, u16 data);
+s32 pch_gbe_mac_force_mac_fc(struct pch_gbe_hw *hw);
+s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw);
+u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw, u32 addr, u32 dir, u32 reg,
+			  u16 data);
 #endif /* _PCH_GBE_H_ */

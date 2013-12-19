@@ -13,32 +13,32 @@
 #include <linux/platform_device.h>
 
 #define PIC32_I2CxCON		0x0000
-#define  PIC32_I2CCON_ON	(1<<15)
-#define  PIC32_I2CCON_ACKDT	(1<<5)
-#define  PIC32_I2CCON_ACKEN	(1<<4)
-#define  PIC32_I2CCON_RCEN	(1<<3)
-#define  PIC32_I2CCON_PEN	(1<<2)
-#define  PIC32_I2CCON_RSEN	(1<<1)
-#define  PIC32_I2CCON_SEN	(1<<0)
+#define	 PIC32_I2CCON_ON	(1<<15)
+#define	 PIC32_I2CCON_ACKDT	(1<<5)
+#define	 PIC32_I2CCON_ACKEN	(1<<4)
+#define	 PIC32_I2CCON_RCEN	(1<<3)
+#define	 PIC32_I2CCON_PEN	(1<<2)
+#define	 PIC32_I2CCON_RSEN	(1<<1)
+#define	 PIC32_I2CCON_SEN	(1<<0)
 #define PIC32_I2CxCONCLR	0x0004
 #define PIC32_I2CxCONSET	0x0008
 #define PIC32_I2CxSTAT		0x0010
 #define PIC32_I2CxSTATCLR	0x0014
-#define  PIC32_I2CSTAT_ACKSTAT	(1<<15)
-#define  PIC32_I2CSTAT_TRSTAT	(1<<14)
-#define  PIC32_I2CSTAT_BCL	(1<<10)
-#define  PIC32_I2CSTAT_IWCOL	(1<<7)
-#define  PIC32_I2CSTAT_I2COV	(1<<6)
+#define	 PIC32_I2CSTAT_ACKSTAT	(1<<15)
+#define	 PIC32_I2CSTAT_TRSTAT	(1<<14)
+#define	 PIC32_I2CSTAT_BCL	(1<<10)
+#define	 PIC32_I2CSTAT_IWCOL	(1<<7)
+#define	 PIC32_I2CSTAT_I2COV	(1<<6)
 #define PIC32_I2CxBRG		0x0040
 #define PIC32_I2CxTRN		0x0050
 #define PIC32_I2CxRCV		0x0060
 
 static DEFINE_SPINLOCK(pic32_bus_lock);
 
-static void __iomem *bus_xfer   = (void __iomem *)0xbf000600;
+static void __iomem *bus_xfer	= (void __iomem *)0xbf000600;
 static void __iomem *bus_status = (void __iomem *)0xbf000060;
 
-#define DELAY()	udelay(100)
+#define DELAY() udelay(100)
 
 static inline unsigned int ioready(void)
 {
@@ -297,7 +297,7 @@ static void sead3_i2c_platform_setup(struct pic32_i2c_platform_data *priv)
 		priv->base + PIC32_I2CxSTATCLR);
 }
 
-static int __devinit sead3_i2c_platform_probe(struct platform_device *pdev)
+static int sead3_i2c_platform_probe(struct platform_device *pdev)
 {
 	struct pic32_i2c_platform_data *priv;
 	struct resource *r;
@@ -345,7 +345,7 @@ out:
 	return ret;
 }
 
-static int __devexit sead3_i2c_platform_remove(struct platform_device *pdev)
+static int sead3_i2c_platform_remove(struct platform_device *pdev)
 {
 	struct pic32_i2c_platform_data *priv = platform_get_drvdata(pdev);
 
@@ -383,7 +383,7 @@ static struct platform_driver sead3_i2c_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= sead3_i2c_platform_probe,
-	.remove		= __devexit_p(sead3_i2c_platform_remove),
+	.remove		= sead3_i2c_platform_remove,
 	.suspend	= sead3_i2c_platform_suspend,
 	.resume		= sead3_i2c_platform_resume,
 };

@@ -49,10 +49,6 @@ struct rc5t583_regulator_info {
 
 struct rc5t583_regulator {
 	struct rc5t583_regulator_info *reg_info;
-
-	/* Devices */
-	struct device		*dev;
-	struct rc5t583		*mfd;
 	struct regulator_dev	*rdev;
 };
 
@@ -155,8 +151,6 @@ static int rc5t583_regulator_probe(struct platform_device *pdev)
 		reg = &regs[id];
 		ri = &rc5t583_reg_info[id];
 		reg->reg_info = ri;
-		reg->mfd = rc5t583;
-		reg->dev = &pdev->dev;
 
 		if (ri->deepsleep_id == RC5T583_DS_NONE)
 			goto skip_ext_pwr_config;
@@ -179,32 +173,15 @@ skip_ext_pwr_config:
 		config.driver_data = reg;
 		config.regmap = rc5t583->regmap;
 
-		rdev = regulator_register(&ri->desc, &config);
+		rdev = devm_regulator_register(&pdev->dev, &ri->desc, &config);
 		if (IS_ERR(rdev)) {
 			dev_err(&pdev->dev, "Failed to register regulator %s\n",
 						ri->desc.name);
-			ret = PTR_ERR(rdev);
-			goto clean_exit;
+			return PTR_ERR(rdev);
 		}
 		reg->rdev = rdev;
 	}
 	platform_set_drvdata(pdev, regs);
-	return 0;
-
-clean_exit:
-	while (--id >= 0)
-		regulator_unregister(regs[id].rdev);
-
-	return ret;
-}
-
-static int rc5t583_regulator_remove(struct platform_device *pdev)
-{
-	struct rc5t583_regulator *regs = platform_get_drvdata(pdev);
-	int id;
-
-	for (id = 0; id < RC5T583_REGULATOR_MAX; ++id)
-		regulator_unregister(regs[id].rdev);
 	return 0;
 }
 
@@ -214,7 +191,6 @@ static struct platform_driver rc5t583_regulator_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= rc5t583_regulator_probe,
-	.remove		= rc5t583_regulator_remove,
 };
 
 static int __init rc5t583_regulator_init(void)

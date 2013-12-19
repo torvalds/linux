@@ -1,7 +1,7 @@
 #include <asm/lasat/lasat.h>
 
 /* Lasat 100 boards serial configuration */
-#define LASAT_BASE_BAUD_100 		(7372800 / 16)
+#define LASAT_BASE_BAUD_100		(7372800 / 16)
 #define LASAT_UART_REGS_BASE_100	0x1c8b0000
 #define LASAT_UART_REGS_SHIFT_100	2
 #define LASATINT_UART_100		16

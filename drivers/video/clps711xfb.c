@@ -26,6 +26,7 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/platform_device.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -178,7 +179,7 @@ static struct fb_ops clps7111fb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-static void __devinit clps711x_guess_lcd_params(struct fb_info *info)
+static void clps711x_guess_lcd_params(struct fb_info *info)
 {
 	unsigned int lcdcon, syscon, size;
 	unsigned long phys_base = PAGE_OFFSET;
@@ -266,7 +267,7 @@ static void __devinit clps711x_guess_lcd_params(struct fb_info *info)
 	info->fix.type       = FB_TYPE_PACKED_PIXELS;
 }
 
-static int __devinit clps711x_fb_probe(struct platform_device *pdev)
+static int clps711x_fb_probe(struct platform_device *pdev)
 {
 	int err = -ENOMEM;
 
@@ -291,7 +292,7 @@ static int __devinit clps711x_fb_probe(struct platform_device *pdev)
 out:	return err;
 }
 
-static int __devexit clps711x_fb_remove(struct platform_device *pdev)
+static int clps711x_fb_remove(struct platform_device *pdev)
 {
 	unregister_framebuffer(cfb);
 	kfree(cfb);
@@ -305,7 +306,7 @@ static struct platform_driver clps711x_fb_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= clps711x_fb_probe,
-	.remove	= __devexit_p(clps711x_fb_remove),
+	.remove	= clps711x_fb_remove,
 };
 module_platform_driver(clps711x_fb_driver);
 

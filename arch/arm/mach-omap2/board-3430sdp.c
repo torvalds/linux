@@ -25,6 +25,8 @@
 #include <linux/gpio.h>
 #include <linux/mmc/host.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
+#include <linux/platform_data/omap-twl4030.h>
+#include <linux/usb/phy.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -33,7 +35,7 @@
 #include "common.h"
 #include <linux/omap-dma.h>
 #include <video/omapdss.h>
-#include <video/omap-panel-tfp410.h>
+#include <video/omap-panel-data.h>
 
 #include "gpmc.h"
 #include "gpmc-smc91x.h"
@@ -106,88 +108,83 @@ static struct twl4030_keypad_data sdp3430_kp_data = {
 #define SDP3430_LCD_PANEL_BACKLIGHT_GPIO	8
 #define SDP3430_LCD_PANEL_ENABLE_GPIO		5
 
-static struct gpio sdp3430_dss_gpios[] __initdata = {
-	{SDP3430_LCD_PANEL_ENABLE_GPIO,    GPIOF_OUT_INIT_LOW, "LCD reset"    },
-	{SDP3430_LCD_PANEL_BACKLIGHT_GPIO, GPIOF_OUT_INIT_LOW, "LCD Backlight"},
-};
-
 static void __init sdp3430_display_init(void)
 {
 	int r;
 
-	r = gpio_request_array(sdp3430_dss_gpios,
-			       ARRAY_SIZE(sdp3430_dss_gpios));
+	/*
+	 * the backlight GPIO doesn't directly go to the panel, it enables
+	 * an internal circuit on 3430sdp to create the signal V_BKL_28V,
+	 * this is connected to LED+ pin of the sharp panel. This GPIO
+	 * is left enabled in the board file, and not passed to the panel
+	 * as platform_data.
+	 */
+	r = gpio_request_one(SDP3430_LCD_PANEL_BACKLIGHT_GPIO,
+				GPIOF_OUT_INIT_HIGH, "LCD Backlight");
 	if (r)
-		printk(KERN_ERR "failed to get LCD control GPIOs\n");
+		pr_err("failed to get LCD Backlight GPIO\n");
 
 }
 
-static int sdp3430_panel_enable_lcd(struct omap_dss_device *dssdev)
-{
-	gpio_direction_output(SDP3430_LCD_PANEL_ENABLE_GPIO, 1);
-	gpio_direction_output(SDP3430_LCD_PANEL_BACKLIGHT_GPIO, 1);
+static struct panel_sharp_ls037v7dw01_platform_data sdp3430_lcd_pdata = {
+	.name                   = "lcd",
+	.source                 = "dpi.0",
 
-	return 0;
-}
+	.data_lines		= 16,
 
-static void sdp3430_panel_disable_lcd(struct omap_dss_device *dssdev)
-{
-	gpio_direction_output(SDP3430_LCD_PANEL_ENABLE_GPIO, 0);
-	gpio_direction_output(SDP3430_LCD_PANEL_BACKLIGHT_GPIO, 0);
-}
-
-static int sdp3430_panel_enable_tv(struct omap_dss_device *dssdev)
-{
-	return 0;
-}
-
-static void sdp3430_panel_disable_tv(struct omap_dss_device *dssdev)
-{
-}
-
-
-static struct omap_dss_device sdp3430_lcd_device = {
-	.name			= "lcd",
-	.driver_name		= "sharp_ls_panel",
-	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.phy.dpi.data_lines	= 16,
-	.platform_enable	= sdp3430_panel_enable_lcd,
-	.platform_disable	= sdp3430_panel_disable_lcd,
+	.resb_gpio		= SDP3430_LCD_PANEL_ENABLE_GPIO,
+	.ini_gpio		= -1,
+	.mo_gpio		= -1,
+	.lr_gpio		= -1,
+	.ud_gpio		= -1,
 };
 
-static struct tfp410_platform_data dvi_panel = {
-	.power_down_gpio	= -1,
-	.i2c_bus_num		= -1,
+static struct platform_device sdp3430_lcd_device = {
+	.name                   = "panel-sharp-ls037v7dw01",
+	.id                     = 0,
+	.dev.platform_data      = &sdp3430_lcd_pdata,
 };
 
-static struct omap_dss_device sdp3430_dvi_device = {
-	.name			= "dvi",
-	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.driver_name		= "tfp410",
-	.data			= &dvi_panel,
-	.phy.dpi.data_lines	= 24,
+static struct connector_dvi_platform_data sdp3430_dvi_connector_pdata = {
+	.name                   = "dvi",
+	.source                 = "tfp410.0",
+	.i2c_bus_num            = -1,
 };
 
-static struct omap_dss_device sdp3430_tv_device = {
-	.name			= "tv",
-	.driver_name		= "venc",
-	.type			= OMAP_DISPLAY_TYPE_VENC,
-	.phy.venc.type		= OMAP_DSS_VENC_TYPE_SVIDEO,
-	.platform_enable	= sdp3430_panel_enable_tv,
-	.platform_disable	= sdp3430_panel_disable_tv,
+static struct platform_device sdp3430_dvi_connector_device = {
+	.name                   = "connector-dvi",
+	.id                     = 0,
+	.dev.platform_data      = &sdp3430_dvi_connector_pdata,
 };
 
+static struct encoder_tfp410_platform_data sdp3430_tfp410_pdata = {
+	.name                   = "tfp410.0",
+	.source                 = "dpi.0",
+	.data_lines             = 24,
+	.power_down_gpio        = -1,
+};
 
-static struct omap_dss_device *sdp3430_dss_devices[] = {
-	&sdp3430_lcd_device,
-	&sdp3430_dvi_device,
-	&sdp3430_tv_device,
+static struct platform_device sdp3430_tfp410_device = {
+	.name                   = "tfp410",
+	.id                     = 0,
+	.dev.platform_data      = &sdp3430_tfp410_pdata,
+};
+
+static struct connector_atv_platform_data sdp3430_tv_pdata = {
+	.name = "tv",
+	.source = "venc.0",
+	.connector_type = OMAP_DSS_VENC_TYPE_SVIDEO,
+	.invert_polarity = false,
+};
+
+static struct platform_device sdp3430_tv_connector_device = {
+	.name                   = "connector-analog-tv",
+	.id                     = 0,
+	.dev.platform_data      = &sdp3430_tv_pdata,
 };
 
 static struct omap_dss_board_info sdp3430_dss_data = {
-	.num_devices	= ARRAY_SIZE(sdp3430_dss_devices),
-	.devices	= sdp3430_dss_devices,
-	.default_device	= &sdp3430_lcd_device,
+	.default_display_name = "lcd",
 };
 
 static struct omap2_hsmmc_info mmc[] = {
@@ -209,6 +206,19 @@ static struct omap2_hsmmc_info mmc[] = {
 	{}	/* Terminator */
 };
 
+static struct omap_tw4030_pdata omap_twl4030_audio_data = {
+	.voice_connected = true,
+	.custom_routing	= true,
+
+	.has_hs		= OMAP_TWL4030_LEFT | OMAP_TWL4030_RIGHT,
+	.has_hf		= OMAP_TWL4030_LEFT | OMAP_TWL4030_RIGHT,
+
+	.has_mainmic	= true,
+	.has_submic	= true,
+	.has_hsmic	= true,
+	.has_linein	= OMAP_TWL4030_LEFT | OMAP_TWL4030_RIGHT,
+};
+
 static int sdp3430_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
@@ -224,6 +234,9 @@ static int sdp3430_twl_gpio_setup(struct device *dev,
 
 	/* gpio + 15 is "sub_lcd_nRST" (output) */
 	gpio_request_one(gpio + 15, GPIOF_OUT_INIT_LOW, "sub_lcd_nRST");
+
+	omap_twl4030_audio_data.jack_detect = gpio + 2;
+	omap_twl4030_audio_init("SDP3430", &omap_twl4030_audio_data);
 
 	return 0;
 }
@@ -382,6 +395,9 @@ static int __init omap3430_i2c_init(void)
 	sdp3430_twldata.vpll2->constraints.apply_uV = true;
 	sdp3430_twldata.vpll2->constraints.name = "VDVI";
 
+	sdp3430_twldata.audio->codec->hs_extmute = 1;
+	sdp3430_twldata.audio->codec->hs_extmute_gpio = -EINVAL;
+
 	omap3_pmic_init("twl4030", &sdp3430_twldata);
 
 	/* i2c2 on camera connector (for sensor control) and optional isp1301 */
@@ -424,16 +440,23 @@ static void enable_board_wakeup_source(void)
 		OMAP_WAKEUP_EN | OMAP_PIN_INPUT_PULLUP);
 }
 
-static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
+static struct usbhs_phy_data phy_data[] __initdata = {
+	{
+		.port = 1,
+		.reset_gpio = 57,
+		.vcc_gpio = -EINVAL,
+	},
+	{
+		.port = 2,
+		.reset_gpio = 61,
+		.vcc_gpio = -EINVAL,
+	},
+};
+
+static struct usbhs_omap_platform_data usbhs_bdata __initdata = {
 
 	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
 	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
-	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
-
-	.phy_reset  = true,
-	.reset_gpio_port[0]  = 57,
-	.reset_gpio_port[1]  = 61,
-	.reset_gpio_port[2]  = -EINVAL
 };
 
 #ifdef CONFIG_OMAP_MUX
@@ -572,6 +595,11 @@ static void __init omap_3430sdp_init(void)
 	omap_hsmmc_init(mmc);
 	omap3430_i2c_init();
 	omap_display_init(&sdp3430_dss_data);
+	platform_device_register(&sdp3430_lcd_device);
+	platform_device_register(&sdp3430_tfp410_device);
+	platform_device_register(&sdp3430_dvi_connector_device);
+	platform_device_register(&sdp3430_tv_connector_device);
+
 	if (omap_rev() > OMAP3430_REV_ES1_0)
 		gpio_pendown = SDP3430_TS_GPIO_IRQ_SDPV2;
 	else
@@ -579,11 +607,14 @@ static void __init omap_3430sdp_init(void)
 	omap_ads7846_init(1, gpio_pendown, 310, NULL);
 	omap_serial_init();
 	omap_sdrc_init(hyb18m512160af6_sdrc_params, NULL);
+	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
 	board_smc91x_init();
 	board_flash_init(sdp_flash_partitions, chip_sel_3430, 0);
 	sdp3430_display_init();
 	enable_board_wakeup_source();
+
+	usbhs_init_phys(phy_data, ARRAY_SIZE(phy_data));
 	usbhs_init(&usbhs_bdata);
 }
 
@@ -597,6 +628,6 @@ MACHINE_START(OMAP_3430SDP, "OMAP3430 3430SDP board")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap_3430sdp_init,
 	.init_late	= omap3430_init_late,
-	.timer		= &omap3_timer,
+	.init_time	= omap3_sync32k_timer_init,
 	.restart	= omap3xxx_restart,
 MACHINE_END

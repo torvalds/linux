@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/delay.h>
+#include <linux/clk.h>
 #include <linux/gfp.h>
 #include <linux/module.h>
 
@@ -41,6 +42,7 @@ struct rtc_plat_data {
 	struct rtc_device *rtc;
 	void __iomem *ioaddr;
 	int		irq;
+	struct clk	*clk;
 };
 
 static int mv_rtc_set_time(struct device *dev, struct rtc_time *tm)
@@ -215,35 +217,33 @@ static const struct rtc_class_ops mv_rtc_alarm_ops = {
 	.alarm_irq_enable = mv_rtc_alarm_irq_enable,
 };
 
-static int __devinit mv_rtc_probe(struct platform_device *pdev)
+static int __init mv_rtc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct rtc_plat_data *pdata;
-	resource_size_t size;
 	u32 rtc_time;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
+	int ret = 0;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
-	size = resource_size(res);
-	if (!devm_request_mem_region(&pdev->dev, res->start, size,
-				     pdev->name))
-		return -EBUSY;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pdata->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pdata->ioaddr))
+		return PTR_ERR(pdata->ioaddr);
 
-	pdata->ioaddr = devm_ioremap(&pdev->dev, res->start, size);
-	if (!pdata->ioaddr)
-		return -ENOMEM;
+	pdata->clk = devm_clk_get(&pdev->dev, NULL);
+	/* Not all SoCs require a clock.*/
+	if (!IS_ERR(pdata->clk))
+		clk_prepare_enable(pdata->clk);
 
 	/* make sure the 24 hours mode is enabled */
 	rtc_time = readl(pdata->ioaddr + RTC_TIME_REG_OFFS);
 	if (rtc_time & RTC_HOURS_12H_MODE) {
 		dev_err(&pdev->dev, "24 Hours mode not supported.\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	/* make sure it is actually functional */
@@ -252,7 +252,8 @@ static int __devinit mv_rtc_probe(struct platform_device *pdev)
 		rtc_time = readl(pdata->ioaddr + RTC_TIME_REG_OFFS);
 		if (rtc_time == 0x01000000) {
 			dev_err(&pdev->dev, "internal RTC not ticking\n");
-			return -ENODEV;
+			ret = -ENODEV;
+			goto out;
 		}
 	}
 
@@ -262,14 +263,17 @@ static int __devinit mv_rtc_probe(struct platform_device *pdev)
 
 	if (pdata->irq >= 0) {
 		device_init_wakeup(&pdev->dev, 1);
-		pdata->rtc = rtc_device_register(pdev->name, &pdev->dev,
+		pdata->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 						 &mv_rtc_alarm_ops,
 						 THIS_MODULE);
-	} else
-		pdata->rtc = rtc_device_register(pdev->name, &pdev->dev,
+	} else {
+		pdata->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 						 &mv_rtc_ops, THIS_MODULE);
-	if (IS_ERR(pdata->rtc))
-		return PTR_ERR(pdata->rtc);
+	}
+	if (IS_ERR(pdata->rtc)) {
+		ret = PTR_ERR(pdata->rtc);
+		goto out;
+	}
 
 	if (pdata->irq >= 0) {
 		writel(0, pdata->ioaddr + RTC_ALARM_INTERRUPT_MASK_REG_OFFS);
@@ -282,6 +286,11 @@ static int __devinit mv_rtc_probe(struct platform_device *pdev)
 	}
 
 	return 0;
+out:
+	if (!IS_ERR(pdata->clk))
+		clk_disable_unprepare(pdata->clk);
+
+	return ret;
 }
 
 static int __exit mv_rtc_remove(struct platform_device *pdev)
@@ -291,7 +300,9 @@ static int __exit mv_rtc_remove(struct platform_device *pdev)
 	if (pdata->irq >= 0)
 		device_init_wakeup(&pdev->dev, 0);
 
-	rtc_device_unregister(pdata->rtc);
+	if (!IS_ERR(pdata->clk))
+		clk_disable_unprepare(pdata->clk);
+
 	return 0;
 }
 
@@ -311,18 +322,7 @@ static struct platform_driver mv_rtc_driver = {
 	},
 };
 
-static __init int mv_init(void)
-{
-	return platform_driver_probe(&mv_rtc_driver, mv_rtc_probe);
-}
-
-static __exit void mv_exit(void)
-{
-	platform_driver_unregister(&mv_rtc_driver);
-}
-
-module_init(mv_init);
-module_exit(mv_exit);
+module_platform_driver_probe(mv_rtc_driver, mv_rtc_probe);
 
 MODULE_AUTHOR("Saeed Bishara <saeed@marvell.com>");
 MODULE_DESCRIPTION("Marvell RTC driver");

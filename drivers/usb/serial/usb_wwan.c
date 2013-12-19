@@ -38,7 +38,6 @@
 
 void usb_wwan_dtr_rts(struct usb_serial_port *port, int on)
 {
-	struct usb_serial *serial = port->serial;
 	struct usb_wwan_port_private *portdata;
 	struct usb_wwan_intf_private *intfdata;
 
@@ -48,12 +47,11 @@ void usb_wwan_dtr_rts(struct usb_serial_port *port, int on)
 		return;
 
 	portdata = usb_get_serial_port_data(port);
-	mutex_lock(&serial->disc_mutex);
+	/* FIXME: locking */
 	portdata->rts_state = on;
 	portdata->dtr_state = on;
-	if (serial->dev)
-		intfdata->send_setup(port);
-	mutex_unlock(&serial->disc_mutex);
+
+	intfdata->send_setup(port);
 }
 EXPORT_SYMBOL(usb_wwan_dtr_rts);
 
@@ -126,8 +124,8 @@ static int get_serial_info(struct usb_serial_port *port,
 		return -EFAULT;
 
 	memset(&tmp, 0, sizeof(tmp));
-	tmp.line            = port->serial->minor;
-	tmp.port            = port->number;
+	tmp.line            = port->minor;
+	tmp.port            = port->port_number;
 	tmp.baud_base       = tty_get_baud_rate(port->port.tty);
 	tmp.close_delay	    = port->port.close_delay / 10;
 	tmp.closing_wait    = port->port.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
@@ -275,7 +273,6 @@ static void usb_wwan_indat_callback(struct urb *urb)
 	int err;
 	int endpoint;
 	struct usb_serial_port *port;
-	struct tty_struct *tty;
 	struct device *dev;
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
@@ -288,28 +285,24 @@ static void usb_wwan_indat_callback(struct urb *urb)
 		dev_dbg(dev, "%s: nonzero status: %d on endpoint %02x.\n",
 			__func__, status, endpoint);
 	} else {
-		tty = tty_port_tty_get(&port->port);
-		if (tty) {
-			if (urb->actual_length) {
-				tty_insert_flip_string(tty, data,
-						urb->actual_length);
-				tty_flip_buffer_push(tty);
-			} else
-				dev_dbg(dev, "%s: empty read urb received\n", __func__);
-			tty_kref_put(tty);
-		}
-
-		/* Resubmit urb so we continue receiving */
-		err = usb_submit_urb(urb, GFP_ATOMIC);
-		if (err) {
-			if (err != -EPERM) {
-				dev_err(dev, "%s: resubmit read urb failed. (%d)\n", __func__, err);
-				/* busy also in error unless we are killed */
-				usb_mark_last_busy(port->serial->dev);
-			}
-		} else {
+		if (urb->actual_length) {
+			tty_insert_flip_string(&port->port, data,
+					urb->actual_length);
+			tty_flip_buffer_push(&port->port);
+		} else
+			dev_dbg(dev, "%s: empty read urb received\n", __func__);
+	}
+	/* Resubmit urb so we continue receiving */
+	err = usb_submit_urb(urb, GFP_ATOMIC);
+	if (err) {
+		if (err != -EPERM) {
+			dev_err(dev, "%s: resubmit read urb failed. (%d)\n",
+				__func__, err);
+			/* busy also in error unless we are killed */
 			usb_mark_last_busy(port->serial->dev);
 		}
+	} else {
+		usb_mark_last_busy(port->serial->dev);
 	}
 }
 
@@ -428,20 +421,19 @@ void usb_wwan_close(struct usb_serial_port *port)
 
 	portdata = usb_get_serial_port_data(port);
 
-	if (serial->dev) {
-		/* Stop reading/writing urbs */
-		spin_lock_irq(&intfdata->susp_lock);
-		portdata->opened = 0;
-		spin_unlock_irq(&intfdata->susp_lock);
+	/* Stop reading/writing urbs */
+	spin_lock_irq(&intfdata->susp_lock);
+	portdata->opened = 0;
+	spin_unlock_irq(&intfdata->susp_lock);
 
-		for (i = 0; i < N_IN_URB; i++)
-			usb_kill_urb(portdata->in_urbs[i]);
-		for (i = 0; i < N_OUT_URB; i++)
-			usb_kill_urb(portdata->out_urbs[i]);
-		/* balancing - important as an error cannot be handled*/
-		usb_autopm_get_interface_no_resume(serial->interface);
-		serial->interface->needs_remote_wakeup = 0;
-	}
+	for (i = 0; i < N_IN_URB; i++)
+		usb_kill_urb(portdata->in_urbs[i]);
+	for (i = 0; i < N_OUT_URB; i++)
+		usb_kill_urb(portdata->out_urbs[i]);
+
+	/* balancing - important as an error cannot be handled*/
+	usb_autopm_get_interface_no_resume(serial->interface);
+	serial->interface->needs_remote_wakeup = 0;
 }
 EXPORT_SYMBOL(usb_wwan_close);
 

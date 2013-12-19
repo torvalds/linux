@@ -15,11 +15,11 @@
 #ifndef UART_SB105X_H
 #define UART_SB105X_H
 
-/* 
- * option register 
+/*
+ * option register
  */
 
-/* Device Infomation Register */
+/* Device Information Register */
 #define MP_OPTR_DIR0		0x04 	/* port0 ~ port8 */
 #define MP_OPTR_DIR1		0x05 	/* port8 ~ port15 */
 #define MP_OPTR_DIR2		0x06 	/* port16 ~ port23 */
@@ -45,9 +45,9 @@
 #define IIR_RS232		0x00		/* RS232 type */
 #define IIR_RS422		0x10		/* RS422 type */
 #define IIR_RS485		0x20		/* RS485 type */
-#define IIR_UNKNOWN		0x30		/* unknown type */
+#define IIR_TYPE_MASK		0x30
 
-/* Interrrupt Mask Register */
+/* Interrupt Mask Register */
 #define MP_OPTR_IMR0		0x0C 	/* port0 ~ port8 */
 #define MP_OPTR_IMR1		0x0D 	/* port8 ~ port15 */
 #define MP_OPTR_IMR2		0x0E 	/* port16 ~ port23 */

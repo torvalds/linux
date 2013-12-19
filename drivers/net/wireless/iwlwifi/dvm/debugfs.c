@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,7 +19,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -69,19 +69,7 @@
 } while (0)
 
 /* file operation */
-#define DEBUGFS_READ_FUNC(name)                                         \
-static ssize_t iwl_dbgfs_##name##_read(struct file *file,               \
-					char __user *user_buf,          \
-					size_t count, loff_t *ppos);
-
-#define DEBUGFS_WRITE_FUNC(name)                                        \
-static ssize_t iwl_dbgfs_##name##_write(struct file *file,              \
-					const char __user *user_buf,    \
-					size_t count, loff_t *ppos);
-
-
 #define DEBUGFS_READ_FILE_OPS(name)                                     \
-	DEBUGFS_READ_FUNC(name);                                        \
 static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 	.read = iwl_dbgfs_##name##_read,				\
 	.open = simple_open,						\
@@ -89,7 +77,6 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 };
 
 #define DEBUGFS_WRITE_FILE_OPS(name)                                    \
-	DEBUGFS_WRITE_FUNC(name);                                       \
 static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 	.write = iwl_dbgfs_##name##_write,                              \
 	.open = simple_open,						\
@@ -98,8 +85,6 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 
 
 #define DEBUGFS_READ_WRITE_FILE_OPS(name)                               \
-	DEBUGFS_READ_FUNC(name);                                        \
-	DEBUGFS_WRITE_FUNC(name);                                       \
 static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 	.write = iwl_dbgfs_##name##_write,                              \
 	.read = iwl_dbgfs_##name##_read,                                \
@@ -157,7 +142,7 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 	sram = priv->dbgfs_sram_offset & ~0x3;
 
 	/* read the first u32 from sram */
-	val = iwl_read_targ_mem(priv->trans, sram);
+	val = iwl_trans_read_mem32(priv->trans, sram);
 
 	for (; len; len--) {
 		/* put the address at the start of every line */
@@ -176,7 +161,7 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 		if (++offset == 4) {
 			sram += 4;
 			offset = 0;
-			val = iwl_read_targ_mem(priv->trans, sram);
+			val = iwl_trans_read_mem32(priv->trans, sram);
 		}
 
 		/* put in extra spaces and split lines for human readability */
@@ -2237,15 +2222,13 @@ static ssize_t iwl_dbgfs_log_event_read(struct file *file,
 					 size_t count, loff_t *ppos)
 {
 	struct iwl_priv *priv = file->private_data;
-	char *buf;
-	int pos = 0;
-	ssize_t ret = -ENOMEM;
+	char *buf = NULL;
+	ssize_t ret;
 
-	ret = pos = iwl_dump_nic_event_log(priv, true, &buf, true);
-	if (buf) {
-		ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-		kfree(buf);
-	}
+	ret = iwl_dump_nic_event_log(priv, true, &buf);
+	if (ret > 0)
+		ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+	kfree(buf);
 	return ret;
 }
 
@@ -2269,7 +2252,7 @@ static ssize_t iwl_dbgfs_log_event_write(struct file *file,
 	if (sscanf(buf, "%d", &event_log_flag) != 1)
 		return -EFAULT;
 	if (event_log_flag == 1)
-		iwl_dump_nic_event_log(priv, true, NULL, false);
+		iwl_dump_nic_event_log(priv, true, NULL);
 
 	return count;
 }
@@ -2324,6 +2307,28 @@ static ssize_t iwl_dbgfs_calib_disabled_write(struct file *file,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
+					  const char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	bool restart_fw = iwlwifi_mod_params.restart_fw;
+	int ret;
+
+	iwlwifi_mod_params.restart_fw = true;
+
+	mutex_lock(&priv->mutex);
+
+	/* take the return value to make compiler happy - it will fail anyway */
+	ret = iwl_dvm_send_cmd_pdu(priv, REPLY_ERROR, CMD_SYNC, 0, NULL);
+
+	mutex_unlock(&priv->mutex);
+
+	iwlwifi_mod_params.restart_fw = restart_fw;
+
+	return count;
+}
+
 DEBUGFS_READ_FILE_OPS(ucode_rx_stats);
 DEBUGFS_READ_FILE_OPS(ucode_tx_stats);
 DEBUGFS_READ_FILE_OPS(ucode_general_stats);
@@ -2343,6 +2348,7 @@ DEBUGFS_READ_FILE_OPS(bt_traffic);
 DEBUGFS_READ_WRITE_FILE_OPS(protection_mode);
 DEBUGFS_READ_FILE_OPS(reply_tx_error);
 DEBUGFS_WRITE_FILE_OPS(echo_test);
+DEBUGFS_WRITE_FILE_OPS(fw_restart);
 #ifdef CONFIG_IWLWIFI_DEBUG
 DEBUGFS_READ_WRITE_FILE_OPS(log_event);
 #endif
@@ -2400,6 +2406,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir)
 	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(echo_test, dir_debug, S_IWUSR);
+	DEBUGFS_ADD_FILE(fw_restart, dir_debug, S_IWUSR);
 #ifdef CONFIG_IWLWIFI_DEBUG
 	DEBUGFS_ADD_FILE(log_event, dir_debug, S_IWUSR | S_IRUSR);
 #endif

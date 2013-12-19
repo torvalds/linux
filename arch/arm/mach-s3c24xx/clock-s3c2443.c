@@ -41,7 +41,6 @@
 
 #include <plat/cpu-freq.h>
 
-#include <plat/s3c2443.h>
 #include <plat/clock.h>
 #include <plat/clock-clksrc.h>
 #include <plat/cpu.h>
@@ -210,6 +209,4 @@ void __init s3c2443_init_clocks(int xtal)
 	s3c_register_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 	s3c_disable_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 	clkdev_add_table(s3c2443_clk_lookup, ARRAY_SIZE(s3c2443_clk_lookup));
-
-	s3c_pwmclk_init();
 }

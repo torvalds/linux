@@ -13,11 +13,11 @@
 
 /dts-v1/;
 
-/include/ "bcm11351.dtsi"
+#include "bcm11351.dtsi"
 
 / {
 	model = "BCM11351 BRT board";
-	compatible = "bcm,bcm11351-brt", "bcm,bcm11351";
+	compatible = "brcm,bcm11351-brt", "brcm,bcm11351";
 
 	memory {
 		reg = <0x80000000 0x40000000>; /* 1 GB */
@@ -26,5 +26,23 @@
 	uart@3e000000 {
 		status = "okay";
 	};
+
+	sdio1: sdio@3f180000 {
+		max-frequency = <48000000>;
+		status = "okay";
+	};
+
+	sdio2: sdio@3f190000 {
+		non-removable;
+		max-frequency = <48000000>;
+		status = "okay";
+	};
+
+	sdio4: sdio@3f1b0000 {
+		max-frequency = <48000000>;
+		cd-gpios = <&gpio 14 0>;
+		status = "okay";
+	};
+
 
 };

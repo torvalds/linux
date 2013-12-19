@@ -1,0 +1,135 @@
+/*
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+#include "imx6sl.dtsi"
+
+/ {
+	model = "Freescale i.MX6 SoloLite EVK Board";
+	compatible = "fsl,imx6sl-evk", "fsl,imx6sl";
+
+	memory {
+		reg = <0x80000000 0x40000000>;
+	};
+
+	regulators {
+		compatible = "simple-bus";
+
+		reg_usb_otg1_vbus: usb_otg1_vbus {
+			compatible = "regulator-fixed";
+			regulator-name = "usb_otg1_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio4 0 0>;
+			enable-active-high;
+		};
+
+		reg_usb_otg2_vbus: usb_otg2_vbus {
+			compatible = "regulator-fixed";
+			regulator-name = "usb_otg2_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio4 2 0>;
+			enable-active-high;
+		};
+	};
+};
+
+&ecspi1 {
+	fsl,spi-num-chipselects = <1>;
+	cs-gpios = <&gpio4 11 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi1_1>;
+	status = "okay";
+
+	flash: m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "st,m25p32";
+		spi-max-frequency = <20000000>;
+		reg = <0>;
+	};
+};
+
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec_1>;
+	phy-mode = "rmii";
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
+	hog {
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				MX6SL_PAD_KEY_ROW7__GPIO4_IO07    0x17059
+				MX6SL_PAD_KEY_COL7__GPIO4_IO06    0x17059
+				MX6SL_PAD_SD2_DAT7__GPIO5_IO00    0x17059
+				MX6SL_PAD_SD2_DAT6__GPIO4_IO29    0x17059
+				MX6SL_PAD_REF_CLK_32K__GPIO3_IO22 0x17059
+				MX6SL_PAD_KEY_COL4__GPIO4_IO00	0x80000000
+				MX6SL_PAD_KEY_COL5__GPIO4_IO02	0x80000000
+			>;
+		};
+	};
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1_1>;
+	status = "okay";
+};
+
+&usbotg1 {
+	vbus-supply = <&reg_usb_otg1_vbus>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbotg1_1>;
+	disable-over-current;
+	status = "okay";
+};
+
+&usbotg2 {
+	vbus-supply = <&reg_usb_otg2_vbus>;
+	dr_mode = "host";
+	disable-over-current;
+	status = "okay";
+};
+
+&usdhc1 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc1_1>;
+	pinctrl-1 = <&pinctrl_usdhc1_1_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc1_1_200mhz>;
+	bus-width = <8>;
+	cd-gpios = <&gpio4 7 0>;
+	wp-gpios = <&gpio4 6 0>;
+	status = "okay";
+};
+
+&usdhc2 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc2_1>;
+	pinctrl-1 = <&pinctrl_usdhc2_1_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc2_1_200mhz>;
+	cd-gpios = <&gpio5 0 0>;
+	wp-gpios = <&gpio4 29 0>;
+	status = "okay";
+};
+
+&usdhc3 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc3_1>;
+	pinctrl-1 = <&pinctrl_usdhc3_1_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc3_1_200mhz>;
+	cd-gpios = <&gpio3 22 0>;
+	status = "okay";
+};

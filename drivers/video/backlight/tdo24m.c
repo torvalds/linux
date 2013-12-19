@@ -338,7 +338,7 @@ static int tdo24m_probe(struct spi_device *spi)
 	enum tdo24m_model model;
 	int err;
 
-	pdata = spi->dev.platform_data;
+	pdata = dev_get_platdata(&spi->dev);
 	if (pdata)
 		model = pdata->model;
 	else
@@ -385,56 +385,49 @@ static int tdo24m_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	lcd->lcd_dev = lcd_device_register("tdo24m", &spi->dev,
-					lcd, &tdo24m_ops);
+	lcd->lcd_dev = devm_lcd_device_register(&spi->dev, "tdo24m", &spi->dev,
+						lcd, &tdo24m_ops);
 	if (IS_ERR(lcd->lcd_dev))
 		return PTR_ERR(lcd->lcd_dev);
 
-	dev_set_drvdata(&spi->dev, lcd);
+	spi_set_drvdata(spi, lcd);
 	err = tdo24m_power(lcd, FB_BLANK_UNBLANK);
 	if (err)
-		goto out_unregister;
+		return err;
 
 	return 0;
-
-out_unregister:
-	lcd_device_unregister(lcd->lcd_dev);
-	return err;
 }
 
 static int tdo24m_remove(struct spi_device *spi)
 {
-	struct tdo24m *lcd = dev_get_drvdata(&spi->dev);
+	struct tdo24m *lcd = spi_get_drvdata(spi);
 
 	tdo24m_power(lcd, FB_BLANK_POWERDOWN);
-	lcd_device_unregister(lcd->lcd_dev);
-
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int tdo24m_suspend(struct spi_device *spi, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int tdo24m_suspend(struct device *dev)
 {
-	struct tdo24m *lcd = dev_get_drvdata(&spi->dev);
+	struct tdo24m *lcd = dev_get_drvdata(dev);
 
 	return tdo24m_power(lcd, FB_BLANK_POWERDOWN);
 }
 
-static int tdo24m_resume(struct spi_device *spi)
+static int tdo24m_resume(struct device *dev)
 {
-	struct tdo24m *lcd = dev_get_drvdata(&spi->dev);
+	struct tdo24m *lcd = dev_get_drvdata(dev);
 
 	return tdo24m_power(lcd, FB_BLANK_UNBLANK);
 }
-#else
-#define tdo24m_suspend	NULL
-#define tdo24m_resume	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(tdo24m_pm_ops, tdo24m_suspend, tdo24m_resume);
 
 /* Power down all displays on reboot, poweroff or halt */
 static void tdo24m_shutdown(struct spi_device *spi)
 {
-	struct tdo24m *lcd = dev_get_drvdata(&spi->dev);
+	struct tdo24m *lcd = spi_get_drvdata(spi);
 
 	tdo24m_power(lcd, FB_BLANK_POWERDOWN);
 }
@@ -443,12 +436,11 @@ static struct spi_driver tdo24m_driver = {
 	.driver = {
 		.name		= "tdo24m",
 		.owner		= THIS_MODULE,
+		.pm		= &tdo24m_pm_ops,
 	},
 	.probe		= tdo24m_probe,
 	.remove		= tdo24m_remove,
 	.shutdown	= tdo24m_shutdown,
-	.suspend	= tdo24m_suspend,
-	.resume		= tdo24m_resume,
 };
 
 module_spi_driver(tdo24m_driver);

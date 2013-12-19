@@ -1,0 +1,852 @@
+/*
+ * Device Tree for the ST-Ericsson Nomadik 8815 STn8815 SoC
+ */
+/include/ "skeleton.dtsi"
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory {
+		reg = <0x00000000 0x04000000>,
+		    <0x08000000 0x04000000>;
+	};
+
+	L2: l2-cache {
+		compatible = "arm,l210-cache";
+		reg = <0x10210000 0x1000>;
+		interrupt-parent = <&vica>;
+		interrupts = <30>;
+		cache-unified;
+		cache-level = <2>;
+	};
+
+	mtu0: mtu@101e2000 {
+		/* Nomadik system timer */
+		compatible = "st,nomadik-mtu";
+		reg = <0x101e2000 0x1000>;
+		interrupt-parent = <&vica>;
+		interrupts = <4>;
+		clocks = <&timclk>, <&pclk>;
+		clock-names = "timclk", "apb_pclk";
+	};
+
+	mtu1: mtu@101e3000 {
+		/* Secondary timer */
+		reg = <0x101e3000 0x1000>;
+		interrupt-parent = <&vica>;
+		interrupts = <5>;
+		clocks = <&timclk>, <&pclk>;
+		clock-names = "timclk", "apb_pclk";
+	};
+
+	gpio0: gpio@101e4000 {
+		compatible = "st,nomadik-gpio";
+		reg =  <0x101e4000 0x80>;
+		interrupt-parent = <&vica>;
+		interrupts = <6>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-bank = <0>;
+		clocks = <&pclk>;
+	};
+
+	gpio1: gpio@101e5000 {
+		compatible = "st,nomadik-gpio";
+		reg =  <0x101e5000 0x80>;
+		interrupt-parent = <&vica>;
+		interrupts = <7>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-bank = <1>;
+		clocks = <&pclk>;
+	};
+
+	gpio2: gpio@101e6000 {
+		compatible = "st,nomadik-gpio";
+		reg =  <0x101e6000 0x80>;
+		interrupt-parent = <&vica>;
+		interrupts = <8>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-bank = <2>;
+		clocks = <&pclk>;
+	};
+
+	gpio3: gpio@101e7000 {
+		compatible = "st,nomadik-gpio";
+		reg =  <0x101e7000 0x80>;
+		interrupt-parent = <&vica>;
+		interrupts = <9>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-bank = <3>;
+		clocks = <&pclk>;
+	};
+
+	pinctrl {
+		compatible = "stericsson,stn8815-pinctrl";
+		/* Pin configurations */
+		uart0 {
+			uart0_default_mux: uart0_mux {
+				u0_default_mux {
+					ste,function = "u0";
+					ste,pins = "u0_a_1";
+				};
+			};
+		};
+		uart1 {
+			uart1_default_mux: uart1_mux {
+				u1_default_mux {
+					ste,function = "u1";
+					ste,pins = "u1_a_1";
+				};
+			};
+		};
+		mmcsd {
+			mmcsd_default_mux: mmcsd_mux {
+				mmcsd_default_mux {
+					ste,function = "mmcsd";
+					ste,pins = "mmcsd_a_1";
+				};
+			};
+			mmcsd_default_mode: mmcsd_default {
+				mmcsd_default_cfg1 {
+					/* MCCLK */
+					ste,pins = "GPIO8_B10";
+					ste,output = <0>;
+				};
+				mmcsd_default_cfg2 {
+					/* MCCMDDIR, MCDAT0DIR, MCDAT31DIR */
+					ste,pins = "GPIO10_C11", "GPIO15_A12",
+					"GPIO16_C13";
+					ste,output = <1>;
+				};
+				mmcsd_default_cfg3 {
+					/* MCCMD, MCDAT3-0, MCMSFBCLK */
+					ste,pins = "GPIO9_A10", "GPIO11_B11",
+					"GPIO12_A11", "GPIO13_C12",
+					"GPIO14_B12", "GPIO24_C15";
+					ste,input = <1>;
+				};
+			};
+		};
+		i2c0 {
+			i2c0_default_mux: i2c0_mux {
+				i2c0_default_mux {
+					ste,function = "i2c0";
+					ste,pins = "i2c0_a_1";
+				};
+			};
+			i2c0_default_mode: i2c0_default {
+				i2c0_default_cfg {
+					ste,pins = "GPIO62_D3", "GPIO63_D2";
+					ste,input = <0>;
+				};
+			};
+		};
+		i2c1 {
+			i2c1_default_mux: i2c1_mux {
+				i2c1_default_mux {
+					ste,function = "i2c1";
+					ste,pins = "i2c1_a_1";
+				};
+			};
+			i2c1_default_mode: i2c1_default {
+				i2c1_default_cfg {
+					ste,pins = "GPIO53_L4", "GPIO54_L3";
+					ste,input = <0>;
+				};
+			};
+		};
+		i2c2 {
+			i2c2_default_mode: i2c2_default {
+				i2c2_default_cfg {
+					ste,pins = "GPIO73_C21", "GPIO74_C20";
+					ste,input = <0>;
+				};
+			};
+		};
+	};
+
+	src: src@101e0000 {
+		compatible = "stericsson,nomadik-src";
+		reg = <0x101e0000 0x1000>;
+		disable-sxtalo;
+		disable-mxtalo;
+
+		/*
+		 * MXTAL "Main Chrystal" is a chrystal oscillator @19.2 MHz
+		 * that is parent of TIMCLK, PLL1 and PLL2
+		 */
+		mxtal: mxtal@19.2M {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <19200000>;
+		};
+
+		/*
+		 * The 2.4 MHz TIMCLK reference clock is active at
+		 * boot time, this is actually the MXTALCLK @19.2 MHz
+		 * divided by 8. This clock is used by the timers and
+		 * watchdog. See page 105 ff.
+		 */
+		timclk: timclk@2.4M {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clock-div = <8>;
+			clock-mult = <1>;
+			clocks = <&mxtal>;
+		};
+
+		/* PLL1 is locked to MXTALI and variable from 20.4 to 334 MHz */
+		pll1: pll1@0 {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-pll-clock";
+			pll-id = <1>;
+			clocks = <&mxtal>;
+		};
+
+		/* HCLK divides the PLL1 with 1,2,3 or 4 */
+		hclk: hclk@0 {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-hclk-clock";
+			clocks = <&pll1>;
+		};
+		/* The PCLK domain uses HCLK right off */
+		pclk: pclk@0 {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clock-div = <1>;
+			clock-mult = <1>;
+			clocks = <&hclk>;
+		};
+
+		/* PLL2 is usually 864 MHz and divided into a few fixed rates */
+		pll2: pll2@0 {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-pll-clock";
+			pll-id = <2>;
+			clocks = <&mxtal>;
+		};
+		clk216: clk216@216M {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clock-div = <4>;
+			clock-mult = <1>;
+			clocks = <&pll2>;
+		};
+		clk108: clk108@108M {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clock-div = <2>;
+			clock-mult = <1>;
+			clocks = <&clk216>;
+		};
+		clk72: clk72@72M {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			/* The data sheet does not say how this is derived */
+			clock-div = <12>;
+			clock-mult = <1>;
+			clocks = <&pll2>;
+		};
+		clk48: clk48@48M {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			/* The data sheet does not say how this is derived */
+			clock-div = <18>;
+			clock-mult = <1>;
+			clocks = <&pll2>;
+		};
+		clk27: clk27@27M {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clock-div = <4>;
+			clock-mult = <1>;
+			clocks = <&clk108>;
+		};
+
+		/* This apparently exists as well */
+		ulpiclk: ulpiclk@60M {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <60000000>;
+		};
+
+		/*
+		 * IP AMBA bus clocks, driving the bus side of the
+		 * peripheral clocking, clock gates.
+		 */
+
+		hclkdma0: hclkdma0@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <0>;
+			clocks = <&hclk>;
+		};
+		hclksmc: hclksmc@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <1>;
+			clocks = <&hclk>;
+		};
+		hclksdram: hclksdram@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <2>;
+			clocks = <&hclk>;
+		};
+		hclkdma1: hclkdma1@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <3>;
+			clocks = <&hclk>;
+		};
+		hclkclcd: hclkclcd@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <4>;
+			clocks = <&hclk>;
+		};
+		pclkirda: pclkirda@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <5>;
+			clocks = <&pclk>;
+		};
+		pclkssp: pclkssp@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <6>;
+			clocks = <&pclk>;
+		};
+		pclkuart0: pclkuart0@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <7>;
+			clocks = <&pclk>;
+		};
+		pclksdi: pclksdi@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <8>;
+			clocks = <&pclk>;
+		};
+		pclki2c0: pclki2c0@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <9>;
+			clocks = <&pclk>;
+		};
+		pclki2c1: pclki2c1@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <10>;
+			clocks = <&pclk>;
+		};
+		pclkuart1: pclkuart1@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <11>;
+			clocks = <&pclk>;
+		};
+		pclkmsp0: pclkmsp0@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <12>;
+			clocks = <&pclk>;
+		};
+		hclkusb: hclkusb@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <13>;
+			clocks = <&hclk>;
+		};
+		hclkdif: hclkdif@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <14>;
+			clocks = <&hclk>;
+		};
+		hclksaa: hclksaa@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <15>;
+			clocks = <&hclk>;
+		};
+		hclksva: hclksva@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <16>;
+			clocks = <&hclk>;
+		};
+		pclkhsi: pclkhsi@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <17>;
+			clocks = <&pclk>;
+		};
+		pclkxti: pclkxti@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <18>;
+			clocks = <&pclk>;
+		};
+		pclkuart2: pclkuart2@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <19>;
+			clocks = <&pclk>;
+		};
+		pclkmsp1: pclkmsp1@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <20>;
+			clocks = <&pclk>;
+		};
+		pclkmsp2: pclkmsp2@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <21>;
+			clocks = <&pclk>;
+		};
+		pclkowm: pclkowm@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <22>;
+			clocks = <&pclk>;
+		};
+		hclkhpi: hclkhpi@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <23>;
+			clocks = <&hclk>;
+		};
+		pclkske: pclkske@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <24>;
+			clocks = <&pclk>;
+		};
+		pclkhsem: pclkhsem@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <25>;
+			clocks = <&pclk>;
+		};
+		hclk3d: hclk3d@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <26>;
+			clocks = <&hclk>;
+		};
+		hclkhash: hclkhash@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <27>;
+			clocks = <&hclk>;
+		};
+		hclkcryp: hclkcryp@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <28>;
+			clocks = <&hclk>;
+		};
+		pclkmshc: pclkmshc@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <29>;
+			clocks = <&pclk>;
+		};
+		hclkusbm: hclkusbm@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <30>;
+			clocks = <&hclk>;
+		};
+		hclkrng: hclkrng@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <31>;
+			clocks = <&hclk>;
+		};
+
+		/* IP kernel clocks */
+		clcdclk: clcdclk@0 {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <36>;
+			clocks = <&clk72 &clk48>;
+		};
+		irdaclk: irdaclk@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <37>;
+			clocks = <&clk48>;
+		};
+		sspiclk: sspiclk@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <38>;
+			clocks = <&clk48>;
+		};
+		uart0clk: uart0clk@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <39>;
+			clocks = <&clk48>;
+		};
+		sdiclk: sdiclk@48M {
+			/* Also called MCCLK in some documents */
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <40>;
+			clocks = <&clk48>;
+		};
+		i2c0clk: i2c0clk@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <41>;
+			clocks = <&clk48>;
+		};
+		i2c1clk: i2c1clk@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <42>;
+			clocks = <&clk48>;
+		};
+		uart1clk: uart1clk@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <43>;
+			clocks = <&clk48>;
+		};
+		mspclk0: mspclk0@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <44>;
+			clocks = <&clk48>;
+		};
+		usbclk: usbclk@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <45>;
+			clocks = <&clk48>; /* 48 MHz not ULPI */
+		};
+		difclk: difclk@72M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <46>;
+			clocks = <&clk72>;
+		};
+		ipi2cclk: ipi2cclk@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <47>;
+			clocks = <&clk48>; /* Guess */
+		};
+		ipbmcclk: ipbmcclk@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <48>;
+			clocks = <&clk48>; /* Guess */
+		};
+		hsiclkrx: hsiclkrx@216M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <49>;
+			clocks = <&clk216>;
+		};
+		hsiclktx: hsiclktx@108M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <50>;
+			clocks = <&clk108>;
+		};
+		uart2clk: uart2clk@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <51>;
+			clocks = <&clk48>;
+		};
+		mspclk1: mspclk1@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <52>;
+			clocks = <&clk48>;
+		};
+		mspclk2: mspclk2@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <53>;
+			clocks = <&clk48>;
+		};
+		owmclk: owmclk@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <54>;
+			clocks = <&clk48>; /* Guess */
+		};
+		skeclk: skeclk@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <56>;
+			clocks = <&clk48>; /* Guess */
+		};
+		x3dclk: x3dclk@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <58>;
+			clocks = <&clk48>; /* Guess */
+		};
+		pclkmsp3: pclkmsp3@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <59>;
+			clocks = <&pclk>;
+		};
+		mspclk3: mspclk3@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <60>;
+			clocks = <&clk48>;
+		};
+		mshcclk: mshcclk@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <61>;
+			clocks = <&clk48>; /* Guess */
+		};
+		usbmclk: usbmclk@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <62>;
+			/* Stated as "48 MHz not ULPI clock" */
+			clocks = <&clk48>;
+		};
+		rngcclk: rngcclk@48M {
+			#clock-cells = <0>;
+			compatible = "st,nomadik-src-clock";
+			clock-id = <63>;
+			clocks = <&clk48>; /* Guess */
+		};
+	};
+
+	/* A NAND flash of 128 MiB */
+	fsmc: flash@40000000 {
+		compatible = "stericsson,fsmc-nand";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x10100000 0x1000>,	/* FSMC Register*/
+			<0x40000000 0x2000>,	/* NAND Base DATA */
+			<0x41000000 0x2000>,	/* NAND Base ADDR */
+			<0x40800000 0x2000>;	/* NAND Base CMD */
+		reg-names = "fsmc_regs", "nand_data", "nand_addr", "nand_cmd";
+		clocks = <&hclksmc>;
+		status = "okay";
+		timings = /bits/ 8 <0 0 0 0x10 0x0a 0>;
+
+		partition@0 {
+		label = "X-Loader(NAND)";
+			reg = <0x0 0x40000>;
+		};
+		partition@40000 {
+			label = "MemInit(NAND)";
+			reg = <0x40000 0x40000>;
+		};
+		partition@80000 {
+			label = "BootLoader(NAND)";
+			reg = <0x80000 0x200000>;
+		};
+		partition@280000 {
+			label = "Kernel zImage(NAND)";
+			reg = <0x280000 0x300000>;
+		};
+		partition@580000 {
+			label = "Root Filesystem(NAND)";
+			reg = <0x580000 0x1600000>;
+		};
+		partition@1b80000 {
+			label = "User Filesystem(NAND)";
+			reg = <0x1b80000 0x6480000>;
+		};
+	};
+
+	external-bus@34000000 {
+		compatible = "simple-bus";
+		reg = <0x34000000 0x1000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x34000000 0x1000000>;
+		ethernet@300 {
+			compatible = "smsc,lan91c111";
+			reg = <0x300 0x0fd00>;
+		};
+	};
+
+	/* I2C0 connected to the STw4811 power management chip */
+	i2c0 {
+		compatible = "st,nomadik-i2c", "arm,primecell";
+		reg = <0x101f8000 0x1000>;
+		interrupt-parent = <&vica>;
+		interrupts = <20>;
+		clock-frequency = <100000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&i2c0clk>, <&pclki2c0>;
+		clock-names = "mclk", "apb_pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c0_default_mux>, <&i2c0_default_mode>;
+
+		stw4811@2d {
+			compatible = "st,stw4811";
+			reg = <0x2d>;
+			vmmc_regulator: vmmc {
+				compatible = "st,stw481x-vmmc";
+				regulator-name = "VMMC";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+			};
+		};
+	};
+
+	/* I2C1 connected to various sensors */
+	i2c1 {
+		compatible = "st,nomadik-i2c", "arm,primecell";
+		reg = <0x101f7000 0x1000>;
+		interrupt-parent = <&vica>;
+		interrupts = <21>;
+		clock-frequency = <100000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&i2c1clk>, <&pclki2c1>;
+		clock-names = "mclk", "apb_pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c1_default_mux>, <&i2c1_default_mode>;
+
+		camera@2d {
+			   compatible = "st,camera";
+			   reg = <0x10>;
+		};
+		stw5095@1a {
+			   compatible = "st,stw5095";
+			   reg = <0x1a>;
+		};
+		lis3lv02dl@1d {
+			   compatible = "st,lis3lv02dl";
+			   reg = <0x1d>;
+		};
+	};
+
+	/* I2C2 connected to the USB portions of the STw4811 only */
+	i2c2 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio2 10 0>, /* sda */
+			<&gpio2 9 0>; /* scl */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c2_default_mode>;
+
+		stw4811@2d {
+			   compatible = "st,stw4811-usb";
+			   reg = <0x2d>;
+		};
+	};
+
+	amba {
+		compatible = "arm,amba-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		vica: intc@0x10140000 {
+			compatible = "arm,versatile-vic";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0x10140000 0x20>;
+		};
+
+		vicb: intc@0x10140020 {
+			compatible = "arm,versatile-vic";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0x10140020 0x20>;
+		};
+
+		uart0: uart@101fd000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x101fd000 0x1000>;
+			interrupt-parent = <&vica>;
+			interrupts = <12>;
+			clocks = <&uart0clk>, <&pclkuart0>;
+			clock-names = "uartclk", "apb_pclk";
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart0_default_mux>;
+		};
+
+		uart1: uart@101fb000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x101fb000 0x1000>;
+			interrupt-parent = <&vica>;
+			interrupts = <17>;
+			clocks = <&uart1clk>, <&pclkuart1>;
+			clock-names = "uartclk", "apb_pclk";
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart1_default_mux>;
+		};
+
+		uart2: uart@101f2000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x101f2000 0x1000>;
+			interrupt-parent = <&vica>;
+			interrupts = <28>;
+			clocks = <&uart2clk>, <&pclkuart2>;
+			clock-names = "uartclk", "apb_pclk";
+			status = "disabled";
+		};
+
+		rng: rng@101b0000 {
+			compatible = "arm,primecell";
+			reg = <0x101b0000 0x1000>;
+			clocks = <&rngcclk>, <&hclkrng>;
+			clock-names = "rng", "apb_pclk";
+		};
+
+		rtc: rtc@101e8000 {
+			compatible = "arm,pl031", "arm,primecell";
+			reg = <0x101e8000 0x1000>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+			interrupt-parent = <&vica>;
+			interrupts = <10>;
+		};
+
+		mmcsd: sdi@101f6000 {
+			compatible = "arm,pl18x", "arm,primecell";
+			reg = <0x101f6000 0x1000>;
+			clocks = <&sdiclk>, <&pclksdi>;
+			clock-names = "mclk", "apb_pclk";
+			interrupt-parent = <&vica>;
+			interrupts = <22>;
+			max-frequency = <48000000>;
+			bus-width = <4>;
+			mmc-cap-mmc-highspeed;
+			mmc-cap-sd-highspeed;
+			cd-gpios = <&gpio3 15 0x1>;
+			cd-inverted;
+			pinctrl-names = "default";
+			pinctrl-0 = <&mmcsd_default_mux>, <&mmcsd_default_mode>;
+			vmmc-supply = <&vmmc_regulator>;
+		};
+	};
+};

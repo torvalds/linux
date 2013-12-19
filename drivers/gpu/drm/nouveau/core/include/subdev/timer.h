@@ -10,10 +10,19 @@ struct nouveau_alarm {
 	void (*func)(struct nouveau_alarm *);
 };
 
+static inline void
+nouveau_alarm_init(struct nouveau_alarm *alarm,
+		   void (*func)(struct nouveau_alarm *))
+{
+	INIT_LIST_HEAD(&alarm->head);
+	alarm->func = func;
+}
+
 bool nouveau_timer_wait_eq(void *, u64 nsec, u32 addr, u32 mask, u32 data);
 bool nouveau_timer_wait_ne(void *, u64 nsec, u32 addr, u32 mask, u32 data);
 bool nouveau_timer_wait_cb(void *, u64 nsec, bool (*func)(void *), void *data);
 void nouveau_timer_alarm(void *, u32 nsec, struct nouveau_alarm *);
+void nouveau_timer_alarm_cancel(void *, struct nouveau_alarm *);
 
 #define NV_WAIT_DEFAULT 2000000000ULL
 #define nv_wait(o,a,m,v)                                                       \
@@ -27,6 +36,7 @@ struct nouveau_timer {
 	struct nouveau_subdev base;
 	u64  (*read)(struct nouveau_timer *);
 	void (*alarm)(struct nouveau_timer *, u64 time, struct nouveau_alarm *);
+	void (*alarm_cancel)(struct nouveau_timer *, struct nouveau_alarm *);
 };
 
 static inline struct nouveau_timer *

@@ -60,18 +60,11 @@ static struct scsi_transport_template *csio_fcoe_transport_vport;
 /*
  * debugfs support
  */
-static int
-csio_mem_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static ssize_t
 csio_mem_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
 	loff_t pos = *ppos;
-	loff_t avail = file->f_path.dentry->d_inode->i_size;
+	loff_t avail = file_inode(file)->i_size;
 	unsigned int mem = (uintptr_t)file->private_data & 3;
 	struct csio_hw *hw = file->private_data - mem;
 
@@ -88,9 +81,11 @@ csio_mem_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		__be32 data[16];
 
 		if (mem == MEM_MC)
-			ret = csio_hw_mc_read(hw, pos, data, NULL);
+			ret = hw->chip_ops->chip_mc_read(hw, 0, pos,
+							 data, NULL);
 		else
-			ret = csio_hw_edc_read(hw, mem, pos, data, NULL);
+			ret = hw->chip_ops->chip_edc_read(hw, mem, pos,
+							  data, NULL);
 		if (ret)
 			return ret;
 
@@ -110,14 +105,13 @@ csio_mem_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 
 static const struct file_operations csio_mem_debugfs_fops = {
 	.owner   = THIS_MODULE,
-	.open    = csio_mem_open,
+	.open    = simple_open,
 	.read    = csio_mem_read,
 	.llseek  = default_llseek,
 };
 
-static void __devinit
-csio_add_debugfs_mem(struct csio_hw *hw, const char *name,
-		     unsigned int idx, unsigned int size_mb)
+void csio_add_debugfs_mem(struct csio_hw *hw, const char *name,
+				 unsigned int idx, unsigned int size_mb)
 {
 	struct dentry *de;
 
@@ -127,8 +121,7 @@ csio_add_debugfs_mem(struct csio_hw *hw, const char *name,
 		de->d_inode->i_size = size_mb << 20;
 }
 
-static int __devinit
-csio_setup_debugfs(struct csio_hw *hw)
+static int csio_setup_debugfs(struct csio_hw *hw)
 {
 	int i;
 
@@ -140,9 +133,8 @@ csio_setup_debugfs(struct csio_hw *hw)
 		csio_add_debugfs_mem(hw, "edc0", MEM_EDC0, 5);
 	if (i & EDRAM1_ENABLE)
 		csio_add_debugfs_mem(hw, "edc1", MEM_EDC1, 5);
-	if (i & EXT_MEM_ENABLE)
-		csio_add_debugfs_mem(hw, "mc", MEM_MC,
-		      EXT_MEM_SIZE_GET(csio_rd_reg32(hw, MA_EXT_MEMORY_BAR)));
+
+	hw->chip_ops->chip_dfs_create_ext_mem(hw);
 	return 0;
 }
 
@@ -531,8 +523,7 @@ csio_resource_free(struct csio_hw *hw)
  * Allocates HW structure, DMA, memory resources, maps BARS to
  * host memory and initializes HW module.
  */
-static struct csio_hw * __devinit
-csio_hw_alloc(struct pci_dev *pdev)
+static struct csio_hw *csio_hw_alloc(struct pci_dev *pdev)
 {
 	struct csio_hw *hw;
 
@@ -956,8 +947,7 @@ csio_lnode_init_post(struct csio_lnode *ln)
  * - Once hardware is ready, initiated scan of the host via
  *   scsi_scan_host.
  */
-static int __devinit
-csio_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
+static int csio_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int rv;
 	int bars;
@@ -1020,7 +1010,6 @@ err_lnode_exit:
 	csio_hw_stop(hw);
 	spin_unlock_irq(&hw->lock);
 	csio_lnodes_unblock_request(hw);
-	pci_set_drvdata(hw->pdev, NULL);
 	csio_lnodes_exit(hw, 0);
 	csio_hw_free(hw);
 err_pci_exit:
@@ -1036,8 +1025,7 @@ err:
  *
  * Used during hotplug operation.
  */
-static void __devexit
-csio_remove_one(struct pci_dev *pdev)
+static void csio_remove_one(struct pci_dev *pdev)
 {
 	struct csio_hw *hw = pci_get_drvdata(pdev);
 	int bars = pci_select_bars(pdev, IORESOURCE_MEM);
@@ -1055,7 +1043,6 @@ csio_remove_one(struct pci_dev *pdev)
 
 	csio_lnodes_exit(hw, 0);
 	csio_hw_free(hw);
-	pci_set_drvdata(pdev, NULL);
 	csio_pci_exit(pdev, &bars);
 }
 
@@ -1181,7 +1168,7 @@ static struct pci_error_handlers csio_err_handler = {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(csio_pci_tbl) = {
-	CSIO_DEVICE(CSIO_DEVID_T440DBG_FCOE, 0),	/* T440DBG FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T440DBG_FCOE, 0),        /* T4 DEBUG FCOE */
 	CSIO_DEVICE(CSIO_DEVID_T420CR_FCOE, 0),		/* T420CR FCOE */
 	CSIO_DEVICE(CSIO_DEVID_T422CR_FCOE, 0),		/* T422CR FCOE */
 	CSIO_DEVICE(CSIO_DEVID_T440CR_FCOE, 0),		/* T440CR FCOE */
@@ -1196,8 +1183,34 @@ static DEFINE_PCI_DEVICE_TABLE(csio_pci_tbl) = {
 	CSIO_DEVICE(CSIO_DEVID_B404_FCOE, 0),		/* B404 FCOE */
 	CSIO_DEVICE(CSIO_DEVID_T480CR_FCOE, 0),		/* T480 CR FCOE */
 	CSIO_DEVICE(CSIO_DEVID_T440LPCR_FCOE, 0),	/* T440 LP-CR FCOE */
-	CSIO_DEVICE(CSIO_DEVID_PE10K, 0),		/* PE10K FCOE */
-	CSIO_DEVICE(CSIO_DEVID_PE10K_PF1, 0),	/* PE10K FCOE on PF1 */
+	CSIO_DEVICE(CSIO_DEVID_AMSTERDAM_T4_FCOE, 0),   /* AMSTERDAM T4 FCOE */
+	CSIO_DEVICE(CSIO_DEVID_HUAWEI_T480_FCOE, 0),    /* HUAWEI T480 FCOE */
+	CSIO_DEVICE(CSIO_DEVID_HUAWEI_T440_FCOE, 0),    /* HUAWEI T440 FCOE */
+	CSIO_DEVICE(CSIO_DEVID_HUAWEI_STG310_FCOE, 0),  /* HUAWEI STG FCOE */
+	CSIO_DEVICE(CSIO_DEVID_ACROMAG_XMC_XAUI, 0),    /* ACROMAG XAUI FCOE */
+	CSIO_DEVICE(CSIO_DEVID_QUANTA_MEZZ_SFP_FCOE, 0),/* QUANTA MEZZ FCOE */
+	CSIO_DEVICE(CSIO_DEVID_HUAWEI_10GT_FCOE, 0),    /* HUAWEI 10GT FCOE */
+	CSIO_DEVICE(CSIO_DEVID_HUAWEI_T440_TOE_FCOE, 0),/* HUAWEI T4 TOE FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T580DBG_FCOE, 0),        /* T5 DEBUG FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T520CR_FCOE, 0),         /* T520CR FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T522CR_FCOE, 0),         /* T522CR FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T540CR_FCOE, 0),         /* T540CR FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T520BCH_FCOE, 0),        /* T520BCH FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T540BCH_FCOE, 0),        /* T540BCH FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T540CH_FCOE, 0),         /* T540CH FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T520SO_FCOE, 0),         /* T520SO FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T520CX_FCOE, 0),         /* T520CX FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T520BT_FCOE, 0),         /* T520BT FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T504BT_FCOE, 0),         /* T504BT FCOE */
+	CSIO_DEVICE(CSIO_DEVID_B520_FCOE, 0),           /* B520 FCOE */
+	CSIO_DEVICE(CSIO_DEVID_B504_FCOE, 0),           /* B504 FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T580CR2_FCOE, 0),	/* T580 CR FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T540LPCR_FCOE, 0),       /* T540 LP-CR FCOE */
+	CSIO_DEVICE(CSIO_DEVID_AMSTERDAM_T5_FCOE, 0),   /* AMSTERDAM T5 FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T580LPCR_FCOE, 0),       /* T580 LP-CR FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T520LLCR_FCOE, 0),       /* T520 LL-CR FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T560CR_FCOE, 0),         /* T560 CR FCOE */
+	CSIO_DEVICE(CSIO_DEVID_T580CR_FCOE, 0),         /* T580 CR FCOE */
 	{ 0, 0, 0, 0, 0, 0, 0 }
 };
 
@@ -1271,4 +1284,5 @@ MODULE_DESCRIPTION(CSIO_DRV_DESC);
 MODULE_LICENSE(CSIO_DRV_LICENSE);
 MODULE_DEVICE_TABLE(pci, csio_pci_tbl);
 MODULE_VERSION(CSIO_DRV_VERSION);
-MODULE_FIRMWARE(CSIO_FW_FNAME);
+MODULE_FIRMWARE(FW_FNAME_T4);
+MODULE_FIRMWARE(FW_FNAME_T5);

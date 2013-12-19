@@ -58,10 +58,6 @@
 
 #include "compat_linux.h"
 
-u32 psw32_user_bits = PSW32_MASK_DAT | PSW32_MASK_IO | PSW32_MASK_EXT |
-		      PSW32_DEFAULT_KEY | PSW32_MASK_BASE | PSW32_MASK_MCHECK |
-		      PSW32_MASK_PSTATE | PSW32_ASC_HOME;
- 
 /* For this source file, we want overflow handling. */
 
 #undef high2lowuid
@@ -221,25 +217,26 @@ static int groups16_from_user(struct group_info *group_info, u16 __user *groupli
 
 asmlinkage long sys32_getgroups16(int gidsetsize, u16 __user *grouplist)
 {
+	const struct cred *cred = current_cred();
 	int i;
 
 	if (gidsetsize < 0)
 		return -EINVAL;
 
-	get_group_info(current->cred->group_info);
-	i = current->cred->group_info->ngroups;
+	get_group_info(cred->group_info);
+	i = cred->group_info->ngroups;
 	if (gidsetsize) {
 		if (i > gidsetsize) {
 			i = -EINVAL;
 			goto out;
 		}
-		if (groups16_to_user(grouplist, current->cred->group_info)) {
+		if (groups16_to_user(grouplist, cred->group_info)) {
 			i = -EFAULT;
 			goto out;
 		}
 	}
 out:
-	put_group_info(current->cred->group_info);
+	put_group_info(cred->group_info);
 	return i;
 }
 
@@ -288,51 +285,13 @@ asmlinkage long sys32_getegid16(void)
 	return high2lowgid(from_kgid_munged(current_user_ns(), current_egid()));
 }
 
-/*
- * sys32_ipc() is the de-multiplexer for the SysV IPC calls in 32bit emulation.
- *
- * This is really horribly ugly.
- */
 #ifdef CONFIG_SYSVIPC
-asmlinkage long sys32_ipc(u32 call, int first, int second, int third, u32 ptr)
+COMPAT_SYSCALL_DEFINE5(s390_ipc, uint, call, int, first, unsigned long, second,
+		unsigned long, third, compat_uptr_t, ptr)
 {
 	if (call >> 16)		/* hack for backward compatibility */
 		return -EINVAL;
-	switch (call) {
-	case SEMTIMEDOP:
-		return compat_sys_semtimedop(first, compat_ptr(ptr),
-					     second, compat_ptr(third));
-	case SEMOP:
-		/* struct sembuf is the same on 32 and 64bit :)) */
-		return sys_semtimedop(first, compat_ptr(ptr),
-				      second, NULL);
-	case SEMGET:
-		return sys_semget(first, second, third);
-	case SEMCTL:
-		return compat_sys_semctl(first, second, third,
-					 compat_ptr(ptr));
-	case MSGSND:
-		return compat_sys_msgsnd(first, second, third,
-					 compat_ptr(ptr));
-	case MSGRCV:
-		return compat_sys_msgrcv(first, second, 0, third,
-					 0, compat_ptr(ptr));
-	case MSGGET:
-		return sys_msgget((key_t) first, second);
-	case MSGCTL:
-		return compat_sys_msgctl(first, second, compat_ptr(ptr));
-	case SHMAT:
-		return compat_sys_shmat(first, second, third,
-					0, compat_ptr(ptr));
-	case SHMDT:
-		return sys_shmdt(compat_ptr(ptr));
-	case SHMGET:
-		return sys_shmget(first, (unsigned)second, third);
-	case SHMCTL:
-		return compat_sys_shmctl(first, second, compat_ptr(ptr));
-	}
-
-	return -ENOSYS;
+	return compat_sys_ipc(call, first, second, third, ptr, third);
 }
 #endif
 
@@ -350,86 +309,6 @@ asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long high, unsigned 
 		return -EINVAL;
 	else
 		return sys_ftruncate(fd, (high << 32) | low);
-}
-
-asmlinkage long sys32_sched_rr_get_interval(compat_pid_t pid,
-				struct compat_timespec __user *interval)
-{
-	struct timespec t;
-	int ret;
-	mm_segment_t old_fs = get_fs ();
-	
-	set_fs (KERNEL_DS);
-	ret = sys_sched_rr_get_interval(pid,
-					(struct timespec __force __user *) &t);
-	set_fs (old_fs);
-	if (put_compat_timespec(&t, interval))
-		return -EFAULT;
-	return ret;
-}
-
-asmlinkage long sys32_rt_sigprocmask(int how, compat_sigset_t __user *set,
-			compat_sigset_t __user *oset, size_t sigsetsize)
-{
-	sigset_t s;
-	compat_sigset_t s32;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-	
-	if (set) {
-		if (copy_from_user (&s32, set, sizeof(compat_sigset_t)))
-			return -EFAULT;
-		s.sig[0] = s32.sig[0] | (((long)s32.sig[1]) << 32);
-	}
-	set_fs (KERNEL_DS);
-	ret = sys_rt_sigprocmask(how,
-				 set ? (sigset_t __force __user *) &s : NULL,
-				 oset ? (sigset_t __force __user *) &s : NULL,
-				 sigsetsize);
-	set_fs (old_fs);
-	if (ret) return ret;
-	if (oset) {
-		s32.sig[1] = (s.sig[0] >> 32);
-		s32.sig[0] = s.sig[0];
-		if (copy_to_user (oset, &s32, sizeof(compat_sigset_t)))
-			return -EFAULT;
-	}
-	return 0;
-}
-
-asmlinkage long sys32_rt_sigpending(compat_sigset_t __user *set,
-				size_t sigsetsize)
-{
-	sigset_t s;
-	compat_sigset_t s32;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-		
-	set_fs (KERNEL_DS);
-	ret = sys_rt_sigpending((sigset_t __force __user *) &s, sigsetsize);
-	set_fs (old_fs);
-	if (!ret) {
-		s32.sig[1] = (s.sig[0] >> 32);
-		s32.sig[0] = s.sig[0];
-		if (copy_to_user (set, &s32, sizeof(compat_sigset_t)))
-			return -EFAULT;
-	}
-	return ret;
-}
-
-asmlinkage long
-sys32_rt_sigqueueinfo(int pid, int sig, compat_siginfo_t __user *uinfo)
-{
-	siginfo_t info;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-	
-	if (copy_siginfo_from_user32(&info, uinfo))
-		return -EFAULT;
-	set_fs (KERNEL_DS);
-	ret = sys_rt_sigqueueinfo(pid, sig, (siginfo_t __force __user *) &info);
-	set_fs (old_fs);
-	return ret;
 }
 
 asmlinkage long sys32_pread64(unsigned int fd, char __user *ubuf,
@@ -451,48 +330,6 @@ asmlinkage long sys32_pwrite64(unsigned int fd, const char __user *ubuf,
 asmlinkage compat_ssize_t sys32_readahead(int fd, u32 offhi, u32 offlo, s32 count)
 {
 	return sys_readahead(fd, ((loff_t)AA(offhi) << 32) | AA(offlo), count);
-}
-
-asmlinkage long sys32_sendfile(int out_fd, int in_fd, compat_off_t __user *offset, size_t count)
-{
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	off_t of;
-	
-	if (offset && get_user(of, offset))
-		return -EFAULT;
-		
-	set_fs(KERNEL_DS);
-	ret = sys_sendfile(out_fd, in_fd,
-			   offset ? (off_t __force __user *) &of : NULL, count);
-	set_fs(old_fs);
-	
-	if (offset && put_user(of, offset))
-		return -EFAULT;
-		
-	return ret;
-}
-
-asmlinkage long sys32_sendfile64(int out_fd, int in_fd,
-				compat_loff_t __user *offset, s32 count)
-{
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	loff_t lof;
-	
-	if (offset && get_user(lof, offset))
-		return -EFAULT;
-		
-	set_fs(KERNEL_DS);
-	ret = sys_sendfile64(out_fd, in_fd,
-			     offset ? (loff_t __force __user *) &lof : NULL,
-			     count);
-	set_fs(old_fs);
-	
-	if (offset && put_user(lof, offset))
-		return -EFAULT;
-		
-	return ret;
 }
 
 struct stat64_emu31 {

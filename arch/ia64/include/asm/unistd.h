@@ -11,7 +11,7 @@
 
 
 
-#define NR_syscalls			311 /* length of syscall table */
+#define NR_syscalls			312 /* length of syscall table */
 
 /*
  * The following defines stop scripts/checksyscalls.sh from complaining about
@@ -26,9 +26,6 @@
 #define __IGNORE_getpgrp	/* getpgid() */
 #define __IGNORE_vfork		/* clone() */
 #define __IGNORE_umount2	/* umount() */
-
-#define __ARCH_WANT_SYS_RT_SIGACTION
-#define __ARCH_WANT_SYS_RT_SIGSUSPEND
 
 #if !defined(__ASSEMBLY__) && !defined(ASSEMBLER)
 
@@ -47,22 +44,7 @@ asmlinkage unsigned long sys_mmap2(
 				int prot, int flags,
 				int fd, long pgoff);
 struct pt_regs;
-struct sigaction;
 asmlinkage long sys_ia64_pipe(void);
-asmlinkage long sys_rt_sigaction(int sig,
-				 const struct sigaction __user *act,
-				 struct sigaction __user *oact,
-				 size_t sigsetsize);
-
-/*
- * "Conditional" syscalls
- *
- * Note, this macro can only be used in the file which defines sys_ni_syscall, i.e., in
- * kernel/sys_ni.c.  This version causes warnings because the declaration isn't a
- * proper prototype, but we can't use __typeof__ either, because not all cond_syscall()
- * declarations have prototypes at the moment.
- */
-#define cond_syscall(x) asmlinkage long x (void) __attribute__((weak,alias("sys_ni_syscall")))
 
 #endif /* !__ASSEMBLY__ */
 #endif /* _ASM_IA64_UNISTD_H */

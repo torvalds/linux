@@ -18,9 +18,8 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 
+#include "soc.h"
 #include "common.h"
-#include <plat/cpu.h>
-
 #include "vp.h"
 #include "powerdomain.h"
 #include "prm3xxx.h"
@@ -278,6 +277,28 @@ static u32 omap3xxx_prm_read_reset_sources(void)
 
 /* Powerdomain low-level functions */
 
+static int omap3_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
+{
+	omap2_prm_rmw_mod_reg_bits(OMAP_POWERSTATE_MASK,
+				   (pwrst << OMAP_POWERSTATE_SHIFT),
+				   pwrdm->prcm_offs, OMAP2_PM_PWSTCTRL);
+	return 0;
+}
+
+static int omap3_pwrdm_read_next_pwrst(struct powerdomain *pwrdm)
+{
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+					     OMAP2_PM_PWSTCTRL,
+					     OMAP_POWERSTATE_MASK);
+}
+
+static int omap3_pwrdm_read_pwrst(struct powerdomain *pwrdm)
+{
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+					     OMAP2_PM_PWSTST,
+					     OMAP_POWERSTATEST_MASK);
+}
+
 /* Applicable only for OMAP3. Not supported on OMAP2 */
 static int omap3_pwrdm_read_prev_pwrst(struct powerdomain *pwrdm)
 {
@@ -356,9 +377,9 @@ static int omap3_pwrdm_disable_hdwr_sar(struct powerdomain *pwrdm)
 }
 
 struct pwrdm_ops omap3_pwrdm_operations = {
-	.pwrdm_set_next_pwrst	= omap2_pwrdm_set_next_pwrst,
-	.pwrdm_read_next_pwrst	= omap2_pwrdm_read_next_pwrst,
-	.pwrdm_read_pwrst	= omap2_pwrdm_read_pwrst,
+	.pwrdm_set_next_pwrst	= omap3_pwrdm_set_next_pwrst,
+	.pwrdm_read_next_pwrst	= omap3_pwrdm_read_next_pwrst,
+	.pwrdm_read_pwrst	= omap3_pwrdm_read_pwrst,
 	.pwrdm_read_prev_pwrst	= omap3_pwrdm_read_prev_pwrst,
 	.pwrdm_set_logic_retst	= omap2_pwrdm_set_logic_retst,
 	.pwrdm_read_logic_pwrst	= omap3_pwrdm_read_logic_pwrst,
@@ -406,7 +427,7 @@ static int __init omap3xxx_prm_late_init(void)
 
 	return ret;
 }
-subsys_initcall(omap3xxx_prm_late_init);
+omap_subsys_initcall(omap3xxx_prm_late_init);
 
 static void __exit omap3xxx_prm_exit(void)
 {

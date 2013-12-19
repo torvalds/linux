@@ -50,16 +50,11 @@ static struct lock_class_key port_lock_key;
 
 #define HIGH_BITS_OFFSET	((sizeof(long)-sizeof(int))*8)
 
-#ifdef CONFIG_SERIAL_CORE_CONSOLE
-#define uart_console(port)	((port)->cons && (port)->cons->index == (port)->line)
-#else
-#define uart_console(port)	(0)
-#endif
-
 static void uart_change_speed(struct tty_struct *tty, struct uart_state *state,
 					struct ktermios *old_termios);
 static void uart_wait_until_sent(struct tty_struct *tty, int timeout);
-static void uart_change_pm(struct uart_state *state, int pm_state);
+static void uart_change_pm(struct uart_state *state,
+			   enum uart_pm_state pm_state);
 
 static void uart_port_shutdown(struct tty_port *port);
 
@@ -866,9 +861,7 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 	port->closing_wait    = closing_wait;
 	if (new_info->xmit_fifo_size)
 		uport->fifosize = new_info->xmit_fifo_size;
-	if (port->tty)
-		port->tty->low_latency =
-			(uport->flags & UPF_LOW_LATENCY) ? 1 : 0;
+	port->low_latency = (uport->flags & UPF_LOW_LATENCY) ? 1 : 0;
 
  check_and_exit:
 	retval = 0;
@@ -1308,9 +1301,10 @@ static void uart_set_termios(struct tty_struct *tty,
 }
 
 /*
- * In 2.4.5, calls to this will be serialized via the BKL in
- *  linux/drivers/char/tty_io.c:tty_release()
- *  linux/drivers/char/tty_io.c:do_tty_handup()
+ * Calls to uart_close() are serialised via the tty_lock in
+ *   drivers/tty/tty_io.c:tty_release()
+ *   drivers/tty/tty_io.c:do_tty_hangup()
+ * This runs from a workqueue and can sleep for a _short_ time only.
  */
 static void uart_close(struct tty_struct *tty, struct file *filp)
 {
@@ -1365,7 +1359,7 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 		spin_lock_irqsave(&port->lock, flags);
 	} else if (!uart_console(uport)) {
 		spin_unlock_irqrestore(&port->lock, flags);
-		uart_change_pm(state, 3);
+		uart_change_pm(state, UART_PM_STATE_OFF);
 		spin_lock_irqsave(&port->lock, flags);
 	}
 
@@ -1437,10 +1431,9 @@ static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
 }
 
 /*
- * This is called with the BKL held in
- *  linux/drivers/char/tty_io.c:do_tty_hangup()
- * We're called from the eventd thread, so we can sleep for
- * a _short_ time only.
+ * Calls to uart_hangup() are serialised by the tty_lock in
+ *   drivers/tty/tty_io.c:do_tty_hangup()
+ * This runs from a workqueue and can sleep for a _short_ time only.
  */
 static void uart_hangup(struct tty_struct *tty)
 {
@@ -1521,8 +1514,8 @@ static void uart_dtr_rts(struct tty_port *port, int onoff)
 }
 
 /*
- * calls to uart_open are serialised by the BKL in
- *   fs/char_dev.c:chrdev_open()
+ * Calls to uart_open are serialised by the tty_lock in
+ *   drivers/tty/tty_io.c:tty_open()
  * Note that if this fails, then uart_close() _will_ be called.
  *
  * In time, we want to scrap the "opening nonpresent ports"
@@ -1564,7 +1557,8 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 	 */
 	tty->driver_data = state;
 	state->uart_port->state = state;
-	tty->low_latency = (state->uart_port->flags & UPF_LOW_LATENCY) ? 1 : 0;
+	state->port.low_latency =
+		(state->uart_port->flags & UPF_LOW_LATENCY) ? 1 : 0;
 	tty_port_tty_set(port, tty);
 
 	/*
@@ -1579,7 +1573,7 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 	 * Make sure the device is in D0 state.
 	 */
 	if (port->count == 1)
-		uart_change_pm(state, 0);
+		uart_change_pm(state, UART_PM_STATE_ON);
 
 	/*
 	 * Start up the serial port.
@@ -1620,7 +1614,7 @@ static void uart_line_info(struct seq_file *m, struct uart_driver *drv, int i)
 {
 	struct uart_state *state = drv->state + i;
 	struct tty_port *port = &state->port;
-	int pm_state;
+	enum uart_pm_state pm_state;
 	struct uart_port *uport = state->uart_port;
 	char stat_buf[32];
 	unsigned int status;
@@ -1645,12 +1639,12 @@ static void uart_line_info(struct seq_file *m, struct uart_driver *drv, int i)
 	if (capable(CAP_SYS_ADMIN)) {
 		mutex_lock(&port->mutex);
 		pm_state = state->pm_state;
-		if (pm_state)
-			uart_change_pm(state, 0);
+		if (pm_state != UART_PM_STATE_ON)
+			uart_change_pm(state, UART_PM_STATE_ON);
 		spin_lock_irq(&uport->lock);
 		status = uport->ops->get_mctrl(uport);
 		spin_unlock_irq(&uport->lock);
-		if (pm_state)
+		if (pm_state != UART_PM_STATE_ON)
 			uart_change_pm(state, pm_state);
 		mutex_unlock(&port->mutex);
 
@@ -1711,7 +1705,7 @@ static int uart_proc_show(struct seq_file *m, void *v)
 
 static int uart_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, uart_proc_show, PDE(inode)->data);
+	return single_open(file, uart_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations uart_proc_fops = {
@@ -1897,7 +1891,8 @@ EXPORT_SYMBOL_GPL(uart_set_options);
  *
  * Locking: port->mutex has to be held
  */
-static void uart_change_pm(struct uart_state *state, int pm_state)
+static void uart_change_pm(struct uart_state *state,
+			   enum uart_pm_state pm_state)
 {
 	struct uart_port *port = state->uart_port;
 
@@ -1940,6 +1935,8 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 		mutex_unlock(&port->mutex);
 		return 0;
 	}
+	put_device(tty_dev);
+
 	if (console_suspend_enabled || !uart_console(uport))
 		uport->suspended = 1;
 
@@ -1982,7 +1979,7 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 		console_stop(uport->cons);
 
 	if (console_suspend_enabled || !uart_console(uport))
-		uart_change_pm(state, 3);
+		uart_change_pm(state, UART_PM_STATE_OFF);
 
 	mutex_unlock(&port->mutex);
 
@@ -2005,9 +2002,11 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 			disable_irq_wake(uport->irq);
 			uport->irq_wake = 0;
 		}
+		put_device(tty_dev);
 		mutex_unlock(&port->mutex);
 		return 0;
 	}
+	put_device(tty_dev);
 	uport->suspended = 0;
 
 	/*
@@ -2027,7 +2026,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 			termios = port->tty->termios;
 
 		if (console_suspend_enabled)
-			uart_change_pm(state, 0);
+			uart_change_pm(state, UART_PM_STATE_ON);
 		uport->ops->set_termios(uport, &termios, NULL);
 		if (console_suspend_enabled)
 			console_start(uport->cons);
@@ -2037,7 +2036,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 		const struct uart_ops *ops = uport->ops;
 		int ret;
 
-		uart_change_pm(state, 0);
+		uart_change_pm(state, UART_PM_STATE_ON);
 		spin_lock_irq(&uport->lock);
 		ops->set_mctrl(uport, 0);
 		spin_unlock_irq(&uport->lock);
@@ -2096,12 +2095,12 @@ uart_report_port(struct uart_driver *drv, struct uart_port *port)
 		break;
 	}
 
-	printk(KERN_INFO "%s%s%s%d at %s (irq = %d) is a %s\n",
+	printk(KERN_INFO "%s%s%s%d at %s (irq = %d, base_baud = %d) is a %s\n",
 	       port->dev ? dev_name(port->dev) : "",
 	       port->dev ? ": " : "",
 	       drv->dev_name,
 	       drv->tty_driver->name_base + port->line,
-	       address, port->irq, uart_type(port));
+	       address, port->irq, port->uartclk / 16, uart_type(port));
 }
 
 static void
@@ -2137,7 +2136,7 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
 		uart_report_port(drv, port);
 
 		/* Power up port for set_mctrl() */
-		uart_change_pm(state, 0);
+		uart_change_pm(state, UART_PM_STATE_ON);
 
 		/*
 		 * Ensure that the modem control lines are de-activated.
@@ -2161,7 +2160,7 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
 		 * console if we have one.
 		 */
 		if (!uart_console(port))
-			uart_change_pm(state, 3);
+			uart_change_pm(state, UART_PM_STATE_OFF);
 	}
 }
 
@@ -2588,7 +2587,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	}
 
 	state->uart_port = uport;
-	state->pm_state = -1;
+	state->pm_state = UART_PM_STATE_UNDEFINED;
 
 	uport->cons = drv->cons;
 	uport->state = state;
@@ -2642,6 +2641,7 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 {
 	struct uart_state *state = drv->state + uport->line;
 	struct tty_port *port = &state->port;
+	int ret = 0;
 
 	BUG_ON(in_interrupt());
 
@@ -2656,6 +2656,11 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 	 * succeeding while we shut down the port.
 	 */
 	mutex_lock(&port->mutex);
+	if (!state->uart_port) {
+		mutex_unlock(&port->mutex);
+		ret = -EINVAL;
+		goto out;
+	}
 	uport->flags |= UPF_DEAD;
 	mutex_unlock(&port->mutex);
 
@@ -2679,9 +2684,10 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 	uport->type = PORT_UNKNOWN;
 
 	state->uart_port = NULL;
+out:
 	mutex_unlock(&port_mutex);
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -2715,22 +2721,17 @@ EXPORT_SYMBOL(uart_match_port);
  */
 void uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 {
-	struct uart_state *state = uport->state;
-	struct tty_port *port = &state->port;
-	struct tty_ldisc *ld = NULL;
-	struct pps_event_time ts;
+	struct tty_port *port = &uport->state->port;
 	struct tty_struct *tty = port->tty;
+	struct tty_ldisc *ld = tty ? tty_ldisc_ref(tty) : NULL;
 
-	if (tty)
-	        ld = tty_ldisc_ref(tty);
-	if (ld && ld->ops->dcd_change)
-		pps_get_ts(&ts);
+	if (ld) {
+		if (ld->ops->dcd_change)
+			ld->ops->dcd_change(tty, status);
+		tty_ldisc_deref(ld);
+	}
 
 	uport->icount.dcd++;
-#ifdef CONFIG_HARD_PPS
-	if ((uport->flags & UPF_HARDPPS_CD) && status)
-		hardpps();
-#endif
 
 	if (port->flags & ASYNC_CHECK_CD) {
 		if (status)
@@ -2738,11 +2739,6 @@ void uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 		else if (tty)
 			tty_hangup(tty);
 	}
-
-	if (ld && ld->ops->dcd_change)
-		ld->ops->dcd_change(tty, status, &ts);
-	if (ld)
-		tty_ldisc_deref(ld);
 }
 EXPORT_SYMBOL_GPL(uart_handle_dcd_change);
 
@@ -2790,10 +2786,10 @@ EXPORT_SYMBOL_GPL(uart_handle_cts_change);
 void uart_insert_char(struct uart_port *port, unsigned int status,
 		 unsigned int overrun, unsigned int ch, unsigned int flag)
 {
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
 
 	if ((status & port->ignore_status_mask & ~overrun) == 0)
-		if (tty_insert_flip_char(tty, ch, flag) == 0)
+		if (tty_insert_flip_char(tport, ch, flag) == 0)
 			++port->icount.buf_overrun;
 
 	/*
@@ -2801,7 +2797,7 @@ void uart_insert_char(struct uart_port *port, unsigned int status,
 	 * it doesn't affect the current character.
 	 */
 	if (status & ~port->ignore_status_mask & overrun)
-		if (tty_insert_flip_char(tty, 0, TTY_OVERRUN) == 0)
+		if (tty_insert_flip_char(tport, 0, TTY_OVERRUN) == 0)
 			++port->icount.buf_overrun;
 }
 EXPORT_SYMBOL_GPL(uart_insert_char);

@@ -2,6 +2,7 @@
  * H.323 connection tracking helper
  *
  * Copyright (c) 2006 Jing Min Zhao <zhaojingmin@users.sourceforge.net>
+ * Copyright (c) 2006-2012 Patrick McHardy <kaber@trash.net>
  *
  * This source code is licensed under General Public License version 2.
  *
@@ -623,7 +624,7 @@ static int h245_help(struct sk_buff *skb, unsigned int protoff,
 
       drop:
 	spin_unlock_bh(&nf_h323_lock);
-	net_info_ratelimited("nf_ct_h245: packet dropped\n");
+	nf_ct_helper_log(skb, ct, "cannot process H.245 message");
 	return NF_DROP;
 }
 
@@ -777,8 +778,8 @@ static int callforward_do_filter(const union nf_inet_addr *src,
 				   flowi6_to_flowi(&fl1), false)) {
 			if (!afinfo->route(&init_net, (struct dst_entry **)&rt2,
 					   flowi6_to_flowi(&fl2), false)) {
-				if (!memcmp(&rt1->rt6i_gateway, &rt2->rt6i_gateway,
-					    sizeof(rt1->rt6i_gateway)) &&
+				if (ipv6_addr_equal(rt6_nexthop(rt1),
+						    rt6_nexthop(rt2)) &&
 				    rt1->dst.dev == rt2->dst.dev)
 					ret = 1;
 				dst_release(&rt2->dst);
@@ -1197,7 +1198,7 @@ static int q931_help(struct sk_buff *skb, unsigned int protoff,
 
       drop:
 	spin_unlock_bh(&nf_h323_lock);
-	net_info_ratelimited("nf_ct_q931: packet dropped\n");
+	nf_ct_helper_log(skb, ct, "cannot process Q.931 message");
 	return NF_DROP;
 }
 
@@ -1795,7 +1796,7 @@ static int ras_help(struct sk_buff *skb, unsigned int protoff,
 
       drop:
 	spin_unlock_bh(&nf_h323_lock);
-	net_info_ratelimited("nf_ct_ras: packet dropped\n");
+	nf_ct_helper_log(skb, ct, "cannot process RAS message");
 	return NF_DROP;
 }
 

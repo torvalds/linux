@@ -8,7 +8,9 @@ The Linux kernel supports the following overcommit handling modes
 		default.
 
 1	-	Always overcommit. Appropriate for some scientific
-		applications.
+		applications. Classic example is code using sparse arrays
+		and just relying on the virtual memory consisting almost
+		entirely of zero pages.
 
 2	-	Don't overcommit. The total address space commit
 		for the system is not permitted to exceed swap + a
@@ -17,6 +19,10 @@ The Linux kernel supports the following overcommit handling modes
 		this means a process will not be killed while accessing
 		pages but will receive errors on memory allocation as
 		appropriate.
+
+		Useful for applications that want to guarantee their
+		memory allocations will be available in the future
+		without having to initialize every page.
 
 The overcommit policy is set via the sysctl `vm.overcommit_memory'.
 

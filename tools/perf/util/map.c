@@ -11,6 +11,7 @@
 #include "strlist.h"
 #include "vdso.h"
 #include "build-id.h"
+#include <linux/string.h>
 
 const char *map_type__name[MAP__NR_TYPES] = {
 	[MAP__FUNCTION] = "Functions",
@@ -19,7 +20,9 @@ const char *map_type__name[MAP__NR_TYPES] = {
 
 static inline int is_anon_memory(const char *filename)
 {
-	return strcmp(filename, "//anon") == 0;
+	return !strcmp(filename, "//anon") ||
+	       !strcmp(filename, "/dev/zero (deleted)") ||
+	       !strcmp(filename, "/anon_hugepage (deleted)");
 }
 
 static inline int is_no_dso_memory(const char *filename)
@@ -28,29 +31,30 @@ static inline int is_no_dso_memory(const char *filename)
 	       !strcmp(filename, "[heap]");
 }
 
-void map__init(struct map *self, enum map_type type,
+void map__init(struct map *map, enum map_type type,
 	       u64 start, u64 end, u64 pgoff, struct dso *dso)
 {
-	self->type     = type;
-	self->start    = start;
-	self->end      = end;
-	self->pgoff    = pgoff;
-	self->dso      = dso;
-	self->map_ip   = map__map_ip;
-	self->unmap_ip = map__unmap_ip;
-	RB_CLEAR_NODE(&self->rb_node);
-	self->groups   = NULL;
-	self->referenced = false;
-	self->erange_warned = false;
+	map->type     = type;
+	map->start    = start;
+	map->end      = end;
+	map->pgoff    = pgoff;
+	map->dso      = dso;
+	map->map_ip   = map__map_ip;
+	map->unmap_ip = map__unmap_ip;
+	RB_CLEAR_NODE(&map->rb_node);
+	map->groups   = NULL;
+	map->referenced = false;
+	map->erange_warned = false;
 }
 
 struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
-		     u64 pgoff, u32 pid, char *filename,
+		     u64 pgoff, u32 pid, u32 d_maj, u32 d_min, u64 ino,
+		     u64 ino_gen, char *filename,
 		     enum map_type type)
 {
-	struct map *self = malloc(sizeof(*self));
+	struct map *map = malloc(sizeof(*map));
 
-	if (self != NULL) {
+	if (map != NULL) {
 		char newfilename[PATH_MAX];
 		struct dso *dso;
 		int anon, no_dso, vdso;
@@ -58,6 +62,11 @@ struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 		anon = is_anon_memory(filename);
 		vdso = is_vdso_map(filename);
 		no_dso = is_no_dso_memory(filename);
+
+		map->maj = d_maj;
+		map->min = d_min;
+		map->ino = ino;
+		map->ino_generation = ino_gen;
 
 		if (anon) {
 			snprintf(newfilename, sizeof(newfilename), "/tmp/perf-%d.map", pid);
@@ -73,10 +82,10 @@ struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 		if (dso == NULL)
 			goto out_delete;
 
-		map__init(self, type, start, start + len, pgoff, dso);
+		map__init(map, type, start, start + len, pgoff, dso);
 
 		if (anon || no_dso) {
-			self->map_ip = self->unmap_ip = identity__map_ip;
+			map->map_ip = map->unmap_ip = identity__map_ip;
 
 			/*
 			 * Set memory without DSO as loaded. All map__find_*
@@ -84,12 +93,12 @@ struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 			 * unnecessary map__load warning.
 			 */
 			if (no_dso)
-				dso__set_loaded(dso, self->type);
+				dso__set_loaded(dso, map->type);
 		}
 	}
-	return self;
+	return map;
 out_delete:
-	free(self);
+	free(map);
 	return NULL;
 }
 
@@ -112,48 +121,48 @@ struct map *map__new2(u64 start, struct dso *dso, enum map_type type)
 	return map;
 }
 
-void map__delete(struct map *self)
+void map__delete(struct map *map)
 {
-	free(self);
+	free(map);
 }
 
-void map__fixup_start(struct map *self)
+void map__fixup_start(struct map *map)
 {
-	struct rb_root *symbols = &self->dso->symbols[self->type];
+	struct rb_root *symbols = &map->dso->symbols[map->type];
 	struct rb_node *nd = rb_first(symbols);
 	if (nd != NULL) {
 		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
-		self->start = sym->start;
+		map->start = sym->start;
 	}
 }
 
-void map__fixup_end(struct map *self)
+void map__fixup_end(struct map *map)
 {
-	struct rb_root *symbols = &self->dso->symbols[self->type];
+	struct rb_root *symbols = &map->dso->symbols[map->type];
 	struct rb_node *nd = rb_last(symbols);
 	if (nd != NULL) {
 		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
-		self->end = sym->end;
+		map->end = sym->end;
 	}
 }
 
 #define DSO__DELETED "(deleted)"
 
-int map__load(struct map *self, symbol_filter_t filter)
+int map__load(struct map *map, symbol_filter_t filter)
 {
-	const char *name = self->dso->long_name;
+	const char *name = map->dso->long_name;
 	int nr;
 
-	if (dso__loaded(self->dso, self->type))
+	if (dso__loaded(map->dso, map->type))
 		return 0;
 
-	nr = dso__load(self->dso, self, filter);
+	nr = dso__load(map->dso, map, filter);
 	if (nr < 0) {
-		if (self->dso->has_build_id) {
+		if (map->dso->has_build_id) {
 			char sbuild_id[BUILD_ID_SIZE * 2 + 1];
 
-			build_id__sprintf(self->dso->build_id,
-					  sizeof(self->dso->build_id),
+			build_id__sprintf(map->dso->build_id,
+					  sizeof(map->dso->build_id),
 					  sbuild_id);
 			pr_warning("%s with build id %s not found",
 				   name, sbuild_id);
@@ -163,7 +172,7 @@ int map__load(struct map *self, symbol_filter_t filter)
 		pr_warning(", continuing without symbols\n");
 		return -1;
 	} else if (nr == 0) {
-#ifdef LIBELF_SUPPORT
+#ifdef HAVE_LIBELF_SUPPORT
 		const size_t len = strlen(name);
 		const size_t real_len = len - sizeof(DSO__DELETED);
 
@@ -179,47 +188,34 @@ int map__load(struct map *self, symbol_filter_t filter)
 #endif
 		return -1;
 	}
-	/*
-	 * Only applies to the kernel, as its symtabs aren't relative like the
-	 * module ones.
-	 */
-	if (self->dso->kernel)
-		map__reloc_vmlinux(self);
 
 	return 0;
 }
 
-struct symbol *map__find_symbol(struct map *self, u64 addr,
+struct symbol *map__find_symbol(struct map *map, u64 addr,
 				symbol_filter_t filter)
 {
-	if (map__load(self, filter) < 0)
+	if (map__load(map, filter) < 0)
 		return NULL;
 
-	return dso__find_symbol(self->dso, self->type, addr);
+	return dso__find_symbol(map->dso, map->type, addr);
 }
 
-struct symbol *map__find_symbol_by_name(struct map *self, const char *name,
+struct symbol *map__find_symbol_by_name(struct map *map, const char *name,
 					symbol_filter_t filter)
 {
-	if (map__load(self, filter) < 0)
+	if (map__load(map, filter) < 0)
 		return NULL;
 
-	if (!dso__sorted_by_name(self->dso, self->type))
-		dso__sort_by_name(self->dso, self->type);
+	if (!dso__sorted_by_name(map->dso, map->type))
+		dso__sort_by_name(map->dso, map->type);
 
-	return dso__find_symbol_by_name(self->dso, self->type, name);
+	return dso__find_symbol_by_name(map->dso, map->type, name);
 }
 
-struct map *map__clone(struct map *self)
+struct map *map__clone(struct map *map)
 {
-	struct map *map = malloc(sizeof(*self));
-
-	if (!map)
-		return NULL;
-
-	memcpy(map, self, sizeof(*self));
-
-	return map;
+	return memdup(map, sizeof(*map));
 }
 
 int map__overlap(struct map *l, struct map *r)
@@ -236,10 +232,10 @@ int map__overlap(struct map *l, struct map *r)
 	return 0;
 }
 
-size_t map__fprintf(struct map *self, FILE *fp)
+size_t map__fprintf(struct map *map, FILE *fp)
 {
 	return fprintf(fp, " %" PRIx64 "-%" PRIx64 " %" PRIx64 " %s\n",
-		       self->start, self->end, self->pgoff, self->dso->name);
+		       map->start, map->end, map->pgoff, map->dso->name);
 }
 
 size_t map__fprintf_dsoname(struct map *map, FILE *fp)
@@ -256,16 +252,49 @@ size_t map__fprintf_dsoname(struct map *map, FILE *fp)
 	return fprintf(fp, "%s", dsoname);
 }
 
-/*
+/**
+ * map__rip_2objdump - convert symbol start address to objdump address.
+ * @map: memory map
+ * @rip: symbol start address
+ *
  * objdump wants/reports absolute IPs for ET_EXEC, and RIPs for ET_DYN.
- * map->dso->adjust_symbols==1 for ET_EXEC-like cases.
+ * map->dso->adjust_symbols==1 for ET_EXEC-like cases except ET_REL which is
+ * relative to section start.
+ *
+ * Return: Address suitable for passing to "objdump --start-address="
  */
 u64 map__rip_2objdump(struct map *map, u64 rip)
 {
-	u64 addr = map->dso->adjust_symbols ?
-			map->unmap_ip(map, rip) :	/* RIP -> IP */
-			rip;
-	return addr;
+	if (!map->dso->adjust_symbols)
+		return rip;
+
+	if (map->dso->rel)
+		return rip - map->pgoff;
+
+	return map->unmap_ip(map, rip);
+}
+
+/**
+ * map__objdump_2mem - convert objdump address to a memory address.
+ * @map: memory map
+ * @ip: objdump address
+ *
+ * Closely related to map__rip_2objdump(), this function takes an address from
+ * objdump and converts it to a memory address.  Note this assumes that @map
+ * contains the address.  To be sure the result is valid, check it forwards
+ * e.g. map__rip_2objdump(map->map_ip(map, map__objdump_2mem(map, ip))) == ip
+ *
+ * Return: Memory address.
+ */
+u64 map__objdump_2mem(struct map *map, u64 ip)
+{
+	if (!map->dso->adjust_symbols)
+		return map->unmap_ip(map, ip);
+
+	if (map->dso->rel)
+		return map->unmap_ip(map, ip + map->pgoff);
+
+	return ip;
 }
 
 void map_groups__init(struct map_groups *mg)
@@ -369,6 +398,23 @@ struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg,
 	}
 
 	return NULL;
+}
+
+int map_groups__find_ams(struct addr_map_symbol *ams, symbol_filter_t filter)
+{
+	if (ams->addr < ams->map->start || ams->addr > ams->map->end) {
+		if (ams->map->groups == NULL)
+			return -1;
+		ams->map = map_groups__find(ams->map->groups, ams->map->type,
+					    ams->addr);
+		if (ams->map == NULL)
+			return -1;
+	}
+
+	ams->al_addr = ams->map->map_ip(ams->map, ams->addr);
+	ams->sym = map__find_symbol(ams->map, ams->al_addr, filter);
+
+	return ams->sym ? 0 : -1;
 }
 
 size_t __map_groups__fprintf_maps(struct map_groups *mg,
@@ -517,35 +563,6 @@ int map_groups__clone(struct map_groups *mg,
 	return 0;
 }
 
-static u64 map__reloc_map_ip(struct map *map, u64 ip)
-{
-	return ip + (s64)map->pgoff;
-}
-
-static u64 map__reloc_unmap_ip(struct map *map, u64 ip)
-{
-	return ip - (s64)map->pgoff;
-}
-
-void map__reloc_vmlinux(struct map *self)
-{
-	struct kmap *kmap = map__kmap(self);
-	s64 reloc;
-
-	if (!kmap->ref_reloc_sym || !kmap->ref_reloc_sym->unrelocated_addr)
-		return;
-
-	reloc = (kmap->ref_reloc_sym->unrelocated_addr -
-		 kmap->ref_reloc_sym->addr);
-
-	if (!reloc)
-		return;
-
-	self->map_ip   = map__reloc_map_ip;
-	self->unmap_ip = map__reloc_unmap_ip;
-	self->pgoff    = reloc;
-}
-
 void maps__insert(struct rb_root *maps, struct map *map)
 {
 	struct rb_node **p = &maps->rb_node;
@@ -566,9 +583,9 @@ void maps__insert(struct rb_root *maps, struct map *map)
 	rb_insert_color(&map->rb_node, maps);
 }
 
-void maps__remove(struct rb_root *self, struct map *map)
+void maps__remove(struct rb_root *maps, struct map *map)
 {
-	rb_erase(&map->rb_node, self);
+	rb_erase(&map->rb_node, maps);
 }
 
 struct map *maps__find(struct rb_root *maps, u64 ip)
@@ -588,5 +605,23 @@ struct map *maps__find(struct rb_root *maps, u64 ip)
 			return m;
 	}
 
+	return NULL;
+}
+
+struct map *maps__first(struct rb_root *maps)
+{
+	struct rb_node *first = rb_first(maps);
+
+	if (first)
+		return rb_entry(first, struct map, rb_node);
+	return NULL;
+}
+
+struct map *maps__next(struct map *map)
+{
+	struct rb_node *next = rb_next(&map->rb_node);
+
+	if (next)
+		return rb_entry(next, struct map, rb_node);
 	return NULL;
 }

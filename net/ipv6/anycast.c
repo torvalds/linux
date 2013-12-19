@@ -47,7 +47,7 @@
 static int ipv6_dev_ac_dec(struct net_device *dev, const struct in6_addr *addr);
 
 /* Big ac list lock for all the sockets */
-static DEFINE_RWLOCK(ipv6_sk_ac_lock);
+static DEFINE_SPINLOCK(ipv6_sk_ac_lock);
 
 
 /*
@@ -128,10 +128,10 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 
 	err = ipv6_dev_ac_inc(dev, addr);
 	if (!err) {
-		write_lock_bh(&ipv6_sk_ac_lock);
+		spin_lock_bh(&ipv6_sk_ac_lock);
 		pac->acl_next = np->ipv6_ac_list;
 		np->ipv6_ac_list = pac;
-		write_unlock_bh(&ipv6_sk_ac_lock);
+		spin_unlock_bh(&ipv6_sk_ac_lock);
 		pac = NULL;
 	}
 
@@ -152,7 +152,7 @@ int ipv6_sock_ac_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
 	struct ipv6_ac_socklist *pac, *prev_pac;
 	struct net *net = sock_net(sk);
 
-	write_lock_bh(&ipv6_sk_ac_lock);
+	spin_lock_bh(&ipv6_sk_ac_lock);
 	prev_pac = NULL;
 	for (pac = np->ipv6_ac_list; pac; pac = pac->acl_next) {
 		if ((ifindex == 0 || pac->acl_ifindex == ifindex) &&
@@ -161,7 +161,7 @@ int ipv6_sock_ac_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
 		prev_pac = pac;
 	}
 	if (!pac) {
-		write_unlock_bh(&ipv6_sk_ac_lock);
+		spin_unlock_bh(&ipv6_sk_ac_lock);
 		return -ENOENT;
 	}
 	if (prev_pac)
@@ -169,7 +169,7 @@ int ipv6_sock_ac_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
 	else
 		np->ipv6_ac_list = pac->acl_next;
 
-	write_unlock_bh(&ipv6_sk_ac_lock);
+	spin_unlock_bh(&ipv6_sk_ac_lock);
 
 	rcu_read_lock();
 	dev = dev_get_by_index_rcu(net, pac->acl_ifindex);
@@ -192,10 +192,10 @@ void ipv6_sock_ac_close(struct sock *sk)
 	if (!np->ipv6_ac_list)
 		return;
 
-	write_lock_bh(&ipv6_sk_ac_lock);
+	spin_lock_bh(&ipv6_sk_ac_lock);
 	pac = np->ipv6_ac_list;
 	np->ipv6_ac_list = NULL;
-	write_unlock_bh(&ipv6_sk_ac_lock);
+	spin_unlock_bh(&ipv6_sk_ac_lock);
 
 	prev_index = 0;
 	rcu_read_lock();
@@ -509,7 +509,7 @@ static const struct file_operations ac6_seq_fops = {
 
 int __net_init ac6_proc_init(struct net *net)
 {
-	if (!proc_net_fops_create(net, "anycast6", S_IRUGO, &ac6_seq_fops))
+	if (!proc_create("anycast6", S_IRUGO, net->proc_net, &ac6_seq_fops))
 		return -ENOMEM;
 
 	return 0;
@@ -517,7 +517,7 @@ int __net_init ac6_proc_init(struct net *net)
 
 void ac6_proc_exit(struct net *net)
 {
-	proc_net_remove(net, "anycast6");
+	remove_proc_entry("anycast6", net->proc_net);
 }
 #endif
 

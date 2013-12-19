@@ -1035,7 +1035,7 @@ END(ia64_delay_loop)
  * Return a CPU-local timestamp in nano-seconds.  This timestamp is
  * NOT synchronized across CPUs its return value must never be
  * compared against the values returned on another CPU.  The usage in
- * kernel/sched.c ensures that.
+ * kernel/sched/core.c ensures that.
  *
  * The return-value of sched_clock() is NOT supposed to wrap-around.
  * If it did, it would cause some scheduling hiccups (at the worst).
@@ -1073,7 +1073,7 @@ END(ia64_native_sched_clock)
 sched_clock = ia64_native_sched_clock
 #endif
 
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 GLOBAL_ENTRY(cycle_to_cputime)
 	alloc r16=ar.pfs,1,0,0,0
 	addl r8=THIS_CPU(ia64_cpu_info) + IA64_CPUINFO_NSEC_PER_CYC_OFFSET,r0
@@ -1091,7 +1091,7 @@ GLOBAL_ENTRY(cycle_to_cputime)
 	shrp r8=r9,r8,IA64_NSEC_PER_CYC_SHIFT
 	br.ret.sptk.many rp
 END(cycle_to_cputime)
-#endif /* CONFIG_VIRT_CPU_ACCOUNTING */
+#endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 
 #ifdef CONFIG_IA64_BRL_EMU
 

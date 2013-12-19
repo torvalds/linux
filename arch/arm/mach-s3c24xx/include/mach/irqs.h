@@ -59,49 +59,53 @@
 #define IRQ_ADCPARENT  S3C2410_IRQ(31)
 
 /* interrupts generated from the external interrupts sources */
-#define IRQ_EINT4      S3C2410_IRQ(32)	   /* 48 */
-#define IRQ_EINT5      S3C2410_IRQ(33)
-#define IRQ_EINT6      S3C2410_IRQ(34)
-#define IRQ_EINT7      S3C2410_IRQ(35)
-#define IRQ_EINT8      S3C2410_IRQ(36)
-#define IRQ_EINT9      S3C2410_IRQ(37)
-#define IRQ_EINT10     S3C2410_IRQ(38)
-#define IRQ_EINT11     S3C2410_IRQ(39)
-#define IRQ_EINT12     S3C2410_IRQ(40)
-#define IRQ_EINT13     S3C2410_IRQ(41)
-#define IRQ_EINT14     S3C2410_IRQ(42)
-#define IRQ_EINT15     S3C2410_IRQ(43)
-#define IRQ_EINT16     S3C2410_IRQ(44)
-#define IRQ_EINT17     S3C2410_IRQ(45)
-#define IRQ_EINT18     S3C2410_IRQ(46)
-#define IRQ_EINT19     S3C2410_IRQ(47)
-#define IRQ_EINT20     S3C2410_IRQ(48)	   /* 64 */
-#define IRQ_EINT21     S3C2410_IRQ(49)
-#define IRQ_EINT22     S3C2410_IRQ(50)
-#define IRQ_EINT23     S3C2410_IRQ(51)
+#define IRQ_EINT0_2412 S3C2410_IRQ(32)
+#define IRQ_EINT1_2412 S3C2410_IRQ(33)
+#define IRQ_EINT2_2412 S3C2410_IRQ(34)
+#define IRQ_EINT3_2412 S3C2410_IRQ(35)
+#define IRQ_EINT4      S3C2410_IRQ(36)	   /* 52 */
+#define IRQ_EINT5      S3C2410_IRQ(37)
+#define IRQ_EINT6      S3C2410_IRQ(38)
+#define IRQ_EINT7      S3C2410_IRQ(39)
+#define IRQ_EINT8      S3C2410_IRQ(40)
+#define IRQ_EINT9      S3C2410_IRQ(41)
+#define IRQ_EINT10     S3C2410_IRQ(42)
+#define IRQ_EINT11     S3C2410_IRQ(43)
+#define IRQ_EINT12     S3C2410_IRQ(44)
+#define IRQ_EINT13     S3C2410_IRQ(45)
+#define IRQ_EINT14     S3C2410_IRQ(46)
+#define IRQ_EINT15     S3C2410_IRQ(47)
+#define IRQ_EINT16     S3C2410_IRQ(48)
+#define IRQ_EINT17     S3C2410_IRQ(49)
+#define IRQ_EINT18     S3C2410_IRQ(50)
+#define IRQ_EINT19     S3C2410_IRQ(51)
+#define IRQ_EINT20     S3C2410_IRQ(52)	   /* 68 */
+#define IRQ_EINT21     S3C2410_IRQ(53)
+#define IRQ_EINT22     S3C2410_IRQ(54)
+#define IRQ_EINT23     S3C2410_IRQ(55)
 
 #define IRQ_EINT_BIT(x)	((x) - IRQ_EINT4 + 4)
 #define IRQ_EINT(x)    (((x) >= 4) ? (IRQ_EINT4 + (x) - 4) : (IRQ_EINT0 + (x)))
 
-#define IRQ_LCD_FIFO   S3C2410_IRQ(52)
-#define IRQ_LCD_FRAME  S3C2410_IRQ(53)
+#define IRQ_LCD_FIFO   S3C2410_IRQ(56)
+#define IRQ_LCD_FRAME  S3C2410_IRQ(57)
 
 /* IRQs for the interal UARTs, and ADC
  * these need to be ordered in number of appearance in the
  * SUBSRC mask register
 */
 
-#define S3C2410_IRQSUB(x)	S3C2410_IRQ((x)+54)
+#define S3C2410_IRQSUB(x)	S3C2410_IRQ((x)+58)
 
-#define IRQ_S3CUART_RX0		S3C2410_IRQSUB(0)	/* 70 */
+#define IRQ_S3CUART_RX0		S3C2410_IRQSUB(0)	/* 74 */
 #define IRQ_S3CUART_TX0		S3C2410_IRQSUB(1)
 #define IRQ_S3CUART_ERR0	S3C2410_IRQSUB(2)
 
-#define IRQ_S3CUART_RX1		S3C2410_IRQSUB(3)	/* 73 */
+#define IRQ_S3CUART_RX1		S3C2410_IRQSUB(3)	/* 77 */
 #define IRQ_S3CUART_TX1		S3C2410_IRQSUB(4)
 #define IRQ_S3CUART_ERR1	S3C2410_IRQSUB(5)
 
-#define IRQ_S3CUART_RX2		S3C2410_IRQSUB(6)	/* 76 */
+#define IRQ_S3CUART_RX2		S3C2410_IRQSUB(6)	/* 80 */
 #define IRQ_S3CUART_TX2		S3C2410_IRQSUB(7)
 #define IRQ_S3CUART_ERR2	S3C2410_IRQSUB(8)
 
@@ -136,7 +140,7 @@
 
 /* second interrupt-register of s3c2416/s3c2450 */
 
-#define S3C2416_IRQ(x)		S3C2410_IRQ((x) + 54 + 29)
+#define S3C2416_IRQ(x)		S3C2410_IRQ((x) + 58 + 29)
 #define IRQ_S3C2416_2D		S3C2416_IRQ(0)
 #define IRQ_S3C2416_IIC1	S3C2416_IRQ(1)
 #define IRQ_S3C2416_RESERVED2	S3C2416_IRQ(2)
@@ -188,10 +192,8 @@
 
 #if defined(CONFIG_CPU_S3C2416)
 #define NR_IRQS (IRQ_S3C2416_I2S1 + 1)
-#elif defined(CONFIG_CPU_S3C2443)
-#define NR_IRQS (IRQ_S3C2443_AC97+1)
 #else
-#define NR_IRQS (IRQ_S3C2440_AC97+1)
+#define NR_IRQS (IRQ_S3C2443_AC97 + 1)
 #endif
 
 /* compatibility define. */

@@ -1233,38 +1233,13 @@ static int au1200fb_fb_blank(int blank_mode, struct fb_info *fbi)
  * method mainly to allow the use of the TLB streaming flag (CCA=6)
  */
 static int au1200fb_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
-
 {
-	unsigned int len;
-	unsigned long start=0, off;
 	struct au1200fb_device *fbdev = info->par;
-
-	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT)) {
-		return -EINVAL;
-	}
-
-	start = fbdev->fb_phys & PAGE_MASK;
-	len = PAGE_ALIGN((start & ~PAGE_MASK) + fbdev->fb_len);
-
-	off = vma->vm_pgoff << PAGE_SHIFT;
-
-	if ((vma->vm_end - vma->vm_start + off) > len) {
-		return -EINVAL;
-	}
-
-	off += start;
-	vma->vm_pgoff = off >> PAGE_SHIFT;
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	pgprot_val(vma->vm_page_prot) |= _CACHE_MASK; /* CCA=7 */
 
-	vma->vm_flags |= VM_IO;
-
-	return io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
-				  vma->vm_end - vma->vm_start,
-				  vma->vm_page_prot);
-
-	return 0;
+	return vm_iomap_memory(vma, fbdev->fb_phys, fbdev->fb_len);
 }
 
 static void set_global(u_int cmd, struct au1200_lcd_global_regs_t *pdata)
@@ -1673,7 +1648,7 @@ out:
 }
 
 /* AU1200 LCD controller device driver */
-static int __devinit au1200fb_drv_probe(struct platform_device *dev)
+static int au1200fb_drv_probe(struct platform_device *dev)
 {
 	struct au1200fb_device *fbdev;
 	struct au1200fb_platdata *pd;
@@ -1798,7 +1773,7 @@ failed:
 	return ret;
 }
 
-static int __devexit au1200fb_drv_remove(struct platform_device *dev)
+static int au1200fb_drv_remove(struct platform_device *dev)
 {
 	struct au1200fb_platdata *pd = platform_get_drvdata(dev);
 	struct au1200fb_device *fbdev;
@@ -1876,23 +1851,9 @@ static struct platform_driver au1200fb_driver = {
 		.pm	= AU1200FB_PMOPS,
 	},
 	.probe		= au1200fb_drv_probe,
-	.remove		= __devexit_p(au1200fb_drv_remove),
+	.remove		= au1200fb_drv_remove,
 };
-
-/*-------------------------------------------------------------------------*/
-
-static int __init au1200fb_init(void)
-{
-	return platform_driver_register(&au1200fb_driver);
-}
-
-static void __exit au1200fb_cleanup(void)
-{
-	platform_driver_unregister(&au1200fb_driver);
-}
-
-module_init(au1200fb_init);
-module_exit(au1200fb_cleanup);
+module_platform_driver(au1200fb_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

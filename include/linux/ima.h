@@ -46,7 +46,7 @@ static inline int ima_module_check(struct file *file)
 	return 0;
 }
 
-#endif /* CONFIG_IMA_H */
+#endif /* CONFIG_IMA */
 
 #ifdef CONFIG_IMA_APPRAISE
 extern void ima_inode_post_setattr(struct dentry *dentry);
@@ -72,5 +72,5 @@ static inline int ima_inode_removexattr(struct dentry *dentry,
 {
 	return 0;
 }
-#endif /* CONFIG_IMA_APPRAISE_H */
+#endif /* CONFIG_IMA_APPRAISE */
 #endif /* _LINUX_IMA_H */

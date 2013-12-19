@@ -183,7 +183,7 @@ static void gx_write_byte(int reg, int value)
  * gx_detect_chipset:
  *
  **/
-static __init struct pci_dev *gx_detect_chipset(void)
+static struct pci_dev * __init gx_detect_chipset(void)
 {
 	struct pci_dev *gx_pci = NULL;
 
@@ -251,14 +251,13 @@ static unsigned int gx_validate_speed(unsigned int khz, u8 *on_duration,
  * set cpu speed in khz.
  **/
 
-static void gx_set_cpuspeed(unsigned int khz)
+static void gx_set_cpuspeed(struct cpufreq_policy *policy, unsigned int khz)
 {
 	u8 suscfg, pmer1;
 	unsigned int new_khz;
 	unsigned long flags;
 	struct cpufreq_freqs freqs;
 
-	freqs.cpu = 0;
 	freqs.old = gx_get_cpuspeed(0);
 
 	new_khz = gx_validate_speed(khz, &gx_params->on_duration,
@@ -266,10 +265,8 @@ static void gx_set_cpuspeed(unsigned int khz)
 
 	freqs.new = new_khz;
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 	local_irq_save(flags);
-
-
 
 	if (new_khz != stock_freq) {
 		/* if new khz == 100% of CPU speed, it is special case */
@@ -317,7 +314,7 @@ static void gx_set_cpuspeed(unsigned int khz)
 
 	gx_params->pci_suscfg = suscfg;
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	pr_debug("suspend modulation w/ duration of ON:%d us, OFF:%d us\n",
 		gx_params->on_duration * 32, gx_params->off_duration * 32);
@@ -397,14 +394,14 @@ static int cpufreq_gx_target(struct cpufreq_policy *policy,
 		tmp_freq = gx_validate_speed(tmp_freq, &tmp1, &tmp2);
 	}
 
-	gx_set_cpuspeed(tmp_freq);
+	gx_set_cpuspeed(policy, tmp_freq);
 
 	return 0;
 }
 
 static int cpufreq_gx_cpu_init(struct cpufreq_policy *policy)
 {
-	unsigned int maxfreq, curfreq;
+	unsigned int maxfreq;
 
 	if (!policy || policy->cpu != 0)
 		return -ENODEV;
@@ -418,10 +415,8 @@ static int cpufreq_gx_cpu_init(struct cpufreq_policy *policy)
 		maxfreq = 30000 * gx_freq_mult[getCx86(CX86_DIR1) & 0x0f];
 
 	stock_freq = maxfreq;
-	curfreq = gx_get_cpuspeed(0);
 
 	pr_debug("cpu max frequency is %d.\n", maxfreq);
-	pr_debug("cpu current frequency is %dkHz.\n", curfreq);
 
 	/* setup basic struct for cpufreq API */
 	policy->cpu = 0;
@@ -431,7 +426,6 @@ static int cpufreq_gx_cpu_init(struct cpufreq_policy *policy)
 	else
 		policy->min = maxfreq / POLICY_MIN_DIV;
 	policy->max = maxfreq;
-	policy->cur = curfreq;
 	policy->cpuinfo.min_freq = maxfreq / max_duration;
 	policy->cpuinfo.max_freq = maxfreq;
 	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
@@ -449,7 +443,6 @@ static struct cpufreq_driver gx_suspmod_driver = {
 	.target		= cpufreq_gx_target,
 	.init		= cpufreq_gx_cpu_init,
 	.name		= "gx-suspmod",
-	.owner		= THIS_MODULE,
 };
 
 static int __init cpufreq_gx_init(void)
@@ -469,7 +462,7 @@ static int __init cpufreq_gx_init(void)
 
 	pr_debug("geode suspend modulation available.\n");
 
-	params = kzalloc(sizeof(struct gxfreq_params), GFP_KERNEL);
+	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (params == NULL)
 		return -ENOMEM;
 

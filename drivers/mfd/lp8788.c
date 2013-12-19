@@ -173,7 +173,7 @@ static const struct regmap_config lp8788_regmap_config = {
 static int lp8788_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 {
 	struct lp8788 *lp;
-	struct lp8788_platform_data *pdata = cl->dev.platform_data;
+	struct lp8788_platform_data *pdata = dev_get_platdata(&cl->dev);
 	int ret;
 
 	lp = devm_kzalloc(&cl->dev, sizeof(struct lp8788), GFP_KERNEL);

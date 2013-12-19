@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,6 +86,9 @@ acpi_status acpi_ev_gpe_initialize(void)
 
 	ACPI_FUNCTION_TRACE(ev_gpe_initialize);
 
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+			      "Initializing General Purpose Events (GPEs):\n"));
+
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -122,7 +125,6 @@ acpi_status acpi_ev_gpe_initialize(void)
 		/* GPE block 0 exists (has both length and address > 0) */
 
 		register_count0 = (u16)(acpi_gbl_FADT.gpe0_block_length / 2);
-
 		gpe_number_max =
 		    (register_count0 * ACPI_GPE_REGISTER_WIDTH) - 1;
 
@@ -201,17 +203,7 @@ acpi_status acpi_ev_gpe_initialize(void)
 		goto cleanup;
 	}
 
-	/* Check for Max GPE number out-of-range */
-
-	if (gpe_number_max > ACPI_GPE_MAX) {
-		ACPI_ERROR((AE_INFO,
-			    "Maximum GPE number from FADT is too large: 0x%X",
-			    gpe_number_max));
-		status = AE_BAD_VALUE;
-		goto cleanup;
-	}
-
-      cleanup:
+cleanup:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS(AE_OK);
 }
@@ -360,14 +352,17 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	 */
 	switch (name[1]) {
 	case 'L':
+
 		type = ACPI_GPE_LEVEL_TRIGGERED;
 		break;
 
 	case 'E':
+
 		type = ACPI_GPE_EDGE_TRIGGERED;
 		break;
 
 	default:
+
 		/* Unknown method type, just ignore it */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_LOAD,

@@ -287,7 +287,7 @@ static int navpoint_probe(struct platform_device *pdev)
 	return 0;
 
 err_free_irq:
-	free_irq(ssp->irq, &pdev->dev);
+	free_irq(ssp->irq, navpoint);
 err_free_mem:
 	input_free_device(input);
 	kfree(navpoint);

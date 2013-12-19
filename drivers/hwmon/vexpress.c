@@ -19,6 +19,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/vexpress.h>
@@ -196,7 +197,7 @@ error:
 	return err;
 }
 
-static int __devexit vexpress_hwmon_remove(struct platform_device *pdev)
+static int vexpress_hwmon_remove(struct platform_device *pdev)
 {
 	struct vexpress_hwmon_data *data = platform_get_drvdata(pdev);
 	const struct of_device_id *match;
@@ -213,7 +214,7 @@ static int __devexit vexpress_hwmon_remove(struct platform_device *pdev)
 
 static struct platform_driver vexpress_hwmon_driver = {
 	.probe = vexpress_hwmon_probe,
-	.remove = __devexit_p(vexpress_hwmon_remove),
+	.remove = vexpress_hwmon_remove,
 	.driver	= {
 		.name = DRVNAME,
 		.owner = THIS_MODULE,

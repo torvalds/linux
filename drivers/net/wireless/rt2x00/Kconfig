@@ -1,6 +1,6 @@
 menuconfig RT2X00
 	tristate "Ralink driver support"
-	depends on MAC80211
+	depends on MAC80211 && HAS_DMA
 	---help---
 	  This will enable the support for the Ralink drivers,
 	  developed in the rt2x00 project <http://rt2x00.serialmonkey.com>.
@@ -20,6 +20,7 @@ if RT2X00
 config RT2400PCI
 	tristate "Ralink rt2400 (PCI/PCMCIA) support"
 	depends on PCI
+	select RT2X00_LIB_MMIO
 	select RT2X00_LIB_PCI
 	select EEPROM_93CX6
 	---help---
@@ -31,6 +32,7 @@ config RT2400PCI
 config RT2500PCI
 	tristate "Ralink rt2500 (PCI/PCMCIA) support"
 	depends on PCI
+	select RT2X00_LIB_MMIO
 	select RT2X00_LIB_PCI
 	select EEPROM_93CX6
 	---help---
@@ -43,6 +45,7 @@ config RT61PCI
 	tristate "Ralink rt2501/rt61 (PCI/PCMCIA) support"
 	depends on PCI
 	select RT2X00_LIB_PCI
+	select RT2X00_LIB_MMIO
 	select RT2X00_LIB_FIRMWARE
 	select RT2X00_LIB_CRYPTO
 	select CRC_ITU_T
@@ -55,10 +58,11 @@ config RT61PCI
 
 config RT2800PCI
 	tristate "Ralink rt27xx/rt28xx/rt30xx (PCI/PCIe/PCMCIA) support"
-	depends on PCI || RALINK_RT288X || RALINK_RT305X
+	depends on PCI
 	select RT2800_LIB
-	select RT2X00_LIB_PCI if PCI
-	select RT2X00_LIB_SOC if RALINK_RT288X || RALINK_RT305X
+	select RT2800_LIB_MMIO
+	select RT2X00_LIB_MMIO
+	select RT2X00_LIB_PCI
 	select RT2X00_LIB_FIRMWARE
 	select RT2X00_LIB_CRYPTO
 	select CRC_CCITT
@@ -82,7 +86,6 @@ config RT2800PCI_RT33XX
 
 config RT2800PCI_RT35XX
 	bool "rt2800pci - Include support for rt35xx devices (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
 	default y
 	---help---
 	  This adds support for rt35xx wireless chipset family to the
@@ -92,7 +95,6 @@ config RT2800PCI_RT35XX
 
 config RT2800PCI_RT53XX
        bool "rt2800pci - Include support for rt53xx devices (EXPERIMENTAL)"
-       depends on EXPERIMENTAL
        default y
        ---help---
          This adds support for rt53xx wireless chipset family to the
@@ -101,7 +103,6 @@ config RT2800PCI_RT53XX
 
 config RT2800PCI_RT3290
        bool "rt2800pci - Include support for rt3290 devices (EXPERIMENTAL)"
-       depends on EXPERIMENTAL
        default y
        ---help---
          This adds support for rt3290 wireless chipset family to the
@@ -159,20 +160,31 @@ config RT2800USB_RT33XX
 
 config RT2800USB_RT35XX
 	bool "rt2800usb - Include support for rt35xx devices (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
 	default y
 	---help---
 	  This adds support for rt35xx wireless chipset family to the
 	  rt2800usb driver.
 	  Supported chips: RT3572
 
+config RT2800USB_RT3573
+	bool "rt2800usb - Include support for rt3573 devices (EXPERIMENTAL)"
+	---help---
+	  This enables support for RT3573 chipset based wireless USB devices
+	  in the rt2800usb driver.
+
 config RT2800USB_RT53XX
        bool "rt2800usb - Include support for rt53xx devices (EXPERIMENTAL)"
-       depends on EXPERIMENTAL
        ---help---
          This adds support for rt53xx wireless chipset family to the
          rt2800usb driver.
          Supported chips: RT5370
+
+config RT2800USB_RT55XX
+       bool "rt2800usb - Include support for rt55xx devices (EXPERIMENTAL)"
+       ---help---
+         This adds support for rt55xx wireless chipset family to the
+         rt2800usb driver.
+         Supported chips: RT5572
 
 config RT2800USB_UNKNOWN
 	bool "rt2800usb - Include support for unknown (USB) devices"
@@ -187,7 +199,31 @@ config RT2800USB_UNKNOWN
 
 endif
 
+config RT2800SOC
+	tristate "Ralink WiSoC support"
+	depends on SOC_RT288X || SOC_RT305X
+	select RT2X00_LIB_SOC
+	select RT2X00_LIB_MMIO
+	select RT2X00_LIB_CRYPTO
+	select RT2X00_LIB_FIRMWARE
+	select RT2800_LIB
+	select RT2800_LIB_MMIO
+	---help---
+	  This adds support for Ralink WiSoC devices.
+	  Supported chips: RT2880, RT3050, RT3052, RT3350, RT3352.
+
+	  When compiled as a module, this driver will be called rt2800soc.
+
+
 config RT2800_LIB
+	tristate
+
+config RT2800_LIB_MMIO
+	tristate
+	select RT2X00_LIB_MMIO
+	select RT2800_LIB
+
+config RT2X00_LIB_MMIO
 	tristate
 
 config RT2X00_LIB_PCI
@@ -204,6 +240,7 @@ config RT2X00_LIB_USB
 
 config RT2X00_LIB
 	tristate
+	select AVERAGE
 
 config RT2X00_LIB_FIRMWARE
 	boolean

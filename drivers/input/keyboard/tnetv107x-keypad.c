@@ -60,8 +60,8 @@ struct keypad_data {
 	struct clk			*clk;
 	struct device			*dev;
 	spinlock_t			lock;
-	u32				irq_press;
-	u32				irq_release;
+	int				irq_press;
+	int				irq_release;
 	int				rows, cols, row_shift;
 	int				debounce_ms, active_low;
 	u32				prev_keys[3];
@@ -296,7 +296,6 @@ error_clk:
 error_map:
 	release_mem_region(kp->res->start, resource_size(kp->res));
 error_res:
-	platform_set_drvdata(pdev, NULL);
 	kfree(kp);
 	return error;
 }
@@ -311,7 +310,6 @@ static int keypad_remove(struct platform_device *pdev)
 	clk_put(kp->clk);
 	iounmap(kp->regs);
 	release_mem_region(kp->res->start, resource_size(kp->res));
-	platform_set_drvdata(pdev, NULL);
 	kfree(kp);
 
 	return 0;

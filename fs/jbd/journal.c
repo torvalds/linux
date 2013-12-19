@@ -90,6 +90,24 @@ static int journal_convert_superblock_v1(journal_t *, journal_superblock_t *);
 static void __journal_abort_soft (journal_t *journal, int errno);
 static const char *journal_dev_name(journal_t *journal, char *buffer);
 
+#ifdef CONFIG_JBD_DEBUG
+void __jbd_debug(int level, const char *file, const char *func,
+		 unsigned int line, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (level > journal_enable_debug)
+		return;
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	printk(KERN_DEBUG "%s: (%s, %u): %pV\n", file, func, line, &vaf);
+	va_end(args);
+}
+EXPORT_SYMBOL(__jbd_debug);
+#endif
+
 /*
  * Helper function used to manage commit timeouts
  */
@@ -310,8 +328,6 @@ int journal_write_metadata_buffer(transaction_t *transaction,
 
 	new_bh = alloc_buffer_head(GFP_NOFS|__GFP_NOFAIL);
 	/* keep subsequent assertions sane */
-	new_bh->b_state = 0;
-	init_buffer(new_bh, NULL, NULL);
 	atomic_set(&new_bh->b_count, 1);
 	new_jh = journal_add_journal_head(new_bh);	/* This sleeps */
 
@@ -446,7 +462,8 @@ int __log_start_commit(journal_t *journal, tid_t target)
 	 * currently running transaction (if it exists).  Otherwise,
 	 * the target tid must be an old one.
 	 */
-	if (journal->j_running_transaction &&
+	if (journal->j_commit_request != target &&
+	    journal->j_running_transaction &&
 	    journal->j_running_transaction->t_tid == target) {
 		/*
 		 * We want a new commit: OK, mark the request and wakeup the
@@ -563,6 +580,16 @@ int log_wait_commit(journal_t *journal, tid_t tid)
 	spin_unlock(&journal->j_state_lock);
 #endif
 	spin_lock(&journal->j_state_lock);
+	/*
+	 * Not running or committing trans? Must be already committed. This
+	 * saves us from waiting for a *long* time when tid overflows.
+	 */
+	if (!((journal->j_running_transaction &&
+	       journal->j_running_transaction->t_tid == tid) ||
+	      (journal->j_committing_transaction &&
+	       journal->j_committing_transaction->t_tid == tid)))
+		goto out_unlock;
+
 	if (!tid_geq(journal->j_commit_waited, tid))
 		journal->j_commit_waited = tid;
 	while (tid_gt(tid, journal->j_commit_sequence)) {
@@ -574,6 +601,7 @@ int log_wait_commit(journal_t *journal, tid_t tid)
 				!tid_gt(tid, journal->j_commit_sequence));
 		spin_lock(&journal->j_state_lock);
 	}
+out_unlock:
 	spin_unlock(&journal->j_state_lock);
 
 	if (unlikely(is_journal_aborted(journal))) {
@@ -1844,7 +1872,7 @@ static struct journal_head *journal_alloc_journal_head(void)
 #ifdef CONFIG_JBD_DEBUG
 	atomic_inc(&nr_journal_heads);
 #endif
-	ret = kmem_cache_alloc(journal_head_cache, GFP_NOFS);
+	ret = kmem_cache_zalloc(journal_head_cache, GFP_NOFS);
 	if (ret == NULL) {
 		jbd_debug(1, "out of memory for journal_head\n");
 		printk_ratelimited(KERN_NOTICE "ENOMEM in %s, retrying.\n",
@@ -1852,7 +1880,7 @@ static struct journal_head *journal_alloc_journal_head(void)
 
 		while (ret == NULL) {
 			yield();
-			ret = kmem_cache_alloc(journal_head_cache, GFP_NOFS);
+			ret = kmem_cache_zalloc(journal_head_cache, GFP_NOFS);
 		}
 	}
 	return ret;
@@ -1914,10 +1942,8 @@ struct journal_head *journal_add_journal_head(struct buffer_head *bh)
 	struct journal_head *new_jh = NULL;
 
 repeat:
-	if (!buffer_jbd(bh)) {
+	if (!buffer_jbd(bh))
 		new_jh = journal_alloc_journal_head();
-		memset(new_jh, 0, sizeof(*new_jh));
-	}
 
 	jbd_lock_bh_journal_head(bh);
 	if (buffer_jbd(bh)) {

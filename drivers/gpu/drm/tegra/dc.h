@@ -58,6 +58,8 @@
 #define DC_CMD_SIGNAL_RAISE3			0x03e
 
 #define DC_CMD_STATE_ACCESS			0x040
+#define READ_MUX  (1 << 0)
+#define WRITE_MUX (1 << 2)
 
 #define DC_CMD_STATE_CONTROL			0x041
 #define GENERAL_ACT_REQ (1 <<  0)
@@ -290,8 +292,19 @@
 #define DC_DISP_SD_HW_K_VALUES			0x4dd
 #define DC_DISP_SD_MAN_K_VALUES			0x4de
 
+#define DC_WIN_CSC_YOF				0x611
+#define DC_WIN_CSC_KYRGB			0x612
+#define DC_WIN_CSC_KUR				0x613
+#define DC_WIN_CSC_KVR				0x614
+#define DC_WIN_CSC_KUG				0x615
+#define DC_WIN_CSC_KVG				0x616
+#define DC_WIN_CSC_KUB				0x617
+#define DC_WIN_CSC_KVB				0x618
+
 #define DC_WIN_WIN_OPTIONS			0x700
+#define INVERT_V     (1 <<  2)
 #define COLOR_EXPAND (1 <<  6)
+#define CSC_ENABLE   (1 << 18)
 #define WIN_ENABLE   (1 << 30)
 
 #define DC_WIN_BYTE_SWAP			0x701
@@ -353,13 +366,17 @@
 #define DC_WIN_BUF_STRIDE			0x70b
 #define DC_WIN_UV_BUF_STRIDE			0x70c
 #define DC_WIN_BUFFER_ADDR_MODE			0x70d
+#define DC_WIN_BUFFER_ADDR_MODE_LINEAR		(0 <<  0)
+#define DC_WIN_BUFFER_ADDR_MODE_TILE		(1 <<  0)
+#define DC_WIN_BUFFER_ADDR_MODE_LINEAR_UV	(0 << 16)
+#define DC_WIN_BUFFER_ADDR_MODE_TILE_UV		(1 << 16)
 #define DC_WIN_DV_CONTROL			0x70e
 
 #define DC_WIN_BLEND_NOKEY			0x70f
 #define DC_WIN_BLEND_1WIN			0x710
 #define DC_WIN_BLEND_2WIN_X			0x711
 #define DC_WIN_BLEND_2WIN_Y			0x712
-#define DC_WIN_BLEND32WIN_XY			0x713
+#define DC_WIN_BLEND_3WIN_XY			0x713
 
 #define DC_WIN_HP_FETCH_CONTROL			0x714
 

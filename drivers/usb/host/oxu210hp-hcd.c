@@ -3084,7 +3084,7 @@ static int oxu_hub_status_data(struct usb_hcd *hcd, char *buf)
 	int ports, i, retval = 1;
 	unsigned long flags;
 
-	/* if !USB_SUSPEND, root hub timers won't get shut down ... */
+	/* if !PM_RUNTIME, root hub timers won't get shut down ... */
 	if (!HC_IS_RUNNING(hcd->state))
 		return 0;
 
@@ -3874,7 +3874,6 @@ static int oxu_drv_probe(struct platform_device *pdev)
 
 error_init:
 	kfree(info);
-	platform_set_drvdata(pdev, NULL);
 
 error_alloc:
 	iounmap(base);
@@ -3907,7 +3906,6 @@ static int oxu_drv_remove(struct platform_device *pdev)
 	release_mem_region(memstart, memlen);
 
 	kfree(info);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

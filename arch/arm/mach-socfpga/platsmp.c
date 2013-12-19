@@ -24,39 +24,28 @@
 #include <linux/of_address.h>
 
 #include <asm/cacheflush.h>
-#include <asm/hardware/gic.h>
 #include <asm/smp_scu.h>
 #include <asm/smp_plat.h>
 
 #include "core.h"
 
-extern void __iomem *sys_manager_base_addr;
-extern void __iomem *rst_manager_base_addr;
-
-static void __cpuinit socfpga_secondary_init(unsigned int cpu)
-{
-	/*
-	 * if any interrupts are already enabled for the primary
-	 * core (e.g. timer irq), then they will not have been enabled
-	 * for us: do so
-	 */
-	gic_secondary_init(0);
-}
-
-static int __cpuinit socfpga_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int socfpga_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	int trampoline_size = &secondary_trampoline_end - &secondary_trampoline;
 
-	memcpy(phys_to_virt(0), &secondary_trampoline, trampoline_size);
+	if (cpu1start_addr) {
+		memcpy(phys_to_virt(0), &secondary_trampoline, trampoline_size);
 
-	__raw_writel(virt_to_phys(secondary_startup), (sys_manager_base_addr+0x10));
+		__raw_writel(virt_to_phys(socfpga_secondary_startup),
+			(sys_manager_base_addr + (cpu1start_addr & 0x000000ff)));
 
-	flush_cache_all();
-	smp_wmb();
-	outer_clean_range(0, trampoline_size);
+		flush_cache_all();
+		smp_wmb();
+		outer_clean_range(0, trampoline_size);
 
-	/* This will release CPU #1 out of reset.*/
-	__raw_writel(0, rst_manager_base_addr + 0x10);
+		/* This will release CPU #1 out of reset.*/
+		__raw_writel(0, rst_manager_base_addr + 0x10);
+	}
 
 	return 0;
 }
@@ -83,8 +72,6 @@ static void __init socfpga_smp_init_cpus(void)
 
 	for (i = 0; i < ncores; i++)
 		set_cpu_possible(i, true);
-
-	set_smp_cross_call(gic_raise_softirq);
 }
 
 static void __init socfpga_smp_prepare_cpus(unsigned int max_cpus)
@@ -108,7 +95,6 @@ static void socfpga_cpu_die(unsigned int cpu)
 struct smp_operations socfpga_smp_ops __initdata = {
 	.smp_init_cpus		= socfpga_smp_init_cpus,
 	.smp_prepare_cpus	= socfpga_smp_prepare_cpus,
-	.smp_secondary_init	= socfpga_secondary_init,
 	.smp_boot_secondary	= socfpga_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= socfpga_cpu_die,

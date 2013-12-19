@@ -33,6 +33,7 @@
 
 #include <linux/mlx4/cq.h>
 #include <linux/mlx4/qp.h>
+#include <linux/mlx4/srq.h>
 #include <linux/slab.h>
 
 #include "mlx4_ib.h"
@@ -228,7 +229,7 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector
 		vector = dev->eq_table[vector % ibdev->num_comp_vectors];
 
 	err = mlx4_cq_alloc(dev->dev, entries, &cq->buf.mtt, uar,
-			    cq->db.dma, &cq->mcq, vector, 0);
+			    cq->db.dma, &cq->mcq, vector, 0, 0);
 	if (err)
 		goto err_dbmap;
 
@@ -323,7 +324,7 @@ static int mlx4_ib_get_outstanding_cqes(struct mlx4_ib_cq *cq)
 	u32 i;
 
 	i = cq->mcq.cons_index;
-	while (get_sw_cqe(cq, i & cq->ibcq.cqe))
+	while (get_sw_cqe(cq, i))
 		++i;
 
 	return i - cq->mcq.cons_index;
@@ -364,7 +365,7 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 
 	mutex_lock(&cq->resize_mutex);
 
-	if (entries < 1 || entries > dev->dev->caps.max_cqes) {
+	if (entries < 1) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -372,6 +373,11 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 	entries = roundup_pow_of_two(entries + 1);
 	if (entries == ibcq->cqe + 1) {
 		err = 0;
+		goto out;
+	}
+
+	if (entries > dev->dev->caps.max_cqes) {
+		err = -EINVAL;
 		goto out;
 	}
 
@@ -585,6 +591,7 @@ static int mlx4_ib_poll_one(struct mlx4_ib_cq *cq,
 	struct mlx4_qp *mqp;
 	struct mlx4_ib_wq *wq;
 	struct mlx4_ib_srq *srq;
+	struct mlx4_srq *msrq = NULL;
 	int is_send;
 	int is_error;
 	u32 g_mlpath_rqpn;
@@ -653,6 +660,20 @@ repoll:
 
 	wc->qp = &(*cur_qp)->ibqp;
 
+	if (wc->qp->qp_type == IB_QPT_XRC_TGT) {
+		u32 srq_num;
+		g_mlpath_rqpn = be32_to_cpu(cqe->g_mlpath_rqpn);
+		srq_num       = g_mlpath_rqpn & 0xffffff;
+		/* SRQ is also in the radix tree */
+		msrq = mlx4_srq_lookup(to_mdev(cq->ibcq.device)->dev,
+				       srq_num);
+		if (unlikely(!msrq)) {
+			pr_warn("CQ %06x with entry for unknown SRQN %06x\n",
+				cq->mcq.cqn, srq_num);
+			return -EINVAL;
+		}
+	}
+
 	if (is_send) {
 		wq = &(*cur_qp)->sq;
 		if (!(*cur_qp)->sq_signal_bits) {
@@ -663,6 +684,11 @@ repoll:
 		++wq->tail;
 	} else if ((*cur_qp)->ibqp.srq) {
 		srq = to_msrq((*cur_qp)->ibqp.srq);
+		wqe_ctr = be16_to_cpu(cqe->wqe_index);
+		wc->wr_id = srq->wrid[wqe_ctr];
+		mlx4_ib_free_srq_wqe(srq, wqe_ctr);
+	} else if (msrq) {
+		srq = to_mibsrq(msrq);
 		wqe_ctr = be16_to_cpu(cqe->wqe_index);
 		wc->wr_id = srq->wrid[wqe_ctr];
 		mlx4_ib_free_srq_wqe(srq, wqe_ctr);

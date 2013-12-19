@@ -15,12 +15,12 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/module.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/spinlock.h>
-#include <asm/mach/irq.h>
 
 #define MAX_GPIO_PER_REG		32
 #define PIN_OFFSET(pin)			(pin % MAX_GPIO_PER_REG)
@@ -75,7 +75,7 @@ struct plgpio {
 	int			(*o2p)(int offset);	/* offset_to_pin */
 	u32			p2o_regs;
 	struct plgpio_regs	regs;
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	struct plgpio_regs	*csave_regs;
 #endif
 };
@@ -441,7 +441,7 @@ static int spear310_p2o(int pin)
 	return offset;
 }
 
-int spear310_o2p(int offset)
+static int spear310_o2p(int offset)
 {
 	if (offset <= 3)
 		return 101 - offset;
@@ -451,8 +451,7 @@ int spear310_o2p(int offset)
 		return offset + 2;
 }
 
-static int __devinit plgpio_probe_dt(struct platform_device *pdev,
-		struct plgpio *plgpio)
+static int plgpio_probe_dt(struct platform_device *pdev, struct plgpio *plgpio)
 {
 	struct device_node *np = pdev->dev.of_node;
 	int ret = -EINVAL;
@@ -522,18 +521,12 @@ static int __devinit plgpio_probe_dt(struct platform_device *pdev,
 end:
 	return ret;
 }
-static int __devinit plgpio_probe(struct platform_device *pdev)
+static int plgpio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct plgpio *plgpio;
 	struct resource *res;
 	int ret, irq, i;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "invalid IORESOURCE_MEM\n");
-		return -EBUSY;
-	}
 
 	plgpio = devm_kzalloc(&pdev->dev, sizeof(*plgpio), GFP_KERNEL);
 	if (!plgpio) {
@@ -541,11 +534,10 @@ static int __devinit plgpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	plgpio->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!plgpio->base) {
-		dev_err(&pdev->dev, "request and ioremap fail\n");
-		return -ENOMEM;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	plgpio->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(plgpio->base))
+		return PTR_ERR(plgpio->base);
 
 	ret = plgpio_probe_dt(pdev, plgpio);
 	if (ret) {
@@ -557,7 +549,7 @@ static int __devinit plgpio_probe(struct platform_device *pdev)
 	if (IS_ERR(plgpio->clk))
 		dev_warn(&pdev->dev, "clk_get() failed, work without it\n");
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	plgpio->csave_regs = devm_kzalloc(&pdev->dev,
 			sizeof(*plgpio->csave_regs) *
 			DIV_ROUND_UP(plgpio->chip.ngpio, MAX_GPIO_PER_REG),
@@ -644,7 +636,7 @@ unprepare_clk:
 	return ret;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int plgpio_suspend(struct device *dev)
 {
 	struct plgpio *plgpio = dev_get_drvdata(dev);
@@ -743,7 +735,7 @@ static struct platform_driver plgpio_driver = {
 		.owner = THIS_MODULE,
 		.name = "spear-plgpio",
 		.pm = &plgpio_dev_pm_ops,
-		.of_match_table = of_match_ptr(plgpio_of_match),
+		.of_match_table = plgpio_of_match,
 	},
 };
 

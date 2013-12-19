@@ -483,7 +483,7 @@ __SYSCALL(222, sys_ni_syscall, 0)
 #define __NR_restart_syscall 			223
 __SYSCALL(223, sys_restart_syscall, 0)
 #define __NR_sigaltstack 			224
-__SYSCALL(224, xtensa_sigaltstack, 2)
+__SYSCALL(224, sys_sigaltstack, 2)
 #define __NR_rt_sigreturn 			225
 __SYSCALL(225, xtensa_rt_sigreturn, 1)
 #define __NR_rt_sigaction 			226
@@ -728,8 +728,13 @@ __SYSCALL(330, sys_prlimit64, 4)
 #define __NR_kcmp				331
 __SYSCALL(331, sys_kcmp, 5)
 
+#define __NR_finit_module			332
+__SYSCALL(332, sys_finit_module, 3)
 
-#define __NR_syscall_count			332
+#define __NR_accept4				333
+__SYSCALL(333, sys_accept4, 4)
+
+#define __NR_syscall_count			334
 
 /*
  * sysxtensa syscall handler

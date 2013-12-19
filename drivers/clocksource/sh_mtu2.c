@@ -313,15 +313,27 @@ static int sh_mtu2_setup(struct sh_mtu2_priv *p, struct platform_device *pdev)
 		goto err1;
 	}
 
-	return sh_mtu2_register(p, (char *)dev_name(&p->pdev->dev),
-				cfg->clockevent_rating);
+	ret = clk_prepare(p->clk);
+	if (ret < 0)
+		goto err2;
+
+	ret = sh_mtu2_register(p, (char *)dev_name(&p->pdev->dev),
+			       cfg->clockevent_rating);
+	if (ret < 0)
+		goto err3;
+
+	return 0;
+ err3:
+	clk_unprepare(p->clk);
+ err2:
+	clk_put(p->clk);
  err1:
 	iounmap(p->mapbase);
  err0:
 	return ret;
 }
 
-static int __devinit sh_mtu2_probe(struct platform_device *pdev)
+static int sh_mtu2_probe(struct platform_device *pdev)
 {
 	struct sh_mtu2_priv *p = platform_get_drvdata(pdev);
 	struct sh_timer_config *cfg = pdev->dev.platform_data;
@@ -362,14 +374,14 @@ static int __devinit sh_mtu2_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit sh_mtu2_remove(struct platform_device *pdev)
+static int sh_mtu2_remove(struct platform_device *pdev)
 {
 	return -EBUSY; /* cannot unregister clockevent */
 }
 
 static struct platform_driver sh_mtu2_device_driver = {
 	.probe		= sh_mtu2_probe,
-	.remove		= __devexit_p(sh_mtu2_remove),
+	.remove		= sh_mtu2_remove,
 	.driver		= {
 		.name	= "sh_mtu2",
 	}
@@ -386,7 +398,7 @@ static void __exit sh_mtu2_exit(void)
 }
 
 early_platform_init("earlytimer", &sh_mtu2_device_driver);
-module_init(sh_mtu2_init);
+subsys_initcall(sh_mtu2_init);
 module_exit(sh_mtu2_exit);
 
 MODULE_AUTHOR("Magnus Damm");

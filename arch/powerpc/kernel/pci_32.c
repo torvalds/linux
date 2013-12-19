@@ -213,7 +213,7 @@ pci_create_OF_bus_map(void)
 	}
 }
 
-void __devinit pcibios_setup_phb_io_space(struct pci_controller *hose)
+void pcibios_setup_phb_io_space(struct pci_controller *hose)
 {
 	unsigned long io_offset;
 	struct resource *res = &hose->io_resource;
@@ -295,7 +295,7 @@ long sys_pciconfig_iobase(long which, unsigned long bus, unsigned long devfn)
 	case IOBASE_BRIDGE_NUMBER:
 		return (long)hose->first_busno;
 	case IOBASE_MEMORY:
-		return (long)hose->pci_mem_offset;
+		return (long)hose->mem_offset[0];
 	case IOBASE_IO:
 		return (long)hose->io_base_phys;
 	case IOBASE_ISA_IO:

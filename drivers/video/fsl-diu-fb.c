@@ -31,6 +31,8 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/spinlock.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <sysdev/fsl_soc.h>
 #include <linux/fsl-diu-fb.h>
@@ -55,7 +57,7 @@
  * order if increasing resolution and frequency.  The 320x240-60 mode is
  * the initial AOI for the second and third planes.
  */
-static struct fb_videomode __devinitdata fsl_diu_mode_db[] = {
+static struct fb_videomode fsl_diu_mode_db[] = {
 	{
 		.refresh	= 60,
 		.xres		= 1024,
@@ -375,7 +377,10 @@ struct fsl_diu_data {
 	struct diu_ad dummy_ad __aligned(8);
 	struct diu_ad ad[NUM_AOIS] __aligned(8);
 	u8 gamma[256 * 3] __aligned(32);
-	u8 cursor[MAX_CURS * MAX_CURS * 2] __aligned(32);
+	/* It's easier to parse the cursor data as little-endian */
+	__le16 cursor[MAX_CURS * MAX_CURS] __aligned(32);
+	/* Blank cursor data -- used to hide the cursor */
+	__le16 blank_cursor[MAX_CURS * MAX_CURS] __aligned(32);
 	uint8_t edid_data[EDID_LENGTH];
 	bool has_edid;
 } __aligned(32);
@@ -466,7 +471,7 @@ static enum fsl_diu_monitor_port fsl_diu_name_to_port(const char *s)
 	unsigned long val;
 
 	if (s) {
-		if (!strict_strtoul(s, 10, &val) && (val <= 2))
+		if (!kstrtoul(s, 10, &val) && (val <= 2))
 			port = (enum fsl_diu_monitor_port) val;
 		else if (strncmp(s, "lvds", 4) == 0)
 			port = FSL_DIU_PORT_LVDS;
@@ -824,7 +829,6 @@ static void update_lcdc(struct fb_info *info)
 	/* Program DIU registers */
 
 	out_be32(&hw->gamma, DMA_ADDR(data, gamma));
-	out_be32(&hw->cursor, DMA_ADDR(data, cursor));
 
 	out_be32(&hw->bgnd, 0x007F7F7F); /* Set background to grey */
 	out_be32(&hw->disp_size, (var->yres << 16) | var->xres);
@@ -944,7 +948,7 @@ static u32 fsl_diu_get_pixel_format(unsigned int bits_per_pixel)
 #define PF_COMP_0_MASK		0x0000000F
 #define PF_COMP_0_SHIFT		0
 
-#define MAKE_PF(alpha, red, blue, green, size, c0, c1, c2, c3) \
+#define MAKE_PF(alpha, red, green, blue, size, c0, c1, c2, c3) \
 	cpu_to_le32(PF_BYTE_F | (alpha << PF_ALPHA_C_SHIFT) | \
 	(blue << PF_BLUE_C_SHIFT) | (green << PF_GREEN_C_SHIFT) | \
 	(red << PF_RED_C_SHIFT) | (c3 << PF_COMP_3_SHIFT) | \
@@ -954,10 +958,10 @@ static u32 fsl_diu_get_pixel_format(unsigned int bits_per_pixel)
 	switch (bits_per_pixel) {
 	case 32:
 		/* 0x88883316 */
-		return MAKE_PF(3, 2, 0, 1, 3, 8, 8, 8, 8);
+		return MAKE_PF(3, 2, 1, 0, 3, 8, 8, 8, 8);
 	case 24:
 		/* 0x88082219 */
-		return MAKE_PF(4, 0, 1, 2, 2, 0, 8, 8, 8);
+		return MAKE_PF(4, 0, 1, 2, 2, 8, 8, 8, 0);
 	case 16:
 		/* 0x65053118 */
 		return MAKE_PF(4, 2, 1, 0, 1, 5, 6, 5, 0);
@@ -965,6 +969,156 @@ static u32 fsl_diu_get_pixel_format(unsigned int bits_per_pixel)
 		pr_err("fsl-diu: unsupported color depth %u\n", bits_per_pixel);
 		return 0;
 	}
+}
+
+/*
+ * Copies a cursor image from user space to the proper place in driver
+ * memory so that the hardware can display the cursor image.
+ *
+ * Cursor data is represented as a sequence of 'width' bits packed into bytes.
+ * That is, the first 8 bits are in the first byte, the second 8 bits in the
+ * second byte, and so on.  Therefore, the each row of the cursor is (width +
+ * 7) / 8 bytes of 'data'
+ *
+ * The DIU only supports cursors up to 32x32 (MAX_CURS).  We reject cursors
+ * larger than this, so we already know that 'width' <= 32.  Therefore, we can
+ * simplify our code by using a 32-bit big-endian integer ("line") to read in
+ * a single line of pixels, and only look at the top 'width' bits of that
+ * integer.
+ *
+ * This could result in an unaligned 32-bit read.  For example, if the cursor
+ * is 24x24, then the first three bytes of 'image' contain the pixel data for
+ * the top line of the cursor.  We do a 32-bit read of 'image', but we look
+ * only at the top 24 bits.  Then we increment 'image' by 3 bytes.  The next
+ * read is unaligned.  The only problem is that we might read past the end of
+ * 'image' by 1-3 bytes, but that should not cause any problems.
+ */
+static void fsl_diu_load_cursor_image(struct fb_info *info,
+	const void *image, uint16_t bg, uint16_t fg,
+	unsigned int width, unsigned int height)
+{
+	struct mfb_info *mfbi = info->par;
+	struct fsl_diu_data *data = mfbi->parent;
+	__le16 *cursor = data->cursor;
+	__le16 _fg = cpu_to_le16(fg);
+	__le16 _bg = cpu_to_le16(bg);
+	unsigned int h, w;
+
+	for (h = 0; h < height; h++) {
+		uint32_t mask = 1 << 31;
+		uint32_t line = be32_to_cpup(image);
+
+		for (w = 0; w < width; w++) {
+			cursor[w] = (line & mask) ? _fg : _bg;
+			mask >>= 1;
+		}
+
+		cursor += MAX_CURS;
+		image += DIV_ROUND_UP(width, 8);
+	}
+}
+
+/*
+ * Set a hardware cursor.  The image data for the cursor is passed via the
+ * fb_cursor object.
+ */
+static int fsl_diu_cursor(struct fb_info *info, struct fb_cursor *cursor)
+{
+	struct mfb_info *mfbi = info->par;
+	struct fsl_diu_data *data = mfbi->parent;
+	struct diu __iomem *hw = data->diu_reg;
+
+	if (cursor->image.width > MAX_CURS || cursor->image.height > MAX_CURS)
+		return -EINVAL;
+
+	/* The cursor size has changed */
+	if (cursor->set & FB_CUR_SETSIZE) {
+		/*
+		 * The DIU cursor is a fixed size, so when we get this
+		 * message, instead of resizing the cursor, we just clear
+		 * all the image data, in expectation of new data.  However,
+		 * in tests this control does not appear to be normally
+		 * called.
+		 */
+		memset(data->cursor, 0, sizeof(data->cursor));
+	}
+
+	/* The cursor position has changed (cursor->image.dx|dy) */
+	if (cursor->set & FB_CUR_SETPOS) {
+		uint32_t xx, yy;
+
+		yy = (cursor->image.dy - info->var.yoffset) & 0x7ff;
+		xx = (cursor->image.dx - info->var.xoffset) & 0x7ff;
+
+		out_be32(&hw->curs_pos, yy << 16 | xx);
+	}
+
+	/*
+	 * FB_CUR_SETIMAGE - the cursor image has changed
+	 * FB_CUR_SETCMAP  - the cursor colors has changed
+	 * FB_CUR_SETSHAPE - the cursor bitmask has changed
+	 */
+	if (cursor->set & (FB_CUR_SETSHAPE | FB_CUR_SETCMAP | FB_CUR_SETIMAGE)) {
+		unsigned int image_size =
+			DIV_ROUND_UP(cursor->image.width, 8) * cursor->image.height;
+		unsigned int image_words =
+			DIV_ROUND_UP(image_size, sizeof(uint32_t));
+		unsigned int bg_idx = cursor->image.bg_color;
+		unsigned int fg_idx = cursor->image.fg_color;
+		uint8_t buffer[image_size];
+		uint32_t *image, *source, *mask;
+		uint16_t fg, bg;
+		unsigned int i;
+
+		if (info->state != FBINFO_STATE_RUNNING)
+			return 0;
+
+		/*
+		 * Determine the size of the cursor image data.  Normally,
+		 * it's 8x16.
+		 */
+		image_size = DIV_ROUND_UP(cursor->image.width, 8) *
+			cursor->image.height;
+
+		bg = ((info->cmap.red[bg_idx] & 0xf8) << 7) |
+		     ((info->cmap.green[bg_idx] & 0xf8) << 2) |
+		     ((info->cmap.blue[bg_idx] & 0xf8) >> 3) |
+		     1 << 15;
+
+		fg = ((info->cmap.red[fg_idx] & 0xf8) << 7) |
+		     ((info->cmap.green[fg_idx] & 0xf8) << 2) |
+		     ((info->cmap.blue[fg_idx] & 0xf8) >> 3) |
+		     1 << 15;
+
+		/* Use 32-bit operations on the data to improve performance */
+		image = (uint32_t *)buffer;
+		source = (uint32_t *)cursor->image.data;
+		mask = (uint32_t *)cursor->mask;
+
+		if (cursor->rop == ROP_XOR)
+			for (i = 0; i < image_words; i++)
+				image[i] = source[i] ^ mask[i];
+		else
+			for (i = 0; i < image_words; i++)
+				image[i] = source[i] & mask[i];
+
+		fsl_diu_load_cursor_image(info, image, bg, fg,
+			cursor->image.width, cursor->image.height);
+	}
+
+	/*
+	 * Show or hide the cursor.  The cursor data is always stored in the
+	 * 'cursor' memory block, and the actual cursor position is always in
+	 * the DIU's CURS_POS register.  To hide the cursor, we redirect the
+	 * CURSOR register to a blank cursor.  The show the cursor, we
+	 * redirect the CURSOR register to the real cursor data.
+	 */
+	if (cursor->enable)
+		out_be32(&hw->cursor, DMA_ADDR(data, cursor));
+	else
+		out_be32(&hw->cursor, DMA_ADDR(data, blank_cursor));
+
+	return 0;
 }
 
 /*
@@ -1232,6 +1386,16 @@ static int fsl_diu_ioctl(struct fb_info *info, unsigned int cmd,
 	return 0;
 }
 
+static inline void fsl_diu_enable_interrupts(struct fsl_diu_data *data)
+{
+	u32 int_mask = INT_UNDRUN; /* enable underrun detection */
+
+	if (IS_ENABLED(CONFIG_NOT_COHERENT_CACHE))
+		int_mask |= INT_VSYNC; /* enable vertical sync */
+
+	clrbits32(&data->diu_reg->int_mask, int_mask);
+}
+
 /* turn on fb if count == 1
  */
 static int fsl_diu_open(struct fb_info *info, int user)
@@ -1251,19 +1415,7 @@ static int fsl_diu_open(struct fb_info *info, int user)
 		if (res < 0)
 			mfbi->count--;
 		else {
-			struct fsl_diu_data *data = mfbi->parent;
-
-#ifdef CONFIG_NOT_COHERENT_CACHE
-			/*
-			 * Enable underrun detection and vertical sync
-			 * interrupts.
-			 */
-			clrbits32(&data->diu_reg->int_mask,
-				  INT_UNDRUN | INT_VSYNC);
-#else
-			/* Enable underrun detection */
-			clrbits32(&data->diu_reg->int_mask, INT_UNDRUN);
-#endif
+			fsl_diu_enable_interrupts(mfbi->parent);
 			fsl_diu_enable_panel(info);
 		}
 	}
@@ -1283,9 +1435,18 @@ static int fsl_diu_release(struct fb_info *info, int user)
 	mfbi->count--;
 	if (mfbi->count == 0) {
 		struct fsl_diu_data *data = mfbi->parent;
+		bool disable = true;
+		int i;
 
-		/* Disable interrupts */
-		out_be32(&data->diu_reg->int_mask, 0xffffffff);
+		/* Disable interrupts only if all AOIs are closed */
+		for (i = 0; i < NUM_AOIS; i++) {
+			struct mfb_info *mi = data->fsl_diu_info[i].par;
+
+			if (mi->count)
+				disable = false;
+		}
+		if (disable)
+			out_be32(&data->diu_reg->int_mask, 0xffffffff);
 		fsl_diu_disable_panel(info);
 	}
 
@@ -1305,9 +1466,10 @@ static struct fb_ops fsl_diu_ops = {
 	.fb_ioctl = fsl_diu_ioctl,
 	.fb_open = fsl_diu_open,
 	.fb_release = fsl_diu_release,
+	.fb_cursor = fsl_diu_cursor,
 };
 
-static int __devinit install_fb(struct fb_info *info)
+static int install_fb(struct fb_info *info)
 {
 	int rc;
 	struct mfb_info *mfbi = info->par;
@@ -1518,7 +1680,7 @@ static ssize_t show_monitor(struct device *device,
 	return 0;
 }
 
-static int __devinit fsl_diu_probe(struct platform_device *pdev)
+static int fsl_diu_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct mfb_info *mfbi;
@@ -1614,14 +1776,6 @@ static int __devinit fsl_diu_probe(struct platform_device *pdev)
 	out_be32(&data->diu_reg->desc[1], data->dummy_ad.paddr);
 	out_be32(&data->diu_reg->desc[2], data->dummy_ad.paddr);
 
-	for (i = 0; i < NUM_AOIS; i++) {
-		ret = install_fb(&data->fsl_diu_info[i]);
-		if (ret) {
-			dev_err(&pdev->dev, "could not register fb %d\n", i);
-			goto error;
-		}
-	}
-
 	/*
 	 * Older versions of U-Boot leave interrupts enabled, so disable
 	 * all of them and clear the status register.
@@ -1630,10 +1784,19 @@ static int __devinit fsl_diu_probe(struct platform_device *pdev)
 	in_be32(&data->diu_reg->int_status);
 
 	ret = request_irq(data->irq, fsl_diu_isr, 0, "fsl-diu-fb",
-			  &data->diu_reg);
+			  data->diu_reg);
 	if (ret) {
 		dev_err(&pdev->dev, "could not claim irq\n");
 		goto error;
+	}
+
+	for (i = 0; i < NUM_AOIS; i++) {
+		ret = install_fb(&data->fsl_diu_info[i]);
+		if (ret) {
+			dev_err(&pdev->dev, "could not register fb %d\n", i);
+			free_irq(data->irq, data->diu_reg);
+			goto error;
+		}
 	}
 
 	sysfs_attr_init(&data->dev_attr.attr);
@@ -1667,7 +1830,7 @@ static int fsl_diu_remove(struct platform_device *pdev)
 	data = dev_get_drvdata(&pdev->dev);
 	disable_lcdc(&data->fsl_diu_info[0]);
 
-	free_irq(data->irq, &data->diu_reg);
+	free_irq(data->irq, data->diu_reg);
 
 	for (i = 0; i < NUM_AOIS; i++)
 		uninstall_fb(&data->fsl_diu_info[i]);
@@ -1692,7 +1855,7 @@ static int __init fsl_diu_setup(char *options)
 		if (!strncmp(opt, "monitor=", 8)) {
 			monitor_port = fsl_diu_name_to_port(opt + 8);
 		} else if (!strncmp(opt, "bpp=", 4)) {
-			if (!strict_strtoul(opt + 4, 10, &val))
+			if (!kstrtoul(opt + 4, 10, &val))
 				default_bpp = val;
 		} else
 			fb_mode = opt;

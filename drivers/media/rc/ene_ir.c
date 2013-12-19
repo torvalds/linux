@@ -476,7 +476,7 @@ select_timeout:
 }
 
 /* Enable the device for receive */
-static void ene_rx_enable(struct ene_device *dev)
+static void ene_rx_enable_hw(struct ene_device *dev)
 {
 	u8 reg_value;
 
@@ -504,11 +504,17 @@ static void ene_rx_enable(struct ene_device *dev)
 
 	/* enter idle mode */
 	ir_raw_event_set_idle(dev->rdev, true);
+}
+
+/* Enable the device for receive - wrapper to track the state*/
+static void ene_rx_enable(struct ene_device *dev)
+{
+	ene_rx_enable_hw(dev);
 	dev->rx_enabled = true;
 }
 
 /* Disable the device receiver */
-static void ene_rx_disable(struct ene_device *dev)
+static void ene_rx_disable_hw(struct ene_device *dev)
 {
 	/* disable inputs */
 	ene_rx_enable_cir_engine(dev, false);
@@ -516,8 +522,13 @@ static void ene_rx_disable(struct ene_device *dev)
 
 	/* disable hardware IRQ and firmware flag */
 	ene_clear_reg_mask(dev, ENE_FW1, ENE_FW1_ENABLE | ENE_FW1_IRQ);
-
 	ir_raw_event_set_idle(dev->rdev, true);
+}
+
+/* Disable the device receiver - wrapper to track the state */
+static void ene_rx_disable(struct ene_device *dev)
+{
+	ene_rx_disable_hw(dev);
 	dev->rx_enabled = false;
 }
 
@@ -1003,7 +1014,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	dev = kzalloc(sizeof(struct ene_device), GFP_KERNEL);
 	rdev = rc_allocate_device();
 	if (!dev || !rdev)
-		goto failure;
+		goto exit_free_dev_rdev;
 
 	/* validate resources */
 	error = -ENODEV;
@@ -1014,14 +1025,16 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 
 	if (!pnp_port_valid(pnp_dev, 0) ||
 	    pnp_port_len(pnp_dev, 0) < ENE_IO_SIZE)
-		goto failure;
+		goto exit_free_dev_rdev;
 
 	if (!pnp_irq_valid(pnp_dev, 0))
-		goto failure;
+		goto exit_free_dev_rdev;
 
 	spin_lock_init(&dev->hw_lock);
 
 	dev->hw_io = pnp_port_start(pnp_dev, 0);
+	dev->irq = pnp_irq(pnp_dev, 0);
+
 
 	pnp_set_drvdata(pnp_dev, dev);
 	dev->pnp_dev = pnp_dev;
@@ -1033,7 +1046,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	/* detect hardware version and features */
 	error = ene_hw_detect(dev);
 	if (error)
-		goto failure;
+		goto exit_free_dev_rdev;
 
 	if (!dev->hw_learning_and_tx_capable && txsim) {
 		dev->hw_learning_and_tx_capable = true;
@@ -1075,30 +1088,30 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	device_set_wakeup_capable(&pnp_dev->dev, true);
 	device_set_wakeup_enable(&pnp_dev->dev, true);
 
+	error = rc_register_device(rdev);
+	if (error < 0)
+		goto exit_free_dev_rdev;
+
 	/* claim the resources */
 	error = -EBUSY;
 	if (!request_region(dev->hw_io, ENE_IO_SIZE, ENE_DRIVER_NAME)) {
-		goto failure;
+		goto exit_unregister_device;
 	}
 
-	dev->irq = pnp_irq(pnp_dev, 0);
 	if (request_irq(dev->irq, ene_isr,
 			IRQF_SHARED, ENE_DRIVER_NAME, (void *)dev)) {
-		goto failure2;
+		goto exit_release_hw_io;
 	}
-
-	error = rc_register_device(rdev);
-	if (error < 0)
-		goto failure3;
 
 	pr_notice("driver has been successfully loaded\n");
 	return 0;
 
-failure3:
-	free_irq(dev->irq, dev);
-failure2:
+exit_release_hw_io:
 	release_region(dev->hw_io, ENE_IO_SIZE);
-failure:
+exit_unregister_device:
+	rc_unregister_device(rdev);
+	rdev = NULL;
+exit_free_dev_rdev:
 	rc_free_device(rdev);
 	kfree(dev);
 	return error;
@@ -1122,9 +1135,8 @@ static void ene_remove(struct pnp_dev *pnp_dev)
 }
 
 /* enable wake on IR (wakes on specific button on original remote) */
-static void ene_enable_wake(struct ene_device *dev, int enable)
+static void ene_enable_wake(struct ene_device *dev, bool enable)
 {
-	enable = enable && device_may_wakeup(&dev->pnp_dev->dev);
 	dbg("wake on IR %s", enable ? "enabled" : "disabled");
 	ene_set_clear_reg_mask(dev, ENE_FW1, ENE_FW1_WAKE, enable);
 }
@@ -1133,9 +1145,12 @@ static void ene_enable_wake(struct ene_device *dev, int enable)
 static int ene_suspend(struct pnp_dev *pnp_dev, pm_message_t state)
 {
 	struct ene_device *dev = pnp_get_drvdata(pnp_dev);
-	ene_enable_wake(dev, true);
+	bool wake = device_may_wakeup(&dev->pnp_dev->dev);
 
-	/* TODO: add support for wake pattern */
+	if (!wake && dev->rx_enabled)
+		ene_rx_disable_hw(dev);
+
+	ene_enable_wake(dev, wake);
 	return 0;
 }
 
@@ -1172,7 +1187,7 @@ static struct pnp_driver ene_driver = {
 	.flags = PNP_DRIVER_RES_DO_NOT_CHANGE,
 
 	.probe = ene_probe,
-	.remove = __devexit_p(ene_remove),
+	.remove = ene_remove,
 #ifdef CONFIG_PM
 	.suspend = ene_suspend,
 	.resume = ene_resume,

@@ -733,7 +733,7 @@ static void __bdx_vlan_rx_vid(struct net_device *ndev, uint16_t vid, int enable)
  * @ndev: network device
  * @vid:  VLAN vid to add
  */
-static int bdx_vlan_rx_add_vid(struct net_device *ndev, uint16_t vid)
+static int bdx_vlan_rx_add_vid(struct net_device *ndev, __be16 proto, u16 vid)
 {
 	__bdx_vlan_rx_vid(ndev, vid, 1);
 	return 0;
@@ -744,7 +744,7 @@ static int bdx_vlan_rx_add_vid(struct net_device *ndev, uint16_t vid)
  * @ndev: network device
  * @vid:  VLAN vid to kill
  */
-static int bdx_vlan_rx_kill_vid(struct net_device *ndev, unsigned short vid)
+static int bdx_vlan_rx_kill_vid(struct net_device *ndev, __be16 proto, u16 vid)
 {
 	__bdx_vlan_rx_vid(ndev, vid, 0);
 	return 0;
@@ -1102,10 +1102,9 @@ static void bdx_rx_alloc_skbs(struct bdx_priv *priv, struct rxf_fifo *f)
 	dno = bdx_rxdb_available(db) - 1;
 	while (dno > 0) {
 		skb = netdev_alloc_skb(priv->ndev, f->m.pktsz + NET_IP_ALIGN);
-		if (!skb) {
-			pr_err("NO MEM: netdev_alloc_skb failed\n");
+		if (!skb)
 			break;
-		}
+
 		skb_reserve(skb, NET_IP_ALIGN);
 
 		idx = bdx_rxdb_alloc_elem(db);
@@ -1149,7 +1148,7 @@ NETIF_RX_MUX(struct bdx_priv *priv, u32 rxd_val1, u16 rxd_vlan,
 		    priv->ndev->name,
 		    GET_RXD_VLAN_ID(rxd_vlan),
 		    GET_RXD_VTAG(rxd_val1));
-		__vlan_hwaccel_put_tag(skb, GET_RXD_VLAN_TCI(rxd_vlan));
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), GET_RXD_VLAN_TCI(rxd_vlan));
 	}
 	netif_receive_skb(skb);
 }
@@ -2018,12 +2017,11 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		 * so we can have them same for all ports of the board */
 		ndev->if_port = port;
 		ndev->features = NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO
-		    | NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
-		    NETIF_F_HW_VLAN_FILTER | NETIF_F_RXCSUM
-		    /*| NETIF_F_FRAGLIST */
+		    | NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
+		    NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_RXCSUM
 		    ;
 		ndev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
-			NETIF_F_TSO | NETIF_F_HW_VLAN_TX;
+			NETIF_F_TSO | NETIF_F_HW_VLAN_CTAG_TX;
 
 		if (pci_using_dac)
 			ndev->features |= NETIF_F_HIGHDMA;
@@ -2179,10 +2177,10 @@ bdx_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 {
 	struct bdx_priv *priv = netdev_priv(netdev);
 
-	strlcat(drvinfo->driver, BDX_DRV_NAME, sizeof(drvinfo->driver));
-	strlcat(drvinfo->version, BDX_DRV_VERSION, sizeof(drvinfo->version));
-	strlcat(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
-	strlcat(drvinfo->bus_info, pci_name(priv->pdev),
+	strlcpy(drvinfo->driver, BDX_DRV_NAME, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, BDX_DRV_VERSION, sizeof(drvinfo->version));
+	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
+	strlcpy(drvinfo->bus_info, pci_name(priv->pdev),
 		sizeof(drvinfo->bus_info));
 
 	drvinfo->n_stats = ((priv->stats_flag) ? ARRAY_SIZE(bdx_stat_names) : 0);
@@ -2448,7 +2446,6 @@ static void bdx_remove(struct pci_dev *pdev)
 	iounmap(nic->regs);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	vfree(nic);
 
 	RET();

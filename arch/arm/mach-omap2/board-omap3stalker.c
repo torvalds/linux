@@ -32,7 +32,8 @@
 #include <linux/spi/spi.h>
 #include <linux/interrupt.h>
 #include <linux/smsc911x.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
+#include <linux/usb/phy.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -43,8 +44,7 @@
 #include "gpmc.h"
 #include <linux/platform_data/mtd-nand-omap2.h>
 #include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
-#include <video/omap-panel-tfp410.h>
+#include <video/omap-panel-data.h>
 
 #include <linux/platform_data/spi-omap2-mcspi.h>
 
@@ -93,51 +93,50 @@ static void __init omap3_stalker_display_init(void)
 {
 	return;
 }
+static struct connector_dvi_platform_data omap3stalker_dvi_connector_pdata = {
+	.name                   = "dvi",
+	.source                 = "tfp410.0",
+	.i2c_bus_num            = -1,
+};
 
-static int omap3_stalker_enable_tv(struct omap_dss_device *dssdev)
-{
-	return 0;
-}
+static struct platform_device omap3stalker_dvi_connector_device = {
+	.name                   = "connector-dvi",
+	.id                     = 0,
+	.dev.platform_data      = &omap3stalker_dvi_connector_pdata,
+};
 
-static void omap3_stalker_disable_tv(struct omap_dss_device *dssdev)
-{
-}
+static struct encoder_tfp410_platform_data omap3stalker_tfp410_pdata = {
+	.name                   = "tfp410.0",
+	.source                 = "dpi.0",
+	.data_lines             = 24,
+	.power_down_gpio        = DSS_ENABLE_GPIO,
+};
 
-static struct omap_dss_device omap3_stalker_tv_device = {
-	.name			= "tv",
-	.driver_name		= "venc",
-	.type			= OMAP_DISPLAY_TYPE_VENC,
+static struct platform_device omap3stalker_tfp410_device = {
+	.name                   = "tfp410",
+	.id                     = 0,
+	.dev.platform_data      = &omap3stalker_tfp410_pdata,
+};
+
+static struct connector_atv_platform_data omap3stalker_tv_pdata = {
+	.name = "tv",
+	.source = "venc.0",
 #if defined(CONFIG_OMAP2_VENC_OUT_TYPE_SVIDEO)
-	.phy.venc.type		= OMAP_DSS_VENC_TYPE_SVIDEO,
+	.connector_type = OMAP_DSS_VENC_TYPE_SVIDEO,
 #elif defined(CONFIG_OMAP2_VENC_OUT_TYPE_COMPOSITE)
-	.u.venc.type		= OMAP_DSS_VENC_TYPE_COMPOSITE,
+	.connector_type = OMAP_DSS_VENC_TYPE_COMPOSITE,
 #endif
-	.platform_enable	= omap3_stalker_enable_tv,
-	.platform_disable	= omap3_stalker_disable_tv,
+	.invert_polarity = false,
 };
 
-static struct tfp410_platform_data dvi_panel = {
-	.power_down_gpio	= DSS_ENABLE_GPIO,
-	.i2c_bus_num		= -1,
-};
-
-static struct omap_dss_device omap3_stalker_dvi_device = {
-	.name			= "dvi",
-	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.driver_name		= "tfp410",
-	.data			= &dvi_panel,
-	.phy.dpi.data_lines	= 24,
-};
-
-static struct omap_dss_device *omap3_stalker_dss_devices[] = {
-	&omap3_stalker_tv_device,
-	&omap3_stalker_dvi_device,
+static struct platform_device omap3stalker_tv_connector_device = {
+	.name                   = "connector-analog-tv",
+	.id                     = 0,
+	.dev.platform_data      = &omap3stalker_tv_pdata,
 };
 
 static struct omap_dss_board_info omap3_stalker_dss_data = {
-	.num_devices	= ARRAY_SIZE(omap3_stalker_dss_devices),
-	.devices	= omap3_stalker_dss_devices,
-	.default_device	= &omap3_stalker_dvi_device,
+	.default_display_name = "dvi",
 };
 
 static struct regulator_consumer_supply omap3stalker_vmmc1_supply[] = {
@@ -357,19 +356,23 @@ static int __init omap3_stalker_i2c_init(void)
 
 #define OMAP3_STALKER_TS_GPIO	175
 
-static struct platform_device *omap3_stalker_devices[] __initdata = {
-	&keys_gpio,
+static struct usbhs_phy_data phy_data[] __initdata = {
+	{
+		.port = 2,
+		.reset_gpio = 21,
+		.vcc_gpio = -EINVAL,
+	},
 };
 
-static struct usbhs_omap_board_data usbhs_bdata __initconst = {
-	.port_mode[0] = OMAP_USBHS_PORT_MODE_UNUSED,
-	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
-	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
+static struct platform_device *omap3_stalker_devices[] __initdata = {
+	&keys_gpio,
+	&omap3stalker_tfp410_device,
+	&omap3stalker_dvi_connector_device,
+	&omap3stalker_tv_connector_device,
+};
 
-	.phy_reset = true,
-	.reset_gpio_port[0] = -EINVAL,
-	.reset_gpio_port[1] = 21,
-	.reset_gpio_port[2] = -EINVAL,
+static struct usbhs_omap_platform_data usbhs_bdata __initdata = {
+	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
 };
 
 #ifdef CONFIG_OMAP_MUX
@@ -404,7 +407,10 @@ static void __init omap3_stalker_init(void)
 
 	omap_serial_init();
 	omap_sdrc_init(mt46h32m32lf6_sdrc_params, NULL);
+	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
+
+	usbhs_init_phys(phy_data, ARRAY_SIZE(phy_data));
 	usbhs_init(&usbhs_bdata);
 	omap_ads7846_init(1, OMAP3_STALKER_TS_GPIO, 310, NULL);
 
@@ -427,6 +433,6 @@ MACHINE_START(SBC3530, "OMAP3 STALKER")
 	.handle_irq		= omap3_intc_handle_irq,
 	.init_machine		= omap3_stalker_init,
 	.init_late		= omap35xx_init_late,
-	.timer			= &omap3_secure_timer,
+	.init_time		= omap3_secure_sync32k_timer_init,
 	.restart		= omap3xxx_restart,
 MACHINE_END

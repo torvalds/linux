@@ -27,6 +27,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/version.h>
 
 #include <media/media-device.h>
 #include <media/v4l2-ctrls.h>
@@ -340,16 +341,20 @@ static void camif_clk_put(struct camif_dev *camif)
 	int i;
 
 	for (i = 0; i < CLK_MAX_NUM; i++) {
-		if (IS_ERR_OR_NULL(camif->clock[i]))
+		if (IS_ERR(camif->clock[i]))
 			continue;
 		clk_unprepare(camif->clock[i]);
 		clk_put(camif->clock[i]);
+		camif->clock[i] = ERR_PTR(-EINVAL);
 	}
 }
 
 static int camif_clk_get(struct camif_dev *camif)
 {
 	int ret, i;
+
+	for (i = 1; i < CLK_MAX_NUM; i++)
+		camif->clock[i] = ERR_PTR(-EINVAL);
 
 	for (i = 0; i < CLK_MAX_NUM; i++) {
 		camif->clock[i] = clk_get(camif->dev, camif_clocks[i]);
@@ -433,11 +438,9 @@ static int s3c_camif_probe(struct platform_device *pdev)
 
 	mres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	camif->io_base = devm_request_and_ioremap(dev, mres);
-	if (!camif->io_base) {
-		dev_err(dev, "failed to obtain I/O memory\n");
-		return -ENOENT;
-	}
+	camif->io_base = devm_ioremap_resource(dev, mres);
+	if (IS_ERR(camif->io_base))
+		return PTR_ERR(camif->io_base);
 
 	ret = camif_request_irqs(pdev, camif);
 	if (ret < 0)
@@ -531,7 +534,7 @@ err_sd:
 	return ret;
 }
 
-static int __devexit s3c_camif_remove(struct platform_device *pdev)
+static int s3c_camif_remove(struct platform_device *pdev)
 {
 	struct camif_dev *camif = platform_get_drvdata(pdev);
 	struct s3c_camif_plat_data *pdata = &camif->pdata;
@@ -645,7 +648,7 @@ static const struct dev_pm_ops s3c_camif_pm_ops = {
 
 static struct platform_driver s3c_camif_driver = {
 	.probe		= s3c_camif_probe,
-	.remove		= __devexit_p(s3c_camif_remove),
+	.remove		= s3c_camif_remove,
 	.id_table	= s3c_camif_driver_ids,
 	.driver = {
 		.name	= S3C_CAMIF_DRIVER_NAME,

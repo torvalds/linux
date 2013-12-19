@@ -103,28 +103,6 @@ int omap2_prm_deassert_hardreset(s16 prm_mod, u8 rst_shift, u8 st_shift)
 /* Powerdomain low-level functions */
 
 /* Common functions across OMAP2 and OMAP3 */
-int omap2_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
-{
-	omap2_prm_rmw_mod_reg_bits(OMAP_POWERSTATE_MASK,
-				   (pwrst << OMAP_POWERSTATE_SHIFT),
-				   pwrdm->prcm_offs, OMAP2_PM_PWSTCTRL);
-	return 0;
-}
-
-int omap2_pwrdm_read_next_pwrst(struct powerdomain *pwrdm)
-{
-	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
-					     OMAP2_PM_PWSTCTRL,
-					     OMAP_POWERSTATE_MASK);
-}
-
-int omap2_pwrdm_read_pwrst(struct powerdomain *pwrdm)
-{
-	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
-					     OMAP2_PM_PWSTST,
-					     OMAP_POWERSTATEST_MASK);
-}
-
 int omap2_pwrdm_set_mem_onst(struct powerdomain *pwrdm, u8 bank,
 								u8 pwrst)
 {
@@ -232,6 +210,7 @@ int omap2_clkdm_read_wkdep(struct clockdomain *clkdm1,
 					     PM_WKDEP, (1 << clkdm2->dep_bit));
 }
 
+/* XXX Caller must hold the clkdm's powerdomain lock */
 int omap2_clkdm_clear_all_wkdeps(struct clockdomain *clkdm)
 {
 	struct clkdm_dep *cd;
@@ -243,7 +222,7 @@ int omap2_clkdm_clear_all_wkdeps(struct clockdomain *clkdm)
 
 		/* PRM accesses are slow, so minimize them */
 		mask |= 1 << cd->clkdm->dep_bit;
-		atomic_set(&cd->wkdep_usecount, 0);
+		cd->wkdep_usecount = 0;
 	}
 
 	omap2_prm_clear_mod_reg_bits(mask, clkdm->pwrdm.ptr->prcm_offs,

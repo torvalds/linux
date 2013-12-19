@@ -32,6 +32,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/completion.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_mtd.h>
 
@@ -266,7 +267,7 @@ static struct nand_ecclayout nandv2_hw_eccoob_4k = {
 	}
 };
 
-static const char const *part_probes[] = {
+static const char * const part_probes[] = {
 	"cmdlinepart", "RedBoot", "ofpart", NULL };
 
 static void memcpy32_fromio(void *trg, const void __iomem  *src, size_t size)
@@ -395,7 +396,7 @@ static void wait_op_done(struct mxc_nand_host *host, int useirq)
 
 	if (useirq) {
 		if (!host->devtype_data->check_int(host)) {
-			INIT_COMPLETION(host->op_completion);
+			reinit_completion(&host->op_completion);
 			irq_control(host, 1);
 			wait_for_completion(&host->op_completion);
 		}
@@ -530,12 +531,23 @@ static void send_page_v1(struct mtd_info *mtd, unsigned int ops)
 
 static void send_read_id_v3(struct mxc_nand_host *host)
 {
+	struct nand_chip *this = &host->nand;
+
 	/* Read ID into main buffer */
 	writel(NFC_ID, NFC_V3_LAUNCH);
 
 	wait_op_done(host, true);
 
 	memcpy32_fromio(host->data_buf, host->main_area0, 16);
+
+	if (this->options & NAND_BUSWIDTH_16) {
+		/* compress the ID info */
+		host->data_buf[1] = host->data_buf[2];
+		host->data_buf[2] = host->data_buf[4];
+		host->data_buf[3] = host->data_buf[6];
+		host->data_buf[4] = host->data_buf[8];
+		host->data_buf[5] = host->data_buf[10];
+	}
 }
 
 /* Request the NANDFC to perform a read of the NAND device ID. */
@@ -1421,7 +1433,8 @@ static int mxcnd_probe(struct platform_device *pdev)
 
 	err = mxcnd_probe_dt(host);
 	if (err > 0) {
-		struct mxc_nand_platform_data *pdata = pdev->dev.platform_data;
+		struct mxc_nand_platform_data *pdata =
+					dev_get_platdata(&pdev->dev);
 		if (pdata) {
 			host->pdata = *pdata;
 			host->devtype_data = (struct mxc_nand_devtype_data *)
@@ -1435,23 +1448,18 @@ static int mxcnd_probe(struct platform_device *pdev)
 
 	if (host->devtype_data->needs_ip) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!res)
-			return -ENODEV;
-		host->regs_ip = devm_request_and_ioremap(&pdev->dev, res);
-		if (!host->regs_ip)
-			return -ENOMEM;
+		host->regs_ip = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(host->regs_ip))
+			return PTR_ERR(host->regs_ip);
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	} else {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	}
 
-	if (!res)
-		return -ENODEV;
-
-	host->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!host->base)
-		return -ENOMEM;
+	host->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->base))
+		return PTR_ERR(host->base);
 
 	host->main_area0 = host->base;
 
@@ -1500,7 +1508,7 @@ static int mxcnd_probe(struct platform_device *pdev)
 	host->devtype_data->irq_control(host, 0);
 
 	err = devm_request_irq(&pdev->dev, host->irq, mxc_nfc_irq,
-			IRQF_DISABLED, DRIVER_NAME, host);
+			0, DRIVER_NAME, host);
 	if (err)
 		return err;
 
@@ -1566,8 +1574,6 @@ escan:
 static int mxcnd_remove(struct platform_device *pdev)
 {
 	struct mxc_nand_host *host = platform_get_drvdata(pdev);
-
-	platform_set_drvdata(pdev, NULL);
 
 	nand_release(&host->mtd);
 

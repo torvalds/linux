@@ -15,10 +15,6 @@ This program is free software; you can redistribute it and/or modify it under th
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
-You should also find the complete GPL in the COPYING file accompanying this source code.
-
 @endverbatim
 */
 /*
@@ -43,6 +39,8 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   |          |           |						  |
   +----------+-----------+------------------------------------------------+
 */
+
+#include <linux/delay.h>
 
 /*
  * ADDON RELATED ADDITIONS
@@ -724,9 +722,7 @@ static int i_APCI3120_StopCyclicAcquisition(struct comedi_device *dev,
 	inb(dev->iobase + APCI3120_RESET_FIFO);
 	inw(dev->iobase + APCI3120_RD_STATUS);
 	devpriv->ui_AiActualScan = 0;
-	devpriv->ui_AiActualScanPosition = 0;
 	s->async->cur_chan = 0;
-	devpriv->ui_AiBufferPtr = 0;
 	devpriv->b_AiContinuous = 0;
 	devpriv->ui_DmaActualBuffer = 0;
 
@@ -895,9 +891,7 @@ static int i_APCI3120_CyclicAnalogInput(int mode,
 	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 
 	devpriv->ui_AiActualScan = 0;
-	devpriv->ui_AiActualScanPosition = 0;
 	s->async->cur_chan = 0;
-	devpriv->ui_AiBufferPtr = 0;
 	devpriv->ui_DmaActualBuffer = 0;
 
 	/*  value for timer2  minus -2 has to be done .....dunno y?? */
@@ -1351,8 +1345,6 @@ static int i_APCI3120_CommandAnalogInput(struct comedi_device *dev,
 	devpriv->ui_AiScanLength = cmd->scan_end_arg;
 	devpriv->pui_AiChannelList = cmd->chanlist;
 
-	/* UPDATE-0.7.57->0.7.68devpriv->AiData=s->async->data; */
-	devpriv->AiData = s->async->prealloc_buf;
 	/* UPDATE-0.7.57->0.7.68devpriv->ui_AiDataLength=s->async->data_len; */
 	devpriv->ui_AiDataLength = s->async->prealloc_bufsz;
 
@@ -1399,7 +1391,7 @@ static int i_APCI3120_CommandAnalogInput(struct comedi_device *dev,
  */
 static void v_APCI3120_InterruptDmaMoveBlock16bit(struct comedi_device *dev,
 						  struct comedi_subdevice *s,
-						  short *dma_buffer,
+						  unsigned short *dma_buffer,
 						  unsigned int num_samples)
 {
 	struct addi_private *devpriv = dev->private;
@@ -2183,21 +2175,16 @@ static int apci3120_do_insn_bits(struct comedi_device *dev,
 				 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-	unsigned int val;
 
-	/* The do channels are bits 7:4 of the do register */
-	val = devpriv->b_DigitalOutputRegister >> 4;
-	if (mask) {
-		val &= ~mask;
-		val |= (bits & mask);
-		devpriv->b_DigitalOutputRegister = val << 4;
+	if (comedi_dio_update_state(s, data)) {
+		/* The do channels are bits 7:4 of the do register */
+		devpriv->b_DigitalOutputRegister = s->state << 4;
 
-		outb(val << 4, devpriv->iobase + APCI3120_DIGITAL_OUTPUT);
+		outb(devpriv->b_DigitalOutputRegister,
+		     devpriv->iobase + APCI3120_DIGITAL_OUTPUT);
 	}
 
-	data[1] = val;
+	data[1] = s->state;
 
 	return insn->n;
 }

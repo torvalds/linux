@@ -19,7 +19,7 @@
  *
  * The master stores launch parameters in the launch structure
  * corresponding to a target processor that is in a slave loop, then sends
- * an interrupt to the slave processor.  The slave calls the desired
+ * an interrupt to the slave processor.	 The slave calls the desired
  * function, then returns to the slave loop.  The master may poll or wait
  * for the slaves to finish.
  *
@@ -33,7 +33,7 @@
 #define LAUNCH_PADSZ		0xa0
 #endif
 
-#define LAUNCH_OFF_MAGIC	0x00	/* Struct offsets for assembly      */
+#define LAUNCH_OFF_MAGIC	0x00	/* Struct offsets for assembly	    */
 #define LAUNCH_OFF_BUSY		0x08
 #define LAUNCH_OFF_CALL		0x10
 #define LAUNCH_OFF_CALLC	0x18
@@ -44,7 +44,7 @@
 #define LAUNCH_OFF_BEVNORMAL	0x40
 #define LAUNCH_OFF_BEVECC	0x48
 
-#define LAUNCH_STATE_DONE	0	/* Return value of LAUNCH_POLL      */
+#define LAUNCH_STATE_DONE	0	/* Return value of LAUNCH_POLL	    */
 #define LAUNCH_STATE_SENT	1
 #define LAUNCH_STATE_RECD	2
 
@@ -65,16 +65,16 @@ typedef int launch_state_t;
 typedef void (*launch_proc_t)(u64 call_parm);
 
 typedef struct launch_s {
-	volatile u64		magic;	/* Magic number                     */
-	volatile u64		busy;	/* Slave currently active           */
+	volatile u64		magic;	/* Magic number			    */
+	volatile u64		busy;	/* Slave currently active	    */
 	volatile launch_proc_t	call_addr;	/* Func. for slave to call  */
 	volatile u64		call_addr_c;	/* 1's complement of call_addr*/
 	volatile u64		call_parm;	/* Single parm passed to call*/
 	volatile void *stack_addr;	/* Stack pointer for slave function */
 	volatile void *gp_addr;		/* Global pointer for slave func.   */
-	volatile char 		*bevutlb;/* Address of bev utlb ex handler   */
-	volatile char 		*bevnormal;/*Address of bev normal ex handler */
-	volatile char 		*bevecc;/* Address of bev cache err handler */
+	volatile char		*bevutlb;/* Address of bev utlb ex handler   */
+	volatile char		*bevnormal;/*Address of bev normal ex handler */
+	volatile char		*bevecc;/* Address of bev cache err handler */
 	volatile char		pad[160];	/* Pad to LAUNCH_SIZEOF	    */
 } launch_t;
 

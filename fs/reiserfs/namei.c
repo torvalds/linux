@@ -325,7 +325,6 @@ static struct dentry *reiserfs_lookup(struct inode *dir, struct dentry *dentry,
 				      unsigned int flags)
 {
 	int retval;
-	int lock_depth;
 	struct inode *inode = NULL;
 	struct reiserfs_dir_entry de;
 	INITIALIZE_PATH(path_to_entry);
@@ -333,12 +332,7 @@ static struct dentry *reiserfs_lookup(struct inode *dir, struct dentry *dentry,
 	if (REISERFS_MAX_NAME(dir->i_sb->s_blocksize) < dentry->d_name.len)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	/*
-	 * Might be called with or without the write lock, must be careful
-	 * to not recursively hold it in case we want to release the lock
-	 * before rescheduling.
-	 */
-	lock_depth = reiserfs_write_lock_once(dir->i_sb);
+	reiserfs_write_lock(dir->i_sb);
 
 	de.de_gen_number_bit_string = NULL;
 	retval =
@@ -349,7 +343,7 @@ static struct dentry *reiserfs_lookup(struct inode *dir, struct dentry *dentry,
 		inode = reiserfs_iget(dir->i_sb,
 				      (struct cpu_key *)&(de.de_dir_id));
 		if (!inode || IS_ERR(inode)) {
-			reiserfs_write_unlock_once(dir->i_sb, lock_depth);
+			reiserfs_write_unlock(dir->i_sb);
 			return ERR_PTR(-EACCES);
 		}
 
@@ -358,7 +352,7 @@ static struct dentry *reiserfs_lookup(struct inode *dir, struct dentry *dentry,
 		if (IS_PRIVATE(dir))
 			inode->i_flags |= S_PRIVATE;
 	}
-	reiserfs_write_unlock_once(dir->i_sb, lock_depth);
+	reiserfs_write_unlock(dir->i_sb);
 	if (retval == IO_ERROR) {
 		return ERR_PTR(-EIO);
 	}
@@ -727,7 +721,6 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 	struct inode *inode;
 	struct reiserfs_transaction_handle th;
 	struct reiserfs_security_handle security;
-	int lock_depth;
 	/* We need blocks for transaction + (user+group)*(quotas for new inode + update of quota for directory owner) */
 	int jbegin_count =
 	    JOURNAL_PER_BALANCE_CNT * 3 +
@@ -753,7 +746,7 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 		return retval;
 	}
 	jbegin_count += retval;
-	lock_depth = reiserfs_write_lock_once(dir->i_sb);
+	reiserfs_write_lock(dir->i_sb);
 
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
 	if (retval) {
@@ -804,7 +797,7 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 	d_instantiate(dentry, inode);
 	retval = journal_end(&th, dir->i_sb, jbegin_count);
 out_failed:
-	reiserfs_write_unlock_once(dir->i_sb, lock_depth);
+	reiserfs_write_unlock(dir->i_sb);
 	return retval;
 }
 
@@ -920,7 +913,6 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 	struct reiserfs_transaction_handle th;
 	int jbegin_count;
 	unsigned long savelink;
-	int depth;
 
 	dquot_initialize(dir);
 
@@ -934,7 +926,7 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 	    JOURNAL_PER_BALANCE_CNT * 2 + 2 +
 	    4 * REISERFS_QUOTA_TRANS_BLOCKS(dir->i_sb);
 
-	depth = reiserfs_write_lock_once(dir->i_sb);
+	reiserfs_write_lock(dir->i_sb);
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
 	if (retval)
 		goto out_unlink;
@@ -995,7 +987,7 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 
 	retval = journal_end(&th, dir->i_sb, jbegin_count);
 	reiserfs_check_path(&path);
-	reiserfs_write_unlock_once(dir->i_sb, depth);
+	reiserfs_write_unlock(dir->i_sb);
 	return retval;
 
       end_unlink:
@@ -1005,7 +997,7 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 	if (err)
 		retval = err;
       out_unlink:
-	reiserfs_write_unlock_once(dir->i_sb, depth);
+	reiserfs_write_unlock(dir->i_sb);
 	return retval;
 }
 

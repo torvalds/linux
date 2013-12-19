@@ -94,10 +94,6 @@ SECTIONS
 		_text = .;
 		/* bootstrapping code */
 		HEAD_TEXT
-#ifdef CONFIG_X86_32
-		. = ALIGN(PAGE_SIZE);
-		*(.text..page_aligned)
-#endif
 		. = ALIGN(8);
 		_stext = .;
 		TEXT_TEXT
@@ -202,6 +198,15 @@ SECTIONS
 		*(.x86_cpu_dev.init)
 		__x86_cpu_dev_end = .;
 	}
+
+#ifdef CONFIG_X86_INTEL_MID
+	.x86_intel_mid_dev.init : AT(ADDR(.x86_intel_mid_dev.init) - \
+								LOAD_OFFSET) {
+		__x86_intel_mid_dev_start = .;
+		*(.x86_intel_mid_dev.init)
+		__x86_intel_mid_dev_end = .;
+	}
+#endif
 
 	/*
 	 * start address and size of operations which during runtime

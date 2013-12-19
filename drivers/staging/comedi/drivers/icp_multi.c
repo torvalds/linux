@@ -13,11 +13,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
 /*
@@ -47,11 +42,12 @@ There are 4 x 12-bit Analogue Outputs.  Ranges : 5V, 10V, +/-5V, +/-10V
 Configuration options: not applicable, uses PCI auto config
 */
 
-#include <linux/interrupt.h>
-#include "../comedidev.h"
-
-#include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/delay.h>
+#include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #define PCI_DEVICE_ID_ICP_MULTI	0x8000
 
@@ -67,8 +63,6 @@ Configuration options: not applicable, uses PCI auto config
 #define ICP_MULTI_CNTR1		0x12	/* R/W: counter 1 */
 #define ICP_MULTI_CNTR2		0x14	/* R/W: Counter 2 */
 #define ICP_MULTI_CNTR3		0x16	/* R/W: Counter 3 */
-
-#define ICP_MULTI_SIZE		0x20	/* 32 bytes */
 
 /*  Define bits from ADC command/status register */
 #define	ADC_ST		0x0001	/* Start ADC */
@@ -120,13 +114,11 @@ struct icp_multi_private {
 	unsigned int DacCmdStatus;	/*  DAC Command/Status register */
 	unsigned int IntEnable;	/*  Interrupt Enable register */
 	unsigned int IntStatus;	/*  Interrupt Status register */
-	unsigned int act_chanlist[32];	/*  list of scaned channel */
+	unsigned int act_chanlist[32];	/*  list of scanned channel */
 	unsigned char act_chanlist_len;	/*  len of scanlist */
 	unsigned char act_chanlist_pos;	/*  actual position in MUX list */
 	unsigned int *ai_chanlist;	/*  actaul chanlist */
-	short *ai_data;		/*  data buffer */
-	short ao_data[4];	/*  data output buffer */
-	short di_data;		/*  Digital input data */
+	unsigned short ao_data[4];	/*  data output buffer */
 	unsigned int do_data;	/*  Remember digital output data */
 };
 
@@ -354,18 +346,13 @@ static int icp_multi_insn_bits_di(struct comedi_device *dev,
 
 static int icp_multi_insn_bits_do(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
 	struct icp_multi_private *devpriv = dev->private;
 
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
-
-		printk(KERN_DEBUG "Digital outputs = %4x \n", s->state);
-
+	if (comedi_dio_update_state(s, data))
 		writew(s->state, devpriv->io_addr + ICP_MULTI_DO);
-	}
 
 	data[1] = readw(devpriv->io_addr + ICP_MULTI_DI);
 
@@ -500,23 +487,17 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct icp_multi_private *devpriv;
 	struct comedi_subdevice *s;
-	resource_size_t iobase;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
-	iobase = pci_resource_start(pcidev, 2);
-	dev->iobase = iobase;
 
-	devpriv->io_addr = ioremap(iobase, ICP_MULTI_SIZE);
+	devpriv->io_addr = pci_ioremap_bar(pcidev, 2);
 	if (!devpriv->io_addr)
 		return -ENOMEM;
 
@@ -560,7 +541,6 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	s->maxdata = 1;
 	s->len_chanlist = 16;
 	s->range_table = &range_digital;
-	s->io_bits = 0;
 	s->insn_bits = icp_multi_insn_bits_di;
 
 	s = &dev->subdevices[3];
@@ -570,8 +550,6 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	s->maxdata = 1;
 	s->len_chanlist = 8;
 	s->range_table = &range_digital;
-	s->io_bits = 0xff;
-	s->state = 0;
 	s->insn_bits = icp_multi_insn_bits_do;
 
 	s = &dev->subdevices[4];
@@ -594,7 +572,6 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 
 static void icp_multi_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct icp_multi_private *devpriv = dev->private;
 
 	if (devpriv)
@@ -604,10 +581,7 @@ static void icp_multi_detach(struct comedi_device *dev)
 		free_irq(dev->irq, dev);
 	if (devpriv && devpriv->io_addr)
 		iounmap(devpriv->io_addr);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver icp_multi_driver = {
@@ -618,14 +592,9 @@ static struct comedi_driver icp_multi_driver = {
 };
 
 static int icp_multi_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
+			       const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &icp_multi_driver);
-}
-
-static void icp_multi_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
+	return comedi_pci_auto_config(dev, &icp_multi_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(icp_multi_pci_table) = {
@@ -638,7 +607,7 @@ static struct pci_driver icp_multi_pci_driver = {
 	.name		= "icp_multi",
 	.id_table	= icp_multi_pci_table,
 	.probe		= icp_multi_pci_probe,
-	.remove		= icp_multi_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(icp_multi_driver, icp_multi_pci_driver);
 

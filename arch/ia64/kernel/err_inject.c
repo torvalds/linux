@@ -225,17 +225,17 @@ static struct attribute_group err_inject_attr_group = {
 	.name = "err_inject"
 };
 /* Add/Remove err_inject interface for CPU device */
-static int __cpuinit err_inject_add_dev(struct device * sys_dev)
+static int err_inject_add_dev(struct device *sys_dev)
 {
 	return sysfs_create_group(&sys_dev->kobj, &err_inject_attr_group);
 }
 
-static int __cpuinit err_inject_remove_dev(struct device * sys_dev)
+static int err_inject_remove_dev(struct device *sys_dev)
 {
 	sysfs_remove_group(&sys_dev->kobj, &err_inject_attr_group);
 	return 0;
 }
-static int __cpuinit err_inject_cpu_callback(struct notifier_block *nfb,
+static int err_inject_cpu_callback(struct notifier_block *nfb,
 		unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
@@ -256,7 +256,7 @@ static int __cpuinit err_inject_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata err_inject_cpu_notifier =
+static struct notifier_block err_inject_cpu_notifier =
 {
 	.notifier_call = err_inject_cpu_callback,
 };

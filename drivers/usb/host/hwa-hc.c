@@ -161,6 +161,13 @@ static int hwahc_op_start(struct usb_hcd *usb_hcd)
 	usb_hcd->uses_new_polling = 1;
 	set_bit(HCD_FLAG_POLL_RH, &usb_hcd->flags);
 	usb_hcd->state = HC_STATE_RUNNING;
+
+	/*
+	 * prevent USB core from suspending the root hub since
+	 * bus_suspend and bus_resume are not yet supported.
+	 */
+	pm_runtime_get_noresume(&usb_hcd->self.root_hub->dev);
+
 	result = 0;
 out:
 	mutex_unlock(&wusbhc->mutex);
@@ -192,10 +199,14 @@ static int hwahc_op_get_frame_number(struct usb_hcd *usb_hcd)
 {
 	struct wusbhc *wusbhc = usb_hcd_to_wusbhc(usb_hcd);
 	struct hwahc *hwahc = container_of(wusbhc, struct hwahc, wusbhc);
+	struct wahc *wa = &hwahc->wa;
 
-	dev_err(wusbhc->dev, "%s (%p [%p]) UNIMPLEMENTED\n", __func__,
-		usb_hcd, hwahc);
-	return -ENOSYS;
+	/*
+	 * We cannot query the HWA for the WUSB time since that requires sending
+	 * a synchronous URB and this function can be called in_interrupt.
+	 * Instead, query the USB frame number for our parent and use that.
+	 */
+	return usb_get_current_frame_number(wa->usb_dev);
 }
 
 static int hwahc_op_urb_enqueue(struct usb_hcd *usb_hcd, struct urb *urb,
@@ -559,14 +570,10 @@ found:
 		goto error;
 	}
 	wa->wa_descr = wa_descr = (struct usb_wa_descriptor *) hdr;
-	/* Make LE fields CPU order */
-	wa_descr->bcdWAVersion = le16_to_cpu(wa_descr->bcdWAVersion);
-	wa_descr->wNumRPipes = le16_to_cpu(wa_descr->wNumRPipes);
-	wa_descr->wRPipeMaxBlock = le16_to_cpu(wa_descr->wRPipeMaxBlock);
-	if (wa_descr->bcdWAVersion > 0x0100)
+	if (le16_to_cpu(wa_descr->bcdWAVersion) > 0x0100)
 		dev_warn(dev, "Wire Adapter v%d.%d newer than groked v1.0\n",
-			 wa_descr->bcdWAVersion & 0xff00 >> 8,
-			 wa_descr->bcdWAVersion & 0x00ff);
+			 le16_to_cpu(wa_descr->bcdWAVersion) & 0xff00 >> 8,
+			 le16_to_cpu(wa_descr->bcdWAVersion) & 0x00ff);
 	result = 0;
 error:
 	return result;
@@ -577,7 +584,7 @@ static struct hc_driver hwahc_hc_driver = {
 	.product_desc = "Wireless USB HWA host controller",
 	.hcd_priv_size = sizeof(struct hwahc) - sizeof(struct usb_hcd),
 	.irq = NULL,			/* FIXME */
-	.flags = HCD_USB2,		/* FIXME */
+	.flags = HCD_USB25,
 	.reset = hwahc_op_reset,
 	.start = hwahc_op_start,
 	.stop = hwahc_op_stop,
@@ -588,8 +595,6 @@ static struct hc_driver hwahc_hc_driver = {
 
 	.hub_status_data = wusbhc_rh_status_data,
 	.hub_control = wusbhc_rh_control,
-	.bus_suspend = wusbhc_rh_suspend,
-	.bus_resume = wusbhc_rh_resume,
 	.start_port_reset = wusbhc_rh_start_port_reset,
 };
 
@@ -674,7 +679,8 @@ static void hwahc_security_release(struct hwahc *hwahc)
 	/* nothing to do here so far... */
 }
 
-static int hwahc_create(struct hwahc *hwahc, struct usb_interface *iface)
+static int hwahc_create(struct hwahc *hwahc, struct usb_interface *iface,
+	kernel_ulong_t quirks)
 {
 	int result;
 	struct device *dev = &iface->dev;
@@ -685,12 +691,9 @@ static int hwahc_create(struct hwahc *hwahc, struct usb_interface *iface)
 	wa->usb_dev = usb_get_dev(usb_dev);	/* bind the USB device */
 	wa->usb_iface = usb_get_intf(iface);
 	wusbhc->dev = dev;
-	wusbhc->uwb_rc = uwb_rc_get_by_grandpa(iface->dev.parent);
-	if (wusbhc->uwb_rc == NULL) {
-		result = -ENODEV;
-		dev_err(dev, "Cannot get associated UWB Host Controller\n");
-		goto error_rc_get;
-	}
+	/* defer getting the uwb_rc handle until it is needed since it
+	 * may not have been registered by the hwa_rc driver yet. */
+	wusbhc->uwb_rc = NULL;
 	result = wa_fill_descr(wa);	/* Get the device descriptor */
 	if (result < 0)
 		goto error_fill_descriptor;
@@ -722,7 +725,7 @@ static int hwahc_create(struct hwahc *hwahc, struct usb_interface *iface)
 		dev_err(dev, "Can't create WUSB HC structures: %d\n", result);
 		goto error_wusbhc_create;
 	}
-	result = wa_create(&hwahc->wa, iface);
+	result = wa_create(&hwahc->wa, iface, quirks);
 	if (result < 0)
 		goto error_wa_create;
 	return 0;
@@ -733,8 +736,6 @@ error_wusbhc_create:
 	/* WA Descr fill allocs no resources */
 error_security_create:
 error_fill_descriptor:
-	uwb_rc_put(wusbhc->uwb_rc);
-error_rc_get:
 	usb_put_intf(iface);
 	usb_put_dev(usb_dev);
 	return result;
@@ -776,10 +777,11 @@ static int hwahc_probe(struct usb_interface *usb_iface,
 		goto error_alloc;
 	}
 	usb_hcd->wireless = 1;
+	usb_hcd->self.sg_tablesize = ~0;
 	wusbhc = usb_hcd_to_wusbhc(usb_hcd);
 	hwahc = container_of(wusbhc, struct hwahc, wusbhc);
 	hwahc_init(hwahc);
-	result = hwahc_create(hwahc, usb_iface);
+	result = hwahc_create(hwahc, usb_iface, id->driver_info);
 	if (result < 0) {
 		dev_err(dev, "Cannot initialize internals: %d\n", result);
 		goto error_hwahc_create;
@@ -823,6 +825,12 @@ static void hwahc_disconnect(struct usb_interface *usb_iface)
 }
 
 static struct usb_device_id hwahc_id_table[] = {
+	/* Alereon 5310 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x13dc, 0x5310, 0xe0, 0x02, 0x01),
+	  .driver_info = WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC },
+	/* Alereon 5611 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x13dc, 0x5611, 0xe0, 0x02, 0x01),
+	  .driver_info = WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC },
 	/* FIXME: use class labels for this */
 	{ USB_INTERFACE_INFO(0xe0, 0x02, 0x01), },
 	{},

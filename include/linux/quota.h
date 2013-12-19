@@ -328,6 +328,7 @@ struct quotactl_ops {
 	int (*set_dqblk)(struct super_block *, struct kqid, struct fs_disk_quota *);
 	int (*get_xstate)(struct super_block *, struct fs_quota_stat *);
 	int (*set_xstate)(struct super_block *, unsigned int, int);
+	int (*get_xstatev)(struct super_block *, struct fs_quota_statv *);
 };
 
 struct quota_format_type {
@@ -405,6 +406,7 @@ struct quota_module_name {
 #define INIT_QUOTA_MODULE_NAMES {\
 	{QFMT_VFS_OLD, "quota_v1"},\
 	{QFMT_VFS_V0, "quota_v2"},\
+	{QFMT_VFS_V1, "quota_v2"},\
 	{0, NULL}}
 
 #endif /* _QUOTA_ */

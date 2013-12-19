@@ -53,7 +53,6 @@ extern int smb3_calc_signature(struct smb_rqst *rqst,
 				struct TCP_Server_Info *server);
 extern void smb2_echo_request(struct work_struct *work);
 extern __le32 smb2_get_lease_state(struct cifsInodeInfo *cinode);
-extern __u8 smb2_map_lease_to_oplock(__le32 lease_state);
 extern bool smb2_is_valid_oplock_break(char *buffer,
 				       struct TCP_Server_Info *srv);
 
@@ -62,7 +61,7 @@ extern void move_smb2_info_to_cifs(FILE_ALL_INFO *dst,
 extern int smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 				struct cifs_sb_info *cifs_sb,
 				const char *full_path, FILE_ALL_INFO *data,
-				bool *adjust_tz);
+				bool *adjust_tz, bool *symlink);
 extern int smb2_set_path_size(const unsigned int xid, struct cifs_tcon *tcon,
 			      const char *full_path, __u64 size,
 			      struct cifs_sb_info *cifs_sb, bool set_alloc);
@@ -84,12 +83,9 @@ extern int smb2_create_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
 				const char *from_name, const char *to_name,
 				struct cifs_sb_info *cifs_sb);
 
-extern int smb2_open_file(const unsigned int xid, struct cifs_tcon *tcon,
-			  const char *full_path, int disposition,
-			  int desired_access, int create_options,
-			  struct cifs_fid *fid, __u32 *oplock,
-			  FILE_ALL_INFO *buf, struct cifs_sb_info *cifs_sb);
-extern void smb2_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock);
+extern int smb2_open_file(const unsigned int xid,
+			  struct cifs_open_parms *oparms,
+			  __u32 *oplock, FILE_ALL_INFO *buf);
 extern int smb2_unlock_range(struct cifsFileInfo *cfile,
 			     struct file_lock *flock, const unsigned int xid);
 extern int smb2_push_mandatory_locks(struct cifsFileInfo *cfile);
@@ -106,11 +102,14 @@ extern int SMB2_tcon(const unsigned int xid, struct cifs_ses *ses,
 		     const char *tree, struct cifs_tcon *tcon,
 		     const struct nls_table *);
 extern int SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon);
-extern int SMB2_open(const unsigned int xid, struct cifs_tcon *tcon,
-		     __le16 *path, u64 *persistent_fid, u64 *volatile_fid,
-		     __u32 desired_access, __u32 create_disposition,
-		     __u32 file_attributes, __u32 create_options,
-		     __u8 *oplock, struct smb2_file_all_info *buf);
+extern int SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms,
+		     __le16 *path, __u8 *oplock,
+		     struct smb2_file_all_info *buf,
+		     struct smb2_err_rsp **err_buf);
+extern int SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon,
+		     u64 persistent_fid, u64 volatile_fid, u32 opcode,
+		     bool is_fsctl, char *in_data, u32 indatalen,
+		     char **out_data, u32 *plen /* returned data len */);
 extern int SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 		      u64 persistent_file_id, u64 volatile_file_id);
 extern int SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon,
@@ -143,12 +142,16 @@ extern int SMB2_set_eof(const unsigned int xid, struct cifs_tcon *tcon,
 extern int SMB2_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 			 u64 persistent_fid, u64 volatile_fid,
 			 FILE_BASIC_INFO *buf);
+extern int SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
+				u64 persistent_fid, u64 volatile_fid);
 extern int SMB2_oplock_break(const unsigned int xid, struct cifs_tcon *tcon,
 			     const u64 persistent_fid, const u64 volatile_fid,
 			     const __u8 oplock_level);
 extern int SMB2_QFS_info(const unsigned int xid, struct cifs_tcon *tcon,
 			 u64 persistent_file_id, u64 volatile_file_id,
 			 struct kstatfs *FSData);
+extern int SMB2_QFS_attr(const unsigned int xid, struct cifs_tcon *tcon,
+			 u64 persistent_file_id, u64 volatile_file_id, int lvl);
 extern int SMB2_lock(const unsigned int xid, struct cifs_tcon *tcon,
 		     const __u64 persist_fid, const __u64 volatile_fid,
 		     const __u32 pid, const __u64 length, const __u64 offset,
@@ -159,5 +162,6 @@ extern int smb2_lockv(const unsigned int xid, struct cifs_tcon *tcon,
 		      struct smb2_lock_element *buf);
 extern int SMB2_lease_break(const unsigned int xid, struct cifs_tcon *tcon,
 			    __u8 *lease_key, const __le32 lease_state);
+extern int smb3_validate_negotiate(const unsigned int, struct cifs_tcon *);
 
 #endif			/* _SMB2PROTO_H */

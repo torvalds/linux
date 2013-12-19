@@ -154,17 +154,6 @@ config MD_RAID456
 
 	  If unsure, say Y.
 
-config MULTICORE_RAID456
-	bool "RAID-4/RAID-5/RAID-6 Multicore processing (EXPERIMENTAL)"
-	depends on MD_RAID456
-	depends on SMP
-	depends on EXPERIMENTAL
-	---help---
-	  Enable the raid456 module to dispatch per-stripe raid operations to a
-	  thread pool.
-
-	  If unsure, say N.
-
 config MD_MULTIPATH
 	tristate "Multipath I/O support"
 	depends on BLK_DEV_MD
@@ -184,6 +173,8 @@ config MD_FAULTY
 	  read or write errors.  It is useful for testing.
 
 	  In unsure, say N.
+
+source "drivers/md/bcache/Kconfig"
 
 config BLK_DEV_DM
 	tristate "Device mapper support"
@@ -210,7 +201,7 @@ config DM_DEBUG
 
 config DM_BUFIO
        tristate
-       depends on BLK_DEV_DM && EXPERIMENTAL
+       depends on BLK_DEV_DM
        ---help---
 	 This interface allows you to do buffered I/O on a device and acts
 	 as a cache, holding recently-read blocks in memory and performing
@@ -218,7 +209,7 @@ config DM_BUFIO
 
 config DM_BIO_PRISON
        tristate
-       depends on BLK_DEV_DM && EXPERIMENTAL
+       depends on BLK_DEV_DM
        ---help---
 	 Some bio locking schemes used by other device-mapper targets
 	 including thin provisioning.
@@ -251,8 +242,8 @@ config DM_SNAPSHOT
          Allow volume managers to take writable snapshots of a device.
 
 config DM_THIN_PROVISIONING
-       tristate "Thin provisioning target (EXPERIMENTAL)"
-       depends on BLK_DEV_DM && EXPERIMENTAL
+       tristate "Thin provisioning target"
+       depends on BLK_DEV_DM
        select DM_PERSISTENT_DATA
        select DM_BIO_PRISON
        ---help---
@@ -268,12 +259,54 @@ config DM_DEBUG_BLOCK_STACK_TRACING
 
 	  If unsure, say N.
 
+config DM_CACHE
+       tristate "Cache target (EXPERIMENTAL)"
+       depends on BLK_DEV_DM
+       default n
+       select DM_PERSISTENT_DATA
+       select DM_BIO_PRISON
+       ---help---
+         dm-cache attempts to improve performance of a block device by
+         moving frequently used data to a smaller, higher performance
+         device.  Different 'policy' plugins can be used to change the
+         algorithms used to select which blocks are promoted, demoted,
+         cleaned etc.  It supports writeback and writethrough modes.
+
+config DM_CACHE_MQ
+       tristate "MQ Cache Policy (EXPERIMENTAL)"
+       depends on DM_CACHE
+       default y
+       ---help---
+         A cache policy that uses a multiqueue ordered by recent hit
+         count to select which blocks should be promoted and demoted.
+         This is meant to be a general purpose policy.  It prioritises
+         reads over writes.
+
+config DM_CACHE_CLEANER
+       tristate "Cleaner Cache Policy (EXPERIMENTAL)"
+       depends on DM_CACHE
+       default y
+       ---help---
+         A simple cache policy that writes back all data to the
+         origin.  Used when decommissioning a dm-cache.
+
 config DM_MIRROR
        tristate "Mirror target"
        depends on BLK_DEV_DM
        ---help---
          Allow volume managers to mirror logical volumes, also
          needed for live data migration tools such as 'pvmove'.
+
+config DM_LOG_USERSPACE
+	tristate "Mirror userspace logging"
+	depends on DM_MIRROR && NET
+	select CONNECTOR
+	---help---
+	  The userspace logging module provides a mechanism for
+	  relaying the dm-dirty-log API to userspace.  Log designs
+	  which are more suited to userspace implementation (e.g.
+	  shared storage logs) or experimental logs can be implemented
+	  by leveraging this framework.
 
 config DM_RAID
        tristate "RAID 1/4/5/6/10 target"
@@ -300,17 +333,6 @@ config DM_RAID
 	 drives contains two independent redundancy syndromes.  Like
 	 RAID-5, RAID-6 distributes the syndromes across the drives
 	 in one of the available parity distribution methods.
-
-config DM_LOG_USERSPACE
-	tristate "Mirror userspace logging (EXPERIMENTAL)"
-	depends on DM_MIRROR && EXPERIMENTAL && NET
-	select CONNECTOR
-	---help---
-	  The userspace logging module provides a mechanism for
-	  relaying the dm-dirty-log API to userspace.  Log designs
-	  which are more suited to userspace implementation (e.g.
-	  shared storage logs) or experimental logs can be implemented
-	  by leveraging this framework.
 
 config DM_ZERO
 	tristate "Zero target"
@@ -350,8 +372,8 @@ config DM_MULTIPATH_ST
 	  If unsure, say N.
 
 config DM_DELAY
-	tristate "I/O delaying target (EXPERIMENTAL)"
-	depends on BLK_DEV_DM && EXPERIMENTAL
+	tristate "I/O delaying target"
+	depends on BLK_DEV_DM
 	---help---
 	A target that delays reads and/or writes and can send
 	them to different devices.  Useful for testing.
@@ -365,14 +387,14 @@ config DM_UEVENT
 	Generate udev events for DM events.
 
 config DM_FLAKEY
-       tristate "Flakey target (EXPERIMENTAL)"
-       depends on BLK_DEV_DM && EXPERIMENTAL
+       tristate "Flakey target"
+       depends on BLK_DEV_DM
        ---help---
          A target that intermittently fails I/O for debugging purposes.
 
 config DM_VERITY
-	tristate "Verity target support (EXPERIMENTAL)"
-	depends on BLK_DEV_DM && EXPERIMENTAL
+	tristate "Verity target support"
+	depends on BLK_DEV_DM
 	select CRYPTO
 	select CRYPTO_HASH
 	select DM_BUFIO
@@ -387,6 +409,20 @@ config DM_VERITY
 
 	  To compile this code as a module, choose M here: the module will
 	  be called dm-verity.
+
+	  If unsure, say N.
+
+config DM_SWITCH
+	tristate "Switch target support (EXPERIMENTAL)"
+	depends on BLK_DEV_DM
+	---help---
+	  This device-mapper target creates a device that supports an arbitrary
+	  mapping of fixed-size regions of I/O across a fixed set of paths.
+	  The path used for any specific region can be switched dynamically
+	  by sending the target a message.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called dm-switch.
 
 	  If unsure, say N.
 

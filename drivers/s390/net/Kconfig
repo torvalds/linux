@@ -74,8 +74,8 @@ config QETH
 	depends on CCW && NETDEVICES && IP_MULTICAST && QDIO
 	help
 	  This driver supports the IBM System z OSA Express adapters
-	  in QDIO mode (all media types), HiperSockets interfaces and VM GuestLAN
-	  interfaces in QDIO and HIPER mode.
+	  in QDIO mode (all media types), HiperSockets interfaces and z/VM
+	  virtual NICs for Guest LAN and VSWITCH.
 	
 	  For details please refer to the documentation provided by IBM at
 	  <http://www.ibm.com/developerworks/linux/linux390>

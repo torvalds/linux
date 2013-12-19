@@ -840,7 +840,7 @@ static struct ata_port_operations octeon_cf_ops = {
 	.dev_config		= octeon_cf_dev_config,
 };
 
-static int __devinit octeon_cf_probe(struct platform_device *pdev)
+static int octeon_cf_probe(struct platform_device *pdev)
 {
 	struct resource *res_cs0, *res_cs1;
 
@@ -926,7 +926,7 @@ static int __devinit octeon_cf_probe(struct platform_device *pdev)
 			goto free_cf_port;
 		}
 		cs1 = devm_ioremap_nocache(&pdev->dev, res_cs1->start,
-					   res_cs1->end - res_cs1->start + 1);
+					   resource_size(res_cs1));
 
 		if (!cs1)
 			goto free_cf_port;
@@ -1014,8 +1014,9 @@ static int __devinit octeon_cf_probe(struct platform_device *pdev)
 	}
 	cf_port->c0 = ap->ioaddr.ctl_addr;
 
-	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
-	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+	rv = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (rv)
+		return rv;
 
 	ata_port_desc(ap, "cmd %p ctl %p", base, ap->ioaddr.ctl_addr);
 
@@ -1037,7 +1038,7 @@ static void octeon_cf_shutdown(struct device *dev)
 	union cvmx_mio_boot_dma_cfgx dma_cfg;
 	union cvmx_mio_boot_dma_intx dma_int;
 
-	struct octeon_cf_port *cf_port = dev->platform_data;
+	struct octeon_cf_port *cf_port = dev_get_platdata(dev);
 
 	if (cf_port->dma_base) {
 		/* Stop and clear the dma engine.  */

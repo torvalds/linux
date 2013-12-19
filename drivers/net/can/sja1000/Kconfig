@@ -1,6 +1,6 @@
 menuconfig CAN_SJA1000
 	tristate "Philips/NXP SJA1000 devices"
-	depends on CAN_DEV && HAS_IOMEM
+	depends on HAS_IOMEM
 
 if CAN_SJA1000
 
@@ -46,6 +46,7 @@ config CAN_EMS_PCI
 config CAN_PEAK_PCMCIA
 	tristate "PEAK PCAN-PC Card"
 	depends on PCMCIA
+	depends on HAS_IOPORT
 	---help---
 	  This driver is for the PCAN-PC Card PCMCIA adapter (1 or 2 channels)
 	  from PEAK-System (http://www.peak-system.com). To compile this
@@ -99,11 +100,11 @@ config CAN_TSCAN1
 	tristate "TS-CAN1 PC104 boards"
 	depends on ISA
 	help
-	This driver is for Technologic Systems' TSCAN-1 PC104 boards.
-	http://www.embeddedarm.com/products/board-detail.php?product=TS-CAN1
-	The driver supports multiple boards and automatically configures them:
-	PLD IO base addresses are read from jumpers JP1 and JP2,
-	IRQ numbers are read from jumpers JP4 and JP5,
-	SJA1000 IO base addresses are chosen heuristically (first that works).
+	  This driver is for Technologic Systems' TSCAN-1 PC104 boards.
+	  http://www.embeddedarm.com/products/board-detail.php?product=TS-CAN1
+	  The driver supports multiple boards and automatically configures them:
+	  PLD IO base addresses are read from jumpers JP1 and JP2,
+	  IRQ numbers are read from jumpers JP4 and JP5,
+	  SJA1000 IO base addresses are chosen heuristically (first that works).
 
 endif

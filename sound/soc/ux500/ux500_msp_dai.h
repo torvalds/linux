@@ -35,13 +35,8 @@
 #define FRAME_PER_8_SLOTS				138
 #define FRAME_PER_16_SLOTS				277
 
-#ifndef CONFIG_SND_SOC_UX500_AB5500
 #define UX500_MSP_INTERNAL_CLOCK_FREQ  40000000
 #define UX500_MSP1_INTERNAL_CLOCK_FREQ UX500_MSP_INTERNAL_CLOCK_FREQ
-#else
-#define UX500_MSP_INTERNAL_CLOCK_FREQ 13000000
-#define UX500_MSP1_INTERNAL_CLOCK_FREQ (UX500_MSP_INTERNAL_CLOCK_FREQ * 2)
-#endif
 
 #define UX500_MSP_MIN_CHANNELS		1
 #define UX500_MSP_MAX_CHANNELS		8
@@ -56,15 +51,11 @@ enum ux500_msp_clock_id {
 struct ux500_msp_i2s_drvdata {
 	struct ux500_msp *msp;
 	struct regulator *reg_vape;
-	struct ux500_msp_dma_params playback_dma_data;
-	struct ux500_msp_dma_params capture_dma_data;
 	unsigned int fmt;
 	unsigned int tx_mask;
 	unsigned int rx_mask;
 	int slots;
 	int slot_width;
-	u8 configured;
-	int data_delay;
 
 	/* Clocks */
 	unsigned int master_clk;

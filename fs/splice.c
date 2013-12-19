@@ -31,6 +31,8 @@
 #include <linux/security.h>
 #include <linux/gfp.h>
 #include <linux/socket.h>
+#include <linux/compat.h>
+#include "internal.h"
 
 /*
  * Attempt to steal a page from a pipe buffer. This should perhaps go into
@@ -217,7 +219,7 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 			page_nr++;
 			ret += buf->len;
 
-			if (pipe->inode)
+			if (pipe->files)
 				do_wakeup = 1;
 
 			if (!--spd->nr_pages)
@@ -569,7 +571,7 @@ static ssize_t kernel_readv(struct file *file, const struct iovec *vec,
 	return res;
 }
 
-static ssize_t kernel_write(struct file *file, const char *buf, size_t count,
+ssize_t kernel_write(struct file *file, const char *buf, size_t count,
 			    loff_t pos)
 {
 	mm_segment_t old_fs;
@@ -578,11 +580,12 @@ static ssize_t kernel_write(struct file *file, const char *buf, size_t count,
 	old_fs = get_fs();
 	set_fs(get_ds());
 	/* The cast to a user pointer is valid due to the set_fs() */
-	res = vfs_write(file, (const char __user *)buf, count, &pos);
+	res = vfs_write(file, (__force const char __user *)buf, count, &pos);
 	set_fs(old_fs);
 
 	return res;
 }
+EXPORT_SYMBOL(kernel_write);
 
 ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 				 struct pipe_inode_info *pipe, size_t len,
@@ -692,12 +695,14 @@ static int pipe_to_sendpage(struct pipe_inode_info *pipe,
 	loff_t pos = sd->pos;
 	int more;
 
-	if (!likely(file->f_op && file->f_op->sendpage))
+	if (!likely(file->f_op->sendpage))
 		return -EINVAL;
 
 	more = (sd->flags & SPLICE_F_MORE) ? MSG_MORE : 0;
-	if (sd->len < sd->total_len)
+
+	if (sd->len < sd->total_len && pipe->nrbufs > 1)
 		more |= MSG_SENDPAGE_NOTLAST;
+
 	return file->f_op->sendpage(file, buf->page, buf->offset,
 				    sd->len, &pos, more);
 }
@@ -824,7 +829,7 @@ int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_desc *sd,
 			ops->release(pipe, buf);
 			pipe->curbuf = (pipe->curbuf + 1) & (pipe->buffers - 1);
 			pipe->nrbufs--;
-			if (pipe->inode)
+			if (pipe->files)
 				sd->need_wakeup = true;
 		}
 
@@ -996,8 +1001,6 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 	};
 	ssize_t ret;
 
-	sb_start_write(inode->i_sb);
-
 	pipe_lock(pipe);
 
 	splice_from_pipe_begin(&sd);
@@ -1033,7 +1036,6 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 			*ppos += ret;
 		balance_dirty_pages_ratelimited(mapping);
 	}
-	sb_end_write(inode->i_sb);
 
 	return ret;
 }
@@ -1045,9 +1047,10 @@ static int write_pipe_buf(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 {
 	int ret;
 	void *data;
+	loff_t tmp = sd->pos;
 
 	data = buf->ops->map(pipe, buf, 0);
-	ret = kernel_write(sd->u.file, data + buf->offset, sd->len, sd->pos);
+	ret = __kernel_write(sd->u.file, data + buf->offset, sd->len, &tmp);
 	buf->ops->unmap(pipe, buf, data);
 
 	return ret;
@@ -1095,19 +1098,8 @@ static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
 {
 	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *,
 				loff_t *, size_t, unsigned int);
-	int ret;
 
-	if (unlikely(!(out->f_mode & FMODE_WRITE)))
-		return -EBADF;
-
-	if (unlikely(out->f_flags & O_APPEND))
-		return -EINVAL;
-
-	ret = rw_verify_area(WRITE, out, ppos, len);
-	if (unlikely(ret < 0))
-		return ret;
-
-	if (out->f_op && out->f_op->splice_write)
+	if (out->f_op->splice_write)
 		splice_write = out->f_op->splice_write;
 	else
 		splice_write = default_file_splice_write;
@@ -1133,7 +1125,7 @@ static long do_splice_to(struct file *in, loff_t *ppos,
 	if (unlikely(ret < 0))
 		return ret;
 
-	if (in->f_op && in->f_op->splice_read)
+	if (in->f_op->splice_read)
 		splice_read = in->f_op->splice_read;
 	else
 		splice_read = default_file_splice_read;
@@ -1168,7 +1160,7 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 	 * randomly drop data for eg socket -> socket splicing. Use the
 	 * piped splicing for that!
 	 */
-	i_mode = in->f_path.dentry->d_inode->i_mode;
+	i_mode = file_inode(in)->i_mode;
 	if (unlikely(!S_ISREG(i_mode) && !S_ISBLK(i_mode)))
 		return -EINVAL;
 
@@ -1178,7 +1170,7 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 	 */
 	pipe = current->splice_pipe;
 	if (unlikely(!pipe)) {
-		pipe = alloc_pipe_info(NULL);
+		pipe = alloc_pipe_info();
 		if (!pipe)
 			return -ENOMEM;
 
@@ -1268,7 +1260,7 @@ static int direct_splice_actor(struct pipe_inode_info *pipe,
 {
 	struct file *file = sd->u.file;
 
-	return do_splice_from(pipe, file, &file->f_pos, sd->total_len,
+	return do_splice_from(pipe, file, sd->opos, sd->total_len,
 			      sd->flags);
 }
 
@@ -1277,6 +1269,7 @@ static int direct_splice_actor(struct pipe_inode_info *pipe,
  * @in:		file to splice from
  * @ppos:	input file offset
  * @out:	file to splice to
+ * @opos:	output file offset
  * @len:	number of bytes to splice
  * @flags:	splice modifier flags
  *
@@ -1288,7 +1281,7 @@ static int direct_splice_actor(struct pipe_inode_info *pipe,
  *
  */
 long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
-		      size_t len, unsigned int flags)
+		      loff_t *opos, size_t len, unsigned int flags)
 {
 	struct splice_desc sd = {
 		.len		= len,
@@ -1296,8 +1289,19 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 		.flags		= flags,
 		.pos		= *ppos,
 		.u.file		= out,
+		.opos		= opos,
 	};
 	long ret;
+
+	if (unlikely(!(out->f_mode & FMODE_WRITE)))
+		return -EBADF;
+
+	if (unlikely(out->f_flags & O_APPEND))
+		return -EINVAL;
+
+	ret = rw_verify_area(WRITE, out, opos, len);
+	if (unlikely(ret < 0))
+		return ret;
 
 	ret = splice_direct_to_actor(in, &sd, direct_splice_actor);
 	if (ret > 0)
@@ -1319,7 +1323,7 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 {
 	struct pipe_inode_info *ipipe;
 	struct pipe_inode_info *opipe;
-	loff_t offset, *off;
+	loff_t offset;
 	long ret;
 
 	ipipe = get_pipe_info(in);
@@ -1350,13 +1354,27 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 				return -EINVAL;
 			if (copy_from_user(&offset, off_out, sizeof(loff_t)))
 				return -EFAULT;
-			off = &offset;
-		} else
-			off = &out->f_pos;
+		} else {
+			offset = out->f_pos;
+		}
 
-		ret = do_splice_from(ipipe, out, off, len, flags);
+		if (unlikely(!(out->f_mode & FMODE_WRITE)))
+			return -EBADF;
 
-		if (off_out && copy_to_user(off_out, off, sizeof(loff_t)))
+		if (unlikely(out->f_flags & O_APPEND))
+			return -EINVAL;
+
+		ret = rw_verify_area(WRITE, out, &offset, len);
+		if (unlikely(ret < 0))
+			return ret;
+
+		file_start_write(out);
+		ret = do_splice_from(ipipe, out, &offset, len, flags);
+		file_end_write(out);
+
+		if (!off_out)
+			out->f_pos = offset;
+		else if (copy_to_user(off_out, &offset, sizeof(loff_t)))
 			ret = -EFAULT;
 
 		return ret;
@@ -1370,13 +1388,15 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 				return -EINVAL;
 			if (copy_from_user(&offset, off_in, sizeof(loff_t)))
 				return -EFAULT;
-			off = &offset;
-		} else
-			off = &in->f_pos;
+		} else {
+			offset = in->f_pos;
+		}
 
-		ret = do_splice_to(in, off, opipe, len, flags);
+		ret = do_splice_to(in, &offset, opipe, len, flags);
 
-		if (off_in && copy_to_user(off_in, off, sizeof(loff_t)))
+		if (!off_in)
+			in->f_pos = offset;
+		else if (copy_to_user(off_in, &offset, sizeof(loff_t)))
 			ret = -EFAULT;
 
 		return ret;
@@ -1684,6 +1704,27 @@ SYSCALL_DEFINE4(vmsplice, int, fd, const struct iovec __user *, iov,
 
 	return error;
 }
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE4(vmsplice, int, fd, const struct compat_iovec __user *, iov32,
+		    unsigned int, nr_segs, unsigned int, flags)
+{
+	unsigned i;
+	struct iovec __user *iov;
+	if (nr_segs > UIO_MAXIOV)
+		return -EINVAL;
+	iov = compat_alloc_user_space(nr_segs * sizeof(struct iovec));
+	for (i = 0; i < nr_segs; i++) {
+		struct compat_iovec v;
+		if (get_user(v.iov_base, &iov32[i].iov_base) ||
+		    get_user(v.iov_len, &iov32[i].iov_len) ||
+		    put_user(compat_ptr(v.iov_base), &iov[i].iov_base) ||
+		    put_user(v.iov_len, &iov[i].iov_len))
+			return -EFAULT;
+	}
+	return sys_vmsplice(fd, iov, nr_segs, flags);
+}
+#endif
 
 SYSCALL_DEFINE6(splice, int, fd_in, loff_t __user *, off_in,
 		int, fd_out, loff_t __user *, off_out,

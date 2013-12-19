@@ -12,14 +12,14 @@
 #include <asm/mach-au1x00/au1000.h>
 
 /* The default GPIO numberspace as documented in the Alchemy manuals.
- * GPIO0-31 from GPIO1 block,   GPIO200-215 from GPIO2 block.
+ * GPIO0-31 from GPIO1 block,	GPIO200-215 from GPIO2 block.
  */
 #define ALCHEMY_GPIO1_BASE	0
 #define ALCHEMY_GPIO2_BASE	200
 
 #define ALCHEMY_GPIO1_NUM	32
 #define ALCHEMY_GPIO2_NUM	16
-#define ALCHEMY_GPIO1_MAX 	(ALCHEMY_GPIO1_BASE + ALCHEMY_GPIO1_NUM - 1)
+#define ALCHEMY_GPIO1_MAX	(ALCHEMY_GPIO1_BASE + ALCHEMY_GPIO1_NUM - 1)
 #define ALCHEMY_GPIO2_MAX	(ALCHEMY_GPIO2_BASE + ALCHEMY_GPIO2_NUM - 1)
 
 #define MAKE_IRQ(intc, off)	(AU1000_INTC##intc##_INT_BASE + (off))
@@ -67,7 +67,7 @@ static inline int au1500_gpio1_to_irq(int gpio)
 	switch (gpio) {
 	case 0 ... 15:
 	case 20:
-	case 23 ... 28:	return MAKE_IRQ(1, gpio);
+	case 23 ... 28: return MAKE_IRQ(1, gpio);
 	}
 
 	return -ENXIO;
@@ -139,8 +139,8 @@ static inline int au1550_gpio1_to_irq(int gpio)
 
 	switch (gpio) {
 	case 0 ... 15:
-	case 20 ... 28:	return MAKE_IRQ(1, gpio);
-	case 16 ... 17:	return MAKE_IRQ(1, 18 + gpio - 16);
+	case 20 ... 28: return MAKE_IRQ(1, gpio);
+	case 16 ... 17: return MAKE_IRQ(1, 18 + gpio - 16);
 	}
 
 	return -ENXIO;
@@ -152,9 +152,9 @@ static inline int au1550_gpio2_to_irq(int gpio)
 
 	switch (gpio) {
 	case 0:		return MAKE_IRQ(1, 16);
-	case 1 ... 5:	return MAKE_IRQ(1, 17);	/* shared GPIO201_205 */
+	case 1 ... 5:	return MAKE_IRQ(1, 17); /* shared GPIO201_205 */
 	case 6 ... 7:	return MAKE_IRQ(1, 29 + gpio - 6);
-	case 8 ... 15:	return MAKE_IRQ(1, 31);	/* shared GPIO208_215 */
+	case 8 ... 15:	return MAKE_IRQ(1, 31); /* shared GPIO208_215 */
 	}
 
 	return -ENXIO;
@@ -190,7 +190,7 @@ static inline int au1200_gpio2_to_irq(int gpio)
 	case 0 ... 2:	return MAKE_IRQ(0, 5 + gpio - 0);
 	case 3:		return MAKE_IRQ(0, 22);
 	case 4 ... 7:	return MAKE_IRQ(0, 24 + gpio - 4);
-	case 8 ... 15:	return MAKE_IRQ(0, 28);	/* shared GPIO208_215 */
+	case 8 ... 15:	return MAKE_IRQ(0, 28); /* shared GPIO208_215 */
 	}
 
 	return -ENXIO;
@@ -428,7 +428,7 @@ static inline void alchemy_gpio2_disable_int(int gpio2)
 /**
  * alchemy_gpio2_enable -  Activate GPIO2 block.
  *
- * The GPIO2 block must be enabled excplicitly to work.  On systems
+ * The GPIO2 block must be enabled excplicitly to work.	 On systems
  * where this isn't done by the bootloader, this macro can be used.
  */
 static inline void alchemy_gpio2_enable(void)
@@ -533,7 +533,7 @@ static inline int alchemy_irq_to_gpio(int irq)
  *	2 (1 for Au1000) gpio_chips are registered.
  *
  *(3) GPIOLIB=n, ALCHEMY_GPIO_INDIRECT=y:
- *	the boards' gpio.h must provide	the linux gpio wrapper functions,
+ *	the boards' gpio.h must provide the linux gpio wrapper functions,
  *
  *(4) GPIOLIB=n, ALCHEMY_GPIO_INDIRECT=n:
  *	inlinable gpio functions are provided which enable access to the

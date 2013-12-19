@@ -27,31 +27,14 @@ struct omap_clk {
 	struct clk_lookup		lk;
 };
 
-#define CLK(dev, con, ck, cp)		\
+#define CLK(dev, con, ck)		\
 	{				\
-		 .cpu = cp,		\
 		.lk = {			\
 			.dev_id = dev,	\
 			.con_id = con,	\
 			.clk = ck,	\
 		},			\
 	}
-
-/* Platform flags for the clkdev-OMAP integration code */
-#define CK_242X		(1 << 0)
-#define CK_243X		(1 << 1)	/* 243x, 253x */
-#define CK_3430ES1	(1 << 2)	/* 34xxES1 only */
-#define CK_3430ES2PLUS	(1 << 3)	/* 34xxES2, ES3, non-Sitara 35xx only */
-#define CK_AM35XX	(1 << 4)	/* Sitara AM35xx */
-#define CK_36XX		(1 << 5)	/* 36xx/37xx-specific clocks */
-#define CK_443X		(1 << 6)
-#define CK_TI816X	(1 << 7)
-#define CK_446X		(1 << 8)
-#define CK_AM33XX	(1 << 9)	/* AM33xx specific clocks */
-
-
-#define CK_34XX		(CK_3430ES1 | CK_3430ES2PLUS)
-#define CK_3XXX		(CK_34XX | CK_AM35XX | CK_36XX)
 
 struct clockdomain;
 #define to_clk_hw_omap(_hw) container_of(_hw, struct clk_hw_omap, hw)
@@ -63,6 +46,17 @@ struct clockdomain;
 		.parent_names = _parent_array_name,		\
 		.num_parents = ARRAY_SIZE(_parent_array_name),	\
 		.ops = &_clkops_name,				\
+	};
+
+#define DEFINE_STRUCT_CLK_FLAGS(_name, _parent_array_name,	\
+				_clkops_name, _flags)		\
+	static struct clk _name = {				\
+		.name = #_name,					\
+		.hw = &_name##_hw.hw,				\
+		.parent_names = _parent_array_name,		\
+		.num_parents = ARRAY_SIZE(_parent_array_name),	\
+		.ops = &_clkops_name,				\
+		.flags = _flags,				\
 	};
 
 #define DEFINE_STRUCT_CLK_HW_OMAP(_name, _clkdm_name)		\
@@ -417,6 +411,8 @@ void omap2_clk_dflt_find_idlest(struct clk_hw_omap *clk,
 void omap2_init_clk_hw_omap_clocks(struct clk *clk);
 int omap2_clk_enable_autoidle_all(void);
 int omap2_clk_disable_autoidle_all(void);
+int omap2_clk_allow_idle(struct clk *clk);
+int omap2_clk_deny_idle(struct clk *clk);
 void omap2_clk_enable_init_clocks(const char **clk_names, u8 num_clocks);
 int omap2_clk_switch_mpurate_at_boot(const char *mpurate_ck_name);
 void omap2_clk_print_new_rates(const char *hfclkin_ck_name,
@@ -469,4 +465,5 @@ extern int am33xx_clk_init(void);
 extern int omap2_clkops_enable_clkdm(struct clk_hw *hw);
 extern void omap2_clkops_disable_clkdm(struct clk_hw *hw);
 
+extern void omap_clocks_register(struct omap_clk *oclks, int cnt);
 #endif

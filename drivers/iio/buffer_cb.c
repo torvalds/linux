@@ -7,26 +7,36 @@
 
 struct iio_cb_buffer {
 	struct iio_buffer buffer;
-	int (*cb)(u8 *data, void *private);
+	int (*cb)(const void *data, void *private);
 	void *private;
 	struct iio_channel *channels;
 };
 
-static int iio_buffer_cb_store_to(struct iio_buffer *buffer, u8 *data)
+static struct iio_cb_buffer *buffer_to_cb_buffer(struct iio_buffer *buffer)
 {
-	struct iio_cb_buffer *cb_buff = container_of(buffer,
-						     struct iio_cb_buffer,
-						     buffer);
+	return container_of(buffer, struct iio_cb_buffer, buffer);
+}
 
+static int iio_buffer_cb_store_to(struct iio_buffer *buffer, const void *data)
+{
+	struct iio_cb_buffer *cb_buff = buffer_to_cb_buffer(buffer);
 	return cb_buff->cb(data, cb_buff->private);
 }
 
-static struct iio_buffer_access_funcs iio_cb_access = {
+static void iio_buffer_cb_release(struct iio_buffer *buffer)
+{
+	struct iio_cb_buffer *cb_buff = buffer_to_cb_buffer(buffer);
+	kfree(cb_buff->buffer.scan_mask);
+	kfree(cb_buff);
+}
+
+static const struct iio_buffer_access_funcs iio_cb_access = {
 	.store_to = &iio_buffer_cb_store_to,
+	.release = &iio_buffer_cb_release,
 };
 
-struct iio_cb_buffer *iio_channel_get_all_cb(const char *name,
-					     int (*cb)(u8 *data,
+struct iio_cb_buffer *iio_channel_get_all_cb(struct device *dev,
+					     int (*cb)(const void *data,
 						       void *private),
 					     void *private)
 {
@@ -41,12 +51,14 @@ struct iio_cb_buffer *iio_channel_get_all_cb(const char *name,
 		goto error_ret;
 	}
 
+	iio_buffer_init(&cb_buff->buffer);
+
 	cb_buff->private = private;
 	cb_buff->cb = cb;
 	cb_buff->buffer.access = &iio_cb_access;
 	INIT_LIST_HEAD(&cb_buff->buffer.demux_list);
 
-	cb_buff->channels = iio_channel_get_all(name);
+	cb_buff->channels = iio_channel_get_all(dev);
 	if (IS_ERR(cb_buff->channels)) {
 		ret = PTR_ERR(cb_buff->channels);
 		goto error_free_cb_buff;
@@ -64,7 +76,7 @@ struct iio_cb_buffer *iio_channel_get_all_cb(const char *name,
 	while (chan->indio_dev) {
 		if (chan->indio_dev != indio_dev) {
 			ret = -EINVAL;
-			goto error_release_channels;
+			goto error_free_scan_mask;
 		}
 		set_bit(chan->channel->scan_index,
 			cb_buff->buffer.scan_mask);
@@ -73,6 +85,8 @@ struct iio_cb_buffer *iio_channel_get_all_cb(const char *name,
 
 	return cb_buff;
 
+error_free_scan_mask:
+	kfree(cb_buff->buffer.scan_mask);
 error_release_channels:
 	iio_channel_release_all(cb_buff->channels);
 error_free_cb_buff:
@@ -101,7 +115,7 @@ EXPORT_SYMBOL_GPL(iio_channel_stop_all_cb);
 void iio_channel_release_all_cb(struct iio_cb_buffer *cb_buff)
 {
 	iio_channel_release_all(cb_buff->channels);
-	kfree(cb_buff);
+	iio_buffer_put(&cb_buff->buffer);
 }
 EXPORT_SYMBOL_GPL(iio_channel_release_all_cb);
 

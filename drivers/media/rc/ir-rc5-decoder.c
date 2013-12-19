@@ -52,7 +52,7 @@ static int ir_rc5_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	u8 toggle;
 	u32 scancode;
 
-	if (!(dev->raw->enabled_protocols & (RC_BIT_RC5 | RC_BIT_RC5X)))
+	if (!(dev->enabled_protocols & (RC_BIT_RC5 | RC_BIT_RC5X)))
 		return 0;
 
 	if (!is_timing_event(ev)) {
@@ -128,7 +128,7 @@ again:
 		if (data->wanted_bits == RC5X_NBITS) {
 			/* RC5X */
 			u8 xdata, command, system;
-			if (!(dev->raw->enabled_protocols & RC_BIT_RC5X)) {
+			if (!(dev->enabled_protocols & RC_BIT_RC5X)) {
 				data->state = STATE_INACTIVE;
 				return 0;
 			}
@@ -145,7 +145,7 @@ again:
 		} else {
 			/* RC5 */
 			u8 command, system;
-			if (!(dev->raw->enabled_protocols & RC_BIT_RC5)) {
+			if (!(dev->enabled_protocols & RC_BIT_RC5)) {
 				data->state = STATE_INACTIVE;
 				return 0;
 			}

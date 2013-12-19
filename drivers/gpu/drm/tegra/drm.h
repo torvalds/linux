@@ -1,89 +1,98 @@
 /*
  * Copyright (C) 2012 Avionic Design GmbH
- * Copyright (C) 2012 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (C) 2012-2013 NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
-#ifndef TEGRA_DRM_H
-#define TEGRA_DRM_H 1
+#ifndef HOST1X_DRM_H
+#define HOST1X_DRM_H 1
+
+#include <uapi/drm/tegra_drm.h>
+#include <linux/host1x.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fixed.h>
 
-struct tegra_framebuffer {
+struct tegra_fb {
 	struct drm_framebuffer base;
-	struct drm_gem_cma_object *obj;
+	struct tegra_bo **planes;
+	unsigned int num_planes;
 };
 
-static inline struct tegra_framebuffer *to_tegra_fb(struct drm_framebuffer *fb)
-{
-	return container_of(fb, struct tegra_framebuffer, base);
-}
+struct tegra_fbdev {
+	struct drm_fb_helper base;
+	struct tegra_fb *fb;
+};
 
-struct host1x {
+struct tegra_drm {
 	struct drm_device *drm;
-	struct device *dev;
-	void __iomem *regs;
-	struct clk *clk;
-	int syncpt;
-	int irq;
-
-	struct mutex drm_clients_lock;
-	struct list_head drm_clients;
-	struct list_head drm_active;
 
 	struct mutex clients_lock;
 	struct list_head clients;
 
-	struct drm_fbdev_cma *fbdev;
-	struct tegra_framebuffer fb;
+	struct tegra_fbdev *fbdev;
 };
 
-struct host1x_client;
+struct tegra_drm_client;
 
-struct host1x_client_ops {
-	int (*drm_init)(struct host1x_client *client, struct drm_device *drm);
-	int (*drm_exit)(struct host1x_client *client);
-};
-
-struct host1x_client {
-	struct host1x *host1x;
-	struct device *dev;
-
-	const struct host1x_client_ops *ops;
-
+struct tegra_drm_context {
+	struct tegra_drm_client *client;
+	struct host1x_channel *channel;
 	struct list_head list;
 };
 
-extern int host1x_drm_init(struct host1x *host1x, struct drm_device *drm);
-extern int host1x_drm_exit(struct host1x *host1x);
+struct tegra_drm_client_ops {
+	int (*open_channel)(struct tegra_drm_client *client,
+			    struct tegra_drm_context *context);
+	void (*close_channel)(struct tegra_drm_context *context);
+	int (*is_addr_reg)(struct device *dev, u32 class, u32 offset);
+	int (*submit)(struct tegra_drm_context *context,
+		      struct drm_tegra_submit *args, struct drm_device *drm,
+		      struct drm_file *file);
+};
 
-extern int host1x_register_client(struct host1x *host1x,
-				  struct host1x_client *client);
-extern int host1x_unregister_client(struct host1x *host1x,
-				    struct host1x_client *client);
+int tegra_drm_submit(struct tegra_drm_context *context,
+		     struct drm_tegra_submit *args, struct drm_device *drm,
+		     struct drm_file *file);
+
+struct tegra_drm_client {
+	struct host1x_client base;
+	struct list_head list;
+
+	const struct tegra_drm_client_ops *ops;
+};
+
+static inline struct tegra_drm_client *
+host1x_to_drm_client(struct host1x_client *client)
+{
+	return container_of(client, struct tegra_drm_client, base);
+}
+
+extern int tegra_drm_register_client(struct tegra_drm *tegra,
+				     struct tegra_drm_client *client);
+extern int tegra_drm_unregister_client(struct tegra_drm *tegra,
+				       struct tegra_drm_client *client);
+
+extern int tegra_drm_init(struct tegra_drm *tegra, struct drm_device *drm);
+extern int tegra_drm_exit(struct tegra_drm *tegra);
 
 struct tegra_output;
 
 struct tegra_dc {
 	struct host1x_client client;
-
-	struct host1x *host1x;
 	struct device *dev;
+	spinlock_t lock;
 
 	struct drm_crtc base;
 	int pipe;
 
 	struct clk *clk;
-
 	void __iomem *regs;
 	int irq;
 
@@ -94,16 +103,20 @@ struct tegra_dc {
 	struct drm_info_list *debugfs_files;
 	struct drm_minor *minor;
 	struct dentry *debugfs;
+
+	/* page-flip handling */
+	struct drm_pending_vblank_event *event;
 };
 
-static inline struct tegra_dc *host1x_client_to_dc(struct host1x_client *client)
+static inline struct tegra_dc *
+host1x_client_to_dc(struct host1x_client *client)
 {
 	return container_of(client, struct tegra_dc, client);
 }
 
 static inline struct tegra_dc *to_tegra_dc(struct drm_crtc *crtc)
 {
-	return container_of(crtc, struct tegra_dc, base);
+	return crtc ? container_of(crtc, struct tegra_dc, base) : NULL;
 }
 
 static inline void tegra_dc_writel(struct tegra_dc *dc, unsigned long value,
@@ -117,6 +130,36 @@ static inline unsigned long tegra_dc_readl(struct tegra_dc *dc,
 {
 	return readl(dc->regs + (reg << 2));
 }
+
+struct tegra_dc_window {
+	struct {
+		unsigned int x;
+		unsigned int y;
+		unsigned int w;
+		unsigned int h;
+	} src;
+	struct {
+		unsigned int x;
+		unsigned int y;
+		unsigned int w;
+		unsigned int h;
+	} dst;
+	unsigned int bits_per_pixel;
+	unsigned int format;
+	unsigned int stride[2];
+	unsigned long base[3];
+	bool bottom_up;
+	bool tiled;
+};
+
+/* from dc.c */
+extern unsigned int tegra_dc_format(uint32_t format);
+extern int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
+				 const struct tegra_dc_window *window);
+extern void tegra_dc_enable_vblank(struct tegra_dc *dc);
+extern void tegra_dc_disable_vblank(struct tegra_dc *dc);
+extern void tegra_dc_cancel_page_flip(struct drm_crtc *crtc,
+				      struct drm_file *file);
 
 struct tegra_output_ops {
 	int (*enable)(struct tegra_output *output);
@@ -194,41 +237,34 @@ static inline int tegra_output_check_mode(struct tegra_output *output,
 	return output ? -ENOSYS : -EINVAL;
 }
 
+/* from bus.c */
+int drm_host1x_init(struct drm_driver *driver, struct host1x_device *device);
+void drm_host1x_exit(struct drm_driver *driver, struct host1x_device *device);
+
 /* from rgb.c */
 extern int tegra_dc_rgb_probe(struct tegra_dc *dc);
+extern int tegra_dc_rgb_remove(struct tegra_dc *dc);
 extern int tegra_dc_rgb_init(struct drm_device *drm, struct tegra_dc *dc);
 extern int tegra_dc_rgb_exit(struct tegra_dc *dc);
 
 /* from output.c */
-extern int tegra_output_parse_dt(struct tegra_output *output);
+extern int tegra_output_probe(struct tegra_output *output);
+extern int tegra_output_remove(struct tegra_output *output);
 extern int tegra_output_init(struct drm_device *drm, struct tegra_output *output);
 extern int tegra_output_exit(struct tegra_output *output);
 
-/* from gem.c */
-extern struct tegra_gem_object *tegra_gem_alloc(struct drm_device *drm,
-						size_t size);
-extern int tegra_gem_handle_create(struct drm_device *drm,
-				   struct drm_file *file, size_t size,
-				   unsigned long flags, uint32_t *handle);
-extern int tegra_gem_dumb_create(struct drm_file *file, struct drm_device *drm,
-				 struct drm_mode_create_dumb *args);
-extern int tegra_gem_dumb_map_offset(struct drm_file *file,
-				     struct drm_device *drm, uint32_t handle,
-				     uint64_t *offset);
-extern int tegra_gem_dumb_destroy(struct drm_file *file,
-				  struct drm_device *drm, uint32_t handle);
-extern int tegra_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
-extern int tegra_gem_init_object(struct drm_gem_object *obj);
-extern void tegra_gem_free_object(struct drm_gem_object *obj);
-extern struct vm_operations_struct tegra_gem_vm_ops;
-
 /* from fb.c */
+struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
+				    unsigned int index);
+bool tegra_fb_is_bottom_up(struct drm_framebuffer *framebuffer);
+bool tegra_fb_is_tiled(struct drm_framebuffer *framebuffer);
 extern int tegra_drm_fb_init(struct drm_device *drm);
 extern void tegra_drm_fb_exit(struct drm_device *drm);
+extern void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev);
 
-extern struct platform_driver tegra_host1x_driver;
-extern struct platform_driver tegra_hdmi_driver;
 extern struct platform_driver tegra_dc_driver;
-extern struct drm_driver tegra_drm_driver;
+extern struct platform_driver tegra_hdmi_driver;
+extern struct platform_driver tegra_gr2d_driver;
+extern struct platform_driver tegra_gr3d_driver;
 
-#endif /* TEGRA_DRM_H */
+#endif /* HOST1X_DRM_H */

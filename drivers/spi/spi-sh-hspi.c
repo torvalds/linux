@@ -89,7 +89,7 @@ static int hspi_status_check_timeout(struct hspi_priv *hspi, u32 mask, u32 val)
 		if ((mask & hspi_read(hspi, SPSR)) == val)
 			return 0;
 
-		msleep(20);
+		udelay(10);
 	}
 
 	dev_err(hspi->dev, "timeout\n");
@@ -99,21 +99,6 @@ static int hspi_status_check_timeout(struct hspi_priv *hspi, u32 mask, u32 val)
 /*
  *		spi master function
  */
-static int hspi_prepare_transfer(struct spi_master *master)
-{
-	struct hspi_priv *hspi = spi_master_get_devdata(master);
-
-	pm_runtime_get_sync(hspi->dev);
-	return 0;
-}
-
-static int hspi_unprepare_transfer(struct spi_master *master)
-{
-	struct hspi_priv *hspi = spi_master_get_devdata(master);
-
-	pm_runtime_put_sync(hspi->dev);
-	return 0;
-}
 
 #define hspi_hw_cs_enable(hspi)		hspi_hw_cs_ctrl(hspi, 0)
 #define hspi_hw_cs_disable(hspi)	hspi_hw_cs_ctrl(hspi, 1)
@@ -152,7 +137,7 @@ static void hspi_hw_setup(struct hspi_priv *hspi,
 			rate /= 16;
 
 		/* CLKCx calculation */
-		rate /= (((idiv_clk & 0x1F) + 1) * 2) ;
+		rate /= (((idiv_clk & 0x1F) + 1) * 2);
 
 		/* save best settings */
 		tmp = abs(target_rate - rate);
@@ -297,7 +282,7 @@ static int hspi_probe(struct platform_device *pdev)
 	}
 
 	hspi = spi_master_get_devdata(master);
-	dev_set_drvdata(&pdev->dev, hspi);
+	platform_set_drvdata(pdev, hspi);
 
 	/* init hspi */
 	hspi->master	= master;
@@ -311,23 +296,21 @@ static int hspi_probe(struct platform_device *pdev)
 		goto error1;
 	}
 
+	pm_runtime_enable(&pdev->dev);
+
 	master->num_chipselect	= 1;
 	master->bus_num		= pdev->id;
 	master->setup		= hspi_setup;
 	master->cleanup		= hspi_cleanup;
 	master->mode_bits	= SPI_CPOL | SPI_CPHA;
-	master->prepare_transfer_hardware	= hspi_prepare_transfer;
+	master->dev.of_node	= pdev->dev.of_node;
+	master->auto_runtime_pm = true;
 	master->transfer_one_message		= hspi_transfer_one_message;
-	master->unprepare_transfer_hardware	= hspi_unprepare_transfer;
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "spi_register_master error.\n");
 		goto error1;
 	}
-
-	pm_runtime_enable(&pdev->dev);
-
-	dev_info(&pdev->dev, "probed\n");
 
 	return 0;
 
@@ -341,15 +324,20 @@ static int hspi_probe(struct platform_device *pdev)
 
 static int hspi_remove(struct platform_device *pdev)
 {
-	struct hspi_priv *hspi = dev_get_drvdata(&pdev->dev);
+	struct hspi_priv *hspi = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
 
 	clk_put(hspi->clk);
-	spi_unregister_master(hspi->master);
 
 	return 0;
 }
+
+static struct of_device_id hspi_of_match[] = {
+	{ .compatible = "renesas,hspi", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, hspi_of_match);
 
 static struct platform_driver hspi_driver = {
 	.probe = hspi_probe,
@@ -357,6 +345,7 @@ static struct platform_driver hspi_driver = {
 	.driver = {
 		.name = "sh-hspi",
 		.owner = THIS_MODULE,
+		.of_match_table = hspi_of_match,
 	},
 };
 module_platform_driver(hspi_driver);

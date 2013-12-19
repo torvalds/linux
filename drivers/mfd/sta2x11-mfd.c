@@ -98,17 +98,6 @@ static int sta2x11_mfd_add(struct pci_dev *pdev, gfp_t flags)
 	return 0;
 }
 
-static int mfd_remove(struct pci_dev *pdev)
-{
-	struct sta2x11_mfd *mfd = sta2x11_mfd_find(pdev);
-
-	if (!mfd)
-		return -ENODEV;
-	list_del(&mfd->list);
-	kfree(mfd);
-	return 0;
-}
-
 /* This function is exported and is not expected to fail */
 u32 __sta2x11_mfd_mask(struct pci_dev *pdev, u32 reg, u32 mask, u32 val,
 		       enum sta2x11_mfd_plat_dev index)
@@ -144,7 +133,7 @@ int sta2x11_mfd_get_regs_data(struct platform_device *dev,
 			      void __iomem **regs,
 			      spinlock_t **lock)
 {
-	struct pci_dev *pdev = *(struct pci_dev **)(dev->dev.platform_data);
+	struct pci_dev *pdev = *(struct pci_dev **)dev_get_platdata(&dev->dev);
 	struct sta2x11_mfd *mfd;
 
 	if (!pdev)
@@ -323,7 +312,7 @@ static int sta2x11_mfd_platform_probe(struct platform_device *dev,
 	const char *name = sta2x11_mfd_names[index];
 	struct regmap_config *regmap_config = sta2x11_mfd_regmap_configs[index];
 
-	pdev = dev->dev.platform_data;
+	pdev = dev_get_platdata(&dev->dev);
 	mfd = sta2x11_mfd_find(*pdev);
 	if (!mfd)
 		return -ENODEV;
@@ -510,19 +499,19 @@ enum mfd1_bar1_cells {
 	STA2X11_APB_SOC_REGS = 0,
 };
 
-static const __devinitconst struct resource vic_resources[] = {
+static const struct resource vic_resources[] = {
 	CELL_4K(STA2X11_MFD_VIC_NAME, STA2X11_VIC),
 };
 
-static const __devinitconst struct resource apb_soc_regs_resources[] = {
+static const struct resource apb_soc_regs_resources[] = {
 	CELL_4K(STA2X11_MFD_APB_SOC_REGS_NAME, STA2X11_APB_SOC_REGS),
 };
 
-static __devinitdata struct mfd_cell sta2x11_mfd1_bar0[] = {
+static struct mfd_cell sta2x11_mfd1_bar0[] = {
 	DEV(STA2X11_MFD_VIC_NAME, vic_resources),
 };
 
-static __devinitdata struct mfd_cell sta2x11_mfd1_bar1[] = {
+static struct mfd_cell sta2x11_mfd1_bar1[] = {
 	DEV(STA2X11_MFD_APB_SOC_REGS_NAME, apb_soc_regs_resources),
 };
 

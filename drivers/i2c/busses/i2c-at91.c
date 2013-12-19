@@ -28,7 +28,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_i2c.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/platform_data/dma-atmel.h>
@@ -145,7 +144,7 @@ static void at91_init_twi_bus(struct at91_twi_dev *dev)
  * Calculate symmetric clock as stated in datasheet:
  * twi_clk = F_MAIN / (2 * (cdiv * (1 << ckdiv) + offset))
  */
-static void __devinit at91_calc_twi_clock(struct at91_twi_dev *dev, int twi_clk)
+static void at91_calc_twi_clock(struct at91_twi_dev *dev, int twi_clk)
 {
 	int ckdiv, cdiv, div;
 	struct at91_twi_pdata *pdata = dev->pdata;
@@ -372,7 +371,7 @@ static int at91_do_twi_transfer(struct at91_twi_dev *dev)
 	dev_dbg(dev->dev, "transfer: %s %d bytes.\n",
 		(dev->msg->flags & I2C_M_RD) ? "read" : "write", dev->buf_len);
 
-	INIT_COMPLETION(dev->cmd_complete);
+	reinit_completion(&dev->cmd_complete);
 	dev->transfer_status = 0;
 
 	if (!dev->buf_len) {
@@ -553,13 +552,6 @@ static struct at91_twi_pdata at91sam9g10_config = {
 	.has_dma_support = false,
 };
 
-static struct at91_twi_pdata at91sam9x5_config = {
-	.clk_max_div = 7,
-	.clk_offset = 4,
-	.has_unre_flag = false,
-	.has_dma_support = true,
-};
-
 static const struct platform_device_id at91_twi_devtypes[] = {
 	{
 		.name = "i2c-at91rm9200",
@@ -582,8 +574,18 @@ static const struct platform_device_id at91_twi_devtypes[] = {
 };
 
 #if defined(CONFIG_OF)
+static struct at91_twi_pdata at91sam9x5_config = {
+	.clk_max_div = 7,
+	.clk_offset = 4,
+	.has_unre_flag = false,
+	.has_dma_support = true,
+};
+
 static const struct of_device_id atmel_twi_dt_ids[] = {
 	{
+		.compatible = "atmel,at91rm9200-i2c",
+		.data = &at91rm9200_config,
+	} , {
 		.compatible = "atmel,at91sam9260-i2c",
 		.data = &at91sam9260_config,
 	} , {
@@ -600,15 +602,18 @@ static const struct of_device_id atmel_twi_dt_ids[] = {
 	}
 };
 MODULE_DEVICE_TABLE(of, atmel_twi_dt_ids);
-#else
-#define atmel_twi_dt_ids NULL
 #endif
 
-static bool __devinit filter(struct dma_chan *chan, void *slave)
+static bool filter(struct dma_chan *chan, void *pdata)
 {
-	struct at_dma_slave *sl = slave;
+	struct at91_twi_pdata *sl_pdata = pdata;
+	struct at_dma_slave *sl;
 
-	if (sl->dma_dev == chan->device->dev) {
+	if (!sl_pdata)
+		return false;
+
+	sl = &sl_pdata->dma_slave;
+	if (sl && (sl->dma_dev == chan->device->dev)) {
 		chan->private = sl;
 		return true;
 	} else {
@@ -616,14 +621,13 @@ static bool __devinit filter(struct dma_chan *chan, void *slave)
 	}
 }
 
-static int __devinit at91_twi_configure_dma(struct at91_twi_dev *dev, u32 phy_addr)
+static int at91_twi_configure_dma(struct at91_twi_dev *dev, u32 phy_addr)
 {
 	int ret = 0;
-	struct at_dma_slave *sdata;
+	struct at91_twi_pdata *pdata = dev->pdata;
 	struct dma_slave_config slave_config;
 	struct at91_twi_dma *dma = &dev->dma;
-
-	sdata = &dev->pdata->dma_slave;
+	dma_cap_mask_t mask;
 
 	memset(&slave_config, 0, sizeof(slave_config));
 	slave_config.src_addr = (dma_addr_t)phy_addr + AT91_TWI_RHR;
@@ -634,25 +638,22 @@ static int __devinit at91_twi_configure_dma(struct at91_twi_dev *dev, u32 phy_ad
 	slave_config.dst_maxburst = 1;
 	slave_config.device_fc = false;
 
-	if (sdata && sdata->dma_dev) {
-		dma_cap_mask_t mask;
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
 
-		dma_cap_zero(mask);
-		dma_cap_set(DMA_SLAVE, mask);
-		dma->chan_tx = dma_request_channel(mask, filter, sdata);
-		if (!dma->chan_tx) {
-			dev_err(dev->dev, "no DMA channel available for tx\n");
-			ret = -EBUSY;
-			goto error;
-		}
-		dma->chan_rx = dma_request_channel(mask, filter, sdata);
-		if (!dma->chan_rx) {
-			dev_err(dev->dev, "no DMA channel available for rx\n");
-			ret = -EBUSY;
-			goto error;
-		}
-	} else {
-		ret = -EINVAL;
+	dma->chan_tx = dma_request_slave_channel_compat(mask, filter, pdata,
+							dev->dev, "tx");
+	if (!dma->chan_tx) {
+		dev_err(dev->dev, "can't get a DMA channel for tx\n");
+		ret = -EBUSY;
+		goto error;
+	}
+
+	dma->chan_rx = dma_request_slave_channel_compat(mask, filter, pdata,
+							dev->dev, "rx");
+	if (!dma->chan_rx) {
+		dev_err(dev->dev, "can't get a DMA channel for rx\n");
+		ret = -EBUSY;
 		goto error;
 	}
 
@@ -688,7 +689,7 @@ error:
 	return ret;
 }
 
-static struct at91_twi_pdata * __devinit at91_twi_get_driver_data(
+static struct at91_twi_pdata *at91_twi_get_driver_data(
 					struct platform_device *pdev)
 {
 	if (pdev->dev.of_node) {
@@ -701,7 +702,7 @@ static struct at91_twi_pdata * __devinit at91_twi_get_driver_data(
 	return (struct at91_twi_pdata *) platform_get_device_id(pdev)->driver_data;
 }
 
-static int __devinit at91_twi_probe(struct platform_device *pdev)
+static int at91_twi_probe(struct platform_device *pdev)
 {
 	struct at91_twi_dev *dev;
 	struct resource *mem;
@@ -723,9 +724,9 @@ static int __devinit at91_twi_probe(struct platform_device *pdev)
 	if (!dev->pdata)
 		return -ENODEV;
 
-	dev->base = devm_request_and_ioremap(&pdev->dev, mem);
-	if (!dev->base)
-		return -EBUSY;
+	dev->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(dev->base))
+		return PTR_ERR(dev->base);
 
 	dev->irq = platform_get_irq(pdev, 0);
 	if (dev->irq < 0)
@@ -773,21 +774,18 @@ static int __devinit at91_twi_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	of_i2c_register_devices(&dev->adapter);
-
 	dev_info(dev->dev, "AT91 i2c bus driver.\n");
 	return 0;
 }
 
-static int __devexit at91_twi_remove(struct platform_device *pdev)
+static int at91_twi_remove(struct platform_device *pdev)
 {
 	struct at91_twi_dev *dev = platform_get_drvdata(pdev);
-	int rc;
 
-	rc = i2c_del_adapter(&dev->adapter);
+	i2c_del_adapter(&dev->adapter);
 	clk_disable_unprepare(dev->clk);
 
-	return rc;
+	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -820,12 +818,12 @@ static const struct dev_pm_ops at91_twi_pm = {
 
 static struct platform_driver at91_twi_driver = {
 	.probe		= at91_twi_probe,
-	.remove		= __devexit_p(at91_twi_remove),
+	.remove		= at91_twi_remove,
 	.id_table	= at91_twi_devtypes,
 	.driver		= {
 		.name	= "at91_i2c",
 		.owner	= THIS_MODULE,
-		.of_match_table = atmel_twi_dt_ids,
+		.of_match_table = of_match_ptr(atmel_twi_dt_ids),
 		.pm	= at91_twi_pm_ops,
 	},
 };

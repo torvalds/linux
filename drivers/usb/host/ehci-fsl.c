@@ -57,7 +57,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	pr_debug("initializing FSL-SOC USB Controller\n");
 
 	/* Need platform data for setup */
-	pdata = (struct fsl_usb2_platform_data *)pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_err(&pdev->dev,
 			"No platform data for %s.\n", dev_name(&pdev->dev));
@@ -130,7 +130,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	}
 
 	/* Enable USB controller, 83xx or 8536 */
-	if (pdata->have_sysif_regs)
+	if (pdata->have_sysif_regs && pdata->controller_ver < FSL_USB_VER_1_6)
 		setbits32(hcd->regs + FSL_SOC_USB_CTRL, 0x4);
 
 	/* Don't need to set host mode here. It will be done by tdi_reset() */
@@ -190,7 +190,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 static void usb_hcd_fsl_remove(struct usb_hcd *hcd,
 			       struct platform_device *pdev)
 {
-	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
+	struct fsl_usb2_platform_data *pdata = dev_get_platdata(&pdev->dev);
 
 	if (!IS_ERR_OR_NULL(hcd->phy)) {
 		otg_set_host(hcd->phy->otg, NULL);
@@ -218,7 +218,7 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	void __iomem *non_ehci = hcd->regs;
 	struct device *dev = hcd->self.controller;
-	struct fsl_usb2_platform_data *pdata = dev->platform_data;
+	struct fsl_usb2_platform_data *pdata = dev_get_platdata(dev);
 
 	if (pdata->controller_ver < 0) {
 		dev_warn(hcd->self.controller, "Could not get controller version\n");
@@ -230,17 +230,11 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 
 	switch (phy_mode) {
 	case FSL_USB2_PHY_ULPI:
-		if (pdata->controller_ver) {
+		if (pdata->have_sysif_regs && pdata->controller_ver) {
 			/* controller version 1.6 or above */
+			clrbits32(non_ehci + FSL_SOC_USB_CTRL, UTMI_PHY_EN);
 			setbits32(non_ehci + FSL_SOC_USB_CTRL,
-					ULPI_PHY_CLK_SEL);
-			/*
-			 * Due to controller issue of PHY_CLK_VALID in ULPI
-			 * mode, we set USB_CTRL_USB_EN before checking
-			 * PHY_CLK_VALID, otherwise PHY_CLK_VALID doesn't work.
-			 */
-			clrsetbits_be32(non_ehci + FSL_SOC_USB_CTRL,
-					UTMI_PHY_EN, USB_CTRL_USB_EN);
+				ULPI_PHY_CLK_SEL | USB_CTRL_USB_EN);
 		}
 		portsc |= PORT_PTS_ULPI;
 		break;
@@ -251,7 +245,7 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 		portsc |= PORT_PTS_PTW;
 		/* fall through */
 	case FSL_USB2_PHY_UTMI:
-		if (pdata->controller_ver) {
+		if (pdata->have_sysif_regs && pdata->controller_ver) {
 			/* controller version 1.6 or above */
 			setbits32(non_ehci + FSL_SOC_USB_CTRL, UTMI_PHY_EN);
 			mdelay(FSL_UTMI_PHY_DLY);  /* Delay for UTMI PHY CLK to
@@ -267,10 +261,12 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 		break;
 	}
 
-	if (pdata->controller_ver && (phy_mode == FSL_USB2_PHY_ULPI)) {
+	if (pdata->have_sysif_regs && pdata->controller_ver &&
+	    (phy_mode == FSL_USB2_PHY_ULPI)) {
 		/* check PHY_CLK_VALID to get phy clk valid */
-		if (!spin_event_timeout(in_be32(non_ehci + FSL_SOC_USB_CTRL) &
-				PHY_CLK_VALID, FSL_USB_PHY_CLK_TIMEOUT, 0)) {
+		if (!(spin_event_timeout(in_be32(non_ehci + FSL_SOC_USB_CTRL) &
+				PHY_CLK_VALID, FSL_USB_PHY_CLK_TIMEOUT, 0) ||
+				in_be32(non_ehci + FSL_SOC_USB_PRICTRL))) {
 			printk(KERN_WARNING "fsl-ehci: USB PHY clock invalid\n");
 			return -EINVAL;
 		}
@@ -278,7 +274,7 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 
 	ehci_writel(ehci, portsc, &ehci->regs->port_status[port_offset]);
 
-	if (phy_mode != FSL_USB2_PHY_ULPI)
+	if (phy_mode != FSL_USB2_PHY_ULPI && pdata->have_sysif_regs)
 		setbits32(non_ehci + FSL_SOC_USB_CTRL, USB_CTRL_USB_EN);
 
 	return 0;
@@ -290,7 +286,7 @@ static int ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 	struct fsl_usb2_platform_data *pdata;
 	void __iomem *non_ehci = hcd->regs;
 
-	pdata = hcd->self.controller->platform_data;
+	pdata = dev_get_platdata(hcd->self.controller);
 
 	if (pdata->have_sysif_regs) {
 		/*
@@ -362,12 +358,21 @@ static int ehci_fsl_setup(struct usb_hcd *hcd)
 	struct device *dev;
 
 	dev = hcd->self.controller;
-	pdata = hcd->self.controller->platform_data;
+	pdata = dev_get_platdata(hcd->self.controller);
 	ehci->big_endian_desc = pdata->big_endian_desc;
 	ehci->big_endian_mmio = pdata->big_endian_mmio;
 
 	/* EHCI registers start at offset 0x100 */
 	ehci->caps = hcd->regs + 0x100;
+
+#ifdef CONFIG_PPC_83xx
+	/*
+	 * Deal with MPC834X that need port power to be cycled after the power
+	 * fault condition is removed. Otherwise the state machine does not
+	 * reflect PORTSC[CSC] correctly.
+	 */
+	ehci->need_oc_pp_cycle = 1;
+#endif
 
 	hcd->has_tt = 1;
 
@@ -405,10 +410,10 @@ static int ehci_fsl_mpc512x_drv_suspend(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	struct fsl_usb2_platform_data *pdata = dev->platform_data;
+	struct fsl_usb2_platform_data *pdata = dev_get_platdata(dev);
 	u32 tmp;
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 	u32 mode = ehci_readl(ehci, hcd->regs + FSL_SOC_USB_USBMODE);
 	mode &= USBMODE_CM_MASK;
 	tmp = ehci_readl(ehci, hcd->regs + 0x140);	/* usbcmd */
@@ -474,7 +479,7 @@ static int ehci_fsl_mpc512x_drv_resume(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	struct fsl_usb2_platform_data *pdata = dev->platform_data;
+	struct fsl_usb2_platform_data *pdata = dev_get_platdata(dev);
 	u32 tmp;
 
 	dev_dbg(dev, "suspend=%d already_suspended=%d\n",
@@ -659,7 +664,7 @@ static const struct hc_driver ehci_fsl_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq = ehci_irq,
-	.flags = HCD_USB2 | HCD_MEMORY,
+	.flags = HCD_USB2 | HCD_MEMORY | HCD_BH,
 
 	/*
 	 * basic lifecycle operations
@@ -722,6 +727,7 @@ static struct platform_driver ehci_fsl_driver = {
 	.shutdown = usb_hcd_platform_shutdown,
 	.driver = {
 		.name = "fsl-ehci",
+		.owner	= THIS_MODULE,
 		.pm = EHCI_FSL_PM_OPS,
 	},
 };

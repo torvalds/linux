@@ -1,6 +1,6 @@
 /* Driver for Realtek PCI-Express card reader
  *
- * Copyright(c) 2009 Realtek Semiconductor Corp. All rights reserved.
+ * Copyright(c) 2009-2013 Realtek Semiconductor Corp. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,7 +17,6 @@
  *
  * Author:
  *   Wei WANG <wei_wang@realsil.com.cn>
- *   No. 450, Shenhu Road, Suzhou Industry Park, Suzhou, China
  */
 
 #ifndef __RTSX_PCI_H
@@ -25,8 +24,7 @@
 
 #include <linux/sched.h>
 #include <linux/pci.h>
-
-#include "rtsx_common.h"
+#include <linux/mfd/rtsx_common.h>
 
 #define MAX_RW_REG_CNT			1024
 
@@ -158,10 +156,9 @@
 #define SG_TRANS_DATA		(0x02 << 4)
 #define SG_LINK_DESC		(0x03 << 4)
 
-/* SD bank voltage */
-#define SD_IO_3V3		0
-#define SD_IO_1V8		1
-
+/* Output voltage */
+#define OUTPUT_3V3		0
+#define OUTPUT_1V8		1
 
 /* Card Clock Enable Register */
 #define SD_CLK_EN			0x04
@@ -185,11 +182,26 @@
 #define CARD_SHARE_BAROSSA_SD		0x01
 #define CARD_SHARE_BAROSSA_MS		0x02
 
+/* CARD_DRIVE_SEL */
+#define MS_DRIVE_8mA			(0x01 << 6)
+#define MMC_DRIVE_8mA			(0x01 << 4)
+#define XD_DRIVE_8mA			(0x01 << 2)
+#define GPIO_DRIVE_8mA			0x01
+#define RTS5209_CARD_DRIVE_DEFAULT	(MS_DRIVE_8mA | MMC_DRIVE_8mA |\
+						XD_DRIVE_8mA | GPIO_DRIVE_8mA)
+#define RTL8411_CARD_DRIVE_DEFAULT	(MS_DRIVE_8mA | MMC_DRIVE_8mA |\
+						XD_DRIVE_8mA)
+#define RTSX_CARD_DRIVE_DEFAULT		(MS_DRIVE_8mA | GPIO_DRIVE_8mA)
+
 /* SD30_DRIVE_SEL */
 #define DRIVER_TYPE_A			0x05
 #define DRIVER_TYPE_B			0x03
 #define DRIVER_TYPE_C			0x02
 #define DRIVER_TYPE_D			0x01
+#define CFG_DRIVER_TYPE_A		0x02
+#define CFG_DRIVER_TYPE_B		0x03
+#define CFG_DRIVER_TYPE_C		0x01
+#define CFG_DRIVER_TYPE_D		0x00
 
 /* FPDCTL */
 #define SSC_POWER_DOWN			0x01
@@ -201,6 +213,20 @@
 #define CHANGE_CLK			0x01
 
 /* LDO_CTL */
+#define BPP_ASIC_1V7			0x00
+#define BPP_ASIC_1V8			0x01
+#define BPP_ASIC_1V9			0x02
+#define BPP_ASIC_2V0			0x03
+#define BPP_ASIC_2V7			0x04
+#define BPP_ASIC_2V8			0x05
+#define BPP_ASIC_3V2			0x06
+#define BPP_ASIC_3V3			0x07
+#define BPP_REG_TUNED18			0x07
+#define BPP_TUNED18_SHIFT_8402		5
+#define BPP_TUNED18_SHIFT_8411		4
+#define BPP_PAD_MASK			0x04
+#define BPP_PAD_3V3			0x04
+#define BPP_PAD_1V8			0x00
 #define BPP_LDO_POWB			0x03
 #define BPP_LDO_ON			0x00
 #define BPP_LDO_SUSPEND			0x02
@@ -452,7 +478,7 @@
 #define	SD_RSP_TYPE_R6			0x01
 #define	SD_RSP_TYPE_R7			0x01
 
-/* SD_CONFIURE3 */
+/* SD_CONFIGURE3 */
 #define	SD_RSP_80CLK_TIMEOUT_EN		0x01
 
 /* Card Transfer Reset Register */
@@ -487,6 +513,8 @@
 #define BPP_POWER_15_PERCENT_ON		0x08
 #define BPP_POWER_ON			0x00
 #define BPP_POWER_MASK			0x0F
+#define SD_VCC_PARTIAL_POWER_ON		0x02
+#define SD_VCC_POWER_ON			0x00
 
 /* PWR_GATE_CTRL */
 #define PWR_GATE_EN			0x01
@@ -505,6 +533,10 @@
 #define SAMPLE_FIX_CLK			(0x00 << 4)
 #define SAMPLE_VAR_CLK0			(0x01 << 4)
 #define SAMPLE_VAR_CLK1			(0x02 << 4)
+
+/* HOST_SLEEP_STATE */
+#define HOST_ENTER_S1			1
+#define HOST_ENTER_S3			2
 
 #define MS_CFG				0xFD40
 #define MS_TPC				0xFD41
@@ -560,6 +592,7 @@
 
 #define CARD_PWR_CTL			0xFD50
 #define CARD_CLK_SWITCH			0xFD51
+#define RTL8411B_PACKAGE_MODE		0xFD51
 #define CARD_SHARE_MODE			0xFD52
 #define CARD_DRIVE_SEL			0xFD53
 #define CARD_STOP			0xFD54
@@ -568,8 +601,11 @@
 #define CARD_GPIO_DIR			0xFD57
 #define CARD_GPIO			0xFD58
 #define CARD_DATA_SOURCE		0xFD5B
+#define SD30_CLK_DRIVE_SEL		0xFD5A
 #define CARD_SELECT			0xFD5C
 #define SD30_DRIVE_SEL			0xFD5E
+#define SD30_CMD_DRIVE_SEL		0xFD5E
+#define SD30_DAT_DRIVE_SEL		0xFD5F
 #define CARD_CLK_EN			0xFD69
 #define SDIO_CTRL			0xFD6B
 #define CD_PAD_CTL			0xFD73
@@ -642,12 +678,15 @@
 #define MSGTXDATA3			0xFE47
 #define MSGTXCTL			0xFE48
 #define PETXCFG				0xFE49
+#define LTR_CTL				0xFE4A
+#define OBFF_CFG			0xFE4C
 
 #define CDRESUMECTL			0xFE52
 #define WAKE_SEL_CTL			0xFE54
 #define PME_FORCE_CTL			0xFE56
 #define ASPM_FORCE_CTL			0xFE57
 #define PM_CLK_FORCE_CTL		0xFE58
+#define FUNC_FORCE_CTL			0xFE59
 #define PERST_GLITCH_WIDTH		0xFE5C
 #define CHANGE_LINK_STATE		0xFE5B
 #define RESET_LOAD_REG			0xFE5E
@@ -663,6 +702,13 @@
 
 #define DUMMY_REG_RESET_0		0xFE90
 
+#define AUTOLOAD_CFG_BASE		0xFF00
+
+#define PM_CTRL1			0xFF44
+#define PM_CTRL2			0xFF45
+#define PM_CTRL3			0xFF46
+#define PM_CTRL4			0xFF47
+
 /* Memory mapping */
 #define SRAM_BASE			0xE600
 #define RBUF_BASE			0xF400
@@ -670,6 +716,98 @@
 #define PPBUF_BASE2			0xFA00
 #define IMAGE_FLAG_ADDR0		0xCE80
 #define IMAGE_FLAG_ADDR1		0xCE81
+
+/* Phy register */
+#define PHY_PCR				0x00
+#define PHY_RCR0			0x01
+#define PHY_RCR1			0x02
+#define PHY_RCR2			0x03
+#define PHY_RTCR			0x04
+#define PHY_RDR				0x05
+#define PHY_TCR0			0x06
+#define PHY_TCR1			0x07
+#define PHY_TUNE			0x08
+#define PHY_IMR				0x09
+#define PHY_BPCR			0x0A
+#define PHY_BIST			0x0B
+#define PHY_RAW_L			0x0C
+#define PHY_RAW_H			0x0D
+#define PHY_RAW_DATA			0x0E
+#define PHY_HOST_CLK_CTRL		0x0F
+#define PHY_DMR				0x10
+#define PHY_BACR			0x11
+#define PHY_IER				0x12
+#define PHY_BCSR			0x13
+#define PHY_BPR				0x14
+#define PHY_BPNR2			0x15
+#define PHY_BPNR			0x16
+#define PHY_BRNR2			0x17
+#define PHY_BENR			0x18
+#define PHY_REG_REV			0x19
+#define PHY_FLD0			0x1A
+#define PHY_FLD1			0x1B
+#define PHY_FLD2			0x1C
+#define PHY_FLD3			0x1D
+#define PHY_FLD4			0x1E
+#define PHY_DUM_REG			0x1F
+
+#define LCTLR				0x80
+#define PCR_SETTING_REG1		0x724
+#define PCR_SETTING_REG2		0x814
+#define PCR_SETTING_REG3		0x747
+
+/* Phy bits */
+#define PHY_PCR_FORCE_CODE			0xB000
+#define PHY_PCR_OOBS_CALI_50			0x0800
+#define PHY_PCR_OOBS_VCM_08			0x0200
+#define PHY_PCR_OOBS_SEN_90			0x0040
+#define PHY_PCR_RSSI_EN				0x0002
+
+#define PHY_RCR1_ADP_TIME			0x0100
+#define PHY_RCR1_VCO_COARSE			0x001F
+
+#define PHY_RCR2_EMPHASE_EN			0x8000
+#define PHY_RCR2_NADJR				0x4000
+#define PHY_RCR2_CDR_CP_10			0x0400
+#define PHY_RCR2_CDR_SR_2			0x0100
+#define PHY_RCR2_FREQSEL_12			0x0040
+#define PHY_RCR2_CPADJEN			0x0020
+#define PHY_RCR2_CDR_SC_8			0x0008
+#define PHY_RCR2_CALIB_LATE			0x0002
+
+#define PHY_RDR_RXDSEL_1_9			0x4000
+
+#define PHY_TUNE_TUNEREF_1_0			0x4000
+#define PHY_TUNE_VBGSEL_1252			0x0C00
+#define PHY_TUNE_SDBUS_33			0x0200
+#define PHY_TUNE_TUNED18			0x01C0
+#define PHY_TUNE_TUNED12			0X0020
+
+#define PHY_BPCR_IBRXSEL			0x0400
+#define PHY_BPCR_IBTXSEL			0x0100
+#define PHY_BPCR_IB_FILTER			0x0080
+#define PHY_BPCR_CMIRROR_EN			0x0040
+
+#define PHY_REG_REV_RESV			0xE000
+#define PHY_REG_REV_RXIDLE_LATCHED		0x1000
+#define PHY_REG_REV_P1_EN			0x0800
+#define PHY_REG_REV_RXIDLE_EN			0x0400
+#define PHY_REG_REV_CLKREQ_DLY_TIMER_1_0	0x0040
+#define PHY_REG_REV_STOP_CLKRD			0x0020
+#define PHY_REG_REV_RX_PWST			0x0008
+#define PHY_REG_REV_STOP_CLKWR			0x0004
+
+#define PHY_FLD3_TIMER_4			0x7800
+#define PHY_FLD3_TIMER_6			0x00E0
+#define PHY_FLD3_RXDELINK			0x0004
+
+#define PHY_FLD4_FLDEN_SEL			0x4000
+#define PHY_FLD4_REQ_REF			0x2000
+#define PHY_FLD4_RXAMP_OFF			0x1000
+#define PHY_FLD4_REQ_ADDA			0x0800
+#define PHY_FLD4_BER_COUNT			0x00E0
+#define PHY_FLD4_BER_TIMER			0x000A
+#define PHY_FLD4_BER_CHK_EN			0x0001
 
 #define rtsx_pci_init_cmd(pcr)		((pcr)->ci = 0)
 
@@ -688,7 +826,12 @@ struct pcr_ops {
 	int		(*disable_auto_blink)(struct rtsx_pcr *pcr);
 	int		(*card_power_on)(struct rtsx_pcr *pcr, int card);
 	int		(*card_power_off)(struct rtsx_pcr *pcr, int card);
+	int		(*switch_output_voltage)(struct rtsx_pcr *pcr,
+						u8 voltage);
 	unsigned int	(*cd_deglitch)(struct rtsx_pcr *pcr);
+	int		(*conv_clk_and_div_n)(int clk, int dir);
+	void		(*fetch_vendor_settings)(struct rtsx_pcr *pcr);
+	void		(*force_power_down)(struct rtsx_pcr *pcr, u8 pm_state);
 };
 
 enum PDEV_STAT  {PDEV_STAT_IDLE, PDEV_STAT_RUN};
@@ -719,6 +862,7 @@ struct rtsx_pcr {
 
 	unsigned int			card_inserted;
 	unsigned int			card_removed;
+	unsigned int			card_exist;
 
 	struct delayed_work		carddet_work;
 	struct delayed_work		idle_work;
@@ -729,7 +873,6 @@ struct rtsx_pcr {
 	struct completion		*finish_me;
 
 	unsigned int			cur_clock;
-	bool				ms_pmos;
 	bool				remove_pci;
 	bool				msi_en;
 
@@ -747,6 +890,19 @@ struct rtsx_pcr {
 #define IC_VER_D			3
 	u8				ic_version;
 
+	u8				sd30_drive_sel_1v8;
+	u8				sd30_drive_sel_3v3;
+	u8				card_drive_sel;
+#define ASPM_L1_EN			0x02
+	u8				aspm_en;
+
+#define PCR_MS_PMOS			(1 << 0)
+#define PCR_REVERSE_SOCKET		(1 << 1)
+	u32				flags;
+
+	u32				tx_initial_phase;
+	u32				rx_initial_phase;
+
 	const u32			*sd_pull_ctl_enable_tbl;
 	const u32			*sd_pull_ctl_disable_tbl;
 	const u32			*ms_pull_ctl_enable_tbl;
@@ -762,6 +918,18 @@ struct rtsx_pcr {
 #define CHK_PCI_PID(pcr, pid)		((pcr)->pci->device == (pid))
 #define PCI_VID(pcr)			((pcr)->pci->vendor)
 #define PCI_PID(pcr)			((pcr)->pci->device)
+
+#define SDR104_PHASE(val)		((val) & 0xFF)
+#define SDR50_PHASE(val)		(((val) >> 8) & 0xFF)
+#define DDR50_PHASE(val)		(((val) >> 16) & 0xFF)
+#define SDR104_TX_PHASE(pcr)		SDR104_PHASE((pcr)->tx_initial_phase)
+#define SDR50_TX_PHASE(pcr)		SDR50_PHASE((pcr)->tx_initial_phase)
+#define DDR50_TX_PHASE(pcr)		DDR50_PHASE((pcr)->tx_initial_phase)
+#define SDR104_RX_PHASE(pcr)		SDR104_PHASE((pcr)->rx_initial_phase)
+#define SDR50_RX_PHASE(pcr)		SDR50_PHASE((pcr)->rx_initial_phase)
+#define DDR50_RX_PHASE(pcr)		DDR50_PHASE((pcr)->rx_initial_phase)
+#define SET_CLOCK_PHASE(sdr104, sdr50, ddr50)	\
+				(((ddr50) << 16) | ((sdr50) << 8) | (sdr104))
 
 void rtsx_pci_start_run(struct rtsx_pcr *pcr);
 int rtsx_pci_write_register(struct rtsx_pcr *pcr, u16 addr, u8 mask, u8 data);
@@ -783,6 +951,8 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 		u8 ssc_depth, bool initial_mode, bool double_clk, bool vpclk);
 int rtsx_pci_card_power_on(struct rtsx_pcr *pcr, int card);
 int rtsx_pci_card_power_off(struct rtsx_pcr *pcr, int card);
+int rtsx_pci_card_exclusive_check(struct rtsx_pcr *pcr, int card);
+int rtsx_pci_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage);
 unsigned int rtsx_pci_card_exist(struct rtsx_pcr *pcr);
 void rtsx_pci_complete_unfinished_transfer(struct rtsx_pcr *pcr);
 

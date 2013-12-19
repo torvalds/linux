@@ -212,28 +212,14 @@ struct wmt_mci_priv {
 
 static void wmt_set_sd_power(struct wmt_mci_priv *priv, int enable)
 {
-	u32 reg_tmp;
-	if (enable) {
-		if (priv->power_inverted) {
-			reg_tmp = readb(priv->sdmmc_base + SDMMC_BUSMODE);
-			writeb(reg_tmp | BM_SD_OFF,
-			       priv->sdmmc_base + SDMMC_BUSMODE);
-		} else {
-			reg_tmp = readb(priv->sdmmc_base + SDMMC_BUSMODE);
-			writeb(reg_tmp & (~BM_SD_OFF),
-			       priv->sdmmc_base + SDMMC_BUSMODE);
-		}
-	} else {
-		if (priv->power_inverted) {
-			reg_tmp = readb(priv->sdmmc_base + SDMMC_BUSMODE);
-			writeb(reg_tmp & (~BM_SD_OFF),
-			       priv->sdmmc_base + SDMMC_BUSMODE);
-		} else {
-			reg_tmp = readb(priv->sdmmc_base + SDMMC_BUSMODE);
-			writeb(reg_tmp | BM_SD_OFF,
-			       priv->sdmmc_base + SDMMC_BUSMODE);
-		}
-	}
+	u32 reg_tmp = readb(priv->sdmmc_base + SDMMC_BUSMODE);
+
+	if (enable ^ priv->power_inverted)
+		reg_tmp &= ~BM_SD_OFF;
+	else
+		reg_tmp |= BM_SD_OFF;
+
+	writeb(reg_tmp, priv->sdmmc_base + SDMMC_BUSMODE);
 }
 
 static void wmt_mci_read_response(struct mmc_host *mmc)
@@ -348,13 +334,11 @@ static void wmt_complete_data_request(struct wmt_mci_priv *priv)
 
 static irqreturn_t wmt_mci_dma_isr(int irq_num, void *data)
 {
-	struct mmc_host *mmc;
 	struct wmt_mci_priv *priv;
 
 	int status;
 
 	priv = (struct wmt_mci_priv *)data;
-	mmc = priv->mmc;
 
 	status = readl(priv->sdmmc_base + SDDMA_CCR) & 0x0F;
 
@@ -766,7 +750,7 @@ static struct of_device_id wmt_mci_dt_ids[] = {
 	{ /* Sentinel */ },
 };
 
-static int __devinit wmt_mci_probe(struct platform_device *pdev)
+static int wmt_mci_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct wmt_mci_priv *priv;
@@ -892,7 +876,7 @@ fail1:
 	return ret;
 }
 
-static int __devexit wmt_mci_remove(struct platform_device *pdev)
+static int wmt_mci_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct wmt_mci_priv *priv;
@@ -925,11 +909,9 @@ static int __devexit wmt_mci_remove(struct platform_device *pdev)
 	clk_put(priv->clk_sdmmc);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 
 	mmc_free_host(mmc);
-
-	platform_set_drvdata(pdev, NULL);
 
 	dev_info(&pdev->dev, "WMT MCI device removed\n");
 
@@ -943,28 +925,23 @@ static int wmt_mci_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct wmt_mci_priv *priv;
-	int ret;
 
 	if (!mmc)
 		return 0;
 
 	priv = mmc_priv(mmc);
-	ret = mmc_suspend_host(mmc);
+	reg_tmp = readb(priv->sdmmc_base + SDMMC_BUSMODE);
+	writeb(reg_tmp | BM_SOFT_RESET, priv->sdmmc_base +
+	       SDMMC_BUSMODE);
 
-	if (!ret) {
-		reg_tmp = readb(priv->sdmmc_base + SDMMC_BUSMODE);
-		writeb(reg_tmp | BM_SOFT_RESET, priv->sdmmc_base +
-		       SDMMC_BUSMODE);
+	reg_tmp = readw(priv->sdmmc_base + SDMMC_BLKLEN);
+	writew(reg_tmp & 0x5FFF, priv->sdmmc_base + SDMMC_BLKLEN);
 
-		reg_tmp = readw(priv->sdmmc_base + SDMMC_BLKLEN);
-		writew(reg_tmp & 0x5FFF, priv->sdmmc_base + SDMMC_BLKLEN);
+	writeb(0xFF, priv->sdmmc_base + SDMMC_STS0);
+	writeb(0xFF, priv->sdmmc_base + SDMMC_STS1);
 
-		writeb(0xFF, priv->sdmmc_base + SDMMC_STS0);
-		writeb(0xFF, priv->sdmmc_base + SDMMC_STS1);
-
-		clk_disable(priv->clk_sdmmc);
-	}
-	return ret;
+	clk_disable(priv->clk_sdmmc);
+	return 0;
 }
 
 static int wmt_mci_resume(struct device *dev)
@@ -973,7 +950,6 @@ static int wmt_mci_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct wmt_mci_priv *priv;
-	int ret = 0;
 
 	if (mmc) {
 		priv = mmc_priv(mmc);
@@ -991,10 +967,9 @@ static int wmt_mci_resume(struct device *dev)
 		writeb(reg_tmp | INT0_DI_INT_EN, priv->sdmmc_base +
 		       SDMMC_INTMASK0);
 
-		ret = mmc_resume_host(mmc);
 	}
 
-	return ret;
+	return 0;
 }
 
 static const struct dev_pm_ops wmt_mci_pm = {
@@ -1012,7 +987,7 @@ static const struct dev_pm_ops wmt_mci_pm = {
 
 static struct platform_driver wmt_mci_driver = {
 	.probe = wmt_mci_probe,
-	.remove = __exit_p(wmt_mci_remove),
+	.remove = wmt_mci_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,

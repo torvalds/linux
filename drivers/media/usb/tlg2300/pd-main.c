@@ -55,7 +55,6 @@ MODULE_PARM_DESC(debug_mode, "0 = disable, 1 = enable, 2 = verbose");
 
 #define TLG2300_FIRMWARE "tlg2300_firmware.bin"
 static const char *firmware_name = TLG2300_FIRMWARE;
-static struct usb_driver poseidon_driver;
 static LIST_HEAD(pd_device_list);
 
 /*
@@ -233,7 +232,7 @@ static int firmware_download(struct usb_device *udev)
 		goto out;
 	}
 
-	max_packet_size = udev->ep_out[0x1]->desc.wMaxPacketSize;
+	max_packet_size = le16_to_cpu(udev->ep_out[0x1]->desc.wMaxPacketSize);
 	log("\t\t download size : %d", (int)max_packet_size);
 
 	for (offset = 0; offset < fwlength; offset += max_packet_size) {
@@ -268,7 +267,8 @@ static inline void set_map_flags(struct poseidon *pd, struct usb_device *udev)
 static inline int get_autopm_ref(struct poseidon *pd)
 {
 	return  pd->video_data.users + pd->vbi_data.users + pd->audio.users
-		+ atomic_read(&pd->dvb_data.users) + pd->radio_data.users;
+		+ atomic_read(&pd->dvb_data.users) +
+		!list_empty(&pd->radio_data.fm_dev.fh_list);
 }
 
 /* fixup something for poseidon */
@@ -316,7 +316,7 @@ static int poseidon_suspend(struct usb_interface *intf, pm_message_t msg)
 		if (get_pm_count(pd) <= 0 && !in_hibernation(pd)) {
 			pd->msg.event = PM_EVENT_AUTO_SUSPEND;
 			pd->pm_resume = NULL; /*  a good guard */
-			printk(KERN_DEBUG "\n\t+ TLG2300 auto suspend +\n\n");
+			printk(KERN_DEBUG "TLG2300 auto suspend\n");
 		}
 		return 0;
 	}
@@ -331,7 +331,7 @@ static int poseidon_resume(struct usb_interface *intf)
 
 	if (!pd)
 		return 0;
-	printk(KERN_DEBUG "\n\t ++ TLG2300 resume ++\n\n");
+	printk(KERN_DEBUG "TLG2300 resume\n");
 
 	if (!is_working(pd)) {
 		if (PM_EVENT_AUTO_SUSPEND == pd->msg.event)
@@ -375,7 +375,7 @@ static inline void set_map_flags(struct poseidon *pd, struct usb_device *udev)
 }
 #endif
 
-static int check_firmware(struct usb_device *udev, int *down_firmware)
+static int check_firmware(struct usb_device *udev)
 {
 	void *buf;
 	int ret;
@@ -395,10 +395,8 @@ static int check_firmware(struct usb_device *udev, int *down_firmware)
 			 USB_CTRL_GET_TIMEOUT);
 	kfree(buf);
 
-	if (ret < 0) {
-		*down_firmware = 1;
+	if (ret < 0)
 		return firmware_download(udev);
-	}
 	return 0;
 }
 
@@ -411,9 +409,9 @@ static int poseidon_probe(struct usb_interface *interface,
 	int new_one = 0;
 
 	/* download firmware */
-	check_firmware(udev, &ret);
+	ret = check_firmware(udev);
 	if (ret)
-		return 0;
+		return ret;
 
 	/* Do I recovery from the hibernate ? */
 	pd = find_old_poseidon(udev);
@@ -431,21 +429,27 @@ static int poseidon_probe(struct usb_interface *interface,
 	usb_set_intfdata(interface, pd);
 
 	if (new_one) {
-		struct device *dev = &interface->dev;
-
 		logpm(pd);
 		mutex_init(&pd->lock);
 
 		/* register v4l2 device */
-		snprintf(pd->v4l2_dev.name, sizeof(pd->v4l2_dev.name), "%s %s",
-			dev->driver->name, dev_name(dev));
-		ret = v4l2_device_register(NULL, &pd->v4l2_dev);
+		ret = v4l2_device_register(&interface->dev, &pd->v4l2_dev);
+		if (ret)
+			goto err_v4l2;
 
 		/* register devices in directory /dev */
 		ret = pd_video_init(pd);
-		poseidon_audio_init(pd);
-		poseidon_fm_init(pd);
-		pd_dvb_usb_device_init(pd);
+		if (ret)
+			goto err_video;
+		ret = poseidon_audio_init(pd);
+		if (ret)
+			goto err_audio;
+		ret = poseidon_fm_init(pd);
+		if (ret)
+			goto err_fm;
+		ret = pd_dvb_usb_device_init(pd);
+		if (ret)
+			goto err_dvb;
 
 		INIT_LIST_HEAD(&pd->device_list);
 		list_add_tail(&pd->device_list, &pd_device_list);
@@ -463,6 +467,17 @@ static int poseidon_probe(struct usb_interface *interface,
 	}
 #endif
 	return 0;
+err_dvb:
+	poseidon_fm_exit(pd);
+err_fm:
+	poseidon_audio_free(pd);
+err_audio:
+	pd_video_exit(pd);
+err_video:
+	v4l2_device_unregister(&pd->v4l2_dev);
+err_v4l2:
+	kfree(pd);
+	return ret;
 }
 
 static void poseidon_disconnect(struct usb_interface *interface)
@@ -530,7 +545,7 @@ module_init(poseidon_init);
 module_exit(poseidon_exit);
 
 MODULE_AUTHOR("Telegent Systems");
-MODULE_DESCRIPTION("For tlg2300-based USB device ");
+MODULE_DESCRIPTION("For tlg2300-based USB device");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.0.2");
 MODULE_FIRMWARE(TLG2300_FIRMWARE);

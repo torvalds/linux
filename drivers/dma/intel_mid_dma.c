@@ -309,7 +309,7 @@ static void midc_descriptor_complete(struct intel_mid_dma_chan *midc,
 		callback_txd(param_txd);
 	}
 	if (midc->raw_tfr) {
-		desc->status = DMA_SUCCESS;
+		desc->status = DMA_COMPLETE;
 		if (desc->lli != NULL) {
 			pci_pool_free(desc->lli_pool, desc->lli,
 						desc->lli_phys);
@@ -481,7 +481,7 @@ static enum dma_status intel_mid_dma_tx_status(struct dma_chan *chan,
 	enum dma_status ret;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret != DMA_SUCCESS) {
+	if (ret != DMA_COMPLETE) {
 		spin_lock_bh(&midc->lock);
 		midc_scan_descriptors(to_middma_device(chan->device), midc);
 		spin_unlock_bh(&midc->lock);
@@ -1308,7 +1308,7 @@ err_enable_device:
  * Free up all resources and data
  * Call shutdown_dma to complete contoller and chan cleanup
  */
-static void __devexit intel_mid_dma_remove(struct pci_dev *pdev)
+static void intel_mid_dma_remove(struct pci_dev *pdev)
 {
 	struct middma_device *device = pci_get_drvdata(pdev);
 
@@ -1405,7 +1405,7 @@ static int dma_runtime_idle(struct device *dev)
 			return -EAGAIN;
 	}
 
-	return pm_schedule_suspend(dev, 0);
+	return 0;
 }
 
 /******************************************************************************

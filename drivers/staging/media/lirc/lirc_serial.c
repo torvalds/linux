@@ -48,6 +48,8 @@
  * Steve Davies <steve@daviesfam.org>  July 2001
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
@@ -65,7 +67,7 @@
 #include <linux/delay.h>
 #include <linux/poll.h>
 #include <linux/platform_device.h>
-
+#include <linux/gpio.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/fcntl.h>
@@ -319,7 +321,7 @@ static void on(void)
 	 * status LED and ground
 	 */
 	if (type == LIRC_NSLU2) {
-		gpio_line_set(NSLU2_LED_GRN, IXP4XX_GPIO_LOW);
+		gpio_set_value(NSLU2_LED_GRN, 0);
 		return;
 	}
 #endif
@@ -333,7 +335,7 @@ static void off(void)
 {
 #ifdef CONFIG_LIRC_SERIAL_NSLU2
 	if (type == LIRC_NSLU2) {
-		gpio_line_set(NSLU2_LED_GRN, IXP4XX_GPIO_HIGH);
+		gpio_set_value(NSLU2_LED_GRN, 1);
 		return;
 	}
 #endif
@@ -667,8 +669,7 @@ static irqreturn_t irq_handler(int i, void *blah)
 		counter++;
 		status = sinp(UART_MSR);
 		if (counter > RS_ISR_PASS_LIMIT) {
-			printk(KERN_WARNING LIRC_DRIVER_NAME ": AIEEEE: "
-			       "We're caught!\n");
+			pr_warn("AIEEEE: We're caught!\n");
 			break;
 		}
 		if ((status & hardware[type].signal_pin_change)
@@ -703,11 +704,11 @@ static irqreturn_t irq_handler(int i, void *blah)
 			dcd = (status & hardware[type].signal_pin) ? 1 : 0;
 
 			if (dcd == last_dcd) {
-				printk(KERN_WARNING LIRC_DRIVER_NAME
-				": ignoring spike: %d %d %lx %lx %lx %lx\n",
-				dcd, sense,
-				tv.tv_sec, lasttv.tv_sec,
-				tv.tv_usec, lasttv.tv_usec);
+				pr_warn("ignoring spike: %d %d %lx %lx %lx %lx\n",
+					dcd, sense,
+					tv.tv_sec, lasttv.tv_sec,
+					(unsigned long)tv.tv_usec,
+					(unsigned long)lasttv.tv_usec);
 				continue;
 			}
 
@@ -715,25 +716,22 @@ static irqreturn_t irq_handler(int i, void *blah)
 			if (tv.tv_sec < lasttv.tv_sec ||
 			    (tv.tv_sec == lasttv.tv_sec &&
 			     tv.tv_usec < lasttv.tv_usec)) {
-				printk(KERN_WARNING LIRC_DRIVER_NAME
-				       ": AIEEEE: your clock just jumped "
-				       "backwards\n");
-				printk(KERN_WARNING LIRC_DRIVER_NAME
-				       ": %d %d %lx %lx %lx %lx\n",
-				       dcd, sense,
-				       tv.tv_sec, lasttv.tv_sec,
-				       tv.tv_usec, lasttv.tv_usec);
+				pr_warn("AIEEEE: your clock just jumped backwards\n");
+				pr_warn("%d %d %lx %lx %lx %lx\n",
+					dcd, sense,
+					tv.tv_sec, lasttv.tv_sec,
+					(unsigned long)tv.tv_usec,
+					(unsigned long)lasttv.tv_usec);
 				data = PULSE_MASK;
 			} else if (deltv > 15) {
 				data = PULSE_MASK; /* really long time */
 				if (!(dcd^sense)) {
 					/* sanity check */
-					printk(KERN_WARNING LIRC_DRIVER_NAME
-					       ": AIEEEE: "
-					       "%d %d %lx %lx %lx %lx\n",
-					       dcd, sense,
-					       tv.tv_sec, lasttv.tv_sec,
-					       tv.tv_usec, lasttv.tv_usec);
+					pr_warn("AIEEEE: %d %d %lx %lx %lx %lx\n",
+						dcd, sense,
+						tv.tv_sec, lasttv.tv_sec,
+						(unsigned long)tv.tv_usec,
+						(unsigned long)lasttv.tv_usec);
 					/*
 					 * detecting pulse while this
 					 * MUST be a space!
@@ -776,8 +774,7 @@ static int hardware_init_port(void)
 	soutp(UART_IER, scratch);
 	if (scratch2 != 0 || scratch3 != 0x0f) {
 		/* we fail, there's nothing here */
-		printk(KERN_ERR LIRC_DRIVER_NAME ": port existence test "
-		       "failed, cannot continue\n");
+		pr_err("port existence test failed, cannot continue\n");
 		return -ENODEV;
 	}
 
@@ -845,16 +842,24 @@ static int lirc_serial_probe(struct platform_device *dev)
 {
 	int i, nlow, nhigh, result;
 
+#ifdef CONFIG_LIRC_SERIAL_NSLU2
+	/* This GPIO is used for a LED on the NSLU2 */
+	result = devm_gpio_request(dev, NSLU2_LED_GRN, "lirc-serial");
+	if (result)
+		return result;
+	result = gpio_direction_output(NSLU2_LED_GRN, 0);
+	if (result)
+		return result;
+#endif
+
 	result = request_irq(irq, irq_handler,
 			     (share_irq ? IRQF_SHARED : 0),
 			     LIRC_DRIVER_NAME, (void *)&hardware);
 	if (result < 0) {
 		if (result == -EBUSY)
-			printk(KERN_ERR LIRC_DRIVER_NAME ": IRQ %d busy\n",
-			       irq);
+			dev_err(&dev->dev, "IRQ %d busy\n", irq);
 		else if (result == -EINVAL)
-			printk(KERN_ERR LIRC_DRIVER_NAME
-			       ": Bad irq number or handler\n");
+			dev_err(&dev->dev, "Bad irq number or handler\n");
 		return result;
 	}
 
@@ -869,14 +874,11 @@ static int lirc_serial_probe(struct platform_device *dev)
 				    LIRC_DRIVER_NAME) == NULL))
 	   || ((iommap == 0)
 	       && (request_region(io, 8, LIRC_DRIVER_NAME) == NULL))) {
-		printk(KERN_ERR  LIRC_DRIVER_NAME
-		       ": port %04x already in use\n", io);
-		printk(KERN_WARNING LIRC_DRIVER_NAME
-		       ": use 'setserial /dev/ttySX uart none'\n");
-		printk(KERN_WARNING LIRC_DRIVER_NAME
-		       ": or compile the serial port driver as module and\n");
-		printk(KERN_WARNING LIRC_DRIVER_NAME
-		       ": make sure this module is loaded first\n");
+		dev_err(&dev->dev, "port %04x already in use\n", io);
+		dev_warn(&dev->dev, "use 'setserial /dev/ttySX uart none'\n");
+		dev_warn(&dev->dev,
+			 "or compile the serial port driver as module and\n");
+		dev_warn(&dev->dev, "make sure this module is loaded first\n");
 		result = -EBUSY;
 		goto exit_free_irq;
 	}
@@ -907,11 +909,11 @@ static int lirc_serial_probe(struct platform_device *dev)
 			msleep(40);
 		}
 		sense = (nlow >= nhigh ? 1 : 0);
-		printk(KERN_INFO LIRC_DRIVER_NAME  ": auto-detected active "
-		       "%s receiver\n", sense ? "low" : "high");
+		dev_info(&dev->dev, "auto-detected active %s receiver\n",
+			 sense ? "low" : "high");
 	} else
-		printk(KERN_INFO LIRC_DRIVER_NAME  ": Manually using active "
-		       "%s receiver\n", sense ? "low" : "high");
+		dev_info(&dev->dev, "Manually using active %s receiver\n",
+			 sense ? "low" : "high");
 
 	dprintk("Interrupt %d, port %04x obtained\n", irq, io);
 	return 0;
@@ -1251,8 +1253,7 @@ static int __init lirc_serial_init_module(void)
 	driver.dev = &lirc_serial_dev->dev;
 	driver.minor = lirc_register_driver(&driver);
 	if (driver.minor < 0) {
-		printk(KERN_ERR  LIRC_DRIVER_NAME
-		       ": register_chrdev failed!\n");
+		pr_err("register_chrdev failed!\n");
 		lirc_serial_exit();
 		return driver.minor;
 	}

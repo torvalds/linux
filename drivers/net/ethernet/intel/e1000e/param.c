@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -45,7 +45,7 @@
 unsigned int copybreak = COPYBREAK_DEFAULT;
 module_param(copybreak, uint, 0644);
 MODULE_PARM_DESC(copybreak,
-	"Maximum size of packet that is copied to a new buffer on receive");
+		 "Maximum size of packet that is copied to a new buffer on receive");
 
 /* All parameters are treated the same, as an integer array of values.
  * This macro just reduces the need to repeat the same declaration code
@@ -53,8 +53,7 @@ MODULE_PARM_DESC(copybreak,
  */
 #define E1000_PARAM_INIT { [0 ... E1000_MAX_NIC] = OPTION_UNSET }
 #define E1000_PARAM(X, desc)					\
-	static int X[E1000_MAX_NIC+1]		\
-		= E1000_PARAM_INIT;				\
+	static int X[E1000_MAX_NIC+1] = E1000_PARAM_INIT;	\
 	static unsigned int num_##X;				\
 	module_param_array_named(X, X, int, &num_##X, 0);	\
 	MODULE_PARM_DESC(X, desc);
@@ -144,7 +143,8 @@ E1000_PARAM(KumeranLockLoss, "Enable Kumeran lock loss workaround");
  *
  * Default Value: 1 (enabled)
  */
-E1000_PARAM(WriteProtectNVM, "Write-protect NVM [WARNING: disabling this can lead to corrupted NVM]");
+E1000_PARAM(WriteProtectNVM,
+	    "Write-protect NVM [WARNING: disabling this can lead to corrupted NVM]");
 
 /* Enable CRC Stripping
  *
@@ -161,13 +161,18 @@ struct e1000_option {
 	const char *err;
 	int def;
 	union {
-		struct { /* range_option info */
+		/* range_option info */
+		struct {
 			int min;
 			int max;
 		} r;
-		struct { /* list_option info */
+		/* list_option info */
+		struct {
 			int nr;
-			struct e1000_opt_list { int i; char *str; } *p;
+			struct e1000_opt_list {
+				int i;
+				char *str;
+			} *p;
 		} l;
 	} arg;
 };
@@ -247,7 +252,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 			   "Using defaults for all values\n");
 	}
 
-	{ /* Transmit Interrupt Delay */
+	/* Transmit Interrupt Delay */
+	{
 		static const struct e1000_option opt = {
 			.type = range_option,
 			.name = "Transmit Interrupt Delay",
@@ -266,7 +272,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 			adapter->tx_int_delay = opt.def;
 		}
 	}
-	{ /* Transmit Absolute Interrupt Delay */
+	/* Transmit Absolute Interrupt Delay */
+	{
 		static const struct e1000_option opt = {
 			.type = range_option,
 			.name = "Transmit Absolute Interrupt Delay",
@@ -285,7 +292,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 			adapter->tx_abs_int_delay = opt.def;
 		}
 	}
-	{ /* Receive Interrupt Delay */
+	/* Receive Interrupt Delay */
+	{
 		static struct e1000_option opt = {
 			.type = range_option,
 			.name = "Receive Interrupt Delay",
@@ -304,7 +312,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 			adapter->rx_int_delay = opt.def;
 		}
 	}
-	{ /* Receive Absolute Interrupt Delay */
+	/* Receive Absolute Interrupt Delay */
+	{
 		static const struct e1000_option opt = {
 			.type = range_option,
 			.name = "Receive Absolute Interrupt Delay",
@@ -323,7 +332,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 			adapter->rx_abs_int_delay = opt.def;
 		}
 	}
-	{ /* Interrupt Throttling Rate */
+	/* Interrupt Throttling Rate */
+	{
 		static const struct e1000_option opt = {
 			.type = range_option,
 			.name = "Interrupt Throttling Rate (ints/sec)",
@@ -393,7 +403,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 			break;
 		}
 	}
-	{ /* Interrupt Mode */
+	/* Interrupt Mode */
+	{
 		static struct e1000_option opt = {
 			.type = range_option,
 			.name = "Interrupt Mode",
@@ -436,7 +447,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 		kfree(opt.err);
 #endif
 	}
-	{ /* Smart Power Down */
+	/* Smart Power Down */
+	{
 		static const struct e1000_option opt = {
 			.type = enable_option,
 			.name = "PHY Smart Power Down",
@@ -447,12 +459,12 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 		if (num_SmartPowerDownEnable > bd) {
 			unsigned int spd = SmartPowerDownEnable[bd];
 			e1000_validate_option(&spd, &opt, adapter);
-			if ((adapter->flags & FLAG_HAS_SMART_POWER_DOWN)
-			    && spd)
+			if ((adapter->flags & FLAG_HAS_SMART_POWER_DOWN) && spd)
 				adapter->flags |= FLAG_SMART_POWER_DOWN;
 		}
 	}
-	{ /* CRC Stripping */
+	/* CRC Stripping */
+	{
 		static const struct e1000_option opt = {
 			.type = enable_option,
 			.name = "CRC Stripping",
@@ -472,27 +484,28 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 			adapter->flags2 |= FLAG2_DFLT_CRC_STRIPPING;
 		}
 	}
-	{ /* Kumeran Lock Loss Workaround */
+	/* Kumeran Lock Loss Workaround */
+	{
 		static const struct e1000_option opt = {
 			.type = enable_option,
 			.name = "Kumeran Lock Loss Workaround",
 			.err  = "defaulting to Enabled",
 			.def  = OPTION_ENABLED
 		};
+		bool enabled = opt.def;
 
 		if (num_KumeranLockLoss > bd) {
 			unsigned int kmrn_lock_loss = KumeranLockLoss[bd];
 			e1000_validate_option(&kmrn_lock_loss, &opt, adapter);
-			if (hw->mac.type == e1000_ich8lan)
-				e1000e_set_kmrn_lock_loss_workaround_ich8lan(hw,
-								kmrn_lock_loss);
-		} else {
-			if (hw->mac.type == e1000_ich8lan)
-				e1000e_set_kmrn_lock_loss_workaround_ich8lan(hw,
-								       opt.def);
+			enabled = kmrn_lock_loss;
 		}
+
+		if (hw->mac.type == e1000_ich8lan)
+			e1000e_set_kmrn_lock_loss_workaround_ich8lan(hw,
+								     enabled);
 	}
-	{ /* Write-protect NVM */
+	/* Write-protect NVM */
+	{
 		static const struct e1000_option opt = {
 			.type = enable_option,
 			.name = "Write-protect NVM",
@@ -502,7 +515,8 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 
 		if (adapter->flags & FLAG_IS_ICH) {
 			if (num_WriteProtectNVM > bd) {
-				unsigned int write_protect_nvm = WriteProtectNVM[bd];
+				unsigned int write_protect_nvm =
+				    WriteProtectNVM[bd];
 				e1000_validate_option(&write_protect_nvm, &opt,
 						      adapter);
 				if (write_protect_nvm)

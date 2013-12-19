@@ -112,10 +112,11 @@ struct mga_framebuffer {
 struct mga_fbdev {
 	struct drm_fb_helper helper;
 	struct mga_framebuffer mfb;
-	struct list_head fbdev_list;
 	void *sysram;
 	int size;
 	struct ttm_bo_kmap_obj mapping;
+	int x1, y1, x2, y2; /* dirty rect */
+	spinlock_t dirty_lock;
 };
 
 struct mga_crtc {
@@ -148,6 +149,21 @@ struct mga_connector {
 	struct mga_i2c_chan *i2c;
 };
 
+struct mga_cursor {
+	/*
+	   We have to have 2 buffers for the cursor to avoid occasional
+	   corruption while switching cursor icons.
+	   If either of these is NULL, then don't do hardware cursors, and
+	   fall back to software.
+	*/
+	struct mgag200_bo *pixels_1;
+	struct mgag200_bo *pixels_2;
+	u64 pixels_1_gpu_addr, pixels_2_gpu_addr;
+	/* The currently displayed icon, this points to one of pixels_1, or pixels_2 */
+	struct mgag200_bo *pixels_current;
+	/* The previously displayed icon */
+	struct mgag200_bo *pixels_prev;
+};
 
 struct mga_mc {
 	resource_size_t			vram_size;
@@ -180,6 +196,7 @@ struct mga_device {
 	struct mga_mode_info		mode_info;
 
 	struct mga_fbdev *mfbdev;
+	struct mga_cursor cursor;
 
 	bool				suspended;
 	int				num_crtc;
@@ -197,7 +214,8 @@ struct mga_device {
 		struct ttm_bo_device bdev;
 	} ttm;
 
-	u32 reg_1e24; /* SE model number */
+	/* SE model number stored in reg 0x1e24 */
+	u32 unique_rev_id;
 };
 
 
@@ -216,7 +234,7 @@ mgag200_bo(struct ttm_buffer_object *bo)
 {
 	return container_of(bo, struct mgag200_bo, bo);
 }
-				/* mga_crtc.c */
+				/* mgag200_crtc.c */
 void mga_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 			     u16 blue, int regno);
 void mga_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
@@ -226,7 +244,7 @@ void mga_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 int mgag200_modeset_init(struct mga_device *mdev);
 void mgag200_modeset_fini(struct mga_device *mdev);
 
-				/* mga_fbdev.c */
+				/* mgag200_fb.c */
 int mgag200_fbdev_init(struct mga_device *mdev);
 void mgag200_fbdev_fini(struct mga_device *mdev);
 
@@ -242,28 +260,40 @@ int mgag200_driver_unload(struct drm_device *dev);
 int mgag200_gem_create(struct drm_device *dev,
 		   u32 size, bool iskernel,
 		       struct drm_gem_object **obj);
-int mgag200_gem_init_object(struct drm_gem_object *obj);
 int mgag200_dumb_create(struct drm_file *file,
 			struct drm_device *dev,
 			struct drm_mode_create_dumb *args);
-int mgag200_dumb_destroy(struct drm_file *file,
-			 struct drm_device *dev,
-			 uint32_t handle);
 void mgag200_gem_free_object(struct drm_gem_object *obj);
 int
 mgag200_dumb_mmap_offset(struct drm_file *file,
 			 struct drm_device *dev,
 			 uint32_t handle,
 			 uint64_t *offset);
-				/* mga_i2c.c */
+				/* mgag200_i2c.c */
 struct mga_i2c_chan *mgag200_i2c_create(struct drm_device *dev);
 void mgag200_i2c_destroy(struct mga_i2c_chan *i2c);
 
 #define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 void mgag200_ttm_placement(struct mgag200_bo *bo, int domain);
 
-int mgag200_bo_reserve(struct mgag200_bo *bo, bool no_wait);
-void mgag200_bo_unreserve(struct mgag200_bo *bo);
+static inline int mgag200_bo_reserve(struct mgag200_bo *bo, bool no_wait)
+{
+	int ret;
+
+	ret = ttm_bo_reserve(&bo->bo, true, no_wait, false, 0);
+	if (ret) {
+		if (ret != -ERESTARTSYS && ret != -EBUSY)
+			DRM_ERROR("reserve failed %p\n", bo);
+		return ret;
+	}
+	return 0;
+}
+
+static inline void mgag200_bo_unreserve(struct mgag200_bo *bo)
+{
+	ttm_bo_unreserve(&bo->bo);
+}
+
 int mgag200_bo_create(struct drm_device *dev, int size, int align,
 		      uint32_t flags, struct mgag200_bo **pastbo);
 int mgag200_mm_init(struct mga_device *mdev);
@@ -272,4 +302,9 @@ int mgag200_mmap(struct file *filp, struct vm_area_struct *vma);
 int mgag200_bo_pin(struct mgag200_bo *bo, u32 pl_flag, u64 *gpu_addr);
 int mgag200_bo_unpin(struct mgag200_bo *bo);
 int mgag200_bo_push_sysram(struct mgag200_bo *bo);
+			   /* mgag200_cursor.c */
+int mga_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
+						uint32_t handle, uint32_t width, uint32_t height);
+int mga_crtc_cursor_move(struct drm_crtc *crtc, int x, int y);
+
 #endif				/* __MGAG200_DRV_H__ */

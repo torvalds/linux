@@ -15,6 +15,7 @@
 #include <asm/asm.h>
 #include <asm/cacheops.h>
 #include <asm/cpu-features.h>
+#include <asm/cpu-type.h>
 #include <asm/mipsmtregs.h>
 
 /*
@@ -22,10 +23,10 @@
  * for indexed cache operations.  Two issues here:
  *
  *  - The MIPS32 and MIPS64 specs permit an implementation to directly derive
- *    the index bits from the virtual address.  This breaks with tradition
- *    set by the R4000.  To keep unpleasant surprises from happening we pick
+ *    the index bits from the virtual address.	This breaks with tradition
+ *    set by the R4000.	 To keep unpleasant surprises from happening we pick
  *    an address in KSEG0 / CKSEG0.
- *  - We need a properly sign extended address for 64-bit code.  To get away
+ *  - We need a properly sign extended address for 64-bit code.	 To get away
  *    without ifdefs we let the compiler do it by a type cast.
  */
 #define INDEX_BASE	CKSEG0
@@ -162,7 +163,15 @@ static inline void flush_scache_line_indexed(unsigned long addr)
 static inline void flush_icache_line(unsigned long addr)
 {
 	__iflush_prologue
-	cache_op(Hit_Invalidate_I, addr);
+	switch (boot_cpu_type()) {
+	case CPU_LOONGSON2:
+		cache_op(Hit_Invalidate_I_Loongson23, addr);
+		break;
+
+	default:
+		cache_op(Hit_Invalidate_I, addr);
+		break;
+	}
 	__iflush_epilogue
 }
 
@@ -208,7 +217,15 @@ static inline void flush_scache_line(unsigned long addr)
  */
 static inline void protected_flush_icache_line(unsigned long addr)
 {
-	protected_cache_op(Hit_Invalidate_I, addr);
+	switch (boot_cpu_type()) {
+	case CPU_LOONGSON2:
+		protected_cache_op(Hit_Invalidate_I_Loongson23, addr);
+		break;
+
+	default:
+		protected_cache_op(Hit_Invalidate_I, addr);
+		break;
+	}
 }
 
 /*
@@ -347,7 +364,7 @@ static inline void blast_##pfx##cache##lsize(void)			\
 	unsigned long end = start + current_cpu_data.desc.waysize;	\
 	unsigned long ws_inc = 1UL << current_cpu_data.desc.waybit;	\
 	unsigned long ws_end = current_cpu_data.desc.ways <<		\
-	                       current_cpu_data.desc.waybit;		\
+			       current_cpu_data.desc.waybit;		\
 	unsigned long ws, addr;						\
 									\
 	__##pfx##flush_prologue						\
@@ -359,7 +376,7 @@ static inline void blast_##pfx##cache##lsize(void)			\
 	__##pfx##flush_epilogue						\
 }									\
 									\
-static inline void blast_##pfx##cache##lsize##_page(unsigned long page)	\
+static inline void blast_##pfx##cache##lsize##_page(unsigned long page) \
 {									\
 	unsigned long start = page;					\
 	unsigned long end = page + PAGE_SIZE;				\
@@ -381,7 +398,7 @@ static inline void blast_##pfx##cache##lsize##_page_indexed(unsigned long page) 
 	unsigned long end = start + PAGE_SIZE;				\
 	unsigned long ws_inc = 1UL << current_cpu_data.desc.waybit;	\
 	unsigned long ws_end = current_cpu_data.desc.ways <<		\
-	                       current_cpu_data.desc.waybit;		\
+			       current_cpu_data.desc.waybit;		\
 	unsigned long ws, addr;						\
 									\
 	__##pfx##flush_prologue						\
@@ -412,8 +429,8 @@ __BUILD_BLAST_CACHE(inv_s, scache, Index_Writeback_Inv_SD, Hit_Invalidate_SD, 64
 __BUILD_BLAST_CACHE(inv_s, scache, Index_Writeback_Inv_SD, Hit_Invalidate_SD, 128)
 
 /* build blast_xxx_range, protected_blast_xxx_range */
-#define __BUILD_BLAST_CACHE_RANGE(pfx, desc, hitop, prot) \
-static inline void prot##blast_##pfx##cache##_range(unsigned long start, \
+#define __BUILD_BLAST_CACHE_RANGE(pfx, desc, hitop, prot, extra)	\
+static inline void prot##extra##blast_##pfx##cache##_range(unsigned long start, \
 						    unsigned long end)	\
 {									\
 	unsigned long lsize = cpu_##desc##_line_size();			\
@@ -432,13 +449,15 @@ static inline void prot##blast_##pfx##cache##_range(unsigned long start, \
 	__##pfx##flush_epilogue						\
 }
 
-__BUILD_BLAST_CACHE_RANGE(d, dcache, Hit_Writeback_Inv_D, protected_)
-__BUILD_BLAST_CACHE_RANGE(s, scache, Hit_Writeback_Inv_SD, protected_)
-__BUILD_BLAST_CACHE_RANGE(i, icache, Hit_Invalidate_I, protected_)
-__BUILD_BLAST_CACHE_RANGE(d, dcache, Hit_Writeback_Inv_D, )
-__BUILD_BLAST_CACHE_RANGE(s, scache, Hit_Writeback_Inv_SD, )
+__BUILD_BLAST_CACHE_RANGE(d, dcache, Hit_Writeback_Inv_D, protected_, )
+__BUILD_BLAST_CACHE_RANGE(s, scache, Hit_Writeback_Inv_SD, protected_, )
+__BUILD_BLAST_CACHE_RANGE(i, icache, Hit_Invalidate_I, protected_, )
+__BUILD_BLAST_CACHE_RANGE(i, icache, Hit_Invalidate_I_Loongson23, \
+	protected_, loongson23_)
+__BUILD_BLAST_CACHE_RANGE(d, dcache, Hit_Writeback_Inv_D, , )
+__BUILD_BLAST_CACHE_RANGE(s, scache, Hit_Writeback_Inv_SD, , )
 /* blast_inv_dcache_range */
-__BUILD_BLAST_CACHE_RANGE(inv_d, dcache, Hit_Invalidate_D, )
-__BUILD_BLAST_CACHE_RANGE(inv_s, scache, Hit_Invalidate_SD, )
+__BUILD_BLAST_CACHE_RANGE(inv_d, dcache, Hit_Invalidate_D, , )
+__BUILD_BLAST_CACHE_RANGE(inv_s, scache, Hit_Invalidate_SD, , )
 
 #endif /* _ASM_R4KCACHE_H */

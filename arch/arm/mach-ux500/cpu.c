@@ -8,7 +8,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/mfd/db8500-prcmu.h>
+#include <linux/mfd/dbx500-prcmu.h>
 #include <linux/clksrc-dbx500-prcmu.h>
 #include <linux/sys_soc.h>
 #include <linux/err.h>
@@ -17,18 +17,27 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
+#include <linux/irqchip/arm-gic.h>
 #include <linux/platform_data/clk-ux500.h>
+#include <linux/platform_data/arm-ux500-pm.h>
 
-#include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
-#include <mach/setup.h>
-#include <mach/devices.h>
+#include "setup.h"
+#include "devices.h"
 
 #include "board-mop500.h"
+#include "db8500-regs.h"
+#include "id.h"
 
-void __iomem *_PRCMU_BASE;
+void ux500_restart(enum reboot_mode mode, const char *cmd)
+{
+	local_irq_disable();
+	local_fiq_disable();
+
+	prcmu_system_reset(0);
+}
 
 /*
  * FIXME: Should we set up the GPIO domain here?
@@ -42,11 +51,6 @@ void __iomem *_PRCMU_BASE;
  * This feels fragile because it depends on the gpio device getting probed
  * _before_ any device uses the gpio interrupts.
 */
-static const struct of_device_id ux500_dt_irq_match[] = {
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
-	{},
-};
-
 void __init ux500_init_irq(void)
 {
 	void __iomem *dist_base;
@@ -62,7 +66,7 @@ void __init ux500_init_irq(void)
 
 #ifdef CONFIG_OF
 	if (of_have_populated_dt())
-		of_irq_init(ux500_dt_irq_match);
+		irqchip_init();
 	else
 #endif
 		gic_init(0, 29, dist_base, cpu_base);
@@ -71,20 +75,33 @@ void __init ux500_init_irq(void)
 	 * Init clocks here so that they are available for system timer
 	 * initialization.
 	 */
-	if (cpu_is_u8500_family())
-		db8500_prcmu_early_init();
+	if (cpu_is_u8500_family()) {
+		prcmu_early_init(U8500_PRCMU_BASE, SZ_8K - 1);
+		ux500_pm_init(U8500_PRCMU_BASE, SZ_8K - 1);
 
-	if (cpu_is_u8500_family())
-		u8500_clk_init();
-	else if (cpu_is_u9540())
-		u9540_clk_init();
-	else if (cpu_is_u8540())
-		u8540_clk_init();
-}
-
-void __init ux500_init_late(void)
-{
-	mop500_uib_init();
+		if (of_have_populated_dt())
+			u8500_of_clk_init(U8500_CLKRST1_BASE,
+					  U8500_CLKRST2_BASE,
+					  U8500_CLKRST3_BASE,
+					  U8500_CLKRST5_BASE,
+					  U8500_CLKRST6_BASE);
+		else
+			u8500_clk_init(U8500_CLKRST1_BASE, U8500_CLKRST2_BASE,
+				       U8500_CLKRST3_BASE, U8500_CLKRST5_BASE,
+				       U8500_CLKRST6_BASE);
+	} else if (cpu_is_u9540()) {
+		prcmu_early_init(U8500_PRCMU_BASE, SZ_8K - 1);
+		ux500_pm_init(U8500_PRCMU_BASE, SZ_8K - 1);
+		u9540_clk_init(U8500_CLKRST1_BASE, U8500_CLKRST2_BASE,
+			       U8500_CLKRST3_BASE, U8500_CLKRST5_BASE,
+			       U8500_CLKRST6_BASE);
+	} else if (cpu_is_u8540()) {
+		prcmu_early_init(U8500_PRCMU_BASE, SZ_8K + SZ_4K - 1);
+		ux500_pm_init(U8500_PRCMU_BASE, SZ_8K + SZ_4K - 1);
+		u8540_clk_init(U8500_CLKRST1_BASE, U8500_CLKRST2_BASE,
+			       U8500_CLKRST3_BASE, U8500_CLKRST5_BASE,
+			       U8500_CLKRST6_BASE);
+	}
 }
 
 static const char * __init ux500_get_machine(void)
@@ -145,14 +162,13 @@ struct device * __init ux500_soc_device_init(const char *soc_id)
 	soc_info_populate(soc_dev_attr, soc_id);
 
 	soc_dev = soc_device_register(soc_dev_attr);
-	if (IS_ERR_OR_NULL(soc_dev)) {
+	if (IS_ERR(soc_dev)) {
 	        kfree(soc_dev_attr);
 		return NULL;
 	}
 
 	parent = soc_device_to_device(soc_dev);
-	if (!IS_ERR_OR_NULL(parent))
-		device_create_file(parent, &ux500_soc_attr);
+	device_create_file(parent, &ux500_soc_attr);
 
 	return parent;
 }

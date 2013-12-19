@@ -20,6 +20,7 @@
 #include "core.h"
 #include "debug.h"
 #include "testmode.h"
+#include "trace.h"
 #include "../regd.h"
 #include "../regd_common.h"
 
@@ -567,8 +568,8 @@ static int ath6kl_wmi_rx_probe_req_event_rx(struct wmi *wmi, u8 *datap, int len,
 		   dlen, freq, vif->probe_req_report);
 
 	if (vif->probe_req_report || vif->nw_type == AP_NETWORK)
-		cfg80211_rx_mgmt(&vif->wdev, freq, 0,
-				 ev->data, dlen, GFP_ATOMIC);
+		cfg80211_rx_mgmt(&vif->wdev, freq, 0, ev->data, dlen, 0,
+				 GFP_ATOMIC);
 
 	return 0;
 }
@@ -607,8 +608,7 @@ static int ath6kl_wmi_rx_action_event_rx(struct wmi *wmi, u8 *datap, int len,
 		return -EINVAL;
 	}
 	ath6kl_dbg(ATH6KL_DBG_WMI, "rx_action: len=%u freq=%u\n", dlen, freq);
-	cfg80211_rx_mgmt(&vif->wdev, freq, 0,
-			 ev->data, dlen, GFP_ATOMIC);
+	cfg80211_rx_mgmt(&vif->wdev, freq, 0, ev->data, dlen, 0, GFP_ATOMIC);
 
 	return 0;
 }
@@ -749,6 +749,23 @@ int ath6kl_wmi_force_roam_cmd(struct wmi *wmi, const u8 *bssid)
 	ath6kl_dbg(ATH6KL_DBG_WMI, "force roam to %pM\n", bssid);
 	return ath6kl_wmi_cmd_send(wmi, 0, skb, WMI_SET_ROAM_CTRL_CMDID,
 				   NO_SYNC_WMIFLAG);
+}
+
+int ath6kl_wmi_ap_set_beacon_intvl_cmd(struct wmi *wmi, u8 if_idx,
+				       u32 beacon_intvl)
+{
+	struct sk_buff *skb;
+	struct set_beacon_int_cmd *cmd;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct set_beacon_int_cmd *) skb->data;
+
+	cmd->beacon_intvl = cpu_to_le32(beacon_intvl);
+	return ath6kl_wmi_cmd_send(wmi, if_idx, skb,
+				   WMI_SET_BEACON_INT_CMDID, NO_SYNC_WMIFLAG);
 }
 
 int ath6kl_wmi_ap_set_dtim_cmd(struct wmi *wmi, u8 if_idx, u32 dtim_period)
@@ -1108,7 +1125,7 @@ static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len,
 	kfree(mgmt);
 	if (bss == NULL)
 		return -ENOMEM;
-	cfg80211_put_bss(bss);
+	cfg80211_put_bss(ar->wiphy, bss);
 
 	/*
 	 * Firmware doesn't return any event when scheduled scan has
@@ -2011,6 +2028,9 @@ int ath6kl_wmi_beginscan_cmd(struct wmi *wmi, u8 if_idx,
 		if (!sband)
 			continue;
 
+		if (WARN_ON(band >= ATH6KL_NUM_BANDS))
+			break;
+
 		ratemask = rates[band];
 		supp_rates = sc->supp_rates[band].rates;
 		num_rates = 0;
@@ -2480,16 +2500,11 @@ static int ath6kl_wmi_sync_point(struct wmi *wmi, u8 if_idx)
 
 free_cmd_skb:
 	/* free up any resources left over (possibly due to an error) */
-	if (skb)
-		dev_kfree_skb(skb);
+	dev_kfree_skb(skb);
 
 free_data_skb:
-	for (index = 0; index < num_pri_streams; index++) {
-		if (data_sync_bufs[index].skb != NULL) {
-			dev_kfree_skb((struct sk_buff *)data_sync_bufs[index].
-				      skb);
-		}
-	}
+	for (index = 0; index < num_pri_streams; index++)
+		dev_kfree_skb((struct sk_buff *)data_sync_bufs[index].skb);
 
 	return ret;
 }
@@ -4073,6 +4088,8 @@ int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb)
 		dev_kfree_skb(skb);
 		return -EINVAL;
 	}
+
+	trace_ath6kl_wmi_event(skb->data, skb->len);
 
 	return ath6kl_wmi_proc_events(wmi, skb);
 }

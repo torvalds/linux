@@ -594,7 +594,8 @@ static const struct ethtool_ops ethtool_ops;
 
 
 #ifdef VLAN_SUPPORT
-static int netdev_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int netdev_vlan_rx_add_vid(struct net_device *dev,
+				  __be16 proto, u16 vid)
 {
 	struct netdev_private *np = netdev_priv(dev);
 
@@ -608,7 +609,8 @@ static int netdev_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	return 0;
 }
 
-static int netdev_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int netdev_vlan_rx_kill_vid(struct net_device *dev,
+				   __be16 proto, u16 vid)
 {
 	struct netdev_private *np = netdev_priv(dev);
 
@@ -702,7 +704,7 @@ static int starfire_init_one(struct pci_dev *pdev,
 #endif /* ZEROCOPY */
 
 #ifdef VLAN_SUPPORT
-	dev->features |= NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
+	dev->features |= NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_FILTER;
 #endif /* VLAN_RX_KILL_VID */
 #ifdef ADDR_64BITS
 	dev->features |= NETIF_F_HIGHDMA;
@@ -833,7 +835,6 @@ static int starfire_init_one(struct pci_dev *pdev,
 	return 0;
 
 err_out_cleardev:
-	pci_set_drvdata(pdev, NULL);
 	iounmap(base);
 err_out_free_res:
 	pci_release_regions (pdev);
@@ -1496,7 +1497,7 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 				printk(KERN_DEBUG "  netdev_rx() vlanid = %d\n",
 				       vlid);
 			}
-			__vlan_hwaccel_put_tag(skb, vlid);
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlid);
 		}
 #endif /* VLAN_SUPPORT */
 		netif_receive_skb(skb);
@@ -2010,7 +2011,6 @@ static void starfire_remove_one(struct pci_dev *pdev)
 	iounmap(np->base);
 	pci_release_regions(pdev);
 
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(dev);			/* Will also free np!! */
 }
 

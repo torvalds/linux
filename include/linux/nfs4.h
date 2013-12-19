@@ -13,6 +13,7 @@
 #define _LINUX_NFS4_H
 
 #include <linux/list.h>
+#include <linux/uidgid.h>
 #include <uapi/linux/nfs4.h>
 
 struct nfs4_ace {
@@ -20,12 +21,24 @@ struct nfs4_ace {
 	uint32_t	flag;
 	uint32_t	access_mask;
 	int		whotype;
-	uid_t		who;
+	union {
+		kuid_t	who_uid;
+		kgid_t	who_gid;
+	};
 };
 
 struct nfs4_acl {
 	uint32_t	naces;
 	struct nfs4_ace	aces[0];
+};
+
+#define NFS4_MAXLABELLEN	2048
+
+struct nfs4_label {
+	uint32_t	lfs;
+	uint32_t	pi;
+	u32		len;
+	char	*label;
 };
 
 typedef struct { char data[NFS4_VERIFIER_SIZE]; } nfs4_verifier;
@@ -105,6 +118,9 @@ Needs to be updated if more operations are defined in future.*/
 
 #define FIRST_NFS4_OP	OP_ACCESS
 #define LAST_NFS4_OP 	OP_RECLAIM_COMPLETE
+#define LAST_NFS40_OP	OP_RELEASE_LOCKOWNER
+#define LAST_NFS41_OP	OP_RECLAIM_COMPLETE
+#define LAST_NFS42_OP	OP_RECLAIM_COMPLETE
 
 enum nfsstat4 {
 	NFS4_OK = 0,
@@ -215,6 +231,14 @@ enum nfsstat4 {
 	NFS4ERR_REJECT_DELEG	= 10085,	/* on callback */
 	NFS4ERR_RETURNCONFLICT	= 10086,	/* outstanding layoutreturn */
 	NFS4ERR_DELEG_REVOKED	= 10087,	/* deleg./layout revoked */
+
+	/* nfs42 */
+	NFS4ERR_PARTNER_NOTSUPP	= 10088,
+	NFS4ERR_PARTNER_NO_AUTH	= 10089,
+	NFS4ERR_METADATA_NOTSUPP = 10090,
+	NFS4ERR_OFFLOAD_DENIED = 10091,
+	NFS4ERR_WRONG_LFS = 10092,
+	NFS4ERR_BADLABEL = 10093,
 };
 
 static inline bool seqid_mutating_err(u32 err)
@@ -374,6 +398,9 @@ enum lock_type4 {
 #define FATTR4_WORD1_FS_LAYOUT_TYPES    (1UL << 30)
 #define FATTR4_WORD2_LAYOUT_BLKSIZE     (1UL << 1)
 #define FATTR4_WORD2_MDSTHRESHOLD       (1UL << 4)
+#define FATTR4_WORD2_SECURITY_LABEL     (1UL << 16)
+#define FATTR4_WORD2_CHANGE_SECURITY_LABEL \
+					(1UL << 17)
 
 /* MDS threshold bitmap bits */
 #define THRESHOLD_RD                    (1UL << 0)
@@ -385,12 +412,6 @@ enum lock_type4 {
 #define NFSPROC4_COMPOUND 1
 #define NFS4_VERSION 4
 #define NFS4_MINOR_VERSION 0
-
-#if defined(CONFIG_NFS_V4_1)
-#define NFS4_MAX_MINOR_VERSION 1
-#else
-#define NFS4_MAX_MINOR_VERSION 0
-#endif /* CONFIG_NFS_V4_1 */
 
 #define NFS4_DEBUG 1
 
@@ -434,6 +455,7 @@ enum {
 	NFSPROC4_CLNT_FS_LOCATIONS,
 	NFSPROC4_CLNT_RELEASE_LOCKOWNER,
 	NFSPROC4_CLNT_SECINFO,
+	NFSPROC4_CLNT_FSID_PRESENT,
 
 	/* nfs41 */
 	NFSPROC4_CLNT_EXCHANGE_ID,

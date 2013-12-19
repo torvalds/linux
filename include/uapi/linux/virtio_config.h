@@ -51,4 +51,7 @@
  * suppressed them? */
 #define VIRTIO_F_NOTIFY_ON_EMPTY	24
 
+/* Can the device handle any descriptor layout? */
+#define VIRTIO_F_ANY_LAYOUT		27
+
 #endif /* _UAPI_LINUX_VIRTIO_CONFIG_H */

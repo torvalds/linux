@@ -21,6 +21,7 @@
 #ifndef __MSCAN_H__
 #define __MSCAN_H__
 
+#include <linux/clk.h>
 #include <linux/types.h>
 
 /* MSCAN control register 0 (CANCTL0) bits */
@@ -283,6 +284,8 @@ struct mscan_priv {
 	unsigned int type; 	/* MSCAN type variants */
 	unsigned long flags;
 	void __iomem *reg_base;	/* ioremap'ed address to registers */
+	struct clk *clk_ipg;	/* clock for registers */
+	struct clk *clk_can;	/* clock for bitrates */
 	u8 shadow_statflg;
 	u8 shadow_canrier;
 	u8 cur_pri;
@@ -294,8 +297,8 @@ struct mscan_priv {
 	struct napi_struct napi;
 };
 
-extern struct net_device *alloc_mscandev(void);
-extern int register_mscandev(struct net_device *dev, int mscan_clksrc);
-extern void unregister_mscandev(struct net_device *dev);
+struct net_device *alloc_mscandev(void);
+int register_mscandev(struct net_device *dev, int mscan_clksrc);
+void unregister_mscandev(struct net_device *dev);
 
 #endif /* __MSCAN_H__ */

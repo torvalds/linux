@@ -38,7 +38,6 @@ static DEFINE_SPINLOCK(leon_irq_lock);
 
 unsigned long leon3_gptimer_irq; /* interrupt controller irq number */
 unsigned long leon3_gptimer_idx; /* Timer Index (0..6) within Timer Core */
-int leon3_ticker_irq; /* Timer ticker IRQ */
 unsigned int sparc_leon_eirq;
 #define LEON_IMASK(cpu) (&leon3_irqctrl_regs->mask[cpu])
 #define LEON_IACK (&leon3_irqctrl_regs->iclear)
@@ -213,6 +212,7 @@ unsigned int leon_build_device_irq(unsigned int real_irq,
 {
 	unsigned int irq;
 	unsigned long mask;
+	struct irq_desc *desc;
 
 	irq = 0;
 	mask = leon_get_irqmask(real_irq);
@@ -226,9 +226,12 @@ unsigned int leon_build_device_irq(unsigned int real_irq,
 	if (do_ack)
 		mask |= LEON_DO_ACK_HW;
 
-	irq_set_chip_and_handler_name(irq, &leon_irq,
-				      flow_handler, name);
-	irq_set_chip_data(irq, (void *)mask);
+	desc = irq_to_desc(irq);
+	if (!desc || !desc->handle_irq || desc->handle_irq == handle_bad_irq) {
+		irq_set_chip_and_handler_name(irq, &leon_irq,
+					      flow_handler, name);
+		irq_set_chip_data(irq, (void *)mask);
+	}
 
 out:
 	return irq;
@@ -274,6 +277,9 @@ irqreturn_t leon_percpu_timer_ce_interrupt(int irq, void *unused)
 
 	leon_clear_profile_irq(cpu);
 
+	if (cpu == boot_cpu_id)
+		timer_interrupt(irq, NULL);
+
 	ce = &per_cpu(sparc32_clockevent, cpu);
 
 	irq_enter();
@@ -295,6 +301,7 @@ void __init leon_init_timers(void)
 	int icsel;
 	int ampopts;
 	int err;
+	u32 config;
 
 	sparc_config.get_cycles_offset = leon_cycles_offset;
 	sparc_config.cs_period = 1000000 / HZ;
@@ -373,23 +380,6 @@ void __init leon_init_timers(void)
 	LEON3_BYPASS_STORE_PA(
 			&leon3_gptimer_regs->e[leon3_gptimer_idx].ctrl, 0);
 
-#ifdef CONFIG_SMP
-	leon3_ticker_irq = leon3_gptimer_irq + 1 + leon3_gptimer_idx;
-
-	if (!(LEON3_BYPASS_LOAD_PA(&leon3_gptimer_regs->config) &
-	      (1<<LEON3_GPTIMER_SEPIRQ))) {
-		printk(KERN_ERR "timer not configured with separate irqs\n");
-		BUG();
-	}
-
-	LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx+1].val,
-				0);
-	LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx+1].rld,
-				(((1000000/HZ) - 1)));
-	LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx+1].ctrl,
-				0);
-#endif
-
 	/*
 	 * The IRQ controller may (if implemented) consist of multiple
 	 * IRQ controllers, each mapped on a 4Kb boundary.
@@ -412,13 +402,6 @@ void __init leon_init_timers(void)
 	if (eirq != 0)
 		leon_eirq_setup(eirq);
 
-	irq = _leon_build_device_irq(NULL, leon3_gptimer_irq+leon3_gptimer_idx);
-	err = request_irq(irq, timer_interrupt, IRQF_TIMER, "timer", NULL);
-	if (err) {
-		printk(KERN_ERR "unable to attach timer IRQ%d\n", irq);
-		prom_halt();
-	}
-
 #ifdef CONFIG_SMP
 	{
 		unsigned long flags;
@@ -435,30 +418,31 @@ void __init leon_init_timers(void)
 	}
 #endif
 
+	config = LEON3_BYPASS_LOAD_PA(&leon3_gptimer_regs->config);
+	if (config & (1 << LEON3_GPTIMER_SEPIRQ))
+		leon3_gptimer_irq += leon3_gptimer_idx;
+	else if ((config & LEON3_GPTIMER_TIMERS) > 1)
+		pr_warn("GPTIMER uses shared irqs, using other timers of the same core will fail.\n");
+
+#ifdef CONFIG_SMP
+	/* Install per-cpu IRQ handler for broadcasted ticker */
+	irq = leon_build_device_irq(leon3_gptimer_irq, handle_percpu_irq,
+				    "per-cpu", 0);
+	err = request_irq(irq, leon_percpu_timer_ce_interrupt,
+			  IRQF_PERCPU | IRQF_TIMER, "timer", NULL);
+#else
+	irq = _leon_build_device_irq(NULL, leon3_gptimer_irq);
+	err = request_irq(irq, timer_interrupt, IRQF_TIMER, "timer", NULL);
+#endif
+	if (err) {
+		pr_err("Unable to attach timer IRQ%d\n", irq);
+		prom_halt();
+	}
 	LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].ctrl,
 			      LEON3_GPTIMER_EN |
 			      LEON3_GPTIMER_RL |
 			      LEON3_GPTIMER_LD |
 			      LEON3_GPTIMER_IRQEN);
-
-#ifdef CONFIG_SMP
-	/* Install per-cpu IRQ handler for broadcasted ticker */
-	irq = leon_build_device_irq(leon3_ticker_irq, handle_percpu_irq,
-				    "per-cpu", 0);
-	err = request_irq(irq, leon_percpu_timer_ce_interrupt,
-			  IRQF_PERCPU | IRQF_TIMER, "ticker",
-			  NULL);
-	if (err) {
-		printk(KERN_ERR "unable to attach ticker IRQ%d\n", irq);
-		prom_halt();
-	}
-
-	LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx+1].ctrl,
-			      LEON3_GPTIMER_EN |
-			      LEON3_GPTIMER_RL |
-			      LEON3_GPTIMER_LD |
-			      LEON3_GPTIMER_IRQEN);
-#endif
 	return;
 bad:
 	printk(KERN_ERR "No Timer/irqctrl found\n");

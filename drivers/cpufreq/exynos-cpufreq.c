@@ -18,74 +18,68 @@
 #include <linux/cpufreq.h>
 #include <linux/suspend.h>
 
-#include <mach/cpufreq.h>
-
 #include <plat/cpu.h>
+
+#include "exynos-cpufreq.h"
 
 static struct exynos_dvfs_info *exynos_info;
 
 static struct regulator *arm_regulator;
-static struct cpufreq_freqs freqs;
 
 static unsigned int locking_frequency;
 static bool frequency_locked;
 static DEFINE_MUTEX(cpufreq_lock);
-
-static int exynos_verify_speed(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy,
-					      exynos_info->freq_table);
-}
 
 static unsigned int exynos_getspeed(unsigned int cpu)
 {
 	return clk_get_rate(exynos_info->cpu_clk) / 1000;
 }
 
-static int exynos_target(struct cpufreq_policy *policy,
-			  unsigned int target_freq,
-			  unsigned int relation)
+static int exynos_cpufreq_get_index(unsigned int freq)
 {
-	unsigned int index, old_index;
-	unsigned int arm_volt, safe_arm_volt = 0;
-	int ret = 0;
+	struct cpufreq_frequency_table *freq_table = exynos_info->freq_table;
+	int index;
+
+	for (index = 0;
+		freq_table[index].frequency != CPUFREQ_TABLE_END; index++)
+		if (freq_table[index].frequency == freq)
+			break;
+
+	if (freq_table[index].frequency == CPUFREQ_TABLE_END)
+		return -EINVAL;
+
+	return index;
+}
+
+static int exynos_cpufreq_scale(unsigned int target_freq)
+{
 	struct cpufreq_frequency_table *freq_table = exynos_info->freq_table;
 	unsigned int *volt_table = exynos_info->volt_table;
+	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
+	unsigned int arm_volt, safe_arm_volt = 0;
 	unsigned int mpll_freq_khz = exynos_info->mpll_freq_khz;
+	unsigned int old_freq;
+	int index, old_index;
+	int ret = 0;
 
-	mutex_lock(&cpufreq_lock);
-
-	freqs.old = policy->cur;
-
-	if (frequency_locked && target_freq != locking_frequency) {
-		ret = -EAGAIN;
-		goto out;
-	}
+	old_freq = policy->cur;
 
 	/*
 	 * The policy max have been changed so that we cannot get proper
 	 * old_index with cpufreq_frequency_table_target(). Thus, ignore
-	 * policy and get the index from the raw freqeuncy table.
+	 * policy and get the index from the raw frequency table.
 	 */
-	for (old_index = 0;
-		freq_table[old_index].frequency != CPUFREQ_TABLE_END;
-		old_index++)
-		if (freq_table[old_index].frequency == freqs.old)
-			break;
-
-	if (freq_table[old_index].frequency == CPUFREQ_TABLE_END) {
-		ret = -EINVAL;
+	old_index = exynos_cpufreq_get_index(old_freq);
+	if (old_index < 0) {
+		ret = old_index;
 		goto out;
 	}
 
-	if (cpufreq_frequency_table_target(policy, freq_table,
-					   target_freq, relation, &index)) {
-		ret = -EINVAL;
+	index = exynos_cpufreq_get_index(target_freq);
+	if (index < 0) {
+		ret = index;
 		goto out;
 	}
-
-	freqs.new = freq_table[index].frequency;
-	freqs.cpu = policy->cpu;
 
 	/*
 	 * ARM clock source will be changed APLL to MPLL temporary
@@ -100,32 +94,59 @@ static int exynos_target(struct cpufreq_policy *policy,
 	}
 	arm_volt = volt_table[index];
 
-	for_each_cpu(freqs.cpu, policy->cpus)
-		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-
 	/* When the new frequency is higher than current frequency */
-	if ((freqs.new > freqs.old) && !safe_arm_volt) {
+	if ((target_freq > old_freq) && !safe_arm_volt) {
 		/* Firstly, voltage up to increase frequency */
-		regulator_set_voltage(arm_regulator, arm_volt,
-				arm_volt);
+		ret = regulator_set_voltage(arm_regulator, arm_volt, arm_volt);
+		if (ret) {
+			pr_err("%s: failed to set cpu voltage to %d\n",
+				__func__, arm_volt);
+			return ret;
+		}
 	}
 
-	if (safe_arm_volt)
-		regulator_set_voltage(arm_regulator, safe_arm_volt,
+	if (safe_arm_volt) {
+		ret = regulator_set_voltage(arm_regulator, safe_arm_volt,
 				      safe_arm_volt);
-	if (freqs.new != freqs.old)
-		exynos_info->set_freq(old_index, index);
+		if (ret) {
+			pr_err("%s: failed to set cpu voltage to %d\n",
+				__func__, safe_arm_volt);
+			return ret;
+		}
+	}
 
-	for_each_cpu(freqs.cpu, policy->cpus)
-		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	exynos_info->set_freq(old_index, index);
 
 	/* When the new frequency is lower than current frequency */
-	if ((freqs.new < freqs.old) ||
-	   ((freqs.new > freqs.old) && safe_arm_volt)) {
+	if ((target_freq < old_freq) ||
+	   ((target_freq > old_freq) && safe_arm_volt)) {
 		/* down the voltage after frequency change */
-		regulator_set_voltage(arm_regulator, arm_volt,
+		ret = regulator_set_voltage(arm_regulator, arm_volt,
 				arm_volt);
+		if (ret) {
+			pr_err("%s: failed to set cpu voltage to %d\n",
+				__func__, arm_volt);
+			goto out;
+		}
 	}
+
+out:
+	cpufreq_cpu_put(policy);
+
+	return ret;
+}
+
+static int exynos_target(struct cpufreq_policy *policy, unsigned int index)
+{
+	struct cpufreq_frequency_table *freq_table = exynos_info->freq_table;
+	int ret = 0;
+
+	mutex_lock(&cpufreq_lock);
+
+	if (frequency_locked)
+		goto out;
+
+	ret = exynos_cpufreq_scale(freq_table[index].frequency);
 
 out:
 	mutex_unlock(&cpufreq_lock);
@@ -163,51 +184,26 @@ static int exynos_cpufreq_resume(struct cpufreq_policy *policy)
 static int exynos_cpufreq_pm_notifier(struct notifier_block *notifier,
 				       unsigned long pm_event, void *v)
 {
-	struct cpufreq_policy *policy = cpufreq_cpu_get(0); /* boot CPU */
-	static unsigned int saved_frequency;
-	unsigned int temp;
+	int ret;
 
-	mutex_lock(&cpufreq_lock);
 	switch (pm_event) {
 	case PM_SUSPEND_PREPARE:
-		if (frequency_locked)
-			goto out;
-
+		mutex_lock(&cpufreq_lock);
 		frequency_locked = true;
+		mutex_unlock(&cpufreq_lock);
 
-		if (locking_frequency) {
-			saved_frequency = exynos_getspeed(0);
+		ret = exynos_cpufreq_scale(locking_frequency);
+		if (ret < 0)
+			return NOTIFY_BAD;
 
-			mutex_unlock(&cpufreq_lock);
-			exynos_target(policy, locking_frequency,
-				      CPUFREQ_RELATION_H);
-			mutex_lock(&cpufreq_lock);
-		}
 		break;
 
 	case PM_POST_SUSPEND:
-		if (saved_frequency) {
-			/*
-			 * While frequency_locked, only locking_frequency
-			 * is valid for target(). In order to use
-			 * saved_frequency while keeping frequency_locked,
-			 * we temporarly overwrite locking_frequency.
-			 */
-			temp = locking_frequency;
-			locking_frequency = saved_frequency;
-
-			mutex_unlock(&cpufreq_lock);
-			exynos_target(policy, locking_frequency,
-				      CPUFREQ_RELATION_H);
-			mutex_lock(&cpufreq_lock);
-
-			locking_frequency = temp;
-		}
+		mutex_lock(&cpufreq_lock);
 		frequency_locked = false;
+		mutex_unlock(&cpufreq_lock);
 		break;
 	}
-out:
-	mutex_unlock(&cpufreq_lock);
 
 	return NOTIFY_OK;
 }
@@ -218,39 +214,18 @@ static struct notifier_block exynos_cpufreq_nb = {
 
 static int exynos_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	policy->cur = policy->min = policy->max = exynos_getspeed(policy->cpu);
-
-	cpufreq_frequency_table_get_attr(exynos_info->freq_table, policy->cpu);
-
-	locking_frequency = exynos_getspeed(0);
-
-	/* set the transition latency value */
-	policy->cpuinfo.transition_latency = 100000;
-
-	/*
-	 * EXYNOS4 multi-core processors has 2 cores
-	 * that the frequency cannot be set independently.
-	 * Each cpu is bound to the same speed.
-	 * So the affected cpu is all of the cpus.
-	 */
-	if (num_online_cpus() == 1) {
-		cpumask_copy(policy->related_cpus, cpu_possible_mask);
-		cpumask_copy(policy->cpus, cpu_online_mask);
-	} else {
-		policy->shared_type = CPUFREQ_SHARED_TYPE_ANY;
-		cpumask_setall(policy->cpus);
-	}
-
-	return cpufreq_frequency_table_cpuinfo(policy, exynos_info->freq_table);
+	return cpufreq_generic_init(policy, exynos_info->freq_table, 100000);
 }
 
 static struct cpufreq_driver exynos_driver = {
 	.flags		= CPUFREQ_STICKY,
-	.verify		= exynos_verify_speed,
-	.target		= exynos_target,
+	.verify		= cpufreq_generic_frequency_table_verify,
+	.target_index	= exynos_target,
 	.get		= exynos_getspeed,
 	.init		= exynos_cpufreq_cpu_init,
+	.exit		= cpufreq_generic_exit,
 	.name		= "exynos_cpufreq",
+	.attr		= cpufreq_generic_attr,
 #ifdef CONFIG_PM
 	.suspend	= exynos_cpufreq_suspend,
 	.resume		= exynos_cpufreq_resume,
@@ -261,7 +236,7 @@ static int __init exynos_cpufreq_init(void)
 {
 	int ret = -EINVAL;
 
-	exynos_info = kzalloc(sizeof(struct exynos_dvfs_info), GFP_KERNEL);
+	exynos_info = kzalloc(sizeof(*exynos_info), GFP_KERNEL);
 	if (!exynos_info)
 		return -ENOMEM;
 
@@ -272,7 +247,7 @@ static int __init exynos_cpufreq_init(void)
 	else if (soc_is_exynos5250())
 		ret = exynos5250_cpufreq_init(exynos_info);
 	else
-		pr_err("%s: CPU type not found\n", __func__);
+		return 0;
 
 	if (ret)
 		goto err_vdd_arm;
@@ -288,6 +263,8 @@ static int __init exynos_cpufreq_init(void)
 		goto err_vdd_arm;
 	}
 
+	locking_frequency = exynos_getspeed(0);
+
 	register_pm_notifier(&exynos_cpufreq_nb);
 
 	if (cpufreq_register_driver(&exynos_driver)) {
@@ -299,11 +276,9 @@ static int __init exynos_cpufreq_init(void)
 err_cpufreq:
 	unregister_pm_notifier(&exynos_cpufreq_nb);
 
-	if (!IS_ERR(arm_regulator))
-		regulator_put(arm_regulator);
+	regulator_put(arm_regulator);
 err_vdd_arm:
 	kfree(exynos_info);
-	pr_debug("%s: failed initialization\n", __func__);
 	return -EINVAL;
 }
 late_initcall(exynos_cpufreq_init);

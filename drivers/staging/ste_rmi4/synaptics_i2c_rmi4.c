@@ -649,7 +649,7 @@ static int synpatics_rmi4_touchpad_detect(struct synaptics_rmi4_data *pdata,
  *
  * This function calls to configures the rmi4 touchpad device
  */
-int synaptics_rmi4_touchpad_config(struct synaptics_rmi4_data *pdata,
+static int synaptics_rmi4_touchpad_config(struct synaptics_rmi4_data *pdata,
 						struct synaptics_rmi4_fn *rfi)
 {
 	/*
@@ -742,13 +742,9 @@ static int synaptics_rmi4_i2c_query_device(struct synaptics_rmi4_data *pdata)
 			case SYNAPTICS_RMI4_TOUCHPAD_FUNC_NUM:
 				if (rmi_fd.intr_src_count) {
 					rfi = kmalloc(sizeof(*rfi),
-								GFP_KERNEL);
-					if (!rfi) {
-						dev_err(&client->dev,
-							"%s:kmalloc failed\n",
-								__func__);
-							return -ENOMEM;
-					}
+						      GFP_KERNEL);
+					if (!rfi)
+						return -ENOMEM;
 					retval = synpatics_rmi4_touchpad_detect
 								(pdata,	rfi,
 								&rmi_fd,
@@ -868,6 +864,16 @@ static int synaptics_rmi4_i2c_query_device(struct synaptics_rmi4_data *pdata)
 	return 0;
 }
 
+/*
+ * Descriptor structure.
+ * Describes the number of i2c devices on the bus that speak RMI.
+ */
+static struct synaptics_rmi4_platform_data synaptics_rmi4_platformdata = {
+	.irq_type       = (IRQF_TRIGGER_FALLING | IRQF_SHARED),
+	.x_flip		= false,
+	.y_flip		= true,
+};
+
 /**
  * synaptics_rmi4_probe() - Initialze the i2c-client touchscreen driver
  * @i2c: i2c client structure pointer
@@ -894,23 +900,17 @@ static int synaptics_rmi4_probe
 		return -EIO;
 	}
 
-	if (!platformdata) {
-		dev_err(&client->dev, "%s: no platform data\n", __func__);
-		return -EINVAL;
-	}
+	if (!platformdata)
+		platformdata = &synaptics_rmi4_platformdata;
 
 	/* Allocate and initialize the instance data for this client */
-	rmi4_data = kzalloc(sizeof(struct synaptics_rmi4_data) * 2,
-							GFP_KERNEL);
-	if (!rmi4_data) {
-		dev_err(&client->dev, "%s: no memory allocated\n", __func__);
+	rmi4_data = kcalloc(2, sizeof(struct synaptics_rmi4_data),
+			    GFP_KERNEL);
+	if (!rmi4_data)
 		return -ENOMEM;
-	}
 
 	rmi4_data->input_dev = input_allocate_device();
 	if (rmi4_data->input_dev == NULL) {
-		dev_err(&client->dev, "%s:input device alloc failed\n",
-						__func__);
 		retval = -ENOMEM;
 		goto err_input;
 	}
@@ -983,13 +983,13 @@ static int synaptics_rmi4_probe
 	synaptics_rmi4_i2c_block_read(rmi4_data,
 			rmi4_data->fn01_data_base_addr + 1, intr_status,
 				rmi4_data->number_of_interrupt_register);
-	retval = request_threaded_irq(platformdata->irq_number, NULL,
+	retval = request_threaded_irq(client->irq, NULL,
 					synaptics_rmi4_irq,
 					platformdata->irq_type,
 					DRIVER_NAME, rmi4_data);
 	if (retval) {
 		dev_err(&client->dev, "%s:Unable to get attn irq %d\n",
-				__func__, platformdata->irq_number);
+				__func__, client->irq);
 		goto err_query_dev;
 	}
 
@@ -1002,7 +1002,7 @@ static int synaptics_rmi4_probe
 	return retval;
 
 err_free_irq:
-	free_irq(platformdata->irq_number, rmi4_data);
+	free_irq(client->irq, rmi4_data);
 err_query_dev:
 	regulator_disable(rmi4_data->regulator);
 err_regulator_enable:
@@ -1025,11 +1025,10 @@ err_input:
 static int synaptics_rmi4_remove(struct i2c_client *client)
 {
 	struct synaptics_rmi4_data *rmi4_data = i2c_get_clientdata(client);
-	const struct synaptics_rmi4_platform_data *pdata = rmi4_data->board;
 
 	rmi4_data->touch_stopped = true;
 	wake_up(&rmi4_data->wait);
-	free_irq(pdata->irq_number, rmi4_data);
+	free_irq(client->irq, rmi4_data);
 	input_unregister_device(rmi4_data->input_dev);
 	regulator_disable(rmi4_data->regulator);
 	regulator_put(rmi4_data->regulator);
@@ -1052,10 +1051,9 @@ static int synaptics_rmi4_suspend(struct device *dev)
 	int retval;
 	unsigned char intr_status;
 	struct synaptics_rmi4_data *rmi4_data = dev_get_drvdata(dev);
-	const struct synaptics_rmi4_platform_data *pdata = rmi4_data->board;
 
 	rmi4_data->touch_stopped = true;
-	disable_irq(pdata->irq_number);
+	disable_irq(rmi4_data->i2c_client->irq);
 
 	retval = synaptics_rmi4_i2c_block_read(rmi4_data,
 				rmi4_data->fn01_data_base_addr + 1,
@@ -1086,11 +1084,14 @@ static int synaptics_rmi4_resume(struct device *dev)
 	int retval;
 	unsigned char intr_status;
 	struct synaptics_rmi4_data *rmi4_data = dev_get_drvdata(dev);
-	const struct synaptics_rmi4_platform_data *pdata = rmi4_data->board;
 
-	regulator_enable(rmi4_data->regulator);
+	retval = regulator_enable(rmi4_data->regulator);
+	if (retval) {
+		dev_err(dev, "Regulator enable failed (%d)\n", retval);
+		return retval;
+	}
 
-	enable_irq(pdata->irq_number);
+	enable_irq(rmi4_data->i2c_client->irq);
 	rmi4_data->touch_stopped = false;
 
 	retval = synaptics_rmi4_i2c_block_read(rmi4_data,

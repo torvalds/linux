@@ -1,11 +1,11 @@
 /******************************************************************************
  *
- * Module Name: utdebug - Debug print routines
+ * Module Name: utdebug - Debug print/trace routines
  *
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 
@@ -166,11 +167,9 @@ acpi_debug_print(u32 requested_debug_level,
 	acpi_thread_id thread_id;
 	va_list args;
 
-	/*
-	 * Stay silent if the debug level or component ID is disabled
-	 */
-	if (!(requested_debug_level & acpi_dbg_level) ||
-	    !(component_id & acpi_dbg_layer)) {
+	/* Check if debug output enabled */
+
+	if (!ACPI_IS_DEBUG_ENABLED(requested_debug_level, component_id)) {
 		return;
 	}
 
@@ -186,21 +185,30 @@ acpi_debug_print(u32 requested_debug_level,
 		}
 
 		acpi_gbl_prev_thread_id = thread_id;
+		acpi_gbl_nesting_level = 0;
 	}
 
 	/*
 	 * Display the module name, current line number, thread ID (if requested),
 	 * current procedure nesting level, and the current procedure name
 	 */
-	acpi_os_printf("%8s-%04ld ", module_name, line_number);
+	acpi_os_printf("%9s-%04ld ", module_name, line_number);
 
+#ifdef ACPI_EXEC_APP
+	/*
+	 * For acpi_exec only, emit the thread ID and nesting level.
+	 * Note: nesting level is really only useful during a single-thread
+	 * execution. Otherwise, multiple threads will keep resetting the
+	 * level.
+	 */
 	if (ACPI_LV_THREADS & acpi_dbg_level) {
 		acpi_os_printf("[%u] ", (u32)thread_id);
 	}
 
-	acpi_os_printf("[%02ld] %-22.22s: ",
-		       acpi_gbl_nesting_level,
-		       acpi_ut_trim_function_name(function_name));
+	acpi_os_printf("[%02ld] ", acpi_gbl_nesting_level);
+#endif
+
+	acpi_os_printf("%-22.22s: ", acpi_ut_trim_function_name(function_name));
 
 	va_start(args, format);
 	acpi_os_vprintf(format, args);
@@ -236,8 +244,9 @@ acpi_debug_print_raw(u32 requested_debug_level,
 {
 	va_list args;
 
-	if (!(requested_debug_level & acpi_dbg_level) ||
-	    !(component_id & acpi_dbg_layer)) {
+	/* Check if debug output enabled */
+
+	if (!ACPI_IS_DEBUG_ENABLED(requested_debug_level, component_id)) {
 		return;
 	}
 
@@ -272,9 +281,13 @@ acpi_ut_trace(u32 line_number,
 	acpi_gbl_nesting_level++;
 	acpi_ut_track_stack_ptr();
 
-	acpi_debug_print(ACPI_LV_FUNCTIONS,
-			 line_number, function_name, module_name, component_id,
-			 "%s\n", acpi_gbl_fn_entry_str);
+	/* Check if enabled up-front for performance */
+
+	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_debug_print(ACPI_LV_FUNCTIONS,
+				 line_number, function_name, module_name,
+				 component_id, "%s\n", acpi_gbl_fn_entry_str);
+	}
 }
 
 ACPI_EXPORT_SYMBOL(acpi_ut_trace)
@@ -304,9 +317,14 @@ acpi_ut_trace_ptr(u32 line_number,
 	acpi_gbl_nesting_level++;
 	acpi_ut_track_stack_ptr();
 
-	acpi_debug_print(ACPI_LV_FUNCTIONS,
-			 line_number, function_name, module_name, component_id,
-			 "%s %p\n", acpi_gbl_fn_entry_str, pointer);
+	/* Check if enabled up-front for performance */
+
+	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_debug_print(ACPI_LV_FUNCTIONS,
+				 line_number, function_name, module_name,
+				 component_id, "%s %p\n", acpi_gbl_fn_entry_str,
+				 pointer);
+	}
 }
 
 /*******************************************************************************
@@ -335,9 +353,14 @@ acpi_ut_trace_str(u32 line_number,
 	acpi_gbl_nesting_level++;
 	acpi_ut_track_stack_ptr();
 
-	acpi_debug_print(ACPI_LV_FUNCTIONS,
-			 line_number, function_name, module_name, component_id,
-			 "%s %s\n", acpi_gbl_fn_entry_str, string);
+	/* Check if enabled up-front for performance */
+
+	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_debug_print(ACPI_LV_FUNCTIONS,
+				 line_number, function_name, module_name,
+				 component_id, "%s %s\n", acpi_gbl_fn_entry_str,
+				 string);
+	}
 }
 
 /*******************************************************************************
@@ -366,9 +389,14 @@ acpi_ut_trace_u32(u32 line_number,
 	acpi_gbl_nesting_level++;
 	acpi_ut_track_stack_ptr();
 
-	acpi_debug_print(ACPI_LV_FUNCTIONS,
-			 line_number, function_name, module_name, component_id,
-			 "%s %08X\n", acpi_gbl_fn_entry_str, integer);
+	/* Check if enabled up-front for performance */
+
+	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_debug_print(ACPI_LV_FUNCTIONS,
+				 line_number, function_name, module_name,
+				 component_id, "%s %08X\n",
+				 acpi_gbl_fn_entry_str, integer);
+	}
 }
 
 /*******************************************************************************
@@ -393,11 +421,17 @@ acpi_ut_exit(u32 line_number,
 	     const char *module_name, u32 component_id)
 {
 
-	acpi_debug_print(ACPI_LV_FUNCTIONS,
-			 line_number, function_name, module_name, component_id,
-			 "%s\n", acpi_gbl_fn_exit_str);
+	/* Check if enabled up-front for performance */
 
-	acpi_gbl_nesting_level--;
+	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_debug_print(ACPI_LV_FUNCTIONS,
+				 line_number, function_name, module_name,
+				 component_id, "%s\n", acpi_gbl_fn_exit_str);
+	}
+
+	if (acpi_gbl_nesting_level) {
+		acpi_gbl_nesting_level--;
+	}
 }
 
 ACPI_EXPORT_SYMBOL(acpi_ut_exit)
@@ -425,20 +459,28 @@ acpi_ut_status_exit(u32 line_number,
 		    u32 component_id, acpi_status status)
 {
 
-	if (ACPI_SUCCESS(status)) {
-		acpi_debug_print(ACPI_LV_FUNCTIONS,
-				 line_number, function_name, module_name,
-				 component_id, "%s %s\n", acpi_gbl_fn_exit_str,
-				 acpi_format_exception(status));
-	} else {
-		acpi_debug_print(ACPI_LV_FUNCTIONS,
-				 line_number, function_name, module_name,
-				 component_id, "%s ****Exception****: %s\n",
-				 acpi_gbl_fn_exit_str,
-				 acpi_format_exception(status));
+	/* Check if enabled up-front for performance */
+
+	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		if (ACPI_SUCCESS(status)) {
+			acpi_debug_print(ACPI_LV_FUNCTIONS,
+					 line_number, function_name,
+					 module_name, component_id, "%s %s\n",
+					 acpi_gbl_fn_exit_str,
+					 acpi_format_exception(status));
+		} else {
+			acpi_debug_print(ACPI_LV_FUNCTIONS,
+					 line_number, function_name,
+					 module_name, component_id,
+					 "%s ****Exception****: %s\n",
+					 acpi_gbl_fn_exit_str,
+					 acpi_format_exception(status));
+		}
 	}
 
-	acpi_gbl_nesting_level--;
+	if (acpi_gbl_nesting_level) {
+		acpi_gbl_nesting_level--;
+	}
 }
 
 ACPI_EXPORT_SYMBOL(acpi_ut_status_exit)
@@ -465,12 +507,19 @@ acpi_ut_value_exit(u32 line_number,
 		   const char *module_name, u32 component_id, u64 value)
 {
 
-	acpi_debug_print(ACPI_LV_FUNCTIONS,
-			 line_number, function_name, module_name, component_id,
-			 "%s %8.8X%8.8X\n", acpi_gbl_fn_exit_str,
-			 ACPI_FORMAT_UINT64(value));
+	/* Check if enabled up-front for performance */
 
-	acpi_gbl_nesting_level--;
+	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_debug_print(ACPI_LV_FUNCTIONS,
+				 line_number, function_name, module_name,
+				 component_id, "%s %8.8X%8.8X\n",
+				 acpi_gbl_fn_exit_str,
+				 ACPI_FORMAT_UINT64(value));
+	}
+
+	if (acpi_gbl_nesting_level) {
+		acpi_gbl_nesting_level--;
+	}
 }
 
 ACPI_EXPORT_SYMBOL(acpi_ut_value_exit)
@@ -497,157 +546,18 @@ acpi_ut_ptr_exit(u32 line_number,
 		 const char *module_name, u32 component_id, u8 *ptr)
 {
 
-	acpi_debug_print(ACPI_LV_FUNCTIONS,
-			 line_number, function_name, module_name, component_id,
-			 "%s %p\n", acpi_gbl_fn_exit_str, ptr);
+	/* Check if enabled up-front for performance */
 
-	acpi_gbl_nesting_level--;
+	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_debug_print(ACPI_LV_FUNCTIONS,
+				 line_number, function_name, module_name,
+				 component_id, "%s %p\n", acpi_gbl_fn_exit_str,
+				 ptr);
+	}
+
+	if (acpi_gbl_nesting_level) {
+		acpi_gbl_nesting_level--;
+	}
 }
 
 #endif
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ut_dump_buffer
- *
- * PARAMETERS:  buffer              - Buffer to dump
- *              count               - Amount to dump, in bytes
- *              display             - BYTE, WORD, DWORD, or QWORD display
- *              offset              - Beginning buffer offset (display only)
- *
- * RETURN:      None
- *
- * DESCRIPTION: Generic dump buffer in both hex and ascii.
- *
- ******************************************************************************/
-
-void acpi_ut_dump_buffer(u8 *buffer, u32 count, u32 display, u32 base_offset)
-{
-	u32 i = 0;
-	u32 j;
-	u32 temp32;
-	u8 buf_char;
-
-	if (!buffer) {
-		acpi_os_printf("Null Buffer Pointer in DumpBuffer!\n");
-		return;
-	}
-
-	if ((count < 4) || (count & 0x01)) {
-		display = DB_BYTE_DISPLAY;
-	}
-
-	/* Nasty little dump buffer routine! */
-
-	while (i < count) {
-
-		/* Print current offset */
-
-		acpi_os_printf("%6.4X: ", (base_offset + i));
-
-		/* Print 16 hex chars */
-
-		for (j = 0; j < 16;) {
-			if (i + j >= count) {
-
-				/* Dump fill spaces */
-
-				acpi_os_printf("%*s", ((display * 2) + 1), " ");
-				j += display;
-				continue;
-			}
-
-			switch (display) {
-			case DB_BYTE_DISPLAY:
-			default:	/* Default is BYTE display */
-
-				acpi_os_printf("%02X ",
-					       buffer[(acpi_size) i + j]);
-				break;
-
-			case DB_WORD_DISPLAY:
-
-				ACPI_MOVE_16_TO_32(&temp32,
-						   &buffer[(acpi_size) i + j]);
-				acpi_os_printf("%04X ", temp32);
-				break;
-
-			case DB_DWORD_DISPLAY:
-
-				ACPI_MOVE_32_TO_32(&temp32,
-						   &buffer[(acpi_size) i + j]);
-				acpi_os_printf("%08X ", temp32);
-				break;
-
-			case DB_QWORD_DISPLAY:
-
-				ACPI_MOVE_32_TO_32(&temp32,
-						   &buffer[(acpi_size) i + j]);
-				acpi_os_printf("%08X", temp32);
-
-				ACPI_MOVE_32_TO_32(&temp32,
-						   &buffer[(acpi_size) i + j +
-							   4]);
-				acpi_os_printf("%08X ", temp32);
-				break;
-			}
-
-			j += display;
-		}
-
-		/*
-		 * Print the ASCII equivalent characters but watch out for the bad
-		 * unprintable ones (printable chars are 0x20 through 0x7E)
-		 */
-		acpi_os_printf(" ");
-		for (j = 0; j < 16; j++) {
-			if (i + j >= count) {
-				acpi_os_printf("\n");
-				return;
-			}
-
-			buf_char = buffer[(acpi_size) i + j];
-			if (ACPI_IS_PRINT(buf_char)) {
-				acpi_os_printf("%c", buf_char);
-			} else {
-				acpi_os_printf(".");
-			}
-		}
-
-		/* Done with that line. */
-
-		acpi_os_printf("\n");
-		i += 16;
-	}
-
-	return;
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ut_debug_dump_buffer
- *
- * PARAMETERS:  buffer              - Buffer to dump
- *              count               - Amount to dump, in bytes
- *              display             - BYTE, WORD, DWORD, or QWORD display
- *              component_ID        - Caller's component ID
- *
- * RETURN:      None
- *
- * DESCRIPTION: Generic dump buffer in both hex and ascii.
- *
- ******************************************************************************/
-
-void
-acpi_ut_debug_dump_buffer(u8 *buffer, u32 count, u32 display, u32 component_id)
-{
-
-	/* Only dump the buffer if tracing is enabled */
-
-	if (!((ACPI_LV_TABLES & acpi_dbg_level) &&
-	      (component_id & acpi_dbg_layer))) {
-		return;
-	}
-
-	acpi_ut_dump_buffer(buffer, count, display, 0);
-}

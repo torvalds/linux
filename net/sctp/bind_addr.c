@@ -27,19 +27,13 @@
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    La Monte H.P. Yarroll <piggy@acm.org>
  *    Karl Knutson          <karl@athena.chicago.il.us>
  *    Jon Grimm             <jgrimm@us.ibm.com>
  *    Daisy Chang           <daisyc@us.ibm.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #include <linux/types.h>
@@ -131,8 +125,6 @@ int sctp_bind_addr_dup(struct sctp_bind_addr *dest,
  */
 void sctp_bind_addr_init(struct sctp_bind_addr *bp, __u16 port)
 {
-	bp->malloced = 0;
-
 	INIT_LIST_HEAD(&bp->address_list);
 	bp->port = port;
 }
@@ -155,11 +147,6 @@ void sctp_bind_addr_free(struct sctp_bind_addr *bp)
 {
 	/* Empty the bind address list. */
 	sctp_bind_addr_clean(bp);
-
-	if (bp->malloced) {
-		kfree(bp);
-		SCTP_DBG_OBJCNT_DEC(bind_addr);
-	}
 }
 
 /* Add an address to the bind address list in the SCTP_bind_addr structure. */
@@ -169,7 +156,7 @@ int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
 	struct sctp_sockaddr_entry *addr;
 
 	/* Add the address to the bind address list.  */
-	addr = t_new(struct sctp_sockaddr_entry, gfp);
+	addr = kzalloc(sizeof(*addr), gfp);
 	if (!addr)
 		return -ENOMEM;
 

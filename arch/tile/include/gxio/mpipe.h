@@ -220,6 +220,13 @@ typedef MPIPE_PDESC_t gxio_mpipe_idesc_t;
  */
 typedef MPIPE_EDMA_DESC_t gxio_mpipe_edesc_t;
 
+/*
+ * Max # of mpipe instances. 2 currently.
+ */
+#define GXIO_MPIPE_INSTANCE_MAX  HV_MPIPE_INSTANCE_MAX
+
+#define NR_MPIPE_MAX   GXIO_MPIPE_INSTANCE_MAX
+
 /* Get the "va" field from an "idesc".
  *
  * This is the address at which the ingress hardware copied the first
@@ -310,6 +317,9 @@ typedef struct {
 
 	/* File descriptor for calling up to Linux (and thus the HV). */
 	int fd;
+
+	/* Corresponding mpipe instance #. */
+	int instance;
 
 	/* The VA at which configuration registers are mapped. */
 	char *mmio_cfg_base;
@@ -810,7 +820,7 @@ extern int gxio_mpipe_alloc_edma_rings(gxio_mpipe_context_t *context,
 /* Initialize an eDMA ring, using the given memory and size.
  *
  * @param context An initialized mPIPE context.
- * @param ring The eDMA ring index.
+ * @param ering The eDMA ring index.
  * @param channel The channel to use.  This must be one of the channels
  * associated with the context's set of open links.
  * @param mem A physically contiguous region of memory to be filled
@@ -823,9 +833,36 @@ extern int gxio_mpipe_alloc_edma_rings(gxio_mpipe_context_t *context,
  * ::GXIO_ERR_INVAL_MEMORY_SIZE on failure.
  */
 extern int gxio_mpipe_init_edma_ring(gxio_mpipe_context_t *context,
-				     unsigned int ring, unsigned int channel,
+				     unsigned int ering, unsigned int channel,
 				     void *mem, size_t mem_size,
 				     unsigned int mem_flags);
+
+/* Set the "max_blks", "min_snf_blks", and "db" fields of
+ * ::MPIPE_EDMA_RG_INIT_DAT_THRESH_t for a given edma ring.
+ *
+ * The global pool of dynamic blocks will be automatically adjusted.
+ *
+ * This function should not be called after any egress has been done
+ * on the edma ring.
+ *
+ * Most applications should just use gxio_mpipe_equeue_set_snf_size().
+ *
+ * @param context An initialized mPIPE context.
+ * @param ering The eDMA ring index.
+ * @param max_blks The number of blocks to dedicate to the ring
+ * (normally min_snf_blks + 1).  Must be greater than min_snf_blocks.
+ * @param min_snf_blks The number of blocks which must be stored
+ * prior to starting to send the packet (normally 12).
+ * @param db Whether to allow use of dynamic blocks by the ring
+ * (normally 1).
+ *
+ * @return 0 on success, negative on error.
+ */
+extern int gxio_mpipe_config_edma_ring_blks(gxio_mpipe_context_t *context,
+					    unsigned int ering,
+					    unsigned int max_blks,
+					    unsigned int min_snf_blks,
+					    unsigned int db);
 
 /*****************************************************************
  *                      Classifier Program                        *
@@ -1288,15 +1325,39 @@ typedef struct {
 	/* The log2() of the number of entries. */
 	unsigned long log2_num_entries;
 
+	/* The context. */
+	gxio_mpipe_context_t *context;
+
+	/* The ering. */
+	unsigned int ering;
+
+	/* The channel. */
+	unsigned int channel;
+
 } gxio_mpipe_equeue_t;
 
 /* Initialize an "equeue".
  *
- * Takes the equeue plus the same args as gxio_mpipe_init_edma_ring().
+ * This function uses gxio_mpipe_init_edma_ring() to initialize the
+ * underlying edma_ring using the provided arguments.
+ *
+ * @param equeue An egress queue to be initialized.
+ * @param context An initialized mPIPE context.
+ * @param ering The eDMA ring index.
+ * @param channel The channel to use.  This must be one of the channels
+ * associated with the context's set of open links.
+ * @param mem A physically contiguous region of memory to be filled
+ * with a ring of ::gxio_mpipe_edesc_t structures.
+ * @param mem_size Number of bytes in the ring.  Must be 512, 2048,
+ * 8192 or 65536, times 16 (i.e. sizeof(gxio_mpipe_edesc_t)).
+ * @param mem_flags ::gxio_mpipe_mem_flags_e memory flags.
+ *
+ * @return 0 on success, ::GXIO_MPIPE_ERR_BAD_EDMA_RING or
+ * ::GXIO_ERR_INVAL_MEMORY_SIZE on failure.
  */
 extern int gxio_mpipe_equeue_init(gxio_mpipe_equeue_t *equeue,
 				  gxio_mpipe_context_t *context,
-				  unsigned int edma_ring_id,
+				  unsigned int ering,
 				  unsigned int channel,
 				  void *mem, unsigned int mem_size,
 				  unsigned int mem_flags);
@@ -1494,6 +1555,37 @@ static inline int gxio_mpipe_equeue_is_complete(gxio_mpipe_equeue_t *equeue,
 					    completion_slot, update);
 }
 
+/* Set the snf (store and forward) size for an equeue.
+ *
+ * The snf size for an equeue defaults to 1536, and encodes the size
+ * of the largest packet for which egress is guaranteed to avoid
+ * transmission underruns and/or corrupt checksums under heavy load.
+ *
+ * The snf size affects a global resource pool which cannot support,
+ * for example, all 24 equeues each requesting an snf size of 8K.
+ *
+ * To ensure that jumbo packets can be egressed properly, the snf size
+ * should be set to the size of the largest possible packet, which
+ * will usually be limited by the size of the app's largest buffer.
+ *
+ * This is a convenience wrapper around
+ * gxio_mpipe_config_edma_ring_blks().
+ *
+ * This function should not be called after any egress has been done
+ * on the equeue.
+ *
+ * @param equeue An egress queue initialized via gxio_mpipe_equeue_init().
+ * @param size The snf size, in bytes.
+ * @return Zero on success, negative error otherwise.
+ */
+static inline int gxio_mpipe_equeue_set_snf_size(gxio_mpipe_equeue_t *equeue,
+						 size_t size)
+{
+	int blks = (size + 127) / 128;
+	return gxio_mpipe_config_edma_ring_blks(equeue->context, equeue->ering,
+						blks + 1, blks, 1);
+}
+
 /*****************************************************************
  *                        Link Management                         *
  ******************************************************************/
@@ -1634,6 +1726,24 @@ typedef struct {
 	uint8_t mac;
 } gxio_mpipe_link_t;
 
+/* Translate a link name to the instance number of the mPIPE shim which is
+ *  connected to that link.  This call does not verify whether the link is
+ *  currently available, and does not reserve any link resources;
+ *  gxio_mpipe_link_open() must be called to perform those functions.
+ *
+ *  Typically applications will call this function to translate a link name
+ *  to an mPIPE instance number; call gxio_mpipe_init(), passing it that
+ *  instance number, to initialize the mPIPE shim; and then call
+ *  gxio_mpipe_link_open(), passing it the same link name plus the mPIPE
+ *  context, to configure the link.
+ *
+ * @param link_name Name of the link; see @ref gxio_mpipe_link_names.
+ * @return The mPIPE instance number which is associated with the named
+ *  link, or a negative error code (::GXIO_ERR_NO_DEVICE) if the link does
+ *  not exist.
+ */
+extern int gxio_mpipe_link_instance(const char *link_name);
+
 /* Retrieve one of this system's legal link names, and its MAC address.
  *
  * @param index Link name index.  If a system supports N legal link names,
@@ -1697,6 +1807,17 @@ static inline int gxio_mpipe_link_channel(gxio_mpipe_link_t *link)
 	return link->channel;
 }
 
+/* Set a link attribute.
+ *
+ * @param link A properly initialized link state object.
+ * @param attr An attribute from the set of @ref gxio_mpipe_link_attrs.
+ * @param val New value of the attribute.
+ * @return 0 if the attribute was successfully set, or a negative error
+ *  code.
+ */
+extern int gxio_mpipe_link_set_attr(gxio_mpipe_link_t *link, uint32_t attr,
+				    int64_t val);
+
 ///////////////////////////////////////////////////////////////////
 //                             Timestamp                         //
 ///////////////////////////////////////////////////////////////////
@@ -1732,5 +1853,19 @@ extern int gxio_mpipe_set_timestamp(gxio_mpipe_context_t *context,
  */
 extern int gxio_mpipe_adjust_timestamp(gxio_mpipe_context_t *context,
 				       int64_t delta);
+
+/** Adjust the mPIPE timestamp clock frequency.
+ *
+ * @param context An initialized mPIPE context.
+ * @param ppb A 32-bit signed PPB (Parts Per Billion) value to adjust.
+ * The absolute value of ppb must be less than or equal to 1000000000.
+ * Values less than about 30000 will generally cause a GXIO_ERR_INVAL
+ * return due to the granularity of the hardware that converts reference
+ * clock cycles into seconds and nanoseconds.
+ * @return If the call was successful, zero; otherwise, a negative error
+ *  code.
+ */
+extern int gxio_mpipe_adjust_timestamp_freq(gxio_mpipe_context_t* context,
+                                            int32_t ppb);
 
 #endif /* !_GXIO_MPIPE_H_ */

@@ -569,7 +569,6 @@ static void capi_recv_message(struct capi20_appl *ap, struct sk_buff *skb)
 {
 	struct capidev *cdev = ap->private;
 #ifdef CONFIG_ISDN_CAPI_MIDDLEWARE
-	struct tty_struct *tty;
 	struct capiminor *mp;
 	u16 datahandle;
 	struct capincci *np;
@@ -627,11 +626,7 @@ static void capi_recv_message(struct capi20_appl *ap, struct sk_buff *skb)
 			 CAPIMSG_U16(skb->data, CAPIMSG_BASELEN + 4 + 2));
 		kfree_skb(skb);
 		capiminor_del_ack(mp, datahandle);
-		tty = tty_port_tty_get(&mp->port);
-		if (tty) {
-			tty_wakeup(tty);
-			tty_kref_put(tty);
-		}
+		tty_port_tty_wakeup(&mp->port);
 		handle_minor_send(mp);
 
 	} else {

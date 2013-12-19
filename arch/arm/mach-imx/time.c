@@ -26,8 +26,8 @@
 #include <linux/clockchips.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/sched_clock.h>
 
-#include <asm/sched_clock.h>
 #include <asm/mach/time.h>
 
 #include "common.h"
@@ -152,7 +152,8 @@ static int v2_set_next_event(unsigned long evt,
 
 	__raw_writel(tcmp, timer_base + V2_TCMP);
 
-	return (int)(tcmp - __raw_readl(timer_base + V2_TCN)) < 0 ?
+	return evt < 0x7fffffff &&
+		(int)(tcmp - __raw_readl(timer_base + V2_TCN)) < 0 ?
 				-ETIME : 0;
 }
 
@@ -249,14 +250,13 @@ static irqreturn_t mxc_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction mxc_timer_irq = {
 	.name		= "i.MX Timer Tick",
-	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.flags		= IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= mxc_timer_interrupt,
 };
 
 static struct clock_event_device clockevent_mxc = {
 	.name		= "mxc_timer1",
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
-	.shift		= 32,
 	.set_mode	= mxc_set_mode,
 	.set_next_event	= mx1_2_set_next_event,
 	.rating		= 200,
@@ -264,21 +264,13 @@ static struct clock_event_device clockevent_mxc = {
 
 static int __init mxc_clockevent_init(struct clk *timer_clk)
 {
-	unsigned int c = clk_get_rate(timer_clk);
-
 	if (timer_is_v2())
 		clockevent_mxc.set_next_event = v2_set_next_event;
 
-	clockevent_mxc.mult = div_sc(c, NSEC_PER_SEC,
-					clockevent_mxc.shift);
-	clockevent_mxc.max_delta_ns =
-			clockevent_delta2ns(0xfffffffe, &clockevent_mxc);
-	clockevent_mxc.min_delta_ns =
-			clockevent_delta2ns(0xff, &clockevent_mxc);
-
 	clockevent_mxc.cpumask = cpumask_of(0);
-
-	clockevents_register_device(&clockevent_mxc);
+	clockevents_config_and_register(&clockevent_mxc,
+					clk_get_rate(timer_clk),
+					0xff, 0xfffffffe);
 
 	return 0;
 }

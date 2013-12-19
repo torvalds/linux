@@ -31,12 +31,14 @@
 #include <linux/mfd/max77686.h>
 #include <linux/mfd/max77686-private.h>
 #include <linux/err.h>
+#include <linux/of.h>
 
 #define I2C_ADDR_RTC	(0x0C >> 1)
 
 static struct mfd_cell max77686_devs[] = {
 	{ .name = "max77686-pmic", },
 	{ .name = "max77686-rtc", },
+	{ .name = "max77686-clk", },
 };
 
 static struct regmap_config max77686_regmap_config = {
@@ -46,7 +48,7 @@ static struct regmap_config max77686_regmap_config = {
 
 #ifdef CONFIG_OF
 static struct of_device_id max77686_pmic_dt_match[] = {
-	{.compatible = "maxim,max77686",        .data = 0},
+	{.compatible = "maxim,max77686", .data = NULL},
 	{},
 };
 
@@ -76,7 +78,7 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 			      const struct i2c_device_id *id)
 {
 	struct max77686_dev *max77686 = NULL;
-	struct max77686_platform_data *pdata = i2c->dev.platform_data;
+	struct max77686_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	unsigned int data;
 	int ret = 0;
 
@@ -84,23 +86,14 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 		pdata = max77686_i2c_parse_dt_pdata(&i2c->dev);
 
 	if (!pdata) {
-		ret = -EIO;
 		dev_err(&i2c->dev, "No platform data found.\n");
-		goto err;
+		return -EIO;
 	}
 
-	max77686 = kzalloc(sizeof(struct max77686_dev), GFP_KERNEL);
+	max77686 = devm_kzalloc(&i2c->dev,
+				sizeof(struct max77686_dev), GFP_KERNEL);
 	if (max77686 == NULL)
 		return -ENOMEM;
-
-	max77686->regmap = regmap_init_i2c(i2c, &max77686_regmap_config);
-	if (IS_ERR(max77686->regmap)) {
-		ret = PTR_ERR(max77686->regmap);
-		dev_err(max77686->dev, "Failed to allocate register map: %d\n",
-				ret);
-		kfree(max77686);
-		return ret;
-	}
 
 	i2c_set_clientdata(i2c, max77686);
 	max77686->dev = &i2c->dev;
@@ -111,12 +104,19 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 	max77686->irq_gpio = pdata->irq_gpio;
 	max77686->irq = i2c->irq;
 
+	max77686->regmap = regmap_init_i2c(i2c, &max77686_regmap_config);
+	if (IS_ERR(max77686->regmap)) {
+		ret = PTR_ERR(max77686->regmap);
+		dev_err(max77686->dev, "Failed to allocate register map: %d\n",
+				ret);
+		return ret;
+	}
+
 	if (regmap_read(max77686->regmap,
 			 MAX77686_REG_DEVICE_ID, &data) < 0) {
 		dev_err(max77686->dev,
 			"device not found on this channel (this is not an error)\n");
-		ret = -ENODEV;
-		goto err;
+		return -ENODEV;
 	} else
 		dev_info(max77686->dev, "device found\n");
 
@@ -127,17 +127,11 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 
 	ret = mfd_add_devices(max77686->dev, -1, max77686_devs,
 			      ARRAY_SIZE(max77686_devs), NULL, 0, NULL);
+	if (ret < 0) {
+		mfd_remove_devices(max77686->dev);
+		i2c_unregister_device(max77686->rtc);
+	}
 
-	if (ret < 0)
-		goto err_mfd;
-
-	return ret;
-
-err_mfd:
-	mfd_remove_devices(max77686->dev);
-	i2c_unregister_device(max77686->rtc);
-err:
-	kfree(max77686);
 	return ret;
 }
 
@@ -147,7 +141,6 @@ static int max77686_i2c_remove(struct i2c_client *i2c)
 
 	mfd_remove_devices(max77686->dev);
 	i2c_unregister_device(max77686->rtc);
-	kfree(max77686);
 
 	return 0;
 }

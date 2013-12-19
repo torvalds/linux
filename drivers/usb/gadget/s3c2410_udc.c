@@ -1538,9 +1538,10 @@ static int s3c2410_vbus_draw(struct usb_gadget *_gadget, unsigned ma)
 	return -ENOTSUPP;
 }
 
-static int s3c2410_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
-static int s3c2410_udc_stop(struct usb_gadget_driver *driver);
+static int s3c2410_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
+static int s3c2410_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
 
 static const struct usb_gadget_ops s3c2410_ops = {
 	.get_frame		= s3c2410_udc_get_frame,
@@ -1549,8 +1550,8 @@ static const struct usb_gadget_ops s3c2410_ops = {
 	.pullup			= s3c2410_udc_pullup,
 	.vbus_session		= s3c2410_udc_vbus_session,
 	.vbus_draw		= s3c2410_vbus_draw,
-	.start			= s3c2410_udc_start,
-	.stop			= s3c2410_udc_stop,
+	.udc_start		= s3c2410_udc_start,
+	.udc_stop		= s3c2410_udc_stop,
 };
 
 static void s3c2410_udc_command(enum s3c2410_udc_cmd_e cmd)
@@ -1664,84 +1665,27 @@ static void s3c2410_udc_enable(struct s3c2410_udc *dev)
 	s3c2410_udc_command(S3C2410_UDC_P_ENABLE);
 }
 
-static int s3c2410_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
+static int s3c2410_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct s3c2410_udc *udc = the_controller;
-	int		retval;
+	struct s3c2410_udc *udc = to_s3c2410(g);
 
 	dprintk(DEBUG_NORMAL, "%s() '%s'\n", __func__, driver->driver.name);
 
-	/* Sanity checks */
-	if (!udc)
-		return -ENODEV;
-
-	if (udc->driver)
-		return -EBUSY;
-
-	if (!bind || !driver->setup || driver->max_speed < USB_SPEED_FULL) {
-		dev_err(&udc->gadget.dev, "Invalid driver: bind %p setup %p speed %d\n",
-			bind, driver->setup, driver->max_speed);
-		return -EINVAL;
-	}
-#if defined(MODULE)
-	if (!driver->unbind) {
-		dev_err(&udc->gadget.dev, "Invalid driver: no unbind method\n");
-		return -EINVAL;
-	}
-#endif
-
 	/* Hook the driver */
 	udc->driver = driver;
-	udc->gadget.dev.driver = &driver->driver;
-
-	/* Bind the driver */
-	retval = device_add(&udc->gadget.dev);
-	if (retval) {
-		dev_err(&udc->gadget.dev, "Error in device_add() : %d\n", retval);
-		goto register_error;
-	}
-
-	dprintk(DEBUG_NORMAL, "binding gadget driver '%s'\n",
-		driver->driver.name);
-
-	retval = bind(&udc->gadget, driver);
-	if (retval) {
-		device_del(&udc->gadget.dev);
-		goto register_error;
-	}
 
 	/* Enable udc */
 	s3c2410_udc_enable(udc);
 
 	return 0;
-
-register_error:
-	udc->driver = NULL;
-	udc->gadget.dev.driver = NULL;
-	return retval;
 }
 
-static int s3c2410_udc_stop(struct usb_gadget_driver *driver)
+static int s3c2410_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct s3c2410_udc *udc = the_controller;
+	struct s3c2410_udc *udc = to_s3c2410(g);
 
-	if (!udc)
-		return -ENODEV;
-
-	if (!driver || driver != udc->driver || !driver->unbind)
-		return -EINVAL;
-
-	dprintk(DEBUG_NORMAL, "usb_gadget_unregister_driver() '%s'\n",
-		driver->driver.name);
-
-	/* report disconnect */
-	if (driver->disconnect)
-		driver->disconnect(&udc->gadget);
-
-	driver->unbind(&udc->gadget);
-
-	device_del(&udc->gadget.dev);
 	udc->driver = NULL;
 
 	/* Disable udc */
@@ -1865,7 +1809,7 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 	}
 
 	spin_lock_init(&udc->lock);
-	udc_info = pdev->dev.platform_data;
+	udc_info = dev_get_platdata(&pdev->dev);
 
 	rsrc_start = S3C2410_PA_USBDEV;
 	rsrc_len   = S3C24XX_SZ_USBDEV;
@@ -1878,10 +1822,6 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 		retval = -ENOMEM;
 		goto err_mem;
 	}
-
-	device_initialize(&udc->gadget.dev);
-	udc->gadget.dev.parent = &pdev->dev;
-	udc->gadget.dev.dma_mask = pdev->dev.dma_mask;
 
 	the_controller = udc;
 	platform_set_drvdata(pdev, udc);
@@ -1911,6 +1851,7 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 		irq = gpio_to_irq(udc_info->vbus_pin);
 		if (irq < 0) {
 			dev_err(dev, "no irq for gpio vbus pin\n");
+			retval = irq;
 			goto err_gpio_claim;
 		}
 
@@ -1988,10 +1929,10 @@ static int s3c2410_udc_remove(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "%s()\n", __func__);
 
-	usb_del_gadget_udc(&udc->gadget);
 	if (udc->driver)
 		return -EBUSY;
 
+	usb_del_gadget_udc(&udc->gadget);
 	debugfs_remove(udc->regs_info);
 
 	if (udc_info && !udc_info->udc_command &&
@@ -2007,8 +1948,6 @@ static int s3c2410_udc_remove(struct platform_device *pdev)
 
 	iounmap(base_addr);
 	release_mem_region(rsrc_start, rsrc_len);
-
-	platform_set_drvdata(pdev, NULL);
 
 	if (!IS_ERR(udc_clock) && udc_clock != NULL) {
 		clk_disable(udc_clock);

@@ -54,7 +54,7 @@ MODULE_PARM_DESC(debug, "enable debug messages");
 
 unsigned int fw_debug;
 module_param(fw_debug, int, 0644);
-MODULE_PARM_DESC(fw_debug, "Firware debug level def:2");
+MODULE_PARM_DESC(fw_debug, "Firmware debug level def:2");
 
 unsigned int encoder_buffers = SAA7164_MAX_ENCODER_BUFFERS;
 module_param(encoder_buffers, int, 0644);
@@ -1185,8 +1185,8 @@ static int saa7164_thread_function(void *data)
 	return 0;
 }
 
-static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
-				     const struct pci_device_id *pci_id)
+static int saa7164_initdev(struct pci_dev *pci_dev,
+			   const struct pci_device_id *pci_id)
 {
 	struct saa7164_dev *dev;
 	int err, i;
@@ -1195,6 +1195,12 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (NULL == dev)
 		return -ENOMEM;
+
+	err = v4l2_device_register(&pci_dev->dev, &dev->v4l2_dev);
+	if (err < 0) {
+		dev_err(&pci_dev->dev, "v4l2_device_register failed\n");
+		goto fail_free;
+	}
 
 	/* pci init */
 	dev->pci = pci_dev;
@@ -1226,7 +1232,7 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 	}
 
 	err = request_irq(pci_dev->irq, saa7164_irq,
-		IRQF_SHARED | IRQF_DISABLED, dev->name, dev);
+		IRQF_SHARED, dev->name, dev);
 	if (err < 0) {
 		printk(KERN_ERR "%s: can't get IRQ %d\n", dev->name,
 			pci_dev->irq);
@@ -1348,9 +1354,11 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 		if (fw_debug) {
 			dev->kthread = kthread_run(saa7164_thread_function, dev,
 				"saa7164 debug");
-			if (!dev->kthread)
+			if (IS_ERR(dev->kthread)) {
+				dev->kthread = NULL;
 				printk(KERN_ERR "%s() Failed to create "
 					"debug kernel thread\n", __func__);
+			}
 		}
 
 	} /* != BOARD_UNKNOWN */
@@ -1367,6 +1375,7 @@ fail_fw:
 fail_irq:
 	saa7164_dev_unregister(dev);
 fail_free:
+	v4l2_device_unregister(&dev->v4l2_dev);
 	kfree(dev);
 	return err;
 }
@@ -1376,7 +1385,7 @@ static void saa7164_shutdown(struct saa7164_dev *dev)
 	dprintk(1, "%s()\n", __func__);
 }
 
-static void __devexit saa7164_finidev(struct pci_dev *pci_dev)
+static void saa7164_finidev(struct pci_dev *pci_dev)
 {
 	struct saa7164_dev *dev = pci_get_drvdata(pci_dev);
 
@@ -1432,13 +1441,13 @@ static void __devexit saa7164_finidev(struct pci_dev *pci_dev)
 
 	/* unregister stuff */
 	free_irq(pci_dev->irq, dev);
-	pci_set_drvdata(pci_dev, NULL);
 
 	mutex_lock(&devlist);
 	list_del(&dev->devlist);
 	mutex_unlock(&devlist);
 
 	saa7164_dev_unregister(dev);
+	v4l2_device_unregister(&dev->v4l2_dev);
 	kfree(dev);
 }
 
@@ -1459,7 +1468,7 @@ static struct pci_driver saa7164_pci_driver = {
 	.name     = "saa7164",
 	.id_table = saa7164_pci_tbl,
 	.probe    = saa7164_initdev,
-	.remove   = __devexit_p(saa7164_finidev),
+	.remove   = saa7164_finidev,
 	/* TODO */
 	.suspend  = NULL,
 	.resume   = NULL,

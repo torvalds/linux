@@ -30,6 +30,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -38,6 +39,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/dmaengine_pcm.h>
 
 #include "tegra30_ahub.h"
 #include "tegra30_i2s.h"
@@ -71,7 +73,7 @@ static int tegra30_i2s_runtime_resume(struct device *dev)
 	return 0;
 }
 
-int tegra30_i2s_startup(struct snd_pcm_substream *substream,
+static int tegra30_i2s_startup(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
 	struct tegra30_i2s *i2s = snd_soc_dai_get_drvdata(dai);
@@ -80,17 +82,17 @@ int tegra30_i2s_startup(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		ret = tegra30_ahub_allocate_tx_fifo(&i2s->playback_fifo_cif,
 					&i2s->playback_dma_data.addr,
-					&i2s->playback_dma_data.req_sel);
-		i2s->playback_dma_data.wrap = 4;
-		i2s->playback_dma_data.width = 32;
+					&i2s->playback_dma_data.slave_id);
+		i2s->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+		i2s->playback_dma_data.maxburst = 4;
 		tegra30_ahub_set_rx_cif_source(i2s->playback_i2s_cif,
 					       i2s->playback_fifo_cif);
 	} else {
 		ret = tegra30_ahub_allocate_rx_fifo(&i2s->capture_fifo_cif,
 					&i2s->capture_dma_data.addr,
-					&i2s->capture_dma_data.req_sel);
-		i2s->capture_dma_data.wrap = 4;
-		i2s->capture_dma_data.width = 32;
+					&i2s->capture_dma_data.slave_id);
+		i2s->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+		i2s->capture_dma_data.maxburst = 4;
 		tegra30_ahub_set_rx_cif_source(i2s->capture_fifo_cif,
 					       i2s->capture_i2s_cif);
 	}
@@ -98,7 +100,7 @@ int tegra30_i2s_startup(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-void tegra30_i2s_shutdown(struct snd_pcm_substream *substream,
+static void tegra30_i2s_shutdown(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
 	struct tegra30_i2s *i2s = snd_soc_dai_get_drvdata(dai);
@@ -178,6 +180,7 @@ static int tegra30_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct tegra30_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	unsigned int mask, val, reg;
 	int ret, sample_size, srate, i2sclock, bitcnt;
+	struct tegra30_ahub_cif_conf cif_conf;
 
 	if (params_channels(params) != 2)
 		return -EINVAL;
@@ -216,21 +219,26 @@ static int tegra30_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	regmap_write(i2s->regmap, TEGRA30_I2S_TIMING, val);
 
-	val = (0 << TEGRA30_AUDIOCIF_CTRL_FIFO_THRESHOLD_SHIFT) |
-	      (1 << TEGRA30_AUDIOCIF_CTRL_AUDIO_CHANNELS_SHIFT) |
-	      (1 << TEGRA30_AUDIOCIF_CTRL_CLIENT_CHANNELS_SHIFT) |
-	      TEGRA30_AUDIOCIF_CTRL_AUDIO_BITS_16 |
-	      TEGRA30_AUDIOCIF_CTRL_CLIENT_BITS_16;
+	cif_conf.threshold = 0;
+	cif_conf.audio_channels = 2;
+	cif_conf.client_channels = 2;
+	cif_conf.audio_bits = TEGRA30_AUDIOCIF_BITS_16;
+	cif_conf.client_bits = TEGRA30_AUDIOCIF_BITS_16;
+	cif_conf.expand = 0;
+	cif_conf.stereo_conv = 0;
+	cif_conf.replicate = 0;
+	cif_conf.truncate = 0;
+	cif_conf.mono_conv = 0;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		val |= TEGRA30_AUDIOCIF_CTRL_DIRECTION_RX;
+		cif_conf.direction = TEGRA30_AUDIOCIF_DIRECTION_RX;
 		reg = TEGRA30_I2S_CIF_RX_CTRL;
 	} else {
-		val |= TEGRA30_AUDIOCIF_CTRL_DIRECTION_TX;
-		reg = TEGRA30_I2S_CIF_RX_CTRL;
+		cif_conf.direction = TEGRA30_AUDIOCIF_DIRECTION_TX;
+		reg = TEGRA30_I2S_CIF_TX_CTRL;
 	}
 
-	regmap_write(i2s->regmap, reg, val);
+	i2s->soc_data->set_audio_cif(i2s->regmap, reg, &cif_conf);
 
 	val = (1 << TEGRA30_I2S_OFFSET_RX_DATA_OFFSET_SHIFT) |
 	      (1 << TEGRA30_I2S_OFFSET_TX_DATA_OFFSET_SHIFT);
@@ -336,6 +344,10 @@ static const struct snd_soc_dai_driver tegra30_i2s_dai_template = {
 	.symmetric_rates = 1,
 };
 
+static const struct snd_soc_component_driver tegra30_i2s_component = {
+	.name		= DRV_NAME,
+};
+
 static bool tegra30_i2s_wr_rd_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -364,7 +376,7 @@ static bool tegra30_i2s_wr_rd_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static bool tegra30_i2s_volatile_reg(struct device *dev, unsigned int reg)
@@ -377,7 +389,7 @@ static bool tegra30_i2s_volatile_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static const struct regmap_config tegra30_i2s_regmap_config = {
@@ -391,9 +403,24 @@ static const struct regmap_config tegra30_i2s_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
+static const struct tegra30_i2s_soc_data tegra30_i2s_config = {
+	.set_audio_cif = tegra30_ahub_set_cif,
+};
+
+static const struct tegra30_i2s_soc_data tegra124_i2s_config = {
+	.set_audio_cif = tegra124_ahub_set_cif,
+};
+
+static const struct of_device_id tegra30_i2s_of_match[] = {
+	{ .compatible = "nvidia,tegra124-i2s", .data = &tegra124_i2s_config },
+	{ .compatible = "nvidia,tegra30-i2s", .data = &tegra30_i2s_config },
+	{},
+};
+
 static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 {
 	struct tegra30_i2s *i2s;
+	const struct of_device_id *match;
 	u32 cif_ids[2];
 	struct resource *mem, *memregion;
 	void __iomem *regs;
@@ -406,6 +433,14 @@ static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 		goto err;
 	}
 	dev_set_drvdata(&pdev->dev, i2s);
+
+	match = of_match_device(tegra30_i2s_of_match, &pdev->dev);
+	if (!match) {
+		dev_err(&pdev->dev, "Error: No device match found\n");
+		ret = -ENODEV;
+		goto err;
+	}
+	i2s->soc_data = (struct tegra30_i2s_soc_data *)match->data;
 
 	i2s->dai = tegra30_i2s_dai_template;
 	i2s->dai.name = dev_name(&pdev->dev);
@@ -464,7 +499,8 @@ static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 			goto err_pm_disable;
 	}
 
-	ret = snd_soc_register_dai(&pdev->dev, &i2s->dai);
+	ret = snd_soc_register_component(&pdev->dev, &tegra30_i2s_component,
+				   &i2s->dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register DAI: %d\n", ret);
 		ret = -ENOMEM;
@@ -474,13 +510,13 @@ static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 	ret = tegra_pcm_platform_register(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register PCM: %d\n", ret);
-		goto err_unregister_dai;
+		goto err_unregister_component;
 	}
 
 	return 0;
 
-err_unregister_dai:
-	snd_soc_unregister_dai(&pdev->dev);
+err_unregister_component:
+	snd_soc_unregister_component(&pdev->dev);
 err_suspend:
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		tegra30_i2s_runtime_suspend(&pdev->dev);
@@ -501,21 +537,42 @@ static int tegra30_i2s_platform_remove(struct platform_device *pdev)
 		tegra30_i2s_runtime_suspend(&pdev->dev);
 
 	tegra_pcm_platform_unregister(&pdev->dev);
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	clk_put(i2s->clk_i2s);
 
 	return 0;
 }
 
-static const struct of_device_id tegra30_i2s_of_match[] = {
-	{ .compatible = "nvidia,tegra30-i2s", },
-	{},
-};
+#ifdef CONFIG_PM_SLEEP
+static int tegra30_i2s_suspend(struct device *dev)
+{
+	struct tegra30_i2s *i2s = dev_get_drvdata(dev);
+
+	regcache_mark_dirty(i2s->regmap);
+
+	return 0;
+}
+
+static int tegra30_i2s_resume(struct device *dev)
+{
+	struct tegra30_i2s *i2s = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0)
+		return ret;
+	ret = regcache_sync(i2s->regmap);
+	pm_runtime_put(dev);
+
+	return ret;
+}
+#endif
 
 static const struct dev_pm_ops tegra30_i2s_pm_ops = {
 	SET_RUNTIME_PM_OPS(tegra30_i2s_runtime_suspend,
 			   tegra30_i2s_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(tegra30_i2s_suspend, tegra30_i2s_resume)
 };
 
 static struct platform_driver tegra30_i2s_driver = {

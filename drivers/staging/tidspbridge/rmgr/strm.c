@@ -223,7 +223,7 @@ void strm_delete(struct strm_mgr *strm_mgr_obj)
  *  Purpose:
  *      Frees the buffers allocated for a stream.
  */
-int strm_free_buffer(struct strm_res_object *strmres, u8 ** ap_buffer,
+int strm_free_buffer(struct strm_res_object *strmres, u8 **ap_buffer,
 			    u32 num_bufs, struct process_context *pr_ctxt)
 {
 	int status = 0;
@@ -523,7 +523,7 @@ func_cont:
  *  Purpose:
  *      Relcaims a buffer from a stream.
  */
-int strm_reclaim(struct strm_object *stream_obj, u8 ** buf_ptr,
+int strm_reclaim(struct strm_object *stream_obj, u8 **buf_ptr,
 			u32 *nbytes, u32 *buff_size, u32 *pdw_arg)
 {
 	struct bridge_drv_interface *intf_fxns;
@@ -599,7 +599,7 @@ func_end:
  */
 int strm_register_notify(struct strm_object *stream_obj, u32 event_mask,
 				u32 notify_type, struct dsp_notification
-				* hnotification)
+				*hnotification)
 {
 	struct bridge_drv_interface *intf_fxns;
 	int status = 0;

@@ -86,3 +86,6 @@ tuner=85 - Philips FQ1236 MK5
 tuner=86 - Tena TNF5337 MFD
 tuner=87 - Xceive 4000 tuner
 tuner=88 - Xceive 5000C tuner
+tuner=89 - Sony BTF-PG472Z PAL/SECAM
+tuner=90 - Sony BTF-PK467Z NTSC-M-JP
+tuner=91 - Sony BTF-PB463Z NTSC-M

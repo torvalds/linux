@@ -3,24 +3,10 @@
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  * Author: Inki Dae <inki.dae@samsung.com>
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
  */
 
 #include <drmP.h>
@@ -61,10 +47,16 @@ int drm_create_iommu_mapping(struct drm_device *drm_dev)
 
 	dev->dma_parms = devm_kzalloc(dev, sizeof(*dev->dma_parms),
 					GFP_KERNEL);
+	if (!dev->dma_parms)
+		goto error;
+
 	dma_set_max_seg_size(dev, 0xffffffffu);
 	dev->archdata.mapping = mapping;
 
 	return 0;
+error:
+	arm_iommu_release_mapping(mapping);
+	return -ENOMEM;
 }
 
 /*
@@ -105,6 +97,9 @@ int drm_iommu_attach_device(struct drm_device *drm_dev,
 	subdrv_dev->dma_parms = devm_kzalloc(subdrv_dev,
 					sizeof(*subdrv_dev->dma_parms),
 					GFP_KERNEL);
+	if (!subdrv_dev->dma_parms)
+		return -ENOMEM;
+
 	dma_set_max_seg_size(subdrv_dev, 0xffffffffu);
 
 	ret = arm_iommu_attach_device(subdrv_dev, dev->archdata.mapping);

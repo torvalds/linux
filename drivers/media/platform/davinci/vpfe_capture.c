@@ -376,7 +376,7 @@ static int vpfe_config_ccdc_image_format(struct vpfe_device *vpfe_dev)
  * values in ccdc
  */
 static int vpfe_config_image_format(struct vpfe_device *vpfe_dev,
-				    const v4l2_std_id *std_id)
+				    v4l2_std_id std_id)
 {
 	struct vpfe_subdev_info *sdinfo = vpfe_dev->current_subdev;
 	struct v4l2_mbus_framefmt mbus_fmt;
@@ -384,7 +384,7 @@ static int vpfe_config_image_format(struct vpfe_device *vpfe_dev,
 	int i, ret = 0;
 
 	for (i = 0; i < ARRAY_SIZE(vpfe_standards); i++) {
-		if (vpfe_standards[i].std_id & *std_id) {
+		if (vpfe_standards[i].std_id & std_id) {
 			vpfe_dev->std_info.active_pixels =
 					vpfe_standards[i].width;
 			vpfe_dev->std_info.active_lines =
@@ -461,7 +461,7 @@ static int vpfe_initialize_device(struct vpfe_device *vpfe_dev)
 
 	/* Configure the default format information */
 	ret = vpfe_config_image_format(vpfe_dev,
-				&vpfe_standards[vpfe_dev->std_index].std_id);
+				vpfe_standards[vpfe_dev->std_index].std_id);
 	if (ret)
 		return ret;
 
@@ -560,10 +560,7 @@ static void vpfe_schedule_bottom_field(struct vpfe_device *vpfe_dev)
 
 static void vpfe_process_buffer_complete(struct vpfe_device *vpfe_dev)
 {
-	struct timeval timevalue;
-
-	do_gettimeofday(&timevalue);
-	vpfe_dev->cur_frm->ts = timevalue;
+	v4l2_get_timestamp(&vpfe_dev->cur_frm->ts);
 	vpfe_dev->cur_frm->state = VIDEOBUF_DONE;
 	vpfe_dev->cur_frm->size = vpfe_dev->fmt.fmt.pix.sizeimage;
 	wake_up_interruptible(&vpfe_dev->cur_frm->done);
@@ -691,7 +688,7 @@ static int vpfe_attach_irq(struct vpfe_device *vpfe_dev)
 	frame_format = ccdc_dev->hw_ops.get_frame_format();
 	if (frame_format == CCDC_FRMFMT_PROGRESSIVE) {
 		return request_irq(vpfe_dev->ccdc_irq1, vdint1_isr,
-				    IRQF_DISABLED, "vpfe_capture1",
+				    0, "vpfe_capture1",
 				    vpfe_dev);
 	}
 	return 0;
@@ -1110,6 +1107,7 @@ static int vpfe_g_input(struct file *file, void *priv, unsigned int *index)
 static int vpfe_s_input(struct file *file, void *priv, unsigned int index)
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
+	struct v4l2_subdev *sd;
 	struct vpfe_subdev_info *sdinfo;
 	int subdev_index, inp_index;
 	struct vpfe_route *route;
@@ -1141,14 +1139,15 @@ static int vpfe_s_input(struct file *file, void *priv, unsigned int index)
 	}
 
 	sdinfo = &vpfe_dev->cfg->sub_devs[subdev_index];
+	sd = vpfe_dev->sd[subdev_index];
 	route = &sdinfo->routes[inp_index];
 	if (route && sdinfo->can_route) {
 		input = route->input;
 		output = route->output;
 	}
 
-	ret = v4l2_device_call_until_err(&vpfe_dev->v4l2_dev, sdinfo->grp_id,
-					 video, s_routing, input, output, 0);
+	if (sd)
+		ret = v4l2_subdev_call(sd, video, s_routing, input, output, 0);
 
 	if (ret) {
 		v4l2_err(&vpfe_dev->v4l2_dev,
@@ -1157,6 +1156,8 @@ static int vpfe_s_input(struct file *file, void *priv, unsigned int index)
 		goto unlock_out;
 	}
 	vpfe_dev->current_subdev = sdinfo;
+	if (sd)
+		vpfe_dev->v4l2_dev.ctrl_handler = sd->ctrl_handler;
 	vpfe_dev->current_input = index;
 	vpfe_dev->std_index = 0;
 
@@ -1167,7 +1168,7 @@ static int vpfe_s_input(struct file *file, void *priv, unsigned int index)
 
 	/* set the default image parameters in the device */
 	ret = vpfe_config_image_format(vpfe_dev,
-				&vpfe_standards[vpfe_dev->std_index].std_id);
+				vpfe_standards[vpfe_dev->std_index].std_id);
 unlock_out:
 	mutex_unlock(&vpfe_dev->lock);
 	return ret;
@@ -1192,7 +1193,7 @@ static int vpfe_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
 	return ret;
 }
 
-static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
+static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 	struct vpfe_subdev_info *sdinfo;
@@ -1214,7 +1215,7 @@ static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 	}
 
 	ret = v4l2_device_call_until_err(&vpfe_dev->v4l2_dev, sdinfo->grp_id,
-					 core, s_std, *std_id);
+					 core, s_std, std_id);
 	if (ret < 0) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "Failed to set standard\n");
 		goto unlock_out;
@@ -1440,41 +1441,6 @@ static int vpfe_dqbuf(struct file *file, void *priv,
 	}
 	return videobuf_dqbuf(&vpfe_dev->buffer_queue,
 				      buf, file->f_flags & O_NONBLOCK);
-}
-
-static int vpfe_queryctrl(struct file *file, void *priv,
-		struct v4l2_queryctrl *qctrl)
-{
-	struct vpfe_device *vpfe_dev = video_drvdata(file);
-	struct vpfe_subdev_info *sdinfo;
-
-	sdinfo = vpfe_dev->current_subdev;
-
-	return v4l2_device_call_until_err(&vpfe_dev->v4l2_dev, sdinfo->grp_id,
-					 core, queryctrl, qctrl);
-
-}
-
-static int vpfe_g_ctrl(struct file *file, void *priv, struct v4l2_control *ctrl)
-{
-	struct vpfe_device *vpfe_dev = video_drvdata(file);
-	struct vpfe_subdev_info *sdinfo;
-
-	sdinfo = vpfe_dev->current_subdev;
-
-	return v4l2_device_call_until_err(&vpfe_dev->v4l2_dev, sdinfo->grp_id,
-					 core, g_ctrl, ctrl);
-}
-
-static int vpfe_s_ctrl(struct file *file, void *priv, struct v4l2_control *ctrl)
-{
-	struct vpfe_device *vpfe_dev = video_drvdata(file);
-	struct vpfe_subdev_info *sdinfo;
-
-	sdinfo = vpfe_dev->current_subdev;
-
-	return v4l2_device_call_until_err(&vpfe_dev->v4l2_dev, sdinfo->grp_id,
-					 core, s_ctrl, ctrl);
 }
 
 /*
@@ -1720,7 +1686,7 @@ unlock_out:
 
 
 static long vpfe_param_handler(struct file *file, void *priv,
-		bool valid_prio, int cmd, void *param)
+		bool valid_prio, unsigned int cmd, void *param)
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 	int ret = 0;
@@ -1784,9 +1750,6 @@ static const struct v4l2_ioctl_ops vpfe_ioctl_ops = {
 	.vidioc_querystd	 = vpfe_querystd,
 	.vidioc_s_std		 = vpfe_s_std,
 	.vidioc_g_std		 = vpfe_g_std,
-	.vidioc_queryctrl	 = vpfe_queryctrl,
-	.vidioc_g_ctrl		 = vpfe_g_ctrl,
-	.vidioc_s_ctrl		 = vpfe_s_ctrl,
 	.vidioc_reqbufs		 = vpfe_reqbufs,
 	.vidioc_querybuf	 = vpfe_querybuf,
 	.vidioc_qbuf		 = vpfe_qbuf,
@@ -1831,7 +1794,7 @@ static struct vpfe_device *vpfe_initialize(void)
  * itself to the V4L2 driver and initializes fields of each
  * device objects
  */
-static __devinit int vpfe_probe(struct platform_device *pdev)
+static int vpfe_probe(struct platform_device *pdev)
 {
 	struct vpfe_subdev_info *sdinfo;
 	struct vpfe_config *vpfe_cfg;
@@ -1874,7 +1837,7 @@ static __devinit int vpfe_probe(struct platform_device *pdev)
 	if (NULL == ccdc_cfg) {
 		v4l2_err(pdev->dev.driver,
 			 "Memory allocation failed for ccdc_cfg\n");
-		goto probe_free_lock;
+		goto probe_free_dev_mem;
 	}
 
 	mutex_lock(&ccdc_lock);
@@ -1900,7 +1863,7 @@ static __devinit int vpfe_probe(struct platform_device *pdev)
 	}
 	vpfe_dev->ccdc_irq1 = res1->start;
 
-	ret = request_irq(vpfe_dev->ccdc_irq0, vpfe_isr, IRQF_DISABLED,
+	ret = request_irq(vpfe_dev->ccdc_irq0, vpfe_isr, 0,
 			  "vpfe_capture0", vpfe_dev);
 
 	if (0 != ret) {
@@ -1921,7 +1884,6 @@ static __devinit int vpfe_probe(struct platform_device *pdev)
 	vfd->fops		= &vpfe_fops;
 	vfd->ioctl_ops		= &vpfe_ioctl_ops;
 	vfd->tvnorms		= 0;
-	vfd->current_norm	= V4L2_STD_PAL;
 	vfd->v4l2_dev 		= &vpfe_dev->v4l2_dev;
 	snprintf(vfd->name, sizeof(vfd->name),
 		 "%s_V%d.%d.%d",
@@ -2010,6 +1972,7 @@ static __devinit int vpfe_probe(struct platform_device *pdev)
 
 	/* set first sub device as current one */
 	vpfe_dev->current_subdev = &vpfe_cfg->sub_devs[0];
+	vpfe_dev->v4l2_dev.ctrl_handler = vpfe_dev->sd[0]->ctrl_handler;
 
 	/* We have at least one sub device to work with */
 	mutex_unlock(&ccdc_lock);
@@ -2028,7 +1991,6 @@ probe_out_release_irq:
 	free_irq(vpfe_dev->ccdc_irq0, vpfe_dev);
 probe_free_ccdc_cfg_mem:
 	kfree(ccdc_cfg);
-probe_free_lock:
 	mutex_unlock(&ccdc_lock);
 probe_free_dev_mem:
 	kfree(vpfe_dev);
@@ -2038,7 +2000,7 @@ probe_free_dev_mem:
 /*
  * vpfe_remove : It un-register device from V4L2 driver
  */
-static int __devexit vpfe_remove(struct platform_device *pdev)
+static int vpfe_remove(struct platform_device *pdev)
 {
 	struct vpfe_device *vpfe_dev = platform_get_drvdata(pdev);
 
@@ -2075,7 +2037,7 @@ static struct platform_driver vpfe_driver = {
 		.pm = &vpfe_dev_pm_ops,
 	},
 	.probe = vpfe_probe,
-	.remove = __devexit_p(vpfe_remove),
+	.remove = vpfe_remove,
 };
 
 module_platform_driver(vpfe_driver);

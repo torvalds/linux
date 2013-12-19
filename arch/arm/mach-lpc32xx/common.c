@@ -207,11 +207,11 @@ void __init lpc32xx_map_io(void)
 	iotable_init(lpc32xx_io_desc, ARRAY_SIZE(lpc32xx_io_desc));
 }
 
-void lpc23xx_restart(char mode, const char *cmd)
+void lpc23xx_restart(enum reboot_mode mode, const char *cmd)
 {
 	switch (mode) {
-	case 's':
-	case 'h':
+	case REBOOT_SOFT:
+	case REBOOT_HARD:
 		lpc32xx_watchdog_reset();
 		break;
 

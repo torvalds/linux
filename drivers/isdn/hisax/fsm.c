@@ -26,7 +26,7 @@ FsmNew(struct Fsm *fsm, struct FsmNode *fnlist, int fncount)
 {
 	int i;
 
-	fsm->jumpmatrix = (FSMFNPTR *)
+	fsm->jumpmatrix =
 		kzalloc(sizeof(FSMFNPTR) * fsm->state_count * fsm->event_count, GFP_KERNEL);
 	if (!fsm->jumpmatrix)
 		return -ENOMEM;

@@ -386,7 +386,7 @@ int diRead(struct inode *ip)
 	dp += rel_inode;
 
 	if (ip->i_ino != le32_to_cpu(dp->di_number)) {
-		jfs_error(ip->i_sb, "diRead: i_ino != di_number");
+		jfs_error(ip->i_sb, "i_ino != di_number\n");
 		rc = -EIO;
 	} else if (le32_to_cpu(dp->di_nlink) == 0)
 		rc = -ESTALE;
@@ -625,7 +625,7 @@ int diWrite(tid_t tid, struct inode *ip)
 	if (!addressPXD(&(jfs_ip->ixpxd)) ||
 	    (lengthPXD(&(jfs_ip->ixpxd)) !=
 	     JFS_IP(ipimap)->i_imap->im_nbperiext)) {
-		jfs_error(ip->i_sb, "diWrite: ixpxd invalid");
+		jfs_error(ip->i_sb, "ixpxd invalid\n");
 		return -EIO;
 	}
 
@@ -893,8 +893,7 @@ int diFree(struct inode *ip)
 	if (iagno >= imap->im_nextiag) {
 		print_hex_dump(KERN_ERR, "imap: ", DUMP_PREFIX_ADDRESS, 16, 4,
 			       imap, 32, 0);
-		jfs_error(ip->i_sb,
-			  "diFree: inum = %d, iagno = %d, nextiag = %d",
+		jfs_error(ip->i_sb, "inum = %d, iagno = %d, nextiag = %d\n",
 			  (uint) inum, iagno, imap->im_nextiag);
 		return -EIO;
 	}
@@ -930,15 +929,14 @@ int diFree(struct inode *ip)
 	mask = HIGHORDER >> bitno;
 
 	if (!(le32_to_cpu(iagp->wmap[extno]) & mask)) {
-		jfs_error(ip->i_sb,
-			  "diFree: wmap shows inode already free");
+		jfs_error(ip->i_sb, "wmap shows inode already free\n");
 	}
 
 	if (!addressPXD(&iagp->inoext[extno])) {
 		release_metapage(mp);
 		IREAD_UNLOCK(ipimap);
 		AG_UNLOCK(imap, agno);
-		jfs_error(ip->i_sb, "diFree: invalid inoext");
+		jfs_error(ip->i_sb, "invalid inoext\n");
 		return -EIO;
 	}
 
@@ -950,7 +948,7 @@ int diFree(struct inode *ip)
 		release_metapage(mp);
 		IREAD_UNLOCK(ipimap);
 		AG_UNLOCK(imap, agno);
-		jfs_error(ip->i_sb, "diFree: numfree > numinos");
+		jfs_error(ip->i_sb, "numfree > numinos\n");
 		return -EIO;
 	}
 	/*
@@ -1199,7 +1197,7 @@ int diFree(struct inode *ip)
 	 * for the inode being freed.
 	 */
 	if (iagp->pmap[extno] != 0) {
-		jfs_error(ip->i_sb, "diFree: the pmap does not show inode free");
+		jfs_error(ip->i_sb, "the pmap does not show inode free\n");
 	}
 	iagp->wmap[extno] = 0;
 	PXDlength(&iagp->inoext[extno], 0);
@@ -1493,7 +1491,7 @@ int diAlloc(struct inode *pip, bool dir, struct inode *ip)
 		/* mask any prior bits for the starting words of the
 		 * summary map.
 		 */
-		mask = ONES << (EXTSPERSUM - bitno);
+		mask = (bitno == 0) ? 0 : (ONES << (EXTSPERSUM - bitno));
 		inosmap = le32_to_cpu(iagp->inosmap[sword]) | mask;
 		extsmap = le32_to_cpu(iagp->extsmap[sword]) | mask;
 
@@ -1518,8 +1516,7 @@ int diAlloc(struct inode *pip, bool dir, struct inode *ip)
 					release_metapage(mp);
 					AG_UNLOCK(imap, agno);
 					jfs_error(ip->i_sb,
-						  "diAlloc: can't find free bit "
-						  "in wmap");
+						  "can't find free bit in wmap\n");
 					return -EIO;
 				}
 
@@ -1660,7 +1657,7 @@ diAllocAG(struct inomap * imap, int agno, bool dir, struct inode *ip)
 	numinos = imap->im_agctl[agno].numinos;
 
 	if (numfree > numinos) {
-		jfs_error(ip->i_sb, "diAllocAG: numfree > numinos");
+		jfs_error(ip->i_sb, "numfree > numinos\n");
 		return -EIO;
 	}
 
@@ -1811,8 +1808,7 @@ static int diAllocIno(struct inomap * imap, int agno, struct inode *ip)
 	if (!iagp->nfreeinos) {
 		IREAD_UNLOCK(imap->im_ipimap);
 		release_metapage(mp);
-		jfs_error(ip->i_sb,
-			  "diAllocIno: nfreeinos = 0, but iag on freelist");
+		jfs_error(ip->i_sb, "nfreeinos = 0, but iag on freelist\n");
 		return -EIO;
 	}
 
@@ -1824,7 +1820,7 @@ static int diAllocIno(struct inomap * imap, int agno, struct inode *ip)
 			IREAD_UNLOCK(imap->im_ipimap);
 			release_metapage(mp);
 			jfs_error(ip->i_sb,
-				  "diAllocIno: free inode not found in summary map");
+				  "free inode not found in summary map\n");
 			return -EIO;
 		}
 
@@ -1839,7 +1835,7 @@ static int diAllocIno(struct inomap * imap, int agno, struct inode *ip)
 	if (rem >= EXTSPERSUM) {
 		IREAD_UNLOCK(imap->im_ipimap);
 		release_metapage(mp);
-		jfs_error(ip->i_sb, "diAllocIno: no free extent found");
+		jfs_error(ip->i_sb, "no free extent found\n");
 		return -EIO;
 	}
 	extno = (sword << L2EXTSPERSUM) + rem;
@@ -1850,7 +1846,7 @@ static int diAllocIno(struct inomap * imap, int agno, struct inode *ip)
 	if (rem >= INOSPEREXT) {
 		IREAD_UNLOCK(imap->im_ipimap);
 		release_metapage(mp);
-		jfs_error(ip->i_sb, "diAllocIno: free inode not found");
+		jfs_error(ip->i_sb, "free inode not found\n");
 		return -EIO;
 	}
 
@@ -1936,7 +1932,7 @@ static int diAllocExt(struct inomap * imap, int agno, struct inode *ip)
 		IREAD_LOCK(imap->im_ipimap, RDWRLOCK_IMAP);
 		if ((rc = diIAGRead(imap, iagno, &mp))) {
 			IREAD_UNLOCK(imap->im_ipimap);
-			jfs_error(ip->i_sb, "diAllocExt: error reading iag");
+			jfs_error(ip->i_sb, "error reading iag\n");
 			return rc;
 		}
 		iagp = (struct iag *) mp->data;
@@ -1948,8 +1944,7 @@ static int diAllocExt(struct inomap * imap, int agno, struct inode *ip)
 		if (sword >= SMAPSZ) {
 			release_metapage(mp);
 			IREAD_UNLOCK(imap->im_ipimap);
-			jfs_error(ip->i_sb,
-				  "diAllocExt: free ext summary map not found");
+			jfs_error(ip->i_sb, "free ext summary map not found\n");
 			return -EIO;
 		}
 		if (~iagp->extsmap[sword])
@@ -1962,7 +1957,7 @@ static int diAllocExt(struct inomap * imap, int agno, struct inode *ip)
 	if (rem >= EXTSPERSUM) {
 		release_metapage(mp);
 		IREAD_UNLOCK(imap->im_ipimap);
-		jfs_error(ip->i_sb, "diAllocExt: free extent not found");
+		jfs_error(ip->i_sb, "free extent not found\n");
 		return -EIO;
 	}
 	extno = (sword << L2EXTSPERSUM) + rem;
@@ -2081,8 +2076,7 @@ static int diAllocBit(struct inomap * imap, struct iag * iagp, int ino)
 		if (bmp)
 			release_metapage(bmp);
 
-		jfs_error(imap->im_ipimap->i_sb,
-			  "diAllocBit: iag inconsistent");
+		jfs_error(imap->im_ipimap->i_sb, "iag inconsistent\n");
 		return -EIO;
 	}
 
@@ -2189,7 +2183,7 @@ static int diNewExt(struct inomap * imap, struct iag * iagp, int extno)
 	/* better have free extents.
 	 */
 	if (!iagp->nfreeexts) {
-		jfs_error(imap->im_ipimap->i_sb, "diNewExt: no free extents");
+		jfs_error(imap->im_ipimap->i_sb, "no free extents\n");
 		return -EIO;
 	}
 
@@ -2261,7 +2255,7 @@ static int diNewExt(struct inomap * imap, struct iag * iagp, int extno)
 			}
 			if (ciagp == NULL) {
 				jfs_error(imap->im_ipimap->i_sb,
-					  "diNewExt: ciagp == NULL");
+					  "ciagp == NULL\n");
 				rc = -EIO;
 				goto error_out;
 			}
@@ -2498,7 +2492,7 @@ diNewIAG(struct inomap * imap, int *iagnop, int agno, struct metapage ** mpp)
 			IWRITE_UNLOCK(ipimap);
 			IAGFREE_UNLOCK(imap);
 			jfs_error(imap->im_ipimap->i_sb,
-				  "diNewIAG: ipimap->i_size is wrong");
+				  "ipimap->i_size is wrong\n");
 			return -EIO;
 		}
 
@@ -2758,8 +2752,7 @@ diUpdatePMap(struct inode *ipimap,
 	iagno = INOTOIAG(inum);
 	/* make sure that the iag is contained within the map */
 	if (iagno >= imap->im_nextiag) {
-		jfs_error(ipimap->i_sb,
-			  "diUpdatePMap: the iag is outside the map");
+		jfs_error(ipimap->i_sb, "the iag is outside the map\n");
 		return -EIO;
 	}
 	/* read the iag */
@@ -2788,13 +2781,13 @@ diUpdatePMap(struct inode *ipimap,
 		 */
 		if (!(le32_to_cpu(iagp->wmap[extno]) & mask)) {
 			jfs_error(ipimap->i_sb,
-				  "diUpdatePMap: inode %ld not marked as "
-				  "allocated in wmap!", inum);
+				  "inode %ld not marked as allocated in wmap!\n",
+				  inum);
 		}
 		if (!(le32_to_cpu(iagp->pmap[extno]) & mask)) {
 			jfs_error(ipimap->i_sb,
-				  "diUpdatePMap: inode %ld not marked as "
-				  "allocated in pmap!", inum);
+				  "inode %ld not marked as allocated in pmap!\n",
+				  inum);
 		}
 		/* update the bitmap for the extent of the freed inode */
 		iagp->pmap[extno] &= cpu_to_le32(~mask);
@@ -2809,15 +2802,13 @@ diUpdatePMap(struct inode *ipimap,
 		if (!(le32_to_cpu(iagp->wmap[extno]) & mask)) {
 			release_metapage(mp);
 			jfs_error(ipimap->i_sb,
-				  "diUpdatePMap: the inode is not allocated in "
-				  "the working map");
+				  "the inode is not allocated in the working map\n");
 			return -EIO;
 		}
 		if ((le32_to_cpu(iagp->pmap[extno]) & mask) != 0) {
 			release_metapage(mp);
 			jfs_error(ipimap->i_sb,
-				  "diUpdatePMap: the inode is not free in the "
-				  "persistent map");
+				  "the inode is not free in the persistent map\n");
 			return -EIO;
 		}
 		/* update the bitmap for the extent of the allocated inode */
@@ -2909,8 +2900,7 @@ int diExtendFS(struct inode *ipimap, struct inode *ipbmap)
 		iagp = (struct iag *) bp->data;
 		if (le32_to_cpu(iagp->iagnum) != i) {
 			release_metapage(bp);
-			jfs_error(ipimap->i_sb,
-				  "diExtendFs: unexpected value of iagnum");
+			jfs_error(ipimap->i_sb, "unexpected value of iagnum\n");
 			return -EIO;
 		}
 
@@ -2986,8 +2976,7 @@ int diExtendFS(struct inode *ipimap, struct inode *ipbmap)
 
 	if (xnuminos != atomic_read(&imap->im_numinos) ||
 	    xnumfree != atomic_read(&imap->im_numfree)) {
-		jfs_error(ipimap->i_sb,
-			  "diExtendFs: numinos or numfree incorrect");
+		jfs_error(ipimap->i_sb, "numinos or numfree incorrect\n");
 		return -EIO;
 	}
 

@@ -160,6 +160,28 @@ int nilfs_ifile_get_inode_block(struct inode *ifile, ino_t ino,
 }
 
 /**
+ * nilfs_ifile_count_free_inodes - calculate free inodes count
+ * @ifile: ifile inode
+ * @nmaxinodes: current maximum of available inodes count [out]
+ * @nfreeinodes: free inodes count [out]
+ */
+int nilfs_ifile_count_free_inodes(struct inode *ifile,
+				    u64 *nmaxinodes, u64 *nfreeinodes)
+{
+	u64 nused;
+	int err;
+
+	*nmaxinodes = 0;
+	*nfreeinodes = 0;
+
+	nused = atomic64_read(&NILFS_I(ifile)->i_root->inodes_count);
+	err = nilfs_palloc_count_max_entries(ifile, nused, nmaxinodes);
+	if (likely(!err))
+		*nfreeinodes = *nmaxinodes - nused;
+	return err;
+}
+
+/**
  * nilfs_ifile_read - read or get ifile inode
  * @sb: super block instance
  * @root: root object

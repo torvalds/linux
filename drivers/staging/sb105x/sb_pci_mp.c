@@ -18,11 +18,11 @@ static struct irq_info irq_lists[NR_IRQS];
 static _INLINE_ unsigned int serial_in(struct mp_port *mtpt, int offset);
 static _INLINE_ void serial_out(struct mp_port *mtpt, int offset, int value);
 static _INLINE_ unsigned int read_option_register(struct mp_port *mtpt, int offset);
-static int sb1054_get_register(struct sb_uart_port * port, int page, int reg);
-static int sb1054_set_register(struct sb_uart_port * port, int page, int reg, int value);
-static void SendATCommand(struct mp_port * mtpt);
-static int set_deep_fifo(struct sb_uart_port * port, int status);
-static int get_deep_fifo(struct sb_uart_port * port);
+static int sb1054_get_register(struct sb_uart_port *port, int page, int reg);
+static int sb1054_set_register(struct sb_uart_port *port, int page, int reg, int value);
+static void SendATCommand(struct mp_port *mtpt);
+static int set_deep_fifo(struct sb_uart_port *port, int status);
+static int get_deep_fifo(struct sb_uart_port *port);
 static int get_device_type(int arg);
 static int set_auto_rts(struct sb_uart_port *port, int status);
 static void mp_stop(struct tty_struct *tty);
@@ -38,7 +38,7 @@ static inline int __mp_put_char(struct sb_uart_port *port, struct circ_buf *circ
 static int mp_put_char(struct tty_struct *tty, unsigned char ch);
 
 static void mp_put_chars(struct tty_struct *tty);
-static int mp_write(struct tty_struct *tty, const unsigned char * buf, int count);
+static int mp_write(struct tty_struct *tty, const unsigned char *buf, int count);
 static int mp_write_room(struct tty_struct *tty);
 static int mp_chars_in_buffer(struct tty_struct *tty);
 static void mp_flush_buffer(struct tty_struct *tty);
@@ -102,7 +102,7 @@ static void multi_release_port(struct sb_uart_port *port);
 static int multi_request_port(struct sb_uart_port *port);
 static void multi_config_port(struct sb_uart_port *port, int flags);
 static int multi_verify_port(struct sb_uart_port *port, struct serial_struct *ser);
-static const char * multi_type(struct sb_uart_port *port);
+static const char *multi_type(struct sb_uart_port *port);
 static void __init multi_init_ports(void);
 static void __init multi_register_ports(struct uart_driver *drv);
 static int init_mp_dev(struct pci_dev *pcidev, mppcibrd_t brd);
@@ -173,7 +173,7 @@ static int sb1053a_get_interface(struct mp_port *mtpt, int port_num)
 	return (interface);
 }
 		
-static int sb1054_get_register(struct sb_uart_port * port, int page, int reg)
+static int sb1054_get_register(struct sb_uart_port *port, int page, int reg)
 {
 	int ret = 0;
 	unsigned int lcr = 0;
@@ -235,7 +235,7 @@ static int sb1054_get_register(struct sb_uart_port * port, int page, int reg)
 	return ret;
 }
 
-static int sb1054_set_register(struct sb_uart_port * port, int page, int reg, int value)
+static int sb1054_set_register(struct sb_uart_port *port, int page, int reg, int value)
 {  
 	int lcr = 0;
 	int mcr = 0;
@@ -332,7 +332,7 @@ static int set_multidrop_addr(struct sb_uart_port *port, unsigned int addr)
 	return 0;
 }
 
-static void SendATCommand(struct mp_port * mtpt)
+static void SendATCommand(struct mp_port *mtpt)
 {
 	//		      a    t	cr   lf
 	unsigned char ch[] = {0x61,0x74,0x0d,0x0a,0x0};
@@ -360,7 +360,7 @@ static void SendATCommand(struct mp_port * mtpt)
 
 }// end of SendATCommand()
 
-static int set_deep_fifo(struct sb_uart_port * port, int status)
+static int set_deep_fifo(struct sb_uart_port *port, int status)
 {
 	int afr_status = 0;
 	afr_status = sb1054_get_register(port, PAGE_4, SB105X_AFR);
@@ -416,7 +416,7 @@ static int get_device_type(int arg)
         }
 
 }
-static int get_deep_fifo(struct sb_uart_port * port)
+static int get_deep_fifo(struct sb_uart_port *port)
 {
 	int afr_status = 0;
 	afr_status = sb1054_get_register(port, PAGE_4, SB105X_AFR);
@@ -543,14 +543,14 @@ static int mp_startup(struct sb_uart_state *state, int init_hw)
 		if (init_hw) {
 			mp_change_speed(state, NULL);
 
-			if (info->tty->termios.c_cflag & CBAUD)
+			if (info->tty && (info->tty->termios.c_cflag & CBAUD))
 				uart_set_mctrl(port, TIOCM_RTS | TIOCM_DTR);
 		}
 
 		info->flags |= UIF_INITIALIZED;
 
-
-		clear_bit(TTY_IO_ERROR, &info->tty->flags);
+		if (info->tty)
+			clear_bit(TTY_IO_ERROR, &info->tty->flags);
 	}
 
 	if (retval && capable(CAP_SYS_ADMIN))
@@ -638,7 +638,7 @@ static void mp_put_chars(struct tty_struct *tty)
 	mp_start(tty);
 }
 
-static int mp_write(struct tty_struct *tty, const unsigned char * buf, int count)
+static int mp_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
 	struct sb_uart_state *state = tty->driver_data;
 	struct sb_uart_port *port;
@@ -1063,7 +1063,7 @@ static int mp_wait_modem_status(struct sb_uart_state *state, unsigned long arg)
 
 static int mp_get_count(struct sb_uart_state *state, struct serial_icounter_struct *icnt)
 {
-	struct serial_icounter_struct icount;
+	struct serial_icounter_struct icount = {};
 	struct sb_uart_icount cnow;
 	struct sb_uart_port *port = state->port;
 
@@ -1216,7 +1216,7 @@ static int mp_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 				return (inb(mp_devs[arg].option_reg_addr+MP_OPTR_IIR0+(state->port->line/8)));
 			}
 		case TIOCGGETPORTTYPE:
-			ret = get_device_type(arg);;
+			ret = get_device_type(arg);
 			return ret;
 		case TIOCSMULTIECHO: /* set to multi-drop mode(RS422) or echo mode(RS485)*/
 			outb( ( inb(info->interface_config_addr) & ~0x03 ) | 0x01 ,  
@@ -1563,12 +1563,12 @@ static int mp_open(struct tty_struct *tty, struct file *filp)
 
 	state = uart_get(drv, line);
 
-	mtpt  = (struct mp_port *)state->port;
-
 	if (IS_ERR(state)) {
 		retval = PTR_ERR(state);
 		goto fail;
 	}
+
+	mtpt  = (struct mp_port *)state->port;
 
 	tty->driver_data = state;
 	tty->low_latency = (state->port->flags & UPF_LOW_LATENCY) ? 1 : 0;
@@ -1808,10 +1808,7 @@ void mp_unregister_driver(struct uart_driver *drv)
     drv->tty_driver = NULL;
 
 
-    if (drv->state)
-    {
-        kfree(drv->state);
-    }
+    kfree(drv->state);
 
 }
 
@@ -2248,7 +2245,7 @@ static irqreturn_t multi_interrupt(int irq, void *dev_id)
 		mtpt = list_entry(lhead, struct mp_port, list);
 		
 		iir = serial_in(mtpt, UART_IIR);
-		printk("intrrupt! port %d, iir 0x%x\n", mtpt->port.line, iir); //wlee
+		printk("interrupt! port %d, iir 0x%x\n", mtpt->port.line, iir); //wlee
 		if (!(iir & UART_IIR_NO_INT)) 
 		{
 			printk("interrupt handle\n");
@@ -2754,7 +2751,7 @@ static int multi_verify_port(struct sb_uart_port *port, struct serial_struct *se
 	return 0;
 }
 
-static const char * multi_type(struct sb_uart_port *port)
+static const char *multi_type(struct sb_uart_port *port)
 {
 	int type = port->type;
 
@@ -2800,7 +2797,7 @@ static void __init multi_init_ports(void)
 	int i,j,k;
 	unsigned char osc;
 	unsigned char b_ret = 0;
-	static struct mp_device_t * sbdev; 
+	static struct mp_device_t *sbdev; 
 
 	if (!first)
 		return;
@@ -2830,7 +2827,7 @@ static void __init multi_init_ports(void)
 
 			mtpt->port.uartclk  = BASE_BAUD * 16;
 
-			/* get input clock infomation */
+			/* get input clock information */
 			osc = inb(sbdev->option_reg_addr + MP_OPTR_DIR0 + i/8) & 0x0F;
 			if (osc==0x0f)
 				osc = 0;
@@ -2851,18 +2848,12 @@ static void __init multi_init_ports(void)
 				printk("IIR_RET = %x\n",b_ret);
 			}
 
-			if(IIR_RS232 == (b_ret & IIR_RS232))
-			{
-				mtpt->interface = RS232;
-			}
-			if(IIR_RS422 == (b_ret & IIR_RS422))
-			{
+			/* default to RS232 */
+			mtpt->interface = RS232;
+			if (IIR_RS422 == (b_ret & IIR_TYPE_MASK))
 				mtpt->interface = RS422PTP;
-			}
-			if(IIR_RS485 == (b_ret & IIR_RS485))
-			{
+			if (IIR_RS485 == (b_ret & IIR_TYPE_MASK))
 				mtpt->interface = RS485NE;
-			}
 		}
 	}
 }
@@ -2924,10 +2915,10 @@ static int pci_remap_base(struct pci_dev *pcidev, unsigned int offset,
 
 static int init_mp_dev(struct pci_dev *pcidev, mppcibrd_t brd)
 {
-	static struct mp_device_t * sbdev = mp_devs;
+	static struct mp_device_t *sbdev = mp_devs;
 	unsigned long addr = 0;
 	int j;
-	struct resource * ret = NULL;
+	struct resource *ret = NULL;
 
 	sbdev->device_id = brd.device_id;
 	pci_read_config_byte(pcidev, PCI_CLASS_REVISION, &(sbdev->revision));
@@ -3054,6 +3045,7 @@ static int init_mp_dev(struct pci_dev *pcidev, mppcibrd_t brd)
 				sbdev->nr_ports = ((portnum_hex/16)*10) + (portnum_hex % 16);
 			}
 			break;
+#ifdef CONFIG_PARPORT_PC
 		case PCI_DEVICE_ID_MP2S1P :
 			sbdev->nr_ports = 2;
 
@@ -3073,6 +3065,7 @@ static int init_mp_dev(struct pci_dev *pcidev, mppcibrd_t brd)
 			/* add PC compatible parallel port */
 			parport_pc_probe_port(pcidev->resource[2].start, pcidev->resource[3].start, PARPORT_IRQ_NONE, PARPORT_DMA_NONE, &pcidev->dev, 0);
 			break;
+#endif
 	}
 
 	ret = request_region(sbdev->uart_access_addr, (8*sbdev->nr_ports), sbdev->name);

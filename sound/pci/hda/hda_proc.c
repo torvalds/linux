@@ -22,6 +22,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
@@ -138,16 +139,17 @@ static void print_amp_vals(struct snd_info_buffer *buffer,
 	dir = dir == HDA_OUTPUT ? AC_AMP_GET_OUTPUT : AC_AMP_GET_INPUT;
 	for (i = 0; i < indices; i++) {
 		snd_iprintf(buffer, " [");
+		val = snd_hda_codec_read(codec, nid, 0,
+					 AC_VERB_GET_AMP_GAIN_MUTE,
+					 AC_AMP_GET_LEFT | dir | i);
+		snd_iprintf(buffer, "0x%02x", val);
 		if (stereo) {
 			val = snd_hda_codec_read(codec, nid, 0,
 						 AC_VERB_GET_AMP_GAIN_MUTE,
-						 AC_AMP_GET_LEFT | dir | i);
-			snd_iprintf(buffer, "0x%02x ", val);
+						 AC_AMP_GET_RIGHT | dir | i);
+			snd_iprintf(buffer, " 0x%02x", val);
 		}
-		val = snd_hda_codec_read(codec, nid, 0,
-					 AC_VERB_GET_AMP_GAIN_MUTE,
-					 AC_AMP_GET_RIGHT | dir | i);
-		snd_iprintf(buffer, "0x%02x]", val);
+		snd_iprintf(buffer, "]");
 	}
 	snd_iprintf(buffer, "\n");
 }
@@ -502,6 +504,8 @@ static void print_conn_list(struct snd_info_buffer *buffer,
 			    int conn_len)
 {
 	int c, curr = -1;
+	const hda_nid_t *list;
+	int cache_len;
 
 	if (conn_len > 1 &&
 	    wid_type != AC_WID_AUD_MIX &&
@@ -518,6 +522,19 @@ static void print_conn_list(struct snd_info_buffer *buffer,
 				snd_iprintf(buffer, "*");
 		}
 		snd_iprintf(buffer, "\n");
+	}
+
+	/* Get Cache connections info */
+	cache_len = snd_hda_get_conn_list(codec, nid, &list);
+	if (cache_len != conn_len
+			|| memcmp(list, conn, conn_len)) {
+		snd_iprintf(buffer, "  In-driver Connection: %d\n", cache_len);
+		if (cache_len > 0) {
+			snd_iprintf(buffer, "    ");
+			for (c = 0; c < cache_len; c++)
+				snd_iprintf(buffer, " 0x%02x", list[c]);
+			snd_iprintf(buffer, "\n");
+		}
 	}
 }
 
@@ -565,6 +582,36 @@ static void print_gpio(struct snd_info_buffer *buffer,
 	print_nid_array(buffer, codec, nid, &codec->nids);
 }
 
+static void print_device_list(struct snd_info_buffer *buffer,
+			    struct hda_codec *codec, hda_nid_t nid)
+{
+	int i, curr = -1;
+	u8 dev_list[AC_MAX_DEV_LIST_LEN];
+	int devlist_len;
+
+	devlist_len = snd_hda_get_devices(codec, nid, dev_list,
+					AC_MAX_DEV_LIST_LEN);
+	snd_iprintf(buffer, "  Devices: %d\n", devlist_len);
+	if (devlist_len <= 0)
+		return;
+
+	curr = snd_hda_codec_read(codec, nid, 0,
+				AC_VERB_GET_DEVICE_SEL, 0);
+
+	for (i = 0; i < devlist_len; i++) {
+		if (i == curr)
+			snd_iprintf(buffer, "    *");
+		else
+			snd_iprintf(buffer, "     ");
+
+		snd_iprintf(buffer,
+			"Dev %02d: PD = %d, ELDV = %d, IA = %d\n", i,
+			!!(dev_list[i] & AC_DE_PD),
+			!!(dev_list[i] & AC_DE_ELDV),
+			!!(dev_list[i] & AC_DE_IA));
+	}
+}
+
 static void print_codec_info(struct snd_info_entry *entry,
 			     struct snd_info_buffer *buffer)
 {
@@ -603,6 +650,8 @@ static void print_codec_info(struct snd_info_entry *entry,
 	print_amp_caps(buffer, codec, codec->afg, HDA_INPUT);
 	snd_iprintf(buffer, "Default Amp-Out caps: ");
 	print_amp_caps(buffer, codec, codec->afg, HDA_OUTPUT);
+	snd_iprintf(buffer, "State of AFG node 0x%02x:\n", codec->afg);
+	print_power_state(buffer, codec, codec->afg);
 
 	nodes = snd_hda_get_sub_nodes(codec, codec->afg, &nid);
 	if (! nid || nodes < 0) {
@@ -620,7 +669,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 			snd_hda_param_read(codec, nid,
 					   AC_PAR_AUDIO_WIDGET_CAP);
 		unsigned int wid_type = get_wcaps_type(wid_caps);
-		hda_nid_t conn[HDA_MAX_CONNECTIONS];
+		hda_nid_t *conn = NULL;
 		int conn_len = 0;
 
 		snd_iprintf(buffer, "Node 0x%02x [%s] wcaps 0x%x:", nid,
@@ -657,9 +706,18 @@ static void print_codec_info(struct snd_info_entry *entry,
 		if (wid_type == AC_WID_VOL_KNB)
 			wid_caps |= AC_WCAP_CONN_LIST;
 
-		if (wid_caps & AC_WCAP_CONN_LIST)
-			conn_len = snd_hda_get_raw_connections(codec, nid, conn,
-							   HDA_MAX_CONNECTIONS);
+		if (wid_caps & AC_WCAP_CONN_LIST) {
+			conn_len = snd_hda_get_num_raw_conns(codec, nid);
+			if (conn_len > 0) {
+				conn = kmalloc(sizeof(hda_nid_t) * conn_len,
+					       GFP_KERNEL);
+				if (!conn)
+					return;
+				if (snd_hda_get_raw_connections(codec, nid, conn,
+								conn_len) < 0)
+					conn_len = 0;
+			}
+		}
 
 		if (wid_caps & AC_WCAP_IN_AMP) {
 			snd_iprintf(buffer, "  Amp-In caps: ");
@@ -723,6 +781,9 @@ static void print_codec_info(struct snd_info_entry *entry,
 				    (wid_caps & AC_WCAP_DELAY) >>
 				    AC_WCAP_DELAY_SHIFT);
 
+		if (wid_type == AC_WID_PIN && codec->dp_mst)
+			print_device_list(buffer, codec, nid);
+
 		if (wid_caps & AC_WCAP_CONN_LIST)
 			print_conn_list(buffer, codec, nid, wid_type,
 					conn, conn_len);
@@ -732,6 +793,8 @@ static void print_codec_info(struct snd_info_entry *entry,
 
 		if (codec->proc_widget_hook)
 			codec->proc_widget_hook(buffer, codec, nid);
+
+		kfree(conn);
 	}
 	snd_hda_power_down(codec);
 }

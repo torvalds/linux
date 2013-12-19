@@ -12,9 +12,12 @@
  * This file is licenced under the GPL.
  */
 
+#include <linux/err.h>
 #include <linux/signal.h>
 
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
 
@@ -27,7 +30,7 @@ static const struct hc_driver ehci_ppc_of_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq			= ehci_irq,
-	.flags			= HCD_MEMORY | HCD_USB2,
+	.flags			= HCD_MEMORY | HCD_USB2 | HCD_BH,
 
 	/*
 	 * basic lifecycle operations
@@ -121,10 +124,9 @@ static int ehci_hcd_ppc_of_probe(struct platform_device *op)
 		goto err_irq;
 	}
 
-	hcd->regs = devm_request_and_ioremap(&op->dev, &res);
-	if (!hcd->regs) {
-		pr_err("%s: devm_request_and_ioremap failed\n", __FILE__);
-		rv = -ENOMEM;
+	hcd->regs = devm_ioremap_resource(&op->dev, &res);
+	if (IS_ERR(hcd->regs)) {
+		rv = PTR_ERR(hcd->regs);
 		goto err_ioremap;
 	}
 
@@ -180,13 +182,11 @@ err_irq:
 
 static int ehci_hcd_ppc_of_remove(struct platform_device *op)
 {
-	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
+	struct usb_hcd *hcd = platform_get_drvdata(op);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 
 	struct device_node *np;
 	struct resource res;
-
-	dev_set_drvdata(&op->dev, NULL);
 
 	dev_dbg(&op->dev, "stopping PPC-OF USB Controller\n");
 
@@ -217,15 +217,6 @@ static int ehci_hcd_ppc_of_remove(struct platform_device *op)
 }
 
 
-static void ehci_hcd_ppc_of_shutdown(struct platform_device *op)
-{
-	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
-
-	if (hcd->driver->shutdown)
-		hcd->driver->shutdown(hcd);
-}
-
-
 static const struct of_device_id ehci_hcd_ppc_of_match[] = {
 	{
 		.compatible = "usb-ehci",
@@ -238,7 +229,7 @@ MODULE_DEVICE_TABLE(of, ehci_hcd_ppc_of_match);
 static struct platform_driver ehci_hcd_ppc_of_driver = {
 	.probe		= ehci_hcd_ppc_of_probe,
 	.remove		= ehci_hcd_ppc_of_remove,
-	.shutdown	= ehci_hcd_ppc_of_shutdown,
+	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
 		.name = "ppc-of-ehci",
 		.owner = THIS_MODULE,

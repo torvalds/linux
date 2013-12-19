@@ -47,17 +47,19 @@ static int ht_print_chan(struct ieee80211_channel *chan,
 		return 0;
 
 	if (chan->flags & IEEE80211_CHAN_DISABLED)
-		return snprintf(buf + offset,
-				buf_size - offset,
-				"%d Disabled\n",
-				chan->center_freq);
+		return scnprintf(buf + offset,
+				 buf_size - offset,
+				 "%d Disabled\n",
+				 chan->center_freq);
 
-	return snprintf(buf + offset,
-			buf_size - offset,
-			"%d HT40 %c%c\n",
-			chan->center_freq,
-			(chan->flags & IEEE80211_CHAN_NO_HT40MINUS) ? ' ' : '-',
-			(chan->flags & IEEE80211_CHAN_NO_HT40PLUS)  ? ' ' : '+');
+	return scnprintf(buf + offset,
+			 buf_size - offset,
+			 "%d HT40 %c%c\n",
+			 chan->center_freq,
+			 (chan->flags & IEEE80211_CHAN_NO_HT40MINUS) ?
+				' ' : '-',
+			 (chan->flags & IEEE80211_CHAN_NO_HT40PLUS) ?
+				' ' : '+');
 }
 
 static ssize_t ht40allow_map_read(struct file *file,
@@ -74,7 +76,7 @@ static ssize_t ht40allow_map_read(struct file *file,
 	if (!buf)
 		return -ENOMEM;
 
-	mutex_lock(&cfg80211_mutex);
+	rtnl_lock();
 
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		sband = wiphy->bands[band];
@@ -85,7 +87,7 @@ static ssize_t ht40allow_map_read(struct file *file,
 						buf, buf_size, offset);
 	}
 
-	mutex_unlock(&cfg80211_mutex);
+	rtnl_unlock();
 
 	r = simple_read_from_buffer(user_buf, count, ppos, buf, offset);
 

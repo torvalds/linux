@@ -11,9 +11,6 @@
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 
-#define PREEMPT_ACTIVE_BIT 30
-#define PREEMPT_ACTIVE	(1 << PREEMPT_ACTIVE_BIT)
-
 #ifndef __ASSEMBLY__
 
 /*
@@ -31,7 +28,7 @@ struct thread_info {
 	mm_segment_t addr_limit;	/* user-level address space limit */
 	int preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
 	struct restart_block restart_block;
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 	__u64 ac_stamp;
 	__u64 ac_leave;
 	__u64 ac_stime;
@@ -69,7 +66,7 @@ struct thread_info {
 #define task_stack_page(tsk)	((void *)(tsk))
 
 #define __HAVE_THREAD_FUNCTIONS
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 #define setup_thread_stack(p, org)			\
 	*task_thread_info(p) = *task_thread_info(org);	\
 	task_thread_info(p)->ac_stime = 0;		\
@@ -130,8 +127,6 @@ struct thread_info {
 
 #define TS_POLLING		1 	/* true if in idle loop and not sleeping */
 #define TS_RESTORE_SIGMASK	2	/* restore signal mask in do_signal() */
-
-#define tsk_is_polling(t) (task_thread_info(t)->status & TS_POLLING)
 
 #ifndef __ASSEMBLY__
 #define HAVE_SET_RESTORE_SIGMASK	1

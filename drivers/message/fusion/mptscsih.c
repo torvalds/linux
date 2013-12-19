@@ -1284,101 +1284,17 @@ mptscsih_info(struct Scsi_Host *SChost)
 	return h->info_kbuf;
 }
 
-struct info_str {
-	char *buffer;
-	int   length;
-	int   offset;
-	int   pos;
-};
-
-static void
-mptscsih_copy_mem_info(struct info_str *info, char *data, int len)
-{
-	if (info->pos + len > info->length)
-		len = info->length - info->pos;
-
-	if (info->pos + len < info->offset) {
-		info->pos += len;
-		return;
-	}
-
-	if (info->pos < info->offset) {
-	        data += (info->offset - info->pos);
-	        len  -= (info->offset - info->pos);
-	}
-
-	if (len > 0) {
-                memcpy(info->buffer + info->pos, data, len);
-                info->pos += len;
-	}
-}
-
-static int
-mptscsih_copy_info(struct info_str *info, char *fmt, ...)
-{
-	va_list args;
-	char buf[81];
-	int len;
-
-	va_start(args, fmt);
-	len = vsprintf(buf, fmt, args);
-	va_end(args);
-
-	mptscsih_copy_mem_info(info, buf, len);
-	return len;
-}
-
-static int
-mptscsih_host_info(MPT_ADAPTER *ioc, char *pbuf, off_t offset, int len)
-{
-	struct info_str info;
-
-	info.buffer	= pbuf;
-	info.length	= len;
-	info.offset	= offset;
-	info.pos	= 0;
-
-	mptscsih_copy_info(&info, "%s: %s, ", ioc->name, ioc->prod_name);
-	mptscsih_copy_info(&info, "%s%08xh, ", MPT_FW_REV_MAGIC_ID_STRING, ioc->facts.FWVersion.Word);
-	mptscsih_copy_info(&info, "Ports=%d, ", ioc->facts.NumberOfPorts);
-	mptscsih_copy_info(&info, "MaxQ=%d\n", ioc->req_depth);
-
-	return ((info.pos > info.offset) ? info.pos - info.offset : 0);
-}
-
-/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/**
- *	mptscsih_proc_info - Return information about MPT adapter
- * 	@host:   scsi host struct
- * 	@buffer: if write, user data; if read, buffer for user
- *	@start: returns the buffer address
- * 	@offset: if write, 0; if read, the current offset into the buffer from
- * 		 the previous read.
- * 	@length: if write, return length;
- *	@func:   write = 1; read = 0
- *
- *	(linux scsi_host_template.info routine)
- */
-int
-mptscsih_proc_info(struct Scsi_Host *host, char *buffer, char **start, off_t offset,
-			int length, int func)
+int mptscsih_show_info(struct seq_file *m, struct Scsi_Host *host)
 {
 	MPT_SCSI_HOST	*hd = shost_priv(host);
 	MPT_ADAPTER	*ioc = hd->ioc;
-	int size = 0;
 
-	if (func) {
-		/*
-		 * write is not supported
-		 */
-	} else {
-		if (start)
-			*start = buffer;
+	seq_printf(m, "%s: %s, ", ioc->name, ioc->prod_name);
+	seq_printf(m, "%s%08xh, ", MPT_FW_REV_MAGIC_ID_STRING, ioc->facts.FWVersion.Word);
+	seq_printf(m, "Ports=%d, ", ioc->facts.NumberOfPorts);
+	seq_printf(m, "MaxQ=%d\n", ioc->req_depth);
 
-		size = mptscsih_host_info(ioc, buffer, offset, length);
-	}
-
-	return size;
+	return 0;
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -3348,7 +3264,7 @@ EXPORT_SYMBOL(mptscsih_shutdown);
 EXPORT_SYMBOL(mptscsih_suspend);
 EXPORT_SYMBOL(mptscsih_resume);
 #endif
-EXPORT_SYMBOL(mptscsih_proc_info);
+EXPORT_SYMBOL(mptscsih_show_info);
 EXPORT_SYMBOL(mptscsih_info);
 EXPORT_SYMBOL(mptscsih_qcmd);
 EXPORT_SYMBOL(mptscsih_slave_destroy);

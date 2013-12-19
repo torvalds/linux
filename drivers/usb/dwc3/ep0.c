@@ -6,34 +6,14 @@
  * Authors: Felipe Balbi <balbi@ti.com>,
  *	    Sebastian Andrzej Siewior <bigeasy@linutronix.de>
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
- *    to endorse or promote products derived from this software without
- *    specific prior written permission.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2  of
+ * the License as published by the Free Software Foundation.
  *
- * ALTERNATIVELY, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2, as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
- * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -168,6 +148,7 @@ static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 
 		direction = !dwc->ep0_expect_in;
 		dwc->delayed_status = false;
+		usb_gadget_set_state(&dwc->gadget, USB_STATE_CONFIGURED);
 
 		if (dwc->ep0state == EP0_STATUS_PHASE)
 			__dwc3_ep0_do_control_status(dwc, dwc->eps[direction]);
@@ -371,7 +352,7 @@ static int dwc3_ep0_handle_status(struct dwc3 *dwc,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	response_pkt = (__le16 *) dwc->setup_buf;
 	*response_pkt = cpu_to_le16(usb_status);
@@ -394,10 +375,13 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 	u32			wIndex;
 	u32			reg;
 	int			ret;
+	enum usb_device_state	state;
 
 	wValue = le16_to_cpu(ctrl->wValue);
 	wIndex = le16_to_cpu(ctrl->wIndex);
 	recip = ctrl->bRequestType & USB_RECIP_MASK;
+	state = dwc->gadget.state;
+
 	switch (recip) {
 	case USB_RECIP_DEVICE:
 
@@ -409,7 +393,7 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 		 * default control pipe
 		 */
 		case USB_DEVICE_U1_ENABLE:
-			if (dwc->dev_state != DWC3_CONFIGURED_STATE)
+			if (state != USB_STATE_CONFIGURED)
 				return -EINVAL;
 			if (dwc->speed != DWC3_DSTS_SUPERSPEED)
 				return -EINVAL;
@@ -423,7 +407,7 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 			break;
 
 		case USB_DEVICE_U2_ENABLE:
-			if (dwc->dev_state != DWC3_CONFIGURED_STATE)
+			if (state != USB_STATE_CONFIGURED)
 				return -EINVAL;
 			if (dwc->speed != DWC3_DSTS_SUPERSPEED)
 				return -EINVAL;
@@ -475,6 +459,8 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 			dep = dwc3_wIndex_to_dep(dwc, wIndex);
 			if (!dep)
 				return -EINVAL;
+			if (set == 0 && (dep->flags & DWC3_EP_WEDGE))
+				break;
 			ret = __dwc3_gadget_ep_set_halt(dep, set);
 			if (ret)
 				return -EINVAL;
@@ -486,13 +472,14 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }
 
 static int dwc3_ep0_set_address(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 {
+	enum usb_device_state state = dwc->gadget.state;
 	u32 addr;
 	u32 reg;
 
@@ -502,7 +489,7 @@ static int dwc3_ep0_set_address(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 		return -EINVAL;
 	}
 
-	if (dwc->dev_state == DWC3_CONFIGURED_STATE) {
+	if (state == USB_STATE_CONFIGURED) {
 		dev_dbg(dwc->dev, "trying to set address when configured\n");
 		return -EINVAL;
 	}
@@ -513,9 +500,9 @@ static int dwc3_ep0_set_address(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 	dwc3_writel(dwc->regs, DWC3_DCFG, reg);
 
 	if (addr)
-		dwc->dev_state = DWC3_ADDRESS_STATE;
+		usb_gadget_set_state(&dwc->gadget, USB_STATE_ADDRESS);
 	else
-		dwc->dev_state = DWC3_DEFAULT_STATE;
+		usb_gadget_set_state(&dwc->gadget, USB_STATE_DEFAULT);
 
 	return 0;
 }
@@ -532,6 +519,7 @@ static int dwc3_ep0_delegate_req(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 
 static int dwc3_ep0_set_config(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 {
+	enum usb_device_state state = dwc->gadget.state;
 	u32 cfg;
 	int ret;
 	u32 reg;
@@ -539,16 +527,26 @@ static int dwc3_ep0_set_config(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 	dwc->start_config_issued = false;
 	cfg = le16_to_cpu(ctrl->wValue);
 
-	switch (dwc->dev_state) {
-	case DWC3_DEFAULT_STATE:
+	switch (state) {
+	case USB_STATE_DEFAULT:
 		return -EINVAL;
 		break;
 
-	case DWC3_ADDRESS_STATE:
+	case USB_STATE_ADDRESS:
 		ret = dwc3_ep0_delegate_req(dwc, ctrl);
 		/* if the cfg matches and the cfg is non zero */
 		if (cfg && (!ret || (ret == USB_GADGET_DELAYED_STATUS))) {
-			dwc->dev_state = DWC3_CONFIGURED_STATE;
+
+			/*
+			 * only change state if set_config has already
+			 * been processed. If gadget driver returns
+			 * USB_GADGET_DELAYED_STATUS, we will wait
+			 * to change the state on the next usb_ep_queue()
+			 */
+			if (ret == 0)
+				usb_gadget_set_state(&dwc->gadget,
+						USB_STATE_CONFIGURED);
+
 			/*
 			 * Enable transition to U1/U2 state when
 			 * nothing is pending from application.
@@ -562,10 +560,11 @@ static int dwc3_ep0_set_config(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 		}
 		break;
 
-	case DWC3_CONFIGURED_STATE:
+	case USB_STATE_CONFIGURED:
 		ret = dwc3_ep0_delegate_req(dwc, ctrl);
-		if (!cfg)
-			dwc->dev_state = DWC3_ADDRESS_STATE;
+		if (!cfg && !ret)
+			usb_gadget_set_state(&dwc->gadget,
+					USB_STATE_ADDRESS);
 		break;
 	default:
 		ret = -EINVAL;
@@ -620,10 +619,11 @@ static void dwc3_ep0_set_sel_cmpl(struct usb_ep *ep, struct usb_request *req)
 static int dwc3_ep0_set_sel(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 {
 	struct dwc3_ep	*dep;
+	enum usb_device_state state = dwc->gadget.state;
 	u16		wLength;
 	u16		wValue;
 
-	if (dwc->dev_state == DWC3_DEFAULT_STATE)
+	if (state == USB_STATE_DEFAULT)
 		return -EINVAL;
 
 	wValue = le16_to_cpu(ctrl->wValue);
@@ -711,7 +711,7 @@ static int dwc3_ep0_std_request(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 		dev_vdbg(dwc->dev, "Forwarding to gadget driver\n");
 		ret = dwc3_ep0_delegate_req(dwc, ctrl);
 		break;
-	};
+	}
 
 	return ret;
 }
@@ -891,7 +891,8 @@ static void __dwc3_ep0_do_control_data(struct dwc3 *dwc,
 				DWC3_TRBCTL_CONTROL_DATA);
 	} else if (!IS_ALIGNED(req->request.length, dep->endpoint.maxpacket)
 			&& (dep->number == 0)) {
-		u32		transfer_size;
+		u32	transfer_size;
+		u32	maxpacket;
 
 		ret = usb_gadget_map_request(&dwc->gadget, &req->request,
 				dep->number);
@@ -902,8 +903,8 @@ static void __dwc3_ep0_do_control_data(struct dwc3 *dwc,
 
 		WARN_ON(req->request.length > DWC3_EP0_BOUNCE_SIZE);
 
-		transfer_size = roundup(req->request.length,
-				(u32) dep->endpoint.maxpacket);
+		maxpacket = dep->endpoint.maxpacket;
+		transfer_size = roundup(req->request.length, maxpacket);
 
 		dwc->ep0_bounced = true;
 

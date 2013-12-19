@@ -42,11 +42,11 @@ static int __ath_regd_init(struct ath_regulatory *reg);
 				NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_OFDM)
 
 /* We allow IBSS on these on a case by case basis by regulatory domain */
-#define ATH9K_5GHZ_5150_5350	REG_RULE(5150-10, 5350+10, 40, 0, 30,\
+#define ATH9K_5GHZ_5150_5350	REG_RULE(5150-10, 5350+10, 80, 0, 30,\
 				NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS)
-#define ATH9K_5GHZ_5470_5850	REG_RULE(5470-10, 5850+10, 40, 0, 30,\
+#define ATH9K_5GHZ_5470_5850	REG_RULE(5470-10, 5850+10, 80, 0, 30,\
 				NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS)
-#define ATH9K_5GHZ_5725_5850	REG_RULE(5725-10, 5850+10, 40, 0, 30,\
+#define ATH9K_5GHZ_5725_5850	REG_RULE(5725-10, 5850+10, 80, 0, 30,\
 				NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS)
 
 #define ATH9K_2GHZ_ALL		ATH9K_2GHZ_CH01_11, \
@@ -195,8 +195,6 @@ ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
 	const struct ieee80211_reg_rule *reg_rule;
 	struct ieee80211_channel *ch;
 	unsigned int i;
-	u32 bandwidth = 0;
-	int r;
 
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 
@@ -214,11 +212,8 @@ ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
 				continue;
 
 			if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE) {
-				r = freq_reg_info(wiphy,
-						  ch->center_freq,
-						  bandwidth,
-						  &reg_rule);
-				if (r)
+				reg_rule = freq_reg_info(wiphy, ch->center_freq);
+				if (IS_ERR(reg_rule))
 					continue;
 				/*
 				 * If 11d had a rule for this channel ensure
@@ -254,8 +249,6 @@ ath_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
 	const struct ieee80211_reg_rule *reg_rule;
-	u32 bandwidth = 0;
-	int r;
 
 	sband = wiphy->bands[IEEE80211_BAND_2GHZ];
 	if (!sband)
@@ -283,16 +276,16 @@ ath_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	 */
 
 	ch = &sband->channels[11]; /* CH 12 */
-	r = freq_reg_info(wiphy, ch->center_freq, bandwidth, &reg_rule);
-	if (!r) {
+	reg_rule = freq_reg_info(wiphy, ch->center_freq);
+	if (!IS_ERR(reg_rule)) {
 		if (!(reg_rule->flags & NL80211_RRF_PASSIVE_SCAN))
 			if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
 				ch->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
 	}
 
 	ch = &sband->channels[12]; /* CH 13 */
-	r = freq_reg_info(wiphy, ch->center_freq, bandwidth, &reg_rule);
-	if (!r) {
+	reg_rule = freq_reg_info(wiphy, ch->center_freq);
+	if (!IS_ERR(reg_rule)) {
 		if (!(reg_rule->flags & NL80211_RRF_PASSIVE_SCAN))
 			if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
 				ch->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
@@ -363,14 +356,132 @@ static u16 ath_regd_find_country_by_name(char *alpha2)
 	return -1;
 }
 
-int ath_reg_notifier_apply(struct wiphy *wiphy,
-			   struct regulatory_request *request,
-			   struct ath_regulatory *reg)
+static int __ath_reg_dyn_country(struct wiphy *wiphy,
+				 struct ath_regulatory *reg,
+				 struct regulatory_request *request)
+{
+	u16 country_code;
+
+	if (request->initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE &&
+	    !ath_is_world_regd(reg))
+		return -EINVAL;
+
+	country_code = ath_regd_find_country_by_name(request->alpha2);
+	if (country_code == (u16) -1)
+		return -EINVAL;
+
+	reg->current_rd = COUNTRY_ERD_FLAG;
+	reg->current_rd |= country_code;
+
+	__ath_regd_init(reg);
+
+	ath_reg_apply_world_flags(wiphy, request->initiator, reg);
+
+	return 0;
+}
+
+static void ath_reg_dyn_country(struct wiphy *wiphy,
+				struct ath_regulatory *reg,
+				struct regulatory_request *request)
+{
+	if (__ath_reg_dyn_country(wiphy, reg, request))
+		return;
+
+	printk(KERN_DEBUG "ath: regdomain 0x%0x "
+			  "dynamically updated by %s\n",
+	       reg->current_rd,
+	       reg_initiator_name(request->initiator));
+}
+
+static bool dynamic_country_user_possible(struct ath_regulatory *reg)
+{
+	if (config_enabled(CONFIG_ATH_REG_DYNAMIC_USER_CERT_TESTING))
+		return true;
+
+	switch (reg->country_code) {
+	case CTRY_UNITED_STATES:
+	case CTRY_JAPAN1:
+	case CTRY_JAPAN2:
+	case CTRY_JAPAN3:
+	case CTRY_JAPAN4:
+	case CTRY_JAPAN5:
+	case CTRY_JAPAN6:
+	case CTRY_JAPAN7:
+	case CTRY_JAPAN8:
+	case CTRY_JAPAN9:
+	case CTRY_JAPAN10:
+	case CTRY_JAPAN11:
+	case CTRY_JAPAN12:
+	case CTRY_JAPAN13:
+	case CTRY_JAPAN14:
+	case CTRY_JAPAN15:
+	case CTRY_JAPAN16:
+	case CTRY_JAPAN17:
+	case CTRY_JAPAN18:
+	case CTRY_JAPAN19:
+	case CTRY_JAPAN20:
+	case CTRY_JAPAN21:
+	case CTRY_JAPAN22:
+	case CTRY_JAPAN23:
+	case CTRY_JAPAN24:
+	case CTRY_JAPAN25:
+	case CTRY_JAPAN26:
+	case CTRY_JAPAN27:
+	case CTRY_JAPAN28:
+	case CTRY_JAPAN29:
+	case CTRY_JAPAN30:
+	case CTRY_JAPAN31:
+	case CTRY_JAPAN32:
+	case CTRY_JAPAN33:
+	case CTRY_JAPAN34:
+	case CTRY_JAPAN35:
+	case CTRY_JAPAN36:
+	case CTRY_JAPAN37:
+	case CTRY_JAPAN38:
+	case CTRY_JAPAN39:
+	case CTRY_JAPAN40:
+	case CTRY_JAPAN41:
+	case CTRY_JAPAN42:
+	case CTRY_JAPAN43:
+	case CTRY_JAPAN44:
+	case CTRY_JAPAN45:
+	case CTRY_JAPAN46:
+	case CTRY_JAPAN47:
+	case CTRY_JAPAN48:
+	case CTRY_JAPAN49:
+	case CTRY_JAPAN50:
+	case CTRY_JAPAN51:
+	case CTRY_JAPAN52:
+	case CTRY_JAPAN53:
+	case CTRY_JAPAN54:
+	case CTRY_JAPAN55:
+	case CTRY_JAPAN56:
+	case CTRY_JAPAN57:
+	case CTRY_JAPAN58:
+	case CTRY_JAPAN59:
+		return false;
+	}
+
+	return true;
+}
+
+static void ath_reg_dyn_country_user(struct wiphy *wiphy,
+				     struct ath_regulatory *reg,
+				     struct regulatory_request *request)
+{
+	if (!config_enabled(CONFIG_ATH_REG_DYNAMIC_USER_REG_HINTS))
+		return;
+	if (!dynamic_country_user_possible(reg))
+		return;
+	ath_reg_dyn_country(wiphy, reg, request);
+}
+
+void ath_reg_notifier_apply(struct wiphy *wiphy,
+			    struct regulatory_request *request,
+			    struct ath_regulatory *reg)
 {
 	struct ath_common *common = container_of(reg, struct ath_common,
 						 regulatory);
-	u16 country_code;
-
 	/* We always apply this */
 	ath_reg_apply_radar_flags(wiphy);
 
@@ -380,7 +491,7 @@ int ath_reg_notifier_apply(struct wiphy *wiphy,
 	 * any pending requests in the queue.
 	 */
 	if (!request)
-		return 0;
+		return;
 
 	switch (request->initiator) {
 	case NL80211_REGDOM_SET_BY_CORE:
@@ -395,29 +506,14 @@ int ath_reg_notifier_apply(struct wiphy *wiphy,
 		       sizeof(struct ath_regulatory));
 		break;
 	case NL80211_REGDOM_SET_BY_DRIVER:
+		break;
 	case NL80211_REGDOM_SET_BY_USER:
+		ath_reg_dyn_country_user(wiphy, reg, request);
 		break;
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
-		if (!ath_is_world_regd(reg))
-			break;
-
-		country_code = ath_regd_find_country_by_name(request->alpha2);
-		if (country_code == (u16) -1)
-			break;
-
-		reg->current_rd = COUNTRY_ERD_FLAG;
-		reg->current_rd |= country_code;
-
-		printk(KERN_DEBUG "ath: regdomain 0x%0x updated by CountryIE\n",
-			reg->current_rd);
-		__ath_regd_init(reg);
-
-		ath_reg_apply_world_flags(wiphy, request->initiator, reg);
-
+		ath_reg_dyn_country(wiphy, reg, request);
 		break;
 	}
-
-	return 0;
 }
 EXPORT_SYMBOL(ath_reg_notifier_apply);
 
@@ -507,8 +603,8 @@ ath_get_regpair(int regdmn)
 static int
 ath_regd_init_wiphy(struct ath_regulatory *reg,
 		    struct wiphy *wiphy,
-		    int (*reg_notifier)(struct wiphy *wiphy,
-					struct regulatory_request *request))
+		    void (*reg_notifier)(struct wiphy *wiphy,
+					 struct regulatory_request *request))
 {
 	const struct ieee80211_regdomain *regd;
 
@@ -628,8 +724,8 @@ static int __ath_regd_init(struct ath_regulatory *reg)
 int
 ath_regd_init(struct ath_regulatory *reg,
 	      struct wiphy *wiphy,
-	      int (*reg_notifier)(struct wiphy *wiphy,
-				  struct regulatory_request *request))
+	      void (*reg_notifier)(struct wiphy *wiphy,
+				   struct regulatory_request *request))
 {
 	struct ath_common *common = container_of(reg, struct ath_common,
 						 regulatory);

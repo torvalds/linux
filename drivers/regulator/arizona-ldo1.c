@@ -131,7 +131,7 @@ static const struct regulator_desc arizona_ldo1_hc = {
 	.min_uV = 900000,
 	.uV_step = 50000,
 	.n_voltages = 8,
-	.enable_time = 500,
+	.enable_time = 1500,
 
 	.owner = THIS_MODULE,
 };
@@ -226,7 +226,7 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 	else
 		config.init_data = &ldo1->init_data;
 
-	ldo1->regulator = regulator_register(desc, &config);
+	ldo1->regulator = devm_regulator_register(&pdev->dev, desc, &config);
 	if (IS_ERR(ldo1->regulator)) {
 		ret = PTR_ERR(ldo1->regulator);
 		dev_err(arizona->dev, "Failed to register LDO1 supply: %d\n",
@@ -239,18 +239,8 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int arizona_ldo1_remove(struct platform_device *pdev)
-{
-	struct arizona_ldo1 *ldo1 = platform_get_drvdata(pdev);
-
-	regulator_unregister(ldo1->regulator);
-
-	return 0;
-}
-
 static struct platform_driver arizona_ldo1_driver = {
 	.probe = arizona_ldo1_probe,
-	.remove = arizona_ldo1_remove,
 	.driver		= {
 		.name	= "arizona-ldo1",
 		.owner	= THIS_MODULE,

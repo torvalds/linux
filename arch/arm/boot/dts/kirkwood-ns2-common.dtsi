@@ -1,4 +1,5 @@
-/include/ "kirkwood.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
 
 / {
 	chosen {
@@ -6,12 +7,26 @@
 	};
 
 	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+			pmx_ns2_sata0: pmx-ns2-sata0 {
+				marvell,pins = "mpp21";
+				marvell,function = "sata0";
+			};
+			pmx_ns2_sata1: pmx-ns2-sata1 {
+				marvell,pins = "mpp20";
+				marvell,function = "sata1";
+			};
+		};
+
 		serial@12000 {
-			clock-frequency = <166666667>;
+			pinctrl-0 = <&pmx_uart0>;
+			pinctrl-names = "default";
 			status = "okay";
 		};
 
 		spi@10600 {
+			pinctrl-0 = <&pmx_spi>;
+			pinctrl-names = "default";
 			status = "okay";
 
 			flash@0 {
@@ -30,6 +45,8 @@
 		};
 
 		i2c@11000 {
+			pinctrl-0 = <&pmx_twsi0>;
+			pinctrl-names = "default";
 			status = "okay";
 
 			eeprom@50 {
@@ -59,5 +76,27 @@
 			label = "ns2:red:fail";
 			gpios = <&gpio0 12 0>;
 		};
+	};
+
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio0 31 0>;
+	};
+
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy {
+		device_type = "ethernet-phy";
+                /* overwrite reg property in board file */
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
 	};
 };

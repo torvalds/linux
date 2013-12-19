@@ -1175,7 +1175,7 @@ static void snd_mixart_proc_read(struct snd_info_entry *entry,
 
 			snd_iprintf(buffer, "\tstreaming          : %d\n", streaming);
 			snd_iprintf(buffer, "\tmailbox            : %d\n", mailbox);
-			snd_iprintf(buffer, "\tinterrups handling : %d\n\n", interr);
+			snd_iprintf(buffer, "\tinterrupts handling : %d\n\n", interr);
 		}
 	} /* endif elf loaded */
 }
@@ -1377,7 +1377,6 @@ static int snd_mixart_probe(struct pci_dev *pci,
 static void snd_mixart_remove(struct pci_dev *pci)
 {
 	snd_mixart_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static struct pci_driver mixart_driver = {

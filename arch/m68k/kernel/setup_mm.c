@@ -84,7 +84,6 @@ void (*mach_init_IRQ) (void) __initdata = NULL;
 void (*mach_get_model) (char *model);
 void (*mach_get_hardware_list) (struct seq_file *m);
 /* machine dependent timer functions */
-unsigned long (*mach_gettimeoffset) (void);
 int (*mach_hwclk) (int, struct rtc_time*);
 EXPORT_SYMBOL(mach_hwclk);
 int (*mach_set_clock_mmss) (unsigned long);
@@ -380,6 +379,12 @@ void __init setup_arch(char **cmdline_p)
 	if (MACH_IS_AMIGA && AMIGAHW_PRESENT(PCMCIA)) {
 		isa_type = ISA_TYPE_AG;
 		isa_sex = 1;
+	}
+#endif
+#ifdef CONFIG_ATARI_ROM_ISA
+	if (MACH_IS_ATARI) {
+		isa_type = ISA_TYPE_ENEC;
+		isa_sex = 0;
 	}
 #endif
 #endif

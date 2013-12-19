@@ -402,7 +402,7 @@ static void omap24xxcam_vbq_complete(struct omap24xxcam_sgdma *sgdma,
 		omap24xxcam_core_disable(cam);
 	spin_unlock_irqrestore(&cam->core_enable_disable_lock, flags);
 
-	do_gettimeofday(&vb->ts);
+	v4l2_get_timestamp(&vb->ts);
 	vb->field_count = atomic_add_return(2, &fh->field_count);
 	if (csr & csr_error) {
 		vb->state = VIDEOBUF_ERROR;
@@ -1656,7 +1656,7 @@ static int omap24xxcam_device_register(struct v4l2_int_device *s)
 	}
 	vfd->release = video_device_release;
 
-	vfd->parent = cam->dev;
+	vfd->v4l2_dev = &cam->v4l2_dev;
 
 	strlcpy(vfd->name, CAM_NAME, sizeof(vfd->name));
 	vfd->fops		 = &omap24xxcam_fops;
@@ -1736,7 +1736,7 @@ static struct v4l2_int_device omap24xxcam = {
  *
  */
 
-static int __devinit omap24xxcam_probe(struct platform_device *pdev)
+static int omap24xxcam_probe(struct platform_device *pdev)
 {
 	struct omap24xxcam_device *cam;
 	struct resource *mem;
@@ -1751,6 +1751,11 @@ static int __devinit omap24xxcam_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, cam);
 
 	cam->dev = &pdev->dev;
+
+	if (v4l2_device_register(&pdev->dev, &cam->v4l2_dev)) {
+		dev_err(&pdev->dev, "v4l2_device_register failed\n");
+		goto err;
+	}
 
 	/*
 	 * Impose a lower limit on the amount of memory allocated for
@@ -1848,6 +1853,8 @@ static int omap24xxcam_remove(struct platform_device *pdev)
 		release_mem_region(cam->mmio_base_phys, cam->mmio_size);
 		cam->mmio_base_phys = 0;
 	}
+
+	v4l2_device_unregister(&cam->v4l2_dev);
 
 	kfree(cam);
 

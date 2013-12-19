@@ -313,7 +313,7 @@ static void i2c_au1550_disable(struct i2c_au1550_data *priv)
  * Prior to calling us, the 50MHz clock frequency and routing
  * must have been set up for the PSC indicated by the adapter.
  */
-static int __devinit
+static int
 i2c_au1550_probe(struct platform_device *pdev)
 {
 	struct i2c_au1550_data *priv;
@@ -372,11 +372,10 @@ out:
 	return ret;
 }
 
-static int __devexit i2c_au1550_remove(struct platform_device *pdev)
+static int i2c_au1550_remove(struct platform_device *pdev)
 {
 	struct i2c_au1550_data *priv = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	i2c_del_adapter(&priv->adap);
 	i2c_au1550_disable(priv);
 	iounmap(priv->psc_base);
@@ -423,7 +422,7 @@ static struct platform_driver au1xpsc_smbus_driver = {
 		.pm	= AU1XPSC_SMBUS_PMOPS,
 	},
 	.probe		= i2c_au1550_probe,
-	.remove		= __devexit_p(i2c_au1550_remove),
+	.remove		= i2c_au1550_remove,
 };
 
 module_platform_driver(au1xpsc_smbus_driver);

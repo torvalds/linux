@@ -1,0 +1,667 @@
+/*
+ * Device Tree Source for AM4372 SoC
+ *
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+#include "skeleton.dtsi"
+
+/ {
+	compatible = "ti,am4372", "ti,am43";
+	interrupt-parent = <&gic>;
+
+
+	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		serial0 = &uart0;
+		ethernet0 = &cpsw_emac0;
+		ethernet1 = &cpsw_emac1;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cpu@0 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <0>;
+		};
+	};
+
+	gic: interrupt-controller@48241000 {
+		compatible = "arm,cortex-a9-gic";
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		reg = <0x48241000 0x1000>,
+		      <0x48240100 0x0100>;
+	};
+
+	l2-cache-controller@48242000 {
+		compatible = "arm,pl310-cache";
+		reg = <0x48242000 0x1000>;
+		cache-unified;
+		cache-level = <2>;
+	};
+
+	am43xx_pinmux: pinmux@44e10800 {
+		compatible = "pinctrl-single";
+		reg = <0x44e10800 0x31c>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-single,register-width = <32>;
+		pinctrl-single,function-mask = <0xffffffff>;
+	};
+
+	ocp {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		ti,hwmods = "l3_main";
+
+		edma: edma@49000000 {
+			compatible = "ti,edma3";
+			ti,hwmods = "tpcc", "tptc0", "tptc1", "tptc2";
+			reg =	<0x49000000 0x10000>,
+				<0x44e10f90 0x10>;
+			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+			#dma-cells = <1>;
+			dma-channels = <64>;
+			ti,edma-regions = <4>;
+			ti,edma-slots = <256>;
+		};
+
+		uart0: serial@44e09000 {
+			compatible = "ti,am4372-uart","ti,omap2-uart";
+			reg = <0x44e09000 0x2000>;
+			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "uart1";
+		};
+
+		uart1: serial@48022000 {
+			compatible = "ti,am4372-uart","ti,omap2-uart";
+			reg = <0x48022000 0x2000>;
+			interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "uart2";
+			status = "disabled";
+		};
+
+		uart2: serial@48024000 {
+			compatible = "ti,am4372-uart","ti,omap2-uart";
+			reg = <0x48024000 0x2000>;
+			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "uart3";
+			status = "disabled";
+		};
+
+		uart3: serial@481a6000 {
+			compatible = "ti,am4372-uart","ti,omap2-uart";
+			reg = <0x481a6000 0x2000>;
+			interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "uart4";
+			status = "disabled";
+		};
+
+		uart4: serial@481a8000 {
+			compatible = "ti,am4372-uart","ti,omap2-uart";
+			reg = <0x481a8000 0x2000>;
+			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "uart5";
+			status = "disabled";
+		};
+
+		uart5: serial@481aa000 {
+			compatible = "ti,am4372-uart","ti,omap2-uart";
+			reg = <0x481aa000 0x2000>;
+			interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "uart6";
+			status = "disabled";
+		};
+
+		mailbox: mailbox@480C8000 {
+			compatible = "ti,omap4-mailbox";
+			reg = <0x480C8000 0x200>;
+			interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mailbox";
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <8>;
+			ti,mbox-names = "wkup_m3";
+			ti,mbox-data = <0 0 0 0>;
+			status = "disabled";
+		};
+
+		timer1: timer@44e31000 {
+			compatible = "ti,am4372-timer-1ms","ti,am335x-timer-1ms";
+			reg = <0x44e31000 0x400>;
+			interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+			ti,timer-alwon;
+			ti,hwmods = "timer1";
+		};
+
+		timer2: timer@48040000  {
+			compatible = "ti,am4372-timer","ti,am335x-timer";
+			reg = <0x48040000  0x400>;
+			interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer2";
+		};
+
+		timer3: timer@48042000 {
+			compatible = "ti,am4372-timer","ti,am335x-timer";
+			reg = <0x48042000 0x400>;
+			interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer3";
+			status = "disabled";
+		};
+
+		timer4: timer@48044000 {
+			compatible = "ti,am4372-timer","ti,am335x-timer";
+			reg = <0x48044000 0x400>;
+			interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
+			ti,timer-pwm;
+			ti,hwmods = "timer4";
+			status = "disabled";
+		};
+
+		timer5: timer@48046000 {
+			compatible = "ti,am4372-timer","ti,am335x-timer";
+			reg = <0x48046000 0x400>;
+			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
+			ti,timer-pwm;
+			ti,hwmods = "timer5";
+			status = "disabled";
+		};
+
+		timer6: timer@48048000 {
+			compatible = "ti,am4372-timer","ti,am335x-timer";
+			reg = <0x48048000 0x400>;
+			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+			ti,timer-pwm;
+			ti,hwmods = "timer6";
+			status = "disabled";
+		};
+
+		timer7: timer@4804a000 {
+			compatible = "ti,am4372-timer","ti,am335x-timer";
+			reg = <0x4804a000 0x400>;
+			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+			ti,timer-pwm;
+			ti,hwmods = "timer7";
+			status = "disabled";
+		};
+
+		timer8: timer@481c1000 {
+			compatible = "ti,am4372-timer","ti,am335x-timer";
+			reg = <0x481c1000 0x400>;
+			interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer8";
+			status = "disabled";
+		};
+
+		timer9: timer@4833d000 {
+			compatible = "ti,am4372-timer","ti,am335x-timer";
+			reg = <0x4833d000 0x400>;
+			interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer9";
+			status = "disabled";
+		};
+
+		timer10: timer@4833f000 {
+			compatible = "ti,am4372-timer","ti,am335x-timer";
+			reg = <0x4833f000 0x400>;
+			interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer10";
+			status = "disabled";
+		};
+
+		timer11: timer@48341000 {
+			compatible = "ti,am4372-timer","ti,am335x-timer";
+			reg = <0x48341000 0x400>;
+			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer11";
+			status = "disabled";
+		};
+
+		counter32k: counter@44e86000 {
+			compatible = "ti,am4372-counter32k","ti,omap-counter32k";
+			reg = <0x44e86000 0x40>;
+			ti,hwmods = "counter_32k";
+		};
+
+		rtc@44e3e000 {
+			compatible = "ti,am4372-rtc","ti,da830-rtc";
+			reg = <0x44e3e000 0x1000>;
+			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH
+				      GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "rtc";
+			status = "disabled";
+		};
+
+		wdt@44e35000 {
+			compatible = "ti,am4372-wdt","ti,omap3-wdt";
+			reg = <0x44e35000 0x1000>;
+			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "wd_timer2";
+		};
+
+		gpio0: gpio@44e07000 {
+			compatible = "ti,am4372-gpio","ti,omap4-gpio";
+			reg = <0x44e07000 0x1000>;
+			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			ti,hwmods = "gpio1";
+			status = "disabled";
+		};
+
+		gpio1: gpio@4804c000 {
+			compatible = "ti,am4372-gpio","ti,omap4-gpio";
+			reg = <0x4804c000 0x1000>;
+			interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			ti,hwmods = "gpio2";
+			status = "disabled";
+		};
+
+		gpio2: gpio@481ac000 {
+			compatible = "ti,am4372-gpio","ti,omap4-gpio";
+			reg = <0x481ac000 0x1000>;
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			ti,hwmods = "gpio3";
+			status = "disabled";
+		};
+
+		gpio3: gpio@481ae000 {
+			compatible = "ti,am4372-gpio","ti,omap4-gpio";
+			reg = <0x481ae000 0x1000>;
+			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			ti,hwmods = "gpio4";
+			status = "disabled";
+		};
+
+		gpio4: gpio@48320000 {
+			compatible = "ti,am4372-gpio","ti,omap4-gpio";
+			reg = <0x48320000 0x1000>;
+			interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			ti,hwmods = "gpio5";
+			status = "disabled";
+		};
+
+		gpio5: gpio@48322000 {
+			compatible = "ti,am4372-gpio","ti,omap4-gpio";
+			reg = <0x48322000 0x1000>;
+			interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			ti,hwmods = "gpio6";
+			status = "disabled";
+		};
+
+		i2c0: i2c@44e0b000 {
+			compatible = "ti,am4372-i2c","ti,omap4-i2c";
+			reg = <0x44e0b000 0x1000>;
+			interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "i2c1";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@4802a000 {
+			compatible = "ti,am4372-i2c","ti,omap4-i2c";
+			reg = <0x4802a000 0x1000>;
+			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "i2c2";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@4819c000 {
+			compatible = "ti,am4372-i2c","ti,omap4-i2c";
+			reg = <0x4819c000 0x1000>;
+			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "i2c3";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		spi0: spi@48030000 {
+			compatible = "ti,am4372-mcspi","ti,omap4-mcspi";
+			reg = <0x48030000 0x400>;
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "spi0";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		mmc1: mmc@48060000 {
+			compatible = "ti,omap4-hsmmc";
+			reg = <0x48060000 0x1000>;
+			ti,hwmods = "mmc1";
+			ti,dual-volt;
+			ti,needs-special-reset;
+			dmas = <&edma 24
+				&edma 25>;
+			dma-names = "tx", "rx";
+			interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		mmc2: mmc@481d8000 {
+			compatible = "ti,omap4-hsmmc";
+			reg = <0x481d8000 0x1000>;
+			ti,hwmods = "mmc2";
+			ti,needs-special-reset;
+			dmas = <&edma 2
+				&edma 3>;
+			dma-names = "tx", "rx";
+			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		mmc3: mmc@47810000 {
+			compatible = "ti,omap4-hsmmc";
+			reg = <0x47810000 0x1000>;
+			ti,hwmods = "mmc3";
+			ti,needs-special-reset;
+			interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		spi1: spi@481a0000 {
+			compatible = "ti,am4372-mcspi","ti,omap4-mcspi";
+			reg = <0x481a0000 0x400>;
+			interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "spi1";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		spi2: spi@481a2000 {
+			compatible = "ti,am4372-mcspi","ti,omap4-mcspi";
+			reg = <0x481a2000 0x400>;
+			interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "spi2";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		spi3: spi@481a4000 {
+			compatible = "ti,am4372-mcspi","ti,omap4-mcspi";
+			reg = <0x481a4000 0x400>;
+			interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "spi3";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		spi4: spi@48345000 {
+			compatible = "ti,am4372-mcspi","ti,omap4-mcspi";
+			reg = <0x48345000 0x400>;
+			interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "spi4";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		mac: ethernet@4a100000 {
+			compatible = "ti,am4372-cpsw","ti,cpsw";
+			reg = <0x4a100000 0x800
+			       0x4a101200 0x100>;
+			interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH
+				      GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH
+				      GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH
+				      GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ti,hwmods = "cpgmac0";
+			status = "disabled";
+			cpdma_channels = <8>;
+			ale_entries = <1024>;
+			bd_ram_size = <0x2000>;
+			no_bd_ram = <0>;
+			rx_descs = <64>;
+			mac_control = <0x20>;
+			slaves = <2>;
+			active_slave = <0>;
+			cpts_clock_mult = <0x80000000>;
+			cpts_clock_shift = <29>;
+			ranges;
+
+			davinci_mdio: mdio@4a101000 {
+				compatible = "ti,am4372-mdio","ti,davinci_mdio";
+				reg = <0x4a101000 0x100>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				ti,hwmods = "davinci_mdio";
+				bus_freq = <1000000>;
+				status = "disabled";
+			};
+
+			cpsw_emac0: slave@4a100200 {
+				/* Filled in by U-Boot */
+				mac-address = [ 00 00 00 00 00 00 ];
+			};
+
+			cpsw_emac1: slave@4a100300 {
+				/* Filled in by U-Boot */
+				mac-address = [ 00 00 00 00 00 00 ];
+			};
+		};
+
+		epwmss0: epwmss@48300000 {
+			compatible = "ti,am4372-pwmss","ti,am33xx-pwmss";
+			reg = <0x48300000 0x10>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			ti,hwmods = "epwmss0";
+			status = "disabled";
+
+			ecap0: ecap@48300100 {
+				compatible = "ti,am4372-ecap","ti,am33xx-ecap";
+				reg = <0x48300100 0x80>;
+				ti,hwmods = "ecap0";
+				status = "disabled";
+			};
+
+			ehrpwm0: ehrpwm@48300200 {
+				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				reg = <0x48300200 0x80>;
+				ti,hwmods = "ehrpwm0";
+				status = "disabled";
+			};
+		};
+
+		epwmss1: epwmss@48302000 {
+			compatible = "ti,am4372-pwmss","ti,am33xx-pwmss";
+			reg = <0x48302000 0x10>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			ti,hwmods = "epwmss1";
+			status = "disabled";
+
+			ecap1: ecap@48302100 {
+				compatible = "ti,am4372-ecap","ti,am33xx-ecap";
+				reg = <0x48302100 0x80>;
+				ti,hwmods = "ecap1";
+				status = "disabled";
+			};
+
+			ehrpwm1: ehrpwm@48302200 {
+				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				reg = <0x48302200 0x80>;
+				ti,hwmods = "ehrpwm1";
+				status = "disabled";
+			};
+		};
+
+		epwmss2: epwmss@48304000 {
+			compatible = "ti,am4372-pwmss","ti,am33xx-pwmss";
+			reg = <0x48304000 0x10>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			ti,hwmods = "epwmss2";
+			status = "disabled";
+
+			ecap2: ecap@48304100 {
+				compatible = "ti,am4372-ecap","ti,am33xx-ecap";
+				reg = <0x48304100 0x80>;
+				ti,hwmods = "ecap2";
+				status = "disabled";
+			};
+
+			ehrpwm2: ehrpwm@48304200 {
+				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				reg = <0x48304200 0x80>;
+				ti,hwmods = "ehrpwm2";
+				status = "disabled";
+			};
+		};
+
+		epwmss3: epwmss@48306000 {
+			compatible = "ti,am4372-pwmss","ti,am33xx-pwmss";
+			reg = <0x48306000 0x10>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			ti,hwmods = "epwmss3";
+			status = "disabled";
+
+			ehrpwm3: ehrpwm@48306200 {
+				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				reg = <0x48306200 0x80>;
+				ti,hwmods = "ehrpwm3";
+				status = "disabled";
+			};
+		};
+
+		epwmss4: epwmss@48308000 {
+			compatible = "ti,am4372-pwmss","ti,am33xx-pwmss";
+			reg = <0x48308000 0x10>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			ti,hwmods = "epwmss4";
+			status = "disabled";
+
+			ehrpwm4: ehrpwm@48308200 {
+				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				reg = <0x48308200 0x80>;
+				ti,hwmods = "ehrpwm4";
+				status = "disabled";
+			};
+		};
+
+		epwmss5: epwmss@4830a000 {
+			compatible = "ti,am4372-pwmss","ti,am33xx-pwmss";
+			reg = <0x4830a000 0x10>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			ti,hwmods = "epwmss5";
+			status = "disabled";
+
+			ehrpwm5: ehrpwm@4830a200 {
+				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				reg = <0x4830a200 0x80>;
+				ti,hwmods = "ehrpwm5";
+				status = "disabled";
+			};
+		};
+
+		sham: sham@53100000 {
+			compatible = "ti,omap5-sham";
+			ti,hwmods = "sham";
+			reg = <0x53100000 0x300>;
+			dmas = <&edma 36>;
+			dma-names = "rx";
+			interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		aes: aes@53501000 {
+			compatible = "ti,omap4-aes";
+			ti,hwmods = "aes";
+			reg = <0x53501000 0xa0>;
+			interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&edma 6
+				&edma 5>;
+			dma-names = "tx", "rx";
+		};
+
+		des: des@53701000 {
+			compatible = "ti,omap4-des";
+			ti,hwmods = "des";
+			reg = <0x53701000 0xa0>;
+			interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&edma 34
+				&edma 33>;
+			dma-names = "tx", "rx";
+		};
+
+		mcasp0: mcasp@48038000 {
+			compatible = "ti,am33xx-mcasp-audio";
+			ti,hwmods = "mcasp0";
+			reg = <0x48038000 0x2000>,
+			      <0x46000000 0x400000>;
+			reg-names = "mpu", "dat";
+			interrupts = <80>, <81>;
+			interrupts-names = "tx", "rx";
+			status = "disabled";
+			dmas = <&edma 8>,
+			       <&edma 9>;
+			dma-names = "tx", "rx";
+		};
+
+		mcasp1: mcasp@4803C000 {
+			compatible = "ti,am33xx-mcasp-audio";
+			ti,hwmods = "mcasp1";
+			reg = <0x4803C000 0x2000>,
+			      <0x46400000 0x400000>;
+			reg-names = "mpu", "dat";
+			interrupts = <82>, <83>;
+			interrupts-names = "tx", "rx";
+			status = "disabled";
+			dmas = <&edma 10>,
+			       <&edma 11>;
+			dma-names = "tx", "rx";
+		};
+	};
+};

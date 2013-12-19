@@ -422,8 +422,7 @@ int pvr2_encoder_adjust(struct pvr2_hdw *hdw)
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "Error from cx2341x module code=%d",ret);
 	} else {
-		memcpy(&hdw->enc_cur_state,&hdw->enc_ctl_state,
-		       sizeof(struct cx2341x_mpeg_params));
+		hdw->enc_cur_state = hdw->enc_ctl_state;
 		hdw->enc_cur_valid = !0;
 	}
 	return ret;

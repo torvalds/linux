@@ -1,0 +1,13 @@
+if MMP_DISP
+
+config MMP_FB
+	bool "fb driver for Marvell MMP Display Subsystem"
+	depends on FB
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	default y
+	help
+		fb driver for Marvell MMP Display Subsystem
+
+endif

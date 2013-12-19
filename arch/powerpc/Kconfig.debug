@@ -28,13 +28,6 @@ config PRINT_STACK_DEPTH
 	  too small and stack traces cause important information to
 	  scroll off the screen.
 
-config DEBUG_STACKOVERFLOW
-	bool "Check for stack overflows"
-	depends on DEBUG_KERNEL
-	help
-	  This option will cause messages to be printed if free stack space
-	  drops below a certain limit.
-
 config HCALL_STATS
 	bool "Hypervisor call instrumentation"
 	depends on PPC_PSERIES && DEBUG_FS && TRACEPOINTS
@@ -146,6 +139,13 @@ choice
 	  Use the selected console for early debugging. Careful, if you
 	  enable debugging for the wrong type of machine your kernel
 	  _will not boot_.
+
+config PPC_EARLY_DEBUG_BOOTX
+	bool "BootX or OpenFirmware"
+	depends on BOOTX_TEXT
+	help
+	  Select this to enable early debugging for a machine using BootX
+	  or OpenFirmware.
 
 config PPC_EARLY_DEBUG_LPAR
 	bool "LPAR HV Console"
@@ -262,7 +262,30 @@ config PPC_EARLY_DEBUG_OPAL_HVSI
 	  Select this to enable early debugging for the PowerNV platform
 	  using an "hvsi" console
 
+config PPC_EARLY_DEBUG_MEMCONS
+	bool "In memory console"
+	help
+	  Select this to enable early debugging using an in memory console.
+	  This console provides input and output buffers stored within the
+	  kernel BSS and should be safe to select on any system. A debugger
+	  can then be used to read kernel output or send input to the console.
 endchoice
+
+config PPC_MEMCONS_OUTPUT_SIZE
+	int "In memory console output buffer size"
+	depends on PPC_EARLY_DEBUG_MEMCONS
+	default 4096
+	help
+	  Selects the size of the output buffer (in bytes) of the in memory
+	  console.
+
+config PPC_MEMCONS_INPUT_SIZE
+	int "In memory console input buffer size"
+	depends on PPC_EARLY_DEBUG_MEMCONS
+	default 128
+	help
+	  Selects the size of the input buffer (in bytes) of the in memory
+	  console.
 
 config PPC_EARLY_DEBUG_OPAL
 	def_bool y

@@ -15,10 +15,6 @@ This program is free software; you can redistribute it and/or modify it under th
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
-You should also find the complete GPL in the COPYING file accompanying this source code.
-
 @endverbatim
 */
 /*
@@ -264,18 +260,13 @@ static int apci1564_do_insn_bits(struct comedi_device *dev,
 				 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
 
 	s->state = inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
 			APCI1564_DIGITAL_OP_RW);
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
 
+	if (comedi_dio_update_state(s, data))
 		outl(s->state, devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
 			APCI1564_DIGITAL_OP_RW);
-	}
 
 	data[1] = s->state;
 

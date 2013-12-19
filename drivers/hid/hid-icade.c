@@ -159,7 +159,7 @@ static const struct icade_key icade_usage_table[30] = {
 
 static const struct icade_key *icade_find_translation(u16 from)
 {
-	if (from < 0 || from > ICADE_MAX_USAGE)
+	if (from > ICADE_MAX_USAGE)
 		return NULL;
 	return &icade_usage_table[from];
 }
@@ -235,25 +235,8 @@ static struct hid_driver icade_driver = {
 	.input_mapped = icade_input_mapped,
 	.input_mapping = icade_input_mapping,
 };
+module_hid_driver(icade_driver);
 
-static int __init icade_init(void)
-{
-	int ret;
-
-	ret = hid_register_driver(&icade_driver);
-	if (ret)
-		pr_err("can't register icade driver\n");
-
-	return ret;
-}
-
-static void __exit icade_exit(void)
-{
-	hid_unregister_driver(&icade_driver);
-}
-
-module_init(icade_init);
-module_exit(icade_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Bastien Nocera <hadess@hadess.net>");
 MODULE_DESCRIPTION("ION iCade input driver");

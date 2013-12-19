@@ -6,24 +6,10 @@
  *	Jinyoung Jeon <jy0.jeon@samsung.com>
  *	Sangmin Lee <lsmin.lee@samsung.com>
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
  */
 
 #ifndef _EXYNOS_DRM_IPP_H_
@@ -160,7 +146,7 @@ struct exynos_drm_ipp_ops {
  * @dedicated: dedicated ipp device.
  * @ops: source, destination operations.
  * @event_workq: event work queue.
- * @cmd: current command information.
+ * @c_node: current command information.
  * @cmd_list: list head for command information.
  * @prop_list: property informations of current ipp driver.
  * @check_property: check property about format, size, buffer.
@@ -178,7 +164,7 @@ struct exynos_drm_ippdrv {
 	bool	dedicated;
 	struct exynos_drm_ipp_ops	*ops[EXYNOS_DRM_OPS_MAX];
 	struct workqueue_struct	*event_workq;
-	struct drm_exynos_ipp_cmd_node *cmd;
+	struct drm_exynos_ipp_cmd_node *c_node;
 	struct list_head	cmd_list;
 	struct drm_exynos_ipp_prop_list *prop_list;
 

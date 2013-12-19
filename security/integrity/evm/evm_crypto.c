@@ -110,6 +110,9 @@ static void hmac_add_misc(struct shash_desc *desc, struct inode *inode,
 	hmac_misc.gid = from_kgid(&init_user_ns, inode->i_gid);
 	hmac_misc.mode = inode->i_mode;
 	crypto_shash_update(desc, (const u8 *)&hmac_misc, sizeof hmac_misc);
+	if (evm_hmac_version > 1)
+		crypto_shash_update(desc, inode->i_sb->s_uuid,
+				    sizeof(inode->i_sb->s_uuid));
 	crypto_shash_final(desc, digest);
 }
 
@@ -205,9 +208,9 @@ int evm_update_evmxattr(struct dentry *dentry, const char *xattr_name,
 		rc = __vfs_setxattr_noperm(dentry, XATTR_NAME_EVM,
 					   &xattr_data,
 					   sizeof(xattr_data), 0);
-	}
-	else if (rc == -ENODATA)
+	} else if (rc == -ENODATA && inode->i_op->removexattr) {
 		rc = inode->i_op->removexattr(dentry, XATTR_NAME_EVM);
+	}
 	return rc;
 }
 

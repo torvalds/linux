@@ -849,7 +849,7 @@ long arch_ptrace(struct task_struct *child, long request,
 #endif
 
 		case PTRACE_GET_THREAD_AREA:
-			ret = put_user(task_thread_info(child)->tp_value,
+			ret = put_user(task_thread_info(child)->tp_value[0],
 				       datap);
 			break;
 
@@ -886,20 +886,12 @@ long arch_ptrace(struct task_struct *child, long request,
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 		case PTRACE_GETHBPREGS:
-			if (ptrace_get_breakpoints(child) < 0)
-				return -ESRCH;
-
 			ret = ptrace_gethbpregs(child, addr,
 						(unsigned long __user *)data);
-			ptrace_put_breakpoints(child);
 			break;
 		case PTRACE_SETHBPREGS:
-			if (ptrace_get_breakpoints(child) < 0)
-				return -ESRCH;
-
 			ret = ptrace_sethbpregs(child, addr,
 						(unsigned long __user *)data);
-			ptrace_put_breakpoints(child);
 			break;
 #endif
 

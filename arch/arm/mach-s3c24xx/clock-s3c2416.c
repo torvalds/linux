@@ -14,7 +14,6 @@
 #include <linux/init.h>
 #include <linux/clk.h>
 
-#include <plat/s3c2416.h>
 #include <plat/clock.h>
 #include <plat/clock-clksrc.h>
 #include <plat/cpu.h>
@@ -168,7 +167,5 @@ void __init s3c2416_init_clocks(int xtal)
 
 	s3c24xx_register_clock(&hsmmc0_clk);
 	clkdev_add_table(s3c2416_clk_lookup, ARRAY_SIZE(s3c2416_clk_lookup));
-
-	s3c_pwmclk_init();
 
 }

@@ -1,7 +1,7 @@
 /*
  * Copyright 2012 Calxeda, Inc.
  *
- * Based on arch/arm/plat-mxc/cpuidle.c:
+ * Based on arch/arm/plat-mxc/cpuidle.c: #v3.7
  * Copyright 2012 Freescale Semiconductor, Inc.
  * Copyright 2012 Linaro Ltd.
  *
@@ -16,91 +16,40 @@
  *
  * You should have received a copy of the GNU General Public License along with
  * this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Maintainer: Rob Herring <rob.herring@calxeda.com>
  */
 
 #include <linux/cpuidle.h>
+#include <linux/cpu_pm.h>
 #include <linux/init.h>
-#include <linux/io.h>
-#include <linux/of.h>
-#include <linux/time.h>
-#include <linux/delay.h>
-#include <linux/suspend.h>
+#include <linux/mm.h>
+#include <linux/platform_device.h>
 #include <asm/cpuidle.h>
-#include <asm/proc-fns.h>
-#include <asm/smp_scu.h>
 #include <asm/suspend.h>
-#include <asm/cacheflush.h>
-#include <asm/cp15.h>
-
-extern void highbank_set_cpu_jump(int cpu, void *jump_addr);
-extern void *scu_base_addr;
-
-static struct cpuidle_device __percpu *calxeda_idle_cpuidle_devices;
-
-static inline unsigned int get_auxcr(void)
-{
-	unsigned int val;
-	asm("mrc p15, 0, %0, c1, c0, 1	@ get AUXCR" : "=r" (val) : : "cc");
-	return val;
-}
-
-static inline void set_auxcr(unsigned int val)
-{
-	asm volatile("mcr p15, 0, %0, c1, c0, 1	@ set AUXCR"
-	  : : "r" (val) : "cc");
-	isb();
-}
-
-static noinline void calxeda_idle_restore(void)
-{
-	set_cr(get_cr() | CR_C);
-	set_auxcr(get_auxcr() | 0x40);
-	scu_power_mode(scu_base_addr, SCU_PM_NORMAL);
-}
+#include <asm/psci.h>
 
 static int calxeda_idle_finish(unsigned long val)
 {
-	/* Already flushed cache, but do it again as the outer cache functions
-	 * dirty the cache with spinlocks */
-	flush_cache_all();
-
-	set_auxcr(get_auxcr() & ~0x40);
-	set_cr(get_cr() & ~CR_C);
-
-	scu_power_mode(scu_base_addr, SCU_PM_DORMANT);
-
-	cpu_do_idle();
-
-	/* Restore things if we didn't enter power-gating */
-	calxeda_idle_restore();
-	return 1;
+	const struct psci_power_state ps = {
+		.type = PSCI_POWER_STATE_TYPE_POWER_DOWN,
+	};
+	return psci_ops.cpu_suspend(ps, __pa(cpu_resume));
 }
 
 static int calxeda_pwrdown_idle(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv,
 				int index)
 {
-	highbank_set_cpu_jump(smp_processor_id(), cpu_resume);
+	cpu_pm_enter();
 	cpu_suspend(0, calxeda_idle_finish);
+	cpu_pm_exit();
+
 	return index;
-}
-
-static void calxeda_idle_cpuidle_devices_uninit(void)
-{
-	int i;
-	struct cpuidle_device *dev;
-
-	for_each_possible_cpu(i) {
-		dev = per_cpu_ptr(calxeda_idle_cpuidle_devices, i);
-		cpuidle_unregister_device(dev);
-	}
-
-	free_percpu(calxeda_idle_cpuidle_devices);
 }
 
 static struct cpuidle_driver calxeda_idle_driver = {
 	.name = "calxeda_idle",
-	.en_core_tk_irqen = 1,
 	.states = {
 		ARM_CPUIDLE_WFI_STATE,
 		{
@@ -116,46 +65,17 @@ static struct cpuidle_driver calxeda_idle_driver = {
 	.state_count = 2,
 };
 
-static int __init calxeda_cpuidle_init(void)
+static int __init calxeda_cpuidle_probe(struct platform_device *pdev)
 {
-	int cpu_id;
-	int ret;
-	struct cpuidle_device *dev;
-	struct cpuidle_driver *drv = &calxeda_idle_driver;
-
-	if (!of_machine_is_compatible("calxeda,highbank"))
-		return -ENODEV;
-
-	ret = cpuidle_register_driver(drv);
-	if (ret)
-		return ret;
-
-	calxeda_idle_cpuidle_devices = alloc_percpu(struct cpuidle_device);
-	if (calxeda_idle_cpuidle_devices == NULL) {
-		ret = -ENOMEM;
-		goto unregister_drv;
-	}
-
-	/* initialize state data for each cpuidle_device */
-	for_each_possible_cpu(cpu_id) {
-		dev = per_cpu_ptr(calxeda_idle_cpuidle_devices, cpu_id);
-		dev->cpu = cpu_id;
-		dev->state_count = drv->state_count;
-
-		ret = cpuidle_register_device(dev);
-		if (ret) {
-			pr_err("Failed to register cpu %u, error: %d\n",
-			       cpu_id, ret);
-			goto uninit;
-		}
-	}
-
-	return 0;
-
-uninit:
-	calxeda_idle_cpuidle_devices_uninit();
-unregister_drv:
-	cpuidle_unregister_driver(drv);
-	return ret;
+	return cpuidle_register(&calxeda_idle_driver, NULL);
 }
-module_init(calxeda_cpuidle_init);
+
+static struct platform_driver calxeda_cpuidle_plat_driver = {
+        .driver = {
+                .name = "cpuidle-calxeda",
+                .owner = THIS_MODULE,
+        },
+        .probe = calxeda_cpuidle_probe,
+};
+
+module_platform_driver(calxeda_cpuidle_plat_driver);

@@ -49,13 +49,11 @@
  * @mmio_base: base address of pwm chip
  * @clk: pointer to clk structure of pwm chip
  * @chip: linux pwm chip representation
- * @dev: pointer to device structure of pwm chip
  */
 struct spear_pwm_chip {
 	void __iomem *mmio_base;
 	struct clk *clk;
 	struct pwm_chip chip;
-	struct device *dev;
 };
 
 static inline struct spear_pwm_chip *to_spear_pwm_chip(struct pwm_chip *chip)
@@ -143,7 +141,7 @@ static int spear_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	u32 val;
 
 	rc = clk_enable(pc->clk);
-	if (!rc)
+	if (rc)
 		return rc;
 
 	val = spear_pwm_readl(pc, pwm->hwpwm, PWMCR);
@@ -180,27 +178,21 @@ static int spear_pwm_probe(struct platform_device *pdev)
 	int ret;
 	u32 val;
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(&pdev->dev, "no memory resources defined\n");
-		return -ENODEV;
-	}
-
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc) {
 		dev_err(&pdev->dev, "failed to allocate memory\n");
 		return -ENOMEM;
 	}
 
-	pc->mmio_base = devm_request_and_ioremap(&pdev->dev, r);
-	if (!pc->mmio_base)
-		return -EADDRNOTAVAIL;
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pc->mmio_base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(pc->mmio_base))
+		return PTR_ERR(pc->mmio_base);
 
 	pc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pc->clk))
 		return PTR_ERR(pc->clk);
 
-	pc->dev = &pdev->dev;
 	platform_set_drvdata(pdev, pc);
 
 	pc->chip.dev = &pdev->dev;
@@ -209,12 +201,12 @@ static int spear_pwm_probe(struct platform_device *pdev)
 	pc->chip.npwm = NUM_PWM;
 
 	ret = clk_prepare(pc->clk);
-	if (!ret)
+	if (ret)
 		return ret;
 
 	if (of_device_is_compatible(np, "st,spear1340-pwm")) {
 		ret = clk_enable(pc->clk);
-		if (!ret) {
+		if (ret) {
 			clk_unprepare(pc->clk);
 			return ret;
 		}
@@ -251,7 +243,7 @@ static int spear_pwm_remove(struct platform_device *pdev)
 	return pwmchip_remove(&pc->chip);
 }
 
-static struct of_device_id spear_pwm_of_match[] = {
+static const struct of_device_id spear_pwm_of_match[] = {
 	{ .compatible = "st,spear320-pwm" },
 	{ .compatible = "st,spear1340-pwm" },
 	{ }
@@ -262,6 +254,7 @@ MODULE_DEVICE_TABLE(of, spear_pwm_of_match);
 static struct platform_driver spear_pwm_driver = {
 	.driver = {
 		.name = "spear-pwm",
+		.owner = THIS_MODULE,
 		.of_match_table = spear_pwm_of_match,
 	},
 	.probe = spear_pwm_probe,

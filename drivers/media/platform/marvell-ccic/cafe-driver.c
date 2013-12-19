@@ -27,7 +27,6 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <linux/device.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
@@ -400,7 +399,7 @@ static void cafe_ctlr_init(struct mcam_camera *mcam)
 }
 
 
-static void cafe_ctlr_power_up(struct mcam_camera *mcam)
+static int cafe_ctlr_power_up(struct mcam_camera *mcam)
 {
 	/*
 	 * Part one of the sensor dance: turn the global
@@ -415,6 +414,8 @@ static void cafe_ctlr_power_up(struct mcam_camera *mcam)
 	 */
 	mcam_reg_write(mcam, REG_GPR, GPR_C1EN|GPR_C0EN); /* pwr up, reset */
 	mcam_reg_write(mcam, REG_GPR, GPR_C1EN|GPR_C0EN|GPR_C0);
+
+	return 0;
 }
 
 static void cafe_ctlr_power_down(struct mcam_camera *mcam)
@@ -469,7 +470,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 		goto out;
 	cam->pdev = pdev;
 	mcam = &cam->mcam;
-	mcam->chip_id = V4L2_IDENT_CAFE;
+	mcam->chip_id = MCAM_CAFE;
 	spin_lock_init(&mcam->dev_lock);
 	init_waitqueue_head(&cam->smbus_wait);
 	mcam->plat_power_up = cafe_ctlr_power_up;
@@ -501,6 +502,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 		printk(KERN_ERR "Unable to ioremap cafe-ccic regs\n");
 		goto out_disable;
 	}
+	mcam->regs_size = pci_resource_len(pdev, 0);
 	ret = request_irq(pdev->irq, cafe_irq, IRQF_SHARED, "cafe-ccic", cam);
 	if (ret)
 		goto out_iounmap;

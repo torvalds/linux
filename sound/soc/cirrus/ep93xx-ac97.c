@@ -11,6 +11,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -22,7 +23,6 @@
 #include <sound/soc.h>
 
 #include <linux/platform_data/dma-ep93xx.h>
-#include "ep93xx-pcm.h"
 
 /*
  * Per channel (1-4) registers.
@@ -100,14 +100,16 @@ struct ep93xx_ac97_info {
 /* currently ALSA only supports a single AC97 device */
 static struct ep93xx_ac97_info *ep93xx_ac97_info;
 
-static struct ep93xx_pcm_dma_params ep93xx_ac97_pcm_out = {
+static struct ep93xx_dma_data ep93xx_ac97_pcm_out = {
 	.name		= "ac97-pcm-out",
-	.dma_port	= EP93XX_DMA_AAC1,
+	.port		= EP93XX_DMA_AAC1,
+	.direction	= DMA_MEM_TO_DEV,
 };
 
-static struct ep93xx_pcm_dma_params ep93xx_ac97_pcm_in = {
+static struct ep93xx_dma_data ep93xx_ac97_pcm_in = {
 	.name		= "ac97-pcm-in",
-	.dma_port	= EP93XX_DMA_AAC1,
+	.port		= EP93XX_DMA_AAC1,
+	.direction	= DMA_DEV_TO_MEM,
 };
 
 static inline unsigned ep93xx_ac97_read_reg(struct ep93xx_ac97_info *info,
@@ -235,13 +237,12 @@ static irqreturn_t ep93xx_ac97_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-struct snd_ac97_bus_ops soc_ac97_ops = {
+static struct snd_ac97_bus_ops ep93xx_ac97_ops = {
 	.read		= ep93xx_ac97_read,
 	.write		= ep93xx_ac97_write,
 	.reset		= ep93xx_ac97_cold_reset,
 	.warm_reset	= ep93xx_ac97_warm_reset,
 };
-EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
 static int ep93xx_ac97_trigger(struct snd_pcm_substream *substream,
 			       int cmd, struct snd_soc_dai *dai)
@@ -312,22 +313,15 @@ static int ep93xx_ac97_trigger(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int ep93xx_ac97_startup(struct snd_pcm_substream *substream,
-			       struct snd_soc_dai *dai)
+static int ep93xx_ac97_dai_probe(struct snd_soc_dai *dai)
 {
-	struct ep93xx_pcm_dma_params *dma_data;
+	dai->playback_dma_data = &ep93xx_ac97_pcm_out;
+	dai->capture_dma_data = &ep93xx_ac97_pcm_in;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		dma_data = &ep93xx_ac97_pcm_out;
-	else
-		dma_data = &ep93xx_ac97_pcm_in;
-
-	snd_soc_dai_set_dma_data(dai, substream, dma_data);
 	return 0;
 }
 
 static const struct snd_soc_dai_ops ep93xx_ac97_dai_ops = {
-	.startup	= ep93xx_ac97_startup,
 	.trigger	= ep93xx_ac97_trigger,
 };
 
@@ -335,6 +329,7 @@ static struct snd_soc_dai_driver ep93xx_ac97_dai = {
 	.name		= "ep93xx-ac97",
 	.id		= 0,
 	.ac97_control	= 1,
+	.probe		= ep93xx_ac97_dai_probe,
 	.playback	= {
 		.stream_name	= "AC97 Playback",
 		.channels_min	= 2,
@@ -352,6 +347,10 @@ static struct snd_soc_dai_driver ep93xx_ac97_dai = {
 	.ops			= &ep93xx_ac97_dai_ops,
 };
 
+static const struct snd_soc_component_driver ep93xx_ac97_component = {
+	.name		= "ep93xx-ac97",
+};
+
 static int ep93xx_ac97_probe(struct platform_device *pdev)
 {
 	struct ep93xx_ac97_info *info;
@@ -364,12 +363,9 @@ static int ep93xx_ac97_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
-	info->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!info->regs)
-		return -ENXIO;
+	info->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(info->regs))
+		return PTR_ERR(info->regs);
 
 	irq = platform_get_irq(pdev, 0);
 	if (!irq)
@@ -389,16 +385,20 @@ static int ep93xx_ac97_probe(struct platform_device *pdev)
 	ep93xx_ac97_info = info;
 	platform_set_drvdata(pdev, info);
 
-	ret = snd_soc_register_dai(&pdev->dev, &ep93xx_ac97_dai);
+	ret = snd_soc_set_ac97_ops(&ep93xx_ac97_ops);
+	if (ret)
+		goto fail;
+
+	ret = snd_soc_register_component(&pdev->dev, &ep93xx_ac97_component,
+					 &ep93xx_ac97_dai, 1);
 	if (ret)
 		goto fail;
 
 	return 0;
 
 fail:
-	platform_set_drvdata(pdev, NULL);
 	ep93xx_ac97_info = NULL;
-	dev_set_drvdata(&pdev->dev, NULL);
+	snd_soc_set_ac97_ops(NULL);
 	return ret;
 }
 
@@ -406,14 +406,14 @@ static int ep93xx_ac97_remove(struct platform_device *pdev)
 {
 	struct ep93xx_ac97_info	*info = platform_get_drvdata(pdev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	/* disable the AC97 controller */
 	ep93xx_ac97_write_reg(info, AC97GCR, 0);
 
-	platform_set_drvdata(pdev, NULL);
 	ep93xx_ac97_info = NULL;
-	dev_set_drvdata(&pdev->dev, NULL);
+
+	snd_soc_set_ac97_ops(NULL);
 
 	return 0;
 }

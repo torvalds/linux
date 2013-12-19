@@ -28,6 +28,7 @@
 /*******************************************************************************
  * IO codes that are interpreted by dongle firmware
  ******************************************************************************/
+#define BRCMF_C_GET_VERSION			1
 #define BRCMF_C_UP				2
 #define BRCMF_C_DOWN				3
 #define BRCMF_C_SET_PROMISC			10
@@ -39,6 +40,7 @@
 #define BRCMF_C_GET_BSSID			23
 #define BRCMF_C_GET_SSID			25
 #define BRCMF_C_SET_SSID			26
+#define BRCMF_C_TERMINATED			28
 #define BRCMF_C_GET_CHANNEL			29
 #define BRCMF_C_SET_CHANNEL			30
 #define BRCMF_C_GET_SRL				31
@@ -71,6 +73,8 @@
 #define BRCMF_C_SET_WSEC			134
 #define BRCMF_C_GET_PHY_NOISE			135
 #define BRCMF_C_GET_BSS_INFO			136
+#define BRCMF_C_GET_BANDLIST			140
+#define BRCMF_C_SET_SCB_TIMEOUT			158
 #define BRCMF_C_GET_PHYLIST			180
 #define BRCMF_C_SET_SCAN_CHANNEL_TIME		185
 #define BRCMF_C_SET_SCAN_UNASSOC_TIME		187
@@ -92,8 +96,6 @@
 #define	WLC_PHY_TYPE_HT		7
 #define	WLC_PHY_TYPE_LCN	8
 #define	WLC_PHY_TYPE_NULL	0xf
-
-#define BRCMF_EVENTING_MASK_LEN	16
 
 #define TOE_TX_CSUM_OL		0x00000001
 #define TOE_RX_CSUM_OL		0x00000002
@@ -148,6 +150,7 @@
 #define BRCMF_E_REASON_MINTXRATE		9
 #define BRCMF_E_REASON_TXFAIL			10
 
+#define BRCMF_E_REASON_LINK_BSSCFG_DIS		4
 #define BRCMF_E_REASON_FAST_ROAM_FAILED		5
 #define BRCMF_E_REASON_DIRECTED_ROAM		6
 #define BRCMF_E_REASON_TSPEC_REJECTED		7
@@ -189,6 +192,8 @@
 #define BRCMF_E_IF_DEL				2
 #define BRCMF_E_IF_CHANGE			3
 
+#define BRCMF_E_IF_FLAG_NOIF			1
+
 #define BRCMF_E_IF_ROLE_STA			0
 #define BRCMF_E_IF_ROLE_AP			1
 #define BRCMF_E_IF_ROLE_WDS			2
@@ -203,6 +208,8 @@
 #define BRCMF_DCMD_SMLEN	256
 #define BRCMF_DCMD_MEDLEN	1536
 #define BRCMF_DCMD_MAXLEN	8192
+
+#define BRCMF_AMPDU_RX_REORDER_MAXFLOWS		256
 
 /* Pattern matching filter. Specifies an offset within received packets to
  * start matching, the pattern to match, the size of the pattern, and a bitmask
@@ -374,6 +381,28 @@ struct brcmf_join_params {
 	struct brcmf_assoc_params_le params_le;
 };
 
+/* scan params for extended join */
+struct brcmf_join_scan_params_le {
+	u8 scan_type;		/* 0 use default, active or passive scan */
+	__le32 nprobes;		/* -1 use default, nr of probes per channel */
+	__le32 active_time;	/* -1 use default, dwell time per channel for
+				 * active scanning
+				 */
+	__le32 passive_time;	/* -1 use default, dwell time per channel
+				 * for passive scanning
+				 */
+	__le32 home_time;	/* -1 use default, dwell time for the home
+				 * channel between channel scans
+				 */
+};
+
+/* extended join params */
+struct brcmf_ext_join_params_le {
+	struct brcmf_ssid_le ssid_le;	/* {0, ""}: wildcard scan */
+	struct brcmf_join_scan_params_le scan_le;
+	struct brcmf_assoc_params_le assoc_le;
+};
+
 struct brcmf_wsec_key {
 	u32 index;		/* key index */
 	u32 len;		/* key length */
@@ -450,6 +479,24 @@ struct brcmf_sta_info_le {
 	__le32	rx_decrypt_failures;	/* # of packet decrypted failed */
 };
 
+struct brcmf_chanspec_list {
+	__le32	count;		/* # of entries */
+	__le32	element[1];	/* variable length uint32 list */
+};
+
+/*
+ * WLC_E_PROBRESP_MSG
+ * WLC_E_P2P_PROBREQ_MSG
+ * WLC_E_ACTION_FRAME_RX
+ */
+struct brcmf_rx_mgmt_data {
+	__be16	version;
+	__be16	chanspec;
+	__be32	rssi;
+	__be32	mactime;
+	__be32	rate;
+};
+
 /* Bus independent dongle command */
 struct brcmf_dcmd {
 	uint cmd;		/* common dongle cmd definition */
@@ -460,9 +507,29 @@ struct brcmf_dcmd {
 	uint needed;		/* bytes needed (optional) */
 };
 
+/**
+ * struct brcmf_ampdu_rx_reorder - AMPDU receive reorder info
+ *
+ * @pktslots: dynamic allocated array for ordering AMPDU packets.
+ * @flow_id: AMPDU flow identifier.
+ * @cur_idx: last AMPDU index from firmware.
+ * @exp_idx: expected next AMPDU index.
+ * @max_idx: maximum amount of packets per AMPDU.
+ * @pend_pkts: number of packets currently in @pktslots.
+ */
+struct brcmf_ampdu_rx_reorder {
+	struct sk_buff **pktslots;
+	u8 flow_id;
+	u8 cur_idx;
+	u8 exp_idx;
+	u8 max_idx;
+	u8 pend_pkts;
+};
+
 /* Forward decls for struct brcmf_pub (see below) */
 struct brcmf_proto;	/* device communication protocol info */
 struct brcmf_cfg80211_dev; /* cfg80211 device info */
+struct brcmf_fws_info; /* firmware signalling info */
 
 /* Common structure for module and instance linkage */
 struct brcmf_pub {
@@ -480,48 +547,23 @@ struct brcmf_pub {
 	unsigned long drv_version;	/* Version of dongle-resident driver */
 	u8 mac[ETH_ALEN];		/* MAC address obtained from dongle */
 
-	/* Additional stats for the bus level */
-
 	/* Multicast data packets sent to dongle */
 	unsigned long tx_multicast;
-	/* Packets flushed due to unscheduled sendup thread */
-	unsigned long rx_flushed;
-	/* Number of times dpc scheduled by watchdog timer */
-	unsigned long wd_dpc_sched;
-
-	/* Number of flow control pkts recvd */
-	unsigned long fc_packets;
-
-	/* Last error return */
-	int bcmerror;
-
-	/* Last error from dongle */
-	int dongle_error;
-
-	/* Suspend disable flag  flag */
-	int suspend_disable_flag;	/* "1" to disable all extra powersaving
-					 during suspend */
-	int in_suspend;		/* flag set to 1 when early suspend called */
-	int dtim_skip;		/* dtim skip , default 0 means wake each dtim */
 
 	struct brcmf_if *iflist[BRCMF_MAX_IFS];
 
 	struct mutex proto_block;
 	unsigned char proto_buf[BRCMF_DCMD_MAXLEN];
 
-	u8 macvalue[ETH_ALEN];
-	atomic_t pend_8021x_cnt;
-	wait_queue_head_t pend_8021x_wait;
-
 	struct brcmf_fweh_info fweh;
+
+	struct brcmf_fws_info *fws;
+
+	struct brcmf_ampdu_rx_reorder
+		*reorder_flows[BRCMF_AMPDU_RX_REORDER_MAXFLOWS];
 #ifdef DEBUG
 	struct dentry *dbgfs_dir;
 #endif
-};
-
-struct bcmevent_name {
-	uint event;
-	const char *name;
 };
 
 struct brcmf_if_event {
@@ -529,10 +571,25 @@ struct brcmf_if_event {
 	u8 action;
 	u8 flags;
 	u8 bssidx;
+	u8 role;
 };
 
-/* forward declaration */
+/* forward declarations */
 struct brcmf_cfg80211_vif;
+struct brcmf_fws_mac_descriptor;
+
+/**
+ * enum brcmf_netif_stop_reason - reason for stopping netif queue.
+ *
+ * @BRCMF_NETIF_STOP_REASON_FWS_FC:
+ *	netif stopped due to firmware signalling flow control.
+ * @BRCMF_NETIF_STOP_REASON_BLOCK_BUS:
+ *	netif stopped due to bus blocking.
+ */
+enum brcmf_netif_stop_reason {
+	BRCMF_NETIF_STOP_REASON_FWS_FC = 1,
+	BRCMF_NETIF_STOP_REASON_BLOCK_BUS = 2
+};
 
 /**
  * struct brcmf_if - interface control information.
@@ -541,9 +598,16 @@ struct brcmf_cfg80211_vif;
  * @vif: points to cfg80211 specific interface information.
  * @ndev: associated network device.
  * @stats: interface specific network statistics.
- * @idx: interface index in device firmware.
+ * @setmacaddr_work: worker object for setting mac address.
+ * @multicast_work: worker object for multicast provisioning.
+ * @fws_desc: interface specific firmware-signalling descriptor.
+ * @ifidx: interface index in device firmware.
  * @bssidx: index of bss associated with this interface.
  * @mac_addr: assigned mac address.
+ * @netif_stop: bitmap indicates reason why netif queues are stopped.
+ * @netif_stop_lock: spinlock for update netif_stop from multiple sources.
+ * @pend_8021x_cnt: tracks outstanding number of 802.1x frames.
+ * @pend_8021x_wait: used for signalling change in count.
  */
 struct brcmf_if {
 	struct brcmf_pub *drvr;
@@ -552,33 +616,43 @@ struct brcmf_if {
 	struct net_device_stats stats;
 	struct work_struct setmacaddr_work;
 	struct work_struct multicast_work;
-	int idx;
+	struct brcmf_fws_mac_descriptor *fws_desc;
+	int ifidx;
 	s32 bssidx;
 	u8 mac_addr[ETH_ALEN];
+	u8 netif_stop;
+	spinlock_t netif_stop_lock;
+	atomic_t pend_8021x_cnt;
+	wait_queue_head_t pend_8021x_wait;
 };
 
-static inline s32 brcmf_ndev_bssidx(struct net_device *ndev)
-{
-	struct brcmf_if *ifp = netdev_priv(ndev);
-	return ifp->bssidx;
-}
+struct brcmf_skb_reorder_data {
+	u8 *reorder;
+};
 
-extern const struct bcmevent_name bcmevent_names[];
-
-extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
+int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 
 /* Return pointer to interface name */
-extern char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
+char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
 
 /* Query dongle */
-extern int brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx,
-				       uint cmd, void *buf, uint len);
-extern int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
-				    void *buf, uint len);
+int brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
+			       void *buf, uint len);
+int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
+			     void *buf, uint len);
 
-extern int brcmf_net_attach(struct brcmf_if *ifp);
-extern struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, int ifidx,
-				     s32 bssidx, char *name, u8 *mac_addr);
-extern void brcmf_del_if(struct brcmf_pub *drvr, int ifidx);
+/* Remove any protocol-specific data header. */
+int brcmf_proto_hdrpull(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
+			struct sk_buff *rxp);
+
+int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked);
+struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
+			      char *name, u8 *mac_addr);
+void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx);
+void brcmf_txflowblock_if(struct brcmf_if *ifp,
+			  enum brcmf_netif_stop_reason reason, bool state);
+u32 brcmf_get_chip_info(struct brcmf_if *ifp);
+void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp,
+		      bool success);
 
 #endif				/* _BRCMF_H_ */

@@ -232,7 +232,7 @@ tcx_blank(int blank, struct fb_info *info)
 
 	case FB_BLANK_POWERDOWN: /* Poweroff */
 		break;
-	};
+	}
 
 	sbus_writel(val, &thc->thc_misc);
 
@@ -362,7 +362,7 @@ static void tcx_unmap_regs(struct platform_device *op, struct fb_info *info,
 			   info->screen_base, info->fix.smem_len);
 }
 
-static int __devinit tcx_probe(struct platform_device *op)
+static int tcx_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
@@ -434,7 +434,7 @@ static int __devinit tcx_probe(struct platform_device *op)
 		default:
 			j = i;
 			break;
-		};
+		}
 		par->mmap_map[i].poff = op->resource[j].start;
 	}
 
@@ -486,7 +486,7 @@ out_err:
 	return err;
 }
 
-static int __devexit tcx_remove(struct platform_device *op)
+static int tcx_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct tcx_par *par = info->par;
@@ -497,8 +497,6 @@ static int __devexit tcx_remove(struct platform_device *op)
 	tcx_unmap_regs(op, info, par);
 
 	framebuffer_release(info);
-
-	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }
@@ -518,7 +516,7 @@ static struct platform_driver tcx_driver = {
 		.of_match_table = tcx_match,
 	},
 	.probe		= tcx_probe,
-	.remove		= __devexit_p(tcx_remove),
+	.remove		= tcx_remove,
 };
 
 static int __init tcx_init(void)

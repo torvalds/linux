@@ -181,6 +181,8 @@ GENL_struct(DRBD_NLA_RESIZE_PARMS, 7, resize_parms,
 	__u64_field(1, DRBD_GENLA_F_MANDATORY,	resize_size)
 	__flg_field(2, DRBD_GENLA_F_MANDATORY,	resize_force)
 	__flg_field(3, DRBD_GENLA_F_MANDATORY,	no_resync)
+	__u32_field_def(4, 0 /* OPTIONAL */, al_stripes, DRBD_AL_STRIPES_DEF)
+	__u32_field_def(5, 0 /* OPTIONAL */, al_stripe_size, DRBD_AL_STRIPE_SIZE_DEF)
 )
 
 GENL_struct(DRBD_NLA_STATE_INFO, 8, state_info,

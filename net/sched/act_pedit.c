@@ -38,8 +38,9 @@ static const struct nla_policy pedit_policy[TCA_PEDIT_MAX + 1] = {
 	[TCA_PEDIT_PARMS]	= { .len = sizeof(struct tc_pedit) },
 };
 
-static int tcf_pedit_init(struct nlattr *nla, struct nlattr *est,
-			  struct tc_action *a, int ovr, int bind)
+static int tcf_pedit_init(struct net *net, struct nlattr *nla,
+			  struct nlattr *est, struct tc_action *a,
+			  int ovr, int bind)
 {
 	struct nlattr *tb[TCA_PEDIT_MAX + 1];
 	struct tc_pedit *parm;
@@ -130,8 +131,7 @@ static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 	int i, munged = 0;
 	unsigned int off;
 
-	if (skb_cloned(skb) &&
-	    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
+	if (skb_unclone(skb, GFP_ATOMIC))
 		return p->tcf_action;
 
 	off = skb_network_offset(skb);
@@ -243,9 +243,7 @@ static struct tc_action_ops act_pedit_ops = {
 	.act		=	tcf_pedit,
 	.dump		=	tcf_pedit_dump,
 	.cleanup	=	tcf_pedit_cleanup,
-	.lookup		=	tcf_hash_search,
 	.init		=	tcf_pedit_init,
-	.walk		=	tcf_generic_walker
 };
 
 MODULE_AUTHOR("Jamal Hadi Salim(2002-4)");

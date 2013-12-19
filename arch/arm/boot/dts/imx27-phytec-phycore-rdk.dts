@@ -1,0 +1,50 @@
+/*
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include "imx27-phytec-phycore-som.dts"
+
+/ {
+	model = "Phytec pcm970";
+	compatible = "phytec,imx27-pcm970", "phytec,imx27-pcm038", "fsl,imx27";
+};
+
+&cspi1 {
+	fsl,spi-num-chipselects = <2>;
+	cs-gpios = <&gpio4 28 0>, <&gpio4 27 0>;
+};
+
+&sdhci2 {
+	bus-width = <4>;
+	cd-gpios = <&gpio3 29 0>;
+	wp-gpios = <&gpio3 28 0>;
+	vmmc-supply = <&vmmc1_reg>;
+	status = "okay";
+};
+
+&uart1 {
+	fsl,uart-has-rtscts;
+};
+
+&uart2 {
+	fsl,uart-has-rtscts;
+	status = "okay";
+};
+
+&weim {
+	can@d4000000 {
+		compatible = "nxp,sja1000";
+		reg = <4 0x00000000 0x00000100>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <19 0x2>;
+		nxp,external-clock-frequency = <16000000>;
+		nxp,tx-output-config = <0x16>;
+		nxp,no-comparator-bypass;
+		fsl,weim-cs-timing = <0x0000dcf6 0x444a0301 0x44443302>;
+	};
+};

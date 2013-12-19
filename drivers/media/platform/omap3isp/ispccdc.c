@@ -1120,7 +1120,7 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 	u32 syn_mode;
 	u32 ccdc_pattern;
 
-	pad = media_entity_remote_source(&ccdc->pads[CCDC_PAD_SINK]);
+	pad = media_entity_remote_pad(&ccdc->pads[CCDC_PAD_SINK]);
 	sensor = media_entity_to_v4l2_subdev(pad->entity);
 	if (ccdc->input == CCDC_INPUT_PARALLEL)
 		pdata = &((struct isp_v4l2_subdevs_group *)sensor->host_priv)

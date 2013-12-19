@@ -36,6 +36,10 @@ __setup("noinitrd", no_initrd);
 static int init_linuxrc(struct subprocess_info *info, struct cred *new)
 {
 	sys_unshare(CLONE_FS | CLONE_FILES);
+	/* stdin/stdout/stderr for /linuxrc */
+	sys_open("/dev/console", O_RDWR, 0);
+	sys_dup(0);
+	sys_dup(0);
 	/* move initrd over / and chdir/chroot in initrd root */
 	sys_chdir("/root");
 	sys_mount(".", "/", NULL, MS_MOVE, NULL);
@@ -46,6 +50,7 @@ static int init_linuxrc(struct subprocess_info *info, struct cred *new)
 
 static void __init handle_initrd(void)
 {
+	struct subprocess_info *info;
 	static char *argv[] = { "linuxrc", NULL, };
 	extern char *envp_init[];
 	int error;
@@ -57,14 +62,20 @@ static void __init handle_initrd(void)
 	sys_mkdir("/old", 0700);
 	sys_chdir("/old");
 
+	/* try loading default modules from initrd */
+	load_default_modules();
+
 	/*
 	 * In case that a resume from disk is carried out by linuxrc or one of
 	 * its children, we need to tell the freezer not to wait for us.
 	 */
 	current->flags |= PF_FREEZER_SKIP;
 
-	call_usermodehelper_fns("/linuxrc", argv, envp_init, UMH_WAIT_PROC,
-			init_linuxrc, NULL, NULL);
+	info = call_usermodehelper_setup("/linuxrc", argv, envp_init,
+					 GFP_KERNEL, init_linuxrc, NULL, NULL);
+	if (!info)
+		return;
+	call_usermodehelper_exec(info, UMH_WAIT_PROC);
 
 	current->flags &= ~PF_FREEZER_SKIP;
 

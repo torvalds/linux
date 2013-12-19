@@ -1,6 +1,6 @@
 /* bnx2x_reg.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2012 Broadcom Corporation
+ * Copyright (c) 2007-2013 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +35,8 @@
 #define ATC_REG_ATC_INT_STS_CLR					 0x1101c0
 /* [RW 5] Parity mask register #0 read/write */
 #define ATC_REG_ATC_PRTY_MASK					 0x1101d8
+/* [R 5] Parity register #0 read */
+#define ATC_REG_ATC_PRTY_STS					 0x1101cc
 /* [RC 5] Parity register #0 read clear */
 #define ATC_REG_ATC_PRTY_STS_CLR				 0x1101d0
 /* [RW 19] Interrupt mask register #0 read/write */
@@ -825,6 +827,7 @@
 /* [RW 28] The value sent to CM header in the case of CFC load error. */
 #define DORQ_REG_ERR_CMHEAD					 0x170058
 #define DORQ_REG_IF_EN						 0x170004
+#define DORQ_REG_MAX_RVFID_SIZE				 0x1701ec
 #define DORQ_REG_MODE_ACT					 0x170008
 /* [RW 5] The normal mode CID extraction offset. */
 #define DORQ_REG_NORM_CID_OFST					 0x17002c
@@ -847,6 +850,22 @@
    writes the same initial credit to the rspa_crd_cnt and rspb_crd_cnt. The
    read reads this written value. */
 #define DORQ_REG_RSP_INIT_CRD					 0x170048
+#define DORQ_REG_RSPB_CRD_CNT					 0x1700b0
+#define DORQ_REG_VF_NORM_CID_BASE				 0x1701a0
+#define DORQ_REG_VF_NORM_CID_OFST				 0x1701f4
+#define DORQ_REG_VF_NORM_CID_WND_SIZE				 0x1701a4
+#define DORQ_REG_VF_NORM_MAX_CID_COUNT				 0x1701e4
+#define DORQ_REG_VF_NORM_VF_BASE				 0x1701a8
+/* [RW 10] VF type validation mask value */
+#define DORQ_REG_VF_TYPE_MASK_0					 0x170218
+/* [RW 17] VF type validation Min MCID value */
+#define DORQ_REG_VF_TYPE_MAX_MCID_0				 0x1702d8
+/* [RW 17] VF type validation Max MCID value */
+#define DORQ_REG_VF_TYPE_MIN_MCID_0				 0x170298
+/* [RW 10] VF type validation comp value */
+#define DORQ_REG_VF_TYPE_VALUE_0				 0x170258
+#define DORQ_REG_VF_USAGE_CT_LIMIT				 0x170340
+
 /* [RW 4] Initial activity counter value on the load request; when the
    shortcut is done. */
 #define DORQ_REG_SHRT_ACT_CNT					 0x170070
@@ -859,6 +878,7 @@
 #define HC_CONFIG_0_REG_MSI_MSIX_INT_EN_0			 (0x1<<2)
 #define HC_CONFIG_0_REG_SINGLE_ISR_EN_0				 (0x1<<1)
 #define HC_CONFIG_1_REG_BLOCK_DISABLE_1				 (0x1<<0)
+#define DORQ_REG_VF_USAGE_CNT					 0x170320
 #define HC_REG_AGG_INT_0					 0x108050
 #define HC_REG_AGG_INT_1					 0x108054
 #define HC_REG_ATTN_BIT 					 0x108120
@@ -1473,10 +1493,6 @@
 /* [R 4] This field indicates the type of the device. '0' - 2 Ports; '1' - 1
    Port. */
 #define MISC_REG_BOND_ID					 0xa400
-/* [R 8] These bits indicate the metal revision of the chip. This value
-   starts at 0x00 for each all-layer tape-out and increments by one for each
-   tape-out. */
-#define MISC_REG_CHIP_METAL					 0xa404
 /* [R 16] These bits indicate the part number for the chip. */
 #define MISC_REG_CHIP_NUM					 0xa408
 /* [R 4] These bits indicate the base revision of the chip. This value
@@ -2136,6 +2152,8 @@
 /* [R 32] Interrupt register #0 read */
 #define NIG_REG_NIG_INT_STS_0					 0x103b0
 #define NIG_REG_NIG_INT_STS_1					 0x103c0
+/* [RC 32] Interrupt register #0 read clear */
+#define NIG_REG_NIG_INT_STS_CLR_0				 0x103b4
 /* [R 32] Legacy E1 and E1H location for parity error mask register. */
 #define NIG_REG_NIG_PRTY_MASK					 0x103dc
 /* [RW 32] Parity mask register #0 read/write */
@@ -2571,6 +2589,7 @@
    current task in process). */
 #define PBF_REG_DISABLE_NEW_TASK_PROC_P4			 0x14006c
 #define PBF_REG_DISABLE_PF					 0x1402e8
+#define PBF_REG_DISABLE_VF					 0x1402ec
 /* [RW 18] For port 0: For each client that is subject to WFQ (the
  * corresponding bit is 1); indicates to which of the credit registers this
  * client is mapped. For clients which are not credit blocked; their mapping
@@ -2733,6 +2752,8 @@
 #define PBF_REG_PBF_INT_STS					 0x1401c8
 /* [RW 20] Parity mask register #0 read/write */
 #define PBF_REG_PBF_PRTY_MASK					 0x1401e4
+/* [R 28] Parity register #0 read */
+#define PBF_REG_PBF_PRTY_STS					 0x1401d8
 /* [RC 20] Parity register #0 read clear */
 #define PBF_REG_PBF_PRTY_STS_CLR				 0x1401dc
 /* [RW 16] The Ethernet type value for L2 tag 0 */
@@ -2843,6 +2864,17 @@
 #define PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_READ		 0x9430
 #define PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_WRITE		 0x9434
 #define PGLUE_B_REG_INTERNAL_VFID_ENABLE			 0x9438
+/* [W 7] Writing 1 to each bit in this register clears a corresponding error
+ * details register and enables logging new error details. Bit 0 - clears
+ * INCORRECT_RCV_DETAILS; Bit 1 - clears RX_ERR_DETAILS; Bit 2 - clears
+ * TX_ERR_WR_ADD_31_0 TX_ERR_WR_ADD_63_32 TX_ERR_WR_DETAILS
+ * TX_ERR_WR_DETAILS2 TX_ERR_RD_ADD_31_0 TX_ERR_RD_ADD_63_32
+ * TX_ERR_RD_DETAILS TX_ERR_RD_DETAILS2 TX_ERR_WR_DETAILS_ICPL; Bit 3 -
+ * clears VF_LENGTH_VIOLATION_DETAILS. Bit 4 - clears
+ * VF_GRC_SPACE_VIOLATION_DETAILS. Bit 5 - clears RX_TCPL_ERR_DETAILS. Bit 6
+ * - clears TCPL_IN_TWO_RCBS_DETAILS. */
+#define PGLUE_B_REG_LATCHED_ERRORS_CLR				 0x943c
+
 /* [R 9] Interrupt register #0 read */
 #define PGLUE_B_REG_PGLUE_B_INT_STS				 0x9298
 /* [RC 9] Interrupt register #0 read clear */
@@ -3708,6 +3740,10 @@
 #define PXP_REG_HST_DISCARD_INTERNAL_WRITES_STATUS		 0x10309c
 /* [WB 160] Used for initialization of the inbound interrupts memory */
 #define PXP_REG_HST_INBOUND_INT 				 0x103800
+/* [RW 7] Indirect access to the permission table. The fields are : {Valid;
+ * VFID[5:0]}
+ */
+#define PXP_REG_HST_ZONE_PERMISSION_TABLE			 0x103400
 /* [RW 32] Interrupt mask register #0 read/write */
 #define PXP_REG_PXP_INT_MASK_0					 0x103074
 #define PXP_REG_PXP_INT_MASK_1					 0x103084
@@ -4496,6 +4532,8 @@
 #define TM_REG_TM_INT_STS					 0x1640f0
 /* [RW 7] Parity mask register #0 read/write */
 #define TM_REG_TM_PRTY_MASK					 0x16410c
+/* [R 7] Parity register #0 read */
+#define TM_REG_TM_PRTY_STS					 0x164100
 /* [RC 7] Parity register #0 read clear */
 #define TM_REG_TM_PRTY_STS_CLR					 0x164104
 /* [RW 8] The event id for aggregated interrupt 0 */
@@ -5966,6 +6004,7 @@
 #define HW_LOCK_RESOURCE_SPIO					 2
 #define AEU_INPUTS_ATTN_BITS_ATC_HW_INTERRUPT			 (0x1<<4)
 #define AEU_INPUTS_ATTN_BITS_ATC_PARITY_ERROR			 (0x1<<5)
+#define AEU_INPUTS_ATTN_BITS_BRB_HW_INTERRUPT			 (0x1<<19)
 #define AEU_INPUTS_ATTN_BITS_BRB_PARITY_ERROR			 (0x1<<18)
 #define AEU_INPUTS_ATTN_BITS_CCM_HW_INTERRUPT			 (0x1<<31)
 #define AEU_INPUTS_ATTN_BITS_CCM_PARITY_ERROR			 (0x1<<30)
@@ -6305,6 +6344,18 @@
 #define PCI_PM_DATA_B					0x414
 #define PCI_ID_VAL1					0x434
 #define PCI_ID_VAL2					0x438
+#define PCI_ID_VAL3					0x43c
+
+#define GRC_CONFIG_REG_VF_MSIX_CONTROL		    0x61C
+#define GRC_CONFIG_REG_PF_INIT_VF		0x624
+#define GRC_CR_PF_INIT_VF_PF_FIRST_VF_NUM_MASK	0xf
+/* First VF_NUM for PF is encoded in this register.
+ * The number of VFs assigned to a PF is assumed to be a multiple of 8.
+ * Software should program these bits based on Total Number of VFs \
+ * programmed for each PF.
+ * Since registers from 0x000-0x7ff are split across functions, each PF will
+ * have the same location for the same 4 bits
+ */
 
 #define PXPCS_TL_CONTROL_5		    0x814
 #define PXPCS_TL_CONTROL_5_UNKNOWNTYPE_ERR_ATTN    (1 << 29) /*WC*/
@@ -6553,6 +6604,27 @@
 #define ME_REG_ABS_PF_NUM\
 	(7L<<ME_REG_ABS_PF_NUM_SHIFT) /* Absolute PF Num */
 
+
+#define PXP_VF_ADDR_IGU_START				0
+#define PXP_VF_ADDR_IGU_SIZE				0x3000
+#define PXP_VF_ADDR_IGU_END\
+	((PXP_VF_ADDR_IGU_START) + (PXP_VF_ADDR_IGU_SIZE) - 1)
+
+#define PXP_VF_ADDR_USDM_QUEUES_START			0x3000
+#define PXP_VF_ADDR_USDM_QUEUES_SIZE\
+	(PXP_VF_ADRR_NUM_QUEUES * PXP_ADDR_QUEUE_SIZE)
+#define PXP_VF_ADDR_USDM_QUEUES_END\
+	((PXP_VF_ADDR_USDM_QUEUES_START) + (PXP_VF_ADDR_USDM_QUEUES_SIZE) - 1)
+
+#define PXP_VF_ADDR_CSDM_GLOBAL_START			0x7600
+#define PXP_VF_ADDR_CSDM_GLOBAL_SIZE			(PXP_ADDR_REG_SIZE)
+#define PXP_VF_ADDR_CSDM_GLOBAL_END\
+	((PXP_VF_ADDR_CSDM_GLOBAL_START) + (PXP_VF_ADDR_CSDM_GLOBAL_SIZE) - 1)
+
+#define PXP_VF_ADDR_DB_START				0x7c00
+#define PXP_VF_ADDR_DB_SIZE				0x200
+#define PXP_VF_ADDR_DB_END\
+	((PXP_VF_ADDR_DB_START) + (PXP_VF_ADDR_DB_SIZE) - 1)
 
 #define MDIO_REG_BANK_CL73_IEEEB0	0x0
 #define MDIO_CL73_IEEEB0_CL73_AN_CONTROL	0x0

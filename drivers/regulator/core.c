@@ -36,6 +36,7 @@
 #include <trace/events/regulator.h>
 
 #include "dummy.h"
+#include "internal.h"
 
 #define rdev_crit(rdev, fmt, ...)					\
 	pr_crit("%s: " fmt, rdev_get_name(rdev), ##__VA_ARGS__)
@@ -51,8 +52,9 @@
 static DEFINE_MUTEX(regulator_list_mutex);
 static LIST_HEAD(regulator_list);
 static LIST_HEAD(regulator_map_list);
+static LIST_HEAD(regulator_ena_gpio_list);
+static LIST_HEAD(regulator_supply_alias_list);
 static bool has_full_constraints;
-static bool board_wants_dummy_regulator;
 
 static struct dentry *debugfs_root;
 
@@ -69,22 +71,29 @@ struct regulator_map {
 };
 
 /*
- * struct regulator
+ * struct regulator_enable_gpio
  *
- * One for each consumer device.
+ * Management for shared enable GPIO pin
  */
-struct regulator {
-	struct device *dev;
+struct regulator_enable_gpio {
 	struct list_head list;
-	unsigned int always_on:1;
-	unsigned int bypass:1;
-	int uA_load;
-	int min_uV;
-	int max_uV;
-	char *supply_name;
-	struct device_attribute dev_attr;
-	struct regulator_dev *rdev;
-	struct dentry *debugfs;
+	int gpio;
+	u32 enable_count;	/* a number of enabled shared GPIO */
+	u32 request_count;	/* a number of requested shared GPIO */
+	unsigned int ena_gpio_invert:1;
+};
+
+/*
+ * struct regulator_supply_alias
+ *
+ * Used to map lookups for a supply onto an alternative device.
+ */
+struct regulator_supply_alias {
+	struct list_head list;
+	struct device *src_dev;
+	const char *src_supply;
+	struct device *alias_dev;
+	const char *alias_supply;
 };
 
 static int _regulator_is_enabled(struct regulator_dev *rdev);
@@ -110,13 +119,18 @@ static const char *rdev_get_name(struct regulator_dev *rdev)
 		return "";
 }
 
+static bool have_full_constraints(void)
+{
+	return has_full_constraints || of_have_populated_dt();
+}
+
 /**
  * of_get_regulator - get a regulator device node based on supply name
  * @dev: Device pointer for the consumer (of regulator) device
  * @supply: regulator supply name
  *
  * Extract the regulator device node corresponding to the supply name.
- * retruns the device node corresponding to the regulator if found, else
+ * returns the device node corresponding to the regulator if found, else
  * returns NULL.
  */
 static struct device_node *of_get_regulator(struct device *dev, const char *supply)
@@ -200,8 +214,8 @@ static int regulator_check_consumers(struct regulator_dev *rdev,
 	}
 
 	if (*min_uV > *max_uV) {
-		dev_err(regulator->dev, "Restricting voltage, %u-%uuV\n",
-			regulator->min_uV, regulator->max_uV);
+		rdev_err(rdev, "Restricting voltage, %u-%uuV\n",
+			*min_uV, *max_uV);
 		return -EINVAL;
 	}
 
@@ -309,13 +323,14 @@ static ssize_t regulator_uA_show(struct device *dev,
 }
 static DEVICE_ATTR(microamps, 0444, regulator_uA_show, NULL);
 
-static ssize_t regulator_name_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
+static ssize_t name_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct regulator_dev *rdev = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%s\n", rdev_get_name(rdev));
 }
+static DEVICE_ATTR_RO(name);
 
 static ssize_t regulator_print_opmode(char *buf, int mode)
 {
@@ -475,15 +490,16 @@ static ssize_t regulator_total_uA_show(struct device *dev,
 }
 static DEVICE_ATTR(requested_microamps, 0444, regulator_total_uA_show, NULL);
 
-static ssize_t regulator_num_users_show(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static ssize_t num_users_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
 {
 	struct regulator_dev *rdev = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", rdev->use_count);
 }
+static DEVICE_ATTR_RO(num_users);
 
-static ssize_t regulator_type_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
+static ssize_t type_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct regulator_dev *rdev = dev_get_drvdata(dev);
 
@@ -495,6 +511,7 @@ static ssize_t regulator_type_show(struct device *dev,
 	}
 	return sprintf(buf, "unknown\n");
 }
+static DEVICE_ATTR_RO(type);
 
 static ssize_t regulator_suspend_mem_uV_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -618,12 +635,13 @@ static DEVICE_ATTR(bypass, 0444,
  * These are the only attributes are present for all regulators.
  * Other attributes are a function of regulator functionality.
  */
-static struct device_attribute regulator_dev_attrs[] = {
-	__ATTR(name, 0444, regulator_name_show, NULL),
-	__ATTR(num_users, 0444, regulator_num_users_show, NULL),
-	__ATTR(type, 0444, regulator_type_show, NULL),
-	__ATTR_NULL,
+static struct attribute *regulator_dev_attrs[] = {
+	&dev_attr_name.attr,
+	&dev_attr_num_users.attr,
+	&dev_attr_type.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(regulator_dev);
 
 static void regulator_dev_release(struct device *dev)
 {
@@ -634,7 +652,7 @@ static void regulator_dev_release(struct device *dev)
 static struct class regulator_class = {
 	.name = "regulator",
 	.dev_release = regulator_dev_release,
-	.dev_attrs = regulator_dev_attrs,
+	.dev_groups = regulator_dev_groups,
 };
 
 /* Calculate the new optimum regulator operating mode based on the new total
@@ -905,6 +923,36 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 	return 0;
 }
 
+static int machine_constraints_current(struct regulator_dev *rdev,
+	struct regulation_constraints *constraints)
+{
+	struct regulator_ops *ops = rdev->desc->ops;
+	int ret;
+
+	if (!constraints->min_uA && !constraints->max_uA)
+		return 0;
+
+	if (constraints->min_uA > constraints->max_uA) {
+		rdev_err(rdev, "Invalid current constraints\n");
+		return -EINVAL;
+	}
+
+	if (!ops->set_current_limit || !ops->get_current_limit) {
+		rdev_warn(rdev, "Operation of current configuration missing\n");
+		return 0;
+	}
+
+	/* Set regulator current in constraints range */
+	ret = ops->set_current_limit(rdev, constraints->min_uA,
+			constraints->max_uA);
+	if (ret < 0) {
+		rdev_err(rdev, "Failed to set current constraint, %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 /**
  * set_machine_constraints - sets regulator constraints
  * @rdev: regulator source
@@ -932,6 +980,10 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		return -ENOMEM;
 
 	ret = machine_constraints_voltage(rdev, rdev->constraints);
+	if (ret != 0)
+		goto out;
+
+	ret = machine_constraints_current(rdev, rdev->constraints);
 	if (ret != 0)
 		goto out;
 
@@ -970,7 +1022,8 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		}
 	}
 
-	if (rdev->constraints->ramp_delay && ops->set_ramp_delay) {
+	if ((rdev->constraints->ramp_delay || rdev->constraints->ramp_disable)
+		&& ops->set_ramp_delay) {
 		ret = ops->set_ramp_delay(rdev, rdev->constraints->ramp_delay);
 		if (ret < 0) {
 			rdev_err(rdev, "failed to set ramp_delay\n");
@@ -1167,9 +1220,37 @@ overflow_err:
 
 static int _regulator_get_enable_time(struct regulator_dev *rdev)
 {
+	if (rdev->constraints && rdev->constraints->enable_time)
+		return rdev->constraints->enable_time;
 	if (!rdev->desc->ops->enable_time)
 		return rdev->desc->enable_time;
 	return rdev->desc->ops->enable_time(rdev);
+}
+
+static struct regulator_supply_alias *regulator_find_supply_alias(
+		struct device *dev, const char *supply)
+{
+	struct regulator_supply_alias *map;
+
+	list_for_each_entry(map, &regulator_supply_alias_list, list)
+		if (map->src_dev == dev && strcmp(map->src_supply, supply) == 0)
+			return map;
+
+	return NULL;
+}
+
+static void regulator_supply_alias(struct device **dev, const char **supply)
+{
+	struct regulator_supply_alias *map;
+
+	map = regulator_find_supply_alias(*dev, *supply);
+	if (map) {
+		dev_dbg(*dev, "Mapping supply %s to %s,%s\n",
+				*supply, map->alias_supply,
+				dev_name(map->alias_dev));
+		*dev = map->alias_dev;
+		*supply = map->alias_supply;
+	}
 }
 
 static struct regulator_dev *regulator_dev_lookup(struct device *dev,
@@ -1180,6 +1261,8 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 	struct device_node *node;
 	struct regulator_map *map;
 	const char *devname = NULL;
+
+	regulator_supply_alias(&dev, &supply);
 
 	/* first do a dt based lookup */
 	if (dev && dev->of_node) {
@@ -1224,16 +1307,16 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 
 /* Internal regulator request function */
 static struct regulator *_regulator_get(struct device *dev, const char *id,
-					int exclusive)
+					bool exclusive, bool allow_dummy)
 {
 	struct regulator_dev *rdev;
 	struct regulator *regulator = ERR_PTR(-EPROBE_DEFER);
 	const char *devname = NULL;
-	int ret;
+	int ret = -EPROBE_DEFER;
 
 	if (id == NULL) {
 		pr_err("get() with no identifier\n");
-		return regulator;
+		return ERR_PTR(-EINVAL);
 	}
 
 	if (dev)
@@ -1245,25 +1328,32 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 	if (rdev)
 		goto found;
 
-	if (board_wants_dummy_regulator) {
-		rdev = dummy_regulator_rdev;
-		goto found;
+	regulator = ERR_PTR(ret);
+
+	/*
+	 * If we have return value from dev_lookup fail, we do not expect to
+	 * succeed, so, quit with appropriate error value
+	 */
+	if (ret && ret != -ENODEV) {
+		goto out;
 	}
 
-#ifdef CONFIG_REGULATOR_DUMMY
 	if (!devname)
 		devname = "deviceless";
 
-	/* If the board didn't flag that it was fully constrained then
-	 * substitute in a dummy regulator so consumers can continue.
+	/*
+	 * Assume that a regulator is physically present and enabled
+	 * even if it isn't hooked up and just provide a dummy.
 	 */
-	if (!has_full_constraints) {
+	if (have_full_constraints() && allow_dummy) {
 		pr_warn("%s supply %s not found, using dummy regulator\n",
 			devname, id);
+
 		rdev = dummy_regulator_rdev;
 		goto found;
+	} else {
+		dev_err(dev, "dummy supplies not allowed\n");
 	}
-#endif
 
 	mutex_unlock(&regulator_list_mutex);
 	return regulator;
@@ -1321,43 +1411,9 @@ out:
  */
 struct regulator *regulator_get(struct device *dev, const char *id)
 {
-	return _regulator_get(dev, id, 0);
+	return _regulator_get(dev, id, false, true);
 }
 EXPORT_SYMBOL_GPL(regulator_get);
-
-static void devm_regulator_release(struct device *dev, void *res)
-{
-	regulator_put(*(struct regulator **)res);
-}
-
-/**
- * devm_regulator_get - Resource managed regulator_get()
- * @dev: device for regulator "consumer"
- * @id: Supply name or regulator ID.
- *
- * Managed regulator_get(). Regulators returned from this function are
- * automatically regulator_put() on driver detach. See regulator_get() for more
- * information.
- */
-struct regulator *devm_regulator_get(struct device *dev, const char *id)
-{
-	struct regulator **ptr, *regulator;
-
-	ptr = devres_alloc(devm_regulator_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return ERR_PTR(-ENOMEM);
-
-	regulator = regulator_get(dev, id);
-	if (!IS_ERR(regulator)) {
-		*ptr = regulator;
-		devres_add(dev, ptr);
-	} else {
-		devres_free(ptr);
-	}
-
-	return regulator;
-}
-EXPORT_SYMBOL_GPL(devm_regulator_get);
 
 /**
  * regulator_get_exclusive - obtain exclusive access to a regulator.
@@ -1382,9 +1438,38 @@ EXPORT_SYMBOL_GPL(devm_regulator_get);
  */
 struct regulator *regulator_get_exclusive(struct device *dev, const char *id)
 {
-	return _regulator_get(dev, id, 1);
+	return _regulator_get(dev, id, true, false);
 }
 EXPORT_SYMBOL_GPL(regulator_get_exclusive);
+
+/**
+ * regulator_get_optional - obtain optional access to a regulator.
+ * @dev: device for regulator "consumer"
+ * @id: Supply name or regulator ID.
+ *
+ * Returns a struct regulator corresponding to the regulator producer,
+ * or IS_ERR() condition containing errno.  Other consumers will be
+ * unable to obtain this reference is held and the use count for the
+ * regulator will be initialised to reflect the current state of the
+ * regulator.
+ *
+ * This is intended for use by consumers for devices which can have
+ * some supplies unconnected in normal use, such as some MMC devices.
+ * It can allow the regulator core to provide stub supplies for other
+ * supplies requested using normal regulator_get() calls without
+ * disrupting the operation of drivers that can handle absent
+ * supplies.
+ *
+ * Use of supply names configured via regulator_set_device_supply() is
+ * strongly encouraged.  It is recommended that the supply name used
+ * should match the name used for the supply and/or the relevant
+ * device pins in the datasheet.
+ */
+struct regulator *regulator_get_optional(struct device *dev, const char *id)
+{
+	return _regulator_get(dev, id, false, false);
+}
+EXPORT_SYMBOL_GPL(regulator_get_optional);
 
 /* Locks held by regulator_put() */
 static void _regulator_put(struct regulator *regulator)
@@ -1427,34 +1512,231 @@ void regulator_put(struct regulator *regulator)
 }
 EXPORT_SYMBOL_GPL(regulator_put);
 
-static int devm_regulator_match(struct device *dev, void *res, void *data)
+/**
+ * regulator_register_supply_alias - Provide device alias for supply lookup
+ *
+ * @dev: device that will be given as the regulator "consumer"
+ * @id: Supply name or regulator ID
+ * @alias_dev: device that should be used to lookup the supply
+ * @alias_id: Supply name or regulator ID that should be used to lookup the
+ * supply
+ *
+ * All lookups for id on dev will instead be conducted for alias_id on
+ * alias_dev.
+ */
+int regulator_register_supply_alias(struct device *dev, const char *id,
+				    struct device *alias_dev,
+				    const char *alias_id)
 {
-	struct regulator **r = res;
-	if (!r || !*r) {
-		WARN_ON(!r || !*r);
-		return 0;
+	struct regulator_supply_alias *map;
+
+	map = regulator_find_supply_alias(dev, id);
+	if (map)
+		return -EEXIST;
+
+	map = kzalloc(sizeof(struct regulator_supply_alias), GFP_KERNEL);
+	if (!map)
+		return -ENOMEM;
+
+	map->src_dev = dev;
+	map->src_supply = id;
+	map->alias_dev = alias_dev;
+	map->alias_supply = alias_id;
+
+	list_add(&map->list, &regulator_supply_alias_list);
+
+	pr_info("Adding alias for supply %s,%s -> %s,%s\n",
+		id, dev_name(dev), alias_id, dev_name(alias_dev));
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(regulator_register_supply_alias);
+
+/**
+ * regulator_unregister_supply_alias - Remove device alias
+ *
+ * @dev: device that will be given as the regulator "consumer"
+ * @id: Supply name or regulator ID
+ *
+ * Remove a lookup alias if one exists for id on dev.
+ */
+void regulator_unregister_supply_alias(struct device *dev, const char *id)
+{
+	struct regulator_supply_alias *map;
+
+	map = regulator_find_supply_alias(dev, id);
+	if (map) {
+		list_del(&map->list);
+		kfree(map);
 	}
-	return *r == data;
+}
+EXPORT_SYMBOL_GPL(regulator_unregister_supply_alias);
+
+/**
+ * regulator_bulk_register_supply_alias - register multiple aliases
+ *
+ * @dev: device that will be given as the regulator "consumer"
+ * @id: List of supply names or regulator IDs
+ * @alias_dev: device that should be used to lookup the supply
+ * @alias_id: List of supply names or regulator IDs that should be used to
+ * lookup the supply
+ * @num_id: Number of aliases to register
+ *
+ * @return 0 on success, an errno on failure.
+ *
+ * This helper function allows drivers to register several supply
+ * aliases in one operation.  If any of the aliases cannot be
+ * registered any aliases that were registered will be removed
+ * before returning to the caller.
+ */
+int regulator_bulk_register_supply_alias(struct device *dev, const char **id,
+					 struct device *alias_dev,
+					 const char **alias_id,
+					 int num_id)
+{
+	int i;
+	int ret;
+
+	for (i = 0; i < num_id; ++i) {
+		ret = regulator_register_supply_alias(dev, id[i], alias_dev,
+						      alias_id[i]);
+		if (ret < 0)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	dev_err(dev,
+		"Failed to create supply alias %s,%s -> %s,%s\n",
+		id[i], dev_name(dev), alias_id[i], dev_name(alias_dev));
+
+	while (--i >= 0)
+		regulator_unregister_supply_alias(dev, id[i]);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regulator_bulk_register_supply_alias);
+
+/**
+ * regulator_bulk_unregister_supply_alias - unregister multiple aliases
+ *
+ * @dev: device that will be given as the regulator "consumer"
+ * @id: List of supply names or regulator IDs
+ * @num_id: Number of aliases to unregister
+ *
+ * This helper function allows drivers to unregister several supply
+ * aliases in one operation.
+ */
+void regulator_bulk_unregister_supply_alias(struct device *dev,
+					    const char **id,
+					    int num_id)
+{
+	int i;
+
+	for (i = 0; i < num_id; ++i)
+		regulator_unregister_supply_alias(dev, id[i]);
+}
+EXPORT_SYMBOL_GPL(regulator_bulk_unregister_supply_alias);
+
+
+/* Manage enable GPIO list. Same GPIO pin can be shared among regulators */
+static int regulator_ena_gpio_request(struct regulator_dev *rdev,
+				const struct regulator_config *config)
+{
+	struct regulator_enable_gpio *pin;
+	int ret;
+
+	list_for_each_entry(pin, &regulator_ena_gpio_list, list) {
+		if (pin->gpio == config->ena_gpio) {
+			rdev_dbg(rdev, "GPIO %d is already used\n",
+				config->ena_gpio);
+			goto update_ena_gpio_to_rdev;
+		}
+	}
+
+	ret = gpio_request_one(config->ena_gpio,
+				GPIOF_DIR_OUT | config->ena_gpio_flags,
+				rdev_get_name(rdev));
+	if (ret)
+		return ret;
+
+	pin = kzalloc(sizeof(struct regulator_enable_gpio), GFP_KERNEL);
+	if (pin == NULL) {
+		gpio_free(config->ena_gpio);
+		return -ENOMEM;
+	}
+
+	pin->gpio = config->ena_gpio;
+	pin->ena_gpio_invert = config->ena_gpio_invert;
+	list_add(&pin->list, &regulator_ena_gpio_list);
+
+update_ena_gpio_to_rdev:
+	pin->request_count++;
+	rdev->ena_pin = pin;
+	return 0;
+}
+
+static void regulator_ena_gpio_free(struct regulator_dev *rdev)
+{
+	struct regulator_enable_gpio *pin, *n;
+
+	if (!rdev->ena_pin)
+		return;
+
+	/* Free the GPIO only in case of no use */
+	list_for_each_entry_safe(pin, n, &regulator_ena_gpio_list, list) {
+		if (pin->gpio == rdev->ena_pin->gpio) {
+			if (pin->request_count <= 1) {
+				pin->request_count = 0;
+				gpio_free(pin->gpio);
+				list_del(&pin->list);
+				kfree(pin);
+			} else {
+				pin->request_count--;
+			}
+		}
+	}
 }
 
 /**
- * devm_regulator_put - Resource managed regulator_put()
- * @regulator: regulator to free
+ * regulator_ena_gpio_ctrl - balance enable_count of each GPIO and actual GPIO pin control
+ * @rdev: regulator_dev structure
+ * @enable: enable GPIO at initial use?
  *
- * Deallocate a regulator allocated with devm_regulator_get(). Normally
- * this function will not need to be called and the resource management
- * code will ensure that the resource is freed.
+ * GPIO is enabled in case of initial use. (enable_count is 0)
+ * GPIO is disabled when it is not shared any more. (enable_count <= 1)
  */
-void devm_regulator_put(struct regulator *regulator)
+static int regulator_ena_gpio_ctrl(struct regulator_dev *rdev, bool enable)
 {
-	int rc;
+	struct regulator_enable_gpio *pin = rdev->ena_pin;
 
-	rc = devres_release(regulator->dev, devm_regulator_release,
-			    devm_regulator_match, regulator);
-	if (rc != 0)
-		WARN_ON(rc);
+	if (!pin)
+		return -EINVAL;
+
+	if (enable) {
+		/* Enable GPIO at initial use */
+		if (pin->enable_count == 0)
+			gpio_set_value_cansleep(pin->gpio,
+						!pin->ena_gpio_invert);
+
+		pin->enable_count++;
+	} else {
+		if (pin->enable_count > 1) {
+			pin->enable_count--;
+			return 0;
+		}
+
+		/* Disable GPIO if not used */
+		if (pin->enable_count <= 1) {
+			gpio_set_value_cansleep(pin->gpio,
+						pin->ena_gpio_invert);
+			pin->enable_count = 0;
+		}
+	}
+
+	return 0;
 }
-EXPORT_SYMBOL_GPL(devm_regulator_put);
 
 static int _regulator_do_enable(struct regulator_dev *rdev)
 {
@@ -1471,9 +1753,10 @@ static int _regulator_do_enable(struct regulator_dev *rdev)
 
 	trace_regulator_enable(rdev_get_name(rdev));
 
-	if (rdev->ena_gpio) {
-		gpio_set_value_cansleep(rdev->ena_gpio,
-					!rdev->ena_gpio_invert);
+	if (rdev->ena_pin) {
+		ret = regulator_ena_gpio_ctrl(rdev, true);
+		if (ret < 0)
+			return ret;
 		rdev->ena_gpio_state = 1;
 	} else if (rdev->desc->ops->enable) {
 		ret = rdev->desc->ops->enable(rdev);
@@ -1488,11 +1771,39 @@ static int _regulator_do_enable(struct regulator_dev *rdev)
 	 * together.  */
 	trace_regulator_enable_delay(rdev_get_name(rdev));
 
-	if (delay >= 1000) {
-		mdelay(delay / 1000);
-		udelay(delay % 1000);
-	} else if (delay) {
-		udelay(delay);
+	/*
+	 * Delay for the requested amount of time as per the guidelines in:
+	 *
+	 *     Documentation/timers/timers-howto.txt
+	 *
+	 * The assumption here is that regulators will never be enabled in
+	 * atomic context and therefore sleeping functions can be used.
+	 */
+	if (delay) {
+		unsigned int ms = delay / 1000;
+		unsigned int us = delay % 1000;
+
+		if (ms > 0) {
+			/*
+			 * For small enough values, handle super-millisecond
+			 * delays in the usleep_range() call below.
+			 */
+			if (ms < 20)
+				us += ms * 1000;
+			else
+				msleep(ms);
+		}
+
+		/*
+		 * Give the scheduler some room to coalesce with any other
+		 * wakeup sources. For delays shorter than 10 us, don't even
+		 * bother setting up high-resolution timers and just busy-
+		 * loop.
+		 */
+		if (us >= 10)
+			usleep_range(us, us + 100);
+		else
+			udelay(us);
 	}
 
 	trace_regulator_enable_complete(rdev_get_name(rdev));
@@ -1575,9 +1886,10 @@ static int _regulator_do_disable(struct regulator_dev *rdev)
 
 	trace_regulator_disable(rdev_get_name(rdev));
 
-	if (rdev->ena_gpio) {
-		gpio_set_value_cansleep(rdev->ena_gpio,
-					rdev->ena_gpio_invert);
+	if (rdev->ena_pin) {
+		ret = regulator_ena_gpio_ctrl(rdev, false);
+		if (ret < 0)
+			return ret;
 		rdev->ena_gpio_state = 0;
 
 	} else if (rdev->desc->ops->disable) {
@@ -1767,8 +2079,9 @@ int regulator_disable_deferred(struct regulator *regulator, int ms)
 	rdev->deferred_disables++;
 	mutex_unlock(&rdev->mutex);
 
-	ret = schedule_delayed_work(&rdev->disable_work,
-				    msecs_to_jiffies(ms));
+	ret = queue_delayed_work(system_power_efficient_wq,
+				 &rdev->disable_work,
+				 msecs_to_jiffies(ms));
 	if (ret < 0)
 		return ret;
 	else
@@ -1776,65 +2089,10 @@ int regulator_disable_deferred(struct regulator *regulator, int ms)
 }
 EXPORT_SYMBOL_GPL(regulator_disable_deferred);
 
-/**
- * regulator_is_enabled_regmap - standard is_enabled() for regmap users
- *
- * @rdev: regulator to operate on
- *
- * Regulators that use regmap for their register I/O can set the
- * enable_reg and enable_mask fields in their descriptor and then use
- * this as their is_enabled operation, saving some code.
- */
-int regulator_is_enabled_regmap(struct regulator_dev *rdev)
-{
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(rdev->regmap, rdev->desc->enable_reg, &val);
-	if (ret != 0)
-		return ret;
-
-	return (val & rdev->desc->enable_mask) != 0;
-}
-EXPORT_SYMBOL_GPL(regulator_is_enabled_regmap);
-
-/**
- * regulator_enable_regmap - standard enable() for regmap users
- *
- * @rdev: regulator to operate on
- *
- * Regulators that use regmap for their register I/O can set the
- * enable_reg and enable_mask fields in their descriptor and then use
- * this as their enable() operation, saving some code.
- */
-int regulator_enable_regmap(struct regulator_dev *rdev)
-{
-	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
-				  rdev->desc->enable_mask,
-				  rdev->desc->enable_mask);
-}
-EXPORT_SYMBOL_GPL(regulator_enable_regmap);
-
-/**
- * regulator_disable_regmap - standard disable() for regmap users
- *
- * @rdev: regulator to operate on
- *
- * Regulators that use regmap for their register I/O can set the
- * enable_reg and enable_mask fields in their descriptor and then use
- * this as their disable() operation, saving some code.
- */
-int regulator_disable_regmap(struct regulator_dev *rdev)
-{
-	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
-				  rdev->desc->enable_mask, 0);
-}
-EXPORT_SYMBOL_GPL(regulator_disable_regmap);
-
 static int _regulator_is_enabled(struct regulator_dev *rdev)
 {
 	/* A GPIO control always takes precedence */
-	if (rdev->ena_gpio)
+	if (rdev->ena_pin)
 		return rdev->ena_gpio_state;
 
 	/* If we don't know then assume that the regulator is always on */
@@ -1885,9 +2143,15 @@ int regulator_can_change_voltage(struct regulator *regulator)
 	struct regulator_dev	*rdev = regulator->rdev;
 
 	if (rdev->constraints &&
-	    rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_VOLTAGE &&
-	    (rdev->desc->n_voltages - rdev->desc->linear_min_sel) > 1)
-		return 1;
+	    (rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_VOLTAGE)) {
+		if (rdev->desc->n_voltages - rdev->desc->linear_min_sel > 1)
+			return 1;
+
+		if (rdev->desc->continuous_voltage_range &&
+		    rdev->constraints->min_uV && rdev->constraints->max_uV &&
+		    rdev->constraints->min_uV != rdev->constraints->max_uV)
+			return 1;
+	}
 
 	return 0;
 }
@@ -1910,55 +2174,6 @@ int regulator_count_voltages(struct regulator *regulator)
 EXPORT_SYMBOL_GPL(regulator_count_voltages);
 
 /**
- * regulator_list_voltage_linear - List voltages with simple calculation
- *
- * @rdev: Regulator device
- * @selector: Selector to convert into a voltage
- *
- * Regulators with a simple linear mapping between voltages and
- * selectors can set min_uV and uV_step in the regulator descriptor
- * and then use this function as their list_voltage() operation,
- */
-int regulator_list_voltage_linear(struct regulator_dev *rdev,
-				  unsigned int selector)
-{
-	if (selector >= rdev->desc->n_voltages)
-		return -EINVAL;
-	if (selector < rdev->desc->linear_min_sel)
-		return 0;
-
-	selector -= rdev->desc->linear_min_sel;
-
-	return rdev->desc->min_uV + (rdev->desc->uV_step * selector);
-}
-EXPORT_SYMBOL_GPL(regulator_list_voltage_linear);
-
-/**
- * regulator_list_voltage_table - List voltages with table based mapping
- *
- * @rdev: Regulator device
- * @selector: Selector to convert into a voltage
- *
- * Regulators with table based mapping between voltages and
- * selectors can set volt_table in the regulator descriptor
- * and then use this function as their list_voltage() operation.
- */
-int regulator_list_voltage_table(struct regulator_dev *rdev,
-				 unsigned int selector)
-{
-	if (!rdev->desc->volt_table) {
-		BUG_ON(!rdev->desc->volt_table);
-		return -EINVAL;
-	}
-
-	if (selector >= rdev->desc->n_voltages)
-		return -EINVAL;
-
-	return rdev->desc->volt_table[selector];
-}
-EXPORT_SYMBOL_GPL(regulator_list_voltage_table);
-
-/**
  * regulator_list_voltage - enumerate supported voltages
  * @regulator: regulator source
  * @selector: identify voltage to list
@@ -1973,6 +2188,9 @@ int regulator_list_voltage(struct regulator *regulator, unsigned selector)
 	struct regulator_dev	*rdev = regulator->rdev;
 	struct regulator_ops	*ops = rdev->desc->ops;
 	int			ret;
+
+	if (rdev->desc->fixed_uV && rdev->desc->n_voltages == 1 && !selector)
+		return rdev->desc->fixed_uV;
 
 	if (!ops->list_voltage || selector >= rdev->desc->n_voltages)
 		return -EINVAL;
@@ -1991,6 +2209,21 @@ int regulator_list_voltage(struct regulator *regulator, unsigned selector)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_list_voltage);
+
+/**
+ * regulator_get_linear_step - return the voltage step size between VSEL values
+ * @regulator: regulator source
+ *
+ * Returns the voltage step size between VSEL values for linear
+ * regulators, or return 0 if the regulator isn't a linear regulator.
+ */
+unsigned int regulator_get_linear_step(struct regulator *regulator)
+{
+	struct regulator_dev *rdev = regulator->rdev;
+
+	return rdev->desc->uV_step;
+}
+EXPORT_SYMBOL_GPL(regulator_get_linear_step);
 
 /**
  * regulator_is_supported_voltage - check if a voltage range can be supported
@@ -2036,136 +2269,6 @@ int regulator_is_supported_voltage(struct regulator *regulator,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(regulator_is_supported_voltage);
-
-/**
- * regulator_get_voltage_sel_regmap - standard get_voltage_sel for regmap users
- *
- * @rdev: regulator to operate on
- *
- * Regulators that use regmap for their register I/O can set the
- * vsel_reg and vsel_mask fields in their descriptor and then use this
- * as their get_voltage_vsel operation, saving some code.
- */
-int regulator_get_voltage_sel_regmap(struct regulator_dev *rdev)
-{
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(rdev->regmap, rdev->desc->vsel_reg, &val);
-	if (ret != 0)
-		return ret;
-
-	val &= rdev->desc->vsel_mask;
-	val >>= ffs(rdev->desc->vsel_mask) - 1;
-
-	return val;
-}
-EXPORT_SYMBOL_GPL(regulator_get_voltage_sel_regmap);
-
-/**
- * regulator_set_voltage_sel_regmap - standard set_voltage_sel for regmap users
- *
- * @rdev: regulator to operate on
- * @sel: Selector to set
- *
- * Regulators that use regmap for their register I/O can set the
- * vsel_reg and vsel_mask fields in their descriptor and then use this
- * as their set_voltage_vsel operation, saving some code.
- */
-int regulator_set_voltage_sel_regmap(struct regulator_dev *rdev, unsigned sel)
-{
-	sel <<= ffs(rdev->desc->vsel_mask) - 1;
-
-	return regmap_update_bits(rdev->regmap, rdev->desc->vsel_reg,
-				  rdev->desc->vsel_mask, sel);
-}
-EXPORT_SYMBOL_GPL(regulator_set_voltage_sel_regmap);
-
-/**
- * regulator_map_voltage_iterate - map_voltage() based on list_voltage()
- *
- * @rdev: Regulator to operate on
- * @min_uV: Lower bound for voltage
- * @max_uV: Upper bound for voltage
- *
- * Drivers implementing set_voltage_sel() and list_voltage() can use
- * this as their map_voltage() operation.  It will find a suitable
- * voltage by calling list_voltage() until it gets something in bounds
- * for the requested voltages.
- */
-int regulator_map_voltage_iterate(struct regulator_dev *rdev,
-				  int min_uV, int max_uV)
-{
-	int best_val = INT_MAX;
-	int selector = 0;
-	int i, ret;
-
-	/* Find the smallest voltage that falls within the specified
-	 * range.
-	 */
-	for (i = 0; i < rdev->desc->n_voltages; i++) {
-		ret = rdev->desc->ops->list_voltage(rdev, i);
-		if (ret < 0)
-			continue;
-
-		if (ret < best_val && ret >= min_uV && ret <= max_uV) {
-			best_val = ret;
-			selector = i;
-		}
-	}
-
-	if (best_val != INT_MAX)
-		return selector;
-	else
-		return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(regulator_map_voltage_iterate);
-
-/**
- * regulator_map_voltage_linear - map_voltage() for simple linear mappings
- *
- * @rdev: Regulator to operate on
- * @min_uV: Lower bound for voltage
- * @max_uV: Upper bound for voltage
- *
- * Drivers providing min_uV and uV_step in their regulator_desc can
- * use this as their map_voltage() operation.
- */
-int regulator_map_voltage_linear(struct regulator_dev *rdev,
-				 int min_uV, int max_uV)
-{
-	int ret, voltage;
-
-	/* Allow uV_step to be 0 for fixed voltage */
-	if (rdev->desc->n_voltages == 1 && rdev->desc->uV_step == 0) {
-		if (min_uV <= rdev->desc->min_uV && rdev->desc->min_uV <= max_uV)
-			return 0;
-		else
-			return -EINVAL;
-	}
-
-	if (!rdev->desc->uV_step) {
-		BUG_ON(!rdev->desc->uV_step);
-		return -EINVAL;
-	}
-
-	if (min_uV < rdev->desc->min_uV)
-		min_uV = rdev->desc->min_uV;
-
-	ret = DIV_ROUND_UP(min_uV - rdev->desc->min_uV, rdev->desc->uV_step);
-	if (ret < 0)
-		return ret;
-
-	ret += rdev->desc->linear_min_sel;
-
-	/* Map back into a voltage to verify we're still in bounds */
-	voltage = rdev->desc->ops->list_voltage(rdev, ret);
-	if (voltage < min_uV || voltage > max_uV)
-		return -EINVAL;
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(regulator_map_voltage_linear);
 
 static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 				     int min_uV, int max_uV)
@@ -2223,8 +2326,11 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 			best_val = rdev->desc->ops->list_voltage(rdev, ret);
 			if (min_uV <= best_val && max_uV >= best_val) {
 				selector = ret;
-				ret = rdev->desc->ops->set_voltage_sel(rdev,
-								       ret);
+				if (old_selector == selector)
+					ret = 0;
+				else
+					ret = rdev->desc->ops->set_voltage_sel(
+								rdev, ret);
 			} else {
 				ret = -EINVAL;
 			}
@@ -2234,8 +2340,8 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 	}
 
 	/* Call set_voltage_time_sel if successfully obtained old_selector */
-	if (ret == 0 && _regulator_is_enabled(rdev) && old_selector >= 0 &&
-	    rdev->desc->ops->set_voltage_time_sel) {
+	if (ret == 0 && !rdev->constraints->ramp_disable && old_selector >= 0
+		&& old_selector != selector) {
 
 		delay = rdev->desc->ops->set_voltage_time_sel(rdev,
 						old_selector, selector);
@@ -2288,6 +2394,7 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 {
 	struct regulator_dev *rdev = regulator->rdev;
 	int ret = 0;
+	int old_min_uV, old_max_uV;
 
 	mutex_lock(&rdev->mutex);
 
@@ -2309,16 +2416,27 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 	ret = regulator_check_voltage(rdev, &min_uV, &max_uV);
 	if (ret < 0)
 		goto out;
+	
+	/* restore original values in case of error */
+	old_min_uV = regulator->min_uV;
+	old_max_uV = regulator->max_uV;
 	regulator->min_uV = min_uV;
 	regulator->max_uV = max_uV;
 
 	ret = regulator_check_consumers(rdev, &min_uV, &max_uV);
 	if (ret < 0)
-		goto out;
+		goto out2;
 
 	ret = _regulator_do_set_voltage(rdev, min_uV, max_uV);
-
+	if (ret < 0)
+		goto out2;
+	
 out:
+	mutex_unlock(&rdev->mutex);
+	return ret;
+out2:
+	regulator->min_uV = old_min_uV;
+	regulator->max_uV = old_max_uV;
 	mutex_unlock(&rdev->mutex);
 	return ret;
 }
@@ -2469,6 +2587,8 @@ static int _regulator_get_voltage(struct regulator_dev *rdev)
 		ret = rdev->desc->ops->get_voltage(rdev);
 	} else if (rdev->desc->ops->list_voltage) {
 		ret = rdev->desc->ops->list_voltage(rdev, 0);
+	} else if (rdev->desc->fixed_uV && (rdev->desc->n_voltages == 1)) {
+		ret = rdev->desc->fixed_uV;
 	} else {
 		return -EINVAL;
 	}
@@ -2504,7 +2624,7 @@ EXPORT_SYMBOL_GPL(regulator_get_voltage);
 /**
  * regulator_set_current_limit - set regulator output current limit
  * @regulator: regulator source
- * @min_uA: Minimuum supported current in uA
+ * @min_uA: Minimum supported current in uA
  * @max_uA: Maximum supported current in uA
  *
  * Sets current sink to the desired output current. This can be set during
@@ -2755,51 +2875,10 @@ out:
 EXPORT_SYMBOL_GPL(regulator_set_optimum_mode);
 
 /**
- * regulator_set_bypass_regmap - Default set_bypass() using regmap
- *
- * @rdev: device to operate on.
- * @enable: state to set.
- */
-int regulator_set_bypass_regmap(struct regulator_dev *rdev, bool enable)
-{
-	unsigned int val;
-
-	if (enable)
-		val = rdev->desc->bypass_mask;
-	else
-		val = 0;
-
-	return regmap_update_bits(rdev->regmap, rdev->desc->bypass_reg,
-				  rdev->desc->bypass_mask, val);
-}
-EXPORT_SYMBOL_GPL(regulator_set_bypass_regmap);
-
-/**
- * regulator_get_bypass_regmap - Default get_bypass() using regmap
- *
- * @rdev: device to operate on.
- * @enable: current state.
- */
-int regulator_get_bypass_regmap(struct regulator_dev *rdev, bool *enable)
-{
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(rdev->regmap, rdev->desc->bypass_reg, &val);
-	if (ret != 0)
-		return ret;
-
-	*enable = val & rdev->desc->bypass_mask;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(regulator_get_bypass_regmap);
-
-/**
  * regulator_allow_bypass - allow the regulator to go into bypass mode
  *
  * @regulator: Regulator to configure
- * @allow: enable or disable bypass mode
+ * @enable: enable or disable bypass mode
  *
  * Allow the regulator to go into bypass mode if all other consumers
  * for the regulator also enable bypass mode and the machine
@@ -2933,52 +3012,6 @@ err:
 }
 EXPORT_SYMBOL_GPL(regulator_bulk_get);
 
-/**
- * devm_regulator_bulk_get - managed get multiple regulator consumers
- *
- * @dev:           Device to supply
- * @num_consumers: Number of consumers to register
- * @consumers:     Configuration of consumers; clients are stored here.
- *
- * @return 0 on success, an errno on failure.
- *
- * This helper function allows drivers to get several regulator
- * consumers in one operation with management, the regulators will
- * automatically be freed when the device is unbound.  If any of the
- * regulators cannot be acquired then any regulators that were
- * allocated will be freed before returning to the caller.
- */
-int devm_regulator_bulk_get(struct device *dev, int num_consumers,
-			    struct regulator_bulk_data *consumers)
-{
-	int i;
-	int ret;
-
-	for (i = 0; i < num_consumers; i++)
-		consumers[i].consumer = NULL;
-
-	for (i = 0; i < num_consumers; i++) {
-		consumers[i].consumer = devm_regulator_get(dev,
-							   consumers[i].supply);
-		if (IS_ERR(consumers[i].consumer)) {
-			ret = PTR_ERR(consumers[i].consumer);
-			dev_err(dev, "Failed to get supply '%s': %d\n",
-				consumers[i].supply, ret);
-			consumers[i].consumer = NULL;
-			goto err;
-		}
-	}
-
-	return 0;
-
-err:
-	for (i = 0; i < num_consumers && consumers[i].consumer; i++)
-		devm_regulator_put(consumers[i].consumer);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(devm_regulator_bulk_get);
-
 static void regulator_bulk_enable_async(void *data, async_cookie_t cookie)
 {
 	struct regulator_bulk_data *bulk = data;
@@ -3026,9 +3059,13 @@ int regulator_bulk_enable(int num_consumers,
 	return 0;
 
 err:
-	pr_err("Failed to enable %s: %d\n", consumers[i].supply, ret);
-	while (--i >= 0)
-		regulator_disable(consumers[i].consumer);
+	for (i = 0; i < num_consumers; i++) {
+		if (consumers[i].ret < 0)
+			pr_err("Failed to enable %s: %d\n", consumers[i].supply,
+			       consumers[i].ret);
+		else
+			regulator_disable(consumers[i].consumer);
+	}
 
 	return ret;
 }
@@ -3187,7 +3224,8 @@ static int add_regulator_attributes(struct regulator_dev *rdev)
 	/* some attributes need specific methods to be displayed */
 	if ((ops->get_voltage && ops->get_voltage(rdev) >= 0) ||
 	    (ops->get_voltage_sel && ops->get_voltage_sel(rdev) >= 0) ||
-	    (ops->list_voltage && ops->list_voltage(rdev, 0) >= 0)) {
+	    (ops->list_voltage && ops->list_voltage(rdev, 0) >= 0) ||
+		(rdev->desc->fixed_uV && (rdev->desc->n_voltages == 1))) {
 		status = device_create_file(dev, &dev_attr_microvolts);
 		if (status < 0)
 			return status;
@@ -3202,7 +3240,7 @@ static int add_regulator_attributes(struct regulator_dev *rdev)
 		if (status < 0)
 			return status;
 	}
-	if (ops->is_enabled) {
+	if (rdev->ena_pin || ops->is_enabled) {
 		status = device_create_file(dev, &dev_attr_state);
 		if (status < 0)
 			return status;
@@ -3315,7 +3353,8 @@ static void rdev_init_debugfs(struct regulator_dev *rdev)
  * @config: runtime configuration for regulator
  *
  * Called by regulator drivers to register a regulator.
- * Returns 0 on success.
+ * Returns a valid pointer to struct regulator_dev on success
+ * or an ERR_PTR() on error.
  */
 struct regulator_dev *
 regulator_register(const struct regulator_desc *regulator_desc,
@@ -3403,22 +3442,17 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	dev_set_drvdata(&rdev->dev, rdev);
 
 	if (config->ena_gpio && gpio_is_valid(config->ena_gpio)) {
-		ret = gpio_request_one(config->ena_gpio,
-				       GPIOF_DIR_OUT | config->ena_gpio_flags,
-				       rdev_get_name(rdev));
+		ret = regulator_ena_gpio_request(rdev, config);
 		if (ret != 0) {
 			rdev_err(rdev, "Failed to request enable GPIO%d: %d\n",
 				 config->ena_gpio, ret);
 			goto wash;
 		}
 
-		rdev->ena_gpio = config->ena_gpio;
-		rdev->ena_gpio_invert = config->ena_gpio_invert;
-
 		if (config->ena_gpio_flags & GPIOF_OUT_INIT_HIGH)
 			rdev->ena_gpio_state = 1;
 
-		if (rdev->ena_gpio_invert)
+		if (config->ena_gpio_invert)
 			rdev->ena_gpio_state = !rdev->ena_gpio_state;
 	}
 
@@ -3445,7 +3479,14 @@ regulator_register(const struct regulator_desc *regulator_desc,
 
 		r = regulator_dev_lookup(dev, supply, &ret);
 
-		if (!r) {
+		if (ret == -ENODEV) {
+			/*
+			 * No supply was specified for this regulator and
+			 * there will never be one.
+			 */
+			ret = 0;
+			goto add_dev;
+		} else if (!r) {
 			dev_err(dev, "Failed to find supply %s\n", supply);
 			ret = -EPROBE_DEFER;
 			goto scrub;
@@ -3463,6 +3504,7 @@ regulator_register(const struct regulator_desc *regulator_desc,
 		}
 	}
 
+add_dev:
 	/* add consumers devices */
 	if (init_data) {
 		for (i = 0; i < init_data->num_consumer_supplies; i++) {
@@ -3490,8 +3532,7 @@ unset_supplies:
 scrub:
 	if (rdev->supply)
 		_regulator_put(rdev->supply);
-	if (rdev->ena_gpio)
-		gpio_free(rdev->ena_gpio);
+	regulator_ena_gpio_free(rdev);
 	kfree(rdev->constraints);
 wash:
 	device_unregister(&rdev->dev);
@@ -3517,8 +3558,11 @@ void regulator_unregister(struct regulator_dev *rdev)
 	if (rdev == NULL)
 		return;
 
-	if (rdev->supply)
+	if (rdev->supply) {
+		while (rdev->use_count--)
+			regulator_disable(rdev->supply);
 		regulator_put(rdev->supply);
+	}
 	mutex_lock(&regulator_list_mutex);
 	debugfs_remove_recursive(rdev->debugfs);
 	flush_work(&rdev->disable_work.work);
@@ -3526,8 +3570,7 @@ void regulator_unregister(struct regulator_dev *rdev)
 	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);
 	kfree(rdev->constraints);
-	if (rdev->ena_gpio)
-		gpio_free(rdev->ena_gpio);
+	regulator_ena_gpio_free(rdev);
 	device_unregister(&rdev->dev);
 	mutex_unlock(&regulator_list_mutex);
 }
@@ -3589,7 +3632,7 @@ int regulator_suspend_finish(void)
 			if (error)
 				ret = error;
 		} else {
-			if (!has_full_constraints)
+			if (!have_full_constraints())
 				goto unlock;
 			if (!ops->disable)
 				goto unlock;
@@ -3624,22 +3667,6 @@ void regulator_has_full_constraints(void)
 	has_full_constraints = 1;
 }
 EXPORT_SYMBOL_GPL(regulator_has_full_constraints);
-
-/**
- * regulator_use_dummy_regulator - Provide a dummy regulator when none is found
- *
- * Calling this function will cause the regulator API to provide a
- * dummy regulator to consumers if no physical regulator is found,
- * allowing most consumers to proceed as though a regulator were
- * configured.  This allows systems such as those with software
- * controllable regulators for the CPU core only to be brought up more
- * readily.
- */
-void regulator_use_dummy_regulator(void)
-{
-	board_wants_dummy_regulator = true;
-}
-EXPORT_SYMBOL_GPL(regulator_use_dummy_regulator);
 
 /**
  * rdev_get_drvdata - get rdev regulator driver data
@@ -3803,7 +3830,7 @@ static int __init regulator_init_complete(void)
 		if (!enabled)
 			goto unlock;
 
-		if (has_full_constraints) {
+		if (have_full_constraints()) {
 			/* We log since this may kill the system if it
 			 * goes wrong. */
 			rdev_info(rdev, "disabling\n");

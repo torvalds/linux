@@ -16,6 +16,38 @@
 #include <asm/isadep.h>
 #include <uapi/asm/ptrace.h>
 
+/*
+ * This struct defines the way the registers are stored on the stack during a
+ * system call/exception. As usual the registers k0/k1 aren't being saved.
+ */
+struct pt_regs {
+#ifdef CONFIG_32BIT
+	/* Pad bytes for argument save space on the stack. */
+	unsigned long pad0[6];
+#endif
+
+	/* Saved main processor registers. */
+	unsigned long regs[32];
+
+	/* Saved special registers. */
+	unsigned long cp0_status;
+	unsigned long hi;
+	unsigned long lo;
+#ifdef CONFIG_CPU_HAS_SMARTMIPS
+	unsigned long acx;
+#endif
+	unsigned long cp0_badvaddr;
+	unsigned long cp0_cause;
+	unsigned long cp0_epc;
+#ifdef CONFIG_MIPS_MT_SMTC
+	unsigned long cp0_tcstatus;
+#endif /* CONFIG_MIPS_MT_SMTC */
+#ifdef CONFIG_CPU_CAVIUM_OCTEON
+	unsigned long long mpl[3];	  /* MTM{0,1,2} */
+	unsigned long long mtp[3];	  /* MTP{0,1,2} */
+#endif
+} __aligned(8);
+
 struct task_struct;
 
 extern int ptrace_getregs(struct task_struct *child, __s64 __user *data);
@@ -49,7 +81,6 @@ static inline long regs_return_value(struct pt_regs *regs)
 
 #define instruction_pointer(regs) ((regs)->cp0_epc)
 #define profile_pc(regs) instruction_pointer(regs)
-#define user_stack_pointer(r) ((r)->regs[29])
 
 extern asmlinkage void syscall_trace_enter(struct pt_regs *regs);
 extern asmlinkage void syscall_trace_leave(struct pt_regs *regs);
@@ -67,5 +98,18 @@ static inline void die_if_kernel(const char *str, struct pt_regs *regs)
 	unsigned long sp = (unsigned long)__builtin_frame_address(0);	\
 	(struct pt_regs *)((sp | (THREAD_SIZE - 1)) + 1 - 32) - 1;	\
 })
+
+/* Helpers for working with the user stack pointer */
+
+static inline unsigned long user_stack_pointer(struct pt_regs *regs)
+{
+	return regs->regs[29];
+}
+
+static inline void user_stack_pointer_set(struct pt_regs *regs,
+	unsigned long val)
+{
+	regs->regs[29] = val;
+}
 
 #endif /* _ASM_PTRACE_H */

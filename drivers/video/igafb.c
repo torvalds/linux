@@ -360,9 +360,8 @@ static int __init iga_init(struct fb_info *info, struct iga_par *par)
 	if (register_framebuffer(info) < 0)
 		return 0;
 
-	printk("fb%d: %s frame buffer device at 0x%08lx [%dMB VRAM]\n",
-	       info->node, info->fix.id, 
-	       par->frame_buffer_phys, info->fix.smem_len >> 20);
+	fb_info(info, "%s frame buffer device at 0x%08lx [%dMB VRAM]\n",
+		info->fix.id, par->frame_buffer_phys, info->fix.smem_len >> 20);
 
 	iga_blank_border(par); 
 	return 1;
@@ -571,7 +570,7 @@ static int __init igafb_setup(char *options)
 
 module_init(igafb_init);
 MODULE_LICENSE("GPL");
-static struct pci_device_id igafb_pci_tbl[] __devinitdata = {
+static struct pci_device_id igafb_pci_tbl[] = {
 	{ PCI_VENDOR_ID_INTERG, PCI_DEVICE_ID_INTERG_1682,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ }
