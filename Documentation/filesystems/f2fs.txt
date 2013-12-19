@@ -171,6 +171,12 @@ Files in /sys/fs/f2fs/<devname>
 			      conduct checkpoint to reclaim the prefree segments
 			      to free segments. By default, 100 segments, 200MB.
 
+ max_small_discards	      This parameter controls the number of discard
+			      commands that consist small blocks less than 2MB.
+			      The candidates to be discarded are cached until
+			      checkpoint is triggered, and issued during the
+			      checkpoint. By default, it is disabled with 0.
+
  ipu_policy                   This parameter controls the policy of in-place
                               updates in f2fs. There are five policies:
                                0: F2FS_IPU_FORCE, 1: F2FS_IPU_SSR,
