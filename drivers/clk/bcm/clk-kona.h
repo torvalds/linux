@@ -373,8 +373,7 @@ struct peri_clk_data {
 
 struct kona_clk {
 	struct clk_hw hw;
-	struct clk_init_data init_data;
-	const char *name;	/* name of this clock */
+	struct clk_init_data init_data;	/* includes name of this clock */
 	struct ccu_data *ccu;	/* ccu this clock is associated with */
 	enum bcm_clk_type type;
 	union {
