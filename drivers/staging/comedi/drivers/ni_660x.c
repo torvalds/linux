@@ -815,10 +815,8 @@ static void ni_660x_release_mite_channel(struct comedi_device *dev,
 
 static int ni_660x_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct ni_gpct *counter = s->private;
 	int retval;
-
-	struct ni_gpct *counter = subdev_to_counter(s);
-/* const struct comedi_cmd *cmd = &s->async->cmd; */
 
 	retval = ni_660x_request_mite_channel(dev, counter, COMEDI_INPUT);
 	if (retval) {
@@ -835,14 +833,14 @@ static int ni_660x_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static int ni_660x_cmdtest(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	struct ni_gpct *counter = subdev_to_counter(s);
+	struct ni_gpct *counter = s->private;
 
 	return ni_tio_cmdtest(counter, cmd);
 }
 
 static int ni_660x_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct ni_gpct *counter = subdev_to_counter(s);
+	struct ni_gpct *counter = s->private;
 	int retval;
 
 	retval = ni_tio_cancel(counter);
@@ -866,7 +864,9 @@ static void set_tio_counterswap(struct comedi_device *dev, int chipset)
 static void ni_660x_handle_gpct_interrupt(struct comedi_device *dev,
 					  struct comedi_subdevice *s)
 {
-	ni_tio_handle_interrupt(subdev_to_counter(s), s);
+	struct ni_gpct *counter = s->private;
+
+	ni_tio_handle_interrupt(counter, s);
 	if (s->async->events) {
 		if (s->async->events & (COMEDI_CB_EOA | COMEDI_CB_ERROR |
 					COMEDI_CB_OVERFLOW)) {
@@ -901,11 +901,12 @@ static int ni_660x_input_poll(struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
 	struct ni_660x_private *devpriv = dev->private;
+	struct ni_gpct *counter = s->private;
 	unsigned long flags;
 
 	/* lock to avoid race with comedi_poll */
 	spin_lock_irqsave(&devpriv->interrupt_lock, flags);
-	mite_sync_input_dma(subdev_to_counter(s)->mite_chan, s->async);
+	mite_sync_input_dma(counter->mite_chan, s->async);
 	spin_unlock_irqrestore(&devpriv->interrupt_lock, flags);
 	return comedi_buf_read_n_available(s->async);
 }
@@ -915,10 +916,10 @@ static int ni_660x_buf_change(struct comedi_device *dev,
 			      unsigned long new_size)
 {
 	struct ni_660x_private *devpriv = dev->private;
+	struct ni_gpct *counter = s->private;
 	int ret;
 
-	ret = mite_buf_change(mite_ring(devpriv, subdev_to_counter(s)),
-			      s->async);
+	ret = mite_buf_change(mite_ring(devpriv, counter), s->async);
 	if (ret < 0)
 		return ret;
 
@@ -978,7 +979,9 @@ static int
 ni_660x_GPCT_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		   struct comedi_insn *insn, unsigned int *data)
 {
-	return ni_tio_rinsn(subdev_to_counter(s), insn, data);
+	struct ni_gpct *counter = s->private;
+
+	return ni_tio_rinsn(counter, insn, data);
 }
 
 static void init_tio_chip(struct comedi_device *dev, int chipset)
@@ -1003,14 +1006,18 @@ static int
 ni_660x_GPCT_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_insn *insn, unsigned int *data)
 {
-	return ni_tio_insn_config(subdev_to_counter(s), insn, data);
+	struct ni_gpct *counter = s->private;
+
+	return ni_tio_insn_config(counter, insn, data);
 }
 
 static int ni_660x_GPCT_winsn(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
-	return ni_tio_winsn(subdev_to_counter(s), insn, data);
+	struct ni_gpct *counter = s->private;
+
+	return ni_tio_winsn(counter, insn, data);
 }
 
 static int ni_660x_dio_insn_bits(struct comedi_device *dev,

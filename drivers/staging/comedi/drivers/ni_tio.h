@@ -150,9 +150,4 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *,
 				    int *gate_error, int *tc_error,
 				    int *perm_stale_data, int *stale_data);
 
-static inline struct ni_gpct *subdev_to_counter(struct comedi_subdevice *s)
-{
-	return s->private;
-}
-
 #endif /* _COMEDI_NI_TIO_H */
