@@ -345,7 +345,7 @@ static int pcie_device_init(struct pci_dev *pdev, int service, int irq)
 
 	retval = device_register(device);
 	if (retval) {
-		kfree(pcie);
+		put_device(device);
 		return retval;
 	}
 
