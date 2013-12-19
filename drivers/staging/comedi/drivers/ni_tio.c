@@ -397,7 +397,7 @@ void ni_tio_init_counter(struct ni_gpct *counter)
 			0);
 	if (ni_tio_counting_mode_registers_present(counter_dev)) {
 		ni_tio_set_bits(counter,
-				NITIO_Gi_Counting_Mode_Reg(counter->
+				NITIO_CNT_MODE_REG(counter->
 							   counter_index), ~0,
 				0);
 	}
@@ -439,7 +439,7 @@ static void ni_tio_set_sync_mode(struct ni_gpct *counter, int force_alt_sync)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	const unsigned counting_mode_reg =
-	    NITIO_Gi_Counting_Mode_Reg(counter->counter_index);
+	    NITIO_CNT_MODE_REG(counter->counter_index);
 	static const uint64_t min_normal_sync_period_ps = 25000;
 	const uint64_t clock_period_ps = ni_tio_clock_period_ps(counter,
 								ni_tio_generic_clock_src_select
@@ -516,7 +516,7 @@ static int ni_tio_set_counter_mode(struct ni_gpct *counter, unsigned mode)
 		if (mode & NI_GPCT_INDEX_ENABLE_BIT)
 			counting_mode_bits |= Gi_Index_Mode_Bit;
 		ni_tio_set_bits(counter,
-				NITIO_Gi_Counting_Mode_Reg(counter->
+				NITIO_CNT_MODE_REG(counter->
 							   counter_index),
 				Gi_Counting_Mode_Mask | Gi_Index_Phase_Mask |
 				Gi_Index_Mode_Bit, counting_mode_bits);
@@ -582,7 +582,7 @@ int ni_tio_arm(struct ni_gpct *counter, int arm, unsigned start_trigger)
 				break;
 			}
 			ni_tio_set_bits(counter,
-					NITIO_Gi_Counting_Mode_Reg
+					NITIO_CNT_MODE_REG
 					(counter->counter_index),
 					Gi_HW_Arm_Select_Mask
 					(counter_dev->variant) |
@@ -792,7 +792,7 @@ static int ni_tio_set_clock_src(struct ni_gpct *counter,
 			break;
 		}
 		ni_tio_set_bits(counter,
-				NITIO_Gi_Counting_Mode_Reg(counter->
+				NITIO_CNT_MODE_REG(counter->
 							   counter_index),
 				Gi_Prescale_X2_Bit(counter_dev->variant) |
 				Gi_Prescale_X8_Bit(counter_dev->variant),
@@ -807,7 +807,7 @@ static unsigned ni_tio_clock_src_modifiers(const struct ni_gpct *counter)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	const unsigned counting_mode_bits = ni_tio_get_soft_copy(counter,
-								 NITIO_Gi_Counting_Mode_Reg
+								 NITIO_CNT_MODE_REG
 								 (counter->
 								  counter_index));
 	unsigned bits = 0;
