@@ -667,7 +667,8 @@ struct ath_hw_ops {
 			  struct ath9k_channel *chan,
 			  u8 rxchainmask,
 			  bool longcal);
-	bool (*get_isr)(struct ath_hw *ah, enum ath9k_int *masked);
+	bool (*get_isr)(struct ath_hw *ah, enum ath9k_int *masked,
+			u32 *sync_cause_p);
 	void (*set_txdesc)(struct ath_hw *ah, void *ds,
 			   struct ath_tx_info *i);
 	int (*proc_txdesc)(struct ath_hw *ah, void *ds,
@@ -993,13 +994,6 @@ void ath9k_hw_check_nav(struct ath_hw *ah);
 bool ath9k_hw_check_alive(struct ath_hw *ah);
 
 bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode);
-
-#ifdef CONFIG_ATH9K_DEBUGFS
-void ath9k_debug_sync_cause(struct ath_common *common, u32 sync_cause);
-#else
-static inline void ath9k_debug_sync_cause(struct ath_common *common,
-					  u32 sync_cause) {}
-#endif
 
 /* Generic hw timer primitives */
 struct ath_gen_timer *ath_gen_timer_alloc(struct ath_hw *ah,

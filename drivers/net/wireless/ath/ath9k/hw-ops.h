@@ -49,9 +49,10 @@ static inline bool ath9k_hw_calibrate(struct ath_hw *ah,
 	return ath9k_hw_ops(ah)->calibrate(ah, chan, rxchainmask, longcal);
 }
 
-static inline bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked)
+static inline bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked,
+				   u32 *sync_cause_p)
 {
-	return ath9k_hw_ops(ah)->get_isr(ah, masked);
+	return ath9k_hw_ops(ah)->get_isr(ah, masked, sync_cause_p);
 }
 
 static inline void ath9k_hw_set_txdesc(struct ath_hw *ah, void *ds,

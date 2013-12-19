@@ -541,6 +541,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	enum ath9k_int status;
+	u32 sync_cause;
 	bool sched = false;
 
 	/*
@@ -567,7 +568,8 @@ irqreturn_t ath_isr(int irq, void *dev)
 	 * bits we haven't explicitly enabled so we mask the
 	 * value to insure we only process bits we requested.
 	 */
-	ath9k_hw_getisr(ah, &status);	/* NB: clears ISR too */
+	ath9k_hw_getisr(ah, &status, &sync_cause); /* NB: clears ISR too */
+	ath9k_debug_sync_cause(sc, sync_cause);
 	status &= ah->imask;	/* discard unasked-for bits */
 
 	/*
