@@ -613,6 +613,7 @@ int ni_dpm_force_performance_level(struct radeon_device *rdev,
 bool ni_dpm_vblank_too_short(struct radeon_device *rdev);
 int trinity_dpm_init(struct radeon_device *rdev);
 int trinity_dpm_enable(struct radeon_device *rdev);
+int trinity_dpm_late_enable(struct radeon_device *rdev);
 void trinity_dpm_disable(struct radeon_device *rdev);
 int trinity_dpm_pre_set_power_state(struct radeon_device *rdev);
 int trinity_dpm_set_power_state(struct radeon_device *rdev);

@@ -1790,6 +1790,7 @@ static struct radeon_asic trinity_asic = {
 		.init = &trinity_dpm_init,
 		.setup_asic = &trinity_dpm_setup_asic,
 		.enable = &trinity_dpm_enable,
+		.late_enable = &trinity_dpm_late_enable,
 		.disable = &trinity_dpm_disable,
 		.pre_set_power_state = &trinity_dpm_pre_set_power_state,
 		.set_power_state = &trinity_dpm_set_power_state,
