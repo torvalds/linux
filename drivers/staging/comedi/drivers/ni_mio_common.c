@@ -279,9 +279,6 @@ static int ni_8255_callback(int dir, int port, int data, unsigned long arg);
 static int ni_gpct_insn_write(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data);
-static int ni_gpct_insn_read(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data);
 static int ni_gpct_insn_config(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data);
@@ -4445,7 +4442,7 @@ static int ni_E_init(struct comedi_device *dev)
 			s->maxdata = 0xffffffff;
 		else
 			s->maxdata = 0xffffff;
-		s->insn_read = &ni_gpct_insn_read;
+		s->insn_read = ni_tio_insn_read;
 		s->insn_write = &ni_gpct_insn_write;
 		s->insn_config = &ni_gpct_insn_config;
 #ifdef PCIDMA
@@ -5021,14 +5018,6 @@ static int ni_gpct_insn_config(struct comedi_device *dev,
 {
 	struct ni_gpct *counter = s->private;
 	return ni_tio_insn_config(counter, insn, data);
-}
-
-static int ni_gpct_insn_read(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
-{
-	struct ni_gpct *counter = s->private;
-	return ni_tio_rinsn(counter, insn, data);
 }
 
 static int ni_gpct_insn_write(struct comedi_device *dev,

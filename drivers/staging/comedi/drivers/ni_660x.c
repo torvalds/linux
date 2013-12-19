@@ -975,15 +975,6 @@ static void ni_660x_free_mite_rings(struct comedi_device *dev)
 	}
 }
 
-static int
-ni_660x_GPCT_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		   struct comedi_insn *insn, unsigned int *data)
-{
-	struct ni_gpct *counter = s->private;
-
-	return ni_tio_rinsn(counter, insn, data);
-}
-
 static void init_tio_chip(struct comedi_device *dev, int chipset)
 {
 	struct ni_660x_private *devpriv = dev->private;
@@ -1241,7 +1232,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 			    SDF_CMD_READ /* | SDF_CMD_WRITE */ ;
 			s->n_chan = 3;
 			s->maxdata = 0xffffffff;
-			s->insn_read = ni_660x_GPCT_rinsn;
+			s->insn_read = ni_tio_insn_read;
 			s->insn_write = ni_660x_GPCT_winsn;
 			s->insn_config = ni_660x_GPCT_insn_config;
 			s->do_cmd = &ni_660x_cmd;

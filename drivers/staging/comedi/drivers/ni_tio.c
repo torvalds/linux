@@ -1579,9 +1579,12 @@ int ni_tio_insn_config(struct ni_gpct *counter,
 }
 EXPORT_SYMBOL_GPL(ni_tio_insn_config);
 
-int ni_tio_rinsn(struct ni_gpct *counter, struct comedi_insn *insn,
-		 unsigned int *data)
+int ni_tio_insn_read(struct comedi_device *dev,
+		     struct comedi_subdevice *s,
+		     struct comedi_insn *insn,
+		     unsigned int *data)
 {
+	struct ni_gpct *counter = s->private;
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	const unsigned channel = CR_CHAN(insn->chanspec);
 	unsigned cidx = counter->counter_index;
@@ -1621,7 +1624,7 @@ int ni_tio_rinsn(struct ni_gpct *counter, struct comedi_insn *insn,
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ni_tio_rinsn);
+EXPORT_SYMBOL_GPL(ni_tio_insn_read);
 
 static unsigned ni_tio_next_load_register(struct ni_gpct *counter)
 {

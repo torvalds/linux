@@ -137,7 +137,8 @@ ni_gpct_device_construct(struct comedi_device *,
 			 unsigned num_counters);
 void ni_gpct_device_destroy(struct ni_gpct_device *);
 void ni_tio_init_counter(struct ni_gpct *);
-int ni_tio_rinsn(struct ni_gpct *, struct comedi_insn *, unsigned int *data);
+int ni_tio_insn_read(struct comedi_device *, struct comedi_subdevice *,
+		     struct comedi_insn *, unsigned int *data);
 int ni_tio_insn_config(struct ni_gpct *, struct comedi_insn *,
 		       unsigned int *data);
 int ni_tio_winsn(struct ni_gpct *, struct comedi_insn *, unsigned int *data);
