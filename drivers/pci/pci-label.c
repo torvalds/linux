@@ -187,7 +187,6 @@ static const char device_label_dsm_uuid[] = {
 };
 
 enum acpi_attr_enum {
-	ACPI_ATTR_NONE = 0,
 	ACPI_ATTR_LABEL_SHOW,
 	ACPI_ATTR_INDEX_SHOW,
 };
@@ -222,20 +221,16 @@ dsm_get_label(struct device *dev, char *buf, enum acpi_attr_enum attr)
 	if (obj->type == ACPI_TYPE_PACKAGE && obj->package.count == 2 &&
 	    tmp[0].type == ACPI_TYPE_INTEGER &&
 	    tmp[1].type == ACPI_TYPE_STRING) {
-		len = tmp[0].integer.value;
-		if (buf) {
-			/*
-			 * This second string element is optional even when
-			 * this _DSM is implemented; when not implemented,
-			 * this entry must return a null string.
-			 */
-			if (attr == ACPI_ATTR_INDEX_SHOW)
-				scnprintf(buf, PAGE_SIZE, "%llu\n",
-				tmp->integer.value);
-			else if (attr == ACPI_ATTR_LABEL_SHOW)
-				dsm_label_utf16s_to_utf8s(tmp + 1, buf);
-			len = strlen(buf) > 0 ? strlen(buf) : -1;
-		}
+		/*
+		 * The second string element is optional even when
+		 * this _DSM is implemented; when not implemented,
+		 * this entry must return a null string.
+		 */
+		if (attr == ACPI_ATTR_INDEX_SHOW)
+			scnprintf(buf, PAGE_SIZE, "%llu\n", tmp->integer.value);
+		else if (attr == ACPI_ATTR_LABEL_SHOW)
+			dsm_label_utf16s_to_utf8s(tmp + 1, buf);
+		len = strlen(buf) > 0 ? strlen(buf) : -1;
 	}
 
 	ACPI_FREE(obj);
@@ -246,7 +241,14 @@ dsm_get_label(struct device *dev, char *buf, enum acpi_attr_enum attr)
 static bool
 device_has_dsm(struct device *dev)
 {
-	return dsm_get_label(dev, NULL, ACPI_ATTR_NONE) > 0;
+	acpi_handle handle;
+
+	handle = ACPI_HANDLE(dev);
+	if (!handle)
+		return false;
+
+	return !!acpi_check_dsm(handle, device_label_dsm_uuid, 0x2,
+				1 << DEVICE_LABEL_DSM);
 }
 
 static umode_t
