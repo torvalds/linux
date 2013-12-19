@@ -63,4 +63,12 @@
 		cd-gpios = <&gpio 14 0>;
 		status = "okay";
 	};
+
+	usbotg: usb@3f120000 {
+		status = "okay";
+	};
+
+	usbphy: usb-phy@3f130000 {
+		status = "okay";
+	};
 };
