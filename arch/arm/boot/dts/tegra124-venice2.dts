@@ -6,6 +6,11 @@
 	model = "NVIDIA Tegra124 Venice2";
 	compatible = "nvidia,venice2", "nvidia,tegra124";
 
+	aliases {
+		rtc0 = "/i2c@7000d000/as3722@40";
+		rtc1 = "/rtc@7000e000";
+	};
+
 	memory {
 		reg = <0x80000000 0x80000000>;
 	};
