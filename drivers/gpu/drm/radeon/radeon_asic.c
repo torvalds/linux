@@ -2169,6 +2169,7 @@ static struct radeon_asic kv_asic = {
 		.init = &kv_dpm_init,
 		.setup_asic = &kv_dpm_setup_asic,
 		.enable = &kv_dpm_enable,
+		.late_enable = &kv_dpm_late_enable,
 		.disable = &kv_dpm_disable,
 		.pre_set_power_state = &kv_dpm_pre_set_power_state,
 		.set_power_state = &kv_dpm_set_power_state,

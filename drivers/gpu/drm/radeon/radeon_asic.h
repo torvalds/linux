@@ -776,6 +776,7 @@ void ci_dpm_powergate_uvd(struct radeon_device *rdev, bool gate);
 
 int kv_dpm_init(struct radeon_device *rdev);
 int kv_dpm_enable(struct radeon_device *rdev);
+int kv_dpm_late_enable(struct radeon_device *rdev);
 void kv_dpm_disable(struct radeon_device *rdev);
 int kv_dpm_pre_set_power_state(struct radeon_device *rdev);
 int kv_dpm_set_power_state(struct radeon_device *rdev);

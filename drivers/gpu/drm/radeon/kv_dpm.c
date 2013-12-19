@@ -1238,6 +1238,30 @@ int kv_dpm_enable(struct radeon_device *rdev)
 	return ret;
 }
 
+int kv_dpm_late_enable(struct radeon_device *rdev)
+{
+	int ret;
+
+	if (rdev->irq.installed &&
+	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
+		ret = kv_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
+		if (ret) {
+			DRM_ERROR("kv_set_thermal_temperature_range failed\n");
+			return ret;
+		}
+		rdev->irq.dpm_thermal = true;
+		radeon_irq_set(rdev);
+	}
+
+	/* powerdown unused blocks for now */
+	kv_dpm_powergate_acp(rdev, true);
+	kv_dpm_powergate_samu(rdev, true);
+	kv_dpm_powergate_vce(rdev, true);
+	kv_dpm_powergate_uvd(rdev, true);
+
+	return ret;
+}
+
 void kv_dpm_disable(struct radeon_device *rdev)
 {
 	kv_smc_bapm_enable(rdev, false);
