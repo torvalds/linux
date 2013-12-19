@@ -100,7 +100,7 @@ static int xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 	int ret;
 
 	if (unlikely(!rnd_inited)) {
-		get_random_bytes(&jhash_rnd, sizeof(jhash_rnd));
+		jhash_rnd = prandom_u32();
 		rnd_inited = true;
 	}
 
