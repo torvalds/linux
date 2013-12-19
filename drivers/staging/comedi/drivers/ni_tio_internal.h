@@ -30,7 +30,7 @@
 #define NITIO_INPUT_SEL_REG(x)		(NITIO_G0_INPUT_SEL + (x))
 #define NITIO_CNT_MODE_REG(x)		(NITIO_G0_CNT_MODE + (x))
 #define NITIO_GATE2_REG(x)		(NITIO_G0_GATE2 + (x))
-#define NITIO_STATUS_REG(x)		(NITIO_G01_STATUS + ((x) / 2))
+#define NITIO_SHARED_STATUS_REG(x)	(NITIO_G01_STATUS + ((x) / 2))
 #define NITIO_RESET_REG(x)		(NITIO_G01_RESET + ((x) / 2))
 #define NITIO_STATUS1_REG(x)		(NITIO_G01_STATUS1 + ((x) / 2))
 #define NITIO_STATUS2_REG(x)		(NITIO_G01_STATUS2 + ((x) / 2))
@@ -38,21 +38,7 @@
 #define NITIO_DMA_STATUS_REG(x)		(NITIO_G0_DMA_STATUS + (x))
 #define NITIO_ABZ_REG(x)		(NITIO_G0_ABZ + (x))
 #define NITIO_INT_ACK_REG(x)		(NITIO_G0_INT_ACK + (x))
-
-static inline enum ni_gpct_register NITIO_Gi_Status_Reg(unsigned idx)
-{
-	switch (idx) {
-	case 0:
-		return NITIO_G0_STATUS;
-	case 1:
-		return NITIO_G1_STATUS;
-	case 2:
-		return NITIO_G2_STATUS;
-	case 3:
-		return NITIO_G3_STATUS;
-	}
-	return 0;
-}
+#define NITIO_STATUS_REG(x)		(NITIO_G0_STATUS + (x))
 
 static inline enum ni_gpct_register NITIO_Gi_Interrupt_Enable_Reg(unsigned idx)
 {

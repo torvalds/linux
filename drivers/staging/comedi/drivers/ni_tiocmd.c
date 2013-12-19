@@ -354,11 +354,11 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
 				    int *stale_data)
 {
 	const unsigned short gxx_status = read_register(counter,
-							NITIO_STATUS_REG
+							NITIO_SHARED_STATUS_REG
 							(counter->
 							 counter_index));
 	const unsigned short gi_status = read_register(counter,
-						       NITIO_Gi_Status_Reg
+						       NITIO_STATUS_REG
 						       (counter->
 							counter_index));
 	unsigned ack = 0;

@@ -425,7 +425,7 @@ static unsigned int ni_tio_counter_status(struct ni_gpct *counter)
 {
 	unsigned int status = 0;
 	const unsigned bits = read_register(counter,
-					    NITIO_STATUS_REG(counter->
+					    NITIO_SHARED_STATUS_REG(counter->
 								 counter_index));
 	if (bits & Gi_Armed_Bit(counter->counter_index)) {
 		status |= COMEDI_COUNTER_ARMED;
@@ -1679,7 +1679,7 @@ EXPORT_SYMBOL_GPL(ni_tio_rinsn);
 static unsigned ni_tio_next_load_register(struct ni_gpct *counter)
 {
 	const unsigned bits = read_register(counter,
-					    NITIO_STATUS_REG(counter->
+					    NITIO_SHARED_STATUS_REG(counter->
 								 counter_index));
 
 	if (bits & Gi_Next_Load_Source_Bit(counter->counter_index))
