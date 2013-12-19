@@ -721,7 +721,7 @@ void br_netfilter_fini(void);
 void br_netfilter_rtable_init(struct net_bridge *);
 #else
 #define br_netfilter_init()	(0)
-#define br_netfilter_fini()	do { } while(0)
+#define br_netfilter_fini()	do { } while (0)
 #define br_netfilter_rtable_init(x)
 #endif
 

@@ -26,7 +26,7 @@ struct brport_attribute {
 	int (*store)(struct net_bridge_port *, unsigned long);
 };
 
-#define BRPORT_ATTR(_name,_mode,_show,_store)		        \
+#define BRPORT_ATTR(_name, _mode, _show, _store)		\
 const struct brport_attribute brport_attr_##_name = { 	        \
 	.attr = {.name = __stringify(_name), 			\
 		 .mode = _mode },				\
