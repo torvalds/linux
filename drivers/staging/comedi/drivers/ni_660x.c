@@ -830,14 +830,6 @@ static int ni_660x_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return retval;
 }
 
-static int ni_660x_cmdtest(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
-{
-	struct ni_gpct *counter = s->private;
-
-	return ni_tio_cmdtest(counter, cmd);
-}
-
 static int ni_660x_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct ni_gpct *counter = s->private;
@@ -1219,7 +1211,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 			s->insn_config = ni_tio_insn_config;
 			s->do_cmd = &ni_660x_cmd;
 			s->len_chanlist = 1;
-			s->do_cmdtest = &ni_660x_cmdtest;
+			s->do_cmdtest = ni_tio_cmdtest;
 			s->cancel = &ni_660x_cancel;
 			s->poll = &ni_660x_input_poll;
 			s->async_dma_dir = DMA_BIDIRECTIONAL;

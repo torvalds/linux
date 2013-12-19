@@ -228,8 +228,11 @@ int ni_tio_cmd(struct ni_gpct *counter, struct comedi_async *async)
 }
 EXPORT_SYMBOL_GPL(ni_tio_cmd);
 
-int ni_tio_cmdtest(struct ni_gpct *counter, struct comedi_cmd *cmd)
+int ni_tio_cmdtest(struct comedi_device *dev,
+		   struct comedi_subdevice *s,
+		   struct comedi_cmd *cmd)
 {
+	struct ni_gpct *counter = s->private;
 	int err = 0;
 	unsigned int sources;
 

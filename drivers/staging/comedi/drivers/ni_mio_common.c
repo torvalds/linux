@@ -278,8 +278,6 @@ static int ni_8255_callback(int dir, int port, int data, unsigned long arg);
 
 #ifdef PCIDMA
 static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
-static int ni_gpct_cmdtest(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_cmd *cmd);
 #endif
 static int ni_gpct_cancel(struct comedi_device *dev,
 			  struct comedi_subdevice *s);
@@ -4443,7 +4441,7 @@ static int ni_E_init(struct comedi_device *dev)
 		s->subdev_flags |= SDF_CMD_READ /* | SDF_CMD_WRITE */;
 		s->do_cmd = &ni_gpct_cmd;
 		s->len_chanlist = 1;
-		s->do_cmdtest = &ni_gpct_cmdtest;
+		s->do_cmdtest = ni_tio_cmdtest;
 		s->cancel = &ni_gpct_cancel;
 		s->async_dma_dir = DMA_BIDIRECTIONAL;
 #endif
@@ -5024,17 +5022,6 @@ static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_e_series_enable_second_irq(dev, counter->counter_index, 1);
 	retval = ni_tio_cmd(counter, s->async);
 	return retval;
-}
-#endif
-
-#ifdef PCIDMA
-static int ni_gpct_cmdtest(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
-{
-	struct ni_gpct *counter = s->private;
-
-	return ni_tio_cmdtest(counter, cmd);
-	return -ENOTSUPP;
 }
 #endif
 
