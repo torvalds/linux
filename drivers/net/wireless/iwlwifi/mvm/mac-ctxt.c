@@ -69,10 +69,10 @@
 #include "mvm.h"
 
 const u8 iwl_mvm_ac_to_tx_fifo[] = {
-	IWL_MVM_TX_FIFO_BK,
-	IWL_MVM_TX_FIFO_BE,
-	IWL_MVM_TX_FIFO_VI,
 	IWL_MVM_TX_FIFO_VO,
+	IWL_MVM_TX_FIFO_VI,
+	IWL_MVM_TX_FIFO_BE,
+	IWL_MVM_TX_FIFO_BK,
 };
 
 struct iwl_mvm_mac_iface_iterator_data {
@@ -586,18 +586,23 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 		cpu_to_le32(vif->bss_conf.use_short_slot ?
 			    MAC_FLG_SHORT_SLOT : 0);
 
-	for (i = 0; i < AC_NUM; i++) {
-		cmd->ac[i].cw_min = cpu_to_le16(mvmvif->queue_params[i].cw_min);
-		cmd->ac[i].cw_max = cpu_to_le16(mvmvif->queue_params[i].cw_max);
-		cmd->ac[i].aifsn = mvmvif->queue_params[i].aifs;
-		cmd->ac[i].edca_txop =
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		u8 txf = iwl_mvm_ac_to_tx_fifo[i];
+
+		cmd->ac[txf].cw_min =
+			cpu_to_le16(mvmvif->queue_params[i].cw_min);
+		cmd->ac[txf].cw_max =
+			cpu_to_le16(mvmvif->queue_params[i].cw_max);
+		cmd->ac[txf].edca_txop =
 			cpu_to_le16(mvmvif->queue_params[i].txop * 32);
-		cmd->ac[i].fifos_mask = BIT(iwl_mvm_ac_to_tx_fifo[i]);
+		cmd->ac[txf].aifsn = mvmvif->queue_params[i].aifs;
+		cmd->ac[txf].fifos_mask = BIT(txf);
 	}
 
 	/* in AP mode, the MCAST FIFO takes the EDCA params from VO */
 	if (vif->type == NL80211_IFTYPE_AP)
-		cmd->ac[AC_VO].fifos_mask |= BIT(IWL_MVM_TX_FIFO_MCAST);
+		cmd->ac[IWL_MVM_TX_FIFO_VO].fifos_mask |=
+			BIT(IWL_MVM_TX_FIFO_MCAST);
 
 	if (vif->bss_conf.qos)
 		cmd->qos_flags |= cpu_to_le32(MAC_QOS_FLG_UPDATE_EDCA);
