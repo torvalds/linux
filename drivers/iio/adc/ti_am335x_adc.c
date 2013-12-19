@@ -181,7 +181,7 @@ static int tiadc_buffer_postenable(struct iio_dev *indio_dev)
 		enb |= (get_adc_step_bit(adc_dev, bit) << 1);
 	adc_dev->buffer_en_ch_steps = enb;
 
-	am335x_tsc_se_set(adc_dev->mfd_tscadc, enb);
+	am335x_tsc_se_set_cache(adc_dev->mfd_tscadc, enb);
 
 	tiadc_writel(adc_dev,  REG_IRQSTATUS, IRQENB_FIFO1THRES
 				| IRQENB_FIFO1OVRRUN | IRQENB_FIFO1UNDRFLW);
@@ -332,7 +332,7 @@ static int tiadc_read_raw(struct iio_dev *indio_dev,
 		return -EBUSY;
 
 	step_en = get_adc_step_mask(adc_dev);
-	am335x_tsc_se_set(adc_dev->mfd_tscadc, step_en);
+	am335x_tsc_se_set_once(adc_dev->mfd_tscadc, step_en);
 
 	/* Wait for ADC sequencer to complete sampling */
 	while (tiadc_readl(adc_dev, REG_ADCFSM) & SEQ_STATUS) {
