@@ -6322,15 +6322,6 @@ static int si_startup(struct radeon_device *rdev)
 
 	si_mc_program(rdev);
 
-	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->ce_fw ||
-	    !rdev->rlc_fw || !rdev->mc_fw) {
-		r = si_init_microcode(rdev);
-		if (r) {
-			DRM_ERROR("Failed to load firmware!\n");
-			return r;
-		}
-	}
-
 	r = si_mc_load_microcode(rdev);
 	if (r) {
 		DRM_ERROR("Failed to load MC firmware!\n");
@@ -6597,6 +6588,15 @@ int si_init(struct radeon_device *rdev)
 	r = radeon_bo_init(rdev);
 	if (r)
 		return r;
+
+	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->ce_fw ||
+	    !rdev->rlc_fw || !rdev->mc_fw) {
+		r = si_init_microcode(rdev);
+		if (r) {
+			DRM_ERROR("Failed to load firmware!\n");
+			return r;
+		}
+	}
 
 	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	ring->ring_obj = NULL;

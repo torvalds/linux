@@ -1866,23 +1866,7 @@ static int cayman_startup(struct radeon_device *rdev)
 
 	evergreen_mc_program(rdev);
 
-	if (rdev->flags & RADEON_IS_IGP) {
-		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
-			r = ni_init_microcode(rdev);
-			if (r) {
-				DRM_ERROR("Failed to load firmware!\n");
-				return r;
-			}
-		}
-	} else {
-		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw || !rdev->mc_fw) {
-			r = ni_init_microcode(rdev);
-			if (r) {
-				DRM_ERROR("Failed to load firmware!\n");
-				return r;
-			}
-		}
-
+	if (!(rdev->flags & RADEON_IS_IGP)) {
 		r = ni_mc_load_microcode(rdev);
 		if (r) {
 			DRM_ERROR("Failed to load MC firmware!\n");
@@ -2132,6 +2116,24 @@ int cayman_init(struct radeon_device *rdev)
 	r = radeon_bo_init(rdev);
 	if (r)
 		return r;
+
+	if (rdev->flags & RADEON_IS_IGP) {
+		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
+			r = ni_init_microcode(rdev);
+			if (r) {
+				DRM_ERROR("Failed to load firmware!\n");
+				return r;
+			}
+		}
+	} else {
+		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw || !rdev->mc_fw) {
+			r = ni_init_microcode(rdev);
+			if (r) {
+				DRM_ERROR("Failed to load firmware!\n");
+				return r;
+			}
+		}
+	}
 
 	ring->ring_obj = NULL;
 	r600_ring_init(rdev, ring, 1024 * 1024);
