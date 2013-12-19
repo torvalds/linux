@@ -30,7 +30,7 @@ static acpi_status ppi_callback(acpi_handle handle, u32 level, void *context,
 	acpi_status status = AE_OK;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 
-	if (ACPI_SUCCESS(acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer))) {
+	if (ACPI_SUCCESS(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer))) {
 		if (strstr(buffer.pointer, context) != NULL) {
 			*return_value = handle;
 			status = AE_CTRL_TERMINATE;
