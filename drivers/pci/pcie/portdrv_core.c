@@ -349,7 +349,6 @@ static int pcie_device_init(struct pci_dev *pdev, int service, int irq)
 		return retval;
 	}
 
-	get_device(device);
 	return 0;
 }
 
@@ -456,10 +455,8 @@ int pcie_port_device_resume(struct device *dev)
 
 static int remove_iter(struct device *dev, void *data)
 {
-	if (dev->bus == &pcie_port_bus_type) {
-		put_device(dev);
+	if (dev->bus == &pcie_port_bus_type)
 		device_unregister(dev);
-	}
 	return 0;
 }
 
