@@ -823,7 +823,7 @@ int drbd_send_protocol(struct drbd_tconn *tconn)
 	return err;
 }
 
-int _drbd_send_uuids(struct drbd_conf *mdev, u64 uuid_flags)
+static int _drbd_send_uuids(struct drbd_conf *mdev, u64 uuid_flags)
 {
 	struct drbd_socket *sock;
 	struct p_uuids *p;
@@ -1067,7 +1067,7 @@ static void dcbp_set_pad_bits(struct p_compressed_bm *p, int n)
 	p->encoding = (p->encoding & (~0x7 << 4)) | (n << 4);
 }
 
-int fill_bitmap_rle_bits(struct drbd_conf *mdev,
+static int fill_bitmap_rle_bits(struct drbd_conf *mdev,
 			 struct p_compressed_bm *p,
 			 unsigned int size,
 			 struct bm_xfer_ctx *c)
@@ -2592,7 +2592,7 @@ void conn_destroy(struct kref *kref)
 	kfree(tconn);
 }
 
-int init_submitter(struct drbd_conf *mdev)
+static int init_submitter(struct drbd_conf *mdev)
 {
 	/* opencoded create_singlethread_workqueue(),
 	 * to be able to say "drbd%d", ..., minor */
