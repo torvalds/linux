@@ -590,12 +590,12 @@ static enum ni_660x_register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 }
 
 static inline void ni_660x_write_register(struct comedi_device *dev,
-					  unsigned chip_index, unsigned bits,
+					  unsigned chip, unsigned bits,
 					  enum ni_660x_register reg)
 {
 	struct ni_660x_private *devpriv = dev->private;
 	void __iomem *write_address =
-	    devpriv->mite->daq_io_addr + GPCT_OFFSET[chip_index] +
+	    devpriv->mite->daq_io_addr + GPCT_OFFSET[chip] +
 	    registerData[reg].offset;
 
 	switch (registerData[reg].size) {
@@ -612,12 +612,12 @@ static inline void ni_660x_write_register(struct comedi_device *dev,
 }
 
 static inline unsigned ni_660x_read_register(struct comedi_device *dev,
-					     unsigned chip_index,
+					     unsigned chip,
 					     enum ni_660x_register reg)
 {
 	struct ni_660x_private *devpriv = dev->private;
 	void __iomem *read_address =
-	    devpriv->mite->daq_io_addr + GPCT_OFFSET[chip_index] +
+	    devpriv->mite->daq_io_addr + GPCT_OFFSET[chip] +
 	    registerData[reg].offset;
 
 	switch (registerData[reg].size) {
@@ -639,8 +639,9 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits,
 {
 	struct comedi_device *dev = counter->counter_dev->dev;
 	enum ni_660x_register ni_660x_register = ni_gpct_to_660x_register(reg);
-	ni_660x_write_register(dev, counter->chip_index, bits,
-			       ni_660x_register);
+	unsigned chip = counter->chip_index;
+
+	ni_660x_write_register(dev, chip, bits, ni_660x_register);
 }
 
 static unsigned ni_gpct_read_register(struct ni_gpct *counter,
@@ -648,8 +649,9 @@ static unsigned ni_gpct_read_register(struct ni_gpct *counter,
 {
 	struct comedi_device *dev = counter->counter_dev->dev;
 	enum ni_660x_register ni_660x_register = ni_gpct_to_660x_register(reg);
-	return ni_660x_read_register(dev, counter->chip_index,
-				     ni_660x_register);
+	unsigned chip = counter->chip_index;
+
+	return ni_660x_read_register(dev, chip, ni_660x_register);
 }
 
 static inline struct mite_dma_descriptor_ring *mite_ring(struct ni_660x_private
@@ -657,7 +659,9 @@ static inline struct mite_dma_descriptor_ring *mite_ring(struct ni_660x_private
 							 struct ni_gpct
 							 *counter)
 {
-	return priv->mite_rings[counter->chip_index][counter->counter_index];
+	unsigned chip = counter->chip_index;
+
+	return priv->mite_rings[chip][counter->counter_index];
 }
 
 static inline void ni_660x_set_dma_channel(struct comedi_device *dev,
@@ -665,17 +669,17 @@ static inline void ni_660x_set_dma_channel(struct comedi_device *dev,
 					   struct ni_gpct *counter)
 {
 	struct ni_660x_private *devpriv = dev->private;
+	unsigned chip = counter->chip_index;
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
-	devpriv->dma_configuration_soft_copies[counter->chip_index] &=
+	devpriv->dma_configuration_soft_copies[chip] &=
 	    ~dma_select_mask(mite_channel);
-	devpriv->dma_configuration_soft_copies[counter->chip_index] |=
+	devpriv->dma_configuration_soft_copies[chip] |=
 	    dma_select_bits(mite_channel,
 			    dma_selection_counter(counter->counter_index));
-	ni_660x_write_register(dev, counter->chip_index,
-			       devpriv->dma_configuration_soft_copies
-			       [counter->chip_index] |
+	ni_660x_write_register(dev, chip,
+			       devpriv->dma_configuration_soft_copies[chip] |
 			       dma_reset_bit(mite_channel), NI660X_DMA_CFG);
 	mmiowb();
 	spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
@@ -686,16 +690,17 @@ static inline void ni_660x_unset_dma_channel(struct comedi_device *dev,
 					     struct ni_gpct *counter)
 {
 	struct ni_660x_private *devpriv = dev->private;
+	unsigned chip = counter->chip_index;
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
-	devpriv->dma_configuration_soft_copies[counter->chip_index] &=
+	devpriv->dma_configuration_soft_copies[chip] &=
 	    ~dma_select_mask(mite_channel);
-	devpriv->dma_configuration_soft_copies[counter->chip_index] |=
+	devpriv->dma_configuration_soft_copies[chip] |=
 	    dma_select_bits(mite_channel, dma_selection_none);
-	ni_660x_write_register(dev, counter->chip_index,
-			       devpriv->dma_configuration_soft_copies
-			       [counter->chip_index], NI660X_DMA_CFG);
+	ni_660x_write_register(dev, chip,
+			       devpriv->dma_configuration_soft_copies[chip],
+			       NI660X_DMA_CFG);
 	mmiowb();
 	spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
 }
