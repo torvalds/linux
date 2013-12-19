@@ -17,12 +17,14 @@
 #include <linux/bitops.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/of.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/dbx500-prcmu.h>
 #include <linux/platform_data/asoc-ux500-msp.h>
 
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
+#include <sound/dmaengine_pcm.h>
 
 #include "ux500_msp_i2s.h"
 #include "ux500_msp_dai.h"
@@ -654,16 +656,52 @@ static int ux500_msp_dai_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
+static int ux500_msp_dai_of_probe(struct snd_soc_dai *dai)
+{
+	struct ux500_msp_i2s_drvdata *drvdata = dev_get_drvdata(dai->dev);
+	struct snd_dmaengine_dai_dma_data *playback_dma_data;
+	struct snd_dmaengine_dai_dma_data *capture_dma_data;
+
+	playback_dma_data = devm_kzalloc(dai->dev,
+					 sizeof(*playback_dma_data),
+					 GFP_KERNEL);
+	if (!playback_dma_data)
+		return -ENOMEM;
+
+	capture_dma_data = devm_kzalloc(dai->dev,
+					sizeof(*capture_dma_data),
+					GFP_KERNEL);
+	if (!capture_dma_data)
+		return -ENOMEM;
+
+	playback_dma_data->addr = drvdata->msp->playback_dma_data.tx_rx_addr;
+	capture_dma_data->addr = drvdata->msp->capture_dma_data.tx_rx_addr;
+
+	playback_dma_data->maxburst = 4;
+	capture_dma_data->maxburst = 4;
+
+	snd_soc_dai_init_dma_data(dai, playback_dma_data, capture_dma_data);
+
+	return 0;
+}
+
 static int ux500_msp_dai_probe(struct snd_soc_dai *dai)
 {
 	struct ux500_msp_i2s_drvdata *drvdata = dev_get_drvdata(dai->dev);
+	struct msp_i2s_platform_data *pdata = dai->dev->platform_data;
+	int ret;
 
-	dai->playback_dma_data = &drvdata->msp->playback_dma_data;
-	dai->capture_dma_data = &drvdata->msp->capture_dma_data;
+	if (!pdata) {
+		ret = ux500_msp_dai_of_probe(dai);
+		return ret;
+	}
 
 	drvdata->msp->playback_dma_data.data_size = drvdata->slot_width;
 	drvdata->msp->capture_dma_data.data_size = drvdata->slot_width;
 
+	snd_soc_dai_init_dma_data(dai,
+				  &drvdata->msp->playback_dma_data,
+				  &drvdata->msp->capture_dma_data);
 	return 0;
 }
 
