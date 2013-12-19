@@ -6873,7 +6873,7 @@ void intel_display_set_init_power(struct drm_device *dev, bool enable)
 	dev_priv->power_domains.init_power_on = enable;
 }
 
-static void modeset_update_power_wells(struct drm_device *dev)
+static void modeset_update_crtc_power_domains(struct drm_device *dev)
 {
 	unsigned long pipe_domains[I915_MAX_PIPES] = { 0, };
 	struct intel_crtc *crtc;
@@ -6910,7 +6910,7 @@ static void modeset_update_power_wells(struct drm_device *dev)
 
 static void haswell_modeset_global_resources(struct drm_device *dev)
 {
-	modeset_update_power_wells(dev);
+	modeset_update_crtc_power_domains(dev);
 	hsw_update_package_c8(dev);
 }
 
