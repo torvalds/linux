@@ -111,6 +111,7 @@ static int nouveau_optimus_dsm(acpi_handle handle, int func, int arg, uint32_t *
 
 	if (obj->type == ACPI_TYPE_INTEGER)
 		if (obj->integer.value == 0x80000002) {
+			kfree(output.pointer);
 			return -ENODEV;
 		}
 
@@ -157,8 +158,10 @@ static int nouveau_dsm(acpi_handle handle, int func, int arg, uint32_t *result)
 	obj = (union acpi_object *)output.pointer;
 
 	if (obj->type == ACPI_TYPE_INTEGER)
-		if (obj->integer.value == 0x80000002)
+		if (obj->integer.value == 0x80000002) {
+			kfree(output.pointer);
 			return -ENODEV;
+		}
 
 	if (obj->type == ACPI_TYPE_BUFFER) {
 		if (obj->buffer.length == 4 && result) {
