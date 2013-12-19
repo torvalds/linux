@@ -87,15 +87,15 @@
 
 		bluetooth {
 			label = "dreamplug:blue:bluetooth";
-			gpios = <&gpio1 15 1>;
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 		};
 		wifi {
 			label = "dreamplug:green:wifi";
-			gpios = <&gpio1 16 1>;
+			gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
 		};
 		wifi-ap {
 			label = "dreamplug:green:wifi_ap";
-			gpios = <&gpio1 17 1>;
+			gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
 		};
 	};
 };

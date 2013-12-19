@@ -108,20 +108,20 @@
 
 		button@1 {
 			label = "Function Button";
-			linux,code = <357>;
-			gpios = <&gpio1 9 1>;
+			linux,code = <KEY_OPTION>;
+			gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
 		};
 		button@2 {
 			label = "Power-on Switch";
-			linux,code = <0>;
+			linux,code = <KEY_RESERVED>;
 			linux,input-type = <5>;
-			gpios = <&gpio1 10 1>;
+			gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
 		};
 		button@3 {
 			label = "Power-auto Switch";
-			linux,code = <1>;
+			linux,code = <KEY_ESC>;
 			linux,input-type = <5>;
-			gpios = <&gpio1 11 1>;
+			gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -134,28 +134,28 @@
 
 		led@1 {
 			label = "lsxl:blue:func";
-			gpios = <&gpio1 4 1>;
+			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 		};
 
 		led@2 {
 			label = "lsxl:red:alarm";
-			gpios = <&gpio1 5 1>;
+			gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
 		};
 
 		led@3 {
 			label = "lsxl:amber:info";
-			gpios = <&gpio1 6 1>;
+			gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
 		};
 
 		led@4 {
 			label = "lsxl:blue:power";
-			gpios = <&gpio1 7 1>;
+			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
 			default-state = "keep";
 		};
 
 		led@5 {
 			label = "lsxl:red:func";
-			gpios = <&gpio1 16 1>;
+			gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -163,13 +163,13 @@
 		compatible = "gpio-fan";
 		pinctrl-0 = <&pmx_fan_low &pmx_fan_high &pmx_fan_lock>;
 		pinctrl-names = "default";
-		gpios = <&gpio0 19 1
-		         &gpio0 18 1>;
+		gpios = <&gpio0 19 GPIO_ACTIVE_LOW
+		         &gpio0 18 GPIO_ACTIVE_LOW>;
 		gpio-fan,speed-map = <0    3
 		                      1500 2
 		                      3250 1
 		                      5000 0>;
-		alarm-gpios = <&gpio1 8 0>;
+		alarm-gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 	};
 
 	restart_poweroff {

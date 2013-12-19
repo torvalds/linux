@@ -31,13 +31,13 @@
 
 		health {
 			label = "sheevaplug:blue:health";
-			gpios = <&gpio1 17 1>;
+			gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
 			default-state = "keep";
 		};
 
 		misc {
 			label = "sheevaplug:red:misc";
-			gpios = <&gpio1 14 1>;
+			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
 		};
 	};
 };

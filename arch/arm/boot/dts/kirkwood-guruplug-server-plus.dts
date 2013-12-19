@@ -60,19 +60,19 @@
 
 		health-r {
 			label = "guruplug:red:health";
-			gpios = <&gpio1 14 1>;
+			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
 		};
 		health-g {
 			label = "guruplug:green:health";
-			gpios = <&gpio1 15 1>;
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 		};
 		wmode-r {
 			label = "guruplug:red:wmode";
-			gpios = <&gpio1 16 1>;
+			gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
 		};
 		wmode-g {
 			label = "guruplug:green:wmode";
-			gpios = <&gpio1 17 1>;
+			gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
