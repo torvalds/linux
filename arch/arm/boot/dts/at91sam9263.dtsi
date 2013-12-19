@@ -30,6 +30,7 @@
 		i2c0 = &i2c0;
 		ssc0 = &ssc0;
 		ssc1 = &ssc1;
+		pwm0 = &pwm0;
 	};
 	cpus {
 		#address-cells = <0>;
@@ -573,6 +574,14 @@
 				interrupts = <15 IRQ_TYPE_LEVEL_HIGH 3>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_spi1>;
+				status = "disabled";
+			};
+
+			pwm0: pwm@fffb8000 {
+				compatible = "atmel,at91sam9rl-pwm";
+				reg = <0xfffb8000 0x300>;
+				interrupts = <20 IRQ_TYPE_LEVEL_HIGH 4>;
+				#pwm-cells = <3>;
 				status = "disabled";
 			};
 		};
