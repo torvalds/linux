@@ -372,12 +372,12 @@ void ni_tio_init_counter(struct ni_gpct *counter)
 
 	ni_tio_reset_count_and_disarm(counter);
 	/* initialize counter registers */
-	counter_dev->regs[NITIO_Gi_Autoincrement_Reg(counter->counter_index)] =
+	counter_dev->regs[NITIO_AUTO_INC_REG(counter->counter_index)] =
 	    0x0;
 	write_register(counter,
 		       counter_dev->
-		       regs[NITIO_Gi_Autoincrement_Reg(counter->counter_index)],
-		       NITIO_Gi_Autoincrement_Reg(counter->counter_index));
+		       regs[NITIO_AUTO_INC_REG(counter->counter_index)],
+		       NITIO_AUTO_INC_REG(counter->counter_index));
 	ni_tio_set_bits(counter, NITIO_Gi_Command_Reg(counter->counter_index),
 			~0, Gi_Synchronize_Gate_Bit);
 	ni_tio_set_bits(counter, NITIO_Gi_Mode_Reg(counter->counter_index), ~0,

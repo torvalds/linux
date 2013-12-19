@@ -21,20 +21,7 @@
 
 #include "ni_tio.h"
 
-static inline enum ni_gpct_register NITIO_Gi_Autoincrement_Reg(unsigned idx)
-{
-	switch (idx) {
-	case 0:
-		return NITIO_G0_AUTO_INC;
-	case 1:
-		return NITIO_G1_AUTO_INC;
-	case 2:
-		return NITIO_G2_AUTO_INC;
-	case 3:
-		return NITIO_G3_AUTO_INC;
-	}
-	return 0;
-}
+#define NITIO_AUTO_INC_REG(x)		(NITIO_G0_AUTO_INC + (x))
 
 static inline enum ni_gpct_register NITIO_Gi_Command_Reg(unsigned idx)
 {
