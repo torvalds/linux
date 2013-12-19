@@ -993,15 +993,6 @@ static void init_tio_chip(struct comedi_device *dev, int chipset)
 		ni_660x_write_register(dev, chipset, 0, IOConfigReg(i));
 }
 
-static int
-ni_660x_GPCT_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data)
-{
-	struct ni_gpct *counter = s->private;
-
-	return ni_tio_insn_config(counter, insn, data);
-}
-
 static int ni_660x_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
@@ -1225,7 +1216,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 			s->maxdata = 0xffffffff;
 			s->insn_read = ni_tio_insn_read;
 			s->insn_write = ni_tio_insn_write;
-			s->insn_config = ni_660x_GPCT_insn_config;
+			s->insn_config = ni_tio_insn_config;
 			s->do_cmd = &ni_660x_cmd;
 			s->len_chanlist = 1;
 			s->do_cmdtest = &ni_660x_cmdtest;

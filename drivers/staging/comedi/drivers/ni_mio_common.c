@@ -276,9 +276,6 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s);
 
 static int ni_8255_callback(int dir, int port, int data, unsigned long arg);
 
-static int ni_gpct_insn_config(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
 #ifdef PCIDMA
 static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int ni_gpct_cmdtest(struct comedi_device *dev,
@@ -4441,7 +4438,7 @@ static int ni_E_init(struct comedi_device *dev)
 			s->maxdata = 0xffffff;
 		s->insn_read = ni_tio_insn_read;
 		s->insn_write = ni_tio_insn_read;
-		s->insn_config = &ni_gpct_insn_config;
+		s->insn_config = ni_tio_insn_config;
 #ifdef PCIDMA
 		s->subdev_flags |= SDF_CMD_READ /* | SDF_CMD_WRITE */;
 		s->do_cmd = &ni_gpct_cmd;
@@ -5008,14 +5005,6 @@ static void GPCT_Reset(struct comedi_device *dev, int chan)
 }
 
 #endif
-
-static int ni_gpct_insn_config(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	struct ni_gpct *counter = s->private;
-	return ni_tio_insn_config(counter, insn, data);
-}
 
 #ifdef PCIDMA
 static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s)

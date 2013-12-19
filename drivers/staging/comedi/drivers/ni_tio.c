@@ -1533,9 +1533,13 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
 	return 0;
 }
 
-int ni_tio_insn_config(struct ni_gpct *counter,
-		       struct comedi_insn *insn, unsigned int *data)
+int ni_tio_insn_config(struct comedi_device *dev,
+		       struct comedi_subdevice *s,
+		       struct comedi_insn *insn,
+		       unsigned int *data)
 {
+	struct ni_gpct *counter = s->private;
+
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
 		return ni_tio_set_counter_mode(counter, data[1]);
