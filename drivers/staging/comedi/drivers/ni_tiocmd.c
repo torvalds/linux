@@ -397,7 +397,7 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
 	}
 	if (ack)
 		write_register(counter, ack,
-			       NITIO_Gi_Interrupt_Acknowledge_Reg
+			       NITIO_INT_ACK_REG
 			       (counter->counter_index));
 	if (ni_tio_get_soft_copy
 	    (counter,
