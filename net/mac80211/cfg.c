@@ -2628,6 +2628,18 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 	if (!roc)
 		return -ENOMEM;
 
+	/*
+	 * If the duration is zero, then the driver
+	 * wouldn't actually do anything. Set it to
+	 * 10 for now.
+	 *
+	 * TODO: cancel the off-channel operation
+	 *       when we get the SKB's TX status and
+	 *       the wait time was zero before.
+	 */
+	if (!duration)
+		duration = 10;
+
 	roc->chan = channel;
 	roc->duration = duration;
 	roc->req_duration = duration;
@@ -2650,18 +2662,6 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 	}
 
 	/* otherwise actually kick it off here (for error handling) */
-
-	/*
-	 * If the duration is zero, then the driver
-	 * wouldn't actually do anything. Set it to
-	 * 10 for now.
-	 *
-	 * TODO: cancel the off-channel operation
-	 *       when we get the SKB's TX status and
-	 *       the wait time was zero before.
-	 */
-	if (!duration)
-		duration = 10;
 
 	ret = drv_remain_on_channel(local, sdata, channel, duration, type);
 	if (ret) {
