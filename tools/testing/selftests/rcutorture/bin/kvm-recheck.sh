@@ -31,7 +31,24 @@ do
 	for i in $dirs
 	do
 		configfile=`echo $i | sed -e 's/^.*\///'`
-		echo $configfile
+		ngps=`grep ver: $i/console.log 2> /dev/null | tail -1 | sed -e 's/^.* ver: //' -e 's/ .*$//'`
+		if test -z "$ngps"
+		then
+			echo $configfile
+		else
+			title="$configfile ------- $ngps grace periods"
+			dur=`sed -e 's/^.* rcutorture.shutdown_secs=//' -e 's/ .*$//' < $i/qemu-cmd 2> /dev/null`
+			if test -z "$dur"
+			then
+				:
+			else
+				ngpsps=$((ngps / dur))
+				ngpsps=`awk -v ngps=$ngps -v dur=$dur '
+					BEGIN { print ngps / dur }' < /dev/null`
+				title="$title ($ngpsps per second)"
+			fi
+			echo $title
+		fi
 		configcheck.sh $i/.config $i/ConfigFragment
 		parse-build.sh $i/Make.out $configfile
 		parse-rcutorture.sh $i/console.log $configfile
