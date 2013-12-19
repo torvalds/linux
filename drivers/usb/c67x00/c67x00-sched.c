@@ -144,8 +144,6 @@ struct c67x00_urb_priv {
 
 /* -------------------------------------------------------------------------- */
 
-#ifdef DEBUG
-
 /**
  * dbg_td - Dump the contents of the TD
  */
@@ -166,16 +164,8 @@ static void dbg_td(struct c67x00_hcd *c67x00, struct c67x00_td *td, char *msg)
 	dev_dbg(dev, "retry_cnt:      0x%02x\n", td->retry_cnt);
 	dev_dbg(dev, "residue:        0x%02x\n", td->residue);
 	dev_dbg(dev, "next_td_addr: 0x%04x\n", td_next_td_addr(td));
-	dev_dbg(dev, "data:");
-	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 16, 1,
-		       td->data, td_length(td), 1);
+	dev_dbg(dev, "data: %*ph\n", td_length(td), td->data);
 }
-#else				/* DEBUG */
-
-static inline void
-dbg_td(struct c67x00_hcd *c67x00, struct c67x00_td *td, char *msg) { }
-
-#endif				/* DEBUG */
 
 /* -------------------------------------------------------------------------- */
 /* Helper functions */
@@ -780,7 +770,8 @@ static int c67x00_add_iso_urb(struct c67x00_hcd *c67x00, struct urb *urb)
 		ret = c67x00_create_td(c67x00, urb, td_buf, len, pid, 0,
 				       urbp->cnt);
 		if (ret) {
-			printk(KERN_DEBUG "create failed: %d\n", ret);
+			dev_dbg(c67x00_hcd_dev(c67x00), "create failed: %d\n",
+				ret);
 			urb->iso_frame_desc[urbp->cnt].actual_length = 0;
 			urb->iso_frame_desc[urbp->cnt].status = ret;
 			if (urbp->cnt + 1 == urb->number_of_packets)
