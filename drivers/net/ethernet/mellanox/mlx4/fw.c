@@ -221,12 +221,6 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 #define QUERY_FUNC_CAP_RDMA_PROPS_FORCE_PHY_WQE_GID 0x80
 
 	if (vhcr->op_modifier == 1) {
-		field = 0;
-		/* ensure force vlan and force mac bits are not set */
-		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_ETH_PROPS_OFFSET);
-		/* ensure that phy_wqe_gid bit is not set */
-		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_RDMA_PROPS_OFFSET);
-
 		field = vhcr->in_modifier; /* phys-port = logical-port */
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_PHYS_PORT_OFFSET);
 
