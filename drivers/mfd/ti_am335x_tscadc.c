@@ -309,7 +309,6 @@ static int tscadc_resume(struct device *dev)
 
 	if (tscadc_dev->tsc_cell != -1)
 		tscadc_idle_config(tscadc_dev);
-	am335x_tsc_se_update(tscadc_dev);
 	restore = tscadc_readl(tscadc_dev, REG_CTRL);
 	tscadc_writel(tscadc_dev, REG_CTRL,
 			(restore | CNTRLREG_TSCSSENB));
