@@ -231,13 +231,10 @@ static inline struct event_format *find_cache_event(struct perf_evsel *evsel)
 	return event;
 }
 
-static void python_process_tracepoint(union perf_event *perf_event
-				      __maybe_unused,
-				 struct perf_sample *sample,
-				 struct perf_evsel *evsel,
-				 struct machine *machine __maybe_unused,
-				 struct thread *thread,
-				 struct addr_location *al)
+static void python_process_tracepoint(struct perf_sample *sample,
+				      struct perf_evsel *evsel,
+				      struct thread *thread,
+				      struct addr_location *al)
 {
 	PyObject *handler, *retval, *context, *t, *obj, *dict = NULL;
 	static char handler_name[256];
@@ -351,11 +348,8 @@ static void python_process_tracepoint(union perf_event *perf_event
 	Py_DECREF(t);
 }
 
-static void python_process_general_event(union perf_event *perf_event
-					 __maybe_unused,
-					 struct perf_sample *sample,
+static void python_process_general_event(struct perf_sample *sample,
 					 struct perf_evsel *evsel,
-					 struct machine *machine __maybe_unused,
 					 struct thread *thread,
 					 struct addr_location *al)
 {
@@ -411,22 +405,20 @@ exit:
 	Py_DECREF(t);
 }
 
-static void python_process_event(union perf_event *perf_event,
+static void python_process_event(union perf_event *event __maybe_unused,
 				 struct perf_sample *sample,
 				 struct perf_evsel *evsel,
-				 struct machine *machine,
+				 struct machine *machine __maybe_unused,
 				 struct thread *thread,
 				 struct addr_location *al)
 {
 	switch (evsel->attr.type) {
 	case PERF_TYPE_TRACEPOINT:
-		python_process_tracepoint(perf_event, sample, evsel,
-					  machine, thread, al);
+		python_process_tracepoint(sample, evsel, thread, al);
 		break;
 	/* Reserve for future process_hw/sw/raw APIs */
 	default:
-		python_process_general_event(perf_event, sample, evsel,
-					     machine, thread, al);
+		python_process_general_event(sample, evsel, thread, al);
 	}
 }
 
