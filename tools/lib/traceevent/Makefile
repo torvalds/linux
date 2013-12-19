@@ -328,8 +328,9 @@ install_plugins: $(PLUGINS)
 install: install_lib
 
 clean:
-	$(RM) *.o *~ $(TARGETS) *.a *.so $(VERSION_FILES) .*.d
-	$(RM) TRACEEVENT-CFLAGS tags TAGS
+	$(call QUIET_CLEAN, libtraceevent) \
+		$(RM) *.o *~ $(TARGETS) *.a *.so $(VERSION_FILES) .*.d \
+		$(RM) TRACEEVENT-CFLAGS tags TAGS
 
 endif # skip-makefile
 
