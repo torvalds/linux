@@ -362,6 +362,8 @@ static int atmel_pwm_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, atmel_pwm);
 
+	return ret;
+
 unprepare_clk:
 	clk_unprepare(atmel_pwm->clk);
 	return ret;
