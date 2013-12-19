@@ -8,7 +8,7 @@
  * published by the Free Software Foundation.
  *
  * 2008-02-13	initial version
- * 		eric miao <eric.miao@marvell.com>
+ *		eric miao <eric.miao@marvell.com>
  */
 
 #include <linux/module.h>
