@@ -57,6 +57,7 @@
 
 #include <net/net_namespace.h>
 #include <net/arp.h>
+#include <net/Space.h>
 
 #include <asm/io.h>
 #include <asm/types.h>
