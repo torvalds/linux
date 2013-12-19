@@ -60,6 +60,24 @@ static u32 get_adc_step_mask(struct tiadc_device *adc_dev)
 	return step_en;
 }
 
+static u32 get_adc_chan_step_mask(struct tiadc_device *adc_dev,
+		struct iio_chan_spec const *chan)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(adc_dev->channel_step); i++) {
+		if (chan->channel == adc_dev->channel_line[i]) {
+			u32 step;
+
+			step = adc_dev->channel_step[i];
+			/* +1 for the charger */
+			return 1 << (step + 1);
+		}
+	}
+	WARN_ON(1);
+	return 0;
+}
+
 static u32 get_adc_step_bit(struct tiadc_device *adc_dev, int chan)
 {
 	return 1 << adc_dev->channel_step[chan];
@@ -326,34 +344,43 @@ static int tiadc_read_raw(struct iio_dev *indio_dev,
 	unsigned int fifo1count, read, stepid;
 	bool found = false;
 	u32 step_en;
-	unsigned long timeout = jiffies + usecs_to_jiffies
-				(IDLE_TIMEOUT * adc_dev->channels);
+	unsigned long timeout;
 
 	if (iio_buffer_enabled(indio_dev))
 		return -EBUSY;
 
-	step_en = get_adc_step_mask(adc_dev);
+	step_en = get_adc_chan_step_mask(adc_dev, chan);
+	if (!step_en)
+		return -EINVAL;
+
+	fifo1count = tiadc_readl(adc_dev, REG_FIFO1CNT);
+	while (fifo1count--)
+		tiadc_readl(adc_dev, REG_FIFO1);
+
 	am335x_tsc_se_set_once(adc_dev->mfd_tscadc, step_en);
 
-	/* Wait for ADC sequencer to complete sampling */
-	while (tiadc_readl(adc_dev, REG_ADCFSM) & SEQ_STATUS) {
-		if (time_after(jiffies, timeout))
+	timeout = jiffies + usecs_to_jiffies
+				(IDLE_TIMEOUT * adc_dev->channels);
+	/* Wait for Fifo threshold interrupt */
+	while (1) {
+		fifo1count = tiadc_readl(adc_dev, REG_FIFO1CNT);
+		if (fifo1count)
+			break;
+
+		if (time_after(jiffies, timeout)) {
+			am335x_tsc_se_adc_done(adc_dev->mfd_tscadc);
 			return -EAGAIN;
+		}
 	}
 	map_val = chan->channel + TOTAL_CHANNELS;
 
 	/*
-	 * When the sub-system is first enabled,
-	 * the sequencer will always start with the
-	 * lowest step (1) and continue until step (16).
-	 * For ex: If we have enabled 4 ADC channels and
-	 * currently use only 1 out of them, the
-	 * sequencer still configures all the 4 steps,
-	 * leading to 3 unwanted data.
-	 * Hence we need to flush out this data.
+	 * We check the complete FIFO. We programmed just one entry but in case
+	 * something went wrong we left empty handed (-EAGAIN previously) and
+	 * then the value apeared somehow in the FIFO we would have two entries.
+	 * Therefore we read every item and keep only the latest version of the
+	 * requested channel.
 	 */
-
-	fifo1count = tiadc_readl(adc_dev, REG_FIFO1CNT);
 	for (i = 0; i < fifo1count; i++) {
 		read = tiadc_readl(adc_dev, REG_FIFO1);
 		stepid = read & FIFOREAD_CHNLID_MASK;
@@ -365,6 +392,7 @@ static int tiadc_read_raw(struct iio_dev *indio_dev,
 			*val = (u16) read;
 		}
 	}
+	am335x_tsc_se_adc_done(adc_dev->mfd_tscadc);
 
 	if (found == false)
 		return -EBUSY;
@@ -492,8 +520,8 @@ static int tiadc_resume(struct device *dev)
 	tiadc_writel(adc_dev, REG_CTRL, restore);
 
 	tiadc_step_config(indio_dev);
-	am335x_tsc_se_set(adc_dev->mfd_tscadc, adc_dev->buffer_en_ch_steps);
-
+	am335x_tsc_se_set_cache(adc_dev->mfd_tscadc,
+			adc_dev->buffer_en_ch_steps);
 	return 0;
 }
 

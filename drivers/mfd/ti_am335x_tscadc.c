@@ -24,6 +24,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/sched.h>
 
 #include <linux/mfd/ti_am335x_tscadc.h>
 
@@ -48,31 +49,71 @@ static const struct regmap_config tscadc_regmap_config = {
 	.val_bits = 32,
 };
 
-static void am335x_tsc_se_update(struct ti_tscadc_dev *tsadc)
-{
-	tscadc_writel(tsadc, REG_SE, tsadc->reg_se_cache);
-}
-
 void am335x_tsc_se_set_cache(struct ti_tscadc_dev *tsadc, u32 val)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&tsadc->reg_lock, flags);
-	tsadc->reg_se_cache |= val;
-	am335x_tsc_se_update(tsadc);
+	tsadc->reg_se_cache = val;
+	if (tsadc->adc_waiting)
+		wake_up(&tsadc->reg_se_wait);
+	else if (!tsadc->adc_in_use)
+		tscadc_writel(tsadc, REG_SE, val);
+
 	spin_unlock_irqrestore(&tsadc->reg_lock, flags);
 }
 EXPORT_SYMBOL_GPL(am335x_tsc_se_set_cache);
 
+static void am335x_tscadc_need_adc(struct ti_tscadc_dev *tsadc)
+{
+	DEFINE_WAIT(wait);
+	u32 reg;
+
+	/*
+	 * disable TSC steps so it does not run while the ADC is using it. If
+	 * write 0 while it is running (it just started or was already running)
+	 * then it completes all steps that were enabled and stops then.
+	 */
+	tscadc_writel(tsadc, REG_SE, 0);
+	reg = tscadc_readl(tsadc, REG_ADCFSM);
+	if (reg & SEQ_STATUS) {
+		tsadc->adc_waiting = true;
+		prepare_to_wait(&tsadc->reg_se_wait, &wait,
+				TASK_UNINTERRUPTIBLE);
+		spin_unlock_irq(&tsadc->reg_lock);
+
+		schedule();
+
+		spin_lock_irq(&tsadc->reg_lock);
+		finish_wait(&tsadc->reg_se_wait, &wait);
+
+		reg = tscadc_readl(tsadc, REG_ADCFSM);
+		WARN_ON(reg & SEQ_STATUS);
+		tsadc->adc_waiting = false;
+	}
+	tsadc->adc_in_use = true;
+}
+
 void am335x_tsc_se_set_once(struct ti_tscadc_dev *tsadc, u32 val)
+{
+	spin_lock_irq(&tsadc->reg_lock);
+	am335x_tscadc_need_adc(tsadc);
+
+	tscadc_writel(tsadc, REG_SE, val);
+	spin_unlock_irq(&tsadc->reg_lock);
+}
+EXPORT_SYMBOL_GPL(am335x_tsc_se_set_once);
+
+void am335x_tsc_se_adc_done(struct ti_tscadc_dev *tsadc)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&tsadc->reg_lock, flags);
-	tscadc_writel(tsadc, REG_SE, tsadc->reg_se_cache | val);
+	tsadc->adc_in_use = false;
+	tscadc_writel(tsadc, REG_SE, tsadc->reg_se_cache);
 	spin_unlock_irqrestore(&tsadc->reg_lock, flags);
 }
-EXPORT_SYMBOL_GPL(am335x_tsc_se_set_once);
+EXPORT_SYMBOL_GPL(am335x_tsc_se_adc_done);
 
 void am335x_tsc_se_clr(struct ti_tscadc_dev *tsadc, u32 val)
 {
@@ -80,7 +121,7 @@ void am335x_tsc_se_clr(struct ti_tscadc_dev *tsadc, u32 val)
 
 	spin_lock_irqsave(&tsadc->reg_lock, flags);
 	tsadc->reg_se_cache &= ~val;
-	am335x_tsc_se_update(tsadc);
+	tscadc_writel(tsadc, REG_SE, tsadc->reg_se_cache);
 	spin_unlock_irqrestore(&tsadc->reg_lock, flags);
 }
 EXPORT_SYMBOL_GPL(am335x_tsc_se_clr);
@@ -188,6 +229,8 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	}
 
 	spin_lock_init(&tscadc->reg_lock);
+	init_waitqueue_head(&tscadc->reg_se_wait);
+
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
