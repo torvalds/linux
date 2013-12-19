@@ -1409,7 +1409,7 @@ static int dwc3_gadget_set_selfpowered(struct usb_gadget *g,
 	return 0;
 }
 
-static int dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on)
+static int dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on, int suspend)
 {
 	u32			reg;
 	u32			timeout = 500;
@@ -1424,9 +1424,17 @@ static int dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on)
 		if (dwc->revision >= DWC3_REVISION_194A)
 			reg &= ~DWC3_DCTL_KEEP_CONNECT;
 		reg |= DWC3_DCTL_RUN_STOP;
+
+		if (dwc->has_hibernation)
+			reg |= DWC3_DCTL_KEEP_CONNECT;
+
 		dwc->pullups_connected = true;
 	} else {
 		reg &= ~DWC3_DCTL_RUN_STOP;
+
+		if (dwc->has_hibernation && !suspend)
+			reg &= ~DWC3_DCTL_KEEP_CONNECT;
+
 		dwc->pullups_connected = false;
 	}
 
@@ -1464,7 +1472,7 @@ static int dwc3_gadget_pullup(struct usb_gadget *g, int is_on)
 	is_on = !!is_on;
 
 	spin_lock_irqsave(&dwc->lock, flags);
-	ret = dwc3_gadget_run_stop(dwc, is_on);
+	ret = dwc3_gadget_run_stop(dwc, is_on, false);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return ret;
@@ -2715,8 +2723,10 @@ void dwc3_gadget_exit(struct dwc3 *dwc)
 
 int dwc3_gadget_prepare(struct dwc3 *dwc)
 {
-	if (dwc->pullups_connected)
+	if (dwc->pullups_connected) {
 		dwc3_gadget_disable_irq(dwc);
+		dwc3_gadget_run_stop(dwc, true, true);
+	}
 
 	return 0;
 }
@@ -2725,7 +2735,7 @@ void dwc3_gadget_complete(struct dwc3 *dwc)
 {
 	if (dwc->pullups_connected) {
 		dwc3_gadget_enable_irq(dwc);
-		dwc3_gadget_run_stop(dwc, true);
+		dwc3_gadget_run_stop(dwc, true, false);
 	}
 }
 
