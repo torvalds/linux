@@ -7,6 +7,7 @@ enum {EDMAC_LITTLE_ENDIAN, EDMAC_BIG_ENDIAN};
 
 struct sh_eth_plat_data {
 	int phy;
+	int phy_irq;
 	int edmac_endian;
 	phy_interface_t phy_interface;
 	void (*set_mdio_gate)(void *addr);
