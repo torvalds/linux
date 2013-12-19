@@ -152,10 +152,8 @@ override CFLAGS += $(udis86-flags) -D_GNU_SOURCE
 
 ifeq ($(VERBOSE),1)
   Q =
-  print_install =
 else
   Q = @
-  print_install =		echo '  INSTALL  '$1;
 endif
 
 do_compile_shared_library =			\
@@ -307,22 +305,25 @@ TAGS:	force
 	--regex='/_PE(\([^,)]*\).*/PEVENT_ERRNO__\1/'
 
 define do_install
-	$(print_install)				\
 	if [ ! -d '$(DESTDIR_SQ)$2' ]; then		\
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$2';	\
 	fi;						\
 	$(INSTALL) $1 '$(DESTDIR_SQ)$2'
 endef
 
+define do_install_plugins
+	for plugin in $1; do				\
+	  $(call do_install,$$plugin,$(plugin_dir_SQ));	\
+	done
+endef
+
 install_lib: all_cmd install_plugins
-	$(Q)$(call do_install,$(LIB_FILE),$(bindir_SQ))
+	$(call QUIET_INSTALL, $(LIB_FILE)) \
+		$(call do_install,$(LIB_FILE),$(bindir_SQ))
 
-PLUGINS_INSTALL = $(subst .so,.install,$(PLUGINS))
-
-$(PLUGINS_INSTALL): %.install : %.so force
-	$(Q)$(call do_install,$<,$(plugin_dir_SQ))
-
-install_plugins: $(PLUGINS_INSTALL)
+install_plugins: $(PLUGINS)
+	$(call QUIET_INSTALL, trace_plugins) \
+		$(call do_install_plugins, $(PLUGINS))
 
 install: install_lib
 
