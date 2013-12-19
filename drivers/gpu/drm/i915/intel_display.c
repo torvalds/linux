@@ -3761,16 +3761,6 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	 * to change the workaround. */
 	haswell_mode_set_planes_workaround(intel_crtc);
 	haswell_crtc_enable_planes(crtc);
-
-	/*
-	 * There seems to be a race in PCH platform hw (at least on some
-	 * outputs) where an enabled pipe still completes any pageflip right
-	 * away (as if the pipe is off) instead of waiting for vblank. As soon
-	 * as the first vblank happend, everything works as expected. Hence just
-	 * wait for one vblank before returning to avoid strange things
-	 * happening.
-	 */
-	intel_wait_for_vblank(dev, intel_crtc->pipe);
 }
 
 static void ironlake_pfit_disable(struct intel_crtc *crtc)
