@@ -317,12 +317,12 @@ int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-inline void qlcnic_83xx_clear_legacy_intr_mask(struct qlcnic_adapter *adapter)
+static inline void qlcnic_83xx_clear_legacy_intr_mask(struct qlcnic_adapter *adapter)
 {
 	writel(0, adapter->tgt_mask_reg);
 }
 
-inline void qlcnic_83xx_set_legacy_intr_mask(struct qlcnic_adapter *adapter)
+static inline void qlcnic_83xx_set_legacy_intr_mask(struct qlcnic_adapter *adapter)
 {
 	if (adapter->tgt_mask_reg)
 		writel(1, adapter->tgt_mask_reg);
@@ -342,7 +342,7 @@ void qlcnic_83xx_disable_intr(struct qlcnic_adapter *adapter,
 	writel(1, sds_ring->crb_intr_mask);
 }
 
-inline void qlcnic_83xx_enable_legacy_msix_mbx_intr(struct qlcnic_adapter
+static inline void qlcnic_83xx_enable_legacy_msix_mbx_intr(struct qlcnic_adapter
 						    *adapter)
 {
 	u32 mask;
