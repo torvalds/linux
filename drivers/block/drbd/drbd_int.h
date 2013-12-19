@@ -65,6 +65,7 @@
 extern unsigned int minor_count;
 extern bool disable_sendpage;
 extern bool allow_oos;
+void tl_abort_disk_io(struct drbd_conf *mdev);
 
 #ifdef CONFIG_DRBD_FAULT_INJECTION
 extern int enable_faults;

@@ -29,9 +29,6 @@
 #include "drbd_int.h"
 #include "drbd_req.h"
 
-/* in drbd_main.c */
-extern void tl_abort_disk_io(struct drbd_conf *mdev);
-
 struct after_state_chg_work {
 	struct drbd_work w;
 	union drbd_state os;
