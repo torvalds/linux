@@ -145,7 +145,7 @@ int ping_v6_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	else if (!fl6.flowi6_oif)
 		fl6.flowi6_oif = np->ucast_oif;
 
-	dst = ip6_sk_dst_lookup_flow(sk, &fl6,  daddr, 1);
+	dst = ip6_sk_dst_lookup_flow(sk, &fl6,  daddr);
 	if (IS_ERR(dst))
 		return PTR_ERR(dst);
 	rt = (struct rt6_info *) dst;

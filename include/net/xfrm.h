@@ -53,7 +53,6 @@
 #define XFRM_INC_STATS_USER(net, field)	((void)(net))
 #endif
 
-extern struct mutex xfrm_cfg_mutex;
 
 /* Organization of SPD aka "XFRM rules"
    ------------------------------------
@@ -1409,7 +1408,7 @@ static inline void xfrm_sysctl_fini(struct net *net)
 void xfrm_state_walk_init(struct xfrm_state_walk *walk, u8 proto);
 int xfrm_state_walk(struct net *net, struct xfrm_state_walk *walk,
 		    int (*func)(struct xfrm_state *, int, void*), void *);
-void xfrm_state_walk_done(struct xfrm_state_walk *walk);
+void xfrm_state_walk_done(struct xfrm_state_walk *walk, struct net *net);
 struct xfrm_state *xfrm_state_alloc(struct net *net);
 struct xfrm_state *xfrm_state_find(const xfrm_address_t *daddr,
 				   const xfrm_address_t *saddr,
@@ -1436,12 +1435,12 @@ struct xfrm_state *xfrm_state_lookup_byaddr(struct net *net, u32 mark,
 					    unsigned short family);
 #ifdef CONFIG_XFRM_SUB_POLICY
 int xfrm_tmpl_sort(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n,
-		   unsigned short family);
+		   unsigned short family, struct net *net);
 int xfrm_state_sort(struct xfrm_state **dst, struct xfrm_state **src, int n,
 		    unsigned short family);
 #else
 static inline int xfrm_tmpl_sort(struct xfrm_tmpl **dst, struct xfrm_tmpl **src,
-				 int n, unsigned short family)
+				 int n, unsigned short family, struct net *net)
 {
 	return -ENOSYS;
 }
@@ -1553,7 +1552,7 @@ void xfrm_policy_walk_init(struct xfrm_policy_walk *walk, u8 type);
 int xfrm_policy_walk(struct net *net, struct xfrm_policy_walk *walk,
 		     int (*func)(struct xfrm_policy *, int, int, void*),
 		     void *);
-void xfrm_policy_walk_done(struct xfrm_policy_walk *walk);
+void xfrm_policy_walk_done(struct xfrm_policy_walk *walk, struct net *net);
 int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl);
 struct xfrm_policy *xfrm_policy_bysel_ctx(struct net *net, u32 mark,
 					  u8 type, int dir,
@@ -1564,6 +1563,7 @@ struct xfrm_policy *xfrm_policy_byid(struct net *net, u32 mark, u8, int dir,
 				     u32 id, int delete, int *err);
 int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info);
 u32 xfrm_get_acqseq(void);
+int verify_spi_info(u8 proto, u32 min, u32 max);
 int xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi);
 struct xfrm_state *xfrm_find_acq(struct net *net, const struct xfrm_mark *mark,
 				 u8 mode, u32 reqid, u8 proto,
@@ -1576,12 +1576,12 @@ int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol);
 int km_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 	       const struct xfrm_migrate *m, int num_bundles,
 	       const struct xfrm_kmaddress *k);
-struct xfrm_state *xfrm_migrate_state_find(struct xfrm_migrate *m);
+struct xfrm_state *xfrm_migrate_state_find(struct xfrm_migrate *m, struct net *net);
 struct xfrm_state *xfrm_state_migrate(struct xfrm_state *x,
 				      struct xfrm_migrate *m);
 int xfrm_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 		 struct xfrm_migrate *m, int num_bundles,
-		 struct xfrm_kmaddress *k);
+		 struct xfrm_kmaddress *k, struct net *net);
 #endif
 
 int km_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, __be16 sport);

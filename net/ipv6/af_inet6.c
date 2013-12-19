@@ -661,7 +661,7 @@ int inet6_sk_rebuild_header(struct sock *sk)
 
 		final_p = fl6_update_dst(&fl6, np->opt, &final);
 
-		dst = ip6_dst_lookup_flow(sk, &fl6, final_p, false);
+		dst = ip6_dst_lookup_flow(sk, &fl6, final_p);
 		if (IS_ERR(dst)) {
 			sk->sk_route_caps = 0;
 			sk->sk_err_soft = -PTR_ERR(dst);

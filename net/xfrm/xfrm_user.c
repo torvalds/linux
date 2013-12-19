@@ -181,7 +181,9 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 		    attrs[XFRMA_ALG_AEAD]	||
 		    attrs[XFRMA_ALG_CRYPT]	||
 		    attrs[XFRMA_ALG_COMP]	||
-		    attrs[XFRMA_TFCPAD])
+		    attrs[XFRMA_TFCPAD]		||
+		    (ntohl(p->id.spi) >= 0x10000))
+
 			goto out;
 		break;
 
@@ -877,7 +879,10 @@ static int dump_one_state(struct xfrm_state *x, int count, void *ptr)
 static int xfrm_dump_sa_done(struct netlink_callback *cb)
 {
 	struct xfrm_state_walk *walk = (struct xfrm_state_walk *) &cb->args[1];
-	xfrm_state_walk_done(walk);
+	struct sock *sk = cb->skb->sk;
+	struct net *net = sock_net(sk);
+
+	xfrm_state_walk_done(walk, net);
 	return 0;
 }
 
@@ -1074,29 +1079,6 @@ out_noput:
 	return err;
 }
 
-static int verify_userspi_info(struct xfrm_userspi_info *p)
-{
-	switch (p->info.id.proto) {
-	case IPPROTO_AH:
-	case IPPROTO_ESP:
-		break;
-
-	case IPPROTO_COMP:
-		/* IPCOMP spi is 16-bits. */
-		if (p->max >= 0x10000)
-			return -EINVAL;
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	if (p->min > p->max)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int xfrm_alloc_userspi(struct sk_buff *skb, struct nlmsghdr *nlh,
 		struct nlattr **attrs)
 {
@@ -1111,7 +1093,7 @@ static int xfrm_alloc_userspi(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct xfrm_mark m;
 
 	p = nlmsg_data(nlh);
-	err = verify_userspi_info(p);
+	err = verify_spi_info(p->info.id.proto, p->min, p->max);
 	if (err)
 		goto out_noput;
 
@@ -1189,6 +1171,8 @@ static int verify_policy_type(u8 type)
 
 static int verify_newpolicy_info(struct xfrm_userpolicy_info *p)
 {
+	int ret;
+
 	switch (p->share) {
 	case XFRM_SHARE_ANY:
 	case XFRM_SHARE_SESSION:
@@ -1224,7 +1208,13 @@ static int verify_newpolicy_info(struct xfrm_userpolicy_info *p)
 		return -EINVAL;
 	}
 
-	return verify_policy_dir(p->dir);
+	ret = verify_policy_dir(p->dir);
+	if (ret)
+		return ret;
+	if (p->index && ((p->index & XFRM_POLICY_MAX) != p->dir))
+		return -EINVAL;
+
+	return 0;
 }
 
 static int copy_from_user_sec_ctx(struct xfrm_policy *pol, struct nlattr **attrs)
@@ -1547,8 +1537,9 @@ static int dump_one_policy(struct xfrm_policy *xp, int dir, int count, void *ptr
 static int xfrm_dump_policy_done(struct netlink_callback *cb)
 {
 	struct xfrm_policy_walk *walk = (struct xfrm_policy_walk *) &cb->args[1];
+	struct net *net = sock_net(cb->skb->sk);
 
-	xfrm_policy_walk_done(walk);
+	xfrm_policy_walk_done(walk, net);
 	return 0;
 }
 
@@ -2129,6 +2120,7 @@ static int xfrm_do_migrate(struct sk_buff *skb, struct nlmsghdr *nlh,
 	u8 type;
 	int err;
 	int n = 0;
+	struct net *net = sock_net(skb->sk);
 
 	if (attrs[XFRMA_MIGRATE] == NULL)
 		return -EINVAL;
@@ -2146,7 +2138,7 @@ static int xfrm_do_migrate(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!n)
 		return 0;
 
-	xfrm_migrate(&pi->sel, pi->dir, type, m, n, kmp);
+	xfrm_migrate(&pi->sel, pi->dir, type, m, n, kmp, net);
 
 	return 0;
 }
@@ -2394,9 +2386,11 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 static void xfrm_netlink_rcv(struct sk_buff *skb)
 {
-	mutex_lock(&xfrm_cfg_mutex);
+	struct net *net = sock_net(skb->sk);
+
+	mutex_lock(&net->xfrm.xfrm_cfg_mutex);
 	netlink_rcv_skb(skb, &xfrm_user_rcv_msg);
-	mutex_unlock(&xfrm_cfg_mutex);
+	mutex_unlock(&net->xfrm.xfrm_cfg_mutex);
 }
 
 static inline size_t xfrm_expire_msgsize(void)

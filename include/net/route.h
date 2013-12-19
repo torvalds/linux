@@ -239,14 +239,12 @@ static inline char rt_tos2priority(u8 tos)
 static inline void ip_route_connect_init(struct flowi4 *fl4, __be32 dst, __be32 src,
 					 u32 tos, int oif, u8 protocol,
 					 __be16 sport, __be16 dport,
-					 struct sock *sk, bool can_sleep)
+					 struct sock *sk)
 {
 	__u8 flow_flags = 0;
 
 	if (inet_sk(sk)->transparent)
 		flow_flags |= FLOWI_FLAG_ANYSRC;
-	if (can_sleep)
-		flow_flags |= FLOWI_FLAG_CAN_SLEEP;
 
 	flowi4_init_output(fl4, oif, sk->sk_mark, tos, RT_SCOPE_UNIVERSE,
 			   protocol, flow_flags, dst, src, dport, sport);
@@ -256,13 +254,13 @@ static inline struct rtable *ip_route_connect(struct flowi4 *fl4,
 					      __be32 dst, __be32 src, u32 tos,
 					      int oif, u8 protocol,
 					      __be16 sport, __be16 dport,
-					      struct sock *sk, bool can_sleep)
+					      struct sock *sk)
 {
 	struct net *net = sock_net(sk);
 	struct rtable *rt;
 
 	ip_route_connect_init(fl4, dst, src, tos, oif, protocol,
-			      sport, dport, sk, can_sleep);
+			      sport, dport, sk);
 
 	if (!dst || !src) {
 		rt = __ip_route_output_key(net, fl4);
