@@ -1033,7 +1033,7 @@ static void drbd_queue_write(struct drbd_conf *mdev, struct drbd_request *req)
  * request on the submitter thread.
  * Returns ERR_PTR(-ENOMEM) if we cannot allocate a drbd_request.
  */
-struct drbd_request *
+static struct drbd_request *
 drbd_request_prepare(struct drbd_conf *mdev, struct bio *bio, unsigned long start_time)
 {
 	const int rw = bio_data_dir(bio);
@@ -1320,7 +1320,7 @@ int drbd_merge_bvec(struct request_queue *q, struct bvec_merge_data *bvm, struct
 	return limit;
 }
 
-struct drbd_request *find_oldest_request(struct drbd_tconn *tconn)
+static struct drbd_request *find_oldest_request(struct drbd_tconn *tconn)
 {
 	/* Walk the transfer log,
 	 * and find the oldest not yet completed request */
