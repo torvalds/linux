@@ -219,7 +219,7 @@ static int stmmac_pltfr_resume(struct device *dev)
 	return stmmac_resume(ndev);
 }
 
-int stmmac_pltfr_freeze(struct device *dev)
+static int stmmac_pltfr_freeze(struct device *dev)
 {
 	int ret;
 	struct plat_stmmacenet_data *plat_dat = dev_get_platdata(dev);
@@ -233,7 +233,7 @@ int stmmac_pltfr_freeze(struct device *dev)
 	return ret;
 }
 
-int stmmac_pltfr_restore(struct device *dev)
+static int stmmac_pltfr_restore(struct device *dev)
 {
 	struct plat_stmmacenet_data *plat_dat = dev_get_platdata(dev);
 	struct net_device *ndev = dev_get_drvdata(dev);
