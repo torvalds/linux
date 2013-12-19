@@ -40,7 +40,7 @@ static int regmap_mmio_gather_write(void *context,
 
 	BUG_ON(reg_size != 4);
 
-	if (ctx->clk) {
+	if (!IS_ERR(ctx->clk)) {
 		ret = clk_enable(ctx->clk);
 		if (ret < 0)
 			return ret;
@@ -73,7 +73,7 @@ static int regmap_mmio_gather_write(void *context,
 		offset += ctx->val_bytes;
 	}
 
-	if (ctx->clk)
+	if (!IS_ERR(ctx->clk))
 		clk_disable(ctx->clk);
 
 	return 0;
@@ -96,7 +96,7 @@ static int regmap_mmio_read(void *context,
 
 	BUG_ON(reg_size != 4);
 
-	if (ctx->clk) {
+	if (!IS_ERR(ctx->clk)) {
 		ret = clk_enable(ctx->clk);
 		if (ret < 0)
 			return ret;
@@ -129,7 +129,7 @@ static int regmap_mmio_read(void *context,
 		offset += ctx->val_bytes;
 	}
 
-	if (ctx->clk)
+	if (!IS_ERR(ctx->clk))
 		clk_disable(ctx->clk);
 
 	return 0;
@@ -139,7 +139,7 @@ static void regmap_mmio_free_context(void *context)
 {
 	struct regmap_mmio_context *ctx = context;
 
-	if (ctx->clk) {
+	if (!IS_ERR(ctx->clk)) {
 		clk_unprepare(ctx->clk);
 		clk_put(ctx->clk);
 	}
@@ -209,6 +209,7 @@ static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
 
 	ctx->regs = regs;
 	ctx->val_bytes = config->val_bits / 8;
+	ctx->clk = ERR_PTR(-ENODEV);
 
 	if (clk_id == NULL)
 		return ctx;

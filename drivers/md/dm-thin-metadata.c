@@ -1697,6 +1697,14 @@ void dm_pool_metadata_read_only(struct dm_pool_metadata *pmd)
 	up_write(&pmd->root_lock);
 }
 
+void dm_pool_metadata_read_write(struct dm_pool_metadata *pmd)
+{
+	down_write(&pmd->root_lock);
+	pmd->read_only = false;
+	dm_bm_set_read_write(pmd->bm);
+	up_write(&pmd->root_lock);
+}
+
 int dm_pool_register_metadata_threshold(struct dm_pool_metadata *pmd,
 					dm_block_t threshold,
 					dm_sm_threshold_fn fn,

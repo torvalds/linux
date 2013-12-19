@@ -473,17 +473,17 @@ static struct snd_soc_dai_driver kirkwood_i2s_dai_extclk[2] = {
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_8000_192000 |
-			 SNDRV_PCM_RATE_CONTINUOUS |
-			 SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_CONTINUOUS,
+		.rate_min = 5512,
+		.rate_max = 192000,
 		.formats = KIRKWOOD_I2S_FORMATS,
 	},
 	.capture = {
 		.channels_min = 1,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_8000_192000 |
-			 SNDRV_PCM_RATE_CONTINUOUS |
-			 SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_CONTINUOUS,
+		.rate_min = 5512,
+		.rate_max = 192000,
 		.formats = KIRKWOOD_I2S_FORMATS,
 	},
 	.ops = &kirkwood_i2s_dai_ops,
@@ -494,17 +494,17 @@ static struct snd_soc_dai_driver kirkwood_i2s_dai_extclk[2] = {
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_8000_192000 |
-			 SNDRV_PCM_RATE_CONTINUOUS |
-			 SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_CONTINUOUS,
+		.rate_min = 5512,
+		.rate_max = 192000,
 		.formats = KIRKWOOD_SPDIF_FORMATS,
 	},
 	.capture = {
 		.channels_min = 1,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_8000_192000 |
-			 SNDRV_PCM_RATE_CONTINUOUS |
-			 SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_CONTINUOUS,
+		.rate_min = 5512,
+		.rate_max = 192000,
 		.formats = KIRKWOOD_SPDIF_FORMATS,
 	},
 	.ops = &kirkwood_i2s_dai_ops,

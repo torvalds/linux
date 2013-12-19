@@ -571,7 +571,9 @@ static int is_cowonly_root(u64 root_objectid)
 	    root_objectid == BTRFS_CHUNK_TREE_OBJECTID ||
 	    root_objectid == BTRFS_DEV_TREE_OBJECTID ||
 	    root_objectid == BTRFS_TREE_LOG_OBJECTID ||
-	    root_objectid == BTRFS_CSUM_TREE_OBJECTID)
+	    root_objectid == BTRFS_CSUM_TREE_OBJECTID ||
+	    root_objectid == BTRFS_UUID_TREE_OBJECTID ||
+	    root_objectid == BTRFS_QUOTA_TREE_OBJECTID)
 		return 1;
 	return 0;
 }
@@ -1264,10 +1266,10 @@ static int __must_check __add_reloc_root(struct btrfs_root *root)
 }
 
 /*
- * helper to update/delete the 'address of tree root -> reloc tree'
+ * helper to delete the 'address of tree root -> reloc tree'
  * mapping
  */
-static int __update_reloc_root(struct btrfs_root *root, int del)
+static void __del_reloc_root(struct btrfs_root *root)
 {
 	struct rb_node *rb_node;
 	struct mapping_node *node = NULL;
@@ -1275,7 +1277,36 @@ static int __update_reloc_root(struct btrfs_root *root, int del)
 
 	spin_lock(&rc->reloc_root_tree.lock);
 	rb_node = tree_search(&rc->reloc_root_tree.rb_root,
-			      root->commit_root->start);
+			      root->node->start);
+	if (rb_node) {
+		node = rb_entry(rb_node, struct mapping_node, rb_node);
+		rb_erase(&node->rb_node, &rc->reloc_root_tree.rb_root);
+	}
+	spin_unlock(&rc->reloc_root_tree.lock);
+
+	if (!node)
+		return;
+	BUG_ON((struct btrfs_root *)node->data != root);
+
+	spin_lock(&root->fs_info->trans_lock);
+	list_del_init(&root->root_list);
+	spin_unlock(&root->fs_info->trans_lock);
+	kfree(node);
+}
+
+/*
+ * helper to update the 'address of tree root -> reloc tree'
+ * mapping
+ */
+static int __update_reloc_root(struct btrfs_root *root, u64 new_bytenr)
+{
+	struct rb_node *rb_node;
+	struct mapping_node *node = NULL;
+	struct reloc_control *rc = root->fs_info->reloc_ctl;
+
+	spin_lock(&rc->reloc_root_tree.lock);
+	rb_node = tree_search(&rc->reloc_root_tree.rb_root,
+			      root->node->start);
 	if (rb_node) {
 		node = rb_entry(rb_node, struct mapping_node, rb_node);
 		rb_erase(&node->rb_node, &rc->reloc_root_tree.rb_root);
@@ -1286,20 +1317,13 @@ static int __update_reloc_root(struct btrfs_root *root, int del)
 		return 0;
 	BUG_ON((struct btrfs_root *)node->data != root);
 
-	if (!del) {
-		spin_lock(&rc->reloc_root_tree.lock);
-		node->bytenr = root->node->start;
-		rb_node = tree_insert(&rc->reloc_root_tree.rb_root,
-				      node->bytenr, &node->rb_node);
-		spin_unlock(&rc->reloc_root_tree.lock);
-		if (rb_node)
-			backref_tree_panic(rb_node, -EEXIST, node->bytenr);
-	} else {
-		spin_lock(&root->fs_info->trans_lock);
-		list_del_init(&root->root_list);
-		spin_unlock(&root->fs_info->trans_lock);
-		kfree(node);
-	}
+	spin_lock(&rc->reloc_root_tree.lock);
+	node->bytenr = new_bytenr;
+	rb_node = tree_insert(&rc->reloc_root_tree.rb_root,
+			      node->bytenr, &node->rb_node);
+	spin_unlock(&rc->reloc_root_tree.lock);
+	if (rb_node)
+		backref_tree_panic(rb_node, -EEXIST, node->bytenr);
 	return 0;
 }
 
@@ -1420,7 +1444,6 @@ int btrfs_update_reloc_root(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_root *reloc_root;
 	struct btrfs_root_item *root_item;
-	int del = 0;
 	int ret;
 
 	if (!root->reloc_root)
@@ -1432,10 +1455,8 @@ int btrfs_update_reloc_root(struct btrfs_trans_handle *trans,
 	if (root->fs_info->reloc_ctl->merge_reloc_tree &&
 	    btrfs_root_refs(root_item) == 0) {
 		root->reloc_root = NULL;
-		del = 1;
+		__del_reloc_root(reloc_root);
 	}
-
-	__update_reloc_root(reloc_root, del);
 
 	if (reloc_root->commit_root != reloc_root->node) {
 		btrfs_set_root_node(root_item, reloc_root->node);
@@ -2287,7 +2308,7 @@ void free_reloc_roots(struct list_head *list)
 	while (!list_empty(list)) {
 		reloc_root = list_entry(list->next, struct btrfs_root,
 					root_list);
-		__update_reloc_root(reloc_root, 1);
+		__del_reloc_root(reloc_root);
 		free_extent_buffer(reloc_root->node);
 		free_extent_buffer(reloc_root->commit_root);
 		kfree(reloc_root);
@@ -2332,7 +2353,7 @@ again:
 
 			ret = merge_reloc_root(rc, root);
 			if (ret) {
-				__update_reloc_root(reloc_root, 1);
+				__del_reloc_root(reloc_root);
 				free_extent_buffer(reloc_root->node);
 				free_extent_buffer(reloc_root->commit_root);
 				kfree(reloc_root);
@@ -2386,6 +2407,13 @@ again:
 out:
 	if (ret) {
 		btrfs_std_error(root->fs_info, ret);
+		if (!list_empty(&reloc_roots))
+			free_reloc_roots(&reloc_roots);
+
+		/* new reloc root may be added */
+		mutex_lock(&root->fs_info->reloc_mutex);
+		list_splice_init(&rc->reloc_roots, &reloc_roots);
+		mutex_unlock(&root->fs_info->reloc_mutex);
 		if (!list_empty(&reloc_roots))
 			free_reloc_roots(&reloc_roots);
 	}
@@ -4521,6 +4549,11 @@ int btrfs_reloc_cow_block(struct btrfs_trans_handle *trans,
 
 	BUG_ON(rc->stage == UPDATE_DATA_PTRS &&
 	       root->root_key.objectid == BTRFS_DATA_RELOC_TREE_OBJECTID);
+
+	if (root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID) {
+		if (buf == root->node)
+			__update_reloc_root(root, cow->start);
+	}
 
 	level = btrfs_header_level(buf);
 	if (btrfs_header_generation(buf) <=
