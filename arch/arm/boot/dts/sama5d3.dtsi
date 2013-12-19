@@ -372,6 +372,8 @@
 				dmas = <&dma1 2 AT91_DMA_CFG_PER_ID(20)>,
 				       <&dma1 2 AT91_DMA_CFG_PER_ID(21)>;
 				dma-names = "tx", "rx";
+				clocks = <&tdes_clk>;
+				clock-names = "tdes_clk";
 			};
 
 			dma0: dma-controller@ffffe600 {
