@@ -820,14 +820,15 @@ static void ioda_eeh_phb_diag(struct pci_controller *hose)
 	struct OpalIoPhbErrorCommon *common;
 	long rc;
 
-	common = (struct OpalIoPhbErrorCommon *)phb->diag.blob;
-	rc = opal_pci_get_phb_diag_data2(phb->opal_id, common, PAGE_SIZE);
+	rc = opal_pci_get_phb_diag_data2(phb->opal_id, phb->diag.blob,
+					 PNV_PCI_DIAG_BUF_SIZE);
 	if (rc != OPAL_SUCCESS) {
 		pr_warning("%s: Failed to get diag-data for PHB#%x (%ld)\n",
 			    __func__, hose->global_number, rc);
 		return;
 	}
 
+	common = (struct OpalIoPhbErrorCommon *)phb->diag.blob;
 	switch (common->ioType) {
 	case OPAL_PHB_ERROR_DATA_TYPE_P7IOC:
 		ioda_eeh_p7ioc_phb_diag(hose, common);
