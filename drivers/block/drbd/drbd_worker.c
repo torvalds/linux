@@ -96,7 +96,7 @@ void drbd_md_io_complete(struct bio *bio, int error)
 /* reads on behalf of the partner,
  * "submitted" by the receiver
  */
-void drbd_endio_read_sec_final(struct drbd_peer_request *peer_req) __releases(local)
+static void drbd_endio_read_sec_final(struct drbd_peer_request *peer_req) __releases(local)
 {
 	unsigned long flags = 0;
 	struct drbd_conf *mdev = peer_req->w.mdev;
@@ -1273,7 +1273,7 @@ int w_prev_work_done(struct drbd_work *w, int cancel)
  * and to be able to wait for them.
  * See also comment in drbd_adm_attach before drbd_suspend_io.
  */
-int drbd_send_barrier(struct drbd_tconn *tconn)
+static int drbd_send_barrier(struct drbd_tconn *tconn)
 {
 	struct p_barrier *p;
 	struct drbd_socket *sock;
@@ -1771,7 +1771,7 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
  * (because we have not yet seen new requests), we should send the
  * corresponding barrier now.  Must be checked within the same spinlock
  * that is used to check for new requests. */
-bool need_to_send_barrier(struct drbd_tconn *connection)
+static bool need_to_send_barrier(struct drbd_tconn *connection)
 {
 	if (!connection->send.seen_any_write_yet)
 		return false;
@@ -1795,7 +1795,7 @@ bool need_to_send_barrier(struct drbd_tconn *connection)
 	return true;
 }
 
-bool dequeue_work_batch(struct drbd_work_queue *queue, struct list_head *work_list)
+static bool dequeue_work_batch(struct drbd_work_queue *queue, struct list_head *work_list)
 {
 	spin_lock_irq(&queue->q_lock);
 	list_splice_init(&queue->q, work_list);
@@ -1803,7 +1803,7 @@ bool dequeue_work_batch(struct drbd_work_queue *queue, struct list_head *work_li
 	return !list_empty(work_list);
 }
 
-bool dequeue_work_item(struct drbd_work_queue *queue, struct list_head *work_list)
+static bool dequeue_work_item(struct drbd_work_queue *queue, struct list_head *work_list)
 {
 	spin_lock_irq(&queue->q_lock);
 	if (!list_empty(&queue->q))
@@ -1812,7 +1812,7 @@ bool dequeue_work_item(struct drbd_work_queue *queue, struct list_head *work_lis
 	return !list_empty(work_list);
 }
 
-void wait_for_work(struct drbd_tconn *connection, struct list_head *work_list)
+static void wait_for_work(struct drbd_tconn *connection, struct list_head *work_list)
 {
 	DEFINE_WAIT(wait);
 	struct net_conf *nc;
