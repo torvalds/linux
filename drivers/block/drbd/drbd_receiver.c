@@ -1398,7 +1398,7 @@ static void drbd_remove_epoch_entry_interval(struct drbd_conf *mdev,
 		wake_up(&mdev->misc_wait);
 }
 
-void conn_wait_active_ee_empty(struct drbd_tconn *tconn)
+static void conn_wait_active_ee_empty(struct drbd_tconn *tconn)
 {
 	struct drbd_conf *mdev;
 	int vnr;
@@ -3257,6 +3257,7 @@ disconnect:
  * return: NULL (alg name was "")
  *         ERR_PTR(error) if something goes wrong
  *         or the crypto hash ptr, if it worked out ok. */
+static
 struct crypto_hash *drbd_crypto_alloc_digest_safe(const struct drbd_conf *mdev,
 		const char *alg, const char *name)
 {
