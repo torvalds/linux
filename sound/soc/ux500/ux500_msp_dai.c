@@ -718,87 +718,19 @@ static struct snd_soc_dai_ops ux500_msp_dai_ops[] = {
 	}
 };
 
-static struct snd_soc_dai_driver ux500_msp_dai_drv[UX500_NBR_OF_DAI] = {
-	{
-		.name = "ux500-msp-i2s.0",
-		.probe = ux500_msp_dai_probe,
-		.id = 0,
-		.suspend = NULL,
-		.resume = NULL,
-		.playback = {
-			.channels_min = UX500_MSP_MIN_CHANNELS,
-			.channels_max = UX500_MSP_MAX_CHANNELS,
-			.rates = UX500_I2S_RATES,
-			.formats = UX500_I2S_FORMATS,
-		},
-		.capture = {
-			.channels_min = UX500_MSP_MIN_CHANNELS,
-			.channels_max = UX500_MSP_MAX_CHANNELS,
-			.rates = UX500_I2S_RATES,
-			.formats = UX500_I2S_FORMATS,
-		},
-		.ops = ux500_msp_dai_ops,
-	},
-	{
-		.name = "ux500-msp-i2s.1",
-		.probe = ux500_msp_dai_probe,
-		.id = 1,
-		.suspend = NULL,
-		.resume = NULL,
-		.playback = {
-			.channels_min = UX500_MSP_MIN_CHANNELS,
-			.channels_max = UX500_MSP_MAX_CHANNELS,
-			.rates = UX500_I2S_RATES,
-			.formats = UX500_I2S_FORMATS,
-		},
-		.capture = {
-			.channels_min = UX500_MSP_MIN_CHANNELS,
-			.channels_max = UX500_MSP_MAX_CHANNELS,
-			.rates = UX500_I2S_RATES,
-			.formats = UX500_I2S_FORMATS,
-		},
-		.ops = ux500_msp_dai_ops,
-	},
-	{
-		.name = "ux500-msp-i2s.2",
-		.id = 2,
-		.probe = ux500_msp_dai_probe,
-		.suspend = NULL,
-		.resume = NULL,
-		.playback = {
-			.channels_min = UX500_MSP_MIN_CHANNELS,
-			.channels_max = UX500_MSP_MAX_CHANNELS,
-			.rates = UX500_I2S_RATES,
-			.formats = UX500_I2S_FORMATS,
-		},
-		.capture = {
-			.channels_min = UX500_MSP_MIN_CHANNELS,
-			.channels_max = UX500_MSP_MAX_CHANNELS,
-			.rates = UX500_I2S_RATES,
-			.formats = UX500_I2S_FORMATS,
-		},
-		.ops = ux500_msp_dai_ops,
-	},
-	{
-		.name = "ux500-msp-i2s.3",
-		.probe = ux500_msp_dai_probe,
-		.id = 3,
-		.suspend = NULL,
-		.resume = NULL,
-		.playback = {
-			.channels_min = UX500_MSP_MIN_CHANNELS,
-			.channels_max = UX500_MSP_MAX_CHANNELS,
-			.rates = UX500_I2S_RATES,
-			.formats = UX500_I2S_FORMATS,
-		},
-		.capture = {
-			.channels_min = UX500_MSP_MIN_CHANNELS,
-			.channels_max = UX500_MSP_MAX_CHANNELS,
-			.rates = UX500_I2S_RATES,
-			.formats = UX500_I2S_FORMATS,
-		},
-		.ops = ux500_msp_dai_ops,
-	},
+static struct snd_soc_dai_driver ux500_msp_dai_drv = {
+	.probe                 = ux500_msp_dai_probe,
+	.suspend               = NULL,
+	.resume                = NULL,
+	.playback.channels_min = UX500_MSP_MIN_CHANNELS,
+	.playback.channels_max = UX500_MSP_MAX_CHANNELS,
+	.playback.rates        = UX500_I2S_RATES,
+	.playback.formats      = UX500_I2S_FORMATS,
+	.capture.channels_min  = UX500_MSP_MIN_CHANNELS,
+	.capture.channels_max  = UX500_MSP_MAX_CHANNELS,
+	.capture.rates         = UX500_I2S_RATES,
+	.capture.formats       = UX500_I2S_FORMATS,
+	.ops                   = ux500_msp_dai_ops,
 };
 
 static const struct snd_soc_component_driver ux500_msp_component = {
@@ -868,7 +800,7 @@ static int ux500_msp_drv_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, drvdata);
 
 	ret = snd_soc_register_component(&pdev->dev, &ux500_msp_component,
-					 &ux500_msp_dai_drv[drvdata->msp->id], 1);
+					 &ux500_msp_dai_drv, 1);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Error: %s: Failed to register MSP%d!\n",
 			__func__, drvdata->msp->id);
