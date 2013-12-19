@@ -39,7 +39,7 @@
 #include <dlfcn.h>
 #include <linux/bitmap.h>
 
-struct perf_report {
+struct report {
 	struct perf_tool	tool;
 	struct perf_session	*session;
 	bool			force, use_tui, use_gtk, use_stdio;
@@ -60,14 +60,14 @@ struct perf_report {
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 };
 
-static int perf_report_config(const char *var, const char *value, void *cb)
+static int report__config(const char *var, const char *value, void *cb)
 {
 	if (!strcmp(var, "report.group")) {
 		symbol_conf.event_group = perf_config_bool(var, value);
 		return 0;
 	}
 	if (!strcmp(var, "report.percent-limit")) {
-		struct perf_report *rep = cb;
+		struct report *rep = cb;
 		rep->min_percent = strtof(value, NULL);
 		return 0;
 	}
@@ -75,7 +75,7 @@ static int perf_report_config(const char *var, const char *value, void *cb)
 	return perf_default_config(var, value, cb);
 }
 
-static int report__resolve_callchain(struct perf_report *rep, struct symbol **parent,
+static int report__resolve_callchain(struct report *rep, struct symbol **parent,
 				     struct perf_evsel *evsel, struct addr_location *al,
 				     struct perf_sample *sample, struct machine *machine)
 {
@@ -93,14 +93,11 @@ static int hist_entry__append_callchain(struct hist_entry *he, struct perf_sampl
 	return callchain_append(he->callchain, &callchain_cursor, sample->period);
 }
 
-static int perf_report__add_mem_hist_entry(struct perf_tool *tool,
-					   struct addr_location *al,
-					   struct perf_sample *sample,
-					   struct perf_evsel *evsel,
-					   struct machine *machine,
-					   union perf_event *event)
+static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_location *al,
+				      struct perf_sample *sample, struct perf_evsel *evsel,
+				      struct machine *machine, union perf_event *event)
 {
-	struct perf_report *rep = container_of(tool, struct perf_report, tool);
+	struct report *rep = container_of(tool, struct report, tool);
 	struct symbol *parent = NULL;
 	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct hist_entry *he;
@@ -150,13 +147,11 @@ out:
 	return err;
 }
 
-static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
-					struct addr_location *al,
-					struct perf_sample *sample,
-					struct perf_evsel *evsel,
-				      struct machine *machine)
+static int report__add_branch_hist_entry(struct perf_tool *tool, struct addr_location *al,
+					 struct perf_sample *sample, struct perf_evsel *evsel,
+					 struct machine *machine)
 {
-	struct perf_report *rep = container_of(tool, struct perf_report, tool);
+	struct report *rep = container_of(tool, struct report, tool);
 	struct symbol *parent = NULL;
 	unsigned i;
 	struct hist_entry *he;
@@ -208,13 +203,11 @@ out:
 	return err;
 }
 
-static int perf_evsel__add_hist_entry(struct perf_tool *tool,
-				      struct perf_evsel *evsel,
-				      struct addr_location *al,
-				      struct perf_sample *sample,
-				      struct machine *machine)
+static int report__add_hist_entry(struct perf_tool *tool, struct perf_evsel *evsel,
+				  struct addr_location *al, struct perf_sample *sample,
+				  struct machine *machine)
 {
-	struct perf_report *rep = container_of(tool, struct perf_report, tool);
+	struct report *rep = container_of(tool, struct report, tool);
 	struct symbol *parent = NULL;
 	struct hist_entry *he;
 	int err = report__resolve_callchain(rep, &parent, evsel, al, sample, machine);
@@ -246,7 +239,7 @@ static int process_sample_event(struct perf_tool *tool,
 				struct perf_evsel *evsel,
 				struct machine *machine)
 {
-	struct perf_report *rep = container_of(tool, struct perf_report, tool);
+	struct report *rep = container_of(tool, struct report, tool);
 	struct addr_location al;
 	int ret;
 
@@ -263,21 +256,18 @@ static int process_sample_event(struct perf_tool *tool,
 		return 0;
 
 	if (sort__mode == SORT_MODE__BRANCH) {
-		ret = perf_report__add_branch_hist_entry(tool, &al, sample,
-							 evsel, machine);
+		ret = report__add_branch_hist_entry(tool, &al, sample, evsel, machine);
 		if (ret < 0)
 			pr_debug("problem adding lbr entry, skipping event\n");
 	} else if (rep->mem_mode == 1) {
-		ret = perf_report__add_mem_hist_entry(tool, &al, sample,
-						      evsel, machine, event);
+		ret = report__add_mem_hist_entry(tool, &al, sample, evsel, machine, event);
 		if (ret < 0)
 			pr_debug("problem adding mem entry, skipping event\n");
 	} else {
 		if (al.map != NULL)
 			al.map->dso->hit = 1;
 
-		ret = perf_evsel__add_hist_entry(tool, evsel, &al, sample,
-						 machine);
+		ret = report__add_hist_entry(tool, evsel, &al, sample, machine);
 		if (ret < 0)
 			pr_debug("problem incrementing symbol period, skipping event\n");
 	}
@@ -290,7 +280,7 @@ static int process_read_event(struct perf_tool *tool,
 			      struct perf_evsel *evsel,
 			      struct machine *machine __maybe_unused)
 {
-	struct perf_report *rep = container_of(tool, struct perf_report, tool);
+	struct report *rep = container_of(tool, struct report, tool);
 
 	if (rep->show_threads) {
 		const char *name = evsel ? perf_evsel__name(evsel) : "unknown";
@@ -309,7 +299,7 @@ static int process_read_event(struct perf_tool *tool,
 }
 
 /* For pipe mode, sample_type is not currently set */
-static int perf_report__setup_sample_type(struct perf_report *rep)
+static int report__setup_sample_type(struct report *rep)
 {
 	struct perf_session *session = rep->session;
 	u64 sample_type = perf_evlist__combined_sample_type(session->evlist);
@@ -354,8 +344,7 @@ static void sig_handler(int sig __maybe_unused)
 	session_done = 1;
 }
 
-static size_t hists__fprintf_nr_sample_events(struct perf_report *rep,
-					      struct hists *hists,
+static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report *rep,
 					      const char *evname, FILE *fp)
 {
 	size_t ret;
@@ -392,7 +381,7 @@ static size_t hists__fprintf_nr_sample_events(struct perf_report *rep,
 }
 
 static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
-					 struct perf_report *rep,
+					 struct report *rep,
 					 const char *help)
 {
 	struct perf_evsel *pos;
@@ -405,7 +394,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 		    !perf_evsel__is_group_leader(pos))
 			continue;
 
-		hists__fprintf_nr_sample_events(rep, hists, evname, stdout);
+		hists__fprintf_nr_sample_events(hists, rep, evname, stdout);
 		hists__fprintf(hists, true, 0, 0, rep->min_percent, stdout);
 		fprintf(stdout, "\n\n");
 	}
@@ -425,7 +414,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 	return 0;
 }
 
-static int __cmd_report(struct perf_report *rep)
+static int __cmd_report(struct report *rep)
 {
 	int ret = -EINVAL;
 	u64 nr_samples;
@@ -449,7 +438,7 @@ static int __cmd_report(struct perf_report *rep)
 	if (rep->show_threads)
 		perf_read_values_init(&rep->show_threads_values);
 
-	ret = perf_report__setup_sample_type(rep);
+	ret = report__setup_sample_type(rep);
 	if (ret)
 		return ret;
 
@@ -568,7 +557,7 @@ static int __cmd_report(struct perf_report *rep)
 static int
 parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 {
-	struct perf_report *rep = (struct perf_report *)opt->value;
+	struct report *rep = (struct report *)opt->value;
 	char *tok, *tok2;
 	char *endptr;
 
@@ -688,7 +677,7 @@ static int
 parse_percent_limit(const struct option *opt, const char *str,
 		    int unset __maybe_unused)
 {
-	struct perf_report *rep = opt->value;
+	struct report *rep = opt->value;
 
 	rep->min_percent = strtof(str, NULL);
 	return 0;
@@ -706,7 +695,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		"perf report [<options>]",
 		NULL
 	};
-	struct perf_report report = {
+	struct report report = {
 		.tool = {
 			.sample		 = process_sample_event,
 			.mmap		 = perf_event__process_mmap,
@@ -822,7 +811,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		.mode  = PERF_DATA_MODE_READ,
 	};
 
-	perf_config(perf_report_config, &report);
+	perf_config(report__config, &report);
 
 	argc = parse_options(argc, argv, options, report_usage, 0);
 
