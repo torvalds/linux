@@ -43,8 +43,16 @@
 #define ALTR_L2_ECC_INJS_MASK		0x00000002
 #define ALTR_L2_ECC_INJD_MASK		0x00000004
 
+/* OCRAM ECC Management Group Defines */
+#define ALTR_MAN_GRP_OCRAM_ECC_OFFSET	0x04
+#define ALTR_OCR_ECC_EN_MASK		0x00000001
+#define ALTR_OCR_ECC_SERR_MASK		0x00000008
+#define ALTR_OCR_ECC_DERR_MASK		0x00000010
+
 struct ecc_mgr_of_data {
 	int (*setup)(struct platform_device *pdev, void __iomem *base);
+	int ce_clear_mask;
+	int ue_clear_mask;
 };
 
 struct altr_ecc_mgr_dev {
@@ -60,9 +68,14 @@ static irqreturn_t altr_ecc_mgr_handler(int irq, void *dev_id)
 	struct edac_device_ctl_info *dci = dev_id;
 	struct altr_ecc_mgr_dev *drvdata = dci->pvt_info;
 
-	if (irq == drvdata->sb_irq)
+	if (irq == drvdata->sb_irq) {
+		if (drvdata->data->ce_clear_mask)
+			writel(drvdata->data->ce_clear_mask, drvdata->base);
 		edac_device_handle_ce(dci, 0, 0, drvdata->edac_dev_name);
+	}
 	if (irq == drvdata->db_irq) {
+		if (drvdata->data->ue_clear_mask)
+			writel(drvdata->data->ue_clear_mask, drvdata->base);
 		edac_device_handle_ue(dci, 0, 0, drvdata->edac_dev_name);
 		panic("\nEDAC:ECC_MGR[Uncorrectable errors]\n");
 	}
@@ -194,11 +207,21 @@ static int altr_l2_dependencies(struct platform_device *pdev,
 
 static const struct ecc_mgr_of_data l2ecc_data = {
 	.setup = altr_l2_dependencies,
+	.ce_clear_mask = 0,
+	.ue_clear_mask = 0,
+};
+
+static const struct ecc_mgr_of_data ocramecc_data = {
+	.ce_clear_mask = (ALTR_OCR_ECC_EN_MASK | ALTR_OCR_ECC_SERR_MASK),
+	.ue_clear_mask = (ALTR_OCR_ECC_EN_MASK | ALTR_OCR_ECC_DERR_MASK),
 };
 
 static const struct of_device_id altr_ecc_mgr_of_match[] = {
 #ifdef CONFIG_EDAC_ALTERA_L2_ECC
 	{ .compatible = "altr,l2-edac", .data = (void *)&l2ecc_data },
+#endif
+#ifdef CONFIG_EDAC_ALTERA_OCRAM_ECC
+	{ .compatible = "altr,ocram-edac", .data = (void *)&ocramecc_data },
 #endif
 	{},
 };
@@ -219,9 +242,10 @@ static int altr_ecc_mgr_probe(struct platform_device *pdev)
 	int res = 0;
 	struct device_node *np = pdev->dev.of_node;
 	char *ecc_name = (char *)np->name;
+	static int dev_instance;
 
-	dci = edac_device_alloc_ctl_info(sizeof(*drvdata), "ecc",
-			1, ecc_name, 1, 0, NULL, 0, 0);
+	dci = edac_device_alloc_ctl_info(sizeof(*drvdata), ecc_name,
+			1, ecc_name, 1, 0, NULL, 0, dev_instance++);
 
 	if (!dci)
 		return -ENOMEM;
@@ -322,4 +346,4 @@ module_platform_driver(altr_ecc_mgr_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Altera Corporation");
-MODULE_DESCRIPTION("EDAC Driver for Altera SoC L2 Cache");
+MODULE_DESCRIPTION("EDAC Driver for Altera SoC ECC Manager");
