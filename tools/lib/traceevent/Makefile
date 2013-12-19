@@ -83,17 +83,12 @@ ifeq ("$(origin O)", "command line")
 endif
 
 ifeq ($(BUILD_SRC),)
-ifneq ($(BUILD_OUTPUT),)
+ifneq ($(OUTPUT),)
 
 define build_output
-	$(if $(VERBOSE:1=),@)+$(MAKE) -C $(BUILD_OUTPUT) 	\
-	BUILD_SRC=$(CURDIR) -f $(CURDIR)/Makefile $1
+	$(if $(VERBOSE:1=),@)+$(MAKE) -C $(OUTPUT) \
+	BUILD_SRC=$(CURDIR)/ -f $(CURDIR)/Makefile $1
 endef
-
-saved-output := $(BUILD_OUTPUT)
-BUILD_OUTPUT := $(shell cd $(BUILD_OUTPUT) && /bin/pwd)
-$(if $(BUILD_OUTPUT),, \
-     $(error output directory "$(saved-output)" does not exist))
 
 all: sub-make
 
@@ -106,7 +101,7 @@ sub-make: force
 # Leave processing to above invocation of make
 skip-makefile := 1
 
-endif # BUILD_OUTPUT
+endif # OUTPUT
 endif # BUILD_SRC
 
 # We process the rest of the Makefile if this is the final invocation of make
