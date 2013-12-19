@@ -96,22 +96,33 @@ target_emulate_report_referrals(struct se_cmd *cmd)
 		int pg_num;
 
 		off += 4;
-		put_unaligned_be64(map->lba_map_first_lba, &buf[off]);
+		if (cmd->data_length > off)
+			put_unaligned_be64(map->lba_map_first_lba, &buf[off]);
 		off += 8;
-		put_unaligned_be64(map->lba_map_last_lba, &buf[off]);
+		if (cmd->data_length > off)
+			put_unaligned_be64(map->lba_map_last_lba, &buf[off]);
 		off += 8;
 		rd_len += 20;
 		pg_num = 0;
 		list_for_each_entry(map_mem, &map->lba_map_mem_list,
 				    lba_map_mem_list) {
-			buf[off++] = map_mem->lba_map_mem_alua_state & 0x0f;
+			int alua_state = map_mem->lba_map_mem_alua_state;
+			int alua_pg_id = map_mem->lba_map_mem_alua_pg_id;
+
+			if (cmd->data_length > off)
+				buf[off] = alua_state & 0x0f;
+			off += 2;
+			if (cmd->data_length > off)
+				buf[off] = (alua_pg_id >> 8) & 0xff;
 			off++;
-			buf[off++] = (map_mem->lba_map_mem_alua_pg_id >> 8) & 0xff;
-			buf[off++] = (map_mem->lba_map_mem_alua_pg_id & 0xff);
+			if (cmd->data_length > off)
+				buf[off] = (alua_pg_id & 0xff);
+			off++;
 			rd_len += 4;
 			pg_num++;
 		}
-		buf[desc_num] = pg_num;
+		if (cmd->data_length > desc_num)
+			buf[desc_num] = pg_num;
 	}
 	spin_unlock(&dev->t10_alua.lba_map_lock);
 
