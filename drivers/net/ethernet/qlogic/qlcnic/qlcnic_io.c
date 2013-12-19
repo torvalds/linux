@@ -127,7 +127,7 @@
 struct sk_buff *qlcnic_process_rxbuf(struct qlcnic_adapter *,
 				     struct qlcnic_host_rds_ring *, u16, u16);
 
-inline void qlcnic_enable_tx_intr(struct qlcnic_adapter *adapter,
+static inline void qlcnic_enable_tx_intr(struct qlcnic_adapter *adapter,
 				  struct qlcnic_host_tx_ring *tx_ring)
 {
 	if (qlcnic_check_multi_tx(adapter) &&
@@ -144,13 +144,13 @@ static inline void qlcnic_disable_tx_int(struct qlcnic_adapter *adapter,
 		writel(1, tx_ring->crb_intr_mask);
 }
 
-inline void qlcnic_83xx_enable_tx_intr(struct qlcnic_adapter *adapter,
+static inline void qlcnic_83xx_enable_tx_intr(struct qlcnic_adapter *adapter,
 				       struct qlcnic_host_tx_ring *tx_ring)
 {
 	writel(0, tx_ring->crb_intr_mask);
 }
 
-inline void qlcnic_83xx_disable_tx_intr(struct qlcnic_adapter *adapter,
+static inline void qlcnic_83xx_disable_tx_intr(struct qlcnic_adapter *adapter,
 					struct qlcnic_host_tx_ring *tx_ring)
 {
 	writel(1, tx_ring->crb_intr_mask);
