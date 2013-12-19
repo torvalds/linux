@@ -49,10 +49,6 @@ TODO:
 #include "ni_tio_internal.h"
 #include "mite.h"
 
-MODULE_AUTHOR("Comedi <comedi@comedi.org>");
-MODULE_DESCRIPTION("Comedi command support for NI general-purpose counters");
-MODULE_LICENSE("GPL");
-
 static void ni_tio_configure_dma(struct ni_gpct *counter, short enable,
 				 short read_not_write)
 {
@@ -469,11 +465,13 @@ static int __init ni_tiocmd_init_module(void)
 {
 	return 0;
 }
-
 module_init(ni_tiocmd_init_module);
 
 static void __exit ni_tiocmd_cleanup_module(void)
 {
 }
-
 module_exit(ni_tiocmd_cleanup_module);
+
+MODULE_AUTHOR("Comedi <comedi@comedi.org>");
+MODULE_DESCRIPTION("Comedi command support for NI general-purpose counters");
+MODULE_LICENSE("GPL");
