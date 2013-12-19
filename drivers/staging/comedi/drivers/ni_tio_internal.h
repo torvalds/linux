@@ -23,6 +23,7 @@
 
 #define NITIO_AUTO_INC_REG(x)		(NITIO_G0_AUTO_INC + (x))
 #define NITIO_CMD_REG(x)		(NITIO_G0_CMD + (x))
+#define NITIO_HW_SAVE_REG(x)		(NITIO_G0_HW_SAVE + (x))
 #define NITIO_SW_SAVE_REG(x)		(NITIO_G0_SW_SAVE + (x))
 #define NITIO_MODE_REG(x)		(NITIO_G0_MODE + (x))
 #define NITIO_LOADA_REG(x)		(NITIO_G0_LOADA + (x))
