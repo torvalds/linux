@@ -731,8 +731,6 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 	i2c->adap.dev.parent = &pdev->dev;
 	i2c->adap.dev.of_node = pdev->dev.of_node;
 
-	xiic_reinit(i2c);
-
 	spin_lock_init(&i2c->lock);
 	init_waitqueue_head(&i2c->wait);
 	ret = request_irq(irq, xiic_isr, 0, pdev->name, i2c);
@@ -740,6 +738,8 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Cannot claim IRQ\n");
 		goto request_irq_failed;
 	}
+
+	xiic_reinit(i2c);
 
 	/* add i2c adapter to i2c tree */
 	ret = i2c_add_adapter(&i2c->adap);
