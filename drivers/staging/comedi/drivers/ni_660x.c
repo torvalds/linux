@@ -767,17 +767,20 @@ static int ni_660x_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return retval;
 }
 
-static void set_tio_counterswap(struct comedi_device *dev, int chipset)
+static void set_tio_counterswap(struct comedi_device *dev, int chip)
 {
-	/* See P. 3.5 of the Register-Level Programming manual.  The
-	   CounterSwap bit has to be set on the second chip, otherwise
-	   it will try to use the same pins as the first chip.
+	unsigned bits = 0;
+
+	/*
+	 * See P. 3.5 of the Register-Level Programming manual.
+	 * The CounterSwap bit has to be set on the second chip,
+	 * otherwise it will try to use the same pins as the
+	 * first chip.
 	 */
-	if (chipset)
-		ni_660x_write_register(dev, chipset, CounterSwap,
-				       NI660X_CLK_CFG);
-	else
-		ni_660x_write_register(dev, chipset, 0, NI660X_CLK_CFG);
+	if (chip)
+		bits = CounterSwap;
+
+	ni_660x_write_register(dev, chip, bits, NI660X_CLK_CFG);
 }
 
 static void ni_660x_handle_gpct_interrupt(struct comedi_device *dev,
