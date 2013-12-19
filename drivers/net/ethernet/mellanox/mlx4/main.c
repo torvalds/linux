@@ -606,6 +606,7 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 		dev->caps.qp1_tunnel[i - 1] = func_cap.qp1_tunnel_qpn;
 		dev->caps.qp1_proxy[i - 1] = func_cap.qp1_proxy_qpn;
 		dev->caps.port_mask[i] = dev->caps.port_type[i];
+		dev->caps.phys_port_id[i] = func_cap.phys_port_id;
 		if (mlx4_get_slave_pkey_gid_tbl_len(dev, i,
 						    &dev->caps.gid_table_len[i],
 						    &dev->caps.pkey_table_len[i]))
@@ -1483,6 +1484,10 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 		}
 
 		choose_steering_mode(dev, &dev_cap);
+
+		err = mlx4_get_phys_port_id(dev);
+		if (err)
+			mlx4_err(dev, "Fail to get physical port id\n");
 
 		if (mlx4_is_master(dev))
 			mlx4_parav_master_pf_caps(dev);
