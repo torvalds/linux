@@ -309,11 +309,4 @@ int gator_events_armv7_init(void)
 	return gator_events_install(&gator_events_armv7_interface);
 }
 
-gator_events_init(gator_events_armv7_init);
-
-#else
-int gator_events_armv7_init(void)
-{
-	return -1;
-}
 #endif

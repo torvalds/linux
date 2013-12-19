@@ -11,6 +11,7 @@
 #include <stdio.h>
 #ifdef WIN32
 #include <Winsock2.h>
+#include <ws2tcpip.h>
 #else
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -126,11 +127,17 @@ void OlySocket::createSingleServerConnection(int port) {
 }
 
 void OlySocket::createServerSocket(int port) {
+  int family = AF_INET6;
+
   // Create socket
-  mFDServer = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+  mFDServer = socket(PF_INET6, SOCK_STREAM, IPPROTO_TCP);
   if (mFDServer < 0) {
-    logg->logError(__FILE__, __LINE__, "Error creating server socket");
-    handleException();
+    family = AF_INET;
+    mFDServer = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (mFDServer < 0) {
+      logg->logError(__FILE__, __LINE__, "Error creating server socket");
+      handleException();
+    }
   }
 
   // Enable address reuse, another solution would be to create the server socket once and only close it when the object exits
@@ -141,11 +148,11 @@ void OlySocket::createServerSocket(int port) {
   }
 
   // Create sockaddr_in structure, ensuring non-populated fields are zero
-  struct sockaddr_in sockaddr;
-  memset((void*)&sockaddr, 0, sizeof(struct sockaddr_in));
-  sockaddr.sin_family = AF_INET;
-  sockaddr.sin_port   = htons(port);
-  sockaddr.sin_addr.s_addr = INADDR_ANY;
+  struct sockaddr_in6 sockaddr;
+  memset((void*)&sockaddr, 0, sizeof(sockaddr));
+  sockaddr.sin6_family = family;
+  sockaddr.sin6_port = htons(port);
+  sockaddr.sin6_addr = in6addr_any;
 
   // Bind the socket to an address
   if (bind(mFDServer, (const struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0) {

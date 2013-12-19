@@ -33,6 +33,10 @@ private:
 	char*  mPath;
 	void sessionTag(mxml_node_t *tree, mxml_node_t *node);
 	void sessionImage(mxml_node_t *node);
+
+	// Intentionally unimplemented
+	SessionXML(const SessionXML &);
+	SessionXML &operator=(const SessionXML &);
 };
 
 #endif // SESSION_XML_H

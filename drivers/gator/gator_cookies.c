@@ -8,11 +8,17 @@
  */
 
 #define COOKIEMAP_ENTRIES	1024	/* must be power of 2 */
-#define TRANSLATE_SIZE		256
+#define TRANSLATE_BUFFER_SIZE 512  // must be a power of 2 - 512/4 = 128 entries
+#define TRANSLATE_TEXT_SIZE		256
 #define MAX_COLLISIONS		2
 
 static uint32_t *gator_crc32_table;
 static unsigned int translate_buffer_mask;
+
+struct cookie_args {
+	struct task_struct *task;
+	const char *text;
+};
 
 static DEFINE_PER_CPU(char *, translate_text);
 static DEFINE_PER_CPU(uint32_t, cookie_next_key);
@@ -20,9 +26,9 @@ static DEFINE_PER_CPU(uint64_t *, cookie_keys);
 static DEFINE_PER_CPU(uint32_t *, cookie_values);
 static DEFINE_PER_CPU(int, translate_buffer_read);
 static DEFINE_PER_CPU(int, translate_buffer_write);
-static DEFINE_PER_CPU(void **, translate_buffer);
+static DEFINE_PER_CPU(struct cookie_args *, translate_buffer);
 
-static inline uint32_t get_cookie(int cpu, struct task_struct *task, const char *text, bool from_wq);
+static uint32_t get_cookie(int cpu, struct task_struct *task, const char *text, bool from_wq);
 static void wq_cookie_handler(struct work_struct *unused);
 DECLARE_WORK(cookie_work, wq_cookie_handler);
 static struct timer_list app_process_wake_up_timer;
@@ -107,34 +113,59 @@ static void cookiemap_add(uint64_t key, uint32_t value)
 	values[0] = value;
 }
 
-static void translate_buffer_write_ptr(int cpu, void *x)
+#ifndef CONFIG_PREEMPT_RT_FULL
+static void translate_buffer_write_args(int cpu, struct task_struct *task, const char *text)
 {
-	per_cpu(translate_buffer, cpu)[per_cpu(translate_buffer_write, cpu)++] = x;
-	per_cpu(translate_buffer_write, cpu) &= translate_buffer_mask;
-}
+	unsigned long flags;
+	int write;
+	int next_write;
+	struct cookie_args *args;
 
-static void *translate_buffer_read_ptr(int cpu)
+	local_irq_save(flags);
+
+	write = per_cpu(translate_buffer_write, cpu);
+	next_write = (write + 1) & translate_buffer_mask;
+
+	// At least one entry must always remain available as when read == write, the queue is empty not full
+	if (next_write != per_cpu(translate_buffer_read, cpu)) {
+		args = &per_cpu(translate_buffer, cpu)[write];
+		args->task = task;
+		args->text = text;
+		get_task_struct(task);
+		per_cpu(translate_buffer_write, cpu) = next_write;
+	}
+
+	local_irq_restore(flags);
+}
+#endif
+
+static void translate_buffer_read_args(int cpu, struct cookie_args *args)
 {
-	void *value = per_cpu(translate_buffer, cpu)[per_cpu(translate_buffer_read, cpu)++];
-	per_cpu(translate_buffer_read, cpu) &= translate_buffer_mask;
-	return value;
+	unsigned long flags;
+	int read;
+
+	local_irq_save(flags);
+
+	read = per_cpu(translate_buffer_read, cpu);
+	*args = per_cpu(translate_buffer, cpu)[read];
+	per_cpu(translate_buffer_read, cpu) = (read + 1) & translate_buffer_mask;
+
+	local_irq_restore(flags);
 }
 
 static void wq_cookie_handler(struct work_struct *unused)
 {
-	struct task_struct *task;
-	char *text;
-	int cpu = get_physical_cpu();
-	unsigned int commit;
+	struct cookie_args args;
+	int cpu = get_physical_cpu(), cookie;
 
 	mutex_lock(&start_mutex);
 
 	if (gator_started != 0) {
-		commit = per_cpu(translate_buffer_write, cpu);
-		while (per_cpu(translate_buffer_read, cpu) != commit) {
-			task = (struct task_struct *)translate_buffer_read_ptr(cpu);
-			text = (char *)translate_buffer_read_ptr(cpu);
-			get_cookie(cpu, task, text, true);
+		while (per_cpu(translate_buffer_read, cpu) != per_cpu(translate_buffer_write, cpu)) {
+			translate_buffer_read_args(cpu, &args);
+			cookie = get_cookie(cpu, args.task, args.text, true);
+			marshal_link(cookie, args.task->tgid, args.task->pid);
+			put_task_struct(args.task);
 		}
 	}
 
@@ -156,27 +187,29 @@ static int translate_app_process(const char **text, int cpu, struct task_struct 
 	struct mm_struct *mm;
 	struct page *page = NULL;
 	struct vm_area_struct *page_vma;
-	int bytes, offset, retval = 0, ptr;
+	int bytes, offset, retval = 0;
 	char *buf = per_cpu(translate_text, cpu);
 
+#ifndef CONFIG_PREEMPT_RT_FULL
 	// Push work into a work queue if in atomic context as the kernel functions below might sleep
 	// Rely on the in_interrupt variable rather than in_irq() or in_interrupt() kernel functions, as the value of these functions seems
 	//   inconsistent during a context switch between android/linux versions
 	if (!from_wq) {
 		// Check if already in buffer
-		ptr = per_cpu(translate_buffer_read, cpu);
-		while (ptr != per_cpu(translate_buffer_write, cpu)) {
-			if (per_cpu(translate_buffer, cpu)[ptr] == (void *)task)
+		int pos = per_cpu(translate_buffer_read, cpu);
+		while (pos != per_cpu(translate_buffer_write, cpu)) {
+			if (per_cpu(translate_buffer, cpu)[pos].task == task)
 				goto out;
-			ptr = (ptr + 2) & translate_buffer_mask;
+			pos = (pos + 1) & translate_buffer_mask;
 		}
 
-		translate_buffer_write_ptr(cpu, (void *)task);
-		translate_buffer_write_ptr(cpu, (void *)*text);
+		translate_buffer_write_args(cpu, task, *text);
 
+		// Not safe to call in RT-Preempt full in schedule switch context
 		mod_timer(&app_process_wake_up_timer, jiffies + 1);
 		goto out;
 	}
+#endif
 
 	mm = get_task_mm(task);
 	if (!mm)
@@ -186,8 +219,8 @@ static int translate_app_process(const char **text, int cpu, struct task_struct 
 	addr = mm->arg_start;
 	len = mm->arg_end - mm->arg_start;
 
-	if (len > TRANSLATE_SIZE)
-		len = TRANSLATE_SIZE;
+	if (len > TRANSLATE_TEXT_SIZE)
+		len = TRANSLATE_TEXT_SIZE;
 
 	down_read(&mm->mmap_sem);
 	while (len) {
@@ -225,7 +258,7 @@ out:
 	return retval;
 }
 
-static inline uint32_t get_cookie(int cpu, struct task_struct *task, const char *text, bool from_wq)
+static uint32_t get_cookie(int cpu, struct task_struct *task, const char *text, bool from_wq)
 {
 	unsigned long flags, cookie;
 	uint64_t key;
@@ -312,8 +345,7 @@ static int cookies_initialize(void)
 	uint32_t crc, poly;
 	int i, j, cpu, size, err = 0;
 
-	int translate_buffer_size = 512;	// must be a power of 2
-	translate_buffer_mask = translate_buffer_size / sizeof(per_cpu(translate_buffer, 0)[0]) - 1;
+	translate_buffer_mask = TRANSLATE_BUFFER_SIZE / sizeof(per_cpu(translate_buffer, 0)[0]) - 1;
 
 	for_each_present_cpu(cpu) {
 		per_cpu(cookie_next_key, cpu) = nr_cpu_ids + cpu;
@@ -334,7 +366,7 @@ static int cookies_initialize(void)
 		}
 		memset(per_cpu(cookie_values, cpu), 0, size);
 
-		per_cpu(translate_buffer, cpu) = (void **)kmalloc(translate_buffer_size, GFP_KERNEL);
+		per_cpu(translate_buffer, cpu) = (struct cookie_args *)kmalloc(TRANSLATE_BUFFER_SIZE, GFP_KERNEL);
 		if (!per_cpu(translate_buffer, cpu)) {
 			err = -ENOMEM;
 			goto cookie_setup_error;
@@ -343,7 +375,7 @@ static int cookies_initialize(void)
 		per_cpu(translate_buffer_write, cpu) = 0;
 		per_cpu(translate_buffer_read, cpu) = 0;
 
-		per_cpu(translate_text, cpu) = (char *)kmalloc(TRANSLATE_SIZE, GFP_KERNEL);
+		per_cpu(translate_text, cpu) = (char *)kmalloc(TRANSLATE_TEXT_SIZE, GFP_KERNEL);
 		if (!per_cpu(translate_text, cpu)) {
 			err = -ENOMEM;
 			goto cookie_setup_error;
@@ -353,6 +385,10 @@ static int cookies_initialize(void)
 	// build CRC32 table
 	poly = 0x04c11db7;
 	gator_crc32_table = (uint32_t *)kmalloc(256 * sizeof(uint32_t), GFP_KERNEL);
+	if (!gator_crc32_table) {
+		err = -ENOMEM;
+		goto cookie_setup_error;
+	}
 	for (i = 0; i < 256; i++) {
 		crc = i;
 		for (j = 8; j > 0; j--) {

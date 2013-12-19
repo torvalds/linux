@@ -93,7 +93,7 @@ static void handler(int signum) {
 }
 
 // Child exit Signal Handler
-static void child_exit(int signum) {
+static void child_exit(int) {
 	int status;
 	int pid = wait(&status);
 	if (pid != -1) {
@@ -106,13 +106,18 @@ static void child_exit(int signum) {
 
 static int udpPort(int port) {
 	int s;
-	struct sockaddr_in sockaddr;
+	struct sockaddr_in6 sockaddr;
 	int on;
+	int family = AF_INET6;
 
-	s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 	if (s == -1) {
-		logg->logError(__FILE__, __LINE__, "socket failed");
-		handleException();
+		family = AF_INET;
+		s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+		if (s == -1) {
+			logg->logError(__FILE__, __LINE__, "socket failed");
+			handleException();
+		}
 	}
 
 	on = 1;
@@ -122,9 +127,9 @@ static int udpPort(int port) {
 	}
 
 	memset((void*)&sockaddr, 0, sizeof(sockaddr));
-	sockaddr.sin_family = AF_INET;
-	sockaddr.sin_port = htons(port);
-	sockaddr.sin_addr.s_addr = INADDR_ANY;
+	sockaddr.sin6_family = family;
+	sockaddr.sin6_port = htons(port);
+	sockaddr.sin6_addr = in6addr_any;
 	if (bind(s, (struct sockaddr *)&sockaddr, sizeof(sockaddr)) < 0) {
 		logg->logError(__FILE__, __LINE__, "socket failed");
 		handleException();
@@ -173,7 +178,7 @@ static void* answerThread(void* pVoid) {
 
 	for (;;) {
 		char buf[128];
-		struct sockaddr_in sockaddr;
+		struct sockaddr_in6 sockaddr;
 		socklen_t addrlen;
 		int read;
 		addrlen = sizeof(sockaddr);
@@ -386,7 +391,7 @@ static struct cmdline_t parseCommandLine(int argc, char** argv) {
 }
 
 // Gator data flow: collector -> collector fifo -> sender
-int main(int argc, char** argv, char* envp[]) {
+int main(int argc, char** argv) {
 	// Ensure proper signal handling by making gatord the process group leader
 	//   e.g. it may not be the group leader when launched as 'sudo gatord'
 	setsid();

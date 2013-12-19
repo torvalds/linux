@@ -193,6 +193,17 @@ bool Buffer::eventHeader (const uint64_t curr_time) {
 	return retval;
 }
 
+bool Buffer::eventTid (const int tid) {
+	bool retval = false;
+	if (checkSpace(2*MAXSIZE_PACK32)) {
+		packInt(1);	// key of 1 indicates a tid
+		packInt(tid);
+		retval = true;
+	}
+
+	return retval;
+}
+
 void Buffer::event (const int32_t key, const int32_t value) {
 	if (checkSpace(2 * MAXSIZE_PACK32)) {
 		packInt(key);
