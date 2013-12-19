@@ -48,11 +48,10 @@ static const struct regmap_config tscadc_regmap_config = {
 	.val_bits = 32,
 };
 
-void am335x_tsc_se_update(struct ti_tscadc_dev *tsadc)
+static void am335x_tsc_se_update(struct ti_tscadc_dev *tsadc)
 {
 	tscadc_writel(tsadc, REG_SE, tsadc->reg_se_cache);
 }
-EXPORT_SYMBOL_GPL(am335x_tsc_se_update);
 
 void am335x_tsc_se_set(struct ti_tscadc_dev *tsadc, u32 val)
 {
