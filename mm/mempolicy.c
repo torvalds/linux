@@ -1197,14 +1197,16 @@ static struct page *new_vma_page(struct page *page, unsigned long private, int *
 			break;
 		vma = vma->vm_next;
 	}
-	/*
-	 * queue_pages_range() confirms that @page belongs to some vma,
-	 * so vma shouldn't be NULL.
-	 */
-	BUG_ON(!vma);
 
-	if (PageHuge(page))
-		return alloc_huge_page_noerr(vma, address, 1);
+	if (PageHuge(page)) {
+		if (vma)
+			return alloc_huge_page_noerr(vma, address, 1);
+		else
+			return NULL;
+	}
+	/*
+	 * if !vma, alloc_page_vma() will use task or system default policy
+	 */
 	return alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
 }
 #else
