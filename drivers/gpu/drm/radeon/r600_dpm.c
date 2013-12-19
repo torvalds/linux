@@ -777,6 +777,22 @@ bool r600_is_internal_thermal_sensor(enum radeon_int_thermal_type sensor)
 	}
 }
 
+int r600_dpm_late_enable(struct radeon_device *rdev)
+{
+	int ret;
+
+	if (rdev->irq.installed &&
+	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
+		ret = r600_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
+		if (ret)
+			return ret;
+		rdev->irq.dpm_thermal = true;
+		radeon_irq_set(rdev);
+	}
+
+	return 0;
+}
+
 union power_info {
 	struct _ATOM_POWERPLAY_INFO info;
 	struct _ATOM_POWERPLAY_INFO_V2 info_2;
