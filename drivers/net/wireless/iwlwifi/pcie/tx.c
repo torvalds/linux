@@ -758,11 +758,17 @@ int iwl_pcie_tx_stop(struct iwl_trans *trans)
 	}
 	spin_unlock(&trans_pcie->irq_lock);
 
-	if (!trans_pcie->txq) {
-		IWL_WARN(trans,
-			 "Stopping tx queues that aren't allocated...\n");
+	/*
+	 * This function can be called before the op_mode disabled the
+	 * queues. This happens when we have an rfkill interrupt.
+	 * Since we stop Tx altogether - mark the queues as stopped.
+	 */
+	memset(trans_pcie->queue_stopped, 0, sizeof(trans_pcie->queue_stopped));
+	memset(trans_pcie->queue_used, 0, sizeof(trans_pcie->queue_used));
+
+	/* This can happen: start_hw, stop_device */
+	if (!trans_pcie->txq)
 		return 0;
-	}
 
 	/* Unmap DMA from host system and free skb's */
 	for (txq_id = 0; txq_id < trans->cfg->base_params->num_of_queues;
@@ -1150,8 +1156,15 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id)
 			SCD_TX_STTS_QUEUE_OFFSET(txq_id);
 	static const u32 zero_val[4] = {};
 
+	/*
+	 * Upon HW Rfkill - we stop the device, and then stop the queues
+	 * in the op_mode. Just for the sake of the simplicity of the op_mode,
+	 * allow the op_mode to call txq_disable after it already called
+	 * stop_device.
+	 */
 	if (!test_and_clear_bit(txq_id, trans_pcie->queue_used)) {
-		WARN_ONCE(1, "queue %d not used", txq_id);
+		WARN_ONCE(test_bit(STATUS_DEVICE_ENABLED, &trans->status),
+			  "queue %d not used", txq_id);
 		return;
 	}
 

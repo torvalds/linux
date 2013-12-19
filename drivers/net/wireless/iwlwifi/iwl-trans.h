@@ -622,6 +622,10 @@ static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
 {
 	int ret;
 
+	if (unlikely(!(cmd->flags & CMD_SEND_IN_RFKILL) &&
+		     test_bit(STATUS_RFKILL, &trans->status)))
+		return -ERFKILL;
+
 	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
 		return -EIO;
 
@@ -684,9 +688,6 @@ static inline void iwl_trans_reclaim(struct iwl_trans *trans, int queue,
 
 static inline void iwl_trans_txq_disable(struct iwl_trans *trans, int queue)
 {
-	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE))
-		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
-
 	trans->ops->txq_disable(trans, queue);
 }
 
