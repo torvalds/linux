@@ -363,7 +363,7 @@ static int ni_tio_second_gate_registers_present(const struct ni_gpct_device
 static void ni_tio_reset_count_and_disarm(struct ni_gpct *counter)
 {
 	write_register(counter, Gi_Reset_Bit(counter->counter_index),
-		       NITIO_Gxx_Joint_Reset_Reg(counter->counter_index));
+		       NITIO_RESET_REG(counter->counter_index));
 }
 
 void ni_tio_init_counter(struct ni_gpct *counter)
