@@ -3919,82 +3919,82 @@ static unsigned ni_gpct_to_stc_register(enum ni_gpct_register reg)
 {
 	unsigned stc_register;
 	switch (reg) {
-	case NITIO_G0_Autoincrement_Reg:
+	case NITIO_G0_AUTO_INC:
 		stc_register = G_Autoincrement_Register(0);
 		break;
-	case NITIO_G1_Autoincrement_Reg:
+	case NITIO_G1_AUTO_INC:
 		stc_register = G_Autoincrement_Register(1);
 		break;
-	case NITIO_G0_Command_Reg:
+	case NITIO_G0_CMD:
 		stc_register = G_Command_Register(0);
 		break;
-	case NITIO_G1_Command_Reg:
+	case NITIO_G1_CMD:
 		stc_register = G_Command_Register(1);
 		break;
-	case NITIO_G0_HW_Save_Reg:
+	case NITIO_G0_HW_SAVE:
 		stc_register = G_HW_Save_Register(0);
 		break;
-	case NITIO_G1_HW_Save_Reg:
+	case NITIO_G1_HW_SAVE:
 		stc_register = G_HW_Save_Register(1);
 		break;
-	case NITIO_G0_SW_Save_Reg:
+	case NITIO_G0_SW_SAVE:
 		stc_register = G_Save_Register(0);
 		break;
-	case NITIO_G1_SW_Save_Reg:
+	case NITIO_G1_SW_SAVE:
 		stc_register = G_Save_Register(1);
 		break;
-	case NITIO_G0_Mode_Reg:
+	case NITIO_G0_MODE:
 		stc_register = G_Mode_Register(0);
 		break;
-	case NITIO_G1_Mode_Reg:
+	case NITIO_G1_MODE:
 		stc_register = G_Mode_Register(1);
 		break;
-	case NITIO_G0_LoadA_Reg:
+	case NITIO_G0_LOADA:
 		stc_register = G_Load_A_Register(0);
 		break;
-	case NITIO_G1_LoadA_Reg:
+	case NITIO_G1_LOADA:
 		stc_register = G_Load_A_Register(1);
 		break;
-	case NITIO_G0_LoadB_Reg:
+	case NITIO_G0_LOADB:
 		stc_register = G_Load_B_Register(0);
 		break;
-	case NITIO_G1_LoadB_Reg:
+	case NITIO_G1_LOADB:
 		stc_register = G_Load_B_Register(1);
 		break;
-	case NITIO_G0_Input_Select_Reg:
+	case NITIO_G0_INPUT_SEL:
 		stc_register = G_Input_Select_Register(0);
 		break;
-	case NITIO_G1_Input_Select_Reg:
+	case NITIO_G1_INPUT_SEL:
 		stc_register = G_Input_Select_Register(1);
 		break;
-	case NITIO_G01_Status_Reg:
+	case NITIO_G01_STATUS:
 		stc_register = G_Status_Register;
 		break;
-	case NITIO_G01_Joint_Reset_Reg:
+	case NITIO_G01_RESET:
 		stc_register = Joint_Reset_Register;
 		break;
-	case NITIO_G01_Joint_Status1_Reg:
+	case NITIO_G01_STATUS1:
 		stc_register = Joint_Status_1_Register;
 		break;
-	case NITIO_G01_Joint_Status2_Reg:
+	case NITIO_G01_STATUS2:
 		stc_register = Joint_Status_2_Register;
 		break;
-	case NITIO_G0_Interrupt_Acknowledge_Reg:
+	case NITIO_G0_INT_ACK:
 		stc_register = Interrupt_A_Ack_Register;
 		break;
-	case NITIO_G1_Interrupt_Acknowledge_Reg:
+	case NITIO_G1_INT_ACK:
 		stc_register = Interrupt_B_Ack_Register;
 		break;
-	case NITIO_G0_Status_Reg:
+	case NITIO_G0_STATUS:
 		stc_register = AI_Status_1_Register;
 		break;
-	case NITIO_G1_Status_Reg:
+	case NITIO_G1_STATUS:
 		stc_register = AO_Status_1_Register;
 		break;
-	case NITIO_G0_Interrupt_Enable_Reg:
+	case NITIO_G0_INT_ENA:
 		stc_register = Interrupt_A_Enable_Register;
 		break;
-	case NITIO_G1_Interrupt_Enable_Reg:
+	case NITIO_G1_INT_ENA:
 		stc_register = Interrupt_B_Enable_Register;
 		break;
 	default:
@@ -4022,52 +4022,52 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits,
 
 	switch (reg) {
 		/* m-series-only registers */
-	case NITIO_G0_Counting_Mode_Reg:
+	case NITIO_G0_CNT_MODE:
 		ni_writew(bits, M_Offset_G0_Counting_Mode);
 		break;
-	case NITIO_G1_Counting_Mode_Reg:
+	case NITIO_G1_CNT_MODE:
 		ni_writew(bits, M_Offset_G1_Counting_Mode);
 		break;
-	case NITIO_G0_Second_Gate_Reg:
+	case NITIO_G0_GATE2:
 		ni_writew(bits, M_Offset_G0_Second_Gate);
 		break;
-	case NITIO_G1_Second_Gate_Reg:
+	case NITIO_G1_GATE2:
 		ni_writew(bits, M_Offset_G1_Second_Gate);
 		break;
-	case NITIO_G0_DMA_Config_Reg:
+	case NITIO_G0_DMA_CFG:
 		ni_writew(bits, M_Offset_G0_DMA_Config);
 		break;
-	case NITIO_G1_DMA_Config_Reg:
+	case NITIO_G1_DMA_CFG:
 		ni_writew(bits, M_Offset_G1_DMA_Config);
 		break;
-	case NITIO_G0_ABZ_Reg:
+	case NITIO_G0_ABZ:
 		ni_writew(bits, M_Offset_G0_MSeries_ABZ);
 		break;
-	case NITIO_G1_ABZ_Reg:
+	case NITIO_G1_ABZ:
 		ni_writew(bits, M_Offset_G1_MSeries_ABZ);
 		break;
 
 		/* 32 bit registers */
-	case NITIO_G0_LoadA_Reg:
-	case NITIO_G1_LoadA_Reg:
-	case NITIO_G0_LoadB_Reg:
-	case NITIO_G1_LoadB_Reg:
+	case NITIO_G0_LOADA:
+	case NITIO_G1_LOADA:
+	case NITIO_G0_LOADB:
+	case NITIO_G1_LOADB:
 		stc_register = ni_gpct_to_stc_register(reg);
 		devpriv->stc_writel(dev, bits, stc_register);
 		break;
 
 		/* 16 bit registers */
-	case NITIO_G0_Interrupt_Enable_Reg:
+	case NITIO_G0_INT_ENA:
 		BUG_ON(bits & ~gpct_interrupt_a_enable_mask);
 		ni_set_bitfield(dev, Interrupt_A_Enable_Register,
 				gpct_interrupt_a_enable_mask, bits);
 		break;
-	case NITIO_G1_Interrupt_Enable_Reg:
+	case NITIO_G1_INT_ENA:
 		BUG_ON(bits & ~gpct_interrupt_b_enable_mask);
 		ni_set_bitfield(dev, Interrupt_B_Enable_Register,
 				gpct_interrupt_b_enable_mask, bits);
 		break;
-	case NITIO_G01_Joint_Reset_Reg:
+	case NITIO_G01_RESET:
 		BUG_ON(bits & ~gpct_joint_reset_mask);
 		/* fall-through */
 	default:
@@ -4085,21 +4085,18 @@ static unsigned ni_gpct_read_register(struct ni_gpct *counter,
 
 	switch (reg) {
 		/* m-series only registers */
-	case NITIO_G0_DMA_Status_Reg:
+	case NITIO_G0_DMA_STATUS:
 		return ni_readw(M_Offset_G0_DMA_Status);
-		break;
-	case NITIO_G1_DMA_Status_Reg:
+	case NITIO_G1_DMA_STATUS:
 		return ni_readw(M_Offset_G1_DMA_Status);
-		break;
 
 		/* 32 bit registers */
-	case NITIO_G0_HW_Save_Reg:
-	case NITIO_G1_HW_Save_Reg:
-	case NITIO_G0_SW_Save_Reg:
-	case NITIO_G1_SW_Save_Reg:
+	case NITIO_G0_HW_SAVE:
+	case NITIO_G1_HW_SAVE:
+	case NITIO_G0_SW_SAVE:
+	case NITIO_G1_SW_SAVE:
 		stc_register = ni_gpct_to_stc_register(reg);
 		return devpriv->stc_readl(dev, stc_register);
-		break;
 
 		/* 16 bit registers */
 	default:

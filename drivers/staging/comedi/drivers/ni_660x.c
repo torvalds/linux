@@ -448,208 +448,208 @@ static enum NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 {
 	enum NI_660x_Register ni_660x_register;
 	switch (reg) {
-	case NITIO_G0_Autoincrement_Reg:
+	case NITIO_G0_AUTO_INC:
 		ni_660x_register = G0AutoincrementRegister;
 		break;
-	case NITIO_G1_Autoincrement_Reg:
+	case NITIO_G1_AUTO_INC:
 		ni_660x_register = G1AutoincrementRegister;
 		break;
-	case NITIO_G2_Autoincrement_Reg:
+	case NITIO_G2_AUTO_INC:
 		ni_660x_register = G2AutoincrementRegister;
 		break;
-	case NITIO_G3_Autoincrement_Reg:
+	case NITIO_G3_AUTO_INC:
 		ni_660x_register = G3AutoincrementRegister;
 		break;
-	case NITIO_G0_Command_Reg:
+	case NITIO_G0_CMD:
 		ni_660x_register = G0CommandRegister;
 		break;
-	case NITIO_G1_Command_Reg:
+	case NITIO_G1_CMD:
 		ni_660x_register = G1CommandRegister;
 		break;
-	case NITIO_G2_Command_Reg:
+	case NITIO_G2_CMD:
 		ni_660x_register = G2CommandRegister;
 		break;
-	case NITIO_G3_Command_Reg:
+	case NITIO_G3_CMD:
 		ni_660x_register = G3CommandRegister;
 		break;
-	case NITIO_G0_HW_Save_Reg:
+	case NITIO_G0_HW_SAVE:
 		ni_660x_register = G0HWSaveRegister;
 		break;
-	case NITIO_G1_HW_Save_Reg:
+	case NITIO_G1_HW_SAVE:
 		ni_660x_register = G1HWSaveRegister;
 		break;
-	case NITIO_G2_HW_Save_Reg:
+	case NITIO_G2_HW_SAVE:
 		ni_660x_register = G2HWSaveRegister;
 		break;
-	case NITIO_G3_HW_Save_Reg:
+	case NITIO_G3_HW_SAVE:
 		ni_660x_register = G3HWSaveRegister;
 		break;
-	case NITIO_G0_SW_Save_Reg:
+	case NITIO_G0_SW_SAVE:
 		ni_660x_register = G0SWSaveRegister;
 		break;
-	case NITIO_G1_SW_Save_Reg:
+	case NITIO_G1_SW_SAVE:
 		ni_660x_register = G1SWSaveRegister;
 		break;
-	case NITIO_G2_SW_Save_Reg:
+	case NITIO_G2_SW_SAVE:
 		ni_660x_register = G2SWSaveRegister;
 		break;
-	case NITIO_G3_SW_Save_Reg:
+	case NITIO_G3_SW_SAVE:
 		ni_660x_register = G3SWSaveRegister;
 		break;
-	case NITIO_G0_Mode_Reg:
+	case NITIO_G0_MODE:
 		ni_660x_register = G0ModeRegister;
 		break;
-	case NITIO_G1_Mode_Reg:
+	case NITIO_G1_MODE:
 		ni_660x_register = G1ModeRegister;
 		break;
-	case NITIO_G2_Mode_Reg:
+	case NITIO_G2_MODE:
 		ni_660x_register = G2ModeRegister;
 		break;
-	case NITIO_G3_Mode_Reg:
+	case NITIO_G3_MODE:
 		ni_660x_register = G3ModeRegister;
 		break;
-	case NITIO_G0_LoadA_Reg:
+	case NITIO_G0_LOADA:
 		ni_660x_register = G0LoadARegister;
 		break;
-	case NITIO_G1_LoadA_Reg:
+	case NITIO_G1_LOADA:
 		ni_660x_register = G1LoadARegister;
 		break;
-	case NITIO_G2_LoadA_Reg:
+	case NITIO_G2_LOADA:
 		ni_660x_register = G2LoadARegister;
 		break;
-	case NITIO_G3_LoadA_Reg:
+	case NITIO_G3_LOADA:
 		ni_660x_register = G3LoadARegister;
 		break;
-	case NITIO_G0_LoadB_Reg:
+	case NITIO_G0_LOADB:
 		ni_660x_register = G0LoadBRegister;
 		break;
-	case NITIO_G1_LoadB_Reg:
+	case NITIO_G1_LOADB:
 		ni_660x_register = G1LoadBRegister;
 		break;
-	case NITIO_G2_LoadB_Reg:
+	case NITIO_G2_LOADB:
 		ni_660x_register = G2LoadBRegister;
 		break;
-	case NITIO_G3_LoadB_Reg:
+	case NITIO_G3_LOADB:
 		ni_660x_register = G3LoadBRegister;
 		break;
-	case NITIO_G0_Input_Select_Reg:
+	case NITIO_G0_INPUT_SEL:
 		ni_660x_register = G0InputSelectRegister;
 		break;
-	case NITIO_G1_Input_Select_Reg:
+	case NITIO_G1_INPUT_SEL:
 		ni_660x_register = G1InputSelectRegister;
 		break;
-	case NITIO_G2_Input_Select_Reg:
+	case NITIO_G2_INPUT_SEL:
 		ni_660x_register = G2InputSelectRegister;
 		break;
-	case NITIO_G3_Input_Select_Reg:
+	case NITIO_G3_INPUT_SEL:
 		ni_660x_register = G3InputSelectRegister;
 		break;
-	case NITIO_G01_Status_Reg:
+	case NITIO_G01_STATUS:
 		ni_660x_register = G01StatusRegister;
 		break;
-	case NITIO_G23_Status_Reg:
+	case NITIO_G23_STATUS:
 		ni_660x_register = G23StatusRegister;
 		break;
-	case NITIO_G01_Joint_Reset_Reg:
+	case NITIO_G01_RESET:
 		ni_660x_register = G01JointResetRegister;
 		break;
-	case NITIO_G23_Joint_Reset_Reg:
+	case NITIO_G23_RESET:
 		ni_660x_register = G23JointResetRegister;
 		break;
-	case NITIO_G01_Joint_Status1_Reg:
+	case NITIO_G01_STATUS1:
 		ni_660x_register = G01JointStatus1Register;
 		break;
-	case NITIO_G23_Joint_Status1_Reg:
+	case NITIO_G23_STATUS1:
 		ni_660x_register = G23JointStatus1Register;
 		break;
-	case NITIO_G01_Joint_Status2_Reg:
+	case NITIO_G01_STATUS2:
 		ni_660x_register = G01JointStatus2Register;
 		break;
-	case NITIO_G23_Joint_Status2_Reg:
+	case NITIO_G23_STATUS2:
 		ni_660x_register = G23JointStatus2Register;
 		break;
-	case NITIO_G0_Counting_Mode_Reg:
+	case NITIO_G0_CNT_MODE:
 		ni_660x_register = G0CountingModeRegister;
 		break;
-	case NITIO_G1_Counting_Mode_Reg:
+	case NITIO_G1_CNT_MODE:
 		ni_660x_register = G1CountingModeRegister;
 		break;
-	case NITIO_G2_Counting_Mode_Reg:
+	case NITIO_G2_CNT_MODE:
 		ni_660x_register = G2CountingModeRegister;
 		break;
-	case NITIO_G3_Counting_Mode_Reg:
+	case NITIO_G3_CNT_MODE:
 		ni_660x_register = G3CountingModeRegister;
 		break;
-	case NITIO_G0_Second_Gate_Reg:
+	case NITIO_G0_GATE2:
 		ni_660x_register = G0SecondGateRegister;
 		break;
-	case NITIO_G1_Second_Gate_Reg:
+	case NITIO_G1_GATE2:
 		ni_660x_register = G1SecondGateRegister;
 		break;
-	case NITIO_G2_Second_Gate_Reg:
+	case NITIO_G2_GATE2:
 		ni_660x_register = G2SecondGateRegister;
 		break;
-	case NITIO_G3_Second_Gate_Reg:
+	case NITIO_G3_GATE2:
 		ni_660x_register = G3SecondGateRegister;
 		break;
-	case NITIO_G0_DMA_Config_Reg:
+	case NITIO_G0_DMA_CFG:
 		ni_660x_register = G0DMAConfigRegister;
 		break;
-	case NITIO_G0_DMA_Status_Reg:
+	case NITIO_G0_DMA_STATUS:
 		ni_660x_register = G0DMAStatusRegister;
 		break;
-	case NITIO_G1_DMA_Config_Reg:
+	case NITIO_G1_DMA_CFG:
 		ni_660x_register = G1DMAConfigRegister;
 		break;
-	case NITIO_G1_DMA_Status_Reg:
+	case NITIO_G1_DMA_STATUS:
 		ni_660x_register = G1DMAStatusRegister;
 		break;
-	case NITIO_G2_DMA_Config_Reg:
+	case NITIO_G2_DMA_CFG:
 		ni_660x_register = G2DMAConfigRegister;
 		break;
-	case NITIO_G2_DMA_Status_Reg:
+	case NITIO_G2_DMA_STATUS:
 		ni_660x_register = G2DMAStatusRegister;
 		break;
-	case NITIO_G3_DMA_Config_Reg:
+	case NITIO_G3_DMA_CFG:
 		ni_660x_register = G3DMAConfigRegister;
 		break;
-	case NITIO_G3_DMA_Status_Reg:
+	case NITIO_G3_DMA_STATUS:
 		ni_660x_register = G3DMAStatusRegister;
 		break;
-	case NITIO_G0_Interrupt_Acknowledge_Reg:
+	case NITIO_G0_INT_ACK:
 		ni_660x_register = G0InterruptAcknowledge;
 		break;
-	case NITIO_G1_Interrupt_Acknowledge_Reg:
+	case NITIO_G1_INT_ACK:
 		ni_660x_register = G1InterruptAcknowledge;
 		break;
-	case NITIO_G2_Interrupt_Acknowledge_Reg:
+	case NITIO_G2_INT_ACK:
 		ni_660x_register = G2InterruptAcknowledge;
 		break;
-	case NITIO_G3_Interrupt_Acknowledge_Reg:
+	case NITIO_G3_INT_ACK:
 		ni_660x_register = G3InterruptAcknowledge;
 		break;
-	case NITIO_G0_Status_Reg:
+	case NITIO_G0_STATUS:
 		ni_660x_register = G0StatusRegister;
 		break;
-	case NITIO_G1_Status_Reg:
+	case NITIO_G1_STATUS:
 		ni_660x_register = G1StatusRegister;
 		break;
-	case NITIO_G2_Status_Reg:
+	case NITIO_G2_STATUS:
 		ni_660x_register = G2StatusRegister;
 		break;
-	case NITIO_G3_Status_Reg:
+	case NITIO_G3_STATUS:
 		ni_660x_register = G3StatusRegister;
 		break;
-	case NITIO_G0_Interrupt_Enable_Reg:
+	case NITIO_G0_INT_ENA:
 		ni_660x_register = G0InterruptEnable;
 		break;
-	case NITIO_G1_Interrupt_Enable_Reg:
+	case NITIO_G1_INT_ENA:
 		ni_660x_register = G1InterruptEnable;
 		break;
-	case NITIO_G2_Interrupt_Enable_Reg:
+	case NITIO_G2_INT_ENA:
 		ni_660x_register = G2InterruptEnable;
 		break;
-	case NITIO_G3_Interrupt_Enable_Reg:
+	case NITIO_G3_INT_ENA:
 		ni_660x_register = G3InterruptEnable;
 		break;
 	default:
