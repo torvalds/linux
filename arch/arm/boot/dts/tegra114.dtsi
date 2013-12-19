@@ -30,6 +30,15 @@
 
 		ranges = <0x54000000 0x54000000 0x01000000>;
 
+		gr2d@54140000 {
+			compatible = "nvidia,tegra114-gr2d", "nvidia,tegra20-gr2d";
+			reg = <0x54140000 0x00040000>;
+			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&tegra_car TEGRA114_CLK_GR2D>;
+			resets = <&tegra_car 21>;
+			reset-names = "2d";
+		};
+
 		dc@54200000 {
 			compatible = "nvidia,tegra114-dc", "nvidia,tegra20-dc";
 			reg = <0x54200000 0x00040000>;
