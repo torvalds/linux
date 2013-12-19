@@ -1447,10 +1447,18 @@ static int soft_offline_huge_page(struct page *page, int flags)
 		return ret;
 	}
 done:
-	if (!PageHWPoison(hpage))
-		atomic_long_add(1 << compound_trans_order(hpage), &mce_bad_pages);
-	set_page_hwpoison_huge_page(hpage);
-	dequeue_hwpoisoned_huge_page(hpage);
+	/* overcommit hugetlb page will be freed to buddy */
+	if (PageHuge(hpage)) {
+		if (!PageHWPoison(hpage))
+			atomic_long_add(1 << compound_trans_order(hpage),
+					&mce_bad_pages);
+		set_page_hwpoison_huge_page(hpage);
+		dequeue_hwpoisoned_huge_page(hpage);
+	} else {
+		SetPageHWPoison(page);
+		atomic_long_inc(&mce_bad_pages);
+	}
+
 	/* keep elevated page count for bad page */
 	return ret;
 }
