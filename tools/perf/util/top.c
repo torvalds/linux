@@ -26,7 +26,7 @@ size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size)
 	float samples_per_sec;
 	float ksamples_per_sec;
 	float esamples_percent;
-	struct perf_record_opts *opts = &top->record_opts;
+	struct record_opts *opts = &top->record_opts;
 	struct target *target = &opts->target;
 	size_t ret = 0;
 

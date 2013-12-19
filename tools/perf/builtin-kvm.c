@@ -89,7 +89,7 @@ struct exit_reasons_table {
 
 struct perf_kvm_stat {
 	struct perf_tool    tool;
-	struct perf_record_opts opts;
+	struct record_opts  opts;
 	struct perf_evlist  *evlist;
 	struct perf_session *session;
 

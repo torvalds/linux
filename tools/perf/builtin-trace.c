@@ -1159,7 +1159,7 @@ struct trace {
 		int		max;
 		struct syscall  *table;
 	} syscalls;
-	struct perf_record_opts opts;
+	struct record_opts	opts;
 	struct machine		*host;
 	u64			base_time;
 	bool			full_time;

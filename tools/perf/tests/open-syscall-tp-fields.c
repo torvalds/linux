@@ -6,7 +6,7 @@
 
 int test__syscall_open_tp_fields(void)
 {
-	struct perf_record_opts opts = {
+	struct record_opts opts = {
 		.target = {
 			.uid = UINT_MAX,
 			.uses_mmap = true,

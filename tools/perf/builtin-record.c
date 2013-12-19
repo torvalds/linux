@@ -64,7 +64,7 @@ static void __handle_on_exit_funcs(void)
 
 struct record {
 	struct perf_tool	tool;
-	struct perf_record_opts	opts;
+	struct record_opts	opts;
 	u64			bytes_written;
 	struct perf_data_file	file;
 	struct perf_evlist	*evlist;
@@ -178,7 +178,7 @@ static int record__open(struct record *rec)
 	struct perf_evsel *pos;
 	struct perf_evlist *evlist = rec->evlist;
 	struct perf_session *session = rec->session;
-	struct perf_record_opts *opts = &rec->opts;
+	struct record_opts *opts = &rec->opts;
 	int rc = 0;
 
 	perf_evlist__config(evlist, opts);
@@ -348,7 +348,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	const bool forks = argc > 0;
 	struct machine *machine;
 	struct perf_tool *tool = &rec->tool;
-	struct perf_record_opts *opts = &rec->opts;
+	struct record_opts *opts = &rec->opts;
 	struct perf_evlist *evsel_list = rec->evlist;
 	struct perf_data_file *file = &rec->file;
 	struct perf_session *session;
@@ -657,7 +657,7 @@ static int get_stack_size(char *str, unsigned long *_size)
 }
 #endif /* HAVE_LIBUNWIND_SUPPORT */
 
-int record_parse_callchain(const char *arg, struct perf_record_opts *opts)
+int record_parse_callchain(const char *arg, struct record_opts *opts)
 {
 	char *tok, *name, *saveptr = NULL;
 	char *buf;
@@ -713,7 +713,7 @@ int record_parse_callchain(const char *arg, struct perf_record_opts *opts)
 	return ret;
 }
 
-static void callchain_debug(struct perf_record_opts *opts)
+static void callchain_debug(struct record_opts *opts)
 {
 	pr_debug("callchain: type %d\n", opts->call_graph);
 
@@ -726,7 +726,7 @@ int record_parse_callchain_opt(const struct option *opt,
 			       const char *arg,
 			       int unset)
 {
-	struct perf_record_opts *opts = opt->value;
+	struct record_opts *opts = opt->value;
 	int ret;
 
 	/* --no-call-graph */
@@ -747,7 +747,7 @@ int record_callchain_opt(const struct option *opt,
 			 const char *arg __maybe_unused,
 			 int unset __maybe_unused)
 {
-	struct perf_record_opts *opts = opt->value;
+	struct record_opts *opts = opt->value;
 
 	if (opts->call_graph == CALLCHAIN_NONE)
 		opts->call_graph = CALLCHAIN_FP;
@@ -796,7 +796,7 @@ const char record_callchain_help[] = CALLCHAIN_HELP "fp";
 /*
  * XXX Will stay a global variable till we fix builtin-script.c to stop messing
  * with it and switch to use the library functions in perf_evlist that came
- * from builtin-record.c, i.e. use perf_record_opts,
+ * from builtin-record.c, i.e. use record_opts,
  * perf_evlist__prepare_workload, etc instead of fork+exec'in 'perf record',
  * using pipes, etc.
  */
@@ -944,7 +944,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (perf_evlist__create_maps(evsel_list, &rec->opts.target) < 0)
 		usage_with_options(record_usage, record_options);
 
-	if (perf_record_opts__config(&rec->opts)) {
+	if (record_opts__config(&rec->opts)) {
 		err = -EINVAL;
 		goto out_free_fd;
 	}

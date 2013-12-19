@@ -34,7 +34,7 @@ realloc:
 
 int test__PERF_RECORD(void)
 {
-	struct perf_record_opts opts = {
+	struct record_opts opts = {
 		.target = {
 			.uid = UINT_MAX,
 			.uses_mmap = true,
