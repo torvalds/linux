@@ -1296,7 +1296,7 @@ static int ni_tio_set_other_src(struct ni_gpct *counter, unsigned index,
 	if (counter_dev->variant == ni_gpct_variant_m_series) {
 		unsigned int abz_reg, shift, mask;
 
-		abz_reg = NITIO_Gi_ABZ_Reg(counter->counter_index);
+		abz_reg = NITIO_ABZ_REG(counter->counter_index);
 		switch (index) {
 		case NI_GPCT_SOURCE_ENCODER_A:
 			shift = 10;
