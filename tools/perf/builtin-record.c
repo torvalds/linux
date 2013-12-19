@@ -62,7 +62,7 @@ static void __handle_on_exit_funcs(void)
 }
 #endif
 
-struct perf_record {
+struct record {
 	struct perf_tool	tool;
 	struct perf_record_opts	opts;
 	u64			bytes_written;
@@ -76,7 +76,7 @@ struct perf_record {
 	long			samples;
 };
 
-static int perf_record__write(struct perf_record *rec, void *bf, size_t size)
+static int record__write(struct record *rec, void *bf, size_t size)
 {
 	if (perf_data_file__write(rec->session->file, bf, size) < 0) {
 		pr_err("failed to write perf data, error: %m\n");
@@ -92,12 +92,11 @@ static int process_synthesized_event(struct perf_tool *tool,
 				     struct perf_sample *sample __maybe_unused,
 				     struct machine *machine __maybe_unused)
 {
-	struct perf_record *rec = container_of(tool, struct perf_record, tool);
-	return perf_record__write(rec, event, event->header.size);
+	struct record *rec = container_of(tool, struct record, tool);
+	return record__write(rec, event, event->header.size);
 }
 
-static int perf_record__mmap_read(struct perf_record *rec,
-				   struct perf_mmap *md)
+static int record__mmap_read(struct record *rec, struct perf_mmap *md)
 {
 	unsigned int head = perf_mmap__read_head(md);
 	unsigned int old = md->prev;
@@ -118,7 +117,7 @@ static int perf_record__mmap_read(struct perf_record *rec,
 		size = md->mask + 1 - (old & md->mask);
 		old += size;
 
-		if (perf_record__write(rec, buf, size) < 0) {
+		if (record__write(rec, buf, size) < 0) {
 			rc = -1;
 			goto out;
 		}
@@ -128,7 +127,7 @@ static int perf_record__mmap_read(struct perf_record *rec,
 	size = head - old;
 	old += size;
 
-	if (perf_record__write(rec, buf, size) < 0) {
+	if (record__write(rec, buf, size) < 0) {
 		rc = -1;
 		goto out;
 	}
@@ -153,9 +152,9 @@ static void sig_handler(int sig)
 	signr = sig;
 }
 
-static void perf_record__sig_exit(int exit_status __maybe_unused, void *arg)
+static void record__sig_exit(int exit_status __maybe_unused, void *arg)
 {
-	struct perf_record *rec = arg;
+	struct record *rec = arg;
 	int status;
 
 	if (rec->evlist->workload.pid > 0) {
@@ -173,7 +172,7 @@ static void perf_record__sig_exit(int exit_status __maybe_unused, void *arg)
 	signal(signr, SIG_DFL);
 }
 
-static int perf_record__open(struct perf_record *rec)
+static int record__open(struct record *rec)
 {
 	char msg[512];
 	struct perf_evsel *pos;
@@ -229,7 +228,7 @@ out:
 	return rc;
 }
 
-static int process_buildids(struct perf_record *rec)
+static int process_buildids(struct record *rec)
 {
 	struct perf_data_file *file  = &rec->file;
 	struct perf_session *session = rec->session;
@@ -244,9 +243,9 @@ static int process_buildids(struct perf_record *rec)
 					      size, &build_id__mark_dso_hit_ops);
 }
 
-static void perf_record__exit(int status, void *arg)
+static void record__exit(int status, void *arg)
 {
-	struct perf_record *rec = arg;
+	struct record *rec = arg;
 	struct perf_data_file *file = &rec->file;
 
 	if (status != 0)
@@ -302,14 +301,14 @@ static struct perf_event_header finished_round_event = {
 	.type = PERF_RECORD_FINISHED_ROUND,
 };
 
-static int perf_record__mmap_read_all(struct perf_record *rec)
+static int record__mmap_read_all(struct record *rec)
 {
 	int i;
 	int rc = 0;
 
 	for (i = 0; i < rec->evlist->nr_mmaps; i++) {
 		if (rec->evlist->mmap[i].base) {
-			if (perf_record__mmap_read(rec, &rec->evlist->mmap[i]) != 0) {
+			if (record__mmap_read(rec, &rec->evlist->mmap[i]) != 0) {
 				rc = -1;
 				goto out;
 			}
@@ -317,14 +316,13 @@ static int perf_record__mmap_read_all(struct perf_record *rec)
 	}
 
 	if (perf_header__has_feat(&rec->session->header, HEADER_TRACING_DATA))
-		rc = perf_record__write(rec, &finished_round_event,
-					sizeof(finished_round_event));
+		rc = record__write(rec, &finished_round_event, sizeof(finished_round_event));
 
 out:
 	return rc;
 }
 
-static void perf_record__init_features(struct perf_record *rec)
+static void record__init_features(struct record *rec)
 {
 	struct perf_evlist *evsel_list = rec->evlist;
 	struct perf_session *session = rec->session;
@@ -343,7 +341,7 @@ static void perf_record__init_features(struct perf_record *rec)
 		perf_header__clear_feat(&session->header, HEADER_BRANCH_STACK);
 }
 
-static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
+static int __cmd_record(struct record *rec, int argc, const char **argv)
 {
 	int err;
 	unsigned long waking = 0;
@@ -358,7 +356,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 
 	rec->progname = argv[0];
 
-	on_exit(perf_record__sig_exit, rec);
+	on_exit(record__sig_exit, rec);
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
 	signal(SIGUSR1, sig_handler);
@@ -372,7 +370,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 
 	rec->session = session;
 
-	perf_record__init_features(rec);
+	record__init_features(rec);
 
 	if (forks) {
 		err = perf_evlist__prepare_workload(evsel_list, &opts->target,
@@ -384,7 +382,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		}
 	}
 
-	if (perf_record__open(rec) != 0) {
+	if (record__open(rec) != 0) {
 		err = -1;
 		goto out_delete_session;
 	}
@@ -393,9 +391,9 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		perf_header__clear_feat(&session->header, HEADER_GROUP_DESC);
 
 	/*
-	 * perf_session__delete(session) will be called at perf_record__exit()
+	 * perf_session__delete(session) will be called at record__exit()
 	 */
-	on_exit(perf_record__exit, rec);
+	on_exit(record__exit, rec);
 
 	if (file->is_pipe) {
 		err = perf_header__write_pipe(file->fd);
@@ -500,7 +498,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 	for (;;) {
 		int hits = rec->samples;
 
-		if (perf_record__mmap_read_all(rec) < 0) {
+		if (record__mmap_read_all(rec) < 0) {
 			err = -1;
 			goto out_delete_session;
 		}
@@ -765,8 +763,8 @@ static const char * const record_usage[] = {
 };
 
 /*
- * XXX Ideally would be local to cmd_record() and passed to a perf_record__new
- * because we need to have access to it in perf_record__exit, that is called
+ * XXX Ideally would be local to cmd_record() and passed to a record__new
+ * because we need to have access to it in record__exit, that is called
  * after cmd_record() exits, but since record_options need to be accessible to
  * builtin-script, leave it here.
  *
@@ -774,7 +772,7 @@ static const char * const record_usage[] = {
  *
  * Just say no to tons of global variables, sigh.
  */
-static struct perf_record record = {
+static struct record record = {
 	.opts = {
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
@@ -881,7 +879,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	int err = -ENOMEM;
 	struct perf_evlist *evsel_list;
-	struct perf_record *rec = &record;
+	struct record *rec = &record;
 	char errbuf[BUFSIZ];
 
 	evsel_list = perf_evlist__new();
