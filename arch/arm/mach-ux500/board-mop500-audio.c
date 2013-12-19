@@ -31,7 +31,7 @@ static struct stedma40_chan_cfg msp0_dma_tx = {
 };
 
 struct msp_i2s_platform_data msp0_platform_data = {
-	.id = MSP_I2S_0,
+	.id = 0,
 	.msp_i2s_dma_rx = &msp0_dma_rx,
 	.msp_i2s_dma_tx = &msp0_dma_tx,
 };
@@ -49,7 +49,7 @@ static struct stedma40_chan_cfg msp1_dma_tx = {
 };
 
 struct msp_i2s_platform_data msp1_platform_data = {
-	.id = MSP_I2S_1,
+	.id = 1,
 	.msp_i2s_dma_rx = NULL,
 	.msp_i2s_dma_tx = &msp1_dma_tx,
 };
@@ -69,13 +69,13 @@ static struct stedma40_chan_cfg msp2_dma_tx = {
 };
 
 struct msp_i2s_platform_data msp2_platform_data = {
-	.id = MSP_I2S_2,
+	.id = 2,
 	.msp_i2s_dma_rx = &msp2_dma_rx,
 	.msp_i2s_dma_tx = &msp2_dma_tx,
 };
 
 struct msp_i2s_platform_data msp3_platform_data = {
-	.id		= MSP_I2S_3,
+	.id		= 3,
 	.msp_i2s_dma_rx	= &msp1_dma_rx,
 	.msp_i2s_dma_tx	= NULL,
 };

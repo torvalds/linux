@@ -475,7 +475,7 @@ struct ux500_msp_dma_params {
 };
 
 struct ux500_msp {
-	enum msp_i2s_id id;
+	int id;
 	void __iomem *registers;
 	struct device *dev;
 	struct ux500_msp_dma_params playback_dma_data;
