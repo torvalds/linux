@@ -274,7 +274,7 @@ static int ath9k_beacon_choose_slot(struct ath_softc *sc)
 	return slot;
 }
 
-void ath9k_set_tsfadjust(struct ath_softc *sc, struct ieee80211_vif *vif)
+static void ath9k_set_tsfadjust(struct ath_softc *sc, struct ieee80211_vif *vif)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
@@ -622,7 +622,8 @@ static void ath9k_beacon_config_adhoc(struct ath_softc *sc,
 		set_bit(SC_OP_BEACONS, &sc->sc_flags);
 }
 
-bool ath9k_allow_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif)
+static bool ath9k_allow_beacon_config(struct ath_softc *sc,
+				      struct ieee80211_vif *vif)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
@@ -693,12 +694,17 @@ void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif,
 	unsigned long flags;
 	bool skip_beacon = false;
 
+	if (vif->type == NL80211_IFTYPE_AP)
+		ath9k_set_tsfadjust(sc, vif);
+
+	if (!ath9k_allow_beacon_config(sc, vif))
+		return;
+
 	if (sc->sc_ah->opmode == NL80211_IFTYPE_STATION) {
 		ath9k_cache_beacon_config(sc, bss_conf);
 		ath9k_set_beacon(sc);
 		set_bit(SC_OP_BEACONS, &sc->sc_flags);
 		return;
-
 	}
 
 	/*
