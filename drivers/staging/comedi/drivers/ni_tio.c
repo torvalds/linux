@@ -393,7 +393,7 @@ void ni_tio_init_counter(struct ni_gpct *counter)
 		       regs[NITIO_LOADB_REG(counter->counter_index)],
 		       NITIO_LOADB_REG(counter->counter_index));
 	ni_tio_set_bits(counter,
-			NITIO_Gi_Input_Select_Reg(counter->counter_index), ~0,
+			NITIO_INPUT_SEL_REG(counter->counter_index), ~0,
 			0);
 	if (ni_tio_counting_mode_registers_present(counter_dev)) {
 		ni_tio_set_bits(counter,
@@ -533,7 +533,7 @@ static int ni_tio_set_counter_mode(struct ni_gpct *counter, unsigned mode)
 	if (mode & NI_GPCT_INVERT_OUTPUT_BIT)
 		input_select_bits |= Gi_Output_Polarity_Bit;
 	ni_tio_set_bits(counter,
-			NITIO_Gi_Input_Select_Reg(counter->counter_index),
+			NITIO_INPUT_SEL_REG(counter->counter_index),
 			Gi_Gate_Select_Load_Source_Bit | Gi_Or_Gate_Bit |
 			Gi_Output_Polarity_Bit, input_select_bits);
 
@@ -767,7 +767,7 @@ static int ni_tio_set_clock_src(struct ni_gpct *counter,
 	if (clock_source & NI_GPCT_INVERT_CLOCK_SRC_BIT)
 		input_select_bits |= Gi_Source_Polarity_Bit;
 	ni_tio_set_bits(counter,
-			NITIO_Gi_Input_Select_Reg(counter->counter_index),
+			NITIO_INPUT_SEL_REG(counter->counter_index),
 			Gi_Source_Select_Mask | Gi_Source_Polarity_Bit,
 			input_select_bits);
 	ni_tio_set_source_subselect(counter, clock_source);
@@ -813,7 +813,7 @@ static unsigned ni_tio_clock_src_modifiers(const struct ni_gpct *counter)
 	unsigned bits = 0;
 
 	if (ni_tio_get_soft_copy(counter,
-				 NITIO_Gi_Input_Select_Reg
+				 NITIO_INPUT_SEL_REG
 				 (counter->counter_index)) &
 	    Gi_Source_Polarity_Bit)
 		bits |= NI_GPCT_INVERT_CLOCK_SRC_BIT;
@@ -832,7 +832,7 @@ static unsigned ni_m_series_clock_src_select(const struct ni_gpct *counter)
 	unsigned clock_source = 0;
 	unsigned i;
 	const unsigned input_select = (ni_tio_get_soft_copy(counter,
-							    NITIO_Gi_Input_Select_Reg
+							    NITIO_INPUT_SEL_REG
 							    (counter->counter_index))
 				       & Gi_Source_Select_Mask) >>
 	    Gi_Source_Select_Shift;
@@ -897,7 +897,7 @@ static unsigned ni_660x_clock_src_select(const struct ni_gpct *counter)
 	unsigned clock_source = 0;
 	unsigned i;
 	const unsigned input_select = (ni_tio_get_soft_copy(counter,
-							    NITIO_Gi_Input_Select_Reg
+							    NITIO_INPUT_SEL_REG
 							    (counter->counter_index))
 				       & Gi_Source_Select_Mask) >>
 	    Gi_Source_Select_Shift;
@@ -1076,7 +1076,7 @@ static int ni_660x_set_first_gate(struct ni_gpct *counter,
 		break;
 	}
 	ni_tio_set_bits(counter,
-			NITIO_Gi_Input_Select_Reg(counter->counter_index),
+			NITIO_INPUT_SEL_REG(counter->counter_index),
 			Gi_Gate_Select_Mask,
 			Gi_Gate_Select_Bits(ni_660x_gate_select));
 	return 0;
@@ -1125,7 +1125,7 @@ static int ni_m_series_set_first_gate(struct ni_gpct *counter,
 		break;
 	}
 	ni_tio_set_bits(counter,
-			NITIO_Gi_Input_Select_Reg(counter->counter_index),
+			NITIO_INPUT_SEL_REG(counter->counter_index),
 			Gi_Gate_Select_Mask,
 			Gi_Gate_Select_Bits(ni_m_series_gate_select));
 	return 0;
@@ -1507,7 +1507,7 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
 		} else {
 			gate_select_bits =
 			    (ni_tio_get_soft_copy(counter,
-						  NITIO_Gi_Input_Select_Reg
+						  NITIO_INPUT_SEL_REG
 						  (counter->counter_index)) &
 			     Gi_Gate_Select_Mask) >> Gi_Gate_Select_Shift;
 		}

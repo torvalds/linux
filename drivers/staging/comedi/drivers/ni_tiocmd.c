@@ -66,7 +66,7 @@ static void ni_tio_configure_dma(struct ni_gpct *counter, short enable,
 			input_select_bits |= Gi_Write_Acknowledges_Irq;
 	}
 	ni_tio_set_bits(counter,
-			NITIO_Gi_Input_Select_Reg(counter->counter_index),
+			NITIO_INPUT_SEL_REG(counter->counter_index),
 			Gi_Read_Acknowledges_Irq | Gi_Write_Acknowledges_Irq,
 			input_select_bits);
 	switch (counter_dev->variant) {
