@@ -17,6 +17,17 @@
 	};
 
 	host1x@50000000 {
+		hdmi@54280000 {
+			status = "okay";
+
+			vdd-supply = <&vdd_hdmi_reg>;
+			pll-supply = <&palmas_smps3_reg>;
+
+			nvidia,ddc-i2c-bus = <&hdmi_ddc>;
+			nvidia,hpd-gpio =
+				<&gpio TEGRA_GPIO(N, 7) GPIO_ACTIVE_HIGH>;
+		};
+
 		dsi@54300000 {
 			status = "okay";
 
@@ -771,6 +782,10 @@
 			interrupt-parent = <&gpio>;
 			interrupts = <TEGRA_GPIO(O, 4) IRQ_TYPE_LEVEL_LOW>;
 		};
+	};
+
+	hdmi_ddc: i2c@7000c700 {
+		status = "okay";
 	};
 
 	i2c@7000d000 {
