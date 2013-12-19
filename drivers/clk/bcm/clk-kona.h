@@ -43,7 +43,13 @@
 #define FLAG_FLIP(obj, type, flag)	((obj)->flags ^= FLAG(type, flag))
 #define FLAG_TEST(obj, type, flag)	(!!((obj)->flags & FLAG(type, flag)))
 
+/* CCU field state tests */
+
+#define ccu_policy_exists(ccu_policy)	((ccu_policy)->enable.offset != 0)
+
 /* Clock field state tests */
+
+#define policy_exists(policy)		((policy)->offset != 0)
 
 #define gate_exists(gate)		FLAG_TEST(gate, GATE, EXISTS)
 #define gate_is_enabled(gate)		FLAG_TEST(gate, GATE, ENABLED)
@@ -62,6 +68,9 @@
 #define selector_exists(sel)		((sel)->width != 0)
 #define trigger_exists(trig)		FLAG_TEST(trig, TRIG, EXISTS)
 
+#define policy_lvm_en_exists(enable)	((enable)->offset != 0)
+#define policy_ctl_exists(control)	((control)->offset != 0)
+
 /* Clock type, used to tell common block what it's part of */
 enum bcm_clk_type {
 	bcm_clk_none,		/* undefined clock type */
@@ -69,6 +78,27 @@ enum bcm_clk_type {
 	bcm_clk_core,
 	bcm_clk_peri
 };
+
+/*
+ * CCU policy control for clocks.  Clocks can be enabled or disabled
+ * based on the CCU policy in effect.  One bit in each policy mask
+ * register (one per CCU policy) represents whether the clock is
+ * enabled when that policy is effect or not.  The CCU policy engine
+ * must be stopped to update these bits, and must be restarted again
+ * afterward.
+ */
+struct bcm_clk_policy {
+	u32 offset;		/* first policy mask register offset */
+	u32 bit;		/* bit used in all mask registers */
+};
+
+/* Policy initialization macro */
+
+#define POLICY(_offset, _bit)						\
+	{								\
+		.offset = (_offset),					\
+		.bit = (_bit),						\
+	}
 
 /*
  * Gating control and status is managed by a 32-bit gate register.
@@ -340,6 +370,7 @@ struct bcm_clk_trig {
 	}
 
 struct peri_clk_data {
+	struct bcm_clk_policy policy;
 	struct bcm_clk_gate gate;
 	struct bcm_clk_trig pre_trig;
 	struct bcm_clk_div pre_div;
@@ -378,6 +409,45 @@ struct kona_clk {
 #define LAST_KONA_CLK	{ .type = bcm_clk_none }
 
 /*
+ * CCU policy control.  To enable software update of the policy
+ * tables the CCU policy engine must be stopped by setting the
+ * software update enable bit (LVM_EN).  After an update the engine
+ * is restarted using the GO bit and either the GO_ATL or GO_AC bit.
+ */
+struct bcm_lvm_en {
+	u32 offset;		/* LVM_EN register offset */
+	u32 bit;		/* POLICY_CONFIG_EN bit in register */
+};
+
+/* Policy enable initialization macro */
+#define CCU_LVM_EN(_offset, _bit)					\
+	{								\
+		.offset = (_offset),					\
+		.bit = (_bit),						\
+	}
+
+struct bcm_policy_ctl {
+	u32 offset;		/* POLICY_CTL register offset */
+	u32 go_bit;
+	u32 atl_bit;		/* GO, GO_ATL, and GO_AC bits */
+	u32 ac_bit;
+};
+
+/* Policy control initialization macro */
+#define CCU_POLICY_CTL(_offset, _go_bit, _ac_bit, _atl_bit)		\
+	{								\
+		.offset = (_offset),					\
+		.go_bit = (_go_bit),					\
+		.ac_bit = (_ac_bit),					\
+		.atl_bit = (_atl_bit),					\
+	}
+
+struct ccu_policy {
+	struct bcm_lvm_en enable;
+	struct bcm_policy_ctl control;
+};
+
+/*
  * Each CCU defines a mapped area of memory containing registers
  * used to manage clocks implemented by the CCU.  Access to memory
  * within the CCU's space is serialized by a spinlock.  Before any
@@ -390,6 +460,7 @@ struct ccu_data {
 	void __iomem *base;	/* base of mapped address space */
 	spinlock_t lock;	/* serialization lock */
 	bool write_enabled;	/* write access is currently enabled */
+	struct ccu_policy policy;
 	struct list_head links;	/* for ccu_list */
 	struct device_node *node;
 	struct clk_onecell_data clk_data;
