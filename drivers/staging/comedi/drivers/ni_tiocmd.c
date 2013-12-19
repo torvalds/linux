@@ -401,7 +401,7 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
 			       (counter->counter_index));
 	if (ni_tio_get_soft_copy
 	    (counter,
-	     NITIO_Gi_Mode_Reg(counter->counter_index)) &
+	     NITIO_MODE_REG(counter->counter_index)) &
 	    Gi_Loading_On_Gate_Bit) {
 		if (gxx_status & Gi_Stale_Data_Bit(counter->counter_index)) {
 			if (stale_data)
