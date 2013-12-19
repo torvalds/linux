@@ -27,6 +27,9 @@
 #define CCU_ACCESS_PASSWORD      0xA5A500
 #define CLK_GATE_DELAY_LOOP      2000
 
+#define clk_is_initialized(_clk)	FLAG_TEST((_clk), KONA, INITIALIZED)
+#define clk_set_initialized(_clk)	FLAG_SET((_clk), KONA, INITIALIZED)
+
 /* Bitfield operations */
 
 /* Produces a mask of set bits covering a range of a 32-bit value */
@@ -1192,13 +1195,22 @@ static bool __peri_clk_init(struct kona_clk *bcm_clk)
 
 static bool __kona_clk_init(struct kona_clk *bcm_clk)
 {
+	bool ret = false;
+
+	if (clk_is_initialized(bcm_clk))
+		return true;
+
 	switch (bcm_clk->type) {
 	case bcm_clk_peri:
-		return __peri_clk_init(bcm_clk);
+		ret = __peri_clk_init(bcm_clk);
+		break;
 	default:
 		BUG();
 	}
-	return -EINVAL;
+	if (ret)
+		clk_set_initialized(bcm_clk);
+
+	return ret;
 }
 
 /* Set a CCU and all its clocks into their desired initial state */
