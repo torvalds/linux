@@ -39,21 +39,7 @@
 #define NITIO_ABZ_REG(x)		(NITIO_G0_ABZ + (x))
 #define NITIO_INT_ACK_REG(x)		(NITIO_G0_INT_ACK + (x))
 #define NITIO_STATUS_REG(x)		(NITIO_G0_STATUS + (x))
-
-static inline enum ni_gpct_register NITIO_Gi_Interrupt_Enable_Reg(unsigned idx)
-{
-	switch (idx) {
-	case 0:
-		return NITIO_G0_INT_ENA;
-	case 1:
-		return NITIO_G1_INT_ENA;
-	case 2:
-		return NITIO_G2_INT_ENA;
-	case 3:
-		return NITIO_G3_INT_ENA;
-	}
-	return 0;
-}
+#define NITIO_INT_ENA_REG(x)		(NITIO_G0_INT_ENA + (x))
 
 enum Gi_Auto_Increment_Reg_Bits {
 	Gi_Auto_Increment_Mask = 0xff

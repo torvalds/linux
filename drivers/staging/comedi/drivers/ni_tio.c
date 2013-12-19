@@ -416,7 +416,7 @@ void ni_tio_init_counter(struct ni_gpct *counter)
 			NITIO_DMA_CFG_REG(counter->counter_index), ~0,
 			0x0);
 	ni_tio_set_bits(counter,
-			NITIO_Gi_Interrupt_Enable_Reg(counter->counter_index),
+			NITIO_INT_ENA_REG(counter->counter_index),
 			~0, 0x0);
 }
 EXPORT_SYMBOL_GPL(ni_tio_init_counter);
