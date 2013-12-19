@@ -207,18 +207,18 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 
 /* when opcode modifier = 1 */
 #define QUERY_FUNC_CAP_PHYS_PORT_OFFSET		0x3
-#define QUERY_FUNC_CAP_RDMA_PROPS_OFFSET	0x8
-#define QUERY_FUNC_CAP_ETH_PROPS_OFFSET		0xc
+#define QUERY_FUNC_CAP_FLAGS0_OFFSET		0x8
+#define QUERY_FUNC_CAP_FLAGS1_OFFSET		0xc
 
 #define QUERY_FUNC_CAP_QP0_TUNNEL		0x10
 #define QUERY_FUNC_CAP_QP0_PROXY		0x14
 #define QUERY_FUNC_CAP_QP1_TUNNEL		0x18
 #define QUERY_FUNC_CAP_QP1_PROXY		0x1c
 
-#define QUERY_FUNC_CAP_ETH_PROPS_FORCE_MAC	0x40
-#define QUERY_FUNC_CAP_ETH_PROPS_FORCE_VLAN	0x80
+#define QUERY_FUNC_CAP_FLAGS1_FORCE_MAC		0x40
+#define QUERY_FUNC_CAP_FLAGS1_FORCE_VLAN	0x80
 
-#define QUERY_FUNC_CAP_RDMA_PROPS_FORCE_PHY_WQE_GID 0x80
+#define QUERY_FUNC_CAP_FLAGS0_FORCE_PHY_WQE_GID 0x80
 
 	if (vhcr->op_modifier == 1) {
 		field = vhcr->in_modifier; /* phys-port = logical-port */
@@ -386,21 +386,21 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u32 gen_or_port,
 	}
 
 	if (dev->caps.port_type[gen_or_port] == MLX4_PORT_TYPE_ETH) {
-		MLX4_GET(field, outbox, QUERY_FUNC_CAP_ETH_PROPS_OFFSET);
-		if (field & QUERY_FUNC_CAP_ETH_PROPS_FORCE_VLAN) {
+		MLX4_GET(field, outbox, QUERY_FUNC_CAP_FLAGS1_OFFSET);
+		if (field & QUERY_FUNC_CAP_FLAGS1_FORCE_VLAN) {
 			mlx4_err(dev, "VLAN is enforced on this port\n");
 			err = -EPROTONOSUPPORT;
 			goto out;
 		}
 
-		if (field & QUERY_FUNC_CAP_ETH_PROPS_FORCE_MAC) {
+		if (field & QUERY_FUNC_CAP_FLAGS1_FORCE_MAC) {
 			mlx4_err(dev, "Force mac is enabled on this port\n");
 			err = -EPROTONOSUPPORT;
 			goto out;
 		}
 	} else if (dev->caps.port_type[gen_or_port] == MLX4_PORT_TYPE_IB) {
-		MLX4_GET(field, outbox, QUERY_FUNC_CAP_RDMA_PROPS_OFFSET);
-		if (field & QUERY_FUNC_CAP_RDMA_PROPS_FORCE_PHY_WQE_GID) {
+		MLX4_GET(field, outbox, QUERY_FUNC_CAP_FLAGS0_OFFSET);
+		if (field & QUERY_FUNC_CAP_FLAGS0_FORCE_PHY_WQE_GID) {
 			mlx4_err(dev, "phy_wqe_gid is "
 				 "enforced on this ib port\n");
 			err = -EPROTONOSUPPORT;
