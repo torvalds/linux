@@ -1685,8 +1685,8 @@ static int sh_eth_phy_init(struct net_device *ndev)
 		return PTR_ERR(phydev);
 	}
 
-	dev_info(&ndev->dev, "attached phy %i to driver %s\n",
-		phydev->addr, phydev->drv->name);
+	dev_info(&ndev->dev, "attached PHY %d (IRQ %d) to driver %s\n",
+		 phydev->addr, phydev->irq, phydev->drv->name);
 
 	mdp->phydev = phydev;
 
@@ -2544,6 +2544,8 @@ static int sh_mdio_init(struct net_device *ndev, int id,
 
 	for (i = 0; i < PHY_MAX_ADDR; i++)
 		mdp->mii_bus->irq[i] = PHY_POLL;
+	if (pd->phy_irq > 0)
+		mdp->mii_bus->irq[pd->phy] = pd->phy_irq;
 
 	/* register mdio bus */
 	ret = mdiobus_register(mdp->mii_bus);
