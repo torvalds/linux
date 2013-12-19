@@ -362,7 +362,7 @@ int drbd_khelper(struct drbd_conf *mdev, char *cmd)
 	return ret;
 }
 
-int conn_khelper(struct drbd_tconn *tconn, char *cmd)
+static int conn_khelper(struct drbd_tconn *tconn, char *cmd)
 {
 	char *envp[] = { "HOME=/",
 			"TERM=linux",
@@ -2724,7 +2724,8 @@ int drbd_adm_outdate(struct sk_buff *skb, struct genl_info *info)
 	return drbd_adm_simple_request_state(skb, info, NS(disk, D_OUTDATED));
 }
 
-int nla_put_drbd_cfg_context(struct sk_buff *skb, struct drbd_tconn *tconn, unsigned vnr)
+static int nla_put_drbd_cfg_context(struct sk_buff *skb,
+		struct drbd_tconn *tconn, unsigned vnr)
 {
 	struct nlattr *nla;
 	nla = nla_nest_start(skb, DRBD_NLA_CFG_CONTEXT);
@@ -2750,7 +2751,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-int nla_put_status_info(struct sk_buff *skb, struct drbd_conf *mdev,
+static int nla_put_status_info(struct sk_buff *skb, struct drbd_conf *mdev,
 		const struct sib_info *sib)
 {
 	struct state_info *si = NULL; /* for sizeof(si->member); */
@@ -2892,7 +2893,7 @@ out:
 	return 0;
 }
 
-int get_one_status(struct sk_buff *skb, struct netlink_callback *cb)
+static int get_one_status(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct drbd_conf *mdev;
 	struct drbd_genlmsghdr *dh;
