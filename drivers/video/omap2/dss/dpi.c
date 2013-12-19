@@ -551,7 +551,8 @@ static int dpi_init_regulator(void)
 
 	vdds_dsi = devm_regulator_get(&dpi.pdev->dev, "vdds_dsi");
 	if (IS_ERR(vdds_dsi)) {
-		DSSERR("can't get VDDS_DSI regulator\n");
+		if (PTR_ERR(vdds_dsi) != -EPROBE_DEFER)
+			DSSERR("can't get VDDS_DSI regulator\n");
 		return PTR_ERR(vdds_dsi);
 	}
 

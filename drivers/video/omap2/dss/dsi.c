@@ -1158,7 +1158,8 @@ static int dsi_regulator_init(struct platform_device *dsidev)
 		vdds_dsi = devm_regulator_get(&dsi->pdev->dev, "VCXIO");
 
 	if (IS_ERR(vdds_dsi)) {
-		DSSERR("can't get VDDS_DSI regulator\n");
+		if (PTR_ERR(vdds_dsi) != -EPROBE_DEFER)
+			DSSERR("can't get VDDS_DSI regulator\n");
 		return PTR_ERR(vdds_dsi);
 	}
 

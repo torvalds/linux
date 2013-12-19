@@ -265,7 +265,8 @@ static int sdi_init_regulator(void)
 
 	vdds_sdi = devm_regulator_get(&sdi.pdev->dev, "vdds_sdi");
 	if (IS_ERR(vdds_sdi)) {
-		DSSERR("can't get VDDS_SDI regulator\n");
+		if (PTR_ERR(vdds_sdi) != -EPROBE_DEFER)
+			DSSERR("can't get VDDS_SDI regulator\n");
 		return PTR_ERR(vdds_sdi);
 	}
 

@@ -95,7 +95,8 @@ static int hdmi_init_regulator(void)
 		reg = devm_regulator_get(&hdmi.pdev->dev, "VDAC");
 
 	if (IS_ERR(reg)) {
-		DSSERR("can't get VDDA_HDMI_DAC regulator\n");
+		if (PTR_ERR(reg) != -EPROBE_DEFER)
+			DSSERR("can't get VDDA_HDMI_DAC regulator\n");
 		return PTR_ERR(reg);
 	}
 
