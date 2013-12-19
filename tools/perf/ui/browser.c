@@ -268,7 +268,7 @@ int ui_browser__show(struct ui_browser *browser, const char *title,
 	return err ? 0 : -1;
 }
 
-void ui_browser__hide(struct ui_browser *browser __maybe_unused)
+void ui_browser__hide(struct ui_browser *browser)
 {
 	pthread_mutex_lock(&ui__lock);
 	ui_helpline__pop();
