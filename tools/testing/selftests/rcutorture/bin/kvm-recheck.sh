@@ -27,9 +27,16 @@
 PATH=`pwd`/tools/testing/selftests/rcutorture/bin:$PATH; export PATH
 for rd in "$@"
 do
+	firsttime=1
 	dirs=`find $rd -name Make.defconfig.out -print | sort | sed -e 's,/[^/]*$,,' | sort -u`
 	for i in $dirs
 	do
+		if test $firsttime
+		then
+			firsttime=0
+			resdir=`echo $i | sed -e 's,/$,,' -e 's,/[^/]*$,,'`
+			head -1 $resdir/log
+		fi
 		configfile=`echo $i | sed -e 's/^.*\///'`
 		ngps=`grep ver: $i/console.log 2> /dev/null | tail -1 | sed -e 's/^.* ver: //' -e 's/ .*$//'`
 		if test -z "$ngps"

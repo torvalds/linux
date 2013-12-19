@@ -169,6 +169,7 @@ else
 fi
 mkdir $resdir/$ds
 touch $resdir/$ds/log
+echo $scriptname $args
 echo $scriptname $args >> $resdir/$ds/log
 
 pwd > $resdir/$ds/testid.txt
