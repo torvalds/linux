@@ -61,6 +61,7 @@ QUIET_SUBDIR1  =
 ifneq ($(findstring $(MAKEFLAGS),s),s)
   ifneq ($(V),1)
 	QUIET_CC       = @echo '  CC       '$@;
+	QUIET_CC_FPIC  = @echo '  CC FPIC  '$@;
 	QUIET_AR       = @echo '  AR       '$@;
 	QUIET_LINK     = @echo '  LINK     '$@;
 	QUIET_MKDIR    = @echo '  MKDIR    '$@;
