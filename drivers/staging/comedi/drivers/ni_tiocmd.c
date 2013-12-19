@@ -84,7 +84,7 @@ static void ni_tio_configure_dma(struct ni_gpct *counter, short enable,
 			if (read_not_write == 0)
 				gi_dma_config_bits |= Gi_DMA_Write_Bit;
 			ni_tio_set_bits(counter,
-					NITIO_Gi_DMA_Config_Reg(counter->
+					NITIO_DMA_CFG_REG(counter->
 								counter_index),
 					Gi_DMA_Enable_Bit | Gi_DMA_Int_Bit |
 					Gi_DMA_Write_Bit, gi_dma_config_bits);
