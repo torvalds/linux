@@ -151,7 +151,6 @@ override CFLAGS += $(udis86-flags) -D_GNU_SOURCE
 ifeq ($(VERBOSE),1)
   Q =
   print_compile =
-  print_app_build =
   print_fpic_compile =
   print_shared_lib_compile =
   print_plugin_obj_compile =
@@ -160,7 +159,6 @@ ifeq ($(VERBOSE),1)
 else
   Q = @
   print_compile =		echo '  CC       '$(OBJ);
-  print_app_build =		echo '  BUILD    '$(OBJ);
   print_fpic_compile =		echo '  CC FPIC  '$(OBJ);
   print_shared_lib_compile =	echo '  BUILD    SHARED LIB '$(OBJ);
   print_plugin_obj_compile =	echo '  CC FPIC  '$(OBJ);
@@ -172,10 +170,6 @@ endif
 do_fpic_compile =					\
 	($(print_fpic_compile)				\
 	$(CC) -c $(CFLAGS) $(EXT) -fPIC $< -o $@)
-
-do_app_build =						\
-	($(print_app_build)				\
-	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS))
 
 do_compile_shared_library =			\
 	($(print_shared_lib_compile)		\
