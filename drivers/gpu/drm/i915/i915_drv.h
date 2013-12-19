@@ -2556,4 +2556,33 @@ timespec_to_jiffies_timeout(const struct timespec *value)
 	return min_t(unsigned long, MAX_JIFFY_OFFSET, j + 1);
 }
 
+/*
+ * If you need to wait X milliseconds between events A and B, but event B
+ * doesn't happen exactly after event A, you record the timestamp (jiffies) of
+ * when event A happened, then just before event B you call this function and
+ * pass the timestamp as the first argument, and X as the second argument.
+ */
+static inline void
+wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
+{
+	unsigned long target_jiffies, tmp_jiffies;
+	unsigned int remaining_ms;
+
+	/*
+	 * Don't re-read the value of "jiffies" every time since it may change
+	 * behind our back and break the math.
+	 */
+	tmp_jiffies = jiffies;
+	target_jiffies = timestamp_jiffies +
+			 msecs_to_jiffies_timeout(to_wait_ms);
+
+	if (time_after(target_jiffies, tmp_jiffies)) {
+		remaining_ms = jiffies_to_msecs((long)target_jiffies -
+						(long)tmp_jiffies);
+		while (remaining_ms)
+			remaining_ms =
+				schedule_timeout_uninterruptible(remaining_ms);
+	}
+}
+
 #endif
