@@ -255,6 +255,8 @@ struct mlx4_en_tx_ring {
 	u16 poll_cnt;
 	struct mlx4_en_tx_info *tx_info;
 	u8 *bounce_buf;
+	u8 queue_index;
+	cpumask_t affinity_mask;
 	u32 last_nr_txbb;
 	struct mlx4_qp qp;
 	struct mlx4_qp_context context;
@@ -719,7 +721,8 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev);
 
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_tx_ring **pring,
-			   int qpn, u32 size, u16 stride, int node);
+			   int qpn, u32 size, u16 stride,
+			   int node, int queue_index);
 void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_tx_ring **pring);
 int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,

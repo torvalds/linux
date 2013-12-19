@@ -1910,8 +1910,10 @@ int mlx4_en_alloc_resources(struct mlx4_en_priv *priv)
 				      prof->tx_ring_size, i, TX, node))
 			goto err;
 
-		if (mlx4_en_create_tx_ring(priv, &priv->tx_ring[i], priv->base_tx_qpn + i,
-					   prof->tx_ring_size, TXBB_SIZE, node))
+		if (mlx4_en_create_tx_ring(priv, &priv->tx_ring[i],
+					   priv->base_tx_qpn + i,
+					   prof->tx_ring_size, TXBB_SIZE,
+					   node, i))
 			goto err;
 	}
 

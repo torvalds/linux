@@ -55,7 +55,7 @@ MODULE_PARM_DESC(inline_thold, "threshold for using inline data");
 
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_tx_ring **pring, int qpn, u32 size,
-			   u16 stride, int node)
+			   u16 stride, int node, int queue_index)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_tx_ring *ring;
@@ -140,6 +140,10 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 		ring->bf_enabled = true;
 
 	ring->hwtstamp_tx_type = priv->hwtstamp_config.tx_type;
+	ring->queue_index = queue_index;
+
+	if (queue_index < priv->num_tx_rings_p_up && cpu_online(queue_index))
+		cpumask_set_cpu(queue_index, &ring->affinity_mask);
 
 	*pring = ring;
 	return 0;
@@ -206,6 +210,9 @@ int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 
 	err = mlx4_qp_to_ready(mdev->dev, &ring->wqres.mtt, &ring->context,
 			       &ring->qp, &ring->qp_state);
+	if (!user_prio && cpu_online(ring->queue_index))
+		netif_set_xps_queue(priv->dev, &ring->affinity_mask,
+				    ring->queue_index);
 
 	return err;
 }
