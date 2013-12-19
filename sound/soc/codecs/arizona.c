@@ -498,6 +498,22 @@ const int arizona_rate_val[ARIZONA_RATE_ENUM_SIZE] = {
 EXPORT_SYMBOL_GPL(arizona_rate_val);
 
 
+const struct soc_enum arizona_isrc_fsh[] = {
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_ISRC_1_CTRL_1,
+			      ARIZONA_ISRC1_FSH_SHIFT, 0xf,
+			      ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_ISRC_2_CTRL_1,
+			      ARIZONA_ISRC2_FSH_SHIFT, 0xf,
+			      ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_ISRC_3_CTRL_1,
+			      ARIZONA_ISRC3_FSH_SHIFT, 0xf,
+			      ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+};
+EXPORT_SYMBOL_GPL(arizona_isrc_fsh);
+
 const struct soc_enum arizona_isrc_fsl[] = {
 	SOC_VALUE_ENUM_SINGLE(ARIZONA_ISRC_1_CTRL_2,
 			      ARIZONA_ISRC1_FSL_SHIFT, 0xf,
