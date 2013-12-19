@@ -234,14 +234,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	cinfo->snd_card.num_links	= 1;
 	cinfo->snd_card.dev		= &pdev->dev;
 
-	return snd_soc_register_card(&cinfo->snd_card);
-}
-
-static int asoc_simple_card_remove(struct platform_device *pdev)
-{
-	struct asoc_simple_card_info *cinfo = pdev->dev.platform_data;
-
-	return snd_soc_unregister_card(&cinfo->snd_card);
+	return devm_snd_soc_register_card(&pdev->dev, &cinfo->snd_card);
 }
 
 static const struct of_device_id asoc_simple_of_match[] = {
@@ -257,7 +250,6 @@ static struct platform_driver asoc_simple_card = {
 		.of_match_table = asoc_simple_of_match,
 	},
 	.probe		= asoc_simple_card_probe,
-	.remove		= asoc_simple_card_remove,
 };
 
 module_platform_driver(asoc_simple_card);
