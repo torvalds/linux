@@ -284,6 +284,7 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_ID("pioE", &pioDE_clk),
 	/* Fake adc clock */
 	CLKDEV_CON_ID("adc_clk", &tsc_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffb8000.pwm", &pwm_clk),
 };
 
 static struct clk_lookup usart_clocks_lookups[] = {
