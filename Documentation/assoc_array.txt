@@ -164,10 +164,10 @@ This points to a number of methods, all of which need to be provided:
 
  (4) Diff the index keys of two objects.
 
-	int (*diff_objects)(const void *a, const void *b);
+	int (*diff_objects)(const void *object, const void *index_key);
 
-     Return the bit position at which the index keys of two objects differ or
-     -1 if they are the same.
+     Return the bit position at which the index key of the specified object
+     differs from the given index key or -1 if they are the same.
 
 
  (5) Free an object.

@@ -431,11 +431,6 @@ static void unreg_event_syscall_enter(struct ftrace_event_file *file,
 	if (!tr->sys_refcount_enter)
 		unregister_trace_sys_enter(ftrace_syscall_enter, tr);
 	mutex_unlock(&syscall_trace_lock);
-	/*
-	 * Callers expect the event to be completely disabled on
-	 * return, so wait for current handlers to finish.
-	 */
-	synchronize_sched();
 }
 
 static int reg_event_syscall_exit(struct ftrace_event_file *file,
@@ -474,11 +469,6 @@ static void unreg_event_syscall_exit(struct ftrace_event_file *file,
 	if (!tr->sys_refcount_exit)
 		unregister_trace_sys_exit(ftrace_syscall_exit, tr);
 	mutex_unlock(&syscall_trace_lock);
-	/*
-	 * Callers expect the event to be completely disabled on
-	 * return, so wait for current handlers to finish.
-	 */
-	synchronize_sched();
 }
 
 static int __init init_syscall_trace(struct ftrace_event_call *call)

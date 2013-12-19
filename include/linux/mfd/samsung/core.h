@@ -39,7 +39,8 @@ enum sec_device_type {
 struct sec_pmic_dev {
 	struct device *dev;
 	struct sec_platform_data *pdata;
-	struct regmap *regmap;
+	struct regmap *regmap_pmic;
+	struct regmap *regmap_rtc;
 	struct i2c_client *i2c;
 	struct i2c_client *rtc;
 

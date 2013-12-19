@@ -432,7 +432,6 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			} else {
 				printk(KERN_INFO "btrfs: setting nodatacow\n");
 			}
-			info->compress_type = BTRFS_COMPRESS_NONE;
 			btrfs_clear_opt(info->mount_opt, COMPRESS);
 			btrfs_clear_opt(info->mount_opt, FORCE_COMPRESS);
 			btrfs_set_opt(info->mount_opt, NODATACOW);
@@ -461,7 +460,6 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				btrfs_set_fs_incompat(info, COMPRESS_LZO);
 			} else if (strncmp(args[0].from, "no", 2) == 0) {
 				compress_type = "no";
-				info->compress_type = BTRFS_COMPRESS_NONE;
 				btrfs_clear_opt(info->mount_opt, COMPRESS);
 				btrfs_clear_opt(info->mount_opt, FORCE_COMPRESS);
 				compress_force = false;
@@ -474,9 +472,10 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				btrfs_set_opt(info->mount_opt, FORCE_COMPRESS);
 				pr_info("btrfs: force %s compression\n",
 					compress_type);
-			} else
+			} else if (btrfs_test_opt(root, COMPRESS)) {
 				pr_info("btrfs: use %s compression\n",
 					compress_type);
+			}
 			break;
 		case Opt_ssd:
 			printk(KERN_INFO "btrfs: use ssd allocation scheme\n");

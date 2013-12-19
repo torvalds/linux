@@ -92,8 +92,7 @@ static int keystone_usbphy_probe(struct platform_device *pdev)
 	if (IS_ERR(k_phy->phy_ctrl))
 		return PTR_ERR(k_phy->phy_ctrl);
 
-	ret = usb_phy_gen_create_phy(dev, &k_phy->usb_phy_gen,
-			USB_PHY_TYPE_USB2, 0, false);
+	ret = usb_phy_gen_create_phy(dev, &k_phy->usb_phy_gen, NULL);
 	if (ret)
 		return ret;
 

@@ -35,7 +35,6 @@ struct read_info_sccb {
 	u8	_reserved5[4096 - 112];	/* 112-4095 */
 } __packed __aligned(PAGE_SIZE);
 
-static __initdata struct init_sccb early_event_mask_sccb __aligned(PAGE_SIZE);
 static __initdata struct read_info_sccb early_read_info_sccb;
 static __initdata char sccb_early[PAGE_SIZE] __aligned(PAGE_SIZE);
 static unsigned long sclp_hsa_size;
@@ -113,7 +112,7 @@ static void __init sclp_facilities_detect(void)
 
 bool __init sclp_has_linemode(void)
 {
-	struct init_sccb *sccb = &early_event_mask_sccb;
+	struct init_sccb *sccb = (void *) &sccb_early;
 
 	if (sccb->header.response_code != 0x20)
 		return 0;
@@ -126,7 +125,7 @@ bool __init sclp_has_linemode(void)
 
 bool __init sclp_has_vt220(void)
 {
-	struct init_sccb *sccb = &early_event_mask_sccb;
+	struct init_sccb *sccb = (void *) &sccb_early;
 
 	if (sccb->header.response_code != 0x20)
 		return 0;

@@ -199,6 +199,35 @@
 	pinctrl-0 = <&uart0_pins>;
 };
 
+&usb {
+	status = "okay";
+
+	control@44e10000 {
+		status = "okay";
+	};
+
+	usb-phy@47401300 {
+		status = "okay";
+	};
+
+	usb-phy@47401b00 {
+		status = "okay";
+	};
+
+	usb@47401000 {
+		status = "okay";
+	};
+
+	usb@47401800 {
+		status = "okay";
+		dr_mode = "host";
+	};
+
+	dma-controller@07402000  {
+		status = "okay";
+	};
+};
+
 #include "tps65910.dtsi"
 
 &tps {
