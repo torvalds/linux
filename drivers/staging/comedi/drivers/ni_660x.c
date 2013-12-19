@@ -347,11 +347,6 @@ static inline unsigned dma_select_mask(unsigned dma_channel)
 enum dma_selection {
 	dma_selection_none = 0x1f,
 };
-static inline unsigned dma_selection_counter(unsigned counter_index)
-{
-	BUG_ON(counter_index >= counters_per_chip);
-	return counter_index;
-}
 
 static inline unsigned dma_select_bits(unsigned dma_channel, unsigned selection)
 {
@@ -674,10 +669,9 @@ static inline void ni_660x_set_dma_channel(struct comedi_device *dev,
 
 	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
 	devpriv->dma_configuration_soft_copies[chip] &=
-	    ~dma_select_mask(mite_channel);
+		~dma_select_mask(mite_channel);
 	devpriv->dma_configuration_soft_copies[chip] |=
-	    dma_select_bits(mite_channel,
-			    dma_selection_counter(counter->counter_index));
+		dma_select_bits(mite_channel, counter->counter_index);
 	ni_660x_write_register(dev, chip,
 			       devpriv->dma_configuration_soft_copies[chip] |
 			       dma_reset_bit(mite_channel), NI660X_DMA_CFG);
