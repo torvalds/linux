@@ -322,4 +322,14 @@ config IR_GPIO_CIR
 	   To compile this driver as a module, choose M here: the module will
 	   be called gpio-ir-recv.
 
+config RC_ST
+	tristate "ST remote control receiver"
+	depends on ARCH_STI && RC_CORE
+	help
+	 Say Y here if you want support for ST remote control driver
+	 which allows both IR and UHF RX.
+	 The driver passes raw pulse and space information to the LIRC decoder.
+
+	 If you're not sure, select N here.
+
 endif #RC_DEVICES

@@ -25,6 +25,7 @@
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
+#include <asm/ftrace.h>
 #ifdef CONFIG_BLK_DEV_FD
 #include <asm/floppy.h>
 #endif

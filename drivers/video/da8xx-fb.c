@@ -129,7 +129,6 @@
 
 #define LCD_NUM_BUFFERS	2
 
-#define WSI_TIMEOUT	50
 #define PALETTE_SIZE	256
 
 #define	CLK_MIN_DIV	2
@@ -1314,7 +1313,7 @@ static struct fb_ops da8xx_fb_ops = {
 
 static struct fb_videomode *da8xx_fb_get_videomode(struct platform_device *dev)
 {
-	struct da8xx_lcdc_platform_data *fb_pdata = dev->dev.platform_data;
+	struct da8xx_lcdc_platform_data *fb_pdata = dev_get_platdata(&dev->dev);
 	struct fb_videomode *lcdc_info;
 	int i;
 
@@ -1336,7 +1335,7 @@ static struct fb_videomode *da8xx_fb_get_videomode(struct platform_device *dev)
 static int fb_probe(struct platform_device *device)
 {
 	struct da8xx_lcdc_platform_data *fb_pdata =
-						device->dev.platform_data;
+						dev_get_platdata(&device->dev);
 	static struct resource *lcdc_regs;
 	struct lcd_ctrl_config *lcd_cfg;
 	struct fb_videomode *lcdc_info;
@@ -1548,7 +1547,7 @@ err_pm_runtime_disable:
 }
 
 #ifdef CONFIG_PM
-struct lcdc_context {
+static struct lcdc_context {
 	u32 clk_enable;
 	u32 ctrl;
 	u32 dma_ctrl;
@@ -1663,19 +1662,7 @@ static struct platform_driver da8xx_fb_driver = {
 		   .owner = THIS_MODULE,
 		   },
 };
-
-static int __init da8xx_fb_init(void)
-{
-	return platform_driver_register(&da8xx_fb_driver);
-}
-
-static void __exit da8xx_fb_cleanup(void)
-{
-	platform_driver_unregister(&da8xx_fb_driver);
-}
-
-module_init(da8xx_fb_init);
-module_exit(da8xx_fb_cleanup);
+module_platform_driver(da8xx_fb_driver);
 
 MODULE_DESCRIPTION("Framebuffer driver for TI da8xx/omap-l1xx");
 MODULE_AUTHOR("Texas Instruments");

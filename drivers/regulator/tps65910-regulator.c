@@ -481,7 +481,7 @@ static int tps65910_get_voltage_dcdc_sel(struct regulator_dev *dev)
 
 	/* multiplier 0 == 1 but 2,3 normal */
 	if (!mult)
-		mult=1;
+		mult = 1;
 
 	if (sr) {
 		/* normalise to valid range */
@@ -685,7 +685,7 @@ static int tps65910_list_voltage_dcdc(struct regulator_dev *dev,
 	case TPS65910_REG_VDD2:
 		mult = (selector / VDD1_2_NUM_VOLT_FINE) + 1;
 		volt = VDD1_2_MIN_VOLT +
-				(selector % VDD1_2_NUM_VOLT_FINE) * VDD1_2_OFFSET;
+			(selector % VDD1_2_NUM_VOLT_FINE) * VDD1_2_OFFSET;
 		break;
 	case TPS65911_REG_VDDCTRL:
 		volt = VDDCTRL_MIN_VOLT + (selector * VDDCTRL_OFFSET);
@@ -703,7 +703,7 @@ static int tps65911_list_voltage(struct regulator_dev *dev, unsigned selector)
 	struct tps65910_reg *pmic = rdev_get_drvdata(dev);
 	int step_mv = 0, id = rdev_get_id(dev);
 
-	switch(id) {
+	switch (id) {
 	case TPS65911_REG_LDO1:
 	case TPS65911_REG_LDO2:
 	case TPS65911_REG_LDO4:
@@ -982,7 +982,7 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 	}
 
 	np = of_node_get(pdev->dev.parent->of_node);
-	regulators = of_find_node_by_name(np, "regulators");
+	regulators = of_get_child_by_name(np, "regulators");
 	if (!regulators) {
 		dev_err(&pdev->dev, "regulator node not found\n");
 		return NULL;
@@ -1074,7 +1074,7 @@ static int tps65910_probe(struct platform_device *pdev)
 	tps65910_reg_set_bits(pmic->mfd, TPS65910_DEVCTRL,
 				DEVCTRL_SR_CTL_I2C_SEL_MASK);
 
-	switch(tps65910_chip_id(tps65910)) {
+	switch (tps65910_chip_id(tps65910)) {
 	case TPS65910:
 		pmic->get_ctrl_reg = &tps65910_get_ctrl_register;
 		pmic->num_regulators = ARRAY_SIZE(tps65910_regs);
@@ -1177,34 +1177,18 @@ static int tps65910_probe(struct platform_device *pdev)
 		if (tps65910_reg_matches)
 			config.of_node = tps65910_reg_matches[i].of_node;
 
-		rdev = regulator_register(&pmic->desc[i], &config);
+		rdev = devm_regulator_register(&pdev->dev, &pmic->desc[i],
+					       &config);
 		if (IS_ERR(rdev)) {
 			dev_err(tps65910->dev,
 				"failed to register %s regulator\n",
 				pdev->name);
-			err = PTR_ERR(rdev);
-			goto err_unregister_regulator;
+			return PTR_ERR(rdev);
 		}
 
 		/* Save regulator for cleanup */
 		pmic->rdev[i] = rdev;
 	}
-	return 0;
-
-err_unregister_regulator:
-	while (--i >= 0)
-		regulator_unregister(pmic->rdev[i]);
-	return err;
-}
-
-static int tps65910_remove(struct platform_device *pdev)
-{
-	struct tps65910_reg *pmic = platform_get_drvdata(pdev);
-	int i;
-
-	for (i = 0; i < pmic->num_regulators; i++)
-		regulator_unregister(pmic->rdev[i]);
-
 	return 0;
 }
 
@@ -1244,7 +1228,6 @@ static struct platform_driver tps65910_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tps65910_probe,
-	.remove = tps65910_remove,
 	.shutdown = tps65910_shutdown,
 };
 

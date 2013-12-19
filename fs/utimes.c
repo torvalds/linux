@@ -53,6 +53,7 @@ static int utimes_common(struct path *path, struct timespec *times)
 	int error;
 	struct iattr newattrs;
 	struct inode *inode = path->dentry->d_inode;
+	struct inode *delegated_inode = NULL;
 
 	error = mnt_want_write(path->mnt);
 	if (error)
@@ -101,9 +102,15 @@ static int utimes_common(struct path *path, struct timespec *times)
 				goto mnt_drop_write_and_out;
 		}
 	}
+retry_deleg:
 	mutex_lock(&inode->i_mutex);
-	error = notify_change(path->dentry, &newattrs);
+	error = notify_change(path->dentry, &newattrs, &delegated_inode);
 	mutex_unlock(&inode->i_mutex);
+	if (delegated_inode) {
+		error = break_deleg_wait(&delegated_inode);
+		if (!error)
+			goto retry_deleg;
+	}
 
 mnt_drop_write_and_out:
 	mnt_drop_write(path->mnt);

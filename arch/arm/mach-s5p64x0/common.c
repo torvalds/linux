@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/device.h>
 #include <linux/serial_core.h>
+#include <clocksource/samsung_pwm.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
@@ -47,6 +48,7 @@
 #include <plat/fb-core.h>
 #include <plat/spi-core.h>
 #include <plat/gpio-cfg.h>
+#include <plat/pwm-core.h>
 #include <plat/regs-irqtype.h>
 #include <plat/regs-serial.h>
 #include <plat/watchdog-reset.h>
@@ -157,6 +159,30 @@ static void s5p64x0_idle(void)
 	cpu_do_idle();
 }
 
+static struct samsung_pwm_variant s5p64x0_pwm_variant = {
+	.bits		= 32,
+	.div_base	= 0,
+	.has_tint_cstat	= true,
+	.tclk_mask	= 0,
+};
+
+void __init samsung_set_timer_source(unsigned int event, unsigned int source)
+{
+	s5p64x0_pwm_variant.output_mask = BIT(SAMSUNG_PWM_NUM) - 1;
+	s5p64x0_pwm_variant.output_mask &= ~(BIT(event) | BIT(source));
+}
+
+void __init samsung_timer_init(void)
+{
+	unsigned int timer_irqs[SAMSUNG_PWM_NUM] = {
+		IRQ_TIMER0_VIC, IRQ_TIMER1_VIC, IRQ_TIMER2_VIC,
+		IRQ_TIMER3_VIC, IRQ_TIMER4_VIC,
+	};
+
+	samsung_pwm_clocksource_init(S3C_VA_TIMER,
+					timer_irqs, &s5p64x0_pwm_variant);
+}
+
 /*
  * s5p64x0_map_io
  *
@@ -176,6 +202,7 @@ void __init s5p64x0_init_io(struct map_desc *mach_desc, int size)
 	s3c_init_cpu(samsung_cpu_id, cpu_ids, ARRAY_SIZE(cpu_ids));
 	samsung_wdt_reset_init(S3C_VA_WATCHDOG);
 
+	samsung_pwm_set_platdata(&s5p64x0_pwm_variant);
 }
 
 void __init s5p6440_map_io(void)

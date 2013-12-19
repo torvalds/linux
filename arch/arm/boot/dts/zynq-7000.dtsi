@@ -41,8 +41,8 @@
 		L2: cache-controller {
 			compatible = "arm,pl310-cache";
 			reg = <0xF8F02000 0x1000>;
-			arm,data-latency = <2 3 2>;
-			arm,tag-latency = <2 3 2>;
+			arm,data-latency = <3 2 2>;
+			arm,tag-latency = <2 2 2>;
 			cache-unified;
 			cache-level = <2>;
 		};
@@ -90,6 +90,14 @@
 							"dbg_trc", "dbg_apb";
 				};
 			};
+		};
+
+		global_timer: timer@f8f00200 {
+			compatible = "arm,cortex-a9-global-timer";
+			reg = <0xf8f00200 0x20>;
+			interrupts = <1 11 0x301>;
+			interrupt-parent = <&intc>;
+			clocks = <&clkc 4>;
 		};
 
 		ttc0: ttc0@f8001000 {

@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
@@ -61,7 +62,9 @@ static struct mfd_cell s5m8767_devs[] = {
 static struct mfd_cell s2mps11_devs[] = {
 	{
 		.name = "s2mps11-pmic",
-	},
+	}, {
+		.name = "s2mps11-clk",
+	}
 };
 
 #ifdef CONFIG_OF
@@ -69,39 +72,67 @@ static struct of_device_id sec_dt_match[] = {
 	{	.compatible = "samsung,s5m8767-pmic",
 		.data = (void *)S5M8767X,
 	},
+	{	.compatible = "samsung,s2mps11-pmic",
+		.data = (void *)S2MPS11X,
+	},
 	{},
 };
 #endif
 
 int sec_reg_read(struct sec_pmic_dev *sec_pmic, u8 reg, void *dest)
 {
-	return regmap_read(sec_pmic->regmap, reg, dest);
+	return regmap_read(sec_pmic->regmap_pmic, reg, dest);
 }
 EXPORT_SYMBOL_GPL(sec_reg_read);
 
 int sec_bulk_read(struct sec_pmic_dev *sec_pmic, u8 reg, int count, u8 *buf)
 {
-	return regmap_bulk_read(sec_pmic->regmap, reg, buf, count);
+	return regmap_bulk_read(sec_pmic->regmap_pmic, reg, buf, count);
 }
 EXPORT_SYMBOL_GPL(sec_bulk_read);
 
 int sec_reg_write(struct sec_pmic_dev *sec_pmic, u8 reg, u8 value)
 {
-	return regmap_write(sec_pmic->regmap, reg, value);
+	return regmap_write(sec_pmic->regmap_pmic, reg, value);
 }
 EXPORT_SYMBOL_GPL(sec_reg_write);
 
 int sec_bulk_write(struct sec_pmic_dev *sec_pmic, u8 reg, int count, u8 *buf)
 {
-	return regmap_raw_write(sec_pmic->regmap, reg, buf, count);
+	return regmap_raw_write(sec_pmic->regmap_pmic, reg, buf, count);
 }
 EXPORT_SYMBOL_GPL(sec_bulk_write);
 
 int sec_reg_update(struct sec_pmic_dev *sec_pmic, u8 reg, u8 val, u8 mask)
 {
-	return regmap_update_bits(sec_pmic->regmap, reg, mask, val);
+	return regmap_update_bits(sec_pmic->regmap_pmic, reg, mask, val);
 }
 EXPORT_SYMBOL_GPL(sec_reg_update);
+
+static bool s2mps11_volatile(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case S2MPS11_REG_INT1M:
+	case S2MPS11_REG_INT2M:
+	case S2MPS11_REG_INT3M:
+		return false;
+	default:
+		return true;
+	}
+}
+
+static bool s5m8763_volatile(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case S5M8763_REG_IRQM1:
+	case S5M8763_REG_IRQM2:
+	case S5M8763_REG_IRQM3:
+	case S5M8763_REG_IRQM4:
+		return false;
+	default:
+		return true;
+	}
+}
 
 static struct regmap_config sec_regmap_config = {
 	.reg_bits = 8,
@@ -113,6 +144,8 @@ static struct regmap_config s2mps11_regmap_config = {
 	.val_bits = 8,
 
 	.max_register = S2MPS11_REG_L38CTRL,
+	.volatile_reg = s2mps11_volatile,
+	.cache_type = REGCACHE_FLAT,
 };
 
 static struct regmap_config s5m8763_regmap_config = {
@@ -120,6 +153,8 @@ static struct regmap_config s5m8763_regmap_config = {
 	.val_bits = 8,
 
 	.max_register = S5M8763_REG_LBCNFG2,
+	.volatile_reg = s5m8763_volatile,
+	.cache_type = REGCACHE_FLAT,
 };
 
 static struct regmap_config s5m8767_regmap_config = {
@@ -127,6 +162,13 @@ static struct regmap_config s5m8767_regmap_config = {
 	.val_bits = 8,
 
 	.max_register = S5M8767_REG_LDO28CTRL,
+	.volatile_reg = s2mps11_volatile,
+	.cache_type = REGCACHE_FLAT,
+};
+
+static const struct regmap_config sec_rtc_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
 };
 
 #ifdef CONFIG_OF
@@ -182,7 +224,7 @@ static inline int sec_i2c_get_driver_data(struct i2c_client *i2c,
 static int sec_pmic_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
-	struct sec_platform_data *pdata = i2c->dev.platform_data;
+	struct sec_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	const struct regmap_config *regmap;
 	struct sec_pmic_dev *sec_pmic;
 	int ret;
@@ -229,9 +271,9 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 		break;
 	}
 
-	sec_pmic->regmap = devm_regmap_init_i2c(i2c, regmap);
-	if (IS_ERR(sec_pmic->regmap)) {
-		ret = PTR_ERR(sec_pmic->regmap);
+	sec_pmic->regmap_pmic = devm_regmap_init_i2c(i2c, regmap);
+	if (IS_ERR(sec_pmic->regmap_pmic)) {
+		ret = PTR_ERR(sec_pmic->regmap_pmic);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
 			ret);
 		return ret;
@@ -239,6 +281,15 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 
 	sec_pmic->rtc = i2c_new_dummy(i2c->adapter, RTC_I2C_ADDR);
 	i2c_set_clientdata(sec_pmic->rtc, sec_pmic);
+
+	sec_pmic->regmap_rtc = devm_regmap_init_i2c(sec_pmic->rtc,
+			&sec_rtc_regmap_config);
+	if (IS_ERR(sec_pmic->regmap_rtc)) {
+		ret = PTR_ERR(sec_pmic->regmap_rtc);
+		dev_err(&i2c->dev, "Failed to allocate RTC register map: %d\n",
+			ret);
+		return ret;
+	}
 
 	if (pdata && pdata->cfg_pmic_irq)
 		pdata->cfg_pmic_irq();

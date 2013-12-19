@@ -6,7 +6,6 @@
  *
  * Licensed under GPLv2 or later.
  */
-#include "sama5d3.dtsi"
 
 / {
 	compatible = "atmel,samad3xcm", "atmel,sama5d3", "atmel,sama5";
@@ -47,8 +46,6 @@
 			atmel,has-pmecc;
 			atmel,pmecc-cap = <4>;
 			atmel,pmecc-sector-size = <512>;
-			atmel,has-nfc;
-			atmel,use-nfc-sram;
 			nand-on-flash-bbt;
 			status = "okay";
 

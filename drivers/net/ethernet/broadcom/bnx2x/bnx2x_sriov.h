@@ -782,7 +782,6 @@ static inline int bnx2x_vf_headroom(struct bnx2x *bp)
 void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp);
 int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs);
 void bnx2x_iov_channel_down(struct bnx2x *bp);
-int bnx2x_open_epilog(struct bnx2x *bp);
 
 #else /* CONFIG_BNX2X_SRIOV */
 
@@ -816,6 +815,8 @@ static inline int bnx2x_vfpf_setup_q(struct bnx2x *bp, struct bnx2x_fastpath *fp
 static inline int bnx2x_vfpf_teardown_queue(struct bnx2x *bp, int qidx) {return 0; }
 static inline int bnx2x_vfpf_config_mac(struct bnx2x *bp, u8 *addr,
 					u8 vf_qid, bool set) {return 0; }
+static inline int bnx2x_vfpf_config_rss(struct bnx2x *bp,
+					struct bnx2x_config_rss_params *params) {return 0; }
 static inline int bnx2x_vfpf_set_mcast(struct net_device *dev) {return 0; }
 static inline int bnx2x_vfpf_storm_rx_mode(struct bnx2x *bp) {return 0; }
 static inline int bnx2x_iov_nic_init(struct bnx2x *bp) {return 0; }
@@ -840,7 +841,6 @@ static inline int bnx2x_vf_pci_alloc(struct bnx2x *bp) {return 0; }
 static inline void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp) {}
 static inline int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs) {return 0; }
 static inline void bnx2x_iov_channel_down(struct bnx2x *bp) {}
-static inline int bnx2x_open_epilog(struct bnx2x *bp) {return 0; }
 
 #endif /* CONFIG_BNX2X_SRIOV */
 #endif /* bnx2x_sriov.h */

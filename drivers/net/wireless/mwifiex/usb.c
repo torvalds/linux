@@ -350,7 +350,6 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 
 	card->udev = udev;
 	card->intf = intf;
-	usb_card = card;
 
 	pr_debug("info: bcdUSB=%#x Device Class=%#x SubClass=%#x Protocol=%#x\n",
 		 udev->descriptor.bcdUSB, udev->descriptor.bDeviceClass,
@@ -447,9 +446,6 @@ static int mwifiex_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	 */
 	adapter->is_suspended = true;
 
-	for (i = 0; i < adapter->priv_num; i++)
-		netif_carrier_off(adapter->priv[i]->netdev);
-
 	if (atomic_read(&card->rx_cmd_urb_pending) && card->rx_cmd.urb)
 		usb_kill_urb(card->rx_cmd.urb);
 
@@ -509,10 +505,6 @@ static int mwifiex_usb_resume(struct usb_interface *intf)
 						  MWIFIEX_RX_CMD_BUF_SIZE);
 	}
 
-	for (i = 0; i < adapter->priv_num; i++)
-		if (adapter->priv[i]->media_connected)
-			netif_carrier_on(adapter->priv[i]->netdev);
-
 	/* Disable Host Sleep */
 	if (adapter->hs_activated)
 		mwifiex_cancel_hs(mwifiex_get_priv(adapter,
@@ -532,25 +524,28 @@ static int mwifiex_usb_resume(struct usb_interface *intf)
 static void mwifiex_usb_disconnect(struct usb_interface *intf)
 {
 	struct usb_card_rec *card = usb_get_intfdata(intf);
-	struct mwifiex_adapter *adapter;
 
-	if (!card || !card->adapter) {
-		pr_err("%s: card or card->adapter is NULL\n", __func__);
+	if (!card) {
+		pr_err("%s: card is NULL\n", __func__);
 		return;
 	}
 
-	adapter = card->adapter;
-	if (!adapter->priv_num)
-		return;
-
 	mwifiex_usb_free(card);
 
-	dev_dbg(adapter->dev, "%s: removing card\n", __func__);
-	mwifiex_remove_card(adapter, &add_remove_card_sem);
+	if (card->adapter) {
+		struct mwifiex_adapter *adapter = card->adapter;
+
+		if (!adapter->priv_num)
+			return;
+
+		dev_dbg(adapter->dev, "%s: removing card\n", __func__);
+		mwifiex_remove_card(adapter, &add_remove_card_sem);
+	}
 
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(interface_to_usbdev(intf));
 	kfree(card);
+	usb_card = NULL;
 
 	return;
 }
@@ -761,6 +756,7 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	card->adapter = adapter;
 	adapter->dev = &card->udev->dev;
 	strcpy(adapter->fw_name, USB8797_DEFAULT_FW_NAME);
+	usb_card = card;
 
 	return 0;
 }
@@ -769,7 +765,7 @@ static void mwifiex_unregister_dev(struct mwifiex_adapter *adapter)
 {
 	struct usb_card_rec *card = (struct usb_card_rec *)adapter->card;
 
-	usb_set_intfdata(card->intf, NULL);
+	card->adapter = NULL;
 }
 
 static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
@@ -1011,7 +1007,7 @@ static void mwifiex_usb_cleanup_module(void)
 	if (!down_interruptible(&add_remove_card_sem))
 		up(&add_remove_card_sem);
 
-	if (usb_card) {
+	if (usb_card && usb_card->adapter) {
 		struct mwifiex_adapter *adapter = usb_card->adapter;
 		int i;
 

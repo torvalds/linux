@@ -9,12 +9,17 @@ config BTRFS_FS
 	select XOR_BLOCKS
 
 	help
-	  Btrfs is a new filesystem with extents, writable snapshotting,
-	  support for multiple devices and many more features.
+	  Btrfs is a general purpose copy-on-write filesystem with extents,
+	  writable snapshotting, support for multiple devices and many more
+	  features focused on fault tolerance, repair and easy administration.
 
-	  Btrfs is highly experimental, and THE DISK FORMAT IS NOT YET
-	  FINALIZED.  You should say N here unless you are interested in
-	  testing Btrfs with non-critical data.
+	  The filesystem disk format is no longer unstable, and it's not
+	  expected to change unless there are strong reasons to do so. If there
+	  is a format change, file systems with a unchanged format will
+	  continue to be mountable and usable by newer kernels.
+
+	  For more information, please see the web pages at
+	  http://btrfs.wiki.kernel.org.
 
 	  To compile this file system support as a module, choose M here. The
 	  module will be called btrfs.
@@ -71,5 +76,14 @@ config BTRFS_DEBUG
 	  Enable run-time debugging support for the btrfs filesystem. This may
 	  enable additional and expensive checks with negative impact on
 	  performance, or export extra information via sysfs.
+
+	  If unsure, say N.
+
+config BTRFS_ASSERT
+	bool "Btrfs assert support"
+	depends on BTRFS_FS
+	help
+	  Enable run-time assertion checking.  This will result in panics if
+	  any of the assertions trip.  This is meant for btrfs developers only.
 
 	  If unsure, say N.

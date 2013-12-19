@@ -1,0 +1,302 @@
+/*
+ * Copyright 2013 Maxime Ripard
+ *
+ * Maxime Ripard <maxime.ripard@free-electrons.com>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	interrupt-parent = <&gic>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,cortex-a7";
+			device_type = "cpu";
+			reg = <0>;
+		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a7";
+			device_type = "cpu";
+			reg = <1>;
+		};
+
+		cpu@2 {
+			compatible = "arm,cortex-a7";
+			device_type = "cpu";
+			reg = <2>;
+		};
+
+		cpu@3 {
+			compatible = "arm,cortex-a7";
+			device_type = "cpu";
+			reg = <3>;
+		};
+	};
+
+	memory {
+		reg = <0x40000000 0x80000000>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		osc24M: osc24M {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+		};
+
+		osc32k: osc32k {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <32768>;
+		};
+
+		pll1: pll1@01c20000 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun6i-a31-pll1-clk";
+			reg = <0x01c20000 0x4>;
+			clocks = <&osc24M>;
+		};
+
+		/*
+		 * This is a dummy clock, to be used as placeholder on
+		 * other mux clocks when a specific parent clock is not
+		 * yet implemented. It should be dropped when the driver
+		 * is complete.
+		 */
+		pll6: pll6 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <0>;
+		};
+
+		cpu: cpu@01c20050 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-cpu-clk";
+			reg = <0x01c20050 0x4>;
+
+			/*
+			 * PLL1 is listed twice here.
+			 * While it looks suspicious, it's actually documented
+			 * that way both in the datasheet and in the code from
+			 * Allwinner.
+			 */
+			clocks = <&osc32k>, <&osc24M>, <&pll1>, <&pll1>;
+		};
+
+		axi: axi@01c20050 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-axi-clk";
+			reg = <0x01c20050 0x4>;
+			clocks = <&cpu>;
+		};
+
+		ahb1_mux: ahb1_mux@01c20054 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun6i-a31-ahb1-mux-clk";
+			reg = <0x01c20054 0x4>;
+			clocks = <&osc32k>, <&osc24M>, <&axi>, <&pll6>;
+		};
+
+		ahb1: ahb1@01c20054 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-ahb-clk";
+			reg = <0x01c20054 0x4>;
+			clocks = <&ahb1_mux>;
+		};
+
+		ahb1_gates: ahb1_gates@01c20060 {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun6i-a31-ahb1-gates-clk";
+			reg = <0x01c20060 0x8>;
+			clocks = <&ahb1>;
+			clock-output-names = "ahb1_mipidsi", "ahb1_ss",
+					"ahb1_dma", "ahb1_mmc0", "ahb1_mmc1",
+					"ahb1_mmc2", "ahb1_mmc3", "ahb1_nand1",
+					"ahb1_nand0", "ahb1_sdram",
+					"ahb1_gmac", "ahb1_ts", "ahb1_hstimer",
+					"ahb1_spi0", "ahb1_spi1", "ahb1_spi2",
+					"ahb1_spi3", "ahb1_otg", "ahb1_ehci0",
+					"ahb1_ehci1", "ahb1_ohci0",
+					"ahb1_ohci1", "ahb1_ohci2", "ahb1_ve",
+					"ahb1_lcd0", "ahb1_lcd1", "ahb1_csi",
+					"ahb1_hdmi", "ahb1_de0", "ahb1_de1",
+					"ahb1_fe0", "ahb1_fe1", "ahb1_mp",
+					"ahb1_gpu", "ahb1_deu0", "ahb1_deu1",
+					"ahb1_drc0", "ahb1_drc1";
+		};
+
+		apb1: apb1@01c20054 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-apb0-clk";
+			reg = <0x01c20054 0x4>;
+			clocks = <&ahb1>;
+		};
+
+		apb1_gates: apb1_gates@01c20060 {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun6i-a31-apb1-gates-clk";
+			reg = <0x01c20068 0x4>;
+			clocks = <&apb1>;
+			clock-output-names = "apb1_codec", "apb1_digital_mic",
+					"apb1_pio", "apb1_daudio0",
+					"apb1_daudio1";
+		};
+
+		apb2_mux: apb2_mux@01c20058 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-apb1-mux-clk";
+			reg = <0x01c20058 0x4>;
+			clocks = <&osc32k>, <&osc24M>, <&pll6>, <&pll6>;
+		};
+
+		apb2: apb2@01c20058 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun6i-a31-apb2-div-clk";
+			reg = <0x01c20058 0x4>;
+			clocks = <&apb2_mux>;
+		};
+
+		apb2_gates: apb2_gates@01c2006c {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun6i-a31-apb2-gates-clk";
+			reg = <0x01c2006c 0x4>;
+			clocks = <&apb2>;
+			clock-output-names = "apb2_i2c0", "apb2_i2c1",
+					"apb2_i2c2", "apb2_i2c3", "apb2_uart0",
+					"apb2_uart1", "apb2_uart2", "apb2_uart3",
+					"apb2_uart4", "apb2_uart5";
+		};
+	};
+
+	soc@01c00000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		pio: pinctrl@01c20800 {
+			compatible = "allwinner,sun6i-a31-pinctrl";
+			reg = <0x01c20800 0x400>;
+			interrupts = <0 11 4>,
+				     <0 15 4>,
+				     <0 16 4>,
+				     <0 17 4>;
+			clocks = <&apb1_gates 5>;
+			gpio-controller;
+			interrupt-controller;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#gpio-cells = <3>;
+
+			uart0_pins_a: uart0@0 {
+				allwinner,pins = "PH20", "PH21";
+				allwinner,function = "uart0";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+		};
+
+		timer@01c20c00 {
+			compatible = "allwinner,sun4i-timer";
+			reg = <0x01c20c00 0xa0>;
+			interrupts = <0 18 4>,
+				     <0 19 4>,
+				     <0 20 4>,
+				     <0 21 4>,
+				     <0 22 4>;
+			clocks = <&osc24M>;
+		};
+
+		wdt1: watchdog@01c20ca0 {
+			compatible = "allwinner,sun6i-wdt";
+			reg = <0x01c20ca0 0x20>;
+		};
+
+		uart0: serial@01c28000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x01c28000 0x400>;
+			interrupts = <0 0 4>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clocks = <&apb2_gates 16>;
+			status = "disabled";
+		};
+
+		uart1: serial@01c28400 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x01c28400 0x400>;
+			interrupts = <0 1 4>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clocks = <&apb2_gates 17>;
+			status = "disabled";
+		};
+
+		uart2: serial@01c28800 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x01c28800 0x400>;
+			interrupts = <0 2 4>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clocks = <&apb2_gates 18>;
+			status = "disabled";
+		};
+
+		uart3: serial@01c28c00 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x01c28c00 0x400>;
+			interrupts = <0 3 4>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clocks = <&apb2_gates 19>;
+			status = "disabled";
+		};
+
+		uart4: serial@01c29000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x01c29000 0x400>;
+			interrupts = <0 4 4>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clocks = <&apb2_gates 20>;
+			status = "disabled";
+		};
+
+		uart5: serial@01c29400 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x01c29400 0x400>;
+			interrupts = <0 5 4>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clocks = <&apb2_gates 21>;
+			status = "disabled";
+		};
+
+		gic: interrupt-controller@01c81000 {
+			compatible = "arm,cortex-a7-gic", "arm,cortex-a15-gic";
+			reg = <0x01c81000 0x1000>,
+			      <0x01c82000 0x1000>,
+			      <0x01c84000 0x2000>,
+			      <0x01c86000 0x2000>;
+			interrupt-controller;
+			#interrupt-cells = <3>;
+			interrupts = <1 9 0xf04>;
+		};
+	};
+};

@@ -8,6 +8,7 @@
 #include <linux/major.h>
 #include <linux/genhd.h>
 #include <linux/list.h>
+#include <linux/llist.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/pagemap.h>
@@ -94,12 +95,19 @@ enum rq_cmd_type_bits {
  * as well!
  */
 struct request {
-	struct list_head queuelist;
-	struct call_single_data csd;
+	union {
+		struct list_head queuelist;
+		struct llist_node ll_list;
+	};
+	union {
+		struct call_single_data csd;
+		struct work_struct mq_flush_data;
+	};
 
 	struct request_queue *q;
+	struct blk_mq_ctx *mq_ctx;
 
-	unsigned int cmd_flags;
+	u64 cmd_flags;
 	enum rq_cmd_type_bits cmd_type;
 	unsigned long atomic_flags;
 
@@ -160,8 +168,6 @@ struct request {
 
 	unsigned short ioprio;
 
-	int ref_count;
-
 	void *special;		/* opaque pointer available for LLD use */
 	char *buffer;		/* kaddr of the current segment if available */
 
@@ -214,6 +220,8 @@ struct request_pm_state
 };
 
 #include <linux/elevator.h>
+
+struct blk_queue_ctx;
 
 typedef void (request_fn_proc) (struct request_queue *q);
 typedef void (make_request_fn) (struct request_queue *q, struct bio *bio);
@@ -313,6 +321,18 @@ struct request_queue {
 	dma_drain_needed_fn	*dma_drain_needed;
 	lld_busy_fn		*lld_busy_fn;
 
+	struct blk_mq_ops	*mq_ops;
+
+	unsigned int		*mq_map;
+
+	/* sw queues */
+	struct blk_mq_ctx	*queue_ctx;
+	unsigned int		nr_queues;
+
+	/* hw dispatch queues */
+	struct blk_mq_hw_ctx	**queue_hw_ctx;
+	unsigned int		nr_hw_queues;
+
 	/*
 	 * Dispatch queue sorting
 	 */
@@ -360,6 +380,11 @@ struct request_queue {
 	 * queue kobject
 	 */
 	struct kobject kobj;
+
+	/*
+	 * mq queue kobject
+	 */
+	struct kobject mq_kobj;
 
 #ifdef CONFIG_PM_RUNTIME
 	struct device		*dev;
@@ -425,7 +450,13 @@ struct request_queue {
 	unsigned long		flush_pending_since;
 	struct list_head	flush_queue[2];
 	struct list_head	flush_data_in_flight;
-	struct request		flush_rq;
+	union {
+		struct request	flush_rq;
+		struct {
+			spinlock_t mq_flush_lock;
+			struct work_struct mq_flush_work;
+		};
+	};
 
 	struct mutex		sysfs_lock;
 
@@ -437,14 +468,14 @@ struct request_queue {
 	struct bsg_class_device bsg_dev;
 #endif
 
-#ifdef CONFIG_BLK_CGROUP
-	struct list_head	all_q_node;
-#endif
 #ifdef CONFIG_BLK_DEV_THROTTLING
 	/* Throttle data */
 	struct throtl_data *td;
 #endif
 	struct rcu_head		rcu_head;
+	wait_queue_head_t	mq_freeze_wq;
+	struct percpu_counter	mq_usage_counter;
+	struct list_head	all_q_node;
 };
 
 #define QUEUE_FLAG_QUEUED	1	/* uses generic tag queueing */
@@ -467,11 +498,15 @@ struct request_queue {
 #define QUEUE_FLAG_SECDISCARD  17	/* supports SECDISCARD */
 #define QUEUE_FLAG_SAME_FORCE  18	/* force complete on same CPU */
 #define QUEUE_FLAG_DEAD        19	/* queue tear-down finished */
+#define QUEUE_FLAG_INIT_DONE   20	/* queue is initialized */
 
 #define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
 				 (1 << QUEUE_FLAG_STACKABLE)	|	\
 				 (1 << QUEUE_FLAG_SAME_COMP)	|	\
 				 (1 << QUEUE_FLAG_ADD_RANDOM))
+
+#define QUEUE_FLAG_MQ_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
+				 (1 << QUEUE_FLAG_SAME_COMP))
 
 static inline void queue_lockdep_assert_held(struct request_queue *q)
 {
@@ -539,6 +574,7 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 #define blk_queue_dying(q)	test_bit(QUEUE_FLAG_DYING, &(q)->queue_flags)
 #define blk_queue_dead(q)	test_bit(QUEUE_FLAG_DEAD, &(q)->queue_flags)
 #define blk_queue_bypass(q)	test_bit(QUEUE_FLAG_BYPASS, &(q)->queue_flags)
+#define blk_queue_init_done(q)	test_bit(QUEUE_FLAG_INIT_DONE, &(q)->queue_flags)
 #define blk_queue_nomerges(q)	test_bit(QUEUE_FLAG_NOMERGES, &(q)->queue_flags)
 #define blk_queue_noxmerges(q)	\
 	test_bit(QUEUE_FLAG_NOXMERGES, &(q)->queue_flags)
@@ -570,7 +606,7 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 
 #define list_entry_rq(ptr)	list_entry((ptr), struct request, queuelist)
 
-#define rq_data_dir(rq)		((rq)->cmd_flags & 1)
+#define rq_data_dir(rq)		(((rq)->cmd_flags & 1) != 0)
 
 static inline unsigned int blk_queue_cluster(struct request_queue *q)
 {
@@ -862,6 +898,17 @@ static inline unsigned int blk_rq_get_max_sectors(struct request *rq)
 	return blk_queue_get_max_sectors(q, rq->cmd_flags);
 }
 
+static inline unsigned int blk_rq_count_bios(struct request *rq)
+{
+	unsigned int nr_bios = 0;
+	struct bio *bio;
+
+	__rq_for_each_bio(bio, rq)
+		nr_bios++;
+
+	return nr_bios;
+}
+
 /*
  * Request issue related functions.
  */
@@ -1002,6 +1049,7 @@ static inline void blk_post_runtime_resume(struct request_queue *q, int err) {}
 struct blk_plug {
 	unsigned long magic; /* detect uninitialized use-cases */
 	struct list_head list; /* requests */
+	struct list_head mq_list; /* blk-mq requests */
 	struct list_head cb_list; /* md requires an unplug callback */
 };
 #define BLK_MAX_REQUEST_COUNT 16
@@ -1039,7 +1087,10 @@ static inline bool blk_needs_flush_plug(struct task_struct *tsk)
 {
 	struct blk_plug *plug = tsk->plug;
 
-	return plug && (!list_empty(&plug->list) || !list_empty(&plug->cb_list));
+	return plug &&
+		(!list_empty(&plug->list) ||
+		 !list_empty(&plug->mq_list) ||
+		 !list_empty(&plug->cb_list));
 }
 
 /*
@@ -1314,6 +1365,7 @@ static inline void put_dev_sector(Sector p)
 
 struct work_struct;
 int kblockd_schedule_work(struct request_queue *q, struct work_struct *work);
+int kblockd_schedule_delayed_work(struct request_queue *q, struct delayed_work *dwork, unsigned long delay);
 
 #ifdef CONFIG_BLK_CGROUP
 /*

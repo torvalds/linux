@@ -1,0 +1,107 @@
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
+
+/ {
+	model = "ZyXEL NSA310";
+
+	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+
+			pmx_usb_power_off: pmx-usb-power-off {
+				marvell,pins = "mpp21";
+				marvell,function = "gpio";
+			};
+			pmx_pwr_off: pmx-pwr-off {
+				marvell,pins = "mpp48";
+				marvell,function = "gpio";
+			};
+
+		};
+
+		serial@12000 {
+			status = "ok";
+		};
+
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
+		};
+
+		pcie-controller {
+			status = "okay";
+
+			pcie@1,0 {
+				status = "okay";
+			};
+		};
+	};
+
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		pinctrl-0 = <&pmx_pwr_off>;
+		pinctrl-names = "default";
+		gpios = <&gpio1 16 0>;
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_usb_power_off>;
+		pinctrl-names = "default";
+
+		usb0_power_off: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "USB Power Off";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 21 0>;
+		};
+	};
+};
+
+&nand {
+	status = "okay";
+	chip-delay = <35>;
+
+	partition@0 {
+		label = "uboot";
+		reg = <0x0000000 0x0100000>;
+		read-only;
+	};
+	partition@100000 {
+		label = "uboot_env";
+		reg = <0x0100000 0x0080000>;
+	};
+	partition@180000 {
+		label = "key_store";
+		reg = <0x0180000 0x0080000>;
+	};
+	partition@200000 {
+		label = "info";
+		reg = <0x0200000 0x0080000>;
+	};
+	partition@280000 {
+		label = "etc";
+		reg = <0x0280000 0x0a00000>;
+	};
+	partition@c80000 {
+		label = "kernel_1";
+		reg = <0x0c80000 0x0a00000>;
+	};
+	partition@1680000 {
+		label = "rootfs1";
+		reg = <0x1680000 0x2fc0000>;
+	};
+	partition@4640000 {
+		label = "kernel_2";
+		reg = <0x4640000 0x0a00000>;
+	};
+	partition@5040000 {
+		label = "rootfs2";
+		reg = <0x5040000 0x2fc0000>;
+	};
+};

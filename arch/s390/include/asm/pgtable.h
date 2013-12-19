@@ -748,7 +748,9 @@ static inline void pgste_set_key(pte_t *ptep, pgste_t pgste, pte_t entry)
 
 static inline void pgste_set_pte(pte_t *ptep, pte_t entry)
 {
-	if (!MACHINE_HAS_ESOP && (pte_val(entry) & _PAGE_WRITE)) {
+	if (!MACHINE_HAS_ESOP &&
+	    (pte_val(entry) & _PAGE_PRESENT) &&
+	    (pte_val(entry) & _PAGE_WRITE)) {
 		/*
 		 * Without enhanced suppression-on-protection force
 		 * the dirty bit on for all writable ptes.

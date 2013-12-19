@@ -258,7 +258,8 @@ err:
 /* This function maps kernel space memory to user space memory. */
 static int bridge_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	u32 status;
+	struct omap_dsp_platform_data *pdata =
+					omap_dspbridge_dev->dev.platform_data;
 
 	/* VM_IO | VM_DONTEXPAND | VM_DONTDUMP are set by remap_pfn_range() */
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
@@ -268,13 +269,9 @@ static int bridge_mmap(struct file *filp, struct vm_area_struct *vma)
 		vma->vm_start, vma->vm_end, vma->vm_page_prot,
 		vma->vm_flags);
 
-	status = remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-				 vma->vm_end - vma->vm_start,
-				 vma->vm_page_prot);
-	if (status != 0)
-		status = -EAGAIN;
-
-	return status;
+	return vm_iomap_memory(vma,
+			       pdata->phys_mempool_base,
+			       pdata->phys_mempool_size);
 }
 
 static const struct file_operations bridge_fops = {
@@ -332,7 +329,7 @@ static void bridge_recover(struct work_struct *work)
 	struct dev_object *dev;
 	struct cfg_devnode *dev_node;
 	if (atomic_read(&bridge_cref)) {
-		INIT_COMPLETION(bridge_comp);
+		reinit_completion(&bridge_comp);
 		while (!wait_for_completion_timeout(&bridge_comp,
 						msecs_to_jiffies(REC_TIMEOUT)))
 			pr_info("%s:%d handle(s) still opened\n",
@@ -348,7 +345,7 @@ static void bridge_recover(struct work_struct *work)
 
 void bridge_recover_schedule(void)
 {
-	INIT_COMPLETION(bridge_open_comp);
+	reinit_completion(&bridge_open_comp);
 	recover = true;
 	queue_work(bridge_rec_queue, &bridge_recovery_work);
 }
@@ -389,7 +386,7 @@ static int omap3_bridge_startup(struct platform_device *pdev)
 #ifdef CONFIG_TIDSPBRIDGE_RECOVERY
 	bridge_rec_queue = create_workqueue("bridge_rec_queue");
 	INIT_WORK(&bridge_recovery_work, bridge_recover);
-	INIT_COMPLETION(bridge_comp);
+	reinit_completion(&bridge_comp);
 #endif
 
 #ifdef CONFIG_PM

@@ -93,12 +93,9 @@ invalid_gunlock:
 	if (!had_lock)
 		gfs2_glock_dq_uninit(&d_gh);
 invalid:
-	if (inode && S_ISDIR(inode->i_mode)) {
-		if (have_submounts(dentry))
-			goto valid;
-		shrink_dcache_parent(dentry);
-	}
-	d_drop(dentry);
+	if (check_submounts_and_drop(dentry) != 0)
+		goto valid;
+
 	dput(parent);
 	return 0;
 

@@ -34,10 +34,10 @@ extern unsigned long __toc_start;
  */
 struct lppaca lppaca[] = {
 	[0 ... (NR_LPPACAS-1)] = {
-		.desc = 0xd397d781,	/* "LpPa" */
-		.size = sizeof(struct lppaca),
+		.desc = cpu_to_be32(0xd397d781),	/* "LpPa" */
+		.size = cpu_to_be16(sizeof(struct lppaca)),
 		.fpregs_in_use = 1,
-		.slb_count = 64,
+		.slb_count = cpu_to_be16(64),
 		.vmxregs_in_use = 0,
 		.page_ins = 0,
 	},
@@ -46,7 +46,7 @@ struct lppaca lppaca[] = {
 static struct lppaca *extra_lppacas;
 static long __initdata lppaca_size;
 
-static void allocate_lppacas(int nr_cpus, unsigned long limit)
+static void __init allocate_lppacas(int nr_cpus, unsigned long limit)
 {
 	if (nr_cpus <= NR_LPPACAS)
 		return;
@@ -57,7 +57,7 @@ static void allocate_lppacas(int nr_cpus, unsigned long limit)
 						 PAGE_SIZE, limit));
 }
 
-static struct lppaca *new_lppaca(int cpu)
+static struct lppaca * __init new_lppaca(int cpu)
 {
 	struct lppaca *lp;
 
@@ -70,7 +70,7 @@ static struct lppaca *new_lppaca(int cpu)
 	return lp;
 }
 
-static void free_lppacas(void)
+static void __init free_lppacas(void)
 {
 	long new_size = 0, nr;
 
@@ -101,8 +101,8 @@ static inline void free_lppacas(void) { }
  */
 struct slb_shadow slb_shadow[] __cacheline_aligned = {
 	[0 ... (NR_CPUS-1)] = {
-		.persistent = SLB_NUM_BOLTED,
-		.buffer_length = sizeof(struct slb_shadow),
+		.persistent = cpu_to_be32(SLB_NUM_BOLTED),
+		.buffer_length = cpu_to_be32(sizeof(struct slb_shadow)),
 	},
 };
 

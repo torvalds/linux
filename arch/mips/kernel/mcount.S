@@ -83,7 +83,7 @@ _mcount:
 	PTR_S	MCOUNT_RA_ADDRESS_REG, PT_R12(sp)
 #endif
 
-	move	a0, ra		/* arg1: self return address */
+	PTR_SUBU a0, ra, 8	/* arg1: self address */
 	.globl ftrace_call
 ftrace_call:
 	nop	/* a placeholder for the call to a real tracing function */

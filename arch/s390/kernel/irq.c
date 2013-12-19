@@ -157,60 +157,52 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 /*
  * Switch to the asynchronous interrupt stack for softirq execution.
  */
-asmlinkage void do_softirq(void)
+void do_softirq_own_stack(void)
 {
-	unsigned long flags, old, new;
+	unsigned long old, new;
 
-	if (in_interrupt())
-		return;
-
-	local_irq_save(flags);
-
-	if (local_softirq_pending()) {
-		/* Get current stack pointer. */
-		asm volatile("la %0,0(15)" : "=a" (old));
-		/* Check against async. stack address range. */
-		new = S390_lowcore.async_stack;
-		if (((new - old) >> (PAGE_SHIFT + THREAD_ORDER)) != 0) {
-			/* Need to switch to the async. stack. */
-			new -= STACK_FRAME_OVERHEAD;
-			((struct stack_frame *) new)->back_chain = old;
-
-			asm volatile("   la    15,0(%0)\n"
-				     "   basr  14,%2\n"
-				     "   la    15,0(%1)\n"
-				     : : "a" (new), "a" (old),
-				         "a" (__do_softirq)
-				     : "0", "1", "2", "3", "4", "5", "14",
-				       "cc", "memory" );
-		} else {
-			/* We are already on the async stack. */
-			__do_softirq();
-		}
+	/* Get current stack pointer. */
+	asm volatile("la %0,0(15)" : "=a" (old));
+	/* Check against async. stack address range. */
+	new = S390_lowcore.async_stack;
+	if (((new - old) >> (PAGE_SHIFT + THREAD_ORDER)) != 0) {
+		/* Need to switch to the async. stack. */
+		new -= STACK_FRAME_OVERHEAD;
+		((struct stack_frame *) new)->back_chain = old;
+		asm volatile("   la    15,0(%0)\n"
+			     "   basr  14,%2\n"
+			     "   la    15,0(%1)\n"
+			     : : "a" (new), "a" (old),
+			         "a" (__do_softirq)
+			     : "0", "1", "2", "3", "4", "5", "14",
+			       "cc", "memory" );
+	} else {
+		/* We are already on the async stack. */
+		__do_softirq();
 	}
-
-	local_irq_restore(flags);
 }
 
 /*
  * ext_int_hash[index] is the list head for all external interrupts that hash
  * to this index.
  */
-static struct list_head ext_int_hash[256];
+static struct hlist_head ext_int_hash[32] ____cacheline_aligned;
 
 struct ext_int_info {
 	ext_int_handler_t handler;
-	u16 code;
-	struct list_head entry;
+	struct hlist_node entry;
 	struct rcu_head rcu;
+	u16 code;
 };
 
 /* ext_int_hash_lock protects the handler lists for external interrupts */
-DEFINE_SPINLOCK(ext_int_hash_lock);
+static DEFINE_SPINLOCK(ext_int_hash_lock);
 
 static inline int ext_hash(u16 code)
 {
-	return (code + (code >> 9)) & 0xff;
+	BUILD_BUG_ON(!is_power_of_2(ARRAY_SIZE(ext_int_hash)));
+
+	return (code + (code >> 9)) & (ARRAY_SIZE(ext_int_hash) - 1);
 }
 
 int register_external_interrupt(u16 code, ext_int_handler_t handler)
@@ -227,7 +219,7 @@ int register_external_interrupt(u16 code, ext_int_handler_t handler)
 	index = ext_hash(code);
 
 	spin_lock_irqsave(&ext_int_hash_lock, flags);
-	list_add_rcu(&p->entry, &ext_int_hash[index]);
+	hlist_add_head_rcu(&p->entry, &ext_int_hash[index]);
 	spin_unlock_irqrestore(&ext_int_hash_lock, flags);
 	return 0;
 }
@@ -240,9 +232,9 @@ int unregister_external_interrupt(u16 code, ext_int_handler_t handler)
 	int index = ext_hash(code);
 
 	spin_lock_irqsave(&ext_int_hash_lock, flags);
-	list_for_each_entry_rcu(p, &ext_int_hash[index], entry) {
+	hlist_for_each_entry_rcu(p, &ext_int_hash[index], entry) {
 		if (p->code == code && p->handler == handler) {
-			list_del_rcu(&p->entry);
+			hlist_del_rcu(&p->entry);
 			kfree_rcu(p, rcu);
 		}
 	}
@@ -264,12 +256,12 @@ static irqreturn_t do_ext_interrupt(int irq, void *dummy)
 
 	index = ext_hash(ext_code.code);
 	rcu_read_lock();
-	list_for_each_entry_rcu(p, &ext_int_hash[index], entry)
-		if (likely(p->code == ext_code.code))
-			p->handler(ext_code, regs->int_parm,
-				   regs->int_parm_long);
+	hlist_for_each_entry_rcu(p, &ext_int_hash[index], entry) {
+		if (unlikely(p->code != ext_code.code))
+			continue;
+		p->handler(ext_code, regs->int_parm, regs->int_parm_long);
+	}
 	rcu_read_unlock();
-
 	return IRQ_HANDLED;
 }
 
@@ -283,55 +275,32 @@ void __init init_ext_interrupts(void)
 	int idx;
 
 	for (idx = 0; idx < ARRAY_SIZE(ext_int_hash); idx++)
-		INIT_LIST_HEAD(&ext_int_hash[idx]);
+		INIT_HLIST_HEAD(&ext_int_hash[idx]);
 
 	irq_set_chip_and_handler(EXT_INTERRUPT,
 				 &dummy_irq_chip, handle_percpu_irq);
 	setup_irq(EXT_INTERRUPT, &external_interrupt);
 }
 
-static DEFINE_SPINLOCK(sc_irq_lock);
-static int sc_irq_refcount;
+static DEFINE_SPINLOCK(irq_subclass_lock);
+static unsigned char irq_subclass_refcount[64];
 
-void service_subclass_irq_register(void)
+void irq_subclass_register(enum irq_subclass subclass)
 {
-	spin_lock(&sc_irq_lock);
-	if (!sc_irq_refcount)
-		ctl_set_bit(0, 9);
-	sc_irq_refcount++;
-	spin_unlock(&sc_irq_lock);
+	spin_lock(&irq_subclass_lock);
+	if (!irq_subclass_refcount[subclass])
+		ctl_set_bit(0, subclass);
+	irq_subclass_refcount[subclass]++;
+	spin_unlock(&irq_subclass_lock);
 }
-EXPORT_SYMBOL(service_subclass_irq_register);
+EXPORT_SYMBOL(irq_subclass_register);
 
-void service_subclass_irq_unregister(void)
+void irq_subclass_unregister(enum irq_subclass subclass)
 {
-	spin_lock(&sc_irq_lock);
-	sc_irq_refcount--;
-	if (!sc_irq_refcount)
-		ctl_clear_bit(0, 9);
-	spin_unlock(&sc_irq_lock);
+	spin_lock(&irq_subclass_lock);
+	irq_subclass_refcount[subclass]--;
+	if (!irq_subclass_refcount[subclass])
+		ctl_clear_bit(0, subclass);
+	spin_unlock(&irq_subclass_lock);
 }
-EXPORT_SYMBOL(service_subclass_irq_unregister);
-
-static DEFINE_SPINLOCK(ma_subclass_lock);
-static int ma_subclass_refcount;
-
-void measurement_alert_subclass_register(void)
-{
-	spin_lock(&ma_subclass_lock);
-	if (!ma_subclass_refcount)
-		ctl_set_bit(0, 5);
-	ma_subclass_refcount++;
-	spin_unlock(&ma_subclass_lock);
-}
-EXPORT_SYMBOL(measurement_alert_subclass_register);
-
-void measurement_alert_subclass_unregister(void)
-{
-	spin_lock(&ma_subclass_lock);
-	ma_subclass_refcount--;
-	if (!ma_subclass_refcount)
-		ctl_clear_bit(0, 5);
-	spin_unlock(&ma_subclass_lock);
-}
-EXPORT_SYMBOL(measurement_alert_subclass_unregister);
+EXPORT_SYMBOL(irq_subclass_unregister);

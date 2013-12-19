@@ -354,7 +354,7 @@ static int ichx_gpio_probe(struct platform_device *pdev)
 {
 	struct resource *res_base, *res_pm;
 	int err;
-	struct lpc_ich_info *ich_info = pdev->dev.platform_data;
+	struct lpc_ich_info *ich_info = dev_get_platdata(&pdev->dev);
 
 	if (!ich_info)
 		return -ENODEV;

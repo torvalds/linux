@@ -731,7 +731,7 @@ static int smmu_iommu_map(struct iommu_domain *domain, unsigned long iova,
 	unsigned long pfn = __phys_to_pfn(pa);
 	unsigned long flags;
 
-	dev_dbg(as->smmu->dev, "[%d] %08lx:%08x\n", as->asid, iova, pa);
+	dev_dbg(as->smmu->dev, "[%d] %08lx:%pa\n", as->asid, iova, &pa);
 
 	if (!pfn_valid(pfn))
 		return -ENOMEM;
@@ -1177,8 +1177,6 @@ static int tegra_smmu_probe(struct platform_device *pdev)
 		struct resource *res;
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
-		if (!res)
-			return -ENODEV;
 		smmu->regs[i] = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(smmu->regs[i]))
 			return PTR_ERR(smmu->regs[i]);
@@ -1256,7 +1254,7 @@ static int tegra_smmu_remove(struct platform_device *pdev)
 	return 0;
 }
 
-const struct dev_pm_ops tegra_smmu_pm_ops = {
+static const struct dev_pm_ops tegra_smmu_pm_ops = {
 	.suspend	= tegra_smmu_suspend,
 	.resume		= tegra_smmu_resume,
 };

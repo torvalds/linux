@@ -2064,12 +2064,6 @@ int rv770_dpm_set_power_state(struct radeon_device *rdev)
 		rv770_program_dcodt_after_state_switch(rdev, new_ps, old_ps);
 	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 
-	ret = rv770_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
-	if (ret) {
-		DRM_ERROR("rv770_dpm_force_performance_level failed\n");
-		return ret;
-	}
-
 	return 0;
 }
 
@@ -2147,12 +2141,16 @@ static void rv7xx_parse_pplib_non_clock_info(struct radeon_device *rdev,
 	if (ATOM_PPLIB_NONCLOCKINFO_VER1 < table_rev) {
 		rps->vclk = le32_to_cpu(non_clock_info->ulVCLK);
 		rps->dclk = le32_to_cpu(non_clock_info->ulDCLK);
-	} else if (r600_is_uvd_state(rps->class, rps->class2)) {
-		rps->vclk = RV770_DEFAULT_VCLK_FREQ;
-		rps->dclk = RV770_DEFAULT_DCLK_FREQ;
 	} else {
 		rps->vclk = 0;
 		rps->dclk = 0;
+	}
+
+	if (r600_is_uvd_state(rps->class, rps->class2)) {
+		if ((rps->vclk == 0) || (rps->dclk == 0)) {
+			rps->vclk = RV770_DEFAULT_VCLK_FREQ;
+			rps->dclk = RV770_DEFAULT_DCLK_FREQ;
+		}
 	}
 
 	if (rps->class & ATOM_PPLIB_CLASSIFICATION_BOOT)

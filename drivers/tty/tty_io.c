@@ -854,7 +854,8 @@ void disassociate_ctty(int on_exit)
 			struct pid *tty_pgrp = tty_get_pgrp(tty);
 			if (tty_pgrp) {
 				kill_pgrp(tty_pgrp, SIGHUP, on_exit);
-				kill_pgrp(tty_pgrp, SIGCONT, on_exit);
+				if (!on_exit)
+					kill_pgrp(tty_pgrp, SIGCONT, on_exit);
 				put_pid(tty_pgrp);
 			}
 		}
@@ -2085,6 +2086,7 @@ retry_open:
 			filp->f_op = &tty_fops;
 		goto retry_open;
 	}
+	clear_bit(TTY_HUPPED, &tty->flags);
 	tty_unlock(tty);
 
 

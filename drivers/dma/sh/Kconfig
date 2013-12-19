@@ -22,3 +22,13 @@ config SUDMAC
 	depends on SH_DMAE_BASE
 	help
 	  Enable support for the Renesas SUDMAC controllers.
+
+config RCAR_HPB_DMAE
+	tristate "Renesas R-Car HPB DMAC support"
+	depends on SH_DMAE_BASE
+	help
+	  Enable support for the Renesas R-Car series DMA controllers.
+
+config SHDMA_R8A73A4
+	def_bool y
+	depends on ARCH_R8A73A4 && SH_DMAE != n

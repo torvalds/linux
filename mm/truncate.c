@@ -567,7 +567,6 @@ EXPORT_SYMBOL_GPL(invalidate_inode_pages2);
 /**
  * truncate_pagecache - unmap and remove pagecache that has been truncated
  * @inode: inode
- * @oldsize: old file size
  * @newsize: new file size
  *
  * inode's new i_size must already be written before truncate_pagecache
@@ -580,7 +579,7 @@ EXPORT_SYMBOL_GPL(invalidate_inode_pages2);
  * situations such as writepage being called for a page that has already
  * had its underlying blocks deallocated.
  */
-void truncate_pagecache(struct inode *inode, loff_t oldsize, loff_t newsize)
+void truncate_pagecache(struct inode *inode, loff_t newsize)
 {
 	struct address_space *mapping = inode->i_mapping;
 	loff_t holebegin = round_up(newsize, PAGE_SIZE);
@@ -614,12 +613,8 @@ EXPORT_SYMBOL(truncate_pagecache);
  */
 void truncate_setsize(struct inode *inode, loff_t newsize)
 {
-	loff_t oldsize;
-
-	oldsize = inode->i_size;
 	i_size_write(inode, newsize);
-
-	truncate_pagecache(inode, oldsize, newsize);
+	truncate_pagecache(inode, newsize);
 }
 EXPORT_SYMBOL(truncate_setsize);
 

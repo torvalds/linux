@@ -90,8 +90,7 @@ int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg)
  * tipc_multicast - send a multicast message to local and remote destinations
  */
 int tipc_multicast(u32 ref, struct tipc_name_seq const *seq,
-		   u32 num_sect, struct iovec const *msg_sect,
-		   unsigned int total_len)
+		   struct iovec const *msg_sect, unsigned int len)
 {
 	struct tipc_msg *hdr;
 	struct sk_buff *buf;
@@ -114,8 +113,7 @@ int tipc_multicast(u32 ref, struct tipc_name_seq const *seq,
 	msg_set_namelower(hdr, seq->lower);
 	msg_set_nameupper(hdr, seq->upper);
 	msg_set_hdr_sz(hdr, MCAST_H_SIZE);
-	res = tipc_msg_build(hdr, msg_sect, num_sect, total_len, MAX_MSG_SIZE,
-			     &buf);
+	res = tipc_msg_build(hdr, msg_sect, len, MAX_MSG_SIZE, &buf);
 	if (unlikely(!buf))
 		return res;
 
@@ -436,14 +434,13 @@ exit:
 }
 
 int tipc_port_reject_sections(struct tipc_port *p_ptr, struct tipc_msg *hdr,
-			      struct iovec const *msg_sect, u32 num_sect,
-			      unsigned int total_len, int err)
+			      struct iovec const *msg_sect, unsigned int len,
+			      int err)
 {
 	struct sk_buff *buf;
 	int res;
 
-	res = tipc_msg_build(hdr, msg_sect, num_sect, total_len, MAX_MSG_SIZE,
-			     &buf);
+	res = tipc_msg_build(hdr, msg_sect, len, MAX_MSG_SIZE, &buf);
 	if (!buf)
 		return res;
 
@@ -918,15 +915,14 @@ int tipc_port_recv_msg(struct sk_buff *buf)
  *  tipc_port_recv_sections(): Concatenate and deliver sectioned
  *                        message for this node.
  */
-static int tipc_port_recv_sections(struct tipc_port *sender, unsigned int num_sect,
+static int tipc_port_recv_sections(struct tipc_port *sender,
 				   struct iovec const *msg_sect,
-				   unsigned int total_len)
+				   unsigned int len)
 {
 	struct sk_buff *buf;
 	int res;
 
-	res = tipc_msg_build(&sender->phdr, msg_sect, num_sect, total_len,
-			     MAX_MSG_SIZE, &buf);
+	res = tipc_msg_build(&sender->phdr, msg_sect, len, MAX_MSG_SIZE, &buf);
 	if (likely(buf))
 		tipc_port_recv_msg(buf);
 	return res;
@@ -935,8 +931,7 @@ static int tipc_port_recv_sections(struct tipc_port *sender, unsigned int num_se
 /**
  * tipc_send - send message sections on connection
  */
-int tipc_send(u32 ref, unsigned int num_sect, struct iovec const *msg_sect,
-	      unsigned int total_len)
+int tipc_send(u32 ref, struct iovec const *msg_sect, unsigned int len)
 {
 	struct tipc_port *p_ptr;
 	u32 destnode;
@@ -950,11 +945,10 @@ int tipc_send(u32 ref, unsigned int num_sect, struct iovec const *msg_sect,
 	if (!tipc_port_congested(p_ptr)) {
 		destnode = port_peernode(p_ptr);
 		if (likely(!in_own_node(destnode)))
-			res = tipc_link_send_sections_fast(p_ptr, msg_sect, num_sect,
-							   total_len, destnode);
+			res = tipc_link_send_sections_fast(p_ptr, msg_sect,
+							   len, destnode);
 		else
-			res = tipc_port_recv_sections(p_ptr, num_sect, msg_sect,
-						      total_len);
+			res = tipc_port_recv_sections(p_ptr, msg_sect, len);
 
 		if (likely(res != -ELINKCONG)) {
 			p_ptr->congested = 0;
@@ -965,7 +959,7 @@ int tipc_send(u32 ref, unsigned int num_sect, struct iovec const *msg_sect,
 	}
 	if (port_unreliable(p_ptr)) {
 		p_ptr->congested = 0;
-		return total_len;
+		return len;
 	}
 	return -ELINKCONG;
 }
@@ -974,8 +968,7 @@ int tipc_send(u32 ref, unsigned int num_sect, struct iovec const *msg_sect,
  * tipc_send2name - send message sections to port name
  */
 int tipc_send2name(u32 ref, struct tipc_name const *name, unsigned int domain,
-		   unsigned int num_sect, struct iovec const *msg_sect,
-		   unsigned int total_len)
+		   struct iovec const *msg_sect, unsigned int len)
 {
 	struct tipc_port *p_ptr;
 	struct tipc_msg *msg;
@@ -999,36 +992,32 @@ int tipc_send2name(u32 ref, struct tipc_name const *name, unsigned int domain,
 
 	if (likely(destport || destnode)) {
 		if (likely(in_own_node(destnode)))
-			res = tipc_port_recv_sections(p_ptr, num_sect,
-						      msg_sect, total_len);
+			res = tipc_port_recv_sections(p_ptr, msg_sect, len);
 		else if (tipc_own_addr)
 			res = tipc_link_send_sections_fast(p_ptr, msg_sect,
-							   num_sect, total_len,
-							   destnode);
+							   len, destnode);
 		else
 			res = tipc_port_reject_sections(p_ptr, msg, msg_sect,
-							num_sect, total_len,
-							TIPC_ERR_NO_NODE);
+							len, TIPC_ERR_NO_NODE);
 		if (likely(res != -ELINKCONG)) {
 			if (res > 0)
 				p_ptr->sent++;
 			return res;
 		}
 		if (port_unreliable(p_ptr)) {
-			return total_len;
+			return len;
 		}
 		return -ELINKCONG;
 	}
-	return tipc_port_reject_sections(p_ptr, msg, msg_sect, num_sect,
-					 total_len, TIPC_ERR_NO_NAME);
+	return tipc_port_reject_sections(p_ptr, msg, msg_sect, len,
+					 TIPC_ERR_NO_NAME);
 }
 
 /**
  * tipc_send2port - send message sections to port identity
  */
 int tipc_send2port(u32 ref, struct tipc_portid const *dest,
-		   unsigned int num_sect, struct iovec const *msg_sect,
-		   unsigned int total_len)
+		   struct iovec const *msg_sect, unsigned int len)
 {
 	struct tipc_port *p_ptr;
 	struct tipc_msg *msg;
@@ -1046,21 +1035,20 @@ int tipc_send2port(u32 ref, struct tipc_portid const *dest,
 	msg_set_hdr_sz(msg, BASIC_H_SIZE);
 
 	if (in_own_node(dest->node))
-		res =  tipc_port_recv_sections(p_ptr, num_sect, msg_sect,
-					       total_len);
+		res =  tipc_port_recv_sections(p_ptr, msg_sect, len);
 	else if (tipc_own_addr)
-		res = tipc_link_send_sections_fast(p_ptr, msg_sect, num_sect,
-						   total_len, dest->node);
+		res = tipc_link_send_sections_fast(p_ptr, msg_sect, len,
+						   dest->node);
 	else
-		res = tipc_port_reject_sections(p_ptr, msg, msg_sect, num_sect,
-						total_len, TIPC_ERR_NO_NODE);
+		res = tipc_port_reject_sections(p_ptr, msg, msg_sect, len,
+						TIPC_ERR_NO_NODE);
 	if (likely(res != -ELINKCONG)) {
 		if (res > 0)
 			p_ptr->sent++;
 		return res;
 	}
 	if (port_unreliable(p_ptr)) {
-		return total_len;
+		return len;
 	}
 	return -ELINKCONG;
 }

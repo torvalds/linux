@@ -68,7 +68,7 @@ EXPORT_SYMBOL_GPL(perf_num_counters);
 
 static struct pmu_hw_events *cpu_pmu_get_cpu_events(void)
 {
-	return &__get_cpu_var(cpu_hw_events);
+	return this_cpu_ptr(&cpu_hw_events);
 }
 
 static void cpu_pmu_free_irq(struct arm_pmu *cpu_pmu)

@@ -1163,21 +1163,6 @@ static struct reiserfs_journal_list *find_newer_jl_for_cn(struct
 	return NULL;
 }
 
-static int newer_jl_done(struct reiserfs_journal_cnode *cn)
-{
-	struct super_block *sb = cn->sb;
-	b_blocknr_t blocknr = cn->blocknr;
-
-	cn = cn->hprev;
-	while (cn) {
-		if (cn->sb == sb && cn->blocknr == blocknr && cn->jlist &&
-		    atomic_read(&cn->jlist->j_commit_left) != 0)
-				    return 0;
-		cn = cn->hprev;
-	}
-	return 1;
-}
-
 static void remove_journal_hash(struct super_block *,
 				struct reiserfs_journal_cnode **,
 				struct reiserfs_journal_list *, unsigned long,
@@ -1353,7 +1338,6 @@ static int flush_journal_list(struct super_block *s,
 		reiserfs_warning(s, "clm-2048", "called with wcount %d",
 				 atomic_read(&journal->j_wcount));
 	}
-	BUG_ON(jl->j_trans_id == 0);
 
 	/* if flushall == 0, the lock is already held */
 	if (flushall) {
@@ -1593,31 +1577,6 @@ static int flush_journal_list(struct super_block *s,
 	return err;
 }
 
-static int test_transaction(struct super_block *s,
-                            struct reiserfs_journal_list *jl)
-{
-	struct reiserfs_journal_cnode *cn;
-
-	if (jl->j_len == 0 || atomic_read(&jl->j_nonzerolen) == 0)
-		return 1;
-
-	cn = jl->j_realblock;
-	while (cn) {
-		/* if the blocknr == 0, this has been cleared from the hash,
-		 ** skip it
-		 */
-		if (cn->blocknr == 0) {
-			goto next;
-		}
-		if (cn->bh && !newer_jl_done(cn))
-			return 0;
-	      next:
-		cn = cn->next;
-		cond_resched();
-	}
-	return 0;
-}
-
 static int write_one_transaction(struct super_block *s,
 				 struct reiserfs_journal_list *jl,
 				 struct buffer_chunk *chunk)
@@ -1805,6 +1764,8 @@ static int flush_used_journal_lists(struct super_block *s,
 			break;
 		tjl = JOURNAL_LIST_ENTRY(tjl->j_list.next);
 	}
+	get_journal_list(jl);
+	get_journal_list(flush_jl);
 	/* try to find a group of blocks we can flush across all the
 	 ** transactions, but only bother if we've actually spanned
 	 ** across multiple lists
@@ -1813,6 +1774,8 @@ static int flush_used_journal_lists(struct super_block *s,
 		ret = kupdate_transactions(s, jl, &tjl, &trans_id, len, i);
 	}
 	flush_journal_list(s, flush_jl, 1);
+	put_journal_list(s, flush_jl);
+	put_journal_list(s, jl);
 	return 0;
 }
 
@@ -3868,27 +3831,6 @@ int reiserfs_prepare_for_journal(struct super_block *sb,
 	return 1;
 }
 
-static void flush_old_journal_lists(struct super_block *s)
-{
-	struct reiserfs_journal *journal = SB_JOURNAL(s);
-	struct reiserfs_journal_list *jl;
-	struct list_head *entry;
-	time_t now = get_seconds();
-
-	while (!list_empty(&journal->j_journal_list)) {
-		entry = journal->j_journal_list.next;
-		jl = JOURNAL_LIST_ENTRY(entry);
-		/* this check should always be run, to send old lists to disk */
-		if (jl->j_timestamp < (now - (JOURNAL_MAX_TRANS_AGE * 4)) &&
-		    atomic_read(&jl->j_commit_left) == 0 &&
-		    test_transaction(s, jl)) {
-			flush_used_journal_lists(s, jl);
-		} else {
-			break;
-		}
-	}
-}
-
 /*
 ** long and ugly.  If flush, will not return until all commit
 ** blocks and all real buffers in the trans are on disk.
@@ -4232,7 +4174,6 @@ static int do_journal_end(struct reiserfs_transaction_handle *th,
 			}
 		}
 	}
-	flush_old_journal_lists(sb);
 
 	journal->j_current_jl->j_list_bitmap =
 	    get_list_bitmap(sb, journal->j_current_jl);

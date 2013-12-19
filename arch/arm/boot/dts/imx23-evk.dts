@@ -10,7 +10,7 @@
  */
 
 /dts-v1/;
-/include/ "imx23.dtsi"
+#include "imx23.dtsi"
 
 / {
 	model = "Freescale i.MX23 Evaluation Kit";
@@ -45,14 +45,14 @@
 				hog_pins_a: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x1123 /* MX23_PAD_LCD_RESET__GPIO_1_18 */
-						0x11d3 /* MX23_PAD_PWM3__GPIO_1_29 */
-						0x11e3 /* MX23_PAD_PWM4__GPIO_1_30 */
-						0x2010 /* MX23_PAD_SSP1_DETECT__SSP1_DETECT */
+						MX23_PAD_LCD_RESET__GPIO_1_18
+						MX23_PAD_PWM3__GPIO_1_29
+						MX23_PAD_PWM4__GPIO_1_30
+						MX23_PAD_SSP1_DETECT__SSP1_DETECT
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 			};
 
@@ -90,6 +90,11 @@
 		};
 
 		apbx@80040000 {
+			lradc@80050000 {
+				status = "okay";
+				fsl,lradc-touchscreen-wires = <4>;
+			};
+
 			pwm: pwm@80064000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pwm2_pins_a>;
@@ -107,6 +112,16 @@
 				pinctrl-0 = <&duart_pins_a>;
 				status = "okay";
 			};
+
+			usbphy0: usbphy@8007c000 {
+				status = "okay";
+			};
+		};
+	};
+
+	ahb@80080000 {
+		usb0: usb@80080000 {
+			status = "okay";
 		};
 	};
 

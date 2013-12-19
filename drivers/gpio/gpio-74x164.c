@@ -129,7 +129,7 @@ static int gen_74x164_probe(struct spi_device *spi)
 	if (!chip)
 		return -ENOMEM;
 
-	pdata = spi->dev.platform_data;
+	pdata = dev_get_platdata(&spi->dev);
 	if (pdata && pdata->base)
 		chip->gpio_chip.base = pdata->base;
 	else
@@ -176,7 +176,6 @@ static int gen_74x164_probe(struct spi_device *spi)
 	return ret;
 
 exit_destroy:
-	spi_set_drvdata(spi, NULL);
 	mutex_destroy(&chip->lock);
 	return ret;
 }
@@ -189,8 +188,6 @@ static int gen_74x164_remove(struct spi_device *spi)
 	chip = spi_get_drvdata(spi);
 	if (chip == NULL)
 		return -ENODEV;
-
-	spi_set_drvdata(spi, NULL);
 
 	ret = gpiochip_remove(&chip->gpio_chip);
 	if (!ret)
@@ -212,7 +209,7 @@ static struct spi_driver gen_74x164_driver = {
 	.driver = {
 		.name		= "74x164",
 		.owner		= THIS_MODULE,
-		.of_match_table	= of_match_ptr(gen_74x164_dt_ids),
+		.of_match_table	= gen_74x164_dt_ids,
 	},
 	.probe		= gen_74x164_probe,
 	.remove		= gen_74x164_remove,

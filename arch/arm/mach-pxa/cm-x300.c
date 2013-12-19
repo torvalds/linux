@@ -29,7 +29,7 @@
 #include <linux/pwm_backlight.h>
 
 #include <linux/i2c.h>
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 #include <linux/i2c/pxa-i2c.h>
 
 #include <linux/mfd/da903x.h>
@@ -310,6 +310,7 @@ static struct platform_pwm_backlight_data cm_x300_backlight_data = {
 	.max_brightness	= 100,
 	.dft_brightness	= 100,
 	.pwm_period_ns	= 10000,
+	.enable_gpio	= -1,
 };
 
 static struct platform_device cm_x300_backlight_device = {

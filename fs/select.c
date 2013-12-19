@@ -238,8 +238,7 @@ int poll_schedule_timeout(struct poll_wqueues *pwq, int state,
 
 	set_current_state(state);
 	if (!pwq->triggered)
-		rc = freezable_schedule_hrtimeout_range(expires, slack,
-							HRTIMER_MODE_ABS);
+		rc = schedule_hrtimeout_range(expires, slack, HRTIMER_MODE_ABS);
 	__set_current_state(TASK_RUNNING);
 
 	/*
@@ -455,7 +454,7 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 					const struct file_operations *f_op;
 					f_op = f.file->f_op;
 					mask = DEFAULT_POLLMASK;
-					if (f_op && f_op->poll) {
+					if (f_op->poll) {
 						wait_key_set(wait, in, out,
 							     bit, busy_flag);
 						mask = (*f_op->poll)(f.file, wait);
@@ -762,7 +761,7 @@ static inline unsigned int do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 		mask = POLLNVAL;
 		if (f.file) {
 			mask = DEFAULT_POLLMASK;
-			if (f.file->f_op && f.file->f_op->poll) {
+			if (f.file->f_op->poll) {
 				pwait->_key = pollfd->events|POLLERR|POLLHUP;
 				pwait->_key |= busy_flag;
 				mask = f.file->f_op->poll(f.file, pwait);

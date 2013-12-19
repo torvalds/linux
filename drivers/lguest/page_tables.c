@@ -669,8 +669,10 @@ unsigned long guest_pa(struct lg_cpu *cpu, unsigned long vaddr)
 
 #ifdef CONFIG_X86_PAE
 	gpmd = lgread(cpu, gpmd_addr(gpgd, vaddr), pmd_t);
-	if (!(pmd_flags(gpmd) & _PAGE_PRESENT))
+	if (!(pmd_flags(gpmd) & _PAGE_PRESENT)) {
 		kill_guest(cpu, "Bad address %#lx", vaddr);
+		return -1UL;
+	}
 	gpte = lgread(cpu, gpte_addr(cpu, gpmd, vaddr), pte_t);
 #else
 	gpte = lgread(cpu, gpte_addr(cpu, gpgd, vaddr), pte_t);

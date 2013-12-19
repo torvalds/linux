@@ -250,6 +250,14 @@ ARC_ENTRY handle_interrupt_level1
 	lr  r0, [icause1]
 	and r0, r0, 0x1f
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	; icause1 needs to be read early, before calling tracing, which
+	; can clobber scratch regs, hence use of stack to stash it
+	push r0
+	TRACE_ASM_IRQ_DISABLE
+	pop  r0
+#endif
+
 	bl.d  @arch_do_IRQ
 	mov r1, sp
 
@@ -267,12 +275,7 @@ ARC_EXIT handle_interrupt_level1
 
 ARC_ENTRY instr_service
 
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r0, [efa]
 	mov r1, sp
@@ -289,15 +292,13 @@ ARC_EXIT instr_service
 
 ARC_ENTRY mem_service
 
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r0, [efa]
 	mov r1, sp
+
+	FAKE_RET_FROM_EXCPN r9
+
 	bl  do_memory_error
 	b   ret_from_exception
 ARC_EXIT mem_service
@@ -308,11 +309,7 @@ ARC_EXIT mem_service
 
 ARC_ENTRY EV_MachineCheck
 
-	EXCPN_PROLOG_FREEUP_REG r9
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r2, [ecr]
 	lr  r0, [efa]
@@ -342,21 +339,15 @@ ARC_EXIT EV_MachineCheck
 
 ARC_ENTRY EV_TLBProtV
 
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	;Which mode (user/kernel) was the system in when Exception occured
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	;---------(3) Save some more regs-----------------
 	;  vineetg: Mar 6th: Random Seg Fault issue #1
 	;  ecr and efa were not saved in case an Intr sneaks in
 	;  after fake rtie
-	;
+
 	lr  r2, [ecr]
-	lr  r1, [efa]	; Faulting Data address
+	lr  r0, [efa]	; Faulting Data address
 
 	; --------(4) Return from CPU Exception Mode ---------
 	;  Fake a rtie, but rtie to next label
@@ -364,6 +355,8 @@ ARC_ENTRY EV_TLBProtV
 	;  mode with further Exceptions enabled
 
 	FAKE_RET_FROM_EXCPN r9
+
+	mov   r1, sp
 
 	;------ (5) Type of Protection Violation? ----------
 	;
@@ -375,16 +368,12 @@ ARC_ENTRY EV_TLBProtV
 	bbit1 r2, ECR_C_BIT_PROTV_MISALIG_DATA, 4f
 
 	;========= (6a) Access Violation Processing ========
-	mov r0, sp              ; pt_regs
 	bl  do_page_fault
 	b   ret_from_exception
 
 	;========== (6b) Non aligned access ============
 4:
-	mov r0, r1
-	mov r1, sp              ; pt_regs
 
-#ifdef  CONFIG_ARC_MISALIGN_ACCESS
 	SAVE_CALLEE_SAVED_USER
 	mov r2, sp              ; callee_regs
 
@@ -393,9 +382,6 @@ ARC_ENTRY EV_TLBProtV
 	; TBD: optimize - do this only if a callee reg was involved
 	; either a dst of emulated LD/ST or src with address-writeback
 	RESTORE_CALLEE_SAVED_USER
-#else
-	bl  do_misaligned_error
-#endif
 
 	b   ret_from_exception
 
@@ -406,12 +392,7 @@ ARC_EXIT EV_TLBProtV
 ; ---------------------------------------------
 ARC_ENTRY EV_PrivilegeV
 
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r0, [efa]
 	mov r1, sp
@@ -427,14 +408,13 @@ ARC_EXIT EV_PrivilegeV
 ; ---------------------------------------------
 ARC_ENTRY EV_Extension
 
-	EXCPN_PROLOG_FREEUP_REG r9
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r0, [efa]
 	mov r1, sp
+
+	FAKE_RET_FROM_EXCPN r9
+
 	bl  do_extension_fault
 	b   ret_from_exception
 ARC_EXIT EV_Extension
@@ -526,14 +506,7 @@ trap_with_param:
 
 ARC_ENTRY EV_Trap
 
-	; Need at least 1 reg to code the early exception prolog
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	;Which mode (user/kernel) was the system in when intr occured
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	;------- (4) What caused the Trap --------------
 	lr     r12, [ecr]
@@ -605,6 +578,7 @@ resume_user_mode_begin:
 	; --- (Slow Path #2) pending signal  ---
 	mov r0, sp	; pt_regs for arg to do_signal()/do_notify_resume()
 
+	GET_CURR_THR_INFO_FLAGS   r9
 	bbit0  r9, TIF_SIGPENDING, .Lchk_notify_resume
 
 	; Normal Trap/IRQ entry only saves Scratch (caller-saved) regs
@@ -642,6 +616,9 @@ resume_kernel_mode:
 
 #ifdef CONFIG_PREEMPT
 
+	; This is a must for preempt_schedule_irq()
+	IRQ_DISABLE	r9
+
 	; Can't preempt if preemption disabled
 	GET_CURR_THR_INFO_FROM_SP   r10
 	ld  r8, [r10, THREAD_INFO_PREEMPT_COUNT]
@@ -650,8 +627,6 @@ resume_kernel_mode:
 	; check if this task's NEED_RESCHED flag set
 	ld  r9, [r10, THREAD_INFO_FLAGS]
 	bbit0  r9, TIF_NEED_RESCHED, restore_regs
-
-	IRQ_DISABLE	r9
 
 	; Invoke PREEMPTION
 	bl      preempt_schedule_irq
@@ -665,12 +640,13 @@ resume_kernel_mode:
 ;
 ; Restore the saved sys context (common exit-path for EXCPN/IRQ/Trap)
 ; IRQ shd definitely not happen between now and rtie
+; All 2 entry points to here already disable interrupts
 
 restore_regs :
 
-	; Disable Interrupts while restoring reg-file back
-	; XXX can this be optimised out
-	IRQ_DISABLE_SAVE    r9, r10	;@r10 has prisitine (pre-disable) copy
+	TRACE_ASM_IRQ_ENABLE
+
+	lr	r10, [status32]
 
 	; Restore REG File. In case multiple Events outstanding,
 	; use the same priorty as rtie: EXCPN, L2 IRQ, L1 IRQ, None

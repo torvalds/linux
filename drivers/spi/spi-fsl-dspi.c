@@ -108,7 +108,7 @@ struct fsl_dspi {
 	struct spi_bitbang	bitbang;
 	struct platform_device	*pdev;
 
-	void			*base;
+	void __iomem		*base;
 	int			irq;
 	struct clk 		*clk;
 
@@ -165,7 +165,7 @@ static void hz_to_spi_baud(char *pbr, char *br, int speed_hz,
 			}
 		}
 
-	pr_warn("Can not find valid buad rate,speed_hz is %d,clkrate is %ld\
+	pr_warn("Can not find valid baud rate,speed_hz is %d,clkrate is %ld\
 		,we use the max prescaler value.\n", speed_hz, clkrate);
 	*pbr = ARRAY_SIZE(pbr_tbl) - 1;
 	*br =  ARRAY_SIZE(brs) - 1;
@@ -450,7 +450,7 @@ static int dspi_probe(struct platform_device *pdev)
 
 	dspi = spi_master_get_devdata(master);
 	dspi->pdev = pdev;
-	dspi->bitbang.master = spi_master_get(master);
+	dspi->bitbang.master = master;
 	dspi->bitbang.chipselect = dspi_chipselect;
 	dspi->bitbang.setup_transfer = dspi_setup_transfer;
 	dspi->bitbang.txrx_bufs = dspi_txrx_transfer;
@@ -476,15 +476,9 @@ static int dspi_probe(struct platform_device *pdev)
 	master->bus_num = bus_num;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "can't get platform resource\n");
-		ret = -EINVAL;
-		goto out_master_put;
-	}
-
 	dspi->base = devm_ioremap_resource(&pdev->dev, res);
-	if (!dspi->base) {
-		ret = -EINVAL;
+	if (IS_ERR(dspi->base)) {
+		ret = PTR_ERR(dspi->base);
 		goto out_master_put;
 	}
 
@@ -526,7 +520,6 @@ out_clk_put:
 	clk_disable_unprepare(dspi->clk);
 out_master_put:
 	spi_master_put(master);
-	platform_set_drvdata(pdev, NULL);
 
 	return ret;
 }
@@ -537,6 +530,7 @@ static int dspi_remove(struct platform_device *pdev)
 
 	/* Disconnect from the SPI framework */
 	spi_bitbang_stop(&dspi->bitbang);
+	clk_disable_unprepare(dspi->clk);
 	spi_master_put(dspi->bitbang.master);
 
 	return 0;
@@ -553,5 +547,5 @@ static struct platform_driver fsl_dspi_driver = {
 module_platform_driver(fsl_dspi_driver);
 
 MODULE_DESCRIPTION("Freescale DSPI Controller Driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRIVER_NAME);

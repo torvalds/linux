@@ -91,7 +91,6 @@ static inline struct mempolicy *mpol_dup(struct mempolicy *pol)
 }
 
 #define vma_policy(vma) ((vma)->vm_policy)
-#define vma_set_policy(vma, pol) ((vma)->vm_policy = (pol))
 
 static inline void mpol_get(struct mempolicy *pol)
 {
@@ -126,6 +125,7 @@ struct shared_policy {
 	spinlock_t lock;
 };
 
+int vma_dup_policy(struct vm_area_struct *src, struct vm_area_struct *dst);
 void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol);
 int mpol_set_shared_policy(struct shared_policy *info,
 				struct vm_area_struct *vma,
@@ -136,6 +136,7 @@ struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
 
 struct mempolicy *get_vma_policy(struct task_struct *tsk,
 		struct vm_area_struct *vma, unsigned long addr);
+bool vma_policy_mof(struct task_struct *task, struct vm_area_struct *vma);
 
 extern void numa_default_policy(void);
 extern void numa_policy_init(void);
@@ -168,12 +169,12 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 extern int mpol_parse_str(char *str, struct mempolicy **mpol);
 #endif
 
-extern int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol);
+extern void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol);
 
 /* Check if a vma is migratable */
 static inline int vma_migratable(struct vm_area_struct *vma)
 {
-	if (vma->vm_flags & (VM_IO | VM_HUGETLB | VM_PFNMAP))
+	if (vma->vm_flags & (VM_IO | VM_PFNMAP))
 		return 0;
 	/*
 	 * Migration allocates pages in the highest zone. If we cannot
@@ -240,7 +241,12 @@ mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx)
 }
 
 #define vma_policy(vma) NULL
-#define vma_set_policy(vma, pol) do {} while(0)
+
+static inline int
+vma_dup_policy(struct vm_area_struct *src, struct vm_area_struct *dst)
+{
+	return 0;
+}
 
 static inline void numa_policy_init(void)
 {
@@ -301,9 +307,8 @@ static inline int mpol_parse_str(char *str, struct mempolicy **mpol)
 }
 #endif
 
-static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
+static inline void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 {
-	return 0;
 }
 
 static inline int mpol_misplaced(struct page *page, struct vm_area_struct *vma,

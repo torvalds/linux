@@ -309,16 +309,13 @@ el1_irq:
 #ifdef CONFIG_TRACE_IRQFLAGS
 	bl	trace_hardirqs_off
 #endif
+
+	irq_handler
+
 #ifdef CONFIG_PREEMPT
 	get_thread_info tsk
-	ldr	x24, [tsk, #TI_PREEMPT]		// get preempt count
-	add	x0, x24, #1			// increment it
-	str	x0, [tsk, #TI_PREEMPT]
-#endif
-	irq_handler
-#ifdef CONFIG_PREEMPT
-	str	x24, [tsk, #TI_PREEMPT]		// restore preempt count
-	cbnz	x24, 1f				// preempt count != 0
+	ldr	w24, [tsk, #TI_PREEMPT]		// restore preempt count
+	cbnz	w24, 1f				// preempt count != 0
 	ldr	x0, [tsk, #TI_FLAGS]		// get flags
 	tbz	x0, #TIF_NEED_RESCHED, 1f	// needs rescheduling?
 	bl	el1_preempt
@@ -423,6 +420,7 @@ el0_da:
 	 * Data abort handling
 	 */
 	mrs	x0, far_el1
+	bic	x0, x0, #(0xff << 56)
 	disable_step x1
 	isb
 	enable_dbg
@@ -476,6 +474,8 @@ el0_undef:
 	 * Undefined instruction
 	 */
 	mov	x0, sp
+	// enable interrupts before calling the main handler
+	enable_irq
 	b	do_undefinstr
 el0_dbg:
 	/*
@@ -504,22 +504,10 @@ el0_irq_naked:
 #ifdef CONFIG_TRACE_IRQFLAGS
 	bl	trace_hardirqs_off
 #endif
-	get_thread_info tsk
-#ifdef CONFIG_PREEMPT
-	ldr	x24, [tsk, #TI_PREEMPT]		// get preempt count
-	add	x23, x24, #1			// increment it
-	str	x23, [tsk, #TI_PREEMPT]
-#endif
+
 	irq_handler
-#ifdef CONFIG_PREEMPT
-	ldr	x0, [tsk, #TI_PREEMPT]
-	str	x24, [tsk, #TI_PREEMPT]
-	cmp	x0, x23
-	b.eq	1f
-	mov	x1, #0
-	str	x1, [x1]			// BUG
-1:
-#endif
+	get_thread_info tsk
+
 #ifdef CONFIG_TRACE_IRQFLAGS
 	bl	trace_hardirqs_on
 #endif

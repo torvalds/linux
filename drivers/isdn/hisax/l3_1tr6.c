@@ -63,7 +63,7 @@ l3_1tr6_error(struct l3_process *pc, u_char *msg, struct sk_buff *skb)
 {
 	dev_kfree_skb(skb);
 	if (pc->st->l3.debug & L3_DEB_WARN)
-		l3_debug(pc->st, msg);
+		l3_debug(pc->st, "%s", msg);
 	l3_1tr6_release_req(pc, 0, NULL);
 }
 
@@ -161,7 +161,6 @@ l3_1tr6_setup(struct l3_process *pc, u_char pr, void *arg)
 {
 	u_char *p;
 	int bcfound = 0;
-	char tmp[80];
 	struct sk_buff *skb = arg;
 
 	/* Channel Identification */
@@ -214,10 +213,9 @@ l3_1tr6_setup(struct l3_process *pc, u_char pr, void *arg)
 	/* Signal all services, linklevel takes care of Service-Indicator */
 	if (bcfound) {
 		if ((pc->para.setup.si1 != 7) && (pc->st->l3.debug & L3_DEB_WARN)) {
-			sprintf(tmp, "non-digital call: %s -> %s",
+			l3_debug(pc->st, "non-digital call: %s -> %s",
 				pc->para.setup.phone,
 				pc->para.setup.eazmsn);
-			l3_debug(pc->st, tmp);
 		}
 		newl3state(pc, 6);
 		pc->st->l3.l3l4(pc->st, CC_SETUP | INDICATION, pc);
@@ -301,7 +299,7 @@ l3_1tr6_info(struct l3_process *pc, u_char pr, void *arg)
 {
 	u_char *p;
 	int i, tmpcharge = 0;
-	char a_charge[8], tmp[32];
+	char a_charge[8];
 	struct sk_buff *skb = arg;
 
 	p = skb->data;
@@ -316,8 +314,8 @@ l3_1tr6_info(struct l3_process *pc, u_char pr, void *arg)
 			pc->st->l3.l3l4(pc->st, CC_CHARGE | INDICATION, pc);
 		}
 		if (pc->st->l3.debug & L3_DEB_CHARGE) {
-			sprintf(tmp, "charging info %d", pc->para.chargeinfo);
-			l3_debug(pc->st, tmp);
+			l3_debug(pc->st, "charging info %d",
+				 pc->para.chargeinfo);
 		}
 	} else if (pc->st->l3.debug & L3_DEB_CHARGE)
 		l3_debug(pc->st, "charging info not found");
@@ -399,7 +397,7 @@ l3_1tr6_disc(struct l3_process *pc, u_char pr, void *arg)
 	struct sk_buff *skb = arg;
 	u_char *p;
 	int i, tmpcharge = 0;
-	char a_charge[8], tmp[32];
+	char a_charge[8];
 
 	StopAllL3Timer(pc);
 	p = skb->data;
@@ -414,8 +412,8 @@ l3_1tr6_disc(struct l3_process *pc, u_char pr, void *arg)
 			pc->st->l3.l3l4(pc->st, CC_CHARGE | INDICATION, pc);
 		}
 		if (pc->st->l3.debug & L3_DEB_CHARGE) {
-			sprintf(tmp, "charging info %d", pc->para.chargeinfo);
-			l3_debug(pc->st, tmp);
+			l3_debug(pc->st, "charging info %d",
+				 pc->para.chargeinfo);
 		}
 	} else if (pc->st->l3.debug & L3_DEB_CHARGE)
 		l3_debug(pc->st, "charging info not found");
@@ -746,7 +744,6 @@ up1tr6(struct PStack *st, int pr, void *arg)
 	int i, mt, cr;
 	struct l3_process *proc;
 	struct sk_buff *skb = arg;
-	char tmp[80];
 
 	switch (pr) {
 	case (DL_DATA | INDICATION):
@@ -762,26 +759,23 @@ up1tr6(struct PStack *st, int pr, void *arg)
 	}
 	if (skb->len < 4) {
 		if (st->l3.debug & L3_DEB_PROTERR) {
-			sprintf(tmp, "up1tr6 len only %d", skb->len);
-			l3_debug(st, tmp);
+			l3_debug(st, "up1tr6 len only %d", skb->len);
 		}
 		dev_kfree_skb(skb);
 		return;
 	}
 	if ((skb->data[0] & 0xfe) != PROTO_DIS_N0) {
 		if (st->l3.debug & L3_DEB_PROTERR) {
-			sprintf(tmp, "up1tr6%sunexpected discriminator %x message len %d",
+			l3_debug(st, "up1tr6%sunexpected discriminator %x message len %d",
 				(pr == (DL_DATA | INDICATION)) ? " " : "(broadcast) ",
 				skb->data[0], skb->len);
-			l3_debug(st, tmp);
 		}
 		dev_kfree_skb(skb);
 		return;
 	}
 	if (skb->data[1] != 1) {
 		if (st->l3.debug & L3_DEB_PROTERR) {
-			sprintf(tmp, "up1tr6 CR len not 1");
-			l3_debug(st, tmp);
+			l3_debug(st, "up1tr6 CR len not 1");
 		}
 		dev_kfree_skb(skb);
 		return;
@@ -791,9 +785,8 @@ up1tr6(struct PStack *st, int pr, void *arg)
 	if (skb->data[0] == PROTO_DIS_N0) {
 		dev_kfree_skb(skb);
 		if (st->l3.debug & L3_DEB_STATE) {
-			sprintf(tmp, "up1tr6%s N0 mt %x unhandled",
+			l3_debug(st, "up1tr6%s N0 mt %x unhandled",
 				(pr == (DL_DATA | INDICATION)) ? " " : "(broadcast) ", mt);
-			l3_debug(st, tmp);
 		}
 	} else if (skb->data[0] == PROTO_DIS_N1) {
 		if (!(proc = getl3proc(st, cr))) {
@@ -801,8 +794,7 @@ up1tr6(struct PStack *st, int pr, void *arg)
 				if (cr < 128) {
 					if (!(proc = new_l3_process(st, cr))) {
 						if (st->l3.debug & L3_DEB_PROTERR) {
-							sprintf(tmp, "up1tr6 no roc mem");
-							l3_debug(st, tmp);
+							l3_debug(st, "up1tr6 no roc mem");
 						}
 						dev_kfree_skb(skb);
 						return;
@@ -821,8 +813,7 @@ up1tr6(struct PStack *st, int pr, void *arg)
 			} else {
 				if (!(proc = new_l3_process(st, cr))) {
 					if (st->l3.debug & L3_DEB_PROTERR) {
-						sprintf(tmp, "up1tr6 no roc mem");
-						l3_debug(st, tmp);
+						l3_debug(st, "up1tr6 no roc mem");
 					}
 					dev_kfree_skb(skb);
 					return;
@@ -837,18 +828,16 @@ up1tr6(struct PStack *st, int pr, void *arg)
 		if (i == ARRAY_SIZE(datastln1)) {
 			dev_kfree_skb(skb);
 			if (st->l3.debug & L3_DEB_STATE) {
-				sprintf(tmp, "up1tr6%sstate %d mt %x unhandled",
+				l3_debug(st, "up1tr6%sstate %d mt %x unhandled",
 					(pr == (DL_DATA | INDICATION)) ? " " : "(broadcast) ",
 					proc->state, mt);
-				l3_debug(st, tmp);
 			}
 			return;
 		} else {
 			if (st->l3.debug & L3_DEB_STATE) {
-				sprintf(tmp, "up1tr6%sstate %d mt %x",
+				l3_debug(st, "up1tr6%sstate %d mt %x",
 					(pr == (DL_DATA | INDICATION)) ? " " : "(broadcast) ",
 					proc->state, mt);
-				l3_debug(st, tmp);
 			}
 			datastln1[i].rout(proc, pr, skb);
 		}
@@ -861,7 +850,6 @@ down1tr6(struct PStack *st, int pr, void *arg)
 	int i, cr;
 	struct l3_process *proc;
 	struct Channel *chan;
-	char tmp[80];
 
 	if ((DL_ESTABLISH | REQUEST) == pr) {
 		l3_msg(st, pr, NULL);
@@ -888,15 +876,13 @@ down1tr6(struct PStack *st, int pr, void *arg)
 			break;
 	if (i == ARRAY_SIZE(downstl)) {
 		if (st->l3.debug & L3_DEB_STATE) {
-			sprintf(tmp, "down1tr6 state %d prim %d unhandled",
+			l3_debug(st, "down1tr6 state %d prim %d unhandled",
 				proc->state, pr);
-			l3_debug(st, tmp);
 		}
 	} else {
 		if (st->l3.debug & L3_DEB_STATE) {
-			sprintf(tmp, "down1tr6 state %d prim %d",
+			l3_debug(st, "down1tr6 state %d prim %d",
 				proc->state, pr);
-			l3_debug(st, tmp);
 		}
 		downstl[i].rout(proc, pr, arg);
 	}

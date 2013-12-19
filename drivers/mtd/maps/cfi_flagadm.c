@@ -55,13 +55,13 @@
 #define FLASH_PARTITION3_SIZE 0x001C0000
 
 
-struct map_info flagadm_map = {
+static struct map_info flagadm_map = {
 		.name =		"FlagaDM flash device",
 		.size =		FLASH_SIZE,
 		.bankwidth =	2,
 };
 
-struct mtd_partition flagadm_parts[] = {
+static struct mtd_partition flagadm_parts[] = {
 	{
 		.name =		"Bootloader",
 		.offset	=	FLASH_PARTITION0_ADDR,
@@ -112,7 +112,7 @@ static int __init init_flagadm(void)
 		return 0;
 	}
 
-	iounmap((void *)flagadm_map.virt);
+	iounmap((void __iomem *)flagadm_map.virt);
 	return -ENXIO;
 }
 
@@ -123,8 +123,8 @@ static void __exit cleanup_flagadm(void)
 		map_destroy(mymtd);
 	}
 	if (flagadm_map.virt) {
-		iounmap((void *)flagadm_map.virt);
-		flagadm_map.virt = 0;
+		iounmap((void __iomem *)flagadm_map.virt);
+		flagadm_map.virt = NULL;
 	}
 }
 

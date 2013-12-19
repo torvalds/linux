@@ -33,6 +33,7 @@
 #include "internal.h"
 #include "pnfs.h"
 #include "iostat.h"
+#include "nfs4trace.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS
 #define PNFS_LAYOUTGET_RETRY_TIMEOUT (120*HZ)
@@ -1526,6 +1527,7 @@ void pnfs_ld_write_done(struct nfs_write_data *data)
 {
 	struct nfs_pgio_header *hdr = data->header;
 
+	trace_nfs4_pnfs_write(data, hdr->pnfs_error);
 	if (!hdr->pnfs_error) {
 		pnfs_set_layoutcommit(data);
 		hdr->mds_ops->rpc_call_done(&data->task, data);
@@ -1680,6 +1682,7 @@ void pnfs_ld_read_done(struct nfs_read_data *data)
 {
 	struct nfs_pgio_header *hdr = data->header;
 
+	trace_nfs4_pnfs_read(data, hdr->pnfs_error);
 	if (likely(!hdr->pnfs_error)) {
 		__nfs4_read_done_cb(data);
 		hdr->mds_ops->rpc_call_done(&data->task, data);

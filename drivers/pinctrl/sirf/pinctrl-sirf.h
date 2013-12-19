@@ -9,8 +9,9 @@
 #ifndef __PINMUX_SIRF_H__
 #define __PINMUX_SIRF_H__
 
-#define SIRFSOC_NUM_PADS    622
-#define SIRFSOC_RSC_PIN_MUX 0x4
+#define SIRFSOC_NUM_PADS		622
+#define SIRFSOC_RSC_USB_UART_SHARE	0
+#define SIRFSOC_RSC_PIN_MUX		0x4
 
 #define SIRFSOC_GPIO_PAD_EN(g)		((g)*0x100 + 0x84)
 #define SIRFSOC_GPIO_PAD_EN_CLR(g)	((g)*0x100 + 0x90)
@@ -61,6 +62,7 @@ struct sirfsoc_padmux {
 	unsigned long muxmask_counts;
 	const struct sirfsoc_muxmask *muxmask;
 	/* RSC_PIN_MUX set */
+	unsigned long ctrlreg;
 	unsigned long funcmask;
 	unsigned long funcval;
 };

@@ -197,13 +197,14 @@ static void vp_reset(struct virtio_device *vdev)
 }
 
 /* the notify function used when creating a virt queue */
-static void vp_notify(struct virtqueue *vq)
+static bool vp_notify(struct virtqueue *vq)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vq->vdev);
 
 	/* we write the queue's selector into the notification register to
 	 * signal the other end */
 	iowrite16(vq->index, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_NOTIFY);
+	return true;
 }
 
 /* Handle a configuration change: Tell driver if it wants to know. */
@@ -766,7 +767,7 @@ static void virtio_pci_remove(struct pci_dev *pci_dev)
 	kfree(vp_dev);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int virtio_pci_freeze(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
@@ -824,7 +825,7 @@ static struct pci_driver virtio_pci_driver = {
 	.id_table	= virtio_pci_id_table,
 	.probe		= virtio_pci_probe,
 	.remove		= virtio_pci_remove,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.driver.pm	= &virtio_pci_pm_ops,
 #endif
 };

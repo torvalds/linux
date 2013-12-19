@@ -172,7 +172,7 @@ static void udf_write_failed(struct address_space *mapping, loff_t to)
 	loff_t isize = inode->i_size;
 
 	if (to > isize) {
-		truncate_pagecache(inode, to, isize);
+		truncate_pagecache(inode, isize);
 		if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB) {
 			down_write(&iinfo->i_data_sem);
 			udf_clear_extent_cache(inode);

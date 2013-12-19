@@ -24,6 +24,7 @@
 #include <linux/irqchip/arm-gic.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/platform_data/dma-rcar-hpbdma.h>
 #include <linux/platform_data/gpio-rcar.h>
 #include <linux/platform_data/irq-renesas-intc-irqpin.h>
 #include <linux/platform_device.h>
@@ -53,7 +54,7 @@
 	.irqs		= SCIx_IRQ_MUXED(irq),			\
 }
 
-static struct plat_sci_port scif_platform_data[] = {
+static struct plat_sci_port scif_platform_data[] __initdata = {
 	SCIF_INFO(0xffe40000, gic_iid(0x66)),
 	SCIF_INFO(0xffe41000, gic_iid(0x67)),
 	SCIF_INFO(0xffe42000, gic_iid(0x68)),
@@ -63,24 +64,24 @@ static struct plat_sci_port scif_platform_data[] = {
 };
 
 /* TMU */
-static struct resource sh_tmu0_resources[] = {
+static struct resource sh_tmu0_resources[] __initdata = {
 	DEFINE_RES_MEM(0xffd80008, 12),
 	DEFINE_RES_IRQ(gic_iid(0x40)),
 };
 
-static struct sh_timer_config sh_tmu0_platform_data = {
+static struct sh_timer_config sh_tmu0_platform_data __initdata = {
 	.name			= "TMU00",
 	.channel_offset		= 0x4,
 	.timer_bit		= 0,
 	.clockevent_rating	= 200,
 };
 
-static struct resource sh_tmu1_resources[] = {
+static struct resource sh_tmu1_resources[] __initdata = {
 	DEFINE_RES_MEM(0xffd80014, 12),
 	DEFINE_RES_IRQ(gic_iid(0x41)),
 };
 
-static struct sh_timer_config sh_tmu1_platform_data = {
+static struct sh_timer_config sh_tmu1_platform_data __initdata = {
 	.name			= "TMU01",
 	.channel_offset		= 0x10,
 	.timer_bit		= 1,
@@ -95,42 +96,45 @@ static struct sh_timer_config sh_tmu1_platform_data = {
 		&sh_tmu##idx##_platform_data,		\
 		sizeof(sh_tmu##idx##_platform_data))
 
-/* USB PHY */
-static struct resource usb_phy_resources[] __initdata = {
-	DEFINE_RES_MEM(0xffe70800, 0x100),
-	DEFINE_RES_MEM(0xffe76000, 0x100),
-};
-
-void __init r8a7778_add_usb_phy_device(struct rcar_phy_platform_data *pdata)
+int r8a7778_usb_phy_power(bool enable)
 {
-	platform_device_register_resndata(&platform_bus, "rcar_usb_phy", -1,
-					  usb_phy_resources,
-					  ARRAY_SIZE(usb_phy_resources),
-					  pdata, sizeof(*pdata));
+	static struct usb_phy *phy = NULL;
+	int ret = 0;
+
+	if (!phy)
+		phy = usb_get_phy(USB_PHY_TYPE_USB2);
+
+	if (IS_ERR(phy)) {
+		pr_err("kernel doesn't have usb phy driver\n");
+		return PTR_ERR(phy);
+	}
+
+	if (enable)
+		ret = usb_phy_init(phy);
+	else
+		usb_phy_shutdown(phy);
+
+	return ret;
 }
 
 /* USB */
-static struct usb_phy *phy;
-
 static int usb_power_on(struct platform_device *pdev)
 {
-	if (IS_ERR(phy))
-		return PTR_ERR(phy);
+	int ret = r8a7778_usb_phy_power(true);
+
+	if (ret)
+		return ret;
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
-
-	usb_phy_init(phy);
 
 	return 0;
 }
 
 static void usb_power_off(struct platform_device *pdev)
 {
-	if (IS_ERR(phy))
+	if (r8a7778_usb_phy_power(false))
 		return;
-
-	usb_phy_shutdown(phy);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -188,32 +192,18 @@ static struct platform_device_info hci##_info __initdata = {	\
 USB_PLATFORM_INFO(ehci);
 USB_PLATFORM_INFO(ohci);
 
-/* Ether */
-static struct resource ether_resources[] = {
-	DEFINE_RES_MEM(0xfde00000, 0x400),
-	DEFINE_RES_IRQ(gic_iid(0x89)),
-};
-
-void __init r8a7778_add_ether_device(struct sh_eth_plat_data *pdata)
-{
-	platform_device_register_resndata(&platform_bus, "r8a777x-ether", -1,
-					  ether_resources,
-					  ARRAY_SIZE(ether_resources),
-					  pdata, sizeof(*pdata));
-}
-
 /* PFC/GPIO */
-static struct resource pfc_resources[] = {
+static struct resource pfc_resources[] __initdata = {
 	DEFINE_RES_MEM(0xfffc0000, 0x118),
 };
 
 #define R8A7778_GPIO(idx)						\
-static struct resource r8a7778_gpio##idx##_resources[] = {		\
+static struct resource r8a7778_gpio##idx##_resources[] __initdata = {	\
 	DEFINE_RES_MEM(0xffc40000 + 0x1000 * (idx), 0x30),		\
 	DEFINE_RES_IRQ(gic_iid(0x87)),					\
 };									\
 									\
-static struct gpio_rcar_config r8a7778_gpio##idx##_platform_data = {	\
+static struct gpio_rcar_config r8a7778_gpio##idx##_platform_data __initdata = { \
 	.gpio_base	= 32 * (idx),					\
 	.irq_base	= GPIO_IRQ_BASE(idx),				\
 	.number_of_pins	= 32,						\
@@ -248,30 +238,6 @@ void __init r8a7778_pinmux_init(void)
 	r8a7778_register_gpio(4);
 };
 
-/* SDHI */
-static struct resource sdhi_resources[] = {
-	/* SDHI0 */
-	DEFINE_RES_MEM(0xFFE4C000, 0x100),
-	DEFINE_RES_IRQ(gic_iid(0x77)),
-	/* SDHI1 */
-	DEFINE_RES_MEM(0xFFE4D000, 0x100),
-	DEFINE_RES_IRQ(gic_iid(0x78)),
-	/* SDHI2 */
-	DEFINE_RES_MEM(0xFFE4F000, 0x100),
-	DEFINE_RES_IRQ(gic_iid(0x76)),
-};
-
-void __init r8a7778_sdhi_init(int id,
-			      struct sh_mobile_sdhi_info *info)
-{
-	BUG_ON(id < 0 || id > 2);
-
-	platform_device_register_resndata(
-		&platform_bus, "sh_mobile_sdhi", id,
-		sdhi_resources + (2 * id), 2,
-		info, sizeof(*info));
-}
-
 /* I2C */
 static struct resource i2c_resources[] __initdata = {
 	/* I2C0 */
@@ -288,7 +254,7 @@ static struct resource i2c_resources[] __initdata = {
 	DEFINE_RES_IRQ(gic_iid(0x6d)),
 };
 
-void __init r8a7778_add_i2c_device(int id)
+static void __init r8a7778_register_i2c(int id)
 {
 	BUG_ON(id < 0 || id > 3);
 
@@ -310,7 +276,7 @@ static struct resource hspi_resources[] __initdata = {
 	DEFINE_RES_IRQ(gic_iid(0x75)),
 };
 
-void __init r8a7778_add_hspi_device(int id)
+static void __init r8a7778_register_hspi(int id)
 {
 	BUG_ON(id < 0 || id > 2);
 
@@ -319,55 +285,7 @@ void __init r8a7778_add_hspi_device(int id)
 		hspi_resources + (2 * id), 2);
 }
 
-/* MMC */
-static struct resource mmc_resources[] __initdata = {
-	DEFINE_RES_MEM(0xffe4e000, 0x100),
-	DEFINE_RES_IRQ(gic_iid(0x5d)),
-};
-
-void __init r8a7778_add_mmc_device(struct sh_mmcif_plat_data *info)
-{
-	platform_device_register_resndata(
-		&platform_bus, "sh_mmcif", -1,
-		mmc_resources, ARRAY_SIZE(mmc_resources),
-		info, sizeof(*info));
-}
-
-/* VIN */
-#define R8A7778_VIN(idx)						\
-static struct resource vin##idx##_resources[] __initdata = {		\
-	DEFINE_RES_MEM(0xffc50000 + 0x1000 * (idx), 0x1000),		\
-	DEFINE_RES_IRQ(gic_iid(0x5a)),					\
-};									\
-									\
-static struct platform_device_info vin##idx##_info __initdata = {	\
-	.parent		= &platform_bus,				\
-	.name		= "r8a7778-vin",				\
-	.id		= idx,						\
-	.res		= vin##idx##_resources,				\
-	.num_res	= ARRAY_SIZE(vin##idx##_resources),		\
-	.dma_mask	= DMA_BIT_MASK(32),				\
-}
-
-R8A7778_VIN(0);
-R8A7778_VIN(1);
-
-static struct platform_device_info *vin_info_table[] __initdata = {
-	&vin0_info,
-	&vin1_info,
-};
-
-void __init r8a7778_add_vin_device(int id, struct rcar_vin_platform_data *pdata)
-{
-	BUG_ON(id < 0 || id > 1);
-
-	vin_info_table[id]->data = pdata;
-	vin_info_table[id]->size_data = sizeof(*pdata);
-
-	platform_device_register_full(vin_info_table[id]);
-}
-
-void __init r8a7778_add_standard_devices(void)
+void __init r8a7778_add_dt_devices(void)
 {
 	int i;
 
@@ -391,20 +309,114 @@ void __init r8a7778_add_standard_devices(void)
 	r8a7778_register_tmu(1);
 }
 
+/* HPB-DMA */
+
+/* Asynchronous mode register (ASYNCMDR) bits */
+#define HPB_DMAE_ASYNCMDR_ASMD22_MASK	BIT(2)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD22_SINGLE	BIT(2)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD22_MULTI	0	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD21_MASK	BIT(1)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD21_SINGLE	BIT(1)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD21_MULTI	0	/* SDHI0 */
+
+static const struct hpb_dmae_slave_config hpb_dmae_slaves[] = {
+	{
+		.id	= HPBDMA_SLAVE_SDHI0_TX,
+		.addr	= 0xffe4c000 + 0x30,
+		.dcr	= HPB_DMAE_DCR_SPDS_16BIT |
+			  HPB_DMAE_DCR_DMDL |
+			  HPB_DMAE_DCR_DPDS_16BIT,
+		.rstr	= HPB_DMAE_ASYNCRSTR_ASRST21 |
+			  HPB_DMAE_ASYNCRSTR_ASRST22 |
+			  HPB_DMAE_ASYNCRSTR_ASRST23,
+		.mdr	= HPB_DMAE_ASYNCMDR_ASMD21_MULTI,
+		.mdm	= HPB_DMAE_ASYNCMDR_ASMD21_MASK,
+		.port	= 0x0D0C,
+		.flags	= HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE,
+		.dma_ch	= 21,
+	}, {
+		.id	= HPBDMA_SLAVE_SDHI0_RX,
+		.addr	= 0xffe4c000 + 0x30,
+		.dcr	= HPB_DMAE_DCR_SMDL |
+			  HPB_DMAE_DCR_SPDS_16BIT |
+			  HPB_DMAE_DCR_DPDS_16BIT,
+		.rstr	= HPB_DMAE_ASYNCRSTR_ASRST21 |
+			  HPB_DMAE_ASYNCRSTR_ASRST22 |
+			  HPB_DMAE_ASYNCRSTR_ASRST23,
+		.mdr	= HPB_DMAE_ASYNCMDR_ASMD22_MULTI,
+		.mdm	= HPB_DMAE_ASYNCMDR_ASMD22_MASK,
+		.port	= 0x0D0C,
+		.flags	= HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE,
+		.dma_ch	= 22,
+	},
+};
+
+static const struct hpb_dmae_channel hpb_dmae_channels[] = {
+	HPB_DMAE_CHANNEL(0x7e, HPBDMA_SLAVE_SDHI0_TX), /* ch. 21 */
+	HPB_DMAE_CHANNEL(0x7e, HPBDMA_SLAVE_SDHI0_RX), /* ch. 22 */
+};
+
+static struct hpb_dmae_pdata dma_platform_data __initdata = {
+	.slaves			= hpb_dmae_slaves,
+	.num_slaves		= ARRAY_SIZE(hpb_dmae_slaves),
+	.channels		= hpb_dmae_channels,
+	.num_channels		= ARRAY_SIZE(hpb_dmae_channels),
+	.ts_shift		= {
+		[XMIT_SZ_8BIT]	= 0,
+		[XMIT_SZ_16BIT]	= 1,
+		[XMIT_SZ_32BIT]	= 2,
+	},
+	.num_hw_channels	= 39,
+};
+
+static struct resource hpb_dmae_resources[] __initdata = {
+	/* Channel registers */
+	DEFINE_RES_MEM(0xffc08000, 0x1000),
+	/* Common registers */
+	DEFINE_RES_MEM(0xffc09000, 0x170),
+	/* Asynchronous reset registers */
+	DEFINE_RES_MEM(0xffc00300, 4),
+	/* Asynchronous mode registers */
+	DEFINE_RES_MEM(0xffc00400, 4),
+	/* IRQ for DMA channels */
+	DEFINE_RES_NAMED(gic_iid(0x7b), 5, NULL, IORESOURCE_IRQ),
+};
+
+static void __init r8a7778_register_hpb_dmae(void)
+{
+	platform_device_register_resndata(&platform_bus, "hpb-dma-engine", -1,
+					  hpb_dmae_resources,
+					  ARRAY_SIZE(hpb_dmae_resources),
+					  &dma_platform_data,
+					  sizeof(dma_platform_data));
+}
+
+void __init r8a7778_add_standard_devices(void)
+{
+	r8a7778_add_dt_devices();
+	r8a7778_register_i2c(0);
+	r8a7778_register_i2c(1);
+	r8a7778_register_i2c(2);
+	r8a7778_register_i2c(3);
+	r8a7778_register_hspi(0);
+	r8a7778_register_hspi(1);
+	r8a7778_register_hspi(2);
+
+	r8a7778_register_hpb_dmae();
+}
+
 void __init r8a7778_init_late(void)
 {
-	phy = usb_get_phy(USB_PHY_TYPE_USB2);
-
 	platform_device_register_full(&ehci_info);
 	platform_device_register_full(&ohci_info);
 }
 
-static struct renesas_intc_irqpin_config irqpin_platform_data = {
+static struct renesas_intc_irqpin_config irqpin_platform_data __initdata = {
 	.irq_base = irq_pin(0), /* IRQ0 -> IRQ3 */
 	.sense_bitfield_width = 2,
 };
 
-static struct resource irqpin_resources[] = {
+static struct resource irqpin_resources[] __initdata = {
 	DEFINE_RES_MEM(0xfe78001c, 4), /* ICR1 */
 	DEFINE_RES_MEM(0xfe780010, 4), /* INTPRI */
 	DEFINE_RES_MEM(0xfe780024, 4), /* INTREQ */
@@ -416,7 +428,7 @@ static struct resource irqpin_resources[] = {
 	DEFINE_RES_IRQ(gic_iid(0x3e)), /* IRQ3 */
 };
 
-void __init r8a7778_init_irq_extpin(int irlm)
+void __init r8a7778_init_irq_extpin_dt(int irlm)
 {
 	void __iomem *icr0 = ioremap_nocache(0xfe780000, PAGE_SIZE);
 	unsigned long tmp;
@@ -434,7 +446,11 @@ void __init r8a7778_init_irq_extpin(int irlm)
 	tmp |= (1 << 21); /* LVLMODE = 1 */
 	iowrite32(tmp, icr0);
 	iounmap(icr0);
+}
 
+void __init r8a7778_init_irq_extpin(int irlm)
+{
+	r8a7778_init_irq_extpin_dt(irlm);
 	if (irlm)
 		platform_device_register_resndata(
 			&platform_bus, "renesas_intc_irqpin", -1,
@@ -442,16 +458,24 @@ void __init r8a7778_init_irq_extpin(int irlm)
 			&irqpin_platform_data, sizeof(irqpin_platform_data));
 }
 
+void __init r8a7778_init_delay(void)
+{
+	shmobile_setup_delay(800, 1, 3); /* Cortex-A9 @ 800MHz */
+}
+
+#ifdef CONFIG_USE_OF
 #define INT2SMSKCR0	0x82288 /* 0xfe782288 */
 #define INT2SMSKCR1	0x8228c /* 0xfe78228c */
 
 #define INT2NTSR0	0x00018 /* 0xfe700018 */
 #define INT2NTSR1	0x0002c /* 0xfe70002c */
-static void __init r8a7778_init_irq_common(void)
+void __init r8a7778_init_irq_dt(void)
 {
 	void __iomem *base = ioremap_nocache(0xfe700000, 0x00100000);
 
 	BUG_ON(!base);
+
+	irqchip_init();
 
 	/* route all interrupts to ARM */
 	__raw_writel(0x73ffffff, base + INT2NTSR0);
@@ -464,43 +488,6 @@ static void __init r8a7778_init_irq_common(void)
 	iounmap(base);
 }
 
-void __init r8a7778_init_irq(void)
-{
-	void __iomem *gic_dist_base;
-	void __iomem *gic_cpu_base;
-
-	gic_dist_base = ioremap_nocache(0xfe438000, PAGE_SIZE);
-	gic_cpu_base  = ioremap_nocache(0xfe430000, PAGE_SIZE);
-	BUG_ON(!gic_dist_base || !gic_cpu_base);
-
-	/* use GIC to handle interrupts */
-	gic_init(0, 29, gic_dist_base, gic_cpu_base);
-
-	r8a7778_init_irq_common();
-}
-
-void __init r8a7778_init_delay(void)
-{
-	shmobile_setup_delay(800, 1, 3); /* Cortex-A9 @ 800MHz */
-}
-
-#ifdef CONFIG_USE_OF
-void __init r8a7778_init_irq_dt(void)
-{
-	irqchip_init();
-	r8a7778_init_irq_common();
-}
-
-static const struct of_dev_auxdata r8a7778_auxdata_lookup[] __initconst = {
-	{},
-};
-
-void __init r8a7778_add_standard_devices_dt(void)
-{
-	of_platform_populate(NULL, of_default_bus_match_table,
-			     r8a7778_auxdata_lookup, NULL);
-}
-
 static const char *r8a7778_compat_dt[] __initdata = {
 	"renesas,r8a7778",
 	NULL,
@@ -509,8 +496,6 @@ static const char *r8a7778_compat_dt[] __initdata = {
 DT_MACHINE_START(R8A7778_DT, "Generic R8A7778 (Flattened Device Tree)")
 	.init_early	= r8a7778_init_delay,
 	.init_irq	= r8a7778_init_irq_dt,
-	.init_machine	= r8a7778_add_standard_devices_dt,
-	.init_time	= shmobile_timer_init,
 	.dt_compat	= r8a7778_compat_dt,
 	.init_late      = r8a7778_init_late,
 MACHINE_END

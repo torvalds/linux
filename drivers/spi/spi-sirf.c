@@ -305,8 +305,8 @@ static int spi_sirfsoc_transfer(struct spi_device *spi, struct spi_transfer *t)
 	sspi->tx = t->tx_buf ? t->tx_buf : sspi->dummypage;
 	sspi->rx = t->rx_buf ? t->rx_buf : sspi->dummypage;
 	sspi->left_tx_word = sspi->left_rx_word = t->len / sspi->word_width;
-	INIT_COMPLETION(sspi->rx_done);
-	INIT_COMPLETION(sspi->tx_done);
+	reinit_completion(&sspi->rx_done);
+	reinit_completion(&sspi->tx_done);
 
 	writel(SIRFSOC_SPI_INT_MASK_ALL, sspi->base + SIRFSOC_SPI_INT_STATUS);
 
@@ -632,7 +632,7 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_master;
 
-	sspi->bitbang.master = spi_master_get(master);
+	sspi->bitbang.master = master;
 	sspi->bitbang.chipselect = spi_sirfsoc_chipselect;
 	sspi->bitbang.setup_transfer = spi_sirfsoc_setup_transfer;
 	sspi->bitbang.txrx_bufs = spi_sirfsoc_transfer;

@@ -852,7 +852,7 @@
 #define AFMT_VBI_PACKET_CONTROL              0x7608
 #       define AFMT_GENERIC0_UPDATE          (1 << 2)
 #define AFMT_INFOFRAME_CONTROL0              0x760c
-#       define AFMT_AUDIO_INFO_SOURCE        (1 << 6) /* 0 - sound block; 1 - hmdi regs */
+#       define AFMT_AUDIO_INFO_SOURCE        (1 << 6) /* 0 - sound block; 1 - hdmi regs */
 #       define AFMT_AUDIO_INFO_UPDATE        (1 << 7)
 #       define AFMT_MPEG_INFO_UPDATE         (1 << 10)
 #define AFMT_GENERIC0_7                      0x7610

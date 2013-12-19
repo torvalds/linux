@@ -109,6 +109,8 @@ static inline bool efi_is_native(void)
 	return IS_ENABLED(CONFIG_X86_64) == efi_enabled(EFI_64BIT);
 }
 
+extern struct console early_efi_console;
+
 #else
 /*
  * IF EFI is not configured, have the EFI calls return -ENOSYS.

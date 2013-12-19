@@ -1,8 +1,8 @@
 VERSION = 3
-PATCHLEVEL = 11
+PATCHLEVEL = 13
 SUBLEVEL = 0
-EXTRAVERSION =
-NAME = Linux for Workgroups
+EXTRAVERSION = -rc4
+NAME = One Giant Leap for Frogkind
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
@@ -21,6 +21,9 @@ unexport LC_ALL
 LC_COLLATE=C
 LC_NUMERIC=C
 export LC_COLLATE LC_NUMERIC
+
+# Avoid interference with shell env settings
+unexport GREP_OPTIONS
 
 # We are using a recursive build, so we need to do a little thinking
 # to get the ordering right.
@@ -659,6 +662,12 @@ KBUILD_CFLAGS	+= $(call cc-option,-fno-strict-overflow)
 # conserve stack if available
 KBUILD_CFLAGS   += $(call cc-option,-fconserve-stack)
 
+# disallow errors like 'EXPORT_GPL(foo);' with missing header
+KBUILD_CFLAGS   += $(call cc-option,-Werror=implicit-int)
+
+# require functions to have arguments in prototypes, not empty 'int foo()'
+KBUILD_CFLAGS   += $(call cc-option,-Werror=strict-prototypes)
+
 # use the deterministic mode of AR if available
 KBUILD_ARFLAGS := $(call ar-option,D)
 
@@ -720,6 +729,22 @@ mod_strip_cmd = true
 endif # INSTALL_MOD_STRIP
 export mod_strip_cmd
 
+# Select initial ramdisk compression format, default is gzip(1).
+# This shall be used by the dracut(8) tool while creating an initramfs image.
+#
+INITRD_COMPRESS=gzip
+ifeq ($(CONFIG_RD_BZIP2), y)
+        INITRD_COMPRESS=bzip2
+else ifeq ($(CONFIG_RD_LZMA), y)
+        INITRD_COMPRESS=lzma
+else ifeq ($(CONFIG_RD_XZ), y)
+        INITRD_COMPRESS=xz
+else ifeq ($(CONFIG_RD_LZO), y)
+        INITRD_COMPRESS=lzo
+else ifeq ($(CONFIG_RD_LZ4), y)
+        INITRD_COMPRESS=lz4
+endif
+export INITRD_COMPRESS
 
 ifdef CONFIG_MODULE_SIG_ALL
 MODSECKEY = ./signing_key.priv
@@ -794,10 +819,13 @@ PHONY += $(vmlinux-dirs)
 $(vmlinux-dirs): prepare scripts
 	$(Q)$(MAKE) $(build)=$@
 
+define filechk_kernel.release
+	echo "$(KERNELVERSION)$$($(CONFIG_SHELL) $(srctree)/scripts/setlocalversion $(srctree))"
+endef
+
 # Store (new) KERNELRELEASE string in include/config/kernel.release
 include/config/kernel.release: include/config/auto.conf FORCE
-	$(Q)rm -f $@
-	$(Q)echo "$(KERNELVERSION)$$($(CONFIG_SHELL) $(srctree)/scripts/setlocalversion $(srctree))" > $@
+	$(call filechk,kernel.release)
 
 
 # Things we need to do before we recursively start building the kernel

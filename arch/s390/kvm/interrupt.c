@@ -385,7 +385,7 @@ static int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 	}
 
 	if ((!rc) && (vcpu->arch.sie_block->ckc <
-		get_tod_clock() + vcpu->arch.sie_block->epoch)) {
+		get_tod_clock_fast() + vcpu->arch.sie_block->epoch)) {
 		if ((!psw_extint_disabled(vcpu)) &&
 			(vcpu->arch.sie_block->gcr[0] & 0x800ul))
 			rc = 1;
@@ -425,7 +425,7 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 		goto no_timer;
 	}
 
-	now = get_tod_clock() + vcpu->arch.sie_block->epoch;
+	now = get_tod_clock_fast() + vcpu->arch.sie_block->epoch;
 	if (vcpu->arch.sie_block->ckc < now) {
 		__unset_cpu_idle(vcpu);
 		return 0;
@@ -436,6 +436,7 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 	hrtimer_start(&vcpu->arch.ckc_timer, ktime_set (0, sltime) , HRTIMER_MODE_REL);
 	VCPU_EVENT(vcpu, 5, "enabled wait via clock comparator: %llx ns", sltime);
 no_timer:
+	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 	spin_lock(&vcpu->arch.local_int.float_int->lock);
 	spin_lock_bh(&vcpu->arch.local_int.lock);
 	add_wait_queue(&vcpu->wq, &wait);
@@ -455,6 +456,8 @@ no_timer:
 	remove_wait_queue(&vcpu->wq, &wait);
 	spin_unlock_bh(&vcpu->arch.local_int.lock);
 	spin_unlock(&vcpu->arch.local_int.float_int->lock);
+	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+
 	hrtimer_try_to_cancel(&vcpu->arch.ckc_timer);
 	return 0;
 }
@@ -515,7 +518,7 @@ void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 	}
 
 	if ((vcpu->arch.sie_block->ckc <
-		get_tod_clock() + vcpu->arch.sie_block->epoch))
+		get_tod_clock_fast() + vcpu->arch.sie_block->epoch))
 		__try_deliver_ckc_interrupt(vcpu);
 
 	if (atomic_read(&fi->active)) {

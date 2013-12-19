@@ -152,6 +152,7 @@ struct input_keymap_entry {
 #define EVIOCGEFFECTS		_IOR('E', 0x84, int)			/* Report number of effects playable at the same time */
 
 #define EVIOCGRAB		_IOW('E', 0x90, int)			/* Grab/Release device */
+#define EVIOCREVOKE		_IOW('E', 0x91, int)			/* Revoke device access */
 
 #define EVIOCSCLOCKID		_IOW('E', 0xa0, int)			/* Set clockid to be used for timestamps */
 
@@ -194,6 +195,8 @@ struct input_keymap_entry {
 #define SYN_CONFIG		1
 #define SYN_MT_REPORT		2
 #define SYN_DROPPED		3
+#define SYN_MAX			0xf
+#define SYN_CNT			(SYN_MAX+1)
 
 /*
  * Keys and buttons
@@ -716,13 +719,7 @@ struct input_keymap_entry {
 #define BTN_DPAD_LEFT		0x222
 #define BTN_DPAD_RIGHT		0x223
 
-#define BTN_FRET_FAR_UP		0x224
-#define BTN_FRET_UP		0x225
-#define BTN_FRET_MID		0x226
-#define BTN_FRET_LOW		0x227
-#define BTN_FRET_FAR_LOW	0x228
-#define BTN_STRUM_BAR_UP	0x229
-#define BTN_STRUM_BAR_DOWN	0x22a
+#define KEY_ALS_TOGGLE		0x230	/* Ambient light sensor */
 
 #define BTN_TRIGGER_HAPPY		0x2c0
 #define BTN_TRIGGER_HAPPY1		0x2c0
@@ -837,21 +834,8 @@ struct input_keymap_entry {
 #define ABS_MT_TOOL_X		0x3c	/* Center X tool position */
 #define ABS_MT_TOOL_Y		0x3d	/* Center Y tool position */
 
-/* Drums and guitars (mostly toys) */
-#define ABS_TOM_FAR_LEFT	0x40
-#define ABS_TOM_LEFT		0x41
-#define ABS_TOM_RIGHT		0x42
-#define ABS_TOM_FAR_RIGHT	0x43
-#define ABS_CYMBAL_FAR_LEFT	0x44
-#define ABS_CYMBAL_LEFT		0x45
-#define ABS_CYMBAL_RIGHT	0x46
-#define ABS_CYMBAL_FAR_RIGHT	0x47
-#define ABS_BASS		0x48
-#define ABS_HI_HAT		0x49
-#define ABS_FRET_BOARD		0x4a	/* Guitar fret board, vertical pos */
-#define ABS_WHAMMY_BAR		0x4b	/* Guitar whammy bar (or vibrato) */
 
-#define ABS_MAX			0x4f
+#define ABS_MAX			0x3f
 #define ABS_CNT			(ABS_MAX+1)
 
 /*
@@ -874,6 +858,7 @@ struct input_keymap_entry {
 #define SW_FRONT_PROXIMITY	0x0b  /* set = front proximity sensor active */
 #define SW_ROTATE_LOCK		0x0c  /* set = rotate locked/disabled */
 #define SW_LINEIN_INSERT	0x0d  /* set = inserted */
+#define SW_MUTE_DEVICE		0x0e  /* set = device disabled */
 #define SW_MAX			0x0f
 #define SW_CNT			(SW_MAX+1)
 

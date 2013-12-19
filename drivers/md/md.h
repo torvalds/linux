@@ -204,12 +204,16 @@ struct mddev {
 	struct md_personality		*pers;
 	dev_t				unit;
 	int				md_minor;
-	struct list_head 		disks;
+	struct list_head		disks;
 	unsigned long			flags;
 #define MD_CHANGE_DEVS	0	/* Some device status has changed */
 #define MD_CHANGE_CLEAN 1	/* transition to or from 'clean' */
 #define MD_CHANGE_PENDING 2	/* switch from 'clean' to 'active' in progress */
+#define MD_UPDATE_SB_FLAGS (1 | 2 | 4)	/* If these are set, md_update_sb needed */
 #define MD_ARRAY_FIRST_USE 3    /* First use of array, needs initialization */
+#define MD_STILL_CLOSED	4	/* If set, then array has not been opened since
+				 * md_ioctl checked on it.
+				 */
 
 	int				suspended;
 	atomic_t			active_io;
@@ -218,7 +222,7 @@ struct mddev {
 						       * are happening, so run/
 						       * takeover/stop are not safe
 						       */
-	int				ready; /* See when safe to pass 
+	int				ready; /* See when safe to pass
 						* IO requests down */
 	struct gendisk			*gendisk;
 
@@ -497,7 +501,7 @@ extern struct attribute_group md_bitmap_group;
 static inline struct sysfs_dirent *sysfs_get_dirent_safe(struct sysfs_dirent *sd, char *name)
 {
 	if (sd)
-		return sysfs_get_dirent(sd, NULL, name);
+		return sysfs_get_dirent(sd, name);
 	return sd;
 }
 static inline void sysfs_notify_dirent_safe(struct sysfs_dirent *sd)
@@ -613,7 +617,6 @@ extern struct bio *bio_clone_mddev(struct bio *bio, gfp_t gfp_mask,
 				   struct mddev *mddev);
 extern struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
 				   struct mddev *mddev);
-extern void md_trim_bio(struct bio *bio, int offset, int size);
 
 extern void md_unplug(struct blk_plug_cb *cb, bool from_schedule);
 static inline int mddev_check_plugged(struct mddev *mddev)

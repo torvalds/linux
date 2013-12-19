@@ -36,6 +36,23 @@
 
 };
 
+&dspi0 {
+	bus-num = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_dspi0_1>;
+	status = "okay";
+
+	sflash: at26df081a@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "atmel,at26df081a";
+		spi-max-frequency = <16000000>;
+		spi-cpol;
+		spi-cpha;
+		reg = <0>;
+	};
+};
+
 &fec0 {
 	phy-mode = "rmii";
 	pinctrl-names = "default";
@@ -47,6 +64,13 @@
 	phy-mode = "rmii";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec1_1>;
+	status = "okay";
+};
+
+&i2c0 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c0_1>;
 	status = "okay";
 };
 

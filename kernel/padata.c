@@ -46,6 +46,7 @@ static int padata_index_to_cpu(struct parallel_data *pd, int cpu_index)
 
 static int padata_cpu_hash(struct parallel_data *pd)
 {
+	unsigned int seq_nr;
 	int cpu_index;
 
 	/*
@@ -53,10 +54,8 @@ static int padata_cpu_hash(struct parallel_data *pd)
 	 * seq_nr mod. number of cpus in use.
 	 */
 
-	spin_lock(&pd->seq_lock);
-	cpu_index =  pd->seq_nr % cpumask_weight(pd->cpumask.pcpu);
-	pd->seq_nr++;
-	spin_unlock(&pd->seq_lock);
+	seq_nr = atomic_inc_return(&pd->seq_nr);
+	cpu_index = seq_nr % cpumask_weight(pd->cpumask.pcpu);
 
 	return padata_index_to_cpu(pd, cpu_index);
 }
@@ -429,7 +428,7 @@ static struct parallel_data *padata_alloc_pd(struct padata_instance *pinst,
 	padata_init_pqueues(pd);
 	padata_init_squeues(pd);
 	setup_timer(&pd->timer, padata_reorder_timer, (unsigned long)pd);
-	pd->seq_nr = 0;
+	atomic_set(&pd->seq_nr, -1);
 	atomic_set(&pd->reorder_objects, 0);
 	atomic_set(&pd->refcnt, 0);
 	pd->pinst = pinst;
@@ -846,6 +845,8 @@ static int padata_cpu_callback(struct notifier_block *nfb,
 	switch (action) {
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
+	case CPU_DOWN_FAILED:
+	case CPU_DOWN_FAILED_FROZEN:
 		if (!pinst_has_cpu(pinst, cpu))
 			break;
 		mutex_lock(&pinst->lock);
@@ -857,6 +858,8 @@ static int padata_cpu_callback(struct notifier_block *nfb,
 
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
+	case CPU_UP_CANCELED:
+	case CPU_UP_CANCELED_FROZEN:
 		if (!pinst_has_cpu(pinst, cpu))
 			break;
 		mutex_lock(&pinst->lock);
@@ -865,22 +868,6 @@ static int padata_cpu_callback(struct notifier_block *nfb,
 		if (err)
 			return notifier_from_errno(err);
 		break;
-
-	case CPU_UP_CANCELED:
-	case CPU_UP_CANCELED_FROZEN:
-		if (!pinst_has_cpu(pinst, cpu))
-			break;
-		mutex_lock(&pinst->lock);
-		__padata_remove_cpu(pinst, cpu);
-		mutex_unlock(&pinst->lock);
-
-	case CPU_DOWN_FAILED:
-	case CPU_DOWN_FAILED_FROZEN:
-		if (!pinst_has_cpu(pinst, cpu))
-			break;
-		mutex_lock(&pinst->lock);
-		__padata_add_cpu(pinst, cpu);
-		mutex_unlock(&pinst->lock);
 	}
 
 	return NOTIFY_OK;
@@ -1086,17 +1073,17 @@ struct padata_instance *padata_alloc(struct workqueue_struct *wq,
 
 	pinst->flags = 0;
 
-#ifdef CONFIG_HOTPLUG_CPU
-	pinst->cpu_notifier.notifier_call = padata_cpu_callback;
-	pinst->cpu_notifier.priority = 0;
-	register_hotcpu_notifier(&pinst->cpu_notifier);
-#endif
-
 	put_online_cpus();
 
 	BLOCKING_INIT_NOTIFIER_HEAD(&pinst->cpumask_change_notifier);
 	kobject_init(&pinst->kobj, &padata_attr_type);
 	mutex_init(&pinst->lock);
+
+#ifdef CONFIG_HOTPLUG_CPU
+	pinst->cpu_notifier.notifier_call = padata_cpu_callback;
+	pinst->cpu_notifier.priority = 0;
+	register_hotcpu_notifier(&pinst->cpu_notifier);
+#endif
 
 	return pinst;
 

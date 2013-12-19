@@ -17,31 +17,28 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_alloc.h"
-#include "xfs_quota.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_ialloc.h"
 #include "xfs_itable.h"
-#include "xfs_rtalloc.h"
+#include "xfs_quota.h"
 #include "xfs_error.h"
 #include "xfs_bmap.h"
-#include "xfs_attr.h"
-#include "xfs_buf_item.h"
+#include "xfs_bmap_btree.h"
+#include "xfs_trans.h"
 #include "xfs_trans_space.h"
-#include "xfs_utils.h"
 #include "xfs_qm.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_cksum.h"
+#include "xfs_dinode.h"
 
 /*
  * The global quota manager. There is only one of these for the entire
@@ -51,8 +48,9 @@
  */
 STATIC int	xfs_qm_init_quotainos(xfs_mount_t *);
 STATIC int	xfs_qm_init_quotainfo(xfs_mount_t *);
-STATIC int	xfs_qm_shake(struct shrinker *, struct shrink_control *);
 
+
+STATIC void	xfs_qm_dqfree_one(struct xfs_dquot *dqp);
 /*
  * We use the batch lookup interface to iterate over the dquots as it
  * currently is the only interface into the radix tree code that allows
@@ -203,12 +201,9 @@ xfs_qm_dqpurge(
 	 * We move dquots to the freelist as soon as their reference count
 	 * hits zero, so it really should be on the freelist here.
 	 */
-	mutex_lock(&qi->qi_lru_lock);
 	ASSERT(!list_empty(&dqp->q_lru));
-	list_del_init(&dqp->q_lru);
-	qi->qi_lru_count--;
+	list_lru_del(&qi->qi_lru, &dqp->q_lru);
 	XFS_STATS_DEC(xs_qm_dquot_unused);
-	mutex_unlock(&qi->qi_lru_lock);
 
 	xfs_qm_dqdestroy(dqp);
 
@@ -666,18 +661,141 @@ xfs_qm_dqdetach(
 	}
 }
 
-int
-xfs_qm_calc_dquots_per_chunk(
-	struct xfs_mount	*mp,
-	unsigned int		nbblks)	/* basic block units */
+struct xfs_qm_isolate {
+	struct list_head	buffers;
+	struct list_head	dispose;
+};
+
+static enum lru_status
+xfs_qm_dquot_isolate(
+	struct list_head	*item,
+	spinlock_t		*lru_lock,
+	void			*arg)
 {
-	unsigned int	ndquots;
+	struct xfs_dquot	*dqp = container_of(item,
+						struct xfs_dquot, q_lru);
+	struct xfs_qm_isolate	*isol = arg;
 
-	ASSERT(nbblks > 0);
-	ndquots = BBTOB(nbblks);
-	do_div(ndquots, sizeof(xfs_dqblk_t));
+	if (!xfs_dqlock_nowait(dqp))
+		goto out_miss_busy;
 
-	return ndquots;
+	/*
+	 * This dquot has acquired a reference in the meantime remove it from
+	 * the freelist and try again.
+	 */
+	if (dqp->q_nrefs) {
+		xfs_dqunlock(dqp);
+		XFS_STATS_INC(xs_qm_dqwants);
+
+		trace_xfs_dqreclaim_want(dqp);
+		list_del_init(&dqp->q_lru);
+		XFS_STATS_DEC(xs_qm_dquot_unused);
+		return LRU_REMOVED;
+	}
+
+	/*
+	 * If the dquot is dirty, flush it. If it's already being flushed, just
+	 * skip it so there is time for the IO to complete before we try to
+	 * reclaim it again on the next LRU pass.
+	 */
+	if (!xfs_dqflock_nowait(dqp)) {
+		xfs_dqunlock(dqp);
+		goto out_miss_busy;
+	}
+
+	if (XFS_DQ_IS_DIRTY(dqp)) {
+		struct xfs_buf	*bp = NULL;
+		int		error;
+
+		trace_xfs_dqreclaim_dirty(dqp);
+
+		/* we have to drop the LRU lock to flush the dquot */
+		spin_unlock(lru_lock);
+
+		error = xfs_qm_dqflush(dqp, &bp);
+		if (error) {
+			xfs_warn(dqp->q_mount, "%s: dquot %p flush failed",
+				 __func__, dqp);
+			goto out_unlock_dirty;
+		}
+
+		xfs_buf_delwri_queue(bp, &isol->buffers);
+		xfs_buf_relse(bp);
+		goto out_unlock_dirty;
+	}
+	xfs_dqfunlock(dqp);
+
+	/*
+	 * Prevent lookups now that we are past the point of no return.
+	 */
+	dqp->dq_flags |= XFS_DQ_FREEING;
+	xfs_dqunlock(dqp);
+
+	ASSERT(dqp->q_nrefs == 0);
+	list_move_tail(&dqp->q_lru, &isol->dispose);
+	XFS_STATS_DEC(xs_qm_dquot_unused);
+	trace_xfs_dqreclaim_done(dqp);
+	XFS_STATS_INC(xs_qm_dqreclaims);
+	return LRU_REMOVED;
+
+out_miss_busy:
+	trace_xfs_dqreclaim_busy(dqp);
+	XFS_STATS_INC(xs_qm_dqreclaim_misses);
+	return LRU_SKIP;
+
+out_unlock_dirty:
+	trace_xfs_dqreclaim_busy(dqp);
+	XFS_STATS_INC(xs_qm_dqreclaim_misses);
+	xfs_dqunlock(dqp);
+	spin_lock(lru_lock);
+	return LRU_RETRY;
+}
+
+static unsigned long
+xfs_qm_shrink_scan(
+	struct shrinker		*shrink,
+	struct shrink_control	*sc)
+{
+	struct xfs_quotainfo	*qi = container_of(shrink,
+					struct xfs_quotainfo, qi_shrinker);
+	struct xfs_qm_isolate	isol;
+	unsigned long		freed;
+	int			error;
+	unsigned long		nr_to_scan = sc->nr_to_scan;
+
+	if ((sc->gfp_mask & (__GFP_FS|__GFP_WAIT)) != (__GFP_FS|__GFP_WAIT))
+		return 0;
+
+	INIT_LIST_HEAD(&isol.buffers);
+	INIT_LIST_HEAD(&isol.dispose);
+
+	freed = list_lru_walk_node(&qi->qi_lru, sc->nid, xfs_qm_dquot_isolate, &isol,
+					&nr_to_scan);
+
+	error = xfs_buf_delwri_submit(&isol.buffers);
+	if (error)
+		xfs_warn(NULL, "%s: dquot reclaim failed", __func__);
+
+	while (!list_empty(&isol.dispose)) {
+		struct xfs_dquot	*dqp;
+
+		dqp = list_first_entry(&isol.dispose, struct xfs_dquot, q_lru);
+		list_del_init(&dqp->q_lru);
+		xfs_qm_dqfree_one(dqp);
+	}
+
+	return freed;
+}
+
+static unsigned long
+xfs_qm_shrink_count(
+	struct shrinker		*shrink,
+	struct shrink_control	*sc)
+{
+	struct xfs_quotainfo	*qi = container_of(shrink,
+					struct xfs_quotainfo, qi_shrinker);
+
+	return list_lru_count_node(&qi->qi_lru, sc->nid);
 }
 
 /*
@@ -696,11 +814,18 @@ xfs_qm_init_quotainfo(
 
 	qinf = mp->m_quotainfo = kmem_zalloc(sizeof(xfs_quotainfo_t), KM_SLEEP);
 
+	if ((error = list_lru_init(&qinf->qi_lru))) {
+		kmem_free(qinf);
+		mp->m_quotainfo = NULL;
+		return error;
+	}
+
 	/*
 	 * See if quotainodes are setup, and if not, allocate them,
 	 * and change the superblock accordingly.
 	 */
 	if ((error = xfs_qm_init_quotainos(mp))) {
+		list_lru_destroy(&qinf->qi_lru);
 		kmem_free(qinf);
 		mp->m_quotainfo = NULL;
 		return error;
@@ -711,16 +836,12 @@ xfs_qm_init_quotainfo(
 	INIT_RADIX_TREE(&qinf->qi_pquota_tree, GFP_NOFS);
 	mutex_init(&qinf->qi_tree_lock);
 
-	INIT_LIST_HEAD(&qinf->qi_lru_list);
-	qinf->qi_lru_count = 0;
-	mutex_init(&qinf->qi_lru_lock);
-
 	/* mutex used to serialize quotaoffs */
 	mutex_init(&qinf->qi_quotaofflock);
 
 	/* Precalc some constants */
 	qinf->qi_dqchunklen = XFS_FSB_TO_BB(mp, XFS_DQUOT_CLUSTER_SIZE_FSB);
-	qinf->qi_dqperchunk = xfs_qm_calc_dquots_per_chunk(mp,
+	qinf->qi_dqperchunk = xfs_calc_dquots_per_chunk(mp,
 							qinf->qi_dqchunklen);
 
 	mp->m_qflags |= (mp->m_sb.sb_qflags & XFS_ALL_QUOTA_CHKD);
@@ -779,8 +900,10 @@ xfs_qm_init_quotainfo(
 		qinf->qi_rtbwarnlimit = XFS_QM_RTBWARNLIMIT;
 	}
 
-	qinf->qi_shrinker.shrink = xfs_qm_shake;
+	qinf->qi_shrinker.count_objects = xfs_qm_shrink_count;
+	qinf->qi_shrinker.scan_objects = xfs_qm_shrink_scan;
 	qinf->qi_shrinker.seeks = DEFAULT_SEEKS;
+	qinf->qi_shrinker.flags = SHRINKER_NUMA_AWARE;
 	register_shrinker(&qinf->qi_shrinker);
 	return 0;
 }
@@ -801,6 +924,7 @@ xfs_qm_destroy_quotainfo(
 	ASSERT(qi != NULL);
 
 	unregister_shrinker(&qi->qi_shrinker);
+	list_lru_destroy(&qi->qi_lru);
 
 	if (qi->qi_uquotaip) {
 		IRELE(qi->qi_uquotaip);
@@ -834,21 +958,52 @@ xfs_qm_qino_alloc(
 	int		error;
 	int		committed;
 
+	*ip = NULL;
+	/*
+	 * With superblock that doesn't have separate pquotino, we
+	 * share an inode between gquota and pquota. If the on-disk
+	 * superblock has GQUOTA and the filesystem is now mounted
+	 * with PQUOTA, just use sb_gquotino for sb_pquotino and
+	 * vice-versa.
+	 */
+	if (!xfs_sb_version_has_pquotino(&mp->m_sb) &&
+			(flags & (XFS_QMOPT_PQUOTA|XFS_QMOPT_GQUOTA))) {
+		xfs_ino_t ino = NULLFSINO;
+
+		if ((flags & XFS_QMOPT_PQUOTA) &&
+			     (mp->m_sb.sb_gquotino != NULLFSINO)) {
+			ino = mp->m_sb.sb_gquotino;
+			ASSERT(mp->m_sb.sb_pquotino == NULLFSINO);
+		} else if ((flags & XFS_QMOPT_GQUOTA) &&
+			     (mp->m_sb.sb_pquotino != NULLFSINO)) {
+			ino = mp->m_sb.sb_pquotino;
+			ASSERT(mp->m_sb.sb_gquotino == NULLFSINO);
+		}
+		if (ino != NULLFSINO) {
+			error = xfs_iget(mp, NULL, ino, 0, 0, ip);
+			if (error)
+				return error;
+			mp->m_sb.sb_gquotino = NULLFSINO;
+			mp->m_sb.sb_pquotino = NULLFSINO;
+		}
+	}
+
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_QINOCREATE);
-	if ((error = xfs_trans_reserve(tp,
-				      XFS_QM_QINOCREATE_SPACE_RES(mp),
-				      XFS_CREATE_LOG_RES(mp), 0,
-				      XFS_TRANS_PERM_LOG_RES,
-				      XFS_CREATE_LOG_COUNT))) {
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_create,
+				  XFS_QM_QINOCREATE_SPACE_RES(mp), 0);
+	if (error) {
 		xfs_trans_cancel(tp, 0);
 		return error;
 	}
 
-	error = xfs_dir_ialloc(&tp, NULL, S_IFREG, 1, 0, 0, 1, ip, &committed);
-	if (error) {
-		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES |
-				 XFS_TRANS_ABORT);
-		return error;
+	if (!*ip) {
+		error = xfs_dir_ialloc(&tp, NULL, S_IFREG, 1, 0, 0, 1, ip,
+								&committed);
+		if (error) {
+			xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES |
+					 XFS_TRANS_ABORT);
+			return error;
+		}
 	}
 
 	/*
@@ -860,21 +1015,25 @@ xfs_qm_qino_alloc(
 	if (flags & XFS_QMOPT_SBVERSION) {
 		ASSERT(!xfs_sb_version_hasquota(&mp->m_sb));
 		ASSERT((sbfields & (XFS_SB_VERSIONNUM | XFS_SB_UQUOTINO |
-				   XFS_SB_GQUOTINO | XFS_SB_QFLAGS)) ==
-		       (XFS_SB_VERSIONNUM | XFS_SB_UQUOTINO |
-			XFS_SB_GQUOTINO | XFS_SB_QFLAGS));
+			XFS_SB_GQUOTINO | XFS_SB_PQUOTINO | XFS_SB_QFLAGS)) ==
+				(XFS_SB_VERSIONNUM | XFS_SB_UQUOTINO |
+				 XFS_SB_GQUOTINO | XFS_SB_PQUOTINO |
+				 XFS_SB_QFLAGS));
 
 		xfs_sb_version_addquota(&mp->m_sb);
 		mp->m_sb.sb_uquotino = NULLFSINO;
 		mp->m_sb.sb_gquotino = NULLFSINO;
+		mp->m_sb.sb_pquotino = NULLFSINO;
 
-		/* qflags will get updated _after_ quotacheck */
-		mp->m_sb.sb_qflags = 0;
+		/* qflags will get updated fully _after_ quotacheck */
+		mp->m_sb.sb_qflags = mp->m_qflags & XFS_ALL_QUOTA_ACCT;
 	}
 	if (flags & XFS_QMOPT_UQUOTA)
 		mp->m_sb.sb_uquotino = (*ip)->i_ino;
-	else
+	else if (flags & XFS_QMOPT_GQUOTA)
 		mp->m_sb.sb_gquotino = (*ip)->i_ino;
+	else
+		mp->m_sb.sb_pquotino = (*ip)->i_ino;
 	spin_unlock(&mp->m_sb_lock);
 	xfs_mod_sb(tp, sbfields);
 
@@ -916,10 +1075,10 @@ xfs_qm_reset_dqcounts(
 		/*
 		 * Do a sanity check, and if needed, repair the dqblk. Don't
 		 * output any warnings because it's perfectly possible to
-		 * find uninitialised dquot blks. See comment in xfs_qm_dqcheck.
+		 * find uninitialised dquot blks. See comment in xfs_dqcheck.
 		 */
-		(void) xfs_qm_dqcheck(mp, ddq, id+j, type, XFS_QMOPT_DQREPAIR,
-				      "xfs_quotacheck");
+		xfs_dqcheck(mp, ddq, id+j, type, XFS_QMOPT_DQREPAIR,
+			    "xfs_quotacheck");
 		ddq->d_bcount = 0;
 		ddq->d_icount = 0;
 		ddq->d_rtbcount = 0;
@@ -1484,11 +1643,10 @@ xfs_qm_init_quotainos(
 			if (error)
 				goto error_rele;
 		}
-		/* XXX: Use gquotino for now */
 		if (XFS_IS_PQUOTA_ON(mp) &&
-		    mp->m_sb.sb_gquotino != NULLFSINO) {
-			ASSERT(mp->m_sb.sb_gquotino > 0);
-			error = xfs_iget(mp, NULL, mp->m_sb.sb_gquotino,
+		    mp->m_sb.sb_pquotino != NULLFSINO) {
+			ASSERT(mp->m_sb.sb_pquotino > 0);
+			error = xfs_iget(mp, NULL, mp->m_sb.sb_pquotino,
 					     0, 0, &pip);
 			if (error)
 				goto error_rele;
@@ -1496,7 +1654,8 @@ xfs_qm_init_quotainos(
 	} else {
 		flags |= XFS_QMOPT_SBVERSION;
 		sbflags |= (XFS_SB_VERSIONNUM | XFS_SB_UQUOTINO |
-			    XFS_SB_GQUOTINO | XFS_SB_QFLAGS);
+			    XFS_SB_GQUOTINO | XFS_SB_PQUOTINO |
+			    XFS_SB_QFLAGS);
 	}
 
 	/*
@@ -1524,9 +1683,8 @@ xfs_qm_init_quotainos(
 		flags &= ~XFS_QMOPT_SBVERSION;
 	}
 	if (XFS_IS_PQUOTA_ON(mp) && pip == NULL) {
-		/* XXX: Use XFS_SB_GQUOTINO for now */
 		error = xfs_qm_qino_alloc(mp, &pip,
-					  sbflags | XFS_SB_GQUOTINO,
+					  sbflags | XFS_SB_PQUOTINO,
 					  flags | XFS_QMOPT_PQUOTA);
 		if (error)
 			goto error_rele;
@@ -1565,132 +1723,6 @@ xfs_qm_dqfree_one(
 	xfs_qm_dqdestroy(dqp);
 }
 
-STATIC void
-xfs_qm_dqreclaim_one(
-	struct xfs_dquot	*dqp,
-	struct list_head	*buffer_list,
-	struct list_head	*dispose_list)
-{
-	struct xfs_mount	*mp = dqp->q_mount;
-	struct xfs_quotainfo	*qi = mp->m_quotainfo;
-	int			error;
-
-	if (!xfs_dqlock_nowait(dqp))
-		goto out_move_tail;
-
-	/*
-	 * This dquot has acquired a reference in the meantime remove it from
-	 * the freelist and try again.
-	 */
-	if (dqp->q_nrefs) {
-		xfs_dqunlock(dqp);
-
-		trace_xfs_dqreclaim_want(dqp);
-		XFS_STATS_INC(xs_qm_dqwants);
-
-		list_del_init(&dqp->q_lru);
-		qi->qi_lru_count--;
-		XFS_STATS_DEC(xs_qm_dquot_unused);
-		return;
-	}
-
-	/*
-	 * Try to grab the flush lock. If this dquot is in the process of
-	 * getting flushed to disk, we don't want to reclaim it.
-	 */
-	if (!xfs_dqflock_nowait(dqp))
-		goto out_unlock_move_tail;
-
-	if (XFS_DQ_IS_DIRTY(dqp)) {
-		struct xfs_buf	*bp = NULL;
-
-		trace_xfs_dqreclaim_dirty(dqp);
-
-		error = xfs_qm_dqflush(dqp, &bp);
-		if (error) {
-			xfs_warn(mp, "%s: dquot %p flush failed",
-				 __func__, dqp);
-			goto out_unlock_move_tail;
-		}
-
-		xfs_buf_delwri_queue(bp, buffer_list);
-		xfs_buf_relse(bp);
-		/*
-		 * Give the dquot another try on the freelist, as the
-		 * flushing will take some time.
-		 */
-		goto out_unlock_move_tail;
-	}
-	xfs_dqfunlock(dqp);
-
-	/*
-	 * Prevent lookups now that we are past the point of no return.
-	 */
-	dqp->dq_flags |= XFS_DQ_FREEING;
-	xfs_dqunlock(dqp);
-
-	ASSERT(dqp->q_nrefs == 0);
-	list_move_tail(&dqp->q_lru, dispose_list);
-	qi->qi_lru_count--;
-	XFS_STATS_DEC(xs_qm_dquot_unused);
-
-	trace_xfs_dqreclaim_done(dqp);
-	XFS_STATS_INC(xs_qm_dqreclaims);
-	return;
-
-	/*
-	 * Move the dquot to the tail of the list so that we don't spin on it.
-	 */
-out_unlock_move_tail:
-	xfs_dqunlock(dqp);
-out_move_tail:
-	list_move_tail(&dqp->q_lru, &qi->qi_lru_list);
-	trace_xfs_dqreclaim_busy(dqp);
-	XFS_STATS_INC(xs_qm_dqreclaim_misses);
-}
-
-STATIC int
-xfs_qm_shake(
-	struct shrinker		*shrink,
-	struct shrink_control	*sc)
-{
-	struct xfs_quotainfo	*qi =
-		container_of(shrink, struct xfs_quotainfo, qi_shrinker);
-	int			nr_to_scan = sc->nr_to_scan;
-	LIST_HEAD		(buffer_list);
-	LIST_HEAD		(dispose_list);
-	struct xfs_dquot	*dqp;
-	int			error;
-
-	if ((sc->gfp_mask & (__GFP_FS|__GFP_WAIT)) != (__GFP_FS|__GFP_WAIT))
-		return 0;
-	if (!nr_to_scan)
-		goto out;
-
-	mutex_lock(&qi->qi_lru_lock);
-	while (!list_empty(&qi->qi_lru_list)) {
-		if (nr_to_scan-- <= 0)
-			break;
-		dqp = list_first_entry(&qi->qi_lru_list, struct xfs_dquot,
-				       q_lru);
-		xfs_qm_dqreclaim_one(dqp, &buffer_list, &dispose_list);
-	}
-	mutex_unlock(&qi->qi_lru_lock);
-
-	error = xfs_buf_delwri_submit(&buffer_list);
-	if (error)
-		xfs_warn(NULL, "%s: dquot reclaim failed", __func__);
-
-	while (!list_empty(&dispose_list)) {
-		dqp = list_first_entry(&dispose_list, struct xfs_dquot, q_lru);
-		list_del_init(&dqp->q_lru);
-		xfs_qm_dqfree_one(dqp);
-	}
-
-out:
-	return (qi->qi_lru_count / 100) * sysctl_vfs_cache_pressure;
-}
-
 /*
  * Start a transaction and write the incore superblock changes to
  * disk. flags parameter indicates which fields have changed.
@@ -1704,8 +1736,7 @@ xfs_qm_write_sb_changes(
 	int		error;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SBCHANGE);
-	error = xfs_trans_reserve(tp, 0, XFS_QM_SBCHANGE_LOG_RES(mp),
-				  0, 0, XFS_DEFAULT_LOG_COUNT);
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_qm_sbchange, 0, 0);
 	if (error) {
 		xfs_trans_cancel(tp, 0);
 		return error;
@@ -1734,8 +1765,8 @@ xfs_qm_write_sb_changes(
 int
 xfs_qm_vop_dqalloc(
 	struct xfs_inode	*ip,
-	uid_t			uid,
-	gid_t			gid,
+	xfs_dqid_t		uid,
+	xfs_dqid_t		gid,
 	prid_t			prid,
 	uint			flags,
 	struct xfs_dquot	**O_udqpp,
@@ -1782,7 +1813,7 @@ xfs_qm_vop_dqalloc(
 			 * holding ilock.
 			 */
 			xfs_iunlock(ip, lockflags);
-			error = xfs_qm_dqget(mp, NULL, (xfs_dqid_t) uid,
+			error = xfs_qm_dqget(mp, NULL, uid,
 						 XFS_DQ_USER,
 						 XFS_QMOPT_DQALLOC |
 						 XFS_QMOPT_DOWARN,
@@ -1809,7 +1840,7 @@ xfs_qm_vop_dqalloc(
 	if ((flags & XFS_QMOPT_GQUOTA) && XFS_IS_GQUOTA_ON(mp)) {
 		if (ip->i_d.di_gid != gid) {
 			xfs_iunlock(ip, lockflags);
-			error = xfs_qm_dqget(mp, NULL, (xfs_dqid_t)gid,
+			error = xfs_qm_dqget(mp, NULL, gid,
 						 XFS_DQ_GROUP,
 						 XFS_QMOPT_DQALLOC |
 						 XFS_QMOPT_DOWARN,
@@ -1943,7 +1974,7 @@ xfs_qm_vop_chown_reserve(
 			XFS_QMOPT_RES_RTBLKS : XFS_QMOPT_RES_REGBLKS;
 
 	if (XFS_IS_UQUOTA_ON(mp) && udqp &&
-	    ip->i_d.di_uid != (uid_t)be32_to_cpu(udqp->q_core.d_id)) {
+	    ip->i_d.di_uid != be32_to_cpu(udqp->q_core.d_id)) {
 		udq_delblks = udqp;
 		/*
 		 * If there are delayed allocation blocks, then we have to

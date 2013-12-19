@@ -95,10 +95,6 @@ ENTRY(cpu_do_switch_mm)
 	ret
 ENDPROC(cpu_do_switch_mm)
 
-cpu_name:
-	.ascii	"AArch64 Processor"
-	.align
-
 	.section ".text.init", #alloc, #execinstr
 
 /*
@@ -115,12 +111,12 @@ ENTRY(__cpu_setup)
 	bl	__flush_dcache_all
 	mov	lr, x28
 	ic	iallu				// I+BTB cache invalidate
+	tlbi	vmalle1is			// invalidate I + D TLBs
 	dsb	sy
 
 	mov	x0, #3 << 20
 	msr	cpacr_el1, x0			// Enable FP/ASIMD
 	msr	mdscr_el1, xzr			// Reset mdscr_el1
-	tlbi	vmalle1is			// invalidate I + D TLBs
 	/*
 	 * Memory region attributes for LPAE:
 	 *
@@ -151,7 +147,7 @@ ENTRY(__cpu_setup)
 	 * both user and kernel.
 	 */
 	ldr	x10, =TCR_TxSZ(VA_BITS) | TCR_FLAGS | TCR_IPS_40BIT | \
-		      TCR_ASID16 | (1 << 31)
+		      TCR_ASID16 | TCR_TBI0 | (1 << 31)
 #ifdef CONFIG_ARM64_64K_PAGES
 	orr	x10, x10, TCR_TG0_64K
 	orr	x10, x10, TCR_TG1_64K
@@ -166,9 +162,9 @@ ENDPROC(__cpu_setup)
 	 *       CE0      XWHW CZ     ME TEEA S
 	 * .... .IEE .... NEAI TE.I ..AD DEN0 ACAM
 	 * 0011 0... 1101 ..0. ..0. 10.. .... .... < hardware reserved
-	 * .... .100 .... 01.1 11.1 ..01 0001 1101 < software settings
+	 * .... .1.. .... 01.1 11.1 ..01 0001 1101 < software settings
 	 */
 	.type	crval, #object
 crval:
-	.word	0x030802e2			// clear
+	.word	0x000802e2			// clear
 	.word	0x0405d11d			// set

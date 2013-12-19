@@ -203,12 +203,12 @@ static void psc724_set_jack_state(struct snd_ice1712 *ice, bool hp_connected)
 	/* notify about master speaker mute change */
 	memset(&elem_id, 0, sizeof(elem_id));
 	elem_id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	strncpy(elem_id.name, "Master Speakers Playback Switch",
+	strlcpy(elem_id.name, "Master Speakers Playback Switch",
 						sizeof(elem_id.name));
 	kctl = snd_ctl_find_id(ice->card, &elem_id);
 	snd_ctl_notify(ice->card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
 	/* and headphone mute change */
-	strncpy(elem_id.name, spec->wm8776.ctl[WM8776_CTL_HP_SW].name,
+	strlcpy(elem_id.name, spec->wm8776.ctl[WM8776_CTL_HP_SW].name,
 						sizeof(elem_id.name));
 	kctl = snd_ctl_find_id(ice->card, &elem_id);
 	snd_ctl_notify(ice->card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);

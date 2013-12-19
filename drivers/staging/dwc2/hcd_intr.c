@@ -748,18 +748,23 @@ cleanup:
 	dwc2_hc_cleanup(hsotg, chan);
 	list_add_tail(&chan->hc_list_entry, &hsotg->free_hc_list);
 
-	switch (chan->ep_type) {
-	case USB_ENDPOINT_XFER_CONTROL:
-	case USB_ENDPOINT_XFER_BULK:
-		hsotg->non_periodic_channels--;
-		break;
-	default:
-		/*
-		 * Don't release reservations for periodic channels here.
-		 * That's done when a periodic transfer is descheduled (i.e.
-		 * when the QH is removed from the periodic schedule).
-		 */
-		break;
+	if (hsotg->core_params->uframe_sched > 0) {
+		hsotg->available_host_channels++;
+	} else {
+		switch (chan->ep_type) {
+		case USB_ENDPOINT_XFER_CONTROL:
+		case USB_ENDPOINT_XFER_BULK:
+			hsotg->non_periodic_channels--;
+			break;
+		default:
+			/*
+			 * Don't release reservations for periodic channels
+			 * here. That's done when a periodic transfer is
+			 * descheduled (i.e. when the QH is removed from the
+			 * periodic schedule).
+			 */
+			break;
+		}
 	}
 
 	haintmsk = readl(hsotg->regs + HAINTMSK);
@@ -1927,21 +1932,20 @@ static void dwc2_hc_n_intr(struct dwc2_hsotg *hsotg, int chnum)
 
 	chan = hsotg->hc_ptr_array[chnum];
 
-	if (dbg_hc(chan))
-		dev_vdbg(hsotg->dev, "--Host Channel Interrupt--, Channel %d\n",
-			 chnum);
-
 	hcint = readl(hsotg->regs + HCINT(chnum));
 	hcintmsk = readl(hsotg->regs + HCINTMSK(chnum));
-	if (dbg_hc(chan))
-		dev_vdbg(hsotg->dev,
-			 "  hcint 0x%08x, hcintmsk 0x%08x, hcint&hcintmsk 0x%08x\n",
-			 hcint, hcintmsk, hcint & hcintmsk);
-
 	if (!chan) {
 		dev_err(hsotg->dev, "## hc_ptr_array for channel is NULL ##\n");
 		writel(hcint, hsotg->regs + HCINT(chnum));
 		return;
+	}
+
+	if (dbg_hc(chan)) {
+		dev_vdbg(hsotg->dev, "--Host Channel Interrupt--, Channel %d\n",
+			 chnum);
+		dev_vdbg(hsotg->dev,
+			 "  hcint 0x%08x, hcintmsk 0x%08x, hcint&hcintmsk 0x%08x\n",
+			 hcint, hcintmsk, hcint & hcintmsk);
 	}
 
 	writel(hcint, hsotg->regs + HCINT(chnum));

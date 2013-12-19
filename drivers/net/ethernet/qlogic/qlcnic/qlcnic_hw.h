@@ -146,6 +146,12 @@ struct qlcnic_mailbox_metadata {
 #define QLCNIC_MBX_PORT_RSP_OK	0x1a
 #define QLCNIC_MBX_ASYNC_EVENT	BIT_15
 
+/* Set HW Tx ring limit for 82xx adapter. */
+#define QLCNIC_MAX_HW_TX_RINGS		8
+#define QLCNIC_MAX_HW_VNIC_TX_RINGS	4
+#define QLCNIC_MAX_TX_RINGS		8
+#define QLCNIC_MAX_SDS_RINGS		8
+
 struct qlcnic_pci_info;
 struct qlcnic_info;
 struct qlcnic_cmd_args;
@@ -176,7 +182,7 @@ int qlcnic_82xx_set_lb_mode(struct qlcnic_adapter *, u8);
 void qlcnic_82xx_write_crb(struct qlcnic_adapter *, char *, loff_t, size_t);
 void qlcnic_82xx_read_crb(struct qlcnic_adapter *, char *, loff_t, size_t);
 void qlcnic_82xx_dev_request_reset(struct qlcnic_adapter *, u32);
-int qlcnic_82xx_setup_intr(struct qlcnic_adapter *, u8, int);
+int qlcnic_82xx_setup_intr(struct qlcnic_adapter *);
 irqreturn_t qlcnic_82xx_clear_legacy_intr(struct qlcnic_adapter *);
 int qlcnic_82xx_issue_cmd(struct qlcnic_adapter *adapter,
 			  struct qlcnic_cmd_args *);

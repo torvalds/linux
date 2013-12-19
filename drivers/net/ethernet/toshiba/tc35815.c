@@ -887,7 +887,6 @@ static void tc35815_remove_one(struct pci_dev *pdev)
 	mdiobus_free(lp->mii_bus);
 	unregister_netdev(dev);
 	free_netdev(dev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static int

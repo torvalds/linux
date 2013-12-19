@@ -12,7 +12,7 @@
  * and 6282 variants of the Marvell Kirkwood Development Board.
  */
 
-/include/ "kirkwood.dtsi"
+#include "kirkwood.dtsi"
 
 / {
 	memory {
@@ -39,28 +39,6 @@
 			status = "ok";
 		};
 
-		nand@3000000 {
-			pinctrl-0 = <&pmx_nand>;
-			pinctrl-names = "default";
-			chip-delay = <25>;
-			status = "okay";
-
-			partition@0 {
-				label = "uboot";
-				reg = <0x0 0x100000>;
-			};
-
-			partition@100000 {
-				label = "uImage";
-				reg = <0x100000 0x400000>;
-			};
-
-			partition@500000 {
-				label = "root";
-				reg = <0x500000 0x1fb00000>;
-			};
-		};
-
 		sata@80000 {
 			nr-ports = <2>;
 			status = "okay";
@@ -77,13 +55,43 @@
 			cd-gpios = <&gpio1 6 0>;
 			status = "okay";
 		};
+	};
+};
 
-		pcie-controller {
-			status = "okay";
+&nand {
+	pinctrl-0 = <&pmx_nand>;
+	pinctrl-names = "default";
+	chip-delay = <25>;
+	status = "okay";
 
-			pcie@1,0 {
-				status = "okay";
-			};
-		};
+	partition@0 {
+		label = "uboot";
+		reg = <0x0 0x100000>;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x100000 0x400000>;
+	};
+
+	partition@500000 {
+		label = "root";
+		reg = <0x500000 0x1fb00000>;
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@8 {
+		device_type = "ethernet-phy";
+		reg = <8>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
 	};
 };

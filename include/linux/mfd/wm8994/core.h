@@ -56,8 +56,6 @@ struct irq_domain;
 #define WM8994_IRQ_GPIO(x) (x + WM8994_IRQ_TEMP_WARN)
 
 struct wm8994 {
-	struct mutex irq_lock;
-
 	struct wm8994_pdata pdata;
 
 	enum wm8994_type type;
@@ -85,16 +83,43 @@ struct wm8994 {
 };
 
 /* Device I/O API */
-int wm8994_reg_read(struct wm8994 *wm8994, unsigned short reg);
-int wm8994_reg_write(struct wm8994 *wm8994, unsigned short reg,
-		 unsigned short val);
-int wm8994_set_bits(struct wm8994 *wm8994, unsigned short reg,
-		    unsigned short mask, unsigned short val);
-int wm8994_bulk_read(struct wm8994 *wm8994, unsigned short reg,
-		     int count, u16 *buf);
-int wm8994_bulk_write(struct wm8994 *wm8994, unsigned short reg,
-		     int count, const u16 *buf);
 
+static inline int wm8994_reg_read(struct wm8994 *wm8994, unsigned short reg)
+{
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(wm8994->regmap, reg, &val);
+
+	if (ret < 0)
+		return ret;
+	else
+		return val;
+}
+
+static inline int wm8994_reg_write(struct wm8994 *wm8994, unsigned short reg,
+				   unsigned short val)
+{
+	return regmap_write(wm8994->regmap, reg, val);
+}
+
+static inline int wm8994_bulk_read(struct wm8994 *wm8994, unsigned short reg,
+				   int count, u16 *buf)
+{
+	return regmap_bulk_read(wm8994->regmap, reg, buf, count);
+}
+
+static inline int wm8994_bulk_write(struct wm8994 *wm8994, unsigned short reg,
+				    int count, const u16 *buf)
+{
+	return regmap_raw_write(wm8994->regmap, reg, buf, count * sizeof(u16));
+}
+
+static inline int wm8994_set_bits(struct wm8994 *wm8994, unsigned short reg,
+		    unsigned short mask, unsigned short val)
+{
+	return regmap_update_bits(wm8994->regmap, reg, mask, val);
+}
 
 /* Helper to save on boilerplate */
 static inline int wm8994_request_irq(struct wm8994 *wm8994, int irq,

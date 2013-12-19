@@ -35,7 +35,7 @@ struct machine_desc {
 	unsigned int		nr_irqs;	/* number of IRQs */
 
 #ifdef CONFIG_ZONE_DMA
-	unsigned long		dma_zone_size;	/* size of DMA-able area */
+	phys_addr_t		dma_zone_size;	/* size of DMA-able area */
 #endif
 
 	unsigned int		video_start;	/* start of video RAM	*/
@@ -49,6 +49,7 @@ struct machine_desc {
 	bool			(*smp_init)(void);
 	void			(*fixup)(struct tag *, char **,
 					 struct meminfo *);
+	void			(*init_meminfo)(void);
 	void			(*reserve)(void);/* reserve mem blocks	*/
 	void			(*map_io)(void);/* IO mapping function	*/
 	void			(*init_early)(void);

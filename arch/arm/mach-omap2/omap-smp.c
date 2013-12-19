@@ -1,5 +1,5 @@
 /*
- * OMAP4 SMP source file. It contains platform specific fucntions
+ * OMAP4 SMP source file. It contains platform specific functions
  * needed for the linux smp kernel.
  *
  * Copyright (C) 2009 Texas Instruments, Inc.
@@ -64,6 +64,13 @@ static void omap4_secondary_init(unsigned int cpu)
 	if (cpu_is_omap443x() && (omap_type() != OMAP2_DEVICE_TYPE_GP))
 		omap_secure_dispatcher(OMAP4_PPA_CPU_ACTRL_SMP_INDEX,
 							4, 0, 0, 0, 0, 0);
+
+	/*
+	 * Configure the CNTFRQ register for the secondary cpu's which
+	 * indicates the frequency of the cpu local timers.
+	 */
+	if (soc_is_omap54xx() || soc_is_dra7xx())
+		set_cntfreq();
 
 	/*
 	 * Synchronise with the boot thread.

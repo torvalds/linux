@@ -35,17 +35,21 @@ static void mei_hbm_me_cl_allocate(struct mei_device *dev)
 	struct mei_me_client *clients;
 	int b;
 
+	dev->me_clients_num = 0;
+	dev->me_client_presentation_num = 0;
+	dev->me_client_index = 0;
+
 	/* count how many ME clients we have */
 	for_each_set_bit(b, dev->me_clients_map, MEI_CLIENTS_MAX)
 		dev->me_clients_num++;
 
-	if (dev->me_clients_num <= 0)
+	if (dev->me_clients_num == 0)
 		return;
 
 	kfree(dev->me_clients);
 	dev->me_clients = NULL;
 
-	dev_dbg(&dev->pdev->dev, "memory allocation for ME clients size=%zd.\n",
+	dev_dbg(&dev->pdev->dev, "memory allocation for ME clients size=%ld.\n",
 		dev->me_clients_num * sizeof(struct mei_me_client));
 	/* allocate storage for ME clients representation */
 	clients = kcalloc(dev->me_clients_num,
@@ -170,7 +174,7 @@ int mei_hbm_start_req(struct mei_device *dev)
 		dev_err(&dev->pdev->dev, "version message write failed\n");
 		dev->dev_state = MEI_DEV_RESETTING;
 		mei_reset(dev, 1);
-		return -ENODEV;
+		return -EIO;
 	}
 	dev->hbm_state = MEI_HBM_START;
 	dev->init_clients_timer = MEI_CLIENTS_INIT_TIMEOUT;
@@ -221,7 +225,7 @@ static int mei_hbm_prop_req(struct mei_device *dev)
 	struct hbm_props_request *prop_req;
 	const size_t len = sizeof(struct hbm_props_request);
 	unsigned long next_client_index;
-	u8 client_num;
+	unsigned long client_num;
 
 
 	client_num = dev->me_client_presentation_num;
@@ -673,12 +677,13 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 	case HOST_ENUM_RES_CMD:
 		enum_res = (struct hbm_host_enum_response *) mei_msg;
-		memcpy(dev->me_clients_map, enum_res->valid_addresses, 32);
+		BUILD_BUG_ON(sizeof(dev->me_clients_map)
+				< sizeof(enum_res->valid_addresses));
+		memcpy(dev->me_clients_map, enum_res->valid_addresses,
+			sizeof(enum_res->valid_addresses));
 		if (dev->dev_state == MEI_DEV_INIT_CLIENTS &&
 		    dev->hbm_state == MEI_HBM_ENUM_CLIENTS) {
 				dev->init_clients_timer = 0;
-				dev->me_client_presentation_num = 0;
-				dev->me_client_index = 0;
 				mei_hbm_me_cl_allocate(dev);
 				dev->hbm_state = MEI_HBM_CLIENT_PROPERTIES;
 

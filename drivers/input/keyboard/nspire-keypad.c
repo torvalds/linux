@@ -143,8 +143,10 @@ static int nspire_keypad_open(struct input_dev *input)
 		return error;
 
 	error = nspire_keypad_chip_init(keypad);
-	if (error)
+	if (error) {
+		clk_disable_unprepare(keypad->clk);
 		return error;
+	}
 
 	return 0;
 }
@@ -168,12 +170,6 @@ static int nspire_keypad_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "failed to get keypad irq\n");
-		return -EINVAL;
-	}
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "missing platform resources\n");
 		return -EINVAL;
 	}
 
@@ -208,6 +204,7 @@ static int nspire_keypad_probe(struct platform_device *pdev)
 		return PTR_ERR(keypad->clk);
 	}
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	keypad->reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(keypad->reg_base))
 		return PTR_ERR(keypad->reg_base);
@@ -272,7 +269,7 @@ static struct platform_driver nspire_keypad_driver = {
 	.driver = {
 		.name = "nspire-keypad",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(nspire_keypad_dt_match),
+		.of_match_table = nspire_keypad_dt_match,
 	},
 	.probe = nspire_keypad_probe,
 };

@@ -32,7 +32,6 @@
 #include <linux/writeback.h>
 #include <linux/bit_spinlock.h>
 #include <linux/slab.h>
-#include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -132,9 +131,8 @@ static int check_compressed_csum(struct inode *inode,
 			printk(KERN_INFO "btrfs csum failed ino %llu "
 			       "extent %llu csum %u "
 			       "wanted %u mirror %d\n",
-			       (unsigned long long)btrfs_ino(inode),
-			       (unsigned long long)disk_start,
-			       csum, *cb_sum, cb->mirror_num);
+			       btrfs_ino(inode), disk_start, csum, *cb_sum,
+			       cb->mirror_num);
 			ret = -EIO;
 			goto fail;
 		}
@@ -361,7 +359,7 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 	bdev = BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev;
 
 	bio = compressed_bio_alloc(bdev, first_byte, GFP_NOFS);
-	if(!bio) {
+	if (!bio) {
 		kfree(cb);
 		return -ENOMEM;
 	}
@@ -639,7 +637,11 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	faili = nr_pages - 1;
 	cb->nr_pages = nr_pages;
 
-	add_ra_bio_pages(inode, em_start + em_len, cb);
+	/* In the parent-locked case, we only locked the range we are
+	 * interested in.  In all other cases, we can opportunistically
+	 * cache decompressed data that goes beyond the requested range. */
+	if (!(bio_flags & EXTENT_BIO_PARENT_LOCKED))
+		add_ra_bio_pages(inode, em_start + em_len, cb);
 
 	/* include any pages we added in add_ra-bio_pages */
 	uncompressed_len = bio->bi_vcnt * PAGE_CACHE_SIZE;

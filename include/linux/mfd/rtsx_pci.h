@@ -1,6 +1,6 @@
 /* Driver for Realtek PCI-Express card reader
  *
- * Copyright(c) 2009 Realtek Semiconductor Corp. All rights reserved.
+ * Copyright(c) 2009-2013 Realtek Semiconductor Corp. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,7 +17,6 @@
  *
  * Author:
  *   Wei WANG <wei_wang@realsil.com.cn>
- *   No. 450, Shenhu Road, Suzhou Industry Park, Suzhou, China
  */
 
 #ifndef __RTSX_PCI_H
@@ -25,8 +24,7 @@
 
 #include <linux/sched.h>
 #include <linux/pci.h>
-
-#include "rtsx_common.h"
+#include <linux/mfd/rtsx_common.h>
 
 #define MAX_RW_REG_CNT			1024
 
@@ -184,11 +182,26 @@
 #define CARD_SHARE_BAROSSA_SD		0x01
 #define CARD_SHARE_BAROSSA_MS		0x02
 
+/* CARD_DRIVE_SEL */
+#define MS_DRIVE_8mA			(0x01 << 6)
+#define MMC_DRIVE_8mA			(0x01 << 4)
+#define XD_DRIVE_8mA			(0x01 << 2)
+#define GPIO_DRIVE_8mA			0x01
+#define RTS5209_CARD_DRIVE_DEFAULT	(MS_DRIVE_8mA | MMC_DRIVE_8mA |\
+						XD_DRIVE_8mA | GPIO_DRIVE_8mA)
+#define RTL8411_CARD_DRIVE_DEFAULT	(MS_DRIVE_8mA | MMC_DRIVE_8mA |\
+						XD_DRIVE_8mA)
+#define RTSX_CARD_DRIVE_DEFAULT		(MS_DRIVE_8mA | GPIO_DRIVE_8mA)
+
 /* SD30_DRIVE_SEL */
 #define DRIVER_TYPE_A			0x05
 #define DRIVER_TYPE_B			0x03
 #define DRIVER_TYPE_C			0x02
 #define DRIVER_TYPE_D			0x01
+#define CFG_DRIVER_TYPE_A		0x02
+#define CFG_DRIVER_TYPE_B		0x03
+#define CFG_DRIVER_TYPE_C		0x01
+#define CFG_DRIVER_TYPE_D		0x00
 
 /* FPDCTL */
 #define SSC_POWER_DOWN			0x01
@@ -521,6 +534,10 @@
 #define SAMPLE_VAR_CLK0			(0x01 << 4)
 #define SAMPLE_VAR_CLK1			(0x02 << 4)
 
+/* HOST_SLEEP_STATE */
+#define HOST_ENTER_S1			1
+#define HOST_ENTER_S3			2
+
 #define MS_CFG				0xFD40
 #define MS_TPC				0xFD41
 #define MS_TRANS_CFG			0xFD42
@@ -669,6 +686,7 @@
 #define PME_FORCE_CTL			0xFE56
 #define ASPM_FORCE_CTL			0xFE57
 #define PM_CLK_FORCE_CTL		0xFE58
+#define FUNC_FORCE_CTL			0xFE59
 #define PERST_GLITCH_WIDTH		0xFE5C
 #define CHANGE_LINK_STATE		0xFE5B
 #define RESET_LOAD_REG			0xFE5E
@@ -683,6 +701,13 @@
 #define LDO_PWR_SEL			0xFE78
 
 #define DUMMY_REG_RESET_0		0xFE90
+
+#define AUTOLOAD_CFG_BASE		0xFF00
+
+#define PM_CTRL1			0xFF44
+#define PM_CTRL2			0xFF45
+#define PM_CTRL3			0xFF46
+#define PM_CTRL4			0xFF47
 
 /* Memory mapping */
 #define SRAM_BASE			0xE600
@@ -726,6 +751,64 @@
 #define PHY_FLD4			0x1E
 #define PHY_DUM_REG			0x1F
 
+#define LCTLR				0x80
+#define PCR_SETTING_REG1		0x724
+#define PCR_SETTING_REG2		0x814
+#define PCR_SETTING_REG3		0x747
+
+/* Phy bits */
+#define PHY_PCR_FORCE_CODE			0xB000
+#define PHY_PCR_OOBS_CALI_50			0x0800
+#define PHY_PCR_OOBS_VCM_08			0x0200
+#define PHY_PCR_OOBS_SEN_90			0x0040
+#define PHY_PCR_RSSI_EN				0x0002
+
+#define PHY_RCR1_ADP_TIME			0x0100
+#define PHY_RCR1_VCO_COARSE			0x001F
+
+#define PHY_RCR2_EMPHASE_EN			0x8000
+#define PHY_RCR2_NADJR				0x4000
+#define PHY_RCR2_CDR_CP_10			0x0400
+#define PHY_RCR2_CDR_SR_2			0x0100
+#define PHY_RCR2_FREQSEL_12			0x0040
+#define PHY_RCR2_CPADJEN			0x0020
+#define PHY_RCR2_CDR_SC_8			0x0008
+#define PHY_RCR2_CALIB_LATE			0x0002
+
+#define PHY_RDR_RXDSEL_1_9			0x4000
+
+#define PHY_TUNE_TUNEREF_1_0			0x4000
+#define PHY_TUNE_VBGSEL_1252			0x0C00
+#define PHY_TUNE_SDBUS_33			0x0200
+#define PHY_TUNE_TUNED18			0x01C0
+#define PHY_TUNE_TUNED12			0X0020
+
+#define PHY_BPCR_IBRXSEL			0x0400
+#define PHY_BPCR_IBTXSEL			0x0100
+#define PHY_BPCR_IB_FILTER			0x0080
+#define PHY_BPCR_CMIRROR_EN			0x0040
+
+#define PHY_REG_REV_RESV			0xE000
+#define PHY_REG_REV_RXIDLE_LATCHED		0x1000
+#define PHY_REG_REV_P1_EN			0x0800
+#define PHY_REG_REV_RXIDLE_EN			0x0400
+#define PHY_REG_REV_CLKREQ_DLY_TIMER_1_0	0x0040
+#define PHY_REG_REV_STOP_CLKRD			0x0020
+#define PHY_REG_REV_RX_PWST			0x0008
+#define PHY_REG_REV_STOP_CLKWR			0x0004
+
+#define PHY_FLD3_TIMER_4			0x7800
+#define PHY_FLD3_TIMER_6			0x00E0
+#define PHY_FLD3_RXDELINK			0x0004
+
+#define PHY_FLD4_FLDEN_SEL			0x4000
+#define PHY_FLD4_REQ_REF			0x2000
+#define PHY_FLD4_RXAMP_OFF			0x1000
+#define PHY_FLD4_REQ_ADDA			0x0800
+#define PHY_FLD4_BER_COUNT			0x00E0
+#define PHY_FLD4_BER_TIMER			0x000A
+#define PHY_FLD4_BER_CHK_EN			0x0001
+
 #define rtsx_pci_init_cmd(pcr)		((pcr)->ci = 0)
 
 struct rtsx_pcr;
@@ -747,6 +830,8 @@ struct pcr_ops {
 						u8 voltage);
 	unsigned int	(*cd_deglitch)(struct rtsx_pcr *pcr);
 	int		(*conv_clk_and_div_n)(int clk, int dir);
+	void		(*fetch_vendor_settings)(struct rtsx_pcr *pcr);
+	void		(*force_power_down)(struct rtsx_pcr *pcr, u8 pm_state);
 };
 
 enum PDEV_STAT  {PDEV_STAT_IDLE, PDEV_STAT_RUN};
@@ -788,7 +873,6 @@ struct rtsx_pcr {
 	struct completion		*finish_me;
 
 	unsigned int			cur_clock;
-	bool				ms_pmos;
 	bool				remove_pci;
 	bool				msi_en;
 
@@ -806,6 +890,19 @@ struct rtsx_pcr {
 #define IC_VER_D			3
 	u8				ic_version;
 
+	u8				sd30_drive_sel_1v8;
+	u8				sd30_drive_sel_3v3;
+	u8				card_drive_sel;
+#define ASPM_L1_EN			0x02
+	u8				aspm_en;
+
+#define PCR_MS_PMOS			(1 << 0)
+#define PCR_REVERSE_SOCKET		(1 << 1)
+	u32				flags;
+
+	u32				tx_initial_phase;
+	u32				rx_initial_phase;
+
 	const u32			*sd_pull_ctl_enable_tbl;
 	const u32			*sd_pull_ctl_disable_tbl;
 	const u32			*ms_pull_ctl_enable_tbl;
@@ -821,6 +918,18 @@ struct rtsx_pcr {
 #define CHK_PCI_PID(pcr, pid)		((pcr)->pci->device == (pid))
 #define PCI_VID(pcr)			((pcr)->pci->vendor)
 #define PCI_PID(pcr)			((pcr)->pci->device)
+
+#define SDR104_PHASE(val)		((val) & 0xFF)
+#define SDR50_PHASE(val)		(((val) >> 8) & 0xFF)
+#define DDR50_PHASE(val)		(((val) >> 16) & 0xFF)
+#define SDR104_TX_PHASE(pcr)		SDR104_PHASE((pcr)->tx_initial_phase)
+#define SDR50_TX_PHASE(pcr)		SDR50_PHASE((pcr)->tx_initial_phase)
+#define DDR50_TX_PHASE(pcr)		DDR50_PHASE((pcr)->tx_initial_phase)
+#define SDR104_RX_PHASE(pcr)		SDR104_PHASE((pcr)->rx_initial_phase)
+#define SDR50_RX_PHASE(pcr)		SDR50_PHASE((pcr)->rx_initial_phase)
+#define DDR50_RX_PHASE(pcr)		DDR50_PHASE((pcr)->rx_initial_phase)
+#define SET_CLOCK_PHASE(sdr104, sdr50, ddr50)	\
+				(((ddr50) << 16) | ((sdr50) << 8) | (sdr104))
 
 void rtsx_pci_start_run(struct rtsx_pcr *pcr);
 int rtsx_pci_write_register(struct rtsx_pcr *pcr, u16 addr, u8 mask, u8 data);

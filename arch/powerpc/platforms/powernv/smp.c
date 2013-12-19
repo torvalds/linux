@@ -46,22 +46,6 @@ static void pnv_smp_setup_cpu(int cpu)
 		xics_setup_cpu();
 }
 
-static int pnv_smp_cpu_bootable(unsigned int nr)
-{
-	/* Special case - we inhibit secondary thread startup
-	 * during boot if the user requests it.
-	 */
-	if (system_state == SYSTEM_BOOTING && cpu_has_feature(CPU_FTR_SMT)) {
-		if (!smt_enabled_at_boot && cpu_thread_in_core(nr) != 0)
-			return 0;
-		if (smt_enabled_at_boot
-		    && cpu_thread_in_core(nr) >= smt_enabled_at_boot)
-			return 0;
-	}
-
-	return 1;
-}
-
 int pnv_smp_kick_cpu(int nr)
 {
 	unsigned int pcpu = get_hard_smp_processor_id(nr);
@@ -195,7 +179,7 @@ static struct smp_ops_t pnv_smp_ops = {
 	.probe		= xics_smp_probe,
 	.kick_cpu	= pnv_smp_kick_cpu,
 	.setup_cpu	= pnv_smp_setup_cpu,
-	.cpu_bootable	= pnv_smp_cpu_bootable,
+	.cpu_bootable	= smp_generic_cpu_bootable,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_disable	= pnv_smp_cpu_disable,
 	.cpu_die	= generic_cpu_die,

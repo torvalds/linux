@@ -1196,6 +1196,13 @@ static void remove_queue_kobjects(struct net_device *net)
 #endif
 }
 
+static bool net_current_may_mount(void)
+{
+	struct net *net = current->nsproxy->net_ns;
+
+	return ns_capable(net->user_ns, CAP_SYS_ADMIN);
+}
+
 static void *net_grab_current_ns(void)
 {
 	struct net *ns = current->nsproxy->net_ns;
@@ -1218,6 +1225,7 @@ static const void *net_netlink_ns(struct sock *sk)
 
 struct kobj_ns_type_operations net_ns_type_operations = {
 	.type = KOBJ_NS_TYPE_NET,
+	.current_may_mount = net_current_may_mount,
 	.grab_current_ns = net_grab_current_ns,
 	.netlink_ns = net_netlink_ns,
 	.initial_ns = net_initial_ns,
@@ -1255,7 +1263,7 @@ static void netdev_release(struct device *d)
 	BUG_ON(dev->reg_state != NETREG_RELEASED);
 
 	kfree(dev->ifalias);
-	kfree((char *)dev - dev->padded);
+	netdev_freemem(dev);
 }
 
 static const void *net_namespace(struct device *d)
@@ -1336,17 +1344,19 @@ int netdev_register_kobject(struct net_device *net)
 	return error;
 }
 
-int netdev_class_create_file(struct class_attribute *class_attr)
+int netdev_class_create_file_ns(struct class_attribute *class_attr,
+				const void *ns)
 {
-	return class_create_file(&net_class, class_attr);
+	return class_create_file_ns(&net_class, class_attr, ns);
 }
-EXPORT_SYMBOL(netdev_class_create_file);
+EXPORT_SYMBOL(netdev_class_create_file_ns);
 
-void netdev_class_remove_file(struct class_attribute *class_attr)
+void netdev_class_remove_file_ns(struct class_attribute *class_attr,
+				 const void *ns)
 {
-	class_remove_file(&net_class, class_attr);
+	class_remove_file_ns(&net_class, class_attr, ns);
 }
-EXPORT_SYMBOL(netdev_class_remove_file);
+EXPORT_SYMBOL(netdev_class_remove_file_ns);
 
 int netdev_kobject_init(void)
 {

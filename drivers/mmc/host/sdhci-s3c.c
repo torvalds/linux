@@ -296,9 +296,12 @@ static void sdhci_cmu_set_clock(struct sdhci_host *host, unsigned int clock)
 	unsigned long timeout;
 	u16 clk = 0;
 
-	/* don't bother if the clock is going off */
-	if (clock == 0)
+	/* If the clock is going off, set to 0 at clock control register */
+	if (clock == 0) {
+		sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
+		host->clock = clock;
 		return;
+	}
 
 	sdhci_s3c_set_clock(host, clock);
 
@@ -608,6 +611,7 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	host->hw_name = "samsung-hsmmc";
 	host->ops = &sdhci_s3c_ops;
 	host->quirks = 0;
+	host->quirks2 = 0;
 	host->irq = irq;
 
 	/* Setup quirks for the controller */

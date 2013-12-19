@@ -202,7 +202,6 @@ static void k10temp_remove(struct pci_dev *pdev)
 			   &sensor_dev_attr_temp1_crit.dev_attr);
 	device_remove_file(&pdev->dev,
 			   &sensor_dev_attr_temp1_crit_hyst.dev_attr);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(k10temp_id_table) = {

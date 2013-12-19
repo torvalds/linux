@@ -10,7 +10,7 @@
  *
  *  Forward port and refactoring to modern qla2xxx and target/configfs
  *
- *  Copyright (C) 2010-2011 Nicholas A. Bellinger <nab@kernel.org>
+ *  Copyright (C) 2010-2013 Nicholas A. Bellinger <nab@kernel.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License

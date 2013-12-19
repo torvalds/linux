@@ -4,7 +4,7 @@
  * This file contains the Storage Engine  <-> Linux BlockIO transport
  * specific functions.
  *
- * (c) Copyright 2003-2012 RisingTide Systems LLC.
+ * (c) Copyright 2003-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *
@@ -536,10 +536,10 @@ static ssize_t iblock_set_configfs_dev_params(struct se_device *dev,
 				ret = -ENOMEM;
 				break;
 			}
-			ret = strict_strtoul(arg_p, 0, &tmp_readonly);
+			ret = kstrtoul(arg_p, 0, &tmp_readonly);
 			kfree(arg_p);
 			if (ret < 0) {
-				pr_err("strict_strtoul() failed for"
+				pr_err("kstrtoul() failed for"
 						" readonly=\n");
 				goto out;
 			}
@@ -587,11 +587,9 @@ static ssize_t iblock_show_configfs_dev_params(struct se_device *dev, char *b)
 }
 
 static sense_reason_t
-iblock_execute_rw(struct se_cmd *cmd)
+iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
+		  enum dma_data_direction data_direction)
 {
-	struct scatterlist *sgl = cmd->t_data_sg;
-	u32 sgl_nents = cmd->t_data_nents;
-	enum dma_data_direction data_direction = cmd->data_direction;
 	struct se_device *dev = cmd->se_dev;
 	struct iblock_req *ibr;
 	struct bio *bio;
@@ -712,6 +710,45 @@ static sector_t iblock_get_blocks(struct se_device *dev)
 	return iblock_emulate_read_cap_with_block_size(dev, bd, q);
 }
 
+static sector_t iblock_get_alignment_offset_lbas(struct se_device *dev)
+{
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+	struct block_device *bd = ib_dev->ibd_bd;
+	int ret;
+
+	ret = bdev_alignment_offset(bd);
+	if (ret == -1)
+		return 0;
+
+	/* convert offset-bytes to offset-lbas */
+	return ret / bdev_logical_block_size(bd);
+}
+
+static unsigned int iblock_get_lbppbe(struct se_device *dev)
+{
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+	struct block_device *bd = ib_dev->ibd_bd;
+	int logs_per_phys = bdev_physical_block_size(bd) / bdev_logical_block_size(bd);
+
+	return ilog2(logs_per_phys);
+}
+
+static unsigned int iblock_get_io_min(struct se_device *dev)
+{
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+	struct block_device *bd = ib_dev->ibd_bd;
+
+	return bdev_io_min(bd);
+}
+
+static unsigned int iblock_get_io_opt(struct se_device *dev)
+{
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+	struct block_device *bd = ib_dev->ibd_bd;
+
+	return bdev_io_opt(bd);
+}
+
 static struct sbc_ops iblock_sbc_ops = {
 	.execute_rw		= iblock_execute_rw,
 	.execute_sync_cache	= iblock_execute_sync_cache,
@@ -751,6 +788,10 @@ static struct se_subsystem_api iblock_template = {
 	.show_configfs_dev_params = iblock_show_configfs_dev_params,
 	.get_device_type	= sbc_get_device_type,
 	.get_blocks		= iblock_get_blocks,
+	.get_alignment_offset_lbas = iblock_get_alignment_offset_lbas,
+	.get_lbppbe		= iblock_get_lbppbe,
+	.get_io_min		= iblock_get_io_min,
+	.get_io_opt		= iblock_get_io_opt,
 	.get_write_cache	= iblock_get_write_cache,
 };
 

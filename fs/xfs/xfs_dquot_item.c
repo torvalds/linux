@@ -17,23 +17,20 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_alloc.h"
-#include "xfs_quota.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
-#include "xfs_bmap.h"
-#include "xfs_rtalloc.h"
+#include "xfs_quota.h"
 #include "xfs_error.h"
-#include "xfs_itable.h"
-#include "xfs_attr.h"
+#include "xfs_trans.h"
 #include "xfs_buf_item.h"
 #include "xfs_trans_priv.h"
 #include "xfs_qm.h"
+#include "xfs_log.h"
 
 static inline struct xfs_dq_logitem *DQUOT_ITEM(struct xfs_log_item *lip)
 {
@@ -43,14 +40,15 @@ static inline struct xfs_dq_logitem *DQUOT_ITEM(struct xfs_log_item *lip)
 /*
  * returns the number of iovecs needed to log the given dquot item.
  */
-STATIC uint
+STATIC void
 xfs_qm_dquot_logitem_size(
-	struct xfs_log_item	*lip)
+	struct xfs_log_item	*lip,
+	int			*nvecs,
+	int			*nbytes)
 {
-	/*
-	 * we need only two iovecs, one for the format, one for the real thing
-	 */
-	return 2;
+	*nvecs += 2;
+	*nbytes += sizeof(struct xfs_dq_logformat) +
+		   sizeof(struct xfs_disk_dquot);
 }
 
 /*
@@ -140,7 +138,8 @@ xfs_qm_dqunpin_wait(
 STATIC uint
 xfs_qm_dquot_logitem_push(
 	struct xfs_log_item	*lip,
-	struct list_head	*buffer_list)
+	struct list_head	*buffer_list) __releases(&lip->li_ailp->xa_lock)
+					      __acquires(&lip->li_ailp->xa_lock)
 {
 	struct xfs_dquot	*dqp = DQUOT_ITEM(lip)->qli_dquot;
 	struct xfs_buf		*bp = NULL;
@@ -285,11 +284,14 @@ static inline struct xfs_qoff_logitem *QOFF_ITEM(struct xfs_log_item *lip)
  * We only need 1 iovec for an quotaoff item.  It just logs the
  * quotaoff_log_format structure.
  */
-STATIC uint
+STATIC void
 xfs_qm_qoff_logitem_size(
-	struct xfs_log_item	*lip)
+	struct xfs_log_item	*lip,
+	int			*nvecs,
+	int			*nbytes)
 {
-	return 1;
+	*nvecs += 1;
+	*nbytes += sizeof(struct xfs_qoff_logitem);
 }
 
 /*

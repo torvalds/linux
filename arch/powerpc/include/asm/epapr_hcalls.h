@@ -105,6 +105,12 @@
 extern bool epapr_paravirt_enabled;
 extern u32 epapr_hypercall_start[];
 
+#ifdef CONFIG_EPAPR_PARAVIRT
+int __init epapr_paravirt_early_init(void);
+#else
+static inline int epapr_paravirt_early_init(void) { return 0; }
+#endif
+
 /*
  * We use "uintptr_t" to define a register because it's guaranteed to be a
  * 32-bit integer on a 32-bit platform, and a 64-bit integer on a 64-bit

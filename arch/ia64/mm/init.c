@@ -357,9 +357,7 @@ int vmemmap_find_next_valid_pfn(int node, int i)
 
 	end_address = (unsigned long) &vmem_map[pgdat->node_start_pfn + i];
 	end_address = PAGE_ALIGN(end_address);
-
-	stop_address = (unsigned long) &vmem_map[
-		pgdat->node_start_pfn + pgdat->node_spanned_pages];
+	stop_address = (unsigned long) &vmem_map[pgdat_end_pfn(pgdat)];
 
 	do {
 		pgd_t *pgd;

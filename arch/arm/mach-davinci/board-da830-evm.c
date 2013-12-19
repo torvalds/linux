@@ -17,22 +17,24 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pcf857x.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
+#include <linux/platform_data/gpio-davinci.h>
+#include <linux/platform_data/mtd-davinci.h>
+#include <linux/platform_data/mtd-davinci-aemif.h>
+#include <linux/platform_data/spi-davinci.h>
+#include <linux/platform_data/usb-davinci.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
+#include <mach/common.h>
 #include <mach/cp_intc.h>
 #include <mach/mux.h>
-#include <linux/platform_data/mtd-davinci.h>
 #include <mach/da8xx.h>
-#include <linux/platform_data/usb-davinci.h>
-#include <linux/platform_data/mtd-davinci-aemif.h>
-#include <linux/platform_data/spi-davinci.h>
 
 #define DA830_EVM_PHY_ID		""
 /*
@@ -74,7 +76,7 @@ static int da830_evm_usb_ocic_notify(da8xx_ocic_handler_t handler)
 	if (handler != NULL) {
 		da830_evm_usb_ocic_handler = handler;
 
-		error = request_irq(irq, da830_evm_usb_ocic_irq, IRQF_DISABLED |
+		error = request_irq(irq, da830_evm_usb_ocic_irq,
 				    IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				    "OHCI over-current indicator", NULL);
 		if (error)
@@ -184,10 +186,6 @@ static __init void da830_evm_usb_init(void)
 		pr_warning("%s: USB 1.1 registration failed: %d\n",
 			   __func__, ret);
 }
-
-static struct davinci_uart_config da830_evm_uart_config __initdata = {
-	.enabled_uarts = 0x7,
-};
 
 static const short da830_evm_mcasp1_pins[] = {
 	DA830_AHCLKX1, DA830_ACLKX1, DA830_AFSX1, DA830_AHCLKR1, DA830_AFSR1,
@@ -595,6 +593,10 @@ static __init void da830_evm_init(void)
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 	int ret;
 
+	ret = da830_register_gpio();
+	if (ret)
+		pr_warn("da830_evm_init: GPIO init failed: %d\n", ret);
+
 	ret = da830_register_edma(da830_edma_rsv);
 	if (ret)
 		pr_warning("da830_evm_init: edma registration failed: %d\n",
@@ -630,7 +632,7 @@ static __init void da830_evm_init(void)
 		pr_warning("da830_evm_init: watchdog registration failed: %d\n",
 				ret);
 
-	davinci_serial_init(&da830_evm_uart_config);
+	davinci_serial_init(da8xx_serial_device);
 	i2c_register_board_info(1, da830_evm_i2c_devices,
 			ARRAY_SIZE(da830_evm_i2c_devices));
 

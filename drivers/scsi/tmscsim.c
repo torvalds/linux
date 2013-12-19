@@ -521,7 +521,7 @@ dc390_StartSCSI( struct dc390_acb* pACB, struct dc390_dcb* pDCB, struct dc390_sr
 	pACB->SelConn++;
 	return 1;
     }
-    if (time_before (jiffies, pACB->pScsiHost->last_reset))
+    if (time_before (jiffies, pACB->last_reset))
     {
 	DEBUG0(printk ("DC390: We were just reset and don't accept commands yet!\n"));
 	return 1;
@@ -1863,7 +1863,7 @@ dc390_ScsiRstDetect( struct dc390_acb* pACB )
     /* delay half a second */
     udelay (1000);
     DC390_write8 (ScsiCmd, CLEAR_FIFO_CMD);
-    pACB->pScsiHost->last_reset = jiffies + 5*HZ/2
+    pACB->last_reset = jiffies + 5*HZ/2
 		    + HZ * dc390_eepromBuf[pACB->AdapterIndex][EE_DELAY];
     pACB->Connected = 0;
 
@@ -2048,9 +2048,9 @@ static int DC390_bus_reset (struct scsi_cmnd *cmd)
 
 	dc390_ResetDevParam(pACB);
 	mdelay(1);
-	pACB->pScsiHost->last_reset = jiffies + 3*HZ/2 
+	pACB->last_reset = jiffies + 3*HZ/2
 		+ HZ * dc390_eepromBuf[pACB->AdapterIndex][EE_DELAY];
-    
+
 	DC390_write8(ScsiCmd, CLEAR_FIFO_CMD);
 	DC390_read8(INT_Status);		/* Reset Pending INT */
 
@@ -2383,7 +2383,7 @@ static void dc390_init_hw(struct dc390_acb *pACB, u8 index)
 	if (pACB->Gmode2 & RST_SCSI_BUS) {
 		dc390_ResetSCSIBus(pACB);
 		udelay(1000);
-		shost->last_reset = jiffies + HZ/2 +
+		pACB->last_reset = jiffies + HZ/2 +
 			HZ * dc390_eepromBuf[pACB->AdapterIndex][EE_DELAY];
 	}
 
@@ -2455,8 +2455,8 @@ static int dc390_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	shost->irq = pdev->irq;
 	shost->base = io_port;
 	shost->unique_id = io_port;
-	shost->last_reset = jiffies;
-	
+
+	pACB->last_reset = jiffies;
 	pACB->pScsiHost = shost;
 	pACB->IOPortBase = (u16) io_port;
 	pACB->IRQLevel = pdev->irq;

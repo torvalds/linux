@@ -224,7 +224,7 @@ static const struct rtc_class_ops ds2404_rtc_ops = {
 
 static int rtc_probe(struct platform_device *pdev)
 {
-	struct ds2404_platform_data *pdata = pdev->dev.platform_data;
+	struct ds2404_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct ds2404 *chip;
 	int retval = -EBUSY;
 

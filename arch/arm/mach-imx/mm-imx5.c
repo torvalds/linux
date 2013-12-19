@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/pinctrl/machine.h>
+#include <linux/of_address.h>
 
 #include <asm/mach/map.h>
 
@@ -88,8 +89,15 @@ void __init imx51_init_early(void)
 
 void __init imx53_init_early(void)
 {
+	struct device_node *np;
+	void __iomem *base;
+
 	mxc_set_cpu_type(MXC_CPU_MX53);
-	mxc_iomux_v3_init(MX53_IO_ADDRESS(MX53_IOMUXC_BASE_ADDR));
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx53-iomuxc");
+	base = of_iomap(np, 0);
+	WARN_ON(!base);
+	mxc_iomux_v3_init(base);
 	imx_src_init();
 }
 
@@ -100,25 +108,18 @@ void __init mx51_init_irq(void)
 
 void __init mx53_init_irq(void)
 {
-	tzic_init_irq(MX53_IO_ADDRESS(MX53_TZIC_BASE_ADDR));
-}
+	struct device_node *np;
+	void __iomem *base;
 
-static struct sdma_script_start_addrs imx51_sdma_script __initdata = {
-	.ap_2_ap_addr = 642,
-	.uart_2_mcu_addr = 817,
-	.mcu_2_app_addr = 747,
-	.mcu_2_shp_addr = 961,
-	.ata_2_mcu_addr = 1473,
-	.mcu_2_ata_addr = 1392,
-	.app_2_per_addr = 1033,
-	.app_2_mcu_addr = 683,
-	.shp_2_per_addr = 1251,
-	.shp_2_mcu_addr = 892,
-};
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx53-tzic");
+	base = of_iomap(np, 0);
+	WARN_ON(!base);
+
+	tzic_init_irq(base);
+}
 
 static struct sdma_platform_data imx51_sdma_pdata __initdata = {
 	.fw_name = "sdma-imx51.bin",
-	.script_addrs = &imx51_sdma_script,
 };
 
 static const struct resource imx51_audmux_res[] __initconst = {
@@ -153,10 +154,10 @@ void __init imx51_soc_init(void)
 void __init imx51_init_late(void)
 {
 	mx51_neon_fixup();
-	imx51_pm_init();
+	imx5_pm_init();
 }
 
 void __init imx53_init_late(void)
 {
-	imx53_pm_init();
+	imx5_pm_init();
 }

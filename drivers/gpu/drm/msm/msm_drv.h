@@ -73,9 +73,15 @@ struct msm_drm_private {
 
 	struct workqueue_struct *wq;
 
+	/* callbacks deferred until bo is inactive: */
+	struct list_head fence_cbs;
+
 	/* registered IOMMU domains: */
 	unsigned int num_iommus;
 	struct iommu_domain *iommus[NUM_DOMAINS];
+
+	unsigned int num_planes;
+	struct drm_plane *planes[8];
 
 	unsigned int num_crtcs;
 	struct drm_crtc *crtcs[8];
@@ -93,6 +99,20 @@ struct msm_drm_private {
 struct msm_format {
 	uint32_t pixel_format;
 };
+
+/* callback from wq once fence has passed: */
+struct msm_fence_cb {
+	struct work_struct work;
+	uint32_t fence;
+	void (*func)(struct msm_fence_cb *cb);
+};
+
+void __msm_fence_worker(struct work_struct *work);
+
+#define INIT_FENCE_CB(_cb, _func)  do {                     \
+		INIT_WORK(&(_cb)->work, __msm_fence_worker); \
+		(_cb)->func = _func;                         \
+	} while (0)
 
 /* As there are different display controller blocks depending on the
  * snapdragon version, the kms support is split out and the appropriate
@@ -141,19 +161,26 @@ uint64_t msm_gem_mmap_offset(struct drm_gem_object *obj);
 int msm_gem_get_iova_locked(struct drm_gem_object *obj, int id,
 		uint32_t *iova);
 int msm_gem_get_iova(struct drm_gem_object *obj, int id, uint32_t *iova);
+struct page **msm_gem_get_pages(struct drm_gem_object *obj);
+void msm_gem_put_pages(struct drm_gem_object *obj);
 void msm_gem_put_iova(struct drm_gem_object *obj, int id);
 int msm_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 		struct drm_mode_create_dumb *args);
-int msm_gem_dumb_destroy(struct drm_file *file, struct drm_device *dev,
-		uint32_t handle);
 int msm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 		uint32_t handle, uint64_t *offset);
+struct sg_table *msm_gem_prime_get_sg_table(struct drm_gem_object *obj);
+void *msm_gem_prime_vmap(struct drm_gem_object *obj);
+void msm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
+struct drm_gem_object *msm_gem_prime_import_sg_table(struct drm_device *dev,
+		size_t size, struct sg_table *sg);
+int msm_gem_prime_pin(struct drm_gem_object *obj);
+void msm_gem_prime_unpin(struct drm_gem_object *obj);
 void *msm_gem_vaddr_locked(struct drm_gem_object *obj);
 void *msm_gem_vaddr(struct drm_gem_object *obj);
-int msm_gem_queue_inactive_work(struct drm_gem_object *obj,
-		struct work_struct *work);
+int msm_gem_queue_inactive_cb(struct drm_gem_object *obj,
+		struct msm_fence_cb *cb);
 void msm_gem_move_to_active(struct drm_gem_object *obj,
-		struct msm_gpu *gpu, uint32_t fence);
+		struct msm_gpu *gpu, bool write, uint32_t fence);
 void msm_gem_move_to_inactive(struct drm_gem_object *obj);
 int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op,
 		struct timespec *timeout);
@@ -163,6 +190,8 @@ int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 		uint32_t size, uint32_t flags, uint32_t *handle);
 struct drm_gem_object *msm_gem_new(struct drm_device *dev,
 		uint32_t size, uint32_t flags);
+struct drm_gem_object *msm_gem_import(struct drm_device *dev,
+		uint32_t size, struct sg_table *sgt);
 
 struct drm_gem_object *msm_framebuffer_bo(struct drm_framebuffer *fb, int plane);
 const struct msm_format *msm_framebuffer_format(struct drm_framebuffer *fb);
@@ -190,6 +219,12 @@ u32 msm_readl(const void __iomem *addr);
 
 #define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
 #define VERB(fmt, ...) if (0) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
+
+static inline bool fence_completed(struct drm_device *dev, uint32_t fence)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	return priv->completed_fence >= fence;
+}
 
 static inline int align_pitch(int width, int bpp)
 {

@@ -452,12 +452,8 @@ int tpm_add_ppi(struct kobject *parent)
 {
 	return sysfs_create_group(parent, &ppi_attr_grp);
 }
-EXPORT_SYMBOL_GPL(tpm_add_ppi);
 
 void tpm_remove_ppi(struct kobject *parent)
 {
 	sysfs_remove_group(parent, &ppi_attr_grp);
 }
-EXPORT_SYMBOL_GPL(tpm_remove_ppi);
-
-MODULE_LICENSE("GPL");

@@ -219,7 +219,7 @@ static int altera_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, hw);
 
 	/* setup the state for the bitbang driver */
-	hw->bitbang.master = spi_master_get(master);
+	hw->bitbang.master = master;
 	if (!hw->bitbang.master)
 		return err;
 	hw->bitbang.chipselect = altera_spi_chipsel;
@@ -276,6 +276,7 @@ static int altera_spi_remove(struct platform_device *dev)
 #ifdef CONFIG_OF
 static const struct of_device_id altera_spi_match[] = {
 	{ .compatible = "ALTR,spi-1.0", },
+	{ .compatible = "altr,spi-1.0", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, altera_spi_match);

@@ -1137,7 +1137,7 @@ static int twl_remove(struct i2c_client *client)
 static int
 twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
-	struct twl4030_platform_data	*pdata = client->dev.platform_data;
+	struct twl4030_platform_data	*pdata = dev_get_platdata(&client->dev);
 	struct device_node		*node = client->dev.of_node;
 	struct platform_device		*pdev;
 	struct regmap_config		*twl_regmap_config;

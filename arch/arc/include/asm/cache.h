@@ -17,13 +17,7 @@
 #endif
 
 #define L1_CACHE_BYTES		(1 << L1_CACHE_SHIFT)
-
-/* For a rare case where customers have differently config I/D */
-#define ARC_ICACHE_LINE_LEN	L1_CACHE_BYTES
-#define ARC_DCACHE_LINE_LEN	L1_CACHE_BYTES
-
-#define ICACHE_LINE_MASK	(~(ARC_ICACHE_LINE_LEN - 1))
-#define DCACHE_LINE_MASK	(~(ARC_DCACHE_LINE_LEN - 1))
+#define CACHE_LINE_MASK		(~(L1_CACHE_BYTES - 1))
 
 /*
  * ARC700 doesn't cache any access in top 256M.
@@ -57,7 +51,7 @@
 
 extern void arc_cache_init(void);
 extern char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len);
-extern void __init read_decode_cache_bcr(void);
+extern void read_decode_cache_bcr(void);
 
 #endif	/* !__ASSEMBLY__ */
 

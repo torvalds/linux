@@ -43,8 +43,8 @@
 #include "dgnc_tty.h"
 #include "dgnc_trace.h"
 
-static inline void neo_parse_lsr(struct board_t *brd, uint port);
-static inline void neo_parse_isr(struct board_t *brd, uint port);
+static inline void neo_parse_lsr(struct dgnc_board *brd, uint port);
+static inline void neo_parse_isr(struct dgnc_board *brd, uint port);
 static void neo_copy_data_from_uart_to_queue(struct channel_t *ch);
 static inline void neo_clear_break(struct channel_t *ch, int force);
 static inline void neo_set_cts_flow_control(struct channel_t *ch);
@@ -56,7 +56,7 @@ static inline void neo_set_no_input_flow_control(struct channel_t *ch);
 static inline void neo_set_new_start_stop_chars(struct channel_t *ch);
 static void neo_parse_modem(struct channel_t *ch, uchar signals);
 static void neo_tasklet(unsigned long data);
-static void neo_vpd(struct board_t *brd);
+static void neo_vpd(struct dgnc_board *brd);
 static void neo_uart_init(struct channel_t *ch);
 static void neo_uart_off(struct channel_t *ch);
 static int neo_drain(struct tty_struct *tty, uint seconds);
@@ -107,7 +107,7 @@ static uint dgnc_offset_table[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0
  * In this case, we are reading the DVID (Read-only Device Identification)
  * value of the Neo card.
  */
-static inline void neo_pci_posting_flush(struct board_t *bd)
+static inline void neo_pci_posting_flush(struct dgnc_board *bd)
 {
 	readb(bd->re_map_membase + 0x8D);
 }
@@ -411,7 +411,7 @@ static inline void neo_clear_break(struct channel_t *ch, int force)
 /*
  * Parse the ISR register.
  */
-static inline void neo_parse_isr(struct board_t *brd, uint port)
+static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 {
 	struct channel_t *ch;
 	uchar isr;
@@ -538,7 +538,7 @@ static inline void neo_parse_isr(struct board_t *brd, uint port)
 }
 
 
-static inline void neo_parse_lsr(struct board_t *brd, uint port)
+static inline void neo_parse_lsr(struct dgnc_board *brd, uint port)
 {
 	struct channel_t *ch;
 	int linestatus;
@@ -650,7 +650,7 @@ static void neo_param(struct tty_struct *tty)
 	uchar uart_ier = 0;
 	uint baud = 9600;
 	int quot = 0;
-	struct board_t *bd;
+	struct dgnc_board *bd;
 	struct channel_t *ch;
 	struct un_t   *un;
 
@@ -911,7 +911,7 @@ static void neo_param(struct tty_struct *tty)
  */
 static void neo_tasklet(unsigned long data)
 {
-	struct board_t *bd = (struct board_t *) data;
+	struct dgnc_board *bd = (struct dgnc_board *) data;
 	struct channel_t *ch;
 	ulong  lock_flags;
 	int i;
@@ -994,7 +994,7 @@ static void neo_tasklet(unsigned long data)
  */
 static irqreturn_t neo_intr(int irq, void *voidbrd)
 {
-	struct board_t *brd = (struct board_t *) voidbrd;
+	struct dgnc_board *brd = (struct dgnc_board *) voidbrd;
 	struct channel_t *ch;
 	int port = 0;
 	int type = 0;
@@ -1111,7 +1111,7 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 			 * Why would I check EVERY possibility of type of
 			 * interrupt, when we know its TXRDY???
 			 * Becuz for some reason, even tho we got triggered for TXRDY,
-			 * it seems to be occassionally wrong. Instead of TX, which
+			 * it seems to be occasionally wrong. Instead of TX, which
 			 * it should be, I was getting things like RXDY too. Weird.
 			 */
 			neo_parse_isr(brd, port);
@@ -1404,17 +1404,17 @@ static int neo_drain(struct tty_struct *tty, uint seconds)
 	int rc = 0;
 
 	if (!tty || tty->magic != TTY_MAGIC) {
-		return (-ENXIO);
+		return -ENXIO;
 	}
 
 	un = (struct un_t *) tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC) {
-		return (-ENXIO);
+		return -ENXIO;
 	}
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC) {
-		return (-ENXIO);
+		return -ENXIO;
 	}
 
 	DPR_IOCTL(("%d Drain wait started.\n", __LINE__));
@@ -1439,7 +1439,7 @@ static int neo_drain(struct tty_struct *tty, uint seconds)
 		DPR_IOCTL(("%d Drain wait finished.\n", __LINE__));
 	}
 
-	return (rc);
+	return rc;
 }
 
 
@@ -1939,7 +1939,7 @@ static unsigned int neo_read_eeprom(unsigned char __iomem *base, unsigned int ad
 }
 
 
-static void neo_vpd(struct board_t *brd)
+static void neo_vpd(struct dgnc_board *brd)
 {
 	unsigned int i = 0;
 	unsigned int a;
@@ -1965,7 +1965,7 @@ static void neo_vpd(struct board_t *brd)
 	}
 	else {
 		/* Search for the serial number */
-		for (i = 0; i < NEO_VPD_IMAGESIZE * 2; i++) {
+		for (i = 0; i < NEO_VPD_IMAGEBYTES - 3; i++) {
 			if (brd->vpd[i] == 'S' && brd->vpd[i + 1] == 'N') {
 				strncpy(brd->serial_num, &(brd->vpd[i + 3]), 9);
 			}

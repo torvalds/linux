@@ -1,9 +1,7 @@
 /*******************************************************************************
  * This file contains the iSCSI Target specific utility functions.
  *
- * \u00a9 Copyright 2007-2011 RisingTide Systems LLC.
- *
- * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
+ * (c) Copyright 2007-2013 Datera, Inc.
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
@@ -19,6 +17,7 @@
  ******************************************************************************/
 
 #include <linux/list.h>
+#include <linux/percpu_ida.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
@@ -149,18 +148,6 @@ void iscsit_free_r2ts_from_list(struct iscsi_cmd *cmd)
 	spin_unlock_bh(&cmd->r2t_lock);
 }
 
-struct iscsi_cmd *iscsit_alloc_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
-{
-	struct iscsi_cmd *cmd;
-
-	cmd = kmem_cache_zalloc(lio_cmd_cache, gfp_mask);
-	if (!cmd)
-		return NULL;
-
-	cmd->release_cmd = &iscsit_release_cmd;
-	return cmd;
-}
-
 /*
  * May be called from software interrupt (timer) context for allocating
  * iSCSI NopINs.
@@ -168,12 +155,15 @@ struct iscsi_cmd *iscsit_alloc_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
 struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
 {
 	struct iscsi_cmd *cmd;
+	struct se_session *se_sess = conn->sess->se_sess;
+	int size, tag;
 
-	cmd = conn->conn_transport->iscsit_alloc_cmd(conn, gfp_mask);
-	if (!cmd) {
-		pr_err("Unable to allocate memory for struct iscsi_cmd.\n");
-		return NULL;
-	}
+	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, gfp_mask);
+	size = sizeof(struct iscsi_cmd) + conn->conn_transport->priv_size;
+	cmd = (struct iscsi_cmd *)(se_sess->sess_cmd_map + (tag * size));
+	memset(cmd, 0, size);
+
+	cmd->se_cmd.map_tag = tag;
 	cmd->conn = conn;
 	INIT_LIST_HEAD(&cmd->i_conn_node);
 	INIT_LIST_HEAD(&cmd->datain_list);
@@ -252,9 +242,9 @@ static inline int iscsit_check_received_cmdsn(struct iscsi_session *sess, u32 cm
 	 */
 	if (iscsi_sna_gt(cmdsn, sess->max_cmd_sn)) {
 		pr_err("Received CmdSN: 0x%08x is greater than"
-		       " MaxCmdSN: 0x%08x, protocol error.\n", cmdsn,
+		       " MaxCmdSN: 0x%08x, ignoring.\n", cmdsn,
 		       sess->max_cmd_sn);
-		ret = CMDSN_ERROR_CANNOT_RECOVER;
+		ret = CMDSN_MAXCMDSN_OVERRUN;
 
 	} else if (cmdsn == sess->exp_cmd_sn) {
 		sess->exp_cmd_sn++;
@@ -313,14 +303,16 @@ int iscsit_sequence_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 		ret = CMDSN_HIGHER_THAN_EXP;
 		break;
 	case CMDSN_LOWER_THAN_EXP:
+	case CMDSN_MAXCMDSN_OVERRUN:
+	default:
 		cmd->i_state = ISTATE_REMOVE;
 		iscsit_add_cmd_to_immediate_queue(cmd, conn, cmd->i_state);
-		ret = cmdsn_ret;
-		break;
-	default:
-		reason = ISCSI_REASON_PROTOCOL_ERROR;
-		reject = true;
-		ret = cmdsn_ret;
+		/*
+		 * Existing callers for iscsit_sequence_cmd() will silently
+		 * ignore commands with CMDSN_LOWER_THAN_EXP, so force this
+		 * return for CMDSN_MAXCMDSN_OVERRUN as well..
+		 */
+		ret = CMDSN_LOWER_THAN_EXP;
 		break;
 	}
 	mutex_unlock(&conn->sess->cmdsn_mutex);
@@ -689,6 +681,16 @@ void iscsit_free_queue_reqs_for_conn(struct iscsi_conn *conn)
 
 void iscsit_release_cmd(struct iscsi_cmd *cmd)
 {
+	struct iscsi_session *sess;
+	struct se_cmd *se_cmd = &cmd->se_cmd;
+
+	if (cmd->conn)
+		sess = cmd->conn->sess;
+	else
+		sess = cmd->sess;
+
+	BUG_ON(!sess || !sess->se_sess);
+
 	kfree(cmd->buf_ptr);
 	kfree(cmd->pdu_list);
 	kfree(cmd->seq_list);
@@ -696,8 +698,9 @@ void iscsit_release_cmd(struct iscsi_cmd *cmd)
 	kfree(cmd->iov_data);
 	kfree(cmd->text_in_ptr);
 
-	kmem_cache_free(lio_cmd_cache, cmd);
+	percpu_ida_free(&sess->se_sess->sess_tag_pool, se_cmd->map_tag);
 }
+EXPORT_SYMBOL(iscsit_release_cmd);
 
 static void __iscsit_free_cmd(struct iscsi_cmd *cmd, bool scsi_cmd,
 			      bool check_queues)
@@ -735,7 +738,7 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 		 * Fallthrough
 		 */
 	case ISCSI_OP_SCSI_TMFUNC:
-		rc = transport_generic_free_cmd(&cmd->se_cmd, 1);
+		rc = transport_generic_free_cmd(&cmd->se_cmd, shutdown);
 		if (!rc && shutdown && se_cmd && se_cmd->se_sess) {
 			__iscsit_free_cmd(cmd, true, shutdown);
 			target_put_sess_cmd(se_cmd->se_sess, se_cmd);
@@ -751,7 +754,7 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 			se_cmd = &cmd->se_cmd;
 			__iscsit_free_cmd(cmd, true, shutdown);
 
-			rc = transport_generic_free_cmd(&cmd->se_cmd, 1);
+			rc = transport_generic_free_cmd(&cmd->se_cmd, shutdown);
 			if (!rc && shutdown && se_cmd->se_sess) {
 				__iscsit_free_cmd(cmd, true, shutdown);
 				target_put_sess_cmd(se_cmd->se_sess, se_cmd);
@@ -761,7 +764,7 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 		/* Fall-through */
 	default:
 		__iscsit_free_cmd(cmd, false, shutdown);
-		cmd->release_cmd(cmd);
+		iscsit_release_cmd(cmd);
 		break;
 	}
 }
@@ -979,7 +982,7 @@ static void iscsit_handle_nopin_response_timeout(unsigned long data)
 		tiqn->sess_err_stats.last_sess_failure_type =
 				ISCSI_SESS_ERR_CXN_TIMEOUT;
 		tiqn->sess_err_stats.cxn_timeout_errors++;
-		conn->sess->conn_timeout_errors++;
+		atomic_long_inc(&conn->sess->conn_timeout_errors);
 		spin_unlock_bh(&tiqn->sess_err_stats.lock);
 	}
 	}

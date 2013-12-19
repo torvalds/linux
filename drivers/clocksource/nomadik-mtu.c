@@ -76,7 +76,7 @@ static struct delay_timer mtu_delay_timer;
  * local implementation which uses the clocksource to get some
  * better resolution when scheduling the kernel.
  */
-static u32 notrace nomadik_read_sched_clock(void)
+static u64 notrace nomadik_read_sched_clock(void)
 {
 	if (unlikely(!mtu_base))
 		return 0;
@@ -165,7 +165,8 @@ static void nmdk_clkevt_resume(struct clock_event_device *cedev)
 
 static struct clock_event_device nmdk_clkevt = {
 	.name		= "mtu_1",
-	.features	= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
+	.features	= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC |
+	                  CLOCK_EVT_FEAT_DYNIRQ,
 	.rating		= 200,
 	.set_mode	= nmdk_clkevt_mode,
 	.set_next_event	= nmdk_clkevt_next,
@@ -230,7 +231,7 @@ static void __init __nmdk_timer_init(void __iomem *base, int irq,
 		       "mtu_0");
 
 #ifdef CONFIG_CLKSRC_NOMADIK_MTU_SCHED_CLOCK
-	setup_sched_clock(nomadik_read_sched_clock, 32, rate);
+	sched_clock_register(nomadik_read_sched_clock, 32, rate);
 #endif
 
 	/* Timer 1 is used for events, register irq and clockevents */

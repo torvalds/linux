@@ -185,7 +185,7 @@ static int smack_ptrace_access_check(struct task_struct *ctp, unsigned int mode)
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_TASK);
 	smk_ad_setfield_u_tsk(&ad, ctp);
 
-	rc = smk_curacc(skp->smk_known, MAY_READWRITE, &ad);
+	rc = smk_curacc(skp->smk_known, mode, &ad);
 	return rc;
 }
 
@@ -582,7 +582,7 @@ static void smack_inode_free_security(struct inode *inode)
  * Returns 0 if it all works out, -ENOMEM if there's no memory
  */
 static int smack_inode_init_security(struct inode *inode, struct inode *dir,
-				     const struct qstr *qstr, char **name,
+				     const struct qstr *qstr, const char **name,
 				     void **value, size_t *len)
 {
 	struct inode_smack *issp = inode->i_security;
@@ -591,11 +591,8 @@ static int smack_inode_init_security(struct inode *inode, struct inode *dir,
 	char *dsp = smk_of_inode(dir);
 	int may;
 
-	if (name) {
-		*name = kstrdup(XATTR_SMACK_SUFFIX, GFP_NOFS);
-		if (*name == NULL)
-			return -ENOMEM;
-	}
+	if (name)
+		*name = XATTR_SMACK_SUFFIX;
 
 	if (value) {
 		rcu_read_lock();
@@ -1149,7 +1146,7 @@ static int smack_file_ioctl(struct file *file, unsigned int cmd,
  * @file: the object
  * @cmd: unused
  *
- * Returns 0 if current has write access, error code otherwise
+ * Returns 0 if current has lock access, error code otherwise
  */
 static int smack_file_lock(struct file *file, unsigned int cmd)
 {
@@ -1157,7 +1154,7 @@ static int smack_file_lock(struct file *file, unsigned int cmd)
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
-	return smk_curacc(file->f_security, MAY_WRITE, &ad);
+	return smk_curacc(file->f_security, MAY_LOCK, &ad);
 }
 
 /**
@@ -1181,8 +1178,13 @@ static int smack_file_fcntl(struct file *file, unsigned int cmd,
 
 	switch (cmd) {
 	case F_GETLK:
+		break;
 	case F_SETLK:
 	case F_SETLKW:
+		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
+		smk_ad_setfield_u_fs_path(&ad, file->f_path);
+		rc = smk_curacc(file->f_security, MAY_LOCK, &ad);
+		break;
 	case F_SETOWN:
 	case F_SETSIG:
 		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
@@ -3065,6 +3067,8 @@ static struct smack_known *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 {
 	struct smack_known *skp;
 	int found = 0;
+	int acat;
+	int kcat;
 
 	if ((sap->flags & NETLBL_SECATTR_MLS_LVL) != 0) {
 		/*
@@ -3081,12 +3085,28 @@ static struct smack_known *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 		list_for_each_entry(skp, &smack_known_list, list) {
 			if (sap->attr.mls.lvl != skp->smk_netlabel.attr.mls.lvl)
 				continue;
-			if (memcmp(sap->attr.mls.cat,
-				skp->smk_netlabel.attr.mls.cat,
-				SMK_CIPSOLEN) != 0)
-				continue;
-			found = 1;
-			break;
+			/*
+			 * Compare the catsets. Use the netlbl APIs.
+			 */
+			if ((sap->flags & NETLBL_SECATTR_MLS_CAT) == 0) {
+				if ((skp->smk_netlabel.flags &
+				     NETLBL_SECATTR_MLS_CAT) == 0)
+					found = 1;
+				break;
+			}
+			for (acat = -1, kcat = -1; acat == kcat; ) {
+				acat = netlbl_secattr_catmap_walk(
+					sap->attr.mls.cat, acat + 1);
+				kcat = netlbl_secattr_catmap_walk(
+					skp->smk_netlabel.attr.mls.cat,
+					kcat + 1);
+				if (acat < 0 || kcat < 0)
+					break;
+			}
+			if (acat == kcat) {
+				found = 1;
+				break;
+			}
 		}
 		rcu_read_unlock();
 
@@ -3877,12 +3897,12 @@ static __init void init_smack_known_list(void)
 	/*
 	 * Create the known labels list
 	 */
-	list_add(&smack_known_huh.list, &smack_known_list);
-	list_add(&smack_known_hat.list, &smack_known_list);
-	list_add(&smack_known_star.list, &smack_known_list);
-	list_add(&smack_known_floor.list, &smack_known_list);
-	list_add(&smack_known_invalid.list, &smack_known_list);
-	list_add(&smack_known_web.list, &smack_known_list);
+	smk_insert_entry(&smack_known_huh);
+	smk_insert_entry(&smack_known_hat);
+	smk_insert_entry(&smack_known_star);
+	smk_insert_entry(&smack_known_floor);
+	smk_insert_entry(&smack_known_invalid);
+	smk_insert_entry(&smack_known_web);
 }
 
 /**

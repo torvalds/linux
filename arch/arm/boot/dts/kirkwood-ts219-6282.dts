@@ -1,10 +1,20 @@
 /dts-v1/;
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-6282.dtsi"
-/include/ "kirkwood-ts219.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6282.dtsi"
+#include "kirkwood-ts219.dtsi"
 
 / {
+	mbus {
+		pcie-controller {
+			status = "okay";
+
+			pcie@2,0 {
+				status = "okay";
+			};
+		};
+	};
+
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
 
@@ -30,14 +40,6 @@
 				marvell,function = "gpio";
 			};
 		};
-		pcie-controller {
-			status = "okay";
-
-			pcie@2,0 {
-				status = "okay";
-			};
-		};
-
 	};
 
 	gpio_keys {
@@ -59,3 +61,5 @@
 		};
 	};
 };
+
+&ethphy0 { reg = <0>; };

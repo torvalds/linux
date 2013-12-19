@@ -152,6 +152,7 @@ static int __ocfs2_move_extent(handle_t *handle,
 	}
 
 out:
+	ocfs2_free_path(path);
 	return ret;
 }
 
@@ -200,8 +201,7 @@ static int ocfs2_lock_allocators_move_extents(struct inode *inode,
 		}
 	}
 
-	*credits += ocfs2_calc_extend_credits(osb->sb, et->et_root_el,
-					      clusters_to_move + 2);
+	*credits += ocfs2_calc_extend_credits(osb->sb, et->et_root_el);
 
 	mlog(0, "reserve metadata_blocks: %d, data_clusters: %u, credits: %d\n",
 	     extra_blocks, clusters_to_move, *credits);
@@ -845,7 +845,7 @@ static int __ocfs2_move_extents_range(struct buffer_head *di_bh,
 	struct ocfs2_move_extents *range = context->range;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
-	if ((inode->i_size == 0) || (range->me_len == 0))
+	if ((i_size_read(inode) == 0) || (range->me_len == 0))
 		return 0;
 
 	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL)
@@ -1066,8 +1066,10 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 	if (status)
 		return status;
 
-	if ((!S_ISREG(inode->i_mode)) || !(filp->f_mode & FMODE_WRITE))
+	if ((!S_ISREG(inode->i_mode)) || !(filp->f_mode & FMODE_WRITE)) {
+		status = -EPERM;
 		goto out_drop;
+	}
 
 	if (inode->i_flags & (S_IMMUTABLE|S_APPEND)) {
 		status = -EPERM;
@@ -1089,8 +1091,10 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 		goto out_free;
 	}
 
-	if (range.me_start > i_size_read(inode))
+	if (range.me_start > i_size_read(inode)) {
+		status = -EINVAL;
 		goto out_free;
+	}
 
 	if (range.me_start + range.me_len > i_size_read(inode))
 			range.me_len = i_size_read(inode) - range.me_start;

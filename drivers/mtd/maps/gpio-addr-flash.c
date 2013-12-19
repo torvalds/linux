@@ -196,7 +196,7 @@ static int gpio_flash_probe(struct platform_device *pdev)
 	struct resource *gpios;
 	struct async_state *state;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	memory = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	gpios = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 

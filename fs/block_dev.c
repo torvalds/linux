@@ -592,7 +592,7 @@ static struct block_device *bd_acquire(struct inode *inode)
 	return bdev;
 }
 
-static inline int sb_is_blkdev_sb(struct super_block *sb)
+int sb_is_blkdev_sb(struct super_block *sb)
 {
 	return sb == blockdev_superblock;
 }
@@ -1542,7 +1542,7 @@ static ssize_t blkdev_aio_read(struct kiocb *iocb, const struct iovec *iov,
 		return 0;
 
 	size -= pos;
-	if (size < iocb->ki_left)
+	if (size < iocb->ki_nbytes)
 		nr_segs = iov_shorten((struct iovec *)iov, nr_segs, size);
 	return generic_file_aio_read(iocb, iov, nr_segs, pos);
 }

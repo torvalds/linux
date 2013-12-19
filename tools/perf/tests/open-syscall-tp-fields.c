@@ -27,7 +27,7 @@ int test__syscall_open_tp_fields(void)
 		goto out;
 	}
 
-	evsel = perf_evsel__newtp("syscalls", "sys_enter_open", 0);
+	evsel = perf_evsel__newtp("syscalls", "sys_enter_open");
 	if (evsel == NULL) {
 		pr_debug("%s: perf_evsel__newtp\n", __func__);
 		goto out_delete_evlist;
@@ -77,8 +77,10 @@ int test__syscall_open_tp_fields(void)
 
 				++nr_events;
 
-				if (type != PERF_RECORD_SAMPLE)
+				if (type != PERF_RECORD_SAMPLE) {
+					perf_evlist__mmap_consume(evlist, i);
 					continue;
+				}
 
 				err = perf_evsel__parse_sample(evsel, event, &sample);
 				if (err) {

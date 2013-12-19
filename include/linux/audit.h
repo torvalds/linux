@@ -73,6 +73,8 @@ struct audit_field {
 	void				*lsm_rule;
 };
 
+extern int is_audit_feature_set(int which);
+
 extern int __init audit_register_class(int class, unsigned *list);
 extern int audit_classify_syscall(int abi, unsigned syscall);
 extern int audit_classify_arch(int arch);
@@ -207,7 +209,7 @@ static inline int audit_get_sessionid(struct task_struct *tsk)
 
 extern void __audit_ipc_obj(struct kern_ipc_perm *ipcp);
 extern void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, umode_t mode);
-extern int __audit_bprm(struct linux_binprm *bprm);
+extern void __audit_bprm(struct linux_binprm *bprm);
 extern int __audit_socketcall(int nargs, unsigned long *args);
 extern int __audit_sockaddr(int len, void *addr);
 extern void __audit_fd_pair(int fd1, int fd2);
@@ -236,11 +238,10 @@ static inline void audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid
 	if (unlikely(!audit_dummy_context()))
 		__audit_ipc_set_perm(qbytes, uid, gid, mode);
 }
-static inline int audit_bprm(struct linux_binprm *bprm)
+static inline void audit_bprm(struct linux_binprm *bprm)
 {
 	if (unlikely(!audit_dummy_context()))
-		return __audit_bprm(bprm);
-	return 0;
+		__audit_bprm(bprm);
 }
 static inline int audit_socketcall(int nargs, unsigned long *args)
 {
@@ -367,10 +368,8 @@ static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 static inline void audit_ipc_set_perm(unsigned long qbytes, uid_t uid,
 					gid_t gid, umode_t mode)
 { }
-static inline int audit_bprm(struct linux_binprm *bprm)
-{
-	return 0;
-}
+static inline void audit_bprm(struct linux_binprm *bprm)
+{ }
 static inline int audit_socketcall(int nargs, unsigned long *args)
 {
 	return 0;

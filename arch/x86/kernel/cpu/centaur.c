@@ -468,10 +468,10 @@ static void init_centaur(struct cpuinfo_x86 *c)
 #endif
 }
 
+#ifdef CONFIG_X86_32
 static unsigned int
 centaur_size_cache(struct cpuinfo_x86 *c, unsigned int size)
 {
-#ifdef CONFIG_X86_32
 	/* VIA C3 CPUs (670-68F) need further shifting. */
 	if ((c->x86 == 6) && ((c->x86_model == 7) || (c->x86_model == 8)))
 		size >>= 8;
@@ -484,16 +484,18 @@ centaur_size_cache(struct cpuinfo_x86 *c, unsigned int size)
 	if ((c->x86 == 6) && (c->x86_model == 9) &&
 				(c->x86_mask == 1) && (size == 65))
 		size -= 1;
-#endif
 	return size;
 }
+#endif
 
 static const struct cpu_dev centaur_cpu_dev = {
 	.c_vendor	= "Centaur",
 	.c_ident	= { "CentaurHauls" },
 	.c_early_init	= early_init_centaur,
 	.c_init		= init_centaur,
-	.c_size_cache	= centaur_size_cache,
+#ifdef CONFIG_X86_32
+	.legacy_cache_size = centaur_size_cache,
+#endif
 	.c_x86_vendor	= X86_VENDOR_CENTAUR,
 };
 

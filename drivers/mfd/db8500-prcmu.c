@@ -465,7 +465,7 @@ static DEFINE_SPINLOCK(clk_mgt_lock);
 
 #define CLK_MGT_ENTRY(_name, _branch, _clk38div)[PRCMU_##_name] = \
 	{ (PRCM_##_name##_MGT), 0 , _branch, _clk38div}
-struct clk_mgt clk_mgt[PRCMU_NUM_REG_CLOCKS] = {
+static struct clk_mgt clk_mgt[PRCMU_NUM_REG_CLOCKS] = {
 	CLK_MGT_ENTRY(SGACLK, PLL_DIV, false),
 	CLK_MGT_ENTRY(UARTCLK, PLL_FIX, true),
 	CLK_MGT_ENTRY(MSP02CLK, PLL_FIX, true),
@@ -480,7 +480,6 @@ struct clk_mgt clk_mgt[PRCMU_NUM_REG_CLOCKS] = {
 	CLK_MGT_ENTRY(PER6CLK, PLL_DIV, true),
 	CLK_MGT_ENTRY(PER7CLK, PLL_DIV, true),
 	CLK_MGT_ENTRY(LCDCLK, PLL_FIX, true),
-	CLK_MGT_ENTRY(BML8580CLK, PLL_DIV, true),
 	CLK_MGT_ENTRY(BMLCLK, PLL_DIV, true),
 	CLK_MGT_ENTRY(HSITXCLK, PLL_DIV, true),
 	CLK_MGT_ENTRY(HSIRXCLK, PLL_DIV, true),
@@ -2319,7 +2318,7 @@ unlock_and_return:
 /**
  * prcmu_ac_sleep_req - called when ARM no longer needs to talk to modem
  */
-void prcmu_ac_sleep_req()
+void prcmu_ac_sleep_req(void)
 {
 	u32 val;
 

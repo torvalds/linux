@@ -86,7 +86,7 @@ static void lov_io_sub_inherit(struct cl_io *io, struct lov_io *lio,
 	struct lov_stripe_md *lsm    = lio->lis_object->lo_lsm;
 	struct cl_io	 *parent = lio->lis_cl.cis_io;
 
-	switch(io->ci_type) {
+	switch (io->ci_type) {
 	case CIT_SETATTR: {
 		io->u.ci_setattr.sa_attr = parent->u.ci_setattr.sa_attr;
 		io->u.ci_setattr.sa_valid = parent->u.ci_setattr.sa_valid;
@@ -282,7 +282,7 @@ static int lov_io_subio_init(const struct lu_env *env, struct lov_io *lio,
 	 * when writing a page. -jay
 	 */
 	OBD_ALLOC_LARGE(lio->lis_subs,
-			lsm->lsm_stripe_count * sizeof lio->lis_subs[0]);
+			lsm->lsm_stripe_count * sizeof(lio->lis_subs[0]));
 	if (lio->lis_subs != NULL) {
 		lio->lis_nr_subios = lio->lis_stripe_count;
 		lio->lis_single_subio_index = -1;
@@ -356,7 +356,7 @@ static void lov_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 		for (i = 0; i < lio->lis_nr_subios; i++)
 			lov_io_sub_fini(env, lio, &lio->lis_subs[i]);
 		OBD_FREE_LARGE(lio->lis_subs,
-			 lio->lis_nr_subios * sizeof lio->lis_subs[0]);
+			 lio->lis_nr_subios * sizeof(lio->lis_subs[0]));
 		lio->lis_nr_subios = 0;
 	}
 

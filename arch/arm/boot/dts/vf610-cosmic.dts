@@ -1,0 +1,47 @@
+/*
+ * Copyright 2013 Freescale Semiconductor, Inc.
+ * Copyright 2013 Linaro Limited
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ */
+
+/dts-v1/;
+#include "vf610.dtsi"
+
+/ {
+	model = "PHYTEC Cosmic/Cosmic+ Board";
+	compatible = "phytec,vf610-cosmic", "fsl,vf610";
+
+	chosen {
+		bootargs = "console=ttyLP1,115200";
+	};
+
+	memory {
+		reg = <0x80000000 0x10000000>;
+	};
+
+	clocks {
+		enet_ext {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <50000000>;
+		};
+	};
+
+};
+
+&fec1 {
+	phy-mode = "rmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec1_1>;
+	status = "okay";
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1_1>;
+	status = "okay";
+};

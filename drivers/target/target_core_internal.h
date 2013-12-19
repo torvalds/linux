@@ -33,6 +33,8 @@ int	se_dev_set_emulate_ua_intlck_ctrl(struct se_device *, int);
 int	se_dev_set_emulate_tas(struct se_device *, int);
 int	se_dev_set_emulate_tpu(struct se_device *, int);
 int	se_dev_set_emulate_tpws(struct se_device *, int);
+int	se_dev_set_emulate_caw(struct se_device *, int);
+int	se_dev_set_emulate_3pc(struct se_device *, int);
 int	se_dev_set_enforce_pr_isids(struct se_device *, int);
 int	se_dev_set_is_nonrot(struct se_device *, int);
 int	se_dev_set_emulate_rest_reord(struct se_device *dev, int);
@@ -73,8 +75,6 @@ extern struct se_device *g_lun0_dev;
 
 struct se_node_acl *__core_tpg_get_initiator_node_acl(struct se_portal_group *tpg,
 		const char *);
-struct se_node_acl *core_tpg_get_initiator_node_acl(struct se_portal_group *tpg,
-		unsigned char *);
 void	core_tpg_add_node_to_devs(struct se_node_acl *, struct se_portal_group *);
 void	core_tpg_wait_for_nacl_pr_ref(struct se_node_acl *);
 struct se_lun *core_tpg_pre_addlun(struct se_portal_group *, u32);
@@ -100,7 +100,7 @@ int	transport_dump_vpd_assoc(struct t10_vpd *, unsigned char *, int);
 int	transport_dump_vpd_ident_type(struct t10_vpd *, unsigned char *, int);
 int	transport_dump_vpd_ident(struct t10_vpd *, unsigned char *, int);
 bool	target_stop_cmd(struct se_cmd *cmd, unsigned long *flags);
-int	transport_clear_lun_from_sessions(struct se_lun *);
+int	transport_clear_lun_ref(struct se_lun *);
 void	transport_send_task_abort(struct se_cmd *);
 sense_reason_t	target_cmd_size_check(struct se_cmd *cmd, unsigned int size);
 void	target_qf_do_work(struct work_struct *work);

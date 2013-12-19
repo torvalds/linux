@@ -32,7 +32,7 @@
 #include <linux/errno.h>	/* For the -ENODEV/... values */
 #include <linux/kernel.h>	/* For printk/panic/... */
 #include <linux/delay.h>	/* For mdelay function */
-#include <linux/miscdevice.h>	/* For MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR) */
+#include <linux/miscdevice.h>	/* For struct miscdevice */
 #include <linux/watchdog.h>	/* For the watchdog specific items */
 #include <linux/notifier.h>	/* For notifier support */
 #include <linux/reboot.h>	/* For reboot_notifier stuff */
@@ -72,8 +72,6 @@ do {							\
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE(DRIVER_LICENSE);
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
-MODULE_ALIAS_MISCDEV(TEMP_MINOR);
 
 /* Module Parameters */
 module_param(debug, int, 0);
@@ -235,12 +233,16 @@ static int usb_pcwd_send_command(struct usb_pcwd_private *usb_pcwd,
 		unsigned char cmd, unsigned char *msb, unsigned char *lsb)
 {
 	int got_response, count;
-	unsigned char buf[6];
+	unsigned char *buf;
 
 	/* We will not send any commands if the USB PCWD device does
 	 * not exist */
 	if ((!usb_pcwd) || (!usb_pcwd->exists))
 		return -1;
+
+	buf = kmalloc(6, GFP_KERNEL);
+	if (buf == NULL)
+		return 0;
 
 	/* The USB PC Watchdog uses a 6 byte report format.
 	 * The board currently uses only 3 of the six bytes of the report. */
@@ -256,8 +258,8 @@ static int usb_pcwd_send_command(struct usb_pcwd_private *usb_pcwd,
 
 	if (usb_control_msg(usb_pcwd->udev, usb_sndctrlpipe(usb_pcwd->udev, 0),
 			HID_REQ_SET_REPORT, HID_DT_REPORT,
-			0x0200, usb_pcwd->interface_number, buf, sizeof(buf),
-			USB_COMMAND_TIMEOUT) != sizeof(buf)) {
+			0x0200, usb_pcwd->interface_number, buf, 6,
+			USB_COMMAND_TIMEOUT) != 6) {
 		dbg("usb_pcwd_send_command: error in usb_control_msg for "
 				"cmd 0x%x 0x%x 0x%x\n", cmd, *msb, *lsb);
 	}
@@ -276,6 +278,8 @@ static int usb_pcwd_send_command(struct usb_pcwd_private *usb_pcwd,
 		*msb = usb_pcwd->cmd_data_msb;
 		*lsb = usb_pcwd->cmd_data_lsb;
 	}
+
+	kfree(buf);
 
 	return got_response;
 }

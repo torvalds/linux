@@ -364,15 +364,15 @@ static int sst25l_probe(struct spi_device *spi)
 	if (!flash_info)
 		return -ENODEV;
 
-	flash = kzalloc(sizeof(struct sst25l_flash), GFP_KERNEL);
+	flash = devm_kzalloc(&spi->dev, sizeof(*flash), GFP_KERNEL);
 	if (!flash)
 		return -ENOMEM;
 
 	flash->spi = spi;
 	mutex_init(&flash->lock);
-	dev_set_drvdata(&spi->dev, flash);
+	spi_set_drvdata(spi, flash);
 
-	data = spi->dev.platform_data;
+	data = dev_get_platdata(&spi->dev);
 	if (data && data->name)
 		flash->mtd.name = data->name;
 	else
@@ -402,24 +402,17 @@ static int sst25l_probe(struct spi_device *spi)
 	ret = mtd_device_parse_register(&flash->mtd, NULL, NULL,
 					data ? data->parts : NULL,
 					data ? data->nr_parts : 0);
-	if (ret) {
-		kfree(flash);
-		dev_set_drvdata(&spi->dev, NULL);
+	if (ret)
 		return -ENODEV;
-	}
 
 	return 0;
 }
 
 static int sst25l_remove(struct spi_device *spi)
 {
-	struct sst25l_flash *flash = dev_get_drvdata(&spi->dev);
-	int ret;
+	struct sst25l_flash *flash = spi_get_drvdata(spi);
 
-	ret = mtd_device_unregister(&flash->mtd);
-	if (ret == 0)
-		kfree(flash);
-	return ret;
+	return mtd_device_unregister(&flash->mtd);
 }
 
 static struct spi_driver sst25l_driver = {

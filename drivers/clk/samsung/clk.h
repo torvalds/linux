@@ -19,6 +19,7 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include "clk-pll.h"
 
 /**
  * struct samsung_clock_alias: information about mux clock
@@ -38,6 +39,8 @@ struct samsung_clock_alias {
 		.dev_name	= dname,			\
 		.alias		= a,				\
 	}
+
+#define MHZ (1000 * 1000)
 
 /**
  * struct samsung_fixed_rate_clock: information about fixed-rate clock
@@ -127,7 +130,7 @@ struct samsung_mux_clock {
 		.name		= cname,			\
 		.parent_names	= pnames,			\
 		.num_parents	= ARRAY_SIZE(pnames),		\
-		.flags		= f,				\
+		.flags		= (f) | CLK_SET_RATE_NO_REPARENT, \
 		.offset		= o,				\
 		.shift		= s,				\
 		.width		= w,				\
@@ -261,6 +264,54 @@ struct samsung_clk_reg_dump {
 	u32	value;
 };
 
+/**
+ * struct samsung_pll_clock: information about pll clock
+ * @id: platform specific id of the clock.
+ * @dev_name: name of the device to which this clock belongs.
+ * @name: name of this pll clock.
+ * @parent_name: name of the parent clock.
+ * @flags: optional flags for basic clock.
+ * @con_offset: offset of the register for configuring the PLL.
+ * @lock_offset: offset of the register for locking the PLL.
+ * @type: Type of PLL to be registered.
+ * @alias: optional clock alias name to be assigned to this clock.
+ */
+struct samsung_pll_clock {
+	unsigned int		id;
+	const char		*dev_name;
+	const char		*name;
+	const char		*parent_name;
+	unsigned long		flags;
+	int			con_offset;
+	int			lock_offset;
+	enum samsung_pll_type	type;
+	const struct samsung_pll_rate_table *rate_table;
+	const char              *alias;
+};
+
+#define __PLL(_typ, _id, _dname, _name, _pname, _flags, _lock, _con,	\
+		_rtable, _alias)					\
+	{								\
+		.id		= _id,					\
+		.type		= _typ,					\
+		.dev_name	= _dname,				\
+		.name		= _name,				\
+		.parent_name	= _pname,				\
+		.flags		= CLK_GET_RATE_NOCACHE,			\
+		.con_offset	= _con,					\
+		.lock_offset	= _lock,				\
+		.rate_table	= _rtable,				\
+		.alias		= _alias,				\
+	}
+
+#define PLL(_typ, _id, _name, _pname, _lock, _con, _rtable)	\
+	__PLL(_typ, _id, NULL, _name, _pname, CLK_GET_RATE_NOCACHE,	\
+		_lock, _con, _rtable, _name)
+
+#define PLL_A(_typ, _id, _name, _pname, _lock, _con, _alias, _rtable) \
+	__PLL(_typ, _id, NULL, _name, _pname, CLK_GET_RATE_NOCACHE,	\
+		_lock, _con, _rtable, _alias)
+
 extern void __init samsung_clk_init(struct device_node *np, void __iomem *base,
 		unsigned long nr_clks, unsigned long *rdump,
 		unsigned long nr_rdump, unsigned long *soc_rdump,
@@ -284,6 +335,8 @@ extern void __init samsung_clk_register_div(struct samsung_div_clock *clk_list,
 		unsigned int nr_clk);
 extern void __init samsung_clk_register_gate(
 		struct samsung_gate_clock *clk_list, unsigned int nr_clk);
+extern void __init samsung_clk_register_pll(struct samsung_pll_clock *pll_list,
+		unsigned int nr_clk, void __iomem *base);
 
 extern unsigned long _get_rate(const char *clk_name);
 

@@ -189,14 +189,13 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
 	}
 
 	/* If PCI-E capable, dump PCI-E cap 10, and the AER */
-	cap = pci_find_capability(dev, PCI_CAP_ID_EXP);
-	if (cap) {
+	if (pci_is_pcie(dev)) {
 		n += scnprintf(buf+n, len-n, "pci-e cap10:\n");
 		printk(KERN_WARNING
 		       "EEH: PCI-E capabilities and status follow:\n");
 
 		for (i=0; i<=8; i++) {
-			eeh_ops->read_config(dn, cap+4*i, 4, &cfg);
+			eeh_ops->read_config(dn, dev->pcie_cap+4*i, 4, &cfg);
 			n += scnprintf(buf+n, len-n, "%02x:%x\n", 4*i, cfg);
 			printk(KERN_WARNING "EEH: PCI-E %02x: %08x\n", i, cfg);
 		}
@@ -327,11 +326,11 @@ static int eeh_phb_check_failure(struct eeh_pe *pe)
 	/* Isolate the PHB and send event */
 	eeh_pe_state_mark(phb_pe, EEH_PE_ISOLATED);
 	eeh_serialize_unlock(flags);
-	eeh_send_failure_event(phb_pe);
 
 	pr_err("EEH: PHB#%x failure detected\n",
 		phb_pe->phb->global_number);
 	dump_stack();
+	eeh_send_failure_event(phb_pe);
 
 	return 1;
 out:
@@ -454,8 +453,6 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
 	eeh_serialize_unlock(flags);
 
-	eeh_send_failure_event(pe);
-
 	/* Most EEH events are due to device driver bugs.  Having
 	 * a stack trace will help the device-driver authors figure
 	 * out what happened.  So print that out.
@@ -463,6 +460,8 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	pr_err("EEH: Frozen PE#%x detected on PHB#%x\n",
 		pe->addr, pe->phb->global_number);
 	dump_stack();
+
+	eeh_send_failure_event(pe);
 
 	return 1;
 
@@ -687,6 +686,15 @@ void eeh_save_bars(struct eeh_dev *edev)
 
 	for (i = 0; i < 16; i++)
 		eeh_ops->read_config(dn, i * 4, 4, &edev->config_space[i]);
+
+	/*
+	 * For PCI bridges including root port, we need enable bus
+	 * master explicitly. Otherwise, it can't fetch IODA table
+	 * entries correctly. So we cache the bit in advance so that
+	 * we can restore it after reset, either PHB range or PE range.
+	 */
+	if (edev->mode & EEH_DEV_BRIDGE)
+		edev->config_space[1] |= PCI_COMMAND_MASTER;
 }
 
 /**

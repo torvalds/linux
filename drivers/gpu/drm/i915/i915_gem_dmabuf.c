@@ -42,27 +42,24 @@ static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attachme
 
 	ret = i915_mutex_lock_interruptible(obj->base.dev);
 	if (ret)
-		return ERR_PTR(ret);
+		goto err;
 
 	ret = i915_gem_object_get_pages(obj);
-	if (ret) {
-		st = ERR_PTR(ret);
-		goto out;
-	}
+	if (ret)
+		goto err_unlock;
+
+	i915_gem_object_pin_pages(obj);
 
 	/* Copy sg so that we make an independent mapping */
 	st = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
 	if (st == NULL) {
-		st = ERR_PTR(-ENOMEM);
-		goto out;
+		ret = -ENOMEM;
+		goto err_unpin;
 	}
 
 	ret = sg_alloc_table(st, obj->pages->nents, GFP_KERNEL);
-	if (ret) {
-		kfree(st);
-		st = ERR_PTR(ret);
-		goto out;
-	}
+	if (ret)
+		goto err_free;
 
 	src = obj->pages->sgl;
 	dst = st->sgl;
@@ -73,17 +70,23 @@ static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attachme
 	}
 
 	if (!dma_map_sg(attachment->dev, st->sgl, st->nents, dir)) {
-		sg_free_table(st);
-		kfree(st);
-		st = ERR_PTR(-ENOMEM);
-		goto out;
+		ret =-ENOMEM;
+		goto err_free_sg;
 	}
 
-	i915_gem_object_pin_pages(obj);
-
-out:
 	mutex_unlock(&obj->base.dev->struct_mutex);
 	return st;
+
+err_free_sg:
+	sg_free_table(st);
+err_free:
+	kfree(st);
+err_unpin:
+	i915_gem_object_unpin_pages(obj);
+err_unlock:
+	mutex_unlock(&obj->base.dev->struct_mutex);
+err:
+	return ERR_PTR(ret);
 }
 
 static void i915_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
@@ -122,13 +125,15 @@ static void *i915_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 
 	ret = i915_gem_object_get_pages(obj);
 	if (ret)
-		goto error;
+		goto err;
+
+	i915_gem_object_pin_pages(obj);
 
 	ret = -ENOMEM;
 
 	pages = drm_malloc_ab(obj->base.size >> PAGE_SHIFT, sizeof(*pages));
 	if (pages == NULL)
-		goto error;
+		goto err_unpin;
 
 	i = 0;
 	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, 0)
@@ -138,15 +143,16 @@ static void *i915_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 	drm_free_large(pages);
 
 	if (!obj->dma_buf_vmapping)
-		goto error;
+		goto err_unpin;
 
 	obj->vmapping_count = 1;
-	i915_gem_object_pin_pages(obj);
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return obj->dma_buf_vmapping;
 
-error:
+err_unpin:
+	i915_gem_object_unpin_pages(obj);
+err:
 	mutex_unlock(&dev->struct_mutex);
 	return ERR_PTR(ret);
 }

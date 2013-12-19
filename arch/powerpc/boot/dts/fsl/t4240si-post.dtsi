@@ -358,7 +358,7 @@
 			16 2 1 30>;
 	};
 
-/include/ "qoriq-mpic.dtsi"
+/include/ "qoriq-mpic4.3.dtsi"
 
 	guts: global-utilities@e0000 {
 		compatible = "fsl,t4240-device-config", "fsl,qoriq-device-config-2.0";
@@ -387,8 +387,8 @@
 		reg	   = <0xea000 0x4000>;
 	};
 
-/include/ "qoriq-dma-0.dtsi"
-/include/ "qoriq-dma-1.dtsi"
+/include/ "elo3-dma-0.dtsi"
+/include/ "elo3-dma-1.dtsi"
 
 /include/ "qoriq-espi-0.dtsi"
 	spi@110000 {

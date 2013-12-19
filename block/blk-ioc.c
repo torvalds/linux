@@ -6,7 +6,6 @@
 #include <linux/init.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
-#include <linux/bootmem.h>	/* for max_pfn/max_low_pfn */
 #include <linux/slab.h>
 
 #include "blk.h"
@@ -367,7 +366,7 @@ struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
 	if (!icq)
 		return NULL;
 
-	if (radix_tree_preload(gfp_mask) < 0) {
+	if (radix_tree_maybe_preload(gfp_mask) < 0) {
 		kmem_cache_free(et->icq_cache, icq);
 		return NULL;
 	}

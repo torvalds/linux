@@ -550,7 +550,7 @@ static int spear_mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 {
 	struct spear_snor_flash *flash = get_flash_data(mtd);
 	struct spear_smi *dev = mtd->priv;
-	void *src;
+	void __iomem *src;
 	u32 ctrlreg1, val;
 	int ret;
 
@@ -583,7 +583,7 @@ static int spear_mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 	writel(val, dev->io_base + SMI_CR1);
 
-	memcpy_fromio(buf, (u8 *)src, len);
+	memcpy_fromio(buf, src, len);
 
 	/* restore ctrl reg1 */
 	writel(ctrlreg1, dev->io_base + SMI_CR1);
@@ -596,7 +596,7 @@ static int spear_mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 }
 
 static inline int spear_smi_cpy_toio(struct spear_smi *dev, u32 bank,
-		void *dest, const void *src, size_t len)
+		void __iomem *dest, const void *src, size_t len)
 {
 	int ret;
 	u32 ctrlreg1;
@@ -643,7 +643,7 @@ static int spear_mtd_write(struct mtd_info *mtd, loff_t to, size_t len,
 {
 	struct spear_snor_flash *flash = get_flash_data(mtd);
 	struct spear_smi *dev = mtd->priv;
-	void *dest;
+	void __iomem *dest;
 	u32 page_offset, page_size;
 	int ret;
 
@@ -995,14 +995,12 @@ static int spear_smi_probe(struct platform_device *pdev)
 		ret = spear_smi_setup_banks(pdev, i, pdata->np[i]);
 		if (ret) {
 			dev_err(&dev->pdev->dev, "bank setup failed\n");
-			goto err_bank_setup;
+			goto err_irq;
 		}
 	}
 
 	return 0;
 
-err_bank_setup:
-	platform_set_drvdata(pdev, NULL);
 err_irq:
 	clk_disable_unprepare(dev->clk);
 err:
@@ -1040,12 +1038,11 @@ static int spear_smi_remove(struct platform_device *pdev)
 	}
 
 	clk_disable_unprepare(dev->clk);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int spear_smi_suspend(struct device *dev)
 {
 	struct spear_smi *sdev = dev_get_drvdata(dev);
@@ -1068,9 +1065,9 @@ static int spear_smi_resume(struct device *dev)
 		spear_smi_hw_init(sdev);
 	return ret;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(spear_smi_pm_ops, spear_smi_suspend, spear_smi_resume);
-#endif
 
 #ifdef CONFIG_OF
 static const struct of_device_id spear_smi_id_table[] = {
@@ -1086,9 +1083,7 @@ static struct platform_driver spear_smi_driver = {
 		.bus = &platform_bus_type,
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(spear_smi_id_table),
-#ifdef CONFIG_PM
 		.pm = &spear_smi_pm_ops,
-#endif
 	},
 	.probe = spear_smi_probe,
 	.remove = spear_smi_remove,

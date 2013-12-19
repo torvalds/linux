@@ -79,7 +79,7 @@ int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
 	flags = IOMMU_READ;
 	if (!(slot->flags & KVM_MEM_READONLY))
 		flags |= IOMMU_WRITE;
-	if (kvm->arch.iommu_flags & KVM_IOMMU_CACHE_COHERENCY)
+	if (!kvm->arch.iommu_noncoherent)
 		flags |= IOMMU_CACHE;
 
 
@@ -101,6 +101,10 @@ int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
 
 		/* Make sure gfn is aligned to the page size we want to map */
 		while ((gfn << PAGE_SHIFT) & (page_size - 1))
+			page_size >>= 1;
+
+		/* Make sure hva is aligned to the page size we want to map */
+		while (__gfn_to_hva_memslot(slot, gfn) & (page_size - 1))
 			page_size >>= 1;
 
 		/*
@@ -140,6 +144,9 @@ static int kvm_iommu_map_memslots(struct kvm *kvm)
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
 
+	if (kvm->arch.iommu_noncoherent)
+		kvm_arch_register_noncoherent_dma(kvm);
+
 	idx = srcu_read_lock(&kvm->srcu);
 	slots = kvm_memslots(kvm);
 
@@ -158,7 +165,8 @@ int kvm_assign_device(struct kvm *kvm,
 {
 	struct pci_dev *pdev = NULL;
 	struct iommu_domain *domain = kvm->arch.iommu_domain;
-	int r, last_flags;
+	int r;
+	bool noncoherent;
 
 	/* check if iommu exists and in use */
 	if (!domain)
@@ -174,15 +182,13 @@ int kvm_assign_device(struct kvm *kvm,
 		return r;
 	}
 
-	last_flags = kvm->arch.iommu_flags;
-	if (iommu_domain_has_cap(kvm->arch.iommu_domain,
-				 IOMMU_CAP_CACHE_COHERENCY))
-		kvm->arch.iommu_flags |= KVM_IOMMU_CACHE_COHERENCY;
+	noncoherent = !iommu_domain_has_cap(kvm->arch.iommu_domain,
+					    IOMMU_CAP_CACHE_COHERENCY);
 
 	/* Check if need to update IOMMU page table for guest memory */
-	if ((last_flags ^ kvm->arch.iommu_flags) ==
-			KVM_IOMMU_CACHE_COHERENCY) {
+	if (noncoherent != kvm->arch.iommu_noncoherent) {
 		kvm_iommu_unmap_memslots(kvm);
+		kvm->arch.iommu_noncoherent = noncoherent;
 		r = kvm_iommu_map_memslots(kvm);
 		if (r)
 			goto out_unmap;
@@ -190,11 +196,7 @@ int kvm_assign_device(struct kvm *kvm,
 
 	pdev->dev_flags |= PCI_DEV_FLAGS_ASSIGNED;
 
-	printk(KERN_DEBUG "assign device %x:%x:%x.%x\n",
-		assigned_dev->host_segnr,
-		assigned_dev->host_busnr,
-		PCI_SLOT(assigned_dev->host_devfn),
-		PCI_FUNC(assigned_dev->host_devfn));
+	dev_info(&pdev->dev, "kvm assign device\n");
 
 	return 0;
 out_unmap:
@@ -220,11 +222,7 @@ int kvm_deassign_device(struct kvm *kvm,
 
 	pdev->dev_flags &= ~PCI_DEV_FLAGS_ASSIGNED;
 
-	printk(KERN_DEBUG "deassign device %x:%x:%x.%x\n",
-		assigned_dev->host_segnr,
-		assigned_dev->host_busnr,
-		PCI_SLOT(assigned_dev->host_devfn),
-		PCI_FUNC(assigned_dev->host_devfn));
+	dev_info(&pdev->dev, "kvm deassign device\n");
 
 	return 0;
 }
@@ -336,6 +334,9 @@ static int kvm_iommu_unmap_memslots(struct kvm *kvm)
 
 	srcu_read_unlock(&kvm->srcu, idx);
 
+	if (kvm->arch.iommu_noncoherent)
+		kvm_arch_unregister_noncoherent_dma(kvm);
+
 	return 0;
 }
 
@@ -350,6 +351,7 @@ int kvm_iommu_unmap_guest(struct kvm *kvm)
 	mutex_lock(&kvm->slots_lock);
 	kvm_iommu_unmap_memslots(kvm);
 	kvm->arch.iommu_domain = NULL;
+	kvm->arch.iommu_noncoherent = false;
 	mutex_unlock(&kvm->slots_lock);
 
 	iommu_domain_free(domain);

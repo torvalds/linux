@@ -126,7 +126,7 @@ BEGIN_FTR_SECTION
 	bgt	cr1,.
 	GET_PACA(r13)
 
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	li	r0,KVM_HWTHREAD_IN_KERNEL
 	stb	r0,HSTATE_HWTHREAD_STATE(r13)
 	/* Order setting hwthread_state vs. testing hwthread_req */
@@ -293,27 +293,31 @@ system_call_pSeries:
 	 * out of line to handle them
 	 */
 	. = 0xe00
-hv_exception_trampoline:
+hv_data_storage_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	h_data_storage_hv
 
 	. = 0xe20
+hv_instr_storage_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	h_instr_storage_hv
 
 	. = 0xe40
+emulation_assist_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	emulation_assist_hv
 
 	. = 0xe60
+hv_exception_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	hmi_exception_hv
 
 	. = 0xe80
+hv_doorbell_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	h_doorbell_hv
@@ -323,32 +327,32 @@ hv_exception_trampoline:
 	 * prolog code of the PerformanceMonitor one. A little
 	 * trickery is thus necessary
 	 */
-performance_monitor_pSeries_1:
 	. = 0xf00
+performance_monitor_pseries_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	performance_monitor_pSeries
 
-altivec_unavailable_pSeries_1:
 	. = 0xf20
+altivec_unavailable_pseries_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	altivec_unavailable_pSeries
 
-vsx_unavailable_pSeries_1:
 	. = 0xf40
+vsx_unavailable_pseries_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	vsx_unavailable_pSeries
 
-facility_unavailable_trampoline:
 	. = 0xf60
+facility_unavailable_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	facility_unavailable_pSeries
 
-hv_facility_unavailable_trampoline:
 	. = 0xf80
+hv_facility_unavailable_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	facility_unavailable_hv
@@ -367,11 +371,7 @@ denorm_exception_hv:
 	HMT_MEDIUM_PPR_DISCARD
 	mtspr	SPRN_SPRG_HSCRATCH0,r13
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
-	std	r11,PACA_EXGEN+EX_R11(r13)
-	std	r12,PACA_EXGEN+EX_R12(r13)
-	mfspr	r9,SPRN_SPRG_HSCRATCH0
-	std	r9,PACA_EXGEN+EX_R13(r13)
-	mfcr	r9
+	EXCEPTION_PROLOG_1(PACA_EXGEN, NOTEST, 0x1500)
 
 #ifdef CONFIG_PPC_DENORMALISATION
 	mfspr	r10,SPRN_HSRR1
@@ -381,6 +381,7 @@ denorm_exception_hv:
 	bne+	denorm_assist
 #endif
 
+	KVMTEST(0x1500)
 	EXCEPTION_PROLOG_PSERIES_1(denorm_common, EXC_HV)
 	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_STD, 0x1500)
 
@@ -424,7 +425,7 @@ data_access_check_stab:
 	mfspr	r9,SPRN_DSISR
 	srdi	r10,r10,60
 	rlwimi	r10,r9,16,0x20
-#ifdef CONFIG_KVM_BOOK3S_PR
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 	lbz	r9,HSTATE_IN_GUEST(r13)
 	rlwimi	r10,r9,8,0x300
 #endif
@@ -501,6 +502,10 @@ denorm_done:
 	mtcrf	0x80,r9
 	ld	r9,PACA_EXGEN+EX_R9(r13)
 	RESTORE_PPR_PACA(PACA_EXGEN, r10)
+BEGIN_FTR_SECTION
+	ld	r10,PACA_EXGEN+EX_CFAR(r13)
+	mtspr	SPRN_CFAR,r10
+END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	ld	r10,PACA_EXGEN+EX_R10(r13)
 	ld	r11,PACA_EXGEN+EX_R11(r13)
 	ld	r12,PACA_EXGEN+EX_R12(r13)
@@ -644,6 +649,32 @@ slb_miss_user_pseries:
 	rfid
 	b	.				/* prevent spec. execution */
 #endif /* __DISABLED__ */
+
+#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
+kvmppc_skip_interrupt:
+	/*
+	 * Here all GPRs are unchanged from when the interrupt happened
+	 * except for r13, which is saved in SPRG_SCRATCH0.
+	 */
+	mfspr	r13, SPRN_SRR0
+	addi	r13, r13, 4
+	mtspr	SPRN_SRR0, r13
+	GET_SCRATCH0(r13)
+	rfid
+	b	.
+
+kvmppc_skip_Hinterrupt:
+	/*
+	 * Here all GPRs are unchanged from when the interrupt happened
+	 * except for r13, which is saved in SPRG_SCRATCH0.
+	 */
+	mfspr	r13, SPRN_HSRR0
+	addi	r13, r13, 4
+	mtspr	SPRN_HSRR0, r13
+	GET_SCRATCH0(r13)
+	hrfid
+	b	.
+#endif
 
 /*
  * Code from here down to __end_handlers is invoked from the
@@ -808,6 +839,7 @@ system_call_relon_pSeries:
 	b	.	/* Can't happen, see v2.07 Book III-S section 6.5 */
 
 	. = 0x4e40
+emulation_assist_relon_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	emulation_assist_relon_hv
@@ -816,36 +848,37 @@ system_call_relon_pSeries:
 	b	.	/* Can't happen, see v2.07 Book III-S section 6.5 */
 
 	. = 0x4e80
+h_doorbell_relon_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	h_doorbell_relon_hv
 
-performance_monitor_relon_pSeries_1:
 	. = 0x4f00
+performance_monitor_relon_pseries_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	performance_monitor_relon_pSeries
 
-altivec_unavailable_relon_pSeries_1:
 	. = 0x4f20
+altivec_unavailable_relon_pseries_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	altivec_unavailable_relon_pSeries
 
-vsx_unavailable_relon_pSeries_1:
 	. = 0x4f40
+vsx_unavailable_relon_pseries_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	vsx_unavailable_relon_pSeries
 
-facility_unavailable_relon_trampoline:
 	. = 0x4f60
+facility_unavailable_relon_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	facility_unavailable_relon_pSeries
 
-hv_facility_unavailable_relon_trampoline:
 	. = 0x4f80
+hv_facility_unavailable_relon_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	hv_facility_unavailable_relon_hv

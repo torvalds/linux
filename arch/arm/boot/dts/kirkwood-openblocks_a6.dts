@@ -1,7 +1,7 @@
 /dts-v1/;
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-6282.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6282.dtsi"
 
 / {
 	model = "Plat'Home OpenBlocksA6";
@@ -27,43 +27,6 @@
 			status = "ok";
 			pinctrl-0 = <&pmx_uart1>;
 			pinctrl-names = "default";
-		};
-
-		nand@3000000 {
-			chip-delay = <25>;
-			status = "okay";
-			pinctrl-0 = <&pmx_nand>;
-			pinctrl-names = "default";
-
-			partition@0 {
-				label = "uboot";
-				reg = <0x0 0x90000>;
-			};
-
-			partition@90000 {
-				label = "env";
-				reg = <0x90000 0x44000>;
-			};
-
-			partition@d4000 {
-				label = "test";
-				reg = <0xd4000 0x24000>;
-			};
-
-			partition@f4000 {
-				label = "conf";
-				reg = <0xf4000 0x400000>;
-			};
-
-			partition@4f4000 {
-				label = "linux";
-				reg = <0x4f4000 0x1d20000>;
-			};
-
-			partition@2214000 {
-				label = "user";
-				reg = <0x2214000 0x1dec000>;
-			};
 		};
 
 		sata@80000 {
@@ -164,5 +127,58 @@
 			linux,code = <116>;
 			gpios = <&gpio1 6 0>;
 		};
+	};
+};
+
+&nand {
+	chip-delay = <25>;
+	status = "okay";
+	pinctrl-0 = <&pmx_nand>;
+	pinctrl-names = "default";
+
+	partition@0 {
+		label = "uboot";
+		reg = <0x0 0x90000>;
+	};
+
+	partition@90000 {
+		label = "env";
+		reg = <0x90000 0x44000>;
+	};
+
+	partition@d4000 {
+		label = "test";
+		reg = <0xd4000 0x24000>;
+	};
+
+	partition@f4000 {
+		label = "conf";
+		reg = <0xf4000 0x400000>;
+	};
+
+	partition@4f4000 {
+		label = "linux";
+		reg = <0x4f4000 0x1d20000>;
+	};
+
+	partition@2214000 {
+		label = "user";
+		reg = <0x2214000 0x1dec000>;
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		device_type = "ethernet-phy";
+		reg = <0>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
 	};
 };

@@ -31,6 +31,7 @@
 #include <linux/mfd/max77686.h>
 #include <linux/mfd/max77686-private.h>
 #include <linux/err.h>
+#include <linux/of.h>
 
 #define I2C_ADDR_RTC	(0x0C >> 1)
 
@@ -77,7 +78,7 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 			      const struct i2c_device_id *id)
 {
 	struct max77686_dev *max77686 = NULL;
-	struct max77686_platform_data *pdata = i2c->dev.platform_data;
+	struct max77686_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	unsigned int data;
 	int ret = 0;
 

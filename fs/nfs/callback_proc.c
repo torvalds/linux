@@ -15,6 +15,7 @@
 #include "internal.h"
 #include "pnfs.h"
 #include "nfs4session.h"
+#include "nfs4trace.h"
 
 #ifdef NFS_DEBUG
 #define NFSDBG_FACILITY NFSDBG_CALLBACK
@@ -93,6 +94,7 @@ __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy,
 	default:
 		res = htonl(NFS4ERR_RESOURCE);
 	}
+	trace_nfs4_recall_delegation(inode, -ntohl(res));
 	iput(inode);
 out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(res));
@@ -301,14 +303,14 @@ validate_seqid(struct nfs4_slot_table *tbl, struct cb_sequenceargs * args)
 {
 	struct nfs4_slot *slot;
 
-	dprintk("%s enter. slotid %d seqid %d\n",
+	dprintk("%s enter. slotid %u seqid %u\n",
 		__func__, args->csa_slotid, args->csa_sequenceid);
 
 	if (args->csa_slotid >= NFS41_BC_MAX_CALLBACKS)
 		return htonl(NFS4ERR_BADSLOT);
 
 	slot = tbl->slots + args->csa_slotid;
-	dprintk("%s slot table seqid: %d\n", __func__, slot->seq_nr);
+	dprintk("%s slot table seqid: %u\n", __func__, slot->seq_nr);
 
 	/* Normal */
 	if (likely(args->csa_sequenceid == slot->seq_nr + 1)) {
@@ -318,7 +320,7 @@ validate_seqid(struct nfs4_slot_table *tbl, struct cb_sequenceargs * args)
 
 	/* Replay */
 	if (args->csa_sequenceid == slot->seq_nr) {
-		dprintk("%s seqid %d is a replay\n",
+		dprintk("%s seqid %u is a replay\n",
 			__func__, args->csa_sequenceid);
 		/* Signal process_op to set this error on next op */
 		if (args->csa_cachethis == 0)
@@ -462,6 +464,7 @@ out:
 	} else
 		res->csr_status = status;
 
+	trace_nfs4_cb_sequence(args, res, status);
 	dprintk("%s: exit with status = %d res->csr_status %d\n", __func__,
 		ntohl(status), ntohl(res->csr_status));
 	return status;
@@ -518,7 +521,7 @@ __be32 nfs4_callback_recallslot(struct cb_recallslotargs *args, void *dummy,
 	if (!cps->clp) /* set in cb_sequence */
 		goto out;
 
-	dprintk_rcu("NFS: CB_RECALL_SLOT request from %s target highest slotid %d\n",
+	dprintk_rcu("NFS: CB_RECALL_SLOT request from %s target highest slotid %u\n",
 		rpc_peeraddr2str(cps->clp->cl_rpcclient, RPC_DISPLAY_ADDR),
 		args->crsa_target_highest_slotid);
 

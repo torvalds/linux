@@ -58,7 +58,7 @@ static void ext2_write_failed(struct address_space *mapping, loff_t to)
 	struct inode *inode = mapping->host;
 
 	if (to > inode->i_size) {
-		truncate_pagecache(inode, to, inode->i_size);
+		truncate_pagecache(inode, inode->i_size);
 		ext2_truncate_blocks(inode, inode->i_size);
 	}
 }
@@ -631,6 +631,8 @@ static int ext2_get_blocks(struct inode *inode,
 	struct ext2_inode_info *ei = EXT2_I(inode);
 	int count = 0;
 	ext2_fsblk_t first_block = 0;
+
+	BUG_ON(maxblocks == 0);
 
 	depth = ext2_block_to_path(inode,iblock,offsets,&blocks_to_boundary);
 

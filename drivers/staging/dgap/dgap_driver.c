@@ -32,16 +32,12 @@
 
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>	/* For udelay */
 #include <linux/slab.h>
 #include <asm/uaccess.h>	/* For copy_from_user/copy_to_user */
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
 #include <linux/sched.h>
-#endif
 
 #include "dgap_driver.h"
 #include "dgap_pci.h"
@@ -420,8 +416,7 @@ void dgap_cleanup_module(void)
 		unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
 	}
 
-	if (dgap_config_buf)
-		kfree(dgap_config_buf);
+	kfree(dgap_config_buf);
 
 	for (i = 0; i < dgap_NumBoards; ++i) {
 		dgap_remove_ports_sysfiles(dgap_Board[i]);
@@ -474,7 +469,7 @@ static void dgap_cleanup_board(struct board_t *brd)
 
                 DGAP_LOCK(dgap_global_lock, flags);
                 brd->msgbuf = NULL;
-                printk(brd->msgbuf_head);
+                printk("%s", brd->msgbuf_head);
                 kfree(brd->msgbuf_head);
                 brd->msgbuf_head = NULL;
                 DGAP_UNLOCK(dgap_global_lock, flags);
@@ -488,10 +483,8 @@ static void dgap_cleanup_board(struct board_t *brd)
 		}
 	}
 
-	if (brd->flipbuf)
-		kfree(brd->flipbuf);
-	if (brd->flipflagbuf)
-		kfree(brd->flipflagbuf);
+	kfree(brd->flipbuf);
+	kfree(brd->flipflagbuf);
 
 	dgap_Board[brd->boardnum] = NULL;
 
@@ -628,7 +621,7 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 	DPR_INIT(("dgap_scan(%d) - printing out the msgbuf\n", i));
 	DGAP_LOCK(dgap_global_lock, flags);
 	brd->msgbuf = NULL;
-	printk(brd->msgbuf_head);
+	printk("%s", brd->msgbuf_head);
 	kfree(brd->msgbuf_head);
 	brd->msgbuf_head = NULL;
 	DGAP_UNLOCK(dgap_global_lock, flags);
@@ -955,25 +948,28 @@ static void dgap_mbuf(struct board_t *brd, const char *fmt, ...) {
 	char		buf[1024];
 	int		i;
 	unsigned long	flags;
+	size_t		length;
 
 	DGAP_LOCK(dgap_global_lock, flags);
 
 	/* Format buf using fmt and arguments contained in ap. */
 	va_start(ap, fmt);
-	i = vsprintf(buf, fmt,  ap);
+	i = vsnprintf(buf, sizeof(buf), fmt,  ap);
 	va_end(ap);
 
 	DPR((buf));
 
 	if (!brd || !brd->msgbuf) {
-		printk(buf);
+		printk("%s", buf);
 		DGAP_UNLOCK(dgap_global_lock, flags);
 		return;
 	}
 
-	memcpy(brd->msgbuf, buf, strlen(buf));
-	brd->msgbuf += strlen(buf);
-	*brd->msgbuf = 0;
+	length = strlen(buf) + 1;
+	if (brd->msgbuf - brd->msgbuf_head < length)
+		length = brd->msgbuf - brd->msgbuf_head;
+	memcpy(brd->msgbuf, buf, length);
+	brd->msgbuf += length;
 
 	DGAP_UNLOCK(dgap_global_lock, flags);
 }

@@ -135,6 +135,7 @@ EXPORT_SYMBOL(mmc_gpio_request_ro);
  * mmc_gpio_request_cd - request a gpio for card-detection
  * @host: mmc host
  * @gpio: gpio number requested
+ * @debounce: debounce time in microseconds
  *
  * As devm_* managed functions are used in mmc_gpio_request_cd(), client
  * drivers do not need to explicitly call mmc_gpio_free_cd() for freeing up,
@@ -143,9 +144,14 @@ EXPORT_SYMBOL(mmc_gpio_request_ro);
  * switching for card-detection, they are responsible for calling
  * mmc_gpio_request_cd() and mmc_gpio_free_cd() as a pair on their own.
  *
+ * If GPIO debouncing is desired, set the debounce parameter to a non-zero
+ * value. The caller is responsible for ensuring that the GPIO driver associated
+ * with the GPIO supports debouncing, otherwise an error will be returned.
+ *
  * Returns zero on success, else an error.
  */
-int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio)
+int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio,
+			unsigned int debounce)
 {
 	struct mmc_gpio *ctx;
 	int irq = gpio_to_irq(gpio);
@@ -166,6 +172,12 @@ int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio)
 		 * is destroyed.
 		 */
 		return ret;
+
+	if (debounce) {
+		ret = gpio_set_debounce(gpio, debounce);
+		if (ret < 0)
+			return ret;
+	}
 
 	/*
 	 * Even if gpio_to_irq() returns a valid IRQ number, the platform might

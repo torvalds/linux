@@ -30,7 +30,7 @@ static const char *part_probe_types[] = { "cmdlinepart", NULL };
  */
 static int plat_nand_probe(struct platform_device *pdev)
 {
-	struct platform_nand_data *pdata = pdev->dev.platform_data;
+	struct platform_nand_data *pdata = dev_get_platdata(&pdev->dev);
 	struct mtd_part_parser_data ppdata;
 	struct plat_nand_data *data;
 	struct resource *res;
@@ -122,7 +122,6 @@ static int plat_nand_probe(struct platform_device *pdev)
 out:
 	if (pdata->ctrl.remove)
 		pdata->ctrl.remove(pdev);
-	platform_set_drvdata(pdev, NULL);
 	iounmap(data->io_base);
 out_release_io:
 	release_mem_region(res->start, resource_size(res));
@@ -137,7 +136,7 @@ out_free:
 static int plat_nand_remove(struct platform_device *pdev)
 {
 	struct plat_nand_data *data = platform_get_drvdata(pdev);
-	struct platform_nand_data *pdata = pdev->dev.platform_data;
+	struct platform_nand_data *pdata = dev_get_platdata(&pdev->dev);
 	struct resource *res;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

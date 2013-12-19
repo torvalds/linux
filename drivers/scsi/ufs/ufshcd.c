@@ -36,9 +36,11 @@
 #include <linux/async.h>
 
 #include "ufshcd.h"
+#include "unipro.h"
 
 #define UFSHCD_ENABLE_INTRS	(UTP_TRANSFER_REQ_COMPL |\
 				 UTP_TASK_REQ_COMPL |\
+				 UIC_POWER_MODE |\
 				 UFSHCD_ERROR_MASK)
 /* UIC command timeout, unit: ms */
 #define UIC_CMD_TIMEOUT	500
@@ -55,6 +57,9 @@
 
 /* Expose the flag value from utp_upiu_query.value */
 #define MASK_QUERY_UPIU_FLAG_LOC 0xFF
+
+/* Interrupt aggregation default timeout, unit: 40us */
+#define INT_AGGR_DEF_TO	0x02
 
 enum {
 	UFSHCD_MAX_CHANNEL	= 0,
@@ -76,12 +81,6 @@ enum {
 	UFSHCD_INT_DISABLE,
 	UFSHCD_INT_ENABLE,
 	UFSHCD_INT_CLEAR,
-};
-
-/* Interrupt aggregation options */
-enum {
-	INT_AGGR_RESET,
-	INT_AGGR_CONFIG,
 };
 
 /*
@@ -238,6 +237,18 @@ static inline int ufshcd_get_uic_cmd_result(struct ufs_hba *hba)
 }
 
 /**
+ * ufshcd_get_dme_attr_val - Get the value of attribute returned by UIC command
+ * @hba: Pointer to adapter instance
+ *
+ * This function gets UIC command argument3
+ * Returns 0 on success, non zero value on error
+ */
+static inline u32 ufshcd_get_dme_attr_val(struct ufs_hba *hba)
+{
+	return ufshcd_readl(hba, REG_UIC_COMMAND_ARG_3);
+}
+
+/**
  * ufshcd_get_req_rsp - returns the TR response transaction type
  * @ucd_rsp_ptr: pointer to response UPIU
  */
@@ -260,6 +271,20 @@ ufshcd_get_rsp_upiu_result(struct utp_upiu_rsp *ucd_rsp_ptr)
 	return be32_to_cpu(ucd_rsp_ptr->header.dword_1) & MASK_RSP_UPIU_RESULT;
 }
 
+/*
+ * ufshcd_get_rsp_upiu_data_seg_len - Get the data segment length
+ *				from response UPIU
+ * @ucd_rsp_ptr: pointer to response UPIU
+ *
+ * Return the data segment length.
+ */
+static inline unsigned int
+ufshcd_get_rsp_upiu_data_seg_len(struct utp_upiu_rsp *ucd_rsp_ptr)
+{
+	return be32_to_cpu(ucd_rsp_ptr->header.dword_2) &
+		MASK_RSP_UPIU_DATA_SEG_LEN;
+}
+
 /**
  * ufshcd_is_exception_event - Check if the device raised an exception event
  * @ucd_rsp_ptr: pointer to response UPIU
@@ -276,30 +301,30 @@ static inline bool ufshcd_is_exception_event(struct utp_upiu_rsp *ucd_rsp_ptr)
 }
 
 /**
- * ufshcd_config_int_aggr - Configure interrupt aggregation values.
- *		Currently there is no use case where we want to configure
- *		interrupt aggregation dynamically. So to configure interrupt
- *		aggregation, #define INT_AGGR_COUNTER_THRESHOLD_VALUE and
- *		INT_AGGR_TIMEOUT_VALUE are used.
+ * ufshcd_reset_intr_aggr - Reset interrupt aggregation values.
  * @hba: per adapter instance
- * @option: Interrupt aggregation option
  */
 static inline void
-ufshcd_config_int_aggr(struct ufs_hba *hba, int option)
+ufshcd_reset_intr_aggr(struct ufs_hba *hba)
 {
-	switch (option) {
-	case INT_AGGR_RESET:
-		ufshcd_writel(hba, INT_AGGR_ENABLE |
-			      INT_AGGR_COUNTER_AND_TIMER_RESET,
-			      REG_UTP_TRANSFER_REQ_INT_AGG_CONTROL);
-		break;
-	case INT_AGGR_CONFIG:
-		ufshcd_writel(hba, INT_AGGR_ENABLE | INT_AGGR_PARAM_WRITE |
-			      INT_AGGR_COUNTER_THRESHOLD_VALUE |
-			      INT_AGGR_TIMEOUT_VALUE,
-			      REG_UTP_TRANSFER_REQ_INT_AGG_CONTROL);
-		break;
-	}
+	ufshcd_writel(hba, INT_AGGR_ENABLE |
+		      INT_AGGR_COUNTER_AND_TIMER_RESET,
+		      REG_UTP_TRANSFER_REQ_INT_AGG_CONTROL);
+}
+
+/**
+ * ufshcd_config_intr_aggr - Configure interrupt aggregation values.
+ * @hba: per adapter instance
+ * @cnt: Interrupt aggregation counter threshold
+ * @tmout: Interrupt aggregation timeout value
+ */
+static inline void
+ufshcd_config_intr_aggr(struct ufs_hba *hba, u8 cnt, u8 tmout)
+{
+	ufshcd_writel(hba, INT_AGGR_ENABLE | INT_AGGR_PARAM_WRITE |
+		      INT_AGGR_COUNTER_THLD_VAL(cnt) |
+		      INT_AGGR_TIMEOUT_VAL(tmout),
+		      REG_UTP_TRANSFER_REQ_INT_AGG_CONTROL);
 }
 
 /**
@@ -355,7 +380,8 @@ void ufshcd_send_command(struct ufs_hba *hba, unsigned int task_tag)
 static inline void ufshcd_copy_sense_data(struct ufshcd_lrb *lrbp)
 {
 	int len;
-	if (lrbp->sense_buffer) {
+	if (lrbp->sense_buffer &&
+	    ufshcd_get_rsp_upiu_data_seg_len(lrbp->ucd_rsp_ptr)) {
 		len = be16_to_cpu(lrbp->ucd_rsp_ptr->sr.sense_data_len);
 		memcpy(lrbp->sense_buffer,
 			lrbp->ucd_rsp_ptr->sr.sense_data,
@@ -443,6 +469,18 @@ static inline bool ufshcd_ready_for_uic_cmd(struct ufs_hba *hba)
 		return true;
 	else
 		return false;
+}
+
+/**
+ * ufshcd_get_upmcrs - Get the power mode change request status
+ * @hba: Pointer to adapter instance
+ *
+ * This function gets the UPMCRS field of HCS register
+ * Returns value of UPMCRS field
+ */
+static inline u8 ufshcd_get_upmcrs(struct ufs_hba *hba)
+{
+	return (ufshcd_readl(hba, REG_CONTROLLER_STATUS) >> 8) & 0x7;
 }
 
 /**
@@ -1362,6 +1400,202 @@ static int ufshcd_dme_link_startup(struct ufs_hba *hba)
 }
 
 /**
+ * ufshcd_dme_set_attr - UIC command for DME_SET, DME_PEER_SET
+ * @hba: per adapter instance
+ * @attr_sel: uic command argument1
+ * @attr_set: attribute set type as uic command argument2
+ * @mib_val: setting value as uic command argument3
+ * @peer: indicate whether peer or local
+ *
+ * Returns 0 on success, non-zero value on failure
+ */
+int ufshcd_dme_set_attr(struct ufs_hba *hba, u32 attr_sel,
+			u8 attr_set, u32 mib_val, u8 peer)
+{
+	struct uic_command uic_cmd = {0};
+	static const char *const action[] = {
+		"dme-set",
+		"dme-peer-set"
+	};
+	const char *set = action[!!peer];
+	int ret;
+
+	uic_cmd.command = peer ?
+		UIC_CMD_DME_PEER_SET : UIC_CMD_DME_SET;
+	uic_cmd.argument1 = attr_sel;
+	uic_cmd.argument2 = UIC_ARG_ATTR_TYPE(attr_set);
+	uic_cmd.argument3 = mib_val;
+
+	ret = ufshcd_send_uic_cmd(hba, &uic_cmd);
+	if (ret)
+		dev_err(hba->dev, "%s: attr-id 0x%x val 0x%x error code %d\n",
+			set, UIC_GET_ATTR_ID(attr_sel), mib_val, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ufshcd_dme_set_attr);
+
+/**
+ * ufshcd_dme_get_attr - UIC command for DME_GET, DME_PEER_GET
+ * @hba: per adapter instance
+ * @attr_sel: uic command argument1
+ * @mib_val: the value of the attribute as returned by the UIC command
+ * @peer: indicate whether peer or local
+ *
+ * Returns 0 on success, non-zero value on failure
+ */
+int ufshcd_dme_get_attr(struct ufs_hba *hba, u32 attr_sel,
+			u32 *mib_val, u8 peer)
+{
+	struct uic_command uic_cmd = {0};
+	static const char *const action[] = {
+		"dme-get",
+		"dme-peer-get"
+	};
+	const char *get = action[!!peer];
+	int ret;
+
+	uic_cmd.command = peer ?
+		UIC_CMD_DME_PEER_GET : UIC_CMD_DME_GET;
+	uic_cmd.argument1 = attr_sel;
+
+	ret = ufshcd_send_uic_cmd(hba, &uic_cmd);
+	if (ret) {
+		dev_err(hba->dev, "%s: attr-id 0x%x error code %d\n",
+			get, UIC_GET_ATTR_ID(attr_sel), ret);
+		goto out;
+	}
+
+	if (mib_val)
+		*mib_val = uic_cmd.argument3;
+out:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ufshcd_dme_get_attr);
+
+/**
+ * ufshcd_uic_change_pwr_mode - Perform the UIC power mode chage
+ *				using DME_SET primitives.
+ * @hba: per adapter instance
+ * @mode: powr mode value
+ *
+ * Returns 0 on success, non-zero value on failure
+ */
+int ufshcd_uic_change_pwr_mode(struct ufs_hba *hba, u8 mode)
+{
+	struct uic_command uic_cmd = {0};
+	struct completion pwr_done;
+	unsigned long flags;
+	u8 status;
+	int ret;
+
+	uic_cmd.command = UIC_CMD_DME_SET;
+	uic_cmd.argument1 = UIC_ARG_MIB(PA_PWRMODE);
+	uic_cmd.argument3 = mode;
+	init_completion(&pwr_done);
+
+	mutex_lock(&hba->uic_cmd_mutex);
+
+	spin_lock_irqsave(hba->host->host_lock, flags);
+	hba->pwr_done = &pwr_done;
+	spin_unlock_irqrestore(hba->host->host_lock, flags);
+	ret = __ufshcd_send_uic_cmd(hba, &uic_cmd);
+	if (ret) {
+		dev_err(hba->dev,
+			"pwr mode change with mode 0x%x uic error %d\n",
+			mode, ret);
+		goto out;
+	}
+
+	if (!wait_for_completion_timeout(hba->pwr_done,
+					 msecs_to_jiffies(UIC_CMD_TIMEOUT))) {
+		dev_err(hba->dev,
+			"pwr mode change with mode 0x%x completion timeout\n",
+			mode);
+		ret = -ETIMEDOUT;
+		goto out;
+	}
+
+	status = ufshcd_get_upmcrs(hba);
+	if (status != PWR_LOCAL) {
+		dev_err(hba->dev,
+			"pwr mode change failed, host umpcrs:0x%x\n",
+			status);
+		ret = (status != PWR_OK) ? status : -1;
+	}
+out:
+	spin_lock_irqsave(hba->host->host_lock, flags);
+	hba->pwr_done = NULL;
+	spin_unlock_irqrestore(hba->host->host_lock, flags);
+	mutex_unlock(&hba->uic_cmd_mutex);
+	return ret;
+}
+
+/**
+ * ufshcd_config_max_pwr_mode - Set & Change power mode with
+ *	maximum capability attribute information.
+ * @hba: per adapter instance
+ *
+ * Returns 0 on success, non-zero value on failure
+ */
+static int ufshcd_config_max_pwr_mode(struct ufs_hba *hba)
+{
+	enum {RX = 0, TX = 1};
+	u32 lanes[] = {1, 1};
+	u32 gear[] = {1, 1};
+	u8 pwr[] = {FASTAUTO_MODE, FASTAUTO_MODE};
+	int ret;
+
+	/* Get the connected lane count */
+	ufshcd_dme_get(hba, UIC_ARG_MIB(PA_CONNECTEDRXDATALANES), &lanes[RX]);
+	ufshcd_dme_get(hba, UIC_ARG_MIB(PA_CONNECTEDTXDATALANES), &lanes[TX]);
+
+	/*
+	 * First, get the maximum gears of HS speed.
+	 * If a zero value, it means there is no HSGEAR capability.
+	 * Then, get the maximum gears of PWM speed.
+	 */
+	ufshcd_dme_get(hba, UIC_ARG_MIB(PA_MAXRXHSGEAR), &gear[RX]);
+	if (!gear[RX]) {
+		ufshcd_dme_get(hba, UIC_ARG_MIB(PA_MAXRXPWMGEAR), &gear[RX]);
+		pwr[RX] = SLOWAUTO_MODE;
+	}
+
+	ufshcd_dme_peer_get(hba, UIC_ARG_MIB(PA_MAXRXHSGEAR), &gear[TX]);
+	if (!gear[TX]) {
+		ufshcd_dme_peer_get(hba, UIC_ARG_MIB(PA_MAXRXPWMGEAR),
+				    &gear[TX]);
+		pwr[TX] = SLOWAUTO_MODE;
+	}
+
+	/*
+	 * Configure attributes for power mode change with below.
+	 * - PA_RXGEAR, PA_ACTIVERXDATALANES, PA_RXTERMINATION,
+	 * - PA_TXGEAR, PA_ACTIVETXDATALANES, PA_TXTERMINATION,
+	 * - PA_HSSERIES
+	 */
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_RXGEAR), gear[RX]);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_ACTIVERXDATALANES), lanes[RX]);
+	if (pwr[RX] == FASTAUTO_MODE)
+		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_RXTERMINATION), TRUE);
+
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TXGEAR), gear[TX]);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_ACTIVETXDATALANES), lanes[TX]);
+	if (pwr[TX] == FASTAUTO_MODE)
+		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TXTERMINATION), TRUE);
+
+	if (pwr[RX] == FASTAUTO_MODE || pwr[TX] == FASTAUTO_MODE)
+		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_HSSERIES), PA_HS_MODE_B);
+
+	ret = ufshcd_uic_change_pwr_mode(hba, pwr[RX] << 4 | pwr[TX]);
+	if (ret)
+		dev_err(hba->dev,
+			"pwr_mode: power mode change failed %d\n", ret);
+
+	return ret;
+}
+
+/**
  * ufshcd_complete_dev_init() - checks device readiness
  * hba: per-adapter instance
  *
@@ -1442,7 +1676,7 @@ static int ufshcd_make_hba_operational(struct ufs_hba *hba)
 	ufshcd_enable_intr(hba, UFSHCD_ENABLE_INTRS);
 
 	/* Configure interrupt aggregation */
-	ufshcd_config_int_aggr(hba, INT_AGGR_CONFIG);
+	ufshcd_config_intr_aggr(hba, hba->nutrs - 1, INT_AGGR_DEF_TO);
 
 	/* Configure UTRL and UTMRL base address registers */
 	ufshcd_writel(hba, lower_32_bits(hba->utrdl_dma_addr),
@@ -1788,32 +2022,24 @@ ufshcd_scsi_cmd_status(struct ufshcd_lrb *lrbp, int scsi_status)
 	int result = 0;
 
 	switch (scsi_status) {
+	case SAM_STAT_CHECK_CONDITION:
+		ufshcd_copy_sense_data(lrbp);
 	case SAM_STAT_GOOD:
 		result |= DID_OK << 16 |
 			  COMMAND_COMPLETE << 8 |
-			  SAM_STAT_GOOD;
-		break;
-	case SAM_STAT_CHECK_CONDITION:
-		result |= DID_OK << 16 |
-			  COMMAND_COMPLETE << 8 |
-			  SAM_STAT_CHECK_CONDITION;
-		ufshcd_copy_sense_data(lrbp);
-		break;
-	case SAM_STAT_BUSY:
-		result |= SAM_STAT_BUSY;
+			  scsi_status;
 		break;
 	case SAM_STAT_TASK_SET_FULL:
-
 		/*
 		 * If a LUN reports SAM_STAT_TASK_SET_FULL, then the LUN queue
 		 * depth needs to be adjusted to the exact number of
 		 * outstanding commands the LUN can handle at any given time.
 		 */
 		ufshcd_adjust_lun_qdepth(lrbp->cmd);
-		result |= SAM_STAT_TASK_SET_FULL;
-		break;
+	case SAM_STAT_BUSY:
 	case SAM_STAT_TASK_ABORTED:
-		result |= SAM_STAT_TASK_ABORTED;
+		ufshcd_copy_sense_data(lrbp);
+		result |= scsi_status;
 		break;
 	default:
 		result |= DID_ERROR << 16;
@@ -1898,14 +2124,20 @@ ufshcd_transfer_rsp_status(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 /**
  * ufshcd_uic_cmd_compl - handle completion of uic command
  * @hba: per adapter instance
+ * @intr_status: interrupt status generated by the controller
  */
-static void ufshcd_uic_cmd_compl(struct ufs_hba *hba)
+static void ufshcd_uic_cmd_compl(struct ufs_hba *hba, u32 intr_status)
 {
-	if (hba->active_uic_cmd) {
+	if ((intr_status & UIC_COMMAND_COMPL) && hba->active_uic_cmd) {
 		hba->active_uic_cmd->argument2 |=
 			ufshcd_get_uic_cmd_result(hba);
+		hba->active_uic_cmd->argument3 =
+			ufshcd_get_dme_attr_val(hba);
 		complete(&hba->active_uic_cmd->done);
 	}
+
+	if ((intr_status & UIC_POWER_MODE) && hba->pwr_done)
+		complete(hba->pwr_done);
 }
 
 /**
@@ -1960,7 +2192,7 @@ static void ufshcd_transfer_req_compl(struct ufs_hba *hba)
 
 	/* Reset interrupt aggregation counters */
 	if (int_aggr_reset)
-		ufshcd_config_int_aggr(hba, INT_AGGR_RESET);
+		ufshcd_reset_intr_aggr(hba);
 }
 
 /**
@@ -2251,8 +2483,8 @@ static void ufshcd_sl_intr(struct ufs_hba *hba, u32 intr_status)
 	if (hba->errors)
 		ufshcd_err_handler(hba);
 
-	if (intr_status & UIC_COMMAND_COMPL)
-		ufshcd_uic_cmd_compl(hba);
+	if (intr_status & UFSHCD_UIC_MASK)
+		ufshcd_uic_cmd_compl(hba, intr_status);
 
 	if (intr_status & UTP_TASK_REQ_COMPL)
 		ufshcd_tmc_handler(hba);
@@ -2493,6 +2725,8 @@ static void ufshcd_async_scan(void *data, async_cookie_t cookie)
 	ret = ufshcd_link_startup(hba);
 	if (ret)
 		goto out;
+
+	ufshcd_config_max_pwr_mode(hba);
 
 	ret = ufshcd_verify_dev_init(hba);
 	if (ret)

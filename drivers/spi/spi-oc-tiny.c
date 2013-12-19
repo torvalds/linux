@@ -306,7 +306,7 @@ static int tiny_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, hw);
 
 	/* setup the state for the bitbang driver */
-	hw->bitbang.master = spi_master_get(master);
+	hw->bitbang.master = master;
 	if (!hw->bitbang.master)
 		return err;
 	hw->bitbang.setup_transfer = tiny_spi_setup_transfer;

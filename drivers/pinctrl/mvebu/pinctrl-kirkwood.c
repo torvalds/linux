@@ -471,7 +471,7 @@ static struct platform_driver kirkwood_pinctrl_driver = {
 	.driver = {
 		.name = "kirkwood-pinctrl",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(kirkwood_pinctrl_of_match),
+		.of_match_table = kirkwood_pinctrl_of_match,
 	},
 	.probe = kirkwood_pinctrl_probe,
 	.remove = kirkwood_pinctrl_remove,

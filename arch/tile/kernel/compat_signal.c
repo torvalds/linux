@@ -32,6 +32,7 @@
 #include <asm/ucontext.h>
 #include <asm/sigframe.h>
 #include <asm/syscalls.h>
+#include <asm/vdso.h>
 #include <arch/interrupts.h>
 
 struct compat_ucontext {
@@ -48,7 +49,7 @@ struct compat_rt_sigframe {
 	struct compat_ucontext uc;
 };
 
-int copy_siginfo_to_user32(struct compat_siginfo __user *to, siginfo_t *from)
+int copy_siginfo_to_user32(struct compat_siginfo __user *to, const siginfo_t *from)
 {
 	int err;
 
@@ -227,7 +228,7 @@ int compat_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	if (err)
 		goto give_sigsegv;
 
-	restorer = VDSO_BASE;
+	restorer = VDSO_SYM(&__vdso_rt_sigreturn);
 	if (ka->sa.sa_flags & SA_RESTORER)
 		restorer = ptr_to_compat_reg(ka->sa.sa_restorer);
 

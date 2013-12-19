@@ -86,7 +86,11 @@ static int da9052_i2c_fix(struct da9052 *da9052, unsigned char reg)
 	return 0;
 }
 
-static int da9052_i2c_enable_multiwrite(struct da9052 *da9052)
+/*
+ * According to errata item 24, multiwrite mode should be avoided
+ * in order to prevent register data corruption after power-down.
+ */
+static int da9052_i2c_disable_multiwrite(struct da9052 *da9052)
 {
 	int reg_val, ret;
 
@@ -94,8 +98,8 @@ static int da9052_i2c_enable_multiwrite(struct da9052 *da9052)
 	if (ret < 0)
 		return ret;
 
-	if (reg_val & DA9052_CONTROL_B_WRITEMODE) {
-		reg_val &= ~DA9052_CONTROL_B_WRITEMODE;
+	if (!(reg_val & DA9052_CONTROL_B_WRITEMODE)) {
+		reg_val |= DA9052_CONTROL_B_WRITEMODE;
 		ret = regmap_write(da9052->regmap, DA9052_CONTROL_B_REG,
 				   reg_val);
 		if (ret < 0)
@@ -154,7 +158,7 @@ static int da9052_i2c_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	ret = da9052_i2c_enable_multiwrite(da9052);
+	ret = da9052_i2c_disable_multiwrite(da9052);
 	if (ret < 0)
 		return ret;
 

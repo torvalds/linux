@@ -322,6 +322,8 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
 
 	if (cpumask_test_cpu(policy->cpu, &notify_device->allowed_cpus))
 		max_freq = notify_device->cpufreq_val;
+	else
+		return 0;
 
 	/* Never exceed user_policy.max */
 	if (max_freq > policy->user_policy.max)
@@ -467,10 +469,10 @@ cpufreq_cooling_register(const struct cpumask *clip_cpus)
 
 	cool_dev = thermal_cooling_device_register(dev_name, cpufreq_dev,
 						   &cpufreq_cooling_ops);
-	if (!cool_dev) {
+	if (IS_ERR(cool_dev)) {
 		release_idr(&cpufreq_idr, cpufreq_dev->id);
 		kfree(cpufreq_dev);
-		return ERR_PTR(-EINVAL);
+		return cool_dev;
 	}
 	cpufreq_dev->cool_dev = cool_dev;
 	cpufreq_dev->cpufreq_state = 0;
@@ -496,8 +498,12 @@ EXPORT_SYMBOL_GPL(cpufreq_cooling_register);
  */
 void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 {
-	struct cpufreq_cooling_device *cpufreq_dev = cdev->devdata;
+	struct cpufreq_cooling_device *cpufreq_dev;
 
+	if (!cdev)
+		return;
+
+	cpufreq_dev = cdev->devdata;
 	mutex_lock(&cooling_cpufreq_lock);
 	cpufreq_dev_count--;
 

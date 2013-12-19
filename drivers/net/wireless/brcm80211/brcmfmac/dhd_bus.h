@@ -132,34 +132,34 @@ struct pktq *brcmf_bus_gettxq(struct brcmf_bus *bus)
  * interface functions from common layer
  */
 
-extern bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
-			 struct sk_buff *pkt, int prec);
+bool brcmf_c_prec_enq(struct device *dev, struct pktq *q, struct sk_buff *pkt,
+		      int prec);
 
 /* Receive frame for delivery to OS.  Callee disposes of rxp. */
-extern void brcmf_rx_frames(struct device *dev, struct sk_buff_head *rxlist);
+void brcmf_rx_frame(struct device *dev, struct sk_buff *rxp);
 
 /* Indication from bus module regarding presence/insertion of dongle. */
-extern int brcmf_attach(uint bus_hdrlen, struct device *dev);
+int brcmf_attach(uint bus_hdrlen, struct device *dev);
 /* Indication from bus module regarding removal/absence of dongle */
-extern void brcmf_detach(struct device *dev);
+void brcmf_detach(struct device *dev);
 /* Indication from bus module that dongle should be reset */
-extern void brcmf_dev_reset(struct device *dev);
+void brcmf_dev_reset(struct device *dev);
 /* Indication from bus module to change flow-control state */
-extern void brcmf_txflowblock(struct device *dev, bool state);
+void brcmf_txflowblock(struct device *dev, bool state);
 
 /* Notify the bus has transferred the tx packet to firmware */
-extern void brcmf_txcomplete(struct device *dev, struct sk_buff *txp,
-			     bool success);
+void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success);
 
-extern int brcmf_bus_start(struct device *dev);
+int brcmf_bus_start(struct device *dev);
 
 #ifdef CONFIG_BRCMFMAC_SDIO
-extern void brcmf_sdio_exit(void);
-extern void brcmf_sdio_init(void);
+void brcmf_sdio_exit(void);
+void brcmf_sdio_init(void);
+void brcmf_sdio_register(void);
 #endif
 #ifdef CONFIG_BRCMFMAC_USB
-extern void brcmf_usb_exit(void);
-extern void brcmf_usb_init(void);
+void brcmf_usb_exit(void);
+void brcmf_usb_register(void);
 #endif
 
 #endif				/* _BRCMF_BUS_H_ */

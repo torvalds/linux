@@ -331,7 +331,7 @@ static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 	int rear;
 	int count;
 	int i;
-	short data;
+	unsigned short data;
 
 	front = readw(devpriv->io_addr + DPR_AD_Buf_Front);
 	count = front - devpriv->ai_front;
@@ -665,13 +665,12 @@ static int dt3k_dio_insn_config(struct comedi_device *dev,
 
 static int dt3k_dio_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[1] & data[0];
+	if (comedi_dio_update_state(s, data))
 		dt3k_writesingle(dev, SUBS_DOUT, 0, s->state);
-	}
+
 	data[1] = dt3k_readsingle(dev, SUBS_DIN, 0, 0);
 
 	return insn->n;

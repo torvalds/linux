@@ -636,7 +636,7 @@ ok_to_write:
 		mg_request(host->breq);
 }
 
-void mg_times_out(unsigned long data)
+static void mg_times_out(unsigned long data)
 {
 	struct mg_host *host = (struct mg_host *)data;
 	char *name;
@@ -936,7 +936,7 @@ static int mg_probe(struct platform_device *plat_dev)
 			goto probe_err_3b;
 		}
 		err = request_irq(host->irq, mg_irq,
-				IRQF_DISABLED | IRQF_TRIGGER_RISING,
+				IRQF_TRIGGER_RISING,
 				MG_DEV_NAME, host);
 		if (err) {
 			printk(KERN_ERR "%s:%d fail (request_irq err=%d)\n",

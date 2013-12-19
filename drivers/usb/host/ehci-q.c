@@ -105,9 +105,9 @@ qh_update (struct ehci_hcd *ehci, struct ehci_qh *qh, struct ehci_qtd *qtd)
 
 		is_out = qh->is_out;
 		epnum = (hc32_to_cpup(ehci, &hw->hw_info1) >> 8) & 0x0f;
-		if (unlikely (!usb_gettoggle (qh->dev, epnum, is_out))) {
+		if (unlikely(!usb_gettoggle(qh->ps.udev, epnum, is_out))) {
 			hw->hw_token &= ~cpu_to_hc32(ehci, QTD_TOGGLE);
-			usb_settoggle (qh->dev, epnum, is_out, 1);
+			usb_settoggle(qh->ps.udev, epnum, is_out, 1);
 		}
 	}
 
@@ -797,26 +797,35 @@ qh_make (
 	 * For control/bulk requests, the HC or TT handles these.
 	 */
 	if (type == PIPE_INTERRUPT) {
-		qh->usecs = NS_TO_US(usb_calc_bus_time(USB_SPEED_HIGH,
+		unsigned	tmp;
+
+		qh->ps.usecs = NS_TO_US(usb_calc_bus_time(USB_SPEED_HIGH,
 				is_input, 0,
 				hb_mult(maxp) * max_packet(maxp)));
-		qh->start = NO_FRAME;
+		qh->ps.phase = NO_FRAME;
 
 		if (urb->dev->speed == USB_SPEED_HIGH) {
-			qh->c_usecs = 0;
+			qh->ps.c_usecs = 0;
 			qh->gap_uf = 0;
 
-			qh->period = urb->interval >> 3;
-			if (qh->period == 0 && urb->interval != 1) {
+			if (urb->interval > 1 && urb->interval < 8) {
 				/* NOTE interval 2 or 4 uframes could work.
 				 * But interval 1 scheduling is simpler, and
 				 * includes high bandwidth.
 				 */
 				urb->interval = 1;
-			} else if (qh->period > ehci->periodic_size) {
-				qh->period = ehci->periodic_size;
-				urb->interval = qh->period << 3;
+			} else if (urb->interval > ehci->periodic_size << 3) {
+				urb->interval = ehci->periodic_size << 3;
 			}
+			qh->ps.period = urb->interval >> 3;
+
+			/* period for bandwidth allocation */
+			tmp = min_t(unsigned, EHCI_BANDWIDTH_SIZE,
+					1 << (urb->ep->desc.bInterval - 1));
+
+			/* Allow urb->interval to override */
+			qh->ps.bw_uperiod = min_t(unsigned, tmp, urb->interval);
+			qh->ps.bw_period = qh->ps.bw_uperiod >> 3;
 		} else {
 			int		think_time;
 
@@ -826,27 +835,35 @@ qh_make (
 
 			/* FIXME this just approximates SPLIT/CSPLIT times */
 			if (is_input) {		// SPLIT, gap, CSPLIT+DATA
-				qh->c_usecs = qh->usecs + HS_USECS (0);
-				qh->usecs = HS_USECS (1);
+				qh->ps.c_usecs = qh->ps.usecs + HS_USECS(0);
+				qh->ps.usecs = HS_USECS(1);
 			} else {		// SPLIT+DATA, gap, CSPLIT
-				qh->usecs += HS_USECS (1);
-				qh->c_usecs = HS_USECS (0);
+				qh->ps.usecs += HS_USECS(1);
+				qh->ps.c_usecs = HS_USECS(0);
 			}
 
 			think_time = tt ? tt->think_time : 0;
-			qh->tt_usecs = NS_TO_US (think_time +
+			qh->ps.tt_usecs = NS_TO_US(think_time +
 					usb_calc_bus_time (urb->dev->speed,
 					is_input, 0, max_packet (maxp)));
-			qh->period = urb->interval;
-			if (qh->period > ehci->periodic_size) {
-				qh->period = ehci->periodic_size;
-				urb->interval = qh->period;
-			}
+			if (urb->interval > ehci->periodic_size)
+				urb->interval = ehci->periodic_size;
+			qh->ps.period = urb->interval;
+
+			/* period for bandwidth allocation */
+			tmp = min_t(unsigned, EHCI_BANDWIDTH_FRAMES,
+					urb->ep->desc.bInterval);
+			tmp = rounddown_pow_of_two(tmp);
+
+			/* Allow urb->interval to override */
+			qh->ps.bw_period = min_t(unsigned, tmp, urb->interval);
+			qh->ps.bw_uperiod = qh->ps.bw_period << 3;
 		}
 	}
 
 	/* support for tt scheduling, and access to toggles */
-	qh->dev = urb->dev;
+	qh->ps.udev = urb->dev;
+	qh->ps.ep = urb->ep;
 
 	/* using TT? */
 	switch (urb->dev->speed) {

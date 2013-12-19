@@ -33,7 +33,6 @@
 #include <linux/raid/xor.h>
 #include <linux/vmalloc.h>
 #include <asm/div64.h>
-#include "compat.h"
 #include "ctree.h"
 #include "extent_map.h"
 #include "disk-io.h"
@@ -1540,8 +1539,10 @@ static int full_stripe_write(struct btrfs_raid_bio *rbio)
 	int ret;
 
 	ret = alloc_rbio_parity_pages(rbio);
-	if (ret)
+	if (ret) {
+		__free_raid_bio(rbio);
 		return ret;
+	}
 
 	ret = lock_stripe_add(rbio);
 	if (ret == 0)
@@ -1687,11 +1688,8 @@ int raid56_parity_write(struct btrfs_root *root, struct bio *bio,
 	struct blk_plug_cb *cb;
 
 	rbio = alloc_rbio(root, bbio, raid_map, stripe_len);
-	if (IS_ERR(rbio)) {
-		kfree(raid_map);
-		kfree(bbio);
+	if (IS_ERR(rbio))
 		return PTR_ERR(rbio);
-	}
 	bio_list_add(&rbio->bio_list, bio);
 	rbio->bio_list_bytes = bio->bi_size;
 
@@ -2041,9 +2039,8 @@ int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
 	int ret;
 
 	rbio = alloc_rbio(root, bbio, raid_map, stripe_len);
-	if (IS_ERR(rbio)) {
+	if (IS_ERR(rbio))
 		return PTR_ERR(rbio);
-	}
 
 	rbio->read_rebuild = 1;
 	bio_list_add(&rbio->bio_list, bio);
@@ -2052,6 +2049,8 @@ int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
 	rbio->faila = find_logical_bio_stripe(rbio, bio);
 	if (rbio->faila == -1) {
 		BUG();
+		kfree(raid_map);
+		kfree(bbio);
 		kfree(rbio);
 		return -EIO;
 	}

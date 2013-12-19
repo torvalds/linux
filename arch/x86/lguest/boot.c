@@ -7,8 +7,7 @@
  * kernel and insert a module (lg.ko) which allows us to run other Linux
  * kernels the same way we'd run processes.  We call the first kernel the Host,
  * and the others the Guests.  The program which sets up and configures Guests
- * (such as the example in Documentation/virtual/lguest/lguest.c) is called the
- * Launcher.
+ * (such as the example in tools/lguest/lguest.c) is called the Launcher.
  *
  * Secondly, we only run specially modified Guests, not normal kernels: setting
  * CONFIG_LGUEST_GUEST to "y" compiles this file into the kernel so it knows
@@ -1057,6 +1056,12 @@ static void lguest_load_sp0(struct tss_struct *tss,
 }
 
 /* Let's just say, I wouldn't do debugging under a Guest. */
+static unsigned long lguest_get_debugreg(int regno)
+{
+	/* FIXME: Implement */
+	return 0;
+}
+
 static void lguest_set_debugreg(int regno, unsigned long value)
 {
 	/* FIXME: Implement */
@@ -1304,6 +1309,7 @@ __init void lguest_init(void)
 	pv_cpu_ops.load_tr_desc = lguest_load_tr_desc;
 	pv_cpu_ops.set_ldt = lguest_set_ldt;
 	pv_cpu_ops.load_tls = lguest_load_tls;
+	pv_cpu_ops.get_debugreg = lguest_get_debugreg;
 	pv_cpu_ops.set_debugreg = lguest_set_debugreg;
 	pv_cpu_ops.clts = lguest_clts;
 	pv_cpu_ops.read_cr0 = lguest_read_cr0;

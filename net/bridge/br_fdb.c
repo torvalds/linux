@@ -700,7 +700,7 @@ int br_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 
 		vid = nla_get_u16(tb[NDA_VLAN]);
 
-		if (vid >= VLAN_N_VID) {
+		if (!vid || vid >= VLAN_VID_MASK) {
 			pr_info("bridge: RTM_NEWNEIGH with invalid vlan id %d\n",
 				vid);
 			return -EINVAL;
@@ -794,7 +794,7 @@ int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 
 		vid = nla_get_u16(tb[NDA_VLAN]);
 
-		if (vid >= VLAN_N_VID) {
+		if (!vid || vid >= VLAN_VID_MASK) {
 			pr_info("bridge: RTM_NEWNEIGH with invalid vlan id %d\n",
 				vid);
 			return -EINVAL;

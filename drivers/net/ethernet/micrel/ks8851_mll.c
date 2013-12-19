@@ -915,7 +915,7 @@ static int ks_net_open(struct net_device *netdev)
 	struct ks_net *ks = netdev_priv(netdev);
 	int err;
 
-#define	KS_INT_FLAGS	(IRQF_DISABLED|IRQF_TRIGGER_LOW)
+#define	KS_INT_FLAGS	IRQF_TRIGGER_LOW
 	/* lock the card, even if we may not actually do anything
 	 * else at the moment.
 	 */
@@ -1248,7 +1248,7 @@ static void ks_set_mac(struct ks_net *ks, u8 *data)
 	w = ((u & 0xFF) << 8) | ((u >> 8) & 0xFF);
 	ks_wrreg16(ks, KS_MARL, w);
 
-	memcpy(ks->mac_addr, data, 6);
+	memcpy(ks->mac_addr, data, ETH_ALEN);
 
 	if (ks->enabled)
 		ks_start_rx(ks);
@@ -1651,7 +1651,7 @@ static int ks8851_probe(struct platform_device *pdev)
 	}
 	netdev_info(netdev, "Mac address is: %pM\n", ks->mac_addr);
 
-	memcpy(netdev->dev_addr, ks->mac_addr, 6);
+	memcpy(netdev->dev_addr, ks->mac_addr, ETH_ALEN);
 
 	ks_set_mac(ks, netdev->dev_addr);
 

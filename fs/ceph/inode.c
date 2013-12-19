@@ -12,6 +12,7 @@
 
 #include "super.h"
 #include "mds_client.h"
+#include "cache.h"
 #include <linux/ceph/decode.h>
 
 /*
@@ -344,6 +345,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	for (i = 0; i < CEPH_FILE_MODE_NUM; i++)
 		ci->i_nr_by_mode[i] = 0;
 
+	mutex_init(&ci->i_truncate_mutex);
 	ci->i_truncate_seq = 0;
 	ci->i_truncate_size = 0;
 	ci->i_truncate_pending = 0;
@@ -377,6 +379,8 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 
 	INIT_WORK(&ci->i_vmtruncate_work, ceph_vmtruncate_work);
 
+	ceph_fscache_inode_init(ci);
+
 	return &ci->vfs_inode;
 }
 
@@ -395,6 +399,8 @@ void ceph_destroy_inode(struct inode *inode)
 	struct rb_node *n;
 
 	dout("destroy_inode %p ino %llx.%llx\n", inode, ceph_vinop(inode));
+
+	ceph_fscache_unregister_inode_cookie(ci);
 
 	ceph_queue_caps_release(inode);
 
@@ -430,7 +436,6 @@ void ceph_destroy_inode(struct inode *inode)
 	call_rcu(&inode->i_rcu, ceph_i_callback);
 }
 
-
 /*
  * Helpers to fill in size, ctime, mtime, and atime.  We have to be
  * careful because either the client or MDS may have more up to date
@@ -455,16 +460,20 @@ int ceph_fill_file_size(struct inode *inode, int issued,
 			dout("truncate_seq %u -> %u\n",
 			     ci->i_truncate_seq, truncate_seq);
 			ci->i_truncate_seq = truncate_seq;
+
+			/* the MDS should have revoked these caps */
+			WARN_ON_ONCE(issued & (CEPH_CAP_FILE_EXCL |
+					       CEPH_CAP_FILE_RD |
+					       CEPH_CAP_FILE_WR |
+					       CEPH_CAP_FILE_LAZYIO));
 			/*
 			 * If we hold relevant caps, or in the case where we're
 			 * not the only client referencing this file and we
 			 * don't hold those caps, then we need to check whether
 			 * the file is either opened or mmaped
 			 */
-			if ((issued & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_RD|
-				       CEPH_CAP_FILE_WR|CEPH_CAP_FILE_BUFFER|
-				       CEPH_CAP_FILE_EXCL|
-				       CEPH_CAP_FILE_LAZYIO)) ||
+			if ((issued & (CEPH_CAP_FILE_CACHE|
+				       CEPH_CAP_FILE_BUFFER)) ||
 			    mapping_mapped(inode->i_mapping) ||
 			    __ceph_caps_file_wanted(ci)) {
 				ci->i_truncate_pending++;
@@ -478,6 +487,10 @@ int ceph_fill_file_size(struct inode *inode, int issued,
 		     truncate_size);
 		ci->i_truncate_size = truncate_size;
 	}
+
+	if (queue_trunc)
+		ceph_fscache_invalidate(inode);
+
 	return queue_trunc;
 }
 
@@ -564,6 +577,8 @@ static int fill_inode(struct inode *inode,
 	int issued = 0, implemented;
 	struct timespec mtime, atime, ctime;
 	u32 nsplits;
+	struct ceph_inode_frag *frag;
+	struct rb_node *rb_node;
 	struct ceph_buffer *xattr_blob = NULL;
 	int err = 0;
 	int queue_trunc = 0;
@@ -738,14 +753,37 @@ no_change:
 	/* FIXME: move me up, if/when version reflects fragtree changes */
 	nsplits = le32_to_cpu(info->fragtree.nsplits);
 	mutex_lock(&ci->i_fragtree_mutex);
+	rb_node = rb_first(&ci->i_fragtree);
 	for (i = 0; i < nsplits; i++) {
 		u32 id = le32_to_cpu(info->fragtree.splits[i].frag);
-		struct ceph_inode_frag *frag = __get_or_create_frag(ci, id);
-
-		if (IS_ERR(frag))
-			continue;
+		frag = NULL;
+		while (rb_node) {
+			frag = rb_entry(rb_node, struct ceph_inode_frag, node);
+			if (ceph_frag_compare(frag->frag, id) >= 0) {
+				if (frag->frag != id)
+					frag = NULL;
+				else
+					rb_node = rb_next(rb_node);
+				break;
+			}
+			rb_node = rb_next(rb_node);
+			rb_erase(&frag->node, &ci->i_fragtree);
+			kfree(frag);
+			frag = NULL;
+		}
+		if (!frag) {
+			frag = __get_or_create_frag(ci, id);
+			if (IS_ERR(frag))
+				continue;
+		}
 		frag->split_by = le32_to_cpu(info->fragtree.splits[i].by);
 		dout(" frag %x split by %d\n", frag->frag, frag->split_by);
+	}
+	while (rb_node) {
+		frag = rb_entry(rb_node, struct ceph_inode_frag, node);
+		rb_node = rb_next(rb_node);
+		rb_erase(&frag->node, &ci->i_fragtree);
+		kfree(frag);
 	}
 	mutex_unlock(&ci->i_fragtree_mutex);
 
@@ -1066,7 +1104,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			 * complete.
 			 */
 			ceph_set_dentry_offset(req->r_old_dentry);
-			dout("dn %p gets new offset %lld\n", req->r_old_dentry, 
+			dout("dn %p gets new offset %lld\n", req->r_old_dentry,
 			     ceph_dentry(req->r_old_dentry)->offset);
 
 			dn = req->r_old_dentry;  /* use old_dentry */
@@ -1237,8 +1275,20 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 	int err = 0, i;
 	struct inode *snapdir = NULL;
 	struct ceph_mds_request_head *rhead = req->r_request->front.iov_base;
-	u64 frag = le32_to_cpu(rhead->args.readdir.frag);
 	struct ceph_dentry_info *di;
+	u64 r_readdir_offset = req->r_readdir_offset;
+	u32 frag = le32_to_cpu(rhead->args.readdir.frag);
+
+	if (rinfo->dir_dir &&
+	    le32_to_cpu(rinfo->dir_dir->frag) != frag) {
+		dout("readdir_prepopulate got new frag %x -> %x\n",
+		     frag, le32_to_cpu(rinfo->dir_dir->frag));
+		frag = le32_to_cpu(rinfo->dir_dir->frag);
+		if (ceph_frag_is_leftmost(frag))
+			r_readdir_offset = 2;
+		else
+			r_readdir_offset = 0;
+	}
 
 	if (req->r_aborted)
 		return readdir_prepopulate_inodes_only(req, session);
@@ -1302,7 +1352,7 @@ retry_lookup:
 		}
 
 		di = dn->d_fsdata;
-		di->offset = ceph_make_fpos(frag, i + req->r_readdir_offset);
+		di->offset = ceph_make_fpos(frag, i + r_readdir_offset);
 
 		/* inode */
 		if (dn->d_inode) {
@@ -1419,18 +1469,20 @@ static void ceph_invalidate_work(struct work_struct *work)
 	u32 orig_gen;
 	int check = 0;
 
+	mutex_lock(&ci->i_truncate_mutex);
 	spin_lock(&ci->i_ceph_lock);
 	dout("invalidate_pages %p gen %d revoking %d\n", inode,
 	     ci->i_rdcache_gen, ci->i_rdcache_revoking);
 	if (ci->i_rdcache_revoking != ci->i_rdcache_gen) {
 		/* nevermind! */
 		spin_unlock(&ci->i_ceph_lock);
+		mutex_unlock(&ci->i_truncate_mutex);
 		goto out;
 	}
 	orig_gen = ci->i_rdcache_gen;
 	spin_unlock(&ci->i_ceph_lock);
 
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages(inode->i_mapping, 0);
 
 	spin_lock(&ci->i_ceph_lock);
 	if (orig_gen == ci->i_rdcache_gen &&
@@ -1445,6 +1497,7 @@ static void ceph_invalidate_work(struct work_struct *work)
 		     ci->i_rdcache_revoking);
 	}
 	spin_unlock(&ci->i_ceph_lock);
+	mutex_unlock(&ci->i_truncate_mutex);
 
 	if (check)
 		ceph_check_caps(ci, 0, NULL);
@@ -1465,9 +1518,7 @@ static void ceph_vmtruncate_work(struct work_struct *work)
 	struct inode *inode = &ci->vfs_inode;
 
 	dout("vmtruncate_work %p\n", inode);
-	mutex_lock(&inode->i_mutex);
 	__ceph_do_pending_vmtruncate(inode);
-	mutex_unlock(&inode->i_mutex);
 	iput(inode);
 }
 
@@ -1480,6 +1531,7 @@ void ceph_queue_vmtruncate(struct inode *inode)
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
 	ihold(inode);
+
 	if (queue_work(ceph_sb_to_client(inode->i_sb)->trunc_wq,
 		       &ci->i_vmtruncate_work)) {
 		dout("ceph_queue_vmtruncate %p\n", inode);
@@ -1500,11 +1552,13 @@ void __ceph_do_pending_vmtruncate(struct inode *inode)
 	u64 to;
 	int wrbuffer_refs, finish = 0;
 
+	mutex_lock(&ci->i_truncate_mutex);
 retry:
 	spin_lock(&ci->i_ceph_lock);
 	if (ci->i_truncate_pending == 0) {
 		dout("__do_pending_vmtruncate %p none pending\n", inode);
 		spin_unlock(&ci->i_ceph_lock);
+		mutex_unlock(&ci->i_truncate_mutex);
 		return;
 	}
 
@@ -1520,6 +1574,9 @@ retry:
 					     inode->i_sb->s_maxbytes);
 		goto retry;
 	}
+
+	/* there should be no reader or writer */
+	WARN_ON_ONCE(ci->i_rd_ref || ci->i_wr_ref);
 
 	to = ci->i_truncate_size;
 	wrbuffer_refs = ci->i_wrbuffer_ref;
@@ -1538,12 +1595,13 @@ retry:
 	if (!finish)
 		goto retry;
 
+	mutex_unlock(&ci->i_truncate_mutex);
+
 	if (wrbuffer_refs == 0)
 		ceph_check_caps(ci, CHECK_CAPS_AUTHONLY, NULL);
 
 	wake_up_all(&ci->i_cap_wq);
 }
-
 
 /*
  * symlinks
@@ -1585,8 +1643,6 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
-
-	__ceph_do_pending_vmtruncate(inode);
 
 	err = inode_change_ok(inode, attr);
 	if (err != 0)
@@ -1768,7 +1824,8 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 	     ceph_cap_string(dirtied), mask);
 
 	ceph_mdsc_put_request(req);
-	__ceph_do_pending_vmtruncate(inode);
+	if (mask & CEPH_SETATTR_SIZE)
+		__ceph_do_pending_vmtruncate(inode);
 	return err;
 out:
 	spin_unlock(&ci->i_ceph_lock);

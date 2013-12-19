@@ -106,9 +106,7 @@ void nlm_early_init_secondary(int cpu)
 {
 	change_c0_config(CONF_CM_CMASK, 0x3);
 #ifdef CONFIG_CPU_XLP
-	/* mmu init, once per core */
-	if (cpu % NLM_THREADS_PER_CORE == 0)
-		xlp_mmu_init();
+	xlp_mmu_init();
 #endif
 	write_c0_ebase(nlm_current_node()->ebase);
 }
@@ -247,7 +245,7 @@ static int nlm_parse_cpumask(cpumask_t *wakeup_mask)
 	return threadmode;
 
 unsupp:
-	panic("Unsupported CPU mask %lx\n",
+	panic("Unsupported CPU mask %lx",
 		(unsigned long)cpumask_bits(wakeup_mask)[0]);
 	return 0;
 }

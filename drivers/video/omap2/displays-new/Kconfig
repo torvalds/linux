@@ -35,6 +35,7 @@ config DISPLAY_PANEL_DPI
 
 config DISPLAY_PANEL_DSI_CM
 	tristate "Generic DSI Command Mode Panel"
+	depends on BACKLIGHT_CLASS_DEVICE
 	help
 	  Driver for generic DSI command mode panels.
 
@@ -55,6 +56,12 @@ config DISPLAY_PANEL_SHARP_LS037V7DW01
         depends on BACKLIGHT_CLASS_DEVICE
         help
           LCD Panel used in TI's SDP3430 and EVM boards
+
+config DISPLAY_PANEL_TPO_TD028TTEC1
+        tristate "TPO TD028TTEC1 LCD Panel"
+        depends on SPI
+        help
+          LCD panel used in Openmoko.
 
 config DISPLAY_PANEL_TPO_TD043MTEA1
         tristate "TPO TD043MTEA1 LCD Panel"

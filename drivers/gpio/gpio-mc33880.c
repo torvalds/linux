@@ -86,7 +86,7 @@ static int mc33880_probe(struct spi_device *spi)
 	struct mc33880_platform_data *pdata;
 	int ret;
 
-	pdata = spi->dev.platform_data;
+	pdata = dev_get_platdata(&spi->dev);
 	if (!pdata || !pdata->base) {
 		dev_dbg(&spi->dev, "incorrect or missing platform data\n");
 		return -EINVAL;
@@ -142,7 +142,6 @@ static int mc33880_probe(struct spi_device *spi)
 	return ret;
 
 exit_destroy:
-	spi_set_drvdata(spi, NULL);
 	mutex_destroy(&mc->lock);
 	return ret;
 }
@@ -155,8 +154,6 @@ static int mc33880_remove(struct spi_device *spi)
 	mc = spi_get_drvdata(spi);
 	if (mc == NULL)
 		return -ENODEV;
-
-	spi_set_drvdata(spi, NULL);
 
 	ret = gpiochip_remove(&mc->chip);
 	if (!ret)

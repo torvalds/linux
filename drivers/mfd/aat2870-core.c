@@ -293,7 +293,7 @@ static ssize_t aat2870_reg_write_file(struct file *file,
 	unsigned long addr, val;
 	int ret;
 
-	buf_size = min(count, (sizeof(buf)-1));
+	buf_size = min(count, (size_t)(sizeof(buf)-1));
 	if (copy_from_user(buf, user_buf, buf_size)) {
 		dev_err(aat2870->dev, "Failed to copy from user\n");
 		return -EFAULT;
@@ -363,7 +363,7 @@ static inline void aat2870_uninit_debugfs(struct aat2870_data *aat2870)
 static int aat2870_i2c_probe(struct i2c_client *client,
 			     const struct i2c_device_id *id)
 {
-	struct aat2870_platform_data *pdata = client->dev.platform_data;
+	struct aat2870_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct aat2870_data *aat2870;
 	int i, j;
 	int ret = 0;

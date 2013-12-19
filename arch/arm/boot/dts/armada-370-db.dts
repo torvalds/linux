@@ -14,7 +14,7 @@
  */
 
 /dts-v1/;
-/include/ "armada-370.dtsi"
+#include "armada-370.dtsi"
 
 / {
 	model = "Marvell Armada 370 Evaluation Board";
@@ -30,6 +30,9 @@
 	};
 
 	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xd0000000 0x100000
+			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000>;
+
 		internal-regs {
 			serial@12000 {
 				clock-frequency = <200000000>;
@@ -96,22 +99,22 @@
 					spi-max-frequency = <50000000>;
 				};
 			};
+		};
 
-			pcie-controller {
+		pcie-controller {
+			status = "okay";
+			/*
+			 * The two PCIe units are accessible through
+			 * both standard PCIe slots and mini-PCIe
+			 * slots on the board.
+			 */
+			pcie@1,0 {
+				/* Port 0, Lane 0 */
 				status = "okay";
-				/*
-				 * The two PCIe units are accessible through
-				 * both standard PCIe slots and mini-PCIe
-				 * slots on the board.
-				 */
-				pcie@1,0 {
-					/* Port 0, Lane 0 */
-					status = "okay";
-				};
-				pcie@2,0 {
-					/* Port 1, Lane 0 */
-					status = "okay";
-				};
+			};
+			pcie@2,0 {
+				/* Port 1, Lane 0 */
+				status = "okay";
 			};
 		};
 	};

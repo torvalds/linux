@@ -700,7 +700,7 @@ int pci_mmconfig_insert(struct device *dev, u16 seg, u8 start, u8 end,
 	if (!(pci_probe & PCI_PROBE_MMCONF) || pci_mmcfg_arch_init_failed)
 		return -ENODEV;
 
-	if (start > end || !addr)
+	if (start > end)
 		return -EINVAL;
 
 	mutex_lock(&pci_mmcfg_lock);
@@ -714,6 +714,11 @@ int pci_mmconfig_insert(struct device *dev, u16 seg, u8 start, u8 end,
 				  cfg->segment, cfg->start_bus, cfg->end_bus);
 		mutex_unlock(&pci_mmcfg_lock);
 		return -EEXIST;
+	}
+
+	if (!addr) {
+		mutex_unlock(&pci_mmcfg_lock);
+		return -EINVAL;
 	}
 
 	rc = -EBUSY;

@@ -448,7 +448,7 @@ static DEVICE_ATTR(active, S_IRUGO, tpm_show_active, NULL);
 static DEVICE_ATTR(owned, S_IRUGO, tpm_show_owned, NULL);
 static DEVICE_ATTR(temp_deactivated, S_IRUGO, tpm_show_temp_deactivated,
 		   NULL);
-static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps_1_2, NULL);
+static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps, NULL);
 static DEVICE_ATTR(cancel, S_IWUSR | S_IWGRP, NULL, tpm_store_cancel);
 static DEVICE_ATTR(durations, S_IRUGO, tpm_show_durations, NULL);
 static DEVICE_ATTR(timeouts, S_IRUGO, tpm_show_timeouts, NULL);
@@ -766,6 +766,25 @@ static void tpm_tis_reenable_interrupts(struct tpm_chip *chip)
 }
 #endif
 
+#ifdef CONFIG_PM_SLEEP
+static int tpm_tis_resume(struct device *dev)
+{
+	struct tpm_chip *chip = dev_get_drvdata(dev);
+	int ret;
+
+	if (chip->vendor.irq)
+		tpm_tis_reenable_interrupts(chip);
+
+	ret = tpm_pm_resume(dev);
+	if (!ret)
+		tpm_do_selftest(chip);
+
+	return ret;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(tpm_tis_pm, tpm_pm_suspend, tpm_tis_resume);
+
 #ifdef CONFIG_PNP
 static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 				      const struct pnp_device_id *pnp_id)
@@ -785,26 +804,6 @@ static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 		itpm = true;
 
 	return tpm_tis_init(&pnp_dev->dev, start, len, irq);
-}
-
-static int tpm_tis_pnp_suspend(struct pnp_dev *dev, pm_message_t msg)
-{
-	return tpm_pm_suspend(&dev->dev);
-}
-
-static int tpm_tis_pnp_resume(struct pnp_dev *dev)
-{
-	struct tpm_chip *chip = pnp_get_drvdata(dev);
-	int ret;
-
-	if (chip->vendor.irq)
-		tpm_tis_reenable_interrupts(chip);
-
-	ret = tpm_pm_resume(&dev->dev);
-	if (!ret)
-		tpm_do_selftest(chip);
-
-	return ret;
 }
 
 static struct pnp_device_id tpm_pnp_tbl[] = {
@@ -835,9 +834,12 @@ static struct pnp_driver tis_pnp_driver = {
 	.name = "tpm_tis",
 	.id_table = tpm_pnp_tbl,
 	.probe = tpm_tis_pnp_init,
-	.suspend = tpm_tis_pnp_suspend,
-	.resume = tpm_tis_pnp_resume,
 	.remove = tpm_tis_pnp_remove,
+#ifdef CONFIG_PM_SLEEP
+	.driver	= {
+		.pm = &tpm_tis_pm,
+	},
+#endif
 };
 
 #define TIS_HID_USR_IDX sizeof(tpm_pnp_tbl)/sizeof(struct pnp_device_id) -2
@@ -845,20 +847,6 @@ module_param_string(hid, tpm_pnp_tbl[TIS_HID_USR_IDX].id,
 		    sizeof(tpm_pnp_tbl[TIS_HID_USR_IDX].id), 0444);
 MODULE_PARM_DESC(hid, "Set additional specific HID for this driver to probe");
 #endif
-
-#ifdef CONFIG_PM_SLEEP
-static int tpm_tis_resume(struct device *dev)
-{
-	struct tpm_chip *chip = dev_get_drvdata(dev);
-
-	if (chip->vendor.irq)
-		tpm_tis_reenable_interrupts(chip);
-
-	return tpm_pm_resume(dev);
-}
-#endif
-
-static SIMPLE_DEV_PM_OPS(tpm_tis_pm, tpm_pm_suspend, tpm_tis_resume);
 
 static struct platform_driver tis_drv = {
 	.driver = {

@@ -48,8 +48,8 @@ static void platform_fixups(void)
 		       fdt_addr, fdt_totalsize((void *)fdt_addr), ima_size);
 }
 
-void platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
-		   unsigned long r6, unsigned long r7)
+void epapr_platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
+			 unsigned long r6, unsigned long r7)
 {
 	epapr_magic = r6;
 	ima_size = r7;

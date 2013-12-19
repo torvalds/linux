@@ -312,7 +312,9 @@ static int i2c_imx_start(struct imx_i2c_struct *i2c_imx)
 
 	dev_dbg(&i2c_imx->adapter.dev, "<%s>\n", __func__);
 
-	clk_prepare_enable(i2c_imx->clk);
+	result = clk_prepare_enable(i2c_imx->clk);
+	if (result)
+		return result;
 	imx_i2c_write_reg(i2c_imx->ifdr, i2c_imx, IMX_I2C_IFDR);
 	/* Enable I2C controller */
 	imx_i2c_write_reg(i2c_imx->hwdata->i2sr_clr_opcode, i2c_imx, IMX_I2C_I2SR);
@@ -365,7 +367,7 @@ static void i2c_imx_stop(struct imx_i2c_struct *i2c_imx)
 	clk_disable_unprepare(i2c_imx->clk);
 }
 
-static void __init i2c_imx_set_clk(struct imx_i2c_struct *i2c_imx,
+static void i2c_imx_set_clk(struct imx_i2c_struct *i2c_imx,
 							unsigned int rate)
 {
 	struct imx_i2c_clk_pair *i2c_clk_div = i2c_imx->hwdata->clk_div;
@@ -589,7 +591,7 @@ static struct i2c_algorithm i2c_imx_algo = {
 	.functionality	= i2c_imx_func,
 };
 
-static int __init i2c_imx_probe(struct platform_device *pdev)
+static int i2c_imx_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id = of_match_device(i2c_imx_dt_ids,
 							   &pdev->dev);
@@ -697,7 +699,7 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	return 0;   /* Return OK */
 }
 
-static int __exit i2c_imx_remove(struct platform_device *pdev)
+static int i2c_imx_remove(struct platform_device *pdev)
 {
 	struct imx_i2c_struct *i2c_imx = platform_get_drvdata(pdev);
 
@@ -715,7 +717,8 @@ static int __exit i2c_imx_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver i2c_imx_driver = {
-	.remove		= __exit_p(i2c_imx_remove),
+	.probe = i2c_imx_probe,
+	.remove = i2c_imx_remove,
 	.driver	= {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
@@ -726,7 +729,7 @@ static struct platform_driver i2c_imx_driver = {
 
 static int __init i2c_adap_imx_init(void)
 {
-	return platform_driver_probe(&i2c_imx_driver, i2c_imx_probe);
+	return platform_driver_register(&i2c_imx_driver);
 }
 subsys_initcall(i2c_adap_imx_init);
 

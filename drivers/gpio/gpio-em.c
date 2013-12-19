@@ -30,6 +30,7 @@
 #include <linux/gpio.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_data/gpio-em.h>
 
 struct em_gio_priv {
@@ -216,16 +217,31 @@ static int em_gio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return irq_create_mapping(gpio_to_priv(chip)->irq_domain, offset);
 }
 
-static int em_gio_irq_domain_map(struct irq_domain *h, unsigned int virq,
-				 irq_hw_number_t hw)
+static int em_gio_request(struct gpio_chip *chip, unsigned offset)
+{
+	return pinctrl_request_gpio(chip->base + offset);
+}
+
+static void em_gio_free(struct gpio_chip *chip, unsigned offset)
+{
+	pinctrl_free_gpio(chip->base + offset);
+
+	/* Set the GPIO as an input to ensure that the next GPIO request won't
+	* drive the GPIO pin as an output.
+	*/
+	em_gio_direction_input(chip, offset);
+}
+
+static int em_gio_irq_domain_map(struct irq_domain *h, unsigned int irq,
+				 irq_hw_number_t hwirq)
 {
 	struct em_gio_priv *p = h->host_data;
 
-	pr_debug("gio: map hw irq = %d, virq = %d\n", (int)hw, virq);
+	pr_debug("gio: map hw irq = %d, irq = %d\n", (int)hwirq, irq);
 
-	irq_set_chip_data(virq, h->host_data);
-	irq_set_chip_and_handler(virq, &p->irq_chip, handle_level_irq);
-	set_irq_flags(virq, IRQF_VALID); /* kill me now */
+	irq_set_chip_data(irq, h->host_data);
+	irq_set_chip_and_handler(irq, &p->irq_chip, handle_level_irq);
+	set_irq_flags(irq, IRQF_VALID); /* kill me now */
 	return 0;
 }
 
@@ -237,7 +253,7 @@ static struct irq_domain_ops em_gio_irq_domain_ops = {
 static int em_gio_probe(struct platform_device *pdev)
 {
 	struct gpio_em_config pdata_dt;
-	struct gpio_em_config *pdata = pdev->dev.platform_data;
+	struct gpio_em_config *pdata = dev_get_platdata(&pdev->dev);
 	struct em_gio_priv *p;
 	struct resource *io[2], *irq[2];
 	struct gpio_chip *gpio_chip;
@@ -303,11 +319,14 @@ static int em_gio_probe(struct platform_device *pdev)
 	}
 
 	gpio_chip = &p->gpio_chip;
+	gpio_chip->of_node = pdev->dev.of_node;
 	gpio_chip->direction_input = em_gio_direction_input;
 	gpio_chip->get = em_gio_get;
 	gpio_chip->direction_output = em_gio_direction_output;
 	gpio_chip->set = em_gio_set;
 	gpio_chip->to_irq = em_gio_to_irq;
+	gpio_chip->request = em_gio_request;
+	gpio_chip->free = em_gio_free;
 	gpio_chip->label = name;
 	gpio_chip->owner = THIS_MODULE;
 	gpio_chip->base = pdata->gpio_base;
@@ -350,6 +369,13 @@ static int em_gio_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add GPIO controller\n");
 		goto err1;
+	}
+
+	if (pdata->pctl_name) {
+		ret = gpiochip_add_pin_range(gpio_chip, pdata->pctl_name, 0,
+					     gpio_chip->base, gpio_chip->ngpio);
+		if (ret < 0)
+			dev_warn(&pdev->dev, "failed to add pin range\n");
 	}
 	return 0;
 

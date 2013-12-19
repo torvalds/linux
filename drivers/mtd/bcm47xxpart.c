@@ -27,11 +27,13 @@
 
 /* Magics */
 #define BOARD_DATA_MAGIC		0x5246504D	/* MPFR */
+#define FACTORY_MAGIC			0x59544346	/* FCTY */
 #define POT_MAGIC1			0x54544f50	/* POTT */
 #define POT_MAGIC2			0x504f		/* OP */
 #define ML_MAGIC1			0x39685a42
 #define ML_MAGIC2			0x26594131
 #define TRX_MAGIC			0x30524448
+#define SQSH_MAGIC			0x71736873	/* shsq */
 
 struct trx_header {
 	uint32_t magic;
@@ -71,7 +73,14 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 	/* Alloc */
 	parts = kzalloc(sizeof(struct mtd_partition) * BCM47XXPART_MAX_PARTS,
 			GFP_KERNEL);
+	if (!parts)
+		return -ENOMEM;
+
 	buf = kzalloc(BCM47XXPART_BYTES_TO_READ, GFP_KERNEL);
+	if (!buf) {
+		kfree(parts);
+		return -ENOMEM;
+	}
 
 	/* Parse block by block looking for magics */
 	for (offset = 0; offset <= master->size - blocksize;
@@ -106,6 +115,13 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		 */
 		if (buf[0x100 / 4] == BOARD_DATA_MAGIC) {
 			bcm47xxpart_add_part(&parts[curr_part++], "board_data",
+					     offset, MTD_WRITEABLE);
+			continue;
+		}
+
+		/* Found on Huawei E970 */
+		if (buf[0x000 / 4] == FACTORY_MAGIC) {
+			bcm47xxpart_add_part(&parts[curr_part++], "factory",
 					     offset, MTD_WRITEABLE);
 			continue;
 		}
@@ -165,6 +181,13 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 			 * offset in next step.
 			 */
 			offset = rounddown(offset + trx->length, blocksize);
+			continue;
+		}
+
+		/* Squashfs on devices not using TRX */
+		if (buf[0x000 / 4] == SQSH_MAGIC) {
+			bcm47xxpart_add_part(&parts[curr_part++], "rootfs",
+					     offset, 0);
 			continue;
 		}
 	}

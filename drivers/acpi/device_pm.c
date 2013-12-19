@@ -22,15 +22,11 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-#include <linux/device.h>
+#include <linux/acpi.h>
 #include <linux/export.h>
 #include <linux/mutex.h>
 #include <linux/pm_qos.h>
 #include <linux/pm_runtime.h>
-
-#include <acpi/acpi.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
 
 #include "internal.h"
 
@@ -118,9 +114,10 @@ int acpi_device_get_power(struct acpi_device *device, int *state)
 	/*
 	 * If we were unsure about the device parent's power state up to this
 	 * point, the fact that the device is in D0 implies that the parent has
-	 * to be in D0 too.
+	 * to be in D0 too, except if ignore_parent is set.
 	 */
-	if (device->parent && device->parent->power.state == ACPI_STATE_UNKNOWN
+	if (!device->power.flags.ignore_parent && device->parent
+	    && device->parent->power.state == ACPI_STATE_UNKNOWN
 	    && result == ACPI_STATE_D0)
 		device->parent->power.state = ACPI_STATE_D0;
 
@@ -177,7 +174,8 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 			 acpi_power_state_string(state));
 		return -ENODEV;
 	}
-	if (device->parent && (state < device->parent->power.state)) {
+	if (!device->power.flags.ignore_parent &&
+	    device->parent && (state < device->parent->power.state)) {
 		dev_warn(&device->dev,
 			 "Cannot transition to power state %s for parent in %s\n",
 			 acpi_power_state_string(state),
@@ -546,7 +544,7 @@ static int acpi_dev_pm_get_state(struct device *dev, struct acpi_device *adev,
  */
 int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p, int d_max_in)
 {
-	acpi_handle handle = DEVICE_ACPI_HANDLE(dev);
+	acpi_handle handle = ACPI_HANDLE(dev);
 	struct acpi_device *adev;
 	int ret, d_min, d_max;
 
@@ -654,7 +652,7 @@ int acpi_pm_device_run_wake(struct device *phys_dev, bool enable)
 	if (!device_run_wake(phys_dev))
 		return -EINVAL;
 
-	handle = DEVICE_ACPI_HANDLE(phys_dev);
+	handle = ACPI_HANDLE(phys_dev);
 	if (!handle || acpi_bus_get_device(handle, &adev)) {
 		dev_dbg(phys_dev, "ACPI handle without context in %s!\n",
 			__func__);
@@ -698,7 +696,7 @@ int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 	if (!device_can_wakeup(dev))
 		return -EINVAL;
 
-	handle = DEVICE_ACPI_HANDLE(dev);
+	handle = ACPI_HANDLE(dev);
 	if (!handle || acpi_bus_get_device(handle, &adev)) {
 		dev_dbg(dev, "ACPI handle without context in %s!\n", __func__);
 		return -ENODEV;
@@ -720,7 +718,7 @@ int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
  */
 struct acpi_device *acpi_dev_pm_get_node(struct device *dev)
 {
-	acpi_handle handle = DEVICE_ACPI_HANDLE(dev);
+	acpi_handle handle = ACPI_HANDLE(dev);
 	struct acpi_device *adev;
 
 	return handle && !acpi_bus_get_device(handle, &adev) ? adev : NULL;
@@ -1025,60 +1023,4 @@ void acpi_dev_pm_detach(struct device *dev, bool power_off)
 	}
 }
 EXPORT_SYMBOL_GPL(acpi_dev_pm_detach);
-
-/**
- * acpi_dev_pm_add_dependent - Add physical device depending for PM.
- * @handle: Handle of ACPI device node.
- * @depdev: Device depending on that node for PM.
- */
-void acpi_dev_pm_add_dependent(acpi_handle handle, struct device *depdev)
-{
-	struct acpi_device_physical_node *dep;
-	struct acpi_device *adev;
-
-	if (!depdev || acpi_bus_get_device(handle, &adev))
-		return;
-
-	mutex_lock(&adev->physical_node_lock);
-
-	list_for_each_entry(dep, &adev->power_dependent, node)
-		if (dep->dev == depdev)
-			goto out;
-
-	dep = kzalloc(sizeof(*dep), GFP_KERNEL);
-	if (dep) {
-		dep->dev = depdev;
-		list_add_tail(&dep->node, &adev->power_dependent);
-	}
-
- out:
-	mutex_unlock(&adev->physical_node_lock);
-}
-EXPORT_SYMBOL_GPL(acpi_dev_pm_add_dependent);
-
-/**
- * acpi_dev_pm_remove_dependent - Remove physical device depending for PM.
- * @handle: Handle of ACPI device node.
- * @depdev: Device depending on that node for PM.
- */
-void acpi_dev_pm_remove_dependent(acpi_handle handle, struct device *depdev)
-{
-	struct acpi_device_physical_node *dep;
-	struct acpi_device *adev;
-
-	if (!depdev || acpi_bus_get_device(handle, &adev))
-		return;
-
-	mutex_lock(&adev->physical_node_lock);
-
-	list_for_each_entry(dep, &adev->power_dependent, node)
-		if (dep->dev == depdev) {
-			list_del(&dep->node);
-			kfree(dep);
-			break;
-		}
-
-	mutex_unlock(&adev->physical_node_lock);
-}
-EXPORT_SYMBOL_GPL(acpi_dev_pm_remove_dependent);
 #endif /* CONFIG_PM */

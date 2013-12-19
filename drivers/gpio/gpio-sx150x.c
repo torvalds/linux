@@ -583,7 +583,7 @@ static int sx150x_probe(struct i2c_client *client,
 	struct sx150x_chip *chip;
 	int rc;
 
-	pdata = client->dev.platform_data;
+	pdata = dev_get_platdata(&client->dev);
 	if (!pdata)
 		return -EINVAL;
 

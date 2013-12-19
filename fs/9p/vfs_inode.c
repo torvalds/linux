@@ -146,7 +146,7 @@ static umode_t p9mode2unixmode(struct v9fs_session_info *v9ses,
 		char type = 0, ext[32];
 		int major = -1, minor = -1;
 
-		strncpy(ext, stat->extension, sizeof(ext));
+		strlcpy(ext, stat->extension, sizeof(ext));
 		sscanf(ext, "%c %u %u", &type, &major, &minor);
 		switch (type) {
 		case 'c':
@@ -448,9 +448,7 @@ void v9fs_evict_inode(struct inode *inode)
 	clear_inode(inode);
 	filemap_fdatawrite(inode->i_mapping);
 
-#ifdef CONFIG_9P_FSCACHE
 	v9fs_cache_inode_put_cookie(inode);
-#endif
 	/* clunk the fid stashed in writeback_fid */
 	if (v9inode->writeback_fid) {
 		p9_client_clunk(v9inode->writeback_fid);
@@ -531,9 +529,7 @@ static struct inode *v9fs_qid_iget(struct super_block *sb,
 		goto error;
 
 	v9fs_stat2inode(st, inode, sb);
-#ifdef CONFIG_9P_FSCACHE
 	v9fs_cache_inode_get_cookie(inode);
-#endif
 	unlock_new_inode(inode);
 	return inode;
 error:
@@ -905,10 +901,8 @@ v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
 		goto error;
 
 	file->private_data = fid;
-#ifdef CONFIG_9P_FSCACHE
 	if (v9ses->cache)
 		v9fs_cache_inode_set_cookie(dentry->d_inode, file);
-#endif
 
 	*opened |= FILE_CREATED;
 out:
@@ -1186,7 +1180,7 @@ v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 			 * this even with .u extension. So check
 			 * for non NULL stat->extension
 			 */
-			strncpy(ext, stat->extension, sizeof(ext));
+			strlcpy(ext, stat->extension, sizeof(ext));
 			/* HARDLINKCOUNT %u */
 			sscanf(ext, "%13s %u", tag_name, &i_nlink);
 			if (!strncmp(tag_name, "HARDLINKCOUNT", 13))

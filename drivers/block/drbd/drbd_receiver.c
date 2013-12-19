@@ -1890,29 +1890,11 @@ static u32 seq_max(u32 a, u32 b)
 	return seq_greater(a, b) ? a : b;
 }
 
-static bool need_peer_seq(struct drbd_conf *mdev)
-{
-	struct drbd_tconn *tconn = mdev->tconn;
-	int tp;
-
-	/*
-	 * We only need to keep track of the last packet_seq number of our peer
-	 * if we are in dual-primary mode and we have the resolve-conflicts flag set; see
-	 * handle_write_conflicts().
-	 */
-
-	rcu_read_lock();
-	tp = rcu_dereference(mdev->tconn->net_conf)->two_primaries;
-	rcu_read_unlock();
-
-	return tp && test_bit(RESOLVE_CONFLICTS, &tconn->flags);
-}
-
 static void update_peer_seq(struct drbd_conf *mdev, unsigned int peer_seq)
 {
 	unsigned int newest_peer_seq;
 
-	if (need_peer_seq(mdev)) {
+	if (test_bit(RESOLVE_CONFLICTS, &mdev->tconn->flags)) {
 		spin_lock(&mdev->peer_seq_lock);
 		newest_peer_seq = seq_max(mdev->peer_seq, peer_seq);
 		mdev->peer_seq = newest_peer_seq;
@@ -1972,22 +1954,31 @@ static int wait_for_and_update_peer_seq(struct drbd_conf *mdev, const u32 peer_s
 {
 	DEFINE_WAIT(wait);
 	long timeout;
-	int ret;
+	int ret = 0, tp;
 
-	if (!need_peer_seq(mdev))
+	if (!test_bit(RESOLVE_CONFLICTS, &mdev->tconn->flags))
 		return 0;
 
 	spin_lock(&mdev->peer_seq_lock);
 	for (;;) {
 		if (!seq_greater(peer_seq - 1, mdev->peer_seq)) {
 			mdev->peer_seq = seq_max(mdev->peer_seq, peer_seq);
-			ret = 0;
 			break;
 		}
+
 		if (signal_pending(current)) {
 			ret = -ERESTARTSYS;
 			break;
 		}
+
+		rcu_read_lock();
+		tp = rcu_dereference(mdev->tconn->net_conf)->two_primaries;
+		rcu_read_unlock();
+
+		if (!tp)
+			break;
+
+		/* Only need to wait if two_primaries is enabled */
 		prepare_to_wait(&mdev->seq_wait, &wait, TASK_INTERRUPTIBLE);
 		spin_unlock(&mdev->peer_seq_lock);
 		rcu_read_lock();
@@ -2228,8 +2219,10 @@ static int receive_Data(struct drbd_tconn *tconn, struct packet_info *pi)
 			}
 			goto out_interrupted;
 		}
-	} else
+	} else {
+		update_peer_seq(mdev, peer_seq);
 		spin_lock_irq(&mdev->tconn->req_lock);
+	}
 	list_add(&peer_req->w.list, &mdev->active_ee);
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
@@ -4132,7 +4125,11 @@ recv_bm_rle_bits(struct drbd_conf *mdev,
 				(unsigned int)bs.buf_len);
 			return -EIO;
 		}
-		look_ahead >>= bits;
+		/* if we consumed all 64 bits, assign 0; >> 64 is "undefined"; */
+		if (likely(bits < 64))
+			look_ahead >>= bits;
+		else
+			look_ahead = 0;
 		have -= bits;
 
 		bits = bitstream_get_bits(&bs, &tmp, 64 - have);

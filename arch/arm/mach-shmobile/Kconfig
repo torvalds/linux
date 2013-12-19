@@ -1,3 +1,35 @@
+config ARCH_SHMOBILE_MULTI
+	bool "SH-Mobile Series" if ARCH_MULTI_V7
+	depends on MMU
+	select CPU_V7
+	select GENERIC_CLOCKEVENTS
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if LOCAL_TIMERS
+	select HAVE_SMP
+	select ARM_GIC
+	select MIGHT_HAVE_CACHE_L2X0
+	select NO_IOPORT
+	select PINCTRL
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
+
+if ARCH_SHMOBILE_MULTI
+
+comment "SH-Mobile System Type"
+
+config ARCH_EMEV2
+	bool "Emma Mobile EV2"
+
+comment "SH-Mobile Board Type"
+
+config MACH_KZM9D
+	bool "KZM9D board"
+	depends on ARCH_EMEV2
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+
+comment "SH-Mobile System Configuration"
+endif
+
 if ARCH_SHMOBILE
 
 comment "SH-Mobile System Type"
@@ -23,9 +55,10 @@ config ARCH_R8A73A4
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
-	select HAVE_ARM_ARCH_TIMER
 	select SH_CLK_CPG
 	select RENESAS_IRQC
+	select ARCH_HAS_CPUFREQ
+	select ARCH_HAS_OPP
 
 config ARCH_R8A7740
 	bool "R-Mobile A1 (R8A77400)"
@@ -59,9 +92,14 @@ config ARCH_R8A7790
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
-	select HAVE_ARM_ARCH_TIMER
 	select SH_CLK_CPG
 	select RENESAS_IRQC
+
+config ARCH_R8A7791
+	bool "R-Car M2 (R8A77910)"
+	select ARM_GIC
+	select CPU_V7
+	select SH_CLK_CPG
 
 config ARCH_EMEV2
 	bool "Emma Mobile EV2"
@@ -69,19 +107,29 @@ config ARCH_EMEV2
 	select ARM_GIC
 	select CPU_V7
 
-comment "SH-Mobile Board Type"
+config ARCH_R7S72100
+	bool "RZ/A1H (R7S72100)"
+	select ARM_GIC
+	select CPU_V7
+	select SH_CLK_CPG
 
-config MACH_AG5EVM
-	bool "AG5EVM board"
-	depends on ARCH_SH73A0
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select SH_LCD_MIPI_DSI
+comment "SH-Mobile Board Type"
 
 config MACH_APE6EVM
 	bool "APE6EVM board"
 	depends on ARCH_R8A73A4
 	select USE_OF
+
+config MACH_APE6EVM_REFERENCE
+	bool "APE6EVM board - Reference Device Tree Implementation"
+	depends on ARCH_R8A73A4
+	select USE_OF
+	---help---
+	   Use reference implementation of APE6EVM board support
+	   which makes a greater use of device tree at the expense
+	   of not supporting a number of devices.
+
+	   This is intended to aid developers
 
 config MACH_MACKEREL
 	bool "mackerel board"
@@ -90,12 +138,6 @@ config MACH_MACKEREL
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	select SND_SOC_AK4642 if SND_SIMPLE_CARD
 	select USE_OF
-
-config MACH_KOTA2
-	bool "KOTA2 board"
-	depends on ARCH_SH73A0
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config MACH_ARMADILLO800EVA
 	bool "Armadillo-800 EVA board"
@@ -124,6 +166,28 @@ config MACH_BOCKW
 	depends on ARCH_R8A7778
 	select ARCH_REQUIRE_GPIOLIB
 	select RENESAS_INTC_IRQPIN
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select USE_OF
+	select SND_SOC_AK4554 if SND_SIMPLE_CARD
+	select SND_SOC_AK4642 if SND_SIMPLE_CARD
+
+config MACH_BOCKW_REFERENCE
+	bool "BOCK-W  - Reference Device Tree Implementation"
+	depends on ARCH_R8A7778
+	select ARCH_REQUIRE_GPIOLIB
+	select RENESAS_INTC_IRQPIN
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select USE_OF
+	---help---
+	   Use reference implementation of BockW board support
+	   which makes use of device tree at the expense
+	   of not supporting a number of devices.
+
+	   This is intended to aid developers
+
+config MACH_GENMAI
+	bool "Genmai board"
+	depends on ARCH_R7S72100
 	select USE_OF
 
 config MACH_MARZEN
@@ -131,6 +195,7 @@ config MACH_MARZEN
 	depends on ARCH_R8A7779
 	select ARCH_REQUIRE_GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select USE_OF
 
 config MACH_MARZEN_REFERENCE
 	bool "MARZEN board - Reference Device Tree Implementation"
@@ -148,6 +213,22 @@ config MACH_MARZEN_REFERENCE
 config MACH_LAGER
 	bool "Lager board"
 	depends on ARCH_R8A7790
+	select USE_OF
+
+config MACH_LAGER_REFERENCE
+	bool "Lager board - Reference Device Tree Implementation"
+	depends on ARCH_R8A7790
+	select USE_OF
+	---help---
+	   Use reference implementation of Lager board support
+	   which makes use of device tree at the expense
+	   of not supporting a number of devices.
+
+	   This is intended to aid developers
+
+config MACH_KOELSCH
+	bool "Koelsch board"
+	depends on ARCH_R8A7791
 	select USE_OF
 
 config MACH_KZM9D
@@ -186,6 +267,15 @@ config CPU_HAS_INTEVT
         bool
 	default y
 
+config SH_CLK_CPG
+	bool
+
+source "drivers/sh/Kconfig"
+
+endif
+
+if ARCH_SHMOBILE || ARCH_SHMOBILE_MULTI
+
 menu "Timer and clock configuration"
 
 config SHMOBILE_TIMER_HZ
@@ -219,10 +309,5 @@ config EM_TIMER_STI
 	  This enables build of the STI timer driver.
 
 endmenu
-
-config SH_CLK_CPG
-	bool
-
-source "drivers/sh/Kconfig"
 
 endif

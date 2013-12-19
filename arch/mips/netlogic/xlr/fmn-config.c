@@ -36,6 +36,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 
+#include <asm/cpu.h>
 #include <asm/mipsregs.h>
 #include <asm/netlogic/xlr/fmn.h>
 #include <asm/netlogic/xlr/xlr.h>
@@ -187,7 +188,7 @@ void xlr_board_info_setup(void)
 	int processor_id, num_core;
 
 	num_core = hweight32(nlm_current_node()->coremask);
-	processor_id = read_c0_prid() & 0xff00;
+	processor_id = read_c0_prid() & PRID_IMP_MASK;
 
 	setup_cpu_fmninfo(cpu, num_core);
 	switch (processor_id) {

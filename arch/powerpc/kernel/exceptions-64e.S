@@ -198,9 +198,9 @@ exc_##n##_common:							    \
 /* This second version is meant for exceptions that don't immediately
  * hard-enable. We set a bit in paca->irq_happened to ensure that
  * a subsequent call to arch_local_irq_restore() will properly
- * hard-enable and avoid the fast-path
+ * hard-enable and avoid the fast-path, and then reconcile irq state.
  */
-#define INTS_DISABLE	SOFT_DISABLE_INTS(r3,r4)
+#define INTS_DISABLE	RECONCILE_IRQ_STATE(r3,r4)
 
 /* This is called by exceptions that used INTS_KEEP (that did not touch
  * irq indicators in the PACA). This will restore MSR:EE to it's previous
@@ -399,7 +399,7 @@ interrupt_end_book3e:
 
 /* Altivec Unavailable Interrupt */
 	START_EXCEPTION(altivec_unavailable);
-	NORMAL_EXCEPTION_PROLOG(0x200, BOOKE_INTERRUPT_ALTIVEC_UNAVAIL,
+	NORMAL_EXCEPTION_PROLOG(0x200, BOOKE_INTERRUPT_SPE_ALTIVEC_UNAVAIL,
 				PROLOG_ADDITION_NONE)
 	/* we can probably do a shorter exception entry for that one... */
 	EXCEPTION_COMMON(0x200, PACA_EXGEN, INTS_KEEP)
@@ -421,7 +421,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 
 /* AltiVec Assist */
 	START_EXCEPTION(altivec_assist);
-	NORMAL_EXCEPTION_PROLOG(0x220, BOOKE_INTERRUPT_ALTIVEC_ASSIST,
+	NORMAL_EXCEPTION_PROLOG(0x220,
+				BOOKE_INTERRUPT_SPE_FP_DATA_ALTIVEC_ASSIST,
 				PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0x220, PACA_EXGEN, INTS_DISABLE)
 	bl	.save_nvgprs
@@ -607,6 +608,7 @@ kernel_dbg_exc:
 	NORMAL_EXCEPTION_PROLOG(0x260, BOOKE_INTERRUPT_PERFORMANCE_MONITOR,
 				PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0x260, PACA_EXGEN, INTS_DISABLE)
+	CHECK_NAPPING()
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.performance_monitor_exception
 	b	.ret_from_except_lite

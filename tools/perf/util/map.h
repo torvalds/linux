@@ -36,6 +36,9 @@ struct map {
 	bool			erange_warned;
 	u32			priv;
 	u64			pgoff;
+	u32			maj, min; /* only valid for MMAP2 record */
+	u64			ino;      /* only valid for MMAP2 record */
+	u64			ino_generation;/* only valid for MMAP2 record */
 
 	/* ip -> dso rip */
 	u64			(*map_ip)(struct map *, u64);
@@ -81,6 +84,9 @@ static inline u64 identity__map_ip(struct map *map __maybe_unused, u64 ip)
 /* rip/ip <-> addr suitable for passing to `objdump --start-address=` */
 u64 map__rip_2objdump(struct map *map, u64 rip);
 
+/* objdump address -> memory address */
+u64 map__objdump_2mem(struct map *map, u64 ip);
+
 struct symbol;
 
 typedef int (*symbol_filter_t)(struct map *map, struct symbol *sym);
@@ -88,8 +94,9 @@ typedef int (*symbol_filter_t)(struct map *map, struct symbol *sym);
 void map__init(struct map *map, enum map_type type,
 	       u64 start, u64 end, u64 pgoff, struct dso *dso);
 struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
-		     u64 pgoff, u32 pid, char *filename,
-		     enum map_type type);
+		     u64 pgoff, u32 pid, u32 d_maj, u32 d_min, u64 ino,
+		     u64 ino_gen,
+		     char *filename, enum map_type type);
 struct map *map__new2(u64 start, struct dso *dso, enum map_type type);
 void map__delete(struct map *map);
 struct map *map__clone(struct map *map);
@@ -162,6 +169,10 @@ struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg,
 					       const char *name,
 					       struct map **mapp,
 					       symbol_filter_t filter);
+
+struct addr_map_symbol;
+
+int map_groups__find_ams(struct addr_map_symbol *ams, symbol_filter_t filter);
 
 static inline
 struct symbol *map_groups__find_function_by_name(struct map_groups *mg,

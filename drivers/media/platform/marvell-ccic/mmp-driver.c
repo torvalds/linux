@@ -142,12 +142,6 @@ static int mmpcam_power_up(struct mcam_camera *mcam)
 	struct mmp_camera *cam = mcam_to_cam(mcam);
 	struct mmp_camera_platform_data *pdata;
 
-	if (mcam->bus_type == V4L2_MBUS_CSI2) {
-		cam->mipi_clk = devm_clk_get(mcam->dev, "mipi");
-		if ((IS_ERR(cam->mipi_clk) && mcam->dphy[2] == 0))
-			return PTR_ERR(cam->mipi_clk);
-	}
-
 /*
  * Turn on power and clocks to the controller.
  */
@@ -185,12 +179,6 @@ static void mmpcam_power_down(struct mcam_camera *mcam)
 	pdata = cam->pdev->dev.platform_data;
 	gpio_set_value(pdata->sensor_power_gpio, 0);
 	gpio_set_value(pdata->sensor_reset_gpio, 0);
-
-	if (mcam->bus_type == V4L2_MBUS_CSI2 && !IS_ERR(cam->mipi_clk)) {
-		if (cam->mipi_clk)
-			devm_clk_put(mcam->dev, cam->mipi_clk);
-		cam->mipi_clk = NULL;
-	}
 
 	mcam_clk_disable(mcam);
 }
@@ -292,8 +280,9 @@ void mmpcam_calc_dphy(struct mcam_camera *mcam)
 		return;
 
 	/* get the escape clk, this is hard coded */
+	clk_prepare_enable(cam->mipi_clk);
 	tx_clk_esc = (clk_get_rate(cam->mipi_clk) / 1000000) / 12;
-
+	clk_disable_unprepare(cam->mipi_clk);
 	/*
 	 * dphy[2] - CSI2_DPHY6:
 	 * bit 0 ~ bit 7: CK Term Enable
@@ -323,19 +312,6 @@ static irqreturn_t mmpcam_irq(int irq, void *data)
 	handled = mccic_irq(mcam, irqs);
 	spin_unlock(&mcam->dev_lock);
 	return IRQ_RETVAL(handled);
-}
-
-static void mcam_deinit_clk(struct mcam_camera *mcam)
-{
-	unsigned int i;
-
-	for (i = 0; i < NR_MCAM_CLK; i++) {
-		if (!IS_ERR(mcam->clk[i])) {
-			if (mcam->clk[i])
-				devm_clk_put(mcam->dev, mcam->clk[i]);
-		}
-		mcam->clk[i] = NULL;
-	}
 }
 
 static void mcam_init_clk(struct mcam_camera *mcam)
@@ -371,7 +347,6 @@ static int mmpcam_probe(struct platform_device *pdev)
 	if (cam == NULL)
 		return -ENOMEM;
 	cam->pdev = pdev;
-	cam->mipi_clk = NULL;
 	INIT_LIST_HEAD(&cam->devlist);
 
 	mcam = &cam->mcam;
@@ -387,6 +362,11 @@ static int mmpcam_probe(struct platform_device *pdev)
 	mcam->mclk_div = pdata->mclk_div;
 	mcam->bus_type = pdata->bus_type;
 	mcam->dphy = pdata->dphy;
+	if (mcam->bus_type == V4L2_MBUS_CSI2) {
+		cam->mipi_clk = devm_clk_get(mcam->dev, "mipi");
+		if ((IS_ERR(cam->mipi_clk) && mcam->dphy[2] == 0))
+			return PTR_ERR(cam->mipi_clk);
+	}
 	mcam->mipi_enabled = false;
 	mcam->lane = pdata->lane;
 	mcam->chip_id = MCAM_ARMADA610;
@@ -444,7 +424,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	 */
 	ret = mmpcam_power_up(mcam);
 	if (ret)
-		goto out_deinit_clk;
+		return ret;
 	ret = mccic_register(mcam);
 	if (ret)
 		goto out_power_down;
@@ -469,8 +449,6 @@ out_unregister:
 	mccic_shutdown(mcam);
 out_power_down:
 	mmpcam_power_down(mcam);
-out_deinit_clk:
-	mcam_deinit_clk(mcam);
 	return ret;
 }
 
@@ -478,19 +456,10 @@ out_deinit_clk:
 static int mmpcam_remove(struct mmp_camera *cam)
 {
 	struct mcam_camera *mcam = &cam->mcam;
-	struct mmp_camera_platform_data *pdata;
 
 	mmpcam_remove_device(cam);
-	free_irq(cam->irq, mcam);
 	mccic_shutdown(mcam);
 	mmpcam_power_down(mcam);
-	pdata = cam->pdev->dev.platform_data;
-	gpio_free(pdata->sensor_reset_gpio);
-	gpio_free(pdata->sensor_power_gpio);
-	mcam_deinit_clk(mcam);
-	iounmap(cam->power_regs);
-	iounmap(mcam->regs);
-	kfree(cam);
 	return 0;
 }
 

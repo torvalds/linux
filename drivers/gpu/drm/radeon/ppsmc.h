@@ -163,6 +163,8 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_MSG_VCEPowerON                ((uint32_t) 0x10f)
 #define PPSMC_MSG_DCE_RemoveVoltageAdjustment   ((uint32_t) 0x11d)
 #define PPSMC_MSG_DCE_AllowVoltageAdjustment    ((uint32_t) 0x11e)
+#define PPSMC_MSG_EnableBAPM                ((uint32_t) 0x120)
+#define PPSMC_MSG_DisableBAPM               ((uint32_t) 0x121)
 #define PPSMC_MSG_UVD_DPM_Config            ((uint32_t) 0x124)
 
 

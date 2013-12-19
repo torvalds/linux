@@ -1865,8 +1865,10 @@ lpfc_##attr##_set(struct lpfc_vport *vport, uint val) \
 { \
 	if (val >= minval && val <= maxval) {\
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT, \
-			"3053 lpfc_" #attr " changed from %d to %d\n", \
-			vport->cfg_##attr, val); \
+			"3053 lpfc_" #attr \
+			" changed from %d (x%x) to %d (x%x)\n", \
+			vport->cfg_##attr, vport->cfg_##attr, \
+			val, val); \
 		vport->cfg_##attr = val;\
 		return 0;\
 	}\
@@ -4011,8 +4013,11 @@ LPFC_ATTR_R(ack0, 0, 0, 1, "Enable ACK0 support");
 # For [0], FCP commands are issued to Work Queues ina round robin fashion.
 # For [1], FCP commands are issued to a Work Queue associated with the
 #          current CPU.
+# It would be set to 1 by the driver if it's able to set up cpu affinity
+# for FCP I/Os through Work Queue associated with the current CPU. Otherwise,
+# roundrobin scheduling of FCP I/Os through WQs will be used.
 */
-LPFC_ATTR_RW(fcp_io_sched, 0, 0, 1, "Determine scheduling algrithmn for "
+LPFC_ATTR_RW(fcp_io_sched, 0, 0, 1, "Determine scheduling algorithm for "
 		"issuing commands [0] - Round Robin, [1] - Current CPU");
 
 /*
@@ -4109,6 +4114,12 @@ LPFC_VPORT_ATTR_R(max_luns, 255, 0, 65535, "Maximum allowed LUN ID");
 LPFC_ATTR_RW(poll_tmo, 10, 1, 255,
 	     "Milliseconds driver will wait between polling FCP ring");
 
+/*
+# lpfc_task_mgmt_tmo: Maximum time to wait for task management commands
+# to complete in seconds. Value range is [5,180], default value is 60.
+*/
+LPFC_ATTR_RW(task_mgmt_tmo, 60, 5, 180,
+	     "Maximum time to wait for task management commands to complete");
 /*
 # lpfc_use_msi: Use MSI (Message Signaled Interrupts) in systems that
 #		support this feature
@@ -4295,6 +4306,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_issue_reset,
 	&dev_attr_lpfc_poll,
 	&dev_attr_lpfc_poll_tmo,
+	&dev_attr_lpfc_task_mgmt_tmo,
 	&dev_attr_lpfc_use_msi,
 	&dev_attr_lpfc_fcp_imax,
 	&dev_attr_lpfc_fcp_cpu_map,
@@ -5274,6 +5286,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_topology_init(phba, lpfc_topology);
 	lpfc_link_speed_init(phba, lpfc_link_speed);
 	lpfc_poll_tmo_init(phba, lpfc_poll_tmo);
+	lpfc_task_mgmt_tmo_init(phba, lpfc_task_mgmt_tmo);
 	lpfc_enable_npiv_init(phba, lpfc_enable_npiv);
 	lpfc_fcf_failover_policy_init(phba, lpfc_fcf_failover_policy);
 	lpfc_enable_rrq_init(phba, lpfc_enable_rrq);

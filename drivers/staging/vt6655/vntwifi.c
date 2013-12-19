@@ -752,25 +752,3 @@ VNTWIFIbChannelSwitch(
 	//spin_unlock_irq(&pDevice->lock);
 	return true;
 }
-
-/*
-  bool
-  VNTWIFIbRadarPresent(
-  void *pMgmtObject,
-  unsigned char byChannel
-) {
-  PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtObject;
-  if ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) &&
-  (byChannel == (unsigned char) pMgmt->uCurrChannel) &&
-  (pMgmt->bSwitchChannel != true) &&
-  (pMgmt->b11hEnable == true)) {
-  if (!compare_ether_addr(pMgmt->abyIBSSDFSOwner, CARDpGetCurrentAddress(pMgmt->pAdapter))) {
-  pMgmt->byNewChannel = CARDbyAutoChannelSelect(pMgmt->pAdapter,(unsigned char) pMgmt->uCurrChannel);
-  pMgmt->bSwitchChannel = true;
-  }
-  BEACONbSendBeacon(pMgmt);
-  CARDbChannelSwitch(pMgmt->pAdapter, 0, pMgmt->byNewChannel, 10);
-  }
-  return true;
-  }
-*/

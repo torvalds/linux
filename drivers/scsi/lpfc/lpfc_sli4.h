@@ -523,7 +523,7 @@ struct lpfc_sli4_hba {
 	struct lpfc_queue *hdr_rq; /* Slow-path Header Receive queue */
 	struct lpfc_queue *dat_rq; /* Slow-path Data Receive queue */
 
-	uint8_t fw_func_mode;	/* FW function protocol mode */
+	uint32_t fw_func_mode;	/* FW function protocol mode */
 	uint32_t ulp0_mode;	/* ULP0 protocol mode */
 	uint32_t ulp1_mode;	/* ULP1 protocol mode */
 
@@ -673,6 +673,7 @@ void lpfc_sli4_queue_unset(struct lpfc_hba *);
 int lpfc_sli4_post_sgl(struct lpfc_hba *, dma_addr_t, dma_addr_t, uint16_t);
 int lpfc_sli4_repost_scsi_sgl_list(struct lpfc_hba *);
 uint16_t lpfc_sli4_next_xritag(struct lpfc_hba *);
+void lpfc_sli4_free_xri(struct lpfc_hba *, int);
 int lpfc_sli4_post_async_mbox(struct lpfc_hba *);
 int lpfc_sli4_post_scsi_sgl_block(struct lpfc_hba *, struct list_head *, int);
 struct lpfc_cq_event *__lpfc_sli4_cq_event_alloc(struct lpfc_hba *);

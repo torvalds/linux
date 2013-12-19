@@ -383,8 +383,8 @@ int ptlrpc_start_pinger(void)
 
 	/* CLONE_VM and CLONE_FILES just avoid a needless copy, because we
 	 * just drop the VM and FILES in cfs_daemonize_ctxt() right away. */
-	rc = PTR_ERR(kthread_run(ptlrpc_pinger_main,
-				 &pinger_thread, pinger_thread.t_name));
+	rc = PTR_ERR(kthread_run(ptlrpc_pinger_main, &pinger_thread,
+				 "%s", pinger_thread.t_name));
 	if (IS_ERR_VALUE(rc)) {
 		CERROR("cannot start thread: %d\n", rc);
 		return rc;
@@ -409,8 +409,8 @@ int ptlrpc_stop_pinger(void)
 	struct l_wait_info lwi = { 0 };
 	int rc = 0;
 
-	if (!thread_is_init(&pinger_thread) &&
-	    !thread_is_stopped(&pinger_thread))
+	if (thread_is_init(&pinger_thread) ||
+	    thread_is_stopped(&pinger_thread))
 		return -EALREADY;
 
 	ptlrpc_pinger_remove_timeouts();

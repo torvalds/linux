@@ -135,7 +135,7 @@ static void delete_lt3593_led(struct lt3593_led_data *led)
 
 static int lt3593_led_probe(struct platform_device *pdev)
 {
-	struct gpio_led_platform_data *pdata = pdev->dev.platform_data;
+	struct gpio_led_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct lt3593_led_data *leds_data;
 	int i, ret = 0;
 
@@ -169,7 +169,7 @@ err:
 static int lt3593_led_remove(struct platform_device *pdev)
 {
 	int i;
-	struct gpio_led_platform_data *pdata = pdev->dev.platform_data;
+	struct gpio_led_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct lt3593_led_data *leds_data;
 
 	leds_data = platform_get_drvdata(pdev);

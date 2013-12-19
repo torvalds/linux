@@ -252,8 +252,6 @@ static acpi_status wmi_method_enable(struct wmi_block *wblock, int enable)
 {
 	struct guid_block *block = NULL;
 	char method[5];
-	struct acpi_object_list input;
-	union acpi_object params[1];
 	acpi_status status;
 	acpi_handle handle;
 
@@ -263,13 +261,9 @@ static acpi_status wmi_method_enable(struct wmi_block *wblock, int enable)
 	if (!block)
 		return AE_NOT_EXIST;
 
-	input.count = 1;
-	input.pointer = params;
-	params[0].type = ACPI_TYPE_INTEGER;
-	params[0].integer.value = enable;
 
 	snprintf(method, 5, "WE%02X", block->notify_id);
-	status = acpi_evaluate_object(handle, method, &input, NULL);
+	status = acpi_execute_simple_method(handle, method, enable);
 
 	if (status != AE_OK && status != AE_NOT_FOUND)
 		return status;
@@ -353,10 +347,10 @@ struct acpi_buffer *out)
 {
 	struct guid_block *block = NULL;
 	struct wmi_block *wblock = NULL;
-	acpi_handle handle, wc_handle;
+	acpi_handle handle;
 	acpi_status status, wc_status = AE_ERROR;
-	struct acpi_object_list input, wc_input;
-	union acpi_object wc_params[1], wq_params[1];
+	struct acpi_object_list input;
+	union acpi_object wq_params[1];
 	char method[5];
 	char wc_method[5] = "WC";
 
@@ -386,11 +380,6 @@ struct acpi_buffer *out)
 	 * enable collection.
 	 */
 	if (block->flags & ACPI_WMI_EXPENSIVE) {
-		wc_input.count = 1;
-		wc_input.pointer = wc_params;
-		wc_params[0].type = ACPI_TYPE_INTEGER;
-		wc_params[0].integer.value = 1;
-
 		strncat(wc_method, block->object_id, 2);
 
 		/*
@@ -398,10 +387,9 @@ struct acpi_buffer *out)
 		 * expensive, but have no corresponding WCxx method. So we
 		 * should not fail if this happens.
 		 */
-		wc_status = acpi_get_handle(handle, wc_method, &wc_handle);
-		if (ACPI_SUCCESS(wc_status))
-			wc_status = acpi_evaluate_object(handle, wc_method,
-				&wc_input, NULL);
+		if (acpi_has_method(handle, wc_method))
+			wc_status = acpi_execute_simple_method(handle,
+								wc_method, 1);
 	}
 
 	strcpy(method, "WQ");
@@ -414,9 +402,7 @@ struct acpi_buffer *out)
 	 * the WQxx method failed - we should disable collection anyway.
 	 */
 	if ((block->flags & ACPI_WMI_EXPENSIVE) && ACPI_SUCCESS(wc_status)) {
-		wc_params[0].integer.value = 0;
-		status = acpi_evaluate_object(handle,
-		wc_method, &wc_input, NULL);
+		status = acpi_execute_simple_method(handle, wc_method, 0);
 	}
 
 	return status;
@@ -686,8 +672,10 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 	struct wmi_block *wblock;
 
 	wblock = dev_get_drvdata(dev);
-	if (!wblock)
-		return -ENOMEM;
+	if (!wblock) {
+		strcat(buf, "\n");
+		return strlen(buf);
+	}
 
 	wmi_gtoa(wblock->gblock.guid, guid_string);
 
@@ -780,7 +768,7 @@ static bool guid_already_parsed(const char *guid_string)
 /*
  * Parse the _WDG method for the GUID data blocks
  */
-static acpi_status parse_wdg(acpi_handle handle)
+static int parse_wdg(acpi_handle handle)
 {
 	struct acpi_buffer out = {ACPI_ALLOCATE_BUFFER, NULL};
 	union acpi_object *obj;
@@ -812,7 +800,7 @@ static acpi_status parse_wdg(acpi_handle handle)
 
 		wblock = kzalloc(sizeof(struct wmi_block), GFP_KERNEL);
 		if (!wblock)
-			return AE_NO_MEMORY;
+			return -ENOMEM;
 
 		wblock->handle = handle;
 		wblock->gblock = gblock[i];

@@ -1,8 +1,8 @@
 /dts-v1/;
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-6281.dtsi"
-/include/ "kirkwood-ts219.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
+#include "kirkwood-ts219.dtsi"
 
 / {
 	ocp@f1000000 {
@@ -51,3 +51,5 @@
 		};
 	};
 };
+
+&ethphy0 { reg = <8>; };

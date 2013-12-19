@@ -247,7 +247,6 @@ static void bt3c_receive(bt3c_info_t *info)
 
 		if (info->rx_state == RECV_WAIT_PACKET_TYPE) {
 
-			info->rx_skb->dev = (void *) info->hdev;
 			bt_cb(info->rx_skb)->pkt_type = inb(iobase + DATA_L);
 			inb(iobase + DATA_H);
 			//printk("bt3c: PACKET_TYPE=%02x\n", bt_cb(info->rx_skb)->pkt_type);
@@ -318,7 +317,7 @@ static void bt3c_receive(bt3c_info_t *info)
 					break;
 
 				case RECV_WAIT_DATA:
-					hci_recv_frame(info->rx_skb);
+					hci_recv_frame(info->hdev, info->rx_skb);
 					info->rx_skb = NULL;
 					break;
 
@@ -416,18 +415,10 @@ static int bt3c_hci_close(struct hci_dev *hdev)
 }
 
 
-static int bt3c_hci_send_frame(struct sk_buff *skb)
+static int bt3c_hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	bt3c_info_t *info;
-	struct hci_dev *hdev = (struct hci_dev *)(skb->dev);
+	bt3c_info_t *info = hci_get_drvdata(hdev);
 	unsigned long flags;
-
-	if (!hdev) {
-		BT_ERR("Frame for unknown HCI device (hdev=NULL)");
-		return -ENODEV;
-	}
-
-	info = hci_get_drvdata(hdev);
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
@@ -452,12 +443,6 @@ static int bt3c_hci_send_frame(struct sk_buff *skb)
 	spin_unlock_irqrestore(&(info->lock), flags);
 
 	return 0;
-}
-
-
-static int bt3c_hci_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned long arg)
-{
-	return -ENOIOCTLCMD;
 }
 
 
@@ -577,11 +562,10 @@ static int bt3c_open(bt3c_info_t *info)
 	hci_set_drvdata(hdev, info);
 	SET_HCIDEV_DEV(hdev, &info->p_dev->dev);
 
-	hdev->open     = bt3c_hci_open;
-	hdev->close    = bt3c_hci_close;
-	hdev->flush    = bt3c_hci_flush;
-	hdev->send     = bt3c_hci_send_frame;
-	hdev->ioctl    = bt3c_hci_ioctl;
+	hdev->open  = bt3c_hci_open;
+	hdev->close = bt3c_hci_close;
+	hdev->flush = bt3c_hci_flush;
+	hdev->send  = bt3c_hci_send_frame;
 
 	/* Load firmware */
 	err = request_firmware(&firmware, "BT3CPCC.bin", &info->p_dev->dev);

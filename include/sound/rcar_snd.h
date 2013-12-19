@@ -36,7 +36,6 @@
 #define RSND_SSI_CLK_PIN_SHARE		(1 << 31)
 #define RSND_SSI_CLK_FROM_ADG		(1 << 30) /* clock parent is master */
 #define RSND_SSI_SYNC			(1 << 29) /* SSI34_sync etc */
-#define RSND_SSI_DEPENDENT		(1 << 28) /* SSI needs SRU/SCU */
 
 #define RSND_SSI_PLAY			(1 << 24)
 
@@ -55,7 +54,7 @@ struct rsnd_ssi_platform_info {
 /*
  * flags
  */
-#define RSND_SCU_USB_HPBIF		(1 << 31) /* it needs RSND_SSI_DEPENDENT */
+#define RSND_SCU_USE_HPBIF		(1 << 31) /* it needs RSND_SSI_DEPENDENT */
 
 struct rsnd_scu_platform_info {
 	u32 flags;
@@ -68,6 +67,7 @@ struct rsnd_scu_platform_info {
  *
  * A : generation
  */
+#define RSND_GEN_MASK	(0xF << 0)
 #define RSND_GEN1	(1 << 0) /* fixme */
 #define RSND_GEN2	(2 << 0) /* fixme */
 

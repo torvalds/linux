@@ -55,17 +55,9 @@
 #define PKMAP_BASE   ((FIXADDR_BOOT_START - PAGE_SIZE*LAST_PKMAP) & PGDIR_MASK)
 
 #ifdef CONFIG_HIGHMEM
-# define __VMAPPING_END	(PKMAP_BASE & ~(HPAGE_SIZE-1))
+# define _VMALLOC_END	(PKMAP_BASE & ~(HPAGE_SIZE-1))
 #else
-# define __VMAPPING_END	(FIXADDR_START & ~(HPAGE_SIZE-1))
-#endif
-
-#ifdef CONFIG_HUGEVMAP
-#define HUGE_VMAP_END	__VMAPPING_END
-#define HUGE_VMAP_BASE	(HUGE_VMAP_END - CONFIG_NR_HUGE_VMAPS * HPAGE_SIZE)
-#define _VMALLOC_END	HUGE_VMAP_BASE
-#else
-#define _VMALLOC_END	__VMAPPING_END
+# define _VMALLOC_END	(FIXADDR_START & ~(HPAGE_SIZE-1))
 #endif
 
 /*
@@ -84,10 +76,12 @@ extern unsigned long VMALLOC_RESERVE /* = CONFIG_VMALLOC_RESERVE */;
 /* We have no pmd or pud since we are strictly a two-level page table */
 #include <asm-generic/pgtable-nopmd.h>
 
+static inline int pud_huge_page(pud_t pud)	{ return 0; }
+
 /* We don't define any pgds for these addresses. */
 static inline int pgd_addr_invalid(unsigned long addr)
 {
-	return addr >= MEM_HV_INTRPT;
+	return addr >= MEM_HV_START;
 }
 
 /*

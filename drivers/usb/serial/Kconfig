@@ -60,7 +60,7 @@ config USB_SERIAL_SIMPLE
 		- Suunto ANT+ USB device.
 		- Fundamental Software dongle.
 		- HP4x calculators
-		- a number of Motoroloa phones
+		- a number of Motorola phones
 		- Siemens USB/MPI adapter.
 		- ViVOtech ViVOpay USB device.
 		- Infineon Modem Flashloader USB interface

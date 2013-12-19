@@ -931,8 +931,6 @@ static void intelfb_pci_unregister(struct pci_dev *pdev)
 		return;
 
 	cleanup(dinfo);
-
-	pci_set_drvdata(pdev, NULL);
 }
 
 /***************************************************************

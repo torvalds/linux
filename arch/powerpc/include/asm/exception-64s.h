@@ -48,17 +48,18 @@
 #define EX_LR		72
 #define EX_CFAR		80
 #define EX_PPR		88	/* SMT thread status register (priority) */
+#define EX_CTR		96
 
 #ifdef CONFIG_RELOCATABLE
 #define __EXCEPTION_RELON_PROLOG_PSERIES_1(label, h)			\
 	ld	r12,PACAKBASE(r13);	/* get high part of &label */	\
 	mfspr	r11,SPRN_##h##SRR0;	/* save SRR0 */			\
 	LOAD_HANDLER(r12,label);					\
-	mtlr	r12;							\
+	mtctr	r12;							\
 	mfspr	r12,SPRN_##h##SRR1;	/* and SRR1 */			\
 	li	r10,MSR_RI;						\
 	mtmsrd 	r10,1;			/* Set RI (EE=0) */		\
-	blr;
+	bctr;
 #else
 /* If not relocatable, we can jump directly -- and save messing with LR */
 #define __EXCEPTION_RELON_PROLOG_PSERIES_1(label, h)			\
@@ -97,18 +98,18 @@
 
 #if defined(CONFIG_RELOCATABLE)
 /*
- * If we support interrupts with relocation on AND we're a relocatable
- * kernel, we need to use LR to get to the 2nd level handler.  So, save/restore
- * it when required.
+ * If we support interrupts with relocation on AND we're a relocatable kernel,
+ * we need to use CTR to get to the 2nd level handler.  So, save/restore it
+ * when required.
  */
-#define SAVE_LR(reg, area)	mflr	reg ; 	std	reg,area+EX_LR(r13)
-#define GET_LR(reg, area) 			ld	reg,area+EX_LR(r13)
-#define RESTORE_LR(reg, area)	ld	reg,area+EX_LR(r13) ; mtlr reg
+#define SAVE_CTR(reg, area)	mfctr	reg ; 	std	reg,area+EX_CTR(r13)
+#define GET_CTR(reg, area) 			ld	reg,area+EX_CTR(r13)
+#define RESTORE_CTR(reg, area)	ld	reg,area+EX_CTR(r13) ; mtctr reg
 #else
-/* ...else LR is unused and in register. */
-#define SAVE_LR(reg, area)
-#define GET_LR(reg, area) 	mflr	reg
-#define RESTORE_LR(reg, area)
+/* ...else CTR is unused and in register. */
+#define SAVE_CTR(reg, area)
+#define GET_CTR(reg, area) 	mfctr	reg
+#define RESTORE_CTR(reg, area)
 #endif
 
 /*
@@ -164,7 +165,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 #define __EXCEPTION_PROLOG_1(area, extra, vec)				\
 	OPT_SAVE_REG_TO_PACA(area+EX_PPR, r9, CPU_FTR_HAS_PPR);		\
 	OPT_SAVE_REG_TO_PACA(area+EX_CFAR, r10, CPU_FTR_CFAR);		\
-	SAVE_LR(r10, area);						\
+	SAVE_CTR(r10, area);						\
 	mfcr	r9;							\
 	extra(vec);							\
 	std	r11,area+EX_R11(r13);					\
@@ -197,12 +198,27 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	cmpwi	r10,0;							\
 	bne	do_kvm_##n
 
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+/*
+ * If hv is possible, interrupts come into to the hv version
+ * of the kvmppc_interrupt code, which then jumps to the PR handler,
+ * kvmppc_interrupt_pr, if the guest is a PR guest.
+ */
+#define kvmppc_interrupt kvmppc_interrupt_hv
+#else
+#define kvmppc_interrupt kvmppc_interrupt_pr
+#endif
+
 #define __KVM_HANDLER(area, h, n)					\
 do_kvm_##n:								\
 	BEGIN_FTR_SECTION_NESTED(947)					\
 	ld	r10,area+EX_CFAR(r13);					\
 	std	r10,HSTATE_CFAR(r13);					\
 	END_FTR_SECTION_NESTED(CPU_FTR_CFAR,CPU_FTR_CFAR,947);		\
+	BEGIN_FTR_SECTION_NESTED(948)					\
+	ld	r10,area+EX_PPR(r13);					\
+	std	r10,HSTATE_PPR(r13);					\
+	END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948);	\
 	ld	r10,area+EX_R10(r13);					\
 	stw	r9,HSTATE_SCRATCH1(r13);				\
 	ld	r9,area+EX_R9(r13);					\
@@ -216,6 +232,10 @@ do_kvm_##n:								\
 	ld	r10,area+EX_R10(r13);					\
 	beq	89f;							\
 	stw	r9,HSTATE_SCRATCH1(r13);			\
+	BEGIN_FTR_SECTION_NESTED(948)					\
+	ld	r9,area+EX_PPR(r13);					\
+	std	r9,HSTATE_PPR(r13);					\
+	END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948);	\
 	ld	r9,area+EX_R9(r13);					\
 	std	r12,HSTATE_SCRATCH0(r13);			\
 	li	r12,n;							\
@@ -235,7 +255,7 @@ do_kvm_##n:								\
 #define KVM_HANDLER_SKIP(area, h, n)
 #endif
 
-#ifdef CONFIG_KVM_BOOK3S_PR
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 #define KVMTEST_PR(n)			__KVMTEST(n)
 #define KVM_HANDLER_PR(area, h, n)	__KVM_HANDLER(area, h, n)
 #define KVM_HANDLER_PR_SKIP(area, h, n)	__KVM_HANDLER_SKIP(area, h, n)
@@ -270,7 +290,7 @@ do_kvm_##n:								\
 	sth	r1,PACA_TRAP_SAVE(r13);					   \
 	std	r3,area+EX_R3(r13);					   \
 	addi	r3,r13,area;		/* r3 -> where regs are saved*/	   \
-	RESTORE_LR(r1, area);						   \
+	RESTORE_CTR(r1, area);						   \
 	b	bad_stack;						   \
 3:	std	r9,_CCR(r1);		/* save CR in stackframe	*/ \
 	std	r11,_NIP(r1);		/* save SRR0 in stackframe	*/ \
@@ -298,10 +318,10 @@ do_kvm_##n:								\
 	ld	r10,area+EX_CFAR(r13);					   \
 	std	r10,ORIG_GPR3(r1);					   \
 	END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 66);		   \
-	GET_LR(r9,area);		/* Get LR, later save to stack	*/ \
+	mflr	r9;			/* Get LR, later save to stack	*/ \
 	ld	r2,PACATOC(r13);	/* get kernel TOC into r2	*/ \
 	std	r9,_LINK(r1);						   \
-	mfctr	r10;			/* save CTR in stackframe	*/ \
+	GET_CTR(r10, area);						   \
 	std	r10,_CTR(r1);						   \
 	lbz	r10,PACASOFTIRQEN(r13);				   \
 	mfspr	r11,SPRN_XER;		/* save XER in stackframe	*/ \
@@ -479,7 +499,7 @@ label##_relon_hv:							\
  */
 
 /* Exception addition: Hard disable interrupts */
-#define DISABLE_INTS	SOFT_DISABLE_INTS(r10,r11)
+#define DISABLE_INTS	RECONCILE_IRQ_STATE(r10,r11)
 
 #define ADD_NVGPRS				\
 	bl	.save_nvgprs

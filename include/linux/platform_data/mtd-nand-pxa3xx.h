@@ -16,19 +16,6 @@ struct pxa3xx_nand_timing {
 	unsigned int	tAR;  /* ND_ALE low to ND_nRE low delay */
 };
 
-struct pxa3xx_nand_cmdset {
-	uint16_t	read1;
-	uint16_t	read2;
-	uint16_t	program;
-	uint16_t	read_status;
-	uint16_t	read_id;
-	uint16_t	erase;
-	uint16_t	reset;
-	uint16_t	lock;
-	uint16_t	unlock;
-	uint16_t	lock_status;
-};
-
 struct pxa3xx_nand_flash {
 	char		*name;
 	uint32_t	chip_id;

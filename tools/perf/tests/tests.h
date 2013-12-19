@@ -39,5 +39,6 @@ int test__perf_time_to_tsc(void);
 int test__code_reading(void);
 int test__sample_parsing(void);
 int test__keep_tracking(void);
+int test__parse_no_sample_id_all(void);
 
 #endif /* TESTS_H */

@@ -33,8 +33,11 @@ struct clk {
 	const char		**parent_names;
 	struct clk		**parents;
 	u8			num_parents;
+	u8			new_parent_index;
 	unsigned long		rate;
 	unsigned long		new_rate;
+	struct clk		*new_parent;
+	struct clk		*new_child;
 	unsigned long		flags;
 	unsigned int		enable_count;
 	unsigned int		prepare_count;

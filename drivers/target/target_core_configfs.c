@@ -3,7 +3,7 @@
  *
  * This file contains ConfigFS logic for the Generic Target Engine project.
  *
- * (c) Copyright 2008-2012 RisingTide Systems LLC.
+ * (c) Copyright 2008-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *
@@ -48,6 +48,7 @@
 #include "target_core_alua.h"
 #include "target_core_pr.h"
 #include "target_core_rd.h"
+#include "target_core_xcopy.h"
 
 extern struct t10_alua_lu_gp *default_lu_gp;
 
@@ -176,16 +177,16 @@ static struct config_group *target_core_register_fabric(
 	 * struct target_fabric_configfs *tf will contain a usage reference.
 	 */
 	pr_debug("Target_Core_ConfigFS: REGISTER tfc_wwn_cit -> %p\n",
-			&TF_CIT_TMPL(tf)->tfc_wwn_cit);
+			&tf->tf_cit_tmpl.tfc_wwn_cit);
 
 	tf->tf_group.default_groups = tf->tf_default_groups;
 	tf->tf_group.default_groups[0] = &tf->tf_disc_group;
 	tf->tf_group.default_groups[1] = NULL;
 
 	config_group_init_type_name(&tf->tf_group, name,
-			&TF_CIT_TMPL(tf)->tfc_wwn_cit);
+			&tf->tf_cit_tmpl.tfc_wwn_cit);
 	config_group_init_type_name(&tf->tf_disc_group, "discovery_auth",
-			&TF_CIT_TMPL(tf)->tfc_discovery_cit);
+			&tf->tf_cit_tmpl.tfc_discovery_cit);
 
 	pr_debug("Target_Core_ConfigFS: REGISTER -> Allocated Fabric:"
 			" %s\n", tf->tf_group.cg_item.ci_name);
@@ -268,7 +269,7 @@ static struct configfs_subsystem target_core_fabrics = {
 	},
 };
 
-static struct configfs_subsystem *target_core_subsystem[] = {
+struct configfs_subsystem *target_core_subsystem[] = {
 	&target_core_fabrics,
 	NULL,
 };
@@ -577,9 +578,9 @@ static ssize_t target_core_dev_store_attr_##_name(			\
 	unsigned long val;						\
 	int ret;							\
 									\
-	ret = strict_strtoul(page, 0, &val);				\
+	ret = kstrtoul(page, 0, &val);				\
 	if (ret < 0) {							\
-		pr_err("strict_strtoul() failed with"		\
+		pr_err("kstrtoul() failed with"		\
 			" ret: %d\n", ret);				\
 		return -EINVAL;						\
 	}								\
@@ -635,6 +636,12 @@ SE_DEV_ATTR(emulate_tpu, S_IRUGO | S_IWUSR);
 
 DEF_DEV_ATTRIB(emulate_tpws);
 SE_DEV_ATTR(emulate_tpws, S_IRUGO | S_IWUSR);
+
+DEF_DEV_ATTRIB(emulate_caw);
+SE_DEV_ATTR(emulate_caw, S_IRUGO | S_IWUSR);
+
+DEF_DEV_ATTRIB(emulate_3pc);
+SE_DEV_ATTR(emulate_3pc, S_IRUGO | S_IWUSR);
 
 DEF_DEV_ATTRIB(enforce_pr_isids);
 SE_DEV_ATTR(enforce_pr_isids, S_IRUGO | S_IWUSR);
@@ -693,6 +700,8 @@ static struct configfs_attribute *target_core_dev_attrib_attrs[] = {
 	&target_core_dev_attrib_emulate_tas.attr,
 	&target_core_dev_attrib_emulate_tpu.attr,
 	&target_core_dev_attrib_emulate_tpws.attr,
+	&target_core_dev_attrib_emulate_caw.attr,
+	&target_core_dev_attrib_emulate_3pc.attr,
 	&target_core_dev_attrib_enforce_pr_isids.attr,
 	&target_core_dev_attrib_is_nonrot.attr,
 	&target_core_dev_attrib_emulate_rest_reord.attr,
@@ -1310,9 +1319,9 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 				ret = -ENOMEM;
 				goto out;
 			}
-			ret = strict_strtoull(arg_p, 0, &tmp_ll);
+			ret = kstrtoull(arg_p, 0, &tmp_ll);
 			if (ret < 0) {
-				pr_err("strict_strtoull() failed for"
+				pr_err("kstrtoull() failed for"
 					" sa_res_key=\n");
 				goto out;
 			}
@@ -1836,11 +1845,11 @@ static ssize_t target_core_alua_lu_gp_store_attr_lu_gp_id(
 	unsigned long lu_gp_id;
 	int ret;
 
-	ret = strict_strtoul(page, 0, &lu_gp_id);
+	ret = kstrtoul(page, 0, &lu_gp_id);
 	if (ret < 0) {
-		pr_err("strict_strtoul() returned %d for"
+		pr_err("kstrtoul() returned %d for"
 			" lu_gp_id\n", ret);
-		return -EINVAL;
+		return ret;
 	}
 	if (lu_gp_id > 0x0000ffff) {
 		pr_err("ALUA lu_gp_id: %lu exceeds maximum:"
@@ -2027,22 +2036,22 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_state(
 	int new_state, ret;
 
 	if (!tg_pt_gp->tg_pt_gp_valid_id) {
-		pr_err("Unable to do implict ALUA on non valid"
+		pr_err("Unable to do implicit ALUA on non valid"
 			" tg_pt_gp ID: %hu\n", tg_pt_gp->tg_pt_gp_valid_id);
 		return -EINVAL;
 	}
 
-	ret = strict_strtoul(page, 0, &tmp);
+	ret = kstrtoul(page, 0, &tmp);
 	if (ret < 0) {
 		pr_err("Unable to extract new ALUA access state from"
 				" %s\n", page);
-		return -EINVAL;
+		return ret;
 	}
 	new_state = (int)tmp;
 
-	if (!(tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_IMPLICT_ALUA)) {
-		pr_err("Unable to process implict configfs ALUA"
-			" transition while TPGS_IMPLICT_ALUA is disabled\n");
+	if (!(tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_IMPLICIT_ALUA)) {
+		pr_err("Unable to process implicit configfs ALUA"
+			" transition while TPGS_IMPLICIT_ALUA is disabled\n");
 		return -EINVAL;
 	}
 
@@ -2079,17 +2088,17 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_status(
 		return -EINVAL;
 	}
 
-	ret = strict_strtoul(page, 0, &tmp);
+	ret = kstrtoul(page, 0, &tmp);
 	if (ret < 0) {
 		pr_err("Unable to extract new ALUA access status"
 				" from %s\n", page);
-		return -EINVAL;
+		return ret;
 	}
 	new_status = (int)tmp;
 
 	if ((new_status != ALUA_STATUS_NONE) &&
-	    (new_status != ALUA_STATUS_ALTERED_BY_EXPLICT_STPG) &&
-	    (new_status != ALUA_STATUS_ALTERED_BY_IMPLICT_ALUA)) {
+	    (new_status != ALUA_STATUS_ALTERED_BY_EXPLICIT_STPG) &&
+	    (new_status != ALUA_STATUS_ALTERED_BY_IMPLICIT_ALUA)) {
 		pr_err("Illegal ALUA access status: 0x%02x\n",
 				new_status);
 		return -EINVAL;
@@ -2122,6 +2131,90 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_type(
 SE_DEV_ALUA_TG_PT_ATTR(alua_access_type, S_IRUGO | S_IWUSR);
 
 /*
+ * alua_supported_states
+ */
+
+#define SE_DEV_ALUA_SUPPORT_STATE_SHOW(_name, _var, _bit)		\
+static ssize_t target_core_alua_tg_pt_gp_show_attr_alua_support_##_name( \
+	struct t10_alua_tg_pt_gp *t, char *p)				\
+{									\
+	return sprintf(p, "%d\n", !!(t->_var & _bit));			\
+}
+
+#define SE_DEV_ALUA_SUPPORT_STATE_STORE(_name, _var, _bit)		\
+static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_support_##_name(\
+	struct t10_alua_tg_pt_gp *t, const char *p, size_t c)		\
+{									\
+	unsigned long tmp;						\
+	int ret;							\
+									\
+	if (!t->tg_pt_gp_valid_id) {					\
+		pr_err("Unable to do set ##_name ALUA state on non"	\
+		       " valid tg_pt_gp ID: %hu\n",			\
+		       t->tg_pt_gp_valid_id);				\
+		return -EINVAL;						\
+	}								\
+									\
+	ret = kstrtoul(p, 0, &tmp);					\
+	if (ret < 0) {							\
+		pr_err("Invalid value '%s', must be '0' or '1'\n", p);	\
+		return -EINVAL;						\
+	}								\
+	if (tmp > 1) {							\
+		pr_err("Invalid value '%ld', must be '0' or '1'\n", tmp); \
+		return -EINVAL;						\
+	}								\
+	if (!tmp)							\
+		t->_var |= _bit;					\
+	else								\
+		t->_var &= ~_bit;					\
+									\
+	return c;							\
+}
+
+SE_DEV_ALUA_SUPPORT_STATE_SHOW(transitioning,
+			       tg_pt_gp_alua_supported_states, ALUA_T_SUP);
+SE_DEV_ALUA_SUPPORT_STATE_STORE(transitioning,
+				tg_pt_gp_alua_supported_states, ALUA_T_SUP);
+SE_DEV_ALUA_TG_PT_ATTR(alua_support_transitioning, S_IRUGO | S_IWUSR);
+
+SE_DEV_ALUA_SUPPORT_STATE_SHOW(offline,
+			       tg_pt_gp_alua_supported_states, ALUA_O_SUP);
+SE_DEV_ALUA_SUPPORT_STATE_STORE(offline,
+				tg_pt_gp_alua_supported_states, ALUA_O_SUP);
+SE_DEV_ALUA_TG_PT_ATTR(alua_support_offline, S_IRUGO | S_IWUSR);
+
+SE_DEV_ALUA_SUPPORT_STATE_SHOW(lba_dependent,
+			       tg_pt_gp_alua_supported_states, ALUA_LBD_SUP);
+SE_DEV_ALUA_SUPPORT_STATE_STORE(lba_dependent,
+				tg_pt_gp_alua_supported_states, ALUA_LBD_SUP);
+SE_DEV_ALUA_TG_PT_ATTR(alua_support_lba_dependent, S_IRUGO | S_IWUSR);
+
+SE_DEV_ALUA_SUPPORT_STATE_SHOW(unavailable,
+			       tg_pt_gp_alua_supported_states, ALUA_U_SUP);
+SE_DEV_ALUA_SUPPORT_STATE_STORE(unavailable,
+				tg_pt_gp_alua_supported_states, ALUA_U_SUP);
+SE_DEV_ALUA_TG_PT_ATTR(alua_support_unavailable, S_IRUGO | S_IWUSR);
+
+SE_DEV_ALUA_SUPPORT_STATE_SHOW(standby,
+			       tg_pt_gp_alua_supported_states, ALUA_S_SUP);
+SE_DEV_ALUA_SUPPORT_STATE_STORE(standby,
+				tg_pt_gp_alua_supported_states, ALUA_S_SUP);
+SE_DEV_ALUA_TG_PT_ATTR(alua_support_standby, S_IRUGO | S_IWUSR);
+
+SE_DEV_ALUA_SUPPORT_STATE_SHOW(active_optimized,
+			       tg_pt_gp_alua_supported_states, ALUA_AO_SUP);
+SE_DEV_ALUA_SUPPORT_STATE_STORE(active_optimized,
+				tg_pt_gp_alua_supported_states, ALUA_AO_SUP);
+SE_DEV_ALUA_TG_PT_ATTR(alua_support_active_optimized, S_IRUGO | S_IWUSR);
+
+SE_DEV_ALUA_SUPPORT_STATE_SHOW(active_nonoptimized,
+			       tg_pt_gp_alua_supported_states, ALUA_AN_SUP);
+SE_DEV_ALUA_SUPPORT_STATE_STORE(active_nonoptimized,
+				tg_pt_gp_alua_supported_states, ALUA_AN_SUP);
+SE_DEV_ALUA_TG_PT_ATTR(alua_support_active_nonoptimized, S_IRUGO | S_IWUSR);
+
+/*
  * alua_write_metadata
  */
 static ssize_t target_core_alua_tg_pt_gp_show_attr_alua_write_metadata(
@@ -2139,10 +2232,10 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_write_metadata(
 	unsigned long tmp;
 	int ret;
 
-	ret = strict_strtoul(page, 0, &tmp);
+	ret = kstrtoul(page, 0, &tmp);
 	if (ret < 0) {
 		pr_err("Unable to extract alua_write_metadata\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	if ((tmp != 0) && (tmp != 1)) {
@@ -2201,24 +2294,24 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_trans_delay_msecs(
 SE_DEV_ALUA_TG_PT_ATTR(trans_delay_msecs, S_IRUGO | S_IWUSR);
 
 /*
- * implict_trans_secs
+ * implicit_trans_secs
  */
-static ssize_t target_core_alua_tg_pt_gp_show_attr_implict_trans_secs(
+static ssize_t target_core_alua_tg_pt_gp_show_attr_implicit_trans_secs(
 	struct t10_alua_tg_pt_gp *tg_pt_gp,
 	char *page)
 {
-	return core_alua_show_implict_trans_secs(tg_pt_gp, page);
+	return core_alua_show_implicit_trans_secs(tg_pt_gp, page);
 }
 
-static ssize_t target_core_alua_tg_pt_gp_store_attr_implict_trans_secs(
+static ssize_t target_core_alua_tg_pt_gp_store_attr_implicit_trans_secs(
 	struct t10_alua_tg_pt_gp *tg_pt_gp,
 	const char *page,
 	size_t count)
 {
-	return core_alua_store_implict_trans_secs(tg_pt_gp, page, count);
+	return core_alua_store_implicit_trans_secs(tg_pt_gp, page, count);
 }
 
-SE_DEV_ALUA_TG_PT_ATTR(implict_trans_secs, S_IRUGO | S_IWUSR);
+SE_DEV_ALUA_TG_PT_ATTR(implicit_trans_secs, S_IRUGO | S_IWUSR);
 
 /*
  * preferred
@@ -2263,11 +2356,11 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_tg_pt_gp_id(
 	unsigned long tg_pt_gp_id;
 	int ret;
 
-	ret = strict_strtoul(page, 0, &tg_pt_gp_id);
+	ret = kstrtoul(page, 0, &tg_pt_gp_id);
 	if (ret < 0) {
-		pr_err("strict_strtoul() returned %d for"
+		pr_err("kstrtoul() returned %d for"
 			" tg_pt_gp_id\n", ret);
-		return -EINVAL;
+		return ret;
 	}
 	if (tg_pt_gp_id > 0x0000ffff) {
 		pr_err("ALUA tg_pt_gp_id: %lu exceeds maximum:"
@@ -2341,10 +2434,17 @@ static struct configfs_attribute *target_core_alua_tg_pt_gp_attrs[] = {
 	&target_core_alua_tg_pt_gp_alua_access_state.attr,
 	&target_core_alua_tg_pt_gp_alua_access_status.attr,
 	&target_core_alua_tg_pt_gp_alua_access_type.attr,
+	&target_core_alua_tg_pt_gp_alua_support_transitioning.attr,
+	&target_core_alua_tg_pt_gp_alua_support_offline.attr,
+	&target_core_alua_tg_pt_gp_alua_support_lba_dependent.attr,
+	&target_core_alua_tg_pt_gp_alua_support_unavailable.attr,
+	&target_core_alua_tg_pt_gp_alua_support_standby.attr,
+	&target_core_alua_tg_pt_gp_alua_support_active_nonoptimized.attr,
+	&target_core_alua_tg_pt_gp_alua_support_active_optimized.attr,
 	&target_core_alua_tg_pt_gp_alua_write_metadata.attr,
 	&target_core_alua_tg_pt_gp_nonop_delay_msecs.attr,
 	&target_core_alua_tg_pt_gp_trans_delay_msecs.attr,
-	&target_core_alua_tg_pt_gp_implict_trans_secs.attr,
+	&target_core_alua_tg_pt_gp_implicit_trans_secs.attr,
 	&target_core_alua_tg_pt_gp_preferred.attr,
 	&target_core_alua_tg_pt_gp_tg_pt_gp_id.attr,
 	&target_core_alua_tg_pt_gp_members.attr,
@@ -2676,10 +2776,10 @@ static ssize_t target_core_hba_store_attr_hba_mode(struct se_hba *hba,
 	if (transport->pmode_enable_hba == NULL)
 		return -EINVAL;
 
-	ret = strict_strtoul(page, 0, &mode_flag);
+	ret = kstrtoul(page, 0, &mode_flag);
 	if (ret < 0) {
 		pr_err("Unable to extract hba mode flag: %d\n", ret);
-		return -EINVAL;
+		return ret;
 	}
 
 	if (hba->dev_count) {
@@ -2767,11 +2867,11 @@ static struct config_group *target_core_call_addhbatotarget(
 		str++; /* Skip to start of plugin dependent ID */
 	}
 
-	ret = strict_strtoul(str, 0, &plugin_dep_id);
+	ret = kstrtoul(str, 0, &plugin_dep_id);
 	if (ret < 0) {
-		pr_err("strict_strtoul() returned %d for"
+		pr_err("kstrtoul() returned %d for"
 				" plugin_dep_id\n", ret);
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(ret);
 	}
 	/*
 	 * Load up TCM subsystem plugins if they have not already been loaded.
@@ -2927,6 +3027,10 @@ static int __init target_core_init_configfs(void)
 	if (ret < 0)
 		goto out;
 
+	ret = target_xcopy_setup_pt();
+	if (ret < 0)
+		goto out;
+
 	return 0;
 
 out:
@@ -2999,6 +3103,7 @@ static void __exit target_core_exit_configfs(void)
 
 	core_dev_release_virtual_lun0();
 	rd_module_exit();
+	target_xcopy_release_pt();
 	release_se_kmem_caches();
 }
 

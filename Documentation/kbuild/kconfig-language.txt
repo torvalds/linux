@@ -147,6 +147,7 @@ applicable everywhere (see syntax).
   - "modules"
     This declares the symbol to be used as the MODULES symbol, which
     enables the third modular state for all config symbols.
+    At most one symbol may have the "modules" option set.
 
   - "env"=<value>
     This imports the environment variable into Kconfig. It behaves like

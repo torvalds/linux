@@ -501,8 +501,7 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 					&nn->nfs_client_list);
 			spin_unlock(&nn->nfs_client_lock);
 			new->cl_flags = cl_init->init_flags;
-			return rpc_ops->init_client(new, timeparms, ip_addr,
-						    authflavour);
+			return rpc_ops->init_client(new, timeparms, ip_addr);
 		}
 
 		spin_unlock(&nn->nfs_client_lock);
@@ -591,6 +590,8 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 
 	if (test_bit(NFS_CS_DISCRTRY, &clp->cl_flags))
 		args.flags |= RPC_CLNT_CREATE_DISCRTRY;
+	if (test_bit(NFS_CS_NO_RETRANS_TIMEOUT, &clp->cl_flags))
+		args.flags |= RPC_CLNT_CREATE_NO_RETRANS_TIMEOUT;
 	if (test_bit(NFS_CS_NORESVPORT, &clp->cl_flags))
 		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 	if (test_bit(NFS_CS_INFINITE_SLOTS, &clp->cl_flags))
@@ -694,13 +695,12 @@ EXPORT_SYMBOL_GPL(nfs_init_server_rpcclient);
  * @clp: nfs_client to initialise
  * @timeparms: timeout parameters for underlying RPC transport
  * @ip_addr: IP presentation address (not used)
- * @authflavor: authentication flavor for underlying RPC transport
  *
  * Returns pointer to an NFS client, or an ERR_PTR value.
  */
 struct nfs_client *nfs_init_client(struct nfs_client *clp,
 		    const struct rpc_timeout *timeparms,
-		    const char *ip_addr, rpc_authflavor_t authflavour)
+		    const char *ip_addr)
 {
 	int error;
 
@@ -786,8 +786,10 @@ static int nfs_init_server(struct nfs_server *server,
 		goto error;
 
 	server->port = data->nfs_server.port;
+	server->auth_info = data->auth_info;
 
-	error = nfs_init_server_rpcclient(server, &timeparms, data->auth_flavors[0]);
+	error = nfs_init_server_rpcclient(server, &timeparms,
+					  data->selected_flavor);
 	if (error < 0)
 		goto error;
 
@@ -928,6 +930,7 @@ void nfs_server_copy_userdata(struct nfs_server *target, struct nfs_server *sour
 	target->acdirmax = source->acdirmax;
 	target->caps = source->caps;
 	target->options = source->options;
+	target->auth_info = source->auth_info;
 }
 EXPORT_SYMBOL_GPL(nfs_server_copy_userdata);
 
@@ -945,7 +948,7 @@ void nfs_server_insert_lists(struct nfs_server *server)
 }
 EXPORT_SYMBOL_GPL(nfs_server_insert_lists);
 
-static void nfs_server_remove_lists(struct nfs_server *server)
+void nfs_server_remove_lists(struct nfs_server *server)
 {
 	struct nfs_client *clp = server->nfs_client;
 	struct nfs_net *nn;
@@ -962,6 +965,7 @@ static void nfs_server_remove_lists(struct nfs_server *server)
 
 	synchronize_rcu();
 }
+EXPORT_SYMBOL_GPL(nfs_server_remove_lists);
 
 /*
  * Allocate and initialise a server record

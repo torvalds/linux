@@ -31,6 +31,7 @@
 #include <linux/memcontrol.h>
 #include <linux/gfp.h>
 #include <linux/uio.h>
+#include <linux/hugetlb.h>
 
 #include "internal.h"
 
@@ -97,14 +98,31 @@ static void put_compound_page(struct page *page)
 			 * still hot on arches that do not support
 			 * this_cpu_cmpxchg_double().
 			 */
-			if (PageSlab(page_head)) {
-				if (PageTail(page)) {
+			if (PageSlab(page_head) || PageHeadHuge(page_head)) {
+				if (likely(PageTail(page))) {
+					/*
+					 * __split_huge_page_refcount
+					 * cannot race here.
+					 */
+					VM_BUG_ON(!PageHead(page_head));
+					atomic_dec(&page->_mapcount);
 					if (put_page_testzero(page_head))
 						VM_BUG_ON(1);
-
-					atomic_dec(&page->_mapcount);
-					goto skip_lock_tail;
+					if (put_page_testzero(page_head))
+						__put_compound_page(page_head);
+					return;
 				} else
+					/*
+					 * __split_huge_page_refcount
+					 * run before us, "page" was a
+					 * THP tail. The split
+					 * page_head has been freed
+					 * and reallocated as slab or
+					 * hugetlbfs page of smaller
+					 * order (only possible if
+					 * reallocated as slab on
+					 * x86).
+					 */
 					goto skip_lock;
 			}
 			/*
@@ -118,8 +136,27 @@ static void put_compound_page(struct page *page)
 				/* __split_huge_page_refcount run before us */
 				compound_unlock_irqrestore(page_head, flags);
 skip_lock:
-				if (put_page_testzero(page_head))
-					__put_single_page(page_head);
+				if (put_page_testzero(page_head)) {
+					/*
+					 * The head page may have been
+					 * freed and reallocated as a
+					 * compound page of smaller
+					 * order and then freed again.
+					 * All we know is that it
+					 * cannot have become: a THP
+					 * page, a compound page of
+					 * higher order, a tail page.
+					 * That is because we still
+					 * hold the refcount of the
+					 * split THP tail and
+					 * page_head was the THP head
+					 * before the split.
+					 */
+					if (PageHead(page_head))
+						__put_compound_page(page_head);
+					else
+						__put_single_page(page_head);
+				}
 out_put_single:
 				if (put_page_testzero(page))
 					__put_single_page(page);
@@ -141,7 +178,6 @@ out_put_single:
 			VM_BUG_ON(atomic_read(&page->_count) != 0);
 			compound_unlock_irqrestore(page_head, flags);
 
-skip_lock_tail:
 			if (put_page_testzero(page_head)) {
 				if (PageHead(page_head))
 					__put_compound_page(page_head);
@@ -189,13 +225,27 @@ bool __get_page_tail(struct page *page)
 	struct page *page_head = compound_trans_head(page);
 
 	if (likely(page != page_head && get_page_unless_zero(page_head))) {
-
 		/* Ref to put_compound_page() comment. */
-		if (PageSlab(page_head)) {
+		if (PageSlab(page_head) || PageHeadHuge(page_head)) {
 			if (likely(PageTail(page))) {
+				/*
+				 * This is a hugetlbfs page or a slab
+				 * page. __split_huge_page_refcount
+				 * cannot race here.
+				 */
+				VM_BUG_ON(!PageHead(page_head));
 				__get_page_tail_foll(page, false);
 				return true;
 			} else {
+				/*
+				 * __split_huge_page_refcount run
+				 * before us, "page" was a THP
+				 * tail. The split page_head has been
+				 * freed and reallocated as slab or
+				 * hugetlbfs page of smaller order
+				 * (only possible if reallocated as
+				 * slab on x86).
+				 */
 				put_page(page_head);
 				return false;
 			}
@@ -405,6 +455,11 @@ static void activate_page_drain(int cpu)
 		pagevec_lru_move_fn(pvec, __activate_page, NULL);
 }
 
+static bool need_activate_page_drain(int cpu)
+{
+	return pagevec_count(&per_cpu(activate_page_pvecs, cpu)) != 0;
+}
+
 void activate_page(struct page *page)
 {
 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
@@ -420,6 +475,11 @@ void activate_page(struct page *page)
 #else
 static inline void activate_page_drain(int cpu)
 {
+}
+
+static bool need_activate_page_drain(int cpu)
+{
+	return false;
 }
 
 void activate_page(struct page *page)
@@ -674,12 +734,36 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
 	lru_add_drain();
 }
 
-/*
- * Returns 0 for success
- */
-int lru_add_drain_all(void)
+static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
+
+void lru_add_drain_all(void)
 {
-	return schedule_on_each_cpu(lru_add_drain_per_cpu);
+	static DEFINE_MUTEX(lock);
+	static struct cpumask has_work;
+	int cpu;
+
+	mutex_lock(&lock);
+	get_online_cpus();
+	cpumask_clear(&has_work);
+
+	for_each_online_cpu(cpu) {
+		struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
+
+		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
+		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
+		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
+		    need_activate_page_drain(cpu)) {
+			INIT_WORK(work, lru_add_drain_per_cpu);
+			schedule_work_on(cpu, work);
+			cpumask_set_cpu(cpu, &has_work);
+		}
+	}
+
+	for_each_cpu(cpu, &has_work)
+		flush_work(&per_cpu(lru_add_drain_work, cpu));
+
+	put_online_cpus();
+	mutex_unlock(&lock);
 }
 
 /*
@@ -873,7 +957,8 @@ void __init swap_setup(void)
 #ifdef CONFIG_SWAP
 	int i;
 
-	bdi_init(swapper_spaces[0].backing_dev_info);
+	if (bdi_init(swapper_spaces[0].backing_dev_info))
+		panic("Failed to init swap bdi");
 	for (i = 0; i < MAX_SWAPFILES; i++) {
 		spin_lock_init(&swapper_spaces[i].tree_lock);
 		INIT_LIST_HEAD(&swapper_spaces[i].i_mmap_nonlinear);

@@ -45,7 +45,7 @@ static void ucb1400_gpio_set(struct gpio_chip *gc, unsigned off, int val)
 
 static int ucb1400_gpio_probe(struct platform_device *dev)
 {
-	struct ucb1400_gpio *ucb = dev->dev.platform_data;
+	struct ucb1400_gpio *ucb = dev_get_platdata(&dev->dev);
 	int err = 0;
 
 	if (!(ucb && ucb->gpio_offset)) {
@@ -105,3 +105,4 @@ module_platform_driver(ucb1400_gpio_driver);
 
 MODULE_DESCRIPTION("Philips UCB1400 GPIO driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:ucb1400_gpio");

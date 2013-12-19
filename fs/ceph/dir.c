@@ -352,8 +352,18 @@ more:
 		}
 
 		/* note next offset and last dentry name */
+		rinfo = &req->r_reply_info;
+		if (le32_to_cpu(rinfo->dir_dir->frag) != frag) {
+			frag = le32_to_cpu(rinfo->dir_dir->frag);
+			if (ceph_frag_is_leftmost(frag))
+				fi->next_offset = 2;
+			else
+				fi->next_offset = 0;
+			off = fi->next_offset;
+		}
 		fi->offset = fi->next_offset;
 		fi->last_readdir = req;
+		fi->frag = frag;
 
 		if (req->r_reply_info.dir_end) {
 			kfree(fi->last_name);
@@ -363,7 +373,6 @@ more:
 			else
 				fi->next_offset = 0;
 		} else {
-			rinfo = &req->r_reply_info;
 			err = note_last_dentry(fi,
 				       rinfo->dir_dname[rinfo->dir_nr-1],
 				       rinfo->dir_dname_len[rinfo->dir_nr-1]);
@@ -793,6 +802,8 @@ static int ceph_link(struct dentry *old_dentry, struct inode *dir,
 	req->r_locked_dir = dir;
 	req->r_dentry_drop = CEPH_CAP_FILE_SHARED;
 	req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
+	/* release LINK_SHARED on source inode (mds will lock it) */
+	req->r_old_inode_drop = CEPH_CAP_LINK_SHARED;
 	err = ceph_mdsc_do_request(mdsc, dir, req);
 	if (err) {
 		d_drop(dentry);

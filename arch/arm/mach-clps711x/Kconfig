@@ -33,9 +33,6 @@ config ARCH_P720T
 	  Say Y here if you intend to run this kernel on the ARM Prospector
 	  720T.
 
-config ARCH_FORTUNET
-	bool "FORTUNET"
-
 config EP72XX_ROM_BOOT
 	bool "EP721x/EP731x ROM boot"
 	help

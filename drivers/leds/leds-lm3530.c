@@ -403,7 +403,7 @@ static DEVICE_ATTR(mode, 0644, lm3530_mode_get, lm3530_mode_set);
 static int lm3530_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
-	struct lm3530_platform_data *pdata = client->dev.platform_data;
+	struct lm3530_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct lm3530_data *drvdata;
 	int err = 0;
 

@@ -34,7 +34,7 @@
  */
 void drm_flip_work_queue(struct drm_flip_work *work, void *val)
 {
-	if (kfifo_put(&work->fifo, (const void **)&val)) {
+	if (kfifo_put(&work->fifo, val)) {
 		atomic_inc(&work->pending);
 	} else {
 		DRM_ERROR("%s fifo full!\n", work->name);

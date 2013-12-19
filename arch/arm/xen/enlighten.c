@@ -21,6 +21,8 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
+#include <linux/cpuidle.h>
+#include <linux/cpufreq.h>
 
 #include <linux/mm.h>
 
@@ -267,18 +269,28 @@ static int __init xen_guest_init(void)
 	if (!xen_initial_domain())
 		xenbus_probe(NULL);
 
+	/*
+	 * Making sure board specific code will not set up ops for
+	 * cpu idle and cpu freq.
+	 */
+	disable_cpuidle();
+	disable_cpufreq();
+
 	return 0;
 }
 core_initcall(xen_guest_init);
 
 static int __init xen_pm_init(void)
 {
+	if (!xen_domain())
+		return -ENODEV;
+
 	pm_power_off = xen_power_off;
 	arm_pm_restart = xen_restart;
 
 	return 0;
 }
-subsys_initcall(xen_pm_init);
+late_initcall(xen_pm_init);
 
 static irqreturn_t xen_arm_callback(int irq, void *arg)
 {

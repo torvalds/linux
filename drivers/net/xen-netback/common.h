@@ -87,8 +87,12 @@ struct pending_tx_info {
 struct xenvif_rx_meta {
 	int id;
 	int size;
+	int gso_type;
 	int gso_size;
 };
+
+#define GSO_BIT(type) \
+	(1 << XEN_NETIF_GSO_TYPE_ ## type)
 
 /* Discriminate from any valid pending_idx value. */
 #define INVALID_PENDING_IDX 0xFFFF
@@ -150,10 +154,12 @@ struct xenvif {
 	u8               fe_dev_addr[6];
 
 	/* Frontend feature information. */
+	int gso_mask;
+	int gso_prefix_mask;
+
 	u8 can_sg:1;
-	u8 gso:1;
-	u8 gso_prefix:1;
-	u8 csum:1;
+	u8 ip_csum:1;
+	u8 ipv6_csum:1;
 
 	/* Internal feature information. */
 	u8 can_queue:1;	    /* can queue packets for receiver? */
@@ -163,6 +169,7 @@ struct xenvif {
 	unsigned long   credit_usec;
 	unsigned long   remaining_credit;
 	struct timer_list credit_timeout;
+	u64 credit_window_start;
 
 	/* Statistics */
 	unsigned long rx_gso_checksum_fixup;
@@ -184,6 +191,7 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 		   unsigned long rx_ring_ref, unsigned int tx_evtchn,
 		   unsigned int rx_evtchn);
 void xenvif_disconnect(struct xenvif *vif);
+void xenvif_free(struct xenvif *vif);
 
 int xenvif_xenbus_init(void);
 void xenvif_xenbus_fini(void);

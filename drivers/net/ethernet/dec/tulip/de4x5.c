@@ -1321,7 +1321,7 @@ de4x5_open(struct net_device *dev)
     if (request_irq(dev->irq, de4x5_interrupt, IRQF_SHARED,
 		                                     lp->adapter_name, dev)) {
 	printk("de4x5_open(): Requested IRQ%d is busy - attemping FAST/SHARE...", dev->irq);
-	if (request_irq(dev->irq, de4x5_interrupt, IRQF_DISABLED | IRQF_SHARED,
+	if (request_irq(dev->irq, de4x5_interrupt, IRQF_SHARED,
 			                             lp->adapter_name, dev)) {
 	    printk("\n              Cannot get IRQ- reconfigure your hardware.\n");
 	    disable_ast(dev);
@@ -2328,7 +2328,7 @@ static void de4x5_pci_remove(struct pci_dev *pdev)
 	pci_disable_device (pdev);
 }
 
-static struct pci_device_id de4x5_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(de4x5_pci_tbl) = {
         { PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_TULIP,
           PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
         { PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_TULIP_PLUS,

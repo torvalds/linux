@@ -629,6 +629,4 @@ void __init s5p6440_register_clocks(void)
 	clkdev_add_table(s5p6440_clk_lookup, ARRAY_SIZE(s5p6440_clk_lookup));
 
 	s3c24xx_register_clock(&dummy_apb_pclk);
-
-	s3c_pwmclk_init();
 }

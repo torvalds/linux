@@ -33,84 +33,6 @@
 
 #include "wm8994.h"
 
-/**
- * wm8994_reg_read: Read a single WM8994 register.
- *
- * @wm8994: Device to read from.
- * @reg: Register to read.
- */
-int wm8994_reg_read(struct wm8994 *wm8994, unsigned short reg)
-{
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(wm8994->regmap, reg, &val);
-
-	if (ret < 0)
-		return ret;
-	else
-		return val;
-}
-EXPORT_SYMBOL_GPL(wm8994_reg_read);
-
-/**
- * wm8994_bulk_read: Read multiple WM8994 registers
- *
- * @wm8994: Device to read from
- * @reg: First register
- * @count: Number of registers
- * @buf: Buffer to fill.  The data will be returned big endian.
- */
-int wm8994_bulk_read(struct wm8994 *wm8994, unsigned short reg,
-		     int count, u16 *buf)
-{
-	return regmap_bulk_read(wm8994->regmap, reg, buf, count);
-}
-
-/**
- * wm8994_reg_write: Write a single WM8994 register.
- *
- * @wm8994: Device to write to.
- * @reg: Register to write to.
- * @val: Value to write.
- */
-int wm8994_reg_write(struct wm8994 *wm8994, unsigned short reg,
-		     unsigned short val)
-{
-	return regmap_write(wm8994->regmap, reg, val);
-}
-EXPORT_SYMBOL_GPL(wm8994_reg_write);
-
-/**
- * wm8994_bulk_write: Write multiple WM8994 registers
- *
- * @wm8994: Device to write to
- * @reg: First register
- * @count: Number of registers
- * @buf: Buffer to write from.  Data must be big-endian formatted.
- */
-int wm8994_bulk_write(struct wm8994 *wm8994, unsigned short reg,
-		      int count, const u16 *buf)
-{
-	return regmap_raw_write(wm8994->regmap, reg, buf, count * sizeof(u16));
-}
-EXPORT_SYMBOL_GPL(wm8994_bulk_write);
-
-/**
- * wm8994_set_bits: Set the value of a bitfield in a WM8994 register
- *
- * @wm8994: Device to write to.
- * @reg: Register to write to.
- * @mask: Mask of bits to set.
- * @val: Value to set (unshifted)
- */
-int wm8994_set_bits(struct wm8994 *wm8994, unsigned short reg,
-		    unsigned short mask, unsigned short val)
-{
-	return regmap_update_bits(wm8994->regmap, reg, mask, val);
-}
-EXPORT_SYMBOL_GPL(wm8994_set_bits);
-
 static struct mfd_cell wm8994_regulator_devs[] = {
 	{
 		.name = "wm8994-ldo",
@@ -201,35 +123,7 @@ static int wm8994_suspend(struct device *dev)
 	int ret;
 
 	/* Don't actually go through with the suspend if the CODEC is
-	 * still active (eg, for audio passthrough from CP. */
-	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_1);
-	if (ret < 0) {
-		dev_err(dev, "Failed to read power status: %d\n", ret);
-	} else if (ret & WM8994_VMID_SEL_MASK) {
-		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
-		return 0;
-	}
-
-	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_4);
-	if (ret < 0) {
-		dev_err(dev, "Failed to read power status: %d\n", ret);
-	} else if (ret & (WM8994_AIF2ADCL_ENA | WM8994_AIF2ADCR_ENA |
-			  WM8994_AIF1ADC2L_ENA | WM8994_AIF1ADC2R_ENA |
-			  WM8994_AIF1ADC1L_ENA | WM8994_AIF1ADC1R_ENA)) {
-		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
-		return 0;
-	}
-
-	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_5);
-	if (ret < 0) {
-		dev_err(dev, "Failed to read power status: %d\n", ret);
-	} else if (ret & (WM8994_AIF2DACL_ENA | WM8994_AIF2DACR_ENA |
-			  WM8994_AIF1DAC2L_ENA | WM8994_AIF1DAC2R_ENA |
-			  WM8994_AIF1DAC1L_ENA | WM8994_AIF1DAC1R_ENA)) {
-		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
-		return 0;
-	}
-
+	 * still active for accessory detect. */
 	switch (wm8994->type) {
 	case WM8958:
 	case WM1811:
@@ -237,20 +131,6 @@ static int wm8994_suspend(struct device *dev)
 		if (ret < 0) {
 			dev_err(dev, "Failed to read power status: %d\n", ret);
 		} else if (ret & WM8958_MICD_ENA) {
-			dev_dbg(dev, "CODEC still active, ignoring suspend\n");
-			return 0;
-		}
-		break;
-	default:
-		break;
-	}
-
-	switch (wm8994->type) {
-	case WM1811:
-		ret = wm8994_reg_read(wm8994, WM8994_ANTIPOP_2);
-		if (ret < 0) {
-			dev_err(dev, "Failed to read jackdet: %d\n", ret);
-		} else if (ret & WM1811_JACKDET_MODE_MASK) {
 			dev_dbg(dev, "CODEC still active, ignoring suspend\n");
 			return 0;
 		}

@@ -20,7 +20,61 @@ enum lp55xx_engine_index {
 	LP55XX_ENGINE_1,
 	LP55XX_ENGINE_2,
 	LP55XX_ENGINE_3,
+	LP55XX_ENGINE_MAX = LP55XX_ENGINE_3,
 };
+
+enum lp55xx_engine_mode {
+	LP55XX_ENGINE_DISABLED,
+	LP55XX_ENGINE_LOAD,
+	LP55XX_ENGINE_RUN,
+};
+
+#define LP55XX_DEV_ATTR_RW(name, show, store)	\
+	DEVICE_ATTR(name, S_IRUGO | S_IWUSR, show, store)
+#define LP55XX_DEV_ATTR_RO(name, show)		\
+	DEVICE_ATTR(name, S_IRUGO, show, NULL)
+#define LP55XX_DEV_ATTR_WO(name, store)		\
+	DEVICE_ATTR(name, S_IWUSR, NULL, store)
+
+#define show_mode(nr)							\
+static ssize_t show_engine##nr##_mode(struct device *dev,		\
+				    struct device_attribute *attr,	\
+				    char *buf)				\
+{									\
+	return show_engine_mode(dev, attr, buf, nr);			\
+}
+
+#define store_mode(nr)							\
+static ssize_t store_engine##nr##_mode(struct device *dev,		\
+				     struct device_attribute *attr,	\
+				     const char *buf, size_t len)	\
+{									\
+	return store_engine_mode(dev, attr, buf, len, nr);		\
+}
+
+#define show_leds(nr)							\
+static ssize_t show_engine##nr##_leds(struct device *dev,		\
+			    struct device_attribute *attr,		\
+			    char *buf)					\
+{									\
+	return show_engine_leds(dev, attr, buf, nr);			\
+}
+
+#define store_leds(nr)						\
+static ssize_t store_engine##nr##_leds(struct device *dev,	\
+			     struct device_attribute *attr,	\
+			     const char *buf, size_t len)	\
+{								\
+	return store_engine_leds(dev, attr, buf, len, nr);	\
+}
+
+#define store_load(nr)							\
+static ssize_t store_engine##nr##_load(struct device *dev,		\
+				     struct device_attribute *attr,	\
+				     const char *buf, size_t len)	\
+{									\
+	return store_engine_load(dev, attr, buf, len, nr);		\
+}
 
 struct lp55xx_led;
 struct lp55xx_chip;
@@ -72,6 +126,16 @@ struct lp55xx_device_config {
 };
 
 /*
+ * struct lp55xx_engine
+ * @mode       : Engine mode
+ * @led_mux    : Mux bits for LED selection. Only used in LP5523
+ */
+struct lp55xx_engine {
+	enum lp55xx_engine_mode mode;
+	u16 led_mux;
+};
+
+/*
  * struct lp55xx_chip
  * @cl         : I2C communication for access registers
  * @pdata      : Platform specific data
@@ -79,6 +143,7 @@ struct lp55xx_device_config {
  * @num_leds   : Number of registered LEDs
  * @cfg        : Device specific configuration data
  * @engine_idx : Selected engine number
+ * @engines    : Engine structure for the device attribute R/W interface
  * @fw         : Firmware data for running a LED pattern
  */
 struct lp55xx_chip {
@@ -89,6 +154,7 @@ struct lp55xx_chip {
 	int num_leds;
 	struct lp55xx_device_config *cfg;
 	enum lp55xx_engine_index engine_idx;
+	struct lp55xx_engine engines[LP55XX_ENGINE_MAX];
 	const struct firmware *fw;
 };
 

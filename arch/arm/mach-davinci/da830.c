@@ -11,6 +11,7 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/clk.h>
+#include <linux/platform_data/gpio-davinci.h>
 
 #include <asm/mach/map.h>
 
@@ -20,7 +21,6 @@
 #include <mach/common.h>
 #include <mach/time.h>
 #include <mach/da8xx.h>
-#include <mach/gpio-davinci.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -395,9 +395,9 @@ static struct clk_lookup da830_clks[] = {
 	CLK(NULL,		"tptc0",	&tptc0_clk),
 	CLK(NULL,		"tptc1",	&tptc1_clk),
 	CLK("da830-mmc.0",	NULL,		&mmcsd_clk),
-	CLK(NULL,		"uart0",	&uart0_clk),
-	CLK(NULL,		"uart1",	&uart1_clk),
-	CLK(NULL,		"uart2",	&uart2_clk),
+	CLK("serial8250.0",	NULL,		&uart0_clk),
+	CLK("serial8250.1",	NULL,		&uart1_clk),
+	CLK("serial8250.2",	NULL,		&uart2_clk),
 	CLK("spi_davinci.0",	NULL,		&spi0_clk),
 	CLK("spi_davinci.1",	NULL,		&spi1_clk),
 	CLK(NULL,		"ecap0",	&ecap0_clk),
@@ -417,6 +417,7 @@ static struct clk_lookup da830_clks[] = {
 	CLK(NULL,		"aintc",	&aintc_clk),
 	CLK(NULL,		"secu_mgr",	&secu_mgr_clk),
 	CLK("davinci_emac.1",	NULL,		&emac_clk),
+	CLK("davinci_mdio.0",   "fck",          &emac_clk),
 	CLK(NULL,		"gpio",		&gpio_clk),
 	CLK("i2c_davinci.2",	NULL,		&i2c1_clk),
 	CLK(NULL,		"usb11",	&usb11_clk),
@@ -1150,6 +1151,16 @@ static struct davinci_id da830_ids[] = {
 	},
 };
 
+static struct davinci_gpio_platform_data da830_gpio_platform_data = {
+	.ngpio = 128,
+	.intc_irq_num = DA830_N_CP_INTC_IRQ,
+};
+
+int __init da830_register_gpio(void)
+{
+	return da8xx_register_gpio(&da830_gpio_platform_data);
+}
+
 static struct davinci_timer_instance da830_timer_instance[2] = {
 	{
 		.base		= DA8XX_TIMER64P0_BASE,
@@ -1195,11 +1206,6 @@ static struct davinci_soc_info davinci_soc_info_da830 = {
 	.intc_irq_prios		= da830_default_priorities,
 	.intc_irq_num		= DA830_N_CP_INTC_IRQ,
 	.timer_info		= &da830_timer_info,
-	.gpio_type		= GPIO_TYPE_DAVINCI,
-	.gpio_base		= DA8XX_GPIO_BASE,
-	.gpio_num		= 128,
-	.gpio_irq		= IRQ_DA8XX_GPIO0,
-	.serial_dev		= &da8xx_serial_device,
 	.emac_pdata		= &da8xx_emac_pdata,
 };
 

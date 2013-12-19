@@ -115,11 +115,11 @@ static const struct resource timberdale_ocores_resources[] = {
 	},
 };
 
-const struct max7301_platform_data timberdale_max7301_platform_data = {
+static const struct max7301_platform_data timberdale_max7301_platform_data = {
 	.base = 200
 };
 
-const struct mc33880_platform_data timberdale_mc33880_platform_data = {
+static const struct mc33880_platform_data timberdale_mc33880_platform_data = {
 	.base = 100
 };
 
@@ -678,7 +678,7 @@ static int timb_probe(struct pci_dev *dev,
 	priv->ctl_mapbase = mapbase + CHIPCTLOFFSET;
 	if (!request_mem_region(priv->ctl_mapbase, CHIPCTLSIZE, "timb-ctl")) {
 		dev_err(&dev->dev, "Failed to request ctl mem\n");
-		goto err_request;
+		goto err_start;
 	}
 
 	priv->ctl_membase = ioremap(priv->ctl_mapbase, CHIPCTLSIZE);
@@ -781,7 +781,6 @@ static int timb_probe(struct pci_dev *dev,
 			priv->fw.major, priv->fw.minor, ip_setup);
 		err = -ENODEV;
 		goto err_mfd;
-		break;
 	}
 
 	if (err) {
@@ -829,13 +828,10 @@ err_config:
 	iounmap(priv->ctl_membase);
 err_ioremap:
 	release_mem_region(priv->ctl_mapbase, CHIPCTLSIZE);
-err_request:
-	pci_set_drvdata(dev, NULL);
 err_start:
 	pci_disable_device(dev);
 err_enable:
 	kfree(priv);
-	pci_set_drvdata(dev, NULL);
 	return -ENODEV;
 }
 
@@ -852,7 +848,6 @@ static void timb_remove(struct pci_dev *dev)
 
 	pci_disable_msix(dev);
 	pci_disable_device(dev);
-	pci_set_drvdata(dev, NULL);
 	kfree(priv);
 }
 
@@ -869,34 +864,7 @@ static struct pci_driver timberdale_pci_driver = {
 	.remove = timb_remove,
 };
 
-static int __init timberdale_init(void)
-{
-	int err;
-
-	err = pci_register_driver(&timberdale_pci_driver);
-	if (err < 0) {
-		printk(KERN_ERR
-			"Failed to register PCI driver for %s device.\n",
-			timberdale_pci_driver.name);
-		return -ENODEV;
-	}
-
-	printk(KERN_INFO "Driver for %s has been successfully registered.\n",
-		timberdale_pci_driver.name);
-
-	return 0;
-}
-
-static void __exit timberdale_exit(void)
-{
-	pci_unregister_driver(&timberdale_pci_driver);
-
-	printk(KERN_INFO "Driver for %s has been successfully unregistered.\n",
-		timberdale_pci_driver.name);
-}
-
-module_init(timberdale_init);
-module_exit(timberdale_exit);
+module_pci_driver(timberdale_pci_driver);
 
 MODULE_AUTHOR("Mocean Laboratories <info@mocean-labs.com>");
 MODULE_VERSION(DRV_VERSION);

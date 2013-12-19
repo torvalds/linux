@@ -36,6 +36,8 @@ struct hw_pci {
 					  resource_size_t start,
 					  resource_size_t size,
 					  resource_size_t align);
+	void		(*add_bus)(struct pci_bus *bus);
+	void		(*remove_bus)(struct pci_bus *bus);
 };
 
 /*
@@ -63,6 +65,8 @@ struct pci_sys_data {
 					  resource_size_t start,
 					  resource_size_t size,
 					  resource_size_t align);
+	void		(*add_bus)(struct pci_bus *bus);
+	void		(*remove_bus)(struct pci_bus *bus);
 	void		*private_data;	/* platform controller private data	*/
 };
 
@@ -101,9 +105,5 @@ extern struct pci_ops dc21285_ops;
 extern int dc21285_setup(int nr, struct pci_sys_data *);
 extern void dc21285_preinit(void);
 extern void dc21285_postinit(void);
-
-extern struct pci_ops via82c505_ops;
-extern int via82c505_setup(int nr, struct pci_sys_data *);
-extern void via82c505_init(void *sysdata);
 
 #endif /* __ASM_MACH_PCI_H */

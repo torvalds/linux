@@ -2070,7 +2070,6 @@ static void xgifb_remove(struct pci_dev *pdev)
 	release_mem_region(xgifb_info->video_base, xgifb_info->video_size);
 	pci_disable_device(pdev);
 	framebuffer_release(fb_info);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static struct pci_driver xgifb_driver = {

@@ -218,6 +218,7 @@ static struct platform_device *smdkv210_devices[] __initdata = {
 	&s3c_device_i2c0,
 	&s3c_device_i2c1,
 	&s3c_device_i2c2,
+	&samsung_device_pwm,
 	&s3c_device_rtc,
 	&s3c_device_ts,
 	&s3c_device_usb_hsotg,
@@ -278,6 +279,7 @@ static struct samsung_bl_gpio_info smdkv210_bl_gpio_info = {
 static struct platform_pwm_backlight_data smdkv210_bl_data = {
 	.pwm_id = 3,
 	.pwm_period_ns = 1000,
+	.enable_gpio = -1,
 };
 
 static void __init smdkv210_map_io(void)
@@ -316,11 +318,11 @@ static void __init smdkv210_machine_init(void)
 
 	s3c_fb_set_platdata(&smdkv210_lcd0_pdata);
 
-	samsung_bl_set(&smdkv210_bl_gpio_info, &smdkv210_bl_data);
-
 	s3c_hsotg_set_platdata(&smdkv210_hsotg_pdata);
 
 	platform_add_devices(smdkv210_devices, ARRAY_SIZE(smdkv210_devices));
+
+	samsung_bl_set(&smdkv210_bl_gpio_info, &smdkv210_bl_data);
 }
 
 MACHINE_START(SMDKV210, "SMDKV210")

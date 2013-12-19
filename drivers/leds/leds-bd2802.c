@@ -684,7 +684,7 @@ static int bd2802_probe(struct i2c_client *client,
 	}
 
 	led->client = client;
-	pdata = led->pdata = client->dev.platform_data;
+	pdata = led->pdata = dev_get_platdata(&client->dev);
 	i2c_set_clientdata(client, led);
 
 	/* Configure RESET GPIO (L: RESET, H: RESET cancel) */

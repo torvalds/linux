@@ -189,12 +189,6 @@ static int arc_ps2_probe(struct platform_device *pdev)
 	int irq;
 	int error, id, i;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no IO memory defined\n");
-		return -EINVAL;
-	}
-
 	irq = platform_get_irq_byname(pdev, "arc_ps2_irq");
 	if (irq < 0) {
 		dev_err(&pdev->dev, "no IRQ defined\n");
@@ -208,6 +202,7 @@ static int arc_ps2_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	arc_ps2->addr = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(arc_ps2->addr))
 		return PTR_ERR(arc_ps2->addr);

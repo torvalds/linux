@@ -1,7 +1,7 @@
 /dts-v1/;
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-6281.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
 
 / {
 	model = "MPL CEC4";
@@ -15,6 +15,16 @@
         chosen {
                 bootargs = "console=ttyS0,115200n8 earlyprintk";
         };
+
+	mbus {
+		pcie-controller {
+			status = "okay";
+
+			pcie@1,0 {
+				status = "okay";
+			};
+		};
+	};
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
@@ -85,37 +95,6 @@
                         pinctrl-names = "default";
                 };
 
-                nand@3000000 {
-                        pinctrl-0 = <&pmx_nand>;
-                        pinctrl-names = "default";
-                        status = "okay";
-
-                        partition@0 {
-                                label = "uboot";
-                                reg = <0x0000000 0x100000>;
-                        };
-
-                        partition@100000 {
-                                label = "env";
-                                reg = <0x100000 0x80000>;
-                        };
-
-                        partition@180000 {
-                                label = "fdt";
-                                reg = <0x180000 0x80000>;
-                        };
-
-                        partition@200000 {
-                                label = "kernel";
-                                reg = <0x200000 0x400000>;
-                        };
-
-                        partition@600000 {
-                                label = "rootfs";
-                                reg = <0x600000 0x1fa00000>;
-                        };
-                };
-
 		rtc@10300 {
 			status = "disabled";
 		};
@@ -133,14 +112,6 @@
 			status = "okay";
 			cd-gpios = <&gpio1 15 1>;
 			/* No WP GPIO */
-		};
-
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
 		};
 	};
 
@@ -191,3 +162,61 @@
 	};
 };
 
+&nand {
+	pinctrl-0 = <&pmx_nand>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	partition@0 {
+		label = "uboot";
+		reg = <0x0000000 0x100000>;
+	};
+
+	partition@100000 {
+		label = "env";
+		reg = <0x100000 0x80000>;
+	};
+
+	partition@180000 {
+		label = "fdt";
+		reg = <0x180000 0x80000>;
+	};
+
+	partition@200000 {
+		label = "kernel";
+		reg = <0x200000 0x400000>;
+	};
+
+	partition@600000 {
+		label = "rootfs";
+		reg = <0x600000 0x1fa00000>;
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@1 {
+		device_type = "ethernet-phy";
+		reg = <1>;
+	};
+
+	ethphy1: ethernet-phy@2 {
+		device_type = "ethernet-phy";
+		reg = <2>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
+};
+
+&eth1 {
+	status = "okay";
+	ethernet1-port@0 {
+		phy-handle = <&ethphy1>;
+	};
+};

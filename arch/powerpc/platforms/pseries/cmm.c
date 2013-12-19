@@ -40,8 +40,7 @@
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
 #include <linux/memory.h>
-
-#include "plpar_wrappers.h"
+#include <asm/plpar_wrappers.h>
 
 #define CMM_DRIVER_VERSION	"1.0.0"
 #define CMM_DEFAULT_DELAY	1

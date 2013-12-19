@@ -209,7 +209,7 @@ static void cpia2_usb_complete(struct urb *urb)
 {
 	int i;
 	unsigned char *cdata;
-	static int frame_ready = false;
+	static bool frame_ready = false;
 	struct camera_data *cam = (struct camera_data *) urb->context;
 
 	if (urb->status!=0) {

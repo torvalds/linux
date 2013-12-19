@@ -655,7 +655,11 @@ explains which is which.
 		  read the irq flags variable, an 'X' will always
 		  be printed here.
 
-  need-resched: 'N' task need_resched is set, '.' otherwise.
+  need-resched:
+	'N' both TIF_NEED_RESCHED and PREEMPT_NEED_RESCHED is set,
+	'n' only TIF_NEED_RESCHED is set,
+	'p' only PREEMPT_NEED_RESCHED is set,
+	'.' otherwise.
 
   hardirq/softirq:
 	'H' - hard irq occurred inside a softirq.

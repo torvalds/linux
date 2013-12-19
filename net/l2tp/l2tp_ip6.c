@@ -63,7 +63,7 @@ static struct sock *__l2tp_ip6_bind_lookup(struct net *net,
 	struct sock *sk;
 
 	sk_for_each_bound(sk, &l2tp_ip6_bind_table) {
-		struct in6_addr *addr = inet6_rcv_saddr(sk);
+		const struct in6_addr *addr = inet6_rcv_saddr(sk);
 		struct l2tp_ip6_sock *l2tp = l2tp_ip6_sk(sk);
 
 		if (l2tp == NULL)
@@ -331,7 +331,7 @@ static int l2tp_ip6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	rcu_read_unlock();
 
 	inet->inet_rcv_saddr = inet->inet_saddr = v4addr;
-	np->rcv_saddr = addr->l2tp_addr;
+	sk->sk_v6_rcv_saddr = addr->l2tp_addr;
 	np->saddr = addr->l2tp_addr;
 
 	l2tp_ip6_sk(sk)->conn_id = addr->l2tp_conn_id;
@@ -421,14 +421,14 @@ static int l2tp_ip6_getname(struct socket *sock, struct sockaddr *uaddr,
 		if (!lsk->peer_conn_id)
 			return -ENOTCONN;
 		lsa->l2tp_conn_id = lsk->peer_conn_id;
-		lsa->l2tp_addr = np->daddr;
+		lsa->l2tp_addr = sk->sk_v6_daddr;
 		if (np->sndflow)
 			lsa->l2tp_flowinfo = np->flow_label;
 	} else {
-		if (ipv6_addr_any(&np->rcv_saddr))
+		if (ipv6_addr_any(&sk->sk_v6_rcv_saddr))
 			lsa->l2tp_addr = np->saddr;
 		else
-			lsa->l2tp_addr = np->rcv_saddr;
+			lsa->l2tp_addr = sk->sk_v6_rcv_saddr;
 
 		lsa->l2tp_conn_id = lsk->conn_id;
 	}
@@ -528,7 +528,6 @@ static int l2tp_ip6_sendmsg(struct kiocb *iocb, struct sock *sk,
 				flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
 				if (flowlabel == NULL)
 					return -EINVAL;
-				daddr = &flowlabel->dst;
 			}
 		}
 
@@ -537,8 +536,8 @@ static int l2tp_ip6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		 * sk->sk_dst_cache.
 		 */
 		if (sk->sk_state == TCP_ESTABLISHED &&
-		    ipv6_addr_equal(daddr, &np->daddr))
-			daddr = &np->daddr;
+		    ipv6_addr_equal(daddr, &sk->sk_v6_daddr))
+			daddr = &sk->sk_v6_daddr;
 
 		if (addr_len >= sizeof(struct sockaddr_in6) &&
 		    lsa->l2tp_scope_id &&
@@ -548,7 +547,7 @@ static int l2tp_ip6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		if (sk->sk_state != TCP_ESTABLISHED)
 			return -EDESTADDRREQ;
 
-		daddr = &np->daddr;
+		daddr = &sk->sk_v6_daddr;
 		fl6.flowlabel = np->flow_label;
 	}
 
@@ -665,7 +664,7 @@ static int l2tp_ip6_recvmsg(struct kiocb *iocb, struct sock *sk,
 		*addr_len = sizeof(*lsa);
 
 	if (flags & MSG_ERRQUEUE)
-		return ipv6_recv_error(sk, msg, len);
+		return ipv6_recv_error(sk, msg, len, addr_len);
 
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
 	if (!skb)

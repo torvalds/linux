@@ -325,9 +325,9 @@ static irqreturn_t adnp_irq(int irq, void *data)
 		pending &= isr & ier;
 
 		for_each_set_bit(bit, &pending, 8) {
-			unsigned int virq;
-			virq = irq_find_mapping(adnp->domain, base + bit);
-			handle_nested_irq(virq);
+			unsigned int child_irq;
+			child_irq = irq_find_mapping(adnp->domain, base + bit);
+			handle_nested_irq(child_irq);
 		}
 	}
 
@@ -490,15 +490,11 @@ static int adnp_irq_setup(struct adnp *adnp)
 	if (err != 0) {
 		dev_err(chip->dev, "can't request IRQ#%d: %d\n",
 			adnp->client->irq, err);
-		goto error;
+		return err;
 	}
 
 	chip->to_irq = adnp_gpio_to_irq;
 	return 0;
-
-error:
-	irq_domain_remove(adnp->domain);
-	return err;
 }
 
 static void adnp_irq_teardown(struct adnp *adnp)
@@ -598,7 +594,7 @@ static struct i2c_driver adnp_i2c_driver = {
 	.driver = {
 		.name = "gpio-adnp",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(adnp_of_match),
+		.of_match_table = adnp_of_match,
 	},
 	.probe = adnp_i2c_probe,
 	.remove = adnp_i2c_remove,

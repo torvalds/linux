@@ -215,13 +215,15 @@ static struct tcp_metrics_block *__tcp_get_metrics_req(struct request_sock *req,
 	addr.family = req->rsk_ops->family;
 	switch (addr.family) {
 	case AF_INET:
-		addr.addr.a4 = inet_rsk(req)->rmt_addr;
+		addr.addr.a4 = inet_rsk(req)->ir_rmt_addr;
 		hash = (__force unsigned int) addr.addr.a4;
 		break;
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
-		*(struct in6_addr *)addr.addr.a6 = inet6_rsk(req)->rmt_addr;
-		hash = ipv6_addr_hash(&inet6_rsk(req)->rmt_addr);
+		*(struct in6_addr *)addr.addr.a6 = inet_rsk(req)->ir_v6_rmt_addr;
+		hash = ipv6_addr_hash(&inet_rsk(req)->ir_v6_rmt_addr);
 		break;
+#endif
 	default:
 		return NULL;
 	}
@@ -240,7 +242,6 @@ static struct tcp_metrics_block *__tcp_get_metrics_req(struct request_sock *req,
 
 static struct tcp_metrics_block *__tcp_get_metrics_tw(struct inet_timewait_sock *tw)
 {
-	struct inet6_timewait_sock *tw6;
 	struct tcp_metrics_block *tm;
 	struct inetpeer_addr addr;
 	unsigned int hash;
@@ -252,11 +253,12 @@ static struct tcp_metrics_block *__tcp_get_metrics_tw(struct inet_timewait_sock 
 		addr.addr.a4 = tw->tw_daddr;
 		hash = (__force unsigned int) addr.addr.a4;
 		break;
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
-		tw6 = inet6_twsk((struct sock *)tw);
-		*(struct in6_addr *)addr.addr.a6 = tw6->tw_v6_daddr;
-		hash = ipv6_addr_hash(&tw6->tw_v6_daddr);
+		*(struct in6_addr *)addr.addr.a6 = tw->tw_v6_daddr;
+		hash = ipv6_addr_hash(&tw->tw_v6_daddr);
 		break;
+#endif
 	default:
 		return NULL;
 	}
@@ -288,10 +290,12 @@ static struct tcp_metrics_block *tcp_get_metrics(struct sock *sk,
 		addr.addr.a4 = inet_sk(sk)->inet_daddr;
 		hash = (__force unsigned int) addr.addr.a4;
 		break;
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
-		*(struct in6_addr *)addr.addr.a6 = inet6_sk(sk)->daddr;
-		hash = ipv6_addr_hash(&inet6_sk(sk)->daddr);
+		*(struct in6_addr *)addr.addr.a6 = sk->sk_v6_daddr;
+		hash = ipv6_addr_hash(&sk->sk_v6_daddr);
 		break;
+#endif
 	default:
 		return NULL;
 	}
@@ -502,7 +506,9 @@ reset:
 	 * ACKs, wait for troubles.
 	 */
 	if (crtt > tp->srtt) {
-		inet_csk(sk)->icsk_rto = crtt + max(crtt >> 2, tcp_rto_min(sk));
+		/* Set RTO like tcp_rtt_estimator(), but from cached RTT. */
+		crtt >>= 3;
+		inet_csk(sk)->icsk_rto = crtt + max(2 * crtt, tcp_rto_min(sk));
 	} else if (tp->srtt == 0) {
 		/* RFC6298: 5.7 We've failed to get a valid RTT sample from
 		 * 3WHS. This is most likely due to retransmission,
@@ -657,16 +663,20 @@ void tcp_fastopen_cache_get(struct sock *sk, u16 *mss,
 void tcp_fastopen_cache_set(struct sock *sk, u16 mss,
 			    struct tcp_fastopen_cookie *cookie, bool syn_lost)
 {
+	struct dst_entry *dst = __sk_dst_get(sk);
 	struct tcp_metrics_block *tm;
 
+	if (!dst)
+		return;
 	rcu_read_lock();
-	tm = tcp_get_metrics(sk, __sk_dst_get(sk), true);
+	tm = tcp_get_metrics(sk, dst, true);
 	if (tm) {
 		struct tcp_fastopen_metrics *tfom = &tm->tcpm_fastopen;
 
 		write_seqlock_bh(&fastopen_seqlock);
-		tfom->mss = mss;
-		if (cookie->len > 0)
+		if (mss)
+			tfom->mss = mss;
+		if (cookie && cookie->len > 0)
 			tfom->cookie = *cookie;
 		if (syn_lost) {
 			++tfom->syn_loss;
@@ -981,7 +991,7 @@ static int tcp_metrics_nl_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 }
 
-static struct genl_ops tcp_metrics_nl_ops[] = {
+static const struct genl_ops tcp_metrics_nl_ops[] = {
 	{
 		.cmd = TCP_METRICS_CMD_GET,
 		.doit = tcp_metrics_nl_cmd_get,
@@ -1072,8 +1082,7 @@ void __init tcp_metrics_init(void)
 	if (ret < 0)
 		goto cleanup;
 	ret = genl_register_family_with_ops(&tcp_metrics_nl_family,
-					    tcp_metrics_nl_ops,
-					    ARRAY_SIZE(tcp_metrics_nl_ops));
+					    tcp_metrics_nl_ops);
 	if (ret < 0)
 		goto cleanup_subsys;
 	return;

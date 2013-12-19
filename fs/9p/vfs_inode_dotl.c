@@ -141,9 +141,7 @@ static struct inode *v9fs_qid_iget_dotl(struct super_block *sb,
 		goto error;
 
 	v9fs_stat2inode_dotl(st, inode);
-#ifdef CONFIG_9P_FSCACHE
 	v9fs_cache_inode_get_cookie(inode);
-#endif
 	retval = v9fs_get_acl(inode, fid);
 	if (retval)
 		goto error;
@@ -267,14 +265,8 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	}
 
 	/* Only creates */
-	if (!(flags & O_CREAT))
+	if (!(flags & O_CREAT) || dentry->d_inode)
 		return	finish_no_open(file, res);
-	else if (dentry->d_inode) {
-		if ((flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
-			return -EEXIST;
-		else
-			return finish_no_open(file, res);
-	}
 
 	v9ses = v9fs_inode2v9ses(dir);
 
@@ -361,10 +353,8 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	if (err)
 		goto err_clunk_old_fid;
 	file->private_data = ofid;
-#ifdef CONFIG_9P_FSCACHE
 	if (v9ses->cache)
 		v9fs_cache_inode_set_cookie(inode, file);
-#endif
 	*opened |= FILE_CREATED;
 out:
 	v9fs_put_acl(dacl, pacl);

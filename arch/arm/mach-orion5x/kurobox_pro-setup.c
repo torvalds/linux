@@ -359,13 +359,17 @@ static void __init kurobox_pro_init(void)
 	orion5x_uart1_init();
 	orion5x_xor_init();
 
-	mvebu_mbus_add_window("devbus-boot", KUROBOX_PRO_NOR_BOOT_BASE,
-			      KUROBOX_PRO_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
+				    ORION_MBUS_DEVBUS_BOOT_ATTR,
+				    KUROBOX_PRO_NOR_BOOT_BASE,
+				    KUROBOX_PRO_NOR_BOOT_SIZE);
 	platform_device_register(&kurobox_pro_nor_flash);
 
 	if (machine_is_kurobox_pro()) {
-		mvebu_mbus_add_window("devbus-cs0", KUROBOX_PRO_NAND_BASE,
-				      KUROBOX_PRO_NAND_SIZE);
+		mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_TARGET(0),
+					    ORION_MBUS_DEVBUS_ATTR(0),
+					    KUROBOX_PRO_NAND_BASE,
+					    KUROBOX_PRO_NAND_SIZE);
 		platform_device_register(&kurobox_pro_nand_flash);
 	}
 

@@ -42,6 +42,7 @@ struct extent_buffer;
 		{ BTRFS_TREE_LOG_OBJECTID,	"TREE_LOG"	},	\
 		{ BTRFS_QUOTA_TREE_OBJECTID,	"QUOTA_TREE"	},	\
 		{ BTRFS_TREE_RELOC_OBJECTID,	"TREE_RELOC"	},	\
+		{ BTRFS_UUID_TREE_OBJECTID,	"UUID_RELOC"	},	\
 		{ BTRFS_DATA_RELOC_TREE_OBJECTID, "DATA_RELOC_TREE" })
 
 #define show_root_type(obj)						\
@@ -161,11 +162,13 @@ DEFINE_EVENT(btrfs__inode, btrfs_inode_evict,
 		{ EXTENT_FLAG_LOGGING,	 	"LOGGING" 	},	\
 		{ EXTENT_FLAG_FILLING,	 	"FILLING" 	})
 
-TRACE_EVENT(btrfs_get_extent,
+TRACE_EVENT_CONDITION(btrfs_get_extent,
 
 	TP_PROTO(struct btrfs_root *root, struct extent_map *map),
 
 	TP_ARGS(root, map),
+
+	TP_CONDITION(map),
 
 	TP_STRUCT__entry(
 		__field(	u64,  root_objectid	)
@@ -439,7 +442,7 @@ TRACE_EVENT(btrfs_sync_fs,
 		{ BTRFS_UPDATE_DELAYED_HEAD, "UPDATE_DELAYED_HEAD" })
 			
 
-TRACE_EVENT(btrfs_delayed_tree_ref,
+DECLARE_EVENT_CLASS(btrfs_delayed_tree_ref,
 
 	TP_PROTO(struct btrfs_delayed_ref_node *ref,
 		 struct btrfs_delayed_tree_ref *full_ref,
@@ -481,7 +484,25 @@ TRACE_EVENT(btrfs_delayed_tree_ref,
 		  (unsigned long long)__entry->seq)
 );
 
-TRACE_EVENT(btrfs_delayed_data_ref,
+DEFINE_EVENT(btrfs_delayed_tree_ref,  add_delayed_tree_ref,
+
+	TP_PROTO(struct btrfs_delayed_ref_node *ref,
+		 struct btrfs_delayed_tree_ref *full_ref,
+		 int action),
+
+	TP_ARGS(ref, full_ref, action)
+);
+
+DEFINE_EVENT(btrfs_delayed_tree_ref,  run_delayed_tree_ref,
+
+	TP_PROTO(struct btrfs_delayed_ref_node *ref,
+		 struct btrfs_delayed_tree_ref *full_ref,
+		 int action),
+
+	TP_ARGS(ref, full_ref, action)
+);
+
+DECLARE_EVENT_CLASS(btrfs_delayed_data_ref,
 
 	TP_PROTO(struct btrfs_delayed_ref_node *ref,
 		 struct btrfs_delayed_data_ref *full_ref,
@@ -527,7 +548,25 @@ TRACE_EVENT(btrfs_delayed_data_ref,
 		  (unsigned long long)__entry->seq)
 );
 
-TRACE_EVENT(btrfs_delayed_ref_head,
+DEFINE_EVENT(btrfs_delayed_data_ref,  add_delayed_data_ref,
+
+	TP_PROTO(struct btrfs_delayed_ref_node *ref,
+		 struct btrfs_delayed_data_ref *full_ref,
+		 int action),
+
+	TP_ARGS(ref, full_ref, action)
+);
+
+DEFINE_EVENT(btrfs_delayed_data_ref,  run_delayed_data_ref,
+
+	TP_PROTO(struct btrfs_delayed_ref_node *ref,
+		 struct btrfs_delayed_data_ref *full_ref,
+		 int action),
+
+	TP_ARGS(ref, full_ref, action)
+);
+
+DECLARE_EVENT_CLASS(btrfs_delayed_ref_head,
 
 	TP_PROTO(struct btrfs_delayed_ref_node *ref,
 		 struct btrfs_delayed_ref_head *head_ref,
@@ -554,6 +593,24 @@ TRACE_EVENT(btrfs_delayed_ref_head,
 		  (unsigned long long)__entry->num_bytes,
 		  show_ref_action(__entry->action),
 		  __entry->is_data)
+);
+
+DEFINE_EVENT(btrfs_delayed_ref_head,  add_delayed_ref_head,
+
+	TP_PROTO(struct btrfs_delayed_ref_node *ref,
+		 struct btrfs_delayed_ref_head *head_ref,
+		 int action),
+
+	TP_ARGS(ref, head_ref, action)
+);
+
+DEFINE_EVENT(btrfs_delayed_ref_head,  run_delayed_ref_head,
+
+	TP_PROTO(struct btrfs_delayed_ref_node *ref,
+		 struct btrfs_delayed_ref_head *head_ref,
+		 int action),
+
+	TP_ARGS(ref, head_ref, action)
 );
 
 #define show_chunk_type(type)					\

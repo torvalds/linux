@@ -3742,13 +3742,12 @@ default_chipset:
 	if (err)
 		goto unset_drvdata;
 
-	printk("fb%d: %s frame buffer device, using %dK of video memory\n",
-	       info->node, info->fix.id, info->fix.smem_len>>10);
+	fb_info(info, "%s frame buffer device, using %dK of video memory\n",
+		info->fix.id, info->fix.smem_len>>10);
 
 	return 0;
 
 unset_drvdata:
-	dev_set_drvdata(&pdev->dev, NULL);
 	fb_dealloc_cmap(&info->cmap);
 free_irq:
 	free_irq(IRQ_AMIGA_COPPER, info->par);
@@ -3768,7 +3767,6 @@ static int __exit amifb_remove(struct platform_device *pdev)
 	struct fb_info *info = dev_get_drvdata(&pdev->dev);
 
 	unregister_framebuffer(info);
-	dev_set_drvdata(&pdev->dev, NULL);
 	fb_dealloc_cmap(&info->cmap);
 	free_irq(IRQ_AMIGA_COPPER, info->par);
 	custom.dmacon = DMAF_ALL | DMAF_MASTER;

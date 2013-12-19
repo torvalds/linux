@@ -570,7 +570,7 @@ static void handle_once_dma_done(struct tegra_dma_channel *tdc,
 
 	list_del(&sgreq->node);
 	if (sgreq->last_sg) {
-		dma_desc->dma_status = DMA_SUCCESS;
+		dma_desc->dma_status = DMA_COMPLETE;
 		dma_cookie_complete(&dma_desc->txd);
 		if (!dma_desc->cb_count)
 			list_add_tail(&dma_desc->cb_node, &tdc->cb_desc);
@@ -767,13 +767,11 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 	unsigned long flags;
 	unsigned int residual;
 
-	spin_lock_irqsave(&tdc->lock, flags);
-
 	ret = dma_cookie_status(dc, cookie, txstate);
-	if (ret == DMA_SUCCESS) {
-		spin_unlock_irqrestore(&tdc->lock, flags);
+	if (ret == DMA_COMPLETE)
 		return ret;
-	}
+
+	spin_lock_irqsave(&tdc->lock, flags);
 
 	/* Check on wait_ack desc status */
 	list_for_each_entry(dma_desc, &tdc->free_dma_desc, node) {
@@ -1020,7 +1018,7 @@ static struct dma_async_tx_descriptor *tegra_dma_prep_slave_sg(
 	return &dma_desc->txd;
 }
 
-struct dma_async_tx_descriptor *tegra_dma_prep_dma_cyclic(
+static struct dma_async_tx_descriptor *tegra_dma_prep_dma_cyclic(
 	struct dma_chan *dc, dma_addr_t buf_addr, size_t buf_len,
 	size_t period_len, enum dma_transfer_direction direction,
 	unsigned long flags, void *context)

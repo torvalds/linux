@@ -29,17 +29,6 @@
 #endif
 
 /**
- * __ffs - find first set bit in word
- * @word: The word to search
- *
- * Undefined if no set bit exists, so code should check against 0 first.
- */
-static inline unsigned long __ffs(unsigned long word)
-{
-	return __builtin_ctzl(word);
-}
-
-/**
  * ffz - find first zero bit in word
  * @word: The word to search
  *
@@ -48,33 +37,6 @@ static inline unsigned long __ffs(unsigned long word)
 static inline unsigned long ffz(unsigned long word)
 {
 	return __builtin_ctzl(~word);
-}
-
-/**
- * __fls - find last set bit in word
- * @word: The word to search
- *
- * Undefined if no set bit exists, so code should check against 0 first.
- */
-static inline unsigned long __fls(unsigned long word)
-{
-	return (sizeof(word) * 8) - 1 - __builtin_clzl(word);
-}
-
-/**
- * ffs - find first set bit in word
- * @x: the word to search
- *
- * This is defined the same way as the libc and compiler builtin ffs
- * routines, therefore differs in spirit from the other bitops.
- *
- * ffs(value) returns 0 if value is 0 or the position of the first
- * set bit if value is nonzero. The first (least significant) bit
- * is at position 1.
- */
-static inline int ffs(int x)
-{
-	return __builtin_ffs(x);
 }
 
 static inline int fls64(__u64 w)
@@ -118,6 +80,9 @@ static inline unsigned long __arch_hweight64(__u64 w)
 	return __builtin_popcountll(w);
 }
 
+#include <asm-generic/bitops/builtin-__ffs.h>
+#include <asm-generic/bitops/builtin-__fls.h>
+#include <asm-generic/bitops/builtin-ffs.h>
 #include <asm-generic/bitops/const_hweight.h>
 #include <asm-generic/bitops/lock.h>
 #include <asm-generic/bitops/find.h>

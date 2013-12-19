@@ -37,16 +37,22 @@
  * which does not support descriptor writeback.
  */
 
+static inline bool is_request_line_unset(struct dw_dma_chan *dwc)
+{
+	return dwc->request_line == (typeof(dwc->request_line))~0;
+}
+
 static inline void dwc_set_masters(struct dw_dma_chan *dwc)
 {
 	struct dw_dma *dw = to_dw_dma(dwc->chan.device);
 	struct dw_dma_slave *dws = dwc->chan.private;
 	unsigned char mmax = dw->nr_masters - 1;
 
-	if (dwc->request_line == ~0) {
-		dwc->src_master = min_t(unsigned char, mmax, dwc_get_sms(dws));
-		dwc->dst_master = min_t(unsigned char, mmax, dwc_get_dms(dws));
-	}
+	if (!is_request_line_unset(dwc))
+		return;
+
+	dwc->src_master = min_t(unsigned char, mmax, dwc_get_sms(dws));
+	dwc->dst_master = min_t(unsigned char, mmax, dwc_get_dms(dws));
 }
 
 #define DWC_DEFAULT_CTLLO(_chan) ({				\
@@ -78,10 +84,6 @@ static inline void dwc_set_masters(struct dw_dma_chan *dwc)
 static struct device *chan2dev(struct dma_chan *chan)
 {
 	return &chan->dev->device;
-}
-static struct device *chan2parent(struct dma_chan *chan)
-{
-	return chan->dev->device.parent;
 }
 
 static struct dw_desc *dwc_first_active(struct dw_dma_chan *dwc)
@@ -305,26 +307,7 @@ dwc_descriptor_complete(struct dw_dma_chan *dwc, struct dw_desc *desc,
 	list_splice_init(&desc->tx_list, &dwc->free_list);
 	list_move(&desc->desc_node, &dwc->free_list);
 
-	if (!is_slave_direction(dwc->direction)) {
-		struct device *parent = chan2parent(&dwc->chan);
-		if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
-			if (txd->flags & DMA_COMPL_DEST_UNMAP_SINGLE)
-				dma_unmap_single(parent, desc->lli.dar,
-					desc->total_len, DMA_FROM_DEVICE);
-			else
-				dma_unmap_page(parent, desc->lli.dar,
-					desc->total_len, DMA_FROM_DEVICE);
-		}
-		if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-			if (txd->flags & DMA_COMPL_SRC_UNMAP_SINGLE)
-				dma_unmap_single(parent, desc->lli.sar,
-					desc->total_len, DMA_TO_DEVICE);
-			else
-				dma_unmap_page(parent, desc->lli.sar,
-					desc->total_len, DMA_TO_DEVICE);
-		}
-	}
-
+	dma_descriptor_unmap(txd);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	if (callback)
@@ -644,10 +627,13 @@ static void dw_dma_tasklet(unsigned long data)
 static irqreturn_t dw_dma_interrupt(int irq, void *dev_id)
 {
 	struct dw_dma *dw = dev_id;
-	u32 status;
+	u32 status = dma_readl(dw, STATUS_INT);
 
-	dev_vdbg(dw->dma.dev, "%s: status=0x%x\n", __func__,
-			dma_readl(dw, STATUS_INT));
+	dev_vdbg(dw->dma.dev, "%s: status=0x%x\n", __func__, status);
+
+	/* Check if we have any interrupt from the DMAC */
+	if (!status)
+		return IRQ_NONE;
 
 	/*
 	 * Just disable the interrupts. We'll turn them back on in the
@@ -984,7 +970,7 @@ set_runtime_config(struct dma_chan *chan, struct dma_slave_config *sconfig)
 	dwc->direction = sconfig->direction;
 
 	/* Take the request line from slave_id member */
-	if (dwc->request_line == ~0)
+	if (is_request_line_unset(dwc))
 		dwc->request_line = sconfig->slave_id;
 
 	convert_burst(&dwc->dma_sconfig.src_maxburst);
@@ -1089,16 +1075,16 @@ dwc_tx_status(struct dma_chan *chan,
 	enum dma_status		ret;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret != DMA_SUCCESS) {
-		dwc_scan_descriptors(to_dw_dma(chan->device), dwc);
+	if (ret == DMA_COMPLETE)
+		return ret;
 
-		ret = dma_cookie_status(chan, cookie, txstate);
-	}
+	dwc_scan_descriptors(to_dw_dma(chan->device), dwc);
 
-	if (ret != DMA_SUCCESS)
+	ret = dma_cookie_status(chan, cookie, txstate);
+	if (ret != DMA_COMPLETE)
 		dma_set_residue(txstate, dwc_get_residue(dwc));
 
-	if (dwc->paused)
+	if (dwc->paused && ret == DMA_IN_PROGRESS)
 		return DMA_PAUSED;
 
 	return ret;
@@ -1560,8 +1546,8 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	/* Disable BLOCK interrupts as well */
 	channel_clear_bit(dw, MASK.BLOCK, dw->all_chan_mask);
 
-	err = devm_request_irq(chip->dev, chip->irq, dw_dma_interrupt, 0,
-			       "dw_dmac", dw);
+	err = devm_request_irq(chip->dev, chip->irq, dw_dma_interrupt,
+			       IRQF_SHARED, "dw_dmac", dw);
 	if (err)
 		return err;
 

@@ -6,8 +6,8 @@
  * Licensed under GPLv2
  */
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-6281.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
 
 / {
 	memory {
@@ -48,27 +48,6 @@
 			pinctrl-names = "default";
 			status = "okay";
 		};
-
-		nand@3000000 {
-			pinctrl-0 = <&pmx_nand>;
-			pinctrl-names = "default";
-			status = "okay";
-
-			partition@0 {
-				label = "u-boot";
-				reg = <0x0000000 0x100000>;
-			};
-
-			partition@100000 {
-				label = "uImage";
-				reg = <0x0100000 0x400000>;
-			};
-
-			partition@500000 {
-				label = "root";
-				reg = <0x0500000 0x1fb00000>;
-			};
-		};
 	};
 
 	regulators {
@@ -89,5 +68,42 @@
 			regulator-boot-on;
 			gpio = <&gpio0 29 0>;
 		};
+	};
+};
+
+&nand {
+	pinctrl-0 = <&pmx_nand>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0x100000>;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x0100000 0x400000>;
+	};
+
+	partition@500000 {
+		label = "root";
+		reg = <0x0500000 0x1fb00000>;
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		device_type = "ethernet-phy";
+		reg = <0>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
 	};
 };

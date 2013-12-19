@@ -55,7 +55,8 @@ static DEFINE_PER_CPU(int, irq_depth);
 
 /* State for allocating IRQs on Gx. */
 #if CHIP_HAS_IPI()
-static unsigned long available_irqs = ~(1UL << IRQ_RESCHEDULE);
+static unsigned long available_irqs = ((1UL << NR_IRQS) - 1) &
+				      (~(1UL << IRQ_RESCHEDULE));
 static DEFINE_SPINLOCK(available_irqs_lock);
 #endif
 
@@ -73,7 +74,8 @@ static DEFINE_SPINLOCK(available_irqs_lock);
 
 /*
  * The interrupt handling path, implemented in terms of HV interrupt
- * emulation on TILE64 and TILEPro, and IPI hardware on TILE-Gx.
+ * emulation on TILEPro, and IPI hardware on TILE-Gx.
+ * Entered with interrupts disabled.
  */
 void tile_dev_intr(struct pt_regs *regs, int intnum)
 {
@@ -233,7 +235,7 @@ void tile_irq_activate(unsigned int irq, int tile_irq_type)
 {
 	/*
 	 * We use handle_level_irq() by default because the pending
-	 * interrupt vector (whether modeled by the HV on TILE64 and
+	 * interrupt vector (whether modeled by the HV on
 	 * TILEPro or implemented in hardware on TILE-Gx) has
 	 * level-style semantics for each bit.  An interrupt fires
 	 * whenever a bit is high, not just at edges.

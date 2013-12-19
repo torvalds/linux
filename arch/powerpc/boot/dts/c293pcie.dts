@@ -1,0 +1,224 @@
+/*
+ * C293 PCIE Device Tree Source
+ *
+ * Copyright 2013 Freescale Semiconductor Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of Freescale Semiconductor nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ *
+ * ALTERNATIVELY, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") as published by the Free Software
+ * Foundation, either version 2 of that License or (at your option) any
+ * later version.
+ *
+ * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor "AS IS" AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/include/ "fsl/c293si-pre.dtsi"
+
+/ {
+	model = "fsl,C293PCIE";
+	compatible = "fsl,C293PCIE";
+
+	memory {
+		device_type = "memory";
+	};
+
+	ifc: ifc@fffe1e000 {
+		reg = <0xf 0xffe1e000 0 0x2000>;
+		ranges = <0x0 0x0 0xf 0xec000000 0x04000000
+			  0x1 0x0 0xf 0xff800000 0x00010000
+			  0x2 0x0 0xf 0xffdf0000 0x00010000>;
+
+	};
+
+	soc: soc@fffe00000 {
+		ranges = <0x0 0xf 0xffe00000 0x100000>;
+	};
+
+	pci0: pcie@fffe0a000 {
+		reg = <0xf 0xffe0a000 0 0x1000>;
+		ranges = <0x2000000 0x0 0x80000000 0xc 0x00000000 0x0 0x20000000
+			  0x1000000 0x0 0x00000000 0xf 0xffc00000 0x0 0x10000>;
+		pcie@0 {
+			ranges = <0x2000000 0x0 0x80000000
+				  0x2000000 0x0 0x80000000
+				  0x0 0x20000000
+
+				  0x1000000 0x0 0x0
+				  0x1000000 0x0 0x0
+				  0x0 0x100000>;
+		};
+	};
+};
+
+&ifc {
+	nor@0,0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "cfi-flash";
+		reg = <0x0 0x0 0x4000000>;
+		bank-width = <2>;
+		device-width = <1>;
+
+		partition@0 {
+			/* 1MB for DTB Image */
+			reg = <0x0 0x00100000>;
+			label = "NOR DTB Image";
+		};
+
+		partition@100000 {
+			/* 8 MB for Linux Kernel Image */
+			reg = <0x00100000 0x00800000>;
+			label = "NOR Linux Kernel Image";
+		};
+
+		partition@900000 {
+			/* 53MB for rootfs */
+			reg = <0x00900000 0x03500000>;
+			label = "NOR Rootfs Image";
+		};
+
+		partition@3e00000 {
+			/* 1MB for blob encrypted key */
+			reg = <0x03e00000 0x00100000>;
+			label = "NOR blob encrypted key";
+		};
+
+		partition@3f00000 {
+			/* 512KB for u-boot Bootloader Image and evn */
+			reg = <0x03f00000 0x00100000>;
+			label = "NOR U-Boot Image";
+			read-only;
+		};
+	};
+
+	nand@1,0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "fsl,ifc-nand";
+		reg = <0x1 0x0 0x10000>;
+
+		partition@0 {
+			/* This location must not be altered  */
+			/* 1MB for u-boot Bootloader Image */
+			reg = <0x0 0x00100000>;
+			label = "NAND U-Boot Image";
+			read-only;
+		};
+
+		partition@100000 {
+			/* 1MB for DTB Image */
+			reg = <0x00100000 0x00100000>;
+			label = "NAND DTB Image";
+		};
+
+		partition@200000 {
+			/* 16MB for Linux Kernel Image */
+			reg = <0x00200000 0x01000000>;
+			label = "NAND Linux Kernel Image";
+		};
+
+		partition@1200000 {
+			/* 4078MB for Root file System Image */
+			reg = <0x00600000 0xfee00000>;
+			label = "NAND RFS Image";
+		};
+	};
+
+	cpld@2,0 {
+		compatible = "fsl,c293pcie-cpld";
+		reg = <0x2 0x0 0x20>;
+	};
+};
+
+&soc {
+	i2c@3000 {
+		eeprom@50 {
+			compatible = "st,24c1024";
+			reg = <0x50>;
+		};
+
+		adt7461@4c {
+			compatible = "adi,adt7461";
+			reg = <0x4c>;
+		};
+	};
+
+	spi@7000 {
+		flash@0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "spansion,s25sl12801";
+			reg = <0>;
+			spi-max-frequency = <50000000>;
+
+			partition@0 {
+				/* 1MB for u-boot Bootloader Image */
+				/* 1MB for Environment */
+				reg = <0x0 0x00100000>;
+				label = "SPI Flash U-Boot Image";
+				read-only;
+			};
+
+			partition@100000 {
+				/* 512KB for DTB Image */
+				reg = <0x00100000 0x00080000>;
+				label = "SPI Flash DTB Image";
+			};
+
+			partition@180000 {
+				/* 4MB for Linux Kernel Image */
+				reg = <0x00180000 0x00400000>;
+				label = "SPI Flash Linux Kernel Image";
+			};
+
+			partition@580000 {
+				/* 10.5MB for RFS Image */
+				reg = <0x00580000 0x00a80000>;
+				label = "SPI Flash RFS Image";
+			};
+		};
+	};
+
+	mdio@24000 {
+		phy0: ethernet-phy@0 {
+			interrupts = <2 1 0 0>;
+			reg = <0x0>;
+		};
+
+		phy1: ethernet-phy@1 {
+			interrupts = <2 1 0 0>;
+			reg = <0x2>;
+		};
+	};
+
+	enet0: ethernet@b0000 {
+		phy-handle = <&phy0>;
+		phy-connection-type = "rgmii-id";
+	};
+
+	enet1: ethernet@b1000 {
+		phy-handle = <&phy1>;
+		phy-connection-type = "rgmii-id";
+	};
+};
+/include/ "fsl/c293si-post.dtsi"

@@ -49,6 +49,11 @@ static unsigned int _major = 0;
 static DEFINE_IDR(_minor_idr);
 
 static DEFINE_SPINLOCK(_minor_lock);
+
+static void do_deferred_remove(struct work_struct *w);
+
+static DECLARE_WORK(deferred_remove_work, do_deferred_remove);
+
 /*
  * For bio-based dm.
  * One of these is allocated per bio.
@@ -60,6 +65,7 @@ struct dm_io {
 	struct bio *bio;
 	unsigned long start_time;
 	spinlock_t endio_lock;
+	struct dm_stats_aux stats_aux;
 };
 
 /*
@@ -115,6 +121,7 @@ EXPORT_SYMBOL_GPL(dm_get_rq_mapinfo);
 #define DMF_DELETING 4
 #define DMF_NOFLUSH_SUSPENDING 5
 #define DMF_MERGE_IS_OPTIONAL 6
+#define DMF_DEFERRED_REMOVE 7
 
 /*
  * A dummy definition to make RCU happy.
@@ -198,6 +205,8 @@ struct mapped_device {
 
 	/* zero-length flush that will be cloned and submitted to targets */
 	struct bio flush_bio;
+
+	struct dm_stats stats;
 };
 
 /*
@@ -208,9 +217,54 @@ struct dm_md_mempools {
 	struct bio_set *bs;
 };
 
-#define MIN_IOS 256
+#define RESERVED_BIO_BASED_IOS		16
+#define RESERVED_REQUEST_BASED_IOS	256
+#define RESERVED_MAX_IOS		1024
 static struct kmem_cache *_io_cache;
 static struct kmem_cache *_rq_tio_cache;
+
+/*
+ * Bio-based DM's mempools' reserved IOs set by the user.
+ */
+static unsigned reserved_bio_based_ios = RESERVED_BIO_BASED_IOS;
+
+/*
+ * Request-based DM's mempools' reserved IOs set by the user.
+ */
+static unsigned reserved_rq_based_ios = RESERVED_REQUEST_BASED_IOS;
+
+static unsigned __dm_get_reserved_ios(unsigned *reserved_ios,
+				      unsigned def, unsigned max)
+{
+	unsigned ios = ACCESS_ONCE(*reserved_ios);
+	unsigned modified_ios = 0;
+
+	if (!ios)
+		modified_ios = def;
+	else if (ios > max)
+		modified_ios = max;
+
+	if (modified_ios) {
+		(void)cmpxchg(reserved_ios, ios, modified_ios);
+		ios = modified_ios;
+	}
+
+	return ios;
+}
+
+unsigned dm_get_reserved_bio_based_ios(void)
+{
+	return __dm_get_reserved_ios(&reserved_bio_based_ios,
+				     RESERVED_BIO_BASED_IOS, RESERVED_MAX_IOS);
+}
+EXPORT_SYMBOL_GPL(dm_get_reserved_bio_based_ios);
+
+unsigned dm_get_reserved_rq_based_ios(void)
+{
+	return __dm_get_reserved_ios(&reserved_rq_based_ios,
+				     RESERVED_REQUEST_BASED_IOS, RESERVED_MAX_IOS);
+}
+EXPORT_SYMBOL_GPL(dm_get_reserved_rq_based_ios);
 
 static int __init local_init(void)
 {
@@ -251,6 +305,8 @@ out_free_io_cache:
 
 static void local_exit(void)
 {
+	flush_scheduled_work();
+
 	kmem_cache_destroy(_rq_tio_cache);
 	kmem_cache_destroy(_io_cache);
 	unregister_blkdev(_major, _name);
@@ -269,6 +325,7 @@ static int (*_inits[])(void) __initdata = {
 	dm_io_init,
 	dm_kcopyd_init,
 	dm_interface_init,
+	dm_statistics_init,
 };
 
 static void (*_exits[])(void) = {
@@ -279,6 +336,7 @@ static void (*_exits[])(void) = {
 	dm_io_exit,
 	dm_kcopyd_exit,
 	dm_interface_exit,
+	dm_statistics_exit,
 };
 
 static int __init dm_init(void)
@@ -354,7 +412,10 @@ static void dm_blk_close(struct gendisk *disk, fmode_t mode)
 
 	spin_lock(&_minor_lock);
 
-	atomic_dec(&md->open_count);
+	if (atomic_dec_and_test(&md->open_count) &&
+	    (test_bit(DMF_DEFERRED_REMOVE, &md->flags)))
+		schedule_work(&deferred_remove_work);
+
 	dm_put(md);
 
 	spin_unlock(&_minor_lock);
@@ -368,20 +429,55 @@ int dm_open_count(struct mapped_device *md)
 /*
  * Guarantees nothing is using the device before it's deleted.
  */
-int dm_lock_for_deletion(struct mapped_device *md)
+int dm_lock_for_deletion(struct mapped_device *md, bool mark_deferred, bool only_deferred)
 {
 	int r = 0;
 
 	spin_lock(&_minor_lock);
 
-	if (dm_open_count(md))
+	if (dm_open_count(md)) {
 		r = -EBUSY;
+		if (mark_deferred)
+			set_bit(DMF_DEFERRED_REMOVE, &md->flags);
+	} else if (only_deferred && !test_bit(DMF_DEFERRED_REMOVE, &md->flags))
+		r = -EEXIST;
 	else
 		set_bit(DMF_DELETING, &md->flags);
 
 	spin_unlock(&_minor_lock);
 
 	return r;
+}
+
+int dm_cancel_deferred_remove(struct mapped_device *md)
+{
+	int r = 0;
+
+	spin_lock(&_minor_lock);
+
+	if (test_bit(DMF_DELETING, &md->flags))
+		r = -EBUSY;
+	else
+		clear_bit(DMF_DEFERRED_REMOVE, &md->flags);
+
+	spin_unlock(&_minor_lock);
+
+	return r;
+}
+
+static void do_deferred_remove(struct work_struct *w)
+{
+	dm_deferred_remove();
+}
+
+sector_t dm_get_size(struct mapped_device *md)
+{
+	return get_capacity(md->disk);
+}
+
+struct dm_stats *dm_get_stats(struct mapped_device *md)
+{
+	return &md->stats;
 }
 
 static int dm_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
@@ -466,8 +562,9 @@ static int md_in_flight(struct mapped_device *md)
 static void start_io_acct(struct dm_io *io)
 {
 	struct mapped_device *md = io->md;
+	struct bio *bio = io->bio;
 	int cpu;
-	int rw = bio_data_dir(io->bio);
+	int rw = bio_data_dir(bio);
 
 	io->start_time = jiffies;
 
@@ -476,6 +573,10 @@ static void start_io_acct(struct dm_io *io)
 	part_stat_unlock();
 	atomic_set(&dm_disk(md)->part0.in_flight[rw],
 		atomic_inc_return(&md->pending[rw]));
+
+	if (unlikely(dm_stats_used(&md->stats)))
+		dm_stats_account_io(&md->stats, bio->bi_rw, bio->bi_sector,
+				    bio_sectors(bio), false, 0, &io->stats_aux);
 }
 
 static void end_io_acct(struct dm_io *io)
@@ -490,6 +591,10 @@ static void end_io_acct(struct dm_io *io)
 	part_round_stats(cpu, &dm_disk(md)->part0);
 	part_stat_add(cpu, &dm_disk(md)->part0, ticks[rw], duration);
 	part_stat_unlock();
+
+	if (unlikely(dm_stats_used(&md->stats)))
+		dm_stats_account_io(&md->stats, bio->bi_rw, bio->bi_sector,
+				    bio_sectors(bio), true, duration, &io->stats_aux);
 
 	/*
 	 * After this is decremented the bio must not be touched if it is
@@ -1519,7 +1624,7 @@ static void _dm_request(struct request_queue *q, struct bio *bio)
 	return;
 }
 
-static int dm_request_based(struct mapped_device *md)
+int dm_request_based(struct mapped_device *md)
 {
 	return blk_queue_stackable(md->queue);
 }
@@ -1946,8 +2051,7 @@ static struct mapped_device *alloc_dev(int minor)
 	add_disk(md->disk);
 	format_dev_t(md->name, MKDEV(_major, minor));
 
-	md->wq = alloc_workqueue("kdmflush",
-				 WQ_NON_REENTRANT | WQ_MEM_RECLAIM, 0);
+	md->wq = alloc_workqueue("kdmflush", WQ_MEM_RECLAIM, 0);
 	if (!md->wq)
 		goto bad_thread;
 
@@ -1958,6 +2062,8 @@ static struct mapped_device *alloc_dev(int minor)
 	bio_init(&md->flush_bio);
 	md->flush_bio.bi_bdev = md->bdev;
 	md->flush_bio.bi_rw = WRITE_FLUSH;
+
+	dm_stats_init(&md->stats);
 
 	/* Populate the mapping, nobody knows we exist yet */
 	spin_lock(&_minor_lock);
@@ -2010,6 +2116,7 @@ static void free_dev(struct mapped_device *md)
 
 	put_disk(md->disk);
 	blk_cleanup_queue(md->queue);
+	dm_stats_cleanup(&md->stats);
 	module_put(THIS_MODULE);
 	kfree(md);
 }
@@ -2151,7 +2258,7 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 	/*
 	 * Wipe any geometry if the size of the table changed.
 	 */
-	if (size != get_capacity(md->disk))
+	if (size != dm_get_size(md))
 		memset(&md->geometry, 0, sizeof(md->geometry));
 
 	__set_size(md, size);
@@ -2236,11 +2343,13 @@ void dm_unlock_md_type(struct mapped_device *md)
 
 void dm_set_md_type(struct mapped_device *md, unsigned type)
 {
+	BUG_ON(!mutex_is_locked(&md->type_lock));
 	md->type = type;
 }
 
 unsigned dm_get_md_type(struct mapped_device *md)
 {
+	BUG_ON(!mutex_is_locked(&md->type_lock));
 	return md->type;
 }
 
@@ -2248,6 +2357,17 @@ struct target_type *dm_get_immutable_target_type(struct mapped_device *md)
 {
 	return md->immutable_target_type;
 }
+
+/*
+ * The queue_limits are only valid as long as you have a reference
+ * count on 'md'.
+ */
+struct queue_limits *dm_get_queue_limits(struct mapped_device *md)
+{
+	BUG_ON(!atomic_read(&md->holders));
+	return &md->queue->limits;
+}
+EXPORT_SYMBOL_GPL(dm_get_queue_limits);
 
 /*
  * Fully initialize a request-based queue (->elevator, ->request_fn, etc).
@@ -2695,6 +2815,38 @@ out:
 	return r;
 }
 
+/*
+ * Internal suspend/resume works like userspace-driven suspend. It waits
+ * until all bios finish and prevents issuing new bios to the target drivers.
+ * It may be used only from the kernel.
+ *
+ * Internal suspend holds md->suspend_lock, which prevents interaction with
+ * userspace-driven suspend.
+ */
+
+void dm_internal_suspend(struct mapped_device *md)
+{
+	mutex_lock(&md->suspend_lock);
+	if (dm_suspended_md(md))
+		return;
+
+	set_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags);
+	synchronize_srcu(&md->io_barrier);
+	flush_workqueue(md->wq);
+	dm_wait_for_completion(md, TASK_UNINTERRUPTIBLE);
+}
+
+void dm_internal_resume(struct mapped_device *md)
+{
+	if (dm_suspended_md(md))
+		goto done;
+
+	dm_queue_flush(md);
+
+done:
+	mutex_unlock(&md->suspend_lock);
+}
+
 /*-----------------------------------------------------------------
  * Event notification.
  *---------------------------------------------------------------*/
@@ -2778,6 +2930,11 @@ int dm_suspended_md(struct mapped_device *md)
 	return test_bit(DMF_SUSPENDED, &md->flags);
 }
 
+int dm_test_deferred_remove_flag(struct mapped_device *md)
+{
+	return test_bit(DMF_DEFERRED_REMOVE, &md->flags);
+}
+
 int dm_suspended(struct dm_target *ti)
 {
 	return dm_suspended_md(dm_table_get_md(ti->table));
@@ -2802,18 +2959,18 @@ struct dm_md_mempools *dm_alloc_md_mempools(unsigned type, unsigned integrity, u
 
 	if (type == DM_TYPE_BIO_BASED) {
 		cachep = _io_cache;
-		pool_size = 16;
+		pool_size = dm_get_reserved_bio_based_ios();
 		front_pad = roundup(per_bio_data_size, __alignof__(struct dm_target_io)) + offsetof(struct dm_target_io, clone);
 	} else if (type == DM_TYPE_REQUEST_BASED) {
 		cachep = _rq_tio_cache;
-		pool_size = MIN_IOS;
+		pool_size = dm_get_reserved_rq_based_ios();
 		front_pad = offsetof(struct dm_rq_clone_bio_info, clone);
 		/* per_bio_data_size is not used. See __bind_mempools(). */
 		WARN_ON(per_bio_data_size != 0);
 	} else
 		goto out;
 
-	pools->io_pool = mempool_create_slab_pool(MIN_IOS, cachep);
+	pools->io_pool = mempool_create_slab_pool(pool_size, cachep);
 	if (!pools->io_pool)
 		goto out;
 
@@ -2864,6 +3021,13 @@ module_exit(dm_exit);
 
 module_param(major, uint, 0);
 MODULE_PARM_DESC(major, "The major number of the device mapper");
+
+module_param(reserved_bio_based_ios, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(reserved_bio_based_ios, "Reserved IOs in bio-based mempools");
+
+module_param(reserved_rq_based_ios, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(reserved_rq_based_ios, "Reserved IOs in request-based mempools");
+
 MODULE_DESCRIPTION(DM_NAME " driver");
 MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");
 MODULE_LICENSE("GPL");

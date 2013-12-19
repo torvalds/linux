@@ -54,12 +54,22 @@ module_param_named(inline_thold, inline_thold, int, 0444);
 MODULE_PARM_DESC(inline_thold, "threshold for using inline data");
 
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
-			   struct mlx4_en_tx_ring *ring, int qpn, u32 size,
-			   u16 stride)
+			   struct mlx4_en_tx_ring **pring, int qpn, u32 size,
+			   u16 stride, int node)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
+	struct mlx4_en_tx_ring *ring;
 	int tmp;
 	int err;
+
+	ring = kzalloc_node(sizeof(*ring), GFP_KERNEL, node);
+	if (!ring) {
+		ring = kzalloc(sizeof(*ring), GFP_KERNEL);
+		if (!ring) {
+			en_err(priv, "Failed allocating TX ring\n");
+			return -ENOMEM;
+		}
+	}
 
 	ring->size = size;
 	ring->size_mask = size - 1;
@@ -68,22 +78,33 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	inline_thold = min(inline_thold, MAX_INLINE);
 
 	tmp = size * sizeof(struct mlx4_en_tx_info);
-	ring->tx_info = vmalloc(tmp);
-	if (!ring->tx_info)
-		return -ENOMEM;
+	ring->tx_info = vmalloc_node(tmp, node);
+	if (!ring->tx_info) {
+		ring->tx_info = vmalloc(tmp);
+		if (!ring->tx_info) {
+			err = -ENOMEM;
+			goto err_ring;
+		}
+	}
 
 	en_dbg(DRV, priv, "Allocated tx_info ring at addr:%p size:%d\n",
 		 ring->tx_info, tmp);
 
-	ring->bounce_buf = kmalloc(MAX_DESC_SIZE, GFP_KERNEL);
+	ring->bounce_buf = kmalloc_node(MAX_DESC_SIZE, GFP_KERNEL, node);
 	if (!ring->bounce_buf) {
-		err = -ENOMEM;
-		goto err_tx;
+		ring->bounce_buf = kmalloc(MAX_DESC_SIZE, GFP_KERNEL);
+		if (!ring->bounce_buf) {
+			err = -ENOMEM;
+			goto err_info;
+		}
 	}
 	ring->buf_size = ALIGN(size * ring->stride, MLX4_EN_PAGE_SIZE);
 
+	/* Allocate HW buffers on provided NUMA node */
+	set_dev_node(&mdev->dev->pdev->dev, node);
 	err = mlx4_alloc_hwq_res(mdev->dev, &ring->wqres, ring->buf_size,
 				 2 * PAGE_SIZE);
+	set_dev_node(&mdev->dev->pdev->dev, mdev->dev->numa_node);
 	if (err) {
 		en_err(priv, "Failed allocating hwq resources\n");
 		goto err_bounce;
@@ -109,7 +130,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	}
 	ring->qp.event = mlx4_en_sqp_event;
 
-	err = mlx4_bf_alloc(mdev->dev, &ring->bf);
+	err = mlx4_bf_alloc(mdev->dev, &ring->bf, node);
 	if (err) {
 		en_dbg(DRV, priv, "working without blueflame (%d)", err);
 		ring->bf.uar = &mdev->priv_uar;
@@ -120,6 +141,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 
 	ring->hwtstamp_tx_type = priv->hwtstamp_config.tx_type;
 
+	*pring = ring;
 	return 0;
 
 err_map:
@@ -129,16 +151,20 @@ err_hwq_res:
 err_bounce:
 	kfree(ring->bounce_buf);
 	ring->bounce_buf = NULL;
-err_tx:
+err_info:
 	vfree(ring->tx_info);
 	ring->tx_info = NULL;
+err_ring:
+	kfree(ring);
+	*pring = NULL;
 	return err;
 }
 
 void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
-			     struct mlx4_en_tx_ring *ring)
+			     struct mlx4_en_tx_ring **pring)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
+	struct mlx4_en_tx_ring *ring = *pring;
 	en_dbg(DRV, priv, "Destroying tx ring, qpn: %d\n", ring->qpn);
 
 	if (ring->bf_enabled)
@@ -151,6 +177,8 @@ void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 	ring->bounce_buf = NULL;
 	vfree(ring->tx_info);
 	ring->tx_info = NULL;
+	kfree(ring);
+	*pring = NULL;
 }
 
 int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
@@ -330,7 +358,7 @@ static void mlx4_en_process_tx_cq(struct net_device *dev, struct mlx4_en_cq *cq)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_cq *mcq = &cq->mcq;
-	struct mlx4_en_tx_ring *ring = &priv->tx_ring[cq->ring];
+	struct mlx4_en_tx_ring *ring = priv->tx_ring[cq->ring];
 	struct mlx4_cqe *cqe;
 	u16 index;
 	u16 new_index, ring_index, stamp_index;
@@ -622,7 +650,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	tx_ind = skb->queue_mapping;
-	ring = &priv->tx_ring[tx_ind];
+	ring = priv->tx_ring[tx_ind];
 	if (vlan_tx_tag_present(skb))
 		vlan_tag = vlan_tx_tag_get(skb);
 

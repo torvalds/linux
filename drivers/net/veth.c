@@ -188,6 +188,11 @@ static struct rtnl_link_stats64 *veth_get_stats64(struct net_device *dev,
 	return tot;
 }
 
+/* fake multicast ability */
+static void veth_set_multicast_list(struct net_device *dev)
+{
+}
+
 static int veth_open(struct net_device *dev)
 {
 	struct veth_priv *priv = netdev_priv(dev);
@@ -230,9 +235,17 @@ static int veth_change_mtu(struct net_device *dev, int new_mtu)
 
 static int veth_dev_init(struct net_device *dev)
 {
+	int i;
+
 	dev->vstats = alloc_percpu(struct pcpu_vstats);
 	if (!dev->vstats)
 		return -ENOMEM;
+
+	for_each_possible_cpu(i) {
+		struct pcpu_vstats *veth_stats;
+		veth_stats = per_cpu_ptr(dev->vstats, i);
+		u64_stats_init(&veth_stats->syncp);
+	}
 
 	return 0;
 }
@@ -250,11 +263,14 @@ static const struct net_device_ops veth_netdev_ops = {
 	.ndo_start_xmit      = veth_xmit,
 	.ndo_change_mtu      = veth_change_mtu,
 	.ndo_get_stats64     = veth_get_stats64,
+	.ndo_set_rx_mode     = veth_set_multicast_list,
 	.ndo_set_mac_address = eth_mac_addr,
 };
 
 #define VETH_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_ALL_TSO |    \
 		       NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HIGHDMA | \
+		       NETIF_F_GSO_GRE | NETIF_F_GSO_UDP_TUNNEL |	    \
+		       NETIF_F_GSO_IPIP | NETIF_F_GSO_SIT | NETIF_F_UFO	|   \
 		       NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX | \
 		       NETIF_F_HW_VLAN_STAG_TX | NETIF_F_HW_VLAN_STAG_RX )
 
@@ -273,6 +289,7 @@ static void veth_setup(struct net_device *dev)
 	dev->destructor = veth_dev_free;
 
 	dev->hw_features = VETH_FEATURES;
+	dev->hw_enc_features = VETH_FEATURES;
 }
 
 /*

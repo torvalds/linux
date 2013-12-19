@@ -180,6 +180,7 @@ static struct platform_device *smdk6450_devices[] __initdata = {
 	&s3c_device_rtc,
 	&s3c_device_i2c0,
 	&s3c_device_i2c1,
+	&samsung_device_pwm,
 	&s3c_device_ts,
 	&s3c_device_wdt,
 	&s5p6450_device_iis0,
@@ -241,6 +242,7 @@ static struct samsung_bl_gpio_info smdk6450_bl_gpio_info = {
 
 static struct platform_pwm_backlight_data smdk6450_bl_data = {
 	.pwm_id = 1,
+	.enable_gpio = -1,
 };
 
 static void __init smdk6450_map_io(void)
@@ -273,8 +275,6 @@ static void __init smdk6450_machine_init(void)
 	i2c_register_board_info(1, smdk6450_i2c_devs1,
 			ARRAY_SIZE(smdk6450_i2c_devs1));
 
-	samsung_bl_set(&smdk6450_bl_gpio_info, &smdk6450_bl_data);
-
 	s5p6450_set_lcd_interface();
 	s3c_fb_set_platdata(&smdk6450_lcd_pdata);
 
@@ -283,6 +283,8 @@ static void __init smdk6450_machine_init(void)
 	s3c_sdhci2_set_platdata(&smdk6450_hsmmc2_pdata);
 
 	platform_add_devices(smdk6450_devices, ARRAY_SIZE(smdk6450_devices));
+
+	samsung_bl_set(&smdk6450_bl_gpio_info, &smdk6450_bl_data);
 }
 
 MACHINE_START(SMDK6450, "SMDK6450")

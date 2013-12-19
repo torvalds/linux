@@ -5150,8 +5150,10 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
-	int result;
-	memset(buffer, 0, nv_get_sset_count(dev, ETH_SS_TEST)*sizeof(u64));
+	int result, count;
+
+	count = nv_get_sset_count(dev, ETH_SS_TEST);
+	memset(buffer, 0, count * sizeof(u64));
 
 	if (!nv_link_test(dev)) {
 		test->flags |= ETH_TEST_FL_FAILED;
@@ -5195,7 +5197,7 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 			return;
 		}
 
-		if (!nv_loopback_test(dev)) {
+		if (count > NV_TEST_COUNT_BASE && !nv_loopback_test(dev)) {
 			test->flags |= ETH_TEST_FL_FAILED;
 			buffer[3] = 1;
 		}
@@ -5619,6 +5621,8 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	spin_lock_init(&np->lock);
 	spin_lock_init(&np->hwstats_lock);
 	SET_NETDEV_DEV(dev, &pci_dev->dev);
+	u64_stats_init(&np->swstats_rx_syncp);
+	u64_stats_init(&np->swstats_tx_syncp);
 
 	init_timer(&np->oom_kick);
 	np->oom_kick.data = (unsigned long) dev;

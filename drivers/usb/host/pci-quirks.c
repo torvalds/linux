@@ -79,17 +79,81 @@
 #define USB_INTEL_USB3_PSSEN   0xD8
 #define USB_INTEL_USB3PRM      0xDC
 
+/*
+ * amd_chipset_gen values represent AMD different chipset generations
+ */
+enum amd_chipset_gen {
+	NOT_AMD_CHIPSET = 0,
+	AMD_CHIPSET_SB600,
+	AMD_CHIPSET_SB700,
+	AMD_CHIPSET_SB800,
+	AMD_CHIPSET_HUDSON2,
+	AMD_CHIPSET_BOLTON,
+	AMD_CHIPSET_YANGTZE,
+	AMD_CHIPSET_UNKNOWN,
+};
+
+struct amd_chipset_type {
+	enum amd_chipset_gen gen;
+	u8 rev;
+};
+
 static struct amd_chipset_info {
 	struct pci_dev	*nb_dev;
 	struct pci_dev	*smbus_dev;
 	int nb_type;
-	int sb_type;
+	struct amd_chipset_type sb_type;
 	int isoc_reqs;
 	int probe_count;
 	int probe_result;
 } amd_chipset;
 
 static DEFINE_SPINLOCK(amd_lock);
+
+/*
+ * amd_chipset_sb_type_init - initialize amd chipset southbridge type
+ *
+ * AMD FCH/SB generation and revision is identified by SMBus controller
+ * vendor, device and revision IDs.
+ *
+ * Returns: 1 if it is an AMD chipset, 0 otherwise.
+ */
+static int amd_chipset_sb_type_init(struct amd_chipset_info *pinfo)
+{
+	u8 rev = 0;
+	pinfo->sb_type.gen = AMD_CHIPSET_UNKNOWN;
+
+	pinfo->smbus_dev = pci_get_device(PCI_VENDOR_ID_ATI,
+			PCI_DEVICE_ID_ATI_SBX00_SMBUS, NULL);
+	if (pinfo->smbus_dev) {
+		rev = pinfo->smbus_dev->revision;
+		if (rev >= 0x10 && rev <= 0x1f)
+			pinfo->sb_type.gen = AMD_CHIPSET_SB600;
+		else if (rev >= 0x30 && rev <= 0x3f)
+			pinfo->sb_type.gen = AMD_CHIPSET_SB700;
+		else if (rev >= 0x40 && rev <= 0x4f)
+			pinfo->sb_type.gen = AMD_CHIPSET_SB800;
+	} else {
+		pinfo->smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD,
+				PCI_DEVICE_ID_AMD_HUDSON2_SMBUS, NULL);
+
+		if (!pinfo->smbus_dev) {
+			pinfo->sb_type.gen = NOT_AMD_CHIPSET;
+			return 0;
+		}
+
+		rev = pinfo->smbus_dev->revision;
+		if (rev >= 0x11 && rev <= 0x14)
+			pinfo->sb_type.gen = AMD_CHIPSET_HUDSON2;
+		else if (rev >= 0x15 && rev <= 0x18)
+			pinfo->sb_type.gen = AMD_CHIPSET_BOLTON;
+		else if (rev >= 0x39 && rev <= 0x3a)
+			pinfo->sb_type.gen = AMD_CHIPSET_YANGTZE;
+	}
+
+	pinfo->sb_type.rev = rev;
+	return 1;
+}
 
 void sb800_prefetch(struct device *dev, int on)
 {
@@ -106,7 +170,6 @@ EXPORT_SYMBOL_GPL(sb800_prefetch);
 
 int usb_amd_find_chipset_info(void)
 {
-	u8 rev = 0;
 	unsigned long flags;
 	struct amd_chipset_info info;
 	int ret;
@@ -122,27 +185,17 @@ int usb_amd_find_chipset_info(void)
 	memset(&info, 0, sizeof(info));
 	spin_unlock_irqrestore(&amd_lock, flags);
 
-	info.smbus_dev = pci_get_device(PCI_VENDOR_ID_ATI, 0x4385, NULL);
-	if (info.smbus_dev) {
-		rev = info.smbus_dev->revision;
-		if (rev >= 0x40)
-			info.sb_type = 1;
-		else if (rev >= 0x30 && rev <= 0x3b)
-			info.sb_type = 3;
-	} else {
-		info.smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD,
-						0x780b, NULL);
-		if (!info.smbus_dev) {
-			ret = 0;
-			goto commit;
-		}
-
-		rev = info.smbus_dev->revision;
-		if (rev >= 0x11 && rev <= 0x18)
-			info.sb_type = 2;
+	if (!amd_chipset_sb_type_init(&info)) {
+		ret = 0;
+		goto commit;
 	}
 
-	if (info.sb_type == 0) {
+	/* Below chipset generations needn't enable AMD PLL quirk */
+	if (info.sb_type.gen == AMD_CHIPSET_UNKNOWN ||
+			info.sb_type.gen == AMD_CHIPSET_SB600 ||
+			info.sb_type.gen == AMD_CHIPSET_YANGTZE ||
+			(info.sb_type.gen == AMD_CHIPSET_SB700 &&
+			info.sb_type.rev > 0x3b)) {
 		if (info.smbus_dev) {
 			pci_dev_put(info.smbus_dev);
 			info.smbus_dev = NULL;
@@ -197,6 +250,39 @@ commit:
 }
 EXPORT_SYMBOL_GPL(usb_amd_find_chipset_info);
 
+int usb_hcd_amd_remote_wakeup_quirk(struct pci_dev *pdev)
+{
+	/* Make sure amd chipset type has already been initialized */
+	usb_amd_find_chipset_info();
+	if (amd_chipset.sb_type.gen != AMD_CHIPSET_YANGTZE)
+		return 0;
+
+	dev_dbg(&pdev->dev, "QUIRK: Enable AMD remote wakeup fix\n");
+	return 1;
+}
+EXPORT_SYMBOL_GPL(usb_hcd_amd_remote_wakeup_quirk);
+
+bool usb_amd_hang_symptom_quirk(void)
+{
+	u8 rev;
+
+	usb_amd_find_chipset_info();
+	rev = amd_chipset.sb_type.rev;
+	/* SB600 and old version of SB700 have hang symptom bug */
+	return amd_chipset.sb_type.gen == AMD_CHIPSET_SB600 ||
+			(amd_chipset.sb_type.gen == AMD_CHIPSET_SB700 &&
+			 rev >= 0x3a && rev <= 0x3b);
+}
+EXPORT_SYMBOL_GPL(usb_amd_hang_symptom_quirk);
+
+bool usb_amd_prefetch_quirk(void)
+{
+	usb_amd_find_chipset_info();
+	/* SB800 needs pre-fetch fix */
+	return amd_chipset.sb_type.gen == AMD_CHIPSET_SB800;
+}
+EXPORT_SYMBOL_GPL(usb_amd_prefetch_quirk);
+
 /*
  * The hardware normally enables the A-link power management feature, which
  * lets the system lower the power consumption in idle states.
@@ -229,7 +315,9 @@ static void usb_amd_quirk_pll(int disable)
 		}
 	}
 
-	if (amd_chipset.sb_type == 1 || amd_chipset.sb_type == 2) {
+	if (amd_chipset.sb_type.gen == AMD_CHIPSET_SB800 ||
+			amd_chipset.sb_type.gen == AMD_CHIPSET_HUDSON2 ||
+			amd_chipset.sb_type.gen == AMD_CHIPSET_BOLTON) {
 		outb_p(AB_REG_BAR_LOW, 0xcd6);
 		addr_low = inb_p(0xcd7);
 		outb_p(AB_REG_BAR_HIGH, 0xcd6);
@@ -240,7 +328,8 @@ static void usb_amd_quirk_pll(int disable)
 		outl_p(0x40, AB_DATA(addr));
 		outl_p(0x34, AB_INDX(addr));
 		val = inl_p(AB_DATA(addr));
-	} else if (amd_chipset.sb_type == 3) {
+	} else if (amd_chipset.sb_type.gen == AMD_CHIPSET_SB700 &&
+			amd_chipset.sb_type.rev <= 0x3b) {
 		pci_read_config_dword(amd_chipset.smbus_dev,
 					AB_REG_BAR_SB700, &addr);
 		outl(AX_INDXC, AB_INDX(addr));
@@ -353,7 +442,7 @@ void usb_amd_dev_put(void)
 	amd_chipset.nb_dev = NULL;
 	amd_chipset.smbus_dev = NULL;
 	amd_chipset.nb_type = 0;
-	amd_chipset.sb_type = 0;
+	memset(&amd_chipset.sb_type, 0, sizeof(amd_chipset.sb_type));
 	amd_chipset.isoc_reqs = 0;
 	amd_chipset.probe_result = 0;
 
@@ -799,7 +888,7 @@ void usb_enable_intel_xhci_ports(struct pci_dev *xhci_pdev)
 	 * switchable ports.
 	 */
 	pci_write_config_dword(xhci_pdev, USB_INTEL_USB3_PSSEN,
-			cpu_to_le32(ports_available));
+			ports_available);
 
 	pci_read_config_dword(xhci_pdev, USB_INTEL_USB3_PSSEN,
 			&ports_available);
@@ -821,7 +910,7 @@ void usb_enable_intel_xhci_ports(struct pci_dev *xhci_pdev)
 	 * host.
 	 */
 	pci_write_config_dword(xhci_pdev, USB_INTEL_XUSB2PR,
-			cpu_to_le32(ports_available));
+			ports_available);
 
 	pci_read_config_dword(xhci_pdev, USB_INTEL_XUSB2PR,
 			&ports_available);

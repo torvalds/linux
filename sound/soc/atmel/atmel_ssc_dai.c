@@ -649,7 +649,7 @@ static int atmel_ssc_prepare(struct snd_pcm_substream *substream,
 	dma_params = ssc_p->dma_params[dir];
 
 	ssc_writel(ssc_p->ssc->regs, CR, dma_params->mask->ssc_enable);
-	ssc_writel(ssc_p->ssc->regs, IER, dma_params->mask->ssc_error);
+	ssc_writel(ssc_p->ssc->regs, IDR, dma_params->mask->ssc_error);
 
 	pr_debug("%s enabled SSC_SR=0x%08x\n",
 			dir ? "receive" : "transmit",
@@ -777,7 +777,7 @@ static int asoc_ssc_init(struct device *dev)
 	if (ret) {
 		dev_err(dev, "Could not register PCM: %d\n", ret);
 		goto err_unregister_dai;
-	};
+	}
 
 	return 0;
 

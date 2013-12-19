@@ -26,7 +26,7 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 #include <linux/gpio.h>
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 
 #include "common.h"
 #include "devices-imx27.h"

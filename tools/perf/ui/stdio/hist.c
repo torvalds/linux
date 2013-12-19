@@ -213,20 +213,19 @@ static size_t callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 	return ret;
 }
 
-static size_t __callchain__fprintf_flat(FILE *fp,
-					struct callchain_node *self,
+static size_t __callchain__fprintf_flat(FILE *fp, struct callchain_node *node,
 					u64 total_samples)
 {
 	struct callchain_list *chain;
 	size_t ret = 0;
 
-	if (!self)
+	if (!node)
 		return 0;
 
-	ret += __callchain__fprintf_flat(fp, self->parent, total_samples);
+	ret += __callchain__fprintf_flat(fp, node->parent, total_samples);
 
 
-	list_for_each_entry(chain, &self->val, list) {
+	list_for_each_entry(chain, &node->val, list) {
 		if (chain->ip >= PERF_CONTEXT_MAX)
 			continue;
 		if (chain->ms.sym)
@@ -239,15 +238,14 @@ static size_t __callchain__fprintf_flat(FILE *fp,
 	return ret;
 }
 
-static size_t callchain__fprintf_flat(FILE *fp, struct rb_root *self,
+static size_t callchain__fprintf_flat(FILE *fp, struct rb_root *tree,
 				      u64 total_samples)
 {
 	size_t ret = 0;
 	u32 entries_printed = 0;
-	struct rb_node *rb_node;
 	struct callchain_node *chain;
+	struct rb_node *rb_node = rb_first(tree);
 
-	rb_node = rb_first(self);
 	while (rb_node) {
 		double percent;
 
@@ -315,8 +313,7 @@ static inline void advance_hpp(struct perf_hpp *hpp, int inc)
 }
 
 static int hist_entry__period_snprintf(struct perf_hpp *hpp,
-				       struct hist_entry *he,
-				       bool color)
+				       struct hist_entry *he)
 {
 	const char *sep = symbol_conf.field_sep;
 	struct perf_hpp_fmt *fmt;
@@ -338,7 +335,7 @@ static int hist_entry__period_snprintf(struct perf_hpp *hpp,
 		} else
 			first = false;
 
-		if (color && fmt->color)
+		if (perf_hpp__use_color() && fmt->color)
 			ret = fmt->color(fmt, hpp, he);
 		else
 			ret = fmt->entry(fmt, hpp, he);
@@ -350,20 +347,19 @@ static int hist_entry__period_snprintf(struct perf_hpp *hpp,
 }
 
 static int hist_entry__fprintf(struct hist_entry *he, size_t size,
-			       struct hists *hists, FILE *fp)
+			       struct hists *hists,
+			       char *bf, size_t bfsz, FILE *fp)
 {
-	char bf[512];
 	int ret;
 	struct perf_hpp hpp = {
 		.buf		= bf,
 		.size		= size,
 	};
-	bool color = !symbol_conf.field_sep;
 
-	if (size == 0 || size > sizeof(bf))
-		size = hpp.size = sizeof(bf);
+	if (size == 0 || size > bfsz)
+		size = hpp.size = bfsz;
 
-	ret = hist_entry__period_snprintf(&hpp, he, color);
+	ret = hist_entry__period_snprintf(&hpp, he);
 	hist_entry__sort_snprintf(he, bf + ret, size - ret, hists);
 
 	ret = fprintf(fp, "%s\n", bf);
@@ -392,6 +388,8 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		.ptr	= hists_to_evsel(hists),
 	};
 	bool first = true;
+	size_t linesz;
+	char *line = NULL;
 
 	init_rem_hits();
 
@@ -479,6 +477,14 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		goto out;
 
 print_entries:
+	linesz = hists__sort_list_width(hists) + 3 + 1;
+	linesz += perf_hpp__color_overhead();
+	line = malloc(linesz);
+	if (line == NULL) {
+		ret = -1;
+		goto out;
+	}
+
 	for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
 		float percent = h->stat.period * 100.0 /
@@ -490,10 +496,10 @@ print_entries:
 		if (percent < min_pcnt)
 			continue;
 
-		ret += hist_entry__fprintf(h, max_cols, hists, fp);
+		ret += hist_entry__fprintf(h, max_cols, hists, line, linesz, fp);
 
 		if (max_rows && ++nr_rows >= max_rows)
-			goto out;
+			break;
 
 		if (h->ms.map == NULL && verbose > 1) {
 			__map_groups__fprintf_maps(&h->thread->mg,
@@ -501,6 +507,8 @@ print_entries:
 			fprintf(fp, "%.10s end\n", graph_dotted_line);
 		}
 	}
+
+	free(line);
 out:
 	free(rem_sq_bracket);
 

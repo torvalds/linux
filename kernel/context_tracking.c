@@ -51,6 +51,15 @@ void context_tracking_user_enter(void)
 	unsigned long flags;
 
 	/*
+	 * Repeat the user_enter() check here because some archs may be calling
+	 * this from asm and if no CPU needs context tracking, they shouldn't
+	 * go further. Repeat the check here until they support the static key
+	 * check.
+	 */
+	if (!static_key_false(&context_tracking_enabled))
+		return;
+
+	/*
 	 * Some contexts may involve an exception occuring in an irq,
 	 * leading to that nesting:
 	 * rcu_irq_enter() rcu_user_exit() rcu_user_exit() rcu_irq_exit()
@@ -111,7 +120,7 @@ void context_tracking_user_enter(void)
  * instead of preempt_schedule() to exit user context if needed before
  * calling the scheduler.
  */
-void __sched notrace preempt_schedule_context(void)
+asmlinkage void __sched notrace preempt_schedule_context(void)
 {
 	enum ctx_state prev_ctx;
 
@@ -150,6 +159,9 @@ EXPORT_SYMBOL_GPL(preempt_schedule_context);
 void context_tracking_user_exit(void)
 {
 	unsigned long flags;
+
+	if (!static_key_false(&context_tracking_enabled))
+		return;
 
 	if (in_interrupt())
 		return;

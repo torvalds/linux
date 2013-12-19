@@ -264,12 +264,30 @@ static inline int get_uint(char **bpp, unsigned int *anint)
 	return 0;
 }
 
+static inline int get_time(char **bpp, time_t *time)
+{
+	char buf[50];
+	long long ll;
+	int len = qword_get(bpp, buf, sizeof(buf));
+
+	if (len < 0)
+		return -EINVAL;
+	if (len == 0)
+		return -ENOENT;
+
+	if (kstrtoll(buf, 0, &ll))
+		return -EINVAL;
+
+	*time = (time_t)ll;
+	return 0;
+}
+
 static inline time_t get_expiry(char **bpp)
 {
-	int rv;
+	time_t rv;
 	struct timespec boot;
 
-	if (get_int(bpp, &rv))
+	if (get_time(bpp, &rv))
 		return 0;
 	if (rv < 0)
 		return 0;

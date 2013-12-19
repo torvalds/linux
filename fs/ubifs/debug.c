@@ -2563,9 +2563,9 @@ static int corrupt_data(const struct ubifs_info *c, const void *buf,
 	unsigned int from, to, ffs = chance(1, 2);
 	unsigned char *p = (void *)buf;
 
-	from = prandom_u32() % (len + 1);
-	/* Corruption may only span one max. write unit */
-	to = min(len, ALIGN(from, c->max_write_size));
+	from = prandom_u32() % len;
+	/* Corruption span max to end of write unit */
+	to = min(len, ALIGN(from + 1, c->max_write_size));
 
 	ubifs_warn("filled bytes %u-%u with %s", from, to - 1,
 		   ffs ? "0xFFs" : "random data");
@@ -2587,10 +2587,11 @@ int dbg_leb_write(struct ubifs_info *c, int lnum, const void *buf,
 		return -EROFS;
 
 	failing = power_cut_emulated(c, lnum, 1);
-	if (failing)
+	if (failing) {
 		len = corrupt_data(c, buf, len);
-	ubifs_warn("actually write %d bytes to LEB %d:%d (the buffer was corrupted)",
-		   len, lnum, offs);
+		ubifs_warn("actually write %d bytes to LEB %d:%d (the buffer was corrupted)",
+			   len, lnum, offs);
+	}
 	err = ubi_leb_write(c->ubi, lnum, buf, offs, len);
 	if (err)
 		return err;

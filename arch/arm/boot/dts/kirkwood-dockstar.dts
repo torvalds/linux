@@ -1,7 +1,7 @@
 /dts-v1/;
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-6281.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
 
 / {
 	model = "Seagate FreeAgent Dockstar";
@@ -33,26 +33,6 @@
 		};
 		serial@12000 {
 			status = "ok";
-		};
-
-		nand@3000000 {
-			status = "okay";
-
-			partition@0 {
-				label = "u-boot";
-				reg = <0x0000000 0x100000>;
-				read-only;
-			};
-
-			partition@100000 {
-				label = "uImage";
-				reg = <0x0100000 0x400000>;
-			};
-
-			partition@500000 {
-				label = "data";
-				reg = <0x0500000 0xfb00000>;
-			};
 		};
 	};
 	gpio-leds {
@@ -88,5 +68,42 @@
 			regulator-boot-on;
 			gpio = <&gpio0 29 0>;
 		};
+	};
+};
+
+&nand {
+	status = "okay";
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0x100000>;
+		read-only;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x0100000 0x400000>;
+	};
+
+	partition@500000 {
+		label = "data";
+		reg = <0x0500000 0xfb00000>;
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		device_type = "ethernet-phy";
+		compatible = "marvell,88e1116";
+		reg = <0>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
 	};
 };

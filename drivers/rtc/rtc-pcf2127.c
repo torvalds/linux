@@ -203,11 +203,6 @@ static int pcf2127_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int pcf2127_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
 static const struct i2c_device_id pcf2127_id[] = {
 	{ "pcf2127", 0 },
 	{ }
@@ -229,7 +224,6 @@ static struct i2c_driver pcf2127_driver = {
 		.of_match_table = of_match_ptr(pcf2127_of_match),
 	},
 	.probe		= pcf2127_probe,
-	.remove		= pcf2127_remove,
 	.id_table	= pcf2127_id,
 };
 

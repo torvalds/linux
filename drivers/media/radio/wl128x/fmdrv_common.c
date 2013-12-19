@@ -175,7 +175,7 @@ static int_handler_prototype int_handler_table[] = {
 	fm_irq_handle_intmsk_cmd_resp
 };
 
-long (*g_st_write) (struct sk_buff *skb);
+static long (*g_st_write) (struct sk_buff *skb);
 static struct completion wait_for_fmdrv_reg_comp;
 
 static inline void fm_irq_call(struct fmdev *fmdev)

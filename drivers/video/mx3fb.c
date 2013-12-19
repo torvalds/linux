@@ -1354,7 +1354,7 @@ static struct fb_info *mx3fb_init_fbinfo(struct device *dev, struct fb_ops *ops)
 static int init_fb_chan(struct mx3fb_data *mx3fb, struct idmac_channel *ichan)
 {
 	struct device *dev = mx3fb->dev;
-	struct mx3fb_platform_data *mx3fb_pdata = dev->platform_data;
+	struct mx3fb_platform_data *mx3fb_pdata = dev_get_platdata(dev);
 	const char *name = mx3fb_pdata->name;
 	unsigned int irq;
 	struct fb_info *fbi;
@@ -1462,7 +1462,7 @@ static bool chan_filter(struct dma_chan *chan, void *arg)
 		return false;
 
 	dev = rq->mx3fb->dev;
-	mx3fb_pdata = dev->platform_data;
+	mx3fb_pdata = dev_get_platdata(dev);
 
 	return rq->id == chan->chan_id &&
 		mx3fb_pdata->dma_dev == chan->device->dev;

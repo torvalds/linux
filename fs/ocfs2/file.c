@@ -580,7 +580,7 @@ static int __ocfs2_extend_allocation(struct inode *inode, u32 logical_start,
 	int did_quota = 0;
 
 	/*
-	 * This function only exists for file systems which don't
+	 * Unwritten extent only exists for file systems which
 	 * support holes.
 	 */
 	BUG_ON(mark_unwritten && !ocfs2_sparse_alloc(osb));
@@ -603,8 +603,7 @@ restart_all:
 		goto leave;
 	}
 
-	credits = ocfs2_calc_extend_credits(osb->sb, &fe->id2.i_list,
-					    clusters_to_add);
+	credits = ocfs2_calc_extend_credits(osb->sb, &fe->id2.i_list);
 	handle = ocfs2_start_trans(osb, credits);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
@@ -671,11 +670,7 @@ restarted_transaction:
 		} else {
 			BUG_ON(why != RESTART_TRANS);
 
-			/* TODO: This can be more intelligent. */
-			credits = ocfs2_calc_extend_credits(osb->sb,
-							    &fe->id2.i_list,
-							    clusters_to_add);
-			status = ocfs2_extend_trans(handle, credits);
+			status = ocfs2_allocate_extend_trans(handle, 1);
 			if (status < 0) {
 				/* handle still has to be committed at
 				 * this point. */
@@ -1800,6 +1795,7 @@ static int ocfs2_remove_inode_range(struct inode *inode,
 	ocfs2_truncate_cluster_pages(inode, byte_start, byte_len);
 
 out:
+	ocfs2_free_path(path);
 	ocfs2_schedule_truncate_log_flush(osb, 1);
 	ocfs2_run_deallocs(osb, &dealloc);
 
@@ -2245,7 +2241,7 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 		file->f_path.dentry->d_name.name,
 		(unsigned int)nr_segs);
 
-	if (iocb->ki_left == 0)
+	if (iocb->ki_nbytes == 0)
 		return 0;
 
 	appending = file->f_flags & O_APPEND ? 1 : 0;
@@ -2296,7 +2292,7 @@ relock:
 
 	can_do_direct = direct_io;
 	ret = ocfs2_prepare_inode_for_write(file, ppos,
-					    iocb->ki_left, appending,
+					    iocb->ki_nbytes, appending,
 					    &can_do_direct, &has_refcount);
 	if (ret < 0) {
 		mlog_errno(ret);
@@ -2304,7 +2300,7 @@ relock:
 	}
 
 	if (direct_io && !is_sync_kiocb(iocb))
-		unaligned_dio = ocfs2_is_io_unaligned(inode, iocb->ki_left,
+		unaligned_dio = ocfs2_is_io_unaligned(inode, iocb->ki_nbytes,
 						      *ppos);
 
 	/*

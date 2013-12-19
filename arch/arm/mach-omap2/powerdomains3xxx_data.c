@@ -336,6 +336,13 @@ static struct powerdomain dpll5_pwrdm = {
 	.voltdm		  = { .name = "core" },
 };
 
+static struct powerdomain alwon_81xx_pwrdm = {
+	.name		  = "alwon_pwrdm",
+	.prcm_offs	  = TI81XX_PRM_ALWON_MOD,
+	.pwrsts		  = PWRSTS_OFF_ON,
+	.voltdm		  = { .name = "core" },
+};
+
 static struct powerdomain device_81xx_pwrdm = {
 	.name		  = "device_pwrdm",
 	.prcm_offs	  = TI81XX_PRM_DEVICE_MOD,
@@ -442,6 +449,7 @@ static struct powerdomain *powerdomains_am35x[] __initdata = {
 };
 
 static struct powerdomain *powerdomains_ti81xx[] __initdata = {
+	&alwon_81xx_pwrdm,
 	&device_81xx_pwrdm,
 	&active_816x_pwrdm,
 	&default_816x_pwrdm,

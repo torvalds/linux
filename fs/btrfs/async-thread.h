@@ -107,6 +107,8 @@ struct btrfs_workers {
 
 	/* extra name for this worker, used for current->name */
 	char *name;
+
+	int stopping;
 };
 
 void btrfs_queue_worker(struct btrfs_workers *workers, struct btrfs_work *work);

@@ -1368,7 +1368,7 @@ out_einval:
 }
 static DEVICE_ATTR_RW(ntcs);
 
-static struct attribute vpe_attrs[] = {
+static struct attribute *vpe_attrs[] = {
 	&dev_attr_kill.attr,
 	&dev_attr_ntcs.attr,
 	NULL,

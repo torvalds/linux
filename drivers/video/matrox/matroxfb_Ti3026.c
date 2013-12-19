@@ -473,7 +473,7 @@ static void ti3026_setMCLK(struct matrox_fb_info *minfo, int fout)
 		if (inTi3026(minfo, TVP3026_XPIXPLLDATA) & 0x40)
 			break;
 		udelay(10);
-	};
+	}
 	if (!tmout)
 		printk(KERN_ERR "matroxfb: Temporary pixel PLL not locked after 5 secs\n");
 

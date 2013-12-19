@@ -804,7 +804,7 @@ static int sh_irda_probe(struct platform_device *pdev)
 		goto err_mem_4;
 
 	platform_set_drvdata(pdev, ndev);
-	err = request_irq(irq, sh_irda_irq, IRQF_DISABLED, "sh_irda", self);
+	err = request_irq(irq, sh_irda_irq, 0, "sh_irda", self);
 	if (err) {
 		dev_warn(&pdev->dev, "Unable to attach sh_irda interrupt\n");
 		goto err_mem_4;

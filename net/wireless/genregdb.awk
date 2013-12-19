@@ -46,6 +46,12 @@ BEGIN {
 	sub(/:/, "", country)
 	printf "static const struct ieee80211_regdomain regdom_%s = {\n", country
 	printf "\t.alpha2 = \"%s\",\n", country
+	if ($NF ~ /DFS-ETSI/)
+		printf "\t.dfs_region = NL80211_DFS_ETSI,\n"
+	else if ($NF ~ /DFS-FCC/)
+		printf "\t.dfs_region = NL80211_DFS_FCC,\n"
+	else if ($NF ~ /DFS-JP/)
+		printf "\t.dfs_region = NL80211_DFS_JP,\n"
 	printf "\t.reg_rules = {\n"
 	active = 1
 	regdb = regdb "\t&regdom_" country ",\n"

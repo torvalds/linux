@@ -40,7 +40,7 @@
 #include <net/ip_vs.h>
 
 
-static inline unsigned int
+static inline int
 ip_vs_nq_dest_overhead(struct ip_vs_dest *dest)
 {
 	/*
@@ -59,7 +59,7 @@ ip_vs_nq_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 		  struct ip_vs_iphdr *iph)
 {
 	struct ip_vs_dest *dest, *least = NULL;
-	unsigned int loh = 0, doh;
+	int loh = 0, doh;
 
 	IP_VS_DBG(6, "%s(): Scheduling...\n", __func__);
 
@@ -92,8 +92,8 @@ ip_vs_nq_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 		}
 
 		if (!least ||
-		    (loh * atomic_read(&dest->weight) >
-		     doh * atomic_read(&least->weight))) {
+		    ((__s64)loh * atomic_read(&dest->weight) >
+		     (__s64)doh * atomic_read(&least->weight))) {
 			least = dest;
 			loh = doh;
 		}

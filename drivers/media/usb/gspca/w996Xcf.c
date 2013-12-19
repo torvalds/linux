@@ -430,11 +430,11 @@ static void w9968cf_set_crop_window(struct sd *sd)
 	#define SC(x) ((x) << 10)
 
 	/* Scaling factors */
-	fw = SC(sd->gspca_dev.width) / max_width;
-	fh = SC(sd->gspca_dev.height) / max_height;
+	fw = SC(sd->gspca_dev.pixfmt.width) / max_width;
+	fh = SC(sd->gspca_dev.pixfmt.height) / max_height;
 
-	cw = (fw >= fh) ? max_width : SC(sd->gspca_dev.width) / fh;
-	ch = (fw >= fh) ? SC(sd->gspca_dev.height) / fw : max_height;
+	cw = (fw >= fh) ? max_width : SC(sd->gspca_dev.pixfmt.width) / fh;
+	ch = (fw >= fh) ? SC(sd->gspca_dev.pixfmt.height) / fw : max_height;
 
 	sd->sensor_width = max_width;
 	sd->sensor_height = max_height;
@@ -454,34 +454,34 @@ static void w9968cf_mode_init_regs(struct sd *sd)
 
 	w9968cf_set_crop_window(sd);
 
-	reg_w(sd, 0x14, sd->gspca_dev.width);
-	reg_w(sd, 0x15, sd->gspca_dev.height);
+	reg_w(sd, 0x14, sd->gspca_dev.pixfmt.width);
+	reg_w(sd, 0x15, sd->gspca_dev.pixfmt.height);
 
 	/* JPEG width & height */
-	reg_w(sd, 0x30, sd->gspca_dev.width);
-	reg_w(sd, 0x31, sd->gspca_dev.height);
+	reg_w(sd, 0x30, sd->gspca_dev.pixfmt.width);
+	reg_w(sd, 0x31, sd->gspca_dev.pixfmt.height);
 
 	/* Y & UV frame buffer strides (in WORD) */
 	if (w9968cf_vga_mode[sd->gspca_dev.curr_mode].pixelformat ==
 	    V4L2_PIX_FMT_JPEG) {
-		reg_w(sd, 0x2c, sd->gspca_dev.width / 2);
-		reg_w(sd, 0x2d, sd->gspca_dev.width / 4);
+		reg_w(sd, 0x2c, sd->gspca_dev.pixfmt.width / 2);
+		reg_w(sd, 0x2d, sd->gspca_dev.pixfmt.width / 4);
 	} else
-		reg_w(sd, 0x2c, sd->gspca_dev.width);
+		reg_w(sd, 0x2c, sd->gspca_dev.pixfmt.width);
 
 	reg_w(sd, 0x00, 0xbf17); /* reset everything */
 	reg_w(sd, 0x00, 0xbf10); /* normal operation */
 
 	/* Transfer size in WORDS (for UYVY format only) */
-	val = sd->gspca_dev.width * sd->gspca_dev.height;
+	val = sd->gspca_dev.pixfmt.width * sd->gspca_dev.pixfmt.height;
 	reg_w(sd, 0x3d, val & 0xffff); /* low bits */
 	reg_w(sd, 0x3e, val >> 16);    /* high bits */
 
 	if (w9968cf_vga_mode[sd->gspca_dev.curr_mode].pixelformat ==
 	    V4L2_PIX_FMT_JPEG) {
 		/* We may get called multiple times (usb isoc bw negotiat.) */
-		jpeg_define(sd->jpeg_hdr, sd->gspca_dev.height,
-			    sd->gspca_dev.width, 0x22); /* JPEG 420 */
+		jpeg_define(sd->jpeg_hdr, sd->gspca_dev.pixfmt.height,
+			    sd->gspca_dev.pixfmt.width, 0x22); /* JPEG 420 */
 		jpeg_set_qual(sd->jpeg_hdr, v4l2_ctrl_g_ctrl(sd->jpegqual));
 		w9968cf_upload_quantizationtables(sd);
 		v4l2_ctrl_grab(sd->jpegqual, true);

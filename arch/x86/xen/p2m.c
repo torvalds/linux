@@ -799,10 +799,10 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 {
 	unsigned topidx, mididx, idx;
 
-	if (unlikely(xen_feature(XENFEAT_auto_translated_physmap))) {
-		BUG_ON(pfn != mfn && mfn != INVALID_P2M_ENTRY);
+	/* don't track P2M changes in autotranslate guests */
+	if (unlikely(xen_feature(XENFEAT_auto_translated_physmap)))
 		return true;
-	}
+
 	if (unlikely(pfn >= MAX_P2M_PFN)) {
 		BUG_ON(mfn != INVALID_P2M_ENTRY);
 		return true;
@@ -879,7 +879,6 @@ int m2p_add_override(unsigned long mfn, struct page *page,
 	unsigned long uninitialized_var(address);
 	unsigned level;
 	pte_t *ptep = NULL;
-	int ret = 0;
 
 	pfn = page_to_pfn(page);
 	if (!PageHighMem(page)) {
@@ -926,8 +925,8 @@ int m2p_add_override(unsigned long mfn, struct page *page,
 	 * frontend pages while they are being shared with the backend,
 	 * because mfn_to_pfn (that ends up being called by GUPF) will
 	 * return the backend pfn rather than the frontend pfn. */
-	ret = __get_user(pfn, &machine_to_phys_mapping[mfn]);
-	if (ret == 0 && get_phys_to_machine(pfn) == mfn)
+	pfn = mfn_to_pfn_no_overrides(mfn);
+	if (get_phys_to_machine(pfn) == mfn)
 		set_phys_to_machine(pfn, FOREIGN_FRAME(mfn));
 
 	return 0;
@@ -942,7 +941,6 @@ int m2p_remove_override(struct page *page,
 	unsigned long uninitialized_var(address);
 	unsigned level;
 	pte_t *ptep = NULL;
-	int ret = 0;
 
 	pfn = page_to_pfn(page);
 	mfn = get_phys_to_machine(pfn);
@@ -990,10 +988,13 @@ int m2p_remove_override(struct page *page,
 				printk(KERN_WARNING "m2p_remove_override: "
 						"pfn %lx mfn %lx, failed to modify kernel mappings",
 						pfn, mfn);
+				put_balloon_scratch_page();
 				return -1;
 			}
 
-			mcs = xen_mc_entry(
+			xen_mc_batch();
+
+			mcs = __xen_mc_entry(
 					sizeof(struct gnttab_unmap_and_replace));
 			unmap_op = mcs.args;
 			unmap_op->host_addr = kmap_op->host_addr;
@@ -1003,12 +1004,11 @@ int m2p_remove_override(struct page *page,
 			MULTI_grant_table_op(mcs.mc,
 					GNTTABOP_unmap_and_replace, unmap_op, 1);
 
-			xen_mc_issue(PARAVIRT_LAZY_MMU);
-
 			mcs = __xen_mc_entry(0);
 			MULTI_update_va_mapping(mcs.mc, scratch_page_address,
-					pfn_pte(page_to_pfn(get_balloon_scratch_page()),
+					pfn_pte(page_to_pfn(scratch_page),
 					PAGE_KERNEL_RO), 0);
+
 			xen_mc_issue(PARAVIRT_LAZY_MMU);
 
 			kmap_op->host_addr = 0;
@@ -1027,8 +1027,8 @@ int m2p_remove_override(struct page *page,
 	 * the original pfn causes mfn_to_pfn(mfn) to return the frontend
 	 * pfn again. */
 	mfn &= ~FOREIGN_FRAME_BIT;
-	ret = __get_user(pfn, &machine_to_phys_mapping[mfn]);
-	if (ret == 0 && get_phys_to_machine(pfn) == FOREIGN_FRAME(mfn) &&
+	pfn = mfn_to_pfn_no_overrides(mfn);
+	if (get_phys_to_machine(pfn) == FOREIGN_FRAME(mfn) &&
 			m2p_find_override(mfn) == NULL)
 		set_phys_to_machine(pfn, mfn);
 

@@ -1,7 +1,7 @@
 /*
  * SCSI Primary Commands (SPC) parsing and emulation.
  *
- * (c) Copyright 2002-2012 RisingTide Systems LLC.
+ * (c) Copyright 2002-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *
@@ -35,7 +35,7 @@
 #include "target_core_alua.h"
 #include "target_core_pr.h"
 #include "target_core_ua.h"
-
+#include "target_core_xcopy.h"
 
 static void spc_fill_alua_data(struct se_port *port, unsigned char *buf)
 {
@@ -48,7 +48,7 @@ static void spc_fill_alua_data(struct se_port *port, unsigned char *buf)
 	buf[5]	= 0x80;
 
 	/*
-	 * Set TPGS field for explict and/or implict ALUA access type
+	 * Set TPGS field for explicit and/or implicit ALUA access type
 	 * and opteration.
 	 *
 	 * See spc4r17 section 6.4.2 Table 135
@@ -95,6 +95,12 @@ spc_emulate_inquiry_std(struct se_cmd *cmd, unsigned char *buf)
 	 */
 	spc_fill_alua_data(lun->lun_sep, buf);
 
+	/*
+	 * Set Third-Party Copy (3PC) bit to indicate support for EXTENDED_COPY
+	 */
+	if (dev->dev_attrib.emulate_3pc)
+		buf[5] |= 0x8;
+
 	buf[7] = 0x2; /* CmdQue=1 */
 
 	memcpy(&buf[8], "LIO-ORG ", 8);
@@ -129,8 +135,8 @@ spc_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 	return 0;
 }
 
-static void spc_parse_naa_6h_vendor_specific(struct se_device *dev,
-		unsigned char *buf)
+void spc_parse_naa_6h_vendor_specific(struct se_device *dev,
+				      unsigned char *buf)
 {
 	unsigned char *p = &dev->t10_wwn.unit_serial[0];
 	int cnt;
@@ -446,6 +452,7 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	struct se_device *dev = cmd->se_dev;
 	u32 max_sectors;
 	int have_tp = 0;
+	int opt, min;
 
 	/*
 	 * Following spc3r22 section 6.5.3 Block Limits VPD page, when
@@ -460,11 +467,19 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 
 	/* Set WSNZ to 1 */
 	buf[4] = 0x01;
+	/*
+	 * Set MAXIMUM COMPARE AND WRITE LENGTH
+	 */
+	if (dev->dev_attrib.emulate_caw)
+		buf[5] = 0x01;
 
 	/*
 	 * Set OPTIMAL TRANSFER LENGTH GRANULARITY
 	 */
-	put_unaligned_be16(1, &buf[6]);
+	if (dev->transport->get_io_min && (min = dev->transport->get_io_min(dev)))
+		put_unaligned_be16(min / dev->dev_attrib.block_size, &buf[6]);
+	else
+		put_unaligned_be16(1, &buf[6]);
 
 	/*
 	 * Set MAXIMUM TRANSFER LENGTH
@@ -476,7 +491,10 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	/*
 	 * Set OPTIMAL TRANSFER LENGTH
 	 */
-	put_unaligned_be32(dev->dev_attrib.optimal_sectors, &buf[12]);
+	if (dev->transport->get_io_opt && (opt = dev->transport->get_io_opt(dev)))
+		put_unaligned_be32(opt / dev->dev_attrib.block_size, &buf[12]);
+	else
+		put_unaligned_be32(dev->dev_attrib.optimal_sectors, &buf[12]);
 
 	/*
 	 * Exit now if we don't support TP.
@@ -1239,7 +1257,7 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		*size = (cdb[3] << 8) + cdb[4];
 
 		/*
-		 * Do implict HEAD_OF_QUEUE processing for INQUIRY.
+		 * Do implicit HEAD_OF_QUEUE processing for INQUIRY.
 		 * See spc4r17 section 5.3
 		 */
 		cmd->sam_task_attr = MSG_HEAD_TAG;
@@ -1250,8 +1268,14 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		*size = (cdb[6] << 24) | (cdb[7] << 16) | (cdb[8] << 8) | cdb[9];
 		break;
 	case EXTENDED_COPY:
-	case READ_ATTRIBUTE:
+		*size = get_unaligned_be32(&cdb[10]);
+		cmd->execute_cmd = target_do_xcopy;
+		break;
 	case RECEIVE_COPY_RESULTS:
+		*size = get_unaligned_be32(&cdb[10]);
+		cmd->execute_cmd = target_do_receive_copy_results;
+		break;
+	case READ_ATTRIBUTE:
 	case WRITE_ATTRIBUTE:
 		*size = (cdb[10] << 24) | (cdb[11] << 16) |
 		       (cdb[12] << 8) | cdb[13];
@@ -1267,7 +1291,7 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		cmd->execute_cmd = spc_emulate_report_luns;
 		*size = (cdb[6] << 24) | (cdb[7] << 16) | (cdb[8] << 8) | cdb[9];
 		/*
-		 * Do implict HEAD_OF_QUEUE processing for REPORT_LUNS
+		 * Do implicit HEAD_OF_QUEUE processing for REPORT_LUNS
 		 * See spc4r17 section 5.3
 		 */
 		cmd->sam_task_attr = MSG_HEAD_TAG;

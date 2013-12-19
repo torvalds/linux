@@ -40,6 +40,20 @@
 #define VOLTAGE_VID_OFFSET_SCALE1    625
 #define VOLTAGE_VID_OFFSET_SCALE2    100
 
+static const struct ci_pt_defaults defaults_hawaii_xt =
+{
+	1, 0xF, 0xFD, 0x19, 5, 0x14, 0, 0xB0000,
+	{ 0x84,  0x0,   0x0,   0x7F,  0x0,   0x0,   0x5A,  0x60,  0x51,  0x8E,  0x79,  0x6B,  0x5F,  0x90,  0x79  },
+	{ 0x1EA, 0x1EA, 0x1EA, 0x224, 0x224, 0x224, 0x24F, 0x24F, 0x24F, 0x28E, 0x28E, 0x28E, 0x2BC, 0x2BC, 0x2BC }
+};
+
+static const struct ci_pt_defaults defaults_hawaii_pro =
+{
+	1, 0xF, 0xFD, 0x19, 5, 0x14, 0, 0x65062,
+	{ 0x93,  0x0,   0x0,   0x97,  0x0,   0x0,   0x6B,  0x60,  0x51,  0x95,  0x79,  0x6B,  0x5F,  0x90,  0x79  },
+	{ 0x1EA, 0x1EA, 0x1EA, 0x224, 0x224, 0x224, 0x24F, 0x24F, 0x24F, 0x28E, 0x28E, 0x28E, 0x2BC, 0x2BC, 0x2BC }
+};
+
 static const struct ci_pt_defaults defaults_bonaire_xt =
 {
 	1, 0xF, 0xFD, 0x19, 5, 45, 0, 0xB0000,
@@ -146,6 +160,8 @@ static const struct ci_pt_config_reg didt_config_ci[] =
 };
 
 extern u8 rv770_get_memory_module_index(struct radeon_device *rdev);
+extern void btc_get_max_clock_from_voltage_dependency_table(struct radeon_clock_voltage_dependency_table *table,
+							    u32 *max_clock);
 extern int ni_copy_and_switch_arb_sets(struct radeon_device *rdev,
 				       u32 arb_freq_src, u32 arb_freq_dest);
 extern u8 si_get_ddr3_mclk_frequency_ratio(u32 memory_clock);
@@ -185,21 +201,37 @@ static void ci_initialize_powertune_defaults(struct radeon_device *rdev)
 	struct ci_power_info *pi = ci_get_pi(rdev);
 
 	switch (rdev->pdev->device) {
-        case 0x6650:
-        case 0x6658:
-        case 0x665C:
-        default:
+	case 0x6650:
+	case 0x6658:
+	case 0x665C:
+	default:
 		pi->powertune_defaults = &defaults_bonaire_xt;
 		break;
-        case 0x6651:
-        case 0x665D:
+	case 0x6651:
+	case 0x665D:
 		pi->powertune_defaults = &defaults_bonaire_pro;
 		break;
-        case 0x6640:
+	case 0x6640:
 		pi->powertune_defaults = &defaults_saturn_xt;
 		break;
-        case 0x6641:
+	case 0x6641:
 		pi->powertune_defaults = &defaults_saturn_pro;
+		break;
+	case 0x67B8:
+	case 0x67B0:
+	case 0x67A0:
+	case 0x67A1:
+	case 0x67A2:
+	case 0x67A8:
+	case 0x67A9:
+	case 0x67AA:
+	case 0x67B9:
+	case 0x67BE:
+		pi->powertune_defaults = &defaults_hawaii_xt;
+		break;
+	case 0x67BA:
+	case 0x67B1:
+		pi->powertune_defaults = &defaults_hawaii_pro;
 		break;
 	}
 
@@ -712,6 +744,7 @@ static void ci_apply_state_adjust_rules(struct radeon_device *rdev,
 	struct radeon_clock_and_voltage_limits *max_limits;
 	bool disable_mclk_switching;
 	u32 sclk, mclk;
+	u32 max_sclk_vddc, max_mclk_vddci, max_mclk_vddc;
 	int i;
 
 	if ((rdev->pm.dpm.new_active_crtc_count > 1) ||
@@ -736,6 +769,29 @@ static void ci_apply_state_adjust_rules(struct radeon_device *rdev,
 				ps->performance_levels[i].mclk = max_limits->mclk;
 			if (ps->performance_levels[i].sclk > max_limits->sclk)
 				ps->performance_levels[i].sclk = max_limits->sclk;
+		}
+	}
+
+	/* limit clocks to max supported clocks based on voltage dependency tables */
+	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk,
+							&max_sclk_vddc);
+	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk,
+							&max_mclk_vddci);
+	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk,
+							&max_mclk_vddc);
+
+	for (i = 0; i < ps->performance_level_count; i++) {
+		if (max_sclk_vddc) {
+			if (ps->performance_levels[i].sclk > max_sclk_vddc)
+				ps->performance_levels[i].sclk = max_sclk_vddc;
+		}
+		if (max_mclk_vddci) {
+			if (ps->performance_levels[i].mclk > max_mclk_vddci)
+				ps->performance_levels[i].mclk = max_mclk_vddci;
+		}
+		if (max_mclk_vddc) {
+			if (ps->performance_levels[i].mclk > max_mclk_vddc)
+				ps->performance_levels[i].mclk = max_mclk_vddc;
 		}
 	}
 
@@ -4748,12 +4804,6 @@ int ci_dpm_set_power_state(struct radeon_device *rdev)
 	if (pi->pcie_performance_request)
 		ci_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
 
-	ret = ci_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
-	if (ret) {
-		DRM_ERROR("ci_dpm_force_performance_level failed\n");
-		return ret;
-	}
-
 	cik_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
 			     RADEON_CG_BLOCK_MC |
 			     RADEON_CG_BLOCK_SDMA |
@@ -5122,9 +5172,15 @@ int ci_dpm_init(struct radeon_device *rdev)
 	rdev->pm.dpm.dyn_state.valid_mclk_values.count = 0;
 	rdev->pm.dpm.dyn_state.valid_mclk_values.values = NULL;
 
-	pi->thermal_temp_setting.temperature_low = 99500;
-	pi->thermal_temp_setting.temperature_high = 100000;
-	pi->thermal_temp_setting.temperature_shutdown = 104000;
+	if (rdev->family == CHIP_HAWAII) {
+		pi->thermal_temp_setting.temperature_low = 94500;
+		pi->thermal_temp_setting.temperature_high = 95000;
+		pi->thermal_temp_setting.temperature_shutdown = 104000;
+	} else {
+		pi->thermal_temp_setting.temperature_low = 99500;
+		pi->thermal_temp_setting.temperature_high = 100000;
+		pi->thermal_temp_setting.temperature_shutdown = 104000;
+	}
 
 	pi->uvd_enabled = false;
 

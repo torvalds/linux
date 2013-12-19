@@ -27,6 +27,7 @@
 #include "fnic_io.h"
 #include "fnic_res.h"
 #include "fnic_trace.h"
+#include "fnic_stats.h"
 #include "vnic_dev.h"
 #include "vnic_wq.h"
 #include "vnic_rq.h"
@@ -38,11 +39,13 @@
 
 #define DRV_NAME		"fnic"
 #define DRV_DESCRIPTION		"Cisco FCoE HBA Driver"
-#define DRV_VERSION		"1.5.0.23"
+#define DRV_VERSION		"1.5.0.45"
 #define PFX			DRV_NAME ": "
 #define DFX                     DRV_NAME "%d: "
 
 #define DESC_CLEAN_LOW_WATERMARK 8
+#define FNIC_UCSM_DFLT_THROTTLE_CNT_BLD	16 /* UCSM default throttle count */
+#define FNIC_MIN_IO_REQ			256 /* Min IO throttle count */
 #define FNIC_MAX_IO_REQ		2048 /* scsi_cmnd tag map entries */
 #define	FNIC_IO_LOCKS		64 /* IO locks: power of 2 */
 #define FNIC_DFLT_QUEUE_DEPTH	32
@@ -154,6 +157,9 @@ do {								\
 	FNIC_CHECK_LOGGING(FNIC_ISR_LOGGING,			\
 			 shost_printk(kern_level, host, fmt, ##args);)
 
+#define FNIC_MAIN_NOTE(kern_level, host, fmt, args...)          \
+	shost_printk(kern_level, host, fmt, ##args)
+
 extern const char *fnic_state_str[];
 
 enum fnic_intx_intr_index {
@@ -215,15 +221,24 @@ struct fnic {
 
 	struct vnic_stats *stats;
 	unsigned long stats_time;	/* time of stats update */
+	unsigned long stats_reset_time; /* time of stats reset */
 	struct vnic_nic_cfg *nic_cfg;
 	char name[IFNAMSIZ];
 	struct timer_list notify_timer; /* used for MSI interrupts */
 
+	unsigned int fnic_max_tag_id;
 	unsigned int err_intr_offset;
 	unsigned int link_intr_offset;
 
 	unsigned int wq_count;
 	unsigned int cq_count;
+
+	struct dentry *fnic_stats_debugfs_host;
+	struct dentry *fnic_stats_debugfs_file;
+	struct dentry *fnic_reset_debugfs_file;
+	unsigned int reset_stats;
+	atomic64_t io_cmpl_skip;
+	struct fnic_stats fnic_stats;
 
 	u32 vlan_hw_insert:1;	        /* let hw insert the tag */
 	u32 in_remove:1;                /* fnic device in removal */
@@ -359,4 +374,5 @@ fnic_chk_state_flags_locked(struct fnic *fnic, unsigned long st_flags)
 	return ((fnic->state_flags & st_flags) == st_flags);
 }
 void __fnic_set_state_flags(struct fnic *, unsigned long, unsigned long);
+void fnic_dump_fchost_stats(struct Scsi_Host *, struct fc_host_statistics *);
 #endif /* _FNIC_H_ */

@@ -303,7 +303,7 @@ int ocfs2_info_handle_journal_size(struct inode *inode,
 	if (o2info_from_user(oij, req))
 		goto bail;
 
-	oij.ij_journal_size = osb->journal->j_inode->i_size;
+	oij.ij_journal_size = i_size_read(osb->journal->j_inode);
 
 	o2info_set_request_filled(&oij.ij_req);
 

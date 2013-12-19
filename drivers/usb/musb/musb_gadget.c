@@ -1121,7 +1121,7 @@ static int musb_gadget_enable(struct usb_ep *ep,
 			case USB_ENDPOINT_XFER_BULK:	s = "bulk"; break;
 			case USB_ENDPOINT_XFER_INT:	s = "int"; break;
 			default:			s = "iso"; break;
-			}; s; }),
+			} s; }),
 			musb_ep->is_in ? "IN" : "OUT",
 			musb_ep->dma ? "dma, " : "",
 			musb_ep->packet_sz);
@@ -1790,9 +1790,17 @@ int musb_gadget_setup(struct musb *musb)
 	musb->g.max_speed = USB_SPEED_HIGH;
 	musb->g.speed = USB_SPEED_UNKNOWN;
 
+	MUSB_DEV_MODE(musb);
+	musb->xceiv->otg->default_a = 0;
+	musb->xceiv->state = OTG_STATE_B_IDLE;
+
 	/* this "gadget" abstracts/virtualizes the controller */
 	musb->g.name = musb_driver_name;
+#if IS_ENABLED(CONFIG_USB_MUSB_DUAL_ROLE)
 	musb->g.is_otg = 1;
+#elif IS_ENABLED(CONFIG_USB_MUSB_GADGET)
+	musb->g.is_otg = 0;
+#endif
 
 	musb_g_init_endpoints(musb);
 
@@ -1854,6 +1862,8 @@ static int musb_gadget_start(struct usb_gadget *g,
 	otg_set_peripheral(otg, &musb->g);
 	musb->xceiv->state = OTG_STATE_B_IDLE;
 	spin_unlock_irqrestore(&musb->lock, flags);
+
+	musb_start(musb);
 
 	/* REVISIT:  funcall to other code, which also
 	 * handles power budgeting ... this way also

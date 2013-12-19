@@ -41,6 +41,13 @@ int mc13xxx_adc_do_conversion(struct mc13xxx *mc13xxx,
 		unsigned int mode, unsigned int channel,
 		u8 ato, bool atox, unsigned int *sample);
 
+#define MC13783_AUDIO_RX0	36
+#define MC13783_AUDIO_RX1	37
+#define MC13783_AUDIO_TX	38
+#define MC13783_SSI_NETWORK	39
+#define MC13783_AUDIO_CODEC	40
+#define MC13783_AUDIO_DAC	41
+
 #define MC13XXX_IRQ_ADCDONE	0
 #define MC13XXX_IRQ_ADCBISDONE	1
 #define MC13XXX_IRQ_TS		2

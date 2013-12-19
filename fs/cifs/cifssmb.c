@@ -463,7 +463,6 @@ decode_lanman_negprot_rsp(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr)
 			       cifs_max_pending);
 	set_credits(server, server->maxReq);
 	server->maxBuf = le16_to_cpu(rsp->MaxBufSize);
-	server->max_vcs = le16_to_cpu(rsp->MaxNumberVcs);
 	/* even though we do not use raw we might as well set this
 	accurately, in case we ever find a need for it */
 	if ((le16_to_cpu(rsp->RawMode) & RAW_ENABLE) == RAW_ENABLE) {
@@ -3067,7 +3066,6 @@ querySymLinkRetry:
 	return rc;
 }
 
-#ifdef CONFIG_CIFS_SYMLINK_EXPERIMENTAL
 /*
  *	Recent Windows versions now create symlinks more frequently
  *	and they use the "reparse point" mechanism below.  We can of course
@@ -3079,18 +3077,23 @@ querySymLinkRetry:
  *	it is not compiled in by default until callers fixed up and more tested.
  */
 int
-CIFSSMBQueryReparseLinkInfo(const unsigned int xid, struct cifs_tcon *tcon,
-			const unsigned char *searchName,
-			char *symlinkinfo, const int buflen, __u16 fid,
-			const struct nls_table *nls_codepage)
+CIFSSMBQuerySymLink(const unsigned int xid, struct cifs_tcon *tcon,
+		    __u16 fid, char **symlinkinfo,
+		    const struct nls_table *nls_codepage)
 {
 	int rc = 0;
 	int bytes_returned;
 	struct smb_com_transaction_ioctl_req *pSMB;
 	struct smb_com_transaction_ioctl_rsp *pSMBr;
+	bool is_unicode;
+	unsigned int sub_len;
+	char *sub_start;
+	struct reparse_symlink_data *reparse_buf;
+	struct reparse_posix_data *posix_buf;
+	__u32 data_offset, data_count;
+	char *end_of_smb;
 
-	cifs_dbg(FYI, "In Windows reparse style QueryLink for path %s\n",
-		 searchName);
+	cifs_dbg(FYI, "In Windows reparse style QueryLink for fid %u\n", fid);
 	rc = smb_init(SMB_COM_NT_TRANSACT, 23, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
 	if (rc)
@@ -3119,66 +3122,136 @@ CIFSSMBQueryReparseLinkInfo(const unsigned int xid, struct cifs_tcon *tcon,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
 		cifs_dbg(FYI, "Send error in QueryReparseLinkInfo = %d\n", rc);
-	} else {		/* decode response */
-		__u32 data_offset = le32_to_cpu(pSMBr->DataOffset);
-		__u32 data_count = le32_to_cpu(pSMBr->DataCount);
-		if (get_bcc(&pSMBr->hdr) < 2 || data_offset > 512) {
-			/* BB also check enough total bytes returned */
-			rc = -EIO;	/* bad smb */
-			goto qreparse_out;
-		}
-		if (data_count && (data_count < 2048)) {
-			char *end_of_smb = 2 /* sizeof byte count */ +
-			       get_bcc(&pSMBr->hdr) + (char *)&pSMBr->ByteCount;
-
-			struct reparse_data *reparse_buf =
-						(struct reparse_data *)
-						((char *)&pSMBr->hdr.Protocol
-								 + data_offset);
-			if ((char *)reparse_buf >= end_of_smb) {
-				rc = -EIO;
-				goto qreparse_out;
-			}
-			if ((reparse_buf->LinkNamesBuf +
-				reparse_buf->TargetNameOffset +
-				reparse_buf->TargetNameLen) > end_of_smb) {
-				cifs_dbg(FYI, "reparse buf beyond SMB\n");
-				rc = -EIO;
-				goto qreparse_out;
-			}
-
-			if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE) {
-				cifs_from_ucs2(symlinkinfo, (__le16 *)
-						(reparse_buf->LinkNamesBuf +
-						reparse_buf->TargetNameOffset),
-						buflen,
-						reparse_buf->TargetNameLen,
-						nls_codepage, 0);
-			} else { /* ASCII names */
-				strncpy(symlinkinfo,
-					reparse_buf->LinkNamesBuf +
-					reparse_buf->TargetNameOffset,
-					min_t(const int, buflen,
-					   reparse_buf->TargetNameLen));
-			}
-		} else {
-			rc = -EIO;
-			cifs_dbg(FYI, "Invalid return data count on get reparse info ioctl\n");
-		}
-		symlinkinfo[buflen] = 0; /* just in case so the caller
-					does not go off the end of the buffer */
-		cifs_dbg(FYI, "readlink result - %s\n", symlinkinfo);
+		goto qreparse_out;
 	}
 
+	data_offset = le32_to_cpu(pSMBr->DataOffset);
+	data_count = le32_to_cpu(pSMBr->DataCount);
+	if (get_bcc(&pSMBr->hdr) < 2 || data_offset > 512) {
+		/* BB also check enough total bytes returned */
+		rc = -EIO;	/* bad smb */
+		goto qreparse_out;
+	}
+	if (!data_count || (data_count > 2048)) {
+		rc = -EIO;
+		cifs_dbg(FYI, "Invalid return data count on get reparse info ioctl\n");
+		goto qreparse_out;
+	}
+	end_of_smb = 2 + get_bcc(&pSMBr->hdr) + (char *)&pSMBr->ByteCount;
+	reparse_buf = (struct reparse_symlink_data *)
+				((char *)&pSMBr->hdr.Protocol + data_offset);
+	if ((char *)reparse_buf >= end_of_smb) {
+		rc = -EIO;
+		goto qreparse_out;
+	}
+	if (reparse_buf->ReparseTag == cpu_to_le32(IO_REPARSE_TAG_NFS)) {
+		cifs_dbg(FYI, "NFS style reparse tag\n");
+		posix_buf =  (struct reparse_posix_data *)reparse_buf;
+
+		if (posix_buf->InodeType != cpu_to_le64(NFS_SPECFILE_LNK)) {
+			cifs_dbg(FYI, "unsupported file type 0x%llx\n",
+				 le64_to_cpu(posix_buf->InodeType));
+			rc = -EOPNOTSUPP;
+			goto qreparse_out;
+		}
+		is_unicode = true;
+		sub_len = le16_to_cpu(reparse_buf->ReparseDataLength);
+		if (posix_buf->PathBuffer + sub_len > end_of_smb) {
+			cifs_dbg(FYI, "reparse buf beyond SMB\n");
+			rc = -EIO;
+			goto qreparse_out;
+		}
+		*symlinkinfo = cifs_strndup_from_utf16(posix_buf->PathBuffer,
+				sub_len, is_unicode, nls_codepage);
+		goto qreparse_out;
+	} else if (reparse_buf->ReparseTag !=
+			cpu_to_le32(IO_REPARSE_TAG_SYMLINK)) {
+		rc = -EOPNOTSUPP;
+		goto qreparse_out;
+	}
+
+	/* Reparse tag is NTFS symlink */
+	sub_start = le16_to_cpu(reparse_buf->SubstituteNameOffset) +
+				reparse_buf->PathBuffer;
+	sub_len = le16_to_cpu(reparse_buf->SubstituteNameLength);
+	if (sub_start + sub_len > end_of_smb) {
+		cifs_dbg(FYI, "reparse buf beyond SMB\n");
+		rc = -EIO;
+		goto qreparse_out;
+	}
+	if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE)
+		is_unicode = true;
+	else
+		is_unicode = false;
+
+	/* BB FIXME investigate remapping reserved chars here */
+	*symlinkinfo = cifs_strndup_from_utf16(sub_start, sub_len, is_unicode,
+					       nls_codepage);
+	if (!*symlinkinfo)
+		rc = -ENOMEM;
 qreparse_out:
 	cifs_buf_release(pSMB);
 
-	/* Note: On -EAGAIN error only caller can retry on handle based calls
-		since file handle passed in no longer valid */
-
+	/*
+	 * Note: On -EAGAIN error only caller can retry on handle based calls
+	 * since file handle passed in no longer valid.
+	 */
 	return rc;
 }
-#endif /* CIFS_SYMLINK_EXPERIMENTAL */ /* BB temporarily unused */
+
+int
+CIFSSMB_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
+		    __u16 fid)
+{
+	int rc = 0;
+	int bytes_returned;
+	struct smb_com_transaction_compr_ioctl_req *pSMB;
+	struct smb_com_transaction_ioctl_rsp *pSMBr;
+
+	cifs_dbg(FYI, "Set compression for %u\n", fid);
+	rc = smb_init(SMB_COM_NT_TRANSACT, 23, tcon, (void **) &pSMB,
+		      (void **) &pSMBr);
+	if (rc)
+		return rc;
+
+	pSMB->compression_state = cpu_to_le16(COMPRESSION_FORMAT_DEFAULT);
+
+	pSMB->TotalParameterCount = 0;
+	pSMB->TotalDataCount = __constant_cpu_to_le32(2);
+	pSMB->MaxParameterCount = 0;
+	pSMB->MaxDataCount = 0;
+	pSMB->MaxSetupCount = 4;
+	pSMB->Reserved = 0;
+	pSMB->ParameterOffset = 0;
+	pSMB->DataCount = __constant_cpu_to_le32(2);
+	pSMB->DataOffset =
+		cpu_to_le32(offsetof(struct smb_com_transaction_compr_ioctl_req,
+				compression_state) - 4);  /* 84 */
+	pSMB->SetupCount = 4;
+	pSMB->SubCommand = __constant_cpu_to_le16(NT_TRANSACT_IOCTL);
+	pSMB->ParameterCount = 0;
+	pSMB->FunctionCode = __constant_cpu_to_le32(FSCTL_SET_COMPRESSION);
+	pSMB->IsFsctl = 1; /* FSCTL */
+	pSMB->IsRootFlag = 0;
+	pSMB->Fid = fid; /* file handle always le */
+	/* 3 byte pad, followed by 2 byte compress state */
+	pSMB->ByteCount = __constant_cpu_to_le16(5);
+	inc_rfc1001_len(pSMB, 5);
+
+	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
+			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
+	if (rc)
+		cifs_dbg(FYI, "Send error in SetCompression = %d\n", rc);
+
+	cifs_buf_release(pSMB);
+
+	/*
+	 * Note: On -EAGAIN error only caller can retry on handle based calls
+	 * since file handle passed in no longer valid.
+	 */
+	return rc;
+}
+
 
 #ifdef CONFIG_CIFS_POSIX
 
@@ -3296,11 +3369,13 @@ static __u16 ACL_to_cifs_posix(char *parm_data, const char *pACL,
 		return 0;
 	}
 	cifs_acl->version = cpu_to_le16(1);
-	if (acl_type == ACL_TYPE_ACCESS)
+	if (acl_type == ACL_TYPE_ACCESS) {
 		cifs_acl->access_entry_count = cpu_to_le16(count);
-	else if (acl_type == ACL_TYPE_DEFAULT)
+		cifs_acl->default_entry_count = __constant_cpu_to_le16(0xFFFF);
+	} else if (acl_type == ACL_TYPE_DEFAULT) {
 		cifs_acl->default_entry_count = cpu_to_le16(count);
-	else {
+		cifs_acl->access_entry_count = __constant_cpu_to_le16(0xFFFF);
+	} else {
 		cifs_dbg(FYI, "unknown ACL type %d\n", acl_type);
 		return 0;
 	}

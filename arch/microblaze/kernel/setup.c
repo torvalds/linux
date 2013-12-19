@@ -9,12 +9,14 @@
  */
 
 #include <linux/init.h>
+#include <linux/clocksource.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
 #include <linux/cpu.h>
 #include <linux/initrd.h>
 #include <linux/console.h>
 #include <linux/debugfs.h>
+#include <linux/of_fdt.h>
 
 #include <asm/setup.h>
 #include <asm/sections.h>
@@ -49,7 +51,7 @@ char cmd_line[COMMAND_LINE_SIZE] __attribute__ ((section(".data")));
 
 void __init setup_arch(char **cmdline_p)
 {
-	*cmdline_p = cmd_line;
+	*cmdline_p = boot_command_line;
 
 	console_verbose();
 
@@ -67,10 +69,6 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	xilinx_pci_init();
-
-#if defined(CONFIG_SELFMOD_INTC) || defined(CONFIG_SELFMOD_TIMER)
-	pr_notice("Self modified code enable\n");
-#endif
 
 #ifdef CONFIG_VT
 #if defined(CONFIG_XILINX_CONSOLE)
@@ -194,6 +192,11 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 	/* Initialize global data */
 	per_cpu(KM, 0) = 0x1;	/* We start in kernel mode */
 	per_cpu(CURRENT_SAVE, 0) = (unsigned long)current;
+}
+
+void __init time_init(void)
+{
+	clocksource_of_init();
 }
 
 #ifdef CONFIG_DEBUG_FS

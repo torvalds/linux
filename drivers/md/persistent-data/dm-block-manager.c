@@ -615,11 +615,22 @@ int dm_bm_flush_and_unlock(struct dm_block_manager *bm,
 }
 EXPORT_SYMBOL_GPL(dm_bm_flush_and_unlock);
 
+void dm_bm_prefetch(struct dm_block_manager *bm, dm_block_t b)
+{
+	dm_bufio_prefetch(bm->bufio, b, 1);
+}
+
 void dm_bm_set_read_only(struct dm_block_manager *bm)
 {
 	bm->read_only = true;
 }
 EXPORT_SYMBOL_GPL(dm_bm_set_read_only);
+
+void dm_bm_set_read_write(struct dm_block_manager *bm)
+{
+	bm->read_only = false;
+}
+EXPORT_SYMBOL_GPL(dm_bm_set_read_write);
 
 u32 dm_bm_checksum(const void *data, size_t len, u32 init_xor)
 {

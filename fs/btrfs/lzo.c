@@ -207,8 +207,10 @@ static int lzo_compress_pages(struct list_head *ws,
 		}
 
 		/* we're making it bigger, give up */
-		if (tot_in > 8192 && tot_in < tot_out)
+		if (tot_in > 8192 && tot_in < tot_out) {
+			ret = -1;
 			goto out;
+		}
 
 		/* we're all done */
 		if (tot_in >= len)

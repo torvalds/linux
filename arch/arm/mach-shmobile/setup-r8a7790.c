@@ -19,28 +19,29 @@
  */
 
 #include <linux/irq.h>
-#include <linux/irqchip.h>
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
-#include <linux/serial_sci.h>
 #include <linux/platform_data/gpio-rcar.h>
 #include <linux/platform_data/irq-renesas-irqc.h>
+#include <linux/serial_sci.h>
+#include <linux/sh_timer.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/r8a7790.h>
 #include <asm/mach/arch.h>
 
-static struct resource pfc_resources[] __initdata = {
+static const struct resource pfc_resources[] __initconst = {
 	DEFINE_RES_MEM(0xe6060000, 0x250),
 };
 
 #define R8A7790_GPIO(idx)						\
-static struct resource r8a7790_gpio##idx##_resources[] __initdata = {	\
+static const struct resource r8a7790_gpio##idx##_resources[] __initconst = { \
 	DEFINE_RES_MEM(0xe6050000 + 0x1000 * (idx), 0x50),		\
 	DEFINE_RES_IRQ(gic_spi(4 + (idx))),				\
 };									\
 									\
-static struct gpio_rcar_config r8a7790_gpio##idx##_platform_data __initdata = {	\
+static const struct gpio_rcar_config					\
+r8a7790_gpio##idx##_platform_data __initconst = {			\
 	.gpio_base	= 32 * (idx),					\
 	.irq_base	= 0,						\
 	.number_of_pins	= 32,						\
@@ -111,7 +112,7 @@ void __init r8a7790_pinmux_init(void)
 enum { SCIFA0, SCIFA1, SCIFB0, SCIFB1, SCIFB2, SCIFA2, SCIF0, SCIF1,
        HSCIF0, HSCIF1 };
 
-static struct plat_sci_port scif[] __initdata = {
+static const struct plat_sci_port scif[] __initconst = {
 	SCIFA_DATA(SCIFA0, 0xe6c40000, gic_spi(144)), /* SCIFA0 */
 	SCIFA_DATA(SCIFA1, 0xe6c50000, gic_spi(145)), /* SCIFA1 */
 	SCIFB_DATA(SCIFB0, 0xe6c20000, gic_spi(148)), /* SCIFB0 */
@@ -130,11 +131,11 @@ static inline void r8a7790_register_scif(int idx)
 				      sizeof(struct plat_sci_port));
 }
 
-static struct renesas_irqc_config irqc0_data __initdata = {
+static const struct renesas_irqc_config irqc0_data __initconst = {
 	.irq_base = irq_pin(0), /* IRQ0 -> IRQ3 */
 };
 
-static struct resource irqc0_resources[] __initdata = {
+static const struct resource irqc0_resources[] __initconst = {
 	DEFINE_RES_MEM(0xe61c0000, 0x200), /* IRQC Event Detector Block_0 */
 	DEFINE_RES_IRQ(gic_spi(0)), /* IRQ0 */
 	DEFINE_RES_IRQ(gic_spi(1)), /* IRQ1 */
@@ -149,7 +150,37 @@ static struct resource irqc0_resources[] __initdata = {
 					  &irqc##idx##_data,		\
 					  sizeof(struct renesas_irqc_config))
 
-void __init r8a7790_add_standard_devices(void)
+static const struct resource thermal_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe61f0000, 0x14),
+	DEFINE_RES_MEM(0xe61f0100, 0x38),
+	DEFINE_RES_IRQ(gic_spi(69)),
+};
+
+#define r8a7790_register_thermal()					\
+	platform_device_register_simple("rcar_thermal", -1,		\
+					thermal_resources,		\
+					ARRAY_SIZE(thermal_resources))
+
+static const struct sh_timer_config cmt00_platform_data __initconst = {
+	.name = "CMT00",
+	.timer_bit = 0,
+	.clockevent_rating = 80,
+};
+
+static const struct resource cmt00_resources[] __initconst = {
+	DEFINE_RES_MEM(0xffca0510, 0x0c),
+	DEFINE_RES_MEM(0xffca0500, 0x04),
+	DEFINE_RES_IRQ(gic_spi(142)), /* CMT0_0 */
+};
+
+#define r8a7790_register_cmt(idx)					\
+	platform_device_register_resndata(&platform_bus, "sh_cmt",	\
+					  idx, cmt##idx##_resources,	\
+					  ARRAY_SIZE(cmt##idx##_resources), \
+					  &cmt##idx##_platform_data,	\
+					  sizeof(struct sh_timer_config))
+
+void __init r8a7790_add_dt_devices(void)
 {
 	r8a7790_register_scif(SCIFA0);
 	r8a7790_register_scif(SCIFA1);
@@ -161,36 +192,34 @@ void __init r8a7790_add_standard_devices(void)
 	r8a7790_register_scif(SCIF1);
 	r8a7790_register_scif(HSCIF0);
 	r8a7790_register_scif(HSCIF1);
-	r8a7790_register_irqc(0);
+	r8a7790_register_cmt(00);
 }
 
-void __init r8a7790_timer_init(void)
+void __init r8a7790_add_standard_devices(void)
 {
-	void __iomem *cntcr;
+	r8a7790_add_dt_devices();
+	r8a7790_register_irqc(0);
+	r8a7790_register_thermal();
+}
 
-	/* make sure arch timer is started by setting bit 0 of CNTCT */
-	cntcr = ioremap(0xe6080000, PAGE_SIZE);
-	iowrite32(1, cntcr);
-	iounmap(cntcr);
-
-	shmobile_timer_init();
+void __init r8a7790_init_early(void)
+{
+#ifndef CONFIG_ARM_ARCH_TIMER
+	shmobile_setup_delay(1300, 2, 4); /* Cortex-A15 @ 1300MHz */
+#endif
 }
 
 #ifdef CONFIG_USE_OF
-void __init r8a7790_add_standard_devices_dt(void)
-{
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-}
 
-static const char *r8a7790_boards_compat_dt[] __initdata = {
+static const char * const r8a7790_boards_compat_dt[] __initconst = {
 	"renesas,r8a7790",
 	NULL,
 };
 
 DT_MACHINE_START(R8A7790_DT, "Generic R8A7790 (Flattened Device Tree)")
-	.init_irq	= irqchip_init,
-	.init_machine	= r8a7790_add_standard_devices_dt,
-	.init_time	= r8a7790_timer_init,
+	.smp		= smp_ops(r8a7790_smp_ops),
+	.init_early	= r8a7790_init_early,
+	.init_time	= rcar_gen2_timer_init,
 	.dt_compat	= r8a7790_boards_compat_dt,
 MACHINE_END
 #endif /* CONFIG_USE_OF */

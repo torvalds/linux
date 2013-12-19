@@ -37,30 +37,35 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <0>;
+			cci-control-port = <&cci_control1>;
 		};
 
 		cpu1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <1>;
+			cci-control-port = <&cci_control1>;
 		};
 
 		cpu2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x100>;
+			cci-control-port = <&cci_control2>;
 		};
 
 		cpu3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x101>;
+			cci-control-port = <&cci_control2>;
 		};
 
 		cpu4: cpu@4 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x102>;
+			cci-control-port = <&cci_control2>;
 		};
 	};
 
@@ -104,6 +109,26 @@
 		interrupts = <1 9 0xf04>;
 	};
 
+	cci@2c090000 {
+		compatible = "arm,cci-400";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0 0x2c090000 0 0x1000>;
+		ranges = <0x0 0x0 0x2c090000 0x10000>;
+
+		cci_control1: slave-if@4000 {
+			compatible = "arm,cci-400-ctrl-if";
+			interface-type = "ace";
+			reg = <0x4000 0x1000>;
+		};
+
+		cci_control2: slave-if@5000 {
+			compatible = "arm,cci-400-ctrl-if";
+			interface-type = "ace";
+			reg = <0x5000 0x1000>;
+		};
+	};
+
 	memory-controller@7ffd0000 {
 		compatible = "arm,pl354", "arm,primecell";
 		reg = <0 0x7ffd0000 0 0x1000>;
@@ -124,6 +149,12 @@
 		clocks = <&oscclk6a>;
 		clock-names = "apb_pclk";
 	};
+
+        scc@7fff0000 {
+		compatible = "arm,vexpress-scc,v2p-ca15_a7", "arm,vexpress-scc";
+		reg = <0 0x7fff0000 0 0x1000>;
+		interrupts = <0 95 4>;
+        };
 
 	timer {
 		compatible = "arm,armv7-timer";
