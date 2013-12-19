@@ -351,7 +351,7 @@ struct pci_dev {
 	struct bin_attribute *res_attr_wc[DEVICE_COUNT_RESOURCE]; /* sysfs file for WC mapping of resources */
 #ifdef CONFIG_PCI_MSI
 	struct list_head msi_list;
-	struct kset *msi_kset;
+	const struct attribute_group **msi_irq_groups;
 #endif
 	struct pci_vpd *vpd;
 #ifdef CONFIG_PCI_ATS

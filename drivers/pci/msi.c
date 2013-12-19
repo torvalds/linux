@@ -363,6 +363,9 @@ void write_msi_msg(unsigned int irq, struct msi_msg *msg)
 static void free_msi_irqs(struct pci_dev *dev)
 {
 	struct msi_desc *entry, *tmp;
+	struct attribute **msi_attrs;
+	struct device_attribute *dev_attr;
+	int count = 0;
 
 	list_for_each_entry(entry, &dev->msi_list, list) {
 		int i, nvec;
@@ -397,6 +400,22 @@ static void free_msi_irqs(struct pci_dev *dev)
 
 		list_del(&entry->list);
 		kfree(entry);
+	}
+
+	if (dev->msi_irq_groups) {
+		sysfs_remove_groups(&dev->dev.kobj, dev->msi_irq_groups);
+		msi_attrs = dev->msi_irq_groups[0]->attrs;
+		list_for_each_entry(entry, &dev->msi_list, list) {
+			dev_attr = container_of(msi_attrs[count],
+						struct device_attribute, attr);
+			kfree(dev_attr->attr.name);
+			kfree(dev_attr);
+			++count;
+		}
+		kfree(msi_attrs);
+		kfree(dev->msi_irq_groups[0]);
+		kfree(dev->msi_irq_groups);
+		dev->msi_irq_groups = NULL;
 	}
 }
 
@@ -471,94 +490,95 @@ void pci_restore_msi_state(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(pci_restore_msi_state);
 
-
-#define to_msi_attr(obj) container_of(obj, struct msi_attribute, attr)
-#define to_msi_desc(obj) container_of(obj, struct msi_desc, kobj)
-
-struct msi_attribute {
-	struct attribute        attr;
-	ssize_t (*show)(struct msi_desc *entry, struct msi_attribute *attr,
-			char *buf);
-	ssize_t (*store)(struct msi_desc *entry, struct msi_attribute *attr,
-			 const char *buf, size_t count);
-};
-
-static ssize_t show_msi_mode(struct msi_desc *entry, struct msi_attribute *atr,
+static ssize_t msi_mode_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
-	return sprintf(buf, "%s\n", entry->msi_attrib.is_msix ? "msix" : "msi");
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct msi_desc *entry;
+	unsigned long irq;
+	int retval;
+
+	retval = kstrtoul(attr->attr.name, 10, &irq);
+	if (retval)
+		return retval;
+
+	list_for_each_entry(entry, &pdev->msi_list, list) {
+		if (entry->irq == irq) {
+			return sprintf(buf, "%s\n",
+				       entry->msi_attrib.is_msix ? "msix" : "msi");
+		}
+	}
+	return -ENODEV;
 }
-
-static ssize_t msi_irq_attr_show(struct kobject *kobj,
-				 struct attribute *attr, char *buf)
-{
-	struct msi_attribute *attribute = to_msi_attr(attr);
-	struct msi_desc *entry = to_msi_desc(kobj);
-
-	if (!attribute->show)
-		return -EIO;
-
-	return attribute->show(entry, attribute, buf);
-}
-
-static const struct sysfs_ops msi_irq_sysfs_ops = {
-	.show = msi_irq_attr_show,
-};
-
-static struct msi_attribute mode_attribute =
-	__ATTR(mode, S_IRUGO, show_msi_mode, NULL);
-
-
-static struct attribute *msi_irq_default_attrs[] = {
-	&mode_attribute.attr,
-	NULL
-};
-
-static void msi_kobj_release(struct kobject *kobj)
-{
-	struct msi_desc *entry = to_msi_desc(kobj);
-
-	pci_dev_put(entry->dev);
-}
-
-static struct kobj_type msi_irq_ktype = {
-	.release = msi_kobj_release,
-	.sysfs_ops = &msi_irq_sysfs_ops,
-	.default_attrs = msi_irq_default_attrs,
-};
 
 static int populate_msi_sysfs(struct pci_dev *pdev)
 {
+	struct attribute **msi_attrs;
+	struct attribute *msi_attr;
+	struct device_attribute *msi_dev_attr;
+	struct attribute_group *msi_irq_group;
+	const struct attribute_group **msi_irq_groups;
 	struct msi_desc *entry;
-	struct kobject *kobj;
-	int ret;
+	int ret = -ENOMEM;
+	int num_msi = 0;
 	int count = 0;
 
-	pdev->msi_kset = kset_create_and_add("msi_irqs", NULL, &pdev->dev.kobj);
-	if (!pdev->msi_kset)
-		return -ENOMEM;
-
+	/* Determine how many msi entries we have */
 	list_for_each_entry(entry, &pdev->msi_list, list) {
-		kobj = &entry->kobj;
-		kobj->kset = pdev->msi_kset;
-		pci_dev_get(pdev);
-		ret = kobject_init_and_add(kobj, &msi_irq_ktype, NULL,
-				     "%u", entry->irq);
-		if (ret)
-			goto out_unroll;
-
-		count++;
+		++num_msi;
 	}
+	if (!num_msi)
+		return 0;
+
+	/* Dynamically create the MSI attributes for the PCI device */
+	msi_attrs = kzalloc(sizeof(void *) * (num_msi + 1), GFP_KERNEL);
+	if (!msi_attrs)
+		return -ENOMEM;
+	list_for_each_entry(entry, &pdev->msi_list, list) {
+		char *name = kmalloc(20, GFP_KERNEL);
+		msi_dev_attr = kzalloc(sizeof(*msi_dev_attr), GFP_KERNEL);
+		if (!msi_dev_attr)
+			goto error_attrs;
+		sprintf(name, "%d", entry->irq);
+		sysfs_attr_init(&msi_dev_attr->attr);
+		msi_dev_attr->attr.name = name;
+		msi_dev_attr->attr.mode = S_IRUGO;
+		msi_dev_attr->show = msi_mode_show;
+		msi_attrs[count] = &msi_dev_attr->attr;
+		++count;
+	}
+
+	msi_irq_group = kzalloc(sizeof(*msi_irq_group), GFP_KERNEL);
+	if (!msi_irq_group)
+		goto error_attrs;
+	msi_irq_group->name = "msi_irqs";
+	msi_irq_group->attrs = msi_attrs;
+
+	msi_irq_groups = kzalloc(sizeof(void *) * 2, GFP_KERNEL);
+	if (!msi_irq_groups)
+		goto error_irq_group;
+	msi_irq_groups[0] = msi_irq_group;
+
+	ret = sysfs_create_groups(&pdev->dev.kobj, msi_irq_groups);
+	if (ret)
+		goto error_irq_groups;
+	pdev->msi_irq_groups = msi_irq_groups;
 
 	return 0;
 
-out_unroll:
-	list_for_each_entry(entry, &pdev->msi_list, list) {
-		if (!count)
-			break;
-		kobject_del(&entry->kobj);
-		kobject_put(&entry->kobj);
-		count--;
+error_irq_groups:
+	kfree(msi_irq_groups);
+error_irq_group:
+	kfree(msi_irq_group);
+error_attrs:
+	count = 0;
+	msi_attr = msi_attrs[count];
+	while (msi_attr) {
+		msi_dev_attr = container_of(msi_attr, struct device_attribute, attr);
+		kfree(msi_attr->name);
+		kfree(msi_dev_attr);
+		++count;
+		msi_attr = msi_attrs[count];
 	}
 	return ret;
 }
@@ -925,8 +945,6 @@ void pci_disable_msi(struct pci_dev *dev)
 
 	pci_msi_shutdown(dev);
 	free_msi_irqs(dev);
-	kset_unregister(dev->msi_kset);
-	dev->msi_kset = NULL;
 }
 EXPORT_SYMBOL(pci_disable_msi);
 
@@ -1023,8 +1041,6 @@ void pci_disable_msix(struct pci_dev *dev)
 
 	pci_msix_shutdown(dev);
 	free_msi_irqs(dev);
-	kset_unregister(dev->msi_kset);
-	dev->msi_kset = NULL;
 }
 EXPORT_SYMBOL(pci_disable_msix);
 
