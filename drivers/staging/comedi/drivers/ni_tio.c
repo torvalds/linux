@@ -382,11 +382,11 @@ void ni_tio_init_counter(struct ni_gpct *counter)
 			~0, Gi_Synchronize_Gate_Bit);
 	ni_tio_set_bits(counter, NITIO_MODE_REG(counter->counter_index), ~0,
 			0);
-	counter_dev->regs[NITIO_Gi_LoadA_Reg(counter->counter_index)] = 0x0;
+	counter_dev->regs[NITIO_LOADA_REG(counter->counter_index)] = 0x0;
 	write_register(counter,
 		       counter_dev->
-		       regs[NITIO_Gi_LoadA_Reg(counter->counter_index)],
-		       NITIO_Gi_LoadA_Reg(counter->counter_index));
+		       regs[NITIO_LOADA_REG(counter->counter_index)],
+		       NITIO_LOADA_REG(counter->counter_index));
 	counter_dev->regs[NITIO_Gi_LoadB_Reg(counter->counter_index)] = 0x0;
 	write_register(counter,
 		       counter_dev->
@@ -1664,7 +1664,7 @@ int ni_tio_rinsn(struct ni_gpct *counter, struct comedi_insn *insn,
 	case 1:
 		data[0] =
 		    counter_dev->
-		    regs[NITIO_Gi_LoadA_Reg(counter->counter_index)];
+		    regs[NITIO_LOADA_REG(counter->counter_index)];
 		break;
 	case 2:
 		data[0] =
@@ -1685,7 +1685,7 @@ static unsigned ni_tio_next_load_register(struct ni_gpct *counter)
 	if (bits & Gi_Next_Load_Source_Bit(counter->counter_index))
 		return NITIO_Gi_LoadB_Reg(counter->counter_index);
 	else
-		return NITIO_Gi_LoadA_Reg(counter->counter_index);
+		return NITIO_LOADA_REG(counter->counter_index);
 }
 
 int ni_tio_winsn(struct ni_gpct *counter, struct comedi_insn *insn,
@@ -1710,10 +1710,10 @@ int ni_tio_winsn(struct ni_gpct *counter, struct comedi_insn *insn,
 		write_register(counter, counter_dev->regs[load_reg], load_reg);
 		break;
 	case 1:
-		counter_dev->regs[NITIO_Gi_LoadA_Reg(counter->counter_index)] =
+		counter_dev->regs[NITIO_LOADA_REG(counter->counter_index)] =
 		    data[0];
 		write_register(counter, data[0],
-			       NITIO_Gi_LoadA_Reg(counter->counter_index));
+			       NITIO_LOADA_REG(counter->counter_index));
 		break;
 	case 2:
 		counter_dev->regs[NITIO_Gi_LoadB_Reg(counter->counter_index)] =

@@ -25,6 +25,7 @@
 #define NITIO_CMD_REG(x)		(NITIO_G0_CMD + (x))
 #define NITIO_SW_SAVE_REG(x)		(NITIO_G0_SW_SAVE + (x))
 #define NITIO_MODE_REG(x)		(NITIO_G0_MODE + (x))
+#define NITIO_LOADA_REG(x)		(NITIO_G0_LOADA + (x))
 
 static inline enum ni_gpct_register NITIO_Gi_Counting_Mode_Reg(unsigned idx)
 {
@@ -104,21 +105,6 @@ static inline enum ni_gpct_register NITIO_Gxx_Status_Reg(unsigned idx)
 	case 2:
 	case 3:
 		return NITIO_G23_STATUS;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gi_LoadA_Reg(unsigned idx)
-{
-	switch (idx) {
-	case 0:
-		return NITIO_G0_LOADA;
-	case 1:
-		return NITIO_G1_LOADA;
-	case 2:
-		return NITIO_G2_LOADA;
-	case 3:
-		return NITIO_G3_LOADA;
 	}
 	return 0;
 }
