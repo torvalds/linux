@@ -2152,7 +2152,7 @@ static ssize_t smk_write_change_rule(struct file *file, const char __user *buf,
 	/*
 	 * Must have privilege.
 	 */
-	if (!capable(CAP_MAC_ADMIN))
+	if (!smack_privileged(CAP_MAC_ADMIN))
 		return -EPERM;
 
 	return smk_write_rules_list(file, buf, count, ppos, NULL, NULL,
