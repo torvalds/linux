@@ -771,10 +771,14 @@ static const struct snd_soc_component_driver ux500_msp_component = {
 static int ux500_msp_drv_probe(struct platform_device *pdev)
 {
 	struct ux500_msp_i2s_drvdata *drvdata;
+	struct msp_i2s_platform_data *pdata = pdev->dev.platform_data;
+	struct device_node *np = pdev->dev.of_node;
 	int ret = 0;
 
-	dev_dbg(&pdev->dev, "%s: Enter (pdev->name = %s).\n", __func__,
-		pdev->name);
+	if (!pdata && !np) {
+		dev_err(&pdev->dev, "No platform data or Device Tree found\n");
+		return -ENODEV;
+	}
 
 	drvdata = devm_kzalloc(&pdev->dev,
 				sizeof(struct ux500_msp_i2s_drvdata),
