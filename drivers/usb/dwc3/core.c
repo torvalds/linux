@@ -242,6 +242,90 @@ static void dwc3_event_buffers_cleanup(struct dwc3 *dwc)
 	}
 }
 
+static int dwc3_alloc_scratch_buffers(struct dwc3 *dwc)
+{
+	if (!dwc->has_hibernation)
+		return 0;
+
+	if (!dwc->nr_scratch)
+		return 0;
+
+	dwc->scratchbuf = kmalloc_array(dwc->nr_scratch,
+			DWC3_SCRATCHBUF_SIZE, GFP_KERNEL);
+	if (!dwc->scratchbuf)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static int dwc3_setup_scratch_buffers(struct dwc3 *dwc)
+{
+	dma_addr_t scratch_addr;
+	u32 param;
+	int ret;
+
+	if (!dwc->has_hibernation)
+		return 0;
+
+	if (!dwc->nr_scratch)
+		return 0;
+
+	 /* should never fall here */
+	if (!WARN_ON(dwc->scratchbuf))
+		return 0;
+
+	scratch_addr = dma_map_single(dwc->dev, dwc->scratchbuf,
+			dwc->nr_scratch * DWC3_SCRATCHBUF_SIZE,
+			DMA_BIDIRECTIONAL);
+	if (dma_mapping_error(dwc->dev, scratch_addr)) {
+		dev_err(dwc->dev, "failed to map scratch buffer\n");
+		ret = -EFAULT;
+		goto err0;
+	}
+
+	dwc->scratch_addr = scratch_addr;
+
+	param = lower_32_bits(scratch_addr);
+
+	ret = dwc3_send_gadget_generic_command(dwc,
+			DWC3_DGCMD_SET_SCRATCHPAD_ADDR_LO, param);
+	if (ret < 0)
+		goto err1;
+
+	param = upper_32_bits(scratch_addr);
+
+	ret = dwc3_send_gadget_generic_command(dwc,
+			DWC3_DGCMD_SET_SCRATCHPAD_ADDR_HI, param);
+	if (ret < 0)
+		goto err1;
+
+	return 0;
+
+err1:
+	dma_unmap_single(dwc->dev, dwc->scratch_addr, dwc->nr_scratch *
+			DWC3_SCRATCHBUF_SIZE, DMA_BIDIRECTIONAL);
+
+err0:
+	return ret;
+}
+
+static void dwc3_free_scratch_buffers(struct dwc3 *dwc)
+{
+	if (!dwc->has_hibernation)
+		return;
+
+	if (!dwc->nr_scratch)
+		return;
+
+	 /* should never fall here */
+	if (!WARN_ON(dwc->scratchbuf))
+		return;
+
+	dma_unmap_single(dwc->dev, dwc->scratch_addr, dwc->nr_scratch *
+			DWC3_SCRATCHBUF_SIZE, DMA_BIDIRECTIONAL);
+	kfree(dwc->scratchbuf);
+}
+
 static void dwc3_core_num_eps(struct dwc3 *dwc)
 {
 	struct dwc3_hwparams	*parms = &dwc->hwparams;
@@ -277,6 +361,7 @@ static void dwc3_cache_hwparams(struct dwc3 *dwc)
 static int dwc3_core_init(struct dwc3 *dwc)
 {
 	unsigned long		timeout;
+	u32			hwparams4 = dwc->hwparams.hwparams4;
 	u32			reg;
 	int			ret;
 
@@ -334,6 +419,10 @@ static int dwc3_core_init(struct dwc3 *dwc)
 		else
 			reg &= ~DWC3_GCTL_DSBLCLKGTNG;
 		break;
+	case DWC3_GHWPARAMS1_EN_PWROPT_HIB:
+		/* enable hibernation here */
+		dwc->nr_scratch = DWC3_GHWPARAMS4_HIBER_SCRATCHBUFS(hwparams4);
+		break;
 	default:
 		dev_dbg(dwc->dev, "No power optimization available\n");
 	}
@@ -351,7 +440,22 @@ static int dwc3_core_init(struct dwc3 *dwc)
 
 	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
 
+	ret = dwc3_alloc_scratch_buffers(dwc);
+	if (ret)
+		goto err1;
+
+	ret = dwc3_setup_scratch_buffers(dwc);
+	if (ret)
+		goto err2;
+
 	return 0;
+
+err2:
+	dwc3_free_scratch_buffers(dwc);
+
+err1:
+	usb_phy_shutdown(dwc->usb2_phy);
+	usb_phy_shutdown(dwc->usb3_phy);
 
 err0:
 	return ret;
@@ -359,6 +463,7 @@ err0:
 
 static void dwc3_core_exit(struct dwc3 *dwc)
 {
+	dwc3_free_scratch_buffers(dwc);
 	usb_phy_shutdown(dwc->usb2_phy);
 	usb_phy_shutdown(dwc->usb3_phy);
 }
