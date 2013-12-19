@@ -13,6 +13,7 @@
 #include "am4372.dtsi"
 #include <dt-bindings/pinctrl/am43xx.h>
 #include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "TI AM437x GP EVM";
@@ -24,6 +25,26 @@
 		brightness-levels = <0 51 53 56 62 75 101 152 255>;
 		default-brightness-level = <8>;
 	};
+
+	matrix_keypad: matrix_keypad@0 {
+		compatible = "gpio-matrix-keypad";
+		debounce-delay-ms = <5>;
+		col-scan-delay-us = <2>;
+
+		row-gpios = <&gpio3 21 GPIO_ACTIVE_HIGH /* Bank3, pin21 */
+				&gpio4 3 GPIO_ACTIVE_HIGH /* Bank4, pin3 */
+				&gpio4 2 GPIO_ACTIVE_HIGH>; /* Bank4, pin2 */
+
+		col-gpios = <&gpio3 19 GPIO_ACTIVE_HIGH /* Bank3, pin19 */
+				&gpio3 20 GPIO_ACTIVE_HIGH>; /* Bank3, pin20 */
+
+		linux,keymap = <0x00000201      /* P1 */
+				0x00010202      /* P2 */
+				0x01000067      /* UP */
+				0x0101006a      /* RIGHT */
+				0x02000069      /* LEFT */
+				0x0201006c>;      /* DOWN */
+		};
 };
 
 &am43xx_pinmux {
