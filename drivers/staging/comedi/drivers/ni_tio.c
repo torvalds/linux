@@ -53,10 +53,6 @@ static uint64_t ni_tio_clock_period_ps(const struct ni_gpct *counter,
 				       unsigned generic_clock_source);
 static unsigned ni_tio_generic_clock_src_select(const struct ni_gpct *counter);
 
-MODULE_AUTHOR("Comedi <comedi@comedi.org>");
-MODULE_DESCRIPTION("Comedi support for NI general-purpose counters");
-MODULE_LICENSE("GPL");
-
 static inline enum Gi_Counting_Mode_Reg_Bits Gi_Alternate_Sync_Bit(enum
 								   ni_gpct_variant
 								   variant)
@@ -276,19 +272,6 @@ static inline unsigned NI_660x_RTSI_Second_Gate_Select(unsigned n)
 
 static const unsigned int counter_status_mask =
 	COMEDI_COUNTER_ARMED | COMEDI_COUNTER_COUNTING;
-
-static int __init ni_tio_init_module(void)
-{
-	return 0;
-}
-
-module_init(ni_tio_init_module);
-
-static void __exit ni_tio_cleanup_module(void)
-{
-}
-
-module_exit(ni_tio_cleanup_module);
 
 struct ni_gpct_device *ni_gpct_device_construct(struct comedi_device *dev,
 						void (*write_register) (struct
@@ -1688,3 +1671,18 @@ int ni_tio_winsn(struct ni_gpct *counter, struct comedi_insn *insn,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ni_tio_winsn);
+
+static int __init ni_tio_init_module(void)
+{
+	return 0;
+}
+module_init(ni_tio_init_module);
+
+static void __exit ni_tio_cleanup_module(void)
+{
+}
+module_exit(ni_tio_cleanup_module);
+
+MODULE_AUTHOR("Comedi <comedi@comedi.org>");
+MODULE_DESCRIPTION("Comedi support for NI general-purpose counters");
+MODULE_LICENSE("GPL");
