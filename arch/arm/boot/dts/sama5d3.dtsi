@@ -350,6 +350,8 @@
 				interrupts = <42 IRQ_TYPE_LEVEL_HIGH 0>;
 				dmas = <&dma1 2 AT91_DMA_CFG_PER_ID(17)>;
 				dma-names = "tx";
+				clocks = <&sha_clk>;
+				clock-names = "sha_clk";
 			};
 
 			aes@f8038000 {
