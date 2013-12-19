@@ -1648,15 +1648,14 @@ int ni_tio_rinsn(struct ni_gpct *counter, struct comedi_insn *insn,
 		   a third read will be correct since the count value will definitely have latched by then. */
 		first_read =
 		    read_register(counter,
-				  NITIO_Gi_SW_Save_Reg(counter->counter_index));
+				  NITIO_SW_SAVE_REG(counter->counter_index));
 		second_read =
 		    read_register(counter,
-				  NITIO_Gi_SW_Save_Reg(counter->counter_index));
+				  NITIO_SW_SAVE_REG(counter->counter_index));
 		if (first_read != second_read)
 			correct_read =
 			    read_register(counter,
-					  NITIO_Gi_SW_Save_Reg(counter->
-							       counter_index));
+				  NITIO_SW_SAVE_REG(counter->counter_index));
 		else
 			correct_read = first_read;
 		data[0] = correct_read;

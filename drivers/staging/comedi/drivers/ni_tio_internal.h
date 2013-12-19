@@ -23,6 +23,7 @@
 
 #define NITIO_AUTO_INC_REG(x)		(NITIO_G0_AUTO_INC + (x))
 #define NITIO_CMD_REG(x)		(NITIO_G0_CMD + (x))
+#define NITIO_SW_SAVE_REG(x)		(NITIO_G0_SW_SAVE + (x))
 
 static inline enum ni_gpct_register NITIO_Gi_Counting_Mode_Reg(unsigned idx)
 {
@@ -147,21 +148,6 @@ static inline enum ni_gpct_register NITIO_Gi_Mode_Reg(unsigned idx)
 		return NITIO_G2_MODE;
 	case 3:
 		return NITIO_G3_MODE;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gi_SW_Save_Reg(int idx)
-{
-	switch (idx) {
-	case 0:
-		return NITIO_G0_SW_SAVE;
-	case 1:
-		return NITIO_G1_SW_SAVE;
-	case 2:
-		return NITIO_G2_SW_SAVE;
-	case 3:
-		return NITIO_G3_SW_SAVE;
 	}
 	return 0;
 }
