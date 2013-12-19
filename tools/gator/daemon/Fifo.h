@@ -39,6 +39,10 @@ private:
   sem_t* mReaderSem;
   char*	mBuffer;
   bool	mEnd;
+
+  // Intentionally unimplemented
+  Fifo(const Fifo &);
+  Fifo &operator=(const Fifo &);
 };
 
 #endif 	//__FIFO_H__

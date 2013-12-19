@@ -6,7 +6,7 @@
 # -std=c++0x is the planned new c++ standard
 # -std=c++98 is the 1998 c++ standard
 CFLAGS += -O3 -Wall -fno-exceptions -pthread -MMD -DETCDIR=\"/etc\" -Ilibsensors
-CXXFLAGS += -fno-rtti
+CXXFLAGS += -fno-rtti -Wextra # -Weffc++
 ifeq ($(WERROR),1)
 	CFLAGS += -Werror
 endif

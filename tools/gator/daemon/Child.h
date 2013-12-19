@@ -26,6 +26,10 @@ private:
 	int mNumConnections;
 
 	void initialization();
+
+	// Intentionally unimplemented
+	Child(const Child &);
+	Child &operator=(const Child &);
 };
 
 #endif 	//__CHILD_H__

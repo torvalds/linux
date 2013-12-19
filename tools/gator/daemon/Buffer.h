@@ -32,6 +32,7 @@ public:
 	void frame ();
 
 	bool eventHeader (uint64_t curr_time);
+	bool eventTid (int tid);
 	void event (int32_t key, int32_t value);
 	void event64 (int64_t key, int64_t value);
 
@@ -56,6 +57,10 @@ private:
 	char *const buf;
 	uint64_t commitTime;
 	sem_t *const readerSem;
+
+	// Intentionally unimplemented
+	Buffer(const Buffer &);
+	Buffer &operator=(const Buffer &);
 };
 
 #endif // BUFFER_H

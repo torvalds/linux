@@ -89,6 +89,25 @@ static void marshal_thread_name(int pid, char *name)
 	local_irq_restore(flags);
 }
 
+static void marshal_link(int cookie, int tgid, int pid)
+{
+	unsigned long cpu = get_physical_cpu(), flags;
+	u64 time;
+
+	local_irq_save(flags);
+	time = gator_get_time();
+	if (buffer_check_space(cpu, NAME_BUF, MAXSIZE_PACK64 + 5 * MAXSIZE_PACK32)) {
+		gator_buffer_write_packed_int(cpu, NAME_BUF, MESSAGE_LINK);
+		gator_buffer_write_packed_int64(cpu, NAME_BUF, time);
+		gator_buffer_write_packed_int(cpu, NAME_BUF, cookie);
+		gator_buffer_write_packed_int(cpu, NAME_BUF, tgid);
+		gator_buffer_write_packed_int(cpu, NAME_BUF, pid);
+	}
+	// Check and commit; commit is set to occur once buffer is 3/4 full
+	buffer_check(cpu, NAME_BUF, time);
+	local_irq_restore(flags);
+}
+
 static bool marshal_backtrace_header(int exec_cookie, int tgid, int pid, int inKernel, u64 time)
 {
 	int cpu = get_physical_cpu();
