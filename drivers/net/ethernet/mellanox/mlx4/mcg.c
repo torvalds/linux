@@ -125,8 +125,13 @@ static struct mlx4_promisc_qp *get_promisc_qp(struct mlx4_dev *dev, u8 port,
 					      enum mlx4_steer_type steer,
 					      u32 qpn)
 {
-	struct mlx4_steer *s_steer = &mlx4_priv(dev)->steer[port - 1];
+	struct mlx4_steer *s_steer;
 	struct mlx4_promisc_qp *pqp;
+
+	if (port < 1 || port > dev->caps.num_ports)
+		return NULL;
+
+	s_steer = &mlx4_priv(dev)->steer[port - 1];
 
 	list_for_each_entry(pqp, &s_steer->promisc_qps[steer], list) {
 		if (pqp->qpn == qpn)
@@ -153,6 +158,9 @@ static int new_steering_entry(struct mlx4_dev *dev, u8 port,
 	struct mlx4_promisc_qp *dqp = NULL;
 	u32 prot;
 	int err;
+
+	if (port < 1 || port > dev->caps.num_ports)
+		return -EINVAL;
 
 	s_steer = &mlx4_priv(dev)->steer[port - 1];
 	new_entry = kzalloc(sizeof *new_entry, GFP_KERNEL);
@@ -238,6 +246,9 @@ static int existing_steering_entry(struct mlx4_dev *dev, u8 port,
 	struct mlx4_promisc_qp *pqp;
 	struct mlx4_promisc_qp *dqp;
 
+	if (port < 1 || port > dev->caps.num_ports)
+		return -EINVAL;
+
 	s_steer = &mlx4_priv(dev)->steer[port - 1];
 
 	pqp = get_promisc_qp(dev, port, steer, qpn);
@@ -283,6 +294,9 @@ static bool check_duplicate_entry(struct mlx4_dev *dev, u8 port,
 	struct mlx4_steer_index *tmp_entry, *entry = NULL;
 	struct mlx4_promisc_qp *dqp, *tmp_dqp;
 
+	if (port < 1 || port > dev->caps.num_ports)
+		return NULL;
+
 	s_steer = &mlx4_priv(dev)->steer[port - 1];
 
 	/* if qp is not promisc, it cannot be duplicated */
@@ -323,6 +337,9 @@ static bool can_remove_steering_entry(struct mlx4_dev *dev, u8 port,
 	u32 members_count;
 	bool ret = false;
 	int i;
+
+	if (port < 1 || port > dev->caps.num_ports)
+		return NULL;
 
 	s_steer = &mlx4_priv(dev)->steer[port - 1];
 
@@ -377,6 +394,9 @@ static int add_promisc_qp(struct mlx4_dev *dev, u8 port,
 	bool found;
 	int err;
 	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	if (port < 1 || port > dev->caps.num_ports)
+		return -EINVAL;
 
 	s_steer = &mlx4_priv(dev)->steer[port - 1];
 
@@ -483,6 +503,9 @@ static int remove_promisc_qp(struct mlx4_dev *dev, u8 port,
 	bool back_to_list = false;
 	int loc, i;
 	int err;
+
+	if (port < 1 || port > dev->caps.num_ports)
+		return -EINVAL;
 
 	s_steer = &mlx4_priv(dev)->steer[port - 1];
 	mutex_lock(&priv->mcg_table.mutex);
@@ -909,6 +932,9 @@ int mlx4_qp_attach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 	int err;
 	u8 port = gid[5];
 	u8 new_entry = 0;
+
+	if (port < 1 || port > dev->caps.num_ports)
+		return -EINVAL;
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
