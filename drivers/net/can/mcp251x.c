@@ -28,8 +28,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  *
  *
@@ -1067,15 +1066,17 @@ static int mcp251x_can_probe(struct spi_device *spi)
 
 	/* Allocate non-DMA buffers */
 	if (!mcp251x_enable_dma) {
-		priv->spi_tx_buf = kmalloc(SPI_TRANSFER_BUF_LEN, GFP_KERNEL);
+		priv->spi_tx_buf = devm_kzalloc(&spi->dev, SPI_TRANSFER_BUF_LEN,
+						GFP_KERNEL);
 		if (!priv->spi_tx_buf) {
 			ret = -ENOMEM;
-			goto error_tx_buf;
+			goto error_probe;
 		}
-		priv->spi_rx_buf = kmalloc(SPI_TRANSFER_BUF_LEN, GFP_KERNEL);
+		priv->spi_rx_buf = devm_kzalloc(&spi->dev, SPI_TRANSFER_BUF_LEN,
+						GFP_KERNEL);
 		if (!priv->spi_rx_buf) {
 			ret = -ENOMEM;
-			goto error_rx_buf;
+			goto error_probe;
 		}
 	}
 
@@ -1108,12 +1109,6 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	return ret;
 
 error_probe:
-	if (!mcp251x_enable_dma)
-		kfree(priv->spi_rx_buf);
-error_rx_buf:
-	if (!mcp251x_enable_dma)
-		kfree(priv->spi_tx_buf);
-error_tx_buf:
 	if (mcp251x_enable_dma)
 		dma_free_coherent(&spi->dev, PAGE_SIZE,
 				  priv->spi_tx_buf, priv->spi_tx_dma);
@@ -1136,9 +1131,6 @@ static int mcp251x_can_remove(struct spi_device *spi)
 	if (mcp251x_enable_dma) {
 		dma_free_coherent(&spi->dev, PAGE_SIZE,
 				  priv->spi_tx_buf, priv->spi_tx_dma);
-	} else {
-		kfree(priv->spi_tx_buf);
-		kfree(priv->spi_rx_buf);
 	}
 
 	mcp251x_power_enable(priv->power, 0);

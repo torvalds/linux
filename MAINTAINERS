@@ -2008,6 +2008,7 @@ L:	linux-can@vger.kernel.org
 W:	http://gitorious.org/linux-can
 T:	git git://gitorious.org/linux-can/linux-can-next.git
 S:	Maintained
+F:	Documentation/networking/can.txt
 F:	net/can/
 F:	include/linux/can/core.h
 F:	include/uapi/linux/can.h
