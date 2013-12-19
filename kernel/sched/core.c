@@ -1887,9 +1887,15 @@ inline struct dl_bw *dl_bw_of(int i)
 	return &cpu_rq(i)->rd->dl_bw;
 }
 
-static inline int __dl_span_weight(struct rq *rq)
+static inline int dl_bw_cpus(int i)
 {
-	return cpumask_weight(rq->rd->span);
+	struct root_domain *rd = cpu_rq(i)->rd;
+	int cpus = 0;
+
+	for_each_cpu_and(i, rd->span, cpu_active_mask)
+		cpus++;
+
+	return cpus;
 }
 #else
 inline struct dl_bw *dl_bw_of(int i)
@@ -1897,7 +1903,7 @@ inline struct dl_bw *dl_bw_of(int i)
 	return &cpu_rq(i)->dl.dl_bw;
 }
 
-static inline int __dl_span_weight(struct rq *rq)
+static inline int dl_bw_cpus(int i)
 {
 	return 1;
 }
@@ -1938,8 +1944,7 @@ static int dl_overflow(struct task_struct *p, int policy,
 	u64 period = attr->sched_period;
 	u64 runtime = attr->sched_runtime;
 	u64 new_bw = dl_policy(policy) ? to_ratio(period, runtime) : 0;
-	int cpus = __dl_span_weight(task_rq(p));
-	int err = -1;
+	int cpus, err = -1;
 
 	if (new_bw == p->dl.dl_bw)
 		return 0;
@@ -1950,6 +1955,7 @@ static int dl_overflow(struct task_struct *p, int policy,
 	 * allocated bandwidth of the container.
 	 */
 	raw_spin_lock(&dl_b->lock);
+	cpus = dl_bw_cpus(task_cpu(p));
 	if (dl_policy(policy) && !task_has_dl_policy(p) &&
 	    !__dl_overflow(dl_b, cpus, 0, new_bw)) {
 		__dl_add(dl_b, new_bw);
@@ -4522,42 +4528,6 @@ out:
 EXPORT_SYMBOL_GPL(set_cpus_allowed_ptr);
 
 /*
- * When dealing with a -deadline task, we have to check if moving it to
- * a new CPU is possible or not. In fact, this is only true iff there
- * is enough bandwidth available on such CPU, otherwise we want the
- * whole migration procedure to fail over.
- */
-static inline
-bool set_task_cpu_dl(struct task_struct *p, unsigned int cpu)
-{
-	struct dl_bw *dl_b = dl_bw_of(task_cpu(p));
-	struct dl_bw *cpu_b = dl_bw_of(cpu);
-	int ret = 1;
-	u64 bw;
-
-	if (dl_b == cpu_b)
-		return 1;
-
-	raw_spin_lock(&dl_b->lock);
-	raw_spin_lock(&cpu_b->lock);
-
-	bw = cpu_b->bw * cpumask_weight(cpu_rq(cpu)->rd->span);
-	if (dl_bandwidth_enabled() &&
-	    bw < cpu_b->total_bw + p->dl.dl_bw) {
-		ret = 0;
-		goto unlock;
-	}
-	dl_b->total_bw -= p->dl.dl_bw;
-	cpu_b->total_bw += p->dl.dl_bw;
-
-unlock:
-	raw_spin_unlock(&cpu_b->lock);
-	raw_spin_unlock(&dl_b->lock);
-
-	return ret;
-}
-
-/*
  * Move (not current) task off this cpu, onto dest cpu. We're doing
  * this because either it can't run here any more (set_cpus_allowed()
  * away from this CPU, or CPU going down), or because we're
@@ -4586,13 +4556,6 @@ static int __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)
 		goto done;
 	/* Affinity changed (again). */
 	if (!cpumask_test_cpu(dest_cpu, tsk_cpus_allowed(p)))
-		goto fail;
-
-	/*
-	 * If p is -deadline, proceed only if there is enough
-	 * bandwidth available on dest_cpu
-	 */
-	if (unlikely(dl_task(p)) && !set_task_cpu_dl(p, dest_cpu))
 		goto fail;
 
 	/*
@@ -5052,13 +5015,31 @@ static int sched_cpu_active(struct notifier_block *nfb,
 static int sched_cpu_inactive(struct notifier_block *nfb,
 					unsigned long action, void *hcpu)
 {
+	unsigned long flags;
+	long cpu = (long)hcpu;
+
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_DOWN_PREPARE:
-		set_cpu_active((long)hcpu, false);
+		set_cpu_active(cpu, false);
+
+		/* explicitly allow suspend */
+		if (!(action & CPU_TASKS_FROZEN)) {
+			struct dl_bw *dl_b = dl_bw_of(cpu);
+			bool overflow;
+			int cpus;
+
+			raw_spin_lock_irqsave(&dl_b->lock, flags);
+			cpus = dl_bw_cpus(cpu);
+			overflow = __dl_overflow(dl_b, cpus, 0, 0);
+			raw_spin_unlock_irqrestore(&dl_b->lock, flags);
+
+			if (overflow)
+				return notifier_from_errno(-EBUSY);
+		}
 		return NOTIFY_OK;
-	default:
-		return NOTIFY_DONE;
 	}
+
+	return NOTIFY_DONE;
 }
 
 static int __init migration_init(void)
