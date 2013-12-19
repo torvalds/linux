@@ -210,7 +210,7 @@ EXPORT_SYMBOL_GPL(phy_exit);
 
 int phy_power_on(struct phy *phy)
 {
-	int ret = -ENOTSUPP;
+	int ret;
 
 	ret = phy_pm_runtime_get_sync(phy);
 	if (ret < 0 && ret != -ENOTSUPP)
@@ -238,7 +238,7 @@ EXPORT_SYMBOL_GPL(phy_power_on);
 
 int phy_power_off(struct phy *phy)
 {
-	int ret = -ENOTSUPP;
+	int ret;
 
 	mutex_lock(&phy->mutex);
 	if (phy->power_count == 1 && phy->ops->power_off) {
@@ -378,7 +378,7 @@ EXPORT_SYMBOL_GPL(of_phy_simple_xlate);
 struct phy *phy_get(struct device *dev, const char *string)
 {
 	int index = 0;
-	struct phy *phy = NULL;
+	struct phy *phy;
 
 	if (string == NULL) {
 		dev_WARN(dev, "missing string\n");
