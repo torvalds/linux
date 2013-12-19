@@ -217,10 +217,15 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 
 #define QUERY_FUNC_CAP_FLAGS1_FORCE_MAC		0x40
 #define QUERY_FUNC_CAP_FLAGS1_FORCE_VLAN	0x80
+#define QUERY_FUNC_CAP_FLAGS1_NIC_INFO			0x10
 
 #define QUERY_FUNC_CAP_FLAGS0_FORCE_PHY_WQE_GID 0x80
 
 	if (vhcr->op_modifier == 1) {
+		/* Set nic_info bit to mark new fields support */
+		field  = QUERY_FUNC_CAP_FLAGS1_NIC_INFO;
+		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_FLAGS1_OFFSET);
+
 		field = vhcr->in_modifier; /* phys-port = logical-port */
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_PHYS_PORT_OFFSET);
 
@@ -385,15 +390,15 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u32 gen_or_port,
 		goto out;
 	}
 
+	MLX4_GET(func_cap->flags1, outbox, QUERY_FUNC_CAP_FLAGS1_OFFSET);
 	if (dev->caps.port_type[gen_or_port] == MLX4_PORT_TYPE_ETH) {
-		MLX4_GET(field, outbox, QUERY_FUNC_CAP_FLAGS1_OFFSET);
-		if (field & QUERY_FUNC_CAP_FLAGS1_FORCE_VLAN) {
+		if (func_cap->flags1 & QUERY_FUNC_CAP_FLAGS1_OFFSET) {
 			mlx4_err(dev, "VLAN is enforced on this port\n");
 			err = -EPROTONOSUPPORT;
 			goto out;
 		}
 
-		if (field & QUERY_FUNC_CAP_FLAGS1_FORCE_MAC) {
+		if (func_cap->flags1 & QUERY_FUNC_CAP_FLAGS1_FORCE_MAC) {
 			mlx4_err(dev, "Force mac is enabled on this port\n");
 			err = -EPROTONOSUPPORT;
 			goto out;
