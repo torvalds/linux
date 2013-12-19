@@ -325,10 +325,14 @@ EXPORT_SYMBOL_GPL(usb_unanchor_urb);
  */
 int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 {
+	static int			pipetypes[4] = {
+		PIPE_CONTROL, PIPE_ISOCHRONOUS, PIPE_BULK, PIPE_INTERRUPT
+	};
 	int				xfertype, max;
 	struct usb_device		*dev;
 	struct usb_host_endpoint	*ep;
 	int				is_out;
+	unsigned int			allowed;
 
 	if (!urb || !urb->complete)
 		return -EINVAL;
@@ -436,15 +440,10 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	if (urb->transfer_buffer_length > INT_MAX)
 		return -EMSGSIZE;
 
-#ifdef DEBUG
-	/* stuff that drivers shouldn't do, but which shouldn't
+	/*
+	 * stuff that drivers shouldn't do, but which shouldn't
 	 * cause problems in HCDs if they get it wrong.
 	 */
-	{
-	unsigned int	allowed;
-	static int pipetypes[4] = {
-		PIPE_CONTROL, PIPE_ISOCHRONOUS, PIPE_BULK, PIPE_INTERRUPT
-	};
 
 	/* Check that the pipe's type matches the endpoint's type */
 	if (usb_pipetype(urb->pipe) != pipetypes[xfertype])
@@ -476,8 +475,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	if (allowed != urb->transfer_flags)
 		dev_WARN(&dev->dev, "BOGUS urb flags, %x --> %x\n",
 			urb->transfer_flags, allowed);
-	}
-#endif
+
 	/*
 	 * Force periodic transfer intervals to be legal values that are
 	 * a power of two (so HCDs don't need to).

@@ -33,13 +33,6 @@
 
 #include "hub.h"
 
-/* if we are in debug mode, always announce new devices */
-#ifdef DEBUG
-#ifndef CONFIG_USB_ANNOUNCE_NEW_DEVICES
-#define CONFIG_USB_ANNOUNCE_NEW_DEVICES
-#endif
-#endif
-
 #define USB_VENDOR_GENESYS_LOGIC		0x05e3
 #define HUB_QUIRK_CHECK_PORT_AUTOSUSPEND	0x01
 
