@@ -1193,12 +1193,57 @@ static bool __peri_clk_init(struct kona_clk *bcm_clk)
 	return true;
 }
 
+static bool __kona_clk_init(struct kona_clk *bcm_clk);
+static bool __kona_prereq_init(struct kona_clk *bcm_clk)
+{
+	struct clk *clk;
+	struct clk_hw *hw;
+	struct kona_clk *prereq;
+
+	BUG_ON(clk_is_initialized(bcm_clk));
+
+	if (!bcm_clk->prereq)
+		return true;
+
+	clk = clk_get(NULL, bcm_clk->prereq);
+	if (IS_ERR(clk)) {
+		pr_err("%s: unable to get prereq clock %s for %s\n",
+			__func__, bcm_clk->prereq, bcm_clk->init_data.name);
+		return false;
+	}
+	hw = __clk_get_hw(clk);
+	if (!hw) {
+		pr_err("%s: null hw pointer for clock %s\n", __func__,
+			bcm_clk->init_data.name);
+		return false;
+	}
+	prereq = to_kona_clk(hw);
+	if (prereq->ccu != bcm_clk->ccu) {
+		pr_err("%s: prereq clock %s CCU different for clock %s\n",
+			__func__, bcm_clk->prereq, bcm_clk->init_data.name);
+		return false;
+	}
+
+	/* Initialize the prerequisite clock first */
+	if (!__kona_clk_init(prereq)) {
+		pr_err("%s: failed to init prereq %s for clock %s\n",
+			__func__, bcm_clk->prereq, bcm_clk->init_data.name);
+		return false;
+	}
+	bcm_clk->prereq_clk = clk;
+
+	return true;
+}
+
 static bool __kona_clk_init(struct kona_clk *bcm_clk)
 {
 	bool ret = false;
 
 	if (clk_is_initialized(bcm_clk))
 		return true;
+
+	if (!__kona_prereq_init(bcm_clk))
+		return false;
 
 	switch (bcm_clk->type) {
 	case bcm_clk_peri:

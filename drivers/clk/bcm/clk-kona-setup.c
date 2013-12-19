@@ -685,6 +685,9 @@ peri_clk_setup(struct peri_clk_data *data, struct clk_init_data *init_data)
 
 static void bcm_clk_teardown(struct kona_clk *bcm_clk)
 {
+	/* There is no function defined for this (yet) */
+	/* clkdev_remove(&bcm_clk->cl); */
+
 	switch (bcm_clk->type) {
 	case bcm_clk_peri:
 		peri_clk_teardown(bcm_clk->data, &bcm_clk->init_data);
@@ -718,6 +721,7 @@ static void kona_clk_teardown(struct clk *clk)
 struct clk *kona_clk_setup(struct kona_clk *bcm_clk)
 {
 	struct clk_init_data *init_data = &bcm_clk->init_data;
+	const char *name = init_data->name;
 	struct clk *clk = NULL;
 
 	switch (bcm_clk->type) {
@@ -727,14 +731,13 @@ struct clk *kona_clk_setup(struct kona_clk *bcm_clk)
 		break;
 	default:
 		pr_err("%s: clock type %d invalid for %s\n", __func__,
-			(int)bcm_clk->type, init_data->name);
+			(int)bcm_clk->type, name);
 		return NULL;
 	}
 
 	/* Make sure everything makes sense before we set it up */
 	if (!kona_clk_valid(bcm_clk)) {
-		pr_err("%s: clock data invalid for %s\n", __func__,
-			init_data->name);
+		pr_err("%s: clock data invalid for %s\n", __func__, name);
 		goto out_teardown;
 	}
 
@@ -742,10 +745,15 @@ struct clk *kona_clk_setup(struct kona_clk *bcm_clk)
 	clk = clk_register(NULL, &bcm_clk->hw);
 	if (IS_ERR(clk)) {
 		pr_err("%s: error registering clock %s (%ld)\n", __func__,
-			init_data->name, PTR_ERR(clk));
+			name, PTR_ERR(clk));
 		goto out_teardown;
 	}
 	BUG_ON(!clk);
+
+	/*  Make it so we can look the clock up using clk_find() */
+	bcm_clk->cl.con_id = name;
+	bcm_clk->cl.clk = clk;
+	clkdev_add(&bcm_clk->cl);
 
 	return clk;
 out_teardown:
