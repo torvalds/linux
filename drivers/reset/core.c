@@ -43,7 +43,7 @@ struct reset_control {
  * This simple translation function should be used for reset controllers
  * with 1:1 mapping, where reset lines can be indexed by number without gaps.
  */
-int of_reset_simple_xlate(struct reset_controller_dev *rcdev,
+static int of_reset_simple_xlate(struct reset_controller_dev *rcdev,
 			  const struct of_phandle_args *reset_spec)
 {
 	if (WARN_ON(reset_spec->args_count != rcdev->of_reset_n_cells))
@@ -54,7 +54,6 @@ int of_reset_simple_xlate(struct reset_controller_dev *rcdev,
 
 	return reset_spec->args[0];
 }
-EXPORT_SYMBOL_GPL(of_reset_simple_xlate);
 
 /**
  * reset_controller_register - register a reset controller device
@@ -242,33 +241,6 @@ struct reset_control *devm_reset_control_get(struct device *dev, const char *id)
 	return rstc;
 }
 EXPORT_SYMBOL_GPL(devm_reset_control_get);
-
-static int devm_reset_control_match(struct device *dev, void *res, void *data)
-{
-	struct reset_control **rstc = res;
-	if (WARN_ON(!rstc || !*rstc))
-		return 0;
-	return *rstc == data;
-}
-
-/**
- * devm_reset_control_put - resource managed reset_control_put()
- * @rstc: reset controller to free
- *
- * Deallocate a reset control allocated withd devm_reset_control_get().
- * This function will not need to be called normally, as devres will take
- * care of freeing the resource.
- */
-void devm_reset_control_put(struct reset_control *rstc)
-{
-	int ret;
-
-	ret = devres_release(rstc->dev, devm_reset_control_release,
-			     devm_reset_control_match, rstc);
-	if (ret)
-		WARN_ON(ret);
-}
-EXPORT_SYMBOL_GPL(devm_reset_control_put);
 
 /**
  * device_reset - find reset controller associated with the device
