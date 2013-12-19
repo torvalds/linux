@@ -43,8 +43,11 @@ static inline void __mwait(unsigned long eax, unsigned long ecx)
 static inline void mwait_idle_with_hints(unsigned long eax, unsigned long ecx)
 {
 	if (!current_set_polling_and_test()) {
-		if (this_cpu_has(X86_FEATURE_CLFLUSH_MONITOR))
+		if (static_cpu_has(X86_FEATURE_CLFLUSH_MONITOR)) {
+			mb();
 			clflush((void *)&current_thread_info()->flags);
+			mb();
+		}
 
 		__monitor((void *)&current_thread_info()->flags, 0, 0);
 		if (!need_resched())
