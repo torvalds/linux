@@ -37,7 +37,6 @@ __wsum __csum_partial_copy_from_user(const void *src, void *dst,
 				     int len, __wsum sum, int *err_ptr);
 __wsum __csum_partial_copy_to_user(const void *src, void *dst,
 				   int len, __wsum sum, int *err_ptr);
-
 /*
  * this is a new version of the above that records errors it finds in *errp,
  * but continues and zeros the rest of the buffer.
@@ -47,8 +46,12 @@ __wsum csum_partial_copy_from_user(const void __user *src, void *dst, int len,
 				   __wsum sum, int *err_ptr)
 {
 	might_fault();
-	return __csum_partial_copy_from_user((__force void *)src, dst,
-					     len, sum, err_ptr);
+	if (segment_eq(get_fs(), get_ds()))
+		return __csum_partial_copy_kernel((__force void *)src, dst,
+						  len, sum, err_ptr);
+	else
+		return __csum_partial_copy_from_user((__force void *)src, dst,
+						     len, sum, err_ptr);
 }
 
 /*
@@ -60,9 +63,16 @@ __wsum csum_and_copy_to_user(const void *src, void __user *dst, int len,
 			     __wsum sum, int *err_ptr)
 {
 	might_fault();
-	if (access_ok(VERIFY_WRITE, dst, len))
-		return __csum_partial_copy_to_user(src, (__force void *)dst,
-						   len, sum, err_ptr);
+	if (access_ok(VERIFY_WRITE, dst, len)) {
+		if (segment_eq(get_fs(), get_ds()))
+			return __csum_partial_copy_kernel(src,
+							  (__force void *)dst,
+							  len, sum, err_ptr);
+		else
+			return __csum_partial_copy_to_user(src,
+							   (__force void *)dst,
+							   len, sum, err_ptr);
+	}
 	if (len)
 		*err_ptr = -EFAULT;
 
