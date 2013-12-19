@@ -1201,16 +1201,6 @@ int drbd_bm_write_all(struct drbd_conf *mdev) __must_hold(local)
 }
 
 /**
- * drbd_bm_lazy_write_out() - Write bitmap pages 0 to @upper_idx-1, if they have changed.
- * @mdev:	DRBD device.
- * @upper_idx:	0: write all changed pages; +ve: page index to stop scanning for changed pages
- */
-int drbd_bm_write_lazy(struct drbd_conf *mdev, unsigned upper_idx) __must_hold(local)
-{
-	return bm_rw(mdev, WRITE, BM_AIO_COPY_PAGES, upper_idx);
-}
-
-/**
  * drbd_bm_write_copy_pages() - Write the whole bitmap to its on disk location.
  * @mdev:	DRBD device.
  *
