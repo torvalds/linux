@@ -697,11 +697,15 @@ spc_emulate_inquiry(struct se_cmd *cmd)
 	struct se_portal_group *tpg = cmd->se_lun->lun_sep->sep_tpg;
 	unsigned char *rbuf;
 	unsigned char *cdb = cmd->t_task_cdb;
-	unsigned char buf[SE_INQUIRY_BUF];
+	unsigned char *buf;
 	sense_reason_t ret;
 	int p;
 
-	memset(buf, 0, SE_INQUIRY_BUF);
+	buf = kzalloc(SE_INQUIRY_BUF, GFP_KERNEL);
+	if (!buf) {
+		pr_err("Unable to allocate response buffer for INQUIRY\n");
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	}
 
 	if (dev == tpg->tpg_virt_lun0.lun_se_dev)
 		buf[0] = 0x3f; /* Not connected */
@@ -734,9 +738,10 @@ spc_emulate_inquiry(struct se_cmd *cmd)
 out:
 	rbuf = transport_kmap_data_sg(cmd);
 	if (rbuf) {
-		memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
+		memcpy(rbuf, buf, min_t(u32, SE_INQUIRY_BUF, cmd->data_length));
 		transport_kunmap_data_sg(cmd);
 	}
+	kfree(buf);
 
 	if (!ret)
 		target_complete_cmd(cmd, GOOD);
