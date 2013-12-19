@@ -16,6 +16,7 @@
 #include <linux/netdevice.h>
 #include <linux/rwlock.h>
 #include <linux/rcupdate.h>
+#include <linux/reciprocal_div.h>
 #include "bonding.h"
 
 static bool bond_mode_is_valid(int mode)
@@ -573,6 +574,85 @@ int bond_option_resend_igmp_set(struct bonding *bond, int resend_igmp)
 	bond->params.resend_igmp = resend_igmp;
 	pr_info("%s: Setting resend_igmp to %d.\n",
 		bond->dev->name, resend_igmp);
+
+	return 0;
+}
+
+int bond_option_num_peer_notif_set(struct bonding *bond, int num_peer_notif)
+{
+	bond->params.num_peer_notif = num_peer_notif;
+	return 0;
+}
+
+int bond_option_all_slaves_active_set(struct bonding *bond,
+				      int all_slaves_active)
+{
+	struct list_head *iter;
+	struct slave *slave;
+
+	if (all_slaves_active == bond->params.all_slaves_active)
+		return 0;
+
+	if ((all_slaves_active == 0) || (all_slaves_active == 1)) {
+		bond->params.all_slaves_active = all_slaves_active;
+	} else {
+		pr_info("%s: Ignoring invalid all_slaves_active value %d.\n",
+			bond->dev->name, all_slaves_active);
+		return -EINVAL;
+	}
+
+	bond_for_each_slave(bond, slave, iter) {
+		if (!bond_is_active_slave(slave)) {
+			if (all_slaves_active)
+				slave->inactive = 0;
+			else
+				slave->inactive = 1;
+		}
+	}
+
+	return 0;
+}
+
+int bond_option_min_links_set(struct bonding *bond, int min_links)
+{
+	pr_info("%s: Setting min links value to %u\n",
+		bond->dev->name, min_links);
+	bond->params.min_links = min_links;
+
+	return 0;
+}
+
+int bond_option_lp_interval_set(struct bonding *bond, int lp_interval)
+{
+	if (lp_interval <= 0) {
+		pr_err("%s: lp_interval must be between 1 and %d\n",
+		       bond->dev->name, INT_MAX);
+		return -EINVAL;
+	}
+
+	bond->params.lp_interval = lp_interval;
+
+	return 0;
+}
+
+int bond_option_packets_per_slave_set(struct bonding *bond,
+				      int packets_per_slave)
+{
+	if (packets_per_slave < 0 || packets_per_slave > USHRT_MAX) {
+		pr_err("%s: packets_per_slave must be between 0 and %u\n",
+		       bond->dev->name, USHRT_MAX);
+		return -EINVAL;
+	}
+
+	if (bond->params.mode != BOND_MODE_ROUNDROBIN)
+		pr_warn("%s: Warning: packets_per_slave has effect only in balance-rr mode\n",
+			bond->dev->name);
+
+	if (packets_per_slave > 1)
+		bond->params.packets_per_slave =
+			reciprocal_value(packets_per_slave);
+	else
+		bond->params.packets_per_slave = packets_per_slave;
 
 	return 0;
 }

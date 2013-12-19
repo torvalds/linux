@@ -19,6 +19,7 @@
 #include <linux/if_ether.h>
 #include <net/netlink.h>
 #include <net/rtnetlink.h>
+#include <linux/reciprocal_div.h>
 #include "bonding.h"
 
 static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
@@ -37,6 +38,11 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_FAIL_OVER_MAC]	= { .type = NLA_U8 },
 	[IFLA_BOND_XMIT_HASH_POLICY]	= { .type = NLA_U8 },
 	[IFLA_BOND_RESEND_IGMP]		= { .type = NLA_U32 },
+	[IFLA_BOND_NUM_PEER_NOTIF]	= { .type = NLA_U8 },
+	[IFLA_BOND_ALL_SLAVES_ACTIVE]	= { .type = NLA_U8 },
+	[IFLA_BOND_MIN_LINKS]		= { .type = NLA_U32 },
+	[IFLA_BOND_LP_INTERVAL]		= { .type = NLA_U32 },
+	[IFLA_BOND_PACKETS_PER_SLAVE]	= { .type = NLA_U32 },
 };
 
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -204,6 +210,48 @@ static int bond_changelink(struct net_device *bond_dev,
 		if (err)
 			return err;
 	}
+	if (data[IFLA_BOND_NUM_PEER_NOTIF]) {
+		int num_peer_notif =
+			nla_get_u8(data[IFLA_BOND_NUM_PEER_NOTIF]);
+
+		err = bond_option_num_peer_notif_set(bond, num_peer_notif);
+		if (err)
+			return err;
+	}
+	if (data[IFLA_BOND_ALL_SLAVES_ACTIVE]) {
+		int all_slaves_active =
+			nla_get_u8(data[IFLA_BOND_ALL_SLAVES_ACTIVE]);
+
+		err = bond_option_all_slaves_active_set(bond,
+							all_slaves_active);
+		if (err)
+			return err;
+	}
+	if (data[IFLA_BOND_MIN_LINKS]) {
+		int min_links =
+			nla_get_u32(data[IFLA_BOND_MIN_LINKS]);
+
+		err = bond_option_min_links_set(bond, min_links);
+		if (err)
+			return err;
+	}
+	if (data[IFLA_BOND_LP_INTERVAL]) {
+		int lp_interval =
+			nla_get_u32(data[IFLA_BOND_LP_INTERVAL]);
+
+		err = bond_option_lp_interval_set(bond, lp_interval);
+		if (err)
+			return err;
+	}
+	if (data[IFLA_BOND_PACKETS_PER_SLAVE]) {
+		int packets_per_slave =
+			nla_get_u32(data[IFLA_BOND_PACKETS_PER_SLAVE]);
+
+		err = bond_option_packets_per_slave_set(bond,
+							packets_per_slave);
+		if (err)
+			return err;
+	}
 	return 0;
 }
 
@@ -237,6 +285,11 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_FAIL_OVER_MAC */
 		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_XMIT_HASH_POLICY */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_RESEND_IGMP */
+		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_NUM_PEER_NOTIF */
+		nla_total_size(sizeof(u8)) +   /* IFLA_BOND_ALL_SLAVES_ACTIVE */
+		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_MIN_LINKS */
+		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_LP_INTERVAL */
+		nla_total_size(sizeof(u32)) +  /* IFLA_BOND_PACKETS_PER_SLAVE */
 		0;
 }
 
@@ -246,6 +299,7 @@ static int bond_fill_info(struct sk_buff *skb,
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct net_device *slave_dev = bond_option_active_slave_get(bond);
 	struct nlattr *targets;
+	unsigned int packets_per_slave;
 	int i, targets_added;
 
 	if (nla_put_u8(skb, IFLA_BOND_MODE, bond->params.mode))
@@ -315,6 +369,30 @@ static int bond_fill_info(struct sk_buff *skb,
 
 	if (nla_put_u32(skb, IFLA_BOND_RESEND_IGMP,
 		        bond->params.resend_igmp))
+		goto nla_put_failure;
+
+	if (nla_put_u8(skb, IFLA_BOND_NUM_PEER_NOTIF,
+		       bond->params.num_peer_notif))
+		goto nla_put_failure;
+
+	if (nla_put_u8(skb, IFLA_BOND_ALL_SLAVES_ACTIVE,
+		       bond->params.all_slaves_active))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, IFLA_BOND_MIN_LINKS,
+			bond->params.min_links))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, IFLA_BOND_LP_INTERVAL,
+			bond->params.lp_interval))
+		goto nla_put_failure;
+
+	packets_per_slave = bond->params.packets_per_slave;
+	if (packets_per_slave > 1)
+		packets_per_slave = reciprocal_value(packets_per_slave);
+
+	if (nla_put_u32(skb, IFLA_BOND_PACKETS_PER_SLAVE,
+			packets_per_slave))
 		goto nla_put_failure;
 
 	return 0;
