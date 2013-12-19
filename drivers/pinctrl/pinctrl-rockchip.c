@@ -1731,7 +1731,7 @@ static void rockchip_irq_demux(unsigned int irq, struct irq_desc *desc)
 		generic_handle_irq(virq);
 
 		
-		DBG_PINCTRL("%s:irq=%d\n",__func__, irq);
+		DBG_PINCTRL("%s:irq=%d,%s\n",__func__, irq, bank->name);
 	}
 
 	if (bank->toggle_edge_mode && edge_changed) {
@@ -1824,60 +1824,7 @@ static int rockchip_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	DBG_PINCTRL("%s:type=%d,irq=%d,hwirq=%d,ok\n",__func__,type, d->irq, (int)d->hwirq);
 	return 0;
 }
-#if 0
-static int rockchip_interrupts_register(struct platform_device *pdev,
-						struct rockchip_pinctrl *info)
-{
-	struct rockchip_pin_ctrl *ctrl = info->ctrl;
-	struct rockchip_pin_bank *bank = ctrl->pin_banks;
-	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
-	struct irq_chip_generic *gc;
-	int ret;
-	int i;
 
-	for (i = 0; i < ctrl->nr_banks; ++i, ++bank) {
-		if (!bank->valid) {
-			dev_warn(&pdev->dev, "bank %s is not valid\n",
-				 bank->name);
-			continue;
-		}
-
-		bank->domain = irq_domain_add_linear(bank->of_node, 32,
-						&irq_generic_chip_ops, NULL);
-		if (!bank->domain) {
-			dev_warn(&pdev->dev, "could not initialize irq domain for bank %s\n",
-				 bank->name);
-			continue;
-		}
-
-		ret = irq_alloc_domain_generic_chips(bank->domain, 32, 1,
-					 "rockchip_gpio_irq", handle_level_irq,
-					 clr, 0, IRQ_GC_INIT_MASK_CACHE);
-		if (ret) {
-			dev_err(&pdev->dev, "could not alloc generic chips for bank %s\n",
-				bank->name);
-			irq_domain_remove(bank->domain);
-			continue;
-		}
-
-		gc = irq_get_domain_generic_chip(bank->domain, 0);
-		gc->reg_base = bank->reg_base;
-		gc->private = bank;
-		gc->chip_types[0].regs.mask = GPIO_INTEN;
-		gc->chip_types[0].regs.ack = GPIO_PORTS_EOI;
-		gc->chip_types[0].chip.irq_ack = irq_gc_ack_set_bit;
-		gc->chip_types[0].chip.irq_mask = irq_gc_mask_clr_bit;
-		gc->chip_types[0].chip.irq_unmask = irq_gc_mask_set_bit;
-		gc->chip_types[0].chip.irq_set_wake = irq_gc_set_wake;
-		gc->chip_types[0].chip.irq_set_type = rockchip_gpio_irq_set_type;
-
-		irq_set_handler_data(bank->irq, bank);
-		irq_set_chained_handler(bank->irq, rockchip_irq_demux);
-	}
-
-	return 0;
-}
-#else
 
 static inline void rockchip_gpio_bit_op(void __iomem *reg_base, unsigned int offset, u32 bit, unsigned char flag)
 {
@@ -1901,25 +1848,7 @@ static inline unsigned offset_to_bit(unsigned offset)
 {
 	return 1u << offset;
 }
-#if 0
-static void GPIOSetPinLevel(void __iomem *reg_base, unsigned int bit, eGPIOPinLevel_t level)
-{
-	rockchip_gpio_bit_op(reg_base, GPIO_SWPORT_DDR, bit, 1);
-	rockchip_gpio_bit_op(reg_base, GPIO_SWPORT_DR, bit, level);
-}
 
-static int GPIOGetPinLevel(void __iomem *reg_base, unsigned int bit)
-{
-	return ((__raw_readl(reg_base + GPIO_EXT_PORT) & bit) != 0);
-}
-
-static void GPIOSetPinDirection(void __iomem *reg_base, unsigned int bit, eGPIOPinDirection_t direction)
-{
-	rockchip_gpio_bit_op(reg_base, GPIO_SWPORT_DDR, bit, direction);
-	/* Enable debounce may halt cpu on wfi, disable it by default */
-	//rockchip_gpio_bit_op(reg_base, GPIO_DEBOUNCE, bit, 1);
-}
-#endif
 static void GPIOEnableIntr(void __iomem *reg_base, unsigned int bit)
 {
 	rockchip_gpio_bit_op(reg_base, GPIO_INTEN, bit, 1);
@@ -1934,67 +1863,7 @@ static void GPIOAckIntr(void __iomem *reg_base, unsigned int bit)
 {
 	rockchip_gpio_bit_op(reg_base, GPIO_PORTS_EOI, bit, 1);
 }
-#if 0
-static void GPIOSetIntrType(void __iomem *reg_base, unsigned int bit, eGPIOIntType_t type)
-{
-	switch (type) {
-	case GPIOLevelLow:
-		rockchip_gpio_bit_op(reg_base, GPIO_INT_POLARITY, bit, 0);
-		rockchip_gpio_bit_op(reg_base, GPIO_INTTYPE_LEVEL, bit, 0);
-		break;
-	case GPIOLevelHigh:
-		rockchip_gpio_bit_op(reg_base, GPIO_INTTYPE_LEVEL, bit, 0);
-		rockchip_gpio_bit_op(reg_base, GPIO_INT_POLARITY, bit, 1);
-		break;
-	case GPIOEdgelFalling:
-		rockchip_gpio_bit_op(reg_base, GPIO_INTTYPE_LEVEL, bit, 1);
-		rockchip_gpio_bit_op(reg_base, GPIO_INT_POLARITY, bit, 0);
-		break;
-	case GPIOEdgelRising:
-		rockchip_gpio_bit_op(reg_base, GPIO_INTTYPE_LEVEL, bit, 1);
-		rockchip_gpio_bit_op(reg_base, GPIO_INT_POLARITY, bit, 1);
-		break;
-	}
-}
 
-static int rockchip_gpio_irq_set_type(struct irq_data *d, unsigned int type)
-{
-	struct rockchip_pin_bank *bank = irq_data_get_irq_chip_data(d);
-	u32 bit = gpio_to_bit(irq_to_gpio(d->irq));
-	eGPIOIntType_t int_type;
-	unsigned long flags;
-
-	switch (type) {
-	case IRQ_TYPE_EDGE_RISING:
-		int_type = GPIOEdgelRising;
-		break;
-	case IRQ_TYPE_EDGE_FALLING:
-		int_type = GPIOEdgelFalling;
-		break;
-	case IRQ_TYPE_LEVEL_HIGH:
-		int_type = GPIOLevelHigh;
-		break;
-	case IRQ_TYPE_LEVEL_LOW:
-		int_type = GPIOLevelLow;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	spin_lock_irqsave(&bank->slock, flags);
-	//设置为中断之前，必须先设置为输入状态
-	GPIOSetPinDirection(bank->reg_base, bit, 0);
-	GPIOSetIntrType(bank->reg_base, bit, int_type);
-	spin_unlock_irqrestore(&bank->slock, flags);
-
-	if (type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
-		__irq_set_handler_locked(d->irq, handle_level_irq);
-	else if (type & (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
-
-	return 0;
-}
-#endif
 static int rockchip_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 {
 	struct rockchip_pin_bank *bank = irq_data_get_irq_chip_data(d);	
@@ -2138,7 +2007,6 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 }
 
 
-#endif
 static int rockchip_gpiolib_register(struct platform_device *pdev,
 						struct rockchip_pinctrl *info)
 {
@@ -2295,13 +2163,7 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(
 
 	return ctrl;
 }
-#if 0
-static irqreturn_t pinctrl_interrupt_test(int irq, void *dev_id)
-{
-	printk("%s:line=%d\n",__func__, __LINE__);
-	return IRQ_HANDLED;
-}
-#endif
+
 static int rockchip_pinctrl_probe(struct platform_device *pdev)
 {
 	struct rockchip_pinctrl *info;
@@ -2353,19 +2215,7 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, info);
-#if 0
-	int i = 0;
-	for(i=1; i<32*4; i++)
-	{
-		if(i>23 && i<32+16)
-		continue;
-		gpio_request(i, NULL);	
-		gpio_direction_input(i);
-		
-		ret = request_irq(gpio_to_irq(i), pinctrl_interrupt_test, IRQ_TYPE_EDGE_RISING, "test", info);
-		disable_irq(gpio_to_irq(i));
-	}
-#endif
+
 	printk("%s:init ok\n",__func__);
 	return 0;
 }
