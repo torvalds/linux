@@ -455,6 +455,7 @@ int rv770_get_temp(struct radeon_device *rdev);
 /* rv7xx pm */
 int rv770_dpm_init(struct radeon_device *rdev);
 int rv770_dpm_enable(struct radeon_device *rdev);
+int rv770_dpm_late_enable(struct radeon_device *rdev);
 void rv770_dpm_disable(struct radeon_device *rdev);
 int rv770_dpm_set_power_state(struct radeon_device *rdev);
 void rv770_dpm_setup_asic(struct radeon_device *rdev);
