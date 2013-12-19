@@ -19,6 +19,7 @@
 #include <linux/cpu.h>
 #include <linux/pm_runtime.h>
 #include <linux/suspend.h>
+#include <linux/kexec.h>
 #include "pci.h"
 
 struct pci_dynid {
@@ -288,12 +289,27 @@ static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
 	int error, node;
 	struct drv_dev_and_id ddi = { drv, dev, id };
 
-	/* Execute driver initialization on node where the device's
-	   bus is attached to.  This way the driver likely allocates
-	   its local memory on the right node without any need to
-	   change it. */
+	/*
+	 * Execute driver initialization on node where the device is
+	 * attached.  This way the driver likely allocates its local memory
+	 * on the right node.
+	 */
 	node = dev_to_node(&dev->dev);
-	if (node >= 0) {
+
+	/*
+	 * On NUMA systems, we are likely to call a PF probe function using
+	 * work_on_cpu().  If that probe calls pci_enable_sriov() (which
+	 * adds the VF devices via pci_bus_add_device()), we may re-enter
+	 * this function to call the VF probe function.  Calling
+	 * work_on_cpu() again will cause a lockdep warning.  Since VFs are
+	 * always on the same node as the PF, we can work around this by
+	 * avoiding work_on_cpu() when we're already on the correct node.
+	 *
+	 * Preemption is enabled, so it's theoretically unsafe to use
+	 * numa_node_id(), but even if we run the probe function on the
+	 * wrong node, it should be functionally correct.
+	 */
+	if (node >= 0 && node != numa_node_id()) {
 		int cpu;
 
 		get_online_cpus();
@@ -305,6 +321,7 @@ static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
 		put_online_cpus();
 	} else
 		error = local_pci_probe(&ddi);
+
 	return error;
 }
 
@@ -312,7 +329,7 @@ static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
  * __pci_device_probe - check if a driver wants to claim a specific PCI device
  * @drv: driver to call to check if it wants the PCI device
  * @pci_dev: PCI device being probed
- * 
+ *
  * returns 0 on success, else error.
  * side-effect: pci_dev->driver is set to drv when drv claims pci_dev.
  */
@@ -378,7 +395,7 @@ static int pci_device_remove(struct device * dev)
 	 * We would love to complain here if pci_dev->is_enabled is set, that
 	 * the driver should have called pci_disable_device(), but the
 	 * unfortunate fact is there are too many odd BIOS and bridge setups
-	 * that don't like drivers doing that all of the time.  
+	 * that don't like drivers doing that all of the time.
 	 * Oh well, we can dream of sane hardware when we sleep, no matter how
 	 * horrible the crap we have to deal with is when we are awake...
 	 */
@@ -399,12 +416,17 @@ static void pci_device_shutdown(struct device *dev)
 	pci_msi_shutdown(pci_dev);
 	pci_msix_shutdown(pci_dev);
 
+#ifdef CONFIG_KEXEC
 	/*
-	 * Turn off Bus Master bit on the device to tell it to not
-	 * continue to do DMA. Don't touch devices in D3cold or unknown states.
+	 * If this is a kexec reboot, turn off Bus Master bit on the
+	 * device to tell it to not continue to do DMA. Don't touch
+	 * devices in D3cold or unknown states.
+	 * If it is not a kexec reboot, firmware will hit the PCI
+	 * devices with big hammer and stop their DMA any way.
 	 */
-	if (pci_dev->current_state <= PCI_D3hot)
+	if (kexec_in_progress && (pci_dev->current_state <= PCI_D3hot))
 		pci_clear_master(pci_dev);
+#endif
 }
 
 #ifdef CONFIG_PM
@@ -1156,10 +1178,10 @@ static const struct dev_pm_ops pci_dev_pm_ops = {
  * @drv: the driver structure to register
  * @owner: owner module of drv
  * @mod_name: module name string
- * 
+ *
  * Adds the driver structure to the list of registered drivers.
- * Returns a negative value on error, otherwise 0. 
- * If no error occurred, the driver remains registered even if 
+ * Returns a negative value on error, otherwise 0.
+ * If no error occurred, the driver remains registered even if
  * no device was claimed during registration.
  */
 int __pci_register_driver(struct pci_driver *drv, struct module *owner,
@@ -1181,7 +1203,7 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner,
 /**
  * pci_unregister_driver - unregister a pci driver
  * @drv: the driver structure to unregister
- * 
+ *
  * Deletes the driver structure from the list of registered PCI drivers,
  * gives it a chance to clean up by calling its remove() function for
  * each device it was responsible for, and marks those devices as
@@ -1203,7 +1225,7 @@ static struct pci_driver pci_compat_driver = {
  * pci_dev_driver - get the pci_driver of a device
  * @dev: the device to query
  *
- * Returns the appropriate pci_driver structure or %NULL if there is no 
+ * Returns the appropriate pci_driver structure or %NULL if there is no
  * registered driver for the device.
  */
 struct pci_driver *
@@ -1224,7 +1246,7 @@ pci_dev_driver(const struct pci_dev *dev)
  * pci_bus_match - Tell if a PCI device structure has a matching PCI device id structure
  * @dev: the PCI device structure to match against
  * @drv: the device driver to search for matching PCI device id structures
- * 
+ *
  * Used by a driver to check whether a PCI device present in the
  * system is in its list of supported devices. Returns the matching
  * pci_device_id structure or %NULL if there is no match.

@@ -609,6 +609,11 @@ static void ath9k_init_platform(struct ath_softc *sc)
 		ah->config.pcie_waen = 0x0040473b;
 		ath_info(common, "Enable WAR for ASPM D3/L1\n");
 	}
+
+	if (sc->driver_data & ATH9K_PCI_NO_PLL_PWRSAVE) {
+		ah->config.no_pll_pwrsave = true;
+		ath_info(common, "Disable PLL PowerSave\n");
+	}
 }
 
 static void ath9k_eeprom_request_cb(const struct firmware *eeprom_blob,
@@ -863,8 +868,8 @@ static const struct ieee80211_iface_combination if_comb[] = {
 		.max_interfaces = 1,
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
-		.radar_detect_widths =	BIT(NL80211_CHAN_NO_HT) |
-					BIT(NL80211_CHAN_HT20),
+		.radar_detect_widths =	BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+					BIT(NL80211_CHAN_WIDTH_20),
 	}
 };
 

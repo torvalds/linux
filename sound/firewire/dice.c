@@ -1019,7 +1019,7 @@ static void dice_proc_read(struct snd_info_entry *entry,
 
 	if (dice_proc_read_mem(dice, &tx_rx_header, sections[2], 2) < 0)
 		return;
-	quadlets = min_t(u32, tx_rx_header.size, sizeof(buf.tx));
+	quadlets = min_t(u32, tx_rx_header.size, sizeof(buf.tx) / 4);
 	for (stream = 0; stream < tx_rx_header.number; ++stream) {
 		if (dice_proc_read_mem(dice, &buf.tx, sections[2] + 2 +
 				       stream * tx_rx_header.size,
@@ -1045,7 +1045,7 @@ static void dice_proc_read(struct snd_info_entry *entry,
 
 	if (dice_proc_read_mem(dice, &tx_rx_header, sections[4], 2) < 0)
 		return;
-	quadlets = min_t(u32, tx_rx_header.size, sizeof(buf.rx));
+	quadlets = min_t(u32, tx_rx_header.size, sizeof(buf.rx) / 4);
 	for (stream = 0; stream < tx_rx_header.number; ++stream) {
 		if (dice_proc_read_mem(dice, &buf.rx, sections[4] + 2 +
 				       stream * tx_rx_header.size,

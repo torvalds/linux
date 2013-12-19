@@ -48,8 +48,9 @@ void usb_nop_xceiv_register(void)
 	if (pd)
 		return;
 	pd = platform_device_register_simple("usb_phy_gen_xceiv", -1, NULL, 0);
-	if (!pd) {
+	if (IS_ERR(pd)) {
 		pr_err("Unable to register generic usb transceiver\n");
+		pd = NULL;
 		return;
 	}
 }
@@ -150,9 +151,39 @@ static int nop_set_host(struct usb_otg *otg, struct usb_bus *host)
 }
 
 int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_gen_xceiv *nop,
-		enum usb_phy_type type, u32 clk_rate, bool needs_vcc)
+		struct usb_phy_gen_xceiv_platform_data *pdata)
 {
+	enum usb_phy_type type = USB_PHY_TYPE_USB2;
 	int err;
+
+	u32 clk_rate = 0;
+	bool needs_vcc = false;
+
+	nop->reset_active_low = true;	/* default behaviour */
+
+	if (dev->of_node) {
+		struct device_node *node = dev->of_node;
+		enum of_gpio_flags flags = 0;
+
+		if (of_property_read_u32(node, "clock-frequency", &clk_rate))
+			clk_rate = 0;
+
+		needs_vcc = of_property_read_bool(node, "vcc-supply");
+		nop->gpio_reset = of_get_named_gpio_flags(node, "reset-gpios",
+								0, &flags);
+		if (nop->gpio_reset == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		nop->reset_active_low = flags & OF_GPIO_ACTIVE_LOW;
+
+	} else if (pdata) {
+		type = pdata->type;
+		clk_rate = pdata->clk_rate;
+		needs_vcc = pdata->needs_vcc;
+		nop->gpio_reset = pdata->gpio_reset;
+	} else {
+		nop->gpio_reset = -1;
+	}
 
 	nop->phy.otg = devm_kzalloc(dev, sizeof(*nop->phy.otg),
 			GFP_KERNEL);
@@ -218,43 +249,14 @@ EXPORT_SYMBOL_GPL(usb_phy_gen_create_phy);
 static int usb_phy_gen_xceiv_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct usb_phy_gen_xceiv_platform_data *pdata =
-			dev_get_platdata(&pdev->dev);
 	struct usb_phy_gen_xceiv	*nop;
-	enum usb_phy_type	type = USB_PHY_TYPE_USB2;
 	int err;
-	u32 clk_rate = 0;
-	bool needs_vcc = false;
 
 	nop = devm_kzalloc(dev, sizeof(*nop), GFP_KERNEL);
 	if (!nop)
 		return -ENOMEM;
 
-	nop->reset_active_low = true;	/* default behaviour */
-
-	if (dev->of_node) {
-		struct device_node *node = dev->of_node;
-		enum of_gpio_flags flags;
-
-		if (of_property_read_u32(node, "clock-frequency", &clk_rate))
-			clk_rate = 0;
-
-		needs_vcc = of_property_read_bool(node, "vcc-supply");
-		nop->gpio_reset = of_get_named_gpio_flags(node, "reset-gpios",
-								0, &flags);
-		if (nop->gpio_reset == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-
-		nop->reset_active_low = flags & OF_GPIO_ACTIVE_LOW;
-
-	} else if (pdata) {
-		type = pdata->type;
-		clk_rate = pdata->clk_rate;
-		needs_vcc = pdata->needs_vcc;
-		nop->gpio_reset = pdata->gpio_reset;
-	}
-
-	err = usb_phy_gen_create_phy(dev, nop, type, clk_rate, needs_vcc);
+	err = usb_phy_gen_create_phy(dev, nop, dev_get_platdata(&pdev->dev));
 	if (err)
 		return err;
 
@@ -271,8 +273,6 @@ static int usb_phy_gen_xceiv_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, nop);
 
 	return 0;
-
-	return err;
 }
 
 static int usb_phy_gen_xceiv_remove(struct platform_device *pdev)

@@ -1668,7 +1668,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			netdev_dbg(dev, "circular route to %pI4\n",
 				   &dst->sin.sin_addr.s_addr);
 			dev->stats.collisions++;
-			goto tx_error;
+			goto rt_tx_error;
 		}
 
 		/* Bypass encapsulation if the destination is local */

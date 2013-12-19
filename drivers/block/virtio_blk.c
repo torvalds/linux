@@ -199,15 +199,16 @@ static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *req)
 
 	spin_lock_irqsave(&vblk->vq_lock, flags);
 	if (__virtblk_add_req(vblk->vq, vbr, vbr->sg, num) < 0) {
+		virtqueue_kick(vblk->vq);
 		spin_unlock_irqrestore(&vblk->vq_lock, flags);
 		blk_mq_stop_hw_queue(hctx);
-		virtqueue_kick(vblk->vq);
 		return BLK_MQ_RQ_QUEUE_BUSY;
 	}
-	spin_unlock_irqrestore(&vblk->vq_lock, flags);
 
 	if (last)
 		virtqueue_kick(vblk->vq);
+
+	spin_unlock_irqrestore(&vblk->vq_lock, flags);
 	return BLK_MQ_RQ_QUEUE_OK;
 }
 

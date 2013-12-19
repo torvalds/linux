@@ -154,8 +154,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_HEARTBEAT] = 0;
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_SACK] = asoc->sackdelay;
-	asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] =
-		min_t(unsigned long, sp->autoclose, net->sctp.max_autoclose) * HZ;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] = sp->autoclose * HZ;
 
 	/* Initializes the timers */
 	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i)
@@ -290,8 +289,6 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	if (asoc->base.sk->sk_family == PF_INET6)
 		asoc->peer.ipv6_address = 1;
 	INIT_LIST_HEAD(&asoc->asocs);
-
-	asoc->autoclose = sp->autoclose;
 
 	asoc->default_stream = sp->default_stream;
 	asoc->default_ppid = sp->default_ppid;
@@ -907,8 +904,8 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 		if (!first || t->last_time_heard > first->last_time_heard) {
 			second = first;
 			first = t;
-		}
-		if (!second || t->last_time_heard > second->last_time_heard)
+		} else if (!second ||
+			   t->last_time_heard > second->last_time_heard)
 			second = t;
 	}
 
@@ -929,6 +926,8 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 		first = asoc->peer.primary_path;
 	}
 
+	if (!second)
+		second = first;
 	/* If we failed to find a usable transport, just camp on the
 	 * primary, even if it is inactive.
 	 */

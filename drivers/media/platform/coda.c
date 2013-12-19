@@ -1434,7 +1434,7 @@ static void coda_buf_queue(struct vb2_buffer *vb)
 	if (q_data->fourcc == V4L2_PIX_FMT_H264 &&
 	    vb->vb2_queue->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		/*
-		 * For backwards compatiblity, queuing an empty buffer marks
+		 * For backwards compatibility, queuing an empty buffer marks
 		 * the stream end
 		 */
 		if (vb2_get_plane_payload(vb, 0) == 0)

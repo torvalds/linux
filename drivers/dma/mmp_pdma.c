@@ -798,8 +798,7 @@ static void dma_do_tasklet(unsigned long data)
 		 * move the descriptors to a temporary list so we can drop
 		 * the lock during the entire cleanup operation
 		 */
-		list_del(&desc->node);
-		list_add(&desc->node, &chain_cleanup);
+		list_move(&desc->node, &chain_cleanup);
 
 		/*
 		 * Look for the first list entry which has the ENDIRQEN flag
@@ -863,7 +862,7 @@ static int mmp_pdma_chan_init(struct mmp_pdma_device *pdev,
 
 	if (irq) {
 		ret = devm_request_irq(pdev->dev, irq,
-			mmp_pdma_chan_handler, IRQF_DISABLED, "pdma", phy);
+			mmp_pdma_chan_handler, 0, "pdma", phy);
 		if (ret) {
 			dev_err(pdev->dev, "channel request irq fail!\n");
 			return ret;
@@ -970,7 +969,7 @@ static int mmp_pdma_probe(struct platform_device *op)
 		/* all chan share one irq, demux inside */
 		irq = platform_get_irq(op, 0);
 		ret = devm_request_irq(pdev->dev, irq,
-			mmp_pdma_int_handler, IRQF_DISABLED, "pdma", pdev);
+			mmp_pdma_int_handler, 0, "pdma", pdev);
 		if (ret)
 			return ret;
 	}
@@ -1018,6 +1017,7 @@ static int mmp_pdma_probe(struct platform_device *op)
 		}
 	}
 
+	platform_set_drvdata(op, pdev);
 	dev_info(pdev->device.dev, "initialized %d channels\n", dma_channels);
 	return 0;
 }
