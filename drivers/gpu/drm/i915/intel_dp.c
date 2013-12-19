@@ -3530,10 +3530,17 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 		pp_div_reg = VLV_PIPE_PP_DIVISOR(pipe);
 	}
 
-	/* And finally store the new values in the power sequencer. */
+	/*
+	 * And finally store the new values in the power sequencer. The
+	 * backlight delays are set to 1 because we do manual waits on them. For
+	 * T8, even BSpec recommends doing it. For T9, if we don't do this,
+	 * we'll end up waiting for the backlight off delay twice: once when we
+	 * do the manual sleep, and once when we disable the panel and wait for
+	 * the PP_STATUS bit to become zero.
+	 */
 	pp_on = (seq->t1_t3 << PANEL_POWER_UP_DELAY_SHIFT) |
-		(seq->t8 << PANEL_LIGHT_ON_DELAY_SHIFT);
-	pp_off = (seq->t9 << PANEL_LIGHT_OFF_DELAY_SHIFT) |
+		(1 << PANEL_LIGHT_ON_DELAY_SHIFT);
+	pp_off = (1 << PANEL_LIGHT_OFF_DELAY_SHIFT) |
 		 (seq->t10 << PANEL_POWER_DOWN_DELAY_SHIFT);
 	/* Compute the divisor for the pp clock, simply match the Bspec
 	 * formula. */
