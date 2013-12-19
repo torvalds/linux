@@ -568,6 +568,7 @@
 				interrupts = <0 49 IRQ_TYPE_LEVEL_HIGH>;
 				fsl,tempmon = <&anatop>;
 				fsl,tempmon-data = <&ocotp>;
+				clocks = <&clks 172>;
 			};
 
 			usbphy1: usbphy@020c9000 {
