@@ -521,6 +521,7 @@
 
 			ecap0: ecap@48300100 {
 				compatible = "ti,am4372-ecap","ti,am33xx-ecap";
+				#pwm-cells = <3>;
 				reg = <0x48300100 0x80>;
 				ti,hwmods = "ecap0";
 				status = "disabled";
@@ -528,6 +529,7 @@
 
 			ehrpwm0: ehrpwm@48300200 {
 				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				#pwm-cells = <3>;
 				reg = <0x48300200 0x80>;
 				ti,hwmods = "ehrpwm0";
 				status = "disabled";
@@ -545,6 +547,7 @@
 
 			ecap1: ecap@48302100 {
 				compatible = "ti,am4372-ecap","ti,am33xx-ecap";
+				#pwm-cells = <3>;
 				reg = <0x48302100 0x80>;
 				ti,hwmods = "ecap1";
 				status = "disabled";
@@ -552,6 +555,7 @@
 
 			ehrpwm1: ehrpwm@48302200 {
 				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				#pwm-cells = <3>;
 				reg = <0x48302200 0x80>;
 				ti,hwmods = "ehrpwm1";
 				status = "disabled";
@@ -569,6 +573,7 @@
 
 			ecap2: ecap@48304100 {
 				compatible = "ti,am4372-ecap","ti,am33xx-ecap";
+				#pwm-cells = <3>;
 				reg = <0x48304100 0x80>;
 				ti,hwmods = "ecap2";
 				status = "disabled";
@@ -576,6 +581,7 @@
 
 			ehrpwm2: ehrpwm@48304200 {
 				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				#pwm-cells = <3>;
 				reg = <0x48304200 0x80>;
 				ti,hwmods = "ehrpwm2";
 				status = "disabled";
@@ -593,6 +599,7 @@
 
 			ehrpwm3: ehrpwm@48306200 {
 				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				#pwm-cells = <3>;
 				reg = <0x48306200 0x80>;
 				ti,hwmods = "ehrpwm3";
 				status = "disabled";
@@ -610,6 +617,7 @@
 
 			ehrpwm4: ehrpwm@48308200 {
 				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				#pwm-cells = <3>;
 				reg = <0x48308200 0x80>;
 				ti,hwmods = "ehrpwm4";
 				status = "disabled";
@@ -627,6 +635,7 @@
 
 			ehrpwm5: ehrpwm@4830a200 {
 				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				#pwm-cells = <3>;
 				reg = <0x4830a200 0x80>;
 				ti,hwmods = "ehrpwm5";
 				status = "disabled";
