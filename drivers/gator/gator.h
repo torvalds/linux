@@ -112,13 +112,9 @@ struct gator_interface {
 	void (*offline_dispatch)(int cpu, bool migrate);	// called in process context but may not be running on core 'cpu'
 	int (*read)(int **buffer);
 	int (*read64)(long long **buffer);
+	int (*read_proc)(long long **buffer, struct task_struct *);
 	struct list_head list;
 };
-
-// gator_events_init is used as a search term in gator_events.sh
-#define gator_events_init(initfn) \
-	static inline int __gator_events_init_test(void) \
-	{ return initfn(); }
 
 int gator_events_install(struct gator_interface *interface);
 int gator_events_get_key(void);

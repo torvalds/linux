@@ -22,6 +22,7 @@ enum {
 
 static DEFINE_PER_CPU(uint64_t *, taskname_keys);
 static DEFINE_PER_CPU(int, collecting);
+static DEFINE_PER_CPU(bool, in_scheduler_context);
 
 // this array is never read as the cpu wait charts are derived counters
 // the files are needed, nonetheless, to show that these counters are available
@@ -89,7 +90,7 @@ void emit_pid_name(struct task_struct *task)
 	}
 }
 
-static void collect_counters(u64 time)
+static void collect_counters(u64 time, struct task_struct *task)
 {
 	int *buffer, len, cpu = get_physical_cpu();
 	long long *buffer64;
@@ -104,17 +105,26 @@ static void collect_counters(u64 time)
 				len = gi->read64(&buffer64);
 				marshal_event64(len, buffer64);
 			}
+			if (gi->read_proc && task != NULL) {
+				len = gi->read_proc(&buffer64, task);
+				marshal_event64(len, buffer64);
+			}
 		}
 		// Only check after writing all counters so that time and corresponding counters appear in the same frame
 		buffer_check(cpu, BLOCK_COUNTER_BUF, time);
 
 		// Commit buffers on timeout
 		if (gator_live_rate > 0 && time >= per_cpu(gator_buffer_commit_time, cpu)) {
-			static const int buftypes[] = { COUNTER_BUF, BLOCK_COUNTER_BUF, SCHED_TRACE_BUF };
+			static const int buftypes[] = { NAME_BUF, COUNTER_BUF, BLOCK_COUNTER_BUF, SCHED_TRACE_BUF };
+			unsigned long flags;
 			int i;
+
+			local_irq_save(flags);
 			for (i = 0; i < ARRAY_SIZE(buftypes); ++i) {
 				gator_commit_buffer(cpu, buftypes[i], time);
 			}
+			local_irq_restore(flags);
+
 			// Try to preemptively flush the annotate buffer to reduce the chance of the buffer being full
 			if (on_primary_core() && spin_trylock(&annotate_lock)) {
 				gator_commit_buffer(0, ANNOTATE_BUF, time);
@@ -151,6 +161,8 @@ GATOR_DEFINE_PROBE(sched_switch, TP_PROTO(struct task_struct *prev, struct task_
 	int state;
 	int cpu = get_physical_cpu();
 
+	per_cpu(in_scheduler_context, cpu) = true;
+
 	// do as much work as possible before disabling interrupts
 	cookie = get_exec_cookie(cpu, next);
 	emit_pid_name(next);
@@ -163,10 +175,12 @@ GATOR_DEFINE_PROBE(sched_switch, TP_PROTO(struct task_struct *prev, struct task_
 	}
 
 	per_cpu(collecting, cpu) = 1;
-	collect_counters(gator_get_time());
+	collect_counters(gator_get_time(), prev);
 	per_cpu(collecting, cpu) = 0;
 
 	marshal_sched_trace_switch(next->tgid, next->pid, cookie, state);
+
+	per_cpu(in_scheduler_context, cpu) = false;
 }
 
 GATOR_DEFINE_PROBE(sched_process_free, TP_PROTO(struct task_struct *p))

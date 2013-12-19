@@ -73,6 +73,8 @@ static void calculate_delta(int *rx, int *tx)
 
 static int gator_events_net_create_files(struct super_block *sb, struct dentry *root)
 {
+	// Network counters are not currently supported in RT-Preempt full because mod_timer is used
+#ifndef CONFIG_PREEMPT_RT_FULL
 	struct dentry *dir;
 
 	dir = gatorfs_mkdir(sb, root, "Linux_net_rx");
@@ -88,6 +90,7 @@ static int gator_events_net_create_files(struct super_block *sb, struct dentry *
 	}
 	gatorfs_create_ulong(sb, dir, "enabled", &nettx_enabled);
 	gatorfs_create_ro_ulong(sb, dir, "key", &nettx_key);
+#endif
 
 	return 0;
 }
@@ -167,5 +170,3 @@ int gator_events_net_init(void)
 
 	return gator_events_install(&gator_events_net_interface);
 }
-
-gator_events_init(gator_events_net_init);

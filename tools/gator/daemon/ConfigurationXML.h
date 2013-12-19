@@ -29,6 +29,10 @@ private:
 	int parse(const char* xmlFile);
 	int configurationsTag(mxml_node_t *node);
 	void configurationTag(mxml_node_t *node);
+
+	// Intentionally unimplemented
+	ConfigurationXML(const ConfigurationXML &);
+	ConfigurationXML &operator=(const ConfigurationXML &);
 };
 
 #endif // COUNTERS_H

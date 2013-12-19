@@ -109,12 +109,14 @@ enum {
 #define NUMBER_OF_SOFTWARE_COUNTERS (sizeof(software_counter_names) / sizeof(software_counter_names[0]))
 #define FIRST_ACCUMULATOR (FIRST_SOFTWARE_COUNTER + NUMBER_OF_SOFTWARE_COUNTERS)
 #define NUMBER_OF_ACCUMULATORS (sizeof(accumulators_names) / sizeof(accumulators_names[0]))
-#define NUMBER_OF_EVENTS (NUMBER_OF_TIMELINE_EVENTS + NUMBER_OF_SOFTWARE_COUNTERS + NUMBER_OF_ACCUMULATORS)
+#define FILMSTRIP (NUMBER_OF_TIMELINE_EVENTS + NUMBER_OF_SOFTWARE_COUNTERS + NUMBER_OF_ACCUMULATORS)
+#define NUMBER_OF_EVENTS (NUMBER_OF_TIMELINE_EVENTS + NUMBER_OF_SOFTWARE_COUNTERS + NUMBER_OF_ACCUMULATORS + 1)
 
 /*
  * gatorfs variables for counter enable state
  */
 static mali_counter counters[NUMBER_OF_EVENTS];
+static unsigned long filmstrip_event;
 
 /* An array used to return the data we recorded
  * as key,value pairs hence the *2
@@ -285,26 +287,35 @@ static int create_files(struct super_block *sb, struct dentry *root)
 	 */
 	int counter_index = 0;
 	const char *mali_name = gator_mali_get_mali_name();
+	mali_profiling_control_type *mali_control;
 
 	for (event = FIRST_TIMELINE_EVENT; event < FIRST_TIMELINE_EVENT + NUMBER_OF_TIMELINE_EVENTS; event++) {
-		if (gator_mali_create_file_system(mali_name, timeline_event_names[counter_index], sb, root, &counters[event]) != 0) {
+		if (gator_mali_create_file_system(mali_name, timeline_event_names[counter_index], sb, root, &counters[event], NULL) != 0) {
 			return -1;
 		}
 		counter_index++;
 	}
 	counter_index = 0;
 	for (event = FIRST_SOFTWARE_COUNTER; event < FIRST_SOFTWARE_COUNTER + NUMBER_OF_SOFTWARE_COUNTERS; event++) {
-		if (gator_mali_create_file_system(mali_name, software_counter_names[counter_index], sb, root, &counters[event]) != 0) {
+		if (gator_mali_create_file_system(mali_name, software_counter_names[counter_index], sb, root, &counters[event], NULL) != 0) {
 			return -1;
 		}
 		counter_index++;
 	}
 	counter_index = 0;
 	for (event = FIRST_ACCUMULATOR; event < FIRST_ACCUMULATOR + NUMBER_OF_ACCUMULATORS; event++) {
-		if (gator_mali_create_file_system(mali_name, accumulators_names[counter_index], sb, root, &counters[event]) != 0) {
+		if (gator_mali_create_file_system(mali_name, accumulators_names[counter_index], sb, root, &counters[event], NULL) != 0) {
 			return -1;
 		}
 		counter_index++;
+	}
+
+	mali_control = symbol_get(_mali_profiling_control);
+	if (mali_control) {	
+		if (gator_mali_create_file_system(mali_name, "Filmstrip_cnt0", sb, root, &counters[FILMSTRIP], &filmstrip_event) != 0) {
+			return -1;
+		}
+		symbol_put(_mali_profiling_control);
 	}
 
 	return 0;
@@ -350,6 +361,7 @@ static int register_tracepoints(void)
 static int start(void)
 {
 	unsigned int cnt;
+	mali_profiling_control_type *mali_control;
 
 	/* Clean all data for the next capture */
 	for (cnt = 0; cnt < NUMBER_OF_TIMELINE_EVENTS; cnt++) {
@@ -370,6 +382,30 @@ static int start(void)
 		return -1;
 	}
 
+	/* Generic control interface for Mali DDK. */
+	mali_control = symbol_get(_mali_profiling_control);
+	if (mali_control) {
+		/* The event attribute in the XML file keeps the actual frame rate. */
+		unsigned int enabled = counters[FILMSTRIP].enabled ? 1 : 0;
+		unsigned int rate = filmstrip_event & 0xff;
+		unsigned int resize_factor = (filmstrip_event >> 8) & 0xff;
+
+		pr_debug("gator: mali online _mali_profiling_control symbol @ %p\n", mali_control);
+
+#define FBDUMP_CONTROL_ENABLE (1)
+#define FBDUMP_CONTROL_RATE (2)
+#define FBDUMP_CONTROL_RESIZE_FACTOR (4)
+		mali_control(FBDUMP_CONTROL_ENABLE, enabled);
+		mali_control(FBDUMP_CONTROL_RATE, rate);
+		mali_control(FBDUMP_CONTROL_RESIZE_FACTOR, resize_factor);
+
+		pr_debug("gator: sent mali_control enabled=%d, rate=%d, resize_factor=%d\n", enabled, rate, resize_factor);
+
+		symbol_put(_mali_profiling_control);
+	} else {
+		printk("gator: mali online _mali_profiling_control symbol not found\n");
+	}
+
 	/*
 	 * Set the first timestamp for calculating the sample interval. The first interval could be quite long,
 	 * since it will be the time between 'start' and the first 'read'.
@@ -382,6 +418,8 @@ static int start(void)
 
 static void stop(void)
 {
+	mali_profiling_control_type *mali_control;
+
 	pr_debug("gator: Mali-T6xx: stop\n");
 
 	/*
@@ -402,6 +440,18 @@ static void stop(void)
 
 	GATOR_UNREGISTER_TRACE(mali_total_alloc_pages_change);
 	pr_debug("gator: Mali-T6xx: mali_total_alloc_pages_change tracepoint deactivated\n");
+
+	/* Generic control interface for Mali DDK. */
+	mali_control = symbol_get(_mali_profiling_control);
+	if (mali_control) {
+		pr_debug("gator: mali offline _mali_profiling_control symbol @ %p\n", mali_control);
+
+		mali_control(FBDUMP_CONTROL_ENABLE, 0);
+
+		symbol_put(_mali_profiling_control);
+	} else {
+		printk("gator: mali offline _mali_profiling_control symbol not found\n");
+	}
 }
 
 static int read(int **buffer)
@@ -508,5 +558,3 @@ extern int gator_events_mali_t6xx_init(void)
 
 	return gator_events_install(&gator_events_mali_t6xx_interface);
 }
-
-gator_events_init(gator_events_mali_t6xx_init);

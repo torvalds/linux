@@ -86,7 +86,7 @@ static void child_handler(int signum) {
 	}
 }
 
-static void* durationThread(void* pVoid) {
+static void *durationThread(void *) {
 	prctl(PR_SET_NAME, (unsigned long)&"gatord-duration", 0, 0, 0);
 	sem_wait(&startProfile);
 	if (gSessionData->mSessionIsActive) {
@@ -102,7 +102,7 @@ static void* durationThread(void* pVoid) {
 	return 0;
 }
 
-static void* stopThread(void* pVoid) {
+static void *stopThread(void *) {
 	OlySocket* socket = child->socket;
 
 	prctl(PR_SET_NAME, (unsigned long)&"gatord-stopper", 0, 0, 0);
@@ -139,7 +139,7 @@ static void* stopThread(void* pVoid) {
 	return 0;
 }
 
-void* countersThread(void* pVoid) {
+static void *countersThread(void *) {
 	prctl(PR_SET_NAME, (unsigned long)&"gatord-counters", 0, 0, 0);
 
 	gSessionData->hwmon.start();
@@ -192,7 +192,7 @@ void* countersThread(void* pVoid) {
 	return NULL;
 }
 
-static void* senderThread(void* pVoid) {
+static void *senderThread(void *) {
 	int length = 1;
 	char* data;
 	char end_sequence[] = {RESPONSE_APC_DATA, 0, 0, 0, 0};
@@ -340,7 +340,8 @@ void Child::run() {
 		thread_creation_success = false;
 	}
 
-	if (gSessionData->hwmon.countersEnabled()) {
+	bool startcountersThread = gSessionData->hwmon.countersEnabled();
+	if (startcountersThread) {
 		if (pthread_create(&countersThreadID, NULL, countersThread, this)) {
 			thread_creation_success = false;
 		}
@@ -378,7 +379,7 @@ void Child::run() {
 	} while (bytesCollected > 0);
 	logg->logMessage("Exit collect data loop");
 
-	if (gSessionData->hwmon.countersEnabled()) {
+	if (startcountersThread) {
 		pthread_join(countersThreadID, NULL);
 	}
 

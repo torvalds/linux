@@ -43,7 +43,6 @@ typedef struct {
  * Mali-4xx
  */
 typedef int mali_profiling_set_event_type(unsigned int, int);
-typedef void mali_osk_fb_control_set_type(unsigned int, unsigned int);
 typedef void mali_profiling_control_type(unsigned int, unsigned int);
 typedef void mali_profiling_get_counters_type(unsigned int *, unsigned int *, unsigned int *, unsigned int *);
 
@@ -51,7 +50,6 @@ typedef void mali_profiling_get_counters_type(unsigned int *, unsigned int *, un
  * Driver entry points for functions called directly by gator.
  */
 extern int _mali_profiling_set_event(unsigned int, int);
-extern void _mali_osk_fb_control_set(unsigned int, unsigned int);
 extern void _mali_profiling_control(unsigned int, unsigned int);
 extern void _mali_profiling_get_counters(unsigned int *, unsigned int *, unsigned int *, unsigned int *);
 
@@ -75,7 +73,7 @@ extern const char *gator_mali_get_mali_name(void);
  *
  * @return 0 if entry point was created, non-zero if not.
  */
-extern int gator_mali_create_file_system(const char *mali_name, const char *event_name, struct super_block *sb, struct dentry *root, mali_counter *counter);
+extern int gator_mali_create_file_system(const char *mali_name, const char *event_name, struct super_block *sb, struct dentry *root, mali_counter *counter, unsigned long *event);
 
 /**
  * Initializes the counter array.
