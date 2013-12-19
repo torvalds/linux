@@ -57,9 +57,7 @@
 #include "drbd_vli.h"
 
 static DEFINE_MUTEX(drbd_main_mutex);
-int drbdd_init(struct drbd_thread *);
 int drbd_worker(struct drbd_thread *);
-int drbd_asender(struct drbd_thread *);
 
 int drbd_init(void);
 static int drbd_open(struct block_device *bdev, fmode_t mode);

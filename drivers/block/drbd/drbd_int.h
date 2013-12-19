@@ -588,6 +588,10 @@ struct drbd_epoch {
 	unsigned long flags;
 };
 
+/* Prototype declaration of function defined in drbd_receiver.c */
+int drbdd_init(struct drbd_thread *);
+int drbd_asender(struct drbd_thread *);
+
 /* drbd_epoch flag bits */
 enum {
 	DE_HAVE_BARRIER_NUMBER,
