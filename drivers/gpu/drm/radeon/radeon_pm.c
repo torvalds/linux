@@ -1288,6 +1288,18 @@ int radeon_pm_init(struct radeon_device *rdev)
 		return radeon_pm_init_old(rdev);
 }
 
+int radeon_pm_late_init(struct radeon_device *rdev)
+{
+	int ret = 0;
+
+	if (rdev->pm.pm_method == PM_METHOD_DPM) {
+		mutex_lock(&rdev->pm.mutex);
+		ret = radeon_dpm_late_enable(rdev);
+		mutex_unlock(&rdev->pm.mutex);
+	}
+	return ret;
+}
+
 static void radeon_pm_fini_old(struct radeon_device *rdev)
 {
 	if (rdev->pm.num_power_states > 1) {
