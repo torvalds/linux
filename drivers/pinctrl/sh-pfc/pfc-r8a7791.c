@@ -1730,17 +1730,20 @@ static const unsigned int du_clk_out_1_pins[] = {
 static const unsigned int du_clk_out_1_mux[] = {
 	DU1_DOTCLKOUT1_MARK
 };
-static const unsigned int du_sync_1_pins[] = {
+static const unsigned int du_sync_pins[] = {
 	/* EXVSYNC/VSYNC, EXHSYNC/HSYNC, EXDISP/EXODDF/EXCDE */
 	RCAR_GP_PIN(3, 29), RCAR_GP_PIN(3, 28), RCAR_GP_PIN(3, 27),
 };
-static const unsigned int du_sync_1_mux[] = {
+static const unsigned int du_sync_mux[] = {
 	DU1_EXODDF_DU1_ODDF_DISP_CDE_MARK,
 	DU1_EXVSYNC_DU1_VSYNC_MARK, DU1_EXHSYNC_DU1_HSYNC_MARK
 };
 static const unsigned int du_cde_disp_pins[] = {
 	/* CDE DISP */
 	RCAR_GP_PIN(3, 31), RCAR_GP_PIN(3, 30),
+};
+static const unsigned int du_cde_disp_mux[] = {
+	DU1_CDE_MARK, DU1_DISP_MARK
 };
 static const unsigned int du0_clk_in_pins[] = {
 	/* CLKIN */
@@ -1749,15 +1752,26 @@ static const unsigned int du0_clk_in_pins[] = {
 static const unsigned int du0_clk_in_mux[] = {
 	DU0_DOTCLKIN_MARK
 };
-static const unsigned int du_cde_disp_mux[] = {
-	DU1_CDE_MARK, DU1_DISP_MARK
-};
 static const unsigned int du1_clk_in_pins[] = {
 	/* CLKIN */
-	RCAR_GP_PIN(7, 20), RCAR_GP_PIN(7, 19), RCAR_GP_PIN(3, 24),
+	RCAR_GP_PIN(3, 24),
 };
 static const unsigned int du1_clk_in_mux[] = {
-	DU1_DOTCLKIN_C_MARK, DU1_DOTCLKIN_B_MARK, DU1_DOTCLKIN_MARK
+	DU1_DOTCLKIN_MARK
+};
+static const unsigned int du1_clk_in_b_pins[] = {
+	/* CLKIN */
+	RCAR_GP_PIN(7, 19),
+};
+static const unsigned int du1_clk_in_b_mux[] = {
+	DU1_DOTCLKIN_B_MARK,
+};
+static const unsigned int du1_clk_in_c_pins[] = {
+	/* CLKIN */
+	RCAR_GP_PIN(7, 20),
+};
+static const unsigned int du1_clk_in_c_mux[] = {
+	DU1_DOTCLKIN_C_MARK,
 };
 /* - ETH -------------------------------------------------------------------- */
 static const unsigned int eth_link_pins[] = {
@@ -2670,10 +2684,12 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(du_rgb888),
 	SH_PFC_PIN_GROUP(du_clk_out_0),
 	SH_PFC_PIN_GROUP(du_clk_out_1),
-	SH_PFC_PIN_GROUP(du_sync_1),
+	SH_PFC_PIN_GROUP(du_sync),
 	SH_PFC_PIN_GROUP(du_cde_disp),
 	SH_PFC_PIN_GROUP(du0_clk_in),
 	SH_PFC_PIN_GROUP(du1_clk_in),
+	SH_PFC_PIN_GROUP(du1_clk_in_b),
+	SH_PFC_PIN_GROUP(du1_clk_in_c),
 	SH_PFC_PIN_GROUP(eth_link),
 	SH_PFC_PIN_GROUP(eth_magic),
 	SH_PFC_PIN_GROUP(eth_mdio),
@@ -2805,7 +2821,7 @@ static const char * const du_groups[] = {
 	"du_rgb888",
 	"du_clk_out_0",
 	"du_clk_out_1",
-	"du_sync_1",
+	"du_sync",
 	"du_cde_disp",
 };
 
@@ -2815,6 +2831,8 @@ static const char * const du0_groups[] = {
 
 static const char * const du1_groups[] = {
 	"du1_clk_in",
+	"du1_clk_in_b",
+	"du1_clk_in_c",
 };
 
 static const char * const eth_groups[] = {
@@ -2840,20 +2858,29 @@ static const char * const mmc_groups[] = {
 
 static const char * const msiof0_groups[] = {
 	"msiof0_clk",
-	"msiof0_ctrl",
-	"msiof0_data",
+	"msiof0_sync",
+	"msiof0_ss1",
+	"msiof0_ss2",
+	"msiof0_rx",
+	"msiof0_tx",
 };
 
 static const char * const msiof1_groups[] = {
 	"msiof1_clk",
-	"msiof1_ctrl",
-	"msiof1_data",
+	"msiof1_sync",
+	"msiof1_ss1",
+	"msiof1_ss2",
+	"msiof1_rx",
+	"msiof1_tx",
 };
 
 static const char * const msiof2_groups[] = {
 	"msiof2_clk",
-	"msiof2_ctrl",
-	"msiof2_data",
+	"msiof2_sync",
+	"msiof2_ss1",
+	"msiof2_ss2",
+	"msiof2_rx",
+	"msiof2_tx",
 };
 
 static const char * const scif0_groups[] = {
