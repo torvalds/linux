@@ -371,7 +371,6 @@ static void perl_process_event_generic(union perf_event *event,
 static void perl_process_event(union perf_event *event,
 			       struct perf_sample *sample,
 			       struct perf_evsel *evsel,
-			       struct machine *machine __maybe_unused,
 			       struct thread *thread,
 			       struct addr_location *al __maybe_unused)
 {

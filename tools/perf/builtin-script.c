@@ -423,7 +423,6 @@ static void print_sample_addr(union perf_event *event,
 static void print_sample_bts(union perf_event *event,
 			     struct perf_sample *sample,
 			     struct perf_evsel *evsel,
-			     struct machine *machine,
 			     struct thread *thread,
 			     struct addr_location *al)
 {
@@ -435,7 +434,7 @@ static void print_sample_bts(union perf_event *event,
 			printf(" ");
 		else
 			printf("\n");
-		perf_evsel__print_ip(evsel, sample, machine, al,
+		perf_evsel__print_ip(evsel, sample, al,
 				     output[attr->type].print_ip_opts,
 				     PERF_MAX_STACK_DEPTH);
 	}
@@ -446,14 +445,13 @@ static void print_sample_bts(union perf_event *event,
 	if (PRINT_FIELD(ADDR) ||
 	    ((evsel->attr.sample_type & PERF_SAMPLE_ADDR) &&
 	     !output[attr->type].user_set))
-		print_sample_addr(event, sample, machine, thread, attr);
+		print_sample_addr(event, sample, al->machine, thread, attr);
 
 	printf("\n");
 }
 
 static void process_event(union perf_event *event, struct perf_sample *sample,
-			  struct perf_evsel *evsel, struct machine *machine,
-			  struct thread *thread,
+			  struct perf_evsel *evsel, struct thread *thread,
 			  struct addr_location *al)
 {
 	struct perf_event_attr *attr = &evsel->attr;
@@ -469,7 +467,7 @@ static void process_event(union perf_event *event, struct perf_sample *sample,
 	}
 
 	if (is_bts_event(attr)) {
-		print_sample_bts(event, sample, evsel, machine, thread, al);
+		print_sample_bts(event, sample, evsel, thread, al);
 		return;
 	}
 
@@ -477,7 +475,7 @@ static void process_event(union perf_event *event, struct perf_sample *sample,
 		event_format__print(evsel->tp_format, sample->cpu,
 				    sample->raw_data, sample->raw_size);
 	if (PRINT_FIELD(ADDR))
-		print_sample_addr(event, sample, machine, thread, attr);
+		print_sample_addr(event, sample, al->machine, thread, attr);
 
 	if (PRINT_FIELD(IP)) {
 		if (!symbol_conf.use_callchain)
@@ -485,7 +483,7 @@ static void process_event(union perf_event *event, struct perf_sample *sample,
 		else
 			printf("\n");
 
-		perf_evsel__print_ip(evsel, sample, machine, al,
+		perf_evsel__print_ip(evsel, sample, al,
 				     output[attr->type].print_ip_opts,
 				     PERF_MAX_STACK_DEPTH);
 	}
@@ -574,7 +572,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
 		return 0;
 
-	scripting_ops->process_event(event, sample, evsel, machine, thread, &al);
+	scripting_ops->process_event(event, sample, evsel, thread, &al);
 
 	evsel->hists.stats.total_period += sample->period;
 	return 0;

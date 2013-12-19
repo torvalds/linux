@@ -1467,7 +1467,7 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 }
 
 void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
-			  struct machine *machine, struct addr_location *al,
+			  struct addr_location *al,
 			  unsigned int print_opts, unsigned int stack_depth)
 {
 	struct callchain_cursor_node *node;
@@ -1482,7 +1482,7 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
 	if (symbol_conf.use_callchain && sample->callchain) {
 		struct addr_location node_al;
 
-		if (machine__resolve_callchain(machine, evsel, al->thread,
+		if (machine__resolve_callchain(al->machine, evsel, al->thread,
 					       sample, NULL, NULL,
 					       PERF_MAX_STACK_DEPTH) != 0) {
 			if (verbose)

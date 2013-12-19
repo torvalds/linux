@@ -77,10 +77,10 @@ static int report__config(const char *var, const char *value, void *cb)
 
 static int report__resolve_callchain(struct report *rep, struct symbol **parent,
 				     struct perf_evsel *evsel, struct addr_location *al,
-				     struct perf_sample *sample, struct machine *machine)
+				     struct perf_sample *sample)
 {
 	if ((sort__has_parent || symbol_conf.use_callchain) && sample->callchain) {
-		return machine__resolve_callchain(machine, evsel, al->thread, sample,
+		return machine__resolve_callchain(al->machine, evsel, al->thread, sample,
 						  parent, al, rep->max_stack);
 	}
 	return 0;
@@ -95,7 +95,7 @@ static int hist_entry__append_callchain(struct hist_entry *he, struct perf_sampl
 
 static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_location *al,
 				      struct perf_sample *sample, struct perf_evsel *evsel,
-				      struct machine *machine, union perf_event *event)
+				      union perf_event *event)
 {
 	struct report *rep = container_of(tool, struct report, tool);
 	struct symbol *parent = NULL;
@@ -103,12 +103,12 @@ static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_locati
 	struct hist_entry *he;
 	struct mem_info *mi, *mx;
 	uint64_t cost;
-	int err = report__resolve_callchain(rep, &parent, evsel, al, sample, machine);
+	int err = report__resolve_callchain(rep, &parent, evsel, al, sample);
 
 	if (err)
 		return err;
 
-	mi = machine__resolve_mem(machine, al->thread, sample, cpumode);
+	mi = machine__resolve_mem(al->machine, al->thread, sample, cpumode);
 	if (!mi)
 		return -ENOMEM;
 
@@ -148,20 +148,19 @@ out:
 }
 
 static int report__add_branch_hist_entry(struct perf_tool *tool, struct addr_location *al,
-					 struct perf_sample *sample, struct perf_evsel *evsel,
-					 struct machine *machine)
+					 struct perf_sample *sample, struct perf_evsel *evsel)
 {
 	struct report *rep = container_of(tool, struct report, tool);
 	struct symbol *parent = NULL;
 	unsigned i;
 	struct hist_entry *he;
 	struct branch_info *bi, *bx;
-	int err = report__resolve_callchain(rep, &parent, evsel, al, sample, machine);
+	int err = report__resolve_callchain(rep, &parent, evsel, al, sample);
 
 	if (err)
 		return err;
 
-	bi = machine__resolve_bstack(machine, al->thread,
+	bi = machine__resolve_bstack(al->machine, al->thread,
 				     sample->branch_stack);
 	if (!bi)
 		return -ENOMEM;
@@ -204,13 +203,12 @@ out:
 }
 
 static int report__add_hist_entry(struct perf_tool *tool, struct perf_evsel *evsel,
-				  struct addr_location *al, struct perf_sample *sample,
-				  struct machine *machine)
+				  struct addr_location *al, struct perf_sample *sample)
 {
 	struct report *rep = container_of(tool, struct report, tool);
 	struct symbol *parent = NULL;
 	struct hist_entry *he;
-	int err = report__resolve_callchain(rep, &parent, evsel, al, sample, machine);
+	int err = report__resolve_callchain(rep, &parent, evsel, al, sample);
 
 	if (err)
 		return err;
@@ -256,18 +254,18 @@ static int process_sample_event(struct perf_tool *tool,
 		return 0;
 
 	if (sort__mode == SORT_MODE__BRANCH) {
-		ret = report__add_branch_hist_entry(tool, &al, sample, evsel, machine);
+		ret = report__add_branch_hist_entry(tool, &al, sample, evsel);
 		if (ret < 0)
 			pr_debug("problem adding lbr entry, skipping event\n");
 	} else if (rep->mem_mode == 1) {
-		ret = report__add_mem_hist_entry(tool, &al, sample, evsel, machine, event);
+		ret = report__add_mem_hist_entry(tool, &al, sample, evsel, event);
 		if (ret < 0)
 			pr_debug("problem adding mem entry, skipping event\n");
 	} else {
 		if (al.map != NULL)
 			al.map->dso->hit = 1;
 
-		ret = report__add_hist_entry(tool, evsel, &al, sample, machine);
+		ret = report__add_hist_entry(tool, evsel, &al, sample);
 		if (ret < 0)
 			pr_debug("problem incrementing symbol period, skipping event\n");
 	}
