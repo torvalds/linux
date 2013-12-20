@@ -59,7 +59,7 @@ int __genwqe_writeq(struct genwqe_dev *cd, u64 byte_offs, u64 val)
 	if (cd->mmio == NULL)
 		return -EIO;
 
-	__raw_writeq((__force u32)cpu_to_be64(val), cd->mmio + byte_offs);
+	__raw_writeq((__force u64)cpu_to_be64(val), cd->mmio + byte_offs);
 	return 0;
 }
 
