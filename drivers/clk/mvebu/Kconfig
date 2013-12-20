@@ -4,15 +4,20 @@ config MVEBU_CLK_COMMON
 config MVEBU_CLK_CPU
 	bool
 
+config MVEBU_CLK_COREDIV
+	bool
+
 config ARMADA_370_CLK
 	bool
 	select MVEBU_CLK_COMMON
 	select MVEBU_CLK_CPU
+	select MVEBU_CLK_COREDIV
 
 config ARMADA_XP_CLK
 	bool
 	select MVEBU_CLK_COMMON
 	select MVEBU_CLK_CPU
+	select MVEBU_CLK_COREDIV
 
 config DOVE_CLK
 	bool
