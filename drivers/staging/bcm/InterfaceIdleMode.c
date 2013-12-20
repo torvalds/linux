@@ -58,15 +58,15 @@ int InterfaceIdleModeRespond(struct bcm_mini_adapter *Adapter,
 	if (ntohl(*puiBuffer) == GO_TO_IDLE_MODE_PAYLOAD) {
 		if (ntohl(*(puiBuffer+1)) == 0) {
 
-			status = wrmalt (Adapter, SW_ABORT_IDLEMODE_LOC,
+			status = wrmalt(Adapter, SW_ABORT_IDLEMODE_LOC,
 					&uiRegRead, sizeof(uiRegRead));
 			if (status)
 				return status;
 
 			if (Adapter->ulPowerSaveMode ==
 				DEVICE_POWERSAVE_MODE_AS_MANUAL_CLOCK_GATING) {
-				uiRegRead = 0x00000000 ;
-				status = wrmalt (Adapter,
+				uiRegRead = 0x00000000;
+				status = wrmalt(Adapter,
 					DEBUG_INTERRUPT_GENERATOR_REGISTOR,
 					&uiRegRead, sizeof(uiRegRead));
 				if (status)
@@ -101,7 +101,7 @@ int InterfaceIdleModeRespond(struct bcm_mini_adapter *Adapter,
 
 		} else {
 			if (TRUE == Adapter->IdleMode)
-				return status ;
+				return status;
 
 			uiRegRead = 0;
 
@@ -120,7 +120,7 @@ int InterfaceIdleModeRespond(struct bcm_mini_adapter *Adapter,
 
 				uiRegRead |= (1<<17);
 
-				status = wrmalt (Adapter, HPM_CONFIG_MSW,
+				status = wrmalt(Adapter, HPM_CONFIG_MSW,
 					&uiRegRead, sizeof(uiRegRead));
 				if (status)
 					return status;
@@ -136,12 +136,12 @@ int InterfaceIdleModeRespond(struct bcm_mini_adapter *Adapter,
 static int InterfaceAbortIdlemode(struct bcm_mini_adapter *Adapter,
 				unsigned int Pattern)
 {
-	int 	status = STATUS_SUCCESS;
+	int status = STATUS_SUCCESS;
 	unsigned int value;
-	unsigned int chip_id ;
+	unsigned int chip_id;
 	unsigned long timeout = 0, itr = 0;
 
-	int 	lenwritten = 0;
+	int lenwritten = 0;
 	unsigned char aucAbortPattern[8] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 						0xFF, 0xFF, 0xFF};
 	struct bcm_interface_adapter *psInterfaceAdapter =
@@ -179,7 +179,7 @@ static int InterfaceAbortIdlemode(struct bcm_mini_adapter *Adapter,
 		 * To be Done in Thread Context.
 		 * Not using Asynchronous Mechanism.
 		 */
-		status = usb_interrupt_msg (psInterfaceAdapter->udev,
+		status = usb_interrupt_msg(psInterfaceAdapter->udev,
 			usb_sndintpipe(psInterfaceAdapter->udev,
 			psInterfaceAdapter->sIntrOut.int_out_endpointAddr),
 			aucAbortPattern,
@@ -195,9 +195,9 @@ static int InterfaceAbortIdlemode(struct bcm_mini_adapter *Adapter,
 
 		/* mdelay(25); */
 
-		timeout = jiffies +  msecs_to_jiffies(50) ;
+		timeout = jiffies +  msecs_to_jiffies(50);
 		while (time_after(timeout, jiffies)) {
-			itr++ ;
+			itr++;
 			rdmalt(Adapter, CHIP_ID_REG, &chip_id, sizeof(UINT));
 			if (0xbece3200 == (chip_id&~(0xF0)))
 				chip_id = chip_id&~(0xF0);
@@ -253,7 +253,7 @@ void InterfaceHandleShutdownModeWakeup(struct bcm_mini_adapter *Adapter)
 			return;
 	}
 
-    else {
+	else {
 
 /* clear Interrupt EP registers. */
 		bytes = rdmalt(Adapter,
