@@ -3899,17 +3899,14 @@ do {									\
 /* acl.c */
 #ifdef CONFIG_BTRFS_FS_POSIX_ACL
 struct posix_acl *btrfs_get_acl(struct inode *inode, int type);
+int btrfs_set_acl(struct inode *inode, struct posix_acl *acl, int type);
 int btrfs_init_acl(struct btrfs_trans_handle *trans,
 		   struct inode *inode, struct inode *dir);
-int btrfs_acl_chmod(struct inode *inode);
 #else
 #define btrfs_get_acl NULL
+#define btrfs_set_acl NULL
 static inline int btrfs_init_acl(struct btrfs_trans_handle *trans,
 				 struct inode *inode, struct inode *dir)
-{
-	return 0;
-}
-static inline int btrfs_acl_chmod(struct inode *inode)
 {
 	return 0;
 }
