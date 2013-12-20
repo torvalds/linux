@@ -93,7 +93,7 @@ static int uwb_radio_change_channel(struct uwb_rc *rc, int channel)
  * uwb_radio_start - request that the radio be started
  * @pal: the PAL making the request.
  *
- * If the radio is not already active, aa suitable channel is selected
+ * If the radio is not already active, a suitable channel is selected
  * and beacons are started.
  */
 int uwb_radio_start(struct uwb_pal *pal)
