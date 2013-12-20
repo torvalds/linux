@@ -741,8 +741,7 @@ static int bcm2048_set_region(struct bcm2048_device *bdev, u8 region)
 		return -EINVAL;
 
 	mutex_lock(&bdev->mutex);
-	memcpy(&bdev->region_info, &region_configs[region],
-		sizeof(struct region_info));
+	bdev->region_info = region_configs[region];
 	mutex_unlock(&bdev->mutex);
 
 	if (bdev->frequency < region_configs[region].bottom_frequency ||
@@ -2358,7 +2357,7 @@ static int bcm2048_vidioc_queryctrl(struct file *file, void *priv,
 
 	for (i = 0; i < ARRAY_SIZE(bcm2048_v4l2_queryctrl); i++) {
 		if (qc->id && qc->id == bcm2048_v4l2_queryctrl[i].id) {
-			memcpy(qc, &(bcm2048_v4l2_queryctrl[i]), sizeof(*qc));
+			*qc = bcm2048_v4l2_queryctrl[i];
 			return 0;
 		}
 	}
@@ -2630,8 +2629,7 @@ static int bcm2048_i2c_driver_probe(struct i2c_client *client,
 		dev_dbg(&client->dev, "IRQ not configured. Using timeouts.\n");
 	}
 
-	memcpy(bdev->videodev, &bcm2048_viddev_template,
-			sizeof(bcm2048_viddev_template));
+	*bdev->videodev = bcm2048_viddev_template;
 	video_set_drvdata(bdev->videodev, bdev);
 	if (video_register_device(bdev->videodev, VFL_TYPE_RADIO, radio_nr)) {
 		dev_dbg(&client->dev, "Could not register video device.\n");
