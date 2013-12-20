@@ -437,6 +437,7 @@ __mesh_sta_info_alloc(struct ieee80211_sub_if_data *sdata, u8 *hw_addr)
 	sta_info_pre_move_state(sta, IEEE80211_STA_AUTHORIZED);
 
 	set_sta_flag(sta, WLAN_STA_WME);
+	sta->sta.wme = true;
 
 	return sta;
 }
