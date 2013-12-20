@@ -43,7 +43,6 @@ void init_mlme_ap_info(struct adapter *padapter)
 
 void free_mlme_ap_info(struct adapter *padapter)
 {
-	unsigned long irqL;
 	struct sta_info *psta = NULL;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
@@ -275,7 +274,6 @@ static u8 chk_sta_is_alive(struct sta_info *psta)
 
 void	expire_timeout_chk(struct adapter *padapter)
 {
-	unsigned long irqL;
 	struct list_head *phead, *plist;
 	u8 updated = 0;
 	struct sta_info *psta = NULL;
@@ -533,7 +531,6 @@ void add_RATid(struct adapter *padapter, struct sta_info *psta, u8 rssi_level)
 
 static void update_bmc_sta(struct adapter *padapter)
 {
-	unsigned long	irqL;
 	u32 init_rate = 0;
 	unsigned char	network_type, raid;
 	int i, supportRateNum = 0;
@@ -620,7 +617,6 @@ static void update_bmc_sta(struct adapter *padapter)
 
 void update_sta_info_apmode(struct adapter *padapter, struct sta_info *psta)
 {
-	unsigned long	irqL;
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	struct mlme_ext_priv	*pmlmeext = &(padapter->mlmeextpriv);
@@ -1132,7 +1128,6 @@ void rtw_set_macaddr_acl(struct adapter *padapter, int mode)
 
 int rtw_acl_add_sta(struct adapter *padapter, u8 *addr)
 {
-	unsigned long irqL;
 	struct list_head *plist, *phead;
 	u8 added = false;
 	int i, ret = 0;
@@ -1198,7 +1193,6 @@ int rtw_acl_add_sta(struct adapter *padapter, u8 *addr)
 
 int rtw_acl_remove_sta(struct adapter *padapter, u8 *addr)
 {
-	unsigned long irqL;
 	struct list_head *plist, *phead;
 	int ret = 0;
 	struct rtw_wlan_acl_node *paclnode;
@@ -1371,7 +1365,6 @@ static void update_bcn_vendor_spec_ie(struct adapter *padapter, u8 *oui)
 
 void update_beacon(struct adapter *padapter, u8 ie_id, u8 *oui, u8 tx)
 {
-	unsigned long irqL;
 	struct mlme_priv *pmlmepriv;
 	struct mlme_ext_priv	*pmlmeext;
 
@@ -1503,7 +1496,6 @@ void associated_clients_update(struct adapter *padapter, u8 updated)
 {
 	/* update associcated stations cap. */
 	if (updated) {
-		unsigned long irqL;
 		struct list_head *phead, *plist;
 		struct sta_info *psta = NULL;
 		struct sta_priv *pstapriv = &padapter->stapriv;
@@ -1729,7 +1721,6 @@ u8 bss_cap_update_on_sta_leave(struct adapter *padapter, struct sta_info *psta)
 u8 ap_free_sta(struct adapter *padapter, struct sta_info *psta,
 	       bool active, u16 reason)
 {
-	unsigned long irqL;
 	u8 beacon_updated = false;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 
@@ -1770,7 +1761,6 @@ u8 ap_free_sta(struct adapter *padapter, struct sta_info *psta,
 
 int rtw_ap_inform_ch_switch(struct adapter *padapter, u8 new_ch, u8 ch_offset)
 {
-	unsigned long irqL;
 	struct list_head *phead, *plist;
 	int ret = 0;
 	struct sta_info *psta = NULL;
@@ -1806,7 +1796,6 @@ int rtw_ap_inform_ch_switch(struct adapter *padapter, u8 new_ch, u8 ch_offset)
 
 int rtw_sta_flush(struct adapter *padapter)
 {
-	unsigned long irqL;
 	struct list_head *phead, *plist;
 	int ret = 0;
 	struct sta_info *psta = NULL;
@@ -1933,7 +1922,6 @@ void start_ap_mode(struct adapter *padapter)
 
 void stop_ap_mode(struct adapter *padapter)
 {
-	unsigned long irqL;
 	struct list_head *phead, *plist;
 	struct rtw_wlan_acl_node *paclnode;
 	struct sta_info *psta = NULL;

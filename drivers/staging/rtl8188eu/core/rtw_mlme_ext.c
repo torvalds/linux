@@ -756,7 +756,6 @@ _END_ONBEACON_:
 unsigned int OnAuth(struct adapter *padapter, union recv_frame *precv_frame)
 {
 #ifdef CONFIG_88EU_AP_MODE
-	unsigned long irqL;
 	unsigned int	auth_mode, ie_len;
 	u16 seq;
 	unsigned char	*sa, *p;
@@ -1005,7 +1004,6 @@ authclnt_fail:
 unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 {
 #ifdef CONFIG_88EU_AP_MODE
-	unsigned long irqL;
 	u16 capab_info;
 	struct rtw_ieee802_11_elems elems;
 	struct sta_info	*pstat;
@@ -1590,7 +1588,6 @@ unsigned int OnDeAuth(struct adapter *padapter, union recv_frame *precv_frame)
 
 #ifdef CONFIG_88EU_AP_MODE
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
-		unsigned long irqL;
 		struct sta_info *psta;
 		struct sta_priv *pstapriv = &padapter->stapriv;
 
@@ -1654,7 +1651,6 @@ unsigned int OnDisassoc(struct adapter *padapter, union recv_frame *precv_frame)
 
 #ifdef CONFIG_88EU_AP_MODE
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
-		unsigned long irqL;
 		struct sta_info *psta;
 		struct sta_priv *pstapriv = &padapter->stapriv;
 
@@ -4483,9 +4479,6 @@ void issue_beacon(struct adapter *padapter, int timeout_ms)
 	__le16 *fctrl;
 	unsigned int	rate_len;
 	struct xmit_priv	*pxmitpriv = &(padapter->xmitpriv);
-#if defined(CONFIG_88EU_AP_MODE)
-	unsigned long irqL;
-#endif /* if defined (CONFIG_88EU_AP_MODE) */
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 	struct mlme_ext_priv	*pmlmeext = &(padapter->mlmeextpriv);
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
@@ -8360,7 +8353,6 @@ u8 tx_beacon_hdl(struct adapter *padapter, unsigned char *pbuf)
 	}
 #ifdef CONFIG_88EU_AP_MODE
 	else { /* tx bc/mc frames after update TIM */
-		unsigned long irqL;
 		struct sta_info *psta_bmc;
 		struct list_head *xmitframe_plist, *xmitframe_phead;
 		struct xmit_frame *pxmitframe = NULL;

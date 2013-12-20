@@ -1092,7 +1092,6 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 		}
 
 		if ((psta->state&WIFI_SLEEP_STATE) && (pstapriv->sta_dz_bitmap&BIT(psta->aid))) {
-			unsigned long irqL;
 			struct list_head *xmitframe_plist, *xmitframe_phead;
 			struct xmit_frame *pxmitframe = NULL;
 

@@ -1651,7 +1651,6 @@ _func_exit_;
  */
 s32 rtw_xmit_classifier(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {
-	/* unsigned long irql0; */
 	u8	ac_index;
 	struct sta_info	*psta;
 	struct tx_servq	*ptxservq;
@@ -1912,9 +1911,6 @@ static void do_queue_select(struct adapter	*padapter, struct pkt_attrib *pattrib
  */
 s32 rtw_xmit(struct adapter *padapter, struct sk_buff **ppkt)
 {
-#ifdef CONFIG_88EU_AP_MODE
-	unsigned long irql0;
-#endif
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct xmit_frame *pxmitframe = NULL;
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
@@ -1972,7 +1968,6 @@ s32 rtw_xmit(struct adapter *padapter, struct sk_buff **ppkt)
 
 int xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {
-	unsigned long irql;
 	int ret = false;
 	struct sta_info *psta = NULL;
 	struct sta_priv *pstapriv = &padapter->stapriv;
@@ -2103,7 +2098,6 @@ static void dequeue_xmitframes_to_sleeping_queue(struct adapter *padapter, struc
 
 void stop_sta_xmit(struct adapter *padapter, struct sta_info *psta)
 {
-	unsigned long irql0;
 	struct sta_info *psta_bmc;
 	struct sta_xmit_priv *pstaxmitpriv;
 	struct sta_priv *pstapriv = &padapter->stapriv;
@@ -2142,7 +2136,6 @@ void stop_sta_xmit(struct adapter *padapter, struct sta_info *psta)
 
 void wakeup_sta_to_xmit(struct adapter *padapter, struct sta_info *psta)
 {
-	unsigned long irql;
 	u8 update_mask = 0, wmmps_ac = 0;
 	struct sta_info *psta_bmc;
 	struct list_head *xmitframe_plist, *xmitframe_phead;
@@ -2272,7 +2265,6 @@ void wakeup_sta_to_xmit(struct adapter *padapter, struct sta_info *psta)
 
 void xmit_delivery_enabled_frames(struct adapter *padapter, struct sta_info *psta)
 {
-	unsigned long irql;
 	u8 wmmps_ac = 0;
 	struct list_head *xmitframe_plist, *xmitframe_phead;
 	struct xmit_frame *pxmitframe = NULL;

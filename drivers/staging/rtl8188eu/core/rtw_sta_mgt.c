@@ -173,9 +173,6 @@ _func_exit_;
 
 static void rtw_mfree_sta_priv_lock(struct sta_priv *pstapriv)
 {
-#ifdef CONFIG_88EU_AP_MODE
-	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
-#endif
 	 rtw_mfree_all_stainfo(pstapriv); /* be done before free sta_hash_lock */
 }
 
@@ -555,7 +552,6 @@ u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr)
 {
 	u8 res = true;
 #ifdef CONFIG_88EU_AP_MODE
-	unsigned long irql;
 	struct list_head *plist, *phead;
 	struct rtw_wlan_acl_node *paclnode;
 	u8 match = false;
