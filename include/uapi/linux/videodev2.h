@@ -649,7 +649,6 @@ struct v4l2_plane {
  * @length:	size in bytes of the buffer (NOT its payload) for single-plane
  *		buffers (when type != *_MPLANE); number of elements in the
  *		planes array for multi-plane buffers
- * @input:	input number from which the video data has has been captured
  *
  * Contains data exchanged by application and driver using one of the Streaming
  * I/O methods.
