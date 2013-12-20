@@ -33,9 +33,9 @@
 #define ReadEF2Byte(_ptr)		EF2Byte(*((u16 *)(_ptr)))
 #define ReadEF4Byte(_ptr)		EF4Byte(*((u32 *)(_ptr)))
 
-#define WriteEF1Byte(_ptr, _val)	(*((u8 *)(_ptr))) = EF1Byte(_val)
-#define WriteEF2Byte(_ptr, _val)	(*((u16 *)(_ptr))) = EF2Byte(_val)
-#define WriteEF4Byte(_ptr, _val)	(*((u32 *)(_ptr))) = EF4Byte(_val)
+#define WriteEF1Byte(_ptr, _val)	((*((u8 *)(_ptr))) = EF1Byte(_val))
+#define WriteEF2Byte(_ptr, _val)	((*((u16 *)(_ptr))) = EF2Byte(_val))
+#define WriteEF4Byte(_ptr, _val)	((*((u32 *)(_ptr))) = EF4Byte(_val))
 #if BYTE_ORDER == __MACHINE_LITTLE_ENDIAN
 #define H2N1BYTE(_val)	((u8)(_val))
 #define H2N2BYTE(_val)	(((((u16)(_val))&0x00ff)<<8)|\
