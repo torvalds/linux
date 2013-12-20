@@ -648,6 +648,16 @@ config I2C_PXA_SLAVE
 	  is necessary for systems where the PXA may be a target on the
 	  I2C bus.
 
+config I2C_RIIC
+	tristate "Renesas RIIC adapter"
+	depends on ARCH_SHMOBILE || COMPILE_TEST
+	help
+	  If you say yes to this option, support will be included for the
+	  Renesas RIIC I2C interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-riic.
+
 config HAVE_S3C2410_I2C
 	bool
 	help
