@@ -190,15 +190,16 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 
 int jffs2_setattr(struct dentry *dentry, struct iattr *iattr)
 {
+	struct inode *inode = dentry->d_inode;
 	int rc;
 
-	rc = inode_change_ok(dentry->d_inode, iattr);
+	rc = inode_change_ok(inode, iattr);
 	if (rc)
 		return rc;
 
-	rc = jffs2_do_setattr(dentry->d_inode, iattr);
+	rc = jffs2_do_setattr(inode, iattr);
 	if (!rc && (iattr->ia_valid & ATTR_MODE))
-		rc = jffs2_acl_chmod(dentry->d_inode);
+		rc = posix_acl_chmod(inode, inode->i_mode);
 
 	return rc;
 }
