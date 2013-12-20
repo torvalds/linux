@@ -56,7 +56,7 @@ int InterfaceIdleModeRespond(struct bcm_mini_adapter *Adapter,
 	int bytes;
 
 	if (ntohl(*puiBuffer) == GO_TO_IDLE_MODE_PAYLOAD) {
-		if (ntohl(*(puiBuffer+1)) == 0 ) {
+		if (ntohl(*(puiBuffer+1)) == 0) {
 
 			status = wrmalt (Adapter, SW_ABORT_IDLEMODE_LOC,
 					&uiRegRead, sizeof(uiRegRead));
@@ -196,7 +196,7 @@ static int InterfaceAbortIdlemode(struct bcm_mini_adapter *Adapter,
 		/* mdelay(25); */
 
 		timeout = jiffies +  msecs_to_jiffies(50) ;
-		while ( timeout > jiffies ) {
+		while (time_after(timeout, jiffies)) {
 			itr++ ;
 			rdmalt(Adapter, CHIP_ID_REG, &chip_id, sizeof(UINT));
 			if (0xbece3200 == (chip_id&~(0xF0)))
@@ -204,7 +204,7 @@ static int InterfaceAbortIdlemode(struct bcm_mini_adapter *Adapter,
 			if (chip_id == Adapter->chip_id)
 				break;
 		}
-		if ( timeout < jiffies )
+		if (time_before(timeout, jiffies))
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
 				IDLE_MODE, DBG_LVL_ALL,
 				"Not able to read chip-id even after 25 msec");
