@@ -357,7 +357,7 @@ int otg_statemachine(struct otg_fsm *fsm)
 	default:
 		break;
 	}
-	mutex_lock(&fsm->lock);
+	mutex_unlock(&fsm->lock);
 
 	VDBG("quit statemachine, changed = %d\n", state_changed);
 	return state_changed;
